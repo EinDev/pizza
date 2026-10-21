@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::io::BufRead;
 
-use wasmi::{Caller, Config, Engine, Extern, ExternType, Linker, Module, Store};
+use wasmi::{Caller, Config, Engine, Extern, Linker, Module, Store};
 
 use crate::ereignis::{Ereignis, Senke};
 
@@ -67,6 +67,8 @@ pub fn zeilen(inhalt: &str) -> Vec<String> {
 struct Zustand {
     senke: Senke,
     quelle: Quelle,
+    /// Gelesene, aber noch nicht abgeholte Zeile (Puffer war zu klein, K-013).
+    wartend: Option<String>,
     /// Gesetzt, wenn `panik` gemeldet wurde und der Host abgebrochen hat.
     panik: bool,
 }
@@ -132,21 +134,34 @@ fn pos(x: i32) -> Option<i32> {
 
 const ARTEN: [&str; 4] = ["syntax", "pizzafehler", "ananas", "limit"];
 
-/// Fehler vor dem Start (Modul ungültig, falsche ABI): Meldung nach stderr bzw. als `fehler`-Ereignis, Exit 2.
-fn ladefehler(senke: &mut Senke, meldung: String) -> i32 {
-    match senke {
-        Senke::Konsole { .. } => eprintln!("pizza-host: {}", meldung),
-        _ => {
-            senke.sende(Ereignis::Fehler {
-                code: "LaufzeitAnanas".into(),
-                art: "ananas".into(),
-                text: format!("Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: {}", meldung),
-                zeile: None,
-                spalte: None,
-            });
-            senke.sende(Ereignis::Ende { exit_code: 2, schritte: 0.0, zeit_ms: 0.0 });
-        }
+/// Fester Text interner Fehler eines laufenden Programms (K-014).
+pub const INTERNER_FEHLER: &str = "Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.";
+
+/// Gültige Exit-Codes (SPEC §12, K-046).
+const EXIT_CODES: [i32; 5] = [0, 1, 2, 3, 39];
+
+fn interner_fehler(detail: String) -> Ereignis {
+    Ereignis::Fehler {
+        code: "LaufzeitAnanas".into(),
+        art: "ananas".into(),
+        text: INTERNER_FEHLER.into(),
+        zeile: None,
+        spalte: None,
+        detail: Some(detail),
     }
+}
+
+/// Ladefehler vor dem Start (Modul ungültig, falsche ABI-Version …): K-043 – `code HOST`, `art intern`, Exit 2.
+fn ladefehler(senke: &mut Senke, grund: String) -> i32 {
+    senke.sende(Ereignis::Fehler {
+        code: "HOST".into(),
+        art: "intern".into(),
+        text: format!("PizzaFehler HOST: {}", grund),
+        zeile: None,
+        spalte: None,
+        detail: None,
+    });
+    senke.sende(Ereignis::Ende { exit_code: 2, schritte: 0.0, zeit_ms: 0.0 });
     2
 }
 
@@ -161,7 +176,7 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], opt: &Optionen, senke: &mut S
         Some(z) => Quelle::Zeilen(z.iter().cloned().collect()),
         None => Quelle::Stdin { eof: false },
     };
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, panik: false };
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, panik: false };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -173,18 +188,10 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
     // Nicht importierte Host-Funktionen stören nicht; fehlende Imports melden wir klar.
     linker.allow_shadowing(true);
     let r = (|| -> Result<(), wasmi::errors::LinkerError> {
-        // `ausgabe` gibt es als (ptr,len) [ABI v1] oder mit Umbruch-Flag (ptr,len,umbruch) [EINGABE.md §4].
-        if import_params(module, "ausgabe") == Some(3) {
-            linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32, umbruch: i32| {
-                let t = text(&c, p, n);
-                c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: umbruch != 0 });
-            })?;
-        } else {
-            linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
-                let t = text(&c, p, n);
-                c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: true });
-            })?;
-        }
+        linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
+            let t = text(&c, p, n);
+            c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: true });
+        })?;
         linker.func_wrap("pizza", "schreibe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
             let t = text(&c, p, n);
             c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: false });
@@ -196,23 +203,28 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
             "pizza",
             "eingabe",
             |mut c: Caller<'_, Zustand>, _art: i32, _pp: i32, _pn: i32, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> {
-                // Der Prompt wurde vom Modul bereits als `ausgabe` (ohne Umbruch) gemeldet – hier nur Info.
-                let zeile = c.data_mut().quelle.naechste();
+                // K-011: Der Prompt wurde vom Modul bereits per `schreibe` ausgegeben – hier nur Info.
+                let d = c.data_mut();
+                let zeile = match d.wartend.take() {
+                    Some(z) => Some(z),
+                    None => d.quelle.naechste(),
+                };
                 let Some(zeile) = zeile else {
                     c.data_mut().senke.sende(Ereignis::Eingabe { text: None });
                     return Ok(-1);
                 };
-                // Zu lange Zeilen abschneiden (an UTF-8-Grenze), Rest verwerfen.
-                let kap = kap.max(0) as usize;
-                let mut n = zeile.len().min(kap);
-                while !zeile.is_char_boundary(n) {
-                    n -= 1;
+                // K-013: Passt die Zeile nicht in den Puffer, nichts schreiben, Zeile behalten und die
+                // benötigte Länge melden – das Modul ruft mit größerem Puffer erneut.
+                let n = zeile.len();
+                if n > kap.max(0) as usize {
+                    c.data_mut().wartend = Some(zeile);
+                    return Ok(n as i32);
                 }
                 let Some(Extern::Memory(mem)) = c.get_export("memory") else {
                     return Err(wasmi::Error::new("Export 'memory' fehlt"));
                 };
-                mem.write(&mut c, puffer as u32 as usize, &zeile.as_bytes()[..n])?;
-                c.data_mut().senke.sende(Ereignis::Eingabe { text: Some(zeile[..n].to_string()) });
+                mem.write(&mut c, puffer as u32 as usize, zeile.as_bytes())?;
+                c.data_mut().senke.sende(Ereignis::Eingabe { text: Some(zeile) });
                 Ok(n as i32)
             },
         )?;
@@ -236,7 +248,7 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
                 let code = text(&c, cp, cn);
                 let t = text(&c, tp, tn);
                 let art = ARTEN.get(art as usize).copied().unwrap_or("ananas").to_string();
-                c.data_mut().senke.sende(Ereignis::Fehler { code, art, text: t, zeile: pos(z), spalte: pos(s) });
+                c.data_mut().senke.sende(Ereignis::Fehler { code, art, text: t, zeile: pos(z), spalte: pos(s), detail: None });
             },
         )?;
         linker.func_wrap("pizza", "panik", |mut c: Caller<'_, Zustand>, p: i32, n: i32| -> Result<(), wasmi::Error> {
@@ -314,28 +326,21 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         Ok(c) => c,
         Err(_) if store.data().panik => 39,
         Err(e) => {
-            store.data_mut().senke.sende(Ereignis::Fehler {
-                code: "LaufzeitAnanas".into(),
-                art: "ananas".into(),
-                text: format!("Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: {}", trap_text(&e)),
-                zeile: None,
-                spalte: None,
-            });
+            store.data_mut().senke.sende(interner_fehler(trap_text(&e)));
             1
         }
+    };
+    // K-046: nur 0, 1, 2, 3, 39 sind gültig – alles andere ist ein interner Fehler.
+    let exit_code = if EXIT_CODES.contains(&exit_code) {
+        exit_code
+    } else {
+        store.data_mut().senke.sende(interner_fehler(format!("ungültiger Exit-Code {} vom Modul", exit_code)));
+        1
     };
     let schritte = schritte_f.and_then(|f| f.call(&mut *store, ()).ok()).unwrap_or(0.0);
     let zeit_ms = zeit_f.and_then(|f| f.call(&mut *store, ()).ok()).unwrap_or(0.0);
     store.data_mut().senke.sende(Ereignis::Ende { exit_code, schritte, zeit_ms });
     exit_code
-}
-
-/// Anzahl Parameter des Imports `pizza.<name>`, falls das Modul ihn importiert.
-fn import_params(module: &Module, name: &str) -> Option<usize> {
-    module.imports().find(|i| i.module() == "pizza" && i.name() == name).and_then(|i| match i.ty() {
-        ExternType::Func(f) => Some(f.params().len()),
-        _ => None,
-    })
 }
 
 fn trap_text(e: &wasmi::Error) -> String {

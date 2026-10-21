@@ -30,8 +30,13 @@ pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] program
 | `eingabe` | kein Echo (das macht das Terminal) |
 
 - Farbe nur bei TTY und ohne `NO_COLOR` (wie `bin/pizza.js`).
-- Exit-Code = Exit-Code des Programms (SPEC §12: 0, 1, 2, 3, 39). Lade-/Formatfehler → 2.
-- Eingabe (`Bestellannahme.lies()` …): zeilenweise von **stdin**, EOF → `karton`. Mit `--eingabe datei`
+- Exit-Code = Exit-Code des Programms (SPEC §12: 0, 1, 2, 3, 39). Liefert ein Modul einen anderen Code oder trappt es,
+  meldet der Host `LaufzeitAnanas` mit dem festen Text `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.`
+  und der wasmi-Meldung im Feld `detail` (K-014/K-046), Exit 1.
+- Ladefehler (kein gültiges `.pkarton`, falsche ABI-Version): `{typ:"fehler", code:"HOST", art:"intern", text:"PizzaFehler HOST: …"}`, Exit 2 (K-043).
+- Eingabe (`Bestellannahme.lies()` …): zeilenweise von **stdin**, EOF → `karton` (endgültig). Den Prompt gibt das Modul
+  selbst per `schreibe` aus (K-011). Lange Zeilen werden nie gekürzt: passt eine Zeile nicht in `puffer_kap`, liefert
+  `eingabe` die benötigte Länge, schreibt nichts und hält die Zeile für den nächsten Aufruf bereit (K-013). Mit `--eingabe datei`
   kommen die Zeilen aus der Datei (danach EOF) – für Tests.
 - `--ereignisse-json`: jedes Ereignis als JSON-Zeile auf stdout, gleiches Schema wie `PizzaLang.run`
   (ARCHITEKTUR §1, EINGABE.md §2), zuletzt `{"typ":"ende","exitCode":…,"schritte":…,"zeitMs":…}`.
@@ -112,5 +117,4 @@ wasmi ohne `wat`/`memory64`. Größen: Windows-msvc 1,1 MB, Windows-gnu 1,3 MB, 
 | `tests/demo.pkarton` | kleines Test-Modul (aus `tests/exe.rs`, `--ignored fixture`) |
 
 wasmi-Konfiguration nach HOST-ABI §6: Rekursionstiefe 65 536 Wasm-Aufrufe, Wert-Stapel bis 64 MiB.
-Imports, die ein Modul nicht nutzt, schaden nicht; `ausgabe` wird mit 2 Parametern (ABI v1) oder mit
-Umbruch-Flag (3 Parameter) angeboten – je nachdem, was das Modul importiert.
+Imports, die ein Modul nicht nutzt, schaden nicht. JSON-Zahlen werden wie JS `String(x)` formatiert (`1e+21`, `1e-7`).

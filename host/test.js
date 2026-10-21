@@ -65,6 +65,7 @@ function norm(e) {
   const o = {};
   for (const k of Object.keys(e).sort()) {
     if (k === 'umbruch' && e[k] !== false) continue;
+    if (k === 'detail') continue; // K-014: motorspezifisch, nicht vergleichen
     o[k] = e[k] === undefined ? null : e[k];
   }
   return o;

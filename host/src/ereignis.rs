@@ -11,7 +11,8 @@ pub enum Ereignis {
     Leeren,
     Fehlerausgabe { text: String },
     Warnung { code: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
-    Fehler { code: String, art: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
+    /// `detail`: optionale motorspezifische Einzelheiten (K-014), nicht Teil des Vergleichs.
+    Fehler { code: String, art: String, text: String, zeile: Option<i32>, spalte: Option<i32>, detail: Option<String> },
     Panik { text: String },
     Ende { exit_code: i32, schritte: f64, zeit_ms: f64 },
 }
@@ -44,14 +45,79 @@ fn json_opt(v: Option<i32>) -> String {
     }
 }
 
-/// Zahl wie JS `String(x)` für die in `ende` vorkommenden (ganzzahligen) Werte.
+/// Zahl wie JS `String(x)` (ECMAScript Number::toString, kürzeste Rundreise-Darstellung):
+/// `1e+21`, `1e-7`, `-0` → `0`, `0.30000000000000004`. In JSON werden NaN/±Infinity zu `null` (wie `JSON.stringify`).
+pub fn js_zahl(x: f64) -> String {
+    if x.is_nan() {
+        return "NaN".into();
+    }
+    if x == 0.0 {
+        return "0".into();
+    }
+    if x.is_infinite() {
+        return if x > 0.0 { "Infinity".into() } else { "-Infinity".into() };
+    }
+    let vorzeichen = if x < 0.0 { "-" } else { "" };
+    // Rust liefert mit {:e} die kürzesten Ziffern, die eindeutig zurückführen: "d.ddde±x".
+    let e = format!("{:e}", x.abs());
+    let (mantisse, exp) = e.split_once('e').unwrap_or((&e, "0"));
+    let ziffern: String = mantisse.chars().filter(|c| c.is_ascii_digit()).collect();
+    let k = ziffern.len() as i32;
+    let n = exp.parse::<i32>().unwrap_or(0) + 1;
+    let rumpf = if k <= n && n <= 21 {
+        format!("{}{}", ziffern, "0".repeat((n - k) as usize))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &ziffern[..n as usize], &ziffern[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{}", "0".repeat((-n) as usize), ziffern)
+    } else {
+        let e = n - 1;
+        let es = if e >= 0 { format!("+{}", e) } else { e.to_string() };
+        if k == 1 {
+            format!("{}e{}", ziffern, es)
+        } else {
+            format!("{}.{}e{}", &ziffern[..1], &ziffern[1..], es)
+        }
+    };
+    format!("{}{}", vorzeichen, rumpf)
+}
+
+/// Zahl als JSON-Wert wie `JSON.stringify`.
 pub fn json_zahl(x: f64) -> String {
-    if x.is_finite() && x.fract() == 0.0 && x.abs() < 1e21 {
-        format!("{}", x as i64)
-    } else if x.is_finite() {
-        format!("{}", x)
+    if x.is_finite() {
+        js_zahl(x)
     } else {
         "null".into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::js_zahl;
+
+    #[test]
+    fn zahlen_wie_js() {
+        let faelle: [(f64, &str); 16] = [
+            (0.0, "0"),
+            (-0.0, "0"),
+            (160.0, "160"),
+            (-3.0, "-3"),
+            (0.1 + 0.2, "0.30000000000000004"),
+            (1e21, "1e+21"),
+            (1e20, "100000000000000000000"),
+            (123456789012345680000.0, "123456789012345680000"),
+            (1e-7, "1e-7"),
+            (1.5e-7, "1.5e-7"),
+            (0.000001, "0.000001"),
+            (10.5, "10.5"),
+            (1.7976931348623157e308, "1.7976931348623157e+308"),
+            (5e-324, "5e-324"),
+            (f64::NAN, "NaN"),
+            (f64::NEG_INFINITY, "-Infinity"),
+        ];
+        for (x, s) in faelle {
+            assert_eq!(js_zahl(x), s, "{:?}", x);
+        }
     }
 }
 
@@ -77,13 +143,17 @@ impl Ereignis {
                 json_opt(*zeile),
                 json_opt(*spalte)
             ),
-            Ereignis::Fehler { code, art, text, zeile, spalte } => format!(
-                "{{\"typ\":\"fehler\",\"code\":{},\"art\":{},\"text\":{},\"zeile\":{},\"spalte\":{}}}",
+            Ereignis::Fehler { code, art, text, zeile, spalte, detail } => format!(
+                "{{\"typ\":\"fehler\",\"code\":{},\"art\":{},\"text\":{},\"zeile\":{},\"spalte\":{}{}}}",
                 json_text(code),
                 json_text(art),
                 json_text(text),
                 json_opt(*zeile),
-                json_opt(*spalte)
+                json_opt(*spalte),
+                match detail {
+                    Some(d) => format!(",\"detail\":{}", json_text(d)),
+                    None => String::new(),
+                }
             ),
             Ereignis::Panik { text } => format!("{{\"typ\":\"panik\",\"text\":{}}}", json_text(text)),
             Ereignis::Ende { exit_code, schritte, zeit_ms } => format!(
