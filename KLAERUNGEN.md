@@ -810,7 +810,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      für k = 1 und widersprach D3 („Stücke > k: keine Schritte“ – also zählen Stücke ≤ k). Jetzt: beide Brigade-Fälle sind die
      Ausnahme; `schritte` ist immer Arbeit, die Uhr Zeit (D6). Referenz: Limit 100, `[1, 2].brigade(x -> { falls (x == 2)
      { solange (ja) { } } serviere (x); });` → schritte 107, zeitMs 101 (S₀ = 6, s₁ = 6, R = 94). Position des Stück-P0002 wie
-     bei `belege` (dasselbe Programm mit `belege` meldet dieselbe Zeile; der Prüfstand prüft für P0002 keine Zeile).
+     bei `belege` (dasselbe Programm mit `belege` meldet dieselbe Zeile – die der Anweisung mit dem Aufruf, nicht die der
+     Schleife in der Küche; D3 entsprechend präzisiert, Prüfstand prüft `zeile: 1`).
   3. **`neu Zutat()` in der Küche** → `RohlingAnanas: Ein Rohling ist nicht essbar.` (nicht der S4-Text). S4 betrifft nur
      Operationen, die in der Hauptküche gelingen würden; eine abstrakte Klasse ist nirgends instanziierbar, der Fehler ist
      ortsunabhängig (sequentiell identisch).

@@ -450,7 +450,7 @@ Bote.sage((Uhr.jetzt()));
     falls (x == 2) { solange (ja) { } }
     serviere (x);
 });
-`, { schrittLimit: 100, exit: 3, out: [], fehler: { code: "P0002", art: "limit" }, check: uhr(107, 101) }),
+`, { schrittLimit: 100, exit: 3, out: [], fehler: { code: "P0002", art: "limit", zeile: 1 }, check: uhr(107, 101) }),
 
   F(K, "D7: Summe der Stücke über dem Limit → P0002 am brigade-Aufruf, schritte = tatsächliche Summe", P`
 Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x * x * x);

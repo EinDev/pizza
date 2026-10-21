@@ -1198,7 +1198,8 @@ vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), akt
   - Der Abbruch wird in der Hauptküche **am `brigade`-Aufruf** fortgesetzt: eine Ananas (kopiert nach §17.5, mit ihrer
     ursprünglichen Zeile/Spalte) wird dort geworfen und ist mit `probier`/`verbrannt` um den Aufruf fangbar; Budget-Abbrüche
     greifen wie in §14.2 (äußerster überschrittener Rahmen); P0002, PizzaFehler und Panik beenden das Programm wie gewohnt
-    (das `fehler`- bzw. `panik`-Ereignis trägt Text und Zeile aus der Küche). Ist der geworfene Wert nicht kartonfähig, gilt §17.5.
+    (PizzaFehler und Panik: das `fehler`- bzw. `panik`-Ereignis trägt Text und Zeile aus der Küche; P0002: Position wie bei
+    `belege`, D7). Ist der geworfene Wert nicht kartonfähig, gilt §17.5.
   - Hosts dürfen Stücke > k abbrechen, sobald k feststeht und alle Stücke < k fertig sind (Optimierung, unbeobachtbar).
 - **D4 – Ereignisse.** `ausgabe`/`fehlerausgabe`/`leeren`/`warnung` eines Stücks werden in der Küche gepuffert und beim
   Zusammenführen in Stückreihenfolge **vor** der Rückkehr des `brigade`-Aufrufs ausgegeben; innerhalb eines Stücks in
