@@ -2,7 +2,22 @@
 
 const ZEITLIMIT_MS = 10_000;
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik }) {
+/** Einmaliger Auftrag an einen eigenen Worker (Kompilieren, Fähigkeiten prüfen). */
+export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
+  return new Promise((resolve) => {
+    let w;
+    try { w = new Worker("js/worker.js"); } catch (e) { resolve({ ok: false, grund: "Web Worker nicht verfügbar" }); return; }
+    const t = setTimeout(() => { w.terminate(); resolve({ ok: false, grund: "Zeitlimit überschritten" }); }, zeitlimit);
+    w.onmessage = (m) => {
+      if (!m.data || m.data.typ !== antwortTyp) return;
+      clearTimeout(t); w.terminate(); resolve(m.data);
+    };
+    w.onerror = (e) => { e.preventDefault && e.preventDefault(); clearTimeout(t); w.terminate(); resolve({ ok: false, grund: e.message || "Fehler im Worker" }); };
+    w.postMessage(nachricht);
+  });
+}
+
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor }) {
   let worker = null, timer = null, start = 0, laufId = 0;
 
   function aufraeumen() {
@@ -33,15 +48,16 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik }
       return;
     }
     if (ev.typ === "ende") {
-      beende(id, { exitCode: ev.exitCode, schritte: ev.schritte, zeitMs: ev.zeitMs });
+      beende(id, { exitCode: ev.exitCode, schritte: ev.schritte, zeitMs: ev.zeitMs, laufMs: ev.laufMs, motor: ev.motor });
       return;
     }
+    if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
     beiEreignis(ev);
   }
 
   return {
     get laeuft() { return worker !== null; },
-    starte(code, args = []) {
+    starte(code, args = [], motor = "auto") {
       aufraeumen();
       const id = ++laufId;
       start = performance.now();
@@ -63,7 +79,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik }
         beiEreignis({ typ: "fehler", art: "limit", code: "P0002", text: "Die Pizza ist noch im Ofen (Zeitlimit von 10 s erreicht).", zeile: null, spalte: null });
         beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
       }, ZEITLIMIT_MS);
-      worker.postMessage({ typ: "start", code, args });
+      worker.postMessage({ typ: "start", code, args, motor });
     },
     abbrechen() {
       if (!worker) return;

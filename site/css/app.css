@@ -888,3 +888,63 @@ body.hawaii-aktiv > :not(.hawaii):not(script) { filter: blur(2px) saturate(.6); 
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; animation-iteration-count: 1 !important; }
   .spinner { animation-duration: 1.6s !important; animation-iteration-count: infinite !important; }
 }
+
+/* ---------------- Motor, .pkarton, Teilen ---------------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.knopf:disabled { opacity: .55; cursor: progress; }
+.motor-wahl {
+  position: relative; display: inline-flex; align-items: center; height: 30px; margin-left: 4px;
+  border: 1px solid var(--rand); border-radius: 8px; background: var(--flaeche); color: var(--text-2);
+  transition: border-color .15s;
+}
+.motor-wahl:hover { border-color: var(--rand-stark); }
+.motor-wahl:focus-within { border-color: var(--akzent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 18%, transparent); }
+.motor-wahl svg { position: absolute; left: 8px; width: 14px; height: 14px; fill: var(--hawaii); stroke: color-mix(in srgb, var(--hawaii) 60%, var(--text)); stroke-width: 1.2; stroke-linejoin: round; pointer-events: none; }
+.motor-wahl select {
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent; height: 100%;
+  padding: 0 26px 0 27px; font-size: 12.5px; font-weight: 550; color: var(--text); cursor: pointer; outline: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat;
+}
+.motor-wahl select option { color: #222; background: #fff; }
+.motor-badge {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; flex: 0 1 auto; min-width: 0;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;
+  border: 1px solid var(--rand); color: var(--text-2); background: var(--flaeche-2);
+}
+.motor-badge.wasm { color: color-mix(in srgb, var(--hawaii) 55%, var(--text)); border-color: color-mix(in srgb, var(--hawaii) 45%, transparent); background: color-mix(in srgb, var(--hawaii) 12%, var(--flaeche)); }
+.motor-badge.fallback { border-style: dashed; }
+.dialog-klein { font-size: 13px; line-height: 1.7; }
+.dialog code { font: 12px var(--mono); background: var(--flaeche-2); border: 1px solid var(--rand); padding: 1px 5px; border-radius: 4px; color: var(--text); }
+.knopf-link { background: none; color: var(--akzent); padding: 0 4px; font-weight: 550; text-decoration: underline; text-underline-offset: 3px; }
+.knopf-link:hover { text-decoration-thickness: 2px; }
+
+.dialog-teilen { width: min(540px, calc(100vw - 32px)); padding: 20px 20px 16px; }
+.dialog-teilen h2 { margin: 0 0 12px; font-size: 17px; }
+.dialog-teilen .dialog-knoepfe { flex-wrap: wrap; align-items: center; }
+.teilen-warnung {
+  display: flex; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border-radius: var(--radius);
+  background: var(--warn-weich); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); color: var(--text);
+}
+.teilen-warnung svg { flex: none; width: 22px; height: 22px; fill: none; stroke: var(--warn); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; margin-top: 2px; }
+.teilen-warnung p { margin: 0 0 6px; color: var(--text); font-size: 13.5px; line-height: 1.5; }
+.teilen-warnung p:last-child { margin-bottom: 0; }
+.teilen-status { display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+.teilen-link { display: flex; gap: 8px; margin-bottom: 16px; }
+.teilen-link input {
+  flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--rand-stark); background: var(--flaeche-2); font: 12.5px var(--mono); color: var(--text);
+}
+.teilen-link input:focus { outline: none; border-color: var(--akzent); }
+.teilen-fehlertext { color: var(--fehler); }
+.dialog-teilen p { margin: 0 0 14px; }
+
+@media (max-width: 899.98px) {
+  .motor-wahl select { padding: 0 20px 0 26px; max-width: 108px; }
+  .motor-badge { max-width: 150px; }
+}
+@media (max-width: 520px) {
+  .motor-wahl select { width: 32px; padding: 0; color: transparent; background-image: none; }
+  .motor-wahl svg { left: 8px; }
+  .lauf-info { display: none; }
+}

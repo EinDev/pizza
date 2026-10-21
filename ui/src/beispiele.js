@@ -98,6 +98,8 @@ export function erstelleBeispiele({ ladeCode }) {
   function karte(b) {
     const k = el("button", "bsp-karte");
     k.type = "button";
+    k.dataset.testid = "beispiel-karte";
+    k.dataset.id = b.id || "";
     const kopf = el("div", "bsp-kopf");
     kopf.appendChild(el("span", "bsp-titel", b.titel || b.id));
     if (typeof b.exitCode === "number" && b.exitCode !== 0) {

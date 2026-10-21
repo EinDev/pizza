@@ -25,25 +25,38 @@
     </div>
 
     <div class="kopf-mitte">
-      <button type="button" class="knopf knopf-primaer" id="knopf-backen" title="Programm ausführen (Strg+Enter)">
+      <button type="button" class="knopf knopf-primaer" id="knopf-backen" data-testid="backen" title="Programm ausführen (Strg+Enter)">
         <span class="knopf-text">Backen</span><span class="knopf-icon" aria-hidden="true">▶</span>
       </button>
-      <button type="button" class="knopf knopf-abbrechen" id="knopf-abbrechen" hidden title="Lauf abbrechen (Esc)">
+      <button type="button" class="knopf knopf-abbrechen" id="knopf-abbrechen" data-testid="abbrechen" hidden title="Lauf abbrechen (Esc)">
         <span class="spinner" aria-hidden="true"></span><span class="knopf-text">Abbrechen</span>
       </button>
       <span class="kbd-hinweis" aria-hidden="true"><kbd>Strg</kbd><kbd>↵</kbd></span>
+      <label class="motor-wahl" title="Ausführungsmotor: WebAssembly (schnell) oder Interpreter">
+        <span class="sr-only">Motor</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+        <select id="motor-wahl" data-testid="motor-umschalter" aria-label="Ausführungsmotor">
+          <option value="auto">Auto (Wasm)</option>
+          <option value="wasm">Wasm</option>
+          <option value="interpreter">Interpreter</option>
+        </select>
+      </label>
     </div>
 
     <nav class="kopf-aktionen" aria-label="Werkzeuge">
-      <button type="button" class="knopf knopf-geist" id="knopf-teilen" title="Link mit diesem Code kopieren">
+      <button type="button" class="knopf knopf-geist" id="knopf-pkarton" data-testid="pkarton" hidden title="Als .pkarton (WebAssembly) herunterladen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>
+        <span class="knopf-text">.pkarton</span>
+      </button>
+      <button type="button" class="knopf knopf-geist" id="knopf-teilen" data-testid="teilen" title="Code teilen (Hastebin oder Link ohne Server)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>
         <span class="knopf-text">Teilen</span>
       </button>
-      <button type="button" class="knopf knopf-geist knopf-icon-only" id="knopf-thema" aria-label="Dunkles Thema einschalten" title="Hell/Dunkel umschalten">
+      <button type="button" class="knopf knopf-geist knopf-icon-only" id="knopf-thema" data-testid="thema" aria-label="Dunkles Thema einschalten" title="Hell/Dunkel umschalten">
         <svg class="icon-mond" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="icon-sonne" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 1.5v2.5M12 20v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M1.5 12H4M20 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>
       </button>
-      <button type="button" class="knopf knopf-geist" id="knopf-panel" aria-controls="panel" aria-expanded="true" title="Seitenpanel ein-/ausblenden (Strg+B)">
+      <button type="button" class="knopf knopf-geist" id="knopf-panel" data-testid="panel-toggle" aria-controls="panel" aria-expanded="true" title="Seitenpanel ein-/ausblenden (Strg+B)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/></svg>
         <span class="knopf-text">Doku &amp; Beispiele</span>
       </button>
@@ -53,26 +66,27 @@
   <main class="arbeitsbereich" id="arbeitsbereich">
     <section class="werkbank" aria-label="Editor und Konsole">
       <div class="editor-kopf">
-        <div class="editor-tabs" id="editor-tabs"></div>
+        <div class="editor-tabs" id="editor-tabs" data-testid="editor-tabs"></div>
         <span class="editor-status" id="editor-status" aria-live="polite"></span>
       </div>
-      <div class="editor" id="editor"></div>
+      <div class="editor" id="editor" data-testid="editor"></div>
 
       <div class="trenner trenner-h" id="trenner-konsole" role="separator" aria-orientation="horizontal"
            aria-label="Konsolenhöhe ändern" aria-controls="konsole" tabindex="0"></div>
 
-      <section class="konsole" id="konsole" aria-label="Konsole">
+      <section class="konsole" id="konsole" data-testid="konsole" aria-label="Konsole">
         <div class="konsole-kopf">
           <button type="button" class="konsole-toggle" id="konsole-toggle" aria-expanded="true" aria-controls="konsole-inhalt">
             <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
             <span>Konsole</span>
           </button>
-          <span class="exit-badge" id="exit-badge" hidden></span>
-          <span class="lauf-info" id="lauf-info"></span>
+          <span class="exit-badge" id="exit-badge" data-testid="exit-badge" hidden></span>
+          <span class="motor-badge" id="motor-badge" data-testid="motor-badge" hidden></span>
+          <span class="lauf-info" id="lauf-info" data-testid="lauf-info"></span>
           <span class="flex-luecke"></span>
           <button type="button" class="knopf knopf-mini" id="konsole-leeren" title="Konsole leeren">Leeren</button>
         </div>
-        <div class="konsole-inhalt" id="konsole-inhalt" role="log" aria-live="polite" aria-relevant="additions" tabindex="0">
+        <div class="konsole-inhalt" id="konsole-inhalt" data-testid="konsole-ausgabe" role="log" aria-live="polite" aria-relevant="additions" tabindex="0">
           <p class="konsole-leer">Drück <kbd>Strg</kbd> + <kbd>Enter</kbd> oder <strong>Backen</strong>, um dein Programm in den Ofen zu schieben.</p>
         </div>
       </section>
@@ -81,62 +95,117 @@
     <div class="trenner trenner-v" id="trenner-panel" role="separator" aria-orientation="vertical"
          aria-label="Panelbreite ändern" aria-controls="panel" tabindex="0"></div>
 
-    <aside class="panel" id="panel" aria-label="Doku und Beispiele">
+    <aside class="panel" id="panel" data-testid="panel" aria-label="Doku und Beispiele">
       <div class="panel-kopf">
         <div class="tabs" role="tablist" aria-label="Seitenpanel">
-          <button type="button" role="tab" id="tab-doku" aria-controls="tabpanel-doku" aria-selected="true" tabindex="0">Doku</button>
-          <button type="button" role="tab" id="tab-beispiele" aria-controls="tabpanel-beispiele" aria-selected="false" tabindex="-1">Beispiele</button>
+          <button type="button" role="tab" id="tab-doku" data-testid="panel-tab-doku" aria-controls="tabpanel-doku" aria-selected="true" tabindex="0">Doku</button>
+          <button type="button" role="tab" id="tab-beispiele" data-testid="panel-tab-beispiele" aria-controls="tabpanel-beispiele" aria-selected="false" tabindex="-1">Beispiele</button>
         </div>
         <span class="flex-luecke"></span>
-        <button type="button" class="knopf knopf-geist knopf-icon-only" id="knopf-lesemodus" aria-label="Doku im Lesemodus öffnen" title="Lesemodus – Doku groß öffnen">
+        <button type="button" class="knopf knopf-geist knopf-icon-only" id="knopf-lesemodus" data-testid="lesemodus-oeffnen" aria-label="Doku im Lesemodus öffnen" title="Lesemodus – Doku groß öffnen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h5v5M9 20H4v-5M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg>
         </button>
-        <button type="button" class="knopf knopf-geist knopf-icon-only" id="panel-schliessen" aria-label="Panel schließen" title="Panel schließen (Strg+B)">
+        <button type="button" class="knopf knopf-geist knopf-icon-only" id="panel-schliessen" data-testid="panel-schliessen" aria-label="Panel schließen" title="Panel schließen (Strg+B)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tabpanel-doku" aria-labelledby="tab-doku" tabindex="-1">
-        <div id="doku-panel"></div>
+        <div id="doku-panel" data-testid="doku-panel"></div>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tabpanel-beispiele" aria-labelledby="tab-beispiele" tabindex="-1" hidden>
         <div class="suche">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input type="search" id="beispiele-suche" placeholder="Beispiele filtern …" aria-label="Beispiele filtern" autocomplete="off">
+          <input type="search" id="beispiele-suche" data-testid="beispiele-suche" placeholder="Beispiele filtern …" aria-label="Beispiele filtern" autocomplete="off">
         </div>
         <div class="chips" id="beispiele-kategorien" role="group" aria-label="Kategorie"></div>
-        <div class="beispiele-liste" id="beispiele-liste"></div>
+        <div class="beispiele-liste" id="beispiele-liste" data-testid="beispiele-liste"></div>
       </div>
     </aside>
     <div class="panel-schleier" id="panel-schleier" hidden></div>
   </main>
 
   <!-- Hawaii-Crash-Overlay -->
-  <div class="hawaii" id="hawaii" role="alertdialog" aria-modal="true" aria-labelledby="hawaii-titel" aria-describedby="hawaii-banner" hidden>
+  <div class="hawaii" id="hawaii" data-testid="hawaii-overlay" role="alertdialog" aria-modal="true" aria-labelledby="hawaii-titel" aria-describedby="hawaii-banner" hidden>
     <div class="hawaii-scanlines" aria-hidden="true"></div>
     <div class="hawaii-karte">
       <h2 class="hawaii-titel" id="hawaii-titel">PizzaVM abgestürzt</h2>
       <pre class="hawaii-banner" id="hawaii-banner"></pre>
       <p class="hawaii-text">Jemand hat Ananas auf die Pizza gelegt. Der Ofen wurde zur Sicherheit abgeschaltet.</p>
-      <button type="button" class="knopf knopf-hawaii" id="hawaii-neustart">PizzaVM neu starten</button>
+      <button type="button" class="knopf knopf-hawaii" id="hawaii-neustart" data-testid="hawaii-neustart">PizzaVM neu starten</button>
     </div>
   </div>
 
   <!-- Rückfrage-Dialog -->
-  <dialog class="dialog" id="dialog-frage" aria-labelledby="dialog-titel">
+  <dialog class="dialog" id="dialog-frage" data-testid="dialog-frage" aria-labelledby="dialog-titel">
     <form method="dialog">
       <h2 id="dialog-titel">Änderungen verwerfen?</h2>
       <p id="dialog-text">Im Editor stehen ungespeicherte Änderungen. Wenn du fortfährst, werden sie ersetzt.</p>
       <div class="dialog-knoepfe">
         <button type="submit" class="knopf knopf-geist" value="nein">Abbrechen</button>
-        <button type="submit" class="knopf knopf-primaer" value="ja" id="dialog-ja">Ersetzen</button>
+        <button type="submit" class="knopf knopf-primaer" value="ja" id="dialog-ja" data-testid="dialog-ja">Ersetzen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Teilen (Hastebin-Warnung) -->
+  <dialog class="dialog dialog-teilen" id="dialog-teilen" data-testid="dialog-teilen" aria-labelledby="teilen-titel">
+    <h2 id="teilen-titel">Code teilen</h2>
+    <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-frage">
+      <div class="teilen-warnung" role="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg>
+        <div>
+          <p><strong>Achtung: Dein Code verlässt diesen Browser.</strong></p>
+          <p>Der Code des Tabs <strong id="teilen-tabname">…</strong> wird an <strong>hastebin.com</strong> gesendet – einen externen Dienst von Toptal. Er wird dort gespeichert und ist für <strong>jeden lesbar, der den Link kennt</strong>.</p>
+          <p>Teile keine Passwörter, Schlüssel oder andere Geheimnisse.</p>
+        </div>
+      </div>
+      <div class="dialog-knoepfe">
+        <button type="button" class="knopf knopf-link" id="teilen-lokal" data-testid="teilen-lokal">Stattdessen Link ohne Server erzeugen</button>
+        <span class="flex-luecke"></span>
+        <button type="button" class="knopf knopf-geist" id="teilen-abbrechen" data-testid="teilen-abbrechen">Abbrechen</button>
+        <button type="button" class="knopf knopf-primaer" id="teilen-senden" data-testid="teilen-senden">An Hastebin senden</button>
+      </div>
+    </div>
+    <div class="teilen-schritt" data-schritt="laeuft" hidden>
+      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Wird an hastebin.com gesendet …</p>
+    </div>
+    <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-fertig" hidden>
+      <p id="teilen-fertig-text"></p>
+      <div class="teilen-link">
+        <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-label="Link zum Teilen">
+        <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
+      </div>
+      <div class="dialog-knoepfe">
+        <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>
+      </div>
+    </div>
+    <div class="teilen-schritt" data-schritt="fehler" data-testid="teilen-fehler" hidden>
+      <p class="teilen-fehlertext" id="teilen-fehlertext" role="alert"></p>
+      <div class="dialog-knoepfe">
+        <button type="button" class="knopf knopf-geist" id="teilen-fehler-schliessen">Schließen</button>
+        <button type="button" class="knopf knopf-primaer" id="teilen-fehler-lokal" data-testid="teilen-fehler-lokal">Link ohne Server erzeugen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- .pkarton heruntergeladen -->
+  <dialog class="dialog" id="dialog-pkarton" data-testid="dialog-pkarton" aria-labelledby="pkarton-titel">
+    <form method="dialog">
+      <h2 id="pkarton-titel">Pizza im Karton 📦</h2>
+      <p id="pkarton-text">Dein Programm wurde zu WebAssembly kompiliert.</p>
+      <p class="dialog-klein">Nativ ausführen mit dem Host: <code id="pkarton-cmd-run">pizza-host programm.pkarton</code><br>
+        Zur EXE backen: <code id="pkarton-cmd-exe">pizzaofen exe programm.pkarton -o programm.exe</code></p>
+      <div class="dialog-knoepfe">
+        <button type="button" class="knopf knopf-geist" id="pkarton-doku">Mehr in der Doku</button>
+        <button type="submit" class="knopf knopf-primaer" value="ok">Alles klar</button>
       </div>
     </form>
   </dialog>
 
   <!-- Doku im Lesemodus -->
-  <dialog class="lesemodus" id="doku-lesemodus" aria-labelledby="lesemodus-titel">
+  <dialog class="lesemodus" id="doku-lesemodus" data-testid="lesemodus" aria-labelledby="lesemodus-titel">
     <div class="lesemodus-kopf">
       <svg class="logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="#logo-symbol"/></svg>
       <h2 id="lesemodus-titel">pizza-Doku</h2>
@@ -145,11 +214,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
-    <div id="doku-modal"></div>
+    <div id="doku-modal" data-testid="doku-modal"></div>
   </dialog>
 
   <!-- Bild vergrößert -->
-  <dialog class="lightbox" id="bild-lightbox" aria-label="Bild vergrößert">
+  <dialog class="lightbox" id="bild-lightbox" data-testid="lightbox" aria-label="Bild vergrößert">
     <button type="button" class="knopf knopf-geist knopf-icon-only lightbox-zu" id="lightbox-zu" aria-label="Bild schließen" title="Schließen (Esc)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
@@ -159,7 +228,7 @@
     </figure>
   </dialog>
 
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="toast" id="toast" data-testid="toast" role="status" aria-live="polite" hidden></div>
 
   <!-- Logo-Symbol (eine Quelle für Kopfzeile & Overlay) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">

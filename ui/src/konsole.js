@@ -14,6 +14,7 @@ export function erstelleKonsole({ springe }) {
   const inhalt = document.getElementById("konsole-inhalt");
   const badge = document.getElementById("exit-badge");
   const info = document.getElementById("lauf-info");
+  const motorBadge = document.getElementById("motor-badge");
   let anzahl = 0, gekappt = false;
   let letzteAusgabe = null; // fortlaufende Ausgabezeilen zusammenfassen
   let ausgabePuffer = [];
@@ -76,6 +77,7 @@ export function erstelleKonsole({ springe }) {
     const e = document.createElement("div");
     e.className = "k-zeile k-" + typ;
     e.dataset.typ = typ;
+    e.dataset.testid = "konsole-" + typ;
     e.textContent = text == null ? "" : String(text);
     return e;
   }
@@ -84,6 +86,7 @@ export function erstelleKonsole({ springe }) {
     const typ = ev.typ;
     const e = document.createElement(ev.zeile != null ? "button" : "div");
     e.className = "k-meldung k-" + typ + (ev.art ? " k-art-" + ev.art : "");
+    e.dataset.testid = "konsole-" + typ;
     if (ev.zeile != null) {
       e.type = "button";
       e.title = `Zu Zeile ${ev.zeile} springen`;
@@ -135,8 +138,22 @@ export function erstelleKonsole({ springe }) {
       planeZeichnen();
     },
     sofortZeichnen: zeichneAusgaben,
+    setzeMotor(ev) {
+      if (!motorBadge) return;
+      if (!ev) { motorBadge.hidden = true; return; }
+      motorBadge.hidden = false;
+      const wasm = ev.motor === "wasm";
+      motorBadge.className = "motor-badge " + (wasm ? "wasm" : "interpreter") + (ev.grund ? " fallback" : "");
+      let text = wasm ? "Wasm ⚡" : "Interpreter";
+      if (wasm && typeof ev.kompilierMs === "number") text += " · " + formatMs(ev.kompilierMs) + " kompiliert";
+      if (!wasm && ev.grund) text += " (Fallback: " + ev.grund + ")";
+      motorBadge.textContent = text;
+      motorBadge.title = wasm ? "Ausgeführt als WebAssembly" : ev.grund ? "Interpreter, weil: " + ev.grund : "Ausgeführt im Interpreter";
+      motorBadge.dataset.motor = ev.motor;
+    },
     setzeLauf({ laeuft, name }) {
       badge.hidden = !laeuft;
+      if (laeuft && motorBadge) motorBadge.hidden = true;
       if (laeuft) {
         badge.className = "exit-badge laeuft";
         badge.textContent = "im Ofen …";
@@ -144,16 +161,18 @@ export function erstelleKonsole({ springe }) {
         info.textContent = name ? name + " ist im Ofen …" : "";
       }
     },
-    setzeExit(code, { schritte, zeitMs, wandMs, zusatz, name } = {}) {
+    setzeExit(code, { schritte, zeitMs, wandMs, laufMs, zusatz, name } = {}) {
       const d = EXIT[code] || { text: "Exit " + code, klasse: "fehler", titel: "Exit-Code " + code };
       badge.hidden = false;
       badge.className = "exit-badge " + d.klasse;
+      badge.dataset.exitCode = String(code);
       badge.textContent = d.text + (code !== 39 ? " · " + code : "");
       badge.title = d.titel;
       const teile = [];
       if (name) teile.push(name);
       if (zusatz) teile.push(zusatz);
-      if (wandMs != null) teile.push(formatMs(wandMs) + " echt");
+      if (laufMs != null) teile.push("Lauf " + formatMs(laufMs));
+      if (wandMs != null) teile.push(formatMs(wandMs) + " gesamt");
       if (zeitMs != null) teile.push(formatMs(zeitMs) + " Ofenzeit");
       if (schritte != null) teile.push(new Intl.NumberFormat("de-DE").format(schritte) + " Schritte");
       info.textContent = teile.join(" · ");
@@ -162,6 +181,7 @@ export function erstelleKonsole({ springe }) {
 }
 
 function formatMs(ms) {
+  if (ms < 10) return (Math.round(ms * 10) / 10).toLocaleString("de-DE") + " ms";
   if (ms < 1000) return Math.round(ms) + " ms";
   return (ms / 1000).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " s";
 }

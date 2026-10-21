@@ -118,6 +118,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
     suchWrap.innerHTML = ICON.lupe;
     const suche = el("input");
     suche.type = "search";
+    suche.dataset.testid = "doku-suche";
     suche.placeholder = "Suchen …";
     suche.autocomplete = "off";
     suche.setAttribute("aria-label", "Doku durchsuchen");
@@ -165,10 +166,12 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
       if (sprache === "pizza") {
         const schluessel = "doku:" + abschnitt.id + ":" + nr;
         const oeffnen = iconKnopf("oeffnen", "In neuem Editor-Tab öffnen");
+        oeffnen.dataset.testid = "doku-code-oeffnen";
         oeffnen.addEventListener("click", () => { vorAktion && vorAktion(); oeffneCode(b.code, abschnitt.titel, schluessel); });
         leiste.appendChild(oeffnen);
         if (b.ausfuehrbar) {
           const backen = iconKnopf("backen", "In Editor-Tab öffnen und backen", "primaer");
+          backen.dataset.testid = "doku-code-backen";
           backen.addEventListener("click", () => { vorAktion && vorAktion(); backeCode(b.code, abschnitt.titel, schluessel); });
           leiste.appendChild(backen);
         }
@@ -299,6 +302,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
         const link = el("a", "toc-eintrag");
         link.href = "#" + x.id;
         link.dataset.id = x.id;
+        link.dataset.testid = "doku-toc-eintrag";
         link.appendChild(el("span", "toc-titel", x.titel));
         if (x.tier === 3) { const p = el("span", "toc-punkt"); p.title = "nur Spezifikation"; link.appendChild(p); }
         link.addEventListener("click", (e) => { e.preventDefault(); springe(x.id, true); });
@@ -310,6 +314,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
         const sek = el("section", "doku-abschnitt");
         sek.id = praefix + x.id;
         sek.dataset.id = x.id;
+        sek.dataset.testid = "doku-abschnitt";
         sek.setAttribute("aria-labelledby", sek.id + "-titel");
         const kopf = el("header", "doku-abschnitt-kopf");
         const h = el("h3", "doku-titel", x.titel);

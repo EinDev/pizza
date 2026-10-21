@@ -1,7 +1,7 @@
 // pizza v3.0 Playground – Einstieg.
 import { erstelleEditor } from "./editor.js";
 import { erstelleKonsole } from "./konsole.js";
-import { erstelleAusfuehrung } from "./ausfuehrung.js";
+import { erstelleAusfuehrung, workerAuftrag } from "./ausfuehrung.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { codeKodieren, codeDekodieren, codeAusHash } from "./teilen.js";
@@ -131,11 +131,64 @@ function start() {
         $("exit-badge").className = "exit-badge abgebrochen";
         $("exit-badge").textContent = "abgebrochen";
       } else {
-        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, zusatz: info.zusatz, name: laufName });
+        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, laufMs: info.laufMs, zusatz: info.zusatz, name: laufName });
       }
       if (document.activeElement === knopfAbbr) knopfBacken.focus();
     },
     beiPanik(text) { zeigeHawaii(text); },
+    beiMotor(ev) { konsole.setzeMotor(ev); },
+  });
+
+  // ---------- Motor (Wasm / Interpreter) ----------
+  const motorWahl = $("motor-wahl");
+  const gespeicherterMotor = speicher.hole("pizza.motor");
+  motorWahl.value = ["auto", "wasm", "interpreter"].includes(gespeicherterMotor) ? gespeicherterMotor : "auto";
+  motorWahl.addEventListener("change", () => {
+    speicher.setze("pizza.motor", motorWahl.value);
+    toast("Motor: " + motorWahl.options[motorWahl.selectedIndex].text, "info");
+  });
+
+  // ---------- .pkarton (WebAssembly) herunterladen ----------
+  const knopfPkarton = $("knopf-pkarton");
+  workerAuftrag({ typ: "pruefe" }, "faehigkeiten", 20_000).then((f) => {
+    if (f && f.wasm) {
+      knopfPkarton.hidden = false;
+      const opt = motorWahl.querySelector('option[value="auto"]');
+      if (opt && f.version) opt.title = "pizzaiolo " + f.version;
+    } else {
+      const opt = motorWahl.querySelector('option[value="auto"]');
+      if (opt) opt.textContent = "Auto";
+      motorWahl.title = "WebAssembly-Compiler nicht verfügbar" + (f && f.grund ? ": " + f.grund : "") + " – es läuft der Interpreter.";
+    }
+  });
+  knopfPkarton.addEventListener("click", async () => {
+    const t = tabs.aktiv();
+    const name = ((t && t.name) || "programm.pizza").replace(/\.pizza$/i, "") + ".pkarton";
+    knopfPkarton.disabled = true;
+    const r = await workerAuftrag({ typ: "kompiliere", code: editor.text() }, "pkarton", 20_000);
+    knopfPkarton.disabled = false;
+    if (!r || !r.ok) {
+      let grund = (r && r.grund) || "Kompilieren nicht möglich.";
+      if (r && r.fehler) grund = "Syntaxfehler" + (r.fehler.zeile ? " in Zeile " + r.fehler.zeile : "") + ": " + r.fehler.text;
+      else if (r && Array.isArray(r.nichtUnterstuetzt) && r.nichtUnterstuetzt.length) {
+        const n = r.nichtUnterstuetzt[0];
+        grund = "Noch nicht als Wasm kompilierbar" + (n.zeile ? " (Zeile " + n.zeile + ")" : "") + ": " + n.grund;
+      }
+      toast(grund, "fehler");
+      return;
+    }
+    const blob = new Blob([r.daten], { type: "application/wasm" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    $("pkarton-text").textContent = "„" + name + "“ wurde heruntergeladen (" + new Intl.NumberFormat("de-DE").format(r.daten.byteLength) + " Bytes" +
+      (typeof r.kompilierMs === "number" ? ", in " + (Math.round(r.kompilierMs * 10) / 10).toLocaleString("de-DE") + " ms kompiliert" : "") + ").";
+    $("pkarton-cmd-run").textContent = "pizza-host " + name;
+    $("pkarton-cmd-exe").textContent = "pizzaofen exe " + name + " -o " + name.replace(/\.pkarton$/, "") + ".exe";
+    const dlg = $("dialog-pkarton");
+    if (typeof dlg.showModal === "function") dlg.showModal(); else toast("„" + name + "“ heruntergeladen.", "ok");
   });
 
   const logoBild = $("logo-bild");
@@ -162,7 +215,7 @@ function start() {
     const t = tabs.aktiv();
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
-    ausfuehrung.starte(editor.text());
+    ausfuehrung.starte(editor.text(), [], motorWahl.value);
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());
@@ -352,6 +405,11 @@ function start() {
     dokuModal.artikel.focus({ preventScroll: true });
   }
   $("knopf-lesemodus").addEventListener("click", lesemodusOeffnen);
+  $("pkarton-doku").addEventListener("click", () => {
+    $("dialog-pkarton").close();
+    lesemodusOeffnen();
+    if (dokuModal) { dokuModal.suche.value = "pkarton"; dokuModal.suche.dispatchEvent(new Event("input")); }
+  });
   $("lesemodus-zu").addEventListener("click", () => lesemodus.close());
   lesemodus.addEventListener("click", (e) => { if (e.target === lesemodus) lesemodus.close(); });
   lesemodus.addEventListener("close", () => { if (panelOffen && aktiverTab === "doku") dokuPanel.zeigeGemerkt(); });
@@ -392,20 +450,98 @@ function start() {
     if (gemerkt !== "light" && gemerkt !== "dark") setzeThema(e.matches ? "dark" : "light", false);
   });
 
-  // ---------- Teilen ----------
-  $("knopf-teilen").addEventListener("click", async () => {
-    const wert = await codeKodieren(editor.text());
+  // ---------- Teilen: Hastebin (mit Warnung) oder Link ohne Server ----------
+  const teilenDlg = $("dialog-teilen");
+  let teilenCode = "", teilenName = "";
+  function teilenSchritt(name) {
+    teilenDlg.querySelectorAll(".teilen-schritt").forEach((s) => { s.hidden = s.dataset.schritt !== name; });
+  }
+  async function kopiere(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
+  }
+  async function zeigeLink(url, text) {
+    $("teilen-url").value = url;
+    $("teilen-fertig-text").textContent = text;
+    teilenSchritt("fertig");
+    const ok = await kopiere(url);
+    $("teilen-kopieren").textContent = ok ? "Kopiert ✓" : "Kopieren";
+    $("teilen-url").focus();
+    $("teilen-url").select();
+  }
+  async function lokalerLink() {
+    const wert = await codeKodieren(teilenCode);
     const url = location.href.split("#")[0] + "#code=" + wert;
     try { history.replaceState(null, "", "#code=" + wert); } catch (e) { /* egal */ }
     letzterHash = location.hash;
-    let kopiert = false;
-    try { await navigator.clipboard.writeText(url); kopiert = true; } catch (e) { /* kein Clipboard */ }
-    toast(kopiert ? "Link kopiert – teile deine Pizza!" : "Link steht in der Adresszeile.", "ok");
-    if (url.length > 8000) toast("Achtung: Der Link ist sehr lang (" + url.length + " Zeichen).", "warnung");
+    let text = "Nichts wurde gesendet – der Code steckt komprimiert im Link selbst.";
+    if (url.length > 8000) text += " Achtung: Der Link ist sehr lang (" + url.length + " Zeichen) und funktioniert evtl. nicht überall.";
+    await zeigeLink(url, text);
+  }
+  async function anHastebin() {
+    teilenSchritt("laeuft");
+    let fehler = null;
+    try {
+      const r = await fetch("api/teilen", { method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" }, body: teilenCode });
+      let daten = null;
+      try { daten = await r.json(); } catch (e) { daten = null; }
+      if (r.ok && daten && typeof daten.key === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(daten.key)) {
+        const url = location.href.split("#")[0] + "#h=" + daten.key;
+        try { history.replaceState(null, "", "#h=" + daten.key); } catch (e) { /* egal */ }
+        letzterHash = location.hash;
+        await zeigeLink(url, "„" + teilenName + "“ liegt jetzt auf hastebin.com. Jeder mit diesem Link kann den Code lesen.");
+        return;
+      }
+      if (r.status === 503) fehler = "Teilen über Hastebin ist auf diesem Server gerade nicht eingerichtet" + (daten && daten.fehler ? " (" + daten.fehler + ")" : "") + ".";
+      else if (r.status === 429) fehler = "Zu viele Anfragen – Hastebin bittet um eine kurze Pause. Versuch es gleich noch einmal.";
+      else if (r.status === 413) fehler = "Der Code ist zu groß für Hastebin.";
+      else fehler = "Hastebin hat nicht wie erwartet geantwortet (HTTP " + r.status + ")" + (daten && daten.fehler ? ": " + daten.fehler : "") + ".";
+    } catch (e) {
+      fehler = "Keine Verbindung zu Hastebin – bist du offline?";
+    }
+    $("teilen-fehlertext").textContent = fehler + " Du kannst stattdessen einen Link ohne Server erzeugen – dabei wird nichts gesendet.";
+    teilenSchritt("fehler");
+    $("teilen-fehler-lokal").focus();
+  }
+  $("knopf-teilen").addEventListener("click", () => {
+    const t = tabs.aktiv();
+    teilenCode = editor.text();
+    teilenName = (t && t.name) || "unbenannt.pizza";
+    $("teilen-tabname").textContent = "„" + teilenName + "“";
+    teilenSchritt("frage");
+    if (typeof teilenDlg.showModal !== "function") { teilenDlg.setAttribute("open", ""); return; }
+    teilenDlg.showModal();
+    $("teilen-abbrechen").focus(); // Senden ist bewusst NICHT vorausgewählt
+  });
+  $("teilen-senden").addEventListener("click", anHastebin);
+  $("teilen-lokal").addEventListener("click", lokalerLink);
+  $("teilen-fehler-lokal").addEventListener("click", lokalerLink);
+  $("teilen-abbrechen").addEventListener("click", () => teilenDlg.close());
+  $("teilen-schliessen").addEventListener("click", () => teilenDlg.close());
+  $("teilen-fehler-schliessen").addEventListener("click", () => teilenDlg.close());
+  $("teilen-kopieren").addEventListener("click", async () => {
+    const ok = await kopiere($("teilen-url").value);
+    if (!ok) { $("teilen-url").select(); }
+    $("teilen-kopieren").textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
   });
 
   let letzterHash = location.hash;
   async function hashLaden() {
+    const h = /(?:^#|&)h=([A-Za-z0-9_-]{1,64})(?:&|$)/.exec(location.hash || "");
+    if (h) {
+      const key = h[1];
+      try {
+        const r = await fetch("api/teilen/" + encodeURIComponent(key), { headers: { Accept: "text/plain" } });
+        if (r.status === 404) { toast("Diesen geteilten Code gibt es nicht (mehr) auf Hastebin.", "fehler"); return false; }
+        if (r.status === 503) { toast("Hastebin ist auf diesem Server nicht eingerichtet – der Code kann nicht geladen werden.", "fehler"); return false; }
+        if (!r.ok) { toast("Geteilter Code konnte nicht geladen werden (HTTP " + r.status + ").", "fehler"); return false; }
+        const code = await r.text();
+        tabs.oeffne(code, "Geteilt " + key + ".pizza", "hastebin:" + key);
+        return true;
+      } catch (e) {
+        toast("Geteilter Code konnte nicht geladen werden – keine Verbindung.", "fehler");
+        return false;
+      }
+    }
     const wert = codeAusHash(location.hash);
     if (!wert) return false;
     const code = await codeDekodieren(wert);

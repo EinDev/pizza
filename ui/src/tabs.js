@@ -69,6 +69,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     leiste.appendChild(liste);
     const plus = el("button", "etab-neu");
     plus.type = "button";
+    plus.dataset.testid = "editor-tab-neu";
     plus.title = "Neuer Tab";
     plus.setAttribute("aria-label", "Neuer leerer Tab");
     plus.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
@@ -82,6 +83,8 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     const istAktiv = t.id === aktivId;
     const wrap = el("div", "etab" + (istAktiv ? " aktiv" : "") + (istSchmutzig(t) ? " schmutzig" : ""));
     wrap.dataset.id = t.id;
+    wrap.dataset.testid = "editor-tab";
+    if (istAktiv) wrap.dataset.aktiv = "true";
     const knopf = el("button", "etab-knopf");
     knopf.type = "button";
     knopf.setAttribute("role", "tab");
@@ -112,6 +115,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     wrap.appendChild(knopf);
     const zu = el("button", "etab-zu");
     zu.type = "button";
+    zu.dataset.testid = "editor-tab-schliessen";
     zu.title = "Tab schließen";
     zu.setAttribute("aria-label", t.name + " schließen");
     zu.innerHTML = '<span class="etab-punkt" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
@@ -226,6 +230,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     if (!t || !w) return;
     const knopf = w.querySelector(".etab-knopf");
     const eingabe = el("input", "etab-eingabe");
+    eingabe.dataset.testid = "editor-tab-umbenennen";
     eingabe.value = t.name;
     eingabe.setAttribute("aria-label", "Neuer Name für " + t.name);
     eingabe.spellcheck = false;
