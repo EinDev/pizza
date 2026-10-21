@@ -829,7 +829,7 @@
                 ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`)"]
               ]
             },
-            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an." },
+            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an. Heruntergeladenes Programm und Kommandozeile (`node bin/pizza.js`) nutzen dagegen **denselben** Ordner und damit denselben Stand." },
             { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` (eine Kammer) bzw. `--vorrat-loeschen-alle` (alle). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
             { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
           ]
@@ -1012,7 +1012,7 @@
                 ["Linux", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar). Fehlt sie, gibt es eine klare Fehlermeldung."]
               ]
             },
-            { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Was eine Plattform braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
+            { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Unter Windows startet eine `.exe` mit Theke **ohne Terminal** – siehe *Motoren & Programm herunterladen*. Was eine Plattform braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
             { art: "text", md: "**Hell oder dunkel:** Im Playground folgt das Programmfenster dem Thema der Seite – standardmäßig dem deines Betriebssystems; schaltest du die Seite um, wechselt das Fenster mit. Im heruntergeladenen Programm folgt es dem Thema des Betriebssystems. Inhalt, Farben und Standardgröße (480 × 360) sind überall gleich." },
             { art: "hinweis", ton: "info", md: "**W0100:** Läuft ein Theke-Programm ganz ohne Fenster – etwa in Tests, in dieser Doku oder in der Kommandozeile `node bin/pizza.js` –, meldet pizza `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
           ]
@@ -1318,11 +1318,11 @@
               art: "tabelle",
               kopf: ["System", "So startest du es"],
               zeilen: [
-                ["Windows", "Doppelklick oder in der Eingabeaufforderung starten. Die `.exe` ist nicht signiert: Zeigt **SmartScreen** „Der Computer wurde durch Windows geschützt“, klick auf *Weitere Informationen → Trotzdem ausführen*."],
+                ["Windows", "Doppelklick oder in der Eingabeaufforderung starten. Konsolenprogramme öffnen beim Doppelklick ein Terminal, Programme mit Theke nur ihr Fenster. Die `.exe` ist nicht signiert: Zeigt **SmartScreen** „Der Computer wurde durch Windows geschützt“, klick auf *Weitere Informationen → Trotzdem ausführen*."],
                 ["Linux", "Erst ausführbar machen, dann starten: `chmod +x programm && ./programm`"]
               ]
             },
-            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground." },
+            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground. Der **Spielstand** (Vorratskammer) liegt in `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe Ordner wie bei `node bin/pizza.js`, Programm und Kommandozeile teilen sich also den Stand." },
             {
               art: "code",
               sprache: "shell",
@@ -1335,6 +1335,21 @@
                 "0"
               )
             }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Windows: Programme mit Theke starten ohne Terminal",
+          inhalt: [
+            {
+              art: "tabelle",
+              kopf: ["Programm", "Doppelklick", "Aus einem Terminal gestartet"],
+              zeilen: [
+                ["mit Theke", "nur das Fenster, kein Terminal (Ausgaben von `Bote.sage` sieht man dann nicht)", "Ausgaben und Eingaben erscheinen im Terminal; Umleitungen wie `> datei` oder Pipes funktionieren"],
+                ["ohne Theke", "öffnet wie gewohnt ein Terminal", "wie jedes Konsolenprogramm"]
+              ]
+            },
+            { art: "text", md: "Ein Theke-Programm ist für Windows ein Fenster-Programm: Eine interaktive Eingabeaufforderung oder PowerShell **wartet nicht** darauf – der Prompt kommt sofort zurück, und `%ERRORLEVEL%`/`$LASTEXITCODE` sind noch leer. Wer warten und den Exit-Code haben will, startet es aus einer Batch-Datei, mit `start \"\" /wait programm.exe` (cmd) bzw. `Start-Process -Wait programm.exe` (PowerShell). Fehlt beim Start ohne Terminal etwas Wichtiges (z. B. WebView2), zeigt das Programm die Meldung in einem kleinen Fenster. Linux ist davon nicht betroffen." }
           ]
         },
         {
@@ -1378,7 +1393,7 @@
             "$ ./zahlenraten --saat=42 Luigi 3                     # Programm mit Argumenten"
           )
         },
-        { art: "text", md: "Optionen stehen **vor** dem Dateinamen bzw. direkt hinter dem Programmnamen; alles danach sind Argumente für `hauptgang(args)`." },
+        { art: "text", md: "Optionen stehen **vor** dem Dateinamen bzw. direkt hinter dem Programmnamen; alles danach sind Argumente für `hauptgang(args)`. Soll ein Argument selbst mit `--` beginnen, setzt du `--` als **Ende der Optionen** davor." },
         {
           art: "tabelle",
           kopf: ["Option", "Wirkung"],
@@ -1393,7 +1408,26 @@
             ["`--info`", "Am Ende Exit-Code, Schritte und Uhr ausgeben"],
             ["`--debug`", "Bei internen Fehlern zusätzlich technische Details zeigen (sonst nie)"],
             ["`--ast`", "Nur den Syntaxbaum ausgeben, nichts ausführen – für Neugierige"],
-            ["`--hilfe`", "Kurze Übersicht aller Optionen"]
+            ["`--hilfe`", "Kurze Übersicht aller Optionen"],
+            ["`--`", "Ende der Optionen: alles danach geht unverändert an `hauptgang(args)`"]
+          ]
+        },
+        {
+          art: "details",
+          titel: "Ende der Optionen: --",
+          inhalt: [
+            {
+              art: "code",
+              sprache: "shell",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "$ node bin/pizza.js spiel.pizza -- --mein-arg      # args = [\"--mein-arg\"]",
+                "$ ./spiel -- --saat=7 Luigi                        # args = [\"--saat=7\", \"Luigi\"]",
+                "$ node bin/pizza.js --saat=42 -- --komisch.pizza   # Datei: --komisch.pizza"
+              )
+            },
+            { art: "text", md: "Nur das **erste** `--` vor dem ersten Programmargument zählt und wird verbraucht; ein späteres `--` kommt als normales Argument bei `hauptgang` an. Steht `--` in der Kommandozeile **vor** dem Dateinamen, ist das nächste Argument die Datei – auch wenn es mit `--` beginnt. Das gilt für `node bin/pizza.js` und das heruntergeladene Programm gleichermaßen." }
           ]
         },
         {
