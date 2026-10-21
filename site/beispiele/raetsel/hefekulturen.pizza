@@ -1,0 +1,69 @@
+// Hefekulturen: Conways Spiel des Lebens im Teigbottich.
+// Eine Hefezelle (@) überlebt mit 2 oder 3 Nachbarn, auf einem leeren Feld
+// entsteht bei genau 3 Nachbarn neue Hefe. Der Bottich ist ringförmig.
+// Im Bottich: ein Gleiter (wandert), ein Blinker (pulsiert), ein Block (ruht).
+
+klasse Bottich {
+    tiefkühl salami B = 16;
+    tiefkühl salami H = 10;
+
+    tiefkühl Blech<Blech<salami>> leererBottich() {
+        Blech<Blech<salami>> g = [];
+        für (salami z = 1; z <= H; z++) {
+            Blech<salami> reihe = [];
+            für (salami s = 1; s <= B; s++) { reihe.hinzu((0)); }
+            g.hinzu(reihe);
+        }
+        serviere ((g));
+    }
+
+    tiefkühl salami nachbarn(Blech<Blech<salami>> g, salami z, salami s) {
+        salami n = 0;
+        für (salami dz = -1; dz <= 1; dz++) {
+            für (salami ds = -1; ds <= 1; ds++) {
+                falls (dz != 0 || ds != 0) {
+                    salami zz = (z - 1 + dz + H) % H + 1;
+                    salami ss = (s - 1 + ds + B) % B + 1;
+                    n += g.stück(zz).stück(ss);
+                }
+            }
+        }
+        serviere ((n));
+    }
+
+    tiefkühl Blech<Blech<salami>> gehenLassen(Blech<Blech<salami>> g) {
+        Blech<Blech<salami>> nächste = leererBottich();
+        für (salami z = 1; z <= H; z++) {
+            für (salami s = 1; s <= B; s++) {
+                salami n = nachbarn(g, z, s);
+                salami lebt = g.stück(z).stück(s);
+                falls (n == 3 || (lebt == 1 && n == 2)) { nächste.stück(z).setze(s, 1); }
+            }
+        }
+        serviere ((nächste));
+    }
+
+    tiefkühl leer zeige(Blech<Blech<salami>> g, salami generation) {
+        salami hefe = g.belege(r -> r.summe()).summe();
+        Bote.sage(("Generation " + generation + " – " + hefe + " Hefezellen"));
+        Bote.sage(("+" + "-".wiederhole(B) + "+"));
+        für (Blech<salami> reihe : g) {
+            Bote.sage(("|" + reihe.belege(x -> (x == 1) ? "@" : " ").verbinde("") + "|"));
+        }
+        Bote.sage(("+" + "-".wiederhole(B) + "+"));
+    }
+}
+
+Blech<Blech<salami>> bottich = Bottich.leererBottich();
+// Gleiter oben links
+für (Blech<salami> p : [[1, 2], [2, 3], [3, 1], [3, 2], [3, 3]]) { bottich.stück(p.stück(1)).setze(p.stück(2), 1); }
+// Blinker rechts oben
+für (salami s : [12, 13, 14]) { bottich.stück(3).setze(s, 1); }
+// Block unten rechts
+für (Blech<salami> p : [[8, 13], [8, 14], [9, 13], [9, 14]]) { bottich.stück(p.stück(1)).setze(p.stück(2), 1); }
+
+für (salami gen = 0; gen <= 12; gen++) {
+    falls (gen % 4 == 0 || gen <= 2) { Bottich.zeige(bottich, gen); }
+    bottich = Bottich.gehenLassen(bottich);
+}
+Bote.sage(("Alle 4 Generationen rückt der Gleiter ein Feld diagonal weiter."));

@@ -1,0 +1,72 @@
+// Dijkstra auf Luigis Lieferkarte: Von der Pizzeria aus werden die schnellsten
+// Wege in alle Stadtteile berechnet. Die Fahrzeiten sind echte Dauer-Werte.
+
+klasse Lieferkarte {
+    tiefkühl Blech<margherita> orte = ["Pizzeria", "Domplatz", "Hafen", "Uni", "Bahnhof", "Altstadt", "Markthalle", "Stadion"];
+    tiefkühl Speisekarte<margherita, Blech<Blech<salami>>> straßen = neu Speisekarte<margherita, Blech<Blech<salami>>>();
+    tiefkühl Blech<Dauer> zeit = [];
+    tiefkühl Blech<salami> vorher = [];
+
+    tiefkühl leer straße(margherita a, margherita b, Dauer d) {
+        für (margherita x : [a, b]) { falls (!straßen.hat(x)) { straßen.lege(x, ([])); } }
+        straßen.hole(a).hinzu(([b, d]));
+        straßen.hole(b).hinzu(([a, d]));
+    }
+
+    tiefkühl salami nr(margherita ort) {
+        für (salami i = 1; i <= orte.länge(); i++) { falls (orte.stück(i) == ort) { serviere ((i)); } }
+        serviere ((-1));
+    }
+
+    tiefkühl leer dijkstra(margherita start) {
+        Blech<diavolo> fertig = [];
+        für (margherita o : orte) { zeit.hinzu(karton); vorher.hinzu((0)); fertig.hinzu(nein); }
+        zeit.setze(nr(start), 0min);
+        solange (ja) {
+            // nächster unerledigter Ort mit kleinster bekannter Zeit
+            salami u = 0;
+            für (salami i = 1; i <= orte.länge(); i++) {
+                falls (!fertig.stück(i) && zeit.stück(i) != karton && (u == 0 || zeit.stück(i) < zeit.stück(u))) { u = i; }
+            }
+            falls (u == 0) { abbrechen; }
+            fertig.setze(u, ja);
+            für (Blech<salami> kante : straßen.hole(orte.stück(u))) {
+                salami v = nr(kante.stück(1));
+                Dauer neueZeit = zeit.stück(u) + kante.stück(2);
+                falls (zeit.stück(v) == karton || neueZeit < zeit.stück(v)) {
+                    zeit.setze(v, neueZeit);
+                    vorher.setze(v, u);
+                }
+            }
+        }
+    }
+
+    tiefkühl margherita route(salami ziel) {
+        Blech<margherita> weg = [];
+        salami v = ziel;
+        solange (v != 0) { weg.hinzu((orte.stück(v))); v = vorher.stück(v); }
+        serviere ((weg.umdrehen().verbinde(" → ")));
+    }
+}
+
+Lieferkarte.straße("Pizzeria", "Domplatz", 4min);
+Lieferkarte.straße("Pizzeria", "Altstadt", 7min);
+Lieferkarte.straße("Domplatz", "Altstadt", 2min);
+Lieferkarte.straße("Domplatz", "Uni", 9min);
+Lieferkarte.straße("Altstadt", "Markthalle", 3min);
+Lieferkarte.straße("Markthalle", "Uni", 4min + 30s);
+Lieferkarte.straße("Markthalle", "Hafen", 6min);
+Lieferkarte.straße("Altstadt", "Hafen", 11min);
+Lieferkarte.straße("Uni", "Bahnhof", 5min);
+Lieferkarte.straße("Hafen", "Bahnhof", 8min);
+Lieferkarte.straße("Bahnhof", "Stadion", 6min + 15s);
+Lieferkarte.straße("Hafen", "Stadion", 17min);
+
+Lieferkarte.dijkstra("Pizzeria");
+Bote.sage(("=== Schnellste Lieferwege ab der Pizzeria ==="));
+für (salami i = 2; i <= Lieferkarte.orte.länge(); i++) {
+    Dauer d = Lieferkarte.zeit.stück(i);
+    margherita warnung = (d > 20min) ? "  (Pizza wird lauwarm!)" : "";
+    Bote.sage((Lieferkarte.orte.stück(i) + ": " + d + warnung));
+    Bote.sage(("   " + Lieferkarte.route(i)));
+}

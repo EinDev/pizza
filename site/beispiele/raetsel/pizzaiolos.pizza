@@ -1,0 +1,55 @@
+// 8 Pizzaiolos, die sich nicht ins Gehege kommen (N-Damen-Problem).
+// Acht Pizzaiolos stehen in einer 8×8-Großküche. Keiner darf einen anderen in
+// derselben Reihe, Spalte oder Diagonale sehen – sonst gibt es Streit um den Ofen.
+// Die Suche wird mit schneide(4) in vier Teilaufgaben geteilt: jede Teilaufgabe
+// probiert andere Startplätze in der ersten Reihe.
+
+klasse Küche {
+    tiefkühl salami N = 8;
+    tiefkühl Blech<salami> erste = [];
+
+    // spalten.stück(r) = Spalte des Pizzaiolos in Reihe r
+    tiefkühl diavolo frei(Blech<salami> spalten, salami s) {
+        salami r = spalten.länge() + 1;
+        für (salami i = 1; i < r; i++) {
+            salami t = spalten.stück(i);
+            falls (t == s || Mathe.abs(t - s) == r - i) { serviere (nein); }
+        }
+        serviere (ja);
+    }
+
+    tiefkühl salami zähle(Blech<salami> spalten) {
+        falls (spalten.länge() == N) {
+            falls (erste.istLeer()) { für (salami s : spalten) { erste.hinzu(s); } }
+            serviere ((1));
+        }
+        salami lösungen = 0;
+        für (salami s = 1; s <= N; s++) {
+            falls (frei(spalten, s)) {
+                spalten.hinzu(s);
+                lösungen += zähle(spalten);
+                spalten.entferne(spalten.länge());
+            }
+        }
+        serviere ((lösungen));
+    }
+
+    tiefkühl leer zeige(Blech<salami> spalten) {
+        für (salami s : spalten) {
+            margherita zeile = "";
+            für (salami i = 1; i <= N; i++) { zeile += (i == s) ? " P" : " ."; }
+            Bote.sage((zeile));
+        }
+    }
+}
+
+Blech<Blech<salami>> teilaufgaben = [1 .. Küche.N].schneide(4);
+Blech<salami> ergebnisse = teilaufgaben.belege(stück -> stück.belege(s -> Küche.zähle(([s]))).summe());
+für (salami i = 1; i <= teilaufgaben.länge(); i++) {
+    Bote.sage(("Teilaufgabe " + i + ": Startspalten " + teilaufgaben.stück(i) + " → " + ergebnisse.stück(i) + " Aufstellungen"));
+}
+salami gesamt = ergebnisse.zusammenklappen((a, b) -> a + b);
+Bote.sage(("Insgesamt: " + gesamt + " friedliche Aufstellungen für " + Küche.N + " Pizzaiolos."));
+Bote.sage((""));
+Bote.sage(("Die erste gefundene Aufstellung " + Küche.erste + ":"));
+Küche.zeige(Küche.erste);

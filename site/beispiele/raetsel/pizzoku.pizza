@@ -1,0 +1,101 @@
+// Pizzoku: Luigis Sudoku. Jede Zeile, jede Spalte und jedes 3×3-Blech
+// braucht die Zahlen 1–9 genau einmal. Gelöst wird mit Backtracking:
+// Zahl probieren, weitermachen, bei Sackgasse zurück und die nächste probieren.
+// Drei Merkzettel (Zeile/Spalte/Blech) sagen sofort, ob eine Zahl noch frei ist.
+
+klasse Pizzoku {
+    tiefkühl Blech<Blech<salami>> gitter = [];
+    tiefkühl Blech<Blech<diavolo>> inZeile = [];
+    tiefkühl Blech<Blech<diavolo>> inSpalte = [];
+    tiefkühl Blech<Blech<diavolo>> inBlech = [];
+    tiefkühl salami versuche = 0;
+
+    tiefkühl salami blechNr(salami r, salami s) {
+        serviere ((((r - 1) / 3).ganz() * 3 + ((s - 1) / 3).ganz() + 1));
+    }
+
+    tiefkühl leer merke(salami r, salami s, salami n, diavolo w) {
+        inZeile.stück(r).setze(n, w);
+        inSpalte.stück(s).setze(n, w);
+        inBlech.stück(blechNr(r, s)).setze(n, w);
+    }
+
+    tiefkühl leer lade(Blech<margherita> zeilen) {
+        für (salami i = 1; i <= 9; i++) {
+            inZeile.hinzu(([]));
+            inSpalte.hinzu(([]));
+            inBlech.hinzu(([]));
+            für (salami n = 1; n <= 9; n++) {
+                inZeile.stück(i).hinzu(nein);
+                inSpalte.stück(i).hinzu(nein);
+                inBlech.stück(i).hinzu(nein);
+            }
+        }
+        für (salami r = 1; r <= 9; r++) {
+            Blech<salami> reihe = [];
+            für (salami s = 1; s <= 9; s++) {
+                margherita c = zeilen.stück(r).zeichen(s);
+                salami n = (c == ".") ? 0 : c.alsZahl();
+                reihe.hinzu(n);
+            }
+            gitter.hinzu(reihe);
+            für (salami s = 1; s <= 9; s++) {
+                falls (reihe.stück(s) != 0) { merke(r, s, reihe.stück(s), ja); }
+            }
+        }
+    }
+
+    // Löst ab Feld pos (1..81). Liefert ja, wenn eine Lösung gefunden wurde.
+    tiefkühl diavolo löse(salami pos) {
+        falls (pos > 81) { serviere (ja); }
+        salami r = ((pos - 1) / 9).ganz() + 1;
+        salami s = (pos - 1) % 9 + 1;
+        falls (gitter.stück(r).stück(s) != 0) { serviere ((löse(pos + 1))); }
+        salami b = blechNr(r, s);
+        für (salami n = 1; n <= 9; n++) {
+            falls (!inZeile.stück(r).stück(n) && !inSpalte.stück(s).stück(n) && !inBlech.stück(b).stück(n)) {
+                versuche++;
+                gitter.stück(r).setze(s, n);
+                merke(r, s, n, ja);
+                falls (löse(pos + 1)) { serviere (ja); }
+                merke(r, s, n, nein);
+                gitter.stück(r).setze(s, 0);
+            }
+        }
+        serviere (nein);
+    }
+
+    tiefkühl leer zeige() {
+        für (salami r = 1; r <= 9; r++) {
+            falls (r == 4 || r == 7) { Bote.sage(("------+-------+------")); }
+            margherita zeile = "";
+            für (salami s = 1; s <= 9; s++) {
+                falls (s == 4 || s == 7) { zeile += "| "; }
+                salami n = gitter.stück(r).stück(s);
+                zeile += ((n == 0) ? "." : ("" + n)) + " ";
+            }
+            Bote.sage((zeile.trimme()));
+        }
+    }
+}
+
+Pizzoku.lade(([
+    "53..7....",
+    "6..195...",
+    ".98....6.",
+    "8...6...3",
+    "4..8.3..1",
+    "7...2...6",
+    ".6....28.",
+    "...419..5",
+    "....8..79"
+]));
+Bote.sage(("=== Pizzoku: Bestellzettel ==="));
+Pizzoku.zeige();
+Bote.sage((""));
+falls (Pizzoku.löse(1)) {
+    Bote.sage(("=== Gelöst nach " + Pizzoku.versuche + " gelegten Stücken ==="));
+    Pizzoku.zeige();
+} sonst {
+    Bote.sage(("Unlösbar – Luigi bestellt Pasta."));
+}

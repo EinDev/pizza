@@ -1,0 +1,44 @@
+// Was passt in den Lieferroller? (Rucksackproblem)
+// Die Kiste hat 20 Liter Platz. Jede Bestellung braucht Platz und bringt
+// Trinkgeld. Welche Bestellungen nimmt Gino mit, damit das Trinkgeld maximal ist?
+// beste(i, platz) ruft sich selbst zweimal auf – ohne Gedächtnis explodiert das.
+// @Kühlschrank merkt sich jedes Teilergebnis: dynamische Programmierung.
+
+klasse Roller {
+    Blech<margherita> namen = ["Familienpizza", "Calzone", "Pasta-Box", "Tiramisu", "Salat", "Pizzabrötchen", "Getränkekiste", "Lasagne", "Panna Cotta", "Antipasti"];
+    Blech<salami> liter = [8, 4, 5, 2, 3, 3, 9, 5, 1, 4];
+    Blech<salami> trinkgeld = [9, 5, 6, 3, 3, 4, 7, 7, 2, 5];
+    salami rechnungen = 0;
+
+    // bestes Trinkgeld mit den Bestellungen i..n und noch 'platz' Litern
+    @Kühlschrank(haltbar: 1d)
+    salami beste(salami i, salami platz) {
+        rechnungen++;
+        falls (i > namen.länge()) { serviere ((0)); }
+        salami ohne = beste(i + 1, platz);
+        falls (liter.stück(i) > platz) { serviere ((ohne)); }
+        salami mit = trinkgeld.stück(i) + beste(i + 1, platz - liter.stück(i));
+        serviere ((Mathe.max(ohne, mit)));
+    }
+
+    leer packe(salami platz) {
+        salami gesamt = beste(1, platz);
+        Bote.sage(("Bestes Trinkgeld: " + gesamt.euro()));
+        salami frei = platz;
+        für (salami i = 1; i <= namen.länge(); i++) {
+            // Wurde Bestellung i genommen? Dann ändert sich das Ergebnis ohne sie.
+            falls (beste(i, frei) != beste(i + 1, frei)) {
+                Bote.sage(("  [x] " + namen.stück(i) + " (" + liter.stück(i) + " l, " + trinkgeld.stück(i).euro() + ")"));
+                frei -= liter.stück(i);
+            } sonst {
+                Bote.sage(("  [ ] " + namen.stück(i)));
+            }
+        }
+        Bote.sage(("Belegt: " + (platz - frei) + " von " + platz + " Litern"));
+        Bote.sage(("Echte Rechnungen dank Kühlschrank: " + rechnungen + " (ohne wären es bis zu " + ([1 .. 11].zusammenklappen((a, b) -> a * 2, 1) - 1) + ")"));
+    }
+}
+
+Roller gino = neu Roller();
+Bote.sage(("=== Ginos Lieferroller, 20 Liter ==="));
+gino.packe(20);

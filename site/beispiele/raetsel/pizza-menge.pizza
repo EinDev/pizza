@@ -1,0 +1,54 @@
+// Die Pizza-Menge (Mandelbrot als ASCII). Für jeden Punkt c wird z → z² + c
+// wiederholt; wer nach 30 Runden nicht aus dem Teller (|z| > 2) gefallen ist,
+// gehört zur Menge (@). Je früher ein Punkt hinausfliegt, desto heller die Kruste.
+// Gebacken wird im Ofen: Jede fertige Zeile wird mit zwischenstand gesichert.
+
+klasse PizzaMenge {
+    tiefkühl margherita kruste = " .,:;=+*%#@";
+    tiefkühl salami MAX = 30;
+
+    tiefkühl salami runden(funghi cr, funghi ci) {
+        funghi x = 0;
+        funghi y = 0;
+        salami n = 0;
+        solange (n < MAX && x * x + y * y <= 4) {
+            funghi xNeu = x * x - y * y + cr;
+            y = 2 * x * y + ci;
+            x = xNeu;
+            n++;
+        }
+        serviere ((n));
+    }
+
+    tiefkühl margherita zeile(salami z, salami breite, salami höhe) {
+        margherita t = "";
+        funghi ci = -1.2 + 2.4 * z / (höhe - 1);
+        für (salami s = 0; s < breite; s++) {
+            salami n = runden(-2.1 + 2.8 * s / (breite - 1), ci);
+            salami stufe = (n == MAX) ? kruste.länge() : (n * (kruste.länge() - 1) / MAX).ganz() + 1;
+            t += kruste.zeichen(stufe);
+        }
+        serviere ((t));
+    }
+
+    // Backt das Bild im Ofen; reicht das Budget nicht, kommt das Teilbild zurück.
+    tiefkühl Blech<margherita> backe(salami breite, salami höhe, Dauer zeit) {
+        serviere ((ofen(temperatur: 450, zeit: zeit) {
+            Blech<margherita> bild = [];
+            für (salami z = 0; z < höhe; z++) {
+                bild.hinzu((zeile(z, breite, höhe)));
+                zwischenstand((bild));
+            }
+            serviere ((bild));
+        } roh (r) {
+            Bote.sage(("(Ofen aus nach " + r.verbrauchteZeit() + " – " + r.teilergebnis().länge() + " Zeilen sind fertig)"));
+            serviere ((r.teilergebnis()));
+        }));
+    }
+}
+
+Bote.sage(("=== Probebacken im kleinen Ofen ==="));
+für (margherita z : PizzaMenge.backe(64, 22, 45s)) { Bote.sage((z)); }
+Bote.sage((""));
+Bote.sage(("=== Die ganze Pizza-Menge ==="));
+für (margherita z : PizzaMenge.backe(64, 22, 30min)) { Bote.sage((z)); }

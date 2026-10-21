@@ -1,0 +1,99 @@
+// Der große Sortier-Wettbewerb: 60 Bestellzettel liegen durcheinander
+// (Zufall mit Seed 42). Drei Küchenhilfen sortieren sie nach Nummer –
+// jede mit ihrer eigenen Methode. Gezählt wird, wie oft sie zwei Zettel vergleichen.
+
+klasse Sortierer {
+    tiefkühl salami vergleiche = 0;
+
+    tiefkühl diavolo kleiner(salami a, salami b) {
+        vergleiche++;
+        serviere ((a < b));
+    }
+
+    tiefkühl leer tausche(Blech<salami> b, salami i, salami j) {
+        salami t = b.stück(i);
+        b.setze(i, b.stück(j));
+        b.setze(j, t);
+    }
+
+    // Bubble: benachbarte Zettel tauschen, bis nichts mehr passiert
+    tiefkühl leer bubble(Blech<salami> b) {
+        diavolo getauscht = ja;
+        salami ende = b.länge();
+        solange (getauscht) {
+            getauscht = nein;
+            für (salami i = 1; i < ende; i++) {
+                falls (kleiner(b.stück(i + 1), b.stück(i))) { tausche(b, i, i + 1); getauscht = ja; }
+            }
+            ende--;
+        }
+    }
+
+    // Quick: Pivot-Zettel wählen, kleinere nach links, größere nach rechts
+    tiefkühl leer quick(Blech<salami> b, salami von, salami bis) {
+        falls (von >= bis) { serviere; }
+        tausche(b, ((von + bis) / 2).ganz(), bis);
+        salami pivot = b.stück(bis);
+        salami grenze = von;
+        für (salami i = von; i < bis; i++) {
+            falls (kleiner(b.stück(i), pivot)) { tausche(b, i, grenze); grenze++; }
+        }
+        tausche(b, grenze, bis);
+        quick(b, von, grenze - 1);
+        quick(b, grenze + 1, bis);
+    }
+
+    // Merge: halbieren, beide Hälften sortieren, reißverschlussartig zusammenlegen
+    tiefkühl Blech<salami> merge(Blech<salami> b) {
+        falls (b.länge() <= 1) { serviere ((b)); }
+        Blech<Blech<salami>> hälften = b.schneide(2);
+        Blech<salami> l = merge(hälften.stück(1));
+        Blech<salami> r = merge(hälften.stück(2));
+        Blech<salami> raus = [];
+        salami i = 1;
+        salami j = 1;
+        solange (i <= l.länge() && j <= r.länge()) {
+            falls (kleiner(r.stück(j), l.stück(i))) { raus.hinzu((r.stück(j))); j++; }
+            sonst { raus.hinzu((l.stück(i))); i++; }
+        }
+        solange (i <= l.länge()) { raus.hinzu((l.stück(i))); i++; }
+        solange (j <= r.länge()) { raus.hinzu((r.stück(j))); j++; }
+        serviere ((raus));
+    }
+
+    tiefkühl diavolo sortiert(Blech<salami> b) {
+        für (salami i = 1; i < b.länge(); i++) { falls (b.stück(i) > b.stück(i + 1)) { serviere (nein); } }
+        serviere (ja);
+    }
+}
+
+Blech<salami> zettel = [];
+für (salami i = 1; i <= 60; i++) { zettel.hinzu((Zufall.zahl(100, 999))); }
+Bote.sage(("Unsortiert: " + zettel.schneide(4).stück(1) + " …"));
+
+Blech<margherita> namen = ["Bubble-Bruno", "Quick-Quirina", "Merge-Mario"];
+Blech<salami> ergebnis = [];
+Blech<salami> fertig = [];
+für (salami runde = 1; runde <= 3; runde++) {
+    Sortierer.vergleiche = 0;
+    Blech<salami> kopie = zettel.belege(x -> x);
+    wähle (runde) {
+        fall 1 -> Sortierer.bubble(kopie);
+        fall 2 -> Sortierer.quick(kopie, 1, kopie.länge());
+        fall 3 -> kopie = Sortierer.merge(kopie);
+    }
+    falls (!Sortierer.sortiert(kopie)) { Bote.sage((namen.stück(runde) + " hat geschummelt!")); }
+    ergebnis.hinzu((Sortierer.vergleiche));
+    fertig = kopie;
+}
+Bote.sage(("Sortiert:   " + fertig.schneide(4).stück(1) + " …"));
+Bote.sage((""));
+Bote.sage(("=== Vergleiche (je # = 40) ==="));
+für (salami i = 1; i <= 3; i++) {
+    salami v = ergebnis.stück(i);
+    margherita name = namen.stück(i) + " ".wiederhole(14 - namen.stück(i).länge());
+    Bote.sage((name + " " + "#".wiederhole((v / 40).ganz()) + " " + v));
+}
+salami sieger = 1;
+für (salami i = 2; i <= 3; i++) { falls (ergebnis.stück(i) < ergebnis.stück(sieger)) { sieger = i; } }
+Bote.sage(("Sieger: " + namen.stück(sieger) + "!"));

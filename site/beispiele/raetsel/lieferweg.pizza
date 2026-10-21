@@ -1,0 +1,88 @@
+// Lieferweg durch die Altstadt: Erst baut der Zufall (Seed 42) ein Gassen-
+// Labyrinth (Tiefensuche mit eigenem Stapel), dann sucht der Lieferroller mit
+// Breitensuche den kürzesten Weg von der Pizzeria (P) zum Kunden (K).
+
+klasse Altstadt {
+    tiefkühl salami B = 15;          // Häuserblöcke nebeneinander
+    tiefkühl salami H = 7;           // Häuserblöcke untereinander
+    tiefkühl Blech<Blech<margherita>> karte = [];
+
+    tiefkühl margherita feld(salami z, salami s) { serviere ((karte.stück(z).stück(s))); }
+    tiefkühl leer setze(salami z, salami s, margherita c) { karte.stück(z).setze(s, c); }
+
+    tiefkühl leer baue() {
+        für (salami z = 1; z <= 2 * H + 1; z++) {
+            Blech<margherita> reihe = [];
+            für (salami s = 1; s <= 2 * B + 1; s++) { reihe.hinzu(("█")); }
+            karte.hinzu(reihe);
+        }
+        // Zelle (i, j) liegt auf Kartenfeld (2i, 2j)
+        Blech<salami> stapel = [1, 1];
+        setze(2, 2, " ");
+        Blech<Blech<salami>> richtungen = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+        solange (!stapel.istLeer()) {
+            salami j = stapel.letztes();
+            salami i = stapel.stück(stapel.länge() - 1);
+            Blech<Blech<salami>> frei = [];
+            für (Blech<salami> r : richtungen) {
+                salami ni = i + r.stück(1);
+                salami nj = j + r.stück(2);
+                falls (ni >= 1 && ni <= H && nj >= 1 && nj <= B && feld(2 * ni, 2 * nj) == "█") { frei.hinzu(r); }
+            }
+            falls (frei.istLeer()) {
+                stapel.entferne(stapel.länge());
+                stapel.entferne(stapel.länge());
+            } sonst {
+                Blech<salami> r = frei.stück(Zufall.zahl(1, frei.länge()));
+                setze(2 * i + r.stück(1), 2 * j + r.stück(2), " ");
+                setze(2 * (i + r.stück(1)), 2 * (j + r.stück(2)), " ");
+                stapel.hinzu((i + r.stück(1)));
+                stapel.hinzu((j + r.stück(2)));
+            }
+        }
+    }
+
+    // Breitensuche auf den Kartenfeldern; vorher merkt sich, woher man kam.
+    tiefkühl salami liefere() {
+        salami breite = 2 * B + 1;
+        salami ziel = (2 * H - 1) * breite + 2 * B - 1;  // Feld (2H, 2B), 0-basiert
+        salami start = 1 * breite + 1;
+        Speisekarte<salami, salami> vorher = neu Speisekarte<salami, salami>();
+        Blech<salami> schlange = [start];
+        salami kopf = 1;
+        vorher.lege(start, -1);
+        solange (kopf <= schlange.länge() && !vorher.hat(ziel)) {
+            salami p = schlange.stück(kopf);
+            kopf++;
+            für (salami d : [1, -1, breite, -breite]) {
+                salami q = p + d;
+                falls (!vorher.hat(q) && feld((q / breite).ganz() + 1, q % breite + 1) == " ") {
+                    vorher.lege(q, p);
+                    schlange.hinzu(q);
+                }
+            }
+        }
+        salami länge = 0;
+        salami p = vorher.hole(ziel);
+        solange (p != start) {
+            setze((p / breite).ganz() + 1, p % breite + 1, "·");
+            p = vorher.hole(p);
+            länge++;
+        }
+        setze(2, 2, "P");
+        setze(2 * H, 2 * B, "K");
+        Bote.sage(("Der Roller hat " + (kopf - 1) + " Gassenfelder abgesucht."));
+        serviere ((länge + 1));
+    }
+
+    tiefkühl leer zeige() {
+        für (Blech<margherita> reihe : karte) { Bote.sage((reihe.verbinde(""))); }
+    }
+}
+
+Altstadt.baue();
+Bote.sage(("=== Die Altstadt (Seed 42) ==="));
+Altstadt.zeige();
+salami schritte = Altstadt.liefere();
+Bote.sage(("=== Kürzester Lieferweg: " + schritte + " Gassenstücke ==="));
+Altstadt.zeige();

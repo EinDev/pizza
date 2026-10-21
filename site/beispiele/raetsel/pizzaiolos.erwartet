@@ -1,0 +1,15 @@
+Teilaufgabe 1: Startspalten [1, 2] → 12 Aufstellungen
+Teilaufgabe 2: Startspalten [3, 4] → 34 Aufstellungen
+Teilaufgabe 3: Startspalten [5, 6] → 34 Aufstellungen
+Teilaufgabe 4: Startspalten [7, 8] → 12 Aufstellungen
+Insgesamt: 92 friedliche Aufstellungen für 8 Pizzaiolos.
+
+Die erste gefundene Aufstellung [1, 5, 8, 6, 3, 7, 2, 4]:
+ P . . . . . . .
+ . . . . P . . .
+ . . . . . . . P
+ . . . . . P . .
+ . . P . . . . .
+ . . . . . . P .
+ . P . . . . . .
+ . . . P . . . .

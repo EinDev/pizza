@@ -1,0 +1,85 @@
+{
+  "kategorie": "Rätsel & Algorithmen",
+  "beispiele": [
+    {
+      "id": "pizzoku",
+      "titel": "Pizzoku (Sudoku-Löser)",
+      "beschreibung": "Luigis Sudoku: Backtracking mit drei Merkzetteln für Zeilen, Spalten und 3×3-Bleche – Bestellzettel und Lösung als ASCII-Gitter.",
+      "datei": "raetsel/pizzoku.pizza",
+      "erwartet": "raetsel/pizzoku.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Sudoku", "Backtracking", "Rekursion", "Gitter", "Benchmark"]
+    },
+    {
+      "id": "lieferweg",
+      "titel": "Lieferweg durch die Altstadt",
+      "beschreibung": "Ein zufälliges Gassen-Labyrinth (Tiefensuche, Seed 42) und der kürzeste Weg von der Pizzeria zum Kunden per Breitensuche – der Pfad wird eingezeichnet.",
+      "datei": "raetsel/lieferweg.pizza",
+      "erwartet": "raetsel/lieferweg.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Labyrinth", "Breitensuche", "BFS", "Zufall", "Speisekarte"]
+    },
+    {
+      "id": "hefekulturen",
+      "titel": "Hefekulturen (Game of Life)",
+      "beschreibung": "Conways Spiel des Lebens im ringförmigen Teigbottich: Gleiter, Blinker und Block über mehrere Generationen als ASCII-Bilder.",
+      "datei": "raetsel/hefekulturen.pizza",
+      "erwartet": "raetsel/hefekulturen.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Game of Life", "Simulation", "Gitter", "belege", "Benchmark"]
+    },
+    {
+      "id": "pizzaiolos",
+      "titel": "8 Pizzaiolos (N-Damen)",
+      "beschreibung": "Acht Pizzaiolos, die sich nicht ins Gehege kommen: alle 92 Aufstellungen per Backtracking, mit schneide(4) in Teilaufgaben aufgeteilt.",
+      "datei": "raetsel/pizzaiolos.pizza",
+      "erwartet": "raetsel/pizzaiolos.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["N-Damen", "Backtracking", "schneide", "zusammenklappen", "Benchmark"]
+    },
+    {
+      "id": "lieferkarte",
+      "titel": "Dijkstra auf der Lieferkarte",
+      "beschreibung": "Schnellste Lieferwege von der Pizzeria in alle Stadtteile – Kantengewichte sind echte Dauer-Werte, die Route wird rekonstruiert.",
+      "datei": "raetsel/lieferkarte.pizza",
+      "erwartet": "raetsel/lieferkarte.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Dijkstra", "Graph", "Dauer", "kürzester Weg", "Speisekarte"]
+    },
+    {
+      "id": "lieferroller",
+      "titel": "Was passt in den Lieferroller?",
+      "beschreibung": "Das Rucksackproblem: Welche Bestellungen bringen in 20 Litern das meiste Trinkgeld? @Kühlschrank merkt sich Teilergebnisse – dynamische Programmierung.",
+      "datei": "raetsel/lieferroller.pizza",
+      "erwartet": "raetsel/lieferroller.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Rucksackproblem", "dynamische Programmierung", "@Kühlschrank", "Memoisierung", "Rekursion"]
+    },
+    {
+      "id": "sortier-wettbewerb",
+      "titel": "Der große Sortier-Wettbewerb",
+      "beschreibung": "Bubble-Bruno gegen Quick-Quirina gegen Merge-Mario: 60 zufällige Bestellzettel, gezählt werden die Vergleiche – mit ASCII-Balkendiagramm.",
+      "datei": "raetsel/sortier-wettbewerb.pizza",
+      "erwartet": "raetsel/sortier-wettbewerb.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Sortieren", "Bubblesort", "Quicksort", "Mergesort", "schneide", "wähle"]
+    },
+    {
+      "id": "pizza-menge",
+      "titel": "Die Pizza-Menge (Mandelbrot)",
+      "beschreibung": "Die Mandelbrot-Menge als ASCII-Kunst, gebacken im Ofen: jede fertige Zeile wird per zwischenstand gesichert, ein zu kleiner Ofen liefert das Teilbild.",
+      "datei": "raetsel/pizza-menge.pizza",
+      "erwartet": "raetsel/pizza-menge.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Mandelbrot", "Fraktal", "ofen", "zwischenstand", "funghi", "Benchmark"]
+    }
+  ]
+}
