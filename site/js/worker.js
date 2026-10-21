@@ -133,7 +133,9 @@ function starte(d) {
       }
       if (ev.typ === "ende") {
         endeGesehen = true;
-        ev = Object.assign({}, ev, { laufMs: jetzt() - t0, motor: ev.motor || genutzterMotor() });
+        var m = ev.motor || (motor === "wasm" ? "wasm" : genutzterMotor());
+        if (!motorGesehen) { motorGesehen = true; sende({ typ: "motor", motor: m, kompilierMs: ev.kompilierMs }); }
+        ev = Object.assign({}, ev, { laufMs: jetzt() - t0, motor: m });
       }
       sende(ev);
     },

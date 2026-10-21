@@ -36,9 +36,9 @@
         <span class="sr-only">Motor</span>
         <svg class="motor-icon" id="motor-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
         <select id="motor-wahl" data-testid="motor-umschalter" aria-label="Ausführungsmotor">
-          <option value="auto">Auto (Wasm)</option>
-          <option value="wasm">Wasm</option>
           <option value="interpreter">Interpreter</option>
+          <option value="wasm">Wasm (Beta)</option>
+          <option value="auto">Auto (Beta)</option>
         </select>
       </label>
     </div>
@@ -205,8 +205,8 @@
 
   <!-- Als Programm (EXE) herunterladen -->
   <dialog class="dialog dialog-exe" id="dialog-exe" data-testid="dialog-exe" aria-labelledby="exe-titel">
-    <h2 id="exe-titel">Als Programm herunterladen</h2>
-    <p class="exe-intro">Dein Code aus <strong id="exe-tabname">…</strong> wird zu WebAssembly gebacken und in ein eigenständiges Programm verpackt – ganz ohne Server, direkt in deinem Browser.</p>
+    <h2 id="exe-titel">Als Programm herunterladen <span class="beta-badge" data-testid="exe-beta">Beta</span></h2>
+    <p class="exe-intro">Dein Code aus <strong id="exe-tabname">…</strong> wird zu WebAssembly gebacken und in ein eigenständiges Programm verpackt – ganz ohne Server, direkt in deinem Browser. <em>Beta:</em> Noch lässt sich nicht jedes Programm als Programm backen.</p>
     <fieldset class="exe-ziele" id="exe-ziele" data-testid="exe-ziele">
       <legend>Plattform</legend>
     </fieldset>

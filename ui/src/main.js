@@ -185,20 +185,26 @@ function start() {
   const optAuto = motorWahl.querySelector('option[value="auto"]');
   const optWasm = motorWahl.querySelector('option[value="wasm"]');
   const knopfPkarton = $("knopf-pkarton");
+  // Einmalige Migration: Der Standard ist (vorerst) der Interpreter – auch für alte „auto“-Wahl.
+  if (speicher.hole("pizza.motorStand") !== "2") {
+    const alt = speicher.hole("pizza.motor");
+    if (alt == null || alt === "auto") speicher.setze("pizza.motor", "interpreter");
+    speicher.setze("pizza.motorStand", "2");
+  }
   const gespeicherterMotor = () => {
     const m = speicher.hole("pizza.motor");
-    return ["auto", "wasm", "interpreter"].includes(m) ? m : "auto";
+    return ["auto", "wasm", "interpreter"].includes(m) ? m : "interpreter";
   };
   let faehigkeiten = null, letztePruefung = 0, pruefungLaeuft = null;
   function wendeMotorAn() {
     const wasm = !!(faehigkeiten && faehigkeiten.wasm);
     const unbekannt = !faehigkeiten;
     optWasm.disabled = !wasm && !unbekannt;
-    optWasm.textContent = wasm || unbekannt ? "Wasm" : "Wasm (bald)";
+    optWasm.textContent = wasm || unbekannt ? "Wasm (Beta)" : "Wasm (bald)";
     const grund = faehigkeiten && !wasm ? (faehigkeiten.grund || "Wasm-Compiler nicht verfügbar") : "";
     optWasm.title = grund ? "Nicht verfügbar: " + grund : (faehigkeiten && faehigkeiten.version ? "pizzaiolo " + faehigkeiten.version : "");
-    optAuto.textContent = wasm || unbekannt ? "Auto (Wasm)" : "Auto";
-    optAuto.title = wasm || unbekannt ? "Wasm, bei Bedarf Interpreter" : "Interpreter, bis der Wasm-Compiler verfügbar ist";
+    optAuto.textContent = "Auto (Beta)";
+    optAuto.title = wasm || unbekannt ? "Beta: Wasm, bei Bedarf Interpreter" : "Interpreter, bis der Wasm-Compiler verfügbar ist";
     const g = gespeicherterMotor();
     // gespeicherte Wahl „wasm“ als „Auto“ anzeigen, aber NICHT überschreiben
     motorWahl.value = g === "wasm" && optWasm.disabled ? "auto" : g;
@@ -333,7 +339,7 @@ function start() {
         const liste = Array.isArray(z) ? z : (z && Array.isArray(z.ziele) ? z.ziele : []);
         exeZiele = liste.filter((x) => x && zielId(x) && x.verfuegbar !== false);
       } catch (e) { exeZiele = []; }
-      if (!exeZiele.length) { exeGrund = "Die Host-Programme (bin/) fehlen noch auf dem Server."; return null; }
+      if (!exeZiele.length) { exeGrund = "Die Host-Programme fehlen noch auf dem Server."; return null; }
       return PE;
     });
     return exeLaden;
@@ -343,19 +349,21 @@ function start() {
     let grund = null;
     if (!faehigkeiten) grund = "Wird geprüft …";
     else if (!compiler) grund = "Der Wasm-Compiler ist noch nicht verfügbar" + (faehigkeiten.grund ? " (" + faehigkeiten.grund + ")" : "") + ".";
-    else if (!exeZiele || !exeZiele.length) grund = exeGrund;
+    else if (!exeMoeglich) grund = exeGrund;
+    else if (exeZiele && !exeZiele.length) grund = exeGrund; // Ziele schon geladen, aber leer
     knopfExe.setAttribute("aria-disabled", String(!!grund));
     knopfExe.classList.toggle("deaktiviert", !!grund);
     knopfExe.title = grund ? "Als Programm herunterladen – noch nicht möglich: " + grund : "Als Programm (z. B. Windows-.exe) herunterladen";
     knopfExe.dataset.grund = grund || "";
     return grund;
   }
+  // js/exe.js und bin/ziele.json werden erst beim Öffnen des Dialogs geladen (keine Anfragen beim Seitenstart).
+  let exeMoeglich = false;
   async function pruefeExe() {
-    const f = await (pruefungLaeuft || Promise.resolve(faehigkeiten));
+    await (pruefungLaeuft || Promise.resolve(faehigkeiten));
     const mo = await holeMotoren();
-    if (!mo.exe) { exeZiele = null; exeGrund = "Die Host-Programme für Windows/Linux werden noch gebaut."; }
-    else if (f && f.wasm) await ladeExeSkript();
-    else { exeZiele = null; }
+    exeMoeglich = mo.exe;
+    if (!mo.exe) exeGrund = "Die Host-Programme für Windows/Linux werden noch gebaut.";
     return wendeExeAn();
   }
   wendeExeAn();
@@ -375,6 +383,12 @@ function start() {
     let grund = wendeExeAn();
     if (grund && faehigkeiten) { grund = await pruefeExe(); } // vielleicht inzwischen verfügbar
     if (grund) { toast("Als Programm herunterladen geht noch nicht: " + grund, "fehler"); return; }
+    if (!exeZiele || !exeZiele.length) {
+      knopfExe.classList.add("laedt");
+      const PE = await ladeExeSkript();
+      knopfExe.classList.remove("laedt");
+      if (!PE) { exeLaden = null; wendeExeAn(); toast("Als Programm herunterladen geht gerade nicht: " + exeGrund, "fehler"); return; }
+    }
     const t = tabs.aktiv();
     $("exe-tabname").textContent = "„" + ((t && t.name) || "unbenannt.pizza") + "“";
     const feld = $("exe-ziele");
@@ -833,7 +847,7 @@ function start() {
   hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
 
   // ---------- Befehlspalette ----------
-  const motorNamen = { auto: "Auto (Wasm)", wasm: "Wasm", interpreter: "Interpreter" };
+  const motorNamen = { interpreter: "Interpreter", wasm: "Wasm (Beta)", auto: "Auto (Beta)" };
   function setzeMotor(m) {
     motorWahl.value = m;
     motorWahl.dispatchEvent(new Event("change"));

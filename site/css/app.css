@@ -1102,3 +1102,5 @@ button.k-meldung:hover { border-color: currentColor; }
   .kopf-mitte { gap: 6px; }
 }
 .k-panik-text { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
+.beta-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; margin-left: 6px; border-radius: 999px; vertical-align: middle;
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--info); background: var(--info-weich); }
