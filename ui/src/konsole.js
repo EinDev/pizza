@@ -131,28 +131,20 @@ export function erstelleKonsole({ springe }) {
     icon.setAttribute("aria-hidden", "true");
     icon.innerHTML = iconSvg(typ === "warnung" ? "warn" : typ === "panik" ? "ananas" : typ === "system" ? "info" : ev.art === "ananas" ? "ananas" : "error");
     e.appendChild(icon);
+    // K-083/U-45: sichtbarer Text exakt wie in der CLI – Ereignistext unverändert, Ort als „ (Zeile Z, Spalte S)“;
+    // ein vorhandenes „ (Zeile N)“ am Ende (ungefangene Ananas) wird ersetzt. detail wird nie angezeigt.
+    const { rumpf, ort } = meldungTeile(ev);
     const text = document.createElement("span");
     text.className = "k-text";
-    if (ev.code && typ === "warnung") {
-      const c = document.createElement("span");
-      c.className = "k-code";
-      c.textContent = ev.code;
-      text.appendChild(c);
-      text.appendChild(document.createTextNode(" "));
-      // Text beginnt evtl. bereits mit dem Code
-      const t = String(ev.text || "").replace(new RegExp("^" + ev.code + ":\\s*"), "");
-      text.appendChild(document.createTextNode(t));
-    } else {
-      text.appendChild(document.createTextNode(String(ev.text || "")));
+    text.appendChild(document.createTextNode(rumpf));
+    if (ort) {
+      const o = document.createElement("span");
+      o.className = "k-ort";
+      o.dataset.testid = "konsole-ort";
+      o.textContent = ort;
+      text.appendChild(o);
     }
     e.appendChild(text);
-    if (ev.zeile != null) {
-      const ort = document.createElement("span");
-      ort.className = "k-ort";
-      ort.dataset.testid = "konsole-ort";
-      ort.textContent = "Z. " + ev.zeile + (ev.spalte != null ? ":" + ev.spalte : "");
-      e.appendChild(ort);
-    }
     return e;
   }
 
@@ -271,6 +263,19 @@ export function erstelleKonsole({ springe }) {
       info.textContent = teile.join(" · ");
     },
   };
+}
+
+/** Ort-Zusatz wie bin/pizza.js: „ (Zeile Z, Spalte S)“ bzw. „ (Zeile Z)“. */
+export function ortText(ev) {
+  return ev && ev.zeile != null ? " (Zeile " + ev.zeile + (ev.spalte != null ? ", Spalte " + ev.spalte : "") + ")" : "";
+}
+/** Text einer Warnung/eines Fehlers wie in der CLI, aufgeteilt in Rumpf und Ort (für die Hervorhebung). */
+export function meldungTeile(ev) {
+  const t = String(ev && ev.text != null ? ev.text : "");
+  if (!ev || ev.zeile == null) return { rumpf: t, ort: "" };
+  const m = /\s\(Zeile (\d+)\)$/.exec(t);
+  if (m && Number(m[1]) === ev.zeile) return { rumpf: t.slice(0, m.index), ort: ortText(ev) };
+  return { rumpf: t, ort: ortText(ev) };
 }
 
 function formatMs(ms) {
