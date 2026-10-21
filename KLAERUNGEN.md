@@ -466,7 +466,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 ### K-066 Theke: Werte und Typen
 - **Entscheidung:** Texte speichern die Textform jedes Werts (`neu Knopf(5)` → `"5"`); `aktiv`/`setzeAn`/`sichtbar`/`an:` verlangen
   diavolo; `breite`/`hoehe` Ganzzahl (TypAnanas sonst), Standard 480×360, Werte ≤ 0 überlässt der Renderer seinem Standard;
-  `titel` optional, Standard `""` (Renderer zeigt „Theke“).
+  `titel` optional, Standard `""` (Renderer zeigt „Theke“). Fehlendes Argument und `karton` je Parameter: K-102.
 - **Status:** fest (a13).
 
 ### K-067 Theke: Protokoll-Zahlformat und Testvergleich
@@ -976,6 +976,32 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Betroffen:** Compiler/Laufzeit (U-66: Kartonkopie von Rohling/Sicht, Wachen-Reihenfolge, Stück-P0002-Summe), Doku (U-65,
   Hinweis). **Status:** fest; Interpreter entspricht (72cb857, f29baa7, 8f922fd).
 
+### K-102 Theke: Text-Parameter bei fehlendem Argument und `karton` (Befund: Konstruktor ≠ Setter)
+- **Frage:** `neu Schild()` → `""`, aber `neu Schild(karton)` → `"karton"`; `setzeText()`/`setzeText(karton)` → `"karton"`;
+  `hinweis(karton)` → `""`; `neu Theke(karton)`, `neu Abschnitt(karton)`, `neu Eingabe(karton)`, `neu Fortschritt(0, karton)` → `""`.
+  K-066 („Textform jedes Werts“) und K-093 (`schwebe(karton)` → „karton“) sagen nichts über optionale Konstruktor-Parameter;
+  Interpreter und Wasm waren bitgleich, aber uneinheitlich.
+- **Entscheidung:** Die Regel folgt der Einteilung des Protokolls (K-067):
+  - **Zustandsfelder** (immer im Knoten: `text` von Schild/Knopf/Haken, `wert` der Eingabe, `titel` von Theke und Abschnitt,
+    Spalten/Zellen der Tabelle, Reiter-Titel, Schwebetext): **Textform jedes Werts**, auch `karton` → `"karton"` (K-066, K-093).
+    Fehlt das Argument im **Konstruktor**, gilt der Standard der Signatur (`""`, Listen `[]`); fehlt es in einer **Methode**
+    (`setzeText()`, `setzeTitel()`, `setzeWert()`, `schwebe()`), gilt es wie überall als `karton` → `"karton"`.
+  - **Optionale Felder** (nur bei Abweichung im Knoten: `platzhalter`, `hinweis`, `text` des Fortschritts – wie `stil`, K-075, und
+    Rückrufe, K-056): `karton` heißt **weglassen** → `""` (bzw. entfernt), fehlend ebenso – im Konstruktor **und** im Setter:
+    `Fortschritt.setzeText(karton)`/`setzeText()` → `""`, `hinweis(karton)` → `""`.
+  - **Typisierte Parameter** (`breite:`, `hoehe:`, `an:`, `wert` des Fortschritts, `intervall`, `dauer`, `bei`, `farbe`, Bleche):
+    fehlend oder `karton` → Standard; unverändert.
+  Merksatz: „Was immer angezeigt wird, nimmt jeden Wert als Text – auch karton. Was man weglassen kann, lässt karton weg.“
+- **Änderungen:** `neu Theke(karton)` → Titel `"karton"` (Textform `Theke(karton)`), `neu Eingabe(karton)` → `wert` `"karton"`,
+  `neu Abschnitt(karton)` → `titel` `"karton"`, `Fortschritt.setzeText(karton)`/`setzeText()` → `""`. Alles andere bleibt:
+  `Schild/Knopf/Haken(karton)` → `"karton"`, `platzhalter: karton` → `""`, `Reiter(karton)` → `[]`, Zellen `[1, karton]` →
+  `["1", "karton"]`, `schwebe()` → „karton“ (K-093), `hinweis(karton)` → `""`.
+- **Begründung:** (a) K-066, K-067, K-075 und K-093 bleiben unangetastet; (b) nur vier Stellen je Laufzeit ändern sich;
+  (c) es ist dieselbe Unterscheidung, die das Protokoll ohnehin trifft, und für Lernende in einem Satz erklärbar.
+- **Betroffen:** SPEC §16.2 (Werte), §16.6 (`schwebe`); THEKE.md §1; Interpreter (`uiNeu`, Fortschritt-`setzeText`), Wasm-Laufzeit
+  (`laufzeit/src/theke.rs`); Regressionsfall `tests/faelle/theke-texte-karton`, Prüfstand a13 (K-102); Doku-Referenz (Theke-Abschnitt,
+  Agent site/js/doku). **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
+
 ### K-104 Küchenbrigade im Wasm: Umsetzungsentscheidungen und Vertragslücken aus P2 (U-66)
 - **Frage:** THREADS.md §4.3–§4.5 ließ beim Wasm-Motor einige Punkte offen bzw. als Entwurf. Entscheidung des Compiler-Agenten
   (Ergebnis bitgleich zum Interpreter auf allen `kueche-*`, a14 und dem Korpus; Interpreter-Referenz unverändert):
@@ -1064,7 +1090,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-55 | `site/js/doku/30-referenz.js` (Doku-Agent), `e2e/**` (E2E-Agent) | Zeitlimit-Texte entfernen (P0003), Argumente-Feld, „Vorrat löschen“ dokumentieren; E2E-Zeitlimit-Test entfernen | – |
 | U-48 ✅ (4b7a2af) | `site/js/pizza.js`, `tests/faelle/` | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
 | U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
-| U-50 | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
+| U-50 ✅ | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
 | U-51 | `site/js/doku/*.js` (Doku-Agent) | Theke v2 (Takt, Zutaten, hinweis), Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf | Doku-Harness |
 | U-52 | `site/beispiele/idle/` (Idle-Agent) | nach U-48: Takt statt „Minute warten“, `.ereignisse`/`.ui-erwartet` neu erzeugen, eigene `Format`-Klasse durch `kompakt()` ersetzen | Prüfstand Beispiele |
 | U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |

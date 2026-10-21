@@ -928,6 +928,28 @@
         },
         {
           art: "details",
+          titel: "Fehlt etwas oder ist es karton?",
+          inhalt: [
+            { art: "text", md: "Merksatz: **Was immer angezeigt wird, nimmt jeden Wert als Text – auch `karton`. Was man weglassen kann, lässt `karton` weg.** Der Text eines `Schild`s, `Knopf`s oder `Haken`s, der Wert einer `Eingabe` und der Titel von `Theke` und `Abschnitt` werden angezeigt: `karton` erscheint dort als Wort „karton“. Fehlt das Argument ganz, bleibt beim Erzeugen der Text leer. Der Text eines `Fortschritt`s (und `platzhalter` und `hinweis`) ist dagegen optional: `karton` heißt dort „nichts anzeigen“." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Schild a = neu Schild(karton);",
+                "Schild b = neu Schild();",
+                "Fortschritt f = neu Fortschritt(wert: 0.5, text: \"halb\");",
+                "f.setzeText(karton);",
+                "Bote.sage((\"[\" + a.text() + \"]\"));",
+                "Bote.sage((\"[\" + b.text() + \"]\"));",
+                "Bote.sage((\"[\" + f.text() + \"]\"));"
+              )
+            },
+            { art: "ausgabe", text: z("[karton]", "[]", "[]") }
+          ]
+        },
+        {
+          art: "details",
           titel: "Takt: die Theke tickt",
           inhalt: [
             { art: "text", md: "Ein `Takt` ist eine unsichtbare Zutat, die regelmäßig ihren Rückruf aufruft – für Uhren, Animationen und Idle-Spiele. Er läuft nur, solange er im **gezeigten** Baum liegt und `aktiv` ist; leg ihn einfach mit in einen Stapel.\n\n- Das Intervall ist eine Dauer von **mindestens 100 ms** (sonst `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`).\n- Der Rückruf bekommt `anzahl`: wie viele Takte seit dem letzten Aufruf vergangen sind. Normal ist das 1; war der Rechner kurz beschäftigt, holt der Takt verpasste Schläge auf einmal nach. Rechne darum immer mit `anzahl`.\n- Der Takt misst **echte** Zeit, nicht die simulierte Uhr – `Uhr.vorspulen` beschleunigt ihn nicht.\n- `aktiv(nein)` hält ihn an, `setzeIntervall(d)` ändert das Tempo." },

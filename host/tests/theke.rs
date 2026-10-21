@@ -191,3 +191,59 @@ fn konsolenprogramm_ohne_fenster() {
     assert_eq!(out.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Konsole\n");
 }
+
+/// K-084: gestaute Takt-Schläge derselben id werden im Fenster-Kanal zusammengefasst (Summe `anzahl`, wie im
+/// Playground); andere Ereignisse bleiben an ihrem Platz. Vorgegebene Ereignisse (`--ui-ereignisse`) bleiben einzeln.
+#[cfg(feature = "theke")]
+#[test]
+fn takt_schlaege_zusammenfassen() {
+    let wasm = wat::parse_str(WAT).unwrap();
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    for e in [
+        r#"{"typ":"takt","id":"t1","anzahl":1}"#,
+        r#"{"typ":"takt","id":"t1","anzahl":2}"#,
+        r#"{"typ":"aenderung","id":"e1","wert":"x"}"#,
+        r#"{"typ":"takt","id":"t1","anzahl":1}"#,
+        r#"{"typ":"takt","id":"t2","anzahl":1}"#,
+        r#"{"typ":"takt","id":"t2"}"#,
+        r#"{"typ":"takt","id":"t1","anzahl":1}"#,
+    ] {
+        tx.send(e.to_string()).unwrap();
+    }
+    drop(tx);
+    let ui = Ui::Fenster { an: Box::new(|_| {}), von: rx };
+    let mut s = Senke::Sammeln(vec![]);
+    assert_eq!(fuehre_aus(&wasm, &[], Optionen { ui: Some(ui), ..Default::default() }, &mut s), 0);
+    let Senke::Sammeln(e) = s else { unreachable!() };
+    let aus: Vec<serde_json::Value> = e
+        .iter()
+        .filter_map(|x| match x {
+            Ereignis::Ausgabe { text, .. } if text.starts_with('{') => Some(serde_json::from_str(text).unwrap()),
+            _ => None,
+        })
+        .collect();
+    let j = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
+    assert_eq!(
+        aus,
+        vec![
+            j(r#"{"typ":"takt","id":"t1","anzahl":3}"#),
+            j(r#"{"typ":"aenderung","id":"e1","wert":"x"}"#),
+            j(r#"{"typ":"takt","id":"t1","anzahl":1}"#),
+            j(r#"{"typ":"takt","id":"t2","anzahl":2}"#),
+            j(r#"{"typ":"takt","id":"t1","anzahl":1}"#),
+            j(r#"{"typ":"geschlossen"}"#),
+        ]
+    );
+}
+
+#[test]
+fn takt_vorgabe_bleibt_einzeln() {
+    let wasm = wat::parse_str(WAT).unwrap();
+    let t = r#"{"typ":"takt","id":"t1","anzahl":1}"#.to_string();
+    let ui = Ui::Vorgabe(vec![t.clone(), t.clone()].into());
+    let mut s = Senke::Sammeln(vec![]);
+    assert_eq!(fuehre_aus(&wasm, &[], Optionen { ui: Some(ui), ..Default::default() }, &mut s), 0);
+    let Senke::Sammeln(e) = s else { unreachable!() };
+    let n = e.iter().filter(|x| matches!(x, Ereignis::Ausgabe { text, .. } if *text == t)).count();
+    assert_eq!(n, 2);
+}

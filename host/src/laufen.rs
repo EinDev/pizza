@@ -229,6 +229,8 @@ struct UiZustand {
     wartend: Option<String>,
     /// `geschlossen` wurde geliefert → ab jetzt -1.
     zu: bool,
+    /// Beim Zusammenfassen von Takt-Schlägen schon aus dem Kanal geholtes, nicht passendes Ereignis (K-084).
+    vorgemerkt: Option<String>,
 }
 
 impl UiZustand {
@@ -242,7 +244,17 @@ impl UiZustand {
         let e = match &mut self.ui {
             None => None,
             Some(Ui::Vorgabe(v)) => Some(v.pop_front().unwrap_or_else(|| GESCHLOSSEN.to_string())),
-            Some(Ui::Fenster { von, .. }) => Some(von.recv().unwrap_or_else(|_| GESCHLOSSEN.to_string())),
+            Some(Ui::Fenster { von, .. }) => {
+                let e = match self.vorgemerkt.take() {
+                    Some(v) => v,
+                    None => von.recv().unwrap_or_else(|_| GESCHLOSSEN.to_string()),
+                };
+                // K-084: gestaute Schläge desselben Takts direkt dahinter zu einem Ereignis zusammenfassen
+                // (Summe der `anzahl`, wie die Playground-Brücke); alles andere bleibt in Reihenfolge.
+                let (e, rest) = takt_zusammenfassen(e, std::iter::from_fn(|| von.try_recv().ok()));
+                self.vorgemerkt = rest;
+                Some(e)
+            }
         };
         match e {
             Some(e) => {
@@ -257,6 +269,57 @@ impl UiZustand {
             }
         }
     }
+}
+
+/// Fasst `erstes` mit den unmittelbar folgenden `takt`-Ereignissen derselben `id` zusammen (K-084): `anzahl` wird
+/// summiert (ungültig/fehlend → 1, wie im Interpreter). Liefert das (ggf. zusammengefasste) Ereignis und das erste nicht
+/// passende Ereignis, das schon gelesen wurde. Ohne Theke-Feature (kein Fenster, kein JSON) unverändert.
+#[cfg(feature = "theke")]
+pub fn takt_zusammenfassen(erstes: String, mut weitere: impl Iterator<Item = String>) -> (String, Option<String>) {
+    use serde_json::Value;
+    fn takt(e: &str) -> Option<(Value, Value, u64)> {
+        let v: Value = serde_json::from_str(e).ok()?;
+        if v.get("typ")?.as_str()? != "takt" {
+            return None;
+        }
+        let id = v.get("id")?.clone();
+        let anzahl = match v.get("anzahl") {
+            Some(Value::Number(n)) => match (n.as_u64(), n.as_f64()) {
+                (Some(a), _) if a >= 1 => a,
+                (None, Some(f)) if f >= 1.0 && f.fract() == 0.0 && f <= 9_007_199_254_740_991.0 => f as u64,
+                _ => 1,
+            },
+            _ => 1,
+        };
+        Some((v, id, anzahl))
+    }
+    let Some((mut v, id, mut summe)) = takt(&erstes) else {
+        return (erstes, None);
+    };
+    let mut zusammen = false;
+    let mut rest = None;
+    for e in weitere.by_ref() {
+        match takt(&e) {
+            Some((_, id2, a)) if id2 == id => {
+                summe = summe.saturating_add(a);
+                zusammen = true;
+            }
+            _ => {
+                rest = Some(e);
+                break;
+            }
+        }
+    }
+    if !zusammen {
+        return (erstes, rest);
+    }
+    v["anzahl"] = Value::from(summe);
+    (v.to_string(), rest)
+}
+
+#[cfg(not(feature = "theke"))]
+pub fn takt_zusammenfassen(erstes: String, _weitere: impl Iterator<Item = String>) -> (String, Option<String>) {
+    (erstes, None)
 }
 
 fn ist_geschlossen(e: &str) -> bool {
@@ -460,7 +523,7 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
         Some(z) => Quelle::Zeilen(z.iter().cloned().collect()),
         None => Quelle::Stdin { eof: false },
     };
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit };
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));

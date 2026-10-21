@@ -54,6 +54,7 @@ theke.bediene();
 - Zustand lebt im Programm; jede Änderung (`setzeText` usw.) erzeugt eine **Änderungsnachricht**. Mehrere Änderungen während eines
   Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
 - `bediene()` ohne vorheriges `zeige` → `LaufzeitAnanas: Die Theke ist leer.` Zweites `bediene()` nach Schließen kehrt sofort zurück; `zeige` danach öffnet wieder. Nur eine Theke pro Programm (`LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`). Textformen `Knopf(z3)`, `Theke(Titel)`.
+- Text-Argumente fehlend oder `karton` (K-102): Zustandsfelder (`text`, `wert`, `titel`, Zellen, Schwebetext) nehmen die Textform – `karton` → „karton“, fehlend im Konstruktor → `""`, fehlend in Methoden = `karton`; optionale Felder (`platzhalter`, `hinweis`, Fortschritt-`text`) lassen `karton` weg → `""`.
 - Ananas in Rückrufen laufen wie gewohnt aus `bediene()` heraus (fangbar mit `probier` um `bediene()`).
 - Ohne verfügbaren Renderer (z. B. CLI ohne GUI, Tests ohne Skript): `bediene()` kehrt sofort zurück und es gibt die Warnung
   `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` (je Aufrufstelle; Programm läuft weiter, `ui`-Nachrichten werden trotzdem emittiert).
