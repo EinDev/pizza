@@ -28,7 +28,7 @@
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii'];
 
-  const BUILTINS = ['Bote', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
+  const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
 
   const BELAEGE = [
     { name: 'Tomate', preis: 1.00, nach: [] },
@@ -1605,8 +1605,21 @@
   });
 
   const BOTE_M = tabelle({
+    'schreibe': function (m, pos) { this.emit({ typ: 'ausgabe', text: pos.map(x => this.text(x)).join(' '), umbruch: false }); return null; },
+    'leeren': function () { this.emit({ typ: 'leeren' }); return null; },
     'sage': function (m, pos) { this.emit({ typ: 'ausgabe', text: pos.map(x => this.text(x)).join(' ') }); return null; },
     'fehler': function (m, pos) { this.emit({ typ: 'fehlerausgabe', text: pos.map(x => this.text(x)).join(' ') }); return null; }
+  });
+
+  const EINGABE_M = tabelle({
+    'lies': function () { return this.liesZeile(null, 'zeile'); },
+    'frage': function (m, pos) { return this.liesZeile(pos.length ? this.text(pos[0]) : '', 'zeile'); },
+    'liesZahl': function () { return this.alsEingabeZahl(this.liesZeile(null, 'zahl')); },
+    'frageZahl': function (m, pos) { return this.alsEingabeZahl(this.liesZeile(pos.length ? this.text(pos[0]) : '', 'zahl')); },
+    'hatMehr': function () {
+      if (this.onEingabe !== null) return true;
+      return this.eingabe !== null && this.eingabePos < this.eingabe.length;
+    }
   });
 
   const UHR_M = tabelle({
@@ -1668,6 +1681,9 @@
       this.emit = emit;
       this.limit = typeof opt.schrittLimit === 'number' && opt.schrittLimit > 0 ? opt.schrittLimit : STANDARD_LIMIT;
       this.args = Array.isArray(opt.args) ? opt.args.map(String) : [];
+      this.onEingabe = typeof opt.onEingabe === 'function' ? opt.onEingabe : null;
+      this.eingabe = Array.isArray(opt.eingabe) ? opt.eingabe.map(x => x == null ? null : String(x)) : null;
+      this.eingabePos = 0;
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -1704,6 +1720,7 @@
       const L = this;
       this.globals = new Map([
         ['Bote', new Modul('Bote', BOTE_M, null)],
+        ['Bestellannahme', new Modul('Bestellannahme', EINGABE_M, null)],
         ['Uhr', new Modul('Uhr', UHR_M, null)],
         ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI })],
         ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
@@ -1850,6 +1867,29 @@
     istAnanasKlasse(k) {
       for (let c = k; c; c = c.basis) if (c === this.ananasWurzel) return true;
       return false;
+    }
+
+    // ---------- Eingabe ----------
+    liesZeile(prompt, art) {
+      if (prompt !== null) this.emit({ typ: 'ausgabe', text: prompt, umbruch: false });
+      let zeile = null;
+      if (this.onEingabe !== null) {
+        try { zeile = this.onEingabe({ prompt, art }); } catch (e) { zeile = null; }
+        if (zeile === undefined) zeile = null;
+      } else if (this.eingabe !== null && this.eingabePos < this.eingabe.length) {
+        zeile = this.eingabe[this.eingabePos++];
+      }
+      if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
+      this.emit({ typ: 'eingabe', text: zeile });
+      return zeile;
+    }
+
+    alsEingabeZahl(zeile) {
+      if (zeile === null) return null;
+      const t = zeile.trim().replace(/,/g, '.');
+      const v = Number(t);
+      if (t === '' || !isFinite(v)) throw this.ananas('TypAnanas', '\'' + zeile + '\' ist keine Zahl.');
+      return v;
     }
 
     // ---------- Schritte & Budgets ----------

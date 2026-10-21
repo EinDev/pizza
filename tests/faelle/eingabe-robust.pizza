@@ -1,0 +1,5 @@
+// Robuste Variante: Text lesen, karton prüfen, dann umwandeln
+margherita text = Bestellannahme.frage(("Tipp: "));
+falls (text == karton) { Bote.sage(("weg")); } sonst { funghi t = text.trimme().ersetze(",", ".").alsZahl(); Bote.sage((t)); }
+text = Bestellannahme.frage(("Tipp: "));
+falls (text == karton) { Bote.sage(("weg")); }

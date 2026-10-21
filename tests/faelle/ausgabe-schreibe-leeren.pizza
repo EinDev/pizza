@@ -1,0 +1,9 @@
+Bote.schreibe(("Lade"));
+für (salami i = 0; i < 3; i++) { Bote.schreibe((".")); }
+Bote.sage();
+Bote.leeren();
+Bote.schreibe((1), (2));
+Bote.sage((" Ende"));
+Bote.schreibe((((Tomate))));
+Bote.leeren();
+Bote.fehler(("f"));

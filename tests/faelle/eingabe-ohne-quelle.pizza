@@ -1,0 +1,4 @@
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.liesZahl()));
+Bote.sage((Bestellannahme.frage(("? "))));

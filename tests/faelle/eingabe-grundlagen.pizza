@@ -1,0 +1,12 @@
+margherita name = Bestellannahme.frage(("Wie heißt du? "));
+Bote.sage(("Ciao " + name + "!"));
+funghi a = Bestellannahme.frageZahl(("Zahl: "));
+funghi b = Bestellannahme.liesZahl();
+Bote.sage((a + b));
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.liesZahl()));
+Bote.sage((Bestellannahme.frageZahl(("noch? "))));

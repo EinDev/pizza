@@ -30,8 +30,22 @@ let gesamtFehl = 0;
 
 function norm(s) { return String(s).replace(/\r\n/g, '\n').replace(/\n+$/, ''); }
 
+// .erwartet-Regeln (ARCHITEKTUR §3, EINGABE §2): ausgabe/fehlerausgabe/panik je eine Zeile,
+// ausgabe mit umbruch:false ohne Zeilenumbruch, leeren als Zeile «leeren», eingabe erscheint nicht.
 function ausgabeText(ereignisse) {
-  return ereignisse.filter(e => e.typ === 'ausgabe' || e.typ === 'fehlerausgabe' || e.typ === 'panik').map(e => e.text + '\n').join('');
+  let t = '';
+  for (const e of ereignisse) {
+    if (e.typ === 'ausgabe') t += e.umbruch === false ? e.text : e.text + '\n';
+    else if (e.typ === 'fehlerausgabe' || e.typ === 'panik') t += e.text + '\n';
+    else if (e.typ === 'leeren') t += '«leeren»\n';
+  }
+  return t;
+}
+
+function eingabeZeilen(text) {
+  const z = String(text).replace(/\r\n/g, '\n').split('\n');
+  if (z.length && z[z.length - 1] === '') z.pop();
+  return z;
 }
 
 function diff(erwartet, ist) {
@@ -105,6 +119,8 @@ function faelle() {
     const fehlerDatei = lies('.fehler');
     const optDatei = lies('.optionen.json');
     const opt = optDatei ? JSON.parse(optDatei) : {};
+    const eingabeDatei = lies('.eingabe');
+    if (eingabeDatei !== null) opt.eingabe = eingabeZeilen(eingabeDatei);
     const t0 = Date.now();
     let r;
     try { r = P.run(quelle, opt); } catch (e) { ergebnis('faelle', basis, 'run() hat geworfen: ' + (e && e.stack)); continue; }
@@ -145,7 +161,7 @@ function api() {
     for (const k of ['klasse', 'serviere', 'calzone', 'quattrostagioni', 'ofen', 'roh', 'karton', 'wähle', 'für']) ja(P.KEYWORDS.includes(k), 'KEYWORDS fehlt ' + k);
     ja(!P.KEYWORDS.includes('pizza'), "'pizza' darf kein Keyword sein");
     for (const t of ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte', 'hawaii']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
-    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'].sort(), 'BUILTINS');
+    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'].sort(), 'BUILTINS');
     const kaese = P.BELAEGE.find(b => b.name === 'Käse');
     gleich(kaese, { name: 'Käse', preis: 1, nach: ['Tomate'] }, 'BELAEGE Käse');
     ja(P.BELAEGE.some(b => b.name === 'Ananas'), 'BELAEGE Ananas');
@@ -326,7 +342,13 @@ function beispiele() {
       if (!dp || !fs.existsSync(dp)) { uebersprungen('beispiele', name, 'Datei fehlt: ' + b.datei); continue; }
       const quelle = fs.readFileSync(dp, 'utf8');
       const t0 = Date.now();
-      const r = P.run(quelle, { args: b.args || [] });
+      const opt = { args: b.args || [] };
+      if (b.eingabe) {
+        const ep = path.join(dir, b.eingabe);
+        if (!fs.existsSync(ep)) { uebersprungen('beispiele', name, 'Eingabedatei fehlt: ' + b.eingabe); continue; }
+        opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
+      }
+      const r = P.run(quelle, opt);
       const probleme = [];
       const exitSoll = typeof b.exitCode === 'number' ? b.exitCode : 0;
       if (r.exitCode !== exitSoll) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + exitSoll + fehlerZusammenfassung(r));

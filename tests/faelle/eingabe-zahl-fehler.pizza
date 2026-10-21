@@ -1,0 +1,6 @@
+probier { Bestellannahme.liesZahl(); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { Bestellannahme.frageZahl(("Alter: ")); } verbrannt (TypAnanas t) { Bote.sage(("")); Bote.sage((t.nachricht())); }
+probier { Bestellannahme.liesZahl(); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+Bote.sage((Bestellannahme.liesZahl() + 1));
+Bote.sage((Bestellannahme.liesZahl()));
+Bestellannahme.liesZahl();

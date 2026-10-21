@@ -1,0 +1,11 @@
+// Zahlenraten gegen die Eingabe – Spiel endet sauber bei EOF
+salami ziel = 42;
+salami versuche = 0;
+solange (ja) {
+    Rezept tipp = Bestellannahme.frageZahl(("Tipp: "));
+    falls (tipp == karton) { Bote.sage(("Spieler ist gegangen.")); abbrechen; }
+    versuche++;
+    falls (tipp < ziel) { Bote.sage(("zu klein")); } sonst falls (tipp > ziel) { Bote.sage(("zu groß")); } sonst { Bote.sage(("Treffer nach " + versuche)); abbrechen; }
+}
+margherita n = Bestellannahme.frage(("Name: "));
+Bote.sage((n == karton ? "anonym" : n));

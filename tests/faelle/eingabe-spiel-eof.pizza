@@ -1,0 +1,3 @@
+funghi t = Bestellannahme.frageZahl(("Tipp: "));
+falls (t == karton) { Bote.sage(("weg")); }
+solange (Bestellannahme.hatMehr()) { Bote.sage(("nie")); }
