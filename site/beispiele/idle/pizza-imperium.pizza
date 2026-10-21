@@ -440,7 +440,7 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Fleißige Hände", "Klicke 100-mal.", (s) -> (s.klicks >= 100), nein),
     neu Erfolg("Sehnenscheide aus Stahl", "Klicke 1.000-mal.", (s) -> (s.klicks >= 1000), nein),
     neu Erfolg("412 Pizzen an einem Freitag", "Backe 412 Pizzen in einem einzigen Freitagabend-Ansturm.",
-        (s) -> (s.effekt == "freitag" && s.freitagPizzen >= 412), nein),
+        (s) -> (s.freitagPizzen >= 412), nein),   // freitagPizzen zählt nur während des Ansturms
     neu Erfolg("Standhaft", "Lehne drei Hawaii-Bestellungen höflich ab.", (s) -> (s.hawaiiAbgelehnt >= 3), nein),
     neu Erfolg("Pünktlich wie die Post", "Liefere drei Großbestellungen pünktlich.", (s) -> (s.pünktlich >= 3), nein),
     neu Erfolg("Heiße Nächte", "Fahre fünf Sonderschichten.", (s) -> (s.sonderschichten >= 5), nein),
