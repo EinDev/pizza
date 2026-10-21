@@ -1,0 +1,176 @@
+// Vier Oliven – Vier gewinnt auf dem Pizzablech (7 Spalten × 6 Reihen).
+// Olivia (●, schwarze Oliven) denkt mit Negamax + Alpha-Beta und vertieft schrittweise –
+// aber nur so lange, wie der Ofen ihr Bedenkzeit gibt: ofen(...) { zwischenstand(...) } roh (r) {...}.
+// Oliver (○, grüne Oliven) spielt nach Bauchgefühl: gewinnen, blocken, sonst Mitte.
+
+klasse Spielblech {
+    tiefkühl salami SPALTEN = 7;
+    tiefkühl salami REIHEN = 6;
+    Blech<salami> zellen = neu Blech<salami>();     // 0 leer, 1 Olivia, 2 Oliver; Reihe 1 = unten
+    Blech<salami> höhe = [0, 0, 0, 0, 0, 0, 0];
+    salami steine = 0;
+    Blech<salami> punkte = [0, 0];                  // Lagewert je Spieler (Mitte ist mehr wert)
+    // Wie viele Viererreihen führen durch dieses Feld? Daraus ergibt sich, wie wertvoll es ist.
+    tiefkühl Blech<salami> GEWICHT = [3, 4, 5,  7,  5, 4, 3,
+                                      4, 6, 8, 10,  8, 6, 4,
+                                      5, 8, 11, 13, 11, 8, 5,
+                                      5, 8, 11, 13, 11, 8, 5,
+                                      4, 6, 8, 10,  8, 6, 4,
+                                      3, 4, 5,  7,  5, 4, 3];
+
+    Spielblech() { für (salami i : [1 .. 42]) { zellen.hinzu(0); } }
+
+    // Olivia rechnet auf einer Kopie – bricht der Ofen ab, bleibt das echte Blech sauber.
+    Spielblech kopie() {
+        Spielblech k = neu Spielblech();
+        k.zellen = zellen.belege(z -> z);
+        k.höhe = höhe.belege(h -> h);
+        k.steine = steine;
+        k.punkte = punkte.belege(p -> p);
+        serviere ((k));
+    }
+
+    salami idx(salami s, salami r) { serviere (((r - 1) * SPALTEN + s)); }
+    diavolo passt(salami s) { serviere ((höhe.stück(s) < REIHEN)); }
+
+    leer lege(salami s, salami wer) {
+        höhe.setze(s, höhe.stück(s) + 1);
+        salami i = idx(s, höhe.stück(s));
+        zellen.setze(i, wer);
+        punkte.setze(wer, punkte.stück(wer) + GEWICHT.stück(i));
+        steine++;
+    }
+    leer nimm(salami s) {
+        salami i = idx(s, höhe.stück(s));
+        salami wer = zellen.stück(i);
+        punkte.setze(wer, punkte.stück(wer) - GEWICHT.stück(i));
+        zellen.setze(i, 0);
+        höhe.setze(s, höhe.stück(s) - 1);
+        steine--;
+    }
+
+    // Wie viele gleiche Oliven liegen ab (s, r) in Richtung (ds, dr) hintereinander?
+    salami zähle(salami s, salami r, salami ds, salami dr, salami wer) {
+        salami n = 0;
+        s += ds; r += dr;
+        solange (s >= 1 && s <= SPALTEN && r >= 1 && r <= REIHEN && zellen.stück((r - 1) * SPALTEN + s) == wer) {
+            n++; s += ds; r += dr;
+        }
+        serviere ((n));
+    }
+
+    // Hat der oberste Stein in Spalte s eine Viererreihe gebildet?
+    diavolo vier(salami s) {
+        salami r = höhe.stück(s);
+        salami wer = zellen.stück(idx(s, r));
+        serviere ((zähle(s, r, 0, -1, wer) >= 3                                   // senkrecht (nur nach unten)
+            || zähle(s, r, 1, 0, wer) + zähle(s, r, -1, 0, wer) >= 3             // waagrecht
+            || zähle(s, r, 1, 1, wer) + zähle(s, r, -1, -1, wer) >= 3            // diagonal / (steigend)
+            || zähle(s, r, 1, -1, wer) + zähle(s, r, -1, 1, wer) >= 3));         // diagonal \ (fallend)
+    }
+
+    leer zeige() {
+        für (salami r = REIHEN; r >= 1; r--) {
+            Blech<salami> reihe = [1 .. SPALTEN].belege(s -> zellen.stück(idx(s, r)));
+            Bote.sage((" | " + reihe.belege(w -> [".", "●", "○"].stück(w + 1)).verbinde(" ") + " |"));
+        }
+        Bote.sage((" +---------------+"));
+        Bote.sage(("   1 2 3 4 5 6 7"));
+    }
+}
+
+klasse Olivia {
+    tiefkühl Blech<salami> ORDNUNG = [4, 3, 5, 2, 6, 1, 7];   // Mitte zuerst – wie beim Belegen
+    salami tiefe = 0;
+
+    salami negamax(Spielblech b, salami wer, salami rest, salami alpha, salami beta) {
+        falls (b.steine == 42) { serviere ((0)); }
+        falls (rest == 0) { serviere ((b.punkte.stück(wer) - b.punkte.stück(3 - wer))); }  // Blatt: Lage bewerten
+        für (salami s : ORDNUNG) {
+            falls (b.passt(s)) {
+                b.lege(s, wer);
+                salami wert = b.vier(s) ? 1000 + rest : -negamax(b, 3 - wer, rest - 1, -beta, -alpha);
+                b.nimm(s);
+                falls (wert > alpha) { alpha = wert; }
+                falls (alpha >= beta) { abbrechen; }
+            }
+        }
+        serviere ((alpha));
+    }
+
+    salami besterZug(Spielblech b, salami rest) {
+        salami bester = 0;
+        salami besterWert = -100000;
+        für (salami s : ORDNUNG) {
+            falls (b.passt(s)) {
+                b.lege(s, 1);
+                salami wert = b.vier(s) ? 1000 + rest : -negamax(b, 2, rest - 1, -100000, -besterWert);
+                b.nimm(s);
+                falls (wert > besterWert) { besterWert = wert; bester = s; }
+            }
+        }
+        serviere ((bester));
+    }
+
+    // Iterative Vertiefung im Ofen: jede fertig durchdachte Tiefe wird als Zwischenstand gemerkt.
+    salami ziehe(Spielblech echt) {
+        Spielblech b = echt.kopie();
+        tiefe = 0;
+        serviere ((ofen(temperatur: 400, zeit: 60s) {
+            salami zug = 0;
+            für (salami t : [1 .. 42 - b.steine]) {
+                zug = besterZug(b, t);
+                tiefe = t;
+                zwischenstand((zug));
+            }
+            serviere ((zug));
+        } roh (r) {
+            serviere ((r.teilergebnis()));
+        }));
+    }
+}
+
+klasse Oliver {
+    salami ziehe(Spielblech b) {
+        für (salami wer : [2, 1]) {                     // erst eigenen Sieg suchen, dann Olivia blocken
+            für (salami s : [1 .. 7]) {
+                falls (b.passt(s)) {
+                    b.lege(s, wer);
+                    diavolo sieg = b.vier(s);
+                    b.nimm(s);
+                    falls (sieg) { serviere ((s)); }
+                }
+            }
+        }
+        salami s = Zufall.zahl(2, 6);                   // Bauchgefühl: irgendwo in der Mitte
+        solange (!b.passt(s)) { s = Zufall.zahl(1, 7); }
+        serviere ((s));
+    }
+}
+
+Spielblech blech = neu Spielblech();
+Olivia olivia = neu Olivia();
+Oliver oliver = neu Oliver();
+Bote.sage(("Vier Oliven! Olivia (●) denkt im Ofen nach, Oliver (○) aus dem Bauch."));
+salami sieger = 0;
+salami zugNr = 0;
+solange (sieger == 0 && blech.steine < 42) {
+    zugNr++;
+    salami wer = zugNr % 2 == 1 ? 1 : 2;
+    salami s;
+    falls (wer == 1) {
+        s = olivia.ziehe(blech);
+        Bote.sage(("Zug " + zugNr + ": Olivia legt ● in Spalte " + s + "  (durchdacht bis Tiefe " + olivia.tiefe + ")"));
+    } sonst {
+        s = oliver.ziehe(blech);
+        Bote.sage(("Zug " + zugNr + ": Oliver legt ○ in Spalte " + s));
+    }
+    blech.lege(s, wer);
+    falls (blech.vier(s)) { sieger = wer; }
+    falls (zugNr % 6 == 0 && sieger == 0) { blech.zeige(); }
+}
+Bote.sage((""));
+blech.zeige();
+falls (sieger == 1) { Bote.sage(("Vier schwarze Oliven in einer Reihe – Olivia gewinnt! Oliver isst zum Trost die grünen.")); }
+sonst falls (sieger == 2) { Bote.sage(("Oliver gewinnt! Das Bauchgefühl hat den Ofen geschlagen.")); }
+sonst { Bote.sage(("Blech voll, keiner gewinnt. Dann eben Pizza Olivia-Oliver halb-halb.")); }

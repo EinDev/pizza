@@ -1,0 +1,33 @@
+=== Luigis Belag-Baukasten ===
+Margherita ............................ 8,00 €
+   Teig ((Tomate, Mozzarella, Basilikum))
+Trüffel-Traum ........................ 12,00 €
+   Teig + Trüffel ((Tomate, Mozzarella, Trüffel))
+Goldene Trüffel ...................... 24,00 €
+   GOLDENE Teig + Trüffel ((Tomate, Mozzarella, Trüffel, Blattgold))
+Diavolo ............................... 9,00 €
+   Teig ((Tomate, Käse, Salami, Chili))
+Diavolo Inferno ...................... 10,00 €
+   Teig + Feuer ((Tomate, Käse, Salami, Chili, Extrascharf))
+Inferno Happy Hour .................... 8,00 €
+   Teig + Feuer (Happy Hour) ((Tomate, Käse, Salami, Chili, Extrascharf, HappyHour))
+Trüffel, dann Rabatt .................. 9,60 €
+   Teig + Trüffel (Happy Hour) ((Tomate, Mozzarella, Trüffel, HappyHour))
+Rabatt, dann Trüffel ................. 10,50 €
+   Teig (Happy Hour) + Trüffel ((Tomate, Mozzarella, HappyHour, Trüffel))
+
+Reihenfolge zählt: Die Happy Hour rabattiert nur, was unter ihr liegt.
+Extrascharf ohne Chili kostet nichts extra: 7,00 €
+
+Preis-Turm:
+    6,00 €  ((Tomate))
+    7,50 €  + Mozzarella
+    8,00 €  + Chili
+   12,50 €  + Trüffel
+   13,50 €  + Extrascharf
+   27,00 €  + Blattgold
+   21,60 €  + HappyHour
+           = GOLDENE Teig + Trüffel + Feuer (Happy Hour)
+
+Abgefangen: PreisAnanas – Kaviar? Bei Luigi? Das kann sich keiner leisten.
+Luigi atmet auf und backt weiter.

@@ -1,0 +1,64 @@
+Luigi hat 3 Pizzakartons auf der Theke. Ab auf den Roller!
+
+   [#]       |        |
+  [###]      |        |
+ [#####]     |        |
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 1: Karton 1 von Theke nach Roller
+    |        |        |
+  [###]      |        |
+ [#####]     |       [#]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 2: Karton 2 von Theke nach Ablage
+    |        |        |
+    |        |        |
+ [#####]   [###]     [#]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 3: Karton 1 von Roller nach Ablage
+    |        |        |
+    |       [#]       |
+ [#####]   [###]      |
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 4: Karton 3 von Theke nach Roller
+    |        |        |
+    |       [#]       |
+    |      [###]   [#####]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 5: Karton 1 von Ablage nach Theke
+    |        |        |
+    |        |        |
+   [#]     [###]   [#####]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 6: Karton 2 von Ablage nach Roller
+    |        |        |
+    |        |      [###]
+   [#]       |     [#####]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Zug 7: Karton 1 von Theke nach Roller
+    |        |       [#]
+    |        |      [###]
+    |        |     [#####]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Theke   Ablage   Roller
+
+Geschafft in 7 Zügen. Keine Pizza wurde platt gedrückt.
+
+4 Kartons: 15 Züge  (= 2 hoch 4 minus 1)
+6 Kartons: 63 Züge  (= 2 hoch 6 minus 1)
+8 Kartons: 255 Züge  (= 2 hoch 8 minus 1)
+10 Kartons: 1023 Züge  (= 2 hoch 10 minus 1)
+Bei 64 Kartons wäre die Pizza kalt, bevor das Universum endet.

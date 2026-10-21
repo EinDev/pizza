@@ -1,0 +1,75 @@
+// Pizza-Duell: Luigi (vorsichtig) gegen Mario (Hitzkopf).
+// Fünf Runden, jede Pizza hat mehr Beläge. Gar = 2 Punkte, schneller = +1.
+// Heißer Ofen = schneller gar und mehr Budget – aber über 485 Grad verbrennt
+// alles, und über 420 Grad kann der Rand ankokeln (1:4, Würfel mit Seed 42).
+// Zu kalt? Dann reicht das Ofen-Budget nicht, und die Pizza bleibt roh.
+
+klasse Pizzaiolo {
+    margherita name;
+    salami grad;
+    salami plus;
+    salami punkte = 0;
+    Pizzaiolo(margherita name, salami grad, salami plus) {
+        dies.name = name; dies.grad = grad; dies.plus = plus;
+    }
+
+    // Liefert die Backzeit in ms oder -1 (roh) / -2 (verbrannt)
+    salami backe(salami beläge) {
+        salami nötig = 170 * beläge;
+        Dauer start = Uhr.jetzt();
+        salami ergebnis = ofen(temperatur: grad, zeit: 1s) {
+            falls (grad > 420 && Zufall.zahl(1, 4) == 4) {
+                wirf neu VerbranntAnanas("Rand angekokelt");
+            }
+            funghi gar = 0;
+            solange (gar < nötig) {
+                gar += grad / 50;
+                zwischenstand(((gar * 100 / nötig).ganz()));
+            }
+            serviere (((Uhr.jetzt() - start).inMs()));
+        } roh (r) {
+            Bote.sage(("  " + name + ": roh! nur " + r.teilergebnis() + "% gar"));
+            serviere ((-1));
+        } verbrannt (VerbranntAnanas a) {
+            Bote.sage(("  " + name + ": verbrannt – " + a.nachricht()));
+            serviere ((-2));
+        };
+        grad += plus;
+        serviere ((ergebnis));
+    }
+}
+
+Pizzaiolo luigi = neu Pizzaiolo("Luigi", 300, 40);
+Pizzaiolo mario = neu Pizzaiolo("Mario", 400, 25);
+Blech<Pizza> runden = [
+    ((Tomate, Mozzarella)),
+    ((Tomate, Mozzarella, Basilikum)),
+    ((Tomate, Käse, Salami, Pilze)),
+    ((Tomate, Mozzarella, Schinken, Pilze, Oliven)),
+    ((Tomate, Käse, Salami, Schinken, Paprika, Zwiebeln, Chili))
+];
+
+Bote.sage(("=== PIZZA-DUELL: Luigi vs. Mario ==="));
+für (salami r = 1; r <= runden.länge(); r++) {
+    Pizza p = runden.stück(r);
+    Bote.sage(("Runde " + r + ": " + p + "  [Luigi " + luigi.grad + "° | Mario " + mario.grad + "°]"));
+    salami l = luigi.backe(p.anzahlBeläge());
+    salami m = mario.backe(p.anzahlBeläge());
+    // Gar = 2 Punkte, wer schneller gar ist, bekommt noch 1 Bonuspunkt
+    falls (l > 0) { luigi.punkte += 2; }
+    falls (m > 0) { mario.punkte += 2; }
+    margherita bonus = "kein Bonus";
+    falls (l > 0 && (m < 0 || l < m)) { bonus = "Bonus für Luigi"; luigi.punkte++; }
+    sonst falls (m > 0) { bonus = "Bonus für Mario"; mario.punkte++; }
+    Bote.sage(("  Zeiten: Luigi " + (l > 0 ? l + "ms" : "–") + ", Mario " + (m > 0 ? m + "ms" : "–")
+        + "  → " + bonus + "  (Stand " + luigi.punkte + ":" + mario.punkte + ")"));
+}
+
+Bote.sage((""));
+Bote.sage(("Endstand  Luigi " + "*".wiederhole(luigi.punkte) + " " + luigi.punkte
+    + "  :  " + mario.punkte + " " + "*".wiederhole(mario.punkte) + " Mario"));
+falls (luigi.punkte == mario.punkte) {
+    Bote.sage(("Unentschieden – beide müssen die verbrannten Pizzen essen."));
+} sonst {
+    Bote.sage(((luigi.punkte > mario.punkte ? "Luigi" : "Mario") + " gewinnt den Goldenen Pizzaschieber!"));
+}

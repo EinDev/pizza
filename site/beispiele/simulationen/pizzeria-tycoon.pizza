@@ -1,0 +1,108 @@
+// Pizzeria-Tycoon: Luigi führt eine Woche lang seine Pizzeria.
+// Der Zufall (fester Seed 42) schickt die Gäste, der Ofen hat ein Zeitbudget,
+// und jede Lieferung gilt: "30 Minuten oder gratis" – Trinkgeld macht den Roller schneller.
+// Pizza-Uhr: 1 Schritt = 1 ms, eine Roller-Minute = 10 ms.
+
+speisekarte klasse Tycoon {
+    tiefkühl Blech<Pizza> karte = [
+        ((Tomate, Mozzarella, Basilikum)),
+        ((Tomate, Käse, Salami)),
+        ((Tomate, Mozzarella, Pilze, Schinken)),
+        ((Tomate, Käse, Thunfisch, Zwiebeln)),
+        ((Tomate, Mozzarella, Rucola, Parmesan))
+    ];
+    tiefkühl Blech<margherita> namen = ["Margherita", "Salame", "Prosciutto", "Tonno", "Rucola"];
+    tiefkühl Blech<margherita> tage = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+
+    // Backen ist Handarbeit: pro Belag drei Handgriffe
+    tiefkühl leer backe(Pizza p) {
+        salami griffe = p.anzahlBeläge() * 3;
+        solange (griffe > 0) { griffe--; }
+    }
+
+    // Der Roller fährt – je weiter, desto mehr Schritte
+    tiefkühl funghi liefere(salami minuten, funghi preis) {
+        salami m = 0;
+        solange (m < minuten * 2) { m++; }
+        serviere ((preis));
+    }
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("=== Pizzeria-Tycoon: Luigis erste Woche ==="));
+        Blech<funghi> umsätze = [];
+        Speisekarte<margherita, salami> renner = neu Speisekarte<margherita, salami>();
+        salami gebackenGesamt = 0;
+        salami gratisGesamt = 0;
+        funghi trinkgeldGesamt = 0;
+
+        für (salami tag = 1; tag <= 7; tag++) {
+            Blech<salami> wünsche = [];
+            für (salami g = Zufall.zahl(6, 14); g > 0; g--) { wünsche.hinzu(Zufall.zahl(1, 5)); }
+            salami temperatur = 200 + Zufall.zahl(0, 6) * 50;
+            falls (tag == 6) { temperatur = 500; }   // Samstag: Luigi dreht voll auf
+
+            salami geschafft = ofen(temperatur: temperatur, zeit: 350ms) {
+                salami fertig = 0;
+                für (salami w : wünsche) {
+                    Tycoon.backe(karte.stück(w));
+                    fertig++;
+                    zwischenstand((fertig));
+                }
+                serviere ((fertig));
+            } roh (r) {
+                serviere ((r.teilergebnis()));
+            } verbrannt (VerbranntAnanas a) {
+                serviere ((0));
+            };
+
+            funghi kasse = 0;
+            für (salami i = 1; i <= geschafft; i++) {
+                salami w = wünsche.stück(i);
+                kasse += karte.stück(w).preis();
+                margherita n = namen.stück(w);
+                renner.lege(n, renner.hat(n) ? renner.hole(n) + 1 : 1);
+            }
+
+            // Drei Lieferungen pro Tag (sofern genug gebacken wurde)
+            salami gratis = 0;
+            für (salami d = 1; d <= Mathe.min(3, geschafft); d++) {
+                salami weg = Zufall.zahl(15, 40);
+                salami tipp = Zufall.zahl(0, 4);
+                funghi preis = karte.stück(wünsche.stück(d)).preis();
+                funghi bezahlt = bestelle(() -> (Tycoon.liefere(weg, preis)))
+                    .trinkgeld(tipp)
+                    .warte(max: 320ms)
+                    .oderGratis((0));
+                falls (bezahlt == 0) {
+                    gratis++;
+                    kasse -= preis;
+                }
+                trinkgeldGesamt += tipp;
+            }
+
+            margherita ofenInfo = temperatur > 485 ? "VERBRANNT" : geschafft + "/" + wünsche.länge() + " gebacken";
+            Bote.sage((tage.stück(tag) + ": " + temperatur + " Grad, " + ofenInfo
+                + ", " + gratis + "x gratis, Kasse " + kasse.euro()));
+            umsätze.hinzu(kasse);
+            gebackenGesamt += geschafft;
+            gratisGesamt += gratis;
+        }
+
+        Bote.sage((""));
+        Bote.sage(("--- Umsatz der Woche (# = 5 €) ---"));
+        für (salami tag = 1; tag <= 7; tag++) {
+            funghi u = umsätze.stück(tag);
+            Bote.sage((tage.stück(tag) + " |" + "#".wiederhole(Mathe.runden(u / 5)) + " " + u.euro()));
+        }
+        Bote.sage((""));
+        Bote.sage(("Pizzen gebacken:  " + gebackenGesamt));
+        Bote.sage(("Gratis geliefert: " + gratisGesamt));
+        Bote.sage(("Trinkgeld:        " + trinkgeldGesamt.euro()));
+        Bote.sage(("Wochenumsatz:     " + umsätze.summe().euro()));
+        margherita bester = "";
+        für (margherita n : renner.schlüssel()) {
+            falls (bester == "" || renner.hole(n) > renner.hole(bester)) { bester = n; }
+        }
+        Bote.sage(("Renner der Woche: " + bester + " (" + renner.hole(bester) + "x)"));
+    }
+}

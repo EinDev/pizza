@@ -1,0 +1,74 @@
+// Freitagabend-Ansturm: 412 Bestellungen in zwei Stunden Küchenzeit.
+// Schafft das Luigi allein – oder braucht er acht Köche?
+// schneide(8) teilt die Bons auf, jeder Koch arbeitet sein Stück ab.
+// (Tier 2: die Köche laufen nacheinander, wir messen aber jeden einzeln
+//  auf der Pizza-Uhr – parallel zählt nur der langsamste Koch.)
+
+// Ein Bon = Anzahl Beläge (1–5). Jeder Belag kostet ein paar Handgriffe.
+Blech<salami> bons = [];
+für (salami i = 1; i <= 412; i++) { bons.hinzu(Zufall.zahl(1, 5)); }
+Bote.sage(("=== Freitag, 19 Uhr: " + bons.länge() + " Bons hängen an der Leiste ==="));
+Bote.sage(("Beläge insgesamt: " + bons.summe()));
+
+salami belege(salami beläge) {
+    salami griffe = beläge * 4;
+    solange (griffe > 0) { griffe--; }
+    serviere ((1));
+}
+
+// Küchenschluss: 2 Stunden Pizza-Zeit = 20 s auf der Pizza-Uhr (Ofen mit 250 Grad)
+salami arbeite(Blech<salami> stapel) {
+    serviere ((ofen(temperatur: 250, zeit: 20s) {
+        salami fertig = 0;
+        für (salami b : stapel) {
+            fertig += belege(b);
+            zwischenstand((fertig));
+        }
+        serviere ((fertig));
+    } roh (r) {
+        serviere ((r.teilergebnis()));
+    }));
+}
+
+// --- Variante A: Luigi ganz allein ---
+Dauer start = Uhr.jetzt();
+salami allein = arbeite(bons);
+Dauer dauerAllein = Uhr.jetzt() - start;
+Bote.sage((""));
+Bote.sage(("Luigi allein: " + allein + " von 412 Pizzen fertig, dann ist Küchenschluss."));
+Bote.sage(("Wütende Gäste: " + (412 - allein)));
+
+// --- Variante B: acht Köche ---
+Bote.sage((""));
+Blech<Blech<salami>> stapel = bons.schneide(8);
+Blech<margherita> köche = ["Luigi", "Mario", "Gina", "Toni", "Rosa", "Enzo", "Lia", "Beppe"];
+Dauer längster = 0ms;
+Dauer summe = 0ms;
+salami gesamt = 0;
+für (salami k = 1; k <= 8; k++) {
+    Dauer t0 = Uhr.jetzt();
+    salami fertig = arbeite(stapel.stück(k));
+    Dauer d = Uhr.jetzt() - t0;
+    falls (d > längster) { längster = d; }
+    gesamt += fertig;
+    summe += d;
+    salami balken = Mathe.runden(d.inMs() / 200);
+    margherita name = köche.stück(k);
+    Bote.sage((name + " ".wiederhole(6 - name.länge()) + stapel.stück(k).länge() + " Bons |" + "=".wiederhole(balken) + " " + d));
+}
+Bote.sage(("Acht Köche: " + gesamt + " von 412 Pizzen fertig."));
+
+Bote.sage((""));
+Bote.sage(("--- Abrechnung ---"));
+Bote.sage(("Luigi allein:       " + dauerAllein + " – dann war Schluss"));
+Bote.sage(("Alle Bons am Stück: " + summe + " (hätte er gebraucht)"));
+Bote.sage(("Mit 8 Köchen:       " + längster + " (der langsamste Koch zählt)"));
+Bote.sage(("Beschleunigung:     ca. " + (summe.inMs() / längster.inMs()).runden(1) + "x"));
+
+// Fair aufteilen klappt nicht immer: 412 / 8 geht nicht auf
+probier {
+    Blech<Blech<salami>> fair = bons / 8;
+} verbrannt (StreitAnanas a) {
+    Bote.sage(("Gewerkschaft protestiert: " + a.nachricht()));
+}
+Bote.sage(("Mit 4 Köchen wäre es fair: " + (bons / 4).belege(s -> s.länge())));

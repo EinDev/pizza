@@ -1,0 +1,54 @@
+Vier Oliven! Olivia (●) denkt im Ofen nach, Oliver (○) aus dem Bauch.
+Zug 1: Olivia legt ● in Spalte 4  (durchdacht bis Tiefe 3)
+Zug 2: Oliver legt ○ in Spalte 5
+Zug 3: Olivia legt ● in Spalte 4  (durchdacht bis Tiefe 3)
+Zug 4: Oliver legt ○ in Spalte 4
+Zug 5: Olivia legt ● in Spalte 4  (durchdacht bis Tiefe 3)
+Zug 6: Oliver legt ○ in Spalte 6
+ | . . . . . . . |
+ | . . . . . . . |
+ | . . . ● . . . |
+ | . . . ○ . . . |
+ | . . . ● . . . |
+ | . . . ● ○ ○ . |
+ +---------------+
+   1 2 3 4 5 6 7
+Zug 7: Olivia legt ● in Spalte 4  (durchdacht bis Tiefe 3)
+Zug 8: Oliver legt ○ in Spalte 5
+Zug 9: Olivia legt ● in Spalte 5  (durchdacht bis Tiefe 3)
+Zug 10: Oliver legt ○ in Spalte 2
+Zug 11: Olivia legt ● in Spalte 5  (durchdacht bis Tiefe 2)
+Zug 12: Oliver legt ○ in Spalte 4
+ | . . . ○ . . . |
+ | . . . ● . . . |
+ | . . . ● ● . . |
+ | . . . ○ ● . . |
+ | . . . ● ○ . . |
+ | . ○ . ● ○ ○ . |
+ +---------------+
+   1 2 3 4 5 6 7
+Zug 13: Olivia legt ● in Spalte 6  (durchdacht bis Tiefe 3)
+Zug 14: Oliver legt ○ in Spalte 7
+Zug 15: Olivia legt ● in Spalte 6  (durchdacht bis Tiefe 3)
+Zug 16: Oliver legt ○ in Spalte 7
+Zug 17: Olivia legt ● in Spalte 6  (durchdacht bis Tiefe 3)
+Zug 18: Oliver legt ○ in Spalte 3
+ | . . . ○ . . . |
+ | . . . ● . . . |
+ | . . . ● ● ● . |
+ | . . . ○ ● ● . |
+ | . . . ● ○ ● ○ |
+ | . ○ ○ ● ○ ○ ○ |
+ +---------------+
+   1 2 3 4 5 6 7
+Zug 19: Olivia legt ● in Spalte 6  (durchdacht bis Tiefe 3)
+
+ | . . . ○ . . . |
+ | . . . ● . ● . |
+ | . . . ● ● ● . |
+ | . . . ○ ● ● . |
+ | . . . ● ○ ● ○ |
+ | . ○ ○ ● ○ ○ ○ |
+ +---------------+
+   1 2 3 4 5 6 7
+Vier schwarze Oliven in einer Reihe – Olivia gewinnt! Oliver isst zum Trost die grünen.

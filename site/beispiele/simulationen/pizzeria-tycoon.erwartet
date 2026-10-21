@@ -1,0 +1,23 @@
+=== Pizzeria-Tycoon: Luigis erste Woche ===
+Mo: 450 Grad, 9/11 gebacken, 1x gratis, Kasse 75,40 €
+Di: 250 Grad, 5/10 gebacken, 3x gratis, Kasse 16,50 €
+Mi: 450 Grad, 6/6 gebacken, 1x gratis, Kasse 45,00 €
+Do: 350 Grad, 7/11 gebacken, 1x gratis, Kasse 56,40 €
+Fr: 450 Grad, 9/12 gebacken, 2x gratis, Kasse 65,40 €
+Sa: 500 Grad, VERBRANNT, 0x gratis, Kasse 0,00 €
+So: 400 Grad, 7/7 gebacken, 0x gratis, Kasse 63,20 €
+
+--- Umsatz der Woche (# = 5 €) ---
+Mo |############### 75,40 €
+Di |### 16,50 €
+Mi |######### 45,00 €
+Do |########### 56,40 €
+Fr |############# 65,40 €
+Sa | 0,00 €
+So |############# 63,20 €
+
+Pizzen gebacken:  43
+Gratis geliefert: 8
+Trinkgeld:        34,00 €
+Wochenumsatz:     321,90 €
+Renner der Woche: Prosciutto (12x)

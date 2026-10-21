@@ -1,0 +1,62 @@
+// Kühlschrank-Chaos: Zwei Wochen Tomatensoße.
+// Die Soße dauert ewig (viele Schritte) – also kocht Luigi auf Vorrat.
+// @Kühlschrank hält sie 2 Tage frisch. Danach ist sie matschig: Der Gast
+// bekommt die alte Soße, und die Küche kocht sofort eine neue.
+// Uhr.vorspulen springt auf der simulierten Uhr vorwärts – kein echtes Warten.
+
+klasse Küche {
+    margherita name;
+    salami gekocht = 0;
+    Küche(margherita name) { dies.name = name; }
+
+    @Kühlschrank(haltbar: 2d)
+    speisekarte margherita soße(margherita sorte) {
+        salami rühren = 0;
+        solange (rühren < 500) { rühren++; }   // stundenlang rühren
+        gekocht++;
+        serviere ((sorte + "-Soße Nr. " + gekocht));
+    }
+}
+
+Küche luigi = neu Küche("Luigi");
+Küche gina = neu Küche("Gina");
+salami matschig = 0;
+salami ausDemKühlschrank = 0;
+margherita zeitleiste = "";
+
+Bote.sage(("=== Zwei Wochen Tomatensoße bei Luigi ==="));
+Uhr.vorspulen(10h);   // Montag, 10 Uhr: die Küche öffnet
+solange (Uhr.jetzt() < 14d) {
+    salami stunden = (Uhr.jetzt().inMs() / 3_600_000).ganz();
+    margherita wann = "Tag " + ((stunden / 24).ganz() + 1) + ", " + (stunden % 24) + " Uhr";
+    salami vorher = luigi.gekocht;
+    Dauer t0 = Uhr.jetzt();
+    Reste<margherita> r = luigi.soße.mikrowelle("Tomaten");
+    Dauer arbeit = Uhr.jetzt() - t0;
+    margherita zeichen = "K";
+    margherita notiz = "aus dem Kühlschrank";
+    falls (r.istMatschig()) {
+        zeichen = "M"; notiz = "MATSCHIG! (Küche kocht nach)"; matschig++;
+    } sonst falls (luigi.gekocht > vorher) {
+        zeichen = "F"; notiz = "frisch gekocht";
+    } sonst {
+        ausDemKühlschrank++;
+    }
+    zeitleiste += zeichen;
+    Bote.sage((wann + ": " + r.wert() + " – " + notiz + " [" + arbeit + "]"));
+    // Der nächste Gast mit Soßenwunsch kommt irgendwann in 4 bis 40 Stunden
+    Uhr.vorspulen(1h * Zufall.zahl(4, 40));
+}
+
+Bote.sage((""));
+Bote.sage(("Zeitleiste: " + zeitleiste + "   (F = frisch, K = Kühlschrank, M = matschig)"));
+Bote.sage(("Luigi hat " + luigi.gekocht + "x gekocht, " + ausDemKühlschrank
+    + "x aus dem Kühlschrank, " + matschig + "x matschig serviert."));
+
+// Gina hat ihren eigenen Kühlschrank (Cache pro Instanz und pro Sorte)
+Bote.sage((""));
+Bote.sage(("Gina: " + gina.soße("Tomaten") + ", " + gina.soße("Pesto") + ", " + gina.soße("Tomaten")));
+Bote.sage(("Gina hat " + gina.gekocht + "x gekocht (Tomaten kam beim 2. Mal aus dem Kühlschrank)."));
+
+// Sonntag kommt Mamma – da gibt es nur frische Soße
+Bote.sage(("Mamma kommt! " + luigi.soße.frisch("Tomaten") + " – ganz frisch, versprochen."));

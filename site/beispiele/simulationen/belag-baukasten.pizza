@@ -1,0 +1,87 @@
+// Belag-Baukasten: Luigi erfindet eigene Beläge.
+// Jeder Belag ist ein Decorator: Er umwickelt preis() und beschreibung()
+// der Schichten darunter und fragt sie mit unten.xyz() ab.
+
+klasse PreisAnanas erbt LaufzeitAnanas {
+    speisekarte PreisAnanas(margherita m) { unten(m); }
+}
+
+@Nach(Mozzarella)
+belag Trüffel auf Pizza {
+    speisekarte funghi preis() { serviere ((unten.preis() + 4.50)); }
+    speisekarte margherita beschreibung() { serviere ((unten.beschreibung() + " + Trüffel")); }
+}
+
+// Blattgold verdoppelt den Preis von allem, was darunter liegt
+belag Blattgold auf Pizza {
+    speisekarte funghi preis() { serviere ((unten.preis() * 2)); }
+    speisekarte margherita beschreibung() { serviere (("GOLDENE " + unten.beschreibung())); }
+}
+
+// Happy Hour: 20 % Rabatt auf alles darunter – deshalb gehört sie nach oben
+belag HappyHour auf Pizza {
+    speisekarte funghi preis() { serviere (((unten.preis() * 0.8).runden(2))); }
+    speisekarte margherita beschreibung() { serviere ((unten.beschreibung() + " (Happy Hour)")); }
+}
+
+// Extrascharf kostet nur, wenn schon Chili drauf ist – sonst ist es nur Deko
+belag Extrascharf auf Pizza {
+    speisekarte funghi preis() { serviere ((unten.preis() + (dies.hat(Chili) ? 1.00 : 0))); }
+    speisekarte margherita beschreibung() { serviere ((unten.beschreibung() + " + Feuer")); }
+}
+
+// Kaviar? Nicht bei Luigi.
+belag Kaviar auf Pizza {
+    speisekarte funghi preis() { wirf neu PreisAnanas("Kaviar? Bei Luigi? Das kann sich keiner leisten."); }
+}
+
+// Eingebaute Beläge ohne eigene Methoden fragen einfach weiter nach unten
+margherita zeile(margherita name, Pizza p) {
+    margherita beschr = p.beschreibung();
+    margherita punkte = ".".wiederhole(Mathe.max(2, 44 - name.länge() - p.preis().euro().länge()));
+    serviere ((name + " " + punkte + " " + p.preis().euro() + "\n   " + beschr + " " + p));
+}
+
+Bote.sage(("=== Luigis Belag-Baukasten ==="));
+Blech<margherita> namen = ["Margherita", "Trüffel-Traum", "Goldene Trüffel", "Diavolo", "Diavolo Inferno",
+    "Inferno Happy Hour", "Trüffel, dann Rabatt", "Rabatt, dann Trüffel"];
+Blech<Pizza> karte = [
+    ((Tomate, Mozzarella, Basilikum)),
+    ((Tomate, Mozzarella, Trüffel)),
+    ((Tomate, Mozzarella, Trüffel, Blattgold)),
+    ((Tomate, Käse, Salami, Chili)),
+    ((Tomate, Käse, Salami, Chili, Extrascharf)),
+    ((Tomate, Käse, Salami, Chili, Extrascharf, HappyHour)),
+    ((Tomate, Mozzarella, Trüffel, HappyHour)),
+    ((Tomate, Mozzarella, HappyHour, Trüffel))
+];
+für (salami i = 1; i <= karte.länge(); i++) {
+    Bote.sage((zeile(namen.stück(i), karte.stück(i))));
+}
+
+Bote.sage((""));
+Bote.sage(("Reihenfolge zählt: Die Happy Hour rabattiert nur, was unter ihr liegt."));
+Pizza ohneChili = ((Tomate, Käse, Extrascharf));
+Bote.sage(("Extrascharf ohne Chili kostet nichts extra: " + ohneChili.preis().euro()));
+
+margherita rechts(margherita t) { serviere ((" ".wiederhole(10 - t.länge()) + t)); }
+
+// Preis-Turm: eine Pizza Schicht für Schicht aufbauen und mitrechnen
+Bote.sage((""));
+Bote.sage(("Preis-Turm:"));
+Pizza turm = ((Tomate));
+Bote.sage((rechts(turm.preis().euro()) + "  " + turm));
+für (Belag b : [Mozzarella, Chili, Trüffel, Extrascharf, Blattgold, HappyHour]) {
+    turm = turm + b;
+    Bote.sage((rechts(turm.preis().euro()) + "  + " + b.name()));
+}
+Bote.sage(("           = " + turm.beschreibung()));
+
+Bote.sage((""));
+probier {
+    Pizza protzig = ((Tomate, Mozzarella, Kaviar));
+    Bote.sage(("Kaviar-Pizza: " + protzig.preis().euro()));
+} verbrannt (PreisAnanas a) {
+    Bote.sage(("Abgefangen: " + a.typ() + " – " + a.nachricht()));
+}
+Bote.sage(("Luigi atmet auf und backt weiter."));

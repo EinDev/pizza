@@ -1,0 +1,113 @@
+// Tic-Tac-Toe: Margherita gegen Diavolo
+// Zwei perfekte KIs (Minimax mit Alpha-Beta-Schnitt) spielen gegeneinander.
+// Wer perfekt spielt, verliert nie – also endet es … unentschieden. Wie immer in Neapel.
+
+klasse Brett {
+    Blech<margherita> felder = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
+    tiefkühl Blech<Blech<salami>> LINIEN = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 4, 7],
+                                           [2, 5, 8], [3, 6, 9], [1, 5, 9], [3, 5, 7]];
+
+    leer setze(salami feld, margherita zeichen) { felder.setze(feld, zeichen); }
+    diavolo istFrei(salami feld) { serviere ((felder.stück(feld) == " ")); }
+
+    // "M" oder "D", wenn eine Linie voll ist – sonst " "
+    margherita gewinner() {
+        für (Blech<salami> l : LINIEN) {
+            margherita a = felder.stück(l.stück(1));
+            falls (a != " " && a == felder.stück(l.stück(2)) && a == felder.stück(l.stück(3))) {
+                serviere ((a));
+            }
+        }
+        serviere ((" "));
+    }
+
+    diavolo voll() { serviere ((!felder.enthält(" "))); }
+
+    // Freie Felder zeigen ihre Nummer, damit man die Züge mitverfolgen kann
+    margherita bild(salami f) { serviere ((istFrei(f) ? "" + f : felder.stück(f))); }
+
+    leer zeige() {
+        für (salami z = 0; z < 3; z++) {
+            Bote.sage(("   " + bild(z * 3 + 1) + " | " + bild(z * 3 + 2) + " | " + bild(z * 3 + 3)));
+            falls (z < 2) { Bote.sage(("  ---+---+---")); }
+        }
+    }
+}
+
+klasse Pizzaiolo {
+    margherita name;
+    margherita zeichen;
+    margherita gegner;
+    salami bedacht = 0;              // wie viele Stellungen durchdacht wurden
+    tiefkühl Blech<salami> REIHENFOLGE = [5, 1, 3, 7, 9, 2, 4, 6, 8];  // Mitte und Ecken zuerst
+
+    Pizzaiolo(margherita name, margherita zeichen, margherita gegner) {
+        dies.name = name; dies.zeichen = zeichen; dies.gegner = gegner;
+    }
+
+    // Bewertung aus Sicht dieses Pizzaiolos: +10 Sieg, -10 Niederlage, 0 remis.
+    // Schnelle Siege sind besser als langsame (tiefe wird abgezogen).
+    salami minimax(Brett b, diavolo amZug, salami tiefe, salami alpha, salami beta) {
+        bedacht++;
+        margherita g = b.gewinner();
+        falls (g == zeichen) { serviere ((10 - tiefe)); }
+        falls (g == gegner) { serviere ((tiefe - 10)); }
+        falls (b.voll()) { serviere ((0)); }
+        für (salami f : REIHENFOLGE) {
+            falls (b.istFrei(f)) {
+                b.setze(f, amZug ? zeichen : gegner);
+                salami wert = minimax(b, !amZug, tiefe + 1, alpha, beta);
+                b.setze(f, " ");
+                falls (amZug) { alpha = Mathe.max(alpha, wert); } sonst { beta = Mathe.min(beta, wert); }
+                falls (alpha >= beta) { abbrechen; }     // Rest des Blechs ist kalt – weg damit
+            }
+        }
+        serviere ((amZug ? alpha : beta));
+    }
+
+    salami wähleZug(Brett b) {
+        // Eröffnungsbuch: Auf ein leeres Brett gehört Mozzarella in die Mitte.
+        // (Alles durchzurechnen würde den Ofen sprengen – das weiß jeder Pizzaiolo.)
+        falls (!b.felder.enthält("M") && !b.felder.enthält("D")) { serviere ((5)); }
+        salami bester = 0;
+        salami besterWert = -100;
+        für (salami f : REIHENFOLGE) {
+            falls (b.istFrei(f)) {
+                b.setze(f, zeichen);
+                salami wert = minimax(b, nein, 1, -100, 100);
+                b.setze(f, " ");
+                falls (wert > besterWert) { besterWert = wert; bester = f; }
+            }
+        }
+        serviere ((bester));
+    }
+}
+
+Brett brett = neu Brett();
+Pizzaiolo margherita = neu Pizzaiolo("Margherita", "M", "D");
+Pizzaiolo diavolo = neu Pizzaiolo("Diavolo", "D", "M");
+Blech<margherita> sprüche = ["legt Mozzarella auf", "streut Chili auf", "belegt", "beansprucht",
+                             "schiebt ein Stück auf", "rettet", "besetzt", "verteidigt", "krönt"];
+
+Bote.sage(("🍕 Tic-Tac-Toe: Margherita (M) gegen Diavolo (D)"));
+Bote.sage((""));
+Pizzaiolo amZug = margherita;
+salami runde = 1;
+solange (brett.gewinner() == " " && !brett.voll()) {
+    salami vorher = amZug.bedacht;
+    salami feld = amZug.wähleZug(brett);
+    brett.setze(feld, amZug.zeichen);
+    salami gedacht = amZug.bedacht - vorher;
+    margherita notiz = gedacht == 0 ? "aus dem Kochbuch" : "Stellungen bedacht: " + gedacht;
+    Bote.sage(("Zug " + runde + ": " + amZug.name + " " + sprüche.stück(runde) + " Feld " + feld + "  (" + notiz + ")"));
+    brett.zeige();
+    Bote.sage((""));
+    amZug = amZug == margherita ? diavolo : margherita;
+    runde++;
+}
+
+margherita sieger = brett.gewinner();
+falls (sieger == "M") { Bote.sage(("Margherita gewinnt! Klassik schlägt Schärfe.")); }
+sonst falls (sieger == "D") { Bote.sage(("Diavolo gewinnt! Es wird scharf.")); }
+sonst { Bote.sage(("Unentschieden! Zwei perfekte Pizzaioli – die Pizza wird geteilt.")); }
+Bote.sage(("Gesamt bedacht: Margherita " + margherita.bedacht + ", Diavolo " + diavolo.bedacht + " Stellungen."));

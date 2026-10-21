@@ -1,0 +1,32 @@
+=== HAWAII-ALARM – Robo-Luigi am Fließband ===
+Ziel: 10 Pizzen. Filter-Ladungen: [#][#][#][#][#][#]
+Pizza  1: Chili Schinken Artischocken
+          [##..................] 11,00 €   (Ananas in der Kiste: 1)
+Pizza  2: Rucola Oliven Chili
+          [####................] 21,00 €   (Ananas in der Kiste: 2)
+Pizza  3: Paprika Rucola [FILTER! noch 5]
+          [######..............] 30,30 €   (Ananas in der Kiste: 3)
+Pizza  4: Chili Paprika [FILTER! noch 4]
+          [########............] 39,10 €   (Ananas in der Kiste: 4)
+Pizza  5: [FILTER! noch 3] Schinken Oliven
+          [##########..........] 49,10 €   (Ananas in der Kiste: 5)
+Pizza  6: Rucola [FILTER! noch 2] Artischocken
+          [############........] 59,10 €   (Ananas in der Kiste: 6)
+Pizza  7: Salami Rucola [FILTER! noch 1]
+          [##############......] 69,10 €   (Ananas in der Kiste: 7)
+Pizza  8: Salami [FILTER! noch 0] Salami
+          [################....] 79,60 €   (Ananas in der Kiste: 8)
+Pizza  9: Zwiebeln Pilze Paprika
+          [##################..] 89,40 €   (Ananas in der Kiste: 9)
+Pizza 10: ... Robo-Luigi greift zur ... A-A-ANANAS?!
+Filter leer. Alarm! ALARM!
+╔══════════════════════════════════════════════╗
+║   🍍  PIZZA-VM KERNEL PANIC  🍍              ║
+║                                              ║
+║   Fataler Fehler: ANANAS_AUF_PIZZA           ║
+║   Adresse 0xPIZZA → Ofen überhitzt           ║
+║   Der Pizzaiolo hat den Raum verlassen.      ║
+║                                              ║
+║   Core dumped → reste.kaltepizza             ║
+╚══════════════════════════════════════════════╝
+Exit-Code: 39

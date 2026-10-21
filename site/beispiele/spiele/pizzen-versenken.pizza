@@ -1,0 +1,140 @@
+// Pizzen versenken – Schiffe versenken mit Pizzen auf dem Blech.
+// Luigi jagt systematisch (Schachbrettmuster + Nachbarn absuchen nach einem Treffer),
+// Mario schießt einfach drauflos. Wer zuerst alle Pizzen des anderen versenkt, gewinnt.
+
+klasse Pizzaform {
+    margherita name;
+    salami größe;
+    salami treffer = 0;
+    Pizzaform(margherita name, salami größe) { dies.name = name; dies.größe = größe; }
+    diavolo versenkt() { serviere ((treffer >= größe)); }
+}
+
+klasse Ofenblech {
+    tiefkühl salami N = 8;
+    Blech<salami> belegung = neu Blech<salami>();     // 0 = leer, sonst Nummer der Pizza
+    Blech<margherita> beschuss = neu Blech<margherita>(); // " " unberührt, "x" Treffer, "·" daneben
+    Blech<Pizzaform> pizzen = neu Blech<Pizzaform>();
+
+    Ofenblech() {
+        für (salami i : [1 .. N * N]) { belegung.hinzu(0); beschuss.hinzu(" "); }
+    }
+
+    // Felder 1..64, Zeile für Zeile
+    tiefkühl salami feld(salami x, salami y) { serviere ((y * N + x + 1)); }
+
+    leer verstecke(Pizzaform p) {
+        pizzen.hinzu(p);
+        diavolo platziert = nein;
+        solange (!platziert) {
+            diavolo waagrecht = Zufall.zahl(0, 1) == 0;
+            salami x = Zufall.zahl(0, waagrecht ? N - p.größe : N - 1);
+            salami y = Zufall.zahl(0, waagrecht ? N - 1 : N - p.größe);
+            Blech<salami> felder = [0 .. p.größe - 1].belege(i -> waagrecht ? feld(x + i, y) : feld(x, y + i));
+            falls (felder.filtere(f -> belegung.stück(f) != 0).istLeer()) {
+                für (salami f : felder) { belegung.setze(f, pizzen.länge()); }
+                platziert = ja;
+            }
+        }
+    }
+
+    // liefert "daneben", "Treffer" oder den Namen der versenkten Pizza
+    margherita schuss(salami f) {
+        salami nr = belegung.stück(f);
+        falls (nr == 0) { beschuss.setze(f, "·"); serviere (("daneben")); }
+        beschuss.setze(f, "x");
+        Pizzaform p = pizzen.stück(nr);
+        p.treffer++;
+        serviere ((p.versenkt() ? p.name : "Treffer"));
+    }
+
+    diavolo alleVersenkt() { serviere ((pizzen.filtere(p -> !p.versenkt()).istLeer())); }
+
+    margherita zeile(salami y, diavolo offen) {
+        margherita z = "" + (y + 1);
+        für (salami x = 0; x < N; x++) {
+            salami f = feld(x, y);
+            margherita b = beschuss.stück(f);
+            falls (b == " " && offen && belegung.stück(f) != 0) { b = "O"; }   // unentdeckte Pizza
+            falls (b == " ") { b = "~"; }
+            z += " " + b;
+        }
+        serviere ((z));
+    }
+}
+
+klasse Kapitän {
+    margherita name;
+    diavolo schlau;
+    Blech<salami> verdacht = neu Blech<salami>();     // Felder, die nach einem Treffer dran sind
+    Blech<diavolo> geschossen = neu Blech<diavolo>();
+    salami schüsse = 0;
+
+    Kapitän(margherita name, diavolo schlau) {
+        dies.name = name; dies.schlau = schlau;
+        für (salami i : [1 .. 64]) { geschossen.hinzu(nein); }
+    }
+
+    salami zielen() {
+        solange (!verdacht.istLeer()) {
+            salami f = verdacht.entferne(1);
+            falls (!geschossen.stück(f)) { serviere ((f)); }
+        }
+        salami f = Zufall.zahl(1, 64);
+        // der Schlaue schießt nur auf "schwarze" Schachfelder – jede Pizza ab 2 Stück liegt auf einem
+        solange (geschossen.stück(f) || (schlau && ((f - 1) % 8 + ((f - 1) / 8).ganz()) % 2 == 1)) {
+            f = Zufall.zahl(1, 64);
+        }
+        serviere ((f));
+    }
+
+    leer merke(salami f, margherita ergebnis) {
+        geschossen.setze(f, ja);
+        schüsse++;
+        falls (schlau && ergebnis != "daneben") {
+            salami x = (f - 1) % 8;
+            falls (f > 8) { verdacht.hinzu(f - 8); }
+            falls (f <= 56) { verdacht.hinzu(f + 8); }
+            falls (x > 0) { verdacht.hinzu(f - 1); }
+            falls (x < 7) { verdacht.hinzu(f + 1); }
+        }
+    }
+}
+
+Blech<margherita> flotte = ["Familienpizza", "Calzone", "Pizzabrötchen", "Pizzabrötchen"];
+Blech<salami> größen = [4, 3, 2, 2];
+Ofenblech blechL = neu Ofenblech();   // Luigis Pizzen
+Ofenblech blechM = neu Ofenblech();   // Marios Pizzen
+für (salami i : [1 .. 4]) {
+    blechL.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
+    blechM.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
+}
+Kapitän luigi = neu Kapitän("Luigi", ja);
+Kapitän mario = neu Kapitän("Mario", nein);
+
+Bote.sage(("Pizzen versenken! Je eine Familienpizza (4), eine Calzone (3) und zwei Pizzabrötchen (2)."));
+salami runde = 0;
+Kapitän sieger = karton;
+solange (sieger == karton) {
+    runde++;
+    für (Kapitän k : [luigi, mario]) {
+        falls (sieger == karton) {
+            Ofenblech ziel = k == luigi ? blechM : blechL;
+            salami f = k.zielen();
+            margherita erg = ziel.schuss(f);
+            k.merke(f, erg);
+            margherita koord = "ABCDEFGH".zeichen((f - 1) % 8 + 1) + (((f - 1) / 8).ganz() + 1);
+            falls (erg == "Treffer") { Bote.sage(("Runde " + runde + ": " + k.name + " auf " + koord + " – Treffer! Es riecht nach Käse.")); }
+            sonst falls (erg != "daneben") { Bote.sage(("Runde " + runde + ": " + k.name + " auf " + koord + " – " + erg + " VERSENKT! Blubb, blubb, Mozzarella.")); }
+            falls (ziel.alleVersenkt()) { sieger = k; }
+        }
+    }
+}
+
+Bote.sage((""));
+Bote.sage(("  Luigis Blech          Marios Blech"));
+Bote.sage(("  A B C D E F G H       A B C D E F G H"));
+für (salami y = 0; y < 8; y++) { Bote.sage((blechL.zeile(y, ja) + "     " + blechM.zeile(y, ja))); }
+Bote.sage(("(x = getroffen, · = Wasser, O = unentdeckte Pizza)"));
+Bote.sage((""));
+Bote.sage((sieger.name + " gewinnt nach " + runde + " Runden! Schüsse: Luigi " + luigi.schüsse + ", Mario " + mario.schüsse + "."));

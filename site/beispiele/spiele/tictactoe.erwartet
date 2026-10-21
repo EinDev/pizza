@@ -1,0 +1,67 @@
+🍕 Tic-Tac-Toe: Margherita (M) gegen Diavolo (D)
+
+Zug 1: Margherita legt Mozzarella auf Feld 5  (aus dem Kochbuch)
+   1 | 2 | 3
+  ---+---+---
+   4 | M | 6
+  ---+---+---
+   7 | 8 | 9
+
+Zug 2: Diavolo streut Chili auf Feld 1  (Stellungen bedacht: 8853)
+   D | 2 | 3
+  ---+---+---
+   4 | M | 6
+  ---+---+---
+   7 | 8 | 9
+
+Zug 3: Margherita belegt Feld 3  (Stellungen bedacht: 1702)
+   D | 2 | M
+  ---+---+---
+   4 | M | 6
+  ---+---+---
+   7 | 8 | 9
+
+Zug 4: Diavolo beansprucht Feld 7  (Stellungen bedacht: 257)
+   D | 2 | M
+  ---+---+---
+   4 | M | 6
+  ---+---+---
+   D | 8 | 9
+
+Zug 5: Margherita schiebt ein Stück auf Feld 4  (Stellungen bedacht: 123)
+   D | 2 | M
+  ---+---+---
+   M | M | 6
+  ---+---+---
+   D | 8 | 9
+
+Zug 6: Diavolo rettet Feld 6  (Stellungen bedacht: 44)
+   D | 2 | M
+  ---+---+---
+   M | M | D
+  ---+---+---
+   D | 8 | 9
+
+Zug 7: Margherita besetzt Feld 9  (Stellungen bedacht: 15)
+   D | 2 | M
+  ---+---+---
+   M | M | D
+  ---+---+---
+   D | 8 | M
+
+Zug 8: Diavolo verteidigt Feld 2  (Stellungen bedacht: 4)
+   D | D | M
+  ---+---+---
+   M | M | D
+  ---+---+---
+   D | 8 | M
+
+Zug 9: Margherita krönt Feld 8  (Stellungen bedacht: 1)
+   D | D | M
+  ---+---+---
+   M | M | D
+  ---+---+---
+   D | M | M
+
+Unentschieden! Zwei perfekte Pizzaioli – die Pizza wird geteilt.
+Gesamt bedacht: Margherita 1841, Diavolo 9158 Stellungen.

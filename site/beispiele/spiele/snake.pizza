@@ -1,0 +1,121 @@
+// Die hungrige Salami – Snake auf einem 12×8-Blech.
+// Die Salami steuert sich selbst (Autopilot): Sie läuft zum nächsten Pizzastück ▲,
+// meidet Rand und eigenen Schwanz und zieht Wege mit viel Platz vor.
+// Pizzastücke erscheinen per Zufall – der ist in pizza deterministisch (Seed 42).
+
+quattrostagioni Richtung { NORD, OST, SÜD, WEST }
+
+klasse Blech2D {
+    tiefkühl salami BREITE = 12;
+    tiefkühl salami HÖHE = 8;
+    tiefkühl salami pos(salami x, salami y) { serviere ((y * BREITE + x)); }
+    tiefkühl salami x(salami p) { serviere ((p % BREITE)); }
+    tiefkühl salami y(salami p) { serviere (((p / BREITE).ganz())); }
+}
+
+klasse Salami {
+    Blech<salami> körper = [Blech2D.pos(1, 4), Blech2D.pos(2, 4), Blech2D.pos(3, 4)];  // Schwanz … Kopf
+    salami gefressen = 0;
+
+    salami kopf() { serviere ((körper.letztes())); }
+
+    // Nachbarfeld in Richtung r, oder -1 wenn es über den Blechrand ginge
+    salami nachbar(salami p, Richtung r) {
+        salami x = Blech2D.x(p);
+        salami y = Blech2D.y(p);
+        wähle (r) {
+            fall Richtung.NORD -> y--;
+            fall Richtung.SÜD -> y++;
+            fall Richtung.OST -> x++;
+            fall Richtung.WEST -> x--;
+        }
+        falls (x < 0 || y < 0 || x >= Blech2D.BREITE || y >= Blech2D.HÖHE) { serviere ((-1)); }
+        serviere ((Blech2D.pos(x, y)));
+    }
+
+    // Frei = auf dem Blech und nicht Salami (das Schwanzende rückt gleich weiter, zählt also als frei)
+    diavolo frei(salami p) {
+        serviere ((p >= 0 && (!körper.enthält(p) || p == körper.erstes())));
+    }
+
+    salami platzUm(salami p) {
+        salami n = 0;
+        für (Richtung r : Richtung.werte()) { falls (frei(nachbar(p, r))) { n++; } }
+        serviere ((n));
+    }
+
+    // Autopilot: Bewertung = Abstand zum Stück (klein ist gut) minus Bewegungsfreiheit
+    Richtung denke(salami ziel) {
+        Richtung beste = karton;
+        salami besteNote = 9999;
+        für (Richtung r : Richtung.werte()) {
+            salami n = nachbar(kopf(), r);
+            falls (frei(n)) {
+                salami abstand = Mathe.abs(Blech2D.x(n) - Blech2D.x(ziel)) + Mathe.abs(Blech2D.y(n) - Blech2D.y(ziel));
+                salami note = abstand * 2 - platzUm(n) * 3;
+                falls (platzUm(n) == 0 && n != ziel) { note = note + 1000; }  // Sackgasse!
+                falls (note < besteNote) { besteNote = note; beste = r; }
+            }
+        }
+        serviere ((beste));
+    }
+}
+
+klasse Spiel {
+    Salami wurst = neu Salami();
+    salami stück = 0;
+    salami züge = 0;
+
+    leer neuesStück() {
+        salami p = Zufall.zahl(0, Blech2D.BREITE * Blech2D.HÖHE - 1);
+        solange (wurst.körper.enthält(p)) { p = Zufall.zahl(0, Blech2D.BREITE * Blech2D.HÖHE - 1); }
+        stück = p;
+    }
+
+    leer zeige(margherita titel) {
+        Bote.sage((titel));
+        Bote.sage(("+" + "-".wiederhole(Blech2D.BREITE) + "+"));
+        für (salami y = 0; y < Blech2D.HÖHE; y++) {
+            margherita zeile = "|";
+            für (salami x = 0; x < Blech2D.BREITE; x++) {
+                salami p = Blech2D.pos(x, y);
+                falls (p == wurst.kopf()) { zeile += "@"; }
+                sonst falls (wurst.körper.enthält(p)) { zeile += "o"; }
+                sonst falls (p == stück) { zeile += "▲"; }
+                sonst { zeile += " "; }
+            }
+            Bote.sage((zeile + "|"));
+        }
+        Bote.sage(("+" + "-".wiederhole(Blech2D.BREITE) + "+"));
+    }
+
+    leer los(salami ziel) {
+        neuesStück();
+        zeige(("Start: Die Salami ist " + wurst.körper.länge() + " Scheiben lang und hat Hunger."));
+        solange (wurst.gefressen < ziel) {
+            Richtung r = wurst.denke(stück);
+            falls (r == karton) {
+                zeige(("Zug " + züge + ": Eingekesselt! Die Salami hat sich selbst in die Pfanne gehauen."));
+                serviere;
+            }
+            salami ziel2 = wurst.nachbar(wurst.kopf(), r);
+            züge++;
+            wurst.körper.hinzu(ziel2);                      // Kopf rückt vor
+            falls (ziel2 == stück) {
+                wurst.gefressen++;
+                margherita spruch = sprüche.stück((wurst.gefressen - 1) % sprüche.länge() + 1);
+                falls (wurst.gefressen < ziel) { neuesStück(); } sonst { stück = -1; }
+                zeige(("Zug " + züge + ": Happs! Stück Nr. " + wurst.gefressen + " – " + spruch));
+            } sonst {
+                wurst.körper.entferne(1);                   // Schwanz rückt nach
+            }
+        }
+        Bote.sage(("Satt nach " + züge + " Zügen! Die Salami ist jetzt " + wurst.körper.länge() + " Scheiben lang."));
+    }
+}
+
+Blech<margherita> sprüche = ["knusprig!", "mit extra Käse!", "noch warm!", "Rand inklusive!",
+                             "Mamma mia!", "Bellissimo!", "Ein Stück geht immer.", "Burp. Scusi.",
+                             "Nur noch ein Minzblättchen …", "Salami auf Salami!", "Der Gürtel spannt.", "Doppelt belegt!"];
+Spiel spiel = neu Spiel();
+spiel.los(12);

@@ -1,0 +1,75 @@
+{
+  "kategorie": "Simulationen",
+  "beispiele": [
+    {
+      "id": "pizzeria-tycoon",
+      "titel": "Pizzeria-Tycoon",
+      "beschreibung": "Eine Woche Pizzeria: Zufallsbestellungen, Ofen mit Zeitbudget (roh oder verbrannt), Lieferungen nach dem Motto „30 Minuten oder gratis“ und am Ende ein Umsatz-Balkendiagramm.",
+      "datei": "simulationen/pizzeria-tycoon.pizza",
+      "erwartet": "simulationen/pizzeria-tycoon.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Simulation", "Zufall", "ofen", "bestelle", "trinkgeld", "Speisekarte", "Balkendiagramm"]
+    },
+    {
+      "id": "freitagabend-ansturm",
+      "titel": "Freitagabend-Ansturm",
+      "beschreibung": "412 Bestellungen bis Küchenschluss: Luigi allein schafft es nicht – mit schneide(8) auf acht Köche verteilt schon. Mit Zeitmessung auf der Pizza-Uhr und fairem Teilen per /.",
+      "datei": "simulationen/freitagabend-ansturm.pizza",
+      "erwartet": "simulationen/freitagabend-ansturm.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Simulation", "schneide", "Parallelität", "ofen", "Uhr", "StreitAnanas"]
+    },
+    {
+      "id": "pizza-duell",
+      "titel": "Pizza-Duell",
+      "beschreibung": "Luigi (vorsichtig) gegen Mario (Hitzkopf): fünf Runden Wettbacken mit unterschiedlichen Ofen-Strategien – zu kalt bleibt roh, zu heiß verbrennt.",
+      "datei": "simulationen/pizza-duell.pizza",
+      "erwartet": "simulationen/pizza-duell.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Spiel", "ofen", "roh", "VerbranntAnanas", "Klasse", "Zufall"]
+    },
+    {
+      "id": "lieferroller-rallye",
+      "titel": "Lieferroller-Rallye",
+      "beschreibung": "Express-Lieferungen mit Zeitlimit, der Rest startet nach Küchenschluss per wennDa – wer am meisten Trinkgeld gibt, steht ganz oben auf dem Podest.",
+      "datei": "simulationen/lieferroller-rallye.pizza",
+      "erwartet": "simulationen/lieferroller-rallye.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Simulation", "bestelle", "trinkgeld", "warte", "wennDa", "LieferAnanas"]
+    },
+    {
+      "id": "kuehlschrank-chaos",
+      "titel": "Kühlschrank-Chaos",
+      "beschreibung": "Zwei Wochen Tomatensoße: @Kühlschrank hält sie 2 Tage frisch, Uhr.vorspulen lässt die Zeit springen – mal frisch, mal aus dem Kühlschrank, mal matschig.",
+      "datei": "simulationen/kuehlschrank-chaos.pizza",
+      "erwartet": "simulationen/kuehlschrank-chaos.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["Simulation", "@Kühlschrank", "mikrowelle", "frisch", "Uhr", "Caching"]
+    },
+    {
+      "id": "belag-baukasten",
+      "titel": "Belag-Baukasten",
+      "beschreibung": "Eigene Beläge als Decorators: Trüffel, Blattgold, Happy Hour und Extrascharf rechnen Preise und Beschreibungen Schicht für Schicht – und Kaviar wirft eine eigene Ananas.",
+      "datei": "simulationen/belag-baukasten.pizza",
+      "erwartet": "simulationen/belag-baukasten.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["belag", "Decorator", "@Nach", "unten", "eigene Ananas", "probier"]
+    },
+    {
+      "id": "hawaii-alarm",
+      "titel": "Hawaii-Alarm",
+      "beschreibung": "Robo-Luigi belegt zehn Pizzen mit Zufallsbelägen, ein Filter fängt die Ananas ab – bis seine Ladungen leer sind. Endet kurz vorm Ziel mit Kernel Panic (Exit 39).",
+      "datei": "simulationen/hawaii-alarm.pizza",
+      "erwartet": "simulationen/hawaii-alarm.erwartet",
+      "exitCode": 39,
+      "tier": 1,
+      "schlagworte": ["Spiel", "Hawaii", "Ananas", "Panik", "Zufall"]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+// Hawaii-Alarm: Robo-Luigi belegt am Fließband zehn Pizzen mit Zufallsbelägen.
+// In der Zutatenkiste liegt leider eine Ananas – und der Lieferant kippt
+// nach jeder Pizza noch eine dazu. Der Ananas-Filter fängt sie ab,
+// aber er hat nur sechs Ladungen ...
+// Achtung: Eine Pizza mit Ananas ist nicht fangbar. Exit-Code 39.
+
+Blech<Belag> kiste = [Salami, Pilze, Oliven, Paprika, Schinken, Zwiebeln,
+    Chili, Thunfisch, Rucola, Artischocken, Ananas];
+salami filterLadungen = 6;
+salami ziel = 10;
+funghi umsatz = 0;
+
+Bote.sage(("=== HAWAII-ALARM – Robo-Luigi am Fließband ==="));
+Bote.sage(("Ziel: " + ziel + " Pizzen. Filter-Ladungen: " + "[#]".wiederhole(filterLadungen)));
+
+für (salami nr = 1; nr <= ziel; nr++) {
+    Pizza p = ((Tomate, Mozzarella));
+    margherita protokoll = "";
+    für (salami griff = 1; griff <= 3; griff++) {
+        Belag b = kiste.stück(Zufall.zahl(1, kiste.länge()));
+        falls (b.name() == "Ananas" && filterLadungen > 0) {
+            filterLadungen--;
+            protokoll += " [FILTER! noch " + filterLadungen + "]";
+            weiter;
+        }
+        falls (b.name() == "Ananas") {
+            Bote.sage(("Pizza " + (nr < 10 ? " " : "") + nr + ":" + protokoll + " ... Robo-Luigi greift zur ... A-A-ANANAS?!"));
+            Bote.sage(("Filter leer. Alarm! ALARM!"));
+        }
+        p = p + b;   // Hier passiert es.
+        protokoll += " " + b.name();
+    }
+    umsatz += p.preis();
+    salami fortschritt = nr * 20 / ziel;
+    Bote.sage(("Pizza " + (nr < 10 ? " " : "") + nr + ":" + protokoll));
+    Bote.sage(("          [" + "#".wiederhole(fortschritt) + ".".wiederhole(20 - fortschritt) + "] "
+        + umsatz.euro() + "   (Ananas in der Kiste: " + (nr) + ")"));
+    kiste.hinzu(Ananas);   // der Lieferant meint es gut
+}
+
+Bote.sage(("Alle " + ziel + " Pizzen fertig – ganz ohne Ananas!"));

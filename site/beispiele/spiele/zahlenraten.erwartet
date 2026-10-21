@@ -1,0 +1,35 @@
+Wie viele Pizzen hat Luigi heute gebacken? (1 bis 1000)
+Bianca: "Teile und herrsche – wie eine Pizza."   Rocco: "Bauchgefühl! Ich spür das im Teig."
+
+Montag: Luigi hat 602 Pizzen gebacken. (Psst!)
+  Bianca (10): 500↑ 750↓ 625↓ 562↑ 593↑ 609↓ 601↑ 605↓ 603↓ 602✓
+  Rocco  (13): 670↓ 117↑ 408↑ 480↑ 599↑ 660↓ 628↓ 606↓ 605↓ 603↓ 600↑ 601↑ 602✓
+  → Bianca holt sich das Stück.
+
+Dienstag: Luigi hat 449 Pizzen gebacken. (Psst!)
+  Bianca (10): 500↓ 250↑ 375↑ 437↑ 468↓ 452↓ 444↑ 448↑ 450↓ 449✓
+  Rocco  (15): 687↓ 419↑ 421↑ 546↓ 525↓ 427↑ 485↓ 429↑ 444↑ 447↑ 454↓ 452↓ 450↓ 448↑ 449✓
+  → Bianca holt sich das Stück.
+
+Mittwoch: Luigi hat 853 Pizzen gebacken. (Psst!)
+  Bianca (9): 500↑ 750↑ 875↓ 812↑ 843↑ 859↓ 851↑ 855↓ 853✓
+  Rocco  (6): 843↑ 920↓ 905↓ 863↓ 852↑ 853✓
+  → Rocco hatte den richtigen Riecher!
+
+Donnerstag: Luigi hat 7 Pizzen gebacken. (Psst!)
+  Bianca (7): 500↓ 250↓ 125↓ 62↓ 31↓ 15↓ 7✓
+  Rocco  (8): 52↓ 29↓ 17↓ 4↑ 12↓ 6↑ 8↓ 7✓
+  → Bianca holt sich das Stück.
+
+Freitag: Luigi hat 1000 Pizzen gebacken. (Psst!)
+  Bianca (10): 500↑ 750↑ 875↑ 938↑ 969↑ 985↑ 993↑ 997↑ 999↑ 1000✓
+  Rocco  (9): 859↑ 931↑ 946↑ 962↑ 974↑ 976↑ 992↑ 998↑ 1000✓
+  → Rocco hatte den richtigen Riecher!
+
+Samstag: Luigi hat 512 Pizzen gebacken. (Psst!)
+  Bianca (10): 500↑ 750↓ 625↓ 562↓ 531↓ 515↓ 507↑ 511↑ 513↓ 512✓
+  Rocco  (12): 928↓ 82↑ 880↓ 426↑ 853↓ 485↑ 526↓ 486↑ 501↑ 513↓ 508↑ 512✓
+  → Bianca holt sich das Stück.
+
+Endstand: Bianca 4 Stücke (56 Versuche), Rocco 2 Stücke (63 Versuche).
+Binärsuche braucht nie mehr als 10 Versuche, denn 2 hoch 10 = 1024 ≥ 1000.

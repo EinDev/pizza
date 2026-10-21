@@ -1,0 +1,32 @@
+Pizzen versenken! Je eine Familienpizza (4), eine Calzone (3) und zwei Pizzabrötchen (2).
+Runde 3: Luigi auf B6 – Treffer! Es riecht nach Käse.
+Runde 4: Luigi auf B5 – Treffer! Es riecht nach Käse.
+Runde 8: Luigi auf B4 – Treffer! Es riecht nach Käse.
+Runde 8: Mario auf C3 – Treffer! Es riecht nach Käse.
+Runde 9: Mario auf E1 – Treffer! Es riecht nach Käse.
+Runde 10: Luigi auf C5 – Treffer! Es riecht nach Käse.
+Runde 11: Luigi auf B3 – Familienpizza VERSENKT! Blubb, blubb, Mozzarella.
+Runde 11: Mario auf D6 – Treffer! Es riecht nach Käse.
+Runde 13: Luigi auf C4 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
+Runde 13: Mario auf D8 – Treffer! Es riecht nach Käse.
+Runde 14: Mario auf F1 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
+Runde 15: Luigi auf B2 – Treffer! Es riecht nach Käse.
+Runde 20: Luigi auf A2 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
+Runde 21: Mario auf G4 – Treffer! Es riecht nach Käse.
+Runde 25: Luigi auf F6 – Treffer! Es riecht nach Käse.
+Runde 26: Luigi auf F5 – Treffer! Es riecht nach Käse.
+Runde 30: Luigi auf F4 – Calzone VERSENKT! Blubb, blubb, Mozzarella.
+
+  Luigis Blech          Marios Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ · ~ · x x ~ ·     1 · · · ~ ~ ~ ~ ~
+2 · ~ O · ~ · ~ ·     2 x x · ~ ~ ~ ~ ~
+3 ~ · x · ~ ~ ~ ·     3 · x · ~ ~ ~ ~ ~
+4 ~ ~ O · ~ O x ~     4 · x x · ~ x ~ ~
+5 · · ~ O · ~ ~ ·     5 · x x · ~ x · ~
+6 ~ ~ · x · ~ · ·     6 · x · ~ · x · ~
+7 ~ ~ ~ O · ~ · ~     7 ~ · ~ ~ ~ · ~ ~
+8 ~ ~ ~ x · ~ ~ ·     8 ~ · ~ · ~ ~ ~ ~
+(x = getroffen, · = Wasser, O = unentdeckte Pizza)
+
+Luigi gewinnt nach 30 Runden! Schüsse: Luigi 30, Mario 29.

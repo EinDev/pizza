@@ -1,0 +1,59 @@
+// Wie viele Pizzen hat Luigi heute gebacken? – Zahlenraten zwischen 1 und 1000.
+// Bianca rät per Binärsuche (immer genau in die Mitte), Rocco rät irgendwo im möglichen Bereich.
+// Die Strategien sind Lambdas: (von, bis) -> Tipp. Wer weniger Versuche braucht, kriegt die Pizza.
+
+klasse Rater {
+    margherita name;
+    margherita spruch;
+    salami gesamt = 0;
+    salami siege = 0;
+    Rezept<salami> strategie;          // eine Funktion (von, bis) -> Tipp; der Typname ist frei wählbar
+    // Die Ratestrategie wird als Funktion übergeben – das ist der ganze Unterschied zwischen den beiden.
+    Rater(margherita name, margherita spruch, Rezept<salami> strategie) {
+        dies.name = name; dies.spruch = spruch; dies.strategie = strategie;
+    }
+
+    // Spielt eine Runde und liefert die Anzahl der Versuche. ↑ = mehr Pizzen, ↓ = weniger.
+    salami rate(salami geheim) {
+        salami von = 1;
+        salami bis = 1000;
+        salami versuche = 0;
+        margherita protokoll = "";
+        solange (ja) {
+            salami tipp = strategie(von, bis);
+            versuche++;
+            falls (tipp == geheim) {
+                protokoll += tipp + "✓";
+                abbrechen;
+            }
+            falls (tipp < geheim) { protokoll += tipp + "↑ "; von = tipp + 1; }
+            sonst { protokoll += tipp + "↓ "; bis = tipp - 1; }
+        }
+        Bote.sage(("  " + name + " (" + versuche + "): " + protokoll));
+        gesamt += versuche;
+        serviere ((versuche));
+    }
+}
+
+Rater bianca = neu Rater("Bianca", "Teile und herrsche – wie eine Pizza.", (von, bis) -> ((von + bis) / 2).ganz());
+Rater rocco = neu Rater("Rocco ", "Bauchgefühl! Ich spür das im Teig.", (von, bis) -> Zufall.zahl(von, bis));
+
+Bote.sage(("Wie viele Pizzen hat Luigi heute gebacken? (1 bis 1000)"));
+Bote.sage(("Bianca: \"" + bianca.spruch + "\"   Rocco: \"" + rocco.spruch + "\""));
+
+Blech<salami> tage = [Zufall.zahl(1, 1000), Zufall.zahl(1, 1000), Zufall.zahl(1, 1000), 7, 1000, 512];
+Blech<margherita> wochentage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+für (salami i : [1 .. tage.länge()]) {
+    salami geheim = tage.stück(i);
+    Bote.sage((""));
+    Bote.sage((wochentage.stück(i) + ": Luigi hat " + geheim + " Pizzen gebacken. (Psst!)"));
+    salami b = bianca.rate(geheim);
+    salami r = rocco.rate(geheim);
+    falls (b < r) { bianca.siege++; Bote.sage(("  → Bianca holt sich das Stück.")); }
+    sonst falls (r < b) { rocco.siege++; Bote.sage(("  → Rocco hatte den richtigen Riecher!")); }
+    sonst { Bote.sage(("  → Gleichstand. Das Stück wird halbiert.")); }
+}
+
+Bote.sage((""));
+Bote.sage(("Endstand: Bianca " + bianca.siege + " Stücke (" + bianca.gesamt + " Versuche), Rocco " + rocco.siege + " Stücke (" + rocco.gesamt + " Versuche)."));
+Bote.sage(("Binärsuche braucht nie mehr als 10 Versuche, denn 2 hoch 10 = 1024 ≥ 1000."));

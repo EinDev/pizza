@@ -1,0 +1,89 @@
+// Die Türme von Hanoi – mit Pizzakartons.
+// Luigi muss einen Stapel Kartons von der Theke zum Lieferroller tragen.
+// Regel: Nie ein großer Karton auf einen kleineren – sonst ist die Pizza darunter platt.
+// Lösung: rekursiv. Um n Kartons zu bewegen, bewegt man n-1 zur Seite, den größten ans Ziel,
+// und dann die n-1 wieder obendrauf.
+
+klasse Kartonturm {
+    margherita name;
+    Blech<salami> kartons = neu Blech<salami>();   // unten … oben, Zahl = Größe
+    Kartonturm(margherita name) { dies.name = name; }
+    salami oben() { serviere ((kartons.istLeer() ? 99 : kartons.letztes())); }
+}
+
+klasse Luigi {
+    Blech<Kartonturm> türme;
+    salami züge = 0;
+    salami höhe;
+    diavolo zeigen;
+
+    Luigi(salami höhe, diavolo zeigen) {
+        dies.höhe = höhe; dies.zeigen = zeigen;
+        türme = [neu Kartonturm("Theke"), neu Kartonturm("Ablage"), neu Kartonturm("Roller")];
+        für (salami g = höhe; g >= 1; g--) { türme.stück(1).kartons.hinzu(g); }
+    }
+
+    // Ein Karton der Größe g, mittig in einer Spalte der Breite b
+    // (rechts aufgefüllt nur, wenn noch eine Spalte folgt – sonst blieben Leerzeichen am Zeilenende)
+    margherita male(salami g, salami b, diavolo auffüllen) {
+        margherita t = g == 0 ? "|" : "[" + "#".wiederhole(2 * g - 1) + "]";
+        salami links = ((b - t.länge()) / 2).ganz();
+        serviere ((" ".wiederhole(links) + t + (auffüllen ? " ".wiederhole(b - t.länge() - links) : "")));
+    }
+
+    leer zeige() {
+        salami b = 2 * höhe + 3;
+        für (salami ebene = höhe; ebene >= 1; ebene--) {
+            margherita z = "";
+            für (Kartonturm t : türme) {
+                z += male(t.kartons.länge() >= ebene ? t.kartons.stück(ebene) : 0, b, t != türme.letztes());
+            }
+            Bote.sage((z));
+        }
+        Bote.sage(("^".wiederhole(3 * b)));
+        Bote.sage((türme.belege(t -> {
+            margherita n = t.name;
+            salami r = ((b - n.länge()) / 2).ganz();
+            serviere ((" ".wiederhole(r) + n + (t != türme.letztes() ? " ".wiederhole(b - n.länge() - r) : "")));
+        }).verbinde("")));
+    }
+
+    leer trage(salami von, salami nach) {
+        Kartonturm a = türme.stück(von);
+        Kartonturm z = türme.stück(nach);
+        salami g = a.kartons.entferne(a.kartons.länge());
+        falls (g > z.oben()) { wirf neu StreitAnanas(("Karton " + g + " auf " + z.oben() + "? Die Pizza ist platt!")); }
+        z.kartons.hinzu(g);
+        züge++;
+        falls (zeigen) {
+            Bote.sage((""));
+            Bote.sage(("Zug " + züge + ": Karton " + g + " von " + a.name + " nach " + z.name));
+            zeige();
+        }
+    }
+
+    // Das Herzstück: n Kartons von 'von' nach 'nach', 'über' dient als Zwischenlager
+    leer bewege(salami n, salami von, salami nach, salami über) {
+        falls (n == 0) { serviere; }
+        bewege(n - 1, von, über, nach);
+        trage(von, nach);
+        bewege(n - 1, über, nach, von);
+    }
+}
+
+Luigi luigi = neu Luigi(3, ja);
+Bote.sage(("Luigi hat 3 Pizzakartons auf der Theke. Ab auf den Roller!"));
+Bote.sage((""));
+luigi.zeige();
+luigi.bewege(3, 1, 3, 2);
+Bote.sage((""));
+Bote.sage(("Geschafft in " + luigi.züge + " Zügen. Keine Pizza wurde platt gedrückt."));
+
+// Und wie lange dauert das bei größeren Bestellungen? (ohne Bildchen)
+Bote.sage((""));
+für (salami n : [4, 6, 8, 10]) {
+    Luigi helfer = neu Luigi(n, nein);
+    helfer.bewege(n, 1, 3, 2);
+    Bote.sage((n + " Kartons: " + helfer.züge + " Züge  (= 2 hoch " + n + " minus 1)"));
+}
+Bote.sage(("Bei 64 Kartons wäre die Pizza kalt, bevor das Universum endet."));
