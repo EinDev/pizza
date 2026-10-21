@@ -39,7 +39,9 @@ function main() {
   const di = argv.indexOf('--datei');
   let faelle;
   if (di >= 0) faelle = [{ name: argv[di + 1], quelle: fs.readFileSync(argv[di + 1], 'utf8'), opt: {} }];
-  else faelle = korpus.alle();
+  else if (argv.includes('--alles') && fs.existsSync(path.join(ROOT, 'tests', 'differenz', 'korpus.js'))) {
+    faelle = require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).lade().map(f => ({ name: f.quelle + ':' + f.name, quelle: f.code, opt: f.optionen || {} }));
+  } else faelle = korpus.alle();
   const filter = argv.find((a, i) => !a.startsWith('-') && (di < 0 || i !== di + 1));
   if (filter) faelle = faelle.filter(f => f.name.includes(filter));
   const zaehl = { gleich: 0, abweichung: 0, fallback: 0, wurf: 0, syntax: 0 };

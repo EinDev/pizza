@@ -83,6 +83,7 @@
       const gdv = new DataView(gd.buffer);
       for (let i = 0; i < ng; i++) gdv.setBigInt64(i * 8, UNDEF, true);
       this.globAdr = this.mb.datum(gd, 8);
+      this.globFlagAdr = this.mb.datum(new Uint8Array(Math.max(4, ng * 4)), 4);
       // Funktionen deklarieren
       for (const fn of ir.funktionen) {
         const schnell = this.mb.neueFunktion([T.i32, T.i64, T.i64, T.i32], [T.i64]);
@@ -697,7 +698,8 @@
             const w = this.temp('W');
             c.tee(w).i64(UNDEF).op(OP.i64_eq);
             this.auf('if', T.i64);
-            c.i32(this.be.text(name)); this.effekt('rt_global_name');
+            if (ref.autoFallback) c.i64(AUTO);
+            else { c.i32(this.be.text(name)); this.effekt('rt_global_name'); }
             this.sonst();
             c.get(w);
             this.zu();
@@ -1124,6 +1126,7 @@
         const w = this.temp('W');
         c.set(w).i32(this.globAdr(d.ziel.g)).get(w).st64(0);
         this.frei_('W', w);
+        if (d.gebacken) c.i32(this.be.globFlagAdr + d.ziel.g * 4).i32(d.init ? 0 : 1).st32(0);
         return;
       }
       const slot = d.ziel.slot;
@@ -1162,7 +1165,7 @@
           }
           const gi = this.be.globalInfo(z.name);
           return {
-            typ: gi.typ, gebacken: gi.gebacken, global: true,
+            typ: gi.typ, gebacken: gi.gebacken, global: true, flagAdr: this.be.globFlagAdr + z.g * 4,
             lese() { c.i32(adr).ld64(0); return 'W'; }, weg: this.istWegName(z.name),
             schreibe(t) { self.konv(t, 'W'); const w = self.temp('W'); c.set(w).i32(adr).get(w).st64(0); self.frei_('W', w); },
             slotTyp: 'W',
@@ -1216,7 +1219,15 @@
     schreibeVar(ziel, t, name) {
       const c = this.c;
       if (ziel.istFeld) { ziel.schreibe(t); return; }
-      if (ziel.gebacken) {
+      if (ziel.gebacken && ziel.global) {
+        c.i32(ziel.flagAdr).ld32(0).op(OP.i32_eqz);
+        this.auf('if');
+        this.flushKopie();
+        c.i32(this.be.text(name)).call(this.rt('rt_gebacken'));
+        this.br(this.handler[this.handler.length - 1]);
+        this.zu();
+        c.i32(ziel.flagAdr).i32(0).st32(0);
+      } else if (ziel.gebacken) {
         if (ziel.unbelegt >= 0) {
           c.get(ziel.unbelegt).op(OP.i32_eqz);
           this.auf('if');

@@ -27,6 +27,7 @@
     const eingabe = Array.isArray(optionen.eingabe) ? optionen.eingabe.map(x => x == null ? null : String(x)) : null;
     let eingabePos = 0;
     let eof = false;
+    let ausstehend = null, uiAusstehend = null, uiPos = 0;
     let inst = null;
     const mem = () => new Uint8Array(inst.exports.memory.buffer);
     const t = (p, n) => dek.decode(mem().subarray(p, p + n));
@@ -45,25 +46,46 @@
           if (onEingabe !== null) return 1;
           return eingabe !== null && eingabePos < eingabe.length && eingabe[eingabePos] !== null ? 1 : 0;
         }
-        const prompt = pn >= 0 ? t(pp, pn) : null;
-        let zeile = null;
-        if (eof) { /* EOF ist endgültig (K-042) */ }
-        else if (onEingabe !== null) {
-          try { zeile = onEingabe({ prompt, art: art === 1 ? 'zahl' : 'zeile' }); } catch (e) { zeile = null; }
-          if (zeile === undefined) zeile = null;
-        } else if (eingabe !== null && eingabePos < eingabe.length) {
-          zeile = eingabe[eingabePos++];
+        if (ausstehend === null) {
+          const prompt = pn >= 0 ? t(pp, pn) : null;
+          let zeile = null;
+          if (eof) { /* EOF ist endgültig (K-042) */ }
+          else if (onEingabe !== null) {
+            try { zeile = onEingabe({ prompt, art: art === 1 ? 'zahl' : 'zeile' }); } catch (e) { zeile = null; }
+            if (zeile === undefined) zeile = null;
+          } else if (eingabe !== null && eingabePos < eingabe.length) {
+            zeile = eingabe[eingabePos++];
+          }
+          if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
+          else eof = true;
+          emit({ typ: 'eingabe', text: zeile });
+          if (zeile === null) return -1;
+          ausstehend = enk.encode(zeile);
         }
-        if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
-        emit({ typ: 'eingabe', text: zeile });
-        if (zeile === null) return -1;
-        let b = enk.encode(zeile);
-        if (b.length > kap) {
-          let n = kap;
-          while (n > 0 && (b[n] & 0xC0) === 0x80) n--;
-          b = b.subarray(0, n);
-        }
+        const b = ausstehend;
+        if (b.length > kap) return b.length;   // Retry mit größerem Puffer (K-013)
         mem().set(b, bp);
+        ausstehend = null;
+        return b.length;
+      },
+      ui_senden: (p, n) => {
+        let nachricht;
+        try { nachricht = JSON.parse(t(p, n)); } catch (e) { nachricht = t(p, n); }
+        emit({ typ: 'ui', nachricht });
+        if (typeof optionen.onUi === 'function') { try { optionen.onUi(nachricht); } catch (e) { /* ignorieren */ } }
+      },
+      ui_warte: (bp, kap) => {
+        if (uiAusstehend === null) {
+          let ev = null;
+          if (typeof optionen.onUiWarte === 'function') { try { ev = optionen.onUiWarte(); } catch (e) { ev = null; } }
+          else if (Array.isArray(optionen.uiEreignisse)) ev = uiPos < optionen.uiEreignisse.length ? optionen.uiEreignisse[uiPos++] : { typ: 'geschlossen' };
+          if (ev === null || ev === undefined) return -1;
+          uiAusstehend = enk.encode(typeof ev === 'string' ? ev : JSON.stringify(ev));
+        }
+        const b = uiAusstehend;
+        if (b.length > kap) return b.length;
+        mem().set(b, bp);
+        uiAusstehend = null;
         return b.length;
       },
     };

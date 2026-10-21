@@ -30,7 +30,8 @@ pub extern "C" fn rt_bereich(a: W, b: W) -> W {
     let x = match zahl_pruefen(a, "Bereich [a .. b]") { Some(x) => x, None => return KARTON };
     let y = match zahl_pruefen(b, "Bereich [a .. b]") { Some(x) => x, None => return KARTON };
     if (y - x).abs() > 10000000.0 { wirf_ananas(K_RECHEN, "Der Bereich ist zu groß für ein Blech."); return KARTON; }
-    let mut r = Vec::new();
+    let n = crate::zahl::floor((y - x).abs()) as usize + 1;
+    let mut r = Vec::with_capacity(n);
     if x <= y { let mut i = x; while i <= y { r.push(zahl(i)); i += 1.0; } }
     else { let mut i = x; while i >= y { r.push(zahl(i)); i -= 1.0; } }
     let w = blech(r);

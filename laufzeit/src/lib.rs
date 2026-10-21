@@ -81,9 +81,9 @@ extern "C" { static __heap_base: u8; }
 pub static mut HEAP_START: u32 = 0;
 static mut HEAP_TOP: u32 = 0;
 static mut HEAP_ENDE: u32 = 0;
-static mut SPEICHER_LIMIT: u32 = 64 << 20;
+static mut SPEICHER_LIMIT: u32 = 1024 << 20;
 static mut VOLL_MELDEN: bool = false;
-const RESERVE: u32 = 48 << 20;
+const RESERVE: u32 = 64 << 20;
 
 fn heap_init() {
     unsafe {
@@ -193,7 +193,7 @@ pub extern "C" fn limit_setzen(n: f64) {
 
 #[no_mangle]
 pub extern "C" fn speicher_limit_setzen(mib: i32) {
-    unsafe { if mib > 0 && mib < 2048 { SPEICHER_LIMIT = (mib as u32) << 20; } }
+    unsafe { if mib > 0 && mib <= 3072 { SPEICHER_LIMIT = (mib as u32) << 20; } }
 }
 
 static mut ARG_PUF: u32 = 0;

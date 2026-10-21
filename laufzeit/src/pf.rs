@@ -500,17 +500,16 @@ pub fn kuehlschrank(m: u32, dies: W, pos: &[W], ben: &Ben, _knoten: i32, modus: 
 }
 
 // ---------------------------------------------------------------- Eingabe
-static mut EOF_GESEHEN: bool = false;
 pub fn lies_zeile(prompt: Option<W>, art: i32) -> W {
     if let Some(p) = prompt { crate::host_schreibe(bytes(p)); }
     let mut puf: Vec<u8> = alloc::vec![0u8; 65536];
-    let n = crate::host_eingabe(art, prompt.map(bytes), &mut puf);
-    if n < 0 { unsafe { EOF_GESEHEN = true; } return KARTON; }
-    let mut n = n as usize;
-    if n > puf.len() { n = puf.len(); }
-    // \r?\n am Ende entfernen
-    if n > 0 && puf[n - 1] == b'\n' { n -= 1; if n > 0 && puf[n - 1] == b'\r' { n -= 1; } }
-    neu_text(&puf[..n])
+    loop {
+        let n = crate::host_eingabe(art, prompt.map(bytes), &mut puf);
+        if n < 0 { return KARTON; }
+        let n = n as usize;
+        if n > puf.len() { puf = alloc::vec![0u8; n]; continue; }
+        return neu_text(&puf[..n]);
+    }
 }
 pub fn hat_mehr() -> bool { let mut leer: [u8; 0] = []; crate::host_eingabe(2, None, &mut leer) > 0 }
 pub fn eingabe_zahl(zeile: W, ersatz: W) -> W {

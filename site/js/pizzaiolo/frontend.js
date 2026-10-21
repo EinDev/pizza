@@ -24,6 +24,7 @@
   const BELAG_NAMEN = ['Tomate', 'Mozzarella', 'Käse', 'Basilikum', 'Salami', 'Schinken', 'Pilze', 'Oliven', 'Zwiebeln', 'Paprika',
     'Chili', 'Peperoni', 'Rucola', 'Parmesan', 'Gorgonzola', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais',
     'Knoblauch', 'Kapern', 'Ananas'];
+  const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat']);
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
@@ -129,6 +130,8 @@
       this.feldNamen = new Set();
       this.belagNamen = new Set(BELAG_NAMEN);
       this.globalFnNamen = new Set();
+      this.methodenNamen = new Set();
+      this.klassenNamen = new Set();
     }
 
     pos(n) {
@@ -148,6 +151,8 @@
         if (n.k === 'NCall' && n.name === 'schieb' && n.args && n.args.pos.length === 1 && n.args.pos[0].k === 'Name') this.schiebNamen.add(n.args.pos[0].n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Belag') this.belagNamen.add(n.name);
+        if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
+        if (n.k === 'Belag') for (const m of n.methoden) this.methodenNamen.add(m.name);
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
       };
       geh(this.ast);
@@ -686,6 +691,10 @@
                 const ben = n.args.ben ? n.args.ben.map(b => ({ name: b.name, e: this.ausdr(b.e, sc, fn, d) })) : null;
                 return { k: 'mcall', obj, name: n.name, args: { pos: [{ k: 'konst', art: 'auto', wert: null, p: this.pos(a0), tf: d, zus: false }], ben } };
               }
+              if (r.art === 'global') {
+                const ben = n.args.ben ? n.args.ben.map(b => ({ name: b.name, e: this.ausdr(b.e, sc, fn, d) })) : null;
+                return { k: 'mcall', obj, name: n.name, args: { pos: [{ k: 'lies', ref: Object.assign({}, r, { autoFallback: true }), name: 'auto', p: this.pos(a0), tf: d, zus: false }], ben } };
+              }
               if (r.art !== 'lokal' && r.art !== 'umg') this.nein('schneide(auto) mit möglicher Variable auto', a0);
             }
             return { k: 'mcall', obj, name: n.name, args: this.args(n.args, sc, fn, d) };
@@ -696,7 +705,9 @@
         case 'Dies': return { k: 'dies' };
         case 'Unten': return { k: 'unten' };
         case 'UntenCall': return { k: 'untenCall', args: this.args(n.args, sc, fn, d) };
-        case 'Neu': return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
+        case 'Neu':
+          if (THEKE.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Theke (UI) wird vom Compiler noch nicht unterstützt', n);
+          return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
         case 'PizzaLit': {
           const bl = n.belaege;
           if (bl.length === 1 && bl[0].n !== 'Ananas' && !this.belagNamen.has(bl[0].n)) {
@@ -739,13 +750,13 @@
       if (lok && lok.art !== 'gname') return { k: 'ncall', name: n.name, ziel: { art: 'wert', ref: lok }, args: args() };
       const kontext = fn.klasse !== null || fn.belag;
       // 3. schieb
-      if (n.name === 'schieb' && !kontext && !this.globaleNamen.has('schieb') && !this.feldNamen.has('schieb')) {
+      if (n.name === 'schieb' && !this.globaleNamen.has('schieb') && !this.feldNamen.has('schieb') && !(kontext && this.methodenNamen.has('schieb'))) {
         const a = n.args.pos[0];
         if (!a || a.k !== 'Name' || n.args.pos.length !== 1) return { k: 'ncall', name: n.name, ziel: { art: 'schiebFehler' }, args: { pos: [], ben: null } };
         const r = this.loese(a.n, sc, fn, a, 'lesen');
         return { k: 'schieb', ref: r, name: a.n };
       }
-      if (n.name === 'schieb' && kontext) this.nein('schieb im Klassenkontext', n);
+      if (n.name === 'schieb') this.nein('schieb mit gleichnamiger Methode/Variable', n);
       // 2./4. Methoden des Kontexts, sonst Name als Wert
       const wert = this.loese(n.name, sc, fn, n, 'lesen');
       return { k: 'ncall', name: n.name, ziel: { art: kontext ? 'kontext' : 'name', ref: wert }, args: args() };
