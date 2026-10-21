@@ -188,10 +188,11 @@ HOST-ABI (Ereignisse kommen über `ui_warte`). `Uhr.echt()` braucht einen Import
 
 **Klärung/SPEC:** §16 um die Zutaten erweitern; Mindestintervall, Nachholregel (`anzahl`), Schrittlimit pro Rückruf.
 
-## 10. Wie das Spiel heute ohne Takt läuft
+## 10. Stand im Spiel (umgesetzt)
 
-`pizza-imperium.pizza` erkennt den Takt per `probier { neu Takt(…) } verbrannt (a) { … }` (in Interpreter, Wasm und Host
-gleich: `UnbekanntePizzaAnanas` zur Laufzeit). Ohne Takt ist **Zeit eine Spielressource**: jeder Handgriff an der Theke dauert
-eine Sekunde, und der Knopf „⏳ Eine Minute warten“ lässt die Öfen 60 Sekunden laufen. Mit Takt verschwindet der Knopf und die
-Produktion läuft in Echtzeit. Die Testdateien (`.ereignisse`, `.ui-erwartet`) müssen nach Einführung von `Takt` neu erzeugt
-werden – der Baum enthält dann die Takt-Zutat. Das ist erwartet.
+`pizza-imperium.pizza` nutzt alles aus §1–§8 direkt (kein Fallback mehr, Nutzerentscheidung F8): `Takt` (1 s, passive Produktion
+und Ereignisse in Sekunden), `kompakt()`/`euro(kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
+perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium), `Fortschritt` je Upgrade und
+für den nächsten Stern, `Tabelle` für Erfolge und Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse,
+Vorratskammer + `Uhr.echt()` für Speichern und Offline-Fortschritt (50 %, höchstens 8 h). Der Reiter „Imperium“ wird nur gezeichnet,
+wenn er offen ist (große Tabellen-Nachrichten sparen). Tests: Manifest-Feld `echtzeit` (fester Wert), leere Vorratskammer.

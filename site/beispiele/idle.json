@@ -11,21 +11,42 @@
       "uiErwartet": "idle/erste-pizzeria.ui-erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Theke", "Idle-Game", "Klicker", "Pizza", "Mathe.potenz"],
+      "schlagworte": [
+        "Theke",
+        "Idle-Game",
+        "Klicker",
+        "Pizza",
+        "Mathe.potenz"
+      ],
       "theke": true
     },
     {
       "id": "idle-pizza-imperium",
       "titel": "Pizza-Imperium",
-      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerkszeug kaufen, in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren, Erfolge sammeln und für Michelin-Sterne neu eröffnen. Mit Zeitgeber (Takt) laufen Lehrlinge, Öfen und die Filiale in Wuppertal von selbst.",
+      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren, Erfolge sammeln und für Michelin-Sterne neu eröffnen. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb weitergebacken.",
       "datei": "idle/pizza-imperium.pizza",
       "erwartet": "idle/pizza-imperium.erwartet",
       "ereignisse": "idle/pizza-imperium.ereignisse",
       "uiErwartet": "idle/pizza-imperium.ui-erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["Theke", "Idle-Game", "Klassen", "ofen", "bestelle", "@Kühlschrank", "Pizza", "Feature-Erkennung"],
-      "theke": true
+      "schlagworte": [
+        "Theke",
+        "Idle-Game",
+        "Takt",
+        "Reiter",
+        "Tabelle",
+        "Fortschritt",
+        "Vorratskammer",
+        "Uhr.echt",
+        "Zufall",
+        "kompakt",
+        "ofen",
+        "bestelle",
+        "@Kühlschrank"
+      ],
+      "theke": true,
+      "echtzeit": 1800000000000
     }
   ]
 }
