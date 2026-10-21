@@ -59,7 +59,7 @@
       "theke": true
     },
     {
-      "id": "tictactoe",
+      "id": "theke-tictactoe",
       "titel": "Tic-Tac-Toe an der Theke",
       "beschreibung": "Neun Knöpfe in drei Reihen gegen einen Pizzaiolo mit einfachen Regeln: gewinnen, blocken, Mitte, Ecke. Mit Punktestand und neuer Runde.",
       "datei": "theke/tictactoe.pizza",
@@ -97,7 +97,7 @@
       "theke": true
     },
     {
-      "id": "belag-baukasten",
+      "id": "theke-belag-baukasten",
       "titel": "Belag-Baukasten",
       "beschreibung": "Beläge in Schichten anhaken: Der Baukasten prüft die @Nach-Regeln selbst und erklärt freundlich, warum Mozzarella nicht unter die Tomate gehört.",
       "datei": "theke/belag-baukasten.pizza",
