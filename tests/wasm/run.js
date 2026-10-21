@@ -139,6 +139,27 @@ pruefe('interner Fehler (Trap): fester Text, detail nur als Feld', () => {
   return r.exitCode === 1;
 });
 
+console.log('▶ nichtUnterstuetzt (Theke v3)');
+pruefe('animiere/uebergang/schwebe → nichtUnterstuetzt mit Zeile', () => {
+  const quellen = {
+    animiere: ['Theke t = neu Theke("A");', 'Knopf k = neu Knopf("k");', 'k.animiere("puls");'],
+    uebergang: ['Theke t = neu Theke("A");', 'Stapel s = neu Stapel([]).uebergang(ja);'],
+    schwebe: ['Theke t = neu Theke("A");', 't.schwebe("+1");']
+  };
+  for (const [m, zeilen] of Object.entries(quellen)) {
+    const r = F.frontend(P.parse(zeilen.join('\n')).ast);
+    const nu = r.nichtUnterstuetzt && r.nichtUnterstuetzt[0];
+    if (r.ok || !nu || nu.grund !== 'Theke-Animation ' + m + '() läuft vorerst nur im Interpreter' || nu.zeile !== zeilen.length) throw new Error(m + ': ' + JSON.stringify(r.nichtUnterstuetzt));
+  }
+});
+pruefe('eigene Methode animiere bleibt kompilierbar', () => {
+  const q = ['klasse Tanz {', '    salami animiere() { serviere (1); }', '}', 'Tanz t = neu Tanz();', 'Bote.sage((t.animiere()));'].join('\n');
+  const p = P.parse(q);
+  if (!p.ok) throw new Error('Syntax: ' + JSON.stringify(p));
+  const r = F.frontend(p.ast);
+  if (!r.ok) throw new Error(JSON.stringify(r.nichtUnterstuetzt));
+});
+
 console.log('▶ e2e');
 const stat = { gleich: 0, fallback: 0, syntax: 0 };
 for (const f of faelle) {

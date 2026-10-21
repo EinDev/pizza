@@ -31,6 +31,8 @@
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
   const NOCH_NICHT_METHODEN = new Set();
+  // Theke v3 (K-090/091): Animationen gibt es im Wasm erst mit U-57 → ehrlicher Fallback (nur eingebaute, nicht gleichnamige eigene Methoden)
+  const THEKE_ANIMATION_METHODEN = new Set(['animiere', 'uebergang', 'schwebe']);
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
@@ -757,6 +759,7 @@
         case 'Tern': return { k: 'tern', c: this.ausdr(n.c, sc, fn, d), a: this.ausdr(n.a, sc, fn, d), b: this.ausdr(n.b, sc, fn, d) };
         case 'MCall':
           if (NOCH_NICHT_METHODEN.has(n.name)) this.nein('Methode ' + n.name + ' wird vom Compiler noch nicht unterstützt', n);
+          if (THEKE_ANIMATION_METHODEN.has(n.name) && !this.methodenNamen.has(n.name)) this.nein('Theke-Animation ' + n.name + '() läuft vorerst nur im Interpreter', n);
           if (n.obj.k === 'Unten') return { k: 'untenM', name: n.name, args: this.args(n.args, sc, fn, d) };
           {
             const obj = this.ausdr(n.obj, sc, fn, d);
