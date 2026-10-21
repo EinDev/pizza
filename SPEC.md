@@ -1019,7 +1019,7 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
 | Methode | an | Rückgabe | Protokoll-Eintrag |
 |---|---|---|---|
 | `animiere(art, dauer?)` (auch benannt: `art:`, `dauer:`) | jeder Zutat | die Zutat | `{"id":"z1","art":"puls"}` (+ `"dauer":300`) in `animationen` |
-| `schwebe(text?, bei?, farbe?, dauer?)` (auch benannt: `text:`, `bei:`, `farbe:`, `dauer:`) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
+| `schwebe(text, bei?, farbe?, dauer?)` (auch benannt: `text:`, `bei:`, `farbe:`, `dauer:`) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
 | `uebergang(diavolo)` / `uebergang()` | jeder Zutat | Setter → Zutat, Getter → diavolo | Feld `"uebergang":true` (Standard `nein`; im `baum` nur bei `ja`, in `aendere` immer der neue Wert) |
 
 - **Arten (K-090):** genau `puls`, `huepfen`, `wackeln`, `funkeln`, `einblenden`, `aufpoppen` (Vergleich der Textform, K-066;

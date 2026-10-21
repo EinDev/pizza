@@ -810,7 +810,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   (`k.animiere(dauer: 300ms, art: "wackeln")`), bei `schwebe` alle vier (`text:`, `bei:`, `farbe:`, `dauer:`).
 - **Entscheidung:** **Alle** Parameter beider Methoden sind positional (in der Reihenfolge der Signatur) **oder** benannt mit den
   Namen aus der Signatur: `animiere(art, dauer)` → `art:`, `dauer:`; `schwebe(text, bei, farbe, dauer)` → `text:`, `bei:`, `farbe:`,
-  `dauer:`. Es gilt die allgemeine Bindungsregel (§14.9, wie bei Pizza-Methoden): Positionsargumente belegen die Parameter von vorn,
+  `dauer:`. Es gilt die allgemeine Bindungsregel (wie bei Pizza-Methoden, §14.9; die Vorrangregel steht ausdrücklich in §16.6): Positionsargumente belegen die Parameter von vorn,
   benannte füllen die restlichen; ist ein Parameter positional belegt **und** benannt angegeben, gilt der **positionale** Wert
   (`k.animiere("puls", art: "huepfen")` → `puls`); unbekannte benannte Argumente werden ignoriert (K-028). Fehlertexte nennen den
   Parameter stets in der benannten Form (`animiere(dauer: …) braucht …`, `schwebe(bei: …) braucht …`), egal wie er übergeben wurde.
