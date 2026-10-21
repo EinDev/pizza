@@ -40,6 +40,8 @@ Blech<margherita> meldungen = [1].brigade(x -> [
     versuch(() -> { l.wennDa(w -> Bote.sage((w))); }),
     versuch(() -> { z.zahl(1, 6); }),
     versuch(() -> { z.wähle([1, 2]); }),
+    versuch(() -> { z.saat(9); }),
+    versuch(() -> { z.saat(); }),
     versuch(() -> { tr.aufklappen(); })
 ]);
 für (margherita m : meldungen.stück(1)) { Bote.sage((m)); }

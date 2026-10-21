@@ -19,6 +19,8 @@ KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur
 KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.
 KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().
 KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().
+KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().
+erlaubt
 KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.
 [[1, 2, 3, 1] 2 1 10 99 7 nein 5, [1, 2, 3, 2] 3 1 10 99 7 nein 5]
 [7]
