@@ -1,0 +1,10 @@
+klasse Zaehler {
+    salami n = 0;
+    Schild anzeige = neu Schild("0");
+    leer plus() { n++; anzeige.setzeText(("" + n)); }
+}
+Theke t = neu Theke("M");
+Zaehler z = neu Zaehler();
+t.zeige(neu Stapel([z.anzeige, neu Knopf("+", z.plus)]));
+t.bediene();
+Bote.sage((z.n));

@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"B","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z5","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"a"},{"id":"z2","art":"schild","text":"b"},{"id":"z4","art":"knopf","text":"los"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"vor bediene"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z2","text":"b2"},{"id":"z1","text":"a1","stil":{"farbe":"tomate"},"sichtbar":false}]}

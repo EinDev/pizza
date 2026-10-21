@@ -1,0 +1,16 @@
+Theke t = neu Theke("B");
+Schild a = neu Schild("a");
+Schild b = neu Schild("b");
+Schild draussen = neu Schild("x");
+Knopf k = neu Knopf("los", () -> {
+    b.setzeText("b1");
+    a.setzeText("a1");
+    b.setzeText("b2");
+    draussen.setzeText("y");
+    a.stil("farbe", "tomate");
+    a.sichtbar(nein);
+});
+t.zeige(neu Stapel([a, b, k]));
+a.setzeText("vor bediene");
+t.bediene();
+Bote.sage((draussen.text()));

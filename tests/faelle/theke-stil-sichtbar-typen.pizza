@@ -1,0 +1,14 @@
+Theke t = neu Theke("Stil");
+Schild s = neu Schild("Titel", id: "titel");
+s.stil("schrift", "gross").stil("farbe", "basilikum").stil("abstand", 8);
+Knopf k = neu Knopf("Aus");
+k.aktiv(nein);
+k.sichtbar(nein);
+Bote.sage((s.id() + " " + k.id() + " " + k.aktiv() + " " + k.sichtbar() + " " + s.text()));
+Bote.sage((s + " " + k + " " + t));
+Zutat z = s;
+Schild z2 = karton;
+probier { Schild f = k; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Theke f2 = s; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+t.zeige(neu Reihe([s, k]));
+Bote.sage((t.titel()));

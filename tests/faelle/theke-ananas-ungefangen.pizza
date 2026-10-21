@@ -1,0 +1,7 @@
+Theke t = neu Theke("U");
+Knopf k = neu Knopf("Boom", () -> {
+    wirf neu RechenAnanas("im Rückruf");
+});
+t.zeige(k);
+t.bediene();
+Bote.sage(("nie"));

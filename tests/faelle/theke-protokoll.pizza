@@ -1,0 +1,10 @@
+Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 320);
+Schild preis   = neu Schild("Noch nichts bestellt.");
+Eingabe anzahl = neu Eingabe(platzhalter: "Wie viele Pizzen?");
+Knopf backen   = neu Knopf("Backen!", () -> {
+    salami n = anzahl.wert().alsZahl();
+    preis.setzeText(("Macht " + (n * 8).euro()));
+});
+theke.zeige(neu Stapel([preis, anzahl, backen]));
+theke.bediene();
+Bote.sage(("Fenster zu"));

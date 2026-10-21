@@ -43,6 +43,26 @@ function ausgabeText(ereignisse) {
   return t;
 }
 
+// Theke (THEKE.md §5): JSON-Lines – eine JSON-Zeile pro Ereignis bzw. ui-Nachricht, Leerzeilen ignoriert
+function jsonZeilen(text, wo) {
+  return String(text).replace(/\r\n/g, '\n').split('\n').filter(z => z.trim() !== '').map((z, i) => {
+    try { return JSON.parse(z); } catch (e) { throw new Error(wo + ', Zeile ' + (i + 1) + ': ungültiges JSON: ' + e.message); }
+  });
+}
+
+function kanonisch(v) {
+  if (Array.isArray(v)) return '[' + v.map(kanonisch).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + kanonisch(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+
+function uiVergleich(soll, ereignisse) {
+  const ist = ereignisse.filter(e => e.typ === 'ui').map(e => e.nachricht);
+  const a = soll.map(kanonisch).join('\n'), b = ist.map(kanonisch).join('\n');
+  if (a === b) return null;
+  return 'ui-Nachrichten weichen ab:\n' + diff(soll.map(x => JSON.stringify(x)).join('\n'), ist.map(x => JSON.stringify(x)).join('\n'));
+}
+
 function eingabeZeilen(text) {
   const z = String(text).replace(/\r\n/g, '\n').split('\n');
   if (z.length && z[z.length - 1] === '') z.pop();
@@ -120,6 +140,9 @@ function faelle() {
     const fehlerDatei = lies('.fehler');
     const optDatei = lies('.optionen.json');
     const opt = optDatei ? JSON.parse(optDatei) : {};
+    const ereignisDatei = lies('.ereignisse');
+    if (ereignisDatei !== null) opt.uiEreignisse = jsonZeilen(ereignisDatei, basis + '.ereignisse');
+    const uiErwartet = lies('.ui-erwartet');
     const eingabeDatei = lies('.eingabe');
     if (eingabeDatei !== null) opt.eingabe = eingabeZeilen(eingabeDatei);
     const t0 = Date.now();
@@ -133,6 +156,10 @@ function faelle() {
       const soll = norm(warnDatei).split('\n').filter(Boolean);
       const ist = r.ereignisse.filter(e => e.typ === 'warnung').map(e => e.text);
       if (JSON.stringify(soll) !== JSON.stringify(ist)) probleme.push('Warnungen weichen ab:\n' + diff(soll.join('\n'), ist.join('\n')));
+    }
+    if (uiErwartet !== null) {
+      const u = uiVergleich(jsonZeilen(uiErwartet, basis + '.ui-erwartet'), r.ereignisse);
+      if (u) probleme.push(u);
     }
     if (fehlerDatei !== null) {
       const ist = r.ereignisse.filter(e => e.typ === 'fehler').map(e => e.text).join('\n');
@@ -328,6 +355,30 @@ function api() {
     }
   });
 
+  test('Theke: onUi/onUiWarte, Ereignis ui, null = geschlossen, Vorrang vor uiEreignisse', () => {
+    const q = 'Theke t = neu Theke("T");\nKnopf k = neu Knopf("x", () -> { k.setzeText("y"); });\nt.zeige(k);\nt.bediene();\nBote.sage(("zu"));';
+    const gesendet = [];
+    const evs = [{ typ: 'klick', id: 'z1' }, null, { typ: 'klick', id: 'z1' }];
+    let fragen = 0;
+    const r = P.run(q, { onUi: m => gesendet.push(m), onUiWarte: () => { fragen++; return evs.shift(); }, uiEreignisse: [] });
+    gleich(fragen, 2, 'Anzahl Warte-Aufrufe');
+    gleich(gesendet.map(m => m.op), ['fenster', 'baum', 'aendere']);
+    gleich(r.ereignisse.filter(e => e.typ === 'ui').map(e => e.nachricht), gesendet, 'ui-Ereignisse = onUi-Nachrichten');
+    gleich(ausgabeText(r.ereignisse), 'zu\n');
+    ja(!r.ereignisse.some(e => e.typ === 'warnung'), 'keine W0100 mit Renderer');
+  });
+
+  test('Theke: Warten kostet keine Schritte, Aufbau kostet normale Aufruf-Schritte', () => {
+    const q = 'Theke t = neu Theke("T");\nKnopf k = neu Knopf("x", () -> { });\nt.zeige(k);\nt.bediene();';
+    const a = P.run(q, { uiEreignisse: [] });
+    const b = P.run(q, { uiEreignisse: [{ typ: 'klick', id: 'z1' }, { typ: 'klick', id: 'z1' }, { typ: 'aenderung', id: 'z1', wert: 'x' }] });
+    gleich(b.schritte, a.schritte, 'Klicks mit leerem Rückruf kosten keine Schritte');
+    gleich(a.schritte, 3 + 4 + 4 + 3, 'Schritte für Aufbau');
+    gleich(a.zeitMs, a.schritte);
+    const c = P.run('Theke t = neu Theke("T");\nKnopf k = neu Knopf("x", () -> { salami q = 1; });\nt.zeige(k);\nt.bediene();', { uiEreignisse: [{ typ: 'klick', id: 'z1' }] });
+    gleich(c.schritte, a.schritte + 2, 'Rückruf zählt nur seinen Rumpf');
+  });
+
   test('K-015: P0012 ist ein Parse-Fehler', () => {
     const r = P.parse('leer f() {\n  abbrechen;\n}');
     gleich([r.ok, r.fehler.code, r.fehler.zeile, r.fehler.spalte], [false, 'P0012', 2, 3]);
@@ -457,10 +508,21 @@ function beispiele() {
         const ep = dp.replace(/\.pizza$/, '.eingabe');
         if (ep !== dp && fs.existsSync(ep)) opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
       }
+      // Theke: Manifestfelder ereignisse/uiErwartet, sonst gleichnamige Dateien neben der .pizza
+      const nebenan = (feld, endung) => {
+        if (b[feld]) { const fp = path.join(dir, b[feld]); return fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : undefined; }
+        const fp = dp.replace(/\.pizza$/, endung);
+        return fp !== dp && fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : null;
+      };
+      const evText = nebenan('ereignisse', '.ereignisse');
+      const uiText = nebenan('uiErwartet', '.ui-erwartet');
+      if (evText === undefined || uiText === undefined) { uebersprungen('beispiele', name, 'Theke-Datei aus dem Manifest fehlt'); continue; }
+      if (evText !== null) opt.uiEreignisse = jsonZeilen(evText, name + '.ereignisse');
       const r = P.run(quelle, opt);
       const probleme = [];
       const exitSoll = typeof b.exitCode === 'number' ? b.exitCode : 0;
       if (r.exitCode !== exitSoll) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + exitSoll + fehlerZusammenfassung(r));
+      if (uiText !== null) { const u = uiVergleich(jsonZeilen(uiText, name + '.ui-erwartet'), r.ereignisse); if (u) probleme.push(u); }
       const ep = b.erwartet && path.join(dir, b.erwartet);
       if (ep && fs.existsSync(ep)) {
         const soll = fs.readFileSync(ep, 'utf8');

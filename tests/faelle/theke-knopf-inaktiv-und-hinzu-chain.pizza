@@ -1,0 +1,9 @@
+Theke t = neu Theke("K");
+salami n = 0;
+Knopf k = neu Knopf("zähl", () -> { n++; });
+Knopf aus = neu Knopf("aus", () -> { k.aktiv(nein); });
+Knopf an = neu Knopf("an", () -> { k.aktiv(ja); });
+Stapel s = neu Stapel([]).hinzu(k).hinzu(aus).hinzu(an);
+t.zeige(s);
+t.bediene();
+Bote.sage((n));

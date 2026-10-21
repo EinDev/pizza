@@ -1,0 +1,4 @@
+Theke t = neu Theke("L");
+t.zeige(neu Schild("hallo"));
+t.bediene();
+Bote.sage(("sofort zu"));

@@ -1,0 +1,10 @@
+Theke t = neu Theke("E");
+Eingabe e = neu Eingabe("start", platzhalter: "Name", id: "name");
+Haken h = neu Haken("Extra Käse", an: ja, id: "kaese");
+Schild s = neu Schild("", id: "info");
+e.beiAenderung(w -> Bote.sage(("tippt: " + w)));
+e.beiEnter(w -> { s.setzeText(("Hallo " + w)); e.setzeWert(""); });
+h.beiAenderung(a -> Bote.sage(("Käse: " + a)));
+t.zeige(neu Stapel([e, h, s]));
+t.bediene();
+Bote.sage((e.wert() + "|" + h.an()));

@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"M","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z3","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"0"},{"id":"z2","art":"knopf","text":"+"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"1"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"2"}]}

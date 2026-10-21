@@ -1,0 +1,6 @@
+Theke t = neu Theke("C", breite: 300, hoehe: 200);
+Reihe r = neu Reihe([]);
+Knopf plus = neu Knopf("+", () -> { r.hinzu(neu Schild("neu")); });
+Knopf weg = neu Knopf("leeren", () -> { r.leeren(); });
+t.zeige(neu Stapel([r, neu Reihe([plus, weg])]));
+t.bediene();

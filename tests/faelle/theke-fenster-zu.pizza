@@ -1,0 +1,9 @@
+Theke t = neu Theke("F");
+Schild s = neu Schild("a");
+Knopf k = neu Knopf("x", () -> { s.setzeText("b"); });
+t.zeige(neu Stapel([s, k]));
+t.bediene();
+s.setzeText("nach dem Schließen");
+Bote.sage(("weiter"));
+t.bediene();
+Bote.sage(("fertig"));

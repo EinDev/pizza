@@ -1,0 +1,2 @@
+{"v":1,"op":"fenster","titel":"Stil","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z2","art":"reihe","kinder":[{"id":"titel","art":"schild","text":"Titel","stil":{"schrift":"gross","farbe":"basilikum","abstand":8}},{"id":"z1","art":"knopf","text":"Aus","aktiv":false,"sichtbar":false}]}}

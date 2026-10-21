@@ -1,0 +1,9 @@
+Theke t = neu Theke("S");
+Knopf k = neu Knopf("Ende", () -> { k.setzeText("tschüss"); t.schliesse(); Bote.sage(("geschlossen")); });
+t.zeige(k);
+t.bediene();
+Bote.sage(("nach bediene"));
+t.bediene();
+Bote.sage(("zweites bediene sofort"));
+t.schliesse();
+k.setzeText("unsichtbar");

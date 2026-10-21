@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"C","breite":300,"hoehe":200}
+{"v":1,"op":"baum","wurzel":{"id":"z5","art":"stapel","kinder":[{"id":"z1","art":"reihe","kinder":[]},{"id":"z4","art":"reihe","kinder":[{"id":"z2","art":"knopf","text":"+"},{"id":"z3","art":"knopf","text":"leeren"}]}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","kinder":[{"id":"z6","art":"schild","text":"neu"}]}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","kinder":[{"id":"z6","art":"schild","text":"neu"},{"id":"z7","art":"schild","text":"neu"}]}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","kinder":[]}]}

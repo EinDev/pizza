@@ -1,0 +1,7 @@
+Theke t = neu Theke("Ohne Renderer");
+Knopf k = neu Knopf("nie geklickt", () -> { Bote.sage(("nie")); });
+t.zeige(k);
+k.setzeText("geändert");
+t.bediene();
+Bote.sage(("läuft weiter"));
+t.bediene();

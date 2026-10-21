@@ -1,0 +1,20 @@
+Theke t = neu Theke("F");
+probier { t.bediene(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Zutat(); } verbrannt (RohlingAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Theke("zwei"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Schild s = neu Schild("a", id: "x");
+probier { neu Knopf("b", id: "x"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { s.stil("css", "rot"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { s.stil("farbe", "pink"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { s.stil("breite", -1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.zeige(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Stapel st = neu Stapel([s]);
+probier { neu Reihe([s]); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { st.hinzu("Text"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { st.hinzu(st); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.zeige(s); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Knopf("k", 5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Stapel(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { s.wert(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Schild("", id: ""); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Theke("x", breite: 1.5); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }

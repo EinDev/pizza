@@ -26,7 +26,8 @@
   const KW = new Set(KEYWORDS);
 
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
-    'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii'];
+    'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii',
+    'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe'];
 
   const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
 
@@ -1278,6 +1279,30 @@
   class OfenRoh { constructor(t, d) { this.teil = t; this.zeit = d; } }
   const AUTO = { auto: true };
 
+  // ---------- Theke (UI-Framework, THEKE.md) ----------
+  const UI_KLASSEN = { Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe' };
+  const UI_ART_NAME = { schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe' };
+  const UI_STIL = {
+    breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
+    ausrichtung: ['links', 'mitte', 'rechts'],
+    schrift: ['klein', 'normal', 'gross', 'mono'],
+    farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal']
+  };
+  class UiTheke {
+    constructor(titel, breite, hoehe) {
+      this.titel = titel; this.breite = breite; this.hoehe = hoehe;
+      this.wurzel = null; this.gezeigt = false; this.geschlossen = false;
+    }
+  }
+  class UiZutat {
+    constructor(art, id) {
+      this.art = art; this.id = id; this.eltern = null; this.sichtbar = true; this.stil = null;
+      this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
+      this.kinder = (art === 'stapel' || art === 'reihe') ? [] : null;
+      this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
+    }
+  }
+
   class Var {
     constructor(w, t, g) {
       this.w = w; this.t = t; this.g = g; this.weg = false;
@@ -1704,10 +1729,88 @@
     }
   });
 
+  const ZUTAT_M = {
+    'id': function (z) { return z.id; },
+    'sichtbar': function (z, pos) {
+      if (!pos.length) return z.sichtbar;
+      z.sichtbar = this.bool(pos[0]);
+      this.uiAendere(z, 'sichtbar', z.sichtbar);
+      return z;
+    },
+    'stil': function (z, pos) {
+      const k = this.text(pos[0]);
+      const art = UI_STIL[k];
+      if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Stil \'' + k + '\' gibt es nicht. Erlaubt: ' + Object.keys(UI_STIL).join(', ') + '.');
+      let w = pos[1];
+      if (art === 'zahl') {
+        if (typeof w !== 'number' || !(w >= 0) || !isFinite(w)) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine Zahl ≥ 0, nicht ' + this.darstellung(w) + '.');
+      } else {
+        w = this.text(w);
+        if (art.indexOf(w) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + w + '\' ist für Stil \'' + k + '\' nicht erlaubt. Erlaubt: ' + art.join(', ') + '.');
+      }
+      if (z.stil === null) z.stil = {};
+      z.stil[k] = w;
+      this.uiAendere(z, 'stil', Object.assign({}, z.stil));
+      return z;
+    },
+    'alsText': function (z) { return this.text(z); }
+  };
+  function uiTabelle(eigen) { return tabelle(Object.assign({}, ZUTAT_M, eigen)); }
+  const UI_TEXT_M = {
+    'text': function (z) { return z.text; },
+    'setzeText': function (z, pos) { z.text = this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
+  };
+  const UI_CONTAINER_M = {
+    'hinzu': function (z, pos) { this.uiKind(z, pos[0]); this.uiAendere(z, 'kinder', null); return z; },
+    'leeren': function (z) {
+      for (const k of z.kinder) k.eltern = null;
+      z.kinder = [];
+      this.uiAendere(z, 'kinder', null);
+      return z;
+    }
+  };
+  const UI_TABELLEN = {
+    schild: uiTabelle(UI_TEXT_M),
+    knopf: uiTabelle(Object.assign({}, UI_TEXT_M, {
+      'beiKlick': function (z, pos) { z.beiKlick = this.uiFunktion(pos[0], 'beiKlick'); return z; },
+      'aktiv': function (z, pos) {
+        if (!pos.length) return z.aktiv;
+        z.aktiv = this.bool(pos[0]);
+        this.uiAendere(z, 'aktiv', z.aktiv);
+        return z;
+      }
+    })),
+    eingabe: uiTabelle({
+      'wert': function (z) { return z.wert; },
+      'setzeWert': function (z, pos) { z.wert = this.text(pos[0]); this.uiAendere(z, 'wert', z.wert); return z; },
+      'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; },
+      'beiEnter': function (z, pos) { z.beiEnter = this.uiFunktion(pos[0], 'beiEnter'); return z; }
+    }),
+    haken: uiTabelle(Object.assign({}, UI_TEXT_M, {
+      'an': function (z) { return z.an; },
+      'setzeAn': function (z, pos) { z.an = this.bool(pos[0]); this.uiAendere(z, 'an', z.an); return z; },
+      'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
+    })),
+    stapel: uiTabelle(UI_CONTAINER_M),
+    reihe: uiTabelle(UI_CONTAINER_M)
+  };
+  const THEKE_M = tabelle({
+    'zeige': function (t, pos) { this.uiZeige(t, pos[0]); return t; },
+    'bediene': function (t, pos, ben, node) { this.uiBediene(t, node); return null; },
+    'schliesse': function (t) { this.uiSchliesse(t); return null; },
+    'setzeTitel': function (t, pos) {
+      t.titel = this.text(pos[0]);
+      if (t.gezeigt && !t.geschlossen) { this.uiFlush(); this.uiSende({ v: 1, op: 'fenster', titel: t.titel, breite: t.breite, hoehe: t.hoehe }); }
+      return t;
+    },
+    'titel': function (t) { return t.titel; },
+    'alsText': function (t) { return this.text(t); }
+  });
+
   const TABELLEN = new Map([
     [Dauer, DAUER_M], [BelagDef, BELAG_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
     [Zustellung, ZUST_M], [Stueck, STUECK_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
-    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M]
+    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M]
   ]);
 
   // =====================================================================
@@ -1724,6 +1827,14 @@
       this.eingabe = Array.isArray(opt.eingabe) ? opt.eingabe.map(x => x == null ? null : String(x)) : null;
       this.eingabePos = 0;
       this.eingabeEof = false;
+      this.onUi = typeof opt.onUi === 'function' ? opt.onUi : null;
+      this.uiWarte = typeof opt.onUiWarte === 'function' ? opt.onUiWarte : null;
+      this.uiListe = Array.isArray(opt.uiEreignisse) ? opt.uiEreignisse.slice() : null;
+      this.uiPos = 0;
+      this.uiTheke = null;
+      this.uiZutaten = new Map();
+      this.uiIdZaehler = 0;
+      this.uiOffen = new Map();
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -1841,6 +1952,8 @@
       if (v instanceof Stueck) return 'Stück';
       if (v instanceof Reste) return 'Reste';
       if (v instanceof OfenRoh) return 'Rohling';
+      if (v instanceof UiTheke) return 'Theke';
+      if (v instanceof UiZutat) return UI_ART_NAME[v.art];
       return 'Unbekanntes';
     }
 
@@ -1994,6 +2107,191 @@
         this.rufeDecl(haupt, dies, pos, null, null, 'normal');
       }
       this.lieferungenNachEnde();
+      this.uiFlush();
+    }
+
+    // ---------- Theke ----------
+    uiSende(nachricht) {
+      if (this.onUi !== null) { try { this.onUi(nachricht); } catch (e) { /* Renderer-Fehler ignorieren */ } }
+      this.emit({ typ: 'ui', nachricht });
+    }
+
+    uiFunktion(f, wo) {
+      if (f === null || f === undefined) return null;
+      if (f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn) return f;
+      throw this.ananas('TypAnanas', wo + '() braucht eine Funktion, z. B. () -> { … }.');
+    }
+
+    uiNeu(name, pos, ben) {
+      const art = UI_KLASSEN[name];
+      const idArg = ben !== null && 'id' in ben ? ben.id : undefined;
+      let id;
+      if (idArg !== undefined && idArg !== null) {
+        id = this.text(idArg);
+        if (id === '') throw this.ananas('LaufzeitAnanas', 'Eine Zutat-ID darf nicht leer sein.');
+        if (this.uiZutaten.has(id)) throw this.ananas('LaufzeitAnanas', 'Die ID \'' + id + '\' gibt es schon.');
+      } else {
+        do { id = 'z' + (++this.uiIdZaehler); } while (this.uiZutaten.has(id));
+      }
+      const z = new UiZutat(art, id);
+      switch (art) {
+        case 'schild': { const t = arg(pos, ben, 0, 'text'); z.text = t === undefined ? '' : this.text(t); break; }
+        case 'knopf': {
+          const t = arg(pos, ben, 0, 'text'); z.text = t === undefined ? '' : this.text(t);
+          z.beiKlick = this.uiFunktion(arg(pos, ben, 1, 'beiKlick'), 'Knopf');
+          break;
+        }
+        case 'eingabe': {
+          const w = arg(pos, ben, 0, 'wert'); z.wert = w === undefined || w === null ? '' : this.text(w);
+          const ph = arg(pos, ben, 1, 'platzhalter'); z.platzhalter = ph === undefined || ph === null ? '' : this.text(ph);
+          break;
+        }
+        case 'haken': {
+          const t = arg(pos, ben, 0, 'text'); z.text = t === undefined ? '' : this.text(t);
+          const an = arg(pos, ben, 1, 'an'); z.an = an === undefined || an === null ? false : this.bool(an);
+          break;
+        }
+        default: {
+          const b = arg(pos, ben, 0, 'kinder');
+          if (b !== undefined && b !== null) {
+            if (!Array.isArray(b)) throw this.ananas('TypAnanas', UI_ART_NAME[art] + ' braucht ein Blech mit Zutaten, nicht ' + this.darstellung(b) + '.');
+            for (const k of b) this.uiKind(z, k);
+          }
+        }
+      }
+      this.uiZutaten.set(id, z);
+      return z;
+    }
+
+    uiKind(c, k) {
+      if (!(k instanceof UiZutat)) throw this.ananas('TypAnanas', 'In ' + UI_ART_NAME[c.art] + ' passen nur Zutaten, nicht ' + this.darstellung(k) + '.');
+      for (let x = c; x !== null; x = x.eltern) {
+        if (x === k) throw this.ananas('LaufzeitAnanas', 'Die Zutat \'' + k.id + '\' kann nicht in sich selbst liegen.');
+      }
+      if (k.eltern !== null || (this.uiTheke !== null && this.uiTheke.wurzel === k)) {
+        throw this.ananas('LaufzeitAnanas', 'Die Zutat \'' + k.id + '\' liegt schon woanders auf der Theke.');
+      }
+      k.eltern = c;
+      c.kinder.push(k);
+    }
+
+    uiAngezeigt(z) {
+      const t = this.uiTheke;
+      if (t === null || !t.gezeigt || t.geschlossen) return false;
+      let x = z;
+      while (x.eltern !== null) x = x.eltern;
+      return x === t.wurzel;
+    }
+
+    uiBaum(z) {
+      const o = { id: z.id, art: z.art };
+      switch (z.art) {
+        case 'schild': o.text = z.text; break;
+        case 'knopf': o.text = z.text; if (!z.aktiv) o.aktiv = false; break;
+        case 'eingabe': o.wert = z.wert; if (z.platzhalter !== '') o.platzhalter = z.platzhalter; break;
+        case 'haken': o.text = z.text; o.an = z.an; break;
+      }
+      if (!z.sichtbar) o.sichtbar = false;
+      if (z.stil !== null) o.stil = Object.assign({}, z.stil);
+      if (z.kinder !== null) o.kinder = z.kinder.map(k => this.uiBaum(k));
+      return o;
+    }
+
+    uiAendere(z, feld, wert) {
+      if (!this.uiAngezeigt(z)) return;
+      let e = this.uiOffen.get(z.id);
+      if (e === undefined) { e = { id: z.id }; this.uiOffen.set(z.id, e); }
+      e[feld] = feld === 'kinder' ? z.kinder.map(k => this.uiBaum(k)) : wert;
+    }
+
+    uiFlush() {
+      if (this.uiOffen.size === 0) return;
+      const aenderungen = Array.from(this.uiOffen.values());
+      this.uiOffen.clear();
+      this.uiSende({ v: 1, op: 'aendere', aenderungen });
+    }
+
+    uiZeige(t, z) {
+      if (!(z instanceof UiZutat)) throw this.ananas('TypAnanas', 'zeige() braucht eine Zutat, nicht ' + this.darstellung(z) + '.');
+      if (z.eltern !== null) throw this.ananas('LaufzeitAnanas', 'Die Zutat \'' + z.id + '\' liegt schon in einem Behälter und kann nicht die Wurzel sein.');
+      this.uiOffen.clear();
+      t.wurzel = z;
+      if (!t.gezeigt || t.geschlossen) {
+        t.gezeigt = true;
+        t.geschlossen = false;
+        this.uiSende({ v: 1, op: 'fenster', titel: t.titel, breite: t.breite, hoehe: t.hoehe });
+      }
+      this.uiSende({ v: 1, op: 'baum', wurzel: this.uiBaum(z) });
+    }
+
+    uiSchliesse(t) {
+      if (!t.gezeigt || t.geschlossen) { t.geschlossen = true; return; }
+      this.uiFlush();
+      this.uiSende({ v: 1, op: 'schliesse' });
+      t.geschlossen = true;
+      t.gezeigt = false;
+    }
+
+    uiNaechstesEreignis() {
+      let ev = null;
+      if (this.uiWarte !== null) {
+        try { ev = this.uiWarte(); } catch (e) { ev = null; }
+      } else if (this.uiListe !== null && this.uiPos < this.uiListe.length) {
+        ev = this.uiListe[this.uiPos++];
+      }
+      if (ev === null || ev === undefined || typeof ev !== 'object') return { typ: 'geschlossen' };
+      return ev;
+    }
+
+    uiBediene(t, node) {
+      if (t.wurzel === null) throw this.ananas('LaufzeitAnanas', 'Die Theke ist leer.');
+      if (t.geschlossen) return;
+      if (this.uiWarte === null && this.uiListe === null) {
+        this.uiFlush();
+        this.warnung('W0100', 'Keine Theke verfügbar – Fenster wird nicht angezeigt.', node);
+        return;
+      }
+      for (;;) {
+        this.uiFlush();
+        if (t.geschlossen) return;
+        const ev = this.uiNaechstesEreignis();
+        if (ev.typ === 'geschlossen') {
+          this.uiOffen.clear();
+          t.geschlossen = true;
+          t.gezeigt = false;
+          return;
+        }
+        try {
+          this.uiVerteile(ev, node);
+        } finally {
+          if (!t.geschlossen) this.uiFlush();
+        }
+      }
+    }
+
+    uiVerteile(ev, node) {
+      const z = typeof ev.id === 'string' ? this.uiZutaten.get(ev.id) : undefined;
+      if (z === undefined) return;
+      switch (ev.typ) {
+        case 'klick':
+          if (z.art === 'knopf' && z.aktiv && z.beiKlick !== null) this.rufe(z.beiKlick, [], null, node);
+          break;
+        case 'aenderung':
+          if (z.art === 'eingabe') {
+            z.wert = ev.wert === undefined || ev.wert === null ? '' : String(ev.wert);
+            if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.wert], null, node);
+          } else if (z.art === 'haken') {
+            z.an = ev.wert === true || ev.wert === 'true';
+            if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.an], null, node);
+          }
+          break;
+        case 'enter':
+          if (z.art === 'eingabe') {
+            if (ev.wert !== undefined && ev.wert !== null) z.wert = String(ev.wert);
+            if (z.beiEnter !== null) this.rufe(z.beiEnter, [z.wert], null, node);
+          }
+          break;
+      }
     }
 
     lieferungenNachEnde() {
@@ -2237,6 +2535,17 @@
         case 'hawaii': throw this.panik();
         case 'Dauer': if (v === null || v instanceof Dauer) return; was = 'keine Dauer'; break;
         case 'Pizza': if (v === null || v instanceof Pizza) return; was = 'keine Pizza'; break;
+        case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe': {
+          if (this.klassen.has(typ.name) || v === null) {
+            const k = this.klassen.get(typ.name);
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (typ.name === 'Theke' ? v instanceof UiTheke : (v instanceof UiZutat && (typ.name === 'Zutat' || UI_ART_NAME[v.art] === typ.name))) return;
+          was = 'kein(e) ' + typ.name;
+          break;
+        }
         default: {
           const k = this.klassen.get(typ.name);
           if (k === undefined || v === null || this.instanzVon(v, k)) return;
@@ -2289,6 +2598,8 @@
       if (v instanceof Stueck) return 'Stück von ' + this.text(v.pizza);
       if (v instanceof Reste) return 'Reste(' + this.text(v.wert) + ')';
       if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
+      if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
+      if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
       if (v === AUTO) return 'auto';
       return String(v);
     }
@@ -2612,6 +2923,7 @@
       }
       if (Array.isArray(o)) return BLECH_M;
       if (o instanceof Map) return KARTE_M;
+      if (o instanceof UiZutat) return UI_TABELLEN[o.art];
       return TABELLEN.get(o.constructor) || null;
     }
 
@@ -2651,6 +2963,7 @@
             if (name === 'werte') return o.werte.slice();
             throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
           } else if (o instanceof Rezeptur) throw this.ananas('LaufzeitAnanas', 'Eine Rezeptur kann man nicht aufrufen – sie ist nur ein Rezept.');
+          else if (o instanceof UiZutat) tab = UI_TABELLEN[o.art];
           else tab = TABELLEN.get(o.constructor);
       }
       if (tab !== undefined) {
@@ -3174,6 +3487,20 @@
       const tn = n.typ.name;
       if (tn === 'Hawaii') throw this.panik();
       const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+      if (!this.klassen.has(tn)) {
+        if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
+        if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
+        if (tn === 'Theke') {
+          if (this.uiTheke !== null) throw this.ananas('LaufzeitAnanas', 'Es gibt nur eine Theke pro Programm.');
+          const titel = arg(pos, ben, 0, 'titel');
+          const br = arg(pos, ben, 1, 'breite'), ho = arg(pos, ben, 2, 'hoehe');
+          const t = new UiTheke(titel === undefined || titel === null ? '' : this.text(titel),
+            br === undefined || br === null ? 480 : this.ganzzahl(br, 'Theke(breite: …)'),
+            ho === undefined || ho === null ? 360 : this.ganzzahl(ho, 'Theke(hoehe: …)'));
+          this.uiTheke = t;
+          return t;
+        }
+      }
       switch (tn) {
         case 'Blech': return pos.length && Array.isArray(pos[0]) ? pos[0].slice() : [];
         case 'Speisekarte': return new Map();

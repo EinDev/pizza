@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"Pizzarechner","breite":420,"hoehe":320}
+{"v":1,"op":"baum","wurzel":{"id":"z4","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"Noch nichts bestellt."},{"id":"z2","art":"eingabe","wert":"","platzhalter":"Wie viele Pizzen?"},{"id":"z3","art":"knopf","text":"Backen!"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"Macht 16,00 €"}]}

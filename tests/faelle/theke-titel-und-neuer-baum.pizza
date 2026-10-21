@@ -1,0 +1,6 @@
+Theke t = neu Theke("Eins");
+Schild a = neu Schild("A");
+Schild b = neu Schild("B");
+Knopf k = neu Knopf("wechseln", () -> { a.setzeText("verworfen"); t.zeige(b); t.setzeTitel("Zwei"); b.setzeText("B2"); });
+t.zeige(neu Stapel([a, k]));
+t.bediene();

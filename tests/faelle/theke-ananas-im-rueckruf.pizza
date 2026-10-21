@@ -1,0 +1,8 @@
+Theke t = neu Theke("A");
+Schild s = neu Schild("0");
+Knopf k = neu Knopf("Boom", () -> { s.setzeText("1"); wirf neu StreitAnanas("Knopf kaputt"); });
+t.zeige(neu Stapel([s, k]));
+probier { t.bediene(); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+s.setzeText("2");
+t.bediene();
+Bote.sage(("ende"));

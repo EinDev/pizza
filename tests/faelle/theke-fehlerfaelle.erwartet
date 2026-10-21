@@ -1,0 +1,17 @@
+Die Theke ist leer.
+Ein Rohling ist nicht essbar.
+Es gibt nur eine Theke pro Programm.
+Die ID 'x' gibt es schon.
+Stil 'css' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.
+Wert 'pink' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.
+Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.
+zeige() braucht eine Zutat, nicht 5.
+Die Zutat 'x' liegt schon woanders auf der Theke.
+In Stapel passen nur Zutaten, nicht "Text".
+Die Zutat 'z1' kann nicht in sich selbst liegen.
+Die Zutat 'x' liegt schon in einem Behälter und kann nicht die Wurzel sein.
+Knopf() braucht eine Funktion, z. B. () -> { … }.
+Stapel braucht ein Blech mit Zutaten, nicht 5.
+Methode 'wert' gibt es auf Schild nicht.
+Eine Zutat-ID darf nicht leer sein.
+LaufzeitAnanas

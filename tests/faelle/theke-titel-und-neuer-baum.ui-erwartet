@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"Eins","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z4","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"A"},{"id":"z3","art":"knopf","text":"wechseln"}]}}
+{"v":1,"op":"baum","wurzel":{"id":"z2","art":"schild","text":"B"}}
+{"v":1,"op":"fenster","titel":"Zwei","breite":480,"hoehe":360}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z2","text":"B2"}]}
