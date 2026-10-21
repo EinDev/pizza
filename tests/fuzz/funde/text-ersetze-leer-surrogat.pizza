@@ -1,0 +1,6 @@
+// Fund (Fuzz seed 11 #728, Wasm ≠ Interpreter): ersetze mit leerem Suchtext auf Text mit Emoji.
+// Interpreter: "\ud83c-\udf55" – zerschneidet das Surrogatpaar (ungültiges UTF-16 in der Ausgabe!).
+// Wasm:        "🍕" (unverändert).
+// SPEC/K-040 legen nur Ordnung/Zählung fest; Verhalten von ersetze("", x) ist ungeklärt → Klärungs-Agent.
+Bote.sage(("🍕".ersetze("", "-")));
+Bote.sage(("ab".ersetze("", "-")));
