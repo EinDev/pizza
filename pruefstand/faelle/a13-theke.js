@@ -67,23 +67,6 @@ t.bediene();
     ],
   }),
 
-  F(T, "K-057: Synchronisationspunkt Programmende (Theke offen, ohne bediene); nicht gezeigte Zutaten erzeugen keine Nachricht", P`
-Theke t = neu Theke("V");
-Schild s = neu Schild("alt");
-Schild u = neu Schild("unsichtbar");
-t.zeige(s);
-s.setzeText(("neu"));
-u.setzeText(("egal"));
-Bote.sage(("ende"));
-`, {
-    out: ["ende"],
-    ui: [fenster("V"), baum({ id: "z1", art: "schild", text: "alt" }), aendere({ id: "z1", text: "neu" })],
-    check(res) {
-      const letzte = res.ereignisse.filter((e) => e.typ === "ausgabe" || e.typ === "ui").map((e) => e.typ === "ui" ? e.nachricht.op : e.text).slice(-2);
-      return JSON.stringify(letzte) === JSON.stringify(["ende", "aendere"]) ? undefined : "Ende-Flush fehlt: " + JSON.stringify(letzte);
-    },
-  }),
-
   F(T, "K-057/073: Änderungen vor bediene() werden beim Eintritt gesendet; identischer Wert zählt als Änderung", P`
 Theke t = neu Theke("V");
 Schild s = neu Schild("alt");
@@ -94,22 +77,6 @@ t.bediene();
 `, {
     uiEreignisse: [],
     ui: [fenster("V"), baum({ id: "z1", art: "schild", text: "alt" }), aendere({ id: "z1", text: "neu" })],
-  }),
-
-  F(T, "K-057/065: Änderungen eines Rückrufs werden auch bei Ananas gesendet (vor dem Verlassen von bediene)", P`
-Theke t = neu Theke("H");
-Schild s = neu Schild("a");
-Knopf k = neu Knopf("h", () -> { s.setzeText(("b")); wirf neu StreitAnanas("x"); });
-t.zeige(neu Stapel([s, k]));
-probier { t.bediene(); } verbrannt (StreitAnanas a) { Bote.sage(("gefangen")); }
-`, {
-    uiEreignisse: [{ typ: "klick", id: "z2" }],
-    out: ["gefangen"],
-    ui: [fenster("H"), baum({ id: "z3", art: "stapel", kinder: [{ id: "z1", art: "schild", text: "a" }, { id: "z2", art: "knopf", text: "h" }] }), aendere({ id: "z1", text: "b" })],
-    check(res) {
-      const t = res.ereignisse.filter((e) => e.typ === "ausgabe" || (e.typ === "ui" && e.nachricht.op === "aendere")).map((e) => e.typ === "ui" ? "aendere" : e.text);
-      return JSON.stringify(t) === JSON.stringify(["aendere", "gefangen"]) ? undefined : "Reihenfolge " + JSON.stringify(t);
-    },
   }),
 
   F(T, "K-058: zeige() erneut → neuer baum, offene Änderungen verfallen, IDs bleiben; zeige liefert die Theke; setzeTitel sendet fenster erneut", P`
@@ -190,7 +157,7 @@ Bote.sage(("weiter"));
     ui: [fenster("W"), baum({ id: "z1", art: "schild", text: "hallo" }), schliesse()],
   }),
 
-  F(T, "K-061: Programmende schließt nicht; gepufferte Änderungen werden noch gesendet; zeige nach Schließen öffnet wieder", P`
+  F(T, "K-061: nach geschlossen wird nichts mehr gesendet (kein schliesse, keine aendere); zeige nach Schließen öffnet wieder", P`
 Theke t = neu Theke("Kurz");
 Schild s = neu Schild("tschüss");
 t.zeige(s);
@@ -267,37 +234,6 @@ Bote.sage((Uhr.jetzt()));
     check: (res) => (res.schritte === 30 ? undefined : "schritte " + res.schritte + ", erwartet 30"),
   }),
 
-  F(T, "K-066/068: Typen und Stile – diavolo-Pflicht, Textform speichern, Stil-Whitelist mit Listen in Fehlertexten, Kommazahlen erlaubt", P`
-Theke t = neu Theke("T", breite: 100, hoehe: 100);
-Knopf k = neu Knopf(5);
-Bote.sage((k.text()));
-probier { k.aktiv(1); } verbrannt (TypAnanas a) { Bote.sage(("typ")); }
-probier { k.stil("rahmen", 1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
-probier { k.stil("farbe", "lila"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
-probier { k.stil("ausrichtung", "oben"); } verbrannt (LaufzeitAnanas a) { Bote.sage(("ausrichtung")); }
-probier { k.stil("breite", -1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
-probier { k.stil("breite", "x"); } verbrannt (TypAnanas a) { Bote.sage(("breite-typ")); }
-k.stil("schrift", "gross");
-k.stil("breite", 2.5);
-Bote.sage((k.aktiv() + " " + k.sichtbar() + " " + k));
-t.zeige(k);
-`, {
-    uiEreignisse: [],
-    out: ["5", "typ", "Stil 'rahmen' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.",
-      "Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.",
-      "ausrichtung", "Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.", "breite-typ", "ja ja Knopf(z1)"],
-    ui: [fenster("T", 100, 100), baum({ id: "z1", art: "knopf", text: "5", stil: { schrift: "gross", breite: 2.5 } })],
-  }),
-
-  F(T, "K-066: breite/hoehe Ganzzahl (sonst TypAnanas); titel optional (Standard \"\"); Textform Theke(Titel)", P`
-probier { Theke x = neu Theke("x", breite: 2.5); } verbrannt (TypAnanas a) { Bote.sage(("breite")); }
-Theke t = neu Theke();
-Bote.sage(("[" + t.titel() + "] " + t));
-t.setzeTitel(("Pizzeria"));
-Bote.sage((t));
-t.zeige(neu Schild("s"));
-`, { uiEreignisse: [], out: ["breite", "[] Theke()", "Theke(Pizzeria)"], ui: [fenster("Pizzeria"), baum({ id: "z1", art: "schild", text: "s" })] }),
-
   F(T, "K-073: setzeAn/setzeWert lösen keine Rückrufe aus; Setter sind verkettbar; aktiv()/sichtbar() ohne Argument sind Getter", P`
 Theke t = neu Theke("H");
 Haken h = neu Haken("h");
@@ -327,4 +263,22 @@ probier { Zutat z = neu Zutat(); } verbrannt (RohlingAnanas a) { Bote.sage(("roh
   F(T, "K-062: erbt Knopf → PizzaFehler P0010", P`
 klasse MeinKnopf erbt Knopf { }
 `, { exit: 2, fehler: { code: "P0010", art: "pizzafehler" } }),
+
+  F(T, "K-061: Theke erzeugt, aber nie gezeigt → kein schliesse; nach geschlossen → kein schliesse", P`
+Theke t = neu Theke("N");
+Bote.sage(("ende"));
+`, { uiEreignisse: [], out: ["ende"], ui: [] }),
+
+  F(T, "K-075: stil(schlüssel, karton) entfernt den Stil; die Nachricht trägt null für entfernte Schlüssel (Renderer setzt zurück)", P`
+Theke t = neu Theke("S");
+Knopf k = neu Knopf("k");
+k.stil("breite", 10);
+k.stil("farbe", "tomate");
+t.zeige(k);
+k.stil("breite", karton);
+t.bediene();
+`, {
+    uiEreignisse: [],
+    ui: [fenster("S"), baum({ id: "z1", art: "knopf", text: "k", stil: { breite: 10, farbe: "tomate" } }), aendere({ id: "z1", stil: { farbe: "tomate", breite: null } })],
+  }),
 ];

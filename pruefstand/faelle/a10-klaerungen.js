@@ -610,4 +610,11 @@ Uhr.vorspulen(0.4ms);
 Uhr.vorspulen(10s / 3);
 Bote.sage((Uhr.jetzt().inMs()));
 `, { out: ["3354"], check: (res) => (res.zeitMs === 3354 ? undefined : "zeitMs " + res.zeitMs + ", erwartet 3354") }),
+
+  F(K, "K-076: ersetze mit leerem Suchtext lässt den Text unverändert (auch Surrogatpaare bleiben heil)", P`
+Bote.sage(("ab".ersetze("", "-")));
+Bote.sage(("🍕".ersetze("", "-")));
+Bote.sage(("🍕".ersetze("", "-").länge()));
+Bote.sage(("🍕x".ersetze("x", "-")));
+`, { out: ["ab", "🍕", "1", "🍕-"] }),
 ];

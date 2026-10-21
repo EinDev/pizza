@@ -6,10 +6,5 @@ const { P, F } = require("../lib/helfer");
 const O = "§15 Klärungen – Umsetzung offen";
 
 module.exports = [
-  F(O, "K-076: ersetze mit leerem Suchtext lässt den Text unverändert (auch Surrogatpaare bleiben heil)", P`
-Bote.sage(("ab".ersetze("", "-")));
-Bote.sage(("🍕".ersetze("", "-")));
-Bote.sage(("🍕".ersetze("", "-").länge()));
-Bote.sage(("🍕x".ersetze("x", "-")));
-`, { out: ["ab", "🍕", "1", "🍕-"] }),
+
 ];
