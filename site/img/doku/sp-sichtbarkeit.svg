@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Sichtbarkeit als Pizzeria: speisekarte ist der Gastraum, familienrezept die Küche, geheimrezept der Tresor</title>
+
+  <!-- Gastraum -->
+  <rect x="20" y="40" width="600" height="300" rx="14" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="40" y="70" font-size="17" font-weight="bold" fill="#2F2A26">speisekarte = Gastraum</text>
+  <text x="40" y="92" font-size="14" fill="#2F2A26">alle dürfen rein</text>
+
+  <!-- Gäste -->
+  <g fill="#3E8E41">
+    <circle cx="60" cy="262" r="10"/>
+    <rect x="48" y="275" width="24" height="32" rx="8"/>
+    <circle cx="105" cy="262" r="10"/>
+    <rect x="93" y="275" width="24" height="32" rx="8"/>
+    <circle cx="150" cy="262" r="10"/>
+    <rect x="138" y="275" width="24" height="32" rx="8"/>
+  </g>
+  <text x="105" y="232" font-size="14" text-anchor="middle" fill="#2F2A26">Gäste</text>
+
+  <!-- Küche -->
+  <rect x="230" y="110" width="370" height="210" rx="12" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <text x="250" y="140" font-size="17" font-weight="bold" fill="#2F2A26">familienrezept = Küche</text>
+  <text x="250" y="162" font-size="14" fill="#2F2A26">Klasse + ihre Kinder (erbt)</text>
+
+  <!-- Köche -->
+  <g>
+    <rect x="260" y="238" width="20" height="12" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <circle cx="270" cy="262" r="10" fill="#D9452B"/>
+    <rect x="258" y="275" width="24" height="32" rx="8" fill="#D9452B"/>
+    <rect x="310" y="238" width="20" height="12" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <circle cx="320" cy="262" r="10" fill="#D9452B"/>
+    <rect x="308" y="275" width="24" height="32" rx="8" fill="#D9452B"/>
+  </g>
+  <text x="295" y="225" font-size="14" text-anchor="middle" fill="#2F2A26">Köche</text>
+
+  <!-- Tresor -->
+  <rect x="400" y="185" width="180" height="115" rx="12" fill="#2F2A26"/>
+  <text x="490" y="218" font-size="16" font-weight="bold" text-anchor="middle" fill="#FFF6E0">geheimrezept</text>
+  <text x="490" y="240" font-size="14" text-anchor="middle" fill="#F2B33D">= Tresor</text>
+  <text x="482" y="270" font-size="14" text-anchor="middle" fill="#FFF6E0">nur die Klasse</text>
+  <circle cx="560" cy="284" r="9" fill="none" stroke="#F2B33D" stroke-width="3"/>
+  <line x1="560" y1="284" x2="560" y2="277" stroke="#F2B33D" stroke-width="2"/>
+</svg>

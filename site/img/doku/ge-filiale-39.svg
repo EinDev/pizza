@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif">
+  <title>Filiale 39 in Hannover, März 2007: Eine Pizza Hawaii wird bestellt, alle Kassen zeigen einen Panik-Bildschirm. Daneben liegt eine Ananas.</title>
+  <rect x="150" y="16" width="340" height="42" rx="10" fill="#F2B33D" stroke="#2F2A26" stroke-width="3"/>
+  <text x="320" y="43" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">Filiale 39 · Hannover · März 2007</text>
+  <g>
+    <rect x="45" y="88" width="120" height="62" rx="8" fill="#D9452B" stroke="#2F2A26" stroke-width="3"/>
+    <text x="105" y="126" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF">PANIK!</text>
+    <rect x="97" y="150" width="16" height="20" fill="#2F2A26"/>
+    <rect x="35" y="170" width="140" height="80" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <rect x="53" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="81" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="109" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="137" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="53" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="81" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="109" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="137" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <text x="105" y="284" text-anchor="middle" font-size="14" fill="#2F2A26">Kasse 1</text>
+  </g>
+  <g>
+    <rect x="205" y="88" width="120" height="62" rx="8" fill="#D9452B" stroke="#2F2A26" stroke-width="3"/>
+    <text x="265" y="126" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF">ANANAS!</text>
+    <rect x="257" y="150" width="16" height="20" fill="#2F2A26"/>
+    <rect x="195" y="170" width="140" height="80" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <rect x="213" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="241" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="269" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="297" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="213" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="241" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="269" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="297" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <text x="265" y="284" text-anchor="middle" font-size="14" fill="#2F2A26">Kasse 2</text>
+  </g>
+  <g>
+    <rect x="365" y="88" width="120" height="62" rx="8" fill="#D9452B" stroke="#2F2A26" stroke-width="3"/>
+    <text x="425" y="126" text-anchor="middle" font-size="18" font-weight="800" fill="#FFFFFF">ABSTURZ</text>
+    <rect x="417" y="150" width="16" height="20" fill="#2F2A26"/>
+    <rect x="355" y="170" width="140" height="80" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <rect x="373" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="401" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="429" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="457" y="184" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="373" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="401" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="429" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <rect x="457" y="210" width="20" height="16" rx="4" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+    <text x="425" y="284" text-anchor="middle" font-size="14" fill="#2F2A26">… Kasse 23</text>
+  </g>
+  <!-- Theke -->
+  <rect x="20" y="250" width="600" height="12" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+  <!-- Blitz -->
+  <polygon points="526,168 508,204 522,204 506,236 536,194 522,194 538,168" fill="#F2B33D" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Ananas -->
+  <g fill="#3E8E41" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round">
+    <path d="M572 158 L556 106 L578 140 L586 96 L592 140 L612 108 L598 160 Z"/>
+  </g>
+  <ellipse cx="582" cy="202" rx="34" ry="47" fill="#F5C518" stroke="#C8955A" stroke-width="3"/>
+  <g stroke="#C8955A" stroke-width="2" fill="none">
+    <path d="M556 176 L604 226 M552 200 L594 244 M566 162 L610 206"/>
+    <path d="M608 176 L560 226 M612 200 L570 244 M598 162 L554 206"/>
+  </g>
+  <text x="320" y="318" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">Eine Hawaii-Bestellung → alle 23 Kassen aus</text>
+  <text x="320" y="343" text-anchor="middle" font-size="14" fill="#2F2A26">Seitdem heißt jede Exception „Ananas“ · Exit-Code 39</text>
+</svg>

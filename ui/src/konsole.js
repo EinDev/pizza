@@ -135,22 +135,23 @@ export function erstelleKonsole({ springe }) {
       planeZeichnen();
     },
     sofortZeichnen: zeichneAusgaben,
-    setzeLauf({ laeuft }) {
+    setzeLauf({ laeuft, name }) {
       badge.hidden = !laeuft;
       if (laeuft) {
         badge.className = "exit-badge laeuft";
         badge.textContent = "im Ofen …";
         badge.title = "Programm läuft";
-        info.textContent = "";
+        info.textContent = name ? name + " ist im Ofen …" : "";
       }
     },
-    setzeExit(code, { schritte, zeitMs, wandMs, zusatz } = {}) {
+    setzeExit(code, { schritte, zeitMs, wandMs, zusatz, name } = {}) {
       const d = EXIT[code] || { text: "Exit " + code, klasse: "fehler", titel: "Exit-Code " + code };
       badge.hidden = false;
       badge.className = "exit-badge " + d.klasse;
       badge.textContent = d.text + (code !== 39 ? " · " + code : "");
       badge.title = d.titel;
       const teile = [];
+      if (name) teile.push(name);
       if (zusatz) teile.push(zusatz);
       if (wandMs != null) teile.push(formatMs(wandMs) + " echt");
       if (zeitMs != null) teile.push(formatMs(zeitMs) + " Ofenzeit");

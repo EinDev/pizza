@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Spickzettel: zehn Pizza-Metaphern und das echte Programmierkonzept dahinter</title>
+  <g fill="#2F2A26">
+    <!-- Spalte 1 -->
+    <rect x="12" y="8" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <circle cx="44" cy="39" r="20" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <circle cx="44" cy="39" r="13" fill="#D9452B"/>
+    <circle cx="40" cy="35" r="4" fill="#FFF6E0"/>
+    <circle cx="49" cy="43" r="4" fill="#FFF6E0"/>
+    <text x="76" y="34" font-size="16" font-weight="bold">Pizza-Literal</text>
+    <text x="76" y="56" font-size="14">unveränderliche Werte</text>
+
+    <rect x="12" y="78" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <rect x="26" y="120" width="36" height="9" rx="4" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <rect x="28" y="108" width="32" height="9" rx="4" fill="#D9452B"/>
+    <rect x="30" y="96" width="28" height="9" rx="4" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="2"/>
+    <ellipse cx="44" cy="90" rx="7" ry="4" fill="#3E8E41"/>
+    <text x="76" y="104" font-size="16" font-weight="bold">Eigener Belag, unten</text>
+    <text x="76" y="126" font-size="14">Decorator-Muster</text>
+
+    <rect x="12" y="148" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <rect x="25" y="166" width="38" height="28" rx="6" fill="none" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M30 176 L37 176 M30 183 L44 183 M30 190 L40 190" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="54" cy="173" r="3" fill="#D9452B"/>
+    <text x="76" y="174" font-size="16" font-weight="bold">Simulierte Uhr</text>
+    <text x="76" y="196" font-size="14">Schritte statt Wanduhr</text>
+
+    <rect x="12" y="218" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <path d="M24 248 A20 14 0 0 0 64 248 Z" fill="#FFFFFF" stroke="#C8955A" stroke-width="3"/>
+    <ellipse cx="44" cy="243" rx="14" ry="10" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <text x="76" y="244" font-size="16" font-weight="bold">Teig</text>
+    <text x="76" y="266" font-size="14">Lazy Evaluation</text>
+
+    <rect x="12" y="288" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <rect x="25" y="302" width="38" height="34" rx="6" fill="#2F2A26"/>
+    <path d="M31 330 A13 12 0 0 1 57 330 Z" fill="#F2B33D"/>
+    <text x="76" y="314" font-size="16" font-weight="bold">Ofen</text>
+    <text x="76" y="336" font-size="14">Zeitlimit mit Teilergebnis</text>
+
+    <!-- Spalte 2 -->
+    <rect x="326" y="8" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <circle cx="358" cy="39" r="20" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <path d="M358 19 L358 59 M338 39 L378 39 M344 25 L372 53 M372 25 L344 53" stroke="#2F2A26" stroke-width="2"/>
+    <text x="390" y="34" font-size="16" font-weight="bold">Schneiden</text>
+    <text x="390" y="56" font-size="14">Parallelität, Map-Reduce</text>
+
+    <rect x="326" y="78" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <circle cx="350" cy="109" r="9" fill="#D9452B" stroke="#C8955A" stroke-width="2"/>
+    <path d="M362 109 L376 109" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M372 103 L380 109 L372 115 Z" fill="#2F2A26"/>
+    <text x="390" y="104" font-size="16" font-weight="bold">schieb und teile</text>
+    <text x="390" y="126" font-size="14">Ownership (wie in Rust)</text>
+
+    <rect x="326" y="148" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <rect x="344" y="158" width="28" height="42" rx="5" fill="#FFFFFF" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M344 172 L372 172 M366 162 L366 168 M366 178 L366 190" stroke="#2F2A26" stroke-width="2"/>
+    <text x="390" y="174" font-size="16" font-weight="bold">Kühlschrank</text>
+    <text x="390" y="196" font-size="14">Cache mit Ablaufzeit</text>
+
+    <rect x="326" y="218" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <circle cx="346" cy="262" r="7" fill="none" stroke="#2F2A26" stroke-width="3"/>
+    <circle cx="372" cy="262" r="7" fill="none" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M346 262 L352 250 L370 250 L372 262" fill="none" stroke="#2F2A26" stroke-width="3"/>
+    <rect x="340" y="234" width="16" height="12" rx="2" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <text x="390" y="244" font-size="16" font-weight="bold">Lieferung</text>
+    <text x="390" y="266" font-size="14">Futures mit Zeitlimit</text>
+
+    <rect x="326" y="288" width="302" height="62" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <path d="M338 330 A20 20 0 0 1 378 330 Z" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <rect x="352" y="314" width="12" height="10" rx="2" fill="#2F2A26"/>
+    <path d="M354 314 L354 309 A4 4 0 0 1 362 309 L362 314" fill="none" stroke="#2F2A26" stroke-width="2"/>
+    <text x="390" y="314" font-size="16" font-weight="bold">Calzone</text>
+    <text x="390" y="336" font-size="14">Kapselung, auch vor Reflection</text>
+  </g>
+</svg>

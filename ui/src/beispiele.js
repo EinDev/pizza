@@ -118,7 +118,7 @@ export function erstelleBeispiele({ ladeCode }) {
         const r = await fetch(BASIS + b.datei, { cache: "no-cache" });
         if (!r.ok) throw new Error("HTTP " + r.status);
         const code = await r.text();
-        await ladeCode(code, (b.datei.split("/").pop() || "beispiel.pizza"));
+        await ladeCode(code, (b.datei.split("/").pop() || "beispiel.pizza"), null, "bsp:" + b.datei);
       } catch (e) {
         ladeCode(null, null, "Beispiel „" + (b.titel || b.id) + "“ konnte nicht geladen werden (" + e.message + ").");
       } finally {

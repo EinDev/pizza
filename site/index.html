@@ -9,6 +9,7 @@
   <meta name="theme-color" content="#fbf7f0" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="img/logo-icon.svg" type="image/svg+xml">
   <script>
     // Thema vor dem ersten Zeichnen setzen (kein Aufblitzen)
     (function () {
@@ -25,6 +26,9 @@
 
   <header class="kopf">
     <div class="marke">
+      <img class="logo-bild" id="logo-bild" src="img/logo.svg" alt="pizza" height="30"
+           onload="this.parentNode.classList.add('mit-bild')"
+           onerror="if(this.dataset.backen){this.removeAttribute('data-backen');this.src='img/logo.svg';}else{this.parentNode.classList.remove('mit-bild');this.hidden=true;}">
       <svg class="logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="#logo-symbol"/></svg>
       <span class="marke-name">pizza</span>
       <span class="version" id="version" title="Sprachversion">v3.0</span>
@@ -59,7 +63,7 @@
   <main class="arbeitsbereich" id="arbeitsbereich">
     <section class="werkbank" aria-label="Editor und Konsole">
       <div class="editor-kopf">
-        <span class="datei-name"><span class="datei-punkt" id="datei-punkt" title="Ungespeicherte Änderungen" hidden></span><span id="datei-name">willkommen.pizza</span></span>
+        <div class="editor-tabs" id="editor-tabs"></div>
         <span class="editor-status" id="editor-status" aria-live="polite"></span>
       </div>
       <div class="editor" id="editor"></div>
@@ -93,24 +97,17 @@
           <button type="button" role="tab" id="tab-doku" aria-controls="tabpanel-doku" aria-selected="true" tabindex="0">Doku</button>
           <button type="button" role="tab" id="tab-beispiele" aria-controls="tabpanel-beispiele" aria-selected="false" tabindex="-1">Beispiele</button>
         </div>
+        <span class="flex-luecke"></span>
+        <button type="button" class="knopf knopf-geist knopf-icon-only" id="knopf-lesemodus" aria-label="Doku im Lesemodus öffnen" title="Lesemodus – Doku groß öffnen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h5v5M9 20H4v-5M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg>
+        </button>
         <button type="button" class="knopf knopf-geist knopf-icon-only" id="panel-schliessen" aria-label="Panel schließen" title="Panel schließen (Strg+B)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tabpanel-doku" aria-labelledby="tab-doku" tabindex="-1">
-        <div class="suche">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input type="search" id="doku-suche" placeholder="Doku durchsuchen …" aria-label="Doku durchsuchen" autocomplete="off">
-        </div>
-        <div class="doku-layout" id="doku-layout">
-          <button type="button" class="doku-nav-toggle" id="doku-nav-toggle" aria-expanded="false" aria-controls="doku-nav">
-            <span class="doku-nav-toggle-label">Inhalt</span><span class="doku-nav-aktuell" id="doku-nav-aktuell"></span>
-            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <nav class="doku-nav" id="doku-nav" aria-label="Doku-Abschnitte"></nav>
-          <article class="doku-inhalt" id="doku-inhalt" tabindex="-1"></article>
-        </div>
+        <div id="doku-panel"></div>
       </div>
 
       <div class="tabpanel" role="tabpanel" id="tabpanel-beispiele" aria-labelledby="tab-beispiele" tabindex="-1" hidden>
@@ -146,6 +143,30 @@
         <button type="submit" class="knopf knopf-primaer" value="ja" id="dialog-ja">Ersetzen</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Doku im Lesemodus -->
+  <dialog class="lesemodus" id="doku-lesemodus" aria-labelledby="lesemodus-titel">
+    <div class="lesemodus-kopf">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="#logo-symbol"/></svg>
+      <h2 id="lesemodus-titel">pizza-Doku</h2>
+      <span class="flex-luecke"></span>
+      <button type="button" class="knopf knopf-geist knopf-icon-only" id="lesemodus-zu" aria-label="Lesemodus schließen" title="Schließen (Esc)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="doku-modal"></div>
+  </dialog>
+
+  <!-- Bild vergrößert -->
+  <dialog class="lightbox" id="bild-lightbox" aria-label="Bild vergrößert">
+    <button type="button" class="knopf knopf-geist knopf-icon-only lightbox-zu" id="lightbox-zu" aria-label="Bild schließen" title="Schließen (Esc)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <figure>
+      <div class="lightbox-karte"><img id="lightbox-bild" alt=""></div>
+      <figcaption id="lightbox-text"></figcaption>
+    </figure>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

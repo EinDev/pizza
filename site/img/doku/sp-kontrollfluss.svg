@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Kontrollfluss: falls/sonst ist eine Weggabelung, solange ist eine Runde im Kreis</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+
+  <!-- ── Links: falls / sonst ── -->
+  <text x="160" y="24" font-size="16" font-weight="bold" text-anchor="middle" fill="#2F2A26">falls / sonst: Weggabelung</text>
+  <line x1="160" y1="34" x2="160" y2="66" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <polygon points="160,70 240,110 160,150 80,110" fill="#F2B33D" stroke="#C8955A" stroke-width="3" stroke-linejoin="round"/>
+  <text x="160" y="115" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">grad &gt; 400 ?</text>
+
+  <g stroke="#2F2A26" stroke-width="3" fill="none">
+    <line x1="80" y1="110" x2="80" y2="201" marker-end="url(#pfeil)"/>
+    <line x1="240" y1="110" x2="240" y2="201" marker-end="url(#pfeil)"/>
+  </g>
+  <text x="70" y="165" font-size="15" font-weight="bold" text-anchor="end" fill="#3E8E41">ja</text>
+  <text x="250" y="165" font-size="15" font-weight="bold" fill="#D9452B">nein</text>
+
+  <rect x="10" y="205" width="140" height="50" rx="10" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>
+  <text x="80" y="226" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">falls-Block</text>
+  <text x="80" y="246" font-size="14" text-anchor="middle" fill="#2F2A26">servieren</text>
+
+  <rect x="170" y="205" width="140" height="50" rx="10" fill="#FFF6E0" stroke="#D9452B" stroke-width="3"/>
+  <text x="240" y="226" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">sonst-Block</text>
+  <text x="240" y="246" font-size="14" text-anchor="middle" fill="#2F2A26">weiterbacken</text>
+
+  <g stroke="#2F2A26" stroke-width="3" fill="none">
+    <polyline points="80,255 80,285 240,285 240,255"/>
+    <line x1="160" y1="285" x2="160" y2="313" marker-end="url(#pfeil)"/>
+  </g>
+  <text x="160" y="340" font-size="15" text-anchor="middle" fill="#2F2A26">weiter im Programm</text>
+
+  <!-- Trenner -->
+  <line x1="330" y1="10" x2="330" y2="350" stroke="#C8955A" stroke-width="2" stroke-dasharray="6 6"/>
+
+  <!-- ── Rechts: solange ── -->
+  <text x="480" y="24" font-size="16" font-weight="bold" text-anchor="middle" fill="#2F2A26">solange: Runde im Kreis</text>
+  <circle cx="480" cy="165" r="85" fill="none" stroke="#3E8E41" stroke-width="3"/>
+  <!-- Richtungspfeile auf dem Kreis (im Uhrzeigersinn) -->
+  <polygon points="557,158 573,158 565,174" fill="#3E8E41"/>
+  <polygon points="387,172 403,172 395,156" fill="#3E8E41"/>
+  <text x="575" y="135" font-size="15" font-weight="bold" fill="#3E8E41">ja</text>
+
+  <rect x="405" y="62" width="150" height="36" rx="10" fill="#F2B33D" stroke="#C8955A" stroke-width="3"/>
+  <text x="480" y="85" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">minuten &gt; 0 ?</text>
+
+  <rect x="395" y="232" width="170" height="36" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="480" y="255" font-size="15" text-anchor="middle" fill="#2F2A26">backen, minuten--</text>
+
+  <line x1="555" y1="80" x2="616" y2="80" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <text x="585" y="70" font-size="15" font-weight="bold" text-anchor="middle" fill="#D9452B">nein</text>
+
+  <text x="480" y="305" font-size="15" text-anchor="middle" fill="#2F2A26">solange (minuten &gt; 0) { … }</text>
+  <text x="480" y="330" font-size="14" text-anchor="middle" fill="#2F2A26">dreht Runden, bis die Antwort nein ist</text>
+</svg>

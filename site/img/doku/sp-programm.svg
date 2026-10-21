@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Aufbau eines pizza-Programms: Karton (paket), darin die Klasse, darin der hauptgang</title>
+  <!-- Karton = paket -->
+  <rect x="20" y="40" width="400" height="300" rx="14" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <text x="40" y="72" font-size="16" font-weight="bold" fill="#2F2A26">paket de.luigi.pizzeria;</text>
+  <!-- Klasse -->
+  <rect x="45" y="95" width="350" height="225" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="65" y="125" font-size="16" font-weight="bold" fill="#2F2A26">klasse Pizzeria { … }</text>
+  <!-- hauptgang -->
+  <rect x="70" y="145" width="300" height="155" rx="12" fill="#F2B33D" stroke="#C8955A" stroke-width="2"/>
+  <text x="90" y="175" font-size="16" font-weight="bold" fill="#2F2A26">hauptgang( … )</text>
+  <text x="90" y="210" font-size="15" fill="#2F2A26">Bote.sage(("Hallo!"));</text>
+  <text x="90" y="245" font-size="15" fill="#2F2A26">Hier geht's los!</text>
+  <!-- kleine Pizza -->
+  <circle cx="320" cy="255" r="32" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <circle cx="320" cy="255" r="24" fill="#D9452B"/>
+  <circle cx="311" cy="247" r="6" fill="#FFF6E0"/>
+  <circle cx="329" cy="262" r="6" fill="#FFF6E0"/>
+  <circle cx="327" cy="245" r="4" fill="#3E8E41"/>
+  <circle cx="312" cy="264" r="4" fill="#3E8E41"/>
+  <!-- Verbindungslinien -->
+  <g stroke="#2F2A26" stroke-width="2" fill="#2F2A26">
+    <line x1="445" y1="66" x2="420" y2="66"/>
+    <circle cx="420" cy="66" r="4"/>
+    <line x1="445" y1="131" x2="395" y2="131"/>
+    <circle cx="395" cy="131" r="4"/>
+    <line x1="445" y1="196" x2="370" y2="196"/>
+    <circle cx="370" cy="196" r="4"/>
+  </g>
+  <!-- Erklärungen -->
+  <g fill="#2F2A26">
+    <text x="452" y="62" font-size="16" font-weight="bold">paket</text>
+    <text x="452" y="82" font-size="14">der Karton (optional)</text>
+    <text x="452" y="127" font-size="16" font-weight="bold">klasse</text>
+    <text x="452" y="147" font-size="14">Küche mit Rezepten</text>
+    <text x="452" y="192" font-size="16" font-weight="bold">hauptgang</text>
+    <text x="452" y="212" font-size="14">hier startet alles</text>
+    <text x="452" y="280" font-size="16" font-weight="bold" fill="#3E8E41">Snack-Modus:</text>
+    <text x="452" y="300" font-size="14">kurze Zeilen gehen</text>
+    <text x="452" y="318" font-size="14">auch ohne Karton</text>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Zwei Lieferwege des Boten: Bote.sage bringt normale Ausgabe, Bote.fehler bringt rote Fehlerausgabe</title>
+
+  <!-- Pizzeria = dein Programm -->
+  <path d="M24,150 L97,104 L170,150 z" fill="#D9452B" stroke="#2F2A26" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="36" y="150" width="122" height="100" rx="6" fill="#FFF6E0" stroke="#2F2A26" stroke-width="3"/>
+  <rect x="80" y="206" width="34" height="44" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+  <text x="97" y="180" text-anchor="middle" font-size="15" font-weight="700" fill="#2F2A26">dein</text>
+  <text x="97" y="198" text-anchor="middle" font-size="15" font-weight="700" fill="#2F2A26">Programm</text>
+
+  <!-- Straßen -->
+  <path d="M160,175 C260,175 300,95 410,95" fill="none" stroke="#E6D3A8" stroke-width="22" stroke-linecap="round"/>
+  <path d="M160,175 C260,175 300,95 410,95" fill="none" stroke="#3E8E41" stroke-width="3" stroke-dasharray="10 8"/>
+  <path d="M160,225 C260,225 300,275 410,275" fill="none" stroke="#E6D3A8" stroke-width="22" stroke-linecap="round"/>
+  <path d="M160,225 C260,225 300,275 410,275" fill="none" stroke="#D9452B" stroke-width="3" stroke-dasharray="10 8"/>
+
+  <!-- Pizzakartons unterwegs -->
+  <rect x="266" y="124" width="30" height="22" rx="3" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+  <rect x="266" y="239" width="30" height="22" rx="3" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+
+  <!-- Beschriftungen der Wege -->
+  <text x="300" y="66" text-anchor="middle" font-size="17" font-weight="700" fill="#3E8E41">Bote.sage(x)</text>
+  <text x="300" y="318" text-anchor="middle" font-size="17" font-weight="700" fill="#D9452B">Bote.fehler(x)</text>
+
+  <!-- Ziel 1: normale Ausgabe -->
+  <rect x="420" y="50" width="200" height="94" rx="14" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>
+  <text x="436" y="76" font-size="14" font-weight="700" fill="#2F2A26">Konsole</text>
+  <text x="436" y="104" font-size="17" fill="#2F2A26">Ciao!</text>
+  <text x="436" y="130" font-size="14" fill="#2F2A26">normale Ausgabe</text>
+
+  <!-- Ziel 2: Fehlerausgabe -->
+  <rect x="420" y="228" width="200" height="94" rx="14" fill="#FFF6E0" stroke="#D9452B" stroke-width="3"/>
+  <text x="436" y="254" font-size="14" font-weight="700" fill="#2F2A26">Konsole</text>
+  <text x="436" y="282" font-size="17" fill="#D9452B">Kein Basilikum!</text>
+  <text x="436" y="308" font-size="14" fill="#2F2A26">Fehlerausgabe, rot</text>
+
+  <text x="320" y="350" text-anchor="middle" font-size="14" fill="#2F2A26">Beide Wege lassen den Exit-Code in Ruhe.</text>
+</svg>

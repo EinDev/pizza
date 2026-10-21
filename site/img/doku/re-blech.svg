@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Ein Blech mit fünf nummerierten Stücken (ab 1) und drei Methoden als Fließband</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2F2A26"/>
+    </marker>
+    <g id="stueck">
+      <circle r="38" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <circle r="29" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+      <circle cx="-15" cy="-14" r="4" fill="#D9452B"/>
+      <circle cx="16" cy="13" r="4" fill="#D9452B"/>
+      <circle cx="-14" cy="16" r="3" fill="#3E8E41"/>
+    </g>
+  </defs>
+
+  <text x="320" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#2F2A26">Blech b = [3, 1, 4, 1, 5] – gezählt wird ab 1</text>
+
+  <!-- Backblech -->
+  <rect x="30" y="44" width="580" height="110" rx="16" fill="#2F2A26" stroke="#C8955A" stroke-width="3"/>
+
+  <use href="#stueck" x="88" y="99"/>
+  <use href="#stueck" x="204" y="99"/>
+  <use href="#stueck" x="320" y="99"/>
+  <use href="#stueck" x="436" y="99"/>
+  <use href="#stueck" x="552" y="99"/>
+
+  <g font-size="22" font-weight="700" fill="#2F2A26" text-anchor="middle">
+    <text x="88" y="107">3</text>
+    <text x="204" y="107">1</text>
+    <text x="320" y="107">4</text>
+    <text x="436" y="107">1</text>
+    <text x="552" y="107">5</text>
+  </g>
+
+  <!-- Nummern-Fähnchen -->
+  <g fill="#F2B33D" stroke="#2F2A26" stroke-width="2">
+    <circle cx="118" cy="69" r="13"/>
+    <circle cx="234" cy="69" r="13"/>
+    <circle cx="350" cy="69" r="13"/>
+    <circle cx="466" cy="69" r="13"/>
+    <circle cx="582" cy="69" r="13"/>
+  </g>
+  <g font-size="14" font-weight="700" fill="#2F2A26" text-anchor="middle">
+    <text x="118" y="74">1</text>
+    <text x="234" y="74">2</text>
+    <text x="350" y="74">3</text>
+    <text x="466" y="74">4</text>
+    <text x="582" y="74">5</text>
+  </g>
+
+  <text x="320" y="180" text-anchor="middle" font-size="15" fill="#2F2A26">b.stück(1) ist 3 · b.stück(0) gibt es nicht → KeinStückAnanas</text>
+
+  <!-- Fließband: drei Methoden -->
+  <g font-size="14" fill="#2F2A26">
+    <rect x="20" y="204" width="280" height="36" rx="18" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="36" y="227">b.belege(x -&gt; x * 2)</text>
+    <rect x="20" y="252" width="280" height="36" rx="18" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="36" y="275">b.filtere(x -&gt; x &gt; 2)</text>
+    <rect x="20" y="300" width="280" height="36" rx="18" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="36" y="323">b.zusammenklappen((a, c) -&gt; a + c)</text>
+  </g>
+
+  <g stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)">
+    <line x1="308" y1="222" x2="340" y2="222"/>
+    <line x1="308" y1="270" x2="340" y2="270"/>
+    <line x1="308" y1="318" x2="340" y2="318"/>
+  </g>
+
+  <g fill="#E8C48A" stroke="#C8955A" stroke-width="2">
+    <rect x="348" y="204" width="140" height="36" rx="10"/>
+    <rect x="348" y="252" width="140" height="36" rx="10"/>
+    <rect x="348" y="300" width="140" height="36" rx="10"/>
+  </g>
+  <g font-size="15" font-weight="700" fill="#2F2A26" text-anchor="middle">
+    <text x="418" y="227">[6, 2, 8, 2, 10]</text>
+    <text x="418" y="275">[3, 4, 5]</text>
+    <text x="418" y="323">14</text>
+  </g>
+
+  <g font-size="14" fill="#2F2A26">
+    <text x="498" y="227">jedes Stück neu</text>
+    <text x="498" y="275">nur passende</text>
+    <text x="498" y="323">alles zu einem</text>
+  </g>
+</svg>

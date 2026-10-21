@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Speisekarte als Menütafel: links der Schlüssel, rechts der Wert; hole liefert den Wert oder einen leeren Karton</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+
+  <!-- Menütafel -->
+  <rect x="30" y="24" width="360" height="312" rx="16" fill="#2F2A26" stroke="#C8955A" stroke-width="8"/>
+  <text x="210" y="70" text-anchor="middle" font-size="24" font-weight="700" fill="#F2B33D">SPEISEKARTE</text>
+
+  <text x="62" y="110" font-size="14" font-weight="700" fill="#E8C48A">Schlüssel</text>
+  <text x="358" y="110" text-anchor="end" font-size="14" font-weight="700" fill="#E8C48A">Wert</text>
+  <line x1="62" y1="120" x2="358" y2="120" stroke="#E8C48A" stroke-width="2"/>
+
+  <g font-size="18" fill="#FFF6E0">
+    <text x="62" y="160">Margherita</text>
+    <text x="358" y="160" text-anchor="end">8</text>
+    <text x="62" y="206">Salami</text>
+    <text x="358" y="206" text-anchor="end">9.5</text>
+  </g>
+  <g stroke="#E6D3A8" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round">
+    <line x1="170" y1="155" x2="335" y2="155"/>
+    <line x1="132" y1="201" x2="320" y2="201"/>
+  </g>
+  <text x="62" y="252" font-size="18" fill="#C8955A">…</text>
+
+  <text x="210" y="304" text-anchor="middle" font-size="14" fill="#E8C48A">karte.lege("Salami", 9.5) schreibt eine Zeile</text>
+
+  <!-- Abfrage 1: vorhanden -->
+  <rect x="420" y="40" width="200" height="120" rx="14" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="520" y="72" text-anchor="middle" font-size="15" fill="#2F2A26">karte.hole("Salami")</text>
+  <line x1="520" y1="84" x2="520" y2="112" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <circle cx="490" cy="136" r="13" fill="#3E8E41"/>
+  <path d="M483,136 L488,141 L497,131" fill="none" stroke="#FFF6E0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="514" y="143" font-size="20" font-weight="700" fill="#2F2A26">9.5</text>
+
+  <!-- Abfrage 2: fehlt -->
+  <rect x="420" y="190" width="200" height="146" rx="14" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="520" y="222" text-anchor="middle" font-size="15" fill="#2F2A26">karte.hole("Tonno")</text>
+  <line x1="520" y1="234" x2="520" y2="258" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <!-- leerer Karton -->
+  <path d="M470,276 L500,262 L530,276 L500,290 z" fill="#E8C48A" stroke="#C8955A" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M470,276 L470,306 L500,320 L500,290 z" fill="#E8C48A" stroke="#C8955A" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M530,276 L530,306 L500,320 L500,290 z" fill="#C8955A" stroke="#C8955A" stroke-width="2" stroke-linejoin="round"/>
+  <text x="545" y="298" font-size="18" font-weight="700" fill="#2F2A26">karton</text>
+
+  <!-- Verbindung Tafel → Abfrage -->
+  <path d="M362,196 C392,196 392,100 412,100" fill="none" stroke="#3E8E41" stroke-width="3" marker-end="url(#pfeil)"/>
+</svg>

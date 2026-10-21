@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif">
+  <title>Luigi schneidet den Bon mit 412 Bestellungen mit dem Pizzaroller in 8 Streifen und verteilt sie an 8 Köche. Regel: nichts bleibt länger als 90 Sekunden im Ofen.</title>
+  <text x="40" y="26" font-size="16" font-weight="700" fill="#2F2A26">412 Bons</text>
+  <rect x="40" y="40" width="560" height="50" rx="4" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="75" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="145" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="215" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="285" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="355" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="425" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="495" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <text x="565" y="71" text-anchor="middle" font-size="15" fill="#2F2A26">≈ 52</text>
+  <g stroke="#D9452B" stroke-width="2.5" stroke-dasharray="5 4">
+    <line x1="110" y1="34" x2="110" y2="96"/>
+    <line x1="180" y1="34" x2="180" y2="96"/>
+    <line x1="250" y1="34" x2="250" y2="96"/>
+    <line x1="320" y1="34" x2="320" y2="96"/>
+    <line x1="390" y1="34" x2="390" y2="96"/>
+    <line x1="460" y1="34" x2="460" y2="96"/>
+    <line x1="530" y1="34" x2="530" y2="96"/>
+  </g>
+  <!-- Pizzaroller -->
+  <line x1="320" y1="34" x2="370" y2="6" stroke="#C8955A" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="320" cy="34" r="13" fill="#E6D3A8" stroke="#2F2A26" stroke-width="3"/>
+  <circle cx="320" cy="34" r="3" fill="#2F2A26"/>
+  <text x="384" y="22" font-size="14" font-style="italic" fill="#2F2A26">Luigis Pizzaroller</text>
+  <g>
+    <line x1="75" y1="98" x2="75" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="69,118 81,118 75,128" fill="#2F2A26"/>
+    <rect x="63" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="75" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="65" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="75" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="70" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="80" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M70 172 Q75 177 80 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M53 228 L57 192 Q75 182 93 192 L97 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="67" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="75" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 1</text>
+  </g>
+  <g>
+    <line x1="145" y1="98" x2="145" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="139,118 151,118 145,128" fill="#2F2A26"/>
+    <rect x="133" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="145" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="135" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="145" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="140" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="150" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M140 172 Q145 177 150 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M123 228 L127 192 Q145 182 163 192 L167 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="137" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="145" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 2</text>
+  </g>
+  <g>
+    <line x1="215" y1="98" x2="215" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="209,118 221,118 215,128" fill="#2F2A26"/>
+    <rect x="203" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="215" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="205" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="215" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="210" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="220" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M210 172 Q215 177 220 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M193 228 L197 192 Q215 182 233 192 L237 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="207" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="215" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 3</text>
+  </g>
+  <g>
+    <line x1="285" y1="98" x2="285" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="279,118 291,118 285,128" fill="#2F2A26"/>
+    <rect x="273" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="285" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="275" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="285" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="280" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="290" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M280 172 Q285 177 290 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M263 228 L267 192 Q285 182 303 192 L307 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="277" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="285" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 4</text>
+  </g>
+  <g>
+    <line x1="355" y1="98" x2="355" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="349,118 361,118 355,128" fill="#2F2A26"/>
+    <rect x="343" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="355" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="345" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="355" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="350" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="360" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M350 172 Q355 177 360 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M333 228 L337 192 Q355 182 373 192 L377 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="347" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="355" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 5</text>
+  </g>
+  <g>
+    <line x1="425" y1="98" x2="425" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="419,118 431,118 425,128" fill="#2F2A26"/>
+    <rect x="413" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="425" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="415" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="425" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="420" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="430" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M420 172 Q425 177 430 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M403 228 L407 192 Q425 182 443 192 L447 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="417" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="425" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 6</text>
+  </g>
+  <g>
+    <line x1="495" y1="98" x2="495" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="489,118 501,118 495,128" fill="#2F2A26"/>
+    <rect x="483" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="495" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="485" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="495" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="490" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="500" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M490 172 Q495 177 500 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M473 228 L477 192 Q495 182 513 192 L517 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="487" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="495" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 7</text>
+  </g>
+  <g>
+    <line x1="565" y1="98" x2="565" y2="120" stroke="#2F2A26" stroke-width="2.5"/>
+    <polygon points="559,118 571,118 565,128" fill="#2F2A26"/>
+    <rect x="553" y="140" width="24" height="12" rx="2" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="565" cy="138" r="11" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="555" y="139" width="20" height="9" fill="#FFFFFF"/>
+    <circle cx="565" cy="167" r="15" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="560" cy="165" r="2" fill="#2F2A26"/>
+    <circle cx="570" cy="165" r="2" fill="#2F2A26"/>
+    <path d="M560 172 Q565 177 570 172" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round"/>
+    <path d="M543 228 L547 192 Q565 182 583 192 L587 228 Z" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="557" y="198" width="16" height="22" fill="#FFFFFF" stroke="#E6D3A8" stroke-width="1.5"/>
+    <text x="565" y="248" text-anchor="middle" font-size="14" fill="#2F2A26">Koch 8</text>
+  </g>
+  <!-- Ofen-Regel -->
+  <rect x="40" y="262" width="560" height="46" rx="12" fill="#2F2A26"/>
+  <circle cx="74" cy="287" r="13" fill="none" stroke="#F2B33D" stroke-width="3"/>
+  <rect x="70" y="268" width="8" height="5" rx="1" fill="#F2B33D"/>
+  <line x1="74" y1="287" x2="74" y2="279" stroke="#F2B33D" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="74" y1="287" x2="80" y2="290" stroke="#F2B33D" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="330" y="291" text-anchor="middle" font-size="15" font-weight="700" fill="#FFF6E0">Ofen-Regel: Nichts bleibt länger als 90 Sekunden drin</text>
+  <text x="320" y="340" text-anchor="middle" font-size="15" font-style="italic" fill="#2F2A26">„Acht, nie sieben – bei sieben streiten sich die Leute.“</text>
+</svg>

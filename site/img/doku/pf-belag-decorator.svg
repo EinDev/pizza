@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Eigener Belag als Decorator: Trüffel fragt mit unten nach dem Preis darunter und legt 4,50 drauf. Rechts: Käse unter Tomate ist verboten, das ist ein Auflauf</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <g fill="#2F2A26">
+    <!-- Links: Dispatch -->
+    <text x="120" y="30" font-size="17" font-weight="bold" text-anchor="middle">fein.preis()</text>
+    <text x="120" y="52" font-size="14" text-anchor="middle">oberste Schicht antwortet zuerst</text>
+
+    <rect x="30" y="70" width="180" height="38" rx="12" fill="#2F2A26"/>
+    <text x="120" y="95" font-size="16" font-weight="bold" fill="#FFF6E0" text-anchor="middle">Trüffel</text>
+    <line x1="120" y1="110" x2="120" y2="142" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+    <text x="130" y="131" font-size="14" font-style="italic">unten</text>
+
+    <rect x="30" y="146" width="180" height="38" rx="12" fill="#D9452B"/>
+    <text x="120" y="171" font-size="16" font-weight="bold" fill="#FFF6E0" text-anchor="middle">Tomate</text>
+    <line x1="120" y1="186" x2="120" y2="218" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+    <text x="130" y="207" font-size="14" font-style="italic">unten</text>
+
+    <rect x="30" y="222" width="180" height="40" rx="16" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <text x="120" y="248" font-size="16" font-weight="bold" text-anchor="middle">Teig</text>
+
+    <g font-size="14">
+      <text x="222" y="94">unten + 4,50 = <tspan font-weight="bold">10,50</tspan></text>
+      <text x="222" y="170">unten + 1,00 = 6,00</text>
+      <text x="222" y="247">Grundpreis 5,00</text>
+    </g>
+
+    <!-- Trenner -->
+    <line x1="400" y1="16" x2="400" y2="292" stroke="#C8955A" stroke-width="2" stroke-dasharray="6 6"/>
+
+    <!-- Rechts: @Nach -->
+    <text x="520" y="30" font-size="17" font-weight="bold" text-anchor="middle">@Nach(Tomate)</text>
+    <text x="520" y="52" font-size="14" text-anchor="middle">Käse muss über Tomate</text>
+
+    <!-- richtig -->
+    <rect x="420" y="76" width="90" height="26" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+    <text x="465" y="94" font-size="14" text-anchor="middle">Käse</text>
+    <rect x="420" y="106" width="90" height="26" rx="10" fill="#D9452B"/>
+    <text x="465" y="124" font-size="14" fill="#FFF6E0" text-anchor="middle">Tomate</text>
+    <rect x="420" y="136" width="90" height="28" rx="12" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <text x="465" y="155" font-size="14" text-anchor="middle">Teig</text>
+    <circle cx="465" cy="196" r="16" fill="#3E8E41"/>
+    <path d="M457 196 L463 202 L474 189" fill="none" stroke="#FFF6E0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="465" y="234" font-size="15" font-weight="bold" text-anchor="middle">Pizza</text>
+
+    <!-- falsch -->
+    <rect x="530" y="76" width="90" height="26" rx="10" fill="#D9452B"/>
+    <text x="575" y="94" font-size="14" fill="#FFF6E0" text-anchor="middle">Tomate</text>
+    <rect x="530" y="106" width="90" height="26" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+    <text x="575" y="124" font-size="14" text-anchor="middle">Käse</text>
+    <rect x="530" y="136" width="90" height="28" rx="12" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <text x="575" y="155" font-size="14" text-anchor="middle">Teig</text>
+    <circle cx="575" cy="196" r="16" fill="#D9452B"/>
+    <path d="M568 189 L582 203 M582 189 L568 203" stroke="#FFF6E0" stroke-width="3" stroke-linecap="round"/>
+    <text x="575" y="234" font-size="15" font-weight="bold" fill="#D9452B" text-anchor="middle">Auflauf!</text>
+    <text x="575" y="256" font-size="14" text-anchor="middle">B0012</text>
+    <text x="575" y="276" font-size="14" text-anchor="middle">Exit-Code 2</text>
+
+    <!-- Fußzeile -->
+    <text x="320" y="330" font-size="14" text-anchor="middle">Jede Schicht fragt die Schicht darunter (unten) und legt ihren Teil drauf.</text>
+  </g>
+</svg>

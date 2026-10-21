@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Eine Methode ist eine Küchenstation: Zutaten (Parameter) rein, Ergebnis per serviere raus</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <!-- Parameter -->
+  <rect x="20" y="58" width="150" height="44" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="95" y="86" font-size="16" text-anchor="middle" fill="#2F2A26">preis: 8</text>
+  <rect x="20" y="138" width="150" height="44" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="95" y="166" font-size="16" text-anchor="middle" fill="#2F2A26">prozent: 10</text>
+  <text x="95" y="215" font-size="14" text-anchor="middle" fill="#2F2A26">Parameter (Zutaten)</text>
+
+  <g stroke="#2F2A26" stroke-width="3">
+    <line x1="172" y1="80" x2="226" y2="100" marker-end="url(#pfeil)"/>
+    <line x1="172" y1="160" x2="226" y2="140" marker-end="url(#pfeil)"/>
+  </g>
+
+  <!-- Methode als Ofen -->
+  <rect x="230" y="55" width="180" height="130" rx="16" fill="#2F2A26"/>
+  <rect x="250" y="140" width="140" height="28" rx="8" fill="#D9452B"/>
+  <text x="320" y="96" font-size="14" text-anchor="middle" fill="#F2B33D">Methode</text>
+  <text x="320" y="122" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFF6E0">mitTrinkgeld</text>
+  <text x="320" y="159" font-size="14" text-anchor="middle" fill="#FFF6E0">rechnet …</text>
+  <text x="320" y="215" font-size="14" text-anchor="middle" fill="#2F2A26">ein Name für ein paar Schritte</text>
+
+  <!-- serviere -->
+  <line x1="412" y1="120" x2="502" y2="120" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <text x="456" y="108" font-size="14" font-weight="bold" text-anchor="middle" fill="#D9452B">serviere</text>
+
+  <!-- Teller mit Ergebnis -->
+  <circle cx="560" cy="120" r="50" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <circle cx="560" cy="120" r="36" fill="none" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="560" y="129" font-size="24" font-weight="bold" text-anchor="middle" fill="#2F2A26">8.8</text>
+  <text x="560" y="215" font-size="14" text-anchor="middle" fill="#2F2A26">Ergebnis</text>
+</svg>

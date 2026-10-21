@@ -158,36 +158,42 @@ const dunkelThema = EditorView.theme({}, { dark: true });
 export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
   const themaFach = new Compartment();
   const dunkel = () => document.documentElement.dataset.theme === "dark";
-  const view = new EditorView({
-    parent: eltern,
-    state: EditorState.create({
-      doc: inhalt,
-      extensions: [
-        lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => {
-          const s = document.createElement("span"); s.className = "cm-faltmarke"; s.textContent = offen ? "▾" : "▸"; return s;
-        } }),
-        klammerFalten, lintGutter(),
-        highlightSpecialChars(), history(), drawSelection(), dropCursor(),
-        EditorState.allowMultipleSelections.of(true), indentOnInput(), bracketMatching(), closeBrackets(),
-        autocompletion({ override: [pizzaVervollstaendigung], icons: true, activateOnTyping: true }),
-        rectangularSelection(), crosshairCursor(), highlightActiveLine(), highlightSelectionMatches(),
-        EditorState.tabSize.of(4),
-        pizzaUnterstuetzung(),
-        linter(pizzaLinter, { delay: 350 }),
-        sprungFeld,
-        placeholder("// Schreib hier deine Pizza …"),
-        keymap.of([...(tasten || []), ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap,
-          ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
-        basisThema, themaFach.of(dunkel() ? dunkelThema : hellThema),
-        EditorView.updateListener.of((u) => { if (u.docChanged && beiAenderung) beiAenderung(u.state.doc.toString()); }),
-        EditorView.contentAttributes.of({ "aria-label": "pizza-Quelltext", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
-      ],
-    }),
-  });
+  const themaExt = () => (dunkel() ? dunkelThema : hellThema);
+  const erweiterungen = [
+    lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => {
+      const s = document.createElement("span"); s.className = "cm-faltmarke"; s.textContent = offen ? "▾" : "▸"; return s;
+    } }),
+    klammerFalten, lintGutter(),
+    highlightSpecialChars(), history(), drawSelection(), dropCursor(),
+    EditorState.allowMultipleSelections.of(true), indentOnInput(), bracketMatching(), closeBrackets(),
+    autocompletion({ override: [pizzaVervollstaendigung], icons: true, activateOnTyping: true }),
+    rectangularSelection(), crosshairCursor(), highlightActiveLine(), highlightSelectionMatches(),
+    EditorState.tabSize.of(4),
+    pizzaUnterstuetzung(),
+    linter(pizzaLinter, { delay: 350 }),
+    sprungFeld,
+    placeholder("// Schreib hier deine Pizza …"),
+    keymap.of([...(tasten || []), ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap,
+      ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
+    basisThema,
+    EditorView.updateListener.of((u) => { if (u.docChanged && beiAenderung) beiAenderung(u.state.doc.toString()); }),
+    EditorView.contentAttributes.of({ "aria-label": "pizza-Quelltext", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
+  ];
+  const neuerZustand = (doc) => EditorState.create({ doc, extensions: [erweiterungen, themaFach.of(themaExt())] });
+  const view = new EditorView({ parent: eltern, state: neuerZustand(inhalt || "") });
 
   return {
     view,
     text: () => view.state.doc.toString(),
+    /** Neuer, unabhängiger Zustand (eigene Undo-Historie) – für Editor-Tabs. */
+    neuerZustand,
+    zustand: () => view.state,
+    setzeZustand(state) {
+      view.setState(state);
+      // Thema des (evtl. älteren) Zustands angleichen und neu diagnostizieren
+      view.dispatch({ effects: themaFach.reconfigure(themaExt()) });
+      forceLinting(view);
+    },
     setzeText(neu) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: neu }, selection: { anchor: 0 }, scrollIntoView: true });
     },
@@ -202,10 +208,7 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
       });
       view.focus();
     },
-    setzeThema(istDunkel) { view.dispatch({ effects: themaFach.reconfigure(istDunkel ? dunkelThema : hellThema) }); },
-    lintNeu() {
-      // erzwingt eine erneute Diagnose (z. B. nachdem pizza.js geladen wurde)
-      forceLinting(view);
-    },
+    setzeThema() { view.dispatch({ effects: themaFach.reconfigure(themaExt()) }); },
+    lintNeu() { forceLinting(view); },
   };
 }

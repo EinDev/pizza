@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Typen als Zutatenregal: jedes Glas nimmt nur eine Sorte Wert auf</title>
+  <!-- Regal -->
+  <rect x="12" y="10" width="8" height="322" rx="3" fill="#C8955A"/>
+  <rect x="620" y="10" width="8" height="322" rx="3" fill="#C8955A"/>
+  <rect x="12" y="152" width="616" height="10" rx="3" fill="#C8955A"/>
+  <rect x="12" y="322" width="616" height="10" rx="3" fill="#C8955A"/>
+
+  <!-- Obere Reihe -->
+  <g font-size="16" text-anchor="middle" fill="#2F2A26">
+    <!-- salami -->
+    <rect x="50" y="22" width="90" height="10" rx="4" fill="#D9452B"/>
+    <rect x="40" y="32" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="95" y="73">8</text>
+    <text x="95" y="122" font-weight="bold">salami</text>
+    <text x="95" y="142" font-size="14">Ganzzahl</text>
+    <!-- funghi -->
+    <rect x="200" y="22" width="90" height="10" rx="4" fill="#C8955A"/>
+    <rect x="190" y="32" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="245" y="73">7.5</text>
+    <text x="245" y="122" font-weight="bold">funghi</text>
+    <text x="245" y="142" font-size="14">Kommazahl</text>
+    <!-- margherita -->
+    <rect x="350" y="22" width="90" height="10" rx="4" fill="#3E8E41"/>
+    <rect x="340" y="32" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="395" y="73">"Hallo"</text>
+    <text x="395" y="122" font-weight="bold">margherita</text>
+    <text x="395" y="142" font-size="14">Text</text>
+    <!-- diavolo -->
+    <rect x="500" y="22" width="90" height="10" rx="4" fill="#F2B33D"/>
+    <rect x="490" y="32" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="545" y="73">ja / nein</text>
+    <text x="545" y="122" font-weight="bold">diavolo</text>
+    <text x="545" y="142" font-size="14">Wahrheitswert</text>
+  </g>
+
+  <!-- Untere Reihe -->
+  <g font-size="16" text-anchor="middle" fill="#2F2A26">
+    <!-- Dauer -->
+    <rect x="50" y="190" width="90" height="10" rx="4" fill="#2F2A26"/>
+    <rect x="40" y="200" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="95" y="241">90s</text>
+    <text x="95" y="292" font-weight="bold">Dauer</text>
+    <text x="95" y="312" font-size="14">Zeitdauer</text>
+    <!-- Pizza -->
+    <rect x="200" y="190" width="90" height="10" rx="4" fill="#D9452B"/>
+    <rect x="190" y="200" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <circle cx="245" cy="234" r="24" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <circle cx="245" cy="234" r="17" fill="#D9452B"/>
+    <circle cx="239" cy="229" r="4" fill="#FFF6E0"/>
+    <circle cx="251" cy="239" r="4" fill="#FFF6E0"/>
+    <circle cx="250" cy="227" r="3" fill="#3E8E41"/>
+    <text x="245" y="292" font-weight="bold">Pizza</text>
+    <text x="245" y="312" font-size="14">Pizza mit Belägen</text>
+    <!-- Blech -->
+    <rect x="350" y="190" width="90" height="10" rx="4" fill="#C8955A"/>
+    <rect x="340" y="200" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="395" y="241">[1, 2, 3]</text>
+    <text x="395" y="292" font-weight="bold">Blech</text>
+    <text x="395" y="312" font-size="14">Liste</text>
+    <!-- Speisekarte -->
+    <rect x="500" y="190" width="90" height="10" rx="4" fill="#3E8E41"/>
+    <rect x="490" y="200" width="110" height="68" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+    <text x="545" y="241">{Tisch: 4}</text>
+    <text x="545" y="292" font-weight="bold">Speisekarte</text>
+    <text x="545" y="312" font-size="14">Schlüssel → Wert</text>
+  </g>
+</svg>

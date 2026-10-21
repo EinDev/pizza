@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Simulierte Uhr: jeder Rechenschritt lässt die Uhr um 1 ms weiterticken, Uhr.vorspulen springt auf einmal vor</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <g fill="#2F2A26">
+    <!-- Uhr -->
+    <circle cx="70" cy="105" r="48" fill="#FFF6E0" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M70 61 L70 67 M114 105 L108 105 M70 149 L70 143 M26 105 L32 105" stroke="#2F2A26" stroke-width="3"/>
+    <line x1="70" y1="105" x2="70" y2="74" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+    <line x1="70" y1="105" x2="94" y2="116" stroke="#D9452B" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="70" cy="105" r="4" fill="#2F2A26"/>
+    <text x="70" y="178" font-size="15" font-weight="bold" text-anchor="middle">Uhr.jetzt()</text>
+
+    <!-- Schritte -->
+    <text x="295" y="62" font-size="15" text-anchor="middle">jeder Schritt = 1 ms</text>
+    <g text-anchor="middle">
+      <rect x="150" y="80" width="50" height="54" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <text x="175" y="103" font-size="16" font-weight="bold">1</text>
+      <text x="175" y="124" font-size="14">+1 ms</text>
+      <rect x="210" y="80" width="50" height="54" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <text x="235" y="103" font-size="16" font-weight="bold">2</text>
+      <text x="235" y="124" font-size="14">+1 ms</text>
+      <rect x="270" y="80" width="50" height="54" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <text x="295" y="103" font-size="16" font-weight="bold">3</text>
+      <text x="295" y="124" font-size="14">+1 ms</text>
+      <rect x="330" y="80" width="50" height="54" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <text x="355" y="103" font-size="16" font-weight="bold">4</text>
+      <text x="355" y="124" font-size="14">+1 ms</text>
+      <rect x="390" y="80" width="50" height="54" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+      <text x="415" y="103" font-size="16" font-weight="bold">5</text>
+      <text x="415" y="124" font-size="14">+1 ms</text>
+      <text x="460" y="112" font-size="20" font-weight="bold">…</text>
+    </g>
+
+    <!-- Vorspulen -->
+    <text x="560" y="62" font-size="14" font-weight="bold" text-anchor="middle">Uhr.vorspulen(3d)</text>
+    <line x1="476" y1="107" x2="500" y2="107" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+    <rect x="504" y="80" width="112" height="54" rx="10" fill="#F2B33D" stroke="#C8955A" stroke-width="3"/>
+    <text x="560" y="113" font-size="16" font-weight="bold" text-anchor="middle">+ 3 Tage</text>
+
+    <!-- Fußzeile -->
+    <text x="320" y="200" font-size="15" text-anchor="middle">Keine echte Uhr: Zeit = gezählte Rechenschritte.</text>
+    <text x="320" y="224" font-size="14" text-anchor="middle">Nach 5 000 000 Schritten ist Schluss (P0002, Exit-Code 3).</text>
+  </g>
+</svg>

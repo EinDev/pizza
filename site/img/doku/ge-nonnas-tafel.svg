@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif">
+  <title>Nonna Pina zeigt auf eine Tafel mit ihren drei Bedingungen: Man merkt, dass es um Pizza geht. Keine Ecken, nur runde Klammern. Der Teig muss gehen.</title>
+
+  <!-- Tafel -->
+  <rect x="170" y="20" width="450" height="320" rx="14" fill="#C8955A" stroke="#2F2A26" stroke-width="3"/>
+  <rect x="184" y="34" width="422" height="292" rx="6" fill="#2F2A26"/>
+  <text x="395" y="72" text-anchor="middle" font-size="20" font-weight="700" fill="#FFF6E0">Nonnas drei Bedingungen</text>
+  <line x1="280" y1="86" x2="510" y2="86" stroke="#F2B33D" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- 1: Pizza -->
+  <text x="204" y="142" font-size="20" font-weight="800" fill="#F2B33D">1.</text>
+  <path d="M234 120 L266 120 L250 154 Z" fill="#D9452B" stroke="#E8C48A" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="232" y="114" width="36" height="8" rx="4" fill="#E8C48A"/>
+  <circle cx="246" cy="130" r="3.5" fill="#FFF6E0"/>
+  <circle cx="254" cy="138" r="3" fill="#FFF6E0"/>
+  <text x="286" y="141" font-size="16" fill="#FFF6E0">Man merkt, dass es um Pizza geht</text>
+
+  <!-- 2: Keine Ecken -->
+  <text x="204" y="207" font-size="20" font-weight="800" fill="#F2B33D">2.</text>
+  <text x="250" y="207" text-anchor="middle" font-size="20" font-weight="800" fill="#E8C48A">(( ))</text>
+  <text x="286" y="206" font-size="16" fill="#FFF6E0">Keine Ecken – nur runde Klammern</text>
+
+  <!-- 3: Teig -->
+  <text x="204" y="272" font-size="20" font-weight="800" fill="#F2B33D">3.</text>
+  <ellipse cx="250" cy="260" rx="15" ry="11" fill="#E8C48A"/>
+  <path d="M231 262 h38 a19 15 0 0 1 -38 0 Z" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="286" y="271" font-size="16" fill="#FFF6E0">Der Teig muss gehen – 24 Stunden</text>
+
+  <!-- Nonna -->
+  <circle cx="85" cy="96" r="14" fill="#E6D3A8" stroke="#2F2A26" stroke-width="2.5"/>
+  <circle cx="85" cy="130" r="30" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2.5"/>
+  <path d="M57 122 Q85 92 113 122 Q100 108 85 108 Q70 108 57 122 Z" fill="#E6D3A8" stroke="#2F2A26" stroke-width="2"/>
+  <g fill="none" stroke="#2F2A26" stroke-width="2">
+    <circle cx="74" cy="132" r="8"/>
+    <circle cx="96" cy="132" r="8"/>
+    <line x1="82" y1="132" x2="88" y2="132"/>
+  </g>
+  <path d="M76 148 Q85 155 94 148" fill="none" stroke="#2F2A26" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M38 322 L50 176 Q85 160 120 176 L132 322 Z" fill="#D9452B" stroke="#2F2A26" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M62 200 L108 200 L114 300 L56 300 Z" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Zeigestock -->
+  <line x1="118" y1="206" x2="196" y2="166" stroke="#C8955A" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="118" cy="206" r="8" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2"/>
+  <text x="85" y="346" text-anchor="middle" font-size="15" font-weight="700" fill="#2F2A26">Nonna Pina</text>
+</svg>

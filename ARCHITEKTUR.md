@@ -128,6 +128,27 @@ Jede Datei registriert Abschnitte:
   ]
 });
 ```
+### Doku v2: einfacher, mit Bildern (Nutzer-Feedback)
+
+Neue Inhaltsarten (zusätzlich zu den obigen):
+```js
+{ art: "kurz", md: "Ein Satz: Was ist das und wozu? (erscheint als hervorgehobene Box ganz oben)" },
+{ art: "bild", src: "img/doku/pf-schneiden.svg", alt: "Alternativtext", unterschrift: "optionale Bildunterschrift" },
+{ art: "details", titel: "Für Fortgeschrittene: Budget-Formel", inhalt: [ /* beliebige Inhaltsblöcke */ ] }
+```
+Regeln für jeden Abschnitt:
+1. Beginnt mit `kurz` (1–2 Sätze, Alltagssprache, keine Fachbegriffe ohne Erklärung).
+2. Danach möglichst ein `bild`, das die Idee als Pizzeria-Szene/Diagramm zeigt.
+3. Dann **ein** kleines, ausführbares Beispiel (≤ 12 Zeilen) + `ausgabe`.
+4. Alles Weitere (Tabellen, Randfälle, Fehlercodes, zweites Beispiel) kommt in `details` (standardmäßig zugeklappt).
+5. Kurze Sätze, aktive Sprache, Humor ja – aber Verständlichkeit zuerst.
+
+**Bilder** (`site/img/doku/*.svg`, Präfix je Doku-Datei: `ge-`, `sp-`, `pf-`, `re-`):
+- Handgeschriebenes SVG, `viewBox="0 0 640 360"` (oder 640×240 für flache), keine externen Referenzen, keine Skripte, keine Webfonts; Schrift `font-family="system-ui, sans-serif"`, mind. 14px.
+- Werden per `<img>` auf einer **hellen Karte** gezeigt (auch im Dunkelmodus) → für hellen Hintergrund gestalten, Hintergrund transparent.
+- Palette: Teig/Rand `#E8C48A`/`#C8955A`, Tomate `#D9452B`, Mozzarella `#FFF6E0` (Kontur `#E6D3A8`), Basilikum `#3E8E41`, Ofen/Anthrazit `#2F2A26`, Text `#2F2A26`, Akzent Gelb `#F2B33D`, Ananas `#F5C518`.
+- Stil: flach, freundlich, klare Formen, Strichstärke 2–3, abgerundete Ecken; Beschriftungen auf Deutsch; zeigt den Mechanismus (z. B. Blech → 8 Stücke → 8 Köche → Ergebnis), nicht nur Deko.
+
 - In Node: `globalThis.self` existiert ggf. nicht → Dateien nutzen `(typeof self !== "undefined" ? self : globalThis)`.
 - Markdown-Untermenge: `**fett**`, `*kursiv*`, `` `code` ``, `[text](url)`, Leerzeilen = Absätze, `- ` Listen.
 - `ausfuehrbar: true` ⇒ Code läuft im Snack-Modus mit Exit-Code 0 (oder `exitCode`-Feld angeben). Der Test-Harness prüft das.

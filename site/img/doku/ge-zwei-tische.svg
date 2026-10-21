@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif">
+  <title>Eine einzige Margherita soll gleichzeitig an Tisch 12 und Tisch 14 sein. Der Kellner läuft zwanzig Minuten hin und her.</title>
+
+  <text x="320" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">1 Margherita</text>
+
+  <!-- Die eine Pizza -->
+  <circle cx="320" cy="96" r="52" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <circle cx="320" cy="96" r="41" fill="#D9452B"/>
+  <g fill="#FFF6E0" stroke="#E6D3A8" stroke-width="1.5">
+    <circle cx="304" cy="82" r="9"/>
+    <circle cx="336" cy="88" r="8"/>
+    <circle cx="312" cy="112" r="8"/>
+    <circle cx="338" cy="112" r="7"/>
+  </g>
+  <g fill="#3E8E41">
+    <ellipse cx="322" cy="72" rx="7" ry="4" transform="rotate(-25 322 72)"/>
+    <ellipse cx="296" cy="102" rx="7" ry="4" transform="rotate(30 296 102)"/>
+    <ellipse cx="328" cy="99" rx="6" ry="3.5"/>
+  </g>
+
+  <!-- Gestrichelte Pfeile zu beiden Tischen -->
+  <g fill="none" stroke="#2F2A26" stroke-width="2.5" stroke-dasharray="6 5" stroke-linecap="round">
+    <path d="M268 104 Q180 120 132 196"/>
+    <path d="M372 104 Q460 120 508 196"/>
+  </g>
+  <polygon points="124,190 140,196 128,208" fill="#2F2A26"/>
+  <polygon points="516,190 500,196 512,208" fill="#2F2A26"/>
+
+  <!-- Tisch 12 -->
+  <text x="110" y="196" text-anchor="middle" font-size="36" font-weight="800" fill="#D9452B" dx="-44">?</text>
+  <rect x="104" y="262" width="12" height="54" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+  <ellipse cx="110" cy="252" rx="82" ry="18" fill="#C8955A" stroke="#2F2A26" stroke-width="3"/>
+  <ellipse cx="110" cy="244" rx="34" ry="9" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+  <text x="110" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">Tisch 12</text>
+
+  <!-- Tisch 14 -->
+  <text x="530" y="196" text-anchor="middle" font-size="36" font-weight="800" fill="#D9452B" dx="44">?</text>
+  <rect x="524" y="262" width="12" height="54" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+  <ellipse cx="530" cy="252" rx="82" ry="18" fill="#C8955A" stroke="#2F2A26" stroke-width="3"/>
+  <ellipse cx="530" cy="244" rx="34" ry="9" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+  <text x="530" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">Tisch 14</text>
+
+  <!-- Kellner in der Mitte -->
+  <circle cx="320" cy="196" r="18" fill="#F2D0A9" stroke="#2F2A26" stroke-width="2.5"/>
+  <circle cx="314" cy="194" r="2.5" fill="#2F2A26"/>
+  <circle cx="326" cy="194" r="2.5" fill="#2F2A26"/>
+  <ellipse cx="320" cy="204" rx="4" ry="3" fill="#2F2A26"/>
+  <path d="M298 290 L302 226 Q320 214 338 226 L342 290 Z" fill="#2F2A26" stroke="#2F2A26" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M312 222 L320 238 L328 222" fill="#FFFFFF"/>
+  <g stroke="#2F2A26" stroke-width="3" stroke-linecap="round" fill="none">
+    <line x1="236" y1="258" x2="284" y2="258"/>
+    <polyline points="246,250 236,258 246,266"/>
+    <line x1="356" y1="258" x2="404" y2="258"/>
+    <polyline points="394,250 404,258 394,266"/>
+  </g>
+  <text x="320" y="316" text-anchor="middle" font-size="15" fill="#2F2A26">20 Minuten hin und her</text>
+</svg>

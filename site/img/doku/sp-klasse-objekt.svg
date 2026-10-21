@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Klasse und Objekt: Die Klasse ist das Rezept, mit neu entstehen daraus beliebig viele gebackene Pizzen (Objekte)</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+
+  <!-- Rezeptkarte = Klasse -->
+  <rect x="30" y="50" width="220" height="250" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+  <text x="140" y="85" font-size="18" font-weight="bold" text-anchor="middle" fill="#2F2A26">Rezept</text>
+  <text x="140" y="108" font-size="15" font-weight="bold" text-anchor="middle" fill="#D9452B">= klasse</text>
+  <line x1="50" y1="122" x2="230" y2="122" stroke="#E6D3A8" stroke-width="2"/>
+  <g font-size="15" fill="#2F2A26">
+    <text x="50" y="152">• name (Feld)</text>
+    <text x="50" y="182">• öfen (Feld)</text>
+    <text x="50" y="212">• alsText() (Methode)</text>
+  </g>
+  <text x="140" y="270" font-size="14" text-anchor="middle" fill="#2F2A26">nur Papier – nicht essbar</text>
+
+  <!-- neu -->
+  <line x1="262" y1="175" x2="350" y2="175" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+  <text x="305" y="163" font-size="16" font-weight="bold" text-anchor="middle" fill="#2F2A26">neu</text>
+
+  <!-- Objekte = gebackene Pizzen -->
+  <text x="480" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="#2F2A26">Objekte = gebackene Pizzen</text>
+
+  <!-- Pizza 1 -->
+  <circle cx="420" cy="110" r="48" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <circle cx="420" cy="110" r="37" fill="#D9452B"/>
+  <circle cx="408" cy="100" r="8" fill="#FFF6E0"/>
+  <circle cx="432" cy="120" r="8" fill="#FFF6E0"/>
+  <circle cx="430" cy="98" r="5" fill="#3E8E41"/>
+  <circle cx="410" cy="123" r="5" fill="#3E8E41"/>
+  <text x="420" y="178" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">luigi</text>
+
+  <!-- Pizza 2 -->
+  <circle cx="540" cy="110" r="48" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <circle cx="540" cy="110" r="37" fill="#D9452B"/>
+  <circle cx="528" cy="102" r="8" fill="#FFF6E0"/>
+  <circle cx="552" cy="104" r="8" fill="#FFF6E0"/>
+  <circle cx="540" cy="124" r="8" fill="#FFF6E0"/>
+  <circle cx="540" cy="96" r="4" fill="#2F2A26"/>
+  <circle cx="526" cy="120" r="4" fill="#2F2A26"/>
+  <text x="540" y="178" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">mario</text>
+
+  <!-- Pizza 3 -->
+  <circle cx="480" cy="240" r="48" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <circle cx="480" cy="240" r="37" fill="#D9452B"/>
+  <circle cx="468" cy="232" r="8" fill="#FFF6E0"/>
+  <circle cx="493" cy="248" r="8" fill="#FFF6E0"/>
+  <circle cx="492" cy="228" r="5" fill="#3E8E41"/>
+  <circle cx="470" cy="252" r="5" fill="#3E8E41"/>
+  <circle cx="481" cy="240" r="4" fill="#F2B33D"/>
+  <text x="480" y="308" font-size="15" font-weight="bold" text-anchor="middle" fill="#2F2A26">anna</text>
+
+  <text x="480" y="340" font-size="14" text-anchor="middle" fill="#2F2A26">ein Rezept – viele Pizzen</text>
+</svg>

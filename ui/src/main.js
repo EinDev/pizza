@@ -6,6 +6,7 @@ import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { codeKodieren, codeDekodieren, codeAusHash } from "./teilen.js";
 import { ausInterpreterErgaenzen } from "./woerter.js";
+import { erstelleTabs } from "./tabs.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -79,72 +80,43 @@ function start() {
     $("version").title = "Interpreter " + PL.version;
   }
 
-  // ---------- Zustand Editorinhalt ----------
-  let basis = speicher.hole("pizza.basis");
-  let dateiName = speicher.hole("pizza.datei") || "willkommen.pizza";
-  let anfangsCode = speicher.hole("pizza.code");
-  if (anfangsCode == null) { anfangsCode = WILLKOMMEN; basis = WILLKOMMEN; }
-  if (basis == null) basis = anfangsCode;
-
-  let speicherTimer = null;
-  function aktualisiereSchmutz(text) {
-    const schmutzig = text !== basis;
-    $("datei-punkt").hidden = !schmutzig;
-    $("datei-name").textContent = dateiName;
-  }
-
+  // ---------- Editor & Tabs ----------
+  let tabs = null;
   const editor = erstelleEditor({
     eltern: $("editor"),
-    inhalt: anfangsCode,
-    beiAenderung(text) {
-      aktualisiereSchmutz(text);
-      clearTimeout(speicherTimer);
-      speicherTimer = setTimeout(() => speicher.setze("pizza.code", text), 400);
-    },
+    inhalt: "",
+    beiAenderung() { if (tabs) tabs.beiAenderung(); },
   });
-  aktualisiereSchmutz(anfangsCode);
-
-  function setzeInhalt(code, name) {
-    basis = code;
-    dateiName = name || "unbenannt.pizza";
-    speicher.setze("pizza.basis", basis);
-    speicher.setze("pizza.datei", dateiName);
-    editor.setzeText(code);
-    speicher.setze("pizza.code", code);
-    aktualisiereSchmutz(code);
-  }
-
-  async function ladeMitRueckfrage(code, name) {
-    const text = editor.text();
-    if (text === code) return true;
-    if (text !== basis && text.trim()) {
-      const ok = await frage("Änderungen verwerfen?", "Im Editor stehen ungespeicherte Änderungen. Wenn du fortfährst, werden sie durch „" + (name || "den neuen Code") + "“ ersetzt.");
-      if (!ok) return false;
-    }
-    setzeInhalt(code, name);
-    return true;
-  }
+  tabs = erstelleTabs({
+    editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
+    beiWechsel() { /* Platz für künftige Anzeigen */ },
+  });
+  tabs.laden();
 
   function speichern() {
-    const text = editor.text();
-    basis = text;
-    speicher.setze("pizza.code", text);
-    speicher.setze("pizza.basis", text);
-    aktualisiereSchmutz(text);
-    toast("Lokal gespeichert – im Browser abgelegt.", "ok");
+    const t = tabs.sichern();
+    if (t) toast("„" + t.name + "“ lokal gespeichert.", "ok");
   }
 
   // ---------- Konsole & Ausführung ----------
-  const konsole = erstelleKonsole({ springe: (z, s) => editor.springeZu(z, s) });
+  let laufTabId = null;
+  const konsole = erstelleKonsole({
+    springe: (z, s) => {
+      if (laufTabId && tabs.aktiv() && tabs.aktiv().id !== laufTabId) tabs.wechsle(laufTabId);
+      editor.springeZu(z, s);
+    },
+  });
   const knopfBacken = $("knopf-backen"), knopfAbbr = $("knopf-abbrechen");
+  let laufName = "";
 
   const ausfuehrung = erstelleAusfuehrung({
     beiStart() {
       konsole.leeren(false);
-      konsole.setzeLauf({ laeuft: true });
+      konsole.setzeLauf({ laeuft: true, name: laufName });
       knopfBacken.hidden = true;
       knopfAbbr.hidden = false;
       document.body.classList.add("laeuft");
+      logoBacken(true);
       konsoleOeffnen();
     },
     beiEreignis(ev) { konsole.ereignis(ev); },
@@ -153,20 +125,31 @@ function start() {
       knopfBacken.hidden = false;
       knopfAbbr.hidden = true;
       document.body.classList.remove("laeuft");
+      logoBacken(false);
       if (info.abgebrochen) {
-        konsole.setzeExit("–", { wandMs: info.wandMs, zusatz: "abgebrochen" });
+        konsole.setzeExit("–", { wandMs: info.wandMs, zusatz: "abgebrochen", name: laufName });
         $("exit-badge").className = "exit-badge abgebrochen";
         $("exit-badge").textContent = "abgebrochen";
       } else {
-        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, zusatz: info.zusatz });
+        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, zusatz: info.zusatz, name: laufName });
       }
       if (document.activeElement === knopfAbbr) knopfBacken.focus();
     },
     beiPanik(text) { zeigeHawaii(text); },
   });
 
+  const logoBild = $("logo-bild");
+  function logoBacken(an) {
+    if (!logoBild || logoBild.hidden) return;
+    if (an) { logoBild.dataset.backen = "1"; logoBild.src = "img/logo-backen.svg"; }
+    else if (logoBild.dataset.backen) { logoBild.removeAttribute("data-backen"); logoBild.src = "img/logo.svg"; }
+  }
+
   function backen() {
     if (ausfuehrung.laeuft) return;
+    const t = tabs.aktiv();
+    laufTabId = t ? t.id : null;
+    laufName = t ? t.name : "";
     ausfuehrung.starte(editor.text());
   }
   knopfBacken.addEventListener("click", backen);
@@ -320,32 +303,64 @@ function start() {
     });
   });
 
-  // ---------- Doku & Beispiele ----------
-  async function oeffneCode(code, titel) {
-    const name = (titel || "doku").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") + ".pizza";
-    const ok = await ladeMitRueckfrage(code, name);
-    if (ok) {
-      if (schmal.matches) setzePanel(false, { fokus: false });
-      editor.view.focus();
-    }
-    return ok;
+  // ---------- Doku & Beispiele (öffnen jeweils in einem eigenen Editor-Tab) ----------
+  function oeffneCode(code, titel, schluessel) {
+    const name = (titel || "doku").toLowerCase().replace(/[^p{L}p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) + ".pizza";
+    const { neu } = tabs.oeffne(code, name, schluessel);
+    if (!neu) toast("Bereits geöffnet – zum Tab gewechselt.", "info");
+    if (schmal.matches) setzePanel(false, { fokus: false });
+    editor.view.focus();
+    return true;
   }
+  // Lesemodus (großes Popup) & Bild-Lightbox
+  const lesemodus = $("doku-lesemodus");
+  const lightbox = $("bild-lightbox");
+  function zeigeBild(src, alt, unterschrift) {
+    $("lightbox-bild").src = src;
+    $("lightbox-bild").alt = alt || "";
+    $("lightbox-text").textContent = unterschrift || alt || "";
+    if (typeof lightbox.showModal === "function") lightbox.showModal(); else window.open(src, "_blank", "noopener");
+  }
+  $("lightbox-zu").addEventListener("click", () => lightbox.close());
+  lightbox.addEventListener("click", (e) => { if (e.target === lightbox || e.target.tagName === "FIGURE") lightbox.close(); });
+
   const doku = erstelleDoku({
     oeffneCode,
-    backeCode: async (code, titel) => { if (await oeffneCode(code, titel)) backen(); },
+    backeCode: (code, titel, schluessel) => { oeffneCode(code, titel, schluessel); backen(); },
+    zeigeBild,
+    vorAktion: () => { if (lesemodus.open) lesemodus.close(); },
   });
+  const dokuPanel = doku.ansicht($("doku-panel"), "panel");
+  let dokuModal = null;
+  function lesemodusOeffnen() {
+    if (typeof lesemodus.showModal !== "function") return;
+    if (!dokuModal) dokuModal = doku.ansicht($("doku-modal"), "modal");
+    lesemodus.showModal();
+    requestAnimationFrame(() => dokuModal.zeigeGemerkt());
+    dokuModal.artikel.focus({ preventScroll: true });
+  }
+  $("knopf-lesemodus").addEventListener("click", lesemodusOeffnen);
+  $("lesemodus-zu").addEventListener("click", () => lesemodus.close());
+  lesemodus.addEventListener("click", (e) => { if (e.target === lesemodus) lesemodus.close(); });
+  lesemodus.addEventListener("close", () => { if (panelOffen && aktiverTab === "doku") dokuPanel.zeigeGemerkt(); });
   const beispiele = erstelleBeispiele({
-    async ladeCode(code, name, fehler) {
+    ladeCode(code, name, fehler, schluessel) {
       if (fehler) { toast(fehler, "fehler"); return; }
-      const ok = await ladeMitRueckfrage(code, name);
-      if (ok) {
-        toast("„" + name + "“ geladen. Strg+Enter zum Backen.", "ok");
-        if (schmal.matches) setzePanel(false, { fokus: false });
-        editor.view.focus();
-      }
+      const { neu } = tabs.oeffne(code, name, schluessel);
+      toast(neu ? "„" + name + "“ in neuem Tab geöffnet. Strg+Enter zum Backen." : "„" + name + "“ ist schon offen – zum Tab gewechselt.", "ok");
+      if (schmal.matches) setzePanel(false, { fokus: false });
+      editor.view.focus();
     },
   });
-  function aktiverTabGeladen() { if (panelOffen && aktiverTab === "beispiele") beispiele.laden(); }
+  let dokuPositioniert = false;
+  function aktiverTabGeladen() {
+    $("knopf-lesemodus").hidden = aktiverTab !== "doku";
+    if (panelOffen && aktiverTab === "beispiele") beispiele.laden();
+    if (panelOffen && aktiverTab === "doku" && !dokuPositioniert) {
+      dokuPositioniert = true;
+      requestAnimationFrame(() => dokuPanel.zeigeGemerkt());
+    }
+  }
   waehleTab(aktiverTab, false);
   wendePanelAn();
 
@@ -378,22 +393,21 @@ function start() {
   });
 
   let letzterHash = location.hash;
-  async function hashLaden(mitRueckfrage) {
+  async function hashLaden() {
     const wert = codeAusHash(location.hash);
     if (!wert) return false;
     const code = await codeDekodieren(wert);
     if (code == null) { toast("Der geteilte Link ist beschädigt – kein Code gefunden.", "fehler"); return false; }
-    // Gespeicherter Entwurf mit ungespeicherten Änderungen? Dann lieber nachfragen.
-    if (mitRueckfrage || editor.text() !== basis) return ladeMitRueckfrage(code, "geteilt.pizza");
-    setzeInhalt(code, "geteilt.pizza");
+    // Geteilter Code öffnet als eigener Tab – vorhandene Tabs bleiben unberührt.
+    tabs.oeffne(code, "geteilt.pizza", "hash:" + wert.slice(0, 200));
     return true;
   }
   window.addEventListener("hashchange", () => {
     if (location.hash === letzterHash) return;
     letzterHash = location.hash;
-    hashLaden(true);
+    hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
   });
-  hashLaden(false).then((ok) => { if (ok) toast("Geteilter Code geladen.", "ok"); });
+  hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
 
   // ---------- Tastenkürzel (Capture: vor CodeMirror) ----------
   window.addEventListener("keydown", (e) => {
@@ -415,7 +429,8 @@ function start() {
     $("editor-status").classList.add("warnung");
   }
 
-  window.addEventListener("pagehide", () => speicher.setze("pizza.code", editor.text()));
+  window.addEventListener("pagehide", () => tabs.sofortSpeichern());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) tabs.sofortSpeichern(); });
   editor.view.focus();
   document.body.classList.add("bereit");
 }
