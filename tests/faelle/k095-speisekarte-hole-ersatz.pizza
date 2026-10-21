@@ -1,0 +1,24 @@
+// K-095: Speisekarte.hole(k[, ersatz]) – Ersatzwert nur bei fehlendem Schlüssel (positional oder benannt)
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("a", 1);
+k.lege("n", karton);
+Bote.sage((k.hole("a", 99)));
+Bote.sage((k.hole("x", 99)));
+Bote.sage((k.hole("x", ersatz: 7)));
+Bote.sage((k.hole("x", 5, ersatz: 7)));
+Bote.sage((k.hole("x")));
+Bote.sage((k.hole("x", karton)));
+Bote.sage((k.hole("n", 99)));
+Bote.sage((k.hat("n")));
+Bote.sage((k.hole("x", unbekannt: 3)));
+salami z = k.hole("zaehler", 0) + 1;
+Bote.sage((z));
+Speisekarte<Belag, salami> b = neu Speisekarte<Belag, salami>();
+b.lege(Salami, 3);
+Bote.sage((b.hole(Salami, -1) + " " + b.hole(Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
+Speisekarte<margherita, Blech<salami>> l = neu Speisekarte<margherita, Blech<salami>>();
+Blech<salami> e = [];
+Blech<salami> r = l.hole("liste", e);
+r.hinzu(4);
+Bote.sage((e));
+Bote.sage((l.länge()));

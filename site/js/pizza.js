@@ -1591,7 +1591,13 @@
 
   const KARTE_M = tabelle({
     'lege': function (m, pos) { m.set(this.schluessel(pos[0]), pos.length > 1 ? pos[1] : null); return m; },
-    'hole': function (m, pos) { const k = this.schluessel(pos[0]); return m.has(k) ? m.get(k) : null; },
+    'hole': function (m, pos, ben) {
+      // K-095: hole(k[, ersatz]) – Ersatzwert (positional oder benannt) nur, wenn der Schlüssel fehlt.
+      const k = this.schluessel(pos[0]);
+      if (m.has(k)) return m.get(k);
+      const e = arg(pos, ben, 1, 'ersatz');
+      return e === undefined ? null : e;
+    },
     'hat': function (m, pos) { return m.has(this.schluessel(pos[0])); },
     'entferne': function (m, pos) { const k = this.schluessel(pos[0]); const v = m.has(k) ? m.get(k) : null; m.delete(k); return v; },
     'schlüssel': function (m) { return Array.from(m.keys()); },

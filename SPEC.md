@@ -466,7 +466,7 @@ Exit-Code: 39
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
 | Blech | `länge()`, `stück(i)` (**ab 1**, außerhalb → `KeinStückAnanas`), `hinzu(x)` (gibt Blech zurück), `entferne(i)`, `setze(i, x)`, `enthält(x)`, `belege(fn)` (map), `filtere(fn)`, `zusammenklappen(fn)` / `zusammenklappen(fn, start)` (reduce), `summe()`, `erstes()`, `letztes()`, `umdrehen()`, `sortiere()` / `sortiere((a, b) -> ...)`, `verbinde(trenner)`, `istLeer()`, `schneide(n)` |
-| Speisekarte | `lege(k, v)`, `hole(k)` (fehlt → `karton`), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
+| Speisekarte | `lege(k, v)`, `hole(k[, ersatz])` (fehlt → `ersatz`, sonst `karton`; auch benannt `ersatz:`, K-095), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
 | Dauer | `+ -` mit Dauer, `* /` mit Zahl, Vergleiche, `inMs()`, `inSekunden()` |
 | `neu Blech<T>()`, `neu Speisekarte<K, V>()`, `neu Pizza()` (= `(())`) | |
 
@@ -748,6 +748,8 @@ regelt `EINGABE.md`.
   Text: `Zeichen i gibt es nicht – der Text hat n Zeichen.`
 - Speisekarte: zusätzlich `istLeer()`; `lege` liefert die Speisekarte; `entferne(k)` liefert den alten Wert oder
   `karton`; Beläge als Schlüssel werden über ihren Namen gespeichert (`hole(Salami)` = `hole("Salami")`).
+  `hole(k, ersatz)` (auch `ersatz:`) liefert `ersatz` **nur**, wenn `hat(k)` `nein` ist – ein gespeicherter `karton` bleibt
+  `karton`; `ersatz` kommt unverändert zurück (keine Kopie); positional vor benannt wie in §14.9 (K-095).
 - Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`.
 - Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
   `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Stück `Stück von <pizza>`; Reste
@@ -817,6 +819,8 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
 - **K-038** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
 - **K-039** `p.hat("Tomate")` wie `p.hat(Tomate)`; `p + "x"` ist Textverkettung.
+- **K-095** `Speisekarte.hole(k[, ersatz])` wie `Vorratskammer.hole` (K-079): `ersatz` (positional oder `ersatz:`) nur bei
+  fehlendem Schlüssel (`hat(k)` = `nein`), gespeicherter `karton` bleibt `karton`, `ersatz` ohne Kopie; `hole(k)` unverändert.
 - **K-076** `ersetze("", x)` lässt den Text unverändert; alle Text-Methoden arbeiten auf Codepoints, nur `<`/`sortiere`
   nach UTF-16-Codeeinheiten (K-040).
 - **K-047** Die simulierte Uhr zählt ganze Millisekunden: `Uhr.vorspulen(d)` rundet kaufmännisch auf ms,

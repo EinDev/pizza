@@ -756,6 +756,37 @@ Bote.sage((15000000000000000000000.0.kompakt()));
 Bote.sage((1234567.89.euro(kompakt: ja)));
 `, { out: ["1,23 Mio.", "1,2 Mio.", "999,5", "1,5 Tsd.", "2 Mio.", "-1,23 Mio.", "12,35", "0", "1,23 Mrd.", "1,5e+22", "1,23 Mio. €"] }),
 
+  // ── K-095 Speisekarte.hole(k[, ersatz]) ──────────────────────────────────
+  F(K, "K-095: hole(k, ersatz) liefert ersatz nur bei fehlendem Schlüssel – positional oder ersatz:, positional gewinnt, unbekannte Namen ignoriert", P`
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("a", 1);
+Bote.sage((k.hole("a", 99)));
+Bote.sage((k.hole("x", 99)));
+Bote.sage((k.hole("x", ersatz: 7)));
+Bote.sage((k.hole("x", 5, ersatz: 7)));
+Bote.sage((k.hole("x")));
+Bote.sage((k.hole("x", karton)));
+Bote.sage((k.hole("x", unbekannt: 3)));
+salami z = k.hole("zaehler", 0) + 1;
+Bote.sage((z));
+Bote.sage((k.länge()));
+`, { out: ["1", "99", "7", "5", "karton", "karton", "karton", "1", "1"] }),
+
+  F(K, "K-095: gespeicherter karton bleibt karton (hat = ja); Belag-Schlüssel wie Text; ersatz kommt unverändert zurück (keine Kopie)", P`
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("n", karton);
+Bote.sage((k.hole("n", 99) + " " + k.hat("n")));
+Speisekarte<Belag, salami> b = neu Speisekarte<Belag, salami>();
+b.lege(Salami, 3);
+Bote.sage((b.hole(Salami, -1) + " " + b.hole(Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
+Speisekarte<margherita, Blech<salami>> l = neu Speisekarte<margherita, Blech<salami>>();
+Blech<salami> e = [];
+Blech<salami> r = l.hole("liste", e);
+r.hinzu(4);
+Bote.sage((e));
+Bote.sage((l.hole("liste", e) == e));
+`, { out: ["karton ja", "3 -1 -2", "[4]", "ja"] }),
+
   // ── K-089 Speicher-/Textgrenze → fangbare Kühlschrank-Ananas (Grenze je Motor verschieden) ──
   F(K, "K-089: Text verdoppeln bis zur Grenze → gefangene LaufzeitAnanas 'Der Kühlschrank ist voll (Speicherlimit erreicht).'", P`
 margherita t = "Käse";
