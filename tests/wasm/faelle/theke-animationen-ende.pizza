@@ -1,0 +1,10 @@
+// U-57: Programmende ohne bediene – gepufferte Animationen gehen mit dem letzten Flush vor schliesse hinaus
+Theke t = neu Theke("Ende");
+Knopf k = neu Knopf("k").uebergang(ja);
+Schild s = neu Schild("s");
+t.zeige(neu Reihe([k, s]));
+k.animiere("huepfen");
+k.uebergang(nein);
+s.setzeText("neu");
+t.schwebe("+1", k, "tomate");
+t.schwebe(text: "x", farbe: karton, dauer: karton, bei: karton);

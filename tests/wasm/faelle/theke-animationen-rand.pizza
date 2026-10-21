@@ -1,0 +1,32 @@
+// U-57: Rand der Theke-v3-Animationen im Wasm – 32er-Grenze, benannt vs. positional, zeige verwirft, geschlossen
+Theke t = neu Theke("Rand");
+Schild a = neu Schild("a");
+Schild versteckt = neu Schild("v").sichtbar(nein);
+Schild s1 = neu Schild("s1");
+Schild s2 = neu Schild("s2");
+Reiter r = neu Reiter(["Eins", "Zwei"], [s1, s2]);
+Takt uhr = neu Takt(1s);
+Schild weg = neu Schild("weg");
+Knopf k = neu Knopf("k", () -> {
+    k.animiere("puls", art: "huepfen").animiere(dauer: 1s, art: "wackeln", farbe: "egal");
+    versteckt.animiere("funkeln").uebergang(nein);
+    s2.animiere("einblenden", 0.05s);
+    uhr.animiere("aufpoppen");
+    weg.animiere("puls");
+    t.schwebe();
+    t.schwebe(5, bei: s2, dauer: 4999.5ms);
+    t.schwebe(bei: weg);
+    probier { k.animiere(5); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+    salami i = 0;
+    solange (i < 30) { a.animiere("puls", dauer: (100 + i) * 1ms); i = i + 1; }
+    Bote.sage(("ü " + versteckt.uebergang() + " " + a.uebergang()));
+});
+a.uebergang(ja);
+Stapel wurzel = neu Stapel([a, versteckt, r, uhr, k]);
+t.zeige(wurzel);
+a.animiere("puls");
+t.zeige(wurzel);
+t.bediene();
+a.animiere("puls");
+t.schwebe("nachher");
+Bote.sage(("ende"));

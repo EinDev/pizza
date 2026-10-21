@@ -390,7 +390,7 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         },
         A_MODUL => modul_methode(obj::<Ref>(o).id, id, pos, ben, knoten),
         A_TEIG | A_LIEF | A_ZUST | A_STUECK | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
-        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, knoten),
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, ben, knoten),
         crate::vorrat::A_ZUFALL => crate::vorrat::objekt_methode(o, id, pos),
         crate::vorrat::A_KAMMER => crate::vorrat::kammer_methode(o, id, pos, ben),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => match id {

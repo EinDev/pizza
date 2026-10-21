@@ -139,8 +139,8 @@ pruefe('interner Fehler (Trap): fester Text, detail nur als Feld', () => {
   return r.exitCode === 1;
 });
 
-console.log('▶ nichtUnterstuetzt (Theke v3)');
-pruefe('animiere/uebergang/schwebe → nichtUnterstuetzt mit Zeile', () => {
+console.log('▶ Theke v3 (U-57)');
+pruefe('animiere/uebergang/schwebe kompilieren (kein Fallback mehr)', () => {
   const quellen = {
     animiere: ['Theke t = neu Theke("A");', 'Knopf k = neu Knopf("k");', 'k.animiere("puls");'],
     uebergang: ['Theke t = neu Theke("A");', 'Stapel s = neu Stapel([]).uebergang(ja);'],
@@ -148,8 +148,7 @@ pruefe('animiere/uebergang/schwebe → nichtUnterstuetzt mit Zeile', () => {
   };
   for (const [m, zeilen] of Object.entries(quellen)) {
     const r = F.frontend(P.parse(zeilen.join('\n')).ast);
-    const nu = r.nichtUnterstuetzt && r.nichtUnterstuetzt[0];
-    if (r.ok || !nu || nu.grund !== 'Theke-Animation ' + m + '() läuft vorerst nur im Interpreter' || nu.zeile !== zeilen.length) throw new Error(m + ': ' + JSON.stringify(r.nichtUnterstuetzt));
+    if (!r.ok) throw new Error(m + ': ' + JSON.stringify(r.nichtUnterstuetzt));
   }
 });
 pruefe('eigene Methode animiere bleibt kompilierbar', () => {

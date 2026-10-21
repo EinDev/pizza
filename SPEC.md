@@ -1017,7 +1017,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
 
-### 16.6 Theke v3: Animationen (K-090 … K-094; Interpreter U-56 und Renderer U-58 umgesetzt; offen: Compiler U-57)
+### 16.6 Theke v3: Animationen (K-090 … K-094; umgesetzt: Interpreter U-56, Renderer U-58, Compiler U-57)
 
 Animationen sind **rein visuell**: Sie ändern keinen Programmzustand, erzeugen keine Ereignisse und haben keine Wartezeit.
 Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aendere`, neues Feld `uebergang`; alte Renderer ignorieren beides).

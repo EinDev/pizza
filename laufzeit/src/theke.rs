@@ -27,7 +27,7 @@ pub struct UiZutat {
     pub stil: Vec<(u32, W)>, pub stil_null: Vec<u32>, pub text: W, pub wert: W, pub platzhalter: W, pub kinder: Vec<W>,
     pub bei_klick: W, pub bei_aenderung: W, pub bei_enter: W,
     pub hinweis: W, pub intervall: f64, pub bei_takt: W, pub fortschritt: f64, pub titel: W, pub titel_liste: Vec<W>,
-    pub gewaehlt: f64, pub spalten: Vec<W>, pub zeilen: Vec<Vec<W>>,
+    pub gewaehlt: f64, pub spalten: Vec<W>, pub zeilen: Vec<Vec<W>>, pub uebergang: bool,
 }
 
 static mut THEKE: W = KARTON;
@@ -35,6 +35,12 @@ static mut ZUTATEN: Vec<(W, W)> = Vec::new();
 static mut ID_ZAEHLER: u32 = 0;
 /// offene Änderungen: (Zutat-ID, [(Feld, JSON-Wert)])
 static mut OFFEN: Vec<(W, Vec<(&'static str, String)>)> = Vec::new();
+/// gepufferte Animationen (K-090): fertige JSON-Einträge in Aufrufreihenfolge, höchstens ANIM_MAX je Nachricht
+static mut ANIM: Vec<String> = Vec::new();
+const ANIM_MAX: usize = 32;
+/// Theke v3 (K-090): Animationsarten (Laufzeit-Liste; die Renderer-Registry kennt dieselben Namen)
+const ANIMATIONEN: [&str; 6] = ["puls", "huepfen", "wackeln", "funkeln", "einblenden", "aufpoppen"];
+const FARBEN: [&str; 5] = ["tomate", "basilikum", "mozzarella", "kruste", "normal"];
 
 #[link(wasm_import_module = "pizza")]
 extern "C" {
@@ -121,6 +127,7 @@ fn baum(w: W, out: &mut String) {
     }
     if !bytes(z.hinweis).is_empty() { out.push_str(",\"hinweis\":"); json_text(bytes(z.hinweis), out); }
     if !z.sichtbar { out.push_str(",\"sichtbar\":false"); }
+    if z.uebergang { out.push_str(",\"uebergang\":true"); }
     if !z.stil.is_empty() { out.push_str(",\"stil\":"); stil_json(z, out, false); }
     zutat(w).stil_null = Vec::new();
     if behaelter(z.zart) {
@@ -157,7 +164,7 @@ pub fn ui_ende() {
 
 pub fn ui_flush() {
     unsafe {
-        if OFFEN.is_empty() { return; }
+        if OFFEN.is_empty() && ANIM.is_empty() { return; }
         for (id, felder) in OFFEN.iter() {
             if felder.iter().any(|(k, _)| *k == "stil") { if let Some(z) = finde_id(bytes(*id)) { zutat(z).stil_null = Vec::new(); } }
         }
@@ -168,7 +175,14 @@ pub fn ui_flush() {
             for (k, v) in felder.iter() { o.push(','); json_text(k.as_bytes(), &mut o); o.push(':'); o.push_str(v); }
             o.push('}');
         }
-        o.push_str("]}");
+        o.push(']');
+        if !ANIM.is_empty() {
+            o.push_str(",\"animationen\":[");
+            for (i, e) in ANIM.iter().enumerate() { if i > 0 { o.push(','); } o.push_str(e); }
+            o.push(']');
+            ANIM.clear();
+        }
+        o.push('}');
         OFFEN.clear();
         sende(&o);
     }
@@ -298,7 +312,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         art: A_ZUTAT, zart, id, eltern: KARTON, sichtbar: true, an: false, aktiv: true, stil: Vec::new(), stil_null: Vec::new(),
         text: leer, wert: leer, platzhalter: leer, kinder: Vec::new(), bei_klick: KARTON, bei_aenderung: KARTON, bei_enter: KARTON,
         hinweis: leer, intervall: 1000.0, bei_takt: KARTON, fortschritt: 0.0, titel: leer, titel_liste: Vec::new(), gewaehlt: 1.0,
-        spalten: Vec::new(), zeilen: Vec::new(),
+        spalten: Vec::new(), zeilen: Vec::new(), uebergang: false,
     });
     let txt = |w: W| -> W { if w == UNDEF { neu_str("") } else { text(w) } };
     match zart {
@@ -415,9 +429,9 @@ fn tabellen_zeilen(b: W) -> Option<Vec<Vec<W>>> {
 }
 
 pub fn tabelle_hat(o: W, id: u32) -> bool {
-    if ist_theke(o) { return matches!(id, N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZETITEL | N_TITEL | N_ALSTEXT); }
+    if ist_theke(o) { return matches!(id, N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZETITEL | N_TITEL | N_ALSTEXT | N_SCHWEBE); }
     let z = zutat(o);
-    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS) { return true; }
+    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS | N_UEBERGANG | N_ANIMIERE) { return true; }
     match z.zart {
         0 => matches!(id, N_TEXT | N_SETZETEXT),
         1 => matches!(id, N_TEXT | N_SETZETEXT | N_BEIKLICK | N_AKTIV),
@@ -432,9 +446,9 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
     }
 }
 
-pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
+pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     if !tabelle_hat(o, id) { return crate::std_m::nicht_gefunden(o, id); }
-    if ist_theke(o) { return theke_methode(o, id, pos, knoten); }
+    if ist_theke(o) { return theke_methode(o, id, pos, ben, knoten); }
     let z = zutat(o);
     let zart = z.zart;
     match (zart, id) {
@@ -442,6 +456,27 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
             if pos.is_empty() { return z.hinweis; }
             let h = if pos[0] == KARTON { neu_str("") } else { let t = text(pos[0]); if sig() { return KARTON; } t };
             zutat(o).hinweis = h; aendere(o, "hinweis", jtext(h)); return o;
+        }
+        (_, N_UEBERGANG) => {
+            if pos.is_empty() { return bool_w(z.uebergang); }
+            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
+            zutat(o).uebergang = b; aendere(o, "uebergang", jbool(b)); return o;
+        }
+        (_, N_ANIMIERE) => {
+            let a_ = arg(pos, ben, 0, N_ART);
+            let art_ = text(if a_ == UNDEF { KARTON } else { a_ }); if sig() { return KARTON; }
+            if !ANIMATIONEN.contains(&s(art_)) {
+                let mut t = Tb::neu(); t.s("Animation '").t(art_).s("' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.");
+                wirf_tb(K_LAUFZEIT, &t); return KARTON;
+            }
+            let dauer_ = match anim_dauer(arg(pos, ben, 1, N_DAUER), "animiere") { Some(d) => d, None => return KARTON };
+            if !anim_offen(o, knoten) { return o; }
+            let mut e = String::from("{\"id\":"); json_text(bytes(zutat(o).id), &mut e);
+            e.push_str(",\"art\":"); json_text(bytes(art_), &mut e);
+            if let Some(ms) = dauer_ { e.push_str(",\"dauer\":"); json_zahl(ms, &mut e); }
+            e.push('}');
+            anim_puffer(e);
+            return o;
         }
         (6, N_INTERVALL) => return dauer(z.intervall),
         (6, N_SETZEINTERVALL) => { match takt_intervall(a(pos, 0)) { Some(x) => { zutat(o).intervall = x; aendere(o, "intervall", jzahl(x)); return o; } None => return KARTON } }
@@ -543,8 +578,9 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
     }
 }
 
-fn theke_methode(t: W, id: u32, pos: &[W], knoten: i32) -> W {
+fn theke_methode(t: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     match id {
+        N_SCHWEBE => { schwebe(pos, ben, knoten); if sig() { KARTON } else { t } }
         N_ZEIGE => { zeige(t, a(pos, 0)); t }
         N_BEDIENE => { bediene(t, knoten); KARTON }
         N_SCHLIESSE => { schliesse(t); KARTON }
@@ -561,6 +597,66 @@ fn theke_methode(t: W, id: u32, pos: &[W], knoten: i32) -> W {
     }
 }
 
+/// K-090: Dauer einer Animation – Dauer, ganze ms (K-047), 50 ms … 5 s; karton/fehlend → Some(None) (Standard des Renderers)
+fn anim_dauer(d: W, wo: &str) -> Option<Option<f64>> {
+    if d == UNDEF || d == KARTON { return Some(None); }
+    if art(d) != A_DAUER {
+        let mut t = Tb::neu(); t.s(wo).s("(dauer: …) braucht eine Dauer, nicht "); darstellung(d, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let ms = zl::js_round(dauer_ms(d));
+    if !(ms >= 50.0 && ms <= 5000.0) {
+        let mut t = Tb::neu(); t.s("Eine Animation dauert 50ms bis 5s, nicht "); zl::dauer_text(dauer_ms(d), &mut t.0); t.s(".");
+        wirf_tb(K_LAUFZEIT, &t); return None;
+    }
+    Some(Some(ms))
+}
+
+/// K-090: Animation nur bei offener Theke und gezeigter Zutat (z == KARTON: Fenstermitte), sonst W0102 je Aufrufstelle
+fn anim_offen(z: W, knoten: i32) -> bool {
+    let t = unsafe { THEKE };
+    if t == KARTON || obj::<UiTheke>(t).gezeigt == 0 || obj::<UiTheke>(t).geschlossen != 0 {
+        crate::start::warnung("W0102", "Animation entfällt – die Theke ist nicht offen.", knoten);
+        return false;
+    }
+    if z != KARTON && !angezeigt(z) {
+        let mut x = Tb::neu(); x.s("Animation entfällt – '").t(zutat(z).id).s("' liegt nicht auf der Theke.");
+        crate::start::warnung_w("W0102", x.fertig(), knoten);
+        return false;
+    }
+    true
+}
+
+fn anim_puffer(e: String) { unsafe { if ANIM.len() < ANIM_MAX { ANIM.push(e); } } }
+
+fn schwebe(pos: &[W], ben: &Ben, knoten: i32) {
+    let tx = arg(pos, ben, 0, N_TEXT);
+    let txt = text(if tx == UNDEF { KARTON } else { tx }); if sig() { return; }
+    let mut bei = arg(pos, ben, 1, N_BEI);
+    if bei == UNDEF { bei = KARTON; }
+    if bei != KARTON && !ist_zutat(bei) {
+        let mut t = Tb::neu(); t.s("schwebe(bei: …) braucht eine Zutat, nicht "); darstellung(bei, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return;
+    }
+    let mut farbe = arg(pos, ben, 2, N_FARBE);
+    if farbe == UNDEF { farbe = KARTON; }
+    if farbe != KARTON {
+        farbe = text(farbe); if sig() { return; }
+        if !FARBEN.contains(&s(farbe)) {
+            let mut t = Tb::neu(); t.s("Wert '").t(farbe).s("' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.");
+            wirf_tb(K_LAUFZEIT, &t); return;
+        }
+    }
+    let dauer_ = match anim_dauer(arg(pos, ben, 3, N_DAUER), "schwebe") { Some(d) => d, None => return };
+    if !anim_offen(bei, knoten) { return; }
+    let mut e = String::from("{\"art\":\"schwebe\",\"text\":"); json_text(bytes(txt), &mut e);
+    if bei != KARTON { e.push_str(",\"id\":"); json_text(bytes(zutat(bei).id), &mut e); }
+    if farbe != KARTON { e.push_str(",\"farbe\":"); json_text(bytes(farbe), &mut e); }
+    if let Some(ms) = dauer_ { e.push_str(",\"dauer\":"); json_zahl(ms, &mut e); }
+    e.push('}');
+    anim_puffer(e);
+}
+
 fn zeige(t: W, z: W) {
     if !ist_zutat(z) {
         let mut x = Tb::neu(); x.s("zeige() braucht eine Zutat, nicht "); darstellung(z, &mut x); x.s(".");
@@ -570,7 +666,7 @@ fn zeige(t: W, z: W) {
         let mut x = Tb::neu(); x.s("Die Zutat '").t(zutat(z).id).s("' liegt schon in einem Behälter und kann nicht die Wurzel sein.");
         wirf_tb(K_LAUFZEIT, &x); return;
     }
-    unsafe { OFFEN.clear(); }
+    unsafe { OFFEN.clear(); ANIM.clear(); }
     let th = obj::<UiTheke>(t);
     th.wurzel = z;
     if th.gezeigt == 0 || th.geschlossen != 0 {
@@ -621,7 +717,7 @@ fn bediene(t: W, knoten: i32) {
         let felder = json_objekt(&ev);
         let typ = feld_text(&felder, "typ");
         if typ.as_deref() == Some("geschlossen") || felder.is_none() {
-            unsafe { OFFEN.clear(); }
+            unsafe { OFFEN.clear(); ANIM.clear(); }
             let th = obj::<UiTheke>(t);
             th.geschlossen = 1; th.gezeigt = 0;
             return;

@@ -156,7 +156,7 @@ Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastat
 - Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067).
 - Stile: Zahlen in Pixeln (auch Kommazahlen), `ausrichtung` `links|mitte|rechts`, Fehlertexte mit erlaubter Liste (K-068); `stil(k, karton)` entfernt den Stil, Nachricht trägt `null` (K-075).
 - HOST-ABI `ui_warte`: Rückgabe = benötigte Länge, Retry mit größerem Puffer (wie K-013); Compiler meldet bis zur Umsetzung `nichtUnterstuetzt` (K-072).
-- **Animationen v3 (K-090 … K-094, SPEC §16.6; Interpreter U-56 und Renderer U-58 umgesetzt, offen Wasm U-57):** `zutat.animiere(art, dauer?)` mit `puls|huepfen|wackeln|funkeln|einblenden|aufpoppen`,
+- **Animationen v3 (K-090 … K-094, SPEC §16.6; umgesetzt: Interpreter U-56, Renderer U-58, Wasm U-57):** `zutat.animiere(art, dauer?)` mit `puls|huepfen|wackeln|funkeln|einblenden|aufpoppen`,
   `theke.schwebe(text, bei?, farbe?, dauer?)` (schwebende „+12“; gleichzeitige Texte am selben Anker stapeln sich senkrecht, K-092; leerer
   Text zeigt nichts), `zutat.uebergang(ja)` (weiches Ein-/Ausblenden, neue Kinder blenden ein – auch in `Reiter`);
   alle Parameter auch benannt (K-094); fehlende Art → `Animation 'karton' gibt es nicht.`, fehlender Schwebetext → „karton“ (K-093).
