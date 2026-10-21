@@ -61,7 +61,7 @@ export function startApp(key) {
   window.addEventListener("hashchange", () => location.reload());
 
   // Thema: wie im Playground (gemerkte Wahl, sonst OS – auch live)
-  const vorschau = erstelleVorschau({ beiEreignis: (ev) => ausfuehrung.uiEreignis(ev), beiZu: null });
+  const vorschau = erstelleVorschau({ beiEreignis: (ev) => ausfuehrung.uiEreignis(ev), beiZu: null, vollbild: true });
   function setzeMeta() {
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", html.dataset.theme === "dark" ? "#16171a" : "#fbf7f0"));
   }

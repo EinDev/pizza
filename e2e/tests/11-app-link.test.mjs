@@ -159,6 +159,7 @@ e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Au
   await warteEnde(page);
   assert.equal(await sichtbar(page, "#vorschau"), false, "Fenster zu nach Programmende");
   assert.match(await konsolenText(page), /Gezählt: 2/);
+  assert.equal(await page.evaluate(() => sessionStorage.getItem("pizza.vorschau")), null, "Vollbild merkt keine Fenstergröße für den Playground");
   assert.ok(await sichtbar(page, "#app-nochmal"));
   // Nochmal startet die Theke erneut
   await page.click("#app-nochmal");

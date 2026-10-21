@@ -30,7 +30,8 @@ export function ladeRenderer() {
   return rendererVersprechen;
 }
 
-export function erstelleVorschau({ beiEreignis, beiZu }) {
+export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
+  // vollbild (App-Link): Größe/Position macht das CSS, nichts messen und nichts für den Playground merken
   const fenster = document.getElementById("vorschau");
   const kopf = document.getElementById("vorschau-kopf");
   const titelEl = document.getElementById("vorschau-titel");
@@ -43,15 +44,15 @@ export function erstelleVorschau({ beiEreignis, beiZu }) {
   let theke = null, warteschlange = [], offen = false, laufNr = 0;
   // Geometrie in CSS-Pixeln: x/y = linke obere Ecke, w/h = Außengröße (inkl. Titelleiste)
   let geo = null;
-  try { geo = JSON.parse(sessionStorage.getItem(MERKER) || "null"); } catch (e) { geo = null; }
+  if (!vollbild) { try { geo = JSON.parse(sessionStorage.getItem(MERKER) || "null"); } catch (e) { geo = null; } }
   let vorgabeGesetzt = !!geo;
 
   const mobil = () => window.matchMedia("(max-width: 599.98px)").matches;
   const themaJetzt = () => (document.documentElement.dataset.theme === "dark" ? "dunkel" : "hell");
-  function merke() { try { sessionStorage.setItem(MERKER, JSON.stringify(geo)); } catch (e) { /* egal */ } }
+  function merke() { if (vollbild) return; try { sessionStorage.setItem(MERKER, JSON.stringify(geo)); } catch (e) { /* egal */ } }
 
   function wende() {
-    if (!geo || mobil()) { fenster.style.left = fenster.style.top = fenster.style.width = fenster.style.height = ""; return; }
+    if (!geo || mobil() || vollbild) { fenster.style.left = fenster.style.top = fenster.style.width = fenster.style.height = ""; return; }
     const vw = window.innerWidth, vh = window.innerHeight;
     geo.w = Math.max(240, Math.min(geo.w, vw - 16));
     geo.h = Math.max(140, Math.min(geo.h, vh - 16));
@@ -71,7 +72,7 @@ export function erstelleVorschau({ beiEreignis, beiZu }) {
   function fensterInfo(info) {
     if (info.titel != null) titelEl.textContent = info.titel || "Theke";
     // Startgröße nur beim ersten Mal in dieser Sitzung aus breite/hoehe (danach gilt die gemerkte Größe)
-    if (!vorgabeGesetzt && (info.breite || info.hoehe)) {
+    if (!vollbild && !vorgabeGesetzt && (info.breite || info.hoehe)) {
       vorgabeGesetzt = true;
       zentriere(info.breite, info.hoehe);
       merke();
@@ -83,7 +84,7 @@ export function erstelleVorschau({ beiEreignis, beiZu }) {
     offen = true;
     titelEl.textContent = "Theke";
     inhalt.textContent = "";
-    if (!geo) zentriere(480, 360); else wende();
+    if (vollbild) wende(); else if (!geo) zentriere(480, 360); else wende();
     fenster.hidden = false;
     fenster.focus({ preventScroll: true });
     const R = await ladeRenderer();
@@ -158,7 +159,7 @@ export function erstelleVorschau({ beiEreignis, beiZu }) {
   // Größe an der Ecke (CSS resize) → merken
   if (typeof ResizeObserver === "function") {
     new ResizeObserver(() => {
-      if (!offen || mobil() || !geo || fenster.hidden) return;
+      if (vollbild || !offen || mobil() || !geo || fenster.hidden) return;
       const w = fenster.offsetWidth, h = fenster.offsetHeight;
       if (Math.abs(w - geo.w) > 1 || Math.abs(h - geo.h) > 1) { geo.w = w; geo.h = h; merke(); }
     }).observe(fenster);
