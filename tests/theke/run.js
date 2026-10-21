@@ -967,3 +967,10 @@ test("v3: prefers-reduced-motion – keine Bewegung, funkeln ruhig, schwebe ruhi
   assert.equal($("k").hidden, true, "uebergang entfällt → sofort weg");
   assert.deepEqual(animKlassen($("n")), [], "neues Kind ohne Einblenden");
 }));
+
+test("v3: uebergang-Behälter + einblenden auf das neue Kind im selben aendere → einblenden ersetzt das Übergangs-Einblenden", mitUhr(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "liste", art: "stapel", uebergang: true, kinder: [] } });
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "liste", kinder: [{ id: "n", art: "schild", text: "neu" }] }],
+    animationen: [{ id: "n", art: "einblenden" }] });
+  assert.deepEqual(animKlassen($("n")), ["theke-anim-einblenden"]);
+}));
