@@ -182,6 +182,13 @@ const host = {
     // CLI laut host/src/main.rs: pizza-host [--ereignisse-json] [--schritte=N] programm.pkarton [args…]
     const argv = ['--ereignisse-json'];
     if (opt && opt.schrittLimit != null) argv.push('--schritte=' + opt.schrittLimit);
+    // Theke (THEKE.md §5): vorgegebene Renderer-Ereignisse als JSON-Lines-Datei → --ui-ereignisse.
+    let uiDatei = null;
+    if (opt && Array.isArray(opt.uiEreignisse)) {
+      uiDatei = path.join(tmpDir, 'p' + (tmpZaehler++) + '.ereignisse');
+      fs.writeFileSync(uiDatei, opt.uiEreignisse.map(e => JSON.stringify(e) + '\n').join(''));
+      argv.push('--ui-ereignisse', uiDatei);
+    }
     argv.push(datei);
     if (opt && opt.args && opt.args.length) argv.push(...opt.args);
     const t0 = jetzt();
@@ -193,7 +200,7 @@ const host = {
     const stdin = zeilenIn.map(z => z + '\n').join('');
     const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
     const ms = jetzt() - t0;
-    try { fs.unlinkSync(datei); } catch (_) {}
+    try { fs.unlinkSync(datei); if (uiDatei) fs.unlinkSync(uiDatei); } catch (_) {}
     if (p.error) return { status: 'wurf', fehler: 'Host-Start: ' + p.error.message };
     let ev;
     try { ev = parseHostAusgabe(p.stdout); }

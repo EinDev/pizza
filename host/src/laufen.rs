@@ -286,6 +286,11 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap("pizza", "ui_senden", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
             let t = text(&c, p, n);
             let d = c.data_mut();
+            // `zeige` nach dem Schließen öffnet die Theke wieder (K-061).
+            let kompakt: String = t.chars().filter(|c| !c.is_whitespace()).collect();
+            if kompakt.contains("\"op\":\"baum\"") || kompakt.contains("\"op\":\"fenster\"") {
+                d.theke.zu = false;
+            }
             if let Some(Ui::Fenster { an, .. }) = &d.theke.ui {
                 an(t.clone());
             }
