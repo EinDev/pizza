@@ -246,6 +246,12 @@ jobs:
         if: steps.da.outputs.ja == 'true'
         working-directory: host
         run: cargo test
+      - name: Theke-Fenster-Smoke-Test (Linux, xvfb)
+        if: steps.da.outputs.ja == 'true' && runner.os == 'Linux'
+        env:
+          PIZZA_THEKE_SMOKE: "1"
+          PIZZA_THEKE_UNSICHTBAR: "1"
+        run: xvfb-run -a cargo test --manifest-path host/Cargo.toml --test theke -- --ignored fenster
       - name: Release-Build
         if: steps.da.outputs.ja == 'true'
         working-directory: host
