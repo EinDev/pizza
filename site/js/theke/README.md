@@ -18,6 +18,11 @@ const theke = PizzaTheke.erzeuge(container, {
   thema: "auto",               // "hell" | "dunkel" | "auto" (Standard)
   fenster(info) {},            // optional: {titel, breite?, hoehe?} bei jedem op "fenster" (auch setzeTitel)
   geschlossen() {},            // optional: Programm hat op "schliesse" gesendet → Fenster/Panel zumachen
+  zeitgeber: {                 // optional (Tests): Uhr für takt & eigene Zutaten; fehlende Funktionen = Standard
+    jetzt() {},                //   ms, Standard performance.now() des Fensters (sonst Date.now())
+    setzeIntervall(fn, ms) {}, //   → Handle, Standard setInterval von container.ownerDocument.defaultView
+    loescheIntervall(h) {},    //   Standard clearInterval
+  },
 });
 theke.empfange(nachricht);     // Objekt oder JSON-String; wirft nie (Probleme → console.warn)
 theke.schliessen();            // Nutzer hat das Fenster geschlossen → sendet einmalig {"typ":"geschlossen"}
@@ -38,7 +43,8 @@ theke.zerstoere();             // Listener + DOM weg, danach ist alles wirkungsl
 ## Protokoll-Felder (was der Renderer versteht)
 
 Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, gleicher Codepfad):
-`id`, `art`, `sichtbar` (bool), `stil` (Objekt, Teil-Updates; `null` setzt einen Schlüssel zurück).
+`id`, `art`, `sichtbar` (bool), `stil` (Objekt, Teil-Updates; `null` setzt einen Schlüssel zurück),
+`hinweis` (Text → Tooltip/`title`-Attribut; leer/`null` entfernt ihn).
 
 | art | Felder | Ereignisse |
 |---|---|---|
@@ -47,6 +53,30 @@ Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, glei
 | `eingabe` | `wert`, `platzhalter`, `aktiv` | `{"typ":"aenderung","id","wert":"…"}` bei jeder Eingabe, `{"typ":"enter","id","wert"}` |
 | `haken` | `text`, `an`, `aktiv` | `{"typ":"aenderung","id","wert":true/false}` |
 | `stapel`, `reihe` | `kinder` (Liste von Knoten) | – |
+| `takt` | `intervall` (ms; < 100 → 100, ungültig → 1000 + Warnung), `aktiv` | `{"typ":"takt","id","anzahl":n}` (n ≥ 1, s. u.) |
+| `fortschritt` | `wert` (0…1, geklemmt; NaN/kein Zahl → 0), `text` (optional, mittig im Balken) | – |
+| `abschnitt` | `titel`, `kinder` | – |
+| `tabelle` | `spalten` (Liste Texte), `zeilen` (Liste von Listen; Zellen per `String()`) | – |
+| `reiter` | `titel` (Liste; fehlend/leer → „Seite n“), `gewaehlt` (1-basiert, auf 1…n geklemmt), `kinder` (Seiten) | `{"typ":"aenderung","id","wert":n}` |
+
+v2-Zutaten (`THEKE-ERWEITERUNGEN.md`, Abschnitt „v2-Zutaten“ in `theke.js`):
+- **`takt`** ist unsichtbar (`hidden`, `aria-hidden`, per CSS nie angezeigt – auch nicht mit `sichtbar:true`) und läuft, solange
+  er aktiv ist und im Baum liegt. Der Timer feuert feiner als das Intervall (`intervall/4`, 25…250 ms); gezählt wird nach der Uhr:
+  `anzahl = floor((jetzt − letzter) / intervall)`, bei ≥ 1 wird gesendet und `letzter += anzahl × intervall` (Nachholregel –
+  gedrosselte Fenster liefern einen Schlag mit großer `anzahl`, nichts geht verloren oder doppelt). Echte Änderung von `intervall`
+  oder `aktiv:false → true` startet die Zählung neu; gleiche Werte nicht. Entfernen, neuer `baum`, `schliesse`, `schliessen()`
+  und `zerstoere()` löschen den Timer (auch ohne `id`).
+- **`fortschritt`**: `role="progressbar"`, `aria-valuemin/max/now` (0–100), `aria-valuetext` = `text`. `stil.farbe` färbt die
+  Füllung (Standard Tomate); Breite mit CSS-Transition (aus bei `prefers-reduced-motion`). Mit `text` wird der Balken höher.
+- **`abschnitt`**: `<section>`-Karte mit `<h3>` (leerer Titel → ausgeblendet) und Stapel-Inhalt; `stil.abstand`/`ausrichtung`
+  wirken auf den Inhalt, `stil.farbe` tönt die Karte.
+- **`tabelle`**: `<table>` mit `thead`/`tbody`; Spalten, deren nicht-leere Zellen alle wie Zahlen aussehen (auch `1.234,5`,
+  `1,2 Mio.`, `8,00 €`, `12 %`; leer/`–` zählt nicht), sind rechtsbündig mit `tabular-nums`. Spaltenzahl = max(Spalten, längste
+  Zeile); keine Zeilen → eine dezente Zeile „–“. `spalten` und `zeilen` dürfen einzeln per `aendere` kommen.
+- **`reiter`**: `role=tablist/tab/tabpanel`, `aria-selected`, Roving-Tabindex, Pfeil links/rechts (mit Umlauf), Home/End.
+  Klick/Taste zeigt sofort lokal um und sendet `aenderung` – **nur bei echtem Wechsel** (Klick auf den gewählten Reiter sendet
+  nichts). `gewaehlt` vom Programm sendet nie. Nicht gewählte Seiten bekommen die Klasse `theke-reiter-aus` (nicht `hidden`,
+  das gehört `sichtbar`); Seiten werden über `setzeKinder` nach `id` wiederverwendet.
 
 - **`hinzu`/`leeren` (Vorschlag an den Interpreter):** `{"id":"z4","kinder":[…]}` in `aendere` mit der **vollständigen** neuen
   Kinderliste. Bereits bekannte IDs werden wiederverwendet (Element, Fokus und Eingabe bleiben erhalten); ein Kind darf als
@@ -62,7 +92,7 @@ Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, glei
 | `breite`, `hoehe` | Zahl (px, 0–4000), `"voll"` (100 %), `"auto"` | Custom-Property `--theke-breite/-hoehe` |
 | `abstand` | Zahl (px, 0–200) | Behälter: Lücke zwischen Kindern; sonst Innenabstand |
 | `ausrichtung` | `start`/`links`/`oben`, `mitte`/`zentriert`, `ende`/`rechts`/`unten`, `strecken` | Stapel: Querachse; Reihe: Hauptachse; Einzel-Zutat: Lage im Behälter + Textausrichtung |
-| `schrift` | `klein`, `normal`, `gross`, `mono` | Klasse `theke-schrift-…` |
+| `schrift` | `klein`, `normal`, `gross`, `riesig`, `mono` | Klasse `theke-schrift-…` (`riesig`: großer Zähler/Knopf) |
 | `farbe` | `tomate`, `basilikum`, `mozzarella`, `kruste`, `normal` | Schild: Textfarbe; Knopf: Füllung; Eingabe/Haken: Akzent; Behälter: getönte Karte |
 
 ## Erweitern: neue Zutat
@@ -80,8 +110,11 @@ PizzaTheke.registriere("leinwand", {
 ```
 
 `ctx`: `dokument`, `id`, `sende(typ, extra?)`, `bei(typ, fn, ziel?)` (Listener, beim Entfernen automatisch gelöst),
-`baue(knoten)`, `setzeKinder(el, kinder)` (für eigene Behälter), `warne(…)`. `stil` und `sichtbar` übernimmt die Engine.
-Wirft `erzeuge`, erscheint ein Platzhalter. Die v1-Zutaten sind über genau diese API registriert (Abschnitt „v1-Zutaten“ in `theke.js`).
+`baue(knoten)`, `setzeKinder(el, kinder)` (für eigene Behälter), `beimEntfernen(fn)` (fn wird genau einmal gerufen, wenn die
+Zutat verschwindet: aus `kinder` entfernt, Art gewechselt, neuer `baum`, `schliesse`/`schliessen()`, `zerstoere()` – z. B. um
+Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `warne(…)`. `stil`, `sichtbar` und `hinweis`
+übernimmt die Engine. Wirft `erzeuge`, erscheint ein Platzhalter. Die v1- und v2-Zutaten sind über genau diese API registriert
+(Abschnitte „v1-Zutaten“/„v2-Zutaten“ in `theke.js`).
 
 ## Einbettung im Playground (UI-Agent)
 
@@ -108,7 +141,8 @@ einbetten und über ein **Custom-Protocol** ausliefern (z. B. `with_custom_proto
 `theke://lokal/fenster.html`; unter Windows/WebView2 erscheint das als `http://theke.localhost/…`). So bleiben die relativen Pfade
 gültig, `'self'` passt, und es gibt keinen Server. (Inline-`<script>` würde an der CSP der Seite scheitern.)
 
-**Seite → Host:** `window.ipc.postMessage(json)` – jeder IPC-String ist ein Ereignis-JSON (`klick`, `aenderung`, `enter`).
+**Seite → Host:** `window.ipc.postMessage(json)` – jeder IPC-String ist ein Ereignis-JSON (`klick`, `aenderung`, `enter`, `takt`).
+Der Takt-Timer läuft in der Seite; der Host braucht dafür nichts.
 Ausnahme: direkt nach dem Laden kommt einmal **`{"typ":"bereit"}`** – kein Programm-Ereignis, **nicht weiterreichen**.
 Vorher eintreffende `ui`-Nachrichten puffert der Host und sendet sie nach `bereit` in Reihenfolge.
 

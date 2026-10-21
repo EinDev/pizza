@@ -1,0 +1,770 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium – ein Idle-Game an der Theke
+// ═══════════════════════════════════════════════════════════════════════
+//  Klick auf „Pizza backen!“, verkaufe jede Pizza zum echten Rezeptpreis,
+//  kaufe Handwerkszeug (mehr Pizzen pro Klick), blättere in Nonnas
+//  Rezeptbuch (teurere Pizzen), sammle Erfolge und eröffne neu, um
+//  Michelin-Sterne zu bekommen (+10 % Produktion je Stern).
+//
+//  Echtzeit: Kennt die Theke schon den Zeitgeber `Takt`, backen Lehrlinge,
+//  Öfen und Filialen auch von selbst (Pizzen pro Sekunde). Sonst ist das
+//  Spiel ein reiner Klicker – die Feature-Erkennung steht unten bei „Takt“.
+//
+//  Pizza-Funktionen im Einsatz:
+//    • Pizza + Belag   – Nonnas Rezeptbuch legt Beläge auf, preis() zählt
+//    • @Kühlschrank    – Upgrade-Kosten werden nur einmal ausgerechnet
+//    • ofen(…) roh     – die Sonderschicht backt, bis das Ofen-Budget leer ist
+//    • bestelle/trinkgeld – Großbestellungen kommen nur mit Trinkgeld pünktlich
+//
+//  Aufbau: Format · Würfel · Upgrade · Erfolg · Spiel (Spielstand + Regeln)
+//          · Theke (Oberfläche) · Takt/Vorratskammer (Feature-Erkennung)
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────── Zahlen hübsch machen ───────────────────
+// 1234 → „1.234“, 1234567 → „1,23 Mio.“, 0.5 → „0,5“
+// (Wenn die Sprache `kompakt()` lernt, kann diese Klasse weg – THEKE-ERWEITERUNGEN.md §2.)
+klasse Format {
+    tiefkühl margherita komma(funghi x, salami stellen) {
+        serviere (Mathe.runden(x, stellen).alsText().ersetze(".", ","));
+    }
+
+    tiefkühl margherita tausender(funghi x) {
+        salami ganz = Mathe.boden(x);
+        falls (ganz < 1000) { serviere (ganz.alsText()); }
+        salami rest = ganz % 1000;
+        margherita drei = rest < 10 ? "00" + rest : (rest < 100 ? "0" + rest : rest.alsText());
+        serviere (tausender(Mathe.boden(ganz / 1000)) + "." + drei);
+    }
+
+    tiefkühl margherita zahl(funghi x) {
+        falls (x < 0) { serviere ("-" + zahl(-x)); }
+        falls (x < 100 && x != Mathe.boden(x)) { serviere (komma(x, 1)); }
+        falls (x < 1_000_000) { serviere (tausender(x)); }
+        Blech<margherita> namen = ["Mio.", "Mrd.", "Bio.", "Brd.", "Trio."];
+        funghi stufe = 1_000_000;
+        für (margherita name : namen) {
+            falls (x < stufe * 1000 || name == "Trio.") {
+                funghi wert = x / stufe;
+                serviere (komma(wert, wert < 100 ? 2 : 1) + " " + name);
+            }
+            stufe = stufe * 1000;
+        }
+        serviere (x.alsText());
+    }
+
+    tiefkühl margherita euro(funghi x) {
+        falls (x < 1000) { serviere (x.euro()); }
+        serviere (zahl(x) + " €");
+    }
+
+    tiefkühl margherita pizzen(funghi x) {
+        serviere (zahl(x) + (x == 1 ? " Pizza" : " Pizzen"));
+    }
+}
+
+// ─────────────────────────────── Zufall an einer Stelle ─────────────────
+// Heute: Zufall.zahl (feste Saat 42 – Tests bleiben gleich).
+// Später: Zufall.wahr(p), Zufall.wähle(blech) … – nur hier umstellen.
+klasse Würfel {
+    tiefkühl salami zahl(salami a, salami b) { serviere (Zufall.zahl(a, b)); }
+    tiefkühl diavolo prozent(salami p) { serviere (Zufall.zahl(1, 100) <= p); }
+}
+
+// ─────────────────────────────── Upgrades ───────────────────────────────
+// Ein Upgrade kann man mehrfach kaufen; jedes weitere kostet 15 % mehr.
+// wirkung = Pizzen pro Klick (Handwerk) bzw. Pizzen pro Sekunde (Betrieb).
+klasse Upgrade {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita einheit;
+    funghi basis;
+    funghi wirkung;
+    salami anzahl = 0;
+
+    Upgrade(margherita s, margherita sym, margherita n, funghi b, funghi w, margherita e) {
+        schlüssel = s; symbol = sym; name = n; basis = b; wirkung = w; einheit = e;
+        setzeAnzahl(0);
+    }
+
+    // Preis und Beschriftung ändern sich nur hier – das spart bei jedem Klick Schritte.
+    funghi preisJetzt = 0;
+    margherita zeile = "";
+    leer setzeAnzahl(salami n) {
+        anzahl = n;
+        preisJetzt = kostenBei(n);
+        zeile = titel() + " – " + info();
+    }
+
+    @Kühlschrank(haltbar: 1d)
+    funghi kostenBei(salami n) {
+        serviere (Mathe.runden(basis * Mathe.potenz(1.15, n)));
+    }
+
+    funghi kosten() { serviere (preisJetzt); }
+    funghi gesamt() { serviere (wirkung * anzahl); }
+    margherita titel() { serviere (symbol + " " + name + (anzahl > 0 ? " ×" + anzahl : "")); }
+    margherita info() { serviere ("+" + Format.zahl(wirkung) + " " + einheit); }
+}
+
+// ─────────────────────────────── Erfolge ────────────────────────────────
+klasse Erfolg {
+    margherita name;
+    margherita text;
+    Funktion bedingung;     // (Spiel s) -> diavolo
+    diavolo nurMitTakt;
+
+    Erfolg(margherita n, margherita t, Funktion b, diavolo takt) {
+        name = n; text = t; bedingung = b; nurMitTakt = takt;
+    }
+    diavolo erreicht(Spiel s) { serviere (bedingung.rufe(s)); }
+}
+
+// ─────────────────────────────── Das Spiel ──────────────────────────────
+// Kennt keine Oberfläche: rechnet nur und schreibt die letzte Neuigkeit in `nachricht`.
+klasse Spiel {
+    // Kasse & Statistik (diese Runde / seit Eröffnung der ersten Pizzeria)
+    funghi geld = 0;
+    funghi pizzen = 0;
+    funghi umsatz = 0;
+    funghi pizzenAllzeit = 0;
+    funghi umsatzAllzeit = 0;
+    salami klicks = 0;
+    salami sterne = 0;
+    salami neueröffnungen = 0;
+    salami hawaiiAbgelehnt = 0;
+    salami pünktlich = 0;
+    salami sonderschichten = 0;
+    diavolo mitTakt = nein;
+    Blech<margherita> erfolge = [];
+    margherita nachricht = "Willkommen in deiner Trattoria! Klick auf „Pizza backen!“.";
+
+    Blech<Upgrade> handwerk = [
+        neu Upgrade("teigschaber", "🥄", "Teigschaber", 150, 1, "Pizza pro Klick"),
+        neu Upgrade("nudelholz", "🪵", "Nudelholz aus Olivenholz", 2_400, 5, "Pizzen pro Klick"),
+        neu Upgrade("kurier", "🚲", "Fahrradkurier", 29_000, 30, "Pizzen pro Klick, +1 € Trinkgeld"),
+        neu Upgrade("tarantella", "🎵", "Tarantella-Rhythmus", 320_000, 200, "Pizzen pro Klick"),
+        neu Upgrade("roboter", "🦾", "Pizza-Roboter Pietro", 3_600_000, 1_500, "Pizzen pro Klick"),
+        neu Upgrade("vesuv", "🌋", "Glut vom Vesuv", 32_000_000, 10_000, "Pizzen pro Klick")
+    ];
+    Blech<Upgrade> betrieb = [
+        neu Upgrade("lehrling", "🧑‍🍳", "Pizzaiolo-Lehrling", 120, 0.2, "Pizzen pro Sekunde"),
+        neu Upgrade("steinofen", "🧱", "Steinofen", 1_000, 1.5, "Pizzen pro Sekunde, heißere Sonderschicht"),
+        neu Upgrade("roller", "🛵", "Lieferroller", 11_000, 10, "Pizzen pro Sekunde, +1 € Trinkgeld"),
+        neu Upgrade("wuppertal", "🏪", "Filiale in Wuppertal", 120_000, 60, "Pizzen pro Sekunde"),
+        neu Upgrade("teigfabrik", "🏭", "Teigfabrik", 1_300_000, 350, "Pizzen pro Sekunde"),
+        neu Upgrade("satellit", "🛰️", "Pizza-Satellit", 14_000_000, 2_000, "Pizzen pro Sekunde"),
+        neu Upgrade("mond", "🌙", "Pizzeria auf dem Mond", 200_000_000, 12_000, "Pizzen pro Sekunde")
+    ];
+
+    // Nonnas Rezeptbuch: jede Seite legt einen Belag auf die Margherita.
+    Pizza rezept = ((Tomate, Mozzarella, Basilikum));
+    salami seite = 0;
+    Blech<Belag> SEITEN = [Salami, Pilze, Oliven, Parmesan, Rucola, Gorgonzola, Artischocken, Knoblauch];
+    Blech<funghi> SEITEN_KOSTEN = [800, 15_000, 250_000, 4_000_000, 60_000_000, 900_000_000, 12_000_000_000, 150_000_000_000];
+
+    // Ereignisse: zählen in „Zeiteinheiten“ – mit Takt Sekunden, sonst Klicks.
+    margherita effekt = "";
+    salami effektRest = 0;
+    funghi freitagPizzen = 0;
+    salami bisEreignis = 40;
+    salami ofenKühlt = 0;
+
+    // ── Kennzahlen ──
+    // Zwischengespeichert, damit ein Klick wenige Schritte kostet; neuBerechnen() nach jeder
+    // Änderung an Upgrades, Rezept, Sternen oder Effekt.
+    funghi klickWert = 1;
+    funghi sekundeWert = 0;
+    funghi preisWert = 8;
+    salami version = 0;          // steigt bei jeder Änderung, die die Oberfläche ganz neu zeichnen muss
+
+    leer neuBerechnen() {
+        funghi f = (1 + sterne * 0.1) * (effekt == "freitag" ? 3 : 1);
+        funghi k = 1;
+        für (Upgrade u : handwerk) { k = k + u.gesamt(); }
+        klickWert = k * f * (effekt == "fussball" ? 5 : 1);
+        funghi s = 0;
+        falls (mitTakt) {
+            für (Upgrade u : betrieb) { s = s + u.gesamt(); }
+        }
+        sekundeWert = s * f;
+        preisWert = rezept.preis();
+        version++;
+    }
+
+    funghi preis() { serviere (preisWert); }
+    funghi proKlick() { serviere (klickWert); }
+    funghi proSekunde() { serviere (sekundeWert); }
+
+    // Für Boni: eine „Portion“ ist ein Klick oder eine Sekunde Betrieb – was mehr ist.
+    funghi portion() { serviere (Mathe.max(proKlick(), proSekunde())); }
+
+    salami anzahl(margherita schlüssel) {
+        für (Upgrade u : handwerk) { falls (u.schlüssel == schlüssel) { serviere (u.anzahl); } }
+        für (Upgrade u : betrieb) { falls (u.schlüssel == schlüssel) { serviere (u.anzahl); } }
+        serviere (0);
+    }
+
+    salami trinkgeld() { serviere (anzahl("kurier") + anzahl("roller")); }
+    salami ofenTemperatur() { serviere (Mathe.min(485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
+
+    margherita rezeptName() {
+        Blech<margherita> b = rezept.beläge();
+        falls (b.länge() <= 3) { serviere ("Margherita"); }
+        Blech<margherita> extra = [];
+        für (salami i : [4 .. b.länge()]) { extra.hinzu(b.stück(i)); }
+        serviere ("Margherita mit " + extra.verbinde(", "));
+    }
+
+    // ── Backen & Verkaufen ──
+    leer backe(funghi n) {
+        pizzen += n;
+        pizzenAllzeit += n;
+        funghi erlös = n * preis();
+        geld += erlös;
+        umsatz += erlös;
+        umsatzAllzeit += erlös;
+        falls (effekt == "freitag") { freitagPizzen += n; }
+    }
+
+    leer klick() {
+        klicks++;
+        backe(proKlick());
+        falls (!mitTakt) { vergehe(1); }   // ohne Takt laufen Ereignisse in Klicks
+    }
+
+    // Takt: n Sekunden sind vergangen (n > 1, wenn der Renderer nachholt).
+    leer sekunden(salami n) {
+        salami rest = n;
+        // Ein laufender Effekt gilt nur für seine Restdauer.
+        falls (effekt != "" && effektRest < rest) {
+            backe(proSekunde() * effektRest);
+            rest = rest - effektRest;
+            vergehe(effektRest);
+        }
+        backe(proSekunde() * rest);
+        vergehe(rest);
+    }
+
+    // ── Zeit für Ereignisse und Ofen ──
+    leer vergehe(salami n) {
+        falls (ofenKühlt > 0) { ofenKühlt = Mathe.max(0, ofenKühlt - n); }
+        falls (effekt != "") {
+            effektRest = effektRest - n;
+            falls (effektRest <= 0) { beendeEffekt(); }
+            serviere;
+        }
+        bisEreignis = bisEreignis - n;
+        falls (bisEreignis <= 0) {
+            ereignis();
+            bisEreignis = Würfel.zahl(40, 90);
+        }
+    }
+
+    leer melde(margherita text) {
+        nachricht = text;
+        Bote.sage((text));
+    }
+
+    leer ereignis() {
+        salami w = Würfel.zahl(1, 4);
+        falls (w == 1) {
+            effekt = "freitag"; effektRest = 30; freitagPizzen = 0;
+            melde(("🎉 Freitagabend-Ansturm! Alles backt dreifach – " + (mitTakt ? "30 Sekunden" : "30 Klicks") + " lang."));
+        } sonst falls (w == 2) {
+            effekt = "fussball"; effektRest = 20;
+            melde(("⚽ Fußballabend! Jeder Klick backt fünfmal so viel – " + (mitTakt ? "20 Sekunden" : "20 Klicks") + " lang."));
+        } sonst falls (w == 3) {
+            hawaii();
+        } sonst {
+            großbestellung();
+        }
+        neuBerechnen();
+    }
+
+    leer beendeEffekt() {
+        falls (effekt == "freitag") {
+            melde(("Der Freitagabend ist vorbei: " + Format.pizzen(freitagPizzen) + " in der Rushhour."));
+        } sonst {
+            melde(("Abpfiff. Die Fans gehen satt nach Hause."));
+        }
+        effekt = "";
+        effektRest = 0;
+        neuBerechnen();
+    }
+
+    leer hawaii() {
+        hawaiiAbgelehnt++;
+        funghi bonus = portion() * 5;
+        backe(bonus);
+        melde(("🍍 Ein Gast bestellt Pizza Hawaii. Luigi lächelt, schweigt und serviert eine Margherita aufs Haus. "
+            + "Der Gast ist bekehrt und bestellt " + Format.pizzen(bonus) + "!"));
+    }
+
+    // Lieferung mit Trinkgeld: Mehr Kuriere/Roller → mehr Trinkgeld → größeres Budget → pünktlich.
+    leer großbestellung() {
+        salami bleche = Würfel.zahl(10, 40);
+        salami tg = trinkgeld();
+        Lieferung<salami> l = bestelle(() -> {
+            salami fertig = 0;
+            für (salami i : [1 .. bleche]) { fertig++; }
+            serviere (fertig);
+        });
+        l.trinkgeld(tg);
+        Zustellung<salami> z = l.warte(max: 40ms);
+        falls (z.pünktlich()) {
+            pünktlich++;
+            funghi bonus = z.wert() * portion();
+            backe(bonus);
+            margherita wie = tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld";
+            melde(("📦 Großbestellung über " + bleche + " Bleche – " + wie + " pünktlich geliefert: +"
+                + Format.euro(bonus * preis()) + "."));
+        } sonst {
+            melde(("📦 Großbestellung über " + bleche + " Bleche – leider zu spät, die Pizza ist kalt. "
+                + "Mehr Kuriere und Roller bringen mehr Trinkgeld."));
+        }
+    }
+
+    // ── Aktionen der Spielerin ──
+    diavolo kaufe(Upgrade u) {
+        funghi k = u.kosten();
+        falls (geld < k) { serviere (nein); }
+        geld -= k;
+        u.setzeAnzahl(u.anzahl + 1);
+        neuBerechnen();
+        nachricht = u.symbol + " " + u.name + " gekauft (jetzt " + u.anzahl + ").";
+        serviere (ja);
+    }
+
+    funghi seitenKosten() {
+        falls (seite >= SEITEN.länge()) { serviere (0); }
+        serviere (SEITEN_KOSTEN.stück(seite + 1));
+    }
+
+    diavolo blättere() {
+        falls (seite >= SEITEN.länge() || geld < seitenKosten()) { serviere (nein); }
+        geld -= seitenKosten();
+        seite++;
+        Belag b = SEITEN.stück(seite);
+        rezept = rezept + b;
+        neuBerechnen();
+        melde(("📖 Nonna verrät Seite " + seite + ": " + b + "! Eine Pizza kostet jetzt " + preis().euro() + "."));
+        serviere (ja);
+    }
+
+    diavolo ofenBereit() { serviere (ofenKühlt <= 0); }
+
+    // Sonderschicht: Der Ofen backt Ladung um Ladung, bis sein Zeitbudget aufgebraucht ist.
+    // Heißer (mehr Steinöfen, mehr Sterne) = größeres Budget = mehr Ladungen.
+    leer sonderschicht() {
+        falls (!ofenBereit()) { serviere; }
+        salami grad = ofenTemperatur();
+        salami ladungen = ofen(temperatur: grad, zeit: 100ms) {
+            salami n = 0;
+            solange (ja) { n++; zwischenstand((n)); }
+        } roh (r) {
+            serviere (r.teilergebnis());
+        };
+        sonderschichten++;
+        ofenKühlt = 120;
+        funghi bonus = ladungen * portion();
+        backe(bonus);
+        melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + Format.pizzen(bonus) + "."));
+    }
+
+    // ── Neueröffnung (Prestige) ──
+    salami sterneVerdient() { serviere (Mathe.boden(Mathe.wurzel(umsatzAllzeit / 1_000_000))); }
+    salami neueSterne() { serviere (Mathe.max(0, sterneVerdient() - sterne)); }
+
+    diavolo neueröffnung() {
+        salami neu_ = neueSterne();
+        falls (neu_ <= 0) { serviere (nein); }
+        sterne += neu_;
+        neueröffnungen++;
+        geld = 0; pizzen = 0; umsatz = 0;
+        für (Upgrade u : handwerk) { u.setzeAnzahl(0); }
+        für (Upgrade u : betrieb) { u.setzeAnzahl(0); }
+        rezept = ((Tomate, Mozzarella, Basilikum));
+        seite = 0;
+        effekt = ""; effektRest = 0; ofenKühlt = 0; bisEreignis = 40;
+        neuBerechnen();
+        melde(("⭐ Neueröffnung! Der Guide Michelin vergibt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
+            + " – jetzt " + sterne + ", also +" + (sterne * 10) + " % auf alles."));
+        serviere (ja);
+    }
+
+    // ── Spielstand (für die Vorratskammer) ──
+    Speisekarte<margherita, Vorrat> alsSpeisekarte() {
+        Speisekarte<margherita, Vorrat> s = neu Speisekarte<margherita, Vorrat>();
+        s.lege("version", 1);
+        s.lege("geld", geld).lege("pizzen", pizzen).lege("umsatz", umsatz);
+        s.lege("pizzenAllzeit", pizzenAllzeit).lege("umsatzAllzeit", umsatzAllzeit);
+        s.lege("klicks", klicks).lege("sterne", sterne).lege("neueröffnungen", neueröffnungen);
+        s.lege("hawaiiAbgelehnt", hawaiiAbgelehnt).lege("pünktlich", pünktlich).lege("sonderschichten", sonderschichten);
+        s.lege("seite", seite).lege("erfolge", erfolge);
+        Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
+        für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
+        für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
+        s.lege("upgrades", stück);
+        serviere (s);
+    }
+
+    leer ladeAus(Speisekarte<margherita, Vorrat> s) {
+        falls (s == karton || s.hole("version") != 1) { serviere; }
+        geld = s.hole("geld"); pizzen = s.hole("pizzen"); umsatz = s.hole("umsatz");
+        pizzenAllzeit = s.hole("pizzenAllzeit"); umsatzAllzeit = s.hole("umsatzAllzeit");
+        klicks = s.hole("klicks"); sterne = s.hole("sterne"); neueröffnungen = s.hole("neueröffnungen");
+        hawaiiAbgelehnt = s.hole("hawaiiAbgelehnt"); pünktlich = s.hole("pünktlich");
+        sonderschichten = s.hole("sonderschichten");
+        erfolge = s.hole("erfolge");
+        Speisekarte<margherita, salami> stück = s.hole("upgrades");
+        für (Upgrade u : handwerk) { falls (stück.hat(u.schlüssel)) { u.setzeAnzahl(stück.hole(u.schlüssel)); } }
+        für (Upgrade u : betrieb) { falls (stück.hat(u.schlüssel)) { u.setzeAnzahl(stück.hole(u.schlüssel)); } }
+        rezept = ((Tomate, Mozzarella, Basilikum));
+        seite = 0;
+        salami ziel = Mathe.min(s.hole("seite"), SEITEN.länge());
+        solange (seite < ziel) { seite++; rezept = rezept + SEITEN.stück(seite); }
+        neuBerechnen();
+        nachricht = "Willkommen zurück! Dein Imperium hat auf dich gewartet.";
+    }
+}
+
+// ═══════════════════════════════ Spielstart ═════════════════════════════
+Spiel spiel = neu Spiel();
+
+Blech<Erfolg> ERFOLGE = [
+    neu Erfolg("Erste Margherita", "Backe deine erste Pizza.", (s) -> (s.pizzenAllzeit >= 1), nein),
+    neu Erfolg("Ein Blech voll", "Backe 100 Pizzen.", (s) -> (s.pizzenAllzeit >= 100), nein),
+    neu Erfolg("Tausendsassa", "Backe 1.000 Pizzen.", (s) -> (s.pizzenAllzeit >= 1000), nein),
+    neu Erfolg("Pizzamillionär", "Backe 1 Million Pizzen.", (s) -> (s.pizzenAllzeit >= 1_000_000), nein),
+    neu Erfolg("Fleißige Hände", "Klicke 100-mal.", (s) -> (s.klicks >= 100), nein),
+    neu Erfolg("Sehnenscheide aus Stahl", "Klicke 1.000-mal.", (s) -> (s.klicks >= 1000), nein),
+    neu Erfolg("412 Pizzen an einem Freitag", "Backe 412 Pizzen in einem einzigen Freitagabend-Ansturm.",
+        (s) -> (s.effekt == "freitag" && s.freitagPizzen >= 412), nein),
+    neu Erfolg("Standhaft", "Lehne drei Hawaii-Bestellungen höflich ab.", (s) -> (s.hawaiiAbgelehnt >= 3), nein),
+    neu Erfolg("Pünktlich wie die Post", "Liefere drei Großbestellungen pünktlich.", (s) -> (s.pünktlich >= 3), nein),
+    neu Erfolg("Heiße Nächte", "Fahre fünf Sonderschichten.", (s) -> (s.sonderschichten >= 5), nein),
+    neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.seite >= s.SEITEN.länge()), nein),
+    neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1), ja),
+    neu Erfolg("Erste Million", "Mache 1 Mio. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000), nein),
+    neu Erfolg("Sternekoch", "Eröffne neu und hol dir einen Michelin-Stern.", (s) -> (s.sterne >= 1), nein),
+    neu Erfolg("Firmament", "Sammle zehn Michelin-Sterne.", (s) -> (s.sterne >= 10), nein)
+];
+
+// ─────────────────────────────── Feature-Erkennung ──────────────────────
+// Takt (Zeitgeber, THEKE-ERWEITERUNGEN.md §1): gibt es ihn, läuft der Betrieb in Echtzeit.
+Zutat takt = karton;
+probier {
+    takt = neu Takt(1s, (n) -> {
+        spiel.sekunden(n == karton ? 1 : n);
+        nachVerarbeitung();
+    }, id: "takt");
+} verbrannt (a) {
+    takt = karton;
+}
+spiel.mitTakt = takt != karton;
+spiel.neuBerechnen();
+
+// Vorratskammer (Speichern): gibt es sie, wird der Spielstand geladen und regelmäßig gesichert.
+Vorratskammer kammer = karton;
+probier {
+    kammer = neu Vorratskammer("pizza-imperium");
+    falls (kammer.hat("spielstand")) { spiel.ladeAus(kammer.hole("spielstand")); }
+} verbrannt (a) {
+    kammer = karton;
+}
+salami seitSpeichern = 0;
+
+leer speichere() {
+    falls (kammer != karton) {
+        kammer.lege("spielstand", spiel.alsSpeisekarte());
+        seitSpeichern = 0;
+    }
+}
+
+// ═══════════════════════════════ Oberfläche ═════════════════════════════
+Theke theke = neu Theke("Pizza-Imperium", breite: 560, hoehe: 720);
+
+// Setter nur bei echter Änderung – hält die Änderungsnachrichten klein.
+leer setzeText(Schild s, margherita t) { falls (s.text() != t) { s.setzeText((t)); } }
+leer setzeKnopf(Knopf k, margherita t, diavolo an) {
+    falls (k.text() != t) { k.setzeText((t)); }
+    falls (k.aktiv() != an) { k.aktiv(an); }
+}
+leer setzeKnopfText(Knopf k, margherita t) { falls (k.text() != t) { k.setzeText((t)); } }
+leer zeigeWenn(Zutat z, diavolo an) { falls (z.sichtbar() != an) { z.sichtbar(an); } }
+
+Schild überschrift(margherita text) {
+    Schild s = neu Schild(text);
+    s.stil("schrift", "gross").stil("farbe", "kruste");
+    serviere (s);
+}
+
+// Fortschrittsbalken als Text – wird zur Zutat `Fortschritt`, sobald es sie gibt.
+margherita balken(funghi anteil) {
+    salami voll = Mathe.min(12, Mathe.max(0, Mathe.boden(anteil * 12)));
+    serviere ("▰".wiederhole(voll) + "▱".wiederhole(12 - voll));
+}
+
+// ── Kopf ──
+Schild titel = neu Schild("🍕 Pizza-Imperium", id: "titel");
+titel.stil("schrift", "gross").stil("ausrichtung", "mitte");
+Schild kasse = neu Schild("", id: "kasse");
+kasse.stil("schrift", "gross").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
+Schild kennzahlen = neu Schild("", id: "kennzahlen");
+kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte");
+
+Knopf backen = neu Knopf("", () -> { spiel.klick(); nachVerarbeitung(); }, id: "backen");
+backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("ausrichtung", "mitte");
+
+Knopf ofenKnopf = neu Knopf("", () -> { spiel.sonderschicht(); nachVerarbeitung(); }, id: "sonderschicht");
+ofenKnopf.stil("farbe", "kruste").stil("ausrichtung", "mitte");
+
+Schild meldung = neu Schild("", id: "meldung");
+meldung.stil("farbe", "tomate").stil("ausrichtung", "mitte");
+
+// ── Upgrade-Zeilen ──
+Blech<Knopf> kaufKnöpfe = [];
+Blech<Schild> kaufInfos = [];
+Blech<Reihe> kaufZeilen = [];
+Blech<Upgrade> alleUpgrades = [];
+
+Stapel upgradeListe(Blech<Upgrade> liste) {
+    Stapel st = neu Stapel([]);
+    st.stil("abstand", 4);
+    für (Upgrade u : liste) {
+        Knopf k = neu Knopf("", () -> {
+            falls (spiel.kaufe(u)) { nachVerarbeitung(); }
+        }, id: "kauf-" + u.schlüssel);
+        k.stil("breite", 130);
+        Schild info = neu Schild("", id: "info-" + u.schlüssel);
+        info.stil("schrift", "klein").stil("breite", 360);
+        Reihe r = neu Reihe([info, k], id: "zeile-" + u.schlüssel);
+        r.stil("abstand", 8);
+        kaufKnöpfe.hinzu(k);
+        kaufInfos.hinzu(info);
+        kaufZeilen.hinzu(r);
+        alleUpgrades.hinzu(u);
+        st.hinzu(r);
+    }
+    serviere (st);
+}
+
+Stapel handwerkListe = upgradeListe(spiel.handwerk);
+Stapel betriebListe = upgradeListe(spiel.betrieb);
+Schild betriebKopf = überschrift("🏭 Betrieb – Pizzen pro Sekunde");
+
+// ── Rezeptbuch ──
+Schild rezeptInfo = neu Schild("", id: "rezept-info");
+rezeptInfo.stil("schrift", "klein");
+Knopf rezeptKnopf = neu Knopf("", () -> {
+    falls (spiel.blättere()) { nachVerarbeitung(); }
+}, id: "rezept");
+
+// ── Erfolge ──
+Schild erfolgeKopf = überschrift("🏆 Erfolge");
+Stapel erfolgeListe = neu Stapel([], id: "erfolge");
+erfolgeListe.stil("abstand", 2);
+Schild erfolgeHinweis = neu Schild("Noch keine Erfolge – fang einfach an zu backen!", id: "erfolge-hinweis");
+erfolgeHinweis.stil("schrift", "klein");
+
+// ── Neueröffnung ──
+Schild prestigeInfo = neu Schild("", id: "prestige-info");
+prestigeInfo.stil("schrift", "klein");
+Knopf prestigeKnopf = neu Knopf("", () -> {
+    falls (spiel.neueröffnung()) { speichere(); nachVerarbeitung(); }
+}, id: "neueroeffnung");
+prestigeKnopf.stil("farbe", "mozzarella");
+
+Schild statistik = neu Schild("", id: "statistik");
+statistik.stil("schrift", "klein");
+
+// ─────────────────────────────── Aktualisieren ──────────────────────────
+// Offene Erfolge: nur die werden geprüft (spart Schritte bei jedem Klick).
+Blech<Erfolg> offeneErfolge = [];
+salami erfolgeMöglich = 0;
+leer sortiereErfolge() {
+    offeneErfolge = [];
+    erfolgeMöglich = 0;
+    für (Erfolg e : ERFOLGE) {
+        falls (spiel.mitTakt || !e.nurMitTakt) {
+            erfolgeMöglich++;
+            falls (!spiel.erfolge.enthält(e.name)) { offeneErfolge.hinzu(e); }
+        }
+    }
+}
+
+leer prüfeErfolge() {
+    Blech<Erfolg> neue = offeneErfolge.filtere((e) -> (e.erreicht(spiel)));
+    falls (neue.istLeer()) { serviere; }
+    offeneErfolge = offeneErfolge.filtere((e) -> (!neue.enthält(e)));
+    für (Erfolg e : neue) {
+        {
+            spiel.erfolge.hinzu(e.name);
+            Bote.sage(("🏆 Erfolg: " + e.name + " – " + e.text));
+            spiel.nachricht = "🏆 Erfolg freigeschaltet: " + e.name + "!";
+            Schild s = neu Schild("🏆 " + e.name + " – " + e.text);
+            s.stil("schrift", "klein");
+            erfolgeListe.hinzu(s);
+        }
+    }
+}
+
+// Zwei Stufen, damit ein Klick billig bleibt (Schrittlimit!):
+//   voll  – nach Käufen, Rezeptseiten, Ereignissen (spiel.version hat sich geändert): alle Texte neu
+//   leicht – bei jedem Klick/Takt: Kasse, Kaufbarkeit, Balken; Statistik nur jedes 10. Mal
+salami gezeigteVersion = -1;
+salami aufrufe = 0;
+salami gezeigterOfen = -1;
+Blech<margherita> zeilenText = [];
+Blech<funghi> zeilenKosten = [];
+Blech<salami> sichtbareZeilen = [];
+Blech<salami> zeilenStufe = [];     // zuletzt gezeigter Balken (0…12, 13 = leistbar)
+funghi nächsteSchwelle = 0;         // ab diesem Kassenstand ändert sich ein Balken/Knopf
+
+leer aktualisiereVoll() {
+    gezeigteVersion = spiel.version;
+    margherita zeile = Format.pizzen(spiel.proKlick()) + " pro Klick";
+    falls (spiel.mitTakt) { zeile = zeile + " · " + Format.zahl(spiel.proSekunde()) + " pro Sekunde"; }
+    zeile = zeile + " · " + spiel.preis().euro() + " pro Pizza";
+    falls (spiel.sterne > 0) { zeile = zeile + " · " + "⭐".wiederhole(Mathe.min(spiel.sterne, 5)) + (spiel.sterne > 5 ? "×" + spiel.sterne : ""); }
+    setzeText(kennzahlen, zeile);
+    setzeKnopf(backen, "🍕 Pizza backen!  +" + Format.zahl(spiel.proKlick()), ja);
+
+    // Upgrades: das nächste erscheint, sobald das vorige gekauft ist.
+    zeilenText = [];
+    zeilenKosten = [];
+    zeilenStufe = [];
+    sichtbareZeilen = [];
+    nächsteSchwelle = 0;
+    salami i = 0;
+    Upgrade vorher = karton;
+    salami grenze = spiel.mitTakt ? alleUpgrades.länge() : spiel.handwerk.länge();
+    für (Upgrade u : alleUpgrades) {
+        i++;
+        falls (i > grenze) { abbrechen; }   // ohne Takt bleibt der Betrieb verborgen
+        diavolo neueListe = i == 1 || i == spiel.handwerk.länge() + 1;
+        diavolo zeigen = u.anzahl > 0 || neueListe || vorher.anzahl > 0;
+        zeigeWenn(kaufZeilen.stück(i), zeigen);
+        zeilenText.hinzu(u.zeile);
+        zeilenKosten.hinzu(u.preisJetzt);
+        zeilenStufe.hinzu(-1);
+        falls (zeigen) {
+            sichtbareZeilen.hinzu(i);
+            setzeText(kaufInfos.stück(i), zeilenText.stück(i));
+            setzeKnopfText(kaufKnöpfe.stück(i), Format.euro(zeilenKosten.stück(i)));
+        }
+        vorher = u;
+    }
+
+    // Rezeptbuch
+    setzeText(rezeptInfo, "Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza");
+    falls (spiel.seite < spiel.SEITEN.länge()) {
+        Belag nächster = spiel.SEITEN.stück(spiel.seite + 1);
+        setzeKnopfText(rezeptKnopf, "📖 Seite " + (spiel.seite + 1) + " lesen: + " + nächster + " · " + Format.euro(spiel.seitenKosten()));
+    } sonst {
+        setzeKnopfText(rezeptKnopf, "📖 Nonnas Rezeptbuch ist ausgelesen. Grazie, Nonna!");
+    }
+
+    // Erfolge
+    setzeText(erfolgeKopf, "🏆 Erfolge " + spiel.erfolge.länge() + "/" + erfolgeMöglich);
+    zeigeWenn(erfolgeHinweis, spiel.erfolge.istLeer());
+}
+
+leer aktualisiereStatistik() {
+    salami neu_ = spiel.neueSterne();
+    falls (neu_ > 0) {
+        setzeText(prestigeInfo, "Der Guide Michelin ist begeistert! Neueröffnen bringt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
+            + " (+10 % je Stern), setzt aber Kasse, Upgrades und Rezeptbuch zurück.");
+    } sonst {
+        funghi nächsteSchwelle = Mathe.potenz(spiel.sterne + 1, 2) * 1_000_000;
+        setzeText(prestigeInfo, "Nächster Michelin-Stern ab " + Format.euro(nächsteSchwelle) + " Gesamtumsatz  "
+            + balken(spiel.umsatzAllzeit / nächsteSchwelle));
+    }
+    setzeKnopf(prestigeKnopf, "⭐ Neueröffnung" + (neu_ > 0 ? " (+" + neu_ + ")" : ""), neu_ > 0);
+    setzeText(statistik, "Gesamt: " + Format.pizzen(spiel.pizzenAllzeit) + " · " + Format.euro(spiel.umsatzAllzeit)
+        + " Umsatz · " + Format.zahl(spiel.klicks) + " Klicks");
+}
+
+leer aktualisiere() {
+    diavolo voll = spiel.version != gezeigteVersion;
+    falls (voll) { aktualisiereVoll(); }
+    setzeText(kasse, Format.euro(spiel.geld));
+    setzeText(meldung, spiel.nachricht);
+    salami ofenAnzeige = Mathe.decke(spiel.ofenKühlt / 10) * 10;   // Countdown in Zehnerschritten
+    falls (voll || ofenAnzeige != gezeigterOfen) {
+        gezeigterOfen = ofenAnzeige;
+        setzeKnopf(ofenKnopf, spiel.ofenBereit()
+            ? "🔥 Sonderschicht (" + spiel.ofenTemperatur() + " °C)"
+            : "🔥 Ofen kühlt ab … noch " + ofenAnzeige + (spiel.mitTakt ? " s" : " Klicks"), spiel.ofenBereit());
+    }
+    // Kasse wächst zwischen zwei Käufen nur – erst ab der nächsten Balkenstufe neu zeichnen.
+    falls (spiel.geld >= nächsteSchwelle) {
+        nächsteSchwelle = 1_000_000_000_000_000_000_000_000_000_000;   // „nie“
+        für (salami i : sichtbareZeilen) {
+            funghi k = zeilenKosten.stück(i);
+            falls (spiel.geld < k) { nächsteSchwelle = Mathe.min(nächsteSchwelle, k * (Mathe.boden(spiel.geld / k * 12) + 1) / 12); }
+        }
+        aktualisiereZeilen();
+    }
+    falls (spiel.seite < spiel.SEITEN.länge()) {
+        diavolo leistbar = spiel.geld >= spiel.seitenKosten();
+        falls (rezeptKnopf.aktiv() != leistbar) { rezeptKnopf.aktiv(leistbar); }
+    } sonst falls (rezeptKnopf.aktiv()) {
+        rezeptKnopf.aktiv(nein);
+    }
+    falls (voll || aufrufe % 10 == 0 || spiel.klicks < 20) { aktualisiereStatistik(); }
+    aufrufe++;
+}
+
+leer aktualisiereZeilen() {
+    für (salami i : sichtbareZeilen) {
+        funghi k = zeilenKosten.stück(i);
+        diavolo leistbar = spiel.geld >= k;
+        salami stufe = leistbar ? 13 : Mathe.boden(spiel.geld / k * 12);
+        falls (stufe != zeilenStufe.stück(i)) {
+            zeilenStufe.setze(i, stufe);
+            Knopf knopf = kaufKnöpfe.stück(i);
+            falls (knopf.aktiv() != leistbar) { knopf.aktiv(leistbar); }
+            setzeText(kaufInfos.stück(i), leistbar ? zeilenText.stück(i) : zeilenText.stück(i) + "  " + balken(spiel.geld / k));
+        }
+    }
+}
+
+leer nachVerarbeitung() {
+    // Erfolge nur jedes 4. Mal (oder nach größeren Änderungen) prüfen – spart Schritte.
+    falls (aufrufe % 4 == 0 || spiel.version != gezeigteVersion) { prüfeErfolge(); }
+    aktualisiere();
+    seitSpeichern++;
+    falls (seitSpeichern >= 30) { speichere(); }
+}
+
+// ─────────────────────────────── Aufbauen & los ─────────────────────────
+Stapel handwerkTeil = neu Stapel([überschrift("🛠 Handwerk – Pizzen pro Klick"), handwerkListe]);
+Stapel betriebTeil = neu Stapel([betriebKopf, betriebListe]);
+Stapel rezeptTeil = neu Stapel([überschrift("📖 Nonnas Rezeptbuch"), rezeptInfo, rezeptKnopf]);
+Stapel erfolgeTeil = neu Stapel([erfolgeKopf, erfolgeHinweis, erfolgeListe]);
+Stapel prestigeTeil = neu Stapel([überschrift("⭐ Neueröffnung"), prestigeInfo, prestigeKnopf, statistik]);
+
+Stapel wurzel = neu Stapel([titel, kasse, kennzahlen, backen, ofenKnopf, meldung, handwerkTeil]);
+falls (spiel.mitTakt) { wurzel.hinzu(betriebTeil); }
+wurzel.hinzu(rezeptTeil).hinzu(erfolgeTeil).hinzu(prestigeTeil);
+falls (takt != karton) { wurzel.hinzu(takt); }
+wurzel.stil("abstand", 10);
+
+sortiereErfolge();
+// Bereits gespeicherte Erfolge (Vorratskammer) wieder anzeigen
+für (Erfolg e : ERFOLGE) {
+    falls (spiel.erfolge.enthält(e.name)) {
+        Schild s = neu Schild("🏆 " + e.name + " – " + e.text);
+        s.stil("schrift", "klein");
+        erfolgeListe.hinzu(s);
+    }
+}
+aktualisiere();
+theke.zeige(wurzel);
+theke.bediene();
+
+speichere();
+Bote.sage(("Feierabend! " + Format.pizzen(spiel.pizzenAllzeit) + " gebacken, " + Format.euro(spiel.umsatzAllzeit) + " Umsatz, "
+    + spiel.erfolge.länge() + " Erfolge."));

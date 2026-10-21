@@ -1,0 +1,51 @@
+// Stufe 1 eines Idle-Games: die Kernschleife in 50 Zeilen.
+// Klicken → Pizza verkaufen → Teigschaber kaufen → mehr Pizzen pro Klick.
+// Jeder weitere Teigschaber kostet 15 % mehr – das ist das Geheimnis aller Klicker.
+// Das ganze Spiel mit Rezeptbuch, Ereignissen und Sternen: „Pizza-Imperium“.
+
+Theke theke = neu Theke("Erste Pizzeria", breite: 360, hoehe: 300);
+
+Pizza margherita = ((Tomate, Mozzarella, Basilikum));
+funghi preis = margherita.preis();     // 8 € – der echte Rezeptpreis
+funghi kasse = 0;
+salami proKlick = 1;
+salami schaber = 0;
+
+funghi kosten() { serviere (Mathe.runden(30 * Mathe.potenz(1.15, schaber))); }
+
+Schild geld = neu Schild("", id: "geld");
+geld.stil("schrift", "gross").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
+Schild info = neu Schild("", id: "info");
+info.stil("schrift", "klein").stil("ausrichtung", "mitte");
+Knopf backen = neu Knopf("", id: "backen");
+backen.stil("schrift", "gross").stil("farbe", "tomate").stil("ausrichtung", "mitte");
+Knopf kaufen = neu Knopf("", id: "kaufen");
+kaufen.stil("ausrichtung", "mitte");
+
+leer zeige() {
+    geld.setzeText((kasse.euro()));
+    info.setzeText((proKlick + (proKlick == 1 ? " Pizza" : " Pizzen") + " pro Klick · " + preis.euro() + " pro Pizza"));
+    backen.setzeText(("🍕 Pizza backen! +" + proKlick));
+    kaufen.setzeText(("🥄 Teigschaber Nr. " + (schaber + 1) + " · " + kosten().euro()));
+    kaufen.aktiv(kasse >= kosten());
+}
+
+backen.beiKlick(() -> {
+    kasse += proKlick * preis;
+    zeige();
+});
+
+kaufen.beiKlick(() -> {
+    falls (kasse >= kosten()) {
+        kasse -= kosten();
+        schaber++;
+        proKlick++;
+        Bote.sage(("Teigschaber Nr. " + schaber + " gekauft – jetzt " + proKlick + " Pizzen pro Klick."));
+    }
+    zeige();
+});
+
+zeige();
+theke.zeige(neu Stapel([geld, info, backen, kaufen]));
+theke.bediene();
+Bote.sage(("Feierabend mit " + kasse.euro() + " in der Kasse."));

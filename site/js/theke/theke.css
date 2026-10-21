@@ -312,6 +312,181 @@
   font: 500 12px/1.4 ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
 }
 
+/* ================================================================== v2-Zutaten (THEKE-ERWEITERUNGEN.md) */
+
+/* ------------------------------------------------------------------ Stil schrift: riesig */
+.theke .theke-schrift-riesig {
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.theke .theke-knopf.theke-schrift-riesig { min-height: 64px; padding: 12px 28px; border-radius: 14px; font-size: 26px; }
+
+/* ------------------------------------------------------------------ Takt: nie sichtbar (auch nicht mit sichtbar:true) */
+.theke .theke-takt { display: none !important; }
+
+/* ------------------------------------------------------------------ Fortschritt */
+.theke-fortschritt {
+  position: relative;
+  min-width: 60px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--theke-flaeche-2);
+  box-shadow: inset 0 0 0 1px var(--theke-rand);
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.theke-fortschritt.theke-fortschritt-mit-text { height: 22px; }
+.theke-reihe > .theke-fortschritt { flex: 1 1 120px; }
+.theke-fortschritt-fuellung {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--theke-wert, 0%);
+  border-radius: inherit;
+  background: var(--theke-ton);
+  transition: width .35s ease;
+}
+.theke .theke-fortschritt.theke-farbe-mozzarella .theke-fortschritt-fuellung { background: var(--theke-mozzarella-schrift); }
+.theke-fortschritt-text {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  color: var(--theke-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theke-fortschritt-mit-text > .theke-fortschritt-text { display: flex; }
+/* Zweite Textebene in Kontrastfarbe, genau auf die Füllung zugeschnitten → lesbar auf beiden Seiten der Kante */
+.theke-fortschritt-text-hell {
+  color: var(--theke-ton-text);
+  clip-path: inset(0 calc(100% - var(--theke-wert, 0%)) 0 0);
+  transition: clip-path .35s ease;
+}
+.theke .theke-fortschritt.theke-farbe-mozzarella .theke-fortschritt-text-hell { color: var(--theke-flaeche); }
+
+/* ------------------------------------------------------------------ Abschnitt: Karte mit Überschrift */
+.theke-abschnitt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px 16px;
+  background: var(--theke-flaeche);
+  border: 1px solid var(--theke-rand);
+  border-radius: 12px;
+  box-shadow: var(--theke-schatten);
+}
+.theke-abschnitt[class*="theke-farbe-"] {
+  background: var(--theke-ton-flaeche);
+  border-color: var(--theke-ton-rand);
+  box-shadow: none;
+}
+.theke-abschnitt-titel {
+  margin: 0;
+  color: var(--theke-text);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.005em;
+  overflow-wrap: anywhere;
+}
+.theke-abschnitt[class*="theke-farbe-"] > .theke-abschnitt-titel { color: var(--theke-ton-schrift); }
+.theke-abschnitt-inhalt { gap: var(--theke-abstand, 10px); }
+/* Ausrichtung gilt für den Inhalt (wie beim Stapel), nicht für die Karte selbst */
+.theke .theke-zutat.theke-abschnitt[class*="theke-ausrichtung-"] { align-self: auto; text-align: left; }
+.theke-abschnitt.theke-ausrichtung-start  > .theke-abschnitt-inhalt { align-items: flex-start; }
+.theke-abschnitt.theke-ausrichtung-mitte  > .theke-abschnitt-inhalt { align-items: center; }
+.theke-abschnitt.theke-ausrichtung-ende   > .theke-abschnitt-inhalt { align-items: flex-end; }
+.theke-abschnitt.theke-ausrichtung-mitte  > .theke-abschnitt-titel { text-align: center; }
+.theke-abschnitt.theke-ausrichtung-ende   > .theke-abschnitt-titel { text-align: right; }
+
+/* ------------------------------------------------------------------ Tabelle */
+.theke-tabelle {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--theke-flaeche);
+  border: 1px solid var(--theke-rand);
+  border-radius: 10px;
+}
+.theke-tabelle-tab {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.theke-tabelle-tab th,
+.theke-tabelle-tab td {
+  padding: 7px 12px;
+  text-align: left;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.theke-tabelle-tab thead { background: var(--theke-flaeche-2); }
+.theke-tabelle-tab th {
+  color: var(--theke-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-bottom: 1px solid var(--theke-rand);
+}
+.theke-tabelle-tab tbody tr + tr td { border-top: 1px solid var(--theke-rand); }
+.theke-tabelle-tab .theke-tabelle-zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.theke-tabelle-tab .theke-tabelle-leer { color: var(--theke-text-3); text-align: center; }
+.theke .theke-tabelle[class*="theke-farbe-"] { background: var(--theke-ton-flaeche); border-color: var(--theke-ton-rand); }
+.theke .theke-tabelle[class*="theke-farbe-"] thead { background: transparent; }
+.theke .theke-tabelle[class*="theke-farbe-"] th { color: var(--theke-ton-schrift); border-bottom-color: var(--theke-ton-rand); }
+.theke .theke-tabelle[class*="theke-farbe-"] tbody tr + tr td { border-top-color: var(--theke-ton-rand); }
+.theke .theke-tabelle.theke-schrift-klein .theke-tabelle-tab { font-size: 12.5px; }
+.theke .theke-tabelle.theke-schrift-klein .theke-tabelle-tab td { padding-top: 4px; padding-bottom: 4px; }
+
+/* ------------------------------------------------------------------ Reiter */
+.theke-reiter { display: flex; flex-direction: column; min-width: 0; }
+.theke-reiter-leiste {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  box-shadow: inset 0 -1px 0 var(--theke-rand);   /* Linie unter der Leiste; der gewählte Reiter malt darüber */
+  scrollbar-width: thin;
+}
+.theke-reiter-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  margin: 0;
+  padding: 8px 14px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--theke-text-2);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .12s ease, background-color .12s ease, border-color .12s ease;
+}
+.theke-reiter-tab:hover { color: var(--theke-text); background: var(--theke-flaeche-2); }
+.theke-reiter-tab.theke-reiter-tab-an { color: var(--theke-text); border-bottom-color: var(--theke-ton); }
+.theke-reiter[class*="theke-farbe-"] .theke-reiter-tab.theke-reiter-tab-an { color: var(--theke-ton-schrift); }
+.theke-reiter-tab:focus-visible { outline: 2px solid var(--theke-fokus); outline-offset: -2px; }
+.theke-reiter-seiten { display: flex; flex-direction: column; gap: var(--theke-abstand, 12px); padding-top: 14px; min-width: 0; }
+.theke .theke-reiter-seiten > .theke-reiter-aus { display: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .theke * { transition: none !important; }
 }

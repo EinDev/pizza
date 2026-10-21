@@ -71,6 +71,37 @@ try {
     const platzhalter = await page.$eval("#dunkel [data-theke-art=leinwand]", (el) => el.offsetHeight > 0 && el.textContent);
     if (!platzhalter || !/leinwand/.test(platzhalter)) { ok = false; console.log("Platzhalter fehlt"); }
 
+    // v2-Zutaten: Takt läuft unter CSP, Reiter-Klick, hinweis → title, Tabelle rechtsbündig, Fortschritt-Füllung
+    await page.waitForFunction(() => window.__ereignisse2.some((e) => e.typ === "takt" && e.id === "uhr"), { timeout: 3000 })
+      .catch(() => { ok = false; console.log("takt: kein Schlag innerhalb von 3 s"); });
+    const v2 = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const zahl = getComputedStyle(q("#hell2 [data-theke-id=statistik] td:nth-child(4)")).textAlign;
+      const text = getComputedStyle(q("#hell2 [data-theke-id=statistik] td:nth-child(1)")).textAlign;
+      const balken = q("#hell2 [data-theke-id=f-lehrling]");
+      const fuell = balken.querySelector(".theke-fortschritt-fuellung").getBoundingClientRect().width / balken.getBoundingClientRect().width;
+      const takt = q("#hell2 [data-theke-id=uhr]");
+      q("#hell2 [data-theke-id=reiter] [role=tab]:nth-child(2)").click();
+      return {
+        reiter: window.__ereignisse2.filter((e) => e.typ !== "takt"),
+        statistikSichtbar: q("#hell2 [data-theke-id=statistik]").offsetHeight > 0,
+        backstubeVersteckt: q("#hell2 [data-theke-id=backstube]").offsetHeight === 0,
+        zahl, text, fuell: Math.round(fuell * 100) / 100,
+        title: q("#hell2 [data-theke-id=kauf-lehrling]").title,
+        taktUnsichtbar: getComputedStyle(takt).display === "none",
+        riesig: parseFloat(getComputedStyle(q("#hell2 [data-theke-id=zaehler]")).fontSize),
+      };
+    });
+    const v2erw = { reiter: [{ typ: "aenderung", id: "reiter", wert: 2 }], statistikSichtbar: true, backstubeVersteckt: true,
+      zahl: "right", text: "left", fuell: 0.8, title: "Backt 0,1 Pizzen pro Sekunde", taktUnsichtbar: true, riesig: 34 };
+    if (JSON.stringify(v2) !== JSON.stringify(v2erw)) { ok = false; console.log("v2 falsch:", JSON.stringify(v2)); }
+    await page.screenshot({ path: path.join(ARTEFAKTE, `v2-statistik-${schema}.png`), clip: await (await page.$("#hell2")).boundingBox() });
+    await page.evaluate(() => document.querySelector("#hell2 [data-theke-id=reiter] [role=tab]:nth-child(1)").click());
+    await new Promise((r) => setTimeout(r, 400));   // Fortschritt-Transition ausklingen lassen
+    for (const id of ["hell2", "dunkel2"]) {
+      await page.screenshot({ path: path.join(ARTEFAKTE, `v2-${id}-${schema}.png`), clip: await (await page.$("#" + id)).boundingBox() });
+    }
+
     // Fokusring per Tastatur zeigen (dunkles Fenster)
     await page.focus("#dunkel [data-theke-id=anzahl]");
     await page.keyboard.press("Tab");
