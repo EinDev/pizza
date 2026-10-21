@@ -83,10 +83,17 @@ pub fn namen_init() {
 }
 
 /// Liefert die Namens-ID eines (Programm-)Textes; vergibt bei Bedarf eine neue.
+#[inline(always)]
 pub fn name_id(w: W) -> u32 {
+    let i = unsafe { (*(p(w) as *const Text)).info };
+    if i != 0 { return i; }
+    name_id_suchen(w)
+}
+#[inline(never)]
+#[cold]
+fn name_id_suchen(w: W) -> u32 {
     unsafe {
         let t = p(w) as *mut Text;
-        if (*t).info != 0 { return (*t).info; }
         namen_init();
         // Küchenbrigade: in einer Küche nie in Texte der Hauptküche schreiben (die Namenstabelle wird je Stück zurückgesetzt)
         let merken = !crate::gefroren(p(w));
