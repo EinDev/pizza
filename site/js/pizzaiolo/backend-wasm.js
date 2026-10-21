@@ -86,10 +86,13 @@
       this.globFlagAdr = this.mb.datum(new Uint8Array(Math.max(4, ng * 4)), 4);
       // Funktionen deklarieren
       for (const fn of ir.funktionen) {
-        const schnell = this.mb.neueFunktion([T.i32, T.i64, T.i64, T.i32], [T.i64]);
-        const exakt = this.mb.neueFunktion([T.i32, T.i64, T.i64, T.i32], [T.i64]);
-        const tab = this.mb.tabellenEintrag(schnell);
-        this.fns.push({ fn, schnell, exakt, tab });
+        const ptypen = fn.params.map(p => { const sl = fn.slots[p.slot]; return sl.zelle ? T.i64 : sl.darst === 'zahl' ? T.f64 : sl.darst === 'bool' ? T.i32 : T.i64; });
+        const sig = [T.i32, T.i64, T.i64].concat(ptypen);
+        const gen = this.mb.neueFunktion([T.i32, T.i64, T.i64, T.i32], [T.i64]);
+        const schnell = this.mb.neueFunktion(sig, [T.i64]);
+        const exakt = this.mb.neueFunktion(sig, [T.i64]);
+        const tab = this.mb.tabellenEintrag(gen);
+        this.fns.push({ fn, gen, schnell, exakt, tab, ptypen });
       }
       for (const f of this.fns) {
         const maxTf = maxTiefe(f.fn);
@@ -100,6 +103,16 @@
         const ce = ge.erzeuge();
         this.mb.setzeRumpf(f.schnell, gs.lokaleListe(), cs);
         this.mb.setzeRumpf(f.exakt, ge.lokaleListe(), ce);
+        // generischer Eintritt: Argumente vom Argumentstapel (bereits gebunden & geprüft)
+        const c = new Code();
+        c.get(0).get(1).get(2);
+        f.fn.params.forEach((p, i) => {
+          c.get(3).ld64(i * 8);
+          if (f.ptypen[i] === T.f64) c.op(OP.f64_reinterpret_i64);
+          else if (f.ptypen[i] === T.i32) c.i64(JA).op(OP.i64_eq);
+        });
+        c.call(f.schnell).end();
+        this.mb.setzeRumpf(f.gen, [], c.bytes());
       }
       const start = this.mb.neueFunktion([], [T.i32]);
       this.mb.setzeRumpf(start, [[1, T.i64]], this.startCode());
@@ -168,6 +181,8 @@
     }
   }
 
+  function zielTyp(t) { return t === T.f64 ? 'F' : t === T.i32 ? 'B' : 'W'; }
+
   function maxTiefe(fn) {
     let m = 0;
     const geh = (n) => {
@@ -194,9 +209,10 @@
       this.ctrl = [];
       this.pend = 0; this.pendStart = false; this.pendPos = 0;
       this.Z = be.Z;
+      this.nParams = 3 + f.fn.params.length;
     }
     rt(n) { return this.be.rt(n); }
-    neuLokal(t) { this.lok.push(TY[t]); return 4 + this.lok.length - 1; }
+    neuLokal(t) { this.lok.push(TY[t]); return this.nParams + this.lok.length - 1; }
     temp(t) { const l = this.frei[t].pop(); return l !== undefined ? l : this.neuLokal(t); }
     frei_(t, i) { this.frei[t].push(i); }
     lokaleListe() {
@@ -277,7 +293,8 @@
     erzeuge() {
       const c = this.c, fn = this.fn, Z = this.Z;
       // Lokale für Slots
-      this.slotLok = fn.slots.map(s => this.neuLokal(s.zelle ? 'W' : s.darst === 'zahl' ? 'F' : s.darst === 'bool' ? 'B' : 'W'));
+      const paramIdx = new Map(fn.params.map((p, i) => [p.slot, 3 + i]));
+      this.slotLok = fn.slots.map((s, i) => paramIdx.has(i) && !s.zelle ? paramIdx.get(i) : this.neuLokal(s.zelle ? 'W' : s.darst === 'zahl' ? 'F' : s.darst === 'bool' ? 'B' : 'W'));
       this.unbelegtLok = fn.slots.map(s => s.unbelegt ? this.neuLokal('B') : -1);
       this.altTiefe = this.neuLokal('B');
       this.t0 = this.neuLokal('B');
@@ -288,7 +305,8 @@
       if (!this.exakt) {
         c.i32(Z).ld32(Z_TIEFE).i32((fn.plus1 ? 1 : 0) + this.f.maxTf).op(OP.i32_add).i32(MAX_STAPEL).op(OP.i32_gt_s);
         c.if_(T.leer);
-        c.get(0).get(1).get(2).get(3).call(this.f.exakt).op(OP.return);
+        for (let i = 0; i < this.nParams; i++) c.get(i);
+        c.call(this.f.exakt).op(OP.return);
         c.end();
       }
       // Prolog
@@ -302,12 +320,8 @@
       c.i32(0).set(this.retFlag);
       // Parameter laden
       fn.params.forEach((p, i) => {
-        c.get(3).ld64(i * 8);
         const s = fn.slots[p.slot];
-        if (s.zelle) { c.call(this.rt('rt_zelle')).set(this.slotLok[p.slot]); }
-        else if (s.darst === 'zahl') c.op(OP.f64_reinterpret_i64).set(this.slotLok[p.slot]);
-        else if (s.darst === 'bool') c.i64(JA).op(OP.i64_eq).set(this.slotLok[p.slot]);
-        else c.set(this.slotLok[p.slot]);
+        if (s.zelle) { c.get(3 + i).call(this.rt('rt_zelle')).set(this.slotLok[p.slot]); }
       });
       for (let i = 0; i < fn.slots.length; i++) {
         const s = fn.slots[i];
@@ -841,6 +855,7 @@
     ncall(e) {
       const c = this.c;
       const z = e.ziel;
+      if (e.direkt !== undefined && e.direkt !== null) return this.direktAufruf(e);
       if (z.art === 'schiebFehler') { this.effekt('rt_schieb_fehler'); c.i64(KARTON); return 'W'; }
       const ft = this.temp('W');
       if (z.art === 'wert') {
@@ -860,6 +875,37 @@
       this.argPush(a);
       c.i32(e.p); this.dies(); c.i32(this.ctxk());
       this.effekt('rt_rufe_ziel', e.tf);
+      return 'W';
+    }
+
+    /** statisch aufgelöster Aufruf einer Top-Level-Funktion (ohne Laufzeit-Dispatch) */
+    direktAufruf(e) {
+      const c = this.c;
+      const ziel = this.be.fns[e.direkt];
+      const zfn = ziel.fn;
+      const werte = e.args.pos.map((a) => {
+        const t = this.ausdr(a);
+        const l = this.temp(t); c.set(l);
+        return { l, t };
+      });
+      // Bindung: Typprüfung je Parameter (wie bindeParameter), dann Umwandlung
+      zfn.params.forEach((p, i) => {
+        const w = werte[i];
+        c.get(w.l);
+        let t = w.t;
+        if (p.typ) t = this.typPruefen(t, p.typ, p.name);
+        const zt = zielTyp(ziel.ptypen[i]);
+        this.konv(t, zt);
+        const l2 = this.temp(zt); c.set(l2);
+        this.frei_(w.t, w.l);
+        w.l = l2; w.t = zt;
+      });
+      this.flush();
+      this.setzeTiefe(e.tf);
+      c.i32(0).i64(KARTON).i64(KARTON);
+      for (const w of werte) { c.get(w.l); this.frei_(w.t, w.l); }
+      c.call(ziel.schnell);
+      this.sigPruefen();
       return 'W';
     }
 
@@ -1051,7 +1097,7 @@
           this.flush();
           // statische Initialisierer einer Klasse: direkt die Funktion aufrufen
           const f = this.be.fns[a.fn];
-          c.i32(0).i64(KARTON).i64(KARTON).i32(0).call(f.schnell).op(OP.drop);
+          c.i32(0).i64(KARTON).i64(KARTON).call(f.schnell).op(OP.drop);
           this.sigPruefen();
           break;
         }

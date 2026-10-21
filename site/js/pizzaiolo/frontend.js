@@ -131,6 +131,9 @@
       this.belagNamen = new Set(BELAG_NAMEN);
       this.globalFnNamen = new Set();
       this.methodenNamen = new Set();
+      this.zugewiesen = new Set();
+      this.globalGenutzt = new Set();
+      this.globalFnDecl = new Map();
       this.klassenNamen = new Set();
     }
 
@@ -148,7 +151,8 @@
       const geh = (n) => {
         if (!n || typeof n !== 'object') return;
         if (Array.isArray(n)) { for (const x of n) geh(x); return; }
-        if (n.k === 'NCall' && n.name === 'schieb' && n.args && n.args.pos.length === 1 && n.args.pos[0].k === 'Name') this.schiebNamen.add(n.args.pos[0].n);
+        if (n.k === 'NCall' && n.name === 'schieb' && n.args && n.args.pos.length === 1 && n.args.pos[0].k === 'Name') { this.schiebNamen.add(n.args.pos[0].n); this.zugewiesen.add(n.args.pos[0].n); }
+        if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Belag') this.belagNamen.add(n.name);
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
@@ -158,7 +162,8 @@
       geh(this.ast);
       for (const st of this.ast.body) {
         if (st.k === 'Var') for (const d of st.decls) this.globalSlot(d.name);
-        if (st.k === 'Methode') { this.globalFnNamen.add(st.name); this.globalSlot(st.name); }
+        if (st.k === 'Methode') { this.globalFnNamen.add(st.name); this.globalSlot(st.name); const l = this.globalFnDecl.get(st.name) || []; l.push(st); this.globalFnDecl.set(st.name, l); }
+        if (st.k === 'Var') for (const d of st.decls) this.zugewiesen.add(d.name);
       }
     }
     globalSlot(name) {
@@ -326,6 +331,7 @@
           if (modus === 'aufruf' && fn.art !== 'oben' && !this.inOben(fn)) return null;
           const g = this.globaleNamen.get(name);
           if (g === undefined) return { art: 'gname', name };
+          if (fn.art !== 'oben') this.globalGenutzt.add(name);
           const sicher = !ueberLambda && fn.art === 'oben' && s.deklariert && s.deklariert.has(name);
           return { art: 'global', g, name, sicher };
         }
@@ -343,6 +349,7 @@
           // Felder (nur Klassenkontext)
           const feld = s.fn.klasse !== null && this.feldNamen.has(name);
           const g = this.globaleNamen.get(name);
+          if (g !== undefined) this.globalGenutzt.add(name);
           if (feld) return { art: 'dyn', name, g: g === undefined ? null : g };
           if (g !== undefined) return { art: 'global', g, name, sicher: false };
           return { art: 'gname', name };
@@ -384,6 +391,7 @@
             const d = r.d;
             const fn = this.methode(d, { klasse: null }, 'methode');
             const m = { art: 'globalfn', name: d.name, fn: fn.id, nparam: d.params.length, pos: this.pos(d), mid: this.methodenListe.length, decl: d };
+            d._fnId = fn.id;
             this.methodenListe.push(m);
             this.alleMethoden.push(m);
             reg.push(m);
@@ -403,6 +411,7 @@
         body.push(this.anw(st, sc, oben, 0, true));
       }
       oben.body = body;
+      this.befoerdere(oben);
       oben.hauptgangGlobal = this.globaleNamen.has('hauptgang') ? this.globaleNamen.get('hauptgang') : null;
       // Darstellungen festlegen
       for (const fn of this.funktionen) {
@@ -416,6 +425,14 @@
         delete fn.eltern;
       }
       for (const m of this.methodenListe) delete m.decl;
+      // Direktaufrufe auflösen (Funktions-IDs stehen jetzt fest)
+      const geh = (x) => {
+        if (!x || typeof x !== 'object') return;
+        if (Array.isArray(x)) { for (const y of x) geh(y); return; }
+        if (x.k === 'ncall' && x.direktDecl !== undefined) { x.direkt = x.direktDecl ? x.direktDecl._fnId : null; delete x.direktDecl; }
+        for (const k in x) { const v = x[k]; if (v && typeof v === 'object') geh(v); }
+      };
+      for (const f of this.funktionen) { geh(f.body); geh(f.ausdr); }
       return {
         format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler: null,
         registrierung: reg, methoden: this.methodenListe.map(m => ({ art: m.art, klasse: m.klasse === undefined ? null : m.klasse, name: m.name })),
@@ -426,6 +443,45 @@
     }
 
     typIR(t) { return t && !t.feld ? t.name : null; }
+
+    /** Globale, die nur im Top-Level-Code vorkommen, werden lokale Slots von <oben> (schneller, gleiche Semantik). */
+    befoerdere(oben) {
+      const slots = new Map();
+      const kandidat = (name) => !this.globalGenutzt.has(name) && name !== 'hauptgang' && !this.globalFnNamen.has(name);
+      const slotVon = (name) => {
+        let i = slots.get(name);
+        if (i === undefined) {
+          const gi = this.globalInfos && this.globalInfos.get(name);
+          const typ = gi && gi.typ ? { name: gi.typ, feld: 0 } : null;
+          i = this.neuerSlot(oben, name, typ, gi ? gi.gebacken : false);
+          oben.slots[i].unbelegt = !!(gi && gi.gebacken);
+          slots.set(name, i);
+        }
+        return i;
+      };
+      const geh = (x) => {
+        if (!x || typeof x !== 'object') return;
+        if (Array.isArray(x)) { for (const y of x) geh(y); return; }
+        if (x.art === 'global' && typeof x.g === 'number' && typeof x.name === 'string' && kandidat(x.name)) {
+          const deklaration = x.sicher === undefined;
+          if (deklaration || x.sicher) { const slot = slotVon(x.name); for (const k of Object.keys(x)) if (k !== 'name' && k !== 'autoFallback') delete x[k]; x.art = 'lokal'; x.slot = slot; }
+          else if (x.autoFallback) { /* bleibt global (Laufzeitprüfung) */ }
+          else { for (const k of Object.keys(x)) if (k !== 'name') delete x[k]; x.art = 'gname'; }
+          return;
+        }
+        for (const k in x) { const v = x[k]; if (v && typeof v === 'object') geh(v); }
+      };
+      geh(oben.body);
+      // Zuweisungsziele, die unsicher waren (vor Deklaration): als undefiniert behandeln
+      const ziele = (x) => {
+        if (!x || typeof x !== 'object') return;
+        if (Array.isArray(x)) { for (const y of x) ziele(y); return; }
+        if ((x.k === 'zuw' || x.k === 'inc') && x.ziel && x.ziel.art === 'gname') x.ziel = { art: 'undef', name: x.ziel.name };
+        if (x.k === 'schieb' && x.ref && x.ref.art === 'gname') x.ref = { art: 'gname', name: x.ref.name };
+        for (const k in x) { const v = x[k]; if (v && typeof v === 'object') ziele(v); }
+      };
+      ziele(oben.body);
+    }
 
     klasse(ir) {
       const d = ir.decl;
@@ -759,7 +815,24 @@
       if (n.name === 'schieb') this.nein('schieb mit gleichnamiger Methode/Variable', n);
       // 2./4. Methoden des Kontexts, sonst Name als Wert
       const wert = this.loese(n.name, sc, fn, n, 'lesen');
-      return { k: 'ncall', name: n.name, ziel: { art: kontext ? 'kontext' : 'name', ref: wert }, args: args() };
+      const r = { k: 'ncall', name: n.name, ziel: { art: kontext ? 'kontext' : 'name', ref: wert }, args: args() };
+      r.direktDecl = this.direktZiel(n, wert, kontext, fn);
+      return r;
+    }
+
+    /** Top-Level-Funktion statisch auflösbar? (keine Neuzuweisung, keine Überladung/Annotationen, passende Argumente) */
+    direktZiel(n, ref, kontext, fn) {
+      if (ref.art !== 'global' || !this.globalFnNamen.has(n.name) || this.zugewiesen.has(n.name)) return null;
+      if (kontext && (this.methodenNamen.has(n.name) || (fn.belag && (PIZZA_M.has(n.name) || n.name === 'preis')))) return null;
+      if (n.args.ben) return null;
+      const liste = this.globalFnDecl.get(n.name) || [];
+      if (!liste.length) return null;
+      let d = liste[0];
+      if (liste.length > 1) { const x = liste.find(m => m.params.length === n.args.pos.length); if (x) d = x; }
+      if (d.params.length !== n.args.pos.length) return null;
+      if (d.annos.some(a => a.name === 'Kühlschrank' || a.name === 'PizzaVeraltet')) return null;
+      if (d.params.some(p => p.nieKarton)) return null;
+      return d;
     }
 
     lambda(n, sc, fn) {

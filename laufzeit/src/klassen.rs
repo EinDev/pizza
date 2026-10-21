@@ -258,8 +258,8 @@ fn erwartet_meldung(prefix: &dyn Fn(&mut Tb), n: usize, bekam: usize) {
     wirf_tb(K_LAUFZEIT, &t);
 }
 
-/// bindeParameter → gebundene Argumente in Parameterreihenfolge
-pub fn binde(fnid: u32, pos: &[W], ben: &Ben, prefix: &dyn Fn(&mut Tb), strikt: bool) -> Option<Vec<W>> {
+/// bindeParameter → gebundene Argumente in Parameterreihenfolge, direkt auf dem Argumentstapel (Zeiger)
+pub fn binde(fnid: u32, pos: &[W], ben: &Ben, prefix: &dyn Fn(&mut Tb), strikt: bool) -> Option<u32> {
     let ps = &fnx(fnid).params;
     for &(k, _) in ben.iter() {
         if !ps.iter().any(|p| p.name == k) {
@@ -271,24 +271,34 @@ pub fn binde(fnid: u32, pos: &[W], ben: &Ben, prefix: &dyn Fn(&mut Tb), strikt: 
         }
     }
     if strikt && pos.len() > ps.len() { erwartet_meldung(prefix, ps.len(), anzahl(pos, ben)); return None; }
-    let mut r = Vec::with_capacity(ps.len());
+    let blk = crate::rt_args(ps.len() as u32);
     for (i, p) in ps.iter().enumerate() {
         let v = if i < pos.len() { pos[i] } else {
             match ben.iter().rev().find(|(n, _)| *n == p.name) {
                 Some(&(_, w)) => w,
-                None => { if strikt { erwartet_meldung(prefix, ps.len(), anzahl(pos, ben)); return None; } KARTON }
+                None => { if strikt { args_pop(blk); erwartet_meldung(prefix, ps.len(), anzahl(pos, ben)); return None; } KARTON }
             }
         };
         if p.nie_karton && v == KARTON {
+            args_pop(blk);
             let mut t = Tb::neu();
             t.s("Parameter '").name(p.name).s("' ist @NieKarton – aber es kam ein leerer Karton.");
             wirf_tb(K_LEERERKARTON, &t);
             return None;
         }
-        if p.typ != 0 && !pruefe_typ(p.typ, v, p.name) { return None; }
-        r.push(v);
+        if p.typ != 0 && !pruefe_typ(p.typ, v, p.name) { args_pop(blk); return None; }
+        unsafe { *((blk + 8 * i as u32) as *mut W) = v; }
     }
-    Some(r)
+    Some(blk)
+}
+
+/// Ruft eine kompilierte Funktion mit bereits auf dem Argumentstapel liegenden Argumenten (gibt sie danach frei).
+pub fn rufe_tab_p(fnid: u32, env: u32, dies: W, unten: W, p: u32) -> W {
+    let tab = fnx(fnid).tab;
+    let fp: extern "C" fn(i32, i64, i64, i32) -> i64 = unsafe { core::mem::transmute(tab as usize) };
+    let r = fp(env as i32, dies as i64, unten as i64, p as i32) as u64;
+    args_pop(p);
+    r
 }
 
 /// Ruft eine kompilierte Funktion (Tabellenindex) mit gebundenen Argumenten.
@@ -306,8 +316,8 @@ pub fn methode_prefix(m: u32) -> impl Fn(&mut Tb) { move |t: &mut Tb| { t.s("Met
 /// fuehreAus(m, ctx, pos, ben)
 pub fn fuehre_aus(m: u32, dies: W, unten: W, pos: &[W], ben: &Ben) -> W {
     let fnid = meth(m).fnid as u32;
-    let args = match binde(fnid, pos, ben, &methode_prefix(m), true) { Some(a) => a, None => return KARTON };
-    rufe_tab(fnid, 0, dies, unten, &args)
+    let p = match binde(fnid, pos, ben, &methode_prefix(m), true) { Some(a) => a, None => return KARTON };
+    rufe_tab_p(fnid, 0, dies, unten, p)
 }
 
 /// rufeDecl(m, dies, pos, ben, node, modus) – modus 0 normal, 1 mikrowelle, 2 frisch
@@ -342,8 +352,8 @@ pub fn braucht_instanz(m: u32) {
 /// rufeLambda
 pub fn rufe_lambda(fw: W, pos: &[W], ben: &Ben) -> W {
     let fo = obj::<Funktion>(fw);
-    let args = match binde(fo.fnid, pos, ben, &|t: &mut Tb| { t.s("Die Funktion"); }, false) { Some(a) => a, None => return KARTON };
-    rufe_tab(fo.fnid, p(fw), fo.dies, fo.unten, &args)
+    let blk = match binde(fo.fnid, pos, ben, &|t: &mut Tb| { t.s("Die Funktion"); }, false) { Some(a) => a, None => return KARTON };
+    rufe_tab_p(fo.fnid, p(fw), fo.dies, fo.unten, blk)
 }
 
 pub fn gebunden_liste(g: &Gebunden) -> &'static Vec<u32> {
@@ -481,13 +491,13 @@ pub fn konstruiere(k: u32, o: W, pos: &[W], ben: &Ben, knoten: i32) {
     }
     let m = waehle(&kk.ktoren, anzahl(pos, ben));
     let fnid = meth(m).fnid as u32;
-    let args = match binde(fnid, pos, ben, &|t: &mut Tb| { t.s("Konstruktor von '").name(kl(k).name).s("'"); }, true) { Some(a) => a, None => return };
+    let blk = match binde(fnid, pos, ben, &|t: &mut Tb| { t.s("Konstruktor von '").name(kl(k).name).s("'"); }, true) { Some(a) => a, None => return };
     if !meth(m).hat_unten {
-        if kk.basis >= 0 { konstruiere(kk.basis as u32, o, &[], &[], knoten); if crate::sig() { return; } }
+        if kk.basis >= 0 { konstruiere(kk.basis as u32, o, &[], &[], knoten); if crate::sig() { args_pop(blk); return; } }
         feld_init(k, o);
-        if crate::sig() { return; }
+        if crate::sig() { args_pop(blk); return; }
     }
-    rufe_tab(fnid, 0, o, KARTON, &args);
+    rufe_tab_p(fnid, 0, o, KARTON, blk);
 }
 
 pub fn feld_init(k: u32, o: W) {
