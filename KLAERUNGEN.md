@@ -702,6 +702,17 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Begründung:** Idle-Spiele laufen stundenlang; Endlosschleifen in einem Rückruf werden weiterhin erkannt.
 - **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler/HOST-ABI (U-49), Host (U-50), Doku (U-51). **Status:** fest (a13).
 
+### K-088 Vorratskammer: Namensräume im Playground, CLI-Löschbefehle, Doku-Blöcke (Nutzerentscheidungen)
+- **Entscheidung:** (a) **Beispiel-Tabs** im Playground nutzen einen eigenen Vorrat-Namensraum `localStorage["pizza.vorrat-beispiel.<name>"]`,
+  **eigene Tabs** die echten Kammern `pizza.vorrat.<name>` – Beispiele können den Spielstand des Nutzers nicht überschreiben; der Befehl
+  „Vorrat löschen“ wirkt auf den Namensraum des aktiven Tabs. (b) **CLI/EXE:** `--vorrat-loeschen <name>` löscht genau eine Kammer
+  (auch eine Kammer namens `alle`), `--vorrat-loeschen-alle` löscht alle; beide ohne Programmlauf, Texte `Vorrat '<name>' gelöscht.`
+  und `Alle Vorräte gelöscht.` auf stdout, ungültiger Name → Exit 2 mit Hinweis (Interpreter-CLI fc38340). Host/EXE übernehmen
+  dieselben Optionen und Texte (K-082). (c) Doku-Codeblöcke dürfen `zufallsSaat`, `vorrat`, `vorratErwartet` und `echtzeit`
+  tragen (wie die Optionen; Prüfstand umgesetzt, ARCHITEKTUR §6).
+- **Begründung:** Beispiele sind Lehrmaterial, kein Spielstand; „alle“ als Wert wäre mit einer Kammer dieses Namens mehrdeutig.
+- **Betroffen:** UI (U-53 ergänzt), Host (U-54 ergänzt), tests/run-tests.js (U-43 ergänzt). **Status:** fest (Vertrag); CLI umgesetzt.
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -746,8 +757,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-45 | `ui/**`, `bin/pizza.js`, `host/**` | K-083: einheitliche Anzeigeform von Warnungen/Fehlern `<text> (Zeile Z, Spalte S)`; `detail` nie anzeigen (nur `--debug`) | e2e / manuell |
 | U-46 | `ui/**` | K-083: Saat-Infozeile `Saat: N` in der Konsole statt Badge; Option „feste Saat 42“ | e2e |
 | U-47 ✅ | Klärungs-Agent | K-083: Nutzerentscheidungen 1–6 in THEKE.md §4, EINGABE.md §3, ARCHITEKTUR §2, SPEC §2/§12/§15.3/§15.4/§16.2 eingearbeitet | – |
-| U-53 | `ui/**` (UI-Agent) | K-083: Feld „Argumente“ (→ `optionen.args`), P0003/Wand-Zeitlimit entfernen (nur „Abbrechen“), Theke-Thema folgt dem Seiten-Thema (Standard OS), Befehl „Vorrat löschen“, „Eingaben vorab“-Fallback entfernen → klare Fehlermeldung ohne Isolation | e2e |
-| U-54 | `host/**`, `ziele.json`, `host/baue-ziele.sh`, Dockerfile-Stage exe (Host-/Infra-Agent) | K-083/1: nur Fenster-Varianten (Windows x64 via cargo-xwin/MSVC, Linux x64 bookworm/WebKitGTK 4.1), statische/arm64-Varianten ohne Fenster entfernen; fehlende WebView → klare Fehlermeldung; `--vorrat-loeschen <name|alle>` (K-083/5); OS-Thema | Smoke |
+| U-53 | `ui/**` (UI-Agent) | K-083: Feld „Argumente“ (→ `optionen.args`), P0003/Wand-Zeitlimit entfernen (nur „Abbrechen“), Theke-Thema folgt dem Seiten-Thema (Standard OS), Befehl „Vorrat löschen“ (K-088: Beispiel-Tabs → `pizza.vorrat-beispiel.<name>`, eigene Tabs → `pizza.vorrat.<name>`), „Eingaben vorab“-Fallback entfernen → klare Fehlermeldung ohne Isolation | e2e |
+| U-54 | `host/**`, `ziele.json`, `host/baue-ziele.sh`, Dockerfile-Stage exe (Host-/Infra-Agent) | K-083/1: nur Fenster-Varianten (Windows x64 via cargo-xwin/MSVC, Linux x64 bookworm/WebKitGTK 4.1), statische/arm64-Varianten ohne Fenster entfernen; fehlende WebView → klare Fehlermeldung; `--vorrat-loeschen <name>` und `--vorrat-loeschen-alle` mit den CLI-Texten (K-088); OS-Thema | Smoke |
 | U-55 | `site/js/doku/30-referenz.js` (Doku-Agent), `e2e/**` (E2E-Agent) | Zeitlimit-Texte entfernen (P0003), Argumente-Feld, „Vorrat löschen“ dokumentieren; E2E-Zeitlimit-Test entfernen | – |
 | U-48 ✅ (4b7a2af) | `site/js/pizza.js`, `tests/faelle/` | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
 | U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
@@ -780,6 +791,7 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
+- K-088: Vorrat-Namensräume (Beispiel-Tabs vs. eigene Tabs), CLI `--vorrat-loeschen <name>`/`--vorrat-loeschen-alle`, Doku-Block-Felder `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` (Prüfstand umgesetzt).
 - Zufall/Vorratskammer (Nutzerwünsche „RNG“, „State“): K-077 … K-081 festgehalten, SPEC §15.4 und §11; Interpreter ce303cb entspricht (10 Fälle in a10 grün); offen: CLI/UI/Host/Compiler (U-38 … U-44).
 - Theke v2 (Takt zuerst, Nutzerentscheidung): K-084 … K-087 aus THEKE-ERWEITERUNGEN.md übernommen, SPEC §16.5; 8 offene Fälle in a12, 2 in a11 (Zahlformat); Aufträge U-48 … U-52.
 - Interpreter-Commit 0d34810 setzt U-01…06, 13, 16, 18, 21 um; die 13 a11-Fälle wurden nach a10 verschoben, a11 ist leer (Konvention bleibt).

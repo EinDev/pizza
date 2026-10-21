@@ -862,12 +862,15 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **Vorratskammer (K-079):** `neu Vorratskammer(name)` (`[a-z0-9-]{1,40}`), `lege(k, v)`, `hole(k[, ersatz])`, `hat(k)`, `entferne(k)`,
   `schlüssel()`, `länge()`, `leeren()`, `name()`; Werte: Zahlen (endlich), Texte, Wahrheitswerte, `karton`, Bleche/Speisekarten daraus;
   tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<name>)`.
-- **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)`, Ereignis
+- **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)` (Doku-Blöcke: Felder `zufallsSaat`,
+  `vorrat`, `vorratErwartet`, `echtzeit`, K-088), Ereignis
   `{ typ: "vorrat", name, schluessel, wert }` (nicht in `.erwartet`); ohne beides `W0101: Keine Vorratskammer verfügbar – Zustand wird
   nicht gespeichert.` (einmal pro Programm). Serialisierung `{"v":1,"name":"x","eintraege":[["k",wert],…]}`, Speisekarte als
   `{"speisekarte":[["k",v],…]}`, `karton` → `null`, `ja`/`nein` → `true`/`false`.
 - **Backends (K-081):** Playground `localStorage["pizza.vorrat.<name>"]`; EXE/Host JSON-Datei im Nutzer-Datenverzeichnis, atomar;
-  Verwaltung nur über den gleichen Befehl „Vorrat löschen“ in beiden Hüllen (kein Ansichts-Dialog, K-083/5);
+  Verwaltung nur über den gleichen Befehl „Vorrat löschen“ in beiden Hüllen (kein Ansichts-Dialog, K-083/5); Beispiel-Tabs im
+  Playground nutzen den Namensraum `pizza.vorrat-beispiel.<name>`, eigene Tabs `pizza.vorrat.<name>`; CLI/EXE: `--vorrat-loeschen <name>`
+  (eine Kammer) und `--vorrat-loeschen-alle`, Texte `Vorrat '<name>' gelöscht.` / `Alle Vorräte gelöscht.` (K-088);
   HOST-ABI optionale Imports `vorrat_lesen`/`vorrat_schreiben` (Retry wie K-013); Host ohne Unterstützung → W0101-Verhalten.
 
 ---

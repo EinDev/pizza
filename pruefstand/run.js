@@ -226,6 +226,11 @@ function dokuFälle() {
             // SPEC §16.4 / K-074: Theke-Blöcke dürfen uiEreignisse (Ereignisobjekte) und uiErwartet (ui-Nachrichten) tragen
             if (Array.isArray(b.uiEreignisse)) f.uiEreignisse = b.uiEreignisse;
             if (Array.isArray(b.uiErwartet)) f.ui = b.uiErwartet;
+            // SPEC §15.4 / K-077, K-080, K-087: feste Saat, Vorrat-Eingangszustand, feste Wanduhr für Doku-Blöcke
+            if (typeof b.zufallsSaat === "number") f.zufallsSaat = b.zufallsSaat;
+            if (b.vorrat && typeof b.vorrat === "object") f.vorrat = b.vorrat;
+            if (Array.isArray(b.vorratErwartet)) f.vorratEreignisse = b.vorratErwartet;
+            if (typeof b.echtzeit === "number") f.echtzeit = b.echtzeit;
             const next = inhalt[i + 1];
             // Doku-"ausgabe" darf den Panik-Banner weglassen (ARCHITEKTUR §4, K-030) → Banner beidseitig entfernt
             if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.bannerOptional = true; }
