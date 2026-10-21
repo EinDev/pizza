@@ -105,8 +105,8 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
 - Das Fenster erscheint erst beim ersten `zeige`; Programme ohne Theke bleiben reine Konsolenprogramme (kein Fenster).
 - **Varianten (Nutzerentscheidung K-083/1, Grundsatz K-082):** **nur Varianten mit Theke** – Windows x64 als eine EXE mit Fenster
   (Build per cargo-xwin/MSVC; WebView2-Runtime ab Win 10/11 vorhanden – fehlt sie: **klare Fehlermeldung**, kein stiller Konsolenbetrieb)
-  und Linux x64 mit Fenster (`linux-x64-theke`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
-  Fenster (statisch `linux-x64`, arm64-musl) werden **nicht** mehr angeboten; W0100 bleibt nur für Tests/CLI ohne Renderer.
+  und Linux x64 mit Fenster (Ziel-ID `linux-x64`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
+  Fenster (statisch x64-musl, arm64-musl) werden **nicht** mehr angeboten; W0100 bleibt nur für Tests/CLI ohne Renderer.
   `ziele.json` beschreibt Voraussetzungen; der EXE-Dialog zeigt sie an.
 
 ## 5. Tests

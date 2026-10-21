@@ -42,7 +42,8 @@ RUN if [ "$SKIP_TESTS" = "1" ]; then \
 
 # ---------------------------------------------------------------------------
 # Stage 2: Nativer Host – Cross-Builds der pizza-host-Binaries für den
-# EXE-Download im Browser (Windows x64 -gnu, Linux x64 musl, …).
+# EXE-Download im Browser – nur Varianten mit Theke-Fenster: Windows x64 (MSVC
+# per xwin, WebView2) und Linux x64 (glibc/bookworm, WebKitGTK 4.1).
 # Vertrag: host/baue-ziele.sh <ausgabeverzeichnis> legt die Binaries und
 # ziele.json dort ab (auch als $AUSGABE_DIR verfügbar). Fehlt das Skript, bleibt
 # /usr/share/nginx/html/bin/ leer. Abschalten: --build-arg SKIP_EXE=1.
@@ -55,10 +56,10 @@ ARG SKIP_EXE=0
 ARG STRICT_BUILD=0
 RUN if [ "$SKIP_EXE" != "1" ]; then \
         apt-get update && \
-        apt-get install -y --no-install-recommends musl-tools \
+        apt-get install -y --no-install-recommends \
             pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev && \
         rm -rf /var/lib/apt/lists/* && \
-        rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-musl && \
+        rustup target add x86_64-pc-windows-msvc && \
         cargo install --locked --root /usr/local xwin --version 0.10.0 && rm -rf /usr/local/cargo/registry/*; \
     fi
 

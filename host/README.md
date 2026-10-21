@@ -76,15 +76,15 @@ Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Doc
 | Ziel-ID | Rust-Target | Linker | Datei |
 |---|---|---|---|
 | `windows-x64` | `x86_64-pc-windows-msvc` (mit Theke, CRT statisch) | xwin (MSVC-CRT + Windows-SDK) + rust-lld | `pizza-host-windows-x64-<sha12>.exe` |
-| `linux-x64` | `x86_64-unknown-linux-musl` (statisch, ohne Theke) | musl-tools | `pizza-host-linux-x64-<sha12>` |
-| `linux-x64-theke` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-theke-<sha12>` |
-| `linux-arm64` | `aarch64-unknown-linux-musl` (statisch, optional) | rust-lld | `pizza-host-linux-arm64-<sha12>` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-<sha12>` |
+
+Angeboten werden nur Varianten **mit** Theke-Fenster (Browser und nativ verhalten sich gleich); statische
+Varianten ohne Fenster (früher `linux-x64` musl, `linux-arm64` musl) sind gestrichen.
 
 Dazu `ziele.json` (`version`, `ziele: [{ id, name, triple, datei, endung, groesse, sha256, theke, voraussetzung }]`;
-`theke` = Fenster möglich, `voraussetzung` = Text für den EXE-Dialog). Die Dateinamen
-enthalten den Inhalts-Hash → `immutable` cachebar. Auswahl per `PIZZA_ZIELE="windows-x64 linux-x64"`;
-`linux-arm64` wird übersprungen, wenn das Target nicht installierbar ist (außer `STRICT_BUILD=1`).
-Getestet: Windows-gnu-EXE mit Anhang unter Windows 11, linux-x64 und linux-arm64 (qemu) in Docker/busybox.
+`theke` = Fenster möglich (immer `true`), `voraussetzung` = Text für den EXE-Dialog). Die Dateinamen
+enthalten den Inhalts-Hash → `immutable` cachebar. Auswahl per `PIZZA_ZIELE="windows-x64"` (Standard: beide);
+scheitert `linux-x64`, wird es übersprungen (außer `STRICT_BUILD=1`), `windows-x64` muss gelingen.
 
 **macOS** wird nicht gebaut: Cross-Linken braucht das Apple-SDK (oder zig/cargo-zigbuild), Apple-Silicon-Binaries
 müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quarantäne. Auf einem Mac selbst:
@@ -96,7 +96,8 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   → „Weitere Informationen“ → „Trotzdem ausführen“); manche Virenscanner melden unbekannte, unsignierte EXEs
   (heuristisch). Die EXE ist ein Konsolenprogramm: am besten in der Eingabeaufforderung/PowerShell starten.
 - **Linux:** Browser-Downloads sind nicht ausführbar: `chmod +x programm-linux-x64 && ./programm-linux-x64`.
-  Statisch gelinkt (musl), läuft ohne weitere Bibliotheken.
+  Braucht glibc ≥ 2.34 und WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`,
+  Fedora: `sudo dnf install webkit2gtk4.1`).
 
 ## Theke (Fenster, THEKE.md §4)
 
@@ -126,7 +127,7 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 
 Release-Profil: `opt-level = "z"`, LTO, `codegen-units = 1`, `strip`, `panic = "abort"`; nur die wasmi-Crates
 mit `opt-level = 3` (reines `"z"` macht die Engine ~25 % langsamer, so ist sie gleich schnell wie `3`).
-wasmi ohne `wat`/`memory64`. Größen ohne Theke: Windows-msvc 1,1 MB, Windows-gnu 1,3 MB, Linux-musl x64 1,6 MB, arm64 1,4 MB.
+wasmi ohne `wat`/`memory64`. Größen ohne Theke (nur Tests/CLI): Windows-msvc 1,1 MB, Windows-gnu 1,3 MB.
 Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99 MB (+ dynamisch WebKitGTK/GTK).
 
 ## Aufbau

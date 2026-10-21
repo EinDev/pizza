@@ -414,6 +414,7 @@ function start() {
     for (const z of exeZiele) {
       const l = document.createElement("label");
       l.className = "exe-ziel";
+      if (z && z.voraussetzung) l.title = String(z.voraussetzung);
       const r = document.createElement("input");
       r.type = "radio";
       r.name = "exe-ziel";
