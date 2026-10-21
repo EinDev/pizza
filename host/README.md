@@ -25,7 +25,7 @@ pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] program
 | `fehlerausgabe` | stderr (rot bei TTY) |
 | `warnung` | stderr: `⚠ text (Zeile z, Spalte s)` (gelb bei TTY) |
 | `fehler` | stderr: `text` (+ Position bei `syntax`/`pizzafehler`) |
-| `panik` | Hawaii-Banner nach **stdout**, Exit-Code 39 |
+| `panik` | Hawaii-Banner nach stderr (rot/gelb bei TTY), Exit-Code 39 |
 | `leeren` | ANSI-Clear, nur wenn stdout ein Terminal ist |
 | `eingabe` | kein Echo (das macht das Terminal) |
 

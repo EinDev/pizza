@@ -60,3 +60,25 @@ fn fixture_schreiben() {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests").join("demo.pkarton");
     std::fs::write(p, wat::parse_str(WAT).unwrap()).unwrap();
 }
+
+#[test]
+fn panik_banner_nach_stderr() {
+    let wat = r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (import "pizza" "panik" (func $panik (param i32 i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "vorherBANNER")
+  (func (export "start") (result i32)
+    (call $ausgabe (i32.const 0) (i32.const 6))
+    (call $panik (i32.const 6) (i32.const 6))
+    i32.const 0))"#;
+    let dir = std::env::temp_dir().join(format!("pizza-host-panik-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let karton = dir.join("panik.pkarton");
+    std::fs::write(&karton, wat::parse_str(wat).unwrap()).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_pizza-host")).arg(&karton).stdin(Stdio::null()).output().unwrap();
+    assert_eq!(out.status.code(), Some(39));
+    assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "vorher\n");
+    assert_eq!(String::from_utf8_lossy(&out.stderr).replace("\r\n", "\n"), "BANNER\n");
+    let _ = std::fs::remove_dir_all(&dir);
+}

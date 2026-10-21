@@ -168,15 +168,9 @@ impl Senke {
                         let _ = writeln!(io::stderr(), "{}{}", f("1;31", text), p);
                     }
                     Ereignis::Panik { text } => {
-                        // Banner nach stdout (Farbe nur, wenn stdout ein Terminal ist).
-                        let tty = io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
-                        let mut out = io::stdout().lock();
-                        if tty {
-                            let _ = writeln!(out, "\x1b[1;33;41m{}\x1b[0m", text);
-                        } else {
-                            let _ = writeln!(out, "{}", text);
-                        }
-                        let _ = out.flush();
+                        // Banner nach stderr wie bin/pizza.js und HOST-ABI §7 (Farbe nur bei TTY).
+                        let _ = io::stdout().flush();
+                        let _ = writeln!(io::stderr(), "{}", f("1;33;41", text));
                     }
                     Ereignis::Ende { exit_code, schritte, zeit_ms } => {
                         let _ = io::stdout().flush();
