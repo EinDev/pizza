@@ -45,7 +45,7 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
 - **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
-- **Gruppe `kueche` (SPEC §17, K-100, K-102):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
+- **Gruppe `kueche` (SPEC §17, K-100, K-104):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
   (Methodenaufruf oder Methodenreferenz `….brigade`); dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
 
@@ -109,7 +109,7 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   fehlgeschlagen → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` Ohne Speicherung (Abfrage = 0)
   emittiert der Host nur das Ereignis und gibt `0` zurück. Größenprüfung (1 MiB) macht das Modul selbst.
 
-**Küchenbrigade – Gruppe `kueche`** (SPEC §17, K-100, K-102; Umsetzung THREADS.md §4.3–§4.5, Berichts- und Kartonformat Anhang A):
+**Küchenbrigade – Gruppe `kueche`** (SPEC §17, K-100, K-104; Umsetzung THREADS.md §4.3–§4.5, Berichts- und Kartonformat Anhang A):
 
 | Import | Signatur | Bedeutung |
 |---|---|---|
@@ -119,7 +119,7 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
 - Ein Host, der die Gruppe kennt, aber keine Threads hat (oder `koeche = 1`), stellt beide Imports bereit und antwortet `-1`
   (`kueche_bericht` wird dann nie gerufen). Ein Host ohne die Gruppe meldet den bekannten Ladefehler (K-043).
 - Das Modul fragt `kueche_auftrag` nur in der Hauptküche; **innere** Brigaden (eine Brigade in einem Stück) laufen immer im
-  Modul selbst (K-102). `kueche_auftrag` kann also während eines Laufs mehrmals kommen, aber nie verschachtelt.
+  Modul selbst (K-104). `kueche_auftrag` kann also während eines Laufs mehrmals kommen, aber nie verschachtelt.
 - Die Berichte hängen nur vom Speicher beim Aufruf und von i ab – Reihenfolge, Verteilung auf Klone und Wiederverwendung eines
   Klons für mehrere Stücke sind frei (jedes `kueche_stueck` setzt den Klon selbst auf den Anschnitt zurück).
 - Speicherbedarf eines Klons: so groß wie der Speicher der aufrufenden Instanz beim Aufruf (der Klon wächst vorher auf diese
@@ -284,7 +284,7 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
 Änderungen, die Hosts brechen, erhöhen `abi_version` und `"abi"` in der Custom Section. Hosts sollen bei
 unbekannter Version mit einer klaren Meldung abbrechen.
 
-## Anhang A: Küchenbericht und Kartonformat `PKF1` (informativ, K-102)
+## Anhang A: Küchenbericht und Kartonformat `PKF1` (informativ, K-104)
 
 Hosts reichen Berichte nur als Bytes weiter; das Format gehört der Laufzeit (`laufzeit/src/kueche.rs`) und darf sich mit ihr
 ändern (jedes `.pkarton` bringt seine Laufzeit mit). Alle Zahlen little-endian; `u32`/`i32` 4 Bytes, `f64` 8 Bytes,

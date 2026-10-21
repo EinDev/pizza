@@ -34,7 +34,7 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
 
 `gruppen` enthält `kueche`, sobald das Programm `….brigade(…)` aufruft oder `….brigade` als Wert nimmt; das Backend exportiert
 dann zusätzlich `kueche_stueck` (HOST-ABI §3). `brigade` selbst ist eine gewöhnliche Blech-Methode (`mcall`) – Anschnitt,
-Stücke und Zusammenführen erledigt die Laufzeit (THREADS.md §4.4, K-102).
+Stücke und Zusammenführen erledigt die Laufzeit (THREADS.md §4.4, K-104).
 
 `Reg` (Reihenfolge = `registriere()`; innere Klassen direkt nach der äußeren):
 - `{ art: "klasse", name, idx, flags (1 rohling, 2 gebacken, 4 calzone), basis, erfuellt: [name],
@@ -143,7 +143,7 @@ Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldini
 - Methoden, Konstruktoren und Lambdas sichern beim Eintritt die Position und stellen sie beim Verlassen wieder her
   (auch bei Signal); Top-Level-Code und Initialisierer nicht (wie der Interpreter).
 
-## 6a. Küchenbrigade (SPEC §17, K-101/4, K-102)
+## 6a. Küchenbrigade (SPEC §17, K-101/4, K-104)
 
 - Die Laufzeit hält in `ZUSTAND+56` (`gefroren`, i32) die Heap-Grenze der Hauptküche während eines Stücks, sonst `0`. Alles mit
   kleinerer Adresse gehört der Hauptküche (S1).
