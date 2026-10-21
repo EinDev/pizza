@@ -53,7 +53,7 @@ LABEL org.opencontainers.image.title="pizza-playground" \
 # site/index.html ausgeliefert)
 USER root
 RUN rm -rf /usr/share/nginx/html/*
-# Setzt beim Start den leeren Standard für HASTEBIN_TOKEN (siehe unten);
+# Setzt beim Start leere Standards für HASTEBIN_URL/_OEFFENTLICH/_TOKEN (siehe unten);
 # CRLF entfernen, falls das Repo unter Windows ausgecheckt wurde.
 COPY --chmod=755 docker-entrypoint-pizza.envsh /docker-entrypoint.d/05-pizza-env.envsh
 RUN tr -d '\015' < /docker-entrypoint.d/05-pizza-env.envsh > /tmp/env.sh \
@@ -64,13 +64,14 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx-proxy.conf /etc/nginx/pizza-proxy.conf
 COPY nginx-teilen.conf.template /etc/nginx/templates/pizza-env/teilen.conf.template
 
-# Teilen über hastebin.com: Token kommt zur Laufzeit aus der Umgebung
-# (leer/ungesetzt = Teilen deaktiviert, /api/teilen antwortet 503). Der leere
-# Standardwert setzt /docker-entrypoint.d/05-pizza-env.envsh beim Start (nicht per ENV).
+# Teilen über Hastebin: HASTEBIN_URL (interner Upstream, z. B. http://hastebin:8290),
+# HASTEBIN_OEFFENTLICH (öffentliche URL für /api/konfig) und optional HASTEBIN_TOKEN
+# kommen zur Laufzeit aus der Umgebung (compose.yaml). HASTEBIN_URL leer = Teilen
+# deaktiviert (503). Leere Standards setzt 05-pizza-env.envsh beim Start (nicht per ENV).
 # Die Templates werden nach /tmp gerendert, damit read_only + tmpfs funktioniert.
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 \
     NGINX_ENVSUBST_OUTPUT_DIR=/tmp \
-    NGINX_ENVSUBST_FILTER="HASTEBIN_TOKEN|NGINX_LOCAL_RESOLVERS"
+    NGINX_ENVSUBST_FILTER="HASTEBIN_URL|HASTEBIN_OEFFENTLICH|HASTEBIN_TOKEN|NGINX_LOCAL_RESOLVERS"
 
 COPY --from=build /app/site/ /usr/share/nginx/html/
 

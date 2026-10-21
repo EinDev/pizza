@@ -10,12 +10,16 @@ läuft komplett im Browser (Web Worker), der Server liefert nur Teig, äh, Datei
 ## Schnellstart
 
 ```bash
-docker compose up --build
+docker compose -f compose.yaml -f compose.lokal.yaml up --build
 ```
 
-Dann im Browser öffnen: <http://localhost:8080>
+Dann im Browser öffnen: <http://localhost:8080> (Playground) – der eigene Hastebin läuft unter
+<http://localhost:8290>. Stoppen mit `docker compose -f compose.yaml -f compose.lokal.yaml down`
+(Dokumente bleiben im Volume `hastebin-daten`; `down -v` löscht sie).
 
-Stoppen mit `docker compose down`.
+`compose.yaml` selbst veröffentlicht **keine** Ports (und setzt keinen `container_name`), weil das
+Coolifys Proxy-Routing bricht. `compose.lokal.yaml` ergänzt für lokal die Ports
+(`127.0.0.1:8080`, `127.0.0.1:8290`; änderbar über `PIZZA_PORT`/`HASTEBIN_PORT`).
 
 ### Build-Optionen
 
@@ -25,42 +29,76 @@ Stoppen mit `docker compose down`.
 | `STRICT_BUILD`  | `0`      | `1` = ein fehlschlagender UI-Build (`ui/`) bricht das Image ab, statt auf das eingecheckte `site/js/app.bundle.js` zurückzufallen. |
 
 ```bash
-SKIP_TESTS=0 docker compose build                     # über compose.yaml
+SKIP_TESTS=0 docker compose build pizza               # über compose.yaml
 docker build --build-arg SKIP_TESTS=0 --build-arg STRICT_BUILD=1 -t pizza-playground .
 ```
 
-Das Image basiert auf `nginxinc/nginx-unprivileged` (läuft nicht als root, Port 8080) und hat
-einen Healthcheck unter `/healthz`.
+Das pizza-Image basiert auf `nginxinc/nginx-unprivileged` (läuft nicht als root, Port 8080) und hat
+einen Healthcheck unter `/healthz`. Die Seite ist cross-origin-isoliert (COOP/COEP/CORP).
 
-## Teilen über Hastebin
+## Teilen über den eigenen Hastebin
 
-Beim Teilen wird der Code serverseitig auf [hastebin.com](https://hastebin.com) (Toptal) abgelegt;
-der Link enthält nur den Hastebin-Schlüssel. Der Browser spricht dabei nie direkt mit Hastebin,
-sondern mit dem nginx im Container:
+Beim Teilen wird der Code serverseitig auf dem **eigenen Hastebin-Server** (Service `hastebin` in
+`compose.yaml`) gespeichert; der pizza-Link sieht so aus: `https://<pizza-domain>/#h=<key>`.
+Der Browser spricht dabei nur mit dem pizza-nginx (`connect-src 'self'`), der intern weiterleitet:
 
-| Endpunkt | Weiterleitung |
+| Endpunkt | Weiterleitung / Antwort |
 |---|---|
-| `POST /api/teilen` (Body = Rohtext, max. 256 KB) | `https://hastebin.com/documents` → `{"key": "…"}` |
-| `GET /api/teilen/<key>` (`[A-Za-z0-9]+`) | `https://hastebin.com/raw/<key>` |
+| `POST /api/teilen` (Body = Rohtext, max. 256 KB) | `$HASTEBIN_URL/documents` → `201 {"key":"…"}` |
+| `GET /api/teilen/<key>` (`[A-Za-z0-9]{1,64}`) | `$HASTEBIN_URL/raw/<key>` → Rohtext; unbekannt → `404 {"fehler":…}` |
+| `GET /api/konfig` | `{"hastebin":"<öffentliche Hastebin-URL>","teilen":true}` |
 
-Der API-Token wird nur serverseitig als `Authorization: Bearer …` gesetzt. Rate-Limit:
-10 Uploads/Minute und 60 Abrufe/Minute pro IP.
+Fehler kommen immer als JSON `{"fehler":"…"}`: 405 (falsche Methode), 413 (zu groß), 429
+(Rate-Limit: 10 Uploads und 60 Abrufe pro Minute und IP), 502 (Hastebin nicht erreichbar),
+503 (Teilen nicht konfiguriert).
 
-**Einrichtung**
+**Hastebin-Server:** [skyra-project/haste-server](https://github.com/skyra-project/haste-server)
+(MIT, gepflegter Nachfolger des ursprünglichen haste-server), gebaut aus einem gepinnten Commit
+(`hastebin/Dockerfile`, `HASTE_COMMIT`). Speicher: Redis mit AOF im Volume `hastebin-daten`.
+Er hat eine eigene öffentliche Oberfläche (Einfügen, Rohansicht `/raw/<key>`, API-Doku `/swagger-ui`).
 
-1. Bei [hastebin.com](https://hastebin.com) (Toptal) anmelden und einen API-Token erzeugen
-   (Dokumentation: <https://www.toptal.com/developers/hastebin/documentation>).
-2. Token als Umgebungsvariable `HASTEBIN_TOKEN` setzen:
-   - lokal: `HASTEBIN_TOKEN=… docker compose up --build` oder eine `.env`-Datei neben `compose.yaml`
-     (`.env` ist in `.gitignore`).
-   - **Coolify:** in der Anwendung unter *Environment Variables* `HASTEBIN_TOKEN` anlegen
-     (als Secret, „Is Build Variable“ **nicht** nötig) und neu deployen.
-3. Ohne Token startet der Container trotzdem; `/api/teilen` antwortet dann mit
-   `503 {"fehler":"Teilen ist nicht konfiguriert (HASTEBIN_TOKEN fehlt)."}`.
+| Variable (Service) | Standard | Bedeutung |
+|---|---|---|
+| `HASTEBIN_URL` (pizza) | `http://hastebin:8290` | interner Upstream; leer = Teilen aus (503) |
+| `HASTEBIN_OEFFENTLICH` (pizza) | `SERVICE_URL_HASTEBIN_8290` | öffentliche Hastebin-URL für `/api/konfig` |
+| `HASTEBIN_TOKEN` (pizza) | leer | nur für externe Dienste mit Token (z. B. hastebin.com) |
+| `HASTEBIN_ABLAUF_SEKUNDEN` (hastebin) | `7776000` (90 Tage) | Ablaufzeit je Dokument |
+| `HASTEBIN_RATE_LIMIT` (hastebin) | `60` | Anfragen pro Minute und IP direkt am Hastebin |
+| `SERVICE_PASSWORD_REDIS` | Coolify generiert; lokal `pizza-lokal` | Redis-Passwort (nur intern erreichbar) |
 
-**Datenschutz:** Geteilter Code wird an einen Drittanbieter (Toptal/hastebin.com) übertragen und
-ist für jeden mit dem Link abrufbar. Die UI weist vor dem Teilen darauf hin. Der Proxy reicht
-keine Cookies, keine Client-IP, keinen Referer und keinen User-Agent an Hastebin weiter.
+Max. Dokumentgröße: 256 KB (`MAX_LENGTH` im Hastebin = `client_max_body_size` im pizza-nginx).
+
+**Datenschutz:** Geteilter Code liegt auf dem eigenen Server, ist aber für **jeden mit dem Link**
+abrufbar (auch über die öffentliche Hastebin-Domain) und wird nach 90 Tagen gelöscht. Die UI weist
+vor dem Teilen darauf hin. Der Proxy reicht keine Cookies, keinen Referer und keinen User-Agent
+weiter; die Client-IP geht nur an den internen Hastebin (für dessen Rate-Limit).
+
+## Deployment in Coolify
+
+Ziel: zwei Domains über Coolifys Proxy mit TLS, z. B. `pizza.example.com` (Playground) und
+`paste.example.com` (Hastebin). Die echten Domains stehen nur in Coolify, nicht im Repo.
+
+1. **Ressource anlegen:** *New Resource* → Git-Repository → **Build Pack: Docker Compose**,
+   Compose-Datei `compose.yaml` (Base Directory `/`). `compose.lokal.yaml` **nicht** angeben.
+2. **Domains pro Service** (Abschnitt *Domains*/*Services* der Ressource):
+   - `pizza` → `https://pizza.example.com:8080`
+   - `hastebin` → `https://paste.example.com:8290`
+   - `redis` → keine Domain.
+
+   Der Port-Suffix ist der **interne** Container-Port (Coolify routet darauf); öffentlich bleibt es
+   443. Ohne Suffix landet der Proxy auf Port 80 → „No Available Server“/503.
+3. **Umgebungsvariablen** prüfen (*Environment Variables*): `SERVICE_URL_PIZZA_8080` und
+   `SERVICE_URL_HASTEBIN_8290` füllt Coolify aus den Domains, `SERVICE_PASSWORD_REDIS` wird
+   generiert. `HASTEBIN_OEFFENTLICH` nur setzen, wenn die Hastebin-URL abweichen soll.
+   Optional: `HASTEBIN_ABLAUF_SEKUNDEN`, `HASTEBIN_RATE_LIMIT`.
+4. **Persistent Storage:** Das Volume `hastebin-daten` (Redis `/data`) legt Coolify aus der
+   Compose-Datei an – nichts weiter zu tun; es übersteht Redeploys.
+5. **Deploy** und prüfen:
+   - alle drei Services *healthy*;
+   - `https://pizza.example.com/healthz` → `ok`;
+   - `https://pizza.example.com/api/konfig` → `{"hastebin":"https://paste.example.com","teilen":true}`;
+   - im Playground teilen → Link `https://pizza.example.com/#h=<key>` öffnen;
+   - `https://paste.example.com/raw/<key>` zeigt denselben Code.
 
 ## Lokale Entwicklung
 
@@ -123,7 +161,9 @@ pizza/
 │   ├── js/doku/         Doku-Inhalte
 │   └── beispiele/       Beispielprogramme (*.pizza, *.erwartet, Manifeste)
 ├── Dockerfile, compose.yaml, nginx.conf
-├── nginx-proxy.conf, nginx-teilen.conf.template   Hastebin-Proxy
+├── compose.lokal.yaml   lokale Ports (nicht für Coolify)
+├── nginx-proxy.conf, nginx-teilen.conf.template, docker-entrypoint-pizza.envsh   Teilen-Proxy
+├── hastebin/Dockerfile  eigener Hastebin-Server (gepinnter Upstream-Commit)
 └── README.md
 ```
 
