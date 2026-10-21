@@ -1,25 +1,57 @@
 === HAWAII-ALARM – Robo-Luigi am Fließband ===
-Ziel: 10 Pizzen. Filter-Ladungen: [#][#][#][#][#][#]
-Pizza  1: Chili Schinken Artischocken
-          [##..................] 11,00 €   (Ananas in der Kiste: 1)
-Pizza  2: Rucola Oliven Chili
-          [####................] 21,00 €   (Ananas in der Kiste: 2)
-Pizza  3: Paprika Rucola [FILTER! noch 5]
-          [######..............] 30,30 €   (Ananas in der Kiste: 3)
-Pizza  4: Chili Paprika [FILTER! noch 4]
-          [########............] 39,10 €   (Ananas in der Kiste: 4)
-Pizza  5: [FILTER! noch 3] Schinken Oliven
-          [##########..........] 49,10 €   (Ananas in der Kiste: 5)
-Pizza  6: Rucola [FILTER! noch 2] Artischocken
-          [############........] 59,10 €   (Ananas in der Kiste: 6)
-Pizza  7: Salami Rucola [FILTER! noch 1]
-          [##############......] 69,10 €   (Ananas in der Kiste: 7)
-Pizza  8: Salami [FILTER! noch 0] Salami
-          [################....] 79,60 €   (Ananas in der Kiste: 8)
-Pizza  9: Zwiebeln Pilze Paprika
-          [##################..] 89,40 €   (Ananas in der Kiste: 9)
-Pizza 10: ... Robo-Luigi greift zur ... A-A-ANANAS?!
-Filter leer. Alarm! ALARM!
+Pizza 1/10 | Kasse 0,00 € | Filter [#][#][#] | Ananas in der Kiste: 1
+Wie viele Beläge? (1-3):   Robo-Luigi piept verwirrt. Bitte 1 bis 3.
+Wie viele Beläge? (1-3):   + Chili
+  + Schinken
+  + Artischocken
+  Fertig: ((Tomate, Mozzarella, Chili, Schinken, Artischocken)) für 11,00 €
+Pizza 2/10 | Kasse 11,00 € | Filter [#][#][#] | Ananas in der Kiste: 1
+Wie viele Beläge? (1-3):   + Thunfisch
+  + Pilze
+  Fertig: ((Tomate, Mozzarella, Thunfisch, Pilze)) für 10,50 €
+Pizza 3/10 | Kasse 21,50 € | Filter [#][#][#] | Ananas in der Kiste: 2
+Wie viele Beläge? (1-3):   + Chili
+  + Paprika
+  + Thunfisch
+  Fertig: ((Tomate, Mozzarella, Chili, Paprika, Thunfisch)) für 10,80 €
+Pizza 4/10 | Kasse 32,30 € | Filter [#][#][#] | Ananas in der Kiste: 2
+Wie viele Beläge? (1-3):   PIEP PIEP! Robo-Luigi hält eine ANANAS in der Hand!
+  1 = Filter, 2 = Pizza wegwerfen, 3 = durchwinken (1-3):   Filter zischt. Ananas weg.
+  + Zwiebeln
+  + Oliven
+  Fertig: ((Tomate, Mozzarella, Zwiebeln, Oliven)) für 9,00 €
+Pizza 5/10 | Kasse 41,30 € | Filter [#][#] | Ananas in der Kiste: 3
+Wie viele Beläge? (1-3):   PIEP PIEP! Robo-Luigi hält eine ANANAS in der Hand!
+  1 = Filter, 2 = Pizza wegwerfen, 3 = durchwinken (1-3):   Pizza in den Müll. -3,00 €
+Pizza 5/10 | Kasse 38,30 € | Filter [#][#] | Ananas in der Kiste: 3
+Wie viele Beläge? (1-3):   + Artischocken
+  + Paprika
+  + Oliven
+  Fertig: ((Tomate, Mozzarella, Artischocken, Paprika, Oliven)) für 10,80 €
+Pizza 6/10 | Kasse 49,10 € | Filter [#][#] | Ananas in der Kiste: 3
+Wie viele Beläge? (1-3):   + Chili
+  + Rucola
+  + Thunfisch
+  Fertig: ((Tomate, Mozzarella, Chili, Rucola, Thunfisch)) für 11,00 €
+Pizza 7/10 | Kasse 60,10 € | Filter [#][#] | Ananas in der Kiste: 4
+Wie viele Beläge? (1-3):   + Salami
+  + Chili
+  Fertig: ((Tomate, Mozzarella, Salami, Chili)) für 9,50 €
+Pizza 8/10 | Kasse 69,60 € | Filter [#][#] | Ananas in der Kiste: 4
+Wie viele Beläge? (1-3):   PIEP PIEP! Robo-Luigi hält eine ANANAS in der Hand!
+  1 = Filter, 2 = Pizza wegwerfen, 3 = durchwinken (1-3):   Filter zischt. Ananas weg.
+  + Salami
+  + Rucola
+  Fertig: ((Tomate, Mozzarella, Salami, Rucola)) für 10,00 €
+Pizza 9/10 | Kasse 79,60 € | Filter [#] | Ananas in der Kiste: 5
+Wie viele Beläge? (1-3):   + Salami
+  + Schinken
+  + Salami
+  Fertig: ((Tomate, Mozzarella, Salami, Schinken, Salami)) für 12,00 €
+Pizza 10/10 | Kasse 91,60 € | Filter [#] | Ananas in der Kiste: 5
+Wie viele Beläge? (1-3):   + Oliven
+  PIEP PIEP! Robo-Luigi hält eine ANANAS in der Hand!
+  1 = Filter, 2 = Pizza wegwerfen, 3 = durchwinken (1-3):   Robo-Luigi zuckt mit den Schultern und legt sie drauf ...
 ╔══════════════════════════════════════════════╗
 ║   🍍  PIZZA-VM KERNEL PANIC  🍍              ║
 ║                                              ║

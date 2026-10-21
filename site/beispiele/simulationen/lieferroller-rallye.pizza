@@ -1,69 +1,92 @@
-// Lieferroller-Rallye: Wer viel Trinkgeld gibt, wird zuerst beliefert.
-// Express-Kunden warten sofort (mit Zeitlimit), alle anderen bekommen ihre
-// Pizza nach Küchenschluss – sortiert nach Trinkgeld, bei Gleichstand
-// in Bestellreihenfolge. Pizza-Uhr: 1 Schritt = 1 ms, Roller-Minute = 10 ms.
+// Lieferroller-Rallye: DU bist Disponent bei Luigi.
+// Es gibt nur einen Roller. Nach Küchenschluss fährt er die Lieferungen
+// in der Reihenfolge des Trinkgelds ab (höchstes zuerst, bei Gleichstand
+// in Bestellreihenfolge) – so funktioniert wennDa. Jeder Kunde hat nur
+// begrenzt Geduld. Verteile 10 € Trinkgeld so, dass möglichst alle
+// rechtzeitig ihre Pizza bekommen.
 
-klasse Rallye {
-    tiefkühl salami platz = 0;
-    tiefkühl funghi trinkgeldTopf = 0;
+klasse Tour {
+    tiefkühl salami minuten = 0;
+    tiefkühl salami zufrieden = 0;
+    tiefkühl salami geliefert = 0;
+    tiefkühl salami anzahl = 0;
 
-    // Der Roller knattert: pro Minute ein paar Schritte
-    tiefkühl margherita fahre(margherita kunde, salami minuten) {
+    tiefkühl salami fahre(salami min) {
         salami m = 0;
-        solange (m < minuten * 2) { m++; }
-        serviere ((kunde + " (" + minuten + " min)"));
+        solange (m < min * 2) { m++; }
+        serviere ((min));
     }
 
-    tiefkühl leer angekommen(margherita info, salami tipp) {
-        platz++;
-        trinkgeldTopf += tipp;
-        margherita medaille = platz == 1 ? " GOLD" : platz == 2 ? " SILBER" : platz == 3 ? " BRONZE" : "";
-        Bote.sage(("Platz " + platz + ": " + info + " – Trinkgeld " + tipp + " € " + "€".wiederhole(tipp)
-            + medaille + " | Topf: " + trinkgeldTopf.euro()));
+    tiefkühl leer angekommen(margherita kunde, salami fahrt, salami geduld, salami tipp) {
+        minuten += fahrt;
+        geliefert++;
+        diavolo ok = minuten <= geduld;
+        falls (ok) { zufrieden++; }
+        Bote.sage(("Stopp " + geliefert + ": " + kunde + " (Trinkgeld " + tipp + " €) nach " + minuten
+            + " min, Geduld " + geduld + " min → " + (ok ? "glücklich :)" : "kalt und sauer :(")));
+        falls (geliefert == anzahl) {
+            Bote.sage(("Ergebnis: " + zufrieden + " von " + anzahl + " Kunden zufrieden. "
+                + (zufrieden == anzahl ? "Perfekte Tour – Luigi spendiert dir eine Pizza!" : "Da geht noch was.")));
+        }
     }
 }
 
-Bote.sage(("=== Die große Lieferroller-Rallye ==="));
-Blech<margherita> kunden = ["Frau Bianchi", "Herr Verdi", "Familie Rossi", "Tante Gina",
-    "Studenten-WG", "Dr. Ferrari", "Opa Enzo", "Pfarrer Don Camillo"];
-Blech<salami> wege = [];
-Blech<salami> trinkgelder = [];
+// Ganze Zahl im Bereich; karton (Eingabe zu Ende) → -1
+salami frage(margherita text, salami min, salami max) {
+    solange (ja) {
+        margherita e = Bestellannahme.frage((text + " (" + min + "-" + max + " €): "));
+        falls (e == karton) { serviere ((-1)); }
+        probier {
+            funghi z = e.trimme().alsZahl();
+            falls (z == z.ganz() && z >= min && z <= max) { serviere ((z.ganz())); }
+            Bote.sage(("  Das geht nicht – erlaubt sind " + min + " bis " + max + " €."));
+        } verbrannt (TypAnanas a) {
+            Bote.sage(("  Der Fahrer versteht nur Zahlen."));
+        }
+    }
+}
+
+Bote.sage(("=== Lieferroller-Rallye ==="));
+// Teil 1: Express – Herr Verdi wohnt 40 Minuten weg, will aber in 30 Minuten essen.
+Bote.sage(("Express: Herr Verdi, 40 min Fahrt, 30 Minuten oder gratis!"));
+Bote.sage(("Jeder Euro Trinkgeld gibt dem Fahrer 10 % mehr Zeit."));
+salami express = frage("Trinkgeld für den Express", 0, 5);
+diavolo gegangen = express < 0;
+falls (!gegangen) {
+    Zustellung<salami> z = bestelle(() -> (Tour.fahre(40))).trinkgeld(express).warte(max: 395ms);
+    Bote.sage((z.pünktlich() ? "Herr Verdi: pünktlich! Er zahlt gern." : "Herr Verdi: zu spät – die Pizza geht aufs Haus."));
+} sonst {
+    Bote.sage(("Du gehst heim. Der Fahrer macht alles ohne Trinkgeld."));
+}
+
+// Teil 2: Die Abendtour. Kunde, Fahrtzeit ab dem letzten Stopp, Geduld ab Küchenschluss.
+Blech<margherita> kunden = ["Frau Bianchi", "Familie Rossi", "Studenten-WG", "Dr. Ferrari", "Opa Enzo"];
+Blech<salami> fahrten = [10, 15, 20, 5, 10];
+Blech<salami> geduld = [60, 20, 90, 25, 40];
+Bote.sage((""));
+Bote.sage(("Abendtour – du hast 10 € Trinkgeld zu verteilen:"));
 für (salami i = 1; i <= kunden.länge(); i++) {
-    wege.hinzu(Zufall.zahl(10, 45));
-    trinkgelder.hinzu(Zufall.zahl(0, 5));
+    Bote.sage(("  " + i + ". " + kunden.stück(i) + ": " + fahrten.stück(i) + " min Fahrt, Geduld " + geduld.stück(i) + " min"));
 }
-
-// Zwei Express-Kunden wollen sofort beliefert werden: 30 Minuten oder gratis
-Bote.sage(("--- Express (30 Minuten oder gratis) ---"));
-für (salami i = 1; i <= 2; i++) {
-    margherita k = kunden.stück(i);
-    salami weg = wege.stück(i);
-    Zustellung<margherita> z = bestelle(() -> (Rallye.fahre(k, weg)))
-        .trinkgeld(trinkgelder.stück(i))
-        .warte(max: 350ms);   // 30 Roller-Minuten + Ampelpuffer (+10 % je Euro Trinkgeld)
-    probier {
-        Bote.sage(("Pünktlich: " + z.wert() + ", Trinkgeld " + trinkgelder.stück(i) + " €"));
-    } verbrannt (LieferAnanas a) {
-        Bote.sage((k + " (" + weg + " min, Trinkgeld " + trinkgelder.stück(i) + " €): " + a.nachricht() + " Gratis!"));
+salami rest = 10;
+Tour.anzahl = kunden.länge();
+für (salami i = 1; i <= kunden.länge(); i++) {
+    salami tipp = 0;
+    falls (!gegangen) {
+        tipp = frage(kunden.stück(i) + ", noch " + rest + " € übrig", 0, rest);
+        falls (tipp < 0) {
+            gegangen = ja;
+            tipp = 0;
+            Bote.sage(("Du gehst heim. Der Rest bekommt kein Trinkgeld."));
+        }
     }
-}
-
-// Der Rest startet nach Küchenschluss – die Reihenfolge bestimmt das Trinkgeld
-Bote.sage(("--- Startaufstellung ---"));
-für (salami i = 3; i <= kunden.länge(); i++) {
+    rest -= tipp;
     margherita k = kunden.stück(i);
-    salami weg = wege.stück(i);
-    salami tipp = trinkgelder.stück(i);
-    Bote.sage(("Startnummer " + (i - 2) + ": " + k + ", " + weg + " min, Trinkgeld " + tipp + " €"));
-    bestelle(() -> (Rallye.fahre(k, weg)))
+    salami f = fahrten.stück(i);
+    salami g = geduld.stück(i);
+    bestelle(() -> (Tour.fahre(f)))
         .trinkgeld(tipp)
-        .wennDa(info -> Rallye.angekommen(info, tipp));
+        .wennDa(x -> Tour.angekommen(k, f, g, tipp));
 }
 
-// Kurz vor Schluss ruft ein Gastrokritiker an – bestellt zuletzt, zahlt am meisten
-Bote.sage(("Letzter Anruf: Gastrokritiker, 25 min, Trinkgeld 6 €"));
-bestelle(() -> (Rallye.fahre("Gastrokritiker", 25)))
-    .trinkgeld(6)
-    .wennDa(info -> Rallye.angekommen(info, 6));
-
-Bote.sage(("=== Küche zu – Roller starten! ==="));
+Bote.sage(("=== Küche zu – der Roller startet! ==="));

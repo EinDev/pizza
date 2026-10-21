@@ -1,17 +1,31 @@
-=== PIZZA-DUELL: Luigi vs. Mario ===
-Runde 1: ((Tomate, Mozzarella))  [Luigi 300° | Mario 400°]
-  Zeiten: Luigi 875ms, Mario 665ms  → Bonus für Mario  (Stand 2:3)
-Runde 2: ((Tomate, Mozzarella, Basilikum))  [Luigi 340° | Mario 425°]
-  Zeiten: Luigi 1145ms, Mario 926ms  → Bonus für Mario  (Stand 4:6)
-Runde 3: ((Tomate, Käse, Salami, Pilze))  [Luigi 380° | Mario 450°]
-  Zeiten: Luigi 1370ms, Mario 1166ms  → Bonus für Mario  (Stand 6:9)
-Runde 4: ((Tomate, Mozzarella, Schinken, Pilze, Oliven))  [Luigi 420° | Mario 475°]
-  Mario: verbrannt – Rand angekokelt
-  Zeiten: Luigi 1550ms, Mario –  → Bonus für Luigi  (Stand 9:9)
-Runde 5: ((Tomate, Käse, Salami, Schinken, Paprika, Zwiebeln, Chili))  [Luigi 460° | Mario 500°]
-  Luigi: roh! nur 93% gar
-  Mario: verbrannt – Zu heiß! Selbst Neapel hat Grenzen.
-  Zeiten: Luigi –, Mario –  → kein Bonus  (Stand 9:9)
+=== PIZZA-DUELL: Du gegen Mario ===
+Runde 1: ((Tomate, Mozzarella)) – braucht etwa 500 Ofeneinheiten
+Deine Temperatur (150-500): Deine Backzeit in ms (100-5000):   Du   : 300 Grad, 450 ms → gar
+  Mario: 430 Grad, 357 ms → verbrannt: Rand angekokelt
+  Schneller: Du! +1
+  Stand: Du 3 : 0 Mario
+Runde 2: ((Tomate, Mozzarella, Basilikum)) – braucht etwa 750 Ofeneinheiten
+Deine Temperatur (150-500): Deine Backzeit in ms (100-5000):   Du   : 400 Grad, 450 ms → roh (98 % gar)
+  Mario: 440 Grad, 490 ms → gar
+  Schneller: Mario! +1
+  Stand: Du 3 : 3 Mario
+Runde 3: ((Tomate, Käse, Salami, Pilze)) – braucht etwa 1000 Ofeneinheiten
+Deine Temperatur (150-500):   Mario lacht: 'heiß' ist keine Zahl.
+Deine Temperatur (150-500):   Nur ganze Zahlen von 150 bis 500, bitte.
+Deine Temperatur (150-500): Deine Backzeit in ms (100-5000):   Du   : 400 Grad, 650 ms → gar
+  Mario: 390 Grad, 826 ms → gar
+  Schneller: Du! +1
+  Stand: Du 6 : 5 Mario
+Runde 4: ((Tomate, Mozzarella, Schinken, Pilze, Oliven)) – braucht etwa 1250 Ofeneinheiten
+Deine Temperatur (150-500): Deine Backzeit in ms (100-5000):   Du   : 420 Grad, 780 ms → gar
+  Mario: 460 Grad, 842 ms → gar
+  Schneller: Du! +1
+  Stand: Du 9 : 7 Mario
+Runde 5: ((Tomate, Käse, Salami, Schinken, Paprika, Zwiebeln, Chili)) – braucht etwa 1750 Ofeneinheiten
+Deine Temperatur (150-500): Deine Backzeit in ms (100-5000):   Du   : 480 Grad, 950 ms → gar
+  Mario: 460 Grad, 1264 ms → gar
+  Schneller: Du! +1
+  Stand: Du 12 : 9 Mario
 
-Endstand  Luigi ********* 9  :  9 ********* Mario
-Unentschieden – beide müssen die verbrannten Pizzen essen.
+Endstand  Du ************ 12 : 9 ********* Mario
+Du gewinnst den Goldenen Pizzaschieber!

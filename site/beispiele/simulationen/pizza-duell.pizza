@@ -1,46 +1,55 @@
-// Pizza-Duell: Luigi (vorsichtig) gegen Mario (Hitzkopf).
-// Fünf Runden, jede Pizza hat mehr Beläge. Gar = 2 Punkte, schneller = +1.
-// Heißer Ofen = schneller gar und mehr Budget – aber über 485 Grad verbrennt
-// alles, und über 420 Grad kann der Rand ankokeln (1:4, Würfel mit Seed 42).
-// Zu kalt? Dann reicht das Ofen-Budget nicht, und die Pizza bleibt roh.
+// Pizza-Duell: DU gegen Mario, den KI-Pizzaiolo. Fünf Runden Wettbacken.
+// Pro Runde wählst du Temperatur und Backzeit. Der Ofen liefert
+//   Ofeneinheiten = Backzeit (ms) × Grad / 250.
+// Zu wenig Einheiten: roh. Mehr als das 1,5-Fache des Bedarfs: übergart.
+// Über 485 Grad verbrennt alles, über 420 Grad kokelt der Rand gern an (1:4).
+// Gar = 2 Punkte, wer gar UND schneller ist, bekommt +1.
 
 klasse Pizzaiolo {
     margherita name;
-    salami grad;
-    salami plus;
     salami punkte = 0;
-    Pizzaiolo(margherita name, salami grad, salami plus) {
-        dies.name = name; dies.grad = grad; dies.plus = plus;
-    }
+    Pizzaiolo(margherita name) { dies.name = name; }
 
-    // Liefert die Backzeit in ms oder -1 (roh) / -2 (verbrannt)
-    salami backe(salami beläge) {
-        salami nötig = 170 * beläge;
+    // Liefert die Backzeit, wenn die Pizza gelingt, sonst 0
+    salami backe(salami beläge, salami grad, salami zeit) {
         Dauer start = Uhr.jetzt();
-        salami ergebnis = ofen(temperatur: grad, zeit: 1s) {
-            falls (grad > 420 && Zufall.zahl(1, 4) == 4) {
-                wirf neu VerbranntAnanas("Rand angekokelt");
-            }
-            funghi gar = 0;
-            solange (gar < nötig) {
-                gar += grad / 50;
-                zwischenstand(((gar * 100 / nötig).ganz()));
-            }
-            serviere (((Uhr.jetzt() - start).inMs()));
+        margherita urteil = ofen(temperatur: grad, zeit: 1ms * zeit) {
+            falls (grad > 420 && Zufall.zahl(1, 4) == 4) { wirf neu VerbranntAnanas("Rand angekokelt"); }
+            salami gar = 0;
+            salami nötig = 20 * beläge;
+            solange (gar < nötig) { gar++; zwischenstand((gar * 100 / nötig).ganz()); }
+            serviere (("gar"));
         } roh (r) {
-            Bote.sage(("  " + name + ": roh! nur " + r.teilergebnis() + "% gar"));
-            serviere ((-1));
+            serviere (("roh (" + r.teilergebnis() + " % gar)"));
         } verbrannt (VerbranntAnanas a) {
-            Bote.sage(("  " + name + ": verbrannt – " + a.nachricht()));
-            serviere ((-2));
+            serviere (("verbrannt: " + a.nachricht()));
         };
-        grad += plus;
-        serviere ((ergebnis));
+        // Viel mehr Ofen als nötig? Dann ist sie übergart.
+        falls (urteil == "gar" && zeit * grad / 250 > 1.5 * (Uhr.jetzt() - start).inMs()) {
+            urteil = "übergart (zu lange drin)";
+        }
+        Bote.sage(("  " + name + ": " + grad + " Grad, " + zeit + " ms → " + urteil));
+        serviere ((urteil == "gar" ? zeit : 0));
     }
 }
 
-Pizzaiolo luigi = neu Pizzaiolo("Luigi", 300, 40);
-Pizzaiolo mario = neu Pizzaiolo("Mario", 400, 25);
+// Fragt eine ganze Zahl im Bereich. karton = Spieler ist gegangen → -1
+// (Typ "Zahl" ist kein eingebauter Typ und wird nicht geprüft – so passt auch karton hinein.)
+salami frage(margherita text, salami min, salami max) {
+    solange (ja) {
+        probier {
+            Zahl z = Bestellannahme.frageZahl((text + " (" + min + "-" + max + "): "));
+            falls (z == karton) { serviere ((-1)); }
+            falls (z == z.ganz() && z >= min && z <= max) { serviere ((z.ganz())); }
+            Bote.sage(("  Nur ganze Zahlen von " + min + " bis " + max + ", bitte."));
+        } verbrannt (TypAnanas a) {
+            Bote.sage(("  Mario lacht: " + a.nachricht()));
+        }
+    }
+}
+
+Pizzaiolo du = neu Pizzaiolo("Du   ");
+Pizzaiolo mario = neu Pizzaiolo("Mario");
 Blech<Pizza> runden = [
     ((Tomate, Mozzarella)),
     ((Tomate, Mozzarella, Basilikum)),
@@ -49,27 +58,36 @@ Blech<Pizza> runden = [
     ((Tomate, Käse, Salami, Schinken, Paprika, Zwiebeln, Chili))
 ];
 
-Bote.sage(("=== PIZZA-DUELL: Luigi vs. Mario ==="));
+Bote.sage(("=== PIZZA-DUELL: Du gegen Mario ==="));
+diavolo gegangen = nein;
 für (salami r = 1; r <= runden.länge(); r++) {
     Pizza p = runden.stück(r);
-    Bote.sage(("Runde " + r + ": " + p + "  [Luigi " + luigi.grad + "° | Mario " + mario.grad + "°]"));
-    salami l = luigi.backe(p.anzahlBeläge());
-    salami m = mario.backe(p.anzahlBeläge());
-    // Gar = 2 Punkte, wer schneller gar ist, bekommt noch 1 Bonuspunkt
-    falls (l > 0) { luigi.punkte += 2; }
+    salami bedarf = 250 * p.anzahlBeläge();
+    Bote.sage(("Runde " + r + ": " + p + " – braucht etwa " + bedarf + " Ofeneinheiten"));
+    salami grad = frage("Deine Temperatur", 150, 500);
+    salami zeit = grad < 0 ? -1 : frage("Deine Backzeit in ms", 100, 5000);
+    falls (zeit < 0) { gegangen = ja; abbrechen; }
+
+    // Mario schätzt: heißer Ofen, Zeit mit 10–40 % Sicherheitszuschlag
+    salami mGrad = Zufall.zahl(36, 47) * 10;
+    salami mZeit = (bedarf * 250 / mGrad * Zufall.zahl(110, 140) / 100).ganz();
+
+    salami d = du.backe(p.anzahlBeläge(), grad, zeit);
+    salami m = mario.backe(p.anzahlBeläge(), mGrad, mZeit);
+    falls (d > 0) { du.punkte += 2; }
     falls (m > 0) { mario.punkte += 2; }
-    margherita bonus = "kein Bonus";
-    falls (l > 0 && (m < 0 || l < m)) { bonus = "Bonus für Luigi"; luigi.punkte++; }
-    sonst falls (m > 0) { bonus = "Bonus für Mario"; mario.punkte++; }
-    Bote.sage(("  Zeiten: Luigi " + (l > 0 ? l + "ms" : "–") + ", Mario " + (m > 0 ? m + "ms" : "–")
-        + "  → " + bonus + "  (Stand " + luigi.punkte + ":" + mario.punkte + ")"));
+    falls (d > 0 && (m == 0 || d < m)) { du.punkte++; Bote.sage(("  Schneller: Du! +1")); }
+    sonst falls (m > 0 && (d == 0 || m < d)) { mario.punkte++; Bote.sage(("  Schneller: Mario! +1")); }
+    Bote.sage(("  Stand: Du " + du.punkte + " : " + mario.punkte + " Mario"));
 }
 
 Bote.sage((""));
-Bote.sage(("Endstand  Luigi " + "*".wiederhole(luigi.punkte) + " " + luigi.punkte
-    + "  :  " + mario.punkte + " " + "*".wiederhole(mario.punkte) + " Mario"));
-falls (luigi.punkte == mario.punkte) {
-    Bote.sage(("Unentschieden – beide müssen die verbrannten Pizzen essen."));
+falls (gegangen) {
+    Bote.sage(("Du hast die Küche verlassen. Mario gewinnt kampflos."));
 } sonst {
-    Bote.sage(((luigi.punkte > mario.punkte ? "Luigi" : "Mario") + " gewinnt den Goldenen Pizzaschieber!"));
+    Bote.sage(("Endstand  Du " + "*".wiederhole(du.punkte) + " " + du.punkte
+        + " : " + mario.punkte + " " + "*".wiederhole(mario.punkte) + " Mario"));
+    falls (du.punkte > mario.punkte) { Bote.sage(("Du gewinnst den Goldenen Pizzaschieber!")); }
+    sonst falls (du.punkte < mario.punkte) { Bote.sage(("Mario gewinnt. Er zwirbelt triumphierend den Schnurrbart.")); }
+    sonst { Bote.sage(("Unentschieden – ihr esst die verbrannten Pizzen gemeinsam.")); }
 }
