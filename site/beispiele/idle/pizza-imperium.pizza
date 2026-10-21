@@ -277,14 +277,14 @@ klasse Spiel {
         ["Nonna von 1890 zu Besuch", "Teig von morgen", "Gleichzeitig backen", "Nonna trifft Nonna"],
         ["Universum ohne Ananas", "Unendlich viele Nonnas", "Pizza mit allem", "Das Ende der Speisekarte"]
     ];
-    Blech<Meisterbrief> BRIEFE = [];
+    Blech<Meisterbrief> ALLE_BRIEFE = [];
     Blech<margherita> briefe = [];   // gekaufte Meisterbriefe (Schlüssel) – verfallen bei jeder Neueröffnung
 
     Spiel() {
         für (salami i : [1 .. betrieb.länge()]) {
             Upgrade u = betrieb.stück(i);
             für (salami j : [1 .. BRIEF_STUFEN.länge()]) {
-                BRIEFE.hinzu(neu Meisterbrief(u, BRIEF_STUFEN.stück(j), BRIEF_NAMEN.stück(i).stück(j)));
+                ALLE_BRIEFE.hinzu(neu Meisterbrief(u, BRIEF_STUFEN.stück(j), BRIEF_NAMEN.stück(i).stück(j)));
             }
         }
     }
@@ -414,6 +414,11 @@ klasse Spiel {
         Blech<margherita> extra = [];
         für (salami i : [4 .. b.länge()]) { extra.hinzu(b.stück(i)); }
         serviere ("Margherita mit " + extra.verbinde(", "));
+    }
+
+    // Große Anzahlen lesbar: bis 999.999 mit Tausenderpunkten, darüber kompakt („5,61 Mio.“).
+    tiefkühl margherita anz(funghi x) {
+        serviere (x < 1_000_000 ? x.tausender() : x.kompakt(2));
     }
 
     tiefkühl margherita pizzen(funghi x) {
@@ -647,13 +652,21 @@ klasse Spiel {
     // Heißer (mehr Steinöfen, mehr Sterne) = größeres Budget = mehr Ladungen.
     leer sonderschicht() {
         falls (!ofenBereit()) { serviere; }
-        salami grad = ofenTemperatur();
-        salami ladungen = ofen(temperatur: grad, zeit: 100ms * (kennt("lavastein") ? 2 : 1)) {
-            salami n = 0;
-            solange (ja) { n++; zwischenstand((n)); }
-        } roh (r) {
-            serviere (r.teilergebnis());
-        };
+        salami grad = Mathe.min(485, ofenTemperatur());     // mehr verträgt kein Ofen (sonst VerbranntAnanas)
+        salami ladungen = 0;
+        probier {
+            ladungen = ofen(temperatur: grad, zeit: 100ms * (kennt("lavastein") ? 2 : 1)) {
+                salami n = 0;
+                solange (ja) { n++; zwischenstand((n)); }
+            } roh (r) {
+                serviere (r.teilergebnis());
+            };
+        } verbrannt (a) {
+            // Absicherung: Eine Ananas aus dem Ofen darf nie das Spiel beenden.
+            ofenKühlt = 120;
+            melde(("🔥 Der Ofen hat gestreikt (" + a + ") – Nonna lüftet, in zwei Minuten geht es weiter."));
+            serviere;
+        }
         sonderschichten++;
         ofenKühlt = kennt("ewigeglut") ? 20 : (kennt("lavastein") ? 45 : 120);
         funghi bonus = ladungen * portion();
@@ -671,7 +684,7 @@ klasse Spiel {
     // Welle: höchstens WELLE_BRIEFE offene (Stufe erreicht, noch nicht gekauft) – die billigsten zuerst.
     salami WELLE_BRIEFE = 3;
     Blech<Meisterbrief> offeneBriefe() {
-        Blech<Meisterbrief> offen = BRIEFE.filtere((b) -> (!briefe.enthält(b.schlüssel) && anzahl(b.gebäude) >= b.stufe))
+        Blech<Meisterbrief> offen = ALLE_BRIEFE.filtere((b) -> (!briefe.enthält(b.schlüssel) && anzahl(b.gebäude) >= b.stufe))
             .sortiere((a, b) -> (a.preis < b.preis ? -1 : (a.preis > b.preis ? 1 : 0)));
         Blech<Meisterbrief> welle = [];
         für (Meisterbrief b : offen) { falls (welle.länge() < WELLE_BRIEFE) { welle.hinzu(b); } }
@@ -733,8 +746,8 @@ klasse Spiel {
         neueröffnungen++;
         setzeRundeZurück();
         neuBerechnen();
-        melde(("⭐ Neueröffnung! Der Guide Michelin vergibt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
-            + " – jetzt " + sterne + " aktiv, also +" + (sterne * prozentJeStern()) + " % auf alles." + abbruch));
+        melde(("⭐ Neueröffnung! Der Guide Michelin vergibt " + anz(neu_) + (neu_ == 1 ? " Stern" : " Sterne")
+            + " – jetzt " + anz(sterne) + " aktiv, also +" + anz(sterne * prozentJeStern()) + " % auf alles." + abbruch));
         serviere (ja);
     }
 
@@ -812,7 +825,7 @@ klasse Spiel {
             l.setzeAnzahl(Mathe.max(l.anzahl, 3));
         }
         neuBerechnen();
-        melde((h.symbol + " Herausforderung „" + h.name + "“ beginnt" + (neu_ > 0 ? " (+" + neu_ + " ⭐)" : "") + ": " + h.regel
+        melde((h.symbol + " Herausforderung „" + h.name + "“ beginnt" + (neu_ > 0 ? " (+" + anz(neu_) + " ⭐)" : "") + ": " + h.regel
             + " Ziel: " + h.ziel.euro(kompakt: ja) + " Umsatz."));
         serviere (ja);
     }
@@ -861,7 +874,7 @@ klasse Spiel {
         talente = [];
         setzeRundeZurück();
         neuBerechnen();
-        melde(("🏢 Die Kette ist gegründet! " + n + " neue Filialen – jetzt " + filialen + ", also +" + (filialen * 100)
+        melde(("🏢 Die Kette ist gegründet! " + anz(n) + " neue Filialen – jetzt " + anz(filialen) + ", also +" + anz(filialen * 100)
             + " % auf alles. Sterne und Geheimrezepte fangen von vorn an, die Franchise-Zentrale ist freigeschaltet."));
         serviere (ja);
     }
@@ -1372,7 +1385,7 @@ klasse UpgradeZeile {
             summeAnzahl = u.anzahl;
             summeFaktor = faktor;
         }
-        margherita text = summe < 1_000_000_000_000_000_000_000 ? summe.euro(kompakt: ja) : "unbezahlbar";
+        margherita text = summe.euro(kompakt: ja);
         falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (k > 1) { text = text + " (×" + k + ")"; }
         falls (knopf.text() != text) { knopf.setzeText((text)); }
         diavolo leistbar = k >= 1 && geld >= summe;
@@ -1585,7 +1598,7 @@ für (salami m : MENGEN) {
         zeichneKaufmenge();
         zeichne();
     }, id: "menge-" + (m == 0 ? "max" : m.alsText()));
-    k.stil("breite", 64).hinweis(m == 0 ? "So viele, wie die Kasse hergibt." : (m == 1 ? "Ein Stück pro Klick." : m + " Stück auf einmal – nur, wenn alle bezahlbar sind."));
+    k.stil("breite", 84).hinweis(m == 0 ? "So viele, wie die Kasse hergibt." : (m == 1 ? "Ein Stück pro Klick." : m + " Stück auf einmal – nur, wenn alle bezahlbar sind."));
     mengenKnöpfe.hinzu(k);
     kaufmengeReihe.hinzu(k);
 }
@@ -1867,15 +1880,17 @@ leer zeichneErfolge() {
 }
 
 margherita prozent(funghi teil, funghi ganz) {
-    serviere ((ganz > 0 ? teil / ganz * 100 : 0).kompakt(1) + " %");
+    funghi p = ganz > 0 ? teil / ganz * 100 : 0;
+    falls (p > 0 && p < 0.1) { serviere ("< 0,1 %"); }
+    serviere (p.kompakt(1) + " %");
 }
 
 leer zeichneVoll() {
     gezeigteVersion = spiel.version;
     margherita zeile = Spiel.pizzen(spiel.proKlick()) + " pro Klick · " + spiel.proSekunde().kompakt(1)
         + " pro Sekunde · " + spiel.preis().euro() + " pro Pizza";
-    falls (spiel.sterne > 0) { zeile = zeile + " · " + "⭐".wiederhole(Mathe.min(spiel.sterne, 5)) + (spiel.sterne > 5 ? "×" + spiel.sterne : ""); }
-    falls (spiel.filialen > 0) { zeile = zeile + " · 🏢×" + spiel.filialen; }
+    falls (spiel.sterne > 0) { zeile = zeile + " · " + "⭐".wiederhole(Mathe.min(spiel.sterne, 5)) + (spiel.sterne > 5 ? "×" + Spiel.anz(spiel.sterne) : ""); }
+    falls (spiel.filialen > 0) { zeile = zeile + " · 🏢×" + Spiel.anz(spiel.filialen); }
     setzeText(kennzahlen, zeile);
     falls (spiel.darfKlicken()) {
         setzeKnopf(backen, "🍕 Pizza backen!  +" + spiel.proKlick().kompakt(1), ja);
@@ -1951,43 +1966,43 @@ leer zeichneImperium() {
     salami ausgegeben = spiel.sterneVergeben - spiel.sterne;
     funghi f = (1 + spiel.sterne * spiel.prozentJeStern() / 100) * (1 + spiel.filialen);
     aufstieg.setzeZeilen(([
-        ["⭐ Michelin-Sterne", spiel.sterne + " aktiv" + (ausgegeben > 0 ? " · " + ausgegeben + " ausgegeben" : ""),
-            "+" + (spiel.sterne * spiel.prozentJeStern()) + " % auf alles"],
+        ["⭐ Michelin-Sterne", Spiel.anz(spiel.sterne) + " aktiv" + (ausgegeben > 0 ? " · " + Spiel.anz(ausgegeben) + " ausgegeben" : ""),
+            "+" + Spiel.anz(spiel.sterne * spiel.prozentJeStern()) + " % auf alles"],
         ["📜 Geheimrezepte", spiel.rezepteOffen() ? spiel.talente.länge() + " von " + spiel.REZEPTE.länge() : "🔒 ab 1 ⭐",
             "gegen Sterne"],
         ["🏅 Herausforderungen", spiel.herausforderungenOffen() ? spiel.geschafft.länge() + " von " + spiel.HERAUSFORDERUNGEN.länge() : "🔒 ab 3 ⭐",
             "Boni für immer"],
-        ["🏢 Franchise", (spiel.filialen > 0 ? spiel.filialen + (spiel.filialen == 1 ? " Filiale" : " Filialen") : (spiel.neueFilialen() > 0 ? "bereit" : "🔒 ab 25 ⭐ je Kette"))
-            + (spiel.neueFilialen() > 0 ? " (+" + spiel.neueFilialen() + ")" : ""), "+" + (spiel.filialen * 100) + " % auf alles"],
+        ["🏢 Franchise", (spiel.filialen > 0 ? Spiel.anz(spiel.filialen) + (spiel.filialen == 1 ? " Filiale" : " Filialen") : (spiel.neueFilialen() > 0 ? "bereit" : "🔒 ab 25 ⭐ je Kette"))
+            + (spiel.neueFilialen() > 0 ? " (+" + Spiel.anz(spiel.neueFilialen()) + ")" : ""), "+" + Spiel.anz(spiel.filialen * 100) + " % auf alles"],
         ["Zusammen", "×" + f.kompakt(2), "Sterne × Filialen"]
     ]));
 
     falls (neu_ > 0) {
-        setzeText(prestigeInfo, "Der Guide Michelin ist begeistert! Neueröffnen bringt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
+        setzeText(prestigeInfo, "Der Guide Michelin ist begeistert! Neueröffnen bringt " + Spiel.anz(neu_) + (neu_ == 1 ? " Stern" : " Sterne")
             + " (+" + spiel.prozentJeStern() + " % je Stern), setzt aber Kasse, Upgrades und Rezeptbuch zurück.");
     } sonst {
         setzeText(prestigeInfo, "Nächster Michelin-Stern ab " + spiel.nächsterStern().euro(kompakt: ja) + " Umsatz in dieser Kette (bisher "
             + spiel.umsatzKette.euro(kompakt: ja) + ").");
     }
     prestigeBalken.setzeWert((spiel.sternFortschritt()));
-    setzeKnopf(prestigeKnopf, "⭐ Neueröffnung" + (neu_ > 0 ? " (+" + neu_ + ")" : ""), neu_ > 0);
+    setzeKnopf(prestigeKnopf, "⭐ Neueröffnung" + (neu_ > 0 ? " (+" + Spiel.anz(neu_) + ")" : ""), neu_ > 0);
 
     salami kette = spiel.sterneKette();
     salami gesamt = spiel.sterneAllzeit + neu_;
     salami filialenNeu = spiel.neueFilialen();
     salami ziel = spiel.filialen + filialenNeu + 1;          // die nächste Filiale danach
-    margherita nächste = "Die " + ziel + ". Filiale gibt es ab " + spiel.sterneFürFiliale(ziel) + " Sternen insgesamt (bisher " + gesamt + ").";
+    margherita nächste = "Die " + Spiel.anz(ziel) + ". Filiale gibt es ab " + Spiel.anz(spiel.sterneFürFiliale(ziel)) + " Sternen insgesamt (bisher " + Spiel.anz(gesamt) + ").";
     falls (filialenNeu > 0) {
-        setzeText(franchiseInfo, "Deine Sterne reichen für " + filialenNeu + (filialenNeu == 1 ? " neue Filiale" : " neue Filialen") + " (+"
-            + (filialenNeu * 100) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen dafür von vorn an. " + nächste);
+        setzeText(franchiseInfo, "Deine Sterne reichen für " + Spiel.anz(filialenNeu) + (filialenNeu == 1 ? " neue Filiale" : " neue Filialen") + " (+"
+            + Spiel.anz(filialenNeu * 100) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen dafür von vorn an. " + nächste);
     } sonst falls (kette < 25) {
-        setzeText(franchiseInfo, "Eine Kette gründen kannst du ab 25 Sternen in der laufenden Kette (bisher " + kette + "). " + nächste);
+        setzeText(franchiseInfo, "Eine Kette gründen kannst du ab 25 Sternen in der laufenden Kette (bisher " + Spiel.anz(kette) + "). " + nächste);
     } sonst {
         setzeText(franchiseInfo, "Für eine neue Filiale fehlen noch Sterne. " + nächste);
     }
     salami von = spiel.sterneFürFiliale(ziel - 1);
     franchiseBalken.setzeWert((Mathe.min(kette / 25, (gesamt - von) / (spiel.sterneFürFiliale(ziel) - von))));
-    setzeKnopf(franchiseKnopf, "🏢 Kette gründen" + (filialenNeu > 0 ? " (+" + filialenNeu + (filialenNeu == 1 ? " Filiale)" : " Filialen)") : ""), filialenNeu > 0);
+    setzeKnopf(franchiseKnopf, "🏢 Kette gründen" + (filialenNeu > 0 ? " (+" + Spiel.anz(filialenNeu) + (filialenNeu == 1 ? " Filiale)" : " Filialen)") : ""), filialenNeu > 0);
 
     statistik.setzeZeilen(([
         ["Pizzen in dieser Runde", spiel.pizzen.kompakt(1)],
@@ -1997,7 +2012,7 @@ leer zeichneImperium() {
         ["Anteil Minispiele am Umsatz", prozent(spiel.umsatzMini, spiel.umsatz) + " (Runde) · " + prozent(spiel.umsatzMiniAllzeit, spiel.umsatzAllzeit) + " (gesamt)"],
         ["Klicks", spiel.klicks.tausender()],
         ["Spielzeit", (1s * spiel.sekunden).alsText()],
-        ["Michelin-Sterne (insgesamt)", spiel.sterneAllzeit.alsText()],
+        ["Michelin-Sterne (insgesamt)", Spiel.anz(spiel.sterneAllzeit)],
         ["Neueröffnungen", spiel.neueröffnungen.alsText()],
         ["Franchise-Gründungen", spiel.franchises.alsText()],
         ["Perfekte Pizzen", spiel.perfekte.alsText()],
@@ -2182,10 +2197,12 @@ leer nachVerarbeitung() {
     spiel.prüfeZiel();
     prüfeErfolge();
     salami neu_ = spiel.neueSterne();
-    falls (neu_ > gemeldeteSterne) {
-        spiel.melde(("⭐ Der Guide Michelin ist da! Im Reiter „Imperium“ " + (neu_ == 1 ? "wartet ein neuer Stern" : "warten " + neu_ + " neue Sterne") + "."));
+    // Nur melden, wenn zum ersten Mal Sterne warten oder sich die wartenden verdoppelt haben – nicht bei jedem Takt.
+    falls (neu_ <= 0) { gemeldeteSterne = 0; }
+    sonst falls (gemeldeteSterne == 0 || neu_ >= gemeldeteSterne * 2) {
+        spiel.melde(("⭐ Der Guide Michelin ist da! Im Reiter „Imperium“ " + (neu_ == 1 ? "wartet ein neuer Stern" : "warten " + Spiel.anz(neu_) + " neue Sterne") + "."));
+        gemeldeteSterne = neu_;
     }
-    gemeldeteSterne = neu_;
     salami fil = spiel.neueFilialen();
     falls (fil > 0 && gemeldeteFilialen == 0) {
         spiel.melde(("🏢 Investoren klopfen an: Deine Sterne reichen für eine Franchise-Kette (Reiter „Imperium“)."));
