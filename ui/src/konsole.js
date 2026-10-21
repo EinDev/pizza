@@ -252,11 +252,12 @@ export function erstelleKonsole({ springe }) {
         motorBadge.dataset.motor = "wasm";
         return;
       }
-      let text = wasm ? "Wasm ⚡" : "Interpreter";
-      if (wasm && typeof ev.kompilierMs === "number") text += " · " + formatMs(ev.kompilierMs) + " kompiliert";
-      // Grund steht im Tooltip – das Badge bleibt kurz
-      motorBadge.textContent = text;
-      motorBadge.title = wasm ? "Ausgeführt als WebAssembly" : ev.grund ? "Interpreter, weil: " + ev.grund : "Ausgeführt im Interpreter";
+      // Kurz im Badge, Details (Kompilierzeit, Grund) im Tooltip
+      motorBadge.innerHTML = iconSvg(wasm ? "zap" : "cpu");
+      motorBadge.appendChild(document.createTextNode(wasm ? "Wasm" : "Interpreter"));
+      motorBadge.title = wasm
+        ? "Ausgeführt als WebAssembly" + (typeof ev.kompilierMs === "number" ? " · " + formatMs(ev.kompilierMs) + " kompiliert" : "")
+        : ev.grund ? "Interpreter, weil: " + ev.grund : "Ausgeführt im Interpreter";
       motorBadge.dataset.motor = ev.motor;
     },
     setzeLauf({ laeuft, name }) {
@@ -276,14 +277,18 @@ export function erstelleKonsole({ springe }) {
       badge.dataset.exitCode = String(code);
       badge.textContent = d.text + " · " + code;
       badge.title = d.titel;
-      const teile = [];
-      if (name) teile.push(name);
-      if (zusatz) teile.push(zusatz);
-      if (laufMs != null) teile.push("Lauf " + formatMs(laufMs));
-      if (wandMs != null) teile.push(formatMs(wandMs) + " gesamt");
-      if (zeitMs != null) teile.push(formatMs(zeitMs) + " Ofenzeit");
-      if (schritte != null) teile.push(new Intl.NumberFormat("de-DE").format(schritte) + " Schritte");
-      info.textContent = teile.join(" · ");
+      // Sichtbar: Tab · Laufzeit · Schritte; alles Weitere im Tooltip
+      const zahl = (n) => new Intl.NumberFormat("de-DE").format(n);
+      const kurz = [], lang = [];
+      if (name) { kurz.push(name); lang.push("Tab: " + name); }
+      if (zusatz) { kurz.push(zusatz); lang.push(zusatz); }
+      if (laufMs != null) { kurz.push(formatMs(laufMs)); lang.push("Lauf: " + formatMs(laufMs)); }
+      else if (wandMs != null) kurz.push(formatMs(wandMs));
+      if (schritte != null) { kurz.push(zahl(schritte) + " Schritte"); lang.push("Schritte: " + zahl(schritte)); }
+      if (wandMs != null) lang.push("Gesamt (mit Start): " + formatMs(wandMs));
+      if (zeitMs != null) lang.push("Ofenzeit (simuliert): " + formatMs(zeitMs));
+      info.textContent = kurz.join(" · ");
+      info.title = lang.join("\n");
     },
   };
 }

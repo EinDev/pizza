@@ -115,7 +115,7 @@ function start() {
   });
   tabs = erstelleTabs({
     editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
-    beiWechsel(t) { const f = document.getElementById("args"); if (f && t) f.value = t.args || ""; },
+    beiWechsel(t) { const f = document.getElementById("args"); if (f && t) { f.value = t.args || ""; f.dispatchEvent(new Event("lauf-punkt")); } },
     beiTeilen: () => $("knopf-teilen").click(),
     beiExe: () => exeDialogOeffnen(),
     toast,
@@ -487,18 +487,41 @@ function start() {
   exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
   knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
 
-  // ---------- Argumente (pro Tab) ----------
+  // ---------- Lauf-Einstellungen (Popover in der Konsolenleiste): Argumente pro Tab, feste Saat ----------
   const argsFeld = $("args");
-  argsFeld.title = ARGUMENTE_HILFE;
-  $("args-feld").title = ARGUMENTE_HILFE;
+  const laufKnopf = $("knopf-lauf-optionen");
+  const laufPopover = $("lauf-popover");
+  { const h = ARGUMENTE_HILFE.replace(/^Argumente für hauptgang\(args\) – /, ""); $("args-hilfe").textContent = h.charAt(0).toUpperCase() + h.slice(1); }
   argsFeld.value = (tabs.aktiv() && tabs.aktiv().args) || "";
-  argsFeld.addEventListener("input", () => tabs.setzeArgs(argsFeld.value));
-  argsFeld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); backen(); } });
+  function laufPunkt() {
+    const args = argsFeld.value.trim(), fest = $("feste-saat").checked;
+    $("lauf-punkt").hidden = !args && !fest;
+    laufKnopf.title = "Lauf-Einstellungen" + (args ? " · Argumente: " + args : "") + (fest ? " · feste Saat 42" : "");
+  }
+  function laufOptionenOeffnen(fokusArgs = true) {
+    konsoleOeffnen();
+    laufPopover.hidden = false;
+    laufKnopf.setAttribute("aria-expanded", "true");
+    if (fokusArgs) { argsFeld.focus(); argsFeld.select(); }
+  }
+  function laufOptionenSchliessen(fokusZurueck) {
+    if (laufPopover.hidden) return;
+    laufPopover.hidden = true;
+    laufKnopf.setAttribute("aria-expanded", "false");
+    if (fokusZurueck) laufKnopf.focus();
+  }
+  laufKnopf.addEventListener("click", () => (laufPopover.hidden ? laufOptionenOeffnen(true) : laufOptionenSchliessen(false)));
+  laufPopover.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); laufOptionenSchliessen(true); } });
+  document.addEventListener("pointerdown", (e) => { if (!laufPopover.hidden && !$("lauf-optionen").contains(e.target)) laufOptionenSchliessen(false); }, true);
+  argsFeld.addEventListener("input", () => { tabs.setzeArgs(argsFeld.value); laufPunkt(); });
+  argsFeld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); laufOptionenSchliessen(false); backen(); } });
 
   // ---------- Zufallssaat (K-077) ----------
   const festeSaatBox = $("feste-saat");
   festeSaatBox.checked = speicher.hole("pizza.festeSaat") === "1";
-  festeSaatBox.addEventListener("change", () => speicher.setze("pizza.festeSaat", festeSaatBox.checked ? "1" : "0"));
+  festeSaatBox.addEventListener("change", () => { speicher.setze("pizza.festeSaat", festeSaatBox.checked ? "1" : "0"); laufPunkt(); });
+  argsFeld.addEventListener("lauf-punkt", laufPunkt);
+  laufPunkt();
   function neueSaat() {
     if (festeSaatBox.checked) return 42;
     try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]; }
@@ -987,7 +1010,8 @@ function start() {
       ...tabs.liste.filter((t) => !t.aktiv).map((t) => ({ id: "tab-zu-" + t.id, gruppe: "Wechseln zu", titel: t.name, aktion: () => tabs.wechsle(t.id) })),
       ...vorratNamen(vorratPraefix(tabs.aktiv())).map((n) => ({ id: "vorrat-" + n, icon: "trash", gruppe: "Vorrat", titel: "Vorrat löschen: " + n, aktion: () => vorratLoeschen(n) })),
       { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(tabs.aktiv())).length > 0 },
-      { id: "argumente", icon: "terminal", gruppe: "Ofen", titel: "Argumente für hauptgang(args) bearbeiten", aktion: () => { konsoleOeffnen(); argsFeld.focus(); argsFeld.select(); } },
+      { id: "argumente", icon: "terminal", gruppe: "Ofen", titel: "Argumente für hauptgang(args) bearbeiten", aktion: () => laufOptionenOeffnen(true) },
+      { id: "feste-saat", icon: "sliders", gruppe: "Ofen", titel: "Feste Saat 42 " + (document.getElementById("feste-saat").checked ? "ausschalten" : "einschalten"), aktion: () => { const b = $("feste-saat"); b.checked = !b.checked; b.dispatchEvent(new Event("change")); toast(b.checked ? "Feste Saat 42 ist an." : "Jeder Lauf bekommt wieder eine echte Zufallssaat.", "info"); } },
       { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
       { id: "panel", icon: "panel",  gruppe: "Ansicht", titel: "Seitenpanel ein-/ausblenden", kuerzel: K("Strg+B"), aktion: panelUmschalten },
       { id: "doku", icon: "book",  gruppe: "Ansicht", titel: "Doku anzeigen", aktion: () => { setzePanel(true); waehleTab("doku", true); } },
