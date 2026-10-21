@@ -1025,7 +1025,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-55 | `site/js/doku/30-referenz.js` (Doku-Agent), `e2e/**` (E2E-Agent) | Zeitlimit-Texte entfernen (P0003), Argumente-Feld, „Vorrat löschen“ dokumentieren; E2E-Zeitlimit-Test entfernen | – |
 | U-48 ✅ (4b7a2af) | `site/js/pizza.js`, `tests/faelle/` | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
 | U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
-| U-50 | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
+| U-50 ✅ | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
 | U-51 | `site/js/doku/*.js` (Doku-Agent) | Theke v2 (Takt, Zutaten, hinweis), Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf | Doku-Harness |
 | U-52 | `site/beispiele/idle/` (Idle-Agent) | nach U-48: Takt statt „Minute warten“, `.ereignisse`/`.ui-erwartet` neu erzeugen, eigene `Format`-Klasse durch `kompakt()` ersetzen | Prüfstand Beispiele |
 | U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |

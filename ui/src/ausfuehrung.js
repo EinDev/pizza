@@ -32,6 +32,22 @@ export function interaktivMoeglich() {
 
 const PUFFER_BYTES = 64 * 1024;
 
+/** `anzahl` eines Takt-Schlags wie der Interpreter: ganze Zahl ≥ 1, sonst 1 (K-084). */
+function taktAnzahl(a) {
+  return typeof a === "number" && Number.isInteger(a) && a >= 1 ? a : 1;
+}
+
+/** Hängt ein UI-Ereignis an die Warteschlange der Brücke an. Folgt ein `takt` direkt auf einen gestauten `takt` derselben
+ *  `id`, werden beide zu einem Ereignis mit summierter `anzahl` zusammengefasst (K-084, wie der Host-Kanal). Andere
+ *  Ereignisse werden nie umsortiert oder verschluckt; nur unmittelbar aufeinanderfolgende Schläge verschmelzen. */
+export function reiheUiEreignisEin(schlange, ereignis) {
+  const letztes = schlange[schlange.length - 1];
+  if (ereignis && ereignis.typ === "takt" && letztes && letztes.typ === "takt" && letztes.id === ereignis.id) {
+    schlange[schlange.length - 1] = { ...letztes, anzahl: taktAnzahl(letztes.anzahl) + taktAnzahl(ereignis.anzahl) };
+  } else schlange.push(ereignis);
+  return schlange;
+}
+
 export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat }) {
   let worker = null, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
@@ -107,7 +123,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         uiWartet = false;
         wartezeit += performance.now() - warteBeginn;
         signal(1, kodierer.encode(JSON.stringify(ereignis)));
-      } else uiSchlange.push(ereignis);
+      } else reiheUiEreignisEin(uiSchlange, ereignis);
     },
     /** Antwort auf eine Eingabe-Anfrage: Text oder null (= EOF). */
     antworte(text) {
