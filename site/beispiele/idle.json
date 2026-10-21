@@ -23,7 +23,7 @@
     {
       "id": "idle-pizza-imperium",
       "titel": "Pizza-Imperium",
-      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren, Erfolge sammeln und für Michelin-Sterne neu eröffnen. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb weitergebacken.",
+      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde – auf Dauer zählt der Betrieb, nicht der Klick), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren und Erfolge sammeln. Aufstieg in vier Ebenen: Michelin-Sterne durch Neueröffnung, Nonnas Geheimrezepte (Talentbaum gegen Sterne), Herausforderungen (Neapel-Modus, Hawaii-Verbot verschärft, Fastenzeit) und eine Franchise-Kette. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb bis zu 30 Minuten weitergebacken.",
       "datei": "idle/pizza-imperium.pizza",
       "erwartet": "idle/pizza-imperium.erwartet",
       "ereignisse": "idle/pizza-imperium.ereignisse",

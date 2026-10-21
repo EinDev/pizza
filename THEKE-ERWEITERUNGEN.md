@@ -192,7 +192,25 @@ HOST-ABI (Ereignisse kommen über `ui_warte`). `Uhr.echt()` braucht einen Import
 
 `pizza-imperium.pizza` nutzt alles aus §1–§8 direkt (kein Fallback mehr, Nutzerentscheidung F8): `Takt` (1 s, passive Produktion
 und Ereignisse in Sekunden), `kompakt()`/`euro(kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
-perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium), `Fortschritt` je Upgrade und
-für den nächsten Stern, `Tabelle` für Erfolge und Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse,
-Vorratskammer + `Uhr.echt()` für Speichern und Offline-Fortschritt (50 %, höchstens 8 h). Der Reiter „Imperium“ wird nur gezeichnet,
-wenn er offen ist (große Tabellen-Nachrichten sparen). Tests: Manifest-Feld `echtzeit` (fester Wert), leere Vorratskammer.
+perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium · Geheimnisse), `Fortschritt` je
+Upgrade, für den nächsten Stern, die nächste Filiale und das Ziel einer Herausforderung, `Tabelle` für Erfolge, Aufstieg und
+Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse, Vorratskammer + `Uhr.echt()` für Speichern und
+Offline-Fortschritt (50 %, höchstens 30 min). Die Reiter „Imperium“ und „Geheimnisse“ werden nur gezeichnet, wenn sie offen sind
+(große Tabellen-Nachrichten sparen). Tests: Manifest-Feld `echtzeit` (fester Wert), leere Vorratskammer; `.ereignisse` aus einem
+echten Lauf (Interpreter, Saat 42) mit Takt-Sprüngen bis zur ersten Franchise.
+
+**Aufstieg (v3, Spielstand `version` 3 – ältere Stände laden mit Standardwerten):**
+
+| Ebene | Freischaltung | Mechanik |
+|---|---|---|
+| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋, +10 % auf alles je **aktivem** Stern |
+| 📜 Geheimrezepte | 1. Stern | Talentbaum, kostet Sterne (ausgegebene Sterne verlieren ihre +10 %): Holzofen-Glut (1 ⭐, Betrieb +50 %), Sauerteig von 1890 (1 ⭐, Preis +20 %), Stammgäste (2 ⭐, Ereignisse doppelt so oft und doppelt so ergiebig), Nonnas Sparstrumpf (2 ⭐, nach Holzofen: Start mit 10 Lehrlingen + 5 Steinöfen), Nonnas Gedächtnis (3 ⭐, nach Sauerteig: Rezeptbuch bleibt), Lavastein-Ofen (4 ⭐, nach Holzofen: Sonderschicht doppelt so lang, 45 s Abkühlung) |
+| 🏅 Herausforderungen | 3 Sterne insgesamt | Neueröffnung unter Auflagen, Ziel = Umsatz der Runde, Belohnung für immer: Neapel-Modus (nur Lehrlinge/Steinöfen, 5 Mio. € → beide ×3), Hawaii-Verbot verschärft (kein Rezeptbuch, Hawaii-Gäste fliegen raus, 1 Mrd. € → Preis +25 %), Fastenzeit (kein Klicken, keine Sonderschicht, keine Ereignisse, 5 Mrd. € → Betrieb +25 %); „Aufgeben“ hebt die Auflagen auf |
+| 🏢 Franchise | 25 Sterne in der laufenden Kette | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale; setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
+
+Jeder Neustart (Neueröffnung, Herausforderung, Aufgeben, Franchise, Neu anfangen) fragt nach: erster Klick ändert den Knopftext,
+der zweite binnen 10 s bestätigt. **Klicken:** Klickwert = (1 + feste Handwerk-Pizzen) × Sterne × Filialen + Anteil (0,05 % je
+Kurier/Tarantella/Roboter/Vesuv) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der
+Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
+letzten 5 Minuten nach 15 min 12–15 %, nach 30 min 9–14 %, nach 55 min 6–9 % (10 Klicks/s: 18–27 % / 13–15 % / 12–16 %);
+nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.

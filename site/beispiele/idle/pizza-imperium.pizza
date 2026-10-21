@@ -3,12 +3,18 @@
 // ═══════════════════════════════════════════════════════════════════════
 //  Klick auf „Pizza backen!“, verkaufe jede Pizza zum echten Rezeptpreis,
 //  kaufe Handwerkszeug (mehr Pizzen pro Klick) und baue einen Betrieb auf,
-//  der von selbst backt (Pizzen pro Sekunde). Blättere in Nonnas
-//  Rezeptbuch (teurere Pizzen), sammle Erfolge und eröffne neu, um
-//  Michelin-Sterne zu bekommen (+10 % auf alles je Stern).
+//  der von selbst backt (Pizzen pro Sekunde) – auf Dauer ist der Betrieb
+//  das Herz des Imperiums, der Klick nur noch die Prise Salz.
+//
+//  Der Aufstieg hat vier Ebenen, die aufeinander aufbauen:
+//    ⭐ Neueröffnung     – Michelin-Sterne, +10 % auf alles je Stern
+//    📜 Geheimrezepte    – Nonnas Talentbaum, bezahlt mit Sternen
+//    🏅 Herausforderungen – Läufe unter Auflagen mit Belohnung für immer
+//    🏢 Franchise        – Kette gründen: Sterne werden zu Filialen
 //
 //  Der Spielstand liegt in der Vorratskammer: Beim nächsten Start geht es
-//  weiter – und die Lehrlinge haben in der Zwischenzeit gebacken.
+//  weiter – und der Betrieb hat in der Zwischenzeit gebacken
+//  (mit halber Kraft, höchstens 30 Minuten lang).
 //
 //  Sprache im Einsatz:
 //    • Takt              – die Uhr der Backstube (1 Schlag pro Sekunde)
@@ -21,43 +27,85 @@
 //    • kompakt()/euro(kompakt: ja) – „1,23 Mio. €“
 //    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
 //
-//  Aufbau:  Upgrade · Erfolg · Spiel (Regeln, ohne Oberfläche)
-//           · UpgradeZeile (eine Zeile der Oberfläche) · Oberfläche · Start
+//  Aufbau:  Upgrade · Geheimrezept · Herausforderung · Erfolg
+//           · Spiel (Regeln, ohne Oberfläche) · Zeilen der Oberfläche
+//           · Oberfläche · Start
 // ═══════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────── Upgrades ───────────────────────────────
-// Ein Upgrade kann man mehrfach kaufen; jedes weitere kostet 15 % mehr.
-// wirkung = Pizzen pro Klick (Handwerk) bzw. Pizzen pro Sekunde (Betrieb).
+// Ein Upgrade kann man mehrfach kaufen; jedes weitere kostet mehr
+// (Betrieb +15 %, Handwerk +40 bzw. +60 % – Klick-Werkzeug ist selten und teuer).
+// art: "klick"   – feste Pizzen pro Klick
+//      "anteil"  – Prozent der Sekundenproduktion pro Klick
+//      "betrieb" – Pizzen pro Sekunde
 klasse Upgrade {
     margherita schlüssel;
     margherita symbol;
     margherita name;
+    margherita art;
     margherita einheit;
     margherita beschreibung;
     funghi basis;
     funghi wirkung;
+    funghi faktor;
     salami anzahl = 0;
     funghi preisJetzt = 0;   // Preis des nächsten Stücks
     margherita zeile = "";   // Beschriftung für die Oberfläche
 
-    Upgrade(margherita s, margherita sym, margherita n, funghi b, funghi w, margherita e, margherita text) {
-        schlüssel = s; symbol = sym; name = n; basis = b; wirkung = w; einheit = e; beschreibung = text;
+    Upgrade(margherita s, margherita sym, margherita n, funghi b, funghi w, margherita a, margherita text) {
+        schlüssel = s; symbol = sym; name = n; basis = b; wirkung = w; art = a; beschreibung = text;
+        faktor = 1.4;
+        einheit = "% der Pizzen pro Sekunde je Klick";
+        falls (art == "klick") { einheit = w == 1 ? "Pizza pro Klick" : "Pizzen pro Klick"; faktor = 1.6; }
+        falls (art == "betrieb") { einheit = "Pizzen pro Sekunde"; faktor = 1.15; }
         setzeAnzahl(0);
     }
 
     @Kühlschrank(haltbar: 1d)
     funghi kostenBei(salami n) {
-        serviere (Mathe.runden(basis * Mathe.potenz(1.15, n)));
+        serviere (Mathe.runden(basis * Mathe.potenz(faktor, n)));
     }
 
     // Preis und Beschriftung ändern sich nur hier.
     leer setzeAnzahl(salami n) {
         anzahl = n;
         preisJetzt = kostenBei(n);
-        zeile = symbol + " " + name + (anzahl > 0 ? " ×" + anzahl : "") + " – +" + wirkung.kompakt(1) + " " + einheit;
+        zeile = symbol + " " + name + (anzahl > 0 ? " ×" + anzahl : "") + " – +" + wirkung.kompakt(2) + " " + einheit;
     }
 
     funghi gesamt() { serviere (wirkung * anzahl); }
+}
+
+// ──────────────────── Nonnas Geheimrezepte (Talentbaum) ─────────────────
+// Kosten Michelin-Sterne. Ein ausgegebener Stern bringt keine +10 % mehr –
+// dafür wirkt das Rezept bis zur nächsten Franchise-Gründung.
+klasse Geheimrezept {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita text;
+    salami kosten;
+    margherita braucht;     // "" = Wurzel des Baums
+
+    Geheimrezept(margherita s, margherita sym, margherita n, salami k, margherita b, margherita t) {
+        schlüssel = s; symbol = sym; name = n; kosten = k; braucht = b; text = t;
+    }
+}
+
+// ─────────────────────────── Herausforderungen ──────────────────────────
+// Ein Lauf unter Auflagen: beginnt wie eine Neueröffnung, Ziel ist Umsatz in
+// dieser Runde. Geschafft → Belohnung für immer (auch nach Franchise).
+klasse Herausforderung {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita regel;
+    margherita belohnung;
+    funghi ziel;
+
+    Herausforderung(margherita s, margherita sym, margherita n, funghi z, margherita r, margherita b) {
+        schlüssel = s; symbol = sym; name = n; ziel = z; regel = r; belohnung = b;
+    }
 }
 
 // ─────────────────────────────── Erfolge ────────────────────────────────
@@ -78,12 +126,13 @@ klasse Spiel {
     funghi geld = 0;
     funghi pizzen = 0;
     funghi umsatz = 0;
+    funghi umsatzKlick = 0;          // davon durch Klicken (diese Runde)
     funghi pizzenAllzeit = 0;
     funghi umsatzAllzeit = 0;
+    funghi umsatzKlickAllzeit = 0;
+    funghi umsatzKette = 0;          // seit der letzten Franchise-Gründung (zählt für Sterne)
     salami klicks = 0;
     salami sekunden = 0;
-    salami sterne = 0;
-    salami neueröffnungen = 0;
     salami hawaiiBekehrt = 0;
     salami pünktlich = 0;
     salami sonderschichten = 0;
@@ -91,35 +140,69 @@ klasse Spiel {
     Blech<margherita> erfolge = [];
     margherita nachricht = "Willkommen in deiner Trattoria! Klick auf „Pizza backen!“.";
 
+    // Aufstieg
+    salami sterne = 0;               // aktive Sterne (+10 % je Stern)
+    salami sterneVergeben = 0;       // in dieser Kette verliehen, auch die ausgegebenen
+    salami sterneAllzeit = 0;
+    salami neueröffnungen = 0;
+    salami filialen = 0;             // Franchise: +100 % auf alles je Filiale
+    salami franchises = 0;
+    Blech<margherita> talente = [];  // gelernte Geheimrezepte
+    Blech<margherita> geschafft = [];// bestandene Herausforderungen
+    margherita modus = "";           // laufende Herausforderung
+
     Blech<Upgrade> handwerk = [
-        neu Upgrade("teigschaber", "🥄", "Teigschaber", 150, 1, "Pizza pro Klick",
+        neu Upgrade("teigschaber", "🥄", "Teigschaber", 100, 1, "klick",
             "Kratzt den letzten Rest Teig aus der Schüssel."),
-        neu Upgrade("nudelholz", "🪵", "Nudelholz aus Olivenholz", 2_400, 5, "Pizzen pro Klick",
+        neu Upgrade("nudelholz", "🪵", "Nudelholz aus Olivenholz", 2_500, 2, "klick",
             "Von Nonnas Olivenbaum. Rollt praktisch von allein."),
-        neu Upgrade("kurier", "🚲", "Fahrradkurier", 29_000, 30, "Pizzen pro Klick",
+        neu Upgrade("kurier", "🚲", "Fahrradkurier", 40_000, 0.05, "anteil",
             "Fährt bei jedem Wetter – und bringt Großbestellungen 1 € Trinkgeld."),
-        neu Upgrade("tarantella", "🎵", "Tarantella-Rhythmus", 320_000, 200, "Pizzen pro Klick",
+        neu Upgrade("tarantella", "🎵", "Tarantella-Rhythmus", 1_500_000, 0.05, "anteil",
             "Wer im Takt knetet, knetet doppelt."),
-        neu Upgrade("roboter", "🦾", "Pizza-Roboter Pietro", 3_600_000, 1_500, "Pizzen pro Klick",
+        neu Upgrade("roboter", "🦾", "Pizza-Roboter Pietro", 80_000_000, 0.05, "anteil",
             "Pietro wirft den Teig bis an die Decke. Fängt ihn meistens."),
-        neu Upgrade("vesuv", "🌋", "Glut vom Vesuv", 32_000_000, 10_000, "Pizzen pro Klick",
+        neu Upgrade("vesuv", "🌋", "Glut vom Vesuv", 5_000_000_000, 0.05, "anteil",
             "Echte Vulkanglut. Der Ofen ist in 90 Sekunden heiß – na ja, in 9.")
     ];
     Blech<Upgrade> betrieb = [
-        neu Upgrade("lehrling", "🧑‍🍳", "Pizzaiolo-Lehrling", 120, 0.2, "Pizzen pro Sekunde",
-            "Backt alle fünf Sekunden eine Pizza. Mit Liebe."),
-        neu Upgrade("steinofen", "🧱", "Steinofen", 1_000, 1.5, "Pizzen pro Sekunde",
+        neu Upgrade("lehrling", "🧑‍🍳", "Pizzaiolo-Lehrling", 50, 0.5, "betrieb",
+            "Backt alle zwei Sekunden eine Pizza. Mit Liebe."),
+        neu Upgrade("steinofen", "🧱", "Steinofen", 600, 4, "betrieb",
             "Jeder Steinofen macht auch die Sonderschicht 20 °C heißer."),
-        neu Upgrade("roller", "🛵", "Lieferroller", 11_000, 10, "Pizzen pro Sekunde",
+        neu Upgrade("roller", "🛵", "Lieferroller", 7_000, 18, "betrieb",
             "Liefert bis an die Haustür – und bringt Großbestellungen 1 € Trinkgeld."),
-        neu Upgrade("wuppertal", "🏪", "Filiale in Wuppertal", 120_000, 60, "Pizzen pro Sekunde",
+        neu Upgrade("wuppertal", "🏪", "Filiale in Wuppertal", 80_000, 80, "betrieb",
             "Mit Blick auf die Schwebebahn."),
-        neu Upgrade("teigfabrik", "🏭", "Teigfabrik", 1_300_000, 350, "Pizzen pro Sekunde",
+        neu Upgrade("teigfabrik", "🏭", "Teigfabrik", 1_000_000, 360, "betrieb",
             "Zwölf Tonnen Teig am Tag. Nonna ist skeptisch."),
-        neu Upgrade("satellit", "🛰️", "Pizza-Satellit", 14_000_000, 2_000, "Pizzen pro Sekunde",
+        neu Upgrade("satellit", "🛰️", "Pizza-Satellit", 12_000_000, 1_600, "betrieb",
             "Liefert per Fallschirm. Die Pizza kommt warm an (Wiedereintritt)."),
-        neu Upgrade("mond", "🌙", "Pizzeria auf dem Mond", 200_000_000, 12_000, "Pizzen pro Sekunde",
-            "Geringe Schwerkraft – perfekt für luftigen Teig.")
+        neu Upgrade("mond", "🌙", "Pizzeria auf dem Mond", 170_000_000, 7_000, "betrieb",
+            "Geringe Schwerkraft – perfekt für luftigen Teig."),
+        neu Upgrade("zentrale", "🏢", "Franchise-Zentrale", 2_500_000_000, 30_000, "betrieb",
+            "Gibt es erst ab der ersten Franchise-Filiale. Steuert die ganze Kette.")
+    ];
+
+    Blech<Geheimrezept> REZEPTE = [
+        neu Geheimrezept("holzofen", "🔥", "Holzofen-Glut", 1, "", "Der ganze Betrieb backt +50 %."),
+        neu Geheimrezept("sauerteig", "🫙", "Sauerteig von 1890", 1, "", "Jede Pizza bringt 20 % mehr."),
+        neu Geheimrezept("stammgäste", "🎉", "Stammgäste", 2, "", "Ereignisse kommen doppelt so oft, Hawaii-Gäste und Großbestellungen bringen doppelt so viel."),
+        neu Geheimrezept("sparstrumpf", "🧦", "Nonnas Sparstrumpf", 2, "holzofen", "Jede Neueröffnung beginnt mit 10 Lehrlingen und 5 Steinöfen."),
+        neu Geheimrezept("gedächtnis", "📖", "Nonnas Gedächtnis", 3, "sauerteig", "Das Rezeptbuch bleibt bei Neueröffnungen aufgeschlagen."),
+        neu Geheimrezept("lavastein", "🌋", "Lavastein-Ofen", 4, "holzofen", "Die Sonderschicht backt doppelt so lange und kühlt in 45 statt 120 Sekunden ab.")
+    ];
+
+    Blech<Herausforderung> HERAUSFORDERUNGEN = [
+        neu Herausforderung("neapel", "🔥", "Neapel-Modus", 5_000_000,
+            "Nur Holzofen: Im Betrieb backen ausschließlich Lehrlinge und Steinöfen.",
+            "Lehrlinge und Steinöfen backen für immer dreifach."),
+        neu Herausforderung("hawaii", "🍍", "Hawaii-Verbot verschärft", 1_000_000_000,
+            "Nonna traut keinem Belag mehr: Rezeptbuch gesperrt, nur Margherita – und Hawaii-Gäste fliegen raus.",
+            "Jede Pizza bringt für immer 25 % mehr."),
+        neu Herausforderung("fastenzeit", "🙏", "Fastenzeit", 5_000_000_000,
+            "Kein Klicken, keine Sonderschicht, keine Feste: Nur der Betrieb backt, Ereignisse fallen aus. 3 Lehrlinge helfen beim Start.",
+            "Der ganze Betrieb backt für immer +25 %.")
     ];
 
     // Nonnas Rezeptbuch: jede Seite legt einen Belag auf die Margherita.
@@ -136,21 +219,37 @@ klasse Spiel {
     salami ofenKühlt = 0;
 
     // ── Kennzahlen ── zwischengespeichert; neuBerechnen() nach jeder Änderung an
-    // Upgrades, Rezept, Sternen oder Effekt. `version` sagt der Oberfläche: alles neu zeichnen.
+    // Upgrades, Rezept, Sternen, Talenten, Modus oder Effekt. `version` sagt der Oberfläche: alles neu zeichnen.
     funghi klickWert = 1;
     funghi sekundeWert = 0;
     funghi preisWert = 8;
     salami version = 0;
 
+    diavolo kennt(margherita talent) { serviere (talente.enthält(talent)); }
+    diavolo bestanden(margherita h) { serviere (geschafft.enthält(h)); }
+
+    // Alles-Faktor: Sterne × Filialen × Freitagabend
+    funghi faktor() {
+        serviere ((1 + sterne * 0.1) * (1 + filialen) * (effekt == "freitag" ? 3 : 1));
+    }
+
     leer neuBerechnen() {
-        funghi f = (1 + sterne * 0.1) * (effekt == "freitag" ? 3 : 1);
-        funghi k = 1;
-        für (Upgrade u : handwerk) { k = k + u.gesamt(); }
-        klickWert = k * f * (effekt == "fussball" ? 5 : 1);
+        funghi f = faktor();
+        funghi fb = f * (kennt("holzofen") ? 1.5 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
         funghi s = 0;
-        für (Upgrade u : betrieb) { s = s + u.gesamt(); }
-        sekundeWert = s * f;
-        preisWert = rezept.preis();
+        für (Upgrade u : betrieb) {
+            diavolo holzofen = u.schlüssel == "lehrling" || u.schlüssel == "steinofen";
+            s = s + u.gesamt() * (holzofen && bestanden("neapel") ? 3 : 1);
+        }
+        sekundeWert = s * fb;
+        // Klick: ein paar feste Pizzen (mit Sternen/Filialen) + ein kleiner Anteil der Sekundenproduktion
+        funghi fest = 1;
+        funghi anteil = 0;
+        für (Upgrade u : handwerk) {
+            falls (u.art == "klick") { fest = fest + u.gesamt(); } sonst { anteil = anteil + u.gesamt(); }
+        }
+        klickWert = (fest * f + anteil / 100 * sekundeWert) * (effekt == "fussball" ? 5 : 1);
+        preisWert = rezept.preis() * (kennt("sauerteig") ? 1.2 : 1) * (bestanden("hawaii") ? 1.25 : 1);
         version++;
     }
 
@@ -161,11 +260,13 @@ klasse Spiel {
     // Für Boni: eine „Portion“ ist ein Klick oder eine Sekunde Betrieb – was mehr ist.
     funghi portion() { serviere (Mathe.max(proKlick(), proSekunde())); }
 
-    salami anzahl(margherita schlüssel) {
-        für (Upgrade u : handwerk) { falls (u.schlüssel == schlüssel) { serviere (u.anzahl); } }
-        für (Upgrade u : betrieb) { falls (u.schlüssel == schlüssel) { serviere (u.anzahl); } }
-        serviere (0);
+    Upgrade finde(margherita schlüssel) {
+        für (Upgrade u : handwerk) { falls (u.schlüssel == schlüssel) { serviere (u); } }
+        für (Upgrade u : betrieb) { falls (u.schlüssel == schlüssel) { serviere (u); } }
+        serviere (karton);
     }
+
+    salami anzahl(margherita schlüssel) { serviere (finde(schlüssel).anzahl); }
 
     salami trinkgeld() { serviere (anzahl("kurier") + anzahl("roller")); }
     salami ofenTemperatur() { serviere (Mathe.min(485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
@@ -183,14 +284,16 @@ klasse Spiel {
     }
 
     // ── Backen & Verkaufen ──
-    leer backe(funghi n) {
+    funghi backe(funghi n) {
         pizzen += n;
         pizzenAllzeit += n;
         funghi erlös = n * preis();
         geld += erlös;
         umsatz += erlös;
         umsatzAllzeit += erlös;
+        umsatzKette += erlös;
         falls (effekt == "freitag") { freitagPizzen += n; }
+        serviere (erlös);
     }
 
     leer melde(margherita text) {
@@ -198,16 +301,21 @@ klasse Spiel {
         Bote.sage((text));
     }
 
+    diavolo darfKlicken() { serviere (modus != "fastenzeit"); }
+
     leer klick() {
+        falls (!darfKlicken()) { serviere; }
         klicks++;
+        funghi n = proKlick();
         // Glückstreffer: jede fünfzigste Pizza wird perfekt – und zählt zehnfach.
         falls (Zufall.wahr(0.02)) {
             perfekte++;
-            backe(proKlick() * 10);
-            nachricht = "✨ Perfekte Pizza! Der Rand ist ein Gedicht: " + pizzen(proKlick() * 10) + " auf einmal.";
-        } sonst {
-            backe(proKlick());
+            n = n * 10;
+            nachricht = "✨ Perfekte Pizza! Der Rand ist ein Gedicht: " + pizzen(n) + " auf einmal.";
         }
+        funghi erlös = backe(n);
+        umsatzKlick += erlös;
+        umsatzKlickAllzeit += erlös;
     }
 
     // Takt: n Sekunden sind vergangen (n > 1, wenn der Renderer nachholt).
@@ -233,8 +341,8 @@ klasse Spiel {
         }
         bisEreignis = bisEreignis - n;
         falls (bisEreignis <= 0) {
-            ereignis();
-            bisEreignis = Zufall.zahl(60, 150);
+            falls (modus != "fastenzeit") { ereignis(); }   // Fastenzeit: keine Feste
+            bisEreignis = kennt("stammgäste") ? Zufall.zahl(30, 75) : Zufall.zahl(60, 150);
         }
     }
 
@@ -266,9 +374,15 @@ klasse Spiel {
         neuBerechnen();
     }
 
+    salami gästeFaktor() { serviere (kennt("stammgäste") ? 2 : 1); }
+
     leer hawaii() {
+        falls (modus == "hawaii") {
+            melde(("🍍 Hawaii-Verbot verschärft: Luigi zeigt dem Gast freundlich, aber bestimmt die Tür. Nonna nickt."));
+            serviere;
+        }
         hawaiiBekehrt++;
-        funghi bonus = portion() * 5;
+        funghi bonus = portion() * 5 * gästeFaktor();
         backe(bonus);
         melde(("🍍 Ein Gast bestellt Pizza Hawaii. Luigi lächelt, schweigt und serviert eine Margherita aufs Haus. "
             + "Der Gast ist bekehrt und bestellt " + pizzen(bonus) + "!"));
@@ -287,7 +401,7 @@ klasse Spiel {
         Zustellung<salami> z = l.warte(max: 40ms);
         falls (z.pünktlich()) {
             pünktlich++;
-            funghi bonus = z.wert() * portion();
+            funghi bonus = z.wert() * portion() * gästeFaktor();
             backe(bonus);
             margherita wie = tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld";
             melde(("📦 Großbestellung über " + bleche + " Bleche – " + wie + " pünktlich geliefert: +"
@@ -299,8 +413,14 @@ klasse Spiel {
     }
 
     // ── Aktionen der Spielerin ──
+    diavolo erlaubt(Upgrade u) {
+        falls (u.schlüssel == "zentrale" && filialen <= 0) { serviere (nein); }
+        falls (modus == "neapel" && u.art == "betrieb") { serviere (u.schlüssel == "lehrling" || u.schlüssel == "steinofen"); }
+        serviere (ja);
+    }
+
     diavolo kaufe(Upgrade u) {
-        falls (geld < u.preisJetzt) { serviere (nein); }
+        falls (!erlaubt(u) || geld < u.preisJetzt) { serviere (nein); }
         geld -= u.preisJetzt;
         u.setzeAnzahl(u.anzahl + 1);
         nachricht = u.symbol + " " + u.name + " gekauft (jetzt " + u.anzahl + ").";
@@ -309,10 +429,11 @@ klasse Spiel {
     }
 
     diavolo rezeptFertig() { serviere (seite >= SEITEN.länge()); }
+    diavolo rezeptGesperrt() { serviere (modus == "hawaii"); }
     funghi seitenKosten() { serviere (rezeptFertig() ? 0 : SEITEN_KOSTEN.stück(seite + 1)); }
 
     diavolo blättere() {
-        falls (rezeptFertig() || geld < seitenKosten()) { serviere (nein); }
+        falls (rezeptGesperrt() || rezeptFertig() || geld < seitenKosten()) { serviere (nein); }
         geld -= seitenKosten();
         seite++;
         Belag b = SEITEN.stück(seite);
@@ -322,58 +443,178 @@ klasse Spiel {
         serviere (ja);
     }
 
-    diavolo ofenBereit() { serviere (ofenKühlt <= 0); }
+    diavolo ofenBereit() { serviere (ofenKühlt <= 0 && modus != "fastenzeit"); }
 
     // Sonderschicht: Der Ofen backt Ladung um Ladung, bis sein Zeitbudget aufgebraucht ist.
     // Heißer (mehr Steinöfen, mehr Sterne) = größeres Budget = mehr Ladungen.
     leer sonderschicht() {
         falls (!ofenBereit()) { serviere; }
         salami grad = ofenTemperatur();
-        salami ladungen = ofen(temperatur: grad, zeit: 100ms) {
+        salami ladungen = ofen(temperatur: grad, zeit: 100ms * (kennt("lavastein") ? 2 : 1)) {
             salami n = 0;
             solange (ja) { n++; zwischenstand((n)); }
         } roh (r) {
             serviere (r.teilergebnis());
         };
         sonderschichten++;
-        ofenKühlt = 120;
+        ofenKühlt = kennt("lavastein") ? 45 : 120;
         funghi bonus = ladungen * portion();
         backe(bonus);
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
     }
 
-    // ── Neueröffnung (Prestige) ──
-    salami sterneVerdient() { serviere (Mathe.boden(Mathe.wurzel(umsatzAllzeit / 1_000_000))); }
-    salami neueSterne() { serviere (Mathe.max(0, sterneVerdient() - sterne)); }
-    funghi nächsterStern() { serviere (Mathe.potenz(sterneVerdient() + 1, 2) * 1_000_000); }
+    // ── Ebene 1: Neueröffnung (Michelin-Sterne) ──
+    salami sterneVerdient() { serviere (Mathe.boden(Mathe.wurzel(umsatzKette / 1_000_000))); }
+    salami neueSterne() { serviere (Mathe.max(0, sterneVerdient() - sterneVergeben)); }
+    funghi sternSchwelle(salami n) { serviere (n * n * 1_000_000); }
+    funghi nächsterStern() { serviere (sternSchwelle(sterneVerdient() + 1)); }
+    // Anteil des Wegs vom letzten zum nächsten Stern (für den Balken)
+    funghi sternFortschritt() {
+        funghi von = sternSchwelle(sterneVerdient());
+        serviere (Mathe.min(1, (umsatzKette - von) / (nächsterStern() - von)));
+    }
+
+    salami vergebeSterne() {
+        salami n = neueSterne();
+        sterne += n; sterneVergeben += n; sterneAllzeit += n;
+        serviere (n);
+    }
 
     leer setzeRundeZurück() {
-        geld = 0; pizzen = 0; umsatz = 0;
+        geld = 0; pizzen = 0; umsatz = 0; umsatzKlick = 0;
         für (Upgrade u : handwerk) { u.setzeAnzahl(0); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(0); }
-        rezept = ((Tomate, Mozzarella, Basilikum));
-        seite = 0;
-        effekt = ""; effektRest = 0; ofenKühlt = 0; bisEreignis = 60;
+        falls (kennt("sparstrumpf")) {
+            finde("lehrling").setzeAnzahl(10);
+            finde("steinofen").setzeAnzahl(5);
+        }
+        falls (!kennt("gedächtnis")) {
+            rezept = ((Tomate, Mozzarella, Basilikum));
+            seite = 0;
+        }
+        modus = "";
+        effekt = ""; effektRest = 0; freitagPizzen = 0; ofenKühlt = 0; bisEreignis = 60;
     }
 
     diavolo neueröffnung() {
-        salami neu_ = neueSterne();
-        falls (neu_ <= 0) { serviere (nein); }
-        sterne += neu_;
+        falls (neueSterne() <= 0) { serviere (nein); }
+        margherita abbruch = modus != "" ? " Die Herausforderung ist damit beendet." : "";
+        salami neu_ = vergebeSterne();
         neueröffnungen++;
         setzeRundeZurück();
         neuBerechnen();
         melde(("⭐ Neueröffnung! Der Guide Michelin vergibt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
-            + " – jetzt " + sterne + ", also +" + (sterne * 10) + " % auf alles."));
+            + " – jetzt " + sterne + " aktiv, also +" + (sterne * 10) + " % auf alles." + abbruch));
         serviere (ja);
     }
 
-    // Alles auf Anfang – auch Sterne, Erfolge und Statistik.
-    leer allesZurück() {
+    // ── Ebene 2: Geheimrezepte ──
+    diavolo rezepteOffen() { serviere (sterneAllzeit >= 1); }
+    diavolo lernbar(Geheimrezept r) {
+        serviere (rezepteOffen() && !kennt(r.schlüssel) && sterne >= r.kosten && (r.braucht == "" || kennt(r.braucht)));
+    }
+    Geheimrezept rezeptNamens(margherita s) {
+        für (Geheimrezept r : REZEPTE) { falls (r.schlüssel == s) { serviere (r); } }
+        serviere (karton);
+    }
+
+    diavolo lerne(Geheimrezept r) {
+        falls (!lernbar(r)) { serviere (nein); }
+        sterne -= r.kosten;
+        talente.hinzu(r.schlüssel);
+        neuBerechnen();
+        melde(("📜 Nonna flüstert dir ein Geheimnis zu: " + r.symbol + " " + r.name + ". " + r.text));
+        serviere (ja);
+    }
+
+    // ── Ebene 3: Herausforderungen ──
+    diavolo herausforderungenOffen() { serviere (sterneAllzeit >= 3); }
+    Herausforderung herausforderung(margherita s) {
+        für (Herausforderung h : HERAUSFORDERUNGEN) { falls (h.schlüssel == s) { serviere (h); } }
+        serviere (karton);
+    }
+
+    diavolo startbar(Herausforderung h) {
+        serviere (herausforderungenOffen() && modus == "" && !bestanden(h.schlüssel));
+    }
+
+    diavolo starte(Herausforderung h) {
+        falls (!startbar(h)) { serviere (nein); }
+        salami neu_ = vergebeSterne();
+        falls (neu_ > 0) { neueröffnungen++; }
         setzeRundeZurück();
-        pizzenAllzeit = 0; umsatzAllzeit = 0; klicks = 0; sekunden = 0; sterne = 0; neueröffnungen = 0;
+        modus = h.schlüssel;
+        falls (modus == "hawaii") {      // nur Margherita – auch mit Nonnas Gedächtnis
+            rezept = ((Tomate, Mozzarella, Basilikum));
+            seite = 0;
+        }
+        falls (modus == "fastenzeit") {
+            Upgrade l = finde("lehrling");
+            l.setzeAnzahl(Mathe.max(l.anzahl, 3));
+        }
+        neuBerechnen();
+        melde((h.symbol + " Herausforderung „" + h.name + "“ beginnt" + (neu_ > 0 ? " (+" + neu_ + " ⭐)" : "") + ": " + h.regel
+            + " Ziel: " + h.ziel.euro(kompakt: ja) + " Umsatz."));
+        serviere (ja);
+    }
+
+    leer gibAuf() {
+        falls (modus == "") { serviere; }
+        Herausforderung h = herausforderung(modus);
+        modus = "";
+        neuBerechnen();
+        melde(("🏳 " + h.name + " aufgegeben. Die Runde geht ohne Auflagen weiter."));
+    }
+
+    funghi zielFortschritt() {
+        falls (modus == "") { serviere (0); }
+        serviere (Mathe.min(1, umsatz / herausforderung(modus).ziel));
+    }
+
+    leer prüfeZiel() {
+        falls (modus == "") { serviere; }
+        Herausforderung h = herausforderung(modus);
+        falls (umsatz < h.ziel) { serviere; }
+        geschafft.hinzu(h.schlüssel);
+        modus = "";
+        neuBerechnen();
+        melde(("🏅 Herausforderung „" + h.name + "“ geschafft! Belohnung für immer: " + h.belohnung));
+    }
+
+    // ── Ebene 4: Franchise ──
+    // Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋: 25 Sterne → 3, 40 → 4, 63 → 5, 90 → 6 …
+    // Gründen geht erst ab 25 Sternen in der laufenden Kette und nur, wenn es mindestens eine neue Filiale gibt.
+    salami sterneKette() { serviere (sterneVergeben + neueSterne()); }
+    salami filialenFür(salami s) { serviere (Mathe.boden(Mathe.wurzel(s / 2.5))); }
+    salami neueFilialen() {
+        falls (sterneKette() < 25) { serviere (0); }
+        serviere (Mathe.max(0, filialenFür(sterneAllzeit + neueSterne()) - filialen));
+    }
+    // Sterne insgesamt, ab denen es die nächste Filiale gibt
+    salami sterneFürFiliale(salami f) { serviere (Mathe.decke(f * f * 2.5)); }
+
+    diavolo franchise() {
+        falls (neueFilialen() <= 0) { serviere (nein); }
+        salami n = neueFilialen();
+        vergebeSterne();
+        filialen += n; franchises++;
+        sterne = 0; sterneVergeben = 0; umsatzKette = 0;
+        talente = [];
+        setzeRundeZurück();
+        neuBerechnen();
+        melde(("🏢 Die Kette ist gegründet! " + n + " neue Filialen – jetzt " + filialen + ", also +" + (filialen * 100)
+            + " % auf alles. Sterne und Geheimrezepte fangen von vorn an, die Franchise-Zentrale ist freigeschaltet."));
+        serviere (ja);
+    }
+
+    // Alles auf Anfang – auch Sterne, Filialen, Erfolge und Statistik.
+    leer allesZurück() {
+        talente = [];
+        setzeRundeZurück();
+        pizzenAllzeit = 0; umsatzAllzeit = 0; umsatzKlickAllzeit = 0; umsatzKette = 0; klicks = 0; sekunden = 0;
+        sterne = 0; sterneVergeben = 0; sterneAllzeit = 0; neueröffnungen = 0; filialen = 0; franchises = 0;
         hawaiiBekehrt = 0; pünktlich = 0; sonderschichten = 0; perfekte = 0;
-        erfolge = [];
+        erfolge = []; geschafft = [];
         neuBerechnen();
         nachricht = "Frischer Teig, leere Kasse – auf ein Neues!";
     }
@@ -381,10 +622,14 @@ klasse Spiel {
     // ── Spielstand (für die Vorratskammer) ──
     Speisekarte<margherita, Vorrat> alsSpeisekarte() {
         Speisekarte<margherita, Vorrat> s = neu Speisekarte<margherita, Vorrat>();
-        s.lege("version", 2).lege("zeit", Uhr.echt().inMs());
-        s.lege("geld", geld).lege("pizzen", pizzen).lege("umsatz", umsatz);
+        s.lege("version", 3).lege("zeit", Uhr.echt().inMs());
+        s.lege("geld", geld).lege("pizzen", pizzen).lege("umsatz", umsatz).lege("umsatzKlick", umsatzKlick);
         s.lege("pizzenAllzeit", pizzenAllzeit).lege("umsatzAllzeit", umsatzAllzeit);
+        s.lege("umsatzKlickAllzeit", umsatzKlickAllzeit).lege("umsatzKette", umsatzKette);
         s.lege("klicks", klicks).lege("sekunden", sekunden).lege("sterne", sterne).lege("neueröffnungen", neueröffnungen);
+        s.lege("sterneVergeben", sterneVergeben).lege("sterneAllzeit", sterneAllzeit);
+        s.lege("filialen", filialen).lege("franchises", franchises);
+        s.lege("talente", talente).lege("geschafft", geschafft).lege("modus", modus);
         s.lege("hawaiiBekehrt", hawaiiBekehrt).lege("pünktlich", pünktlich).lege("sonderschichten", sonderschichten);
         s.lege("perfekte", perfekte).lege("seite", seite).lege("erfolge", erfolge);
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
@@ -394,32 +639,45 @@ klasse Spiel {
         serviere (s);
     }
 
+    // Ältere Spielstände (version 2) kennen die neuen Felder nicht – sie bekommen Standardwerte.
+    // (Speisekarte.hole(k) liefert für fehlende Schlüssel karton, darum erst hat(k) fragen.)
+    Vorrat aus(Speisekarte<margherita, Vorrat> s, margherita k, Vorrat ersatz) {
+        serviere (s.hat(k) ? s.hole(k) : ersatz);
+    }
+
     leer ladeAus(Speisekarte<margherita, Vorrat> s) {
-        geld = s.hole("geld", 0); pizzen = s.hole("pizzen", 0); umsatz = s.hole("umsatz", 0);
-        pizzenAllzeit = s.hole("pizzenAllzeit", 0); umsatzAllzeit = s.hole("umsatzAllzeit", 0);
-        klicks = s.hole("klicks", 0); sekunden = s.hole("sekunden", 0);
-        sterne = s.hole("sterne", 0); neueröffnungen = s.hole("neueröffnungen", 0);
-        hawaiiBekehrt = s.hole("hawaiiBekehrt", 0); pünktlich = s.hole("pünktlich", 0);
-        sonderschichten = s.hole("sonderschichten", 0); perfekte = s.hole("perfekte", 0);
-        erfolge = s.hole("erfolge", []);
-        Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
-        für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
-        für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
+        geld = aus(s, "geld", 0); pizzen = aus(s, "pizzen", 0); umsatz = aus(s, "umsatz", 0);
+        umsatzKlick = aus(s, "umsatzKlick", 0);
+        pizzenAllzeit = aus(s, "pizzenAllzeit", 0); umsatzAllzeit = aus(s, "umsatzAllzeit", 0);
+        umsatzKlickAllzeit = aus(s, "umsatzKlickAllzeit", 0);
+        umsatzKette = aus(s, "umsatzKette", umsatzAllzeit);
+        klicks = aus(s, "klicks", 0); sekunden = aus(s, "sekunden", 0);
+        sterne = aus(s, "sterne", 0); neueröffnungen = aus(s, "neueröffnungen", 0);
+        sterneVergeben = aus(s, "sterneVergeben", sterne); sterneAllzeit = aus(s, "sterneAllzeit", sterne);
+        filialen = aus(s, "filialen", 0); franchises = aus(s, "franchises", 0);
+        talente = aus(s, "talente", []); geschafft = aus(s, "geschafft", []);
+        modus = aus(s, "modus", "");
+        hawaiiBekehrt = aus(s, "hawaiiBekehrt", 0); pünktlich = aus(s, "pünktlich", 0);
+        sonderschichten = aus(s, "sonderschichten", 0); perfekte = aus(s, "perfekte", 0);
+        erfolge = aus(s, "erfolge", []);
+        Speisekarte<margherita, salami> stück = aus(s, "upgrades", neu Speisekarte<margherita, salami>());
+        für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
+        für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
         rezept = ((Tomate, Mozzarella, Basilikum));
         seite = 0;
-        salami ziel = Mathe.min(s.hole("seite", 0), SEITEN.länge());
+        salami ziel = Mathe.min(aus(s, "seite", 0), SEITEN.länge());
         solange (seite < ziel) { seite++; rezept = rezept + SEITEN.stück(seite); }
         neuBerechnen();
         nachricht = "Willkommen zurück! Dein Imperium hat auf dich gewartet.";
 
-        // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft, höchstens 8 Stunden.
-        salami weg = Mathe.boden((Uhr.echt().inMs() - s.hole("zeit", Uhr.echt().inMs())) / 1000);
-        salami gezählt = Mathe.min(weg, 8 * 60 * 60);
+        // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft, höchstens 30 Minuten lang.
+        salami weg = Mathe.boden((Uhr.echt().inMs() - aus(s, "zeit", Uhr.echt().inMs())) / 1000);
+        salami gezählt = Mathe.min(weg, 30 * 60);
         funghi nachts = proSekunde() * gezählt * 0.5;
         falls (gezählt >= 60 && nachts > 0) {
             backe(nachts);
-            melde(("🌙 Während du weg warst (" + (1min * Mathe.boden(weg / 60)) + (weg > gezählt ? " – gezählt werden höchstens 8h" : "")
-                + "), hat dein Betrieb " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."));
+            melde(("🌙 Während du weg warst (" + (1min * Mathe.boden(weg / 60)) + (weg > gezählt ? " – gezählt werden höchstens 30min" : "")
+                + "), hat dein Betrieb mit halber Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."));
         }
     }
 }
@@ -443,8 +701,12 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
     neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
     neu Erfolg("Erste Million", "Mache 1 Mio. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000)),
-    neu Erfolg("Sternekoch", "Eröffne neu und hol dir einen Michelin-Stern.", (s) -> (s.sterne >= 1)),
-    neu Erfolg("Firmament", "Sammle zehn Michelin-Sterne.", (s) -> (s.sterne >= 10))
+    neu Erfolg("Sternekoch", "Eröffne neu und hol dir einen Michelin-Stern.", (s) -> (s.sterneAllzeit >= 1)),
+    neu Erfolg("Firmament", "Sammle zehn Michelin-Sterne.", (s) -> (s.sterneAllzeit >= 10)),
+    neu Erfolg("Nonnas Vertraute", "Lerne ein Geheimrezept.", (s) -> (!s.talente.istLeer())),
+    neu Erfolg("Fastenbrecher", "Schaffe die Fastenzeit – ganz ohne Klicken.", (s) -> (s.bestanden("fastenzeit"))),
+    neu Erfolg("Prüfungsmeister", "Schaffe alle drei Herausforderungen.", (s) -> (s.geschafft.länge() >= 3)),
+    neu Erfolg("Kettenreaktion", "Gründe deine erste Franchise-Kette.", (s) -> (s.filialen >= 1))
 ];
 
 // Vorratskammer: Spielstand laden (Playground: Browser-Speicher, EXE: Datei im Nutzerverzeichnis).
@@ -458,6 +720,27 @@ leer speichere() {
 }
 
 // ═══════════════════════════════ Oberfläche ═════════════════════════════
+leer setzeText(Schild s, margherita t) { falls (s.text() != t) { s.setzeText((t)); } }
+
+// Rückfrage vor jedem Neustart: Der erste Klick fragt, der zweite (binnen 10 Sekunden) bestätigt.
+margherita frageId = "";
+salami frageRest = 0;
+
+diavolo bestätigt(Knopf k, margherita frage) {
+    falls (frageId == k.id()) { frageId = ""; serviere (ja); }
+    frageId = k.id();
+    frageRest = 10;
+    k.setzeText((frage));
+    spiel.version++;      // andere offene Rückfrage zurücksetzen
+    serviere (nein);
+}
+
+leer setzeKnopf(Knopf k, margherita t, diavolo an) {
+    falls (k.id() == frageId) { falls (!k.aktiv()) { k.aktiv(ja); } serviere; }   // Rückfrage steht noch
+    falls (k.text() != t) { k.setzeText((t)); }
+    falls (k.aktiv() != an) { k.aktiv(an); }
+}
+
 // Eine Zeile im Laden: Beschriftung, Fortschrittsbalken bis zum Kauf, Kauf-Knopf mit Hinweis.
 klasse UpgradeZeile {
     Upgrade u;
@@ -466,6 +749,7 @@ klasse UpgradeZeile {
     Knopf knopf;
     Reihe reihe;
     salami stufe = -1;     // zuletzt gezeigte Balkenstufe (0…20), spart Nachrichten
+    diavolo erlaubt = ja;
 
     UpgradeZeile(Upgrade upgrade, Funktion beiKauf) {
         u = upgrade;
@@ -481,9 +765,11 @@ klasse UpgradeZeile {
         reihe.stil("abstand", 8);
     }
 
-    leer beschrifte() {
+    leer beschrifte(Spiel s) {
+        erlaubt = s.erlaubt(u);
         falls (info.text() != u.zeile) { info.setzeText((u.zeile)); }
         margherita preis = u.preisJetzt.euro(kompakt: ja);
+        falls (!erlaubt) { preis = s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name; }
         falls (knopf.text() != preis) { knopf.setzeText((preis)); }
         stufe = -1;
     }
@@ -491,8 +777,8 @@ klasse UpgradeZeile {
     leer zeigeWenn(diavolo an) { falls (reihe.sichtbar() != an) { reihe.sichtbar(an); } }
 
     leer zeichne(funghi geld) {
-        diavolo leistbar = geld >= u.preisJetzt;
-        salami s = leistbar ? 20 : Mathe.boden(geld / u.preisJetzt * 20);
+        diavolo leistbar = erlaubt && geld >= u.preisJetzt;
+        salami s = leistbar ? 20 : (erlaubt ? Mathe.boden(geld / u.preisJetzt * 20) : 0);
         falls (s == stufe) { serviere; }
         stufe = s;
         falls (knopf.aktiv() != leistbar) { knopf.aktiv(leistbar); }
@@ -500,23 +786,80 @@ klasse UpgradeZeile {
     }
 }
 
-Theke theke = neu Theke("Pizza-Imperium", breite: 580, hoehe: 780);
+// Eine Zeile in Nonnas Geheimrezepten
+klasse RezeptZeile {
+    Geheimrezept r;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
 
-leer setzeText(Schild s, margherita t) { falls (s.text() != t) { s.setzeText((t)); } }
-leer setzeKnopf(Knopf k, margherita t, diavolo an) {
-    falls (k.text() != t) { k.setzeText((t)); }
-    falls (k.aktiv() != an) { k.aktiv(an); }
+    RezeptZeile(Geheimrezept rezept, Funktion beiKlick) {
+        r = rezept;
+        info = neu Schild("", id: "geheim-info-" + r.schlüssel);
+        info.stil("schrift", "klein").stil("breite", 340);
+        knopf = neu Knopf("", beiKlick, id: "geheim-" + r.schlüssel);
+        knopf.stil("breite", 130).hinweis(r.text);
+        reihe = neu Reihe([info, knopf], id: "geheim-zeile-" + r.schlüssel);
+        reihe.stil("abstand", 8);
+    }
+
+    leer zeichne(Spiel s) {
+        margherita voraus = r.braucht == "" ? "" : " (braucht " + s.rezeptNamens(r.braucht).name + ")";
+        setzeText(info, r.symbol + " " + r.name + voraus + " – " + r.text);
+        falls (s.kennt(r.schlüssel)) {
+            setzeKnopf(knopf, "✅ gelernt", nein);
+        } sonst {
+            setzeKnopf(knopf, r.kosten + " ⭐ lernen", s.lernbar(r));
+        }
+    }
 }
+
+// Eine Zeile bei den Herausforderungen
+klasse HerausforderungZeile {
+    Herausforderung h;
+    Schild titel;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
+
+    HerausforderungZeile(Herausforderung herausforderung, Funktion beiKlick) {
+        h = herausforderung;
+        titel = neu Schild(h.symbol + " " + h.name + " – Ziel " + h.ziel.euro(kompakt: ja) + " Umsatz in einer Runde", id: "probe-titel-" + h.schlüssel);
+        info = neu Schild(h.regel + " Belohnung: " + h.belohnung, id: "probe-info-" + h.schlüssel);
+        info.stil("schrift", "klein");
+        Stapel links = neu Stapel([titel, info]);
+        links.stil("breite", 340).stil("abstand", 2);
+        knopf = neu Knopf("", beiKlick, id: "probe-" + h.schlüssel);
+        knopf.stil("breite", 130).hinweis("Startet eine Neueröffnung unter Auflagen (wartende Sterne gibt es dazu). Kasse, Upgrades und Rezeptbuch fangen von vorn an.");
+        reihe = neu Reihe([links, knopf], id: "probe-zeile-" + h.schlüssel);
+        reihe.stil("abstand", 8);
+    }
+
+    leer zeichne(Spiel s) {
+        falls (s.bestanden(h.schlüssel)) {
+            setzeKnopf(knopf, "✅ geschafft", nein);
+        } sonst falls (s.modus == h.schlüssel) {
+            setzeKnopf(knopf, "⏳ läuft", nein);
+        } sonst {
+            setzeKnopf(knopf, "▶ Starten", s.startbar(h));
+        }
+    }
+}
+
+Theke theke = neu Theke("Pizza-Imperium", breite: 580, hoehe: 780);
 
 // ── Kopf: immer sichtbar ──
 Schild kasse = neu Schild("", id: "kasse");
 kasse.stil("schrift", "riesig").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
 Schild kennzahlen = neu Schild("", id: "kennzahlen");
 kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte");
+Schild modusInfo = neu Schild("", id: "modus-info");
+modusInfo.stil("schrift", "klein").stil("farbe", "kruste").stil("ausrichtung", "mitte");
+modusInfo.sichtbar(nein);
 
 Knopf backen = neu Knopf("", () -> { spiel.klick(); nachVerarbeitung(); }, id: "backen");
 backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("ausrichtung", "mitte");
-backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen.");
+backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen. Später bringt jeder Klick zusätzlich einen kleinen Anteil der Sekundenproduktion – das große Geld macht der Betrieb.");
 
 Knopf ofenKnopf = neu Knopf("", () -> { spiel.sonderschicht(); nachVerarbeitung(); }, id: "sonderschicht");
 ofenKnopf.stil("farbe", "kruste").stil("ausrichtung", "mitte");
@@ -562,32 +905,41 @@ erfolgeKopf.stil("schrift", "klein");
 Tabelle erfolgTabelle = neu Tabelle(["", "Erfolg", "Ziel"], [], id: "erfolge");
 Stapel erfolgeSeite = neu Stapel([erfolgeKopf, erfolgTabelle], id: "erfolge-seite");
 
-// ── Reiter 3: Imperium ──
+// ── Reiter 3: Imperium (Neueröffnung, Franchise, Statistik) ──
+Tabelle aufstieg = neu Tabelle(["Ebene", "Stand", "Wirkung"], [], id: "aufstieg");
+Abschnitt aufstiegTeil = neu Abschnitt("🪜 Dein Aufstieg", [aufstieg], id: "aufstieg-teil");
+
 Schild prestigeInfo = neu Schild("", id: "prestige-info");
 prestigeInfo.stil("schrift", "klein");
 Fortschritt prestigeBalken = neu Fortschritt(id: "prestige-balken");
 prestigeBalken.stil("farbe", "kruste");
 Knopf prestigeKnopf = neu Knopf("", () -> {
-    falls (spiel.neueröffnung()) { speichere(); nachVerarbeitung(); }
+    falls (!bestätigt(prestigeKnopf, "⭐ Wirklich neu eröffnen? Nochmal klicken!")) { zeichne(); serviere; }
+    falls (spiel.neueröffnung()) { speichere(); }
+    nachVerarbeitung();
 }, id: "neueroeffnung");
 prestigeKnopf.stil("farbe", "mozzarella");
-prestigeKnopf.hinweis("Kasse, Upgrades und Rezeptbuch fangen von vorn an – die Sterne bleiben für immer.");
+prestigeKnopf.hinweis("Kasse, Upgrades und Rezeptbuch fangen von vorn an – die Sterne bleiben (bis zur Franchise-Gründung). Eine laufende Herausforderung endet.");
 Abschnitt sterneTeil = neu Abschnitt("⭐ Neueröffnung", [prestigeInfo, prestigeBalken, prestigeKnopf], id: "sterne");
+
+Schild franchiseInfo = neu Schild("", id: "franchise-info");
+franchiseInfo.stil("schrift", "klein");
+Fortschritt franchiseBalken = neu Fortschritt(id: "franchise-balken");
+franchiseBalken.stil("farbe", "tomate");
+Knopf franchiseKnopf = neu Knopf("", () -> {
+    falls (!bestätigt(franchiseKnopf, "🏢 Wirklich? Sterne und Geheimrezepte gehen in die Kette auf – nochmal klicken!")) { zeichne(); serviere; }
+    falls (spiel.franchise()) { speichere(); }
+    nachVerarbeitung();
+}, id: "franchise");
+franchiseKnopf.stil("farbe", "mozzarella");
+franchiseKnopf.hinweis("Ab 25 Sternen in einer Kette. Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋ – 25 Sterne → 3, 40 → 4, 63 → 5, 90 → 6; jede Filiale +100 % auf alles, für immer. Sterne, Geheimrezepte und die Runde fangen von vorn an; Herausforderungen und Erfolge bleiben.");
+Abschnitt franchiseTeil = neu Abschnitt("🏢 Franchise – Kette gründen", [franchiseInfo, franchiseBalken, franchiseKnopf], id: "franchise-teil");
 
 Tabelle statistik = neu Tabelle(["Kennzahl", "Wert"], [], id: "statistik");
 Abschnitt statistikTeil = neu Abschnitt("📊 Statistik", [statistik], id: "statistik-teil");
 
-diavolo löschenBestätigen = nein;
 Knopf neuAnfangen = neu Knopf("🗑 Neu anfangen", () -> {
-    falls (!löschenBestätigen) {
-        löschenBestätigen = ja;
-        neuAnfangen.setzeText(("🗑 Wirklich alles löschen – auch die Sterne? Nochmal klicken!"));
-        neuAnfangen.stil("farbe", "tomate");
-        serviere;
-    }
-    löschenBestätigen = nein;
-    neuAnfangen.setzeText(("🗑 Neu anfangen"));
-    neuAnfangen.stil("farbe", "mozzarella");
+    falls (!bestätigt(neuAnfangen, "🗑 Wirklich alles löschen – auch Sterne und Filialen? Nochmal klicken!")) { zeichne(); serviere; }
     spiel.allesZurück();
     kammer.leeren();
     sortiereErfolge();
@@ -595,26 +947,75 @@ Knopf neuAnfangen = neu Knopf("🗑 Neu anfangen", () -> {
 }, id: "neu-anfangen");
 neuAnfangen.stil("farbe", "mozzarella").hinweis("Löscht den Spielstand in der Vorratskammer.");
 
-Stapel imperium = neu Stapel([sterneTeil, statistikTeil, neuAnfangen], id: "imperium");
+Stapel imperium = neu Stapel([aufstiegTeil, sterneTeil, franchiseTeil, statistikTeil, neuAnfangen], id: "imperium");
 imperium.stil("abstand", 8);
 
-Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium"], [backstube, erfolgeSeite, imperium], id: "reiter");
-reiter.beiAenderung((n) -> { zeichne(); });   // Imperium wird nur gezeichnet, wenn man hinschaut
+// ── Reiter 4: Nonnas Geheimnisse (Geheimrezepte, Herausforderungen) ──
+Schild geheimInfo = neu Schild("", id: "geheim-kopf");
+geheimInfo.stil("schrift", "klein");
+Abschnitt geheimTeil = neu Abschnitt("📜 Nonnas Geheimrezepte", [geheimInfo], id: "geheimrezepte");
+geheimTeil.stil("abstand", 6);
+Blech<RezeptZeile> rezeptZeilen = [];
+für (Geheimrezept r : spiel.REZEPTE) {
+    RezeptZeile z = neu RezeptZeile(r, () -> {
+        falls (spiel.lerne(r)) { speichere(); nachVerarbeitung(); }
+    });
+    rezeptZeilen.hinzu(z);
+    geheimTeil.hinzu(z.reihe);
+}
+
+Schild probeInfo = neu Schild("", id: "probe-kopf");
+probeInfo.stil("schrift", "klein");
+Fortschritt zielBalken = neu Fortschritt(id: "ziel-balken");
+zielBalken.stil("farbe", "basilikum");
+Knopf aufgeben = neu Knopf("🏳 Aufgeben", () -> {
+    falls (!bestätigt(aufgeben, "🏳 Wirklich aufgeben? Nochmal klicken!")) { zeichne(); serviere; }
+    spiel.gibAuf();
+    nachVerarbeitung();
+}, id: "aufgeben");
+aufgeben.stil("farbe", "mozzarella").hinweis("Die Auflagen fallen weg, die Runde läuft normal weiter – ohne Belohnung.");
+Stapel laufend = neu Stapel([zielBalken, aufgeben], id: "probe-laufend");
+laufend.sichtbar(nein);
+Abschnitt probeTeil = neu Abschnitt("🏅 Herausforderungen", [probeInfo, laufend], id: "herausforderungen");
+probeTeil.stil("abstand", 6);
+Blech<HerausforderungZeile> probeZeilen = [];
+für (Herausforderung h : spiel.HERAUSFORDERUNGEN) {
+    HerausforderungZeile z = neu HerausforderungZeile(h, () -> {
+        Knopf k = probeZeilen.filtere((p) -> (p.h == h)).erstes().knopf;
+        falls (!bestätigt(k, "▶ Wirklich? Nochmal!")) { zeichne(); serviere; }
+        falls (spiel.starte(h)) { speichere(); }
+        nachVerarbeitung();
+    });
+    probeZeilen.hinzu(z);
+    probeTeil.hinzu(z.reihe);
+}
+
+Stapel geheimnisse = neu Stapel([geheimTeil, probeTeil], id: "geheimnisse");
+geheimnisse.stil("abstand", 8);
+
+Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium", "📜 Geheimnisse"],
+    [backstube, erfolgeSeite, imperium, geheimnisse], id: "reiter");
+reiter.beiAenderung((n) -> { zeichne(); });   // Imperium/Geheimnisse werden nur gezeichnet, wenn man hinschaut
 
 // ── Die Uhr der Backstube ──
 Takt takt = neu Takt(1s, (n) -> {
     spiel.vergehe(n);
+    falls (frageId != "") {
+        frageRest = frageRest - n;
+        falls (frageRest <= 0) { frageId = ""; spiel.version++; }
+    }
     nachVerarbeitung();
 }, id: "takt");
 
 // ─────────────────────────────── Zeichnen ───────────────────────────────
 // voll   – nach Käufen, Rezeptseiten, Ereignissen (spiel.version hat sich geändert)
-// leicht – bei jedem Klick und Takt: Kasse, Balken, Knöpfe; Statistik alle 5 Mal
+// leicht – bei jedem Klick und Takt: Kasse, Balken, Knöpfe; Imperium/Geheimnisse alle 5 Mal
 salami gezeigteVersion = -1;
 salami gezeigteErfolge = -1;
 salami gezeigterOfen = -1;
 salami gezeigterReiter = 1;
 salami gemeldeteSterne = 0;
+salami gemeldeteFilialen = 0;
 salami aufrufe = 0;
 
 Blech<Erfolg> offeneErfolge = [];
@@ -642,54 +1043,134 @@ leer zeichneErfolge() {
         : ["🔒", "???", e.text]))));
 }
 
+margherita prozent(funghi teil, funghi ganz) {
+    serviere ((ganz > 0 ? teil / ganz * 100 : 0).kompakt(1) + " %");
+}
+
 leer zeichneVoll() {
     gezeigteVersion = spiel.version;
     margherita zeile = Spiel.pizzen(spiel.proKlick()) + " pro Klick · " + spiel.proSekunde().kompakt(1)
         + " pro Sekunde · " + spiel.preis().euro() + " pro Pizza";
     falls (spiel.sterne > 0) { zeile = zeile + " · " + "⭐".wiederhole(Mathe.min(spiel.sterne, 5)) + (spiel.sterne > 5 ? "×" + spiel.sterne : ""); }
+    falls (spiel.filialen > 0) { zeile = zeile + " · 🏢×" + spiel.filialen; }
     setzeText(kennzahlen, zeile);
-    setzeKnopf(backen, "🍕 Pizza backen!  +" + spiel.proKlick().kompakt(1), ja);
+    falls (spiel.darfKlicken()) {
+        setzeKnopf(backen, "🍕 Pizza backen!  +" + spiel.proKlick().kompakt(1), ja);
+    } sonst {
+        setzeKnopf(backen, "🙏 Fastenzeit – heute wird nicht geknetet", nein);
+    }
 
     // Upgrades: in jeder Liste erscheint das nächste, sobald das vorige gekauft ist.
     Upgrade vorher = karton;
     für (UpgradeZeile z : zeilen) {
         diavolo erstes = z.u == spiel.handwerk.erstes() || z.u == spiel.betrieb.erstes();
-        z.zeigeWenn(erstes || z.u.anzahl > 0 || vorher.anzahl > 0);
-        z.beschrifte();
+        diavolo freigeschaltet = z.u.schlüssel != "zentrale" || spiel.filialen > 0;
+        z.zeigeWenn(freigeschaltet && (erstes || z.u.anzahl > 0 || vorher.anzahl > 0));
+        z.beschrifte(spiel);
         vorher = z.u;
     }
 
     setzeText(rezeptInfo, "Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza");
-    falls (spiel.rezeptFertig()) {
+    falls (spiel.rezeptGesperrt()) {
+        setzeKnopf(rezeptKnopf, "📖 Hawaii-Verbot: Nonna hat das Rezeptbuch weggeschlossen.", nein);
+    } sonst falls (spiel.rezeptFertig()) {
         setzeKnopf(rezeptKnopf, "📖 Nonnas Rezeptbuch ist ausgelesen. Grazie, Nonna!", nein);
     } sonst {
-        rezeptKnopf.setzeText(("📖 Seite " + (spiel.seite + 1) + " lesen: + " + spiel.SEITEN.stück(spiel.seite + 1)
-            + " · " + spiel.seitenKosten().euro(kompakt: ja)));
+        setzeKnopf(rezeptKnopf, "📖 Seite " + (spiel.seite + 1) + " lesen: + " + spiel.SEITEN.stück(spiel.seite + 1)
+            + " · " + spiel.seitenKosten().euro(kompakt: ja), spiel.geld >= spiel.seitenKosten());
     }
 }
 
 leer zeichneImperium() {
     salami neu_ = spiel.neueSterne();
+    salami ausgegeben = spiel.sterneVergeben - spiel.sterne;
+    funghi f = (1 + spiel.sterne * 0.1) * (1 + spiel.filialen);
+    aufstieg.setzeZeilen(([
+        ["⭐ Michelin-Sterne", spiel.sterne + " aktiv" + (ausgegeben > 0 ? " · " + ausgegeben + " ausgegeben" : ""),
+            "+" + (spiel.sterne * 10) + " % auf alles"],
+        ["📜 Geheimrezepte", spiel.rezepteOffen() ? spiel.talente.länge() + " von " + spiel.REZEPTE.länge() : "🔒 ab 1 ⭐",
+            "gegen Sterne"],
+        ["🏅 Herausforderungen", spiel.herausforderungenOffen() ? spiel.geschafft.länge() + " von " + spiel.HERAUSFORDERUNGEN.länge() : "🔒 ab 3 ⭐",
+            "Boni für immer"],
+        ["🏢 Franchise", (spiel.filialen > 0 ? spiel.filialen + (spiel.filialen == 1 ? " Filiale" : " Filialen") : (spiel.neueFilialen() > 0 ? "bereit" : "🔒 ab 25 ⭐ je Kette"))
+            + (spiel.neueFilialen() > 0 ? " (+" + spiel.neueFilialen() + ")" : ""), "+" + (spiel.filialen * 100) + " % auf alles"],
+        ["Zusammen", "×" + f.kompakt(2), "Sterne × Filialen"]
+    ]));
+
     falls (neu_ > 0) {
         setzeText(prestigeInfo, "Der Guide Michelin ist begeistert! Neueröffnen bringt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
             + " (+10 % je Stern), setzt aber Kasse, Upgrades und Rezeptbuch zurück.");
     } sonst {
-        setzeText(prestigeInfo, "Nächster Michelin-Stern ab " + spiel.nächsterStern().euro(kompakt: ja) + " Gesamtumsatz.");
+        setzeText(prestigeInfo, "Nächster Michelin-Stern ab " + spiel.nächsterStern().euro(kompakt: ja) + " Umsatz in dieser Kette (bisher "
+            + spiel.umsatzKette.euro(kompakt: ja) + ").");
     }
-    prestigeBalken.setzeWert((Mathe.min(1, spiel.umsatzAllzeit / spiel.nächsterStern())));
+    prestigeBalken.setzeWert((spiel.sternFortschritt()));
     setzeKnopf(prestigeKnopf, "⭐ Neueröffnung" + (neu_ > 0 ? " (+" + neu_ + ")" : ""), neu_ > 0);
+
+    salami kette = spiel.sterneKette();
+    salami gesamt = spiel.sterneAllzeit + neu_;
+    salami filialenNeu = spiel.neueFilialen();
+    salami ziel = spiel.filialen + filialenNeu + 1;          // die nächste Filiale danach
+    margherita nächste = "Die " + ziel + ". Filiale gibt es ab " + spiel.sterneFürFiliale(ziel) + " Sternen insgesamt (bisher " + gesamt + ").";
+    falls (filialenNeu > 0) {
+        setzeText(franchiseInfo, "Deine Sterne reichen für " + filialenNeu + (filialenNeu == 1 ? " neue Filiale" : " neue Filialen") + " (+"
+            + (filialenNeu * 100) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen dafür von vorn an. " + nächste);
+    } sonst falls (kette < 25) {
+        setzeText(franchiseInfo, "Eine Kette gründen kannst du ab 25 Sternen in der laufenden Kette (bisher " + kette + "). " + nächste);
+    } sonst {
+        setzeText(franchiseInfo, "Für eine neue Filiale fehlen noch Sterne. " + nächste);
+    }
+    salami von = spiel.sterneFürFiliale(ziel - 1);
+    franchiseBalken.setzeWert((Mathe.min(kette / 25, (gesamt - von) / (spiel.sterneFürFiliale(ziel) - von))));
+    setzeKnopf(franchiseKnopf, "🏢 Kette gründen" + (filialenNeu > 0 ? " (+" + filialenNeu + (filialenNeu == 1 ? " Filiale)" : " Filialen)") : ""), filialenNeu > 0);
+
     statistik.setzeZeilen(([
         ["Pizzen in dieser Runde", spiel.pizzen.kompakt(1)],
         ["Pizzen insgesamt", spiel.pizzenAllzeit.kompakt(1)],
         ["Umsatz insgesamt", spiel.umsatzAllzeit.euro(kompakt: ja)],
+        ["Anteil Klicken am Umsatz", prozent(spiel.umsatzKlick, spiel.umsatz) + " (Runde) · " + prozent(spiel.umsatzKlickAllzeit, spiel.umsatzAllzeit) + " (gesamt)"],
         ["Klicks", spiel.klicks.tausender()],
         ["Spielzeit", (1s * spiel.sekunden).alsText()],
-        ["Michelin-Sterne", spiel.sterne.alsText()],
+        ["Michelin-Sterne (insgesamt)", spiel.sterneAllzeit.alsText()],
+        ["Neueröffnungen", spiel.neueröffnungen.alsText()],
+        ["Franchise-Gründungen", spiel.franchises.alsText()],
         ["Perfekte Pizzen", spiel.perfekte.alsText()],
         ["Hawaii-Gäste bekehrt", spiel.hawaiiBekehrt.alsText()],
         ["Großbestellungen pünktlich", spiel.pünktlich.alsText()],
         ["Sonderschichten", spiel.sonderschichten.alsText()]
     ]));
+    setzeKnopf(neuAnfangen, "🗑 Neu anfangen", ja);
+}
+
+leer zeichneGeheimnisse() {
+    falls (spiel.rezepteOffen()) {
+        setzeText(geheimInfo, "Nonna verrät ihre Geheimnisse nur gegen Michelin-Sterne – du hast " + spiel.sterne
+            + " ⭐. Ein ausgegebener Stern bringt keine +10 % mehr. Die Rezepte wirken bis zur nächsten Franchise-Gründung.");
+    } sonst {
+        setzeText(geheimInfo, "🔒 Nonna verrät ihre Geheimrezepte nur Sterneköchen. Hol dir mit einer Neueröffnung den ersten Michelin-Stern.");
+    }
+    für (RezeptZeile z : rezeptZeilen) {
+        falls (z.reihe.sichtbar() != spiel.rezepteOffen()) { z.reihe.sichtbar(spiel.rezepteOffen()); }
+        z.zeichne(spiel);
+    }
+
+    diavolo offen = spiel.herausforderungenOffen();
+    falls (spiel.modus != "") {
+        Herausforderung h = spiel.herausforderung(spiel.modus);
+        setzeText(probeInfo, h.symbol + " " + h.name + " läuft: " + spiel.umsatz.euro(kompakt: ja) + " von "
+            + h.ziel.euro(kompakt: ja) + " Umsatz. " + h.regel);
+        zielBalken.setzeWert((spiel.zielFortschritt()));
+    } sonst falls (offen) {
+        setzeText(probeInfo, "Eine Runde unter Auflagen – schaffst du das Ziel, gilt die Belohnung für immer, auch nach einer Franchise-Gründung.");
+    } sonst {
+        setzeText(probeInfo, "🔒 Ab 3 Michelin-Sternen fordert Nonna dich heraus. Bisher: " + spiel.sterneAllzeit + " von 3.");
+    }
+    falls (laufend.sichtbar() != (spiel.modus != "")) { laufend.sichtbar(spiel.modus != ""); }
+    setzeKnopf(aufgeben, "🏳 Aufgeben", ja);
+    für (HerausforderungZeile z : probeZeilen) {
+        falls (z.reihe.sichtbar() != offen) { z.reihe.sichtbar(offen); }
+        z.zeichne(spiel);
+    }
 }
 
 leer zeichne() {
@@ -699,44 +1180,61 @@ leer zeichne() {
     setzeText(kasse, spiel.geld.euro(kompakt: ja));
     setzeText(meldung, spiel.nachricht);
 
+    falls (spiel.modus != "") {
+        Herausforderung h = spiel.herausforderung(spiel.modus);
+        setzeText(modusInfo, h.symbol + " " + h.name + ": " + spiel.umsatz.euro(kompakt: ja) + " von " + h.ziel.euro(kompakt: ja)
+            + " Umsatz (" + prozent(spiel.umsatz, h.ziel) + ")");
+    }
+    falls (modusInfo.sichtbar() != (spiel.modus != "")) { modusInfo.sichtbar(spiel.modus != ""); }
+
     salami ofenAnzeige = Mathe.decke(spiel.ofenKühlt / 10) * 10;   // Countdown in Zehnerschritten
     falls (voll || ofenAnzeige != gezeigterOfen) {
         gezeigterOfen = ofenAnzeige;
         setzeKnopf(ofenKnopf, spiel.ofenBereit()
             ? "🔥 Sonderschicht (" + spiel.ofenTemperatur() + " °C)"
-            : "🔥 Ofen kühlt ab … noch " + ofenAnzeige + " s", spiel.ofenBereit());
+            : (spiel.modus == "fastenzeit" ? "🔥 Fastenzeit – der Ofen bleibt kalt" : "🔥 Ofen kühlt ab … noch " + ofenAnzeige + " s"), spiel.ofenBereit());
     }
 
     für (UpgradeZeile z : zeilen) { z.zeichne(spiel.geld); }
-    falls (!spiel.rezeptFertig()) {
+    falls (!spiel.rezeptFertig() && !spiel.rezeptGesperrt()) {
         diavolo leistbar = spiel.geld >= spiel.seitenKosten();
         falls (rezeptKnopf.aktiv() != leistbar) { rezeptKnopf.aktiv(leistbar); }
     }
-    // Der Reiter „Imperium“ (Statistik-Tabelle!) nur, wenn er offen ist – spart große Nachrichten.
-    falls (reiter.gewaehlt() == 3 && (voll || aufrufe % 5 == 0 || gezeigterReiter != 3)) { zeichneImperium(); }
-    gezeigterReiter = reiter.gewaehlt();
+    // Die Reiter „Imperium“ und „Geheimnisse“ (Tabellen!) nur, wenn sie offen sind – spart große Nachrichten.
+    salami r = reiter.gewaehlt();
+    diavolo auffrischen = voll || aufrufe % 5 == 0 || gezeigterReiter != r;
+    falls (r == 3 && auffrischen) { zeichneImperium(); }
+    falls (r == 4 && auffrischen) { zeichneGeheimnisse(); }
+    gezeigterReiter = r;
     aufrufe++;
 }
 
 leer nachVerarbeitung() {
+    spiel.prüfeZiel();
     prüfeErfolge();
     salami neu_ = spiel.neueSterne();
     falls (neu_ > gemeldeteSterne) {
-        spiel.melde(("⭐ Der Guide Michelin ist da! Im Reiter „Imperium“ wartet " + (neu_ == 1 ? "ein neuer Stern" : neu_ + " neue Sterne") + "."));
+        spiel.melde(("⭐ Der Guide Michelin ist da! Im Reiter „Imperium“ " + (neu_ == 1 ? "wartet ein neuer Stern" : "warten " + neu_ + " neue Sterne") + "."));
     }
     gemeldeteSterne = neu_;
+    salami fil = spiel.neueFilialen();
+    falls (fil > 0 && gemeldeteFilialen == 0) {
+        spiel.melde(("🏢 Investoren klopfen an: Deine Sterne reichen für eine Franchise-Kette (Reiter „Imperium“)."));
+    }
+    gemeldeteFilialen = fil;
     zeichne();
     seitSpeichern++;
     falls (seitSpeichern >= 30) { speichere(); }
 }
 
 // ─────────────────────────────── Aufbauen & los ─────────────────────────
-Stapel wurzel = neu Stapel([kasse, kennzahlen, backen, ofenKnopf, meldung, reiter, takt], id: "wurzel");
+Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, meldung, reiter, takt], id: "wurzel");
 wurzel.stil("abstand", 10);
 
 sortiereErfolge();
 zeichne();
-zeichneImperium();   // einmal vorab, damit der (verborgene) Reiter schon stimmt
+zeichneImperium();     // einmal vorab, damit die (verborgenen) Reiter schon stimmen
+zeichneGeheimnisse();
 theke.zeige(wurzel);
 theke.bediene();
 
