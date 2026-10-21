@@ -54,7 +54,7 @@ speisekarte klasse Pizzeria {
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "Buonasera! Gäste am Tisch: 0" },
         { art: "details", titel: "Genauer: paket, import und die Startreihenfolge", inhalt: [
-          { art: "text", md: "- `paket` und `import` sind erlaubt, werden aber ignoriert – die Standardbibliothek ist immer da.\n- Gestartet wird der `hauptgang` der **ersten Klasse**, die einen hat. `args` ist ein Blech mit Texten (hier leer).\n- Es zählt nur der Name: `hauptgang()` ohne Parameter geht auch, ebenso ohne `tiefkühl` (dann wird vorher ein Objekt der Klasse gebacken). Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert.\n- Hat keine Klasse einen `hauptgang`, darf es auch eine lose Funktion `hauptgang` sein." },
+          { art: "text", md: "- `paket` und `import` sind erlaubt, werden aber ignoriert – die Standardbibliothek ist immer da.\n- Gestartet wird der `hauptgang` der **ersten Klasse**, die einen hat. `args` ist ein Blech mit Texten (hier leer). Füllen kannst du es im Playground über das Feld **„Argumente“**, in der Kommandozeile und beim heruntergeladenen Programm hinter dem Programmnamen.\n- Es zählt nur der Name: `hauptgang()` ohne Parameter geht auch, ebenso ohne `tiefkühl` (dann wird vorher ein Objekt der Klasse gebacken). Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert.\n- Hat keine Klasse einen `hauptgang`, darf es auch eine lose Funktion `hauptgang` sein." },
           { art: "text", md: "Snack-Modus und Hauptgang vertragen sich: Erst werden alle Klassen registriert (sie dürfen also auch *nach* ihrer Verwendung stehen), dann laufen die losen Anweisungen der Reihe nach, und **danach** wird `hauptgang` serviert." },
           { art: "code", code: code`
 Bote.sage(("1. Antipasto"));
@@ -1000,7 +1000,7 @@ Bote.sage(("Das hier wird nie serviert."));
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
             ["`2`", "PizzaFehler – Syntax, `K0001`, `B0012`, `R0001`, `Q0004`, `A0001`, `P0011`, `P0012` …"],
-            ["`3`", "die Pizza ist noch im Ofen – Schrittlimit (`P0002`) oder 10-Sekunden-Zeitlimit im Playground (`P0003`)"],
+            ["`3`", "Schrittlimit (`P0002`) – die Pizza ist noch im Ofen"],
             ["`39`", "Hawaii. Frag nicht."]
           ] },
           { art: "hinweis", ton: "warnung", md: "Im Beispiel oben erscheint in der Konsole: `Ungefangene Ananas – StreitAnanas: Wer hat das letzte Stück gegessen? (Zeile 2)`. Was vorher ausgegeben wurde, bleibt stehen." },

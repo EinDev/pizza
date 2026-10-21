@@ -796,7 +796,7 @@
               ]
             },
             { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an." },
-            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen über **„Vorrat löschen“** im Playground bzw. indem du die Datei aus der Tabelle löschst. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
+            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1`), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` bzw. `--vorrat-loeschen alle`. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
             { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
           ]
         }
@@ -919,14 +919,14 @@
               art: "tabelle",
               kopf: ["Wo", "Was der Gast sieht"],
               zeilen: [
-                ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor; Schließen-Knopf = Fenster zu. Das 10-Sekunden-Zeitlimit ruht, solange auf den Gast gewartet wird; Abbrechen (`Esc`) geht immer."],
-                ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, gibt es eine verständliche Meldung und das Programm läuft in der Konsole weiter."],
-                ["Linux mit Theke", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar)."],
-                ["Linux ohne Theke", "die schlanke Variante ohne Fenster – Theke-Programme laufen dort als reines Konsolenprogramm (siehe W0100)."]
+                ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor; Schließen-Knopf = Fenster zu. Abbrechen (`Esc`) geht immer."],
+                ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, bricht das Programm mit einer klaren Fehlermeldung ab."],
+                ["Linux", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar). Fehlt sie, gibt es eine klare Fehlermeldung."]
               ]
             },
-            { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Welche Variante was braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
-            { art: "hinweis", ton: "info", md: "**W0100:** Gibt es nirgends ein Fenster (z. B. im Terminal ohne grafische Oberfläche oder in der Linux-Variante ohne Theke), meldet pizza `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
+            { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Was eine Plattform braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
+            { art: "text", md: "**Hell oder dunkel:** Im Playground folgt das Programmfenster dem Thema der Seite – standardmäßig dem deines Betriebssystems; schaltest du die Seite um, wechselt das Fenster mit. Im heruntergeladenen Programm folgt es dem Thema des Betriebssystems. Inhalt, Farben und Standardgröße (480 × 360) sind überall gleich." },
+            { art: "hinweis", ton: "info", md: "**W0100:** Läuft ein Theke-Programm ganz ohne Fenster – etwa in Tests, in dieser Doku oder in der Kommandozeile `node bin/pizza.js` –, meldet pizza `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
           ]
         }
       ]
@@ -1025,7 +1025,6 @@
           zeilen: [
             ["`P0001`", "Syntaxfehler – der Parser erkennt im Rezept kein Rezept.", "2"],
             ["`P0002`", "„Die Pizza ist noch im Ofen.“ – Schrittlimit (Standard 5 000 000) erreicht, vermutlich eine Endlosschleife.", "3"],
-            ["`P0003`", "„Die Pizza ist noch im Ofen (Zeitlimit).“ – der Lauf hat im Playground länger als 10 Sekunden echte Zeit gebraucht.", "3"],
             ["`P0010`", "Eine Klasse `erbt`/`erfüllt` etwas, das es nicht gibt, oder erbt im Kreis („ein Teigknoten“).", "2"],
             ["`P0011`", "Eine `gebacken`e (finale) Klasse soll mit `erbt` erweitert werden.", "2"],
             ["`P0012`", "`abbrechen` oder `weiter` steht außerhalb einer Schleife – zum Beispiel direkt in einer Methode.", "2"],
@@ -1047,7 +1046,7 @@
             ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
-            ["`W0100`", "`theke.bediene()`, aber nirgends kann ein Fenster erscheinen", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
+            ["`W0100`", "`theke.bediene()` ohne Fenster (Tests, Doku, Kommandozeile)", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
             ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"]
           ]
         },
@@ -1112,7 +1111,7 @@
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
             ["`2`", "PizzaFehler (Syntax, `B0012`, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
-            ["`3`", "die Pizza ist noch im Ofen: Schrittlimit (`P0002`) oder 10-Sekunden-Zeitlimit im Playground (`P0003`)"],
+            ["`3`", "die Pizza ist noch im Ofen: Schrittlimit (`P0002`) erreicht"],
             ["`39`", "Hawaii. Der Pizzaiolo hat den Raum verlassen."]
           ]
         },
@@ -1226,7 +1225,7 @@
           art: "details",
           titel: "Als Programm herunterladen (Windows/Linux)",
           inhalt: [
-            { art: "text", md: "Der Knopf **„Als Programm herunterladen“** backt den Code des aktiven Tabs zu WebAssembly und packt ihn mit einem kleinen Host-Programm zusammen – direkt in deinem Browser, ohne Server. Heraus kommt eine Datei für die gewählte Plattform: unter Windows eine `.exe`, unter Linux eine ausführbare Datei ohne Endung." },
+            { art: "text", md: "Der Knopf **„Als Programm herunterladen“** backt den Code des aktiven Tabs zu WebAssembly und packt ihn mit einem kleinen Host-Programm zusammen – direkt in deinem Browser, ohne Server. Heraus kommt eine Datei für die gewählte Plattform: unter Windows eine `.exe`, unter Linux eine ausführbare Datei ohne Endung. Beide können ein **Theke-Fenster** öffnen: Windows nutzt dafür die eingebaute WebView2, Linux braucht **WebKitGTK 4.1** (fehlt es, sagt das Programm das deutlich). Programm-Argumente schreibst du beim Start hinter den Namen: `./programm Luigi 3`." },
             {
               art: "tabelle",
               kopf: ["System", "So startest du es"],
@@ -1293,7 +1292,8 @@
             ["`Strg+D`", "im Eingabefeld der Konsole: Eingabe beenden (das Programm bekommt `karton`)"]
           ]
         },
-        { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf höchstens 10 Sekunden echte Zeit dauern – Warten auf deine Eingabe zählt nicht mit. Danach heißt es `PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).` mit Exit-Code 3." },
+        { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf so lange dauern, wie er will – gestoppt wird nur durch das Schrittlimit (`P0002`, 5 000 000 Schritte, Exit-Code 3) oder durch dich: **Esc** bzw. **Abbrechen**." },
+        { art: "text", md: "**Argumente:** Im Playground gibt es das Feld **„Argumente“**. Was du dort einträgst, bekommt `hauptgang(Blech<margherita> args)` als Blech von Texten – genau wie beim Aufruf in der Kommandozeile oder beim heruntergeladenen Programm (`./programm Luigi 3`). Ohne Eintrag ist das Blech leer." },
         {
           art: "details",
           titel: "Code teilen",

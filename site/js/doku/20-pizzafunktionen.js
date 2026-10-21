@@ -418,7 +418,7 @@
               )
             },
             { art: "ausgabe", text: "Ofen an. Ich schau mal kurz weg ..." },
-            { art: "hinweis", ton: "pizza", md: "Zusätzlich zieht die Weboberfläche nach **10 Sekunden echter Zeit** den Stecker: `PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).`, ebenfalls Exit-Code 3. Warten auf deine Eingabe zählt dabei nicht. Fünf Millionen Schritte schafft ein moderner Browser aber meist schneller." }
+            { art: "hinweis", ton: "pizza", md: "Das Schrittlimit gilt überall gleich – im Playground, in der Kommandozeile und im heruntergeladenen Programm. Eine echte Stoppuhr gibt es nicht. Wer nicht warten will, drückt im Playground **Esc** bzw. **Abbrechen**. Fünf Millionen Schritte schafft ein moderner Browser aber meist in wenigen Sekunden." }
           ]
         }
       ]
