@@ -90,7 +90,7 @@
             ["`max(a, b)`", "Größerer Wert", "`Mathe.max(3, 7)` → `7`"],
             ["`min(a, b)`", "Kleinerer Wert", "`Mathe.min(3, 7)` → `3`"],
             ["`abs(x)`", "Betrag", "`Mathe.abs(-12)` → `12`"],
-            ["`runden(x)`", "Kaufmännisch auf Ganzzahl runden", "`Mathe.runden(7.4)` → `7`"],
+            ["`runden(x)`", "Auf Ganzzahl runden", "`Mathe.runden(7.4)` → `7`"],
             ["`boden(x)`", "Abrunden", "`Mathe.boden(7.9)` → `7`"],
             ["`decke(x)`", "Aufrunden", "`Mathe.decke(7.1)` → `8`"],
             ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"]
@@ -522,7 +522,7 @@
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"]
           ]
         },
-        { art: "text", md: "Ein `K0001` in freier Wildbahn – der Parser lässt kein `serviere` ohne Klammern durch:" },
+        { art: "text", md: "Ein `K0001` in freier Wildbahn – pizza lässt kein `serviere` ohne Klammern durch:" },
         {
           art: "code",
           ausfuehrbar: true,
@@ -533,7 +533,8 @@
             "    salami summe() {",
             "        serviere 42;",
             "    }",
-            "}"
+            "}",
+            "Bote.sage((neu Kasse().summe()));"
           )
         },
         { art: "text", md: "Und ein `B0012` – Käse gehört **auf** die Tomate:" },
