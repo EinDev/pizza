@@ -41,7 +41,46 @@ RUN if [ "$SKIP_TESTS" = "1" ]; then \
     fi
 
 # ---------------------------------------------------------------------------
-# Stage 2: Ausliefern – nur site/ über nginx (nicht-root, Port 8080)
+# Stage 2: Nativer Host – Cross-Builds der pizza-host-Binaries für den
+# EXE-Download im Browser (Windows x64 -gnu, Linux x64 musl, …).
+# Vertrag: host/baue-ziele.sh <ausgabeverzeichnis> legt die Binaries und
+# ziele.json dort ab (auch als $AUSGABE_DIR verfügbar). Fehlt das Skript, bleibt
+# /usr/share/nginx/html/bin/ leer. Abschalten: --build-arg SKIP_EXE=1.
+# Schlägt das Skript fehl, wird (Standard) gewarnt; STRICT_BUILD=1 bricht ab.
+# Cargo-Registry und target/ liegen in BuildKit-Cache-Mounts (schnelle Rebuilds).
+# ---------------------------------------------------------------------------
+FROM rust:1.99.1-slim-trixie AS exe
+
+ARG SKIP_EXE=0
+ARG STRICT_BUILD=0
+RUN if [ "$SKIP_EXE" != "1" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 musl-tools && \
+        rm -rf /var/lib/apt/lists/* && \
+        rustup target add x86_64-pc-windows-gnu x86_64-unknown-linux-musl; \
+    fi
+
+WORKDIR /app
+COPY host/ host/
+ENV AUSGABE_DIR=/out \
+    CARGO_TARGET_DIR=/app/host/target
+RUN --mount=type=cache,id=pizza-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=pizza-host-target,target=/app/host/target \
+    mkdir -p /out && \
+    if [ "$SKIP_EXE" = "1" ]; then \
+        echo ">> SKIP_EXE=1 – keine nativen Binaries."; \
+    elif [ -f host/baue-ziele.sh ]; then \
+        start=$(date +%s); \
+        find host -name '*.sh' -exec sed -i 's/\r$//' {} + ; \
+        { sh host/baue-ziele.sh /out || { [ "$STRICT_BUILD" != "1" ] && rm -rf /out/* && \
+            echo ">> WARNUNG: host/baue-ziele.sh fehlgeschlagen – keine EXE-Downloads."; }; } && \
+        echo ">> Native Builds: $(( $(date +%s) - start )) s"; ls -la /out; \
+    else \
+        echo ">> host/baue-ziele.sh fehlt noch – keine EXE-Downloads."; \
+    fi
+
+# ---------------------------------------------------------------------------
+# Stage 3: Ausliefern – nur site/ über nginx (nicht-root, Port 8080)
 # ---------------------------------------------------------------------------
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24 AS runtime
 
@@ -74,6 +113,8 @@ ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 \
     NGINX_ENVSUBST_FILTER="HASTEBIN_URL|HASTEBIN_OEFFENTLICH|HASTEBIN_TOKEN|NGINX_LOCAL_RESOLVERS"
 
 COPY --from=build /app/site/ /usr/share/nginx/html/
+# Native pizza-host-Binaries + ziele.json (ggf. leer)
+COPY --from=exe /out/ /usr/share/nginx/html/bin/
 
 EXPOSE 8080
 

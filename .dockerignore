@@ -29,3 +29,6 @@ compose.yaml
 # Lokale Umgebungen
 .env
 .env.*
+
+# Rust-Build-Artefakte (host/target ist >1 GB)
+**/target

@@ -17,6 +17,7 @@ services:
       context: .
       args:
         SKIP_TESTS: ${SKIP_TESTS:-1}
+        SKIP_EXE: ${SKIP_EXE:-0}
     image: pizza-playground:3.0
     expose:
       - "8080"
