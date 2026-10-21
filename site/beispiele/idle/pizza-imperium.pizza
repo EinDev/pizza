@@ -463,7 +463,8 @@ klasse Spiel {
         Belag b = SEITEN.stück(seite);
         rezept = rezept + b;
         neuBerechnen();
-        melde(("📖 Nonna verrät Seite " + seite + ": " + b + "! Eine Pizza kostet jetzt " + preis().euro() + "."));
+        melde(("📖 Nonna verrät Seite " + seite + ": " + b + "! Eine Pizza kostet jetzt " + preis().euro() + "."
+            + (rezeptFertig() ? " Das Rezeptbuch ist ausgelesen – Nonna legt es zurück in die Schublade. Grazie, Nonna!" : "")));
         serviere (ja);
     }
 
@@ -535,11 +536,22 @@ klasse Spiel {
     // ── Ebene 2: Geheimrezepte ──
     diavolo rezepteOffen() { serviere (sterneAllzeit >= 1); }
     diavolo lernbar(Geheimrezept r) {
-        serviere (rezepteOffen() && !kennt(r.schlüssel) && sterne >= r.kosten && (r.braucht == "" || kennt(r.braucht)));
+        serviere (rezepteOffen() && sterne >= r.kosten && offeneRezepte().enthält(r));
     }
     Geheimrezept rezeptNamens(margherita s) {
         für (Geheimrezept r : REZEPTE) { falls (r.schlüssel == s) { serviere (r); } }
         serviere (karton);
+    }
+
+    // Welle: höchstens WELLE_REZEPTE offene Rezepte (Voraussetzung erfüllt, noch nicht gelernt) – die billigsten zuerst.
+    // Gelernte verschwinden, das nächste Glied rückt nach.
+    salami WELLE_REZEPTE = 3;
+    Blech<Geheimrezept> offeneRezepte() {
+        Blech<Geheimrezept> offen = REZEPTE.filtere((r) -> (!kennt(r.schlüssel) && (r.braucht == "" || kennt(r.braucht))))
+            .sortiere((a, b) -> (a.kosten - b.kosten));
+        Blech<Geheimrezept> welle = [];
+        für (Geheimrezept r : offen) { falls (welle.länge() < WELLE_REZEPTE) { welle.hinzu(r); } }
+        serviere (welle);
     }
 
     diavolo lerne(Geheimrezept r) {
@@ -667,42 +679,37 @@ klasse Spiel {
         serviere (s);
     }
 
-    // Ältere Spielstände (version 2 und 3) kennen die neuen Felder nicht – sie bekommen Standardwerte.
-    // (Speisekarte.hole(k) liefert für fehlende Schlüssel karton, darum erst hat(k) fragen.)
-    Vorrat aus(Speisekarte<margherita, Vorrat> s, margherita k, Vorrat ersatz) {
-        serviere (s.hat(k) ? s.hole(k) : ersatz);
-    }
-
+    // Ältere Spielstände (version 2 bis 4) kennen manche Felder nicht – hole(k, ersatz) liefert dann den Standardwert.
     leer ladeAus(Speisekarte<margherita, Vorrat> s) {
-        geld = aus(s, "geld", 0); pizzen = aus(s, "pizzen", 0); umsatz = aus(s, "umsatz", 0);
-        umsatzKlick = aus(s, "umsatzKlick", 0);
-        pizzenAllzeit = aus(s, "pizzenAllzeit", 0); umsatzAllzeit = aus(s, "umsatzAllzeit", 0);
-        umsatzKlickAllzeit = aus(s, "umsatzKlickAllzeit", 0);
-        umsatzKette = aus(s, "umsatzKette", umsatzAllzeit);
-        klicks = aus(s, "klicks", 0); sekunden = aus(s, "sekunden", 0);
-        sterne = aus(s, "sterne", 0); neueröffnungen = aus(s, "neueröffnungen", 0);
-        sterneVergeben = aus(s, "sterneVergeben", sterne); sterneAllzeit = aus(s, "sterneAllzeit", sterne);
-        filialen = aus(s, "filialen", 0); franchises = aus(s, "franchises", 0);
-        talente = aus(s, "talente", []); geschafft = aus(s, "geschafft", []);
-        modus = aus(s, "modus", "");
-        hawaiiBekehrt = aus(s, "hawaiiBekehrt", 0); pünktlich = aus(s, "pünktlich", 0);
-        sonderschichten = aus(s, "sonderschichten", 0); perfekte = aus(s, "perfekte", 0);
-        erfolge = aus(s, "erfolge", []);
-        minispielPause = aus(s, "minispielPause", 0); minispieleGespielt = aus(s, "minispieleGespielt", 0);
-        minispieleGewonnen = aus(s, "minispieleGewonnen", 0); minispielSiege = aus(s, "minispielSiege", []);
-        umsatzMini = aus(s, "umsatzMini", 0); umsatzMiniAllzeit = aus(s, "umsatzMiniAllzeit", 0);
-        Speisekarte<margherita, salami> stück = aus(s, "upgrades", neu Speisekarte<margherita, salami>());
-        für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
-        für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
+        geld = s.hole("geld", 0); pizzen = s.hole("pizzen", 0); umsatz = s.hole("umsatz", 0);
+        umsatzKlick = s.hole("umsatzKlick", 0);
+        pizzenAllzeit = s.hole("pizzenAllzeit", 0); umsatzAllzeit = s.hole("umsatzAllzeit", 0);
+        umsatzKlickAllzeit = s.hole("umsatzKlickAllzeit", 0);
+        umsatzKette = s.hole("umsatzKette", umsatzAllzeit);
+        klicks = s.hole("klicks", 0); sekunden = s.hole("sekunden", 0);
+        sterne = s.hole("sterne", 0); neueröffnungen = s.hole("neueröffnungen", 0);
+        sterneVergeben = s.hole("sterneVergeben", sterne); sterneAllzeit = s.hole("sterneAllzeit", sterne);
+        filialen = s.hole("filialen", 0); franchises = s.hole("franchises", 0);
+        talente = s.hole("talente", []); geschafft = s.hole("geschafft", []);
+        modus = s.hole("modus", "");
+        hawaiiBekehrt = s.hole("hawaiiBekehrt", 0); pünktlich = s.hole("pünktlich", 0);
+        sonderschichten = s.hole("sonderschichten", 0); perfekte = s.hole("perfekte", 0);
+        erfolge = s.hole("erfolge", []);
+        minispielPause = s.hole("minispielPause", 0); minispieleGespielt = s.hole("minispieleGespielt", 0);
+        minispieleGewonnen = s.hole("minispieleGewonnen", 0); minispielSiege = s.hole("minispielSiege", []);
+        umsatzMini = s.hole("umsatzMini", 0); umsatzMiniAllzeit = s.hole("umsatzMiniAllzeit", 0);
+        Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
+        für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
+        für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
         rezept = ((Tomate, Mozzarella, Basilikum));
         seite = 0;
-        salami ziel = Mathe.min(aus(s, "seite", 0), SEITEN.länge());
+        salami ziel = Mathe.min(s.hole("seite", 0), SEITEN.länge());
         solange (seite < ziel) { seite++; rezept = rezept + SEITEN.stück(seite); }
         neuBerechnen();
         nachricht = "Willkommen zurück! Dein Imperium hat auf dich gewartet.";
 
         // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft, höchstens 30 Minuten lang.
-        salami weg = Mathe.boden((Uhr.echt().inMs() - aus(s, "zeit", Uhr.echt().inMs())) / 1000);
+        salami weg = Mathe.boden((Uhr.echt().inMs() - s.hole("zeit", Uhr.echt().inMs())) / 1000);
         salami gezählt = Mathe.min(weg, 30 * 60);
         minispielPause = Mathe.max(0, minispielPause - Mathe.max(0, weg));   // Nonnas Pause läuft auch offline ab
         funghi nachts = proSekunde() * gezählt * 0.5;
@@ -1061,11 +1068,7 @@ klasse RezeptZeile {
     leer zeichne(Spiel s) {
         margherita voraus = r.braucht == "" ? "" : " (braucht " + s.rezeptNamens(r.braucht).name + ")";
         setzeText(info, r.symbol + " " + r.name + voraus + " – " + r.text);
-        falls (s.kennt(r.schlüssel)) {
-            setzeKnopf(knopf, "✅ gelernt", nein);
-        } sonst {
-            setzeKnopf(knopf, r.kosten + " ⭐ lernen", s.lernbar(r));
-        }
+        setzeKnopf(knopf, r.kosten + " ⭐ lernen", s.lernbar(r));
     }
 }
 
@@ -1243,7 +1246,10 @@ imperium.stil("abstand", 8);
 // ── Reiter 4: Nonnas Geheimnisse (Geheimrezepte, Herausforderungen) ──
 Schild geheimInfo = neu Schild("", id: "geheim-kopf");
 geheimInfo.stil("schrift", "klein");
-Abschnitt geheimTeil = neu Abschnitt("📜 Nonnas Geheimrezepte", [geheimInfo], id: "geheimrezepte");
+Schild gelerntInfo = neu Schild("", id: "geheim-gelernt");
+gelerntInfo.stil("schrift", "klein").stil("farbe", "basilikum");
+gelerntInfo.sichtbar(nein);
+Abschnitt geheimTeil = neu Abschnitt("📜 Nonnas Geheimrezepte", [geheimInfo, gelerntInfo], id: "geheimrezepte");
 geheimTeil.stil("abstand", 6);
 Blech<RezeptZeile> rezeptZeilen = [];
 für (Geheimrezept r : spiel.REZEPTE) {
@@ -1447,12 +1453,15 @@ leer zeichneVoll() {
         vorher = z.u;
     }
 
-    setzeText(rezeptInfo, "Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza");
+    margherita imOfen = "Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza";
+    setzeText(rezeptInfo, imOfen);
+    falls (kennzahlen.hinweis() != imOfen) { kennzahlen.hinweis((imOfen)); }
+    // Ausgelesen: Das Rezeptbuch verschwindet und macht Platz (im Hawaii-Verbot bleibt es mit Schloss sichtbar).
+    diavolo buchZeigen = !spiel.rezeptFertig() || spiel.rezeptGesperrt();
+    falls (rezeptTeil.sichtbar() != buchZeigen) { rezeptTeil.sichtbar(buchZeigen); }
     falls (spiel.rezeptGesperrt()) {
         setzeKnopf(rezeptKnopf, "📖 Hawaii-Verbot: Nonna hat das Rezeptbuch weggeschlossen.", nein);
-    } sonst falls (spiel.rezeptFertig()) {
-        setzeKnopf(rezeptKnopf, "📖 Nonnas Rezeptbuch ist ausgelesen. Grazie, Nonna!", nein);
-    } sonst {
+    } sonst falls (!spiel.rezeptFertig()) {
         setzeKnopf(rezeptKnopf, "📖 Seite " + (spiel.seite + 1) + " lesen: + " + spiel.SEITEN.stück(spiel.seite + 1)
             + " · " + spiel.seitenKosten().euro(kompakt: ja), spiel.geld >= spiel.seitenKosten());
     }
@@ -1528,10 +1537,19 @@ leer zeichneGeheimnisse() {
     } sonst {
         setzeText(geheimInfo, "🔒 Nonna verrät ihre Geheimrezepte nur Sterneköchen. Hol dir mit einer Neueröffnung den ersten Michelin-Stern.");
     }
+    // Welle: nur die offenen Rezepte zeigen, Gelerntes klappt in eine Zeile.
+    Blech<Geheimrezept> welle = spiel.offeneRezepte();
     für (RezeptZeile z : rezeptZeilen) {
-        falls (z.reihe.sichtbar() != spiel.rezepteOffen()) { z.reihe.sichtbar(spiel.rezepteOffen()); }
-        z.zeichne(spiel);
+        diavolo zeigen = spiel.rezepteOffen() && welle.enthält(z.r);
+        falls (z.reihe.sichtbar() != zeigen) { z.reihe.sichtbar(zeigen); }
+        falls (zeigen) { z.zeichne(spiel); }
     }
+    Blech<Geheimrezept> gelernt = spiel.REZEPTE.filtere((r) -> (spiel.kennt(r.schlüssel)));
+    falls (!gelernt.istLeer()) {
+        setzeText(gelerntInfo, "✅ Gelernt: " + gelernt.belege((r) -> (r.symbol + " " + r.name)).verbinde(" · ")
+            + (welle.istLeer() ? " – Nonna hat dir alles verraten." : ""));
+    }
+    falls (gelerntInfo.sichtbar() == gelernt.istLeer()) { gelerntInfo.sichtbar(!gelernt.istLeer()); }
 
     diavolo offen = spiel.herausforderungenOffen();
     falls (spiel.modus != "") {
