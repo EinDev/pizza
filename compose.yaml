@@ -5,9 +5,10 @@ services:
       args:
         SKIP_TESTS: ${SKIP_TESTS:-1}
     image: pizza-playground:3.0
-    container_name: pizza-playground
-    ports:
-      - "8080:8080"
+    # Kein ports-Mapping und kein container_name: Coolify routet über seinen Proxy
+    # selbst auf den Container. Lokal: docker compose run --service-ports … bzw. eigenes Override.
+    expose:
+      - "8080"
     restart: unless-stopped
     environment:
       # API-Token von hastebin.com (Toptal); leer = Teilen deaktiviert
