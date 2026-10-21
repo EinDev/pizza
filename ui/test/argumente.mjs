@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { zerlegeArgumente as z } from "../src/argumente.js";
+assert.deepEqual(z(""), []);
+assert.deepEqual(z("  a   b c "), ["a", "b", "c"]);
+assert.deepEqual(z('Luigi "Tisch 5" 3'), ["Luigi", "Tisch 5", "3"]);
+assert.deepEqual(z("'a b' \"\" ''"), ["a b", "", ""]);
+assert.deepEqual(z('pre"mit leer"post'), ["premit leerpost"]);
+assert.deepEqual(z('"offen'), ["offen"]);
+assert.deepEqual(z("'wörtlich \n'"), ["wörtlich \n"]);
+console.log("Argumente ok");

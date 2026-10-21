@@ -8,6 +8,7 @@ import { ausInterpreterErgaenzen } from "./woerter.js";
 import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
 import { erstelleVorschau } from "./vorschau.js";
+import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -114,7 +115,7 @@ function start() {
   });
   tabs = erstelleTabs({
     editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
-    beiWechsel() { /* Platz für künftige Anzeigen */ },
+    beiWechsel(t) { const f = document.getElementById("args"); if (f && t) f.value = t.args || ""; },
     beiTeilen: () => $("knopf-teilen").click(),
     beiExe: () => exeDialogOeffnen(),
     toast,
@@ -486,6 +487,14 @@ function start() {
   exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
   knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
 
+  // ---------- Argumente (pro Tab) ----------
+  const argsFeld = $("args");
+  argsFeld.title = ARGUMENTE_HILFE;
+  $("args-feld").title = ARGUMENTE_HILFE;
+  argsFeld.value = (tabs.aktiv() && tabs.aktiv().args) || "";
+  argsFeld.addEventListener("input", () => tabs.setzeArgs(argsFeld.value));
+  argsFeld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); backen(); } });
+
   // ---------- Zufallssaat (K-077) ----------
   const festeSaatBox = $("feste-saat");
   festeSaatBox.checked = speicher.hole("pizza.festeSaat") === "1";
@@ -588,7 +597,7 @@ function start() {
     const saat = neueSaat();
     laufVorratPraefix = vorratPraefix(t);
     const vorratAktiv = vorratVerfuegbar();
-    ausfuehrung.starte(code, [], motor, {
+    ausfuehrung.starte(code, zerlegeArgumente(t ? t.args : ""), motor, {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
       zufallsSaat: saat,
@@ -972,6 +981,7 @@ function start() {
       ...tabs.liste.filter((t) => !t.aktiv).map((t) => ({ id: "tab-zu-" + t.id, gruppe: "Wechseln zu", titel: t.name, aktion: () => tabs.wechsle(t.id) })),
       ...vorratNamen(vorratPraefix(tabs.aktiv())).map((n) => ({ id: "vorrat-" + n, icon: "trash", gruppe: "Vorrat", titel: "Vorrat löschen: " + n, aktion: () => vorratLoeschen(n) })),
       { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(tabs.aktiv())).length > 0 },
+      { id: "argumente", icon: "terminal", gruppe: "Ofen", titel: "Argumente für hauptgang(args) bearbeiten", aktion: () => { konsoleOeffnen(); argsFeld.focus(); argsFeld.select(); } },
       { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
       { id: "panel", icon: "panel",  gruppe: "Ansicht", titel: "Seitenpanel ein-/ausblenden", kuerzel: K("Strg+B"), aktion: panelUmschalten },
       { id: "doku", icon: "book",  gruppe: "Ansicht", titel: "Doku anzeigen", aktion: () => { setzePanel(true); waehleTab("doku", true); } },

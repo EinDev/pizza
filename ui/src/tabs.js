@@ -37,7 +37,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
   const finde = (id) => tabs.find((t) => t.id === id) || null;
   const textVon = (t) => (t.id === aktivId ? editor.text() : t.state ? t.state.doc.toString() : t.text);
   const istSchmutzig = (t) => textVon(t) !== t.basis;
-  const neuerTab = (werte) => ({ id: neueId(), name: "unbenannt.pizza", schluessel: null, text: "", basis: "", state: null, scroll: 0, angeheftet: false, ...werte });
+  const neuerTab = (werte) => ({ id: neueId(), name: "unbenannt.pizza", schluessel: null, text: "", basis: "", state: null, scroll: 0, angeheftet: false, args: "", ...werte });
   const ordnen = () => { tabs = [...tabs.filter((t) => t.angeheftet), ...tabs.filter((t) => !t.angeheftet)]; };
 
   // ---------- Laden / Speichern ----------
@@ -48,7 +48,8 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
       tabs = daten.tabs
         .filter((t) => t && typeof t.text === "string")
         .map((t) => neuerTab({ id: String(t.id || neueId()), name: String(t.name || "unbenannt.pizza"), schluessel: t.schluessel || null,
-          text: t.text, basis: typeof t.basis === "string" ? t.basis : t.text, angeheftet: !!t.angeheftet }));
+          text: t.text, basis: typeof t.basis === "string" ? t.basis : t.text, angeheftet: !!t.angeheftet,
+          args: typeof t.args === "string" ? t.args : "" }));
       aktivId = tabs.some((t) => t.id === daten.aktiv) ? daten.aktiv : tabs[0] && tabs[0].id;
       if (Array.isArray(daten.geschlossen)) geschlossen = daten.geschlossen.filter((g) => g && typeof g.text === "string").slice(0, MAX_GESCHLOSSEN);
     }
@@ -72,7 +73,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     const los = () => {
       const daten = {
         aktiv: aktivId,
-        tabs: tabs.map((t) => ({ id: t.id, name: t.name, schluessel: t.schluessel, text: textVon(t), basis: t.basis, angeheftet: t.angeheftet || undefined })),
+        tabs: tabs.map((t) => ({ id: t.id, name: t.name, schluessel: t.schluessel, text: textVon(t), basis: t.basis, angeheftet: t.angeheftet || undefined, args: t.args || undefined })),
         geschlossen,
       };
       speicher.setze(SPEICHER, JSON.stringify(daten));
@@ -581,6 +582,8 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     get geschlossen() { return geschlossen.map((g) => g.name); },
     get anzahl() { return tabs.length; },
     beiAenderung() { aktualisiereMarker(); speichern(); },
+    /** Argumentzeile des aktiven Tabs setzen (pro Tab gespeichert). */
+    setzeArgs(text) { const a = aktiv(); if (a) { a.args = String(text || ""); speichern(); } },
     /** Strg+S: aktiven Tab als gespeichert markieren. */
     sichern() {
       const a = aktiv();
