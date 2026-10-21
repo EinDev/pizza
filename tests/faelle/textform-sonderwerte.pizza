@@ -1,0 +1,13 @@
+Bote.sage((ofen(zeit: 5ms) { zwischenstand((3)); solange (ja) { } } roh (r) { serviere ((r)); }));
+Bote.sage((auto));
+Bote.sage((J));
+Bote.sage((K));
+Rezept n = neu StreitAnanas("x").nachricht;
+Bote.sage((n()));
+Rezept t = neu K().alsText;
+Bote.sage((t()));
+Bote.sage((bestelle(() -> (2)).warte(max: 1s).wert()));
+quattrostagioni J { A, B, C, D }
+klasse K { }
+rezeptur R { }
+Bote.sage((R));

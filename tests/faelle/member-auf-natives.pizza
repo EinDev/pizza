@@ -1,0 +1,13 @@
+Rezept laenge = [1, 2, 3].länge;
+Bote.sage((laenge()));
+Rezept hole = neu Speisekarte<margherita, salami>().lege("a", 1).hole;
+Bote.sage((hole("a")));
+Rezept gross = "abc".groß;
+Bote.sage((gross()));
+Rezept ms = 2s.inMs;
+Bote.sage((ms()));
+Rezept wahr = ja.alsText;
+Bote.sage((wahr()));
+probier { [1].gibts; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { teig(() -> (1)).x; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((teig(() -> (5)).gehenlassen.rufe().backen()));

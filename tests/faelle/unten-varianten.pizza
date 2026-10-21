@@ -1,0 +1,20 @@
+klasse Basis { salami wert = 4; margherita name() { serviere (("Basis")); } }
+klasse Kind erbt Basis {
+    salami lies() { serviere ((unten.wert)); }
+    margherita text() { serviere ((unten.alsText())); }
+    margherita kaputt() { serviere ((unten.gibts())); }
+}
+Kind k = neu Kind();
+Bote.sage((k.lies()));
+Bote.sage((k.text()));
+probier { k.kaputt(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse MA erbt StreitAnanas { MA() { unten("m"); } margherita n() { serviere ((unten.nachricht() + "/" + unten.typ())); } }
+Bote.sage((neu MA().n()));
+klasse Allein { Allein() { unten(1); } salami f() { serviere ((unten.f())); } }
+probier { neu Allein(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse Allein2 { salami f() { serviere ((unten.f())); } }
+probier { neu Allein2().f(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse X { leer m() { unten(); } }
+probier { neu X().m(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { unten.x; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { unten(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

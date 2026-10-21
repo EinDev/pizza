@@ -302,6 +302,47 @@ function api() {
     ja(/^\[[1-6](, [1-6]){19}\]\n$/.test(a), a);
   });
 
+  test('onEingabe: Anfrage, Ereignisse, EOF bei undefined/Fehler, Vorrang vor eingabe', () => {
+    const anfragen = [];
+    const antworten = ['erste\r\n', 7, undefined];
+    const r = P.run('Bote.sage((Bestellannahme.frage(("A? "))));\nBote.sage((Bestellannahme.liesZahl() + 1));\nBote.sage((Bestellannahme.lies()));\nBote.sage((Bestellannahme.hatMehr()));',
+      { eingabe: ['ignoriert'], onEingabe: (a) => { anfragen.push(a); return antworten.shift(); } });
+    gleich(anfragen, [{ prompt: 'A? ', art: 'zeile' }, { prompt: null, art: 'zahl' }, { prompt: null, art: 'zeile' }], 'Anfragen');
+    gleich(r.ereignisse.filter(e => e.typ === 'eingabe').map(e => e.text), ['erste', '7', null], 'eingabe-Ereignisse');
+    gleich(ausgabeText(r.ereignisse), 'A? erste\n8\nkarton\nja\n');
+    gleich(r.ereignisse[0], { typ: 'ausgabe', text: 'A? ', umbruch: false });
+    const r2 = P.run('Bote.sage((Bestellannahme.lies()));', { onEingabe: () => { throw new Error('Abbruch'); } });
+    gleich(ausgabeText(r2.ereignisse), 'karton\n');
+  });
+
+  test('Warten auf Eingabe kostet keine Schritte/Zeit, Aufruf genau 1+1', () => {
+    const q = 'salami x = 1;';
+    const ohne = P.run(q).schritte;
+    const mit = P.run('salami x = 1;\nBestellannahme.lies();', { onEingabe: () => 'langsam' }).schritte;
+    gleich(mit - ohne, 3, 'Schritte für Anweisung + Aufruf + Name');
+  });
+
+  test('Schrittzählung exakt (Referenz für den Compiler)', () => {
+    const faelle = [
+      ['', 0],
+      ['salami x = 1;', 2],
+      ['salami x = 1 + 2 * 3;', 6],
+      ['Bote.sage((1));', 4],
+      ['falls (ja) { } sonst { }', 2],
+      ['falls (nein) { } sonst falls (ja) { }', 4],
+      ['für (salami i = 0; i < 3; i++) { }', 1 + 2 + 4 * 3 + 3 * 1],
+      ['salami f(salami a) { serviere ((a)); }\nf(1);', 5],
+      ['Pizza p = ((Tomate, Käse));', 2],
+      ['Uhr.vorspulen(1h);', 4],
+      ['klasse K { salami x = 5; }\nK k = neu K();', 3],
+      ['solange (nein) { }', 2],
+      ['Rezept r = x -> x + 1;\nr(1);', 2 + 3 + 3]
+    ];
+    for (const [q, n] of faelle) gleich(P.run(q).schritte, n, 'Schritte für ' + JSON.stringify(q));
+    const r = P.run('Uhr.vorspulen(1h);');
+    gleich(r.zeitMs, 3600000 + 4, 'zeitMs');
+  });
+
   test('run() wirft nie, auch bei Unsinn', () => {
     for (const q of [null, undefined, '', '   ', '﻿Bote.sage((1));', 42]) {
       const r = P.run(q);

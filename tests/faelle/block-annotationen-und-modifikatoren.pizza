@@ -1,0 +1,11 @@
+leer f() {
+    @NieKarton salami a = 1;
+    gebacken salami b = 2;
+    tiefkühl salami c = 3;
+    Bote.sage((a + b + c));
+    probier { b = 5; } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }
+}
+f();
+salami i;
+für (i = 0; i < 2; i++) { Bote.sage((i)); }
+für (gebacken salami k = 0; nein; ) { }

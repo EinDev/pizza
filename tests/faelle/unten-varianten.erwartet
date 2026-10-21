@@ -1,0 +1,9 @@
+4
+Kind@1
+Methode 'gibts' gibt es in der Basisklasse 'Basis' nicht.
+m/MA
+Klasse 'Allein' hat keine Basisklasse für unten(…).
+'unten' gibt es hier nicht – keine Basisklasse.
+unten(…) geht nur im Konstruktor.
+'unten' gibt es hier nicht.
+unten(…) geht nur im Konstruktor.
