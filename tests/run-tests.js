@@ -722,22 +722,25 @@ function cli() {
     gleich([k.out, k.err], ['1\n', 'W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert. (Zeile 1, Spalte 19)\n']);
   });
 
-  test('Vorrat löschen: --vorrat-loeschen <name|alle> ohne Programm, feste Texte, ungültiger Name → Exit 2', () => {
+  test('Vorrat löschen: --vorrat-loeschen <name> / --vorrat-loeschen-alle ohne Programm, feste Texte, ungültiger Name → Exit 2', () => {
     const ordner = path.join(tmp, 'loeschen');
-    const p = datei('kammern.pizza', 'neu Vorratskammer("eins").lege("a", 1);\nneu Vorratskammer("zwei").lege("b", 2);\n');
+    const p = datei('kammern.pizza', 'neu Vorratskammer("alle").lege("x", 0);\nneu Vorratskammer("eins").lege("a", 1);\nneu Vorratskammer("zwei").lege("b", 2);\n');
     gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).code, 0);
     fs.writeFileSync(path.join(ordner, 'notiz.txt'), 'bleibt');
-    gleich(fs.readdirSync(ordner).sort(), ['eins.json', 'notiz.txt', 'zwei.json']);
+    gleich(fs.readdirSync(ordner).sort(), ['alle.json', 'eins.json', 'notiz.txt', 'zwei.json']);
     const r1 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'eins']);
     gleich([r1.code, r1.out, r1.err], [0, "Vorrat 'eins' gelöscht.\n", '']);
     const r2 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen=eins']);
     gleich([r2.code, r2.out], [0, "Vorrat 'eins' gibt es nicht.\n"]);
     const r3 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'Groß Name']);
     gleich([r3.code, r3.out, r3.err], [2, '', "Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).\n"]);
-    const r4 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'alle']);
+    const ra = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'alle']);
+    gleich([ra.code, ra.out], [0, "Vorrat 'alle' gelöscht.\n"], 'Kammer namens alle einzeln');
+    gleich(fs.readdirSync(ordner).sort(), ['notiz.txt', 'zwei.json']);
+    const r4 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen-alle']);
     gleich([r4.code, r4.out], [0, 'Alle Vorräte gelöscht.\n']);
     gleich(fs.readdirSync(ordner), ['notiz.txt'], 'nur Kammer-Dateien gelöscht');
-    gleich(lauf(['--vorrat=' + path.join(tmp, 'gibtsnicht'), '--vorrat-loeschen', 'alle']).out, 'Alle Vorräte gelöscht.\n');
+    gleich(lauf(['--vorrat=' + path.join(tmp, 'gibtsnicht'), '--vorrat-loeschen-alle']).out, 'Alle Vorräte gelöscht.\n');
     gleich(lauf(['--vorrat-loeschen']).code, 2, 'ohne Namen');
   });
 

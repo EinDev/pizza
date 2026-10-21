@@ -3,7 +3,8 @@
  * pizza CLI
  *   node bin/pizza.js datei.pizza [args…]
  *   node bin/pizza.js --ast datei.pizza
- *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name|alle>   (ohne Programm)
+ *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>   (eine Kammer, ohne Programm)
+ *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle     (alle Kammern, ohne Programm)
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
  *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
  *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
@@ -37,9 +38,10 @@ for (let i = 0; i < roh.length; i++) {
     }
     else if (a.startsWith('--vorrat=')) optionen.vorratOrdner = a.slice(9);
     else if (a === '--kein-vorrat') optionen.keinVorrat = true;
+    else if (a === '--vorrat-loeschen-alle') optionen.vorratLoeschen = { alle: true };
     else if (a === '--vorrat-loeschen' || a.startsWith('--vorrat-loeschen=')) {
       const n = a === '--vorrat-loeschen' ? roh[++i] : a.slice(18);
-      if (n === undefined) { console.error('--vorrat-loeschen braucht einen Kammernamen oder „alle“.'); process.exit(2); }
+      if (n === undefined) { console.error('--vorrat-loeschen braucht einen Kammernamen (alle Kammern: --vorrat-loeschen-alle).'); process.exit(2); }
       optionen.vorratLoeschen = n;
     }
     else if (a === '--eingabe' || a.startsWith('--eingabe=')) {
@@ -58,7 +60,8 @@ for (let i = 0; i < roh.length; i++) {
 
 function hilfe() {
   console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [args…]' +
-    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name|alle>');
+    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>' +
+    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle');
 }
 
 // „Vorrat löschen“ (Nutzerentscheidung K-083 Nr. 5): gleiche Texte wie Playground/EXE
@@ -68,7 +71,7 @@ if (optionen.vorratLoeschen !== undefined) {
   const ordner = optionen.vorratOrdner || vorratStandardOrdner();
   const n = optionen.vorratLoeschen;
   const KAMMER = /^[a-z0-9-]{1,40}$/;
-  if (n === 'alle') {
+  if (typeof n === 'object') {
     let dateien = [];
     try { dateien = fs.readdirSync(ordner); } catch (e) { dateien = []; }
     for (const d of dateien) {
