@@ -1,2 +1,3 @@
 {"v":1,"op":"fenster","titel":"U","breite":480,"hoehe":360}
 {"v":1,"op":"baum","wurzel":{"id":"z1","art":"knopf","text":"Boom"}}
+{"v":1,"op":"schliesse"}

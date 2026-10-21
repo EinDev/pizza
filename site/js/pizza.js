@@ -2123,10 +2123,21 @@
         this.rufeDecl(haupt, dies, pos, null, null, 'normal');
       }
       this.lieferungenNachEnde();
-      this.uiFlush();
+      this.uiEnde();
     }
 
     // ---------- Theke ----------
+    // Programmende: letzte Änderungen senden, offenes Fenster schließen (Nutzerentscheidung, überschreibt K-061)
+    uiEnde() {
+      const t = this.uiTheke;
+      this.uiFlush();
+      if (t !== null && t.gezeigt && !t.geschlossen) {
+        this.uiSende({ v: 1, op: 'schliesse' });
+        t.geschlossen = true;
+        t.gezeigt = false;
+      }
+    }
+
     uiSende(nachricht) {
       if (this.onUi !== null) { try { this.onUi(nachricht); } catch (e) { /* Renderer-Fehler ignorieren */ } }
       this.emit({ typ: 'ui', nachricht });
@@ -3802,6 +3813,7 @@
         this.emit({ typ: 'panik', text: PANIK_BANNER });
         return 39;
       }
+      try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
       if (e instanceof PizzaFehlerSig) {
         this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
         return 2;
