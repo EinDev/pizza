@@ -617,4 +617,119 @@ Bote.sage(("🍕".ersetze("", "-")));
 Bote.sage(("🍕".ersetze("", "-").länge()));
 Bote.sage(("🍕x".ersetze("x", "-")));
 `, { out: ["ab", "🍕", "1", "🍕-"] }),
+
+  F(K, "K-078: Zufall.saat() ist 42; saat(7) setzt den globalen Strom; zahl(1, 6) → 1 1 6 5 4 3", P`
+Bote.sage((Zufall.saat()));
+Zufall.saat(7);
+Bote.sage((Zufall.saat()));
+Blech<salami> b = [];
+für (salami i = 1; i <= 6; i++) { b.hinzu(Zufall.zahl(1, 6)); }
+Bote.sage((b));
+`, { out: ["42", "7", "[1, 1, 6, 5, 4, 3]"] }),
+
+  F(K, "K-078: kommazahl(), kommazahl(a, b), wahr(p) – je eine Ziehung", P`
+Zufall.saat(7);
+Bote.sage((Zufall.kommazahl()));
+Bote.sage((Zufall.kommazahl()));
+Bote.sage((Zufall.kommazahl()));
+Zufall.saat(7);
+Bote.sage((Zufall.kommazahl(10, 20)));
+Bote.sage((Zufall.wahr(0.5)));
+Bote.sage((Zufall.wahr(0.5)));
+Bote.sage((Zufall.wahr(0)));
+Bote.sage((Zufall.wahr(1)));
+`, { out: ["0.011704753153026104", "0.06195825757458806", "0.97690763277933", "10.117047531530261", "ja", "nein", "nein", "ja"] }),
+
+  F(K, "K-078: wähle(blech) und mische(blech) (Fisher-Yates von hinten, neues Blech)", P`
+Zufall.saat(7);
+Bote.sage((Zufall.wähle(["a", "b", "c"])));
+Bote.sage((Zufall.wähle(["a", "b", "c"])));
+Zufall.saat(7);
+Blech<salami> b = [1, 2, 3, 4, 5];
+Bote.sage((Zufall.mische(b)));
+Bote.sage((b));
+Bote.sage((Zufall.mische([9])));
+probier { Zufall.wähle([]); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+`, { out: ["a", "a", "[4, 2, 3, 5, 1]", "[1, 2, 3, 4, 5]", "[9]", "Das Blech ist leer – kein Stück da."] }),
+
+  F(K, "K-078: neu Zufall(saat) ist ein eigener Strom; neu Zufall() zieht seine Saat aus dem globalen Strom; Textform", P`
+Zufall.saat(7);
+Zufall g = neu Zufall(7);
+Bote.sage((g.zahl(1, 6) + " " + g.zahl(1, 6)));
+Bote.sage((Zufall.zahl(1, 6)));
+Zufall.saat(7);
+Zufall h = neu Zufall();
+Bote.sage((h.saat()));
+Bote.sage((h));
+Bote.sage((g));
+`, { out: ["1 1", "1", "50271532", "Zufall(50271532)", "Zufall(7)"] }),
+
+  F(K, "K-078: Saat wird mod 2^32 normalisiert; keine Ganzzahl → TypAnanas", P`
+Zufall.saat(-1);
+Bote.sage((Zufall.saat()));
+Bote.sage((Zufall.zahl(1, 6) + " " + Zufall.zahl(1, 6)));
+probier { Zufall.saat(2.5); } verbrannt (TypAnanas a) { Bote.sage(("typ")); }
+`, { out: ["4294967295", "6 2", "typ"] }),
+
+  F(K, "K-077: optionen.zufallsSaat = 7 wirkt wie Zufall.saat(7)", P`
+Bote.sage((Zufall.saat()));
+Bote.sage((Zufall.zahl(1, 6) + " " + Zufall.zahl(1, 6) + " " + Zufall.zahl(1, 6)));
+`, { zufallsSaat: 7, out: ["7", "1 1 6"] }),
+
+  // ── K-079/080 Vorratskammer ──────────────────────────────────────────────
+  F(K, "K-079/080: Eingangszustand aus optionen.vorrat; lege/hole/hat/entferne/schlüssel/länge; Ereignisse je Änderung", P`
+Vorratskammer v = neu Vorratskammer("spiel");
+Bote.sage((v.hole("punkte")));
+Bote.sage((v.hole("fehlt")));
+Bote.sage((v.hole("fehlt", 0)));
+v.lege("punkte", 6).lege("name", "Luigi");
+Bote.sage((v.hat("name") + " " + v.länge()));
+Bote.sage((v.schlüssel()));
+Bote.sage((v.entferne("name")));
+Bote.sage((v.entferne("name")));
+Bote.sage((v));
+`, {
+    vorrat: { spiel: [["punkte", 5]] },
+    out: ["5", "karton", "0", "ja 2", "[punkte, name]", "Luigi", "karton", "Vorratskammer(spiel)"],
+    vorratEreignisse: [{ name: "spiel", schluessel: "punkte", wert: 6 }, { name: "spiel", schluessel: "name", wert: "Luigi" }, { name: "spiel", schluessel: "name", wert: null }],
+  }),
+
+  F(K, "K-079: Wertsemantik (tiefe Kopie), verschachtelte Bleche/Speisekarten, leeren, gleicher Name = gleiche Kammer", P`
+Vorratskammer v = neu Vorratskammer("k");
+Blech<salami> b = [1, 2];
+v.lege("liste", b);
+b.hinzu(3);
+Bote.sage((v.hole("liste")));
+Blech<salami> c = v.hole("liste");
+c.hinzu(9);
+Bote.sage((v.hole("liste")));
+Speisekarte<margherita, salami> m = neu Speisekarte<margherita, salami>();
+m.lege("b", 2); m.lege("a", 1);
+v.lege("karte", [m, karton, ja, "x", 1.5]);
+Bote.sage((v.hole("karte")));
+Vorratskammer w = neu Vorratskammer("k");
+Bote.sage((w.länge()));
+w.leeren();
+Bote.sage((v.länge()));
+`, {
+    vorrat: {},
+    out: ["[1, 2]", "[1, 2]", "[{b: 2, a: 1}, karton, ja, x, 1.5]", "2", "0"],
+    vorratEreignisse: [{ name: "k", schluessel: "liste", wert: [1, 2] }, { name: "k", schluessel: "karte", wert: [{ speisekarte: [["b", 2], ["a", 1]] }, null, true, "x", 1.5] }, { name: "k", schluessel: null, wert: null }],
+  }),
+
+  F(K, "K-079: ungültige Werte, Schlüssel und Namen → TypAnanas/LaufzeitAnanas", P`
+Vorratskammer v = neu Vorratskammer("k");
+probier { v.lege("p", ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("pizza")); }
+probier { v.lege("f", Mathe.wurzel(-1)); } verbrannt (TypAnanas a) { Bote.sage(("nan")); }
+probier { v.lege(1, 2); } verbrannt (TypAnanas a) { Bote.sage(("schlüssel")); }
+probier { Vorratskammer x = neu Vorratskammer("Groß Name"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((v.länge()));
+`, { vorrat: {}, out: ["pizza", "nan", "schlüssel", "Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).", "0"], vorratEreignisse: [] }),
+
+  F(K, "K-080: ohne vorrat/onVorrat → W0101 einmal, Kammer arbeitet im Speicher", P`
+Vorratskammer v = neu Vorratskammer("a");
+Vorratskammer w = neu Vorratskammer("b");
+v.lege("x", 1);
+Bote.sage((v.hole("x")));
+`, { out: ["1"], warnAnzahl: { W0101: 1 }, warnText: { W0101: "Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert." } }),
 ];

@@ -150,6 +150,10 @@ function bewerte(f, res) {
     const ist = uiNachrichten(res);
     if (kanon(ist) !== kanon(f.ui)) err.push(`ui-Nachrichten weichen ab:\n--- ist ---\n${ist.map(kanon).join("\n")}\n--- soll ---\n${f.ui.map(kanon).join("\n")}`);
   }
+  if (f.vorratEreignisse !== undefined) {
+    const ist = (res.ereignisse || []).filter((e) => e.typ === "vorrat").map((e) => ({ name: e.name, schluessel: e.schluessel, wert: e.wert }));
+    if (kanon(ist) !== kanon(f.vorratEreignisse)) err.push("vorrat-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.vorratEreignisse.map(kanon).join("\n"));
+  }
   if (f.check) {
     let r;
     try { r = f.check(res); } catch (e) { r = "check() warf: " + e; }
@@ -282,6 +286,9 @@ async function teilA() {
         if (f.args) optionen.args = f.args;
         if (f.eingabe) optionen.eingabe = f.eingabe;
         if (f.uiEreignisse) optionen.uiEreignisse = f.uiEreignisse;
+        if (f.zufallsSaat !== undefined) optionen.zufallsSaat = f.zufallsSaat;   // K-077
+        if (f.vorrat !== undefined) optionen.vorrat = f.vorrat;                 // K-080
+        if (f.echtzeit !== undefined) optionen.echtzeit = f.echtzeit;           // K-087
         const m = await aus.run(f.code, optionen);
         if (m.fehler) err = [m.fehler];
         else {

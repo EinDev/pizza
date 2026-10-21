@@ -23,6 +23,8 @@ function P(s, ...v) {
  *   args: string[], schrittLimit: number, eingabe: string[],
  *   uiEreignisse: object[]    – vorgegebene Theke-Ereignisse (SPEC §16),
  *   ui: object[]              – exakte Liste der ui-Nachrichten (kanonisch verglichen),
+ *   zufallsSaat: number       – optionen.zufallsSaat (K-077),
+ *   vorrat: object            – optionen.vorrat (K-080), vorratEreignisse: object[] – exakte Liste {name, schluessel, wert},
  *   check(res, h) → string | string[] | undefined (Fehlermeldungen)
  * }
  */

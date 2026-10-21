@@ -432,11 +432,12 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Entscheidung (vom Nutzer getroffen, überschreibt die Interpreter-Auslegung):** **Ja.** Am Programmende wird ein noch offenes
   Fenster geschlossen wie bei normalen Programmen: nach dem letzten Puffer-Flush sendet die Laufzeit `{"v":1,"op":"schliesse"}` –
   nur wenn das Fenster offen ist (gezeigt und nicht `geschlossen`/`schliesse()`), auch bei Ende durch ungefangene Ananas oder
-  P0002 (die `ui`-Nachrichten stehen dann nach dem `fehler`-Ereignis, vor `ende`). Bei Hawaii-Panik gibt es keine Nachricht
+  P0002 – die `ui`-Nachrichten (Flush, `schliesse`) stehen dann **vor** dem `fehler`-Ereignis („Fenster zu, dann Fehlermeldung“;
+  Interpreter c0bb852, Compiler hat Parität geprüft). Bei Hawaii-Panik gibt es keine Nachricht
   (harter Abbruch); Host und UI schließen das Fenster selbst. Host: Fenster zu → Prozess endet mit dem Exit-Code des Programms.
   Eine nie gezeigte Theke sendet nichts.
-- **Betroffen:** Interpreter (U-34), Beispiel-`.ui-erwartet` (U-35), UI-Vorschaufenster (U-36), Host (U-28), Compiler/Laufzeit (U-27).
-- **Status:** offen (a12-theke-offen.js: 5 Fälle).
+- **Betroffen:** Interpreter (U-34, umgesetzt in c0bb852), Beispiel-`.ui-erwartet` (U-35), UI-Vorschaufenster (U-36), Host (U-28), Compiler/Laufzeit (U-27).
+- **Status:** fest (a13).
 
 ### K-062 Theke: eine pro Programm, eingebaute Klassen
 - **Entscheidung:** zweites `neu Theke` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`; `bediene()` ohne `zeige` →
@@ -527,6 +528,168 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Begründung:** Einfach und portabel; Java-`replace("", "-")` (`-a-b-`) und JS-`split/join` (`a-b`) widersprechen sich ohnehin.
 - **Betroffen:** Interpreter (U-33, umgesetzt in d35d412), Fuzz-Repro `tests/fuzz/funde/text-ersetze-leer-surrogat.pizza`. **Status:** fest (a10).
 
+### K-077 Zufall: Saat als Laufoption (Nutzerwunsch „RNG“)
+- **Frage:** Spiele laufen mit fester Saat 42 (K-049) immer gleich.
+- **Entscheidung:** Neue Option `optionen.zufallsSaat` (Ganzzahl; wird wie `Zufall.saat(n)` auf `n mod 2^32` normalisiert; fehlt
+  oder ist keine Ganzzahl → **42**). Damit bleiben Tests, Beispiele, Doku und Differenztests deterministisch. **Playground, CLI und
+  EXE/Host** verwenden standardmäßig eine **echte** Saat (z. B. aus Zeit/`crypto`) und zeigen **denselben Text** `Saat: N` an
+  (Playground: Infozeile in der Konsole + Option „feste Saat 42“; CLI/EXE: `--saat=N`, ohne Option Zeile `Saat: N` im Terminal).
+  Kein neues Ereignis – wer die Saat erzeugt, zeigt sie an (K-082: gleicher Inhalt, Hülle verschieden).
+- **Begründung:** Reproduzierbarkeit bleibt (Saat ablesen → `--saat`), Determinismus der Harnische bleibt, keine Protokolländerung.
+- **Betroffen:** Interpreter (U-37), CLI (U-38), UI (U-39), Host/Compiler (U-40: HOST-ABI Export `saat_setzen(i32)` vor `start`,
+  optional – fehlt der Export, bleibt 42), Doku (U-41). **Status:** fest (Interpreter ce303cb, a10); offen: CLI, UI, Host/Compiler.
+
+### K-078 Zufall: API und exakte Algorithmen
+- **Entscheidung:** Generator **mulberry32** (32-Bit-Zustand), Ziehung `r ∈ [0, 1)` mit Auflösung 2⁻³², jede Methode zieht genau so oft
+  wie angegeben:
+  - `Zufall.saat(n)` setzt den globalen Strom neu (n Ganzzahl, sonst TypAnanas; normalisiert `n mod 2^32`, also `-1` → 4294967295);
+    `Zufall.saat()` liefert die normalisierte Saat des aktuellen Stroms (Standard 42).
+  - `Zufall.zahl(a, b)` = `a + floor(r · (b − a + 1))` (Ganzzahlen, a > b wird getauscht; bewusst wie bisher, K-049) – 1 Ziehung.
+  - `Zufall.kommazahl()` = `r`; `Zufall.kommazahl(a, b)` = `a + r · (b − a)` (Zahlen, a > b getauscht) – 1 Ziehung.
+  - `Zufall.wahr(p)` = `r < p` (p Zahl, sonst TypAnanas; p ≤ 0 → immer `nein`, p ≥ 1 → immer `ja`) – immer 1 Ziehung.
+  - `Zufall.wähle(blech)` = `blech.stück(1 + floor(r · n))`; leeres Blech → `KeinStückAnanas: Das Blech ist leer – kein Stück da.` – 1 Ziehung.
+  - `Zufall.mische(blech)` → **neues** Blech, Fisher-Yates von hinten: für `i = n−1 … 1`: `j = floor(r · (i + 1))`, tausche `i`/`j`
+    (n−1 Ziehungen; n ≤ 1 → Kopie ohne Ziehung).
+  - Unabhängige Generatoren: `neu Zufall(saat)` mit denselben Methoden (eigener Strom, beeinflusst den globalen nicht);
+    `neu Zufall()` zieht seine Saat aus dem globalen Strom: `floor(r · 2^32)` (1 Ziehung). Textform `Zufall(<saat>)`.
+  - Referenzwerte (Saat 7): `zahl(1, 6)` → 1 1 6 5 4 3; `kommazahl()` → 0.011704753153026104, 0.06195825757458806, 0.97690763277933;
+    `mische([1, 2, 3, 4, 5])` → `[4, 2, 3, 5, 1]`; `neu Zufall()` nach `saat(7)` → Saat 50271532. Saat 42: 4 3 6 (K-049).
+- **Begründung:** Bit-identisch in Interpreter, Wasm und Host (nur Ganzzahl-Arithmetik und IEEE-Multiplikation); Schrittkosten wie
+  normale Aufrufe.
+- **Status:** fest (Interpreter ce303cb, a10); Compiler/Host offen (U-40).
+
+### K-079 Vorratskammer: persistenter Zustand (Nutzerwunsch „State“)
+- **Entscheidung – Sprache:** `Vorratskammer v = neu Vorratskammer("pizza-imperium");` – Name = Namensraum `[a-z0-9-]{1,40}`, sonst
+  `LaufzeitAnanas: Ungültiger Kammername 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`; mehrfaches `neu` mit gleichem Namen → dieselbe
+  Kammer. Methoden: `lege(schlüssel, wert)` → Kammer, `hole(schlüssel)` (fehlt → `karton`), `hole(schlüssel, ersatz)`, `hat(schlüssel)`,
+  `entferne(schlüssel)` → alter Wert/`karton`, `schlüssel()` → Blech (Einfügereihenfolge), `länge()`, `leeren()`, `name()`.
+  Schlüssel sind Texte (sonst TypAnanas). Erlaubte Werte: `salami`, `funghi` (endlich), `margherita`, `diavolo`, `karton`, Blech und
+  Speisekarte daraus (verschachtelt; Speisekarten-Schlüssel Texte) – sonst
+  `TypAnanas: 'X' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).`
+  **Wertsemantik:** `lege` und `hole` kopieren tief (spätere Änderungen am Blech wirken nicht in die Kammer und umgekehrt).
+  Limit **1 MiB** serialisiert pro Kammer und **2 MiB** für alle Kammern eines Programms (passt in jeden localStorage, K-082) →
+  `LaufzeitAnanas: Die Vorratskammer 'x' ist voll (Limit 1 MiB).` bzw. `… Der Vorrat ist voll (Limit 2 MiB).` (Änderung wird verworfen).
+  Textform `Vorratskammer(<name>)`.
+- **Schreibzeitpunkt:** **sofort bei jeder Änderung** (`lege`, `entferne`, `leeren`) – einfach, robust bei Abbruch/Panik, kein zusätzlicher
+  Synchronisationspunkt nötig.
+- **Status:** fest (Interpreter ce303cb, a10).
+
+### K-080 Vorratskammer: API, Ereignisse, Serialisierung
+- **Entscheidung:** `optionen.vorrat?: { [name]: Eintrag[] }` mit `Eintrag = [schlüssel, wert]` (Eingangszustand, JSON-Werte wie unten);
+  Ereignis bei jeder Änderung: `{ typ: "vorrat", name, schluessel, wert }` – `wert: null` bei `entferne`, `schluessel: null` bei `leeren`
+  (nicht in `.erwartet`). `optionen.onVorrat?(name, eintraege)` erhält nach jeder Änderung die **vollständige** Kammer (Persistenz-Hook);
+  fehlen `vorrat` **und** `onVorrat`, warnt das erste `neu Vorratskammer` einmal pro Programm
+  `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` (Kammer arbeitet im Speicher weiter).
+  **Serialisierung (JSON, Version 1):** `{"v":1,"name":"x","eintraege":[["schlüssel",wert],…]}` – Zahlen als JSON-Zahlen (Textform
+  `String(x)`, `-0` → `0`, `NaN`/`Infinity` nicht einlagerbar), Texte als Strings, `ja`/`nein` → `true`/`false`, `karton` → `null`,
+  Blech → Array, Speisekarte → `{"speisekarte":[["k",v],…]}` (Paarliste erhält Reihenfolge und Schlüsseltyp). Harnische vergleichen
+  `vorrat`-Ereignisse kanonisch; Testdateien `<name>.vorrat.json` (Eingangszustand im Format `{ name: eintraege }`).
+- **Begründung:** Paarlisten statt Objekten, weil JS-Objekte ganzzahlähnliche Schlüssel umsortieren; vollständige Kammer im Hook hält
+  Backends trivial (eine Datei/ein localStorage-Eintrag je Kammer).
+- **Status:** fest (Interpreter ce303cb, a10); Harnische außer Prüfstand/run-tests offen (U-43).
+
+### K-081 Vorratskammer: Backends (Playground, EXE/Host, Wasm)
+- **Entscheidung:** Playground: `localStorage["pizza.vorrat.<name>"]` = Serialisierung aus K-080; kleiner Dialog „Vorrat“ (Kammern
+  ansehen, einzeln löschen); Worker-Brücke synchron (wie Eingabe). EXE/Host: Datei `%APPDATA%\pizza\vorrat\<name>.json` bzw.
+  `$XDG_DATA_HOME/pizza/vorrat/<name>.json` (Fallback `~/.local/share`), **atomar** (Temp-Datei + Umbenennen). HOST-ABI (optionale
+  Imports, ABI-kompatibel: Modul deklariert sie nur bei Nutzung, Host ohne Unterstützung → W0101-Verhalten): `vorrat_lesen(name_ptr,
+  name_len, puffer_ptr, puffer_kap) -> i32` (Länge des JSON, `-1` = keine Kammer, `> kap` → Retry wie K-013) und
+  `vorrat_schreiben(name_ptr, name_len, json_ptr, json_len) -> i32` (0 = ok, < 0 → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht
+  gespeichert werden.`). Lesen beim ersten `neu Vorratskammer(name)`, Schreiben bei jeder Änderung.
+- **Betroffen:** UI (U-39), Host (U-42), Compiler/HOST-ABI (U-40), Doku (U-41), Harnische (U-43), Beispiel Idle-Game (U-44).
+- **Status:** offen.
+
+### K-082 Grundsatz „Browser = nativ“ (Nutzerentscheidung)
+- **Entscheidung:** Sprache, Standardbibliothek, Eingabe, Zufall, Vorratskammer und Theke verhalten sich im Playground und nativ
+  (EXE/Linux) **gleich**, und es wird **das Gleiche angezeigt** (Texte, Codes, Zeilenangaben, Banner, Zahl-/Dauer-Format,
+  Theke-Inhalt mit gleicher Engine/CSS/Thema/Standardgröße). Zulässig sind nur Hüllen-Unterschiede (OS-Fensterrahmen vs.
+  schwebendes Fenster, Terminal vs. Konsolen-Panel, Dateispeicherort vs. localStorage). Was nur nativ Sinn ergibt, wird nicht gebaut.
+- **Festgehalten:** SPEC.md und ARCHITEKTUR.md (Kopf). Jede künftige Klärung wird daran geprüft.
+- **Status:** fest.
+
+### K-083 Prüfung aller Verträge gegen K-082 – Befunde
+Technische Angleichungen (vom Klärungs-Agenten entschieden, Aufträge unten):
+- **Anzeigeform von Warnungen/Fehlern (U-45):** überall exakt `<text>` + ` (Zeile Z, Spalte S)` wenn vorhanden – Playground-Konsole
+  (statt „Z. 30:7“-Präfix), CLI, EXE. Das Ereignis selbst bleibt unverändert.
+- **`detail` (K-014) wird nirgends angezeigt** – nur Ereignisdatum für Entwickler (CLI/Host: nur mit `--debug`).
+- **`leeren` ohne Terminal** (Pipe/Datei): keine Steuersequenz – zulässige Hülle (eine Pipe ist keine Anzeige); auf jeder Anzeige wird geleert.
+- **Hawaii-Banner:** gleicher Text; stderr (Terminal) vs. Fehlerausgabe (Konsole) ist Hülle – ok.
+- **Eingabe-EOF:** Strg+D (Terminal) vs. Knopf (Konsole) ist Hülle; Echo der Eingabezeile erscheint überall genau einmal – ok.
+- **Zufallssaat-Anzeige:** derselbe Text `Saat: N` (K-077 angepasst).
+- **Vorratskammer-Grenzen:** 1 MiB je Kammer + 2 MiB gesamt, identische Fehlertexte (K-079 angepasst); Speicherort ist Hülle.
+- **Theke-Standardgröße 480×360, Schließen → `geschlossen`, gleiche Engine/CSS** – bereits gleich (K-066, THEKE §1).
+- **Exit-Code-Anzeige:** UI-Badge vs. Shell-`$?` – Hülle; CLI zeigt `Exit-Code: N` nur mit `--info` (bestehend).
+
+Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koordinator gemeldet, Empfehlung in Klammern):
+1. **Linux-Variante ohne Theke** (`linux-x64` statisch, W0100) – im Browser gibt es die Theke immer. (Empfehlung: streichen; nur
+   Varianten mit Theke; fehlt WebKitGTK/WebView2 → klare Fehlermeldung statt stiller W0100-Betrieb.)
+2. **Programm-Argumente** (`hauptgang(Blech<margherita> args)`): CLI/EXE können sie übergeben, der Playground nicht.
+   (Empfehlung: Eingabefeld „Argumente“ im Playground; Alternative: Args aus der Sprache streichen.)
+3. **Wand-Zeitlimit 10 s (P0003)** gibt es nur im Playground; nativ läuft dasselbe Programm weiter. (Empfehlung: P0003 abschaffen –
+   das Schrittlimit P0002 gilt überall gleich, der Playground behält nur „Abbrechen“.)
+4. **Theke-Thema:** Playground folgt dem Seiten-Thema (hell/dunkel per Umschalter), nativ dem System. (Empfehlung: beide folgen dem
+   Systemthema; der Playground-Umschalter wirkt nicht auf die Theke. Alternative: Umschalter auch im nativen Fenster.)
+5. **Vorrat-Verwaltung:** Playground-Dialog „Vorrat“ (ansehen/löschen) hätte nativ kein Gegenstück. (Empfehlung: Dialog weglassen;
+   Verwaltung über die Sprache (`leeren`) und einen gleichen Befehl/Knopf „Vorrat löschen“ in beiden Hüllen.)
+6. **Eingabe-Fallback „Eingaben vorab eintragen“** ohne Cross-Origin-Isolation (EINGABE §3) ist ein anderer Modus als nativ.
+   (Empfehlung: streichen – ohne Isolation klare Fehlermeldung; die Auslieferung setzt die Header ohnehin.)
+7. **Saat-Standard:** echte Saat in Playground, CLI und EXE – gleich (keine Frage); nur Tests/Beispiele mit 42 – ok.
+- **Status:** technische Punkte fest (U-45 … U-47); Punkte 1–6 offen bis zur Nutzerentscheidung.
+
+### K-084 Theke v2: `Takt` – Zeitgeber (Nutzerentscheidung: Takt hat Vorrang)
+- **Entscheidung (Vorschlag THEKE-ERWEITERUNGEN §1 übernommen):** `Takt` ist eine **unsichtbare Zutat**: `neu Takt(intervall, beiTakt?)`
+  (auch `intervall:`/`beiTakt:`/`id:`), Methoden `aktiv(diavolo)`/`aktiv()`, `setzeIntervall(d)`, `intervall()`, `beiTakt(fn)`
+  (ersetzt; `karton` entfernt). Er läuft nur, wenn er im **gezeigten Baum** liegt; mehrere Takte = mehrere Zutaten; Start/Stopp über
+  die normale `aendere`-Bündelung (`aktiv`), neuer `baum`/`schliesse` beenden ihn. `intervall`: Dauer (sonst TypAnanas), auf ganze
+  ms gerundet (K-047), **≥ 100 ms** sonst `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`; `Uhr.vorspulen`/die
+  simulierte Uhr haben keinen Einfluss. Rückruf `fn(anzahl)` mit `anzahl` (salami ≥ 1) = seit dem letzten Schlag verstrichene
+  Intervalle (Nachholregel); fehlendes/ungültiges `anzahl` → 1. Ereignis für unbekannte ID, Nicht-Takt oder inaktiven Takt → ignoriert
+  (K-064). Textform `Takt(t1)`; `erbt Takt` → P0010.
+- **Protokoll:** Knoten `{"id","art":"takt","intervall":1000}` (+ `aktiv:false` bei Abweichung); Renderer → Programm
+  `{"typ":"takt","id","anzahl"}`. **Nachholregel des Renderers** (Engine `theke.js`, läuft identisch im Playground und in der nativen
+  WebView – K-082): `anzahl = floor((jetzt − letzter) / intervall)` (≥ 1), `letzter += anzahl·intervall`; Intervallwechsel startet die
+  Zählung neu; `aktiv:false`, Entfernen aus dem Baum, neuer `baum`, `schliesse` stoppen den Timer. Die Brücken (Playground-Warteschlange,
+  Host-Kanal) **fassen** aufeinanderfolgende `takt`-Ereignisse derselben `id` zusammen (Summe der `anzahl`) – in beiden Hüllen gleich.
+- **Determinismus:** Schläge sind gewöhnliche Ereignisse (`uiEreignisse`/`.ereignisse` im Test, echte Zeit im Renderer). Warten kostet
+  weder Schritte noch simulierte Zeit; der Rückruf zählt seine Anweisungen (K-069).
+- **Begründung:** Kein neues `op`, keine Protokollversion, kein Host-Code (Timer in der Engine) → Browser = nativ automatisch.
+- **Betroffen:** Interpreter (U-48), Compiler (U-49), UI/Host-Brücken (U-50), Doku (U-51), Idle-Beispiel (U-52).
+- **Status:** offen (a12-theke-offen.js).
+
+### K-085 Zahlformat `tausender(n?)`, `kompakt(n?)`, `euro(kompakt: ja)`
+- **Entscheidung:** `x.tausender(n = 0)`: Rundung nach K-048 auf n Stellen, Tausendergruppen mit Punkt, Dezimalkomma, genau n
+  Nachkommastellen (`1234567.tausender()` → `1.234.567`, `.tausender(2)` → `1.234.567,00`, `(-1234.5).tausender()` → `-1.235`).
+  `x.kompakt(n = 2)`: größte Stufe mit `|x| ≥ 10^k`: `Tsd.` 10³, `Mio.` 10⁶, `Mrd.` 10⁹, `Bio.` 10¹², `Brd.` 10¹⁵, `Trio.` 10¹⁸;
+  Ergebnis = `runden(x / Stufe, n)` als Dezimaltext mit Komma **ohne** nachgestellte Nullen + Leerzeichen + Stufe
+  (`1234567.kompakt()` → `1,23 Mio.`, `.kompakt(1)` → `1,2 Mio.`, `2000000.kompakt()` → `2 Mio.`, `1500.kompakt()` → `1,5 Tsd.`);
+  `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → JS-Textform mit
+  Komma (`1,5e+22`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
+- **Betroffen:** Interpreter (U-48), Compiler/Laufzeit (U-49), Doku (U-51). **Status:** offen (a11).
+
+### K-086 Theke v2: `Fortschritt`, `Abschnitt`, `Tabelle`, `Reiter`, `hinweis`, `schrift: "riesig"`
+- **Entscheidung (Vorschläge §3–§7 übernommen):**
+  - `Fortschritt(wert: 0, text: "")`: `wert()`/`setzeWert(x)` (Zahl, auf 0…1 geklemmt, NaN → 0 – auch in der Sprache), `text()`/`setzeText`;
+    Knoten `{"art":"fortschritt","wert":0.25}` + `text` nur wenn nicht leer. Keine Ereignisse.
+  - `Abschnitt(titel, Blech<Zutat>)`: Container wie Stapel plus `titel()`/`setzeTitel`; Knoten `{"art":"abschnitt","titel","kinder"}`.
+  - `Tabelle(spalten, zeilen)`: `spalten()`/`setzeSpalten(blech)`, `zeilen()`/`setzeZeilen(blech)`; Zellen werden als **Textform**
+    gespeichert (K-066); Knoten `{"art":"tabelle","spalten":[…],"zeilen":[[…]]}`; `setzeZeilen` sendet die ganze Liste. Keine Ereignisse.
+  - `hinweis(text)`/`hinweis()` an **jeder** Zutat (Tooltip); Feld `hinweis` nur wenn nicht leer; gilt in `baum` und `aendere`.
+  - `Reiter(titel, seiten)`: `waehle(n)` (1-basiert, außerhalb → KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`;
+    Knoten `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}`; Ereignis `{"typ":"aenderung","id","wert":n}` (Zustand vor dem
+    Rückruf aktualisiert; `wert` keine Ganzzahl in 1…k → ignoriert). Fehlende Titel → „Seite n“ (Renderer).
+  - Stil `schrift` zusätzlich `"riesig"` (Whitelist und Fehlertext-Liste K-068 erweitern).
+  - `Meldung` (P3-Idee) **nicht** in v2.
+- **Betroffen:** Interpreter (U-48), Compiler (U-49), Doku (U-51); Renderer bereits umgesetzt. **Status:** offen (a12).
+
+### K-087 Lange laufende Theke-Programme: Schrittlimit je Rückruf, `Uhr.echt()`
+- **Entscheidung:** (1) Das Schrittlimit (P0002) gilt für die Top-Level-Ausführung (inkl. `hauptgang`, `wennDa`-Phase) und **für jeden
+  Theke-Rückruf jeweils neu**: beim Zustellen eines Ereignisses wird die Zählbasis gesetzt; `schritte`, `Uhr.jetzt()` und Budgets zählen
+  unverändert weiter (nur die P0002-Prüfung bezieht sich auf `schritte − Basis`). Deterministisch und in allen Motoren gleich.
+  (2) `Uhr.echt()` → Dauer seit 1970-01-01 (Wanduhr, ganze ms); Test: `optionen.echtzeit` (Startwert in ms, wächst nicht);
+  HOST-ABI-Import `echtzeit_ms() -> f64` (Compiler/Host). Browser = nativ: beide liefern die Systemzeit.
+- **Begründung:** Idle-Spiele laufen stundenlang; Endlosschleifen in einem Rückruf werden weiterhin erkannt.
+- **Betroffen:** Interpreter (U-48), Compiler/HOST-ABI (U-49), Host (U-50), Doku (U-51). **Status:** offen (a12).
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -560,6 +723,22 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 | U-35 | `site/beispiele/theke/*.ui-erwartet` (Beispiel-Agent) | K-061: nach U-34 neu erzeugen (abschließendes `schliesse`) | Prüfstand Beispiele |
 | U-36 | `ui/**` (UI-Agent) | K-061: Vorschaufenster schließt bei `schliesse` und am Laufende (auch Panik) | e2e |
 | U-33 | `site/js/pizza.js` (Interpreter-Agent) | K-076: `ersetze("", x)` lässt den Text unverändert (kein `split("")`); Fuzz-Repro grün machen | a11 K-076 |
+| U-37 ✅ (ce303cb) | `site/js/pizza.js`, `tests/faelle/` | K-077 … K-080: Option `zufallsSaat`; `Zufall.saat/kommazahl/wahr/wähle/mische`, `neu Zufall(saat)`; Klasse `Vorratskammer` mit Option `vorrat`, Hook `onVorrat`, Ereignis `vorrat`, W0101, Serialisierung v1, Limit 1 MiB | a11 (10 Fälle) |
+| U-38 | `bin/pizza.js` | K-077: `--saat=N`; ohne Option echte Saat + `Saat: N` auf stderr; K-081: Vorrat als JSON-Datei im Nutzer-Datenverzeichnis (wie Host) | manuell |
+| U-39 | `ui/**`, `site/js/worker.js` (UI-Agent) | K-077: echte Saat je Lauf, Badge „Saat N“, Option „feste Saat 42“; K-081: Vorrat in localStorage `pizza.vorrat.<name>`, Dialog „Vorrat“, synchrone Worker-Brücke | e2e |
+| U-40 | `HOST-ABI.md`, `laufzeit/`, `site/js/pizzaiolo*` (Compiler-Agent) | K-077: optionaler Export `saat_setzen(i32)` vor `start`; K-078: identische Algorithmen; K-081: optionale Imports `vorrat_lesen`/`vorrat_schreiben` (Retry wie K-013), ABI-kompatibel | tests/differenz |
+| U-41 | `site/js/doku/*.js` (Doku-Agent) | Zufall-API (K-078), Saat/Reproduzierbarkeit (K-077), Vorratskammer (K-079 … K-081) | Doku-Harness |
+| U-42 | `host/**` (Native-Host-Agent) | K-077: `--saat=N`/echte Saat + Anzeige; K-081: Datei `%APPDATA%pizzaorrat<name>.json` bzw. `$XDG_DATA_HOME/pizza/vorrat/<name>.json`, atomar; ohne Unterstützung W0101-Verhalten | Smoke-Test |
+| U-43 | `tests/run-tests.js`, `tests/differenz/` | K-077/080: `zufallsSaat` und `<name>.vorrat.json` durchreichen, `vorrat`-Ereignisse kanonisch vergleichen (Prüfstand bereits umgesetzt) | – |
+| U-44 | `site/beispiele/` (Beispiel-Agent) | Idle-Game mit `Vorratskammer` und `.vorrat.json`; Spiele mit echter Saat prüfen (Tests bleiben bei 42) | Prüfstand Beispiele |
+| U-45 | `ui/**`, `bin/pizza.js`, `host/**` | K-083: einheitliche Anzeigeform von Warnungen/Fehlern `<text> (Zeile Z, Spalte S)`; `detail` nie anzeigen (nur `--debug`) | e2e / manuell |
+| U-46 | `ui/**` | K-083: Saat-Infozeile `Saat: N` in der Konsole statt Badge; Option „feste Saat 42“ | e2e |
+| U-47 | Koordinator | K-083 Punkte 1–6 dem Nutzer vorlegen; danach THEKE.md §4/§6 (Linux-Variante), SPEC §2 (Args), K-044 (P0003), EINGABE §3 (Fallback) nachziehen | – |
+| U-48 | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
+| U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
+| U-50 | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
+| U-51 | `site/js/doku/*.js` (Doku-Agent) | Theke v2 (Takt, Zutaten, hinweis), Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf | Doku-Harness |
+| U-52 | `site/beispiele/idle/` (Idle-Agent) | nach U-48: Takt statt „Minute warten“, `.ereignisse`/`.ui-erwartet` neu erzeugen, eigene `Format`-Klasse durch `kompakt()` ersetzen | Prüfstand Beispiele |
 | U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
@@ -586,7 +765,8 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
-- Prüfstand B1 ist derzeit rot: `theke.json` verwendet die ids `tictactoe` und `belag-baukasten` doppelt (U-30).
+- Zufall/Vorratskammer (Nutzerwünsche „RNG“, „State“): K-077 … K-081 festgehalten, SPEC §15.4 und §11; Interpreter ce303cb entspricht (10 Fälle in a10 grün); offen: CLI/UI/Host/Compiler (U-38 … U-44).
+- Theke v2 (Takt zuerst, Nutzerentscheidung): K-084 … K-087 aus THEKE-ERWEITERUNGEN.md übernommen, SPEC §16.5; 8 offene Fälle in a12, 2 in a11 (Zahlformat); Aufträge U-48 … U-52.
 - Interpreter-Commit 0d34810 setzt U-01…06, 13, 16, 18, 21 um; die 13 a11-Fälle wurden nach a10 verschoben, a11 ist leer (Konvention bleibt).
 - Von den im Auftrag genannten Beispielen waren Pizza-Literal, W0032, Panik-Banner, Schrittzählung, Zahlformatierung,
   Blech-Mutation und `karton` je Typ bereits in SPEC §14 (Interpreter-Agent) geklärt; dieses Protokoll bestätigt und

@@ -143,3 +143,4 @@ Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastat
 - Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067).
 - Stile: Zahlen in Pixeln (auch Kommazahlen), `ausrichtung` `links|mitte|rechts`, Fehlertexte mit erlaubter Liste (K-068); `stil(k, karton)` entfernt den Stil, Nachricht trägt `null` (K-075).
 - HOST-ABI `ui_warte`: Rückgabe = benötigte Länge, Retry mit größerem Puffer (wie K-013); Compiler meldet bis zur Umsetzung `nichtUnterstuetzt` (K-072).
+- Erweiterungen v2 (Takt, Fortschritt, Abschnitt, Tabelle, Reiter, `hinweis`, `schrift: "riesig"`, Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf): SPEC §16.5 (K-084 … K-087), Vorschlag in `THEKE-ERWEITERUNGEN.md`.

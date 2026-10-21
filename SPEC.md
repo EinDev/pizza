@@ -1,5 +1,12 @@
 # pizza v3.0 – Sprachspezifikation (verbindlich)
 
+> **Grundsatz (Nutzerentscheidung, K-082): Browser = nativ.** Alles funktioniert im Playground (Browser) und nativ (EXE/Linux)
+> **gleich** – Sprache, Standardbibliothek, Eingabe, Zufall, Vorratskammer, Theke – und es wird auch **das Gleiche angezeigt**:
+> identische Texte (Ausgaben, Warnungen, Fehlermeldungen samt Wortlaut, Codes und Zeilenangaben, Hawaii-Banner), identische
+> Zahl-/Dauer-Formatierung, identischer Theke-Fensterinhalt (gleiche Render-Engine, gleiches CSS/Thema, gleiche Standardgröße).
+> Unterschiede sind nur in der technischen Hülle zulässig (Fensterrahmen des Betriebssystems vs. schwebendes Fenster, Terminal vs.
+> Konsolen-Panel, Speicherort einer Datei vs. localStorage). **Was nur nativ Sinn ergibt, wird nicht gebaut.**
+
 Diese Datei ist der **Vertrag** zwischen Interpreter, Beispielen, Doku und UI.
 Alles, was hier als **Tier 1** oder **Tier 2** markiert ist, MUSS der Interpreter
 (`site/js/pizza.js`) ausführen können. **Tier 3** ist nur Spezifikation (Doku zeigt
@@ -452,7 +459,8 @@ Exit-Code: 39
 | `Bote` | `sage(x)` – Ausgabe + Zeilenumbruch · `fehler(x)` – Fehlerausgabe |
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
 | `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI` |
-| `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Seed 42, `a + floor(r · (b − a + 1))` (verbindlich, K-049) |
+| `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
+| `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name)`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name` – §15.4 (K-079 … K-081, offen) |
 | `Spiegel` | `felder(obj)` (§7.8) |
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
@@ -841,6 +849,25 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   tragen; `.eingabe`-Fallback neben der `.pizza`; `.erwartet` endet mit genau einem `\n` (Harnische normalisieren höchstens einen).
 - **K-054** `leeren` im Terminal: `\x1b[2J\x1b[3J\x1b[H` nur bei TTY.
 
+### 15.4 Zufall und Vorratskammer (K-077 … K-081; Interpreter ce303cb – Hosts/Compiler offen)
+
+- **Saat (K-077):** `optionen.zufallsSaat` (Ganzzahl, normalisiert `mod 2^32`; fehlt/ungültig → 42). Playground, CLI (`--saat=N`,
+  sonst Infozeile `Saat: N`) und EXE nutzen standardmäßig eine echte Saat und zeigen **denselben Text** `Saat: N` an (Konsole bzw. Terminal, keine Ereignis-Ausgabe); Tests/Beispiele bleiben bei 42.
+- **Zufall-API (K-078):** mulberry32, `r ∈ [0,1)`; `saat(n)`/`saat()`; `zahl(a, b)` = `a + floor(r·(b−a+1))`; `kommazahl()` = `r`,
+  `kommazahl(a, b)` = `a + r·(b−a)`; `wahr(p)` = `r < p`; `wähle(blech)` = Stück `1 + floor(r·n)` (leer → KeinStückAnanas);
+  `mische(blech)` = neues Blech, Fisher-Yates von hinten (`i = n−1 … 1`, `j = floor(r·(i+1))`); `neu Zufall(saat)` eigener Strom,
+  `neu Zufall()` zieht die Saat `floor(r·2^32)` aus dem globalen Strom; Textform `Zufall(<saat>)`. Jede Methode zieht genau einmal
+  (`mische`: n−1). Referenz Saat 7: `zahl(1, 6)` → 1 1 6 5 4 3, `mische([1 .. 5])` → `[4, 2, 3, 5, 1]`.
+- **Vorratskammer (K-079):** `neu Vorratskammer(name)` (`[a-z0-9-]{1,40}`), `lege(k, v)`, `hole(k[, ersatz])`, `hat(k)`, `entferne(k)`,
+  `schlüssel()`, `länge()`, `leeren()`, `name()`; Werte: Zahlen (endlich), Texte, Wahrheitswerte, `karton`, Bleche/Speisekarten daraus;
+  tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<name>)`.
+- **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)`, Ereignis
+  `{ typ: "vorrat", name, schluessel, wert }` (nicht in `.erwartet`); ohne beides `W0101: Keine Vorratskammer verfügbar – Zustand wird
+  nicht gespeichert.` (einmal pro Programm). Serialisierung `{"v":1,"name":"x","eintraege":[["k",wert],…]}`, Speisekarte als
+  `{"speisekarte":[["k",v],…]}`, `karton` → `null`, `ja`/`nein` → `true`/`false`.
+- **Backends (K-081):** Playground `localStorage["pizza.vorrat.<name>"]`; EXE/Host JSON-Datei im Nutzer-Datenverzeichnis, atomar;
+  HOST-ABI optionale Imports `vorrat_lesen`/`vorrat_schreiben` (Retry wie K-013); Host ohne Unterstützung → W0101-Verhalten.
+
 ---
 
 ## 16. Theke – UI-Framework (Tier 1 im Interpreter; Wasm/EXE: THEKE.md §6)
@@ -893,9 +920,9 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   `LaufzeitAnanas: Die ID 'ok' gibt es schon.` bzw. LaufzeitAnanas bei leerer ID.
 - **Eine Theke (K-062):** `neu Theke` zum zweiten Mal → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`;
   `bediene()` ohne `zeige` → `LaufzeitAnanas: Die Theke ist leer.`; `bediene()` nach Schließen kehrt sofort zurück (ohne Warnung).
-- **Programmende (K-061, Nutzerentscheidung) [offen]:** Ein noch offenes Fenster wird am Programmende **geschlossen**: nach dem
+- **Programmende (K-061, Nutzerentscheidung):** Ein noch offenes Fenster wird am Programmende **geschlossen**: nach dem
   letzten Puffer-Flush sendet die Laufzeit `{"v":1,"op":"schliesse"}` – nur wenn das Fenster offen ist (gezeigt, nicht
-  `geschlossen`/`schliesse()`), auch bei Ende durch ungefangene Ananas oder P0002 (dann nach dem `fehler`-Ereignis, vor `ende`).
+  `geschlossen`/`schliesse()`), auch bei Ende durch ungefangene Ananas oder P0002 (die `ui`-Nachrichten stehen dann **vor** dem `fehler`-Ereignis).
   Bei Hawaii-Panik keine Nachricht; Host und UI schließen das Fenster selbst. Host: Fenster zu → Prozessende mit dem Exit-Code.
   Eine nie gezeigte Theke sendet nichts; nach `geschlossen` wird nichts mehr gesendet.
 - **Ohne Renderer (K-063):** fehlen `onUiWarte` und `uiEreignisse`, warnt `bediene()` **je Aufrufstelle** (§10)
@@ -945,3 +972,28 @@ Testdateien: `<name>.ereignisse` (JSON-Lines → `uiEreignisse`), `<name>.ui-erw
 kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-Codeblöcke: `uiEreignisse: object[]`,
 `uiErwartet: object[]` (K-074). `ui`-Ereignisse stehen **nicht** in `.erwartet`. Compiler ohne Theke-Unterstützung meldet
 `nichtUnterstuetzt` (Playground fällt auf den Interpreter zurück); HOST-ABI `ui_warte` folgt dem Retry-Muster von K-013.
+
+### 16.5 Erweiterungen v2 (K-084 … K-087) [offen – Renderer vorhanden, Sprache/Laufzeit folgen]
+
+Übernommen aus `THEKE-ERWEITERUNGEN.md`; kein neues `op`, keine neue Protokollversion (neue `art`/Felder; alte Renderer zeigen Platzhalter).
+
+| Klasse / Methode | Konstruktor | Methoden | Knoten (Zustandsfelder immer, optionale nur bei Abweichung) |
+|---|---|---|---|
+| `Takt` (unsichtbar) | `(intervall, beiTakt?)` – Dauer ≥ 100 ms, ganze ms | `aktiv(d)`/`aktiv()`, `setzeIntervall(d)`, `intervall()`, `beiTakt(fn)` → `fn(anzahl)` | `{"art":"takt","intervall":1000}` (+ `aktiv:false`) · Ereignis `{"typ":"takt","id","anzahl"}` |
+| `Fortschritt` | `(wert: 0, text: "")` – wert 0…1 geklemmt, NaN → 0 | `wert()`, `setzeWert`, `text()`, `setzeText` | `{"art":"fortschritt","wert":0.25}` (+ `text`) |
+| `Abschnitt` | `(titel, Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel` | `{"art":"abschnitt","titel","kinder"}` |
+| `Tabelle` | `(spalten, zeilen)` – Zellen als Textform | `spalten()`, `setzeSpalten`, `zeilen()`, `setzeZeilen` | `{"art":"tabelle","spalten":[…],"zeilen":[[…]]}` |
+| `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)` | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| alle Zutaten | – | `hinweis(text)`, `hinweis()` | Feld `hinweis` (nur nicht leer) |
+| Stil | – | `schrift` zusätzlich `"riesig"` | – |
+
+- **Takt (K-084):** läuft nur im gezeigten Baum; `anzahl` (salami ≥ 1) = verstrichene Intervalle (Nachholregel des Renderers:
+  `floor((jetzt − letzter)/intervall)`, Brücken summieren aufeinanderfolgende Schläge derselben `id`); Schläge auf unbekannte,
+  inaktive oder Nicht-Takt-Zutaten werden ignoriert; `anzahl` fehlt/ungültig → 1; `< 100ms` →
+  `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`; Textform `Takt(t1)`; Warten kostet nichts, der Rückruf zählt.
+- **Zahlformat (K-085):** `x.tausender(n = 0)` → `1.234.567` / `1.234.567,00`; `x.kompakt(n = 2)` → `1,23 Mio.` (Stufen `Tsd.`, `Mio.`,
+  `Mrd.`, `Bio.`, `Brd.`, `Trio.`; ohne nachgestellte Nullen; `< 1000` → `runden(x, n)` mit Komma; `≥ 10²¹` → `1,5e+22`);
+  `euro(kompakt: ja)` → `1,23 Mio. €`.
+- **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu** (`schritte`/`Uhr.jetzt()`
+  zählen weiter); `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
+- Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
