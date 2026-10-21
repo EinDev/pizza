@@ -1,134 +1,143 @@
 # pizzaiolo – IR v1 („Teigling“)
 
 Die IR ist die Grenze zwischen Frontend (`site/js/pizzaiolo/frontend.js`) und allen Backends
-(`backend-wasm.js` jetzt, C/nativ später). Sie ist **reines JSON** (serialisierbar mit `JSON.stringify`,
-keine Zyklen, keine Funktionen) und wird von `ir.js` validiert (`IR.pruefe(programm)`) und gedruckt (`IR.drucke`).
+(`backend-wasm.js` jetzt, C/nativ später). Sie ist **reines JSON** (serialisierbar, keine Zyklen, keine Funktionen),
+wird von `ir.js` geprüft (`IR.pruefe(ir)` → Liste von Problemen) und gedruckt (`IR.drucke(ir)`).
+Erzeugen: `Pizzaiolo.kompiliere(q, { mitIR: true }).ir` bzw. `frontend.frontend(PizzaLang.parse(q).ast).ir`.
 
-Grundidee: Die IR ist ein **aufgelöster, typisierter Baum** – nah am AST, aber
-- alle Namen sind aufgelöst (lokal / Zelle / global / dynamisch),
-- jeder Knoten trägt seinen **statischen Typ** (`t`) und seine **Schrittzahl** (`st`),
-- Deklarationen (Klassen, Beläge, …) sind Tabellen, Funktionen sind flach durchnummeriert,
-- statische Prüfungen (Warnungen W0666/W0032, Startfehler P0010/P0011/Q0004/R0001/A0001) sind bereits erledigt.
+Grundidee: ein **aufgelöster Baum** – nah am AST, aber
+- alle Namen sind aufgelöst (lokal / Zelle / global / dynamisch / Laufzeitname),
+- jeder Knoten trägt Position `p` (Index in `pos`) und statische Stapeltiefe `tf`,
+- Deklarationen sind Registrierungs-Einträge, Funktionen sind flach durchnummeriert,
+- statische Prüfungen sind erledigt: Warnungen (W0666, W0032) und Startfehler (P0010, P0011, Q0004, R0001, A0001).
 
 ## 1. Programm
 
 ```js
 {
   format: "pizza-ir/1",
-  pos: [[0,0], [z,s], …],          // Positionstabelle; Index 0 = unbekannt (null/null). Knoten referenzieren per Index.
-  warnungen: [{ code, text, pos }], // statische Warnungen, bereits in Ausgabereihenfolge (analysiere())
-  startfehler: null | { code, text, pos },   // dann: nur Warnungen + dieser Fehler, Exit 2, 0 Schritte
-  klassen:    [Klasse],             // Reihenfolge = Registrierung (klassenListe des Interpreters), inkl. innerer
-  rezepturen: [{ name, basen: [name], methoden: [name] }],
-  enums:      [{ name, werte: [name×4] }],
-  belaege:    [{ name, preis, nach: [name], methoden: { name: fnId } }],   // nur eigene `belag`-Deklarationen
-  globaleFunktionen: { name: [fnId] },   // top-level Methoden (Überladung nach Parameterzahl)
-  globale:    [{ name, t, gebacken, zustand }],   // Variablen des globalen Scopes (Snack-Modus)
-  funktionen: [Funktion],
-  vorbereiten: [Init],              // Annotationen (@Kühlschrank, @PizzaVeraltet), statische Feld-Inits – in Interpreter-Reihenfolge
-  oben: fnId,                       // Top-Level-Anweisungen (Snack-Modus) als Funktion
-  haupt: null | { klasse: name|null, name: "hauptgang" }
+  pos: [[0,0], [z,s], …],              // Positionstabelle; Index 0 = unbekannt (null/null)
+  warnungen: [{ code, text, pos }],    // statische Warnungen in Ausgabereihenfolge (wie analysiere())
+  startfehler: null | { code, text, pos },  // dann: nur Warnungen + dieser Fehler, Exit 2, 0 Schritte
+  registrierung: [Reg],                // exakt in Registrierungsreihenfolge des Interpreters (siehe unten)
+  methoden: [{ art, klasse, name }],   // Laufzeit-Methoden-IDs = Index (Reihenfolge der rt_methode/rt_ktor/rt_belag_methode)
+  globale: [name],                     // Variablen des globalen Scopes (Speicherzellen, Anfangswert „undefiniert“)
+  globaleFunktionen: [name],           // Top-Level-Methoden: globale Variable mit Gebunden-Wert
+  globalInfos: { name: { typ, gebacken } },
+  schiebNamen: [name],                 // Namen, die irgendwo Ziel von schieb(x) sind (Lesezugriffe prüfen „weggeschoben“)
+  funktionen: [Funktion],              // id = Index (= Laufzeit-Funktions-ID)
+  vorbereiten: fnId,                   // Annotationen + statische Initialisierer (Interpreter: vorbereiten())
+  oben: fnId                           // Top-Level-Anweisungen; liefert den Wert der globalen Variable `hauptgang`
 }
 ```
 
-### Klasse
-```js
-{ name, basis: name|null, erfuellt: [name], rohling, gebacken, calzone,
-  felder: [{ name, t: Typ, gebacken, sicht: null|"geheimrezept"|"familienrezept", statisch, init: fnId|null }],
-  methoden: [{ name, fn: fnId|null /*rohling*/, statisch, sicht, haltbar: null|"init", veraltet: bool, ueberschreibt }],
-  ktoren: [{ fn: fnId, hatUnten }],
-  feldInit: fnId|null }            // Instanzfeld-Initialisierer der Klasse (feldInit() des Interpreters)
-```
-
-### Typ (deklarierter Quelltyp)
-`{ name: "salami"|"funghi"|"margherita"|"diavolo"|"Dauer"|"Pizza"|"hawaii"|<Klassenname>|…, feld: n }` oder `null`.
-Wird für Laufzeit-Typprüfungen (`TypAnanas`) unverändert benutzt.
+`Reg` (Reihenfolge = `registriere()`; innere Klassen direkt nach der äußeren):
+- `{ art: "klasse", name, idx, flags (1 rohling, 2 gebacken, 4 calzone), basis, erfuellt: [name],
+  felder: [{ name, typ, flags (1 gebacken, 2 statisch), sicht (0, 1 geheim, 2 familie) }],
+  methoden: [{ name, fn|null, flags (1 statisch), sicht, nparam, pos, mid }], ktoren: [{ fn, hatUnten, mid }],
+  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (17 + n; 0–16 sind die eingebauten Ananas).
+- `{ art: "rezeptur", name, basen: [name] }`, `{ art: "enum", name, werte: [name×4] }`,
+- `{ art: "belag", name, nach: [name]|null (null = Tabellenwert), methoden: [{ name, fn, mid }] }`,
+- `{ art: "globalfn", name, fn, nparam, pos, mid }`.
+Basisklassen/Rezepturen werden **nach** allen Registrierungen über den Namen verknüpft (Map-Semantik: spätere gewinnen).
 
 ## 2. Funktionen
 
 ```js
-{ id, art: "methode"|"ktor"|"lambda"|"belag"|"oben"|"feldinit"|"init",
-  name, klasse: name|null, ktor: bool,            // statischer Kontext (ctx.klasse / ctx.ktor)
-  params: [{ name, typ: Typ, nieKarton, gebacken, slot }],
-  strikt: bool,                                   // Methoden: Argumentzahl prüfen; Lambdas: nein
-  lokale: [{ name, d: Darst, zelle: bool }],      // slot = Index
-  fang: [slot],                                   // Zellen, die eine Lambda aus der Umgebung erbt (Index in env)
-  rueck: Darst,                                   // Rückgabe-Darstellung (Optimierung; "wert" = generisch)
-  body: [Anw]  | ausdr: Ausdr                    // Lambda mit Ausdrucksrumpf: ausdr
-}
+{ id, art: "methode"|"ktor"|"lambda"|"belag"|"oben"|"feldinit"|"statinit"|"init",
+  name, klasse: idx|null, ktor: bool, belag: bool,   // statischer Kontext (ctx.klasse / ctx.ktor / Belag-Methode)
+  plus1: bool,          // Rumpf zählt +1 Stapeltiefe (Methoden, Konstruktoren, Lambdas, Belag-Methoden)
+  strikt: bool,         // Argumentzahl prüfen (Methoden ja, Lambdas nein)
+  params: [{ name, typ, nieKarton, gebacken, slot, darst }],
+  slots: [{ name, typ: {name, feld}|null, gebacken, zelle, weg, unbelegt, darst, redekl? }],
+  fang: [{ art: "lokal", slot } | { art: "umg", idx }],   // nur Lambdas: Zellen aus der Elternfunktion (→ Umgebung)
+  body: [Anw] | null, ausdr: Ausdr | null,               // Lambda mit Ausdrucksrumpf: ausdr
+  hauptgangGlobal?: g }                                   // nur oben
 ```
 
-**Darstellungen** (`Darst`, Backend-relevant): `"zahl"` (f64, ungeboxt; salami/funghi), `"bool"` (i32),
-`"wert"` (generischer Wert, geboxt). Ein Slot ist nur dann ungeboxt, wenn das Frontend beweist, dass er nie
-`karton`, „weggeschoben“ oder einen anderen Typ hält (deklarierter Typ salami/funghi/diavolo, nie Ziel von `schieb`).
+**Darstellung** `darst`: `"zahl"` (f64, salami/funghi), `"bool"` (i32, diavolo), `"wert"` (generischer Wert).
+Ungeboxt nur, wenn deklarierter Typ salami/funghi/diavolo, nicht gefangen (`zelle`) und nie Ziel von `schieb`.
+Ein Slot ist (Scope, Name) – erneute Deklaration im selben Scope ist derselbe Slot (wie `Map.set` im Interpreter).
+`zelle`: von einer Lambda gefangen → Heap-Zelle, bei jeder Ausführung der Deklaration neu.
+Top-Level-Variablen, die nur im Top-Level-Code vorkommen, werden zu Slots von `oben` befördert.
 
 ## 3. Ausdrücke (`Ausdr`)
 
-Jeder Ausdruck: `{ k, t, st, pos, … }` mit `t` ∈ `"zahl"|"ganz"|"bool"|"text"|"wert"` (statisches Wissen;
-`"ganz"` = sicher ganzzahlig & endlich) und `st` = Schritte, die **dieser Knoten selbst** zählt (0 oder 1).
+Jeder Ausdruck: `{ k, p, tf, zus, … }`; `zus` = zusammengesetzt (zählt Stapeltiefe, §14.4).
 
 | `k` | Felder | Bedeutung |
 |---|---|---|
-| `konst` | `wert`, `art: zahl\|text\|bool\|karton\|dauer` | Literal |
-| `lokal` | `slot` | lokale Variable / Parameter (`zelle` → über Zelle) |
-| `umg` | `idx` | geerbte Zelle aus der Lambda-Umgebung |
-| `global` | `idx`, `name` | Variable des globalen Scopes (ggf. „noch nicht deklariert“ → dynamischer Fallback) |
-| `name` | `name` | dynamische Namensauflösung (Felder von `dies`, statische Felder, Globale, Klassen, Beläge, …) |
-| `mem` | `obj`, `name` | Feldzugriff / Methodenreferenz |
-| `bin` | `op`, `l`, `r` | `+ - * / % == != < <= > >=` |
-| `log` | `op`, `l`, `r` | `&& \|\|` |
-| `un` | `op`, `e` | `! -` |
-| `tern` | `c`, `a`, `b` | `?:` |
-| `mcall` | `obj`, `name`, `args` | Methodenaufruf |
-| `ncall` | `name`, `args`, `ziel?` | unqualifizierter Aufruf; `ziel = {fn}` wenn statisch auflösbar (Direktaufruf) |
+| `konst` | `art: zahl\|text\|bool\|karton\|dauer\|auto`, `wert` | Literal (`auto` nur als Argument von `schneide`) |
+| `lies` | `ref`, `name` | Name lesen; `ref` siehe unten |
+| `bin` | `op` (0 + · 1 − · 2 * · 3 / · 4 % · 5 == · 6 != · 7 < · 8 <= · 9 > · 10 >=), `l`, `r` | |
+| `log` | `und`, `l`, `r` | `&&` / `\|\|` (kurzgeschlossen) |
+| `un` | `op` (0 `!`, 1 `-`), `e` | |
+| `tern` | `c`, `a`, `b` | |
+| `mcall` | `obj`, `name`, `args` | `o.m(…)` |
+| `untenM` | `name`, `args` | `unten.m(…)` |
+| `ncall` | `name`, `ziel`, `args`, `direkt?` | unqualifizierter Aufruf; `ziel.art`: `wert` (lokale Variable), `kontext` (Methoden von `dies`/Pizza zuerst, dann `ziel.ref`), `name` (Wert von `ziel.ref`), `schiebFehler`; `direkt` = fnId bei statisch auflösbarer Top-Level-Funktion |
 | `call` | `callee`, `args` | Funktionswert aufrufen |
-| `unten` / `untenCall` / `untenM` | … | `unten`, `unten(…)` im Konstruktor, `unten.m(…)` |
-| `dies` | – | |
-| `neu` | `typ`, `args` | |
-| `pizza` | `belaege: [name]` | Pizza-Literal |
-| `blech` / `bereich` | `elemente` / `a`,`b` | |
-| `lambda` | `fn`, `fang: [Quelle]` | Closure (Quelle = `{slot}` oder `{umg}`) |
-| `ofen` | `args`, `body`, `roh`, `faenge` | Ofen-Ausdruck |
-| `waehleA` | `subj`, `faelle` | wähle als Ausdruck |
-| `schieb` | `ziel` | `schieb(x)` |
+| `mem` | `obj`, `name` | Feldzugriff / Methodenreferenz |
+| `dies`, `unten` | – | |
+| `untenCall` | `args` | `unten(…)` im Konstruktor |
+| `neu` | `typ`, `args` | `neu Hawaii(…)` → Panik vor den Argumenten |
+| `pizza` | `belaege: [name]` | Pizza-Literal (ein einzelner unbekannter Name wird zu `lies`) |
+| `blech` / `bereich` | `elemente` / `a`, `b` | |
+| `lambda` | `fn` | Closure; Fänge stehen in `funktionen[fn].fang` |
+| `schieb` | `ref`, `name` | `schieb(x)` |
+| `ofen` | `args`, `body`, `roh: {slot, body}\|null`, `faenge: [{typ, slot, block}]` | Ofen-Ausdruck |
+| `waehleA` | `subj`, `faelle: [{labels\|null, block\|null, e\|null}]` | wähle als Ausdruck; Label mit `enumName` = bloßer Name |
 
-`args = { pos: [Ausdr], ben: null | [{ name, e: Ausdr }] }`.
+`args = { pos: [Ausdr], ben: null | [{ name, e }] }`.
+
+**Namensreferenzen** `ref`: `{art:"lokal", slot}` · `{art:"umg", idx, typName, gebacken}` (Zelle aus der Lambda-Umgebung) ·
+`{art:"global", g, name, sicher}` (`sicher` = statisch schon deklariert, sonst Laufzeitprüfung „undefiniert“ → Rückfall auf
+den Laufzeitnamen) · `{art:"dyn", name, g|null}` (Feld von `dies`/statisches Feld zur Laufzeit, dann globale Variable, dann
+Laufzeitname) · `{art:"gname", name}` (Bote, Klassen, Beläge … oder „ist nicht definiert“).
 
 ## 4. Anweisungen (`Anw`)
 
-Jede Anweisung `{ k, st, pos, … }` (`st` = 1 für jede Anweisung, die der Interpreter mit `fuehre` ausführt).
-
-`ausdr`, `var` (`decls: [{slot|global, init, typ, gebacken}]`), `zuw` (`ziel`, `op`, `wert`), `inc`, `block`
-(`neuerScope`), `falls`, `solange`, `fuer`, `fuerJedes`, `waehle`, `serviere`, `wirf`, `probier`
-(`block`, `faenge: [{typ, slot, block}]`, `rand`), `abbrechen`, `weiter`, `leer`.
+Jede Anweisung `{ k, p, tf, … }`:
+`ausdr {e}` · `leer` · `var {decls: [{name, ziel (lokal|global), init, typ, gebacken, besitz, std}]}` ·
+`zuw {op, ziel, wert, besitz}` (Ziel: Referenz wie oben, `{art:"mem", obj, name}` oder `{art:"undef", name}`) ·
+`inc {ziel, d}` · `block {body}` · `falls {c, dann, sonst, sonstFalls}` · `solange {c, body}` ·
+`fuer {init, c, body, upd}` · `fuerJedes {quelle, slot, typ, name, body}` · `waehle {subj, faelle: [{labels, block, anw}]}` ·
+`serviere {e}` · `wirf {e}` · `probier {block, faenge: [{typ, slot, block}], rand}` · `abbrechen` · `weiter`.
+Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldinit {name, typ, e, besitz}`,
+`statinit {…}`, `annoHaltbar {mid, e}`, `annoVeraltet {mid, e}`, `rufeInit {fn}`.
 
 ## 5. Schritt-Semantik (verbindlich für alle Backends)
 
-1. Der Interpreter zählt **jeden** `ausw`-Aufruf (Ausdrucksknoten) und **jeden** `fuehre`-Aufruf (Anweisung) als
-   einen Schritt, **vor** der Auswertung des Knotens: `schritte++; if (schritte > grenze) grenzeErreicht()`.
-   Bei einer Anweisung wird die aktuelle Position (`z/s`) **erst nach** dieser Prüfung gesetzt.
-2. Die IR trägt diese Schritte als `st` an den Knoten. Backends dürfen Schritte **bündeln**, solange an jedem
-   beobachtbaren Punkt dieselbe Summe steht. Beobachtbar sind: jede Laufzeitfunktion, jeder Aufruf, jede
-   Speicher-/Variablenänderung, jeder mögliche Wurf, Rücksprünge und Schleifenkanten.
-   Vor einem solchen Punkt müssen alle bis dahin „ausgewerteten“ Schritte addiert und geprüft sein.
-3. Überschreitet ein Bündel von `k` Schritten die Grenze, muss das Backend den genauen Überschreitungspunkt
-   rekonstruieren: `schritte = max(s0+1, floor(grenze)+1)`; lag er auf dem ersten Schritt eines Bündels, das mit
-   einer Anweisung beginnt, gilt noch die **alte** Position. (Wasm: `rt_grenze(k, flags, posNeu)`.)
-4. Die Uhr ist `schritte + offset` (ms). `grenze = min(limit, ofen/lieferung-Budgetenden − offset)`.
+1. Der Interpreter zählt **jeden** Ausdrucksknoten und **jede** Anweisung als einen Schritt, **vor** der Auswertung:
+   `schritte++; if (schritte > grenze) grenzeErreicht()`. Bei einer Anweisung wird die Position erst **nach** dieser
+   Prüfung gesetzt. In der IR zählt jeder Knoten genau 1 (Ausnahmen: Init-Anweisungen oben; Enum-Labels in `wähle`, die
+   nur verglichen werden, wenn das Subjekt ein quattrostagioni-Wert ist).
+2. Backends dürfen Schritte **bündeln**, solange an jedem beobachtbaren Punkt dieselbe Summe steht. Beobachtbar sind:
+   jede Laufzeitfunktion, jeder Aufruf, jede Variablenänderung, jeder mögliche Wurf und **jede Kontrollflussgrenze**
+   (Verzweigung, Schleife, Sprung) – dort muss das Bündel gebucht sein.
+3. Überschreitet ein Bündel von `k` Schritten die Grenze, rekonstruiert das Backend den genauen Punkt:
+   `schritte = max(s0+1, floor(grenze)+1)`; lag er auf dem ersten Schritt eines Bündels, das mit einer Anweisung
+   beginnt, gilt noch die **alte** Position (Wasm: `rt_grenze(k, flags, posNeu)`).
+4. Uhr = `schritte + offset` (ganze ms). `grenze = min(limit, Budgetende − offset)` über alle aktiven Ofen/Lieferungen.
+5. **Stapeltiefe** (§14.4): T = Tiefe beim Funktionseintritt + `tf` des Knotens; Überschreitung von 1500 an genau dem
+   ersten Knoten mit `tf > 1500 − T₀`. Wasm erzeugt je Funktion eine Variante ohne und eine mit Prüfung je Knoten und
+   wählt beim Eintritt (`T₀ + max(tf) ≤ 1500` → ohne).
 
 ## 6. Ananas-Konvention (ohne Wasm-EH)
 
-- Ein globales **Signalregister** (`sig`): 0 = keins, 1 = Ananas (fangbar), 2 = Budget (Ofen/Lieferung; nur von
-  `ofen`/`warte` gefangen, `rand` läuft), 3 = PizzaFehler (fatal), 4 = Schrittlimit (fatal), 5 = Panik (fatal,
-  nicht fangbar, `rand` läuft nicht).
-- Jede Operation, die werfen kann (Laufzeitfunktion, Aufruf), wird danach mit `sig != 0` geprüft; gesetzt →
-  Sprung zum innersten Handler der Funktion (`probier`, `ofen`) oder zum Funktionsende (Rückgabe, Aufrufer prüft).
-- Die Ananas-Nutzlast (Objekt, Zeile, Spalte) liegt in der Laufzeit. Erzeugte Ananas tragen die **aktuelle
-  Position** (`pos`-Register), `wirf` die Position der `wirf`-Anweisung.
-- Rückgabewerte laufen wie im Interpreter über ein globales `rueck`-Register (wichtig für `rand`-Blöcke).
-- Jede Funktion sichert beim Eintritt das `pos`-Register und stellt es beim Verlassen (auch bei Signal) wieder her.
+- Ein **Signalregister** `sig`: 0 = keins, 1 = Ananas (fangbar), 2 = Budget (nur `ofen`/`warte` fangen, `rand` läuft),
+  3 = PizzaFehler, 4 = Schrittlimit, 5 = Panik (3–5 fatal, `rand` läuft nicht).
+- Nach jeder Operation, die werfen kann, `sig != 0` → Sprung zum innersten Handler (`probier`, `ofen`) bzw. Funktionsende.
+- Erzeugte Ananas tragen die **aktuelle Position**, `wirf` die Position der `wirf`-Anweisung.
+- Rückgabewerte laufen wie im Interpreter über ein globales `rueck`-Register (relevant für `rand`-Blöcke, die
+  ihrerseits Funktionen aufrufen). Kontrollfluss aus `probier … rand` heraus läuft erst durch `rand`.
+- Methoden, Konstruktoren und Lambdas sichern beim Eintritt die Position und stellen sie beim Verlassen wieder her
+  (auch bei Signal); Top-Level-Code und Initialisierer nicht (wie der Interpreter).
 
 ## 7. Fallback
 
-Konstrukte, die das Frontend (noch) nicht exakt abbilden kann, werden als
-`nichtUnterstuetzt: [{ zeile, spalte, grund }]` gemeldet – dann läuft der Interpreter.
+Was das Frontend nicht exakt abbilden kann, meldet es als `nichtUnterstuetzt: [{ zeile, spalte, grund }]` – dann läuft
+der Interpreter. Derzeit: Variablendeklaration direkt als `wähle`-Arm, Lambda-Zugriff auf eine im umgebenden Scope erst
+später deklarierte Variable, erneute Deklaration einer gefangenen Variable bzw. mit anderem Typ, Zuweisung an eine
+gefangene gebackene Variable aus einer Lambda, mehrdeutige Ziele (Feld oder globale Variable desselben Namens),
+`schieb` mit gleichnamiger Methode/Variable, `schneide(auto)` bei möglichem Feld `auto`.
