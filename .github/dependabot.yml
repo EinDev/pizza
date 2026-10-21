@@ -13,7 +13,7 @@ updates:
     commit-message: { prefix: "deps(ui)" }
 
   - package-ecosystem: "npm"
-    directory: "/e2e"
+    directories: ["/e2e", "/tests/theke"]
     schedule: { interval: "weekly", day: "monday" }
     groups:
       e2e:
