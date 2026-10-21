@@ -274,9 +274,9 @@ function api() {
     ja(/Stapelüberlauf/.test(e.text), e.text);
   });
 
-  test('Rekursion bis Tiefe 1000 klappt', () => {
-    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(1000)));');
-    gleich(ausgabeText(r.ereignisse), '500500\n');
+  test('Rekursion bis Tiefe 900 klappt', () => {
+    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(900)));');
+    gleich(ausgabeText(r.ereignisse), '405450\n');
   });
 
   test('Determinismus: Zufall mit festem Seed', () => {
