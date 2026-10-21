@@ -35,11 +35,24 @@ pub fn finde_angehaengt(daten: &[u8]) -> Option<&[u8]> {
     Some(&daten[ende - ANHANG - len..ende - ANHANG])
 }
 
+/// Pfad, unter dem sich das laufende Binary lesen lässt. Linux: `/proc/self/exe` – funktioniert auch für den
+/// Theke-Teil, den der Starter aus einer `memfd`-Datei startet (`current_exe` wäre dort `/memfd:… (deleted)`).
+fn eigenes_binary() -> io::Result<std::path::PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        let p = std::path::PathBuf::from("/proc/self/exe");
+        if p.exists() {
+            return Ok(p);
+        }
+    }
+    std::env::current_exe()
+}
+
 /// Liest das Ende des eigenen Binaries und liefert ein eingebettetes `.pkarton`, falls vorhanden
 /// (es werden nur die letzten 16 Bytes und ggf. der Anhang gelesen).
 pub fn eingebettet() -> Option<Vec<u8>> {
     use std::io::{Read, Seek, SeekFrom};
-    let mut f = fs::File::open(std::env::current_exe().ok()?).ok()?;
+    let mut f = fs::File::open(eigenes_binary().ok()?).ok()?;
     let groesse = f.metadata().ok()?.len();
     if groesse < ANHANG as u64 {
         return None;
@@ -108,7 +121,7 @@ pub fn baue_exe(host: &[u8], pkarton: &[u8], theke: bool) -> Vec<u8> {
 
 /// Schreibt eine EXE aus dem laufenden Host-Binary + `.pkarton`.
 pub fn schreibe_exe(pkarton: &[u8], theke: bool, ziel: &Path) -> io::Result<()> {
-    let host = fs::read(std::env::current_exe()?)?;
+    let host = fs::read(eigenes_binary()?)?;
     let exe = baue_exe(&host, pkarton, theke);
     fs::write(ziel, exe)?;
     #[cfg(unix)]

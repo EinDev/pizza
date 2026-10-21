@@ -4,3 +4,5 @@ pub mod konsole;
 pub mod laufen;
 #[cfg(feature = "theke")]
 pub mod theke;
+#[cfg(all(feature = "starter", target_os = "linux"))]
+pub mod starter;

@@ -113,7 +113,7 @@ Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Doc
 | Ziel-ID | Rust-Target | Linker | Datei |
 |---|---|---|---|
 | `windows-x64` | `x86_64-pc-windows-msvc` (mit Theke, CRT statisch) | xwin (MSVC-CRT + Windows-SDK) + rust-lld | `pizza-host-windows-x64-<sha12>.exe` |
-| `linux-x64` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-<sha12>` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, Starter + eingebetteter Theke-Teil) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-<sha12>` |
 
 Angeboten werden nur Varianten **mit** Theke-Fenster (Browser und nativ verhalten sich gleich); statische
 Varianten ohne Fenster (früher `linux-x64` musl, `linux-arm64` musl) sind gestrichen.
@@ -134,8 +134,9 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   (heuristisch). Konsolenprogramme öffnen beim Doppelklick ein Terminal; Programme mit Theke starten ohne Terminal
   (aus der Eingabeaufforderung gestartet, erscheinen ihre Ausgaben dort).
 - **Linux:** Browser-Downloads sind nicht ausführbar: `chmod +x programm-linux-x64 && ./programm-linux-x64`.
-  Braucht glibc ≥ 2.34 und WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`,
-  Fedora: `sudo dnf install webkit2gtk4.1`).
+  Braucht glibc ≥ 2.34; Programme mit Theke-Fenster zusätzlich WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`,
+  Fedora: `sudo dnf install webkit2gtk4.1`). Fehlt es, meldet ein Theke-Programm genau das beim Start (Exit 2);
+  Programme ohne Theke laufen auch ohne WebKitGTK.
 
 ## Theke (Fenster, THEKE.md §4)
 
@@ -150,7 +151,21 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   `op: "schliesse"` → Fenster zu. **Programmende = Fenster zu**, Prozess endet mit dem Exit-Code.
 - Ohne Anzeige (Linux ohne `DISPLAY`/`WAYLAND_DISPLAY`), mit `PIZZA_THEKE=0` oder im JSON-Modus
   (`--ereignisse-json`, außer `PIZZA_THEKE=1`) öffnet der Host kein Fenster → W0100-Verhalten.
-  Fehlt WebView2/WebKitGTK, erscheint eine verständliche Meldung und das Programm läuft als Konsolenprogramm weiter.
+- **Linux: WebKitGTK fehlt (K-083)** → ein Programm mit Theke startet gar nicht erst, sondern meldet auf stderr
+  `Dieses Programm braucht WebKitGTK 4.1 für sein Theke-Fenster. Installieren mit: sudo apt install libwebkit2gtk-4.1-0 (Debian/Ubuntu) bzw. sudo dnf install webkit2gtk4.1 (Fedora).`
+  und endet mit Exit 2 (`--debug` zeigt die Meldung des Laders). Programme ohne Theke laufen normal.
+  Möglich macht das der **Starter** (`src/starter.rs`, Feature `starter`): Ein gegen WebKitGTK gelinktes ELF startet
+  ohne die Bibliothek überhaupt nicht („error while loading shared libraries …“). Ausgeliefert wird deshalb ein
+  Binary ohne wry/tao (nur glibc), das das vollständige `pizza-host` mit Theke („Theke-Teil“) als Bytes enthält.
+  Braucht das Programm die Importgruppe `theke` (gleiches Kriterium wie das PE-Subsystem), prüft der Starter per
+  `dlopen("libwebkit2gtk-4.1.so.0")`, schreibt den Theke-Teil (bei einer EXE samt `.pkarton`) in eine `memfd`-Datei
+  und startet ihn per `exec` mit denselben Argumenten – Fenster, Ausgaben und Exit-Code wie bisher, nichts auf der
+  Platte. Alles andere führt der Starter selbst aus. Gebaut von `baue-ziele.sh` in zwei Schritten (erst Theke-Teil,
+  dann `--no-default-features --features starter` mit `PIZZA_THEKE_EXE=<theke-teil>`); ohne `PIZZA_THEKE_EXE`
+  meldet ein Starter bei Theke-Programmen „ohne Theke-Teil gebaut“. Test: `PIZZA_TEST_OHNE_WEBKIT=1` simuliert das Fehlen.
+- Kann das Fenster trotz vorhandener Bibliothek nicht erzeugt werden (WebView2 fehlt/defekt unter Windows, WebKitGTK
+  startet nicht), erscheint eine verständliche Meldung (ohne Terminal unter Windows als Meldungsfenster) und das
+  Programm läuft ohne Fenster weiter (`ui_warte` → -1).
 - Tests ohne Fenster: `--ui-ereignisse datei` (JSON-Lines, erschöpft → `{"typ":"geschlossen"}`).
 - Smoke-Test mit (unsichtbarem) Fenster: `PIZZA_THEKE_SMOKE=1 cargo test --test theke -- --ignored fenster`
   (Linux/CI: `xvfb-run -a` davor). `PIZZA_THEKE_UNSICHTBAR=1` hält das Fenster unsichtbar.
@@ -167,6 +182,7 @@ Release-Profil: `opt-level = "z"`, LTO, `codegen-units = 1`, `strip`, `panic = "
 mit `opt-level = 3` (reines `"z"` macht die Engine ~25 % langsamer, so ist sie gleich schnell wie `3`).
 wasmi ohne `wat`/`memory64`. Größen ohne Theke (nur Tests/CLI): Windows-msvc 1,1 MB, Windows-gnu 1,3 MB.
 Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99 MB (+ dynamisch WebKitGTK/GTK).
+Linux-Download = Starter (~1 MB) + eingebetteter Theke-Teil (~2 MB).
 
 ## Aufbau
 
@@ -178,7 +194,8 @@ Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99
 | `src/konsole.rs` | Windows: an das Eltern-Terminal anhängen, Meldungsfenster ohne Terminal |
 | `src/main.rs` | Kommandozeile |
 | `src/theke.rs` | Theke-Fenster (wry/tao), Custom-Protocol, Brücke |
-| `build.rs` | bettet `site/js/theke/` ein |
+| `src/starter.rs` | Linux-Starter: WebKitGTK-Probe, Meldung, Theke-Teil per memfd + `exec` |
+| `build.rs` | bettet `site/js/theke/` ein (Starter: zusätzlich den Theke-Teil aus `PIZZA_THEKE_EXE`) |
 | `tests/theke.rs` | `ui_senden`/`ui_warte`, `--ui-ereignisse`, Fenster-Smoke-Test |
 | `tests/abi.rs` | ABI-Tests (WAT) |
 | `test.js` | Differenztest gegen den Interpreter |

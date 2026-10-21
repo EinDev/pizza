@@ -271,6 +271,8 @@ fn main() -> ExitCode {
     if let Some(was) = a.loeschen.take() {
         return vorrat_loeschen(ordner, was);
     }
+    let ist_exe = eingebettet.is_some();
+    let debug = a.debug;
     let (pkarton, json) = match eingebettet {
         Some(p) => (p, a.json || std::env::var_os("PIZZA_EREIGNISSE_JSON").is_some()),
         None => {
@@ -303,16 +305,29 @@ fn main() -> ExitCode {
             s => s,
         }
     };
-    beende(ausfuehren(pkarton, a.args, opt, senke))
+    beende(ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke))
 }
 
 /// Führt das Programm aus – mit Theke-Fenster (eigener Programm-Thread, Fenster im Hauptthread),
 /// sofern das Feature aktiv ist und keine vorgegebenen UI-Ereignisse genutzt werden.
-fn ausfuehren(pkarton: Vec<u8>, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
+/// Linux-Starter (Feature `starter`): Programme mit Theke übernimmt der eingebettete Theke-Teil (src/starter.rs).
+#[allow(unused_variables)]
+fn ausfuehren(pkarton: Vec<u8>, ist_exe: bool, debug: bool, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
     // Maschinenlesbarer Modus (--ereignisse-json, Differenztests) öffnet kein Fenster, außer PIZZA_THEKE=1:
     // ohne --ui-ereignisse gilt dann „kein Renderer“ (W0100) – wie im Interpreter ohne uiEreignisse.
-    #[cfg(feature = "theke")]
+    #[cfg(any(feature = "theke", feature = "starter"))]
     let fenster_erlaubt = !matches!(senke, Senke::Json) || std::env::var("PIZZA_THEKE").map(|v| v == "1").unwrap_or(false);
+    // Starter: vor dem ersten Wasm-Befehl entscheiden (gleiches Kriterium wie das PE-Subsystem: Importgruppe theke).
+    // Fehlt WebKitGTK → Meldung + Exit 2; sonst ersetzt der Theke-Teil diesen Prozess (gleiche Argumente).
+    // Unabhängig von DISPLAY: ohne Anzeige verhält sich der Theke-Teil wie bisher (W0100).
+    #[cfg(all(feature = "starter", not(feature = "theke"), target_os = "linux"))]
+    if opt.ui.is_none()
+        && fenster_erlaubt
+        && std::env::var("PIZZA_THEKE").map(|v| v != "0").unwrap_or(true)
+        && laufen::braucht_theke(&pkarton)
+    {
+        return pizzahost::starter::theke_starten(ist_exe.then_some(&pkarton[..]), debug);
+    }
     #[cfg(feature = "theke")]
     if opt.ui.is_none() && fenster_erlaubt {
         return pizzahost::theke::starte(move |ui| {
