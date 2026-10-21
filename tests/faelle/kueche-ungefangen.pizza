@@ -1,0 +1,9 @@
+// Küchenbrigade S3: ungefangene KüchenAnanas mit der Zeile des Schreibzugriffs in der Küche
+salami summe = 0;
+Bote.sage(("los"));
+Blech<salami> r = [1, 2, 3].brigade(x -> {
+    Bote.sage(("Koch " + x));
+    summe += x;
+    serviere ((x));
+});
+Bote.sage(("nie"));

@@ -1,0 +1,27 @@
+// Küchenbrigade D3/D4: Ausgaben in Stückreihenfolge; der erste Abbruch (in Stückreihenfolge) gewinnt
+Blech<salami> r = [1, 2, 3, 4].brigade(x -> {
+    Bote.sage(("Stück " + x + " beginnt"));
+    Bote.schreibe(("…"));
+    Bote.sage((" fertig"));
+    serviere ((x * 10));
+});
+Bote.sage((r));
+probier {
+    [1, 2, 3, 4].brigade(x -> {
+        Bote.sage(("Stück " + x));
+        falls (x >= 2) { wirf neu RechenAnanas("Stück " + x + " verrechnet"); }
+        serviere ((x));
+    });
+} verbrannt (RechenAnanas a) {
+    Bote.sage(("gefangen: " + a.nachricht()));
+}
+Bote.fehler(("vor dem Absturz"));
+[1, 2, 3, 4].brigade(x -> {
+    Bote.sage(("Koch " + x));
+    falls (x == 2) {
+        salami n = 0;
+        serviere ((10 / n));
+    }
+    serviere ((x));
+});
+Bote.sage(("nie"));

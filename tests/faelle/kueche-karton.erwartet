@@ -1,0 +1,24 @@
+KüchenAnanas: Eine Funktion passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Ein Teig passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Eine Lieferung passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Eine Zustellung passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Ein Stück passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Reste passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Ein Zufall passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Eine Vorratskammer passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Eine Theke-Zutat passt in keinen Karton – nur Werte können die Küche verlassen.
+KüchenAnanas: Eine Funktion passt in keinen Karton – nur Werte können die Küche verlassen.
+passt
+passt
+[Box@2, Box@2]
+Box@3 1 ja
+Box@4
+KüchenAnanas: Eine Funktion passt in keinen Karton – nur Werte können die Küche verlassen.
+nein
+[[1, 2], [1, 2]] ja
+[[1, 2, 3], [1, 2, 3]] [[1, 2], [1, 2]]
+nein
+((Tomate, Käse)) 7 ja
+{a: [1, 2]} [Text 1, Text 2] [1.5] [karton]
+gefangen: Stück 2
+gefangen: Was der Koch geworfen hat, passt in keinen Karton.

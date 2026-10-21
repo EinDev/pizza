@@ -1,0 +1,16 @@
+// Küchenbrigade D12: Küchen lesen den Kühlschrank des Schnappschusses, schreiben in einen eigenen, der am Stückende verfällt
+klasse Rechner {
+    @Kühlschrank(haltbar: 1h)
+    tiefkühl salami quadrat(salami x) { Bote.sage(("rechne " + x)); serviere ((x * x)); }
+}
+@Kühlschrank
+salami doppelt(salami x) { Bote.sage(("verdopple " + x)); serviere ((x * 2)); }
+Bote.sage((Rechner.quadrat(2) + doppelt(1)));
+// 2 und 1 liegen schon im Kühlschrank; 3 rechnet jedes Stück selbst (kein Stück sieht das andere)
+Bote.sage(([1, 2].brigade(i -> Rechner.quadrat(2) + Rechner.quadrat(3) + Rechner.quadrat(3) + doppelt(1))));
+// die Hauptküche sieht die Küchen-Einträge nicht
+Bote.sage((Rechner.quadrat(3)));
+// Frische nach Küchenuhr: nach 2h ist der Eintrag in dieser Küche abgelaufen
+Bote.sage(([1, 2].brigade(i -> { falls (i == 2) { Uhr.vorspulen(2h); } serviere ((Rechner.quadrat(2))); })));
+// die Uhr der Hauptküche steht nach der Brigade 2h weiter (längstes Stück) → auch hier abgelaufen
+Bote.sage((Rechner.quadrat.mikrowelle(2).istMatschig()));

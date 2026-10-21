@@ -1,0 +1,8 @@
+// Küchenbrigade D14: Panik in Stück i ist ein Abbruch nach D3 – Banner nach den Ausgaben der Stücke 1 … i, Exit 39
+Blech<margherita> sorten = ["Salami", "Pilze", "Ananas", "Oliven"];
+sorten.brigade(name -> {
+    Bote.sage(("Koch belegt mit " + name));
+    falls (name == "Ananas") { serviere ((((Tomate, Ananas)))); }
+    serviere ((name));
+});
+Bote.sage(("nie"));

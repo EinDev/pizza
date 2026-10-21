@@ -1,0 +1,33 @@
+innen 1.1
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+innen 1.2
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+innen 1.3
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+innen 2.1
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+innen 2.2
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+innen 2.3
+'lokal' gehört der Hauptküche – ein Koch darf es nur lesen.
+Dieses Blech gehört der Hauptküche – nimm eine kopie().
+'global' gehört der Hauptküche – ein Koch darf es nur lesen.
+[[17, 18, 19], [28, 29, 30]]
+83ms
+[[Kiste@2], [Kiste@2, Kiste@3, Kiste@4], [Kiste@2, Kiste@3]]
+Kiste@5
+5 ist keine Funktion – das kann man nicht aufrufen.
+5 ist keine Funktion – das kann man nicht aufrufen.
+[]
+[1, 4, 9]
+[2, 3]

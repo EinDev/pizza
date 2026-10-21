@@ -1,0 +1,17 @@
+// Küchenbrigade S5/D10: Lieferungen und Teige einer Küche gehören ihr; nicht gewartete wennDa-Lieferungen laufen nie
+Lieferung<salami> vorher = bestelle(() -> (1));
+Bote.sage((vorher));
+Blech<margherita> r = [1, 2, 3].brigade(i -> {
+    Lieferung<salami> l = bestelle(() -> { Bote.sage(("liefere " + i)); serviere ((i * 100)); });
+    l.wennDa(w -> Bote.sage(("wennDa in Küche " + i + ": " + w)));
+    falls (i == 2) { l.warte(); }
+    Lieferung<salami> l2 = bestelle(() -> (0));
+    Teig<salami> t = teig(() -> (i));
+    t.gehenlassen();
+    serviere (("" + l + " " + l2 + " " + t.backen()));
+});
+Bote.sage((r));
+// Lieferungsnummern zählen nach der Brigade ab L₀ + max cᵢ weiter
+Bote.sage((bestelle(() -> (2))));
+bestelle(() -> ("Haupt")).wennDa(w -> Bote.sage(("wennDa Hauptküche: " + w)));
+Bote.sage(("Programmende"));

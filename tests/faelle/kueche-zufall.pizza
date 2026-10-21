@@ -1,0 +1,24 @@
+// Küchenbrigade D9: Beim Anschnitt zieht die Hauptküche n Saaten; Stück i nutzt einen eigenen Strom mit Saat sᵢ
+Blech<salami> w = [1, 2, 3].brigade(x -> Zufall.zahl(1, 1000));
+Bote.sage((w));
+Bote.sage((Zufall.zahl(1, 1000)));
+// Saaten sind die n nächsten Ziehungen von neu Zufall() – nicht die Stücknummer
+Zufall.saat(42);
+Blech<salami> saaten = [1, 2, 3].brigade(x -> Zufall.saat());
+Zufall.saat(42);
+Blech<salami> erwartet = [neu Zufall().saat(), neu Zufall().saat(), neu Zufall().saat()];
+Bote.sage((saaten + " " + (saaten.verbinde(",") == erwartet.verbinde(","))));
+// n Ziehungen werden verbraucht, auch wenn kein Stück Zufall nutzt
+Zufall.saat(42);
+[1, 2, 3].brigade(x -> x);
+salami nachher = Zufall.zahl(1, 1000000);
+Zufall.saat(42);
+Zufall.kommazahl(); Zufall.kommazahl(); Zufall.kommazahl();
+Bote.sage((nachher == Zufall.zahl(1, 1000000)));
+// Zufall.saat in der Küche setzt nur den Küchenstrom; neu Zufall() in der Küche zieht aus dem Küchenstrom
+Zufall.saat(7);
+Blech<salami> r = [1, 2].brigade(x -> { Zufall.saat(x); Zufall z = neu Zufall(saat: 100); serviere ((Zufall.zahl(1, 100) * 1000 + z.zahl(1, 100))); });
+Bote.sage((r + " " + Zufall.saat()));
+Blech<salami> gleich = [1, 1].brigade(x -> { Zufall.saat(5); serviere ((Zufall.zahl(1, 1000000))); });
+Bote.sage((gleich.stück(1) == gleich.stück(2)));
+Bote.sage(([1, 2, 3].brigade(x -> Zufall.mische([1, 2, 3, 4, 5]))));

@@ -77,7 +77,8 @@
     ['ZugriffsAnanas', 'LaufzeitAnanas'],
     ['UnbekannterBelagAnanas', 'LaufzeitAnanas'],
     ['ZugeklapptAnanas', 'LaufzeitAnanas'],
-    ['UnbekanntePizzaAnanas', 'LaufzeitAnanas']
+    ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'],
+    ['KüchenAnanas', 'LaufzeitAnanas']        // Küchenbrigade (THREADS.md §2.3) – am Ende angehängt, Indizes bleiben
   ];
   const ANANAS = ANANAS_BAUM.map(a => a[0]);
 
@@ -1268,7 +1269,8 @@
     }
   }
   class Gebunden { constructor(obj, liste, name) { this.obj = obj; this.liste = liste; this.name = name; } }
-  class NativFn { constructor(name, fn) { this.name = name; this.fn = fn; } }
+  // ziel: Wert, an den die native Methode gebunden ist (z. B. `b.hinzu` als Wert) – nur für den Küchen-Schnappschuss
+  class NativFn { constructor(name, fn, ziel) { this.name = name; this.fn = fn; this.ziel = ziel === undefined ? null : ziel; } }
   class Modul { constructor(name, methoden, felder) { this.name = name; this.methoden = methoden; this.felder = felder; } }
   class Teig { constructor(fn) { this.fn = fn; this.fertig = false; this.wert = null; this.auf = false; } }
   class Lieferung {
@@ -1337,6 +1339,8 @@
   class LimitSig { }
   class PanikSig { }
   class BudgetSig { constructor(frame) { this.frame = frame; } }
+  // Küchenbrigade: Wert passt in keinen Karton (§2.4); art = „Eine Funktion“ …
+  class KartonFehler { constructor(art) { this.art = art; } }
 
   const BRK = { brk: 1 }, CNT = { cnt: 1 }, RET = { ret: 1 };
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
@@ -1524,9 +1528,9 @@
   const BLECH_M = tabelle({
     'länge': function (b) { return b.length; },
     'stück': function (b, pos) { return b[this.index(b, pos[0]) - 1]; },
-    'hinzu': function (b, pos) { b.push(pos.length ? pos[0] : null); return b; },
-    'entferne': function (b, pos) { const i = this.index(b, pos[0]); return b.splice(i - 1, 1)[0]; },
-    'setze': function (b, pos) { const i = this.index(b, pos[0]); b[i - 1] = pos.length > 1 ? pos[1] : null; return b; },
+    'hinzu': function (b, pos) { if (this.kueche !== null) this.kuecheBlech(b); b.push(pos.length ? pos[0] : null); return b; },
+    'entferne': function (b, pos) { if (this.kueche !== null) this.kuecheBlech(b); const i = this.index(b, pos[0]); return b.splice(i - 1, 1)[0]; },
+    'setze': function (b, pos) { if (this.kueche !== null) this.kuecheBlech(b); const i = this.index(b, pos[0]); b[i - 1] = pos.length > 1 ? pos[1] : null; return b; },
     'enthält': function (b, pos) { for (const x of b) if (this.gleich(x, pos[0])) return true; return false; },
     'belege': function (b, pos, ben, node) {
       const f = pos[0];
@@ -1534,6 +1538,8 @@
       for (let i = 0; i < b.length; i++) r[i] = this.rufe(f, [b[i]], null, node);
       return r;
     },
+    // Küchenbrigade (THREADS.md §2–§3): wie belege, jedes Stück in einer eigenen Küche; sequentielle Referenz
+    'brigade': function (b, pos, ben, node) { return this.brigade(b, pos[0], node); },
     'filtere': function (b, pos, ben, node) {
       const f = pos[0];
       const r = [];
@@ -1587,10 +1593,10 @@
   });
 
   const KARTE_M = tabelle({
-    'lege': function (m, pos) { m.set(this.schluessel(pos[0]), pos.length > 1 ? pos[1] : null); return m; },
+    'lege': function (m, pos) { if (this.kueche !== null) this.kuecheKarte(m); m.set(this.schluessel(pos[0]), pos.length > 1 ? pos[1] : null); return m; },
     'hole': function (m, pos) { const k = this.schluessel(pos[0]); return m.has(k) ? m.get(k) : null; },
     'hat': function (m, pos) { return m.has(this.schluessel(pos[0])); },
-    'entferne': function (m, pos) { const k = this.schluessel(pos[0]); const v = m.has(k) ? m.get(k) : null; m.delete(k); return v; },
+    'entferne': function (m, pos) { if (this.kueche !== null) this.kuecheKarte(m); const k = this.schluessel(pos[0]); const v = m.has(k) ? m.get(k) : null; m.delete(k); return v; },
     'schlüssel': function (m) { return Array.from(m.keys()); },
     'werte': function (m) { return Array.from(m.values()); },
     'länge': function (m) { return m.size; },
@@ -1635,6 +1641,7 @@
     'alsText': function (o) { return o.klasse.name + '@' + o.nr; },
     'aufklappen': function (o, pos, ben, node) {
       if (!this.istCalzone(o.klasse)) throw this.ananas('LaufzeitAnanas', 'Nur eine Calzone lässt sich aufklappen – \'' + o.klasse.name + '\' ist keine.');
+      if (this.kueche !== null && this.istGefroren(o)) throw this.ananas('KüchenAnanas', 'Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.');
       this.warnung('W0013', 'Garantie erloschen. Das ist jetzt eine ganz normale Pizza.', node);
       o.zugeklappt = false;
       return o;
@@ -1643,11 +1650,13 @@
 
   const TEIG_M = tabelle({
     'gehenlassen': function (t, pos, ben, node) {
+      if (this.kueche !== null) this.kuecheTeig(t);
       if (!t.fertig) { t.wert = this.rufe(t.fn, [], null, node); t.fertig = true; }
       t.auf = true;
       return t;
     },
     'backen': function (t, pos, ben, node) {
+      if (this.kueche !== null && !t.fertig) this.kuecheTeig(t);
       if (!t.auf) this.warnung('T0007', 'Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.', node);
       if (!t.fertig) { t.wert = this.rufe(t.fn, [], null, node); t.fertig = true; }
       return t.wert;
@@ -1658,6 +1667,7 @@
 
   const LIEF_M = tabelle({
     'trinkgeld': function (l, pos) {
+      if (this.kueche !== null) this.kuecheLieferung(l);
       const n = pos[0];
       if (typeof n !== 'number') throw this.ananas('TypAnanas', 'Trinkgeld muss eine Zahl sein, nicht ' + this.darstellung(n) + '.');
       l.trinkgeld += n;
@@ -1665,6 +1675,7 @@
     },
     'warte': function (l, pos, ben, node) {
       if (l.zustellung !== null) return l.zustellung;
+      if (this.kueche !== null) this.kuecheLieferung(l);
       const max = arg(pos, ben, 0, 'max');
       let budget = Infinity;
       if (max !== undefined && max !== null) budget = Math.floor(this.dauerMs(max, 'warte(max: …)') * (1 + l.trinkgeld / 10));
@@ -1673,6 +1684,7 @@
       return z;
     },
     'wennDa': function (l, pos, ben, node) {
+      if (this.kueche !== null) this.kuecheLieferung(l);
       l.rueckruf = pos[0];
       if (l.zustellung !== null && l.zustellung.puenktlich && l.zustellung.fehler === null) this.rufe(l.rueckruf, [l.zustellung.wert], null, node);
       return l;
@@ -1699,6 +1711,7 @@
   const STUECK_M = tabelle({
     'pizza': function (s) { return s.pizza; },
     'essen': function (s) {
+      if (this.kueche !== null && this.istGefroren(s)) throw this.ananas('KüchenAnanas', 'Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.');
       if (s.gegessen) throw this.ananas('StreitAnanas', 'Dieses Stück ist schon gegessen.');
       s.gegessen = true;
       return null;
@@ -1812,6 +1825,14 @@
     'alsText': function (g) { return this.text(g); }
   };
   const ZUFALL_OBJ_M = tabelle(ZUFALL_GEN_M);
+  // Ziehen aus einem Zufall-Objekt der Hauptküche ist in der Küche verboten (§2.3)
+  for (const k of ['zahl', 'kommazahl', 'wahr', 'wähle', 'mische']) {
+    const f = ZUFALL_GEN_M[k];
+    ZUFALL_OBJ_M[k] = function (g, pos, ben, node) {
+      if (this.kueche !== null && this.istGefroren(g)) throw this.ananas('KüchenAnanas', 'Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().');
+      return f.call(this, g, pos, ben, node);
+    };
+  }
   const ZUFALL_M = tabelle(Object.assign({}, ...Object.keys(ZUFALL_GEN_M).map(k => ({
     [k]: function (m, pos, ben, node) { return ZUFALL_GEN_M[k].call(this, this.zufallGlobal, pos, ben, node); }
   })), {
@@ -1825,6 +1846,7 @@
   // ---------------------------------------------------------------- Vorratskammer (K-079/K-080)
   const KAMMER_M = tabelle({
     'lege': function (k, pos) {
+      if (this.kueche !== null) this.kuecheKammer(k);
       const s = this.kammerSchluessel(pos[0]);
       const w = this.einlagern(pos.length > 1 ? pos[1] : null);
       const alt = k.daten.has(s) ? k.daten.get(s) : undefined;
@@ -1840,6 +1862,7 @@
     },
     'hat': function (k, pos) { return k.daten.has(this.kammerSchluessel(pos[0])); },
     'entferne': function (k, pos) {
+      if (this.kueche !== null) this.kuecheKammer(k);
       const s = this.kammerSchluessel(pos[0]);
       if (!k.daten.has(s)) return null;
       const alt = k.daten.get(s);
@@ -1849,7 +1872,7 @@
     },
     'schlüssel': function (k) { return Array.from(k.daten.keys()); },
     'länge': function (k) { return k.daten.size; },
-    'leeren': function (k) { k.daten.clear(); this.kammerGeaendert(k, null, null, null); return k; },
+    'leeren': function (k) { if (this.kueche !== null) this.kuecheKammer(k); k.daten.clear(); this.kammerGeaendert(k, null, null, null); return k; },
     'name': function (k) { return k.name; },
     'alsText': function (k) { return this.text(k); }
   });
@@ -2009,6 +2032,19 @@
     [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
   ]);
 
+  // Regel S4 (THREADS.md §2.3): Eingabe und Theke gibt es nur in der Hauptküche – jede Methode wirft in einer Küche.
+  function nurHauptkueche(tab, text) {
+    for (const k of Object.keys(tab)) {
+      const f = tab[k];
+      tab[k] = function () {
+        if (this.kueche !== null) throw this.ananas('KüchenAnanas', text);
+        return f.apply(this, arguments);
+      };
+    }
+  }
+  nurHauptkueche(EINGABE_M, 'Bestellannahme gibt es nur in der Hauptküche.');
+  for (const t of new Set([THEKE_M].concat(Object.values(UI_TABELLEN)))) nurHauptkueche(t, 'Die Theke gibt es nur in der Hauptküche.');
+
   // =====================================================================
   // LAUFZEIT – Interpreter
   // =====================================================================
@@ -2055,6 +2091,9 @@
       this.onVorrat = typeof opt.onVorrat === 'function' ? opt.onVorrat : null;
       this.kammern = new Map();
       this.w0101 = false;
+      // Küchenbrigade: aktuelle Küche (null = Hauptküche); kuechenChaos (nur Tests) permutiert die Stück-Reihenfolge
+      this.kueche = null;
+      this.chaos = typeof opt.kuechenChaos === 'number' && Number.isInteger(opt.kuechenChaos) ? new ZufallGen(opt.kuechenChaos) : null;
       this.globalCtx = { dies: null, klasse: null, unten: null, ktor: false };
       this.global = new Scope(null, this.globalCtx, true);
       this.globalCache = { cache: null };
@@ -2087,12 +2126,15 @@
           const p = pos[0];
           if (p === null || p === undefined) throw L.leer();
           if (!(p instanceof Pizza)) throw L.ananas('TypAnanas', 'teile() braucht eine Pizza, nicht ' + L.darstellung(p) + '.');
+          if (L.kueche !== null && L.istGefroren(p)) throw L.ananas('KüchenAnanas', 'Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.');
           if (p.uebrig <= 0) throw L.ananas('StreitAnanas', 'Pizza ist alle.');
           p.uebrig--;
           return new Stueck(p);
         })],
         ['zwischenstand', new NativFn('zwischenstand', function (pos) {
-          for (let i = L.frames.length - 1; i >= 0; i--) {
+          // in einer Küche zählen nur Öfen, die in der Küche geöffnet wurden (THREADS.md §2.2)
+          const basis = L.kueche !== null ? L.kueche.auftrag.frameBasis : 0;
+          for (let i = L.frames.length - 1; i >= basis; i--) {
             if (L.frames[i].art === 'ofen') { L.frames[i].zwischen = pos.length ? pos[0] : null; break; }
           }
           return null;
@@ -2104,12 +2146,14 @@
     }
 
     // ---------- Hilfen ----------
-    warnung(code, text, node, schluessel) {
+    warnung(code, text, node, schluessel, methode) {
       const z = node ? node.z : this.z, s = node ? node.s : this.s;
       const key = schluessel || (code + ':' + z + ':' + s);
+      const ev = { typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s };
+      if (this.kueche !== null) { this.gibWeiter({ ev, key, m: methode || null }); return; }
       if (this.warnSet.has(key)) return;
       this.warnSet.add(key);
-      this.emit({ typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s });
+      this.emit(ev);
     }
 
     ananas(typ, text) {
@@ -3296,7 +3340,7 @@
         const l = this.findeMethodeListe(o.klasse, name);
         if (l !== null) return new Gebunden(o, l, name);
         if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || OBJ_M[name]) {
-          return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc));
+          return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
         }
         throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
       }
@@ -3319,11 +3363,11 @@
         throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es bei ' + o.name + ' nicht.');
       }
       if (o instanceof Pizza || o instanceof PizzaSicht) {
-        return new NativFn(name, (pos, ben, node) => this.rufeMethode(o, name, pos, ben, node, sc));
+        return new NativFn(name, (pos, ben, node) => this.rufeMethode(o, name, pos, ben, node, sc), o);
       }
       const tab = this.tabelleVon(o);
       if (tab !== null && tab[name] !== undefined) {
-        return new NativFn(name, (pos, ben, node) => tab[name].call(this, o, pos, ben, node));
+        return new NativFn(name, (pos, ben, node) => tab[name].call(this, o, pos, ben, node), o);
       }
       throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + this.typName(o) + ' nicht.');
     }
@@ -3433,8 +3477,11 @@
 
     rufeDecl(m, dies, pos, ben, node, modus) {
       if (m.veraltet !== null && !m.gewarnt) {
-        m.gewarnt = true;
-        this.warnung('W0003', 'Methode \'' + m.name + '\' ist veraltet.' + (m.veraltet ? ' Grund: ' + m.veraltet : ''), node);
+        const text = 'Methode \'' + m.name + '\' ist veraltet.' + (m.veraltet ? ' Grund: ' + m.veraltet : '');
+        if (this.kueche === null) {
+          m.gewarnt = true;
+          this.warnung('W0003', text, node);
+        } else if (!this.methodeGewarnt(m)) this.warnung('W0003', text, node, undefined, m);
       }
       if (m.body === null) throw this.ananas('RohlingAnanas', 'Methode \'' + m.name + '\' ist ein Rohling – sie hat keinen Rumpf.');
       if (m.haltbar >= 0 || modus !== 'normal') return this.kuehlschrank(m, dies, pos, ben, node, modus);
@@ -3474,9 +3521,6 @@
         return modus === 'mikrowelle' ? new Reste(v, false) : v;
       }
       const halter = dies !== null && typeof dies === 'object' ? dies : (m.klasse || this.globalCache);
-      if (halter.cache === null || halter.cache === undefined) halter.cache = new Map();
-      let tab = halter.cache.get(m);
-      if (tab === undefined) { tab = new Map(); halter.cache.set(m, tab); }
       let key;
       if (ben === null) key = this.cacheSchluessel(pos, null);
       else {
@@ -3484,18 +3528,47 @@
         for (let i = 0; i < m.params.length; i++) geordnet.push(i < pos.length ? pos[i] : (m.params[i].name in ben ? ben[m.params[i].name] : null));
         key = this.cacheSchluessel(geordnet, null);
       }
-      const e = tab.get(key);
+      const e = this.cacheHole(halter, m, key);
       if (modus === 'frisch' || e === undefined) {
         const v = rechne();
-        tab.set(key, { w: v, t: this.schritte + this.offset });
+        this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
         return modus === 'mikrowelle' ? new Reste(v, false) : v;
       }
       const frisch = (this.schritte + this.offset) - e.t <= m.haltbar;
       if (frisch) return modus === 'mikrowelle' ? new Reste(e.w, false) : e.w;
       const alt = e.w;
       const v = rechne();
-      tab.set(key, { w: v, t: this.schritte + this.offset });
+      this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
       return modus === 'mikrowelle' ? new Reste(alt, true) : v;
+    }
+
+    // Kühlschrank-Tabelle eines Halters (Objekt, Klasse oder globaler Cache). In einer Küche wird aus einer
+    // Küchen-Überlagerung und dann aus dem Schnappschuss gelesen, geschrieben nur in die Überlagerung (D12).
+    cacheHole(halter, m, key) {
+      for (let k = this.kueche; k !== null; k = k.eltern) {
+        const h = k.kuehl.get(halter);
+        const tab = h !== undefined ? h.get(m) : undefined;
+        const e = tab !== undefined ? tab.get(key) : undefined;
+        if (e !== undefined) return e;
+      }
+      if (halter.cache === null || halter.cache === undefined) return undefined;
+      const tab = halter.cache.get(m);
+      return tab === undefined ? undefined : tab.get(key);
+    }
+    cacheSetze(halter, m, key, e) {
+      if (this.kueche !== null) {
+        const ueber = this.kueche.kuehl;
+        let h = ueber.get(halter);
+        if (h === undefined) { h = new Map(); ueber.set(halter, h); }
+        let tab = h.get(m);
+        if (tab === undefined) { tab = new Map(); h.set(m, tab); }
+        tab.set(key, e);
+        return;
+      }
+      if (halter.cache === null || halter.cache === undefined) halter.cache = new Map();
+      let tab = halter.cache.get(m);
+      if (tab === undefined) { tab = new Map(); halter.cache.set(m, tab); }
+      tab.set(key, e);
     }
 
     bindeParameter(ps, sc, pos, ben, name, strikt) {
@@ -3596,7 +3669,7 @@
         const p = ctx.dies;
         let gefunden = PIZZA_M[name] !== undefined || name === 'preis';
         for (const b of p.schichten) if (b.methoden && b.methoden.has(name)) gefunden = true;
-        if (gefunden) return new NativFn(name, (pos, ben, node) => this.pizzaAufruf(p, p.schichten.length, name, pos, ben, node));
+        if (gefunden) return new NativFn(name, (pos, ben, node) => this.pizzaAufruf(p, p.schichten.length, name, pos, ben, node), p);
       }
       if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
       return this.leseName({ n: name }, sc);
@@ -3608,6 +3681,7 @@
       const v = this.finde(sc, a.n);
       if (v === null) throw this.ananas('LaufzeitAnanas', '\'' + a.n + '\' ist nicht definiert.');
       if (v.weg) throw this.weggeschoben(a.n);
+      if (this.kueche !== null) this.kuecheVar(v, a.n);
       const w = v.w;
       v.weg = true;
       v.w = null;
@@ -3901,6 +3975,10 @@
       if (tn === 'Hawaii') throw this.panik();
       const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
       if (!this.klassen.has(tn)) {
+        if (this.kueche !== null) {
+          if (UI_KLASSEN[tn] !== undefined || tn === 'Theke') throw this.ananas('KüchenAnanas', 'Die Theke gibt es nur in der Hauptküche.');
+          if (tn === 'Vorratskammer') throw this.ananas('KüchenAnanas', 'Neue Vorratskammern gibt es nur in der Hauptküche.');
+        }
         if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
         if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
         if (tn === 'Zufall') {
@@ -3971,6 +4049,7 @@
     }
 
     schreibeVar(v, w, sc, name) {
+      if (this.kueche !== null) this.kuecheVar(v, name);
       if (v.g) {
         if (v.unbelegt) v.unbelegt = false;
         else if (!(v.besitzer !== null && sc.ctx.ktor && sc.ctx.dies === v.besitzer)) {
@@ -4186,6 +4265,312 @@
         if (rr !== undefined) return rr;
       }
       return r;
+    }
+
+    // ---------- Küchenbrigade (THREADS.md §2–§4.2) – sequentielle Referenz ----------
+    // Eine Küche ist der Kontext eines Stücks: { auftrag, eltern, puffer, warn, methoden, kuehl }.
+    // auftrag.gefroren enthält alles, was beim Anschnitt der (jeweiligen) Hauptküche gehörte; verschachtelte
+    // Brigaden prüfen die ganze Kette.
+    istGefroren(x) {
+      for (let k = this.kueche; k !== null; k = k.eltern) if (k.auftrag.gefroren.has(x)) return true;
+      return false;
+    }
+    kuecheVar(v, name) {
+      if (this.istGefroren(v)) throw this.ananas('KüchenAnanas', '\'' + name + '\' gehört der Hauptküche – ein Koch darf es nur lesen.');
+    }
+    kuecheBlech(b) {
+      if (this.istGefroren(b)) throw this.ananas('KüchenAnanas', 'Dieses Blech gehört der Hauptküche – nimm eine kopie().');
+    }
+    kuecheKarte(m) {
+      if (this.istGefroren(m)) throw this.ananas('KüchenAnanas', 'Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.');
+    }
+    kuecheTeig(t) {
+      if (this.istGefroren(t)) throw this.ananas('KüchenAnanas', 'Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.');
+    }
+    kuecheLieferung(l) {
+      if (this.istGefroren(l)) throw this.ananas('KüchenAnanas', 'Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.');
+    }
+    kuecheKammer(k) {
+      // Kammern entstehen nur in der Hauptküche (S4) – jede Kammer gehört ihr.
+      throw this.ananas('KüchenAnanas', 'Die Vorratskammer \'' + k.name + '\' gehört der Hauptküche – ein Koch darf nur nachsehen.');
+    }
+
+    // Warnungsgedächtnis (D5): Hauptküche = warnSet/Methode.gewarnt, Küchen zusätzlich eigene Mengen (Kette)
+    methodeGewarnt(m) {
+      if (m.gewarnt) return true;
+      for (let k = this.kueche; k !== null; k = k.eltern) if (k.methoden.has(m)) return true;
+      return false;
+    }
+    warnBekannt(key) {
+      if (this.warnSet.has(key)) return true;
+      for (let k = this.kueche; k !== null; k = k.eltern) if (k.warn.has(key)) return true;
+      return false;
+    }
+    // Ereignis ausgeben bzw. in den Puffer der aktuellen Küche legen; Warnungen nur einmal pro Schlüssel (D4/D5)
+    gibWeiter(e) {
+      if (e.key !== null) {
+        if (e.m !== null) {
+          if (this.methodeGewarnt(e.m)) return;
+          if (this.kueche !== null) this.kueche.methoden.add(e.m); else e.m.gewarnt = true;
+        }
+        if (this.warnBekannt(e.key)) return;
+        if (this.kueche !== null) this.kueche.warn.add(e.key); else this.warnSet.add(e.key);
+      }
+      if (this.kueche !== null) this.kueche.puffer.push(e);
+      else this.emit(e.ev);
+    }
+
+    // Schnappschuss: alles beim Anschnitt Erreichbare und Veränderliche in `set` eintragen (0 Schritte)
+    friere(set, wurzeln) {
+      const stapel = [];
+      const merke = (x) => {
+        if (x === null || typeof x !== 'object' || set.has(x)) return;
+        set.add(x);
+        stapel.push(x);
+      };
+      for (const w of wurzeln) merke(w);
+      const cache = (c) => {
+        if (c === null || c === undefined) return;
+        for (const tab of c.values()) for (const e of tab.values()) merke(e.w);
+      };
+      while (stapel.length) {
+        const x = stapel.pop();
+        if (Array.isArray(x)) { for (let i = 0; i < x.length; i++) merke(x[i]); }
+        else if (x instanceof Map) { for (const [k, w] of x) { merke(k); merke(w); } }
+        else if (x instanceof Var) merke(x.w);
+        else if (x instanceof Scope) {
+          for (const v of x.vars.values()) merke(v);
+          merke(x.parent);
+          if (x.ctx !== null) merke(x.ctx.dies);
+        } else if (x instanceof Obj) { for (const v of x.felder.values()) merke(v); cache(x.cache); }
+        else if (x instanceof Klasse) { for (const v of x.statisch.values()) merke(v); cache(x.cache); }
+        else if (x instanceof PizzaSicht) merke(x.pizza);
+        else if (x instanceof Funktion) merke(x.scope);
+        else if (x instanceof Gebunden) merke(x.obj);
+        else if (x instanceof NativFn) merke(x.ziel);
+        else if (x instanceof Teig) { merke(x.fn); merke(x.wert); }
+        else if (x instanceof Lieferung) { merke(x.fn); merke(x.rueckruf); merke(x.zustellung); }
+        else if (x instanceof Zustellung) { merke(x.wert); if (x.fehler !== null) merke(x.fehler.obj); }
+        else if (x instanceof Stueck) merke(x.pizza);
+        else if (x instanceof Reste) merke(x.wert);
+        else if (x instanceof OfenRoh) merke(x.teil);
+      }
+    }
+
+    // Kartonfähigkeit (§2.4): <Art> nicht kartonfähiger Werte, sonst null
+    kartonArt(v) {
+      if (v instanceof Funktion || v instanceof Gebunden || v instanceof NativFn) return 'Eine Funktion';
+      if (v instanceof Teig) return 'Ein Teig';
+      if (v instanceof Lieferung) return 'Eine Lieferung';
+      if (v instanceof Zustellung) return 'Eine Zustellung';
+      if (v instanceof Stueck) return 'Ein Stück';
+      if (v instanceof Reste) return 'Reste';
+      if (v instanceof ZufallGen) return 'Ein Zufall';
+      if (v instanceof Kammer) return 'Eine Vorratskammer';
+      if (v instanceof UiTheke || v instanceof UiZutat) return 'Eine Theke-Zutat';
+      return null;
+    }
+    // Tiefe Kopie in den Karton (Teilung/Zyklen über memo); wirft KartonFehler. Ruft nie alsText(), 0 Schritte.
+    kartoniere(v, memo) {
+      if (v === null || v === undefined) return null;
+      if (typeof v !== 'object') return v;
+      if (v instanceof Dauer || v instanceof BelagDef || v instanceof EnumWert || v instanceof Klasse || v instanceof EnumTyp ||
+          v instanceof Rezeptur || v instanceof Modul || v === AUTO) return v;
+      const da = memo.get(v);
+      if (da !== undefined) return da;
+      if (Array.isArray(v)) {
+        const r = new Array(v.length);
+        memo.set(v, r);
+        for (let i = 0; i < v.length; i++) r[i] = this.kartoniere(v[i], memo);
+        return r;
+      }
+      if (v instanceof Map) {
+        const r = new Map();
+        memo.set(v, r);
+        for (const [k, w] of v) r.set(this.kartoniere(k, memo), this.kartoniere(w, memo));
+        return r;
+      }
+      if (v instanceof Pizza) {
+        const r = new Pizza(v.schichten.slice());
+        r.uebrig = v.uebrig;
+        memo.set(v, r);
+        return r;
+      }
+      if (v instanceof PizzaSicht) {
+        const r = new PizzaSicht(null, v.k);
+        memo.set(v, r);
+        r.pizza = this.kartoniere(v.pizza, memo);
+        return r;
+      }
+      if (v instanceof Obj) {
+        const r = new Obj(v.klasse, v.nr);
+        memo.set(v, r);
+        r.zugeklappt = v.zugeklappt;
+        r.nachricht = v.nachricht;
+        for (const [name, x] of v.felder) {
+          const y = new Var(null, x.t, x.g);
+          y.weg = x.weg; y.mod = x.mod; y.klasse = x.klasse; y.unbelegt = x.unbelegt;
+          y.besitzer = x.besitzer === v ? r : x.besitzer;
+          r.felder.set(name, y);
+          y.w = this.kartoniere(x.w, memo);
+        }
+        return r;
+      }
+      if (v instanceof OfenRoh) {
+        const r = new OfenRoh(null, v.zeit);
+        memo.set(v, r);
+        r.teil = this.kartoniere(v.teil, memo);
+        return r;
+      }
+      const art = this.kartonArt(v);
+      throw new KartonFehler(art !== null ? art : this.typName(v));
+    }
+
+    // blech.brigade(fn): Anschnitt → Stücke (je eigene Küche) → Zusammenführen in Stückreihenfolge (D1–D15)
+    brigade(b, f, node) {
+      const n = b.length;
+      if (n === 0) return [];
+      // keine Funktion → derselbe Fehler wie bei belege (vor dem Anschnitt, ohne Zufallsziehung)
+      if (!(f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn)) return this.rufe(f, [b[0]], null, node);
+      // ---- Anschnitt
+      const S0 = this.schritte, off0 = this.offset, T0 = S0 + off0;
+      const N0 = this.instanzen, L0 = this.lieferNr, st0 = this.st;
+      const zaehler = [];
+      for (const k of this.klassen.values()) if (k instanceof Klasse) zaehler.push([k, k.zaehler]);
+      const tot0 = this.frames.map(fr => fr.tot);
+      const saaten = new Array(n);
+      for (let i = 0; i < n; i++) saaten[i] = Math.floor(this.zufallGlobal.r() * 4294967296);
+      const gefroren = new WeakSet();
+      const wurzeln = [this.global, this.globalCache, f, b];
+      for (const k of this.klassen.values()) wurzeln.push(k);
+      for (const k of this.kammern.values()) wurzeln.push(k);
+      for (const l of this.lieferungen) wurzeln.push(l);
+      this.friere(gefroren, wurzeln);
+      const auftrag = { b, f, node, gefroren, frameBasis: this.frames.length, S0, off0, T0, N0, L0, st0, zaehler, tot0, saaten };
+      // ---- Stücke (sequentiell; mit kuechenChaos in pseudozufälliger Reihenfolge, alle Stücke)
+      const berichte = new Array(n);
+      if (this.chaos !== null) {
+        const reihe = [];
+        for (let i = 0; i < n; i++) reihe.push(i);
+        for (let i = n - 1; i >= 1; i--) {
+          const j = Math.floor(this.chaos.r() * (i + 1));
+          const t = reihe[i]; reihe[i] = reihe[j]; reihe[j] = t;
+        }
+        for (const i of reihe) berichte[i] = this.stueck(auftrag, i);
+      } else {
+        for (let i = 0; i < n; i++) {
+          berichte[i] = this.stueck(auftrag, i);
+          if (berichte[i].status !== 'ok') break;
+        }
+      }
+      // ---- Zusammenführen (D2–D15)
+      const r = new Array(n);
+      let summe = 0, maxD = 0, abbruch = null;
+      const maxZ = zaehler.map(() => 0);
+      let maxC = 0, maxL = 0;
+      for (let i = 0; i < n; i++) {
+        const be = berichte[i];
+        for (const e of be.puffer) this.gibWeiter(e);
+        summe += be.s;
+        if (be.d > maxD) maxD = be.d;
+        if (be.c > maxC) maxC = be.c;
+        if (be.l > maxL) maxL = be.l;
+        for (let j = 0; j < maxZ.length; j++) if (be.z[j] > maxZ[j]) maxZ[j] = be.z[j];
+        if (be.status !== 'ok') { abbruch = be; break; }
+        r[i] = be.wert;
+      }
+      this.schritte = S0 + summe;
+      this.offset = T0 + maxD - this.schritte;
+      this.instanzen = N0 + maxC;
+      this.lieferNr = L0 + maxL;
+      for (let j = 0; j < zaehler.length; j++) zaehler[j][0].zaehler = zaehler[j][1] + maxZ[j];
+      this.neuGrenze();
+      if (abbruch !== null) {
+        const sig = abbruch.sig;
+        if (sig instanceof BudgetSig) {
+          const fr = this.frames;
+          const i = fr.indexOf(sig.frame);
+          for (let j = i < 0 ? fr.length : i; j < fr.length; j++) fr[j].tot = true;
+          this.neuGrenze();
+        } else if (sig === 'wurfKarton') {
+          this.z = node.z; this.s = node.s;
+          throw this.ananas('KüchenAnanas', 'Was der Koch geworfen hat, passt in keinen Karton.');
+        }
+        throw sig;
+      }
+      // D7: Summe aller Stücke über dem Limit → P0002 am brigade-Aufruf
+      if (this.schritte > this.limitBasis + this.limit) {
+        this.z = node.z; this.s = node.s;
+        throw new LimitSig();
+      }
+      return r;
+    }
+
+    // Ein Stück i (0-basiert) in eigener Küche ausführen → Bericht; der Zustand der Hauptküche bleibt unverändert
+    stueck(a, i) {
+      const k = { auftrag: a, eltern: this.kueche, puffer: [], warn: new Set(), methoden: new Set(), kuehl: new Map() };
+      const emit0 = this.emit, zufall0 = this.zufallGlobal, z0 = this.z, s0 = this.s, rueck0 = this.rueck;
+      const lief0 = this.lieferungen.length, fr = this.frames;
+      this.kueche = k;
+      this.emit = (ev) => { k.puffer.push({ ev, key: null, m: null }); };
+      this.schritte = a.S0; this.offset = a.off0;
+      this.instanzen = a.N0; this.lieferNr = a.L0;
+      for (const [kl, z] of a.zaehler) kl.zaehler = z;
+      for (let j = 0; j < a.tot0.length; j++) fr[j].tot = a.tot0[j];
+      this.zufallGlobal = new ZufallGen(a.saaten[i]);
+      this.neuGrenze();
+      const bericht = { status: 'ok', wert: null, sig: null, s: 0, d: 0, c: 0, l: 0, z: null, puffer: k.puffer };
+      try {
+        let v;
+        try {
+          v = this.rufe(a.f, [a.b[i]], null, a.node);
+        } catch (e0) {
+          this.st = a.st0;
+          const e = this.normalisiere(e0);
+          bericht.status = 'abbruch';
+          if (e instanceof AnanasWurf) {
+            try { bericht.sig = new AnanasWurf(this.kartoniere(e.obj, new Map()), e.zeile, e.spalte); }
+            catch (x) { if (x instanceof KartonFehler) bericht.sig = 'wurfKarton'; else throw x; }
+          } else bericht.sig = e;
+        }
+        if (bericht.status === 'ok') {
+          try { bericht.wert = this.kartoniere(v, new Map()); }
+          catch (x) {
+            if (!(x instanceof KartonFehler)) throw x;
+            // die Ananas entsteht in der Küche, an der Position des brigade-Aufrufs, ohne Schritte
+            this.z = a.node.z; this.s = a.node.s;
+            const w = this.ananas('KüchenAnanas', x.art + ' passt in keinen Karton – nur Werte können die Küche verlassen.');
+            bericht.status = 'abbruch';
+            bericht.sig = new AnanasWurf(this.kartoniere(w.obj, new Map()), w.zeile, w.spalte);
+          }
+        }
+      } catch (x) {
+        // unerwarteter Fehler (Kopie zu tief o. Ä.) → Abbruch dieses Stücks wie im Programm
+        const e = this.normalisiere(x);
+        bericht.status = 'abbruch';
+        bericht.sig = e;
+      } finally {
+        bericht.s = this.schritte - a.S0;
+        bericht.d = this.schritte + this.offset - a.T0;
+        bericht.c = this.instanzen - a.N0;
+        bericht.l = this.lieferNr - a.L0;
+        bericht.z = a.zaehler.map(([kl, z]) => kl.zaehler - z);
+        // Hauptküche wiederherstellen (Lieferungen der Küche verfallen, S5)
+        this.lieferungen.length = lief0;
+        fr.length = a.tot0.length;
+        for (let j = 0; j < a.tot0.length; j++) fr[j].tot = a.tot0[j];
+        this.kueche = k.eltern;
+        this.emit = emit0;
+        this.zufallGlobal = zufall0;
+        this.st = a.st0;
+        this.z = z0; this.s = s0;
+        this.rueck = rueck0;
+        this.schritte = a.S0; this.offset = a.off0;
+        this.instanzen = a.N0; this.lieferNr = a.L0;
+        for (const [kl, z] of a.zaehler) kl.zaehler = z;
+        this.neuGrenze();
+      }
+      return bericht;
     }
 
     // ---------- Programmende ----------

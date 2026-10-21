@@ -1,0 +1,41 @@
+// Küchenbrigade D8: äußere Ofen-Budgets gelten in jeder Küche gegen die Küchenuhr; zwischenstand nur für eigene Öfen
+salami arbeit(salami n) {
+    salami s = 0;
+    für (salami i = 0; i < n; i++) { s += i; }
+    serviere ((s));
+}
+// passt: jedes Stück einzeln unter dem Budget, obwohl die Summe darüber liegt
+salami a = ofen(zeit: 400ms) {
+    Blech<salami> r = [40, 40, 40, 40].brigade(n -> arbeit(n));
+    serviere ((r.summe()));
+} roh (x) {
+    Bote.sage(("roh?"));
+    serviere ((-1));
+};
+Bote.sage((a + " " + Uhr.jetzt()));
+// Stück 3 überschreitet das Budget des äußeren Ofens → der Ofen geht in roh, Uhr nach D6
+salami b = ofen(zeit: 400ms) {
+    zwischenstand((1));
+    Blech<salami> r = [5, 10, 80, 5].brigade(n -> {
+        zwischenstand((99));
+        Bote.sage(("Koch mit " + n));
+        serviere ((arbeit(n)));
+    });
+    serviere ((r.summe()));
+} roh (x) {
+    Bote.sage(("roh nach " + x.verbrauchteZeit() + ", Teilergebnis " + x.teilergebnis()));
+    serviere ((-2));
+};
+Bote.sage((b + " " + Uhr.jetzt()));
+// ohne roh: VerbranntAnanas am Ofen, fangbar
+probier {
+    ofen(zeit: 100ms) { [1, 30].brigade(n -> arbeit(n)); };
+} verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
+// eigene Öfen in der Küche verhalten sich wie immer
+Blech<salami> innen = [5, 1000].brigade(n -> ofen(zeit: 50ms) { zwischenstand((n)); serviere ((arbeit(n))); } roh (x) { serviere ((x.teilergebnis() * -1)); });
+Bote.sage((innen));
+// Lieferung mit Budget um die Brigade
+Lieferung<salami> l = bestelle(() -> [40, 40, 40].brigade(n -> arbeit(n)).summe());
+Bote.sage((l.warte(max: 500ms).pünktlich()));
+Lieferung<salami> l2 = bestelle(() -> [40, 100].brigade(n -> arbeit(n)).summe());
+Bote.sage((l2.warte(max: 500ms).pünktlich()));
