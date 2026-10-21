@@ -65,9 +65,10 @@ function vergleich(p) {
   const n = schnell ? 3 : 7;
   let ri, rw, k;
   const ti = zeit(() => { ri = P.run(p.quelle, p.opt); }, n);
-  const tk = zeit(() => { k = Z.kompiliere(p.quelle); }, n);
+  // Playground-Pfad: Programm als Zusatzmodul zur gecachten Laufzeit (Pizzaiolo.run)
+  const tk = zeit(() => { k = Z._kompiliereTeil(p.quelle); }, n);
   if (!k.ok) return { name: p.name, fehler: JSON.stringify(k.nichtUnterstuetzt || k.fehler) };
-  const tw = zeit(() => { rw = Z.fuehreAus(k.pkarton, p.opt); }, n);
+  const tw = zeit(() => { rw = Z._teile.hostJs.fuehreModulAus(k.modul, p.opt); }, n);
   const gleich = ri.schritte === rw.schritte && ri.exitCode === rw.exitCode &&
     JSON.stringify(ri.ereignisse) === JSON.stringify(rw.ereignisse);
   return { name: p.name, schritte: ri.schritte, interpreterMs: ti, kompilierMs: tk, wasmMs: tw, faktor: ti / tw, faktorMitKompilieren: ti / (tw + tk), ziel: p.ziel, gleich };

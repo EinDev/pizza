@@ -49,6 +49,36 @@
     return laufzeitBytes;
   }
 
+  let laufzeitModulCache = null;
+  function laufzeitModul() {
+    if (!laufzeitModulCache) laufzeitModulCache = new WebAssembly.Module(laufzeit());
+    return laufzeitModulCache;
+  }
+
+  /** interner Schnellpfad: Programm als kleines Zusatzmodul zur gecachten Laufzeit */
+  function kompiliereTeil(quelltext) {
+    const t0 = jetzt();
+    const p = PizzaLang.parse(quelltext);
+    if (!p.ok) return { ok: false, fehler: p.fehler };
+    let ir = null;
+    try {
+      const f = teile.frontend.frontend(p.ast);
+      if (!f.ok) return { ok: false, nichtUnterstuetzt: f.nichtUnterstuetzt };
+      ir = f.ir;
+      const mb = new teile.linker.ProgrammModulbau(laufzeit(), teile.laufzeitDaten.info);
+      teile.backendWasm.erzeuge(ir, mb, teile.laufzeitDaten.info);
+      const b = mb.baue();
+      const modul = { laufzeit: laufzeitModul(), programm: new WebAssembly.Module(b.bytes), tabellenZuwachs: b.tabellenZuwachs, speicherSeiten: b.speicherSeiten };
+      return { ok: true, modul, kompilierMs: jetzt() - t0 };
+    } catch (e) {
+      if (e instanceof teile.backendWasm.NichtUnterstuetzt) {
+        const pos = typeof e.p === 'number' && ir && ir.pos[e.p] ? ir.pos[e.p] : [null, null];
+        return { ok: false, nichtUnterstuetzt: [{ zeile: pos[0] || null, spalte: pos[1] || null, grund: e.grund }] };
+      }
+      return { ok: false, nichtUnterstuetzt: [{ zeile: null, spalte: null, grund: 'Interner Compilerfehler: ' + (e && e.message) }], intern: e };
+    }
+  }
+
   function unterstuetzt() {
     try { return typeof WebAssembly === 'object' && typeof WebAssembly.Module === 'function' && !!teile.backendWasm && !!PizzaLang; }
     catch (e) { return false; }
@@ -99,11 +129,11 @@
       r.kompilierMs = 0;
       return r;
     }
-    const k = kompiliere(quelltext);
+    const k = kompiliereTeil(quelltext);
     if (k.ok) {
       let motorEv = null;
       if (motor === 'auto') { motorEv = { typ: 'motor', motor: 'wasm', kompilierMs: k.kompilierMs }; sende(optionen, motorEv); }
-      const r = teile.hostJs.fuehreAus(k.pkarton, optionen);
+      const r = teile.hostJs.fuehreModulAus(k.modul, optionen);
       if (motorEv) r.ereignisse.unshift(motorEv);
       r.motor = 'wasm';
       r.kompilierMs = k.kompilierMs;
@@ -120,5 +150,5 @@
     return r;
   }
 
-  return { version: VERSION, unterstuetzt, kompiliere, run, fuehreAus, _teile: teile };
+  return { version: VERSION, unterstuetzt, kompiliere, run, fuehreAus, _kompiliereTeil: kompiliereTeil, _teile: teile };
 });

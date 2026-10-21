@@ -25,6 +25,9 @@ function vergleiche(f) {
   try { rw = Z.fuehreAus(k.pkarton, Object.assign({}, f.opt)); } catch (e) { return { status: 'wurf', fehler: e.stack }; }
   const a = norm(ri.ereignisse), b = norm(rw.ereignisse);
   const diffs = [];
+  // zweiteiliger Schnellpfad (Pizzaiolo.run) muss identisch zum Einzelmodul sein
+  const rz = Z.run(f.quelle, Object.assign({}, f.opt, { motor: 'wasm' }));
+  if (JSON.stringify(norm(rz.ereignisse)) !== JSON.stringify(b) || rz.schritte !== rw.schritte) diffs.push('zweiteilig ≠ Einzelmodul: ' + JSON.stringify(norm(rz.ereignisse)).slice(0, 300));
   const n = Math.max(a.length, b.length);
   for (let i = 0; i < n; i++) if (a[i] !== b[i]) { diffs.push('#' + i + '\n    I: ' + a[i] + '\n    W: ' + b[i]); if (diffs.length > 4) break; }
   if (ri.exitCode !== rw.exitCode) diffs.push('exitCode ' + ri.exitCode + ' / ' + rw.exitCode);

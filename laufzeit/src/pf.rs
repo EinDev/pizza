@@ -349,7 +349,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 }
                 N_ISTAUFGEGANGEN => bool_w(t.auf != 0),
                 N_ALSTEXT => text(o),
-                _ => KARTON,
+                _ => crate::std_m::nicht_gefunden(o, id),
             }
         }
         A_LIEF => {
@@ -388,7 +388,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 }
                 N_ISTGELIEFERT => bool_w(l.zust != KARTON),
                 N_ALSTEXT => text(o),
-                _ => KARTON,
+                _ => crate::std_m::nicht_gefunden(o, id),
             }
         }
         A_ZUST => {
@@ -406,7 +406,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                     zs.wert
                 }
                 N_ALSTEXT => text(o),
-                _ => KARTON,
+                _ => crate::std_m::nicht_gefunden(o, id),
             }
         }
         A_STUECK => {
@@ -420,18 +420,18 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 }
                 N_ISTGEGESSEN => bool_w(st.gegessen != 0),
                 N_ALSTEXT => text(o),
-                _ => KARTON,
+                _ => crate::std_m::nicht_gefunden(o, id),
             }
         }
         A_RESTE => {
             let r = obj::<Reste>(o);
-            match id { N_WERT => r.wert, N_ISTMATSCHIG => bool_w(r.matschig != 0), N_ALSTEXT => text(o), _ => KARTON }
+            match id { N_WERT => r.wert, N_ISTMATSCHIG => bool_w(r.matschig != 0), N_ALSTEXT => text(o), _ => crate::std_m::nicht_gefunden(o, id) }
         }
         A_ROH => {
             let r = obj::<Roh>(o);
-            match id { N_TEILERGEBNIS => r.teil, N_VERBRAUCHTEZEIT => r.zeit, N_ALSTEXT => text(o), _ => KARTON }
+            match id { N_TEILERGEBNIS => r.teil, N_VERBRAUCHTEZEIT => r.zeit, N_ALSTEXT => text(o), _ => crate::std_m::nicht_gefunden(o, id) }
         }
-        _ => KARTON,
+        _ => crate::std_m::nicht_gefunden(o, id),
     }
 }
 

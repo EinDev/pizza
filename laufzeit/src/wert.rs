@@ -72,7 +72,7 @@ pub fn obj<T>(w: W) -> &'static mut T { unsafe { &mut *(p(w) as *mut T) } }
 
 #[repr(C)] pub struct Text { pub art: u32, pub len: u32, pub info: u32, pub _r: u32 }
 #[repr(C)] pub struct Blech { pub art: u32, pub _r: u32, pub v: Vec<W> }
-#[repr(C)] pub struct Karte { pub art: u32, pub _r: u32, pub k: Vec<W>, pub v: Vec<W> }
+pub use crate::karte::Karte;
 #[repr(C)] pub struct Dauer { pub art: u32, pub _r: u32, pub ms: f64 }
 #[repr(C)] pub struct Pizza { pub art: u32, pub uebrig: i32, pub s: Vec<W> }
 #[repr(C)] pub struct Sicht { pub art: u32, pub k: u32, pub pizza: W }

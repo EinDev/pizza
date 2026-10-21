@@ -15,6 +15,7 @@ pub mod pf;
 pub mod sort;
 pub mod start;
 pub mod programm;
+pub mod karte;
 
 use core::panic::PanicInfo;
 use wert::*;

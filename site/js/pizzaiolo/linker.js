@@ -202,5 +202,105 @@
     }
   }
 
-  return { Modulbau, laufzeitModul };
+  /**
+   * Zweiteiliger Bau für den JS-Host: nur der Programmteil als eigenes Modul, das Speicher, Tabelle und alle
+   * rt_*-Funktionen aus dem (einmal kompilierten, gecachten) Laufzeitmodul importiert (Modulname „laufzeit“).
+   * Gleicher Code wie im Einzelmodul – nur die Funktionsindizes der Laufzeit sind Importe.
+   */
+  class ProgrammModulbau {
+    constructor(laufzeitBytes, info) {
+      this.L = laufzeitModul(laufzeitBytes);
+      this.info = info;
+      this.typen = [];
+      this.typKey = new Map();
+      this.importe = [];
+      this.importIndex = new Map();
+      const nImp = this.L.anzahlImportFunktionen;
+      for (const e of this.L.exporte) {
+        if (e.art !== 0 || !e.name.startsWith('rt_')) continue;
+        const lt = this.L.typen[this.L.funktionen[e.idx - nImp]];
+        this.importIndex.set(e.name, this.importe.length);
+        this.importe.push({ name: e.name, typ: this.typ(lt.p, lt.e) });
+      }
+      this.funktionen = [];
+      this.tabelle = [];
+      this.daten = new Puffer(4096);
+      this.datenBasis = (info.heapBase + 15) & ~15;
+      this.exporte = [];
+      this.basisFn = this.importe.length;
+      this.tabBasis = this.L.tabellen.length ? this.L.tabellen[0].min : 0;
+      this.tabName = (this.L.exporte.find(e => e.art === 1) || {}).name || '__indirect_function_table';
+    }
+    rt(name) {
+      const i = this.importIndex.get(name);
+      if (i === undefined) throw new Error('Laufzeitfunktion fehlt: ' + name);
+      return i;
+    }
+    typ(p, e) {
+      const k = p.join(',') + '>' + e.join(',');
+      let i = this.typKey.get(k);
+      if (i === undefined) { i = this.typen.length; this.typen.push({ p, e }); this.typKey.set(k, i); }
+      return i;
+    }
+    neueFunktion(p, e) { const idx = this.basisFn + this.funktionen.length; this.funktionen.push({ typ: this.typ(p, e), lokale: [], code: null }); return idx; }
+    setzeRumpf(idx, lokale, code) { const f = this.funktionen[idx - this.basisFn]; f.lokale = lokale; f.code = code; }
+    tabellenEintrag(fnIdx) { this.tabelle.push(fnIdx); return this.tabBasis + this.tabelle.length - 1; }
+    datum(bytes, ausr) {
+      const a = ausr || 8;
+      while ((this.daten.n % a) !== 0) this.daten.byte(0);
+      const adr = this.datenBasis + this.daten.n;
+      this.daten.bytes(bytes);
+      return adr;
+    }
+    exportiere(name, idx) { this.exporte.push({ name, idx }); }
+
+    /** liefert { bytes, tabellenZuwachs, speicherSeiten } */
+    baue() {
+      const datenEnde = (this.datenBasis + this.daten.n + 15) & ~15;
+      const teile = [new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0])];
+      { const p = new Puffer(); p.u32(this.typen.length); for (const t of this.typen) { p.byte(0x60); p.u32(t.p.length); for (const x of t.p) p.byte(x); p.u32(t.e.length); for (const x of t.e) p.byte(x); } teile.push(section(1, p.fertig())); }
+      const seiten = Math.ceil((datenEnde + 0x10000) / 0x10000);
+      {
+        const p = new Puffer();
+        p.u32(this.importe.length + 2);
+        p.name('laufzeit'); p.name('memory'); p.byte(2); p.byte(0); p.u32(seiten);
+        p.name('laufzeit'); p.name(this.tabName); p.byte(1); p.byte(0x70); p.byte(0); p.u32(this.tabBasis + this.tabelle.length);
+        for (const i of this.importe) { p.name('laufzeit'); p.name(i.name); p.byte(0); p.u32(i.typ); }
+        teile.push(section(2, p.fertig()));
+      }
+      { const p = new Puffer(); p.u32(this.funktionen.length); for (const f of this.funktionen) p.u32(f.typ); teile.push(section(3, p.fertig())); }
+      { const p = new Puffer(); p.u32(this.exporte.length); for (const e of this.exporte) { p.name(e.name); p.byte(0); p.u32(e.idx); } teile.push(section(7, p.fertig())); }
+      if (this.tabelle.length) {
+        const p = new Puffer();
+        p.u32(1); p.byte(0); p.byte(0x41); p.s32(this.tabBasis); p.byte(0x0b);
+        p.u32(this.tabelle.length); for (const f of this.tabelle) p.u32(f);
+        teile.push(section(9, p.fertig()));
+      }
+      {
+        const p = new Puffer(1 << 16);
+        p.u32(this.funktionen.length);
+        for (const f of this.funktionen) {
+          const k = new Puffer(f.code.length + 16);
+          k.u32(f.lokale.length);
+          for (const [anz, t] of f.lokale) { k.u32(anz); k.byte(t); }
+          k.bytes(f.code);
+          const b = k.fertig();
+          p.u32(b.length); p.bytes(b);
+        }
+        teile.push(section(10, p.fertig()));
+      }
+      {
+        const p = new Puffer(this.daten.n + 64);
+        p.u32(2);
+        p.byte(0); p.byte(0x41); p.s32(this.datenBasis); p.byte(0x0b); p.u32(this.daten.n); p.bytes(this.daten.b.subarray(0, this.daten.n));
+        p.byte(0); p.byte(0x41); p.s32(this.info.heapStartAdr); p.byte(0x0b);
+        const hs = new Uint8Array(4); new DataView(hs.buffer).setUint32(0, datenEnde, true);
+        p.u32(4); p.bytes(hs);
+        teile.push(section(11, p.fertig()));
+      }
+      return { bytes: verbinde(teile), tabellenZuwachs: this.tabelle.length, speicherSeiten: seiten };
+    }
+  }
+
+  return { Modulbau, ProgrammModulbau, laufzeitModul };
 });

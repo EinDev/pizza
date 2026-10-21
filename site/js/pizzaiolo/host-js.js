@@ -15,6 +15,10 @@
 
   class PanikAbbruch extends Error {}
 
+  /**
+   * Führt aus. modul: WebAssembly.Module des Einzelmoduls (.pkarton) – oder zweiteilig:
+   * { laufzeit: WebAssembly.Module, programm: WebAssembly.Module, tabellenZuwachs, speicherSeiten }.
+   */
   function fuehreModulAus(modul, optionen) {
     optionen = optionen || {};
     const ereignisse = [];
@@ -89,8 +93,23 @@
         return b.length;
       },
     };
-    inst = new WebAssembly.Instance(modul, { pizza });
-    const e = inst.exports;
+    let e, startFn;
+    if (modul instanceof WebAssembly.Module) {
+      inst = new WebAssembly.Instance(modul, { pizza });
+      e = inst.exports;
+      startFn = e.start;
+    } else {
+      inst = new WebAssembly.Instance(modul.laufzeit, { pizza });
+      e = inst.exports;
+      const tab = e.__indirect_function_table;
+      if (modul.tabellenZuwachs) tab.grow(modul.tabellenZuwachs);
+      const fehlend = modul.speicherSeiten - e.memory.buffer.byteLength / 65536;
+      if (fehlend > 0) e.memory.grow(fehlend);
+      const imp = { memory: e.memory, __indirect_function_table: tab };
+      for (const k of Object.keys(e)) if (k.startsWith('rt_')) imp[k] = e[k];
+      const pinst = new WebAssembly.Instance(modul.programm, { laufzeit: imp });
+      startFn = pinst.exports.start;
+    }
     if (typeof optionen.schrittLimit === 'number' && optionen.schrittLimit > 0) e.limit_setzen(optionen.schrittLimit);
     if (typeof optionen.speicherMiB === 'number') e.speicher_limit_setzen(optionen.speicherMiB);
     for (const a of (Array.isArray(optionen.args) ? optionen.args.map(String) : [])) {
@@ -101,7 +120,8 @@
     }
     let exitCode;
     try {
-      exitCode = e.start();
+      exitCode = startFn();
+      if (![0, 1, 2, 3, 39].includes(exitCode)) throw new Error('unerwarteter Exit-Code ' + exitCode);
     } catch (x) {
       if (typeof process !== 'undefined' && process.env && process.env.PIZZAIOLO_DEBUG) console.error(x && x.stack);
       emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(x && x.message) });

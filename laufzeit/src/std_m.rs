@@ -68,7 +68,7 @@ fn split(s: &str, t: &str) -> Vec<W> {
     s.split(t).map(neu_str).collect()
 }
 
-fn nicht_gefunden(o: W, name: u32) -> W {
+pub fn nicht_gefunden(o: W, name: u32) -> W {
     let mut t = Tb::neu();
     t.s("Methode '").name(name).s("' gibt es auf ");
     typ_name(o, &mut t);
@@ -301,10 +301,9 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
                 wirf_tb(K_TYP, &t); return KARTON;
             }
             if obj::<Obj>(o).zugeklappt != 0 { wirf_ananas(K_ZUGEKLAPPT, "Die Calzone ist zu. Nutze aufklappen()."); return KARTON; }
-            let mut k = Vec::new();
-            let mut v = Vec::new();
-            for fe in obj::<Obj>(o).felder.iter() { k.push(name_text(finfo(fe.info).name)); v.push(if fe.w == WEG { KARTON } else { fe.w }); }
-            neu_w(Karte { art: A_KARTE, _r: 0, k, v })
+            let r = crate::karte::neu_karte();
+            for fe in obj::<Obj>(o).felder.iter() { crate::karte::lege(crate::karte::karte(r), name_text(finfo(fe.info).name), if fe.w == WEG { KARTON } else { fe.w }); }
+            r
         }
         _ => {
             let _ = knoten;
@@ -449,25 +448,17 @@ fn text_methode(o: W, id: u32, pos: &[W], _knoten: i32) -> W {
 }
 
 fn karte_methode(o: W, id: u32, pos: &[W]) -> W {
-    let m = obj::<Karte>(o);
-    let finde = |k: W| -> Option<usize> { m.k.iter().position(|&x| same_value_zero(x, k)) };
+    use crate::karte as ka;
+    let m = ka::karte(o);
     match id {
-        N_LEGE => {
-            let k = schluessel(a(pos, 0));
-            let v = if pos.len() > 1 { pos[1] } else { KARTON };
-            match finde(k) { Some(i) => m.v[i] = v, None => { m.k.push(k); m.v.push(v); } }
-            o
-        }
-        N_HOLE => { let k = schluessel(a(pos, 0)); match finde(k) { Some(i) => m.v[i], None => KARTON } }
-        N_HAT => { let k = schluessel(a(pos, 0)); bool_w(finde(k).is_some()) }
-        N_ENTFERNE => {
-            let k = schluessel(a(pos, 0));
-            match finde(k) { Some(i) => { m.k.remove(i); m.v.remove(i) } None => KARTON }
-        }
-        N_SCHLUESSEL => blech(m.k.clone()),
-        N_WERTE => blech(m.v.clone()),
-        N_LAENGE => zahl(m.k.len() as f64),
-        N_ISTLEER => bool_w(m.k.is_empty()),
+        N_LEGE => { let k = schluessel(a(pos, 0)); ka::lege(m, k, if pos.len() > 1 { pos[1] } else { KARTON }); o }
+        N_HOLE => { let k = schluessel(a(pos, 0)); match ka::finde(m, k) { Some(i) => m.v[i], None => KARTON } }
+        N_HAT => { let k = schluessel(a(pos, 0)); bool_w(ka::finde(m, k).is_some()) }
+        N_ENTFERNE => { let k = schluessel(a(pos, 0)); ka::entferne(m, k) }
+        N_SCHLUESSEL => blech(ka::schluessel(m)),
+        N_WERTE => blech(ka::werte(m)),
+        N_LAENGE => zahl(ka::laenge(m) as f64),
+        N_ISTLEER => bool_w(ka::laenge(m) == 0),
         N_ALSTEXT => text(o),
         _ => nicht_gefunden(o, id),
     }

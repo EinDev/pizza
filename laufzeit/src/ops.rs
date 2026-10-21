@@ -125,9 +125,12 @@ pub fn text_in(v: W, tb: &mut Tb) {
         A_KARTE => {
             tb.s("{");
             let mut i = 0;
+            let mut erst = true;
             while i < obj::<Karte>(v).k.len() {
-                if i > 0 { tb.s(", "); }
                 let (k, w) = { let m = obj::<Karte>(v); (m.k[i], m.v[i]) };
+                if k == UNDEF { i += 1; continue; }
+                if !erst { tb.s(", "); }
+                erst = false;
                 text_in(k, tb);
                 tb.s(": ");
                 text_in(w, tb);

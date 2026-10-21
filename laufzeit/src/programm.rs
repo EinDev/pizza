@@ -135,7 +135,7 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
     let ben = ben_von(bennamen, args + npos * 8, nben);
     let r = match id {
         N_G_BLECH => blech(if !pos.is_empty() && art(pos[0]) == A_BLECH { blech_v(pos[0]).clone() } else { Vec::new() }),
-        N_G_SPEISEKARTE => neu_w(Karte { art: A_KARTE, _r: 0, k: Vec::new(), v: Vec::new() }),
+        N_G_SPEISEKARTE => crate::karte::neu_karte(),
         N_G_PIZZA => crate::pf::neue_pizza(Vec::new()),
         _ => match klasse_eintrag(id) {
             None => {
@@ -234,7 +234,7 @@ pub extern "C" fn rt_fuer_liste(q: W) -> W {
     let r = match art(q) {
         A_BLECH => blech(blech_v(q).clone()),
         A_TEXT => blech(s(q).chars().map(|c| { let mut b = [0u8; 4]; neu_str(c.encode_utf8(&mut b)) }).collect()),
-        A_KARTE => blech(obj::<Karte>(q).k.clone()),
+        A_KARTE => blech(crate::karte::schluessel(obj::<Karte>(q))),
         A_ENUMT => blech(enm(obj::<Ref>(q).id).werte.clone()),
         A_PIZZA => blech(obj::<Pizza>(q).s.clone()),
         _ => {
