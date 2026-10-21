@@ -1015,14 +1015,6 @@ button.k-meldung:hover { border-color: currentColor; }
 .exit-badge.wartet { color: var(--info); background: var(--info-weich); }
 .exit-badge.wartet::before { animation: pulsieren 1.2s ease-in-out infinite; }
 .bsp-interaktiv { font-size: 11px; font-weight: 650; color: var(--akzent); background: var(--akzent-weich); border-radius: 5px; padding: 1px 6px; }
-.dialog-eingaben { width: min(560px, calc(100vw - 32px)); }
-.eingaben-hinweis { font-size: 13px; line-height: 1.55; }
-.dialog-eingaben textarea {
-  width: 100%; margin: 0 0 14px; padding: 8px 10px; border-radius: 8px; resize: vertical;
-  border: 1px solid var(--rand-stark); background: var(--flaeche-2); color: var(--text); font: 13px/1.5 var(--mono);
-}
-.dialog-eingaben textarea:focus { outline: none; border-color: var(--akzent); }
-.dialog-eingaben .dialog-knoepfe { flex-wrap: wrap; }
 
 .teilen-roh { margin: -6px 0 14px; font-size: 13px; }
 .teilen-roh a { color: var(--akzent); }

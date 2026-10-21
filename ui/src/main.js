@@ -485,38 +485,20 @@ function start() {
   exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
   knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
 
-  // Ohne Cross-Origin-Isolation: Eingaben vorab abfragen (pro Tab gemerkt)
-  const vorabEingaben = new Map();
-  function frageVorabEingaben(t) {
-    const dlg = $("dialog-eingaben");
-    if (typeof dlg.showModal !== "function") return Promise.resolve([]);
-    $("eingaben-text").value = vorabEingaben.get(t ? t.id : "") || "";
-    return new Promise((resolve) => {
-      dlg.returnValue = "";
-      dlg.addEventListener("close", () => {
-        const wert = dlg.returnValue;
-        if (wert === "ja") {
-          const text = $("eingaben-text").value;
-          vorabEingaben.set(t ? t.id : "", text);
-          resolve(text === "" ? [] : text.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n"));
-        } else if (wert === "ohne") resolve([]);
-        else resolve(null);
-      }, { once: true });
-      dlg.showModal();
-      $("eingaben-text").focus();
-    });
-  }
-
   let backenWartet = false;
   async function backen() {
     if (ausfuehrung.laeuft) return;
     const t = tabs.aktiv();
     const code = editor.text();
-    let eingabe;
-    if (!interaktivMoeglich() && /\bBestellannahme\s*\./.test(code)) {
-      eingabe = await frageVorabEingaben(t);
-      if (eingabe == null) return; // abgebrochen
-      if (ausfuehrung.laeuft) return;
+    // Interaktive Programme (Eingabe, Theke) brauchen SharedArrayBuffer/Atomics → Cross-Origin-Isolation.
+    // Ohne sie gibt es keinen Ersatzmodus (Browser = nativ), sondern eine klare Fehlermeldung.
+    if (!interaktivMoeglich() && (/\bBestellannahme\s*\./.test(code) || /\bneu\s+Theke\s*\(/.test(code))) {
+      konsole.leeren(false);
+      $("exit-badge").hidden = true;
+      $("lauf-info").textContent = "";
+      konsole.system("Dieser Browser erlaubt keine interaktive Eingabe (Cross-Origin-Isolation fehlt). Das Programm wurde nicht gestartet.", "fehler");
+      konsoleOeffnen();
+      return;
     }
     // Erster Lauf direkt nach dem Laden: auf die laufende Fähigkeiten-Prüfung warten, sonst nähme „Auto“/„Wasm“
     // fälschlich den Interpreter (faehigkeiten wäre noch null).
@@ -532,9 +514,7 @@ function start() {
     ausfuehrung.starte(code, [], motor, {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
-      ...(eingabe ? { eingabe } : {}),
     });
-    if (eingabe) konsole.system(eingabe.length ? "Vorab eingetragene Eingaben: " + eingabe.length + " Zeile(n)." : "Ohne Eingaben gebacken – das Programm bekommt sofort „karton“.");
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());

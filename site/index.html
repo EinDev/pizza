@@ -160,22 +160,6 @@
     </form>
   </dialog>
 
-  <!-- Eingaben vorab (ohne Cross-Origin-Isolation) -->
-  <dialog class="dialog dialog-eingaben" id="dialog-eingaben" data-testid="dialog-eingaben" aria-labelledby="eingaben-titel">
-    <form method="dialog">
-      <h2 id="eingaben-titel">🎮 Eingaben vorab eintragen</h2>
-      <p class="eingaben-hinweis">Dieses Programm liest Eingaben (<code>Bestellannahme</code>). Live-Eingabe ist hier nicht möglich, weil die Seite nicht
-        „cross-origin-isolated“ ausgeliefert wird. Trag deine Eingaben deshalb <strong>vorab</strong> ein – <strong>eine Zeile pro Eingabe</strong>.
-        Sind alle verbraucht, bekommt das Programm <code>karton</code> (Ende).</p>
-      <textarea id="eingaben-text" data-testid="eingaben-text" rows="7" spellcheck="false" aria-label="Eingaben, eine pro Zeile"></textarea>
-      <div class="dialog-knoepfe">
-        <button type="submit" class="knopf knopf-geist" value="abbrechen" data-testid="eingaben-abbrechen">Abbrechen</button>
-        <button type="submit" class="knopf knopf-geist" value="ohne" data-testid="eingaben-ohne">Ohne Eingaben</button>
-        <button type="submit" class="knopf knopf-primaer" value="ja" data-testid="eingaben-backen">Mit diesen Eingaben backen ▶</button>
-      </div>
-    </form>
-  </dialog>
-
   <!-- Teilen: Link über den eigenen Server -->
   <dialog class="dialog dialog-teilen" id="dialog-teilen" data-testid="dialog-teilen" aria-labelledby="teilen-titel">
     <h2 id="teilen-titel">Code teilen</h2>
