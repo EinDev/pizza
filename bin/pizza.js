@@ -6,7 +6,8 @@
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
  *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
  *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
- *             --info (Schritte/Uhr am Ende), --hilfe
+ *             --info (Schritte/Uhr am Ende), --debug (zeigt technische Details interner Fehler), --hilfe
+ *   Warnungen/Fehler erscheinen einheitlich als <text> (Zeile Z, Spalte S) (K-083); das Feld detail nur mit --debug.
  *   Ohne --eingabe liest Bestellannahme interaktiv (synchron) von stdin.
  *   Vorratskammern (K-081): <ordner>/<name>.json, Standard %APPDATA%\pizza\vorrat bzw.
  *   $XDG_DATA_HOME/pizza/vorrat (Fallback ~/.local/share/pizza/vorrat); Format {"v":1,"name":…,"eintraege":[…]}.
@@ -19,7 +20,7 @@ const P = require(path.join(__dirname, '..', 'site', 'js', 'pizza.js'));
 const roh = process.argv.slice(2);
 const os = require('os');
 const crypto = require('crypto');
-const optionen = { ast: false, info: false, schrittLimit: undefined, eingabe: null, saat: null, vorratOrdner: null, keinVorrat: false };
+const optionen = { ast: false, info: false, debug: false, schrittLimit: undefined, eingabe: null, saat: null, vorratOrdner: null, keinVorrat: false };
 let datei = null;
 const progArgs = [];
 for (let i = 0; i < roh.length; i++) {
@@ -42,6 +43,7 @@ for (let i = 0; i < roh.length; i++) {
       catch (e) { console.error('Eingabedatei nicht lesbar: ' + pfad + ' (' + e.message + ')'); process.exit(2); }
       if (optionen.eingabe.length && optionen.eingabe[optionen.eingabe.length - 1] === '') optionen.eingabe.pop();
     }
+    else if (a === '--debug') optionen.debug = true;
     else if (a === '--hilfe' || a === '--help') { hilfe(); process.exit(0); }
     else { console.error('Unbekannte Option: ' + a); hilfe(); process.exit(2); }
   } else if (datei === null) datei = a;
@@ -69,6 +71,14 @@ catch (e) { console.error('Datei nicht lesbar: ' + datei + ' (' + e.message + ')
 const tty = process.stderr.isTTY && !process.env.NO_COLOR;
 const farbe = (code, t) => tty ? '\x1b[' + code + 'm' + t + '\x1b[0m' : t;
 const pos = (e) => e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '';
+// K-083: <text> (Zeile Z, Spalte S) – steht die Zeile schon im Text (ungefangene Ananas: „… (Zeile N)“), wird sie nicht doppelt angehängt
+const meldungText = (e) => {
+  const t = String(e.text == null ? '' : e.text);
+  if (e.zeile == null) return t;
+  const m = /\s\(Zeile (\d+)\)$/.exec(t);
+  if (m && Number(m[1]) === e.zeile) return t.slice(0, m.index) + pos(e);
+  return t + pos(e);
+};
 
 // Synchrones Zeilenlesen von stdin (blockiert, wie es der Interpreter erwartet)
 let stdinEof = false;
@@ -106,8 +116,11 @@ if (optionen.ast) {
         case 'ausgabe': process.stdout.write(e.umbruch === false ? e.text : e.text + '\n'); break;
         case 'leeren': if (process.stdout.isTTY) process.stdout.write('\x1b[2J\x1b[3J\x1b[H'); break;
         case 'fehlerausgabe': process.stderr.write(farbe('31', e.text) + '\n'); break;
-        case 'warnung': process.stderr.write(farbe('33', '⚠ ' + e.text) + farbe('90', pos(e)) + '\n'); break;
-        case 'fehler': process.stderr.write(farbe('1;31', e.text) + (e.art === 'syntax' || e.art === 'pizzafehler' ? farbe('90', pos(e)) : '') + '\n'); break;
+        case 'warnung': process.stderr.write(farbe('33', meldungText(e)) + '\n'); break;
+        case 'fehler':
+          process.stderr.write(farbe('1;31', meldungText(e)) + '\n');
+          if (optionen.debug && e.detail != null) process.stderr.write(farbe('90', 'detail: ' + e.detail) + '\n');
+          break;
         case 'panik': process.stderr.write(farbe('1;33;41', e.text) + '\n'); break;
         case 'ende':
           if (optionen.info) process.stderr.write(farbe('90', '— Exit-Code ' + e.exitCode + ' · ' + e.schritte + ' Schritte · Uhr ' + e.zeitMs + ' ms') + '\n');
