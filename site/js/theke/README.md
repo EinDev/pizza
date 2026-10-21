@@ -127,9 +127,11 @@ Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `
   fehlt sie: Standard der Art. Keine Ereignisse zurück, die Zutat bleibt bedienbar.
 - **Arten:** `puls` 400 ms, `huepfen` 350 ms, `wackeln` 400 ms, `funkeln` 800 ms (Leuchten in `--theke-gold` + 8 Funken an festen
   Positionen in der Ebene), `einblenden` 300 ms, `aufpoppen` 450 ms, `schwebe` 1000 ms. Gleiche Art an derselben Zutat startet
-  neu, andere ersetzt die laufende. Schwebetexte addieren sich (höchstens 20, der älteste weicht), seitlicher Versatz je Anker
-  reihum 0, −12, +12, −6, +6 px; Start oben mittig über `id` bzw. in der Fenstermitte, bei zu wenig Platz nach oben tiefer
-  bzw. am Rand nach innen gerückt (bleibt im sichtbaren Ausschnitt).
+  neu, andere ersetzt die laufende. Schwebetexte addieren sich (höchstens 20, der älteste weicht); gleichzeitige Texte am
+  selben Anker bekommen den kleinsten freien Platz 0, 1, 2, … (frei nach dem Ende): je Platz eine Zeile (20 px) höher
+  (`--theke-hoch`) und seitlich reihum 0, −12, +12, −6, +6 px (`--theke-versatz`) – kein Zufall. Start oben mittig über `id`
+  bzw. in der Fenstermitte, bei zu wenig Platz nach oben tiefer (der Stapel dann nach unten) bzw. am Rand nach innen gerückt
+  (bleibt im sichtbaren Ausschnitt). Leerer Text (auch nur Leerraum): kein Element, zählt nicht zum Limit (K-093).
 - **Technik:** `@keyframes`-Klassen `theke-anim-<art>`, Dauer als `--theke-anim-dauer` per CSSOM (CSP-fest, kein
   `style`-Attribut-String). Nur `transform`/`opacity`/`filter` – Layout und Scrollmaße ändern sich nie (in `visuell.mjs` geprüft).
   Schwebetexte/Funken liegen in `.theke-ebene` (absolut über dem Inhalt, `pointer-events: none`, schneidet ab).
@@ -144,6 +146,7 @@ Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `
 PizzaTheke.registriereAnimation("blinken", {
   dauer: 300,                       // Standarddauer (ms)
   ebene: false,                     // true = wie schwebe: in der Ebene, el darf null sein, ersetzt nichts, zählt zum Limit
+  leer: (eintrag) => false,         // optional: true = nichts zu zeigen → Eintrag übersprungen (kein Lauf, kein Platz)
   spiele(el, eintrag, ctx) {        // eintrag = Protokolleintrag {id, art, dauer?, …}
     if (ctx.reduziert) return;      // prefers-reduced-motion
     ctx.klasse(el, "mein-blinken"); // @keyframes-Klasse mit --theke-anim-dauer (gleiche Klasse → Neustart)
@@ -151,7 +154,7 @@ PizzaTheke.registriereAnimation("blinken", {
   },
 });
 ```
-`ctx`: `dokument`, `dauer`, `reduziert`, `nummer` (laufende Nummer am selben Anker, Ebenen-Arten), `ebene`, `lage(el?)`
+`ctx`: `dokument`, `dauer`, `reduziert`, `nummer` (Platz am selben Anker: kleinster freier unter den laufenden, Ebenen-Arten), `ebene`, `lage(el?)`
 (→ `{x, y, b, h}` in Ebenen-Koordinaten, ohne `el` die Fenstermitte), `sicht()` (sichtbarer Ausschnitt), `klasse(el, name)`,
 `teil(klasse, lage)` (Element in der Ebene, verschwindet am Ende), `beimEnde(fn)`, `warne`. `PizzaTheke.animationsArten()` listet alle.
 

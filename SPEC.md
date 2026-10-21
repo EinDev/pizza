@@ -1028,7 +1028,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
 
-### 16.6 Theke v3: Animationen (K-090 … K-094; Interpreter umgesetzt – U-56; offen: Compiler U-57, Renderer U-58)
+### 16.6 Theke v3: Animationen (K-090 … K-094; Interpreter U-56 und Renderer U-58 umgesetzt; offen: Compiler U-57)
 
 Animationen sind **rein visuell**: Sie ändern keinen Programmzustand, erzeugen keine Ereignisse und haben keine Wartezeit.
 Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aendere`, neues Feld `uebergang`; alte Renderer ignorieren beides).
@@ -1051,7 +1051,8 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   `schwebe(dauer: …) …`), auf ganze ms gerundet (K-047), danach **50 ms ≤ dauer ≤ 5 s**, sonst
   `LaufzeitAnanas: Eine Animation dauert 50ms bis 5s, nicht 10s.` (Dauer in Textform). Ohne `dauer` (oder `karton`) fehlt das Feld;
   der Renderer nimmt die Standarddauer der Art (K-092).
-- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer; fehlend oder `karton` → Schwebetext `"karton"`
+- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer (der Renderer zeigt für leeren Text oder nur
+  Leerraum nichts und zählt ihn nicht zum Limit, K-093); fehlend oder `karton` → Schwebetext `"karton"`
   (K-093; keine Ananas, keine Warnung); `bei` ist eine Zutat oder `karton` (= Fenstermitte),
   sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal` mit den
   Texten von K-068 (`LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.`).
@@ -1072,13 +1073,15 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   (§14.1, K-069) – `k.animiere("puls");` kostet so viel wie `k.hinweis("puls");`; die Warnung W0102 kostet nichts.
   `ui`-Nachrichten sind in `.ui-erwartet`/`uiErwartet` testbar.
 - **`uebergang` (K-091):** `uebergang(diavolo)` (sonst `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`) schaltet weiche Übergänge
-  der Zutat: Wechsel von `sichtbar` blendet ein/aus (Ausblenden: sofort nicht mehr bedienbar), in Behältern blenden **neu
-  hinzugekommene** Kinder ein (nicht im ersten `baum`; entfernte verschwinden sofort). Kein Hochzählen von Texten. Ein `Fortschritt`
+  der Zutat: Wechsel von `sichtbar` blendet ein/aus (Ausblenden: sofort nicht mehr bedienbar), in Behältern (`Stapel`, `Reihe`,
+  `Abschnitt`, `Reiter`) blenden **neu hinzugekommene** Kinder ein (nicht im ersten `baum`; entfernte verschwinden sofort; bei `Reiter`
+  nur eine neue Seite, die zugleich gewählt ist). Kein Hochzählen von Texten. Ein `Fortschritt`
   gleitet **immer** (unabhängig von `uebergang`). Setter lösen keine Rückrufe aus (K-073); Textform unverändert.
 - **Darstellung (K-092, Renderer):** Standarddauern `puls` 400 ms, `huepfen` 350 ms, `wackeln` 400 ms, `funkeln` 800 ms,
   `einblenden` 300 ms, `aufpoppen` 450 ms, `schwebe` 1000 ms, `uebergang` 200 ms; nur `transform`/`opacity`/Leuchten – das Layout der
   Nachbarn ändert sich nie; eine neue Animation an derselben Zutat ersetzt die laufende (Schwebetexte addieren sich, höchstens 20
-  gleichzeitig). Farben aus dem Thema (hell/dunkel). **`prefers-reduced-motion: reduce`:** keine Bewegung, keine Übergänge –
+  gleichzeitig; gleichzeitige Texte am selben Anker stapeln sich je eine Zeile höher auf dem kleinsten freien Platz und seitlich reihum
+  versetzt – ohne Zufall; der Renderer hält sie im sichtbaren Ausschnitt, K-092). Farben aus dem Thema (hell/dunkel). **`prefers-reduced-motion: reduce`:** keine Bewegung, keine Übergänge –
   `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
   Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
   `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).

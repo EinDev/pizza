@@ -729,6 +729,7 @@
             tab([
               ["`lege(k, v)`", "Legt `v` unter Schlüssel `k` ab (überschreibt), gibt die Speisekarte zurück", "`karte.lege(\"Salami\", 9.5)`"],
               ["`hole(k)`", "Wert zu `k`; fehlt er → `karton`", "`karte.hole(\"Salami\")`"],
+              ["`hole(k, ersatz)`", "Wie `hole`, aber fehlt der Schlüssel → `ersatz` statt `karton` (auch benannt: `ersatz: 0`)", "`karte.hole(\"Tonno\", 0)` → `0`"],
               ["`hat(k)`", "Gibt es den Schlüssel?", "`karte.hat(\"Tonno\")` → `nein`"],
               ["`entferne(k)`", "Entfernt den Eintrag und gibt den alten Wert zurück (fehlte er: `karton`)", "`karte.entferne(\"Salami\")` → `9.5`"],
               ["`schlüssel()`", "`Blech` aller Schlüssel", "`karte.schlüssel()`"],
@@ -750,7 +751,21 @@
                 "Bote.sage((karte.werte()));"
               )
             },
-            { art: "ausgabe", text: z("[Margherita]", "[8]") }
+            { art: "ausgabe", text: z("[Margherita]", "[8]") },
+            { art: "text", md: "**Zählen mit Ersatzwert:** `hole(k, 0)` liefert beim ersten Mal `0` statt `karton` – so zählst du ohne `hat()`-Umweg: `k.lege(s, k.hole(s, 0) + 1)`. Der Ersatz gilt nur, wenn der Schlüssel ganz fehlt; ein absichtlich gespeicherter `karton` bleibt `karton`." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Speisekarte<margherita, salami> zähler = neu Speisekarte<margherita, salami>();",
+                "für (margherita s : [\"Salami\", \"Tonno\", \"Salami\"]) {",
+                "    zähler.lege(s, zähler.hole(s, 0) + 1);",
+                "}",
+                "Bote.sage((zähler));"
+              )
+            },
+            { art: "ausgabe", text: "{Salami: 2, Tonno: 1}" }
           ]
         }
       ]
@@ -1002,20 +1017,22 @@
         },
         {
           art: "details",
-          titel: "Wo erscheint das Fenster? (Playground, EXE, Linux, W0100)",
+          titel: "Wo erscheint das Fenster? (Playground, EXE, Linux, ohne Bildschirm, W0100)",
           inhalt: [
             {
               art: "tabelle",
               kopf: ["Wo", "Was der Gast sieht"],
               zeilen: [
                 ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor; Schließen-Knopf = Fenster zu. Abbrechen (`Esc`) geht immer."],
-                ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, bricht das Programm mit einer klaren Fehlermeldung ab."],
-                ["Linux", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar). Fehlt sie, gibt es eine klare Fehlermeldung."]
+                ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, bricht das Programm mit einer klaren Fehlermeldung ab (mit Link zum kostenlosen Download)."],
+                ["Linux", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar). Fehlt sie, gibt es eine klare Fehlermeldung."],
+                ["Linux ohne Bildschirm (z. B. per SSH)", "kein Fenster möglich – das Programm bricht sofort mit einer verständlichen Meldung ab und bittet, es in einer grafischen Sitzung zu starten."]
               ]
             },
             { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Unter Windows startet eine `.exe` mit Theke **ohne Terminal** – siehe *Motoren & Programm herunterladen*. Was eine Plattform braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
             { art: "text", md: "**Hell oder dunkel:** Im Playground folgt das Programmfenster dem Thema der Seite – standardmäßig dem deines Betriebssystems; schaltest du die Seite um, wechselt das Fenster mit. Im heruntergeladenen Programm folgt es dem Thema des Betriebssystems. Inhalt, Farben und Standardgröße (480 × 360) sind überall gleich." },
-            { art: "hinweis", ton: "info", md: "**W0100:** Läuft ein Theke-Programm ganz ohne Fenster – etwa in Tests, in dieser Doku oder in der Kommandozeile `node bin/pizza.js` –, meldet pizza `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
+            { art: "text", md: "**Kein Fenster möglich?** Kann ein heruntergeladenes Programm (oder `pizza-host`) mit Theke sein Fenster nicht öffnen – kein Bildschirm, WebView2 oder WebKitGTK fehlt –, läuft es **nicht** blind weiter: Es schreibt eine verständliche Meldung und endet mit **Exit-Code 2**, noch bevor dein Code startet. Programme ohne Theke betrifft das nicht; sie laufen auch ohne Bildschirm." },
+            { art: "hinweis", ton: "info", md: "**W0100:** Wo es grundsätzlich nie ein Fenster gibt – in Tests, in dieser Doku, in der Kommandozeile `node bin/pizza.js` oder wenn das Fenster absichtlich abgeschaltet ist (JSON-Modus, `--ui-ereignisse`, `PIZZA_THEKE=0`) –, meldet pizza nur `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
           ]
         }
       ]
@@ -1135,7 +1152,7 @@
             ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
-            ["`W0100`", "`theke.bediene()` ohne Fenster (Tests, Doku, Kommandozeile)", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
+            ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
             ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"]
           ]
         },
