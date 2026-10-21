@@ -13,7 +13,7 @@ const teilB = require("./teil-b");
 const { BANNER } = require("./lib/helfer");
 
 const INTERPRETER = process.env.PRUEFSTAND_INTERPRETER ? path.resolve(process.env.PRUEFSTAND_INTERPRETER) : path.join(teilB.ROOT, "site", "js", "pizza.js");
-const STANDARD_LIMIT = 300000; // begrenzt pizza-Endlosschleifen in fehlerhaften Fällen
+const STANDARD_LIMIT = 5_000_000; // SPEC §7.1 Standard; Endlosschleifen fängt zusätzlich das Worker-Timeout ab
 const TIMEOUT_MS = 15000;
 
 // ───────────────────────── Argumente ─────────────────────────
