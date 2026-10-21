@@ -60,11 +60,11 @@ PizzaLang.run(quelltext, optionen)
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
   //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege),  // SPEC §15.4 (K-077 … K-081)
-  //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-093)
+  //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-100)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
-**Küchenbrigade (SPEC §17, K-093):** `koeche` = gewünschte Anzahl Köche (Host-Einstellung, nie beobachtbar); der Interpreter
+**Küchenbrigade (SPEC §17, K-100):** `koeche` = gewünschte Anzahl Köche (Host-Einstellung, nie beobachtbar); der Interpreter
 akzeptiert und **ignoriert** sie (sequentielle Referenz). `kuechenChaos` (nur Tests, Saat) führt die Stücke jeder Brigade in einer
 pseudozufälligen Reihenfolge aus und verwirft danach nach D3 – das Ergebnis muss identisch sein. Der Wasm-Weg
 (`Pizzaiolo.run`) übernimmt dieselben Optionen (`laufOptionen` + `koeche`, `faehigkeiten.importgruppen` + `kueche`; mit P3
@@ -119,12 +119,12 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
 - Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`).
-- **Köche (SPEC §17.7, K-093):** Lauf-Einstellungen-Popover **„Köche: auto | 1 | 2 | 4 | 8“** (localStorage, neben „feste Saat“;
+- **Köche (SPEC §17.7, K-100):** Lauf-Einstellungen-Popover **„Köche: auto | 1 | 2 | 4 | 8“** (localStorage, neben „feste Saat“;
   `auto` = `navigator.hardwareConcurrency`, höchstens 16). Enthält das kompilierte Programm die Importgruppe `kueche`, erzeugt der
   Lauf-Worker **vor** `run` einen Köche-Pool (Kinder-Worker; „Abbrechen“ = `worker.terminate()` beendet alle Köche). Ohne
   Cross-Origin-Isolation, ohne verschachtelte Worker oder im Interpreter-Rückfall läuft die Brigade sequentiell (gleiches
   Ergebnis). Statusleiste nach dem Lauf: `Köche: N` (tatsächlich genutzt; 1 bei Interpreter/Rückfall) **nur**, wenn das Programm
-  `brigade` nutzt (Gruppe `kueche`; Nutzerentscheidung K-093 – das Popover bleibt immer) – gleicher Text wie
+  `brigade` nutzt (Gruppe `kueche`; Nutzerentscheidung K-100 – das Popover bleibt immer) – gleicher Text wie
   `--info` nativ (`--koeche=N`, HOST-ABI §7). Ereignisse eines Stücks erscheinen frühestens, wenn alle früheren Stücke fertig sind.
 - Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
   in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.
@@ -239,6 +239,6 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).
-Küchenbrigade (SPEC §17, K-093): Fälle heißen `kueche-*`; `.optionen.json` darf `koeche`/`kuechenChaos` tragen; das `ende`-Feld
+Küchenbrigade (SPEC §17, K-100): Fälle heißen `kueche-*`; `.optionen.json` darf `koeche`/`kuechenChaos` tragen; das `ende`-Feld
 `koeche` wird von allen Harnischen ignoriert – Ereignisse, Exit-Code, `schritte` und `zeitMs` müssen für jede Köche-Anzahl und
 jede Chaos-Saat identisch sein.

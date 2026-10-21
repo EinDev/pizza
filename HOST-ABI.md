@@ -45,7 +45,7 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
 - **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
-- **Gruppe `kueche` (Entwurf, SPEC §17, K-093 – endgültig mit THREADS-Paket P2):** `kueche_auftrag`, `kueche_bericht` – nur wenn
+- **Gruppe `kueche` (Entwurf, SPEC §17, K-100 – endgültig mit THREADS-Paket P2):** `kueche_auftrag`, `kueche_bericht` – nur wenn
   das Programm `brigade` enthält; dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
 
@@ -107,7 +107,7 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   fehlgeschlagen → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` Ohne Speicherung (Abfrage = 0)
   emittiert der Host nur das Ereignis und gibt `0` zurück. Größenprüfung (1 MiB) macht das Modul selbst.
 
-**Küchenbrigade – Gruppe `kueche`** (**Entwurf**, SPEC §17, K-093; Einzelheiten THREADS.md §4.3–§4.5, endgültig mit P2):
+**Küchenbrigade – Gruppe `kueche`** (**Entwurf**, SPEC §17, K-100; Einzelheiten THREADS.md §4.3–§4.5, endgültig mit P2):
 
 | Import | Signatur | Bedeutung |
 |---|---|---|
@@ -222,8 +222,8 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 | `ende` | Prozess-Exit-Code = `exitCode` |
 
 Option **`--koeche=N`** (`auto` = Standard: logische Kerne, höchstens 16; `1` = keine Köche) für Programme mit Gruppe `kueche`
-(SPEC §17.7, K-093); `--info` zeigt zusätzlich `Köche: N` (tatsächlich genutzt – derselbe Text wie in der Playground-Statusleiste), **nur** wenn das
-Programm die Gruppe `kueche` nutzt (Nutzerentscheidung K-093).
+(SPEC §17.7, K-100); `--info` zeigt zusätzlich `Köche: N` (tatsächlich genutzt – derselbe Text wie in der Playground-Statusleiste), **nur** wenn das
+Programm die Gruppe `kueche` nutzt (Nutzerentscheidung K-100).
 
 ## 8. Minimaler JS-Host (Referenz)
 

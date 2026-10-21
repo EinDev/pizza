@@ -403,7 +403,7 @@ Ananas
     ├── TypAnanas               ├── KeinStückAnanas
     ├── ZugriffsAnanas          ├── UnbekannterBelagAnanas
     └── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
-                                └── KüchenAnanas      (§17, K-091)
+                                └── KüchenAnanas      (§17, K-098)
 ```
 - Erzeugen: `neu VerbranntAnanas("Nachricht")`. Methoden: `nachricht()`, `holeNachricht()` (Alias), `typ()` (Klassenname).
 - Eigene Ananas: `klasse MeineAnanas erbt LaufzeitAnanas { speisekarte MeineAnanas(margherita m) { unten(m); } }`.
@@ -535,7 +535,7 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
 - Toolchain: Compiler `pizzaiolo backe`, Build-Tool `pizzaofen` mit `ofen.xml`, Archive `.pkarton`, Paketmanager `pizzabote`, Flag `--temperatur=485` (Optimierung).
 - Statische Prüfung von Generics und `wirft`.
-- Echte Hintergrund-Threads bei `teig` und `bestelle` bzw. ein eigenes Konstrukt „Hintergrund-Köche“ (§17.8, K-090/F9).
+- Echte Hintergrund-Threads bei `teig` und `bestelle` bzw. ein eigenes Konstrukt „Hintergrund-Köche“ (§17.8, K-097/F9).
   (Echte Parallelität ist mit `brigade` Tier 1 geworden, §17; `schneide`/`belege` bleiben sequentiell.)
 
 ---
@@ -577,7 +577,7 @@ regelt `EINGABE.md`.
 - **P0002:** Abbruch beim Schritt Nummer `schrittLimit + 1` (Standard 5 000 000). Nicht fangbar; `rand` läuft nicht.
   Einzige Ausnahme: P0002 in oder nach einer Brigade (§17.6 D7) meldet die tatsächliche **Arbeit** – Stück-P0002: Schritte der
   Stücke 1 … k−1 plus Limit + 1 des abbrechenden Stücks k (die Küchenuhr steht bei Limit + 1); Summenprüfung: P0002 am
-  `brigade`-Aufruf mit der Schrittsumme. Beides kann größer als `schrittLimit + 1` sein (K-094/2).
+  `brigade`-Aufruf mit der Schrittsumme. Beides kann größer als `schrittLimit + 1` sein (K-101/2).
 
 ### 14.2 Budgets von Ofen und Lieferung
 
@@ -845,7 +845,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   Fehler: alle Motoren werfen die fangbare `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).` (Interpreter
   bildet Engine-Grenzen wie „Invalid string length“ darauf ab, die Wasm-Laufzeit wirft statt zu trappen). Die genaue Grenze
   und damit die Schrittzahl bis zum Wurf darf je Motor verschieden sein.
-- **K-090 … K-093 (Nutzerentscheidungen F1–F10) [offen: alle Motoren]** Küchenbrigade `blech.brigade(fn)`, `KüchenAnanas`,
+- **K-097 … K-100 (Nutzerentscheidungen F1–F10) [offen: alle Motoren]** Küchenbrigade `blech.brigade(fn)`, `KüchenAnanas`,
   Schnappschuss-Regeln, Kartonfähigkeit, Determinismus D1–D15, Köche nur als Host-Einstellung – Vertrag in §17.
 - **K-015** `abbrechen`/`weiter` außerhalb einer Schleife (bzw. `abbrechen` außerhalb von Schleife oder
   `wähle`-Anweisung) → `PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.` / `… 'weiter' …` (Parse-Fehler,
@@ -1024,11 +1024,11 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 
 ---
 
-## 17. Küchenbrigade – echte Parallelität (Tier 1; K-090 … K-093)
+## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)
 
-Übernommen aus `THREADS.md` §2–§3 (Entwurf → Vertrag; Produktfragen F1–F10 wie empfohlen entschieden, K-090). THREADS.md bleibt
+Übernommen aus `THREADS.md` §2–§3 (Entwurf → Vertrag; Produktfragen F1–F10 wie empfohlen entschieden, K-097). THREADS.md bleibt
 Planungsdokument für Umsetzung, Motoren und Phasen (§4–§6); bei Widersprüchen gilt dieser Abschnitt. Prüfstand:
-`pruefstand/faelle/a14-kueche.js` (Interpreter-Referenz abgenommen: 72cb857 ff., Vertragslücken K-094).
+`pruefstand/faelle/a14-kueche.js` (Interpreter-Referenz abgenommen: 72cb857 ff., Vertragslücken K-101).
 
 > **Grundsatz:** Die **sequentielle Referenz definiert die Semantik**; echte Threads sind eine unbeobachtbare Optimierung.
 > Kein Ereignis, kein Text, kein Exit-Code, keine `schritte`, keine `zeitMs` hängen von der Anzahl der Köche, von ihrer Planung
@@ -1117,7 +1117,7 @@ Bereits fertige Zustände bleiben lesbar: `backen()` eines Teigs, dessen Wert sc
 `wert()`, `istAufgegangen()`, `saat()` eines Zufall-Objekts usw. sind Lesezugriffe. **Werfen** einer vorhandenen Ananas verändert
 nichts und ist erlaubt (sie verlässt die Küche als Kopie, §17.5).
 
-**Reihenfolge der Wache (K-094/4, verbindlich für alle Motoren).** Eine schreibende Operation läuft in der Küche in genau
+**Reihenfolge der Wache (K-101/4, verbindlich für alle Motoren).** Eine schreibende Operation läuft in der Küche in genau
 dieser Folge ab: (a) **Operanden und Argumente** werden wie gewohnt ausgewertet – ihre Schritte zählen, ihre Wirkungen
 (Ausgaben, eigene Objekte) treten ein (`z = f(x)` ruft `f` auf, bevor die Wache greift; bei `o.f = …` wird `o` ausgewertet,
 bei `+=`/`++` der alte Wert gelesen); (b) das **Ziel wird aufgelöst** – unbekannte Variable, unbekanntes Feld oder ein
@@ -1139,7 +1139,7 @@ gefangene Wache kostet so viele Schritte wie die gelungene Zuweisung (`y = x + 1
 Eingabe und Theke warten auf den Menschen und sind an genau einen Ort gebunden (eine Theke pro Programm, K-062); neue Kammern
 lesen vom Host. Ein Leseversuch in der Küche verbraucht keine Eingabe und erzeugt kein `eingabe`-Ereignis. S4 betrifft nur
 Operationen, die in der Hauptküche gelingen würden: `neu Zutat()` (abstrakte Basisklasse, §16.1) wirft auch in der Küche die
-`RohlingAnanas: Ein Rohling ist nicht essbar.` – wie überall (K-094/3).
+`RohlingAnanas: Ein Rohling ist nicht essbar.` – wie überall (K-101/3).
 
 **S5 – Lieferungen und Teige einer Küche** gehören der Küche und verfallen am Stückende: Lieferungen mit `wennDa`, die in der
 Küche bestellt und dort nicht gewartet wurden, laufen **nie** (sie nehmen nicht an der `wennDa`-Phase nach Programmende teil).
@@ -1147,7 +1147,7 @@ Küche bestellt und dort nicht gewartet wurden, laufen **nie** (sie nehmen nicht
 ### 17.4 Gemeinsamer Zustand
 
 Version 1 hat **keinen** gemeinsamen veränderlichen Zustand und deshalb **keine Sperren** und keine Atomics in der Sprache
-(K-090/F4). Der einzige Kanal aus der Küche ist der Rückgabewert (plus Ausgaben). Jede Sperre machte die Reihenfolge der
+(K-097/F4). Der einzige Kanal aus der Küche ist der Rückgabewert (plus Ausgaben). Jede Sperre machte die Reihenfolge der
 Zugriffe von der Planung abhängig.
 
 ### 17.5 Was eine Küche verlassen kann – kartonfähige Werte
@@ -1167,7 +1167,7 @@ Rückgabewerte der Stücke (und geworfene Werte, D3) werden beim Zusammenführen
 
 - Nicht kartonfähig → `KüchenAnanas: <Art> passt in keinen Karton – nur Werte können die Küche verlassen.` mit `<Art>` ∈
   `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Ein Stück`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
-  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-094/1). Maßgeblich ist der **erste** nicht
+  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-101/1). Maßgeblich ist der **erste** nicht
   kartonfähige Teilwert in Tiefensuche (Elemente in Reihenfolge, Speisekarten je Paar Schlüssel vor Wert, Felder in
   Deklarationsreihenfolge, Basisklassen zuerst, Teilergebnis eines `Rohling`, Pizza einer Sicht). Die Ananas
   entsteht **in der Küche** am Ende des Stücks (Position = Position des `brigade`-Aufrufs, Schritte unverändert) und gilt als
@@ -1224,7 +1224,7 @@ vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), akt
 - **D7 – Schrittlimit P0002.** Jedes Stück hat als eigenes Limit den Rest beim Anschnitt `R = (Limitbasis + Limit) − S₀`; es bricht
   beim eigenen Schritt `R + 1` mit P0002 ab (Abbruch nach D3, Position wie bei `belege`). Die Küchenuhr dieses Stücks steht dann
   bei `T₀ + R + 1` (= Limit + 1 ohne Vorspulen), `schritte` nach D3/D6 = `S₀ + s₁ + … + s_{k−1} + (R + 1)` – die Arbeit der
-  berücksichtigten Stücke; nur bei k = 1 ist das Limit + 1 (K-094/2). Nach dem Zusammenführen ohne Abbruch wird geprüft:
+  berücksichtigten Stücke; nur bei k = 1 ist das Limit + 1 (K-101/2). Nach dem Zusammenführen ohne Abbruch wird geprüft:
   `S₀ + Σ sᵢ > Limitbasis + Limit` → P0002 **am `brigade`-Aufruf** (Position des Aufrufs, `schritte` = tatsächliche Summe).
   Beides sind die einzigen Fälle, in denen `schritte` größer als Limit + 1 ist (§14.1). Stücke erben die Limitbasis (K-087);
   in Küchen wird sie nie neu gesetzt. Referenz: Limit 30, `Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x * x * x);` →
@@ -1261,23 +1261,23 @@ vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), akt
 **Folgerung (testbar):** Für jedes Programm sind die Ergebnisse mit `koeche = 1`, `koeche = n` und unter beliebiger Permutation
 der Ausführungsreihenfolge der Stücke identisch (Testoption `kuechenChaos`, ARCHITEKTUR §1).
 
-### 17.7 Köche – nur Host-Einstellung (K-093)
+### 17.7 Köche – nur Host-Einstellung (K-100)
 
 - Die Anzahl der Köche ist **nie** aus der Sprache steuerbar oder beobachtbar (keine Sprach-Option, kein `brigade(fn, köche: …)`).
 - Einstellung nur im Host: Playground-Popover „Köche: auto | 1 | 2 | 4 | 8“, CLI/EXE `--koeche=N` (`auto` = Standard, `1` = aus),
   Option `koeche` der JS-APIs (ARCHITEKTUR §1/§2, HOST-ABI §7). `auto` = Anzahl logischer Kerne, höchstens 16.
 - Einzige sichtbare Spur ist die Hüllen-Anzeige `Köche: N` (tatsächlich genutzte Anzahl; 1 bei Interpreter oder Rückfall) – **nur** bei
-  Programmen, die `brigade` nutzen (Gruppe `kueche`; Nutzerentscheidung K-093), das Popover bleibt immer sichtbar –
+  Programmen, die `brigade` nutzen (Gruppe `kueche`; Nutzerentscheidung K-100), das Popover bleibt immer sichtbar –
   gleicher Text in Playground-Statusleiste und `--info` (K-082). Das optionale `ende`-Feld `koeche` gehört nicht in `.erwartet`
   und wird von Differenztests ignoriert.
 - Jeder Host darf ohne Threads arbeiten (keine SharedArrayBuffer, keine verschachtelten Worker, `koeche = 1`): identisches
-  Ergebnis, nur langsamer. Der Interpreter ist die sequentielle Referenz (K-090/F8).
+  Ergebnis, nur langsamer. Der Interpreter ist die sequentielle Referenz (K-097/F8).
 
 ### 17.8 Ausblick (nicht Version 1)
 
 - **Statische Hilfe:** `W0201: Dieser Koch schreibt in 'x' – das gehört der Hauptküche.` für direkt an `brigade` übergebene
   Lambdas, die erkennbar in gefangene/globale Variablen schreiben (Code reserviert; ersetzt die Laufzeitprüfung nicht; käme wie
   W0666/W0032 in `analysiere()`/IR `warnungen`).
-- **Hintergrund-Köche** (K-090/F9): ein eigenes Konstrukt mit Küchen-Semantik (z. B. `Auftrag<T> a = koch(() -> …);` …
+- **Hintergrund-Köche** (K-097/F9): ein eigenes Konstrukt mit Küchen-Semantik (z. B. `Auftrag<T> a = koch(() -> …);` …
   `a.abholen()`); `teig`/`bestelle` behalten ihre Semantik (§13).
 - Ein deterministischer gemeinsamer „Bestellblock“ (nur anhängen, Zusammenführung in Stückreihenfolge) kann später ergänzt werden.

@@ -1,10 +1,10 @@
 "use strict";
-// Küchenbrigade (SPEC §17, KLAERUNGEN K-090 … K-094). Bis zur Interpreter-Umsetzung (Paket P1, THREADS.md §6) hieß die
-// Datei a14-kueche-offen.js; Abnahme mit 72cb857 ff., Vertragslücken der Umsetzung in K-094 entschieden.
+// Küchenbrigade (SPEC §17, KLAERUNGEN K-097 … K-101). Bis zur Interpreter-Umsetzung (Paket P1, THREADS.md §6) hieß die
+// Datei a14-kueche-offen.js; Abnahme mit 72cb857 ff., Vertragslücken der Umsetzung in K-101 entschieden.
 // Erwartungen stammen aus SPEC §17 – nicht aus dem Interpreter. Zahlen aus der D6-Referenztabelle (SPEC §17.6) bzw.
 // aus der sequentiellen Referenz abgeleitet (belege-Läufe mit ce303cb ff. + D1–D15); Schrittzahlen von Hand nach §14.1.
 const { P, F } = require("../lib/helfer");
-const K = "§17 Küchenbrigade (K-090 … K-094)";
+const K = "§17 Küchenbrigade (K-097 … K-101)";
 
 const schritte = (soll) => (res) => (res.schritte === soll ? undefined : `schritte ${res.schritte}, erwartet ${soll}`);
 const uhr = (s, z) => (res) => {
@@ -187,7 +187,7 @@ Bote.sage(([1].brigade(x -> { Zufall e = neu Zufall(7); serviere (e.zahl(1, 6));
 Bote.sage((z.zahl(1, 6)));
 `, { out: ["Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().", "[1]", "1"] }),
 
-  F(K, "§17.3 S3 (K-091/2): saat(n) auf vorhandenem Zufall-Objekt wirft; saat() liest", P`
+  F(K, "§17.3 S3 (K-098/2): saat(n) auf vorhandenem Zufall-Objekt wirft; saat() liest", P`
 Zufall z = neu Zufall(5);
 ${fang("[1].brigade(x -> z.saat(7))")}
 Bote.sage(([1].brigade(x -> z.saat())));
@@ -235,13 +235,13 @@ ${fang("[1].brigade(x -> s.text())")}
 Bote.sage((s.text()));
 `, { out: ["Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "hallo"] }),
 
-  F(K, "§17.3 S4 (K-094/3): neu Zutat() wirft auch in der Küche die RohlingAnanas (abstrakt überall), nicht den S4-Text", P`
+  F(K, "§17.3 S4 (K-101/3): neu Zutat() wirft auch in der Küche die RohlingAnanas (abstrakt überall), nicht den S4-Text", P`
 probier { [1].brigade(x -> neu Zutat()); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
 probier { neu Zutat(); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
 `, { out: ["RohlingAnanas: Ein Rohling ist nicht essbar.", "RohlingAnanas: Ein Rohling ist nicht essbar."] }),
 
-  // ── §17.3 Reihenfolge der Wache (K-094/4) ────────────────────────────────────────
-  F(K, "K-094/4: Operanden zuerst (rechte Seite läuft), Ziel auflösen (LaufzeitAnanas), dann Wache – vor Index, Typ und gebacken", P`
+  // ── §17.3 Reihenfolge der Wache (K-101/4) ────────────────────────────────────────
+  F(K, "K-101/4: Operanden zuerst (rechte Seite läuft), Ziel auflösen (LaufzeitAnanas), dann Wache – vor Index, Typ und gebacken", P`
 salami lies(salami n) { Bote.sage(("rechts " + n)); serviere (n); }
 salami z = 0;
 Blech<salami> b = [1, 2];
@@ -265,12 +265,12 @@ Bote.sage((z + " " + b + " " + o.w + " " + g));
 
   // S₀ = 5 (ohne globale Deklaration) bzw. 7; das Stück kostet 9 (lokale Deklaration 2 + probier 1 + Zuweisung 4 + serviere 2)
   // bzw. 7 (ohne Deklaration, Zuweisung mit Wache ebenfalls 4) → beide Male Uhr 14, dann Bote.sage((Uhr.jetzt())) = +5 (§14.1).
-  F(K, "K-094/4: die Wache kostet nichts – gefangene Zuweisung an Hauptküchen-Variable zählt wie die gelungene (je 4 Schritte)", P`
+  F(K, "K-101/4: die Wache kostet nichts – gefangene Zuweisung an Hauptküchen-Variable zählt wie die gelungene (je 4 Schritte)", P`
 [1].brigade(x -> { salami y = 0; probier { y = x + 1; } verbrannt (KüchenAnanas a) { } serviere (x); });
 Bote.sage((Uhr.jetzt()));
 `, { out: ["19ms"], check: uhr(19, 19) }),
 
-  F(K, "K-094/4: dieselbe Zuweisung an eine Hauptküchen-Variable – gleiche Uhr", P`
+  F(K, "K-101/4: dieselbe Zuweisung an eine Hauptküchen-Variable – gleiche Uhr", P`
 salami z = 0;
 [1].brigade(x -> { probier { z = x + 1; } verbrannt (KüchenAnanas a) { } serviere (x); });
 Bote.sage((Uhr.jetzt()));
@@ -323,7 +323,7 @@ ${fang("[1].brigade(x -> Bote.sage)")}
     KARTON("Ein Zufall"), KARTON("Eine Vorratskammer"), KARTON("Eine Theke-Zutat"), KARTON("Ein Teig"), KARTON("Eine Funktion")] }),
 
   // verbrauchteZeit: Budget 3ms ist beim 4. Schritt überschritten (§14.2: ofen(zeit: 5ms) { solange (ja) { } } → 6ms)
-  F(K, "§17.5 (K-094/1): Rohling (roh-Info) ist kartonfähig – Teilergebnis kopiert, verbrauchteZeit gleich; Tiefensuche ins Teilergebnis", P`
+  F(K, "§17.5 (K-101/1): Rohling (roh-Info) ist kartonfähig – Teilergebnis kopiert, verbrauchteZeit gleich; Tiefensuche ins Teilergebnis", P`
 Blech<Rohling<salami>> r = [1, 2].brigade(x -> ofen(zeit: 3ms) { zwischenstand((x)); solange (ja) { } } roh (info) { serviere (info); });
 Bote.sage((r));
 Bote.sage((r.stück(2).teilergebnis() + " " + r.stück(2).verbrauchteZeit()));
@@ -331,7 +331,7 @@ ${fang("[1].brigade(x -> ofen(zeit: 10ms) { zwischenstand((teig(() -> (x)))); so
 `, { out: ["[Roh(1), Roh(2)]", "2 4ms", KARTON("Ein Teig")] }),
 
   // Sicht auf Schichten 1..k−1 (§6): Textform ((Tomate, Käse)), preis = 5.00 + 1.00 + 1.00
-  F(K, "§17.5 (K-094/1): Pizza-Sicht (unten als Wert) ist kartonfähig – gleiche Schichtenzahl, Textform und preis()", P`
+  F(K, "§17.5 (K-101/1): Pizza-Sicht (unten als Wert) ist kartonfähig – gleiche Schichtenzahl, Textform und preis()", P`
 belag Trüffel auf Pizza {
     speisekarte Pizza drunter() { serviere (unten); }
 }
@@ -445,7 +445,7 @@ Bote.sage((Uhr.jetzt()));
 
   // S₀ = 6 (Anweisung, Blech-Literal, zwei Zahlen, Lambda, Aufruf); Stück 1: falls 1 + (x == 2) 3 + serviere 2 = 6;
   // Stück 2: R = 100 − 6 = 94 → bricht beim eigenen Schritt 95 ab. schritte = 6 + 6 + 95 = 107 (Arbeit), Uhr = 6 + 95 = 101.
-  F(K, "D7 (K-094/2): P0002 in Stück 2 → schritte = S₀ + s₁ + (R + 1) = 107, Küchenuhr bei Limit + 1 (zeitMs 101)", P`
+  F(K, "D7 (K-101/2): P0002 in Stück 2 → schritte = S₀ + s₁ + (R + 1) = 107, Küchenuhr bei Limit + 1 (zeitMs 101)", P`
 [1, 2].brigade(x -> {
     falls (x == 2) { solange (ja) { } }
     serviere (x);

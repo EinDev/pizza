@@ -1,6 +1,6 @@
 # Küchenbrigade – echte Parallelität in pizza (Entwurf, verbindlich formuliert)
 
-> **Abgelöst:** §2 (Sprachmodell) und §3 (Determinismus) sind als Vertrag in **SPEC §17** übernommen (K-090 … K-093);
+> **Abgelöst:** §2 (Sprachmodell) und §3 (Determinismus) sind als Vertrag in **SPEC §17** übernommen (K-097 … K-100);
 > bei Widersprüchen gilt SPEC §17. Dieses Dokument bleibt Plan für Umsetzung, Motoren und Phasen (§4–§6).
 
 > **Grundsatz (K-082): Browser = nativ.** Was hier steht, verhält sich im Playground, in Node, im nativen Host und in der EXE

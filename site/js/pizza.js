@@ -1833,7 +1833,7 @@
       return f.call(this, g, pos, ben, node);
     };
   }
-  // saat(n) auf einem vorhandenen Zufall-Objekt zählt als Ziehen (K-091/2); saat() liest
+  // saat(n) auf einem vorhandenen Zufall-Objekt zählt als Ziehen (K-098/2); saat() liest
   ZUFALL_OBJ_M['saat'] = function (g, pos, ben, node) {
     if (this.kueche !== null && pos.length > 0 && this.istGefroren(g)) throw this.ananas('KüchenAnanas', 'Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().');
     return ZUFALL_GEN_M['saat'].call(this, g, pos, ben, node);
