@@ -74,20 +74,27 @@ e2e("Eingabezeile erscheint nur bei Anfrage, Enter sendet, Echo sichtbar, Strg+D
   assert.equal(await formSichtbar(page), false, "Eingabezeile verschwindet nach dem Lauf");
 });
 
-e2e("„Ende“-Knopf sendet EOF; ungültige Zahl → TypAnanas", async ({ page, oeffne }, t) => {
+e2e("„Ende“-Knopf sendet EOF (danach sofort karton ohne neue Anfrage); ungültige Zahl → TypAnanas", async ({ page, oeffne }, t) => {
   if (!(await vorbereiten(page, oeffne, t))) return;
-  await setzeCode(page, 'margherita a = Bestellannahme.lies();\nBote.sage(("a=" + a));\nsalami z = Bestellannahme.frageZahl(("Zahl? "));\nBote.sage(("z=" + z));');
+  // EOF per Knopf; ein weiteres lies() nach EOF fragt nicht erneut, sondern liefert wieder karton (EINGABE.md §1)
+  await setzeCode(page, 'margherita a = Bestellannahme.lies();\nBote.sage(("a=" + a));\nmargherita b = Bestellannahme.lies();\nBote.sage(("b=" + b));');
   await ereignisseLeeren(page);
   await strg(page, "Enter");
   assert.equal(await warteEingabeOderEnde(page), "eingabe");
   await page.click('[data-testid="konsole-eingabe-eof"]');
+  assert.equal(await warteEingabeOderEnde(page), "ende");
+  assert.equal(await konsolenAusgabe(page), "a=karton\nb=karton\n");
+  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
+  // ungültige Zahl
+  await setzeCode(page, 'salami z = Bestellannahme.frageZahl(("Zahl? "));\nBote.sage(("z=" + z));');
+  await strg(page, "Enter");
   assert.equal(await warteEingabeOderEnde(page), "eingabe");
   await sendeEingabe(page, "keine Zahl");
   assert.equal(await warteEingabeOderEnde(page), "ende");
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[1]);
   const m = (await konsolenMeldungen(page)).find((x) => /k-fehler/.test(x.klasse));
   assert.match(m.text, /TypAnanas: 'keine Zahl' ist keine Zahl/);
-  assert.match(await konsolenAusgabe(page), /^a=karton\nZahl\? /);
+  assert.equal(await konsolenAusgabe(page), "Zahl? ");
 });
 
 e2e("Abbrechen während des Wartens auf Eingabe (Knopf und Esc)", async ({ page, oeffne }, t) => {

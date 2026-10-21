@@ -81,7 +81,7 @@ e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im 
   const url = await page.$eval('[data-testid="teilen-url"], #teilen-url', (i) => i.value);
   assert.ok(url.startsWith(basis), "Link zeigt auf den Playground: " + url);
   assert.doesNotMatch(url, /#code=/);
-  assert.equal(server.teilen.ablage.size, 1, "Skript wurde auf dem Server gespeichert");
+  assert.ok([...server.teilen.ablage.values()].includes(CODE), "Skript wurde auf dem Server gespeichert");
   assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ nach dem Senden");
   await keinLokalerLink(page, "fertig");
 
@@ -101,6 +101,7 @@ for (const [modus, status, muster] of [["aus", 503, /nicht|Server|später/i], ["
     erlaubt: [/api\/teilen/, new RegExp("status of " + status)],
   }, async ({ page, oeffne, server }) => {
     server.teilen.modus = modus;
+    const vorher = server.teilen.ablage.size;
     try {
       await oeffne();
       await setzeCode(page, CODE);
@@ -121,7 +122,7 @@ for (const [modus, status, muster] of [["aus", 503, /nicht|Server|später/i], ["
       assert.match(meldung, muster, `verständliche Meldung bei ${status}: ${meldung}`);
       assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ in der Fehlermeldung");
       await keinLokalerLink(page, String(status));
-      assert.equal(server.teilen.ablage.size, 0);
+      assert.equal(server.teilen.ablage.size, vorher, "nichts gespeichert");
     } finally {
       server.teilen.modus = "mock";
     }
