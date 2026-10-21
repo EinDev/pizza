@@ -237,3 +237,151 @@ Obergrenze): Minispiel-Anteil am Umsatz nach 60 min 4,4–4,9 % (je 5-min-Fenste
 Klickanteil 7,2–8,4 %. Tests: `.ereignisse` aus echtem Lauf, jedes Spiel einmal
 gewonnen und einmal verloren, dazu die gesperrte Spielecke in der Fastenzeit; der Generator wechselt vor jedem Klick in den
 Reiter des Ziels und bricht bei unsichtbaren Zielen ab (E2E klickt wie ein Nutzer).
+
+## 11. Content-Plan v5 – „Wellen“ (Pizza-Imperium, Plan)
+
+Nutzer: „Wir brauchen mehr von allem. Mehr Content grundsätzlich. Aber immer aufpassen, dass man nie mit zu viel auf einmal
+erschlagen wird, es muss immer Zeugs verschwinden und auftauchen.“ – „Geheimrezepte sollten verschwinden, wenn sie gelernt sind,
+und stattdessen neue auftauchen.“ – „Wenn das Rezeptbuch gelesen ist, entferne es aus dem UI, damit die nächste Funktion Platz hat.“
+– „Füge 10x, 100x und Max-Buttons hinzu beim Kauf.“
+
+### 11.1 Prinzip „Wellen“
+
+1. **Deckel je Bereich:** Jeder Bereich zeigt höchstens eine kleine Zahl **offener** Optionen (Tabelle 11.2). Offen = man kann
+   oder könnte bald etwas damit tun. Was dahinter wartet, ist unsichtbar (kein „🔒 ???“-Friedhof) – es **rückt nach**, sobald
+   ein Platz frei wird.
+2. **Erledigtes verschwindet:** Gelerntes, Geschafftes, Gekauftes (Einmal-Käufe) klappt in **eine** kompakte Zeile
+   („✅ Gelernt: 🔥 🫙 🎉“, Hinweis mit den Namen). Ganz erledigte Abschnitte (Rezeptbuch ausgelesen) verschwinden komplett und
+   machen Platz für die **nächste Funktion** an derselben Stelle.
+3. **Neues taucht mit Bedingung auf:** Alles Neue hat eine Freischalt-Bedingung (Stückzahl, Sterne, Filialen, Siege …) und
+   kommt mit `einblenden` (Paket 4) und einer Meldung – nie mehrere Bereiche gleichzeitig.
+4. **Fensterbudget:** 660 × 780 px, kein garantiertes Scrollen; die Deckel sorgen dafür, dass die Backstube auch spät ins
+   Fenster passt (≈ 14 Zeilen Inhalt).
+5. **Technik (nur vorhandene Theke-Zutaten):** Wellen leben **in** Abschnitten (`sichtbar`, `Abschnitt.setzeTitel`,
+   `hinzu`/`leeren`, später `uebergang(ja)`). Neue Reiter gibt es nicht dynamisch (Wunsch W1). Was sich in Wellen bewegt, wird
+   in `zeichneVoll()` entschieden; jede Zustandsänderung, die eine Welle verschiebt, erhöht `spiel.version`.
+
+### 11.2 Deckel je Bereich
+
+| Bereich | sichtbar offen (höchstens) | Erledigtes | rückt nach / taucht auf |
+|---|---|---|---|
+| 📖 Rezeptbuch | 1 Knopf (nächste Seite) | ausgelesen → Abschnitt weg | an seine Stelle: 🧀 Feinkost-Händler |
+| 🧀 Feinkost-Händler (neu) | 2 Angebote | „✅ Im Lager: 🍅 🧀 …“ | nächstes Angebot, sobald eins gekauft ist |
+| 🎓 Meisterbriefe (neu) | 3 (die billigsten erfüllten) | „✅ n Meisterbriefe“ | bei 10/25/50/100 Stück eines Gebäudes |
+| 🛠 Handwerk | gekaufte + 1 nächstes (≤ 6) | – | wie bisher |
+| 🏭 Betrieb | die 6 jüngsten Gebäude + 1 nächstes | ältere → Zeile „🧺 Kleinbetriebe: 🧑‍🍳×120 🧱×80 … (2 % der Produktion)“ mit Knopf „▸ zeigen“ | neues Gebäude, sobald das vorige gekauft ist |
+| 📜 Geheimrezepte | 3 (Voraussetzung erfüllt, nach Kosten) | „✅ Gelernt: …“ | nächstes Glied der Kette |
+| 🏅 Herausforderungen | 2 | „✅ Geschafft: 🔥 🍍 🙏“ | zweite Staffel ab der 1. Franchise |
+| 🏆 Erfolge | die letzten 8 erreichten + 3 nächste Ziele | Kopf „32 von 55“ | nächste Ziele nach Fortschritt |
+| 🎲 Minispiele | 4 Zeilen | – | Meister-Variante **ersetzt** die Grundform nach 3 Siegen |
+| 🎉 Ereignisse | 1 laufendes | – | neue Ereignisarten mit Bedingung im Topf |
+
+### 11.3 Pakete (seriell, je ein Commit)
+
+**Paket 1 – Rezeptbuch und Geheimrezepte als Welle** (kein neuer Spielstand-Inhalt)
+- Rezeptbuch ausgelesen → `rezeptTeil.sichtbar(nein)`; das Rezept („Margherita mit …“) wandert als `hinweis` an die Kennzahlen.
+  Hawaii-Verbot: Abschnitt bleibt mit Schloss sichtbar (vorübergehend, erklärt die Auflage). Mit Nonnas Gedächtnis bleibt er
+  nach der Neueröffnung weg; Erfolg „Nonnas Liebling“ unverändert.
+- Geheimrezepte: höchstens 3 offene Zeilen (Voraussetzung erfüllt, nicht gelernt; sortiert nach Kosten, dann Reihenfolge);
+  gelernte verschwinden in die Zeile „✅ Gelernt: …“. Nach der Franchise (Talente leer) beginnt die Welle von vorn.
+- `aus(s, k, ersatz)` → `s.hole(k, ersatz)` (K-095).
+
+**Paket 2 – Kaufmenge 1× · 10× · 100× · Max**
+- Ein **Umschalter** über Handwerk/Betrieb (Reihe aus vier Knöpfen `menge-1`, `menge-10`, `menge-100`, `menge-max`; gewählt =
+  Farbe `basilikum`), statt vier Knöpfe je Zeile (passt nicht in 130 px, erschlägt). Taucht auf, sobald man von irgendeinem
+  Upgrade 10 Stück hat oder einmal neu eröffnet hat (Welle!). Die Wahl gilt für alle Zeilen und wird nicht gespeichert
+  (Sitzungs-Komfort).
+- Kauf-Knopf (`kauf-<schlüssel>`, unverändert) zeigt **Preis zuerst**: „12,3 Mio. € (×10)“, bei Max „1,2 Mio. € (Max 37)“;
+  Summe = Σ der **gerundeten** Einzelpreise `kostenBei(n … n+k−1)` (genau wie Einzelkäufe), Max = größtes k mit Summe ≤ Kasse
+  (Schleife, höchstens 1000). Unbezahlbar → deaktiviert (Max 0 zeigt den Preis von einem Stück). Balken = Kasse / Summe.
+  `setzeAnzahl` einmal nach dem Kauf; Meldung „🧱 Steinofen ×10 gekauft (jetzt 35).“
+
+**Paket 3 – Content** (Spielstand `version` 5; ältere Stände laden mit Standardwerten; Unter-Pakete einzeln committen)
+
+*3a – Geheimrezepte in fünf Ketten* (bestehende Schlüssel bleiben; Kosten in ⭐, Kette = „braucht“ das vorige Glied)
+
+| Kette | Glieder (Kosten · Wirkung) |
+|---|---|
+| 🔥 Ofen | Holzofen-Glut (1 · Betrieb +50 %) → Lavastein-Ofen (4 · Sonderschicht ×2, 45 s Abkühlung) → Vesuv-Kamin (7 · Ofen bis 535 °C) → Ewige Glut (11 · Abkühlung 20 s) → Ofenflüsterer (16 · Betrieb +100 %) |
+| 🫙 Teig | Sauerteig von 1890 (1 · Preis +20 %) → Nonnas Gedächtnis (3 · Rezeptbuch bleibt) → 72-Stunden-Teig (6 · Preis +30 %) → Mutterhefe aus Neapel (10 · Preis +50 %) → Teig mit Seele (15 · perfekte Pizza ×25 statt ×10) |
+| 🎉 Gäste | Stammgäste (2 · Ereignisse ×2) → Mundpropaganda (4 · Großbestellungen immer pünktlich) → Hawaii-Diplomatie (6 · bekehrte Hawaii-Gäste ×3) → Kritikerliebling (9 · Freitagabend 60 s) → Kultstatus (14 · alle Ereignis-Boni ×2) |
+| 🧦 Nonna | Nonnas Sparstrumpf (2 · Start mit 10 Lehrlingen + 5 Steinöfen) → Nonnas Erbstück (5 · Start zusätzlich mit 10 Rollern und 1 Filiale in Wuppertal) → Familienbetrieb (8 · offline 75 % statt 50 %, weiter höchstens 30 min) → Nonnas Segen (12 · +12 % statt +10 % je aktivem Stern) |
+| 🎲 Spiel | Nonnas Kartenspiel (3 · Minispiel-Pause 90 s) → Glückspilz (6 · perfekte Pizza 3 % statt 2 %) → Spielecken-Abo (10 · Minispiel-Gewinn +50 %) |
+
+22 Rezepte (Summe ≈ 160 ⭐ – mehrere Ketten-Durchläufe, nach jeder Franchise wieder von vorn). Welle: 3 offen.
+
+*3b – 🎓 Meisterbriefe* (Einmal-Käufe gegen €, je Gebäude bei 10/25/50/100 Stück, Wirkung: dieses Gebäude ×1,5; Preis = 8 × Preis
+des Stücks Nr. 10/25/50/100). Je Gebäude eigene Namen, z. B. Lehrling: Kochmütze · Gesellenprüfung · Meisterbrief ·
+Lehrlingsgewerkschaft; Steinofen: Schamottsteine · Ofenkachel aus Neapel · Pizzaschaufel aus Kirschholz · Ofensegen vom Pfarrer;
+Roller: Warmhaltebox · Vespa-Tuning · Navi mit Nonna-Stimme · Blaulicht (inoffiziell); Wuppertal: Schwebebahn-Lieferung ·
+Elberfelder Teigwerk · Barmer Margherita · Ehrenbürgerschaft; Teigfabrik: Fließband · Teigroboter · 24/7-Schicht · Mehlsilo
+„Nonna I“; Satellit: Hitzeschild · Fallschirm mit Basilikum-Muster · Umlaufbahn über Neapel · Zweiter Satellit (heimlich);
+Mond: Mondkäse (endlich echt) · Krater-Ofen · Schwerelos-Teig · Mondbasis „Margherita“; Zentrale: Excel-Tabelle ·
+Franchise-Handbuch · Hauptversammlung im Ofen · Börsengang (WKN: PIZZA); neue Gebäude (3c) analog. Welle: 3 offen; Reset bei
+Neueröffnung wie Upgrades.
+
+*3c – Gebäude* (Betrieb, je ×13–15 teurer, ×4,3 Wirkung):
+- 🚚 Foodtruck (25 Tsd. €, 40/s) zwischen Roller und Wuppertal – „Parkt immer genau vor der Konkurrenz.“
+- nach der Franchise-Zentrale (also erst nach der 1. Franchise sichtbar): 🪐 Saturnring-Lieferdienst (35 Mrd. €, 130 Tsd./s,
+  „Die Ringe sind aus Parmesan. Behauptet die Werbung.“), 🕳️ Wurmloch-Lieferung (500 Mrd. €, 600 Tsd./s, „Die Pizza kommt an,
+  bevor sie bestellt wurde.“), 🌌 Galaktische Pizzakette (7 Bio. €, 2,8 Mio./s), ⏳ Nonnas Zeitmaschine (100 Bio. €, 13 Mio./s,
+  „Holt Rezepte aus dem Jahr 1890 – original!“), 🍕 Pizza-Multiversum (1,5 Brd. €, 60 Mio./s, „In jedem Universum ohne Ananas.“).
+- Betrieb-Welle: höchstens 6 Gebäudezeilen + Kleinbetriebe-Zeile (§11.2).
+
+*3d – Ereignisse* (Topf wächst mit Bedingungen; keine reinen Strafen):
+
+| Ereignis | ab | Wirkung |
+|---|---|---|
+| 🧐 Restaurantkritiker | 1 Stern insgesamt | 30 s: jede Pizza bringt doppelt so viel |
+| 🌧 Regentag | 10 Roller | 45 s: Betrieb ×2 („Alle bestellen Lieferung“) |
+| 🎂 Nonnas Geburtstag | 1. Neueröffnung | sofort Portion × 30, Nonna backt selbst |
+| 📱 Food-Influencer | Filiale in Wuppertal | 60 s: Betrieb ×1,5 („#pizzaporn – Nonna versteht es nicht“) |
+| 🍍 Ananas-Schmuggler | 3 bekehrte Hawaii-Gäste | Nonna konfisziert 12 Kisten und verkauft sie an die Konkurrenz: Portion × 10 |
+| 🎤 Tenor im Lokal | Foodtruck | 20 s: Klicks ×3 („O sole mio!“) |
+
+*3e – Erfolge* (+≈ 30, u. a.): Pizzen 1 Mrd./1 Bio.; Umsatz 1 Mrd./1 Bio.; „Lehrlingsheim“ (100 Lehrlinge), „Hitzewelle“ (100
+Steinöfen), „Fuhrpark“ (50 Roller), „Food-Truck-Festival“ (25 Foodtrucks); „Feinschmecker“ (alles beim Feinkost-Händler);
+„Meisterhaft“ (10 Meisterbriefe); „Nonnas Erbe“ (10 Geheimrezepte); „Kritikerliebling“ (3 Kritiker), „Regenmacher“;
+„Kaufrausch“ (100 auf einmal), „Alles muss raus“ (Max kauft ≥ 50); „Nachteule“ (Offline-Bonus erhalten); „Doppelt hält besser“
+(2 Franchises), „Galaxie“ (Galaktische Pizzakette); Minispiel-Meister je Spiel; je ein Erfolg für die zweite
+Herausforderungs-Staffel; versteckter Humor: „Hawaii? Nein danke.“ (50 bekehrte Gäste), „Ich hab nur kurz geklickt“ (10.000 Klicks).
+
+*3f – Herausforderungen, zweite Staffel* (ab 1. Franchise; Welle: 2 offen):
+- 💸 Inflation – alle Upgrades kosten das Dreifache; Ziel 20 Mrd. € → Upgrades für immer 10 % billiger.
+- 🤏 Mini-Küche – höchstens 25 Stück je Gebäude; Ziel 50 Mrd. € → Betrieb für immer +50 %.
+- 🏖 Nonna im Urlaub – Geheimrezepte wirken nicht; Ziel 100 Mrd. € → Geheimrezepte kosten für immer 1 ⭐ weniger (mindestens 1).
+
+*3g – Minispiel-Varianten* (Meister-Variante ersetzt nach 3 Siegen die Grundform, Gewinn 12–14 s):
+🫓 Pizzaiolo-Wurf (Ziel 2 Felder, Schlag 120 ms) · 🧾 Großfamilie (6 Beläge, 4 s merken) · 🌡 Lavastein-Ofen (Ziel 400–430 °C,
+stärkere Drift) · 🛵 Rushhour (4 Wege).
+
+*3h – 🧀 Feinkost-Händler* (nimmt den Platz des ausgelesenen Rezeptbuchs; Einmal-Käufe, Reset bei Neueröffnung): San-Marzano-
+Tomaten (+15 % Preis), Mehl Tipo 00 (+15 %), Büffelmozzarella aus Kampanien (+20 %), Olivenöl extra vergine (+10 %), Basilikum
+aus Genua (+10 %), Meersalz aus Trapani (+5 %, „Nonna sagt: das schmeckt man“), weißer Trüffel aus Alba (+50 %); ab 300 Mrd. €,
+je ×6. Welle: 2 offen.
+
+*Reihenfolge in Paket 3:* 3a → 3c → 3b → 3d → 3e → 3f → 3g → 3h (Wirkung zuerst, Feinkost zuletzt – sie braucht das späte Spiel).
+*Ausblick (nicht in dieser Runde):* eine fünfte Ebene „🌍 Pizza-Weltmeisterschaft“ nach mehreren Franchises.
+
+**Paket 4 – Animationen (U-59, sparsam):** `huepfen` am Backen-Knopf beim Klick, `schwebe("+n")` über dem Backen-Knopf,
+`funkeln` an der Meldung beim Glückstreffer, `aufpoppen` an der Meldung bei Erfolgen, `einblenden` für neu auftauchende Zeilen
+(Wellen), `puls` an der Kasse bei großen Einnahmen (Sonderschicht, Großbestellung, Minispiel-Sieg). Wasm fällt dafür bewusst auf
+den Interpreter zurück.
+
+### 11.4 Abnahme je Paket
+
+`npm test`, `node pruefstand/run.js`, `npm run test:differenz`, E2E 05/07 (Szenario klickt nur sichtbare Zutaten im aktiven
+Reiter), `.ereignisse` aus echtem Lauf (Interpreter, Saat 42, Vorrat leer) mit den neuen Inhalten, Balancing-Bot (Klickanteil
+klein; **Deckelprüfung:** der Bot zählt je Takt die sichtbaren offenen Zeilen je Bereich und meldet Verstöße gegen §11.2),
+alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
+
+### 11.5 Wünsche an Theke/Sprache (nicht selbst gebaut)
+
+| Nr. | Wunsch | Wozu | Umweg heute |
+|---|---|---|---|
+| W1 | `Reiter`: Seiten ein-/ausblenden und Titel ändern (`setzeTitel(n, t)`, `seiteSichtbar(n, d)`) | Reiter erst zeigen, wenn die Ebene offen ist; Kennzeichen „•“ für Neues | gesperrte Reiter zeigen einen Schloss-Text |
+| W2 | Einklappbarer `Abschnitt` (`zu(d)`, Ereignis beim Auf-/Zuklappen) | „Erledigt“- und Kleinbetriebe-Zeilen | Knopf „▸ zeigen“ + `sichtbar` |
+| W3 | Umschalter/Segment-Auswahl (`Auswahl(["1×","10×","100×","Max"])`) | Kaufmenge | vier Knöpfe, gewählter eingefärbt |
+| W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks |
+| W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) |
+| W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt |
