@@ -15,7 +15,20 @@ const HAUPT = [
   "}",
 ].join("\n");
 
+const LAUF_KNOPF = '[data-testid="lauf-optionen"]';
+const LAUF_POPOVER = '[data-testid="lauf-popover"]';
+const SAAT = '[data-testid="feste-saat"]';
+const popoverOffen = (page) => page.$eval(LAUF_POPOVER, (p) => !p.hidden);
+const punktSichtbar = (page) => page.$eval("#lauf-punkt", (p) => !p.hidden && getComputedStyle(p).display !== "none");
+
+/** Lauf-Einstellungen (Popover mit Argumente-Feld und „feste Saat“) öffnen, falls noch zu. */
+async function oeffneLaufOptionen(page) {
+  if (!(await popoverOffen(page))) await page.click(LAUF_KNOPF);
+  await page.waitForSelector(`${LAUF_POPOVER}:not([hidden])`, { visible: true });
+}
+
 async function setzeArgs(page, text) {
+  await oeffneLaufOptionen(page);
   await page.click(ARGS, { count: 3 });
   await page.keyboard.down("Control"); await page.keyboard.press("KeyA"); await page.keyboard.up("Control");
   await page.keyboard.press("Backspace");
@@ -37,10 +50,11 @@ e2e("Argumente: Luigi \"Tisch 5\" 3 → hauptgang(args) bekommt [Luigi, Tisch 5,
   await setzeCode(page, HAUPT);
   assert.equal(await argsWert(page), "", "neuer Tab ohne Argumente");
   await setzeArgs(page, 'Luigi "Tisch 5" 3');
-  // Enter im Argumente-Feld startet den Lauf
+  // Enter im Argumente-Feld startet den Lauf und schließt das Popover
   await ereignisseLeeren(page);
   await page.keyboard.press("Enter");
   await warteLaufEnde(page);
+  assert.equal(await popoverOffen(page), false, "Popover nach Enter geschlossen");
   assert.equal(await konsolenAusgabe(page), "Anzahl: 3\n[Luigi]\n[Tisch 5]\n[3]\n");
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
   // Kommandozeilen-Regeln: '…' wörtlich, \" in "…", leere Werte
@@ -74,6 +88,51 @@ e2e("Argumente: pro Tab gespeichert, Tab-Wechsel und Reload stellen sie wieder h
   await warteAufTabMuster(page, "unbenannt-2.pizza");
   assert.equal(await argsWert(page), "Mario");
   assert.equal(await backenUndAusgabe(page), "Anzahl: 1\n[Mario]\n");
+});
+
+e2e("Lauf-Einstellungen: Hinweis-Punkt bei Argumenten/fester Saat; Palettenbefehl öffnet das Popover mit Fokus im Feld; Esc schließt", async ({ page, oeffne }) => {
+  await oeffne();
+  await neuerTab(page);
+  // Grundzustand der Tests: feste Saat an (hilfen.mjs) → Punkt sichtbar; ausschalten → kein Punkt
+  assert.equal(await popoverOffen(page), false, "Popover anfangs zu");
+  assert.equal(await page.$eval(SAAT, (b) => b.checked), true, "feste Saat in E2E vorbelegt");
+  assert.equal(await punktSichtbar(page), true, "Punkt bei fester Saat");
+  await oeffneLaufOptionen(page);
+  await page.click(SAAT);
+  assert.equal(await page.$eval(SAAT, (b) => b.checked), false);
+  assert.equal(await punktSichtbar(page), false, "kein Punkt ohne Argumente und ohne feste Saat");
+  // Argumente → Punkt; wieder leeren → weg
+  await setzeArgs(page, "Mario");
+  assert.equal(await punktSichtbar(page), true, "Punkt bei gesetzten Argumenten");
+  assert.match(await page.$eval(LAUF_KNOPF, (k) => k.title), /Argumente: Mario/);
+  await setzeArgs(page, "");
+  assert.equal(await punktSichtbar(page), false, "Punkt weg nach Leeren");
+  // feste Saat wieder an → Punkt
+  await page.click(SAAT);
+  assert.equal(await punktSichtbar(page), true, "Punkt bei fester Saat");
+  // Esc schließt, Fokus zurück auf den Knopf
+  await page.focus(ARGS);
+  await page.keyboard.press("Escape");
+  assert.equal(await popoverOffen(page), false, "Esc schließt");
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.dataset.testid), "lauf-optionen");
+  // Palettenbefehl öffnet das Popover mit Fokus im Feld
+  await page.focus("#editor .cm-content");
+  await page.keyboard.press("F1");
+  await page.waitForSelector('[data-testid="befehlspalette"][open]');
+  await page.focus('[data-testid="befehlspalette-eingabe"]');
+  await page.keyboard.type("Argumente");
+  await schlafe(100);
+  const ok = await page.$$eval('[data-testid="befehlspalette-eintrag"]', (e) => {
+    const z = e.find((x) => x.textContent.includes("Argumente für hauptgang(args) bearbeiten"));
+    if (z) z.click();
+    return !!z;
+  });
+  assert.ok(ok, "Palettenbefehl vorhanden");
+  await page.waitForSelector(`${LAUF_POPOVER}:not([hidden])`, { visible: true });
+  await page.waitForFunction(() => document.activeElement && document.activeElement.dataset.testid === "argumente");
+  // Klick daneben schließt
+  await page.click("#editor .cm-content");
+  assert.equal(await popoverOffen(page), false, "Klick daneben schließt");
 });
 
 // ---------------------------------------------------------------- Vorrat löschen (Befehlspalette)
