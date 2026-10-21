@@ -49,7 +49,7 @@ RUN if [ "$SKIP_TESTS" = "1" ]; then \
 # Schlägt das Skript fehl, wird (Standard) gewarnt; STRICT_BUILD=1 bricht ab.
 # Cargo-Registry und target/ liegen in BuildKit-Cache-Mounts (schnelle Rebuilds).
 # ---------------------------------------------------------------------------
-FROM rust:1.99.1-slim-trixie AS exe
+FROM rust:1.99.1-slim-bookworm AS exe
 
 ARG SKIP_EXE=0
 ARG STRICT_BUILD=0
@@ -72,7 +72,7 @@ ENV AUSGABE_DIR=/out \
     CARGO_TARGET_DIR=/app/host/target \
     XWIN_DIR=/opt/xwin
 RUN --mount=type=cache,id=pizza-cargo-registry,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=pizza-host-target,target=/app/host/target \
+    --mount=type=cache,id=pizza-host-target-bookworm,target=/app/host/target \
     --mount=type=cache,id=pizza-xwin,target=/opt/xwin \
     mkdir -p /out && \
     if [ "$SKIP_EXE" = "1" ]; then \

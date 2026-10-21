@@ -77,7 +77,7 @@ Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Doc
 |---|---|---|---|
 | `windows-x64` | `x86_64-pc-windows-msvc` (mit Theke, CRT statisch) | xwin (MSVC-CRT + Windows-SDK) + rust-lld | `pizza-host-windows-x64-<sha12>.exe` |
 | `linux-x64` | `x86_64-unknown-linux-musl` (statisch, ohne Theke) | musl-tools | `pizza-host-linux-x64-<sha12>` |
-| `linux-x64-theke` | `x86_64-unknown-linux-gnu` (glibc, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-theke-<sha12>` |
+| `linux-x64-theke` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-theke-<sha12>` |
 | `linux-arm64` | `aarch64-unknown-linux-musl` (statisch, optional) | rust-lld | `pizza-host-linux-arm64-<sha12>` |
 
 Dazu `ziele.json` (`version`, `ziele: [{ id, name, triple, datei, endung, groesse, sha256, theke, voraussetzung }]`;

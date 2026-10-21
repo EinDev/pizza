@@ -52,7 +52,7 @@ voraussetzung() {
     windows-x64:1) echo "Windows 10/11 (x64). Theke-Fenster über die Microsoft-Edge-WebView2-Runtime (ab Windows 10/11 meist vorinstalliert)." ;;
     windows-x64:0) echo "Windows 10/11 (x64). Ohne Theke-Fenster (W0100)." ;;
     linux-x64:*) echo "Linux x64, keine Abhängigkeiten (statisch). Kein Theke-Fenster (W0100)." ;;
-    linux-x64-theke:*) echo "Linux x64 mit glibc und WebKitGTK 4.1 (z. B. Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0)." ;;
+    linux-x64-theke:*) echo "Linux x64 mit glibc ab 2.34 (z. B. Ubuntu 22.04+, Debian 12+, Fedora 36+) und WebKitGTK 4.1 (Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0, Fedora: sudo dnf install webkit2gtk4.1). Ohne WebKitGTK startet das Programm nicht." ;;
     linux-arm64:*) echo "Linux ARM64 (z. B. Raspberry Pi 4/5, 64 Bit), keine Abhängigkeiten (statisch). Kein Theke-Fenster (W0100)." ;;
   esac
 }
