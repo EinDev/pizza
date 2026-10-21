@@ -1,0 +1,4 @@
+// exit: 3
+// optionen: {"schrittLimit": 4000}
+bestelle(() -> { solange (ja) { } }).wennDa(x -> Bote.sage((x)));
+Bote.sage(("ende des Programms"));

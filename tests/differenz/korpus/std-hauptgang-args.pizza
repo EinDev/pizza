@@ -1,0 +1,10 @@
+// exit: 0
+// args: Margherita Funghi "Quattro
+speisekarte klasse Pizzeria {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage((args));
+        Bote.sage((args.länge()));
+        für (margherita a : args) { Bote.sage((a.groß())); }
+    }
+}
+Bote.sage(("snack zuerst"));

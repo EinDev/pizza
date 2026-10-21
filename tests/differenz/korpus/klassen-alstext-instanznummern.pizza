@@ -1,0 +1,20 @@
+// exit: 0
+klasse Punkt {
+    salami x; salami y;
+    Punkt(salami a, salami b) { x = a; y = b; }
+    margherita alsText() { serviere (("(" + x + "|" + y + ")")); }
+}
+klasse Ohne { }
+Bote.sage((neu Ohne()));
+Punkt p = neu Punkt(1, 2);
+Bote.sage((p));
+Bote.sage(("P=" + p));
+Bote.sage(([p, neu Punkt(3, 4)]));
+Bote.sage((neu Ohne()));
+Ohne o = neu Ohne();
+Bote.sage((o + "/" + o));
+Speisekarte<margherita, Punkt> k = neu Speisekarte<margherita, Punkt>();
+k.lege("a", p);
+Bote.sage((k));
+Bote.sage((p == p));
+Bote.sage((p == neu Punkt(1, 2)));

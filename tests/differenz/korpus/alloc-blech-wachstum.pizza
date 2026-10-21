@@ -1,0 +1,7 @@
+// exit: 0
+Blech<salami> b = neu Blech<salami>();
+für (salami i = 0; i < 100000; i++) { b.hinzu(i); }
+Bote.sage((b.länge()));
+Bote.sage((b.summe()));
+Bote.sage((b.stück(100000)));
+Bote.sage((b.filtere(x -> x % 1000 == 0).länge()));

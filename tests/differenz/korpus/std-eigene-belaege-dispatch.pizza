@@ -1,0 +1,17 @@
+// exit: 0
+@Nach(Tomate)
+belag Trüffel auf Pizza {
+    speisekarte funghi preis() { serviere ((unten.preis() + 4.50)); }
+    margherita beschreibung() { serviere (("edel: " + unten.beschreibung())); }
+}
+belag Käse auf Pizza {
+    margherita beschreibung() { serviere (("käsig, " + unten.beschreibung())); }
+}
+belag Gold auf Pizza { funghi preis() { serviere ((unten.preis() * 2)); } }
+Pizza p = ((Tomate, Käse, Trüffel, Gold));
+Bote.sage((p.preis()));
+Bote.sage((p.beschreibung()));
+Bote.sage(((p - Gold).preis()));
+Pizza g = ((Gold, Gold, Gold));
+Bote.sage((g.preis()));
+Bote.sage((((Tomate)).beschreibung()));

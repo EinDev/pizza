@@ -1,0 +1,4 @@
+// exit: 2
+gebacken klasse Fest { }
+klasse Lose erbt Fest { }
+Bote.sage(("nie"));

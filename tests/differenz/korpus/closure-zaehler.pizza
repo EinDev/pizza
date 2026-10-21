@@ -1,0 +1,9 @@
+// exit: 0
+Rezept<salami> macheZähler(salami start) {
+    salami n = start;
+    serviere ((() -> { n++; serviere ((n)); }));
+}
+Rezept<salami> a = macheZähler(0);
+Rezept<salami> b = macheZähler(100);
+a(); a();
+Bote.sage((a() + " " + b() + " " + a() + " " + b()));

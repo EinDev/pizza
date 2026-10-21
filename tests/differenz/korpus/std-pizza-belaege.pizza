@@ -1,0 +1,20 @@
+// exit: 0
+Pizza p = ((Tomate, Mozzarella, Basilikum));
+Bote.sage((p + " " + p.preis() + " " + p.anzahlBeläge()));
+Bote.sage((p.beläge()));
+Bote.sage((p.hat(Tomate) + " " + p.hat(Salami)));
+Pizza q = p + Salami + Chili + Chili;
+Bote.sage((q));
+Bote.sage(((q - Chili)));
+Bote.sage((q.preis()));
+Bote.sage((p.alsText()));
+Bote.sage(((())));
+Bote.sage((neu Pizza()));
+Bote.sage(((()).preis()));
+Bote.sage((Käse.name() + " " + Käse.preis() + " " + Kapern.preis()));
+Bote.sage((((Tomate, Mozzarella, Käse, Basilikum, Salami, Schinken, Pilze, Oliven, Zwiebeln, Paprika, Chili, Peperoni, Rucola, Parmesan, Gorgonzola, Thunfisch, Sardellen, Artischocken, Spinat, Ei, Mais, Knoblauch, Kapern)).preis()));
+Bote.sage((p.übrig()));
+Bote.sage((p == ((Tomate, Mozzarella, Basilikum))));
+Pizza alle = (());
+für (margherita n : ["Tomate", "Pilze"]) { Bote.sage((n)); }
+Bote.sage((((Pilze, Tomate)).preis().euro()));

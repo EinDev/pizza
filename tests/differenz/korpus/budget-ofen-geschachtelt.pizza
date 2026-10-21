@@ -1,0 +1,8 @@
+// exit: 0
+// Innerer Ofen genau am Budget (190ms), äußerer bei 194/195/196ms (am Interpreter gemessen).
+salami a194 = ofen(zeit: 194ms) { salami w = ofen(zeit: 190ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { serviere ((-1)); }; serviere ((w)); } roh (r) { Bote.sage(("außen roh")); serviere ((-2)); };
+Bote.sage((a194 + " " + Uhr.jetzt()));
+salami a195 = ofen(zeit: 195ms) { salami w = ofen(zeit: 190ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { serviere ((-1)); }; serviere ((w)); } roh (r) { Bote.sage(("außen roh")); serviere ((-2)); };
+Bote.sage((a195 + " " + Uhr.jetzt()));
+salami a196 = ofen(zeit: 196ms) { salami w = ofen(zeit: 190ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { serviere ((-1)); }; serviere ((w)); } roh (r) { Bote.sage(("außen roh")); serviere ((-2)); };
+Bote.sage((a196 + " " + Uhr.jetzt()));

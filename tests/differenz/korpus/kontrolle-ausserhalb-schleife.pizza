@@ -1,0 +1,15 @@
+// exit: 0
+// abbrechen/weiter außerhalb einer Schleife (in Ofen, Lambda, Funktion): SPEC schweigt dazu.
+// Der Interpreter beendet still den umgebenden Block (Wert karton) – Wasm muss das genauso machen.
+für (salami i = 0; i < 3; i++) {
+    Wert x = ofen(zeit: 1s) { falls (i == 1) { weiter; } serviere ((i)); };
+    Bote.sage(("ofen " + i + " = " + x));
+}
+Wert y = ofen(zeit: 1s) { abbrechen; serviere ((1)); };
+Bote.sage((y));
+Bote.sage(([1, 2].belege(x -> { falls (x == 2) { abbrechen; } serviere ((x)); })));
+leer f() { Bote.sage(("in f")); abbrechen; Bote.sage(("nie")); }
+f();
+salami g() { weiter; serviere ((1)); }
+Bote.sage((g() == karton));
+Bote.sage(("nach f"));

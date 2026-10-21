@@ -1,0 +1,17 @@
+// exit: 0
+klasse Zähler {
+    tiefkühl salami instanzen = 0;
+    tiefkühl Blech<salami> log = [];
+    salami nr;
+    Zähler() { instanzen++; nr = instanzen; Zähler.log.hinzu(nr); }
+    tiefkühl salami doppelt() { serviere ((instanzen * 2)); }
+    salami info() { serviere ((nr * 100 + doppelt())); }
+}
+für (salami i = 0; i < 5; i++) { neu Zähler(); }
+Zähler z = neu Zähler();
+Bote.sage((Zähler.instanzen));
+Bote.sage((Zähler.doppelt()));
+Bote.sage((z.info()));
+Bote.sage((Zähler.log));
+Zähler.instanzen = 0;
+Bote.sage((z.info()));

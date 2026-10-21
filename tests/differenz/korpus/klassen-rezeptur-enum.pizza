@@ -1,0 +1,19 @@
+// exit: 0
+speisekarte rezeptur Backbar { leer backe(salami grad); diavolo istFertig(); }
+klasse Brot erfüllt Backbar {
+    diavolo fertig = nein;
+    leer backe(salami grad) { falls (grad > 200) { fertig = ja; } }
+    diavolo istFertig() { serviere ((fertig)); }
+}
+Brot b = neu Brot();
+b.backe(100);
+Bote.sage((b.istFertig()));
+b.backe(250);
+Bote.sage((b.istFertig()));
+quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
+für (Jahreszeit j : Jahreszeit.werte()) {
+    margherita t = wähle (j) { fall Jahreszeit.SOMMER -> "heiß"; fall Jahreszeit.WINTER -> "kalt"; standard -> "mild"; };
+    Bote.sage((j + " " + j.name() + " " + j.position() + " " + t));
+}
+Bote.sage((Jahreszeit.SOMMER == Jahreszeit.SOMMER));
+Bote.sage((Jahreszeit.werte()));

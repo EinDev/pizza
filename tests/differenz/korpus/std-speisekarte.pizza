@@ -1,0 +1,26 @@
+// exit: 0
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("b", 2);
+k.lege("a", 1);
+k.lege("c", 3);
+k.lege("b", 20);
+Bote.sage((k));
+Bote.sage((k.hole("b") + " " + k.hole("x")));
+Bote.sage((k.hat("a") + " " + k.hat("x")));
+Bote.sage((k.schlüssel()));
+Bote.sage((k.werte()));
+Bote.sage((k.länge()));
+k.entferne("a");
+Bote.sage((k));
+k.lege("a", 0);
+Bote.sage((k.schlüssel()));
+für (margherita s : k) { Bote.sage((s + "=" + k.hole(s))); }
+Speisekarte<salami, margherita> z = neu Speisekarte<salami, margherita>();
+z.lege(1, "eins");
+z.lege(2, "zwei");
+Bote.sage((z.hole(1) + " " + z.hat("1")));
+Bote.sage((z));
+Speisekarte<margherita, salami> leer0 = neu Speisekarte<margherita, salami>();
+Bote.sage((leer0));
+k.entferne("gibtsnicht");
+Bote.sage((k.länge()));

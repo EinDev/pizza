@@ -1,0 +1,10 @@
+// exit: 0
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+für (salami i = 0; i < 20000; i++) { k.lege("k" + i, i * i); }
+Bote.sage((k.länge()));
+Bote.sage((k.hole("k19999")));
+Bote.sage((k.hat("k20000")));
+für (salami i = 0; i < 20000; i += 2) { k.entferne("k" + i); }
+Bote.sage((k.länge()));
+Bote.sage((k.schlüssel().stück(1)));
+Bote.sage((k.werte().summe()));

@@ -1,0 +1,21 @@
+// exit: 0
+klasse KüchenAnanas erbt LaufzeitAnanas { speisekarte KüchenAnanas(margherita m) { unten(m); } }
+klasse OfenAnanas erbt KüchenAnanas { speisekarte OfenAnanas(margherita m) { unten("Ofen: " + m); } }
+klasse PrüfAnanas erbt GeprüfteAnanas { PrüfAnanas(margherita m) { unten(m); } }
+Blech<salami> fälle = [1, 2, 3, 4];
+für (salami i : fälle) {
+    probier {
+        wähle (i) {
+            fall 1 -> wirf neu KüchenAnanas("k");
+            fall 2 -> wirf neu OfenAnanas("o");
+            fall 3 -> wirf neu PrüfAnanas("p");
+            standard -> wirf neu Ananas("basis");
+        }
+    } verbrannt (OfenAnanas a) { Bote.sage(("Ofen-Zweig " + a)); }
+    verbrannt (KüchenAnanas a) { Bote.sage(("Küchen-Zweig " + a + " " + a.typ())); }
+    verbrannt (LaufzeitAnanas a) { Bote.sage(("Laufzeit-Zweig " + a)); }
+    verbrannt (a) { Bote.sage(("Rest " + a + " / " + a.holeNachricht())); }
+}
+OfenAnanas o = neu OfenAnanas("x");
+Bote.sage((o.nachricht()));
+Bote.sage((o));

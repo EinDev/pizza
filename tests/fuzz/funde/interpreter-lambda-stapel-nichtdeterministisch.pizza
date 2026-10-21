@@ -1,0 +1,9 @@
+// Fund (Differenz-Korpus rekursion-methoden-tiefe, Selbstkonsistenz Interpreter):
+// Rekursion über ein Lambda läuft nicht in den festen Tiefenzähler (MAX_TIEFE = 900), sondern in den
+// JS-Stapel (RangeError). Die Abbruchtiefe hängt vom JIT-Zustand ab → schritte/zeitMs schwanken zwischen
+// zwei Läufen im selben Prozess (gemessen: 8005 vs. 8115 Schritte). Wasm/Host können das nicht nachbilden.
+// Erwartung: Lambdas zählen wie Methoden in die feste Tiefe; Ergebnis identisch in jedem Lauf.
+// Reproduktion: node -e "const P=require(\"./site/js/pizza.js\");const q=require(\"fs\").readFileSync(process.argv[1],\"utf8\");for(let i=0;i<4;i++)console.log(P.run(q).schritte)" <diese Datei>
+Rezept<salami> lam = x -> x;
+lam = n -> n == 0 ? 0 : lam(n - 1) + 1;
+probier { Bote.sage((lam(5000))); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

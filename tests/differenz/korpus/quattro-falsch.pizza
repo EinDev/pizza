@@ -1,0 +1,3 @@
+// exit: 2
+quattrostagioni Drei { A, B, C }
+Bote.sage(("nie"));

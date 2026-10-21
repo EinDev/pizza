@@ -1,0 +1,15 @@
+// exit: 0
+für (salami i = 0; i < 6; i++) {
+    probier {
+        falls (i == 1) { weiter; }
+        falls (i == 4) { abbrechen; }
+        falls (i == 2) { wirf neu StreitAnanas("zwei"); }
+        Bote.sage(("körper " + i));
+    } verbrannt (a) { Bote.sage(("fang " + i)); } rand { Bote.sage(("rand " + i)); }
+}
+salami j = 0;
+solange (j < 5) {
+    j++;
+    probier { probier { falls (j % 2 == 0) { weiter; } wirf neu RechenAnanas("r" + j); } rand { Bote.sage(("innen-rand " + j)); } }
+    verbrannt (RechenAnanas r) { Bote.sage((r.nachricht())); }
+}

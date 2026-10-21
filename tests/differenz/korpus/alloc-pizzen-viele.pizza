@@ -1,0 +1,13 @@
+// exit: 0
+Pizza p = ((Tomate));
+funghi summe = 0;
+für (salami i = 0; i < 20000; i++) {
+    Pizza q = p + Salami;
+    summe += q.preis();
+}
+Bote.sage((summe));
+Pizza gross = ((Tomate));
+für (salami i = 0; i < 500; i++) { gross = gross + Pilze; }
+Bote.sage((gross.anzahlBeläge()));
+Bote.sage((gross.preis()));
+Bote.sage(((gross - Pilze).anzahlBeläge()));

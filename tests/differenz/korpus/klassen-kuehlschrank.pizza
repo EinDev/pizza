@@ -1,0 +1,20 @@
+// exit: 0
+klasse Rechner {
+    salami aufrufe = 0;
+    @Kühlschrank(haltbar: 2h)
+    salami teuer(salami x) { aufrufe++; serviere ((x * x + aufrufe)); }
+}
+Rechner r = neu Rechner();
+Rechner r2 = neu Rechner();
+Bote.sage((r.teuer(3) + " " + r.teuer(3) + " " + r.teuer(4) + " " + r2.teuer(3)));
+Uhr.vorspulen(1h);
+Reste<salami> a = r.teuer.mikrowelle(3);
+Bote.sage((a.wert() + " " + a.istMatschig()));
+Uhr.vorspulen(90min);
+Reste<salami> b = r.teuer.mikrowelle(3);
+Bote.sage((b.wert() + " " + b.istMatschig()));
+Bote.sage((r.teuer(3)));
+Bote.sage((r.teuer.frisch(3)));
+Bote.sage((r.aufrufe + " " + r2.aufrufe));
+Reste<salami> c = r.teuer.mikrowelle(99);
+Bote.sage((c.wert() + " " + c.istMatschig()));

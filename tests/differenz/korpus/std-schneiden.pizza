@@ -1,0 +1,9 @@
+// exit: 1
+Blech<salami> b = [1 .. 8];
+Bote.sage((b / 4));
+Bote.sage((b / 8));
+Bote.sage((b.schneide(3)));
+Bote.sage((b.schneide(7)));
+Bote.sage((b.schneide(7)));
+Bote.sage(((b / 2).belege(t -> t.summe()).zusammenklappen((a, c) -> a + c)));
+Bote.sage((b / 3));

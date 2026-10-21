@@ -11,7 +11,9 @@
     "test": "node tests/run-tests.js",
     "test:pruefstand": "node pruefstand/run.js",
     "test:alles": "node scripts/test-alles.js",
-    "coverage": "node scripts/coverage.js"
+    "coverage": "node scripts/coverage.js",
+    "test:differenz": "node tests/differenz/run.js",
+    "test:fuzz": "node tests/fuzz/run.js"
   },
   "engines": {
     "node": ">=18"

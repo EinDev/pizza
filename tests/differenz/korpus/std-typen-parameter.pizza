@@ -1,0 +1,16 @@
+// exit: 0
+leer nimm(salami s, funghi f, margherita m, diavolo d, Dauer z, Pizza p) { Bote.sage((s + " " + f + " " + m + " " + d + " " + z + " " + p)); }
+nimm(1, 2, "drei", ja, 4s, ((Tomate)));
+probier { nimm(1.5, 2, "x", ja, 1s, ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("1: " + a.typ())); }
+probier { nimm(1, "2", "x", ja, 1s, ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("2: " + a.typ())); }
+probier { nimm(1, 2, 3, ja, 1s, ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("3: " + a.typ())); }
+probier { nimm(1, 2, "x", 0, 1s, ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("4: " + a.typ())); }
+probier { nimm(1, 2, "x", ja, 1000, ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("5: " + a.typ())); }
+probier { nimm(1, 2, "x", ja, 1s, 5); } verbrannt (TypAnanas a) { Bote.sage(("6: " + a.typ())); }
+nimm(1, 2, "x", ja, 1s, karton);
+salami teile(salami a, salami b) { serviere ((a - b)); }
+Bote.sage((teile(b: 1, a: 10)));
+leer nk(@NieKarton margherita t) { Bote.sage((t)); }
+probier { nk(karton); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+funghi fz = 3;
+Bote.sage((fz / 2));

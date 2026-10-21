@@ -1,0 +1,14 @@
+// exit: 0
+Dauer summe = 0ms;
+für (salami i = 1; i <= 50; i++) { summe = summe + i * 1s / 7; }
+Bote.sage((summe));
+Bote.sage((summe.inMs()));
+Bote.sage((summe > 3min));
+Dauer x = 3d;
+x = x - 1ms;
+Bote.sage((x));
+Bote.sage((x * 2 / 3));
+Bote.sage((Mathe.max(1, 2)));
+probier { Bote.sage((1s + 1)); } verbrannt (a) { Bote.sage((a)); }
+probier { Bote.sage((1s * 1s)); } verbrannt (a) { Bote.sage((a)); }
+probier { Bote.sage((1s / 0)); } verbrannt (a) { Bote.sage((a)); }

@@ -1,0 +1,13 @@
+// exit: 0
+Teig<salami> t = teig(() -> { Bote.sage(("berechne")); wirf neu StreitAnanas("Teig gerissen"); });
+probier { t.backen(); } verbrannt (StreitAnanas a) { Bote.sage(("1: " + a.nachricht())); }
+probier { t.backen(); } verbrannt (StreitAnanas a) { Bote.sage(("2: " + a.nachricht())); }
+Teig<salami> gut = teig(() -> (6 * 7));
+Bote.sage((gut.istAufgegangen()));
+gut.gehenlassen();
+Bote.sage((gut.istAufgegangen()));
+Bote.sage((gut.backen()));
+Bote.sage((gut.backen()));
+Teig<salami> flach = teig(() -> (1));
+Bote.sage((flach.backen()));
+Bote.sage((flach.backen()));

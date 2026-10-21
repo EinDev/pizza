@@ -1,0 +1,14 @@
+// exit: 0
+klasse Teigling {
+    salami gewicht;
+    Teigling(salami g) {
+        falls (g <= 0) { wirf neu StreitAnanas("Teig braucht Gewicht"); }
+        gewicht = g;
+    }
+}
+klasse Pizzaboden erbt Teigling { Pizzaboden(salami g) { unten(g * 2); Bote.sage(("Boden fertig")); } }
+probier { Teigling t = neu Teigling(0); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+probier { Pizzaboden p = neu Pizzaboden(0); Bote.sage(("nie")); } verbrannt (StreitAnanas a) { Bote.sage(("Basis warf: " + a.nachricht())); }
+Pizzaboden ok = neu Pizzaboden(3);
+Bote.sage((ok.gewicht));
+Bote.sage((ok));

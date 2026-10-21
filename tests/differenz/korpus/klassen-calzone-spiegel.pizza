@@ -1,0 +1,13 @@
+// exit: 0
+klasse Offen { salami a = 1; geheimrezept margherita b = "geheim"; }
+calzone klasse Konto { geheimrezept funghi stand = (1000.0); speisekarte margherita inhaber = "Luigi"; }
+Bote.sage((Spiegel.felder(neu Offen())));
+Konto k = neu Konto();
+probier { Spiegel.felder(k); } verbrannt (ZugeklapptAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((k.stand)); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+k.aufklappen();
+k.aufklappen();
+Bote.sage((Spiegel.felder(k)));
+k.stand = 5.5;
+Bote.sage((k.stand));
+probier { neu Offen().aufklappen(); } verbrannt (a) { Bote.sage((a)); }

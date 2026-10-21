@@ -1,0 +1,11 @@
+// exit: 0
+salami züge = 0;
+leer hanoi(salami n, margherita von, margherita nach, margherita über) {
+    falls (n == 0) { serviere; }
+    hanoi(n - 1, von, über, nach);
+    züge++;
+    falls (n >= 9) { Bote.sage(("Scheibe " + n + ": " + von + " → " + nach)); }
+    hanoi(n - 1, über, nach, von);
+}
+hanoi(12, "A", "C", "B");
+Bote.sage((züge));

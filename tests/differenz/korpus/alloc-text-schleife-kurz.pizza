@@ -1,0 +1,8 @@
+// exit: 0
+// Viele kurzlebige kleine Texte (GC-Druck): 100 000 Texte, nie mehr als einer lebendig.
+salami summe = 0;
+für (salami i = 0; i < 100000; i++) {
+    margherita t = "n" + i;
+    summe += t.länge();
+}
+Bote.sage((summe));

@@ -1,0 +1,18 @@
+// exit: 0
+klasse Rechner {
+    salami basis;
+    tiefkühl salami zähler = 0;
+    Rechner(salami b) { basis = b; }
+    salami add(salami x) { serviere ((basis + x)); }
+    tiefkühl salami quadrat(salami x) { Rechner.zähler++; serviere ((x * x)); }
+}
+Rechner r = neu Rechner(100);
+Rezept<salami> f = r.add;
+Bote.sage((f(1)));
+r.basis = 200;
+Bote.sage((f(1)));
+Bote.sage(([1, 2, 3].belege(Rechner.quadrat)));
+Bote.sage((Rechner.zähler));
+Bote.sage(([1, 2, 3].belege(neu Rechner(7).add)));
+Rezept<margherita> g = "abc".groß;
+Bote.sage((g()));

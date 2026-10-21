@@ -1,0 +1,14 @@
+// exit: 0
+salami PiZZa = 1;
+salami PizZa = 2;
+leer f(salami aB, salami Ab) { }
+für (salami i = 0; i < 3; i++) {
+    Blech<salami> b = [1 .. 7].schneide(7);
+    Teig<salami> t = teig(() -> (1));
+    t.backen();
+}
+klasse Alt { @PizzaVeraltet(grund: "nimm neu") leer alt() { } }
+Alt a = neu Alt();
+a.alt();
+a.alt();
+Bote.sage(("fertig"));

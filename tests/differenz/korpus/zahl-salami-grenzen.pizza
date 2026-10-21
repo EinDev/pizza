@@ -1,0 +1,25 @@
+// exit: 0
+// Ganzzahlen jenseits von i32: der Interpreter rechnet mit doubles.
+salami max = 2147483647;
+Bote.sage((max + 1));
+Bote.sage((max * 2));
+Bote.sage((max * max));
+salami min = 0 - 2147483648;
+Bote.sage((min - 1));
+Bote.sage((min * -1));
+Bote.sage((46341 * 46341));
+salami z = max;
+z++;
+Bote.sage((z));
+z += max;
+Bote.sage((z));
+salami p = 1;
+für (salami i = 0; i < 62; i++) { p *= 2; }
+Bote.sage((p));
+Bote.sage((p * 1024));
+salami q = 1;
+für (salami i = 0; i < 40; i++) { q = q * 3 + 1; }
+Bote.sage((q));
+Bote.sage((max % 7));
+Bote.sage((min % 7));
+Bote.sage(((max + 1) % 10));

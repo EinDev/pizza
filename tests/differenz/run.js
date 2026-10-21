@@ -49,6 +49,7 @@ const fallbackListe = [];
 const speicherListe = [];
 let fehlerAnzahl = 0;
 const funde = [];
+const eingabeOffen = [];
 const t0 = Date.now();
 
 for (const fall of faelle) {
@@ -57,7 +58,10 @@ for (const fall of faelle) {
   const titel = fall.quelle + '/' + fall.name;
   const r = pruefeFall(fall.code, fall.optionen);
   const probleme = r.probleme.slice();
-  if (fall.erwartetExit != null && r.ref.status === 'ok' && r.ref.exitCode !== fall.erwartetExit) {
+  const brauchtEingabe = /Bestellannahme|Bote\s*\.\s*(schreibe|leeren)/.test(fall.code);
+  if (brauchtEingabe && !M.eingabeUnterstuetzt()) {
+    eingabeOffen.push(titel);
+  } else if (fall.erwartetExit != null && r.ref.status === 'ok' && r.ref.exitCode !== fall.erwartetExit) {
     const fe = r.ref.ereignisse.filter(e => e.typ === 'fehler').map(e => e.text).join(' | ');
     probleme.push({ motor: 'interpreter', art: 'erwartung', details: ['Exit-Code ' + r.ref.exitCode + ', erwartet ' + fall.erwartetExit + (fe ? ' – ' + fe : '')] });
   }
@@ -114,6 +118,9 @@ if (fallbackListe.length) {
     console.log('  ' + gelb(String(l.length).padStart(4) + '×') + ' ' + g);
     console.log(grau('        ' + l.slice(0, 6).join(', ') + (l.length > 6 ? ', …' : '')));
   }
+}
+if (eingabeOffen.length) {
+  console.log(gelb('\nHinweis: ') + eingabeOffen.length + ' Fälle nutzen Ein-/Ausgabe (EINGABE.md), die der Interpreter noch nicht kann – Exit-Erwartung nicht geprüft: ' + grau(eingabeOffen.join(', ')));
 }
 if (speicherListe.length) {
   console.log(fett('\nSpeicherlimit (dokumentierte Grenze, kein Fehler) – ' + speicherListe.length));

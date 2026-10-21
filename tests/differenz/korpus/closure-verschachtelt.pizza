@@ -1,0 +1,18 @@
+// exit: 0
+Rezept<salami> addiere = a -> (b -> (c -> a + b + c));
+Bote.sage((addiere(1)(2)(3)));
+Rezept<salami> komponiere(Rezept<salami> f, Rezept<salami> g) { serviere ((x -> f(g(x)))); }
+Rezept<salami> plus1 = x -> x + 1;
+Rezept<salami> mal2 = x -> x * 2;
+Bote.sage((komponiere(plus1, mal2)(5)));
+Bote.sage((komponiere(mal2, plus1)(5)));
+Rezept<salami> n = x -> x;
+für (salami i = 0; i < 20; i++) { n = komponiere(plus1, n); }
+Bote.sage((n(0)));
+salami geteilt = 0;
+Rezept<salami> inc = () -> { geteilt += 5; serviere ((geteilt)); };
+Rezept<salami> lies = () -> geteilt;
+inc(); inc();
+Bote.sage((lies()));
+geteilt = 1;
+Bote.sage((inc()));

@@ -1,0 +1,8 @@
+// exit: 0
+margherita t = [1 .. 20000].belege(x -> x.alsText()).verbinde(",");
+Bote.sage((t.länge()));
+Blech<margherita> teile = t.zerlege(",");
+Bote.sage((teile.länge()));
+Bote.sage((teile.letztes()));
+Bote.sage(("ab".wiederhole(50000).länge()));
+Bote.sage((t.ersetze(",", "").länge()));

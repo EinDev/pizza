@@ -1,0 +1,7 @@
+// exit: 0
+salami fib(salami n) {
+    falls (n < 2) { serviere ((n)); }
+    serviere ((fib(n - 1) + fib(n - 2)));
+}
+für (salami i = 0; i <= 20; i++) { Bote.sage(("fib(" + i + ") = " + fib(i))); }
+Bote.sage((Uhr.jetzt()));

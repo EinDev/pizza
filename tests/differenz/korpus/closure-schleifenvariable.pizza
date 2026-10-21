@@ -1,0 +1,11 @@
+// exit: 0
+Blech<Rezept<salami>> fs = neu Blech<Rezept<salami>>();
+für (salami i = 0; i < 4; i++) { fs.hinzu(() -> i * 10); }
+für (Rezept<salami> f : fs) { Bote.sage((f())); }
+Blech<Rezept<salami>> gs = neu Blech<Rezept<salami>>();
+für (salami x : [1, 2, 3]) { gs.hinzu(() -> x); }
+für (Rezept<salami> g : gs) { Bote.sage((g())); }
+salami k = 0;
+Blech<Rezept<salami>> hs = neu Blech<Rezept<salami>>();
+solange (k < 3) { salami kopie = k; hs.hinzu(() -> kopie + k); k++; }
+für (Rezept<salami> h : hs) { Bote.sage((h())); }

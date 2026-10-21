@@ -1,0 +1,26 @@
+// exit: 0
+rohling klasse Form {
+    rohling funghi fläche();
+    margherita beschreibe() { serviere (("Fläche " + dies.fläche())); }
+}
+klasse Quadrat erbt Form {
+    gebacken funghi seite;
+    Quadrat(funghi s) { seite = s; }
+    funghi fläche() { serviere ((seite * seite)); }
+}
+klasse Geheim {
+    geheimrezept salami code = 42;
+    familienrezept salami familie = 7;
+    salami zeig() { serviere ((code)); }
+}
+klasse Kind erbt Geheim { salami fam() { serviere ((familie)); } }
+Bote.sage((neu Quadrat(1.5).beschreibe()));
+probier { neu Form(); } verbrannt (RohlingAnanas a) { Bote.sage((a)); }
+Quadrat q = neu Quadrat(2);
+probier { q.seite = 3; } verbrannt (GebackenAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((q.seite));
+Geheim g = neu Geheim();
+Bote.sage((g.zeig()));
+probier { Bote.sage((g.code)); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+probier { g.code = 1; } verbrannt (ZugriffsAnanas a) { Bote.sage(("schreiben: " + a.typ())); }
+Bote.sage((neu Kind().fam()));

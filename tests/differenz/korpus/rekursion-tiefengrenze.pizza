@@ -1,0 +1,8 @@
+// exit: 0
+// Tiefe knapp unter/über der Grenze, gefangen.
+salami runter(salami n) { falls (n == 0) { serviere ((0)); } serviere ((runter(n - 1) + 1)); }
+Blech<salami> tiefen = [100, 500, 850, 880, 890, 895, 897, 898, 899, 900, 901, 905, 1000];
+für (salami t : tiefen) {
+    probier { Bote.sage((t + ": " + runter(t))); } verbrannt (LaufzeitAnanas a) { Bote.sage((t + ": " + a.nachricht())); }
+}
+Bote.sage((Uhr.jetzt()));

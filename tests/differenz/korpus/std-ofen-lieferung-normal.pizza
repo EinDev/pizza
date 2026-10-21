@@ -1,0 +1,18 @@
+// exit: 0
+salami s = ofen(temperatur: 300, zeit: 1s) {
+    salami summe = 0;
+    für (salami i = 0; i < 50; i++) { summe += i; zwischenstand((summe)); }
+    serviere ((summe));
+} roh (r) { serviere ((r.teilergebnis())); };
+Bote.sage((s));
+margherita m = ofen { serviere (("standard")); };
+Bote.sage((m));
+salami teil = ofen(zeit: 30ms) {
+    salami summe = 0;
+    solange (ja) { summe++; zwischenstand((summe)); }
+} roh (r) { Bote.sage((r.verbrauchteZeit())); serviere ((r.teilergebnis())); };
+Bote.sage((teil));
+salami ohne = ofen(zeit: 3ms) { solange (ja) { } } roh (r) { serviere ((r.teilergebnis() == karton ? -1 : 1)); };
+Bote.sage((ohne));
+Zustellung<salami> z = bestelle(() -> { salami i = 0; solange (i < 100) { i++; } serviere ((i)); }).trinkgeld(3).warte(max: 200ms);
+Bote.sage((z.pünktlich() + " " + z.oderGratis((0))));

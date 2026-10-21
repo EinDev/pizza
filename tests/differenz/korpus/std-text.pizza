@@ -1,0 +1,22 @@
+// exit: 0
+margherita t = "  Hallo Pizzawelt  ";
+Bote.sage(("[" + t.trimme() + "]"));
+Bote.sage((t.länge()));
+Bote.sage((t.groß()));
+Bote.sage((t.klein()));
+Bote.sage((t.enthält("Pizza")));
+Bote.sage((t.enthält("pizza")));
+Bote.sage((t.trimme().zerlege(" ")));
+Bote.sage(("a,b,,c".zerlege(",")));
+Bote.sage(("abc".zerlege("")));
+Bote.sage((t.ersetze("l", "L")));
+Bote.sage(("aaa".ersetze("a", "aa")));
+Bote.sage(("Pizza".zeichen(1) + "Pizza".zeichen(5)));
+Bote.sage(("ab".wiederhole(3)));
+Bote.sage(("".wiederhole(5).länge()));
+Bote.sage(("Pizza".beginntMit("Pi")));
+Bote.sage(("Pizza".beginntMit("pi")));
+Bote.sage(("42".alsZahl() + 1));
+für (margherita c : "Käse") { Bote.sage((c)); }
+Bote.sage(("a\tb\n\"c\"\\"));
+Bote.sage(("x".alsText()));

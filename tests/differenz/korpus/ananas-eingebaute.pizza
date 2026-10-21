@@ -1,0 +1,20 @@
+// exit: 0
+probier { [1, 2].stück(0); } verbrannt (KeinStückAnanas a) { Bote.sage((a)); }
+probier { [1, 2].stück(3); } verbrannt (KeinStückAnanas a) { Bote.sage((a)); }
+probier { Pizza p = karton; p.preis(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((1 / 0)); } verbrannt (RechenAnanas a) { Bote.sage((a)); }
+probier { salami s = "x"; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { margherita m = 5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { diavolo d = 1; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { Pizza p = ((Tomate, Trüffelöl)); } verbrannt (UnbekannterBelagAnanas a) { Bote.sage((a)); }
+probier { Pizza a1 = ((Tomate)); Pizza a2 = a1; } verbrannt (BesitzAnanas a) { Bote.sage((a)); }
+probier { [1, 2, 3, 4, 5, 6, 7, 8] / 3; } verbrannt (StreitAnanas a) { Bote.sage((a)); }
+probier { gibtsNicht(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((unbekannt)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { ((Tomate)).fliegen(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { "abc".zeichen(9); } verbrannt (a) { Bote.sage((a)); }
+probier { Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>(); k.hole("x").länge(); } verbrannt (a) { Bote.sage((a)); }
+probier { [1].entferne(5); } verbrannt (a) { Bote.sage((a)); }
+probier { [1].setze(0, 1); } verbrannt (a) { Bote.sage((a)); }
+probier { neu Blech<salami>().erstes(); } verbrannt (a) { Bote.sage((a)); }
+probier { "a".wiederhole(-1); } verbrannt (a) { Bote.sage((a)); }

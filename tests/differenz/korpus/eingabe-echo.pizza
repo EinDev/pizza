@@ -1,0 +1,12 @@
+// exit: 0
+// Zeilen lesen bis EOF (karton); leere Zeilen, Unicode, Leerzeichen bleiben erhalten.
+salami n = 0;
+margherita z = Bestellannahme.lies();
+solange (z != karton) {
+    n++;
+    Bote.schreibe(("[" + n + "] "));
+    Bote.sage((z + " (" + z.länge() + ")"));
+    z = Bestellannahme.lies();
+}
+Bote.sage(("EOF nach " + n + " Zeilen, nochmal: " + Bestellannahme.lies() + " " + Bestellannahme.lies()));
+Bote.sage((Bestellannahme.hatMehr()));

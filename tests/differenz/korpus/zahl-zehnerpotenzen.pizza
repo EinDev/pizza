@@ -1,0 +1,10 @@
+// exit: 0
+// Zahlformatierung über viele Größenordnungen (1e-10 … 1e25), positiv und negativ.
+funghi x = 1;
+für (salami i = 0; i < 10; i++) { x /= 10; Bote.sage((x)); }
+x = 1;
+für (salami i = 0; i < 25; i++) { x *= 10; Bote.sage((x)); }
+x = 0 - 1;
+für (salami i = 0; i < 25; i++) { x *= 10; Bote.sage(("neg " + x)); }
+funghi y = 0 - 1;
+für (salami i = 0; i < 10; i++) { y /= 10; Bote.sage(("neg " + y)); }

@@ -1,0 +1,14 @@
+// exit: 0
+// Kleines Ratespiel: Spieler kann jederzeit gehen (karton), ungültige Eingaben werden abgefangen.
+salami geheim = Zufall.zahl(1, 100);
+salami versuche = 0;
+solange (ja) {
+    Wert tipp = karton;   // unbekannter Typ → ungeprüft, darf karton halten
+    probier { tipp = Bestellannahme.frageZahl(("Tipp: ")); }
+    verbrannt (TypAnanas a) { Bote.sage(("Das ist keine Zahl.")); weiter; }
+    falls (tipp == karton) { Bote.sage(("Spieler ist gegangen nach " + versuche + " Versuchen.")); abbrechen; }
+    versuche++;
+    falls (tipp < geheim) { Bote.sage(("größer")); }
+    sonst falls (tipp > geheim) { Bote.sage(("kleiner")); }
+    sonst { Bote.sage(("Treffer nach " + versuche + " Versuchen! " + Uhr.jetzt())); abbrechen; }
+}

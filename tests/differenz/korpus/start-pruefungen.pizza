@@ -1,0 +1,5 @@
+// exit: 2
+// R0001 beim Start: Rezeptur nicht erfüllt.
+speisekarte rezeptur Backbar { leer backe(); }
+klasse Stein erfüllt Backbar { }
+Bote.sage(("nie"));

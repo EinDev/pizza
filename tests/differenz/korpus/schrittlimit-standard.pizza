@@ -1,0 +1,5 @@
+// exit: 3
+// Standard-Limit 5 000 000 Schritte.
+Bote.sage(("los"));
+salami i = 0;
+solange (ja) { i++; }

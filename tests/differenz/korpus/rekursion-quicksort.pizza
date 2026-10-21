@@ -1,0 +1,18 @@
+// exit: 0
+Blech<salami> qs(Blech<salami> b) {
+    falls (b.länge() <= 1) { serviere ((b)); }
+    salami p = b.erstes();
+    Blech<salami> rest = b.filtere(x -> ja);
+    rest.entferne(1);
+    Blech<salami> kl = qs(rest.filtere(x -> x < p));
+    Blech<salami> gr = qs(rest.filtere(x -> x >= p));
+    kl.hinzu(p);
+    für (salami g : gr) { kl.hinzu(g); }
+    serviere ((kl));
+}
+Blech<salami> z = neu Blech<salami>();
+für (salami i = 0; i < 300; i++) { z.hinzu(Zufall.zahl(1, 1000)); }
+Blech<salami> s = qs(z);
+Bote.sage((s.stück(1) + " " + s.stück(150) + " " + s.letztes()));
+Bote.sage((s == s.sortiere()));
+Bote.sage((s.verbinde(",") == z.sortiere().verbinde(",")));

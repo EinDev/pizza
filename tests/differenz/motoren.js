@@ -47,7 +47,18 @@ function laufOptionen(opt) {
   const o = {};
   if (opt && opt.schrittLimit != null) o.schrittLimit = opt.schrittLimit;
   if (opt && opt.args) o.args = opt.args.slice();
+  if (opt && opt.eingabe) o.eingabe = opt.eingabe.slice();
   return o;
+}
+
+/** Unterstützt der Interpreter schon interaktive Eingabe (EINGABE.md)? */
+let _eingabe = null;
+function eingabeUnterstuetzt() {
+  if (_eingabe === null) {
+    try { _eingabe = PizzaLang.run('Bestellannahme.hatMehr(); Bote.schreibe(("")); Bote.leeren();', { eingabe: [] }).exitCode === 0; }
+    catch (_) { _eingabe = false; }
+  }
+  return _eingabe;
 }
 
 const jetzt = () => Number(process.hrtime.bigint()) / 1e6;
@@ -168,7 +179,9 @@ const host = {
     argv.push(datei);
     if (opt && opt.args && opt.args.length) argv.push(...opt.args);
     const t0 = jetzt();
-    const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
+    // Eingabe (EINGABE.md §4): pizza-host liest Zeilen von stdin, EOF → -1.
+    const stdin = opt && opt.eingabe ? opt.eingabe.map(z => z + '\n').join('') : '';
+    const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
     const ms = jetzt() - t0;
     try { fs.unlinkSync(datei); } catch (_) {}
     if (p.error) return { status: 'wurf', fehler: 'Host-Start: ' + p.error.message };
@@ -248,4 +261,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };

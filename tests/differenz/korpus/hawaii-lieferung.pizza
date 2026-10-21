@@ -1,0 +1,5 @@
+// exit: 39
+// Panik erst nach Programmende in einem wennDa-Rückruf.
+bestelle(() -> (1)).trinkgeld(1).wennDa(x -> Bote.sage(("erst ich")));
+bestelle(() -> ((Tomate))).trinkgeld(0).wennDa(p -> Bote.sage((p + Ananas)));
+Bote.sage(("Programmende"));

@@ -1,0 +1,6 @@
+// exit: 0
+// optionen: {"schrittLimit": 252}
+// Kleinstes Limit, mit dem das Programm fertig wird: L = 252 (am Interpreter gemessen).
+salami s = 0;
+für (salami i = 0; i < 30; i++) { s += i * i; }
+Bote.sage((s));

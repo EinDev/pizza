@@ -1,0 +1,6 @@
+// exit: 0
+diavolo gerade(salami n) { falls (n == 0) { serviere ((ja)); } serviere ((ungerade(n - 1))); }
+diavolo ungerade(salami n) { falls (n == 0) { serviere ((nein)); } serviere ((gerade(n - 1))); }
+Bote.sage((gerade(300)));
+Bote.sage((ungerade(301)));
+Bote.sage((gerade(7)));

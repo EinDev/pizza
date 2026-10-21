@@ -1,0 +1,5 @@
+// exit: 3
+// optionen: {"schrittLimit": 3000}
+// Ofen-Budget größer als globales Limit → P0002 gewinnt.
+salami s = ofen(zeit: 1h) { solange (ja) { } } roh (r) { serviere ((1)); };
+Bote.sage((s));

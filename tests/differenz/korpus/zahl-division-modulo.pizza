@@ -1,0 +1,22 @@
+// exit: 0
+Bote.sage((7 / 2));
+Bote.sage((-7 / 2));
+Bote.sage((6 / 3));
+salami s = 6 / 3;
+Bote.sage((s));
+funghi f = 7 / 2;
+Bote.sage((f));
+Bote.sage((10 % 3));
+Bote.sage((-10 % 3));
+Bote.sage((10 % -3));
+Bote.sage((7.5 % 2));
+Bote.sage((-7.5 % 2));
+Bote.sage((0.3 % 0.1));
+Bote.sage((1 % 1));
+probier { Bote.sage((5 % 0)); } verbrannt (RechenAnanas a) { Bote.sage(("mod0: " + a.nachricht())); }
+probier { Bote.sage((5 / 0)); } verbrannt (RechenAnanas a) { Bote.sage(("div0: " + a.nachricht())); }
+probier { salami t = 7 / 2; } verbrannt (TypAnanas a) { Bote.sage(("typ: " + a.nachricht())); }
+salami i = 17;
+i /= 1;
+Bote.sage((i));
+probier { i /= 2; Bote.sage((i)); } verbrannt (TypAnanas a) { Bote.sage(("i/=2: " + a.typ())); }

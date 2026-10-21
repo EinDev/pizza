@@ -1,0 +1,8 @@
+// exit: 0
+Blech<funghi> werte = [0.5, 1.5, 2.5, -0.5, -1.5, -2.5, 1.005, 2.675, 1.255, 0.125, 1234.5678, -1234.5678, 0.045, 0.0005];
+für (funghi w : werte) {
+    Bote.sage((w + " → " + w.runden() + " | " + w.runden(1) + " | " + w.runden(2) + " | " + w.runden(3) + " | " + w.ganz() + " | " + w.abs()));
+    Bote.sage(("   Mathe: " + Mathe.runden(w) + " " + Mathe.boden(w) + " " + Mathe.decke(w) + " " + Mathe.abs(w)));
+}
+Bote.sage((1234.5678.runden(0)));
+Bote.sage((5.runden(2)));

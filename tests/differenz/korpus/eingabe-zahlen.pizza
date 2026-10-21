@@ -1,0 +1,11 @@
+// exit: 0
+// liesZahl: trimme, Komma als Dezimaltrenner, ungültig → TypAnanas, EOF → karton.
+salami runde = 0;
+solange (Bestellannahme.hatMehr() && runde < 30) {
+    runde++;
+    probier {
+        funghi x = Bestellannahme.liesZahl();
+        falls (x == karton) { Bote.sage(("karton")); } sonst { Bote.sage((runde + ": " + x + " → " + (x * 2))); }
+    } verbrannt (TypAnanas a) { Bote.sage((runde + ": " + a.nachricht())); }
+}
+Bote.sage((Bestellannahme.liesZahl()));

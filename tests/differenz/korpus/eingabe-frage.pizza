@@ -1,0 +1,17 @@
+// exit: 0
+margherita name = Bestellannahme.frage(("Wie heißt du? "));
+Bote.sage(("Hallo " + name + "!"));
+funghi alter = Bestellannahme.frageZahl(("Alter: "));
+Bote.sage(("Alter " + alter));
+Bote.schreibe(("a"));
+Bote.schreibe(("b"));
+Bote.sage(("c"));
+Bote.leeren();
+Bote.schreibe((1));
+Bote.schreibe((ja));
+Bote.leeren();
+Bote.sage(("nach leeren"));
+margherita weg = Bestellannahme.frage(("Noch was? "));
+Bote.sage((weg == karton));
+Bote.sage((Bestellannahme.frageZahl(("Zahl? ")) == karton));
+Bote.schreibe(("ohne Umbruch am Ende"));

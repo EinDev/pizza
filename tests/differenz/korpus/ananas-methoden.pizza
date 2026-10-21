@@ -1,0 +1,17 @@
+// exit: 0
+klasse Koch {
+    salami schneide(salami n) {
+        falls (n > 3) { wirf neu StreitAnanas("zu viele: " + n); }
+        serviere ((n * 2));
+    }
+    salami sicher(salami n) {
+        probier { serviere ((dies.schneide(n))); }
+        verbrannt (StreitAnanas a) { Bote.sage(("gefangen in sicher: " + a.nachricht())); serviere ((-1)); }
+        rand { Bote.sage(("rand sicher " + n)); }
+    }
+}
+Koch k = neu Koch();
+Bote.sage((k.sicher(2)));
+Bote.sage((k.sicher(5)));
+probier { k.schneide(9); } verbrannt (LaufzeitAnanas a) { Bote.sage(("außen: " + a)); }
+probier { k.schneide(9); } verbrannt (Ananas a) { Bote.sage(("als Ananas: " + a.typ())); }

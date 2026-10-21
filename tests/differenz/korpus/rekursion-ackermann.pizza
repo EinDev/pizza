@@ -1,0 +1,8 @@
+// exit: 0
+salami ack(salami m, salami n) {
+    falls (m == 0) { serviere ((n + 1)); }
+    falls (n == 0) { serviere ((ack(m - 1, 1))); }
+    serviere ((ack(m - 1, ack(m, n - 1))));
+}
+Bote.sage((ack(2, 3)));
+Bote.sage((ack(3, 3)));

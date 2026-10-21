@@ -1,0 +1,23 @@
+// exit: 0
+klasse Tier {
+    margherita name;
+    Tier(margherita n) { name = n; Bote.sage(("Tier(" + n + ")")); }
+    margherita laut() { serviere (("...")); }
+    margherita vorstellen() { serviere ((name + " sagt " + dies.laut())); }
+}
+klasse Hund erbt Tier {
+    Hund(margherita n) { unten(n); Bote.sage(("Hund()")); }
+    @PizzaÜberschreibt
+    margherita laut() { serviere (("Wuff")); }
+}
+klasse Welpe erbt Hund {
+    Welpe() { unten("Welpe"); }
+    margherita laut() { serviere ((unten.laut() + "chen")); }
+}
+klasse Katze erbt Tier { }
+Blech<Tier> tiere = [neu Tier("Ding"), neu Hund("Bello"), neu Welpe()];
+für (Tier t : tiere) { Bote.sage((t.vorstellen())); }
+probier { Katze k = neu Katze(); Bote.sage((k.name)); } verbrannt (a) { Bote.sage((a)); }
+Tier t2 = neu Welpe();
+Bote.sage((t2.laut()));
+probier { Hund h = neu Tier("x"); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }

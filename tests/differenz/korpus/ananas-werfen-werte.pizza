@@ -1,0 +1,10 @@
+// exit: 1
+// Werfen von Nicht-Ananas-Werten und erneutes Werfen.
+probier { wirf "nur ein Text"; } verbrannt (a) { Bote.sage(("gefangen: " + a)); }
+probier { wirf 42; } verbrannt (a) { Bote.sage(("zahl: " + a)); }
+probier {
+    probier { wirf neu StreitAnanas("innen"); } verbrannt (StreitAnanas s) { Bote.sage(("weiter damit")); wirf s; }
+} verbrannt (StreitAnanas s2) { Bote.sage(("wieder: " + s2.nachricht())); }
+Ananas gemerkt = neu StreitAnanas("gemerkt");
+Bote.sage((gemerkt.typ()));
+wirf gemerkt;

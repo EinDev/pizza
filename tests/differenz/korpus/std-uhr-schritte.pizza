@@ -1,0 +1,26 @@
+// exit: 0
+// Schritte sind über Uhr.jetzt() beobachtbar.
+Bote.sage((Uhr.jetzt()));
+salami s = 0;
+für (salami i = 0; i < 100; i++) { s += i; }
+Bote.sage((Uhr.jetzt()));
+Dauer vor = Uhr.jetzt();
+Bote.sage(([1, 2, 3].belege(x -> x * 2).summe()));
+Bote.sage((Uhr.jetzt() - vor));
+Uhr.vorspulen(1h);
+Bote.sage((Uhr.jetzt()));
+Uhr.vorspulen(0ms);
+Bote.sage((Uhr.jetzt().inMs()));
+salami f(salami n) { serviere ((n + 1)); }
+Dauer t0 = Uhr.jetzt();
+f(f(f(1)));
+Bote.sage((Uhr.jetzt() - t0));
+Dauer t1 = Uhr.jetzt();
+margherita x = "a" + 1 + ja;
+Bote.sage((Uhr.jetzt() - t1));
+Dauer t2 = Uhr.jetzt();
+Pizza p = ((Tomate, Mozzarella)) + Basilikum;
+Bote.sage((Uhr.jetzt() - t2));
+Dauer t3 = Uhr.jetzt();
+probier { wirf neu StreitAnanas("x"); } verbrannt (a) { } rand { }
+Bote.sage((Uhr.jetzt() - t3));

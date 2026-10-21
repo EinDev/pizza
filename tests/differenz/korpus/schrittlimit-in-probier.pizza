@@ -1,0 +1,4 @@
+// exit: 3
+// optionen: {"schrittLimit": 5000}
+// P0002 ist nicht fangbar, rand läuft nicht.
+probier { solange (ja) { } } verbrannt (a) { Bote.sage(("nein")); } rand { Bote.sage(("rand nein")); }

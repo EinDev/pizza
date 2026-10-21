@@ -1,0 +1,18 @@
+// exit: 0
+// -0 wird wie in JS als "0" dargestellt; Rechnen mit -0.
+funghi mn = 0 * -1;
+Bote.sage((mn));
+Bote.sage(("text " + mn));
+Bote.sage(([mn, 0 - 0, -0.0]));
+Bote.sage((mn == 0));
+Bote.sage((mn + 0));
+Bote.sage((Mathe.runden(-0.4)));
+Bote.sage(((0 - 0.4).runden()));
+Bote.sage((Mathe.decke(-0.5)));
+Bote.sage((Mathe.abs(mn)));
+Bote.sage(((0 - 0.0001).runden(2)));
+Bote.sage((mn.euro()));
+Bote.sage(((0 - 0.001).euro()));
+Bote.sage((mn.alsText()));
+Bote.sage((mn.ganz()));
+probier { Bote.sage((1 / mn)); } verbrannt (RechenAnanas a) { Bote.sage((a)); }

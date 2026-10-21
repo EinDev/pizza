@@ -1,0 +1,13 @@
+// exit: 0
+klasse Knoten {
+    salami wert;
+    Knoten nächster;
+    Knoten(salami w, Knoten n) { wert = w; nächster = n; }
+}
+Knoten kopf = karton;
+für (salami i = 0; i < 50000; i++) { kopf = neu Knoten(i, kopf); }
+salami s = 0;
+salami n = 0;
+Knoten k = kopf;
+solange (k != karton) { s += k.wert; n++; k = k.nächster; }
+Bote.sage((n + " " + s));

@@ -1,0 +1,14 @@
+// exit: 1
+Lieferung<salami> l = bestelle(() -> { wirf neu StreitAnanas("unterwegs verloren"); });
+Zustellung<salami> z = l.warte(max: 1min);
+Bote.sage((z.pünktlich()));
+probier { z.wert(); } verbrannt (StreitAnanas a) { Bote.sage(("wert: " + a.nachricht())); }
+probier { z.oderGratis((5)); } verbrannt (StreitAnanas a) { Bote.sage(("oderGratis: " + a.nachricht())); }
+Lieferung<salami> spät = bestelle(() -> { Uhr.vorspulen(2h); wirf neu StreitAnanas("spät und kaputt"); });
+Zustellung<salami> z2 = spät.warte(max: 1h);
+probier { Bote.sage((z2.wert())); } verbrannt (a) { Bote.sage((a)); }
+probier { Bote.sage((z2.oderGratis((3)))); } verbrannt (a) { Bote.sage((a)); }
+bestelle(() -> (1)).trinkgeld(2).wennDa(x -> Bote.sage(("wennDa ok " + x)));
+bestelle(() -> (2)).trinkgeld(3).wennDa(x -> { wirf neu RechenAnanas("im Rückruf"); });
+bestelle(() -> (3)).trinkgeld(1).wennDa(x -> Bote.sage(("nie erreicht?")));
+Bote.sage(("Programmende"));

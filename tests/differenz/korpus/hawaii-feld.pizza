@@ -1,0 +1,5 @@
+// exit: 39
+klasse Box { hawaii inhalt; }
+Box b = neu Box();
+Bote.sage(("leer ok"));
+b.inhalt = "Überraschung";

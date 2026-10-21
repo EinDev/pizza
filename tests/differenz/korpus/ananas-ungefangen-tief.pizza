@@ -1,0 +1,11 @@
+// exit: 1
+salami ebene(salami n) {
+    falls (n == 0) {
+        Blech<salami> b = [1, 2];
+        serviere ((b.stück(3)));
+    }
+    serviere ((ebene(n - 1)));
+}
+Bote.sage(("vor"));
+probier { ebene(50); } rand { Bote.sage(("rand läuft trotzdem")); }
+Bote.sage(("nie"));

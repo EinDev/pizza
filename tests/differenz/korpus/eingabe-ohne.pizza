@@ -1,0 +1,6 @@
+// exit: 0
+// Keine Eingabe vorgegeben → sofort EOF.
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.liesZahl()));
+Bote.sage((Bestellannahme.frage(("? ")) == karton));

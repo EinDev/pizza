@@ -1,0 +1,5 @@
+// exit: 2
+// Syntaxfehler in der letzten Zeile: nichts darf vorher ausgegeben werden.
+Bote.sage(("sichtbar?"));
+salami x = 1;
+serviere x;

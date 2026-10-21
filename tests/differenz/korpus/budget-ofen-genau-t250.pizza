@@ -1,0 +1,13 @@
+// exit: 0
+// Ofen-Budget exakt an der Grenze (temperatur 250): kleinste fertige zeit = 190ms (am Interpreter gemessen).
+// Budget = zeit_ms × temperatur / 250. Geprüft: N-1 (roh), N (fertig), N+1 (fertig) – plus Uhr-Stände.
+Bote.sage(("zeit 189ms"));
+salami x189 = ofen(temperatur: 250, zeit: 189ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x189 + " " + Uhr.jetzt()));
+Bote.sage(("zeit 190ms"));
+salami x190 = ofen(temperatur: 250, zeit: 190ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x190 + " " + Uhr.jetzt()));
+Bote.sage(("zeit 191ms"));
+salami x191 = ofen(temperatur: 250, zeit: 191ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x191 + " " + Uhr.jetzt()));
+probier { ofen(temperatur: 250, zeit: 189ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }

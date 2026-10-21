@@ -1,0 +1,17 @@
+// exit: 0
+Bote.sage((1.5.alsText()));
+Bote.sage((42.alsText() + 1));
+Bote.sage(("" + 0.1 + 0.2));
+Bote.sage(("" + (0.1 + 0.2)));
+Bote.sage(([0.1, 1 / 3, 100.0, 0 - 2.5]));
+Speisekarte<margherita, funghi> k = neu Speisekarte<margherita, funghi>();
+k.lege("a", 1 / 3);
+k.lege("b", 0 - 0.5);
+Bote.sage((k));
+Bote.sage(("12.5".alsZahl() + 1));
+Bote.sage(("-3".alsZahl() * 2));
+Bote.sage(("0.1".alsZahl() + "0.2".alsZahl()));
+Blech<margherita> proben = ["1e3", " 7 ", "", "0x10", "1_000", ".5", "5.", "-0", "Infinity", "abc", "12abc"];
+für (margherita t : proben) {
+    probier { Bote.sage(("[" + t + "] → " + t.alsZahl())); } verbrannt (TypAnanas a) { Bote.sage(("[" + t + "] → " + a.nachricht())); }
+}

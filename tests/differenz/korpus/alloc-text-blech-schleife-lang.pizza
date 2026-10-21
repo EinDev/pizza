@@ -1,0 +1,8 @@
+// exit: 0
+// Lange Schleife mit Text- und Blech-Erzeugung pro Runde (200 000 Runden).
+salami treffer = 0;
+für (salami i = 0; i < 200000; i++) {
+    Blech<margherita> b = ["a" + (i % 10), "b"];
+    falls (b.verbinde("-") == "a7-b") { treffer++; }
+}
+Bote.sage((treffer));

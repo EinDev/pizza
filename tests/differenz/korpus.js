@@ -5,7 +5,8 @@
  *   doku       – alle ausführbaren Codeblöcke aus site/js/doku/*.js (rekursiv inkl. details)
  *   faelle     – tests/faelle/*.pizza (+ .optionen.json)
  *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar)
- *   korpus     – tests/differenz/korpus/*.pizza (Kopfzeilen: // exit: N, // optionen: {...})
+ *   korpus     – tests/differenz/korpus/*.pizza (Kopfzeilen: // exit: N, // optionen: {...}; Eingabe: gleichnamige .eingabe)
+ * Eingabezeilen (EINGABE.md) landen in optionen.eingabe: Manifest-Feld "eingabe", .eingabe-Dateien, Doku-Feld eingabe.
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +15,8 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..', '..');
 
 function lies(p) { return fs.readFileSync(p, 'utf8'); }
+/** .eingabe-Datei → Zeilen (abschließender Zeilenumbruch erzeugt keine Leerzeile). */
+function zeilen(text) { const z = String(text).replace(/\r\n/g, '\n').split('\n'); if (z.length && z[z.length - 1] === '') z.pop(); return z; }
 function json(p) { return JSON.parse(lies(p).replace(/^﻿/, '')); }
 
 function beispiele(warn) {
@@ -31,7 +34,7 @@ function beispiele(warn) {
       if (!dp || !fs.existsSync(dp)) { warn('beispiele: Datei fehlt: ' + b.datei); continue; }
       out.push({
         quelle: 'beispiele', name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei),
-        code: lies(dp), optionen: { args: b.args || [] },
+        code: lies(dp), optionen: Object.assign({ args: b.args || [] }, b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : {}),
         erwartetExit: typeof b.exitCode === 'number' ? b.exitCode : 0,
       });
     }
@@ -59,7 +62,9 @@ function doku(warn) {
       const code = String(item.code || '');
       const name = (a.id || '?') + '#' + pfad + i;
       // Nicht ausführbare Blöcke werden trotzdem verglichen (Syntaxfehler/Laufzeitverhalten), nur ohne Exit-Erwartung.
-      out.push({ quelle: 'doku', name, code, optionen: {}, erwartetExit: item.ausfuehrbar ? (typeof item.exitCode === 'number' ? item.exitCode : 0) : undefined });
+      const dopt = {};
+      if (item.eingabe != null) dopt.eingabe = Array.isArray(item.eingabe) ? item.eingabe.slice() : zeilen(item.eingabe);
+      out.push({ quelle: 'doku', name, code, optionen: dopt, erwartetExit: item.ausfuehrbar ? (typeof item.exitCode === 'number' ? item.exitCode : 0) : undefined });
     });
   };
   for (const a of sandbox.PIZZA_DOKU || []) sammle(a, a.inhalt, '');
@@ -74,9 +79,10 @@ function faelle() {
     const basis = d.slice(0, -6);
     const op = path.join(dir, basis + '.optionen.json');
     const ep = path.join(dir, basis + '.exitcode');
+    const inp = path.join(dir, basis + '.eingabe');
     out.push({
       quelle: 'faelle', name: basis, code: lies(path.join(dir, d)),
-      optionen: fs.existsSync(op) ? json(op) : {},
+      optionen: Object.assign(fs.existsSync(op) ? json(op) : {}, fs.existsSync(inp) ? { eingabe: zeilen(lies(inp)) } : {}),
       erwartetExit: fs.existsSync(ep) ? parseInt(lies(ep).trim(), 10) : 0,
     });
   }
@@ -96,6 +102,7 @@ function pruefstand(warn) {
       const opt = {};
       if (f.args) opt.args = f.args;
       if (f.schrittLimit != null) opt.schrittLimit = f.schrittLimit;
+      if (f.eingabe != null) opt.eingabe = Array.isArray(f.eingabe) ? f.eingabe : zeilen(f.eingabe);
       // Prüfstand-Erwartungen stammen aus der SPEC, nicht vom Interpreter – hier nur Differenz, keine Exit-Prüfung.
       out.push({ quelle: 'pruefstand', name: d.replace(/\.js$/, '') + '#' + i + ' ' + (f.name || ''), code: f.code, optionen: opt });
     });
@@ -125,6 +132,8 @@ function eigenerKorpus() {
     const k = kopf(code);
     const opt = Object.assign({}, k.optionen || {});
     if (k.args) opt.args = k.args;
+    const inp = path.join(dir, d.slice(0, -6) + '.eingabe');
+    if (fs.existsSync(inp)) opt.eingabe = zeilen(lies(inp));
     out.push({ quelle: 'korpus', name: d.slice(0, -6), code, optionen: opt, erwartetExit: k.exit != null ? k.exit : 0 });
   }
   return out;
@@ -138,4 +147,4 @@ function lade(nur, warn = () => {}) {
   return out;
 }
 
-module.exports = { lade, QUELLEN, kopf };
+module.exports = { lade, QUELLEN, kopf, zeilen };

@@ -37,6 +37,7 @@ function pruefeFall(code, optionen = {}, einst = {}) {
       const gesehen = [];
       const o = Object.assign({}, optionen, { onEvent: e => gesehen.push(e) });
       if (o.args) o.args = o.args.slice();
+      if (o.eingabe) o.eingabe = o.eingabe.slice();
       const r3 = M.PizzaLang.run(code, o);
       if (JSON.stringify(gesehen) !== JSON.stringify(r3.ereignisse)) out.probleme.push({ motor: 'interpreter', art: 'selbst', details: ['onEvent-Folge ≠ ereignisse'] });
     } catch (e) { out.probleme.push({ motor: 'interpreter', art: 'wurf', details: ['run mit onEvent warf: ' + e] }); }

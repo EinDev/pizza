@@ -1,0 +1,20 @@
+// exit: 0
+Pizza p = ((Tomate, Käse));
+Pizza q = schieb(p);
+probier { Bote.sage((p)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }
+p = ((Pilze));
+Bote.sage((p));
+Stück<Pizza> s = teile(q);
+Bote.sage((q.übrig() + " " + s.istGegessen() + " " + s.pizza()));
+s.essen();
+probier { s.essen(); } verbrannt (StreitAnanas a) { Bote.sage((a)); }
+für (salami i = 0; i < 7; i++) { teile(q); }
+Bote.sage((q.übrig()));
+probier { teile(q); } verbrannt (StreitAnanas a) { Bote.sage((a)); }
+klasse Tisch { Pizza belegt; }
+Tisch t = neu Tisch();
+t.belegt = ((Tomate));
+probier { Pizza x = t.belegt; } verbrannt (BesitzAnanas a) { Bote.sage((a.typ())); }
+Pizza gib(Pizza z) { serviere ((z)); }
+Pizza r = gib(((Mais)));
+Bote.sage((r));

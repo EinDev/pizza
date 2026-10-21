@@ -1,0 +1,11 @@
+// exit: 0
+für (margherita t : ["a", "b", "c"]) {
+    wähle (t) { fall "a" -> Bote.sage(("A")); fall "b", "c" -> { Bote.sage(("B oder C")); } }
+}
+für (Dauer d : [1s, 2s, 1000ms]) {
+    wähle (d) { fall 1s -> Bote.sage(("eine Sekunde")); standard -> Bote.sage(("anders")); }
+}
+salami x = 7;
+Bote.sage((wähle (x % 3) { fall 0 -> "null"; fall 1 -> "eins"; standard -> "zwei"; }));
+wähle (x) { fall 1 -> Bote.sage(("nie")); }
+Bote.sage((wähle (ja) { fall nein -> 0; fall ja -> 1; standard -> 2; }));

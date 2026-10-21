@@ -1,0 +1,6 @@
+// exit: 1
+probier {
+    probier { wirf neu VerbranntAnanas("heiß"); } verbrannt (LaufzeitAnanas l) { Bote.sage(("falsch!")); }
+} verbrannt (GeprüfteAnanas g) { Bote.sage(("geprüft: " + g.typ())); }
+probier { wirf neu LieferAnanas("kalt"); } verbrannt (VerbranntAnanas v) { Bote.sage(("falsch!")); } verbrannt (GeprüfteAnanas g) { Bote.sage(("liefer als geprüft")); }
+probier { wirf neu StreitAnanas("s"); } verbrannt (GeprüfteAnanas g) { Bote.sage(("falsch!")); } rand { Bote.sage(("rand vor ungefangen")); }

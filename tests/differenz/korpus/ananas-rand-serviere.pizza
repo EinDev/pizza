@@ -1,0 +1,26 @@
+// exit: 0
+salami f(salami x) {
+    probier {
+        falls (x == 1) { serviere ((10)); }
+        falls (x == 2) { wirf neu StreitAnanas("zwei"); }
+        Bote.sage(("normal"));
+    } verbrannt (StreitAnanas a) {
+        Bote.sage(("verbrannt " + x));
+        serviere ((20));
+    } rand {
+        Bote.sage(("rand " + x));
+    }
+    serviere ((30));
+}
+Bote.sage((f(1)));
+Bote.sage((f(2)));
+Bote.sage((f(3)));
+salami g() {
+    probier { serviere ((1)); } rand { Bote.sage(("g-rand")); }
+}
+Bote.sage((g()));
+salami h() {
+    probier { wirf neu StreitAnanas("h"); } rand { Bote.sage(("h-rand")); }
+    serviere ((0));
+}
+probier { h(); } verbrannt (a) { Bote.sage(("h außen " + a.nachricht())); }

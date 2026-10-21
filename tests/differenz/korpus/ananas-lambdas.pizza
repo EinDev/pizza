@@ -1,0 +1,13 @@
+// exit: 0
+Blech<salami> b = [1, 2, 3, 4];
+probier {
+    Bote.sage((b.belege(x -> x == 3 ? (x / 0) : x)));
+} verbrannt (RechenAnanas a) { Bote.sage(("in belege: " + a.nachricht())); }
+Rezept<salami> werfer = (salami x) -> { falls (x > 1) { wirf neu StreitAnanas("lambda " + x); } serviere ((x)); };
+probier { b.filtere(x -> werfer(x) > 0); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+probier { b.zusammenklappen((a, c) -> werfer(c)); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+probier { b.sortiere((x, y) -> werfer(x)); } verbrannt (StreitAnanas a) { Bote.sage(("sortiere: " + a.nachricht())); }
+Rezept<salami> f = x -> x;
+für (salami i = 0; i < 3; i++) {
+    probier { f = x -> werfer(x + i); Bote.sage((f(0))); } verbrannt (a) { Bote.sage(("i=" + i + " " + a.nachricht())); } rand { Bote.sage(("rand " + i)); }
+}

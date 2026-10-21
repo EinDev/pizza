@@ -1,0 +1,11 @@
+// exit: 0
+Bote.sage((Mathe.wurzel(2) + " " + Mathe.wurzel(144) + " " + Mathe.PI));
+Bote.sage((Mathe.max(3, 7.5) + " " + Mathe.min(-1, 2) + " " + Mathe.abs(-4.25)));
+Bote.sage((Mathe.runden(2.5) + " " + Mathe.boden(-2.5) + " " + Mathe.decke(2.1)));
+Blech<salami> z = neu Blech<salami>();
+für (salami i = 0; i < 60; i++) { z.hinzu(Zufall.zahl(1, 6)); }
+Bote.sage((z));
+Bote.sage((Zufall.zahl(-1000000, 1000000)));
+Bote.sage((Zufall.zahl(5, 5)));
+Bote.sage((Zufall.zahl(0, 2147483647)));
+Bote.sage((Zufall.zahl(1, 100) + Zufall.zahl(1, 100)));

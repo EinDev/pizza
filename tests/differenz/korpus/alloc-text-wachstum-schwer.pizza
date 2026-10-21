@@ -1,0 +1,6 @@
+// exit: 0
+// Quadratischer Text-Aufbau: 40 000 Verkettungen eines wachsenden Texts (Summe ≈ 800 Mio. Zeichen).
+// Dokumentiert die Speichergrenze des Wasm-Motors (Phase 1 ohne GC) – Interpreter hat kein Limit.
+margherita s = "";
+für (salami i = 0; i < 40000; i++) { s += "pizza"; }
+Bote.sage((s.länge()));

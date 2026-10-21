@@ -1,0 +1,15 @@
+// exit: 0
+klasse Turm {
+    salami höhe(salami n) { falls (n == 0) { serviere ((0)); } serviere ((dies.höhe(n - 1) + 1)); }
+    tiefkühl salami statisch(salami n) { falls (n == 0) { serviere ((0)); } serviere ((Turm.statisch(n - 1) + 1)); }
+}
+Turm t = neu Turm();
+für (salami n : [10, 400, 890, 950]) {
+    probier { Bote.sage((t.höhe(n))); } verbrannt (LaufzeitAnanas a) { Bote.sage((n + " " + a.nachricht())); }
+    probier { Bote.sage((Turm.statisch(n))); } verbrannt (LaufzeitAnanas a) { Bote.sage((n + " statisch " + a.nachricht())); }
+}
+Rezept<salami> lam = x -> x;
+lam = n -> n == 0 ? 0 : lam(n - 1) + 1;
+für (salami n : [10, 400, 950]) {
+    probier { Bote.sage((lam(n))); } verbrannt (LaufzeitAnanas a) { Bote.sage((n + " lambda " + a.nachricht())); }
+}

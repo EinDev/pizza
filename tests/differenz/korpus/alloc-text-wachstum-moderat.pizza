@@ -1,0 +1,6 @@
+// exit: 0
+// ~3 000 Verkettungen: Summe der Zwischentexte ≈ 4.5 MB.
+margherita s = "";
+für (salami i = 0; i < 3000; i++) { s += "x"; }
+Bote.sage((s.länge()));
+Bote.sage((s.zeichen(3000)));

@@ -1,0 +1,5 @@
+// exit: 1
+// Unbegrenzte Rekursion → LaufzeitAnanas Stapelüberlauf (feste Tiefe im Interpreter).
+salami tief(salami n) { serviere ((tief(n + 1) + 1)); }
+Bote.sage(("los"));
+tief(0);

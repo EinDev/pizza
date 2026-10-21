@@ -1,0 +1,24 @@
+// exit: 0
+// Unicode: Umlaute, ß, Emoji (UTF-16 vs. UTF-8 im Wasm-Motor!).
+margherita u = "Grüße aus Köln";
+Bote.sage((u.länge()));
+Bote.sage((u.groß()));
+Bote.sage(("STRASSE".klein()));
+Bote.sage(("ß".groß()));
+Bote.sage(("ẞ".klein()));
+Bote.sage(("İ".klein().länge()));
+Bote.sage((u.zeichen(3)));
+margherita e = "🍕 Pizza 🍍";
+Bote.sage((e));
+Bote.sage((e.länge()));
+Bote.sage((e.zeichen(1)));
+Bote.sage((e.zeichen(2)));
+Bote.sage((e.groß()));
+Bote.sage((e.zerlege(" ")));
+Bote.sage((e.ersetze("🍍", "🧀")));
+Bote.sage((e.enthält("🍕")));
+salami n = 0;
+für (margherita c : e) { n++; }
+Bote.sage((n));
+Bote.sage((["b", "ä", "a", "z", "Z", "é", "🍕"].sortiere()));
+Bote.sage(("ä" < "b"));

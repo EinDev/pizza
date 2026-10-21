@@ -1,0 +1,11 @@
+// exit: 0
+für (salami i : [5 .. 1]) { Bote.sage((i)); }
+für (salami i : [1 .. 1]) { Bote.sage(("einzeln " + i)); }
+für (margherita c : "") { Bote.sage(("nie")); }
+für (salami i = 10; i > 0; i -= 3) { Bote.sage((i)); }
+salami n = 0;
+für (; n < 3; ) { n++; }
+Bote.sage((n));
+für (salami a = 0; a < 3; a++) { für (salami b = 0; b < 3; b++) { falls (b == 1) { weiter; } falls (a == 2) { abbrechen; } Bote.sage((a + "," + b)); } }
+Blech<salami> mut = [1, 2, 3];
+für (salami m : mut) { falls (m == 1) { mut.hinzu(4); } Bote.sage(("mut " + m)); }

@@ -1,0 +1,5 @@
+// exit: 39
+klasse Hawaii { salami x = 1; Hawaii() { Bote.sage(("Konstruktor läuft?")); } }
+klasse Fabrik { Hawaii baue() { serviere ((neu Hawaii())); } }
+Bote.sage(("los"));
+probier { neu Fabrik().baue(); } verbrannt (a) { Bote.sage(("nein")); }

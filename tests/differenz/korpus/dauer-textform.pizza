@@ -1,0 +1,20 @@
+// exit: 0
+Blech<Dauer> d = [0ms, 1ms, 999ms, 1s, 1.5s, 59s, 60s, 90s, 59min, 60min, 1h, 23h, 24h, 1d, 3d, 500ms, 0.5ms, 1.25s];
+für (Dauer x : d) { Bote.sage((x)); }
+Bote.sage((90061001ms));
+Bote.sage((1d + 1h + 1min + 1s + 1ms));
+Bote.sage((1h - 1ms));
+Bote.sage((0ms - 5s));
+Bote.sage((1s - 1h));
+Bote.sage((1s * 1.5));
+Bote.sage((1s * 0.0001));
+Bote.sage((1s / 3));
+Bote.sage((2s / 3));
+Bote.sage((10s / 4));
+Bote.sage((1min * 61));
+Bote.sage((7d * 52));
+Bote.sage((1.5s.inMs()));
+Bote.sage((1500ms.inSekunden()));
+Bote.sage((1ms.inSekunden()));
+Bote.sage(((1s / 3).inMs()));
+Bote.sage(("Dauer: " + 2h));

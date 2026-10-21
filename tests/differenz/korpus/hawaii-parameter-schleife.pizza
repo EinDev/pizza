@@ -1,0 +1,6 @@
+// exit: 39
+leer nimm(hawaii h) { Bote.sage(("drin")); }
+für (salami i = 0; i < 5; i++) {
+    Bote.sage((i));
+    falls (i == 3) { nimm(i); }
+}

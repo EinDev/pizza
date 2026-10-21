@@ -1,0 +1,5 @@
+// exit: 0
+// Nur Warnung W0666, aber keine Panik: hawaii-Typ ohne Wertzuweisung; Ananas-Exceptions sind ok.
+leer nie(hawaii h) { }
+probier { wirf neu StreitAnanas("x"); } verbrannt (StreitAnanas a) { Bote.sage((a.typ())); }
+Bote.sage(("ruhig"));
