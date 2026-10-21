@@ -9,6 +9,9 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+    environment:
+      # API-Token von hastebin.com (Toptal); leer = Teilen deaktiviert
+      HASTEBIN_TOKEN: ${HASTEBIN_TOKEN:-}
     read_only: true
     tmpfs:
       - /tmp

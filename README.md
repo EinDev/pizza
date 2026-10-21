@@ -30,6 +30,36 @@ docker build --build-arg SKIP_TESTS=0 --build-arg STRICT_BUILD=1 -t pizza-playgr
 Das Image basiert auf `nginxinc/nginx-unprivileged` (läuft nicht als root, Port 8080) und hat
 einen Healthcheck unter `/healthz`.
 
+## Teilen über Hastebin
+
+Beim Teilen wird der Code serverseitig auf [hastebin.com](https://hastebin.com) (Toptal) abgelegt;
+der Link enthält nur den Hastebin-Schlüssel. Der Browser spricht dabei nie direkt mit Hastebin,
+sondern mit dem nginx im Container:
+
+| Endpunkt | Weiterleitung |
+|---|---|
+| `POST /api/teilen` (Body = Rohtext, max. 256 KB) | `https://hastebin.com/documents` → `{"key": "…"}` |
+| `GET /api/teilen/<key>` (`[A-Za-z0-9]+`) | `https://hastebin.com/raw/<key>` |
+
+Der API-Token wird nur serverseitig als `Authorization: Bearer …` gesetzt. Rate-Limit:
+10 Uploads/Minute und 60 Abrufe/Minute pro IP.
+
+**Einrichtung**
+
+1. Bei [hastebin.com](https://hastebin.com) (Toptal) anmelden und einen API-Token erzeugen
+   (Dokumentation: <https://www.toptal.com/developers/hastebin/documentation>).
+2. Token als Umgebungsvariable `HASTEBIN_TOKEN` setzen:
+   - lokal: `HASTEBIN_TOKEN=… docker compose up --build` oder eine `.env`-Datei neben `compose.yaml`
+     (`.env` ist in `.gitignore`).
+   - **Coolify:** in der Anwendung unter *Environment Variables* `HASTEBIN_TOKEN` anlegen
+     (als Secret, „Is Build Variable“ **nicht** nötig) und neu deployen.
+3. Ohne Token startet der Container trotzdem; `/api/teilen` antwortet dann mit
+   `503 {"fehler":"Teilen ist nicht konfiguriert (HASTEBIN_TOKEN fehlt)."}`.
+
+**Datenschutz:** Geteilter Code wird an einen Drittanbieter (Toptal/hastebin.com) übertragen und
+ist für jeden mit dem Link abrufbar. Die UI weist vor dem Teilen darauf hin. Der Proxy reicht
+keine Cookies, keine Client-IP, keinen Referer und keinen User-Agent an Hastebin weiter.
+
 ## Lokale Entwicklung
 
 Voraussetzung: Node.js 22.
@@ -66,6 +96,7 @@ pizza/
 │   ├── js/doku/         Doku-Inhalte
 │   └── beispiele/       Beispielprogramme (*.pizza, *.erwartet, Manifeste)
 ├── Dockerfile, compose.yaml, nginx.conf
+├── nginx-proxy.conf, nginx-teilen.conf.template   Hastebin-Proxy
 └── README.md
 ```
 

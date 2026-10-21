@@ -1,0 +1,15 @@
+# Wird beim Containerstart per envsubst gerendert (nginx-Entrypoint,
+# 20-envsubst-on-templates.sh) nach /tmp/pizza-env/teilen.conf
+# und von nginx.conf auf http-Ebene eingebunden.
+# Ersetzt werden nur ${HASTEBIN_TOKEN} und ${NGINX_LOCAL_RESOLVERS}
+# (siehe NGINX_ENVSUBST_FILTER im Dockerfile).
+
+# DNS-Resolver des Containers (für proxy_pass mit Variable -> Start klappt
+# auch, wenn hastebin.com gerade nicht auflösbar ist)
+resolver ${NGINX_LOCAL_RESOLVERS} valid=300s ipv6=off;
+resolver_timeout 5s;
+
+# API-Token für hastebin.com (leer = Teilen deaktiviert -> 503)
+map $host $hastebin_token {
+    default "${HASTEBIN_TOKEN}";
+}
