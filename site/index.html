@@ -10,6 +10,8 @@
   <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="img/logo-icon.svg" type="image/svg+xml">
+  <!-- Doku-Daten (ARCHITEKTUR.md §4): js/thema.js lädt sie sofort nach – nur im Playground, nicht beim App-Link (#app=…) -->
+  <script type="application/json" id="doku-dateien">["js/doku/00-geschichte.js", "js/doku/10-sprache.js", "js/doku/20-pizzafunktionen.js", "js/doku/30-referenz.js"]</script>
   <script src="js/thema.js"></script>
   <link rel="stylesheet" href="css/app.css">
 </head>
@@ -202,7 +204,7 @@
     <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-schritt-frage">
       <p class="teilen-hinweis" role="note">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Du bekommst zwei Links: einen, der den Code öffnet, und einen, der die App direkt im Vollbild startet. Jeder mit einem der Links kann den Code lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
+        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Du bekommst zwei Links: einen, der die App direkt im Vollbild startet (er landet gleich in der Zwischenablage), und einen, der den Code öffnet. Jeder mit einem der Links kann den Code lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
       </p>
       <p class="teilen-aus" id="teilen-aus" data-testid="teilen-aus" hidden>Teilen ist auf diesem Server gerade nicht eingerichtet.</p>
       <div class="dialog-knoepfe">
@@ -216,15 +218,15 @@
     <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-schritt-fertig" hidden>
       <p id="teilen-fertig-text"></p>
       <p class="teilen-dauer-fertig" id="teilen-dauer-fertig" data-testid="teilen-dauer-fertig" hidden></p>
-      <p class="teilen-link-titel" id="teilen-url-titel"><strong>Code öffnen</strong> <span>– im Playground mit Editor</span></p>
-      <div class="teilen-link">
-        <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-labelledby="teilen-url-titel">
-        <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
-      </div>
       <p class="teilen-link-titel" id="teilen-url-app-titel"><strong>App starten</strong> <span>– startet das Programm direkt im Vollbild</span></p>
       <div class="teilen-link">
         <input type="text" id="teilen-url-app" data-testid="teilen-url-app" readonly aria-labelledby="teilen-url-app-titel">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren-app" data-testid="teilen-kopieren-app">Kopieren</button>
+      </div>
+      <p class="teilen-link-titel" id="teilen-url-titel"><strong>Code öffnen</strong> <span>– im Playground mit Editor</span></p>
+      <div class="teilen-link">
+        <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-labelledby="teilen-url-titel">
+        <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
       </div>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>
@@ -325,11 +327,6 @@
 
   <!-- Interpreter (Parse/Konstanten im Hauptthread; Ausführung nur im Worker) -->
   <script src="js/pizza.js" defer></script>
-  <!-- Doku-Daten (ARCHITEKTUR.md §4) -->
-  <script src="js/doku/00-geschichte.js" defer></script>
-  <script src="js/doku/10-sprache.js" defer></script>
-  <script src="js/doku/20-pizzafunktionen.js" defer></script>
-  <script src="js/doku/30-referenz.js" defer></script>
   <!-- App -->
   <script src="js/app.bundle.js" defer></script>
 </body>

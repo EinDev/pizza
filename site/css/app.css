@@ -1215,6 +1215,23 @@ button.k-meldung:hover { border-color: currentColor; }
 }
 :root[data-app] .vorschau:focus-visible { outline: none; }
 :root[data-app] .vorschau-kopf { display: none; }
+/* Theke-App: statt Titelleiste nur ein dezentes X oben rechts in einem schmalen, randlosen Streifen in der
+   Grundfarbe – der Theke-Inhalt beginnt darunter, nichts wird verdeckt. Wirkt wie das Schließen des EXE-Fensters. */
+:root[data-app] .vorschau-kopf.app-zu {
+  display: flex; justify-content: flex-end; gap: 0; cursor: default; touch-action: auto;
+  height: calc(34px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) calc(3px + env(safe-area-inset-right)) 0 0;
+  background: #fbf7f0; border-bottom: 0; /* = --theke-grund (theke.css) */
+}
+:root[data-app][data-theme="dark"] .vorschau-kopf.app-zu { background: #16171a; }
+:root[data-app] .vorschau-kopf.app-zu > :not(.vorschau-zu) { display: none; }
+:root[data-app] .vorschau-zu { width: 30px; height: 30px; border-radius: 50%; color: var(--text-3); opacity: .8; }
+:root[data-app] .vorschau-zu svg { width: 14px; height: 14px; }
+:root[data-app] .vorschau-zu:hover { opacity: 1; background: var(--flaeche-3); color: var(--text); }
+:root[data-app] .vorschau-zu:focus-visible { opacity: 1; outline: 2px solid var(--fokus); outline-offset: -2px; }
+@media (pointer: coarse) {
+  :root[data-app] .vorschau-kopf.app-zu { height: calc(44px + env(safe-area-inset-top)); padding-right: calc(2px + env(safe-area-inset-right)); }
+  :root[data-app] .vorschau-zu { width: 40px; height: 40px; }
+}
 
 :root[data-app] .app-ende:not([hidden]) {
   display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; flex: none;

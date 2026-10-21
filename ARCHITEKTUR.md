@@ -205,7 +205,8 @@ Regeln für jeden Abschnitt:
   `ausfuehrbar: false` ⇒ Code muss trotzdem **parsen** (außer `sprache: "xml"`/`"shell"` – dann gar nicht geprüft).
 - Ein `ausgabe`-Block nach einem Code-Block darf das Hawaii-Panik-Banner weglassen (der Test-Harness vergleicht `ausgabe`-Blöcke ohnehin nur als Hinweis). In `.erwartet`-Dateien (Beispiele, Testfälle) ist das Banner dagegen **Pflicht**.
 - `ordnung`-Bereiche: 0–99 Geschichte · 100–199 Einstieg · 200–299 Sprache · 300–399 Pizza-Funktionen · 400–499 Ananas/Hawaii · 500–599 Standardbibliothek · 600–699 Toolchain/Referenz.
-- Die UI lädt alle Doku-Dateien über eine feste Liste in `index.html` (`<script src="js/doku/…">`). Dateinamen:
+- Die UI lädt alle Doku-Dateien über eine feste Liste in `index.html` (`<script type="application/json" id="doku-dateien">`;
+  `js/thema.js` lädt sie im Playground sofort nach, beim App-Link `#app=…` gar nicht). Dateinamen:
   `00-geschichte.js`, `10-sprache.js`, `20-pizzafunktionen.js`, `30-referenz.js`.
 
 ## 5. UI

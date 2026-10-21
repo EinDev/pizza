@@ -11,6 +11,7 @@ import { erstelleVorschau } from "./vorschau.js";
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen } from "./vorrat.js";
 import { startApp } from "./app.js";
+import { verpacke, entpacke } from "./teilen.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -877,7 +878,7 @@ function start() {
     teilenSchritt("laeuft");
     let fehler = null;
     try {
-      const r = await fetch("api/teilen", { method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" }, body: teilenCode });
+      const r = await fetch("api/teilen", { method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" }, body: verpacke(teilenName, teilenCode) });
       let daten = null;
       try { daten = await r.json(); } catch (e) { daten = null; }
       if (r.ok && daten && typeof daten.key === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(daten.key)) {
@@ -885,16 +886,19 @@ function start() {
         const url = basis + "#h=" + daten.key;
         try { history.replaceState(null, "", "#h=" + daten.key); } catch (e) { /* egal */ }
         letzterHash = location.hash;
+        const appUrl = basis + "#app=" + daten.key;
         $("teilen-url").value = url;
-        $("teilen-url-app").value = basis + "#app=" + daten.key;
-        $("teilen-kopieren-app").textContent = "Kopieren";
-        $("teilen-fertig-text").textContent = "„" + teilenName + "“ ist gespeichert. Jeder mit einem der Links kann den Code lesen.";
+        $("teilen-url-app").value = appUrl;
+        $("teilen-kopieren").textContent = "Kopieren";
         setzeDauer(await holeKonfig());
         teilenSchritt("fertig");
-        const ok = await kopiere(url);
-        $("teilen-kopieren").textContent = ok ? "Kopiert ✓" : "Kopieren";
-        $("teilen-url").focus();
-        $("teilen-url").select();
+        // Der App-Link ist der, den man meistens weitergibt → er landet automatisch in der Zwischenablage
+        const ok = await kopiere(appUrl);
+        $("teilen-kopieren-app").textContent = ok ? "Kopiert ✓" : "Kopieren";
+        $("teilen-fertig-text").textContent = "„" + teilenName + "“ ist gespeichert." +
+          (ok ? " Der App-Link ist schon in der Zwischenablage." : "") + " Jeder mit einem der Links kann den Code lesen.";
+        $("teilen-url-app").focus();
+        $("teilen-url-app").select();
         return;
       }
       if (r.status === 413) fehler = "Das Skript ist zu groß zum Teilen.";
@@ -944,8 +948,8 @@ function start() {
       const r = await fetch("api/teilen/" + encodeURIComponent(key), { headers: { Accept: "text/plain" } });
       if (r.status === 404) { toast("Diesen geteilten Code gibt es nicht (mehr).", "fehler"); return false; }
       if (!r.ok) { toast("Der geteilte Code kann gerade nicht geladen werden. Bitte später erneut versuchen.", "fehler"); return false; }
-      const code = await r.text();
-      tabs.oeffne(code, "Geteilt " + key + ".pizza", "geteilt:" + key);
+      const { name, code } = entpacke(await r.text());
+      tabs.oeffne(code, name || "Geteilt " + key + ".pizza", "geteilt:" + key);
       return true;
     } catch (e) {
       toast("Der geteilte Code kann gerade nicht geladen werden – keine Verbindung.", "fehler");
@@ -1111,7 +1115,9 @@ function ziehbar(griff, achse, { start, bewege, ende, taste }) {
 // App-Link (#app=<key>): js/thema.js hat data-app gesetzt → nur die App starten, kein Editor (app.js)
 function los() {
   const key = document.documentElement.dataset.app;
-  if (key) startApp(key); else start();
+  if (key) { startApp(key); return; }
+  // Doku-Daten lädt js/thema.js parallel nach (nicht im App-Modus); start() braucht sie schon (Doku-Panel, Palette)
+  Promise.resolve(window.pizzaDokuGeladen).then(start);
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", los);
 else los();

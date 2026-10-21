@@ -4,8 +4,23 @@
 // eine Vollbild-Konsole mit Eingabe. Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“. Teilen-API = Attrappe in server.mjs.
 import assert from "node:assert/strict";
 import {
-  e2e, setzeCode, bereit, editorText, editorTabs, sendeEingabe, thekeEreignis, warteAufBediene, schlafe, SCHMAL, DESKTOP,
+  e2e, setzeCode, bereit, editorText, editorTabs, aktiverTabName, sendeEingabe, thekeEreignis, warteAufBediene, schlafe, SCHMAL, DESKTOP,
 } from "../hilfen.mjs";
+import { verpacke, entpacke } from "../../ui/src/teilen.js";
+
+/** Zwischenablage abfangen (headless ohne Berechtigung): alles, was geschrieben wird, landet in window.__kopiert. */
+const ZWISCHENABLAGE = () => {
+  window.__kopiert = [];
+  try {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__kopiert.push(String(t)); } } });
+  } catch (e) { /* egal */ }
+};
+
+/** Keine Doku-Daten im App-Modus (js/doku/*.js nur im Playground). */
+const dokuGeladen = (page) => page.evaluate(() => ({
+  angefragt: performance.getEntriesByType("resource").filter((e) => /\/js\/doku\//.test(e.name)).length,
+  daten: Array.isArray(self.PIZZA_DOKU) ? self.PIZZA_DOKU.length : 0,
+}));
 
 const KONSOLE_APP = [
   'Vorratskammer v = neu Vorratskammer("app-test");',
@@ -38,6 +53,20 @@ const sichtbar = (page, sel) => page.$eval(sel, (e) => !!e.getClientRects().leng
 const warteEnde = (page, timeout = 20_000) => page.waitForSelector("#app-ende:not([hidden])", { timeout });
 const konsolenText = (page) => page.$eval("#konsole-inhalt", (k) => k.innerText);
 
+/** Dezentes X oben rechts: sichtbar, bedienbar groß, verdeckt keinen Theke-Inhalt. */
+async function pruefeX(page, vp, minGroesse = 28) {
+  const m = await page.evaluate(() => {
+    const box = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+    const x = document.getElementById("vorschau-schliessen");
+    return { x: box(x), inhalt: box(document.getElementById("vorschau-inhalt")), label: x.getAttribute("aria-label"), titel: x.title };
+  });
+  assert.ok(m.x.w >= minGroesse && m.x.h >= minGroesse, "X groß genug: " + JSON.stringify(m.x));
+  assert.ok(m.x.r <= vp.width && m.x.r >= vp.width - 12 && m.x.t >= 0 && m.x.t <= 8, "X oben rechts: " + JSON.stringify(m.x));
+  assert.ok(m.inhalt.t >= m.x.b - 0.5, "Theke-Inhalt beginnt unter dem X (nichts verdeckt): " + JSON.stringify(m));
+  assert.equal(m.inhalt.b, vp.height, "Inhalt bis zum unteren Rand");
+  assert.equal(m.label, "App beenden");
+}
+
 async function pruefeKeinPlayground(page) {
   const z = await page.evaluate(() => ({
     editor: !!document.querySelector(".cm-editor"),
@@ -53,11 +82,12 @@ async function pruefeKeinPlayground(page) {
   assert.ok(z.modus, "data-app gesetzt");
 }
 
-e2e("Teilen: Dialog zeigt zwei Links (Code öffnen / App starten) zum selben Schlüssel", async ({ page, oeffne, neueSeite, server, basis }) => {
+e2e("Teilen: Dialog zeigt zwei Links (App starten / Code öffnen) zum selben Schlüssel, App-Link in der Zwischenablage, Tab-Name gespeichert", { vorLaden: ZWISCHENABLAGE }, async ({ page, oeffne, neueSeite, server, basis }) => {
   server.teilen.modus = "mock";
   await oeffne();
   const code = 'Bote.sage(("Hallo aus der App"));';
   await setzeCode(page, code);
+  const tabName = await aktiverTabName(page);
   await page.click("#knopf-teilen");
   await page.waitForSelector("#dialog-teilen[open]");
   assert.match(await page.$eval("#dialog-teilen", (d) => d.innerText), /zwei Links/);
@@ -68,28 +98,65 @@ e2e("Teilen: Dialog zeigt zwei Links (Code öffnen / App starten) zum selben Sch
   const key = /#h=([A-Za-z0-9_-]+)$/.exec(codeUrl)[1];
   assert.equal(codeUrl, basis + "#h=" + key);
   assert.equal(appUrl, basis + "#app=" + key, "App-Link: gleicher Schlüssel, #app=");
-  assert.equal(server.teilen.ablage.get(key), code, "nur einmal gespeichert");
-  assert.equal(server.teilen.ablage.size, 1);
+  // ein Dokument: Code + Tab-Name in einer kleinen JSON-Hülle
+  assert.equal(server.teilen.ablage.size, 1, "nur einmal gespeichert");
+  assert.deepEqual(JSON.parse(server.teilen.ablage.get(key)), { pizza: "teilen", v: 1, name: tabName, code });
   const text = await page.$eval("#dialog-teilen", (d) => d.innerText);
   assert.match(text, /Code öffnen/);
   assert.match(text, /App starten/);
-  assert.ok(await sichtbar(page, '[data-testid="teilen-kopieren-app"]'), "eigener Kopieren-Knopf für den App-Link");
-  await page.click('[data-testid="teilen-kopieren-app"]');
-  await page.waitForFunction(() => /Kopiert|manuell/.test(document.querySelector('[data-testid="teilen-kopieren-app"]').textContent));
+  assert.ok(text.indexOf("App starten") < text.indexOf("Code öffnen"), "App-Link steht oben");
+  // App-Link automatisch kopiert (nicht der Code-Link)
+  assert.deepEqual(await page.evaluate(() => window.__kopiert), [appUrl], "App-Link in der Zwischenablage");
+  assert.match(await page.$eval("#teilen-fertig-text", (e) => e.textContent), /App-Link ist schon in der Zwischenablage/);
+  assert.equal(await page.$eval('[data-testid="teilen-kopieren-app"]', (b) => b.textContent), "Kopiert ✓");
+  assert.equal(await page.$eval('[data-testid="teilen-kopieren"]', (b) => b.textContent), "Kopieren");
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), "teilen-url-app");
+  assert.ok(await sichtbar(page, '[data-testid="teilen-kopieren"]'), "eigener Kopieren-Knopf für den Code-Link");
+  await page.click('[data-testid="teilen-kopieren"]');
+  await page.waitForFunction(() => /Kopiert/.test(document.querySelector('[data-testid="teilen-kopieren"]').textContent));
+  assert.deepEqual(await page.evaluate(() => window.__kopiert), [appUrl, codeUrl]);
 
-  // Code-Link: Playground mit Editor
+  // Code-Link: Playground mit Editor, Tab heißt wie beim Teilen
   const p1 = await neueSeite();
   await p1.goto(codeUrl, { waitUntil: "load" });
   await bereit(p1);
   await p1.waitForFunction(() => /Hallo aus der App/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
   assert.equal(await editorText(p1), code);
+  const stamm = tabName.replace(/\.pizza$/, "");
+  const name1 = await aktiverTabName(p1);
+  assert.ok(name1 === tabName || name1.startsWith(stamm), "Tab-Name aus dem Link: " + name1);
+  assert.doesNotMatch(name1, /^Geteilt /);
 
-  // App-Link: direkt die Ausgabe, kein Editor
+  // App-Link: direkt die Ausgabe, kein Editor, Titel = Tab-Name
   const p2 = await neueSeite();
   await p2.goto(appUrl, { waitUntil: "load" });
   await warteEnde(p2);
   assert.match(await konsolenText(p2), /Hallo aus der App/);
   await pruefeKeinPlayground(p2);
+  assert.equal(await p2.title(), stamm);
+});
+
+e2e("App-Link mit Tab-Name: Seitentitel = Name, kein „Saat:“, keine Doku-Daten geladen; Code-Link öffnet Tab mit dem Namen", async ({ page, neueSeite, server, basis }) => {
+  server.teilen.ablage.set("benannt", verpacke("zahlenraten.pizza", 'Bote.sage(("Rate mal"));'));
+  await page.goto(basis + "#app=benannt", { waitUntil: "load" });
+  await warteEnde(page);
+  assert.equal(await page.title(), "zahlenraten");
+  const t = await konsolenText(page);
+  assert.match(t, /Rate mal/);
+  assert.doesNotMatch(t, /Saat/, "kein „Saat: N“ im App-Modus");
+  assert.equal(await page.$$eval('[data-testid="konsole-saat"]', (z) => z.length), 0);
+  assert.deepEqual(await dokuGeladen(page), { angefragt: 0, daten: 0 }, "Doku-Skripte nur im Playground");
+  assert.equal(await sichtbar(page, "#vorschau-schliessen"), false, "Konsolen-App: kein X");
+
+  const p2 = await neueSeite();
+  await p2.goto(basis + "#h=benannt", { waitUntil: "load" });
+  await bereit(p2);
+  await p2.waitForFunction(() => /Rate mal/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
+  assert.equal(await aktiverTabName(p2), "zahlenraten.pizza");
+  assert.equal(entpacke(server.teilen.ablage.get("benannt")).name, "zahlenraten.pizza");
+  // Im Playground ist die Doku da
+  const d = await dokuGeladen(p2);
+  assert.ok(d.angefragt >= 4 && d.daten > 0, "Doku im Playground: " + JSON.stringify(d));
 });
 
 e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorrat, Nochmal, Code ansehen", { vorLaden: ERSTER_EINDRUCK }, async ({ page, server, basis }) => {
@@ -103,7 +170,8 @@ e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorra
   const box = await page.$eval("#konsole", (k) => { const r = k.getBoundingClientRect(); return { w: r.width, h: r.height }; });
   assert.ok(box.w >= DESKTOP.width - 1 && box.h >= DESKTOP.height - 80, "Vollbild-Konsole: " + JSON.stringify(box));
   assert.match(await konsolenText(page), /Wie heißt du\?/);
-  assert.equal(await page.title(), "pizza-App");
+  assert.doesNotMatch(await konsolenText(page), /Saat/, "kein „Saat: N“ im App-Modus");
+  assert.equal(await page.title(), "pizza-App", "alter Link (nur Code, ohne Namen) läuft weiter");
   // Motor Auto: genau ein motor-Ereignis
   assert.equal(await page.evaluate(() => window.__ereignisse.filter((e) => e.typ === "motor").length), 1);
 
@@ -146,7 +214,9 @@ e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Au
   assert.equal(await page.title(), "Mini-App");
   const r = await page.$eval("#vorschau", (f) => { const b = f.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
   assert.deepEqual(r, { x: 0, y: 0, w: DESKTOP.width, h: DESKTOP.height }, "Theke füllt das Fenster");
-  assert.equal(await sichtbar(page, "#vorschau-kopf"), false, "keine eigene Titelleiste (wie das native Fenster)");
+  assert.equal(await sichtbar(page, "#vorschau-titel"), false, "keine eigene Titelleiste, nur ein dezentes X");
+  await pruefeX(page, DESKTOP);
+  assert.deepEqual(await dokuGeladen(page), { angefragt: 0, daten: 0 }, "Doku-Skripte nur im Playground");
   assert.equal(await sichtbar(page, "#konsole"), false, "keine Konsole neben der Theke");
   // Bedienen
   for (let i = 0; i < 2; i++) {
@@ -179,7 +249,35 @@ e2e("App-Link, Theke auf dem Handy (390×844): Vollbild, keine Scrollbar", { vie
   assert.equal(m.w, 390);
   assert.equal(m.h, 844);
   assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
+  await pruefeX(page, SCHMAL, 40);
 });
+
+for (const [name, opt] of [["Desktop hell", {}], ["Handy dunkel", { viewport: SCHMAL, farbschema: "dark" }]]) {
+  e2e(`App-Link, Theke (${name}): X beendet wie das Schließen des EXE-Fensters (geschlossen), dann Nochmal/Code ansehen`, opt, async ({ page, server, basis }) => {
+    server.teilen.ablage.set("thekezu", verpacke("mini.pizza", THEKE_APP));
+    await page.goto(basis + "#app=thekezu", { waitUntil: "load" });
+    await page.waitForSelector("#vorschau:not([hidden]) [data-theke-id='plus']", { timeout: 20_000 });
+    await warteAufBediene(page, 0);
+    assert.equal(await page.title(), "Mini-App", "Theke-App behält den Fenstertitel");
+    const vorher = await page.evaluate(() => window.__ereignisse.filter((e) => e.typ === "ui-warte").length);
+    await thekeEreignis(page, { typ: "klick", id: "plus" });
+    await warteAufBediene(page, vorher);
+    await page.click("#vorschau-schliessen");
+    await warteEnde(page);
+    // bediene() kehrt nach {typ:"geschlossen"} zurück, das Programm läuft zu Ende wie nativ
+    assert.match(await konsolenText(page), /Gezählt: 1/);
+    assert.equal(await sichtbar(page, "#vorschau"), false, "Fenster zu");
+    assert.equal(await sichtbar(page, "#vorschau-schliessen"), false, "X weg");
+    assert.match(await page.$eval("#app-ende-text", (e) => e.textContent), /Programm beendet\.$/);
+    assert.ok(await sichtbar(page, "#app-nochmal"));
+    assert.ok(await sichtbar(page, "#app-code"));
+    const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+    assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
+    await page.click("#app-nochmal");
+    await page.waitForSelector("#vorschau:not([hidden]) [data-theke-id='zahl']", { timeout: 20_000 });
+    assert.ok(await sichtbar(page, "#vorschau-schliessen"), "X wieder da");
+  });
+}
 
 e2e("App-Link: unbekannter Schlüssel → klare Meldung, kein Editor", { erlaubt: [/api\/teilen/, /status of 404/] }, async ({ page, basis }) => {
   await page.goto(basis + "#app=gibtsnicht", { waitUntil: "load" });

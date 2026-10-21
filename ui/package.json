@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
-    "test": "node test/einheit.mjs && node test/u45.mjs && node test/argumente.mjs"
+    "test": "node test/einheit.mjs && node test/u45.mjs && node test/argumente.mjs && node test/teilen.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

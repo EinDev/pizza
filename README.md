@@ -39,7 +39,9 @@ einen Healthcheck unter `/healthz`. Die Seite ist cross-origin-isoliert (COOP/CO
 
 ## Teilen (Betrieb)
 
-Beim Teilen wird der Code serverseitig gespeichert (einmal); der Dialog zeigt danach zwei Links zum selben Schlüssel:
+Beim Teilen werden Code und Tab-Name serverseitig gespeichert (ein Dokument mit kleiner JSON-Hülle
+`{"pizza":"teilen","v":1,"name":…,"code":…}`; ältere Dokumente mit rohem Code funktionieren weiter); der Dialog zeigt
+danach zwei Links zum selben Schlüssel und kopiert den App-Link gleich in die Zwischenablage:
 `https://<pizza-domain>/#h=<key>` (**Code öffnen** – Playground mit Editor) und
 `https://<pizza-domain>/#app=<key>` (**App starten** – nur Ladebalken, dann läuft das Programm im Vollbild; übersetzt wird zur
 Laufzeit im Browser mit dem Motor „Auto“, es wird kein Kompilat gespeichert). Beide Formen stehen im Hash und erreichen den

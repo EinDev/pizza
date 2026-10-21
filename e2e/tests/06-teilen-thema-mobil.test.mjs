@@ -4,6 +4,7 @@ import {
   e2e, setzeCode, editorText, editorTabs, aktiverTabName, warteAufTab, bereit, backen, konsolenAusgabe,
   zeigePanelTab, panelOffen, strg, schlafe, S, SCHMAL, umgebung,
 } from "../hilfen.mjs";
+import { entpacke } from "../../ui/src/teilen.js";
 
 const CODE = '// geteilt ✓ Ümlaute & Emoji 🍕\nBote.sage(("aus dem Link"));';
 
@@ -81,7 +82,7 @@ e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im 
   const url = await page.$eval('[data-testid="teilen-url"], #teilen-url', (i) => i.value);
   assert.ok(url.startsWith(basis), "Link zeigt auf den Playground: " + url);
   assert.doesNotMatch(url, /#code=/);
-  assert.ok([...server.teilen.ablage.values()].includes(CODE), "Skript wurde auf dem Server gespeichert");
+  assert.ok([...server.teilen.ablage.values()].some((d) => entpacke(d).code === CODE), "Skript wurde auf dem Server gespeichert");
   assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ nach dem Senden");
   await keinLokalerLink(page, "fertig");
 
