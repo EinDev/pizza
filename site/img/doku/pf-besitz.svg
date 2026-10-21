@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Ownership: schieb bewegt die Pizza von Tisch 1 zu Tisch 2, Tisch 1 hat danach einen leeren Karton. teile gibt ein Stück ab, übrig sinkt von 8 auf 7</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <g fill="#2F2A26">
+    <!-- Tisch 1 -->
+    <rect x="84" y="76" width="72" height="32" rx="6" fill="none" stroke="#C8955A" stroke-width="2" stroke-dasharray="5 5"/>
+    <text x="120" y="97" font-size="14" font-style="italic" text-anchor="middle">leer</text>
+    <rect x="40" y="110" width="160" height="12" rx="6" fill="#C8955A"/>
+    <path d="M60 122 L60 146 M180 122 L180 146" stroke="#C8955A" stroke-width="5" stroke-linecap="round"/>
+    <text x="120" y="168" font-size="15" font-weight="bold" text-anchor="middle">Tisch 1 (p)</text>
+
+    <!-- Pfeil schieb -->
+    <line x1="210" y1="92" x2="430" y2="92" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+    <text x="320" y="78" font-size="16" font-weight="bold" text-anchor="middle">q = schieb(p)</text>
+    <text x="320" y="116" font-size="14" text-anchor="middle">p ist danach ein leerer Karton</text>
+
+    <!-- Tisch 2 -->
+    <circle cx="520" cy="84" r="26" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <circle cx="520" cy="84" r="19" fill="#D9452B"/>
+    <circle cx="512" cy="79" r="5" fill="#FFF6E0"/>
+    <circle cx="527" cy="90" r="5" fill="#FFF6E0"/>
+    <rect x="440" y="110" width="160" height="12" rx="6" fill="#C8955A"/>
+    <path d="M460 122 L460 146 M580 122 L580 146" stroke="#C8955A" stroke-width="5" stroke-linecap="round"/>
+    <text x="520" y="168" font-size="15" font-weight="bold" text-anchor="middle">Tisch 2 (q)</text>
+
+    <!-- Verbot -->
+    <rect x="110" y="184" width="420" height="34" rx="10" fill="#FFF6E0" stroke="#D9452B" stroke-width="2"/>
+    <text x="320" y="206" font-size="14" text-anchor="middle">Kopieren mit <tspan font-weight="bold">Pizza q = p;</tspan> geht nicht: <tspan fill="#D9452B" font-weight="bold">BesitzAnanas</tspan></text>
+
+    <!-- teile: Pizza mit fehlendem Stück -->
+    <path d="M140 284 L195.43 306.96 A60 60 0 1 1 195.43 261.04 Z" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <path d="M140 284 L186.19 303.13 A50 50 0 1 1 186.19 264.87 Z" fill="#D9452B"/>
+    <g stroke="#E8C48A" stroke-width="3">
+      <line x1="140" y1="284" x2="162.96" y2="339.43"/>
+      <line x1="140" y1="284" x2="117.04" y2="339.43"/>
+      <line x1="140" y1="284" x2="84.57" y2="306.96"/>
+      <line x1="140" y1="284" x2="84.57" y2="261.04"/>
+      <line x1="140" y1="284" x2="117.04" y2="228.57"/>
+      <line x1="140" y1="284" x2="162.96" y2="228.57"/>
+    </g>
+    <!-- das Stück -->
+    <path d="M270 284 L325.43 306.96 A60 60 0 0 0 325.43 261.04 Z" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <path d="M276 284 L314.8 300.07 A42 42 0 0 0 314.8 267.93 Z" fill="#D9452B"/>
+    <line x1="208" y1="284" x2="262" y2="284" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+    <text x="236" y="250" font-size="15" font-weight="bold" text-anchor="middle">teile(p)</text>
+    <text x="300" y="336" font-size="14" text-anchor="middle">ein Stück</text>
+
+    <!-- Zähler -->
+    <rect x="400" y="236" width="220" height="86" rx="14" fill="#FFF6E0" stroke="#F2B33D" stroke-width="3"/>
+    <text x="510" y="262" font-size="15" text-anchor="middle">p.übrig()</text>
+    <text x="510" y="300" font-size="28" font-weight="bold" text-anchor="middle">8 → 7</text>
+    <text x="510" y="346" font-size="14" text-anchor="middle">bei 0: „Pizza ist alle.“</text>
+  </g>
+</svg>

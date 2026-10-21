@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Calzone: zugeklappt sieht selbst der Spiegel nichts und es gibt eine ZugeklapptAnanas. Nach aufklappen zeigt der Spiegel alle Felder, mit Warnung W0013</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <g fill="#2F2A26">
+    <!-- Links: zugeklappt -->
+    <text x="150" y="36" font-size="18" font-weight="bold" text-anchor="middle">zugeklappt</text>
+    <path d="M60 200 A90 90 0 0 1 240 200 Z" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <g fill="#C8955A">
+      <circle cx="80" cy="200" r="5"/><circle cx="105" cy="200" r="5"/><circle cx="130" cy="200" r="5"/>
+      <circle cx="155" cy="200" r="5"/><circle cx="180" cy="200" r="5"/><circle cx="205" cy="200" r="5"/><circle cx="225" cy="200" r="5"/>
+    </g>
+    <rect x="134" y="152" width="32" height="26" rx="5" fill="#2F2A26"/>
+    <path d="M140 152 L140 142 A10 10 0 0 1 160 142 L160 152" fill="none" stroke="#2F2A26" stroke-width="4"/>
+    <circle cx="150" cy="165" r="4" fill="#F2B33D"/>
+
+    <!-- Spiegel links -->
+    <ellipse cx="80" cy="272" rx="28" ry="36" fill="#FFFFFF" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M80 308 L80 334" stroke="#2F2A26" stroke-width="5" stroke-linecap="round"/>
+    <text x="80" y="281" font-size="24" font-weight="bold" text-anchor="middle">?</text>
+    <text x="124" y="256" font-size="14">Spiegel.felder(k)</text>
+    <text x="124" y="280" font-size="14" font-weight="bold" fill="#D9452B">ZugeklapptAnanas</text>
+    <text x="124" y="302" font-size="14">Inhalt bleibt geheim</text>
+
+    <!-- Mitte: aufklappen -->
+    <text x="320" y="148" font-size="15" font-weight="bold" text-anchor="middle">aufklappen()</text>
+    <line x1="270" y1="166" x2="370" y2="166" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
+
+    <!-- Rechts: aufgeklappt -->
+    <text x="485" y="36" font-size="18" font-weight="bold" text-anchor="middle">aufgeklappt</text>
+    <circle cx="485" cy="140" r="78" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <circle cx="485" cy="140" r="62" fill="#D9452B"/>
+    <text x="485" y="136" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">stand:</text>
+    <text x="485" y="158" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">1000</text>
+
+    <!-- Spiegel rechts -->
+    <ellipse cx="384" cy="272" rx="28" ry="36" fill="#FFFFFF" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M384 308 L384 334" stroke="#2F2A26" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="384" cy="272" r="14" fill="#D9452B"/>
+    <text x="424" y="256" font-size="14">Spiegel.felder(k)</text>
+    <text x="424" y="280" font-size="14" font-weight="bold">{stand: 1000}</text>
+    <text x="424" y="302" font-size="14"><tspan font-weight="bold" fill="#C8955A">W0013:</tspan> Garantie erloschen</text>
+  </g>
+</svg>

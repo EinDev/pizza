@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Lieferung: Bestellungen warten in einer Schlange nach Trinkgeld. Der Roller fährt erst bei warte los. 30 Minuten Zeit, sonst ist die Pizza gratis</title>
+  <defs>
+    <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
+    </marker>
+  </defs>
+  <g fill="#2F2A26">
+    <!-- Warteschlange -->
+    <text x="110" y="34" font-size="15" font-weight="bold" text-anchor="middle">bestelle(…)</text>
+    <text x="110" y="54" font-size="14" text-anchor="middle">Trinkgeld = Vorrang</text>
+    <g font-size="15">
+      <rect x="30" y="68" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+      <text x="44" y="93" font-weight="bold">1. Diavolo</text>
+      <circle cx="166" cy="88" r="15" fill="#F2B33D"/>
+      <text x="166" y="93" font-size="14" font-weight="bold" text-anchor="middle">5 €</text>
+      <rect x="30" y="116" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+      <text x="44" y="141">2. Margherita</text>
+      <circle cx="166" cy="136" r="15" fill="#F2B33D"/>
+      <text x="166" y="141" font-size="14" font-weight="bold" text-anchor="middle">2 €</text>
+      <rect x="30" y="164" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
+      <text x="44" y="189">3. Funghi</text>
+      <circle cx="166" cy="184" r="15" fill="#F2B33D"/>
+      <text x="166" y="189" font-size="14" font-weight="bold" text-anchor="middle">2 €</text>
+    </g>
+    <text x="110" y="228" font-size="14" text-anchor="middle">gleich viel Trinkgeld:</text>
+    <text x="110" y="246" font-size="14" text-anchor="middle">wer zuerst bestellt</text>
+
+    <!-- Roller -->
+    <rect x="236" y="104" width="54" height="40" rx="6" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <path d="M250 150 L300 150 L320 110 L336 110" fill="none" stroke="#2F2A26" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M240 150 L300 150 Q352 150 360 176 L236 176 Z" fill="#D9452B"/>
+    <circle cx="256" cy="186" r="16" fill="#FFFFFF" stroke="#2F2A26" stroke-width="4"/>
+    <circle cx="350" cy="186" r="16" fill="#FFFFFF" stroke="#2F2A26" stroke-width="4"/>
+    <text x="300" y="232" font-size="15" font-weight="bold" text-anchor="middle">warte(max: 30min)</text>
+    <text x="300" y="252" font-size="14" text-anchor="middle">fährt erst jetzt los</text>
+
+    <!-- Uhr -->
+    <text x="520" y="34" font-size="15" font-weight="bold" text-anchor="middle">30 Minuten</text>
+    <circle cx="520" cy="102" r="52" fill="#FFF6E0" stroke="#2F2A26" stroke-width="3"/>
+    <path d="M520 102 L520 50 A52 52 0 0 1 520 154 Z" fill="#F2B33D"/>
+    <line x1="520" y1="102" x2="520" y2="62" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+    <line x1="520" y1="102" x2="552" y2="122" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="520" cy="102" r="4" fill="#2F2A26"/>
+    <text x="520" y="174" font-size="14" text-anchor="middle">+10 % Zeit je € Trinkgeld</text>
+
+    <!-- Ausgänge -->
+    <rect x="410" y="194" width="220" height="40" rx="10" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>
+    <text x="520" y="219" font-size="15" text-anchor="middle"><tspan font-weight="bold" fill="#3E8E41">pünktlich:</tspan> wert() = 42</text>
+    <rect x="410" y="242" width="220" height="40" rx="10" fill="#FFF6E0" stroke="#D9452B" stroke-width="3"/>
+    <text x="520" y="267" font-size="15" text-anchor="middle"><tspan font-weight="bold" fill="#D9452B">zu spät:</tspan> oderGratis((0))</text>
+
+    <!-- Fußzeile -->
+    <text x="320" y="330" font-size="15" text-anchor="middle">Bestellen kostet nichts. Gekocht wird erst, wenn jemand wartet.</text>
+  </g>
+</svg>

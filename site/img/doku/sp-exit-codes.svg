@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Exit-Codes als Bewertungskarten: 0 gegessen, 1 Ananas, 2 PizzaFehler, 3 noch im Ofen, 39 Hawaii</title>
+  <g text-anchor="middle" fill="#2F2A26">
+    <!-- 0 -->
+    <rect x="20" y="40" width="112" height="150" rx="12" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>
+    <rect x="20" y="40" width="112" height="16" rx="6" fill="#3E8E41"/>
+    <text x="76" y="108" font-size="34" font-weight="bold">0</text>
+    <text x="76" y="145" font-size="15" font-weight="bold">gegessen</text>
+    <text x="76" y="166" font-size="14">alles gut</text>
+    <!-- 1 -->
+    <rect x="142" y="40" width="112" height="150" rx="12" fill="#FFF6E0" stroke="#F5C518" stroke-width="3"/>
+    <rect x="142" y="40" width="112" height="16" rx="6" fill="#F5C518"/>
+    <text x="198" y="108" font-size="34" font-weight="bold">1</text>
+    <text x="198" y="145" font-size="15" font-weight="bold">Ananas</text>
+    <text x="198" y="166" font-size="14">ungefangen</text>
+    <!-- 2 -->
+    <rect x="264" y="40" width="112" height="150" rx="12" fill="#FFF6E0" stroke="#D9452B" stroke-width="3"/>
+    <rect x="264" y="40" width="112" height="16" rx="6" fill="#D9452B"/>
+    <text x="320" y="108" font-size="34" font-weight="bold">2</text>
+    <text x="320" y="145" font-size="15" font-weight="bold">PizzaFehler</text>
+    <text x="320" y="166" font-size="14">Code falsch</text>
+    <!-- 3 -->
+    <rect x="386" y="40" width="112" height="150" rx="12" fill="#FFF6E0" stroke="#C8955A" stroke-width="3"/>
+    <rect x="386" y="40" width="112" height="16" rx="6" fill="#C8955A"/>
+    <text x="442" y="108" font-size="34" font-weight="bold">3</text>
+    <text x="442" y="145" font-size="15" font-weight="bold">im Ofen</text>
+    <text x="442" y="166" font-size="14">dauert ewig</text>
+    <!-- 39 -->
+    <rect x="508" y="40" width="112" height="150" rx="12" fill="#2F2A26"/>
+    <text x="564" y="108" font-size="34" font-weight="bold" fill="#F5C518">39</text>
+    <text x="564" y="145" font-size="15" font-weight="bold" fill="#FFF6E0">Hawaii</text>
+    <text x="564" y="166" font-size="14" fill="#FFF6E0">frag nicht</text>
+    <text x="320" y="222" font-size="15">Die Zahl am Ende jedes Laufs sagt, wie es geschmeckt hat.</text>
+  </g>
+</svg>
