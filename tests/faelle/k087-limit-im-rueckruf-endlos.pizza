@@ -1,0 +1,4 @@
+Theke t = neu Theke("L");
+Knopf k = neu Knopf("k", () -> { solange (ja) { } });
+t.zeige(k);
+t.bediene();

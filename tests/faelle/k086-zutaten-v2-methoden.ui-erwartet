@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"M","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z6","art":"stapel","kinder":[{"id":"z3","art":"reiter","titel":["a","b"],"gewaehlt":1,"kinder":[{"id":"z1","art":"schild","text":"A"},{"id":"z2","art":"schild","text":"B"}]},{"id":"z4","art":"abschnitt","titel":"Leer","kinder":[]},{"id":"z5","art":"knopf","text":"+"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z4","kinder":[{"id":"z7","art":"schild","text":"neu"}]},{"id":"z3","gewaehlt":2}]}

@@ -1,0 +1,8 @@
+Theke t = neu Theke("T");
+salami summe = 0;
+Takt u = neu Takt(1s, (salami n) -> { summe += n; Bote.sage(("tick " + n)); });
+Knopf k = neu Knopf("stop", () -> { u.aktiv(nein); });
+Knopf weiter2 = neu Knopf("weiter", () -> { u.aktiv(ja).setzeIntervall(2.4s); });
+t.zeige(neu Stapel([u, k, weiter2]));
+t.bediene();
+Bote.sage((summe + " " + u.intervall() + " " + u.aktiv() + " " + u + " " + u.id()));

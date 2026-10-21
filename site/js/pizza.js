@@ -27,7 +27,8 @@
 
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii',
-    'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zufall', 'Vorratskammer'];
+    'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
+    'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer'];
 
   const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
 
@@ -1280,12 +1281,19 @@
   const AUTO = { auto: true };
 
   // ---------- Theke (UI-Framework, THEKE.md) ----------
-  const UI_KLASSEN = { Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe' };
-  const UI_ART_NAME = { schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe' };
+  const UI_KLASSEN = {
+    Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe',
+    Takt: 'takt', Fortschritt: 'fortschritt', Abschnitt: 'abschnitt', Tabelle: 'tabelle', Reiter: 'reiter'
+  };
+  const UI_ART_NAME = {
+    schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe',
+    takt: 'Takt', fortschritt: 'Fortschritt', abschnitt: 'Abschnitt', tabelle: 'Tabelle', reiter: 'Reiter'
+  };
+  const UI_BEHAELTER = { stapel: true, reihe: true, abschnitt: true, reiter: true };
   const UI_STIL = {
     breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
     ausrichtung: ['links', 'mitte', 'rechts'],
-    schrift: ['klein', 'normal', 'gross', 'mono'],
+    schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
     farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal']
   };
   class UiTheke {
@@ -1298,9 +1306,13 @@
     constructor(art, id) {
       this.art = art; this.id = id; this.eltern = null; this.sichtbar = true; this.stil = null;
       this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
-      this.kinder = (art === 'stapel' || art === 'reihe') ? [] : null;
+      this.kinder = UI_BEHAELTER[art] === true ? [] : null;
       this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
-      this.stilNull = null;
+      this.stilNull = null; this.hinweis = '';
+      this.intervall = 1000; this.beiTakt = null;            // Takt
+      this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
+      this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter
+      this.spalten = null; this.zeilen = null;               // Tabelle
     }
   }
 
@@ -1357,6 +1369,28 @@
     const f = Math.pow(10, n);
     const r = Math.sign(x) * Math.round(Math.abs(x) * f + 1e-9) / f;
     return Object.is(r, -0) ? 0 : r;
+  }
+
+  function zahlMitKomma(x) { return zahlText(x).replace('.', ','); }
+
+  // K-085: Tausendergruppen mit Punkt, Dezimalkomma, genau n Nachkommastellen (Rundung K-048)
+  function tausenderText(x, n) {
+    const r = rundeAuf(x, n);
+    if (!isFinite(r)) return zahlText(r);
+    const neg = r < 0;
+    const [g, k] = Math.abs(r).toFixed(n).split('.');
+    const gg = g.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '-' : '') + gg + (k !== undefined ? ',' + k : '');
+  }
+
+  const KOMPAKT_STUFEN = [[1e18, 'Trio.'], [1e15, 'Brd.'], [1e12, 'Bio.'], [1e9, 'Mrd.'], [1e6, 'Mio.'], [1e3, 'Tsd.']];
+  function kompaktText(x, n) {
+    const a = Math.abs(x);
+    if (!isFinite(x) || a >= 1e21) return zahlMitKomma(x);
+    for (const [f, name] of KOMPAKT_STUFEN) {
+      if (a >= f) return zahlMitKomma(rundeAuf(x / f, n)) + ' ' + name;
+    }
+    return zahlMitKomma(rundeAuf(x, n));
   }
 
   function euroText(x) {
@@ -1422,7 +1456,19 @@
   }
 
   const ZAHL_M = tabelle({
-    'euro': function (x) { return euroText(x); },
+    'euro': function (x, pos, ben) {
+      const k = arg(pos, ben, 0, 'kompakt');
+      if (k !== undefined && k !== null && this.bool(k)) return kompaktText(x, 2) + ' €';
+      return euroText(x);
+    },
+    'tausender': function (x, pos, ben) {
+      const n = arg(pos, ben, 0, 'stellen');
+      return tausenderText(x, n === undefined || n === null ? 0 : this.stellen(n, 'tausender'));
+    },
+    'kompakt': function (x, pos, ben) {
+      const n = arg(pos, ben, 0, 'stellen');
+      return kompaktText(x, n === undefined || n === null ? 2 : this.stellen(n, 'kompakt'));
+    },
     'runden': function (x, pos, ben) { const n = arg(pos, ben, 0, 'stellen'); return rundeAuf(x, n === undefined ? 0 : this.ganzzahl(n, 'runden')); },
     'abs': function (x) { return Math.abs(x); },
     'alsText': function (x) { return zahlText(x); },
@@ -1710,6 +1756,7 @@
 
   const UHR_M = tabelle({
     'jetzt': function () { return new Dauer(this.schritte + this.offset); },
+    'echt': function () { return new Dauer(this.echtzeit !== null ? this.echtzeit : Date.now()); },
     'vorspulen': function (m, pos) {
       const ms = Math.round(this.dauerMs(pos[0], 'Uhr.vorspulen'));
       if (ms < 0) throw this.ananas('RechenAnanas', 'Die Uhr lässt sich nicht zurückdrehen.');
@@ -1821,6 +1868,12 @@
 
   const ZUTAT_M = {
     'id': function (z) { return z.id; },
+    'hinweis': function (z, pos) {
+      if (!pos.length) return z.hinweis;
+      z.hinweis = pos[0] === null ? '' : this.text(pos[0]);
+      this.uiAendere(z, 'hinweis', z.hinweis);
+      return z;
+    },
     'sichtbar': function (z, pos) {
       if (!pos.length) return z.sichtbar;
       z.sichtbar = this.bool(pos[0]);
@@ -1870,6 +1923,14 @@
       return z;
     }
   };
+  const UI_AKTIV_M = {
+    'aktiv': function (z, pos) {
+      if (!pos.length) return z.aktiv;
+      z.aktiv = this.bool(pos[0]);
+      this.uiAendere(z, 'aktiv', z.aktiv);
+      return z;
+    }
+  };
   const UI_TABELLEN = {
     schild: uiTabelle(UI_TEXT_M),
     knopf: uiTabelle(Object.assign({}, UI_TEXT_M, {
@@ -1893,7 +1954,41 @@
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
     })),
     stapel: uiTabelle(UI_CONTAINER_M),
-    reihe: uiTabelle(UI_CONTAINER_M)
+    reihe: uiTabelle(UI_CONTAINER_M),
+    takt: uiTabelle(Object.assign({}, UI_AKTIV_M, {
+      'intervall': function (z) { return new Dauer(z.intervall); },
+      'setzeIntervall': function (z, pos) { z.intervall = this.taktIntervall(pos[0]); this.uiAendere(z, 'intervall', z.intervall); return z; },
+      'beiTakt': function (z, pos) { z.beiTakt = this.uiFunktion(pos[0], 'beiTakt'); return z; }
+    })),
+    fortschritt: uiTabelle({
+      'wert': function (z) { return z.fortschritt; },
+      'setzeWert': function (z, pos) { z.fortschritt = this.fortschrittWert(pos[0]); this.uiAendere(z, 'wert', z.fortschritt); return z; },
+      'text': function (z) { return z.text; },
+      'setzeText': function (z, pos) { z.text = this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
+    }),
+    abschnitt: uiTabelle(Object.assign({}, UI_CONTAINER_M, {
+      'titel': function (z) { return z.titel; },
+      'setzeTitel': function (z, pos) { z.titel = this.text(pos[0]); this.uiAendere(z, 'titel', z.titel); return z; }
+    })),
+    tabelle: uiTabelle({
+      'spalten': function (z) { return z.spalten.slice(); },
+      'setzeSpalten': function (z, pos) { z.spalten = this.tabellenZeile(pos[0], 'setzeSpalten'); this.uiAendere(z, 'spalten', z.spalten.slice()); return z; },
+      'zeilen': function (z) { return z.zeilen.map(x => x.slice()); },
+      'setzeZeilen': function (z, pos) { z.zeilen = this.tabellenZeilen(pos[0]); this.uiAendere(z, 'zeilen', z.zeilen.map(x => x.slice())); return z; }
+    }),
+    reiter: uiTabelle({
+      'waehle': function (z, pos) {
+        const n = pos[0];
+        if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) {
+          throw this.ananas('KeinStückAnanas', 'Seite ' + this.text(n) + ' gibt es nicht – der Reiter hat ' + z.kinder.length + ' Seite' + (z.kinder.length === 1 ? '' : 'n') + '.');
+        }
+        z.gewaehlt = n;
+        this.uiAendere(z, 'gewaehlt', n);
+        return z;
+      },
+      'gewaehlt': function (z) { return z.gewaehlt; },
+      'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
+    })
   };
   const THEKE_M = tabelle({
     'zeige': function (t, pos) { this.uiZeige(t, pos[0]); return t; },
@@ -1940,6 +2035,8 @@
       this.offset = 0;
       this.frames = [];
       this.grenze = this.limit;
+      this.limitBasis = 0;   // K-087: P0002 bezieht sich auf schritte − limitBasis (neu gesetzt bei jedem Theke-Rückruf)
+      this.echtzeit = typeof opt.echtzeit === 'number' && isFinite(opt.echtzeit) ? Math.round(opt.echtzeit) : null;
       this.klassen = new Map();
       this.klassenListe = [];
       this.alleMethoden = [];
@@ -2154,7 +2251,7 @@
 
     // ---------- Schritte & Budgets ----------
     neuGrenze() {
-      let g = this.limit;
+      let g = this.limitBasis + this.limit;
       const fr = this.frames;
       for (let i = 0; i < fr.length; i++) {
         const f = fr[i];
@@ -2163,7 +2260,7 @@
       this.grenze = g;
     }
     grenzeErreicht() {
-      if (this.schritte > this.limit) throw new LimitSig();
+      if (this.schritte > this.limitBasis + this.limit) throw new LimitSig();
       const uhr = this.schritte + this.offset;
       const fr = this.frames;
       for (let i = 0; i < fr.length; i++) {
@@ -2331,6 +2428,7 @@
         if (id === '') throw this.ananas('LaufzeitAnanas', 'Eine Zutat-ID darf nicht leer sein.');
         if (this.uiZutaten.has(id)) throw this.ananas('LaufzeitAnanas', 'Die ID \'' + id + '\' gibt es schon.');
       } else {
+        // Auto-ID wird vor der Prüfung der Argumente vergeben (auch ein fehlgeschlagenes neu verbraucht die Nummer, K-059/K-060)
         do { id = 'z' + (++this.uiIdZaehler); } while (this.uiZutaten.has(id));
       }
       const z = new UiZutat(art, id);
@@ -2351,6 +2449,40 @@
           const an = arg(pos, ben, 1, 'an'); z.an = an === undefined || an === null ? false : this.bool(an);
           break;
         }
+        case 'takt': {
+          const d = arg(pos, ben, 0, 'intervall');
+          z.intervall = this.taktIntervall(d === undefined ? null : d);
+          z.beiTakt = this.uiFunktion(arg(pos, ben, 1, 'beiTakt'), 'Takt');
+          break;
+        }
+        case 'fortschritt': {
+          z.fortschritt = this.fortschrittWert(arg(pos, ben, 0, 'wert'));
+          const t = arg(pos, ben, 1, 'text'); z.text = t === undefined || t === null ? '' : this.text(t);
+          break;
+        }
+        case 'tabelle':
+          z.spalten = this.tabellenZeile(arg(pos, ben, 0, 'spalten'), 'Spalten');
+          z.zeilen = this.tabellenZeilen(arg(pos, ben, 1, 'zeilen'));
+          break;
+        case 'abschnitt': {
+          const t = arg(pos, ben, 0, 'titel'); z.titel = t === undefined || t === null ? '' : this.text(t);
+          const b = arg(pos, ben, 1, 'kinder');
+          if (b !== undefined && b !== null) {
+            if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Abschnitt braucht ein Blech mit Zutaten, nicht ' + this.darstellung(b) + '.');
+            for (const k of b) this.uiKind(z, k);
+          }
+          break;
+        }
+        case 'reiter': {
+          const t = arg(pos, ben, 0, 'titel');
+          z.titelListe = t === undefined || t === null ? [] : this.tabellenZeile(t, 'Titel');
+          const b = arg(pos, ben, 1, 'seiten');
+          if (b !== undefined && b !== null) {
+            if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Reiter braucht ein Blech mit Zutaten, nicht ' + this.darstellung(b) + '.');
+            for (const k of b) this.uiKind(z, k);
+          }
+          break;
+        }
         default: {
           const b = arg(pos, ben, 0, 'kinder');
           if (b !== undefined && b !== null) {
@@ -2359,8 +2491,40 @@
           }
         }
       }
-      this.uiZutaten.set(id, z);
+      this.uiZutaten.set(z.id, z);
       return z;
+    }
+
+    taktIntervall(d) {
+      if (!(d instanceof Dauer)) throw this.ananas('TypAnanas', 'Ein Takt braucht eine Dauer, nicht ' + this.darstellung(d) + '.');
+      const ms = Math.round(d.ms);
+      if (!(ms >= 100)) throw this.ananas('LaufzeitAnanas', 'Ein Takt braucht mindestens 100ms, nicht ' + dauerText(d.ms) + '.');
+      return ms;
+    }
+
+    fortschrittWert(w) {
+      if (w === null || w === undefined) return 0;
+      if (typeof w !== 'number') throw this.ananas('TypAnanas', 'Ein Fortschritt braucht eine Zahl zwischen 0 und 1, nicht ' + this.darstellung(w) + '.');
+      if (Number.isNaN(w)) return 0;
+      return w < 0 ? 0 : w > 1 ? 1 : w;
+    }
+
+    tabellenZeile(b, wo) {
+      if (b === null || b === undefined) return [];
+      if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Tabelle.' + wo + ' braucht ein Blech, nicht ' + this.darstellung(b) + '.');
+      return b.map(x => this.text(x));
+    }
+
+    tabellenZeilen(b) {
+      if (b === null || b === undefined) return [];
+      if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Tabelle-Zeilen brauchen ein Blech aus Blechen, nicht ' + this.darstellung(b) + '.');
+      return b.map(z => this.tabellenZeile(z, 'setzeZeilen'));
+    }
+
+    stellen(n, wo) {
+      const k = this.ganzzahl(n, wo);
+      if (k < 0 || k > 20) throw this.ananas('RechenAnanas', wo + ': Nachkommastellen müssen zwischen 0 und 20 liegen, nicht ' + k + '.');
+      return k;
     }
 
     uiKind(c, k) {
@@ -2396,7 +2560,13 @@
         case 'knopf': o.text = z.text; if (!z.aktiv) o.aktiv = false; break;
         case 'eingabe': o.wert = z.wert; if (z.platzhalter !== '') o.platzhalter = z.platzhalter; break;
         case 'haken': o.text = z.text; o.an = z.an; break;
+        case 'takt': o.intervall = z.intervall; if (!z.aktiv) o.aktiv = false; break;
+        case 'fortschritt': o.wert = z.fortschritt; if (z.text !== '') o.text = z.text; break;
+        case 'abschnitt': o.titel = z.titel; break;
+        case 'tabelle': o.spalten = z.spalten.slice(); o.zeilen = z.zeilen.map(x => x.slice()); break;
+        case 'reiter': o.titel = z.titelListe.slice(); o.gewaehlt = z.gewaehlt; break;
       }
+      if (z.hinweis !== '') o.hinweis = z.hinweis;
       if (!z.sichtbar) o.sichtbar = false;
       if (z.stil !== null) o.stil = Object.assign({}, z.stil);
       z.stilNull = null;
@@ -2481,8 +2651,19 @@
 
     uiVerteile(ev, node) {
       const z = typeof ev.id === 'string' ? this.uiZutaten.get(ev.id) : undefined;
-      if (z === undefined) return;
+      // Nur gezeigte Zutaten bekommen Ereignisse (K-057/K-084)
+      if (z === undefined || !this.uiAngezeigt(z)) return;
+      // K-087: jeder Rückruf beginnt mit frischem Schrittbudget (schritte/Uhr zählen weiter)
+      this.limitBasis = this.schritte;
+      this.neuGrenze();
       switch (ev.typ) {
+        case 'takt':
+          if (z.art === 'takt' && z.aktiv && z.beiTakt !== null) {
+            const a = ev.anzahl;
+            const anzahl = typeof a === 'number' && Number.isInteger(a) && a >= 1 ? a : 1;
+            this.rufe(z.beiTakt, [anzahl], null, node);
+          }
+          break;
         case 'klick':
           if (z.art === 'knopf' && z.aktiv && z.beiKlick !== null) this.rufe(z.beiKlick, [], null, node);
           break;
@@ -2493,6 +2674,11 @@
           } else if (z.art === 'haken') {
             z.an = ev.wert === true || ev.wert === 'true';
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.an], null, node);
+          } else if (z.art === 'reiter') {
+            const n = ev.wert;
+            if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) break;
+            z.gewaehlt = n;
+            if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [n], null, node);
           }
           break;
         case 'enter':
@@ -2754,7 +2940,8 @@
           if (v === null || v instanceof ZufallGen || this.klassen.has('Zufall')) return;
           was = 'kein Zufall';
           break;
-        case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe': {
+        case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe':
+        case 'Takt': case 'Fortschritt': case 'Abschnitt': case 'Tabelle': case 'Reiter': {
           if (this.klassen.has(typ.name) || v === null) {
             const k = this.klassen.get(typ.name);
             if (k === undefined || v === null || this.instanzVon(v, k)) return;

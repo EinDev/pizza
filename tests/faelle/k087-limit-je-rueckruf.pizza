@@ -1,0 +1,5 @@
+Theke t = neu Theke("L");
+Knopf k = neu Knopf("k", () -> { salami i = 0; solange (i < 100) { i++; } Bote.sage(("fertig")); });
+t.zeige(k);
+t.bediene();
+Bote.sage((Uhr.jetzt().inMs() > 600));

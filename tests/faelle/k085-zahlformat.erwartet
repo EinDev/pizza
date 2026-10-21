@@ -1,0 +1,11 @@
+1.234.567
+1.234.567,00
+-1.235
+999 1 0,0 2,68
+1,23 Mio. | 1,2 Mio. | 999,5 | 1,5 Tsd.
+2 Mio. | -1,23 Mio. | 12,35 | 0
+1,23 Mrd. | 1 Bio. | 1 Brd. | 1 Trio.
+1,5e+22 | 1000 Tsd. | 1 Tsd.
+1,23 Mio. € | 1234567,89 € | 12,5 €
+tausender: Nachkommastellen müssen zwischen 0 und 20 liegen, nicht -1.
+kompakt braucht eine Ganzzahl, nicht 1.5.

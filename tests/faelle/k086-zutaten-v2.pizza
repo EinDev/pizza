@@ -1,0 +1,14 @@
+Theke t = neu Theke("V2");
+Fortschritt f = neu Fortschritt(wert: 1.5, text: "voll");
+Bote.sage((f.wert()));
+f.setzeWert(0.25);
+Tabelle tab = neu Tabelle(["Gebäude", "Anzahl"], [["Lehrling", 3], ["Ofen", 1.5]]);
+Knopf k = neu Knopf("k", () -> { f.setzeWert(-2).setzeText("leer"); tab.setzeZeilen([[ja, karton]]); k.hinweis(""); a.setzeTitel("Neu"); });
+k.hinweis("Backt eine Pizza");
+Abschnitt a = neu Abschnitt("Backstube", [f, tab, k]);
+Schild s = neu Schild("Erfolge");
+Reiter r = neu Reiter(["Backstube", "Erfolge"], [a, s]);
+r.beiAenderung((salami n) -> Bote.sage(("reiter " + n + " " + r.gewaehlt())));
+t.zeige(r);
+t.bediene();
+Bote.sage((k.hinweis() + "|" + r.gewaehlt() + "|" + f.wert() + "|" + f.text() + "|" + tab.zeilen() + "|" + tab.spalten() + "|" + a.titel()));

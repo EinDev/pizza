@@ -1,0 +1,9 @@
+Seite 3 gibt es nicht – der Reiter hat 2 Seiten.
+KeinStückAnanas
+0 0 0.5
+Ein Fortschritt braucht eine Zahl zwischen 0 und 1, nicht "halb".
+Tabelle.Spalten braucht ein Blech, nicht "x".
+Tabelle.setzeZeilen braucht ein Blech, nicht 1.
+In Reiter passen nur Zutaten, nicht 5.
+Wert 'winzig' ist für Stil 'schrift' nicht erlaubt. Erlaubt: klein, normal, gross, mono, riesig.
+[] [] Tabelle(z16) Reiter(z3) Abschnitt(z4)

@@ -1,0 +1,19 @@
+Theke t = neu Theke("M");
+Reiter r = neu Reiter(["a", "b"], [neu Schild("A"), neu Schild("B")]);
+Abschnitt ab = neu Abschnitt("Leer", []);
+Knopf plus = neu Knopf("+", () -> { ab.hinzu(neu Schild("neu")); r.waehle(2); });
+t.zeige(neu Stapel([r, ab, plus]));
+t.bediene();
+Knopf k = neu Knopf("k");
+k.stil("schrift", "riesig");
+probier { r.waehle(3); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { r.waehle(0); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+Fortschritt f = neu Fortschritt(wert: Mathe.wurzel(-1));
+Bote.sage((f.wert() + " " + neu Fortschritt().wert() + " " + neu Fortschritt(0.5).wert()));
+probier { neu Fortschritt("halb"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Tabelle("x", []); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Tabelle([], [1]); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Reiter(["a"], [5]); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.stil("schrift", "winzig"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Tabelle leereTab = neu Tabelle();
+Bote.sage((leereTab.spalten() + " " + leereTab.zeilen() + " " + leereTab + " " + r + " " + ab));

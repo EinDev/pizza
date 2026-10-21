@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"V2","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z6","art":"reiter","titel":["Backstube","Erfolge"],"gewaehlt":1,"kinder":[{"id":"z4","art":"abschnitt","titel":"Backstube","kinder":[{"id":"z1","art":"fortschritt","wert":0.25,"text":"voll"},{"id":"z2","art":"tabelle","spalten":["Gebäude","Anzahl"],"zeilen":[["Lehrling","3"],["Ofen","1.5"]]},{"id":"z3","art":"knopf","text":"k","hinweis":"Backt eine Pizza"}]},{"id":"z5","art":"schild","text":"Erfolge"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","wert":0,"text":"leer"},{"id":"z2","zeilen":[["ja","karton"]]},{"id":"z3","hinweis":""},{"id":"z4","titel":"Neu"}]}

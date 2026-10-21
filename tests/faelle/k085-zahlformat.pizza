@@ -1,0 +1,11 @@
+Bote.sage((1234567.tausender()));
+Bote.sage((1234567.tausender(2)));
+Bote.sage(((-1234.5).tausender()));
+Bote.sage((999.tausender() + " " + 0.5.tausender() + " " + 0.tausender(1) + " " + 2.675.tausender(2)));
+Bote.sage((1234567.kompakt() + " | " + 1234567.kompakt(1) + " | " + 999.5.kompakt() + " | " + 1500.kompakt()));
+Bote.sage((2000000.kompakt() + " | " + (-1234567).kompakt() + " | " + 12.345.kompakt() + " | " + 0.kompakt()));
+Bote.sage((1234567890.kompakt() + " | " + 1000000000000.kompakt() + " | " + 1000000000000000.kompakt() + " | " + 1000000000000000000.kompakt()));
+Bote.sage((15000000000000000000000.0.kompakt() + " | " + 999999.kompakt(0) + " | " + 1234.kompakt(stellen: 0)));
+Bote.sage((1234567.89.euro(kompakt: ja) + " | " + 1234567.89.euro(kompakt: nein) + " | " + 12.5.euro(kompakt: ja)));
+probier { 5.tausender(-1); } verbrannt (RechenAnanas a) { Bote.sage((a.nachricht())); }
+probier { 5.kompakt(1.5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

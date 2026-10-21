@@ -1,0 +1,6 @@
+Theke t = neu Theke("T");
+Takt u = neu Takt(1s, () -> { });
+t.zeige(u);
+Bote.sage((Uhr.jetzt()));
+t.bediene();
+Bote.sage((Uhr.jetzt()));

@@ -1,0 +1,5 @@
+Dauer e = Uhr.echt();
+Bote.sage((e.inMs()));
+Uhr.vorspulen(1h);
+Bote.sage((Uhr.echt().inMs() == e.inMs()));
+Bote.sage((Uhr.echt() > 1d));

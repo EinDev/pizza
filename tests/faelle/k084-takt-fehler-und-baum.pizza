@@ -1,0 +1,12 @@
+Theke t = neu Theke("T");
+probier { Takt f = neu Takt(50ms); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { Takt g = neu Takt(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Takt h = neu Takt(99.6ms);
+Takt u = neu Takt(intervall: 500ms, beiTakt: n -> Bote.sage(("u " + n)), id: "uhr");
+Takt draussen = neu Takt(1s, n -> Bote.sage(("nie")));
+Takt ohne = neu Takt(1s);
+probier { u.setzeIntervall(10ms); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }
+t.zeige(neu Reihe([u, ohne]));
+u.beiTakt(karton);
+t.bediene();
+Bote.sage((draussen.id() + " " + ohne.id()));

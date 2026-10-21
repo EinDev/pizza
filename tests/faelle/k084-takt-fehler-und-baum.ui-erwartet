@@ -1,0 +1,2 @@
+{"v":1,"op":"fenster","titel":"T","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z6","art":"reihe","kinder":[{"id":"uhr","art":"takt","intervall":500},{"id":"z5","art":"takt","intervall":1000}]}}
