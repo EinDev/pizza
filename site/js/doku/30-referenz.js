@@ -227,8 +227,23 @@
           inhalt: [
             tab([
               ["`jetzt()`", "Dauer seit Programmstart.", "`Dauer t = Uhr.jetzt();`"],
-              ["`vorspulen(d)`", "Die Uhr springt um die Dauer `d` vor (eine Zahl gilt als Millisekunden) – praktisch, um Haltbarkeiten (`@Kühlschrank`) zu testen. Rückwärts geht nicht: `RechenAnanas`.", "`Uhr.vorspulen((3d));`"]
+              ["`vorspulen(d)`", "Die Uhr springt um die Dauer `d` vor (eine Zahl gilt als Millisekunden) – praktisch, um Haltbarkeiten (`@Kühlschrank`) zu testen. Rückwärts geht nicht: `RechenAnanas`.", "`Uhr.vorspulen((3d));`"],
+              ["`echt()`", "Die **echte** Uhrzeit: Dauer seit dem 1. Januar 1970 (ganze ms). Ändert sich von Lauf zu Lauf – gut für Idle-Spiele („Wie lange war der Spieler weg?“), schlecht für Tests.", "`Dauer jetzt = Uhr.echt();`"]
             ]),
+            { art: "text", md: "`Uhr.jetzt()` und `Uhr.echt()` sind zwei verschiedene Uhren: `jetzt()` zählt Programmschritte und ist bei jedem Lauf gleich, `echt()` ist die Wanduhr deines Computers. Zusammen mit der *Vorratskammer* misst du so die Zeit zwischen zwei Spielrunden:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Vorratskammer v = neu Vorratskammer(\"idle\");",
+                "funghi zuletzt = v.hole(\"zuletzt\", Uhr.echt().inMs());",
+                "Dauer weg = Uhr.echt() - (zuletzt * 1ms);",
+                "v.lege(\"zuletzt\", Uhr.echt().inMs());",
+                "Bote.sage((\"Weg gewesen: mindestens 0 Sekunden? \" + (weg >= 0ms)));"
+              )
+            },
+            { art: "ausgabe", text: "Weg gewesen: mindestens 0 Sekunden? ja" },
             { art: "text", md: "Die Uhr zählt **ganze Millisekunden**: `Uhr.vorspulen(0.5ms)` wird kaufmännisch auf 1 ms gerundet, `0.4ms` auf 0 ms. Dauer-Werte selbst dürfen Kommazahlen sein (`10s / 3`)." },
             { art: "hinweis", ton: "pizza", md: "Der genaue Wert von `Uhr.jetzt()` hängt von der Schrittzahl ab. Vergleiche lieber mit `<` oder `>=` statt mit `==` – auch ein Pizzaiolo misst die Backzeit nicht auf die Millisekunde." }
           ]
@@ -463,7 +478,10 @@
               ["`runden(n)`", "Kaufmännisch auf `n` Nachkommastellen (auch benannt: `runden(stellen: 2)`)", "`3.14159.runden(2)` → `3.14`"],
               ["`abs()`", "Betrag (ohne Minus)", "`-7.9` → `7.9`"],
               ["`ganz()`", "Nachkommastellen abschneiden (nicht runden!)", "`-7.9` → `-7`"],
-              ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"]
+              ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"],
+              ["`tausender()` / `tausender(n)`", "Als Text mit Tausenderpunkten und Dezimalkomma, kaufmännisch auf `n` Stellen (Standard 0)", "`1234567.tausender(2)` → `\"1.234.567,00\"`"],
+              ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
+              ["`euro(kompakt: ja)`", "Eurobetrag in Kurzform", "`1234567.euro(kompakt: ja)` → `\"1,23 Mio. €\"`"]
             ]),
             {
               art: "code",
@@ -479,6 +497,21 @@
               )
             },
             { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") },
+            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; ab 10²¹ bleibt es bei der Exponent-Schreibweise (`1,5e+22`)." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "salami umsatz = 1234567;",
+                "Bote.sage((umsatz.tausender()));",
+                "Bote.sage((umsatz.tausender(2)));",
+                "Bote.sage((umsatz.kompakt() + \" / \" + umsatz.kompakt(1)));",
+                "Bote.sage((1500.kompakt() + \" / \" + 2000000.kompakt() + \" / \" + 12.345.kompakt()));",
+                "Bote.sage((umsatz.euro(kompakt: ja)));"
+              )
+            },
+            { art: "ausgabe", text: z("1.234.567", "1.234.567,00", "1,23 Mio. / 1,2 Mio.", "1,5 Tsd. / 2 Mio. / 12,35", "1,23 Mio. €") },
             { art: "text", md: "**Vorsicht mit dem Minus:** `-` bindet schwächer als der Methodenpunkt. `-2.5.abs()` heißt also `-(2.5.abs())` und ergibt `-2.5`. Für Methoden auf negativen Zahlen Klammern setzen:" },
             {
               art: "code",
@@ -844,17 +877,71 @@
                 ["`Eingabe`", "einzeiliges Textfeld", "`neu Eingabe(wert: \"\", platzhalter: \"\")`", "`wert()`, `setzeWert(t)`, `beiAenderung(fn)` (bekommt den Text), `beiEnter(fn)`"],
                 ["`Haken`", "Ankreuzfeld", "`neu Haken(text, an: nein)`", "`an()`, `setzeAn(ja/nein)`, `beiAenderung(fn)` (bekommt `ja`/`nein`)"],
                 ["`Stapel`", "Zutaten untereinander", "`neu Stapel([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
-                ["`Reihe`", "Zutaten nebeneinander", "`neu Reihe([a, b, c])`", "`hinzu(zutat)`, `leeren()`"]
+                ["`Reihe`", "Zutaten nebeneinander", "`neu Reihe([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
+                ["`Abschnitt`", "Stapel mit Überschrift", "`neu Abschnitt(\"Karte\", [a, b])`", "wie `Stapel`, dazu `titel()`, `setzeTitel(t)`"],
+                ["`Reiter`", "mehrere Seiten mit Reitern oben, eine ist sichtbar", "`neu Reiter([\"Ofen\", \"Karte\"], [seite1, seite2])`", "`waehle(n)` (ab 1), `gewaehlt()`, `beiAenderung(fn)` (bekommt die Seitennummer)"],
+                ["`Fortschritt`", "Fortschrittsbalken", "`neu Fortschritt(wert: 0, text: \"\")`", "`wert()`, `setzeWert(x)` (0 bis 1, wird begrenzt), `text()`, `setzeText(t)`"],
+                ["`Tabelle`", "Tabelle zum Anzeigen", "`neu Tabelle(spalten, zeilen)`", "`spalten()`, `setzeSpalten(b)`, `zeilen()`, `setzeZeilen(b)` – Zellen erscheinen als Text"],
+                ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"]
               ]
             },
-            { art: "text", md: "Stapel und Reihen lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Weitere Zutaten (Listen, Bilder, eine Leinwand für Spiele …) kommen später dazu; dein Code bleibt dabei gültig." }
+            { art: "text", md: "Stapel, Reihen, Abschnitte und Reiter lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Jede Zutat kann außerdem einen **Hinweis** tragen: `knopf.hinweis(\"Lässt den Teig gehen\")` zeigt den Text, wenn der Gast mit der Maus darüber fährt; `hinweis()` liest ihn." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "z4" }, { typ: "klick", id: "z4" }, { typ: "aenderung", id: "z6", wert: 2 }],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "Fortschritt teig = neu Fortschritt(wert: 0.25, text: \"Teig geht …\");",
+                "Tabelle karte = neu Tabelle([\"Pizza\", \"Preis\"], [[\"Margherita\", 8.euro()], [\"Funghi\", 9.euro()]]);",
+                "Abschnitt preise = neu Abschnitt(\"Karte\", [karte]);",
+                "Knopf warten = neu Knopf(\"Warten\", () -> { teig.setzeWert(teig.wert() + 0.5); });",
+                "warten.hinweis(\"Lässt den Teig weiter gehen\");",
+                "Reiter reiter = neu Reiter([\"Ofen\", \"Karte\"], [neu Stapel([teig, warten]), preise]);",
+                "reiter.beiAenderung(n -> { Bote.sage((\"Seite \" + n)); });",
+                "theke.zeige(reiter);",
+                "theke.bediene();",
+                "Bote.sage((\"Teig: \" + teig.wert() + \", Seite \" + reiter.gewaehlt()));"
+              )
+            },
+            { art: "ausgabe", text: z("Seite 2", "Teig: 1, Seite 2") },
+            { art: "text", md: "Der Gast klickt zweimal auf **Warten** (der Balken bleibt bei 1 = voll stehen) und wechselt dann auf den Reiter **Karte**." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Takt: die Theke tickt",
+          inhalt: [
+            { art: "text", md: "Ein `Takt` ist eine unsichtbare Zutat, die regelmäßig ihren Rückruf aufruft – für Uhren, Animationen und Idle-Spiele. Er läuft nur, solange er im **gezeigten** Baum liegt und `aktiv` ist; leg ihn einfach mit in einen Stapel.\n\n- Das Intervall ist eine Dauer von **mindestens 100 ms** (sonst `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`).\n- Der Rückruf bekommt `anzahl`: wie viele Takte seit dem letzten Aufruf vergangen sind. Normal ist das 1; war der Rechner kurz beschäftigt, holt der Takt verpasste Schläge auf einmal nach. Rechne darum immer mit `anzahl`.\n- Der Takt misst **echte** Zeit, nicht die simulierte Uhr – `Uhr.vorspulen` beschleunigt ihn nicht.\n- `aktiv(nein)` hält ihn an, `setzeIntervall(d)` ändert das Tempo." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "takt", id: "z2", anzahl: 1 }, { typ: "takt", id: "z2", anzahl: 2 }],
+              code: z(
+                "Theke theke = neu Theke(\"Ofenuhr\");",
+                "salami sekunden = 0;",
+                "Schild anzeige = neu Schild(\"0 s\").stil(\"schrift\", \"riesig\");",
+                "Takt takt = neu Takt(1s, anzahl -> {",
+                "    sekunden += anzahl;",
+                "    anzeige.setzeText((sekunden + \" s\"));",
+                "    falls (sekunden >= 3) { theke.schliesse(); }",
+                "});",
+                "theke.zeige(neu Stapel([anzeige, takt]));",
+                "theke.bediene();",
+                "Bote.sage((\"Fertig nach \" + sekunden + \" s\"));"
+              )
+            },
+            { art: "ausgabe", text: "Fertig nach 3 s" },
+            { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." }
           ]
         },
         {
           art: "details",
           titel: "Die Ereignisschleife: bediene()",
           inhalt: [
-            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`)." },
+            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`).\n- Das **Schrittlimit** (5 000 000, `P0002`) gilt für das Programm bis zum `bediene()` und danach **für jeden Rückruf neu**. Ein Spiel darf also stundenlang laufen und Tausende Klicks oder Takte verarbeiten – nur ein einzelner Rückruf, der sich in einer Endlosschleife verfängt, wird gestoppt. `Uhr.jetzt()` zählt dabei einfach weiter." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -891,7 +978,7 @@
                 ["`breite`, `hoehe`", "Größe in Pixeln (Ganzzahl ≥ 0)"],
                 ["`abstand`", "Luft um die Zutat in Pixeln (Ganzzahl ≥ 0)"],
                 ["`ausrichtung`", "`\"links\"`, `\"mitte\"`, `\"rechts\"`"],
-                ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"mono\"`"],
+                ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"riesig\"`, `\"mono\"`"],
                 ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"]
               ]
             },
@@ -1006,7 +1093,7 @@
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
