@@ -63,8 +63,9 @@ const j = (x) => JSON.stringify(x);
 
 function erwartetText(res, ohnePanik) {
   return res.ereignisse
-    .filter((e) => e.typ === "ausgabe" || e.typ === "fehlerausgabe" || (e.typ === "panik" && !ohnePanik))
-    .map((e) => norm(e.text) + "\n")
+    .filter((e) => e.typ === "ausgabe" || e.typ === "fehlerausgabe" || e.typ === "leeren" || (e.typ === "panik" && !ohnePanik))
+    // EINGABE.md §2: umbruch:false ohne Zeilenumbruch, leeren als Zeile «leeren»
+    .map((e) => (e.typ === "leeren" ? "«leeren»\n" : norm(e.text) + (e.umbruch === false ? "" : "\n")))
     .join("");
 }
 
@@ -148,7 +149,17 @@ function beispielFälle() {
   return teilB.ladeManifeste().beispiele.map((b) => ({
     p, name: `${b.teil} ${b.id}`, code: fs.readFileSync(b.datei, "utf8"), exit: b.exitCode,
     erwartetDatei: fs.readFileSync(b.erwartet, "utf8"), panikErlaubt: true,
+    eingabe: eingabeZeilen(b),
   }));
+}
+
+// EINGABE.md §2: vorgegebene Eingabe aus der .eingabe-Datei neben der .pizza (Manifest-Feld "eingabe" zeigt dorthin)
+function eingabeZeilen(b) {
+  const datei = b.datei.replace(/\.pizza$/, ".eingabe");
+  if (!fs.existsSync(datei)) return undefined;
+  const zeilen = norm(fs.readFileSync(datei, "utf8")).split("\n");
+  if (zeilen.length && zeilen[zeilen.length - 1] === "") zeilen.pop();
+  return zeilen;
 }
 
 function dokuFälle() {
@@ -224,6 +235,7 @@ async function teilA() {
       } else {
         const optionen = { schrittLimit: f.schrittLimit || STANDARD_LIMIT };
         if (f.args) optionen.args = f.args;
+        if (f.eingabe) optionen.eingabe = f.eingabe;
         const m = await aus.run(f.code, optionen);
         if (m.fehler) err = [m.fehler];
         else {
