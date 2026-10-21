@@ -1,0 +1,108 @@
+// Motor-Umschalter (WASM.md §4): auto / wasm / interpreter – gleiche Ausgabe in allen Modi.
+import assert from "node:assert/strict";
+import {
+  e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
+  ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv,
+} from "../hilfen.mjs";
+
+const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
+
+const SNIPPETS = [
+  { name: "Ausgabe", code: 'Bote.sage(("eins"));\nBote.fehler(("zwei"));\nsalami s = 0;\nfür (salami i : [1 .. 100]) { s += i; }\nBote.sage((s));', exit: 0 },
+  { name: "Syntaxfehler", code: "Bote.sage((1 +));", exit: 2 },
+  { name: "Ananas", code: 'Bote.sage(("a"));\nwirf neu StreitAnanas(("weg"));', exit: 1 },
+  { name: "Schrittlimit", code: "salami n = 0;\nsolange (ja) { n += 1; }", exit: 3 },
+  { name: "Hawaii", code: "hawaii h = 1;", exit: 39 },
+];
+
+async function motorVerfuegbar(page) {
+  return page.evaluate((sel) => {
+    const w = document.querySelector(sel);
+    if (!w) return null;
+    return Object.fromEntries([...w.options].map((o) => [o.value, !o.disabled]));
+  }, WAHL);
+}
+
+async function setzeMotor(page, m) {
+  await page.select(WAHL, m);
+  assert.equal(await page.$eval(WAHL, (w) => w.value), m);
+}
+
+/** Backt und liefert Ausgabe, Exit-Text, gemeldeten Motor. */
+async function lauf(page, zeilen = []) {
+  await ereignisseLeeren(page);
+  await backenInteraktiv(page, zeilen, { timeout: 30_000 });
+  const r = {
+    ausgabe: await ausgabeAusEreignissen(page),
+    konsole: await konsolenAusgabe(page),
+    exit: (await exitBadge(page)).text,
+    motor: await page.evaluate(() => {
+      const ev = (window.__ereignisse || []).filter((e) => e.typ === "motor" || e.typ === "ende");
+      return ev.map((e) => e.motor).filter(Boolean).pop() || null;
+    }),
+  };
+  if (await page.$eval("#hawaii", (h) => !h.hidden)) {
+    await page.click("#hawaii-neustart");
+    await page.waitForFunction(() => document.getElementById("hawaii").hidden);
+  }
+  return r;
+}
+
+e2e("Motor-Umschalter vorhanden, Auswahl wird gemerkt", async ({ page, oeffne }, t) => {
+  await oeffne();
+  const v = await motorVerfuegbar(page);
+  if (!v) return t.skip("Motor-Umschalter noch nicht in der UI");
+  assert.deepEqual(Object.keys(v).sort(), ["auto", "interpreter", "wasm"]);
+  await setzeMotor(page, "interpreter");
+  await page.reload({ waitUntil: "load" });
+  await bereit(page);
+  assert.equal(await page.$eval(WAHL, (w) => w.value), "interpreter", "Motor überlebt Reload");
+  const badge = await page.$('[data-testid="motor-badge"]');
+  assert.ok(badge, "Motor-Badge vorhanden");
+});
+
+e2e("Gleiche Ausgabe in allen Modi (Snippets: Ausgabe, Fehler, Ananas, Limit, Hawaii)", { timeout: 90_000 }, async ({ page, oeffne }, t) => {
+  await oeffne();
+  const v = await motorVerfuegbar(page);
+  if (!v) return t.skip("Motor-Umschalter noch nicht in der UI");
+  const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m);
+  if (!v.wasm) t.diagnostic("Wasm-Motor nicht verfügbar (pizzaiolo.js fehlt?) – geprüft: " + modi.join(", "));
+  for (const s of SNIPPETS) {
+    await setzeCode(page, s.code);
+    const ergebnisse = {};
+    for (const m of modi) {
+      await setzeMotor(page, m);
+      ergebnisse[m] = await lauf(page);
+    }
+    const basis = ergebnisse.interpreter;
+    assert.ok(basis, "Interpreter-Modus muss immer gehen");
+    for (const m of modi) {
+      assert.equal(ergebnisse[m].ausgabe, basis.ausgabe, `${s.name}: Ausgabe ${m} vs. interpreter`);
+      assert.equal(ergebnisse[m].exit, basis.exit, `${s.name}: Exit ${m} vs. interpreter`);
+    }
+    if (ergebnisse.interpreter.motor) assert.equal(ergebnisse.interpreter.motor, "interpreter", "Interpreter-Modus meldet Motor interpreter");
+    if (ergebnisse.wasm && ergebnisse.wasm.motor) assert.equal(ergebnisse.wasm.motor, "wasm", "Wasm-Modus fällt nie auf den Interpreter zurück");
+  }
+});
+
+e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiele)", { timeout: 150_000 }, async ({ page, oeffne }, t) => {
+  await oeffne();
+  const v = await motorVerfuegbar(page);
+  if (!v) return t.skip("Motor-Umschalter noch nicht in der UI");
+  const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m).filter((m) => m !== "interpreter");
+  if (!modi.length) return t.skip("nur Interpreter verfügbar");
+  const { liste } = beispieleAusManifesten();
+  for (const b of liste) {
+    const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.datei);
+    await setzeCode(page, code.replace(/\r\n?/g, "\n"));
+    for (const m of modi) {
+      await t.test(`${b.datei} (${m})`, async () => {
+        await setzeMotor(page, m);
+        const r = await lauf(page, eingabeZeilen(b) || []);
+        assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
+        if (m === "wasm") assert.equal(r.motor, "wasm");
+      });
+    }
+  }
+  await schlafe(10);
+});

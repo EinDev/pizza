@@ -1,0 +1,17 @@
+{
+  "name": "pizza-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "End-to-End-Browsertests für den pizza-Playground (puppeteer-core + lokaler Chrome).",
+  "type": "module",
+  "scripts": {
+    "test": "node lauf.mjs",
+    "server": "node server.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "24.43.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
