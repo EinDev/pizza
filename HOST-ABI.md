@@ -31,8 +31,11 @@ Der Host muss die Bytes **während des Aufrufs** kopieren/dekodieren (Speicher k
 | `schreibe` | `(ptr i32, len i32) -> ()` | `{ typ: "ausgabe", text, umbruch: false }` (`Bote.schreibe`) |
 | `leeren` | `() -> ()` | `{ typ: "leeren" }` (`Bote.leeren`) |
 | `eingabe` | `(art i32, prompt_ptr i32, prompt_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | siehe unten; Host emittiert danach `{ typ: "eingabe", text }` |
+| `ui_senden` | `(ptr i32, len i32) -> ()` | Theke (THEKE.md §3): UTF-8-JSON an den Renderer; Ereignis `{ typ: "ui", nachricht }` |
+| `ui_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | Theke: nächstes Renderer-Ereignis (UTF-8-JSON), siehe unten |
 
-`art` bei `fehler`: `1` = `"pizzafehler"`, `2` = `"ananas"`, `3` = `"limit"` (`0` = `"syntax"`, kommt aus Wasm nie vor).
+`art` bei `fehler`: `1` = `"pizzafehler"`, `2` = `"ananas"`, `3` = `"limit"` (`0` = `"syntax"`, kommt aus Wasm nie vor;
+`"intern"` erzeugt nur der Host selbst, siehe §4).
 
 Alle Texte sind bereits fertig formatiert (z. B. `Ungefangene Ananas – StreitAnanas: Pizza ist alle. (Zeile 12)`,
 `W0003: Methode 'x' ist veraltet.`). Der Host fügt nichts hinzu und entfernt nichts.
@@ -41,14 +44,28 @@ Alle Texte sind bereits fertig formatiert (z. B. `Ungefangene Ananas – StreitA
 zurückgeben) – dann beendet er den Lauf selbst mit Exit-Code **39** (und `ende`). Kehrt `panik` normal zurück,
 wickelt das Modul selbst ab und `start` liefert 39. Beides ist korrekt.
 
-**`eingabe`** (EINGABE.md, `Bestellannahme`): `art` 0 = `"zeile"`, 1 = `"zahl"`; `prompt_len = -1` bedeutet
-`prompt: null` (sonst ist der Prompt bereits vorher per `schreibe` ausgegeben worden und wird nur zur Info
-übergeben). Der Host liefert die nächste Eingabezeile (ohne Zeilenumbruch) als UTF-8 in
-`[puffer_ptr, puffer_ptr + puffer_kap)` und gibt die Byte-Länge zurück; **`-1` = EOF**. Zu lange Zeilen werden
-auf `puffer_kap` Bytes (an einer UTF-8-Zeichengrenze) gekürzt, der Rest verworfen (`puffer_kap` ist ≥ 65 536).
-Der Host emittiert direkt danach `{ typ: "eingabe", text }` (`text: null` bei EOF). JS-Host: `optionen.onEingabe`
-(Vorrang) bzw. `optionen.eingabe: string[]`; fehlt beides → sofort EOF. Warten kostet keine Schritte.
-Nativer Host: liest von stdin.
+**`eingabe`** (EINGABE.md, SPEC §11.1, K-009/K-011/K-013/K-042):
+- `art` 0 = `"zeile"`, 1 = `"zahl"` – lesen. `prompt_len = -1` bedeutet `prompt: null`. Der Prompt ist **nur
+  informativ** (z. B. Platzhalter eines Eingabefelds): das Modul hat ihn vorher selbst per `schreibe` ausgegeben,
+  der Host gibt ihn **nie** zusätzlich aus.
+- Rückgabe: Byte-Länge der Zeile (ohne Zeilenumbruch, UTF-8), **`-1` = EOF**. Ist die Länge **größer als `puffer_kap`**,
+  schreibt der Host nichts, **behält die Zeile** und gibt die benötigte Länge zurück; das Modul ruft sofort erneut mit
+  ausreichend großem Puffer (gleiche `art`). Es wird nie gekürzt.
+- Der Host emittiert `{ typ: "eingabe", text }` genau einmal pro gelieferter Zeile bzw. EOF (`text: null`) – beim
+  Retry nicht doppelt.
+- **EOF ist endgültig**: nach dem ersten EOF liefert jeder weitere Leseversuch sofort `-1` (mit Ereignis `text: null`),
+  ohne den Nutzer erneut zu fragen. Ein `null`-Eintrag in `optionen.eingabe` bedeutet EOF ab dort.
+- `art` 2 = **Abfrage `hatMehr()`** (liest nichts, kein Ereignis): `1`, wenn noch Eingabe möglich ist (interaktiv immer,
+  solange kein EOF war; vorgegebene Zeilen: noch ein Nicht-`null`-Eintrag übrig), sonst `0`.
+- JS-Host: `optionen.onEingabe({ prompt, art })` (Vorrang; `null`/`undefined`/Wurf = EOF) bzw. `optionen.eingabe: string[]`;
+  fehlt beides → sofort EOF. Warten kostet keine Schritte. Nativer Host: liest von stdin.
+
+**`ui_senden` / `ui_warte`** (THEKE.md): `ui_senden` übergibt eine Protokollnachricht (JSON) an den Renderer.
+`ui_warte` blockiert bis zum nächsten Renderer-Ereignis und liefert dessen JSON-Länge; `-1` = kein Renderer bzw.
+Fenster geschlossen; Länge `> puffer_kap` → nichts geschrieben, Ereignis bleibt, erneuter Aufruf mit größerem Puffer
+(wie bei `eingabe`). Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1`.
+Warten kostet keine Schritte. Solange der Compiler die Theke nicht unterstützt, meldet er `nichtUnterstuetzt`;
+die Imports sind dennoch Teil des ABI und müssen bereitgestellt werden.
 
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 
@@ -88,10 +105,14 @@ exitCode = inst.start()              // alle Ereignisse kommen synchron, in Auft
 emit { typ: "ende", exitCode, schritte: inst.schritte(), zeitMs: inst.zeitMs() }
 ```
 - Pro Instanz wird `start` **höchstens einmal** aufgerufen.
-- **Trap** (Bug, Wasm-Stapelüberlauf, Speicher des Hosts erschöpft) während `start`: Der Host meldet
-  `{ typ: "fehler", code: "LaufzeitAnanas", art: "ananas", text: "Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: <Trap-Meldung>", zeile: null, spalte: null }`,
-  Exit-Code **1**, danach `ende` mit `schritte()`/`zeitMs()` (nach einem Trap weiter aufrufbar). Ausnahme: der Host hat
-  selbst in `panik` abgebrochen → Exit-Code 39 ohne Fehlerereignis.
+- **Trap** (Bug, Wasm-Stapelüberlauf, Speicher des Hosts erschöpft) während `start` (K-014): Der Host meldet
+  `{ typ: "fehler", code: "LaufzeitAnanas", art: "ananas", text: "Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.", zeile: null, spalte: null, detail: "<Trap-Meldung>" }`
+  (fester Text; Details nur im optionalen Feld `detail`), Exit-Code **1**, danach `ende` mit `schritte()`/`zeitMs()`
+  (nach einem Trap weiter aufrufbar). Ausnahme: der Host hat selbst in `panik` abgebrochen → Exit-Code 39 ohne Fehlerereignis.
+- Liefert `start` einen Exit-Code außerhalb {0, 1, 2, 3, 39}, behandelt der Host das wie einen Trap (K-046).
+- **Ladefehler** (kein gültiges Modul, falsche `abi_version`, fehlende Exporte) (K-043/K-044): Der Host sendet
+  `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: <Grund>", zeile: null, spalte: null }` und
+  `ende` mit Exit-Code **2**, `schritte: 0`, `zeitMs: 0`.
 - Das Schrittlimit, Ofen-/Lieferbudgets, Ananas, Hawaii-Panik usw. behandelt **das Modul selbst** – der Host
   muss nichts davon kennen.
 
@@ -127,7 +148,12 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 | `fehlerausgabe` | stderr: `text + "\n"` |
 | `warnung` | stderr: `"⚠ " + text + " (Zeile z, Spalte s)"` (Positionsteil nur, wenn bekannt) |
 | `fehler` | stderr: `text` (+ Position bei `pizzafehler`) |
-| `panik` | stderr: `text` |
+| `schreibe` | stdout: `text` (ohne Umbruch, flushen) |
+| `leeren` | stdout: ESC-Sequenz `[2J`, `[3J`, `[H` (K-054), nur wenn stdout ein Terminal ist |
+| `eingabe` | Zeile von stdin lesen (`
+`/`
+` entfernen), EOF → `-1` |
+| `panik` | stderr: `text` (Banner auf stderr, K-012) |
 | `ende` | Prozess-Exit-Code = `exitCode` |
 
 ## 8. Minimaler JS-Host (Referenz)
@@ -148,9 +174,12 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
     schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
     leeren: () => emit({ typ: 'leeren' }),
     eingabe: (art, pp, pn, bp, kap) => {           // hier: keine Eingabe → EOF
+      if (art === 2) return 0;
       emit({ typ: 'eingabe', text: null });
       return -1;
     },
+    ui_senden: (p, n) => emit({ typ: 'ui', nachricht: JSON.parse(t(p, n)) }),
+    ui_warte: () => -1,
   };
   inst = new WebAssembly.Instance(new WebAssembly.Module(pkarton), { pizza });
   for (const a of args) {
@@ -163,7 +192,7 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
   try { exitCode = inst.exports.start(); }
   catch (e) {
     emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: ' + e.message, zeile: null, spalte: null });
+      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: e.message });
     exitCode = 1;
   }
   emit({ typ: 'ende', exitCode, schritte: inst.exports.schritte(), zeitMs: inst.exports.zeitMs() });
