@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pizza Logo-Vorschau</title>
+<style>
+  :root { --hell: #f7f2e9; --dunkel: #131417; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; font: 14px/1.4 system-ui, sans-serif; background: #ddd6ca; color: #2b2520; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  h2 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+  .paar { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 16px; border-radius: 8px; overflow: hidden; }
+  .feld { padding: 14px 16px; display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  .feld.hell { background: var(--hell); color: #2b2520; }
+  .feld.dunkel { background: var(--dunkel); color: #ebe7e1; }
+  figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  figcaption { font-size: 11px; opacity: 0.7; }
+  @media (max-width: 700px) { .paar { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>pizza v3.0 – Logo-Vorschau</h1>
+
+<h2>logo.svg</h2>
+<div class="paar">
+  <div class="feld hell">
+    <figure><img src="logo.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+  <div class="feld dunkel">
+    <figure><img src="logo.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+</div>
+
+<h2>logo-backen.svg (läuft gerade)</h2>
+<div class="paar">
+  <div class="feld hell">
+    <figure><img src="logo-backen.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+  <div class="feld dunkel">
+    <figure><img src="logo-backen.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo-backen.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+</div>
+
+<h2>logo-icon.svg (Favicon-Quelle)</h2>
+<div class="paar">
+  <div class="feld hell">
+    <figure><img src="logo-icon.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+  <div class="feld dunkel">
+    <figure><img src="logo-icon.svg" height="16" alt=""><figcaption>16</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="32" alt=""><figcaption>32</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="64" alt=""><figcaption>64</figcaption></figure>
+    <figure><img src="logo-icon.svg" height="128" alt=""><figcaption>128</figcaption></figure>
+  </div>
+</div>
+</body>
+</html>

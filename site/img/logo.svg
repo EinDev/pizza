@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 64" width="160" height="64" role="img" aria-labelledby="lg-titel">
+  <title id="lg-titel">pizza v3.0 – eine Pizza als DVD, bereit zum Backen im DVD-Laufwerk</title>
+  <defs>
+    <!-- Kruste: hell innen, gebraeunt am Rand -->
+    <radialGradient id="lg-kruste" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.78" stop-color="#E8C48A"/>
+      <stop offset="0.9" stop-color="#E2B87A"/>
+      <stop offset="1" stop-color="#C8955A"/>
+    </radialGradient>
+    <!-- DVD-Schimmer: zwei gegenueberliegende Regenbogen-Reflexe -->
+    <linearGradient id="lg-iris" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8FD3F4" stop-opacity="0"/>
+      <stop offset="0.16" stop-color="#8FD3F4" stop-opacity="0.55"/>
+      <stop offset="0.28" stop-color="#C9A7F2" stop-opacity="0.55"/>
+      <stop offset="0.4" stop-color="#F6A9C9" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#F6A9C9" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#FFE08A" stop-opacity="0.55"/>
+      <stop offset="0.84" stop-color="#9EE6B8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#9EE6B8" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="lg-sauce" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.5" stop-color="#DE4D31"/>
+      <stop offset="1" stop-color="#C93C24"/>
+    </radialGradient>
+    <radialGradient id="lg-glas" cx="0.5" cy="0.62" r="0.55">
+      <stop offset="0" stop-color="#4A2C1C"/>
+      <stop offset="0.7" stop-color="#241D19"/>
+      <stop offset="1" stop-color="#1A1614"/>
+    </radialGradient>
+    <linearGradient id="lg-glut" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C8552A"/>
+      <stop offset="0.5" stop-color="#F2B33D"/>
+      <stop offset="1" stop-color="#C8552A"/>
+    </linearGradient>
+
+    <!-- Basilikumblatt, Spitze nach oben, Laenge ca. 7.6 -->
+    <g id="lg-blatt">
+      <path d="M0,-3.8 C2.6,-2.2 2.6,2 0,3.8 C-2.6,2 -2.6,-2.2 0,-3.8 Z" fill="#3E8E41"/>
+      <path d="M0,-2.8 V3.2" stroke="#2C6A2F" stroke-width="0.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- Die Pizza-DVD, Mittelpunkt 0,0, Radius 24, echtes Loch (evenodd) -->
+    <g id="lg-disc">
+      <!-- Kruste (Ring mit Loch) -->
+      <path fill="url(#lg-kruste)" fill-rule="evenodd" stroke="#B9844A" stroke-width="0.8"
+            d="M-24,0 A24,24 0 1 0 24,0 A24,24 0 1 0 -24,0 Z M-3.4,0 A3.4,3.4 0 1 0 3.4,0 A3.4,3.4 0 1 0 -3.4,0 Z"/>
+      <!-- gebackene Blasen auf dem Rand -->
+      <g fill="#C8955A" opacity="0.6">
+        <ellipse cx="21.47" cy="3.79" rx="1.3" ry="0.7" transform="rotate(100 21.47 3.79)"/>
+        <ellipse cx="5.64" cy="21.06" rx="1.3" ry="0.7" transform="rotate(165 5.64 21.06)"/>
+        <ellipse cx="-15.41" cy="15.41" rx="1.3" ry="0.7" transform="rotate(225 -15.41 15.41)"/>
+        <ellipse cx="-20.49" cy="-7.46" rx="1.3" ry="0.7" transform="rotate(290 -20.49 -7.46)"/>
+        <ellipse cx="-3.79" cy="-21.47" rx="1.3" ry="0.7" transform="rotate(350 -3.79 -21.47)"/>
+        <ellipse cx="16.7" cy="-14.01" rx="1.3" ry="0.7" transform="rotate(50 16.7 -14.01)"/>
+      </g>
+      <!-- DVD-Irisieren auf dem Krustenring -->
+      <path fill="url(#lg-iris)" fill-rule="evenodd"
+            d="M-23.6,0 A23.6,23.6 0 1 0 23.6,0 A23.6,23.6 0 1 0 -23.6,0 Z M-19.6,0 A19.6,19.6 0 1 0 19.6,0 A19.6,19.6 0 1 0 -19.6,0 Z"/>
+      <!-- Tomatensauce (Ring bis zur Nabe) -->
+      <path fill="url(#lg-sauce)" fill-rule="evenodd"
+            d="M-19.6,0 A19.6,19.6 0 1 0 19.6,0 A19.6,19.6 0 1 0 -19.6,0 Z M-7.2,0 A7.2,7.2 0 1 0 7.2,0 A7.2,7.2 0 1 0 -7.2,0 Z"/>
+      <!-- Schnitte = Sektoren -->
+      <g stroke="#9E3019" stroke-width="0.7" stroke-linecap="round" opacity="0.55">
+        <path d="M6.24,3.6 L20.44,11.8 M-6.24,-3.6 L-20.44,-11.8"/>
+        <path d="M0,7.2 L0,23.6 M0,-7.2 L0,-23.6"/>
+        <path d="M-6.24,3.6 L-20.44,11.8 M6.24,-3.6 L20.44,-11.8"/>
+      </g>
+      <!-- Mozzarella -->
+      <g fill="#FFF6E0" stroke="#EAD7AE" stroke-width="0.4">
+        <ellipse cx="8" cy="-11" rx="3.2" ry="2.6" transform="rotate(20 8 -11)"/>
+        <ellipse cx="-12" cy="-6" rx="3" ry="2.5" transform="rotate(-30 -12 -6)"/>
+        <ellipse cx="13" cy="6" rx="3.1" ry="2.6" transform="rotate(60 13 6)"/>
+        <ellipse cx="-4" cy="13" rx="3.2" ry="2.5" transform="rotate(10 -4 13)"/>
+        <ellipse cx="-9.5" cy="7" rx="2.6" ry="2.2" transform="rotate(-15 -9.5 7)"/>
+      </g>
+      <!-- Basilikum -->
+      <use href="#lg-blatt" transform="translate(-2.5 -14) rotate(-60)"/>
+      <use href="#lg-blatt" transform="translate(15.5 -2.5) rotate(25)"/>
+      <use href="#lg-blatt" transform="translate(4 11.5) rotate(115)"/>
+      <!-- Nabe (Klemmbereich) -->
+      <path fill="#D9D2C6" fill-rule="evenodd" stroke="#A99C88" stroke-width="0.6"
+            d="M-7.2,0 A7.2,7.2 0 1 0 7.2,0 A7.2,7.2 0 1 0 -7.2,0 Z M-3.4,0 A3.4,3.4 0 1 0 3.4,0 A3.4,3.4 0 1 0 -3.4,0 Z"/>
+      <circle r="5.3" fill="none" stroke="#B8AD9C" stroke-width="0.5"/>
+    </g>
+  </defs>
+
+  <!-- Ausgefahrene Schublade -->
+  <rect x="4" y="7" width="60" height="50" rx="4" fill="#3B3530" stroke="#5A524B" stroke-width="1"/>
+  <path d="M8,7.5 V56.5 H8 A3.5,3.5 0 0 1 4.5,53 V11 A3.5,3.5 0 0 1 8,7.5 Z" fill="#574F48"/>
+  <circle cx="33" cy="32" r="25.3" fill="#282320"/>
+
+  <!-- Die Pizza-DVD liegt in der Schublade -->
+  <use href="#lg-disc" transform="translate(33 32)"/>
+
+  <!-- Laufwerk = Ofen -->
+  <rect x="60.6" y="3.6" width="94.8" height="56.8" rx="6.6" fill="#2F2A26" stroke="#5A524B" stroke-width="1.2"/>
+  <path d="M70,4.2 V59.8 H67 A5.8,5.8 0 0 1 61.2,54 V10 A5.8,5.8 0 0 1 67,4.2 Z" fill="#4A433D"/>
+  <path d="M70,4.2 V59.8" stroke="#211D1A" stroke-width="0.8"/>
+  <!-- LED -->
+  <circle cx="65.6" cy="11.5" r="4.2" fill="#F2B33D" opacity="0.28"/>
+  <circle cx="65.6" cy="11.5" r="2.4" fill="#F2B33D"/>
+  <circle cx="64.9" cy="10.8" r="0.8" fill="#FFF6E0" opacity="0.8"/>
+  <!-- Auswurf-/Ofenknopf -->
+  <rect x="62.2" y="46.6" width="6.8" height="9.4" rx="1.6" fill="#3A3430" stroke="#5A524B" stroke-width="0.5"/>
+  <path d="M63.4,51.3 L65.6,48.4 L67.8,51.3 Z" fill="#E8DFD3"/>
+  <rect x="63.4" y="52.4" width="4.4" height="1.2" rx="0.3" fill="#E8DFD3"/>
+
+  <!-- Ofenfenster (noch leer) -->
+  <circle cx="98" cy="32" r="22.5" fill="#4A433D"/>
+  <circle cx="98" cy="32" r="20.6" fill="url(#lg-glas)"/>
+  <path d="M83.5,22 A17.5,17.5 0 0 1 95,14.7" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity="0.18"/>
+
+  <!-- Lueftungsgitter mit Glut -->
+  <g fill="url(#lg-glut)" opacity="0.85">
+    <rect x="127" y="11" width="22" height="2.8" rx="1.4"/>
+    <rect x="127" y="17" width="22" height="2.8" rx="1.4"/>
+    <rect x="127" y="23" width="22" height="2.8" rx="1.4"/>
+    <rect x="127" y="29" width="22" height="2.8" rx="1.4"/>
+    <rect x="127" y="35" width="22" height="2.8" rx="1.4"/>
+  </g>
+  <text x="138" y="51.5" text-anchor="middle" font-family="system-ui, sans-serif" font-size="6.6" font-weight="700" letter-spacing="0.5" fill="#E8C48A">BACKEN</text>
+</svg>

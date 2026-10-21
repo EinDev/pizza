@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="ic-titel">
+  <title id="ic-titel">pizza v3.0 – Pizza-DVD</title>
+  <defs>
+    <radialGradient id="ic-kruste" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.78" stop-color="#E8C48A"/>
+      <stop offset="0.9" stop-color="#E2B87A"/>
+      <stop offset="1" stop-color="#C8955A"/>
+    </radialGradient>
+    <linearGradient id="ic-iris" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8FD3F4" stop-opacity="0"/>
+      <stop offset="0.16" stop-color="#8FD3F4" stop-opacity="0.55"/>
+      <stop offset="0.28" stop-color="#C9A7F2" stop-opacity="0.55"/>
+      <stop offset="0.4" stop-color="#F6A9C9" stop-opacity="0"/>
+      <stop offset="0.6" stop-color="#F6A9C9" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#FFE08A" stop-opacity="0.55"/>
+      <stop offset="0.84" stop-color="#9EE6B8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#9EE6B8" stop-opacity="0"/>
+    </linearGradient>
+    <g id="ic-blatt">
+      <path d="M0,-5.2 C3.5,-3 3.5,2.8 0,5.2 C-3.5,2.8 -3.5,-3 0,-5.2 Z" fill="#3E8E41"/>
+      <path d="M0,-3.8 V4.2" stroke="#2C6A2F" stroke-width="0.8" stroke-linecap="round"/>
+    </g>
+  </defs>
+  <g transform="translate(32 32)">
+    <!-- Kruste mit echtem Loch -->
+    <path fill="url(#ic-kruste)" fill-rule="evenodd" stroke="#B9844A" stroke-width="1.2"
+          d="M-30,0 A30,30 0 1 0 30,0 A30,30 0 1 0 -30,0 Z M-4.8,0 A4.8,4.8 0 1 0 4.8,0 A4.8,4.8 0 1 0 -4.8,0 Z"/>
+    <!-- DVD-Irisieren -->
+    <path fill="url(#ic-iris)" fill-rule="evenodd"
+          d="M-29.3,0 A29.3,29.3 0 1 0 29.3,0 A29.3,29.3 0 1 0 -29.3,0 Z M-23.8,0 A23.8,23.8 0 1 0 23.8,0 A23.8,23.8 0 1 0 -23.8,0 Z"/>
+    <!-- Tomatensauce -->
+    <path fill="#D9452B" fill-rule="evenodd"
+          d="M-23.8,0 A23.8,23.8 0 1 0 23.8,0 A23.8,23.8 0 1 0 -23.8,0 Z M-9.4,0 A9.4,9.4 0 1 0 9.4,0 A9.4,9.4 0 1 0 -9.4,0 Z"/>
+    <!-- Mozzarella -->
+    <g fill="#FFF6E0">
+      <ellipse cx="10" cy="-14" rx="4.6" ry="3.8" transform="rotate(20 10 -14)"/>
+      <ellipse cx="-15" cy="-6" rx="4.4" ry="3.7" transform="rotate(-30 -15 -6)"/>
+      <ellipse cx="14" cy="9" rx="4.5" ry="3.8" transform="rotate(60 14 9)"/>
+      <ellipse cx="-7" cy="16" rx="4.6" ry="3.7" transform="rotate(10 -7 16)"/>
+    </g>
+    <!-- Basilikum -->
+    <use href="#ic-blatt" transform="translate(-3 -17.5) rotate(-60)"/>
+    <use href="#ic-blatt" transform="translate(18.5 -2) rotate(25)"/>
+    <use href="#ic-blatt" transform="translate(4 16.5) rotate(110)"/>
+    <!-- Nabe -->
+    <path fill="#D9D2C6" fill-rule="evenodd" stroke="#A99C88" stroke-width="0.9"
+          d="M-9.4,0 A9.4,9.4 0 1 0 9.4,0 A9.4,9.4 0 1 0 -9.4,0 Z M-4.8,0 A4.8,4.8 0 1 0 4.8,0 A4.8,4.8 0 1 0 -4.8,0 Z"/>
+  </g>
+</svg>
