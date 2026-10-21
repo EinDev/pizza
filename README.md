@@ -102,7 +102,7 @@ Das `Dockerfile` ist auf Layer-Cache geschnitten: Änderungen nur an `site/` bau
 npm neu, nur an `ui/src` nur das Bundle, nur an `host/src` nur das `pizza-host`-Crate (Crates,
 xwin-SDK und apt-Pakete liegen in stabilen Layern davor). Coolify baut mit
 `docker compose build --pull` über den Docker-Daemon des Servers und nutzt diesen Cache –
-**aber** die Server-Einstellung *Docker Cleanup* führt standardmäßig jede Nacht
+**aber** die Server-Einstellung *Docker Cleanup* führt standardmäßig (Stand Coolify v4.x, Okt. 2026 – in den Server-Einstellungen prüfen) jede Nacht
 `docker builder prune -af` aus (*Force Docker Cleanup* an, Frequenz `0 0 * * *`). Danach ist der
 erste Deploy wieder ein kalter Build (mehrere Minuten). Abhilfen: *Force Docker Cleanup*
 abschalten (Cleanup nur über dem Platten-Schwellwert) oder einen Registry-Cache
