@@ -84,6 +84,20 @@ angehängte Daten (PE-Overlay/ELF-Anhang), die EXE bleibt normal startbar und br
 `PIZZA_EREIGNISSE_JSON=1` schaltet auch in einer EXE die JSON-Ereignisausgabe ein.
 Hinweis: eine angehängte Signatur (Authenticode) müsste nach dem Einbetten erfolgen.
 
+**Terminal (Windows, Nutzerentscheidung):** Beim Einbetten wird das PE-Subsystem gesetzt (`karton::baue_exe`, gleich in
+`site/js/exe.js`). Entscheidend ist die Importgruppe `theke` des `.pkarton` (Import `pizza.ui_*`, HOST-ABI §2):
+
+| Programm | Subsystem | Doppelklick | aus einem Terminal gestartet |
+|---|---|---|---|
+| mit Theke | WINDOWS (2) | nur das Fenster, kein Terminal; Konsolen-Ausgaben gehen verloren | `AttachConsole(ATTACH_PARENT_PROCESS)` → Ausgaben/Eingabe im Terminal; umgeleitete Handles (`> datei`, Pipes) bleiben erhalten |
+| ohne Theke | CONSOLE (3) | eigenes Terminal (für `Bote.sage`/`Bestellannahme`) | wie jedes Konsolenprogramm |
+
+`pizza-host` selbst bleibt CONSOLE (CLI unverändert). Eine Theke-EXE ist ein Windows-Programm: eine interaktive
+`cmd`/PowerShell **wartet nicht** auf sie (Prompt kommt sofort, `%ERRORLEVEL%`/`$LASTEXITCODE` bleiben leer). Exit-Code
+und Warten: in Batch-Dateien, mit `start "" /wait programm.exe`, `Start-Process -Wait` oder aus Git-Bash/Node. Ohne
+Terminal wird eine Meldung wie „WebView2 fehlt“ zusätzlich als Meldungsfenster gezeigt (`konsole::wichtige_meldung`).
+Andere Systeme (ELF): nichts geändert.
+
 Die EXE läuft nur auf dem Betriebssystem/der Architektur des verwendeten `pizza-host` – für andere Ziele
 `pizza-host` dort (oder per `cargo build --target …`) bauen und damit einbetten.
 
@@ -117,7 +131,8 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 
 - **Windows:** Die EXE ist **nicht signiert**. SmartScreen warnt evtl. („Der Computer wurde durch Windows geschützt“
   → „Weitere Informationen“ → „Trotzdem ausführen“); manche Virenscanner melden unbekannte, unsignierte EXEs
-  (heuristisch). Die EXE ist ein Konsolenprogramm: am besten in der Eingabeaufforderung/PowerShell starten.
+  (heuristisch). Konsolenprogramme öffnen beim Doppelklick ein Terminal; Programme mit Theke starten ohne Terminal
+  (aus der Eingabeaufforderung gestartet, erscheinen ihre Ausgaben dort).
 - **Linux:** Browser-Downloads sind nicht ausführbar: `chmod +x programm-linux-x64 && ./programm-linux-x64`.
   Braucht glibc ≥ 2.34 und WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`,
   Fedora: `sudo dnf install webkit2gtk4.1`).
@@ -159,7 +174,8 @@ Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99
 |---|---|
 | `src/laufen.rs` | HOST-ABI: Imports `pizza.*`, Argumentprotokoll, `start`, Trap → `LaufzeitAnanas`, Panik-Abbruch |
 | `src/ereignis.rs` | Ereignisse, Konsolen- und JSON-Ausgabe |
-| `src/karton.rs` | Einbetten/Finden des `.pkarton` in der EXE |
+| `src/karton.rs` | Einbetten/Finden des `.pkarton` in der EXE, PE-Subsystem (Theke → WINDOWS) |
+| `src/konsole.rs` | Windows: an das Eltern-Terminal anhängen, Meldungsfenster ohne Terminal |
 | `src/main.rs` | Kommandozeile |
 | `src/theke.rs` | Theke-Fenster (wry/tao), Custom-Protocol, Brücke |
 | `build.rs` | bettet `site/js/theke/` ein |

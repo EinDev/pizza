@@ -382,6 +382,14 @@ pub fn pruefe(pkarton: &[u8]) -> Result<(), String> {
     Module::new(&engine(), pkarton).map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Importiert das Modul die Gruppe `theke` (`pizza.ui_*`, HOST-ABI §2)?
+/// Entscheidet u. a., ob eine Windows-EXE ohne Terminal startet (Subsystem WINDOWS).
+pub fn braucht_theke(pkarton: &[u8]) -> bool {
+    Module::new(&engine(), pkarton)
+        .map(|m| m.imports().any(|i| i.module() == "pizza" && i.name().starts_with("ui_")))
+        .unwrap_or(false)
+}
+
 fn text(caller: &Caller<'_, Zustand>, ptr: i32, len: i32) -> String {
     let Some(Extern::Memory(mem)) = caller.get_export("memory") else {
         return String::new();

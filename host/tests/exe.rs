@@ -82,3 +82,42 @@ fn panik_banner_nach_stderr() {
     assert_eq!(String::from_utf8_lossy(&out.stderr).replace("\r\n", "\n"), "BANNER\n");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Programm mit Theke (Importgruppe `theke`): unter Windows Subsystem WINDOWS (kein Terminal beim Doppelklick),
+/// umgeleitete Ausgaben und Exit-Code bleiben erhalten. Ohne Theke: CONSOLE.
+#[test]
+fn theke_exe_ohne_terminal() {
+    let wat = r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (import "pizza" "ui_senden" (func $ui (param i32 i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "Theke-Programm")
+  (func (export "start") (result i32)
+    (call $ausgabe (i32.const 0) (i32.const 14))
+    i32.const 3))"#;
+    let dir = std::env::temp_dir().join(format!("pizza-host-theke-exe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let host = env!("CARGO_BIN_EXE_pizza-host");
+    let karton = dir.join("theke.pkarton");
+    std::fs::write(&karton, wat::parse_str(wat).unwrap()).unwrap();
+    let exe = dir.join(format!("theke{}", std::env::consts::EXE_SUFFIX));
+    assert!(Command::new(host).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap().success());
+    let demo = dir.join("demo.pkarton");
+    std::fs::write(&demo, wat::parse_str(WAT).unwrap()).unwrap();
+    let konsole = dir.join(format!("konsole{}", std::env::consts::EXE_SUFFIX));
+    assert!(Command::new(host).arg("exe").arg(&demo).arg("-o").arg(&konsole).status().unwrap().success());
+
+    let mit = std::fs::read(&exe).unwrap();
+    let ohne = std::fs::read(&konsole).unwrap();
+    if cfg!(windows) {
+        assert_eq!(pizzahost::karton::subsystem(&mit), Some(pizzahost::karton::SUBSYSTEM_FENSTER));
+        assert_eq!(pizzahost::karton::subsystem(&ohne), Some(pizzahost::karton::SUBSYSTEM_KONSOLE));
+    } else {
+        assert_eq!(pizzahost::karton::subsystem(&mit), None);
+    }
+    // Umleitung (Pipe) bleibt erhalten, Exit-Code kommt an. PIZZA_THEKE=0: nie ein Fenster im Test.
+    let out = Command::new(&exe).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Theke-Programm\n");
+    assert_eq!(out.status.code(), Some(3));
+    let _ = std::fs::remove_dir_all(&dir);
+}

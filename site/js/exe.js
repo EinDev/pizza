@@ -3,12 +3,15 @@
  *
  *   PizzaExe.ziele(optionen?)                      → Promise<{ version, format, trailer, ziele: [{ id, name, datei, endung, groesse, sha256 }] }>
  *   PizzaExe.baue(pkartonBytes, ziel, optionen?)    → Promise<Blob>   (Host-Binary laden, sha256 prüfen, .pkarton + Trailer anhängen)
- *   PizzaExe.verbinde(hostBytes, pkartonBytes)      → Uint8Array      (synchron, gleiche Bytes wie `pizza-host exe`)
+ *   PizzaExe.verbinde(hostBytes, pkartonBytes, { theke }?) → Uint8Array (synchron, gleiche Bytes wie `pizza-host exe`)
+ *   PizzaExe.brauchtTheke(pkartonBytes)             → Promise<boolean> (importiert die Gruppe `theke`, pizza.ui_*)
  *   PizzaExe.dateiname(name, ziel)                  → z. B. "hallo-welt.exe" / "hallo-welt-linux-x64"
  *   PizzaExe.hinweis(ziel)                          → kurzer Text für die UI (SmartScreen / chmod +x)
  *
  * optionen: { basis = "bin/" (URL-Präfix von ziele.json und Binaries), fetch = globalThis.fetch, pruefen = true }
  * Format (host/README.md): [Host-Binary][pkarton][u64 LE Länge][8 Byte "PKARTON1"].
+ * Windows (PE): Subsystem im PE-Kopf = WINDOWS (2) für Programme mit Theke (kein Terminal beim Doppelklick),
+ * sonst CONSOLE (3) – wie host/src/karton.rs.
  */
 (function (wurzel, fabrik) {
   if (typeof module === 'object' && module.exports) module.exports = fabrik();
@@ -49,12 +52,42 @@
     return len <= n - 16 ? len + 16 : 0;
   }
 
-  function verbinde(host, pkarton) {
+  /** Position des Subsystem-Felds im PE-Kopf (e_lfanew + 24 + 68) oder -1 (kein PE, z. B. ELF). */
+  function subsystemPos(b) {
+    if (b.length < 0x40 || b[0] !== 0x4d || b[1] !== 0x5a) return -1; // "MZ"
+    var pe = (b[0x3c] | (b[0x3d] << 8) | (b[0x3e] << 16) | (b[0x3f] << 24)) >>> 0;
+    var opt = pe + 24;
+    if (b.length < opt + 70 || b[pe] !== 0x50 || b[pe + 1] !== 0x45 || b[pe + 2] !== 0 || b[pe + 3] !== 0) return -1;
+    var magie = b[opt] | (b[opt + 1] << 8);
+    if (magie !== 0x10b && magie !== 0x20b) return -1;
+    return opt + 68;
+  }
+
+  /** Subsystem eines PE-Binaries (2 = Fenster, 3 = Konsole) oder null. */
+  function subsystem(b) {
+    b = alsBytes(b);
+    var p = subsystemPos(b);
+    return p < 0 ? null : b[p] | (b[p + 1] << 8);
+  }
+
+  function brauchtTheke(pkarton) {
+    try {
+      var p = alsBytes(pkarton);
+      return WebAssembly.compile(p).then(function (m) {
+        return WebAssembly.Module.imports(m).some(function (i) { return i.module === 'pizza' && /^ui_/.test(i.name); });
+      });
+    } catch (e) { return Promise.reject(e); }
+  }
+
+  function verbinde(host, pkarton, optionen) {
     host = alsBytes(host);
     pkarton = alsBytes(pkarton);
+    var theke = !!(optionen && optionen.theke);
     var basisLen = host.length - anhangLaenge(host); // wie karton::baue_exe: alten Anhang ersetzen
     var aus = new Uint8Array(basisLen + pkarton.length + 16);
     aus.set(host.subarray(0, basisLen), 0);
+    var sp = subsystemPos(aus);
+    if (sp >= 0) { aus[sp] = theke ? 2 : 3; aus[sp + 1] = 0; }
     aus.set(pkarton, basisLen);
     var p = basisLen + pkarton.length;
     var len = pkarton.length;
@@ -127,9 +160,10 @@
     try { p = alsBytes(pkarton); } catch (e) { return Promise.reject(e); }
     if (!istWasm(p)) return Promise.reject(new Error('PizzaExe: kein gültiges .pkarton (WebAssembly-Magie fehlt).'));
     // optionen werden auch für ziele() gebraucht (basis/fetch)
-    return findeZiel(ziel, optionen).then(function (z) {
+    return Promise.all([findeZiel(ziel, optionen), brauchtTheke(p)]).then(function (r) {
+      var z = r[0], theke = r[1];
       return ladeHost(z, o).then(function (host) {
-        return new Blob([verbinde(host, p)], { type: 'application/octet-stream' });
+        return new Blob([verbinde(host, p, { theke: theke })], { type: 'application/octet-stream' });
       });
     });
   }
@@ -145,10 +179,10 @@
 
   function hinweis(ziel) {
     var id = ziel && typeof ziel === 'object' ? ziel.id : String(ziel || '');
-    if (/^windows/.test(id)) return 'Die EXE ist nicht signiert: Windows SmartScreen warnt evtl. („Weitere Informationen“ → „Trotzdem ausführen“), manche Virenscanner schlagen an. Start in der Eingabeaufforderung: programm.exe [args]';
+    if (/^windows/.test(id)) return 'Die EXE ist nicht signiert: Windows SmartScreen warnt evtl. („Weitere Informationen“ → „Trotzdem ausführen“), manche Virenscanner schlagen an. Konsolenprogramme öffnen ein Terminal; Programme mit Theke starten ohne Terminal (aus der Eingabeaufforderung gestartet, erscheinen ihre Ausgaben dort): programm.exe [args]';
     if (/^linux/.test(id)) return 'Heruntergeladene Dateien sind nicht ausführbar: erst „chmod +x datei“, dann „./datei [args]“.';
     return '';
   }
 
-  return { version: '1.0.0', ziele: ziele, baue: baue, verbinde: verbinde, dateiname: dateiname, hinweis: hinweis, _anhangLaenge: anhangLaenge };
+  return { version: '1.0.0', ziele: ziele, baue: baue, verbinde: verbinde, brauchtTheke: brauchtTheke, subsystem: subsystem, dateiname: dateiname, hinweis: hinweis, _anhangLaenge: anhangLaenge };
 });

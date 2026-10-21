@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use pizzahost::ereignis::Senke;
-use pizzahost::{karton, laufen};
+use pizzahost::{karton, konsole, laufen};
 
 const OPTIONEN: &str = "Optionen:
   --saat=N             feste Zufallssaat (ohne Option: echte Saat, Anzeige \"Saat: N\" auf stderr)
@@ -243,6 +243,8 @@ fn echte_saat() -> f64 {
 }
 
 fn main() -> ExitCode {
+    // Theke-EXE (Subsystem WINDOWS) aus einem Terminal gestartet → Ausgaben dorthin (vor jeder Ausgabe).
+    konsole::anhaengen();
     let argv: Vec<String> = std::env::args().skip(1).collect();
 
     // Eigenständige EXE: angehängtes .pkarton gefunden → gleiche Optionen wie die CLI, der Rest gehört dem Programm.
@@ -351,7 +353,7 @@ fn exe_befehl(args: &[String]) -> ExitCode {
         eprintln!("Kein gültiges .pkarton: {}", e);
         return beende(2);
     }
-    match karton::schreibe_exe(&pkarton, &ausgabe) {
+    match karton::schreibe_exe(&pkarton, laufen::braucht_theke(&pkarton), &ausgabe) {
         Ok(()) => {
             eprintln!("EXE geschrieben: {}", ausgabe.display());
             ExitCode::SUCCESS

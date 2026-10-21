@@ -103,6 +103,9 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
   Die Render-Engine (`site/js/theke/`) ist ins Binary eingebettet (`include_str!`), kein Netzwerk, kein localhost-Server.
 - Das Wasm-Programm läuft in einem eigenen Thread; das Fenster im Hauptthread (Event-Loop von tao). `ui_warte` blockiert auf einem Kanal.
 - Das Fenster erscheint erst beim ersten `zeige`; Programme ohne Theke bleiben reine Konsolenprogramme (kein Fenster).
+- **Terminal (Windows, Nutzerentscheidung):** EXEs mit Theke (Importgruppe `theke`) werden mit PE-Subsystem WINDOWS gebaut und starten
+  ohne Terminal; aus einem Terminal gestartet hängen sie sich an dessen Konsole (`AttachConsole`), per Doppelklick gehen Konsolen-Ausgaben
+  verloren. EXEs ohne Theke bleiben Konsolenprogramme (Terminal beim Doppelklick). Details: `host/README.md` („Terminal“).
 - **Varianten (Nutzerentscheidung K-083/1, Grundsatz K-082):** **nur Varianten mit Theke** – Windows x64 als eine EXE mit Fenster
   (Build per cargo-xwin/MSVC; WebView2-Runtime ab Win 10/11 vorhanden – fehlt sie: **klare Fehlermeldung**, kein stiller Konsolenbetrieb)
   und Linux x64 mit Fenster (Ziel-ID `linux-x64`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
