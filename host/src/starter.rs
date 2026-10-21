@@ -5,7 +5,7 @@
 //! meldet nur „error while loading shared libraries …“, auch für Programme ohne Theke. Der Starter braucht nur glibc:
 //! - Programm ohne Theke (keine Importe `pizza.ui_*`): läuft direkt im Starter (wasmi), WebKitGTK wird nie angefasst.
 //! - Programm mit Theke: Probe `dlopen("libwebkit2gtk-4.1.so.0")`. Fehlt sie → verständliche Meldung, Exit 2
-//!   (K-083: kein stiller Konsolenbetrieb). Sonst wird der Theke-Teil in eine `memfd`-Datei geschrieben (bei einer
+//!   (K-083: kein stiller Konsolenbetrieb), ebenso ohne Anzeige (K-096). Sonst wird der Theke-Teil in eine `memfd`-Datei geschrieben (bei einer
 //!   EXE samt angehängtem `.pkarton`) und per `exec` mit denselben Argumenten gestartet – er verhält sich genau wie
 //!   bisher (Fenster, Exit-Code des Programms). Nichts landet auf der Platte, `/tmp` mit `noexec` stört nicht.
 //!
@@ -59,20 +59,16 @@ pub fn webkit_vorhanden() -> Result<(), String> {
 /// nach einer Meldung). `pkarton`: bei einer EXE das eingebettete Programm (wird wieder angehängt), sonst `None`
 /// (der Theke-Teil liest die Datei aus den Argumenten selbst).
 pub fn theke_starten(pkarton: Option<&[u8]>, debug: bool) -> i32 {
-    let melde = |text: &str, detail: Option<String>| {
-        let _ = std::io::stdout().flush();
-        let mut t = text.to_string();
-        if let (true, Some(d)) = (debug, detail) {
-            t.push_str(&format!("\ndetail: {}", d));
-        }
-        crate::konsole::wichtige_meldung(&t);
-        2
-    };
+    let melde = |text: &str, detail: Option<String>| crate::anzeige::abbruch(text, detail.as_deref(), debug);
     if !theke_teil_vorhanden() {
         return melde("Dieser pizza-host wurde ohne Theke-Teil gebaut – Programme mit Theke-Fenster laufen damit nicht.", None);
     }
     if let Err(e) = webkit_vorhanden() {
         return melde(WEBKIT_FEHLT, Some(e));
+    }
+    // K-096: ohne Anzeige (z. B. SSH) gar nicht erst den Theke-Teil starten (der prüft es sonst selbst).
+    if !crate::anzeige::anzeige_vorhanden() {
+        return melde(crate::anzeige::KEINE_ANZEIGE, None);
     }
     match exec_theke(pkarton) {
         Ok(nie) => match nie {},

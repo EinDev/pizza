@@ -53,7 +53,9 @@ Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["thek
 `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.<name>' (Gruppe <gruppe>), die dieser Host nicht kennt – bitte pizza-host aktualisieren.", zeile: null, spalte: null }`
 und `ende` mit Exit-Code 2. Ein Host, der eine Gruppe kennt, aber nicht anbieten kann (z. B. kein Speicherort,
 kein Fenster), stellt die Funktionen trotzdem bereit und antwortet wie unten beschrieben „nicht verfügbar“ –
-das Programm läuft dann mit W0100 (Theke) bzw. W0101 (Vorrat) weiter.
+das Programm läuft dann mit W0100 (Theke) bzw. W0101 (Vorrat) weiter. Ausnahme (K-096): Der native Host startet ein Programm
+mit Gruppe `theke`, für das kein Fenster möglich ist (keine Anzeige, WebView fehlt), gar nicht erst, sondern meldet das und endet
+mit Exit 2; W0100 bleibt dort dem JSON-/Testmodus (`--ereignisse-json`, `--ui-ereignisse`, `PIZZA_THEKE=0`).
 
 `art` bei `fehler`: `1` = `"pizzafehler"`, `2` = `"ananas"`, `3` = `"limit"` (`0` = `"syntax"`, kommt aus Wasm nie vor;
 `"intern"` erzeugt nur der Host selbst, siehe §4).

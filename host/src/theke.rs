@@ -9,7 +9,8 @@
 //!   (nicht ans Programm); Host → Seite `pizzaThekeEmpfange(<JSON als JS-String>)`, gepuffert bis `bereit`.
 //! - Nutzer schließt das Fenster → Host schickt `{"typ":"geschlossen"}` an `ui_warte`; `op: "schliesse"` → Fenster zu.
 //! - Programmende → Fenster zu, Prozess endet mit dem Exit-Code des Programms.
-//! - Kein Fenster möglich (keine Anzeige, WebView2/WebKitGTK fehlt) → verständliche Meldung, `ui_warte` liefert -1.
+//! - Kein Fenster möglich (keine Anzeige, WebView2/WebKitGTK fehlt) → verständliche Meldung, Exit 2 (K-096):
+//!   vorab per [`fenster_moeglich`] (main.rs, nur für Programme mit Theke), sonst beim Öffnen des Fensters.
 
 use std::borrow::Cow;
 use std::io::Write;
@@ -46,17 +47,26 @@ enum Fe {
 
 /// Gibt es überhaupt eine Anzeige? (Linux ohne DISPLAY/WAYLAND_DISPLAY → nein; `PIZZA_THEKE=0` schaltet ab.)
 pub fn anzeige_verfuegbar() -> bool {
-    if std::env::var("PIZZA_THEKE").map(|v| v == "0").unwrap_or(false) {
-        return false;
+    !crate::anzeige::theke_abgeschaltet() && crate::anzeige::anzeige_vorhanden()
+}
+
+/// Vorprüfung für Programme mit Theke (K-096), bevor das Programm startet: Anzeige da (Linux), WebView2-Runtime
+/// installiert (Windows)? `Err((meldung, detail))` → Abbruch mit Exit 2. `PIZZA_TEST_OHNE_WEBVIEW2=1` (Windows)
+/// tut so, als fehle die Runtime (Tests).
+pub fn fenster_moeglich() -> Result<(), (&'static str, Option<String>)> {
+    if !crate::anzeige::anzeige_vorhanden() {
+        return Err((crate::anzeige::KEINE_ANZEIGE, None));
     }
-    #[cfg(all(unix, not(target_os = "macos")))]
+    #[cfg(windows)]
     {
-        let gesetzt = |n: &str| std::env::var_os(n).map(|v| !v.is_empty()).unwrap_or(false);
-        if !gesetzt("DISPLAY") && !gesetzt("WAYLAND_DISPLAY") {
-            return false;
+        if std::env::var_os("PIZZA_TEST_OHNE_WEBVIEW2").is_some() {
+            return Err((crate::anzeige::WEBVIEW2_FEHLT, Some("PIZZA_TEST_OHNE_WEBVIEW2".into())));
+        }
+        if let Err(e) = wry::webview_version() {
+            return Err((crate::anzeige::WEBVIEW2_FEHLT, Some(e.to_string())));
         }
     }
-    true
+    Ok(())
 }
 
 /// Datenordner der WebView (Nutzerentscheidung): `%LOCALAPPDATA%\pizza\theke` bzw. `$XDG_DATA_HOME/pizza/theke`
@@ -93,10 +103,13 @@ fn ausliefern(pfad: &str) -> Response<Cow<'static, [u8]>> {
 
 /// Führt `lauf` (das Programm) in einem eigenen Thread aus und betreibt bei Bedarf das Fenster im
 /// aufrufenden (Haupt-)Thread. Liefert den Exit-Code (oder beendet den Prozess selbst mit ihm).
-pub fn starte<F>(lauf: F) -> i32
+/// Scheitert das Fenster, endet der Prozess mit Meldung und Exit 2 (K-096); `debug` zeigt dann das Detail.
+pub fn starte<F>(debug: bool, lauf: F) -> i32
 where
     F: FnOnce(Option<Ui>) -> i32 + Send + 'static,
 {
+    // Ohne Anzeige kommen hier nur Programme ohne Theke an (die Vorprüfung in main.rs hat Theke-Programme
+    // schon abgebrochen) oder `PIZZA_THEKE=0` (Tests/CI → W0100).
     if !anzeige_verfuegbar() || dateien::DATEIEN.is_empty() {
         return lauf(None);
     }
@@ -118,38 +131,38 @@ where
         })
         .expect("Programm-Thread");
 
-    let mut von_tx = Some(von_tx);
-    let mut rx = rx;
-    loop {
-        match rx.recv() {
-            Err(_) => {
-                let _ = programm.join();
-                return 1;
-            }
-            Ok(AnHaupt::Fertig(code)) => {
-                let _ = programm.join();
-                return code;
-            }
-            Ok(AnHaupt::Nachricht(m)) => {
-                let Some(von) = von_tx.take() else { continue }; // Fenster schon gescheitert → verwerfen
-                match fenster(m, rx, von) {
-                    Ok(nie) => match nie {},
-                    Err((meldung, zurueck)) => {
-                        // Theke-EXE per Doppelklick hat kein Terminal → zusätzlich Meldungsfenster (THEKE.md §4: klare Meldung).
-                        crate::konsole::wichtige_meldung(&meldung);
-                        // `von` ist weg → ui_warte liefert „geschlossen“/-1, das Programm läuft als Konsolenprogramm weiter.
-                        rx = zurueck;
-                    }
-                }
-            }
+    match rx.recv() {
+        Err(_) => {
+            let _ = programm.join();
+            1
         }
+        Ok(AnHaupt::Fertig(code)) => {
+            let _ = programm.join();
+            code
+        }
+        Ok(AnHaupt::Nachricht(m)) => match fenster(m, rx, von_tx) {
+            Ok(nie) => match nie {},
+            Err((meldung, detail)) => {
+                // K-096: kein stiller Weiterlauf ohne Fenster → Meldung (Theke-EXE ohne Terminal unter Windows:
+                // zusätzlich Meldungsfenster) und sofort Exit 2 – nicht zurückkehren, sonst liefe der Programm-Thread weiter.
+                let code = crate::anzeige::abbruch(meldung, Some(&detail), debug);
+                let _ = std::io::stdout().flush();
+                let _ = std::io::stderr().flush();
+                std::process::exit(code);
+            }
+        },
     }
 }
 
 enum Nie {}
 
 /// Öffnet Fenster + WebView und betreibt die Event-Loop (kehrt bei Erfolg nie zurück).
-fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<Nie, (String, Receiver<AnHaupt>)> {
+/// `Err((meldung, detail))`: kein Fenster möglich.
+fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<Nie, (&'static str, String)> {
+    #[cfg(windows)]
+    const FEHLT: &str = crate::anzeige::WEBVIEW2_FEHLT;
+    #[cfg(not(windows))]
+    const FEHLT: &str = crate::anzeige::FENSTER_FEHLGESCHLAGEN;
     // Test-/CI-Modus: Fenster nie sichtbar machen (Smoke-Test ohne aufpoppende Fenster).
     let unsichtbar = std::env::var_os("PIZZA_THEKE_UNSICHTBAR").is_some();
     let event_loop = EventLoopBuilder::<Fe>::with_user_event().build();
@@ -160,7 +173,7 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
         .build(&event_loop)
     {
         Ok(w) => w,
-        Err(e) => return Err((format!("Theke: Fenster konnte nicht geöffnet werden ({}). Das Programm läuft ohne Fenster weiter.", e), rx)),
+        Err(e) => return Err((FEHLT, e.to_string())),
     };
 
     let proxy = event_loop.create_proxy();
@@ -195,14 +208,7 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
         Ok(w) => w,
         Err(e) => {
             drop(fenster);
-            #[cfg(windows)]
-            let hinweis = "Theke: Die Microsoft-Edge-WebView2-Runtime fehlt oder ist defekt – das Fenster kann nicht angezeigt werden.\n\
-                           Download: https://developer.microsoft.com/microsoft-edge/webview2/ (\"Evergreen Bootstrapper\").\n\
-                           Das Programm läuft ohne Fenster weiter.";
-            #[cfg(not(windows))]
-            let hinweis = "Theke: Die WebView (WebKitGTK 4.1) konnte nicht gestartet werden – ist libwebkit2gtk-4.1 installiert?\n\
-                           Das Programm läuft ohne Fenster weiter.";
-            return Err((format!("{} ({})", hinweis, e), rx));
+            return Err((FEHLT, e.to_string()));
         }
     };
 

@@ -104,6 +104,13 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
         const l = spawnSync(ziel, [], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBKIT: '1' }) });
         ok(l.status === 2 && /braucht WebKitGTK 4\.1.*sudo apt install libwebkit2gtk-4\.1-0/.test(l.stderr), z.id + ': Theke-EXE ohne WebKitGTK → Meldung, Exit 2 (' + l.status + ')');
       }
+      if (process.platform === 'win32' && z.name === 'lokal') {
+        // K-096 (nur das frisch gebaute lokale Binary; host/ziele kann älter sein): ohne WebView2-Runtime (hier simuliert) Meldung + Exit 2 statt W0100 – kein Fensterversuch, kein Programmlauf.
+        const env = Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBVIEW2: '1' });
+        delete env.PIZZA_THEKE;
+        const l = spawnSync(ziel, ['--kein-vorrat'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
+        ok(l.status === 2 && /braucht die Microsoft Edge WebView2 Runtime/.test(l.stderr) && l.stdout === '', z.id + ': Theke-EXE ohne WebView2 → Meldung, Exit 2 (' + l.status + ')');
+      }
     }
   }
 

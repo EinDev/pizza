@@ -315,22 +315,27 @@ fn main() -> ExitCode {
 fn ausfuehren(pkarton: Vec<u8>, ist_exe: bool, debug: bool, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
     // Maschinenlesbarer Modus (--ereignisse-json, Differenztests) öffnet kein Fenster, außer PIZZA_THEKE=1:
     // ohne --ui-ereignisse gilt dann „kein Renderer“ (W0100) – wie im Interpreter ohne uiEreignisse.
+    // Ohne Feature `theke`/`starter` (Entwickler-Build `--no-default-features`) ebenfalls W0100.
     #[cfg(any(feature = "theke", feature = "starter"))]
     let fenster_erlaubt = !matches!(senke, Senke::Json) || std::env::var("PIZZA_THEKE").map(|v| v == "1").unwrap_or(false);
     // Starter: vor dem ersten Wasm-Befehl entscheiden (gleiches Kriterium wie das PE-Subsystem: Importgruppe theke).
-    // Fehlt WebKitGTK → Meldung + Exit 2; sonst ersetzt der Theke-Teil diesen Prozess (gleiche Argumente).
-    // Unabhängig von DISPLAY: ohne Anzeige verhält sich der Theke-Teil wie bisher (W0100).
+    // Fehlt WebKitGTK oder die Anzeige → Meldung + Exit 2 (K-083/K-096); sonst ersetzt der Theke-Teil diesen Prozess
+    // (gleiche Argumente).
     #[cfg(all(feature = "starter", not(feature = "theke"), target_os = "linux"))]
-    if opt.ui.is_none()
-        && fenster_erlaubt
-        && std::env::var("PIZZA_THEKE").map(|v| v != "0").unwrap_or(true)
-        && laufen::braucht_theke(&pkarton)
-    {
+    if opt.ui.is_none() && fenster_erlaubt && !pizzahost::anzeige::theke_abgeschaltet() && laufen::braucht_theke(&pkarton) {
         return pizzahost::starter::theke_starten(ist_exe.then_some(&pkarton[..]), debug);
     }
     #[cfg(feature = "theke")]
     if opt.ui.is_none() && fenster_erlaubt {
-        return pizzahost::theke::starte(move |ui| {
+        // K-096 (Nutzerentscheidung): Programm mit Theke, aber kein Fenster möglich (keine Anzeige, WebView2 fehlt)
+        // → Abbruch vor dem ersten Wasm-Befehl statt W0100. `PIZZA_THEKE=0` (Tests/CI) bleibt fensterlos (W0100).
+        // Programme ohne Theke laufen immer, auch ohne Anzeige.
+        if !pizzahost::anzeige::theke_abgeschaltet() && laufen::braucht_theke(&pkarton) {
+            if let Err((meldung, detail)) = pizzahost::theke::fenster_moeglich() {
+                return pizzahost::anzeige::abbruch(meldung, detail.as_deref(), debug);
+            }
+        }
+        return pizzahost::theke::starte(debug, move |ui| {
             let mut opt = opt;
             let mut senke = senke;
             opt.ui = ui;

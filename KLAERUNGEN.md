@@ -838,6 +838,29 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   (`karte_methode`, neu gebaute `laufzeit.wasm`/`laufzeit-daten.js`); Doku-Tabelle (U-60). **Status:** fest (a10, 2 Fälle;
   `tests/faelle/k095-speisekarte-hole-ersatz`; Differenztests Interpreter = Wasm = Host).
 
+### K-096 Theke-Programm ohne Fenster: nativ Abbruch statt W0100 (Nutzerentscheidung)
+- **Frage:** K-083/1 verlangt für fehlendes WebKitGTK/WebView2 eine klare Fehlermeldung statt stillem W0100-Betrieb; der Linux-Starter
+  (0d42e56) setzt das für fehlendes WebKitGTK um. Offen waren: Linux mit WebKitGTK, aber ohne Anzeige (SSH), und Windows ohne
+  WebView2-Runtime bzw. eine WebView, die sich nicht erzeugen lässt – dort lief das Programm bisher mit W0100 fensterlos weiter.
+- **Entscheidung (Nutzer):** Ein Programm mit Theke (Importgruppe `theke`, `pizza.ui_*`) als EXE oder `pizza-host`-Aufruf, das kein
+  Fenster bekommen kann, **bricht ab**: verständliche Meldung auf stderr, **Exit 2**, vor dem ersten Wasm-Befehl (Vorprüfung) bzw.
+  sofort, falls das Fenster erst beim Öffnen scheitert. Meldungen:
+  - keine Anzeige (Linux ohne `DISPLAY`/`WAYLAND_DISPLAY`): `Dieses Programm braucht einen Bildschirm für sein Theke-Fenster. Es wurde
+    keiner gefunden (weder DISPLAY noch WAYLAND_DISPLAY gesetzt, z. B. in einer SSH-Sitzung) – bitte in einer grafischen Sitzung starten.`
+  - Windows ohne WebView2-Runtime (Vorprüfung `webview_version`) oder WebView nicht erzeugbar: `Dieses Programm braucht die Microsoft
+    Edge WebView2 Runtime für sein Theke-Fenster. Bitte „Microsoft Edge WebView2 Runtime“ installieren (kostenlos von Microsoft:
+    https://developer.microsoft.com/microsoft-edge/webview2/).`
+  - Linux, WebKitGTK fehlt: unverändert die Starter-Meldung (K-083); WebKitGTK startet nicht: `Das Theke-Fenster dieses Programms
+    konnte nicht geöffnet werden (die WebView WebKitGTK 4.1 ließ sich nicht starten).`
+  Technische Details nur mit `--debug` (`detail: …`). Unter Windows-Subsystem-EXEs ohne Terminal: `AttachConsole` beim Eltern-Terminal,
+  sonst zusätzlich ein Meldungsfenster (wie bisher `konsole::wichtige_meldung`).
+- **Ausnahmen (unverändert, W0100):** JSON-Modus (`--ereignisse-json`/`PIZZA_EREIGNISSE_JSON`, außer `PIZZA_THEKE=1`), `--ui-ereignisse`,
+  `PIZZA_THEKE=0` (Tests/CI), Entwickler-Build ohne Feature `theke`/`starter`. Programme ohne Theke laufen immer, auch ohne Anzeige.
+  Interpreter-CLI `bin/pizza.js` und Library (`optionen` ohne `onUiWarte`/`uiEreignisse`) behalten W0100 (K-063/K-070) – sie haben nie
+  ein Fenster. Im Browser gibt es immer ein Fenster (K-082: nur nativ betroffen).
+- **Betroffen:** THEKE.md §4, SPEC §16 (Ohne Renderer), HOST-ABI §1 (Gruppen), `host/` (`src/anzeige.rs`, `theke.rs`, `main.rs`,
+  `starter.rs`, README, Tests). **Status:** fest, umgesetzt (U-61).
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -896,6 +919,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-58 | `site/js/theke/**`, `tests/theke/` (Renderer-Agent) | K-090 … K-092: `aendere.animationen`, `uebergang`, Animations-Registry, `prefers-reduced-motion`, Thema; Host nur neu bauen (eingebettete Engine) | tests/theke + visuell |
 | U-59 | `site/js/doku/*.js`, `site/beispiele/idle/` (Doku-/Idle-Agent) | nach U-56: Abschnitt „Animationen“; Pizza-Imperium mit `huepfen`/`schwebe`/`funkeln`/`aufpoppen`/`puls`, `.ui-erwartet` neu erzeugen | Doku-Harness, Prüfstand Beispiele |
 | U-60 | `site/js/doku/30-referenz.js` (Doku-Agent; Datei ist gerade in Bearbeitung) | K-095: Tabellenzeile `hole(k)` → `hole(k[, ersatz])` („fehlt er → `ersatz`, sonst `karton`“), Beispiel `karte.hole("Tonno", 0)`; Idiom `k.lege(s, k.hole(s, 0) + 1)` erwähnen; Pizza-Imperium darf `hat()`-Umweg durch `hole(k, 0)` ersetzen (Idle-Agent, U-59) | Doku-Harness |
+| U-61 ✅ | `host/**`, THEKE.md, SPEC, HOST-ABI (Host-Agent) | K-096: Theke-Programm ohne Fenster (keine Anzeige, WebView2 fehlt, WebView scheitert) → Meldung + Exit 2 statt W0100; Ausnahmen JSON-Modus/`--ui-ereignisse`/`PIZZA_THEKE=0` | cargo test (`theke_ohne_fenster_bricht_ab` u. a.), test-exe-js |
+| U-62 | `site/js/doku/30-referenz.js` (Doku-Agent) | K-096: Abschnitt „Wo erscheint das Fenster?“ und W0100-Tabelle: W0100 nur noch Tests/Doku/`node bin/pizza.js`; EXE/`pizza-host` ohne Fenster (SSH, WebView2 fehlt) → Meldung + Exit 2 | Doku-Harness |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |

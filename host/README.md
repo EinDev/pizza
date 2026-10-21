@@ -149,8 +149,16 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   Fenster (unsichtbar) und WebView; sichtbar beim ersten `baum`. Nachrichten werden bis `{"typ":"bereit"}` der Seite
   gepuffert und als JS-String an `pizzaThekeEmpfange` übergeben. Nutzer schließt das Fenster → `{"typ":"geschlossen"}`.
   `op: "schliesse"` → Fenster zu. **Programmende = Fenster zu**, Prozess endet mit dem Exit-Code.
-- Ohne Anzeige (Linux ohne `DISPLAY`/`WAYLAND_DISPLAY`), mit `PIZZA_THEKE=0` oder im JSON-Modus
-  (`--ereignisse-json`, außer `PIZZA_THEKE=1`) öffnet der Host kein Fenster → W0100-Verhalten.
+- **Kein Fenster möglich (K-096, Nutzerentscheidung):** Ein Programm mit Theke bricht vor dem ersten Wasm-Befehl ab
+  (Meldung auf stderr, Exit 2, `--debug` zeigt Details) statt mit W0100 weiterzulaufen:
+  - Linux ohne `DISPLAY`/`WAYLAND_DISPLAY` (z. B. SSH): `Dieses Programm braucht einen Bildschirm für sein Theke-Fenster. Es wurde keiner gefunden (…) – bitte in einer grafischen Sitzung starten.`
+  - Windows ohne WebView2-Runtime (Vorprüfung per `wry::webview_version()`): `Dieses Programm braucht die Microsoft Edge WebView2 Runtime für sein Theke-Fenster. Bitte „Microsoft Edge WebView2 Runtime“ installieren (…).`
+  - Scheitert das Fenster erst beim Öffnen (WebView lässt sich nicht erzeugen), endet der Prozess mit derselben Meldung
+    (Linux: „… konnte nicht geöffnet werden (die WebView WebKitGTK 4.1 ließ sich nicht starten).“) und Exit 2.
+  Theke-EXE ohne Terminal (Doppelklick): Meldung zusätzlich als Meldungsfenster; aus einem Terminal per `AttachConsole` dort.
+  Programme ohne Theke laufen immer, auch ohne Anzeige. Test: `PIZZA_TEST_OHNE_WEBVIEW2=1` (Windows) simuliert die fehlende Runtime.
+- **Ausnahmen (fensterlos, W0100 wie bisher):** `PIZZA_THEKE=0` (Tests/CI), JSON-Modus (`--ereignisse-json`,
+  `PIZZA_EREIGNISSE_JSON`, außer `PIZZA_THEKE=1`) und `--ui-ereignisse`.
 - **Linux: WebKitGTK fehlt (K-083)** → ein Programm mit Theke startet gar nicht erst, sondern meldet auf stderr
   `Dieses Programm braucht WebKitGTK 4.1 für sein Theke-Fenster. Installieren mit: sudo apt install libwebkit2gtk-4.1-0 (Debian/Ubuntu) bzw. sudo dnf install webkit2gtk4.1 (Fedora).`
   und endet mit Exit 2 (`--debug` zeigt die Meldung des Laders). Programme ohne Theke laufen normal.
@@ -158,14 +166,11 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   ohne die Bibliothek überhaupt nicht („error while loading shared libraries …“). Ausgeliefert wird deshalb ein
   Binary ohne wry/tao (nur glibc), das das vollständige `pizza-host` mit Theke („Theke-Teil“) als Bytes enthält.
   Braucht das Programm die Importgruppe `theke` (gleiches Kriterium wie das PE-Subsystem), prüft der Starter per
-  `dlopen("libwebkit2gtk-4.1.so.0")`, schreibt den Theke-Teil (bei einer EXE samt `.pkarton`) in eine `memfd`-Datei
+  `dlopen("libwebkit2gtk-4.1.so.0")` und danach die Anzeige (K-096), schreibt den Theke-Teil (bei einer EXE samt `.pkarton`) in eine `memfd`-Datei
   und startet ihn per `exec` mit denselben Argumenten – Fenster, Ausgaben und Exit-Code wie bisher, nichts auf der
   Platte. Alles andere führt der Starter selbst aus. Gebaut von `baue-ziele.sh` in zwei Schritten (erst Theke-Teil,
   dann `--no-default-features --features starter` mit `PIZZA_THEKE_EXE=<theke-teil>`); ohne `PIZZA_THEKE_EXE`
   meldet ein Starter bei Theke-Programmen „ohne Theke-Teil gebaut“. Test: `PIZZA_TEST_OHNE_WEBKIT=1` simuliert das Fehlen.
-- Kann das Fenster trotz vorhandener Bibliothek nicht erzeugt werden (WebView2 fehlt/defekt unter Windows, WebKitGTK
-  startet nicht), erscheint eine verständliche Meldung (ohne Terminal unter Windows als Meldungsfenster) und das
-  Programm läuft ohne Fenster weiter (`ui_warte` → -1).
 - Tests ohne Fenster: `--ui-ereignisse datei` (JSON-Lines, erschöpft → `{"typ":"geschlossen"}`).
 - Smoke-Test mit (unsichtbarem) Fenster: `PIZZA_THEKE_SMOKE=1 cargo test --test theke -- --ignored fenster`
   (Linux/CI: `xvfb-run -a` davor). `PIZZA_THEKE_UNSICHTBAR=1` hält das Fenster unsichtbar.

@@ -941,6 +941,8 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
 - **Ohne Renderer (K-063):** fehlen `onUiWarte` und `uiEreignisse`, warnt `bediene()` **je Aufrufstelle** (§10)
   `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` und kehrt sofort zurück; `fenster`/`baum`/`aendere`/`schliesse`
   werden trotzdem als `ui`-Ereignisse ausgegeben. `uiEreignisse` erschöpft → `geschlossen`; `onUiWarte` liefert `null` oder wirft → `geschlossen`.
+  Nativ (EXE/`pizza-host`) kommt ein Theke-Programm, das kein Fenster bekommen kann (keine Anzeige, WebView fehlt), gar nicht bis W0100:
+  es bricht vorher mit Meldung und Exit 2 ab (K-096, THEKE.md §4); W0100 gilt dort nur im JSON-/Testmodus.
 - **Ereignisse (K-064):** `klick` nur für `Knopf` mit `aktiv == ja` und Rückruf; `aenderung`/`enter` für `Eingabe` (Text) bzw.
   `aenderung` für `Haken` (`true`/`false`, auch `"true"`/`"false"`). Ereignisse für unbekannte IDs, falsche Zutatenart, falschen
   `wert`-Typ, inaktive Knöpfe oder unbekannten `typ` werden **ignoriert**; `aenderung` ohne Rückruf aktualisiert trotzdem den Zustand.

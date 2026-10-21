@@ -109,7 +109,13 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
 - **Varianten (Nutzerentscheidung K-083/1, Grundsatz K-082):** **nur Varianten mit Theke** – Windows x64 als eine EXE mit Fenster
   (Build per cargo-xwin/MSVC; WebView2-Runtime ab Win 10/11 vorhanden – fehlt sie: **klare Fehlermeldung**, kein stiller Konsolenbetrieb)
   und Linux x64 mit Fenster (Ziel-ID `linux-x64`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
-  Fenster (statisch x64-musl, arm64-musl) werden **nicht** mehr angeboten; W0100 bleibt nur für Tests/CLI ohne Renderer.
+  Fenster (statisch x64-musl, arm64-musl) werden **nicht** mehr angeboten. Linux: ausgeliefert wird ein **Starter** ohne
+  WebKitGTK-Abhängigkeit, der den Theke-Teil eingebettet trägt und nur für Programme mit Theke startet (`host/README.md`).
+- **Kein Fenster möglich (K-096, Nutzerentscheidung):** Ein Programm mit Theke (Importgruppe `theke`) **bricht nativ ab** – Meldung auf
+  stderr, **Exit 2**, statt W0100 –, wenn WebKitGTK fehlt (K-083), keine Anzeige da ist (Linux ohne `DISPLAY`/`WAYLAND_DISPLAY`, z. B.
+  SSH), die WebView2-Runtime fehlt oder die WebView sich nicht erzeugen lässt. Ohne Terminal (Windows-EXE per Doppelklick) zusätzlich
+  als Meldungsfenster. Programme ohne Theke laufen immer. W0100 bleibt für JSON-Modus, `--ui-ereignisse`, `PIZZA_THEKE=0` (Tests/CI),
+  die Interpreter-CLI `bin/pizza.js` und die Library ohne Renderer. Im Browser gibt es immer ein Fenster.
   `ziele.json` beschreibt Voraussetzungen; der EXE-Dialog zeigt sie an.
 
 ## 5. Tests
