@@ -143,10 +143,14 @@ e2e("Doku: alle Bilder laden (kein 404), Lightbox öffnet und schließt", async 
     assert.equal(st, 200, s);
     assert.match(typ, /^image\//, s);
   }
-  // jedes Bild wirklich dekodiert (lazy: einzeln in den Blick scrollen)
+  // jedes Bild wirklich dekodiert (lazy: einzeln in den Blick scrollen). Bilder in zugeklappten
+  // <details> lädt der Browser erst nach dem Aufklappen – also wie ein Nutzer erst aufklappen.
   const n = bilder.length;
   for (let i = 0; i < n; i++) {
-    await page.$$eval(P + " .doku-bild img", (imgs, k) => imgs[k].scrollIntoView({ block: "center" }), i);
+    await page.$$eval(P + " .doku-bild img", (imgs, k) => {
+      for (let d = imgs[k].closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
+      imgs[k].scrollIntoView({ block: "center" });
+    }, i);
     await page.waitForFunction((p, k) => { const im = document.querySelectorAll(p + " .doku-bild img")[k]; return im.complete && im.naturalWidth > 0; }, { timeout: 5000 }, P, i);
   }
   assert.equal(await page.$$eval(P + " figure.doku-bild[hidden]", (f) => f.length), 0, "kein Bild per onerror versteckt");
