@@ -482,7 +482,18 @@ probier { Zufall.zahl(1.5, 6); } verbrannt (TypAnanas a) { Bote.sage((a.nachrich
 solange (ja) { }
 `, { exit: 3, schrittLimit: 10.5, fehler: { code: "P0002", art: "limit" }, check: schritte(11) }),
 
-  F(K, "K-053: schrittLimit 0 → Standardlimit 5 000 000 (Programm mit 4 Schritten läuft normal)", P`
-Bote.sage((1));
-`, { schrittLimit: 0, out: ["1"], check: schritte(4) }),
+  // API-Fall (Hauptthread): der Prüfstand-Arbeiter ersetzt ein falsy schrittLimit selbst, daher direkt über L.run.
+  {
+    p: K, name: "K-053: schrittLimit 0 / NaN / -5 → Standardlimit, Programm läuft normal durch",
+    api(L) {
+      const err = [];
+      for (const lim of [0, NaN, -5]) {
+        const r = L.run("Bote.sage((1));", { schrittLimit: lim });
+        if (r.exitCode !== 0 || r.schritte !== 4) err.push(`schrittLimit ${lim}: exit ${r.exitCode}, schritte ${r.schritte}`);
+      }
+      const r2 = L.run("solange (ja) { }", { schrittLimit: 10.5 });
+      if (r2.exitCode !== 3 || r2.schritte !== 11) err.push(`schrittLimit 10.5: exit ${r2.exitCode}, schritte ${r2.schritte} (erwartet 3/11)`);
+      return err.length ? err.join("; ") : undefined;
+    },
+  },
 ];

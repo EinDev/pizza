@@ -64,7 +64,8 @@ PizzaLang.run(quelltext, optionen)
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
-                                                                // "intern" = Fehler des Motors/Hosts (KLAERUNGEN K-014, K-043, K-044), optional Feld detail
+                                                                // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
+                                                                // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
 { typ: "panik",         text }                                  // Hawaii-Banner (SPEC §9), danach sofort "ende"
 { typ: "ende",          exitCode, schritte, zeitMs }
 ```

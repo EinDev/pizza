@@ -121,8 +121,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   besonders**: kein Crash-Overlay, kein Sofort-Terminate; der Banner erscheint als normale Fehlerausgabe in der Konsole,
   der Exit-Code 39 wird wie jeder andere angezeigt.
 - **Betroffen:** `bin/pizza.js` (bereits stderr), `pizza-host` (Auftrag U-12: stdout → stderr), HOST-ABI §7 (bestätigt),
-  ARCHITEKTUR §2/§5 (hier angepasst), SPEC §9 (Satz ergänzt), UI (U-17: Overlay entfernen), Doku/README (U-07/U-22:
-  Sätze zum Crash-Overlay streichen – `site/js/doku/30-referenz.js` ref-playground, `README.md`).
+  ARCHITEKTUR §2/§5 (hier angepasst), SPEC §9 (Satz ergänzt), UI/E2E (U-22: Overlay entfernen; README und Doku
+  beschreiben kein Overlay – nichts zu ändern).
 - **Status:** fest (Vertrag), offen (Host, UI, Doku).
 
 ### K-013 Lange Eingabezeilen (HOST-ABI)
@@ -320,8 +320,9 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Betroffen:** HOST-ABI.md §4/§9 (U-11), Host (U-12), ARCHITEKTUR §1 (`art` erweitert). **Status:** offen.
 
 ### K-044 `art`-Werte und Wand-Zeitlimit der UI
-- **Entscheidung:** `art` ∈ {`syntax`, `pizzafehler`, `ananas`, `limit`, `intern`}. `intern` = Fehler des Motors/Hosts
-  (K-014, K-043), nicht des Programms. Das 10-s-Wand-Zeitlimit der UI/CLI meldet
+- **Entscheidung:** `art` ∈ {`syntax`, `pizzafehler`, `ananas`, `limit`, `intern`}. `intern` = Fehler von Host/Worker **vor**
+  dem Programmstart (K-043 Ladefehler, Worker-/WASM-Instanziierungsfehler); interne Fehler eines **laufenden** Motors
+  bleiben `art: "ananas"` (K-014). Das 10-s-Wand-Zeitlimit der UI/CLI meldet
   `{typ:"fehler", code:"P0003", art:"limit", text:"PizzaFehler P0003: Die Pizza ist noch im Ofen. (Zeitlimit von 10 s erreicht)"}`,
   Exit 3 – nicht P0002 (das ist das Schrittlimit). `W-WASM`/`wasm` im Worker → `art:"intern"`, Code `WASM`.
 - **Betroffen:** ARCHITEKTUR §1 (hier geändert), UI (U-17), Worker (U-17). **Status:** offen (UI).
@@ -402,7 +403,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 | U-11 | `HOST-ABI.md`, `laufzeit/`, `site/js/pizzaiolo*` (Compiler-Agent) | K-011 (prompt informativ, Modul gibt Prompt aus), K-013 (Retry-Protokoll statt Kürzung: Rückgabe = benötigte Länge, Host schreibt nichts, wenn `puffer_kap` zu klein), K-014 (`detail`-Feld, fester Text), K-012 (Banner → stdout-Pfad des Hosts) | tests/differenz |
 | U-12 | `host/src/*.rs` (Native-Host-Agent) | K-011 (Prompt nicht ausgeben), K-013 (Zeile puffern, Retry), K-014 (fester Text + `detail`), K-012 (Banner → **stderr**, derzeit stdout), K-041 (Dreier-Form von `ausgabe` entfernen), K-043 (Ladefehler `code:"HOST"`, `art:"intern"`, Exit 2), K-046 (unbekannte Exit-Codes → interner Fehler), K-047/§14.11 (JSON-Zahlen wie `String(x)`) | ABI-Tests |
 | U-13 | `bin/pizza.js` | K-054: `leeren` → `\x1b[2J\x1b[3J\x1b[H` bei TTY (K-012 ist in der CLI bereits erfüllt: Banner auf stderr) | manuell |
-| U-22 | `README.md`, `site/js/doku/30-referenz.js` (ref-playground), `ui/**` (UI-Agent) | K-012: Crash-Overlay-Beschreibungen entfernen; UI zeigt den Banner als Fehlerausgabe, Exit 39 normal | e2e |
+| U-22 | `ui/**`, `e2e/**` (UI-/E2E-Agent) | K-012: Crash-Overlay und Sofort-Terminate bei `panik` entfernen; Banner als Fehlerausgabe in der Konsole, Exit 39 normal; E2E-Erwartung „Overlay bei Exit 39“ anpassen (README und Doku enthalten keine Overlay-Beschreibung) | e2e |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |

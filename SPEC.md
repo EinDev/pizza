@@ -483,14 +483,14 @@ Exit-Code: 39
 |---|---|
 | `lies()` | nächste Zeile als `margherita`, **unverändert** (kein Trimmen; nur ein abschließendes `\n`/`\r\n` entfernt); `karton` bei Eingabeende (EOF) |
 | `frage(text)` | `Bote.schreibe(text)` + `lies()` – der Prompt wird **vom Programm** ausgegeben, auch wenn EOF folgt |
-| `liesZahl([ersatz])` / `frageZahl(text[, ersatz])` | Zeile als Zahl nach der **Zahltext-Grammatik** (unten); ungültig → `TypAnanas: '<zeile>' ist keine Zahl.` (die Zeile ist verbraucht); EOF → `karton`, bzw. `ersatz`, falls angegeben (auch benannt `ersatz: …`). `ersatz` gilt **nur** bei EOF. |
+| `liesZahl([ersatz])` / `frageZahl(text[, ersatz])` | Zeile als Zahl nach der **Zahltext-Grammatik** (unten); ungültig → `TypAnanas: '<zeile>' ist keine Zahl.` (die Zeile ist verbraucht); EOF → `karton`, bzw. `ersatz`, falls angegeben (auch benannt `ersatz: …`). `ersatz` gilt **nur** bei EOF. *(Parameter `ersatz`: K-008, Umsetzung offen.)* |
 | `hatMehr()` | `diavolo` – interaktiv (`onEingabe`) immer `ja`; vorgegebene Eingabe: `nein`, sobald erschöpft |
 
-- **Zahltext-Grammatik** (gilt gleich für `liesZahl`, `frageZahl` und `Text.alsZahl()`): Leerraum außen entfernen, dann
+- **Zahltext-Grammatik** (gilt gleich für `liesZahl`, `frageZahl` und `Text.alsZahl()`; K-007, Umsetzung offen): Leerraum außen entfernen, dann
   `[+-]? Ziffern[_Ziffern]* ( (.|,) Ziffern[_Ziffern]* )?` – Punkt **oder** Komma als Dezimaltrenner, Unterstriche wie in
   Literalen. Kein Hex, kein Exponent, kein `.5`/`5.`, kein `Infinity`/`NaN`, keine Unicode-Ziffern → TypAnanas
   (`alsZahl`: `"<text>" ist keine Zahl.`).
-- **EOF ist endgültig:** nach dem ersten EOF liefert jeder weitere Leseversuch EOF (`karton`), `hatMehr()` → `nein`.
+- **EOF ist endgültig:** nach dem ersten EOF liefert jeder weitere Leseversuch EOF (`karton`), `hatMehr()` → `nein` (K-042, Umsetzung für `null`-Einträge offen).
 - Jeder Aufruf kostet nur seine Ausdrucksknoten (§14.1); **Warten** auf Eingabe verbraucht weder Schritte noch simulierte Zeit
   noch Ofen-/Lieferbudget. Eingabe ist in allen Phasen verfügbar (auch in der `wennDa`-Phase nach Programmende); ein
   `@Kühlschrank`-Treffer liest nicht erneut.
@@ -515,8 +515,8 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 |---|---|
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas |
-| 2 | PizzaFehler (Syntax, B0012, R0001, Q0004, A0001, P0011, K0001 …) |
-| 3 | Schrittlimit (P0002) |
+| 2 | PizzaFehler (Syntax, B0012, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015] …; Host-Ladefehler `HOST` [K-043]) |
+| 3 | Schrittlimit (P0002); Wand-Zeitlimit von UI/CLI (P0003, K-044) |
 | 39 | Hawaii |
 
 ## 13. Tier 3 – nur Spezifikation
@@ -828,8 +828,9 @@ Einträge mit **[offen]** beschreiben das Sollverhalten; der Referenz-Interprete
 - **K-041 [offen]** HOST-ABI: separater Import `schreibe(ptr, len)`; `ausgabe` bleibt zweistellig.
 - **K-042 [offen]** EOF ist endgültig (§11.1).
 - **K-043 [offen]** Host-Ladefehler: `{typ:"fehler", code:"HOST", art:"intern"}`, Exit 2.
-- **K-044 [offen UI]** `art` ∈ {syntax, pizzafehler, ananas, limit, intern}; Wand-Zeitlimit der UI/CLI = `P0003`
-  (`art: "limit"`, Exit 3), nicht P0002.
+- **K-044 [offen UI]** `art` ∈ {syntax, pizzafehler, ananas, limit, intern}; `intern` nur für Host-/Worker-Fehler vor dem
+  Programmstart (K-043), interne Fehler eines laufenden Motors bleiben `ananas` (K-014). Wand-Zeitlimit der UI/CLI =
+  `P0003` (`art: "limit"`, Exit 3), nicht P0002.
 - **K-045** Bei Widersprüchen zwischen WASM.md und HOST-ABI.md gilt HOST-ABI.md.
 - **K-046 [offen]** `umbruch` wird bei `Bote.sage` weggelassen (kanonisch); Exit-Codes genau {0, 1, 2, 3, 39}.
 - **K-030/K-050/K-051/K-052** Doku-`ausgabe` darf den Panik-Banner weglassen; Doku-Codeblöcke dürfen `eingabe: string[]`
