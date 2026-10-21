@@ -1,0 +1,14 @@
+// exit: 0
+// K-040: < und sortiere ordnen nach UTF-16-Codeeinheiten, länge()/zeichen()/für zählen Codepoints.
+// U+1F355 (🍕, Surrogate D83C DF55) < U+FF5E (～) nach UTF-16, aber > nach Codepoint.
+Bote.sage(("🍕" < "～"));
+Bote.sage(("～" < "🍕"));
+Bote.sage(("🍕" > "～"));
+Bote.sage((["～", "🍕", "z", "😀", "￿", "ä"].sortiere()));
+Bote.sage(("😀" < "￿"));
+Bote.sage(("a🍕" < "a～"));
+Bote.sage(("🍕～".länge()));
+Bote.sage(("🍕～".zeichen(2)));
+salami n = 0;
+für (margherita c : "🍕～🍕") { n++; }
+Bote.sage((n));

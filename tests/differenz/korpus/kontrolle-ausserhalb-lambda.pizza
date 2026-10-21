@@ -1,0 +1,6 @@
+// exit: 2
+// fehler: P0012
+// K-015: abbrechen im Lambda-Rumpf (auch innerhalb einer Schleife) → P0012.
+für (salami i = 0; i < 2; i++) {
+    Bote.sage(([1, 2].belege(x -> { falls (x == 2) { abbrechen; } serviere ((x)); })));
+}

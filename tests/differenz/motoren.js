@@ -25,7 +25,12 @@ function normalisiere(ereignisse) {
   for (const e of ereignisse || []) {
     if (!e || e.typ === 'motor') continue;
     const k = {};
-    for (const s of Object.keys(e)) if (s !== 'motor' && s !== 'kompilierMs') k[s] = e[s];
+    // K-014: motorspezifisches 'detail' ignorieren; K-046: umbruch:true ≙ fehlendem umbruch.
+    for (const s of Object.keys(e)) {
+      if (s === 'motor' || s === 'kompilierMs' || s === 'detail') continue;
+      if (s === 'umbruch' && e[s] === true) continue;
+      k[s] = e[s];
+    }
     aus.push(k);
   }
   return aus;

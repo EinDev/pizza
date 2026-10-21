@@ -65,6 +65,10 @@ for (const fall of faelle) {
     const fe = r.ref.ereignisse.filter(e => e.typ === 'fehler').map(e => e.text).join(' | ');
     probleme.push({ motor: 'interpreter', art: 'erwartung', details: ['Exit-Code ' + r.ref.exitCode + ', erwartet ' + fall.erwartetExit + (fe ? ' – ' + fe : '')] });
   }
+  if (fall.erwartetFehler && r.ref.status === 'ok') {
+    const fe = r.ref.ereignisse.find(e => e.typ === 'fehler');
+    if (!fe || fe.code !== fall.erwartetFehler) probleme.push({ motor: 'interpreter', art: 'erwartung', details: ['Fehlercode ' + (fe ? fe.code + ' (' + fe.text + ')' : 'keiner') + ', erwartet ' + fall.erwartetFehler] });
+  }
   for (const m of MOTOREN) {
     const e = r.je[m.name];
     const s = stat[m.name];

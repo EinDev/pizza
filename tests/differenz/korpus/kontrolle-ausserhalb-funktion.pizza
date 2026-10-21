@@ -1,0 +1,6 @@
+// exit: 2
+// fehler: P0012
+// K-015: weiter in einem Methodenrumpf → P0012, nichts wird ausgegeben.
+Bote.sage(("nie sichtbar"));
+salami g() { weiter; serviere ((1)); }
+Bote.sage((g()));

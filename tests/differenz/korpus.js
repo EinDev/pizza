@@ -110,14 +110,15 @@ function pruefstand(warn) {
   return out;
 }
 
-/** Kopfzeilen im eigenen Korpus: // exit: N   // optionen: {"schrittLimit": 1000}   // args: a b */
+/** Kopfzeilen im eigenen Korpus: // exit: N   // fehler: P0012   // optionen: {"schrittLimit": 1000}   // args: a b */
 function kopf(code) {
   const k = {};
   for (const z of code.split(/\r?\n/)) {
-    const m = /^\s*\/\/\s*(exit|optionen|args)\s*:\s*(.*)$/.exec(z);
+    const m = /^\s*\/\/\s*(exit|optionen|args|fehler)\s*:\s*(.*)$/.exec(z);
     if (!m) { if (z.trim() && !/^\s*\/\//.test(z)) break; continue; }
     if (m[1] === 'exit') k.exit = parseInt(m[2], 10);
     else if (m[1] === 'optionen') k.optionen = JSON.parse(m[2]);
+    else if (m[1] === 'fehler') k.fehler = m[2].trim();
     else if (m[1] === 'args') k.args = m[2].trim() ? m[2].trim().split(/\s+/) : [];
   }
   return k;
@@ -134,7 +135,7 @@ function eigenerKorpus() {
     if (k.args) opt.args = k.args;
     const inp = path.join(dir, d.slice(0, -6) + '.eingabe');
     if (fs.existsSync(inp)) opt.eingabe = zeilen(lies(inp));
-    out.push({ quelle: 'korpus', name: d.slice(0, -6), code, optionen: opt, erwartetExit: k.exit != null ? k.exit : 0 });
+    out.push({ quelle: 'korpus', name: d.slice(0, -6), code, optionen: opt, erwartetExit: k.exit != null ? k.exit : 0, erwartetFehler: k.fehler });
   }
   return out;
 }
