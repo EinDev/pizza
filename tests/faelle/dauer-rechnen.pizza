@@ -1,0 +1,20 @@
+Bote.sage((1s - 2s));
+Bote.sage((1s / 3));
+Bote.sage((1h / 1min));
+Bote.sage((90min));
+Bote.sage((25h));
+Bote.sage((1001ms));
+Bote.sage((-(90s)));
+Bote.sage((2.5min));
+Bote.sage((1min.inSekunden()));
+Bote.sage((1500ms.inSekunden()));
+Bote.sage((90s.inMinuten()));
+Bote.sage((1min.alsText() + "!"));
+Bote.sage((3 * 1h == 3h));
+Bote.sage(([1s, 2s].summe()));
+Bote.sage(([2s, 1s, 3s].sortiere()));
+Bote.sage((1s <= 1000ms));
+probier { Bote.sage((1s / 0)); } verbrannt (RechenAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((1s / 0s)); } verbrannt (RechenAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((1s + 1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((1s < 1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

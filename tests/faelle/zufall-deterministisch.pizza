@@ -1,0 +1,7 @@
+Blech<salami> b = [];
+für (salami i = 0; i < 10; i++) { b.hinzu(Zufall.zahl(1, 100)); }
+Bote.sage((b));
+Bote.sage((Zufall.zahl(6, 6)));
+salami z = Zufall.zahl(6, 1);
+Bote.sage((z >= 1 && z <= 6));
+probier { Zufall.zahl(1.5, 2); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

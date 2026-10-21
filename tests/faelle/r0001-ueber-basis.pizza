@@ -1,0 +1,3 @@
+rezeptur R { leer a(); }
+rohling klasse B erfüllt R { }
+klasse K erbt B { }

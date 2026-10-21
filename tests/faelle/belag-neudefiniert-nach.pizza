@@ -1,0 +1,2 @@
+belag Käse auf Pizza { }
+Pizza p = ((Käse, Tomate));

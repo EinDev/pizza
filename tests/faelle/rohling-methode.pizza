@@ -1,0 +1,6 @@
+rohling klasse F { rohling salami f(); salami g() { serviere ((f())); } }
+klasse G erbt F { }
+probier { neu G().g(); } verbrannt (RohlingAnanas r) { Bote.sage((r.nachricht())); }
+klasse H erbt F { salami f() { serviere ((3)); } }
+Bote.sage((neu H().g()));
+probier { neu F(); } verbrannt (RohlingAnanas r) { Bote.sage((r.typ())); }

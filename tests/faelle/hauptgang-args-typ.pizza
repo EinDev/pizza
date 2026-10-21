@@ -1,0 +1,4 @@
+klasse A { tiefkühl leer hauptgang(Blech<margherita> args) {
+    für (margherita s : args) { Bote.sage((s + "!")); }
+    Bote.sage((args.länge()));
+} }

@@ -1,0 +1,30 @@
+salami i = 0;
+++i;
+--i;
+++i;
+Bote.sage((i));
+klasse K { tiefkühl salami n = 0; salami x = 1; leer m() { dies.x += 2; x *= 3; } }
+K k = neu K();
+k.m();
+k.x++;
+K.n++;
+K.n += 5;
+Bote.sage((k.x + " " + K.n));
+margherita s = "a";
+s += "b";
+s++;
+Bote.sage((s));
+funghi f = 10;
+f /= 4;
+f -= 0.5;
+Bote.sage((f));
+Dauer d = 1s;
+d += 500ms;
+d *= 2;
+Bote.sage((d));
+Pizza p = ((Tomate));
+p += Käse;
+Bote.sage((p));
+probier { p++; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+++k.x;
+Bote.sage((k.x));

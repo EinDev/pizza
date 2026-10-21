@@ -1,0 +1,19 @@
+klasse Zaehler {
+    tiefkühl salami gesamt = 0;
+    salami eigen = 0;
+    tiefkühl leer erhoehe() { gesamt++; }
+    leer tick() { eigen++; erhoehe(); }
+    tiefkühl salami nurStatisch() { serviere ((eigen)); }
+    tiefkühl leer falsch() { tick(); }
+}
+Zaehler a = neu Zaehler();
+a.tick();
+a.tick();
+Zaehler.erhoehe();
+Bote.sage((a.eigen + " " + Zaehler.gesamt));
+Zaehler.gesamt = 10;
+Bote.sage((Zaehler.gesamt + a.gesamt));
+probier { Zaehler.nurStatisch(); } verbrannt (LaufzeitAnanas l) { Bote.sage((l.nachricht())); }
+probier { Zaehler.falsch(); } verbrannt (LaufzeitAnanas l) { Bote.sage((l.nachricht())); }
+klasse Konst { tiefkühl salami A = 2; tiefkühl salami B = A * 3; tiefkühl Blech<salami> L = [A, B]; }
+Bote.sage((Konst.L));

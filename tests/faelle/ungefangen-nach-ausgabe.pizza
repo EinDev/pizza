@@ -1,0 +1,4 @@
+Bote.sage(("eins"));
+Bote.fehler(("zwei"));
+[].erstes();
+Bote.sage(("nie"));

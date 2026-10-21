@@ -1,0 +1,8 @@
+für (salami Wert : [1]) { salami wert = 2; Bote.sage((Wert + wert)); }
+probier { } verbrannt (StreitAnanas Fehler) { salami fehler = 1; }
+Rezept r = (salami Zahl) -> { salami zahl = 1; serviere ((zahl)); };
+klasse K { K(salami Menge) { salami menge = 1; } }
+für (salami i = 0, I = 1; i < 0; i++) { }
+salami ok = 1;
+falls (ja) { salami OK = 2; }
+salami abc = 1; salami ABC = 2; salami Abc = 3;

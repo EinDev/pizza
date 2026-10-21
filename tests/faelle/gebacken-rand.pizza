@@ -1,0 +1,20 @@
+gebacken salami a = 1;
+probier { a++; } verbrannt (GebackenAnanas g) { Bote.sage((g.nachricht())); }
+gebacken salami b;
+b = 2;
+Bote.sage((b));
+probier { b = 3; } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }
+klasse K {
+    gebacken salami x = 1;
+    gebacken tiefkühl salami MAX = 10;
+    gebacken salami y;
+    K() { y = 5; y = 6; }
+    leer aendere() { y = 7; }
+}
+K k = neu K();
+Bote.sage((k.x + k.y + K.MAX));
+probier { k.aendere(); } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }
+probier { K.MAX = 1; } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }
+probier { k.x = 2; } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }
+leer param(gebacken salami p) { p = 2; }
+probier { param(1); } verbrannt (GebackenAnanas g) { Bote.sage((g.typ())); }

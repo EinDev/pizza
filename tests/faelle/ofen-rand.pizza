@@ -1,0 +1,40 @@
+Dauer d = ofen(zeit: 5ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); };
+Bote.sage((d));
+salami e = ofen(temperatur: 485) { serviere ((1)); };
+Bote.sage((e));
+Bote.sage((ofen { }));
+Bote.sage((ofen(450, 2ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); }));
+probier { ofen(zeit: "x") { }; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { ofen(temperatur: "heiß") { }; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+Bote.sage((ofen(zeit: 100) { serviere (("Zahl als ms")); }));
+salami aussen = ofen(zeit: 1s) {
+    salami innen = ofen(zeit: 3ms) { zwischenstand((5)); solange (ja) { } } roh (r) { serviere ((r.teilergebnis())); };
+    zwischenstand((innen));
+    serviere ((innen + 1));
+};
+Bote.sage((aussen));
+margherita m = ofen(zeit: 20ms) {
+    zwischenstand(("außen"));
+    salami x = ofen(zeit: 1s) { solange (ja) { } } roh (r) { serviere ((0)); };
+    serviere (("nie"));
+} roh (r) { serviere ((r.teilergebnis())); };
+Bote.sage((m));
+salami q = ofen(zeit: 10ms) { probier { solange (ja) { } } rand { Bote.sage(("rand im ofen")); } } roh (r) { serviere ((-1)); };
+Bote.sage((q));
+probier {
+    ofen(zeit: 1ms) { solange (ja) { } } roh (r) { wirf neu StreitAnanas("aus roh"); } verbrannt (a) { Bote.sage(("falsch")); };
+} verbrannt (StreitAnanas s) { Bote.sage((s.nachricht())); }
+zwischenstand((1));
+Bote.sage(("ok"));
+salami lw = ofen(zeit: 1s) { serviere ((bestelle(() -> (3)).warte(max: 1s).wert())); };
+Bote.sage((lw));
+Lieferung<salami> lo = bestelle(() -> { serviere ((ofen(zeit: 1h) { solange (ja) { } } roh (r) { serviere ((1)); })); });
+Bote.sage((lo.warte(max: 10ms).pünktlich()));
+salami vor = ofen(zeit: 1s) { Uhr.vorspulen(2s); serviere ((1)); } roh (r) { serviere ((r.verbrauchteZeit() > 2s ? 2 : 3)); };
+Bote.sage((vor));
+Bote.sage((ofen(zeit: 1s) { serviere ((ofen(zeit: 1s) { serviere ((7)); })); }));
+probier { ofen(zeit: 2ms) { solange (ja) { } } verbrannt (StreitAnanas s) { Bote.sage(("falsch")); }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
+Bote.sage((ofen(zeit: 1s) { probier { wirf neu StreitAnanas("x"); } verbrannt (s) { serviere (("gefangen im Ofen")); } }));
+salami w = ofen(zeit: 1s) { für (salami i : [1, 2, 3]) { falls (i == 2) { serviere ((i)); } } };
+Bote.sage((w));
+Bote.sage((ofen { abbrechen; }));

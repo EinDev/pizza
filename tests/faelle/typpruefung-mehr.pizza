@@ -1,0 +1,24 @@
+klasse Tier { }
+klasse Hund erbt Tier { }
+Tier t = neu Hund();
+Hund h = karton;
+probier { Hund x = neu Tier(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Dauer d = karton;
+probier { Dauer e = 5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { salami s = "1"; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { funghi f = ja; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { diavolo d2 = karton; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { salami s3 = karton; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+margherita m = karton;
+Bote.sage((m));
+salami[] arr = [1, "a"];
+Blech<salami> b = ["kein", "check"];
+Bote.sage((b));
+leer nimm(salami x) { }
+probier { nimm(1.5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+salami s2 = 1;
+probier { s2 = 2.5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { s2 += 0.5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { für (salami q : [1, 2.5]) { Bote.sage((q)); } } verbrannt (TypAnanas a) { Bote.sage(("für: " + a.typ())); }
+UnbekannterTyp u = 5;
+Bote.sage((u));

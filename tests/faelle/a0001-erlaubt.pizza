@@ -1,0 +1,12 @@
+rezeptur R { salami wert(); }
+klasse K erfüllt R { @PizzaÜberschreibt salami wert() { serviere ((1)); } }
+klasse MA erbt LaufzeitAnanas { MA() { unten("m"); } @PizzaÜberschreibt margherita nachricht() { serviere (("eigene")); } }
+klasse Basis { leer m() { } }
+klasse Mitte erbt Basis { }
+klasse Unten erbt Mitte { @PizzaÜberschreibt leer m() { Bote.sage(("überschrieben über zwei Ebenen")); } }
+belag Gold auf Pizza { @PizzaÜberschreibt funghi preis() { serviere ((100)); } @PizzaÜberschreibt margherita beschreibung() { serviere (("Gold")); } }
+Bote.sage((neu K().wert()));
+probier { wirf neu MA(); } verbrannt (MA a) { Bote.sage((a.nachricht())); }
+Bote.sage((neu MA()));
+neu Unten().m();
+Bote.sage((((Gold)).preis()));

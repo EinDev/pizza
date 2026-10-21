@@ -1,0 +1,20 @@
+salami fib(salami n) { falls (n < 2) { serviere ((n)); } serviere ((fib(n - 1) + fib(n - 2))); }
+Bote.sage((fib(15)));
+salami fak(salami n) { serviere ((n <= 1 ? 1 : n * fak(n - 1))); }
+Bote.sage((fak(20)));
+Blech<salami> sortiere(Blech<salami> b) {
+    falls (b.länge() <= 1) { serviere ((b)); }
+    salami p = b.erstes();
+    Blech<salami> rest = b.kopie();
+    rest.entferne(1);
+    Blech<salami> links = sortiere(rest.filtere(x -> x < p));
+    Blech<salami> rechts = sortiere(rest.filtere(x -> x >= p));
+    serviere ((links.hinzu(p).kopie().belege(x -> x) + "" == "" ? [] : links));
+}
+Bote.sage((sortiere([3, 1, 2]).länge()));
+salami ack(salami m, salami n) {
+    falls (m == 0) { serviere ((n + 1)); }
+    falls (n == 0) { serviere ((ack(m - 1, 1))); }
+    serviere ((ack(m - 1, ack(m, n - 1))));
+}
+Bote.sage((ack(2, 3)));

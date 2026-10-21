@@ -1,0 +1,4 @@
+Rezept r = () -> {
+    wirf neu RechenAnanas("lambda");
+};
+r();

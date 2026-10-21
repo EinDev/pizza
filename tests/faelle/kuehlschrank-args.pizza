@@ -1,0 +1,33 @@
+klasse Rechner {
+    salami aufrufe = 0;
+    @Kühlschrank(haltbar: 1min)
+    salami quadrat(salami x) { aufrufe++; serviere ((x * x)); }
+    @Kühlschrank(haltbar: 1h)
+    tiefkühl margherita statisch(margherita s) { serviere ((s + "!")); }
+    @Kühlschrank
+    salami ewig() { aufrufe++; serviere ((aufrufe)); }
+}
+Rechner r = neu Rechner();
+Bote.sage((r.quadrat(2) + r.quadrat(2) + r.quadrat(3) + r.quadrat(x: 2)));
+Bote.sage((r.aufrufe));
+Uhr.vorspulen(2min);
+Bote.sage((r.quadrat(2)));
+Bote.sage((r.aufrufe));
+Rechner r2 = neu Rechner();
+Bote.sage((r2.quadrat(2) + " " + r2.aufrufe));
+Bote.sage((Rechner.statisch("a") + Rechner.statisch("a")));
+Bote.sage((r.ewig() + " " + r.ewig()));
+Uhr.vorspulen(1000d);
+Bote.sage((r.ewig()));
+Reste<salami> re = r.quadrat.mikrowelle(5);
+Bote.sage((re.wert() + " " + re.istMatschig() + " " + re));
+Bote.sage((r.quadrat.frisch(5)));
+salami ohneCache(salami x) { serviere ((x + 1)); }
+Bote.sage((ohneCache.mikrowelle(1).wert()));
+Rezept lam = x -> x * 3;
+Bote.sage((lam.mikrowelle(2).istMatschig() + " " + lam.frisch(2)));
+@Kühlschrank(haltbar: 1h)
+salami global(salami x) { Bote.sage(("rechne " + x)); serviere ((x)); }
+global(1);
+global(1);
+global(2);

@@ -1,0 +1,5 @@
+Pizza a = ((Tomate, Käse, Mozzarella, Basilikum));
+Pizza b = ((Basilikum));
+Pizza c = ((Salami, Tomate, Käse));
+Bote.sage(("ok"));
+Pizza d = ((Tomate, Mozzarella, Rucola, Tomate));

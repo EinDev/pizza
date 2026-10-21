@@ -1,0 +1,11 @@
+rezeptur Essbar { margherita name(); }
+rezeptur Lecker erbt Essbar { }
+klasse Brot erfüllt Lecker { margherita name() { serviere (("Brot")); } }
+klasse Stein { }
+Essbar e = neu Brot();
+Bote.sage((e.name()));
+probier { Essbar s = neu Stein(); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { Essbar.name(); } verbrannt (LaufzeitAnanas l) { Bote.sage((l.nachricht())); }
+probier { neu Essbar(); } verbrannt (RohlingAnanas r) { Bote.sage((r.nachricht())); }
+Lecker l = neu Brot();
+Bote.sage((l.name()));

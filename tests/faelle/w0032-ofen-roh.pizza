@@ -1,0 +1,2 @@
+Rezept x = ofen { } roh (Rest) { salami rest = 1; serviere ((rest)); };
+Bote.sage((x));

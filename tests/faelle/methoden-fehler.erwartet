@@ -1,0 +1,21 @@
+Methode 'm' erwartet 1 Argument, bekam 0.
+Methode 'm' hat keinen Parameter 'b'.
+Methode 'gibtsNicht' gibt es auf K nicht.
+Feld 'feld' gibt es auf K nicht.
+Methode 'm' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.
+2
+Klasse 'K' hat keinen Konstruktor, bekam aber Argumente.
+UnbekanntePizzaAnanas: Klasse 'Unbekannt' steht nicht auf der Speisekarte.
+'unbekannteFunktion' ist nicht definiert.
+5 ist keine Funktion – das kann man nicht aufrufen.
+Der Karton ist leer.
+LeererKartonAnanas
+'dies' gibt es hier nicht – wir sind in keiner Instanz.
+Methode 'gibts' gibt es in Klasse K nicht.
+Feld 'feld' gibt es in Klasse K nicht.
+Feld 'foo' gibt es auf salami nicht.
+Auf margherita kann man keine Felder setzen.
+LeererKartonAnanas
+Feld 'neu1' gibt es auf K nicht.
+'y' ist nicht definiert.
+Feld 'y' gibt es in Klasse K nicht.

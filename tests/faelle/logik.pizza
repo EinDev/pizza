@@ -1,0 +1,27 @@
+Bote.sage((ja && nein || ja));
+Bote.sage((!ja == nein));
+Bote.sage((1 < 2 == ja));
+salami n = 0;
+diavolo f() { n++; serviere (ja); }
+Bote.sage((nein && f()));
+Bote.sage((ja || f()));
+Bote.sage((n));
+Bote.sage((ja ? 1 : nein ? 2 : 3));
+Bote.sage((nein ? 1 : nein ? 2 : 3));
+probier { Bote.sage((1 && ja)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((ja && 1)); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((!5)); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { solange (karton) { } } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((1 ? 2 : 3)); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((-"x")); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((ja < nein)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((((Tomate)) - 1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage(("a" * 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage(("a" % 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage(("a" / 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { für (salami i = 0; 1; i++) { } } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((karton == karton));
+Bote.sage((karton != 0));
+Bote.sage((Salami != Käse));
+Bote.sage((1 == 1.0));
+Bote.sage(("1" == 1));

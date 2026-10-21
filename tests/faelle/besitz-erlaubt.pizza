@@ -1,0 +1,7 @@
+Pizza mach() { serviere ((((Tomate)))); }
+Pizza a = mach();
+Pizza b = ja ? a : karton;
+Blech<Pizza> liste = [a];
+Pizza c = liste.stück(1);
+Pizza d = a + Käse;
+Bote.sage((a + " " + b + " " + c + " " + d));

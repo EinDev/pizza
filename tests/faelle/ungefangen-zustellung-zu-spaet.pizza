@@ -1,0 +1,2 @@
+Lieferung<salami> l = bestelle(() -> { Uhr.vorspulen(1d); serviere ((1)); });
+l.warte(max: 1h).wert();

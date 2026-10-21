@@ -1,0 +1,11 @@
+salami a = 1, b, c = a + 2;
+Bote.sage((a + b + c));
+salami x;
+funghi f;
+diavolo d;
+margherita m;
+Pizza p;
+Bote.sage((x + " " + f + " " + d + " " + m + " " + p));
+klasse K { salami s; funghi g; diavolo w; margherita t; Blech<salami> l; }
+K k = neu K();
+Bote.sage((k.s + " " + k.g + " " + k.w + " " + k.t + " " + k.l));

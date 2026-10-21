@@ -1,0 +1,9 @@
+klasse A { margherita alsText(salami x) { serviere (("x")); } }
+Bote.sage((neu A()));
+klasse MA erbt StreitAnanas { MA() { unten("m"); } margherita alsText() { serviere (("eigen")); } }
+Bote.sage((neu MA()));
+Bote.sage(("Text " + neu MA()));
+klasse Z { salami alsText() { serviere ((42)); } }
+Bote.sage((neu Z()));
+Bote.sage(([neu Z(), neu A()]));
+wirf neu MA();

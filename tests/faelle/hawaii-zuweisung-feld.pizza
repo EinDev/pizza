@@ -1,0 +1,4 @@
+klasse K { hawaii h; }
+K k = neu K();
+Bote.sage(("noch gut"));
+k.h = karton;

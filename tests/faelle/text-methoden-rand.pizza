@@ -1,0 +1,28 @@
+Bote.sage(("".länge()));
+Bote.sage(("".istLeer()));
+Bote.sage(("abc".zerlege("")));
+Bote.sage(("a--b--c".zerlege("--")));
+Bote.sage(("x".zerlege(",")));
+Bote.sage(("aaa".ersetze("a", "bb")));
+Bote.sage(("ab".wiederhole(0)));
+Bote.sage(("Größe".groß()));
+Bote.sage(("ÄÖÜ".klein()));
+Bote.sage(("Pizza".endetMit("za")));
+Bote.sage((" 12.5 ".alsZahl() * 2));
+Bote.sage(("1_000".alsZahl()));
+probier { "abc".alsZahl(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { "".alsZahl(); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { "ab".wiederhole(-1); } verbrannt (RechenAnanas a) { Bote.sage((a.nachricht())); }
+probier { "ab".wiederhole(1.5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { "ab".zeichen(0); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { "ab".zeichen(-1); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+Bote.sage(("🍕x".zeichen(2)));
+Bote.sage(("abc".alsText()));
+Bote.sage(("abc" == "abc"));
+Bote.sage(("b" > "a"));
+Bote.sage(("x" + karton));
+Bote.sage(("Liste: " + [1, 2]));
+Bote.sage(("P: " + ((Tomate))));
+probier { "abc".gibtsNicht(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(("ab".enthält("")));
+Bote.sage(("Wert: " + 1.5 + ja + nein + 2s));

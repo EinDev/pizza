@@ -1,0 +1,12 @@
+klasse Kunde { margherita name; Kunde(margherita n) { name = n; } }
+klasse Kasse {
+    salami n = 0;
+    @Kühlschrank(haltbar: 1h)
+    margherita gruss(Kunde k) { n++; serviere (("Hallo " + k.name + " #" + n)); }
+}
+Kasse kasse = neu Kasse();
+Kunde a = neu Kunde("Anna");
+Kunde a2 = neu Kunde("Anna");
+Bote.sage((kasse.gruss(a)));
+Bote.sage((kasse.gruss(a)));
+Bote.sage((kasse.gruss(a2)));

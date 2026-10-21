@@ -1,0 +1,3 @@
+salami x = ofen(zeit: 3ms) {
+    solange (ja) { }
+};

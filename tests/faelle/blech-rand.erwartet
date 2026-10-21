@@ -1,0 +1,39 @@
+0 ja 0
+karton
+5
+[]
+[]
+[]
+[]
+[[], [], []]
+[[], []]
+Das Blech ist leer – kein Stück da.
+KeinStückAnanas
+Stück 3 gibt es nicht – das Blech hat 2 Stücke.
+Stück -1 gibt es nicht – das Blech hat 1 Stück.
+KeinStückAnanas
+KeinStückAnanas
+KeinStückAnanas
+summe() geht nur mit Zahlen, aber im Blech liegt "a".
+TypAnanas
+In 0 Stücke schneiden? Das geht nicht.
+RechenAnanas
+In -1 Stücke teilen? Das geht nicht.
+Blech / n braucht eine Ganzzahl, nicht 1.5.
+schneide braucht eine Ganzzahl, nicht "x".
+[[1], [2], [3], [], []]
+[[1, 2], [3]]
+nein
+[1, 2, 3]
+ja
+nein
+[karton, ja, x, 1.5]
+ja
+[2, 1, 3]
+[6]
+123
+a-b
+[1, 2]!
+[1, karton]
+Erwartet diavolo (ja/nein), bekam 1.
+Die Sortierfunktion muss eine Zahl liefern.

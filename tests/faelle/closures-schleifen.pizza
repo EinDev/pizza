@@ -1,0 +1,21 @@
+Blech<Rezept> fs = [];
+für (salami i : [1, 2, 3]) { fs.hinzu(() -> i * 10); }
+Bote.sage((fs.belege(f -> f())));
+Blech<Rezept> gs = [];
+für (salami j = 0; j < 3; j++) { salami kopie = j; gs.hinzu(() -> kopie); }
+Bote.sage((gs.belege(f -> f())));
+Blech<Rezept> hs = [];
+für (salami j = 0; j < 3; j++) { hs.hinzu(() -> j); }
+Bote.sage((hs.belege(f -> f())));
+salami zaehler = 0;
+Rezept inc = () -> { zaehler += 1; serviere ((zaehler)); };
+inc();
+inc();
+inc();
+Bote.sage((zaehler));
+Rezept macheZaehler() { salami c = 0; serviere ((() -> { c++; serviere ((c)); })); }
+Rezept z1 = macheZaehler();
+Rezept z2 = macheZaehler();
+z1();
+z1();
+Bote.sage((z1() + " " + z2()));

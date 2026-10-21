@@ -1,0 +1,6 @@
+klasse Insel { hawaii h; salami x = 1; }
+Bote.sage(("vor"));
+Insel i = neu Insel();
+Bote.sage(("ohne Init ok"));
+klasse Insel2 { hawaii h = 1; }
+neu Insel2();

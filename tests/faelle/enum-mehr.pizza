@@ -1,0 +1,16 @@
+quattrostagioni Größe { KLEIN, MITTEL, GROSS, FAMILIE }
+Bote.sage((Größe.KLEIN < Größe.GROSS));
+Bote.sage((Größe.FAMILIE.alsText()));
+Größe g = Größe.MITTEL;
+margherita preis = wähle (g) { fall KLEIN -> "5"; fall Größe.MITTEL -> "7"; standard -> "9"; };
+Bote.sage((preis));
+Bote.sage((Größe.werte().länge()));
+für (Größe x : Größe) { Bote.sage((x)); }
+probier { Größe.RIESIG; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { Größe y = 5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+Speisekarte<Größe, salami> k = neu Speisekarte<Größe, salami>();
+k.lege(Größe.KLEIN, 1);
+Bote.sage((k));
+Bote.sage((Größe.werte));
+Bote.sage((Größe));
+probier { Größe.gibts(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

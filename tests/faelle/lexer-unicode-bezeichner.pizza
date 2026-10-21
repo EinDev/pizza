@@ -1,0 +1,7 @@
+salami größe = 3;
+margherita straße = "Hauptstraße";
+klasse Bäckerei { salami öfen = 2; salami zähleÖfen() { serviere ((öfen)); } }
+Bote.sage((größe + " " + straße + " " + neu Bäckerei().zähleÖfen()));
+salami _x1 = 4;
+salami ÄÖÜß = 5;
+Bote.sage((_x1 + ÄÖÜß));

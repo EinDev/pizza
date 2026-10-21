@@ -1,0 +1,4 @@
+leer f() {
+    wirf neu StreitAnanas("tief");
+}
+f();

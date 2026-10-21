@@ -1,0 +1,3 @@
+Rezept r = (hawaii x) -> x;
+Bote.sage(("a"));
+r(1);

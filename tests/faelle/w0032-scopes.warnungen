@@ -1,0 +1,7 @@
+W0032: 'Wert' und 'wert' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'Fehler' und 'fehler' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'Zahl' und 'zahl' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'Menge' und 'menge' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'i' und 'I' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'abc' und 'ABC' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.
+W0032: 'abc' und 'Abc' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.

@@ -388,6 +388,18 @@
       return ok;
     }
 
+    reserviertAlsName() {
+      const s = this.p;
+      const t = this.typ(true);
+      let ja = false;
+      if (t && this.c.t === 'kw') {
+        const n = this.sieh(1);
+        ja = n.t === 'op' && (n.v === '=' || n.v === ';' || n.v === ',');
+      }
+      if (!ja) this.p = s;
+      return ja;
+    }
+
     varDekl(mods, tok) {
       const typ = this.typ(false);
       const decls = [];
@@ -638,6 +650,7 @@
             }
         }
       }
+      if (tok.t === 'name' && this.reserviertAlsName()) this.fehler('\'' + this.c.v + '\' ist ein reserviertes Wort und kann nicht als Name für die Variable verwendet werden', this.c);
       if (tok.t === 'name' && this.istDeklStart()) {
         const v = this.varDekl([], tok);
         this.erwarteSemi();
@@ -1898,7 +1911,8 @@
       if (haupt) {
         this.z = haupt.decl.z; this.s = haupt.decl.s;
         const pos = haupt.params.length ? [this.args.slice()] : [];
-        this.rufeDecl(haupt, null, pos, null, null, 'normal');
+        const dies = haupt.statisch || haupt.klasse === null ? null : this.instanziiere(haupt.klasse, [], null, null);
+        this.rufeDecl(haupt, dies, pos, null, null, 'normal');
       }
       this.lieferungenNachEnde();
     }
@@ -2653,7 +2667,13 @@
       if (halter.cache === null || halter.cache === undefined) halter.cache = new Map();
       let tab = halter.cache.get(m);
       if (tab === undefined) { tab = new Map(); halter.cache.set(m, tab); }
-      const key = this.cacheSchluessel(pos, ben);
+      let key;
+      if (ben === null) key = this.cacheSchluessel(pos, null);
+      else {
+        const geordnet = [];
+        for (let i = 0; i < m.params.length; i++) geordnet.push(i < pos.length ? pos[i] : (m.params[i].name in ben ? ben[m.params[i].name] : null));
+        key = this.cacheSchluessel(geordnet, null);
+      }
       const e = tab.get(key);
       if (modus === 'frisch' || e === undefined) {
         const v = rechne();
@@ -2669,6 +2689,13 @@
     }
 
     bindeParameter(ps, sc, pos, ben, name, strikt) {
+      if (ben !== null) {
+        for (const k in ben) {
+          let ok = false;
+          for (const p of ps) if (p.name === k) { ok = true; break; }
+          if (!ok) throw this.ananas('LaufzeitAnanas', name + ' hat keinen Parameter \'' + k + '\'.');
+        }
+      }
       if (strikt && pos.length > ps.length) {
         throw this.ananas('LaufzeitAnanas', name + ' erwartet ' + ps.length + ' Argument' + (ps.length === 1 ? '' : 'e') + ', bekam ' + this.anzahl(pos, ben) + '.');
       }
@@ -2682,13 +2709,6 @@
         if (p.nieKarton && v === null) throw this.ananas('LeererKartonAnanas', 'Parameter \'' + p.name + '\' ist @NieKarton – aber es kam ein leerer Karton.');
         if (p.typ !== null) this.pruefeTyp(p.typ, v, p.name);
         sc.vars.set(p.name, new Var(v, p.typ, p.gebacken));
-      }
-      if (ben !== null) {
-        for (const k in ben) {
-          let ok = false;
-          for (const p of ps) if (p.name === k) { ok = true; break; }
-          if (!ok) throw this.ananas('LaufzeitAnanas', name + ' hat keinen Parameter \'' + k + '\'.');
-        }
       }
     }
 
@@ -2739,6 +2759,12 @@
     namenAufruf(n, sc) {
       const f = this.aufrufZiel(n.name, sc);
       if (f === AUTO) return this.schieb(n, sc);
+      if (f instanceof Gebunden && f.liste[0].sicht !== null) {
+        const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+        const m = this.waehle(f.liste, this.anzahl(pos, ben));
+        this.pruefeMethodenZugriff(m, sc.ctx);
+        return this.rufeDecl(m, f.obj, pos, ben, n, 'normal');
+      }
       return this.rufe(f, this.posArgs(n.args, sc), this.benArgs(n.args, sc), n);
     }
 

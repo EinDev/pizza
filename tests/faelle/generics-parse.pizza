@@ -1,0 +1,10 @@
+Speisekarte<margherita, Blech<Speisekarte<salami, Blech<salami>>>> tief = neu Speisekarte<margherita, Blech<Speisekarte<salami, Blech<salami>>>>();
+Blech<?> x = [];
+klasse Box<T> { T inhalt; Box(T i) { inhalt = i; } T hole() { serviere ((inhalt)); } }
+Box<salami> b = neu Box<salami>(5);
+Bote.sage((b.hole()));
+<T> T erstes(Blech<T> l) { serviere ((l.erstes())); }
+Bote.sage((erstes(["a"])));
+klasse Util { tiefkühl <T> Blech<T> zwei(T a) { serviere (([a, a])); } }
+Bote.sage((Util.zwei(1)));
+Bote.sage((tief.länge()));

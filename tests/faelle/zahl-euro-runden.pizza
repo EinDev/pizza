@@ -1,0 +1,14 @@
+Bote.sage(((-3).euro()));
+Bote.sage((0.005.euro()));
+Bote.sage((1234567.891.euro()));
+Bote.sage((0.euro()));
+Bote.sage((2.675.runden(2)));
+Bote.sage(((-2.5).runden()));
+Bote.sage((Mathe.runden(-2.5)));
+Bote.sage((1.005.runden(2)));
+Bote.sage((7.runden(3)));
+Bote.sage((Mathe.runden(3.14159, 3)));
+Bote.sage((1.5.ganz() + (-1.5).ganz()));
+Bote.sage(((-0.4).runden()));
+Bote.sage((5.alsText().länge()));
+probier { 1.5.runden(0.5); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }

@@ -1,0 +1,12 @@
+vor
+ohne Init ok
+╔══════════════════════════════════════════════╗
+║   🍍  PIZZA-VM KERNEL PANIC  🍍              ║
+║                                              ║
+║   Fataler Fehler: ANANAS_AUF_PIZZA           ║
+║   Adresse 0xPIZZA → Ofen überhitzt           ║
+║   Der Pizzaiolo hat den Raum verlassen.      ║
+║                                              ║
+║   Core dumped → reste.kaltepizza             ║
+╚══════════════════════════════════════════════╝
+Exit-Code: 39

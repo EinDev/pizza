@@ -1,0 +1,14 @@
+StreitAnanas s = neu StreitAnanas("Zank");
+Bote.sage((s.nachricht() + "|" + s.holeNachricht() + "|" + s.typ() + "|" + s.alsText()));
+Ananas a = neu Ananas();
+Bote.sage((a));
+Bote.sage((neu LaufzeitAnanas(42).nachricht()));
+Bote.sage((neu TypAnanas("x") == neu TypAnanas("x")));
+probier { wirf neu VerbranntAnanas("v"); } verbrannt (LaufzeitAnanas l) { Bote.sage(("falsch")); } verbrannt (GeprüfteAnanas g) { Bote.sage(("geprüft " + g.typ())); }
+probier { wirf neu KeinStückAnanas("k"); } verbrannt (Ananas x) { Bote.sage((x.typ())); }
+probier { wirf 5; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { wirf karton; } verbrannt (LeererKartonAnanas t) { Bote.sage((t.typ())); }
+klasse Kein { }
+probier { wirf neu Kein(); } verbrannt (Kein k) { Bote.sage(("eigenes Objekt " + k)); }
+probier { wirf neu StreitAnanas("x"); } verbrannt (UnbekannteKlasse u) { Bote.sage(("falsch")); } verbrannt (rest) { Bote.sage(("fallback")); }
+für (Ananas x : [neu LieferAnanas("l"), neu RohlingAnanas("r"), neu ZugeklapptAnanas("z")]) { Bote.sage((x)); }

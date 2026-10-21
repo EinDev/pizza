@@ -1,0 +1,2 @@
+﻿salami x = 1;
+Bote.sage((x));

@@ -1,0 +1,2 @@
+klasse A erbt B { }
+klasse B erbt A { }

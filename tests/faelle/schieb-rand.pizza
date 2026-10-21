@@ -1,0 +1,18 @@
+salami x = 5;
+salami y = schieb(x);
+Bote.sage((y));
+probier { Bote.sage((x)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+probier { schieb(x); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+probier { schieb(1 + 2); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { schieb(gibtsNicht); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { x++; } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+probier { x += 1; } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+x = 7;
+Bote.sage((x));
+klasse Teller { Pizza p = ((Tomate)); Pizza nimm() { serviere ((schieb(p))); } }
+Teller t = neu Teller();
+Bote.sage((t.nimm()));
+probier { t.nimm(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((t.p)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+Rezept s = schieb;
+probier { s(x); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

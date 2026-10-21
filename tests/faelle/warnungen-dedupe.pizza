@@ -1,0 +1,5 @@
+für (salami i : [1, 2, 3]) {
+    teig(() -> (i)).backen();
+    [1].schneide(7);
+}
+[1] / 7;

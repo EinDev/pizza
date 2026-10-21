@@ -1,0 +1,3 @@
+Lieferung<Pizza> l = bestelle(() -> (((Tomate, Ananas))));
+Bote.sage(("bestellt"));
+l.warte(max: 1min);

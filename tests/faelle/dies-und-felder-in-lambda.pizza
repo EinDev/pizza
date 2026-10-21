@@ -1,0 +1,14 @@
+klasse K {
+    salami v = 5;
+    Rezept mach() { serviere ((() -> dies.v + v)); }
+    Rezept erhoeher() { serviere ((() -> { v++; serviere ((v)); })); }
+}
+K k = neu K();
+Bote.sage((k.mach()()));
+Rezept e = k.erhoeher();
+e();
+e();
+Bote.sage((k.v));
+klasse F { Rezept f = x -> x * 2; tiefkühl Rezept g = x -> x + 1; }
+Bote.sage((neu F().f(4)));
+Bote.sage((F.g(1)));

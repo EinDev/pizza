@@ -1,0 +1,6 @@
+Bote.sage();
+Bote.sage((1), (2), "drei");
+Bote.fehler(("Fehler 1"));
+Bote.fehler(("a"), "b");
+Bote.sage((Bote));
+probier { Bote.schreie(("x")); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

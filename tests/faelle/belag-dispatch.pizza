@@ -1,0 +1,17 @@
+belag Doppelt auf Pizza { funghi preis() { serviere ((unten.preis() * 2)); } }
+belag Bio auf Pizza {
+    margherita beschreibung() { serviere (("bio " + unten.beschreibung())); }
+    funghi preis() { serviere ((unten.preis() + 1)); }
+}
+belag Käse auf Pizza { margherita beschreibung() { serviere (("Käse auf " + unten.beschreibung())); } }
+belag Info auf Pizza { margherita info() { serviere ((beschreibung() + "/" + anzahlBeläge() + "/" + unten.anzahlBeläge())); } }
+Pizza p = ((Tomate, Doppelt, Salami, Bio));
+Bote.sage((p.preis()));
+Bote.sage((p.beschreibung()));
+Pizza k = ((Tomate, Käse));
+Bote.sage((k.preis()));
+Bote.sage((k.beschreibung()));
+Bote.sage((Doppelt.preis()));
+Bote.sage((Käse.preis()));
+Bote.sage((((Tomate, Info)).info()));
+Bote.sage((((Tomate, Info, Käse)).info()));

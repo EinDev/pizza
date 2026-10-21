@@ -1,0 +1,6 @@
+bestelle(() -> ("A")).wennDa(x -> {
+    Bote.sage(("A da"));
+    bestelle(() -> ("C")).trinkgeld(1).wennDa(y -> Bote.sage(("C da")));
+});
+bestelle(() -> ("B")).wennDa(x -> Bote.sage(("B da")));
+klasse App { tiefkühl leer hauptgang(Blech<margherita> a) { Bote.sage(("hauptgang")); bestelle(() -> (0)).trinkgeld(9).wennDa(x -> Bote.sage(("aus hauptgang"))); } }

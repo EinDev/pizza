@@ -1,0 +1,2 @@
+leer hauptgang(Blech<margherita> a) { Bote.sage(("top " + a)); }
+Bote.sage(("zuerst"));

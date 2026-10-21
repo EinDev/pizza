@@ -1,0 +1,10 @@
+calzone klasse Tresor { geheimrezept salami code = 1234; }
+klasse Safe erbt Tresor { salami extra = 1; }
+Safe s = neu Safe();
+probier { Spiegel.felder(s); } verbrannt (ZugeklapptAnanas a) { Bote.sage((a.typ())); }
+s.aufklappen();
+Bote.sage((Spiegel.felder(s)));
+Bote.sage((s.code));
+Safe s2 = neu Safe();
+probier { s2.code; } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((s.aufklappen() == s));

@@ -1,0 +1,30 @@
+Lieferung<salami> l = bestelle(() -> (1));
+Bote.sage((l.istGeliefert()));
+Bote.sage((l.warte().wert()));
+Bote.sage((l.istGeliefert()));
+Bote.sage((l));
+Bote.sage((l.warte()));
+Lieferung<salami> spät = bestelle(() -> { Uhr.vorspulen(1h); serviere ((1)); });
+Bote.sage((spät.warte(max: 30min)));
+Bote.sage((spät.warte(max: 2h).pünktlich()));
+Lieferung<salami> t = bestelle(() -> { Uhr.vorspulen(40min); serviere ((2)); });
+Bote.sage((t.trinkgeld(5).warte(max: 30min).pünktlich()));
+probier { bestelle(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { bestelle(() -> (1)).trinkgeld("viel"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { bestelle(() -> (1)).warte(max: "bald"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Lieferung<salami> w = bestelle(() -> (7));
+w.warte(max: 1s);
+w.wennDa(x -> Bote.sage(("sofort " + x)));
+Lieferung<salami> v = bestelle(() -> (8)).wennDa(x -> Bote.sage(("beim warten " + x)));
+Bote.sage(("vor warte"));
+v.warte(max: 1s);
+Bote.sage(("nach warte"));
+Lieferung<salami> k = bestelle(() -> { Uhr.vorspulen(1h); serviere ((9)); }).wennDa(x -> Bote.sage(("nie")));
+k.warte(max: 1min);
+Lieferung<salami> f = bestelle(() -> { wirf neu StreitAnanas("kaputt"); });
+Zustellung<salami> fz = f.warte(max: 1s);
+Bote.sage((fz.pünktlich()));
+Bote.sage((fz));
+probier { fz.wert(); } verbrannt (StreitAnanas s) { Bote.sage((s.nachricht())); }
+Bote.sage((bestelle(() -> (5)).warte(30min).wert()));
+Bote.sage(("ende"));

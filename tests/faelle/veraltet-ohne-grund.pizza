@@ -1,0 +1,6 @@
+@PizzaVeraltet
+leer alt() { }
+alt();
+alt();
+klasse K { @PizzaVeraltet("zu alt") leer m() { } }
+neu K().m();

@@ -1,0 +1,17 @@
+leer test(margherita s) {
+    wähle (s) { fall "a" -> Bote.sage(("A")); fall "b", "c" -> Bote.sage(("BC")); }
+}
+test("a");
+test("c");
+test("z");
+salami x = 3;
+wähle (x) { fall 1 + 2 -> Bote.sage(("drei")); standard -> Bote.sage(("?")); }
+wähle (((Tomate))) { fall ((Tomate)) -> Bote.sage(("Pizza gleich")); }
+für (salami i : [1, 2, 3]) { wähle (i) { fall 2 -> abbrechen; standard -> Bote.sage((i)); } }
+wähle (5) { }
+margherita r = wähle (9) { fall 1 -> "x"; };
+Bote.sage((r));
+salami bw = wähle (1) { fall 1 -> { Bote.sage(("im Block")); serviere ((42)); } standard -> 0 };
+Bote.sage((bw));
+wähle (ja) { standard -> Bote.sage(("nur standard")); }
+wähle (1) { standard -> Bote.sage(("standard zuerst")); fall 1 -> Bote.sage(("fall gewinnt")); }

@@ -1,0 +1,23 @@
+klasse K { salami m(salami a) { serviere ((a)); } tiefkühl salami s() { serviere ((1)); } }
+K k = neu K();
+probier { k.m(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.m(b: 1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.gibtsNicht(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.feld; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { K.m(1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((K.s() + k.s()));
+probier { neu K(1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Unbekannt(); } verbrannt (UnbekanntePizzaAnanas a) { Bote.sage((a)); }
+probier { unbekannteFunktion(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { salami x = 5; x(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { karton.foo(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+probier { Rezept r = karton; r(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+probier { dies; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { K.gibts(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { K.feld; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { 5.foo; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { "abc".x = 1; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { karton.x = 1; } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+probier { k.neu1 = 1; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { y = 5; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { K.y = 5; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

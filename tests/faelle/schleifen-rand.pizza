@@ -1,0 +1,20 @@
+für (;;) { Bote.sage(("einmal")); abbrechen; }
+salami i = 0;
+für (; i < 3;) { i++; }
+Bote.sage((i));
+für (salami a = 0, b = 10; a < b; a += 3, b -= 3) { Bote.sage((a + "/" + b)); }
+für (salami x = 0; x < 5; x++) { falls (x % 2 == 0) { weiter; } Bote.sage(("ungerade " + x)); }
+salami k = 0;
+solange (k < 10) { k++; falls (k < 8) { weiter; } Bote.sage((k)); }
+für (salami a : [1, 2, 3]) { für (salami b : [1, 2, 3]) { falls (b == 2) { abbrechen; } Bote.sage((a * 10 + b)); } }
+salami tief() { für (salami q : [1, 2]) { solange (ja) { serviere ((q * 7)); } } serviere ((0)); }
+Bote.sage((tief()));
+für (margherita z : "") { Bote.sage(("nie")); }
+für (salami e : []) { Bote.sage(("nie")); }
+Blech<salami> live = [1, 2];
+für (salami e : live) { live.hinzu(e); }
+Bote.sage((live));
+für (x : [7, 8]) { Bote.sage((x)); }
+für (salami e = 3; e > 0; e--) { Bote.sage((e)); }
+probier { für (salami e : 5) { } } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { für (salami e : karton) { } } verbrannt (LeererKartonAnanas t) { Bote.sage((t.typ())); }

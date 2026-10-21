@@ -1,0 +1,8 @@
+@Pizzaiolo(autor: "Luigi", jahr = 1889)
+speisekarte klasse Rezept1 {
+    @Pizzaiolo(autor: "Mario") salami x = 1;
+    @PizzaÜberschreibt
+    margherita alsText() { serviere (("Rezept1")); }
+    leer nimm(@NieKarton @Pizzaiolo(autor: "x") margherita a) { }
+}
+Bote.sage((neu Rezept1()));

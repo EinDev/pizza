@@ -1,0 +1,13 @@
+Bote.sage((Uhr.jetzt()));
+salami x = 1;
+Bote.sage((Uhr.jetzt()));
+Uhr.vorspulen(1s);
+Bote.sage((Uhr.jetzt()));
+salami f(salami a) { serviere ((a)); }
+Dauer t0 = Uhr.jetzt();
+f(1);
+Dauer t1 = Uhr.jetzt();
+Bote.sage((t1 - t0));
+Uhr.vorspulen(500);
+probier { Uhr.vorspulen(-1s); } verbrannt (RechenAnanas r) { Bote.sage((r.nachricht())); }
+probier { Uhr.vorspulen("x"); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }

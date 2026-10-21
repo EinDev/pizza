@@ -1,0 +1,20 @@
+nein
+1
+ja
+Lieferung #1
+Zustellung(1)
+Zustellung(zu spät)
+nein
+ja
+bestelle() braucht eine Funktion, z. B. () -> (42).
+Trinkgeld muss eine Zahl sein, nicht "viel".
+warte(max: …) braucht eine Dauer, nicht "bald".
+sofort 7
+vor warte
+beim warten 8
+nach warte
+ja
+Zustellung(Ananas)
+kaputt
+5
+ende

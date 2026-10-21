@@ -1,0 +1,23 @@
+salami f() {
+    probier { wirf neu StreitAnanas("innen"); } verbrannt (StreitAnanas a) { serviere ((1)); } rand { Bote.sage(("rand f")); }
+    serviere ((2));
+}
+Bote.sage((f()));
+salami g() { probier { serviere ((1)); } rand { serviere ((2)); } }
+Bote.sage((g()));
+probier {
+    probier { wirf neu StreitAnanas("erste"); } rand { wirf neu RechenAnanas("zweite"); }
+} verbrannt (a) { Bote.sage((a)); }
+probier {
+    probier { wirf neu StreitAnanas("x"); } verbrannt (StreitAnanas a) { wirf neu LieferAnanas("aus verbrannt"); } rand { Bote.sage(("innerer rand")); }
+} verbrannt (LieferAnanas l) { Bote.sage((l.nachricht())); }
+probier {
+    probier { wirf neu StreitAnanas("weiter"); } verbrannt (a) { wirf a; }
+} verbrannt (StreitAnanas s) { Bote.sage(("erneut: " + s.nachricht())); }
+für (salami i : [1, 2, 3]) {
+    probier { falls (i == 2) { abbrechen; } Bote.sage((i)); } rand { Bote.sage(("rand " + i)); }
+}
+für (salami i : [1, 2]) { probier { weiter; } rand { Bote.sage(("w" + i)); } }
+probier { Bote.sage(("kein Fehler")); } verbrannt (a) { Bote.sage(("nie")); }
+probier { probier { wirf neu StreitAnanas("s"); } verbrannt (RechenAnanas r) { Bote.sage(("nie")); } rand { Bote.sage(("rand ohne Fang")); } } verbrannt (StreitAnanas s) { Bote.sage(("außen")); }
+probier { salami x = 1; } rand { Bote.sage(("nur rand")); }

@@ -1,0 +1,10 @@
+salami MAX = 10;
+Bote.sage(((MAX)));
+Bote.sage((((MAX)) + 1));
+probier { Bote.sage(((Unbekannt))); } verbrannt (UnbekannterBelagAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(((("Text"))));
+Bote.sage((((1 + 2))));
+Bote.sage(((Tomate)));
+Bote.sage((Salami));
+Bote.sage(((Salami)));
+Bote.sage(((Salami, Käse)));

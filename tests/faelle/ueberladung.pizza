@@ -1,0 +1,15 @@
+klasse Rechner {
+    salami add(salami a) { serviere ((a)); }
+    salami add(salami a, salami b) { serviere ((a + b)); }
+    salami add(salami a, salami b, salami c) { serviere ((a + b + c)); }
+    Rechner() { Bote.sage(("ohne")); }
+    Rechner(salami x) { Bote.sage(("mit " + x)); }
+}
+Rechner r = neu Rechner();
+neu Rechner(5);
+Bote.sage((r.add(1) + " " + r.add(1, 2) + " " + r.add(1, 2, 3)));
+Bote.sage((r.add(a: 1, b: 5)));
+salami f(salami x) { serviere ((x)); }
+margherita f(margherita x, margherita y) { serviere ((x + y)); }
+Bote.sage((f(1) + f("a", "b")));
+probier { r.add(1, 2, 3, 4); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

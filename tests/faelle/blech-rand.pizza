@@ -1,0 +1,45 @@
+Blech<salami> nix = [];
+Bote.sage((nix.länge() + " " + nix.istLeer() + " " + nix.summe()));
+Bote.sage((nix.zusammenklappen((a, b) -> a + b)));
+Bote.sage((nix.zusammenklappen((a, b) -> a + b, 5)));
+Bote.sage((nix.belege(x -> x * 2)));
+Bote.sage((nix.filtere(x -> ja)));
+Bote.sage((nix.sortiere()));
+Bote.sage(("[" + nix.verbinde(", ") + "]"));
+Bote.sage((nix.schneide(3)));
+Bote.sage((nix / 2));
+probier { nix.erstes(); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { nix.letztes(); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+probier { [1, 2].stück(3); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1].stück(-1); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1].stück(1.5); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+probier { [1].entferne(2); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+probier { [1].setze(0, 1); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
+probier { [1, "a"].summe(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, "a"].sortiere(); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { [1, 2].schneide(0); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2] / 0; } verbrannt (RechenAnanas a) { Bote.sage((a.typ())); }
+probier { [1, 2] / -1; } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2] / 1.5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1].schneide("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(([1, 2, 3].schneide(5)));
+Bote.sage(([[1, 2], [3]]));
+Bote.sage(([1, 2] == [1, 2]));
+Blech<salami> b = [1, 2];
+Blech<salami> c = b;
+c.hinzu(3);
+Bote.sage((b));
+Bote.sage((b == c));
+Bote.sage((b.kopie() == b));
+Bote.sage(([karton, ja, "x", 1.5]));
+Bote.sage(([((Tomate)), Salami].enthält(((Tomate)))));
+Bote.sage(([3, 1, 2].umdrehen()));
+Blech<salami> d = [5, 6];
+d.entferne(1);
+Bote.sage((d));
+Bote.sage(([1, 2, 3].verbinde()));
+Bote.sage((["b", "a"].sortiere().verbinde("-")));
+Bote.sage(([1, 2].alsText() + "!"));
+Bote.sage(([1].hinzu() ));
+probier { [1].filtere(x -> 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { [2, 1].sortiere((a, b) -> "x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

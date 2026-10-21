@@ -1,0 +1,14 @@
+'x' ist Hund, aber der Wert Tier@2 ist kein(e) Hund.
+'e' ist Dauer, aber der Wert 5 ist keine Dauer.
+'s' ist salami, aber der Wert "1" ist keine Zahl.
+'f' ist funghi, aber der Wert ja ist keine Zahl.
+'d2' ist diavolo, aber der Wert karton ist kein Wahrheitswert.
+'s3' ist salami, aber der Wert karton ist keine Zahl.
+karton
+[kein, check]
+'x' ist salami, aber der Wert 1.5 ist keine Ganzzahl.
+TypAnanas
+TypAnanas
+1
+für: TypAnanas
+5

@@ -1,0 +1,2 @@
+bestelle(() -> { wirf neu StreitAnanas("spät"); }).wennDa(x -> Bote.sage((x)));
+Bote.sage(("ende"));

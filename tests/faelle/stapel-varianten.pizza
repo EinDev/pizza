@@ -1,0 +1,10 @@
+Rezept r = n -> r(n + 1);
+probier { r(0); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse K { K() { neu K(); } }
+probier { neu K(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse T { margherita alsText() { serviere (("" + dies)); } }
+probier { Bote.sage((neu T())); } verbrannt (a) { Bote.sage((a.typ())); }
+salami a(salami n) { serviere ((b(n))); }
+salami b(salami n) { serviere ((a(n))); }
+probier { a(1); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.typ())); }
+Bote.sage(("weiter geht's"));

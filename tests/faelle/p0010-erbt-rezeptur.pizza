@@ -1,0 +1,2 @@
+rezeptur R { }
+klasse K erbt R { }

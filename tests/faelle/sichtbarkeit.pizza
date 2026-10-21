@@ -1,0 +1,26 @@
+klasse Basis {
+    geheimrezept salami geheim = 1;
+    familienrezept salami familie = 2;
+    salami offen = 3;
+    salami zeigeGeheim() { serviere ((geheim)); }
+    geheimrezept salami privat() { serviere ((10)); }
+    familienrezept salami geschuetzt() { serviere ((20)); }
+    salami rufPrivat() { serviere ((privat())); }
+}
+klasse Kind erbt Basis {
+    salami summe() { serviere ((familie + offen + geschuetzt())); }
+    salami versuch() { serviere ((geheim)); }
+    salami hack() { serviere ((privat())); }
+}
+Kind k = neu Kind();
+Bote.sage((k.summe() + " " + k.zeigeGeheim() + " " + k.rufPrivat()));
+probier { k.versuch(); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.familie; } verbrannt (ZugriffsAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.privat(); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.geschuetzt(); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.geheim = 5; } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+probier { k.hack(); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((k.offen));
+klasse S { geheimrezept tiefkühl salami zahl = 7; tiefkühl salami lies() { serviere ((zahl)); } }
+Bote.sage((S.lies()));
+probier { S.zahl; } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }

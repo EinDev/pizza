@@ -1,0 +1,13 @@
+klasse Basis {
+    margherita log = "b-feld";
+    Basis() { log = log + " b-ctor"; }
+}
+klasse Kind erbt Basis {
+    margherita eigen = "k-feld(" + log + ")";
+    Kind() { unten(); log = log + " k-ctor"; }
+}
+Kind k = neu Kind();
+Bote.sage((k.log));
+Bote.sage((k.eigen));
+klasse Ohne erbt Basis { salami x = 1; }
+Bote.sage((neu Ohne().log));

@@ -1,0 +1,3 @@
+salami n = 0;
+bestelle(() -> { n++; serviere ((n)); });
+Bote.sage(("ende " + n));

@@ -1,0 +1,22 @@
+Pizza p = ((Tomate, Salami, Salami));
+Bote.sage((p - Salami));
+Bote.sage((p - Pilze));
+Bote.sage((p.preis()));
+Bote.sage(((p + Paprika + Knoblauch).preis()));
+Bote.sage(((()) + Tomate));
+Bote.sage((((Tomate, Mozzarella, Basilikum, Rucola, Parmesan)).preis()));
+Bote.sage((p.hat("Salami")));
+Bote.sage((p == ((Tomate, Salami, Salami))));
+Bote.sage((p != ((Salami, Tomate, Salami))));
+Pizza q = p + Salami;
+Bote.sage((q.übrig() + " " + p.übrig()));
+für (Belag b : p) { Bote.sage((b.name() + " " + b.preis())); }
+Bote.sage((p.beläge().verbinde("+")));
+Bote.sage((((Tomate)) + " lecker"));
+probier { Pizza x = ((Tomate)) + 5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((Tomate));
+Belag b = Mozzarella;
+Bote.sage((b.preis() + b.name()));
+Bote.sage((Mozzarella.alsText()));
+Bote.sage((((Thunfisch, Sardellen, Artischocken, Spinat, Ei, Mais, Kapern, Oliven, Zwiebeln, Chili, Peperoni, Pilze, Schinken)).preis()));
+Bote.sage((((Tomate, Gorgonzola)).preis().euro()));

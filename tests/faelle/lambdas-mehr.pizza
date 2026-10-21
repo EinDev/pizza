@@ -1,0 +1,25 @@
+Rezept id = x -> x;
+Bote.sage((id(id)(5)));
+Rezept zwei = (a, b) -> a;
+Bote.sage((zwei(1)));
+Bote.sage((zwei(1, 2, 3)));
+Rezept leerL = () -> { };
+Bote.sage((leerL()));
+Bote.sage((((x) -> x + 1)(1)));
+Rezept hoch = f -> (x -> f(f(x)));
+Bote.sage((hoch(x -> x * 3)(2)));
+Bote.sage(([-1, 2, -3].belege(Mathe.abs)));
+Bote.sage(("abc".länge));
+Rezept l = "abcd".länge;
+Bote.sage((l()));
+Rezept pl = ((Tomate, Käse)).preis;
+Bote.sage((pl()));
+Bote.sage((id));
+Rezept rekursiv = n -> n <= 1 ? 1 : n * rekursiv(n - 1);
+Bote.sage((rekursiv(5)));
+Rezept benannt = (a, b) -> a - b;
+Bote.sage((benannt(b: 1, a: 5)));
+Rezept sager = Bote.sage;
+sager("über Methodenreferenz");
+Bote.sage((Jahreszeit.werte().länge()));
+quattrostagioni Jahreszeit { A, B, C, D }

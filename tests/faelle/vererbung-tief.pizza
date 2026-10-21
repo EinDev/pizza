@@ -1,0 +1,10 @@
+klasse A { margherita wer() { serviere (("A")); } margherita kette() { serviere (("A")); } A() { Bote.sage(("ctor A")); } }
+klasse B erbt A { B() { Bote.sage(("ctor B")); } margherita kette() { serviere ((unten.kette() + "B")); } }
+klasse C erbt B { margherita kette() { serviere ((unten.kette() + "C")); } }
+klasse D erbt C { D(margherita x) { unten(); Bote.sage(("ctor D " + x)); } margherita wer() { serviere (("D")); } margherita kette() { serviere ((unten.kette() + "D")); } }
+klasse E erbt D { E() { unten("von E"); } }
+E e = neu E();
+Bote.sage((e.wer() + " " + e.kette()));
+A a = e;
+Bote.sage((a.wer()));
+Bote.sage((e));

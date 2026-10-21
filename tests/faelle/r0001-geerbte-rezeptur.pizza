@@ -1,0 +1,3 @@
+rezeptur Basis { leer a(); }
+rezeptur Mehr erbt Basis { leer b(); }
+klasse K erfüllt Mehr { leer b() { } }

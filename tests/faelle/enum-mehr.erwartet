@@ -1,0 +1,14 @@
+ja
+FAMILIE
+7
+4
+KLEIN
+MITTEL
+GROSS
+FAMILIE
+'RIESIG' gibt es in Größe nicht.
+TypAnanas
+{KLEIN: 1}
+<Funktion>
+Größe
+Methode 'gibts' gibt es bei Größe nicht.

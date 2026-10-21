@@ -1,0 +1,3 @@
+klasse Z { }
+klasse A { tiefkühl leer hauptgang() { Bote.sage(("ohne args")); } }
+klasse B { tiefkühl leer hauptgang(Blech<margherita> a) { Bote.sage(("nie")); } }

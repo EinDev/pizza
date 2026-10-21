@@ -1,0 +1,7 @@
+klasse Außen {
+    klasse Innen { salami x = 1; }
+    quattrostagioni Ampel { ROT, GELB, GRÜN, AUS }
+    Innen mach() { serviere ((neu Innen())); }
+}
+Bote.sage((neu Außen().mach().x));
+Bote.sage((Ampel.GRÜN.position()));

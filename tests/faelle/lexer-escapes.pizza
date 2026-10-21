@@ -1,0 +1,6 @@
+Bote.sage(("a\tb"));
+Bote.sage(("Zeile1\nZeile2"));
+Bote.sage(("Sie sagte \"Ciao\""));
+Bote.sage(("Backslash \\ und \'Apostroph\'"));
+Bote.sage(("Emoji 🍕 ok"));
+Bote.sage(("🍕".länge()));

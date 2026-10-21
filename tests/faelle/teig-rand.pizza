@@ -1,0 +1,15 @@
+Teig<salami> t = teig(() -> (1));
+Bote.sage((t));
+t.gehenlassen();
+Bote.sage((t));
+probier { teig(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Teig<salami> boese = teig(() -> { wirf neu StreitAnanas("Teig gerissen"); });
+probier { boese.gehenlassen(); } verbrannt (StreitAnanas s) { Bote.sage((s.nachricht())); }
+Bote.sage((boese.istAufgegangen()));
+salami n = 0;
+Teig<salami> z = teig(() -> { n++; serviere ((n)); });
+z.gehenlassen();
+z.gehenlassen();
+Bote.sage((z.backen() + n));
+Teig<margherita> m = teig(() -> ("Methode als Teig"));
+Bote.sage((m.gehenlassen().backen()));
