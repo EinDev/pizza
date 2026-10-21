@@ -27,9 +27,13 @@
     <text x="110" y="246" font-size="14" text-anchor="middle">wer zuerst bestellt</text>
 
     <!-- Roller -->
-    <rect x="236" y="104" width="54" height="40" rx="6" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
-    <path d="M250 150 L300 150 L320 110 L336 110" fill="none" stroke="#2F2A26" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M240 150 L300 150 Q352 150 360 176 L236 176 Z" fill="#D9452B"/>
+    <rect x="238" y="98" width="50" height="38" rx="6" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <rect x="240" y="136" width="46" height="6" rx="3" fill="#2F2A26"/>
+    <path d="M236 176 L240 152 Q244 142 262 142 L300 142 L316 166 L356 166 Q362 176 356 176 Z" fill="#D9452B"/>
+    <rect x="262" y="134" width="40" height="10" rx="5" fill="#2F2A26"/>
+    <path d="M340 166 L328 106" stroke="#2F2A26" stroke-width="5" stroke-linecap="round"/>
+    <path d="M318 104 L340 104" stroke="#2F2A26" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="336" cy="118" r="5" fill="#F2B33D"/>
     <circle cx="256" cy="186" r="16" fill="#FFFFFF" stroke="#2F2A26" stroke-width="4"/>
     <circle cx="350" cy="186" r="16" fill="#FFFFFF" stroke="#2F2A26" stroke-width="4"/>
     <text x="300" y="232" font-size="15" font-weight="bold" text-anchor="middle">warte(max: 30min)</text>

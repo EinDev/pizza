@@ -33,11 +33,11 @@
     <text x="290" y="222" font-size="14">Budget = zeit in ms × temperatur / 250</text>
 
     <!-- Ausgänge -->
-    <circle cx="44" cy="296" r="8" fill="#3E8E41"/>
-    <text x="60" y="301" font-size="15"><tspan font-weight="bold">fertig im Budget:</tspan> serviere ((wert)) liefert das Ergebnis</text>
-    <circle cx="44" cy="322" r="8" fill="#F2B33D"/>
-    <text x="60" y="327" font-size="15"><tspan font-weight="bold">Zeit um:</tspan> roh (r) bekommt r.teilergebnis()</text>
-    <circle cx="44" cy="348" r="8" fill="#D9452B"/>
-    <text x="60" y="353" font-size="15"><tspan font-weight="bold">zu heiß oder Ananas:</tspan> verbrannt (…)</text>
+    <circle cx="44" cy="288" r="8" fill="#3E8E41"/>
+    <text x="60" y="293" font-size="15"><tspan font-weight="bold">fertig im Budget:</tspan> serviere ((wert)) liefert das Ergebnis</text>
+    <circle cx="44" cy="314" r="8" fill="#F2B33D"/>
+    <text x="60" y="319" font-size="15"><tspan font-weight="bold">Zeit um:</tspan> roh (r) bekommt r.teilergebnis()</text>
+    <circle cx="44" cy="340" r="8" fill="#D9452B"/>
+    <text x="60" y="345" font-size="15"><tspan font-weight="bold">zu heiß oder Ananas:</tspan> verbrannt (…)</text>
   </g>
 </svg>

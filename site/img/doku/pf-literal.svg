@@ -25,7 +25,7 @@
 
     <!-- Preise -->
     <g font-size="15">
-      <text x="332" y="164"><tspan font-weight="bold">Basilikum</tspan> + 0,50 €</text>
+      <text x="332" y="152"><tspan font-weight="bold">Basilikum</tspan> + 0,50 €</text>
       <text x="332" y="186"><tspan font-weight="bold">Mozzarella</tspan> + 1,50 €</text>
       <text x="332" y="218"><tspan font-weight="bold">Tomate</tspan> + 1,00 €</text>
       <text x="332" y="254"><tspan font-weight="bold">Teig</tspan> 5,00 €</text>
