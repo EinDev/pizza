@@ -51,9 +51,24 @@ PizzaLang.parse(quelltext)
 PizzaLang.run(quelltext, optionen)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
-  //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[] }   // Theke: SPEC §16 (aus THEKE.md)
+  //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
+  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege) }   // SPEC §15.4 (K-077 … K-081)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
+
+**Interne Hilfen für Compiler-Frontends** (`PizzaLang.intern`, keine Endnutzer-API, kann sich mit dem Interpreter ändern):
+
+```js
+PizzaLang.intern.analysiere(ast)   // → [{ code, text, zeile, spalte }] – Warnungen vor dem Start (W0666, W0032), sortiert wie im Lauf
+PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte } – Startprüfung (Q0004, P0010, P0011, R0001, A0001), Text wie fehler-Ereignis
+PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebaute Ananas-Hierarchie (SPEC §8)
+PizzaLang.intern.BELAEGE           // wie PizzaLang.BELAEGE (Kopie)
+PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
+PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
+PizzaLang.intern.GRUNDPREIS        // 5 – Pizza-Grundpreis
+PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
+```
+Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück.
 
 ### Ereignisse (Reihenfolge = Auftreten)
 
@@ -65,6 +80,7 @@ PizzaLang.run(quelltext, optionen)
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
 { typ: "ui",            nachricht }                             // Theke-Protokollnachricht Programm → Renderer (SPEC §16; nicht in .erwartet, sondern .ui-erwartet)
+{ typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; nicht in .erwartet)
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
@@ -192,6 +208,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
 | `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
+| Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kammer>": [["schlüssel", wert], …] }` → `optionen.vorrat`; Tests laufen mit `zufallsSaat` 42 (Standard) |
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |

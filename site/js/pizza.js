@@ -3892,6 +3892,21 @@
     return { exitCode, ereignisse, schritte, zeitMs };
   }
 
+  // Startprüfung ohne Programmlauf (für Compiler-Frontends): registriert alle Deklarationen und
+  // führt die Prüfungen aus SPEC §14.7 aus (Q0004, P0010, P0011, R0001, A0001).
+  // → null, wenn alles passt, sonst { code, text, zeile, spalte } wie das fehler-Ereignis (art "pizzafehler").
+  function pruefeStart(ast) {
+    const L = new Laufzeit(ast, {}, () => {});
+    try {
+      for (const d of ast.body) if (DEKL.has(d.k)) L.registriere(d);
+      L.pruefe();
+      return null;
+    } catch (e) {
+      if (e instanceof PizzaFehlerSig) return { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte };
+      throw e;
+    }
+  }
+
   return {
     version: VERSION,
     KEYWORDS: KEYWORDS.slice(),
@@ -3901,6 +3916,17 @@
     ANANAS: ANANAS.slice(),
     PANIK_TEXT: PANIK_BANNER,
     parse,
-    run
+    run,
+    // Für Compiler-Frontends (pizzaiolo), keine stabile Endnutzer-API; Beschreibung in ARCHITEKTUR §1.
+    intern: {
+      analysiere: (ast) => analysiere(ast).map(w => Object.assign({}, w)),
+      pruefe: pruefeStart,
+      ANANAS_BAUM: ANANAS_BAUM.map(a => [a[0], a[1]]),
+      BELAEGE: BELAEGE.map(b => ({ name: b.name, preis: b.preis, nach: b.nach.slice() })),
+      MAX_STAPEL,
+      STANDARD_LIMIT,
+      GRUNDPREIS,
+      UI_STIL: JSON.parse(JSON.stringify(UI_STIL))
+    }
   };
 });

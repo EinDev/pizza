@@ -379,6 +379,25 @@ function api() {
     gleich(c.schritte, a.schritte + 2, 'Rückruf zählt nur seinen Rumpf');
   });
 
+  test('PizzaLang.intern: analysiere, pruefe, Tabellen', () => {
+    const I = P.intern;
+    const ast = P.parse('salami PiZZa = 1;\nsalami PizZa = 2;\nhawaii h;\nklasse K erbt Gibts { }').ast;
+    gleich(I.analysiere(ast).map(w => [w.code, w.zeile]), [['W0666', 3], ['W0032', 2]]);
+    const lauf = P.run('salami PiZZa = 1;\nsalami PizZa = 2;\nhawaii h;\nklasse K erbt Gibts { }');
+    gleich(I.analysiere(ast).map(w => w.text), lauf.ereignisse.filter(e => e.typ === 'warnung').map(e => e.text), 'gleiche Warnungen wie run()');
+    const f = I.pruefe(ast);
+    const fe = lauf.ereignisse.find(e => e.typ === 'fehler');
+    gleich([f.code, f.text, f.zeile, f.spalte], [fe.code, fe.text, fe.zeile, fe.spalte], 'pruefe = fehler-Ereignis');
+    gleich(I.pruefe(P.parse('klasse A { }').ast), null);
+    gleich(I.pruefe(P.parse('quattrostagioni J { A }').ast).code, 'Q0004');
+    gleich(I.ANANAS_BAUM.length, 17);
+    gleich(I.ANANAS_BAUM[0], ['Ananas', null]);
+    gleich([I.MAX_STAPEL, I.STANDARD_LIMIT, I.GRUNDPREIS], [1500, 5000000, 5]);
+    I.BELAEGE[0].preis = 99;
+    gleich(P.intern.BELAEGE[0].preis === 99 ? 'geteilt' : 'kopie', 'geteilt', 'intern-Objekt ist einmalig erzeugt');
+    gleich(P.run('Bote.sage((((Tomate)).preis()));').ereignisse[0].text, '6', 'Interpreter unbeeinflusst');
+  });
+
   test('K-015: P0012 ist ein Parse-Fehler', () => {
     const r = P.parse('leer f() {\n  abbrechen;\n}');
     gleich([r.ok, r.fehler.code, r.fehler.zeile, r.fehler.spalte], [false, 'P0012', 2, 3]);
