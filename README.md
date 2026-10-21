@@ -96,6 +96,19 @@ Eine Domain, z. B. `pizza.example.com` (die echte Domain steht nur in Coolify, n
    - `https://pizza.example.com/api/konfig` → `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"erstellung"}`;
    - im Playground teilen → Link `https://pizza.example.com/#h=<key>` in einem anderen Browser öffnen.
 
+### Build-Cache
+
+Das `Dockerfile` ist auf Layer-Cache geschnitten: Änderungen nur an `site/` bauen weder Rust noch
+npm neu, nur an `ui/src` nur das Bundle, nur an `host/src` nur das `pizza-host`-Crate (Crates,
+xwin-SDK und apt-Pakete liegen in stabilen Layern davor). Coolify baut mit
+`docker compose build --pull` über den Docker-Daemon des Servers und nutzt diesen Cache –
+**aber** die Server-Einstellung *Docker Cleanup* führt standardmäßig jede Nacht
+`docker builder prune -af` aus (*Force Docker Cleanup* an, Frequenz `0 0 * * *`). Danach ist der
+erste Deploy wieder ein kalter Build (mehrere Minuten). Abhilfen: *Force Docker Cleanup*
+abschalten (Cleanup nur über dem Platten-Schwellwert) oder einen Registry-Cache
+(`cache_from`/`cache_to` mit `type=registry,mode=max`) einrichten – Cache-Mounts
+(`--mount=type=cache`) werden dabei nicht mitgesichert, Layer schon.
+
 ## Lokale Entwicklung
 
 Voraussetzung: Node.js ≥ 22.12 (CI und Docker: Node 24 LTS).
