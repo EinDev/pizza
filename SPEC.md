@@ -402,8 +402,8 @@ Ananas
     ├── BesitzAnanas            ├── GebackenAnanas
     ├── TypAnanas               ├── KeinStückAnanas
     ├── ZugriffsAnanas          ├── UnbekannterBelagAnanas
-    ├── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
-    │                           └── KüchenAnanas      (§17, K-091)
+    └── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
+                                └── KüchenAnanas      (§17, K-091)
 ```
 - Erzeugen: `neu VerbranntAnanas("Nachricht")`. Methoden: `nachricht()`, `holeNachricht()` (Alias), `typ()` (Klassenname).
 - Eigene Ananas: `klasse MeineAnanas erbt LaufzeitAnanas { speisekarte MeineAnanas(margherita m) { unten(m); } }`.

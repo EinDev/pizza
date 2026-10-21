@@ -758,8 +758,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      Speisekarten Schlüssel vor Wert, Felder in Deklarationsreihenfolge, Basisklassen zuerst); Methodenreferenzen wie `Bote.sage`
      sind `Eine Funktion`, Theke **und** Zutaten `Eine Theke-Zutat`.
   6. `KüchenAnanas` ist eine eingebaute Ananas wie die übrigen (§8): `neu KüchenAnanas("…")` ist erlaubt; eine **eigene** Klasse
-     gleichen Namens überschattet sie wie bei allen eingebauten Ananas (bestehende Programme bleiben gültig, vgl. 37c88f2) – die
-     Wachen werfen trotzdem die eingebaute Klasse (fangbar über `LaufzeitAnanas`).
+     gleichen Namens überschattet sie wie bei allen eingebauten Ananas (bestehende Programme bleiben gültig, vgl. 37c88f2) –
+     auch für die von den Wachen geworfene Ananas (wie heute z. B. eine eigene `StreitAnanas` die interne `b / 2`-Ananas fängt).
   7. Verschachtelte Brigade: Variablen und Objekte des äußeren Stücks sind für die innere Brigade Hauptküchen-Eigentum.
 - **Begründung:** Gleiche Stelle, gleicher Schritt, gleicher Text in jedem Motor; keine Teilwirkungen, die eine parallele
   Ausführung anders sähe.
@@ -879,7 +879,7 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - Küchenbrigade (THREADS.md, Nutzerentscheidungen F1–F10 wie empfohlen): K-090 … K-093, SPEC §17 (THREADS §2/§3 damit
-  abgelöst; THREADS bleibt Plan für §4–§6); 53 offene Fälle in `a14-kueche-offen.js`; HOST-ABI-Gruppe `kueche` als Entwurf;
+  abgelöst; THREADS bleibt Plan für §4–§6); 54 offene Fälle in `a14-kueche-offen.js`; HOST-ABI-Gruppe `kueche` als Entwurf;
   Aufträge U-56 … U-63 (U-57 erledigt in 37c88f2).
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
 - K-088: Vorrat-Namensräume (Beispiel-Tabs vs. eigene Tabs), CLI `--vorrat-loeschen <name>`/`--vorrat-loeschen-alle`, Doku-Block-Felder `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` (Prüfstand umgesetzt).

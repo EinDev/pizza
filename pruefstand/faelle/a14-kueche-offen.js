@@ -187,6 +187,12 @@ Bote.sage(([1].brigade(x -> { Zufall e = neu Zufall(7); serviere (e.zahl(1, 6));
 Bote.sage((z.zahl(1, 6)));
 `, { out: ["Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().", "[1]", "1"] }),
 
+  F(K, "§17.3 S3 (K-091/2): saat(n) auf vorhandenem Zufall-Objekt wirft; saat() liest", P`
+Zufall z = neu Zufall(5);
+${fang("[1].brigade(x -> z.saat(7))")}
+Bote.sage(([1].brigade(x -> z.saat())));
+`, { out: ["Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().", "[5]"] }),
+
   F(K, "§17.3 S3/S4: Vorratskammer – lege/leeren werfen, neu Vorratskammer nur in der Hauptküche, Lesen erlaubt", P`
 Vorratskammer v = neu Vorratskammer("k");
 v.lege("a", 1);
