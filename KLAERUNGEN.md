@@ -835,7 +835,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   je eine Zeile; der native Host führt die Laufzeit im `.pkarton` aus und braucht keine Änderung. Keine bestehende Ausgabe ändert
   sich (kein Beispiel, kein Testfall, kein Doku-Block ruft `hole` mit zwei Argumenten auf).
 - **Betroffen:** SPEC §11, §14.11 (Speisekarte), §15.2; `site/js/pizza.js` (`KARTE_M.hole`), `laufzeit/src/std_m.rs`
-  (`karte_methode`, neu gebaute `laufzeit.wasm`/`laufzeit-daten.js`); Doku-Tabelle (U-60). **Status:** fest (a10, 2 Fälle;
+  (`karte_methode`, neu gebaute `laufzeit.wasm`/`laufzeit-daten.js`); Doku-Tabelle (U-60 ✅). **Status:** fest (a10, 2 Fälle;
   `tests/faelle/k095-speisekarte-hole-ersatz`; Differenztests Interpreter = Wasm = Host).
 
 ### K-096 Theke-Programm ohne Fenster: nativ Abbruch statt W0100 (Nutzerentscheidung)
@@ -859,7 +859,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   Interpreter-CLI `bin/pizza.js` und Library (`optionen` ohne `onUiWarte`/`uiEreignisse`) behalten W0100 (K-063/K-070) – sie haben nie
   ein Fenster. Im Browser gibt es immer ein Fenster (K-082: nur nativ betroffen).
 - **Betroffen:** THEKE.md §4, SPEC §16 (Ohne Renderer), HOST-ABI §1 (Gruppen), `host/` (`src/anzeige.rs`, `theke.rs`, `main.rs`,
-  `starter.rs`, README, Tests). **Status:** fest, umgesetzt (U-61).
+  `starter.rs`, README, Tests), Doku-Referenz. **Status:** fest, umgesetzt (U-61, U-62 ✅).
 
 ---
 
@@ -918,9 +918,9 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-57 | `site/js/pizzaiolo/`, `laufzeit/` (Compiler-Agent) | dasselbe in der Wasm-Laufzeit (K-090 … K-091, K-093, K-094), byte-gleiche `ui`-Nachrichten; HOST-ABI unverändert (`ui_senden`); setzt Theke im Compiler voraus (U-27/U-49) | tests/differenz |
 | U-58 | `site/js/theke/**`, `tests/theke/` (Renderer-Agent) | K-090 … K-092: `aendere.animationen`, `uebergang`, Animations-Registry, `prefers-reduced-motion`, Thema; Host nur neu bauen (eingebettete Engine) | tests/theke + visuell |
 | U-59 | `site/js/doku/*.js`, `site/beispiele/idle/` (Doku-/Idle-Agent) | nach U-56: Abschnitt „Animationen“; Pizza-Imperium mit `huepfen`/`schwebe`/`funkeln`/`aufpoppen`/`puls`, `.ui-erwartet` neu erzeugen | Doku-Harness, Prüfstand Beispiele |
-| U-60 | `site/js/doku/30-referenz.js` (Doku-Agent; Datei ist gerade in Bearbeitung) | K-095: Tabellenzeile `hole(k)` → `hole(k[, ersatz])` („fehlt er → `ersatz`, sonst `karton`“), Beispiel `karte.hole("Tonno", 0)`; Idiom `k.lege(s, k.hole(s, 0) + 1)` erwähnen; Pizza-Imperium darf `hat()`-Umweg durch `hole(k, 0)` ersetzen (Idle-Agent, U-59) | Doku-Harness |
+| U-60 ✅ | `site/js/doku/30-referenz.js` (Doku-Agent; Datei ist gerade in Bearbeitung) | K-095: Tabellenzeile `hole(k)` → `hole(k[, ersatz])` („fehlt er → `ersatz`, sonst `karton`“), Beispiel `karte.hole("Tonno", 0)`; Idiom `k.lege(s, k.hole(s, 0) + 1)` erwähnen; Pizza-Imperium darf `hat()`-Umweg durch `hole(k, 0)` ersetzen (Idle-Agent, U-59) | Doku-Harness |
 | U-61 ✅ | `host/**`, THEKE.md, SPEC, HOST-ABI (Host-Agent) | K-096: Theke-Programm ohne Fenster (keine Anzeige, WebView2 fehlt, WebView scheitert) → Meldung + Exit 2 statt W0100; Ausnahmen JSON-Modus/`--ui-ereignisse`/`PIZZA_THEKE=0` | cargo test (`theke_ohne_fenster_bricht_ab` u. a.), test-exe-js |
-| U-62 | `site/js/doku/30-referenz.js` (Doku-Agent) | K-096: Abschnitt „Wo erscheint das Fenster?“ und W0100-Tabelle: W0100 nur noch Tests/Doku/`node bin/pizza.js`; EXE/`pizza-host` ohne Fenster (SSH, WebView2 fehlt) → Meldung + Exit 2 | Doku-Harness |
+| U-62 ✅ | `site/js/doku/30-referenz.js` (Doku-Agent) | K-096: Abschnitt „Wo erscheint das Fenster?“ und W0100-Tabelle: W0100 nur noch Tests/Doku/`node bin/pizza.js`; EXE/`pizza-host` ohne Fenster (SSH, WebView2 fehlt) → Meldung + Exit 2 | Doku-Harness |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |
@@ -946,7 +946,7 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - K-095 (Befund Pizza-Imperium): `Speisekarte.hole(k[, ersatz])` wie `Vorratskammer.hole` – Interpreter und Wasm-Laufzeit umgesetzt
-  (Klärungs-Agent), Host unverändert (Laufzeit steckt im `.pkarton`); offen nur die Doku-Tabelle (U-60).
+  (Klärungs-Agent), Host unverändert (Laufzeit steckt im `.pkarton`); Doku-Tabelle nachgetragen (U-60 ✅).
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
 - Theke v3 Animationen (Nutzerwunsch): K-090 … K-092 festgehalten, SPEC §16.6, THEKE.md §8; Interpreter umgesetzt (U-56, aed3450),
   Fälle in a13 (a12 leer); Lücken aus der Umsetzung als K-093 (`animiere()`/`schwebe()` ohne Argument) und K-094 (alle Parameter
