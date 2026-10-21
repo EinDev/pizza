@@ -269,6 +269,17 @@
 {"typ":"klick","id":"kauf-tarantella"}
 {"typ":"klick","id":"kauf-wuppertal"}
 {"typ":"klick","id":"kauf-kurier"}
+{"typ":"klick","id":"menge-10"}
+{"typ":"klick","id":"kauf-lehrling"}
+{"typ":"takt","id":"takt","anzahl":5}
+{"typ":"klick","id":"menge-max"}
+{"typ":"takt","id":"takt","anzahl":30}
+{"typ":"klick","id":"kauf-steinofen"}
+{"typ":"klick","id":"kauf-lehrling"}
+{"typ":"klick","id":"menge-100"}
+{"typ":"takt","id":"takt","anzahl":1}
+{"typ":"klick","id":"menge-1"}
+{"typ":"takt","id":"takt","anzahl":1}
 {"typ":"aenderung","id":"reiter","wert":5}
 {"typ":"klick","id":"mini-teig"}
 {"typ":"klick","id":"teig-fangen"}

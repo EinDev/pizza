@@ -80,6 +80,26 @@ klasse Upgrade {
     }
 
     funghi gesamt() { serviere (wirkung * anzahl); }
+
+    // Kaufmenge: k Stück kosten genau die Summe der (gerundeten) Einzelpreise – wie k Einzelkäufe.
+    funghi kostenFür(salami k) {
+        funghi summe = 0;
+        für (salami i : [0 .. k - 1]) { summe += kostenBei(anzahl + i); }
+        serviere (summe);
+    }
+
+    // So viele Stück, wie die Kasse hergibt (höchstens 1000).
+    salami maxFür(funghi geld) {
+        salami k = 0;
+        funghi summe = 0;
+        solange (k < 1000) {
+            funghi nächster = kostenBei(anzahl + k);
+            falls (summe + nächster > geld) { serviere (k); }
+            summe += nächster;
+            k++;
+        }
+        serviere (k);
+    }
 }
 
 // ──────────────────── Nonnas Geheimrezepte (Talentbaum) ─────────────────
@@ -443,11 +463,14 @@ klasse Spiel {
         serviere (ja);
     }
 
-    diavolo kaufe(Upgrade u) {
-        falls (!erlaubt(u) || geld < u.preisJetzt) { serviere (nein); }
-        geld -= u.preisJetzt;
-        u.setzeAnzahl(u.anzahl + 1);
-        nachricht = u.symbol + " " + u.name + " gekauft (jetzt " + u.anzahl + ").";
+    // k Stück auf einmal (Kaufmenge 1×/10×/100×/Max) – nur ganz oder gar nicht.
+    diavolo kaufe(Upgrade u, salami k) {
+        falls (k < 1 || !erlaubt(u)) { serviere (nein); }
+        funghi summe = u.kostenFür(k);
+        falls (geld < summe) { serviere (nein); }
+        geld -= summe;
+        u.setzeAnzahl(u.anzahl + k);
+        nachricht = u.symbol + " " + u.name + (k > 1 ? " ×" + k : "") + " gekauft (jetzt " + u.anzahl + ").";
         neuBerechnen();
         serviere (ja);
     }
@@ -1012,6 +1035,9 @@ klasse UpgradeZeile {
     Reihe reihe;
     salami stufe = -1;     // zuletzt gezeigte Balkenstufe (0…20), spart Nachrichten
     diavolo erlaubt = ja;
+    salami summeMenge = -1; // für diese Kaufmenge und Stückzahl ist `summe` ausgerechnet
+    salami summeAnzahl = -1;
+    funghi summe = 0;
 
     UpgradeZeile(Upgrade upgrade, Funktion beiKauf) {
         u = upgrade;
@@ -1030,21 +1056,39 @@ klasse UpgradeZeile {
     leer beschrifte(Spiel s) {
         erlaubt = s.erlaubt(u);
         falls (info.text() != u.zeile) { info.setzeText((u.zeile)); }
-        margherita preis = u.preisJetzt.euro(kompakt: ja);
-        falls (!erlaubt) { preis = s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name; }
-        falls (knopf.text() != preis) { knopf.setzeText((preis)); }
+        falls (!erlaubt) {
+            margherita grund = s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
+            falls (knopf.text() != grund) { knopf.setzeText((grund)); }
+        }
         stufe = -1;
     }
 
     leer zeigeWenn(diavolo an) { falls (reihe.sichtbar() != an) { reihe.sichtbar(an); } }
 
-    leer zeichne(funghi geld) {
-        diavolo leistbar = erlaubt && geld >= u.preisJetzt;
-        salami s = leistbar ? 20 : (erlaubt ? Mathe.boden(geld / u.preisJetzt * 20) : 0);
-        falls (s == stufe) { serviere; }
-        stufe = s;
+    // menge: 1, 10, 100 oder 0 (= Max). Der Knopf zeigt den Preis zuerst, dann die Menge.
+    leer zeichne(funghi geld, salami menge) {
+        falls (!erlaubt) {
+            falls (knopf.aktiv()) { knopf.aktiv(nein); }
+            falls (stufe != 0) { stufe = 0; balken.setzeWert(0); }
+            serviere;
+        }
+        salami k = menge;
+        falls (menge == 0) { k = u.maxFür(geld); }
+        salami gerechnet = Mathe.max(k, 1);
+        falls (summeMenge != gerechnet || summeAnzahl != u.anzahl) {
+            summe = u.kostenFür(gerechnet);
+            summeMenge = gerechnet;
+            summeAnzahl = u.anzahl;
+        }
+        margherita text = summe < 1_000_000_000_000_000_000_000 ? summe.euro(kompakt: ja) : "unbezahlbar";
+        falls (menge == 0) { text = text + " (Max " + k + ")"; } sonst falls (menge > 1) { text = text + " (×" + menge + ")"; }
+        falls (knopf.text() != text) { knopf.setzeText((text)); }
+        diavolo leistbar = k >= 1 && geld >= summe;
+        salami st = leistbar ? 20 : Mathe.boden(geld / summe * 20);
+        falls (st == stufe) { serviere; }
+        stufe = st;
         falls (knopf.aktiv() != leistbar) { knopf.aktiv(leistbar); }
-        balken.setzeWert(s / 20);
+        balken.setzeWert(st / 20);
     }
 }
 
@@ -1169,7 +1213,7 @@ Abschnitt upgradeAbschnitt(margherita titel, Blech<Upgrade> liste, margherita id
     a.stil("abstand", 6);
     für (Upgrade u : liste) {
         UpgradeZeile z = neu UpgradeZeile(u, () -> {
-            falls (spiel.kaufe(u)) { nachVerarbeitung(); }
+            falls (spiel.kaufe(u, kaufMenge == 0 ? u.maxFür(spiel.geld) : kaufMenge)) { nachVerarbeitung(); }
         });
         zeilen.hinzu(z);
         a.hinzu(z.reihe);
@@ -1185,8 +1229,29 @@ Knopf rezeptKnopf = neu Knopf("", () -> {
 rezeptKnopf.hinweis("Jede Seite legt einen Belag auf – die Pizza wird teurer, und jede verkaufte bringt mehr.");
 Abschnitt rezeptTeil = neu Abschnitt("📖 Nonnas Rezeptbuch", [rezeptInfo, rezeptKnopf], id: "rezeptbuch");
 
+// ── Kaufmenge 1× · 10× · 100× · Max ── taucht auf, sobald es sich lohnt (10 Stück von irgendwas oder nach der ersten Neueröffnung)
+salami kaufMenge = 1;     // 0 = Max
+Blech<salami> MENGEN = [1, 10, 100, 0];
+Blech<Knopf> mengenKnöpfe = [];
+Schild mengeSchild = neu Schild("Kaufmenge:", id: "kaufmenge-text");
+mengeSchild.stil("schrift", "klein");
+Reihe kaufmengeReihe = neu Reihe([mengeSchild], id: "kaufmenge");
+kaufmengeReihe.stil("abstand", 6).stil("ausrichtung", "mitte");
+kaufmengeReihe.sichtbar(nein);
+für (salami m : MENGEN) {
+    Knopf k = neu Knopf(m == 0 ? "Max" : m + "×", () -> {
+        kaufMenge = m;
+        zeichneKaufmenge();
+        zeichne();
+    }, id: "menge-" + (m == 0 ? "max" : m.alsText()));
+    k.stil("breite", 70).hinweis(m == 0 ? "So viele, wie die Kasse hergibt." : (m == 1 ? "Ein Stück pro Klick." : m + " Stück auf einmal – nur, wenn alle bezahlbar sind."));
+    mengenKnöpfe.hinzu(k);
+    kaufmengeReihe.hinzu(k);
+}
+
 Stapel backstube = neu Stapel([
     rezeptTeil,
+    kaufmengeReihe,
     upgradeAbschnitt("🛠 Handwerk – mehr Pizzen pro Klick", spiel.handwerk, "handwerk"),
     upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb")
 ], id: "backstube");
@@ -1443,6 +1508,8 @@ leer zeichneVoll() {
         setzeKnopf(backen, "🙏 Fastenzeit – heute wird nicht geknetet", nein);
     }
 
+    falls (!kaufmengeReihe.sichtbar() && kaufmengeLohnt()) { kaufmengeReihe.sichtbar(ja); }
+
     // Upgrades: in jeder Liste erscheint das nächste, sobald das vorige gekauft ist.
     Upgrade vorher = karton;
     für (UpgradeZeile z : zeilen) {
@@ -1465,6 +1532,20 @@ leer zeichneVoll() {
         setzeKnopf(rezeptKnopf, "📖 Seite " + (spiel.seite + 1) + " lesen: + " + spiel.SEITEN.stück(spiel.seite + 1)
             + " · " + spiel.seitenKosten().euro(kompakt: ja), spiel.geld >= spiel.seitenKosten());
     }
+}
+
+leer zeichneKaufmenge() {
+    für (salami i : [1 .. MENGEN.länge()]) {
+        Knopf k = mengenKnöpfe.stück(i);
+        margherita farbe = MENGEN.stück(i) == kaufMenge ? "basilikum" : "normal";
+        k.stil("farbe", farbe);
+    }
+}
+
+diavolo kaufmengeLohnt() {
+    falls (spiel.neueröffnungen > 0 || spiel.franchises > 0) { serviere (ja); }
+    für (UpgradeZeile z : zeilen) { falls (z.u.anzahl >= 10) { serviere (ja); } }
+    serviere (nein);
 }
 
 leer zeichneImperium() {
@@ -1658,7 +1739,7 @@ leer zeichne() {
             : (spiel.modus == "fastenzeit" ? "🔥 Fastenzeit – der Ofen bleibt kalt" : "🔥 Ofen kühlt ab … noch " + ofenAnzeige + " s"), spiel.ofenBereit());
     }
 
-    für (UpgradeZeile z : zeilen) { z.zeichne(spiel.geld); }
+    für (UpgradeZeile z : zeilen) { z.zeichne(spiel.geld, kaufMenge); }
     zeichneSpielfeld();
     zeichneMinispiele();
     falls (!spiel.rezeptFertig() && !spiel.rezeptGesperrt()) {
@@ -1697,6 +1778,7 @@ Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, mel
 wurzel.stil("abstand", 10);
 
 sortiereErfolge();
+zeichneKaufmenge();
 zeichne();
 zeichneImperium();     // einmal vorab, damit die (verborgenen) Reiter schon stimmen
 zeichneGeheimnisse();
