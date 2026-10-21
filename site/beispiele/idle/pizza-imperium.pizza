@@ -218,13 +218,31 @@ klasse Spiel {
             "Gibt es erst ab der ersten Franchise-Filiale. Steuert die ganze Kette.")
     ];
 
+    // Fünf Ketten (🔥 Ofen, 🫙 Teig, 🎉 Gäste, 🧦 Nonna, 🎲 Spiel): Jedes Rezept braucht das vorige seiner Kette.
+    // Sichtbar sind nur die drei billigsten offenen (Welle), gelernte verschwinden.
     Blech<Geheimrezept> REZEPTE = [
         neu Geheimrezept("holzofen", "🔥", "Holzofen-Glut", 1, "", "Der ganze Betrieb backt +50 %."),
         neu Geheimrezept("sauerteig", "🫙", "Sauerteig von 1890", 1, "", "Jede Pizza bringt 20 % mehr."),
         neu Geheimrezept("stammgäste", "🎉", "Stammgäste", 2, "", "Ereignisse kommen doppelt so oft, Hawaii-Gäste und Großbestellungen bringen doppelt so viel."),
-        neu Geheimrezept("sparstrumpf", "🧦", "Nonnas Sparstrumpf", 2, "holzofen", "Jede Neueröffnung beginnt mit 10 Lehrlingen und 5 Steinöfen."),
+        neu Geheimrezept("sparstrumpf", "🧦", "Nonnas Sparstrumpf", 2, "", "Jede Neueröffnung beginnt mit 10 Lehrlingen und 5 Steinöfen."),
         neu Geheimrezept("gedächtnis", "📖", "Nonnas Gedächtnis", 3, "sauerteig", "Das Rezeptbuch bleibt bei Neueröffnungen aufgeschlagen."),
-        neu Geheimrezept("lavastein", "🌋", "Lavastein-Ofen", 4, "holzofen", "Die Sonderschicht backt doppelt so lange und kühlt in 45 statt 120 Sekunden ab.")
+        neu Geheimrezept("kartenspiel", "🃏", "Nonnas Kartenspiel", 3, "", "Nonna mogelt beim Scopa – die Minispiel-Pause dauert nur 90 statt 120 Sekunden."),
+        neu Geheimrezept("lavastein", "🌋", "Lavastein-Ofen", 4, "holzofen", "Die Sonderschicht backt doppelt so lange und kühlt in 45 statt 120 Sekunden ab."),
+        neu Geheimrezept("mundpropaganda", "🗣", "Mundpropaganda", 4, "stammgäste", "Die halbe Stadt hilft beim Ausliefern: Großbestellungen kommen immer pünktlich."),
+        neu Geheimrezept("erbstück", "💍", "Nonnas Erbstück", 5, "sparstrumpf", "Jede Neueröffnung beginnt zusätzlich mit 10 Lieferrollern und der Filiale in Wuppertal."),
+        neu Geheimrezept("langteig", "⏳", "72-Stunden-Teig", 6, "gedächtnis", "Drei Tage Gehzeit: Jede Pizza bringt 30 % mehr."),
+        neu Geheimrezept("diplomatie", "🍍", "Hawaii-Diplomatie", 6, "mundpropaganda", "Bekehrte Hawaii-Gäste bestellen dreimal so viel."),
+        neu Geheimrezept("glückspilz", "🍀", "Glückspilz", 6, "kartenspiel", "Jede dreiunddreißigste Pizza wird perfekt (3 % statt 2 %)."),
+        neu Geheimrezept("vesuvkamin", "🏔", "Vesuv-Kamin", 7, "lavastein", "Der Ofen wird bis 535 °C heiß – die Sonderschicht schafft mehr Ladungen."),
+        neu Geheimrezept("familienbetrieb", "👪", "Familienbetrieb", 8, "erbstück", "Die Familie backt mit, während du weg bist: drei Viertel statt halber Kraft (weiterhin höchstens 30 Minuten)."),
+        neu Geheimrezept("freitagslegende", "🕺", "Freitags-Legende", 9, "diplomatie", "Der Freitagabend-Ansturm dauert 60 statt 30 Sekunden."),
+        neu Geheimrezept("mutterhefe", "🧫", "Mutterhefe aus Neapel", 10, "langteig", "Seit 1890 gefüttert, nie ausgegangen: Jede Pizza bringt 50 % mehr."),
+        neu Geheimrezept("abo", "🎟", "Spielecken-Abo", 10, "glückspilz", "Minispiel-Siege bringen 50 % mehr."),
+        neu Geheimrezept("ewigeglut", "♨", "Ewige Glut", 11, "vesuvkamin", "Der Ofen kühlt nie richtig ab: Nach der Sonderschicht ist er in 20 Sekunden wieder bereit."),
+        neu Geheimrezept("segen", "🙌", "Nonnas Segen", 12, "familienbetrieb", "Jeder aktive Michelin-Stern bringt +12 % statt +10 %."),
+        neu Geheimrezept("kultstatus", "🌟", "Kultstatus", 14, "freitagslegende", "Die Pizzeria ist Kult: Alle Ereignis-Boni (Hawaii-Gäste, Großbestellungen) zählen doppelt."),
+        neu Geheimrezept("seele", "💛", "Teig mit Seele", 15, "mutterhefe", "Eine perfekte Pizza zählt 25-fach statt 10-fach."),
+        neu Geheimrezept("ofenflüsterer", "🔮", "Ofenflüsterer", 16, "ewigeglut", "Du hörst, was der Ofen will: Der ganze Betrieb backt +100 %.")
     ];
 
     Blech<Herausforderung> HERAUSFORDERUNGEN = [
@@ -262,14 +280,16 @@ klasse Spiel {
     diavolo kennt(margherita talent) { serviere (talente.enthält(talent)); }
     diavolo bestanden(margherita h) { serviere (geschafft.enthält(h)); }
 
+    salami prozentJeStern() { serviere (kennt("segen") ? 12 : 10); }
+
     // Alles-Faktor: Sterne × Filialen × Freitagabend
     funghi faktor() {
-        serviere ((1 + sterne * 0.1) * (1 + filialen) * (effekt == "freitag" ? 3 : 1));
+        serviere ((1 + sterne * prozentJeStern() / 100) * (1 + filialen) * (effekt == "freitag" ? 3 : 1));
     }
 
     leer neuBerechnen() {
         funghi f = faktor();
-        funghi fb = f * (kennt("holzofen") ? 1.5 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
+        funghi fb = f * (kennt("holzofen") ? 1.5 : 1) * (kennt("ofenflüsterer") ? 2 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
         funghi s = 0;
         für (Upgrade u : betrieb) {
             diavolo holzofen = u.schlüssel == "lehrling" || u.schlüssel == "steinofen";
@@ -283,7 +303,8 @@ klasse Spiel {
             falls (u.art == "klick") { fest = fest + u.gesamt(); } sonst { anteil = anteil + u.gesamt(); }
         }
         klickWert = (fest * f + anteil / 100 * sekundeWert) * (effekt == "fussball" ? 5 : 1);
-        preisWert = rezept.preis() * (kennt("sauerteig") ? 1.2 : 1) * (bestanden("hawaii") ? 1.25 : 1);
+        preisWert = rezept.preis() * (kennt("sauerteig") ? 1.2 : 1) * (kennt("langteig") ? 1.3 : 1) * (kennt("mutterhefe") ? 1.5 : 1)
+            * (bestanden("hawaii") ? 1.25 : 1);
         version++;
     }
 
@@ -303,7 +324,7 @@ klasse Spiel {
     salami anzahl(margherita schlüssel) { serviere (finde(schlüssel).anzahl); }
 
     salami trinkgeld() { serviere (anzahl("kurier") + anzahl("roller")); }
-    salami ofenTemperatur() { serviere (Mathe.min(485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
+    salami ofenTemperatur() { serviere (Mathe.min(kennt("vesuvkamin") ? 535 : 485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
 
     margherita rezeptName() {
         Blech<margherita> b = rezept.beläge();
@@ -342,9 +363,9 @@ klasse Spiel {
         klicks++;
         funghi n = proKlick();
         // Glückstreffer: jede fünfzigste Pizza wird perfekt – und zählt zehnfach.
-        falls (Zufall.wahr(0.02)) {
+        falls (Zufall.wahr(kennt("glückspilz") ? 0.03 : 0.02)) {
             perfekte++;
-            n = n * 10;
+            n = n * (kennt("seele") ? 25 : 10);
             nachricht = "✨ Perfekte Pizza! Der Rand ist ein Gedicht: " + pizzen(n) + " auf einmal.";
         }
         funghi erlös = backe(n);
@@ -385,8 +406,8 @@ klasse Spiel {
     leer ereignis() {
         margherita welches = Zufall.wähle(["freitag", "fussball", "hawaii", "großbestellung"]);
         falls (welches == "freitag") {
-            effekt = "freitag"; effektRest = 30; freitagPizzen = 0;
-            melde(("🎉 Freitagabend-Ansturm! 30 Sekunden lang backt alles dreifach."));
+            effekt = "freitag"; effektRest = kennt("freitagslegende") ? 60 : 30; freitagPizzen = 0;
+            melde(("🎉 Freitagabend-Ansturm! " + effektRest + " Sekunden lang backt alles dreifach."));
         } sonst falls (welches == "fussball") {
             effekt = "fussball"; effektRest = 20;
             melde(("⚽ Fußballabend! 20 Sekunden lang backt jeder Klick fünfmal so viel."));
@@ -409,7 +430,7 @@ klasse Spiel {
         neuBerechnen();
     }
 
-    salami gästeFaktor() { serviere (kennt("stammgäste") ? 2 : 1); }
+    salami gästeFaktor() { serviere ((kennt("stammgäste") ? 2 : 1) * (kennt("kultstatus") ? 2 : 1)); }
 
     leer hawaii() {
         falls (modus == "hawaii") {
@@ -417,7 +438,7 @@ klasse Spiel {
             serviere;
         }
         hawaiiBekehrt++;
-        funghi bonus = portion() * 5 * gästeFaktor();
+        funghi bonus = portion() * 5 * gästeFaktor() * (kennt("diplomatie") ? 3 : 1);
         backe(bonus);
         melde(("🍍 Ein Gast bestellt Pizza Hawaii. Luigi lächelt, schweigt und serviert eine Margherita aufs Haus. "
             + "Der Gast ist bekehrt und bestellt " + pizzen(bonus) + "!"));
@@ -434,11 +455,11 @@ klasse Spiel {
         });
         l.trinkgeld(tg);
         Zustellung<salami> z = l.warte(max: 40ms);
-        falls (z.pünktlich()) {
+        falls (z.pünktlich() || kennt("mundpropaganda")) {
             pünktlich++;
-            funghi bonus = z.wert() * portion() * gästeFaktor();
+            funghi bonus = bleche * portion() * gästeFaktor();
             backe(bonus);
-            margherita wie = tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld";
+            margherita wie = kennt("mundpropaganda") ? "dank Mundpropaganda" : (tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld");
             melde(("📦 Großbestellung über " + bleche + " Bleche – " + wie + " pünktlich geliefert: +"
                 + (bonus * preis()).euro(kompakt: ja) + "."));
         } sonst {
@@ -449,7 +470,7 @@ klasse Spiel {
 
     // Minispiel gewonnen: so viele Pizzen, wie in `sek` Sekunden gebacken werden (bzw. ein Klick, wenn der mehr bringt).
     funghi minispielGewinn(salami sek) {
-        funghi n = portion() * sek;
+        funghi n = portion() * sek * (kennt("abo") ? 1.5 : 1);
         funghi erlös = backe(n);
         umsatzMini += erlös;
         umsatzMiniAllzeit += erlös;
@@ -505,7 +526,7 @@ klasse Spiel {
             serviere (r.teilergebnis());
         };
         sonderschichten++;
-        ofenKühlt = kennt("lavastein") ? 45 : 120;
+        ofenKühlt = kennt("ewigeglut") ? 20 : (kennt("lavastein") ? 45 : 120);
         funghi bonus = ladungen * portion();
         backe(bonus);
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
@@ -536,6 +557,10 @@ klasse Spiel {
             finde("lehrling").setzeAnzahl(10);
             finde("steinofen").setzeAnzahl(5);
         }
+        falls (kennt("erbstück")) {
+            finde("roller").setzeAnzahl(10);
+            finde("wuppertal").setzeAnzahl(1);
+        }
         falls (!kennt("gedächtnis")) {
             rezept = ((Tomate, Mozzarella, Basilikum));
             seite = 0;
@@ -552,7 +577,7 @@ klasse Spiel {
         setzeRundeZurück();
         neuBerechnen();
         melde(("⭐ Neueröffnung! Der Guide Michelin vergibt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
-            + " – jetzt " + sterne + " aktiv, also +" + (sterne * 10) + " % auf alles." + abbruch));
+            + " – jetzt " + sterne + " aktiv, also +" + (sterne * prozentJeStern()) + " % auf alles." + abbruch));
         serviere (ja);
     }
 
@@ -603,6 +628,9 @@ klasse Spiel {
         falls (neu_ > 0) { neueröffnungen++; }
         setzeRundeZurück();
         modus = h.schlüssel;
+        falls (modus == "neapel") {      // nur Holzofen – Nonnas Erbstück bleibt im Keller
+            für (Upgrade u : betrieb) { falls (!erlaubt(u)) { u.setzeAnzahl(0); } }
+        }
         falls (modus == "hawaii") {      // nur Margherita – auch mit Nonnas Gedächtnis
             rezept = ((Tomate, Mozzarella, Basilikum));
             seite = 0;
@@ -731,15 +759,16 @@ klasse Spiel {
         neuBerechnen();
         nachricht = "Willkommen zurück! Dein Imperium hat auf dich gewartet.";
 
-        // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft, höchstens 30 Minuten lang.
+        // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft (Familienbetrieb: drei Viertel), höchstens 30 Minuten lang.
         salami weg = Mathe.boden((Uhr.echt().inMs() - s.hole("zeit", Uhr.echt().inMs())) / 1000);
         salami gezählt = Mathe.min(weg, 30 * 60);
         minispielPause = Mathe.max(0, minispielPause - Mathe.max(0, weg));   // Nonnas Pause läuft auch offline ab
-        funghi nachts = proSekunde() * gezählt * 0.5;
+        diavolo familie = kennt("familienbetrieb");
+        funghi nachts = proSekunde() * gezählt * (familie ? 0.75 : 0.5);
         falls (gezählt >= 60 && nachts > 0) {
             backe(nachts);
             melde(("🌙 Während du weg warst (" + (1min * Mathe.boden(weg / 60)) + (weg > gezählt ? " – gezählt werden höchstens 30min" : "")
-                + "), hat dein Betrieb mit halber Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."));
+                + "), hat dein Betrieb mit " + (familie ? "drei Vierteln" : "halber") + " Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."));
         }
     }
 }
@@ -958,7 +987,7 @@ klasse Spielecke {
 
     leer beende() {
         s.minispieleGespielt++;
-        s.minispielPause = PAUSE;
+        s.minispielPause = s.kennt("kartenspiel") ? 90 : PAUSE;
         läuft = "";
         status = "";
     }
@@ -1081,7 +1110,7 @@ klasse UpgradeZeile {
             summeAnzahl = u.anzahl;
         }
         margherita text = summe < 1_000_000_000_000_000_000_000 ? summe.euro(kompakt: ja) : "unbezahlbar";
-        falls (menge == 0) { text = text + " (Max " + k + ")"; } sonst falls (menge > 1) { text = text + " (×" + menge + ")"; }
+        falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (menge > 1) { text = text + " (×" + menge + ")"; }
         falls (knopf.text() != text) { knopf.setzeText((text)); }
         diavolo leistbar = k >= 1 && geld >= summe;
         salami st = leistbar ? 20 : Mathe.boden(geld / summe * 20);
@@ -1244,7 +1273,7 @@ für (salami m : MENGEN) {
         zeichneKaufmenge();
         zeichne();
     }, id: "menge-" + (m == 0 ? "max" : m.alsText()));
-    k.stil("breite", 70).hinweis(m == 0 ? "So viele, wie die Kasse hergibt." : (m == 1 ? "Ein Stück pro Klick." : m + " Stück auf einmal – nur, wenn alle bezahlbar sind."));
+    k.stil("breite", 64).hinweis(m == 0 ? "So viele, wie die Kasse hergibt." : (m == 1 ? "Ein Stück pro Klick." : m + " Stück auf einmal – nur, wenn alle bezahlbar sind."));
     mengenKnöpfe.hinzu(k);
     kaufmengeReihe.hinzu(k);
 }
@@ -1537,8 +1566,10 @@ leer zeichneVoll() {
 leer zeichneKaufmenge() {
     für (salami i : [1 .. MENGEN.länge()]) {
         Knopf k = mengenKnöpfe.stück(i);
-        margherita farbe = MENGEN.stück(i) == kaufMenge ? "basilikum" : "normal";
-        k.stil("farbe", farbe);
+        salami m = MENGEN.stück(i);
+        diavolo gewählt = m == kaufMenge;
+        k.stil("farbe", gewählt ? "basilikum" : "mozzarella");
+        k.setzeText(((gewählt ? "✓ " : "") + (m == 0 ? "Max" : m + "×")));
     }
 }
 
@@ -1551,10 +1582,10 @@ diavolo kaufmengeLohnt() {
 leer zeichneImperium() {
     salami neu_ = spiel.neueSterne();
     salami ausgegeben = spiel.sterneVergeben - spiel.sterne;
-    funghi f = (1 + spiel.sterne * 0.1) * (1 + spiel.filialen);
+    funghi f = (1 + spiel.sterne * spiel.prozentJeStern() / 100) * (1 + spiel.filialen);
     aufstieg.setzeZeilen(([
         ["⭐ Michelin-Sterne", spiel.sterne + " aktiv" + (ausgegeben > 0 ? " · " + ausgegeben + " ausgegeben" : ""),
-            "+" + (spiel.sterne * 10) + " % auf alles"],
+            "+" + (spiel.sterne * spiel.prozentJeStern()) + " % auf alles"],
         ["📜 Geheimrezepte", spiel.rezepteOffen() ? spiel.talente.länge() + " von " + spiel.REZEPTE.länge() : "🔒 ab 1 ⭐",
             "gegen Sterne"],
         ["🏅 Herausforderungen", spiel.herausforderungenOffen() ? spiel.geschafft.länge() + " von " + spiel.HERAUSFORDERUNGEN.länge() : "🔒 ab 3 ⭐",
@@ -1566,7 +1597,7 @@ leer zeichneImperium() {
 
     falls (neu_ > 0) {
         setzeText(prestigeInfo, "Der Guide Michelin ist begeistert! Neueröffnen bringt " + neu_ + (neu_ == 1 ? " Stern" : " Sterne")
-            + " (+10 % je Stern), setzt aber Kasse, Upgrades und Rezeptbuch zurück.");
+            + " (+" + spiel.prozentJeStern() + " % je Stern), setzt aber Kasse, Upgrades und Rezeptbuch zurück.");
     } sonst {
         setzeText(prestigeInfo, "Nächster Michelin-Stern ab " + spiel.nächsterStern().euro(kompakt: ja) + " Umsatz in dieser Kette (bisher "
             + spiel.umsatzKette.euro(kompakt: ja) + ").");
@@ -1614,7 +1645,7 @@ leer zeichneImperium() {
 leer zeichneGeheimnisse() {
     falls (spiel.rezepteOffen()) {
         setzeText(geheimInfo, "Nonna verrät ihre Geheimnisse nur gegen Michelin-Sterne – du hast " + spiel.sterne
-            + " ⭐. Ein ausgegebener Stern bringt keine +10 % mehr. Die Rezepte wirken bis zur nächsten Franchise-Gründung.");
+            + " ⭐. Ein ausgegebener Stern bringt keine +" + spiel.prozentJeStern() + " % mehr. Die Rezepte wirken bis zur nächsten Franchise-Gründung.");
     } sonst {
         setzeText(geheimInfo, "🔒 Nonna verrät ihre Geheimrezepte nur Sterneköchen. Hol dir mit einer Neueröffnung den ersten Michelin-Stern.");
     }
