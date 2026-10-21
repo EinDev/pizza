@@ -22,6 +22,8 @@ const theke = PizzaTheke.erzeuge(container, {
     jetzt() {},                //   ms, Standard performance.now() des Fensters (sonst Date.now())
     setzeIntervall(fn, ms) {}, //   → Handle, Standard setInterval von container.ownerDocument.defaultView
     loescheIntervall(h) {},    //   Standard clearInterval
+    nach(fn, ms) {},           //   → Handle, Standard setTimeout (Ende von Animationen/uebergang)
+    loescheNach(h) {},         //   Standard clearTimeout
   },
 });
 theke.empfange(nachricht);     // Objekt oder JSON-String; wirft nie (Probleme → console.warn)
@@ -44,7 +46,7 @@ theke.zerstoere();             // Listener + DOM weg, danach ist alles wirkungsl
 
 Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, gleicher Codepfad):
 `id`, `art`, `sichtbar` (bool), `stil` (Objekt, Teil-Updates; `null` setzt einen Schlüssel zurück),
-`hinweis` (Text → Tooltip/`title`-Attribut; leer/`null` entfernt ihn).
+`hinweis` (Text → Tooltip/`title`-Attribut; leer/`null` entfernt ihn), `uebergang` (bool, v3 – s. u.).
 
 | art | Felder | Ereignisse |
 |---|---|---|
@@ -115,6 +117,43 @@ Zutat verschwindet: aus `kinder` entfernt, Art gewechselt, neuer `baum`, `schlie
 Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `warne(…)`. `stil`, `sichtbar` und `hinweis`
 übernimmt die Engine. Wirft `erzeuge`, erscheint ein Platzhalter. Die v1- und v2-Zutaten sind über genau diese API registriert
 (Abschnitte „v1-Zutaten“/„v2-Zutaten“ in `theke.js`).
+
+## v3: Animationen und `uebergang` (K-090 … K-092, SPEC §16.6)
+
+- **`aendere.animationen`** (Liste neben `aenderungen`): wird **nach** den Änderungen in Reihenfolge abgespielt
+  (`einblenden` auf ein im selben `aendere` per `kinder` eingefügtes Kind wirkt). Eintrag `{id, art, dauer?}` bzw.
+  `{art:"schwebe", text, id?, farbe?, dauer?}`. Unbekannte `id`, nicht gezeigte Zutat (`hidden`, ausblendend, nicht gewählte
+  Reiter-Seite) und `takt` → still ignoriert; unbekannte `art` → **eine** Warnung je Art. Dauer auf 50 ms … 5 s geklemmt,
+  fehlt sie: Standard der Art. Keine Ereignisse zurück, die Zutat bleibt bedienbar.
+- **Arten:** `puls` 400 ms, `huepfen` 350 ms, `wackeln` 400 ms, `funkeln` 800 ms (Leuchten in `--theke-gold` + 8 Funken an festen
+  Positionen in der Ebene), `einblenden` 300 ms, `aufpoppen` 450 ms, `schwebe` 1000 ms. Gleiche Art an derselben Zutat startet
+  neu, andere ersetzt die laufende. Schwebetexte addieren sich (höchstens 20, der älteste weicht), seitlicher Versatz je Anker
+  reihum 0, −12, +12, −6, +6 px; Start oben mittig über `id` bzw. in der Fenstermitte, bei zu wenig Platz nach oben tiefer
+  bzw. am Rand nach innen gerückt (bleibt im sichtbaren Ausschnitt).
+- **Technik:** `@keyframes`-Klassen `theke-anim-<art>`, Dauer als `--theke-anim-dauer` per CSSOM (CSP-fest, kein
+  `style`-Attribut-String). Nur `transform`/`opacity`/`filter` – Layout und Scrollmaße ändern sich nie (in `visuell.mjs` geprüft).
+  Schwebetexte/Funken liegen in `.theke-ebene` (absolut über dem Inhalt, `pointer-events: none`, schneidet ab).
+  Das Ende kommt vom Zeitgeber (`nach`), nicht von `animationend`.
+- **`uebergang`** (Feld an jeder Zutat): `sichtbar:false` → sofort `inert` + `theke-ueb-aus` (kein `klick` mehr), nach 200 ms
+  `hidden`; `sichtbar:true` blendet ein (auch mitten im Ausblenden). Behälter mit `uebergang` blenden per `kinder`
+  **neu hinzugekommene** Kinder ein (nicht im ersten `baum`, entfernte sofort weg). `fortschritt` gleitet immer (CSS-Transition).
+- **`prefers-reduced-motion: reduce`:** `puls`, `huepfen`, `wackeln`, `einblenden`, `aufpoppen`, `uebergang` entfallen,
+  `funkeln` leuchtet ruhig (ohne Funken), `schwebe` steht ruhig für die Dauer und verschwindet, `fortschritt` springt.
+
+```js
+PizzaTheke.registriereAnimation("blinken", {
+  dauer: 300,                       // Standarddauer (ms)
+  ebene: false,                     // true = wie schwebe: in der Ebene, el darf null sein, ersetzt nichts, zählt zum Limit
+  spiele(el, eintrag, ctx) {        // eintrag = Protokolleintrag {id, art, dauer?, …}
+    if (ctx.reduziert) return;      // prefers-reduced-motion
+    ctx.klasse(el, "mein-blinken"); // @keyframes-Klasse mit --theke-anim-dauer (gleiche Klasse → Neustart)
+    return () => {};                // optional: Aufräumen (Ende, Ersetzen, Entfernen, neuer baum, schliesse)
+  },
+});
+```
+`ctx`: `dokument`, `dauer`, `reduziert`, `nummer` (laufende Nummer am selben Anker, Ebenen-Arten), `ebene`, `lage(el?)`
+(→ `{x, y, b, h}` in Ebenen-Koordinaten, ohne `el` die Fenstermitte), `sicht()` (sichtbarer Ausschnitt), `klasse(el, name)`,
+`teil(klasse, lage)` (Element in der Ebene, verschwindet am Ende), `beimEnde(fn)`, `warne`. `PizzaTheke.animationsArten()` listet alle.
 
 ## Einbettung im Playground (UI-Agent)
 

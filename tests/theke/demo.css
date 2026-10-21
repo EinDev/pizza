@@ -6,3 +6,6 @@ h2 { font-size: 13px; font-weight: 600; margin: 0 0 8px; text-transform: upperca
 .demo-fenster-v2 { height: 560px; }
 h1 + .demo-raster { margin-bottom: 28px; }
 #protokoll { background: #222; color: #ddd; padding: 12px; border-radius: 8px; min-height: 60px; font-size: 12px; }
+/* v3-Animationen (animation.html): drei Theken nebeneinander – Start · Mitte · Ende */
+.anim-raster { display: grid; grid-template-columns: repeat(3, 300px); gap: 20px; }
+.anim-fenster { width: 300px; height: 470px; }

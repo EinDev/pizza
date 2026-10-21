@@ -86,7 +86,7 @@
 
   // ------------------------------------------------------------------ Zutaten-Registry
   var registry = Object.create(null);
-  var ALLGEMEINE_FELDER = ["id", "art", "stil", "sichtbar", "hinweis"];
+  var ALLGEMEINE_FELDER = ["id", "art", "stil", "sichtbar", "hinweis", "uebergang"];
 
   function registriere(art, def) {
     if (typeof art !== "string" || !art) throw new TypeError("PizzaTheke.registriere: art muss ein nicht-leerer String sein");
@@ -480,6 +480,90 @@
     if (nr !== vorher) z.ctx.sende("aenderung", { wert: nr });
   }
 
+  // ------------------------------------------------------------------ v3: Animations-Registry (K-090 … K-092, SPEC §16.6)
+  // Animationen sind Ereignisse, kein Zustand: aendere.animationen wird nach aenderungen abgespielt. Eingebaute Arten laufen
+  // über dieselbe API wie eigene. Nur transform/opacity/Leuchten (CSS-@keyframes-Klassen, Dauer per CSSOM-Custom-Property –
+  // CSP-fest, keine Inline-Styles); Schwebetexte und Funken liegen in einer eigenen Ebene → das Layout ändert sich nie.
+  var ANIM_MIN = 50, ANIM_MAX = 5000;
+  var UEBERGANG_MS = 200;
+  var SCHWEBE_MAX = 20;
+  var SCHWEBE_STEIGEN = 40;                      // px (theke.css @keyframes theke-schwebe)
+  var SCHWEBE_VERSATZ = [0, -12, 12, -6, 6];   // px, je Anker reihum – kein Zufall (reproduzierbare Bilder)
+  var NACHLAUF_MS = 34;                          // ~2 Frames: Klasse erst nach dem letzten Bild entfernen
+  var FUNKEN = 8;
+  var animRegistry = Object.create(null);
+
+  /** PizzaTheke.registriereAnimation(art, { dauer, spiele(el, eintrag, ctx), ebene? }).
+   *  dauer: Standarddauer in ms (ohne Feld dauer im Eintrag). ebene: true = läuft in der Schwebe-Ebene (el darf null sein =
+   *  Fenstermitte), ersetzt nichts und zählt zum Limit von 20; sonst ersetzt sie die laufende Animation derselben Zutat.
+   *  spiele darf eine Aufräumfunktion zurückgeben (gerufen am Ende, beim Ersetzen, Entfernen, neuen baum, schliesse). */
+  function registriereAnimation(art, def) {
+    if (typeof art !== "string" || !art) throw new TypeError("PizzaTheke.registriereAnimation: art muss ein nicht-leerer String sein");
+    if (!def || typeof def.spiele !== "function") throw new TypeError("PizzaTheke.registriereAnimation: spiele(el, eintrag, ctx) fehlt");
+    var d = typeof def.dauer === "number" && isFinite(def.dauer) ? klemmeDauer(def.dauer) : 400;
+    animRegistry[art] = { dauer: d, spiele: def.spiele, ebene: def.ebene === true };
+  }
+  function animationsArten() { return Object.keys(animRegistry); }
+  function klemmeDauer(ms) { return Math.max(ANIM_MIN, Math.min(ANIM_MAX, Math.round(ms))); }
+
+  /** Eingebaute Bewegungs-Animation: eine @keyframes-Klasse am Element; bei reduzierter Bewegung entfällt sie (K-092). */
+  function bewegung(art, dauer) {
+    registriereAnimation(art, {
+      dauer: dauer,
+      spiele: function (el, eintrag, ctx) { if (!ctx.reduziert) ctx.klasse(el, "theke-anim-" + art); }
+    });
+  }
+  bewegung("puls", 400);
+  bewegung("huepfen", 350);
+  bewegung("wackeln", 400);
+  bewegung("einblenden", 300);
+  bewegung("aufpoppen", 450);
+
+  registriereAnimation("funkeln", {
+    dauer: 800,
+    spiele: function (el, eintrag, ctx) {
+      if (ctx.reduziert) { ctx.klasse(el, "theke-anim-funkeln-ruhig"); return; }   // ruhiges Leuchten, keine Funken
+      ctx.klasse(el, "theke-anim-funkeln");
+      var f = ctx.teil("theke-funken", ctx.lage(el));
+      f.setAttribute("aria-hidden", "true");
+      for (var i = 0; i < FUNKEN; i++) {
+        var s = ctx.dokument.createElement("span");
+        s.className = "theke-funke";
+        f.appendChild(s);
+      }
+    }
+  });
+
+  registriereAnimation("schwebe", {
+    dauer: 1000,
+    ebene: true,
+    spiele: function (el, eintrag, ctx) {
+      var wo = ctx.lage(el);
+      var t = ctx.teil("theke-schwebe" + (ctx.reduziert ? " theke-schwebe-ruhig" : ""), wo);
+      t.textContent = alsText(eintrag.text);
+      var farbe = eintrag.farbe;
+      if (typeof farbe === "string" && farbe !== "normal" && STIL.farbe.indexOf(farbe) >= 0) t.classList.add("theke-farbe-" + farbe);
+      var versatz = SCHWEBE_VERSATZ[ctx.nummer % SCHWEBE_VERSATZ.length];
+      t.style.setProperty("--theke-versatz", versatz + "px");
+      // Im sichtbaren Ausschnitt halten: Startpunkt = oben mittig über der Zutat; reicht der Platz nach oben (Text + Steigen)
+      // nicht – z. B. ein Zähler ganz oben –, startet der Text tiefer; am Rand rückt er nach innen. Nur Lage, kein Layout.
+      var s = ctx.sicht(), tb = t.offsetWidth, th = t.offsetHeight;
+      var x = wo.x + wo.b / 2, y = wo.y;
+      var halb = tb / 2 + Math.abs(versatz) + 4;
+      if (s.x1 - s.x0 > 2 * halb) x = Math.max(s.x0 + halb, Math.min(s.x1 - halb, x));
+      y = Math.min(s.y1, Math.max(y, s.y0 + th + (ctx.reduziert ? 0 : SCHWEBE_STEIGEN) + 4));
+      t.style.setProperty("--theke-x", (Math.round(x * 10) / 10) + "px");
+      t.style.setProperty("--theke-y", (Math.round(y * 10) / 10) + "px");
+      t.style.setProperty("--theke-b", "0px");
+    }
+  });
+
+  /** Interne Art für uebergang (Einblenden bei sichtbar:true bzw. neuem Kind) – teilt den Platz mit den anderen Animationen. */
+  var UEBERGANG_EIN = {
+    dauer: UEBERGANG_MS, ebene: false,
+    spiele: function (el, eintrag, ctx) { ctx.klasse(el, "theke-ueb-ein"); }
+  };
+
   // ------------------------------------------------------------------ Zeitgeber (optionen.zeitgeber)
   /** Uhr der Instanz; fehlende Funktionen kommen aus dem Fenster des Dokuments (bzw. global). */
   function baueZeitgeber(z, dok) {
@@ -494,7 +578,11 @@
       setzeIntervall: typeof z.setzeIntervall === "function" ? function (fn, ms) { return z.setzeIntervall(fn, ms); }
         : function (fn, ms) { return wirt("setInterval").setInterval(fn, ms); },
       loescheIntervall: typeof z.loescheIntervall === "function" ? function (h) { return z.loescheIntervall(h); }
-        : function (h) { return wirt("clearInterval").clearInterval(h); }
+        : function (h) { return wirt("clearInterval").clearInterval(h); },
+      nach: typeof z.nach === "function" ? function (fn, ms) { return z.nach(fn, ms); }
+        : function (fn, ms) { return wirt("setTimeout").setTimeout(fn, ms); },
+      loescheNach: typeof z.loescheNach === "function" ? function (h) { return z.loescheNach(h); }
+        : function (h) { return wirt("clearTimeout").clearTimeout(h); }
     };
   }
 
@@ -517,6 +605,13 @@
     var inhalt = dok.createElement("div");
     inhalt.className = "theke-inhalt";
     wurzelEl.appendChild(inhalt);
+    // Schwebe-Ebene (v3): deckt den Inhalt ab (auch gescrollt), schneidet ab, fängt keine Klicks, ändert kein Layout.
+    var ebene = dok.createElement("div");
+    ebene.className = "theke-ebene";
+    var laeufe = new Map();       // Element → laufende Animation (eine je Zutat)
+    var ebenenLaeufe = [];        // Schwebetexte u. Ä. in Startreihenfolge (höchstens SCHWEBE_MAX)
+    var ankerZaehler = Object.create(null);
+    var baumDa = false;
     container.appendChild(wurzelEl);
     setzeThema(optionen.thema);
     zeigeLeer("Die Theke wird vorbereitet …");
@@ -538,6 +633,183 @@
       el.className = "theke-leer";
       el.textContent = text;
       inhalt.appendChild(el);
+      inhalt.appendChild(ebene);
+    }
+
+    // -------------------------------------------------------------- v3: Animationen & uebergang
+    /** prefers-reduced-motion: reduce (WebView2/WebKitGTK melden die OS-Einstellung). Ohne matchMedia (jsdom): nein. */
+    function reduziert() {
+      var w = dok.defaultView;
+      try { return !!(w && typeof w.matchMedia === "function" && w.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+      catch (e) { return false; }
+    }
+    /** Liegt die Zutat sichtbar auf der Theke? (nicht hidden, nicht ausblendend, keine nicht gewählte Reiter-Seite, kein Takt) */
+    function gezeigt(el) {
+      if (!el || !inhalt.contains(el)) return false;
+      for (var n = el; n && n !== inhalt; n = n.parentNode) {
+        if (n.nodeType !== 1) continue;
+        if (n.hidden || n.classList.contains("theke-reiter-aus") || n.classList.contains("theke-takt") ||
+            n.classList.contains("theke-ueb-aus")) return false;
+      }
+      return true;
+    }
+    /** Lage eines Elements in Ebenen-Koordinaten {x, y, b, h}; ohne Element: Mitte des sichtbaren Fensterausschnitts. */
+    function lage(el) {
+      var i = inhalt.getBoundingClientRect();
+      if (!el) {
+        var w = wurzelEl.getBoundingClientRect();
+        return { x: w.left + wurzelEl.clientWidth / 2 - i.left, y: w.top + wurzelEl.clientHeight / 2 - i.top, b: 0, h: 0 };
+      }
+      var r = el.getBoundingClientRect();
+      return { x: r.left - i.left, y: r.top - i.top, b: r.width, h: r.height };
+    }
+    function setzePx(el, name, wert) { el.style.setProperty(name, (Math.round(wert * 10) / 10) + "px"); }
+
+    function beendeLauf(l) {
+      if (l.fertig) return;
+      l.fertig = true;
+      if (l.timer !== null) { try { zeitgeber.loescheNach(l.timer); } catch (e) { /* egal */ } l.timer = null; }
+      if (l.ebene) { var k = ebenenLaeufe.indexOf(l); if (k >= 0) ebenenLaeufe.splice(k, 1); }
+      else if (laeufe.get(l.el) === l) laeufe.delete(l.el);
+      var fns = l.stop.splice(0, l.stop.length);
+      for (var i = fns.length - 1; i >= 0; i--) {
+        try { fns[i](); } catch (e) { warne("Animation „" + l.art + "“: Aufräumen fehlgeschlagen:", e); }
+      }
+    }
+    function stoppeAlleLaeufe() {
+      var alle = ebenenLaeufe.slice();
+      laeufe.forEach(function (l) { alle.push(l); });
+      for (var i = 0; i < alle.length; i++) beendeLauf(alle[i]);
+      ankerZaehler = Object.create(null);
+    }
+
+    function animCtx(l, dauer, nummer) {
+      return {
+        dokument: dok,
+        dauer: dauer,
+        reduziert: reduziert(),
+        /** Laufende Nummer dieser Ebenen-Animation am selben Anker (0, 1, 2, …) – für feste Versätze. */
+        nummer: nummer,
+        ebene: ebene,
+        warne: warne,
+        lage: lage,
+        /** Sichtbarer Ausschnitt des Fensters in Ebenen-Koordinaten {x0, y0, x1, y1}. */
+        sicht: function () {
+          var w = wurzelEl.getBoundingClientRect(), i = inhalt.getBoundingClientRect();
+          var x0 = w.left + wurzelEl.clientLeft - i.left, y0 = w.top + wurzelEl.clientTop - i.top;
+          return { x0: x0, y0: y0, x1: x0 + wurzelEl.clientWidth, y1: y0 + wurzelEl.clientHeight };
+        },
+        /** Startet die @keyframes-Klasse am Element (gleiche Klasse → Neustart); Dauer als --theke-anim-dauer. */
+        klasse: function (ziel, name) {
+          ziel.classList.remove(name);
+          void ziel.offsetWidth;            // Stil neu berechnen → gleiche Animation startet wirklich neu
+          ziel.style.setProperty("--theke-anim-dauer", dauer + "ms");
+          ziel.classList.add(name);
+          l.stop.push(function () { ziel.classList.remove(name); ziel.style.removeProperty("--theke-anim-dauer"); });
+        },
+        /** Neues Element in der Ebene, an `wo` ({x, y, b, h}) ausgerichtet; verschwindet am Ende von selbst. */
+        teil: function (klasse, wo) {
+          var t = dok.createElement("div");
+          t.className = klasse;
+          wo = wo || lage(null);
+          setzePx(t, "--theke-x", wo.x); setzePx(t, "--theke-y", wo.y);
+          setzePx(t, "--theke-b", wo.b); setzePx(t, "--theke-h", wo.h);
+          t.style.setProperty("--theke-anim-dauer", dauer + "ms");
+          ebene.appendChild(t);
+          l.stop.push(function () { if (t.parentNode) t.parentNode.removeChild(t); });
+          return t;
+        },
+        /** fn() wird einmal am Ende gerufen (auch beim Ersetzen/Entfernen). */
+        beimEnde: function (fn) { if (typeof fn === "function") l.stop.push(fn); }
+      };
+    }
+
+    function starteAnimation(def, art, el, eintrag, dauer, anker) {
+      if (!def.ebene) { var alt = laeufe.get(el); if (alt) beendeLauf(alt); }
+      var l = { art: art, el: el, ebene: def.ebene, stop: [], timer: null, fertig: false };
+      var nummer = 0;
+      if (def.ebene) {
+        while (ebenenLaeufe.length >= SCHWEBE_MAX) beendeLauf(ebenenLaeufe[0]);   // der älteste weicht
+        nummer = ankerZaehler[anker] || 0;
+        ankerZaehler[anker] = nummer + 1;
+        ebenenLaeufe.push(l);
+      } else {
+        laeufe.set(el, l);
+      }
+      try {
+        var r = def.spiele(el, eintrag, animCtx(l, dauer, nummer));
+        if (typeof r === "function") l.stop.push(r);
+      } catch (e) {
+        warne("Animation „" + art + "“: spiele() fehlgeschlagen:", e);
+        beendeLauf(l);
+        return;
+      }
+      if (!l.fertig) l.timer = zeitgeber.nach(function () { l.timer = null; beendeLauf(l); }, dauer + NACHLAUF_MS);
+    }
+
+    /** aendere.animationen: in Reihenfolge, nach den Änderungen. Unbekannte id / nicht gezeigt / takt → still. */
+    function spieleAnimationen(liste) {
+      if (liste === undefined) return;
+      if (!Array.isArray(liste)) { if (!gewarnt["animationen"]) { gewarnt["animationen"] = true; warne("animationen muss eine Liste sein:", liste); } return; }
+      if (geschlossen || !baumDa) return;
+      for (var i = 0; i < liste.length; i++) {
+        var a = liste[i];
+        if (!istObjekt(a)) continue;
+        var art = typeof a.art === "string" ? a.art : "";
+        var def = animRegistry[art];
+        if (!def) {
+          if (!gewarnt["animation " + art]) { gewarnt["animation " + art] = true; warne("Unbekannte Animation ignoriert:", art || a.art); }
+          continue;
+        }
+        var el = null, anker = "mitte";
+        if (a.id !== undefined && a.id !== null) {
+          var e = knoten.get(String(a.id));
+          if (!e || !gezeigt(e.el)) continue;
+          el = e.el;
+          anker = "id " + e.id;
+        } else if (!def.ebene) continue;
+        var dauer = typeof a.dauer === "number" && isFinite(a.dauer) ? klemmeDauer(a.dauer) : def.dauer;
+        try { starteAnimation(def, art, el, a, dauer, anker); } catch (err) { warne("Animation fehlgeschlagen:", err); }
+      }
+    }
+
+    /** sichtbar-Wechsel; mit uebergang weich (Ausblenden: sofort inert, danach hidden). Reduzierte Bewegung → sofort. */
+    function setzeSichtbar(e, an) {
+      var el = e.el;
+      var weich = e.uebergang === true && e.gebaut === true && !reduziert();
+      if (e.ausblenden !== undefined && e.ausblenden !== null) {   // läuft gerade ein Ausblenden?
+        if (!an) return;
+        beendeAusblenden(e);
+        el.hidden = false;
+        if (weich) starteAnimation(UEBERGANG_EIN, "uebergang", el, {}, UEBERGANG_MS, null);
+        return;
+      }
+      if (an === !el.hidden) return;
+      if (an) {
+        el.hidden = false;
+        if (weich) starteAnimation(UEBERGANG_EIN, "uebergang", el, {}, UEBERGANG_MS, null);
+        return;
+      }
+      if (!weich) { el.hidden = true; return; }
+      var alt = laeufe.get(el);
+      if (alt) beendeLauf(alt);
+      el.setAttribute("inert", "");              // sofort nicht mehr bedienbar (zusätzlich: pointer-events none, sende gesperrt)
+      var fokus = dok.activeElement;
+      if (fokus && fokus !== dok.body && el.contains(fokus) && typeof fokus.blur === "function") fokus.blur();
+      el.style.setProperty("--theke-anim-dauer", UEBERGANG_MS + "ms");
+      el.classList.add("theke-ueb-aus");
+      e.ausblenden = zeitgeber.nach(function () {
+        e.ausblenden = null;
+        beendeAusblenden(e);
+        el.hidden = true;
+      }, UEBERGANG_MS + NACHLAUF_MS);
+    }
+    function beendeAusblenden(e) {
+      if (e.ausblenden !== undefined && e.ausblenden !== null) { try { zeitgeber.loescheNach(e.ausblenden); } catch (err) { /* egal */ } }
+      e.ausblenden = null;
+      e.el.classList.remove("theke-ueb-aus");
+      e.el.removeAttribute("inert");
+      e.el.style.removeProperty("--theke-anim-dauer");
     }
 
     // -------------------------------------------------------------- Knoten bauen / entfernen
@@ -554,6 +826,9 @@
     }
     /** Einziger Ausgang einer Zutat: Listener lösen, beimEntfernen-Rückrufe (Timer o. Ä.) aufrufen. */
     function raeumeAuf(e) {
+      var lauf = e.el ? laeufe.get(e.el) : null;
+      if (lauf) beendeLauf(lauf);
+      if (e.ausblenden !== undefined && e.ausblenden !== null) { try { zeitgeber.loescheNach(e.ausblenden); } catch (err) { /* egal */ } e.ausblenden = null; }
       for (var i = 0; i < e.listener.length; i++) { var l = e.listener[i]; l[2].removeEventListener(l[0], l[1]); }
       e.listener.length = 0;
       var fns = e.aufraeumen.splice(0, e.aufraeumen.length);
@@ -580,6 +855,8 @@
         /** Sendet {typ, id, ...extra} ans Programm. */
         sende: function (typ, extra) {
           if (geschlossen) return;
+          // Ausblendende Zutat (uebergang) ist sofort nicht mehr bedienbar – auch wenn der Browser inert nicht kennt.
+          if (eintrag.el && eintrag.el.closest && eintrag.el.closest(".theke-ueb-aus")) return;
           var e = { typ: typ, id: id };
           if (extra) for (var k in extra) if (hat.call(extra, k)) e[k] = extra[k];
           sende(e);
@@ -594,7 +871,7 @@
         /** Baut ein Kind-Element aus einem Knoten (für eigene Behälter-Zutaten). */
         baue: function (kind) { return baue(kind); },
         /** Ersetzt die Kinder eines Behälters; vorhandene IDs werden wiederverwendet (Fokus bleibt). */
-        setzeKinder: function (el, kinder) { setzeKinder(el, kinder); },
+        setzeKinder: function (el, kinder) { setzeKinder(el, kinder, eintrag); },
         /** fn() wird einmal gerufen, wenn die Zutat verschwindet (entfernt, neuer baum, schliesse, zerstoere). */
         beimEntfernen: function (fn) { if (typeof fn === "function") eintrag.aufraeumen.push(fn); },
         /** Uhr der Instanz: { jetzt(), setzeIntervall(fn, ms), loescheIntervall(h) } (optionen.zeitgeber, für Tests). */
@@ -653,11 +930,13 @@
         knoten.set(id, eintrag);
       }
       aktualisiereEintrag(eintrag, k);
+      eintrag.gebaut = true;   // ab jetzt sind sichtbar-/kinder-Wechsel echte Wechsel (uebergang)
       return el;
     }
 
     function aktualisiereEintrag(e, felder) {
-      if (hat.call(felder, "sichtbar")) e.el.hidden = felder.sichtbar === false;
+      if (hat.call(felder, "uebergang")) e.uebergang = felder.uebergang === true;
+      if (hat.call(felder, "sichtbar")) setzeSichtbar(e, felder.sichtbar !== false);
       if (hat.call(felder, "stil")) wendeStilAn(e.el, felder.stil, e.art);
       if (hat.call(felder, "hinweis")) {
         var h = alsText(felder.hinweis);
@@ -684,8 +963,10 @@
       }
     };
 
-    function setzeKinder(el, kinder) {
+    /** besitzer: Eintrag der Behälter-Zutat (für uebergang: neu hinzugekommene Kinder blenden ein, nicht im ersten Bau). */
+    function setzeKinder(el, kinder, besitzer) {
       if (!Array.isArray(kinder)) { warne("kinder muss eine Liste sein:", kinder); return; }
+      var vorher = [].slice.call(el.children);
       var neu = [];
       for (var i = 0; i < kinder.length; i++) {
         var c = baue(kinder[i]);
@@ -698,15 +979,25 @@
       }
       var rest = [].slice.call(el.children, neu.length);
       for (var j = 0; j < rest.length; j++) { entferneRekursiv(rest[j]); el.removeChild(rest[j]); }
+      if (besitzer && besitzer.uebergang === true && besitzer.gebaut === true && !reduziert()) {
+        for (var n = 0; n < neu.length; n++) {
+          if (vorher.indexOf(neu[n]) >= 0 || !eintragVon.has(neu[n]) || !gezeigt(neu[n])) continue;
+          starteAnimation(UEBERGANG_EIN, "uebergang", neu[n], {}, UEBERGANG_MS, null);
+        }
+      }
     }
 
     function leereAlles() {
+      stoppeAlleLaeufe();
+      baumDa = false;
       var alle = [];
       eintragVon.forEach(function (e) { alle.push(e); });
       eintragVon.clear();
       knoten.clear();
       for (var i = 0; i < alle.length; i++) raeumeAuf(alle[i]);
       inhalt.textContent = "";
+      ebene.textContent = "";
+      inhalt.appendChild(ebene);
     }
 
     // -------------------------------------------------------------- Operationen
@@ -730,17 +1021,21 @@
         wurzelEl.classList.remove("theke-geschlossen");
         leereAlles();
         if (!istObjekt(n.wurzel)) { warne("baum ohne wurzel"); zeigeLeer("Die Theke ist leer."); return; }
-        inhalt.appendChild(baue(n.wurzel));
+        inhalt.insertBefore(baue(n.wurzel), ebene);
+        baumDa = true;
       },
       aendere: function (n) {
-        if (!Array.isArray(n.aenderungen)) { warne("aendere ohne aenderungen-Liste"); return; }
-        for (var i = 0; i < n.aenderungen.length; i++) {
-          var a = n.aenderungen[i];
+        var liste = n.aenderungen;
+        if (!Array.isArray(liste)) { warne("aendere ohne aenderungen-Liste"); liste = []; }
+        for (var i = 0; i < liste.length; i++) {
+          var a = liste[i];
           if (!istObjekt(a) || a.id === undefined || a.id === null) { warne("Ungültige Änderung ignoriert:", a); continue; }
           var e = knoten.get(String(a.id));
           if (!e) { warne("Änderung für unbekannte Zutat ignoriert:", a.id); continue; }
           try { aktualisiereEintrag(e, a); } catch (err) { warne("Änderung fehlgeschlagen:", err); }
         }
+        // v3: erst alle Änderungen, dann die Animationen (eine Nachricht = ein Bild; einblenden auf ein neues Kind wirkt).
+        spieleAnimationen(n.animationen);
       },
       schliesse: function () {
         schliesseIntern();
@@ -797,6 +1092,8 @@
     version: VERSION,
     erzeuge: erzeuge,
     registriere: registriere,
-    arten: zutatArten
+    arten: zutatArten,
+    registriereAnimation: registriereAnimation,
+    animationsArten: animationsArten
   };
 });
