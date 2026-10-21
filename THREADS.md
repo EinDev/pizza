@@ -233,6 +233,9 @@ Arbeit (`schritte`) und simulierte Zeit (`zeitMs`) getrennt.
 | dito + `Bote.sage((Uhr.jetzt()));` | Ausgabe `25ms` | Ausgabe `16ms`, schritte 25, zeitMs 16 |
 | `[1, 2, 3, 4].brigade(x -> { Uhr.vorspulen(x * 1s); serviere (x); });` + `Bote.sage((Uhr.jetzt()));` | `10s 45ms` | `4s 21ms` (Stück 4: 8 Schritte + 4 s) |
 
+Die `belege`-Werte sind mit dem heutigen Interpreter gemessen; die `brigade`-Werte sind daraus nach D6 abgeleitet und werden in
+P1 als Abnahmewerte in den Prüfstand übernommen.
+
 **D7 – Schrittlimit P0002.** Jedes Stück hat als eigenes Limit den Rest beim Anschnitt `R = (Limitbasis + Limit) − S₀`; es
 bricht beim eigenen Schritt `R + 1` mit P0002 ab (Abbruch nach D3). Nach dem Zusammenführen ohne Abbruch wird geprüft:
 `S₀ + Σ sᵢ > Limitbasis + Limit` → P0002 **am `brigade`-Aufruf** (Position des Aufrufs, `schritte` = tatsächliche Summe, kann
@@ -245,7 +248,8 @@ Abbruch nach D3; die Hauptküche setzt am `brigade`-Aufruf mit diesem Rahmen for
 `verbrauchteZeit()` = Uhr nach D6 − Start des Ofens. In der Küche geöffnete Öfen/Lieferungen verhalten sich wie immer.
 
 **D9 – Zufall.** Beim Anschnitt zieht die Hauptküche aus ihrem globalen Strom **n** Saaten in Stückreihenfolge, je
-`floor(r · 2³²)` (wie `neu Zufall()`, K-078); Stück i benutzt als globalen Strom `Zufall` einen mulberry32-Strom mit Saat i.
+`sᵢ = floor(r · 2³²)` (wie `neu Zufall()`, K-078); Stück i benutzt als globalen Strom `Zufall` einen mulberry32-Strom mit
+Saat `sᵢ` (der i-ten gezogenen Saat – **nicht** der Stücknummer).
 Die Hauptküche zieht danach normal weiter (n Ziehungen verbraucht, auch wenn kein Stück Zufall nutzt). `Zufall.saat(n)` in der
 Küche setzt nur den Küchenstrom.
 
@@ -352,9 +356,19 @@ Mechanik:
    auf; die Hauptinstanz holt sie mit `kueche_bericht(i, puffer, kap)` (Retry wie K-013) und führt nach §3 zusammen.
 4. **Host ohne Köche** (Import liefert `-1`, `koeche = 1`, keine SharedArrayBuffer …): Die Laufzeit ruft `kueche_stueck` für
    i = 1 … n **in sich selbst** auf (gleicher Code, gleicher Heap-Reset) und führt nach jedem Bericht sofort zusammen.
-5. In der Küche ruft die Laufzeit **keine** Ausgabe-Imports auf, sondern schreibt Ereignisse in den Bericht; die Hauptinstanz
-   gibt sie beim Zusammenführen über die normalen Imports aus. Der Host muss Ereignisse daher nicht kennen.
-6. Frontend: bis Phase 2 meldet `frontend.js` für `.brigade(` `nichtUnterstuetzt` (Grund „Küchenbrigade noch nicht im
+5. In der Küche ruft die Laufzeit **keinen** der Imports `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`,
+   `fehler`, `panik`, `eingabe`, `ui_senden`, `ui_warte`, `vorrat_lesen`, `vorrat_schreiben` auf, sondern schreibt Ereignisse
+   und den Abbruchstatus (auch Panik) in den Bericht; die Hauptinstanz gibt sie beim Zusammenführen über die normalen Imports aus.
+   Der Host muss Ereignisse daher nicht kennen. Besonders `panik`: HOST-ABI erlaubt dem Host, in `panik` den Lauf abzubrechen –
+   ein Klon darf das nie auslösen, sonst könnte eine Ananas eines früheren Stücks nicht mehr nach D3 gewinnen.
+6. **Wachsende Laufzeitstrukturen unterhalb `frozen_top`.** Jede Laufzeitstruktur, die vor dem Anschnitt angelegt wurde und
+   während eines Stücks wachsen könnte (Warnungsgedächtnis, Lieferungsliste, Kühlschrank-Tabellen, `ARGS`, Namens-/Interntabellen,
+   Theke-/Kammer-Register), würde beim Wachsen ihren Puffer oberhalb `frozen_top` neu anlegen; nach dem Heap-Reset zeigte der
+   Zeiger ins Leere. Regel für den Küchenmodus: Solche Strukturen werden (a) nie berührt, (b) durch küchenlokale Strukturen
+   oberhalb `frozen_top` ersetzt, die am Stückende verfallen (Warnungen, Lieferungen, Kühlschrank-Überlagerung), oder (c) ihr
+   `(ptr, len, cap)` wird im Auftrag gesichert und nach jedem `kueche_stueck` wiederhergestellt. Das gilt für den Inline-Pfad
+   und für Klone, die mehrere Stücke nacheinander ausführen.
+7. Frontend: bis Phase 2 meldet `frontend.js` für `.brigade(` `nichtUnterstuetzt` (Grund „Küchenbrigade noch nicht im
    Wasm-Ofen“) → Playground „Auto“ nutzt den Interpreter. `Pizzaiolo.faehigkeiten.importgruppen` bekommt `kueche`,
    `laufOptionen` bekommt `koeche`.
 
@@ -379,7 +393,8 @@ Schnappschuss (Globale, statische Felder, Closure-Umgebung) als PKF – die Spei
   Threads hat, antwortet `-1`.
 - **Re-Entranz (HOST-ABI §2 „Imports dürfen nicht zurück in das Modul rufen“):** bleibt gültig – `kueche_auftrag` ruft nie die
   aufrufende Instanz, nur andere Instanzen desselben Moduls. Die Regel wird entsprechend präzisiert.
-- **Imports der Klon-Instanzen:** Ausgabe-Imports dürfen nie aufgerufen werden (Host: Trap → K-014); `eingabe` → `-1`,
+- **Imports der Klon-Instanzen:** `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler` und `panik` werden in
+  Klonen nie aufgerufen (§4.4 Punkt 5; Host: Trap → K-014, nie Lauf-Abbruch); `eingabe` → `-1`,
   `ui_warte` → `-1`/`0`, `ui_senden` → Trap, `vorrat_*` → Trap (S4 verhindert Aufrufe), `echtzeit_ms` → Wanduhr bzw.
   `optionen.echtzeit`, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
 - Trap in einem Klon (Bug, Speicher des Hosts erschöpft) → Stück gilt als Abbruch „interner Fehler“: Die Hauptinstanz meldet nach
@@ -400,6 +415,11 @@ Schnappschuss (Globale, statische Felder, Closure-Umgebung) als PKF – die Spei
   braucht die Ereignisschleife des Erzeugers – vgl. Emscripten-`PTHREAD_POOL_SIZE`). Deshalb wird der Pool **asynchron vor**
   `run` erzeugt; ohne Pool → `-1`.
 - Ohne `SharedArrayBuffer`/`Atomics` (keine Cross-Origin-Isolation) oder ohne verschachtelte Worker → `-1` (gleiches Ergebnis).
+- **Zweiteiliger Schnellpfad (WASM.md §2):** Der JS-Host instanziiert intern Laufzeitmodul + kleines Programmmodul, das
+  `memory`, Tabelle und `rt_*` importiert. Ein Klon ist dann ein **Paar** aus Laufzeit- und Programminstanz mit eigenem
+  Speicher und eigener Tabelle; die Speicherkopie zielt auf das `memory` der Laufzeitinstanz (Eigentümerin), `kueche_stueck`
+  wird auf der Instanz aufgerufen, die den Export trägt (Laufzeit). Der Pool erhält beide `WebAssembly.Module`. Alternativ darf
+  der Pool das gelinkte `.pkarton` verwenden – beide Wege müssen dieselben Berichte liefern (Differenztest).
 
 ### 4.7 Nativer Host (`host/`) und EXE
 
@@ -459,8 +479,9 @@ Interpreter-Parallelität lohnt sich erst bei warmem Pool und groben Stücken; P
 5. **Fuzzing** (`tests/fuzz/generator.js`): neue Produktionen `x.brigade(lambda)` mit Rümpfen aus Ausgaben, Warnungen, Würfen,
    Schreibzugriffen auf gefangene/globale Variablen, statische Felder und Felder vorhandener Objekte, Ofen-Budgets, kleinem
    Schrittlimit, Zufall, `neu`, verschachtelter Brigade; Orakel: 1 vs. n Köche, Chaos, alle Motoren.
-6. **Schnappschuss-Invarianz (Wasm, Debug-Build):** Prüfsumme des Speichers unterhalb `frozen_top` vor/nach jedem Stück muss
-   gleich sein (findet vergessene Wachen in der Laufzeit). Interpreter-Gegenstück: Debug-Option, die `gefroren` per
+6. **Schnappschuss-Invarianz (Wasm, Debug-Build):** Prüfsumme des Heaps `[HEAP_START, frozen_top)` plus der statischen Daten,
+   die kein Laufzeitzustand sind, vor/nach jedem Stück muss gleich sein (findet vergessene Wachen in der Laufzeit). `ZUSTAND`,
+   Schattenstapel und Argumentstapel ändern sich legitim und sind ausgenommen. Interpreter-Gegenstück: Debug-Option, die `gefroren` per
    `Object.freeze` zusätzlich hart einfriert.
 7. **Stress:** 10⁴ winzige Stücke; 8 Stücke mit Rekursionstiefe 373 (§14.4-Referenz); Stücke mit 10⁵ Ausgabezeilen; jedes Stück
    wirft (erstes gewinnt); Speicherlimit in einem Stück; 64 MiB Heap beim Anschnitt.
