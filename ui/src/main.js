@@ -393,6 +393,22 @@ function start() {
     $("exe-fehler").hidden = !text;
     $("exe-fehler").textContent = text || "";
   }
+  // Voraussetzung der gewählten Plattform sichtbar unter der Auswahl; Installationsbefehle als <code>.
+  function exeVoraussetzungZeigen(ziel) {
+    const p = $("exe-voraussetzung");
+    const text = ziel && ziel.voraussetzung ? String(ziel.voraussetzung) : "";
+    p.replaceChildren();
+    p.hidden = !text;
+    if (!text) return;
+    const b = document.createElement("strong");
+    b.textContent = "Voraussetzung: ";
+    p.appendChild(b);
+    text.split(/((?:sudo )?(?:apt|apt-get|dnf|pacman|zypper) [^,;)]+)/).forEach((teil, i) => {
+      if (!teil) return;
+      if (i % 2) { const k = document.createElement("code"); k.textContent = teil.trim(); p.appendChild(k); }
+      else p.appendChild(document.createTextNode(teil));
+    });
+  }
   async function exeDialogOeffnen() {
     if (exeBeschaeftigt) return;
     let grund = wendeExeAn();
@@ -414,13 +430,13 @@ function start() {
     for (const z of exeZiele) {
       const l = document.createElement("label");
       l.className = "exe-ziel";
-      if (z && z.voraussetzung) l.title = String(z.voraussetzung);
       const r = document.createElement("input");
       r.type = "radio";
       r.name = "exe-ziel";
       r.value = zielId(z);
       r.checked = z === vorwahl;
       r.dataset.testid = "exe-ziel";
+      r.addEventListener("change", () => { if (r.checked) exeVoraussetzungZeigen(z); });
       l.appendChild(r);
       const n = document.createElement("span");
       n.textContent = zielName(z);
@@ -429,6 +445,7 @@ function start() {
       if (e) { const k = document.createElement("code"); k.textContent = e; l.appendChild(k); }
       feld.appendChild(l);
     }
+    exeVoraussetzungZeigen(vorwahl);
     exeStatus(null); exeFehler(null);
     $("exe-hinweise").open = false;
     $("exe-los").disabled = false;

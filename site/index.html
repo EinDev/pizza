@@ -223,9 +223,10 @@
   <dialog class="dialog dialog-exe" id="dialog-exe" data-testid="dialog-exe" aria-labelledby="exe-titel">
     <h2 id="exe-titel">Als Programm herunterladen <span class="beta-badge" data-testid="exe-beta">Beta</span></h2>
     <p class="exe-intro">Dein Code aus <strong id="exe-tabname">…</strong> wird zu WebAssembly gebacken und in ein eigenständiges Programm verpackt – ganz ohne Server, direkt in deinem Browser. <em>Beta:</em> Noch lässt sich nicht jedes Programm als Programm backen.</p>
-    <fieldset class="exe-ziele" id="exe-ziele" data-testid="exe-ziele">
+    <fieldset class="exe-ziele" id="exe-ziele" data-testid="exe-ziele" aria-describedby="exe-voraussetzung">
       <legend>Plattform</legend>
     </fieldset>
+    <p class="exe-voraussetzung" id="exe-voraussetzung" data-testid="exe-voraussetzung" aria-live="polite" hidden></p>
     <div class="exe-status" id="exe-status" data-testid="exe-status" role="status" aria-live="polite" hidden>
       <progress id="exe-fortschritt" max="3" value="0"></progress>
       <span id="exe-status-text"></span>
@@ -236,7 +237,6 @@
       <ul>
         <li><strong>Windows:</strong> Die .exe ist nicht signiert. Zeigt Windows SmartScreen „Der Computer wurde durch Windows geschützt“, klick auf <em>Weitere Informationen → Trotzdem ausführen</em>.</li>
         <li><strong>Linux:</strong> erst ausführbar machen: <code id="exe-chmod">chmod +x programm &amp;&amp; ./programm</code>; braucht WebKitGTK 4.1 (Debian/Ubuntu: <code>sudo apt install libwebkit2gtk-4.1-0</code>).</li>
-        <li><strong>macOS:</strong> ggf. per Rechtsklick → <em>Öffnen</em> bestätigen (Gatekeeper).</li>
         <li>Das Programm läuft in der <strong>Konsole/im Terminal</strong>. Interaktive Eingaben (<code>Bestellannahme</code>) tippst du dort ein; Strg+D (Windows: Strg+Z, Enter) beendet die Eingabe.</li>
       </ul>
     </details>
