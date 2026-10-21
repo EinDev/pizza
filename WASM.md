@@ -50,7 +50,9 @@ quelltext ──► Frontend (PizzaLang.parse → Semantik/Typisierung) ──�
   `laufzeit`) – gleicher Code, gleiches Verhalten.
 - **Speicher (Phase 1):** Bump/Arena-Allocator mit fester Obergrenze (Standard 1024 MiB, `speicher_limit_setzen`). Überschreitung →
   `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).` (fangbar, deterministisch). Ein echter GC
-  folgt in Phase 2. Der Interpreter bekommt dafür **kein** Limit – Differenztests unter Allokationsdruck dokumentieren die Grenze.
+  folgt in Phase 2. Der Interpreter hat kein eigenes festes Limit, meldet aber Engine-Grenzen
+  (z. B. V8 „Invalid string length“) mit derselben Ananas (K-089); die genaue Grenze darf je Motor abweichen –
+  Differenztests werten das als „speicherlimit“.
 - **Ananas ohne Wasm-EH:** globales „schwebende Ananas“-Register + Prüfung nach jedem Aufruf, der werfen kann
   (Konvention im IR/Backend). Hawaii-Panik → Host-Import `panik` am Programmende; der Host darf dort abbrechen, sonst
   wickelt das Modul selbst ab (K-045: bei Widersprüchen gilt HOST-ABI.md).
