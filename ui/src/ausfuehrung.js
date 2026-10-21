@@ -17,6 +17,14 @@ export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
   });
 }
 
+/** Liest js/motoren.json ({ wasm, exe }); fehlt sie, gilt alles als nicht verfügbar. */
+export function ladeMotoren() {
+  return fetch("js/motoren.json", { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}))
+    .then((m) => ({ wasm: !!(m && m.wasm === true), exe: !!(m && m.exe === true) }));
+}
+
 /** Interaktive Eingabe möglich? (SharedArrayBuffer + Atomics, nur bei Cross-Origin-Isolation) */
 export function interaktivMoeglich() {
   return typeof SharedArrayBuffer === "function" && typeof Atomics === "object" && self.crossOriginIsolated === true;

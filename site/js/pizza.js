@@ -1298,6 +1298,9 @@
     schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
     farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal']
   };
+  // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
+  const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
+  const UI_ANIM_MAX = 32;  // höchstens 32 Einträge je aendere-Nachricht, weitere entfallen still
   class UiTheke {
     constructor(titel, breite, hoehe) {
       this.titel = titel; this.breite = breite; this.hoehe = hoehe;
@@ -1310,7 +1313,7 @@
       this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
       this.kinder = UI_BEHAELTER[art] === true ? [] : null;
       this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
-      this.stilNull = null; this.hinweis = '';
+      this.stilNull = null; this.hinweis = ''; this.uebergang = false;
       this.intervall = 1000; this.beiTakt = null;            // Takt
       this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
       this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter
@@ -1594,7 +1597,13 @@
 
   const KARTE_M = tabelle({
     'lege': function (m, pos) { if (this.kueche !== null) this.kuecheKarte(m); m.set(this.schluessel(pos[0]), pos.length > 1 ? pos[1] : null); return m; },
-    'hole': function (m, pos) { const k = this.schluessel(pos[0]); return m.has(k) ? m.get(k) : null; },
+    'hole': function (m, pos, ben) {
+      // K-095: hole(k[, ersatz]) – Ersatzwert (positional oder benannt) nur, wenn der Schlüssel fehlt.
+      const k = this.schluessel(pos[0]);
+      if (m.has(k)) return m.get(k);
+      const e = arg(pos, ben, 1, 'ersatz');
+      return e === undefined ? null : e;
+    },
     'hat': function (m, pos) { return m.has(this.schluessel(pos[0])); },
     'entferne': function (m, pos) { if (this.kueche !== null) this.kuecheKarte(m); const k = this.schluessel(pos[0]); const v = m.has(k) ? m.get(k) : null; m.delete(k); return v; },
     'schlüssel': function (m) { return Array.from(m.keys()); },
@@ -1902,6 +1911,23 @@
       this.uiAendere(z, 'hinweis', z.hinweis);
       return z;
     },
+    'uebergang': function (z, pos) {
+      if (!pos.length) return z.uebergang;
+      z.uebergang = this.bool(pos[0]);
+      this.uiAendere(z, 'uebergang', z.uebergang);
+      return z;
+    },
+    'animiere': function (z, pos, ben, node) {
+      const a = arg(pos, ben, 0, 'art');
+      const art = this.text(a === undefined ? null : a);
+      if (UI_ANIMATIONEN.indexOf(art) < 0) throw this.ananas('LaufzeitAnanas', 'Animation \'' + art + '\' gibt es nicht. Erlaubt: ' + UI_ANIMATIONEN.join(', ') + '.');
+      const dauer = this.uiAnimDauer(arg(pos, ben, 1, 'dauer'), 'animiere');
+      if (!this.uiAnimOffen(z, node)) return z;
+      const e = { id: z.id, art };
+      if (dauer !== null) e.dauer = dauer;
+      this.uiAnimPuffer(e);
+      return z;
+    },
     'sichtbar': function (z, pos) {
       if (!pos.length) return z.sichtbar;
       z.sichtbar = this.bool(pos[0]);
@@ -2028,6 +2054,27 @@
       return t;
     },
     'titel': function (t) { return t.titel; },
+    'schwebe': function (t, pos, ben, node) {
+      const tx = arg(pos, ben, 0, 'text');
+      const text = this.text(tx === undefined ? null : tx);
+      let bei = arg(pos, ben, 1, 'bei');
+      if (bei === undefined) bei = null;
+      if (bei !== null && !(bei instanceof UiZutat)) throw this.ananas('TypAnanas', 'schwebe(bei: …) braucht eine Zutat, nicht ' + this.darstellung(bei) + '.');
+      let farbe = arg(pos, ben, 2, 'farbe');
+      if (farbe === undefined) farbe = null;
+      if (farbe !== null) {
+        farbe = this.text(farbe);
+        if (UI_STIL.farbe.indexOf(farbe) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + farbe + '\' ist für Stil \'farbe\' nicht erlaubt. Erlaubt: ' + UI_STIL.farbe.join(', ') + '.');
+      }
+      const dauer = this.uiAnimDauer(arg(pos, ben, 3, 'dauer'), 'schwebe');
+      if (!this.uiAnimOffen(bei, node)) return t;
+      const e = { art: 'schwebe', text };
+      if (bei !== null) e.id = bei.id;
+      if (farbe !== null) e.farbe = farbe;
+      if (dauer !== null) e.dauer = dauer;
+      this.uiAnimPuffer(e);
+      return t;
+    },
     'alsText': function (t) { return this.text(t); }
   });
 
@@ -2072,6 +2119,7 @@
       this.uiZutaten = new Map();
       this.uiIdZaehler = 0;
       this.uiOffen = new Map();
+      this.uiAnim = [];  // gepufferte Animationen (K-090), Aufrufreihenfolge
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -2622,6 +2670,7 @@
       }
       if (z.hinweis !== '') o.hinweis = z.hinweis;
       if (!z.sichtbar) o.sichtbar = false;
+      if (z.uebergang) o.uebergang = true;
       if (z.stil !== null) o.stil = Object.assign({}, z.stil);
       z.stilNull = null;
       if (z.kinder !== null) o.kinder = z.kinder.map(k => this.uiBaum(k));
@@ -2636,19 +2685,49 @@
     }
 
     uiFlush() {
-      if (this.uiOffen.size === 0) return;
+      if (this.uiOffen.size === 0 && this.uiAnim.length === 0) return;
       const aenderungen = Array.from(this.uiOffen.values());
       this.uiOffen.clear();
       for (const a of aenderungen) {
         if ('stil' in a) { const z = this.uiZutaten.get(a.id); if (z !== undefined) z.stilNull = null; }
       }
-      this.uiSende({ v: 1, op: 'aendere', aenderungen });
+      const n = { v: 1, op: 'aendere', aenderungen };
+      if (this.uiAnim.length > 0) { n.animationen = this.uiAnim; this.uiAnim = []; }
+      this.uiSende(n);
+    }
+
+    // K-090: Dauer einer Animation – Dauer, ganze ms (K-047), 50 ms … 5 s; karton/fehlend → null (Standard des Renderers)
+    uiAnimDauer(d, wo) {
+      if (d === undefined || d === null) return null;
+      if (!(d instanceof Dauer)) throw this.ananas('TypAnanas', wo + '(dauer: …) braucht eine Dauer, nicht ' + this.darstellung(d) + '.');
+      const ms = Math.round(d.ms);
+      if (!(ms >= 50 && ms <= 5000)) throw this.ananas('LaufzeitAnanas', 'Eine Animation dauert 50ms bis 5s, nicht ' + dauerText(d.ms) + '.');
+      return ms;
+    }
+
+    // K-090: Animation nur bei offener Theke und gezeigter Zutat (z === null: Fenstermitte), sonst W0102 je Aufrufstelle
+    uiAnimOffen(z, node) {
+      const t = this.uiTheke;
+      if (t === null || !t.gezeigt || t.geschlossen) {
+        this.warnung('W0102', 'Animation entfällt – die Theke ist nicht offen.', node);
+        return false;
+      }
+      if (z !== null && !this.uiAngezeigt(z)) {
+        this.warnung('W0102', 'Animation entfällt – \'' + z.id + '\' liegt nicht auf der Theke.', node);
+        return false;
+      }
+      return true;
+    }
+
+    uiAnimPuffer(e) {
+      if (this.uiAnim.length < UI_ANIM_MAX) this.uiAnim.push(e);
     }
 
     uiZeige(t, z) {
       if (!(z instanceof UiZutat)) throw this.ananas('TypAnanas', 'zeige() braucht eine Zutat, nicht ' + this.darstellung(z) + '.');
       if (z.eltern !== null) throw this.ananas('LaufzeitAnanas', 'Die Zutat \'' + z.id + '\' liegt schon in einem Behälter und kann nicht die Wurzel sein.');
       this.uiOffen.clear();
+      this.uiAnim = [];
       t.wurzel = z;
       if (!t.gezeigt || t.geschlossen) {
         t.gezeigt = true;
@@ -2691,6 +2770,7 @@
         const ev = this.uiNaechstesEreignis();
         if (ev.typ === 'geschlossen') {
           this.uiOffen.clear();
+          this.uiAnim = [];
           t.geschlossen = true;
           t.gezeigt = false;
           return;

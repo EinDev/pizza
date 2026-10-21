@@ -1,7 +1,7 @@
 // pizza v3.0 Playground – Einstieg.
 import { erstelleEditor } from "./editor.js";
 import { erstelleKonsole } from "./konsole.js";
-import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich } from "./ausfuehrung.js";
+import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { ausInterpreterErgaenzen } from "./woerter.js";
@@ -9,6 +9,8 @@ import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
 import { erstelleVorschau } from "./vorschau.js";
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
+import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen } from "./vorrat.js";
+import { startApp } from "./app.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -230,10 +232,7 @@ function start() {
   /** Liest js/motoren.json ({ wasm, exe }); fehlt sie, gilt alles als nicht verfügbar. */
   function holeMotoren(neu = false) {
     if (!motorenVersprechen || neu) {
-      motorenVersprechen = fetch("js/motoren.json", { cache: "no-cache" })
-        .then((r) => (r.ok ? r.json() : {}))
-        .catch(() => ({}))
-        .then((m) => ({ wasm: !!(m && m.wasm === true), exe: !!(m && m.exe === true) }));
+      motorenVersprechen = ladeMotoren();
     }
     return motorenVersprechen;
   }
@@ -546,48 +545,13 @@ function start() {
     catch (e) { return Math.floor(Math.random() * 4294967296); }
   }
 
-  // ---------- Vorratskammer (K-079 … K-081) ----------
-  // Regel gegen verfälschte Spielstände: Tabs aus Galerie/Doku (Schlüssel „bsp:…“/„doku:…“) haben einen eigenen
-  // Namensraum; alle übrigen Tabs (eigene, Dateien, geteilte, Willkommen) teilen sich die echten Kammern.
-  const VORRAT = "pizza.vorrat.", VORRAT_BEISPIEL = "pizza.vorrat-beispiel.";
+  // ---------- Vorratskammer (K-079 … K-081), Namensräume siehe vorrat.js ----------
   let laufVorratPraefix = VORRAT;
-  function vorratPraefix(t) { return t && /^(bsp|doku):/.test(t.schluessel || "") ? VORRAT_BEISPIEL : VORRAT; }
-  function vorratVerfuegbar() {
-    try { const k = "pizza.vorrat-test"; localStorage.setItem(k, "1"); localStorage.removeItem(k); return true; } catch (e) { return false; }
-  }
-  function vorratLaden(praefix) {
-    const vorrat = {};
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k || !k.startsWith(praefix)) continue;
-        const name = k.slice(praefix.length);
-        if (!/^[a-z0-9-]{1,40}$/.test(name)) continue;
-        try {
-          const d = JSON.parse(localStorage.getItem(k));
-          if (d && d.v === 1 && Array.isArray(d.eintraege)) vorrat[name] = d.eintraege;
-        } catch (e) { /* kaputter Eintrag wird ignoriert */ }
-      }
-    } catch (e) { /* kein Zugriff */ }
-    return vorrat;
-  }
   function vorratSpeichern(praefix, name, eintraege) {
-    if (!/^[a-z0-9-]{1,40}$/.test(String(name))) return;
-    try { localStorage.setItem(praefix + name, JSON.stringify({ v: 1, name, eintraege })); }
-    catch (e) { toast("Der Vorrat „" + name + "“ konnte im Browser nicht gespeichert werden (Speicher voll?).", "fehler"); }
+    if (!vorratSchreiben(praefix, name, eintraege)) toast("Der Vorrat „" + name + "“ konnte im Browser nicht gespeichert werden (Speicher voll?).", "fehler");
   }
 
   // „Vorrat löschen“ (gleiche Texte wie bin/pizza.js --vorrat-loeschen / --vorrat-loeschen-alle)
-  function vorratNamen(praefix) {
-    const namen = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(praefix) && /^[a-z0-9-]{1,40}$/.test(k.slice(praefix.length))) namen.push(k.slice(praefix.length));
-      }
-    } catch (e) { /* kein Zugriff */ }
-    return namen.sort();
-  }
   async function vorratLoeschen(name) {
     const praefix = vorratPraefix(tabs.aktiv());
     const raum = praefix === VORRAT_BEISPIEL ? " (Vorräte der Beispiele)" : "";
@@ -863,7 +827,7 @@ function start() {
     if (gemerkt !== "light" && gemerkt !== "dark") setzeThema(e.matches ? "dark" : "light", false);
   });
 
-  // ---------- Teilen: Link über unseren Server (#h=<key>) ----------
+  // ---------- Teilen: Links über unseren Server – Code öffnen (#h=<key>) und App starten (#app=<key>, app.js) ----------
   const teilenDlg = $("dialog-teilen");
   let teilenCode = "", teilenName = "";
   function teilenSchritt(name) {
@@ -917,11 +881,14 @@ function start() {
       let daten = null;
       try { daten = await r.json(); } catch (e) { daten = null; }
       if (r.ok && daten && typeof daten.key === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(daten.key)) {
-        const url = location.href.split("#")[0] + "#h=" + daten.key;
+        const basis = location.href.split("#")[0];
+        const url = basis + "#h=" + daten.key;
         try { history.replaceState(null, "", "#h=" + daten.key); } catch (e) { /* egal */ }
         letzterHash = location.hash;
         $("teilen-url").value = url;
-        $("teilen-fertig-text").textContent = "„" + teilenName + "“ ist gespeichert. Jeder mit diesem Link kann den Code lesen.";
+        $("teilen-url-app").value = basis + "#app=" + daten.key;
+        $("teilen-kopieren-app").textContent = "Kopieren";
+        $("teilen-fertig-text").textContent = "„" + teilenName + "“ ist gespeichert. Jeder mit einem der Links kann den Code lesen.";
         setzeDauer(await holeKonfig());
         teilenSchritt("fertig");
         const ok = await kopiere(url);
@@ -961,6 +928,11 @@ function start() {
     if (!ok) { $("teilen-url").select(); }
     $("teilen-kopieren").textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
   });
+  $("teilen-kopieren-app").addEventListener("click", async () => {
+    const ok = await kopiere($("teilen-url-app").value);
+    if (!ok) { $("teilen-url-app").focus(); $("teilen-url-app").select(); }
+    $("teilen-kopieren-app").textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
+  });
 
   // Geteilte Links (#h=<key>) öffnen als neuer Tab
   let letzterHash = location.hash;
@@ -982,6 +954,8 @@ function start() {
   }
   window.addEventListener("hashchange", () => {
     if (location.hash === letzterHash) return;
+    // App-Link (z. B. per Zurück-Taste): Seite neu laden – der App-Modus entscheidet sich vor dem ersten Zeichnen (thema.js)
+    if (/(?:^#|&)app=[A-Za-z0-9_-]{1,64}(?:&|$)/.test(location.hash)) { location.reload(); return; }
     letzterHash = location.hash;
     hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
   });
@@ -1134,5 +1108,10 @@ function ziehbar(griff, achse, { start, bewege, ende, taste }) {
   });
 }
 
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
-else start();
+// App-Link (#app=<key>): js/thema.js hat data-app gesetzt → nur die App starten, kein Editor (app.js)
+function los() {
+  const key = document.documentElement.dataset.app;
+  if (key) startApp(key); else start();
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", los);
+else los();

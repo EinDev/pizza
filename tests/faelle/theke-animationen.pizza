@@ -1,0 +1,21 @@
+// Theke v3 (K-090/091): animiere, schwebe, uebergang – Feld animationen in aendere, Aufrufreihenfolge
+Theke t = neu Theke("Imperium");
+Schild kasse = neu Schild("0 €");
+Stapel liste = neu Stapel([]).uebergang(ja);
+Takt uhr = neu Takt(1s);
+Knopf backen = neu Knopf("Backen", () -> {
+    kasse.setzeText("12 €");
+    Schild zeile = neu Schild("Pizza fertig");
+    liste.hinzu(zeile);
+    zeile.animiere("einblenden");
+    backen.animiere("huepfen").animiere(art: "huepfen", dauer: 200ms);
+    kasse.animiere("puls", 1s);
+    t.schwebe("+12", backen, "basilikum", 0.8s);
+    t.schwebe(text: "Glück!", farbe: "kruste");
+    uhr.animiere("funkeln");
+    Bote.sage(("gebacken " + liste.uebergang() + " " + backen.uebergang()));
+});
+t.zeige(neu Stapel([kasse, backen, liste, uhr]));
+kasse.animiere("aufpoppen");
+t.bediene();
+kasse.animiere("wackeln");

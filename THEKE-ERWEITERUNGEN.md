@@ -192,7 +192,45 @@ HOST-ABI (Ereignisse kommen über `ui_warte`). `Uhr.echt()` braucht einen Import
 
 `pizza-imperium.pizza` nutzt alles aus §1–§8 direkt (kein Fallback mehr, Nutzerentscheidung F8): `Takt` (1 s, passive Produktion
 und Ereignisse in Sekunden), `kompakt()`/`euro(kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
-perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium), `Fortschritt` je Upgrade und
-für den nächsten Stern, `Tabelle` für Erfolge und Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse,
-Vorratskammer + `Uhr.echt()` für Speichern und Offline-Fortschritt (50 %, höchstens 8 h). Der Reiter „Imperium“ wird nur gezeichnet,
-wenn er offen ist (große Tabellen-Nachrichten sparen). Tests: Manifest-Feld `echtzeit` (fester Wert), leere Vorratskammer.
+perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium · Geheimnisse · Minispiele), `Fortschritt` je
+Upgrade, für den nächsten Stern, die nächste Filiale und das Ziel einer Herausforderung, `Tabelle` für Erfolge, Aufstieg und
+Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse, Vorratskammer + `Uhr.echt()` für Speichern und
+Offline-Fortschritt (50 %, höchstens 30 min). Die Reiter „Imperium“ und „Geheimnisse“ werden nur gezeichnet, wenn sie offen sind
+(große Tabellen-Nachrichten sparen). Tests: Manifest-Feld `echtzeit` (fester Wert), leere Vorratskammer; `.ereignisse` aus einem
+echten Lauf (Interpreter, Saat 42) mit Takt-Sprüngen bis zur ersten Franchise.
+
+**Aufstieg (v3, Spielstand `version` 3 – ältere Stände laden mit Standardwerten):**
+
+| Ebene | Freischaltung | Mechanik |
+|---|---|---|
+| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋, +10 % auf alles je **aktivem** Stern |
+| 📜 Geheimrezepte | 1. Stern | Talentbaum, kostet Sterne (ausgegebene Sterne verlieren ihre +10 %): Holzofen-Glut (1 ⭐, Betrieb +50 %), Sauerteig von 1890 (1 ⭐, Preis +20 %), Stammgäste (2 ⭐, Ereignisse doppelt so oft und doppelt so ergiebig), Nonnas Sparstrumpf (2 ⭐, nach Holzofen: Start mit 10 Lehrlingen + 5 Steinöfen), Nonnas Gedächtnis (3 ⭐, nach Sauerteig: Rezeptbuch bleibt), Lavastein-Ofen (4 ⭐, nach Holzofen: Sonderschicht doppelt so lang, 45 s Abkühlung) |
+| 🏅 Herausforderungen | 3 Sterne insgesamt | Neueröffnung unter Auflagen, Ziel = Umsatz der Runde, Belohnung für immer: Neapel-Modus (nur Lehrlinge/Steinöfen, 5 Mio. € → beide ×3), Hawaii-Verbot verschärft (kein Rezeptbuch, Hawaii-Gäste fliegen raus, 1 Mrd. € → Preis +25 %), Fastenzeit (kein Klicken, keine Sonderschicht, keine Ereignisse, 5 Mrd. € → Betrieb +25 %); „Aufgeben“ hebt die Auflagen auf |
+| 🏢 Franchise | 25 Sterne in der laufenden Kette | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale; setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
+
+Jeder Neustart (Neueröffnung, Herausforderung, Aufgeben, Franchise, Neu anfangen) fragt nach: erster Klick ändert den Knopftext,
+der zweite binnen 10 s bestätigt. **Klicken:** Klickwert = (1 + feste Handwerk-Pizzen) × Sterne × Filialen + Anteil (0,05 % je
+Kurier/Tarantella/Roboter/Vesuv) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der
+Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
+letzten 5 Minuten nach 15 min 12–15 %, nach 30 min 9–14 %, nach 55 min 6–9 % (10 Klicks/s: 18–27 % / 13–15 % / 12–16 %);
+nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.
+
+**Minispiele (Spielstand `version` 4 – Stände der Version 2/3 laden mit Standardwerten):** Reiter „🎲 Minispiele“ (Nonnas
+Spielecke), vier kurze, freiwillige Spiele mit einer **gemeinsamen** Pause von 2 min nach jedem Spiel (läuft auch offline ab); ein
+Sieg bringt `portion()` × 8–10 s (Sekundenproduktion bzw. ein Klick, wenn der mehr bringt), eine Niederlage nichts. Uhr ist ein
+zweiter `Takt` (`spieltakt`, 150 ms bzw. 500 ms per `setzeIntervall`, nur während eines Spiels aktiv; Nachholschläge `anzahl > 1`
+werden mitgezählt); Zufall nur über die globale Saat, keine Animationen (Wasm/EXE gleich).
+
+| Spiel | Ablauf | Sieg |
+|---|---|---|
+| 🫓 Teig fangen (8 s) | 🫓 pendelt über 21 Felder (`Schild` je Feld, Ziel 3 Felder grün, Lage per `Zufall.zahl`) | „Fangen!“ im Ziel, sonst/nach 12 s verloren |
+| 🧾 Bestellung merken (10 s) | 4 Beläge (`Zufall.wähle`) 3 s sichtbar, dann 6 Belag-Knöpfe | richtige Reihenfolge binnen 15 s |
+| 🌡 Ofen halten (10 s) | Temperatur driftet je 0,5 s um `Zufall.zahl(-16, 6)`, Knöpfe ±25 °C | ≥ 7 von 10 s in 380–440 °C |
+| 🛵 Lieferroute (8 s) | 3 Wege (`Zufall.mische`) mit km, Ampeln, Stau; Fahrzeit 2 min/km + 1/Ampel + 4/Staustufe | schnellster Weg binnen 10 s |
+
+Fastenzeit sperrt die Spielecke (ein laufendes Spiel endet ohne Wertung). Statistik: „Anteil Minispiele am Umsatz“ (Runde · gesamt),
+„Minispiele gewonnen“; Erfolge „Nonnas Spielkamerad“ (jedes Spiel einmal gewonnen) und „Stammspieler“ (25 Spiele). Fenster 660 px
+breit (fünf Reiter). Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, startet jedes Spiel, sobald die Pause um ist, und gewinnt **immer**;
+die Spieldauer selbst kostet ihn keine Spielzeit – Obergrenze): Minispiel-Anteil am Umsatz nach 60 min 4,1–4,7 % (je 5-min-Fenster
+3,7–6,1 %), mit Aufstieg 4,1–5,1 %; Klickanteil unverändert 7,7–8,8 %. Tests: `.ereignisse` aus echtem Lauf, jedes Spiel einmal
+gewonnen und einmal verloren, dazu ein gesperrter Startversuch in der Fastenzeit.

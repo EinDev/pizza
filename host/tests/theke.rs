@@ -125,3 +125,69 @@ fn fixture_schreiben() {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("theke-smoke.pkarton");
     std::fs::write(p, wat::parse_str(WAT).unwrap()).unwrap();
 }
+
+/// Startet `pizza-host [extra] programm` so, dass kein Fenster möglich ist (K-096): Linux ohne Anzeige,
+/// Windows mit simuliert fehlender WebView2-Runtime. Nie ein sichtbares Fenster, nie der echte Vorrat.
+#[cfg(feature = "theke")]
+fn ohne_fenster(wat: &str, name: &str, extra: &[(&str, &str)]) -> std::process::Output {
+    let dir = std::env::temp_dir().join(format!("pizza-theke-ohne-{}-{}", name, std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let k = dir.join("t.pkarton");
+    std::fs::write(&k, wat::parse_str(wat).unwrap()).unwrap();
+    let mut c = Command::new(env!("CARGO_BIN_EXE_pizza-host"));
+    c.arg("--kein-vorrat")
+        .arg(&k)
+        .env_remove("PIZZA_THEKE")
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .env("PIZZA_TEST_OHNE_WEBVIEW2", "1")
+        .env("PIZZA_THEKE_UNSICHTBAR", "1")
+        .stdin(Stdio::null());
+    for (k, v) in extra {
+        c.env(k, v);
+    }
+    let out = c.output().unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    out
+}
+
+#[cfg(all(feature = "theke", any(windows, all(unix, not(target_os = "macos")))))]
+#[test]
+fn theke_ohne_fenster_bricht_ab() {
+    let out = ohne_fenster(WAT, "abbruch", &[]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(2), "stderr: {}", err);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "", "kein Programmlauf vor dem Abbruch");
+    if cfg!(windows) {
+        assert!(err.contains("braucht die Microsoft Edge WebView2 Runtime für sein Theke-Fenster"), "{}", err);
+    } else {
+        assert!(err.contains("braucht einen Bildschirm für sein Theke-Fenster"), "{}", err);
+    }
+    assert!(!err.contains("detail:"), "detail nur mit --debug: {}", err);
+    assert!(!err.contains("W0100"), "{}", err);
+}
+
+/// Ausnahme `PIZZA_THEKE=0` (Tests/CI): fensterlos wie bisher, `ui_warte` → -1, Exit-Code des Programms.
+#[cfg(feature = "theke")]
+#[test]
+fn theke_abgeschaltet_laeuft_weiter() {
+    let out = ohne_fenster(WAT, "aus", &[("PIZZA_THEKE", "0")]);
+    assert_eq!(out.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Ende\n");
+}
+
+/// Programme ohne Theke laufen auch ohne Fenster (z. B. über SSH) ganz normal.
+#[cfg(feature = "theke")]
+#[test]
+fn konsolenprogramm_ohne_fenster() {
+    let wat = r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "Konsole")
+  (func (export "start") (result i32)
+    (call $ausgabe (i32.const 0) (i32.const 7))
+    i32.const 0))"#;
+    let out = ohne_fenster(wat, "konsole", &[]);
+    assert_eq!(out.status.code(), Some(0), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Konsole\n");
+}

@@ -1,0 +1,23 @@
+// Theke v3 (K-090/091): Fehlertexte (Ananas, unabhängig vom Fenster) und W0102 je Aufrufstelle
+Theke t = neu Theke("F");
+Knopf k = neu Knopf("k");
+Schild frei = neu Schild("frei");
+probier { k.animiere("tanzen"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere("puls", "300ms"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere("puls", dauer: 49ms); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere("puls", dauer: 5001ms); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.schwebe("x", bei: t); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.schwebe("x", farbe: "Tomate"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.schwebe("x", dauer: 1.5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { frei.uebergang("ja"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+k.animiere("puls");
+t.schwebe("vorher");
+t.zeige(k);
+frei.animiere("puls");
+t.schwebe("da", bei: frei);
+k.animiere("puls", dauer: karton).animiere("wackeln", dauer: 49.6ms);
+t.schwebe("", karton, karton, karton);
+t.schliesse();
+k.animiere("puls");
+Bote.sage((frei.uebergang()));

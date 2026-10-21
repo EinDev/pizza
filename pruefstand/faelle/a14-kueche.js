@@ -235,6 +235,16 @@ ${fang("[1].brigade(x -> s.text())")}
 Bote.sage((s.text()));
 `, { out: ["Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "hallo"] }),
 
+  F(K, "§17.3 S4: Theke v3 (§16.6) – animiere, uebergang (auch Getter) und Theke.schwebe werfen in der Küche", P`
+Theke t = neu Theke("A");
+Schild s = neu Schild("hallo");
+${fang('[1].brigade(x -> s.animiere("puls"))')}
+${fang("[1].brigade(x -> s.uebergang(ja))")}
+${fang("[1].brigade(x -> s.uebergang())")}
+${fang('[1].brigade(x -> t.schwebe("+1"))')}
+Bote.sage((s.text()));
+`, { out: ["Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "hallo"] }),
+
   F(K, "§17.3 S4 (K-101/3): neu Zutat() wirft auch in der Küche die RohlingAnanas (abstrakt überall), nicht den S4-Text", P`
 probier { [1].brigade(x -> neu Zutat()); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
 probier { neu Zutat(); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

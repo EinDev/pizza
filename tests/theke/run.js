@@ -344,8 +344,16 @@ function fakeUhr() {
     jetzt: () => uhr.t,
     setzeIntervall: (fn, ms) => { const h = uhr.naechste++; uhr.laufend.set(h, { fn, ms }); return h; },
     loescheIntervall: (h) => { uhr.geloescht.push(h); uhr.laufend.delete(h); },
+    nach: (fn, ms) => { const h = uhr.naechste++; uhr.spaeter.set(h, { fn, bis: uhr.t + ms }); return h; },
+    loescheNach: (h) => { uhr.spaeter.delete(h); },
   };
-  uhr.vor = (ms) => { uhr.t += ms; for (const { fn } of [...uhr.laufend.values()]) fn(); };
+  uhr.spaeter = new Map();
+  uhr.vor = (ms) => {
+    uhr.t += ms;
+    for (const { fn } of [...uhr.laufend.values()]) fn();
+    const faellig = [...uhr.spaeter.entries()].filter(([, s]) => s.bis <= uhr.t).sort((x, y) => x[1].bis - y[1].bis || x[0] - y[0]);
+    for (const [h, { fn }] of faellig) if (uhr.spaeter.delete(h)) fn();
+  };
   return uhr;
 }
 function mitUhr(fn) {
@@ -695,4 +703,274 @@ test("v2-Zutaten: keine Feldwarnungen bei vollständigen Knoten, nach schliesse 
   t.empfange({ v: 1, op: "schliesse" });
   uhr.vor(10000);
   assert.deepEqual(ereignisse, []);
+}));
+
+// ====================================================================== v3: Animationen & uebergang (K-090 … K-092, SPEC §16.6)
+
+const ANIM_BAUM = () => ({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+  { id: "zahl", art: "schild", text: "1.234" },
+  { id: "k", art: "knopf", text: "Backen!" },
+  { id: "weg", art: "schild", text: "versteckt", sichtbar: false },
+  { id: "t1", art: "takt", intervall: 1000, aktiv: false },
+  { id: "r", art: "reiter", titel: ["A", "B"], gewaehlt: 1, kinder: [
+    { id: "p1", art: "schild", text: "eins" }, { id: "p2", art: "schild", text: "zwei" }] },
+  { id: "liste", art: "stapel", kinder: [{ id: "l1", art: "schild", text: "a" }] },
+] } });
+const animiere = (t, animationen, aenderungen = []) => t.empfange({ v: 1, op: "aendere", aenderungen, animationen });
+const animKlassen = (el) => [...el.classList].filter((k) => /^theke-(anim|ueb)-/.test(k));
+const schwebe = (container) => [...container.querySelectorAll(".theke-ebene > .theke-schwebe")];
+
+test("v3: API – registriereAnimation, eingebaute Arten über dieselbe Registry", mitUhr(({ PizzaTheke }) => {
+  assert.equal(typeof PizzaTheke.registriereAnimation, "function");
+  assert.deepEqual(PizzaTheke.animationsArten().sort(),
+    ["aufpoppen", "einblenden", "funkeln", "huepfen", "puls", "schwebe", "wackeln"]);
+  assert.throws(() => PizzaTheke.registriereAnimation("", { spiele() {} }), TypeError);
+  assert.throws(() => PizzaTheke.registriereAnimation("x", {}), TypeError);
+}));
+
+test("v3: aendere.animationen – Klasse mit Standard-/eigener Dauer, Ende nach Ablauf, keine Warnungen", mitUhr(({ t, $, uhr, warnungen, ereignisse }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "zahl", art: "puls" }, { id: "k", art: "huepfen", dauer: 300 }]);
+  assert.deepEqual(animKlassen($("zahl")), ["theke-anim-puls"]);
+  assert.equal($("zahl").style.getPropertyValue("--theke-anim-dauer"), "400ms");
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-huepfen"]);
+  assert.equal($("k").style.getPropertyValue("--theke-anim-dauer"), "300ms");
+  uhr.vor(340);
+  assert.deepEqual(animKlassen($("k")), [], "huepfen (300 ms) ist vorbei");
+  assert.deepEqual(animKlassen($("zahl")), ["theke-anim-puls"], "puls (400 ms) läuft noch");
+  uhr.vor(100);
+  assert.deepEqual(animKlassen($("zahl")), []);
+  assert.equal($("zahl").style.getPropertyValue("--theke-anim-dauer"), "");
+  // Dauer außerhalb 50 ms … 5 s wird geklemmt, Unsinn → Standard
+  animiere(t, [{ id: "zahl", art: "puls", dauer: 10 }, { id: "k", art: "wackeln", dauer: 99999 }]);
+  assert.equal($("zahl").style.getPropertyValue("--theke-anim-dauer"), "50ms");
+  assert.equal($("k").style.getPropertyValue("--theke-anim-dauer"), "5000ms");
+  animiere(t, [{ id: "zahl", art: "puls", dauer: "schnell" }]);
+  assert.equal($("zahl").style.getPropertyValue("--theke-anim-dauer"), "400ms");
+  // Animationen ändern nichts am Programm: keine Ereignisse, keine Warnungen; die Zutat bleibt bedienbar
+  $("k").click();
+  assert.deepEqual(ereignisse, [{ typ: "klick", id: "k" }]);
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v3: unbekannte id, versteckte Zutat, nicht gewählte Reiter-Seite, takt → still ignoriert", mitUhr(({ t, $, container, warnungen }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [
+    { id: "gibtsnicht", art: "puls" }, { id: "weg", art: "puls" }, { id: "t1", art: "wackeln" }, { id: "p2", art: "funkeln" },
+    { art: "puls" },                                                   // ohne id: nur Ebenen-Arten (schwebe) dürfen das
+    { art: "schwebe", text: "+1", id: "weg" }, { art: "schwebe", text: "+1", id: "gibtsnicht" },
+  ]);
+  for (const id of ["weg", "t1", "p2"]) assert.deepEqual(animKlassen($(id)), [], id);
+  assert.equal(schwebe(container).length, 0);
+  assert.equal(container.querySelectorAll(".theke-funken").length, 0);
+  assert.deepEqual(warnungen, []);
+  // Seite 1 ist gewählt → gezeigt
+  animiere(t, [{ id: "p1", art: "funkeln" }]);
+  assert.deepEqual(animKlassen($("p1")), ["theke-anim-funkeln"]);
+  assert.equal(container.querySelectorAll(".theke-funken > .theke-funke").length, 8);
+}));
+
+test("v3: unbekannte art → genau eine Warnung je Art, Rest der Liste läuft weiter", mitUhr(({ t, $, warnungen }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "zahl", art: "tanzen" }, { id: "k", art: "puls" }]);
+  animiere(t, [{ id: "zahl", art: "tanzen" }, { id: "zahl", art: "tanzen" }]);
+  animiere(t, [{ id: "zahl", art: "ausblenden" }, 42, null]);
+  assert.equal(warnungen.filter((w) => /Animation/.test(w) && /tanzen/.test(w)).length, 1);
+  assert.equal(warnungen.filter((w) => /ausblenden/.test(w)).length, 1);
+  assert.equal(warnungen.length, 2);
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-puls"]);
+  assert.deepEqual(animKlassen($("zahl")), []);
+}));
+
+test("v3: Reihenfolge – erst aenderungen, dann animationen (einblenden auf ein neues Kind)", mitUhr(({ t, $, warnungen }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "neu", art: "einblenden" }, { id: "zahl", art: "aufpoppen" }], [
+    { id: "liste", kinder: [{ id: "l1" }, { id: "neu", art: "schild", text: "Erfolg!" }] },
+    { id: "zahl", sichtbar: false },
+  ]);
+  assert.deepEqual(animKlassen($("neu")), ["theke-anim-einblenden"], "neues Kind wird animiert");
+  assert.deepEqual(animKlassen($("zahl")), [], "im selben Bild versteckt → keine Animation");
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v3: gleiche Art startet neu, andere Art ersetzt", mitUhr(({ t, $, uhr }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "k", art: "puls" }]);
+  uhr.vor(300);
+  animiere(t, [{ id: "k", art: "puls" }]);                // Neustart: läuft volle 400 ms ab jetzt
+  uhr.vor(300);
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-puls"], "Neustart verlängert");
+  uhr.vor(150);
+  assert.deepEqual(animKlassen($("k")), []);
+  animiere(t, [{ id: "k", art: "wackeln" }, { id: "k", art: "funkeln" }]);
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-funkeln"], "andere Art ersetzt die laufende");
+  animiere(t, [{ id: "k", art: "huepfen" }]);
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-huepfen"]);
+  assert.equal(t.element.querySelectorAll(".theke-funken").length, 0, "Funken der ersetzten Animation sind weg");
+}));
+
+test("v3: schwebe – Text, Farbe, Anker, feste Versätze reihum, Ende nach Ablauf", mitUhr(({ t, container, uhr, warnungen }) => {
+  t.empfange(ANIM_BAUM());
+  const liste = [];
+  for (let i = 0; i < 6; i++) liste.push({ art: "schwebe", text: "+" + i, id: "k" });
+  liste.push({ art: "schwebe", text: "mitte" }, { art: "schwebe", text: "grün", id: "zahl", farbe: "basilikum", dauer: 500 });
+  liste.push({ art: "schwebe", text: "lila", farbe: "lila" }, { art: "schwebe", text: 12 });
+  animiere(t, liste);
+  const s = schwebe(container);
+  assert.deepEqual(s.map((e) => e.textContent), ["+0", "+1", "+2", "+3", "+4", "+5", "mitte", "grün", "lila", "12"]);
+  assert.deepEqual(s.slice(0, 6).map((e) => e.style.getPropertyValue("--theke-versatz")), ["0px", "-12px", "12px", "-6px", "6px", "0px"]);
+  assert.deepEqual(s.slice(6).map((e) => e.style.getPropertyValue("--theke-versatz")), ["0px", "0px", "-12px", "12px"],
+    "eigener Zähler je Anker (Mitte: mitte, lila, 12)");
+  assert.ok(s[7].classList.contains("theke-farbe-basilikum"));
+  assert.ok(![...s[8].classList].some((k) => k.startsWith("theke-farbe-")), "unbekannte Farbe → normal");
+  assert.equal(s[7].style.getPropertyValue("--theke-anim-dauer"), "500ms");
+  assert.equal(s[0].style.getPropertyValue("--theke-anim-dauer"), "1000ms");
+  for (const p of ["--theke-x", "--theke-y", "--theke-b", "--theke-h"]) assert.match(s[0].style.getPropertyValue(p), /^-?\d+(\.\d+)?px$/);
+  assert.equal(container.querySelector(".theke-ebene").parentNode, container.querySelector(".theke-inhalt"));
+  uhr.vor(600);
+  assert.equal(schwebe(container).length, 9, "der 500-ms-Text ist weg");
+  uhr.vor(500);
+  assert.equal(schwebe(container).length, 0);
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v3: schwebe – höchstens 20 gleichzeitig, der älteste weicht; ersetzt keine Zutat-Animation", mitUhr(({ t, $, container, uhr }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "k", art: "puls" }]);
+  const liste = [];
+  for (let i = 1; i <= 25; i++) liste.push(i % 2 ? { art: "schwebe", text: String(i), id: "k" } : { art: "schwebe", text: String(i) });
+  animiere(t, liste.slice(0, 10));
+  uhr.vor(100);
+  animiere(t, liste.slice(10));
+  const texte = schwebe(container).map((e) => e.textContent);
+  assert.equal(texte.length, 20);
+  assert.deepEqual(texte, liste.slice(5).map((e) => e.text));
+  assert.deepEqual(animKlassen($("k")), ["theke-anim-puls"], "schwebe am Knopf ersetzt dessen puls nicht");
+}));
+
+test("v3: neuer baum, schliesse und Entfernen beenden Animationen; nach schliesse entsteht nichts", mitUhr(({ t, $, container }) => {
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "l1", art: "funkeln" }, { art: "schwebe", text: "+1" }]);
+  assert.equal(container.querySelectorAll(".theke-funken").length, 1);
+  const l1 = $("l1");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "liste", kinder: [] }] });
+  assert.deepEqual(animKlassen(l1), []);
+  assert.equal(container.querySelectorAll(".theke-funken").length, 0, "Funken der entfernten Zutat sind weg");
+  assert.equal(schwebe(container).length, 1);
+  t.empfange(ANIM_BAUM());
+  assert.equal(schwebe(container).length, 0, "neuer baum räumt die Ebene");
+  assert.equal(container.querySelectorAll(".theke-ebene").length, 1);
+  t.empfange({ v: 1, op: "schliesse" });
+  animiere(t, [{ art: "schwebe", text: "+1" }]);
+  assert.equal(schwebe(container).length, 0);
+}));
+
+test("v3: eigene Animation über registriereAnimation – (el, eintrag, ctx), Aufräumfunktion, Ersetzen", mitUhr(({ PizzaTheke, t, $, uhr, warnungen }) => {
+  const protokoll = [];
+  PizzaTheke.registriereAnimation("blinken", {
+    dauer: 250,
+    spiele(el, eintrag, ctx) {
+      protokoll.push(["start", el.getAttribute("data-theke-id"), eintrag.id, eintrag.art, ctx.dauer, ctx.reduziert, typeof ctx.klasse, typeof ctx.teil]);
+      ctx.klasse(el, "mein-blinken");
+      return () => protokoll.push(["ende", el.getAttribute("data-theke-id")]);
+    },
+  });
+  t.empfange(ANIM_BAUM());
+  animiere(t, [{ id: "zahl", art: "blinken" }]);
+  assert.deepEqual(protokoll, [["start", "zahl", "zahl", "blinken", 250, false, "function", "function"]]);
+  assert.ok($("zahl").classList.contains("mein-blinken"));
+  uhr.vor(300);
+  assert.deepEqual(protokoll.at(-1), ["ende", "zahl"]);
+  assert.ok(!$("zahl").classList.contains("mein-blinken"));
+  animiere(t, [{ id: "zahl", art: "blinken", dauer: 2000 }, { id: "zahl", art: "puls" }]);
+  assert.deepEqual(protokoll.at(-1), ["ende", "zahl"], "puls ersetzt blinken → Aufräumen sofort");
+  assert.deepEqual(animKlassen($("zahl")), ["theke-anim-puls"]);
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v3: uebergang – Ausblenden sofort unbedienbar, danach hidden; Einblenden; ohne uebergang sofort", mitUhr(({ t, $, uhr, ereignisse, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "k", art: "knopf", text: "Kaufen", uebergang: true },
+    { id: "s", art: "schild", text: "hart" }] } });
+  assert.deepEqual(animKlassen($("k")), [], "erster baum: kein Übergang");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", sichtbar: false }, { id: "s", sichtbar: false }] });
+  assert.equal($("s").hidden, true, "ohne uebergang sofort weg");
+  const k = $("k");
+  assert.equal(k.hidden, false, "blendet noch aus");
+  assert.ok(k.classList.contains("theke-ueb-aus"));
+  assert.ok(k.hasAttribute("inert"));
+  k.click();
+  assert.deepEqual(ereignisse, [], "während des Ausblendens kein klick");
+  animiere(t, [{ id: "k", art: "puls" }]);
+  assert.deepEqual(animKlassen(k), ["theke-ueb-aus"], "ausblendende Zutat gilt als versteckt");
+  uhr.vor(250);
+  assert.equal(k.hidden, true);
+  assert.deepEqual(animKlassen(k), []);
+  assert.equal(k.hasAttribute("inert"), false);
+  // wieder einblenden
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", sichtbar: true }] });
+  assert.equal(k.hidden, false);
+  assert.deepEqual(animKlassen(k), ["theke-ueb-ein"]);
+  assert.equal(k.style.getPropertyValue("--theke-anim-dauer"), "200ms");
+  uhr.vor(250);
+  assert.deepEqual(animKlassen(k), []);
+  k.click();
+  assert.deepEqual(ereignisse, [{ typ: "klick", id: "k" }]);
+  // sichtbar:true mitten im Ausblenden bricht ab
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", sichtbar: false }] });
+  uhr.vor(100);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", sichtbar: true }] });
+  uhr.vor(500);
+  assert.equal(k.hidden, false, "Abbruch: bleibt sichtbar");
+  assert.equal(k.hasAttribute("inert"), false);
+  // uebergang(nein) per aendere → wieder hart
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", uebergang: false, sichtbar: false }] });
+  assert.equal(k.hidden, true);
+  assert.deepEqual(warnungen, [], "uebergang ist ein bekanntes Feld");
+}));
+
+test("v3: uebergang an Behältern – neu hinzugekommene Kinder blenden ein, bestehende nicht, entfernte sofort weg", mitUhr(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "liste", art: "stapel", uebergang: true, kinder: [{ id: "a", art: "schild", text: "a" }, { id: "b", art: "schild", text: "b" }] },
+    { id: "ab", art: "abschnitt", titel: "Erfolge", uebergang: true, kinder: [] },
+    { id: "hart", art: "reihe", kinder: [] }] } });
+  assert.deepEqual(animKlassen($("a")), [], "erster baum: nichts blendet ein");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [
+    { id: "liste", kinder: [{ id: "a" }, { id: "c", art: "schild", text: "c" }, { id: "d", art: "schild", text: "d", sichtbar: false }] },
+    { id: "ab", kinder: [{ id: "e1", art: "schild", text: "Erste Pizza" }] },
+    { id: "hart", kinder: [{ id: "h1", art: "schild", text: "x" }] }] });
+  assert.equal($("b"), null, "entferntes Kind sofort weg");
+  assert.deepEqual(animKlassen($("a")), []);
+  assert.deepEqual(animKlassen($("c")), ["theke-ueb-ein"]);
+  assert.deepEqual(animKlassen($("d")), [], "verstecktes neues Kind: nichts");
+  assert.deepEqual(animKlassen($("e1")), ["theke-ueb-ein"], "abschnitt (Inhalt) blendet ebenfalls ein");
+  assert.deepEqual(animKlassen($("h1")), [], "ohne uebergang hart");
+}));
+
+test("v3: prefers-reduced-motion – keine Bewegung, funkeln ruhig, schwebe ruhig, uebergang sofort", mitUhr(({ t, $, win, container, uhr }) => {
+  win.matchMedia = (q) => ({ matches: /prefers-reduced-motion:\s*reduce/.test(q), media: q, addEventListener() {}, removeEventListener() {} });
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", uebergang: true, kinder: [
+    { id: "k", art: "knopf", text: "Kaufen", uebergang: true }, { id: "z", art: "schild", text: "1" }] } });
+  animiere(t, [{ id: "k", art: "puls" }, { id: "k", art: "huepfen" }, { id: "z", art: "wackeln" }, { id: "z", art: "aufpoppen" },
+    { id: "z", art: "einblenden" }]);
+  assert.deepEqual(animKlassen($("k")), []);
+  assert.deepEqual(animKlassen($("z")), []);
+  animiere(t, [{ id: "z", art: "funkeln" }, { art: "schwebe", text: "+12", id: "k" }]);
+  assert.deepEqual(animKlassen($("z")), ["theke-anim-funkeln-ruhig"]);
+  assert.equal(container.querySelectorAll(".theke-funken").length, 0, "keine Funken");
+  const s = schwebe(container);
+  assert.equal(s.length, 1);
+  assert.ok(s[0].classList.contains("theke-schwebe-ruhig"));
+  uhr.vor(1100);
+  assert.equal(schwebe(container).length, 0, "nach der Dauer weg");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", sichtbar: false }, { id: "w", kinder: [{ id: "k" }, { id: "z" }, { id: "n", art: "schild", text: "neu" }] }] });
+  assert.equal($("k").hidden, true, "uebergang entfällt → sofort weg");
+  assert.deepEqual(animKlassen($("n")), [], "neues Kind ohne Einblenden");
+}));
+
+test("v3: uebergang-Behälter + einblenden auf das neue Kind im selben aendere → einblenden ersetzt das Übergangs-Einblenden", mitUhr(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "liste", art: "stapel", uebergang: true, kinder: [] } });
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "liste", kinder: [{ id: "n", art: "schild", text: "neu" }] }],
+    animationen: [{ id: "n", art: "einblenden" }] });
+  assert.deepEqual(animKlassen($("n")), ["theke-anim-einblenden"]);
 }));

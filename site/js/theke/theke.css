@@ -27,6 +27,8 @@
   --theke-mozzarella: #f5ecd8;    --theke-mozzarella-hover: #ede0c4; --theke-mozzarella-text: #4a3b22;
   --theke-mozzarella-schrift: #8a7650; --theke-mozzarella-flaeche: #fdf9f0; --theke-mozzarella-rand: #ece0c6;
 
+  --theke-gold: #e3a008;          --theke-gold-glanz: #fff3c4;
+
   --theke-fokus: #c8382a;
   color-scheme: light;
 }
@@ -54,6 +56,8 @@
   --theke-mozzarella: #efe5cf;    --theke-mozzarella-hover: #fbf3e2; --theke-mozzarella-text: #2a2218;
   --theke-mozzarella-schrift: #f1e6cc; --theke-mozzarella-flaeche: #26241f; --theke-mozzarella-rand: #4a4436;
 
+  --theke-gold: #ffc940;          --theke-gold-glanz: #fff6d6;
+
   --theke-fokus: #ff8a73;
   color-scheme: dark;
 }
@@ -79,6 +83,8 @@
     --theke-kruste-schrift: #e6b07c; --theke-kruste-flaeche: #2c241c; --theke-kruste-rand: #523d29;
     --theke-mozzarella: #efe5cf;    --theke-mozzarella-hover: #fbf3e2; --theke-mozzarella-text: #2a2218;
     --theke-mozzarella-schrift: #f1e6cc; --theke-mozzarella-flaeche: #26241f; --theke-mozzarella-rand: #4a4436;
+
+    --theke-gold: #ffc940;          --theke-gold-glanz: #fff6d6;
 
     --theke-fokus: #ff8a73;
     color-scheme: dark;
@@ -114,7 +120,7 @@
 }
 .theke *, .theke *::before, .theke *::after { box-sizing: border-box; }
 .theke [hidden] { display: none !important; }
-.theke-inhalt { padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
+.theke-inhalt { position: relative; padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
 .theke-inhalt > .theke-zutat { flex: none; }
 
 .theke-leer {
@@ -487,6 +493,133 @@
 .theke-reiter-seiten { display: flex; flex-direction: column; gap: var(--theke-abstand, 12px); padding-top: 14px; min-width: 0; }
 .theke .theke-reiter-seiten > .theke-reiter-aus { display: none !important; }
 
+/* ================================================================== v3: Animationen (K-090 … K-092, SPEC §16.6)
+ * Nur transform/opacity/Leuchten (filter) – das Layout der Nachbarn ändert sich nie. Die Dauer kommt per CSSOM als
+ * --theke-anim-dauer (CSP-fest); die Engine entfernt die Klassen nach Ablauf selbst (Zeitgeber, nicht animationend). */
+
+/* Ebene für Schwebetexte und Funken: deckt den Inhalt ab, schneidet ab (kein Scrollbalken), fängt keine Klicks. */
+.theke-ebene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.theke .theke-anim-puls       { animation: theke-puls var(--theke-anim-dauer, 400ms) ease-in-out both; }
+.theke .theke-anim-huepfen    { animation: theke-huepfen var(--theke-anim-dauer, 350ms) linear both; }
+.theke .theke-anim-wackeln    { animation: theke-wackeln var(--theke-anim-dauer, 400ms) ease-in-out both; }
+.theke .theke-anim-einblenden { animation: theke-einblenden var(--theke-anim-dauer, 300ms) ease-out both; }
+.theke .theke-anim-aufpoppen  { animation: theke-aufpoppen var(--theke-anim-dauer, 450ms) ease-out both; }
+.theke .theke-anim-funkeln    { animation: theke-funkeln var(--theke-anim-dauer, 800ms) ease-out both; }
+.theke .theke-anim-funkeln-ruhig { animation: theke-leuchten var(--theke-anim-dauer, 800ms) ease-in-out both; }
+
+@keyframes theke-puls {
+  0%, 100% { transform: scale(1); }
+  45%      { transform: scale(1.12); }
+}
+@keyframes theke-huepfen {
+  0%   { transform: translateY(0);    animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+  45%  { transform: translateY(-6px); animation-timing-function: cubic-bezier(.6, 0, .8, .3); }
+  100% { transform: translateY(0); }
+}
+@keyframes theke-wackeln {
+  0%, 100% { transform: translateX(0); }
+  18%      { transform: translateX(-6px); }
+  38%      { transform: translateX(6px); }
+  58%      { transform: translateX(-4px); }
+  78%      { transform: translateX(4px); }
+}
+@keyframes theke-einblenden {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes theke-aufpoppen {
+  0%   { opacity: 0; transform: scale(.6); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes theke-funkeln {
+  0%   { filter: drop-shadow(0 0 0 transparent) brightness(1); }
+  30%  { filter: drop-shadow(0 0 9px var(--theke-gold)) brightness(1.12); }
+  100% { filter: drop-shadow(0 0 0 transparent) brightness(1); }
+}
+@keyframes theke-leuchten {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  25%, 70% { filter: drop-shadow(0 0 7px var(--theke-gold)); }
+}
+
+/* Funken: feste Positionen rund um die Zutat (kein Zufall → reproduzierbare Bilder) */
+.theke-funken {
+  position: absolute;
+  left: var(--theke-x);
+  top: var(--theke-y);
+  width: var(--theke-b);
+  height: var(--theke-h);
+}
+.theke-funke {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: radial-gradient(circle, var(--theke-gold-glanz) 0 18%, var(--theke-gold) 42%);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  opacity: 0;
+  animation: theke-funke calc(var(--theke-anim-dauer, 800ms) * .55) ease-out both;
+}
+.theke-funke:nth-child(1) { left: -3%;  top: 22%; }
+.theke-funke:nth-child(2) { left: 103%; top: 30%;  animation-delay: calc(var(--theke-anim-dauer, 800ms) * .06); }
+.theke-funke:nth-child(3) { left: 24%;  top: -10%; animation-delay: calc(var(--theke-anim-dauer, 800ms) * .12); }
+.theke-funke:nth-child(4) { left: 78%;  top: 108%; animation-delay: calc(var(--theke-anim-dauer, 800ms) * .18); }
+.theke-funke:nth-child(5) { left: 62%;  top: -14%; animation-delay: calc(var(--theke-anim-dauer, 800ms) * .24); }
+.theke-funke:nth-child(6) { left: 97%;  top: 92%;  animation-delay: calc(var(--theke-anim-dauer, 800ms) * .30); }
+.theke-funke:nth-child(7) { left: 4%;   top: 96%;  animation-delay: calc(var(--theke-anim-dauer, 800ms) * .36); }
+.theke-funke:nth-child(8) { left: 42%;  top: 110%; animation-delay: calc(var(--theke-anim-dauer, 800ms) * .42); }
+@keyframes theke-funke {
+  0%   { opacity: 0; transform: scale(.2) rotate(0deg); }
+  35%  { opacity: 1; transform: scale(1.15) rotate(45deg); }
+  100% { opacity: 0; transform: scale(.3) rotate(90deg); }
+}
+
+/* Schwebetext: startet oben mittig über der Zutat (bzw. in der Fenstermitte), steigt 40 px und blendet aus */
+.theke-schwebe {
+  position: absolute;
+  left: calc(var(--theke-x) + var(--theke-b) / 2);
+  top: var(--theke-y);
+  white-space: nowrap;
+  color: var(--theke-text);
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 2px var(--theke-grund), 0 0 5px var(--theke-grund), 0 1px 1px var(--theke-grund);
+  animation: theke-schwebe var(--theke-anim-dauer, 1000ms) linear both;
+}
+.theke .theke-schwebe[class*="theke-farbe-"] { color: var(--theke-ton-schrift); }
+@keyframes theke-schwebe {
+  0%   { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), -100%); animation-timing-function: ease-out; }
+  12%  { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - 6px)); animation-timing-function: ease-out; }
+  60%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - 40px)); }
+}
+/* Reduzierte Bewegung: Text ruhig für die Dauer, dann weg (die Engine entfernt ihn) */
+.theke .theke-schwebe.theke-schwebe-ruhig { animation-name: theke-schwebe-ruhig; }
+@keyframes theke-schwebe-ruhig {
+  from, to { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), -100%); }
+}
+
+/* uebergang (K-091): Ein-/Ausblenden; eine ausblendende Zutat ist sofort nicht mehr bedienbar */
+.theke .theke-ueb-ein { animation: theke-ueb-ein var(--theke-anim-dauer, 200ms) ease-out both; }
+.theke .theke-zutat.theke-ueb-aus { animation: theke-ueb-aus var(--theke-anim-dauer, 200ms) ease-in both; pointer-events: none; }
+@keyframes theke-ueb-ein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes theke-ueb-aus { from { opacity: 1; } to { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .theke * { transition: none !important; }
+  /* Sicherheitsnetz – die Engine startet diese Arten bei reduzierter Bewegung gar nicht erst (K-092) */
+  .theke .theke-anim-puls, .theke .theke-anim-huepfen, .theke .theke-anim-wackeln,
+  .theke .theke-anim-einblenden, .theke .theke-anim-aufpoppen, .theke .theke-ueb-ein, .theke .theke-zutat.theke-ueb-aus { animation: none; }
+  .theke .theke-anim-funkeln { animation-name: theke-leuchten; }
+  .theke .theke-funken { display: none; }
+  .theke .theke-schwebe { animation-name: theke-schwebe-ruhig; }
 }

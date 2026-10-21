@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"Imperium","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z5","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"0 €"},{"id":"z4","art":"knopf","text":"Backen"},{"id":"z2","art":"stapel","uebergang":true,"kinder":[]},{"id":"z3","art":"takt","intervall":1000}]}}
+{"v":1,"op":"aendere","aenderungen":[],"animationen":[{"id":"z1","art":"aufpoppen"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"12 €"},{"id":"z2","kinder":[{"id":"z6","art":"schild","text":"Pizza fertig"}]}],"animationen":[{"id":"z6","art":"einblenden"},{"id":"z4","art":"huepfen"},{"id":"z4","art":"huepfen","dauer":200},{"id":"z1","art":"puls","dauer":1000},{"art":"schwebe","text":"+12","id":"z4","farbe":"basilikum","dauer":800},{"art":"schwebe","text":"Glück!","farbe":"kruste"},{"id":"z3","art":"funkeln"}]}

@@ -108,6 +108,44 @@ try {
     await page.screenshot({ path: path.join(ARTEFAKTE, `demo-${schema}.png`), fullPage: true });
     await page.close();
   }
+  // v3-Animationen (K-090 … K-092): je Art ein Bild mit drei Theken (Start · Mitte · Ende), hell/dunkel und reduzierte Bewegung.
+  // Prüft dabei: keine CSP-/Konsolenfehler, Animationen laufen wirklich (getAnimations), das Layout aller Zutaten ist in allen
+  // drei Zeitpunkten gleich (offset*, Scrollmaße) – Animationen bewegen nur per transform/opacity/filter.
+  const ANIM = path.join(ARTEFAKTE, "animationen");
+  fs.mkdirSync(ANIM, { recursive: true });
+  for (const [thema, bewegung] of [["hell", "no-preference"], ["dunkel", "no-preference"], ["hell", "reduce"], ["dunkel", "reduce"]]) {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1000, height: 560, deviceScaleFactor: 1.5 });
+    await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: bewegung }]);
+    page.on("pageerror", (e) => fehler.push("pageerror: " + e.message));
+    page.on("console", (m) => { if (m.type() === "error" || m.type() === "warn" || /Content Security Policy|Refused/.test(m.text())) fehler.push("console: " + m.text()); });
+    await page.goto(basis + "/tests/theke/animation.html?thema=" + thema, { waitUntil: "load" });
+    const faelle = await page.evaluate(() => window.__anim.faelle);
+    for (const fall of faelle) {
+      await page.evaluate((f) => window.__anim.spiele(f), fall);
+      const anzahl = await page.evaluate(() => window.__anim.spule([0, 0.45, 1]));
+      const layout = await page.evaluate(() => window.__anim.layout());
+      const reduziert = bewegung === "reduce";
+      // Erwartete Anzahl laufender Animationen je Theke (reduziert: Bewegung entfällt, funkeln/schwebe ruhig)
+      const erwartet = reduziert
+        ? { puls: 0, huepfen: 0, wackeln: 0, funkeln: 1, einblenden: 0, aufpoppen: 0, schwebe: 5, uebergang: 0 }[fall]
+        : { funkeln: 1 + 8, schwebe: 5, uebergang: 2 }[fall] ?? 1;
+      if (anzahl.some((n) => n !== erwartet)) { ok = false; console.log(`Animationen ${fall}/${thema}/${bewegung}: ${anzahl} statt ${erwartet}`); }
+      const fp = layout.map((l) => JSON.stringify(l));
+      if (fp[1] !== fp[0] || fp[2] !== fp[0]) { ok = false; console.log(`Layout springt bei ${fall}/${thema}/${bewegung}:\n  ${fp.join("\n  ")}`); }
+      const name = `${fall}-${thema}${reduziert ? "-reduziert" : ""}.png`;
+      await page.screenshot({ path: path.join(ANIM, name), clip: await (await page.$("#anim-raster")).boundingBox() });
+      await page.evaluate(() => window.__anim.raeume());
+      const rest = await page.evaluate(() => document.querySelectorAll(".theke-ebene > *, [class*='theke-anim-'], .theke-ueb-ein, .theke-ueb-aus").length);
+      if (rest) { ok = false; console.log(`Nach dem Ende von ${fall} bleiben ${rest} Animations-Reste`); }
+      if (fall === "uebergang") {
+        const versteckt = await page.$$eval("[data-theke-id=lehrling]", (els) => els.every((e) => e.hidden && !e.hasAttribute("inert")));
+        if (!versteckt) { ok = false; console.log("uebergang: Knopf nach dem Ausblenden nicht versteckt"); }
+      }
+    }
+    await page.close();
+  }
+
   // Auto-Thema ohne data-theme (fenster.html) in beiden Systemschemata
   for (const schema of ["light", "dark"]) {
     const page = await browser.newPage();

@@ -116,7 +116,40 @@ for (const b of liste) {
   if (diff) { anders++; console.log('  ✗  ' + b.id + '\n      ' + diff + (r.stderr ? '\n      stderr: ' + r.stderr.trim() : '')); }
   else { gleich++; console.log('  ✓  ' + b.id); }
 }
+// Konsolenausgabe Host ↔ bin/pizza.js zeichengleich (K-083/U-45: Meldungsformat, `--` als Ende der Optionen).
+// Ohne TTY und mit NO_COLOR (keine Farben), --kein-vorrat (nie echter Vorrat), kein Fenster.
+// (P0001 erreicht den Host nicht – Syntaxfehler verhindern das .pkarton; dessen Format prüft der Rust-Unit-Test.)
+console.log('\nKonsole Host ↔ CLI:');
+const konsolenFaelle = [
+  ['W0101 mit --kein-vorrat', 'Vorratskammer v = neu Vorratskammer("cli-test");\nBote.sage((v.hole("n", 0)));\n', []],
+  ['W0032 + ungefangene Ananas', 'salami PiZZa = 1;\nsalami PizZa = 2;\nBote.sage(("vorher"));\nsalami x = 1 / 0;\n', []],
+  ['P0002 Schrittlimit + --info', 'solange (ja) { }\n', ['--schritte=50', '--info']],
+  ['-- als Ende der Optionen', 'speisekarte klasse A {\n  speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {\n    für (margherita a : args) { Bote.sage(("[" + a + "]")); }\n  }\n}\n', [], ['--', '--x', '--', 'y']],
+];
+const umgebung = Object.assign({}, process.env, { NO_COLOR: '1', PIZZA_THEKE: '0' });
+let kGleich = 0, kGesamt = 0;
+for (const [i, [name, quelle, opts, progArgs]] of konsolenFaelle.entries()) {
+  if (filter && !name.includes(filter)) continue;
+  kGesamt++;
+  const id = 'konsole-' + i;
+  const pz = path.join(tmp, id + '.pizza');
+  fs.writeFileSync(pz, quelle);
+  const k = Pizzaiolo.kompiliere(quelle);
+  if (!k.ok) { nicht++; console.log('  –  ' + name + ' (nicht kompilierbar)'); continue; }
+  const pk = path.join(tmp, id + '.pkarton');
+  fs.writeFileSync(pk, k.pkarton);
+  const gemeinsam = ['--kein-vorrat', '--saat=1', ...opts];
+  const cli = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), ...gemeinsam, pz, ...(progArgs || [])], { encoding: 'utf8', env: umgebung, input: '' });
+  const host = spawnSync(exe, [...gemeinsam, pk, ...(progArgs || [])], { encoding: 'utf8', env: umgebung, input: '' });
+  const n = (t) => t.replace(/\r\n/g, '\n');
+  // `--info` meldet die Uhr: CLI (Interpreter) und Host zählen gleich, also auch das zeichengleich.
+  const diff = n(cli.stdout) !== n(host.stdout) ? 'stdout: CLI ' + JSON.stringify(n(cli.stdout)) + ', Host ' + JSON.stringify(n(host.stdout))
+    : n(cli.stderr) !== n(host.stderr) ? 'stderr: CLI ' + JSON.stringify(n(cli.stderr)) + ', Host ' + JSON.stringify(n(host.stderr))
+    : cli.status !== host.status ? 'Exit-Code: CLI ' + cli.status + ', Host ' + host.status : null;
+  if (diff) { anders++; console.log('  ✗  ' + name + '\n      ' + diff); }
+  else { kGleich++; console.log('  ✓  ' + name); }
+}
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log('\n' + gleich + '/' + liste.length + ' Beispiele identisch' + (anders ? ', ' + anders + ' abweichend' : '') + (nicht ? ', ' + nicht + ' nicht kompilierbar' : '') +
+console.log('\n' + gleich + '/' + liste.length + ' Beispiele identisch, ' + kGleich + '/' + kGesamt + ' Konsolenfälle zeichengleich' + (anders ? ', ' + anders + ' abweichend' : '') + (nicht ? ', ' + nicht + ' nicht kompilierbar' : '') +
   ' (Host gesamt ' + hostMs + ' ms, alles ' + (Date.now() - t0) + ' ms)');
 process.exit(anders || nicht ? 1 : 0);

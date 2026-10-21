@@ -469,7 +469,7 @@ Exit-Code: 39
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
 | Blech | `länge()`, `stück(i)` (**ab 1**, außerhalb → `KeinStückAnanas`), `hinzu(x)` (gibt Blech zurück), `entferne(i)`, `setze(i, x)`, `enthält(x)`, `belege(fn)` (map), `filtere(fn)`, `zusammenklappen(fn)` / `zusammenklappen(fn, start)` (reduce), `summe()`, `erstes()`, `letztes()`, `umdrehen()`, `sortiere()` / `sortiere((a, b) -> ...)`, `verbinde(trenner)`, `istLeer()`, `schneide(n)` |
-| Speisekarte | `lege(k, v)`, `hole(k)` (fehlt → `karton`), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
+| Speisekarte | `lege(k, v)`, `hole(k[, ersatz])` (fehlt → `ersatz`, sonst `karton`; auch benannt `ersatz:`, K-095), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
 | Dauer | `+ -` mit Dauer, `* /` mit Zahl, Vergleiche, `inMs()`, `inSekunden()` |
 | `neu Blech<T>()`, `neu Speisekarte<K, V>()`, `neu Pizza()` (= `(())`) | |
 
@@ -757,6 +757,8 @@ regelt `EINGABE.md`.
   Text: `Zeichen i gibt es nicht – der Text hat n Zeichen.`
 - Speisekarte: zusätzlich `istLeer()`; `lege` liefert die Speisekarte; `entferne(k)` liefert den alten Wert oder
   `karton`; Beläge als Schlüssel werden über ihren Namen gespeichert (`hole(Salami)` = `hole("Salami")`).
+  `hole(k, ersatz)` (auch `ersatz:`) liefert `ersatz` **nur**, wenn `hat(k)` `nein` ist – ein gespeicherter `karton` bleibt
+  `karton`; `ersatz` kommt unverändert zurück (keine Kopie); positional vor benannt wie in §14.9 (K-095).
 - Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`.
 - Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
   `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Stück `Stück von <pizza>`; Reste
@@ -826,6 +828,8 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
 - **K-038** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
 - **K-039** `p.hat("Tomate")` wie `p.hat(Tomate)`; `p + "x"` ist Textverkettung.
+- **K-095** `Speisekarte.hole(k[, ersatz])` wie `Vorratskammer.hole` (K-079): `ersatz` (positional oder `ersatz:`) nur bei
+  fehlendem Schlüssel (`hat(k)` = `nein`), gespeicherter `karton` bleibt `karton`, `ersatz` ohne Kopie; `hole(k)` unverändert.
 - **K-076** `ersetze("", x)` lässt den Text unverändert; alle Text-Methoden arbeiten auf Codepoints, nur `<`/`sortiere`
   nach UTF-16-Codeeinheiten (K-040).
 - **K-047** Die simulierte Uhr zählt ganze Millisekunden: `Uhr.vorspulen(d)` rundet kaufmännisch auf ms,
@@ -948,6 +952,8 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
 - **Ohne Renderer (K-063):** fehlen `onUiWarte` und `uiEreignisse`, warnt `bediene()` **je Aufrufstelle** (§10)
   `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` und kehrt sofort zurück; `fenster`/`baum`/`aendere`/`schliesse`
   werden trotzdem als `ui`-Ereignisse ausgegeben. `uiEreignisse` erschöpft → `geschlossen`; `onUiWarte` liefert `null` oder wirft → `geschlossen`.
+  Nativ (EXE/`pizza-host`) kommt ein Theke-Programm, das kein Fenster bekommen kann (keine Anzeige, WebView fehlt), gar nicht bis W0100:
+  es bricht vorher mit Meldung und Exit 2 ab (K-096, THEKE.md §4); W0100 gilt dort nur im JSON-/Testmodus.
 - **Ereignisse (K-064):** `klick` nur für `Knopf` mit `aktiv == ja` und Rückruf; `aenderung`/`enter` für `Eingabe` (Text) bzw.
   `aenderung` für `Haken` (`true`/`false`, auch `"true"`/`"false"`). Ereignisse für unbekannte IDs, falsche Zutatenart, falschen
   `wert`-Typ, inaktive Knöpfe oder unbekannten `typ` werden **ignoriert**; `aenderung` ohne Rückruf aktualisiert trotzdem den Zustand.
@@ -980,7 +986,7 @@ Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
 Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe`. **Zustandsfelder immer:** `schild`/`knopf`: `text`;
 `eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
 `platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
-Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder; `kinder` ist die vollständige Kinderliste – der
+Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
 vollständig); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
 Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`.
@@ -1022,6 +1028,60 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
 
+### 16.6 Theke v3: Animationen (K-090 … K-094; Interpreter umgesetzt – U-56; offen: Compiler U-57, Renderer U-58)
+
+Animationen sind **rein visuell**: Sie ändern keinen Programmzustand, erzeugen keine Ereignisse und haben keine Wartezeit.
+Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aendere`, neues Feld `uebergang`; alte Renderer ignorieren beides).
+
+| Methode | an | Rückgabe | Protokoll-Eintrag |
+|---|---|---|---|
+| `animiere(art, dauer?)` (auch benannt: `art:`, `dauer:`) | jeder Zutat | die Zutat | `{"id":"z1","art":"puls"}` (+ `"dauer":300`) in `animationen` |
+| `schwebe(text, bei?, farbe?, dauer?)` (auch benannt: `text:`, `bei:`, `farbe:`, `dauer:`) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
+| `uebergang(diavolo)` / `uebergang()` | jeder Zutat | Setter → Zutat, Getter → diavolo | Feld `"uebergang":true` (Standard `nein`; im `baum` nur bei `ja`, in `aendere` immer der neue Wert) |
+
+- **Arten (K-090):** genau `puls`, `huepfen`, `wackeln`, `funkeln`, `einblenden`, `aufpoppen` (Vergleich der Textform, K-066;
+  Groß-/Kleinschreibung zählt). Sonst `LaufzeitAnanas: Animation 'tanzen' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.`
+  `animiere` an einem `Takt` ist erlaubt und bleibt unsichtbar. Neue Arten = Eintrag in der Laufzeit-Liste + Animations-Registry des Renderers (wie Zutaten).
+  Die Art ist ein Vokabular-Schlüssel wie bei `stil` (K-093): fehlendes Argument oder `karton` wird als Textform `karton` geprüft →
+  `LaufzeitAnanas: Animation 'karton' gibt es nicht. Erlaubt: …`; `animiere(5)` → `Animation '5' …`. Keine eigene „braucht eine Art“-Ananas.
+- **Benannte Parameter (K-094):** Alle Parameter von `animiere` und `schwebe` sind positional oder benannt (`art:`, `dauer:` bzw.
+  `text:`, `bei:`, `farbe:`, `dauer:`), Bindung wie §14.9: Positionsargumente von vorn, benannte füllen den Rest, bei doppelter Angabe
+  gilt der positionale Wert, unbekannte Namen werden ignoriert (K-028). Fehlertexte nennen den Parameter immer benannt (`animiere(dauer: …) braucht …`).
+- **Dauer (K-090):** `dauer` ist eine `Dauer` (sonst `TypAnanas: animiere(dauer: …) braucht eine Dauer, nicht 300.` bzw.
+  `schwebe(dauer: …) …`), auf ganze ms gerundet (K-047), danach **50 ms ≤ dauer ≤ 5 s**, sonst
+  `LaufzeitAnanas: Eine Animation dauert 50ms bis 5s, nicht 10s.` (Dauer in Textform). Ohne `dauer` (oder `karton`) fehlt das Feld;
+  der Renderer nimmt die Standarddauer der Art (K-092).
+- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer; fehlend oder `karton` → Schwebetext `"karton"`
+  (K-093; keine Ananas, keine Warnung); `bei` ist eine Zutat oder `karton` (= Fenstermitte),
+  sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal` mit den
+  Texten von K-068 (`LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.`).
+  Optionale Felder (`id`, `farbe`, `dauer`) stehen **genau dann** im Eintrag, wenn das Argument angegeben und nicht `karton` ist.
+- **Prüfreihenfolge:** Argumente (Art, `bei`, `farbe`, `dauer`) werden immer geprüft – Fehler sind Ananas, unabhängig vom Fensterzustand.
+  Danach: ist die Theke nicht offen (nie gezeigt, nach `geschlossen`/`schliesse()`, keine Theke) → Warnung (§10, **je Aufrufstelle**)
+  `W0102: Animation entfällt – die Theke ist nicht offen.`; liegt die Zutat (bei `schwebe`: `bei`) nicht im gezeigten Baum →
+  `W0102: Animation entfällt – 'z3' liegt nicht auf der Theke.` In beiden Fällen entsteht **kein** Eintrag; keine Ananas (rein visuell).
+  Gezeigt heißt wie in K-057 „im Baum der offenen Theke“ – auch `sichtbar(nein)`, nicht gewählte Reiter-Seiten und `Takt` (Renderer zeigt dann nichts).
+- **Bündelung (K-090):** Einträge werden **in Aufrufreihenfolge** gepuffert, **nicht** zusammengefasst (zwei `puls` = zwei Einträge),
+  höchstens **32 je Nachricht** (weitere entfallen still; die ersten 32 bleiben). Gesendet wird an denselben Synchronisationspunkten
+  wie Änderungen (K-057) als Feld der `aendere`-Nachricht: `{"v":1,"op":"aendere","aenderungen":[…],"animationen":[…]}` – `animationen`
+  nur wenn nicht leer; gibt es nur Animationen, ist `aenderungen` `[]`. Der Renderer wendet erst `aenderungen`, dann `animationen` an
+  (eine Nachricht = ein Bild; `einblenden` auf eine im selben Rückruf per `hinzu` eingefügte Zutat funktioniert). `zeige` verwirft
+  gepufferte Animationen wie gepufferte Änderungen (K-058); am Programmende gehen sie mit dem letzten Flush vor `schliesse` hinaus (K-061).
+- **Determinismus (K-090):** Keine Rückmeldung vom Renderer (kein „Animation fertig“), kein Einfluss auf Rückrufe, Zustand, Zeit oder
+  Budgets; eine laufende Animation hält keine Ereignisse auf (ein hüpfender Knopf bleibt klickbar). Schritte: die normalen Aufrufknoten
+  (§14.1, K-069) – `k.animiere("puls");` kostet so viel wie `k.hinweis("puls");`; die Warnung W0102 kostet nichts.
+  `ui`-Nachrichten sind in `.ui-erwartet`/`uiErwartet` testbar.
+- **`uebergang` (K-091):** `uebergang(diavolo)` (sonst `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`) schaltet weiche Übergänge
+  der Zutat: Wechsel von `sichtbar` blendet ein/aus (Ausblenden: sofort nicht mehr bedienbar), in Behältern blenden **neu
+  hinzugekommene** Kinder ein (nicht im ersten `baum`; entfernte verschwinden sofort). Kein Hochzählen von Texten. Ein `Fortschritt`
+  gleitet **immer** (unabhängig von `uebergang`). Setter lösen keine Rückrufe aus (K-073); Textform unverändert.
+- **Darstellung (K-092, Renderer):** Standarddauern `puls` 400 ms, `huepfen` 350 ms, `wackeln` 400 ms, `funkeln` 800 ms,
+  `einblenden` 300 ms, `aufpoppen` 450 ms, `schwebe` 1000 ms, `uebergang` 200 ms; nur `transform`/`opacity`/Leuchten – das Layout der
+  Nachbarn ändert sich nie; eine neue Animation an derselben Zutat ersetzt die laufende (Schwebetexte addieren sich, höchstens 20
+  gleichzeitig). Farben aus dem Thema (hell/dunkel). **`prefers-reduced-motion: reduce`:** keine Bewegung, keine Übergänge –
+  `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
+  Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
+  `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)

@@ -20,9 +20,12 @@ const ok = (b, t) => { console.log((b ? '  ✓  ' : '  ✗  ') + t); if (!b) feh
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pizza-exe-js-'));
 const pkarton = fs.readFileSync(path.join(__dirname, 'tests', 'demo.pkarton'));
 
-// Lokales Release-Binary bauen und als Ziel "lokal" anbieten.
+// Lokales Release-Binary bauen und als Ziel "lokal" anbieten. Linux ohne WebKitGTK-Entwicklerpakete: nur der
+// Starter ohne Theke-Teil (src/starter.rs) – Konsolenprogramme laufen, das Fenster wird hier nicht gebraucht.
 const ext = process.platform === 'win32' ? '.exe' : '';
-const r = spawnSync('cargo', ['build', '--quiet', '--release'], { cwd: __dirname, stdio: 'inherit' });
+const ohneWebkitDev = process.platform === 'linux' && spawnSync('pkg-config', ['--exists', 'webkit2gtk-4.1']).status !== 0;
+if (ohneWebkitDev) console.log('  (WebKitGTK-Entwicklerpakete fehlen – lokales Binary als Starter ohne Theke-Teil)');
+const r = spawnSync('cargo', ['build', '--quiet', '--release'].concat(ohneWebkitDev ? ['--no-default-features', '--features', 'starter'] : []), { cwd: __dirname, stdio: 'inherit' });
 if (r.status !== 0) { console.error('cargo build fehlgeschlagen'); process.exit(2); }
 const lokal = path.join(__dirname, 'target', 'release', 'pizza-host' + ext);
 
@@ -95,6 +98,19 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
       const ziel = path.join(tmp, 'ref-theke-' + z.id + ext);
       const e = spawnSync(z._pfad, ['exe', kp, '-o', ziel], { encoding: 'utf8' });
       ok(e.status === 0 && fs.readFileSync(ziel).equals(mit), z.id + ': Theke-EXE identisch mit `pizza-host exe`');
+      if (z.id === 'linux-x64') {
+        // Starter: ohne WebKitGTK (hier simuliert) verständliche Meldung + Exit 2, kein Lader-Fehler, kein Fensterversuch.
+        fs.chmodSync(ziel, 0o755);
+        const l = spawnSync(ziel, [], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBKIT: '1' }) });
+        ok(l.status === 2 && /braucht WebKitGTK 4\.1.*sudo apt install libwebkit2gtk-4\.1-0/.test(l.stderr), z.id + ': Theke-EXE ohne WebKitGTK → Meldung, Exit 2 (' + l.status + ')');
+      }
+      if (process.platform === 'win32' && z.name === 'lokal') {
+        // K-096 (nur das frisch gebaute lokale Binary; host/ziele kann älter sein): ohne WebView2-Runtime (hier simuliert) Meldung + Exit 2 statt W0100 – kein Fensterversuch, kein Programmlauf.
+        const env = Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBVIEW2: '1' });
+        delete env.PIZZA_THEKE;
+        const l = spawnSync(ziel, ['--kein-vorrat'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
+        ok(l.status === 2 && /braucht die Microsoft Edge WebView2 Runtime/.test(l.stderr) && l.stdout === '', z.id + ': Theke-EXE ohne WebView2 → Meldung, Exit 2 (' + l.status + ')');
+      }
     }
   }
 

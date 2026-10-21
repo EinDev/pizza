@@ -1,7 +1,8 @@
 //! Bettet den Theke-Renderer (`site/js/theke/`: fenster.html, fenster.js, fenster.css, theke.js, theke.css)
 //! unverändert ein – es gibt nur EINE Render-Engine für Browser und nativ. Der Host liefert die Dateien über das
 //! Custom-Protocol `theke://` aus (siehe src/theke.rs). Anderes Verzeichnis: `PIZZA_THEKE_DIR`.
-//! Ohne Feature `theke` wird nichts eingebettet.
+//! Ohne Feature `theke` wird nichts eingebettet. Feature `starter` (Linux): bettet den Theke-Teil aus
+//! `PIZZA_THEKE_EXE` ein (siehe src/starter.rs).
 
 use std::env;
 use std::fmt::Write as _;
@@ -41,4 +42,19 @@ fn main() {
     }
     code.push_str("];\n");
     fs::write(aus, code).unwrap();
+
+    // Linux-Starter (Feature `starter`, src/starter.rs): Theke-Teil (fertiges pizza-host mit Feature `theke`) einbetten.
+    // Ohne PIZZA_THEKE_EXE bleibt er leer – Theke-Programme melden dann „ohne Theke-Teil gebaut“.
+    println!("cargo:rerun-if-env-changed=PIZZA_THEKE_EXE");
+    let mut exe = String::from("/// Eingebetteter Theke-Teil (ELF) für den Linux-Starter.\npub const THEKE_EXE: &[u8] = ");
+    match env::var_os("PIZZA_THEKE_EXE").filter(|_| env::var_os("CARGO_FEATURE_STARTER").is_some()) {
+        Some(p) => {
+            let p = fs::canonicalize(PathBuf::from(&p))
+                .unwrap_or_else(|_| panic!("PIZZA_THEKE_EXE fehlt: {}", PathBuf::from(&p).display()));
+            println!("cargo:rerun-if-changed={}", p.display());
+            writeln!(exe, "include_bytes!({:?});", p.display().to_string()).unwrap();
+        }
+        None => exe.push_str("&[];\n"),
+    }
+    fs::write(PathBuf::from(env::var("OUT_DIR").unwrap()).join("theke_exe.rs"), exe).unwrap();
 }

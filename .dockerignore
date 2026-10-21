@@ -32,3 +32,9 @@ compose.yaml
 
 # Rust-Build-Artefakte (host/target ist >1 GB)
 **/target
+
+# Nicht im Image und nicht für npm test nötig (spart Kontext-Upload; Test-Stage nutzt COPY . .)
+.github
+e2e
+host/ziele
+host/tests

@@ -1182,3 +1182,52 @@ button.k-meldung:hover { border-color: currentColor; }
   .knopf-lauf .knopf-text { display: none; }
   .konsole-toggle span { display: none; }
 }
+
+/* ---------------- Teilen: zwei Links (Code öffnen / App starten) ---------------- */
+.dialog-teilen p.teilen-link-titel { margin: 0 0 6px; font-size: 13px; }
+.teilen-link-titel span { color: var(--text-2); }
+.teilen-link + .teilen-link-titel { margin-top: -4px; }
+
+/* ---------------- App-Link (#app=<key>): Vollbild ohne Editor ----------------
+   js/thema.js setzt data-app vor dem ersten Zeichnen → bis zum Start ist nur der Ladebalken zu sehen.
+   Danach: Theke füllt das Fenster (wie das native Fenster) bzw. die Konsole füllt das Fenster. */
+.app-lade, .app-ende { display: none; }
+:root[data-app] body { display: flex; flex-direction: column; }
+:root[data-app] .skip-link, :root[data-app] .kopf, :root[data-app] .arbeitsbereich { display: none; }
+:root[data-app]:not(.app-gestartet) .app-lade {
+  display: grid; place-items: center; position: fixed; inset: 0; z-index: 90; background: var(--bg);
+}
+.app-lade-balken { width: min(280px, 64vw); height: 4px; border-radius: 2px; overflow: hidden; background: var(--flaeche-3); }
+.app-lade-fuellung {
+  display: block; width: 100%; height: 100%; background: var(--akzent);
+  transform-origin: left center; transform: scaleX(var(--anteil, .06));
+}
+@media (prefers-reduced-motion: no-preference) { .app-lade-fuellung { transition: transform .25s ease-out; } }
+
+:root[data-app] .konsole { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; border: 0; }
+:root[data-app] .konsole[hidden] { display: none; }
+:root[data-app] .konsole-kopf { display: none; }
+:root[data-app] .konsole-inhalt { padding: 12px 0 18px; }
+
+:root[data-app] .vorschau {
+  inset: 0 !important; width: auto !important; height: auto !important; min-width: 0; min-height: 0;
+  max-width: none; max-height: none; border: 0; border-radius: 0; box-shadow: none; resize: none;
+}
+:root[data-app] .vorschau:focus-visible { outline: none; }
+:root[data-app] .vorschau-kopf { display: none; }
+
+:root[data-app] .app-ende:not([hidden]) {
+  display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; flex: none;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--rand); background: var(--flaeche-2);
+}
+.app-ende-text { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 12.5px; color: var(--text-2); }
+.app-ende-text.fehler { color: var(--fehler); }
+.app-ende-knoepfe { display: flex; gap: 6px; flex: none; margin-left: auto; }
+.app-ende-knoepfe a.knopf { text-decoration: none; }
+/* ohne Konsoleninhalt (z. B. reine Theke-App oder Link ungültig): mittig */
+:root[data-app] .app-ende.allein:not([hidden]) {
+  flex: 1 1 auto; flex-direction: column; justify-content: center; gap: 14px;
+  border: 0; background: none; padding: 24px 16px; text-align: center;
+}
+.app-ende.allein .app-ende-text { flex: none; font-size: 14px; max-width: 46ch; }
+.app-ende.allein .app-ende-knoepfe { margin-left: 0; }

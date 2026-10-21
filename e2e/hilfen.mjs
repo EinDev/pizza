@@ -581,6 +581,16 @@ export async function thekeEreignis(page, ev) {
     // .ereignisse dürfen Klicks auf deaktivierte Knöpfe enthalten (z. B. belegtes Tic-Tac-Toe-Feld): im Browser
     // erzeugt so ein Klick kein Ereignis – das Programm würde ihn ohnehin ignorieren.
     if (await knopf.evaluate((k) => k.disabled || k.getAttribute("aria-disabled") === "true")) return "deaktiviert";
+    // Unsichtbare Zutat (z. B. in einem nicht gewählten Reiter): ein echter Nutzer kann sie nicht klicken → das
+    // Szenario ist fehlerhaft (vorher per „aenderung“ den Reiter wechseln). Klar melden statt Puppeteers
+    // „Node is either not clickable …“.
+    const unsichtbar = await knopf.evaluate((k) => {
+      const r = k.getBoundingClientRect();
+      if (r.width && r.height) return null;
+      const tab = document.querySelector("#vorschau")?.querySelector('[role="tab"][aria-selected="true"]');
+      return tab ? tab.textContent.trim() : "–";
+    });
+    if (unsichtbar) throw new Error(`Theke-Ereignis ${JSON.stringify(ev)} zielt auf eine unsichtbare Zutat (aktiver Reiter: ${unsichtbar}) – das kann kein Nutzer klicken; .ereignisse prüfen`);
     await knopf.click();
   } else if (ev.typ === "aenderung" && typeof ev.wert === "boolean") {
     const box = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
@@ -621,13 +631,22 @@ export async function backenTheke(page, ereignisse, { timeout = 30_000 } = {}) {
   await strg(page, "Enter");
   await page.waitForSelector(`${VORSCHAU.split(",")[1].trim()}:not([hidden]) [data-theke-id]`, { timeout: 10_000 });
   let geschlossen = false;
-  for (const ev of ereignisse) {
-    if (await laufVorbei(page)) break;
-    await warteAufBediene(page, 0);
-    const vorher = await uiWarteZahl(page);
-    const r = await thekeEreignis(page, ev);
-    if (ev.typ === "geschlossen") { geschlossen = true; break; }
-    if (r !== "deaktiviert") await warteAufBediene(page, vorher);
+  let nr = 0;
+  try {
+    for (const ev of ereignisse) {
+      if (await laufVorbei(page)) break;
+      await warteAufBediene(page, 0);
+      const vorher = await uiWarteZahl(page);
+      const r = await thekeEreignis(page, ev);
+      if (ev.typ === "geschlossen") { geschlossen = true; break; }
+      if (r !== "deaktiviert") await warteAufBediene(page, vorher);
+      nr++;
+    }
+  } catch (e) {
+    // Lauf nicht offen stehen lassen: sonst scheitert der nächste Test derselben Seite nur als Folgefehler (Timeout)
+    try { if (!(await laufVorbei(page))) await page.click(VORSCHAU_ZU); await warteLaufEnde(page, 5000); } catch { /* Originalfehler zählt */ }
+    e.message = `Ereignis #${nr} (Zeile ${nr + 1} der .ereignisse): ` + e.message;
+    throw e;
   }
   if (!geschlossen && !(await laufVorbei(page))) await page.click(VORSCHAU_ZU);
   await warteLaufEnde(page, timeout);

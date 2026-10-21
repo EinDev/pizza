@@ -6,7 +6,8 @@
 //! pizza-host exe programm.pkarton -o programm.exe
 //! ```
 //! Optionen, Texte und Exit-Codes wie `bin/pizza.js` (K-082/K-088); eine EXE (eingebettetes Programm) versteht
-//! dieselben Optionen direkt hinter dem Programmnamen, alles ab dem ersten Nicht-Options-Argument geht an `hauptgang`.
+//! dieselben Optionen direkt hinter dem Programmnamen, alles ab dem ersten Nicht-Options-Argument geht an `hauptgang`;
+//! `--` beendet die Optionen (z. B. `programm.exe -- --x`), alles danach geht unverändert an `hauptgang`.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -27,7 +28,9 @@ const OPTIONEN: &str = "Optionen:
   --debug              technische Details interner Fehler zeigen
   --ereignisse-json    alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende; ohne --saat feste Saat 42)
   --ui-ereignisse d    Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
-  --hilfe              diese Hilfe";
+  --hilfe              diese Hilfe
+  --                   Ende der Optionen: alles danach geht unverändert an hauptgang(args)
+                       (nur das erste -- zählt, ein späteres bleibt Argument)";
 
 fn hilfe(eingebettet: bool) -> String {
     if eingebettet {
@@ -36,13 +39,13 @@ fn hilfe(eingebettet: bool) -> String {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .unwrap_or_else(|| "programm".into());
         format!(
-            "{n} – pizza-Programm\n\nAufruf:\n  {n} [optionen] [args…]\n  {n} [--vorrat=ordner] --vorrat-loeschen <name>\n  {n} [--vorrat=ordner] --vorrat-loeschen-alle\n\n{o}",
+            "{n} – pizza-Programm\n\nAufruf:\n  {n} [optionen] [--] [args…]\n  {n} [--vorrat=ordner] --vorrat-loeschen <name>\n  {n} [--vorrat=ordner] --vorrat-loeschen-alle\n\n{o}",
             n = name,
             o = OPTIONEN
         )
     } else {
         format!(
-            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
+            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [--] [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
             OPTIONEN
         )
     }
@@ -113,12 +116,20 @@ fn vorrat_standard_ordner() -> Option<PathBuf> {
 fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode> {
     let mut a = Aufruf::default();
     let mut optionen_zu = false;
+    let mut strich = false;
     let mut argv = argv.into_iter();
     let fehler = |t: &str| {
         eprintln!("{}", t);
         Err(beende(2))
     };
     while let Some(x) = argv.next() {
+        // `--` beendet die Optionen (wie bin/pizza.js): das erste `--` vor dem ersten Programmargument wird verbraucht,
+        // alles danach geht unverändert an `hauptgang(args)`; ein späteres `--` bleibt Argument.
+        if x == "--" && !strich && a.args.is_empty() {
+            strich = true;
+            optionen_zu = true;
+            continue;
+        }
         if !optionen_zu && x.starts_with("--") {
             match x.as_str() {
                 "--ui-ereignisse" => {
@@ -260,6 +271,8 @@ fn main() -> ExitCode {
     if let Some(was) = a.loeschen.take() {
         return vorrat_loeschen(ordner, was);
     }
+    let ist_exe = eingebettet.is_some();
+    let debug = a.debug;
     let (pkarton, json) = match eingebettet {
         Some(p) => (p, a.json || std::env::var_os("PIZZA_EREIGNISSE_JSON").is_some()),
         None => {
@@ -292,19 +305,37 @@ fn main() -> ExitCode {
             s => s,
         }
     };
-    beende(ausfuehren(pkarton, a.args, opt, senke))
+    beende(ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke))
 }
 
 /// Führt das Programm aus – mit Theke-Fenster (eigener Programm-Thread, Fenster im Hauptthread),
 /// sofern das Feature aktiv ist und keine vorgegebenen UI-Ereignisse genutzt werden.
-fn ausfuehren(pkarton: Vec<u8>, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
+/// Linux-Starter (Feature `starter`): Programme mit Theke übernimmt der eingebettete Theke-Teil (src/starter.rs).
+#[allow(unused_variables)]
+fn ausfuehren(pkarton: Vec<u8>, ist_exe: bool, debug: bool, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
     // Maschinenlesbarer Modus (--ereignisse-json, Differenztests) öffnet kein Fenster, außer PIZZA_THEKE=1:
     // ohne --ui-ereignisse gilt dann „kein Renderer“ (W0100) – wie im Interpreter ohne uiEreignisse.
-    #[cfg(feature = "theke")]
+    // Ohne Feature `theke`/`starter` (Entwickler-Build `--no-default-features`) ebenfalls W0100.
+    #[cfg(any(feature = "theke", feature = "starter"))]
     let fenster_erlaubt = !matches!(senke, Senke::Json) || std::env::var("PIZZA_THEKE").map(|v| v == "1").unwrap_or(false);
+    // Starter: vor dem ersten Wasm-Befehl entscheiden (gleiches Kriterium wie das PE-Subsystem: Importgruppe theke).
+    // Fehlt WebKitGTK oder die Anzeige → Meldung + Exit 2 (K-083/K-096); sonst ersetzt der Theke-Teil diesen Prozess
+    // (gleiche Argumente).
+    #[cfg(all(feature = "starter", not(feature = "theke"), target_os = "linux"))]
+    if opt.ui.is_none() && fenster_erlaubt && !pizzahost::anzeige::theke_abgeschaltet() && laufen::braucht_theke(&pkarton) {
+        return pizzahost::starter::theke_starten(ist_exe.then_some(&pkarton[..]), debug);
+    }
     #[cfg(feature = "theke")]
     if opt.ui.is_none() && fenster_erlaubt {
-        return pizzahost::theke::starte(move |ui| {
+        // K-096 (Nutzerentscheidung): Programm mit Theke, aber kein Fenster möglich (keine Anzeige, WebView2 fehlt)
+        // → Abbruch vor dem ersten Wasm-Befehl statt W0100. `PIZZA_THEKE=0` (Tests/CI) bleibt fensterlos (W0100).
+        // Programme ohne Theke laufen immer, auch ohne Anzeige.
+        if !pizzahost::anzeige::theke_abgeschaltet() && laufen::braucht_theke(&pkarton) {
+            if let Err((meldung, detail)) = pizzahost::theke::fenster_moeglich() {
+                return pizzahost::anzeige::abbruch(meldung, detail.as_deref(), debug);
+            }
+        }
+        return pizzahost::theke::starte(debug, move |ui| {
             let mut opt = opt;
             let mut senke = senke;
             opt.ui = ui;

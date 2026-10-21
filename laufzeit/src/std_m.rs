@@ -376,7 +376,7 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
             }
         }
         A_BLECH => blech_methode(o, id, pos, ben, knoten),
-        A_KARTE => karte_methode(o, id, pos),
+        A_KARTE => karte_methode(o, id, pos, ben),
         A_BELAG => match id {
             N_NAME => obj::<Belag>(o).name,
             N_PREIS => zahl(crate::pf::standard_preis(o)),
@@ -471,12 +471,13 @@ fn text_methode(o: W, id: u32, pos: &[W], _knoten: i32) -> W {
     }
 }
 
-fn karte_methode(o: W, id: u32, pos: &[W]) -> W {
+fn karte_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
     use crate::karte as ka;
     let m = ka::karte(o);
     match id {
         N_LEGE => { let k = schluessel(a(pos, 0)); ka::lege(m, k, if pos.len() > 1 { pos[1] } else { KARTON }); o }
-        N_HOLE => { let k = schluessel(a(pos, 0)); match ka::finde(m, k) { Some(i) => m.v[i], None => KARTON } }
+        // K-095: hole(k[, ersatz]) – Ersatzwert (positional oder benannt) nur, wenn der Schlüssel fehlt.
+        N_HOLE => { let k = schluessel(a(pos, 0)); match ka::finde(m, k) { Some(i) => m.v[i], None => nn(arg(pos, ben, 1, N_ERSATZ)) } }
         N_HAT => { let k = schluessel(a(pos, 0)); bool_w(ka::finde(m, k).is_some()) }
         N_ENTFERNE => { let k = schluessel(a(pos, 0)); ka::entferne(m, k) }
         N_SCHLUESSEL => blech(ka::schluessel(m)),

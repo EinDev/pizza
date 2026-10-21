@@ -1,0 +1,10 @@
+Animation 'tanzen' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.
+Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.
+animiere(dauer: …) braucht eine Dauer, nicht "300ms".
+Eine Animation dauert 50ms bis 5s, nicht 49ms.
+Eine Animation dauert 50ms bis 5s, nicht 5s 1ms.
+schwebe(bei: …) braucht eine Zutat, nicht Theke(F).
+Wert 'Tomate' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.
+schwebe(dauer: …) braucht eine Dauer, nicht 1.5.
+Erwartet diavolo (ja/nein), bekam "ja".
+nein

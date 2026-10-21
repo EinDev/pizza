@@ -109,7 +109,13 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
 - **Varianten (Nutzerentscheidung K-083/1, Grundsatz K-082):** **nur Varianten mit Theke** – Windows x64 als eine EXE mit Fenster
   (Build per cargo-xwin/MSVC; WebView2-Runtime ab Win 10/11 vorhanden – fehlt sie: **klare Fehlermeldung**, kein stiller Konsolenbetrieb)
   und Linux x64 mit Fenster (Ziel-ID `linux-x64`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
-  Fenster (statisch x64-musl, arm64-musl) werden **nicht** mehr angeboten; W0100 bleibt nur für Tests/CLI ohne Renderer.
+  Fenster (statisch x64-musl, arm64-musl) werden **nicht** mehr angeboten. Linux: ausgeliefert wird ein **Starter** ohne
+  WebKitGTK-Abhängigkeit, der den Theke-Teil eingebettet trägt und nur für Programme mit Theke startet (`host/README.md`).
+- **Kein Fenster möglich (K-096, Nutzerentscheidung):** Ein Programm mit Theke (Importgruppe `theke`) **bricht nativ ab** – Meldung auf
+  stderr, **Exit 2**, statt W0100 –, wenn WebKitGTK fehlt (K-083), keine Anzeige da ist (Linux ohne `DISPLAY`/`WAYLAND_DISPLAY`, z. B.
+  SSH), die WebView2-Runtime fehlt oder die WebView sich nicht erzeugen lässt. Ohne Terminal (Windows-EXE per Doppelklick) zusätzlich
+  als Meldungsfenster. Programme ohne Theke laufen immer. W0100 bleibt für JSON-Modus, `--ui-ereignisse`, `PIZZA_THEKE=0` (Tests/CI),
+  die Interpreter-CLI `bin/pizza.js` und die Library ohne Renderer. Im Browser gibt es immer ein Fenster.
   `ziele.json` beschreibt Voraussetzungen; der EXE-Dialog zeigt sie an.
 
 ## 5. Tests
@@ -150,4 +156,10 @@ Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastat
 - Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067).
 - Stile: Zahlen in Pixeln (auch Kommazahlen), `ausrichtung` `links|mitte|rechts`, Fehlertexte mit erlaubter Liste (K-068); `stil(k, karton)` entfernt den Stil, Nachricht trägt `null` (K-075).
 - HOST-ABI `ui_warte`: Rückgabe = benötigte Länge, Retry mit größerem Puffer (wie K-013); Compiler meldet bis zur Umsetzung `nichtUnterstuetzt` (K-072).
+- **Animationen v3 (K-090 … K-094, SPEC §16.6; Interpreter U-56 umgesetzt, offen Wasm U-57 / Renderer U-58):** `zutat.animiere(art, dauer?)` mit `puls|huepfen|wackeln|funkeln|einblenden|aufpoppen`,
+  `theke.schwebe(text, bei?, farbe?, dauer?)` (schwebende „+12“), `zutat.uebergang(ja)` (weiches Ein-/Ausblenden, neue Kinder blenden ein);
+  alle Parameter auch benannt (K-094); fehlende Art → `Animation 'karton' gibt es nicht.`, fehlender Schwebetext → „karton“ (K-093).
+  Rein visuell: keine Ereignisse zurück, Schritte wie normale Aufrufe, Warten 0. Protokoll: Feld `animationen` in `aendere`
+  (Aufrufreihenfolge, ≤ 32, nach `aenderungen` angewendet), Feld `uebergang`; kein neues `op`. Nicht gezeigte Zutat → `W0102` (keine
+  Ananas); `prefers-reduced-motion` → keine Bewegung (Schwebetext bleibt lesbar). Renderer: `PizzaTheke.registriereAnimation`.
 - Erweiterungen v2 (Takt, Fortschritt, Abschnitt, Tabelle, Reiter, `hinweis`, `schrift: "riesig"`, Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf): SPEC §16.5 (K-084 … K-087), Vorschlag in `THEKE-ERWEITERUNGEN.md`.
