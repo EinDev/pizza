@@ -763,8 +763,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   7. Verschachtelte Brigade: Variablen und Objekte des äußeren Stücks sind für die innere Brigade Hauptküchen-Eigentum.
 - **Begründung:** Gleiche Stelle, gleicher Schritt, gleicher Text in jedem Motor; keine Teilwirkungen, die eine parallele
   Ausführung anders sähe.
-- **Betroffen:** Interpreter (U-56), Compiler/Laufzeit (U-59), Doku (U-58). Prüfstand: `a14-kueche-offen.js`.
-- **Status:** fest (Vertrag); offen bis U-56.
+- **Betroffen:** Interpreter (U-56 ✅), Compiler/Laufzeit (U-59), Doku (U-58). Prüfstand: `a14-kueche.js`.
+- **Status:** fest (Vertrag); Interpreter entspricht (72cb857 ff., Lücken in K-094).
 
 ### K-092 Küchenbrigade: Determinismus D1–D15, Uhr und Schritte
 - **Entscheidung:** D1–D15 wörtlich aus THREADS.md §3 (SPEC §17.6). §14.1 wird ergänzt: Uhr/`zeitMs` = Schritte + vorgespulte
@@ -778,7 +778,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   `2581720956, 1925393290, 3661312704`; D8 Ofen 27ms reicht für vier Stücke à `{ Uhr.vorspulen(10ms); serviere (x); }`, 26ms nicht.
 - **Begründung:** Jedes Stück ist eine reine Funktion von (Schnappschuss, Element, Stücknummer, Anschnitt-Zählern); das
   Zusammenführen ist eine feste Faltung → unabhängig von Köche-Anzahl und Planung.
-- **Betroffen:** Interpreter (U-56), Compiler/Laufzeit (U-59), Harnische (U-63). **Status:** fest (Vertrag); offen bis U-56.
+- **Betroffen:** Interpreter (U-56 ✅), Compiler/Laufzeit (U-59), Harnische (U-63). **Status:** fest (Vertrag); Interpreter
+  entspricht (72cb857 ff.; Stück-P0002 präzisiert in K-094/2).
 
 ### K-093 Küchenbrigade: Köche-Einstellung, Optionen, HOST-ABI-Gruppe `kueche`, Klassenindex
 - **Entscheidung:** (1) Köche nur im Host: Interpreter-/JS-Option `koeche` (Interpreter: akzeptiert und ignoriert),
@@ -793,6 +794,39 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   Frontend `brigade`/`KüchenAnanas` als `nichtUnterstuetzt` (P1b, 37c88f2) → Playground „Auto“ nutzt den Interpreter.
 - **Begründung:** Die Anzahl der Köche ist eine Leistungsentscheidung des Hosts; die Sprache sieht sie nie.
 - **Festgehalten:** ARCHITEKTUR §1/§2/§6, IR.md §1, HOST-ABI §2/§3/§6/§7. **Status:** fest (Vertrag); Umsetzung U-57 … U-63.
+
+### K-094 Küchenbrigade: Vertragslücken aus der Interpreter-Umsetzung (P1, 72cb857/f29baa7/8f922fd)
+- **Frage:** Der Interpreter-Agent meldete vier Stellen, an denen SPEC §17 schwieg oder sich widersprach. Entscheidung jeweils
+  **wie umgesetzt** (die Umsetzung folgt an allen vier Stellen der sequentiellen Referenz, K-090/F8):
+  1. **Kartonfähigkeit von `Rohling<T>` (roh-Info) und Pizza-Sicht** (`unten` als Wert in einer Belag-Methode) – beide fehlten in
+     der Tabelle (THREADS §2.4 = SPEC §17.5). Entscheidung: **kartonfähig**, da beide auch aus `belege` als Werte zurückkommen
+     (`roh (info) { serviere (info); }`, `serviere (unten)`) und keine Küchenmaschinerie tragen. Kopie: `Roh(…)` mit kopiertem
+     Teilergebnis und gleicher `verbrauchteZeit()`; Sicht mit gleicher Schichtenzahl auf eine Pizza-Kopie. Die Tiefensuche
+     (K-091/5) reicht in das Teilergebnis bzw. die Pizza hinein (`Roh(Teig)` → `Ein Teig`). Die `<Art>`-Liste bleibt
+     abschließend – kein neuer Text.
+  2. **Stück-P0002 (D7):** `schritte` = `S₀ + s₁ + … + s_{k−1} + (R + 1)` – die Arbeit der berücksichtigten Stücke nach D3/D6
+     (Limit + 1 nur bei k = 1); die **Küchenuhr** des abbrechenden Stücks steht bei Limit + 1 (`zeitMs` = Limit + 1 ohne
+     Vorspulen). D7 sagte „Limit + 1 wie gewohnt“, §14.1 nannte die Summenprüfung die „einzige Ausnahme“ – beides stimmte nur
+     für k = 1 und widersprach D3 („Stücke > k: keine Schritte“ – also zählen Stücke ≤ k). Jetzt: beide Brigade-Fälle sind die
+     Ausnahme; `schritte` ist immer Arbeit, die Uhr Zeit (D6). Referenz: Limit 100, `[1, 2].brigade(x -> { falls (x == 2)
+     { solange (ja) { } } serviere (x); });` → schritte 107, zeitMs 101 (S₀ = 6, s₁ = 6, R = 94). Position des Stück-P0002 wie
+     bei `belege` (dasselbe Programm mit `belege` meldet dieselbe Zeile; der Prüfstand prüft für P0002 keine Zeile).
+  3. **`neu Zutat()` in der Küche** → `RohlingAnanas: Ein Rohling ist nicht essbar.` (nicht der S4-Text). S4 betrifft nur
+     Operationen, die in der Hauptküche gelingen würden; eine abstrakte Klasse ist nirgends instanziierbar, der Fehler ist
+     ortsunabhängig (sequentiell identisch).
+  4. **Reihenfolge der Wache** (SPEC §17.3, Absatz „Reihenfolge der Wache“): (a) Operanden/Argumente auswerten (Schritte und
+     Wirkungen zählen), (b) Ziel auflösen (unbekannte Variable/Feld → gewohnte `LaufzeitAnanas`), (c) Küchenwache (0 Schritte),
+     (d) operationseigene Prüfungen (Index, Schlüssel, Typ, `gebacken`, Einlagerungstyp, Budget). Folge: `setze(99, …)`
+     auf einem Hauptküchen-Blech → `KüchenAnanas` statt `KeinStückAnanas`; `z = "text"` → `KüchenAnanas` statt `TypAnanas`;
+     `g = 2` (gebacken) → `KüchenAnanas` statt `GebackenAnanas`; `o.q = 1` (kein Feld) → `LaufzeitAnanas`. Für Zuweisungen heißt
+     das „nach der rechten Seite“, für Blech-/Speisekarten-/Kammer-Methoden „vor der Indexprüfung“ – ein Prinzip, zwei Sichten.
+     P2 (Wasm, U-59) baut genau diese Folge nach (`frozen_top`-Wache als erste Prüfung in jeder `rt_*`-Schreiboperation).
+- **Begründung:** Gleiche Stelle, gleicher Schritt, gleicher Text in jedem Motor; die Umsetzung war an allen vier Stellen die
+  natürliche Lesart der sequentiellen Referenz – ein Auftrag an den Interpreter ist nicht nötig.
+- **Festgehalten:** SPEC §14.1 (P0002), §17.3 (Reihenfolge der Wache, S4-Hinweis), §17.5 (zwei Tabellenzeilen, Tiefensuche),
+  §17.6 D7. Prüfstand: `a14-kueche.js` (umbenannt aus `a14-kueche-offen.js`, Abnahme P1; sieben neue Fälle K-094/1–4, 61 gesamt).
+- **Betroffen:** Compiler/Laufzeit (U-59: Kartonkopie von Rohling/Sicht, Wachen-Reihenfolge, Stück-P0002-Summe), Doku (U-58,
+  Hinweis). **Status:** fest; Interpreter entspricht (72cb857, f29baa7, 8f922fd).
 
 ---
 
@@ -855,10 +889,10 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-19 ✅ | `pruefstand/run.js`, `pruefstand/teil-b.js` | erledigt (Klärungs-Agent): Doku-`eingabe`, Manifestfeld `eingabe` + `.eingabe`-Fallback, B1 prüft `interaktiv`/verwaiste `.eingabe`, nur ein Schluss-Umbruch, Banner beidseitig entfernt; `*-offen.js`-Fälle zählen nicht als Fehlschlag und melden grüne Fälle als „nach a10 verschieben“ | Prüfstand selbst |
 | U-20 ✅ | `ARCHITEKTUR.md` §6 | erledigt (Klärungs-Agent): Testfall-Dateiformate dokumentiert | – |
 | U-21 | `site/js/pizza.js` (`globalerName`, `aufrufZiel`) | K-038: `auto` nur als `schneide`-Argument; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.` | a11 K-038 |
-| U-56 | `site/js/pizza.js`, `tests/faelle/kueche-*`, `tests/run-tests.js` (Interpreter-Agent, THREADS P1) | K-090 … K-092: `brigade`, `KüchenAnanas` (am Ende von `ANANAS_BAUM`), Einfrieren + Wachen, Kartonkopie, Zusammenführen D1–D15, Optionen `koeche` (ignoriert) und `kuechenChaos`; danach `a14-kueche-offen.js` → `a14-kueche.js` | a14 (alle Fälle) |
+| U-56 ✅ (72cb857, f29baa7, 8f922fd) | `site/js/pizza.js`, `tests/faelle/kueche-*`, `tests/run-tests.js` (Interpreter-Agent, THREADS P1) | K-090 … K-092: `brigade`, `KüchenAnanas` (am Ende von `ANANAS_BAUM`), Einfrieren + Wachen, Kartonkopie, Zusammenführen D1–D15, Optionen `koeche` (ignoriert) und `kuechenChaos`; Abnahme durch den Klärungs-Agenten: Lücken in K-094 festgeschrieben, `a14-kueche-offen.js` → `a14-kueche.js` | a14 (alle Fälle grün) |
 | U-57 ✅ (37c88f2) | `site/js/pizzaiolo/frontend.js` (Compiler-Agent, P1b) | K-093: `brigade`/`KüchenAnanas` → `nichtUnterstuetzt` (Auto fällt auf den Interpreter zurück) | tests/wasm |
 | U-58 | `site/js/doku/20-pizzafunktionen.js`, `site/beispiele/pizzafunktionen/kuechenbrigade.pizza` (Doku-/Beispiel-Agent, P1c) | SPEC §17 erklären (Teilsummen, Uhr `belege` vs. `brigade`, gefangene KüchenAnanas); Doku-Blöcke laufen im Prüfstand | Prüfstand Doku/Beispiele |
-| U-59 | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-091 … K-093: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen | tests/differenz `kueche-*` |
+| U-59 | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-091 … K-094: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen | tests/differenz `kueche-*` |
 | U-60 | `site/js/pizzaiolo/host-js.js`, `pizzaiolo.js`, `koch.js` (Compiler-Agent, P3) | K-093: `kuechenPool`, Klon-Instanzen, SAB-Protokoll, Option `koeche`, `kuechenChaos` | Differenz `wasm` vs. `wasm-koeche4` |
 | U-61 | `host/**` (Native-Host-Agent, P4) | K-093: Gruppe `kueche`, `--koeche=N`, `--info` `Köche: N`, Koch-Stapel wie Hauptthread | Differenz `host-koeche4`, CI-Smoke |
 | U-62 | `site/js/worker.js`, `ui/**` (UI-Agent, P5) | K-093: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
@@ -880,8 +914,10 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - Küchenbrigade (THREADS.md, Nutzerentscheidungen F1–F10 wie empfohlen): K-090 … K-093, SPEC §17 (THREADS §2/§3 damit
-  abgelöst; THREADS bleibt Plan für §4–§6); 54 offene Fälle in `a14-kueche-offen.js`; HOST-ABI-Gruppe `kueche` als Entwurf;
-  Aufträge U-56 … U-63 (U-57 erledigt in 37c88f2).
+  abgelöst; THREADS bleibt Plan für §4–§6); HOST-ABI-Gruppe `kueche` als Entwurf; Aufträge U-56 … U-63 (U-56 erledigt in
+  72cb857 ff., U-57 in 37c88f2). P1 abgenommen: `a14-kueche.js` (61 Fälle) grün; die vier Vertragslücken des Interpreter-Agenten
+  sind in K-094 wie umgesetzt entschieden (Rohling/Pizza-Sicht kartonfähig, Stück-P0002 = Arbeit der Stücke 1 … k, `neu Zutat()`
+  → RohlingAnanas, Wachen-Reihenfolge Operanden → Ziel → Wache → eigene Prüfungen) – P2 (U-59) muss sie nachbauen.
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
 - K-088: Vorrat-Namensräume (Beispiel-Tabs vs. eigene Tabs), CLI `--vorrat-loeschen <name>`/`--vorrat-loeschen-alle`, Doku-Block-Felder `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` (Prüfstand umgesetzt).
 - Zufall/Vorratskammer (Nutzerwünsche „RNG“, „State“): K-077 … K-081 festgehalten, SPEC §15.4 und §11; Interpreter ce303cb entspricht (10 Fälle in a10 grün); offen: CLI/UI/Host/Compiler (U-38 … U-44).

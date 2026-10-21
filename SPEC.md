@@ -575,8 +575,9 @@ regelt `EINGABE.md`.
   Ergänzung Küchenbrigade (§17.6 D6): Uhr und `zeitMs` = Schritte + vorgespulte Zeit **+ Brigade-Ersparnis (≤ 0)** – nach einer
   Brigade zählt die Uhr nur den kritischen Pfad (Anschnitt + längstes Stück), `schritte` die Summe aller Stücke.
 - **P0002:** Abbruch beim Schritt Nummer `schrittLimit + 1` (Standard 5 000 000). Nicht fangbar; `rand` läuft nicht.
-  Einzige Ausnahme: die Summenprüfung nach einer Brigade (§17.6 D7) meldet P0002 am `brigade`-Aufruf mit der tatsächlichen
-  Schrittsumme (kann größer als `schrittLimit + 1` sein).
+  Einzige Ausnahme: P0002 in oder nach einer Brigade (§17.6 D7) meldet die tatsächliche **Arbeit** – Stück-P0002: Schritte der
+  Stücke 1 … k−1 plus Limit + 1 des abbrechenden Stücks k (die Küchenuhr steht bei Limit + 1); Summenprüfung: P0002 am
+  `brigade`-Aufruf mit der Schrittsumme. Beides kann größer als `schrittLimit + 1` sein (K-094/2).
 
 ### 14.2 Budgets von Ofen und Lieferung
 
@@ -1027,7 +1028,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 
 Übernommen aus `THREADS.md` §2–§3 (Entwurf → Vertrag; Produktfragen F1–F10 wie empfohlen entschieden, K-090). THREADS.md bleibt
 Planungsdokument für Umsetzung, Motoren und Phasen (§4–§6); bei Widersprüchen gilt dieser Abschnitt. Prüfstand:
-`pruefstand/faelle/a14-kueche-offen.js` (offen bis zur Interpreter-Umsetzung, dann `a14-kueche.js`).
+`pruefstand/faelle/a14-kueche.js` (Interpreter-Referenz abgenommen: 72cb857 ff., Vertragslücken K-094).
 
 > **Grundsatz:** Die **sequentielle Referenz definiert die Semantik**; echte Threads sind eine unbeobachtbare Optimierung.
 > Kein Ereignis, kein Text, kein Exit-Code, keine `schritte`, keine `zeitMs` hängen von der Anzahl der Köche, von ihrer Planung
@@ -1116,6 +1117,17 @@ Bereits fertige Zustände bleiben lesbar: `backen()` eines Teigs, dessen Wert sc
 `wert()`, `istAufgegangen()`, `saat()` eines Zufall-Objekts usw. sind Lesezugriffe. **Werfen** einer vorhandenen Ananas verändert
 nichts und ist erlaubt (sie verlässt die Küche als Kopie, §17.5).
 
+**Reihenfolge der Wache (K-094/4, verbindlich für alle Motoren).** Eine schreibende Operation läuft in der Küche in genau
+dieser Folge ab: (a) **Operanden und Argumente** werden wie gewohnt ausgewertet – ihre Schritte zählen, ihre Wirkungen
+(Ausgaben, eigene Objekte) treten ein (`z = f(x)` ruft `f` auf, bevor die Wache greift; bei `o.f = …` wird `o` ausgewertet,
+bei `+=`/`++` der alte Wert gelesen); (b) das **Ziel wird aufgelöst** – unbekannte Variable, unbekanntes Feld oder ein
+nicht instanziierbarer Typ werfen die gewohnte Ananas (`LaufzeitAnanas: 'x' ist nicht definiert.`, `RohlingAnanas`);
+(c) die **Küchenwache** prüft (0 Schritte) und wirft die `KüchenAnanas`; (d) erst danach kämen die **eigenen Prüfungen der
+Operation** – Index (`KeinStückAnanas`), Schlüssel, Typ (`TypAnanas`), `gebacken` (`GebackenAnanas`), Einlagerungstyp der
+Vorratskammer, Budget. `b.setze(99, 5)` auf einem Hauptküchen-Blech wirft also die `KüchenAnanas`, nicht die
+`KeinStückAnanas`; `g = 2` auf einer gebackenen Hauptküchen-Variable die `KüchenAnanas`, nicht die `GebackenAnanas`. Eine
+gefangene Wache kostet so viele Schritte wie die gelungene Zuweisung (`y = x + 1` = 4, ob `y` eigen ist oder nicht).
+
 **S4 – nur in der Hauptküche** (wirft beim Aufruf, auch bei reinen Abfragen und Gettern):
 
 | Operation | Meldung |
@@ -1125,7 +1137,9 @@ nichts und ist erlaubt (sie verlässt die Küche als Kopie, §17.5).
 | `neu Vorratskammer(…)` | `KüchenAnanas: Neue Vorratskammern gibt es nur in der Hauptküche.` |
 
 Eingabe und Theke warten auf den Menschen und sind an genau einen Ort gebunden (eine Theke pro Programm, K-062); neue Kammern
-lesen vom Host. Ein Leseversuch in der Küche verbraucht keine Eingabe und erzeugt kein `eingabe`-Ereignis.
+lesen vom Host. Ein Leseversuch in der Küche verbraucht keine Eingabe und erzeugt kein `eingabe`-Ereignis. S4 betrifft nur
+Operationen, die in der Hauptküche gelingen würden: `neu Zutat()` (abstrakte Basisklasse, §16.1) wirft auch in der Küche die
+`RohlingAnanas: Ein Rohling ist nicht essbar.` – wie überall (K-094/3).
 
 **S5 – Lieferungen und Teige einer Küche** gehören der Küche und verfallen am Stückende: Lieferungen mit `wennDa`, die in der
 Küche bestellt und dort nicht gewartet wurden, laufen **nie** (sie nehmen nicht an der `wennDa`-Phase nach Programmende teil).
@@ -1145,14 +1159,17 @@ Rückgabewerte der Stücke (und geworfene Werte, D3) werden beim Zusammenführen
 | `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, Belag, quattrostagioni-Wert | ja | Wert |
 | `Blech`, `Speisekarte` | ja, wenn alle Elemente/Schlüssel/Werte kartonfähig | neue Objekte; geteilte Teile und Zyklen **innerhalb** des Ergebnisses bleiben geteilt |
 | `Pizza` | ja | neue Pizza mit gleichen Belägen und gleichem `übrig()` |
+| Pizza-Sicht (`unten` als Wert in einer Belag-Methode, §6) | ja | neue Sicht mit gleicher Schichtenzahl auf eine Kopie der Pizza (Textform und `preis()` unverändert) |
+| `Rohling<T>` (roh-Info eines Ofens, §7.3) | ja, wenn `teilergebnis()` kartonfähig | neues `Roh(…)` mit kopiertem Teilergebnis und gleicher `verbrauchteZeit()` |
 | Objekt einer eigenen Klasse, eigene Ananas, eingebaute Ananas | ja, wenn alle Felder kartonfähig | neues Objekt, **gleiche Nummer** `Klasse@N` (D10), Calzone-Zustand bleibt; Ananas behalten Nachricht und Zeile |
 | Klasse, Rezeptur, quattrostagioni-Typ, Module (`Bote`, `Mathe` …) als Wert | ja | dieselbe (unveränderliche) Referenz |
 | Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Stück`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
 
 - Nicht kartonfähig → `KüchenAnanas: <Art> passt in keinen Karton – nur Werte können die Küche verlassen.` mit `<Art>` ∈
   `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Ein Stück`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
-  `Eine Theke-Zutat` (Theke und Zutaten). Maßgeblich ist der **erste** nicht kartonfähige Teilwert in Tiefensuche (Elemente in
-  Reihenfolge, Speisekarten je Paar Schlüssel vor Wert, Felder in Deklarationsreihenfolge, Basisklassen zuerst). Die Ananas
+  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-094/1). Maßgeblich ist der **erste** nicht
+  kartonfähige Teilwert in Tiefensuche (Elemente in Reihenfolge, Speisekarten je Paar Schlüssel vor Wert, Felder in
+  Deklarationsreihenfolge, Basisklassen zuerst, Teilergebnis eines `Rohling`, Pizza einer Sicht). Die Ananas
   entsteht **in der Küche** am Ende des Stücks (Position = Position des `brigade`-Aufrufs, Schritte unverändert) und gilt als
   Abbruch dieses Stücks (D3).
 - Ist ein **geworfener** Wert nicht kartonfähig, wird stattdessen
@@ -1204,11 +1221,14 @@ vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), akt
   | `[1, 2, 3, 4].brigade(x -> { Uhr.vorspulen(x * 1s); serviere (x); });` + `Bote.sage((Uhr.jetzt()));` | `10s 45ms` | `4s 21ms`, schritte 45 (Stück 4: 8 Schritte + 4 s) |
 
 - **D7 – Schrittlimit P0002.** Jedes Stück hat als eigenes Limit den Rest beim Anschnitt `R = (Limitbasis + Limit) − S₀`; es bricht
-  beim eigenen Schritt `R + 1` mit P0002 ab (Abbruch nach D3; `schritte` = Limit + 1 wie gewohnt). Nach dem Zusammenführen ohne
-  Abbruch wird geprüft: `S₀ + Σ sᵢ > Limitbasis + Limit` → P0002 **am `brigade`-Aufruf** (Position des Aufrufs, `schritte` =
-  tatsächliche Summe – die einzige Ausnahme von „Abbruch beim Schritt Limit + 1“, §14.1). Stücke erben die Limitbasis (K-087);
+  beim eigenen Schritt `R + 1` mit P0002 ab (Abbruch nach D3, Position wie bei `belege`). Die Küchenuhr dieses Stücks steht dann
+  bei `T₀ + R + 1` (= Limit + 1 ohne Vorspulen), `schritte` nach D3/D6 = `S₀ + s₁ + … + s_{k−1} + (R + 1)` – die Arbeit der
+  berücksichtigten Stücke; nur bei k = 1 ist das Limit + 1 (K-094/2). Nach dem Zusammenführen ohne Abbruch wird geprüft:
+  `S₀ + Σ sᵢ > Limitbasis + Limit` → P0002 **am `brigade`-Aufruf** (Position des Aufrufs, `schritte` = tatsächliche Summe).
+  Beides sind die einzigen Fälle, in denen `schritte` größer als Limit + 1 ist (§14.1). Stücke erben die Limitbasis (K-087);
   in Küchen wird sie nie neu gesetzt. Referenz: Limit 30, `Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x * x * x);` →
-  P0002 in Zeile 1, schritte 36, zeitMs 15, Exit 3.
+  P0002 in Zeile 1, schritte 36, zeitMs 15, Exit 3. Limit 100, `[1, 2].brigade(x -> { falls (x == 2) { solange (ja) { } }
+  serviere (x); });` → P0002 in Stück 2 (S₀ = 6, s₁ = 6, R = 94): schritte 107, zeitMs 101, Exit 3.
 - **D8 – Ofen- und Lieferungsbudgets.** Äußere Budgets (in der Hauptküche geöffnet) gelten in jeder Küche gegen die Küchenuhr:
   Stück i überschreitet Rahmen f, sobald seine Küchenuhr > `E_f` ist (Regel aus §14.2, „äußerster greift“). Das ist ein Abbruch
   nach D3; die Hauptküche setzt am `brigade`-Aufruf mit diesem Rahmen fort (innere Rahmen werden ohne `roh` verlassen),
