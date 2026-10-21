@@ -1,5 +1,7 @@
 # pizza v3.0 – Playground
 
+[![CI](https://github.com/EinDev/pizza/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/EinDev/pizza/actions/workflows/ci.yml)
+
 **pizza** ist eine Programmiersprache, die aussieht wie Java, aber riecht wie eine Holzofen-Pizzeria:
 Klassen heißen `klasse`, Exceptions heißen `Ananas`, und wer Käse unter die Tomate legt, bekommt
 einen `PizzaFehler B0012`. Der Playground ist eine statische Web-App mit Editor – der Interpreter
@@ -77,6 +79,31 @@ node bin/pizza.js site/beispiele/grundlagen/hallo-welt.pizza
 
 `site/` ist der Web-Root und kann auch mit jedem anderen statischen Server ausgeliefert werden
 (z. B. `npx serve site`). `site/js/app.bundle.js` ist ein Build-Ergebnis, wird aber eingecheckt.
+
+## Tests & CI
+
+Jeder Push und jeder Pull Request auf `master` startet [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Die CI ist das **Sicherheitssignal** – sie blockiert das automatische Deployment von `master` nicht.
+Alle Jobs laufen parallel; Jobs für Suiten, die es noch nicht gibt, überspringen sich (Hinweis im Lauf)
+und werden automatisch aktiv, sobald Skript bzw. Ordner existieren.
+
+| Job | Was | lokal |
+|---|---|---|
+| Interpreter | Interpreter, Beispiele, Doku-Codeblöcke | `npm test` |
+| Coverage | Zeilen-/Zweig-Coverage von `site/js/pizza.js` (+ `pizzaiolo*`), Bericht als Artefakt `coverage` und im Job-Summary | `npm run coverage` |
+| Prüfstand | unabhängige Konformitätsprüfung gegen `SPEC.md` | `npm run test:pruefstand` |
+| Compiler | pizza → Wasm | `npm run test:wasm` |
+| Differenz & Fuzz | Interpreter vs. Wasm (vs. nativer Host); Fuzz mit `FUZZ_SEED=42`, `FUZZ_ANZAHL=500` | `npm run test:differenz`, `npm run test:fuzz` |
+| UI | `ui/`: `npm test` + `npm run build`; warnt, wenn das eingecheckte `site/js/app.bundle.js` vom Build abweicht | `cd ui && npm test && npm run build` |
+| Browser-E2E | Playground in Chrome (`CHROME_PFAD`), Artefakte aus `e2e/artefakte/` | `npm run test:e2e` |
+| Nativer Host | `host/`: `cargo test` + Release-Build (Linux & Windows), Artefakte `pizza-host-linux`/`-windows` | `cd host && cargo test` |
+| Docker | Image strikt bauen (`SKIP_TESTS=0`, `STRICT_BUILD=1`) + Rauchtest `/healthz` | `docker build .` |
+
+Alles Vorhandene auf einmal (wie die CI, ohne Browser): `npm run test:alles` (mit `-- --mit-e2e` inkl. E2E).
+
+**Coverage** nutzt die in Node eingebaute Test-Coverage (Node ≥ 22.5, keine Abhängigkeiten). Ergebnis in
+`coverage/`: `lcov.info`, `zusammenfassung.md` (Tabelle + größte ungetestete Funktionen/Blöcke) und
+`zusammenfassung.json`. Nur bestimmte Suiten messen: `npm run coverage -- interpreter`.
 
 ## Projektstruktur
 

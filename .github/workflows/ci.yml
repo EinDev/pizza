@@ -1,0 +1,283 @@
+# CI für pizza – das Sicherheitssignal.
+# master wird unabhängig davon automatisch deployed; ein roter Lauf blockiert nichts, zeigt aber,
+# dass etwas nicht stimmt. Jobs für Suiten, die es (noch) nicht gibt, überspringen ihre Schritte
+# und werden automatisch aktiv, sobald Skript/Ordner existieren.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  FORCE_COLOR: "0"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  interpreter:
+    name: Interpreter (npm test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - run: npm test
+
+  # ---------------------------------------------------------------------------
+  coverage:
+    name: Coverage (Interpreter/Compiler)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Coverage messen
+        # Testfehler melden die eigenen Jobs; hier zählt der Bericht (Zusammenfassung → Job-Summary).
+        run: npm run coverage || echo "::warning title=Coverage::Mindestens eine Suite ist im Coverage-Lauf fehlgeschlagen (Details in den Test-Jobs)."
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  pruefstand:
+    name: Prüfstand (Konformität)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: da
+        run: |
+          if [ -f pruefstand/run.js ]; then echo "ja=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice title=Prüfstand::pruefstand/run.js fehlt noch – übersprungen."; echo "ja=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.da.outputs.ja == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - if: steps.da.outputs.ja == 'true'
+        run: node pruefstand/run.js
+
+  # ---------------------------------------------------------------------------
+  wasm:
+    name: Compiler (test:wasm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: da
+        run: node scripts/ci/vorhanden.js --skript test:wasm
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.da.outputs.ja == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Abhängigkeiten (falls tests/wasm/package.json)
+        if: steps.da.outputs.ja == 'true' && hashFiles('tests/wasm/package-lock.json', 'tests/wasm/package.json') != ''
+        working-directory: tests/wasm
+        run: if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - if: steps.da.outputs.ja == 'true'
+        run: npm run test:wasm
+
+  # ---------------------------------------------------------------------------
+  differenz:
+    name: Differenz & Fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Reproduzierbar und begrenzt (lokal: FUZZ_SEED/FUZZ_ANZAHL beliebig setzen)
+      FUZZ_SEED: "42"
+      FUZZ_ANZAHL: "500"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: diff
+        run: node scripts/ci/vorhanden.js --skript test:differenz
+      - id: fuzz
+        run: node scripts/ci/vorhanden.js --skript test:fuzz
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.diff.outputs.ja == 'true' || steps.fuzz.outputs.ja == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Abhängigkeiten (falls tests/differenz|fuzz/package.json)
+        if: steps.diff.outputs.ja == 'true' || steps.fuzz.outputs.ja == 'true'
+        run: |
+          for d in tests/differenz tests/fuzz; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi)
+            fi
+          done
+      - name: Differenztests
+        if: steps.diff.outputs.ja == 'true'
+        run: npm run test:differenz
+      - name: Fuzz (Seed ${{ env.FUZZ_SEED }}, ${{ env.FUZZ_ANZAHL }} Programme)
+        if: always() && steps.fuzz.outputs.ja == 'true'
+        run: npm run test:fuzz
+
+  # ---------------------------------------------------------------------------
+  ui:
+    name: UI (test + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - working-directory: ui
+        run: npm ci --no-audit --no-fund
+      - working-directory: ui
+        run: npm test
+      - working-directory: ui
+        run: npm run build
+      - name: Eingechecktes Bundle == Build?
+        run: |
+          if git diff --quiet -- site/js/app.bundle.js; then
+            echo "site/js/app.bundle.js entspricht dem Build."
+          else
+            git diff --stat -- site/js/app.bundle.js
+            echo "::warning file=site/js/app.bundle.js,title=Bundle veraltet::Das eingecheckte site/js/app.bundle.js entspricht nicht 'cd ui && npm run build'. Bitte neu bauen und einchecken (Docker baut es selbst neu)."
+            {
+              echo "### ⚠ app.bundle.js veraltet"
+              echo "Das eingecheckte \`site/js/app.bundle.js\` weicht vom frischen Build ab. Das gebaute Bundle liegt im Artefakt \`app-bundle\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-bundle
+          path: site/js/app.bundle.js
+
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: Browser-E2E (Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: da
+        run: node scripts/ci/vorhanden.js --skript test:e2e --datei e2e/lauf.mjs
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.da.outputs.ja == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Chrome finden
+        id: chrome
+        if: steps.da.outputs.ja == 'true'
+        run: |
+          # Ubuntu 24.04 beschränkt unprivilegierte User-Namespaces (Chrome-Sandbox) – lockern, falls vorhanden.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 2>/dev/null || true
+          p="$(command -v google-chrome-stable || command -v google-chrome || true)"
+          echo "pfad=$p" >> "$GITHUB_OUTPUT"
+      - uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
+        id: setup-chrome
+        if: steps.da.outputs.ja == 'true' && steps.chrome.outputs.pfad == ''
+        with:
+          chrome-version: stable
+      - name: Abhängigkeiten
+        if: steps.da.outputs.ja == 'true' && hashFiles('e2e/package.json') != ''
+        working-directory: e2e
+        run: if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+      - name: E2E-Tests
+        if: steps.da.outputs.ja == 'true'
+        env:
+          CHROME_PFAD: ${{ steps.chrome.outputs.pfad || steps.setup-chrome.outputs.chrome-path }}
+        run: |
+          echo "Chrome: $CHROME_PFAD ($("$CHROME_PFAD" --version))"
+          if node -e "process.exit(require('./package.json').scripts?.['test:e2e']?0:1)"; then npm run test:e2e
+          else (cd e2e && npm test); fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.da.outputs.ja == 'true'
+        with:
+          name: e2e-artefakte
+          path: e2e/artefakte/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  host:
+    name: Nativer Host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: da
+        run: node scripts/ci/vorhanden.js --datei host/Cargo.toml
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        if: steps.da.outputs.ja == 'true'
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: steps.da.outputs.ja == 'true'
+        with:
+          workspaces: host
+      - name: cargo test
+        if: steps.da.outputs.ja == 'true'
+        working-directory: host
+        run: cargo test
+      - name: Release-Build
+        if: steps.da.outputs.ja == 'true'
+        working-directory: host
+        run: cargo build --release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.da.outputs.ja == 'true'
+        with:
+          name: pizza-host-${{ runner.os == 'Windows' && 'windows' || 'linux' }}
+          path: |
+            host/target/release/pizza-host
+            host/target/release/pizza-host.exe
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker-Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: "Build (strikt: Tests + UI-Build müssen klappen)"
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: pizza-playground:ci
+          build-args: |
+            SKIP_TESTS=0
+            STRICT_BUILD=1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Rauchtest (/healthz und Startseite)
+        run: |
+          docker run -d --name pizza -p 8080:8080 pizza-playground:ci
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:8080/healthz && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8080/ | grep -qi "<html" && echo "Startseite ok"
+          curl -fsS -o /dev/null http://127.0.0.1:8080/js/pizza.js && echo "pizza.js ok"
+          docker rm -f pizza

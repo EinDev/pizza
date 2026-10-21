@@ -8,7 +8,10 @@
     "pizza": "bin/pizza.js"
   },
   "scripts": {
-    "test": "node tests/run-tests.js"
+    "test": "node tests/run-tests.js",
+    "test:pruefstand": "node pruefstand/run.js",
+    "test:alles": "node scripts/test-alles.js",
+    "coverage": "node scripts/coverage.js"
   },
   "engines": {
     "node": ">=18"
