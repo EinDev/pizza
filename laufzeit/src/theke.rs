@@ -282,7 +282,7 @@ fn neue_theke(pos: &[W], ben: &Ben) -> W {
     let titel = arg(pos, ben, 0, N_TITEL);
     let br = arg(pos, ben, 1, N_BREITE);
     let ho = arg(pos, ben, 2, N_HOEHE);
-    let titel = if titel == UNDEF || titel == KARTON { neu_str("") } else { text(titel) };
+    let titel = if titel == UNDEF { neu_str("") } else { text(titel) };  // K-102: karton → "karton" (Zustandsfeld)
     if sig() { return KARTON; }
     let b = if br == UNDEF || br == KARTON { 480.0 } else { match ganz_pruefen(br, "Theke(breite: …)") { Some(x) => x, None => return KARTON } };
     let h = if ho == UNDEF || ho == KARTON { 360.0 } else { match ganz_pruefen(ho, "Theke(hoehe: …)") { Some(x) => x, None => return KARTON } };
@@ -324,7 +324,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         }
         2 => {
             let w = arg(pos, ben, 0, N_WERT);
-            zutat(z).wert = if w == UNDEF || w == KARTON { neu_str("") } else { text(w) };
+            zutat(z).wert = if w == UNDEF { neu_str("") } else { text(w) };  // K-102: karton → "karton" (Zustandsfeld)
             if sig() { return KARTON; }
             let ph = arg(pos, ben, 1, N_PLATZHALTER);
             zutat(z).platzhalter = if ph == UNDEF || ph == KARTON { neu_str("") } else { text(ph) };
@@ -351,7 +351,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         }
         8 | 10 => {
             let t = arg(pos, ben, 0, N_TITEL);
-            if zart == 8 { zutat(z).titel = if t == UNDEF || t == KARTON { neu_str("") } else { text(t) }; }
+            if zart == 8 { zutat(z).titel = if t == UNDEF { neu_str("") } else { text(t) }; }  // K-102: karton → "karton" (Zustandsfeld)
             else { match tabellen_zeile(t, "Titel") { Some(x) => zutat(z).titel_liste = x, None => return KARTON } }
             if sig() { return KARTON; }
             let b = arg(pos, ben, 1, if zart == 8 { N_KINDER } else { N_SEITEN });
@@ -483,6 +483,8 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         (6, N_BEITAKT) => { match ui_funktion(a(pos, 0), "beiTakt") { Some(f) => { zutat(o).bei_takt = f; return o; } None => return KARTON } }
         (7, N_WERT) => return zahl(z.fortschritt),
         (7, N_SETZEWERT) => { match fortschritt_wert(a(pos, 0)) { Some(x) => { zutat(o).fortschritt = x; aendere(o, "wert", jzahl(x)); return o; } None => return KARTON } }
+        // K-102: text des Fortschritts ist ein optionales Feld (K-067) – karton/fehlend löscht den Text
+        (7, N_SETZETEXT) => { let x = a(pos, 0); let t = if x == UNDEF || x == KARTON { neu_str("") } else { let t = text(x); if sig() { return KARTON; } t }; zutat(o).text = t; aendere(o, "text", jtext(t)); return o; }
         (8, N_TITEL) => return z.titel,
         (8, N_SETZETITEL) => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).titel = t; aendere(o, "titel", jtext(t)); return o; }
         (9, N_SPALTEN) => return blech(z.spalten.clone()),

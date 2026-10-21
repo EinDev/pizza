@@ -961,9 +961,16 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
 - **Ananas & Panik (K-065):** Ananas aus Rückrufen verlassen `bediene()` (fangbar mit `probier`); die Theke bleibt offen, erneutes
   `bediene()` wartet weiter. Panik beendet sofort (Exit 39, keine `schliesse`-Nachricht – Host/UI schließen selbst). `Bestellannahme`/`Bote` funktionieren in Rückrufen
   wie überall; `bediene()` in Ofen/Lieferung verbraucht beim Warten kein Budget; `bediene()` in `wennDa`-Rückrufen ist erlaubt.
-- **Werte (K-066):** `setzeText`/`setzeTitel`/`setzeWert`/`platzhalter`/Konstruktor-Texte speichern die Textform jedes Werts;
+- **Werte (K-066):** `setzeText`/`setzeTitel`/`setzeWert`/Konstruktor-Texte speichern die Textform jedes Werts (auch `karton` → `"karton"`);
   `aktiv`/`setzeAn`/`sichtbar`/`an:` verlangen diavolo (`TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`); `breite`/`hoehe`
   ganzzahlig (`TypAnanas: Theke(breite: …) braucht eine Ganzzahl, nicht 2.5.`), Standard 480×360, Werte ≤ 0 überlässt der Renderer seinem Standard.
+- **Fehlendes Argument und `karton` (K-102):** **Zustandsfelder** (`text` von Schild/Knopf/Haken, `wert` der Eingabe, `titel` von Theke
+  und Abschnitt, Spalten/Zellen, Reiter-Titel, Schwebetext) nehmen die Textform jedes Werts – `karton` → `"karton"`; fehlt das Argument
+  im Konstruktor, gilt der Standard der Signatur (`""` bzw. `[]`), fehlt es in einer Methode (`setzeText()`, `setzeTitel()`, `setzeWert()`,
+  `schwebe()`), gilt es wie überall als `karton` → `"karton"`. **Optionale Felder** (`platzhalter`, `hinweis`, `text` des Fortschritts –
+  wie `stil`/Rückrufe) lassen `karton` weg → `""`, im Konstruktor wie im Setter (`Fortschritt.setzeText(karton)` → `""`,
+  `hinweis(karton)` → `""`). Typisierte Parameter (`breite:`, `an:`, `dauer`, `bei`, …): fehlend oder `karton` → Standard.
+  Merksatz: „Was immer angezeigt wird, nimmt jeden Wert als Text – auch karton. Was man weglassen kann, lässt karton weg.“
 - **Stile (K-068):** `breite`/`hoehe`/`abstand`: Zahl ≥ 0 in Pixeln (Kommazahlen erlaubt, Renderer rundet) –
   `LaufzeitAnanas: Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.` bzw. TypAnanas bei Nicht-Zahl; `ausrichtung` ∈ `links|mitte|rechts`;
   `schrift` ∈ `klein|normal|gross|mono`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`. Unbekannter Schlüssel →
@@ -1053,7 +1060,7 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   der Renderer nimmt die Standarddauer der Art (K-092).
 - **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer (der Renderer zeigt für leeren Text oder nur
   Leerraum nichts und zählt ihn nicht zum Limit, K-093); fehlend oder `karton` → Schwebetext `"karton"`
-  (K-093; keine Ananas, keine Warnung); `bei` ist eine Zutat oder `karton` (= Fenstermitte),
+  (K-093, K-102; keine Ananas, keine Warnung); `bei` ist eine Zutat oder `karton` (= Fenstermitte),
   sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal` mit den
   Texten von K-068 (`LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.`).
   Optionale Felder (`id`, `farbe`, `dauer`) stehen **genau dann** im Eintrag, wenn das Argument angegeben und nicht `karton` ist.

@@ -2018,7 +2018,8 @@
       'wert': function (z) { return z.fortschritt; },
       'setzeWert': function (z, pos) { z.fortschritt = this.fortschrittWert(pos[0]); this.uiAendere(z, 'wert', z.fortschritt); return z; },
       'text': function (z) { return z.text; },
-      'setzeText': function (z, pos) { z.text = this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
+      // K-102: text ist ein optionales Feld (K-067) – karton/fehlend löscht den Text
+      'setzeText': function (z, pos) { z.text = pos[0] === undefined || pos[0] === null ? '' : this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
     }),
     abschnitt: uiTabelle(Object.assign({}, UI_CONTAINER_M, {
       'titel': function (z) { return z.titel; },
@@ -2542,7 +2543,7 @@
           break;
         }
         case 'eingabe': {
-          const w = arg(pos, ben, 0, 'wert'); z.wert = w === undefined || w === null ? '' : this.text(w);
+          const w = arg(pos, ben, 0, 'wert'); z.wert = w === undefined ? '' : this.text(w);  // K-102: karton → "karton" (Zustandsfeld)
           const ph = arg(pos, ben, 1, 'platzhalter'); z.platzhalter = ph === undefined || ph === null ? '' : this.text(ph);
           break;
         }
@@ -2567,7 +2568,7 @@
           z.zeilen = this.tabellenZeilen(arg(pos, ben, 1, 'zeilen'));
           break;
         case 'abschnitt': {
-          const t = arg(pos, ben, 0, 'titel'); z.titel = t === undefined || t === null ? '' : this.text(t);
+          const t = arg(pos, ben, 0, 'titel'); z.titel = t === undefined ? '' : this.text(t);  // K-102: karton → "karton" (Zustandsfeld)
           const b = arg(pos, ben, 1, 'kinder');
           if (b !== undefined && b !== null) {
             if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Abschnitt braucht ein Blech mit Zutaten, nicht ' + this.darstellung(b) + '.');
@@ -4076,7 +4077,7 @@
           if (this.uiTheke !== null) throw this.ananas('LaufzeitAnanas', 'Es gibt nur eine Theke pro Programm.');
           const titel = arg(pos, ben, 0, 'titel');
           const br = arg(pos, ben, 1, 'breite'), ho = arg(pos, ben, 2, 'hoehe');
-          const t = new UiTheke(titel === undefined || titel === null ? '' : this.text(titel),
+          const t = new UiTheke(titel === undefined ? '' : this.text(titel),  // K-102: karton → "karton" (Zustandsfeld)
             br === undefined || br === null ? 480 : this.ganzzahl(br, 'Theke(breite: …)'),
             ho === undefined || ho === null ? 360 : this.ganzzahl(ho, 'Theke(hoehe: …)'));
           this.uiTheke = t;

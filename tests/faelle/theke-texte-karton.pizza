@@ -1,0 +1,33 @@
+// K-102: Theke-Texte bei fehlendem Argument und karton.
+// Zustandsfelder (text, wert, titel, Zellen, Schwebetext) nehmen die Textform jedes Werts – karton → "karton";
+// fehlend im Konstruktor → Standard "" (Reiter-Titel: []), fehlend in Methoden = karton.
+// Optionale Felder (platzhalter, hinweis, Fortschritt-text) lassen karton weg → "" (wie stil/Rückrufe).
+Theke t = neu Theke(karton);
+Bote.sage(("Theke: [" + t.titel() + "] " + t));
+Schild s = neu Schild();
+Knopf k = neu Knopf(karton);
+Haken h = neu Haken(karton, karton);
+Eingabe e = neu Eingabe(karton, karton);
+Eingabe e2 = neu Eingabe(platzhalter: karton);
+Fortschritt f = neu Fortschritt(0.5, karton);
+Abschnitt a = neu Abschnitt(karton, [s]);
+Tabelle tb = neu Tabelle(["a", karton], [[1, karton], [ja, 2.5]]);
+Reiter r = neu Reiter([karton, 7], [k, neu Schild(karton)]);
+k.hinweis(karton);
+Bote.sage(("Konstruktor: [" + s.text() + "] [" + k.text() + "] [" + h.text() + "] [" + e.wert() + "] [" + e2.wert() + "] [" + f.text() + "] [" + a.titel() + "] [" + k.hinweis() + "]"));
+Bote.sage(("Zellen: " + tb.spalten() + " " + tb.zeilen()));
+t.zeige(neu Stapel([a, h, e, e2, f, tb, r]));
+s.setzeText();
+k.setzeText(karton);
+h.setzeText(5);
+e.setzeWert(karton);
+e2.setzeWert();
+f.setzeText("halb");
+f.setzeText(karton);
+a.setzeTitel();
+e2.hinweis("Tipp");
+e2.hinweis(karton);
+tb.setzeSpalten([karton]);
+t.schwebe();
+t.setzeTitel(karton);
+Bote.sage(("Setter: [" + s.text() + "] [" + k.text() + "] [" + h.text() + "] [" + e.wert() + "] [" + e2.wert() + "] [" + f.text() + "] [" + a.titel() + "] [" + t.titel() + "] [" + e2.hinweis() + "]"));

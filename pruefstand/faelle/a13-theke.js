@@ -388,6 +388,32 @@ Bote.sage((t));
 t.zeige(neu Schild("s"));
 `, { uiEreignisse: [], out: ["breite", "[] Theke()", "Theke(Pizzeria)"], ui: [fenster("Pizzeria"), baum({ id: "z1", art: "schild", text: "s" }), schliesse()] }),
 
+  F(T, "K-102: Text-Argumente fehlend/karton – Zustandsfelder (text, wert, titel) nehmen die Textform (karton → 'karton'; fehlend im Konstruktor → '', in Methoden = karton), optionale Felder (hinweis, platzhalter, Fortschritt-text) lassen karton weg", P`
+Theke t = neu Theke(karton);
+Schild s = neu Schild();
+Knopf k = neu Knopf(karton);
+Eingabe e = neu Eingabe(karton, karton);
+Fortschritt f = neu Fortschritt(0.5, karton);
+Abschnitt a = neu Abschnitt(karton, [s, k, e, f]);
+Bote.sage((t + " [" + s.text() + "] [" + k.text() + "] [" + e.wert() + "] [" + f.text() + "] [" + a.titel() + "]"));
+t.zeige(a);
+s.setzeText();
+k.setzeText(karton);
+f.setzeText("x");
+f.setzeText(karton);
+k.hinweis("Tipp");
+k.hinweis(karton);
+a.setzeTitel(5);
+Bote.sage(("[" + s.text() + "] [" + k.text() + "] [" + f.text() + "] [" + k.hinweis() + "]"));
+`, {
+    uiEreignisse: [],
+    out: ["Theke(karton) [] [karton] [karton] [] [karton]", "[karton] [karton] [] []"],
+    ui: [fenster("karton"),
+      baum({ id: "z5", art: "abschnitt", titel: "karton", kinder: [{ id: "z1", art: "schild", text: "" }, { id: "z2", art: "knopf", text: "karton" }, { id: "z3", art: "eingabe", wert: "karton" }, { id: "z4", art: "fortschritt", wert: 0.5 }] }),
+      aendere({ id: "z1", text: "karton" }, { id: "z2", text: "karton", hinweis: "" }, { id: "z4", text: "" }, { id: "z5", titel: "5" }),
+      schliesse()],
+  }),
+
 F(T, "K-084: Takt im Baum (intervall), Schlag ruft fn(anzahl), aktiv(nein) → aendere, Schlag auf inaktiven Takt ignoriert", P`
 Theke t = neu Theke("T");
 salami summe = 0;
