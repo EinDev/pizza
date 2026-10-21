@@ -1,0 +1,164 @@
+// Argumente-Feld für hauptgang(args) und „Vorrat löschen“ in der Befehlspalette.
+import assert from "node:assert/strict";
+import {
+  e2e, setzeCode, strg, schlafe, warteLaufEnde, konsolenAusgabe, exitBadge, EXIT_TEXT, bereit, neuerTab,
+  editorTabs, ereignisseLeeren, S, zeigePanelTab, warteAufTabMuster,
+} from "../hilfen.mjs";
+
+const ARGS = '[data-testid="argumente"]';
+const HAUPT = [
+  "speisekarte klasse Haupt {",
+  "    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {",
+  '        Bote.sage(("Anzahl: " + args.länge()));',
+  '        für (margherita a : args) { Bote.sage(("[" + a + "]")); }',
+  "    }",
+  "}",
+].join("\n");
+
+async function setzeArgs(page, text) {
+  await page.click(ARGS, { count: 3 });
+  await page.keyboard.down("Control"); await page.keyboard.press("KeyA"); await page.keyboard.up("Control");
+  await page.keyboard.press("Backspace");
+  if (text) await page.keyboard.type(text);
+}
+const argsWert = (page) => page.$eval(ARGS, (f) => f.value);
+
+async function backenUndAusgabe(page) {
+  await ereignisseLeeren(page);
+  await page.focus("#editor .cm-content");
+  await strg(page, "Enter");
+  await warteLaufEnde(page);
+  return konsolenAusgabe(page);
+}
+
+e2e("Argumente: Luigi \"Tisch 5\" 3 → hauptgang(args) bekommt [Luigi, Tisch 5, 3]; Enter im Feld startet den Lauf", async ({ page, oeffne }) => {
+  await oeffne();
+  await neuerTab(page);
+  await setzeCode(page, HAUPT);
+  assert.equal(await argsWert(page), "", "neuer Tab ohne Argumente");
+  await setzeArgs(page, 'Luigi "Tisch 5" 3');
+  // Enter im Argumente-Feld startet den Lauf
+  await ereignisseLeeren(page);
+  await page.keyboard.press("Enter");
+  await warteLaufEnde(page);
+  assert.equal(await konsolenAusgabe(page), "Anzahl: 3\n[Luigi]\n[Tisch 5]\n[3]\n");
+  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
+  // Kommandozeilen-Regeln: '…' wörtlich, \" in "…", leere Werte
+  await setzeArgs(page, `'a b' "x \\"y\\"" "" z`);
+  assert.equal(await backenUndAusgabe(page), 'Anzahl: 4\n[a b]\n[x "y"]\n[]\n[z]\n');
+  // ohne Argumente: leeres Blech
+  await setzeArgs(page, "");
+  assert.equal(await backenUndAusgabe(page), "Anzahl: 0\n");
+});
+
+e2e("Argumente: pro Tab gespeichert, Tab-Wechsel und Reload stellen sie wieder her", async ({ page, oeffne }) => {
+  await oeffne();
+  await neuerTab(page);
+  await setzeCode(page, HAUPT);
+  await setzeArgs(page, 'Luigi "Tisch 5" 3');
+  await neuerTab(page);
+  await setzeCode(page, HAUPT);
+  assert.equal(await argsWert(page), "", "zweiter Tab hat eigene (leere) Argumente");
+  await setzeArgs(page, "Mario");
+  // zurück zu Tab 1
+  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "unbenannt-1.pizza").querySelector(".etab-knopf").click());
+  await warteAufTabMuster(page, "unbenannt-1.pizza");
+  assert.equal(await argsWert(page), 'Luigi "Tisch 5" 3');
+  await schlafe(600); // Tab-Speichern ist entprellt
+  await page.reload({ waitUntil: "load" });
+  await bereit(page);
+  assert.equal((await editorTabs(page)).find((t) => t.aktiv).name, "unbenannt-1.pizza");
+  assert.equal(await argsWert(page), 'Luigi "Tisch 5" 3', "Argumente nach Reload");
+  assert.equal(await backenUndAusgabe(page), "Anzahl: 3\n[Luigi]\n[Tisch 5]\n[3]\n");
+  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "unbenannt-2.pizza").querySelector(".etab-knopf").click());
+  await warteAufTabMuster(page, "unbenannt-2.pizza");
+  assert.equal(await argsWert(page), "Mario");
+  assert.equal(await backenUndAusgabe(page), "Anzahl: 1\n[Mario]\n");
+});
+
+// ---------------------------------------------------------------- Vorrat löschen (Befehlspalette)
+const PALETTE = '[data-testid="befehlspalette"]';
+
+/** Vorratskammern direkt im Browser anlegen (Format der UI: localStorage praefix+name = {v:1,name,eintraege}). */
+function legeVorratAn(page, praefix, namen) {
+  return page.evaluate((p, n) => {
+    for (const name of n) localStorage.setItem(p + name, JSON.stringify({ v: 1, name, eintraege: [["stand", 7]] }));
+  }, praefix, namen);
+}
+const vorratSchluessel = (page) => page.evaluate(() => Object.keys(localStorage).filter((k) => /^pizza\.vorrat(-beispiel)?\./.test(k)).sort());
+
+async function paletteEintraege(page, suche) {
+  await page.focus("#editor .cm-content");
+  await page.keyboard.press("F1");
+  await page.waitForSelector(`${PALETTE}[open]`);
+  await page.focus('[data-testid="befehlspalette-eingabe"]');
+  await page.keyboard.type(suche);
+  await schlafe(100);
+  return page.$$eval('[data-testid="befehlspalette-eintrag"]', (e) => e.map((x) => x.textContent.trim()));
+}
+async function paletteWaehle(page, text) {
+  const ok = await page.$$eval('[data-testid="befehlspalette-eintrag"]', (e, t) => {
+    const z = e.find((x) => x.textContent.includes(t));
+    if (!z) return false;
+    z.click();
+    return true;
+  }, text);
+  assert.ok(ok, "Palette-Eintrag „" + text + "“");
+}
+const infoZeilen = (page) => page.$$eval("#konsole-inhalt .k-info", (z) => z.map((x) => x.textContent));
+
+e2e("Vorrat löschen: Einträge je Kammer des aktiven Namensraums, Rückfrage, exakte Konsolenzeile; Beispiel-Vorräte bleiben", async ({ page, oeffne }) => {
+  await oeffne();
+  await legeVorratAn(page, "pizza.vorrat.", ["imperium", "kasse"]);
+  await legeVorratAn(page, "pizza.vorrat-beispiel.", ["imperium"]);
+  // eigener Tab (Willkommen) → eigener Namensraum
+  const eintraege = await paletteEintraege(page, "Vorrat");
+  assert.ok(eintraege.some((t) => /Vorrat löschen: imperium/.test(t)), eintraege.join(" | "));
+  assert.ok(eintraege.some((t) => /Vorrat löschen: kasse/.test(t)));
+  assert.ok(eintraege.some((t) => /Alle Vorräte löschen/.test(t)));
+  // Einzelne Kammer: Rückfrage abbrechen → bleibt
+  await paletteWaehle(page, "Vorrat löschen: kasse");
+  await page.waitForSelector("#dialog-frage[open]");
+  assert.match(await page.$eval("#dialog-text", (d) => d.textContent), /kasse/);
+  await page.$eval('#dialog-frage button[value="nein"]', (k) => k.click());
+  await schlafe(150);
+  assert.ok((await vorratSchluessel(page)).includes("pizza.vorrat.kasse"), "nach Abbrechen noch da");
+  // Einzelne Kammer: bestätigen → weg, exakte Zeile
+  await paletteEintraege(page, "Vorrat");
+  await paletteWaehle(page, "Vorrat löschen: kasse");
+  await page.waitForSelector("#dialog-frage[open]");
+  await page.$eval(S.dialogJa, (k) => k.click());
+  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent.includes("gelöscht")));
+  assert.ok((await infoZeilen(page)).includes("Vorrat 'kasse' gelöscht."), (await infoZeilen(page)).join(" | "));
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat-beispiel.imperium", "pizza.vorrat.imperium"]);
+  // Alle (eigener Namensraum) → Beispiel-Namensraum bleibt unberührt
+  await paletteEintraege(page, "Alle Vorräte");
+  await paletteWaehle(page, "Alle Vorräte löschen");
+  await page.waitForSelector("#dialog-frage[open]");
+  await page.$eval(S.dialogJa, (k) => k.click());
+  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent === "Alle Vorräte gelöscht."));
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat-beispiel.imperium"], "Beispiel-Vorrat bleibt");
+  // Ohne Kammern keine Einträge mehr
+  const leer = await paletteEintraege(page, "Vorrat löschen");
+  assert.ok(!leer.some((t) => /Vorrat löschen: /.test(t) || /Alle Vorräte löschen/.test(t)), leer.join(" | "));
+  await page.keyboard.press("Escape");
+});
+
+e2e("Vorrat löschen im Beispiel-Tab: nur der Beispiel-Namensraum wird angeboten und gelöscht", async ({ page, oeffne }) => {
+  await oeffne();
+  await legeVorratAn(page, "pizza.vorrat.", ["imperium"]);
+  await legeVorratAn(page, "pizza.vorrat-beispiel.", ["imperium", "demo"]);
+  // Beispiel öffnen → Tab mit Schlüssel bsp:… → Beispiel-Namensraum
+  await zeigePanelTab(page, "beispiele");
+  await page.waitForSelector(S.beispielKarte);
+  await page.$$eval(S.beispielKarte, (k) => k[0].click());
+  await page.waitForFunction((sel) => !/willkommen/.test(document.querySelector(sel).textContent), {}, S.tabAktiv);
+  const eintraege = await paletteEintraege(page, "Vorrat löschen");
+  assert.ok(eintraege.some((t) => /Vorrat löschen: demo/.test(t)), "Beispiel-Kammer angeboten: " + eintraege.join(" | "));
+  await paletteWaehle(page, "Alle Vorräte löschen");
+  await page.waitForSelector("#dialog-frage[open]");
+  assert.match(await page.$eval("#dialog-text", (d) => d.textContent), /Beispiele/, "Rückfrage nennt den Beispiel-Namensraum");
+  await page.$eval(S.dialogJa, (k) => k.click());
+  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent === "Alle Vorräte gelöscht."));
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat.imperium"], "eigener Vorrat bleibt, Beispiel-Vorräte weg");
+});
