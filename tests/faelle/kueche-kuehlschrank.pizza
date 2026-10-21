@@ -14,3 +14,18 @@ Bote.sage((Rechner.quadrat(3)));
 Bote.sage(([1, 2].brigade(i -> { falls (i == 2) { Uhr.vorspulen(2h); } serviere ((Rechner.quadrat(2))); })));
 // die Uhr der Hauptküche steht nach der Brigade 2h weiter (längstes Stück) → auch hier abgelaufen
 Bote.sage((Rechner.quadrat.mikrowelle(2).istMatschig()));
+// gekühlte Bleche der Hauptküche (auch aus globalen Funktionen) sind in der Küche nur lesbar
+@Kühlschrank
+Blech<salami> liste() { serviere (([1, 2])); }
+Bote.sage((liste()));
+Bote.sage(([1].brigade(x -> { probier { liste().hinzu(9); } verbrannt (KüchenAnanas a) { serviere ((a.nachricht())); } serviere (("erlaubt")); })));
+Bote.sage((liste()));
+// verschachtelt: was die äußere Küche gekühlt hat, gehört für die innere Brigade der „Hauptküche“
+@Kühlschrank
+Blech<salami> frisch(salami n) { serviere (([n])); }
+Bote.sage(([1].brigade(x -> {
+    Blech<salami> eigen = frisch(5);
+    eigen.hinzu(6);
+    Blech<margherita> innen = [1].brigade(y -> { probier { frisch(5).hinzu(7); } verbrannt (KüchenAnanas a) { serviere ((a.nachricht())); } serviere (("erlaubt")); });
+    serviere ((innen + " " + frisch(5)));
+})));

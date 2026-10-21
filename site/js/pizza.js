@@ -4354,6 +4354,7 @@
         else if (x instanceof Stueck) merke(x.pizza);
         else if (x instanceof Reste) merke(x.wert);
         else if (x instanceof OfenRoh) merke(x.teil);
+        else if (x === this.globalCache) cache(x.cache);
       }
     }
 
@@ -4445,6 +4446,10 @@
       for (const k of this.klassen.values()) wurzeln.push(k);
       for (const k of this.kammern.values()) wurzeln.push(k);
       for (const l of this.lieferungen) wurzeln.push(l);
+      // verschachtelt: der Küchen-Kühlschrank der umgebenden Küche gehört der „Hauptküche“ dieser Brigade
+      for (let k = this.kueche; k !== null; k = k.eltern) {
+        for (const h of k.kuehl.values()) for (const tab of h.values()) for (const e of tab.values()) wurzeln.push(e.w);
+      }
       this.friere(gefroren, wurzeln);
       const auftrag = { b, f, node, gefroren, frameBasis: this.frames.length, S0, off0, T0, N0, L0, st0, zaehler, tot0, saaten };
       // ---- Stücke (sequentiell; mit kuechenChaos in pseudozufälliger Reihenfolge, alle Stücke)
