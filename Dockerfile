@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Teig kneten – UI bauen und (optional) Interpreter testen
 # ---------------------------------------------------------------------------
-FROM node:24.22.1-alpine3.24 AS build
+FROM node:26.12.0-alpine3.24 AS build
 
 WORKDIR /app
 
