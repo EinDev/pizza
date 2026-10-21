@@ -668,12 +668,12 @@
       tier: 1,
       inhalt: [
         { art: "kurz", md: "Mit der `Theke` bekommt dein Programm ein eigenes Fenster mit Schildern, Eingabefeldern und Knöpfen – wie eine Pizzatheke, an der der Gast zeigt und klickt. Im Playground erscheint es als Vorschaufenster, im heruntergeladenen Programm als echtes Fenster." },
-        { art: "hinweis", ton: "warnung", md: "**Noch im Ofen:** Die Theke ist beschlossen, aber der Interpreter kann sie noch nicht. Die Beispiele hier lassen sich schon lesen und in den Editor übernehmen; ausführen kannst du sie, sobald die Theke ausgeliefert ist." },
-        { art: "bild", src: "img/doku/re-theke.svg", alt: "Ein Fenster namens Pizzarechner mit grüner Markise. Darin ein Stapel aus Schild (Macht 16,00 €), Eingabe (2), Haken (extra Käse) und Knopf (Backen!). Ein Klick auf den Knopf geht an theke.bediene(), das den Rückruf aufruft; der Rückruf ändert mit setzeText das Schild.", unterschrift: "Zutaten in einem Stapel, Klick → `bediene()` ruft deinen Rückruf → der Rückruf ändert, was der Gast sieht." },
+                { art: "bild", src: "img/doku/re-theke.svg", alt: "Ein Fenster namens Pizzarechner mit grüner Markise. Darin ein Stapel aus Schild (Macht 16,00 €), Eingabe (2), Haken (extra Käse) und Knopf (Backen!). Ein Klick auf den Knopf geht an theke.bediene(), das den Rückruf aufruft; der Rückruf ändert mit setzeText das Schild.", unterschrift: "Zutaten in einem Stapel, Klick → `bediene()` ruft deinen Rückruf → der Rückruf ändert, was der Gast sieht." },
         {
           art: "code",
-          ausfuehrbar: false,
+          ausfuehrbar: true,
           tier: 1,
+          uiEreignisse: [{ typ: "aenderung", id: "z2", wert: "2" }, { typ: "klick", id: "z3" }],
           code: z(
             "Theke theke = neu Theke(\"Pizzarechner\", breite: 420, hoehe: 320);",
             "Schild preis = neu Schild(\"Noch nichts bestellt.\");",
@@ -686,12 +686,12 @@
             "theke.bediene();"
           )
         },
-        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. *(Vermerk: `ausfuehrbar`, sobald der Interpreter die Theke kann.)*" },
+        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. Die Theke läuft im Interpreter; der Wasm-Motor (Beta) kann sie noch nicht – mit „Auto (Beta)“ übernimmt dann der Interpreter." },
         {
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)` und `stil(schlüssel, wert)`." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)` und `stil(schlüssel, wert)`. Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung` **ersetzt** den alten Rückruf." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
@@ -712,11 +712,12 @@
           art: "details",
           titel: "Die Ereignisschleife: bediene()",
           inhalt: [
-            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`)." },
+            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`)." },
             {
               art: "code",
-              ausfuehrbar: false,
+              ausfuehrbar: true,
               tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "z2" }, { typ: "klick", id: "z2" }, { typ: "klick", id: "z3" }],
               code: z(
                 "Theke theke = neu Theke(\"Zähler\");",
                 "salami klicks = 0;",
@@ -731,7 +732,8 @@
                 "Bote.sage((\"Bestellt: \" + klicks));"
               )
             },
-            { art: "text", md: "*(Vermerk: `ausfuehrbar`, sobald der Interpreter die Theke kann.)*" }
+            { art: "text", md: "Klickt der Gast zweimal auf **+1** und dann auf **Fertig**, steht danach in der Konsole:" },
+            { art: "ausgabe", text: "Bestellt: 2" }
           ]
         },
         {
@@ -744,23 +746,27 @@
               art: "tabelle",
               kopf: ["Schlüssel", "Werte"],
               zeilen: [
-                ["`breite`, `hoehe`", "Größe"],
-                ["`abstand`", "Luft um die Zutat"],
-                ["`ausrichtung`", "Ausrichtung im Stapel bzw. in der Reihe"],
+                ["`breite`, `hoehe`", "Größe in Pixeln (Ganzzahl ≥ 0)"],
+                ["`abstand`", "Luft um die Zutat in Pixeln (Ganzzahl ≥ 0)"],
+                ["`ausrichtung`", "`\"links\"`, `\"mitte\"`, `\"rechts\"`"],
                 ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"mono\"`"],
                 ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"]
               ]
             },
             {
               art: "code",
-              ausfuehrbar: false,
+              ausfuehrbar: true,
               tier: 1,
               code: z(
-                "Schild titel = neu Schild(\"Pizzeria Luigi\", id: \"titel\");",
-                "titel.stil(\"schrift\", \"gross\");",
-                "titel.stil(\"farbe\", \"tomate\");"
+                "Schild titel = neu Schild(\"Pizzeria Luigi\", id: \"titel\")",
+                "    .stil(\"schrift\", \"gross\")",
+                "    .stil(\"farbe\", \"tomate\")",
+                "    .stil(\"ausrichtung\", \"mitte\");",
+                "Bote.sage((titel.id() + \": \" + titel.text()));"
               )
-            }
+            },
+            { art: "ausgabe", text: "titel: Pizzeria Luigi" },
+            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Unbekannter Stil 'x'.`, unpassende Werte eine `TypAnanas`." }
           ]
         },
         {
