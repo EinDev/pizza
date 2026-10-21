@@ -235,6 +235,7 @@
               art: "code",
               ausfuehrbar: true,
               tier: 1,
+              echtzeit: 1767225600000,   // feste Wanduhr (2026-01-01) für Tests/Differenztest (K-087)
               code: z(
                 "Vorratskammer v = neu Vorratskammer(\"idle\");",
                 "funghi zuletzt = v.hole(\"zuletzt\", Uhr.echt().inMs());",
