@@ -39,6 +39,14 @@ updates:
   - package-ecosystem: "docker"
     directories: ["/", "/hastebin"]
     schedule: { interval: "weekly", day: "monday" }
+    ignore:
+      # Node: nur LTS-Linien. Ungerade Majors werden nie LTS; 26.x ist bis zur
+      # LTS-Promotion (Ende Oktober 2026) noch "Current" – dann "26.x" hier streichen.
+      - dependency-name: "node"
+        versions: ["25.x", "26.x", "27.x", "29.x"]
+      # nginx: nur der stable-Zweig (gerade Minor); ungerade Minor = mainline.
+      - dependency-name: "nginxinc/nginx-unprivileged"
+        versions: ["1.31.x", "1.33.x"]
     commit-message: { prefix: "deps(docker)" }
 
   - package-ecosystem: "docker-compose"

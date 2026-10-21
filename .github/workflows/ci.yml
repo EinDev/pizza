@@ -19,14 +19,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
   FORCE_COLOR: "0"
 
 jobs:
   # ---------------------------------------------------------------------------
   interpreter:
     name: Interpreter (npm test)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,7 +39,7 @@ jobs:
   # ---------------------------------------------------------------------------
   coverage:
     name: Coverage (Interpreter/Compiler)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,7 +60,7 @@ jobs:
   # ---------------------------------------------------------------------------
   pruefstand:
     name: Prüfstand (Konformität)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,7 +79,7 @@ jobs:
   # ---------------------------------------------------------------------------
   wasm:
     name: Compiler (test:wasm)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,7 +100,7 @@ jobs:
   # ---------------------------------------------------------------------------
   differenz:
     name: Differenz & Fuzz
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       # Reproduzierbar und begrenzt (lokal: FUZZ_SEED/FUZZ_ANZAHL beliebig setzen)
@@ -135,7 +135,7 @@ jobs:
   # ---------------------------------------------------------------------------
   ui:
     name: UI (test + build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -170,7 +170,7 @@ jobs:
   # ---------------------------------------------------------------------------
   e2e:
     name: Browser-E2E (Chrome)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -185,7 +185,7 @@ jobs:
         id: chrome
         if: steps.da.outputs.ja == 'true'
         run: |
-          # Ubuntu 24.04 beschränkt unprivilegierte User-Namespaces (Chrome-Sandbox) – lockern, falls vorhanden.
+          # Ubuntu 24.04+ beschränkt unprivilegierte User-Namespaces (Chrome-Sandbox) – lockern, falls vorhanden.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 2>/dev/null || true
           p="$(command -v google-chrome-stable || command -v google-chrome || true)"
           echo "pfad=$p" >> "$GITHUB_OUTPUT"
@@ -221,7 +221,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-26.04, windows-2025]
     defaults:
       run:
         shell: bash
@@ -257,7 +257,7 @@ jobs:
   # ---------------------------------------------------------------------------
   docker:
     name: Docker-Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
