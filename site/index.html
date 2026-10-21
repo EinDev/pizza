@@ -92,6 +92,13 @@
         <div class="konsole-inhalt" id="konsole-inhalt" data-testid="konsole-ausgabe" role="log" aria-live="polite" aria-relevant="additions" tabindex="0">
           <p class="konsole-leer">Drück <kbd>Strg</kbd> + <kbd>Enter</kbd> oder <strong>Backen</strong>, um dein Programm in den Ofen zu schieben.</p>
         </div>
+        <form class="k-eingabe" id="konsole-eingabe" data-testid="konsole-eingabe" hidden>
+          <span class="k-eingabe-marke" aria-hidden="true">›</span>
+          <input type="text" id="konsole-eingabe-feld" data-testid="konsole-eingabe-feld" autocomplete="off" spellcheck="false"
+                 aria-label="Eingabe für das Programm" enterkeyhint="send">
+          <button type="submit" class="knopf knopf-mini knopf-mini-primaer" data-testid="konsole-eingabe-senden">Senden ↵</button>
+          <button type="button" class="knopf knopf-mini" id="konsole-eingabe-eof" data-testid="konsole-eingabe-eof" title="Eingabe beenden – das Programm bekommt „karton“ (Strg+D)">Ende</button>
+        </form>
       </section>
     </section>
 
@@ -152,6 +159,22 @@
     </form>
   </dialog>
 
+  <!-- Eingaben vorab (ohne Cross-Origin-Isolation) -->
+  <dialog class="dialog dialog-eingaben" id="dialog-eingaben" data-testid="dialog-eingaben" aria-labelledby="eingaben-titel">
+    <form method="dialog">
+      <h2 id="eingaben-titel">🎮 Eingaben vorab eintragen</h2>
+      <p class="eingaben-hinweis">Dieses Programm liest Eingaben (<code>Bestellannahme</code>). Live-Eingabe ist hier nicht möglich, weil die Seite nicht
+        „cross-origin-isolated“ ausgeliefert wird. Trag deine Eingaben deshalb <strong>vorab</strong> ein – <strong>eine Zeile pro Eingabe</strong>.
+        Sind alle verbraucht, bekommt das Programm <code>karton</code> (Ende).</p>
+      <textarea id="eingaben-text" data-testid="eingaben-text" rows="7" spellcheck="false" aria-label="Eingaben, eine pro Zeile"></textarea>
+      <div class="dialog-knoepfe">
+        <button type="submit" class="knopf knopf-geist" value="abbrechen" data-testid="eingaben-abbrechen">Abbrechen</button>
+        <button type="submit" class="knopf knopf-geist" value="ohne" data-testid="eingaben-ohne">Ohne Eingaben</button>
+        <button type="submit" class="knopf knopf-primaer" value="ja" data-testid="eingaben-backen">Mit diesen Eingaben backen ▶</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Teilen (Hastebin-Warnung) -->
   <dialog class="dialog dialog-teilen" id="dialog-teilen" data-testid="dialog-teilen" aria-labelledby="teilen-titel">
     <h2 id="teilen-titel">Code teilen</h2>
@@ -160,7 +183,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg>
         <div>
           <p><strong>Achtung: Dein Code verlässt diesen Browser.</strong></p>
-          <p>Der Code des Tabs <strong id="teilen-tabname">…</strong> wird an <strong>hastebin.com</strong> gesendet – einen externen Dienst von Toptal. Er wird dort gespeichert und ist für <strong>jeden lesbar, der den Link kennt</strong>.</p>
+          <p>Der Code des Tabs <strong id="teilen-tabname">…</strong> wird an den Hastebin-Server <strong id="teilen-server" data-testid="teilen-server">dieses Playgrounds</strong> gesendet. Er wird dort gespeichert und ist für <strong>jeden lesbar, der den Link kennt</strong>.</p>
           <p>Teile keine Passwörter, Schlüssel oder andere Geheimnisse.</p>
         </div>
       </div>
@@ -172,7 +195,7 @@
       </div>
     </div>
     <div class="teilen-schritt" data-schritt="laeuft" hidden>
-      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Wird an hastebin.com gesendet …</p>
+      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Wird an <span id="teilen-server-2">Hastebin</span> gesendet …</p>
     </div>
     <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-fertig" hidden>
       <p id="teilen-fertig-text"></p>
@@ -180,6 +203,7 @@
         <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-label="Link zum Teilen">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
       </div>
+      <p class="teilen-roh" id="teilen-roh-zeile" hidden><a id="teilen-roh" data-testid="teilen-roh" href="#" target="_blank" rel="noopener noreferrer">Rohtext auf Hastebin ansehen ↗</a></p>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>
       </div>

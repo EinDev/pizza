@@ -79,7 +79,7 @@ export function erstelleBeispiele({ ladeCode }) {
     let anzahl = 0;
     for (const k of kategorien) {
       if (aktivKat && k.kategorie !== aktivKat) continue;
-      const treffer = k.beispiele.filter((b) => !q || [b.titel, b.beschreibung, b.id, ...(b.schlagworte || [])].join(" ").toLowerCase().includes(q));
+      const treffer = k.beispiele.filter((b) => !q || [b.titel, b.beschreibung, b.id, b.interaktiv ? "interaktiv spiel" : "", ...(b.schlagworte || [])].join(" ").toLowerCase().includes(q));
       if (!treffer.length) continue;
       const sektion = el("section", "bsp-kategorie");
       const h = el("h3", "bsp-kategorie-titel");
@@ -110,6 +110,12 @@ export function erstelleBeispiele({ ladeCode }) {
     k.appendChild(kopf);
     if (b.beschreibung) k.appendChild(el("p", "bsp-beschreibung", b.beschreibung));
     const fuss = el("div", "bsp-fuss");
+    if (b.interaktiv) {
+      const ia = el("span", "bsp-interaktiv", "🎮 interaktiv");
+      ia.title = "Spiel: Du gibst während des Laufs Eingaben in der Konsole ein.";
+      ia.dataset.testid = "beispiel-interaktiv";
+      fuss.appendChild(ia);
+    }
     (b.schlagworte || []).slice(0, 4).forEach((s) => fuss.appendChild(el("span", "schlagwort", s)));
     const tb = tierBadge(b.tier, true);
     if (tb && b.tier !== 1) fuss.appendChild(tb);

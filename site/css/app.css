@@ -1039,3 +1039,37 @@ body.hawaii-aktiv > :not(.hawaii):not(script) { filter: blur(2px) saturate(.6); 
 .palette-fuss { display: flex; gap: 16px; padding: 7px 12px; border-top: 1px solid var(--rand); font-size: 11.5px; color: var(--text-3); background: var(--flaeche-2); }
 .palette-fuss kbd { font-size: 10px; margin-right: 2px; }
 @media (max-width: 520px) { .palette-gruppe { display: none; } .palette { margin-top: 8vh; } }
+
+/* ---------------- Interaktive Eingabe ---------------- */
+.konsole { grid-template-rows: 38px minmax(0, 1fr) auto; }
+.konsole.zu .k-eingabe { display: none; }
+.k-eingabe {
+  display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px;
+  border-top: 1px solid var(--rand); background: var(--flaeche-2);
+}
+.k-eingabe-marke { font: 700 15px var(--mono); color: var(--akzent); }
+.k-eingabe input {
+  flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 8px; border-radius: 7px;
+  border: 1px solid var(--akzent); background: var(--flaeche); font: 13px var(--mono); color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 15%, transparent);
+}
+.k-eingabe input:focus { outline: none; }
+.k-eingabe input::placeholder { color: var(--text-3); font-family: var(--sans); }
+@media (prefers-reduced-motion: no-preference) { .k-eingabe:not([hidden]) { animation: einblenden .15s ease-out; } }
+.k-echo { color: var(--akzent); font-weight: 650; }
+.k-echo::before { content: ""; }
+.k-echo-eof { color: var(--text-3); font-weight: 500; font-style: italic; }
+.exit-badge.wartet { color: var(--info); background: var(--info-weich); }
+.exit-badge.wartet::before { animation: pulsieren 1.2s ease-in-out infinite; }
+.bsp-interaktiv { font-size: 11px; font-weight: 650; color: var(--akzent); background: var(--akzent-weich); border-radius: 5px; padding: 1px 6px; }
+.dialog-eingaben { width: min(560px, calc(100vw - 32px)); }
+.eingaben-hinweis { font-size: 13px; line-height: 1.55; }
+.dialog-eingaben textarea {
+  width: 100%; margin: 0 0 14px; padding: 8px 10px; border-radius: 8px; resize: vertical;
+  border: 1px solid var(--rand-stark); background: var(--flaeche-2); color: var(--text); font: 13px/1.5 var(--mono);
+}
+.dialog-eingaben textarea:focus { outline: none; border-color: var(--akzent); }
+.dialog-eingaben .dialog-knoepfe { flex-wrap: wrap; }
+
+.teilen-roh { margin: -6px 0 14px; font-size: 13px; }
+.teilen-roh a { color: var(--akzent); }

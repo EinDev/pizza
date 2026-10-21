@@ -41,28 +41,48 @@ export function erstelleKonsole({ springe }) {
     requestAnimationFrame(() => { rafGeplant = false; zeichneAusgaben(); });
   }
 
+  // Laufender Ausgabeblock (pre-wrap): Bote.sage hängt Text+Zeilenumbruch an, Bote.schreibe nur Text.
+  function blockFuer(typ, frag) {
+    const letzter = frag.lastChild || (!frag.childNodes.length ? inhalt.lastChild : null);
+    if (letzteAusgabe && letzteAusgabe === letzter && letzteAusgabe.dataset.typ === typ) return letzteAusgabe;
+    letzteAusgabe = zeile(typ, "");
+    frag.appendChild(letzteAusgabe);
+    return letzteAusgabe;
+  }
+
   function zeichneAusgaben() {
     if (!ausgabePuffer.length) return;
-    const unten = inhalt.scrollHeight - inhalt.scrollTop - inhalt.clientHeight < 40;
-    const frag = document.createDocumentFragment();
+    let unten = inhalt.scrollHeight - inhalt.scrollTop - inhalt.clientHeight < 40;
+    let frag = document.createDocumentFragment();
     for (const ev of ausgabePuffer) {
+      if (ev.typ === "leeren") {
+        // Bote.leeren(): alles bisher Gezeichnete verwerfen
+        frag = document.createDocumentFragment();
+        inhalt.textContent = "";
+        anzahl = 0; gekappt = false; letzteAusgabe = null; unten = true;
+        continue;
+      }
       if (anzahl >= MAX_EINTRAEGE) {
         if (!gekappt) {
           gekappt = true;
-          frag.appendChild(zeile("system", `… weitere Ausgaben werden ausgeblendet (mehr als ${MAX_EINTRAEGE} Zeilen).`));
+          letzteAusgabe = null;
+          frag.appendChild(zeile("system", `… weitere Ausgaben werden ausgeblendet (mehr als ${MAX_EINTRAEGE} Zeilen). Tipp: Bote.leeren() zeichnet Spielfelder neu.`));
         }
         continue;
       }
       anzahl++;
       if (ev.typ === "ausgabe" || ev.typ === "fehlerausgabe") {
-        if (letzteAusgabe && letzteAusgabe.dataset.typ === ev.typ && letzteAusgabe.parentNode === inhalt && !frag.childNodes.length) {
-          letzteAusgabe.textContent += "\n" + ev.text;
-        } else if (letzteAusgabe && letzteAusgabe.dataset.typ === ev.typ && letzteAusgabe.parentNode === frag) {
-          letzteAusgabe.textContent += "\n" + ev.text;
-        } else {
-          letzteAusgabe = zeile(ev.typ, ev.text);
-          frag.appendChild(letzteAusgabe);
-        }
+        const block = blockFuer(ev.typ, frag);
+        block.appendChild(document.createTextNode((ev.text == null ? "" : String(ev.text)) + (ev.umbruch === false ? "" : "\n")));
+      } else if (ev.typ === "eingabe") {
+        // Echo der gelesenen Zeile – direkt hinter einer offenen Eingabeaufforderung
+        const block = blockFuer("ausgabe", frag);
+        const echo = document.createElement("span");
+        echo.className = ev.text == null ? "k-echo k-echo-eof" : "k-echo";
+        echo.dataset.testid = "konsole-echo";
+        echo.textContent = ev.text == null ? "⏎ Eingabe beendet (EOF)" : String(ev.text);
+        block.appendChild(echo);
+        block.appendChild(document.createTextNode("\n"));
       } else {
         letzteAusgabe = null;
         frag.appendChild(meldung(ev));
@@ -75,6 +95,7 @@ export function erstelleKonsole({ springe }) {
 
   function zeile(typ, text) {
     const e = document.createElement("div");
+    if (typ === "ausgabe" || typ === "fehlerausgabe") e.className = "k-zeile k-" + typ;
     e.className = "k-zeile k-" + typ;
     e.dataset.typ = typ;
     e.dataset.testid = "konsole-" + typ;
@@ -121,8 +142,59 @@ export function erstelleKonsole({ springe }) {
     return e;
   }
 
+  // ---------- Eingabezeile (nur bei Anfrage) ----------
+  const eForm = document.getElementById("konsole-eingabe");
+  const eFeld = document.getElementById("konsole-eingabe-feld");
+  const eEof = document.getElementById("konsole-eingabe-eof");
+  const verlauf = [];
+  let verlaufPos = 0, entwurf = "", antwortFn = null;
+  function sende(text) {
+    if (!antwortFn) return;
+    const f = antwortFn;
+    antwortFn = null;
+    if (text != null && text !== "" && verlauf[verlauf.length - 1] !== text) { verlauf.push(text); if (verlauf.length > 100) verlauf.shift(); }
+    verlaufPos = verlauf.length;
+    eFeld.value = "";
+    eForm.hidden = true;
+    eForm.classList.remove("zahl");
+    f(text);
+  }
+  eForm.addEventListener("submit", (e) => { e.preventDefault(); sende(eFeld.value); });
+  eEof.addEventListener("click", () => sende(null));
+  eFeld.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) { e.preventDefault(); sende(null); return; }
+    if (e.key === "ArrowUp" && verlauf.length) {
+      e.preventDefault();
+      if (verlaufPos === verlauf.length) entwurf = eFeld.value;
+      verlaufPos = Math.max(0, verlaufPos - 1);
+      eFeld.value = verlauf[verlaufPos];
+    } else if (e.key === "ArrowDown" && verlaufPos < verlauf.length) {
+      e.preventDefault();
+      verlaufPos++;
+      eFeld.value = verlaufPos === verlauf.length ? entwurf : verlauf[verlaufPos];
+    }
+  });
+
   return {
     leeren,
+    /** Zeigt die Eingabezeile; antwort(text|null) wird genau einmal aufgerufen. */
+    frageEingabe(anfrage, antwort) {
+      zeichneAusgaben(); // Aufforderung (Bote.schreibe) sofort sichtbar machen
+      zumEnde();
+      antwortFn = antwort;
+      verlaufPos = verlauf.length;
+      entwurf = "";
+      eFeld.value = "";
+      const zahl = anfrage && anfrage.art === "zahl";
+      eForm.classList.toggle("zahl", zahl);
+      eFeld.inputMode = zahl ? "decimal" : "text";
+      const prompt = anfrage && anfrage.prompt ? String(anfrage.prompt).trim() : "";
+      eFeld.placeholder = (zahl ? "Zahl eingeben … (Enter sendet, Strg+D beendet)" : "Eingabe … (Enter sendet, Strg+D beendet)");
+      eForm.hidden = false;
+      eFeld.focus({ preventScroll: true });
+    },
+    versteckeEingabe() { antwortFn = null; eForm.hidden = true; eFeld.value = ""; },
+    get wartet() { return !!antwortFn; },
     ereignis(ev) {
       if (!ev || !ev.typ) return;
       const leer = inhalt.querySelector(".konsole-leer");

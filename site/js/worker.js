@@ -56,10 +56,33 @@ function flush() {
 }
 function sende(ereignis) {
   puffer.push(ereignis);
-  if (ereignis.typ === "panik" || ereignis.typ === "ende" || ereignis.typ === "fehler" || ereignis.typ === "motor" || puffer.length >= BATCH) flush();
+  if (ereignis.typ === "panik" || ereignis.typ === "ende" || ereignis.typ === "fehler" || ereignis.typ === "motor" || ereignis.typ === "leeren" || puffer.length >= BATCH) flush();
 }
 function jetzt() { return (self.performance && performance.now) ? performance.now() : Date.now(); }
 function meldung(e) { return e && e.message ? e.message : String(e); }
+
+/* ---------- Interaktive Eingabe (EINGABE.md §3) ----------
+ * Geteilter Puffer: Int32 [0] = Status (0 wartet, 1 Daten, 2 EOF, 3 Abbruch), [1] = Länge in Bytes, ab Byte 8 UTF-8-Daten. */
+function eingabeRueckruf(sab) {
+  var ctrl = new Int32Array(sab, 0, 2);
+  var daten = new Uint8Array(sab, 8);
+  var dekoder = new TextDecoder();
+  return function (anfrage) {
+    Atomics.store(ctrl, 0, 0);
+    Atomics.store(ctrl, 1, 0);
+    sende({ typ: "eingabe-anfrage", prompt: anfrage && anfrage.prompt != null ? String(anfrage.prompt) : null, art: anfrage && anfrage.art === "zahl" ? "zahl" : "zeile" });
+    flush();
+    while (Atomics.load(ctrl, 0) === 0) Atomics.wait(ctrl, 0, 0);
+    var status = Atomics.load(ctrl, 0);
+    if (status === 1) {
+      var n = Math.min(Atomics.load(ctrl, 1), daten.length);
+      var kopie = new Uint8Array(n);
+      kopie.set(daten.subarray(0, n));
+      return dekoder.decode(kopie);
+    }
+    return null; // EOF oder Abbruch
+  };
+}
 
 function wasmFehler(text, zeile, spalte) {
   sende({ typ: "motor", motor: "wasm", grund: text });
@@ -97,6 +120,8 @@ function starte(d) {
   var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" ? "wasm" : "interpreter"); };
   var opt = {
     args: Array.isArray(d.args) ? d.args : [],
+    eingabe: Array.isArray(d.eingabe) ? d.eingabe.map(String) : undefined,
+    onEingabe: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? eingabeRueckruf(d.eingabePuffer) : undefined,
     onEvent: function (ev) {
       if (!ev) return;
       if (ev.typ === "motor") {

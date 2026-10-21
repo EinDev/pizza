@@ -17,20 +17,59 @@ export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
   });
 }
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor }) {
+/** Interaktive Eingabe möglich? (SharedArrayBuffer + Atomics, nur bei Cross-Origin-Isolation) */
+export function interaktivMoeglich() {
+  return typeof SharedArrayBuffer === "function" && typeof Atomics === "object" && self.crossOriginIsolated === true;
+}
+
+const PUFFER_BYTES = 64 * 1024;
+
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde }) {
   let worker = null, timer = null, start = 0, laufId = 0;
+  let sab = null, wartet = false, restMs = ZEITLIMIT_MS, timerStart = 0, wartezeit = 0, warteBeginn = 0;
+  const kodierer = new TextEncoder();
 
   function aufraeumen() {
     if (timer) { clearTimeout(timer); timer = null; }
+    if (wartet && sab) signal(3);
+    wartet = false;
     if (worker) { try { worker.terminate(); } catch (e) { /* egal */ } worker = null; }
+    sab = null;
+  }
+
+  function starteTimer(id) {
+    timerStart = performance.now();
+    timer = setTimeout(() => {
+      beiEreignis({ typ: "fehler", art: "limit", code: "P0002", text: "Die Pizza ist noch im Ofen (Zeitlimit von 10 s erreicht).", zeile: null, spalte: null });
+      beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
+    }, Math.max(0, restMs));
+  }
+  function pausiereTimer() {
+    if (!timer) return;
+    clearTimeout(timer); timer = null;
+    restMs -= performance.now() - timerStart;
+  }
+
+  function signal(status, bytes) {
+    const ctrl = new Int32Array(sab, 0, 2);
+    if (bytes) {
+      const daten = new Uint8Array(sab, 8);
+      const n = Math.min(bytes.length, daten.length);
+      daten.set(bytes.subarray(0, n));
+      Atomics.store(ctrl, 1, n);
+    } else Atomics.store(ctrl, 1, 0);
+    Atomics.store(ctrl, 0, status);
+    Atomics.notify(ctrl, 0);
   }
 
   function beende(id, info) {
     if (id !== laufId) return;
     laufId++;
     const wandMs = performance.now() - start;
+    const warteteNoch = wartet;
     aufraeumen();
-    beiEnde({ ...info, wandMs });
+    if (warteteNoch) beiEingabeEnde && beiEingabeEnde();
+    beiEnde({ ...info, wandMs, wartezeitMs: wartezeit });
   }
 
   function verarbeite(id, ev) {
@@ -52,15 +91,36 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       return;
     }
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
+    if (ev.typ === "eingabe-anfrage") {
+      if (!sab) return;
+      wartet = true;
+      warteBeginn = performance.now();
+      pausiereTimer(); // Wand-Zeitlimit ruht während des Wartens
+      beiEingabeAnfrage && beiEingabeAnfrage(ev);
+      return;
+    }
     beiEreignis(ev);
   }
 
   return {
     get laeuft() { return worker !== null; },
+    get wartetAufEingabe() { return wartet; },
+    /** Antwort auf eine Eingabe-Anfrage: Text oder null (= EOF). */
+    antworte(text) {
+      if (!wartet || !sab) return false;
+      wartet = false;
+      wartezeit += performance.now() - warteBeginn;
+      if (text == null) signal(2);
+      else signal(1, kodierer.encode(String(text)));
+      starteTimer(laufId);
+      return true;
+    },
     starte(code, args = [], motor = "auto", extra = {}) {
       aufraeumen();
       const id = ++laufId;
       start = performance.now();
+      restMs = ZEITLIMIT_MS;
+      wartezeit = 0;
       beiStart();
       try {
         worker = new Worker("js/worker.js");
@@ -75,11 +135,12 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         beiEreignis({ typ: "fehler", art: "intern", code: "INTERN", text: "Der Ofen ist ausgefallen: " + (e.message || "unbekannter Fehler im Worker") + ".", zeile: null, spalte: null });
         beende(id, { exitCode: 2 });
       };
-      timer = setTimeout(() => {
-        beiEreignis({ typ: "fehler", art: "limit", code: "P0002", text: "Die Pizza ist noch im Ofen (Zeitlimit von 10 s erreicht).", zeile: null, spalte: null });
-        beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
-      }, ZEITLIMIT_MS);
-      worker.postMessage({ ...extra, typ: "start", code, args, motor });
+      starteTimer(id);
+      const nachricht = { ...extra, typ: "start", code, args, motor };
+      if (!Array.isArray(extra.eingabe) && interaktivMoeglich()) {
+        try { sab = new SharedArrayBuffer(8 + PUFFER_BYTES); nachricht.eingabePuffer = sab; } catch (e) { sab = null; }
+      }
+      worker.postMessage(nachricht);
     },
     abbrechen() {
       if (!worker) return;

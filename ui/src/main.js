@@ -1,7 +1,7 @@
 // pizza v3.0 Playground – Einstieg.
 import { erstelleEditor } from "./editor.js";
 import { erstelleKonsole } from "./konsole.js";
-import { erstelleAusfuehrung, workerAuftrag } from "./ausfuehrung.js";
+import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich } from "./ausfuehrung.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { codeKodieren, codeDekodieren, codeAusHash } from "./teilen.js";
@@ -125,6 +125,7 @@ function start() {
     beiEreignis(ev) { konsole.ereignis(ev); },
     beiEnde(info) {
       konsole.sofortZeichnen();
+      konsole.versteckeEingabe();
       knopfBacken.hidden = false;
       knopfAbbr.hidden = true;
       document.body.classList.remove("laeuft");
@@ -140,6 +141,17 @@ function start() {
     },
     beiPanik(text) { zeigeHawaii(text); },
     beiMotor(ev) { konsole.setzeMotor(ev); },
+    beiEingabeAnfrage(ev) {
+      konsoleOeffnen();
+      $("exit-badge").className = "exit-badge wartet";
+      $("exit-badge").textContent = "wartet auf Eingabe";
+      konsole.frageEingabe(ev, (text) => {
+        ausfuehrung.antworte(text);
+        $("exit-badge").className = "exit-badge laeuft";
+        $("exit-badge").textContent = "im Ofen …";
+      });
+    },
+    beiEingabeEnde() { konsole.versteckeEingabe(); },
   });
 
   // ---------- Motor (Wasm / Interpreter) ----------
@@ -243,15 +255,46 @@ function start() {
     else if (logoBild.dataset.backen) { logoBild.removeAttribute("data-backen"); logoBild.src = "img/logo.svg"; }
   }
 
-  function backen() {
+  // Ohne Cross-Origin-Isolation: Eingaben vorab abfragen (pro Tab gemerkt)
+  const vorabEingaben = new Map();
+  function frageVorabEingaben(t) {
+    const dlg = $("dialog-eingaben");
+    if (typeof dlg.showModal !== "function") return Promise.resolve([]);
+    $("eingaben-text").value = vorabEingaben.get(t ? t.id : "") || "";
+    return new Promise((resolve) => {
+      dlg.returnValue = "";
+      dlg.addEventListener("close", () => {
+        const wert = dlg.returnValue;
+        if (wert === "ja") {
+          const text = $("eingaben-text").value;
+          vorabEingaben.set(t ? t.id : "", text);
+          resolve(text === "" ? [] : text.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n"));
+        } else if (wert === "ohne") resolve([]);
+        else resolve(null);
+      }, { once: true });
+      dlg.showModal();
+      $("eingaben-text").focus();
+    });
+  }
+
+  async function backen() {
     if (ausfuehrung.laeuft) return;
     const t = tabs.aktiv();
+    const code = editor.text();
+    let eingabe;
+    if (!interaktivMoeglich() && /\bBestellannahme\s*\./.test(code)) {
+      eingabe = await frageVorabEingaben(t);
+      if (eingabe == null) return; // abgebrochen
+      if (ausfuehrung.laeuft) return;
+    }
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
-    ausfuehrung.starte(editor.text(), [], motorWahl.value, {
+    ausfuehrung.starte(code, [], motorWahl.value, {
       pizzaiolo: faehigkeiten ? !!faehigkeiten.wasm : true,
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
+      ...(eingabe ? { eingabe } : {}),
     });
+    if (eingabe) konsole.system(eingabe.length ? "🎮 Vorab eingetragene Eingaben: " + eingabe.length + " Zeile(n)." : "🎮 Ohne Eingaben gebacken – das Programm bekommt sofort „karton“.");
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());
@@ -495,7 +538,27 @@ function start() {
   async function kopiere(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
   }
-  async function zeigeLink(url, text) {
+  // Eigener Hastebin-Server: Adresse kommt aus /api/konfig (einmal pro Seite)
+  let konfigVersprechen = null;
+  function holeKonfig() {
+    if (!konfigVersprechen) {
+      konfigVersprechen = fetch("api/konfig", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((k) => {
+          const h = k && typeof k.hastebin === "string" ? k.hastebin.trim().replace(/\/+$/, "") : "";
+          return /^https?:\/\/[^\s/]+/i.test(h) ? { hastebin: h, domain: h.replace(/^https?:\/\//i, "") } : null;
+        })
+        .catch(() => null);
+    }
+    return konfigVersprechen;
+  }
+  function setzeServerText(k) {
+    $("teilen-server").textContent = k ? k.domain : "dieses Playgrounds";
+    $("teilen-server-2").textContent = k ? k.domain : "Hastebin";
+  }
+  async function zeigeLink(url, text, rohUrl) {
+    $("teilen-roh-zeile").hidden = !rohUrl;
+    if (rohUrl) $("teilen-roh").href = rohUrl;
     $("teilen-url").value = url;
     $("teilen-fertig-text").textContent = text;
     teilenSchritt("fertig");
@@ -524,7 +587,9 @@ function start() {
         const url = location.href.split("#")[0] + "#h=" + daten.key;
         try { history.replaceState(null, "", "#h=" + daten.key); } catch (e) { /* egal */ }
         letzterHash = location.hash;
-        await zeigeLink(url, "„" + teilenName + "“ liegt jetzt auf hastebin.com. Jeder mit diesem Link kann den Code lesen.");
+        const k = await holeKonfig();
+        await zeigeLink(url, "„" + teilenName + "“ liegt jetzt auf dem Hastebin-Server " + (k ? k.domain : "dieses Playgrounds") + ". Jeder mit diesem Link kann den Code lesen.",
+          k ? k.hastebin + "/raw/" + encodeURIComponent(daten.key) : null);
         return;
       }
       if (r.status === 503) fehler = "Teilen über Hastebin ist auf diesem Server gerade nicht eingerichtet" + (daten && daten.fehler ? " (" + daten.fehler + ")" : "") + ".";
@@ -543,6 +608,7 @@ function start() {
     teilenCode = editor.text();
     teilenName = (t && t.name) || "unbenannt.pizza";
     $("teilen-tabname").textContent = "„" + teilenName + "“";
+    holeKonfig().then(setzeServerText);
     teilenSchritt("frage");
     if (typeof teilenDlg.showModal !== "function") { teilenDlg.setAttribute("open", ""); return; }
     teilenDlg.showModal();
