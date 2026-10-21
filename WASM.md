@@ -80,8 +80,13 @@ Pizzaiolo.run(quelltext, optionen?)            // synchron; Optionen & Rückgabe
   // optionen.motor: "auto" (Standard) | "wasm" | "interpreter"
   // Bei "auto" zuerst genau ein Ereignis { typ: "motor", motor, grund?, kompilierMs? }
 Pizzaiolo.fuehreAus(pkarton, optionen?)        // führt ein fertiges .pkarton aus (gleiche Rückgabe)
+Pizzaiolo.faehigkeiten                         // eingefroren: { version, abi, laufOptionen: [...], importgruppen: [...],
+                                               //   features: [...], ereignisse: [...], motoren: [...] }
 ```
 Synchrones Instanziieren (`new WebAssembly.Module/Instance`) ist im Worker und in Node erlaubt.
+`faehigkeiten` ist die maschinenlesbare Auskunft für Harnische und UI: `laufOptionen` = vom JS-Host ausgewertete
+`optionen`-Felder, `importgruppen` = HOST-ABI §2, `features` = Sprachbereiche, die ohne Fallback kompiliert werden
+(Programme mit anderen Konstrukten melden weiterhin `nichtUnterstuetzt`).
 
 ## 5. EXE (nativer Host)
 

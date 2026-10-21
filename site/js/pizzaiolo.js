@@ -150,5 +150,18 @@
     return r;
   }
 
-  return { version: VERSION, unterstuetzt, kompiliere, run, fuehreAus, _kompiliereTeil: kompiliereTeil, _teile: teile };
+  /** Maschinenlesbar: was dieser Compiler/JS-Host unterstützt (für Harnische, UI, Differenztests) */
+  const faehigkeiten = Object.freeze({
+    version: VERSION,
+    abi: 1,
+    laufOptionen: Object.freeze(['args', 'schrittLimit', 'speicherMiB', 'onEvent', 'eingabe', 'onEingabe', 'zufallsSaat',
+      'vorrat', 'onVorrat', 'echtzeit', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor']),
+    importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit']),
+    features: Object.freeze(['theke', 'theke-v2', 'takt', 'zufall', 'vorratskammer', 'zahlformat', 'uhr-echt',
+      'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv']),
+    ereignisse: Object.freeze(['ausgabe', 'fehlerausgabe', 'leeren', 'warnung', 'fehler', 'panik', 'eingabe', 'ui', 'vorrat', 'motor', 'ende']),
+    motoren: Object.freeze(['auto', 'wasm', 'interpreter']),
+  });
+
+  return { version: VERSION, faehigkeiten, unterstuetzt, kompiliere, run, fuehreAus, _kompiliereTeil: kompiliereTeil, _teile: teile };
 });
