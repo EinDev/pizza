@@ -1,0 +1,27 @@
+[package]
+name = "pizza-host"
+version = "0.1.0"
+edition = "2021"
+description = "Nativer Host für kompilierte pizza-Programme (.pkarton = WebAssembly)"
+license = "MIT"
+
+[[bin]]
+name = "pizza-host"
+path = "src/main.rs"
+
+[dependencies]
+wasmi = "2.0.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[lib]
+name = "pizzahost"
+path = "src/lib.rs"
+
+[dev-dependencies]
+wat = "1"
