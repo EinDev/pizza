@@ -605,6 +605,11 @@ fn wert_als_text(f: &Option<Vec<(String, String)>>) -> Option<W> {
 fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
     let id = match feld_text(ev, "id") { Some(i) => i, None => return };
     let z = match finde_id(id.as_bytes()) { Some(z) => z, None => return };
+    // nur gezeigte Zutaten bekommen Ereignisse (K-057/K-084)
+    if !angezeigt(z) { return; }
+    // K-087: jeder Rückruf beginnt mit frischem Schrittbudget
+    unsafe { crate::pf::LIMIT_BASIS = crate::z().schritte; }
+    crate::pf::neu_grenze();
     let typ = feld_text(ev, "typ").unwrap_or_default();
     let zz = zutat(z);
     match typ.as_str() {

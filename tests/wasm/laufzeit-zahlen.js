@@ -7,7 +7,7 @@ const datei = process.env.PIZZA_LAUFZEIT || path.join(__dirname, '..', '..', 'si
 function laden() {
   const leer = () => 0;
   const inst = new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(datei)), {
-    pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1 },
+    pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0 },
   });
   const e = inst.exports;
   const textVon = (w) => {

@@ -25,6 +25,12 @@
     'Chili', 'Peperoni', 'Rucola', 'Parmesan', 'Gorgonzola', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais',
     'Knoblauch', 'Kapern', 'Ananas'];
   const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat']);
+  const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
+    'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
+    'Haken', 'Stapel', 'Reihe', 'Zufall', 'Vorratskammer']);
+  // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
+  const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
+  const NOCH_NICHT_METHODEN = new Set(['tausender', 'kompakt', 'echt']);
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
@@ -132,6 +138,7 @@
       this.globalFnNamen = new Set();
       this.methodenNamen = new Set();
       this.zugewiesen = new Set();
+      this.neuTypen = new Set();
       this.globalGenutzt = new Set();
       this.globalFnDecl = new Map();
       this.klassenNamen = new Set();
@@ -155,6 +162,7 @@
         if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Belag') this.belagNamen.add(n.name);
+        if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
         if (n.k === 'Belag') for (const m of n.methoden) this.methodenNamen.add(m.name);
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
@@ -436,13 +444,22 @@
       return {
         format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler: null,
         registrierung: reg, methoden: this.methodenListe.map(m => ({ art: m.art, klasse: m.klasse === undefined ? null : m.klasse, name: m.name })),
-        globale: Array.from(this.globaleNamen.keys()), schiebNamen: Array.from(this.schiebNamen), globaleFunktionen: Array.from(this.globalFnNamen),
+        globale: Array.from(this.globaleNamen.keys()), schiebNamen: Array.from(this.schiebNamen),
+        gruppen: this.gruppen(), globaleFunktionen: Array.from(this.globalFnNamen),
         funktionen: this.funktionen, vorbereiten: vorb, oben: oben.id,
         globalInfos: Object.fromEntries(Array.from(this.globalInfos ? this.globalInfos.entries() : []).map(([n, g]) => [n, { typ: g.typ, gebacken: g.gebacken }])),
       };
     }
 
     typIR(t) { return t && !t.feld ? t.name : null; }
+
+    /** optionale Host-Importgruppen, die das Programm braucht (HOST-ABI §2) */
+    gruppen() {
+      const g = [];
+      for (const t of this.neuTypen) if (THEKE.has(t) && !this.klassenNamen.has(t)) { g.push('theke'); break; }
+      if (this.neuTypen.has('Vorratskammer') && !this.klassenNamen.has('Vorratskammer')) g.push('vorrat');
+      return g;
+    }
 
     /** Globale, die nur im Top-Level-Code vorkommen, werden lokale Slots von <oben> (schneller, gleiche Semantik). */
     befoerdere(oben) {
@@ -737,6 +754,7 @@
         case 'Un': return { k: 'un', op: n.op === '!' ? 0 : 1, e: this.ausdr(n.e, sc, fn, d) };
         case 'Tern': return { k: 'tern', c: this.ausdr(n.c, sc, fn, d), a: this.ausdr(n.a, sc, fn, d), b: this.ausdr(n.b, sc, fn, d) };
         case 'MCall':
+          if (NOCH_NICHT_METHODEN.has(n.name)) this.nein('Methode ' + n.name + ' wird vom Compiler noch nicht unterstützt', n);
           if (n.obj.k === 'Unten') return { k: 'untenM', name: n.name, args: this.args(n.args, sc, fn, d) };
           {
             const obj = this.ausdr(n.obj, sc, fn, d);
@@ -762,6 +780,7 @@
         case 'Unten': return { k: 'unten' };
         case 'UntenCall': return { k: 'untenCall', args: this.args(n.args, sc, fn, d) };
         case 'Neu':
+          if (!UNTERSTUETZTE_TYPEN.has(n.typ.name) && TYPEN_REFERENZ.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
           return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
         case 'PizzaLit': {
           const bl = n.belaege;

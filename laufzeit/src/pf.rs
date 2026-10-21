@@ -145,8 +145,11 @@ pub struct Frame { pub id: u32, pub ofen: bool, pub ende: f64, pub zwischen: W, 
 pub static mut FRAMES: Vec<Frame> = Vec::new();
 static mut FRAME_NR: u32 = 0;
 
+/// K-087: P0002 bezieht sich auf schritte − LIMIT_BASIS (neu gesetzt bei jedem Theke-Rückruf)
+pub static mut LIMIT_BASIS: f64 = 0.0;
+
 pub fn neu_grenze() {
-    let mut g = z().limit;
+    let mut g = unsafe { LIMIT_BASIS } + z().limit;
     unsafe {
         for fr in FRAMES.iter() { if !fr.tot { let x = fr.ende - z().offset; if x < g { g = x; } } }
     }
@@ -154,7 +157,7 @@ pub fn neu_grenze() {
 }
 
 pub fn grenze_erreicht() {
-    if z().schritte > z().limit { setze_sig(SIG_LIMIT); return; }
+    if z().schritte > unsafe { LIMIT_BASIS } + z().limit { setze_sig(SIG_LIMIT); return; }
     let uhr = z().schritte + z().offset;
     unsafe {
         for i in 0..FRAMES.len() {
@@ -523,4 +526,4 @@ pub fn eingabe_zahl(zeile: W, ersatz: W) -> W {
 
 // ---------------------------------------------------------------- Zufall
 static mut ZUFALL: u32 = 42;
-pub fn zufall() -> f64 { unsafe { crate::zahl::mulberry32(&mut ZUFALL) } }
+pub fn zufall() -> f64 { crate::vorrat::global_r() }

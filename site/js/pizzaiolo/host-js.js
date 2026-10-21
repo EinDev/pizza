@@ -31,7 +31,7 @@
     const eingabe = Array.isArray(optionen.eingabe) ? optionen.eingabe.map(x => x == null ? null : String(x)) : null;
     let eingabePos = 0;
     let eof = false;
-    let ausstehend = null, uiAusstehend = null, uiPos = 0;
+    let ausstehend = null, uiAusstehend = null, uiPos = 0, vorratAusstehend = null;
     let inst = null;
     const mem = () => new Uint8Array(inst.exports.memory.buffer);
     const t = (p, n) => dek.decode(mem().subarray(p, p + n));
@@ -78,6 +78,34 @@
         emit({ typ: 'ui', nachricht });
         if (typeof optionen.onUi === 'function') { try { optionen.onUi(nachricht); } catch (e) { /* ignorieren */ } }
       },
+      vorrat_lesen: (np, nn, bp, kap) => {
+        const vorratOpt = optionen.vorrat !== null && typeof optionen.vorrat === 'object' ? optionen.vorrat : null;
+        if (kap < 0) return (vorratOpt !== null || typeof optionen.onVorrat === 'function') ? 1 : 0;
+        if (vorratAusstehend === null) {
+          if (vorratOpt === null) return -1;
+          let e = null;
+          try { e = vorratOpt[t(np, nn)]; } catch (x) { e = null; }
+          if (e && !Array.isArray(e) && Array.isArray(e.eintraege)) e = e.eintraege;
+          if (!Array.isArray(e)) return -1;
+          vorratAusstehend = enk.encode(JSON.stringify(e.map(p => Array.isArray(p) ? [p[0], p[1] === undefined ? null : p[1]] : null)));
+        }
+        const b = vorratAusstehend;
+        if (b.length > kap) return b.length;
+        mem().set(b, bp);
+        vorratAusstehend = null;
+        return b.length;
+      },
+      vorrat_schreiben: (np, nn, jp, jn, ep, en) => {
+        const name = t(np, nn);
+        const ev = JSON.parse(t(ep, en));
+        emit({ typ: 'vorrat', name, schluessel: ev.schluessel, wert: ev.wert });
+        if (typeof optionen.onVorrat === 'function') {
+          let ok = true;
+          try { ok = optionen.onVorrat(name, JSON.parse(t(jp, jn)).eintraege) !== false; } catch (x) { ok = false; }
+          if (!ok) return -1;
+        }
+        return 0;
+      },
       ui_warte: (bp, kap) => {
         if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
         if (uiAusstehend === null) {
@@ -112,6 +140,7 @@
       startFn = pinst.exports.start;
     }
     if (typeof optionen.schrittLimit === 'number' && optionen.schrittLimit > 0) e.limit_setzen(optionen.schrittLimit);
+    if (typeof optionen.zufallsSaat === 'number' && Number.isInteger(optionen.zufallsSaat) && e.saat_setzen) e.saat_setzen(optionen.zufallsSaat);
     if (typeof optionen.speicherMiB === 'number') e.speicher_limit_setzen(optionen.speicherMiB);
     for (const a of (Array.isArray(optionen.args) ? optionen.args.map(String) : [])) {
       const b = enk.encode(a);

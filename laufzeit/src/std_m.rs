@@ -103,6 +103,8 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_ROH => matches!(id, N_TEILERGEBNIS | N_VERBRAUCHTEZEIT | N_ALSTEXT),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => matches!(id, N_MIKROWELLE | N_FRISCH | N_RUFE | N_ALSTEXT),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::tabelle_hat(o, id),
+        crate::vorrat::A_ZUFALL => crate::vorrat::hat_methode(id),
+        crate::vorrat::A_KAMMER => crate::vorrat::tabelle_hat(id),
         _ => false,
     }
 }
@@ -113,7 +115,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_BESTELLANNAHME => matches!(id, N_LIES | N_FRAGE | N_LIESZAHL | N_FRAGEZAHL | N_HATMEHR),
         N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN),
         N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ),
-        N_G_ZUFALL => id == N_ZAHL,
+        N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
         _ => false,
     }
@@ -287,13 +289,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
             let y = match zahl_pruefen(a(pos, 1), "potenz") { Some(x) => x, None => return KARTON };
             zahl(js_pow(x, y))
         }
-        (N_G_ZUFALL, N_ZAHL) => {
-            let mut x = match ganz_pruefen(a(pos, 0), "Zufall.zahl") { Some(x) => x, None => return KARTON };
-            let mut y = match ganz_pruefen(a(pos, 1), "Zufall.zahl") { Some(x) => x, None => return KARTON };
-            if x > y { core::mem::swap(&mut x, &mut y); }
-            let r = crate::pf::zufall();
-            zahl(x + floor(r * (y - x + 1.0)))
-        }
+        (N_G_ZUFALL, _) if crate::vorrat::hat_methode(name) => crate::vorrat::modul_methode(name, pos),
         (N_G_SPIEGEL, N_FELDER) => {
             let o = a(pos, 0);
             if o == KARTON || o == UNDEF { wirf_leer(); return KARTON; }
@@ -372,6 +368,8 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         A_MODUL => modul_methode(obj::<Ref>(o).id, id, pos, ben, knoten),
         A_TEIG | A_LIEF | A_ZUST | A_STUECK | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, knoten),
+        crate::vorrat::A_ZUFALL => crate::vorrat::objekt_methode(o, id, pos),
+        crate::vorrat::A_KAMMER => crate::vorrat::kammer_methode(o, id, pos, ben),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => match id {
             N_MIKROWELLE | N_FRISCH => {
                 let modus = if id == N_MIKROWELLE { 1 } else { 2 };

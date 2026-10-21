@@ -190,6 +190,14 @@ pub fn pruefe_typ(typ: u32, v: W, name: u32) -> bool {
         N_HAWAII => { wirf_panik(); return false; }
         N_G_DAUER => { if v == KARTON || art(v) == A_DAUER { return true; } was = "keine Dauer"; }
         N_G_PIZZA => { if v == KARTON || art(v) == A_PIZZA { return true; } was = "keine Pizza"; }
+        N_G_ZUFALL => {
+            if v == KARTON || crate::vorrat::ist_zufall(v) || klasse_eintrag(typ).is_some() { return true; }
+            was = "kein Zufall";
+        }
+        N_G_VORRATSKAMMER if klasse_eintrag(typ).is_none() => {
+            if v == KARTON || crate::vorrat::ist_kammer(v) { return true; }
+            was = "keine Vorratskammer";
+        }
         _ => {
             if klasse_eintrag(typ).is_none() {
                 if let Some(ok) = crate::theke::typ_passt(typ, v) {

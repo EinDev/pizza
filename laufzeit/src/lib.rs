@@ -17,6 +17,7 @@ pub mod start;
 pub mod programm;
 pub mod karte;
 pub mod theke;
+pub mod vorrat;
 
 use core::panic::PanicInfo;
 use wert::*;

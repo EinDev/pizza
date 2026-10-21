@@ -13,7 +13,10 @@
   'use strict';
   const { Puffer, section, verbinde, leseModul, utf8 } = K;
 
-  const ABI_EXPORTE = ['memory', 'abi_version', 'limit_setzen', 'speicher_limit_setzen', 'arg_puffer', 'arg_fertig', 'schritte', 'zeitMs'];
+  const ABI_EXPORTE = ['memory', 'abi_version', 'limit_setzen', 'speicher_limit_setzen', 'saat_setzen', 'arg_puffer', 'arg_fertig', 'schritte', 'zeitMs'];
+  /** optionale Importe → Gruppe (HOST-ABI §2: ein .pkarton importiert nur, was das Programm braucht) */
+  const OPTIONAL = { ui_senden: 'theke', ui_warte: 'theke', vorrat_lesen: 'vorrat', vorrat_schreiben: 'vorrat' };
+  const umgeschrieben = new Map();
 
   let cache = null;
   function laufzeitModul(bytes) {
@@ -38,9 +41,26 @@
 
   class Modulbau {
     /** info: { heapBase, zustand, heapStartAdr } aus dem Laufzeit-Build */
-    constructor(laufzeitBytes, info) {
+    constructor(laufzeitBytes, info, gruppen) {
       this.L = laufzeitModul(laufzeitBytes);
       this.info = info;
+      // Importe ohne benötigte Gruppe werden entfernt und durch Stubs ersetzt
+      const L0 = this.L;
+      const nImp = L0.anzahlImportFunktionen;
+      this.weg = [];
+      L0.importe.forEach((im, i) => { const g = OPTIONAL[im.name]; if (g && !(gruppen || []).includes(g)) this.weg.push(i); });
+      this.gruppen = (gruppen || []).slice();
+      const wegSet = new Set(this.weg);
+      const behalten = [];
+      for (let i = 0; i < nImp; i++) if (!wegSet.has(i)) behalten.push(i);
+      const neuIdx = new Map(behalten.map((alt, n) => [alt, n]));
+      const nImpNeu = behalten.length;
+      const stubBasis = nImpNeu + L0.funktionen.length;
+      this.abb = (alt) => {
+        if (alt < nImp) return wegSet.has(alt) ? stubBasis + this.weg.indexOf(alt) : neuIdx.get(alt);
+        return alt - this.weg.length;
+      };
+      this.behalten = behalten;
       this.typen = [];          // zusätzliche Typen {p, e}
       this.typKey = new Map();
       for (let i = 0; i < this.L.typen.length; i++) {
@@ -59,7 +79,7 @@
     rt(name) {
       const i = this.L.fnIndex.get(name);
       if (i === undefined) throw new Error('Laufzeitfunktion fehlt: ' + name);
-      return i;
+      return this.abb(i);
     }
     typ(p, e) {
       const k = p.join(',') + '>' + e.join(',');
@@ -104,13 +124,19 @@
         for (const t of L.typen.concat(this.typen)) { p.byte(0x60); p.u32(t.p.length); for (const x of t.p) p.byte(x); p.u32(t.e.length); for (const x of t.e) p.byte(x); }
         teile.push(section(1, p.fertig()));
       }
-      // 2 Importe (unverändert)
-      if (roh(2)) teile.push(section(2, roh(2).bytes));
-      // 3 Funktionen
+      // 2 Importe (ohne entfernte optionale)
       {
         const p = new Puffer();
-        p.u32(L.funktionen.length + this.funktionen.length);
+        p.u32(this.behalten.length);
+        for (const i of this.behalten) { const im = L.importe[i]; p.name(im.modul); p.name(im.name); p.byte(0); p.u32(im.typ); }
+        teile.push(section(2, p.fertig()));
+      }
+      // 3 Funktionen (Laufzeit, Stubs, Programm)
+      {
+        const p = new Puffer();
+        p.u32(L.funktionen.length + this.weg.length + this.funktionen.length);
         for (const t of L.funktionen) p.u32(t);
+        for (const i of this.weg) p.u32(L.importe[i].typ);
         for (const f of this.funktionen) p.u32(f.typ);
         teile.push(section(3, p.fertig()));
       }
@@ -136,7 +162,7 @@
         const ex = [];
         for (const name of ABI_EXPORTE) {
           const e = L.export(name);
-          if (e) ex.push(e);
+          if (e) ex.push(e.art === 0 ? { name: e.name, art: 0, idx: this.abb(e.idx) } : e);
         }
         for (const e of this.exporte) ex.push({ name: e.name, art: 0, idx: e.idx });
         p.u32(ex.length);
@@ -148,7 +174,7 @@
         const p = new Puffer();
         const extra = this.tabelle.length ? 1 : 0;
         p.u32(L.elementAnzahl + extra);
-        p.bytes(L.elementRest);
+        p.bytes(this.weg.length ? this.laufzeitElemente() : L.elementRest);
         if (extra) {
           p.byte(0); p.byte(0x41); p.s32(this.tabBasis); p.byte(0x0b);
           p.u32(this.tabelle.length);
@@ -165,8 +191,19 @@
         const sc = roh(10);
         const q = new K.Leser(sc.bytes, 0);
         const n = q.u32();
-        p.u32(n + this.funktionen.length);
-        p.bytes(sc.bytes.subarray(q.i));
+        p.u32(n + this.weg.length + this.funktionen.length);
+        if (this.weg.length) {
+          p.bytes(this.laufzeitCode());
+          for (const i of this.weg) {
+            const t = L.typen[L.importe[i].typ];
+            const k = new Puffer();
+            k.u32(0);
+            if (t.e.length === 1) k.bytes(t.e[0] === 0x7f ? [0x41, 0x7f] : t.e[0] === 0x7e ? [0x42, 0x7f] : [0x44, 0, 0, 0, 0, 0, 0, 0xf0, 0xbf]);
+            k.byte(0x0b);
+            const b = k.fertig();
+            p.u32(b.length); p.bytes(b);
+          }
+        } else p.bytes(sc.bytes.subarray(q.i));
         for (const f of this.funktionen) {
           const k = new Puffer(f.code.length + 16);
           k.u32(f.lokale.length);
@@ -195,12 +232,42 @@
       {
         const p = new Puffer();
         p.name('pizzaiolo');
-        p.bytes(utf8(JSON.stringify(meta || {})));
+        p.bytes(utf8(JSON.stringify(Object.assign({}, meta || {}, { gruppen: this.gruppen }))));
         teile.push(section(0, p.fertig()));
       }
       return verbinde(teile);
     }
   }
+
+  Modulbau.prototype.schluessel = function () { return this.weg.join(','); };
+  /** Laufzeit-Code mit umgeschriebenen Aufrufindizes (Cache je Menge entfernter Importe) */
+  Modulbau.prototype.laufzeitCode = function () {
+    const key = 'code:' + this.schluessel();
+    let c = umgeschrieben.get(key);
+    if (c && c.L === this.L) return c.bytes;
+    const p = new Puffer(this.L.code.reduce((a, b) => a + b.length + 5, 0));
+    for (const rumpf of this.L.code) { const b = K.umschreibeAufrufe(rumpf, this.abb); p.u32(b.length); p.bytes(b); }
+    const bytes = p.fertig();
+    umgeschrieben.set(key, { L: this.L, bytes });
+    return bytes;
+  };
+  /** Element-Segmente der Laufzeit mit umgeschriebenen Funktionsindizes */
+  Modulbau.prototype.laufzeitElemente = function () {
+    const q = new K.Leser(this.L.elementRest, 0);
+    const p = new Puffer(this.L.elementRest.length + 16);
+    for (let s = 0; s < this.L.elementAnzahl; s++) {
+      const flags = q.u32();
+      if (flags !== 0) throw new Error('Element-Segment mit Flags ' + flags + ' nicht unterstützt');
+      const start = q.i;
+      while (q.b[q.i] !== 0x0b) q.i++;
+      q.i++;
+      p.u32(0); p.bytes(this.L.elementRest.subarray(start, q.i));
+      const n = q.u32();
+      p.u32(n);
+      for (let i = 0; i < n; i++) p.u32(this.abb(q.u32()));
+    }
+    return p.fertig();
+  };
 
   /**
    * Zweiteiliger Bau für den JS-Host: nur der Programmteil als eigenes Modul, das Speicher, Tabelle und alle

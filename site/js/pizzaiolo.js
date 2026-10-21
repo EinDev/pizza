@@ -95,7 +95,7 @@
       const f = teile.frontend.frontend(p.ast);
       if (!f.ok) return { ok: false, nichtUnterstuetzt: f.nichtUnterstuetzt };
       ir = f.ir;
-      const mb = new teile.linker.Modulbau(laufzeit(), teile.laufzeitDaten.info);
+      const mb = new teile.linker.Modulbau(laufzeit(), teile.laufzeitDaten.info, ir.gruppen || []);
       teile.backendWasm.erzeuge(ir, mb, teile.laufzeitDaten.info);
       const pkarton = mb.baue({ format: 'pkarton/1', abi: 1, compiler: VERSION, laufzeit: teile.laufzeitDaten.info.hash });
       const kompilierMs = jetzt() - t0;

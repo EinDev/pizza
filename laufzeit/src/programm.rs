@@ -138,6 +138,8 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
         N_G_SPEISEKARTE => crate::karte::neu_karte(),
         N_G_PIZZA => crate::pf::neue_pizza(Vec::new()),
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
+        N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),
+        N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => crate::vorrat::neue_kammer(pos, &ben, knoten),
         _ => match klasse_eintrag(id) {
             None => {
                 let mut t = Tb::neu();

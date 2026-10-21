@@ -197,5 +197,53 @@
     return r;
   }
 
-  return { T, OP, Puffer, Code, Leser, leseModul, section, verbinde, utf8 };
+  /**
+   * Schreibt die Funktionsindizes aller `call`-Instruktionen eines Funktionsrumpfs (inkl. Lokal-Kopf) um.
+   * Erlaubte Instruktionsmenge wie tests/wasm/portabel.js; liefert neue Bytes.
+   */
+  function umschreibeAufrufe(rumpf, abb) {
+    const r = new Leser(rumpf, 0);
+    const out = new Puffer(rumpf.length + 16);
+    let n = r.u32();
+    for (let i = 0; i < n; i++) { r.u32(); r.byte(); }
+    out.bytes(rumpf.subarray(0, r.i));
+    let von = r.i;
+    while (r.i < rumpf.length) {
+      const op = r.byte();
+      if (op === 0x10) {
+        out.bytes(rumpf.subarray(von, r.i));
+        const alt = r.u32();
+        out.u32(abb(alt));
+        von = r.i;
+        continue;
+      }
+      if (op <= 0x01 || op === 0x05 || op === 0x0b || op === 0x0f || op === 0x1a || op === 0x1b) continue;
+      if (op >= 0x02 && op <= 0x04) { const bt = r.b[r.i]; if (bt === 0x40 || (bt >= 0x7c && bt <= 0x7f)) r.i++; else r.s32(); continue; }
+      if (op === 0x0c || op === 0x0d) { r.u32(); continue; }
+      if (op === 0x0e) { let k = r.u32(); while (k--) r.u32(); r.u32(); continue; }
+      if (op === 0x11) { r.u32(); r.u32(); continue; }
+      if (op >= 0x20 && op <= 0x24) { r.u32(); continue; }
+      if (op >= 0x28 && op <= 0x3e) { r.u32(); r.u32(); continue; }
+      if (op === 0x3f || op === 0x40) { r.byte(); continue; }
+      if (op === 0x41) { r.s32(); continue; }
+      if (op === 0x42) { r.s64(); continue; }
+      if (op === 0x43) { r.i += 4; continue; }
+      if (op === 0x44) { r.i += 8; continue; }
+      if (op >= 0x45 && op <= 0xc4) continue;
+      if (op === 0xfc) {
+        const sub = r.u32();
+        if (sub <= 7) continue;
+        if (sub === 8) { r.u32(); r.byte(); continue; }
+        if (sub === 9 || sub === 13) { r.u32(); continue; }
+        if (sub === 10) { r.byte(); r.byte(); continue; }
+        if (sub === 11) { r.byte(); continue; }
+        if (sub === 12 || sub === 14) { r.u32(); r.u32(); continue; }
+      }
+      throw new Error('umschreibeAufrufe: unbekannter Opcode 0x' + op.toString(16));
+    }
+    out.bytes(rumpf.subarray(von, rumpf.length));
+    return out.fertig();
+  }
+
+  return { T, OP, Puffer, Code, Leser, leseModul, section, verbinde, utf8, umschreibeAufrufe };
 });

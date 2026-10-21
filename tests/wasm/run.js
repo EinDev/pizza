@@ -66,6 +66,16 @@ pruefe('Modul-Leser liest laufzeit.wasm', () => {
   return m.funktionen.length > 100 && m.export('rt_lauf') && m.export('memory');
 });
 
+pruefe('optionale Importgruppen (HOST-ABI §2)', () => {
+  const imp = (q) => WebAssembly.Module.imports(new WebAssembly.Module(Z.kompiliere(q).pkarton)).map(i => i.name).sort().join(',');
+  const basis = 'ausgabe,eingabe,fehler,fehlerausgabe,leeren,panik,schreibe,warnung';
+  if (imp('Bote.sage((1));') !== basis) throw new Error('Basis: ' + imp('Bote.sage((1));'));
+  if (imp('Vorratskammer v = neu Vorratskammer("a");') !== basis + ',vorrat_lesen,vorrat_schreiben'.split(',').sort().join(',').replace(/^/, '')
+    && imp('Vorratskammer v = neu Vorratskammer("a");').split(',').sort().join(',') !== basis.split(',').concat(['vorrat_lesen', 'vorrat_schreiben']).sort().join(',')) throw new Error('Vorrat');
+  const t = imp('Theke t = neu Theke("x"); t.zeige(neu Schild("a"));').split(',');
+  if (!t.includes('ui_senden') || !t.includes('ui_warte') || t.includes('vorrat_lesen')) throw new Error('Theke: ' + t);
+});
+
 const faelle = korpus.alle().concat(eigeneFaelle());
 
 console.log('▶ ir');
