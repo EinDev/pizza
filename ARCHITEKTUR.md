@@ -152,8 +152,8 @@ Regeln für jeden Abschnitt:
 - In Node: `globalThis.self` existiert ggf. nicht → Dateien nutzen `(typeof self !== "undefined" ? self : globalThis)`.
 - Markdown-Untermenge: `**fett**`, `*kursiv*`, `` `code` ``, `[text](url)`, Leerzeilen = Absätze, `- ` Listen.
 - `ausfuehrbar: true` ⇒ Code läuft im Snack-Modus mit Exit-Code 0 (oder `exitCode`-Feld angeben). Der Test-Harness prüft das.
-- Ein `ausgabe`-Block nach einem Code-Block darf das Hawaii-Panik-Banner weglassen (der Test-Harness vergleicht `ausgabe`-Blöcke ohnehin nur als Hinweis). In `.erwartet`-Dateien (Beispiele, Testfälle) ist das Banner dagegen **Pflicht**.
   `ausfuehrbar: false` ⇒ Code muss trotzdem **parsen** (außer `sprache: "xml"`/`"shell"` – dann gar nicht geprüft).
+- Ein `ausgabe`-Block nach einem Code-Block darf das Hawaii-Panik-Banner weglassen (der Test-Harness vergleicht `ausgabe`-Blöcke ohnehin nur als Hinweis). In `.erwartet`-Dateien (Beispiele, Testfälle) ist das Banner dagegen **Pflicht**.
 - `ordnung`-Bereiche: 0–99 Geschichte · 100–199 Einstieg · 200–299 Sprache · 300–399 Pizza-Funktionen · 400–499 Ananas/Hawaii · 500–599 Standardbibliothek · 600–699 Toolchain/Referenz.
 - Die UI lädt alle Doku-Dateien über eine feste Liste in `index.html` (`<script src="js/doku/…">`). Dateinamen:
   `00-geschichte.js`, `10-sprache.js`, `20-pizzafunktionen.js`, `30-referenz.js`.
