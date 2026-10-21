@@ -1,0 +1,18 @@
+Sorte: Funghi
+Stücke: 8
+Preis roh: 9.6
+Preis schön: 9,60 €
+Scharf? nein
+Backzeit: 1min 30s
+Doppelte Backzeit: 3min
+Pro Stück: 1.2 (also 1,20 €)
+Halbe Pizza: 4 Stücke
+Bei 3 Gästen bleiben 2 Stücke übrig
+TypAnanas: 7.5 passt nicht in eine salami-Variable.
+Basis: ((Tomate, Mozzarella))
+Klassiker: ((Tomate, Mozzarella, Basilikum)) für 8,00 €
+Beläge: Tomate + Mozzarella + Basilikum
+Anzahl Beläge: 3
+Mit Basilikum? ja
+Feurig: ((Tomate, Mozzarella, Basilikum, Salami, Chili)) für 10,00 €
+Entschärft: ((Tomate, Mozzarella, Basilikum, Salami))

@@ -1,0 +1,22 @@
+services:
+  pizza:
+    build:
+      context: .
+      args:
+        SKIP_TESTS: ${SKIP_TESTS:-1}
+    image: pizza-playground:3.0
+    container_name: pizza-playground
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3

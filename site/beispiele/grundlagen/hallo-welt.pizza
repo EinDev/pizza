@@ -1,0 +1,9 @@
+// Snack-Modus: keine Klasse, kein hauptgang – einfach losbacken.
+// Anweisungen auf oberster Ebene laufen der Reihe nach.
+
+Bote.sage(("Hallo, Pizzawelt!"));
+Bote.sage(("Der Ofen ist heiß, der Teig ist bereit."));
+Bote.sage(("Heute im Angebot: " + 3 + " Sorten"));
+
+// Bote.fehler schreibt in die Fehlerausgabe (in der Konsole rot).
+Bote.fehler(("Psst: Die Ananas bleibt im Lager."));

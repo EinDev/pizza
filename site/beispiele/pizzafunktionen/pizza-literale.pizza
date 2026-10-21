@@ -1,0 +1,37 @@
+// Luigis Speisekarte: Pizzen sind Werte!
+// Die Beläge stehen in doppelten Klammern – von unten nach oben.
+
+Bote.sage(("=== Luigis Speisekarte ==="));
+
+Pizza klassiker = ((Tomate, Mozzarella, Basilikum));
+Bote.sage(("Margherita: " + klassiker));
+Bote.sage(("Beläge: " + klassiker.beläge().verbinde(", ")));
+Bote.sage(("Anzahl Beläge: " + klassiker.anzahlBeläge()));
+Bote.sage(("Preis roh: " + klassiker.preis()));          // 5.00 Teig + 1.00 + 1.50 + 0.50
+Bote.sage(("Preis schön: " + klassiker.preis().euro()));
+
+// + legt einen Belag oben drauf und liefert eine NEUE Pizza
+Pizza diavola = klassiker + Salami + Chili;
+Bote.sage(("Diavola: " + diavola + " für " + diavola.preis().euro()));
+
+Pizza feurig = diavola + Chili;
+Bote.sage(("Extra feurig: " + feurig));
+
+// - nimmt einen Belag wieder runter (alle Exemplare davon)
+Pizza fürOma = feurig - Chili;
+Bote.sage(("Für Oma: " + fürOma + " für " + fürOma.preis().euro()));
+Bote.sage(("Hat Salami? " + fürOma.hat(Salami)));
+Bote.sage(("Hat Chili? " + fürOma.hat(Chili)));
+
+// Der Klassiker selbst wurde nie verändert
+Bote.sage(("Klassiker immer noch: " + klassiker));
+
+// Beläge kennen ihren Namen und ihren Preis
+Bote.sage(("Extra-" + Salami.name() + " kostet " + Salami.preis().euro()));
+
+// Die nackte Pizza: nur Teig
+Pizza nackt = (());
+Bote.sage(("Nur Teig: " + nackt + " für " + nackt.preis().euro()));
+
+// Pizzen sind gleich, wenn die Beläge in gleicher Reihenfolge liegen
+Bote.sage(("Gleiche Pizzen? " + (fürOma == klassiker + Salami)));

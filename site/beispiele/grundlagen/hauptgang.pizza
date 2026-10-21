@@ -1,0 +1,35 @@
+paket de.luigi.pizzeria;   // optional – wird ignoriert
+import pizza.ofen.*;       // optional – die Standardbibliothek ist immer da
+
+/*
+ * Der klassische Aufbau: Eine speisekarte-Klasse mit der Methode
+ *     speisekarte tiefkühl leer hauptgang(Blech<margherita> args)
+ * ist der Einstiegspunkt – wie public static void main in Java.
+ */
+speisekarte klasse Pizzeria {
+
+    tiefkühl margherita name = "Luigis Pizzeria";
+    tiefkühl salami tische = 12;
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("Willkommen in " + name + "!"));
+        Bote.sage(("Freie Tische: " + tische));
+
+        begrüße(("Giulia"));
+        begrüße(("Marco"));
+
+        Bote.sage(("Mitgebrachte Argumente: " + args.länge()));
+        Bote.sage(("Noch frei: " + Pizzeria.tische));
+    }
+
+    // Eine statische Hilfsmethode ohne Rückgabewert
+    tiefkühl leer begrüße(margherita gast) {
+        Pizzeria.tische -= 1;
+        Bote.sage((gruß((gast))));
+    }
+
+    // Eine statische Methode mit Rückgabewert – serviere braucht Klammern!
+    tiefkühl margherita gruß(margherita gast) {
+        serviere (("Ciao " + gast + ", dein Tisch ist bereit."));
+    }
+}

@@ -1,0 +1,34 @@
+// Ein Blech ist eine Liste. Achtung: Stücke werden ab 1 gezählt!
+speisekarte klasse Blechkunde {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        // Bestellungen pro Tisch
+        Blech<salami> bestellungen = [3, 1, 4, 1, 5, 9, 2, 6];
+        Bote.sage(("Bestellungen: " + bestellungen));
+        Bote.sage(("Anzahl Tische: " + bestellungen.länge()));
+        Bote.sage(("Erster Tisch: " + bestellungen.stück(1)));
+        Bote.sage(("Letzter Tisch: " + bestellungen.letztes()));
+
+        // belege = map, filtere = filter, zusammenklappen = reduce
+        Bote.sage(("Doppelte Portion: " + bestellungen.belege(n -> n * 2)));
+        Bote.sage(("Große Bestellungen: " + bestellungen.filtere(n -> n >= 4)));
+        Bote.sage(("Pizzen gesamt: " + bestellungen.zusammenklappen((a, b) -> a + b)));
+        Bote.sage(("summe() sagt auch: " + bestellungen.summe()));
+        Bote.sage(("Größte Bestellung: " + bestellungen.zusammenklappen((a, b) -> Mathe.max(a, b), 0)));
+
+        // sortieren mit Vergleichsfunktion
+        Blech<salami> sortiert = bestellungen.sortiere((a, b) -> a - b);
+        Bote.sage(("Sortiert: " + sortiert));
+        Bote.sage(("Umgedreht: " + sortiert.umdrehen()));
+
+        // Ein Blech voller Texte
+        Blech<margherita> sorten = ["Margherita", "Funghi", "Diavolo"];
+        sorten = sorten.hinzu(("Quattro Formaggi"));
+        Bote.sage((sorten.verbinde(" | ")));
+        Bote.sage(("Funghi im Angebot? " + sorten.enthält(("Funghi"))));
+
+        Blech<margherita> alphabetisch = sorten.sortiere();
+        für (salami i = 1; i <= alphabetisch.länge(); i++) {
+            Bote.sage((i + ". " + alphabetisch.stück(i)));
+        }
+    }
+}

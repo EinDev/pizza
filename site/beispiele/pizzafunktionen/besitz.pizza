@@ -1,0 +1,47 @@
+// Bei Luigi gehört jede Pizza genau einem Tisch.
+// Weitergeben geht nur mit schieb(), teilen nur stückweise mit teile().
+
+Pizza tisch1 = ((Tomate, Mozzarella, Salami));
+Bote.sage(("Tisch 1 bekommt: " + tisch1));
+
+// Der Kellner schiebt die Pizza zu Tisch 2 weiter
+Pizza tisch2 = schieb(tisch1);
+Bote.sage(("Tisch 2 hat jetzt: " + tisch2));
+probier {
+    Bote.sage(("Tisch 1 hat noch: " + tisch1));
+} verbrannt (LeererKartonAnanas a) {
+    Bote.sage(("Tisch 1 schaut in den Karton: " + a.nachricht()));
+}
+
+// Einfach kopieren? Gibt's nicht.
+probier {
+    Pizza tisch3 = tisch2;
+} verbrannt (BesitzAnanas a) {
+    Bote.sage(("Tisch 3 wollte kopieren: " + a.nachricht()));
+}
+
+// Neuzuweisung ist erlaubt: Tisch 1 bekommt eine neue Pizza
+tisch1 = ((Tomate, Pilze));
+Bote.sage(("Tisch 1 tröstet sich mit: " + tisch1));
+
+// Tisch 2 teilt mit seinen Freunden – jede Pizza hat 8 Stücke
+Bote.sage(("Stücke an Tisch 2: " + tisch2.übrig()));
+Stück<Pizza> erstes = teile(tisch2);
+erstes.essen();
+Bote.sage(("Gast 1 isst. Gegessen? " + erstes.istGegessen() + ", übrig: " + tisch2.übrig()));
+Bote.sage(("Das Stück stammt von: " + erstes.pizza()));
+probier {
+    erstes.essen();
+} verbrannt (StreitAnanas a) {
+    Bote.sage(("Gast 1 will nochmal: " + a.nachricht()));
+}
+
+für (salami gast = 2; gast <= 9; gast++) {
+    probier {
+        Stück<Pizza> happen = teile(tisch2);
+        happen.essen();
+        Bote.sage(("Gast " + gast + " isst, übrig: " + tisch2.übrig()));
+    } verbrannt (StreitAnanas a) {
+        Bote.sage(("Gast " + gast + " geht leer aus: " + a.nachricht()));
+    }
+}

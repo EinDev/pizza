@@ -1,0 +1,22 @@
+// PizzaBuzz – das Einstellungsgespräch jeder Pizzeria in Neapel.
+// Durch 3 teilbar → "Pizza", durch 5 → "Pizza!", durch 15 → "PIZZAPIZZA".
+speisekarte klasse PizzaBuzz {
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        // [1 .. 30] ist ein Bereich – beide Enden inklusive
+        für (salami i : [1 .. 30]) {
+            Bote.sage((übersetze((i))));
+        }
+    }
+
+    tiefkühl margherita übersetze(salami zahl) {
+        falls (zahl % 15 == 0) {
+            serviere (("PIZZAPIZZA"));
+        } sonst falls (zahl % 3 == 0) {
+            serviere (("Pizza"));
+        } sonst falls (zahl % 5 == 0) {
+            serviere (("Pizza!"));
+        }
+        serviere (("" + zahl));
+    }
+}

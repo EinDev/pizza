@@ -1,0 +1,17 @@
+Bestellungen: [3, 1, 4, 1, 5, 9, 2, 6]
+Anzahl Tische: 8
+Erster Tisch: 3
+Letzter Tisch: 6
+Doppelte Portion: [6, 2, 8, 2, 10, 18, 4, 12]
+Große Bestellungen: [4, 5, 9, 6]
+Pizzen gesamt: 31
+summe() sagt auch: 31
+Größte Bestellung: 9
+Sortiert: [1, 1, 2, 3, 4, 5, 6, 9]
+Umgedreht: [9, 6, 5, 4, 3, 2, 1, 1]
+Margherita | Funghi | Diavolo | Quattro Formaggi
+Funghi im Angebot? ja
+1. Diavolo
+2. Funghi
+3. Margherita
+4. Quattro Formaggi

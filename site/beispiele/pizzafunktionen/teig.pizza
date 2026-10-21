@@ -1,0 +1,31 @@
+// Luigis Teigschüssel: Teig ist faul (lazy).
+// Er wird erst geknetet, wenn man ihn gehen lässt oder backt – und höchstens einmal.
+
+salami knetrunden = 0;
+
+Teig<salami> pizzateig = teig(() -> {
+    Bote.sage(("  ... Luigi knetet (das dauert!) ..."));
+    knetrunden++;
+    serviere ((12 * 250));
+});
+
+Bote.sage(("Teig angesetzt. Aufgegangen? " + pizzateig.istAufgegangen()));
+Bote.sage(("Luigi trinkt erst mal einen Espresso."));
+
+pizzateig.gehenlassen();
+Bote.sage(("Aufgegangen? " + pizzateig.istAufgegangen()));
+Bote.sage(("Gramm Teig: " + pizzateig.backen()));
+Bote.sage(("Nochmal backen: " + pizzateig.backen()));
+Bote.sage(("Geknetet wurde " + knetrunden + "-mal."));
+
+// Teig, den niemand braucht, wird auch nie geknetet
+Teig<salami> reserve = teig(() -> {
+    Bote.sage(("  Diese Zeile liest niemand."));
+    serviere ((0));
+});
+Bote.sage(("Reserveteig aufgegangen? " + reserve.istAufgegangen()));
+
+// Ungeduldig: backen ohne gehenlassen klappt – gibt aber Warnung T0007
+Teig<margherita> eilig = teig(() -> ("flacher Fladen"));
+Bote.sage(("Eilig gebacken: " + eilig.backen()));
+Bote.sage(("Geknetet insgesamt: " + knetrunden + "-mal."));

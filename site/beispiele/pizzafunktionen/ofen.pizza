@@ -1,0 +1,53 @@
+// Luigis Holzofen: Jede Berechnung bekommt ein Zeitbudget.
+// Budget in Schritten = zeit_ms × temperatur / 250 – heißer Ofen = schneller.
+
+Bote.sage(("=== Luigi heizt den Ofen ==="));
+
+// 1) Kleine Arbeit, großzügiges Budget: läuft locker durch
+salami teller = ofen(temperatur: 300, zeit: 60s) {
+    salami summe = 0;
+    für (salami tisch = 1; tisch <= 10; tisch++) {
+        summe += tisch;
+    }
+    serviere ((summe));
+};
+Bote.sage(("Teller für alle Tische: " + teller));
+
+// 2) Luigi zählt Pizzen und vergisst aufzuhören.
+//    Der roh-Zweig rettet das letzte Zwischenergebnis.
+salami gezählt = ofen(temperatur: 250, zeit: 1s) {
+    salami pizzen = 0;
+    solange (ja) {
+        pizzen++;
+        falls (pizzen == 10) {
+            zwischenstand((pizzen));
+        }
+    }
+    serviere ((pizzen));
+} roh (r) {
+    Bote.sage(("Noch roh! Der Ofen gibt auf."));
+    serviere ((r.teilergebnis()));
+};
+Bote.sage(("Wenigstens sicher gezählt: " + gezählt));
+
+// 3) Ohne roh-Zweig gibt es eine VerbranntAnanas
+probier {
+    ofen(zeit: 1s) {
+        solange (ja) { }
+    };
+} verbrannt (VerbranntAnanas a) {
+    Bote.sage(("Verbrannt: " + a.nachricht()));
+}
+
+// 4) Zu heiß ist zu heiß
+margherita urteil = ofen(temperatur: 500, zeit: 10s) {
+    serviere (("perfekt"));
+} verbrannt (VerbranntAnanas a) {
+    serviere (("Ofen sagt: " + a.nachricht()));
+};
+Bote.sage((urteil));
+
+margherita neapel = ofen(temperatur: 485, zeit: 10s) {
+    serviere (("485 Grad – neapolitanisch perfekt"));
+};
+Bote.sage((neapel));

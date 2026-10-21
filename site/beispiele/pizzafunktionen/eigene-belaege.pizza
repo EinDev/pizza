@@ -1,0 +1,43 @@
+// Luigis Feinkost-Ecke: Eigene Beläge sind Decorators.
+// Jede Schicht kann Methoden der Pizza "umwickeln" und fragt
+// mit unten.methode() die Schichten darunter.
+
+@Nach(Tomate)
+belag Trüffel auf Pizza {
+    speisekarte funghi preis() {
+        serviere ((unten.preis() + 4.50));
+    }
+    speisekarte margherita beschreibung() {
+        serviere ((unten.beschreibung() + " mit Trüffel"));
+    }
+}
+
+// Blattgold darf nur über dem Trüffel liegen – und verdoppelt alles darunter
+@Nach(Trüffel)
+belag Blattgold auf Pizza {
+    speisekarte funghi preis() {
+        serviere ((unten.preis() * 2));
+    }
+    speisekarte margherita beschreibung() {
+        serviere ((unten.beschreibung() + " und Blattgold"));
+    }
+}
+
+Bote.sage(("=== Luigis Feinkost ==="));
+
+Pizza einfach = ((Tomate, Mozzarella));
+Bote.sage(("Einfach: " + einfach.beschreibung() + ", " + einfach.preis().euro()));
+
+Pizza edel = einfach + Trüffel;
+Bote.sage(("Edel: " + edel));
+Bote.sage(("  " + edel.beschreibung() + ", " + edel.preis().euro()));
+
+Pizza protzig = edel + Blattgold;
+Bote.sage(("Protzig: " + protzig.beschreibung() + ", " + protzig.preis().euro()));
+
+// Die Reihenfolge der Schichten entscheidet über den Preis!
+Pizza basilikumOben = protzig + Basilikum;
+Pizza goldOben = edel + Basilikum + Blattgold;
+Bote.sage(("Basilikum oben: " + basilikumOben.preis().euro()));
+Bote.sage(("Blattgold oben: " + goldOben.preis().euro()));
+Bote.sage(("Luigi: Wer zuletzt vergoldet, verdient am meisten."));

@@ -1,0 +1,44 @@
+// Die Grundzutaten jeder Variable – und die Pizza als eigener Datentyp.
+speisekarte klasse Typenkunde {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        salami stücke = 8;              // Ganzzahl
+        funghi preis = 9.6;             // Kommazahl
+        margherita sorte = "Funghi";    // Text
+        diavolo scharf = nein;          // Wahrheitswert: ja / nein
+        Dauer backzeit = 90s;           // Zeitdauer
+
+        Bote.sage(("Sorte: " + sorte));
+        Bote.sage(("Stücke: " + stücke));
+        Bote.sage(("Preis roh: " + preis));
+        Bote.sage(("Preis schön: " + preis.euro()));
+        Bote.sage(("Scharf? " + scharf));
+        Bote.sage(("Backzeit: " + backzeit));
+        Bote.sage(("Doppelte Backzeit: " + backzeit * 2));
+
+        // / ist exakte Division, % der Rest
+        funghi proStück = preis / stücke;
+        Bote.sage(("Pro Stück: " + proStück + " (also " + proStück.euro() + ")"));
+        Bote.sage(("Halbe Pizza: " + stücke / 2 + " Stücke"));
+        Bote.sage(("Bei 3 Gästen bleiben " + stücke % 3 + " Stücke übrig"));
+
+        // salami ist streng: Nur ganze Zahlen kommen in den Karton.
+        probier {
+            salami halbeSalami = 7.5;
+        } verbrannt (TypAnanas a) {
+            Bote.sage(("TypAnanas: 7.5 passt nicht in eine salami-Variable."));
+        }
+
+        // Pizza-Literale: Beläge von unten nach oben
+        Pizza basis = ((Tomate, Mozzarella));
+        Pizza klassiker = basis + Basilikum;   // + erzeugt eine NEUE Pizza
+        Bote.sage(("Basis: " + basis));
+        Bote.sage(("Klassiker: " + klassiker + " für " + klassiker.preis().euro()));
+        Bote.sage(("Beläge: " + klassiker.beläge().verbinde(" + ")));
+        Bote.sage(("Anzahl Beläge: " + klassiker.anzahlBeläge()));
+        Bote.sage(("Mit Basilikum? " + klassiker.hat(Basilikum)));
+
+        Pizza feurig = klassiker + Salami + Chili;
+        Bote.sage(("Feurig: " + feurig + " für " + feurig.preis().euro()));
+        Bote.sage(("Entschärft: " + (feurig - Chili)));
+    }
+}

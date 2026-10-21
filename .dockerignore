@@ -1,0 +1,31 @@
+# Versionskontrolle & Editoren
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+.claude
+
+# Abhängigkeiten werden im Image frisch installiert
+**/node_modules
+
+# Logs, Scratch, Temporäres
+**/*.log
+**/npm-debug.log*
+**/.npm
+scratch
+scratchpad
+tmp
+.tmp
+coverage
+**/.DS_Store
+**/Thumbs.db
+
+# Docker-Dateien selbst
+Dockerfile
+compose.yaml
+.dockerignore
+
+# Lokale Umgebungen
+.env
+.env.*

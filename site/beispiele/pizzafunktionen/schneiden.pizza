@@ -1,0 +1,31 @@
+// Luigis Pizzaschneider: Große Arbeit wird in Stücke geschnitten,
+// jedes Stück einzeln belegt und am Ende wieder zusammengeklappt.
+// (Tier 2: die Stücke laufen nacheinander, fühlen sich aber parallel an.)
+
+Bote.sage(("=== Der Pizzaschneider ==="));
+
+Blech<salami> bons = [1 .. 100];
+Blech<Blech<salami>> stücke = bons.schneide(8);
+Bote.sage(("Stückgrößen: " + stücke.belege(s -> s.länge())));
+
+Blech<salami> teilsummen = stücke.belege(s -> s.summe());
+Bote.sage(("Teilsummen: " + teilsummen));
+Bote.sage(("Zusammengeklappt: " + teilsummen.zusammenklappen((a, b) -> a + b)));
+
+// Der große Abend: eine Million Bons, automatisch in 8 Stücke
+Blech<salami> riesig = [1 .. 1_000_000];
+Blech<Blech<salami>> automatisch = riesig.schneide(auto);
+Bote.sage(("Stücke bei auto: " + automatisch.länge()));
+salami gesamt = automatisch
+    .belege(s -> s.summe())
+    .zusammenklappen((a, b) -> a + b);
+Bote.sage(("Umsatz der Nacht: " + gesamt));
+
+// Fair teilen mit / – nur wenn es aufgeht
+Blech<salami> gäste = [1 .. 8];
+Bote.sage(("Fair für 4 Tische: " + (gäste / 4)));
+probier {
+    Bote.sage(("Fair für 3 Tische: " + (gäste / 3)));
+} verbrannt (StreitAnanas a) {
+    Bote.sage(("Streit! " + a.nachricht()));
+}

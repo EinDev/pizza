@@ -1,0 +1,46 @@
+// Ein ganz normaler Tag in der Küche: Schleifen, weiter, abbrechen und wähle.
+speisekarte klasse Küchenalltag {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        // solange: kneten, bis der Teig elastisch ist
+        salami knetMinuten = 0;
+        solange (knetMinuten < 10) {
+            knetMinuten += 4;
+        }
+        Bote.sage(("Geknetet: " + knetMinuten + " Minuten"));
+
+        // klassische Zählschleife: Kartons stapeln
+        margherita turm = "";
+        für (salami i = 1; i <= 3; i++) {
+            turm = turm + "Karton " + i + " ";
+        }
+        Bote.sage((turm.trimme()));
+
+        // weiter überspringt, abbrechen beendet die Schleife
+        für (salami tisch : [1 .. 10]) {
+            falls (tisch % 2 == 0) { weiter; }
+            falls (tisch > 7) { abbrechen; }
+            Bote.sage(("Tisch " + tisch + " bekommt Pizza"));
+        }
+
+        // wähle: mehrere Werte pro fall, kein Durchfallen
+        für (salami stufe : [1 .. 5]) {
+            wähle (stufe) {
+                fall 1, 2 -> Bote.sage((stufe + ": lauwarm"));
+                fall 3 -> Bote.sage((stufe + ": perfekt neapolitanisch"));
+                fall 4 -> {
+                    Bote.sage((stufe + ": knusprig"));
+                    Bote.sage(("   (Vorsicht, heißer Rand!)"));
+                }
+                standard -> Bote.sage((stufe + ": verbrannt"));
+            }
+        }
+
+        // wähle funktioniert auch mit Texten
+        margherita wunsch = "Diavolo";
+        wähle (wunsch) {
+            fall "Margherita" -> Bote.sage(("Basilikum bereitlegen."));
+            fall "Diavolo" -> Bote.sage(("Feuerlöscher bereitstellen!"));
+            standard -> Bote.sage(("Luigi improvisiert."));
+        }
+    }
+}

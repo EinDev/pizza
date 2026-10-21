@@ -1,0 +1,39 @@
+// Eine Speisekarte ist eine Map: Schlüssel → Wert.
+speisekarte klasse Bestellübersicht {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Pizza klassiker = ((Tomate, Mozzarella, Basilikum));
+        Pizza teufel = ((Tomate, Mozzarella, Salami, Chili));
+        Pizza wald = ((Tomate, Mozzarella, Pilze));
+
+        Speisekarte<margherita, funghi> preise = neu Speisekarte<margherita, funghi>();
+        preise.lege("Margherita", klassiker.preis());
+        preise.lege("Diavolo", teufel.preis());
+        preise.lege("Funghi", wald.preis());
+
+        Speisekarte<margherita, salami> bestellung = neu Speisekarte<margherita, salami>();
+        bestellung.lege("Margherita", 2);
+        bestellung.lege("Diavolo", 1);
+        bestellung.lege("Funghi", 3);
+        // Tisch 4 ruft: "Noch eine Margherita!" – lege überschreibt den Wert
+        bestellung.lege("Margherita", bestellung.hole("Margherita") + 1);
+
+        // für über eine Speisekarte läuft über die Schlüssel
+        funghi summe = 0;
+        für (margherita sorte : bestellung) {
+            salami anzahl = bestellung.hole(sorte);
+            funghi posten = anzahl * preise.hole(sorte);
+            Bote.sage((anzahl + "x " + sorte + " = " + posten.euro()));
+            summe += posten;
+        }
+        Bote.sage(("Gesamt: " + summe.euro()));
+
+        // Was nicht auf der Karte steht, kommt als leerer Karton zurück
+        Bote.sage(("Calzone bestellt? " + bestellung.hat("Calzone")));
+        Bote.sage(("Calzone: " + bestellung.hole("Calzone")));
+
+        // Der Diavolo-Gast hat es sich anders überlegt
+        bestellung.entferne("Diavolo");
+        Bote.sage(("Noch " + bestellung.länge() + " Sorten: " + bestellung));
+        Bote.sage(("Sorten: " + bestellung.schlüssel().verbinde(", ")));
+    }
+}
