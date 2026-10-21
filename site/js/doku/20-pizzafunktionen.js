@@ -60,13 +60,14 @@
                 ["`teig(...)`, `gehenlassen()`, `backen()`", "Lazy Evaluation, Thunk mit Memoisierung (`Lazy<T>`)", "2"],
                 ["`ofen(...) { } roh (r) { }`", "Timeout mit Zeitbudget und Teilergebnis (*anytime algorithm*)", "2"],
                 ["`schneide(n)`, `blech / n`", "Datenparallelität, Fork/Join, Map-Reduce", "2 (sequentiell simuliert)"],
+                ["`blech.brigade(fn)`, `KüchenAnanas`", "Echte Parallelität (paralleles Map) ohne gemeinsamen Zustand, deterministisch", "1"],
                 ["`schieb(p)`, `teile(p)`, `BesitzAnanas`", "Ownership & Move-Semantik (à la Rust), Referenzzählung", "2 (Laufzeitprüfung)"],
                 ["`@Kühlschrank`, `.mikrowelle()`", "Memoisierung/Caching mit TTL, *stale-while-revalidate*", "2"],
                 ["`bestelle`, `trinkgeld`, `warte`, `wennDa`", "Futures/Promises, Prioritäten, Timeout mit Fallback, Callbacks", "2"],
                 ["`calzone klasse`, `aufklappen()`", "Starke Kapselung, die auch Reflection standhält", "1"]
               ]
             },
-            { art: "hinweis", ton: "info", md: "Der Playground läuft komplett im Browser und ist deterministisch: Es gibt **keine echten Threads** und **keine Wanduhr**, und mit derselben Zufalls-Saat (siehe *Zufall*) kommt bei jedem Lauf dasselbe heraus. Zeit wird in Schritten gemessen (1 Schritt = 1 ms simulierte Zeit). Echte Parallelität bei `schneide` und echte Hintergrund-Threads bei `teig` und `bestelle` sind **Tier 3** – also nur Spezifikation." }
+            { art: "hinweis", ton: "info", md: "Der Playground läuft komplett im Browser und ist deterministisch: Es gibt **keine echten Threads** und **keine Wanduhr**, und mit derselben Zufalls-Saat (siehe *Zufall*) kommt bei jedem Lauf dasselbe heraus. Zeit wird in Schritten gemessen (1 Schritt = 1 ms simulierte Zeit). `schneide` mit `belege`, `teig` und `bestelle` laufen nacheinander; echte Hintergrund-Threads bei `teig` und `bestelle` sind **Tier 3** – also nur Spezifikation. Mehrere Köche gleichzeitig gibt es mit der *Küchenbrigade* (`brigade`) – mit genau demselben Ergebnis wie nacheinander." }
           ]
         }
       ]

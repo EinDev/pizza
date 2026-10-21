@@ -1288,7 +1288,7 @@
             }
           ]
         },
-        { art: "hinweis", ton: "info", md: "Ebenfalls Tier 3: statische Prüfung von Generics und `wirft`-Klauseln sowie echte Parallelität bei `schneide`, `teig` und `bestelle`. Der Interpreter parst all das, simuliert es aber nur." }
+        { art: "hinweis", ton: "info", md: "Ebenfalls Tier 3: statische Prüfung von Generics und `wirft`-Klauseln sowie echte Parallelität bei `belege`, `teig` und `bestelle`. Der Interpreter parst all das, simuliert es aber nur. Für echte Parallelität gibt es die *Küchenbrigade* (`brigade`)." }
       ]
     },
     {
