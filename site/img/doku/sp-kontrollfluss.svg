@@ -51,7 +51,7 @@
   <text x="480" y="255" font-size="15" text-anchor="middle" fill="#2F2A26">backen, minuten--</text>
 
   <line x1="555" y1="80" x2="616" y2="80" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
-  <text x="585" y="70" font-size="15" font-weight="bold" text-anchor="middle" fill="#D9452B">nein</text>
+  <text x="592" y="70" font-size="15" font-weight="bold" text-anchor="middle" fill="#D9452B">nein</text>
 
   <text x="480" y="305" font-size="15" text-anchor="middle" fill="#2F2A26">solange (minuten &gt; 0) { … }</text>
   <text x="480" y="330" font-size="14" text-anchor="middle" fill="#2F2A26">dreht Runden, bis die Antwort nein ist</text>
