@@ -1,0 +1,69 @@
+// Küchenbrigade S1–S3: alles der Hauptküche ist in der Küche nur lesbar (THREADS.md §2.3)
+salami zaehler = 0;
+Blech<salami> zahlen = [1, 2, 3];
+Speisekarte<margherita, salami> karte = neu Speisekarte();
+karte.lege("a", 1);
+Pizza p = ((Tomate, Käse));
+Stück<Pizza> st = teile(p);
+Teig<salami> t = teig(() -> (7));
+Lieferung<salami> l = bestelle(() -> (8));
+Zufall z = neu Zufall(saat: 5);
+klasse Konto { salami stand = 10; tiefkühl salami gesamt = 0; }
+calzone klasse Tresor { geheimrezept salami gold = 1; }
+Konto k = neu Konto();
+Tresor tr = neu Tresor();
+
+margherita versuch(Rezept r) {
+    probier { r(); } verbrannt (KüchenAnanas a) { serviere ((a.typ() + ": " + a.nachricht())); }
+    serviere (("erlaubt"));
+}
+
+Blech<margherita> meldungen = [1].brigade(x -> [
+    versuch(() -> { zaehler = 1; }),
+    versuch(() -> { zaehler += 1; }),
+    versuch(() -> { zaehler++; }),
+    versuch(() -> { schieb(p); }),
+    versuch(() -> { Konto.gesamt = 5; }),
+    versuch(() -> { k.stand = 11; }),
+    versuch(() -> { k.stand--; }),
+    versuch(() -> { zahlen.hinzu(4); }),
+    versuch(() -> { zahlen.entferne(1); }),
+    versuch(() -> { zahlen.setze(1, 9); }),
+    versuch(() -> { karte.lege("b", 2); }),
+    versuch(() -> { karte.entferne("a"); }),
+    versuch(() -> { teile(p); }),
+    versuch(() -> { st.essen(); }),
+    versuch(() -> { t.gehenlassen(); }),
+    versuch(() -> { t.backen(); }),
+    versuch(() -> { l.trinkgeld(1); }),
+    versuch(() -> { l.warte(); }),
+    versuch(() -> { l.wennDa(w -> Bote.sage((w))); }),
+    versuch(() -> { z.zahl(1, 6); }),
+    versuch(() -> { z.wähle([1, 2]); }),
+    versuch(() -> { z.saat(9); }),
+    versuch(() -> { z.saat(); }),
+    versuch(() -> { tr.aufklappen(); })
+]);
+für (margherita m : meldungen.stück(1)) { Bote.sage((m)); }
+
+// Lesen ist erlaubt (Schnappschuss), eigene Werte sind frei
+Blech<margherita> lesen = [1, 2].brigade(i -> {
+    Blech<salami> eigen = zahlen.kopie();
+    eigen.hinzu(i);
+    salami lokal = zaehler + i;
+    lokal++;
+    Konto neu1 = neu Konto();
+    neu1.stand = 99;
+    serviere ((eigen + " " + lokal + " " + karte.hole("a") + " " + k.stand + " " + neu1.stand + " " + p.übrig() + " " + st.istGegessen() + " " + z.saat()));
+});
+Bote.sage((lesen));
+
+// Fertige Zustände bleiben lesbar
+Teig<salami> fertig = teig(() -> (3));
+fertig.gehenlassen();
+Lieferung<salami> da = bestelle(() -> (4));
+da.warte();
+Bote.sage(([1].brigade(x -> fertig.backen() + da.warte().wert())));
+
+// Nach der Brigade ist die Hauptküche unverändert
+Bote.sage((zaehler + " " + zahlen + " " + karte + " " + k.stand + " " + Konto.gesamt + " " + p.übrig()));

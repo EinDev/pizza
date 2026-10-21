@@ -1,0 +1,36 @@
+// Küchenbrigade: Ergebnis unabhängig von Köchen und Planung (wird zusätzlich mit kuechenChaos/koeche geprüft)
+Blech<salami> bons = [1 .. 4000];
+Blech<salami> teilsummen = bons.schneide(8).brigade(stapel -> stapel.summe());
+salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);
+Bote.sage((teilsummen + " = " + gesamt));
+Bote.sage((Uhr.jetzt()));
+klasse Koch {
+    margherita name;
+    salami gerichte = 0;
+    Koch(margherita n) { name = n; }
+    @PizzaVeraltet
+    leer kochen(salami n) { gerichte += n; }
+}
+Blech<Koch> koeche = ["Mario", "Luigi", "Peach", "Toad", "Yoshi"].brigade(n -> {
+    Koch k = neu Koch(n);
+    k.kochen(Zufall.zahl(1, 10));
+    Uhr.vorspulen(Zufall.zahl(1, 60) * 1s);
+    Bote.sage((n + " fertig um " + Uhr.jetzt()));
+    falls (n == "Toad") { [1, 2, 3, 4, 5, 6, 7].schneide(7); }
+    serviere ((k));
+});
+für (Koch k : koeche) { Bote.sage((k + " " + k.name + " " + k.gerichte)); }
+Bote.sage((Uhr.jetzt() + " " + neu Koch("Wario") + " " + Zufall.zahl(1, 1000)));
+Blech<margherita> ergebnisse = [1, 2, 3, 4, 5, 6].brigade(i -> {
+    probier {
+        falls (i % 3 == 0) { wirf neu StreitAnanas("Streit bei " + i); }
+        falls (i % 2 == 0) { bons.hinzu(i); }
+        serviere (("ok " + i));
+    } verbrannt (Ananas a) { serviere ((a.typ() + " " + i)); }
+});
+Bote.sage((ergebnisse));
+Bote.sage(([1, 2, 3].brigade(i -> [1, 2].brigade(j -> i * 10 + j + Zufall.zahl(0, 0)))));
+probier {
+    [1, 2, 3, 4].brigade(i -> { Bote.sage(("Stück " + i)); falls (i > 1) { wirf neu RechenAnanas("aus " + i); } serviere ((i)); });
+} verbrannt (RechenAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((Uhr.jetzt() + " " + bons.länge()));

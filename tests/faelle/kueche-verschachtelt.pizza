@@ -1,0 +1,31 @@
+// Küchenbrigade §2.1: verschachtelte Brigaden – die Küche ist die „Hauptküche“ der inneren Brigade
+salami global = 5;
+Blech<Blech<salami>> r = [1, 2].brigade(i -> {
+    Blech<salami> eigen = [i, i * 10];
+    salami lokal = 0;
+    Blech<salami> innen = [1, 2, 3].brigade(j -> {
+        Bote.sage(("innen " + i + "." + j));
+        probier { lokal = j; } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+        probier { eigen.hinzu(j); } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+        probier { global = j; } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+        serviere ((global + eigen.summe() + j));
+    });
+    lokal = 1;
+    eigen.hinzu(lokal);
+    serviere ((innen));
+});
+Bote.sage((r));
+Bote.sage((Uhr.jetzt()));
+// Objektnummern (D10): jede Küche nummeriert ab N₀ + 1, danach geht es bei N₀ + max cᵢ weiter
+klasse Kiste { }
+Kiste k0 = neu Kiste();
+Bote.sage(([1, 3, 2].brigade(n -> { Blech<Kiste> b = []; für (salami i = 0; i < n; i++) { b.hinzu(neu Kiste()); } serviere ((b)); })));
+Bote.sage((neu Kiste()));
+// keine Funktion → derselbe Fehler wie bei belege; leeres Blech → []
+probier { [1, 2].brigade(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2].belege(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(([].brigade(5)));
+// Methodenreferenz und statische Methode als Koch
+klasse Mathe2 { tiefkühl salami hoch2(salami x) { serviere ((x * x)); } }
+Bote.sage(([1, 2, 3].brigade(Mathe2.hoch2)));
+Bote.sage(([[1, 2], [3, 4, 5]].brigade(b -> b.länge())));

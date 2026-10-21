@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Küchenbrigade: Die Hauptküche ist abgeschlossen – Köche dürfen nur hineinschauen. Vier Küchen backen gleichzeitig, jede mit eigener Uhr; es zählt der langsamste Koch. Die Kartons kommen in der Reihenfolge 1 bis 4 zurück. Wer in die Hauptküche schreibt, bekommt eine KüchenAnanas.</title>
+  <g fill="#2F2A26">
+    <g font-size="14">
+      <text x="10" y="44" font-weight="bold">Hauptküche</text>
+      <text x="10" y="62">nur lesen</text>
+      <text x="10" y="150" font-weight="bold">4 Küchen</text>
+      <text x="10" y="168">brigade(…)</text>
+      <text x="10" y="186">eigene Uhr</text>
+      <text x="10" y="204" fill="#D9452B">| = langsamster</text>
+      <text x="10" y="266" font-weight="bold">Kartons</text>
+      <text x="10" y="284">nur Werte</text>
+      <text x="10" y="324" font-weight="bold">Ergebnis</text>
+    </g>
+    <rect x="135" y="22" width="360" height="50" rx="12" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <text x="305" y="44" font-size="15" font-weight="bold" text-anchor="middle">bons · namen · gezählt = 0</text>
+    <text x="305" y="63" font-size="13" text-anchor="middle">Schnappschuss beim Anschnitt</text>
+    <path d="M464 40 v-6 a8 8 0 0 1 16 0 v6" fill="none" stroke="#2F2A26" stroke-width="3"/>
+    <rect x="459" y="40" width="26" height="20" rx="4" fill="#2F2A26"/>
+    <circle cx="472" cy="50" r="3" fill="#FFF6E0"/>
+    <line x1="180" y1="74" x2="180" y2="104" stroke="#5B9BB5" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="M175 98 L180 106 L185 98" fill="none" stroke="#5B9BB5" stroke-width="2"/>
+    <rect x="140" y="108" width="80" height="104" rx="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <text x="180" y="126" font-size="13" font-weight="bold" text-anchor="middle">Küche 1</text>
+    <path d="M170 150 L170 144 A6 6 0 0 1 176 138 A6 6 0 0 1 184 138 A6 6 0 0 1 190 144 L190 150 Z" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="180" cy="163" r="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="148" y="186" width="64" height="12" rx="6" fill="#FFFFFF" stroke="#C8955A" stroke-width="1.5"/>
+    <rect x="148" y="186" width="52" height="12" rx="6" fill="#F2B33D"/>
+    <line x1="180" y1="214" x2="180" y2="244" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="158" y="246" width="44" height="34" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+    <line x1="158" y1="256" x2="202" y2="256" stroke="#2F2A26" stroke-width="1.5"/>
+    <text x="180" y="275" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">1</text>
+    <line x1="180" y1="282" x2="180" y2="302" stroke="#C8955A" stroke-width="2"/>
+    <line x1="270" y1="74" x2="270" y2="104" stroke="#5B9BB5" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="M265 98 L270 106 L275 98" fill="none" stroke="#5B9BB5" stroke-width="2"/>
+    <rect x="230" y="108" width="80" height="104" rx="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <text x="270" y="126" font-size="13" font-weight="bold" text-anchor="middle">Küche 2</text>
+    <path d="M260 150 L260 144 A6 6 0 0 1 266 138 A6 6 0 0 1 274 138 A6 6 0 0 1 280 144 L280 150 Z" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="270" cy="163" r="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="238" y="186" width="64" height="12" rx="6" fill="#FFFFFF" stroke="#C8955A" stroke-width="1.5"/>
+    <rect x="238" y="186" width="60" height="12" rx="6" fill="#F2B33D"/>
+    <line x1="270" y1="214" x2="270" y2="244" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="248" y="246" width="44" height="34" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+    <line x1="248" y1="256" x2="292" y2="256" stroke="#2F2A26" stroke-width="1.5"/>
+    <text x="270" y="275" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">2</text>
+    <line x1="270" y1="282" x2="270" y2="302" stroke="#C8955A" stroke-width="2"/>
+    <line x1="360" y1="74" x2="360" y2="104" stroke="#5B9BB5" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="M355 98 L360 106 L365 98" fill="none" stroke="#5B9BB5" stroke-width="2"/>
+    <rect x="320" y="108" width="80" height="104" rx="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <text x="360" y="126" font-size="13" font-weight="bold" text-anchor="middle">Küche 3</text>
+    <path d="M350 150 L350 144 A6 6 0 0 1 356 138 A6 6 0 0 1 364 138 A6 6 0 0 1 370 144 L370 150 Z" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="360" cy="163" r="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="328" y="186" width="64" height="12" rx="6" fill="#FFFFFF" stroke="#C8955A" stroke-width="1.5"/>
+    <rect x="328" y="186" width="44" height="12" rx="6" fill="#F2B33D"/>
+    <line x1="360" y1="214" x2="360" y2="244" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="338" y="246" width="44" height="34" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+    <line x1="338" y1="256" x2="382" y2="256" stroke="#2F2A26" stroke-width="1.5"/>
+    <text x="360" y="275" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">3</text>
+    <line x1="360" y1="282" x2="360" y2="302" stroke="#C8955A" stroke-width="2"/>
+    <line x1="450" y1="74" x2="450" y2="104" stroke="#5B9BB5" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="M445 98 L450 106 L455 98" fill="none" stroke="#5B9BB5" stroke-width="2"/>
+    <rect x="410" y="108" width="80" height="104" rx="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <text x="450" y="126" font-size="13" font-weight="bold" text-anchor="middle">Küche 4</text>
+    <path d="M440 150 L440 144 A6 6 0 0 1 446 138 A6 6 0 0 1 454 138 A6 6 0 0 1 460 144 L460 150 Z" fill="#FFFFFF" stroke="#2F2A26" stroke-width="2"/>
+    <circle cx="450" cy="163" r="12" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="418" y="186" width="64" height="12" rx="6" fill="#FFFFFF" stroke="#C8955A" stroke-width="1.5"/>
+    <rect x="418" y="186" width="58" height="12" rx="6" fill="#F2B33D"/>
+    <line x1="450" y1="214" x2="450" y2="244" stroke="#2F2A26" stroke-width="2"/>
+    <rect x="428" y="246" width="44" height="34" rx="4" fill="#C8955A" stroke="#2F2A26" stroke-width="2"/>
+    <line x1="428" y1="256" x2="472" y2="256" stroke="#2F2A26" stroke-width="1.5"/>
+    <text x="450" y="275" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">4</text>
+    <line x1="450" y1="282" x2="450" y2="302" stroke="#C8955A" stroke-width="2"/>
+    <line x1="298" y1="180" x2="298" y2="204" stroke="#D9452B" stroke-width="3"/>
+    <rect x="135" y="302" width="360" height="36" rx="12" fill="#D9452B"/>
+    <text x="315" y="326" font-size="15" font-weight="bold" fill="#FFF6E0" text-anchor="middle">[ r1, r2, r3, r4 ] – immer in dieser Reihenfolge</text>
+    <path d="M492 160 C 560 150, 575 80, 498 52" fill="none" stroke="#D9452B" stroke-width="3" stroke-dasharray="7 4"/>
+    <path d="M511 52 L497 51 L506 63" fill="none" stroke="#D9452B" stroke-width="3"/>
+    <g stroke="#D9452B" stroke-width="4" stroke-linecap="round"><line x1="541" y1="96" x2="557" y2="112"/><line x1="557" y1="96" x2="541" y2="112"/></g>
+    <text x="630" y="180" font-size="14" font-weight="bold" fill="#D9452B" text-anchor="end">schreiben?</text>
+    <text x="630" y="198" font-size="14" font-weight="bold" fill="#D9452B" text-anchor="end">KüchenAnanas</text>
+  </g>
+</svg>

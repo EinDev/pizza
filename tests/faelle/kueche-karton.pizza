@@ -1,0 +1,59 @@
+// Küchenbrigade §2.4: Ergebnisse werden tief kopiert („in den Karton gepackt“); nicht kartonfähige Werte → KüchenAnanas
+Vorratskammer kammer = neu Vorratskammer("karton-test");
+Theke theke = neu Theke("T");
+
+leer versuche(Rezept r) {
+    probier { r(); Bote.sage(("passt")); } verbrannt (KüchenAnanas a) { Bote.sage((a)); }
+}
+versuche(() -> [1].brigade(x -> (y -> y)));
+versuche(() -> [1].brigade(x -> teig(() -> (1))));
+versuche(() -> [1].brigade(x -> bestelle(() -> (1))));
+versuche(() -> [1].brigade(x -> bestelle(() -> (1)).warte()));
+versuche(() -> [1].brigade(x -> teile(((Tomate)))));
+versuche(() -> [1].brigade(x -> Uhr.jetzt.mikrowelle()));
+versuche(() -> [1].brigade(x -> neu Zufall()));
+versuche(() -> [1].brigade(x -> kammer));
+versuche(() -> [1].brigade(x -> theke));
+versuche(() -> [1].brigade(x -> [1, [2, (y -> y)]]));
+versuche(() -> [1].brigade(x -> Bote));
+versuche(() -> [1].brigade(x -> Uhr.jetzt()));
+
+// Objekte eigener Klassen: neue Objekte mit gleicher Nummer, gleiche Felder
+klasse Box { salami inhalt = 0; Box nachbar = karton; Rezept r = karton; }
+Box b0 = neu Box();
+Blech<Box> boxen = [1, 2].brigade(i -> {
+    Box a = neu Box();
+    a.inhalt = i;
+    Box c = neu Box();
+    a.nachbar = c;
+    c.nachbar = a;
+    serviere ((a));
+});
+Bote.sage((boxen));
+Bote.sage((boxen.stück(1).nachbar + " " + boxen.stück(1).nachbar.nachbar.inhalt + " " + (boxen.stück(1).nachbar.nachbar == boxen.stück(1))));
+Bote.sage((neu Box()));
+versuche(() -> [1].brigade(x -> { Box f = neu Box(); f.r = () -> (1); serviere ((f)); }));
+
+// Identität: Ergebnisse sind immer Kopien
+Blech<salami> innen = [1, 2];
+Blech<Blech<salami>> beide = [innen, innen];
+Blech<Blech<Blech<salami>>> kopie = [beide].brigade(x -> x);
+Bote.sage((kopie.stück(1) == beide));
+Bote.sage((kopie.stück(1) + " " + (kopie.stück(1).stück(1) == kopie.stück(1).stück(2))));
+kopie.stück(1).stück(1).hinzu(3);
+Bote.sage((kopie.stück(1) + " " + beide));
+Bote.sage(([b0].brigade(x -> x).stück(1) == b0));
+Pizza p = ((Tomate, Käse));
+teile(p);
+Blech<Pizza> pz = [1].brigade(x -> p);
+Bote.sage((pz.stück(1) + " " + pz.stück(1).übrig() + " " + (pz.stück(1) == p)));
+Speisekarte<margherita, Blech<salami>> sk = neu Speisekarte();
+sk.lege("a", innen);
+Bote.sage(([sk].brigade(m -> m).stück(1) + " " + [1, 2].brigade(x -> "Text " + x) + " " + [1].brigade(x -> 1.5) + " " + [1].brigade(x -> karton)));
+
+// geworfene Werte werden ebenfalls kopiert; passt der Wurf in keinen Karton → KüchenAnanas
+klasse Böse erbt LaufzeitAnanas { Rezept r = karton; Böse(margherita m) { unten(m); } }
+probier { [1, 2].brigade(x -> { falls (x == 2) { wirf neu StreitAnanas("Stück " + x); } serviere ((x)); }); }
+verbrannt (StreitAnanas a) { Bote.sage(("gefangen: " + a.nachricht())); }
+probier { [1].brigade(x -> { Böse b = neu Böse("mit Funktion"); b.r = () -> (1); wirf b; }); }
+verbrannt (KüchenAnanas a) { Bote.sage(("gefangen: " + a.nachricht())); }

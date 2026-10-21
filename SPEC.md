@@ -336,6 +336,8 @@ salami s = ofen(temperatur: 450, zeit: 90s) {
 - Operator `blech / n` → wie `schneide(n)`, aber **fair**: geht es nicht auf →
   `StreitAnanas: 8 Stücke lassen sich nicht fair durch 3 teilen.`
 - Danach typisch `.belege(fn)` (map) und `.zusammenklappen(fn)` (reduce) – das sind normale Blech-Methoden.
+- **Echte Parallelität:** `.brigade(fn)` statt `.belege(fn)` verteilt die Stücke auf Köche (§17, Küchenbrigade); `schneide`,
+  `belege` und `zusammenklappen` selbst bleiben sequentiell und unverändert.
 
 ### 7.5 Stücke – Ownership & Referenzzählung (Tier 2: Laufzeitprüfung)
 
@@ -400,7 +402,8 @@ Ananas
     ├── BesitzAnanas            ├── GebackenAnanas
     ├── TypAnanas               ├── KeinStückAnanas
     ├── ZugriffsAnanas          ├── UnbekannterBelagAnanas
-    └── ZugeklapptAnanas        └── UnbekanntePizzaAnanas
+    └── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
+                                └── KüchenAnanas      (§17, K-098)
 ```
 - Erzeugen: `neu VerbranntAnanas("Nachricht")`. Methoden: `nachricht()`, `holeNachricht()` (Alias), `typ()` (Klassenname).
 - Eigene Ananas: `klasse MeineAnanas erbt LaufzeitAnanas { speisekarte MeineAnanas(margherita m) { unten(m); } }`.
@@ -532,7 +535,8 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
 - Toolchain: Compiler `pizzaiolo backe`, Build-Tool `pizzaofen` mit `ofen.xml`, Archive `.pkarton`, Paketmanager `pizzabote`, Flag `--temperatur=485` (Optimierung).
 - Statische Prüfung von Generics und `wirft`.
-- Echte Parallelität bei `schneide` / echte Hintergrund-Threads bei `teig` und `bestelle`.
+- Echte Hintergrund-Threads bei `teig` und `bestelle` bzw. ein eigenes Konstrukt „Hintergrund-Köche“ (§17.8, K-097/F9).
+  (Echte Parallelität ist mit `brigade` Tier 1 geworden, §17; `schneide`/`belege` bleiben sequentiell.)
 
 ---
 
@@ -568,7 +572,12 @@ regelt `EINGABE.md`.
   `f(1);` mit `salami f(salami a) { serviere ((a)); }` = 5 · `Uhr.vorspulen(1h);` = 4 (`zeitMs` = 3 600 004).
 - `Uhr.jetzt()` = bisherige Schritte (inklusive des Aufrufknotens) + vorgespulte Zeit; als erste Anweisung liefert
   `Bote.sage((Uhr.jetzt()));` also `5ms`. `zeitMs` = Schritte + vorgespulte Zeit.
+  Ergänzung Küchenbrigade (§17.6 D6): Uhr und `zeitMs` = Schritte + vorgespulte Zeit **+ Brigade-Ersparnis (≤ 0)** – nach einer
+  Brigade zählt die Uhr nur den kritischen Pfad (Anschnitt + längstes Stück), `schritte` die Summe aller Stücke.
 - **P0002:** Abbruch beim Schritt Nummer `schrittLimit + 1` (Standard 5 000 000). Nicht fangbar; `rand` läuft nicht.
+  Einzige Ausnahme: P0002 in oder nach einer Brigade (§17.6 D7) meldet die tatsächliche **Arbeit** – Stück-P0002: Schritte der
+  Stücke 1 … k−1 plus Limit + 1 des abbrechenden Stücks k (die Küchenuhr steht bei Limit + 1); Summenprüfung: P0002 am
+  `brigade`-Aufruf mit der Schrittsumme. Beides kann größer als `schrittLimit + 1` sein (K-101/2).
 
 ### 14.2 Budgets von Ofen und Lieferung
 
@@ -840,6 +849,8 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   Fehler: alle Motoren werfen die fangbare `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).` (Interpreter
   bildet Engine-Grenzen wie „Invalid string length“ darauf ab, die Wasm-Laufzeit wirft statt zu trappen). Die genaue Grenze
   und damit die Schrittzahl bis zum Wurf darf je Motor verschieden sein.
+- **K-097 … K-100 (Nutzerentscheidungen F1–F10) [offen: alle Motoren]** Küchenbrigade `blech.brigade(fn)`, `KüchenAnanas`,
+  Schnappschuss-Regeln, Kartonfähigkeit, Determinismus D1–D15, Köche nur als Host-Einstellung – Vertrag in §17.
 - **K-015** `abbrechen`/`weiter` außerhalb einer Schleife (bzw. `abbrechen` außerhalb von Schleife oder
   `wähle`-Anweisung) → `PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.` / `… 'weiter' …` (Parse-Fehler,
   art `syntax`, Exit 2). Methoden-, Konstruktor-, Lambda- und Ofen-Rümpfe beginnen einen neuen Kontext.
@@ -1074,3 +1085,262 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
   Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
   `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
+---
+
+## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)
+
+Übernommen aus `THREADS.md` §2–§3 (Entwurf → Vertrag; Produktfragen F1–F10 wie empfohlen entschieden, K-097). THREADS.md bleibt
+Planungsdokument für Umsetzung, Motoren und Phasen (§4–§6); bei Widersprüchen gilt dieser Abschnitt. Prüfstand:
+`pruefstand/faelle/a14-kueche.js` (Interpreter-Referenz abgenommen: 72cb857 ff., Vertragslücken K-101).
+
+> **Grundsatz:** Die **sequentielle Referenz definiert die Semantik**; echte Threads sind eine unbeobachtbare Optimierung.
+> Kein Ereignis, kein Text, kein Exit-Code, keine `schritte`, keine `zeitMs` hängen von der Anzahl der Köche, von ihrer Planung
+> oder von der Wanduhr ab – in Interpreter, Wasm-in-JS, nativem Host und EXE, im Browser wie nativ (K-082). Tier 1: der
+> Interpreter führt §17 exakt aus (sequentiell, ohne Threads); Wasm-Motor und Hosts dürfen echt parallel rechnen.
+
+Begriffe (verbindlich): **Hauptküche** = das laufende Programm (Top-Level, `hauptgang`, Rückrufe, `wennDa`-Phase) ·
+**Brigade** = ein Aufruf `blech.brigade(fn)` · **Stück** = ein Element des Blechs + der Aufruf `fn(element)`; Stücke sind von
+1 bis n nummeriert (**Stückreihenfolge**) · **Küche** = der isolierte Ausführungskontext eines Stücks (eigene Uhr, eigener Zufall,
+eigene Objekte) · **Koch** = ein Thread/Worker des Hosts (Anzahl = Host-Einstellung `koeche`, **nie** beobachtbar) ·
+**Anschnitt** = der Moment, in dem die Brigade die Stücke startet · **Schnappschuss** = der Zustand der Hauptküche beim Anschnitt ·
+**Zusammenführen** = Ergebnisse, Ereignisse, Zähler und Abbrüche der Stücke werden in Stückreihenfolge übernommen.
+
+### 17.1 Das Konstrukt `blech.brigade(fn)`
+
+```pizza
+Blech<salami> bons = [1 .. 4_000_000];
+Blech<salami> teilsummen = bons.schneide(8).brigade(stapel -> stapel.summe());   // 8 Stücke, parallel
+salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                      // sequentiell, wie bisher
+```
+
+- Neue **Blech-Methode**. Ergebnis: ein **neues** Blech `[fn(b₁), …, fn(bₙ)]` in Stückreihenfolge – wie `belege`, aber jedes
+  Stück läuft in einer eigenen Küche (§17.2–§17.5); Zeit und Zähler werden nach §17.6 zusammengeführt.
+- `fn` wird wie bei `belege` mit genau einem Argument aufgerufen (Lambdas tolerant, §14.9); ist `fn` keine Funktion, entsteht
+  derselbe Fehler wie bei `belege` (`TypAnanas: 3 ist keine Funktion – das kann man nicht aufrufen.`).
+- Leeres Blech → `[]` **ohne Anschnitt** (keine Zufallsziehung, keine Kosten außer den Aufrufknoten).
+- Typischer Partner ist `schneide(n)`: die Anzahl der Stücke ist Programmentscheidung und beobachtbar, die Anzahl der Köche nie.
+  `schneide(auto)` bleibt **8** – nie von der Hardware abhängig.
+- `brigade` ist **kein Keyword** (keine neuen reservierten Wörter, bestehende Bezeichner bleiben gültig); `BUILTINS` ändert sich
+  nicht. Bestehende Konstrukte (`belege`, `zusammenklappen`, `teig`, `bestelle`) bleiben exakt wie in §7/§14.
+- **Schritte:** der Aufruf kostet seine normalen Knoten (§14.1), jeder Rückruf zählt seine Anweisungen/Ausdrücke; Anschnitt,
+  Einfrieren, Kartonprüfung und Zusammenführen sind Bibliotheksarbeit (0 Schritte).
+- **Stapeltiefe:** jedes Stück beginnt mit der Tiefe des Aufrufs + 1 (wie ein `belege`-Rückruf, §14.4), Grenze 1500.
+- **Verschachtelte Brigaden** (eine Brigade in einem Stück) sind erlaubt und folgen denselben Regeln mit der Küche als
+  „Hauptküche“ der inneren Brigade (deren Variablen und Objekte sind für die innere Brigade nur lesbar). Hosts dürfen innere
+  Brigaden sequentiell ausführen (identisches Ergebnis).
+- Eine Brigade ist überall erlaubt, wo `belege` erlaubt ist – auch in Theke-Rückrufen (die Stücke erben die Limitbasis, D7).
+
+### 17.2 Was ein Stück darf
+
+| Bereich | Regel in der Küche |
+|---|---|
+| Argument `bᵢ`, Variablen der Hauptküche (global, Top-Level, gefangen), statische Felder, Felder vorhandener Objekte, Elemente vorhandener Bleche/Speisekarten | **lesen** erlaubt – Wert = Schnappschuss beim Anschnitt (§17.3) |
+| eigene Variablen (Parameter und lokale Variablen des Rückrufs und aller von ihm aufgerufenen Rümpfe), eigene Objekte | lesen und schreiben wie immer |
+| Methoden/Funktionen aufrufen, `neu Klasse(…)`, Pizzen bauen, Rekursion, `probier`, `ofen`, eigene `teig`/`bestelle` | erlaubt |
+| `Bote.sage`, `Bote.schreibe`, `Bote.fehler`, `Bote.leeren` | erlaubt; Ereignisse werden gepuffert und in Stückreihenfolge ausgegeben (D4) |
+| Warnungen (S0007, T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (D5) |
+| `Uhr.jetzt()`, `Uhr.vorspulen(d)` | Küchenuhr (D6) |
+| `Uhr.echt()` | erlaubt (Wanduhr; Test: `optionen.echtzeit`) |
+| `Zufall.*`, `neu Zufall()` | eigener Strom der Küche (D9) |
+| `@Kühlschrank`, `mikrowelle`, `frisch` | Lesen aus dem Schnappschuss-Cache, Schreiben in einen Küchen-Cache, der am Stückende verfällt (D12) |
+| Vorratskammer: `hole`, `hat`, `schlüssel`, `länge`, `name` auf einer **vorhandenen** Kammer | erlaubt (Schnappschuss) |
+| `zwischenstand(x)` | wirkt nur auf Öfen, die **in** der Küche geöffnet wurden; sonst ignoriert (wie außerhalb eines Ofens, §14.2) |
+| verschachtelte `brigade` | erlaubt (§17.1) |
+
+### 17.3 Der Schnappschuss – Lesen ja, Schreiben nein
+
+**S1:** Alles, was beim Anschnitt existiert („gehört der Hauptküche“), ist in der Küche **nur lesbar**: Variablen der Hauptküche
+(globale, Top-Level, gefangene Zellen umgebender Funktionen/Lambdas), statische Felder, alle vorhandenen Objekte samt Feldern,
+Bleche, Speisekarten, Pizzen (`übrig`), Teige, Lieferungen, Zustellungen, Stücke (`Stück<Pizza>`), `Zufall`-Objekte,
+Vorratskammern, Calzones und alle Theke-Zutaten.
+
+**S2:** Was eine Küche selbst erzeugt (Variablen ihrer Rümpfe, mit `neu`/Literal/Bibliothek erzeugte Werte, `kopie()`), gehört ihr
+und ist frei veränderbar. Andere Küchen können es nie erreichen (es gibt keinen beschreibbaren gemeinsamen Ort).
+
+**S3:** Jeder Versuch, etwas der Hauptküche zu verändern, wirft **an genau dieser Stelle** eine fangbare `KüchenAnanas`
+(eingebaute Klasse `KüchenAnanas erbt LaufzeitAnanas`, §8). Die Prüfung ist eine **Laufzeitprüfung** und damit unabhängig von der
+Planung: dieselbe Stelle, derselbe Schritt, in jedem Motor. Sie geschieht **vor jeder Wirkung** der Operation (kein Teilzustand,
+keine Warnung wie T0007/W0013, kein zusätzlicher Schritt) – auch auf indirekten Wegen (Methoden, Lambdas, unqualifizierte Felder).
+
+| Operation (auf Hauptküchen-Eigentum) | Meldung (`<n>` = Name der Variable bzw. des Felds) |
+|---|---|
+| Zuweisung, `+=` usw., `++`/`--`, `schieb(x)` an Variable / statisches Feld | `KüchenAnanas: '<n>' gehört der Hauptküche – ein Koch darf es nur lesen.` |
+| Feldzuweisung `o.f = …` (auch unqualifiziert in einer Methode) an vorhandenem Objekt | `KüchenAnanas: '<f>' gehört der Hauptküche – ein Koch darf es nur lesen.` |
+| `hinzu`, `entferne`, `setze` auf vorhandenem Blech | `KüchenAnanas: Dieses Blech gehört der Hauptküche – nimm eine kopie().` |
+| `lege`, `entferne` auf vorhandener Speisekarte | `KüchenAnanas: Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.` |
+| `teile(p)` auf vorhandener Pizza, `essen()` auf vorhandenem Stück | `KüchenAnanas: Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
+| `gehenlassen()`, `backen()` (Wert noch nicht berechnet) auf vorhandenem Teig | `KüchenAnanas: Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.` |
+| `trinkgeld`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
+| Ziehen aus einem vorhandenen `Zufall`-Objekt (auch `saat(n)`) | `KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().` |
+| `lege`, `entferne`, `leeren` auf vorhandener Vorratskammer `x` | `KüchenAnanas: Die Vorratskammer 'x' gehört der Hauptküche – ein Koch darf nur nachsehen.` |
+| `aufklappen()` auf vorhandener Calzone | `KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.` |
+
+Bereits fertige Zustände bleiben lesbar: `backen()` eines Teigs, dessen Wert schon berechnet ist (durch `gehenlassen` oder
+`backen`), liefert den Wert; `warte()` einer gewarteten Lieferung liefert die gespeicherte Zustellung; `istGegessen()`, `übrig()`,
+`wert()`, `istAufgegangen()`, `saat()` eines Zufall-Objekts usw. sind Lesezugriffe. **Werfen** einer vorhandenen Ananas verändert
+nichts und ist erlaubt (sie verlässt die Küche als Kopie, §17.5).
+
+**Reihenfolge der Wache (K-101/4, verbindlich für alle Motoren).** Eine schreibende Operation läuft in der Küche in genau
+dieser Folge ab: (a) **Operanden und Argumente** werden wie gewohnt ausgewertet – ihre Schritte zählen, ihre Wirkungen
+(Ausgaben, eigene Objekte) treten ein (`z = f(x)` ruft `f` auf, bevor die Wache greift; bei `o.f = …` wird `o` ausgewertet,
+bei `+=`/`++` der alte Wert gelesen); (b) das **Ziel wird aufgelöst** – unbekannte Variable, unbekanntes Feld oder ein
+nicht instanziierbarer Typ werfen die gewohnte Ananas (`LaufzeitAnanas: 'x' ist nicht definiert.`, `RohlingAnanas`);
+(c) die **Küchenwache** prüft (0 Schritte) und wirft die `KüchenAnanas`; (d) erst danach kämen die **eigenen Prüfungen der
+Operation** – Index (`KeinStückAnanas`), Schlüssel, Typ (`TypAnanas`), `gebacken` (`GebackenAnanas`), Einlagerungstyp der
+Vorratskammer, Budget. `b.setze(99, 5)` auf einem Hauptküchen-Blech wirft also die `KüchenAnanas`, nicht die
+`KeinStückAnanas`; `g = 2` auf einer gebackenen Hauptküchen-Variable die `KüchenAnanas`, nicht die `GebackenAnanas`. Eine
+gefangene Wache kostet so viele Schritte wie die gelungene Zuweisung (`y = x + 1` = 4, ob `y` eigen ist oder nicht).
+
+**S4 – nur in der Hauptküche** (wirft beim Aufruf, auch bei reinen Abfragen und Gettern):
+
+| Operation | Meldung |
+|---|---|
+| `Bestellannahme.*` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`) | `KüchenAnanas: Bestellannahme gibt es nur in der Hauptküche.` |
+| `neu Theke`/`neu <Zutat>` und jede Methode einer Theke oder Zutat | `KüchenAnanas: Die Theke gibt es nur in der Hauptküche.` |
+| `neu Vorratskammer(…)` | `KüchenAnanas: Neue Vorratskammern gibt es nur in der Hauptküche.` |
+
+Eingabe und Theke warten auf den Menschen und sind an genau einen Ort gebunden (eine Theke pro Programm, K-062); neue Kammern
+lesen vom Host. Ein Leseversuch in der Küche verbraucht keine Eingabe und erzeugt kein `eingabe`-Ereignis. S4 betrifft nur
+Operationen, die in der Hauptküche gelingen würden: `neu Zutat()` (abstrakte Basisklasse, §16.1) wirft auch in der Küche die
+`RohlingAnanas: Ein Rohling ist nicht essbar.` – wie überall (K-101/3).
+
+**S5 – Lieferungen und Teige einer Küche** gehören der Küche und verfallen am Stückende: Lieferungen mit `wennDa`, die in der
+Küche bestellt und dort nicht gewartet wurden, laufen **nie** (sie nehmen nicht an der `wennDa`-Phase nach Programmende teil).
+
+### 17.4 Gemeinsamer Zustand
+
+Version 1 hat **keinen** gemeinsamen veränderlichen Zustand und deshalb **keine Sperren** und keine Atomics in der Sprache
+(K-097/F4). Der einzige Kanal aus der Küche ist der Rückgabewert (plus Ausgaben). Jede Sperre machte die Reihenfolge der
+Zugriffe von der Planung abhängig.
+
+### 17.5 Was eine Küche verlassen kann – kartonfähige Werte
+
+Rückgabewerte der Stücke (und geworfene Werte, D3) werden beim Zusammenführen **tief kopiert** („in den Karton gepackt“):
+
+| Wert | kartonfähig? | Kopie |
+|---|---|---|
+| `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, Belag, quattrostagioni-Wert | ja | Wert |
+| `Blech`, `Speisekarte` | ja, wenn alle Elemente/Schlüssel/Werte kartonfähig | neue Objekte; geteilte Teile und Zyklen **innerhalb** des Ergebnisses bleiben geteilt |
+| `Pizza` | ja | neue Pizza mit gleichen Belägen und gleichem `übrig()` |
+| Pizza-Sicht (`unten` als Wert in einer Belag-Methode, §6) | ja | neue Sicht mit gleicher Schichtenzahl auf eine Kopie der Pizza (Textform und `preis()` unverändert) |
+| `Rohling<T>` (roh-Info eines Ofens, §7.3) | ja, wenn `teilergebnis()` kartonfähig | neues `Roh(…)` mit kopiertem Teilergebnis und gleicher `verbrauchteZeit()` |
+| Objekt einer eigenen Klasse, eigene Ananas, eingebaute Ananas | ja, wenn alle Felder kartonfähig | neues Objekt, **gleiche Nummer** `Klasse@N` (D10), Calzone-Zustand bleibt; Ananas behalten Nachricht und Zeile |
+| Klasse, Rezeptur, quattrostagioni-Typ, Module (`Bote`, `Mathe` …) als Wert | ja | dieselbe (unveränderliche) Referenz |
+| Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Stück`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
+
+- Nicht kartonfähig → `KüchenAnanas: <Art> passt in keinen Karton – nur Werte können die Küche verlassen.` mit `<Art>` ∈
+  `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Ein Stück`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
+  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-101/1). Maßgeblich ist der **erste** nicht
+  kartonfähige Teilwert in Tiefensuche (Elemente in Reihenfolge, Speisekarten je Paar Schlüssel vor Wert, Felder in
+  Deklarationsreihenfolge, Basisklassen zuerst, Teilergebnis eines `Rohling`, Pizza einer Sicht). Die Ananas
+  entsteht **in der Küche** am Ende des Stücks (Position = Position des `brigade`-Aufrufs, Schritte unverändert) und gilt als
+  Abbruch dieses Stücks (D3).
+- Ist ein **geworfener** Wert nicht kartonfähig, wird stattdessen
+  `KüchenAnanas: Was der Koch geworfen hat, passt in keinen Karton.` (Position des `brigade`-Aufrufs) geworfen.
+- **Identität:** Ergebnisse sind immer Kopien, auch wenn ein Stück einen Wert der Hauptküche unverändert zurückgibt
+  (`b.brigade(x -> x)` liefert neue Bleche; `==` auf Blechen/Objekten ist daher `nein`, auf Pizzen/Zahlen/Texten Wertgleichheit).
+  Die Kopien gehören der Hauptküche und sind dort frei veränderbar.
+- Die Prüfung der Kartonfähigkeit kostet 0 Schritte und ruft **kein** `alsText()` auf.
+
+### 17.6 Determinismus (D1–D15)
+
+Jedes Stück ist eine **reine Funktion von (Schnappschuss, Element, Stücknummer, Anschnitt-Zählern)**, das Zusammenführen eine
+feste Faltung in Stückreihenfolge. Beim Anschnitt merkt sich die Brigade: Schritte `S₀`, Uhr `T₀ = S₀ + offset` (offset =
+vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), aktive Ofen-/Lieferungs-Budgets (Ende-Zeitpunkte
+`E_f`), Stapeltiefe, Objektzähler `N₀`, Lieferungszähler `L₀`.
+
+- **D1 – Unabhängige Ausführung.** Jedes Stück i läuft so, als liefe es allein direkt nach dem Anschnitt: Schritte ab `S₀`, Uhr
+  ab `T₀`, Objektnummern ab `N₀`, Lieferungsnummern ab `L₀`, eigener Zufallsstrom (D9), leerer Küchen-Cache (D12). Kein Stück
+  sieht Wirkungen eines anderen.
+- **D2 – Stückreihenfolge.** Zusammengeführt wird immer in Stückreihenfolge 1 … n, unabhängig davon, wann welcher Koch fertig wird.
+- **D3 – Abbrüche: der erste in Stückreihenfolge gewinnt.** Ein Stück endet normal (Wert) oder bricht ab: ungefangene Ananas,
+  Budget-Überschreitung eines äußeren Ofens/einer äußeren Lieferung (D8), P0002 (D7), PizzaFehler (z. B. B0012), Hawaii-Panik
+  (D14), nicht kartonfähiges Ergebnis (§17.5). Sei `k` das **kleinste** abgebrochene Stück. Dann:
+  - Die Ereignisse der Stücke 1 … k−1 und die Ereignisse von Stück k **bis zum Abbruch** werden ausgegeben (D4); Stücke > k
+    gelten als **nie gelaufen** (keine Ereignisse, keine Schritte, keine Uhr, keine Zähler).
+  - Der Abbruch wird in der Hauptküche **am `brigade`-Aufruf** fortgesetzt: eine Ananas (kopiert nach §17.5, mit ihrer
+    ursprünglichen Zeile/Spalte) wird dort geworfen und ist mit `probier`/`verbrannt` um den Aufruf fangbar; Budget-Abbrüche
+    greifen wie in §14.2 (äußerster überschrittener Rahmen); P0002, PizzaFehler und Panik beenden das Programm wie gewohnt
+    (PizzaFehler und Panik: das `fehler`- bzw. `panik`-Ereignis trägt Text und Zeile aus der Küche; P0002: Position wie bei
+    `belege`, D7). Ist der geworfene Wert nicht kartonfähig, gilt §17.5.
+  - Hosts dürfen Stücke > k abbrechen, sobald k feststeht und alle Stücke < k fertig sind (Optimierung, unbeobachtbar).
+- **D4 – Ereignisse.** `ausgabe`/`fehlerausgabe`/`leeren`/`warnung` eines Stücks werden in der Küche gepuffert und beim
+  Zusammenführen in Stückreihenfolge **vor** der Rückkehr des `brigade`-Aufrufs ausgegeben; innerhalb eines Stücks in
+  Auftretensreihenfolge. Hüllen dürfen die Ereignisse von Stück k bereits live zeigen, sobald alle Stücke < k ohne Abbruch fertig
+  sind („geordnetes Streaming“ – die Folge ändert sich nicht). `eingabe`, `ui`, `vorrat` kommen in Küchen nicht vor (S3/S4).
+- **D5 – Warnungen.** „Einmal pro Code + Stelle“ (§10, §14.8; W0003 einmal pro Methode) gilt über die gesamte Ereignisfolge: eine
+  Warnung eines Stücks wird beim Zusammenführen unterdrückt, wenn dieselbe Warnung bereits in der Hauptküche oder in einem früheren
+  Stück ausgegeben wurde (= die Folge, die sequentielle Ausführung ergäbe). Danach gilt sie auch in der Hauptküche als ausgegeben.
+- **D6 – Uhr: der langsamste Koch zählt.** Küchenuhr von Stück i: `T₀ + (eigene Schritte) + (eigenes vorspulen)`;
+  `dᵢ` = Küchenuhr am Stückende (bzw. beim Abbruch) − `T₀`. Nach dem Zusammenführen gilt in der Hauptküche
+  `schritte = S₀ + Σ sᵢ` (Arbeit – Summe über die berücksichtigten Stücke, D3), `Uhr = T₀ + max dᵢ` (Zeit – kritischer Pfad über
+  die berücksichtigten Stücke) und intern `offset := Uhr − schritte` (darf kleiner werden; `zeitMs` kann damit kleiner als
+  `schritte` sein). Das `ende`-Ereignis zeigt so Arbeit (`schritte`) und simulierte Zeit (`zeitMs`) getrennt.
+  **Referenz** (Vergleich mit `belege`; Prüfstand a14):
+
+  | Programm | `belege` | `brigade` |
+  |---|---|---|
+  | `Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x);` | schritte 20, zeitMs 20 | schritte 20, zeitMs **11** (Anschnitt bei Uhr 8, jedes Stück 3) |
+  | dito + `Bote.sage((Uhr.jetzt()));` | Ausgabe `25ms` | Ausgabe `16ms`, schritte 25, zeitMs 16 |
+  | `[1, 2, 3, 4].brigade(x -> { Uhr.vorspulen(x * 1s); serviere (x); });` + `Bote.sage((Uhr.jetzt()));` | `10s 45ms` | `4s 21ms`, schritte 45 (Stück 4: 8 Schritte + 4 s) |
+
+- **D7 – Schrittlimit P0002.** Jedes Stück hat als eigenes Limit den Rest beim Anschnitt `R = (Limitbasis + Limit) − S₀`; es bricht
+  beim eigenen Schritt `R + 1` mit P0002 ab (Abbruch nach D3, Position wie bei `belege`). Die Küchenuhr dieses Stücks steht dann
+  bei `T₀ + R + 1` (= Limit + 1 ohne Vorspulen), `schritte` nach D3/D6 = `S₀ + s₁ + … + s_{k−1} + (R + 1)` – die Arbeit der
+  berücksichtigten Stücke; nur bei k = 1 ist das Limit + 1 (K-101/2). Nach dem Zusammenführen ohne Abbruch wird geprüft:
+  `S₀ + Σ sᵢ > Limitbasis + Limit` → P0002 **am `brigade`-Aufruf** (Position des Aufrufs, `schritte` = tatsächliche Summe).
+  Beides sind die einzigen Fälle, in denen `schritte` größer als Limit + 1 ist (§14.1). Stücke erben die Limitbasis (K-087);
+  in Küchen wird sie nie neu gesetzt. Referenz: Limit 30, `Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x * x * x);` →
+  P0002 in Zeile 1, schritte 36, zeitMs 15, Exit 3. Limit 100, `[1, 2].brigade(x -> { falls (x == 2) { solange (ja) { } }
+  serviere (x); });` → P0002 in Stück 2 (S₀ = 6, s₁ = 6, R = 94): schritte 107, zeitMs 101, Exit 3.
+- **D8 – Ofen- und Lieferungsbudgets.** Äußere Budgets (in der Hauptküche geöffnet) gelten in jeder Küche gegen die Küchenuhr:
+  Stück i überschreitet Rahmen f, sobald seine Küchenuhr > `E_f` ist (Regel aus §14.2, „äußerster greift“). Das ist ein Abbruch
+  nach D3; die Hauptküche setzt am `brigade`-Aufruf mit diesem Rahmen fort (innere Rahmen werden ohne `roh` verlassen),
+  `verbrauchteZeit()` = Uhr nach D6 − Start des Ofens. Nach dem Zusammenführen gilt die Uhr nach D6 (eine Brigade kann so in ein
+  Budget passen, in das die gleiche Arbeit mit `belege` nicht passt). In der Küche geöffnete Öfen/Lieferungen verhalten sich wie immer.
+- **D9 – Zufall.** Beim Anschnitt zieht die Hauptküche aus ihrem globalen Strom **n** Saaten in Stückreihenfolge, je
+  `sᵢ = floor(r · 2³²)` (wie `neu Zufall()`, K-078); Stück i benutzt als globalen Strom `Zufall` einen mulberry32-Strom mit Saat
+  `sᵢ` (`Zufall.saat()` liefert dort `sᵢ`). Die Hauptküche zieht danach normal weiter (n Ziehungen verbraucht, auch wenn kein
+  Stück Zufall nutzt; leeres Blech: keine). `Zufall.saat(n)` in der Küche setzt nur den Küchenstrom. Referenz (Saat 42):
+  `[1, 2, 3].brigade(x -> Zufall.zahl(1, 1000))` → `[248, 359, 896]`, danach `Zufall.zahl(1, 1000)` → `670`;
+  Saaten `2581720956, 1925393290, 3661312704`.
+- **D10 – Objektnummern** (`Klasse@N`, §14.9). Jede Küche nummeriert ab `N₀ + 1`. Nach dem Zusammenführen zählt die Hauptküche ab
+  `N₀ + max cᵢ` weiter (cᵢ = Anzahl `neu` in Stück i; über die berücksichtigten Stücke). Nummern können sich zwischen Stücken
+  wiederholen; kopierte Ergebnisobjekte behalten ihre Nummer. Gleiches gilt für Lieferungsnummern (`Lieferung #n`).
+- **D11 – Stapeltiefe.** Jedes Stück beginnt mit der Tiefe des `brigade`-Rückrufs (Aufruftiefe + 1) und hat dieselbe Grenze 1500
+  (§14.4). Der Wirt-Stapel eines Kochs muss dieselbe Tiefe erlauben wie der Hauptthread (HOST-ABI §6).
+- **D12 – Kühlschrank.** Eine Küche liest Cache-Einträge des Schnappschusses (Frische nach Küchenuhr, §14.10) und schreibt neue
+  oder erneuerte Einträge in einen Küchen-Cache, der am Stückende verfällt. Der Cache der Hauptküche ändert sich durch eine
+  Brigade nie (auch nicht über Objekte der Hauptküche – der Cache ist kein Feld, S3 greift nicht).
+- **D13 – Speicher (Wasm/nativ).** Jede Küche darf höchstens `min(Restspeicher beim Anschnitt, 256 MiB)` neu belegen
+  (Restspeicher = Speicherlimit − belegter Heap). Überschreitung → `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit
+  erreicht).` in der Küche (fangbar, sonst Abbruch nach D3; K-089). Der Interpreter hat weiterhin keine feste Grenze (K-089).
+- **D14 – Hawaii.** Panik in Stück i ist ein Abbruch nach D3: nur wenn kein früheres Stück abgebrochen ist, erscheint der Banner
+  (nach den Ausgaben der Stücke 1 … i), Exit 39. W0666 ist statisch und ändert sich nicht.
+- **D15 – Was die Hauptküche nach der Brigade sieht.** Unverändert: alle eigenen Variablen, Objekte, Caches, Theke, Kammern,
+  Lieferungen. Geändert: `schritte`, Uhr (D6), Zufallsstrom (D9), Objekt-/Lieferungszähler (D10), Warnungsgedächtnis (D5) und das
+  Ergebnisblech.
+
+**Folgerung (testbar):** Für jedes Programm sind die Ergebnisse mit `koeche = 1`, `koeche = n` und unter beliebiger Permutation
+der Ausführungsreihenfolge der Stücke identisch (Testoption `kuechenChaos`, ARCHITEKTUR §1).
+
+### 17.7 Köche – nur Host-Einstellung (K-100)
+
+- Die Anzahl der Köche ist **nie** aus der Sprache steuerbar oder beobachtbar (keine Sprach-Option, kein `brigade(fn, köche: …)`).
+- Einstellung nur im Host: Playground-Popover „Köche: auto | 1 | 2 | 4 | 8“, CLI/EXE `--koeche=N` (`auto` = Standard, `1` = aus),
+  Option `koeche` der JS-APIs (ARCHITEKTUR §1/§2, HOST-ABI §7). `auto` = Anzahl logischer Kerne, höchstens 16.
+- Einzige sichtbare Spur ist die Hüllen-Anzeige `Köche: N` (tatsächlich genutzte Anzahl; 1 bei Interpreter oder Rückfall) – **nur** bei
+  Programmen, die `brigade` nutzen (Gruppe `kueche`; Nutzerentscheidung K-100), das Popover bleibt immer sichtbar –
+  gleicher Text in Playground-Statusleiste und `--info` (K-082). Das optionale `ende`-Feld `koeche` gehört nicht in `.erwartet`
+  und wird von Differenztests ignoriert.
+- Jeder Host darf ohne Threads arbeiten (keine SharedArrayBuffer, keine verschachtelten Worker, `koeche = 1`): identisches
+  Ergebnis, nur langsamer. Der Interpreter ist die sequentielle Referenz (K-097/F8).
+
+### 17.8 Ausblick (nicht Version 1)
+
+- **Statische Hilfe:** `W0201: Dieser Koch schreibt in 'x' – das gehört der Hauptküche.` für direkt an `brigade` übergebene
+  Lambdas, die erkennbar in gefangene/globale Variablen schreiben (Code reserviert; ersetzt die Laufzeitprüfung nicht; käme wie
+  W0666/W0032 in `analysiere()`/IR `warnungen`).
+- **Hintergrund-Köche** (K-097/F9): ein eigenes Konstrukt mit Küchen-Semantik (z. B. `Auftrag<T> a = koch(() -> …);` …
+  `a.abholen()`); `teig`/`bestelle` behalten ihre Semantik (§13).
+- Ein deterministischer gemeinsamer „Bestellblock“ (nur anhängen, Zusammenführung in Stückreihenfolge) kann später ergänzt werden.

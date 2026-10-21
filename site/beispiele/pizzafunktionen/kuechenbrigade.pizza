@@ -1,0 +1,90 @@
+// Küchenbrigade: Hochzeit bei Familie Rossi – 24 Pizzen, und zwar sofort.
+// Mit blech.brigade(fn) bekommt jedes Stück eine eigene Küche.
+// Die Köche dürfen in der Hauptküche alles ansehen, aber nichts verändern.
+// Zurück kommt nur, was sie servieren – in fester Reihenfolge, bei jedem Lauf gleich.
+
+Zufall.saat(2024);   // gleiche Saat = gleiche Hochzeit, bei jedem Lauf
+
+Blech<margherita> sorten = ["Margherita", "Funghi", "Salami", "Diavolo"];
+Blech<margherita> namen = ["Luigi", "Mario", "Gina", "Toni"];
+
+// Die Bestellung: 24 Pizzen, Sorte 1 bis 4
+Blech<salami> bons = [];
+für (salami i = 1; i <= 24; i++) { bons.hinzu(Zufall.zahl(1, 4)); }
+Bote.sage(("=== Hochzeit Rossi: " + bons.länge() + " Pizzen bestellt ==="));
+
+Pizza backe(salami sorte) {
+    Pizza boden = ((Tomate, Mozzarella));
+    Pizza p = boden + Basilikum;
+    falls (sorte == 2) { p = boden + Pilze; }
+    falls (sorte == 3) { p = boden + Salami; }
+    falls (sorte == 4) { p = boden + Salami + Chili; }
+    Uhr.vorspulen(90s);              // jede Pizza braucht 90 s im Ofen
+    serviere (p);
+}
+
+// Was ein Koch am Ende abliefert – passt in den Karton, darf also die Küche verlassen
+klasse Bericht {
+    margherita koch;
+    Blech<Pizza> pizzen;
+    Dauer zeit;
+    salami trinkgeld;
+    Bericht(margherita k, Blech<Pizza> p, Dauer z, salami t) {
+        koch = k; pizzen = p; zeit = z; trinkgeld = t;
+    }
+}
+
+// Ein Koch arbeitet seinen Stapel ab. Er liest stapel und namen aus der Hauptküche (erlaubt).
+Bericht arbeite(salami nr, Blech<Blech<salami>> stapel) {
+    Dauer start = Uhr.jetzt();
+    Blech<Pizza> fertig = stapel.stück(nr).belege(s -> backe(s));
+    salami trinkgeld = Zufall.zahl(1, 5);  // jede Küche hat ihren eigenen Würfel
+    serviere (neu Bericht(namen.stück(nr), fertig, Uhr.jetzt() - start, trinkgeld));
+}
+
+// --- Variante A: Luigi backt alles allein ---
+Dauer t0 = Uhr.jetzt();
+Blech<Pizza> allein = bons.belege(s -> backe(s));
+Dauer dauerAllein = Uhr.jetzt() - t0;
+Bote.sage(("Luigi allein: " + allein.länge() + " Pizzen in " + dauerAllein));
+
+// --- Variante B: vier Küchen, jede mit eigenem Koch ---
+Bote.sage((""));
+Blech<Blech<salami>> stapel = bons.schneide(4);
+Dauer t1 = Uhr.jetzt();
+Blech<Bericht> berichte = [1 .. 4].brigade(nr -> arbeite(nr, stapel));
+Dauer dauerBrigade = Uhr.jetzt() - t1;
+
+funghi umsatz = 0;
+salami trinkgeld = 0;
+Blech<Pizza> alle = [];
+für (Bericht b : berichte) {
+    funghi teil = b.pizzen.belege(p -> p.preis()).summe();
+    umsatz += teil;
+    trinkgeld += b.trinkgeld;
+    für (Pizza p : b.pizzen) { alle.hinzu(p); }
+    Bote.sage((b.koch + " ".wiederhole(6 - b.koch.länge()) + b.pizzen.länge() + " Pizzen  " + teil.euro() + "  Trinkgeld " + b.trinkgeld + " €  " + b.zeit));
+}
+Bote.sage(("Brigade: " + alle.länge() + " Pizzen in " + dauerBrigade + " (der langsamste Koch zählt)"));
+Bote.sage(("Umsatz: " + umsatz.euro() + ", Trinkgeld: " + trinkgeld + " €"));
+
+// Gleiche Pizzen in gleicher Reihenfolge wie bei Luigi allein?
+diavolo gleich = ja;
+für (salami i = 1; i <= alle.länge(); i++) {
+    falls (alle.stück(i) != allein.stück(i)) { gleich = nein; }
+}
+Bote.sage(("Gleiche Pizzen wie bei Luigi allein: " + gleich));
+
+// --- Ein Koch will heimlich mitzählen ---
+Bote.sage((""));
+salami gezählt = 0;
+probier {
+    [1 .. 4].brigade(nr -> {
+        gezählt += stapel.stück(nr).länge();
+        serviere (nr);
+    });
+} verbrannt (KüchenAnanas a) {
+    Bote.sage(("Küchenchef: " + a.nachricht()));
+}
+Bote.sage(("Gezählt bleibt " + gezählt + " – zählen geht über serviere:"));
+Bote.sage(([1 .. 4].brigade(nr -> stapel.stück(nr).länge()).summe() + " Pizzen"));

@@ -1,0 +1,36 @@
+// Küchenbrigade S4: Eingabe, Theke und neue Vorratskammern gibt es nur in der Hauptküche (THREADS.md §2.3)
+Theke t = neu Theke("Laden");
+Knopf k = neu Knopf("Klick");
+Vorratskammer v = neu Vorratskammer("kueche-test");
+v.lege("punkte", 3);
+
+margherita versuch(Rezept r) {
+    probier { r(); } verbrannt (KüchenAnanas a) { serviere ((a.nachricht())); }
+    serviere (("erlaubt"));
+}
+
+Blech<Blech<margherita>> b = [1].brigade(x -> [
+    versuch(() -> { Bestellannahme.lies(); }),
+    versuch(() -> { Bestellannahme.frage("Name?"); }),
+    versuch(() -> { Bestellannahme.liesZahl(); }),
+    versuch(() -> { Bestellannahme.frageZahl("Zahl?"); }),
+    versuch(() -> { Bestellannahme.hatMehr(); }),
+    versuch(() -> { neu Theke("Zweite"); }),
+    versuch(() -> { neu Schild("Hallo"); }),
+    versuch(() -> { neu Knopf("Los"); }),
+    versuch(() -> { t.zeige(k); }),
+    versuch(() -> { k.setzeText("neu"); }),
+    versuch(() -> { k.id(); }),
+    versuch(() -> { neu Vorratskammer("andere"); }),
+    versuch(() -> { v.lege("punkte", 4); }),
+    versuch(() -> { v.entferne("punkte"); }),
+    versuch(() -> { v.leeren(); }),
+    versuch(() -> { v.hole("punkte"); }),
+    versuch(() -> { v.hat("punkte"); }),
+    versuch(() -> { v.schlüssel(); }),
+    versuch(() -> { v.länge(); }),
+    versuch(() -> { v.name(); })
+]);
+für (margherita m : b.stück(1)) { Bote.sage((m)); }
+Bote.sage(([1, 2].brigade(i -> v.hole("punkte") + i + v.länge())));
+Bote.sage((v.hole("punkte") + " " + k.id()));

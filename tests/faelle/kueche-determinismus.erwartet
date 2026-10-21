@@ -1,0 +1,19 @@
+[125250, 375250, 625250, 875250, 1125250, 1375250, 1625250, 1875250] = 8002000
+50ms
+Mario fertig um 54s 92ms
+Luigi fertig um 54s 92ms
+Peach fertig um 29s 92ms
+Toad fertig um 16s 92ms
+Yoshi fertig um 9s 92ms
+Koch@1 Mario 8
+Koch@1 Luigi 9
+Koch@1 Peach 6
+Koch@1 Toad 4
+Koch@1 Yoshi 7
+54s 179ms Koch@2 308
+[ok 1, KüchenAnanas 2, StreitAnanas 3, KüchenAnanas 4, ok 5, StreitAnanas 6]
+[[11, 12], [21, 22], [31, 32]]
+Stück 1
+Stück 2
+aus 2
+54s 288ms 4000

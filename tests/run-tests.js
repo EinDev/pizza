@@ -216,8 +216,9 @@ function api() {
     gleich(kaese, { name: 'Käse', preis: 1, nach: ['Tomate'] }, 'BELAEGE Käse');
     ja(P.BELAEGE.some(b => b.name === 'Ananas'), 'BELAEGE Ananas');
     gleich(P.BELAEGE.length, 24, 'Anzahl Beläge');
-    gleich(P.ANANAS.length, 17, 'Anzahl Ananas');
+    gleich(P.ANANAS.length, 18, 'Anzahl Ananas');
     ja(P.ANANAS.includes('KeinStückAnanas') && P.ANANAS.includes('ZugeklapptAnanas'), 'ANANAS');
+    gleich(P.ANANAS[17], 'KüchenAnanas', 'KüchenAnanas am Ende angehängt (THREADS.md §4.2)');
   });
 
   test('parse: ok mit AST', () => {
@@ -412,7 +413,8 @@ function api() {
     gleich([f.code, f.text, f.zeile, f.spalte], [fe.code, fe.text, fe.zeile, fe.spalte], 'pruefe = fehler-Ereignis');
     gleich(I.pruefe(P.parse('klasse A { }').ast), null);
     gleich(I.pruefe(P.parse('quattrostagioni J { A }').ast).code, 'Q0004');
-    gleich(I.ANANAS_BAUM.length, 17);
+    gleich(I.ANANAS_BAUM.length, 18);
+    gleich(I.ANANAS_BAUM[17], ['KüchenAnanas', 'LaufzeitAnanas']);
     gleich(I.ANANAS_BAUM[0], ['Ananas', null]);
     gleich([I.MAX_STAPEL, I.STANDARD_LIMIT, I.GRUNDPREIS], [1500, 5000000, 5]);
     I.BELAEGE[0].preis = 99;
@@ -512,6 +514,43 @@ function api() {
     for (const [q, n] of faelle) gleich(P.run(q).schritte, n, 'Schritte für ' + JSON.stringify(q));
     const r = P.run('Uhr.vorspulen(1h);');
     gleich(r.zeitMs, 3600000 + 4, 'zeitMs');
+  });
+
+  // Küchenbrigade (THREADS.md §3 D6/D7, Referenztabelle): schritte = Summe, Uhr = Anschnitt + längstes Stück
+  test('Küchenbrigade: schritte/zeitMs (D6-Referenz) und Unabhängigkeit von Köchen/Chaos', () => {
+    const faelle = [
+      ['Blech<salami> r = [1, 2, 3, 4].belege(x -> x * x);', 20, 20, null],
+      ['Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x);', 20, 11, null],
+      ['Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x);\nBote.sage((Uhr.jetzt()));', 25, 16, '16ms'],
+      ['Blech<salami> r = [1, 2, 3, 4].belege(x -> x * x);\nBote.sage((Uhr.jetzt()));', 25, 25, '25ms'],
+      ['[1, 2, 3, 4].brigade(x -> { Uhr.vorspulen(x * 1s); serviere (x); });\nBote.sage((Uhr.jetzt()));', 45, 4021, '4s 21ms'],
+      ['[1, 2, 3, 4].belege(x -> { Uhr.vorspulen(x * 1s); serviere (x); });\nBote.sage((Uhr.jetzt()));', 45, 10045, '10s 45ms'],
+      ['Blech<salami> r = [].brigade(x -> x);\nBote.sage((Zufall.zahl(1, 1000)));', null, null, null]
+    ];
+    for (const [q, s, t, aus] of faelle) {
+      const r = P.run(q);
+      gleich(r.exitCode, 0, 'Exit für ' + JSON.stringify(q));
+      if (s !== null) gleich([r.schritte, r.zeitMs], [s, t], 'schritte/zeitMs für ' + JSON.stringify(q));
+      if (aus !== null) gleich(r.ereignisse[0].text, aus, 'Ausgabe für ' + JSON.stringify(q));
+    }
+    // leeres Blech: kein Anschnitt, keine Zufallsziehung
+    gleich(P.run('Blech<salami> r = [].brigade(x -> x);\nBote.sage((Zufall.zahl(1, 1000)));').ereignisse[0].text,
+      P.run('Bote.sage((Zufall.zahl(1, 1000)));').ereignisse[0].text, 'leeres Blech zieht keine Saat');
+    // D7: Summen-P0002 am Aufruf, schritte = tatsächliche Summe (> Limit + 1)
+    const lim = P.run('Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x * x);', { schrittLimit: 15 });
+    gleich([lim.exitCode, lim.schritte, lim.zeitMs], [3, 28, 13], 'Summen-P0002');
+    // optionen.koeche wird ignoriert, kuechenChaos (Permutation der Stücke) ändert nichts
+    const prog = fs.readFileSync(path.join(__dirname, 'faelle', 'kueche-determinismus.pizza'), 'utf8');
+    const ref = P.run(prog);
+    for (const opt of [{ koeche: 4 }, { kuechenChaos: 1 }, { kuechenChaos: 7 }, { kuechenChaos: 12345, koeche: 1 }]) {
+      const r = P.run(prog, opt);
+      gleich(JSON.stringify(r.ereignisse), JSON.stringify(ref.ereignisse), 'Ereignisse mit ' + JSON.stringify(opt));
+    }
+    for (const d of fs.readdirSync(path.join(__dirname, 'faelle')).filter(x => /^kueche-.*\.pizza$/.test(x))) {
+      const q = fs.readFileSync(path.join(__dirname, 'faelle', d), 'utf8');
+      const a = P.run(q, { kuechenChaos: 3 }), b = P.run(q);
+      gleich(JSON.stringify(a.ereignisse), JSON.stringify(b.ereignisse), 'kuechenChaos bei ' + d);
+    }
   });
 
   test('run() wirft nie, auch bei Unsinn', () => {

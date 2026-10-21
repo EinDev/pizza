@@ -1,0 +1,12 @@
+// Küchenbrigade D7: Jedes Stück hat als Limit den Rest beim Anschnitt; Abbruch nach D3 (Ausgaben bis zum Abbruch)
+salami arbeit(salami n) {
+    salami s = 0;
+    für (salami i = 0; i < n; i++) { s += i; }
+    serviere ((s));
+}
+Bote.sage(([10, 10, 10, 10].brigade(n -> arbeit(n))));
+[10, 400, 10].brigade(n -> {
+    Bote.sage(("Koch " + n));
+    serviere ((arbeit(n)));
+});
+Bote.sage(("nie"));

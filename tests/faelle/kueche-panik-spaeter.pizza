@@ -1,0 +1,10 @@
+// Küchenbrigade D3/D14: Ein früherer Abbruch gewinnt gegen eine spätere Panik (kein Banner)
+probier {
+    [1, 2, 3].brigade(x -> {
+        Bote.sage(("Koch " + x));
+        falls (x == 2) { wirf neu StreitAnanas("zuerst"); }
+        falls (x == 3) { serviere ((((Tomate, Ananas)))); }
+        serviere ((x));
+    });
+} verbrannt (StreitAnanas a) { Bote.sage(("gefangen: " + a.nachricht())); }
+Bote.sage(("weiter ohne Banner"));

@@ -1,0 +1,21 @@
+// Küchenbrigade D5: „einmal pro Code + Stelle“ (W0003 einmal pro Methode) über Hauptküche und alle Stücke
+klasse Alt {
+    @PizzaVeraltet(grund: "bitte neu()")
+    tiefkühl salami alt(salami x) { serviere ((x)); }
+    @PizzaVeraltet
+    tiefkühl salami uralt() { serviere ((0)); }
+}
+Blech<salami> a = [1, 2, 3].brigade(x -> Alt.alt(x));
+Blech<salami> b = [1, 2].brigade(x -> Alt.alt(x) + Alt.alt(x));
+Bote.sage((a + " " + b));
+Bote.sage((Alt.alt(5)));
+Blech<Blech<Blech<salami>>> c = [1, 2, 3].brigade(x -> [1, 2, 3, 4, 5, 6, 7].schneide(7));
+Bote.sage((c.länge()));
+[1, 2].brigade(x -> {
+    falls (x == 2) { Bote.sage(("Stück 2 vor der Warnung")); Alt.uralt(); }
+    serviere ((x));
+});
+Teig<salami> t = teig(() -> (1));
+Bote.sage(([1, 2].brigade(x -> { Teig<salami> eigen = teig(() -> (x)); serviere ((eigen.backen())); })));
+Bote.sage((t.backen()));
+Bote.sage((Alt.uralt()));
