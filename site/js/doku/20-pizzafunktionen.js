@@ -298,7 +298,7 @@
             '}',
             'Dauer gebraucht = Uhr.jetzt() - start;',
             'Bote.sage(("Summe: " + summe));',
-            'Bote.sage(("Mehr als 100 Schritte? " + (gebraucht > 100ms)));',
+            'Bote.sage(("Mehr als 50 Schritte? " + (gebraucht > 50ms)));',
             'Bote.sage(("Weniger als 10 Sekunden? " + (gebraucht < 10s)));',
             '',
             'Uhr.vorspulen(3d);',
@@ -314,7 +314,7 @@
             "1s 500ms",
             "90000",
             "Summe: 5050",
-            "Mehr als 100 Schritte? ja",
+            "Mehr als 50 Schritte? ja",
             "Weniger als 10 Sekunden? ja",
             "Drei Tage später? ja"
           )
@@ -339,7 +339,7 @@
 
     // ------------------------------------------------------------------
     {
-      id: "teig",
+      id: "pf-teig",
       gruppe: G,
       ordnung: 340,
       titel: "Teig (Lazy Evaluation)",
@@ -397,7 +397,7 @@
 
     // ------------------------------------------------------------------
     {
-      id: "ofen",
+      id: "pf-ofen",
       gruppe: G,
       ordnung: 350,
       titel: "Ofen (Zeitbudget)",
@@ -407,6 +407,7 @@
         {
           art: "code",
           ausfuehrbar: false,
+          tier: 2,
           code: z(
             'salami s = ofen(temperatur: 450, zeit: 90s) {',
             '    // ... rechnen ...',
@@ -537,7 +538,7 @@
 
     // ------------------------------------------------------------------
     {
-      id: "schneiden",
+      id: "pf-schneiden",
       gruppe: G,
       ordnung: 360,
       titel: "Schneiden (Parallelität)",
@@ -772,7 +773,7 @@
 
     // ------------------------------------------------------------------
     {
-      id: "lieferung",
+      id: "pf-lieferung",
       gruppe: G,
       ordnung: 390,
       titel: "Lieferung (Async mit Trinkgeld)",
@@ -884,7 +885,7 @@
 
     // ------------------------------------------------------------------
     {
-      id: "calzone",
+      id: "pf-calzone",
       gruppe: G,
       ordnung: 395,
       titel: "Calzone (echte Kapselung)",

@@ -103,7 +103,11 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <input type="search" id="doku-suche" placeholder="Doku durchsuchen …" aria-label="Doku durchsuchen" autocomplete="off">
         </div>
-        <div class="doku-layout">
+        <div class="doku-layout" id="doku-layout">
+          <button type="button" class="doku-nav-toggle" id="doku-nav-toggle" aria-expanded="false" aria-controls="doku-nav">
+            <span class="doku-nav-toggle-label">Inhalt</span><span class="doku-nav-aktuell" id="doku-nav-aktuell"></span>
+            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
           <nav class="doku-nav" id="doku-nav" aria-label="Doku-Abschnitte"></nav>
           <article class="doku-inhalt" id="doku-inhalt" tabindex="-1"></article>
         </div>
@@ -158,7 +162,6 @@
       <circle cx="22" cy="40" r="3" fill="#b8321f"/>
       <path d="M30 30c2-3 6-3 7 0-2 2-5 2-7 0z" fill="#4a8a3c"/>
       <path d="M43 33c2-2 5-1 5 2-2 1-4 1-5-2z" fill="#4a8a3c"/>
-      <path d="M32 3v58M3 32h58M11.5 11.5l41 41M52.5 11.5l-41 41" stroke="#e8b46a" stroke-width="1.4" opacity=".55"/>
     </symbol>
   </svg>
 

@@ -383,7 +383,8 @@ function start() {
     if (!wert) return false;
     const code = await codeDekodieren(wert);
     if (code == null) { toast("Der geteilte Link ist beschädigt – kein Code gefunden.", "fehler"); return false; }
-    if (mitRueckfrage) return ladeMitRueckfrage(code, "geteilt.pizza");
+    // Gespeicherter Entwurf mit ungespeicherten Änderungen? Dann lieber nachfragen.
+    if (mitRueckfrage || editor.text() !== basis) return ladeMitRueckfrage(code, "geteilt.pizza");
     setzeInhalt(code, "geteilt.pizza");
     return true;
   }

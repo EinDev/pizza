@@ -58,14 +58,22 @@ export function inlineParsen(text) {
 export function blockParsen(md) {
   const bloecke = [];
   const zeilen = String(md || "").replace(/\r\n?/g, "\n").split("\n");
-  let absatz = [], liste = null;
+  let absatz = [], liste = null, geordnet = false;
   const absatzEnde = () => { if (absatz.length) { bloecke.push({ typ: "absatz", inline: inlineParsen(absatz.join(" ")) }); absatz = []; } };
-  const listeEnde = () => { if (liste) { bloecke.push({ typ: "liste", punkte: liste.map(inlineParsen) }); liste = null; } };
+  const listeEnde = () => { if (liste) { bloecke.push({ typ: "liste", geordnet, punkte: liste.map(inlineParsen) }); liste = null; } };
   for (const roh of zeilen) {
     const z = roh.trimEnd();
     const lm = /^\s*[-*]\s+(.*)$/.exec(z);
+    const om = /^\s*\d+[.)]\s+(.*)$/.exec(z);
     if (!z.trim()) { absatzEnde(); listeEnde(); continue; }
-    if (lm && !/^\s*\*\*/.test(z)) { absatzEnde(); (liste = liste || []).push(lm[1]); continue; }
+    if (lm || om) {
+      const neuGeordnet = !lm;
+      absatzEnde();
+      if (liste && geordnet !== neuGeordnet) listeEnde();
+      geordnet = neuGeordnet;
+      (liste = liste || []).push((lm || om)[1]);
+      continue;
+    }
     if (liste && /^\s{2,}\S/.test(roh)) { liste[liste.length - 1] += " " + z.trim(); continue; }
     listeEnde();
     absatz.push(z.trim());
@@ -100,7 +108,7 @@ export function markdownDom(md, { linkKlick, inline = false } = {}) {
   for (const b of blockParsen(md)) {
     if (b.typ === "absatz") { const p = document.createElement("p"); inlineDom(b.inline, p, linkKlick); frag.appendChild(p); }
     else {
-      const ul = document.createElement("ul");
+      const ul = document.createElement(b.geordnet ? "ol" : "ul");
       for (const punkt of b.punkte) { const li = document.createElement("li"); inlineDom(punkt, li, linkKlick); ul.appendChild(li); }
       frag.appendChild(ul);
     }

@@ -6,10 +6,10 @@ import { KEYWORDS, TYPEN, BUILTINS, BELAEGE, ANANAS } from "./woerter.js";
 // Eigene Tags
 export const pizzaTags = {
   pizzaKlammer: Tag.define(),
-  belag: Tag.define(t.constant(t.name)),
+  belag: Tag.define(t.name),
   ananas: Tag.define(t.className),
   dauer: Tag.define(t.number),
-  builtin: Tag.define(t.standard(t.variableName)),
+  builtin: Tag.define(t.variableName),
   wahrheit: Tag.define(t.bool),
 };
 
@@ -176,6 +176,7 @@ export function highlightStatisch(code, sprache = "pizza") {
     const stream = new StringStream(zeile, 4, 4);
     while (!stream.eol()) {
       const start = stream.pos;
+      stream.start = start;
       const typ = sprachDef.token(stream, state);
       if (stream.pos === start) stream.pos++; // Sicherheitsnetz
       const txt = zeile.slice(start, stream.pos);

@@ -5,7 +5,8 @@ import {
   dropCursor, rectangularSelection, crosshairCursor, highlightSpecialChars, Decoration, placeholder,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, foldGutter, foldKeymap, indentOnInput } from "@codemirror/language";
+import { bracketMatching, foldGutter, foldKeymap, foldService, indentOnInput } from "@codemirror/language";
+
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import {
   autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, snippetCompletion,
@@ -13,6 +14,26 @@ import {
 import { linter, lintGutter, lintKeymap, forceLinting } from "@codemirror/lint";
 import { pizzaUnterstuetzung } from "./sprache.js";
 import { KEYWORDS, TYPEN, BUILTINS, BELAEGE, BELAG_NACH, ANANAS, ANNOTATIONEN } from "./woerter.js";
+
+// Falten von { … }-Blöcken (StreamLanguage liefert keine Faltbereiche)
+const klammerFalten = foldService.of((state, von, bis) => {
+  const zeile = state.doc.sliceString(von, bis).replace(/\/\/.*$/, "").replace(/"(?:[^"\\]|\\.)*"/g, '""');
+  const auf = zeile.lastIndexOf("{");
+  if (auf < 0 || zeile.indexOf("}", auf) >= 0) return null;
+  const text = state.doc.sliceString(bis, Math.min(state.doc.length, bis + 200000));
+  let tiefe = 1, imText = false, i = 0;
+  for (; i < text.length; i++) {
+    const c = text[i];
+    if (imText) { if (c === "\\") i++; else if (c === '"' || c === "\n") imText = false; continue; }
+    if (c === '"') imText = true;
+    else if (c === "/" && text[i + 1] === "/") { const n = text.indexOf("\n", i); if (n < 0) break; i = n; }
+    else if (c === "{") tiefe++;
+    else if (c === "}" && --tiefe === 0) break;
+  }
+  if (tiefe !== 0) return null;
+  const ende = bis + i;
+  return ende > bis + 1 ? { from: bis, to: ende } : null;
+});
 
 // ---------- Zeilenmarkierung (Sprung aus der Konsole) ----------
 const markiereZeile = StateEffect.define();
@@ -145,7 +166,7 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
         lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => {
           const s = document.createElement("span"); s.className = "cm-faltmarke"; s.textContent = offen ? "▾" : "▸"; return s;
         } }),
-        lintGutter(),
+        klammerFalten, lintGutter(),
         highlightSpecialChars(), history(), drawSelection(), dropCursor(),
         EditorState.allowMultipleSelections.of(true), indentOnInput(), bracketMatching(), closeBrackets(),
         autocompletion({ override: [pizzaVervollstaendigung], icons: true, activateOnTyping: true }),

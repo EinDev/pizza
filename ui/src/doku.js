@@ -50,6 +50,21 @@ export function erstelleDoku({ oeffneCode, backeCode }) {
   const nav = document.getElementById("doku-nav");
   const inhalt = document.getElementById("doku-inhalt");
   const suche = document.getElementById("doku-suche");
+  const layout = document.getElementById("doku-layout");
+  const navToggle = document.getElementById("doku-nav-toggle");
+  const navAktuell = document.getElementById("doku-nav-aktuell");
+  function navOffen(offen) {
+    layout.classList.toggle("nav-offen", offen);
+    navToggle.setAttribute("aria-expanded", String(offen));
+  }
+  navToggle.addEventListener("click", () => {
+    const offen = !layout.classList.contains("nav-offen");
+    navOffen(offen);
+    if (offen) { const a = nav.querySelector("[aria-current]") || nav.querySelector(".nav-eintrag"); if (a) { a.scrollIntoView({ block: "nearest" }); a.focus(); } }
+  });
+  layout.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && layout.classList.contains("nav-offen")) { e.stopPropagation(); navOffen(false); navToggle.focus(); }
+  });
   let abschnitte = [];
   let aktuell = null;
   let gemerkt = null;
@@ -59,7 +74,7 @@ export function erstelleDoku({ oeffneCode, backeCode }) {
     if (url.startsWith("#") && !url.startsWith("#code=")) {
       const id = decodeURIComponent(url.slice(1));
       if (abschnitte.some((a) => a.id === id)) { ev.preventDefault(); zeige(id, true); }
-      else if (url === "#") ev.preventDefault();
+      else ev.preventDefault();
     }
   }
 
@@ -182,9 +197,12 @@ export function erstelleDoku({ oeffneCode, backeCode }) {
     const a = abschnitte.find((x) => x.id === id) || abschnitte[0];
     if (!a) return leerZustand();
     aktuell = a;
+    navAktuell.textContent = a.titel;
+    navOffen(false);
     try { localStorage.setItem("pizza.doku", a.id); } catch (e) { /* egal */ }
-    nav.querySelectorAll(".nav-eintrag").forEach((k) => k.toggleAttribute("aria-current", k.dataset.id === a.id));
-    if (nav.querySelector('[aria-current]')) nav.querySelector('[aria-current]').setAttribute("aria-current", "true");
+    nav.querySelectorAll(".nav-eintrag").forEach((k) => {
+      if (k.dataset.id === a.id) k.setAttribute("aria-current", "true"); else k.removeAttribute("aria-current");
+    });
     inhalt.textContent = "";
     const kopf = el("header", "doku-abschnitt-kopf");
     kopf.appendChild(el("div", "doku-gruppe", a.gruppe));
@@ -221,6 +239,7 @@ export function erstelleDoku({ oeffneCode, backeCode }) {
 
   function leerZustand() {
     inhalt.textContent = "";
+    navAktuell.textContent = "";
     const d = el("div", "leer-zustand");
     d.appendChild(el("div", "leer-icon", "📖"));
     d.appendChild(el("h2", null, "Die Doku ist noch im Ofen"));
@@ -243,6 +262,7 @@ export function erstelleDoku({ oeffneCode, backeCode }) {
       zeichneNav(suche.value);
       const erster = nav.querySelector(".nav-eintrag");
       if (suche.value.trim() && erster && !nav.querySelector("[aria-current]")) zeige(erster.dataset.id, false);
+      navOffen(!!suche.value.trim());
     }, 120);
   });
   suche.addEventListener("keydown", (e) => {
