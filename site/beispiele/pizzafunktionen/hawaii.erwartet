@@ -1,0 +1,14 @@
+=== Freitagabend bei Luigi ===
+Tisch 5: ((Tomate, Mozzarella, Schinken)) – sehr gerne!
+Tisch 6 möchte Tomate, Käse, Schinken und ... Ananas.
+Luigi wird blass.
+╔══════════════════════════════════════════════╗
+║   🍍  PIZZA-VM KERNEL PANIC  🍍              ║
+║                                              ║
+║   Fataler Fehler: ANANAS_AUF_PIZZA           ║
+║   Adresse 0xPIZZA → Ofen überhitzt           ║
+║   Der Pizzaiolo hat den Raum verlassen.      ║
+║                                              ║
+║   Core dumped → reste.kaltepizza             ║
+╚══════════════════════════════════════════════╝
+Exit-Code: 39

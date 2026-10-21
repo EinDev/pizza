@@ -1,0 +1,29 @@
+// quattrostagioni = Enum mit genau vier Werten. Nicht drei, nicht fünf. Vier.
+// (Mit fünf Werten meldet der Pizzaiolo PizzaFehler Q0004.)
+quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
+
+speisekarte klasse Saisonkarte {
+
+    tiefkühl Pizza saisonpizza(Jahreszeit zeit) {
+        Pizza basis = ((Tomate, Mozzarella));
+        wähle (zeit.name()) {
+            fall "FRÜHLING" -> serviere ((basis + Spinat + Ei));
+            fall "SOMMER" -> serviere ((basis + Paprika + Zwiebeln));
+            fall "HERBST" -> serviere ((basis + Pilze + Gorgonzola));
+            standard -> serviere ((basis + Schinken + Rucola));
+        }
+    }
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("Die Saisonkarte hat " + Jahreszeit.werte().länge() + " Jahreszeiten:"));
+        für (Jahreszeit zeit : Jahreszeit.werte()) {
+            Pizza p = saisonpizza((zeit));
+            Bote.sage((zeit.position() + ". " + zeit + ": " + p + " – " + p.preis().euro()));
+        }
+
+        Jahreszeit jetzt = Jahreszeit.SOMMER;
+        falls (jetzt == Jahreszeit.SOMMER) {
+            Bote.sage(("Es ist " + jetzt.name() + " – heute gibt es Eis zum Nachtisch."));
+        }
+    }
+}

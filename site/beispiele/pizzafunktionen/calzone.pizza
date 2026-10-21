@@ -1,0 +1,42 @@
+// Luigis Geheimnis: Omas Soßenrezept liegt in einer Calzone.
+// Zugeklappt kommt nicht einmal der Spiegel (Reflection) hinein.
+
+klasse Kasse {
+    speisekarte funghi stand = (120.5);
+    geheimrezept margherita pin = ("1234");
+}
+
+calzone klasse Rezeptbuch {
+    speisekarte margherita titel = ("Omas Soße");
+    geheimrezept margherita zutat = ("drei Zehen Knoblauch und viel Liebe");
+}
+
+Bote.sage(("=== Spiegel, Spiegel an der Wand ==="));
+
+// Eine normale Klasse: geheimrezept schützt nur vor direktem Zugriff
+Kasse theke = neu Kasse();
+probier {
+    Bote.sage((theke.pin));
+} verbrannt (ZugriffsAnanas a) {
+    Bote.sage(("Direkt an die PIN? " + a.typ()));
+}
+Speisekarte<margherita, margherita> kassenfelder = Spiegel.felder(theke);
+Bote.sage(("Der Spiegel sieht: " + kassenfelder.schlüssel().verbinde(", ")));
+Bote.sage(("Die PIN laut Spiegel: " + kassenfelder.hole("pin")));
+
+// Die Calzone ist dicht
+Rezeptbuch buch = neu Rezeptbuch();
+Bote.sage(("Auf dem Umschlag steht: " + buch.titel));
+probier {
+    Spiegel.felder(buch);
+} verbrannt (ZugeklapptAnanas a) {
+    Bote.sage(("Spiegel: " + a.nachricht()));
+}
+
+// Aufklappen – Garantie erloschen (Warnung W0013)
+buch.aufklappen();
+Speisekarte<margherita, margherita> innen = Spiegel.felder(buch);
+Bote.sage(("Aufgeklappt: " + innen.schlüssel().verbinde(", ")));
+Bote.sage(("Geheime Zutat: " + buch.zutat));
+buch.zutat = ("Knoblauch, Liebe und eine Prise Oregano");
+Bote.sage(("Nachgewürzt: " + buch.zutat));

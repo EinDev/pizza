@@ -1,0 +1,81 @@
+// Klassen, Vererbung, rohling (abstrakt), rezeptur (Interface) und unten (super).
+
+speisekarte rezeptur Backbar {
+    margherita backe(salami grad);
+}
+
+// Ein rohling ist nur ein Bauplan – essen kann man ihn nicht.
+rohling klasse Gericht erfüllt Backbar {
+    familienrezept margherita name;
+
+    speisekarte Gericht(margherita name) {
+        dies.name = name;
+    }
+
+    rohling speisekarte Pizza rezept();
+
+    speisekarte funghi preis() {
+        serviere ((dies.rezept().preis()));
+    }
+
+    speisekarte margherita backe(salami grad) {
+        serviere ((name + " backt bei " + grad + " Grad"));
+    }
+
+    speisekarte margherita alsText() {
+        serviere ((name + " " + dies.rezept() + " für " + preis().euro()));
+    }
+}
+
+klasse PizzaMargherita erbt Gericht {
+    speisekarte PizzaMargherita() {
+        unten(("Margherita"));
+    }
+
+    @PizzaÜberschreibt
+    speisekarte Pizza rezept() {
+        Pizza p = ((Tomate, Mozzarella, Basilikum));
+        serviere ((p));
+    }
+}
+
+klasse PizzaDiavolo erbt Gericht {
+    geheimrezept salami schärfe;
+
+    speisekarte PizzaDiavolo(salami schärfe) {
+        unten(("Diavolo"));
+        dies.schärfe = schärfe;
+    }
+
+    @PizzaÜberschreibt
+    speisekarte Pizza rezept() {
+        Pizza p = ((Tomate, Mozzarella, Salami));
+        für (salami i = 1; i <= schärfe; i++) {
+            p = p + Chili;
+        }
+        serviere ((p));
+    }
+
+    @PizzaÜberschreibt
+    speisekarte margherita backe(salami grad) {
+        serviere ((unten.backe((grad + 50)) + " – extra heiß!"));
+    }
+}
+
+speisekarte klasse Pizzeria {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Blech<Gericht> karte = [neu PizzaMargherita(), neu PizzaDiavolo((2))];
+        für (Gericht g : karte) {
+            Bote.sage((g));                 // nutzt alsText()
+            Bote.sage((g.backe((450))));
+        }
+        funghi gesamt = karte.belege(g -> g.preis()).summe();
+        Bote.sage(("Alles zusammen: " + gesamt.euro()));
+
+        probier {
+            neu Gericht(("Luftpizza"));
+        } verbrannt (RohlingAnanas a) {
+            Bote.sage(("Rohling? " + a.nachricht()));
+        }
+    }
+}

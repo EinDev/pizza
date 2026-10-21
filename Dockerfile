@@ -49,6 +49,12 @@ LABEL org.opencontainers.image.title="pizza-playground" \
       org.opencontainers.image.description="Playground für die Programmiersprache pizza v3.0" \
       org.opencontainers.image.version="3.0.0"
 
+# Standard-Willkommensseite des Basis-Images entfernen (sonst würde sie ohne
+# site/index.html ausgeliefert)
+USER root
+RUN rm -rf /usr/share/nginx/html/*
+USER 101
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/site/ /usr/share/nginx/html/
 

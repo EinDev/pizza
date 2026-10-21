@@ -1,0 +1,15 @@
+// Luigis neuer Lehrling Toni hat eigene Ideen zur Schichtreihenfolge.
+// Käse hat @Nach(Tomate): er darf nie UNTER der Tomate liegen.
+// Geprüft wird bei jeder Pizza-Erzeugung – auch bei p + Belag.
+
+Bote.sage(("Toni legt zuerst den Käse auf den Teig."));
+Pizza versuch = ((Käse));
+Bote.sage(("Bisher: " + versuch + " – noch okay, es gibt ja keine Tomate."));
+
+Pizza richtig = ((Tomate, Käse));
+Bote.sage(("Luigi zeigt, wie es geht: " + richtig));
+
+Bote.sage(("Toni legt trotzdem die Tomate obendrauf ..."));
+Pizza auflauf = versuch + Tomate;     // PizzaFehler B0012 – fatal, Exit-Code 2
+
+Bote.sage(("Diese Zeile sieht niemand."));

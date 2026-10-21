@@ -1,0 +1,41 @@
+// Luigis Telefon klingelt: Lieferungen laufen erst, wenn man auf sie wartet.
+// Trinkgeld erhöht das Zeitbudget (jeder Euro +10 %) – und die Priorität.
+
+Bote.sage(("=== Bestellungen am Telefon ==="));
+
+Lieferung<salami> anruf = bestelle(() -> (6 * 7));
+Bote.sage(("Bestellung aufgenommen – noch ist nichts gebacken."));
+Zustellung<salami> zustellung = anruf.trinkgeld(2).warte(max: 30min);
+Bote.sage(("Pünktlich? " + zustellung.pünktlich()));
+Bote.sage(("Geliefert: " + zustellung.wert() + " Pizzen"));
+Bote.sage(("Nochmal warten, gleiche Zustellung? " + (anruf.warte(max: 1s) == zustellung)));
+
+// Der Fahrer steckt im Stau und kommt nie an
+Lieferung<salami> stau = bestelle(() -> {
+    salami ampeln = 0;
+    solange (ja) {
+        ampeln++;
+    }
+    serviere ((ampeln));
+});
+Zustellung<salami> kalt = stau.warte(max: 1s);
+Bote.sage(("Stau-Lieferung pünktlich? " + kalt.pünktlich()));
+Bote.sage(("Dann eben gratis: " + kalt.oderGratis((0)) + " Pizzen"));
+probier {
+    Bote.sage((kalt.wert()));
+} verbrannt (LieferAnanas a) {
+    Bote.sage(("Beschwerde: " + a.nachricht()));
+}
+
+// Abendtour: alle Lieferungen mit wennDa fahren nach Programmende los –
+// höchstes Trinkgeld zuerst, bei Gleichstand in Bestellreihenfolge.
+bestelle(() -> ("Familie Rossi (0 €)"))
+    .wennDa(kunde -> Bote.sage(("Geliefert an " + kunde)));
+bestelle(() -> ("Herr Verdi (5 €)")).trinkgeld(5)
+    .wennDa(kunde -> Bote.sage(("Geliefert an " + kunde)));
+bestelle(() -> ("Frau Bianchi (2 €)")).trinkgeld(2)
+    .wennDa(kunde -> Bote.sage(("Geliefert an " + kunde)));
+bestelle(() -> ("Nonna Lucia (5 €)")).trinkgeld(5)
+    .wennDa(kunde -> Bote.sage(("Geliefert an " + kunde)));
+
+Bote.sage(("Luigi schließt die Küche. Die Fahrer starten..."));

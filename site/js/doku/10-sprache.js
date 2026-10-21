@@ -422,13 +422,10 @@ klasse Pizzeria {
     }
 }
 
-klasse Imbiss { }
-
 Pizzeria luigi = neu Pizzeria("Da Luigi");
 Pizzeria mario = neu Pizzeria("Mamma Mia");
 Bote.sage(luigi);
 Bote.sage(("Filialen: " + Pizzeria.anzahl));
-Bote.sage((neu Imbiss()));
 
 probier {
     Bote.sage((luigi.name));
@@ -441,7 +438,7 @@ probier {
     Bote.sage(("Gebacken ist gebacken."));
 }
 `, ausfuehrbar: true, tier: 1 },
-        { art: "ausgabe", text: "Pizzeria Da Luigi (2 Öfen)\nFilialen: 2\nImbiss@3\nGeheimrezept bleibt geheim.\nGebacken ist gebacken." },
+        { art: "ausgabe", text: "Pizzeria Da Luigi (2 Öfen)\nFilialen: 2\nGeheimrezept bleibt geheim.\nGebacken ist gebacken." },
         { art: "hinweis", ton: "info", md: "Unqualifizierte Namen in Methoden werden so gesucht: lokal → Instanzfeld → statisches Feld (eigene Klasse, dann Basis). Deshalb geht im Beispiel oben `name` statt `dies.name`." }
       ]
     },
@@ -613,10 +610,10 @@ probier {
         { art: "ausgabe", text: "Ring ring...\nRing ring...\n7.5\nLeerer Karton? Dafür zahlt niemand." },
         { art: "text", md: "Die `W0003`-Warnung erscheint nur beim **ersten** Aufruf – der Pizzaiolo wiederholt sich nicht gern. Und wer `@PizzaÜberschreibt` an eine Methode klebt, die es oben gar nicht gibt, bekommt **A0001** (Exit-Code 2):" },
         { art: "code", code: code`
-klasse Teig {
+klasse Brot {
     speisekarte leer kneten() { }
 }
-klasse Pizzateig erbt Teig {
+klasse Pizzabrot erbt Brot {
     @PizzaÜberschreibt
     speisekarte leer knetten() { }
 }

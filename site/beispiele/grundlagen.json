@@ -1,0 +1,125 @@
+{
+  "kategorie": "Grundlagen",
+  "beispiele": [
+    {
+      "id": "hallo-welt",
+      "titel": "Hallo Welt",
+      "beschreibung": "Der kürzeste Weg zur warmen Pizza: Anweisungen im Snack-Modus, ganz ohne Klasse.",
+      "datei": "grundlagen/hallo-welt.pizza",
+      "erwartet": "grundlagen/hallo-welt.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Ausgabe", "Snack-Modus", "Bote"]
+    },
+    {
+      "id": "hauptgang",
+      "titel": "Hauptgang & Klassenaufbau",
+      "beschreibung": "paket, import und eine speisekarte-Klasse mit hauptgang als Einstiegspunkt – plus statische Felder und Methoden.",
+      "datei": "grundlagen/hauptgang.pizza",
+      "erwartet": "grundlagen/hauptgang.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["hauptgang", "Klassen", "tiefkühl", "serviere"]
+    },
+    {
+      "id": "variablen-typen",
+      "titel": "Variablen & Typen",
+      "beschreibung": "salami, funghi, margherita, diavolo, Dauer und Pizza – mit euro(), exakter Division und einer TypAnanas.",
+      "datei": "grundlagen/variablen-typen.pizza",
+      "erwartet": "grundlagen/variablen-typen.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Typen", "Variablen", "Pizza-Literal", "euro"]
+    },
+    {
+      "id": "pizzabuzz",
+      "titel": "PizzaBuzz",
+      "beschreibung": "Das Einstellungsgespräch in Neapel: 3 → Pizza, 5 → Pizza!, 15 → PIZZAPIZZA, über den Bereich [1 .. 30].",
+      "datei": "grundlagen/pizzabuzz.pizza",
+      "erwartet": "grundlagen/pizzabuzz.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["falls", "für", "Bereich", "Modulo"]
+    },
+    {
+      "id": "schleifen-waehle",
+      "titel": "Schleifen & wähle",
+      "beschreibung": "solange, beide für-Varianten, weiter, abbrechen und wähle mit mehreren Werten pro fall.",
+      "datei": "grundlagen/schleifen-waehle.pizza",
+      "erwartet": "grundlagen/schleifen-waehle.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["solange", "für", "wähle", "abbrechen", "weiter"]
+    },
+    {
+      "id": "blech-methoden",
+      "titel": "Blech-Methoden",
+      "beschreibung": "Listen backen: belege, filtere, zusammenklappen, sortiere, verbinde – und stück(i) zählt ab 1.",
+      "datei": "grundlagen/blech-methoden.pizza",
+      "erwartet": "grundlagen/blech-methoden.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Blech", "Lambda", "map", "filter", "reduce"]
+    },
+    {
+      "id": "speisekarte-map",
+      "titel": "Speisekarte (Map)",
+      "beschreibung": "Eine Bestellübersicht mit zwei Speisekarten: lege, hole, hat, entferne und Iteration über die Schlüssel.",
+      "datei": "grundlagen/speisekarte-map.pizza",
+      "erwartet": "grundlagen/speisekarte-map.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Speisekarte", "Map", "karton"]
+    },
+    {
+      "id": "klassen-vererbung",
+      "titel": "Klassen & Vererbung",
+      "beschreibung": "Eine Pizzeria mit rohling-Basisklasse, rezeptur, erbt, unten und @PizzaÜberschreibt.",
+      "datei": "grundlagen/klassen-vererbung.pizza",
+      "erwartet": "grundlagen/klassen-vererbung.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Klassen", "erbt", "rohling", "rezeptur", "unten", "alsText"]
+    },
+    {
+      "id": "pizza-fabrik",
+      "titel": "Pizza-Fabrik",
+      "beschreibung": "Fabrik-Muster mit wähle: Wünsche werden zu Pizzen – und Unbekanntes zu einer eigenen Ananas.",
+      "datei": "grundlagen/pizza-fabrik.pizza",
+      "erwartet": "grundlagen/pizza-fabrik.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Fabrik", "wähle", "Ananas", "wirf"]
+    },
+    {
+      "id": "ananas-probier",
+      "titel": "Ananas fangen",
+      "beschreibung": "probier, verbrannt und rand mit eigener Ananas-Hierarchie, eingebauten Ananas und untypisiertem Fangen.",
+      "datei": "grundlagen/ananas-probier.pizza",
+      "erwartet": "grundlagen/ananas-probier.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["probier", "verbrannt", "rand", "Ananas", "Exceptions"]
+    },
+    {
+      "id": "quattrostagioni",
+      "titel": "quattrostagioni",
+      "beschreibung": "Eine Saisonkarte mit einem Enum aus genau vier Jahreszeiten: werte(), name() und position().",
+      "datei": "grundlagen/quattrostagioni.pizza",
+      "erwartet": "grundlagen/quattrostagioni.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["quattrostagioni", "Enum", "wähle"]
+    },
+    {
+      "id": "gross-klein",
+      "titel": "Groß- & Kleinschreibung",
+      "beschreibung": "PiZZa() und piZZA() wohnen friedlich in derselben Klasse – Groß-/Kleinschreibung ist signifikant (mit Warnung W0032).",
+      "datei": "grundlagen/gross-klein.pizza",
+      "erwartet": "grundlagen/gross-klein.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Bezeichner", "Groß-/Kleinschreibung", "W0032"]
+    }
+  ]
+}

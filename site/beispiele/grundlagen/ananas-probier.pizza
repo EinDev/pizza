@@ -1,0 +1,64 @@
+// Ananas sind Exceptions. probier / verbrannt / rand = try / catch / finally.
+
+// Eine eigene Ananas-Hierarchie für die Teigprüfung
+klasse TeigAnanas erbt LaufzeitAnanas {
+    speisekarte TeigAnanas(margherita m) { unten(m); }
+}
+klasse ZuDünnAnanas erbt TeigAnanas {
+    speisekarte ZuDünnAnanas(salami millimeter) {
+        unten(("Teig nur " + millimeter + " mm dick – der Belag fällt durch."));
+    }
+}
+klasse ZuDickAnanas erbt TeigAnanas {
+    speisekarte ZuDickAnanas(salami millimeter) {
+        unten(("Teig " + millimeter + " mm dick – das ist ein Brot."));
+    }
+}
+
+speisekarte klasse Teigprüfung {
+
+    tiefkühl leer prüfe(salami millimeter) {
+        falls (millimeter < 2) { wirf neu ZuDünnAnanas((millimeter)); }
+        falls (millimeter > 8) { wirf neu ZuDickAnanas((millimeter)); }
+        Bote.sage(("Teig mit " + millimeter + " mm: perfekt!"));
+    }
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        für (salami dicke : [1, 4, 12]) {
+            probier {
+                prüfe((dicke));
+            } verbrannt (ZuDünnAnanas a) {
+                Bote.sage(("Zu dünn! " + a.nachricht()));
+            } verbrannt (TeigAnanas a) {
+                // fängt alle übrigen Teig-Ananas (Vererbung!)
+                Bote.sage(("Teigproblem (" + a.typ() + "): " + a.nachricht()));
+            } rand {
+                Bote.sage(("-- " + dicke + " mm geprüft --"));
+            }
+        }
+
+        // Eingebaute Ananas: Durch null teilen
+        probier {
+            salami stücke = 8;
+            salami gäste = 0;
+            Bote.sage(("Pro Gast: " + stücke / gäste));
+        } verbrannt (RechenAnanas a) {
+            Bote.sage((a));   // Textform einer Ananas: "Typ: Nachricht"
+        }
+
+        // Stück 3 auf einem Blech mit nur 2 Stücken? Untypisiert fangen.
+        Blech<margherita> reste = ["Rand", "Rand"];
+        probier {
+            Bote.sage((reste.stück(3)));
+        } verbrannt (a) {
+            Bote.sage(("Gefangen: " + a.typ()));
+        }
+
+        // Geprüfte Ananas über ihre Oberklasse fangen
+        probier {
+            wirf neu VerbranntAnanas(("Der Rand ist schwarz."));
+        } verbrannt (GeprüfteAnanas a) {
+            Bote.sage(("Geprüft gefangen: " + a.holeNachricht()));
+        }
+    }
+}

@@ -1,0 +1,41 @@
+// Fabrik-Muster: Eine Methode entscheidet per wähle, welche Pizza gebacken wird.
+// Unbekannte Wünsche werden mit einer eigenen Ananas abgelehnt.
+
+klasse UnbekannteSorteAnanas erbt LaufzeitAnanas {
+    speisekarte UnbekannteSorteAnanas(margherita sorte) {
+        unten(("Die Sorte '" + sorte + "' kennt Luigi nicht."));
+    }
+}
+
+speisekarte klasse PizzaFabrik {
+
+    speisekarte tiefkühl Pizza backe(margherita sorte) {
+        Pizza boden = ((Tomate, Mozzarella));
+        wähle (sorte.klein()) {
+            fall "margherita" -> serviere ((boden + Basilikum));
+            fall "funghi", "pilz" -> serviere ((boden + Pilze));
+            fall "diavolo" -> serviere ((boden + Salami + Chili));
+            fall "marinara" -> serviere ((boden - Mozzarella + Knoblauch));
+            standard -> wirf neu UnbekannteSorteAnanas((sorte));
+        }
+    }
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Blech<margherita> wünsche = ["Margherita", "PILZ", "Diavolo", "Marinara", "Hawaii"];
+        für (margherita wunsch : wünsche) {
+            probier {
+                Pizza p = backe((wunsch));
+                Bote.sage((wunsch + ": " + p + " – " + p.preis().euro()));
+            } verbrannt (UnbekannteSorteAnanas a) {
+                Bote.sage(("Abgelehnt: " + a.nachricht()));
+            }
+        }
+
+        // Eigene Ananas erben ganz normal – hier fängt die Oberklasse.
+        probier {
+            backe(("Calzone"));
+        } verbrannt (LaufzeitAnanas a) {
+            Bote.sage((a.typ() + " ist auch eine LaufzeitAnanas."));
+        }
+    }
+}

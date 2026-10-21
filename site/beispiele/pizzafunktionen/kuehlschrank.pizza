@@ -1,0 +1,39 @@
+// Luigis Speisekartendrucker ist schrecklich langsam. Darum kommt jede
+// gedruckte Karte in den Kühlschrank – 3 Tage haltbar (simulierte Uhr!).
+
+klasse Drucker {
+    salami gedruckt = 0;
+
+    @Kühlschrank(haltbar: 3d)
+    speisekarte margherita holeKarte(margherita sprache) {
+        gedruckt++;
+        serviere (("Karte Nr. " + gedruckt + " (" + sprache + ")"));
+    }
+}
+
+Drucker luigisDrucker = neu Drucker();
+
+Bote.sage(("Montag: " + luigisDrucker.holeKarte("deutsch")));
+Bote.sage(("Montag, nochmal: " + luigisDrucker.holeKarte("deutsch")));
+Bote.sage(("Montag, Touristen: " + luigisDrucker.holeKarte("italienisch")));
+Bote.sage(("Gedruckt bisher: " + luigisDrucker.gedruckt));
+
+// Einen Tag später: Reste aus dem Kühlschrank, noch frisch
+Uhr.vorspulen(1d);
+Reste<margherita> dienstag = luigisDrucker.holeKarte.mikrowelle("deutsch");
+Bote.sage(("Dienstag: " + dienstag.wert() + ", matschig? " + dienstag.istMatschig()));
+
+// Drei Tage später: abgelaufen! Alter Wert sofort, aber matschig –
+// und der Kühlschrank wird direkt neu befüllt.
+Uhr.vorspulen(3d);
+Reste<margherita> samstag = luigisDrucker.holeKarte.mikrowelle("deutsch");
+Bote.sage(("Samstag: " + samstag.wert() + ", matschig? " + samstag.istMatschig()));
+Bote.sage(("Gleich danach: " + luigisDrucker.holeKarte("deutsch")));
+
+// Nichts im Kühlschrank? Dann wird eben gedruckt.
+Reste<margherita> spanisch = luigisDrucker.holeKarte.mikrowelle("spanisch");
+Bote.sage(("Spanisch: " + spanisch.wert() + ", matschig? " + spanisch.istMatschig()));
+
+// frisch() ignoriert den Kühlschrank komplett
+Bote.sage(("Ganz frisch: " + luigisDrucker.holeKarte.frisch("deutsch")));
+Bote.sage(("Gedruckt insgesamt: " + luigisDrucker.gedruckt));

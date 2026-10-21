@@ -1,0 +1,50 @@
+// Luigis Lieferdienst – alles zusammen: Pizzen, Ofen, Stücke und Lieferungen.
+
+speisekarte klasse Lieferdienst {
+    tiefkühl funghi kasse = 0;
+
+    tiefkühl margherita liefere(margherita kunde, Pizza bestellung) {
+        kasse += bestellung.preis();
+        serviere ((kunde + " bekommt " + bestellung + " für " + bestellung.preis().euro()
+            + " (Kasse: " + kasse.euro() + ")"));
+    }
+
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("=== Luigis Lieferdienst öffnet ==="));
+        Blech<Pizza> bestellungen = [
+            ((Tomate, Mozzarella, Basilikum)),
+            ((Tomate, Käse, Salami, Chili)),
+            ((Tomate, Mozzarella, Thunfisch, Zwiebeln))
+        ];
+
+        // Alle Bestellungen in den Ofen – klar im Budget
+        funghi wert = ofen(temperatur: 400, zeit: 60s) {
+            serviere ((bestellungen.belege(p -> p.preis()).summe()));
+        } roh (r) {
+            serviere ((0));
+        };
+        Bote.sage(("Aus dem Ofen: " + bestellungen.länge() + " Pizzen im Wert von " + wert.euro()));
+
+        // Die Personalpizza – Luigi nascht schon mal
+        Pizza personal = ((Tomate, Käse, Pilze));
+        Stück<Pizza> nasch = teile(personal);
+        nasch.essen();
+        Bote.sage(("Luigi nascht ein Stück Personalpizza. Übrig: " + personal.übrig()));
+
+        // Herr Verdi wartet am Telefon – mit Trinkgeld geht's schneller
+        Zustellung<margherita> verdi = bestelle(() -> (Lieferdienst.liefere("Herr Verdi", bestellungen.stück(2))))
+            .trinkgeld(3)
+            .warte(max: 10min);
+        Bote.sage((verdi.oderGratis(("Herr Verdi isst gratis."))));
+
+        // Der Rest fährt nach Küchenschluss – höchstes Trinkgeld zuerst
+        bestelle(() -> (Lieferdienst.liefere("Frau Bianchi", bestellungen.stück(1))))
+            .trinkgeld(1)
+            .wennDa(text -> Bote.sage(("Fahrer meldet: " + text)));
+        bestelle(() -> (Lieferdienst.liefere("Familie Rossi", bestellungen.stück(3))))
+            .trinkgeld(4)
+            .wennDa(text -> Bote.sage(("Fahrer meldet: " + text)));
+
+        Bote.sage(("=== Küche zu, die Fahrer starten ==="));
+    }
+}

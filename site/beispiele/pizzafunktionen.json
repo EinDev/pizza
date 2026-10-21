@@ -1,0 +1,125 @@
+{
+  "kategorie": "Pizza-Funktionen",
+  "beispiele": [
+    {
+      "id": "pizza-literale",
+      "titel": "Pizza-Literale & Preise",
+      "beschreibung": "Luigis Speisekarte: Pizzen in Doppelklammern, Beläge mit + und - auflegen und abnehmen, preis() und beläge().",
+      "datei": "pizzafunktionen/pizza-literale.pizza",
+      "erwartet": "pizzafunktionen/pizza-literale.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Pizza", "Belag", "preis", "beläge", "euro"]
+    },
+    {
+      "id": "eigene-belaege",
+      "titel": "Eigene Beläge (Decorators)",
+      "beschreibung": "Trüffel und Blattgold als eigene Beläge mit @Nach: jede Schicht umwickelt preis() und beschreibung() und fragt mit unten nach.",
+      "datei": "pizzafunktionen/eigene-belaege.pizza",
+      "erwartet": "pizzafunktionen/eigene-belaege.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["belag", "@Nach", "unten", "Decorator"]
+    },
+    {
+      "id": "teig",
+      "titel": "Teig: faule Auswertung",
+      "beschreibung": "Teig wird erst geknetet, wenn man ihn gehen lässt oder backt – und höchstens einmal.",
+      "datei": "pizzafunktionen/teig.pizza",
+      "erwartet": "pizzafunktionen/teig.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["teig", "gehenlassen", "backen", "Lazy"]
+    },
+    {
+      "id": "ofen",
+      "titel": "Der Ofen: Zeitbudget",
+      "beschreibung": "Berechnungen mit Zeitbudget: zwischenstand, roh-Zweig mit Teilergebnis, verbrannt bei Überschreitung oder über 485 Grad.",
+      "datei": "pizzafunktionen/ofen.pizza",
+      "erwartet": "pizzafunktionen/ofen.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["ofen", "zwischenstand", "roh", "verbrannt", "VerbranntAnanas"]
+    },
+    {
+      "id": "schneiden",
+      "titel": "Schneiden & Zusammenklappen",
+      "beschreibung": "Große Bleche mit schneide(8) und schneide(auto) zerteilen, belegen und zusammenklappen; fair teilen mit blech / n.",
+      "datei": "pizzafunktionen/schneiden.pizza",
+      "erwartet": "pizzafunktionen/schneiden.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["schneide", "auto", "belege", "zusammenklappen", "StreitAnanas"]
+    },
+    {
+      "id": "besitz",
+      "titel": "Stücke & Besitz",
+      "beschreibung": "Jede Pizza gehört genau einem Tisch: schieb() gibt weiter, teile() verteilt Stücke – beim 9. Gast gibt es Streit.",
+      "datei": "pizzafunktionen/besitz.pizza",
+      "erwartet": "pizzafunktionen/besitz.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["schieb", "teile", "übrig", "BesitzAnanas", "StreitAnanas"]
+    },
+    {
+      "id": "kuehlschrank",
+      "titel": "Kühlschrank & Mikrowelle",
+      "beschreibung": "Ein langsamer Speisekartendrucker mit @Kühlschrank-Cache: Reste aus der Mikrowelle, matschig nach Ablauf, Zeitsprung mit Uhr.vorspulen.",
+      "datei": "pizzafunktionen/kuehlschrank.pizza",
+      "erwartet": "pizzafunktionen/kuehlschrank.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["@Kühlschrank", "mikrowelle", "frisch", "Uhr.vorspulen", "Caching"]
+    },
+    {
+      "id": "lieferung",
+      "titel": "Lieferung mit Trinkgeld",
+      "beschreibung": "bestelle, trinkgeld, warte(max:) und oderGratis – und abends fahren die wennDa-Lieferungen nach Trinkgeld sortiert los.",
+      "datei": "pizzafunktionen/lieferung.pizza",
+      "erwartet": "pizzafunktionen/lieferung.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["bestelle", "trinkgeld", "warte", "oderGratis", "wennDa", "LieferAnanas"]
+    },
+    {
+      "id": "calzone",
+      "titel": "Calzone: echte Kapselung",
+      "beschreibung": "Omas Rezept in einer Calzone: Spiegel.felder kommt nicht hinein – bis jemand aufklappen() ruft.",
+      "datei": "pizzafunktionen/calzone.pizza",
+      "erwartet": "pizzafunktionen/calzone.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["calzone", "Spiegel", "aufklappen", "geheimrezept", "ZugeklapptAnanas"]
+    },
+    {
+      "id": "lieferdienst",
+      "titel": "Komplett: Luigis Lieferdienst",
+      "beschreibung": "Ein ganzer Abend mit hauptgang: Bestellungen in den Ofen, Personalpizza teilen, Lieferungen mit Trinkgeld und wennDa.",
+      "datei": "pizzafunktionen/lieferdienst.pizza",
+      "erwartet": "pizzafunktionen/lieferdienst.erwartet",
+      "exitCode": 0,
+      "tier": 2,
+      "schlagworte": ["hauptgang", "ofen", "teile", "bestelle", "wennDa"]
+    },
+    {
+      "id": "hawaii",
+      "titel": "Hawaii",
+      "beschreibung": "Luigi hat nur eine Regel. Wer Ananas auf die Pizza legt, erlebt eine Kernel-Panik – nicht fangbar, Exit-Code 39.",
+      "datei": "pizzafunktionen/hawaii.pizza",
+      "erwartet": "pizzafunktionen/hawaii.erwartet",
+      "exitCode": 39,
+      "tier": 1,
+      "schlagworte": ["hawaii", "Ananas", "Panik", "Easter Egg"]
+    },
+    {
+      "id": "auflauf",
+      "titel": "Auflauf-Fehler (B0012)",
+      "beschreibung": "Lehrling Toni legt die Tomate auf den Käse – das ist keine Pizza, das ist ein Auflauf. Fataler PizzaFehler, Exit-Code 2.",
+      "datei": "pizzafunktionen/auflauf.pizza",
+      "erwartet": "pizzafunktionen/auflauf.erwartet",
+      "exitCode": 2,
+      "tier": 1,
+      "schlagworte": ["@Nach", "B0012", "PizzaFehler"]
+    }
+  ]
+}
