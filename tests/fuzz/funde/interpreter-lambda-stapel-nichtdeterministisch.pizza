@@ -1,3 +1,4 @@
+// STATUS: behoben in 91ac620 (deterministische Stapeltiefe MAX_STAPEL) – bleibt als Regressionsfall.
 // Fund (Differenz-Korpus rekursion-methoden-tiefe, Selbstkonsistenz Interpreter):
 // Rekursion über ein Lambda läuft nicht in den festen Tiefenzähler (MAX_TIEFE = 900), sondern in den
 // JS-Stapel (RangeError). Die Abbruchtiefe hängt vom JIT-Zustand ab → schritte/zeitMs schwanken zwischen

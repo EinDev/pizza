@@ -607,11 +607,61 @@ class Gen {
     }
   }
 
+  /** Einfache Theke (THEKE.md): Zutaten mit festen IDs, Rückrufe mit Closures, bediene() mit vorgegebenen Ereignissen. */
+  thekeTeil() {
+    const z = this.z;
+    this.zeile('salami thZ = 0;');
+    this.zeile('Theke th = neu Theke(' + this.tLit() + (z.chance(0.5) ? ', breite: ' + z.int(100, 800) + ', hoehe: ' + z.int(100, 600) : '') + ');');
+    this.zeile('Schild ts = neu Schild(' + this.tLit() + ', id: "s");');
+    this.zeile('Knopf tk = neu Knopf("Klick", id: "k");');
+    this.zeile('Eingabe te = neu Eingabe(' + (z.chance(0.5) ? this.tLit() + ', ' : '') + 'platzhalter: "Name", id: "e");');
+    this.zeile('Haken th2 = neu Haken("Extra", an: ' + z.wahl(['ja', 'nein']) + ', id: "h");');
+    this.zeile('Knopf tzu = neu Knopf("Zu", () -> { Bote.sage(("schließe")); th.schliesse(); }, id: "zu");');
+    const klick = [
+      'thZ++;',
+      'ts.setzeText(("Klicks: " + thZ));',
+      'falls (thZ > ' + z.int(1, 4) + ') { tk.aktiv(nein); }',
+      'Bote.sage(("klick " + thZ + " " + te.wert()));',
+    ];
+    if (z.chance(0.3)) klick.push('falls (thZ == ' + z.int(1, 3) + ') { wirf neu StreitAnanas("im Rückruf"); }');
+    if (z.chance(0.3)) klick.push('ts.stil("farbe", ' + z.wahl(['"tomate"', '"basilikum"', '"normal"']) + ');');
+    if (z.chance(0.2)) klick.push('ts.sichtbar(thZ % 2 == 0);');
+    this.zeile('tk.beiKlick(() -> { ' + klick.join(' ') + ' });');
+    this.zeile('te.beiAenderung(w -> { Bote.sage(("tippt " + w)); falls (w.länge() > 3) { ts.setzeText((w.groß())); } });');
+    if (z.chance(0.6)) this.zeile('te.beiEnter(w -> { Bote.sage(("enter " + w)); te.setzeWert(""); });');
+    this.zeile('th2.beiAenderung(a -> Bote.sage(("haken " + a + " " + th2.an())));');
+    const reihe = z.chance(0.5) ? 'neu Reihe([tk, tzu])' : 'neu Stapel([tk, tzu])';
+    this.zeile('th.zeige(neu Stapel([ts, te, th2, ' + reihe + ']));');
+    if (z.chance(0.3)) this.zeile('th.setzeTitel(("Titel " + thZ));');
+    if (z.chance(0.5)) this.zeile('probier { th.bediene(); } verbrannt (StreitAnanas a) { Bote.sage(("aus bediene: " + a.nachricht())); }');
+    else this.zeile('th.bediene();');
+    if (z.chance(0.3)) this.zeile('th.bediene();');
+    this.zeile('Bote.sage(("nach bediene " + thZ + " " + te.wert() + " " + th2.an() + " " + ts.text()));');
+  }
+
+  uiEreignisse() {
+    const z = this.z;
+    const n = z.int(0, 12);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(z.gewichtet([
+        [5, () => ({ typ: 'klick', id: z.wahl(['k', 'k', 'zu', 's', 'e', 'gibtsnicht']) })],
+        [3, () => ({ typ: 'aenderung', id: 'e', wert: z.wahl(['', 'Lu', 'Luigi', 'Grüße 🍕', '42']) })],
+        [2, () => ({ typ: 'aenderung', id: 'h', wert: z.wahl([true, false]) })],
+        [1, () => ({ typ: 'enter', id: 'e', wert: z.wahl(['Mario', '', 'ß']) })],
+        [1, () => ({ typ: z.wahl(['tanzen', 'aenderung']), id: z.wahl(['h', 'k', 'x']), wert: z.wahl(['x', 1, null, true]) })],
+        [1, () => ({ typ: 'geschlossen' })],
+      ])());
+    }
+    return out;
+  }
+
   programm() {
     this.zeile('// pizza-Fuzz-Programm');
     this.klassenErzeugen();
     this.funktionenErzeugen();
     this.anweisungen(this.maxAnw);
+    if (this.opt.theke) this.thekeTeil();
     // Endzustand beobachtbar machen
     const alle = [].concat(...this.scopes).filter(v => [S, F, T, D, B, Z].includes(v.typ)).slice(-4);
     for (const v of alle) this.zeile('Bote.sage(("' + v.name + ' = " + ' + v.name + '));');
@@ -635,6 +685,7 @@ function erzeuge(seed, opt = {}) {
     const n = z.chance(0.15) ? 0 : z.int(0, 12);   // 0 → sofort EOF
     optionen.eingabe = Array.from({ length: n }, () => z.wahl(EINGABE_ZEILEN));
   }
+  if (opt.theke) optionen.uiEreignisse = g.uiEreignisse();
   if (g.z.chance(0.1)) optionen.args = ['a', 'ü', ''];
   return { code, optionen };
 }

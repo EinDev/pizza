@@ -3,7 +3,7 @@
  * Fuzzing für pizza v3.0 – deterministisch per Seed.
  *
  *   node tests/fuzz/run.js [--anzahl 2000] [--seed 1] [--robust N] [--nur gueltig|robust] [--eingabe-anteil 0.25]
- *                          [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
+ *                          [--theke-anteil 0.1] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
  *   Umgebung: FUZZ_SEED, FUZZ_ANZAHL, FUZZ_ROBUST (Kommandozeile hat Vorrang), PIZZA_MOTOREN, PIZZA_HOST
  *
  * Teil 1 (gültig): grammatikbasierte, terminierende Programme → alle verfügbaren Motoren, Vergleich gegen den
@@ -52,7 +52,9 @@ if (argv.includes('--selbsttest')) {
   });
 }
 const eingabeOk = M.eingabeUnterstuetzt();
-console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)')));
+const thekeOk = (() => { try { return M.PizzaLang.run('Theke t = neu Theke("x"); Schild s = neu Schild("a"); t.zeige(s); t.bediene();', { uiEreignisse: [] }).exitCode === 0; } catch (_) { return false; } })();
+const thekeAnteil = zahl(arg('--theke-anteil'), 0.1);
+console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)') + (thekeOk ? ' theke-anteil=' + thekeAnteil : ' (keine Theke im Interpreter)')));
 for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(12) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
 
 const stat = {};
@@ -126,7 +128,8 @@ if (nur !== 'robust') {
     const s = seedFuer(seed, i, 1);
     const z = new Zufall(s ^ 0x5bd1e995);
     const mitEingabe = eingabeOk && z.chance(eingabeAnteil);
-    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe });
+    const mitTheke = thekeOk && z.chance(thekeAnteil);
+    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe, theke: mitTheke });
     const r = pruefeFall(code, optionen);
     zaehle(r);
     if (r.ref.status === 'ok') {

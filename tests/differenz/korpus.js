@@ -7,6 +7,7 @@
  *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar)
  *   korpus     – tests/differenz/korpus/*.pizza (Kopfzeilen: // exit: N, // optionen: {...}; Eingabe: gleichnamige .eingabe)
  * Eingabezeilen (EINGABE.md) landen in optionen.eingabe: Manifest-Feld "eingabe", .eingabe-Dateien, Doku-Feld eingabe.
+ * Theke-Ereignisfolgen (THEKE.md §5) landen in optionen.uiEreignisse: .ereignisse (JSON-Lines) bzw. Manifest-Feld "ereignisse".
  */
 const fs = require('fs');
 const path = require('path');
@@ -17,7 +18,12 @@ const ROOT = path.join(__dirname, '..', '..');
 function lies(p) { return fs.readFileSync(p, 'utf8'); }
 /** .eingabe-Datei → Zeilen (abschließender Zeilenumbruch erzeugt keine Leerzeile). */
 function zeilen(text) { const z = String(text).replace(/\r\n/g, '\n').split('\n'); if (z.length && z[z.length - 1] === '') z.pop(); return z; }
+/** .ereignisse-Datei (JSON-Lines, THEKE.md §5) → optionen.uiEreignisse */
+function jsonZeilen(text) { return zeilen(text).filter(z => z.trim()).map(z => JSON.parse(z)); }
 function json(p) { return JSON.parse(lies(p).replace(/^﻿/, '')); }
+
+/** Gleichnamige .ereignisse-Datei → { uiEreignisse } (sonst {}). */
+function uiAus(p) { return p && fs.existsSync(p) ? { uiEreignisse: jsonZeilen(lies(p)) } : {}; }
 
 function beispiele(warn) {
   const dir = path.join(ROOT, 'site', 'beispiele');
@@ -34,7 +40,7 @@ function beispiele(warn) {
       if (!dp || !fs.existsSync(dp)) { warn('beispiele: Datei fehlt: ' + b.datei); continue; }
       out.push({
         quelle: 'beispiele', name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei),
-        code: lies(dp), optionen: Object.assign({ args: b.args || [] }, b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : {}),
+        code: lies(dp), optionen: Object.assign({ args: b.args || [] }, b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : {}, uiAus(b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse'))),
         erwartetExit: typeof b.exitCode === 'number' ? b.exitCode : 0,
       });
     }
@@ -82,7 +88,7 @@ function faelle() {
     const inp = path.join(dir, basis + '.eingabe');
     out.push({
       quelle: 'faelle', name: basis, code: lies(path.join(dir, d)),
-      optionen: Object.assign(fs.existsSync(op) ? json(op) : {}, fs.existsSync(inp) ? { eingabe: zeilen(lies(inp)) } : {}),
+      optionen: Object.assign(fs.existsSync(op) ? json(op) : {}, fs.existsSync(inp) ? { eingabe: zeilen(lies(inp)) } : {}, uiAus(path.join(dir, basis + '.ereignisse'))),
       erwartetExit: fs.existsSync(ep) ? parseInt(lies(ep).trim(), 10) : 0,
     });
   }
@@ -102,6 +108,7 @@ function pruefstand(warn) {
       const opt = {};
       if (f.args) opt.args = f.args;
       if (f.schrittLimit != null) opt.schrittLimit = f.schrittLimit;
+      if (Array.isArray(f.uiEreignisse)) opt.uiEreignisse = f.uiEreignisse;
       if (f.eingabe != null) opt.eingabe = Array.isArray(f.eingabe) ? f.eingabe : zeilen(f.eingabe);
       // Prüfstand-Erwartungen stammen aus der SPEC, nicht vom Interpreter – hier nur Differenz, keine Exit-Prüfung.
       out.push({ quelle: 'pruefstand', name: d.replace(/\.js$/, '') + '#' + i + ' ' + (f.name || ''), code: f.code, optionen: opt });
@@ -135,6 +142,7 @@ function eigenerKorpus() {
     if (k.args) opt.args = k.args;
     const inp = path.join(dir, d.slice(0, -6) + '.eingabe');
     if (fs.existsSync(inp)) opt.eingabe = zeilen(lies(inp));
+    Object.assign(opt, uiAus(path.join(dir, d.slice(0, -6) + '.ereignisse')));
     out.push({ quelle: 'korpus', name: d.slice(0, -6), code, optionen: opt, erwartetExit: k.exit != null ? k.exit : 0, erwartetFehler: k.fehler });
   }
   return out;

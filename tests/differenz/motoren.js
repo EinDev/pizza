@@ -53,6 +53,7 @@ function laufOptionen(opt) {
   if (opt && opt.schrittLimit != null) o.schrittLimit = opt.schrittLimit;
   if (opt && opt.args) o.args = opt.args.slice();
   if (opt && opt.eingabe) o.eingabe = opt.eingabe.slice();
+  if (opt && opt.uiEreignisse) o.uiEreignisse = JSON.parse(JSON.stringify(opt.uiEreignisse));
   return o;
 }
 
@@ -185,7 +186,11 @@ const host = {
     if (opt && opt.args && opt.args.length) argv.push(...opt.args);
     const t0 = jetzt();
     // Eingabe (EINGABE.md §4): pizza-host liest Zeilen von stdin, EOF → -1.
-    const stdin = opt && opt.eingabe ? opt.eingabe.map(z => z + '\n').join('') : '';
+    // K-042: ein null-Eintrag bedeutet EOF ab dieser Stelle → stdin dort beenden.
+    let zeilenIn = opt && opt.eingabe ? opt.eingabe : [];
+    const nullAb = zeilenIn.indexOf(null);
+    if (nullAb >= 0) zeilenIn = zeilenIn.slice(0, nullAb);
+    const stdin = zeilenIn.map(z => z + '\n').join('');
     const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
     const ms = jetzt() - t0;
     try { fs.unlinkSync(datei); } catch (_) {}

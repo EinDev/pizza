@@ -1,0 +1,10 @@
+// Fund (Differenz/Fuzz, nur nativer Host pizza-host; Interpreter und Wasm-in-Node stimmen überein):
+// Bestellannahme.hatMehr() liest im Host eine Zeile vorab und
+//  (a) erzeugt dabei ein zusätzliches Ereignis {"typ":"eingabe","text":null} bzw. {"typ":"eingabe","text":""},
+//  (b) wertet eine LEERE Zeile als „keine Eingabe mehr“ (hatMehr → nein) und verbraucht sie.
+// Eingabe (host-hatmehr-leerzeile.eingabe): eine leere Zeile, dann "x".
+// Interpreter: ja | "" | ja | x      Host: eingabe "" | nein | x | eingabe null | nein | karton
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
