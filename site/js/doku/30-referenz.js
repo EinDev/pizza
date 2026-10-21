@@ -353,7 +353,7 @@
           art: "details",
           titel: "Die Saat: echter Zufall oder jedes Mal gleich?",
           inhalt: [
-            { art: "text", md: "- **Normalfall:** Jeder Lauf bekommt eine **echte, neue** Saat. Damit du einen spannenden Lauf wiederholen kannst, wird sie angezeigt: `Saat: 3141592` – im Playground als Infozeile in der Konsole, in der Kommandozeile und im heruntergeladenen Programm als Zeile im Terminal.\n- **Feste Saat 42:** Im Playground gibt es die Option „feste Saat 42“, in der Kommandozeile `--saat=42` (oder jede andere Zahl). Tests, die Beispiele und die Code-Blöcke dieser Doku laufen immer mit Saat 42 – darum stimmen die gezeigten Ausgaben.\n- **Im Programm:** `Zufall.saat(n)` legt die Saat selbst fest – praktisch zum Testen deines Spiels." },
+            { art: "text", md: "- **Normalfall:** Jeder Lauf bekommt eine **echte, neue** Saat. Damit du einen spannenden Lauf wiederholen kannst, wird sie angezeigt: `Saat: 3141592` – im Playground als erste Zeile oben in der Konsole, in der Kommandozeile und im heruntergeladenen Programm als Zeile im Terminal (auf der Fehlerausgabe, damit sie deine Ausgabe nicht stört).\n- **Feste Saat 42:** Im Playground setzt du dafür das Häkchen **„feste Saat 42“** in der Konsolenleiste; in der Kommandozeile und beim heruntergeladenen Programm gibt es `--saat=42` (oder jede andere Zahl, z. B. die angezeigte: `--saat=3141592`). Tests, die Beispiele und die Code-Blöcke dieser Doku laufen immer mit Saat 42 – darum stimmen die gezeigten Ausgaben.\n- **Im Programm:** `Zufall.saat(n)` legt die Saat selbst fest – praktisch zum Testen deines Spiels." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -824,13 +824,13 @@
               art: "tabelle",
               kopf: ["Wo das Programm läuft", "Wo der Vorrat liegt"],
               zeilen: [
-                ["Playground", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser)"],
+                ["Playground", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser). Tabs, die du aus **Beispiele** oder dieser Doku öffnest, haben einen **eigenen** Spielstand – so verfälscht das Ausprobieren eines Beispiels nie den Stand deiner eigenen Programme."],
                 ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`"],
                 ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`)"]
               ]
             },
             { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an." },
-            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1`), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` bzw. `--vorrat-loeschen alle`. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
+            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` (eine Kammer) bzw. `--vorrat-loeschen-alle` (alle). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
             { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
           ]
         }
@@ -1358,6 +1358,75 @@
       ]
     },
     {
+      id: "ref-kommandozeile",
+      gruppe: REF,
+      ordnung: 637,
+      titel: "Kommandozeile & Programm-Optionen",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Außerhalb des Browsers startest du pizza im Terminal: mit `node bin/pizza.js datei.pizza` aus dem Projekt oder direkt als heruntergeladenes Programm. Beide verstehen **dieselben Optionen** und zeigen dasselbe an wie der Playground." },
+        {
+          art: "code",
+          sprache: "shell",
+          ausfuehrbar: false,
+          tier: 1,
+          code: z(
+            "$ node bin/pizza.js zahlenraten.pizza",
+            "Saat: 3141592",
+            "Wie heißt du? …",
+            "$ node bin/pizza.js --saat=3141592 zahlenraten.pizza   # genau derselbe Lauf",
+            "$ ./zahlenraten --saat=42 Luigi 3                     # Programm mit Argumenten"
+          )
+        },
+        { art: "text", md: "Optionen stehen **vor** dem Dateinamen bzw. direkt hinter dem Programmnamen; alles danach sind Argumente für `hauptgang(args)`." },
+        {
+          art: "tabelle",
+          kopf: ["Option", "Wirkung"],
+          zeilen: [
+            ["`--eingabe datei`", "Liest die Eingaben für die `Bestellannahme` zeilenweise aus `datei` statt von der Tastatur"],
+            ["`--schritte=N`", "Schrittlimit setzen (Standard 5 000 000, siehe `P0002`)"],
+            ["`--saat=N`", "Feste Zufalls-Saat. Ohne Option gibt es eine echte Saat, angezeigt als `Saat: N`"],
+            ["`--vorrat=ordner`", "Vorratskammern in `ordner` statt im Standardordner ablegen"],
+            ["`--kein-vorrat`", "Nichts lesen, nichts speichern – die Kammern leben nur im Speicher (Warnung `W0101`)"],
+            ["`--vorrat-loeschen <name>`", "Löscht die Kammer `<name>` und beendet sich (startet kein Programm)"],
+            ["`--vorrat-loeschen-alle`", "Löscht alle Kammern und beendet sich"],
+            ["`--info`", "Am Ende Exit-Code, Schritte und Uhr ausgeben"],
+            ["`--debug`", "Bei internen Fehlern zusätzlich technische Details zeigen (sonst nie)"],
+            ["`--ast`", "Nur den Syntaxbaum ausgeben, nichts ausführen – für Neugierige"],
+            ["`--hilfe`", "Kurze Übersicht aller Optionen"]
+          ]
+        },
+        {
+          art: "details",
+          titel: "Vorrat löschen: Meldungen",
+          inhalt: [
+            {
+              art: "code",
+              sprache: "shell",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "$ node bin/pizza.js --vorrat-loeschen pizza-imperium",
+                "Vorrat 'pizza-imperium' gelöscht.",
+                "$ node bin/pizza.js --vorrat-loeschen pizza-imperium",
+                "Vorrat 'pizza-imperium' gibt es nicht.",
+                "$ node bin/pizza.js --vorrat-loeschen-alle",
+                "Alle Vorräte gelöscht."
+              )
+            },
+            { art: "text", md: "Ein ungültiger Name ergibt `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` mit Exit-Code 2. `--vorrat=ordner` lässt sich mit beiden Löschbefehlen kombinieren." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Was im Terminal wohin geht",
+          inhalt: [
+            { art: "text", md: "- `Bote.sage`/`Bote.schreibe` → normale Ausgabe (*stdout*).\n- `Bote.fehler`, Warnungen, Fehler, der Hawaii-Banner und die Zeile `Saat: N` → Fehlerausgabe (*stderr*).\n- Warnungen und Fehler sehen überall gleich aus: `<Text> (Zeile Z, Spalte S)`.\n- Der Exit-Code ist der des Programms (`echo $?` bzw. `echo %ERRORLEVEL%`)." }
+          ]
+        }
+      ]
+    },
+    {
       id: "ref-playground",
       gruppe: REF,
       ordnung: 640,
@@ -1382,6 +1451,7 @@
         },
         { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf so lange dauern, wie er will – gestoppt wird nur durch das Schrittlimit (`P0002`, 5 000 000 Schritte, Exit-Code 3) oder durch dich: **Esc** bzw. **Abbrechen**." },
         { art: "text", md: "**Argumente:** Im Playground gibt es das Feld **„Argumente“**. Was du dort einträgst, bekommt `hauptgang(Blech<margherita> args)` als Blech von Texten – genau wie beim Aufruf in der Kommandozeile oder beim heruntergeladenen Programm (`./programm Luigi 3`). Ohne Eintrag ist das Blech leer." },
+        { art: "text", md: "**Zufall & Vorrat:** Oben in der Konsole steht bei jedem Lauf `Saat: N`; mit dem Häkchen **„feste Saat 42“** würfelt jeder Lauf gleich (siehe *Zufall*). Vorratskammern liegen im Speicher deines Browsers, Beispiel- und Doku-Tabs haben einen eigenen Spielstand. Aufräumen: Befehlspalette (`F1`) → **„Vorrat löschen“** (siehe *Vorratskammer*)." },
         {
           art: "details",
           titel: "Code teilen",
