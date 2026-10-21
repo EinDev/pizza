@@ -138,7 +138,7 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
 
   // Verschieben an der Titelleiste
   kopf.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button") || mobil() || !geo) return;
+    if (e.button !== 0 || e.target.closest("button, a") || mobil() || !geo) return;
     e.preventDefault();
     kopf.setPointerCapture(e.pointerId);
     const start = { x: e.clientX, y: e.clientY, gx: geo.x, gy: geo.y };

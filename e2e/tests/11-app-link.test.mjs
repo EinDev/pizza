@@ -1,7 +1,7 @@
 // Teilen als App: der Teilen-Dialog liefert zwei Links zum selben Schlüssel – „Code öffnen“ (#h=<key>, Playground)
 // und „App starten“ (#app=<key>, Vollbild ohne Editor). Der App-Link zeigt bis zum Start nur einen Ladebalken,
 // kompiliert zur Laufzeit (Motor Auto) und startet sofort: Theke füllt das Fenster, Konsolenprogramme bekommen
-// eine Vollbild-Konsole mit Eingabe. Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“. Teilen-API = Attrappe in server.mjs.
+// eine Vollbild-Konsole mit Eingabe. Während der Laufzeit dezent „App bearbeiten“ oben rechts (→ #h=<key>). Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“. Teilen-API = Attrappe in server.mjs.
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, bereit, editorText, editorTabs, aktiverTabName, sendeEingabe, thekeEreignis, warteAufBediene, schlafe, SCHMAL, DESKTOP,
@@ -65,6 +65,33 @@ async function pruefeX(page, vp, minGroesse = 28) {
   assert.ok(m.inhalt.t >= m.x.b - 0.5, "Theke-Inhalt beginnt unter dem X (nichts verdeckt): " + JSON.stringify(m));
   assert.equal(m.inhalt.b, vp.height, "Inhalt bis zum unteren Rand");
   assert.equal(m.label, "App beenden");
+}
+
+/** „App bearbeiten“: sichtbar, echter Link zum Code-Link, Touch-Ziel groß genug, verdeckt nichts. */
+async function pruefeBearbeiten(page, vp, { theke, key, basis, minHoehe = 28 }) {
+  const m = await page.evaluate((theke) => {
+    const box = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+    const sel = theke ? '[data-testid="app-bearbeiten-theke"]' : '[data-testid="app-bearbeiten"]';
+    const a = document.querySelector(sel);
+    const sichtbare = [...document.querySelectorAll(".app-bearbeiten")].filter((e) => e.getClientRects().length);
+    return {
+      a: box(a), tag: a && a.tagName, href: a && a.href, text: a && a.textContent.trim(), anzahl: sichtbare.length,
+      x: theke ? box(document.getElementById("vorschau-schliessen")) : null,
+      inhalt: box(document.getElementById(theke ? "vorschau-inhalt" : "konsole-inhalt")),
+      eingabe: box(document.querySelector("#konsole-eingabe:not([hidden])")),
+    };
+  }, theke);
+  assert.ok(m.a && m.a.w > 0, "„App bearbeiten“ sichtbar: " + JSON.stringify(m));
+  assert.equal(m.anzahl, 1, "genau ein sichtbarer Link");
+  assert.equal(m.tag, "A", "echter Link");
+  assert.equal(m.href, basis + "#h=" + key, "Ziel = Code-Link");
+  assert.equal(m.text, "App bearbeiten");
+  assert.ok(m.a.h >= minHoehe, "Touch-Ziel hoch genug: " + JSON.stringify(m.a));
+  assert.ok(m.a.t >= 0 && m.a.t <= 8 && m.a.r <= vp.width && m.a.l >= 0, "oben in der Ecke: " + JSON.stringify(m.a));
+  assert.ok(m.inhalt.t >= m.a.b - 0.5, "Inhalt beginnt unter dem Link (nichts verdeckt): " + JSON.stringify(m));
+  if (m.eingabe) assert.ok(m.eingabe.t >= m.a.b, "Eingabe nicht verdeckt");
+  if (theke) assert.ok(m.a.r <= m.x.l + 0.5 && Math.abs((m.a.t + m.a.b) / 2 - (m.x.t + m.x.b) / 2) < 2, "links neben dem X, gleiche Höhe: " + JSON.stringify(m));
+  else assert.ok(m.a.r >= vp.width - 12, "rechts: " + JSON.stringify(m.a));
 }
 
 async function pruefeKeinPlayground(page) {
@@ -170,6 +197,7 @@ e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorra
   const box = await page.$eval("#konsole", (k) => { const r = k.getBoundingClientRect(); return { w: r.width, h: r.height }; });
   assert.ok(box.w >= DESKTOP.width - 1 && box.h >= DESKTOP.height - 80, "Vollbild-Konsole: " + JSON.stringify(box));
   assert.match(await konsolenText(page), /Wie heißt du\?/);
+  await pruefeBearbeiten(page, DESKTOP, { theke: false, key: "konsoleapp", basis });
   assert.doesNotMatch(await konsolenText(page), /Saat/, "kein „Saat: N“ im App-Modus");
   assert.equal(await page.title(), "pizza-App", "alter Link (nur Code, ohne Namen) läuft weiter");
   // Motor Auto: genau ein motor-Ereignis
@@ -218,6 +246,7 @@ e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Au
   await pruefeX(page, DESKTOP);
   assert.deepEqual(await dokuGeladen(page), { angefragt: 0, daten: 0 }, "Doku-Skripte nur im Playground");
   assert.equal(await sichtbar(page, "#konsole"), false, "keine Konsole neben der Theke");
+  await pruefeBearbeiten(page, DESKTOP, { theke: true, key: "thekeapp", basis });
   // Bedienen
   for (let i = 0; i < 2; i++) {
     const vorher = await page.evaluate(() => window.__ereignisse.filter((e) => e.typ === "ui-warte").length);
@@ -250,6 +279,39 @@ e2e("App-Link, Theke auf dem Handy (390×844): Vollbild, keine Scrollbar", { vie
   assert.equal(m.h, 844);
   assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
   await pruefeX(page, SCHMAL, 40);
+  await pruefeBearbeiten(page, SCHMAL, { theke: true, key: "thekemobil", basis, minHoehe: 40 });
+});
+
+e2e("App-Link: „App bearbeiten“ während der Laufzeit (Konsole, Handy dunkel) – Klick öffnet den Code im selben Tab", { viewport: SCHMAL, farbschema: "dark", vorLaden: ERSTER_EINDRUCK }, async ({ page, server, basis }) => {
+  server.teilen.ablage.set("bearbeiten", verpacke("gruss.pizza", KONSOLE_APP));
+  await page.goto(basis + "#app=bearbeiten", { waitUntil: "load" });
+  await page.waitForSelector('[data-testid="konsole-eingabe"]:not([hidden])', { timeout: 20_000 });
+  await pruefeBearbeiten(page, SCHMAL, { theke: false, key: "bearbeiten", basis, minHoehe: 40 });
+  const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+  assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
+  await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.click('[data-testid="app-bearbeiten"]')]);
+  await bereit(page);
+  assert.match(page.url(), /#h=bearbeiten$/);
+  await page.waitForFunction(() => /Bestellannahme/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
+  assert.equal(await editorText(page), KONSOLE_APP);
+});
+
+e2e("App-Link: während des Ladebalkens kein „App bearbeiten“", async ({ page, server, basis }) => {
+  server.teilen.ablage.set("langsam", KONSOLE_APP);
+  await page.setRequestInterception(true);
+  let freigeben;
+  const gesperrt = new Promise((r) => { freigeben = r; });
+  page.on("request", async (req) => {
+    if (/api\/teilen\/langsam/.test(req.url())) await gesperrt;
+    req.continue().catch(() => {});
+  });
+  await page.goto(basis + "#app=langsam", { waitUntil: "load" });
+  await page.waitForSelector(".app-bearbeiten", { timeout: 5000 }); // Bundle lief, Laden hängt noch
+  assert.ok(await sichtbar(page, "#app-lade"), "Ladebalken sichtbar");
+  assert.equal(await page.$$eval(".app-bearbeiten", (l) => l.filter((e) => e.getClientRects().length).length), 0, "kein Link während des Ladens");
+  freigeben();
+  await page.waitForSelector('[data-testid="konsole-eingabe"]:not([hidden])', { timeout: 20_000 });
+  assert.ok(await sichtbar(page, '[data-testid="app-bearbeiten"]'));
 });
 
 for (const [name, opt] of [["Desktop hell", {}], ["Handy dunkel", { viewport: SCHMAL, farbschema: "dark" }]]) {
@@ -268,6 +330,7 @@ for (const [name, opt] of [["Desktop hell", {}], ["Handy dunkel", { viewport: SC
     assert.match(await konsolenText(page), /Gezählt: 1/);
     assert.equal(await sichtbar(page, "#vorschau"), false, "Fenster zu");
     assert.equal(await sichtbar(page, "#vorschau-schliessen"), false, "X weg");
+    assert.equal(await sichtbar(page, '[data-testid="app-bearbeiten-theke"]'), false, "Theke-Link mit dem Streifen weg");
     assert.match(await page.$eval("#app-ende-text", (e) => e.textContent), /Programm beendet\.$/);
     assert.ok(await sichtbar(page, "#app-nochmal"));
     assert.ok(await sichtbar(page, "#app-code"));

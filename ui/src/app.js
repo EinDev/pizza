@@ -2,7 +2,8 @@
 // Bis zum Start ist nur ein Ladebalken zu sehen (js/thema.js setzt data-app vor dem ersten Zeichnen, CSS blendet alles
 // andere aus). Ablauf: Code laden (api/teilen/<key>) → Motor prüfen (+ Theke-Renderer vorladen) → im Worker
 // kompilieren (Motor „Auto“: Wasm, sonst Interpreter) → starten. Danach füllt die Theke bzw. die Konsole das Fenster –
-// gleiche Konsole, gleicher Renderer wie im Playground (Browser = nativ). Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“.
+// gleiche Konsole, gleicher Renderer wie im Playground (Browser = nativ). Während der Laufzeit dezent „App bearbeiten“
+// (oben rechts, zum Code-Link). Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“.
 // Vorrat: dieselben Kammern wie geteilte Tabs im Playground (localStorage „pizza.vorrat.<name>“, siehe vorrat.js).
 import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
@@ -58,6 +59,28 @@ export function startApp(key) {
     e.preventDefault();
     codeAnsehen();
   });
+  // „App bearbeiten“: während der ganzen Laufzeit dezent in einer Ecke – echter Link zum Code-Link (Mittelklick/neuer
+  // Tab geht), normaler Klick wie „Code ansehen“. Theke: im Streifen links neben dem X (kein zusätzlicher Platz);
+  // Konsole: schmaler Streifen über der Ausgabe, damit nichts verdeckt wird. Während des Ladebalkens unsichtbar.
+  function bearbeitenLink(testid) {
+    const a = document.createElement("a");
+    a.className = "app-bearbeiten";
+    a.href = codeUrl;
+    a.dataset.testid = testid;
+    a.title = "Code dieser App im Playground öffnen";
+    a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>App bearbeiten</span>';
+    a.addEventListener("click", (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      codeAnsehen();
+    });
+    return a;
+  }
+  const appKopf = document.createElement("div");
+  appKopf.className = "app-kopf";
+  appKopf.appendChild(bearbeitenLink("app-bearbeiten"));
+  konsoleEl.insertBefore(appKopf, konsoleEl.firstChild);
+
   // Hash ändert sich (z. B. Zurück-Taste) → neu laden, Modus entscheidet thema.js
   window.addEventListener("hashchange", () => location.reload());
 
@@ -66,6 +89,7 @@ export function startApp(key) {
   const knopfZu = $("vorschau-schliessen");
   $("vorschau-kopf").classList.add("app-zu");
   $("vorschau-kopf").removeAttribute("title");
+  $("vorschau-kopf").insertBefore(bearbeitenLink("app-bearbeiten-theke"), knopfZu);
   knopfZu.title = "Beenden";
   knopfZu.setAttribute("aria-label", "App beenden");
   knopfZu.addEventListener("click", () => {
