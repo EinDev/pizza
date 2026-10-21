@@ -1,3 +1,5 @@
+import { icon as iconEl } from "./icons.js";
+
 // Kleines, zugängliches Popup-Menü (role="menu") für Kontextmenüs und das „Alle Tabs“-Menü.
 // eintraege: [{ text, aktion, kuerzel?, deaktiviert?, gefahr?, testid?, icon? } | "-" | { ueberschrift } | { element }]
 
@@ -40,10 +42,14 @@ export function oeffneMenue({ eintraege, x, y, anker, label = "Menü", testid, k
       k.setAttribute("role", "menuitem");
       k.tabIndex = -1;
       if (e.testid) k.dataset.testid = e.testid;
-      if (e.deaktiviert) { k.disabled = true; k.setAttribute("aria-disabled", "true"); }
-      const icon = el("span", "menue-icon", e.icon || "");
-      icon.setAttribute("aria-hidden", "true");
-      k.appendChild(icon);
+      if (e.deaktiviert) {
+        k.disabled = true;
+        k.setAttribute("aria-disabled", "true");
+        if (e.grund) { k.title = e.grund; k.dataset.grund = e.grund; }
+      } else if (e.titel) k.title = e.titel;
+      const ic = e.icon ? iconEl(e.icon, "menue-icon") : el("span", "menue-icon");
+      ic.setAttribute("aria-hidden", "true");
+      k.appendChild(ic);
       k.appendChild(el("span", "menue-text", e.text));
       if (e.zusatz) k.appendChild(el("span", "menue-zusatz", e.zusatz));
       if (e.kuerzel) { const kb = el("kbd", "menue-kuerzel", e.kuerzel); k.appendChild(kb); }

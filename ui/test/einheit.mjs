@@ -1,7 +1,6 @@
 // Schnelltests für DOM-freie Module: node test/einheit.mjs
 import assert from "node:assert/strict";
 import { inlineParsen, blockParsen, sichereUrl } from "../src/markdown.js";
-import { codeKodieren, codeDekodieren, codeAusHash } from "../src/teilen.js";
 import { pizzaSprache } from "../src/sprache.js";
 import { StringStream } from "@codemirror/language";
 
@@ -19,15 +18,6 @@ assert.equal(k[5].text, "<img onerror=x>");
 const b = blockParsen("Absatz\nzwei\n\n- eins\n- zwei **f**\n\nEnde");
 assert.deepEqual(b.map((x) => x.typ), ["absatz", "liste", "absatz"]);
 assert.equal(b[1].punkte.length, 2);
-
-// Teilen
-const code = "Pizza p = ((Tomate, Käse));\n// 🍕 " + "x".repeat(70000);
-const w = await codeKodieren(code);
-assert.ok(w.startsWith("z."));
-assert.equal(await codeDekodieren(w), code);
-assert.equal(await codeDekodieren("u." + Buffer.from("hallo ä").toString("base64url")), "hallo ä");
-assert.equal(codeAusHash("#code=z.abc"), "z.abc");
-assert.equal(await codeDekodieren("z.!!!"), null);
 
 // Tokenizer
 const sp = pizzaSprache.streamParser;

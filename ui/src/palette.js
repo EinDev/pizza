@@ -1,3 +1,8 @@
+import { icon as iconEl } from "./icons.js";
+
+const GRUPPE_ICON = { Ofen: "play", Motor: "zap", Konsole: "terminal", Tabs: "files", "Wechseln zu": "file", Teilen: "share",
+  Ansicht: "panel", Editor: "search", "Beispiel öffnen": "pizza", Doku: "book" };
+
 // Befehlspalette (Strg+Shift+P / F1): alle Aktionen durchsuchbar, mit Tastenkürzeln.
 // befehle(): [{ id, titel, gruppe?, kuerzel?, aktion, verfuegbar?: () => boolean }]
 
@@ -70,6 +75,7 @@ export function erstellePalette({ befehle }) {
       z.setAttribute("aria-selected", String(i === auswahl));
       z.dataset.testid = "befehlspalette-eintrag";
       z.dataset.befehl = b.id;
+      z.appendChild(iconEl(b.icon || GRUPPE_ICON[b.gruppe] || "command", "palette-icon"));
       if (b.gruppe) z.appendChild(el("span", "palette-gruppe", b.gruppe));
       z.appendChild(el("span", "palette-titel", b.titel));
       if (b.kuerzel) z.appendChild(el("kbd", "palette-kuerzel", b.kuerzel));

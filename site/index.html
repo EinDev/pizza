@@ -26,7 +26,7 @@
 
     <div class="kopf-mitte">
       <button type="button" class="knopf knopf-primaer" id="knopf-backen" data-testid="backen" title="Programm ausführen (Strg+Enter)">
-        <span class="knopf-text">Backen</span><span class="knopf-icon" aria-hidden="true">▶</span>
+        <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg><span class="knopf-text">Backen</span>
       </button>
       <button type="button" class="knopf knopf-abbrechen" id="knopf-abbrechen" data-testid="abbrechen" hidden title="Lauf abbrechen (Esc)">
         <span class="spinner" aria-hidden="true"></span><span class="knopf-text">Abbrechen</span>
@@ -34,7 +34,7 @@
       <span class="kbd-hinweis" aria-hidden="true"><kbd>Strg</kbd><kbd>↵</kbd></span>
       <label class="motor-wahl" title="Ausführungsmotor: WebAssembly (schnell) oder Interpreter">
         <span class="sr-only">Motor</span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+        <svg class="motor-icon" id="motor-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
         <select id="motor-wahl" data-testid="motor-umschalter" aria-label="Ausführungsmotor">
           <option value="auto">Auto (Wasm)</option>
           <option value="wasm">Wasm</option>
@@ -51,7 +51,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M12 7v6M9.5 10.5L12 13l2.5-2.5"/></svg>
         <span class="knopf-text">Programm</span>
       </button>
-      <button type="button" class="knopf knopf-geist" id="knopf-teilen" data-testid="teilen" title="Code teilen (Hastebin oder Link ohne Server)">
+      <button type="button" class="knopf knopf-geist" id="knopf-teilen" data-testid="teilen" title="Link zum Teilen erstellen">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>
         <span class="knopf-text">Teilen</span>
       </button>
@@ -87,13 +87,13 @@
           <span class="motor-badge" id="motor-badge" data-testid="motor-badge" hidden></span>
           <span class="lauf-info" id="lauf-info" data-testid="lauf-info"></span>
           <span class="flex-luecke"></span>
-          <button type="button" class="knopf knopf-mini" id="konsole-leeren" title="Konsole leeren">Leeren</button>
+          <button type="button" class="knopf knopf-mini" id="konsole-leeren" data-testid="konsole-leeren" title="Konsole leeren">Leeren</button>
         </div>
         <div class="konsole-inhalt" id="konsole-inhalt" data-testid="konsole-ausgabe" role="log" aria-live="polite" aria-relevant="additions" tabindex="0">
           <p class="konsole-leer">Drück <kbd>Strg</kbd> + <kbd>Enter</kbd> oder <strong>Backen</strong>, um dein Programm in den Ofen zu schieben.</p>
         </div>
         <form class="k-eingabe" id="konsole-eingabe" data-testid="konsole-eingabe" hidden>
-          <span class="k-eingabe-marke" aria-hidden="true">›</span>
+          <svg class="k-eingabe-marke" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
           <input type="text" id="konsole-eingabe-feld" data-testid="konsole-eingabe-feld" autocomplete="off" spellcheck="false"
                  aria-label="Eingabe für das Programm" enterkeyhint="send">
           <button type="submit" class="knopf knopf-mini knopf-mini-primaer" data-testid="konsole-eingabe-senden">Senden ↵</button>
@@ -133,18 +133,9 @@
         <div class="beispiele-liste" id="beispiele-liste" data-testid="beispiele-liste"></div>
       </div>
     </aside>
-    <div class="panel-schleier" id="panel-schleier" hidden></div>
+    <div class="panel-schleier" id="panel-schleier" data-testid="panel-schleier" hidden></div>
   </main>
 
-  <!-- Hawaii-Crash-Overlay -->
-  <div class="hawaii" id="hawaii" data-testid="hawaii-overlay" role="alertdialog" aria-modal="true" aria-labelledby="hawaii-titel" aria-describedby="hawaii-banner" hidden>
-    <div class="hawaii-scanlines" aria-hidden="true"></div>
-    <div class="hawaii-karte">
-      <h2 class="hawaii-titel" id="hawaii-titel">PizzaVM abgestürzt</h2>
-      <pre class="hawaii-banner" id="hawaii-banner"></pre>
-      <p class="hawaii-text">Jemand hat Ananas auf die Pizza gelegt. Der Ofen wurde zur Sicherheit abgeschaltet.</p>
-      <button type="button" class="knopf knopf-hawaii" id="hawaii-neustart" data-testid="hawaii-neustart">PizzaVM neu starten</button>
-    </div>
   </div>
 
   <!-- Rückfrage-Dialog -->
@@ -175,44 +166,39 @@
     </form>
   </dialog>
 
-  <!-- Teilen (Hastebin-Warnung) -->
+  <!-- Teilen: Link über den eigenen Server -->
   <dialog class="dialog dialog-teilen" id="dialog-teilen" data-testid="dialog-teilen" aria-labelledby="teilen-titel">
     <h2 id="teilen-titel">Code teilen</h2>
-    <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-frage">
-      <div class="teilen-warnung" role="note">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/></svg>
-        <div>
-          <p><strong>Achtung: Dein Code verlässt diesen Browser.</strong></p>
-          <p>Der Code des Tabs <strong id="teilen-tabname">…</strong> wird an den Hastebin-Server <strong id="teilen-server" data-testid="teilen-server">dieses Playgrounds</strong> gesendet. Er wird dort gespeichert und ist für <strong>jeden lesbar, der den Link kennt</strong>.</p>
-          <p>Teile keine Passwörter, Schlüssel oder andere Geheimnisse.</p>
-        </div>
-      </div>
+    <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-schritt-frage">
+      <p class="teilen-hinweis" role="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Jeder mit dem Link kann es lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
+      </p>
+      <p class="teilen-aus" id="teilen-aus" data-testid="teilen-aus" hidden>Teilen ist auf diesem Server gerade nicht eingerichtet.</p>
       <div class="dialog-knoepfe">
-        <button type="button" class="knopf knopf-link" id="teilen-lokal" data-testid="teilen-lokal">Stattdessen Link ohne Server erzeugen</button>
-        <span class="flex-luecke"></span>
         <button type="button" class="knopf knopf-geist" id="teilen-abbrechen" data-testid="teilen-abbrechen">Abbrechen</button>
-        <button type="button" class="knopf knopf-primaer" id="teilen-senden" data-testid="teilen-senden">An Hastebin senden</button>
+        <button type="button" class="knopf knopf-primaer" id="teilen-senden" data-testid="teilen-senden">Link erstellen</button>
       </div>
     </div>
-    <div class="teilen-schritt" data-schritt="laeuft" hidden>
-      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Wird an <span id="teilen-server-2">Hastebin</span> gesendet …</p>
+    <div class="teilen-schritt" data-schritt="laeuft" data-testid="teilen-schritt-laeuft" hidden>
+      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Link wird erstellt …</p>
     </div>
-    <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-fertig" hidden>
+    <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-schritt-fertig" hidden>
       <p id="teilen-fertig-text"></p>
+      <p class="teilen-dauer-fertig" id="teilen-dauer-fertig" data-testid="teilen-dauer-fertig" hidden></p>
       <div class="teilen-link">
         <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-label="Link zum Teilen">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
       </div>
-      <p class="teilen-roh" id="teilen-roh-zeile" hidden><a id="teilen-roh" data-testid="teilen-roh" href="#" target="_blank" rel="noopener noreferrer">Rohtext auf Hastebin ansehen ↗</a></p>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>
       </div>
     </div>
-    <div class="teilen-schritt" data-schritt="fehler" data-testid="teilen-fehler" hidden>
-      <p class="teilen-fehlertext" id="teilen-fehlertext" role="alert"></p>
+    <div class="teilen-schritt" data-schritt="fehler" data-testid="teilen-schritt-fehler" hidden>
+      <p class="teilen-fehlertext" id="teilen-fehlertext" data-testid="teilen-fehlertext" role="alert"></p>
       <div class="dialog-knoepfe">
-        <button type="button" class="knopf knopf-geist" id="teilen-fehler-schliessen">Schließen</button>
-        <button type="button" class="knopf knopf-primaer" id="teilen-fehler-lokal" data-testid="teilen-fehler-lokal">Link ohne Server erzeugen</button>
+        <button type="button" class="knopf knopf-geist" id="teilen-fehler-schliessen" data-testid="teilen-fehler-schliessen">Schließen</button>
+        <button type="button" class="knopf knopf-primaer" id="teilen-nochmal" data-testid="teilen-nochmal">Erneut versuchen</button>
       </div>
     </div>
   </dialog>
@@ -266,7 +252,7 @@
       <svg class="logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="#logo-symbol"/></svg>
       <h2 id="lesemodus-titel">pizza-Doku</h2>
       <span class="flex-luecke"></span>
-      <button type="button" class="knopf knopf-geist knopf-icon-only" id="lesemodus-zu" aria-label="Lesemodus schließen" title="Schließen (Esc)">
+      <button type="button" class="knopf knopf-geist knopf-icon-only" id="lesemodus-zu" data-testid="lesemodus-zu" aria-label="Lesemodus schließen" title="Schließen (Esc)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
@@ -275,11 +261,11 @@
 
   <!-- Bild vergrößert -->
   <dialog class="lightbox" id="bild-lightbox" data-testid="lightbox" aria-label="Bild vergrößert">
-    <button type="button" class="knopf knopf-geist knopf-icon-only lightbox-zu" id="lightbox-zu" aria-label="Bild schließen" title="Schließen (Esc)">
+    <button type="button" class="knopf knopf-geist knopf-icon-only lightbox-zu" id="lightbox-zu" data-testid="lightbox-zu" aria-label="Bild schließen" title="Schließen (Esc)">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
     <figure>
-      <div class="lightbox-karte"><img id="lightbox-bild" alt=""></div>
+      <div class="lightbox-karte"><img id="lightbox-bild" data-testid="lightbox-bild" alt=""></div>
       <figcaption id="lightbox-text"></figcaption>
     </figure>
   </dialog>

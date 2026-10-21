@@ -1,3 +1,5 @@
+import { iconSvg } from "./icons.js";
+
 // Konsole: Ausgabe-Ereignisse anzeigen, Exit-Badge, Laufzeit, Sprung zu Zeilen.
 
 const EXIT = {
@@ -5,7 +7,7 @@ const EXIT = {
   1: { text: "Ananas", klasse: "ananas", titel: "Exit-Code 1 – ungefangene Ananas" },
   2: { text: "Fehler", klasse: "fehler", titel: "Exit-Code 2 – PizzaFehler" },
   3: { text: "noch im Ofen", klasse: "ofen", titel: "Exit-Code 3 – Schritt- oder Zeitlimit" },
-  39: { text: "🍍 39", klasse: "hawaii", titel: "Exit-Code 39 – Hawaii" },
+  39: { text: "Exit", klasse: "fehler", titel: "Exit-Code 39 – Hawaii (Ananas auf der Pizza)" },
 };
 
 const MAX_EINTRAEGE = 5000;
@@ -71,6 +73,15 @@ export function erstelleKonsole({ springe }) {
         continue;
       }
       anzahl++;
+      if (ev.typ === "panik") {
+        // Hawaii: ganz normale Fehlerausgabe (stderr-Stil, mehrzeilig)
+        letzteAusgabe = null;
+        const block = zeile("fehlerausgabe", String(ev.text == null ? "" : ev.text) + "\n");
+        block.classList.add("k-panik-text");
+        block.dataset.testid = "konsole-panik";
+        frag.appendChild(block);
+        continue;
+      }
       if (ev.typ === "ausgabe" || ev.typ === "fehlerausgabe") {
         const block = blockFuer(ev.typ, frag);
         block.appendChild(document.createTextNode((ev.text == null ? "" : String(ev.text)) + (ev.umbruch === false ? "" : "\n")));
@@ -111,12 +122,14 @@ export function erstelleKonsole({ springe }) {
     if (ev.zeile != null) {
       e.type = "button";
       e.title = `Zu Zeile ${ev.zeile} springen`;
+      e.dataset.sprung = String(ev.zeile);
+      if (typ === "fehler") e.dataset.testid = "konsole-fehler-sprung";
       e.addEventListener("click", () => springe(ev.zeile, ev.spalte));
     }
     const icon = document.createElement("span");
     icon.className = "k-icon";
     icon.setAttribute("aria-hidden", "true");
-    icon.textContent = typ === "warnung" ? "⚠" : typ === "panik" ? "🍍" : typ === "system" ? "ℹ" : "✕";
+    icon.innerHTML = iconSvg(typ === "warnung" ? "warn" : typ === "panik" ? "ananas" : typ === "system" ? "info" : ev.art === "ananas" ? "ananas" : "error");
     e.appendChild(icon);
     const text = document.createElement("span");
     text.className = "k-text";
@@ -136,6 +149,7 @@ export function erstelleKonsole({ springe }) {
     if (ev.zeile != null) {
       const ort = document.createElement("span");
       ort.className = "k-ort";
+      ort.dataset.testid = "konsole-ort";
       ort.textContent = "Z. " + ev.zeile + (ev.spalte != null ? ":" + ev.spalte : "");
       e.appendChild(ort);
     }
@@ -225,7 +239,7 @@ export function erstelleKonsole({ springe }) {
       }
       let text = wasm ? "Wasm ⚡" : "Interpreter";
       if (wasm && typeof ev.kompilierMs === "number") text += " · " + formatMs(ev.kompilierMs) + " kompiliert";
-      if (!wasm && ev.grund) text += " (Fallback: " + ev.grund + ")";
+      // Grund steht im Tooltip – das Badge bleibt kurz
       motorBadge.textContent = text;
       motorBadge.title = wasm ? "Ausgeführt als WebAssembly" : ev.grund ? "Interpreter, weil: " + ev.grund : "Ausgeführt im Interpreter";
       motorBadge.dataset.motor = ev.motor;
@@ -245,7 +259,7 @@ export function erstelleKonsole({ springe }) {
       badge.hidden = false;
       badge.className = "exit-badge " + d.klasse;
       badge.dataset.exitCode = String(code);
-      badge.textContent = d.text + (code !== 39 ? " · " + code : "");
+      badge.textContent = d.text + " · " + code;
       badge.title = d.titel;
       const teile = [];
       if (name) teile.push(name);

@@ -2,6 +2,7 @@
 // Zwei Ansichten mit identischem Aufbau: im Seitenpanel und im Lesemodus (Popup). Layout per Container-Query.
 import { markdownDom, markdownText } from "./markdown.js";
 import { highlightStatisch } from "./sprache.js";
+import { iconSvg } from "./icons.js";
 
 const TIER = {
   1: { text: "läuft im Playground", klasse: "tier-1", titel: "Tier 1 – läuft exakt wie beschrieben" },
@@ -20,11 +21,11 @@ export function tierBadge(tier, kurz = false) {
 }
 
 const ICON = {
-  kopieren: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
-  ok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  oeffnen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
-  backen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>',
-  lupe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+  kopieren: iconSvg("copy"),
+  ok: iconSvg("check"),
+  oeffnen: iconSvg("externalLink"),
+  backen: iconSvg("play"),
+  lupe: iconSvg("search"),
 };
 
 function el(tag, klasse, text) {
@@ -106,9 +107,12 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
   }
 
   // ---------- eine Ansicht ----------
-  function erstelleAnsicht(wurzel, { name }) {
-    wurzel.textContent = "";
-    wurzel.classList.add("doku-ansicht");
+  function erstelleAnsicht(aussen, { name }) {
+    // aussen = Container (#doku-panel / #doku-modal, container-type: inline-size); innen = Grid
+    aussen.textContent = "";
+    aussen.classList.add("doku-container");
+    const wurzel = el("div", "doku-ansicht");
+    aussen.appendChild(wurzel);
     const praefix = "dk-" + name + "-";
 
     // Inhaltsverzeichnis (Suche + Liste)
@@ -138,7 +142,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
     const a = { name, wurzel, toc, tocListe, artikel, suche, aktivId: null, gerendert: false, sektionen: [], tocKnoten: new Map(), sperreSpy: 0 };
 
     function linkKlick(ev, url) {
-      if (url.startsWith("#") && !url.startsWith("#code=")) {
+      if (url.startsWith("#") && !url.startsWith("#h=")) {
         ev.preventDefault();
         const id = decodeURIComponent(url.slice(1));
         if (abschnitte.some((x) => x.id === id)) springe(id);
@@ -184,6 +188,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
       switch (b && b.art) {
         case "kurz": {
           const d = el("div", "doku-kurz");
+          d.dataset.testid = "doku-kurz";
           d.appendChild(markdownDom(b.md, { linkKlick }));
           return d;
         }
@@ -193,6 +198,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
           const src = String(b.src || "");
           if (!SICHERES_BILD.test(src)) return null;
           const fig = el("figure", "doku-bild");
+          fig.dataset.testid = "doku-bild";
           const knopf = el("button", "bild-knopf");
           knopf.type = "button";
           knopf.title = "Bild vergrößern";
@@ -214,6 +220,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
         }
         case "details": {
           const d = el("details", "doku-details");
+          d.dataset.testid = "doku-details";
           const s = el("summary");
           s.appendChild(el("span", "details-titel", String(b.titel || "Mehr dazu")));
           d.appendChild(s);
@@ -245,7 +252,8 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
         case "hinweis": {
           const ton = ["info", "warnung", "pizza"].includes(b.ton) ? b.ton : "info";
           const d = el("aside", "doku-hinweis ton-" + ton);
-          const icon = el("span", "hinweis-icon", ton === "warnung" ? "!" : ton === "pizza" ? "🍕" : "i");
+          const icon = el("span", "hinweis-icon");
+          icon.innerHTML = iconSvg(ton === "warnung" ? "warn" : ton === "pizza" ? "pizza" : "info");
           icon.setAttribute("aria-hidden", "true");
           d.appendChild(icon);
           const t = el("div", "hinweis-text");
@@ -255,6 +263,7 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
         }
         case "ausgabe": {
           const f = el("figure", "doku-ausgabe");
+          f.dataset.testid = "doku-ausgabe";
           f.appendChild(el("figcaption", null, "Ausgabe"));
           f.appendChild(el("pre", null, String(b.text ?? "")));
           return f;

@@ -1,4 +1,4 @@
-// Startet pro Lauf einen frischen Worker, Wand-Zeitlimit 10 s, Abbruch, Hawaii-Panik.
+// Startet pro Lauf einen frischen Worker, Wand-Zeitlimit 10 s, Abbruch. Hawaii (panik) ist ein normales Ereignis; das Ende kommt mit „ende“.
 
 const ZEITLIMIT_MS = 10_000;
 
@@ -40,7 +40,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
   function starteTimer(id) {
     timerStart = performance.now();
     timer = setTimeout(() => {
-      beiEreignis({ typ: "fehler", art: "limit", code: "P0002", text: "Die Pizza ist noch im Ofen (Zeitlimit von 10 s erreicht).", zeile: null, spalte: null });
+      beiEreignis({ typ: "fehler", art: "limit", code: "P0003", text: "PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).", zeile: null, spalte: null });
       beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
     }, Math.max(0, restMs));
   }
@@ -76,14 +76,6 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
     if (id !== laufId || !ev) return;
     if (ev.typ === "batch" && Array.isArray(ev.ereignisse)) {
       for (const e of ev.ereignisse) { verarbeite(id, e); if (id !== laufId) return; }
-      return;
-    }
-    if (ev.typ === "panik") {
-      // sofort stoppen – kein "ende" wird mehr abgewartet
-      try { worker && worker.terminate(); } catch (e) { /* egal */ }
-      beiEreignis(ev);
-      beende(id, { exitCode: 39, schritte: null, zeitMs: null, panik: ev.text });
-      beiPanik(ev.text);
       return;
     }
     if (ev.typ === "ende") {

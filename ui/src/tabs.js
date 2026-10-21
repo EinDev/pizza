@@ -3,6 +3,7 @@
 // Funktionen: Kontextmenü, Sammel-Schließen mit einer Rückfrage, Wiederherstellen, Anheften,
 // Duplizieren, Drag & Drop, Mausrad-Scrollen, „Alle Tabs“-Menü mit Suche, Herunterladen.
 import { oeffneMenue } from "./menue.js";
+import { iconSvg } from "./icons.js";
 
 const SPEICHER = "pizza.tabs";
 const MAX_GESCHLOSSEN = 10;
@@ -14,11 +15,11 @@ function el(tag, klasse, text) {
   return e;
 }
 const SVG = {
-  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
-  zu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>',
-  liste: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
-  mehr: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
-  pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/></svg>',
+  plus: iconSvg("plus"),
+  zu: iconSvg("x"),
+  liste: iconSvg("chevronDown"),
+  mehr: iconSvg("more"),
+  pin: iconSvg("pin"),
 };
 
 let zaehler = 0;
@@ -154,7 +155,10 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
     knopf.tabIndex = istAktiv ? 0 : -1;
     knopf.title = t.name + (t.angeheftet ? " (angeheftet)" : "") + " – Doppelklick: umbenennen · Rechtsklick: Menü";
     if (t.angeheftet) { const p = el("span", "etab-pin"); p.innerHTML = SVG.pin; knopf.appendChild(p); }
-    knopf.appendChild(el("span", "etab-name", t.name));
+    const nameEl = el("span", "etab-name", t.name);
+    nameEl.dataset.testid = "editor-tab-name";
+    knopf.appendChild(nameEl);
+    knopf.dataset.testid = "editor-tab-knopf";
     knopf.addEventListener("click", () => wechsle(t.id));
     knopf.addEventListener("dblclick", () => umbenennen(t.id));
     wrap.addEventListener("auxclick", (e) => { if (e.button === 1) { e.preventDefault(); schliesse(t.id); } });
@@ -246,21 +250,21 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
       label: "Tab-Menü für " + t.name,
       testid: "tab-kontextmenue",
       eintraege: [
-        { text: "Schließen", kuerzel: "Alt+W", aktion: () => schliesse(t.id), testid: "tab-menue-schliessen" },
-        { text: "Andere schließen", aktion: () => schliesseMehrere(andere.map((x) => x.id)), deaktiviert: !andere.length, testid: "tab-menue-andere" },
-        { text: "Rechts davon schließen", aktion: () => schliesseMehrere(rechts.map((x) => x.id)), deaktiviert: !rechts.length, testid: "tab-menue-rechts" },
-        { text: "Gespeicherte schließen", aktion: () => schliesseMehrere(gespeicherte.map((x) => x.id)), deaktiviert: !gespeicherte.length, testid: "tab-menue-gespeicherte" },
-        { text: "Alle schließen", aktion: () => schliesseAlle(), testid: "tab-menue-alle", gefahr: true },
+        { text: "Schließen", icon: "x", kuerzel: "Alt+W", aktion: () => schliesse(t.id), deaktiviert: t.angeheftet, grund: "Angeheftete Tabs zuerst lösen.", testid: "tab-menue-schliessen" },
+        { text: "Andere schließen", icon: "closeOthers", aktion: () => schliesseMehrere(andere.map((x) => x.id)), deaktiviert: !andere.length, grund: "Keine anderen (nicht angehefteten) Tabs offen.", testid: "tab-menue-andere" },
+        { text: "Rechts davon schließen", icon: "closeRight", aktion: () => schliesseMehrere(rechts.map((x) => x.id)), deaktiviert: !rechts.length, grund: "Rechts von diesem Tab ist nichts.", testid: "tab-menue-rechts" },
+        { text: "Gespeicherte schließen", icon: "saved", aktion: () => schliesseMehrere(gespeicherte.map((x) => x.id)), deaktiviert: !gespeicherte.length, grund: "Kein Tab ohne ungespeicherte Änderungen.", testid: "tab-menue-gespeicherte" },
+        { text: "Alle schließen", icon: "closeAll", aktion: () => schliesseAlle(), deaktiviert: !tabs.some((x) => !x.angeheftet), grund: "Nur angeheftete Tabs offen.", testid: "tab-menue-alle", gefahr: true },
         "-",
-        { text: t.angeheftet ? "Lösen" : "Anheften", icon: "📌", aktion: () => anheften(t.id), testid: "tab-menue-anheften" },
-        { text: "Duplizieren", aktion: () => dupliziere(t.id), testid: "tab-menue-duplizieren" },
-        { text: "Umbenennen", kuerzel: "F2", aktion: () => { wechsle(t.id, { fokusEditor: false }); umbenennen(t.id); }, testid: "tab-menue-umbenennen" },
+        { text: t.angeheftet ? "Lösen" : "Anheften", icon: t.angeheftet ? "pinOff" : "pin", aktion: () => anheften(t.id), testid: "tab-menue-anheften" },
+        { text: "Duplizieren", icon: "copy", aktion: () => dupliziere(t.id), testid: "tab-menue-duplizieren" },
+        { text: "Umbenennen", icon: "pencil", kuerzel: "F2", aktion: () => { wechsle(t.id, { fokusEditor: false }); umbenennen(t.id); }, testid: "tab-menue-umbenennen" },
         "-",
-        { text: "Als .pizza herunterladen", icon: "⬇", aktion: () => herunterladen(t.id), testid: "tab-menue-download" },
-        { text: "Als Programm herunterladen …", icon: "🖥", aktion: () => { wechsle(t.id); beiExe && beiExe(); }, testid: "tab-menue-exe" },
-        { text: "Teilen …", aktion: () => { wechsle(t.id); beiTeilen && beiTeilen(); }, testid: "tab-menue-teilen" },
+        { text: "Als .pizza herunterladen", icon: "download", aktion: () => herunterladen(t.id), testid: "tab-menue-download" },
+        { text: "Als Programm herunterladen …", icon: "monitor", aktion: () => { wechsle(t.id); beiExe && beiExe(); }, testid: "tab-menue-exe" },
+        { text: "Teilen …", icon: "share", aktion: () => { wechsle(t.id); beiTeilen && beiTeilen(); }, testid: "tab-menue-teilen" },
         "-",
-        { text: "Geschlossenen Tab wiederherstellen", kuerzel: "Alt+Shift+T", aktion: () => wiederherstellen(0), deaktiviert: !geschlossen.length, testid: "tab-menue-wiederherstellen" },
+        { text: "Geschlossenen Tab wiederherstellen", icon: "restore", kuerzel: "Alt+Shift+T", aktion: () => wiederherstellen(0), deaktiviert: !geschlossen.length, grund: "Noch kein Tab geschlossen.", testid: "tab-menue-wiederherstellen" },
       ],
     });
   }
@@ -279,12 +283,12 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
       const zu = geschlossen.map((g, i) => ({ g, i })).filter(({ g }) => !q || g.name.toLowerCase().includes(q));
       const e = [{ ueberschrift: "Geöffnet (" + tabs.length + ")" }];
       if (!offen.length) e.push({ leer: "Kein Tab passt." });
-      for (const t of offen) e.push({ text: t.name, icon: t.angeheftet ? "📌" : istSchmutzig(t) ? "●" : "", aktiv: t.id === aktivId, aktion: () => wechsle(t.id), testid: "tabs-liste-eintrag" });
+      for (const t of offen) e.push({ text: t.name, icon: t.angeheftet ? "pin" : istSchmutzig(t) ? "dot" : "file", aktiv: t.id === aktivId, aktion: () => wechsle(t.id), testid: "tabs-liste-eintrag" });
       e.push("-", { ueberschrift: "Zuletzt geschlossen" });
       if (!zu.length) e.push({ leer: geschlossen.length ? "Kein geschlossener Tab passt." : "Noch nichts geschlossen." });
-      for (const { g, i } of zu) e.push({ text: g.name, icon: "↺", zusatz: i === 0 ? "Alt+Shift+T" : "", aktion: () => wiederherstellen(i), testid: "tabs-geschlossen-eintrag" });
-      e.push("-", { text: "Datei öffnen …", icon: "📂", aktion: () => dateiDialog(), testid: "tabs-datei-oeffnen" },
-        { text: "Alle schließen", aktion: () => schliesseAlle(), gefahr: true, deaktiviert: !tabs.some((t) => !t.angeheftet) });
+      for (const { g, i } of zu) e.push({ text: g.name, icon: "restore", zusatz: i === 0 ? "Alt+Shift+T" : "", aktion: () => wiederherstellen(i), testid: "tabs-geschlossen-eintrag" });
+      e.push("-", { text: "Datei öffnen …", icon: "folderOpen", aktion: () => dateiDialog(), testid: "tabs-datei-oeffnen" },
+        { text: "Alle schließen", icon: "closeAll", aktion: () => schliesseAlle(), gefahr: true, deaktiviert: !tabs.some((t) => !t.angeheftet), grund: "Nur angeheftete Tabs offen." });
       return e;
     };
     const m = oeffneMenue({ anker, eintraege: eintraege(""), label: "Alle Tabs", testid: "tabs-alle-menue", kopf, breit: true });

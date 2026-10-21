@@ -1,5 +1,6 @@
 // Beispiele-Tab: lädt beispiele/index.json → Teil-Manifeste → Karten nach Kategorie.
 import { tierBadge } from "./doku.js";
+import { iconSvg } from "./icons.js";
 
 const BASIS = "beispiele/";
 
@@ -82,6 +83,8 @@ export function erstelleBeispiele({ ladeCode }) {
       const treffer = k.beispiele.filter((b) => !q || [b.titel, b.beschreibung, b.id, b.interaktiv ? "interaktiv spiel" : "", ...(b.schlagworte || [])].join(" ").toLowerCase().includes(q));
       if (!treffer.length) continue;
       const sektion = el("section", "bsp-kategorie");
+      sektion.dataset.testid = "beispiel-kategorie";
+      sektion.dataset.kategorie = k.kategorie;
       const h = el("h3", "bsp-kategorie-titel");
       h.appendChild(el("span", null, k.kategorie));
       h.appendChild(el("span", "anzahl", String(treffer.length)));
@@ -101,17 +104,21 @@ export function erstelleBeispiele({ ladeCode }) {
     k.dataset.testid = "beispiel-karte";
     k.dataset.id = b.id || "";
     const kopf = el("div", "bsp-kopf");
-    kopf.appendChild(el("span", "bsp-titel", b.titel || b.id));
+    const titel = el("span", "bsp-titel", b.titel || b.id);
+    titel.dataset.testid = "beispiel-titel";
+    kopf.appendChild(titel);
     if (typeof b.exitCode === "number" && b.exitCode !== 0) {
       const ex = el("span", "bsp-exit exit-" + b.exitCode, EXIT_TEXT[b.exitCode] || "Exit " + b.exitCode);
       ex.title = "Erwarteter Exit-Code " + b.exitCode;
+      ex.dataset.testid = "beispiel-exit";
       kopf.appendChild(ex);
     }
     k.appendChild(kopf);
     if (b.beschreibung) k.appendChild(el("p", "bsp-beschreibung", b.beschreibung));
     const fuss = el("div", "bsp-fuss");
     if (b.interaktiv) {
-      const ia = el("span", "bsp-interaktiv", "🎮 interaktiv");
+      const ia = el("span", "bsp-interaktiv");
+      ia.innerHTML = iconSvg("gamepad") + "<span>interaktiv</span>";
       ia.title = "Spiel: Du gibst während des Laufs Eingaben in der Konsole ein.";
       ia.dataset.testid = "beispiel-interaktiv";
       fuss.appendChild(ia);

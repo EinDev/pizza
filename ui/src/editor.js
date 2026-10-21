@@ -2,7 +2,7 @@
 import { EditorState, StateEffect, StateField, Compartment } from "@codemirror/state";
 import {
   EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection,
-  dropCursor, rectangularSelection, crosshairCursor, highlightSpecialChars, Decoration, placeholder,
+  dropCursor, rectangularSelection, crosshairCursor, highlightSpecialChars, Decoration, placeholder, ViewPlugin,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, foldGutter, foldKeymap, foldService, indentOnInput } from "@codemirror/language";
@@ -11,8 +11,9 @@ import { searchKeymap, highlightSelectionMatches, openSearchPanel } from "@codem
 import {
   autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, snippetCompletion,
 } from "@codemirror/autocomplete";
-import { linter, lintGutter, lintKeymap, forceLinting } from "@codemirror/lint";
+import { linter, lintGutter, lintKeymap, forceLinting, forEachDiagnostic } from "@codemirror/lint";
 import { pizzaUnterstuetzung } from "./sprache.js";
+import { icon as iconEl } from "./icons.js";
 import { KEYWORDS, TYPEN, BUILTINS, BELAEGE, BELAG_NACH, ANANAS, ANNOTATIONEN } from "./woerter.js";
 
 // Falten von { … }-Blöcken (StreamLanguage liefert keine Faltbereiche)
@@ -35,9 +36,22 @@ const klammerFalten = foldService.of((state, von, bis) => {
   return ende > bis + 1 ? { from: bis, to: ende } : null;
 });
 
+// ---------- Lint-Bereiche mit eigenem Attribut (für Tests/Styling): data-pizza-lint ----------
+function lintDeko(view) {
+  const r = [];
+  forEachDiagnostic(view.state, (d, von, bis) => {
+    if (bis > von) r.push(Decoration.mark({ attributes: { "data-pizza-lint": d.severity } }).range(von, bis));
+  });
+  return Decoration.set(r, true);
+}
+const lintAttribute = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = lintDeko(view); }
+  update(u) { this.decorations = lintDeko(u.view); }
+}, { decorations: (p) => p.decorations });
+
 // ---------- Zeilenmarkierung (Sprung aus der Konsole) ----------
 const markiereZeile = StateEffect.define();
-const zeilenDeko = Decoration.line({ class: "cm-pizza-sprungzeile" });
+const zeilenDeko = Decoration.line({ class: "cm-pizza-sprungzeile", attributes: { "data-pizza-sprung": "true" } });
 const sprungFeld = StateField.define({
   create: () => Decoration.none,
   update(deko, tr) {
@@ -88,7 +102,7 @@ function preisText(p) { return p == null ? "löst Hawaii aus" : p.toFixed(2).rep
 function pizzaVervollstaendigung(ctx) {
   // Annotationen
   const anno = ctx.matchBefore(/@[\p{L}_]*/u);
-  if (anno) return { from: anno.from + 1, options: ANNOTATIONEN.map((a) => ({ label: a, type: "type", detail: "Annotation" })) };
+  if (anno) return { from: anno.from + 1, options: ANNOTATIONEN.map((a) => ({ label: a, type: "annotation", detail: "Annotation" })) };
 
   // Mitglieder nach Punkt
   const punkt = ctx.matchBefore(/[\p{L}\p{N}_)\]]+\.[\p{L}_]*/u);
@@ -123,6 +137,9 @@ function pizzaVervollstaendigung(ctx) {
   return { from, options: optionen, validFor: /^[\p{L}\p{N}_]*$/u };
 }
 
+const VERVOLL_ICON = { keyword: "ckeyword", function: "cfunction", method: "cmethod", variable: "cvariable", class: "cclass",
+  type: "ctype", constant: "cconstant", namespace: "cnamespace", property: "cmethod", text: "csnippet", annotation: "cannotation" };
+
 // ---------- Lint ----------
 function pizzaLinter(view) {
   const PL = window.PizzaLang;
@@ -143,7 +160,7 @@ function pizzaLinter(view) {
     if (bis === von && von > z.from) von--;
     if (bis === von) bis = Math.min(von + 1, doc.length);
   }
-  return [{ from: von, to: bis, severity: "error", source: f.code || "Syntax", message: (f.code && !String(f.text).includes(f.code) ? f.code + ": " : "") + f.text }];
+  return [{ from: von, to: bis, severity: "error", source: f.code || "Syntax", markClass: "cm-pizza-lint", message: (f.code && !String(f.text).includes(f.code) ? f.code + ": " : "") + f.text }];
 }
 
 // ---------- Themen ----------
@@ -160,18 +177,19 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
   const dunkel = () => document.documentElement.dataset.theme === "dark";
   const themaExt = () => (dunkel() ? dunkelThema : hellThema);
   const erweiterungen = [
-    lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => {
-      const s = document.createElement("span"); s.className = "cm-faltmarke"; s.textContent = offen ? "▾" : "▸"; return s;
-    } }),
+    lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => iconEl(offen ? "chevronDown" : "chevronRight", "cm-faltmarke") }),
     klammerFalten, lintGutter(),
     highlightSpecialChars(), history(), drawSelection(), dropCursor(),
     EditorState.allowMultipleSelections.of(true), indentOnInput(), bracketMatching(), closeBrackets(),
-    autocompletion({ override: [pizzaVervollstaendigung], icons: true, activateOnTyping: true }),
+    autocompletion({
+      override: [pizzaVervollstaendigung], icons: false, activateOnTyping: true,
+      addToOptions: [{ position: 20, render: (c) => iconEl(VERVOLL_ICON[c.type] || "cvariable", "cm-pizza-icon cm-pizza-icon-" + (c.type || "text")) }],
+    }),
     rectangularSelection(), crosshairCursor(), highlightActiveLine(), highlightSelectionMatches(),
     EditorState.tabSize.of(4),
     pizzaUnterstuetzung(),
     linter(pizzaLinter, { delay: 350 }),
-    sprungFeld,
+    sprungFeld, lintAttribute,
     placeholder("// Schreib hier deine Pizza …"),
     keymap.of([...(tasten || []), ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap,
       ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
