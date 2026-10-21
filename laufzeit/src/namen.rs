@@ -1,6 +1,6 @@
 //! Eingebaute Namen (Intern-IDs). Generiert – Reihenfolge = ID.
 
-pub const NAMEN: [&str; 163] = [
+pub const NAMEN: [&str; 191] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -164,6 +164,34 @@ pub const NAMEN: [&str; 163] = [
     "Kapern",
     "text",
     "ersatz",
+    "Theke",
+    "Zutat",
+    "Schild",
+    "Knopf",
+    "Eingabe",
+    "Haken",
+    "Stapel",
+    "Reihe",
+    "zeige",
+    "bediene",
+    "schliesse",
+    "setzeTitel",
+    "titel",
+    "id",
+    "sichtbar",
+    "stil",
+    "setzeText",
+    "beiKlick",
+    "aktiv",
+    "setzeWert",
+    "beiAenderung",
+    "beiEnter",
+    "an",
+    "setzeAn",
+    "kinder",
+    "platzhalter",
+    "breite",
+    "hoehe",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -329,6 +357,35 @@ pub const N_G_KAPERN: u32 = 160;
 
 pub const N_TEXT: u32 = 161;
 pub const N_ERSATZ: u32 = 162;
+
+pub const N_G_THEKE: u32 = 163;
+pub const N_G_ZUTAT: u32 = 164;
+pub const N_G_SCHILD: u32 = 165;
+pub const N_G_KNOPF: u32 = 166;
+pub const N_G_EINGABE: u32 = 167;
+pub const N_G_HAKEN: u32 = 168;
+pub const N_G_STAPEL: u32 = 169;
+pub const N_G_REIHE: u32 = 170;
+pub const N_ZEIGE: u32 = 171;
+pub const N_BEDIENE: u32 = 172;
+pub const N_SCHLIESSE: u32 = 173;
+pub const N_SETZETITEL: u32 = 174;
+pub const N_TITEL: u32 = 175;
+pub const N_ID: u32 = 176;
+pub const N_SICHTBAR: u32 = 177;
+pub const N_STIL: u32 = 178;
+pub const N_SETZETEXT: u32 = 179;
+pub const N_BEIKLICK: u32 = 180;
+pub const N_AKTIV: u32 = 181;
+pub const N_SETZEWERT: u32 = 182;
+pub const N_BEIAENDERUNG: u32 = 183;
+pub const N_BEIENTER: u32 = 184;
+pub const N_AN: u32 = 185;
+pub const N_SETZEAN: u32 = 186;
+pub const N_KINDER: u32 = 187;
+pub const N_PLATZHALTER: u32 = 188;
+pub const N_BREITE: u32 = 189;
+pub const N_HOEHE: u32 = 190;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM).
 pub const K_ANANAS: u32 = 0;

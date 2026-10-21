@@ -102,6 +102,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_RESTE => matches!(id, N_WERT | N_ISTMATSCHIG | N_ALSTEXT),
         A_ROH => matches!(id, N_TEILERGEBNIS | N_VERBRAUCHTEZEIT | N_ALSTEXT),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => matches!(id, N_MIKROWELLE | N_FRISCH | N_RUFE | N_ALSTEXT),
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::tabelle_hat(o, id),
         _ => false,
     }
 }
@@ -370,6 +371,7 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         },
         A_MODUL => modul_methode(obj::<Ref>(o).id, id, pos, ben, knoten),
         A_TEIG | A_LIEF | A_ZUST | A_STUECK | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, knoten),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => match id {
             N_MIKROWELLE | N_FRISCH => {
                 let modus = if id == N_MIKROWELLE { 1 } else { 2 };
@@ -404,6 +406,7 @@ fn text_methode(o: W, id: u32, pos: &[W], _knoten: i32) -> W {
         N_ERSETZE => {
             let x = text(a(pos, 0)); if sig() { return KARTON; }
             let y = text(a(pos, 1)); if sig() { return KARTON; }
+            if bytes(x).is_empty() { return o; } // K-076: leerer Suchtext ersetzt nichts
             let teile = split(st, s(x));
             let mut t = Tb::neu();
             for (i, &w) in teile.iter().enumerate() { if i > 0 { t.t(y); } t.t(w); }

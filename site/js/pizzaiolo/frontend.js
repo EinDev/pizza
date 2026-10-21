@@ -762,7 +762,6 @@
         case 'Unten': return { k: 'unten' };
         case 'UntenCall': return { k: 'untenCall', args: this.args(n.args, sc, fn, d) };
         case 'Neu':
-          if (THEKE.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Theke (UI) wird vom Compiler noch nicht unterstützt', n);
           return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
         case 'PizzaLit': {
           const bl = n.belaege;

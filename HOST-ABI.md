@@ -63,9 +63,10 @@ wickelt das Modul selbst ab und `start` liefert 39. Beides ist korrekt.
 **`ui_senden` / `ui_warte`** (THEKE.md): `ui_senden` übergibt eine Protokollnachricht (JSON) an den Renderer.
 `ui_warte` blockiert bis zum nächsten Renderer-Ereignis und liefert dessen JSON-Länge; `-1` = kein Renderer bzw.
 Fenster geschlossen; Länge `> puffer_kap` → nichts geschrieben, Ereignis bleibt, erneuter Aufruf mit größerem Puffer
-(wie bei `eingabe`). Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1`.
-Warten kostet keine Schritte. Solange der Compiler die Theke nicht unterstützt, meldet er `nichtUnterstuetzt`;
-die Imports sind dennoch Teil des ABI und müssen bereitgestellt werden.
+(wie bei `eingabe`). **`puffer_kap = -1`** ist eine Abfrage ohne Warten: `1` = ein Renderer ist verfügbar (JS-Host:
+`optionen.onUiWarte` oder `optionen.uiEreignisse` gesetzt), `0` = keiner (→ `bediene()` meldet W0100 und kehrt zurück).
+Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1` bzw. `0` für die Abfrage.
+Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts müssen sie bereitstellen.
 
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 
@@ -76,7 +77,7 @@ Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 | `memory` | Memory | linearer Speicher (wächst ggf. während des Laufs) |
 | `abi_version` | `() -> i32` | liefert `1` |
 | `limit_setzen` | `(schritte f64) -> ()` | Schrittlimit (`optionen.schrittLimit`); Werte ≤ 0 oder NaN → Standard 5 000 000. Optional, vor `start`. |
-| `speicher_limit_setzen` | `(mib i32) -> ()` | Heap-Obergrenze in MiB (Standard 64). Optional, vor `start`. |
+| `speicher_limit_setzen` | `(mib i32) -> ()` | Heap-Obergrenze in MiB (Standard 1024, max. 3072). Optional, vor `start`. |
 | `arg_puffer` | `(len i32) -> i32` | liefert Zeiger auf `len` beschreibbare Bytes für das nächste Argument |
 | `arg_fertig` | `(len i32) -> ()` | übernimmt die `len` Bytes aus dem zuletzt gelieferten Puffer als nächstes Argument |
 | `start` | `() -> i32` | führt das Programm aus, liefert den **Exit-Code** |
@@ -135,8 +136,8 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
   Hosts müssen daher **≥ 16 384 verschachtelte Wasm-Aufrufe** und **≥ 4 MiB Wert-Stapel** erlauben
   (wasmi: `Config`-Stapelgrenzen entsprechend setzen). Die Rust-Laufzeit hat zusätzlich einen eigenen
   Schattenstapel (1 MiB) im linearen Speicher.
-- **Speicher:** Der lineare Speicher wächst über `memory.grow` bis Heap-Limit + statische Daten
-  (Standard ~ 70 MiB). Hosts sollen mindestens 128 MiB zulassen.
+- **Speicher:** Der lineare Speicher wächst über `memory.grow` bis Heap-Limit + Reserve + statische Daten
+  (Standard ~ 1,1 GiB im Extremfall; typische Programme brauchen wenige MiB). Hosts sollen bis 2 GiB zulassen.
 - **Determinismus:** Keine Imports für Zeit/Zufall – Uhr und Zufall (mulberry32, Seed 42) sind simuliert.
   Gleiches `.pkarton` + gleiche Args ⇒ gleiche Ereignisse, gleicher Exit-Code, gleiche `schritte`/`zeitMs`.
 
@@ -150,7 +151,8 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 | `fehler` | stderr: `text` (+ Position bei `pizzafehler`) |
 | `schreibe` | stdout: `text` (ohne Umbruch, flushen) |
 | `leeren` | stdout: ESC-Sequenz `[2J`, `[3J`, `[H` (K-054), nur wenn stdout ein Terminal ist |
-| `eingabe` | Zeile von stdin lesen (`
+| `eingabe` | Zeile von stdin lesen (`
+
 `/`
 ` entfernen), EOF → `-1` |
 | `panik` | stderr: `text` (Banner auf stderr, K-012) |

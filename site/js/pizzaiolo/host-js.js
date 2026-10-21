@@ -79,11 +79,12 @@
         if (typeof optionen.onUi === 'function') { try { optionen.onUi(nachricht); } catch (e) { /* ignorieren */ } }
       },
       ui_warte: (bp, kap) => {
+        if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
         if (uiAusstehend === null) {
           let ev = null;
           if (typeof optionen.onUiWarte === 'function') { try { ev = optionen.onUiWarte(); } catch (e) { ev = null; } }
           else if (Array.isArray(optionen.uiEreignisse)) ev = uiPos < optionen.uiEreignisse.length ? optionen.uiEreignisse[uiPos++] : { typ: 'geschlossen' };
-          if (ev === null || ev === undefined) return -1;
+          if (ev === null || ev === undefined || typeof ev !== 'object') return -1;
           uiAusstehend = enk.encode(typeof ev === 'string' ? ev : JSON.stringify(ev));
         }
         const b = uiAusstehend;

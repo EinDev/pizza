@@ -90,6 +90,7 @@ pub fn typ_name(v: W, tb: &mut Tb) {
         A_STUECK => { tb.s("Stück"); }
         A_RESTE => { tb.s("Reste"); }
         A_ROH => { tb.s("Rohling"); }
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::typ_name(v, tb),
         _ => { tb.s("Unbekanntes"); }
     }
 }
@@ -167,6 +168,7 @@ pub fn text_in(v: W, tb: &mut Tb) {
         A_RESTE => { tb.s("Reste("); text_in(obj::<Reste>(v).wert, tb); tb.s(")"); }
         A_ROH => { tb.s("Roh("); text_in(obj::<Roh>(v).teil, tb); tb.s(")"); }
         A_ZELLE => { text_in(obj::<Zelle>(v).w, tb); }
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::text_in(v, tb),
         _ => { tb.s("?"); }
     }
 }

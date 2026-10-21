@@ -276,6 +276,7 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
             if sig() { break 'lauf; }
         }
         crate::pf::lieferungen_nach_ende();
+        if !sig() { crate::theke::ui_flush(); }
     }
     ende()
 }

@@ -191,6 +191,18 @@ pub fn pruefe_typ(typ: u32, v: W, name: u32) -> bool {
         N_G_DAUER => { if v == KARTON || art(v) == A_DAUER { return true; } was = "keine Dauer"; }
         N_G_PIZZA => { if v == KARTON || art(v) == A_PIZZA { return true; } was = "keine Pizza"; }
         _ => {
+            if klasse_eintrag(typ).is_none() {
+                if let Some(ok) = crate::theke::typ_passt(typ, v) {
+                    if v == KARTON || ok { return true; }
+                    let mut t = Tb::neu();
+                    t.s("'").name(name).s("' ist ").name(typ).s(", aber der Wert ");
+                    darstellung(v, &mut t);
+                    if crate::sig() { return false; }
+                    t.s(" ist kein(e) ").name(typ).s(".");
+                    wirf_tb(K_TYP, &t);
+                    return false;
+                }
+            }
             let e = match klasse_eintrag(typ) { None => return true, Some(e) => e };
             if v == KARTON || instanz_von(v, e) { return true; }
             was = "kein(e) ";
