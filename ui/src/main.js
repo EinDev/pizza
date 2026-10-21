@@ -92,6 +92,7 @@ function start() {
     editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
     beiWechsel() { /* Platz für künftige Anzeigen */ },
     beiTeilen: () => $("knopf-teilen").click(),
+    beiExe: () => exeDialogOeffnen(),
     toast,
   });
   tabs.laden();
@@ -254,6 +255,157 @@ function start() {
     if (an) { logoBild.dataset.backen = "1"; logoBild.src = "img/logo-backen.svg"; }
     else if (logoBild.dataset.backen) { logoBild.removeAttribute("data-backen"); logoBild.src = "img/logo.svg"; }
   }
+
+  // ---------- Als Programm (EXE) herunterladen ----------
+  // Ablauf: Worker kompiliert → .pkarton → PizzaExe.baue(pkarton, ziel) → Blob → Download.
+  // js/exe.js wird erst bei Bedarf geladen; solange Compiler oder Host-Programme fehlen, ist der Knopf deaktiviert (mit Grund).
+  const knopfExe = $("knopf-exe");
+  const exeDlg = $("dialog-exe");
+  let exeLaden = null, exeZiele = null, exeGrund = "Wird geprüft …", exeBeschaeftigt = false;
+  const IST_WINDOWS = /Windows|Win32|Win64/i.test(navigator.userAgent || "") || /^Win/i.test(navigator.platform || "");
+  const zielId = (z) => String(typeof z === "string" ? z : z && (z.id || z.name || z.ziel) || "");
+  const zielName = (z) => String(typeof z === "string" ? z : z && (z.titel || z.name || z.label || z.id) || "?");
+  const zielEndung = (z) => {
+    const e = z && typeof z === "object" && (z.endung || z.erweiterung || z.suffix);
+    if (typeof e === "string") return e && !e.startsWith(".") ? "." + e : e;
+    return /win/i.test(zielId(z)) ? ".exe" : "";
+  };
+  function ladeExeSkript() {
+    if (exeLaden) return exeLaden;
+    exeLaden = new Promise((resolve) => {
+      if (window.PizzaExe) { resolve(window.PizzaExe); return; }
+      const s = document.createElement("script");
+      s.src = "js/exe.js";
+      s.onload = () => resolve(window.PizzaExe || null);
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+    }).then(async (PE) => {
+      if (!PE || typeof PE.baue !== "function") { exeGrund = "Der Programm-Bauer (js/exe.js) ist noch nicht verfügbar."; return null; }
+      try {
+        const z = await (typeof PE.ziele === "function" ? PE.ziele() : []);
+        exeZiele = Array.isArray(z) ? z.filter((x) => x && zielId(x) && x.verfuegbar !== false) : [];
+      } catch (e) { exeZiele = []; }
+      if (!exeZiele.length) { exeGrund = "Die Host-Programme (bin/) fehlen noch auf dem Server."; return null; }
+      return PE;
+    });
+    return exeLaden;
+  }
+  function wendeExeAn() {
+    const compiler = !!(faehigkeiten && faehigkeiten.wasm);
+    let grund = null;
+    if (!faehigkeiten) grund = "Wird geprüft …";
+    else if (!compiler) grund = "Der Wasm-Compiler ist noch nicht verfügbar" + (faehigkeiten.grund ? " (" + faehigkeiten.grund + ")" : "") + ".";
+    else if (!exeZiele || !exeZiele.length) grund = exeGrund;
+    knopfExe.setAttribute("aria-disabled", String(!!grund));
+    knopfExe.classList.toggle("deaktiviert", !!grund);
+    knopfExe.title = grund ? "Als Programm herunterladen – noch nicht möglich: " + grund : "Als Programm (z. B. Windows-.exe) herunterladen";
+    knopfExe.dataset.grund = grund || "";
+    return grund;
+  }
+  async function pruefeExe() {
+    const f = await (pruefungLaeuft || Promise.resolve(faehigkeiten));
+    if (f && f.wasm) await ladeExeSkript();
+    else { exeZiele = null; }
+    return wendeExeAn();
+  }
+  wendeExeAn();
+  pruefeExe();
+
+  function exeStatus(schritt, text) {
+    $("exe-status").hidden = schritt == null;
+    $("exe-fortschritt").value = schritt || 0;
+    $("exe-status-text").textContent = text || "";
+  }
+  function exeFehler(text) {
+    $("exe-fehler").hidden = !text;
+    $("exe-fehler").textContent = text || "";
+  }
+  async function exeDialogOeffnen() {
+    if (exeBeschaeftigt) return;
+    let grund = wendeExeAn();
+    if (grund && faehigkeiten) { grund = await pruefeExe(); } // vielleicht inzwischen verfügbar
+    if (grund) { toast("Als Programm herunterladen geht noch nicht: " + grund, "fehler"); return; }
+    const t = tabs.aktiv();
+    $("exe-tabname").textContent = "„" + ((t && t.name) || "unbenannt.pizza") + "“";
+    const feld = $("exe-ziele");
+    feld.querySelectorAll("label").forEach((l) => l.remove());
+    const gemerkt = speicher.hole("pizza.exeZiel");
+    const vorwahl = exeZiele.find((z) => zielId(z) === gemerkt) ||
+      exeZiele.find((z) => (IST_WINDOWS ? /win/i : /linux/i).test(zielId(z) + " " + zielName(z))) || exeZiele[0];
+    for (const z of exeZiele) {
+      const l = document.createElement("label");
+      l.className = "exe-ziel";
+      const r = document.createElement("input");
+      r.type = "radio";
+      r.name = "exe-ziel";
+      r.value = zielId(z);
+      r.checked = z === vorwahl;
+      r.dataset.testid = "exe-ziel";
+      l.appendChild(r);
+      const n = document.createElement("span");
+      n.textContent = zielName(z);
+      l.appendChild(n);
+      const e = zielEndung(z);
+      if (e) { const k = document.createElement("code"); k.textContent = e; l.appendChild(k); }
+      feld.appendChild(l);
+    }
+    exeStatus(null); exeFehler(null);
+    $("exe-hinweise").open = false;
+    $("exe-los").disabled = false;
+    if (typeof exeDlg.showModal === "function") exeDlg.showModal(); else exeDlg.setAttribute("open", "");
+    $("exe-los").focus();
+  }
+  async function exeBauen() {
+    if (exeBeschaeftigt) return;
+    const gewaehlt = exeDlg.querySelector('input[name="exe-ziel"]:checked');
+    const ziel = exeZiele.find((z) => zielId(z) === (gewaehlt && gewaehlt.value)) || exeZiele[0];
+    speicher.setze("pizza.exeZiel", zielId(ziel));
+    const t = tabs.aktiv();
+    const basis = ((t && t.name) || "programm.pizza").replace(/\.pizza$/i, "").replace(/[\\/:*?"<>|]+/g, "-") || "programm";
+    const dateiname = basis + zielEndung(ziel);
+    exeBeschaeftigt = true;
+    $("exe-los").disabled = true;
+    exeFehler(null);
+    try {
+      exeStatus(1, "1/3 · Code wird zu WebAssembly gebacken …");
+      const r = await workerAuftrag({ typ: "kompiliere", code: editor.text() }, "pkarton", 30_000);
+      if (!r || !r.ok) {
+        let grund = (r && r.grund) || "Kompilieren nicht möglich.";
+        if (r && r.fehler) grund = "Syntaxfehler" + (r.fehler.zeile ? " in Zeile " + r.fehler.zeile : "") + ": " + r.fehler.text;
+        else if (r && Array.isArray(r.nichtUnterstuetzt) && r.nichtUnterstuetzt.length) {
+          grund = "Dieses Programm lässt sich noch nicht als Programm backen – " +
+            r.nichtUnterstuetzt.slice(0, 3).map((n) => (n.zeile ? "Zeile " + n.zeile + ": " : "") + n.grund).join("; ") + ".";
+        }
+        throw new Error(grund);
+      }
+      exeStatus(2, "2/3 · Programm für " + zielName(ziel) + " wird verpackt …");
+      const PE = await ladeExeSkript();
+      if (!PE) throw new Error(exeGrund);
+      let blob;
+      try { blob = await PE.baue(r.daten, ziel); }
+      catch (e) { throw new Error("Das Programm konnte nicht verpackt werden: " + (e && e.message ? e.message : String(e)) + " (fehlen die Host-Programme unter bin/?)"); }
+      if (!(blob instanceof Blob)) blob = new Blob([blob], { type: "application/octet-stream" });
+      exeStatus(3, "3/3 · Fertig – „" + dateiname + "“ (" + new Intl.NumberFormat("de-DE").format(Math.round(blob.size / 1024)) + " KB) wird heruntergeladen.");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = dateiname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      $("exe-chmod").textContent = "chmod +x " + dateiname + " && ./" + dateiname;
+      $("exe-hinweise").open = true;
+    } catch (e) {
+      exeStatus(null);
+      exeFehler(e && e.message ? e.message : String(e));
+    } finally {
+      exeBeschaeftigt = false;
+      $("exe-los").disabled = false;
+    }
+  }
+  knopfExe.addEventListener("click", exeDialogOeffnen);
+  $("exe-los").addEventListener("click", exeBauen);
+  $("exe-abbrechen").addEventListener("click", () => exeDlg.close());
+  exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
+  knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
 
   // Ohne Cross-Origin-Isolation: Eingaben vorab abfragen (pro Tab gemerkt)
   const vorabEingaben = new Map();
@@ -677,6 +829,7 @@ function start() {
       { id: "backen", gruppe: "Ofen", titel: "Backen (Programm ausführen)", kuerzel: K("Strg+Enter"), aktion: backen, verfuegbar: () => !ausfuehrung.laeuft },
       { id: "abbrechen", gruppe: "Ofen", titel: "Lauf abbrechen", kuerzel: "Esc", aktion: () => ausfuehrung.abbrechen(), verfuegbar: () => ausfuehrung.laeuft },
       ...Object.entries(motorNamen).map(([m, n]) => ({ id: "motor-" + m, gruppe: "Motor", titel: n + (motorWahl.value === m ? " ✓" : ""), aktion: () => setzeMotor(m) })),
+      { id: "exe", gruppe: "Ofen", titel: "Als Programm herunterladen (.exe / Linux) …", aktion: exeDialogOeffnen },
       { id: "pkarton", gruppe: "Ofen", titel: "Als .pkarton (WebAssembly) herunterladen", aktion: () => knopfPkarton.click(), verfuegbar: () => !knopfPkarton.hidden },
       { id: "konsole-leeren", gruppe: "Konsole", titel: "Konsole leeren", aktion: () => $("konsole-leeren").click() },
       { id: "konsole-toggle", gruppe: "Konsole", titel: "Konsole ein-/ausklappen", aktion: () => $("konsole-toggle").click() },

@@ -24,7 +24,7 @@ const SVG = {
 let zaehler = 0;
 const neueId = () => "t" + Date.now().toString(36) + (zaehler++).toString(36);
 
-export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiWechsel, beiTeilen, toast }) {
+export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiWechsel, beiTeilen, beiExe, toast }) {
   /** @type {{id:string,name:string,schluessel:string|null,basis:string,state:any,text:string,scroll:number,angeheftet:boolean}[]} */
   let tabs = [];
   let geschlossen = [];
@@ -257,6 +257,7 @@ export function erstelleTabs({ editor, leiste, speicher, frage, willkommen, beiW
         { text: "Umbenennen", kuerzel: "F2", aktion: () => { wechsle(t.id, { fokusEditor: false }); umbenennen(t.id); }, testid: "tab-menue-umbenennen" },
         "-",
         { text: "Als .pizza herunterladen", icon: "⬇", aktion: () => herunterladen(t.id), testid: "tab-menue-download" },
+        { text: "Als Programm herunterladen …", icon: "🖥", aktion: () => { wechsle(t.id); beiExe && beiExe(); }, testid: "tab-menue-exe" },
         { text: "Teilen …", aktion: () => { wechsle(t.id); beiTeilen && beiTeilen(); }, testid: "tab-menue-teilen" },
         "-",
         { text: "Geschlossenen Tab wiederherstellen", kuerzel: "Alt+Shift+T", aktion: () => wiederherstellen(0), deaktiviert: !geschlossen.length, testid: "tab-menue-wiederherstellen" },

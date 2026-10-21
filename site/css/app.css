@@ -1073,3 +1073,29 @@ body.hawaii-aktiv > :not(.hawaii):not(script) { filter: blur(2px) saturate(.6); 
 
 .teilen-roh { margin: -6px 0 14px; font-size: 13px; }
 .teilen-roh a { color: var(--akzent); }
+
+/* ---------------- Als Programm herunterladen ---------------- */
+#knopf-exe.deaktiviert { opacity: .5; cursor: not-allowed; }
+#knopf-exe.deaktiviert:hover { background: transparent; color: var(--text-2); }
+.dialog-exe { width: min(560px, calc(100vw - 32px)); padding: 20px 20px 16px; }
+.dialog-exe h2 { margin: 0 0 8px; font-size: 17px; }
+.exe-intro { font-size: 13.5px; color: var(--text-2); margin: 0 0 14px; }
+.exe-ziele { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; border: 0; }
+.exe-ziele legend { font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-bottom: 6px; padding: 0; }
+.exe-ziel {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--rand); background: var(--flaeche); font-size: 13.5px; font-weight: 550;
+  transition: border-color .15s, background-color .15s;
+}
+.exe-ziel:hover { border-color: var(--rand-stark); }
+.exe-ziel:has(input:checked) { border-color: var(--akzent); background: var(--akzent-weich); }
+.exe-ziel input { accent-color: var(--akzent); margin: 0; }
+.exe-ziel code { font-size: 11px; }
+.exe-status { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--text-2); }
+.exe-status progress { width: 100%; height: 6px; accent-color: var(--akzent); }
+.exe-fehler { color: var(--fehler); background: var(--fehler-weich); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 0 0 12px; }
+.exe-hinweise { margin: 0 0 14px; border: 1px solid var(--rand); border-radius: 9px; padding: 0 12px; font-size: 13px; }
+.exe-hinweise summary { cursor: pointer; padding: 8px 0; font-weight: 600; color: var(--text-2); }
+.exe-hinweise ul { margin: 0 0 10px; padding-left: 18px; line-height: 1.55; }
+.exe-hinweise li { margin: 4px 0; }
+.dialog-exe .dialog-knoepfe { flex-wrap: wrap; align-items: center; }
