@@ -553,15 +553,16 @@
       t.style.setProperty("--theke-versatz", versatz + "px");
       // Im sichtbaren Ausschnitt halten (nur wenn der Ausschnitt bekannt ist – ohne Layout, z. B. jsdom, bleibt die rohe Lage):
       // Startpunkt = oben mittig über der Zutat; reicht der Platz nach oben (Text + Steigen) nicht – z. B. ein Zähler ganz
-      // oben –, startet der Text tiefer; am Rand rückt er nach innen; ein Stapel-Platz, dessen Start abgeschnitten würde,
-      // stapelt nach unten (über die Zutat). Nur Lage, kein Layout.
+      // oben –, startet der Text tiefer; am Rand rückt er nach innen; ein Stapel-Platz, für den der Platz nach oben (Text +
+      // Steigen) nicht reicht, stapelt nach unten (über die Zutat) statt beim Steigen abgeschnitten zu werden. Nur Lage, kein Layout.
       var s = ctx.sicht(), tb = t.offsetWidth, th = t.offsetHeight;
       var x = wo.x + wo.b / 2, y = wo.y;
       var halb = tb / 2 + Math.abs(versatz) + 4;
       if (s.x1 - s.x0 > 2 * halb) x = Math.max(s.x0 + halb, Math.min(s.x1 - halb, x));
       if (s.y1 > s.y0) {
-        y = Math.min(s.y1, Math.max(y, s.y0 + th + (ctx.reduziert ? 0 : SCHWEBE_STEIGEN) + 4));
-        if (hoch > 0 && y - hoch - th < s.y0) hoch = -hoch;
+        var obenMin = s.y0 + th + (ctx.reduziert ? 0 : SCHWEBE_STEIGEN) + 4;
+        y = Math.min(s.y1, Math.max(y, obenMin));
+        if (hoch > 0 && y - hoch < obenMin) hoch = -hoch;
       }
       t.style.setProperty("--theke-hoch", hoch + "px");
       t.style.setProperty("--theke-x", (Math.round(x * 10) / 10) + "px");

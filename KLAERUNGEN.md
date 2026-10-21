@@ -783,8 +783,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   dort noch laufenden Texten (der Platz wird mit dem Ende wieder frei – kein Hochzählen); Platz n startet n × 20 px (eine Zeile) höher
   und seitlich reihum 0, −12, +12, −6, +6 px versetzt – kein Zufall, mit gesteuerter Uhr reproduzierbar. **Sichtbar halten** (Lage, nie
   Layout): reicht der Platz nach oben für Text + Steigen nicht (Zähler ganz oben), startet der Text tiefer; am Rand rückt er nach innen;
-  ein Stapel-Platz, dessen Start oben abgeschnitten würde, stapelt stattdessen nach unten (über die Zutat); ein Text darf beim Steigen
-  oben aus dem Fenster laufen (er blendet dabei aus). Nur `transform`/`opacity`/Leuchten, eigene Ebene für Schwebetexte – das Layout
+  ein Stapel-Platz, für den der Platz nach oben (Text + Steigen) nicht reicht, stapelt stattdessen nach unten über die Zutat (lesbar
+  dank Textschatten – besser als abgeschnitten). Nur `transform`/`opacity`/Leuchten, eigene Ebene für Schwebetexte – das Layout
   ändert sich nie. Gleiche Zutat: neue Animation ersetzt die laufende (Neustart bei gleicher Art); Schwebetexte addieren sich (höchstens
   20 gleichzeitig, der älteste weicht). Unbekannte `id`, versteckte Zutat (auch `bei` eines `schwebe`), `takt` → still ignoriert – **kein**
   Ersatz in der Fenstermitte: ein Text ohne seinen Ursprung verwirrt, und den echten Fehlfall (nicht auf der Theke) meldet schon der

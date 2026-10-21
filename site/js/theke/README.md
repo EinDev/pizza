@@ -130,8 +130,8 @@ Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `
   neu, andere ersetzt die laufende. Schwebetexte addieren sich (höchstens 20, der älteste weicht); gleichzeitige Texte am
   selben Anker bekommen den kleinsten freien Platz 0, 1, 2, … (frei nach dem Ende): je Platz eine Zeile (20 px) höher
   (`--theke-hoch`) und seitlich reihum 0, −12, +12, −6, +6 px (`--theke-versatz`) – kein Zufall. Start oben mittig über `id`
-  bzw. in der Fenstermitte, bei zu wenig Platz nach oben tiefer (der Stapel dann nach unten) bzw. am Rand nach innen gerückt
-  (bleibt im sichtbaren Ausschnitt). Leerer Text (auch nur Leerraum): kein Element, zählt nicht zum Limit (K-093).
+  bzw. in der Fenstermitte, bei zu wenig Platz nach oben (Text + Steigen) tiefer – ein Stapel-Platz, für den der Platz nach
+  oben nicht reicht, stapelt nach unten über die Zutat – bzw. am Rand nach innen gerückt (bleibt im sichtbaren Ausschnitt). Leerer Text (auch nur Leerraum): kein Element, zählt nicht zum Limit (K-093).
 - **Technik:** `@keyframes`-Klassen `theke-anim-<art>`, Dauer als `--theke-anim-dauer` per CSSOM (CSP-fest, kein
   `style`-Attribut-String). Nur `transform`/`opacity`/`filter` – Layout und Scrollmaße ändern sich nie (in `visuell.mjs` geprüft).
   Schwebetexte/Funken liegen in `.theke-ebene` (absolut über dem Inhalt, `pointer-events: none`, schneidet ab).
