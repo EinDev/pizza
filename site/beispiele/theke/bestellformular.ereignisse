@@ -1,0 +1,12 @@
+{"typ":"klick","id":"bestellen"}
+{"typ":"aenderung","id":"name","wert":"L"}
+{"typ":"aenderung","id":"name","wert":"Lu"}
+{"typ":"aenderung","id":"name","wert":"Luigi"}
+{"typ":"klick","id":"bestellen"}
+{"typ":"aenderung","id":"strasse","wert":"Ofengasse 7"}
+{"typ":"aenderung","id":"plz","wert":"8013"}
+{"typ":"enter","id":"plz","wert":"8013"}
+{"typ":"aenderung","id":"plz","wert":"80331"}
+{"typ":"aenderung","id":"scharf","wert":true}
+{"typ":"enter","id":"plz","wert":"80331"}
+{"typ":"geschlossen"}

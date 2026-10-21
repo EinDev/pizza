@@ -1,0 +1,12 @@
+{"v":1,"op":"fenster","titel":"Pizzarechner","breite":420,"hoehe":340}
+{"v":1,"op":"baum","wurzel":{"id":"z2","art":"stapel","kinder":[{"id":"titel","art":"schild","text":"Margherita + Extras","stil":{"schrift":"gross"}},{"id":"anzahl","art":"eingabe","wert":"1","platzhalter":"Wie viele Pizzen?"},{"id":"z1","art":"stapel","kinder":[{"id":"salami","art":"haken","text":"Salami (+1,50 €)","an":false},{"id":"pilze","art":"haken","text":"Pilze (+1,00 €)","an":false},{"id":"oliven","art":"haken","text":"Oliven (+1,00 €)","an":false},{"id":"rucola","art":"haken","text":"Rucola (+1,00 €)","an":false},{"id":"chili","art":"haken","text":"Chili (+0,50 €)","an":false}]},{"id":"preis","art":"schild","text":"","stil":{"schrift":"gross","farbe":"basilikum"}}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"1 × 7,50 € = 7,50 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"1 × 9,00 € = 9,00 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"Wie viele Pizzen darf's sein?","stil":{"schrift":"gross","farbe":"kruste"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"3 × 9,00 € = 27,00 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"3 × 10,00 € = 30,00 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"'3x' ist keine Zahl. Probier's mit Ziffern.","stil":{"schrift":"gross","farbe":"tomate"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"3 × 10,00 € = 30,00 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"3 × 8,50 € = 25,50 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"3 × 9,50 € = 28,50 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"preis","text":"2 × 9,50 € = 19,00 €","stil":{"schrift":"gross","farbe":"basilikum"}}]}

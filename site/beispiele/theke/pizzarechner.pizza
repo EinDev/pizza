@@ -1,0 +1,63 @@
+// Pizzarechner: Anzahl eintippen, Beläge anhaken – der Preis rechnet sich von selbst.
+// Grundlage ist immer eine Margherita ((Tomate, Mozzarella)) für 7,50 €.
+// Die Preise kommen direkt von den Belägen: Salami.preis() kennt die Zutatenliste.
+
+Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 340);
+
+Blech<Belag> angebot = [Salami, Pilze, Oliven, Rucola, Chili];
+Blech<Haken> haken = [];
+
+Schild titel = neu Schild("Margherita + Extras", id: "titel");
+titel.stil("schrift", "gross");
+
+Eingabe anzahl = neu Eingabe(wert: "1", platzhalter: "Wie viele Pizzen?", id: "anzahl");
+Schild preis = neu Schild("", id: "preis");
+preis.stil("schrift", "gross");
+preis.stil("farbe", "basilikum");
+
+// Baut die Pizza aus den angehakten Belägen (unten Margherita, oben die Extras).
+Pizza belegte() {
+    Pizza p = ((Tomate, Mozzarella));
+    für (salami i : [1 .. angebot.länge()]) {
+        falls (haken.stück(i).an()) { p = p + angebot.stück(i); }
+    }
+    serviere ((p));
+}
+
+leer rechne() {
+    margherita text = anzahl.wert().trimme();
+    falls (text.istLeer()) {
+        preis.setzeText(("Wie viele Pizzen darf's sein?"));
+        preis.stil("farbe", "kruste");
+        serviere;
+    }
+    probier {
+        funghi n = text.alsZahl();
+        falls (n < 1 || n != n.ganz()) {
+            preis.setzeText(("Nur ganze Pizzen, bitte – mindestens eine."));
+            preis.stil("farbe", "tomate");
+            serviere;
+        }
+        Pizza p = belegte();
+        preis.setzeText(("" + n + " × " + p.preis().euro() + " = " + (n * p.preis()).euro()));
+        preis.stil("farbe", "basilikum");
+    } verbrannt (TypAnanas a) {
+        preis.setzeText(("'" + text + "' ist keine Zahl. Probier's mit Ziffern."));
+        preis.stil("farbe", "tomate");
+    }
+}
+
+für (Belag b : angebot) {
+    Haken h = neu Haken(b.name() + " (+" + b.preis().euro() + ")", id: b.name().klein());
+    h.beiAenderung(an -> { rechne(); });
+    haken.hinzu(h);
+}
+anzahl.beiAenderung(t -> { rechne(); });
+
+Stapel extras = neu Stapel(haken);
+theke.zeige(neu Stapel([titel, anzahl, extras, preis]));
+rechne();
+theke.bediene();
+
+Bote.sage(("Bestellt: " + anzahl.wert().trimme() + " × " + belegte().alsText()));
+Bote.sage(("Letzter Stand: " + preis.text()));

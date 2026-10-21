@@ -1,0 +1,10 @@
+{"typ":"aenderung","id":"salami","wert":true}
+{"typ":"aenderung","id":"anzahl","wert":""}
+{"typ":"aenderung","id":"anzahl","wert":"3"}
+{"typ":"aenderung","id":"oliven","wert":true}
+{"typ":"aenderung","id":"anzahl","wert":"3x"}
+{"typ":"aenderung","id":"anzahl","wert":"3"}
+{"typ":"aenderung","id":"salami","wert":false}
+{"typ":"aenderung","id":"rucola","wert":true}
+{"typ":"aenderung","id":"anzahl","wert":"2"}
+{"typ":"geschlossen"}

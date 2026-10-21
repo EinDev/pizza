@@ -1,0 +1,8 @@
+{"v":1,"op":"fenster","titel":"Bestellung","breite":400,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"kopf","art":"schild","text":"Lieferung nach Hause","stil":{"schrift":"gross"}},{"id":"formular","art":"stapel","kinder":[{"id":"name","art":"eingabe","wert":"","platzhalter":"Dein Name"},{"id":"strasse","art":"eingabe","wert":"","platzhalter":"Straße und Hausnummer"},{"id":"plz","art":"eingabe","wert":"","platzhalter":"Postleitzahl (5 Ziffern)"},{"id":"scharf","art":"haken","text":"Extra scharf (Chili gratis)","an":false},{"id":"hinweis","art":"schild","text":"","stil":{"farbe":"tomate"}},{"id":"bestellen","art":"knopf","text":"Bestellen"}]},{"id":"bestaetigung","art":"schild","text":"","sichtbar":false,"stil":{"farbe":"basilikum"}}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":"Wie heißt du? (mindestens 2 Zeichen)"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":""}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":"Wohin soll die Pizza? Die Straße fehlt."}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":"Die Postleitzahl braucht genau 5 Ziffern."}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":""},{"id":"formular","sichtbar":false},{"id":"bestaetigung","text":"Danke, Luigi! Deine ((Tomate, Mozzarella, Chili)) ist unterwegs nach Ofengasse 7, 80331.","sichtbar":true},{"id":"kopf","text":"Bestellung angenommen"}]}
+{"v":1,"op":"fenster","titel":"Bestellung #1","breite":400,"hoehe":360}

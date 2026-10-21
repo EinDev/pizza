@@ -1,0 +1,77 @@
+// Ofen-Timer: Zeit mit + und − einstellen, Ofenart wählen, backen.
+// Die Pizza braucht 100 % Bräune, pro 5 Sekunden kommen 5 % dazu.
+// Der Timer ist das Budget des ofen-Ausdrucks: Läuft er ab, landet die Pizza
+// im roh-Zweig – mit dem letzten Zwischenstand. Ein Holzofen (450°) ist heißer:
+// Sein Budget ist zeit × 450 / 250, er schafft also fast doppelt so viel pro Minute.
+
+Theke theke = neu Theke("Ofen-Timer", breite: 360, hoehe: 300);
+
+Dauer SCHRITT = 30s;
+Dauer timer = 1min;
+salami fertig = 0;
+salami rohe = 0;
+
+Schild anzeige = neu Schild("", id: "anzeige");
+anzeige.stil("schrift", "gross");
+
+Knopf weniger = neu Knopf("− 30 s", id: "weniger");
+Knopf mehr    = neu Knopf("+ 30 s", id: "mehr");
+Haken holzofen = neu Haken("Holzofen (450°)", id: "holzofen");
+Knopf start   = neu Knopf("Backen!", id: "start");
+Schild ergebnis = neu Schild("Der Ofen ist vorgeheizt.", id: "ergebnis");
+
+leer zeigeTimer() {
+    anzeige.setzeText(("⏲ " + timer));
+    weniger.aktiv(timer > SCHRITT);
+    mehr.aktiv(timer < 5min);
+}
+
+// Backt eine Pizza; liefert die erreichte Bräune in Prozent.
+salami backe(Dauer zeit, salami grad) {
+    serviere (ofen(temperatur: grad, zeit: zeit) {
+        salami braeune = 0;
+        solange (braeune < 100) {
+            Uhr.vorspulen(5s);
+            braeune += 5;
+            zwischenstand((braeune));
+        }
+        serviere (braeune);
+    } roh (r) {
+        serviere (r.teilergebnis() == karton ? 0 : r.teilergebnis());
+    });
+}
+
+weniger.beiKlick(() -> {
+    falls (timer > SCHRITT) { timer = timer - SCHRITT; }
+    zeigeTimer();
+});
+mehr.beiKlick(() -> {
+    falls (timer < 5min) { timer = timer + SCHRITT; }
+    zeigeTimer();
+});
+start.beiKlick(() -> {
+    salami grad = holzofen.an() ? 450 : 250;
+    salami braeune = backe(timer, grad);
+    falls (braeune >= 100) {
+        fertig++;
+        ergebnis.setzeText(("Perfekt gebacken – " + timer + " bei " + grad + "° haben gereicht."));
+        ergebnis.stil("farbe", "basilikum");
+    } sonst {
+        rohe++;
+        ergebnis.setzeText(("Ding! Nach " + timer + " erst " + braeune + " % gebräunt. Noch roh!"));
+        ergebnis.stil("farbe", "tomate");
+    }
+    Bote.sage(("Ofen " + grad + "°, Timer " + timer + ": " + braeune + " % Bräune"));
+});
+
+zeigeTimer();
+theke.zeige(neu Stapel([
+    anzeige,
+    neu Reihe([weniger, mehr]),
+    holzofen,
+    start,
+    ergebnis
+]));
+theke.bediene();
+
+Bote.sage(("Feierabend: " + fertig + " fertig, " + rohe + " roh. Uhr: " + Uhr.jetzt()));

@@ -1,0 +1,14 @@
+{"typ":"aenderung","id":"mozzarella","wert":true}
+{"typ":"aenderung","id":"tomate","wert":true}
+{"typ":"aenderung","id":"mozzarella","wert":false}
+{"typ":"aenderung","id":"tomate","wert":true}
+{"typ":"aenderung","id":"mozzarella","wert":true}
+{"typ":"aenderung","id":"basilikum","wert":true}
+{"typ":"aenderung","id":"salami","wert":true}
+{"typ":"aenderung","id":"parmesan","wert":true}
+{"typ":"klick","id":"leeren"}
+{"typ":"aenderung","id":"tomate","wert":true}
+{"typ":"aenderung","id":"rucola","wert":true}
+{"typ":"aenderung","id":"mozzarella","wert":true}
+{"typ":"aenderung","id":"pilze","wert":true}
+{"typ":"geschlossen"}

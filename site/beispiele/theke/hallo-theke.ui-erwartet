@@ -1,0 +1,8 @@
+{"v":1,"op":"fenster","titel":"Hallo Theke","breite":320,"hoehe":200}
+{"v":1,"op":"baum","wurzel":{"id":"z2","art":"stapel","kinder":[{"id":"gruss","art":"schild","text":"Ciao! Drück den Knopf."},{"id":"zaehler","art":"schild","text":"0 Pizzen gebacken","stil":{"schrift":"gross"}},{"id":"z1","art":"reihe","kinder":[{"id":"backen","art":"knopf","text":"Pizza backen!"},{"id":"zurueck","art":"knopf","text":"Von vorn"}]}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"1 Pizza gebacken"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"2 Pizzen gebacken"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"3 Pizzen gebacken"},{"id":"gruss","text":"Du hast den Dreh raus!"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"0 Pizzen gebacken"},{"id":"gruss","text":"Frischer Teig, neues Glück."}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"1 Pizza gebacken"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zaehler","text":"2 Pizzen gebacken"}]}

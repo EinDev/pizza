@@ -1,0 +1,75 @@
+// Bestellformular: Name und Adresse eintragen, prüfen lassen, abschicken.
+// Fehlt etwas, sagt das Schild freundlich Bescheid. Klappt alles, verschwindet
+// das Formular und die Bestätigung erscheint. Enter im letzten Feld schickt auch ab.
+
+Theke theke = neu Theke("Bestellung", breite: 400, hoehe: 360);
+
+Schild kopf = neu Schild("Lieferung nach Hause", id: "kopf");
+kopf.stil("schrift", "gross");
+
+Eingabe name    = neu Eingabe(platzhalter: "Dein Name", id: "name");
+Eingabe strasse = neu Eingabe(platzhalter: "Straße und Hausnummer", id: "strasse");
+Eingabe plz     = neu Eingabe(platzhalter: "Postleitzahl (5 Ziffern)", id: "plz");
+Haken scharf    = neu Haken("Extra scharf (Chili gratis)", id: "scharf");
+Schild hinweis  = neu Schild("", id: "hinweis");
+hinweis.stil("farbe", "tomate");
+Knopf senden    = neu Knopf("Bestellen", id: "bestellen");
+
+Schild bestaetigung = neu Schild("", id: "bestaetigung");
+bestaetigung.stil("farbe", "basilikum");
+bestaetigung.sichtbar(nein);
+
+Stapel formular = neu Stapel([name, strasse, plz, scharf, hinweis, senden], id: "formular");
+
+salami bestellungen = 0;
+
+diavolo nurZiffern(margherita t) {
+    für (margherita z : t) {
+        falls (!"0123456789".enthält(z)) { serviere (nein); }
+    }
+    serviere (ja);
+}
+
+// Liefert die erste Beanstandung – oder "" wenn alles passt.
+margherita pruefe() {
+    falls (name.wert().trimme().länge() < 2) { serviere ("Wie heißt du? (mindestens 2 Zeichen)"); }
+    falls (strasse.wert().trimme().istLeer()) { serviere ("Wohin soll die Pizza? Die Straße fehlt."); }
+    margherita p = plz.wert().trimme();
+    falls (p.länge() != 5 || !nurZiffern(p)) { serviere ("Die Postleitzahl braucht genau 5 Ziffern."); }
+    serviere ("");
+}
+
+leer bestellen() {
+    margherita fehler = pruefe();
+    falls (!fehler.istLeer()) {
+        hinweis.setzeText((fehler));
+        serviere;
+    }
+    bestellungen++;
+    Pizza p = scharf.an() ? ((Tomate, Mozzarella, Chili)) : ((Tomate, Mozzarella));
+    hinweis.setzeText((""));
+    formular.sichtbar(nein);
+    bestaetigung.setzeText(("Danke, " + name.wert().trimme() + "! Deine " + p.alsText()
+        + " ist unterwegs nach " + strasse.wert().trimme() + ", " + plz.wert().trimme() + "."));
+    bestaetigung.sichtbar(ja);
+    kopf.setzeText(("Bestellung angenommen"));
+    theke.setzeTitel(("Bestellung #" + bestellungen));
+    Bote.sage(("Bestellung #" + bestellungen + ": " + p.alsText() + " für " + name.wert().trimme()
+        + ", " + strasse.wert().trimme() + ", " + plz.wert().trimme()));
+}
+
+senden.beiKlick(() -> { bestellen(); });
+plz.beiEnter(t -> { bestellen(); });
+// Wer tippt, hat den Hinweis gelesen – also weg damit.
+name.beiAenderung(t -> {
+    falls (!hinweis.text().istLeer()) { hinweis.setzeText(("")); }
+});
+
+theke.zeige(neu Stapel([kopf, formular, bestaetigung]));
+theke.bediene();
+
+falls (bestellungen == 0) {
+    Bote.sage(("Keine Bestellung abgeschickt. Vielleicht beim nächsten Hunger."));
+} sonst {
+    Bote.sage(("Theke geschlossen. Guten Appetit!"));
+}

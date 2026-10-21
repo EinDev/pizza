@@ -1,0 +1,32 @@
+// Hallo Theke: dein erstes Fenster.
+// Ein Schild, zwei Knöpfe – und ein Zähler, der im Programm lebt.
+// Die Theke bedient so lange, bis jemand das Fenster schließt.
+
+Theke theke = neu Theke("Hallo Theke", breite: 320, hoehe: 200);
+
+salami klicks = 0;
+
+Schild gruss  = neu Schild("Ciao! Drück den Knopf.", id: "gruss");
+Schild zaehler = neu Schild("0 Pizzen gebacken", id: "zaehler");
+zaehler.stil("schrift", "gross");
+
+Knopf backen = neu Knopf("Pizza backen!", () -> {
+    klicks++;
+    zaehler.setzeText(("" + klicks + (klicks == 1 ? " Pizza" : " Pizzen") + " gebacken"));
+    falls (klicks == 3) { gruss.setzeText(("Du hast den Dreh raus!")); }
+    falls (klicks == 10) {
+        gruss.setzeText(("Zehn Pizzen! Der Ofen glüht."));
+        gruss.stil("farbe", "tomate");
+    }
+}, id: "backen");
+
+Knopf vonVorn = neu Knopf("Von vorn", () -> {
+    klicks = 0;
+    zaehler.setzeText(("0 Pizzen gebacken"));
+    gruss.setzeText(("Frischer Teig, neues Glück."));
+}, id: "zurueck");
+
+theke.zeige(neu Stapel([gruss, zaehler, neu Reihe([backen, vonVorn])]));
+theke.bediene();
+
+Bote.sage(("Theke zu. Gebacken: " + klicks + (klicks == 1 ? " Pizza." : " Pizzen.")));

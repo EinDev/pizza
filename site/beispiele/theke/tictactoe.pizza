@@ -1,0 +1,123 @@
+// Tic-Tac-Toe an der Theke: neun Knöpfe in drei Reihen.
+// Du legst Margherita (M), der Pizzaiolo antwortet mit Diavolo (D).
+// Seine Regeln: gewinnen, wenn's geht – sonst blocken – sonst Mitte, Ecke, Rand.
+
+Theke theke = neu Theke("Tic-Tac-Toe", breite: 300, hoehe: 360);
+
+Blech<Blech<salami>> LINIEN = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 4, 7],
+                               [2, 5, 8], [3, 6, 9], [1, 5, 9], [3, 5, 7]];
+Blech<salami> VORLIEBE = [5, 1, 3, 7, 9, 2, 4, 6, 8];
+
+Blech<margherita> brett = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
+Blech<Knopf> felder = [];
+diavolo vorbei = nein;
+Speisekarte<margherita, salami> stand = neu Speisekarte<margherita, salami>();
+stand.lege("M", 0).lege("D", 0).lege("=", 0);
+
+Schild status = neu Schild("Du bist dran (M).", id: "status");
+status.stil("schrift", "gross");
+Schild punkte = neu Schild("Du 0 · Pizzaiolo 0 · Remis 0", id: "punkte");
+punkte.stil("schrift", "klein");
+
+// "M" oder "D", wenn eine Linie voll ist – sonst " "
+margherita gewinner() {
+    für (Blech<salami> l : LINIEN) {
+        margherita a = brett.stück(l.stück(1));
+        falls (a != " " && a == brett.stück(l.stück(2)) && a == brett.stück(l.stück(3))) {
+            serviere (a);
+        }
+    }
+    serviere (" ");
+}
+
+// Feld, mit dem `zeichen` eine Linie vollmacht – oder 0.
+salami vollende(margherita zeichen) {
+    für (Blech<salami> l : LINIEN) {
+        salami frei = 0;
+        salami eigene = 0;
+        für (salami f : l) {
+            falls (brett.stück(f) == zeichen) { eigene++; }
+            falls (brett.stück(f) == " ") { frei = f; }
+        }
+        falls (eigene == 2 && frei != 0) { serviere (frei); }
+    }
+    serviere (0);
+}
+
+salami zugDesPizzaiolos() {
+    salami f = vollende("D");          // gewinnen
+    falls (f == 0) { f = vollende("M"); }   // blocken
+    falls (f == 0) {
+        für (salami v : VORLIEBE) {
+            falls (brett.stück(v) == " ") { serviere (v); }
+        }
+    }
+    serviere (f);
+}
+
+leer lege(salami f, margherita zeichen) {
+    brett.setze(f, zeichen);
+    Knopf k = felder.stück(f);
+    k.setzeText((zeichen));
+    k.aktiv(nein);
+    k.stil("farbe", zeichen == "M" ? "basilikum" : "tomate");
+}
+
+// Prüft auf Sieg/Remis; liefert ja, wenn die Runde vorbei ist.
+diavolo pruefeEnde() {
+    margherita g = gewinner();
+    margherita ergebnis = "";
+    falls (g == "M") { ergebnis = "M"; status.setzeText(("Gewonnen! Die Margherita triumphiert.")); }
+    sonst falls (g == "D") { ergebnis = "D"; status.setzeText(("Der Pizzaiolo gewinnt. Scharf!")); }
+    sonst falls (!brett.enthält(" ")) { ergebnis = "="; status.setzeText(("Unentschieden – Pizza wird geteilt.")); }
+    falls (ergebnis == "") { serviere (nein); }
+    vorbei = ja;
+    stand.lege(ergebnis, stand.hole(ergebnis) + 1);
+    punkte.setzeText(("Du " + stand.hole("M") + " · Pizzaiolo " + stand.hole("D") + " · Remis " + stand.hole("=")));
+    für (Knopf k : felder) { k.aktiv(nein); }
+    Bote.sage(("Runde vorbei: " + status.text()));
+    serviere (ja);
+}
+
+leer klick(salami f) {
+    falls (vorbei || brett.stück(f) != " ") { serviere; }   // belegt oder Runde vorbei: nichts tun
+    lege(f, "M");
+    falls (pruefeEnde()) { serviere; }
+    lege(zugDesPizzaiolos(), "D");
+    falls (pruefeEnde()) { serviere; }
+    status.setzeText(("Du bist dran (M)."));
+}
+
+leer neuesSpiel() {
+    für (salami f : [1 .. 9]) {
+        brett.setze(f, " ");
+        Knopf k = felder.stück(f);
+        k.setzeText(("·"));
+        k.aktiv(ja);
+        k.stil("farbe", "normal");
+    }
+    vorbei = nein;
+    status.setzeText(("Neue Runde! Du bist dran (M)."));
+}
+
+für (salami f : [1 .. 9]) {
+    Knopf k = neu Knopf("·", () -> { klick(f); }, id: "feld" + f);
+    k.stil("schrift", "mono");
+    k.stil("breite", 64);
+    k.stil("hoehe", 64);
+    felder.hinzu(k);
+}
+
+Knopf nochmal = neu Knopf("Neues Spiel", () -> { neuesSpiel(); }, id: "neu");
+
+theke.zeige(neu Stapel([
+    status,
+    neu Reihe([felder.stück(1), felder.stück(2), felder.stück(3)]),
+    neu Reihe([felder.stück(4), felder.stück(5), felder.stück(6)]),
+    neu Reihe([felder.stück(7), felder.stück(8), felder.stück(9)]),
+    nochmal,
+    punkte
+]));
+theke.bediene();
+
+Bote.sage(("Endstand – " + punkte.text()));

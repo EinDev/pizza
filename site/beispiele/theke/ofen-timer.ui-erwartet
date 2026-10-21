@@ -1,0 +1,12 @@
+{"v":1,"op":"fenster","titel":"Ofen-Timer","breite":360,"hoehe":300}
+{"v":1,"op":"baum","wurzel":{"id":"z2","art":"stapel","kinder":[{"id":"anzeige","art":"schild","text":"⏲ 1min","stil":{"schrift":"gross"}},{"id":"z1","art":"reihe","kinder":[{"id":"weniger","art":"knopf","text":"− 30 s"},{"id":"mehr","art":"knopf","text":"+ 30 s"}]},{"id":"holzofen","art":"haken","text":"Holzofen (450°)","an":false},{"id":"start","art":"knopf","text":"Backen!"},{"id":"ergebnis","art":"schild","text":"Der Ofen ist vorgeheizt."}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ergebnis","text":"Ding! Nach 1min erst 55 % gebräunt. Noch roh!","stil":{"farbe":"tomate"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"anzeige","text":"⏲ 1min 30s"},{"id":"weniger","aktiv":true},{"id":"mehr","aktiv":true}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ergebnis","text":"Ding! Nach 1min 30s erst 85 % gebräunt. Noch roh!","stil":{"farbe":"tomate"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"anzeige","text":"⏲ 2min"},{"id":"weniger","aktiv":true},{"id":"mehr","aktiv":true}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ergebnis","text":"Perfekt gebacken – 2min bei 250° haben gereicht.","stil":{"farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"anzeige","text":"⏲ 1min 30s"},{"id":"weniger","aktiv":true},{"id":"mehr","aktiv":true}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"anzeige","text":"⏲ 1min"},{"id":"weniger","aktiv":true},{"id":"mehr","aktiv":true}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ergebnis","text":"Perfekt gebacken – 1min bei 450° haben gereicht.","stil":{"farbe":"basilikum"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"anzeige","text":"⏲ 30s"},{"id":"weniger","aktiv":false},{"id":"mehr","aktiv":true}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ergebnis","text":"Ding! Nach 30s erst 50 % gebräunt. Noch roh!","stil":{"farbe":"tomate"}}]}
