@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Vorratskammer: Lauf 1 legt punkte 120 ins Regal, das Programm endet, Lauf 2 holt punkte 120 wieder heraus. Gespeichert wird im Browser oder in einer Datei.</title>
+
+  <!-- Lauf 1 -->
+  <rect x="20" y="70" width="150" height="110" rx="12" fill="#2F2A26"/>
+  <text x="95" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#F2B33D">Lauf 1</text>
+  <text x="95" y="128" text-anchor="middle" font-size="14" fill="#FFF6E0">v.lege("punkte",</text>
+  <text x="95" y="148" text-anchor="middle" font-size="14" fill="#FFF6E0">120);</text>
+  <text x="95" y="206" text-anchor="middle" font-size="14" fill="#2F2A26">Programm endet</text>
+
+  <!-- Pfeil hinein -->
+  <path d="M172,125 L222,125" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+  <path d="M216,117 L228,125 L216,133" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Regal / Kammer -->
+  <rect x="236" y="40" width="168" height="200" rx="10" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <rect x="236" y="40" width="168" height="32" rx="10" fill="#C8955A"/>
+  <text x="320" y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#FFF6E0">Vorratskammer</text>
+  <path d="M248,128 L392,128 M248,190 L392,190" stroke="#C8955A" stroke-width="4" stroke-linecap="round"/>
+  <!-- Gläser -->
+  <rect x="254" y="84" width="58" height="42" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <rect x="254" y="80" width="58" height="10" rx="3" fill="#D9452B"/>
+  <text x="283" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#2F2A26">120</text>
+  <text x="283" y="146" text-anchor="middle" font-size="14" fill="#2F2A26">punkte</text>
+  <rect x="326" y="84" width="58" height="42" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <rect x="326" y="80" width="58" height="10" rx="3" fill="#3E8E41"/>
+  <text x="355" y="112" text-anchor="middle" font-size="14" font-weight="700" fill="#2F2A26">Luigi</text>
+  <text x="355" y="146" text-anchor="middle" font-size="14" fill="#2F2A26">name</text>
+  <rect x="254" y="150" width="130" height="36" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="319" y="173" text-anchor="middle" font-size="14" fill="#2F2A26">[Margherita, …]</text>
+  <text x="320" y="216" text-anchor="middle" font-size="14" fill="#2F2A26">„pizza-imperium“</text>
+
+  <!-- Pfeil heraus -->
+  <path d="M406,125 L456,125" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+  <path d="M450,117 L462,125 L450,133" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Lauf 2 -->
+  <rect x="470" y="70" width="150" height="110" rx="12" fill="#2F2A26"/>
+  <text x="545" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#F2B33D">Lauf 2</text>
+  <text x="545" y="128" text-anchor="middle" font-size="14" fill="#FFF6E0">v.hole("punkte")</text>
+  <text x="545" y="152" text-anchor="middle" font-size="15" font-weight="700" fill="#FFF6E0">→ 120</text>
+  <text x="545" y="206" text-anchor="middle" font-size="14" fill="#2F2A26">Tage später</text>
+
+  <!-- Speicherorte -->
+  <rect x="96" y="268" width="210" height="66" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="201" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#2F2A26">Playground</text>
+  <text x="201" y="318" text-anchor="middle" font-size="14" fill="#2F2A26">im Browser gespeichert</text>
+  <rect x="334" y="268" width="210" height="66" rx="10" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="439" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#2F2A26">Programm / Terminal</text>
+  <text x="439" y="318" text-anchor="middle" font-size="14" fill="#2F2A26">als Datei gespeichert</text>
+  <path d="M290,244 L230,266 M350,244 L410,266" stroke="#C8955A" stroke-width="2" stroke-dasharray="6 5"/>
+</svg>

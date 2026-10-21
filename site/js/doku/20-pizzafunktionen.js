@@ -66,7 +66,7 @@
                 ["`calzone klasse`, `aufklappen()`", "Starke Kapselung, die auch Reflection standhält", "1"]
               ]
             },
-            { art: "hinweis", ton: "info", md: "Der Playground läuft komplett im Browser und ist deterministisch: Es gibt **keine echten Threads** und **keine Wanduhr**. Zeit wird in Schritten gemessen (1 Schritt = 1 ms simulierte Zeit). Echte Parallelität bei `schneide` und echte Hintergrund-Threads bei `teig` und `bestelle` sind **Tier 3** – also nur Spezifikation." }
+            { art: "hinweis", ton: "info", md: "Der Playground läuft komplett im Browser und ist deterministisch: Es gibt **keine echten Threads** und **keine Wanduhr**, und mit derselben Zufalls-Saat (siehe *Zufall*) kommt bei jedem Lauf dasselbe heraus. Zeit wird in Schritten gemessen (1 Schritt = 1 ms simulierte Zeit). Echte Parallelität bei `schneide` und echte Hintergrund-Threads bei `teig` und `bestelle` sind **Tier 3** – also nur Spezifikation." }
           ]
         }
       ]

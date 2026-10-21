@@ -239,10 +239,10 @@
       id: "std-mathe",
       gruppe: STD,
       ordnung: 520,
-      titel: "Mathe & Zufall",
+      titel: "Mathe",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "`Mathe` rechnet für dich (Wurzel, Runden, Kreiszahl – Pizzen sind rund). `Zufall` würfelt, aber **immer gleich**: Jeder Lauf liefert dieselben Zahlen." },
+        { art: "kurz", md: "`Mathe` rechnet für dich: Wurzel, Potenz, Runden, Kreiszahl – Pizzen sind rund. Fürs Würfeln gibt es `Zufall` (eigener Abschnitt)." },
         {
           art: "code",
           ausfuehrbar: true,
@@ -290,26 +290,86 @@
             { art: "text", md: "**Kaufmännisch runden** heißt: Bei genau .5 geht es von der Null weg (`2.5` → `3`, `-0.5` → `-1`). Bei Nachkommastellen gleicht pizza das Kommazahl-Krümeln aus, deshalb wird `1.005` auf zwei Stellen zu `1.01` und `0.125` zu `0.13` – so wie man es auf dem Kassenbon erwartet." },
             { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." }
           ]
+        }
+      ]
+    },
+    {
+      id: "std-zufall",
+      gruppe: STD,
+      ordnung: 525,
+      titel: "Zufall – würfeln, mischen, auswählen",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "`Zufall` würfelt Zahlen, wirft Münzen, zieht aus einem Blech und mischt Karten. Jeder Lauf bekommt eine neue **Saat** (den Startwert des Würfels) – wer dieselbe Saat wieder einsetzt, bekommt exakt dieselben Würfe." },
+        {
+          art: "code",
+          ausfuehrbar: true,
+          tier: 1,
+          code: z(
+            "Zufall.saat(7);   // feste Saat: jedes Mal dieselben Würfe",
+            "Blech<margherita> sorten = [\"Margherita\", \"Funghi\", \"Diavolo\", \"Quattro Formaggi\"];",
+            "Bote.sage((\"Würfel: \" + Zufall.zahl(1, 6)));",
+            "Bote.sage((\"Kommazahl: \" + Zufall.kommazahl().runden(3)));",
+            "Bote.sage((\"Münzwurf: \" + Zufall.wahr(0.5)));",
+            "Bote.sage((\"Der Chef empfiehlt: \" + Zufall.wähle(sorten)));",
+            "Bote.sage((\"Gemischt: \" + Zufall.mische([1, 2, 3, 4, 5])));"
+          )
+        },
+        { art: "ausgabe", text: z("Würfel: 1", "Kommazahl: 0.062", "Münzwurf: nein", "Der Chef empfiehlt: Diavolo", "Gemischt: [5, 1, 4, 2, 3]") },
+        {
+          art: "details",
+          titel: "Alle Methoden von Zufall",
+          inhalt: [
+            tab([
+              ["`zahl(a, b)`", "Ganzzahl zwischen `a` und `b`, beide Grenzen **inklusive** (ist `a > b`, werden sie getauscht). Nur Ganzzahlen, sonst `TypAnanas`.", "`Zufall.zahl(1, 6)`"],
+              ["`kommazahl()`", "Kommazahl von 0 (inklusive) bis 1 (exklusive)", "`Zufall.kommazahl()`"],
+              ["`kommazahl(a, b)`", "Kommazahl zwischen `a` und `b`", "`Zufall.kommazahl(10, 20)`"],
+              ["`wahr(p)`", "`ja` mit Wahrscheinlichkeit `p` (0 bis 1); `p ≤ 0` → immer `nein`, `p ≥ 1` → immer `ja`", "`Zufall.wahr(0.25)` – in einem von vier Fällen `ja`"],
+              ["`wähle(blech)`", "Ein zufälliges Stück aus dem Blech; leeres Blech → `KeinStückAnanas`", "`Zufall.wähle(sorten)`"],
+              ["`mische(blech)`", "Ein **neues**, gemischtes Blech – das Original bleibt, wie es ist", "`Zufall.mische(karten)`"],
+              ["`saat(n)`", "Setzt die Saat: ab hier kommen immer dieselben Würfe", "`Zufall.saat(7);`"],
+              ["`saat()`", "Liefert die aktuelle Saat", "`Bote.sage((Zufall.saat()));`"]
+            ]),
+            { art: "text", md: "Der Würfel ist ein bekannter, fester Rechenweg (*mulberry32*). Darum würfelt pizza im Playground, in der Kommandozeile, im heruntergeladenen Programm und mit beiden Motoren **bit-genau gleich** – gleiche Saat, gleiche Würfe." }
+          ]
         },
         {
           art: "details",
-          titel: "Zufall: Methode und Seed",
+          titel: "Die Saat: echter Zufall oder jedes Mal gleich?",
           inhalt: [
-            { art: "text", md: "`Zufall` rechnet mit einem festen Startwert (Seed 42). Deshalb ist die „zufällige“ Folge bei jedem Lauf dieselbe – jedes Rezept bleibt nachkochbar." },
-            tab([
-              ["`zahl(a, b)`", "Ganzzahl zwischen `a` und `b`, beide Grenzen **inklusive** (ist `a > b`, werden sie getauscht). Nur Ganzzahlen als Grenzen, sonst `TypAnanas`.", "`salami w = Zufall.zahl(1, 6);`"]
-            ]),
+            { art: "text", md: "- **Normalfall:** Jeder Lauf bekommt eine **echte, neue** Saat. Damit du einen spannenden Lauf wiederholen kannst, wird sie angezeigt: `Saat: 3141592` – im Playground als Infozeile in der Konsole, in der Kommandozeile und im heruntergeladenen Programm als Zeile im Terminal.\n- **Feste Saat 42:** Im Playground gibt es die Option „feste Saat 42“, in der Kommandozeile `--saat=42` (oder jede andere Zahl). Tests, die Beispiele und die Code-Blöcke dieser Doku laufen immer mit Saat 42 – darum stimmen die gezeigten Ausgaben.\n- **Im Programm:** `Zufall.saat(n)` legt die Saat selbst fest – praktisch zum Testen deines Spiels." },
             {
               art: "code",
               ausfuehrbar: true,
               tier: 1,
               code: z(
-                "Blech<margherita> sorten = [\"Margherita\", \"Funghi\", \"Diavolo\", \"Quattro Formaggi\"];",
-                "salami wahl = Zufall.zahl(1, sorten.länge());",
-                "Bote.sage((\"Heute empfiehlt der Chef: \" + sorten.stück(wahl)));"
+                "Zufall.saat(7);",
+                "Bote.sage(([1 .. 6].belege(x -> Zufall.zahl(1, 6))));",
+                "Zufall.saat(7);",
+                "Bote.sage(([1 .. 6].belege(x -> Zufall.zahl(1, 6))));"
               )
             },
-            { art: "hinweis", ton: "info", md: "Welche Sorte der Chef empfiehlt, verraten wir nicht – probier es aus. Es ist bei jedem Lauf dieselbe." }
+            { art: "ausgabe", text: z("[1, 1, 6, 5, 4, 3]", "[1, 1, 6, 5, 4, 3]") },
+            { art: "hinweis", ton: "info", md: "Die Saat ist eine Ganzzahl; sie wird auf den Bereich 0 … 4 294 967 295 umgerechnet (`Zufall.saat(-1)` ergibt `4294967295`). Keine Ganzzahl → `TypAnanas`." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Eigene Würfel: neu Zufall",
+          inhalt: [
+            { art: "text", md: "`neu Zufall(saat)` baut einen **eigenen** Würfel mit denselben Methoden. Er hat seine eigene Folge und bringt den gemeinsamen `Zufall` nicht durcheinander – nützlich, wenn z. B. die Karte eines Spiels immer gleich sein soll, die Würfe aber nicht. `neu Zufall()` ohne Saat holt sich seine Saat vom gemeinsamen `Zufall`." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Zufall karte = neu Zufall(7);   // Spielfeld: immer gleich",
+                "Bote.sage(karte);",
+                "Bote.sage((karte.mische([\"A\", \"B\", \"C\", \"D\"])));",
+                "Bote.sage((karte.zahl(1, 6) + \" / \" + karte.wahr(0.5)));"
+              )
+            },
+            { art: "ausgabe", text: z("Zufall(7)", "[C, B, D, A]", "5 / nein") }
           ]
         }
       ]
@@ -661,6 +721,88 @@
       ]
     },
     {
+      id: "std-vorrat",
+      gruppe: STD,
+      ordnung: 585,
+      titel: "Vorratskammer – Spielstand speichern",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Normalerweise vergisst ein Programm alles, sobald es endet. Was du in eine `Vorratskammer` legst, ist beim **nächsten Lauf noch da** – für Spielstände, Highscores und Einstellungen." },
+        { art: "bild", src: "img/doku/re-vorrat.svg", alt: "Lauf 1 legt punkte 120 in ein Regal namens Vorratskammer pizza-imperium, in dem auch name Luigi und ein Blech stehen. Lauf 2 holt punkte wieder heraus und bekommt 120. Darunter: im Playground wird im Browser gespeichert, im Programm oder Terminal als Datei.", unterschrift: "Was Lauf 1 ins Regal stellt, holt Lauf 2 wieder heraus." },
+        {
+          art: "code",
+          ausfuehrbar: true,
+          tier: 1,
+          code: z(
+            "Vorratskammer v = neu Vorratskammer(\"pizzeria\");",
+            "salami besuche = v.hole(\"besuche\", 0) + 1;",
+            "v.lege(\"besuche\", besuche);",
+            "Bote.sage((\"Besuch Nr. \" + besuche));"
+          )
+        },
+        { art: "ausgabe", text: "Besuch Nr. 1" },
+        { art: "text", md: "Beim nächsten Lauf steht dort `Besuch Nr. 2`, dann `3` … Die Doku führt Beispiele ohne Speicher aus – darum steht hier immer `1`, und die Konsole zeigt die Warnung **W0101** (siehe unten)." },
+        {
+          art: "details",
+          titel: "Alle Methoden der Vorratskammer",
+          inhalt: [
+            { art: "text", md: "`neu Vorratskammer(name)` öffnet die Kammer mit diesem Namen – gibt es sie noch nicht, ist sie leer. Der Name besteht aus Kleinbuchstaben `a–z`, Ziffern und `-` (1–40 Zeichen), z. B. `\"pizza-imperium\"`; sonst gibt es eine `LaufzeitAnanas`. Zweimal `neu` mit demselben Namen öffnet dieselbe Kammer." },
+            tab([
+              ["`lege(schlüssel, wert)`", "Legt `wert` ab (überschreibt) und speichert **sofort**; gibt die Kammer zurück (verkettbar)", "`v.lege(\"punkte\", 120)`"],
+              ["`hole(schlüssel)`", "Gespeicherter Wert; fehlt er → `karton`", "`v.hole(\"punkte\")`"],
+              ["`hole(schlüssel, ersatz)`", "Wie `hole`, aber `ersatz` statt `karton` – ideal für den allerersten Lauf", "`v.hole(\"leben\", 3)`"],
+              ["`hat(schlüssel)`", "Gibt es den Eintrag?", "`v.hat(\"name\")`"],
+              ["`entferne(schlüssel)`", "Entfernt den Eintrag, gibt den alten Wert zurück (oder `karton`)", "`v.entferne(\"punkte\")`"],
+              ["`schlüssel()`", "Blech aller Schlüssel, in der Reihenfolge des ersten Ablegens", "`v.schlüssel()`"],
+              ["`länge()`", "Anzahl Einträge", "`v.länge()`"],
+              ["`leeren()`", "Räumt die ganze Kammer leer (z. B. für „Neues Spiel“)", "`v.leeren();`"],
+              ["`name()`", "Name der Kammer", "`v.name()`"]
+            ]),
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Vorratskammer v = neu Vorratskammer(\"spielstand\");",
+                "v.lege(\"name\", \"Luigi\").lege(\"punkte\", 120).lege(\"pizzen\", [\"Margherita\", \"Funghi\"]);",
+                "Bote.sage(v.schlüssel(), v.hole(\"leben\"), v.hole(\"leben\", 3));",
+                "Blech<margherita> p = v.hole(\"pizzen\");",
+                "p.hinzu(\"Diavolo\");             // ändert nur die Kopie",
+                "Bote.sage(p, v.hole(\"pizzen\"));",
+                "Bote.sage((v.entferne(\"punkte\") + \" Punkte entfernt, übrig: \" + v.länge()));"
+              )
+            },
+            { art: "ausgabe", text: z("[name, punkte, pizzen] karton 3", "[Margherita, Funghi, Diavolo] [Margherita, Funghi]", "120 Punkte entfernt, übrig: 2") }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Was passt hinein?",
+          inhalt: [
+            { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Pizzen, Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wo liegt der Vorrat? Und wie wird man ihn los?",
+          inhalt: [
+            {
+              art: "tabelle",
+              kopf: ["Wo das Programm läuft", "Wo der Vorrat liegt"],
+              zeilen: [
+                ["Playground", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser)"],
+                ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`"],
+                ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`)"]
+              ]
+            },
+            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an." },
+            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen über **„Vorrat löschen“** im Playground bzw. indem du die Datei aus der Tabelle löschst. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
+            { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
+          ]
+        }
+      ]
+    },
+    {
       id: "std-theke",
       gruppe: STD,
       ordnung: 590,
@@ -864,7 +1006,7 @@
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall`, `Spiegel` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
@@ -905,7 +1047,8 @@
             ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
-            ["`W0100`", "`theke.bediene()`, aber nirgends kann ein Fenster erscheinen", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"]
+            ["`W0100`", "`theke.bediene()`, aber nirgends kann ein Fenster erscheinen", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
+            ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"]
           ]
         },
         { art: "text", md: "Zwei Warnungen in Aktion – das Programm läuft trotzdem bis zum Ende:" },
