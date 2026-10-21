@@ -20,7 +20,9 @@ function P(s, ...v) {
  *   warnText: {code: teil}   – Warnung code enthält Text teil,
  *   noWarn: string[]         – diese Codes dürfen NICHT vorkommen,
  *   panik: true              – panik-Ereignis mit exaktem Banner (SPEC §9),
- *   args: string[], schrittLimit: number,
+ *   args: string[], schrittLimit: number, eingabe: string[],
+ *   uiEreignisse: object[]    – vorgegebene Theke-Ereignisse (SPEC §16),
+ *   ui: object[]              – exakte Liste der ui-Nachrichten (kanonisch verglichen),
  *   check(res, h) → string | string[] | undefined (Fehlermeldungen)
  * }
  */

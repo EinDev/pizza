@@ -50,7 +50,8 @@ PizzaLang.parse(quelltext)
 
 PizzaLang.run(quelltext, optionen)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
-  //                       eingabe?: string[], onEingabe?(anfrage) }     // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
+  //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
+  //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[] }   // Theke: SPEC §16 (aus THEKE.md)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
@@ -63,6 +64,7 @@ PizzaLang.run(quelltext, optionen)
 { typ: "ausgabe",       text, umbruch: false }                  // Bote.schreibe (ohne Zeilenumbruch), SPEC §11.1
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
+{ typ: "ui",            nachricht }                             // Theke-Protokollnachricht Programm → Renderer (SPEC §16; nicht in .erwartet, sondern .ui-erwartet)
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
@@ -190,8 +192,10 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
 | `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
+| Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
+| | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |
 | `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ |
-| Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional) |
+| Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).

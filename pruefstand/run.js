@@ -69,6 +69,20 @@ function erwartetText(res) {
     .join("");
 }
 
+// Theke (SPEC §16): ui-Nachrichten kanonisch (Schlüssel sortiert) vergleichen – Reihenfolge der Nachrichten zählt.
+function kanon(x) {
+  if (Array.isArray(x)) return "[" + x.map(kanon).join(",") + "]";
+  if (x && typeof x === "object") return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + kanon(x[k])).join(",") + "}";
+  return JSON.stringify(x);
+}
+function uiNachrichten(res) {
+  return (res.ereignisse || []).filter((e) => e.typ === "ui").map((e) => e.nachricht);
+}
+// JSON-Lines (.ereignisse, .ui-erwartet): eine JSON-Zeile pro Eintrag, Leerzeilen ignoriert
+function jsonZeilen(t) {
+  return norm(t).split("\n").filter((z) => z.trim()).map((z) => JSON.parse(z));
+}
+
 // ARCHITEKTUR §3: .erwartet endet mit genau einem Zeilenumbruch → beidseitig höchstens EINEN entfernen (K-052),
 // damit ein abschließendes Bote.sage(("")) prüfbar bleibt.
 const ohneSchlussUmbruch = (s) => s.replace(/\n$/, "");
@@ -132,6 +146,10 @@ function bewerte(f, res) {
     if (f.bannerOptional) { ist = ohneBanner(ist); soll = ohneBanner(soll); }
     if (ohneSchlussUmbruch(ist) !== ohneSchlussUmbruch(soll)) err.push(`Ausgabe weicht von .erwartet ab:\n--- ist ---\n${ist}--- soll ---\n${soll}`);
   }
+  if (f.ui !== undefined) {
+    const ist = uiNachrichten(res);
+    if (kanon(ist) !== kanon(f.ui)) err.push(`ui-Nachrichten weichen ab:\n--- ist ---\n${ist.map(kanon).join("\n")}\n--- soll ---\n${f.ui.map(kanon).join("\n")}`);
+  }
   if (f.check) {
     let r;
     try { r = f.check(res); } catch (e) { r = "check() warf: " + e; }
@@ -155,11 +173,18 @@ function ladeFälle() {
 
 function beispielFälle() {
   const p = "Beispiele (ARCHITEKTUR §3)";
-  return teilB.ladeManifeste().beispiele.map((b) => ({
-    p, name: `${b.teil} ${b.id}`, code: fs.readFileSync(b.datei, "utf8"), exit: b.exitCode,
-    erwartetDatei: fs.readFileSync(b.erwartet, "utf8"), panikErlaubt: true,
-    eingabe: eingabeZeilen(b),
-  }));
+  return teilB.ladeManifeste().beispiele.map((b) => {
+    const f = {
+      p, name: `${b.teil} ${b.id}`, code: fs.readFileSync(b.datei, "utf8"), exit: b.exitCode,
+      erwartetDatei: fs.readFileSync(b.erwartet, "utf8"), panikErlaubt: true,
+      eingabe: eingabeZeilen(b),
+    };
+    // THEKE.md §5 / SPEC §16: .ereignisse (JSON-Lines → uiEreignisse) und .ui-erwartet (JSON-Lines aller ui-Nachrichten)
+    const ev = b.datei.replace(/\.pizza$/, ".ereignisse"), ue = b.datei.replace(/\.pizza$/, ".ui-erwartet");
+    if (fs.existsSync(ev)) f.uiEreignisse = jsonZeilen(fs.readFileSync(ev, "utf8"));
+    if (fs.existsSync(ue)) f.ui = jsonZeilen(fs.readFileSync(ue, "utf8"));
+    return f;
+  });
 }
 
 // SPEC §11.1 / ARCHITEKTUR §3: vorgegebene Eingabe aus dem Manifest-Feld "eingabe", sonst aus der gleichnamigen
@@ -194,6 +219,9 @@ function dokuFälle() {
             // ARCHITEKTUR §4 / K-050: Codeblöcke dürfen vorgegebene Eingabe tragen (string[] oder Text mit Zeilen)
             if (Array.isArray(b.eingabe)) f.eingabe = b.eingabe.map(String);
             else if (typeof b.eingabe === "string") f.eingabe = eingabeAusText(b.eingabe);
+            // SPEC §16.4 / K-074: Theke-Blöcke dürfen uiEreignisse (Ereignisobjekte) und uiErwartet (ui-Nachrichten) tragen
+            if (Array.isArray(b.uiEreignisse)) f.uiEreignisse = b.uiEreignisse;
+            if (Array.isArray(b.uiErwartet)) f.ui = b.uiErwartet;
             const next = inhalt[i + 1];
             // Doku-"ausgabe" darf den Panik-Banner weglassen (ARCHITEKTUR §4, K-030) → Banner beidseitig entfernt
             if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.bannerOptional = true; }
@@ -253,6 +281,7 @@ async function teilA() {
         const optionen = { schrittLimit: f.schrittLimit || STANDARD_LIMIT };
         if (f.args) optionen.args = f.args;
         if (f.eingabe) optionen.eingabe = f.eingabe;
+        if (f.uiEreignisse) optionen.uiEreignisse = f.uiEreignisse;
         const m = await aus.run(f.code, optionen);
         if (m.fehler) err = [m.fehler];
         else {
@@ -268,7 +297,7 @@ async function teilA() {
       if (f.offen) {
         // offene Klärung: rot ist der erwartete Zustand; grün heißt „Umsetzung erledigt → nach a10 verschieben“
         if (err.length) { offenRot++; if (verbose) meldungen.push({ f, err }); }
-        else { offenOk++; gOk++; meldungen.push({ f, err: [], hinweis: "jetzt grün – Fall nach a10-klaerungen.js verschieben" }); }
+        else { offenOk++; gOk++; meldungen.push({ f, err: [], hinweis: "jetzt grün – Fall in eine nicht-offene Datei verschieben (z. B. a10-klaerungen.js)" }); }
         continue;
       }
       if (err.length) { fail++; meldungen.push({ f, err }); }
@@ -321,7 +350,7 @@ function teilBausführen() {
       zus.push(`Teil A: ${a.ok}/${a.ok + a.fail} Fälle bestanden` + (a.fail ? rot(` (${a.fail} Abweichungen)`) : ""));
       if (a.offenOk + a.offenRot) {
         zus.push(`Teil A offen: ${a.offenOk}/${a.offenOk + a.offenRot} Klärungsfälle mit ausstehender Umsetzung bereits grün` +
-          (a.offenOk ? gelb(" – grüne Fälle nach a10-klaerungen.js verschieben") : ""));
+          (a.offenOk ? gelb(" – grüne Fälle in eine nicht-offene Datei verschieben") : ""));
       }
       if (a.fail) fehlgeschlagen = true;
     }

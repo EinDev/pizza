@@ -808,6 +808,8 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
 - **K-038** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
 - **K-039** `p.hat("Tomate")` wie `p.hat(Tomate)`; `p + "x"` ist Textverkettung.
+- **K-076 [offen]** `ersetze("", x)` lässt den Text unverändert; alle Text-Methoden arbeiten auf Codepoints, nur `<`/`sortiere`
+  nach UTF-16-Codeeinheiten (K-040).
 - **K-047** Die simulierte Uhr zählt ganze Millisekunden: `Uhr.vorspulen(d)` rundet kaufmännisch auf ms,
   `schritte`/`zeitMs` sind Ganzzahlen, Budgets `floor(...)` (Lieferung: `floor(max_ms × Faktor)`).
 
@@ -838,3 +840,106 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-030/K-050/K-051/K-052** Doku-`ausgabe` darf den Panik-Banner weglassen; Doku-Codeblöcke dürfen `eingabe: string[]`
   tragen; `.eingabe`-Fallback neben der `.pizza`; `.erwartet` endet mit genau einem `\n` (Harnische normalisieren höchstens einen).
 - **K-054** `leeren` im Terminal: `\x1b[2J\x1b[3J\x1b[H` nur bei TTY.
+
+---
+
+## 16. Theke – UI-Framework (Tier 1 im Interpreter; Wasm/EXE: THEKE.md §6)
+
+Übernommen aus `THEKE.md` (Sprache, Protokoll, API); dort bleiben Browser-/Host-/Renderer-Details (§3–§7). Präzisierungen
+aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Renderer `site/js/theke/`). Prüfstand: `a13-theke.js`.
+
+### 16.1 Zutaten (v1)
+
+| Klasse | Zweck | Konstruktor | Methoden |
+|---|---|---|---|
+| `Theke` | Fenster | `(titel = "", breite: 480, hoehe: 360)` | `zeige(zutat)` → Theke, `bediene()`, `schliesse()`, `titel()`, `setzeTitel(t)` |
+| `Schild` | Text | `(text)` | `text()`, `setzeText(t)` |
+| `Knopf` | Button | `(text, beiKlick?)` (auch `beiKlick: fn`) | `text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(diavolo)` / `aktiv()` |
+| `Eingabe` | Textfeld | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)`, `beiEnter(fn)` |
+| `Haken` | Checkbox | `(text, an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` |
+| `Stapel` / `Reihe` | Container vertikal / horizontal | `(Blech<Zutat>)` | `hinzu(zutat)` → Container, `leeren()` |
+
+Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`.
+Jede Zutat nimmt `id: "…"` im Konstruktor. **Setter liefern die Zutat** (verkettbar); `aktiv()`/`sichtbar()` ohne Argument sind Getter.
+Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` sind eingebaute Klassen: `erbt Knopf` →
+PizzaFehler P0010 (nicht erweiterbar); eine **eigene** Klasse gleichen Namens hat Vorrang. Die Programm-Schritte zählen wie bei
+jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit noch Ofen-/Lieferbudget.
+
+### 16.2 Verhalten (verbindlich)
+
+- **Rückrufe (K-056):** `beiKlick(fn)` → `fn()`; `beiAenderung(fn)` → `fn(wert)` (Eingabe: Text, Haken: diavolo);
+  `beiEnter(fn)` → `fn(text)`. Lambdas sind tolerant (§14.9). Erneute Registrierung ersetzt den Rückruf, `karton` entfernt ihn.
+  Vor dem Rückruf ist der neue Wert gesetzt (`wert()`/`an()` liefern im Rückruf den geänderten Wert).
+- **Setter (K-073):** `setzeText`/`setzeWert`/`setzeAn`/`aktiv`/`sichtbar`/`stil` lösen **keine** Rückrufe aus; ein Setzen auf den
+  identischen Wert zählt trotzdem als Änderung (Nachricht wird gesendet).
+- **Ereignisschleife (K-057):** `bediene()` sendet gepufferte Änderungen, wartet auf ein Ereignis, führt den Rückruf aus,
+  sendet dessen Änderungen als **eine** `aendere`-Nachricht (auch wenn der Rückruf eine Ananas wirft – dann vor dem Verlassen)
+  und wartet erneut. Ende: Ereignis `geschlossen` (kein Rückruf) oder `schliesse()` (Rückruf läuft zu Ende, danach Rückkehr;
+  weitere Ereignisse werden nicht zugestellt). Reihenfolge im Ereignisstrom: `ausgabe`-Ereignisse des Rückrufs vor der `aendere`-Nachricht.
+- **Bündelung (K-057):** Änderungen an **gezeigten** Zutaten werden gepuffert und an Synchronisationspunkten gesendet: vor jedem
+  Warten in `bediene()`, nach jedem Rückruf, vor `schliesse`, vor dem erneuten `fenster` bei `setzeTitel`, am Programmende
+  (wenn die Theke noch offen ist). Eine `aendere`-Nachricht hat **einen Eintrag je Zutat** (Reihenfolge = erste Änderung),
+  spätere Werte derselben Eigenschaft überschreiben frühere; `stil` wird als **ganzes** Stil-Objekt gesendet, `hinzu`/`leeren`
+  als vollständige `kinder`-Liste (`leeren()` → `[]`). Änderungen an nicht gezeigten Zutaten erzeugen keine Nachricht (ihr Zustand
+  steht im nächsten `baum`). Vom Renderer gemeldete Werte (`aenderung`/`enter`) werden nicht zurückgesendet.
+- **`zeige` (K-058):** sendet beim ersten Mal `fenster`, dann `baum` mit dem vollständigen Zustand; gepufferte Änderungen verfallen.
+  Erneutes `zeige` ersetzt den Baum (IDs bleiben); nach `geschlossen`/`schliesse()` öffnet `zeige` die Theke wieder (`fenster` + `baum`).
+  `setzeTitel` an gezeigter Theke sendet `fenster` erneut. `zeige(karton)`/Nicht-Zutat → `TypAnanas: zeige() braucht eine Zutat, nicht karton.`
+- **Ein Elternteil (K-059):** Eine Zutat liegt in höchstens einem Container, nur einmal, nicht in sich selbst; die gezeigte Wurzel
+  gilt als belegt. Verstoß bei Konstruktor, `hinzu`, `zeige` → `LaufzeitAnanas: Die Zutat 'z1' liegt schon woanders auf der Theke.`
+  bzw. `Die Zutat 'z1' kann nicht in sich selbst liegen.` `leeren()` löst die Kinder.
+- **IDs (K-060):** automatisch `z1, z2, …` in Erzeugungsreihenfolge **unbenannter** Zutaten (bereits belegte Nummern werden
+  übersprungen; `id: "z2"` ist erlaubt); `Theke` verbraucht keine Nummer. Benannte IDs müssen eindeutig und nicht leer sein →
+  `LaufzeitAnanas: Die ID 'ok' gibt es schon.` bzw. LaufzeitAnanas bei leerer ID.
+- **Eine Theke (K-062):** `neu Theke` zum zweiten Mal → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`;
+  `bediene()` ohne `zeige` → `LaufzeitAnanas: Die Theke ist leer.`; `bediene()` nach Schließen kehrt sofort zurück (ohne Warnung).
+- **Programmende (K-061):** Das Programmende sendet **kein** `schliesse` – nur `schliesse()` tut das. Gepufferte Änderungen einer noch
+  offenen Theke werden am Ende gesendet. Renderer/Host zeigen den letzten Zustand, bis der Nutzer das Fenster schließt
+  (Exit-Code danach); nach `geschlossen` wird nichts mehr gesendet.
+- **Ohne Renderer (K-063):** fehlen `onUiWarte` und `uiEreignisse`, warnt `bediene()` **je Aufrufstelle** (§10)
+  `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` und kehrt sofort zurück; `fenster`/`baum`/`aendere`/`schliesse`
+  werden trotzdem als `ui`-Ereignisse ausgegeben. `uiEreignisse` erschöpft → `geschlossen`; `onUiWarte` liefert `null` oder wirft → `geschlossen`.
+- **Ereignisse (K-064):** `klick` nur für `Knopf` mit `aktiv == ja` und Rückruf; `aenderung`/`enter` für `Eingabe` (Text) bzw.
+  `aenderung` für `Haken` (`true`/`false`, auch `"true"`/`"false"`). Ereignisse für unbekannte IDs, falsche Zutatenart, falschen
+  `wert`-Typ, inaktive Knöpfe oder unbekannten `typ` werden **ignoriert**; `aenderung` ohne Rückruf aktualisiert trotzdem den Zustand.
+  `{"typ":"bereit"}` ist ein internes Signal der nativen Hülle und erreicht das Programm nicht.
+- **Ananas & Panik (K-065):** Ananas aus Rückrufen verlassen `bediene()` (fangbar mit `probier`); die Theke bleibt offen, erneutes
+  `bediene()` wartet weiter. Panik beendet sofort (Exit 39, kein `schliesse`). `Bestellannahme`/`Bote` funktionieren in Rückrufen
+  wie überall; `bediene()` in Ofen/Lieferung verbraucht beim Warten kein Budget; `bediene()` in `wennDa`-Rückrufen ist erlaubt.
+- **Werte (K-066):** `setzeText`/`setzeTitel`/`setzeWert`/`platzhalter`/Konstruktor-Texte speichern die Textform jedes Werts;
+  `aktiv`/`setzeAn`/`sichtbar`/`an:` verlangen diavolo (`TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`); `breite`/`hoehe`
+  ganzzahlig (`TypAnanas: Theke(breite: …) braucht eine Ganzzahl, nicht 2.5.`), Standard 480×360, Werte ≤ 0 überlässt der Renderer seinem Standard.
+- **Stile (K-068):** `breite`/`hoehe`/`abstand`: Zahl ≥ 0 in Pixeln (Kommazahlen erlaubt, Renderer rundet) –
+  `LaufzeitAnanas: Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.` bzw. TypAnanas bei Nicht-Zahl; `ausrichtung` ∈ `links|mitte|rechts`;
+  `schrift` ∈ `klein|normal|gross|mono`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`. Unbekannter Schlüssel →
+  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.`; ungültiger Wert →
+  `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
+  **K-075 [offen]:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
+- **Textform (K-071):** Zutaten `Knopf(z3)` (Klassenname + ID in Klammern), Theke `Theke(<titel>)` (leer: `Theke()`).
+- **Schritte (K-069):** Erzeugen/Setzen/`bediene()` kosten die normalen Aufrufknoten; Rückrufe zählen ihre Anweisungen;
+  Warten und Zustellung eines Ereignisses kosten 0 (`t.bediene();` ohne Rückruf = 3 Schritte).
+
+### 16.3 Protokoll (Version 1, JSON)
+
+Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
+`{"v":1,"op":"fenster","titel":"…","breite":480,"hoehe":360}` (erstes `zeige`, erneut bei `setzeTitel` und Wiederöffnen) ·
+`{"v":1,"op":"baum","wurzel":{…}}` · `{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"…"},{"id":"z3","aktiv":false}]}` ·
+`{"v":1,"op":"schliesse"}` (nur durch `schliesse()`).
+Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe`. **Zustandsfelder immer:** `schild`/`knopf`: `text`;
+`eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
+`platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
+Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder; `kinder` ist die vollständige Kinderliste – der
+Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
+vollständig); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
+Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`.
+Unbekannte Felder/`art`/`op`/`typ` werden ignoriert bzw. als Platzhalter gerendert (Vorwärtskompatibilität); `v` steigt nur bei
+inkompatiblen Änderungen. Der Renderer kennt für `ausrichtung` zusätzliche Synonyme (`start|oben|zentriert|ende|unten|strecken`) –
+aus pizza sind nur `links|mitte|rechts` erreichbar.
+
+### 16.4 API & Tests (ARCHITEKTUR §1, §6)
+
+`optionen.onUi(nachricht)`, `optionen.onUiWarte() → ereignis | null` (synchron), `optionen.uiEreignisse: object[]`.
+Testdateien: `<name>.ereignisse` (JSON-Lines → `uiEreignisse`), `<name>.ui-erwartet` (JSON-Lines aller `ui`-Nachrichten,
+kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-Codeblöcke: `uiEreignisse: object[]`,
+`uiErwartet: object[]` (K-074). `ui`-Ereignisse stehen **nicht** in `.erwartet`. Compiler ohne Theke-Unterstützung meldet
+`nichtUnterstuetzt` (Playground fällt auf den Interpreter zurück); HOST-ABI `ui_warte` folgt dem Retry-Muster von K-013.

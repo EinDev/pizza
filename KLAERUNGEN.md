@@ -395,6 +395,134 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   „Kontextgrenze = alles, was einen Wert produziert“ gilt (Lambda, Ofen, wähle-Ausdruck).
 - **Betroffen:** SPEC §15.3 (K-015 ergänzt), Doku (U-07). **Status:** fest (Test a10).
 
+### K-056 Theke: Rückruf-Signaturen
+- **Entscheidung:** `beiKlick(fn)` → `fn()`; `beiAenderung(fn)` → `fn(wert)` (Eingabe: Text, Haken: diavolo); `beiEnter(fn)` →
+  `fn(text)`. Erneute Registrierung ersetzt, `karton` entfernt. Der Zustand (`wert()`, `an()`) ist **vor** dem Rückruf aktualisiert.
+- **Begründung:** Beispiel in THEKE §2 (`() -> {…}`), Lambda-Toleranz erlaubt trotzdem `x -> …`; Java-Listener-Muster. Interpreter (da07b46) entspricht.
+- **Status:** fest (a13).
+
+### K-057 Theke: Bündelung, Synchronisationspunkte, Reihenfolge
+- **Entscheidung (Interpreter-Auslegung bestätigt):** Änderungen an gezeigten Zutaten werden gepuffert; Synchronisationspunkte:
+  vor jedem Warten in `bediene()`, nach jedem Rückruf (auch bei Ananas, vor dem Verlassen), vor `schliesse`, vor dem erneuten
+  `fenster` bei `setzeTitel`, am Programmende (Theke noch offen). Eine `aendere`-Nachricht, ein Eintrag je Zutat (Reihenfolge der
+  ersten Änderung), letzter Wert gewinnt; `stil` als ganzes Objekt; `hinzu`/`leeren` als vollständige `kinder`-Liste. Nicht gezeigte
+  Zutaten erzeugen keine Nachricht; vom Renderer gemeldete Werte werden nicht zurückgesendet. `ausgabe` des Rückrufs steht vor der `aendere`.
+- **Status:** fest (a13).
+
+### K-058 Theke: `zeige()`, `setzeTitel`, Wiederöffnen
+- **Entscheidung:** erstes `zeige` → `fenster` + `baum`; erneutes `zeige` → neuer `baum`, offene Änderungen verfallen, IDs bleiben;
+  `zeige` nach Schließen öffnet wieder (`fenster` + `baum`); `setzeTitel` an gezeigter Theke sendet `fenster` erneut (kein eigenes
+  `aendere`-Format); `zeige(karton)`/Nicht-Zutat → `TypAnanas: zeige() braucht eine Zutat, nicht karton.`; `zeige` liefert die Theke.
+- **Begründung:** Interpreter-Verhalten; `fenster` als Titel-Transport spart ein Protokollfeld.
+- **Status:** fest (a13).
+
+### K-059 Theke: ein Elternteil
+- **Entscheidung:** höchstens ein Container, keine Doppelnennung, keine Zyklen, gezeigte Wurzel gilt als belegt →
+  `LaufzeitAnanas: Die Zutat 'z1' liegt schon woanders auf der Theke.` / `Die Zutat 'z1' kann nicht in sich selbst liegen.`;
+  `leeren()` löst Kinder; `hinzu` liefert den Container.
+- **Status:** fest (a13).
+
+### K-060 Theke: IDs
+- **Entscheidung:** Auto-IDs `z1, z2, …` nur für unbenannte Zutaten, belegte Nummern werden übersprungen (`id: "z2"` erlaubt);
+  `id:` an jeder Zutat; `Theke` verbraucht keine Nummer; doppelt → `LaufzeitAnanas: Die ID 'ok' gibt es schon.`, leer → LaufzeitAnanas.
+- **Status:** fest (a13).
+
+### K-061 Theke ohne `bediene()` / Programmende
+- **Frage:** Sendet das Programmende `schliesse`? (Erster Vorschlag: ja.)
+- **Entscheidung (Interpreter-Auslegung übernommen):** **Nein** – nur `schliesse()` sendet `schliesse`; gepufferte Änderungen einer
+  offenen Theke werden am Ende noch gesendet; nach `geschlossen` nichts mehr. Renderer/Host zeigen den letzten Zustand, bis der Nutzer
+  schließt; der Host liefert den Exit-Code danach.
+- **Begründung:** Programme „zeige + Ende“ bleiben sichtbar (Demos, Ergebnisanzeige); Beispiele/`.ui-erwartet` hängen daran.
+- **Betroffen:** Host (U-28: Fenster bis zum Schließen offen halten). **Status:** fest (a13).
+
+### K-062 Theke: eine pro Programm, eingebaute Klassen
+- **Entscheidung:** zweites `neu Theke` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`; `bediene()` ohne `zeige` →
+  `Die Theke ist leer.`; `bediene()` nach Schließen kehrt sofort zurück. `neu Zutat()` → RohlingAnanas; `erbt Knopf` → P0010;
+  eine eigene Klasse `Knopf` hat Vorrang vor der eingebauten.
+- **Status:** fest (a13).
+
+### K-063 Theke ohne Renderer / Testfolge
+- **Entscheidung:** Fehlen `onUiWarte` und `uiEreignisse`: W0100 **je Aufrufstelle** (allgemeine Warnregel §10), sofortige Rückkehr;
+  `ui`-Ereignisse werden trotzdem emittiert (auch im CLI ohne GUI prüfbar). `uiEreignisse` erschöpft → `geschlossen`; `onUiWarte`
+  liefert `null` oder wirft → `geschlossen`. `schliesse()` im Rückruf: Rückruf läuft zu Ende, danach kehrt `bediene()` zurück.
+- **Status:** fest (a13).
+
+### K-064 Theke: Ereignisse mit unpassendem Ziel
+- **Entscheidung:** Ereignisse für unbekannte IDs, falsche Zutatenart, fehlende Rückrufe, falschen `wert`-Typ, inaktive Knöpfe,
+  unbekannten `typ` → ignoriert; `aenderung` ohne Rückruf setzt den Zustand still; Haken akzeptiert `true`/`false` und `"true"`/`"false"`.
+  `{"typ":"bereit"}` (native Hülle) ist intern.
+- **Status:** fest (a13).
+
+### K-065 Theke × Ananas, Panik, Eingabe, Ofen, Lieferung
+- **Entscheidung:** Ananas aus Rückrufen verlassen `bediene()` (fangbar), Theke bleibt offen; Panik beendet sofort (Exit 39,
+  kein `schliesse`); `Bestellannahme`/`Bote` in Rückrufen wie überall; Warten verbraucht kein Budget; `bediene()` in `wennDa` erlaubt.
+- **Status:** fest (a13).
+
+### K-066 Theke: Werte und Typen
+- **Entscheidung:** Texte speichern die Textform jedes Werts (`neu Knopf(5)` → `"5"`); `aktiv`/`setzeAn`/`sichtbar`/`an:` verlangen
+  diavolo; `breite`/`hoehe` Ganzzahl (TypAnanas sonst), Standard 480×360, Werte ≤ 0 überlässt der Renderer seinem Standard;
+  `titel` optional, Standard `""` (Renderer zeigt „Theke“).
+- **Status:** fest (a13).
+
+### K-067 Theke: Protokoll-Zahlformat und Testvergleich
+- **Entscheidung:** JSON-Zahlen (Ganzzahlen für `breite`/`hoehe`; Stilwerte dürfen Kommazahlen sein), `true`/`false`, Strings.
+  Zustandsfelder immer (`text`; `wert`; `text`+`an`; `kinder`), optionale Felder (`platzhalter` nicht leer, `aktiv: false`,
+  `sichtbar: false`, `stil`) nur bei Abweichung. Harnische vergleichen `ui`-Nachrichten kanonisch (Schlüssel sortiert, Reihenfolge
+  der Nachrichten zählt); `.ui-erwartet`/`.ereignisse` sind JSON-Lines; `ui` steht nicht in `.erwartet`.
+- **Betroffen:** Prüfstand (umgesetzt), tests/run-tests.js (U-25), Differenz (U-26). **Status:** fest (Vertrag).
+
+### K-068 Theke: Stile
+- **Entscheidung:** `breite`/`hoehe`/`abstand`: Zahl ≥ 0 in Pixeln, Kommazahlen erlaubt (Renderer rundet), keine Einheiten-Strings;
+  `ausrichtung` `links|mitte|rechts`; `schrift`, `farbe` wie THEKE §2. Unbekannter Schlüssel → `LaufzeitAnanas: Stil 'x' gibt es
+  nicht. Erlaubt: …`; ungültiger Wert → `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`;
+  negative Zahl → LaufzeitAnanas, Nicht-Zahl → TypAnanas. Nachricht trägt das **ganze** Stil-Objekt. Der Renderer kennt zusätzlich
+  Synonyme (`start|oben|zentriert|ende|unten|strecken`) – kein Widerspruch, aus pizza nicht erreichbar.
+- **Status:** fest (a13).
+
+### K-069 Theke: Schritte
+- **Entscheidung:** Aufrufknoten wie überall; `t.bediene();` ohne Rückruf = 3 Schritte; Warten und Zustellung kosten 0.
+- **Status:** fest (a13).
+
+### K-070 W0100
+- **Entscheidung:** `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`, einmal je Aufrufstelle, beeinflusst den Exit-Code nicht.
+- **Status:** fest (a13).
+
+### K-071 Theke: Textformen
+- **Entscheidung (Interpreter-Form übernommen, statt `Knopf#z3`):** Zutaten `Knopf(z3)`, Theke `Theke(<titel>)` bzw. `Theke()`.
+- **Status:** fest (a13).
+
+### K-072 Theke: Compiler/Host
+- **Entscheidung:** Compiler meldet `nichtUnterstuetzt` für Theke, bis `ui_senden`/`ui_warte` da sind (Fallback Interpreter);
+  `ui_warte` mit Retry-Muster (K-013); Host hält das Fenster nach Programmende offen, bis der Nutzer schließt (K-061).
+- **Status:** offen (U-27, U-28).
+
+### K-073 Theke: Setter lösen keine Rückrufe aus; identische Werte
+- **Frage (Beispiel-Agent):** Lösen `setzeAn`/`setzeWert` `beiAenderung` aus? Zählt `setzeText` mit identischem Wert?
+- **Entscheidung:** Programmatische Setter lösen **keine** Rückrufe aus (verhindert Rückkopplungsschleifen; Rückrufe = Nutzerhandlung).
+  Ein Setzen auf den identischen Wert zählt als Änderung (einfach, deterministisch; Renderer-Update ist idempotent).
+- **Status:** fest (a13).
+
+### K-074 Doku-Codeblöcke mit Theke
+- **Entscheidung:** Doku-Codeblöcke dürfen `uiEreignisse: object[]` und `uiErwartet: object[]` tragen (analog K-050); alle Harnische
+  übergeben/prüfen sie. Prüfstand umgesetzt.
+- **Betroffen:** tests/run-tests.js (U-31), ARCHITEKTUR §6 (hier). **Status:** fest (Vertrag), offen (run-tests).
+
+### K-075 Theke: Stil entfernen
+- **Frage (Renderer):** Renderer behandelt `stil` als Teil-Update (`null` setzt zurück), Interpreter sendet das ganze Objekt – ein
+  entfernter Schlüssel bliebe im Renderer stehen. Heute: `stil("breite", karton)` → TypAnanas.
+- **Entscheidung:** `stil(schlüssel, karton)` entfernt den Stil; die nächste Nachricht trägt im Stil-Objekt `null` für entfernte
+  Schlüssel (kompatibel mit beiden Lesarten). Renderer bleibt unverändert.
+- **Betroffen:** Interpreter (U-32). **Status:** offen (a12-theke-offen.js).
+
+### K-076 Text-Methoden und Codepoints (Fuzz-Fund W2)
+- **Frage:** `"🍕".ersetze("", "-")` zerschneidet im Interpreter das Surrogatpaar (`split("")`), der Wasm-Pfad lässt den Text unverändert.
+- **Entscheidung:** Ein **leerer Suchtext ersetzt nichts** – `t.ersetze("", x)` liefert `t` unverändert (auch für ASCII: nicht mehr
+  `"a-b"`). Allgemein arbeiten alle Text-Methoden auf **Codepoints** (`länge`, `zeichen`, `zerlege("")`, `für`), nur `<`/`sortiere`
+  vergleichen bewusst nach UTF-16-Codeeinheiten (K-040). Weitere UTF-16-Abhängigkeiten gibt es nicht (`enthält`, `beginntMit`,
+  `endetMit`, `ersetze` mit nicht-leerem Suchtext, `trimme`, `wiederhole`, `groß`/`klein` sind codepoint-sicher; Text hat kein `umdrehen`).
+- **Begründung:** Einfach und portabel; Java-`replace("", "-")` (`-a-b-`) und JS-`split/join` (`a-b`) widersprechen sich ohnehin.
+- **Betroffen:** Interpreter (U-33), Fuzz-Repro `tests/fuzz/funde/text-ersetze-leer-surrogat.pizza`. **Status:** offen (a11).
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -415,6 +543,17 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 | U-12 | `host/src/*.rs` (Native-Host-Agent) | K-011 (Prompt nicht ausgeben), K-013 (Zeile puffern, Retry), K-014 (fester Text + `detail`), K-012 (Banner → **stderr**, derzeit stdout), K-041 (Dreier-Form von `ausgabe` entfernen), K-043 (Ladefehler `code:"HOST"`, `art:"intern"`, Exit 2), K-046 (unbekannte Exit-Codes → interner Fehler), K-047/§14.11 (JSON-Zahlen wie `String(x)`) | ABI-Tests |
 | U-13 | `bin/pizza.js` | K-054: `leeren` → `\x1b[2J\x1b[3J\x1b[H` bei TTY (K-012 ist in der CLI bereits erfüllt: Banner auf stderr) | manuell |
 | U-22 | `ui/**`, `e2e/**` (UI-/E2E-Agent) | K-012: Crash-Overlay und Sofort-Terminate bei `panik` entfernen; Banner als Fehlerausgabe in der Konsole, Exit 39 normal; E2E-Erwartung „Overlay bei Exit 39“ anpassen (README und Doku enthalten keine Overlay-Beschreibung) | e2e |
+| U-23 ✅ (da07b46) | `site/js/pizza.js`, `tests/faelle/` | Theke umgesetzt; SPEC §16 / K-056 … K-073 an die Interpreter-Auslegungen angeglichen | a13 (23 Fälle) |
+| U-24 ✅ (c279044, d9c9090) | `site/js/theke/**` | Renderer entspricht §16.3 (`kinder`-Listen, Platzhalter, `ausrichtung` links/mitte/rechts + Synonyme); keine Abweichung offen | tests/theke |
+| U-25 | `tests/run-tests.js` (Interpreter-Agent) | `.ereignisse` → `uiEreignisse`, `.ui-erwartet` kanonisch vergleichen (K-067); `ui` nicht in `.erwartet` | – |
+| U-26 | `tests/differenz/` (Differenz-Agent) | `ui`-Ereignisse vergleichen (`nachricht` kanonisch), `uiEreignisse` aus `.ereignisse` | – |
+| U-27 | `HOST-ABI.md`, `laufzeit/`, `site/js/pizzaiolo*` (Compiler-Agent) | `ui_senden`/`ui_warte` (Retry wie K-013), bis dahin `nichtUnterstuetzt` für Theke (K-072) | tests/differenz |
+| U-28 | `host/**` (Native-Host-Agent) | Theke-Fenster (wry/tao), `ui_warte` blockierend, `schliesse` am Programmende, W0100-Variante ohne Theke (K-061, K-063, K-072) | Smoke-Test |
+| U-30 | `site/beispiele/theke.json` (Beispiel-Agent) | Prüfstand B1: ids `tictactoe` und `belag-baukasten` sind doppelt (auch in spiele.json/simulationen.json) – ids müssen programmweit eindeutig sein (ARCHITEKTUR §3) | Prüfstand B1 |
+| U-31 | `tests/run-tests.js` (Interpreter-Agent) | K-074: Doku-Codeblöcke `uiEreignisse`/`uiErwartet` auswerten; `.ereignisse`/`.ui-erwartet` wie Prüfstand (kanonisch) | Doku-Harness |
+| U-32 | `site/js/pizza.js` (Interpreter-Agent) | K-075: `stil(schlüssel, karton)` entfernt den Stil, Nachricht trägt `null` für entfernte Schlüssel | a12-theke-offen.js |
+| U-33 | `site/js/pizza.js` (Interpreter-Agent) | K-076: `ersetze("", x)` lässt den Text unverändert (kein `split("")`); Fuzz-Repro grün machen | a11 K-076 |
+| U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |
@@ -439,6 +578,8 @@ streichen) · 20:stuecke-ownership (Prüfung syntaktisch K-016, `p + X` wieder 8
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` 23/23 grün, offen nur K-075 (`a12-theke-offen.js`). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
+- Prüfstand B1 ist derzeit rot: `theke.json` verwendet die ids `tictactoe` und `belag-baukasten` doppelt (U-30).
 - Interpreter-Commit 0d34810 setzt U-01…06, 13, 16, 18, 21 um; die 13 a11-Fälle wurden nach a10 verschoben, a11 ist leer (Konvention bleibt).
 - Von den im Auftrag genannten Beispielen waren Pizza-Literal, W0032, Panik-Banner, Schrittzählung, Zahlformatierung,
   Blech-Mutation und `karton` je Typ bereits in SPEC §14 (Interpreter-Agent) geklärt; dieses Protokoll bestätigt und

@@ -6,6 +6,10 @@ Nutzer: „Ich will ein UI-Framework. Es soll im Browser sowie in der fertigen E
 Keep it simple, but extendable – wir werden in Zukunft mehr hinzufügen.“
 Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: WebView2, Linux: WebKitGTK).
 
+> **Status:** Sprache, Verhalten und Protokoll sind verbindlich in **`SPEC.md` §16** festgeschrieben (Klärungen K-056 … K-075 in
+> `KLAERUNGEN.md`, Stand Interpreter da07b46 / Renderer d9c9090). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
+> Tiers (§6) und Zuständigkeiten (§7); bei Widersprüchen gilt SPEC §16. Abschnitt 8 listet die Präzisierungen.
+
 ## 1. Grundidee
 
 - Ein pizza-Programm baut einen **Baum aus Zutaten** (Widgets) und zeigt ihn in einer **Theke** (Fenster).
@@ -35,24 +39,24 @@ theke.bediene();
 ### Zutaten v1 (bewusst wenige)
 | Klasse | Zweck | Konstruktor | Methoden |
 |---|---|---|---|
-| `Theke` | Fenster | `(titel, breite: 480, hoehe: 360)` | `zeige(zutat)`, `bediene()`, `schliesse()`, `setzeTitel(t)` |
+| `Theke` | Fenster | `(titel = "", breite: 480, hoehe: 360)` | `zeige(zutat)` → Theke, `bediene()`, `schliesse()`, `titel()`, `setzeTitel(t)` |
 | `Schild` | Text/Label | `(text)` | `text()`, `setzeText(t)` |
-| `Knopf` | Button | `(text, beiKlick?)` | `text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(diavolo)` |
-| `Eingabe` | Textfeld (einzeilig) | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)` (fn bekommt den Text), `beiEnter(fn)` |
+| `Knopf` | Button | `(text, beiKlick?)` | `text()`, `setzeText(t)`, `beiKlick(fn)` (fn ohne Argument), `aktiv(diavolo)` / `aktiv()` |
+| `Eingabe` | Textfeld (einzeilig) | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)` (fn bekommt den Text), `beiEnter(fn)` (fn bekommt den Text) |
 | `Haken` | Checkbox | `(text, an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` (fn bekommt diavolo) |
 | `Stapel` | Container vertikal | `(Blech<Zutat>)` | `hinzu(zutat)`, `leeren()` |
 | `Reihe` | Container horizontal | `(Blech<Zutat>)` | `hinzu(zutat)`, `leeren()` |
 
-- Gemeinsame Basisklasse **`Zutat`** (nicht direkt instanziierbar) mit `id()`, `sichtbar(diavolo)`, `stil(schlüssel, wert)`
+- Gemeinsame Basisklasse **`Zutat`** (`neu Zutat()` → RohlingAnanas; `erbt Knopf` → P0010) mit `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`
   (eine kleine Whitelist: `breite`, `hoehe`, `abstand`, `ausrichtung`, `schrift` = `"klein"|"normal"|"gross"|"mono"`, `farbe` = Themenfarben `"tomate"|"basilikum"|"mozzarella"|"kruste"|"normal"`).
   Keine freien CSS-Strings (Sicherheit + Portabilität).
-- **IDs:** automatisch `z1, z2, …` in Erzeugungsreihenfolge (deterministisch) oder benannt: `neu Knopf("OK", id: "ok")`.
+- **IDs:** automatisch `z1, z2, …` in Erzeugungsreihenfolge unbenannter Zutaten (belegte Nummern werden übersprungen) oder benannt an jeder Zutat: `neu Knopf("OK", id: "ok")`; doppelt → `LaufzeitAnanas: Die ID 'ok' gibt es schon.`
 - Zustand lebt im Programm; jede Änderung (`setzeText` usw.) erzeugt eine **Änderungsnachricht**. Mehrere Änderungen während eines
   Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
-- `bediene()` ohne vorheriges `zeige` → `LaufzeitAnanas: Die Theke ist leer.` Zweites `bediene()` nach Schließen kehrt sofort zurück.
+- `bediene()` ohne vorheriges `zeige` → `LaufzeitAnanas: Die Theke ist leer.` Zweites `bediene()` nach Schließen kehrt sofort zurück; `zeige` danach öffnet wieder. Nur eine Theke pro Programm (`LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`). Textformen `Knopf(z3)`, `Theke(Titel)`.
 - Ananas in Rückrufen laufen wie gewohnt aus `bediene()` heraus (fangbar mit `probier` um `bediene()`).
 - Ohne verfügbaren Renderer (z. B. CLI ohne GUI, Tests ohne Skript): `bediene()` kehrt sofort zurück und es gibt die Warnung
-  `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` (Programm läuft weiter, kein Fehler).
+  `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.` (je Aufrufstelle; Programm läuft weiter, `ui`-Nachrichten werden trotzdem emittiert).
 - Schritte: Erzeugen/Setzen kosten normale Aufruf-Schritte; Warten auf Ereignisse kostet **keine** Schritte/Zeit (wie Eingabe).
 
 ## 3. Protokoll Programm ↔ Renderer (JSON, Version 1)
@@ -80,7 +84,7 @@ Renderer → Programm (Ereignis):
 - Neues Ereignis `{ typ: "ui", nachricht: <Protokoll-Objekt> }` in der Ereignisfolge (für Tests/Differenz vergleichbar).
 - `optionen.onUi?: (nachricht) => void` – Nachricht an den Renderer.
 - `optionen.onUiWarte?: () => ereignis | null` – **synchron** blockierend auf das nächste Ereignis (null = Fenster weg/Abbruch).
-- `optionen.uiEreignisse?: Ereignis[]` – vorgegebene Ereignisfolge für Tests (erschöpft → `{"typ":"geschlossen"}`).
+- `optionen.uiEreignisse?: Ereignis[]` – vorgegebene Ereignisfolge für Tests (erschöpft → `{"typ":"geschlossen"}`). Doku-Codeblöcke: `uiEreignisse`/`uiErwartet` (K-074).
 - Fehlen `onUiWarte` und `uiEreignisse`: kein Renderer → W0100-Verhalten.
 
 ### Browser (Playground)
@@ -127,3 +131,15 @@ Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastat
 | `site/beispiele/theke*.json`, `site/beispiele/theke/**` | Beispiel-Agent |
 | `site/js/doku/*.js` (Abschnitt „Theke“) | Doku-Agent |
 | `SPEC.md` (§16 Theke), `KLAERUNGEN.md` | Klärungs-Agent |
+
+## 8. Präzisierungen (verbindlich in SPEC §16, Klärungen K-056 … K-075)
+
+- Rückrufe: `beiKlick` → `fn()`, `beiAenderung` → `fn(wert)`, `beiEnter` → `fn(text)`; Zustand vor dem Rückruf aktualisiert; Setter lösen keine Rückrufe aus (K-056, K-073).
+- Bündelung: gepufferte Änderungen gezeigter Zutaten, gesendet vor dem Warten, nach jedem Rückruf (auch bei Ananas), vor `schliesse`, vor erneutem `fenster` (`setzeTitel`), am Programmende; ein Eintrag je Zutat, letzter Wert gewinnt, `stil` ganzes Objekt, `kinder` vollständig (K-057).
+- `zeige`: erstes Mal `fenster` + `baum`; erneut → neuer `baum`, offene Änderungen verfallen; nach Schließen öffnet `zeige` wieder; `zeige(karton)` → TypAnanas (K-058).
+- Ein Elternteil, keine Zyklen, gezeigte Wurzel belegt → `LaufzeitAnanas: Die Zutat 'z1' liegt schon woanders auf der Theke.` (K-059).
+- Programmende sendet **kein** `schliesse`; Renderer/Host zeigen den letzten Zustand bis zum Schließen (K-061).
+- Ereignisse mit unpassendem Ziel (unbekannte ID, inaktiver Knopf, falscher Typ, unbekannter `typ`) werden ignoriert; Haken akzeptiert `true`/`"true"`; `{"typ":"bereit"}` ist intern (K-064).
+- Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067).
+- Stile: Zahlen in Pixeln (auch Kommazahlen), `ausrichtung` `links|mitte|rechts`, Fehlertexte mit erlaubter Liste (K-068); `stil(k, karton)` entfernt (K-075, offen).
+- HOST-ABI `ui_warte`: Rückgabe = benötigte Länge, Retry mit größerem Puffer (wie K-013); Compiler meldet bis zur Umsetzung `nichtUnterstuetzt` (K-072).
