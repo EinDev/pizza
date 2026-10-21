@@ -15,7 +15,7 @@
 
   const ABI_EXPORTE = ['memory', 'abi_version', 'limit_setzen', 'speicher_limit_setzen', 'saat_setzen', 'arg_puffer', 'arg_fertig', 'schritte', 'zeitMs'];
   /** optionale Importe → Gruppe (HOST-ABI §2: ein .pkarton importiert nur, was das Programm braucht) */
-  const OPTIONAL = { ui_senden: 'theke', ui_warte: 'theke', vorrat_lesen: 'vorrat', vorrat_schreiben: 'vorrat', echtzeit_ms: 'echtzeit' };
+  const OPTIONAL = { ui_senden: 'theke', ui_warte: 'theke', vorrat_lesen: 'vorrat', vorrat_schreiben: 'vorrat', echtzeit_ms: 'echtzeit', kueche_auftrag: 'kueche', kueche_bericht: 'kueche' };
   const umgeschrieben = new Map();
 
   let cache = null;
@@ -37,6 +37,13 @@
     } else { m.datenAnzahlRoh = 0; m.datenRest = new Uint8Array(0); }
     cache = { bytes, m };
     return m;
+  }
+
+  /** Datensegment: STATISCH_START der Laufzeit (Küchenbrigade sichert [statischStart, __heap_base), THREADS.md §4.4) */
+  function statischSegment(p, info) {
+    p.byte(0); p.byte(0x41); p.s32(info.statischStartAdr); p.byte(0x0b);
+    const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, info.statischStart, true);
+    p.u32(4); p.bytes(b);
   }
 
   class Modulbau {
@@ -183,7 +190,7 @@
         teile.push(section(9, p.fertig()));
       }
       // 12 DataCount (falls vorhanden)
-      const extraDaten = 2;
+      const extraDaten = this.info.statischStartAdr ? 3 : 2;
       if (roh(12)) { const p = new Puffer(); p.u32(L.datenAnzahlRoh + extraDaten); teile.push(section(12, p.fertig())); }
       // 10 Code
       {
@@ -226,6 +233,7 @@
         p.byte(0); p.byte(0x41); p.s32(this.info.heapStartAdr); p.byte(0x0b);
         const hs = new Uint8Array(4); new DataView(hs.buffer).setUint32(0, datenEnde, true);
         p.u32(4); p.bytes(hs);
+        if (this.info.statischStartAdr) statischSegment(p, this.info);
         teile.push(section(11, p.fertig()));
       }
       // Custom „pizzaiolo“
@@ -358,11 +366,12 @@
       }
       {
         const p = new Puffer(this.daten.n + 64);
-        p.u32(2);
+        p.u32(this.info.statischStartAdr ? 3 : 2);
         p.byte(0); p.byte(0x41); p.s32(this.datenBasis); p.byte(0x0b); p.u32(this.daten.n); p.bytes(this.daten.b.subarray(0, this.daten.n));
         p.byte(0); p.byte(0x41); p.s32(this.info.heapStartAdr); p.byte(0x0b);
         const hs = new Uint8Array(4); new DataView(hs.buffer).setUint32(0, datenEnde, true);
         p.u32(4); p.bytes(hs);
+        if (this.info.statischStartAdr) statischSegment(p, this.info);
         teile.push(section(11, p.fertig()));
       }
       return { bytes: verbinde(teile), tabellenZuwachs: this.tabelle.length, speicherSeiten: seiten };

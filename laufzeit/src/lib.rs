@@ -18,6 +18,7 @@ pub mod programm;
 pub mod karte;
 pub mod theke;
 pub mod vorrat;
+pub mod kueche;
 
 use core::panic::PanicInfo;
 use wert::*;
@@ -41,11 +42,15 @@ extern "C" {
 #[link(wasm_import_module = "pizza")]
 extern "C" { fn echtzeit_ms() -> f64; }
 pub fn host_echtzeit() -> f64 { unsafe { echtzeit_ms() } }
-pub fn host_ausgabe(b: &[u8]) { unsafe { ausgabe(b.as_ptr(), b.len()) } }
-pub fn host_fehlerausgabe(b: &[u8]) { unsafe { fehlerausgabe(b.as_ptr(), b.len()) } }
-pub fn host_schreibe(b: &[u8]) { unsafe { schreibe(b.as_ptr(), b.len()) } }
-pub fn host_leeren() { unsafe { leeren() } }
-pub fn host_warnung(code: &[u8], t: &[u8], z: i32, s: i32) { unsafe { warnung(code.as_ptr(), code.len(), t.as_ptr(), t.len(), z, s) } }
+// In einer Küche (Küchenbrigade, SPEC §17.6 D4) gehen Ereignisse in den Küchenpuffer statt an den Host.
+pub fn host_ausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_AUSGABE, b); return; } unsafe { ausgabe(b.as_ptr(), b.len()) } }
+pub fn host_fehlerausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_FEHLERAUSGABE, b); return; } unsafe { fehlerausgabe(b.as_ptr(), b.len()) } }
+pub fn host_schreibe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_SCHREIBE, b); return; } unsafe { schreibe(b.as_ptr(), b.len()) } }
+pub fn host_leeren() { if in_kueche() { kueche::ereignis(kueche::EV_LEEREN, &[]); return; } unsafe { leeren() } }
+pub fn host_warnung(code: &[u8], t: &[u8], z: i32, s: i32) {
+    if in_kueche() { kueche::ereignis_warnung(code, t, z, s); return; }
+    unsafe { warnung(code.as_ptr(), code.len(), t.as_ptr(), t.len(), z, s) }
+}
 pub fn host_fehler(art: i32, code: &[u8], t: &[u8], z: i32, s: i32) { unsafe { fehler(art, code.as_ptr(), code.len(), t.as_ptr(), t.len(), z, s) } }
 pub fn host_panik(t: &[u8]) { unsafe { panik(t.as_ptr(), t.len()) } }
 pub fn host_eingabe(art: i32, prompt: Option<&[u8]>, puf: &mut [u8]) -> i32 {
@@ -69,15 +74,25 @@ pub struct Zustand {
     pub tiefe: i32,     // 40
     pub argtop: u32,    // 44  Argumentstapel-Spitze
     pub limit: f64,     // 48
+    pub gefroren: u32,  // 56  Küchenbrigade: Obergrenze des Hauptküchen-Heaps (frozen_top); 0 = Hauptküche
+    pub _r: u32,        // 60
 }
 
 #[no_mangle]
-pub static mut ZUSTAND: Zustand = Zustand { schritte: 0.0, grenze: 5e6, offset: 0.0, rueck: KARTON, sig: 0, pos: 0, tiefe: 0, argtop: 0, limit: 5e6 };
+pub static mut ZUSTAND: Zustand = Zustand { schritte: 0.0, grenze: 5e6, offset: 0.0, rueck: KARTON, sig: 0, pos: 0, tiefe: 0, argtop: 0, limit: 5e6, gefroren: 0, _r: 0 };
 
 #[inline(always)]
 pub fn z() -> &'static mut Zustand { unsafe { &mut ZUSTAND } }
 #[inline(always)]
 pub fn sig() -> bool { unsafe { ZUSTAND.sig != 0 } }
+/// Läuft gerade ein Stück einer Küchenbrigade (SPEC §17)?
+#[inline(always)]
+pub fn in_kueche() -> bool { unsafe { ZUSTAND.gefroren != 0 } }
+/// Gehört das Heap-Objekt an `adr` der Hauptküche (beim Anschnitt schon vorhanden, SPEC §17.3 S1)? Außerhalb einer Küche nie.
+#[inline(always)]
+pub fn gefroren(adr: u32) -> bool { unsafe { adr < ZUSTAND.gefroren } }
+#[inline(always)]
+pub fn gefroren_w(w: W) -> bool { ist_ptr(w) && gefroren(p(w)) }
 
 // ---------------------------------------------------------------- Speicher (Bump-Allocator mit Obergrenze)
 extern "C" { static __heap_base: u8; }
@@ -85,10 +100,15 @@ extern "C" { static __heap_base: u8; }
 /// Vom Linker per Datensegment gesetzt: Beginn des Heaps (nach den Programmdaten).
 #[no_mangle]
 pub static mut HEAP_START: u32 = 0;
-static mut HEAP_TOP: u32 = 0;
-static mut HEAP_ENDE: u32 = 0;
-static mut SPEICHER_LIMIT: u32 = 1024 << 20;
-static mut VOLL_MELDEN: bool = false;
+pub(crate) static mut HEAP_TOP: u32 = 0;
+pub(crate) static mut HEAP_ENDE: u32 = 0;
+pub(crate) static mut SPEICHER_LIMIT: u32 = 1024 << 20;
+pub(crate) static mut VOLL_MELDEN: bool = false;
+/// Beginn der veränderlichen statischen Daten der Laufzeit (.data/.bss bis `__heap_base`); vom Linker per Datensegment
+/// gesetzt (laufzeit/baue.js ermittelt ihn). Küchenbrigade: dieser Bereich wird beim Anschnitt gesichert und vor jedem Stück
+/// zurückgeschrieben (THREADS.md §4.4 Punkt 6).
+#[no_mangle]
+pub static mut STATISCH_START: u32 = 0;
 const RESERVE: u32 = 64 << 20;
 
 fn heap_init() {
@@ -246,6 +266,7 @@ pub extern "C" fn rt_info(i: i32) -> i32 {
             1 => core::ptr::addr_of!(HEAP_START) as i32,
             2 => core::ptr::addr_of!(__heap_base) as i32,
             3 => core::ptr::addr_of!(start::POS_TABELLE) as i32,
+            4 => core::ptr::addr_of!(STATISCH_START) as i32,
             _ => 0,
         }
     }

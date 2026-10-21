@@ -348,7 +348,9 @@ pub fn rufe_decl(m: u32, dies: W, pos: &[W], ben: &Ben, knoten: i32, modus: u32)
         let mut t = Tb::neu();
         t.s("Methode '").name(me.name).s("' ist veraltet.");
         if crate::text::bytes(me.veraltet).len() > 0 { t.s(" Grund: ").t(me.veraltet); }
+        unsafe { crate::kueche::WARN_METH = m as i32; }
         crate::start::warnung_w("W0003", t.fertig(), knoten);
+        unsafe { crate::kueche::WARN_METH = -1; }
     }
     if me.fnid < 0 {
         let mut t = Tb::neu();
@@ -712,6 +714,8 @@ pub extern "C" fn rt_feldvar_lesen(fe: u32, name: u32) -> W {
 /// schreibeVar(v, w, sc, name) für Felder
 #[no_mangle]
 pub extern "C" fn rt_feldvar_schreiben(fe: u32, w: W, name: u32, ctxd: W, ktor: i32) {
+    // Küchenbrigade S3: Feld (auch statisch) der Hauptküche – Wache vor gebacken/Typ (K-101/4)
+    if crate::gefroren(fe) { crate::kueche::wirf_variable(name_id(ptr_w(name))); return; }
     let fe = unsafe { &mut *(fe as *mut Feld) };
     let fi = finfo(fe.info);
     let id = name_id(ptr_w(name));

@@ -22,10 +22,35 @@ if (!process.argv.includes('--ohne-cargo')) {
 const bytes = fs.readFileSync(ROH);
 const leer = () => 0;
 const inst = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
-  pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0 },
+  pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0, kueche_auftrag: () => -1, kueche_bericht: () => -2 },
 });
+// Beginn der veränderlichen statischen Daten (.data/.bss): das Datensegment, in dem ZUSTAND liegt (wasm-ld legt
+// .rodata vor .data vor .bss). Die Küchenbrigade sichert [statischStart, __heap_base) beim Anschnitt (THREADS.md §4.4).
+function statischStart(zustand) {
+  const K = require(path.join(ZIEL, 'kodierer.js'));
+  const m = K.leseModul(bytes);
+  const l = new K.Leser(m.datenRoh, 0);
+  const n = l.u32();
+  let start = null;
+  for (let i = 0; i < n; i++) {
+    const flags = l.u32();
+    if (flags !== 0) throw new Error('Datensegment mit Flags ' + flags);
+    if (l.b[l.i] !== 0x41) throw new Error('Datensegment ohne i32.const');
+    l.i++;
+    const off = l.s32();
+    if (l.b[l.i] !== 0x0b) throw new Error('Datensegment: Ausdruck zu lang');
+    l.i++;
+    const len = l.u32();
+    if (zustand >= off && zustand < off + len) start = off;
+    l.i += len;
+  }
+  if (start === null) throw new Error('ZUSTAND liegt in keinem Datensegment');
+  return start;
+}
 const info = {
   zustand: inst.exports.rt_info(0),
+  statischStartAdr: inst.exports.rt_info(4),
+  statischStart: statischStart(inst.exports.rt_info(0)),
   heapStartAdr: inst.exports.rt_info(1),
   heapBase: inst.exports.rt_info(2),
   posTabelle: inst.exports.rt_info(3),

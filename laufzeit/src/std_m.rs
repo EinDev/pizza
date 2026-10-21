@@ -91,7 +91,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
     match art(o) {
         A_TEXT => matches!(id, N_LAENGE | N_GROSS | N_KLEIN | N_ENTHAELT | N_ZERLEGE | N_ERSETZE | N_TRIMME | N_ZEICHEN | N_WIEDERHOLE | N_BEGINNTMIT | N_ENDETMIT | N_ALSZAHL | N_ALSTEXT | N_ISTLEER),
         A_DAUER => matches!(id, N_INMS | N_INSEKUNDEN | N_INMINUTEN | N_ALSTEXT),
-        A_BLECH => matches!(id, N_LAENGE | N_STUECK | N_HINZU | N_ENTFERNE | N_SETZE | N_ENTHAELT | N_BELEGE | N_FILTERE | N_ZUSAMMENKLAPPEN | N_SUMME | N_ERSTES | N_LETZTES | N_UMDREHEN | N_SORTIERE | N_VERBINDE | N_ISTLEER | N_SCHNEIDE | N_KOPIE | N_ALSTEXT),
+        A_BLECH => matches!(id, N_LAENGE | N_STUECK | N_HINZU | N_ENTFERNE | N_SETZE | N_ENTHAELT | N_BELEGE | N_FILTERE | N_ZUSAMMENKLAPPEN | N_SUMME | N_ERSTES | N_LETZTES | N_UMDREHEN | N_SORTIERE | N_VERBINDE | N_ISTLEER | N_SCHNEIDE | N_KOPIE | N_ALSTEXT | N_BRIGADE),
         A_KARTE => matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_WERTE | N_LAENGE | N_ISTLEER | N_ALSTEXT),
         A_BELAG => matches!(id, N_NAME | N_PREIS | N_ALSTEXT),
         A_ENUMW => matches!(id, N_NAME | N_POSITION | N_ALSTEXT),
@@ -146,6 +146,7 @@ pub fn ananas_obj_methode(o: W, id: u32, _pos: &[W], _ben: &Ben, knoten: i32) ->
                 wirf_tb(K_LAUFZEIT, &t);
                 return Some(KARTON);
             }
+            if crate::kueche::wache(o, crate::kueche::T_CALZONE) { return Some(KARTON); }
             crate::start::warnung("W0013", "Garantie erloschen. Das ist jetzt eine ganz normale Pizza.", knoten);
             ob.zugeklappt = 0;
             Some(o)
@@ -182,6 +183,7 @@ pub fn nativ_rufen(fw: W, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 let mut t = Tb::neu(); t.s("teile() braucht eine Pizza, nicht "); darstellung(pz, &mut t); t.s(".");
                 wirf_tb(K_TYP, &t); return KARTON;
             }
+            if crate::kueche::wache(pz, crate::kueche::T_PIZZA) { return KARTON; }
             let p = obj::<Pizza>(pz);
             if p.uebrig <= 0 { wirf_ananas(K_STREIT, "Pizza ist alle."); return KARTON; }
             p.uebrig -= 1;
@@ -254,6 +256,8 @@ fn bote_text(pos: &[W]) -> Option<Vec<u8>> {
 }
 
 pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
+    // Küchenbrigade S4: Bestellannahme nur in der Hauptküche (auch hatMehr)
+    if m == N_G_BESTELLANNAHME && modul_hat(m, name) && crate::kueche::nur_hauptkueche(crate::kueche::T_EINGABE) { return KARTON; }
     match (m, name) {
         (N_G_BOTE, N_SAGE) => { if let Some(b) = bote_text(pos) { crate::host_ausgabe(&b); } KARTON }
         (N_G_BOTE, N_SCHREIBE) => { if let Some(b) = bote_text(pos) { crate::host_schreibe(&b); } KARTON }
@@ -473,6 +477,7 @@ fn text_methode(o: W, id: u32, pos: &[W], _knoten: i32) -> W {
 
 fn karte_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
     use crate::karte as ka;
+    if matches!(id, N_LEGE | N_ENTFERNE) && crate::kueche::wache(o, crate::kueche::T_KARTE) { return KARTON; }
     let m = ka::karte(o);
     match id {
         N_LEGE => { let k = schluessel(a(pos, 0)); ka::lege(m, k, if pos.len() > 1 { pos[1] } else { KARTON }); o }
@@ -490,6 +495,8 @@ fn karte_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
 }
 
 fn blech_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
+    // Küchenbrigade S3: Blech der Hauptküche nur lesen (Wache vor der Indexprüfung, K-101/4)
+    if matches!(id, N_HINZU | N_ENTFERNE | N_SETZE) && crate::kueche::wache(o, crate::kueche::T_BLECH) { return KARTON; }
     let b = blech_v(o);
     match id {
         N_LAENGE => zahl(b.len() as f64),
@@ -511,6 +518,7 @@ fn blech_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             while r.len() < n0 { r.push(KARTON); }
             blech(r)
         }
+        N_BRIGADE => crate::kueche::brigade(o, a(pos, 0), knoten),
         N_FILTERE => {
             let f = a(pos, 0);
             let mut r = Vec::new();

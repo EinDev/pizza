@@ -31,8 +31,8 @@ pub struct Optionen {
     pub vorrat: Option<PathBuf>,
 }
 
-/// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit).
-const IMPORTE: [&str; 14] = [
+/// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit, kueche).
+const IMPORTE: [&str; 16] = [
     "ausgabe",
     "schreibe",
     "fehlerausgabe",
@@ -47,6 +47,8 @@ const IMPORTE: [&str; 14] = [
     "vorrat_lesen",
     "vorrat_schreiben",
     "echtzeit_ms",
+    "kueche_auftrag",
+    "kueche_bericht",
 ];
 
 /// Gruppe einer unbekannten Import-Funktion, abgeleitet aus dem Namen (`ui_…` → theke, `vorrat_…` → vorrat,
@@ -521,6 +523,10 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap("pizza", "ui_verfuegbar", |c: Caller<'_, Zustand>| -> i32 {
             c.data().theke.ui.is_some() as i32
         })?;
+        // Küchenbrigade (Gruppe `kueche`, SPEC §17): dieser Host hat noch keine Köche (THREADS-Paket P4) → `-1`, das Modul
+        // führt die Stücke selbst nacheinander aus (gleiches Ergebnis); `kueche_bericht` wird dann nie gerufen (-2).
+        linker.func_wrap("pizza", "kueche_auftrag", |_c: Caller<'_, Zustand>, _auftrag: i32, _n: i32| -> i32 { -1 })?;
+        linker.func_wrap("pizza", "kueche_bericht", |_c: Caller<'_, Zustand>, _i: i32, _p: i32, _kap: i32| -> i32 { -2 })?;
         // Wanduhr für `Uhr.echt()` (K-087): ganze ms seit 1970; `--echtzeit=N` → fester Wert (gerundet, wie Math.round).
         linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 {
             match c.data().echtzeit {

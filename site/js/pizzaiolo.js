@@ -156,9 +156,9 @@
     abi: 1,
     laufOptionen: Object.freeze(['args', 'schrittLimit', 'speicherMiB', 'onEvent', 'eingabe', 'onEingabe', 'zufallsSaat',
       'vorrat', 'onVorrat', 'echtzeit', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor']),
-    importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit']),
+    importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit', 'kueche']),
     features: Object.freeze(['theke', 'theke-v2', 'takt', 'zufall', 'vorratskammer', 'zahlformat', 'uhr-echt',
-      'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv']),
+      'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv', 'brigade']),
     ereignisse: Object.freeze(['ausgabe', 'fehlerausgabe', 'leeren', 'warnung', 'fehler', 'panik', 'eingabe', 'ui', 'vorrat', 'motor', 'ende']),
     motoren: Object.freeze(['auto', 'wasm', 'interpreter']),
   });

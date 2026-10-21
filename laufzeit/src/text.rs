@@ -88,13 +88,15 @@ pub fn name_id(w: W) -> u32 {
         let t = p(w) as *mut Text;
         if (*t).info != 0 { return (*t).info; }
         namen_init();
+        // Küchenbrigade: in einer Küche nie in Texte der Hauptküche schreiben (die Namenstabelle wird je Stück zurückgesetzt)
+        let merken = !crate::gefroren(p(w));
         let b = bytes(w);
         for i in 1..NAMENS_TEXT.len() {
-            if bytes(NAMENS_TEXT[i]) == b { (*t).info = i as u32; return i as u32; }
+            if bytes(NAMENS_TEXT[i]) == b { if merken || i < crate::kueche::NAMEN_BASIS as usize { (*t).info = i as u32; } return i as u32; }
         }
         NAMENS_TEXT.push(w);
         let id = (NAMENS_TEXT.len() - 1) as u32;
-        (*t).info = id;
+        if merken { (*t).info = id; }
         id
     }
 }

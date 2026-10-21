@@ -1,0 +1,60 @@
+// Küchenbrigade im Wasm (THREADS P2): Stellen, an denen die Laufzeit Zustand teilt oder zurücksetzt
+// 1) Texte: Anhänge-Arena – die Küche hängt an einen Text der Hauptküche an, die Hauptküche danach auch
+margherita basis = "ab";
+basis = basis + "c";
+Blech<margherita> t = [1, 2, 3].brigade(i -> basis + "x".wiederhole(i));
+Bote.sage((t));
+margherita danach = basis + "Z";
+Bote.sage((danach + " " + basis + " " + t));
+
+// 2) Speisekarte mit mehr als 8 Einträgen (Hashindex) – lesen in der Küche, eigene Karte frei
+Speisekarte<salami, salami> gross = neu Speisekarte();
+für (salami i : [1 .. 20]) { gross.lege(i, i * i); }
+gross.entferne(3);
+Bote.sage(([3, 4, 20].brigade(k -> gross.hole(k, ersatz: -1))));
+Bote.sage(([1].brigade(k -> { Speisekarte<salami, salami> m = neu Speisekarte(); für (salami i : [1 .. 12]) { m.lege(i, k); } serviere ((m)); })));
+
+// 3) Ergebnisse mit Zyklen und Teilung; Objekte mit Feldern, eigene Ananas mit Feld
+klasse Knoten { salami wert; Knoten nachbar; Blech<salami> daten; Knoten(salami w) { wert = w; daten = [w]; } }
+klasse MeineAnanas erbt Ananas { salami code = 7; }
+Blech<Knoten> ringe = [1, 2].brigade(i -> { Knoten a = neu Knoten(i); Knoten b = neu Knoten(i * 10); a.nachbar = b; b.nachbar = a; serviere ((a)); });
+für (Knoten k : ringe) { Bote.sage((k.wert + " " + k.nachbar.wert + " " + k.nachbar.nachbar.wert + " " + (k.nachbar.nachbar == k) + " " + k)); }
+Blech<Blech<salami>> geteilt = [1].brigade(i -> { Blech<salami> x = [i]; serviere (([x, x])); });
+geteilt.stück(1).stück(1).hinzu(5);
+Bote.sage((geteilt));
+probier { [1, 2].brigade(i -> { falls (i == 2) { wirf neu MeineAnanas("zwei"); } serviere ((i)); }); }
+verbrannt (MeineAnanas a) { Bote.sage((a.typ() + " " + a.nachricht() + " " + a.code + " " + a)); }
+
+// 4) Feld oder globale Variable gleichen Namens (unqualifiziert in der Methode)
+klasse Bon { salami betrag; Bon(salami b) { betrag = b; } salami setze(salami x) { betrag = x; serviere ((betrag)); } }
+salami betrag = 1;
+Bon bon = neu Bon(5);
+Bote.sage((bon.setze(6) + " " + betrag));
+Blech<salami> bons = [1, 2].brigade(i -> neu Bon(i * 100).setze(i));
+Bote.sage((bons + " " + betrag + " " + bon.betrag));
+Bote.sage(([1].brigade(i -> { probier { bon.setze(9); } verbrannt (KüchenAnanas a) { serviere ((a.nachricht())); } serviere (("erlaubt")); })));
+
+// 5) zwischenstand wirkt in der Küche nur auf Küchen-Öfen
+Blech<margherita> zw = ofen(zeit: 1h) {
+    zwischenstand("außen");
+    serviere (([1].brigade(i -> {
+        zwischenstand("ignoriert");
+        serviere ((ofen(zeit: 5ms) { zwischenstand("innen"); solange (ja) { } } roh (info) { serviere ((info.teilergebnis())); }));
+    })));
+} roh (info) { serviere (([info.teilergebnis()])); };
+Bote.sage((zw));
+
+// 6) eingebaute Ananas-Nummern (Klassenzähler) je Küche ab dem Stand beim Anschnitt
+probier { wirf neu LaufzeitAnanas("vorher"); } verbrannt (LaufzeitAnanas a) { }
+Blech<margherita> nummern = [1, 2, 3].brigade(i -> {
+    probier { [1].stück(5); } verbrannt (KeinStückAnanas a) { }
+    serviere ((neu KeinStückAnanas("k") + ""));
+});
+Bote.sage((nummern));
+Bote.sage((neu KeinStückAnanas("danach") + " " + neu Ananas("x")));
+
+// 7) Feldnamen, die nur in der Küche vorkommen; Methodenreferenz schreibt in ein Feld der Hauptküche
+klasse Zaehler { salami nurInDerKueche = 3; salami n = 0; salami plus(salami x) { n = n + x; serviere ((n)); } }
+Zaehler z = neu Zaehler();
+Bote.sage(([1, 2].brigade(i -> z.nurInDerKueche * i)));
+Bote.sage(([1].brigade(z.plus)));

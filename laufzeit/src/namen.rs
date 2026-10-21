@@ -1,6 +1,6 @@
 //! Eingebaute Namen (Intern-IDs). Generiert – Reihenfolge = ID.
 
-pub const NAMEN: [&str; 223] = [
+pub const NAMEN: [&str; 225] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -224,6 +224,8 @@ pub const NAMEN: [&str; 223] = [
     "dauer",
     "bei",
     "farbe",
+    "brigade",
+    "KüchenAnanas",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -452,6 +454,8 @@ pub const N_ART: u32 = 219;
 pub const N_DAUER: u32 = 220;
 pub const N_BEI: u32 = 221;
 pub const N_FARBE: u32 = 222;
+pub const N_BRIGADE: u32 = 223;
+pub const N_G_KUECHENANANAS: u32 = 224;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM).
 pub const K_ANANAS: u32 = 0;
@@ -471,4 +475,6 @@ pub const K_ZUGRIFFS: u32 = 13;
 pub const K_UNBEKANNTERBELAG: u32 = 14;
 pub const K_ZUGEKLAPPT: u32 = 15;
 pub const K_UNBEKANNTEPIZZA: u32 = 16;
-pub const ANANAS_BAUM: [(u32, i32); 17] = [(N_G_ANANAS, -1), (N_G_GEPRUEFTEANANAS, 0), (N_G_VERBRANNTANANAS, 1), (N_G_LIEFERANANAS, 1), (N_G_LAUFZEITANANAS, 0), (N_G_STREITANANAS, 4), (N_G_RECHENANANAS, 4), (N_G_LEERERKARTONANANAS, 4), (N_G_ROHLINGANANAS, 4), (N_G_BESITZANANAS, 4), (N_G_GEBACKENANANAS, 4), (N_G_TYPANANAS, 4), (N_G_KEINSTUECKANANAS, 4), (N_G_ZUGRIFFSANANAS, 4), (N_G_UNBEKANNTERBELAGANANAS, 4), (N_G_ZUGEKLAPPTANANAS, 4), (N_G_UNBEKANNTEPIZZAANANAS, 4)];
+/// Küchenbrigade (SPEC §17.3, K-100): am Ende angehängt, bestehende Indizes bleiben.
+pub const K_KUECHE: u32 = 17;
+pub const ANANAS_BAUM: [(u32, i32); 18] = [(N_G_ANANAS, -1), (N_G_GEPRUEFTEANANAS, 0), (N_G_VERBRANNTANANAS, 1), (N_G_LIEFERANANAS, 1), (N_G_LAUFZEITANANAS, 0), (N_G_STREITANANAS, 4), (N_G_RECHENANANAS, 4), (N_G_LEERERKARTONANANAS, 4), (N_G_ROHLINGANANAS, 4), (N_G_BESITZANANAS, 4), (N_G_GEBACKENANANAS, 4), (N_G_TYPANANAS, 4), (N_G_KEINSTUECKANANAS, 4), (N_G_ZUGRIFFSANANAS, 4), (N_G_UNBEKANNTERBELAGANANAS, 4), (N_G_ZUGEKLAPPTANANAS, 4), (N_G_UNBEKANNTEPIZZAANANAS, 4), (N_G_KUECHENANANAS, 4)];

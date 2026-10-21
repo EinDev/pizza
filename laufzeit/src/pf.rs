@@ -215,7 +215,12 @@ pub fn pop_frame(id: u32) {
 fn frame(id: u32) -> Option<&'static mut Frame> { unsafe { FRAMES.iter_mut().find(|f| f.id == id) } }
 
 pub fn zwischenstand(w: W) {
-    unsafe { for fr in FRAMES.iter_mut().rev() { if fr.ofen { fr.zwischen = w; break; } } }
+    // in einer Küche zählen nur Öfen, die in der Küche geöffnet wurden (SPEC §17.2)
+    unsafe {
+        let basis = crate::kueche::FRAME_BASIS as usize;
+        let mut i = FRAMES.len();
+        while i > basis { i -= 1; if FRAMES[i].ofen { FRAMES[i].zwischen = w; break; } }
+    }
 }
 
 // ---------------------------------------------------------------- Ofen
@@ -276,7 +281,7 @@ pub extern "C" fn rt_ofen_ende(id: i32) { unsafe { OEFEN.truncate(id as usize); 
 
 // ---------------------------------------------------------------- Teig, Lieferung, Zustellung, …
 pub static mut LIEFERUNGEN: Vec<W> = Vec::new();
-static mut LIEFER_NR: u32 = 0;
+pub static mut LIEFER_NR: u32 = 0;
 
 pub fn bestelle(f: W) -> W {
     unsafe {
@@ -341,11 +346,13 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             let t = obj::<Teig>(o);
             match id {
                 N_GEHENLASSEN => {
+                    if crate::kueche::wache(o, crate::kueche::T_TEIG) { return KARTON; }
                     if t.fertig == 0 { let w = rufe(t.fnw, &[], &[], knoten); if sig() { return KARTON; } let t = obj::<Teig>(o); t.wert = w; t.fertig = 1; }
                     obj::<Teig>(o).auf = 1;
                     o
                 }
                 N_BACKEN => {
+                    if t.fertig == 0 && crate::kueche::wache(o, crate::kueche::T_TEIG) { return KARTON; }
                     if t.auf == 0 { crate::start::warnung("T0007", "Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.", knoten); }
                     if obj::<Teig>(o).fertig == 0 { let w = rufe(obj::<Teig>(o).fnw, &[], &[], knoten); if sig() { return KARTON; } let t = obj::<Teig>(o); t.wert = w; t.fertig = 1; }
                     obj::<Teig>(o).wert
@@ -359,6 +366,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             let l = obj::<Lief>(o);
             match id {
                 N_TRINKGELD => {
+                    if crate::kueche::wache(o, crate::kueche::T_LIEF) { return KARTON; }
                     let n = a(pos, 0);
                     if !ist_zahl(n) {
                         let mut t = Tb::neu(); t.s("Trinkgeld muss eine Zahl sein, nicht "); darstellung(n, &mut t); t.s(".");
@@ -369,6 +377,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 }
                 N_WARTE => {
                     if l.zust != KARTON { return l.zust; }
+                    if crate::kueche::wache(o, crate::kueche::T_LIEF) { return KARTON; }
                     let max = arg(pos, ben, 0, N_MAX);
                     let mut budget = f64::INFINITY;
                     if max != UNDEF && max != KARTON {
@@ -382,6 +391,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                     zs
                 }
                 N_WENNDA => {
+                    if crate::kueche::wache(o, crate::kueche::T_LIEF) { return KARTON; }
                     l.rueckruf = if pos.is_empty() { KARTON } else { pos[0] };
                     if l.zust != KARTON {
                         let zz = obj::<Zust>(l.zust);
@@ -417,6 +427,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             match id {
                 N_PIZZA => st.pizza,
                 N_ESSEN => {
+                    if crate::kueche::wache(o, crate::kueche::T_PIZZA) { return KARTON; }
                     if st.gegessen != 0 { wirf_ananas(K_STREIT, "Dieses Stück ist schon gegessen."); return KARTON; }
                     st.gegessen = 1;
                     KARTON
@@ -441,6 +452,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
 // ---------------------------------------------------------------- Kühlschrank
 struct CacheEintrag { halter: u64, m: u32, key: Vec<u8>, w: W, t: f64 }
 static mut CACHE: Vec<CacheEintrag> = Vec::new();
+pub fn cache_laenge() -> u32 { unsafe { CACHE.len() as u32 } }
 
 fn cache_teil(v: W, out: &mut Vec<u8>) {
     if v == KARTON || v == UNDEF { out.push(b'k'); return; }
@@ -480,7 +492,9 @@ pub fn kuehlschrank(m: u32, dies: W, pos: &[W], ben: &Ben, _knoten: i32, modus: 
         if i > 0 { key.push(1); }
         cache_teil(v, &mut key);
     }
-    let idx = unsafe { CACHE.iter().position(|e| e.halter == halter && e.m == m && e.key == key) };
+    // Küchenbrigade D12: neueste Einträge zuerst; Einträge der Hauptküche (unter CACHE_BASIS) werden nicht verändert
+    let idx = unsafe { CACHE.iter().rposition(|e| e.halter == halter && e.m == m && e.key == key) };
+    let basis = unsafe { crate::kueche::CACHE_BASIS as usize };
     let jetzt = || z().schritte + z().offset;
     match idx {
         Some(i) if modus != 2 => {
@@ -488,14 +502,16 @@ pub fn kuehlschrank(m: u32, dies: W, pos: &[W], ben: &Ben, _knoten: i32, modus: 
             if jetzt() - t <= me.haltbar { return if modus == 1 { reste(w, false) } else { w }; }
             let v = rechne(pos, ben);
             if sig() { return KARTON; }
-            unsafe { CACHE[i].w = v; CACHE[i].t = jetzt(); }
+            unsafe {
+                if i < basis { CACHE.push(CacheEintrag { halter, m, key, w: v, t: jetzt() }); } else { CACHE[i].w = v; CACHE[i].t = jetzt(); }
+            }
             if modus == 1 { reste(w, true) } else { v }
         }
         _ => {
             let v = rechne(pos, ben);
             if sig() { return KARTON; }
             unsafe {
-                match idx { Some(i) => { CACHE[i].w = v; CACHE[i].t = jetzt(); } None => CACHE.push(CacheEintrag { halter, m, key, w: v, t: jetzt() }) }
+                match idx { Some(i) if i >= basis => { CACHE[i].w = v; CACHE[i].t = jetzt(); } _ => CACHE.push(CacheEintrag { halter, m, key, w: v, t: jetzt() }) }
             }
             if modus == 1 { reste(v, false) } else { v }
         }

@@ -58,7 +58,14 @@ pub fn finde(m: &mut Karte, key: W) -> Option<usize> {
         for i in 0..m.k.len() { if m.k[i] != UNDEF && gleich_svz(m.k[i], key) { return Some(i); } }
         return None;
     }
-    if m.idx.is_empty() { neu_index(m); }
+    if m.idx.is_empty() {
+        // Küchenbrigade: eine Speisekarte der Hauptküche wird nur gelesen (kein nachträglicher Index)
+        if crate::gefroren(m as *mut Karte as u32) {
+            for i in 0..m.k.len() { if m.k[i] != UNDEF && gleich_svz(m.k[i], key) { return Some(i); } }
+            return None;
+        }
+        neu_index(m);
+    }
     let maske = m.idx.len() - 1;
     let mut p = hash(key) as usize & maske;
     loop {

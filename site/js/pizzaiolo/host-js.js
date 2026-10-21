@@ -107,6 +107,10 @@
         }
         return 0;
       },
+      // Küchenbrigade (HOST-ABI §2, Gruppe kueche): dieser Host hat (noch) keine Köche → das Modul führt die Stücke
+      // selbst nacheinander aus (Inline-Pfad, gleiches Ergebnis). Köche-Pool: THREADS-Paket P3.
+      kueche_auftrag: () => -1,
+      kueche_bericht: () => -2,
       ui_warte: (bp, kap) => {
         if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
         if (uiAusstehend === null) {

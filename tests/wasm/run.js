@@ -109,28 +109,68 @@ for (const f of faelle) {
   pruefe('portabel ' + f.name, () => { const p = pruefePortabel(k.pkarton); if (p.length) throw new Error(p.slice(0, 3).join('; ')); });
 }
 
-console.log('▶ küchenbrigade (P1b: Fallback)');
+console.log('▶ küchenbrigade (P2: Wasm inline + Klon-Vertrag)');
 {
-  const nu = (q) => { const k = Z.kompiliere(q); return k.ok ? null : (k.nichtUnterstuetzt || [])[0] || null; };
-  pruefe('brigade → nichtUnterstuetzt', () => {
-    const n = nu('Blech<salami> b = [1, 2];\nb.brigade((x) -> x * 2);');
-    if (!n || n.zeile !== 2 || !/Küchenbrigade .*Interpreter/.test(n.grund)) throw new Error(JSON.stringify(n));
+  const { fuehreMitKlonen } = require('./klon-host.js');
+  const importe = (pk) => WebAssembly.Module.imports(new WebAssembly.Module(pk)).map(i => i.name);
+  const exporte = (pk) => WebAssembly.Module.exports(new WebAssembly.Module(pk)).map(e => e.name);
+  pruefe('brigade kompiliert (kein Fallback), Gruppe kueche', () => {
+    const k = Z.kompiliere('Blech<salami> b = [1, 2];\nBote.sage((b.brigade((x) -> x * 2)));', { mitIR: true });
+    if (!k.ok) throw new Error(JSON.stringify(k.nichtUnterstuetzt));
+    if (!(k.ir.gruppen || []).includes('kueche')) throw new Error('gruppen ' + JSON.stringify(k.ir.gruppen));
+    const im = importe(k.pkarton), ex = exporte(k.pkarton);
+    if (!im.includes('kueche_auftrag') || !im.includes('kueche_bericht')) throw new Error('Importe ' + im);
+    if (!ex.includes('kueche_stueck')) throw new Error('Exporte ' + ex);
   });
-  for (const q of ['probier { wirf neu KüchenAnanas("x"); } verbrannt (LaufzeitAnanas a) { }',
-    'probier { Bote.sage(1); } verbrannt (KüchenAnanas a) { }', 'klasse K erbt KüchenAnanas { }']) {
-    pruefe('KüchenAnanas → nichtUnterstuetzt: ' + q.slice(0, 30), () => {
-      const n = nu(q);
-      if (!n || !/KüchenAnanas .*Interpreter/.test(n.grund)) throw new Error(JSON.stringify(n));
+  pruefe('ohne brigade: keine Gruppe kueche, kein Export kueche_stueck', () => {
+    const k = Z.kompiliere('Bote.sage(([1].belege(x -> x)));');
+    return k.ok && !importe(k.pkarton).some(n => n.startsWith('kueche_')) && !exporte(k.pkarton).includes('kueche_stueck');
+  });
+  for (const q of ['probier { wirf neu KüchenAnanas("x"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ() + a.nachricht())); }',
+    'probier { Bote.sage(1); } verbrannt (KüchenAnanas a) { }', 'klasse K erbt KüchenAnanas { }\nBote.sage((neu K("k")));',
+    'klasse KüchenAnanas erbt LaufzeitAnanas { }\nprobier { wirf neu KüchenAnanas("k"); } verbrannt (KüchenAnanas a) { Bote.sage((a.typ())); }']) {
+    pruefe('KüchenAnanas (Klasse 17) wie im Interpreter: ' + q.slice(0, 30), () => {
+      const r = vergleiche({ name: q, quelle: q, opt: {} });
+      if (r.status !== 'gleich') throw new Error(r.status + ' ' + (r.grund || '') + (r.diffs || []).join(' '));
     });
   }
-  pruefe('eigene Klasse KüchenAnanas bleibt kompilierbar', () => Z.kompiliere('klasse KüchenAnanas erbt LaufzeitAnanas { }\n' +
-    'probier { wirf neu KüchenAnanas("k"); } verbrannt (KüchenAnanas a) { Bote.sage(a.typ()); }').ok === true);
   pruefe('Text "KüchenAnanas brigade" bleibt kompilierbar', () => Z.kompiliere('Bote.sage("KüchenAnanas brigade");').ok === true);
-  pruefe('features ohne brigade', () => !Z.faehigkeiten.features.includes('brigade'));
-  pruefe('motor "wasm" meldet den Grund', () => {
-    try { Z.run('Blech<salami> b = [1];\nb.brigade((x) -> x);', { motor: 'wasm' }); } catch (e) { return /Küchenbrigade/.test(e.message); }
-    return false;
+  pruefe('faehigkeiten: feature brigade, Importgruppe kueche', () => Z.faehigkeiten.features.includes('brigade') && Z.faehigkeiten.importgruppen.includes('kueche'));
+  pruefe('motor "wasm" führt brigade aus', () => {
+    // SPEC §17.6 D6-Referenz: Anschnitt bei Uhr 8, jedes Stück 3 → 16ms, schritte 25
+    const r = Z.run('Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x);\nBote.sage((Uhr.jetzt()));', { motor: 'wasm' });
+    return r.motor === 'wasm' && r.ereignisse.filter(e => e.typ === 'ausgabe').map(e => e.text).join('|') === '16ms' && r.schritte === 25 && r.zeitMs === 16;
   });
+  // Klon-Vertrag: dieselben Berichte aus Klon-Instanzen (Speicherkopie) in beliebiger Planung = Inline-Pfad = Interpreter
+  const normK = (r) => r.ereignisse.filter(e => e.typ !== 'motor').map(e => {
+    const k = Object.assign({}, e); delete k.detail; if (k.umbruch === true) delete k.umbruch; return JSON.stringify(k);
+  });
+  let brigadeFaelle = [];
+  try {
+    brigadeFaelle = require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).lade()
+      .filter(f => /\.brigade\s*\(/.test(f.code) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
+      .map(f => ({ name: f.quelle + ':' + f.name, quelle: f.code, opt: f.optionen || {} }));
+  } catch (e) { /* Differenz-Korpus fehlt → nur eigene Fälle */ }
+  brigadeFaelle = brigadeFaelle.concat(eigeneFaelle().filter(f => f.name.includes('kueche')));
+  let klonFaelle = 0, klonAuftraege = 0;
+  for (const f of brigadeFaelle) {
+    const k = Z.kompiliere(f.quelle);
+    if (!k.ok) continue;
+    klonFaelle++;
+    const modul = new WebAssembly.Module(k.pkarton);
+    const opt = Object.assign({ echtzeit: 1700000000000 }, f.opt);
+    const ri = P.run(f.quelle, Object.assign({}, opt));
+    const soll = JSON.stringify([normK(ri), ri.exitCode, ri.schritte, ri.zeitMs]);
+    for (const s of ['vor', 'rueck', 'je']) {
+      pruefe('Klone (' + s + ') ' + f.name, () => {
+        const r = fuehreMitKlonen(modul, Object.assign({}, opt), s);
+        const ist = JSON.stringify([normK(r), r.exitCode, r.schritte, r.zeitMs]);
+        if (ist !== soll) throw new Error('\n    I: ' + soll.slice(0, 400) + '\n    K: ' + ist.slice(0, 400));
+        klonAuftraege += r.stats.auftraege;
+      });
+    }
+  }
+  pruefe('Klon-Vertrag an mindestens 50 Brigade-Programmen geprüft', () => { if (klonFaelle < 50 || klonAuftraege < 100) throw new Error(klonFaelle + ' Programme, ' + klonAuftraege + ' Aufträge'); });
 }
 
 console.log('▶ anzeige (U-45)');
@@ -189,11 +229,11 @@ for (const f of faelle) {
   const r = vergleiche(f);
   if (r.status === 'gleich') { stat.gleich++; ok++; continue; }
   if (r.status === 'syntax') { stat.syntax++; continue; }
-  if (r.status === 'fallback' && /Theke|Küchenbrigade|KüchenAnanas/.test(r.grund)) { stat.fallback++; continue; }
+  if (r.status === 'fallback' && /Theke/.test(r.grund)) { stat.fallback++; continue; }
   fehl++;
   console.log('  ✗ ' + f.name + ' [' + r.status + '] ' + (r.grund || '') + (r.diffs ? '\n    ' + r.diffs.join('\n    ') : '') + (r.fehler ? '\n' + r.fehler : ''));
 }
-console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-/Küchenbrigade-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
+console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
 
 console.log('\n' + (fehl ? '✗ ' + fehl + ' fehlgeschlagen, ' : '✓ ') + ok + ' bestanden');
 process.exitCode = fehl ? 1 : 0;

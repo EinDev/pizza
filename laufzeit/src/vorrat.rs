@@ -27,6 +27,8 @@ fn neuer_gen(saat: f64) -> ZufallGen {
 
 fn r(g: &mut ZufallGen) -> f64 { zl::mulberry32(&mut g.zustand) }
 pub fn global_r() -> f64 { unsafe { r(&mut GLOBAL) } }
+/// Küchenbrigade D9: Stück i benutzt einen eigenen globalen Strom mit der i-ten Saat.
+pub fn saat_global(saat: f64) { unsafe { GLOBAL = neuer_gen(saat); } }
 
 /// Export: Saat vor dem Start setzen (optionen.zufallsSaat). Nicht-Ganzzahlen werden ignoriert (42).
 #[no_mangle]
@@ -103,6 +105,8 @@ pub fn modul_methode(id: u32, pos: &[W]) -> W {
 /// Methode auf einem eigenen Generator (`neu Zufall(…)`)
 pub fn objekt_methode(o: W, id: u32, pos: &[W]) -> W {
     if !hat_methode(id) { return crate::std_m::nicht_gefunden(o, id); }
+    // Küchenbrigade S3: Ziehen aus einem Zufall der Hauptküche (auch saat(n)); saat() und alsText() lesen nur
+    if crate::in_kueche() && !(id == N_ALSTEXT || (id == N_SAAT && pos.is_empty())) && crate::kueche::wache(o, crate::kueche::T_ZUFALL) { return KARTON; }
     gen_methode(obj::<ZufallGen>(o), o, id, pos)
 }
 
@@ -419,6 +423,8 @@ pub fn neue_kammer(pos: &[W], ben: &Ben, knoten: i32) -> W {
 pub fn tabelle_hat(id: u32) -> bool { matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_LAENGE | N_LEEREN | N_NAME | N_ALSTEXT) }
 
 pub fn kammer_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
+    // Küchenbrigade S3: Kammern entstehen nur in der Hauptküche – jede gehört ihr
+    if matches!(id, N_LEGE | N_ENTFERNE | N_LEEREN) && crate::kueche::wache_kammer(bytes(kammer(o).name)) { return KARTON; }
     match id {
         N_LEGE => {
             let s_ = match schluessel_pruefen(a(pos, 0)) { Some(x) => x, None => return KARTON };

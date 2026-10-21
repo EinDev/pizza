@@ -17,7 +17,7 @@
     ['LeererKartonAnanas', 'LaufzeitAnanas'], ['RohlingAnanas', 'LaufzeitAnanas'], ['BesitzAnanas', 'LaufzeitAnanas'],
     ['GebackenAnanas', 'LaufzeitAnanas'], ['TypAnanas', 'LaufzeitAnanas'], ['KeinStückAnanas', 'LaufzeitAnanas'],
     ['ZugriffsAnanas', 'LaufzeitAnanas'], ['UnbekannterBelagAnanas', 'LaufzeitAnanas'], ['ZugeklapptAnanas', 'LaufzeitAnanas'],
-    ['UnbekanntePizzaAnanas', 'LaufzeitAnanas']
+    ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'], ['KüchenAnanas', 'LaufzeitAnanas']
   ];
   const ANANAS_M = new Set(['nachricht', 'holeNachricht', 'typ', 'alsText']);
   const PIZZA_M = new Set(['beläge', 'hat', 'anzahlBeläge', 'alsText', 'übrig', 'beschreibung']);
@@ -37,33 +37,6 @@
 
   class NichtUnterstuetzt extends Error {
     constructor(grund, n) { super(grund); this.grund = grund; this.zeile = n && n.z != null ? n.z : null; this.spalte = n && n.s != null ? n.s : null; }
-  }
-
-  // Küchenbrigade (THREADS.md P1b): brigade und KüchenAnanas laufen vorerst nur im Interpreter → ehrlicher Fallback.
-  // Bewusst grob (jeder Methodenname brigade, jede Erwähnung der Klasse KüchenAnanas außer in Texten): ein Fallback ist
-  // immer korrekt, nur langsamer. Laufzeit und Klassenindizes bleiben dadurch unverändert (eigene Klassen ab 17, IR.md §1).
-  const KUECHE_GRUND_BRIGADE = 'Küchenbrigade (brigade) läuft vorerst nur im Interpreter';
-  const KUECHE_GRUND_ANANAS = 'KüchenAnanas gibt es vorerst nur im Interpreter (Küchenbrigade)';
-  function kuechenbrigadeRueckfall(ast) {
-    // Eine eigene Klasse/Rezeptur/Enum namens KüchenAnanas überschattet die eingebaute (wie bei allen Ananas) – dann bleibt
-    // es beim heutigen Verhalten; nur brigade selbst fällt zurück.
-    let brigade = null, ananas = null, eigen = false;
-    const stapel = [ast], gesehen = new Set();
-    while (stapel.length) {
-      const n = stapel.pop();
-      if (n === null || typeof n !== 'object' || gesehen.has(n)) continue;
-      gesehen.add(n);
-      if (Array.isArray(n)) { for (let i = n.length - 1; i >= 0; i--) stapel.push(n[i]); continue; }
-      if (n.k === 'Text') continue;
-      if (!brigade && (n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') brigade = n;
-      if ((n.k === 'Klasse' || n.k === 'Rezeptur' || n.k === 'Enum' || n.k === 'Belag') && n.name === 'KüchenAnanas') eigen = true;
-      if (!ananas && ((n.k === 'Typ' && n.name === 'KüchenAnanas') || (n.k === 'Name' && n.n === 'KüchenAnanas') ||
-        (n.k === 'NCall' && n.name === 'KüchenAnanas'))) ananas = n;
-      const keys = Object.keys(n);
-      for (let i = keys.length - 1; i >= 0; i--) { const v = n[keys[i]]; if (v !== null && typeof v === 'object') stapel.push(v); }
-    }
-    if (brigade) throw new NichtUnterstuetzt(KUECHE_GRUND_BRIGADE, brigade);
-    if (ananas && !eigen) throw new NichtUnterstuetzt(KUECHE_GRUND_ANANAS, ananas);
   }
 
   // ------------------------------------------------------------ analysiere (Port aus pizza.js)
@@ -154,7 +127,7 @@
       this.posMap = new Map();
       this.funktionen = [];
       this.nicht = [];
-      this.klassenIR = [];        // Laufzeit-Klassenindex = 17 + i
+      this.klassenIR = [];        // Laufzeit-Klassenindex = 18 + i (0–17 eingebaute Ananas, IR.md §1)
       this.registrierung = [];
       this.methodenListe = [];    // Laufzeit-Methoden-IDs in Registrierungsreihenfolge
       this.alleMethoden = [];     // Reihenfolge wie im Interpreter (für vorbereiten)
@@ -191,6 +164,7 @@
         if (n.k === 'Belag') this.belagNamen.add(n.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'echt') this.nutztEcht = true;
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
         if (n.k === 'Belag') for (const m of n.methoden) this.methodenNamen.add(m.name);
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
@@ -218,7 +192,7 @@
       const reg = (d) => {
         switch (d.k) {
           case 'Klasse': {
-            const k = { art: 'klasse', name: d.name, decl: d, basis: null, erfuellt: [], methoden: new Map(), rohling: d.mods.includes('rohling'), gebacken: d.mods.includes('gebacken'), calzone: d.mods.includes('calzone'), idx: 17 + this.klassenIR.length };
+            const k = { art: 'klasse', name: d.name, decl: d, basis: null, erfuellt: [], methoden: new Map(), rohling: d.mods.includes('rohling'), gebacken: d.mods.includes('gebacken'), calzone: d.mods.includes('calzone'), idx: 18 + this.klassenIR.length };
             for (const md of d.methoden) { const l = k.methoden.get(md.name); if (l) l.push(md); else k.methoden.set(md.name, [md]); }
             klassen.set(d.name, k);
             liste.push(k);
@@ -407,7 +381,6 @@
 
     // ---------------------------------------------------------- Programm
     baue() {
-      kuechenbrigadeRueckfall(this.ast);
       this.vorab();
       const warnungen = analysiere(this.ast).map(w => ({ code: w.code, text: w.text, pos: this.pos({ z: w.zeile, s: w.spalte }) }));
       const startfehler = this.registriere();
@@ -488,6 +461,7 @@
       for (const t of this.neuTypen) if (THEKE.has(t) && !this.klassenNamen.has(t)) { g.push('theke'); break; }
       if (this.neuTypen.has('Vorratskammer') && !this.klassenNamen.has('Vorratskammer')) g.push('vorrat');
       if (this.nutztEcht) g.push('echtzeit');
+      if (this.nutztBrigade) g.push('kueche');
       return g;
     }
 

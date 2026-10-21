@@ -448,6 +448,8 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
 
 pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     if !tabelle_hat(o, id) { return crate::std_m::nicht_gefunden(o, id); }
+    // Küchenbrigade S4: die Theke gibt es nur in der Hauptküche (auch Getter)
+    if crate::kueche::nur_hauptkueche(crate::kueche::T_THEKE) { return KARTON; }
     if ist_theke(o) { return theke_methode(o, id, pos, ben, knoten); }
     let z = zutat(o);
     let zart = z.zart;

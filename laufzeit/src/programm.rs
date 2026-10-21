@@ -137,9 +137,11 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
         N_G_BLECH => blech(if !pos.is_empty() && art(pos[0]) == A_BLECH { blech_v(pos[0]).clone() } else { Vec::new() }),
         N_G_SPEISEKARTE => crate::karte::neu_karte(),
         N_G_PIZZA => crate::pf::neue_pizza(Vec::new()),
+        // Küchenbrigade S4 (neu Zutat() bleibt RohlingAnanas, K-101/3)
+        _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) && id != N_G_ZUTAT && crate::kueche::nur_hauptkueche(crate::kueche::T_THEKE) => KARTON,
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
         N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),
-        N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => crate::vorrat::neue_kammer(pos, &ben, knoten),
+        N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => if crate::kueche::nur_hauptkueche(crate::kueche::T_KAMMER_NEU) { KARTON } else { crate::vorrat::neue_kammer(pos, &ben, knoten) },
         _ => match klasse_eintrag(id) {
             None => {
                 let mut t = Tb::neu();
@@ -272,6 +274,7 @@ pub extern "C" fn rt_schieb_feld(name: u32, ctxd: W, ctxk: i32) -> W {
         Some(fe) => {
             if sig() { return KARTON; }
             if fe.w == WEG { wirf_weg(id); return KARTON; }
+            if crate::gefroren(fe as *mut Feld as u32) { crate::kueche::wirf_variable(id); return KARTON; }
             let w = fe.w;
             fe.w = WEG;
             w

@@ -28,7 +28,7 @@
   const MAX_STAPEL = 1500;
 
   // Zustand-Offsets
-  const Z_SCHRITTE = 0, Z_GRENZE = 8, Z_RUECK = 24, Z_SIG = 32, Z_POS = 36, Z_TIEFE = 40;
+  const Z_SCHRITTE = 0, Z_GRENZE = 8, Z_RUECK = 24, Z_SIG = 32, Z_POS = 36, Z_TIEFE = 40, Z_GEFROREN = 56;
   const SIG_ANANAS = 1, SIG_BUDGET = 2;
 
   const OHNE_SCHRITT = new Set(['feldinit', 'statinit', 'annoHaltbar', 'annoVeraltet', 'rufeInit']);
@@ -118,6 +118,14 @@
       const start = this.mb.neueFunktion([], [T.i32]);
       this.mb.setzeRumpf(start, [[1, T.i64]], this.startCode());
       this.mb.exportiere('start', start);
+      // Küchenbrigade (HOST-ABI §3, Gruppe kueche): kueche_stueck(auftrag, i) -> (ptr, len) für Klon-Instanzen
+      if ((this.ir.gruppen || []).includes('kueche')) {
+        const ks = this.mb.neueFunktion([T.i32, T.i32], [T.i32, T.i32]);
+        const c = new Code();
+        c.get(0).get(1).call(this.rt('rt_kueche_stueck')).call(this.rt('rt_kueche_laenge')).end();
+        this.mb.setzeRumpf(ks, [], c.bytes());
+        this.mb.exportiere('kueche_stueck', ks);
+      }
     }
 
     startCode() {
@@ -943,6 +951,8 @@
           this.auf('if'); nd(); this.zu();
         }
         c.get(w); this.wegPruefen(name); c.op(OP.drop);
+        if (r.art === 'global') this.kuechenWache({ global: true }, name);
+        else if (r.art === 'umg') this.kuechenWache({ umg: true, umgIdx: r.idx }, name);
         // WEG schreiben
         if (r.art === 'lokal') { c.i64(WEG); this.speichereSlot(r.slot, 'W'); }
         else if (r.art === 'umg') { c.i64(WEG); this.schreibeUmg(r.idx, 'W'); }
@@ -1200,7 +1210,7 @@
         }
         case 'umg': {
           if (z.gebacken) throw new NichtUnterstuetzt('Zuweisung an gebackene Variable aus einer Lambda');
-          return { typ: z.typName || null, umg: true, lese() { return self.leseUmg(z.idx); }, weg: this.istWegName(z.name), schreibe(t) { self.schreibeUmg(z.idx, t); }, slotTyp: 'W', umgTyp: true };
+          return { typ: z.typName || null, umg: true, umgIdx: z.idx, lese() { return self.leseUmg(z.idx); }, weg: this.istWegName(z.name), schreibe(t) { self.schreibeUmg(z.idx, t); }, slotTyp: 'W', umgTyp: true };
         }
         case 'global': {
           const adr = this.globAdr(z.g);
@@ -1230,6 +1240,11 @@
             c.tee(fe).op(OP.i32_eqz);
             this.auf('if');
             if (z.g === null) { c.i32(this.be.text(z.name)); this.effekt('rt_nicht_definiert'); }
+            else {
+              // kein Feld → globale Variable (wie finde(): Felder im Kontext vor den äußeren Scopes); noch nicht deklariert → undefiniert
+              c.i32(this.globAdr(z.g)).ld64(0).i64(UNDEF).op(OP.i64_eq);
+              this.auf('if'); c.i32(this.be.text(z.name)); this.effekt('rt_nicht_definiert'); this.zu();
+            }
             this.zu();
             if (z.g !== null) {
               // Feld oder globale Variable – Laufzeitwahl
@@ -1258,14 +1273,51 @@
       }
       throw new NichtUnterstuetzt('Ziel ' + z.art);
     }
+    /** Ziel „Feld oder globale Variable“ (unqualifizierter Name in einer Methode, gleichnamiges Feld und globale Variable):
+     *  zur Laufzeit gewählt – fe ≠ 0 → Feld, sonst die globale Variable (bereits als definiert geprüft). */
     zielDynGlobal(z, fe) {
-      throw new NichtUnterstuetzt('Zuweisung an Feld/globale Variable \'' + z.name + '\' (mehrdeutig)');
+      const c = this.c, self = this, name = z.name;
+      const adr = this.globAdr(z.g);
+      const gi = this.be.globalInfo(name);
+      const gZiel = {
+        typ: gi.typ, gebacken: gi.gebacken, global: true, flagAdr: this.be.globFlagAdr + z.g * 4,
+        schreibe(t) { self.konv(t, 'W'); const w = self.temp('W'); c.set(w).i32(adr).get(w).st64(0); self.frei_('W', w); },
+      };
+      return {
+        feld: fe, typ: null, gebacken: false,
+        lese() {
+          c.get(fe);
+          self.auf('if', T.i64);
+          c.get(fe).i32(self.be.text(name)); self.effekt('rt_feldvar_lesen');
+          self.sonst();
+          c.i32(adr).ld64(0);
+          if (self.istWegName(name)) self.wegPruefen(name);
+          self.zu();
+          return 'W';
+        },
+        weg: false, feldWeg: true,
+        schreibe(t) {
+          self.konv(t, 'W');
+          const w = self.temp('W'); c.set(w);
+          c.get(fe);
+          self.auf('if');
+          c.get(fe).get(w).i32(self.be.text(name)); self.dies(); c.i32(self.fn.ktor ? 1 : 0);
+          self.effekt('rt_feldvar_schreiben');
+          self.sonst();
+          c.get(w);
+          self.schreibeVar(gZiel, 'W', name);
+          self.zu();
+          self.frei_('W', w);
+        },
+        slotTyp: 'W', istFeld: true,
+      };
     }
 
     /** schreibeVar(v, w, sc, name): gebacken, Typ, setzen */
     schreibeVar(ziel, t, name) {
       const c = this.c;
       if (ziel.istFeld) { ziel.schreibe(t); return; }
+      this.kuechenWache(ziel, name);
       if (ziel.gebacken && ziel.global) {
         c.i32(ziel.flagAdr).ld32(0).op(OP.i32_eqz);
         this.auf('if');
@@ -1293,6 +1345,22 @@
       t = this.typPruefen(t, ziel.typ, name);
       this.flush();
       ziel.schreibe(t);
+    }
+
+    /**
+     * Küchenbrigade (SPEC §17.3 S3, K-101/4): Schreiben in eine Variable der Hauptküche – globale Variable oder gefangene
+     * Zelle unterhalb von ZUSTAND.gefroren – wirft die KüchenAnanas. Nach der rechten Seite, vor gebacken/Typ; 0 Schritte.
+     * Lokale Slots brauchen keine Wache (ein Stück läuft immer in neuen Rahmen). Außerhalb einer Brigade ist gefroren = 0.
+     */
+    kuechenWache(ziel, name) {
+      const c = this.c, Z = this.Z;
+      if (ziel.global) c.i32(Z).ld32(Z_GEFROREN);
+      else if (ziel.umg) c.get(0).ld64(32 + ziel.umgIdx * 8).op(OP.i32_wrap_i64).i32(Z).ld32(Z_GEFROREN).op(OP.i32_lt_u);
+      else return;
+      this.auf('if');
+      c.i32(this.be.text(name)).call(this.rt('rt_kueche_var'));
+      this.br(this.handler[this.handler.length - 1]);
+      this.zu();
     }
 
     zuw(a) {

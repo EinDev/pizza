@@ -27,13 +27,28 @@ static mut WARN_W: Vec<(W, i32, i32)> = Vec::new();
 fn warn_neu(code_s: Option<&'static str>, code_w: W, z_: i32, s_: i32) -> bool {
     unsafe {
         match code_s {
-            Some(c) => { if WARN_SET.iter().any(|&(x, a, b)| x == c && a == z_ && b == s_) { return false; } WARN_SET.push((c, z_, s_)); }
+            Some(c) => {
+                if WARN_SET.iter().any(|&(x, a, b)| x == c && a == z_ && b == s_) { return false; }
+                // Warnungen aus Küchen (D5) liegen als Text in WARN_W
+                if !WARN_W.is_empty() && WARN_W.iter().any(|&(x, a, b)| bytes(x) == c.as_bytes() && a == z_ && b == s_) { return false; }
+                WARN_SET.push((c, z_, s_));
+            }
             None => {
                 if WARN_W.iter().any(|&(x, a, b)| bytes(x) == bytes(code_w) && a == z_ && b == s_) { return false; }
                 if WARN_SET.iter().any(|&(x, a, b)| x.as_bytes() == bytes(code_w) && a == z_ && b == s_) { return false; }
                 WARN_W.push((code_w, z_, s_));
             }
         }
+    }
+    true
+}
+
+/// Küchenbrigade D5: Warnung eines Stücks beim Zusammenführen – true, wenn sie noch nicht ausgegeben wurde (merkt sie).
+pub fn warn_neu_bytes(code: &[u8], z_: i32, s_: i32) -> bool {
+    unsafe {
+        if WARN_SET.iter().any(|&(x, a, b)| x.as_bytes() == code && a == z_ && b == s_) { return false; }
+        if WARN_W.iter().any(|&(x, a, b)| bytes(x) == code && a == z_ && b == s_) { return false; }
+        WARN_W.push((neu_text(code), z_, s_));
     }
     true
 }
