@@ -222,7 +222,8 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 | `ende` | Prozess-Exit-Code = `exitCode` |
 
 Option **`--koeche=N`** (`auto` = Standard: logische Kerne, höchstens 16; `1` = keine Köche) für Programme mit Gruppe `kueche`
-(SPEC §17.7, K-093); `--info` zeigt zusätzlich `Köche: N` (tatsächlich genutzt – derselbe Text wie in der Playground-Statusleiste).
+(SPEC §17.7, K-093); `--info` zeigt zusätzlich `Köche: N` (tatsächlich genutzt – derselbe Text wie in der Playground-Statusleiste), **nur** wenn das
+Programm die Gruppe `kueche` nutzt (Nutzerentscheidung K-093).
 
 ## 8. Minimaler JS-Host (Referenz)
 

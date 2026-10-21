@@ -123,7 +123,8 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
   `auto` = `navigator.hardwareConcurrency`, höchstens 16). Enthält das kompilierte Programm die Importgruppe `kueche`, erzeugt der
   Lauf-Worker **vor** `run` einen Köche-Pool (Kinder-Worker; „Abbrechen“ = `worker.terminate()` beendet alle Köche). Ohne
   Cross-Origin-Isolation, ohne verschachtelte Worker oder im Interpreter-Rückfall läuft die Brigade sequentiell (gleiches
-  Ergebnis). Statusleiste nach dem Lauf: `Köche: N` (tatsächlich genutzt; 1 bei Interpreter/Rückfall) – gleicher Text wie
+  Ergebnis). Statusleiste nach dem Lauf: `Köche: N` (tatsächlich genutzt; 1 bei Interpreter/Rückfall) **nur**, wenn das Programm
+  `brigade` nutzt (Gruppe `kueche`; Nutzerentscheidung K-093 – das Popover bleibt immer) – gleicher Text wie
   `--info` nativ (`--koeche=N`, HOST-ABI §7). Ereignisse eines Stücks erscheinen frühestens, wenn alle früheren Stücke fertig sind.
 - Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
   in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.

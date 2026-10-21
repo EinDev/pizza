@@ -784,7 +784,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Entscheidung:** (1) Köche nur im Host: Interpreter-/JS-Option `koeche` (Interpreter: akzeptiert und ignoriert),
   Testoption `kuechenChaos: saat` (Stücke in pseudozufälliger Reihenfolge, Ergebnis muss gleich sein), optionales `ende`-Feld
   `koeche` (nicht in `.erwartet`, von Differenztests ignoriert); Playground-Popover „Köche: auto | 1 | 2 | 4 | 8“
-  (localStorage) neben „feste Saat“; Statusleiste und `--info` zeigen denselben Text `Köche: N` (K-082); CLI/EXE `--koeche=N`
+  (localStorage) neben „feste Saat“; Statusleiste und `--info` zeigen denselben Text `Köche: N` (K-082) – **Nutzerentscheidung: nur bei Programmen mit
+  `brigade` (Gruppe `kueche`)**, das Popover bleibt immer sichtbar; CLI/EXE `--koeche=N`
   (`auto` = Standard, `1` = aus); `bin/pizza.js` akzeptiert `--koeche=N` ebenfalls (Interpreter: immer `Köche: 1`).
   (2) HOST-ABI: neue optionale Importgruppe `kueche` (`kueche_auftrag`, `kueche_bericht`) und Export `kueche_stueck` –
   **Entwurf**, abwärtskompatibel, `abi_version` bleibt 1; endgültig mit Paket P2. (3) IR: `KüchenAnanas` wird mit P2

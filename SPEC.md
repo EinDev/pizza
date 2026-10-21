@@ -1245,7 +1245,8 @@ der Ausführungsreihenfolge der Stücke identisch (Testoption `kuechenChaos`, AR
 - Die Anzahl der Köche ist **nie** aus der Sprache steuerbar oder beobachtbar (keine Sprach-Option, kein `brigade(fn, köche: …)`).
 - Einstellung nur im Host: Playground-Popover „Köche: auto | 1 | 2 | 4 | 8“, CLI/EXE `--koeche=N` (`auto` = Standard, `1` = aus),
   Option `koeche` der JS-APIs (ARCHITEKTUR §1/§2, HOST-ABI §7). `auto` = Anzahl logischer Kerne, höchstens 16.
-- Einzige sichtbare Spur ist die Hüllen-Anzeige `Köche: N` (tatsächlich genutzte Anzahl; 1 bei Interpreter oder Rückfall) –
+- Einzige sichtbare Spur ist die Hüllen-Anzeige `Köche: N` (tatsächlich genutzte Anzahl; 1 bei Interpreter oder Rückfall) – **nur** bei
+  Programmen, die `brigade` nutzen (Gruppe `kueche`; Nutzerentscheidung K-093), das Popover bleibt immer sichtbar –
   gleicher Text in Playground-Statusleiste und `--info` (K-082). Das optionale `ende`-Feld `koeche` gehört nicht in `.erwartet`
   und wird von Differenztests ignoriert.
 - Jeder Host darf ohne Threads arbeiten (keine SharedArrayBuffer, keine verschachtelten Worker, `koeche = 1`): identisches
