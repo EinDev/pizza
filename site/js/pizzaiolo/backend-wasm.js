@@ -59,6 +59,7 @@
       dv.setUint32(0, 1, true); dv.setUint32(4, b.length, true);
       d.set(b, 16);
       a = this.mb.datum(d, 8);
+      new DataView(this.mb.daten.b.buffer, this.mb.daten.b.byteOffset).setUint32(a - this.mb.datenBasis + 12, a + 16, true);
       this.texte.set(s, a);
       return a;
     }

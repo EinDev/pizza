@@ -70,7 +70,7 @@ pub fn neu_w<T: 'static>(v: T) -> W { ptr_w(neu(v) as *mut T as u32) }
 #[inline(always)]
 pub fn obj<T>(w: W) -> &'static mut T { unsafe { &mut *(p(w) as *mut T) } }
 
-#[repr(C)] pub struct Text { pub art: u32, pub len: u32, pub info: u32, pub _r: u32 }
+#[repr(C)] pub struct Text { pub art: u32, pub len: u32, pub info: u32, pub daten: u32 }
 #[repr(C)] pub struct Blech { pub art: u32, pub _r: u32, pub v: Vec<W> }
 pub use crate::karte::Karte;
 #[repr(C)] pub struct Dauer { pub art: u32, pub _r: u32, pub ms: f64 }

@@ -14,14 +14,14 @@ function laden() {
     const p = Number(BigInt.asUintN(32, w));
     const mem = new DataView(e.memory.buffer);
     const len = mem.getUint32(p + 4, true);
-    return Buffer.from(new Uint8Array(e.memory.buffer, p + 16, len)).toString('utf8');
+    return Buffer.from(new Uint8Array(e.memory.buffer, mem.getUint32(p + 12, true), len)).toString('utf8');
   };
   const zahlW = (x) => { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, x, true); return b.getBigInt64(0, true); };
   const textW = (s) => {
     const b = Buffer.from(s, 'utf8');
     const p = e.arg_puffer(b.length + 16);
     const dv = new DataView(e.memory.buffer);
-    dv.setUint32(p, 1, true); dv.setUint32(p + 4, b.length, true); dv.setUint32(p + 8, 0, true); dv.setUint32(p + 12, 0, true);
+    dv.setUint32(p, 1, true); dv.setUint32(p + 4, b.length, true); dv.setUint32(p + 8, 0, true); dv.setUint32(p + 12, p + 16, true);
     new Uint8Array(e.memory.buffer).set(b, p + 16);
     return BigInt.asIntN(64, (0xFFFE0000n << 32n) | BigInt(p));
   };

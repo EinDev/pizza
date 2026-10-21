@@ -352,10 +352,11 @@ pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
         OP_PLUS => {
             if zz { return zahl(f(a) + f(b)); }
             if art(a) == A_TEXT || art(b) == A_TEXT {
-                let mut t = Tb::neu();
-                text_in(a, &mut t);
-                text_in(b, &mut t);
-                return t.fertig();
+                let ta = text(a);
+                if crate::sig() { return KARTON; }
+                let tb2 = text(b);
+                if crate::sig() { return KARTON; }
+                return crate::text::verkette(bytes(ta), bytes(tb2), ta);
             }
             if art(a) == A_DAUER && art(b) == A_DAUER { return dauer(dauer_ms(a) + dauer_ms(b)); }
             if ist_pizza(a) && art(b) == A_BELAG {

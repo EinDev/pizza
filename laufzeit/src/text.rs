@@ -11,18 +11,51 @@ pub fn neu_text(b: &[u8]) -> W {
         (*t).art = A_TEXT;
         (*t).len = b.len() as u32;
         (*t).info = 0;
-        (*t)._r = 0;
+        (*t).daten = q as u32 + 16;
         core::ptr::copy_nonoverlapping(b.as_ptr(), q.add(16), b.len());
     }
     ptr_w(q as u32)
 }
 pub fn neu_str(s: &str) -> W { neu_text(s.as_bytes()) }
 
+// ---------------------------------------------------------------- Verkettung mit Anhänge-Arena
+// Ergebnisse von a + b liegen in einer Arena; endet a genau an deren Spitze, wird b nur angehängt
+// (Texte bleiben unveränderlich: a behält seine Länge, das Ergebnis teilt sich das Präfix).
+static mut ARENA_TOP: u32 = 0;
+static mut ARENA_ENDE: u32 = 0;
+
+pub fn verkette(a: &[u8], b: &[u8], a_w: W) -> W {
+    unsafe {
+        let n = a.len() + b.len();
+        let a_ende = if art(a_w) == A_TEXT { (*(p(a_w) as *const Text)).daten + (*(p(a_w) as *const Text)).len } else { 0 };
+        let start;
+        if a_ende != 0 && a_ende == ARENA_TOP && ARENA_TOP as usize + b.len() <= ARENA_ENDE as usize {
+            core::ptr::copy_nonoverlapping(b.as_ptr(), ARENA_TOP as *mut u8, b.len());
+            start = a_ende - a.len() as u32;
+            ARENA_TOP += b.len() as u32;
+        } else {
+            if ARENA_TOP as usize + n > ARENA_ENDE as usize {
+                let groesse = core::cmp::max(1 << 16, 2 * n as u32);
+                ARENA_TOP = crate::alloc_roh(groesse, 8) as u32;
+                ARENA_ENDE = ARENA_TOP + groesse;
+            }
+            start = ARENA_TOP;
+            core::ptr::copy_nonoverlapping(a.as_ptr(), start as *mut u8, a.len());
+            core::ptr::copy_nonoverlapping(b.as_ptr(), (start as usize + a.len()) as *mut u8, b.len());
+            ARENA_TOP += n as u32;
+        }
+        let q = crate::alloc_roh(16, 8);
+        let t = q as *mut Text;
+        (*t).art = A_TEXT; (*t).len = n as u32; (*t).info = 0; (*t).daten = start;
+        ptr_w(q as u32)
+    }
+}
+
 #[inline]
 pub fn bytes(w: W) -> &'static [u8] {
     unsafe {
         let t = p(w) as *const Text;
-        core::slice::from_raw_parts((p(w) + 16) as *const u8, (*t).len as usize)
+        core::slice::from_raw_parts((*t).daten as *const u8, (*t).len as usize)
     }
 }
 pub fn s(w: W) -> &'static str { unsafe { core::str::from_utf8_unchecked(bytes(w)) } }
