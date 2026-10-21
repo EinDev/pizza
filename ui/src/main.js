@@ -811,6 +811,12 @@ function start() {
   }
   setzeThema(document.documentElement.dataset.theme === "dark" ? "dark" : "light", false);
   themaKnopf.addEventListener("click", () => setzeThema(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true));
+  // Zurück zum Systemthema (Seite und Theke-Fenster folgen dann wieder dem OS)
+  function themaWieSystem() {
+    try { localStorage.removeItem("pizza.thema"); } catch (e) { /* egal */ }
+    setzeThema(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light", false);
+    toast("Thema folgt wieder dem System.", "info");
+  }
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
     const gemerkt = speicher.hole("pizza.thema");
     if (gemerkt !== "light" && gemerkt !== "dark") setzeThema(e.matches ? "dark" : "light", false);
@@ -988,6 +994,7 @@ function start() {
       { id: "beispiele", icon: "pizza",  gruppe: "Ansicht", titel: "Beispiele anzeigen", aktion: () => { setzePanel(true); waehleTab("beispiele", true); } },
       { id: "lesemodus", icon: "maximize",  gruppe: "Ansicht", titel: "Doku im Lesemodus öffnen", aktion: lesemodusOeffnen },
       { id: "thema", icon: document.documentElement.dataset.theme === "dark" ? "sun" : "moon", gruppe: "Ansicht", titel: document.documentElement.dataset.theme === "dark" ? "Helles Thema" : "Dunkles Thema", aktion: () => themaKnopf.click() },
+      { id: "thema-system", icon: "monitor", gruppe: "Ansicht", titel: "Thema wie das System", aktion: themaWieSystem, verfuegbar: () => speicher.hole("pizza.thema") != null },
       { id: "suchen", icon: "search",  gruppe: "Editor", titel: "Im Code suchen", kuerzel: K("Strg+F"), aktion: () => { editor.view.focus(); editor.suchen(); } },
       ...beispiele.liste.map((b) => ({ id: "bsp-" + b.id, gruppe: "Beispiel öffnen", titel: b.titel + " · " + b.kategorie, aktion: () => b.oeffnen() })),
       ...doku.abschnitte.map((a) => ({ id: "doku-" + a.id, gruppe: "Doku", titel: a.titel + " · " + a.gruppe, aktion: () => zeigeDoku(a.id) })),
