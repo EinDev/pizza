@@ -1,0 +1,10 @@
+[build]
+target = "wasm32v1-none"
+
+[target.wasm32v1-none]
+rustflags = [
+  "-C", "target-feature=+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue",
+  "-C", "link-arg=--export-table",
+  "-C", "link-arg=--growable-table",
+  "-C", "link-arg=-zstack-size=1048576",
+]

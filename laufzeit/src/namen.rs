@@ -1,0 +1,346 @@
+//! Eingebaute Namen (Intern-IDs). Generiert – Reihenfolge = ID.
+
+pub const NAMEN: [&str; 161] = [
+    "",
+    "Bote",
+    "Bestellannahme",
+    "Uhr",
+    "Mathe",
+    "Zufall",
+    "Spiegel",
+    "teig",
+    "bestelle",
+    "schieb",
+    "teile",
+    "zwischenstand",
+    "auto",
+    "Ananas",
+    "GeprüfteAnanas",
+    "VerbranntAnanas",
+    "LieferAnanas",
+    "LaufzeitAnanas",
+    "StreitAnanas",
+    "RechenAnanas",
+    "LeererKartonAnanas",
+    "RohlingAnanas",
+    "BesitzAnanas",
+    "GebackenAnanas",
+    "TypAnanas",
+    "KeinStückAnanas",
+    "ZugriffsAnanas",
+    "UnbekannterBelagAnanas",
+    "ZugeklapptAnanas",
+    "UnbekanntePizzaAnanas",
+    "euro",
+    "runden",
+    "abs",
+    "alsText",
+    "ganz",
+    "länge",
+    "groß",
+    "klein",
+    "enthält",
+    "zerlege",
+    "ersetze",
+    "trimme",
+    "zeichen",
+    "wiederhole",
+    "beginntMit",
+    "endetMit",
+    "alsZahl",
+    "istLeer",
+    "inMs",
+    "inSekunden",
+    "inMinuten",
+    "stück",
+    "hinzu",
+    "entferne",
+    "setze",
+    "belege",
+    "filtere",
+    "zusammenklappen",
+    "summe",
+    "erstes",
+    "letztes",
+    "umdrehen",
+    "sortiere",
+    "verbinde",
+    "schneide",
+    "kopie",
+    "lege",
+    "hole",
+    "hat",
+    "schlüssel",
+    "werte",
+    "name",
+    "preis",
+    "position",
+    "beläge",
+    "anzahlBeläge",
+    "übrig",
+    "beschreibung",
+    "nachricht",
+    "holeNachricht",
+    "typ",
+    "aufklappen",
+    "gehenlassen",
+    "backen",
+    "istAufgegangen",
+    "trinkgeld",
+    "warte",
+    "wennDa",
+    "istGeliefert",
+    "pünktlich",
+    "wert",
+    "oderGratis",
+    "pizza",
+    "essen",
+    "istGegessen",
+    "istMatschig",
+    "teilergebnis",
+    "verbrauchteZeit",
+    "mikrowelle",
+    "frisch",
+    "rufe",
+    "sage",
+    "fehler",
+    "schreibe",
+    "leeren",
+    "lies",
+    "frage",
+    "liesZahl",
+    "frageZahl",
+    "hatMehr",
+    "jetzt",
+    "vorspulen",
+    "wurzel",
+    "max",
+    "min",
+    "boden",
+    "decke",
+    "potenz",
+    "PI",
+    "zahl",
+    "felder",
+    "stellen",
+    "start",
+    "temperatur",
+    "zeit",
+    "haltbar",
+    "grund",
+    "hauptgang",
+    "Hawaii",
+    "Blech",
+    "Speisekarte",
+    "Pizza",
+    "salami",
+    "funghi",
+    "margherita",
+    "diavolo",
+    "Dauer",
+    "hawaii",
+    "Tomate",
+    "Mozzarella",
+    "Käse",
+    "Basilikum",
+    "Salami",
+    "Schinken",
+    "Pilze",
+    "Oliven",
+    "Zwiebeln",
+    "Paprika",
+    "Chili",
+    "Peperoni",
+    "Rucola",
+    "Parmesan",
+    "Gorgonzola",
+    "Thunfisch",
+    "Sardellen",
+    "Artischocken",
+    "Spinat",
+    "Ei",
+    "Mais",
+    "Knoblauch",
+    "Kapern",
+];
+
+pub const N_G_BOTE: u32 = 1;
+pub const N_G_BESTELLANNAHME: u32 = 2;
+pub const N_G_UHR: u32 = 3;
+pub const N_G_MATHE: u32 = 4;
+pub const N_G_ZUFALL: u32 = 5;
+pub const N_G_SPIEGEL: u32 = 6;
+pub const N_TEIG: u32 = 7;
+pub const N_BESTELLE: u32 = 8;
+pub const N_SCHIEB: u32 = 9;
+pub const N_TEILE: u32 = 10;
+pub const N_ZWISCHENSTAND: u32 = 11;
+pub const N_AUTO: u32 = 12;
+pub const N_G_ANANAS: u32 = 13;
+pub const N_G_GEPRUEFTEANANAS: u32 = 14;
+pub const N_G_VERBRANNTANANAS: u32 = 15;
+pub const N_G_LIEFERANANAS: u32 = 16;
+pub const N_G_LAUFZEITANANAS: u32 = 17;
+pub const N_G_STREITANANAS: u32 = 18;
+pub const N_G_RECHENANANAS: u32 = 19;
+pub const N_G_LEERERKARTONANANAS: u32 = 20;
+pub const N_G_ROHLINGANANAS: u32 = 21;
+pub const N_G_BESITZANANAS: u32 = 22;
+pub const N_G_GEBACKENANANAS: u32 = 23;
+pub const N_G_TYPANANAS: u32 = 24;
+pub const N_G_KEINSTUECKANANAS: u32 = 25;
+pub const N_G_ZUGRIFFSANANAS: u32 = 26;
+pub const N_G_UNBEKANNTERBELAGANANAS: u32 = 27;
+pub const N_G_ZUGEKLAPPTANANAS: u32 = 28;
+pub const N_G_UNBEKANNTEPIZZAANANAS: u32 = 29;
+pub const N_EURO: u32 = 30;
+pub const N_RUNDEN: u32 = 31;
+pub const N_ABS: u32 = 32;
+pub const N_ALSTEXT: u32 = 33;
+pub const N_GANZ: u32 = 34;
+pub const N_LAENGE: u32 = 35;
+pub const N_GROSS: u32 = 36;
+pub const N_KLEIN: u32 = 37;
+pub const N_ENTHAELT: u32 = 38;
+pub const N_ZERLEGE: u32 = 39;
+pub const N_ERSETZE: u32 = 40;
+pub const N_TRIMME: u32 = 41;
+pub const N_ZEICHEN: u32 = 42;
+pub const N_WIEDERHOLE: u32 = 43;
+pub const N_BEGINNTMIT: u32 = 44;
+pub const N_ENDETMIT: u32 = 45;
+pub const N_ALSZAHL: u32 = 46;
+pub const N_ISTLEER: u32 = 47;
+pub const N_INMS: u32 = 48;
+pub const N_INSEKUNDEN: u32 = 49;
+pub const N_INMINUTEN: u32 = 50;
+pub const N_STUECK: u32 = 51;
+pub const N_HINZU: u32 = 52;
+pub const N_ENTFERNE: u32 = 53;
+pub const N_SETZE: u32 = 54;
+pub const N_BELEGE: u32 = 55;
+pub const N_FILTERE: u32 = 56;
+pub const N_ZUSAMMENKLAPPEN: u32 = 57;
+pub const N_SUMME: u32 = 58;
+pub const N_ERSTES: u32 = 59;
+pub const N_LETZTES: u32 = 60;
+pub const N_UMDREHEN: u32 = 61;
+pub const N_SORTIERE: u32 = 62;
+pub const N_VERBINDE: u32 = 63;
+pub const N_SCHNEIDE: u32 = 64;
+pub const N_KOPIE: u32 = 65;
+pub const N_LEGE: u32 = 66;
+pub const N_HOLE: u32 = 67;
+pub const N_HAT: u32 = 68;
+pub const N_SCHLUESSEL: u32 = 69;
+pub const N_WERTE: u32 = 70;
+pub const N_NAME: u32 = 71;
+pub const N_PREIS: u32 = 72;
+pub const N_POSITION: u32 = 73;
+pub const N_BELAEGE: u32 = 74;
+pub const N_ANZAHLBELAEGE: u32 = 75;
+pub const N_UEBRIG: u32 = 76;
+pub const N_BESCHREIBUNG: u32 = 77;
+pub const N_NACHRICHT: u32 = 78;
+pub const N_HOLENACHRICHT: u32 = 79;
+pub const N_TYP: u32 = 80;
+pub const N_AUFKLAPPEN: u32 = 81;
+pub const N_GEHENLASSEN: u32 = 82;
+pub const N_BACKEN: u32 = 83;
+pub const N_ISTAUFGEGANGEN: u32 = 84;
+pub const N_TRINKGELD: u32 = 85;
+pub const N_WARTE: u32 = 86;
+pub const N_WENNDA: u32 = 87;
+pub const N_ISTGELIEFERT: u32 = 88;
+pub const N_PUENKTLICH: u32 = 89;
+pub const N_WERT: u32 = 90;
+pub const N_ODERGRATIS: u32 = 91;
+pub const N_PIZZA: u32 = 92;
+pub const N_ESSEN: u32 = 93;
+pub const N_ISTGEGESSEN: u32 = 94;
+pub const N_ISTMATSCHIG: u32 = 95;
+pub const N_TEILERGEBNIS: u32 = 96;
+pub const N_VERBRAUCHTEZEIT: u32 = 97;
+pub const N_MIKROWELLE: u32 = 98;
+pub const N_FRISCH: u32 = 99;
+pub const N_RUFE: u32 = 100;
+pub const N_SAGE: u32 = 101;
+pub const N_FEHLER: u32 = 102;
+pub const N_SCHREIBE: u32 = 103;
+pub const N_LEEREN: u32 = 104;
+pub const N_LIES: u32 = 105;
+pub const N_FRAGE: u32 = 106;
+pub const N_LIESZAHL: u32 = 107;
+pub const N_FRAGEZAHL: u32 = 108;
+pub const N_HATMEHR: u32 = 109;
+pub const N_JETZT: u32 = 110;
+pub const N_VORSPULEN: u32 = 111;
+pub const N_WURZEL: u32 = 112;
+pub const N_MAX: u32 = 113;
+pub const N_MIN: u32 = 114;
+pub const N_BODEN: u32 = 115;
+pub const N_DECKE: u32 = 116;
+pub const N_POTENZ: u32 = 117;
+pub const N_G_PI: u32 = 118;
+pub const N_ZAHL: u32 = 119;
+pub const N_FELDER: u32 = 120;
+pub const N_STELLEN: u32 = 121;
+pub const N_START: u32 = 122;
+pub const N_TEMPERATUR: u32 = 123;
+pub const N_ZEIT: u32 = 124;
+pub const N_HALTBAR: u32 = 125;
+pub const N_GRUND: u32 = 126;
+pub const N_HAUPTGANG: u32 = 127;
+pub const N_G_HAWAII: u32 = 128;
+pub const N_G_BLECH: u32 = 129;
+pub const N_G_SPEISEKARTE: u32 = 130;
+pub const N_G_PIZZA: u32 = 131;
+pub const N_SALAMI: u32 = 132;
+pub const N_FUNGHI: u32 = 133;
+pub const N_MARGHERITA: u32 = 134;
+pub const N_DIAVOLO: u32 = 135;
+pub const N_G_DAUER: u32 = 136;
+pub const N_HAWAII: u32 = 137;
+pub const N_G_TOMATE: u32 = 138;
+pub const N_G_MOZZARELLA: u32 = 139;
+pub const N_G_KAESE: u32 = 140;
+pub const N_G_BASILIKUM: u32 = 141;
+pub const N_G_SALAMI: u32 = 142;
+pub const N_G_SCHINKEN: u32 = 143;
+pub const N_G_PILZE: u32 = 144;
+pub const N_G_OLIVEN: u32 = 145;
+pub const N_G_ZWIEBELN: u32 = 146;
+pub const N_G_PAPRIKA: u32 = 147;
+pub const N_G_CHILI: u32 = 148;
+pub const N_G_PEPERONI: u32 = 149;
+pub const N_G_RUCOLA: u32 = 150;
+pub const N_G_PARMESAN: u32 = 151;
+pub const N_G_GORGONZOLA: u32 = 152;
+pub const N_G_THUNFISCH: u32 = 153;
+pub const N_G_SARDELLEN: u32 = 154;
+pub const N_G_ARTISCHOCKEN: u32 = 155;
+pub const N_G_SPINAT: u32 = 156;
+pub const N_G_EI: u32 = 157;
+pub const N_G_MAIS: u32 = 158;
+pub const N_G_KNOBLAUCH: u32 = 159;
+pub const N_G_KAPERN: u32 = 160;
+
+/// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM).
+pub const K_ANANAS: u32 = 0;
+pub const K_GEPRUEFTE: u32 = 1;
+pub const K_VERBRANNT: u32 = 2;
+pub const K_LIEFER: u32 = 3;
+pub const K_LAUFZEIT: u32 = 4;
+pub const K_STREIT: u32 = 5;
+pub const K_RECHEN: u32 = 6;
+pub const K_LEERERKARTON: u32 = 7;
+pub const K_ROHLING: u32 = 8;
+pub const K_BESITZ: u32 = 9;
+pub const K_GEBACKEN: u32 = 10;
+pub const K_TYP: u32 = 11;
+pub const K_KEINSTUECK: u32 = 12;
+pub const K_ZUGRIFFS: u32 = 13;
+pub const K_UNBEKANNTERBELAG: u32 = 14;
+pub const K_ZUGEKLAPPT: u32 = 15;
+pub const K_UNBEKANNTEPIZZA: u32 = 16;
+pub const ANANAS_BAUM: [(u32, i32); 17] = [(N_G_ANANAS, -1), (N_G_GEPRUEFTEANANAS, 0), (N_G_VERBRANNTANANAS, 1), (N_G_LIEFERANANAS, 1), (N_G_LAUFZEITANANAS, 0), (N_G_STREITANANAS, 4), (N_G_RECHENANANAS, 4), (N_G_LEERERKARTONANANAS, 4), (N_G_ROHLINGANANAS, 4), (N_G_BESITZANANAS, 4), (N_G_GEBACKENANANAS, 4), (N_G_TYPANANAS, 4), (N_G_KEINSTUECKANANAS, 4), (N_G_ZUGRIFFSANANAS, 4), (N_G_UNBEKANNTERBELAGANANAS, 4), (N_G_ZUGEKLAPPTANANAS, 4), (N_G_UNBEKANNTEPIZZAANANAS, 4)];

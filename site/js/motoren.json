@@ -1,4 +1,4 @@
 {
-  "wasm": false,
+  "wasm": true,
   "exe": true
 }
