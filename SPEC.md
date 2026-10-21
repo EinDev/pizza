@@ -476,3 +476,210 @@ Exit-Code: 39
 - Toolchain: Compiler `pizzaiolo backe`, Build-Tool `pizzaofen` mit `ofen.xml`, Archive `.pkarton`, Paketmanager `pizzabote`, Flag `--temperatur=485` (Optimierung).
 - Statische Prüfung von Generics und `wirft`.
 - Echte Parallelität bei `schneide` / echte Hintergrund-Threads bei `teig` und `bestelle`.
+
+---
+
+## 14. Präzisierungen & Erweiterungen (verbindlich, Stand Referenz-Interpreter)
+
+Dieser Abschnitt legt fest, was §1–§13 offen lassen, und dokumentiert Erweiterungen des Referenz-Interpreters
+(`site/js/pizza.js`). Er ändert nichts an §1–§13. Ein-/Ausgabe (`Bote.schreibe`, `Bote.leeren`, `Bestellannahme`)
+regelt `EINGABE.md`.
+
+### 14.1 Schrittzählung (exakt, beobachtbar über `Uhr.jetzt()`, Budgets, P0002, `schritte`)
+
+- **Ein Schritt** = jede Ausführung einer Anweisung + jede Auswertung eines Ausdrucksknotens.
+- **Anweisungen, die zählen:** jede Anweisung in einem Rumpf (auch leeres `;`, ein verschachtelter `{ }`-Block als
+  Anweisung, `serviere`, `abbrechen`, `weiter`, `wirf`, `probier`), die `für`-Init und jede `für`-Update-Anweisung,
+  ein `sonst falls` (als verschachtelte `falls`-Anweisung), der Körper eines `wähle`-Arms ohne geschweifte Klammern.
+- **Kein eigener Schritt** für: den Rumpf von Methoden/Konstruktoren/Lambdas, Schleifenrümpfe, `falls`-/`sonst`-Blöcke,
+  Fang-, `rand`-, Ofen- und `roh`-Blöcke sowie Block-Arme von `wähle` (deren Anweisungen zählen einzeln).
+- **Ausdrucksknoten (je 1 Schritt):** Literale (Zahl, Dauer, Text, `ja`/`nein`, `karton`), Name, Binär-, Logik-,
+  Unär- und `?:`-Operator, jeder Aufruf (`f(x)`, `o.m(x)`, `unten(…)`, `f(x)(y)`), Mitgliedszugriff `o.f`, `dies`,
+  `unten` als Wert, `neu`, Pizza-Literal (als Ganzes, Belagnamen zählen nicht einzeln), Blech-Literal, Bereich,
+  Lambda-Erzeugung, `ofen`-Ausdruck, `wähle`-Ausdruck. Jedes Argument (auch benannte) ist ein eigener Ausdruck.
+- **Nicht gezählt:** das Ziel einer Zuweisung oder von `++`/`--`, wenn es ein Name ist (bei `a.b = …` wird `a`
+  ausgewertet und zählt); der Methoden- bzw. Funktionsname selbst; `unten` in `unten.m()`; das Argument von `schieb(x)`;
+  `fall`-Werte, die als bloßer Name mit einem quattrostagioni-Wert verglichen werden. `fall`-Werte werden nur bis zum
+  ersten Treffer ausgewertet; `&&`, `||`, `?:` werten kurzgeschlossen aus.
+- **Auch gezählt:** Feld-Initialisierer (bei jedem `neu`), statische Initialisierer und Annotationsargumente
+  (`@Kühlschrank(haltbar: …)`, `@PizzaVeraltet(grund: …)`) – einmal vor den Top-Level-Anweisungen; Rückrufe von
+  Bibliotheksfunktionen (`belege`, `sortiere`, `teig`, `bestelle` …) zählen ihre Ausdrücke/Anweisungen.
+  Bibliotheksarbeit selbst, Deklarationen, der Aufruf von `hauptgang` und von `wennDa`-Rückrufen nach Programmende
+  sowie das Warten auf Eingabe kosten nichts.
+- **Referenzwerte:** `salami x = 1;` = 2 · `salami x = 1 + 2 * 3;` = 6 · `Bote.sage((1));` = 4 · `x++;` = 1 ·
+  `x += 1;` = 2 · `falls (ja) { } sonst { }` = 2 · `für (salami i = 0; i < 3; i++) { }` = 18 ·
+  `f(1);` mit `salami f(salami a) { serviere ((a)); }` = 5 · `Uhr.vorspulen(1h);` = 4 (`zeitMs` = 3 600 004).
+- `Uhr.jetzt()` = bisherige Schritte (inklusive des Aufrufknotens) + vorgespulte Zeit; als erste Anweisung liefert
+  `Bote.sage((Uhr.jetzt()));` also `5ms`. `zeitMs` = Schritte + vorgespulte Zeit.
+- **P0002:** Abbruch beim Schritt Nummer `schrittLimit + 1` (Standard 5 000 000). Nicht fangbar; `rand` läuft nicht.
+
+### 14.2 Budgets von Ofen und Lieferung
+
+- Budgets messen die **simulierte Uhr** (Schritte + `Uhr.vorspulen`). Ein Budget von N erlaubt N Uhr-Millisekunden ab
+  Beginn; überschritten ist es, sobald die Uhr > Start + N ist (beim N+1-ten Schritt oder direkt nach einem
+  `vorspulen`, das darüber hinausführt).
+- **Ofen:** Start nach Auswertung der Argumente; N = `floor(zeit_ms × temperatur / 250)`; Argumente auch positional
+  (`ofen(450, 90s)`), `zeit` darf eine Zahl (ms) sein, nicht-numerische Argumente → TypAnanas
+  (`ofen(zeit: …) braucht eine Dauer, nicht "x".`). `verbrauchteZeit()` = Uhr beim Abbruch − Start
+  (Beispiel: `ofen(zeit: 5ms) { solange (ja) { } }` → `6ms`).
+- Mehrere verschachtelte Budgets gleichzeitig überschritten → das **äußerste** greift; innere Öfen/Lieferungen werden
+  ohne ihren `roh`-Zweig verlassen.
+- Die `verbrannt`-Zweige eines Ofens fangen Ananas aus dem Block, die Temperatur-Ananas und die
+  „Zu lange im Ofen“-Ananas (wenn kein `roh` existiert) – nicht aber Ananas aus dem `roh`- oder einem `verbrannt`-Block.
+- Ohne `serviere` ist der Wert eines Ofens `karton`; `abbrechen`/`weiter` beenden den Ofen-Block (Wert `karton`).
+- `rand` läuft auch bei einem Budget-Abbruch, aber nie bei Panik, P0002 oder PizzaFehlern.
+- **Lieferung:** `warte()` ohne `max` = unbegrenzt; `warte(30min)` positional erlaubt; `trinkgeld` summiert sich;
+  Budget = `max × (1 + Summe/10)`. `zwischenstand` außerhalb eines Ofens wird ignoriert.
+
+### 14.3 `wennDa`-Zeitpunkte
+
+- `wennDa(fn)` auf eine bereits gewartete, pünktliche, fehlerfreie Lieferung → `fn(wert)` sofort.
+- `wennDa` vor `warte` registriert → `fn(wert)` direkt nach einem pünktlichen, fehlerfreien `warte`.
+  Zu spät oder mit Ananas → kein Rückruf.
+- Nach Programmende (nach `hauptgang`, nur bei normalem Ende) laufen alle nie gewarteten Lieferungen mit Rückruf –
+  immer die offene mit dem höchsten Trinkgeld zuerst, bei Gleichstand die früher bestellte; während dieser Phase neu
+  registrierte werden mit einsortiert. Kein Budget. Ananas dort → ungefangen (Exit 1). Lieferungen ohne `wennDa`
+  laufen nie.
+
+### 14.4 Rekursion
+
+- Maximale Aufruftiefe **900** (Methoden, Konstruktoren, Lambdas, implizite `alsText`-Aufrufe) → fangbare
+  `LaufzeitAnanas: Zu viele Pizzen übereinander (Stapelüberlauf).` Ein vorher eintretender Stapelüberlauf des Wirts
+  wird genauso gemeldet.
+
+### 14.5 Syntax-Präzisierungen und Erweiterungen
+
+- **Pizza-Literal:** zwei unmittelbar aufeinanderfolgende `(` in **Ausdrucksposition**. Syntaktische Klammern zählen
+  nicht mit – weder die eines Aufrufs noch die von `falls`/`solange`/`wähle`: `Bote.sage((Salami))` = Aufruf mit dem
+  Ausdruck `(Salami)` → Belag-Wert `Salami`; `Bote.sage(((Salami)))` → Pizza `((Salami))`.
+- `((X))` mit genau **einem** Namen, der kein bekannter Belag (und nicht `Ananas`) ist, wird als normale Klammer
+  gelesen (Variable, Klasse, …), z. B. `serviere ((MAX));`. Unbekannte großgeschriebene Namen → UnbekannterBelagAnanas.
+- Reservierte Wörter sind kleingeschrieben; andere Schreibweisen (`Ofen`, `Klasse`) sind normale Bezeichner. Ein
+  reserviertes Wort als Name → `P0001: 'falls' ist ein reserviertes Wort und kann nicht als Name für die Variable verwendet werden`.
+- Fehlendes `;`: gemeldete Position = Ende des vorigen Tokens, wenn das gefundene Token in einer neuen Zeile steht.
+- Alle Syntaxfehler haben Code P0001 (bzw. K0001) und Ereignis-`art` `"syntax"`, Exit 2. Der K0001-Text enthält den
+  tatsächlichen Ausdruck: `serviere x * 2;` → `Klammerpflicht! serviere braucht Klammern: serviere (x * 2);`.
+- **Top-Level-Funktionen** (Snack-Modus): `salami quadrat(salami x) { … }` außerhalb von Klassen, gehoben, auch mit
+  Annotationen und `<T>`. Eine Top-Level-Funktion `hauptgang` wird aufgerufen, wenn keine Klasse einen hat.
+- **`wähle` als Ausdruck:** `margherita s = wähle (x) { fall 1 -> "eins"; standard -> "?"; };` Arme sind Ausdrücke
+  (mit `;` oder `,` abgeschlossen) oder Blöcke, deren `serviere` den Wert liefert (ohne die Methode zu verlassen).
+  Kein Treffer → `karton`.
+- **`wähle` als Anweisung:** `fall`-Arme in Reihenfolge, `standard` nur ohne Treffer (egal wo er steht).
+  `abbrechen` im Arm verlässt nur das `wähle`; `serviere` im Arm verlässt die Methode. Bloßer Name als `fall`-Wert bei
+  quattrostagioni-Subjekt = Wertname (`fall WINTER ->`).
+- **Überladung** nach Anzahl der Argumente (Positions- + benannte) für Methoden, Konstruktoren und Top-Level-Funktionen;
+  passt keine Anzahl, gilt die erste Deklaration (→ Aritätsfehler).
+- **Mehrfachdeklaration** `salami a = 1, b, c = a + 2;` (Variablen und Felder); Kommas in `für`-Init und -Update.
+- Präfix `++x;`/`--x;`; `+=` usw. auch für Text, Dauer und Pizza (`p += Käse`); `x++` auf Nicht-Zahlen = `x + 1`.
+- Generische Parameter `<T>` an Klassen/Methoden werden übersprungen; `Typ[]` ist erlaubt (ungeprüft);
+  `für (x : liste)` ohne Typ erlaubt.
+- `paket`/`import` dürfen überall auf oberster Ebene stehen. Klassen/Rezepturen/quattrostagioni dürfen in Klassen
+  verschachtelt sein und werden global registriert.
+- `serviere` auf oberster Ebene beendet die Top-Level-Anweisungen; `hauptgang` läuft trotzdem.
+
+### 14.6 Typen und `karton`
+
+- `karton` ist erlaubt für alle Typen außer `salami`, `funghi`, `diavolo` (→ TypAnanas). `margherita`, `Pizza`,
+  `Dauer`, Klassen, Rezepturen und quattrostagioni dürfen `karton` halten. (Folge für Eingaben:
+  `Bestellannahme.liesZahl()` liefert bei EOF `karton` – nicht direkt in `salami`/`funghi` speichern.)
+- Typnamen, die keine eingebaute oder eigene Klasse/Rezeptur/quattrostagioni sind (z. B. `Rezept`, `T`, `Blech<…>`,
+  `Belag`), sowie Typen mit `[]` werden nicht geprüft. quattrostagioni-Typen prüfen die Zugehörigkeit.
+- Standardwerte ohne Initialisierer: `salami`/`funghi` → 0, `diavolo` → nein, sonst `karton`.
+- `gebacken`: lokale Variable ohne Initialisierer → genau eine spätere Zuweisung erlaubt; Felder: beliebig oft im
+  Konstruktor (inkl. Feld-Initialisierern); Parameter mit `gebacken` sind unveränderlich.
+- Bedingungen (`falls`, `solange`, `für`, `?:`, Operanden von `&&`/`||`/`!`, Ergebnis der `filtere`-Funktion) müssen
+  `diavolo` sein → sonst `TypAnanas: Erwartet diavolo (ja/nein), bekam X.`
+- `==`: `1 == 1.0` → ja; verschiedene Typen → nein; Blech, Speisekarte, Objekte, Funktionen per Identität.
+- `<`, `<=`, `>`, `>=`: Zahlen, Texte (lexikografisch nach UTF-16-Codeeinheiten), Dauer, Werte desselben
+  quattrostagioni (nach Position); sonst `TypAnanas: X und Y kann man nicht vergleichen.`
+
+### 14.7 Zusätzliche Fehlercodes und Texte
+
+- **P0010** (PizzaFehler, Exit 2, beim Start): `Klasse 'K' erbt von 'X' – diese Klasse gibt es nicht.` ·
+  `Klasse 'K' erfüllt 'X' – diese Rezeptur gibt es nicht.` · `Rezeptur 'R' erbt von 'X' – diese Rezeptur gibt es nicht.` ·
+  `Klasse 'A' erbt im Kreis – das ist ein Teigknoten.`
+- **A0001:** `Methode 'm' in 'K' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.`
+  (bei Belägen `… in Belag 'B' …`). Als vorhanden gelten Methoden der Basisklassenkette, aller erfüllten Rezepturen
+  (inkl. geerbter Rezepturen und der Rezepturen der Basisklassen), `alsText` immer, bei Ananas-Klassen
+  `nachricht`/`holeNachricht`/`typ`, bei Belägen die Pizza-Methoden (`preis`, `beschreibung`, …).
+- **W0003:** `Methode 'm' ist veraltet.` bzw. `Methode 'm' ist veraltet. Grund: <grund>` – einmal pro Methode,
+  Position = erster Aufruf.
+- Startprüfungen in dieser Reihenfolge: Q0004/P0010/P0011 in Quelltextreihenfolge, dann Vererbungszyklen, dann
+  R0001/A0001 in Quelltextreihenfolge. Der erste Fehler bricht ab.
+- Ungefangene Ananas: Zeile = Anweisung, in der geworfen bzw. der Fehler ausgelöst wurde. Geworfene Nicht-Ananas-Objekte:
+  `Ungefangene Ananas – <Textform> (Zeile N)`, `code` = Klassenname.
+
+### 14.8 W0032
+
+- Scopes: das Programm (Top-Level-Variablen und -Funktionen, **keine** Klassennamen), jeder Block, die Mitglieder
+  einer Klasse (Felder und Methoden, ohne Konstruktoren). Parameter (Methode, Konstruktor, Lambda) bilden mit den
+  direkten Deklarationen ihres Rumpfs **einen** Scope; ebenso `für`-Variable(n) + Schleifenrumpf, Fangvariable + Block,
+  `roh`-Variable + Block.
+- Gemeldet an der späteren Deklaration als `'<frühere>' und '<spätere>'`. **Einmal pro neuer Deklaration:** jede
+  Deklaration wird mit der ersten früheren gleichlautenden Schreibweise gepaart. Bei `pizza`, `PiZZa`, `piZZA` im selben
+  Scope entstehen also **2** Warnungen (`'pizza' und 'PiZZa'`, `'pizza' und 'piZZA'`).
+- Allgemein werden Warnungen einmal pro Code + Zeile + Spalte ausgegeben (W0003 einmal pro Methode, W0666 genau einmal
+  an der ersten Fundstelle).
+
+### 14.9 Objekte, Klassen, Aufrufe
+
+- `Klasse@N`: N zählt **global** über alle mit `neu` erzeugten Objekte ab 1 (auch `neu XAnanas(…)` und das automatisch
+  erzeugte Objekt für einen nicht-`tiefkühl` `hauptgang`). Intern von der Laufzeit erzeugte Ananas zählen nicht.
+- Nicht-`tiefkühl` `hauptgang`: Es wird ein Objekt der Klasse (ohne Argumente) erzeugt und die Methode darauf aufgerufen.
+- Konstruktion: ohne `unten(…)` → Basis-Konstruktor ohne Argumente, dann eigene Feld-Initialisierer, dann Rumpf. Mit
+  `unten(…)` im Rumpf laufen Basis-Konstruktion und eigene Feld-Initialisierer an dieser Stelle. Eine Klasse ohne
+  Konstruktor reicht Argumente an die Basis weiter; gibt es nirgends einen Konstruktor, sind Argumente ein Fehler.
+- Arität: `LaufzeitAnanas: Methode 'm' erwartet N Argument(e), bekam M.`; unbekannter benannter Parameter:
+  `… hat keinen Parameter 'x'.` (wird zuerst geprüft). Lambdas sind tolerant: fehlende Argumente → `karton`,
+  überzählige werden ignoriert.
+- `geheimrezept`/`familienrezept` gelten auch für unqualifizierte Methodenaufrufe aus Unterklassen. Statische Methoden
+  sind auch über Objekte aufrufbar; `Klasse.methode()` einer Instanzmethode ohne passende Instanz → LaufzeitAnanas.
+- Ein Feld, das eine Funktion hält, ist wie eine Methode aufrufbar (`obj.f(4)`, `Klasse.g(1)`).
+- Methodenreferenzen funktionieren auch auf Werten der Standardbibliothek (`"abc".länge`, `Mathe.wurzel`, `Bote.sage`).
+- Closures fangen Variablen **per Referenz**. Die Variable einer klassischen `für (salami i = …; …; …)`-Schleife ist
+  **eine** Variable für alle Durchläufe (Lambdas sehen den Endwert); `für (x : …)` und Variablen im Schleifenrumpf sind
+  pro Durchlauf neu.
+- `für (x : …)` läuft über eine Kopie des Blechs (Änderungen während der Schleife wirken nicht), über Texte (Zeichen),
+  Speisekarten (Schlüssel), einen quattrostagioni-Typ (Werte) und Pizzen (Beläge).
+
+### 14.10 Kühlschrank
+
+- Cache pro Instanz (statische Methoden: pro Klasse; Top-Level-Funktionen: global). Schlüssel = Methode + Argumentwerte
+  (benannte Argumente werden in Parameterreihenfolge einsortiert; Objekte nach Identität).
+- Frisch, solange Alter ≤ `haltbar` (Alter = Uhr jetzt − Uhr bei Fertigstellung der Berechnung).
+  `@Kühlschrank` ohne Argument = unbegrenzt haltbar.
+- `.mikrowelle(…)`/`.frisch(…)` gehen auch bei Methoden ohne `@Kühlschrank` und bei Lambdas (immer neu berechnet,
+  nie matschig).
+
+### 14.11 Standardbibliothek – Präzisierungen und Ergänzungen
+
+- `Bote.sage(a, b, …)`, `Bote.fehler(…)`, `Bote.schreibe(…)`: mehrere Argumente werden mit Leerzeichen verbunden;
+  `Bote.sage()` gibt eine leere Zeile aus.
+- Zahlen: Textform wie JavaScript `String(x)` (`1e+21`, `1e-7`, `-0` → `0`, `0.30000000000000004`).
+  `runden()`/`runden(n)`/`Mathe.runden` runden symmetrisch (−2.5 → −3, 2.675 → 2.68). `euro()`: zwei Nachkommastellen,
+  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`).
+- Dauer: zusätzlich `inMinuten()`; Textform rundet auf ganze ms, negative Dauer mit `-` (`-1min 30s`);
+  `Dauer / Dauer` → Zahl; Zahl × Dauer → Dauer; Division durch 0 → RechenAnanas.
+- Text: zusätzlich `endetMit(s)`, `istLeer()`, `alsText()`. `länge()`/`zeichen(i)` zählen Unicode-Zeichen (Codepoints).
+  `zerlege("")` → einzelne Zeichen. `alsZahl()` ignoriert Leerraum außen und `_`; sonst `TypAnanas: "<text>" ist keine Zahl.`
+  `groß()`/`klein()` wie JavaScript (`ß` → `SS`).
+- Blech: `entferne(i)` liefert das entfernte Element; `hinzu`, `setze` liefern das Blech; `hinzu()` ohne Argument fügt
+  `karton` an; `sortiere`, `umdrehen`, `belege`, `filtere` liefern **neue** Bleche; zusätzlich `kopie()`;
+  `verbinde()` ohne Trenner = `""`; `zusammenklappen` auf leerem Blech ohne Startwert → `karton`; `summe()` leer → 0
+  (Bleche aus Dauern → Dauer); `schneide(n)` mit n > Länge → leere Teilbleche; `schneide(n < 1)` →
+  `StreitAnanas: In n Stücke schneiden? Das geht nicht.`; `blech / 0` → RechenAnanas;
+  `blech / n` mit n < 0 → `StreitAnanas: In n Stücke teilen? Das geht nicht.`; S0007 auch bei `blech / 7`.
+- Indexfehler: `KeinStückAnanas: Stück i gibt es nicht – das Blech hat n Stück(e).` (Einzahl „Stück“);
+  `erstes`/`letztes` auf leerem Blech: `KeinStückAnanas: Das Blech ist leer – kein Stück da.`;
+  Text: `Zeichen i gibt es nicht – der Text hat n Zeichen.`
+- Speisekarte: zusätzlich `istLeer()`; `lege` liefert die Speisekarte; `entferne(k)` liefert den alten Wert oder
+  `karton`; Beläge als Schlüssel werden über ihren Namen gespeichert (`hole(Salami)` = `hole("Salami")`).
+- Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`.
+- Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
+  `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Stück `Stück von <pizza>`; Reste
+  `Reste(<wert>)`; roh-Info `Roh(<teilergebnis>)`; Funktionen `<Funktion>`; Klassen, Module und quattrostagioni-Typen
+  ihr Name. Zusätzlich `stück.essen()` → `karton`, `lieferung.istGeliefert()`, `funktion.rufe(…)`.
+- `Uhr.vorspulen` akzeptiert auch Zahlen (ms); negativ → `RechenAnanas: Die Uhr lässt sich nicht zurückdrehen.`
+- `Zufall.zahl(a, b)`: Ganzzahlen, a > b werden getauscht; Generator mulberry32 mit Seed 42, pro Lauf neu;
+  Ergebnis `a + floor(r × (b − a + 1))`.
+- `Spiegel.felder(obj)`: Felder der Basisklassen zuerst, jeweils in Deklarationsreihenfolge; Nicht-Objekt → TypAnanas.
