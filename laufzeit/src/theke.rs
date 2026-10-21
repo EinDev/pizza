@@ -23,7 +23,7 @@ pub struct UiTheke { pub art: u32, pub gezeigt: u32, pub geschlossen: u32, pub _
 #[repr(C)]
 pub struct UiZutat {
     pub art: u32, pub zart: u32, pub id: W, pub eltern: W, pub sichtbar: bool, pub an: bool, pub aktiv: bool,
-    pub stil: Vec<(u32, W)>, pub text: W, pub wert: W, pub platzhalter: W, pub kinder: Vec<W>,
+    pub stil: Vec<(u32, W)>, pub stil_null: Vec<u32>, pub text: W, pub wert: W, pub platzhalter: W, pub kinder: Vec<W>,
     pub bei_klick: W, pub bei_aenderung: W, pub bei_enter: W,
 }
 
@@ -79,13 +79,23 @@ fn json_wert(w: W, out: &mut String) {
     else if ist_zahl(w) { json_zahl(f(w), out); }
     else { out.push_str("null"); }
 }
-fn stil_json(z: &UiZutat, out: &mut String) {
+fn stil_json(z: &UiZutat, out: &mut String, mit_null: bool) {
     out.push('{');
-    for (i, &(k, v)) in z.stil.iter().enumerate() {
+    let mut i = 0;
+    for &(k, v) in z.stil.iter() {
         if i > 0 { out.push(','); }
+        i += 1;
         json_text(STIL_NAMEN[k as usize].as_bytes(), out);
         out.push(':');
         json_wert(v, out);
+    }
+    if mit_null {
+        for &k in z.stil_null.iter() {
+            if i > 0 { out.push(','); }
+            i += 1;
+            json_text(STIL_NAMEN[k as usize].as_bytes(), out);
+            out.push_str(":null");
+        }
     }
     out.push('}');
 }
@@ -102,7 +112,8 @@ fn baum(w: W, out: &mut String) {
         _ => {}
     }
     if !z.sichtbar { out.push_str(",\"sichtbar\":false"); }
-    if !z.stil.is_empty() { out.push_str(",\"stil\":"); stil_json(z, out); }
+    if !z.stil.is_empty() { out.push_str(",\"stil\":"); stil_json(z, out, false); }
+    zutat(w).stil_null = Vec::new();
     if z.zart >= 4 {
         out.push_str(",\"kinder\":[");
         for (i, &k) in z.kinder.iter().enumerate() { if i > 0 { out.push(','); } baum(k, out); }
@@ -122,9 +133,25 @@ fn fenster_nachricht(t: &UiTheke) {
     sende(&o);
 }
 
+/// Programmende: letzte Änderungen senden, offenes Fenster schließen
+pub fn ui_ende() {
+    ui_flush();
+    let t = unsafe { THEKE };
+    if t == KARTON { return; }
+    let th = obj::<UiTheke>(t);
+    if th.gezeigt != 0 && th.geschlossen == 0 {
+        sende("{\"v\":1,\"op\":\"schliesse\"}");
+        th.geschlossen = 1;
+        th.gezeigt = 0;
+    }
+}
+
 pub fn ui_flush() {
     unsafe {
         if OFFEN.is_empty() { return; }
+        for (id, felder) in OFFEN.iter() {
+            if felder.iter().any(|(k, _)| *k == "stil") { if let Some(z) = finde_id(bytes(*id)) { zutat(z).stil_null = Vec::new(); } }
+        }
         let mut o = String::from("{\"v\":1,\"op\":\"aendere\",\"aenderungen\":[");
         for (i, (id, felder)) in OFFEN.iter().enumerate() {
             if i > 0 { o.push(','); }
@@ -255,7 +282,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
     }
     let leer = neu_str("");
     let z = neu_w(UiZutat {
-        art: A_ZUTAT, zart, id, eltern: KARTON, sichtbar: true, an: false, aktiv: true, stil: Vec::new(),
+        art: A_ZUTAT, zart, id, eltern: KARTON, sichtbar: true, an: false, aktiv: true, stil: Vec::new(), stil_null: Vec::new(),
         text: leer, wert: leer, platzhalter: leer, kinder: Vec::new(), bei_klick: KARTON, bei_aenderung: KARTON, bei_enter: KARTON,
     });
     let txt = |w: W| -> W { if w == UNDEF { neu_str("") } else { text(w) } };
@@ -333,6 +360,14 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
                 }
             };
             let mut w = a(pos, 1);
+            if w == KARTON || w == UNDEF {
+                let z = zutat(o);
+                if let Some(i) = z.stil.iter().position(|x| x.0 == ki) { z.stil.remove(i); }
+                if !z.stil_null.contains(&ki) { z.stil_null.push(ki); }
+                let mut j = String::new(); stil_json(z, &mut j, true);
+                aendere(o, "stil", j);
+                return o;
+            }
             if ki <= 2 {
                 if !(ist_zahl(w) && f(w) >= 0.0 && f(w).is_finite()) {
                     let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine Zahl ≥ 0, nicht "); darstellung(w, &mut t); t.s(".");
@@ -350,7 +385,8 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
             }
             let z = zutat(o);
             match z.stil.iter_mut().find(|x| x.0 == ki) { Some(x) => x.1 = w, None => z.stil.push((ki, w)) }
-            let mut j = String::new(); stil_json(z, &mut j);
+            if let Some(i) = z.stil_null.iter().position(|&x| x == ki) { z.stil_null.remove(i); }
+            let mut j = String::new(); stil_json(z, &mut j, true);
             aendere(o, "stil", j);
             o
         }

@@ -276,7 +276,7 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
             if sig() { break 'lauf; }
         }
         crate::pf::lieferungen_nach_ende();
-        if !sig() { crate::theke::ui_flush(); }
+        if !sig() { crate::theke::ui_ende(); }
     }
     ende()
 }
@@ -287,6 +287,7 @@ fn ende() -> i32 {
     unsafe {
         match s {
             SIG_PANIK => { crate::host_panik(BANNER.as_bytes()); 39 }
+            _ if { let s0 = z().sig; z().sig = 0; crate::theke::ui_ende(); z().sig = s0; false } => 0,
             SIG_PF => {
                 let mut t = Tb::neu();
                 t.s("PizzaFehler ").s(PF_CODE).s(": ").t(PF_TEXT);
