@@ -24,6 +24,8 @@ e.setzeWert(karton);
 e2.setzeWert();
 f.setzeText("halb");
 f.setzeText(karton);
+f.setzeText("ganz");
+f.setzeText();
 a.setzeTitel();
 e2.hinweis("Tipp");
 e2.hinweis(karton);

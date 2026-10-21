@@ -904,10 +904,10 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 | Klasse | Zweck | Konstruktor | Methoden |
 |---|---|---|---|
 | `Theke` | Fenster | `(titel = "", breite: 480, hoehe: 360)` | `zeige(zutat)` → Theke, `bediene()`, `schliesse()`, `titel()`, `setzeTitel(t)` |
-| `Schild` | Text | `(text)` | `text()`, `setzeText(t)` |
-| `Knopf` | Button | `(text, beiKlick?)` (auch `beiKlick: fn`) | `text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(diavolo)` / `aktiv()` |
+| `Schild` | Text | `(text = "")` | `text()`, `setzeText(t)` |
+| `Knopf` | Button | `(text = "", beiKlick?)` (auch `beiKlick: fn`) | `text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(diavolo)` / `aktiv()` |
 | `Eingabe` | Textfeld | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)`, `beiEnter(fn)` |
-| `Haken` | Checkbox | `(text, an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` |
+| `Haken` | Checkbox | `(text = "", an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` |
 | `Stapel` / `Reihe` | Container vertikal / horizontal | `(Blech<Zutat>)` | `hinzu(zutat)` → Container, `leeren()` |
 
 Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`.
@@ -1017,7 +1017,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 |---|---|---|---|
 | `Takt` (unsichtbar) | `(intervall, beiTakt?)` – Dauer ≥ 100 ms, ganze ms | `aktiv(d)`/`aktiv()`, `setzeIntervall(d)`, `intervall()`, `beiTakt(fn)` → `fn(anzahl)` | `{"art":"takt","intervall":1000}` (+ `aktiv:false`) · Ereignis `{"typ":"takt","id","anzahl"}` |
 | `Fortschritt` | `(wert: 0, text: "")` – wert 0…1 geklemmt, NaN → 0 | `wert()`, `setzeWert`, `text()`, `setzeText` | `{"art":"fortschritt","wert":0.25}` (+ `text`) |
-| `Abschnitt` | `(titel, Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel` | `{"art":"abschnitt","titel","kinder"}` |
+| `Abschnitt` | `(titel = "", Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel` | `{"art":"abschnitt","titel","kinder"}` |
 | `Tabelle` | `(spalten, zeilen)` – Zellen als Textform | `spalten()`, `setzeSpalten`, `zeilen()`, `setzeZeilen` | `{"art":"tabelle","spalten":[…],"zeilen":[[…]]}` |
 | `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)` | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
 | alle Zutaten | – | `hinweis(text)`, `hinweis()` | Feld `hinweis` (nur nicht leer) |
