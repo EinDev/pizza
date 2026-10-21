@@ -146,10 +146,13 @@ klasse Herausforderung {
     margherita regel;
     margherita belohnung;
     funghi ziel;
+    salami abFilialen = 0;   // zweite Staffel: erst mit einer Franchise-Kette
 
     Herausforderung(margherita s, margherita sym, margherita n, funghi z, margherita r, margherita b) {
         schlüssel = s; symbol = sym; name = n; ziel = z; regel = r; belohnung = b;
     }
+
+    Herausforderung abKette() { abFilialen = 1; serviere (dies); }
 }
 
 // ─────────────────────────────── Erfolge ────────────────────────────────
@@ -319,7 +322,17 @@ klasse Spiel {
             "Jede Pizza bringt für immer 25 % mehr."),
         neu Herausforderung("fastenzeit", "🙏", "Fastenzeit", 5_000_000_000,
             "Kein Klicken, keine Sonderschicht, keine Feste, keine Minispiele: Nur der Betrieb backt, Ereignisse fallen aus. 3 Lehrlinge helfen beim Start.",
-            "Der ganze Betrieb backt für immer +25 %.")
+            "Der ganze Betrieb backt für immer +25 %."),
+        // Zweite Staffel – ab der ersten Franchise-Kette
+        neu Herausforderung("inflation", "💸", "Inflation", 20_000_000_000,
+            "Der Großhändler spinnt: Alle Upgrades kosten das Dreifache.",
+            "Alle Upgrades kosten für immer 10 % weniger.").abKette(),
+        neu Herausforderung("minikueche", "🤏", "Mini-Küche", 50_000_000_000,
+            "Das Bauamt hat Nein gesagt: höchstens 25 Stück je Gebäude.",
+            "Der ganze Betrieb backt für immer +50 %.").abKette(),
+        neu Herausforderung("urlaub", "🏖", "Nonna im Urlaub", 100_000_000_000,
+            "Nonna ist auf Ischia und hat ihre Geheimrezepte mitgenommen: Keins wirkt.",
+            "Geheimrezepte kosten für immer 1 ⭐ weniger (mindestens 1).").abKette()
     ];
 
     // Nonnas Rezeptbuch: jede Seite legt einen Belag auf die Margherita.
@@ -342,7 +355,9 @@ klasse Spiel {
     funghi preisWert = 8;
     salami version = 0;
 
-    diavolo kennt(margherita talent) { serviere (talente.enthält(talent)); }
+    // gelernt: Nonna hat es verraten. kennt: es wirkt (im Urlaub wirkt keins).
+    diavolo gelernt(margherita talent) { serviere (talente.enthält(talent)); }
+    diavolo kennt(margherita talent) { serviere (modus != "urlaub" && talente.enthält(talent)); }
     diavolo bestanden(margherita h) { serviere (geschafft.enthält(h)); }
 
     salami prozentJeStern() { serviere (kennt("segen") ? 12 : 10); }
@@ -354,7 +369,7 @@ klasse Spiel {
 
     leer neuBerechnen() {
         funghi f = faktor();
-        funghi fb = f * (effekt == "regen" ? 2 : 1) * (effekt == "influencer" ? 1.5 : 1) * (kennt("holzofen") ? 1.5 : 1) * (kennt("ofenflüsterer") ? 2 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
+        funghi fb = f * (bestanden("minikueche") ? 1.5 : 1) * (effekt == "regen" ? 2 : 1) * (effekt == "influencer" ? 1.5 : 1) * (kennt("holzofen") ? 1.5 : 1) * (kennt("ofenflüsterer") ? 2 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
         funghi s = 0;
         für (Upgrade u : betrieb) {
             diavolo holzofen = u.schlüssel == "lehrling" || u.schlüssel == "steinofen";
@@ -583,16 +598,22 @@ klasse Spiel {
     }
 
     // ── Aktionen der Spielerin ──
+    // Preisfaktor für Upgrades (Inflation ×3, Belohnung −10 %)
+    funghi preisFaktor() { serviere ((modus == "inflation" ? 3 : 1) * (bestanden("inflation") ? 0.9 : 1)); }
+    // So viele Stück darf man noch kaufen (Mini-Küche: höchstens 25 je Gebäude)
+    salami kaufGrenze(Upgrade u) { serviere (modus == "minikueche" && u.art == "betrieb" ? Mathe.max(0, 25 - u.anzahl) : 1000); }
+
     diavolo erlaubt(Upgrade u) {
         falls (u.schlüssel == "zentrale" && filialen <= 0) { serviere (nein); }
+        falls (kaufGrenze(u) <= 0) { serviere (nein); }
         falls (modus == "neapel" && u.art == "betrieb") { serviere (u.schlüssel == "lehrling" || u.schlüssel == "steinofen"); }
         serviere (ja);
     }
 
     // k Stück auf einmal (Kaufmenge 1×/10×/100×/Max) – nur ganz oder gar nicht.
     diavolo kaufe(Upgrade u, salami k) {
-        falls (k < 1 || !erlaubt(u)) { serviere (nein); }
-        funghi summe = u.kostenFür(k);
+        falls (k < 1 || !erlaubt(u) || k > kaufGrenze(u)) { serviere (nein); }
+        funghi summe = u.kostenFür(k) * preisFaktor();
         falls (geld < summe) { serviere (nein); }
         geld -= summe;
         u.setzeAnzahl(u.anzahl + k);
@@ -718,7 +739,10 @@ klasse Spiel {
     // ── Ebene 2: Geheimrezepte ──
     diavolo rezepteOffen() { serviere (sterneAllzeit >= 1); }
     diavolo lernbar(Geheimrezept r) {
-        serviere (rezepteOffen() && sterne >= r.kosten && offeneRezepte().enthält(r));
+        serviere (rezepteOffen() && sterne >= rezeptKosten(r) && offeneRezepte().enthält(r));
+    }
+    salami rezeptKosten(Geheimrezept r) {
+        serviere (Mathe.max(1, r.kosten - (bestanden("urlaub") ? 1 : 0)));
     }
     Geheimrezept rezeptNamens(margherita s) {
         für (Geheimrezept r : REZEPTE) { falls (r.schlüssel == s) { serviere (r); } }
@@ -729,7 +753,7 @@ klasse Spiel {
     // Gelernte verschwinden, das nächste Glied rückt nach.
     salami WELLE_REZEPTE = 3;
     Blech<Geheimrezept> offeneRezepte() {
-        Blech<Geheimrezept> offen = REZEPTE.filtere((r) -> (!kennt(r.schlüssel) && (r.braucht == "" || kennt(r.braucht))))
+        Blech<Geheimrezept> offen = REZEPTE.filtere((r) -> (!gelernt(r.schlüssel) && (r.braucht == "" || gelernt(r.braucht))))
             .sortiere((a, b) -> (a.kosten - b.kosten));
         Blech<Geheimrezept> welle = [];
         für (Geheimrezept r : offen) { falls (welle.länge() < WELLE_REZEPTE) { welle.hinzu(r); } }
@@ -738,7 +762,7 @@ klasse Spiel {
 
     diavolo lerne(Geheimrezept r) {
         falls (!lernbar(r)) { serviere (nein); }
-        sterne -= r.kosten;
+        sterne -= rezeptKosten(r);
         talente.hinzu(r.schlüssel);
         neuBerechnen();
         melde(("📜 Nonna flüstert dir ein Geheimnis zu: " + r.symbol + " " + r.name + ". " + r.text));
@@ -752,8 +776,20 @@ klasse Spiel {
         serviere (karton);
     }
 
+    diavolo staffelOffen(Herausforderung h) { serviere (herausforderungenOffen() && filialen >= h.abFilialen); }
+
+    // Welle: höchstens 2 offene Herausforderungen (die laufende zählt mit), Geschafftes klappt in eine Zeile.
+    Blech<Herausforderung> offeneHerausforderungen() {
+        Blech<Herausforderung> welle = [];
+        falls (modus != "") { welle.hinzu(herausforderung(modus)); }
+        für (Herausforderung h : HERAUSFORDERUNGEN) {
+            falls (welle.länge() < 2 && h.schlüssel != modus && staffelOffen(h) && !bestanden(h.schlüssel)) { welle.hinzu(h); }
+        }
+        serviere (welle);
+    }
+
     diavolo startbar(Herausforderung h) {
-        serviere (herausforderungenOffen() && modus == "" && !bestanden(h.schlüssel));
+        serviere (staffelOffen(h) && modus == "" && !bestanden(h.schlüssel) && offeneHerausforderungen().enthält(h));
     }
 
     diavolo starte(Herausforderung h) {
@@ -1178,8 +1214,11 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Ofenmeister", "Lerne die ganze Ofen-Kette bis zum Ofenflüsterer.", (s) -> (s.kennt("ofenflüsterer"))),
     neu Erfolg("Nonna hat nichts mehr zu verraten", "Kenne alle Geheimrezepte gleichzeitig.", (s) -> (s.talente.länge() >= s.REZEPTE.länge())),
     neu Erfolg("Fastenbrecher", "Schaffe die Fastenzeit – ganz ohne Klicken.", (s) -> (s.bestanden("fastenzeit"))),
-    neu Erfolg("Prüfungsmeister", "Schaffe alle drei Herausforderungen.", (s) -> (s.geschafft.länge() >= 3)),
+    neu Erfolg("Prüfungsmeister", "Schaffe drei Herausforderungen.", (s) -> (s.geschafft.länge() >= 3)),
     neu Erfolg("Kettenreaktion", "Gründe deine erste Franchise-Kette.", (s) -> (s.filialen >= 1)),
+    neu Erfolg("Inflationsgewinner", "Schaffe die Inflation.", (s) -> (s.bestanden("inflation"))),
+    neu Erfolg("Kleine Küche, großer Umsatz", "Schaffe die Mini-Küche.", (s) -> (s.bestanden("minikueche"))),
+    neu Erfolg("Urlaubsvertretung", "Schaffe es ohne Nonnas Geheimrezepte.", (s) -> (s.bestanden("urlaub"))),
     neu Erfolg("Doppelt hält besser", "Gründe zweimal eine Kette.", (s) -> (s.franchises >= 2)),
     neu Erfolg("Sternenhimmel", "Sammle 100 Michelin-Sterne.", (s) -> (s.sterneAllzeit >= 100)),
     neu Erfolg("Houston, wir haben Hunger", "Eröffne den Saturnring-Lieferdienst.", (s) -> (s.anzahl("saturn") >= 1)),
@@ -1233,6 +1272,9 @@ klasse UpgradeZeile {
     salami summeMenge = -1; // für diese Kaufmenge und Stückzahl ist `summe` ausgerechnet
     salami summeAnzahl = -1;
     funghi summe = 0;
+    funghi faktor = 1;      // Preisfaktor (Inflation)
+    funghi summeFaktor = -1;
+    salami grenze = 1000;   // höchstens so viele Stück (Mini-Küche)
 
     UpgradeZeile(Upgrade upgrade, Funktion beiKauf) {
         u = upgrade;
@@ -1251,6 +1293,8 @@ klasse UpgradeZeile {
     leer beschrifte(Spiel s) {
         erlaubt = s.erlaubt(u);
         falls (info.text() != u.zeile) { info.setzeText((u.zeile)); }
+        faktor = s.preisFaktor();
+        grenze = s.kaufGrenze(u);
         falls (!erlaubt) {
             margherita grund = s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
             falls (knopf.text() != grund) { knopf.setzeText((grund)); }
@@ -1267,16 +1311,17 @@ klasse UpgradeZeile {
             falls (stufe != 0) { stufe = 0; balken.setzeWert(0); }
             serviere;
         }
-        salami k = menge;
-        falls (menge == 0) { k = u.maxFür(geld); }
+        salami k = Mathe.min(menge, grenze);
+        falls (menge == 0) { k = Mathe.min(u.maxFür(geld / faktor), grenze); }
         salami gerechnet = Mathe.max(k, 1);
-        falls (summeMenge != gerechnet || summeAnzahl != u.anzahl) {
-            summe = u.kostenFür(gerechnet);
+        falls (summeMenge != gerechnet || summeAnzahl != u.anzahl || summeFaktor != faktor) {
+            summe = u.kostenFür(gerechnet) * faktor;
             summeMenge = gerechnet;
             summeAnzahl = u.anzahl;
+            summeFaktor = faktor;
         }
         margherita text = summe < 1_000_000_000_000_000_000_000 ? summe.euro(kompakt: ja) : "unbezahlbar";
-        falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (menge > 1) { text = text + " (×" + menge + ")"; }
+        falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (k > 1) { text = text + " (×" + k + ")"; }
         falls (knopf.text() != text) { knopf.setzeText((text)); }
         diavolo leistbar = k >= 1 && geld >= summe;
         salami st = leistbar ? 20 : Mathe.boden(geld / summe * 20);
@@ -1307,7 +1352,7 @@ klasse RezeptZeile {
     leer zeichne(Spiel s) {
         margherita voraus = r.braucht == "" ? "" : " (braucht " + s.rezeptNamens(r.braucht).name + ")";
         setzeText(info, r.symbol + " " + r.name + voraus + " – " + r.text);
-        setzeKnopf(knopf, r.kosten + " ⭐ lernen", s.lernbar(r));
+        setzeKnopf(knopf, s.rezeptKosten(r) + " ⭐ lernen", s.lernbar(r));
     }
 }
 
@@ -1408,7 +1453,8 @@ Abschnitt upgradeAbschnitt(margherita titel, Blech<Upgrade> liste, margherita id
     a.stil("abstand", 6);
     für (Upgrade u : liste) {
         UpgradeZeile z = neu UpgradeZeile(u, () -> {
-            falls (spiel.kaufe(u, kaufMenge == 0 ? u.maxFür(spiel.geld) : kaufMenge)) { nachVerarbeitung(); }
+            salami k = kaufMenge == 0 ? u.maxFür(spiel.geld / spiel.preisFaktor()) : kaufMenge;
+            falls (spiel.kaufe(u, Mathe.min(k, spiel.kaufGrenze(u)))) { nachVerarbeitung(); }
         });
         zeilen.hinzu(z);
         a.hinzu(z.reihe);
@@ -1596,7 +1642,10 @@ Knopf aufgeben = neu Knopf("🏳 Aufgeben", () -> {
 aufgeben.stil("farbe", "mozzarella").hinweis("Die Auflagen fallen weg, die Runde läuft normal weiter – ohne Belohnung.");
 Stapel laufend = neu Stapel([zielBalken, aufgeben], id: "probe-laufend");
 laufend.sichtbar(nein);
-Abschnitt probeTeil = neu Abschnitt("🏅 Herausforderungen", [probeInfo, laufend], id: "herausforderungen");
+Schild geschafftInfo = neu Schild("", id: "probe-geschafft");
+geschafftInfo.stil("schrift", "klein").stil("farbe", "basilikum");
+geschafftInfo.sichtbar(nein);
+Abschnitt probeTeil = neu Abschnitt("🏅 Herausforderungen", [probeInfo, geschafftInfo, laufend], id: "herausforderungen");
 probeTeil.stil("abstand", 6);
 Blech<HerausforderungZeile> probeZeilen = [];
 für (Herausforderung h : spiel.HERAUSFORDERUNGEN) {
@@ -1922,7 +1971,7 @@ leer zeichneGeheimnisse() {
         falls (z.reihe.sichtbar() != zeigen) { z.reihe.sichtbar(zeigen); }
         falls (zeigen) { z.zeichne(spiel); }
     }
-    Blech<Geheimrezept> gelernt = spiel.REZEPTE.filtere((r) -> (spiel.kennt(r.schlüssel)));
+    Blech<Geheimrezept> gelernt = spiel.REZEPTE.filtere((r) -> (spiel.gelernt(r.schlüssel)));
     falls (!gelernt.istLeer()) {
         setzeText(gelerntInfo, "✅ Gelernt: " + gelernt.belege((r) -> (r.symbol + " " + r.name)).verbinde(" · ")
             + (welle.istLeer() ? " – Nonna hat dir alles verraten." : ""));
@@ -1942,10 +1991,18 @@ leer zeichneGeheimnisse() {
     }
     falls (laufend.sichtbar() != (spiel.modus != "")) { laufend.sichtbar(spiel.modus != ""); }
     setzeKnopf(aufgeben, "🏳 Aufgeben", ja);
+    Blech<Herausforderung> welle = spiel.offeneHerausforderungen();
     für (HerausforderungZeile z : probeZeilen) {
-        falls (z.reihe.sichtbar() != offen) { z.reihe.sichtbar(offen); }
-        z.zeichne(spiel);
+        diavolo zeigen = offen && welle.enthält(z.h);
+        falls (z.reihe.sichtbar() != zeigen) { z.reihe.sichtbar(zeigen); }
+        falls (zeigen) { z.zeichne(spiel); }
     }
+    Blech<Herausforderung> geschafft = spiel.HERAUSFORDERUNGEN.filtere((h) -> (spiel.bestanden(h.schlüssel)));
+    falls (!geschafft.istLeer()) {
+        setzeText(geschafftInfo, "✅ Geschafft: " + geschafft.belege((h) -> (h.symbol + " " + h.name)).verbinde(" · ")
+            + (welle.istLeer() && spiel.filialen <= 0 ? " – mit einer Franchise-Kette wartet die nächste Staffel." : ""));
+    }
+    falls (geschafftInfo.sichtbar() == geschafft.istLeer()) { geschafftInfo.sichtbar(!geschafft.istLeer()); }
 }
 
 margherita gezeigtesSpiel = "";
