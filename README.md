@@ -61,7 +61,7 @@ Fehler kommen immer als JSON `{"fehler":"…"}`: 405 (falsche Methode), 413 (zu 
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `HASTEBIN_URL` (pizza) | `http://hastebin:8290` | interner Upstream; leer = Teilen aus (503, `"teilen":false`) |
-| `HASTEBIN_ABLAUF_SEKUNDEN` | `7776000` (90 Tage) | **eine** Quelle (`x-teilen-ablauf` in `compose.yaml`): Ablaufzeit im haste-server und `aufbewahrungTage` in `/api/konfig`; `0` = nie (`null`) |
+| `HASTEBIN_ABLAUF_SEKUNDEN` | `7776000` (90 Tage) | **eine** Variable (in `compose.yaml` bei `pizza` und `hastebin` eingetragen): Ablaufzeit im haste-server und `aufbewahrungTage` in `/api/konfig`; `0` = nie (`null`) |
 | `HASTEBIN_RATE_LIMIT` (hastebin) | `60` | Anfragen pro Minute und IP am internen Dienst |
 | `SERVICE_PASSWORD_REDIS` | Coolify generiert; lokal `pizza-lokal` | Redis-Passwort (nur intern erreichbar) |
 

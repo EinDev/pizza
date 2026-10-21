@@ -10,8 +10,8 @@
 #
 # Keine ports und kein container_name hier – das bricht Coolifys Proxy-Routing.
 
-# Eine Quelle der Wahrheit für die Aufbewahrung geteilter Codes (Sekunden)
-x-teilen-ablauf: &teilen-ablauf ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
+# Aufbewahrung geteilter Codes: EINE Variable HASTEBIN_ABLAUF_SEKUNDEN (Standard
+# 7776000 = 90 Tage), unten bei pizza und hastebin identisch eingetragen.
 
 services:
   pizza:
@@ -30,7 +30,7 @@ services:
       # Interner Upstream für /api/teilen (leer = Teilen deaktiviert)
       HASTEBIN_URL: ${HASTEBIN_URL:-http://hastebin:8290}
       # Aufbewahrung geteilter Codes (gleiche Quelle wie im hastebin-Service)
-      HASTEBIN_ABLAUF_SEKUNDEN: *teilen-ablauf
+      HASTEBIN_ABLAUF_SEKUNDEN: ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
     read_only: true
     tmpfs:
       - /tmp
@@ -68,7 +68,7 @@ services:
       STORAGE_DB: 0
       STORAGE_PASSWORD: ${SERVICE_PASSWORD_REDIS:-pizza-lokal}
       # Ablaufzeit der Dokumente ab Erstellung (Standard 90 Tage, 0 = nie)
-      STORAGE_EXPIRE_SECONDS: *teilen-ablauf
+      STORAGE_EXPIRE_SECONDS: ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
     read_only: true
     tmpfs:
       - /tmp
