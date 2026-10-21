@@ -1,0 +1,6 @@
+#!/bin/sh
+# Wird vom nginx-Entrypoint vor 20-envsubst-on-templates.sh eingelesen (source).
+# Sorgt dafür, dass HASTEBIN_TOKEN immer definiert ist (ggf. leer), damit envsubst
+# den Platzhalter ersetzt statt ihn wörtlich stehen zu lassen.
+# Der Token selbst kommt ausschließlich zur Laufzeit aus der Umgebung.
+export HASTEBIN_TOKEN="${HASTEBIN_TOKEN:-}"
