@@ -5,19 +5,14 @@
 # leere Standardwerte setzt /docker-entrypoint.d/05-pizza-env.envsh.
 
 # DNS-Resolver des Containers (proxy_pass mit Variable -> nginx startet auch,
-# wenn der Hastebin-Service noch nicht läuft)
+# wenn der interne Teilen-Service noch nicht läuft)
 resolver ${NGINX_LOCAL_RESOLVERS} valid=30s ipv6=off;
 resolver_timeout 5s;
 
-# Interner Hastebin-Endpunkt ohne abschließenden Slash, z. B. http://hastebin:8290
-# (leer = Teilen deaktiviert -> 503)
+# Interner Teilen-Service (haste-server) ohne abschließenden Slash,
+# Standard aus compose.yaml: http://hastebin:8290 (leer = Teilen deaktiviert -> 503)
 map $host $hastebin_upstream {
     default "${HASTEBIN_URL}";
-}
-
-# Öffentliche Hastebin-URL (für /api/konfig und den Warndialog der UI)
-map $host $hastebin_oeffentlich {
-    default "${HASTEBIN_OEFFENTLICH}";
 }
 
 map $hastebin_upstream $teilen_aktiv {
@@ -25,18 +20,8 @@ map $hastebin_upstream $teilen_aktiv {
     default "true";
 }
 
-# Optionaler API-Token (nur für externe Hastebin-Dienste nötig; leer = kein Header)
-map $host $hastebin_token {
-    default "${HASTEBIN_TOKEN}";
-}
-map $hastebin_token $hastebin_auth {
-    ""      "";
-    default "Bearer $hastebin_token";
-}
-
-# Client-IP nur an den eigenen (internen) Hastebin weitergeben – dessen
-# Rate-Limit wertet X-Real-IP aus. Externe Dienste erfahren sie nicht.
-map $hastebin_upstream $hastebin_real_ip {
-    "~^http://hastebin[:/]" $remote_addr;
-    default                 "";
+# Aufbewahrung geteilter Codes in Tagen (aus HASTEBIN_ABLAUF_SEKUNDEN, JSON-Zahl
+# oder null = unbegrenzt) für /api/konfig
+map $host $teilen_aufbewahrung_tage {
+    default "${TEILEN_AUFBEWAHRUNG_TAGE}";
 }

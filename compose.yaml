@@ -1,15 +1,17 @@
-# pizza-Playground + eigener Hastebin-Server.
+# pizza-Playground + interner Teilen-Service (haste-server + Redis).
 #
-# Coolify (Build-Pack "Docker Compose"): Domains pro Service in der UI eintragen,
-#   pizza    -> https://pizza.example.com:8080
-#   hastebin -> https://paste.example.com:8290
+# Coolify (Build-Pack "Docker Compose"): nur EINE Domain, für den Service pizza:
+#   pizza -> https://pizza.example.com:8080
 # (Port-Suffix = interner Container-Port, öffentlich bleibt es 443.)
-# Die Magic-Variablen SERVICE_URL_<SERVICE>_<PORT> füllt Coolify aus diesen Domains.
+# hastebin und redis bekommen keine Domain und sind nur im internen Netz erreichbar.
 #
 # Lokal: docker compose -f compose.yaml -f compose.lokal.yaml up --build
-#   -> http://localhost:8080 (pizza), http://localhost:8290 (Hastebin)
+#   -> http://localhost:8080
 #
 # Keine ports und kein container_name hier – das bricht Coolifys Proxy-Routing.
+
+# Eine Quelle der Wahrheit für die Aufbewahrung geteilter Codes (Sekunden)
+x-teilen-ablauf: &teilen-ablauf ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
 
 services:
   pizza:
@@ -27,10 +29,8 @@ services:
       SERVICE_URL_PIZZA_8080: /
       # Interner Upstream für /api/teilen (leer = Teilen deaktiviert)
       HASTEBIN_URL: ${HASTEBIN_URL:-http://hastebin:8290}
-      # Öffentliche Hastebin-URL für /api/konfig (Warndialog, Rohansicht-Link)
-      HASTEBIN_OEFFENTLICH: ${HASTEBIN_OEFFENTLICH:-${SERVICE_URL_HASTEBIN_8290:-}}
-      # Nur für externe Hastebin-Dienste mit Token (z. B. hastebin.com); sonst leer
-      HASTEBIN_TOKEN: ${HASTEBIN_TOKEN:-}
+      # Aufbewahrung geteilter Codes (gleiche Quelle wie im hastebin-Service)
+      HASTEBIN_ABLAUF_SEKUNDEN: *teilen-ablauf
     read_only: true
     tmpfs:
       - /tmp
@@ -54,8 +54,6 @@ services:
       redis:
         condition: service_healthy
     environment:
-      # Domain dieses Service (wird von Coolify aus der UI-Domain verwaltet)
-      SERVICE_URL_HASTEBIN_8290: /
       HOST: 0.0.0.0
       PORT: 8290
       KEY_LENGTH: 10
@@ -69,8 +67,8 @@ services:
       STORAGE_PORT: 6379
       STORAGE_DB: 0
       STORAGE_PASSWORD: ${SERVICE_PASSWORD_REDIS:-pizza-lokal}
-      # Ablaufzeit der Dokumente: 90 Tage
-      STORAGE_EXPIRE_SECONDS: ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
+      # Ablaufzeit der Dokumente ab Erstellung (Standard 90 Tage, 0 = nie)
+      STORAGE_EXPIRE_SECONDS: *teilen-ablauf
     read_only: true
     tmpfs:
       - /tmp

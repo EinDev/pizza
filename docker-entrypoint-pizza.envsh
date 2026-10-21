@@ -1,10 +1,17 @@
 #!/bin/sh
 # Wird vom nginx-Entrypoint vor 20-envsubst-on-templates.sh eingelesen (source).
-# Sorgt dafür, dass alle Template-Variablen definiert sind (ggf. leer), damit
-# envsubst die Platzhalter ersetzt statt sie wörtlich stehen zu lassen.
-# Werte kommen ausschließlich zur Laufzeit aus der Umgebung.
+# Sorgt dafür, dass HASTEBIN_URL immer definiert ist (ggf. leer), damit envsubst
+# den Platzhalter ersetzt statt ihn wörtlich stehen zu lassen.
+# Der Wert kommt ausschließlich zur Laufzeit aus der Umgebung (compose.yaml).
 HASTEBIN_URL="${HASTEBIN_URL:-}"
 export HASTEBIN_URL="${HASTEBIN_URL%/}"
-HASTEBIN_OEFFENTLICH="${HASTEBIN_OEFFENTLICH:-}"
-export HASTEBIN_OEFFENTLICH="${HASTEBIN_OEFFENTLICH%/}"
-export HASTEBIN_TOKEN="${HASTEBIN_TOKEN:-}"
+
+# Aufbewahrung in Tagen aus derselben Variable, die die Ablaufzeit des
+# haste-server steuert (compose.yaml: x-teilen-ablauf). 0/leer/ungültig = null.
+_sek="${HASTEBIN_ABLAUF_SEKUNDEN:-}"
+case "$_sek" in
+    ''|*[!0-9]*|0) TEILEN_AUFBEWAHRUNG_TAGE=null ;;
+    *) TEILEN_AUFBEWAHRUNG_TAGE=$(awk -v s="$_sek" 'BEGIN { t = s / 86400; printf (t == int(t)) ? "%d" : "%.2f", t }') ;;
+esac
+export TEILEN_AUFBEWAHRUNG_TAGE
+unset _sek

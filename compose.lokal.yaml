@@ -1,12 +1,7 @@
 # Lokale Ergänzung zu compose.yaml (NICHT in Coolify verwenden):
 #   docker compose -f compose.yaml -f compose.lokal.yaml up --build
-# Veröffentlicht die Ports auf localhost und setzt die öffentliche Hastebin-URL.
+# Veröffentlicht nur den Playground auf localhost; der Teilen-Service bleibt intern.
 services:
   pizza:
     ports:
       - "127.0.0.1:${PIZZA_PORT:-8080}:8080"
-    environment:
-      HASTEBIN_OEFFENTLICH: ${HASTEBIN_OEFFENTLICH:-http://localhost:8290}
-  hastebin:
-    ports:
-      - "127.0.0.1:${HASTEBIN_PORT:-8290}:8290"
