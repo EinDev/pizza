@@ -1,38 +1,49 @@
 /* pizza v3.0 – Ausführungs-Worker. Protokoll: ARCHITEKTUR.md §2, erweitert für WASM.md §4.
  * UI → Worker:
- *   { typ: "start", code, args?, motor?: "auto"|"wasm"|"interpreter" }
- *   { typ: "kompiliere", code }                       → { typ: "pkarton", ok, daten?, kompilierMs?, fehler?, nichtUnterstuetzt? }
- *   { typ: "pruefe" }                                 → { typ: "faehigkeiten", interpreter, wasm, version? }
+ *   { typ: "start", code, args?, motor?: "auto"|"wasm"|"interpreter", pizzaiolo?: boolean }
+ *       pizzaiolo: Ergebnis des einmaligen Fähigkeiten-Checks der Seite. Nur bei true wird
+ *       pizzaiolo.js geladen – so entsteht kein 404 pro Lauf, wenn der Compiler fehlt.
+ *   { typ: "kompiliere", code }   → { typ: "pkarton", ok, daten?, kompilierMs?, fehler?, nichtUnterstuetzt?, grund? }
+ *   { typ: "pruefe" }             → { typ: "faehigkeiten", interpreter, wasm, version?, grund? }   (lädt pizzaiolo.js genau einmal)
  * Worker → UI: Ereignisse einzeln oder gebündelt als { typ: "batch", ereignisse: [...] }.
- *   Zusätzlich: { typ: "motor", motor, grund?, kompilierMs? } (vor bzw. während des Laufs)
- *   "ende" trägt zusätzlich laufMs (gemessene Wandzeit des reinen Laufs im Worker) und motor.
+ *   Zusätzlich: { typ: "motor", motor, grund?, kompilierMs? }; "ende" trägt laufMs und motor.
+ * Regel (WASM.md §4): motor "wasm" fällt NIE auf den Interpreter zurück – stattdessen Fehler (Exit-Code 2).
  */
 "use strict";
 
-var PL = null, PZ = null, pzFehler = null;
+var PL = null;
 try { importScripts("pizza.js"); PL = self.PizzaLang || null; } catch (e) { PL = null; }
-if (PL) {
+
+var PZ = null, pzGeladen = false, pzFehler = "Wasm-Compiler (pizzaiolo.js) ist noch nicht verfügbar";
+var pzBereit = null;
+
+/** Lädt pizzaiolo.js höchstens einmal pro Worker; liefert Promise<Pizzaiolo|null>. */
+function ladePizzaiolo() {
+  if (pzBereit) return pzBereit;
+  pzGeladen = true;
+  if (!PL) { pzFehler = "Interpreter fehlt"; pzBereit = Promise.resolve(null); return pzBereit; }
   try {
     importScripts("pizzaiolo.js");
     PZ = self.Pizzaiolo || null;
-    if (PZ && typeof PZ.unterstuetzt === "function" && !PZ.unterstuetzt()) { pzFehler = "WebAssembly wird hier nicht unterstützt"; PZ = null; }
+    if (!PZ) pzFehler = "pizzaiolo.js definiert kein Pizzaiolo-Objekt";
+    else if (typeof PZ.unterstuetzt === "function" && !PZ.unterstuetzt()) { pzFehler = "WebAssembly wird in diesem Browser nicht unterstützt"; PZ = null; }
   } catch (e) {
     PZ = null;
-    pzFehler = "Wasm-Compiler (pizzaiolo.js) nicht verfügbar";
+    pzFehler = "Wasm-Compiler (pizzaiolo.js) ist noch nicht verfügbar";
   }
-}
-
-// Optionale asynchrone Initialisierung des Compilers (z. B. Laden von laufzeit.wasm)
-var bereit = Promise.resolve();
-if (PZ) {
-  try {
-    if (typeof PZ.init === "function") bereit = Promise.resolve(PZ.init());
-    else if (PZ.bereit && typeof PZ.bereit.then === "function") bereit = PZ.bereit;
-  } catch (e) { bereit = Promise.reject(e); }
-  bereit = bereit.catch(function (e) {
+  var init = Promise.resolve();
+  if (PZ) {
+    try {
+      if (typeof PZ.init === "function") init = Promise.resolve(PZ.init());
+      else if (PZ.bereit && typeof PZ.bereit.then === "function") init = PZ.bereit;
+    } catch (e) { init = Promise.reject(e); }
+  }
+  pzBereit = init.then(function () { return PZ; }, function (e) {
     pzFehler = "Wasm-Laufzeit konnte nicht geladen werden: " + (e && e.message ? e.message : String(e));
     PZ = null;
+    return null;
   });
+  return pzBereit;
 }
 
 var puffer = [];
@@ -48,6 +59,13 @@ function sende(ereignis) {
   if (ereignis.typ === "panik" || ereignis.typ === "ende" || ereignis.typ === "fehler" || ereignis.typ === "motor" || puffer.length >= BATCH) flush();
 }
 function jetzt() { return (self.performance && performance.now) ? performance.now() : Date.now(); }
+function meldung(e) { return e && e.message ? e.message : String(e); }
+
+function wasmFehler(text, zeile, spalte) {
+  sende({ typ: "motor", motor: "wasm", grund: text });
+  sende({ typ: "fehler", code: "W-WASM", art: "wasm", text: text, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte });
+  sende({ typ: "ende", exitCode: 2, schritte: 0, zeitMs: 0, laufMs: 0, motor: "wasm" });
+}
 
 function starte(d) {
   if (!PL || typeof PL.run !== "function") {
@@ -56,12 +74,38 @@ function starte(d) {
     return;
   }
   var motor = d.motor === "wasm" || d.motor === "interpreter" ? d.motor : "auto";
-  var endeGesehen = false, motorGesehen = false;
+  var code = String(d.code || "");
+
+  // Explizit Wasm: niemals stillschweigend Interpreter
+  if (motor === "wasm") {
+    if (!PZ) { wasmFehler("Wasm-Motor nicht verfügbar: " + pzFehler + ". Wähle „Auto“ oder „Interpreter“."); return; }
+    if (typeof PZ.kompiliere === "function") {
+      var k;
+      try { k = PZ.kompiliere(code, {}); } catch (e) { wasmFehler("Wasm-Compiler ist abgestürzt: " + meldung(e)); return; }
+      if (k && !k.ok && Array.isArray(k.nichtUnterstuetzt) && k.nichtUnterstuetzt.length) {
+        var n = k.nichtUnterstuetzt;
+        var liste = n.slice(0, 5).map(function (x) { return (x.zeile ? "Zeile " + x.zeile + ": " : "") + x.grund; }).join("; ");
+        wasmFehler("Dieses Programm lässt sich noch nicht als Wasm backen – " + liste + (n.length > 5 ? " (und " + (n.length - 5) + " weitere)" : "") +
+          ". Mit „Auto“ läuft es im Interpreter.", n[0].zeile, n[0].spalte);
+        return;
+      }
+      // Syntaxfehler (k.fehler) meldet der Lauf selbst
+    }
+  }
+
+  var endeGesehen = false, motorGesehen = false, ergebnis = null, t0 = jetzt();
+  var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" ? "wasm" : "interpreter"); };
   var opt = {
     args: Array.isArray(d.args) ? d.args : [],
     onEvent: function (ev) {
       if (!ev) return;
-      if (ev.typ === "motor") motorGesehen = true;
+      if (ev.typ === "motor") {
+        motorGesehen = true;
+        if (motor === "wasm" && ev.motor !== "wasm") { // Sicherheitsnetz gegen Fallback
+          wasmFehler("Wasm-Motor hat auf den Interpreter umgeschaltet" + (ev.grund ? " (" + ev.grund + ")" : "") + " – abgebrochen.");
+          throw new Error("__pizza_wasm_abbruch__");
+        }
+      }
       if (ev.typ === "ende") {
         endeGesehen = true;
         ev = Object.assign({}, ev, { laufMs: jetzt() - t0, motor: ev.motor || genutzterMotor() });
@@ -69,20 +113,17 @@ function starte(d) {
       sende(ev);
     },
   };
-  var t0 = jetzt(), ergebnis = null;
-  var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" ? "wasm" : "interpreter"); };
   try {
-    if (PZ && typeof PZ.run === "function") {
+    if (PZ && typeof PZ.run === "function" && motor !== "interpreter") {
       opt.motor = motor;
-      ergebnis = PZ.run(String(d.code || ""), opt);
+      ergebnis = PZ.run(code, opt);
     } else {
-      if (!motorGesehen) {
-        motorGesehen = true;
-        sende({ typ: "motor", motor: "interpreter", grund: motor === "interpreter" ? null : (pzFehler || "Wasm-Compiler nicht verfügbar") });
-      }
-      ergebnis = PL.run(String(d.code || ""), opt);
+      motorGesehen = true;
+      sende({ typ: "motor", motor: "interpreter", grund: motor === "interpreter" ? null : pzFehler });
+      ergebnis = PL.run(code, opt);
     }
     if (!motorGesehen && ergebnis && ergebnis.motor) {
+      if (motor === "wasm" && ergebnis.motor !== "wasm") { wasmFehler("Wasm-Motor hat auf den Interpreter umgeschaltet – Ergebnis verworfen."); flush(); return; }
       sende({ typ: "motor", motor: ergebnis.motor, kompilierMs: ergebnis.kompilierMs });
     }
     if (!endeGesehen) {
@@ -96,7 +137,8 @@ function starte(d) {
       });
     }
   } catch (e) {
-    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Interner Fehler im Ofen: " + (e && e.message ? e.message : String(e)), zeile: null, spalte: null });
+    if (meldung(e) === "__pizza_wasm_abbruch__") { flush(); return; }
+    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Interner Fehler im Ofen: " + meldung(e), zeile: null, spalte: null });
     if (!endeGesehen) sende({ typ: "ende", exitCode: 2, schritte: null, zeitMs: null, laufMs: jetzt() - t0 });
   }
   flush();
@@ -104,7 +146,7 @@ function starte(d) {
 
 function kompiliere(d) {
   if (!PZ || typeof PZ.kompiliere !== "function") {
-    self.postMessage({ typ: "pkarton", ok: false, grund: pzFehler || "Wasm-Compiler nicht verfügbar" });
+    self.postMessage({ typ: "pkarton", ok: false, grund: pzFehler });
     return;
   }
   try {
@@ -116,17 +158,22 @@ function kompiliere(d) {
       self.postMessage({ typ: "pkarton", ok: false, fehler: r && r.fehler, nichtUnterstuetzt: r && r.nichtUnterstuetzt });
     }
   } catch (e) {
-    self.postMessage({ typ: "pkarton", ok: false, grund: "Interner Compilerfehler: " + (e && e.message ? e.message : String(e)) });
+    self.postMessage({ typ: "pkarton", ok: false, grund: "Interner Compilerfehler: " + meldung(e) });
   }
 }
 
 self.onmessage = function (msg) {
   var d = msg.data || {};
-  bereit.then(function () {
-    if (d.typ === "start") starte(d);
-    else if (d.typ === "kompiliere") kompiliere(d);
-    else if (d.typ === "pruefe") {
-      self.postMessage({ typ: "faehigkeiten", interpreter: !!PL, wasm: !!(PZ && typeof PZ.kompiliere === "function"), version: PZ && PZ.version, grund: pzFehler });
-    }
-  });
+  if (d.typ === "start") {
+    // Compiler nur laden, wenn die Seite ihn als vorhanden gemeldet hat
+    var p = d.pizzaiolo === true ? ladePizzaiolo() : Promise.resolve(null);
+    if (d.pizzaiolo !== true && !pzGeladen) pzFehler = d.pizzaioloGrund || pzFehler;
+    p.then(function () { starte(d); });
+  } else if (d.typ === "kompiliere") {
+    ladePizzaiolo().then(function () { kompiliere(d); });
+  } else if (d.typ === "pruefe") {
+    ladePizzaiolo().then(function () {
+      self.postMessage({ typ: "faehigkeiten", interpreter: !!PL, wasm: !!(PZ && typeof PZ.run === "function"), version: PZ && PZ.version, grund: PZ ? null : pzFehler });
+    });
+  }
 };

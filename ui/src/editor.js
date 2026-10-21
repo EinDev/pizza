@@ -7,7 +7,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, foldGutter, foldKeymap, foldService, indentOnInput } from "@codemirror/language";
 
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { searchKeymap, highlightSelectionMatches, openSearchPanel } from "@codemirror/search";
 import {
   autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, snippetCompletion,
 } from "@codemirror/autocomplete";
@@ -210,5 +210,6 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
     },
     setzeThema() { view.dispatch({ effects: themaFach.reconfigure(themaExt()) }); },
     lintNeu() { forceLinting(view); },
+    suchen() { openSearchPanel(view); },
   };
 }

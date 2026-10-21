@@ -435,5 +435,6 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
       return a;
     },
     get aktuell() { return gemerkt; },
+    get abschnitte() { return abschnitte.map((x) => ({ id: x.id, titel: x.titel, gruppe: x.gruppe })); },
   };
 }

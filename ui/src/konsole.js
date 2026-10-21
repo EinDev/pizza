@@ -144,6 +144,13 @@ export function erstelleKonsole({ springe }) {
       motorBadge.hidden = false;
       const wasm = ev.motor === "wasm";
       motorBadge.className = "motor-badge " + (wasm ? "wasm" : "interpreter") + (ev.grund ? " fallback" : "");
+      if (wasm && ev.grund) {
+        motorBadge.className = "motor-badge wasm-fehler";
+        motorBadge.textContent = "Wasm ✕ nicht möglich";
+        motorBadge.title = ev.grund;
+        motorBadge.dataset.motor = "wasm";
+        return;
+      }
       let text = wasm ? "Wasm ⚡" : "Interpreter";
       if (wasm && typeof ev.kompilierMs === "number") text += " · " + formatMs(ev.kompilierMs) + " kompiliert";
       if (!wasm && ev.grund) text += " (Fallback: " + ev.grund + ")";

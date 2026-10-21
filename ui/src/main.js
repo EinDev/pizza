@@ -7,6 +7,7 @@ import { erstelleBeispiele } from "./beispiele.js";
 import { codeKodieren, codeDekodieren, codeAusHash } from "./teilen.js";
 import { ausInterpreterErgaenzen } from "./woerter.js";
 import { erstelleTabs } from "./tabs.js";
+import { erstellePalette } from "./palette.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -90,6 +91,8 @@ function start() {
   tabs = erstelleTabs({
     editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
     beiWechsel() { /* Platz für künftige Anzeigen */ },
+    beiTeilen: () => $("knopf-teilen").click(),
+    toast,
   });
   tabs.laden();
 
@@ -140,27 +143,57 @@ function start() {
   });
 
   // ---------- Motor (Wasm / Interpreter) ----------
+  // Fähigkeiten werden genau einmal pro Seite geprüft (und erneut nur, wenn der Nutzer die Auswahl öffnet
+  // und die letzte Prüfung > 30 s zurückliegt). „Wasm“ fällt nie stillschweigend auf den Interpreter zurück.
   const motorWahl = $("motor-wahl");
-  const gespeicherterMotor = speicher.hole("pizza.motor");
-  motorWahl.value = ["auto", "wasm", "interpreter"].includes(gespeicherterMotor) ? gespeicherterMotor : "auto";
+  const optAuto = motorWahl.querySelector('option[value="auto"]');
+  const optWasm = motorWahl.querySelector('option[value="wasm"]');
+  const knopfPkarton = $("knopf-pkarton");
+  const gespeicherterMotor = () => {
+    const m = speicher.hole("pizza.motor");
+    return ["auto", "wasm", "interpreter"].includes(m) ? m : "auto";
+  };
+  let faehigkeiten = null, letztePruefung = 0, pruefungLaeuft = null;
+  function wendeMotorAn() {
+    const wasm = !!(faehigkeiten && faehigkeiten.wasm);
+    const unbekannt = !faehigkeiten;
+    optWasm.disabled = !wasm && !unbekannt;
+    optWasm.textContent = wasm || unbekannt ? "Wasm" : "Wasm (bald)";
+    const grund = faehigkeiten && !wasm ? (faehigkeiten.grund || "Wasm-Compiler nicht verfügbar") : "";
+    optWasm.title = grund ? "Nicht verfügbar: " + grund : (faehigkeiten && faehigkeiten.version ? "pizzaiolo " + faehigkeiten.version : "");
+    optAuto.textContent = wasm || unbekannt ? "Auto (Wasm)" : "Auto";
+    optAuto.title = wasm || unbekannt ? "Wasm, bei Bedarf Interpreter" : "Interpreter, bis der Wasm-Compiler verfügbar ist";
+    const g = gespeicherterMotor();
+    // gespeicherte Wahl „wasm“ als „Auto“ anzeigen, aber NICHT überschreiben
+    motorWahl.value = g === "wasm" && optWasm.disabled ? "auto" : g;
+    motorWahl.title = grund ? "Ausführungsmotor – Wasm nicht verfügbar: " + grund : "Ausführungsmotor: WebAssembly (schnell) oder Interpreter";
+    knopfPkarton.hidden = !wasm;
+  }
+  function pruefeFaehigkeiten() {
+    if (pruefungLaeuft) return pruefungLaeuft;
+    letztePruefung = Date.now();
+    pruefungLaeuft = workerAuftrag({ typ: "pruefe" }, "faehigkeiten", 20_000).then((f) => {
+      const vorher = faehigkeiten && faehigkeiten.wasm;
+      faehigkeiten = f && f.typ === "faehigkeiten" ? f : { wasm: false, grund: (f && f.grund) || "Prüfung fehlgeschlagen" };
+      pruefungLaeuft = null;
+      wendeMotorAn();
+      if (!vorher && faehigkeiten.wasm && letztePruefung && document.body.classList.contains("bereit")) toast("Wasm-Motor ist jetzt verfügbar ⚡", "ok");
+      return faehigkeiten;
+    });
+    return pruefungLaeuft;
+  }
+  wendeMotorAn();
+  pruefeFaehigkeiten();
+  const vielleichtNeuPruefen = () => { if (faehigkeiten && !faehigkeiten.wasm && Date.now() - letztePruefung > 30_000) pruefeFaehigkeiten(); };
+  motorWahl.addEventListener("pointerdown", vielleichtNeuPruefen);
+  motorWahl.addEventListener("focus", vielleichtNeuPruefen);
   motorWahl.addEventListener("change", () => {
     speicher.setze("pizza.motor", motorWahl.value);
-    toast("Motor: " + motorWahl.options[motorWahl.selectedIndex].text, "info");
+    const name = motorWahl.options[motorWahl.selectedIndex].text;
+    toast(ausfuehrung.laeuft ? "Motor: " + name + " – gilt ab dem nächsten Lauf." : "Motor: " + name, "info");
   });
 
   // ---------- .pkarton (WebAssembly) herunterladen ----------
-  const knopfPkarton = $("knopf-pkarton");
-  workerAuftrag({ typ: "pruefe" }, "faehigkeiten", 20_000).then((f) => {
-    if (f && f.wasm) {
-      knopfPkarton.hidden = false;
-      const opt = motorWahl.querySelector('option[value="auto"]');
-      if (opt && f.version) opt.title = "pizzaiolo " + f.version;
-    } else {
-      const opt = motorWahl.querySelector('option[value="auto"]');
-      if (opt) opt.textContent = "Auto";
-      motorWahl.title = "WebAssembly-Compiler nicht verfügbar" + (f && f.grund ? ": " + f.grund : "") + " – es läuft der Interpreter.";
-    }
-  });
   knopfPkarton.addEventListener("click", async () => {
     const t = tabs.aktiv();
     const name = ((t && t.name) || "programm.pizza").replace(/\.pizza$/i, "") + ".pkarton";
@@ -215,7 +248,10 @@ function start() {
     const t = tabs.aktiv();
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
-    ausfuehrung.starte(editor.text(), [], motorWahl.value);
+    ausfuehrung.starte(editor.text(), [], motorWahl.value, {
+      pizzaiolo: faehigkeiten ? !!faehigkeiten.wasm : true,
+      pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
+    });
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());
@@ -557,15 +593,101 @@ function start() {
   });
   hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
 
+  // ---------- Befehlspalette ----------
+  const motorNamen = { auto: "Auto (Wasm)", wasm: "Wasm", interpreter: "Interpreter" };
+  function setzeMotor(m) {
+    motorWahl.value = m;
+    motorWahl.dispatchEvent(new Event("change"));
+  }
+  function zeigeDoku(id) {
+    setzePanel(true, { fokus: false });
+    waehleTab("doku", false);
+    requestAnimationFrame(() => dokuPanel.springe(id, true));
+  }
+  const IST_MAC = /Mac|iPhone|iPad/.test(navigator.platform || "");
+  const K = (s) => (IST_MAC ? s.replace(/Strg\+/g, "⌘").replace(/Alt\+/g, "⌥").replace(/Shift\+/g, "⇧") : s);
+  const palette = erstellePalette({
+    befehle: () => [
+      { id: "backen", gruppe: "Ofen", titel: "Backen (Programm ausführen)", kuerzel: K("Strg+Enter"), aktion: backen, verfuegbar: () => !ausfuehrung.laeuft },
+      { id: "abbrechen", gruppe: "Ofen", titel: "Lauf abbrechen", kuerzel: "Esc", aktion: () => ausfuehrung.abbrechen(), verfuegbar: () => ausfuehrung.laeuft },
+      ...Object.entries(motorNamen).map(([m, n]) => ({ id: "motor-" + m, gruppe: "Motor", titel: n + (motorWahl.value === m ? " ✓" : ""), aktion: () => setzeMotor(m) })),
+      { id: "pkarton", gruppe: "Ofen", titel: "Als .pkarton (WebAssembly) herunterladen", aktion: () => knopfPkarton.click(), verfuegbar: () => !knopfPkarton.hidden },
+      { id: "konsole-leeren", gruppe: "Konsole", titel: "Konsole leeren", aktion: () => $("konsole-leeren").click() },
+      { id: "konsole-toggle", gruppe: "Konsole", titel: "Konsole ein-/ausklappen", aktion: () => $("konsole-toggle").click() },
+      { id: "tab-neu", gruppe: "Tabs", titel: "Neuer Tab", kuerzel: K("Strg+Alt+N"), aktion: () => tabs.neu() },
+      { id: "datei-oeffnen", gruppe: "Tabs", titel: "Datei öffnen …", kuerzel: K("Strg+O"), aktion: () => tabs.dateiDialog() },
+      { id: "tab-schliessen", gruppe: "Tabs", titel: "Tab schließen", kuerzel: K("Alt+W"), aktion: () => tabs.schliesseAktiven() },
+      { id: "tabs-andere", gruppe: "Tabs", titel: "Andere Tabs schließen", aktion: () => tabs.schliesseAndere() },
+      { id: "tabs-rechts", gruppe: "Tabs", titel: "Tabs rechts davon schließen", aktion: () => tabs.schliesseRechts() },
+      { id: "tabs-gespeicherte", gruppe: "Tabs", titel: "Gespeicherte Tabs schließen", aktion: () => tabs.schliesseGespeicherte() },
+      { id: "tabs-alle", gruppe: "Tabs", titel: "Alle Tabs schließen", aktion: () => tabs.schliesseAlle() },
+      { id: "tab-wiederherstellen", gruppe: "Tabs", titel: "Geschlossenen Tab wiederherstellen", kuerzel: K("Alt+Shift+T"), aktion: () => tabs.wiederherstellen(0), verfuegbar: () => tabs.geschlossen.length > 0 },
+      { id: "tab-duplizieren", gruppe: "Tabs", titel: "Tab duplizieren", aktion: () => tabs.dupliziere() },
+      { id: "tab-anheften", gruppe: "Tabs", titel: (tabs.aktiv() && tabs.aktiv().angeheftet) ? "Tab lösen" : "Tab anheften", aktion: () => tabs.anheften() },
+      { id: "tab-umbenennen", gruppe: "Tabs", titel: "Tab umbenennen", kuerzel: "F2", aktion: () => tabs.umbenennen() },
+      { id: "tab-download", gruppe: "Tabs", titel: "Tab als .pizza herunterladen", aktion: () => tabs.herunterladen() },
+      { id: "tab-speichern", gruppe: "Tabs", titel: "Tab lokal speichern", kuerzel: K("Strg+S"), aktion: speichern },
+      { id: "tab-naechster", gruppe: "Tabs", titel: "Nächster Tab", kuerzel: K("Alt+Bild↓"), aktion: () => tabs.naechster(1) },
+      { id: "tab-voriger", gruppe: "Tabs", titel: "Vorheriger Tab", kuerzel: K("Alt+Bild↑"), aktion: () => tabs.naechster(-1) },
+      { id: "tabs-liste", gruppe: "Tabs", titel: "Alle Tabs anzeigen …", aktion: () => tabs.alleTabsMenue() },
+      ...tabs.liste.filter((t) => !t.aktiv).map((t) => ({ id: "tab-zu-" + t.id, gruppe: "Wechseln zu", titel: t.name, aktion: () => tabs.wechsle(t.id) })),
+      { id: "teilen", gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
+      { id: "panel", gruppe: "Ansicht", titel: "Seitenpanel ein-/ausblenden", kuerzel: K("Strg+B"), aktion: panelUmschalten },
+      { id: "doku", gruppe: "Ansicht", titel: "Doku anzeigen", aktion: () => { setzePanel(true); waehleTab("doku", true); } },
+      { id: "beispiele", gruppe: "Ansicht", titel: "Beispiele anzeigen", aktion: () => { setzePanel(true); waehleTab("beispiele", true); } },
+      { id: "lesemodus", gruppe: "Ansicht", titel: "Doku im Lesemodus öffnen", aktion: lesemodusOeffnen },
+      { id: "thema", gruppe: "Ansicht", titel: document.documentElement.dataset.theme === "dark" ? "Helles Thema" : "Dunkles Thema", aktion: () => themaKnopf.click() },
+      { id: "suchen", gruppe: "Editor", titel: "Im Code suchen", kuerzel: K("Strg+F"), aktion: () => { editor.view.focus(); editor.suchen(); } },
+      ...beispiele.liste.map((b) => ({ id: "bsp-" + b.id, gruppe: "Beispiel öffnen", titel: b.titel + " · " + b.kategorie, aktion: () => b.oeffnen() })),
+      ...doku.abschnitte.map((a) => ({ id: "doku-" + a.id, gruppe: "Doku", titel: a.titel + " · " + a.gruppe, aktion: () => zeigeDoku(a.id) })),
+    ],
+  });
+  function paletteOeffnen() {
+    beispiele.laden(); // Beispiele für die Suche nachladen (einmalig)
+    palette.oeffnen();
+  }
+  $("knopf-palette").addEventListener("click", paletteOeffnen);
+
+  // ---------- Dateien per Drag & Drop in den Editor ----------
+  const werkbankEl = document.querySelector(".werkbank");
+  let ziehZaehler = 0;
+  const hatDateien = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+  werkbankEl.addEventListener("dragenter", (e) => { if (!hatDateien(e)) return; e.preventDefault(); ziehZaehler++; werkbankEl.classList.add("datei-ziel"); });
+  werkbankEl.addEventListener("dragover", (e) => { if (!hatDateien(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  werkbankEl.addEventListener("dragleave", (e) => { if (!hatDateien(e)) return; if (--ziehZaehler <= 0) { ziehZaehler = 0; werkbankEl.classList.remove("datei-ziel"); } });
+  werkbankEl.addEventListener("drop", (e) => {
+    if (!hatDateien(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    ziehZaehler = 0;
+    werkbankEl.classList.remove("datei-ziel");
+    tabs.oeffneDateien(e.dataTransfer.files);
+  }, true);
+
   // ---------- Tastenkürzel (Capture: vor CodeMirror) ----------
   window.addEventListener("keydown", (e) => {
     const mod = e.ctrlKey || e.metaKey;
+    const taste = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (!hawaii.hidden) return;
-    if (mod && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); backen(); return; }
-    if (mod && !e.shiftKey && !e.altKey && (e.key === "s" || e.key === "S")) { e.preventDefault(); e.stopPropagation(); speichern(); return; }
-    if (mod && !e.shiftKey && !e.altKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); e.stopPropagation(); panelUmschalten(); return; }
+    const stopp = () => { e.preventDefault(); e.stopPropagation(); };
+    if (palette.offen) return;
+    // Befehlspalette
+    if (taste === "F1" || (mod && e.shiftKey && taste === "p")) { stopp(); paletteOeffnen(); return; }
+    if (document.querySelector("dialog[open]")) return;
+    if (mod && !e.shiftKey && taste === "Enter") { stopp(); backen(); return; }
+    if (mod && !e.shiftKey && !e.altKey && taste === "s") { stopp(); speichern(); return; }
+    if (mod && !e.shiftKey && !e.altKey && taste === "b") { stopp(); panelUmschalten(); return; }
+    if (mod && !e.shiftKey && !e.altKey && taste === "o") { stopp(); tabs.dateiDialog(); return; }
+    // Tabs
+    if (mod && e.altKey && taste === "n") { stopp(); tabs.neu(); return; }
+    if (e.altKey && !mod && taste === "n") { stopp(); tabs.neu(); return; }
+    if (e.altKey && !mod && !e.shiftKey && taste === "w") { stopp(); tabs.schliesseAktiven(); return; }
+    if (e.altKey && e.shiftKey && !mod && taste === "t") { stopp(); tabs.wiederherstellen(0); return; }
+    if (mod && e.shiftKey && taste === "t") { stopp(); tabs.wiederherstellen(0); return; } // wo der Browser es zulässt
+    if (mod && taste === "Tab") { stopp(); tabs.naechster(e.shiftKey ? -1 : 1); return; } // wo der Browser es zulässt
+    if ((mod || e.altKey) && taste === "PageDown") { stopp(); tabs.naechster(1); return; }
+    if ((mod || e.altKey) && taste === "PageUp") { stopp(); tabs.naechster(-1); return; }
     if (e.key === "Escape") {
-      if (document.querySelector("dialog[open]")) return;
       if (ausfuehrung.laeuft) { e.preventDefault(); ausfuehrung.abbrechen(); return; }
       if (schmal.matches && panelOffen) { e.preventDefault(); setzePanel(false); }
     }

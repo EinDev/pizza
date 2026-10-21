@@ -57,7 +57,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
 
   return {
     get laeuft() { return worker !== null; },
-    starte(code, args = [], motor = "auto") {
+    starte(code, args = [], motor = "auto", extra = {}) {
       aufraeumen();
       const id = ++laufId;
       start = performance.now();
@@ -79,7 +79,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         beiEreignis({ typ: "fehler", art: "limit", code: "P0002", text: "Die Pizza ist noch im Ofen (Zeitlimit von 10 s erreicht).", zeile: null, spalte: null });
         beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
       }, ZEITLIMIT_MS);
-      worker.postMessage({ typ: "start", code, args, motor });
+      worker.postMessage({ ...extra, typ: "start", code, args, motor });
     },
     abbrechen() {
       if (!worker) return;

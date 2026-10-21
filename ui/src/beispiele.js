@@ -116,16 +116,7 @@ export function erstelleBeispiele({ ladeCode }) {
     k.appendChild(fuss);
     k.addEventListener("click", async () => {
       k.classList.add("laedt");
-      try {
-        const r = await fetch(BASIS + b.datei, { cache: "no-cache" });
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const code = await r.text();
-        await ladeCode(code, (b.datei.split("/").pop() || "beispiel.pizza"), null, "bsp:" + b.datei);
-      } catch (e) {
-        ladeCode(null, null, "Beispiel „" + (b.titel || b.id) + "“ konnte nicht geladen werden (" + e.message + ").");
-      } finally {
-        k.classList.remove("laedt");
-      }
+      try { await oeffneBeispiel(b); } finally { k.classList.remove("laedt"); }
     });
     return k;
   }
@@ -135,5 +126,22 @@ export function erstelleBeispiele({ ladeCode }) {
     if (e.key === "Escape" && suche.value) { e.stopPropagation(); suche.value = ""; zeichne(); }
   });
 
-  return { laden };
+  async function oeffneBeispiel(b) {
+    try {
+      const r = await fetch(BASIS + b.datei, { cache: "no-cache" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const code = await r.text();
+      await ladeCode(code, (b.datei.split("/").pop() || "beispiel.pizza"), null, "bsp:" + b.datei);
+    } catch (e) {
+      ladeCode(null, null, "Beispiel „" + (b.titel || b.id) + "“ konnte nicht geladen werden (" + e.message + ").");
+    }
+  }
+
+  return {
+    laden,
+    /** Alle geladenen Beispiele (für die Befehlspalette). */
+    get liste() {
+      return kategorien.flatMap((k) => k.beispiele.map((b) => ({ titel: b.titel || b.id, kategorie: k.kategorie, id: b.id, oeffnen: () => oeffneBeispiel(b) })));
+    },
+  };
 }
