@@ -1,3 +1,4 @@
+// STATUS: behoben (alle Motoren gleich, Stand U-43) – bleibt als Regressionsfall.
 // Fund (Fuzz seed 11 #1650, Wasm ≠ Interpreter): unbekannte Methode auf dem roh-Objekt eines Ofens.
 // Interpreter: Ungefangene Ananas – LaufzeitAnanas: Methode 'gibtsNicht' gibt es auf Rohling nicht. (Zeile 4), Exit 1
 // Wasm:        keine Ananas, Exit 0 (Aufruf wird still ignoriert).

@@ -1,3 +1,4 @@
+// STATUS: behoben (alle Motoren gleich, Stand U-43) – bleibt als Regressionsfall.
 // Fund (Differenz/Fuzz, nur nativer Host pizza-host; Interpreter und Wasm-in-Node stimmen überein):
 // Bestellannahme.hatMehr() liest im Host eine Zeile vorab und
 //  (a) erzeugt dabei ein zusätzliches Ereignis {"typ":"eingabe","text":null} bzw. {"typ":"eingabe","text":""},

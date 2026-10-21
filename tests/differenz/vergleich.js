@@ -39,6 +39,7 @@ function pruefeFall(code, optionen = {}, einst = {}) {
       if (o.args) o.args = o.args.slice();
       if (o.eingabe) o.eingabe = o.eingabe.slice();
       if (o.uiEreignisse) o.uiEreignisse = JSON.parse(JSON.stringify(o.uiEreignisse));
+      if (o.vorrat) o.vorrat = JSON.parse(JSON.stringify(o.vorrat));
       const r3 = M.PizzaLang.run(code, o);
       if (JSON.stringify(gesehen) !== JSON.stringify(r3.ereignisse)) out.probleme.push({ motor: 'interpreter', art: 'selbst', details: ['onEvent-Folge ≠ ereignisse'] });
     } catch (e) { out.probleme.push({ motor: 'interpreter', art: 'wurf', details: ['run mit onEvent warf: ' + e] }); }
@@ -68,13 +69,34 @@ function pruefeFall(code, optionen = {}, einst = {}) {
     if (r.status === 'wurf') { out.probleme.push({ motor: m.name, art: 'wurf', details: [r.fehler] }); continue; }
     for (const p of M.invarianten(r)) out.probleme.push({ motor: m.name, art: 'invariante', details: [p] });
     const abw = M.vergleiche(ref, r);
-    if (abw) {
+    const fehlend = abw && fehlendesFeature(ref, r);
+    if (fehlend) {
+      // Compiler kennt ein (neues) Sprachfeature noch nicht und meldet es nicht als nichtUnterstuetzt (WASM.md §1.3):
+      // zählt als Fallback, wird aber mit Grund aufgelistet.
+      eintrag.status = 'fallback';
+      eintrag.grund = fehlend;
+      out.fallbacks.push({ motor: m.name, grund: fehlend });
+    } else if (abw) {
       eintrag.abw = abw;
       if (abw.art === 'speicherlimit') out.speicher.push({ motor: m.name, details: abw.details });
       else out.probleme.push({ motor: m.name, art: abw.art, details: abw.details });
     } else eintrag.status = 'gleich';
   }
   return out;
+}
+
+/**
+ * Erkennt „Feature fehlt“: Der Motor bricht mit „Klasse 'X' steht nicht auf der Speisekarte“ bzw.
+ * „Methode 'm' gibt es bei/auf T nicht“ ab, der Interpreter aber nicht (mit diesem Text). → Grund-Text oder null.
+ */
+const FEHLT_RE = /Klasse '([^']+)' steht nicht auf der Speisekarte|Methode '([^']+)' gibt es (?:bei|auf) ([^ .]+) nicht/;
+function fehlendesFeature(ref, r) {
+  const f = r.ereignisse.find(e => e.typ === 'fehler');
+  if (!f) return null;
+  const m = FEHLT_RE.exec(f.text || '');
+  if (!m) return null;
+  if (ref.ereignisse.some(e => e.typ === 'fehler' && e.text === f.text)) return null;
+  return 'Feature fehlt im Compiler (ohne nichtUnterstuetzt): ' + (m[1] ? 'Klasse ' + m[1] : m[3] + '.' + m[2] + '()');
 }
 
 /** Kurzer Fingerabdruck einer Abweichung – für Minimierung („dieselbe Art Fehler“). */

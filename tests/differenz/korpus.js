@@ -7,6 +7,8 @@
  *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar)
  *   korpus     – tests/differenz/korpus/*.pizza (Kopfzeilen: // exit: N, // optionen: {...}; Eingabe: gleichnamige .eingabe)
  * Eingabezeilen (EINGABE.md) landen in optionen.eingabe: Manifest-Feld "eingabe", .eingabe-Dateien, Doku-Feld eingabe.
+ * U-43: zufallsSaat/echtzeit (.optionen.json, Kopfzeile // optionen:, Manifest-/Doku-/Prüfstand-Felder),
+ *       Vorrat-Eingangszustand aus gleichnamiger .vorrat.json bzw. Manifest-Feld "vorrat"; Takt-Schläge stehen in .ereignisse.
  * Theke-Ereignisfolgen (THEKE.md §5) landen in optionen.uiEreignisse: .ereignisse (JSON-Lines) bzw. Manifest-Feld "ereignisse".
  */
 const fs = require('fs');
@@ -23,6 +25,17 @@ function jsonZeilen(text) { return zeilen(text).filter(z => z.trim()).map(z => J
 function json(p) { return JSON.parse(lies(p).replace(/^﻿/, '')); }
 
 /** Gleichnamige .ereignisse-Datei → { uiEreignisse } (sonst {}). */
+/** Gleichnamige .vorrat.json (K-080: { name: eintraege }) → { vorrat } (sonst {}). */
+function vorratAus(p) { return p && fs.existsSync(p) ? { vorrat: JSON.parse(lies(p).replace(/^\uFEFF/, '')) } : {}; }
+/** Lauf-Optionen aus einem Objekt (Manifest-Eintrag, Doku-Block, Prüfstand-Fall) übernehmen (U-43). */
+function laufFelder(x) {
+  const o = {};
+  if (!x) return o;
+  if (x.zufallsSaat !== undefined) o.zufallsSaat = x.zufallsSaat;
+  if (x.echtzeit !== undefined) o.echtzeit = x.echtzeit;
+  if (x.vorrat && typeof x.vorrat === 'object') o.vorrat = x.vorrat;
+  return o;
+}
 function uiAus(p) { return p && fs.existsSync(p) ? { uiEreignisse: jsonZeilen(lies(p)) } : {}; }
 
 function beispiele(warn) {
@@ -40,7 +53,11 @@ function beispiele(warn) {
       if (!dp || !fs.existsSync(dp)) { warn('beispiele: Datei fehlt: ' + b.datei); continue; }
       out.push({
         quelle: 'beispiele', name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei),
-        code: lies(dp), optionen: Object.assign({ args: b.args || [] }, b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : {}, uiAus(b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse'))),
+        code: lies(dp), optionen: Object.assign({ args: b.args || [] },
+          b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : (fs.existsSync(dp.replace(/\.pizza$/, '.eingabe')) ? { eingabe: zeilen(lies(dp.replace(/\.pizza$/, '.eingabe'))) } : {}),
+          uiAus(b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse')),
+          vorratAus(typeof b.vorrat === 'string' ? path.join(dir, b.vorrat) : dp.replace(/\.pizza$/, '.vorrat.json')),
+          laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit })),
         erwartetExit: typeof b.exitCode === 'number' ? b.exitCode : 0,
       });
     }
@@ -69,6 +86,7 @@ function doku(warn) {
       const name = (a.id || '?') + '#' + pfad + i;
       // Nicht ausführbare Blöcke werden trotzdem verglichen (Syntaxfehler/Laufzeitverhalten), nur ohne Exit-Erwartung.
       const dopt = {};
+      Object.assign(dopt, laufFelder(item));
       if (item.eingabe != null) dopt.eingabe = Array.isArray(item.eingabe) ? item.eingabe.slice() : zeilen(item.eingabe);
       out.push({ quelle: 'doku', name, code, optionen: dopt, erwartetExit: item.ausfuehrbar ? (typeof item.exitCode === 'number' ? item.exitCode : 0) : undefined });
     });
@@ -88,7 +106,7 @@ function faelle() {
     const inp = path.join(dir, basis + '.eingabe');
     out.push({
       quelle: 'faelle', name: basis, code: lies(path.join(dir, d)),
-      optionen: Object.assign(fs.existsSync(op) ? json(op) : {}, fs.existsSync(inp) ? { eingabe: zeilen(lies(inp)) } : {}, uiAus(path.join(dir, basis + '.ereignisse'))),
+      optionen: Object.assign(fs.existsSync(op) ? json(op) : {}, fs.existsSync(inp) ? { eingabe: zeilen(lies(inp)) } : {}, uiAus(path.join(dir, basis + '.ereignisse')), vorratAus(path.join(dir, basis + '.vorrat.json'))),
       erwartetExit: fs.existsSync(ep) ? parseInt(lies(ep).trim(), 10) : 0,
     });
   }
@@ -109,6 +127,7 @@ function pruefstand(warn) {
       if (f.args) opt.args = f.args;
       if (f.schrittLimit != null) opt.schrittLimit = f.schrittLimit;
       if (Array.isArray(f.uiEreignisse)) opt.uiEreignisse = f.uiEreignisse;
+      Object.assign(opt, laufFelder(f));
       if (f.eingabe != null) opt.eingabe = Array.isArray(f.eingabe) ? f.eingabe : zeilen(f.eingabe);
       // Prüfstand-Erwartungen stammen aus der SPEC, nicht vom Interpreter – hier nur Differenz, keine Exit-Prüfung.
       out.push({ quelle: 'pruefstand', name: d.replace(/\.js$/, '') + '#' + i + ' ' + (f.name || ''), code: f.code, optionen: opt });
@@ -142,7 +161,7 @@ function eigenerKorpus() {
     if (k.args) opt.args = k.args;
     const inp = path.join(dir, d.slice(0, -6) + '.eingabe');
     if (fs.existsSync(inp)) opt.eingabe = zeilen(lies(inp));
-    Object.assign(opt, uiAus(path.join(dir, d.slice(0, -6) + '.ereignisse')));
+    Object.assign(opt, uiAus(path.join(dir, d.slice(0, -6) + '.ereignisse')), vorratAus(path.join(dir, d.slice(0, -6) + '.vorrat.json')));
     out.push({ quelle: 'korpus', name: d.slice(0, -6), code, optionen: opt, erwartetExit: k.exit != null ? k.exit : 0, erwartetFehler: k.fehler });
   }
   return out;

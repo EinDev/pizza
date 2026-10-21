@@ -40,6 +40,9 @@ class Gen {
     this.probierTiefe = 0;
     this.inFunktion = null;  // Rückgabetyp
     this.eingabe = !!opt.eingabe;
+    this.zufall = opt.zufall !== false;
+    this.vorrat = !!opt.vorrat;
+    this.kammer = false;
     this.hawaii = this.z.chance(opt.hawaiiChance != null ? opt.hawaiiChance : 0.03);
     this.hawaiiGesetzt = false;
   }
@@ -103,6 +106,9 @@ class Gen {
       [1, () => '(' + this.pA(d + 1) + ').anzahlBeläge()'],
       [2, () => '(' + this.dA(d + 1) + ' ? ' + this.sA(d + 1) + ' : ' + this.sA(d + 1) + ')'],
       [1, () => 'Zufall.zahl(' + z.int(-5, 5) + ', ' + z.int(5, 20) + ')'],
+      [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.zahl(' + this.sA(d + 1) + ', ' + this.sA(d + 1) + ')'],
+      [this.zufall ? 1 : 0, () => 'Zufall.wähle(' + this.bA(d + 1) + '.hinzu(' + this.sA(d + 1) + '))'],
+      [this.zufall ? 1 : 0, () => 'Zufall.saat()'],
       [1, () => this.z.chance(0.5) ? 'Uhr.jetzt().inMs()' : 'Mathe.runden((' + this.zA(d + 1) + ').inMs())'],
       [2, () => { const k = this.vars(K); return k.length ? z.wahl(k).name + '.länge()' : this.sLit(); }],
       [3, () => this.aufruf(S, d)],
@@ -127,6 +133,7 @@ class Gen {
       [1, () => 'Mathe.wurzel(Mathe.abs(' + this.fA(d + 1) + '))'],
       [1, () => '(' + this.fA(d + 1) + ').runden(' + z.int(0, 4) + ')'],
       [1, () => 'Mathe.PI'],
+      [this.zufall ? 2 : 0, () => z.chance(0.5) ? this.zufallsQuelle() + '.kommazahl()' : this.zufallsQuelle() + '.kommazahl(' + this.fA(d + 1) + ', ' + this.fA(d + 1) + ')'],
       [2, () => '(' + this.pA(d + 1) + ').preis()'],
       [1, () => '(' + this.dA(d + 1) + ' ? ' + this.fA(d + 1) + ' : ' + this.fA(d + 1) + ')'],
       [1, () => '(' + this.zA(d + 1) + ').inSekunden()'],
@@ -173,6 +180,7 @@ class Gen {
       [1, () => '(' + this.tA(d + 1) + ').beginntMit(' + this.tLit() + ')'],
       [1, () => '(' + this.bA(d + 1) + ').enthält(' + this.sA(d + 1) + ')'],
       [1, () => '(' + this.bA(d + 1) + ').istLeer()'],
+      [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.wahr(' + z.wahl(['0', '0.5', '1', '-1', '2', '0.1', '(' + this.fA(d + 1) + ')']) + ')'],
       [1, () => '(' + this.pA(d + 1) + ').hat(' + z.wahl(FREIE_BELAEGE.concat(['Tomate', 'Mozzarella'])) + ')'],
       [1, () => '(' + this.pA(d + 1) + ' == ' + this.pA(d + 1) + ')'],
       [1, () => '(' + this.zA(d + 1) + ' ' + z.wahl(['<', '>', '==']) + ' ' + this.zA(d + 1) + ')'],
@@ -193,6 +201,7 @@ class Gen {
       [1, () => '(' + this.bA(d + 1) + ').sortiere((a, b) -> b - a)'],
       [1, () => '(' + this.bA(d + 1) + ').umdrehen()'],
       [1, () => this.aufruf(B, d)],
+      [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.mische(' + this.bA(d + 1) + ')'],
     ])();
   }
 
@@ -291,6 +300,8 @@ class Gen {
       [1, () => this.karteAnweisung()],
       [1, () => this.objektAnweisung()],
       [this.eingabe ? 4 : 0, () => this.eingabeAnweisung()],
+      [this.zufall ? 2 : 0, () => this.zufallAnweisung()],
+      [this.vorrat && this.kammer && !this.inFunktion ? 4 : 0, () => this.vorratAnweisung()],
       [this.hawaii && !this.hawaiiGesetzt ? 1 : 0, () => this.hawaiiAnweisung()],
     ];
     z.gewichtet(o)();
@@ -607,6 +618,47 @@ class Gen {
     }
   }
 
+  zufallsQuelle() {
+    const v = this.vars('Zufall');
+    return v.length && this.z.chance(0.6) ? this.z.wahl(v).name : 'Zufall';
+  }
+
+  zufallAnweisung() {
+    const z = this.z;
+    z.gewichtet([
+      [3, () => { const n = this.neu('zr'); this.zeile('Zufall ' + n + ' = ' + (z.chance(0.7) ? 'neu Zufall(' + z.wahl(['7', '42', '0', '-1', '4294967297', '123456789', String(z.int(1, 1000))]) + ')' : 'neu Zufall()') + ';'); this.dekl(n, 'Zufall'); this.zeile('Bote.sage((' + n + ' + " " + ' + n + '.saat()));'); }],
+      [1, () => this.zeile('Zufall.saat(' + z.wahl(['7', '42', '0', '-1', '4294967296', String(z.int(1, 99999))]) + ');')],
+      [1, () => this.zeile('probier { Zufall.saat(' + z.wahl(['1.5', '"x"', 'ja']) + '); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }')],
+      [1, () => this.zeile('probier { Bote.sage((Zufall.wähle(neu Blech<salami>()))); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }')],
+      [2, () => this.zeile('Bote.sage((' + this.zufallsQuelle() + '.mische([' + Array.from({ length: z.int(0, 6) }, () => this.sLit()).join(', ') + '])));')],
+    ])();
+  }
+
+  vorratAnweisung() {
+    const z = this.z;
+    if (!this.kammer) {
+      this.kammer = true;
+      this.zeile('Vorratskammer kv = neu Vorratskammer("fuzz");');
+      this.zeile('Bote.sage((kv + " " + kv.länge() + " " + kv.schlüssel()));');
+      return;
+    }
+    const schl = () => z.wahl(['"a"', '"b"', '"c"', '"zähler"', '"1"', '"10"', '"2"', '""', '"🍕"']);
+    z.gewichtet([
+      [4, () => this.zeile('kv.lege(' + schl() + ', ' + this.ausdruck(z.wahl([S, F, T, D, B]), 1) + ');')],
+      [1, () => this.zeile('kv.lege(' + schl() + ', karton);')],
+      [1, () => { const k = this.vars(K); this.zeile('kv.lege(' + schl() + ', ' + (k.length ? z.wahl(k).name : 'neu ' + K + '()') + ');'); }],
+      [3, () => this.zeile('Bote.sage((kv.hole(' + schl() + ')));')],
+      [2, () => this.zeile('Bote.sage((kv.hole(' + schl() + ', ' + this.sA(1) + ')));')],
+      [1, () => this.zeile('Bote.sage((kv.hat(' + schl() + ') + " " + kv.entferne(' + schl() + ')));')],
+      [1, () => this.zeile('Bote.sage((kv.schlüssel() + " " + kv.länge() + " " + kv.name()));')],
+      [1, () => this.zeile('falls (' + this.dA(2) + ') { kv.leeren(); }')],
+      [1, () => this.zeile('probier { kv.lege(' + z.wahl(['1', 'ja']) + ', 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }')],
+      [1, () => this.zeile('probier { kv.lege("p", ' + z.wahl(['((Tomate))', '1s', '(1 / 3) * 0', 'neu Zufall(1)']) + '); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }')],
+      [1, () => this.zeile('probier { Vorratskammer kx = neu Vorratskammer(' + z.wahl(['"Böse Name"', '""', '"fuzz"', '"' + 'x'.repeat(41) + '"', '"b-2"']) + '); Bote.sage((kx)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }')],
+      [1, () => { const b = this.neu('vb'); this.zeile('Blech<salami> ' + b + ' = [1, 2];'); this.zeile('kv.lege("blech", ' + b + ');'); this.zeile(b + '.hinzu(3);'); this.zeile('Bote.sage((kv.hole("blech") + " " + ' + b + '));'); }],
+    ])();
+  }
+
   /** Einfache Theke (THEKE.md): Zutaten mit festen IDs, Rückrufe mit Closures, bediene() mit vorgegebenen Ereignissen. */
   thekeTeil() {
     const z = this.z;
@@ -617,6 +669,8 @@ class Gen {
     this.zeile('Eingabe te = neu Eingabe(' + (z.chance(0.5) ? this.tLit() + ', ' : '') + 'platzhalter: "Name", id: "e");');
     this.zeile('Haken th2 = neu Haken("Extra", an: ' + z.wahl(['ja', 'nein']) + ', id: "h");');
     this.zeile('Knopf tzu = neu Knopf("Zu", () -> { Bote.sage(("schließe")); th.schliesse(); }, id: "zu");');
+    if (this.opt.takt !== false) this.zeile('Takt tt = neu Takt(' + z.wahl(['1s', '100ms', '250ms', '2s', '500ms']) + ', n -> { thZ += n; Bote.sage(("takt " + n + " " + thZ)); ' +
+      (z.chance(0.3) ? 'falls (thZ > 5) { tt.aktiv(nein); } ' : '') + (z.chance(0.2) ? 'tt.setzeIntervall(' + z.wahl(['200ms', '1s', '50ms']) + '); ' : '') + '}, id: "t");');
     const klick = [
       'thZ++;',
       'ts.setzeText(("Klicks: " + thZ));',
@@ -631,7 +685,7 @@ class Gen {
     if (z.chance(0.6)) this.zeile('te.beiEnter(w -> { Bote.sage(("enter " + w)); te.setzeWert(""); });');
     this.zeile('th2.beiAenderung(a -> Bote.sage(("haken " + a + " " + th2.an())));');
     const reihe = z.chance(0.5) ? 'neu Reihe([tk, tzu])' : 'neu Stapel([tk, tzu])';
-    this.zeile('th.zeige(neu Stapel([ts, te, th2, ' + reihe + ']));');
+    this.zeile('th.zeige(neu Stapel([ts, te, th2, ' + (this.opt.takt !== false && z.chance(0.85) ? 'tt, ' : '') + reihe + ']));');
     if (z.chance(0.3)) this.zeile('th.setzeTitel(("Titel " + thZ));');
     if (z.chance(0.5)) this.zeile('probier { th.bediene(); } verbrannt (StreitAnanas a) { Bote.sage(("aus bediene: " + a.nachricht())); }');
     else this.zeile('th.bediene();');
@@ -651,6 +705,7 @@ class Gen {
         [1, () => ({ typ: 'enter', id: 'e', wert: z.wahl(['Mario', '', 'ß']) })],
         [1, () => ({ typ: z.wahl(['tanzen', 'aenderung']), id: z.wahl(['h', 'k', 'x']), wert: z.wahl(['x', 1, null, true]) })],
         [1, () => ({ typ: 'geschlossen' })],
+        [4, () => (z.chance(0.85) ? { typ: 'takt', id: 't', anzahl: z.wahl([1, 1, 2, 5, 0, -1, 1.5]) } : { typ: 'takt', id: z.wahl(['k', 'x']), anzahl: 1 })],
       ])());
     }
     return out;
@@ -660,6 +715,7 @@ class Gen {
     this.zeile('// pizza-Fuzz-Programm');
     this.klassenErzeugen();
     this.funktionenErzeugen();
+    if (this.vorrat) this.vorratAnweisung();
     this.anweisungen(this.maxAnw);
     if (this.opt.theke) this.thekeTeil();
     // Endzustand beobachtbar machen
@@ -686,6 +742,19 @@ function erzeuge(seed, opt = {}) {
     optionen.eingabe = Array.from({ length: n }, () => z.wahl(EINGABE_ZEILEN));
   }
   if (opt.theke) optionen.uiEreignisse = g.uiEreignisse();
+  if (opt.zufallsSaat !== undefined) optionen.zufallsSaat = opt.zufallsSaat;
+  if (opt.vorrat) {
+    const z = g.z;
+    if (z.chance(0.75)) {
+      // K-080: { name: eintraege } – gelegentlich mit Fremdkammer und verschachtelten Werten
+      const eintraege = [['a', z.int(-5, 50)], ['b', z.wahl(['x', 'Grüße 🍕', ''])], ['zähler', z.int(0, 3)]];
+      if (z.chance(0.5)) eintraege.push(['blech', [1, 2.5, 'drei', true, null]]);
+      if (z.chance(0.3)) eintraege.push(['karte', { speisekarte: [['k', 1], ['2', [3]]] }]);
+      if (z.chance(0.2)) eintraege.push(['10', 0.1], ['2', -0]);
+      optionen.vorrat = { fuzz: z.chance(0.85) ? eintraege : [] };
+      if (z.chance(0.2)) optionen.vorrat.andere = [['x', 1]];
+    }
+  }
   if (g.z.chance(0.1)) optionen.args = ['a', 'ü', ''];
   return { code, optionen };
 }

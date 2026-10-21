@@ -1,3 +1,4 @@
+// STATUS: behoben (alle Motoren gleich, Stand U-43) – bleibt als Regressionsfall.
 // Fund (nur nativer Host): hatMehr() ohne Eingabe (stdin leer) erzeugt ein zusätzliches
 // Ereignis {"typ":"eingabe","text":null} vor der Ausgabe "nein". Interpreter/Wasm: nur "nein".
 Bote.sage((Bestellannahme.hatMehr()));

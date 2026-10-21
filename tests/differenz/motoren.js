@@ -31,9 +31,19 @@ function normalisiere(ereignisse) {
       if (s === 'umbruch' && e[s] === true) continue;
       k[s] = e[s];
     }
+    // K-080: vorrat-Ereignisse kanonisch (JSON-Werte, -0 → 0, Feldreihenfolge fest)
+    if (k.typ === 'vorrat') {
+      aus.push({ typ: 'vorrat', name: k.name, schluessel: k.schluessel === undefined ? null : k.schluessel, wert: kanonisch(k.wert) });
+      continue;
+    }
     aus.push(k);
   }
   return aus;
+}
+
+function kanonisch(w) {
+  if (w === undefined) return null;
+  return JSON.parse(JSON.stringify(w, (_, v) => (typeof v === 'number' && Object.is(v, -0) ? 0 : v)));
 }
 
 function ergebnisAus(r, ms) {
@@ -54,7 +64,22 @@ function laufOptionen(opt) {
   if (opt && opt.args) o.args = opt.args.slice();
   if (opt && opt.eingabe) o.eingabe = opt.eingabe.slice();
   if (opt && opt.uiEreignisse) o.uiEreignisse = JSON.parse(JSON.stringify(opt.uiEreignisse));
+  if (opt && opt.zufallsSaat !== undefined) o.zufallsSaat = opt.zufallsSaat;
+  if (opt && opt.vorrat) o.vorrat = JSON.parse(JSON.stringify(opt.vorrat));
+  if (opt && opt.echtzeit !== undefined) o.echtzeit = opt.echtzeit;
   return o;
+}
+
+/**
+ * Lauf-Optionen, die ein Motor erst können muss (U-43). Fehlt die Unterstützung, zählt der Fall als Fallback.
+ *   zufallsSaat (K-077) · vorrat (K-080/081) · echtzeit (K-087)
+ */
+function benoetigteOptionen(opt) {
+  const f = [];
+  if (opt && opt.zufallsSaat !== undefined) f.push('zufallsSaat');
+  if (opt && opt.vorrat) f.push('vorrat');
+  if (opt && opt.echtzeit !== undefined) f.push('echtzeit');
+  return f;
 }
 
 /** Unterstützt der Interpreter schon interaktive Eingabe (EINGABE.md)? */
@@ -102,6 +127,28 @@ function ladePizzaiolo() {
 
 const pz = ladePizzaiolo();
 
+/**
+ * Kann der Wasm-Motor eine Lauf-Option (U-43)? Bevorzugt eine explizite Fähigkeitenliste
+ * (Pizzaiolo.faehigkeiten als Array/Objekt/Funktion), sonst: kommt der Optionsname im Quelltext von pizzaiolo vor?
+ */
+let _wasmQuelle = null;
+function wasmKann(option) {
+  const Z = pz.Z;
+  if (!Z) return false;
+  let f = Z.faehigkeiten;
+  try { if (typeof f === 'function') f = f(); } catch (_) { f = null; }
+  if (Array.isArray(f)) return f.includes(option);
+  if (f && typeof f === 'object') return !!f[option];
+  if (_wasmQuelle === null) {
+    _wasmQuelle = '';
+    const dateien = [path.join(ROOT, 'site', 'js', 'pizzaiolo.js')];
+    const dir = path.join(ROOT, 'site', 'js', 'pizzaiolo');
+    if (fs.existsSync(dir)) for (const d of fs.readdirSync(dir)) if (d.endsWith('.js')) dateien.push(path.join(dir, d));
+    for (const d of dateien) { try { _wasmQuelle += fs.readFileSync(d, 'utf8'); } catch (_) {} }
+  }
+  return _wasmQuelle.includes(option);
+}
+
 function kompiliere(q) {
   if (!pz.Z || typeof pz.Z.kompiliere !== 'function') return null;
   try { return pz.Z.kompiliere(q); }
@@ -128,6 +175,10 @@ const wasm = {
     const k = kompilat(q, cache);
     if (k && k.wurf) return { status: 'wurf', fehler: 'kompiliere() hat geworfen: ' + k.wurf };
     if (k && k.ok === false && k.nichtUnterstuetzt) return { status: 'fallback', grund: fallbackGrund(k) };
+    const noetig = benoetigteOptionen(opt);
+    if (/Vorratskammer/.test(q) && !noetig.includes('vorrat')) noetig.push('vorrat');   // K-081: Backend nötig (sonst W0101-Verhalten)
+    const fehlt = noetig.filter(o => !wasmKann(o));
+    if (fehlt.length) return { status: 'fallback', grund: 'Lauf-Option ' + fehlt.join(', ') + ' noch nicht unterstützt' };
     const t0 = jetzt();
     let r;
     try { r = pz.Z.run(q, Object.assign(laufOptionen(opt), { motor: 'wasm' })); }
@@ -152,6 +203,27 @@ function findeHost() {
 }
 
 const hostPfad = findeHost();
+
+/** Optionen des Hosts laut --hilfe (einmal gelesen). */
+let _hostHilfe = null;
+function hostHilfe() {
+  if (_hostHilfe === null) {
+    try { const p = cp.spawnSync(hostPfad, ['--hilfe'], { encoding: 'utf8', timeout: 10000 }); _hostHilfe = String(p.stdout || '') + String(p.stderr || ''); }
+    catch (_) { _hostHilfe = ''; }
+  }
+  return _hostHilfe;
+}
+const HOST_FLAG = { zufallsSaat: '--saat', vorrat: '--vorrat', echtzeit: '--echtzeit' };
+function hostKann(option) { return hostHilfe().includes(HOST_FLAG[option]); }
+
+/** Vorrat-Eingangszustand { name: eintraege | {v,name,eintraege} } → Dateien <name>.json (K-080-Serialisierung). */
+function schreibeVorrat(ordner, vorrat) {
+  fs.mkdirSync(ordner, { recursive: true });
+  for (const [name, wert] of Object.entries(vorrat || {})) {
+    const eintraege = Array.isArray(wert) ? wert : (wert && wert.eintraege) || [];
+    fs.writeFileSync(path.join(ordner, name + '.json'), JSON.stringify({ v: 1, name, eintraege }));
+  }
+}
 let tmpDir = null;
 let tmpZaehler = 0;
 
@@ -176,6 +248,13 @@ const host = {
     if (k && k.wurf) return { status: 'wurf', fehler: 'kompiliere() hat geworfen: ' + k.wurf };
     if (k && k.ok === false && k.nichtUnterstuetzt) return { status: 'fallback', grund: fallbackGrund(k) };
     if (!k || !k.ok) return { status: 'übersprungen', grund: 'Syntaxfehler – kein .pkarton' };
+    const fehlt = benoetigteOptionen(opt).filter(o => !hostKann(o));
+    if (fehlt.length) return { status: 'fallback', grund: 'Host-Option für ' + fehlt.join(', ') + ' fehlt' };
+    // Ohne optionen.vorrat warnt der Interpreter W0101; der Host hätte sonst echte Dateien im Nutzerverzeichnis.
+    const nutztVorrat = /Vorratskammer/.test(q);
+    if (nutztVorrat && !(opt && opt.vorrat) && !hostHilfe().includes('--kein-vorrat')) {
+      return { status: 'fallback', grund: 'Host ohne --kein-vorrat: Vorratskammer ohne optionen.vorrat nicht vergleichbar' };
+    }
     if (!tmpDir) tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pizza-diff-'));
     const datei = path.join(tmpDir, 'p' + (tmpZaehler++) + '.pkarton');
     fs.writeFileSync(datei, k.pkarton);
@@ -189,6 +268,14 @@ const host = {
       fs.writeFileSync(uiDatei, opt.uiEreignisse.map(e => JSON.stringify(e) + '\n').join(''));
       argv.push('--ui-ereignisse', uiDatei);
     }
+    let vorratOrdner = null;
+    if (opt && opt.zufallsSaat !== undefined) argv.push('--saat=' + opt.zufallsSaat);
+    if (opt && opt.echtzeit !== undefined) argv.push('--echtzeit=' + opt.echtzeit);
+    if (opt && opt.vorrat) {
+      vorratOrdner = path.join(tmpDir, 'vorrat' + (tmpZaehler++));
+      schreibeVorrat(vorratOrdner, opt.vorrat);
+      argv.push('--vorrat=' + vorratOrdner);
+    } else if (nutztVorrat) argv.push('--kein-vorrat');
     argv.push(datei);
     if (opt && opt.args && opt.args.length) argv.push(...opt.args);
     const t0 = jetzt();
@@ -200,7 +287,7 @@ const host = {
     const stdin = zeilenIn.map(z => z + '\n').join('');
     const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
     const ms = jetzt() - t0;
-    try { fs.unlinkSync(datei); if (uiDatei) fs.unlinkSync(uiDatei); } catch (_) {}
+    try { fs.unlinkSync(datei); if (uiDatei) fs.unlinkSync(uiDatei); if (vorratOrdner) fs.rmSync(vorratOrdner, { recursive: true, force: true }); } catch (_) {}
     if (p.error) return { status: 'wurf', fehler: 'Host-Start: ' + p.error.message };
     let ev;
     try { ev = parseHostAusgabe(p.stdout); }
@@ -278,4 +365,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { benoetigteOptionen, wasmKann, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };

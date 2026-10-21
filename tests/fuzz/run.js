@@ -3,7 +3,7 @@
  * Fuzzing für pizza v3.0 – deterministisch per Seed.
  *
  *   node tests/fuzz/run.js [--anzahl 2000] [--seed 1] [--robust N] [--nur gueltig|robust] [--eingabe-anteil 0.25]
- *                          [--theke-anteil 0.1] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
+ *                          [--theke-anteil 0.1] [--vorrat-anteil 0.15] [--saat-anteil 0.3] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
  *   Umgebung: FUZZ_SEED, FUZZ_ANZAHL, FUZZ_ROBUST (Kommandozeile hat Vorrang), PIZZA_MOTOREN, PIZZA_HOST
  *
  * Teil 1 (gültig): grammatikbasierte, terminierende Programme → alle verfügbaren Motoren, Vergleich gegen den
@@ -54,7 +54,15 @@ if (argv.includes('--selbsttest')) {
 const eingabeOk = M.eingabeUnterstuetzt();
 const thekeOk = (() => { try { return M.PizzaLang.run('Theke t = neu Theke("x"); Schild s = neu Schild("a"); t.zeige(s); t.bediene();', { uiEreignisse: [] }).exitCode === 0; } catch (_) { return false; } })();
 const thekeAnteil = zahl(arg('--theke-anteil'), 0.1);
-console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)') + (thekeOk ? ' theke-anteil=' + thekeAnteil : ' (keine Theke im Interpreter)')));
+const probe = (q, o) => { try { return M.PizzaLang.run(q, o || {}).exitCode === 0; } catch (_) { return false; } };
+// U-43: Zufall-API (K-078), Vorratskammer (K-079/080), Takt (K-084) – nur erzeugen, was der Interpreter kann.
+const zufallOk = probe('Zufall z = neu Zufall(7); Bote.sage((z.kommazahl() + Zufall.saat()));');
+const vorratOk = probe('Vorratskammer v = neu Vorratskammer("p"); v.lege("a", 1);', { vorrat: {} });
+const taktOk = thekeOk && probe('Theke t = neu Theke("x"); Takt k = neu Takt(1s, n -> Bote.sage((n))); t.zeige(neu Stapel([k])); t.bediene();', { uiEreignisse: [{ typ: 'takt', id: 'z1', anzahl: 1 }] });
+const vorratAnteil = zahl(arg('--vorrat-anteil'), 0.15);
+const saatAnteil = zahl(arg('--saat-anteil'), 0.3);
+const SAATEN = [42, 7, 0, -1, 4294967296 + 5, 123456789, 2147483648, 1.5, 'x'];
+console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)') + (thekeOk ? ' theke-anteil=' + thekeAnteil + (taktOk ? '+Takt' : '') : ' (keine Theke im Interpreter)') + (zufallOk ? ' saat-anteil=' + saatAnteil : '') + (vorratOk ? ' vorrat-anteil=' + vorratAnteil : '')));
 for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(12) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
 
 const stat = {};
@@ -129,8 +137,17 @@ if (nur !== 'robust') {
     const z = new Zufall(s ^ 0x5bd1e995);
     const mitEingabe = eingabeOk && z.chance(eingabeAnteil);
     const mitTheke = thekeOk && z.chance(thekeAnteil);
-    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe, theke: mitTheke });
-    const r = pruefeFall(code, optionen);
+    const mitVorrat = vorratOk && z.chance(vorratAnteil);
+    const saat = zufallOk && z.chance(saatAnteil) ? z.wahl(SAATEN) : undefined;
+    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe, theke: mitTheke, takt: taktOk, zufall: zufallOk, vorrat: mitVorrat, zufallsSaat: saat });
+    let r = pruefeFall(code, optionen);
+    // Mehrere Saaten: Programme mit Zufall gelegentlich zusätzlich mit einer anderen Saat vergleichen.
+    if (!r.probleme.length && zufallOk && /Zufall/.test(code) && z.chance(0.3)) {
+      const o2 = Object.assign({}, optionen, { zufallsSaat: z.wahl(SAATEN.filter(x => x !== optionen.zufallsSaat)) });
+      const r2 = pruefeFall(code, o2);
+      zaehle(r2);
+      if (r2.probleme.length) { fund('gueltig', i + '-saat', code, o2, r2); }
+    }
     zaehle(r);
     if (r.ref.status === 'ok') {
       const ex = r.ref.exitCode;
