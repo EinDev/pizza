@@ -41,6 +41,8 @@ async function lauf(page, zeilen = [], theke = null) {
       const ev = (window.__ereignisse || []).filter((e) => e.typ === "motor" || e.typ === "ende");
       return ev.map((e) => e.motor).filter(Boolean).pop() || null;
     }),
+    // Motor-Ereignis(se) mit grund (warum ggf. auf den Interpreter zurückgefallen wurde)
+    motorInfo: await page.evaluate(() => JSON.stringify((window.__ereignisse || []).filter((e) => e.typ === "motor" || e.typ === "faehigkeiten"))),
   };
   r.overlay = await hawaiiOverlayOffen(page); // soll es nicht mehr geben
   return r;
@@ -113,8 +115,12 @@ e2e("Motor-Standard ist „Auto“ (frischer Browser, nichts gemerkt)", async ({
   assert.equal(v.auto, true);
 });
 
+/** Wartet, bis die einmalige Fähigkeiten-Prüfung der Seite (Worker {typ:"faehigkeiten"}) angekommen ist. */
+const warteFaehigkeiten = (page) => page.waitForFunction(() => (window.__ereignisse || []).some((e) => e.typ === "faehigkeiten"), { timeout: 20_000 });
+
 e2e("Wasm-Lauf zeigt Motor-Badge „Wasm“ (Auto und explizit Wasm), Interpreter-Lauf „Interpreter“", async ({ page, oeffne }) => {
   await oeffne();
+  await warteFaehigkeiten(page); // Badge-Test unabhängig vom Start-Wettlauf (eigener Test unten)
   const v = await motorVerfuegbar(page);
   assert.ok(v && v.wasm, "Wasm-Motor verfügbar (motoren.json / pizzaiolo.js)");
   const badge = () => page.$eval('[data-testid="motor-badge"]', (b) => ({ text: b.textContent, klasse: b.className, hidden: b.hidden || !b.getClientRects().length }));
@@ -123,7 +129,7 @@ e2e("Wasm-Lauf zeigt Motor-Badge „Wasm“ (Auto und explizit Wasm), Interprete
     await setzeMotor(page, m);
     const r = await lauf(page);
     assert.equal(r.ausgabe, "ofenfrisch\n");
-    assert.equal(r.motor, "wasm", m + ": Lauf meldet Motor wasm");
+    assert.equal(r.motor, "wasm", m + ": Lauf meldet Motor wasm – Motor-Ereignisse: " + r.motorInfo);
     const b = await badge();
     assert.equal(b.hidden, false, m + ": Badge sichtbar");
     assert.match(b.text, /^Wasm\b/, m + ": Badge-Text „" + b.text + "“");
@@ -132,4 +138,34 @@ e2e("Wasm-Lauf zeigt Motor-Badge „Wasm“ (Auto und explizit Wasm), Interprete
   const r = await lauf(page);
   assert.equal(r.motor, "interpreter");
   assert.match((await badge()).text, /Interpreter/i);
+});
+
+// Regression: Wird direkt nach dem Laden gebacken, bevor die Fähigkeiten-Prüfung fertig ist, fiel „Auto“
+// still auf den Interpreter zurück (grund „Wasm-Compiler (pizzaiolo.js) ist noch nicht verfügbar“), obwohl Wasm geht.
+// Die Prüfung wird hier künstlich verzögert, damit der Wettlauf deterministisch eintritt.
+e2e("Erster Lauf direkt nach dem Laden nutzt in „Auto“ Wasm (Fähigkeiten-Prüfung noch unterwegs)", {
+  vorLaden: () => {
+    const W = window.Worker;
+    window.Worker = class extends W {
+      constructor(...a) {
+        super(...a);
+        // Antwort {typ:"faehigkeiten"} 1,5 s zurückhalten (vor onmessage der UI abfangen, später erneut zustellen)
+        this.addEventListener("message", (m) => {
+          if (m.data && m.data.typ === "faehigkeiten" && !m.verzoegert) {
+            m.stopImmediatePropagation();
+            const kopie = new MessageEvent("message", { data: m.data });
+            kopie.verzoegert = true;
+            setTimeout(() => this.dispatchEvent(kopie), 1500);
+          }
+        });
+      }
+    };
+  },
+}, async ({ page, oeffne }) => {
+  await oeffne();
+  assert.equal(await page.$eval(WAHL, (w) => w.value), "auto");
+  await setzeCode(page, 'Bote.sage(("sofort gebacken"));');
+  const r = await lauf(page);
+  assert.equal(r.ausgabe, "sofort gebacken\n");
+  assert.equal(r.motor, "wasm", "Auto nutzt Wasm auch beim ersten Lauf – Motor-Ereignisse: " + r.motorInfo);
 });
