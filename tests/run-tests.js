@@ -388,6 +388,10 @@ function beispiele() {
         const ep = path.join(dir, b.eingabe);
         if (!fs.existsSync(ep)) { uebersprungen('beispiele', name, 'Eingabedatei fehlt: ' + b.eingabe); continue; }
         opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
+      } else {
+        // Fallback: gleichnamige .eingabe-Datei neben der .pizza-Datei
+        const ep = dp.replace(/\.pizza$/, '.eingabe');
+        if (ep !== dp && fs.existsSync(ep)) opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
       }
       const r = P.run(quelle, opt);
       const probleme = [];
