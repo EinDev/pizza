@@ -1,13 +1,13 @@
-// Startet pro Lauf einen frischen Worker, Wand-Zeitlimit 10 s, Abbruch. Hawaii (panik) ist ein normales Ereignis; das Ende kommt mit „ende“.
+// Startet pro Lauf einen frischen Worker. Kein Wand-Zeitlimit (Browser = nativ): es gilt nur das Schrittlimit des
+// Interpreters/Compilers, dazu „Abbrechen“. Hawaii (panik) ist ein normales Ereignis; das Ende kommt mit „ende“.
 
-const ZEITLIMIT_MS = 10_000;
 
 /** Einmaliger Auftrag an einen eigenen Worker (Kompilieren, Fähigkeiten prüfen). */
 export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
   return new Promise((resolve) => {
     let w;
     try { w = new Worker("js/worker.js"); } catch (e) { resolve({ ok: false, grund: "Web Worker nicht verfügbar" }); return; }
-    const t = setTimeout(() => { w.terminate(); resolve({ ok: false, grund: "Zeitlimit überschritten" }); }, zeitlimit);
+    const t = setTimeout(() => { w.terminate(); resolve({ ok: false, grund: "Keine Antwort vom Ofen (Zeitüberschreitung)" }); }, zeitlimit);
     w.onmessage = (m) => {
       if (!m.data || m.data.typ !== antwortTyp) return;
       clearTimeout(t); w.terminate(); resolve(m.data);
@@ -25,30 +25,16 @@ export function interaktivMoeglich() {
 const PUFFER_BYTES = 64 * 1024;
 
 export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi }) {
-  let worker = null, timer = null, start = 0, laufId = 0;
+  let worker = null, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
-  let sab = null, wartet = false, restMs = ZEITLIMIT_MS, timerStart = 0, wartezeit = 0, warteBeginn = 0;
+  let sab = null, wartet = false, wartezeit = 0, warteBeginn = 0;
   const kodierer = new TextEncoder();
 
   function aufraeumen() {
-    if (timer) { clearTimeout(timer); timer = null; }
     if ((wartet || uiWartet) && sab) signal(3);
     wartet = false; uiWartet = false; uiSchlange = [];
     if (worker) { try { worker.terminate(); } catch (e) { /* egal */ } worker = null; }
     sab = null;
-  }
-
-  function starteTimer(id) {
-    timerStart = performance.now();
-    timer = setTimeout(() => {
-      beiEreignis({ typ: "fehler", art: "limit", code: "P0003", text: "PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).", zeile: null, spalte: null });
-      beende(id, { exitCode: 3, zusatz: "Zeitlimit" });
-    }, Math.max(0, restMs));
-  }
-  function pausiereTimer() {
-    if (!timer) return;
-    clearTimeout(timer); timer = null;
-    restMs -= performance.now() - timerStart;
   }
 
   function signal(status, bytes) {
@@ -90,14 +76,12 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       if (uiSchlange.length) { signal(1, kodierer.encode(JSON.stringify(uiSchlange.shift()))); return; }
       uiWartet = true;
       warteBeginn = performance.now();
-      pausiereTimer(); // Wand-Zeitlimit ruht, solange die Theke auf den Gast wartet
       return;
     }
     if (ev.typ === "eingabe-anfrage") {
       if (!sab) return;
       wartet = true;
       warteBeginn = performance.now();
-      pausiereTimer(); // Wand-Zeitlimit ruht während des Wartens
       beiEingabeAnfrage && beiEingabeAnfrage(ev);
       return;
     }
@@ -114,7 +98,6 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         uiWartet = false;
         wartezeit += performance.now() - warteBeginn;
         signal(1, kodierer.encode(JSON.stringify(ereignis)));
-        starteTimer(laufId);
       } else uiSchlange.push(ereignis);
     },
     /** Antwort auf eine Eingabe-Anfrage: Text oder null (= EOF). */
@@ -124,14 +107,12 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       wartezeit += performance.now() - warteBeginn;
       if (text == null) signal(2);
       else signal(1, kodierer.encode(String(text)));
-      starteTimer(laufId);
       return true;
     },
     starte(code, args = [], motor = "auto", extra = {}) {
       aufraeumen();
       const id = ++laufId;
       start = performance.now();
-      restMs = ZEITLIMIT_MS;
       wartezeit = 0;
       beiStart();
       try {
@@ -147,7 +128,6 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         beiEreignis({ typ: "fehler", art: "intern", code: "INTERN", text: "Der Ofen ist ausgefallen: " + (e.message || "unbekannter Fehler im Worker") + ".", zeile: null, spalte: null });
         beende(id, { exitCode: 2 });
       };
-      starteTimer(id);
       const nachricht = { ...extra, typ: "start", code, args, motor };
       if (!Array.isArray(extra.eingabe) && interaktivMoeglich()) {
         try { sab = new SharedArrayBuffer(8 + PUFFER_BYTES); nachricht.eingabePuffer = sab; } catch (e) { sab = null; }

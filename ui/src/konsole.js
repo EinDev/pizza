@@ -6,7 +6,7 @@ const EXIT = {
   0: { text: "gegessen", klasse: "ok", titel: "Exit-Code 0 – alles gut" },
   1: { text: "Ananas", klasse: "ananas", titel: "Exit-Code 1 – ungefangene Ananas" },
   2: { text: "Fehler", klasse: "fehler", titel: "Exit-Code 2 – PizzaFehler" },
-  3: { text: "noch im Ofen", klasse: "ofen", titel: "Exit-Code 3 – Schritt- oder Zeitlimit" },
+  3: { text: "noch im Ofen", klasse: "ofen", titel: "Exit-Code 3 – Schrittlimit erreicht" },
   39: { text: "Exit", klasse: "fehler", titel: "Exit-Code 39 – Hawaii (Ananas auf der Pizza)" },
 };
 
