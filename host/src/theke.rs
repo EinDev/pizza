@@ -1,11 +1,17 @@
 //! Theke (THEKE.md §4): eigenes Fenster über die System-WebView (wry + tao).
 //!
-//! - Das Wasm-Programm läuft in einem eigenen Thread, der Hauptthread wartet auf die erste UI-Nachricht.
-//! - Erst dann entstehen Event-Loop, Fenster und WebView (Programme ohne Theke bleiben reine Konsolenprogramme).
-//! - Host → Renderer: `window.pizzaThekeEmpfange(<json>)`; Renderer → Host: `window.ipc.postMessage(<json-text>)`.
-//! - Fenster schließen → Ereignis `{"typ":"geschlossen"}`, das Fenster verschwindet, das Programm läuft weiter.
+//! - Das Wasm-Programm läuft in einem eigenen Thread; der Hauptthread wartet auf die erste UI-Nachricht.
+//!   Erst dann entstehen Event-Loop, Fenster und WebView (Programme ohne Theke bleiben reine Konsolenprogramme).
+//! - Renderer = unverändert `site/js/theke/` (eine Render-Engine für Browser und nativ), eingebettet per build.rs
+//!   und ausgeliefert über das Custom-Protocol `theke://lokal/…` (WebView2: `http://theke.localhost/…`), damit
+//!   die CSP der Seite (`script-src 'self'`) passt – kein Server, kein Netzwerk.
+//! - Brücke (site/js/theke/README.md): Seite → Host `window.ipc.postMessage(json)`, zuerst einmal `{"typ":"bereit"}`
+//!   (nicht ans Programm); Host → Seite `pizzaThekeEmpfange(<JSON als JS-String>)`, gepuffert bis `bereit`.
+//! - Nutzer schließt das Fenster → Host schickt `{"typ":"geschlossen"}` an `ui_warte`; `op: "schliesse"` → Fenster zu.
+//! - Programmende → Fenster zu, Prozess endet mit dem Exit-Code des Programms.
 //! - Kein Fenster möglich (keine Anzeige, WebView2/WebKitGTK fehlt) → verständliche Meldung, `ui_warte` liefert -1.
 
+use std::borrow::Cow;
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -14,14 +20,17 @@ use tao::dpi::LogicalSize;
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
-use wry::{PageLoadEvent, WebContext, WebViewBuilder};
+use wry::http::{header::CONTENT_TYPE, Response, StatusCode};
+use wry::{WebContext, WebViewBuilder};
 
 use crate::laufen::Ui;
 
-/// Eingebetteter Renderer (build.rs: `site/js/theke/fenster.html` inkl. Skripte, sonst `theke-ersatz.html`).
-pub const RENDERER_HTML: &str = include_str!(concat!(env!("OUT_DIR"), "/theke.html"));
+mod dateien {
+    include!(concat!(env!("OUT_DIR"), "/theke_dateien.rs"));
+}
 
 const GESCHLOSSEN: &str = "{\"typ\":\"geschlossen\"}";
+const START_URL: &str = "theke://lokal/fenster.html";
 
 enum AnHaupt {
     Nachricht(String),
@@ -31,7 +40,7 @@ enum AnHaupt {
 #[derive(Debug)]
 enum Fe {
     Nachricht(String),
-    Geladen,
+    Bereit,
     Fertig(i32),
 }
 
@@ -50,13 +59,45 @@ pub fn anzeige_verfuegbar() -> bool {
     true
 }
 
+/// Datenordner der WebView (Nutzerentscheidung): `%LOCALAPPDATA%\pizza\theke` bzw. `$XDG_DATA_HOME/pizza/theke`
+/// (`~/.local/share/pizza/theke`), nie neben der EXE. Wird vorab angelegt.
+fn datenordner() -> Option<std::path::PathBuf> {
+    let basis = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from)
+    } else {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local").join("share")))
+    };
+    let p = basis.unwrap_or_else(std::env::temp_dir).join("pizza").join("theke");
+    std::fs::create_dir_all(&p).ok()?;
+    Some(p)
+}
+
+/// Antwort des Custom-Protocols `theke://lokal/<datei>` aus den eingebetteten Renderer-Dateien.
+fn ausliefern(pfad: &str) -> Response<Cow<'static, [u8]>> {
+    let name = pfad.trim_start_matches('/');
+    let name = if name.is_empty() { "fenster.html" } else { name };
+    match dateien::DATEIEN.iter().find(|(n, _, _)| *n == name) {
+        Some((_, mime, inhalt)) => Response::builder()
+            .header(CONTENT_TYPE, *mime)
+            .body(Cow::Borrowed(*inhalt))
+            .unwrap_or_else(|_| Response::new(Cow::Borrowed(&[][..]))),
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(CONTENT_TYPE, "text/plain")
+            .body(Cow::Borrowed(&b"nicht gefunden"[..]))
+            .unwrap_or_else(|_| Response::new(Cow::Borrowed(&[][..]))),
+    }
+}
+
 /// Führt `lauf` (das Programm) in einem eigenen Thread aus und betreibt bei Bedarf das Fenster im
-/// aufrufenden (Haupt-)Thread. Liefert den Exit-Code (kehrt ggf. nie zurück, sondern beendet den Prozess).
+/// aufrufenden (Haupt-)Thread. Liefert den Exit-Code (oder beendet den Prozess selbst mit ihm).
 pub fn starte<F>(lauf: F) -> i32
 where
     F: FnOnce(Option<Ui>) -> i32 + Send + 'static,
 {
-    if !anzeige_verfuegbar() {
+    if !anzeige_verfuegbar() || dateien::DATEIEN.is_empty() {
         return lauf(None);
     }
     let (tx, rx) = mpsc::channel::<AnHaupt>();
@@ -92,11 +133,11 @@ where
             Ok(AnHaupt::Nachricht(m)) => {
                 let Some(von) = von_tx.take() else { continue }; // Fenster schon gescheitert → verwerfen
                 match fenster(m, rx, von) {
-                    Ok(never) => match never {},
+                    Ok(nie) => match nie {},
                     Err((meldung, zurueck)) => {
                         let _ = std::io::stdout().flush();
                         eprintln!("{}", meldung);
-                        // `von` ist weg → ui_warte liefert -1, das Programm läuft als Konsolenprogramm weiter.
+                        // `von` ist weg → ui_warte liefert „geschlossen“/-1, das Programm läuft als Konsolenprogramm weiter.
                         rx = zurueck;
                     }
                 }
@@ -107,21 +148,13 @@ where
 
 enum Nie {}
 
-/// Datenordner der WebView: %LOCALAPPDATA%\pizza\theke bzw. $XDG_CACHE_HOME/pizza/theke (sonst temp).
-fn datenordner() -> Option<std::path::PathBuf> {
-    let basis = std::env::var_os("LOCALAPPDATA")
-        .or_else(|| std::env::var_os("XDG_CACHE_HOME"))
-        .map(std::path::PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
-        .unwrap_or_else(std::env::temp_dir);
-    Some(basis.join("pizza").join("theke"))
-}
-
 /// Öffnet Fenster + WebView und betreibt die Event-Loop (kehrt bei Erfolg nie zurück).
 fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<Nie, (String, Receiver<AnHaupt>)> {
+    // Test-/CI-Modus: Fenster nie sichtbar machen (Smoke-Test ohne aufpoppende Fenster).
+    let unsichtbar = std::env::var_os("PIZZA_THEKE_UNSICHTBAR").is_some();
     let event_loop = EventLoopBuilder::<Fe>::with_user_event().build();
     let fenster = match WindowBuilder::new()
-        .with_title("pizza – Theke")
+        .with_title("Theke")
         .with_inner_size(LogicalSize::new(480.0, 360.0))
         .with_visible(false)
         .build(&event_loop)
@@ -130,21 +163,20 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
         Err(e) => return Err((format!("Theke: Fenster konnte nicht geöffnet werden ({}). Das Programm läuft ohne Fenster weiter.", e), rx)),
     };
 
-    // WebView-Daten nicht neben die EXE legen (Downloads-Ordner!), sondern ins Benutzer-Cache-Verzeichnis.
-    let mut kontext = WebContext::new(datenordner());
     let proxy = event_loop.create_proxy();
+    let mut kontext = WebContext::new(datenordner());
     let ipc_von = von.clone();
+    let ipc_proxy = proxy.clone();
     let builder = WebViewBuilder::new_with_web_context(&mut kontext)
-        .with_html(RENDERER_HTML)
+        .with_custom_protocol("theke".into(), |_id, req| ausliefern(req.uri().path()))
+        .with_url(START_URL)
         .with_ipc_handler(move |req| {
-            let _ = ipc_von.send(req.body().clone());
-        })
-        .with_on_page_load_handler({
-            let p = proxy.clone();
-            move |ev, _url| {
-                if let PageLoadEvent::Finished = ev {
-                    let _ = p.send_event(Fe::Geladen);
-                }
+            let text = req.body();
+            let kompakt: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+            if kompakt.contains("\"typ\":\"bereit\"") {
+                let _ = ipc_proxy.send_event(Fe::Bereit);
+            } else {
+                let _ = ipc_von.send(text.clone());
             }
         });
 
@@ -194,7 +226,13 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
             .expect("Brücken-Thread");
     }
 
-    let mut geladen = false;
+    // Host → Seite: Protokoll-JSON doppelt kodiert als JS-String (README der Theke).
+    let empfange = move |wv: &wry::WebView, m: &str| {
+        let js = format!("pizzaThekeEmpfange({});", serde_json::to_string(m).unwrap_or_else(|_| "\"\"".into()));
+        let _ = wv.evaluate_script(&js);
+    };
+
+    let mut bereit = false;
     let mut warteschlange: Vec<String> = Vec::new();
     let mut zu = false;
     let _ = proxy.send_event(Fe::Nachricht(erste));
@@ -218,8 +256,10 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
                         }
                         Some("baum") => {
                             zu = false;
-                            fenster.set_visible(true);
-                            fenster.set_focus();
+                            if !unsichtbar {
+                                fenster.set_visible(true);
+                                fenster.set_focus();
+                            }
                         }
                         Some("schliesse") => {
                             zu = true;
@@ -228,16 +268,16 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
                         _ => {}
                     }
                 }
-                if geladen {
-                    let _ = webview.evaluate_script(&format!("window.pizzaThekeEmpfange({});", m.trim()));
+                if bereit {
+                    empfange(&webview, &m);
                 } else {
                     warteschlange.push(m);
                 }
             }
-            Event::UserEvent(Fe::Geladen) => {
-                geladen = true;
+            Event::UserEvent(Fe::Bereit) => {
+                bereit = true;
                 for m in warteschlange.drain(..) {
-                    let _ = webview.evaluate_script(&format!("window.pizzaThekeEmpfange({});", m.trim()));
+                    empfange(&webview, &m);
                 }
                 // Smoke-Test (CI/xvfb): ersten Knopf automatisch klicken → kompletter Rundweg über die WebView.
                 if std::env::var_os("PIZZA_THEKE_SMOKE").is_some() {
@@ -247,6 +287,8 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
                 }
             }
             Event::UserEvent(Fe::Fertig(code)) => {
+                // Programmende = Fenster zu, Prozess endet mit dem Exit-Code des Programms.
+                fenster.set_visible(false);
                 let _ = std::io::stdout().flush();
                 let _ = std::io::stderr().flush();
                 std::process::exit(code & 0xff);

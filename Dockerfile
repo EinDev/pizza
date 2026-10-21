@@ -55,13 +55,16 @@ ARG SKIP_EXE=0
 ARG STRICT_BUILD=0
 RUN if [ "$SKIP_EXE" != "1" ]; then \
         apt-get update && \
-        apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 musl-tools && \
+        apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 musl-tools \
+            pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev && \
         rm -rf /var/lib/apt/lists/* && \
         rustup target add x86_64-pc-windows-gnu x86_64-unknown-linux-musl; \
     fi
 
 WORKDIR /app
 COPY host/ host/
+# Theke-Renderer (eine Render-Engine für Browser und nativ) – build.rs bettet ihn ins Host-Binary ein.
+COPY site/js/theke/ site/js/theke/
 ENV AUSGABE_DIR=/out \
     CARGO_TARGET_DIR=/app/host/target
 RUN --mount=type=cache,id=pizza-cargo-registry,target=/usr/local/cargo/registry \

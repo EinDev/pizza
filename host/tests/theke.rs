@@ -106,6 +106,7 @@ fn fenster_smoke() {
     let out = Command::new(env!("CARGO_BIN_EXE_pizza-host"))
         .arg(&k)
         .env("PIZZA_THEKE_SMOKE", "1")
+        .env("PIZZA_THEKE_UNSICHTBAR", "1")
         .stdin(Stdio::null())
         .output()
         .unwrap();
@@ -114,4 +115,13 @@ fn fenster_smoke() {
     assert_eq!(s, "{\"typ\":\"klick\",\"id\":\"z1\"}\nEnde\n");
     assert_eq!(out.status.code(), Some(0));
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Schreibt `target/theke-smoke.pkarton` (für Smoke-Tests mit cross-gebauten Hosts):
+/// `cargo test --test theke -- --ignored fixture`
+#[test]
+#[ignore]
+fn fixture_schreiben() {
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("theke-smoke.pkarton");
+    std::fs::write(p, wat::parse_str(WAT).unwrap()).unwrap();
 }
