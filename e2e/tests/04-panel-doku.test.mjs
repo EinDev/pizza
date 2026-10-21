@@ -232,3 +232,17 @@ e2e("Doku: „Im Editor öffnen“ und „Öffnen & backen“ aus dem Panel", as
   assert.equal((await editorTabs(page)).filter((t) => t.name === tab.name).length, 1, "kein doppelter Tab");
   assert.equal((await konsolenAusgabe(page)).trimEnd(), ziel.ausgabe.trimEnd());
 });
+
+e2e("Doku-Layout: im schmalen Panel steht das Inhaltsverzeichnis oben, der Artikel nutzt die volle Breite", async ({ page, oeffne }) => {
+  await oeffne();
+  await zeigePanelTab(page, "doku");
+  await dokuBereit(page);
+  const m = await page.evaluate((p) => {
+    const box = (q) => { const r = document.querySelector(q).getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height, r: r.right }; };
+    return { panel: box(p), toc: box(p + " .doku-toc"), art: box(p + " .doku-artikel") };
+  }, P);
+  assert.ok(m.panel.w < 600, "Testannahme: Panel ist schmal (" + m.panel.w + ")");
+  assert.ok(m.art.w >= m.panel.w * 0.8, `Artikel zu schmal: ${Math.round(m.art.w)} von ${Math.round(m.panel.w)} px (Container-Query greift nicht?)`);
+  assert.ok(m.toc.h < m.panel.h * 0.3 && m.toc.t <= m.art.t, "Inhaltsverzeichnis als Leiste über dem Artikel");
+  assert.ok(m.art.r <= m.panel.r + 1, "Artikel ragt nicht aus dem Panel");
+});

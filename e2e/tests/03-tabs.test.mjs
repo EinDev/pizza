@@ -60,7 +60,7 @@ e2e("Neuer Tab (+), Strg+S markiert gespeichert, Schließen mit Rückfrage", asy
   await page.$eval(S.tabAktiv, (t) => t.querySelector('[data-testid="editor-tab-schliessen"], .etab-zu').click());
   await page.waitForSelector("#dialog-frage[open]");
   assert.match(await page.$eval("#dialog-text", (e) => e.textContent), /unbenannt-1\.pizza/);
-  await page.click('#dialog-frage button[value="nein"]');
+  await page.$eval('#dialog-frage button[value="nein"]', (k) => k.click());
   await page.waitForFunction(() => !document.getElementById("dialog-frage").open);
   assert.equal((await editorTabs(page)).length, 2);
   assert.equal(await editorText(page), 'Bote.sage(("entwurf"));');
@@ -76,7 +76,9 @@ e2e("Neuer Tab (+), Strg+S markiert gespeichert, Schließen mit Rückfrage", asy
   await setzeCode(page, 'Bote.sage(("verworfen"));');
   await page.$eval(S.tabAktiv, (t) => t.querySelector('[data-testid="editor-tab-schliessen"], .etab-zu').click());
   await page.waitForSelector("#dialog-frage[open]");
-  await page.click(S.dialogJa);
+  // Dialog ist bereit, sobald „Schließen“ den Fokus hat (frage() fokussiert nach showModal)
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === "dialog-ja");
+  await page.$eval(S.dialogJa, (k) => k.click());
   await page.waitForFunction((sel) => document.querySelectorAll(sel).length === 1, {}, S.tab);
   assert.equal((await editorTabs(page))[0].name, "willkommen.pizza");
 
