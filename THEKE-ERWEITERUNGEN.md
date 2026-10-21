@@ -192,7 +192,7 @@ HOST-ABI (Ereignisse kommen über `ui_warte`). `Uhr.echt()` braucht einen Import
 
 `pizza-imperium.pizza` nutzt alles aus §1–§8 direkt (kein Fallback mehr, Nutzerentscheidung F8): `Takt` (1 s, passive Produktion
 und Ereignisse in Sekunden), `kompakt()`/`euro(kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
-perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium · Geheimnisse), `Fortschritt` je
+perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium · Geheimnisse · Minispiele), `Fortschritt` je
 Upgrade, für den nächsten Stern, die nächste Filiale und das Ziel einer Herausforderung, `Tabelle` für Erfolge, Aufstieg und
 Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse, Vorratskammer + `Uhr.echt()` für Speichern und
 Offline-Fortschritt (50 %, höchstens 30 min). Die Reiter „Imperium“ und „Geheimnisse“ werden nur gezeichnet, wenn sie offen sind
@@ -214,3 +214,23 @@ Kurier/Tarantella/Roboter/Vesuv) der Sekundenproduktion; Handwerk wird je Stück
 Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
 letzten 5 Minuten nach 15 min 12–15 %, nach 30 min 9–14 %, nach 55 min 6–9 % (10 Klicks/s: 18–27 % / 13–15 % / 12–16 %);
 nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.
+
+**Minispiele (Spielstand `version` 4 – Stände der Version 2/3 laden mit Standardwerten):** Reiter „🎲 Minispiele“ (Nonnas
+Spielecke), vier kurze, freiwillige Spiele mit einer **gemeinsamen** Pause von 2 min nach jedem Spiel (läuft auch offline ab); ein
+Sieg bringt `portion()` × 8–10 s (Sekundenproduktion bzw. ein Klick, wenn der mehr bringt), eine Niederlage nichts. Uhr ist ein
+zweiter `Takt` (`spieltakt`, 150 ms bzw. 500 ms per `setzeIntervall`, nur während eines Spiels aktiv; Nachholschläge `anzahl > 1`
+werden mitgezählt); Zufall nur über die globale Saat, keine Animationen (Wasm/EXE gleich).
+
+| Spiel | Ablauf | Sieg |
+|---|---|---|
+| 🫓 Teig fangen (8 s) | 🫓 pendelt über 21 Felder (`Schild` je Feld, Ziel 3 Felder grün, Lage per `Zufall.zahl`) | „Fangen!“ im Ziel, sonst/nach 12 s verloren |
+| 🧾 Bestellung merken (10 s) | 4 Beläge (`Zufall.wähle`) 3 s sichtbar, dann 6 Belag-Knöpfe | richtige Reihenfolge binnen 15 s |
+| 🌡 Ofen halten (10 s) | Temperatur driftet je 0,5 s um `Zufall.zahl(-16, 6)`, Knöpfe ±25 °C | ≥ 7 von 10 s in 380–440 °C |
+| 🛵 Lieferroute (8 s) | 3 Wege (`Zufall.mische`) mit km, Ampeln, Stau; Fahrzeit 2 min/km + 1/Ampel + 4/Staustufe | schnellster Weg binnen 10 s |
+
+Fastenzeit sperrt die Spielecke (ein laufendes Spiel endet ohne Wertung). Statistik: „Anteil Minispiele am Umsatz“ (Runde · gesamt),
+„Minispiele gewonnen“; Erfolge „Nonnas Spielkamerad“ (jedes Spiel einmal gewonnen) und „Stammspieler“ (25 Spiele). Fenster 660 px
+breit (fünf Reiter). Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, startet jedes Spiel, sobald die Pause um ist, und gewinnt **immer**;
+die Spieldauer selbst kostet ihn keine Spielzeit – Obergrenze): Minispiel-Anteil am Umsatz nach 60 min 4,1–4,7 % (je 5-min-Fenster
+3,7–6,1 %), mit Aufstieg 4,1–5,1 %; Klickanteil unverändert 7,7–8,8 %. Tests: `.ereignisse` aus echtem Lauf, jedes Spiel einmal
+gewonnen und einmal verloren, dazu ein gesperrter Startversuch in der Fastenzeit.

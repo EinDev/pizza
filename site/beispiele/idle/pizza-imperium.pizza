@@ -26,9 +26,15 @@
 //    • Vorratskammer + Uhr.echt() – Speichern und Offline-Fortschritt
 //    • kompakt()/euro(kompakt: ja) – „1,23 Mio. €“
 //    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
+//    • ein zweiter Takt (150/500 ms) – die Uhr der Minispiele
+//
+//  🎲 Minispiele für zwischendurch (Teig fangen, Bestellung merken, Ofen
+//  halten, Lieferroute): optional, ein Sieg bringt ein paar Sekunden
+//  Produktion, danach macht Nonna zwei Minuten Pause.
 //
 //  Aufbau:  Upgrade · Geheimrezept · Herausforderung · Erfolg
-//           · Spiel (Regeln, ohne Oberfläche) · Zeilen der Oberfläche
+//           · Spiel (Regeln, ohne Oberfläche) · Minispiele (Spielecke)
+//           · Zeilen der Oberfläche
 //           · Oberfläche · Start
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -151,6 +157,14 @@ klasse Spiel {
     Blech<margherita> geschafft = [];// bestandene Herausforderungen
     margherita modus = "";           // laufende Herausforderung
 
+    // Minispiele (die Regeln stehen in der Spielecke, hier nur Pause, Statistik und Belohnung)
+    salami minispielPause = 0;       // Sekunden, bis Nonna wieder mitspielt
+    salami minispieleGespielt = 0;
+    salami minispieleGewonnen = 0;
+    Blech<margherita> minispielSiege = [];   // welche Minispiele schon einmal gewonnen wurden
+    funghi umsatzMini = 0;           // durch Minispiele (diese Runde)
+    funghi umsatzMiniAllzeit = 0;
+
     Blech<Upgrade> handwerk = [
         neu Upgrade("teigschaber", "🥄", "Teigschaber", 100, 1, "klick",
             "Kratzt den letzten Rest Teig aus der Schüssel."),
@@ -201,7 +215,7 @@ klasse Spiel {
             "Nonna traut keinem Belag mehr: Rezeptbuch gesperrt, nur Margherita – und Hawaii-Gäste fliegen raus.",
             "Jede Pizza bringt für immer 25 % mehr."),
         neu Herausforderung("fastenzeit", "🙏", "Fastenzeit", 5_000_000_000,
-            "Kein Klicken, keine Sonderschicht, keine Feste: Nur der Betrieb backt, Ereignisse fallen aus. 3 Lehrlinge helfen beim Start.",
+            "Kein Klicken, keine Sonderschicht, keine Feste, keine Minispiele: Nur der Betrieb backt, Ereignisse fallen aus. 3 Lehrlinge helfen beim Start.",
             "Der ganze Betrieb backt für immer +25 %.")
     ];
 
@@ -321,6 +335,7 @@ klasse Spiel {
     // Takt: n Sekunden sind vergangen (n > 1, wenn der Renderer nachholt).
     leer vergehe(salami n) {
         sekunden += n;
+        falls (minispielPause > 0) { minispielPause = Mathe.max(0, minispielPause - n); }
         salami rest = n;
         // Ein laufender Effekt gilt nur für seine Restdauer.
         falls (effekt != "" && effektRest < rest) {
@@ -412,6 +427,15 @@ klasse Spiel {
         }
     }
 
+    // Minispiel gewonnen: so viele Pizzen, wie in `sek` Sekunden gebacken werden (bzw. ein Klick, wenn der mehr bringt).
+    funghi minispielGewinn(salami sek) {
+        funghi n = portion() * sek;
+        funghi erlös = backe(n);
+        umsatzMini += erlös;
+        umsatzMiniAllzeit += erlös;
+        serviere (n);
+    }
+
     // ── Aktionen der Spielerin ──
     diavolo erlaubt(Upgrade u) {
         falls (u.schlüssel == "zentrale" && filialen <= 0) { serviere (nein); }
@@ -481,7 +505,7 @@ klasse Spiel {
     }
 
     leer setzeRundeZurück() {
-        geld = 0; pizzen = 0; umsatz = 0; umsatzKlick = 0;
+        geld = 0; pizzen = 0; umsatz = 0; umsatzKlick = 0; umsatzMini = 0;
         für (Upgrade u : handwerk) { u.setzeAnzahl(0); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(0); }
         falls (kennt("sparstrumpf")) {
@@ -614,6 +638,7 @@ klasse Spiel {
         pizzenAllzeit = 0; umsatzAllzeit = 0; umsatzKlickAllzeit = 0; umsatzKette = 0; klicks = 0; sekunden = 0;
         sterne = 0; sterneVergeben = 0; sterneAllzeit = 0; neueröffnungen = 0; filialen = 0; franchises = 0;
         hawaiiBekehrt = 0; pünktlich = 0; sonderschichten = 0; perfekte = 0;
+        minispielPause = 0; minispieleGespielt = 0; minispieleGewonnen = 0; minispielSiege = []; umsatzMiniAllzeit = 0;
         erfolge = []; geschafft = [];
         neuBerechnen();
         nachricht = "Frischer Teig, leere Kasse – auf ein Neues!";
@@ -622,7 +647,7 @@ klasse Spiel {
     // ── Spielstand (für die Vorratskammer) ──
     Speisekarte<margherita, Vorrat> alsSpeisekarte() {
         Speisekarte<margherita, Vorrat> s = neu Speisekarte<margherita, Vorrat>();
-        s.lege("version", 3).lege("zeit", Uhr.echt().inMs());
+        s.lege("version", 4).lege("zeit", Uhr.echt().inMs());
         s.lege("geld", geld).lege("pizzen", pizzen).lege("umsatz", umsatz).lege("umsatzKlick", umsatzKlick);
         s.lege("pizzenAllzeit", pizzenAllzeit).lege("umsatzAllzeit", umsatzAllzeit);
         s.lege("umsatzKlickAllzeit", umsatzKlickAllzeit).lege("umsatzKette", umsatzKette);
@@ -632,6 +657,9 @@ klasse Spiel {
         s.lege("talente", talente).lege("geschafft", geschafft).lege("modus", modus);
         s.lege("hawaiiBekehrt", hawaiiBekehrt).lege("pünktlich", pünktlich).lege("sonderschichten", sonderschichten);
         s.lege("perfekte", perfekte).lege("seite", seite).lege("erfolge", erfolge);
+        s.lege("minispielPause", minispielPause).lege("minispieleGespielt", minispieleGespielt);
+        s.lege("minispieleGewonnen", minispieleGewonnen).lege("minispielSiege", minispielSiege);
+        s.lege("umsatzMini", umsatzMini).lege("umsatzMiniAllzeit", umsatzMiniAllzeit);
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -639,7 +667,7 @@ klasse Spiel {
         serviere (s);
     }
 
-    // Ältere Spielstände (version 2) kennen die neuen Felder nicht – sie bekommen Standardwerte.
+    // Ältere Spielstände (version 2 und 3) kennen die neuen Felder nicht – sie bekommen Standardwerte.
     // (Speisekarte.hole(k) liefert für fehlende Schlüssel karton, darum erst hat(k) fragen.)
     Vorrat aus(Speisekarte<margherita, Vorrat> s, margherita k, Vorrat ersatz) {
         serviere (s.hat(k) ? s.hole(k) : ersatz);
@@ -660,6 +688,9 @@ klasse Spiel {
         hawaiiBekehrt = aus(s, "hawaiiBekehrt", 0); pünktlich = aus(s, "pünktlich", 0);
         sonderschichten = aus(s, "sonderschichten", 0); perfekte = aus(s, "perfekte", 0);
         erfolge = aus(s, "erfolge", []);
+        minispielPause = aus(s, "minispielPause", 0); minispieleGespielt = aus(s, "minispieleGespielt", 0);
+        minispieleGewonnen = aus(s, "minispieleGewonnen", 0); minispielSiege = aus(s, "minispielSiege", []);
+        umsatzMini = aus(s, "umsatzMini", 0); umsatzMiniAllzeit = aus(s, "umsatzMiniAllzeit", 0);
         Speisekarte<margherita, salami> stück = aus(s, "upgrades", neu Speisekarte<margherita, salami>());
         für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hat(u.schlüssel) ? stück.hole(u.schlüssel) : 0); }
@@ -673,6 +704,7 @@ klasse Spiel {
         // Offline-Fortschritt: Der Betrieb backt weiter – mit halber Kraft, höchstens 30 Minuten lang.
         salami weg = Mathe.boden((Uhr.echt().inMs() - aus(s, "zeit", Uhr.echt().inMs())) / 1000);
         salami gezählt = Mathe.min(weg, 30 * 60);
+        minispielPause = Mathe.max(0, minispielPause - Mathe.max(0, weg));   // Nonnas Pause läuft auch offline ab
         funghi nachts = proSekunde() * gezählt * 0.5;
         falls (gezählt >= 60 && nachts > 0) {
             backe(nachts);
@@ -682,8 +714,229 @@ klasse Spiel {
     }
 }
 
+// ─────────────────────────────── Minispiele ─────────────────────────────
+// Kurz und freiwillig: Ein Sieg bringt so viele Pizzen, wie der Betrieb in ein
+// paar Sekunden backt. Danach macht Nonna zwei Minuten Pause (für alle Spiele
+// gemeinsam) – so bleibt der Betrieb das Herz des Imperiums.
+klasse Minispiel {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita regel;
+    salami belohnung;       // Sekunden Produktion
+    Dauer schlag;           // Intervall der Spieluhr
+
+    Minispiel(margherita s, margherita sym, margherita n, salami b, Dauer d, margherita r) {
+        schlüssel = s; symbol = sym; name = n; belohnung = b; schlag = d; regel = r;
+    }
+}
+
+// Die Spielecke kennt keine Oberfläche: Sie rechnet, schreibt `status` und meldet
+// Sieg oder Niederlage über das Spiel. Die Spieluhr ruft tick(n).
+klasse Spielecke {
+    Spiel s;
+    salami PAUSE = 120;
+    Blech<Minispiel> SPIELE = [
+        neu Minispiel("teig", "🫓", "Teig fangen", 8, 150ms,
+            "Luigi wirft den Teig in die Luft – fang ihn, wenn 🫓 über dem grünen Feld ▬▬▬ schwebt."),
+        neu Minispiel("bestellung", "🧾", "Bestellung merken", 10, 500ms,
+            "Ein Gast diktiert vier Beläge. Merk sie dir drei Sekunden lang und klick sie in der richtigen Reihenfolge nach."),
+        neu Minispiel("ofen", "🌡", "Ofen halten", 10, 500ms,
+            "Der Ofen kühlt ständig ab. Halte ihn 10 Sekunden zwischen 380 und 440 °C – mindestens 7 Sekunden müssen sitzen."),
+        neu Minispiel("route", "🛵", "Lieferroute", 8, 500ms,
+            "Drei Wege zum Kunden: Wähle binnen 10 Sekunden den schnellsten. Fahrzeit: 2 min je km, 1 min je Ampel, 4 min je Staustufe.")
+    ];
+    Blech<margherita> BELÄGE = ["🍅 Tomate", "🧀 Mozzarella", "🍄 Pilze", "🫒 Oliven", "🍕 Salami", "🌿 Basilikum"];
+    Blech<margherita> STRASSEN = ["Via Roma", "Lungomare", "Corso Garibaldi", "Vicolo Stretto", "Ponte Vecchio", "Piazza Dante"];
+    Blech<margherita> STAU = ["🟢 frei", "🟡 zäh", "🔴 Stau"];
+
+    margherita läuft = "";      // Schlüssel des laufenden Spiels ("" = keins)
+    margherita status = "";
+    salami ticks = 0;
+    // Teig fangen: der Zeiger pendelt über 21 Felder, das Ziel ist 3 Felder breit
+    salami zone = 0;
+    // Bestellung merken
+    Blech<margherita> folge = [];
+    salami geraten = 0;
+    diavolo zeigt = nein;
+    // Ofen halten
+    salami grad = 0;
+    salami imZiel = 0;
+    // Lieferroute (Fahrzeit in Zehntelminuten – ganzzahlig, damit Gleichstand exakt ist)
+    Blech<margherita> wege = [];
+    Blech<margherita> routen = [];
+    Blech<salami> fahrzeit = [];
+
+    Spielecke(Spiel sp) { s = sp; }
+
+    Minispiel spielNamens(margherita k) {
+        für (Minispiel m : SPIELE) { falls (m.schlüssel == k) { serviere (m); } }
+        serviere (karton);
+    }
+    diavolo erlaubt() { serviere (s.modus != "fastenzeit"); }
+    diavolo bereit() { serviere (läuft == "" && s.minispielPause <= 0 && erlaubt()); }
+    Dauer intervall() { serviere (läuft == "" ? 500ms : spielNamens(läuft).schlag); }
+
+    diavolo starte(margherita k) {
+        falls (!bereit()) { serviere (nein); }
+        läuft = k;
+        ticks = 0;
+        falls (k == "teig") {
+            zone = Zufall.zahl(6, 15);
+            status = "Klick auf „Fangen!“, wenn 🫓 über dem grünen Feld ▬▬▬ schwebt.";
+        } sonst falls (k == "bestellung") {
+            folge = [];
+            für (salami i : [1 .. 4]) { folge.hinzu(Zufall.wähle(BELÄGE)); }
+            geraten = 0;
+            zeigt = ja;
+            status = "Merk dir die Bestellung – gleich ist sie weg!";
+        } sonst falls (k == "ofen") {
+            grad = 410;
+            imZiel = 0;
+            status = "Ziel: 380 bis 440 °C. Holz nachlegen heizt um 25 °C, Klappe auf kühlt um 25 °C.";
+        } sonst {
+            Blech<margherita> namen = Zufall.mische(STRASSEN);
+            wege = []; routen = []; fahrzeit = [];
+            für (salami i : [1 .. 3]) {
+                salami zehntel = Zufall.zahl(15, 60);   // 1,5 bis 6 km
+                salami ampeln = Zufall.zahl(0, 6);
+                salami stau = Zufall.zahl(0, 2);
+                wege.hinzu(namen.stück(i));
+                fahrzeit.hinzu(zehntel * 2 + ampeln * 10 + stau * 40);
+                routen.hinzu(namen.stück(i) + ": " + (zehntel / 10).kompakt(1) + " km · " + ampeln + " 🚦 · " + STAU.stück(stau + 1));
+            }
+            status = "Fahrzeit: 2 min je km, 1 min je Ampel, 4 min je Staustufe (🟡 1, 🔴 2).";
+        }
+        serviere (ja);
+    }
+
+    // ── Teig fangen ──
+    salami zeiger() {
+        salami p = ticks % 40;
+        serviere (p <= 20 ? p : 40 - p);
+    }
+    diavolo imZiel(salami i) { serviere (i >= zone && i <= zone + 2); }
+    diavolo imFeld() { serviere (imZiel(zeiger())); }
+    // Was auf Feld i (0…20) der Bahn zu sehen ist
+    margherita feld(salami i) { serviere (i == zeiger() ? "🫓" : (imZiel(i) ? "▬" : "·")); }
+    leer fange() {
+        falls (läuft != "teig") { serviere; }
+        falls (imFeld()) { gewinne("Gefangen! Luigi applaudiert, der Boden wird hauchdünn."); }
+        sonst { verliere("Daneben – der Teig klebt an der Decke."); }
+    }
+
+    // ── Bestellung merken ──
+    leer tippe(margherita b) {
+        falls (läuft != "bestellung" || zeigt) { serviere; }
+        falls (folge.stück(geraten + 1) != b) {
+            verliere("Falsch – der Gast wollte " + folge.verbinde(", ") + ".");
+            serviere;
+        }
+        geraten++;
+        falls (geraten >= folge.länge()) { gewinne("Genau so bestellt! Der Gast ist begeistert."); }
+        sonst { status = "Richtig! Noch " + (folge.länge() - geraten) + " Beläge."; }
+    }
+    margherita bestellungText() {
+        falls (zeigt) { serviere (folge.verbinde(" → ")); }
+        Blech<margherita> teile = [];
+        für (salami i : [1 .. folge.länge()]) { teile.hinzu(i <= geraten ? folge.stück(i) : "❓"); }
+        serviere (teile.verbinde(" → "));
+    }
+
+    // ── Ofen halten ──
+    leer heize(salami d) {
+        falls (läuft != "ofen") { serviere; }
+        grad = Mathe.max(250, Mathe.min(485, grad + d));
+    }
+    diavolo ofenImZiel() { serviere (grad >= 380 && grad <= 440); }
+
+    // ── Lieferroute ──
+    leer nimmRoute(salami i) {
+        falls (läuft != "route") { serviere; }
+        salami beste = Mathe.min(fahrzeit.stück(1), fahrzeit.stück(2), fahrzeit.stück(3));
+        margherita weg = wege.stück(i);
+        falls (fahrzeit.stück(i) <= beste) {
+            gewinne("Über " + weg + " in " + (fahrzeit.stück(i) / 10).kompakt(1) + " min – schneller geht's nicht!");
+        } sonst {
+            verliere("Über " + weg + " dauert es " + (fahrzeit.stück(i) / 10).kompakt(1) + " min, der schnellste Weg nur "
+                + (beste / 10).kompakt(1) + " min.");
+        }
+    }
+
+    // Die Spieluhr: n Schläge sind vergangen (n > 1, wenn der Renderer nachholt).
+    leer tick(salami n) {
+        falls (läuft == "") { serviere; }
+        falls (!erlaubt()) {
+            läuft = "";
+            status = "";
+            s.melde(("🎲 Fastenzeit – Nonna räumt die Spiele weg."));
+            serviere;
+        }
+        falls (läuft == "teig") {
+            ticks += n;
+            falls (ticks >= 80) { verliere("Zu spät – der Teig ist auf dem Boden gelandet."); }
+        } sonst falls (läuft == "bestellung") {
+            ticks += n;
+            falls (zeigt && ticks >= 6) {
+                zeigt = nein;
+                ticks = 0;
+                status = "Jetzt du: Klick die Beläge in der richtigen Reihenfolge.";
+            } sonst falls (!zeigt && ticks >= 30) {
+                verliere("Zu langsam – der Gast hat sich eine Calzone bestellt.");
+            }
+        } sonst falls (läuft == "ofen") {
+            salami k = Mathe.min(n, 20 - ticks);
+            solange (k > 0) {
+                k--;
+                ticks++;
+                grad = Mathe.max(250, Mathe.min(485, grad + Zufall.zahl(-16, 6)));
+                falls (ofenImZiel() && ticks % 2 == 0) { imZiel++; }   // gezählt wird jede volle Sekunde
+            }
+            falls (ticks >= 20) {
+                falls (imZiel >= 7) { gewinne("Sauber gehalten – " + imZiel + " von 10 Sekunden im Ziel."); }
+                sonst { verliere("Nur " + imZiel + " von 10 Sekunden im Ziel – die Pizza ist ungleichmäßig."); }
+            }
+        } sonst {
+            ticks += n;
+            falls (ticks >= 20) { verliere("Zu lange überlegt – der Kunde hat abgesagt."); }
+        }
+    }
+
+    // Wert für den Balken (0…1)
+    funghi balken() {
+        falls (läuft == "teig") { serviere (zeiger() / 20); }
+        falls (läuft == "bestellung") { serviere (zeigt ? 1 - ticks / 6 : 1 - ticks / 30); }
+        falls (läuft == "ofen") { serviere ((grad - 250) / 235); }
+        falls (läuft == "route") { serviere (1 - ticks / 20); }
+        serviere (0);
+    }
+
+    leer gewinne(margherita text) {
+        Minispiel m = spielNamens(läuft);
+        funghi n = s.minispielGewinn(m.belohnung);
+        s.minispieleGewonnen++;
+        falls (!s.minispielSiege.enthält(m.schlüssel)) { s.minispielSiege.hinzu(m.schlüssel); }
+        beende();
+        s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).euro(kompakt: ja) + ")."));
+    }
+
+    leer verliere(margherita text) {
+        Minispiel m = spielNamens(läuft);
+        beende();
+        s.melde((m.symbol + " " + m.name + ": " + text + " Diesmal kein Bonus."));
+    }
+
+    leer beende() {
+        s.minispieleGespielt++;
+        s.minispielPause = PAUSE;
+        läuft = "";
+        status = "";
+    }
+}
+
 // ═══════════════════════════════ Spielstart ═════════════════════════════
 Spiel spiel = neu Spiel();
+Spielecke ecke = neu Spielecke(spiel);
 
 Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Erste Margherita", "Backe deine erste Pizza.", (s) -> (s.pizzenAllzeit >= 1)),
@@ -698,6 +951,8 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Standhaft", "Bekehre drei Hawaii-Gäste zur Margherita.", (s) -> (s.hawaiiBekehrt >= 3)),
     neu Erfolg("Pünktlich wie die Post", "Liefere drei Großbestellungen pünktlich.", (s) -> (s.pünktlich >= 3)),
     neu Erfolg("Heiße Nächte", "Fahre fünf Sonderschichten.", (s) -> (s.sonderschichten >= 5)),
+    neu Erfolg("Nonnas Spielkamerad", "Gewinne jedes der vier Minispiele einmal.", (s) -> (s.minispielSiege.länge() >= 4)),
+    neu Erfolg("Stammspieler", "Spiele 25 Minispiele.", (s) -> (s.minispieleGespielt >= 25)),
     neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
     neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
     neu Erfolg("Erste Million", "Mache 1 Mio. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000)),
@@ -846,7 +1101,42 @@ klasse HerausforderungZeile {
     }
 }
 
-Theke theke = neu Theke("Pizza-Imperium", breite: 580, hoehe: 780);
+// Eine Zeile in Nonnas Spielecke
+klasse MinispielZeile {
+    Minispiel m;
+    Schild titel;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
+
+    MinispielZeile(Minispiel mini, Funktion beiKlick) {
+        m = mini;
+        titel = neu Schild(m.symbol + " " + m.name + " – Gewinn: " + m.belohnung + " Sekunden Produktion", id: "mini-titel-" + m.schlüssel);
+        info = neu Schild(m.regel, id: "mini-info-" + m.schlüssel);
+        info.stil("schrift", "klein");
+        Stapel links = neu Stapel([titel, info]);
+        links.stil("breite", 340).stil("abstand", 2);
+        knopf = neu Knopf("", beiKlick, id: "mini-" + m.schlüssel);
+        knopf.stil("breite", 130).hinweis("Ein Sieg bringt so viele Pizzen, wie dein Betrieb in " + m.belohnung
+            + " Sekunden backt (oder ein Klick, wenn der mehr bringt). Danach macht Nonna zwei Minuten Pause – für alle Spiele.");
+        reihe = neu Reihe([links, knopf], id: "mini-zeile-" + m.schlüssel);
+        reihe.stil("abstand", 8);
+    }
+
+    leer zeichne(Spielecke e, Spiel s) {
+        falls (e.läuft == m.schlüssel) {
+            setzeKnopf(knopf, "⏳ läuft", nein);
+        } sonst falls (!e.erlaubt()) {
+            setzeKnopf(knopf, "🙏 Fastenzeit", nein);
+        } sonst falls (s.minispielPause > 0) {
+            setzeKnopf(knopf, "☕ noch " + (Mathe.decke(s.minispielPause / 10) * 10) + " s", nein);
+        } sonst {
+            setzeKnopf(knopf, "▶ Spielen", e.läuft == "");
+        }
+    }
+}
+
+Theke theke = neu Theke("Pizza-Imperium", breite: 660, hoehe: 780);
 
 // ── Kopf: immer sichtbar ──
 Schild kasse = neu Schild("", id: "kasse");
@@ -993,8 +1283,84 @@ für (Herausforderung h : spiel.HERAUSFORDERUNGEN) {
 Stapel geheimnisse = neu Stapel([geheimTeil, probeTeil], id: "geheimnisse");
 geheimnisse.stil("abstand", 8);
 
-Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium", "📜 Geheimnisse"],
-    [backstube, erfolgeSeite, imperium, geheimnisse], id: "reiter");
+// ── Reiter 5: Minispiele (Nonnas Spielecke) ──
+Schild miniKopf = neu Schild("", id: "mini-kopf");
+miniKopf.stil("schrift", "klein");
+
+// Das Spielfeld ist nur sichtbar, solange ein Spiel läuft; jedes Spiel hat seine eigenen Knöpfe.
+Schild spielAnzeige = neu Schild("", id: "spiel-anzeige");
+spielAnzeige.stil("schrift", "gross").stil("ausrichtung", "mitte");
+Fortschritt spielBalken = neu Fortschritt(id: "spiel-balken");
+spielBalken.stil("farbe", "kruste");
+Schild spielStatus = neu Schild("", id: "spiel-status");
+spielStatus.stil("schrift", "klein").stil("ausrichtung", "mitte");
+
+// Die Bahn des Teigs: 21 Felder, das grüne Ziel ist 3 Felder breit.
+Blech<Schild> teigFelder = [];
+Reihe teigBahn = neu Reihe([], id: "teig-bahn");
+teigBahn.stil("abstand", 0).stil("ausrichtung", "mitte");
+für (salami i : [0 .. 20]) {
+    Schild f = neu Schild("·", id: "teig-feld-" + i);
+    f.stil("breite", 24).stil("ausrichtung", "mitte").stil("schrift", "gross");
+    teigFelder.hinzu(f);
+    teigBahn.hinzu(f);
+}
+Knopf fangen = neu Knopf("✋ Fangen!", () -> { ecke.fange(); nachVerarbeitung(); }, id: "teig-fangen");
+fangen.stil("farbe", "tomate").stil("ausrichtung", "mitte").hinweis("Genau dann klicken, wenn 🫓 über dem grünen Feld schwebt.");
+Stapel teigTeil = neu Stapel([teigBahn, fangen], id: "teig-teil");
+teigTeil.stil("abstand", 8);
+
+Blech<Knopf> belagKnöpfe = [];
+Reihe belagReihe1 = neu Reihe([], id: "belag-reihe-1");
+Reihe belagReihe2 = neu Reihe([], id: "belag-reihe-2");
+für (salami i : [1 .. ecke.BELÄGE.länge()]) {
+    margherita b = ecke.BELÄGE.stück(i);
+    Knopf k = neu Knopf(b, () -> { ecke.tippe(b); nachVerarbeitung(); }, id: "belag-" + i);
+    k.stil("breite", 150);
+    belagKnöpfe.hinzu(k);
+    falls (i <= 3) { belagReihe1.hinzu(k); } sonst { belagReihe2.hinzu(k); }
+}
+belagReihe1.stil("abstand", 6).stil("ausrichtung", "mitte");
+belagReihe2.stil("abstand", 6).stil("ausrichtung", "mitte");
+Stapel belagTeil = neu Stapel([belagReihe1, belagReihe2], id: "belag-teil");
+belagTeil.stil("abstand", 6);
+
+Knopf heizen = neu Knopf("🪵 Holz nachlegen", () -> { ecke.heize(25); nachVerarbeitung(); }, id: "ofen-heizen");
+heizen.stil("farbe", "tomate").stil("breite", 200).hinweis("+25 °C");
+Knopf lüften = neu Knopf("💨 Klappe auf", () -> { ecke.heize(-25); nachVerarbeitung(); }, id: "ofen-lueften");
+lüften.stil("farbe", "mozzarella").stil("breite", 200).hinweis("−25 °C");
+Reihe ofenTeil = neu Reihe([heizen, lüften], id: "ofen-teil");
+ofenTeil.stil("abstand", 8).stil("ausrichtung", "mitte");
+
+Blech<Knopf> routenKnöpfe = [];
+Stapel routenTeil = neu Stapel([], id: "routen-teil");
+routenTeil.stil("abstand", 6);
+für (salami i : [1 .. 3]) {
+    Knopf k = neu Knopf("", () -> { ecke.nimmRoute(i); nachVerarbeitung(); }, id: "route-" + i);
+    routenKnöpfe.hinzu(k);
+    routenTeil.hinzu(k);
+}
+
+Abschnitt spielfeld = neu Abschnitt("", [spielAnzeige, spielBalken, spielStatus, teigTeil, belagTeil, ofenTeil, routenTeil], id: "spielfeld");
+spielfeld.stil("abstand", 8);
+spielfeld.sichtbar(nein);
+
+Abschnitt spieleTeil = neu Abschnitt("🎲 Nonnas Spielecke", [miniKopf], id: "spielecke");
+spieleTeil.stil("abstand", 6);
+Blech<MinispielZeile> miniZeilen = [];
+für (Minispiel m : ecke.SPIELE) {
+    MinispielZeile z = neu MinispielZeile(m, () -> {
+        falls (ecke.starte(m.schlüssel)) { nachVerarbeitung(); }
+    });
+    miniZeilen.hinzu(z);
+    spieleTeil.hinzu(z.reihe);
+}
+
+Stapel minispiele = neu Stapel([spielfeld, spieleTeil], id: "minispiele");
+minispiele.stil("abstand", 8);
+
+Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium", "📜 Geheimnisse", "🎲 Minispiele"],
+    [backstube, erfolgeSeite, imperium, geheimnisse, minispiele], id: "reiter");
 reiter.beiAenderung((n) -> { zeichne(); });   // Imperium/Geheimnisse werden nur gezeichnet, wenn man hinschaut
 
 // ── Die Uhr der Backstube ──
@@ -1006,6 +1372,14 @@ Takt takt = neu Takt(1s, (n) -> {
     }
     nachVerarbeitung();
 }, id: "takt");
+
+// ── Die Uhr der Minispiele (läuft nur während eines Spiels) ──
+Takt spieltakt = neu Takt(500ms, (n) -> {
+    falls (ecke.läuft == "") { zeichneSpielfeld(); serviere; }
+    ecke.tick(n);
+    falls (ecke.läuft == "") { nachVerarbeitung(); } sonst { zeichneSpielfeld(); }
+}, id: "spieltakt");
+spieltakt.aktiv(nein);
 
 // ─────────────────────────────── Zeichnen ───────────────────────────────
 // voll   – nach Käufen, Rezeptseiten, Ereignissen (spiel.version hat sich geändert)
@@ -1129,6 +1503,7 @@ leer zeichneImperium() {
         ["Pizzen insgesamt", spiel.pizzenAllzeit.kompakt(1)],
         ["Umsatz insgesamt", spiel.umsatzAllzeit.euro(kompakt: ja)],
         ["Anteil Klicken am Umsatz", prozent(spiel.umsatzKlick, spiel.umsatz) + " (Runde) · " + prozent(spiel.umsatzKlickAllzeit, spiel.umsatzAllzeit) + " (gesamt)"],
+        ["Anteil Minispiele am Umsatz", prozent(spiel.umsatzMini, spiel.umsatz) + " (Runde) · " + prozent(spiel.umsatzMiniAllzeit, spiel.umsatzAllzeit) + " (gesamt)"],
         ["Klicks", spiel.klicks.tausender()],
         ["Spielzeit", (1s * spiel.sekunden).alsText()],
         ["Michelin-Sterne (insgesamt)", spiel.sterneAllzeit.alsText()],
@@ -1137,7 +1512,8 @@ leer zeichneImperium() {
         ["Perfekte Pizzen", spiel.perfekte.alsText()],
         ["Hawaii-Gäste bekehrt", spiel.hawaiiBekehrt.alsText()],
         ["Großbestellungen pünktlich", spiel.pünktlich.alsText()],
-        ["Sonderschichten", spiel.sonderschichten.alsText()]
+        ["Sonderschichten", spiel.sonderschichten.alsText()],
+        ["Minispiele gewonnen", spiel.minispieleGewonnen + " von " + spiel.minispieleGespielt]
     ]));
     setzeKnopf(neuAnfangen, "🗑 Neu anfangen", ja);
 }
@@ -1173,6 +1549,70 @@ leer zeichneGeheimnisse() {
     }
 }
 
+margherita gezeigtesSpiel = "";
+margherita ofenFarbe = "";
+
+leer zeichneSpielfeld() {
+    margherita l = ecke.läuft;
+    falls (l != gezeigtesSpiel) {
+        gezeigtesSpiel = l;
+        spielfeld.sichtbar(l != "");
+        teigTeil.sichtbar(l == "teig");
+        belagTeil.sichtbar(l == "bestellung");
+        ofenTeil.sichtbar(l == "ofen");
+        routenTeil.sichtbar(l == "route");
+        falls (l != "") {
+            Minispiel m = ecke.spielNamens(l);
+            spielfeld.setzeTitel((m.symbol + " " + m.name));
+            spieltakt.setzeIntervall(m.schlag);
+            falls (ofenFarbe != "") { ofenFarbe = ""; spielAnzeige.stil("farbe", "normal"); }
+        }
+        falls (l == "teig") {
+            für (salami i : [0 .. 20]) { teigFelder.stück(i + 1).stil("farbe", ecke.imZiel(i) ? "basilikum" : "normal"); }
+        }
+        falls (l == "route") {
+            für (salami i : [1 .. 3]) { routenKnöpfe.stück(i).setzeText((ecke.routen.stück(i))); }
+        }
+        falls (spieltakt.aktiv() != (l != "")) { spieltakt.aktiv(l != ""); }
+    }
+    falls (l == "") { serviere; }
+
+    funghi wert = Mathe.max(0, Mathe.min(1, ecke.balken()));
+    falls (spielBalken.wert() != wert) { spielBalken.setzeWert(wert); }
+    margherita status = ecke.status;
+    falls (l == "teig") {
+        setzeText(spielAnzeige, "🫓 Der Teig fliegt …");
+        für (salami i : [0 .. 20]) { setzeText(teigFelder.stück(i + 1), ecke.feld(i)); }
+    } sonst falls (l == "bestellung") {
+        setzeText(spielAnzeige, ecke.bestellungText());
+        für (Knopf k : belagKnöpfe) { setzeKnopf(k, k.text(), !ecke.zeigt); }
+    } sonst falls (l == "ofen") {
+        setzeText(spielAnzeige, "🌡 " + ecke.grad + " °C");
+        margherita farbe = ecke.ofenImZiel() ? "basilikum" : "tomate";
+        falls (farbe != ofenFarbe) { ofenFarbe = farbe; spielAnzeige.stil("farbe", farbe); }
+        status = "Ziel 380–440 °C · im Ziel: " + ecke.imZiel + " von 10 s (7 nötig) · noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s";
+    } sonst {
+        setzeText(spielAnzeige, "🛵 Welcher Weg ist am schnellsten?");
+        status = status + " Noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s.";
+    }
+    setzeText(spielStatus, status);
+}
+
+leer zeichneMinispiele() {
+    margherita bilanz = spiel.minispieleGespielt > 0
+        ? " Bisher " + spiel.minispieleGewonnen + " von " + spiel.minispieleGespielt + " gewonnen."
+        : "";
+    falls (!ecke.erlaubt()) {
+        setzeText(miniKopf, "🙏 Fastenzeit: Nonna hat die Spiele weggeräumt – nur der Betrieb backt." + bilanz);
+    } sonst falls (spiel.minispielPause > 0 && ecke.läuft == "") {
+        setzeText(miniKopf, "☕ Nonna macht Pause – in " + (Mathe.decke(spiel.minispielPause / 10) * 10) + " s spielt sie wieder mit." + bilanz);
+    } sonst {
+        setzeText(miniKopf, "Kurze Spiele für zwischendurch: Ein Sieg bringt Pizzen im Wert von 8 bis 10 Sekunden Produktion, "
+            + "danach macht Nonna zwei Minuten Pause." + bilanz);
+    }
+    für (MinispielZeile z : miniZeilen) { z.zeichne(ecke, spiel); }
+}
+
 leer zeichne() {
     diavolo voll = spiel.version != gezeigteVersion;
     falls (voll) { zeichneVoll(); }
@@ -1196,6 +1636,8 @@ leer zeichne() {
     }
 
     für (UpgradeZeile z : zeilen) { z.zeichne(spiel.geld); }
+    zeichneSpielfeld();
+    zeichneMinispiele();
     falls (!spiel.rezeptFertig() && !spiel.rezeptGesperrt()) {
         diavolo leistbar = spiel.geld >= spiel.seitenKosten();
         falls (rezeptKnopf.aktiv() != leistbar) { rezeptKnopf.aktiv(leistbar); }
@@ -1228,7 +1670,7 @@ leer nachVerarbeitung() {
 }
 
 // ─────────────────────────────── Aufbauen & los ─────────────────────────
-Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, meldung, reiter, takt], id: "wurzel");
+Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, meldung, reiter, takt, spieltakt], id: "wurzel");
 wurzel.stil("abstand", 10);
 
 sortiereErfolge();

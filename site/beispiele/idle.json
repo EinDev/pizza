@@ -23,7 +23,7 @@
     {
       "id": "idle-pizza-imperium",
       "titel": "Pizza-Imperium",
-      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde – auf Dauer zählt der Betrieb, nicht der Klick), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren und Erfolge sammeln. Aufstieg in vier Ebenen: Michelin-Sterne durch Neueröffnung, Nonnas Geheimrezepte (Talentbaum gegen Sterne), Herausforderungen (Neapel-Modus, Hawaii-Verbot verschärft, Fastenzeit) und eine Franchise-Kette. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb bis zu 30 Minuten weitergebacken.",
+      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde – auf Dauer zählt der Betrieb, nicht der Klick), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren und Erfolge sammeln. Aufstieg in vier Ebenen: Michelin-Sterne durch Neueröffnung, Nonnas Geheimrezepte (Talentbaum gegen Sterne), Herausforderungen (Neapel-Modus, Hawaii-Verbot verschärft, Fastenzeit) und eine Franchise-Kette. In Nonnas Spielecke warten vier kurze Minispiele (Teig fangen, Bestellung merken, Ofen halten, Lieferroute) – ein Sieg bringt ein paar Sekunden Produktion, danach macht Nonna zwei Minuten Pause. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb bis zu 30 Minuten weitergebacken.",
       "datei": "idle/pizza-imperium.pizza",
       "erwartet": "idle/pizza-imperium.erwartet",
       "ereignisse": "idle/pizza-imperium.ereignisse",
@@ -43,7 +43,8 @@
         "kompakt",
         "ofen",
         "bestelle",
-        "@Kühlschrank"
+        "@Kühlschrank",
+        "Minispiele"
       ],
       "theke": true,
       "echtzeit": 1800000000000
