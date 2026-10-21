@@ -731,7 +731,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Frage:** Wie bekommt das Pizza-Imperium hüpfende Knöpfe, schwebende „+12“, Funkeln bei Glückstreffern, einblendende Zeilen,
   aufpoppende Erfolge und eine pulsierende Kasse – einfach, erweiterbar, deterministisch, in Browser und EXE gleich (K-082)?
 - **Entscheidung:**
-  - **Sprache:** `zutat.animiere(art, dauer?)` (auch `dauer:`) an jeder Zutat → die Zutat (verkettbar);
+  - **Sprache:** `zutat.animiere(art, dauer?)` (auch benannt `art:`, `dauer:`, K-094) an jeder Zutat → die Zutat (verkettbar);
     `theke.schwebe(text, bei?, farbe?, dauer?)` (positional in dieser Reihenfolge oder benannt) → die Theke; `bei: karton`/fehlend = Fenstermitte.
   - **Vokabular:** genau `puls`, `huepfen`, `wackeln`, `funkeln`, `einblenden`, `aufpoppen` (ASCII wie `waehle`/`hoehe`; Vergleich der
     Textform, K-066). `ausblenden` gibt es **nicht** (eine einmalige Animation endet im Normalzustand; Verschwinden = `sichtbar(nein)` mit
@@ -757,7 +757,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   alte Renderer ignorieren das unbekannte Feld still. Animationen sind Ereignisse, kein Zustand – daher eine Liste neben `aenderungen`
   statt Felder je Zutat („letzter Wert gewinnt“ würde zwei Pulse verschlucken, ein neuer `baum` würde sie wiederholen).
   W0102 statt Ananas: eine Animation darf den Programmablauf nicht ändern (z. B. Speichern nach dem Schließen des Fensters).
-- **Betroffen:** Interpreter (U-56), Compiler/Laufzeit (U-57), Renderer (U-58), Doku/Beispiel (U-59). **Status:** offen (a12).
+- **Betroffen:** Interpreter (U-56), Compiler/Laufzeit (U-57), Renderer (U-58), Doku/Beispiel (U-59). **Status:** Interpreter
+  umgesetzt (U-56, aed3450; Fälle in a13); offen: Wasm-Laufzeit (U-57), Renderer (U-58), Doku/Beispiel (U-59). Ergänzungen: K-093, K-094.
 
 ### K-091 Theke v3: `uebergang` – weiche Zustandswechsel
 - **Entscheidung:** `zutat.uebergang(diavolo)` / `uebergang()` an jeder Zutat (Setter → Zutat, Getter → diavolo; Nicht-diavolo →
@@ -768,7 +769,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   jetzt verbindlich). Kein Hochzählen/Überblenden von Texten (der Zustand ist formatierter Text).
 - **Begründung:** Methode wie `sichtbar`/`aktiv` statt Stil-Schlüssel: kein neuer Werttyp in `stil`, und der Fehlertext von K-068
   (Whitelist, in a13 und `tests/faelle` geprüft) bleibt unverändert.
-- **Betroffen:** U-56, U-57, U-58. **Status:** offen (a12).
+- **Betroffen:** U-56, U-57, U-58. **Status:** Interpreter umgesetzt (U-56, aed3450; a13); offen: U-57 (Wasm), U-58 (Renderer).
 
 ### K-092 Theke v3: Darstellung, Barrierefreiheit, Registry (Renderer)
 - **Entscheidung:** Standarddauern `puls` 400 ms (Skalierung 1 → 1,12 → 1), `huepfen` 350 ms (6 px hoch und zurück), `wackeln` 400 ms
@@ -785,6 +786,38 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Begründung:** Eine Engine + ein CSS in Playground und WebView (WebView2/WebKitGTK melden die OS-Einstellung „Animationen“ als
   `prefers-reduced-motion`) → gleiches Bild (K-082); feste Versätze statt Zufall → reproduzierbare Screenshots.
 - **Betroffen:** Renderer (U-58). **Status:** offen (tests/theke, visuell).
+
+### K-093 Theke v3: `animiere` ohne Art, `schwebe` ohne Text (Lücke aus der Interpreter-Umsetzung U-56)
+- **Frage:** `k.animiere()` meldet im Interpreter `Animation 'karton' gibt es nicht. …` (die Textform des fehlenden Arguments wird
+  gegen die Liste geprüft); `t.schwebe()` ist erlaubt und lässt „karton“ schweben. K-090 regelte beides nicht.
+- **Entscheidung:**
+  - **`animiere()` / `animiere(karton)` / `animiere(5)`:** Die Art ist ein **Vokabular-Schlüssel**, kein Typ-Pflichtargument. Ein
+    fehlendes Argument gilt wie überall bei eingebauten Methoden als `karton`, seine Textform (K-066) wird gegen die Liste geprüft →
+    `LaufzeitAnanas: Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.` (bzw. `'5'`).
+    Das ist genau das `stil()`-Muster (`LaufzeitAnanas: Stil 'karton' gibt es nicht. Erlaubt: …`, K-068); **keine** eigene Ananas
+    „animiere() braucht eine Art“. Der Zusatz `nicht karton` bleibt den **Typ**-Pflichtargumenten vorbehalten (`zeige() braucht eine
+    Zutat, nicht karton.`, `Ein Takt braucht eine Dauer, nicht karton.`, `animiere(dauer: …) braucht eine Dauer, nicht …`).
+  - **`schwebe()` / `schwebe(karton)`:** `text` ist Inhalt, kein Attribut – fehlend oder `karton` ergibt die Textform `karton`
+    (K-066: `neu Knopf(5)` → `"5"`, `karton` → `"karton"`), also einen Schwebetext „karton“: Eintrag `{"art":"schwebe","text":"karton"}`,
+    keine Ananas, keine Warnung. Ein leerer Text (`schwebe("")`) bleibt erlaubt (Eintrag mit `"text":""`, der Renderer zeigt nichts).
+- **Begründung:** Leitlinie (a): der Interpreter verhält sich so, der eigene Regressionsfall `tests/faelle/theke-animationen-fehler`
+  kodiert den Text bereits; (b) ein Fehlertext je Vokabular-Methode (`stil`, `animiere`) statt zweier; ein schwebendes „karton“ ist
+  harmlos, deterministisch und pizza-typisch (der leere Karton fliegt).
+- **Betroffen:** SPEC §16.6 (Arten, `schwebe`); Wasm-Laufzeit (U-57) übernimmt dieselben Texte/Einträge. **Status:** fest (a13).
+
+### K-094 Theke v3: benannte Parameter bei `animiere` und `schwebe`
+- **Frage:** K-090 nannte für `animiere` nur `dauer:` als benannten Parameter; der Interpreter nimmt auch `art:` benannt an
+  (`k.animiere(dauer: 300ms, art: "wackeln")`), bei `schwebe` alle vier (`text:`, `bei:`, `farbe:`, `dauer:`).
+- **Entscheidung:** **Alle** Parameter beider Methoden sind positional (in der Reihenfolge der Signatur) **oder** benannt mit den
+  Namen aus der Signatur: `animiere(art, dauer)` → `art:`, `dauer:`; `schwebe(text, bei, farbe, dauer)` → `text:`, `bei:`, `farbe:`,
+  `dauer:`. Es gilt die allgemeine Bindungsregel (§14.9, wie bei Pizza-Methoden): Positionsargumente belegen die Parameter von vorn,
+  benannte füllen die restlichen; ist ein Parameter positional belegt **und** benannt angegeben, gilt der **positionale** Wert
+  (`k.animiere("puls", art: "huepfen")` → `puls`); unbekannte benannte Argumente werden ignoriert (K-028). Fehlertexte nennen den
+  Parameter stets in der benannten Form (`animiere(dauer: …) braucht …`, `schwebe(bei: …) braucht …`), egal wie er übergeben wurde.
+- **Begründung:** Konsistenz mit `Theke(breite:, hoehe:)`, `Eingabe(platzhalter:)`, `frageZahl(text, ersatz:)`: eingebaute Methoden mit
+  mehreren Parametern kennen alle Namen ihrer Signatur; eine Sonderliste „nur `dauer:`“ wäre im Interpreter zusätzlicher Code
+  und für Lernende überraschend.
+- **Betroffen:** SPEC §16.6, THEKE.md §8; Wasm-Laufzeit (U-57). **Status:** fest (a13).
 
 ---
 
@@ -839,8 +872,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-51 | `site/js/doku/*.js` (Doku-Agent) | Theke v2 (Takt, Zutaten, hinweis), Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf | Doku-Harness |
 | U-52 | `site/beispiele/idle/` (Idle-Agent) | nach U-48: Takt statt „Minute warten“, `.ereignisse`/`.ui-erwartet` neu erzeugen, eigene `Format`-Klasse durch `kompakt()` ersetzen | Prüfstand Beispiele |
 | U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |
-| U-56 | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-090/091: `animiere`, `Theke.schwebe`, `uebergang`; Puffer `animationen` (Reihenfolge, max. 32) an den K-057-Synchronisationspunkten, Verwerfen bei `zeige`, W0102 je Aufrufstelle, Fehlertexte | a12 (K-090 …) |
-| U-57 | `site/js/pizzaiolo/`, `laufzeit/` (Compiler-Agent) | dasselbe in der Wasm-Laufzeit, byte-gleiche `ui`-Nachrichten; HOST-ABI unverändert (`ui_senden`); setzt Theke im Compiler voraus (U-27/U-49) | tests/differenz |
+| U-56 ✅ (aed3450) | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-090/091: `animiere`, `Theke.schwebe`, `uebergang`; Puffer `animationen` (Reihenfolge, max. 32) an den K-057-Synchronisationspunkten, Verwerfen bei `zeige`, W0102 je Aufrufstelle, Fehlertexte; entspricht auch K-093/K-094 | a13 (11 Fälle) |
+| U-57 | `site/js/pizzaiolo/`, `laufzeit/` (Compiler-Agent) | dasselbe in der Wasm-Laufzeit (K-090 … K-091, K-093, K-094), byte-gleiche `ui`-Nachrichten; HOST-ABI unverändert (`ui_senden`); setzt Theke im Compiler voraus (U-27/U-49) | tests/differenz |
 | U-58 | `site/js/theke/**`, `tests/theke/` (Renderer-Agent) | K-090 … K-092: `aendere.animationen`, `uebergang`, Animations-Registry, `prefers-reduced-motion`, Thema; Host nur neu bauen (eingebettete Engine) | tests/theke + visuell |
 | U-59 | `site/js/doku/*.js`, `site/beispiele/idle/` (Doku-/Idle-Agent) | nach U-56: Abschnitt „Animationen“; Pizza-Imperium mit `huepfen`/`schwebe`/`funkeln`/`aufpoppen`/`puls`, `.ui-erwartet` neu erzeugen | Doku-Harness, Prüfstand Beispiele |
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
@@ -868,7 +901,9 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 
 ## Hinweise an den Koordinator
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
-- Theke v3 Animationen (Nutzerwunsch): K-090 … K-092 festgehalten, SPEC §16.6, THEKE.md §8; offene Fälle in a12; Aufträge U-56 … U-59.
+- Theke v3 Animationen (Nutzerwunsch): K-090 … K-092 festgehalten, SPEC §16.6, THEKE.md §8; Interpreter umgesetzt (U-56, aed3450),
+  Fälle in a13 (a12 leer); Lücken aus der Umsetzung als K-093 (`animiere()`/`schwebe()` ohne Argument) und K-094 (alle Parameter
+  auch benannt) festgehalten – Interpreter entspricht, kein neuer Auftrag; offen: U-57 (Wasm), U-58 (Renderer), U-59 (Doku/Idle).
 - K-088: Vorrat-Namensräume (Beispiel-Tabs vs. eigene Tabs), CLI `--vorrat-loeschen <name>`/`--vorrat-loeschen-alle`, Doku-Block-Felder `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` (Prüfstand umgesetzt).
 - Zufall/Vorratskammer (Nutzerwünsche „RNG“, „State“): K-077 … K-081 festgehalten, SPEC §15.4 und §11; Interpreter ce303cb entspricht (10 Fälle in a10 grün); offen: CLI/UI/Host/Compiler (U-38 … U-44).
 - Theke v2 (Takt zuerst, Nutzerentscheidung): K-084 … K-087 aus THEKE-ERWEITERUNGEN.md übernommen, SPEC §16.5; 8 offene Fälle in a12, 2 in a11 (Zahlformat); Aufträge U-48 … U-52.

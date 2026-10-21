@@ -1011,25 +1011,31 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
 
-### 16.6 Theke v3: Animationen (K-090 … K-092; offen – Interpreter, Compiler, Renderer: Aufträge U-56 … U-58)
+### 16.6 Theke v3: Animationen (K-090 … K-094; Interpreter umgesetzt – U-56; offen: Compiler U-57, Renderer U-58)
 
 Animationen sind **rein visuell**: Sie ändern keinen Programmzustand, erzeugen keine Ereignisse und haben keine Wartezeit.
 Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aendere`, neues Feld `uebergang`; alte Renderer ignorieren beides).
 
 | Methode | an | Rückgabe | Protokoll-Eintrag |
 |---|---|---|---|
-| `animiere(art, dauer?)` (auch `dauer:`) | jeder Zutat | die Zutat | `{"id":"z1","art":"puls"}` (+ `"dauer":300`) in `animationen` |
-| `schwebe(text, bei?, farbe?, dauer?)` (auch benannt) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
+| `animiere(art, dauer?)` (auch benannt: `art:`, `dauer:`) | jeder Zutat | die Zutat | `{"id":"z1","art":"puls"}` (+ `"dauer":300`) in `animationen` |
+| `schwebe(text?, bei?, farbe?, dauer?)` (auch benannt: `text:`, `bei:`, `farbe:`, `dauer:`) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
 | `uebergang(diavolo)` / `uebergang()` | jeder Zutat | Setter → Zutat, Getter → diavolo | Feld `"uebergang":true` (Standard `nein`; im `baum` nur bei `ja`, in `aendere` immer der neue Wert) |
 
 - **Arten (K-090):** genau `puls`, `huepfen`, `wackeln`, `funkeln`, `einblenden`, `aufpoppen` (Vergleich der Textform, K-066;
   Groß-/Kleinschreibung zählt). Sonst `LaufzeitAnanas: Animation 'tanzen' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.`
   `animiere` an einem `Takt` ist erlaubt und bleibt unsichtbar. Neue Arten = Eintrag in der Laufzeit-Liste + Animations-Registry des Renderers (wie Zutaten).
+  Die Art ist ein Vokabular-Schlüssel wie bei `stil` (K-093): fehlendes Argument oder `karton` wird als Textform `karton` geprüft →
+  `LaufzeitAnanas: Animation 'karton' gibt es nicht. Erlaubt: …`; `animiere(5)` → `Animation '5' …`. Keine eigene „braucht eine Art“-Ananas.
+- **Benannte Parameter (K-094):** Alle Parameter von `animiere` und `schwebe` sind positional oder benannt (`art:`, `dauer:` bzw.
+  `text:`, `bei:`, `farbe:`, `dauer:`), Bindung wie §14.9: Positionsargumente von vorn, benannte füllen den Rest, bei doppelter Angabe
+  gilt der positionale Wert, unbekannte Namen werden ignoriert (K-028). Fehlertexte nennen den Parameter immer benannt (`animiere(dauer: …) braucht …`).
 - **Dauer (K-090):** `dauer` ist eine `Dauer` (sonst `TypAnanas: animiere(dauer: …) braucht eine Dauer, nicht 300.` bzw.
   `schwebe(dauer: …) …`), auf ganze ms gerundet (K-047), danach **50 ms ≤ dauer ≤ 5 s**, sonst
   `LaufzeitAnanas: Eine Animation dauert 50ms bis 5s, nicht 10s.` (Dauer in Textform). Ohne `dauer` (oder `karton`) fehlt das Feld;
   der Renderer nimmt die Standarddauer der Art (K-092).
-- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer; `bei` ist eine Zutat oder `karton` (= Fenstermitte),
+- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer; fehlend oder `karton` → Schwebetext `"karton"`
+  (K-093; keine Ananas, keine Warnung); `bei` ist eine Zutat oder `karton` (= Fenstermitte),
   sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal` mit den
   Texten von K-068 (`LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.`).
   Optionale Felder (`id`, `farbe`, `dauer`) stehen **genau dann** im Eintrag, wenn das Argument angegeben und nicht `karton` ist.

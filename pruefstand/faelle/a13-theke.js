@@ -654,6 +654,72 @@ Bote.sage(((b - a) == (d - c)));
       aendereA([{ id: "z1", hinweis: "puls" }], [{ id: "z1", art: "puls" }, { art: "schwebe", text: "puls" }]), schliesse()],
   }),
 
+  F(T6, "K-093: animiere ohne Art / karton / Nicht-Text → Vokabular-Ananas mit Textform (wie stil); schwebe ohne Text / karton → Schwebetext 'karton', leerer Text erlaubt; keine Warnung", P`
+Theke t = neu Theke("K");
+Knopf k = neu Knopf("k");
+probier { k.animiere(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere(karton); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere(5); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.stil(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+t.zeige(k);
+t.schwebe();
+t.schwebe(karton);
+t.schwebe(karton, k);
+t.schwebe("");
+Bote.sage(("ok"));
+`, {
+    out: [
+      "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
+      "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
+      "Animation '5' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
+      "Stil 'karton' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.",
+      "ok",
+    ],
+    noWarn: ["W0102"],
+    ui: [fenster("K"), baum({ id: "z1", art: "knopf", text: "k" }),
+      aendereA([], [
+        { art: "schwebe", text: "karton" },
+        { art: "schwebe", text: "karton" },
+        { art: "schwebe", text: "karton", id: "z1" },
+        { art: "schwebe", text: "" },
+      ]),
+      schliesse()],
+  }),
+
+  F(T6, "K-094: alle Parameter von animiere/schwebe auch benannt (art:, text:, bei:, farbe:, dauer:), beliebige Reihenfolge; positional vor benannt bei doppelter Angabe; unbekannte Namen ignoriert (K-028); Fehlertext nennt den Parameter benannt", P`
+Theke t = neu Theke("N");
+Knopf k = neu Knopf("k");
+t.zeige(k);
+k.animiere(art: "huepfen");
+k.animiere(dauer: 300ms, art: "wackeln");
+k.animiere("puls", art: "huepfen");
+k.animiere("funkeln", dauer: 1s, xyz: 3);
+t.schwebe(text: "+1");
+t.schwebe(dauer: 2s, farbe: "kruste", bei: k, text: "+2");
+t.schwebe("pos", text: "ben");
+probier { k.animiere("puls", 7); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { k.animiere(art: "puls", dauer: 7); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { t.schwebe("x", 5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+`, {
+    out: [
+      "animiere(dauer: …) braucht eine Dauer, nicht 7.",
+      "animiere(dauer: …) braucht eine Dauer, nicht 7.",
+      "schwebe(bei: …) braucht eine Zutat, nicht 5.",
+    ],
+    noWarn: ["W0102"],
+    ui: [fenster("N"), baum({ id: "z1", art: "knopf", text: "k" }),
+      aendereA([], [
+        { id: "z1", art: "huepfen" },
+        { id: "z1", art: "wackeln", dauer: 300 },
+        { id: "z1", art: "puls" },
+        { id: "z1", art: "funkeln", dauer: 1000 },
+        { art: "schwebe", text: "+1" },
+        { art: "schwebe", text: "+2", id: "z1", farbe: "kruste", dauer: 2000 },
+        { art: "schwebe", text: "pos" },
+      ]),
+      schliesse()],
+  }),
+
   F(T6, "K-090: höchstens 32 Animationen je Nachricht (die ersten bleiben); animiere an einem Takt ist erlaubt", P`
 Theke t = neu Theke("L");
 Schild s = neu Schild("s");
