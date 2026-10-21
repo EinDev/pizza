@@ -660,6 +660,129 @@
         }
       ]
     },
+    {
+      id: "std-theke",
+      gruppe: STD,
+      ordnung: 590,
+      titel: "Theke – Fenster & Knöpfe",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Mit der `Theke` bekommt dein Programm ein eigenes Fenster mit Schildern, Eingabefeldern und Knöpfen – wie eine Pizzatheke, an der der Gast zeigt und klickt. Im Playground erscheint es als Vorschaufenster, im heruntergeladenen Programm als echtes Fenster." },
+        { art: "hinweis", ton: "warnung", md: "**Noch im Ofen:** Die Theke ist beschlossen, aber der Interpreter kann sie noch nicht. Die Beispiele hier lassen sich schon lesen und in den Editor übernehmen; ausführen kannst du sie, sobald die Theke ausgeliefert ist." },
+        { art: "bild", src: "img/doku/re-theke.svg", alt: "Ein Fenster namens Pizzarechner mit grüner Markise. Darin ein Stapel aus Schild (Macht 16,00 €), Eingabe (2), Haken (extra Käse) und Knopf (Backen!). Ein Klick auf den Knopf geht an theke.bediene(), das den Rückruf aufruft; der Rückruf ändert mit setzeText das Schild.", unterschrift: "Zutaten in einem Stapel, Klick → `bediene()` ruft deinen Rückruf → der Rückruf ändert, was der Gast sieht." },
+        {
+          art: "code",
+          ausfuehrbar: false,
+          tier: 1,
+          code: z(
+            "Theke theke = neu Theke(\"Pizzarechner\", breite: 420, hoehe: 320);",
+            "Schild preis = neu Schild(\"Noch nichts bestellt.\");",
+            "Eingabe anzahl = neu Eingabe(platzhalter: \"Wie viele Pizzen?\");",
+            "Knopf backen = neu Knopf(\"Backen!\", () -> {",
+            "    funghi n = anzahl.wert().alsZahl();",
+            "    preis.setzeText((\"Macht \" + (n * 8).euro()));",
+            "});",
+            "theke.zeige(neu Stapel([preis, anzahl, backen]));",
+            "theke.bediene();"
+          )
+        },
+        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. *(Vermerk: `ausfuehrbar`, sobald der Interpreter die Theke kann.)*" },
+        {
+          art: "details",
+          titel: "Alle Zutaten",
+          inhalt: [
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)` und `stil(schlüssel, wert)`." },
+            {
+              art: "tabelle",
+              kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
+              zeilen: [
+                ["`Theke`", "das Fenster", "`neu Theke(titel, breite: 480, hoehe: 360)`", "`zeige(zutat)`, `bediene()`, `schliesse()`, `setzeTitel(t)`"],
+                ["`Schild`", "Text zum Anzeigen", "`neu Schild(text)`", "`text()`, `setzeText(t)`"],
+                ["`Knopf`", "Knopf zum Klicken", "`neu Knopf(text)` oder `neu Knopf(text, () -> { … })`", "`text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(ja/nein)`"],
+                ["`Eingabe`", "einzeiliges Textfeld", "`neu Eingabe(wert: \"\", platzhalter: \"\")`", "`wert()`, `setzeWert(t)`, `beiAenderung(fn)` (bekommt den Text), `beiEnter(fn)`"],
+                ["`Haken`", "Ankreuzfeld", "`neu Haken(text, an: nein)`", "`an()`, `setzeAn(ja/nein)`, `beiAenderung(fn)` (bekommt `ja`/`nein`)"],
+                ["`Stapel`", "Zutaten untereinander", "`neu Stapel([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
+                ["`Reihe`", "Zutaten nebeneinander", "`neu Reihe([a, b, c])`", "`hinzu(zutat)`, `leeren()`"]
+              ]
+            },
+            { art: "text", md: "Stapel und Reihen lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Weitere Zutaten (Listen, Bilder, eine Leinwand für Spiele …) kommen später dazu; dein Code bleibt dabei gültig." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Die Ereignisschleife: bediene()",
+          inhalt: [
+            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`)." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Theke theke = neu Theke(\"Zähler\");",
+                "salami klicks = 0;",
+                "Schild anzeige = neu Schild(\"0 Pizzen\");",
+                "Knopf mehr = neu Knopf(\"+1\", () -> {",
+                "    klicks++;",
+                "    anzeige.setzeText((klicks + \" Pizzen\"));",
+                "});",
+                "Knopf fertig = neu Knopf(\"Fertig\", () -> { theke.schliesse(); });",
+                "theke.zeige(neu Stapel([anzeige, neu Reihe([mehr, fertig])]));",
+                "theke.bediene();",
+                "Bote.sage((\"Bestellt: \" + klicks));"
+              )
+            },
+            { art: "text", md: "*(Vermerk: `ausfuehrbar`, sobald der Interpreter die Theke kann.)*" }
+          ]
+        },
+        {
+          art: "details",
+          titel: "IDs und Stil",
+          inhalt: [
+            { art: "text", md: "**IDs:** Jede Zutat bekommt automatisch eine ID – `z1`, `z2`, … in der Reihenfolge, in der du sie mit `neu` erzeugst. Bei jedem Lauf dieselben, darum sind Theke-Programme testbar. Eigene IDs gehen auch: `neu Knopf(\"OK\", id: \"ok\")`." },
+            { art: "text", md: "**Stil:** `zutat.stil(schlüssel, wert)` kennt nur eine kleine, feste Liste – freies CSS gibt es absichtlich nicht (sicher und überall gleich):" },
+            {
+              art: "tabelle",
+              kopf: ["Schlüssel", "Werte"],
+              zeilen: [
+                ["`breite`, `hoehe`", "Größe"],
+                ["`abstand`", "Luft um die Zutat"],
+                ["`ausrichtung`", "Ausrichtung im Stapel bzw. in der Reihe"],
+                ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"mono\"`"],
+                ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"]
+              ]
+            },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Schild titel = neu Schild(\"Pizzeria Luigi\", id: \"titel\");",
+                "titel.stil(\"schrift\", \"gross\");",
+                "titel.stil(\"farbe\", \"tomate\");"
+              )
+            }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wo erscheint das Fenster? (Playground, EXE, Linux, W0100)",
+          inhalt: [
+            {
+              art: "tabelle",
+              kopf: ["Wo", "Was der Gast sieht"],
+              zeilen: [
+                ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor; Schließen-Knopf = Fenster zu. Das 10-Sekunden-Zeitlimit ruht, solange auf den Gast gewartet wird; Abbrechen (`Esc`) geht immer."],
+                ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, gibt es eine verständliche Meldung und das Programm läuft in der Konsole weiter."],
+                ["Linux mit Theke", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar)."],
+                ["Linux ohne Theke", "die schlanke Variante ohne Fenster – Theke-Programme laufen dort als reines Konsolenprogramm (siehe W0100)."]
+              ]
+            },
+            { art: "text", md: "Das Fenster erscheint erst beim ersten `zeige(…)`. Programme ohne Theke bleiben reine Konsolenprogramme. Welche Variante was braucht, zeigt auch der Dialog **„Als Programm herunterladen“**." },
+            { art: "hinweis", ton: "info", md: "**W0100:** Gibt es nirgends ein Fenster (z. B. im Terminal ohne grafische Oberfläche oder in der Linux-Variante ohne Theke), meldet pizza `W0100: Keine Theke verfügbar – Fenster wird nicht angezeigt.`. `bediene()` kehrt dann sofort zurück, und das Programm läuft ganz normal weiter – das ist eine Warnung, kein Fehler." }
+          ]
+        }
+      ]
+    },
 
     // ------------------------------------------------------------------
     // Referenz & Toolchain
@@ -735,7 +858,7 @@
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall`, `Spiegel`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall`, `Spiegel` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
@@ -775,7 +898,8 @@
             ["`W0032`", "Zwei Namen im selben Scope unterscheiden sich nur in Groß-/Kleinschreibung", "„Selbst der Pizzaiolo verwechselt die beiden.“"],
             ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
-            ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"]
+            ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
+            ["`W0100`", "`theke.bediene()`, aber nirgends kann ein Fenster erscheinen", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"]
           ]
         },
         { art: "text", md: "Zwei Warnungen in Aktion – das Programm läuft trotzdem bis zum Ende:" },
@@ -866,7 +990,7 @@
       tier: 3,
       inhalt: [
         { art: "kurz", md: "So würde eine „echte“ pizza-Küche arbeiten: Quelltext rein in den Ofen, fertige Pizza im Karton raus. Der Bote liefert fehlende Zutaten." },
-        { art: "hinweis", ton: "warnung", md: "**Größtenteils Spezifikation.** `pizzaofen` mit `ofen.xml` und der `pizzabote` gibt es nur auf dem Papier. Am Compiler (`pizzaiolo`, backt zu WebAssembly) und am `.pkarton` wird gerade gebacken – was davon schon geht, steht unter *Motoren & Programm herunterladen*. Im Browser läuft pizza bis dahin direkt im Interpreter – Ofen vorheizen nicht nötig." },
+        { art: "hinweis", ton: "warnung", md: "**Größtenteils Spezifikation.** `pizzaofen` mit `ofen.xml` und der `pizzabote` gibt es nur auf dem Papier. Der Compiler `pizzaiolo` (backt zu WebAssembly) und das `.pkarton` gibt es dagegen schon als Beta – siehe *Motoren & Programm herunterladen*. Die Befehle unten zeigen, wie die vollständige Küche einmal aussehen soll." },
         { art: "bild", src: "img/doku/re-toolchain.svg", alt: "Pipeline: Pizzeria.pizza geht in den Ofen (pizzaiolo backe, pizzaofen), heraus kommt ein .pkarton, daraus die fertige Pizza. Darunter bringt der pizzabote Zutaten wie extra-käse zum Ofen.", unterschrift: "Vom Quelltext zum Karton – und der Bote bringt die Zutaten." },
         {
           art: "tabelle",
@@ -935,17 +1059,17 @@
       gruppe: REF,
       ordnung: 635,
       titel: "Motoren & Programm herunterladen",
-      tier: 3,
+      tier: 1,
       inhalt: [
         { art: "kurz", md: "pizza kann auf zwei Motoren laufen: dem **Interpreter** (liest dein Rezept Zeile für Zeile) und **WebAssembly** (backt es vorher fertig – schneller). Mit WebAssembly lässt sich dein Programm auch als eigenständiges Programm für Windows oder Linux herunterladen." },
-        { art: "hinweis", ton: "warnung", md: "**Ehrlicher Stand:** Der WebAssembly-Compiler wird noch gebacken. Solange heißt die Motor-Auswahl in der Werkzeugleiste **„Wasm (bald)“**, alles läuft im Interpreter, und der Knopf **„Als Programm herunterladen“** ist ausgegraut – fährst du mit der Maus darüber, steht dort der Grund. Sobald der Compiler ausgeliefert ist, funktioniert beides ohne Neuinstallation." },
+        { art: "hinweis", ton: "warnung", md: "**Beta:** Der WebAssembly-Motor ist neu. Standard bleibt der **Interpreter**; Wasm wählst du in der Werkzeugleiste mit **„Wasm (Beta)“** oder **„Auto (Beta)“**. Kann dein Browser kein Wasm, steht dort „Wasm (bald)“ bzw. der Grund – und alles läuft weiter im Interpreter." },
         {
           art: "tabelle",
           kopf: ["Motor", "Was er macht", "Wann"],
           zeilen: [
-            ["Interpreter", "führt den Quelltext direkt aus; kann die ganze Sprache", "immer verfügbar"],
-            ["WebAssembly (Wasm)", "der Compiler `pizzaiolo` backt dein Programm zu WebAssembly, der Browser führt es aus", "sobald der Compiler da ist"],
-            ["Auto", "nimmt Wasm, wenn möglich, sonst den Interpreter (der Grund steht am Motor-Abzeichen in der Konsole)", "Standard"]
+            ["Interpreter", "führt den Quelltext direkt aus; kann die ganze Sprache", "Standard, immer verfügbar"],
+            ["Wasm (Beta)", "der Compiler `pizzaiolo` backt dein Programm zu WebAssembly, der Browser führt es aus", "auf Wunsch"],
+            ["Auto (Beta)", "nimmt Wasm, wenn möglich, sonst den Interpreter (der Grund steht am Motor-Abzeichen in der Konsole)", "auf Wunsch"]
           ]
         },
         { art: "text", md: "Beide Motoren liefern **dieselbe Ausgabe**, dieselben Fehler und denselben Exit-Code – inklusive Schrittzählung und simulierter Uhr. Wählst du ausdrücklich „Wasm“ und dein Programm nutzt etwas, das der Compiler noch nicht kann, sagt die Konsole das, statt heimlich umzuschalten." },
@@ -967,7 +1091,7 @@
               art: "code",
               sprache: "shell",
               ausfuehrbar: false,
-              tier: 3,
+              tier: 1,
               code: z(
                 "$ chmod +x zahlenraten",
                 "$ ./zahlenraten",
@@ -986,7 +1110,7 @@
               art: "code",
               sprache: "shell",
               ausfuehrbar: false,
-              tier: 3,
+              tier: 1,
               code: z(
                 "$ pizza-host zahlenraten.pkarton",
                 "$ pizzaofen exe zahlenraten.pkarton -o zahlenraten.exe"
