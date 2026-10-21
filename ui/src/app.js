@@ -8,6 +8,7 @@ import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
 import { erstelleVorschau, ladeRenderer } from "./vorschau.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
+import { entpacke, appTitel } from "./teilen.js";
 
 const TITEL = "pizza-App";
 const AUSGABE_TYPEN = new Set(["ausgabe", "fehlerausgabe", "warnung", "fehler", "panik", "eingabe", "leeren", "system"]);
@@ -25,7 +26,7 @@ export function startApp(key) {
   konsoleEl.hidden = true;
   document.title = TITEL;
 
-  let code = null, istTheke = false, faehigkeiten = null, hatAusgabe = false;
+  let code = null, titel = TITEL, istTheke = false, faehigkeiten = null, hatAusgabe = false, laeuft = false;
 
   function fortschritt(anteil) {
     fuellung.style.setProperty("--anteil", String(anteil));
@@ -59,6 +60,18 @@ export function startApp(key) {
   });
   // Hash ändert sich (z. B. Zurück-Taste) → neu laden, Modus entscheidet thema.js
   window.addEventListener("hashchange", () => location.reload());
+
+  // Dezentes X (statt Titelleiste) = Schließen des EXE-Fensters: sendet {typ:"geschlossen"} (vorschau.js).
+  // Das Programm läuft danach weiter wie nativ; am Ende kommt die Leiste „Nochmal“/„Code ansehen“.
+  const knopfZu = $("vorschau-schliessen");
+  $("vorschau-kopf").classList.add("app-zu");
+  $("vorschau-kopf").removeAttribute("title");
+  knopfZu.title = "Beenden";
+  knopfZu.setAttribute("aria-label", "App beenden");
+  knopfZu.addEventListener("click", () => {
+    // Läuft das Programm ohne Fenster still weiter, nicht ewig eine leere Fläche zeigen
+    setTimeout(() => { if (laeuft && !vorschau.offen) zeigeKonsole(); }, 400);
+  });
 
   // Thema: wie im Playground (gemerkte Wahl, sonst OS – auch live)
   const vorschau = erstelleVorschau({ beiEreignis: (ev) => ausfuehrung.uiEreignis(ev), beiZu: null, vollbild: true });
@@ -114,10 +127,11 @@ export function startApp(key) {
     beiEingabeEnde() { konsole.versteckeEingabe(); },
     beiPanik() { /* Hawaii erscheint wie im Playground als Fehlerausgabe */ },
     beiEnde(info) {
+      laeuft = false;
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
       vorschau.beenden();
-      if (hatAusgabe || !istTheke) konsoleEl.hidden = false;
+      konsoleEl.hidden = !(hatAusgabe || !istTheke);
       const c = info.exitCode;
       zeigeEnde(c === 0 ? "Programm beendet." : "Programm beendet (Exit-Code " + c + ").", { fehler: c !== 0 });
     },
@@ -138,6 +152,7 @@ export function startApp(key) {
     ende.hidden = true;
     const saat = neueSaat();
     const vorratAktiv = vorratVerfuegbar();
+    laeuft = true;
     ausfuehrung.starte(code, [], "auto", {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
@@ -145,8 +160,7 @@ export function startApp(key) {
       vorrat: vorratAktiv ? vorratLaden(VORRAT) : undefined,
       vorratAktiv,
     });
-    // „Saat: N“ wie die EXE im Terminal (stderr); ein Theke-Fenster hat kein Terminal
-    if (!istTheke) konsole.saat(saat);
+    // Kein „Saat: N“ wie im Playground/Terminal – in der App stört es nur
   }
   knopfNochmal.addEventListener("click", () => {
     if (code == null) { location.reload(); return; }
@@ -165,7 +179,7 @@ export function startApp(key) {
     let r;
     try {
       r = await fetch("api/teilen/" + encodeURIComponent(key), { headers: { Accept: "text/plain" } });
-      if (r.ok) code = await r.text();
+      if (r.ok) ({ code, name: titel } = entpacke(await r.text()));
     } catch (e) {
       zeigeEnde("Die App kann gerade nicht geladen werden – keine Verbindung zum Server.", { fehler: true, codeLink: false });
       return;
@@ -173,6 +187,9 @@ export function startApp(key) {
     if (r.status === 404) { zeigeEnde("Diese App gibt es nicht (mehr). Geteilte Links laufen nach einer Weile ab.", { fehler: true, nochmal: false, codeLink: false }); return; }
     if (!r.ok || code == null) { zeigeEnde("Die App kann gerade nicht geladen werden. Bitte versuch es später erneut.", { fehler: true, codeLink: false }); return; }
     fortschritt(0.35);
+    // Seitentitel = Tab-Name beim Teilen (ohne „.pizza“); eine Theke setzt später ihren Fenstertitel
+    titel = appTitel(titel) || TITEL;
+    document.title = titel;
     istTheke = /\bneu\s+Theke\s*\(/.test(code);
     // Wie im Playground: interaktive Programme brauchen Cross-Origin-Isolation (kein Ersatzmodus)
     if (!interaktivMoeglich() && (istTheke || /\bBestellannahme\s*\./.test(code))) {
