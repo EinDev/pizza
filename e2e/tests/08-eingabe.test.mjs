@@ -1,5 +1,5 @@
-// Interaktive Ein-/Ausgabe (EINGABE.md): Eingabezeile, Echo, Strg+D, Abbrechen beim Warten, Zeitlimit ruht,
-// Bote.schreibe/leeren, ein Spiel komplett durchspielen, Fallback ohne crossOriginIsolated.
+// Interaktive Ein-/Ausgabe (EINGABE.md): Eingabezeile, Echo, Strg+D, Abbrechen beim Warten,
+// Bote.schreibe/leeren, ein Spiel komplett durchspielen; ohne crossOriginIsolated klare Meldung statt Start.
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, strg, warteLaufEnde, exitBadge, konsolenAusgabe, konsolenMeldungen, EXIT_TEXT, S, schlafe,
@@ -116,21 +116,6 @@ e2e("Abbrechen während des Wartens auf Eingabe (Knopf und Esc)", async ({ page,
   assert.equal(await konsolenAusgabe(page), "frisch\n");
 });
 
-e2e("Zeitlimit (10 s) ruht, solange auf Eingabe gewartet wird", { timeout: 40_000 }, async ({ page, oeffne }, t) => {
-  if (!(await vorbereiten(page, oeffne, t))) return;
-  await setzeCode(page, 'Bote.schreibe(("Bereit? "));\nmargherita a = Bestellannahme.lies();\nBote.sage(("los: " + a));');
-  await strg(page, "Enter");
-  assert.equal(await warteEingabeOderEnde(page), "eingabe");
-  await schlafe(11_000); // länger als das Wand-Zeitlimit
-  assert.equal(await formSichtbar(page), true, "Eingabezeile wartet noch");
-  assert.match((await exitBadge(page)).text, /im Ofen|wartet/, "kein Zeitlimit beim Warten");
-  assert.ok(!(await konsolenMeldungen(page)).some((m) => /Zeitlimit/.test(m.text)), "keine Zeitlimit-Meldung");
-  await sendeEingabe(page, "jetzt");
-  assert.equal(await warteEingabeOderEnde(page), "ende");
-  assert.equal(await konsolenAusgabe(page), "Bereit? los: jetzt\n");
-  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
-});
-
 e2e("Bote.schreibe ohne Umbruch und Bote.leeren() leert die Konsole", async ({ page, oeffne }, t) => {
   if (!(await vorbereiten(page, oeffne, t))) return;
   await setzeCode(page, [
@@ -168,62 +153,49 @@ e2e("Spiel komplett durchspielen: Eingaben aus .eingabe tippen → Ausgabe == .e
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[b.exitCode]);
 });
 
-// ---------------------------------------------------------------- Fallback ohne Cross-Origin-Isolation
-e2e("Fallback ohne crossOriginIsolated: Eingaben vorab eintragen → Lauf mit diesen Eingaben", { isolation: false }, async ({ page, oeffne }, t) => {
-  if (!(await vorbereiten(page, oeffne, t))) return;
-  assert.equal(await page.evaluate(() => window.crossOriginIsolated), false);
-  await setzeCode(page, DIALOG);
-  await ereignisseLeeren(page);
-  await strg(page, "Enter");
-  await page.waitForSelector('[data-testid="dialog-eingaben"][open]');
-  assert.match(await page.$eval('[data-testid="dialog-eingaben"]', (d) => d.textContent), /vorab/i, "deutlich gekennzeichnet");
-  await page.focus('[data-testid="eingaben-text"]');
-  await page.keyboard.type("Mario");
-  await page.keyboard.down("Shift"); await page.keyboard.press("Enter"); await page.keyboard.up("Shift");
-  await page.$eval('[data-testid="eingaben-text"]', (f) => { f.value = "Mario\n7"; });
-  await page.click('[data-testid="eingaben-backen"]');
-  await warteLaufEnde(page);
-  assert.equal(await ausgabeAusEreignissen(page), "Name? Hallo Mario!\nZahl? doppelt: 14\nEOF\n");
-  assert.equal(await konsolenAusgabe(page), "Name? Hallo Mario!\nZahl? doppelt: 14\nEOF\n");
-  assert.equal(await formSichtbar(page), false, "keine Live-Eingabezeile im Fallback");
-  assert.ok((await konsolenMeldungen(page)).some((m) => /Vorab eingetragene Eingaben: 2/.test(m.text)));
-  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
+// ---------------------------------------------------------------- Ohne Cross-Origin-Isolation (kein Ersatzmodus mehr)
+// Seit 0f5cd55: Programme mit Bestellannahme. oder neu Theke( starten ohne Isolation NICHT, sondern melden das klar.
+const OHNE_ISOLATION = /Dieser Browser erlaubt keine interaktive Eingabe \(Cross-Origin-Isolation fehlt\)\. Das Programm wurde nicht gestartet\./;
 
-  // Abbrechen im Dialog → kein Lauf
+async function backenOhneIsolation(page, code) {
+  await setzeCode(page, code);
+  await ereignisseLeeren(page);
   await page.click("#konsole-leeren");
-  await strg(page, "Enter");
-  await page.waitForSelector('[data-testid="dialog-eingaben"][open]');
-  assert.equal(await page.$eval('[data-testid="eingaben-text"]', (f) => f.value), "Mario\n7", "Eingaben pro Tab gemerkt");
-  await page.click('[data-testid="eingaben-abbrechen"]');
-  await schlafe(200);
-  assert.equal(await page.$eval("#exit-badge", (b) => b.hidden), true, "kein Lauf nach Abbrechen");
-
-  // „Ohne Eingaben“ → sofort EOF
-  await strg(page, "Enter");
-  await page.waitForSelector('[data-testid="dialog-eingaben"][open]');
-  await page.click('[data-testid="eingaben-ohne"]');
-  await warteLaufEnde(page);
-  // lies() → karton, frageZahl() → karton (EOF); karton * 2 ist dann ein Laufzeitfehler
-  assert.match(await konsolenAusgabe(page), /^Name\? Hallo karton!\nZahl\? /);
-  assert.ok((await konsolenMeldungen(page)).some((m) => /Ohne Eingaben gebacken/.test(m.text)));
-});
-
-e2e("Fallback ohne crossOriginIsolated: interaktives Spiel mit vorab eingetragenen Eingaben", { isolation: false, timeout: 60_000 }, async ({ page, oeffne }, t) => {
-  if (!(await vorbereiten(page, oeffne, t))) return;
-  const b = beispieleAusManifesten().liste.find((x) => eingabeZeilen(x) && x.exitCode === 0);
-  assert.ok(b);
-  const zeilen = eingabeZeilen(b);
-  await zeigePanelTab(page, "beispiele");
-  await page.waitForSelector(S.beispielKarte);
-  await page.$$eval(S.beispielKarte, (k, titel) => k.find((x) => x.querySelector(".bsp-titel").textContent === titel).click(), b.titel);
-  await warteAufTab(page, b.datei.split("/").pop());
-  await ereignisseLeeren(page);
   await page.focus("#editor .cm-content");
   await strg(page, "Enter");
-  await page.waitForSelector('[data-testid="dialog-eingaben"][open]');
-  await page.$eval('[data-testid="eingaben-text"]', (f, v) => { f.value = v; }, zeilen.join("\n"));
-  await page.click('[data-testid="eingaben-backen"]');
-  await warteLaufEnde(page, 45_000);
-  assert.equal(await ausgabeAusEreignissen(page), b.erwartetText);
-  assert.equal(await konsolenAusgabe(page), nachLetztemLeeren(b.erwartetText));
+  await page.waitForFunction(() => /Cross-Origin-Isolation|gegessen|Ananas|Fehler/.test(document.getElementById("konsole-inhalt").textContent + " " + document.getElementById("exit-badge").textContent), { timeout: 10_000 });
+  await schlafe(300); // ein (unerwünschter) Worker-Start hätte jetzt Ereignisse geliefert
+}
+
+for (const [art, code] of [
+  ["Eingabe-Programm (Bestellannahme)", DIALOG],
+  ["Theke-Programm (neu Theke)", 'Theke theke = neu Theke("Ohne Isolation", breite: 300, hoehe: 160);\ntheke.zeige(neu Stapel([neu Schild("Hallo")]));\ntheke.bediene();\nBote.sage(("nie"));'],
+]) {
+  e2e(`Ohne crossOriginIsolated: ${art} startet nicht, klare Meldung`, { isolation: false }, async ({ page, oeffne }) => {
+    await oeffne();
+    assert.equal(await page.evaluate(() => window.crossOriginIsolated), false);
+    await backenOhneIsolation(page, code);
+    const text = await page.$eval("#konsole-inhalt", (e) => e.textContent);
+    assert.match(text, OHNE_ISOLATION, "Meldung in der Konsole: " + text.slice(0, 200));
+    const ev = await page.evaluate(() => (window.__ereignisse || []).filter((e) => ["ausgabe", "eingabe-anfrage", "ui", "ui-warte", "ende", "motor"].includes(e.typ)));
+    assert.deepEqual(ev, [], "kein Worker-Lauf gestartet");
+    assert.equal(await konsolenAusgabe(page), "", "keine Programmausgabe");
+    assert.equal(await page.$eval(FORM, (f) => f.hidden), true, "keine Eingabezeile");
+    assert.equal(await page.$eval("#vorschau", (v) => v.hidden), true, "kein Vorschaufenster");
+    assert.equal(await page.$("#dialog-eingaben[open]"), null, "kein Vorab-Dialog mehr");
+    assert.equal(await page.evaluate(() => document.body.classList.contains("laeuft")), false, "UI nicht im Lauf-Zustand");
+    assert.equal(await page.$eval("#knopf-backen", (k) => k.hidden), false, "Backen bleibt bedienbar");
+  });
+}
+
+e2e("Ohne crossOriginIsolated: normales Programm läuft wie gewohnt", { isolation: false }, async ({ page, oeffne }) => {
+  await oeffne();
+  assert.equal(await page.evaluate(() => window.crossOriginIsolated), false);
+  await setzeCode(page, 'Bote.sage(("läuft auch ohne Isolation"));\n// Erwähnung im Kommentar: Bestellannahme ist hier kein Aufruf');
+  await ereignisseLeeren(page);
+  await strg(page, "Enter");
+  await warteLaufEnde(page);
+  assert.equal(await konsolenAusgabe(page), "läuft auch ohne Isolation\n");
+  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
+  assert.doesNotMatch(await page.$eval("#konsole-inhalt", (e) => e.textContent), /Cross-Origin-Isolation/);
 });

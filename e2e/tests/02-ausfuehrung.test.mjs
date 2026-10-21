@@ -1,4 +1,5 @@
-// Ausführen: Tippen + Strg+Enter, Syntaxfehler mit Live-Diagnose, Laufzeitfehler, Endlosschleife, Hawaii.
+// Ausführen: Tippen + Strg+Enter, Syntaxfehler mit Live-Diagnose, Laufzeitfehler, Endlosschleife (Schrittlimit, Abbrechen), Hawaii.
+// Ein Wand-Zeitlimit gibt es nicht mehr (P0003 abgeschafft, cc2fea4) – Endlosschleifen enden über das Schrittlimit oder Abbrechen.
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, editorText, backen, strg, warteLaufEnde, exitBadge, konsolenAusgabe, konsolenMeldungen,
@@ -68,7 +69,7 @@ e2e("Syntaxfehler: Live-Diagnose markiert, Fehler in Konsole, Klick springt zur 
   const m = (await konsolenMeldungen(page)).filter((x) => /k-fehler/.test(x.klasse));
   assert.equal(m.length, 1, JSON.stringify(m));
   assert.match(m[0].text, /P0001/);
-  assert.match(m[0].ort, /^Z\. 5:15$/);
+  assert.match(m[0].ort.trim(), /^(Z\. 5:15|\(Zeile 5, Spalte 15\))$/, "Ortsangabe Zeile 5, Spalte 15");
   assert.ok(m[0].knopf, "Fehlermeldung ist anklickbar");
 
   await page.click("#konsole-inhalt button.k-fehler");
@@ -91,7 +92,7 @@ e2e("Laufzeitfehler: ungefangene Ananas → Badge „Ananas“, Ausgabe davor bl
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[1]);
   const m = (await konsolenMeldungen(page)).find((x) => /k-fehler/.test(x.klasse));
   assert.match(m.text, /Ungefangene Ananas – StreitAnanas: weg/);
-  assert.match(m.ort, /^Z\. 2/);
+  assert.match(m.ort.trim(), /^(Z\. 2\b|\(Zeile 2\b)/, "Ortsangabe Zeile 2");
 });
 
 e2e("Endlosschleife: Schrittlimit → „noch im Ofen“, UI bleibt bedienbar", async ({ page, oeffne }) => {
@@ -110,7 +111,7 @@ e2e("Endlosschleife: Schrittlimit → „noch im Ofen“, UI bleibt bedienbar", 
 });
 
 // Simuliert einen hängenden Ofen: solange window.__haengen gesetzt ist, erreicht der Start den Worker nie.
-// So greifen Abbrechen/Zeitlimit deterministisch während des Laufs (unabhängig von der Rechnergeschwindigkeit).
+// So greift Abbrechen deterministisch während des Laufs (unabhängig von der Rechnergeschwindigkeit).
 const haengenderWorker = () => {
   const W = window.Worker;
   window.__haengen = false;
@@ -145,29 +146,6 @@ e2e("Endlosschleife: Abbrechen-Knopf und Esc beenden den Lauf sofort", { vorLade
   await setzeCode(page, 'Bote.sage(("noch da"));');
   await backen(page);
   assert.equal(await konsolenAusgabe(page), "noch da\n");
-});
-
-e2e("Wand-Zeitlimit: Worker hängt → nach Zeitlimit abgebrochen (Timer verkürzt)", {
-  // Zeitlimit 10 s → im Test auf 400 ms verkürzt, und der Worker meldet sich nie (simuliert hängenden Ofen).
-  vorLaden: `(${haengenderWorker})();
-    const st = window.setTimeout;
-    window.setTimeout = (fn, ms, ...rest) => st(fn, ms === 10000 ? 400 : ms, ...rest);`,
-}, async ({ page, oeffne }) => {
-  await oeffne();
-  await setzeCode(page, 'Bote.sage(("hängt"));');
-  await page.evaluate(() => { window.__haengen = true; });
-  await strg(page, "Enter");
-  await warteLaufEnde(page, 5000);
-  const b = await exitBadge(page);
-  assert.equal(b.text, EXIT_TEXT[3]);
-  assert.match(await page.$eval("#lauf-info", (e) => e.textContent), /Zeitlimit/);
-  const m = (await konsolenMeldungen(page)).find((x) => /k-fehler/.test(x.klasse));
-  assert.match(m.text, /Zeitlimit/);
-  // danach wieder normal
-  await page.evaluate(() => { window.__haengen = false; });
-  await backen(page);
-  assert.equal(await konsolenAusgabe(page), "hängt\n");
-  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
 });
 
 e2e("Hawaii: Panik-Banner als normale Fehlerausgabe, Exit 39 im Fehler-Stil, kein Overlay", async ({ page, oeffne }) => {
