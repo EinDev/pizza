@@ -135,8 +135,8 @@ where
                 match fenster(m, rx, von) {
                     Ok(nie) => match nie {},
                     Err((meldung, zurueck)) => {
-                        let _ = std::io::stdout().flush();
-                        eprintln!("{}", meldung);
+                        // Theke-EXE per Doppelklick hat kein Terminal → zusätzlich Meldungsfenster (THEKE.md §4: klare Meldung).
+                        crate::konsole::wichtige_meldung(&meldung);
                         // `von` ist weg → ui_warte liefert „geschlossen“/-1, das Programm läuft als Konsolenprogramm weiter.
                         rx = zurueck;
                     }

@@ -713,6 +713,20 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Begründung:** Beispiele sind Lehrmaterial, kein Spielstand; „alle“ als Wert wäre mit einer Kammer dieses Namens mehrdeutig.
 - **Betroffen:** UI (U-53 ergänzt), Host (U-54 ergänzt), tests/run-tests.js (U-43 ergänzt). **Status:** fest (Vertrag); CLI umgesetzt.
 
+### K-089 Speicher-/Textgrenze: einheitlich fangbare Kühlschrank-Ananas in allen Motoren (Nutzerentscheidung)
+- **Frage:** Fuzz-Fund gueltig-s42-266 – `t = t + t` in einer Schleife sprengt die Text-/Speichergrenze. Der Interpreter
+  meldete den V8-`RangeError` („Invalid string length“) als internen Fehler (K-014), die Wasm-Laufzeit trappte in `alloc_roh`.
+- **Entscheidung:** Erreicht ein Programm die Speicher-/Textgrenze eines Motors, melden **alle Motoren** einheitlich die
+  fangbare `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).` – Interpreter: Engine-Grenzen der JS-Engine
+  (`RangeError` „Invalid string/array length“, Allokationsfehler) werden in `normalisiere` darauf abgebildet; Wasm/Host:
+  die Laufzeit prüft die Allokation vorab (`verkette`) und wirft die Ananas, statt zu trappen. Die **genaue Grenze** (und damit
+  die Schrittzahl/Ausgabe bis zum Wurf) darf je Motor verschieden sein; Differenztests werten solche Abweichungen als
+  „speicherlimit“ (dokumentierte Grenze, kein Fehler). K-014 (interner Fehler) bleibt echten Motorfehlern vorbehalten.
+- **Begründung:** Gleicher, fangbarer Text in allen Motoren; ein Speicherüberlauf ist ein Programmzustand, kein Ofendefekt.
+- **Betroffen:** Interpreter (`site/js/pizza.js` `normalisiere`), Wasm-Laufzeit (`laufzeit/src/text.rs` `verkette`),
+  `tests/differenz/motoren.js`, Regressionsfall `tests/faelle/kuehlschrank-voll-text`; Prüfstand a10 K-089.
+  **Status:** fest; umgesetzt in f88cb62.
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

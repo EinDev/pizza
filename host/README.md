@@ -16,8 +16,12 @@ node test.js                 # Differenztest aller Beispiele gegen den Interpret
 ## Ausführen
 
 ```sh
-pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--vorrat=ordner] --vorrat-loeschen <name>
+pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
+
+Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der Differenz-Runner erkennt daran die Host-Fähigkeiten).
 
 | Ereignis | Ausgabe (Konsole) |
 |---|---|
@@ -40,7 +44,24 @@ pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] program
   kommen die Zeilen aus der Datei (danach EOF) – für Tests.
 - `--ereignisse-json`: jedes Ereignis als JSON-Zeile auf stdout, gleiches Schema wie `PizzaLang.run`
   (ARCHITEKTUR §1, EINGABE.md §2), zuletzt `{"typ":"ende","exitCode":…,"schritte":…,"zeitMs":…}`.
-- `--schritte=N` → Export `limit_setzen(N)`; `--info` → Exit-Code/Schritte/Uhr am Ende nach stderr.
+- `--schritte=N` → Export `limit_setzen(N)`; `--info` → Exit-Code/Schritte/Uhr am Ende nach stderr; `--debug` → zeigt bei
+  internen Fehlern zusätzlich `detail: …`.
+- **Zufall (K-077):** `--saat=N` → Export `saat_setzen(N)` vor `start` (keine Ganzzahl → `--saat braucht eine Ganzzahl.`, Exit 2).
+  Ohne Option eine echte Saat und die Zeile `Saat: N` auf stderr (grau bei TTY) – nur wenn das Modul `saat_setzen` exportiert.
+  Im JSON-Modus (`--ereignisse-json`, `PIZZA_EREIGNISSE_JSON`) gilt ohne `--saat` die feste Saat 42 ohne Anzeige (wie `optionen.zufallsSaat` fehlt).
+- **Vorratskammer (K-079–K-081):** Importe `vorrat_lesen`/`vorrat_schreiben`; eine Datei je Kammer `<ordner>/<name>.json` im Format
+  `{"v":1,"name":…,"eintraege":[…]}`, atomar geschrieben (`<name>.json.<pid>.tmp` + Umbenennen). Standardordner
+  `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe wie bei `bin/pizza.js`,
+  CLI und EXE teilen sich also den Spielstand. `--vorrat=ordner` → anderer Ordner, `--kein-vorrat` → nur im Speicher (W0101).
+  Jede Änderung erzeugt das Ereignis `vorrat` (JSON-Modus), die Konsole zeigt nichts an. Speichern fehlgeschlagen →
+  `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` (macht das Modul).
+- **Vorrat löschen (K-088), ohne Programmlauf:** `--vorrat-loeschen <name>` (auch `=<name>`) → `Vorrat '<name>' gelöscht.` bzw.
+  `Vorrat '<name>' gibt es nicht.` (Exit 0), ungültiger Name → `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`
+  (Exit 2); `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.`
+- **Wanduhr (K-087):** Import `echtzeit_ms` = Systemzeit in ganzen ms; Testoption `--echtzeit=N` (fest, gerundet, wächst nicht).
+- **Importprüfung (HOST-ABI §2):** vor dem Instanziieren; eine unbekannte Funktion →
+  `PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.x' (Gruppe g), die dieser Host nicht kennt – bitte pizza-host aktualisieren.`
+  (Exit 2; Gruppe aus dem Namenspräfix, z. B. `ui_` → theke).
 
 ## EXE erzeugen
 
@@ -56,10 +77,26 @@ Die EXE ist eine Kopie des `pizza-host`-Binaries mit angehängtem `.pkarton`:
 ```
 
 Beim Start liest der Host sein eigenes Binary (`current_exe`), findet die Magie am Dateiende und führt das
-eingebettete Programm aus – **alle** Kommandozeilenargumente gehen dann an `hauptgang`. Betriebssysteme ignorieren
+eingebettete Programm aus. Die EXE versteht **dieselben Optionen** wie `pizza-host` direkt hinter dem Programmnamen
+(`./programm --saat=42 Luigi 3`, `./programm --vorrat-loeschen spielstand`); ab dem ersten Argument, das nicht mit `--` beginnt,
+gehen alle Argumente an `hauptgang`. Betriebssysteme ignorieren
 angehängte Daten (PE-Overlay/ELF-Anhang), die EXE bleibt normal startbar und braucht keine weiteren Dateien.
 `PIZZA_EREIGNISSE_JSON=1` schaltet auch in einer EXE die JSON-Ereignisausgabe ein.
 Hinweis: eine angehängte Signatur (Authenticode) müsste nach dem Einbetten erfolgen.
+
+**Terminal (Windows, Nutzerentscheidung):** Beim Einbetten wird das PE-Subsystem gesetzt (`karton::baue_exe`, gleich in
+`site/js/exe.js`). Entscheidend ist die Importgruppe `theke` des `.pkarton` (Import `pizza.ui_*`, HOST-ABI §2):
+
+| Programm | Subsystem | Doppelklick | aus einem Terminal gestartet |
+|---|---|---|---|
+| mit Theke | WINDOWS (2) | nur das Fenster, kein Terminal; Konsolen-Ausgaben gehen verloren | `AttachConsole(ATTACH_PARENT_PROCESS)` → Ausgaben/Eingabe im Terminal; umgeleitete Handles (`> datei`, Pipes) bleiben erhalten |
+| ohne Theke | CONSOLE (3) | eigenes Terminal (für `Bote.sage`/`Bestellannahme`) | wie jedes Konsolenprogramm |
+
+`pizza-host` selbst bleibt CONSOLE (CLI unverändert). Eine Theke-EXE ist ein Windows-Programm: eine interaktive
+`cmd`/PowerShell **wartet nicht** auf sie (Prompt kommt sofort, `%ERRORLEVEL%`/`$LASTEXITCODE` bleiben leer). Exit-Code
+und Warten: in Batch-Dateien, mit `start "" /wait programm.exe`, `Start-Process -Wait` oder aus Git-Bash/Node. Ohne
+Terminal wird eine Meldung wie „WebView2 fehlt“ zusätzlich als Meldungsfenster gezeigt (`konsole::wichtige_meldung`).
+Andere Systeme (ELF): nichts geändert.
 
 Die EXE läuft nur auf dem Betriebssystem/der Architektur des verwendeten `pizza-host` – für andere Ziele
 `pizza-host` dort (oder per `cargo build --target …`) bauen und damit einbetten.
@@ -76,15 +113,15 @@ Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Doc
 | Ziel-ID | Rust-Target | Linker | Datei |
 |---|---|---|---|
 | `windows-x64` | `x86_64-pc-windows-msvc` (mit Theke, CRT statisch) | xwin (MSVC-CRT + Windows-SDK) + rust-lld | `pizza-host-windows-x64-<sha12>.exe` |
-| `linux-x64` | `x86_64-unknown-linux-musl` (statisch, ohne Theke) | musl-tools | `pizza-host-linux-x64-<sha12>` |
-| `linux-x64-theke` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-theke-<sha12>` |
-| `linux-arm64` | `aarch64-unknown-linux-musl` (statisch, optional) | rust-lld | `pizza-host-linux-arm64-<sha12>` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` (glibc ≥ 2.34, gebaut auf Debian bookworm, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-<sha12>` |
+
+Angeboten werden nur Varianten **mit** Theke-Fenster (Browser und nativ verhalten sich gleich); statische
+Varianten ohne Fenster (früher `linux-x64` musl, `linux-arm64` musl) sind gestrichen.
 
 Dazu `ziele.json` (`version`, `ziele: [{ id, name, triple, datei, endung, groesse, sha256, theke, voraussetzung }]`;
-`theke` = Fenster möglich, `voraussetzung` = Text für den EXE-Dialog). Die Dateinamen
-enthalten den Inhalts-Hash → `immutable` cachebar. Auswahl per `PIZZA_ZIELE="windows-x64 linux-x64"`;
-`linux-arm64` wird übersprungen, wenn das Target nicht installierbar ist (außer `STRICT_BUILD=1`).
-Getestet: Windows-gnu-EXE mit Anhang unter Windows 11, linux-x64 und linux-arm64 (qemu) in Docker/busybox.
+`theke` = Fenster möglich (immer `true`), `voraussetzung` = Text für den EXE-Dialog). Die Dateinamen
+enthalten den Inhalts-Hash → `immutable` cachebar. Auswahl per `PIZZA_ZIELE="windows-x64"` (Standard: beide);
+scheitert `linux-x64`, wird es übersprungen (außer `STRICT_BUILD=1`), `windows-x64` muss gelingen.
 
 **macOS** wird nicht gebaut: Cross-Linken braucht das Apple-SDK (oder zig/cargo-zigbuild), Apple-Silicon-Binaries
 müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quarantäne. Auf einem Mac selbst:
@@ -94,9 +131,11 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 
 - **Windows:** Die EXE ist **nicht signiert**. SmartScreen warnt evtl. („Der Computer wurde durch Windows geschützt“
   → „Weitere Informationen“ → „Trotzdem ausführen“); manche Virenscanner melden unbekannte, unsignierte EXEs
-  (heuristisch). Die EXE ist ein Konsolenprogramm: am besten in der Eingabeaufforderung/PowerShell starten.
+  (heuristisch). Konsolenprogramme öffnen beim Doppelklick ein Terminal; Programme mit Theke starten ohne Terminal
+  (aus der Eingabeaufforderung gestartet, erscheinen ihre Ausgaben dort).
 - **Linux:** Browser-Downloads sind nicht ausführbar: `chmod +x programm-linux-x64 && ./programm-linux-x64`.
-  Statisch gelinkt (musl), läuft ohne weitere Bibliotheken.
+  Braucht glibc ≥ 2.34 und WebKitGTK 4.1 (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`,
+  Fedora: `sudo dnf install webkit2gtk4.1`).
 
 ## Theke (Fenster, THEKE.md §4)
 
@@ -126,7 +165,7 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 
 Release-Profil: `opt-level = "z"`, LTO, `codegen-units = 1`, `strip`, `panic = "abort"`; nur die wasmi-Crates
 mit `opt-level = 3` (reines `"z"` macht die Engine ~25 % langsamer, so ist sie gleich schnell wie `3`).
-wasmi ohne `wat`/`memory64`. Größen ohne Theke: Windows-msvc 1,1 MB, Windows-gnu 1,3 MB, Linux-musl x64 1,6 MB, arm64 1,4 MB.
+wasmi ohne `wat`/`memory64`. Größen ohne Theke (nur Tests/CLI): Windows-msvc 1,1 MB, Windows-gnu 1,3 MB.
 Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99 MB (+ dynamisch WebKitGTK/GTK).
 
 ## Aufbau
@@ -135,7 +174,8 @@ Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99
 |---|---|
 | `src/laufen.rs` | HOST-ABI: Imports `pizza.*`, Argumentprotokoll, `start`, Trap → `LaufzeitAnanas`, Panik-Abbruch |
 | `src/ereignis.rs` | Ereignisse, Konsolen- und JSON-Ausgabe |
-| `src/karton.rs` | Einbetten/Finden des `.pkarton` in der EXE |
+| `src/karton.rs` | Einbetten/Finden des `.pkarton` in der EXE, PE-Subsystem (Theke → WINDOWS) |
+| `src/konsole.rs` | Windows: an das Eltern-Terminal anhängen, Meldungsfenster ohne Terminal |
 | `src/main.rs` | Kommandozeile |
 | `src/theke.rs` | Theke-Fenster (wry/tao), Custom-Protocol, Brücke |
 | `build.rs` | bettet `site/js/theke/` ein |

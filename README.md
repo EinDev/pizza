@@ -27,7 +27,7 @@ Coolifys Proxy-Routing bricht. `compose.lokal.yaml` ergänzt für lokal nur den 
 |-----------------|----------|---------|
 | `SKIP_TESTS`    | `1`      | `0` = `npm test` läuft im Build; ein roter Test verhindert das Image. |
 | `STRICT_BUILD`  | `0`      | `1` = ein fehlschlagender UI-Build (`ui/`) bricht das Image ab, statt auf das eingecheckte `site/js/app.bundle.js` zurückzufallen. |
-| `SKIP_EXE`      | `0`      | `1` = keine nativen `pizza-host`-Binaries bauen (Stage `exe`: Rust + mingw-w64 + musl, führt `host/baue-ziele.sh /out` aus; Ergebnis unter `/bin/` inkl. `ziele.json`). |
+| `SKIP_EXE`      | `0`      | `1` = keine nativen `pizza-host`-Binaries bauen (Stage `exe`: Rust + xwin (Windows-MSVC) + WebKitGTK 4.1 (Linux), führt `host/baue-ziele.sh /out` aus; Ergebnis unter `/bin/` inkl. `ziele.json`). |
 
 ```bash
 SKIP_TESTS=0 docker compose build pizza               # über compose.yaml

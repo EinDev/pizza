@@ -35,7 +35,15 @@ pub fn verkette(a: &[u8], b: &[u8], a_w: W) -> W {
             ARENA_TOP += b.len() as u32;
         } else {
             if ARENA_TOP as usize + n > ARENA_ENDE as usize {
-                let groesse = core::cmp::max(1 << 16, 2 * n as u32);
+                // Riesentexte (z. B. `t += t` in einer Schleife): erst ohne Anhänge-Reserve versuchen, sonst
+                // fangbare Kühlschrank-Ananas statt Trap in alloc_roh (Fuzz-Fund gueltig-s42-266).
+                let mut groesse = core::cmp::max(1u64 << 16, 2 * n as u64);
+                if groesse > u32::MAX as u64 || !crate::speicher_passt(groesse as u32 + 16) { groesse = n as u64; }
+                if groesse > u32::MAX as u64 || !crate::speicher_passt(groesse as u32 + 16) {
+                    crate::ops::wirf_ananas(crate::namen::K_LAUFZEIT, "Der Kühlschrank ist voll (Speicherlimit erreicht).");
+                    return KARTON;
+                }
+                let groesse = groesse as u32;
                 ARENA_TOP = crate::alloc_roh(groesse, 8) as u32;
                 ARENA_ENDE = ARENA_TOP + groesse;
             }

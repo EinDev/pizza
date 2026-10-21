@@ -77,6 +77,27 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
     }
   }
 
+  // Programm mit Theke (Import pizza.ui_senden) → Windows-EXE mit Subsystem WINDOWS (2), sonst CONSOLE (3);
+  // byte-gleich mit `pizza-host exe`. Minimales Modul: Typ (i32,i32)->() + Import.
+  const thekeKarton = Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0, 1, 6, 1, 0x60, 2, 0x7f, 0x7f, 0,
+    2, 19, 1, 5, ...Buffer.from('pizza'), 9, ...Buffer.from('ui_senden'), 0, 0]);
+  ok(await PizzaExe.brauchtTheke(thekeKarton) === true && await PizzaExe.brauchtTheke(pkarton) === false, 'brauchtTheke erkennt Importgruppe theke');
+  for (const z of ziele) {
+    const host = fs.readFileSync(z._pfad);
+    const istPe = PizzaExe.subsystem(host) !== null;
+    ok(istPe === /^windows/.test(z.id), z.id + ': PE erkannt = ' + istPe);
+    const mit = Buffer.from(await (await PizzaExe.baue(thekeKarton, z.id, optionen)).arrayBuffer());
+    const ohne = Buffer.from(await (await PizzaExe.baue(pkarton, z.id, optionen)).arrayBuffer());
+    ok(PizzaExe.subsystem(mit) === (istPe ? 2 : null) && PizzaExe.subsystem(ohne) === (istPe ? 3 : null), z.id + ': Subsystem Theke/Konsole');
+    if (z._laeuft) {
+      const kp = path.join(tmp, 'theke.pkarton');
+      fs.writeFileSync(kp, thekeKarton);
+      const ziel = path.join(tmp, 'ref-theke-' + z.id + ext);
+      const e = spawnSync(z._pfad, ['exe', kp, '-o', ziel], { encoding: 'utf8' });
+      ok(e.status === 0 && fs.readFileSync(ziel).equals(mit), z.id + ': Theke-EXE identisch mit `pizza-host exe`');
+    }
+  }
+
   const vorher = abrufe;
   await PizzaExe.baue(pkarton, ziele[0].id, optionen);
   ok(abrufe === vorher, 'Host-Binary wird zwischengespeichert');

@@ -2129,6 +2129,11 @@
         const w = this.stapel();
         return w;
       }
+      // Grenze der JS-Engine (Text/Blech zu groß, z. B. `t += t` in einer Schleife): wie der Wasm-Motor als fangbare
+      // Kühlschrank-Ananas melden, nicht als interner Fehler (K-014 ist für echte Motorfehler).
+      if (e instanceof RangeError && /Invalid (string|array|typed array) length|allocation failed|out of memory/i.test(e.message)) {
+        return this.ananas('LaufzeitAnanas', 'Der Kühlschrank ist voll (Speicherlimit erreicht).');
+      }
       return e;
     }
 

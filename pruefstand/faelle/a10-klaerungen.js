@@ -755,4 +755,17 @@ Bote.sage((1234567890.kompakt()));
 Bote.sage((15000000000000000000000.0.kompakt()));
 Bote.sage((1234567.89.euro(kompakt: ja)));
 `, { out: ["1,23 Mio.", "1,2 Mio.", "999,5", "1,5 Tsd.", "2 Mio.", "-1,23 Mio.", "12,35", "0", "1,23 Mrd.", "1,5e+22", "1,23 Mio. €"] }),
+
+  // ── K-089 Speicher-/Textgrenze → fangbare Kühlschrank-Ananas (Grenze je Motor verschieden) ──
+  F(K, "K-089: Text verdoppeln bis zur Grenze → gefangene LaufzeitAnanas 'Der Kühlschrank ist voll (Speicherlimit erreicht).'", P`
+margherita t = "Käse";
+probier {
+    für (salami i = 0; i < 40; i++) { t += t; }
+    Bote.sage(("nie"));
+} verbrannt (LaufzeitAnanas a) {
+    Bote.sage((a.nachricht()));
+}
+t = "";
+Bote.sage(("weiter"));
+`, { out: ["Der Kühlschrank ist voll (Speicherlimit erreicht).", "weiter"] }),
 ];

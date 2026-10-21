@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 use std::io::BufRead;
+use std::path::{Path, PathBuf};
 
 use wasmi::{Caller, Config, Engine, Extern, Linker, Module, Store};
 
@@ -20,6 +21,183 @@ pub struct Optionen {
     pub eingabe: Option<Vec<String>>,
     /// Theke-Anbindung (THEKE.md §4); `None` → kein Renderer (W0100-Verhalten).
     pub ui: Option<Ui>,
+    /// Zufallssaat (`saat_setzen`, K-077); `None` → Export nicht aufrufen (Modul-Standard 42).
+    pub saat: Option<f64>,
+    /// `Saat: N` vor dem Lauf auf stderr zeigen (echte Saat ohne `--saat`, K-077) – nur wenn das Modul `saat_setzen` exportiert.
+    pub saat_zeigen: bool,
+    /// Fester Wert für `echtzeit_ms` (`--echtzeit=N`, gerundet, wächst nicht); `None` → Systemzeit (K-087).
+    pub echtzeit: Option<f64>,
+    /// Ordner der Vorratskammern (K-081); `None` → keine Speicherung (`--kein-vorrat`, W0101-Verhalten).
+    pub vorrat: Option<PathBuf>,
+}
+
+/// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit).
+const IMPORTE: [&str; 14] = [
+    "ausgabe",
+    "schreibe",
+    "fehlerausgabe",
+    "leeren",
+    "warnung",
+    "fehler",
+    "panik",
+    "eingabe",
+    "ui_senden",
+    "ui_warte",
+    "ui_verfuegbar",
+    "vorrat_lesen",
+    "vorrat_schreiben",
+    "echtzeit_ms",
+];
+
+/// Gruppe einer unbekannten Import-Funktion, abgeleitet aus dem Namen (`ui_…` → theke, `vorrat_…` → vorrat,
+/// `xyz_…` → xyz); ohne Präfix `unbekannt`.
+fn gruppe_von(name: &str) -> String {
+    match name.split_once('_') {
+        Some(("ui", _)) => "theke".into(),
+        Some((p, _)) if !p.is_empty() => p.to_string(),
+        _ => "unbekannt".into(),
+    }
+}
+
+/// Prüft die Importliste vor dem Instanziieren (HOST-ABI §2): die erste unbekannte Funktion → Grund für den Ladefehler.
+pub fn pruefe_importe(module: &Module) -> Result<(), String> {
+    for i in module.imports() {
+        let (m, n) = (i.module(), i.name());
+        if m == "pizza" && IMPORTE.contains(&n) {
+            continue;
+        }
+        let gruppe = if m == "pizza" { gruppe_von(n) } else { "unbekannt".to_string() };
+        return Err(format!(
+            "Dieses Programm braucht die Funktion '{}.{}' (Gruppe {}), die dieser Host nicht kennt – bitte pizza-host aktualisieren.",
+            m, n, gruppe
+        ));
+    }
+    Ok(())
+}
+
+/// Ende eines JSON-Strings; `i` zeigt auf das öffnende `"`, Ergebnis hinter das schließende.
+fn json_string_ende(b: &[u8], mut i: usize) -> Option<usize> {
+    i += 1;
+    while i < b.len() {
+        match b[i] {
+            b'\\' => i += 2,
+            b'"' => return Some(i + 1),
+            _ => i += 1,
+        }
+    }
+    None
+}
+
+/// Ende eines JSON-Werts ab `i` (Strings, Arrays/Objekte balanciert, sonst bis zum nächsten Trenner).
+fn json_wert_ende(b: &[u8], i: usize) -> Option<usize> {
+    match *b.get(i)? {
+        b'"' => json_string_ende(b, i),
+        b'[' | b'{' => {
+            let mut tiefe = 0usize;
+            let mut j = i;
+            while j < b.len() {
+                match b[j] {
+                    b'"' => {
+                        j = json_string_ende(b, j)?;
+                        continue;
+                    }
+                    b'[' | b'{' => tiefe += 1,
+                    b']' | b'}' => {
+                        tiefe = tiefe.checked_sub(1)?;
+                        if tiefe == 0 {
+                            return Some(j + 1);
+                        }
+                    }
+                    _ => {}
+                }
+                j += 1;
+            }
+            None
+        }
+        _ => {
+            let mut j = i;
+            while j < b.len() && !matches!(b[j], b',' | b'}' | b']' | b' ' | b'\t' | b'\n' | b'\r') {
+                j += 1;
+            }
+            (j > i).then_some(j)
+        }
+    }
+}
+
+/// Liefert aus einer gespeicherten Kammer `{"v":1,"name":…,"eintraege":[…]}` (K-080) den Wert von `eintraege`
+/// roh (unverändert), wenn er ein Array ist; ein reines Array wird selbst geliefert. Sonst `None` (= keine Kammer).
+pub fn eintraege_roh(json: &str) -> Option<&str> {
+    let b = json.as_bytes();
+    let ws = |i: &mut usize| {
+        while *i < b.len() && matches!(b[*i], b' ' | b'\t' | b'\n' | b'\r') {
+            *i += 1;
+        }
+    };
+    let mut i = 0;
+    if b.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        i = 3;
+    }
+    ws(&mut i);
+    if b.get(i) == Some(&b'[') {
+        let e = json_wert_ende(b, i)?;
+        return Some(&json[i..e]);
+    }
+    if b.get(i) != Some(&b'{') {
+        return None;
+    }
+    i += 1;
+    loop {
+        ws(&mut i);
+        if b.get(i)? != &b'"' {
+            return None;
+        }
+        let ke = json_string_ende(b, i)?;
+        let schluessel = &json[i + 1..ke - 1];
+        i = ke;
+        ws(&mut i);
+        if b.get(i)? != &b':' {
+            return None;
+        }
+        i += 1;
+        ws(&mut i);
+        let we = json_wert_ende(b, i)?;
+        if schluessel == "eintraege" {
+            return if b[i] == b'[' { Some(&json[i..we]) } else { None };
+        }
+        i = we;
+        ws(&mut i);
+        if b.get(i)? != &b',' {
+            return None;
+        }
+        i += 1;
+    }
+}
+
+/// Liest die gespeicherten Einträge der Kammer `name` aus `<ordner>/<name>.json` (K-080/K-081).
+pub fn vorrat_datei_lesen(ordner: &Path, name: &str) -> Option<Vec<u8>> {
+    let t = std::fs::read_to_string(ordner.join(format!("{}.json", name))).ok()?;
+    eintraege_roh(&t).map(|s| s.as_bytes().to_vec())
+}
+
+/// Speichert eine Kammer atomar (Temp-Datei + Umbenennen, K-081) als `<ordner>/<name>.json`.
+pub fn vorrat_datei_schreiben(ordner: &Path, name: &str, json: &[u8]) -> std::io::Result<()> {
+    std::fs::create_dir_all(ordner)?;
+    let ziel = ordner.join(format!("{}.json", name));
+    let tmp = ordner.join(format!("{}.json.{}.tmp", name, std::process::id()));
+    std::fs::write(&tmp, json)?;
+    if let Err(e) = std::fs::rename(&tmp, &ziel) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// Ganze Millisekunden seit 1970-01-01 (Systemzeit, K-087).
+fn systemzeit_ms() -> f64 {
+    match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(d) => d.as_millis() as f64,
+        Err(_) => 0.0,
+    }
 }
 
 /// Woher `ui_warte` Ereignisse bekommt und wohin `ui_senden` geht (THEKE.md §4).
@@ -157,6 +335,12 @@ struct Zustand {
     theke: UiZustand,
     /// Gesetzt, wenn `panik` gemeldet wurde und der Host abgebrochen hat.
     panik: bool,
+    /// Ordner der Vorratskammern (`None` = keine Speicherung).
+    vorrat: Option<PathBuf>,
+    /// Gelesene Kammer, die nicht in den Puffer passte (Retry wie K-013).
+    vorrat_wartend: Option<Vec<u8>>,
+    /// Fester Wert für `echtzeit_ms`.
+    echtzeit: Option<f64>,
 }
 
 /// Marker-Fehler, mit dem der Host nach `panik` den Lauf abbricht.
@@ -196,6 +380,14 @@ pub fn pruefe(pkarton: &[u8]) -> Result<(), String> {
         return Err("keine WebAssembly-Magie (\\0asm)".into());
     }
     Module::new(&engine(), pkarton).map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// Importiert das Modul die Gruppe `theke` (`pizza.ui_*`, HOST-ABI §2)?
+/// Entscheidet u. a., ob eine Windows-EXE ohne Terminal startet (Subsystem WINDOWS).
+pub fn braucht_theke(pkarton: &[u8]) -> bool {
+    Module::new(&engine(), pkarton)
+        .map(|m| m.imports().any(|i| i.module() == "pizza" && i.name().starts_with("ui_")))
+        .unwrap_or(false)
 }
 
 fn text(caller: &Caller<'_, Zustand>, ptr: i32, len: i32) -> String {
@@ -258,11 +450,15 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
         Ok(m) => m,
         Err(e) => return ladefehler(senke, format!("kein gültiges .pkarton: {}", e)),
     };
+    // HOST-ABI §2: Importliste vor dem Instanziieren prüfen.
+    if let Err(grund) = pruefe_importe(&module) {
+        return ladefehler(senke, grund);
+    }
     let quelle = match &opt.eingabe {
         Some(z) => Quelle::Zeilen(z.iter().cloned().collect()),
         None => Quelle::Stdin { eof: false },
     };
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false }, panik: false };
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -325,6 +521,66 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap("pizza", "ui_verfuegbar", |c: Caller<'_, Zustand>| -> i32 {
             c.data().theke.ui.is_some() as i32
         })?;
+        // Wanduhr für `Uhr.echt()` (K-087): ganze ms seit 1970; `--echtzeit=N` → fester Wert (gerundet, wie Math.round).
+        linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 {
+            match c.data().echtzeit {
+                Some(x) if x.is_finite() => (x + 0.5).floor(),
+                _ => systemzeit_ms(),
+            }
+        })?;
+        // Vorratskammer (K-079–K-081): kap -1 = Abfrage; sonst Einträge als JSON-Array, -1 = keine Kammer,
+        // Länge > kap → nichts schreiben, Daten behalten, erneuter Aufruf mit größerem Puffer (wie K-013).
+        linker.func_wrap(
+            "pizza",
+            "vorrat_lesen",
+            |mut c: Caller<'_, Zustand>, np: i32, nn: i32, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> {
+                if kap < 0 {
+                    return Ok(c.data().vorrat.is_some() as i32);
+                }
+                let daten = match c.data_mut().vorrat_wartend.take() {
+                    Some(d) => d,
+                    None => {
+                        let name = text(&c, np, nn);
+                        let Some(ordner) = c.data().vorrat.clone() else {
+                            return Ok(-1);
+                        };
+                        match vorrat_datei_lesen(&ordner, &name) {
+                            Some(d) => d,
+                            None => return Ok(-1),
+                        }
+                    }
+                };
+                let n = daten.len();
+                if n > kap as usize {
+                    c.data_mut().vorrat_wartend = Some(daten);
+                    return Ok(n as i32);
+                }
+                let Some(Extern::Memory(mem)) = c.get_export("memory") else {
+                    return Err(wasmi::Error::new("Export 'memory' fehlt"));
+                };
+                mem.write(&mut c, puffer as u32 as usize, &daten)?;
+                Ok(n as i32)
+            },
+        )?;
+        // Änderung: zuerst Ereignis `vorrat`, dann atomar speichern; 0 = ok, -1 = Speichern fehlgeschlagen.
+        linker.func_wrap(
+            "pizza",
+            "vorrat_schreiben",
+            |mut c: Caller<'_, Zustand>, np: i32, nn: i32, jp: i32, jn: i32, ep: i32, en: i32| -> i32 {
+                let name = text(&c, np, nn);
+                let json = text(&c, jp, jn);
+                let aenderung = text(&c, ep, en);
+                let d = c.data_mut();
+                d.senke.sende(Ereignis::Vorrat { name: name.clone(), aenderung });
+                match &d.vorrat {
+                    Some(ordner) => match vorrat_datei_schreiben(ordner, &name, json.as_bytes()) {
+                        Ok(()) => 0,
+                        Err(_) => -1,
+                    },
+                    None => 0,
+                }
+            },
+        )?;
         linker.func_wrap("pizza", "leeren", |mut c: Caller<'_, Zustand>| {
             c.data_mut().senke.sende(Ereignis::Leeren);
         })?;
@@ -431,6 +687,15 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
     let zeit_f = inst.get_typed_func::<(), f64>(&*store, "zeitMs").ok();
 
     let mut vorbereitung = || -> Result<(), wasmi::Error> {
+        // K-077: Saat vor `start` (Export optional – fehlt er, bleibt 42 und es wird nichts angezeigt).
+        if let Some(saat) = opt.saat {
+            if let Ok(f) = inst.get_typed_func::<f64, ()>(&*store, "saat_setzen") {
+                if opt.saat_zeigen {
+                    store.data_mut().senke.hinweis(&format!("Saat: {}", crate::ereignis::js_zahl(saat)));
+                }
+                f.call(&mut *store, saat)?;
+            }
+        }
         if let Some(n) = opt.schritt_limit {
             if let Ok(f) = inst.get_typed_func::<f64, ()>(&*store, "limit_setzen") {
                 f.call(&mut *store, n)?;

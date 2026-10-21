@@ -1036,6 +1036,10 @@ button.k-meldung:hover { border-color: currentColor; }
 .exe-ziel:has(input:checked) { border-color: var(--akzent); background: var(--akzent-weich); }
 .exe-ziel input { accent-color: var(--akzent); margin: 0; }
 .exe-ziel code { font-size: 11px; }
+.exe-ziele:has(+ .exe-voraussetzung:not([hidden])) { margin-bottom: 8px; }
+.exe-voraussetzung { margin: 0 0 14px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); overflow-wrap: anywhere; }
+.exe-voraussetzung strong { color: var(--text); font-weight: 650; }
+.exe-voraussetzung code { font-size: 11.5px; white-space: nowrap; }
 .exe-status { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--text-2); }
 .exe-status progress { width: 100%; height: 6px; accent-color: var(--akzent); }
 .exe-fehler { color: var(--fehler); background: var(--fehler-weich); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 0 0 12px; }

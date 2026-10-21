@@ -288,7 +288,8 @@ const host = {
       argv.push('--ui-ereignisse', uiDatei);
     }
     let vorratOrdner = null;
-    if (opt && opt.zufallsSaat !== undefined) argv.push('--saat=' + opt.zufallsSaat);
+    // K-077: keine Ganzzahl → wie fehlende Saat (42); --saat lehnt das (wie bin/pizza.js) ab, der JSON-Modus nutzt ohne --saat 42.
+    if (opt && Number.isInteger(opt.zufallsSaat)) argv.push('--saat=' + opt.zufallsSaat);
     if (opt && opt.echtzeit !== undefined) argv.push('--echtzeit=' + opt.echtzeit);
     if (opt && opt.vorrat) {
       vorratOrdner = path.join(tmpDir, 'vorrat' + (tmpZaehler++));
@@ -334,7 +335,7 @@ const SPEICHER_RE = /Der Kühlschrank ist voll/;
 /**
  * Vergleicht Referenz r0 (Interpreter) mit Ergebnis r (beide status "ok").
  * → null (gleich) | { art, details: string[] }
- *   art: "speicherlimit" (dokumentierte Grenze: nur der Wasm-Motor meldet Kühlschrank voll)
+ *   art: "speicherlimit" (dokumentierte Grenze: ein Motor meldet Kühlschrank voll, Grenzen je Motor verschieden)
  *        | "ereignisse" | "exitCode" | "schritte"
  */
 function vergleiche(r0, r) {
@@ -357,7 +358,10 @@ function vergleiche(r0, r) {
     }
   }
   if (!d.length) return null;
-  const speicher = b.some(e => e.typ === 'fehler' && SPEICHER_RE.test(e.text || '')) && !a.some(e => e.typ === 'fehler' && SPEICHER_RE.test(e.text || ''));
+  // Speichergrenzen sind je Motor verschieden (Wasm: 1024 MiB UTF-8-Heap, Interpreter: Grenze der JS-Engine, z. B. V8 ~2^29
+  // UTF-16-Einheiten je Text) – meldet irgendein Motor „Kühlschrank voll“ (auch per verbrannt gefangen), ist die Abweichung dokumentiert.
+  const voll = e => (e.typ === 'fehler' || e.typ === 'ausgabe') && SPEICHER_RE.test(e.text || '');
+  const speicher = b.some(voll) || a.some(voll);
   let art;
   if (speicher) art = 'speicherlimit';
   else if (erste >= 0) art = 'ereignisse';

@@ -832,6 +832,10 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-013 [offen]** Keine Kürzung langer Zeilen; HOST-ABI liefert benötigte Länge, Modul wiederholt mit größerem Puffer.
 - **K-014 [offen Host/Compiler]** Interner Fehler jedes Motors: `fehler` mit `code "LaufzeitAnanas"`, `art "ananas"`, Text exakt
   `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (+ ` (Zeile N)`), optionales Feld `detail`, Exit 1.
+- **K-089 (Nutzerentscheidung)** Speicher-/Textgrenze eines Motors (z. B. `t = t + t` in einer Schleife) ist **kein** interner
+  Fehler: alle Motoren werfen die fangbare `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).` (Interpreter
+  bildet Engine-Grenzen wie „Invalid string length“ darauf ab, die Wasm-Laufzeit wirft statt zu trappen). Die genaue Grenze
+  und damit die Schrittzahl bis zum Wurf darf je Motor verschieden sein.
 - **K-015** `abbrechen`/`weiter` außerhalb einer Schleife (bzw. `abbrechen` außerhalb von Schleife oder
   `wähle`-Anweisung) → `PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.` / `… 'weiter' …` (Parse-Fehler,
   art `syntax`, Exit 2). Methoden-, Konstruktor-, Lambda- und Ofen-Rümpfe beginnen einen neuen Kontext.
