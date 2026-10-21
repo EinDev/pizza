@@ -1,6 +1,9 @@
 //! Ausführung eines `.pkarton` gemäß HOST-ABI.md v1 mit wasmi.
 
-use wasmi::{Caller, Config, Engine, Extern, Linker, Module, Store};
+use std::collections::VecDeque;
+use std::io::BufRead;
+
+use wasmi::{Caller, Config, Engine, Extern, ExternType, Linker, Module, Store};
 
 use crate::ereignis::{Ereignis, Senke};
 
@@ -13,10 +16,57 @@ pub struct Optionen {
     pub schritt_limit: Option<f64>,
     /// Heap-Obergrenze in MiB (`speicher_limit_setzen`); `None` → Standard des Moduls (64).
     pub speicher_mib: Option<i32>,
+    /// Vorgegebene Eingabezeilen (`--eingabe datei`); `None` → zeilenweise von stdin.
+    pub eingabe: Option<Vec<String>>,
+}
+
+/// Quelle für `pizza.eingabe` (EINGABE.md §4).
+enum Quelle {
+    Stdin { eof: bool },
+    Zeilen(VecDeque<String>),
+}
+
+impl Quelle {
+    fn naechste(&mut self) -> Option<String> {
+        match self {
+            Quelle::Zeilen(z) => z.pop_front(),
+            Quelle::Stdin { eof } => {
+                if *eof {
+                    return None;
+                }
+                let mut roh = Vec::new();
+                match std::io::stdin().lock().read_until(b'\n', &mut roh) {
+                    Ok(0) | Err(_) => {
+                        *eof = true;
+                        None
+                    }
+                    Ok(_) => {
+                        if roh.last() == Some(&b'\n') {
+                            roh.pop();
+                        }
+                        if roh.last() == Some(&b'\r') {
+                            roh.pop();
+                        }
+                        Some(String::from_utf8_lossy(&roh).into_owned())
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Zerlegt den Inhalt einer Eingabedatei in Zeilen (wie `split(/\r?\n/)`, ohne leere Schlusszeile).
+pub fn zeilen(inhalt: &str) -> Vec<String> {
+    let mut v: Vec<String> = inhalt.split('\n').map(|z| z.strip_suffix('\r').unwrap_or(z).to_string()).collect();
+    if v.last().map(|z| z.is_empty()) == Some(true) {
+        v.pop();
+    }
+    v
 }
 
 struct Zustand {
     senke: Senke,
+    quelle: Quelle,
     /// Gesetzt, wenn `panik` gemeldet wurde und der Host abgebrochen hat.
     panik: bool,
 }
@@ -108,7 +158,11 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], opt: &Optionen, senke: &mut S
         Ok(m) => m,
         Err(e) => return ladefehler(senke, format!("kein gültiges .pkarton: {}", e)),
     };
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), panik: false };
+    let quelle = match &opt.eingabe {
+        Some(z) => Quelle::Zeilen(z.iter().cloned().collect()),
+        None => Quelle::Stdin { eof: false },
+    };
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, panik: false };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -117,11 +171,52 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], opt: &Optionen, senke: &mut S
 
 fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Optionen) -> i32 {
     let mut linker = <Linker<Zustand>>::new(store.engine());
+    // Nicht importierte Host-Funktionen stören nicht; fehlende Imports melden wir klar.
+    linker.allow_shadowing(true);
     let r = (|| -> Result<(), wasmi::errors::LinkerError> {
-        linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
+        // `ausgabe` gibt es als (ptr,len) [ABI v1] oder mit Umbruch-Flag (ptr,len,umbruch) [EINGABE.md §4].
+        if import_params(module, "ausgabe") == Some(3) {
+            linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32, umbruch: i32| {
+                let t = text(&c, p, n);
+                c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: umbruch != 0 });
+            })?;
+        } else {
+            linker.func_wrap("pizza", "ausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
+                let t = text(&c, p, n);
+                c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: true });
+            })?;
+        }
+        linker.func_wrap("pizza", "schreibe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
             let t = text(&c, p, n);
-            c.data_mut().senke.sende(Ereignis::Ausgabe { text: t });
+            c.data_mut().senke.sende(Ereignis::Ausgabe { text: t, umbruch: false });
         })?;
+        linker.func_wrap("pizza", "leeren", |mut c: Caller<'_, Zustand>| {
+            c.data_mut().senke.sende(Ereignis::Leeren);
+        })?;
+        linker.func_wrap(
+            "pizza",
+            "eingabe",
+            |mut c: Caller<'_, Zustand>, _art: i32, _pp: i32, _pn: i32, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> {
+                // Der Prompt wurde vom Modul bereits als `ausgabe` (ohne Umbruch) gemeldet – hier nur Info.
+                let zeile = c.data_mut().quelle.naechste();
+                let Some(zeile) = zeile else {
+                    c.data_mut().senke.sende(Ereignis::Eingabe { text: None });
+                    return Ok(-1);
+                };
+                // Zu lange Zeilen abschneiden (an UTF-8-Grenze), Rest verwerfen.
+                let kap = kap.max(0) as usize;
+                let mut n = zeile.len().min(kap);
+                while !zeile.is_char_boundary(n) {
+                    n -= 1;
+                }
+                let Some(Extern::Memory(mem)) = c.get_export("memory") else {
+                    return Err(wasmi::Error::new("Export 'memory' fehlt"));
+                };
+                mem.write(&mut c, puffer as u32 as usize, &zeile.as_bytes()[..n])?;
+                c.data_mut().senke.sende(Ereignis::Eingabe { text: Some(zeile[..n].to_string()) });
+                Ok(n as i32)
+            },
+        )?;
         linker.func_wrap("pizza", "fehlerausgabe", |mut c: Caller<'_, Zustand>, p: i32, n: i32| {
             let t = text(&c, p, n);
             c.data_mut().senke.sende(Ereignis::Fehlerausgabe { text: t });
@@ -234,6 +329,14 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
     let zeit_ms = zeit_f.and_then(|f| f.call(&mut *store, ()).ok()).unwrap_or(0.0);
     store.data_mut().senke.sende(Ereignis::Ende { exit_code, schritte, zeit_ms });
     exit_code
+}
+
+/// Anzahl Parameter des Imports `pizza.<name>`, falls das Modul ihn importiert.
+fn import_params(module: &Module, name: &str) -> Option<usize> {
+    module.imports().find(|i| i.module() == "pizza" && i.name() == name).and_then(|i| match i.ty() {
+        ExternType::Func(f) => Some(f.params().len()),
+        _ => None,
+    })
 }
 
 fn trap_text(e: &wasmi::Error) -> String {

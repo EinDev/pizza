@@ -8,6 +8,7 @@ license = "MIT"
 [[bin]]
 name = "pizza-host"
 path = "src/main.rs"
+test = false
 
 [dependencies]
 wasmi = "2.0.0"

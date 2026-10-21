@@ -1,7 +1,7 @@
 //! pizza-host – nativer Host für kompilierte pizza-Programme (`.pkarton`).
 //!
 //! ```text
-//! pizza-host [--ereignisse-json] [--info] programm.pkarton [args…]
+//! pizza-host [--ereignisse-json] [--info] [--eingabe datei] programm.pkarton [args…]
 //! pizza-host exe programm.pkarton -o programm.exe
 //! ```
 
@@ -14,13 +14,14 @@ use pizzahost::{karton, laufen};
 const HILFE: &str = "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus
 
 Aufruf:
-  pizza-host [--ereignisse-json] [--info] [--schritte=N] programm.pkarton [args…]
+  pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] programm.pkarton [args…]
   pizza-host exe programm.pkarton -o programm.exe
 
 Optionen:
   --ereignisse-json  alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende)
   --info             am Ende Exit-Code, Schritte und Uhr nach stderr
   --schritte=N       Schrittlimit (Standard: 5000000)
+  --eingabe datei    Eingabezeilen aus Datei statt stdin (danach EOF)
   --hilfe            diese Hilfe";
 
 fn beende(code: i32) -> ExitCode {
@@ -46,9 +47,23 @@ fn main() -> ExitCode {
     let mut opt = laufen::Optionen::default();
     let mut datei: Option<String> = None;
     let mut prog_args = Vec::new();
-    for a in argv {
+    let mut argv = argv.into_iter();
+    while let Some(a) = argv.next() {
         if datei.is_none() && a.starts_with("--") {
             match a.as_str() {
+                "--eingabe" => {
+                    let Some(pfad) = argv.next() else {
+                        eprintln!("--eingabe braucht eine Datei");
+                        return beende(2);
+                    };
+                    match std::fs::read_to_string(&pfad) {
+                        Ok(t) => opt.eingabe = Some(laufen::zeilen(&t)),
+                        Err(e) => {
+                            eprintln!("Eingabedatei nicht lesbar: {} ({})", pfad, e);
+                            return beende(2);
+                        }
+                    }
+                }
                 "--ereignisse-json" => json = true,
                 "--info" => info = true,
                 "--hilfe" | "--help" => {

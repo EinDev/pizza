@@ -4,7 +4,11 @@ use std::io::{self, IsTerminal, Write};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ereignis {
-    Ausgabe { text: String },
+    /// `umbruch: false` für `Bote.schreibe` (EINGABE.md §2).
+    Ausgabe { text: String, umbruch: bool },
+    /// Gelesene Eingabezeile (`None` = EOF).
+    Eingabe { text: Option<String> },
+    Leeren,
     Fehlerausgabe { text: String },
     Warnung { code: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
     Fehler { code: String, art: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
@@ -54,7 +58,15 @@ pub fn json_zahl(x: f64) -> String {
 impl Ereignis {
     pub fn als_json(&self) -> String {
         match self {
-            Ereignis::Ausgabe { text } => format!("{{\"typ\":\"ausgabe\",\"text\":{}}}", json_text(text)),
+            Ereignis::Ausgabe { text, umbruch: true } => format!("{{\"typ\":\"ausgabe\",\"text\":{}}}", json_text(text)),
+            Ereignis::Ausgabe { text, umbruch: false } => {
+                format!("{{\"typ\":\"ausgabe\",\"text\":{},\"umbruch\":false}}", json_text(text))
+            }
+            Ereignis::Eingabe { text } => format!(
+                "{{\"typ\":\"eingabe\",\"text\":{}}}",
+                text.as_deref().map(json_text).unwrap_or_else(|| "null".into())
+            ),
+            Ereignis::Leeren => "{\"typ\":\"leeren\"}".to_string(),
             Ereignis::Fehlerausgabe { text } => {
                 format!("{{\"typ\":\"fehlerausgabe\",\"text\":{}}}", json_text(text))
             }
@@ -124,9 +136,23 @@ impl Senke {
                     None => String::new(),
                 };
                 match &e {
-                    Ereignis::Ausgabe { text } => {
+                    Ereignis::Ausgabe { text, umbruch } => {
                         let mut out = io::stdout().lock();
-                        let _ = writeln!(out, "{}", text);
+                        if *umbruch {
+                            let _ = writeln!(out, "{}", text);
+                        } else {
+                            let _ = write!(out, "{}", text);
+                            let _ = out.flush();
+                        }
+                    }
+                    // Kein Echo: das macht das Terminal.
+                    Ereignis::Eingabe { .. } => {}
+                    Ereignis::Leeren => {
+                        let mut out = io::stdout().lock();
+                        if out.is_terminal() {
+                            let _ = write!(out, "\x1b[2J\x1b[3J\x1b[H");
+                        }
+                        let _ = out.flush();
                     }
                     Ereignis::Fehlerausgabe { text } => {
                         let _ = io::stdout().flush();

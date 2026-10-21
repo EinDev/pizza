@@ -50,14 +50,14 @@ fn ereignisse_und_exitcode() {
     (global.set $schritte (global.get $limit))
     i32.const 2))"#
     );
-    let (code, e) = lauf(&src, &["eins", "zwei"], Optionen { schritt_limit: Some(42.0), speicher_mib: None });
+    let (code, e) = lauf(&src, &["eins", "zwei"], Optionen { schritt_limit: Some(42.0), ..Default::default() });
     assert_eq!(code, 2);
     assert_eq!(
         e,
         vec![
-            Ereignis::Ausgabe { text: "eins".into() },
-            Ereignis::Ausgabe { text: "zwei".into() },
-            Ereignis::Ausgabe { text: "Hallo Pizzaä".into() },
+            Ereignis::Ausgabe { text: "eins".into(), umbruch: true },
+            Ereignis::Ausgabe { text: "zwei".into(), umbruch: true },
+            Ereignis::Ausgabe { text: "Hallo Pizzaä".into(), umbruch: true },
             Ereignis::Fehlerausgabe { text: "Hallo".into() },
             Ereignis::Warnung { code: "W0666".into(), text: "Typ hawaii".into(), zeile: Some(3), spalte: None },
             Ereignis::Fehler { code: "W0666".into(), art: "ananas".into(), text: "Hallo".into(), zeile: None, spalte: None },
@@ -132,4 +132,40 @@ fn json_format() {
         r#"{"typ":"fehler","code":"B0012","art":"pizzafehler","text":"a \"b\"\nc","zeile":3,"spalte":null}"#
     );
     assert_eq!(Ereignis::Ende { exit_code: 0, schritte: 160.0, zeit_ms: 160.0 }.als_json(), r#"{"typ":"ende","exitCode":0,"schritte":160,"zeitMs":160}"#);
+}
+
+#[test]
+fn eingabe_leeren_schreibe() {
+    let src = r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32 i32)))
+  (import "pizza" "leeren" (func $leeren))
+  (import "pizza" "eingabe" (func $eingabe (param i32 i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "start") (result i32) (local $n i32)
+    (call $ausgabe (i32.const 0) (i32.const 0) (i32.const 0))
+    (call $leeren)
+    ;; Zeile 1 (gekürzt auf 4 Bytes) ausgeben
+    (local.set $n (call $eingabe (i32.const 1) (i32.const 0) (i32.const 0) (i32.const 100) (i32.const 4)))
+    (call $ausgabe (i32.const 100) (local.get $n) (i32.const 1))
+    (local.set $n (call $eingabe (i32.const 1) (i32.const 0) (i32.const 0) (i32.const 100) (i32.const 64)))
+    (call $ausgabe (i32.const 100) (local.get $n) (i32.const 1))
+    ;; EOF → -1, auch wiederholt
+    (drop (call $eingabe (i32.const 1) (i32.const 0) (i32.const 0) (i32.const 100) (i32.const 64)))
+    (call $eingabe (i32.const 1) (i32.const 0) (i32.const 0) (i32.const 100) (i32.const 64))))"#;
+    let opt = Optionen { eingabe: Some(pizzahost::laufen::zeilen("Pizzaiolo\r\nzwei\n")), ..Default::default() };
+    let (code, e) = lauf(src, &[], opt);
+    assert_eq!(code, -1);
+    assert_eq!(
+        &e[..7],
+        &[
+            Ereignis::Ausgabe { text: "".into(), umbruch: false },
+            Ereignis::Leeren,
+            Ereignis::Eingabe { text: Some("Pizz".into()) },
+            Ereignis::Ausgabe { text: "Pizz".into(), umbruch: true },
+            Ereignis::Eingabe { text: Some("zwei".into()) },
+            Ereignis::Ausgabe { text: "zwei".into(), umbruch: true },
+            Ereignis::Eingabe { text: None },
+        ]
+    );
+    assert_eq!(e[8].als_json(), r#"{"typ":"ende","exitCode":-1,"schritte":0,"zeitMs":0}"#);
 }
