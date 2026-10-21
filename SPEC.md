@@ -978,7 +978,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 `uiErwartet: object[]` (K-074). `ui`-Ereignisse stehen **nicht** in `.erwartet`. Compiler ohne Theke-Unterstützung meldet
 `nichtUnterstuetzt` (Playground fällt auf den Interpreter zurück); HOST-ABI `ui_warte` folgt dem Retry-Muster von K-013.
 
-### 16.5 Erweiterungen v2 (K-084 … K-087) [offen – Renderer vorhanden, Sprache/Laufzeit folgen]
+### 16.5 Erweiterungen v2 (K-084 … K-087; Interpreter 4b7a2af, Renderer vorhanden – Compiler/Host offen)
 
 Übernommen aus `THEKE-ERWEITERUNGEN.md`; kein neues `op`, keine neue Protokollversion (neue `art`/Felder; alte Renderer zeigen Platzhalter).
 
@@ -999,6 +999,7 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 - **Zahlformat (K-085):** `x.tausender(n = 0)` → `1.234.567` / `1.234.567,00`; `x.kompakt(n = 2)` → `1,23 Mio.` (Stufen `Tsd.`, `Mio.`,
   `Mrd.`, `Bio.`, `Brd.`, `Trio.`; ohne nachgestellte Nullen; `< 1000` → `runden(x, n)` mit Komma; `≥ 10²¹` → `1,5e+22`);
   `euro(kompakt: ja)` → `1,23 Mio. €`.
-- **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu** (`schritte`/`Uhr.jetzt()`
-  zählen weiter); `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
+- **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu**: die Zählbasis wird beim
+  Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
+  `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).

@@ -663,8 +663,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Determinismus:** Schläge sind gewöhnliche Ereignisse (`uiEreignisse`/`.ereignisse` im Test, echte Zeit im Renderer). Warten kostet
   weder Schritte noch simulierte Zeit; der Rückruf zählt seine Anweisungen (K-069).
 - **Begründung:** Kein neues `op`, keine Protokollversion, kein Host-Code (Timer in der Engine) → Browser = nativ automatisch.
-- **Betroffen:** Interpreter (U-48), Compiler (U-49), UI/Host-Brücken (U-50), Doku (U-51), Idle-Beispiel (U-52).
-- **Status:** offen (a12-theke-offen.js).
+- **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler (U-49), UI/Host-Brücken (U-50), Doku (U-51), Idle-Beispiel (U-52).
+- **Status:** fest (a13).
 
 ### K-085 Zahlformat `tausender(n?)`, `kompakt(n?)`, `euro(kompakt: ja)`
 - **Entscheidung:** `x.tausender(n = 0)`: Rundung nach K-048 auf n Stellen, Tausendergruppen mit Punkt, Dezimalkomma, genau n
@@ -674,7 +674,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   (`1234567.kompakt()` → `1,23 Mio.`, `.kompakt(1)` → `1,2 Mio.`, `2000000.kompakt()` → `2 Mio.`, `1500.kompakt()` → `1,5 Tsd.`);
   `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → JS-Textform mit
   Komma (`1,5e+22`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
-- **Betroffen:** Interpreter (U-48), Compiler/Laufzeit (U-49), Doku (U-51). **Status:** offen (a11).
+- **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler/Laufzeit (U-49), Doku (U-51). **Status:** fest (a10).
 
 ### K-086 Theke v2: `Fortschritt`, `Abschnitt`, `Tabelle`, `Reiter`, `hinweis`, `schrift: "riesig"`
 - **Entscheidung (Vorschläge §3–§7 übernommen):**
@@ -689,16 +689,18 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
     Rückruf aktualisiert; `wert` keine Ganzzahl in 1…k → ignoriert). Fehlende Titel → „Seite n“ (Renderer).
   - Stil `schrift` zusätzlich `"riesig"` (Whitelist und Fehlertext-Liste K-068 erweitern).
   - `Meldung` (P3-Idee) **nicht** in v2.
-- **Betroffen:** Interpreter (U-48), Compiler (U-49), Doku (U-51); Renderer bereits umgesetzt. **Status:** offen (a12).
+- **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler (U-49), Doku (U-51); Renderer bereits umgesetzt. **Status:** fest (a13).
 
 ### K-087 Lange laufende Theke-Programme: Schrittlimit je Rückruf, `Uhr.echt()`
 - **Entscheidung:** (1) Das Schrittlimit (P0002) gilt für die Top-Level-Ausführung (inkl. `hauptgang`, `wennDa`-Phase) und **für jeden
   Theke-Rückruf jeweils neu**: beim Zustellen eines Ereignisses wird die Zählbasis gesetzt; `schritte`, `Uhr.jetzt()` und Budgets zählen
-  unverändert weiter (nur die P0002-Prüfung bezieht sich auf `schritte − Basis`). Deterministisch und in allen Motoren gleich.
+  unverändert weiter (nur die P0002-Prüfung bezieht sich auf `schritte − Basis`). Die Basis wird **nur** beim Zustellen eines
+  Ereignisses gesetzt und sonst nie zurückgesetzt – nach `bediene()` gilt die Basis des letzten Rückrufs also auch für den folgenden
+  Top-Level-Code (Interpreter 4b7a2af; bestätigt: einfachste Regel, deterministisch). Deterministisch und in allen Motoren gleich.
   (2) `Uhr.echt()` → Dauer seit 1970-01-01 (Wanduhr, ganze ms); Test: `optionen.echtzeit` (Startwert in ms, wächst nicht);
   HOST-ABI-Import `echtzeit_ms() -> f64` (Compiler/Host). Browser = nativ: beide liefern die Systemzeit.
 - **Begründung:** Idle-Spiele laufen stundenlang; Endlosschleifen in einem Rückruf werden weiterhin erkannt.
-- **Betroffen:** Interpreter (U-48), Compiler/HOST-ABI (U-49), Host (U-50), Doku (U-51). **Status:** offen (a12).
+- **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler/HOST-ABI (U-49), Host (U-50), Doku (U-51). **Status:** fest (a13).
 
 ---
 
@@ -747,7 +749,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-53 | `ui/**` (UI-Agent) | K-083: Feld „Argumente“ (→ `optionen.args`), P0003/Wand-Zeitlimit entfernen (nur „Abbrechen“), Theke-Thema folgt dem Seiten-Thema (Standard OS), Befehl „Vorrat löschen“, „Eingaben vorab“-Fallback entfernen → klare Fehlermeldung ohne Isolation | e2e |
 | U-54 | `host/**`, `ziele.json`, `host/baue-ziele.sh`, Dockerfile-Stage exe (Host-/Infra-Agent) | K-083/1: nur Fenster-Varianten (Windows x64 via cargo-xwin/MSVC, Linux x64 bookworm/WebKitGTK 4.1), statische/arm64-Varianten ohne Fenster entfernen; fehlende WebView → klare Fehlermeldung; `--vorrat-loeschen <name|alle>` (K-083/5); OS-Thema | Smoke |
 | U-55 | `site/js/doku/30-referenz.js` (Doku-Agent), `e2e/**` (E2E-Agent) | Zeitlimit-Texte entfernen (P0003), Argumente-Feld, „Vorrat löschen“ dokumentieren; E2E-Zeitlimit-Test entfernen | – |
-| U-48 | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
+| U-48 ✅ (4b7a2af) | `site/js/pizza.js`, `tests/faelle/` | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
 | U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
 | U-50 | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
 | U-51 | `site/js/doku/*.js` (Doku-Agent) | Theke v2 (Takt, Zutaten, hinweis), Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf | Doku-Harness |
