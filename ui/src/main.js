@@ -507,6 +507,7 @@ function start() {
     });
   }
 
+  let backenWartet = false;
   async function backen() {
     if (ausfuehrung.laeuft) return;
     const t = tabs.aktiv();
@@ -517,9 +518,18 @@ function start() {
       if (eingabe == null) return; // abgebrochen
       if (ausfuehrung.laeuft) return;
     }
+    // Erster Lauf direkt nach dem Laden: auf die laufende Fähigkeiten-Prüfung warten, sonst nähme „Auto“/„Wasm“
+    // fälschlich den Interpreter (faehigkeiten wäre noch null).
+    const motor = motorWahl.value;
+    if (motor !== "interpreter" && !faehigkeiten) {
+      if (backenWartet) return;
+      backenWartet = true;
+      try { await (pruefungLaeuft || pruefeFaehigkeiten()); } finally { backenWartet = false; }
+      if (ausfuehrung.laeuft) return;
+    }
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
-    ausfuehrung.starte(code, [], motorWahl.value, {
+    ausfuehrung.starte(code, [], motor, {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
       ...(eingabe ? { eingabe } : {}),
