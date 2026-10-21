@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, EXIT_TEXT, EXIT_KLASSE,
+  e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
 } from "../hilfen.mjs";
@@ -86,19 +86,12 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
           const e = (await echos(page)).filter((x) => !x.eof).map((x) => x.text);
           assert.deepEqual(e, zeilen.slice(zeilen.length - e.length), "Echo = letzte Eingabezeilen");
         }
-        const badge = await exitBadge(page);
-        assert.equal(badge.text, EXIT_TEXT[b.exitCode], "Exit-Badge");
-        assert.match(badge.klasse, new RegExp("\\b" + EXIT_KLASSE[b.exitCode] + "\\b"));
-        const overlay = await page.$eval("#hawaii", (h) => !h.hidden);
-        assert.equal(overlay, b.exitCode === 39, "Hawaii-Overlay genau bei Exit 39");
-        if (overlay) {
-          await page.click("#hawaii-neustart");
-          await page.waitForFunction(() => document.getElementById("hawaii").hidden);
-        }
+        await pruefeExit(page, b.exitCode);
+        // Hawaii (Exit 39) ist ein normaler Fehler: kein Overlay, Backen bleibt bedienbar
+        assert.equal(await hawaiiOverlayOffen(page), false, "kein Hawaii-Overlay");
+        assert.equal(await backenVerdeckt(page), null, "Backen-Knopf frei");
       } catch (e) {
         await screenshot(page, "beispiel-" + b.id).catch(() => {});
-        // Overlay nicht offen lassen, sonst scheitern die folgenden Beispiele mit
-        await page.evaluate(() => { if (!document.getElementById("hawaii").hidden) document.getElementById("hawaii-neustart").click(); }).catch(() => {});
         throw e;
       }
     });

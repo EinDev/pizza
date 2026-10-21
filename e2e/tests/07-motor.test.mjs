@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
-  ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv,
+  ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
@@ -41,10 +41,7 @@ async function lauf(page, zeilen = []) {
       return ev.map((e) => e.motor).filter(Boolean).pop() || null;
     }),
   };
-  if (await page.$eval("#hawaii", (h) => !h.hidden)) {
-    await page.click("#hawaii-neustart");
-    await page.waitForFunction(() => document.getElementById("hawaii").hidden);
-  }
+  r.overlay = await hawaiiOverlayOffen(page); // soll es nicht mehr geben
   return r;
 }
 
@@ -79,6 +76,7 @@ e2e("Gleiche Ausgabe in allen Modi (Snippets: Ausgabe, Fehler, Ananas, Limit, Ha
     for (const m of modi) {
       assert.equal(ergebnisse[m].ausgabe, basis.ausgabe, `${s.name}: Ausgabe ${m} vs. interpreter`);
       assert.equal(ergebnisse[m].exit, basis.exit, `${s.name}: Exit ${m} vs. interpreter`);
+      assert.equal(ergebnisse[m].overlay, false, `${s.name}: kein Hawaii-Overlay (${m})`);
     }
     if (ergebnisse.interpreter.motor) assert.equal(ergebnisse.interpreter.motor, "interpreter", "Interpreter-Modus meldet Motor interpreter");
     if (ergebnisse.wasm && ergebnisse.wasm.motor) assert.equal(ergebnisse.wasm.motor, "wasm", "Wasm-Modus fällt nie auf den Interpreter zurück");

@@ -276,7 +276,15 @@ export function konsolenAusgabe(page) {
     }
     if (!teile.length) return "";
     const terminal = /Bestellannahme/.test(String(window.PizzaLang && window.PizzaLang.BUILTINS)) || teile.some((x) => !x.panik && x.t.endsWith("\n"));
-    if (terminal) return teile.map((x) => (x.panik && !x.t.endsWith("\n") ? x.t + "\n" : x.t)).join("");
+    if (terminal) {
+      let t = teile.map((x) => (x.panik && !x.t.endsWith("\n") ? x.t + "\n" : x.t)).join("");
+      // Hawaii-Banner als normale Fehlerausgabe: die UI zeigt den Panik-Text ohne abschließendes \n,
+      // .erwartet führt ihn (wie jedes Ereignis) als Zeile. Nur dann ergänzen, wenn die Panik das letzte Ereignis war.
+      const ev = (window.__ereignisse || []).filter((e) => ["ausgabe", "fehlerausgabe", "panik"].includes(e.typ));
+      const letzte = ev[ev.length - 1];
+      if (letzte && letzte.typ === "panik" && !t.endsWith("\n")) t += "\n";
+      return t;
+    }
     return teile.map((x) => x.t).join("\n") + "\n";
   });
 }
@@ -288,8 +296,45 @@ export function konsolenMeldungen(page) {
   })));
 }
 
-export const EXIT_TEXT = { 0: "gegessen · 0", 1: "Ananas · 1", 2: "Fehler · 2", 3: "noch im Ofen · 3", 39: "🍍 39" };
-export const EXIT_KLASSE = { 0: "ok", 1: "ananas", 2: "fehler", 3: "ofen", 39: "hawaii" };
+export const EXIT_TEXT = { 0: "gegessen · 0", 1: "Ananas · 1", 2: "Fehler · 2", 3: "noch im Ofen · 3" };
+export const EXIT_KLASSE = { 0: "ok", 1: "ananas", 2: "fehler", 3: "ofen", 39: "fehler" };
+
+/**
+ * Prüft das Exit-Badge. Exit 39 (Hawaii) wird seit der Nutzerentscheidung wie ein normaler Fehler gezeigt:
+ * Text enthält „39“, Stil „fehler“ – kein eigener Hawaii-Stil mehr.
+ */
+export async function pruefeExit(page, code, nachricht = "Exit-Badge") {
+  const b = await exitBadge(page);
+  assert.equal(b.hidden, false, nachricht + ": sichtbar");
+  if (code === 39) {
+    assert.match(b.text, /\b39\b/, nachricht + ": Text");
+    assert.match(b.klasse, /\bfehler\b/, nachricht + ": Fehler-Stil");
+    assert.doesNotMatch(b.klasse, /\bhawaii\b/, nachricht + ": kein Sonder-Stil");
+  } else {
+    assert.equal(b.text, EXIT_TEXT[code], nachricht + ": Text");
+    assert.match(b.klasse, new RegExp("\\b" + EXIT_KLASSE[code] + "\\b"), nachricht + ": Stil");
+  }
+  return b;
+}
+
+/** Gibt es (noch) ein sichtbares Hawaii-Crash-Overlay? (soll es nicht mehr geben) */
+export function hawaiiOverlayOffen(page) {
+  return page.evaluate(() => {
+    const h = document.getElementById("hawaii");
+    return !!(h && !h.hidden && h.getClientRects().length) || document.body.classList.contains("hawaii-aktiv");
+  });
+}
+
+/** Ist der Backen-Knopf sichtbar und nicht von etwas überdeckt? Liefert null oder den Verdecker. */
+export function backenVerdeckt(page) {
+  return page.evaluate(() => {
+    const k = document.getElementById("knopf-backen");
+    if (!k || k.hidden) return "Backen-Knopf unsichtbar";
+    const r = k.getBoundingClientRect();
+    const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return e && !e.closest("#knopf-backen") ? (e.id || String(e.className)) : null;
+  });
+}
 
 export function editorTabs(page) {
   return page.$$eval("#editor-tabs .etab", (t) => t.map((e) => ({

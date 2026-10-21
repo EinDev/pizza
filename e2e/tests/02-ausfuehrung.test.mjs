@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, editorText, backen, strg, warteLaufEnde, exitBadge, konsolenAusgabe, konsolenMeldungen,
-  EXIT_TEXT, EXIT_KLASSE, schlafe, neuerTab,
+  EXIT_TEXT, EXIT_KLASSE, schlafe, neuerTab, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
 } from "../hilfen.mjs";
 
 const leererTab = neuerTab;
@@ -170,56 +170,41 @@ e2e("Wand-Zeitlimit: Worker hängt → nach Zeitlimit abgebrochen (Timer verkür
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
 });
 
-e2e("Hawaii: Crash-Overlay erscheint, „PizzaVM neu starten“ funktioniert", async ({ page, oeffne }) => {
+e2e("Hawaii: Panik-Banner als normale Fehlerausgabe, Exit 39 im Fehler-Stil, kein Overlay", async ({ page, oeffne }) => {
   await oeffne();
   await setzeCode(page, 'Bote.sage(("vor"));\nPizza p = ((Tomate, Ananas));\nBote.sage(("nach"));');
-  // W0666-Warnung live (Linter)
   await backen(page);
-  await page.waitForSelector("#hawaii:not([hidden])");
-  const o = await page.evaluate(() => ({
-    banner: document.getElementById("hawaii-banner").textContent,
-    rolle: document.getElementById("hawaii").getAttribute("role"),
-    klasse: document.body.className,
-  }));
-  assert.match(o.banner, /PIZZA-VM KERNEL PANIC/);
-  assert.equal(o.rolle, "alertdialog");
-  assert.match(o.klasse, /hawaii-aktiv/);
-  await page.waitForFunction(() => document.activeElement && document.activeElement.id === "hawaii-neustart");
-  // Konsole: „vor“, dann Panik-Text, „nach“ nie
+  // Kein Crash-Overlay mehr (Nutzerentscheidung)
+  assert.equal(await hawaiiOverlayOffen(page), false, "kein Hawaii-Overlay");
+  // Banner steht in der Konsole (stderr-Stil), „nach“ wird nie ausgegeben
   const aus = await konsolenAusgabe(page);
   assert.match(aus, /^vor\n╔/);
+  assert.match(aus, /PIZZA-VM KERNEL PANIC/);
   assert.doesNotMatch(aus, /nach/);
-  assert.equal((await exitBadge(page)).text, EXIT_TEXT[39]);
-  // Tastenkürzel sind gesperrt, solange das Overlay offen ist
-  await strg(page, "Enter");
-  assert.equal(await page.$eval("#knopf-backen", (k) => k.hidden), false);
-
-  await page.click("#hawaii-neustart");
-  await page.waitForSelector("#hawaii[hidden]", { hidden: true }).catch(() => {});
-  assert.equal(await page.$eval("#hawaii", (h) => h.hidden), true);
-  assert.doesNotMatch(await page.evaluate(() => document.body.className), /hawaii-aktiv/);
-  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-meldung")].some((m) => /PizzaVM neu gestartet/.test(m.textContent)));
-  // Kopfzeile ist wieder bedienbar: nichts überdeckt den Backen-Knopf (Exit-Badge „hawaii“ darf nicht wie das Overlay aussehen)
-  const verdeckt = await page.evaluate(() => {
-    const k = document.getElementById("knopf-backen").getBoundingClientRect();
-    const e = document.elementFromPoint(k.left + k.width / 2, k.top + k.height / 2);
-    return e && !e.closest("#knopf-backen") ? (e.id || e.className) : null;
+  const bannerStil = await page.evaluate(() => {
+    const e = [...document.querySelectorAll("#konsole-inhalt *")].find((x) => x.children.length === 0 && /KERNEL PANIC/.test(x.textContent))
+      || [...document.querySelectorAll("#konsole-inhalt > *")].find((x) => /KERNEL PANIC/.test(x.textContent));
+    const block = e && e.closest("#konsole-inhalt > *");
+    return block ? block.className : null;
   });
-  assert.equal(verdeckt, null, "Backen-Knopf nach Neustart verdeckt von: " + verdeckt);
-  const badgeBox = await page.$eval("#exit-badge", (b) => { const r = b.getBoundingClientRect(); return { pos: getComputedStyle(b).position, w: r.width }; });
-  assert.notEqual(badgeBox.pos, "fixed", "Exit-Badge (Klasse hawaii) erbt nicht position: fixed vom Overlay");
-  // VM läuft wieder
+  assert.match(bannerStil, /k-fehlerausgabe|k-fehler|k-panik/, "Banner im Fehler-/stderr-Stil: " + bannerStil);
+  await pruefeExit(page, 39);
+  // Kopfzeile bleibt bedienbar: nichts überdeckt den Backen-Knopf, Exit-Badge ist nicht fixiert
+  assert.equal(await backenVerdeckt(page), null, "Backen-Knopf frei");
+  assert.notEqual(await page.$eval("#exit-badge", (b) => getComputedStyle(b).position), "fixed");
+  // Tastenkürzel und Knopf funktionieren direkt danach – nächster Lauf klappt
   await setzeCode(page, 'Bote.sage(("wieder warm"));');
-  await backen(page);
+  await page.click("#knopf-backen");
+  await warteLaufEnde(page);
   assert.equal(await konsolenAusgabe(page), "wieder warm\n");
-
-  // Esc schließt das Overlay ebenfalls
+  await pruefeExit(page, 0);
   await setzeCode(page, "hawaii h = 1;");
   await backen(page);
-  await page.waitForSelector("#hawaii:not([hidden])");
-  await schlafe(60);
-  await page.keyboard.press("Escape");
-  assert.equal(await page.$eval("#hawaii", (h) => h.hidden), true);
+  await pruefeExit(page, 39);
+  assert.equal(await hawaiiOverlayOffen(page), false);
+  await setzeCode(page, 'Bote.sage(("und noch mal"));');
+  await backen(page);
+  assert.equal(await konsolenAusgabe(page), "und noch mal\n");
 });
 
 e2e("Warnung W0666 wird in Live-Diagnose und Konsole angezeigt", async ({ page, oeffne }) => {

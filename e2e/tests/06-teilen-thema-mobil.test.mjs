@@ -1,4 +1,4 @@
-// Teilen (#code=, Hastebin-Attrappe), Hell/Dunkel, schmaler Viewport (390×844).
+// Teilen (eigener Server, Attrappe), ignorierte #code=-Links, Hell/Dunkel, schmaler Viewport (390×844).
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, editorText, editorTabs, aktiverTabName, warteAufTab, bereit, backen, konsolenAusgabe,
@@ -7,93 +7,126 @@ import {
 
 const CODE = '// geteilt ✓ Ümlaute & Emoji 🍕\nBote.sage(("aus dem Link"));';
 
-/** u.-Kodierung (rohes UTF-8, base64url) – vom Decoder der UI unterstützt. */
+/** u.-Kodierung (rohes UTF-8, base64url), wie sie alte #code=-Links verwendeten. */
 const uKodiert = (code) => "u." + Buffer.from(code, "utf8").toString("base64url");
 
-e2e("Teilen-Link #code=u.… öffnet als eigener Tab, vorhandene Tabs bleiben", async ({ page, oeffne }) => {
-  await oeffne("#code=" + uKodiert(CODE));
-  await warteAufTab(page, "geteilt.pizza");
-  assert.equal(await editorText(page), CODE);
-  const tabs = await editorTabs(page);
-  assert.ok(tabs.some((t) => t.name === "willkommen.pizza"), "Willkommens-Tab bleibt");
-  await backen(page);
-  assert.equal(await konsolenAusgabe(page), "aus dem Link\n");
-});
+// #code=-Links gibt es nicht mehr (Nutzerentscheidung, keine Rückwärtskompatibilität):
+// Ein Aufruf mit #code=… tut nichts Besonderes – kein neuer Tab, kein Toast, kein Fehler.
+for (const [name, hash] of [["gültig (u.)", "#code=" + uKodiert(CODE)], ["kaputt", "#code=%E2%9"]]) {
+  e2e(`Alter #code=-Link (${name}) wird ignoriert: kein Tab, kein Fehler`, async ({ page, oeffne }) => {
+    await oeffne(hash);
+    await schlafe(500); // Zeit für eine (nicht erwünschte) asynchrone Hash-Auswertung
+    const tabs = await editorTabs(page);
+    assert.deepEqual(tabs.map((t) => t.name), ["willkommen.pizza"], "nur der Willkommens-Tab");
+    assert.doesNotMatch(await editorText(page), /aus dem Link/);
+    const toast = await page.$eval("#toast", (t) => (t.hidden ? "" : t.textContent));
+    assert.doesNotMatch(toast, /geteilt|Link|beschädigt/i, "kein Toast zum Link");
+    // auch ein späterer hashchange öffnet nichts
+    await page.evaluate((h) => { location.hash = h; }, "#code=" + uKodiert("Bote.sage((1));"));
+    await schlafe(300);
+    assert.equal((await editorTabs(page)).length, 1);
+  });
+}
 
-e2e("Teilen-Link #code=z.… (deflate) und hashchange zur Laufzeit", async ({ page, oeffne }) => {
-  await oeffne();
-  const z = await page.evaluate(async (code) => {
-    const strom = new Blob([new TextEncoder().encode(code)]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-    const b = new Uint8Array(await new Response(strom).arrayBuffer());
-    let bin = ""; for (const x of b) bin += String.fromCharCode(x);
-    return "z." + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }, CODE);
-  await page.evaluate((h) => { location.hash = h; }, "#code=" + z);
-  await warteAufTab(page, "geteilt.pizza");
-  assert.equal(await editorText(page), CODE);
-});
+// ---------------------------------------------------------------- Teilen über den eigenen Server (Nutzerentscheidung)
+// Nur noch: Skript auf unserem Server speichern → Link. Kein „Hastebin“ im UI, kein Rohtext-Link,
+// KEINE #code=-Links mehr (weder erzeugen noch öffnen).
 
-e2e("Kaputter Teilen-Link → freundliche Meldung, kein Absturz", async ({ page, oeffne }) => {
-  await oeffne("#code=z.%%%kaputt");
-  await page.waitForFunction(() => /beschädigt/.test(document.getElementById("toast").textContent), { timeout: 5000 });
-  assert.equal(await aktiverTabName(page), "willkommen.pizza");
-});
+/** Findet „hastebin“ (beliebige Schreibweise) in sichtbarem Text, Attributen (title, aria-label, href …) und dem Seitentitel. */
+function hastebinImDom(page) {
+  return page.evaluate(() => {
+    const funde = [];
+    if (/hastebin/i.test(document.title)) funde.push("title");
+    for (const e of document.querySelectorAll("body *")) {
+      if (e.tagName === "SCRIPT" || e.tagName === "STYLE") continue;
+      for (const a of e.attributes) if (/hastebin/i.test(a.value)) funde.push(`${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}[${a.name}]`);
+      for (const n of e.childNodes) if (n.nodeType === 3 && /hastebin/i.test(n.nodeValue)) funde.push(`${e.tagName.toLowerCase()}${e.id ? "#" + e.id : ""}: „${n.nodeValue.trim().slice(0, 60)}“`);
+    }
+    return funde;
+  });
+}
 
-e2e("Teilen-Dialog: „Link ohne Server“ erzeugt #code=-Link, der in neuem Fenster denselben Code öffnet", async ({ page, oeffne, neueSeite, basis }) => {
-  await oeffne();
-  await setzeCode(page, CODE);
-  await page.click("#knopf-teilen");
-  await page.waitForSelector("#dialog-teilen[open]");
-  // Senden ist bewusst NICHT vorausgewählt
-  assert.equal(await page.evaluate(() => document.activeElement.id), "teilen-abbrechen");
-  await page.click("#teilen-lokal");
-  await page.waitForFunction(() => !document.querySelector('[data-schritt="fertig"]').hidden);
-  const url = await page.$eval("#teilen-url", (i) => i.value);
-  assert.match(url, /#code=(z|u)\./);
-  assert.ok(url.startsWith(basis));
-  await page.click("#teilen-schliessen");
-  const p2 = await neueSeite();
-  await p2.goto(url, { waitUntil: "load" });
-  await bereit(p2);
-  await warteAufTab(p2, "geteilt.pizza");
-  assert.equal(await editorText(p2), CODE);
-});
+const LOKAL_KNOEPFE = '[data-testid="teilen-lokal"], [data-testid="teilen-fehler-lokal"], #teilen-lokal, #teilen-fehler-lokal';
 
-e2e("Teilen über Hastebin (Attrappe): #h=-Link lädt den Code wieder", async ({ page, oeffne, neueSeite, server }) => {
+async function keinLokalerLink(page, wo) {
+  const sichtbar = await page.$$eval(LOKAL_KNOEPFE, (k) => k.filter((x) => x.getClientRects().length && !x.closest("[hidden]")).map((x) => x.id || x.dataset.testid));
+  assert.deepEqual(sichtbar, [], wo + ": keine Option „Link ohne Server“");
+  assert.doesNotMatch(await page.evaluate(() => location.hash), /code=/, wo + ": kein #code= in der Adresszeile");
+  const url = await page.$eval('[data-testid="teilen-url"], #teilen-url', (i) => i.value).catch(() => "");
+  assert.doesNotMatch(url, /#code=/, wo + ": kein #code=-Link erzeugt");
+}
+
+async function teilenOeffnen(page) {
+  await page.click('[data-testid="teilen"], #knopf-teilen');
+  await page.waitForSelector('[data-testid="dialog-teilen"][open], #dialog-teilen[open]');
+}
+
+const sichtbarerSchritt = (page) => page.$$eval("#dialog-teilen [data-schritt]", (s) => (s.find((x) => !x.hidden) || {}).dataset?.schritt || null);
+
+e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im DOM, Link lädt den Code wieder", async ({ page, oeffne, neueSeite, server, basis }) => {
   server.teilen.modus = "mock";
   await oeffne();
+  assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ auf der Seite");
   await setzeCode(page, CODE);
-  await page.click("#knopf-teilen");
-  await page.waitForSelector("#dialog-teilen[open]");
-  await page.click("#teilen-senden");
-  await page.waitForFunction(() => !document.querySelector('[data-schritt="fertig"]').hidden, { timeout: 5000 });
-  const url = await page.$eval("#teilen-url", (i) => i.value);
-  assert.match(url, /#h=e2e\w+$/);
+  await teilenOeffnen(page);
+  const text = await page.$eval("#dialog-teilen", (d) => d.innerText);
+  assert.match(text, /Server/i, "Hinweis nennt den Server");
+  assert.match(text, /speicher/i, "Hinweis sagt, dass gespeichert wird");
+  assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ im Teilen-Dialog");
+  await keinLokalerLink(page, "Dialog offen");
+  assert.equal(await page.$$eval('[data-testid="teilen-roh"], #teilen-roh', (r) => r.filter((x) => x.getClientRects().length).length), 0, "kein Rohtext-Link");
+
+  await page.click('[data-testid="teilen-senden"], #teilen-senden');
+  await page.waitForFunction(() => { const s = document.querySelector('#dialog-teilen [data-schritt="fertig"]'); return s && !s.hidden; }, { timeout: 5000 });
+  const url = await page.$eval('[data-testid="teilen-url"], #teilen-url', (i) => i.value);
+  assert.ok(url.startsWith(basis), "Link zeigt auf den Playground: " + url);
+  assert.doesNotMatch(url, /#code=/);
+  assert.equal(server.teilen.ablage.size, 1, "Skript wurde auf dem Server gespeichert");
+  assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ nach dem Senden");
+  await keinLokalerLink(page, "fertig");
+
   const p2 = await neueSeite();
   await p2.goto(url, { waitUntil: "load" });
   await bereit(p2);
-  await p2.waitForFunction((sel) => /^Geteilt e2e/.test(document.querySelector(sel).textContent), { timeout: 5000 }, S.tabAktiv);
+  await p2.waitForFunction(() => {
+    const c = document.querySelector("#editor .cm-content");
+    return c && /aus dem Link/.test(c.textContent);
+  }, { timeout: 5000 });
   assert.equal(await editorText(p2), CODE);
+  assert.deepEqual(await hastebinImDom(p2), [], "kein „Hastebin“ beim Öffnen des Links");
 });
 
-e2e("Teilen über Hastebin nicht eingerichtet (503) → Fehlerschritt mit „Link ohne Server“", {
-  erlaubt: [/api\/teilen/, /status of 503/],
-}, async ({ page, oeffne, server }) => {
-  server.teilen.modus = "aus";
-  try {
-    await oeffne();
-    await page.click("#knopf-teilen");
-    await page.waitForSelector("#dialog-teilen[open]");
-    await page.click("#teilen-senden");
-    await page.waitForFunction(() => !document.querySelector('[data-schritt="fehler"]').hidden, { timeout: 5000 });
-    assert.match(await page.$eval("#teilen-fehlertext", (e) => e.textContent), /nicht eingerichtet/);
-    await page.click("#teilen-fehler-lokal");
-    await page.waitForFunction(() => !document.querySelector('[data-schritt="fertig"]').hidden);
-    assert.match(await page.$eval("#teilen-url", (i) => i.value), /#code=/);
-  } finally {
-    server.teilen.modus = "mock";
-  }
-});
+for (const [modus, status, muster] of [["aus", 503, /nicht|Server|später/i], ["limit", 429, /viele|Pause|später|gleich/i]]) {
+  e2e(`Teilen: Server antwortet ${status} → klare Fehlermeldung, kein #code=-Fallback`, {
+    erlaubt: [/api\/teilen/, new RegExp("status of " + status)],
+  }, async ({ page, oeffne, server }) => {
+    server.teilen.modus = modus;
+    try {
+      await oeffne();
+      await setzeCode(page, CODE);
+      await teilenOeffnen(page);
+      const senden = '[data-testid="teilen-senden"], #teilen-senden';
+      const deaktiviert = await page.$eval(senden, (k) => k.disabled || !k.getClientRects().length);
+      if (!deaktiviert) {
+        await page.click(senden);
+        await page.waitForFunction(() => { const s = document.querySelector('#dialog-teilen [data-schritt="fehler"]'); return s && !s.hidden; }, { timeout: 5000 });
+      } else {
+        assert.equal(modus, "aus", "Senden nur dann vorab gesperrt, wenn Teilen nicht eingerichtet ist");
+      }
+      const meldung = await page.$eval("#dialog-teilen", (d) => {
+        const f = d.querySelector('[data-testid="teilen-fehlertext"], #teilen-fehlertext');
+        const sichtbar = [...d.querySelectorAll("p, [role=alert]")].filter((p) => p.getClientRects().length && !p.closest("[hidden]")).map((p) => p.innerText).join(" ");
+        return (f && f.getClientRects().length ? f.innerText + " " : "") + sichtbar;
+      });
+      assert.match(meldung, muster, `verständliche Meldung bei ${status}: ${meldung}`);
+      assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ in der Fehlermeldung");
+      await keinLokalerLink(page, String(status));
+      assert.equal(server.teilen.ablage.size, 0);
+    } finally {
+      server.teilen.modus = "mock";
+    }
+  });
+}
 
 e2e("Hell/Dunkel: Umschalter wechselt Thema, Editor & Meta, merkt es sich", async ({ page, oeffne }) => {
   await oeffne();

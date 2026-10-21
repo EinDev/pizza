@@ -113,14 +113,15 @@ export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {
     if (req.method !== "GET" && req.method !== "HEAD" && !uri.startsWith("/api/")) return senden(405, "text/plain; charset=utf-8", "method not allowed\n", uri);
     if (uri === "/healthz") return senden(200, "text/plain", "ok\n", uri);
     // /api/teilen: Attrappe für den nginx→Hastebin-Proxy (keine externen Requests in Tests).
-    //   teilen.modus = "mock" (Standard) | "aus" (503 wie ohne HASTEBIN_TOKEN)
+    //   teilen.modus = "mock" (Standard) | "aus" (503 wie ohne HASTEBIN_URL) | "limit" (429 beim Senden)
     if (uri === "/api/konfig") {
       const aktiv = teilen.modus !== "aus";
-      return senden(200, "application/json; charset=utf-8", JSON.stringify({ hastebin: aktiv ? "https://hastebin.e2e.invalid" : "", teilen: aktiv }) + "\n", uri);
+      return senden(200, "application/json; charset=utf-8", JSON.stringify({ hastebin: aktiv ? "https://teilen.e2e.invalid" : "", teilen: aktiv }) + "\n", uri);
     }
     if (uri === "/api/teilen" || uri.startsWith("/api/teilen/")) {
       const json = (st, o) => senden(st, "application/json; charset=utf-8", JSON.stringify(o) + "\n", uri);
-      if (teilen.modus === "aus") return json(503, { fehler: "Teilen ist nicht konfiguriert (HASTEBIN_TOKEN fehlt)." });
+      if (teilen.modus === "aus") return json(503, { fehler: "Teilen ist nicht konfiguriert (HASTEBIN_URL fehlt)." });
+      if (teilen.modus === "limit" && req.method === "POST") return json(429, { fehler: "Zu viele Anfragen." });
       if (uri === "/api/teilen") {
         if (req.method !== "POST") return json(405, { fehler: "Nur POST." });
         let body = "";
