@@ -181,6 +181,8 @@ klasse Spiel {
     salami pünktlich = 0;
     salami sonderschichten = 0;
     salami perfekte = 0;
+    salami kritikerBesuche = 0;
+    salami regentage = 0;
     Blech<margherita> erfolge = [];
     margherita nachricht = "Willkommen in deiner Trattoria! Klick auf „Pizza backen!“.";
 
@@ -350,7 +352,7 @@ klasse Spiel {
 
     leer neuBerechnen() {
         funghi f = faktor();
-        funghi fb = f * (kennt("holzofen") ? 1.5 : 1) * (kennt("ofenflüsterer") ? 2 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
+        funghi fb = f * (effekt == "regen" ? 2 : 1) * (effekt == "influencer" ? 1.5 : 1) * (kennt("holzofen") ? 1.5 : 1) * (kennt("ofenflüsterer") ? 2 : 1) * (bestanden("fastenzeit") ? 1.25 : 1);
         funghi s = 0;
         für (Upgrade u : betrieb) {
             diavolo holzofen = u.schlüssel == "lehrling" || u.schlüssel == "steinofen";
@@ -363,9 +365,9 @@ klasse Spiel {
         für (Upgrade u : handwerk) {
             falls (u.art == "klick") { fest = fest + u.gesamt(); } sonst { anteil = anteil + u.gesamt(); }
         }
-        klickWert = (fest * f + anteil / 100 * sekundeWert) * (effekt == "fussball" ? 5 : 1);
+        klickWert = (fest * f + anteil / 100 * sekundeWert) * (effekt == "fussball" ? 5 : 1) * (effekt == "tenor" ? 3 : 1);
         preisWert = rezept.preis() * (kennt("sauerteig") ? 1.2 : 1) * (kennt("langteig") ? 1.3 : 1) * (kennt("mutterhefe") ? 1.5 : 1)
-            * (bestanden("hawaii") ? 1.25 : 1);
+            * (bestanden("hawaii") ? 1.25 : 1) * (effekt == "kritiker" ? 2 : 1);
         version++;
     }
 
@@ -464,9 +466,41 @@ klasse Spiel {
     }
 
     // ── Ereignisse ──
+    // Der Topf wächst: Neue Ereignisse kommen erst dazu, wenn ihre Bedingung erfüllt ist.
+    Blech<margherita> ereignisTopf() {
+        Blech<margherita> topf = ["freitag", "fussball", "hawaii", "großbestellung"];
+        falls (sterneAllzeit >= 1) { topf.hinzu("kritiker"); }
+        falls (anzahl("roller") >= 10) { topf.hinzu("regen"); }
+        falls (neueröffnungen >= 1) { topf.hinzu("geburtstag"); }
+        falls (anzahl("wuppertal") >= 1) { topf.hinzu("influencer"); }
+        falls (hawaiiBekehrt >= 3) { topf.hinzu("schmuggler"); }
+        falls (anzahl("foodtruck") >= 1) { topf.hinzu("tenor"); }
+        serviere (topf);
+    }
+
     leer ereignis() {
-        margherita welches = Zufall.wähle(["freitag", "fussball", "hawaii", "großbestellung"]);
-        falls (welches == "freitag") {
+        margherita welches = Zufall.wähle(ereignisTopf());
+        falls (welches == "kritiker") {
+            effekt = "kritiker"; effektRest = 30; kritikerBesuche++;
+            melde(("🧐 Ein Restaurantkritiker sitzt an Tisch 4! 30 Sekunden lang bringt jede Pizza das Doppelte – Luigi poliert die Teller."));
+        } sonst falls (welches == "regen") {
+            effekt = "regen"; effektRest = 45; regentage++;
+            melde(("🌧 Regentag! Niemand will raus, alle bestellen Lieferung: 45 Sekunden lang backt der Betrieb doppelt."));
+        } sonst falls (welches == "geburtstag") {
+            funghi bonus = portion() * 30;
+            backe(bonus);
+            melde(("🎂 Nonna hat Geburtstag und lässt es sich nicht nehmen, selbst zu backen: " + pizzen(bonus) + ". Tanti auguri!"));
+        } sonst falls (welches == "influencer") {
+            effekt = "influencer"; effektRest = 60;
+            melde(("📱 Eine Food-Influencerin postet deine Margherita (#pizzaporn – Nonna versteht es nicht): 60 Sekunden lang backt der Betrieb +50 %."));
+        } sonst falls (welches == "schmuggler") {
+            funghi bonus = portion() * 10;
+            backe(bonus);
+            melde(("🍍 Ananas-Schmuggler erwischt! Nonna konfisziert zwölf Kisten und verkauft sie an die Konkurrenz: Gegenwert " + pizzen(bonus) + "."));
+        } sonst falls (welches == "tenor") {
+            effekt = "tenor"; effektRest = 20;
+            melde(("🎤 Ein Tenor singt „O sole mio“ im Lokal – 20 Sekunden lang knetet jeder im Takt: Klicks bringen das Dreifache."));
+        } sonst falls (welches == "freitag") {
             effekt = "freitag"; effektRest = kennt("freitagslegende") ? 60 : 30; freitagPizzen = 0;
             melde(("🎉 Freitagabend-Ansturm! " + effektRest + " Sekunden lang backt alles dreifach."));
         } sonst falls (welches == "fussball") {
@@ -483,6 +517,14 @@ klasse Spiel {
     leer beendeEffekt() {
         falls (effekt == "freitag") {
             melde(("Der Freitagabend ist vorbei: " + pizzen(freitagPizzen) + " in der Rushhour."));
+        } sonst falls (effekt == "kritiker") {
+            melde(("Der Kritiker zahlt, nickt und geht. Morgen steht es in der Zeitung."));
+        } sonst falls (effekt == "regen") {
+            melde(("Die Sonne kommt raus – die Roller dürfen verschnaufen."));
+        } sonst falls (effekt == "influencer") {
+            melde(("Der Hashtag ist abgekühlt. Nonna hat inzwischen 12 Follower."));
+        } sonst falls (effekt == "tenor") {
+            melde(("Bravo! Der Tenor verbeugt sich und bestellt eine Quattro Stagioni."));
         } sonst {
             melde(("Abpfiff. Die Fans gehen satt nach Hause."));
         }
@@ -789,7 +831,7 @@ klasse Spiel {
         setzeRundeZurück();
         pizzenAllzeit = 0; umsatzAllzeit = 0; umsatzKlickAllzeit = 0; umsatzKette = 0; klicks = 0; sekunden = 0;
         sterne = 0; sterneVergeben = 0; sterneAllzeit = 0; neueröffnungen = 0; filialen = 0; franchises = 0;
-        hawaiiBekehrt = 0; pünktlich = 0; sonderschichten = 0; perfekte = 0;
+        hawaiiBekehrt = 0; pünktlich = 0; sonderschichten = 0; perfekte = 0; kritikerBesuche = 0; regentage = 0;
         minispielPause = 0; minispieleGespielt = 0; minispieleGewonnen = 0; minispielSiege = []; umsatzMiniAllzeit = 0;
         erfolge = []; geschafft = [];
         neuBerechnen();
@@ -812,7 +854,7 @@ klasse Spiel {
         s.lege("minispielPause", minispielPause).lege("minispieleGespielt", minispieleGespielt);
         s.lege("minispieleGewonnen", minispieleGewonnen).lege("minispielSiege", minispielSiege);
         s.lege("umsatzMini", umsatzMini).lege("umsatzMiniAllzeit", umsatzMiniAllzeit);
-        s.lege("briefe", briefe);
+        s.lege("briefe", briefe).lege("kritikerBesuche", kritikerBesuche).lege("regentage", regentage);
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -840,6 +882,7 @@ klasse Spiel {
         minispieleGewonnen = s.hole("minispieleGewonnen", 0); minispielSiege = s.hole("minispielSiege", []);
         umsatzMini = s.hole("umsatzMini", 0); umsatzMiniAllzeit = s.hole("umsatzMiniAllzeit", 0);
         briefe = s.hole("briefe", []);
+        kritikerBesuche = s.hole("kritikerBesuche", 0); regentage = s.hole("regentage", 0);
         Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
         für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
