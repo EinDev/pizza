@@ -97,7 +97,10 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
     const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.datei);
     await setzeCode(page, code.replace(/\r\n?/g, "\n"));
     for (const m of modi) {
-      await t.test(`${b.datei} (${m})`, async () => {
+      await t.test(`${b.datei} (${m})`, async (tt) => {
+        // Küchenbrigade (SPEC §17) gibt es im Wasm noch nicht (K-100/U-64: nichtUnterstuetzt, Auto fällt auf den Interpreter
+        // zurück); der reine Wasm-Modus fällt nie zurück – bis P2 (U-64) hier nur Auto prüfen.
+        if (m === "wasm" && /\.brigade\s*\(/.test(code)) return tt.skip("Küchenbrigade läuft vorerst nur im Interpreter (U-64)");
         await setzeMotor(page, m);
         const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b));
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
