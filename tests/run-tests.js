@@ -143,6 +143,10 @@ function faelle() {
     const ereignisDatei = lies('.ereignisse');
     if (ereignisDatei !== null) opt.uiEreignisse = jsonZeilen(ereignisDatei, basis + '.ereignisse');
     const uiErwartet = lies('.ui-erwartet');
+    // Vorratskammer (K-080): Eingangszustand .vorrat.json = { name: eintraege }, erwartete vorrat-Ereignisse als JSON-Lines
+    const vorratDatei = lies('.vorrat.json');
+    if (vorratDatei !== null) opt.vorrat = JSON.parse(vorratDatei);
+    const vorratErwartet = lies('.vorrat-erwartet');
     const eingabeDatei = lies('.eingabe');
     if (eingabeDatei !== null) opt.eingabe = eingabeZeilen(eingabeDatei);
     const t0 = Date.now();
@@ -156,6 +160,13 @@ function faelle() {
       const soll = norm(warnDatei).split('\n').filter(Boolean);
       const ist = r.ereignisse.filter(e => e.typ === 'warnung').map(e => e.text);
       if (JSON.stringify(soll) !== JSON.stringify(ist)) probleme.push('Warnungen weichen ab:\n' + diff(soll.join('\n'), ist.join('\n')));
+    }
+    if (vorratErwartet !== null) {
+      const soll = jsonZeilen(vorratErwartet, basis + '.vorrat-erwartet');
+      const ist = r.ereignisse.filter(e => e.typ === 'vorrat').map(e => ({ name: e.name, schluessel: e.schluessel, wert: e.wert }));
+      if (soll.map(kanonisch).join('\n') !== ist.map(kanonisch).join('\n')) {
+        probleme.push('vorrat-Ereignisse weichen ab:\n' + diff(soll.map(x => JSON.stringify(x)).join('\n'), ist.map(x => JSON.stringify(x)).join('\n')));
+      }
     }
     if (uiErwartet !== null) {
       const u = uiVergleich(jsonZeilen(uiErwartet, basis + '.ui-erwartet'), r.ereignisse);
@@ -398,6 +409,21 @@ function api() {
     gleich(P.run('Bote.sage((((Tomate)).preis()));').ereignisse[0].text, '6', 'Interpreter unbeeinflusst');
   });
 
+  test('Vorratskammer: onVorrat erhält die vollständige Kammer (Kopie), Fehlschlag → LaufzeitAnanas, kein W0101', () => {
+    const aufrufe = [];
+    const q = 'Vorratskammer v = neu Vorratskammer("s");\nv.lege("a", [1, 2]);\nv.lege("b", ja);\nv.entferne("a");\nv.leeren();';
+    const r = P.run(q, { onVorrat: (name, e) => { aufrufe.push([name, e]); e.push(['manipuliert', 1]); } });
+    gleich(r.exitCode, 0);
+    gleich(aufrufe.map(a => a[1].filter(x => x[0] !== 'manipuliert')), [[['a', [1, 2]]], [['a', [1, 2]], ['b', true]], [['b', true]], []]);
+    ja(aufrufe.every(a => a[0] === 's'), 'Name');
+    ja(!r.ereignisse.some(e => e.typ === 'warnung'), 'kein W0101 mit onVorrat');
+    gleich(r.ereignisse.filter(e => e.typ === 'vorrat').length, 4);
+    const r2 = P.run('Vorratskammer v = neu Vorratskammer("s");\nv.lege("a", 1);', { onVorrat: () => false });
+    gleich(r2.ereignisse.find(e => e.typ === 'fehler').text, "Ungefangene Ananas – LaufzeitAnanas: Die Vorratskammer 's' konnte nicht gespeichert werden. (Zeile 2)");
+    const r3 = P.run('Vorratskammer v = neu Vorratskammer("s");\nBote.sage((v.hole("a")));', { vorrat: { s: { v: 1, name: 's', eintraege: [['a', 'aus Datei']] } } });
+    gleich(ausgabeText(r3.ereignisse), 'aus Datei\n', 'Serialisierung v1 als Eingang');
+  });
+
   test('K-015: P0012 ist ein Parse-Fehler', () => {
     const r = P.parse('leer f() {\n  abbrechen;\n}');
     gleich([r.ok, r.fehler.code, r.fehler.zeile, r.fehler.spalte], [false, 'P0012', 2, 3]);
@@ -537,6 +563,9 @@ function beispiele() {
       const uiText = nebenan('uiErwartet', '.ui-erwartet');
       if (evText === undefined || uiText === undefined) { uebersprungen('beispiele', name, 'Theke-Datei aus dem Manifest fehlt'); continue; }
       if (evText !== null) opt.uiEreignisse = jsonZeilen(evText, name + '.ereignisse');
+      const vorratText = nebenan('vorrat', '.vorrat.json');
+      if (vorratText === undefined) { uebersprungen('beispiele', name, 'Vorrat-Datei aus dem Manifest fehlt'); continue; }
+      if (vorratText !== null) opt.vorrat = JSON.parse(vorratText);
       const r = P.run(quelle, opt);
       const probleme = [];
       const exitSoll = typeof b.exitCode === 'number' ? b.exitCode : 0;

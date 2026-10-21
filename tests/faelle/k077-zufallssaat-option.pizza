@@ -1,0 +1,2 @@
+Bote.sage((Zufall.saat()));
+Bote.sage((Zufall.zahl(1, 6) + " " + Zufall.zahl(1, 6) + " " + Zufall.zahl(1, 6)));

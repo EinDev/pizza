@@ -1,0 +1,3 @@
+{"name":"k","schluessel":"liste","wert":[1,2]}
+{"name":"k","schluessel":"karte","wert":[{"speisekarte":[["b",2],["a",1]]},null,true,"x",1.5,0,[[]]]}
+{"name":"k","schluessel":null,"wert":null}

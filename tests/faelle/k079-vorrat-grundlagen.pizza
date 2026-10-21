@@ -1,0 +1,12 @@
+Vorratskammer v = neu Vorratskammer("spiel");
+Bote.sage((v.hole("punkte")));
+Bote.sage((v.hole("fehlt")));
+Bote.sage((v.hole("fehlt", 0)));
+v.lege("punkte", 6).lege("name", "Luigi");
+Bote.sage((v.hat("name") + " " + v.länge()));
+Bote.sage((v.schlüssel()));
+Bote.sage((v.entferne("name")));
+Bote.sage((v.entferne("name")));
+Bote.sage((v + " " + v.name()));
+v.lege("punkte", 7);
+Bote.sage((v.schlüssel()));

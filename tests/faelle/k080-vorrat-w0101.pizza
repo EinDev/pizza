@@ -1,0 +1,4 @@
+Vorratskammer v = neu Vorratskammer("a");
+Vorratskammer w = neu Vorratskammer("b");
+v.lege("x", 1);
+Bote.sage((v.hole("x")));

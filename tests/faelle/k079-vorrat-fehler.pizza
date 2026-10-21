@@ -1,0 +1,18 @@
+Vorratskammer v = neu Vorratskammer("k");
+probier { v.lege("p", ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { v.lege("f", Mathe.wurzel(-1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { v.lege("d", [1s]); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Speisekarte<salami, salami> zk = neu Speisekarte<salami, salami>();
+zk.lege(1, 2);
+probier { v.lege("z", zk); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { v.lege(1, 2); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { v.hole(ja); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { neu Vorratskammer("Groß Name"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Vorratskammer(""); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }
+probier { neu Vorratskammer("a".wiederhole(41)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((v.länge()));
+probier { v.lege("gross", "x".wiederhole(1048576)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((v.länge()));
+v.lege("ok", "y".wiederhole(1000));
+probier { v.lege("ok", "x".wiederhole(1048576)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }
+Bote.sage((v.hole("ok").länge()));

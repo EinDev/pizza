@@ -1,0 +1,15 @@
+Zufall.saat(7);
+Zufall g = neu Zufall(7);
+Bote.sage((g.zahl(1, 6) + " " + g.zahl(1, 6)));
+Bote.sage((Zufall.zahl(1, 6)));
+Zufall.saat(7);
+Zufall h = neu Zufall();
+Bote.sage((h.saat() + " " + h + " " + g));
+Bote.sage((g.saat()));
+Zufall k = neu Zufall(-1);
+Bote.sage((k.saat()));
+Bote.sage((g.mische([1, 2, 3]).länge() + " " + g.wahr(1) + " " + (g.kommazahl() < 1)));
+Rezept z = g.zahl;
+Bote.sage((z(5, 5)));
+probier { Zufall f = 5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { neu Zufall(1.5); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }

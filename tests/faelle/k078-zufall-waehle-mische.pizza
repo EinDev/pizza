@@ -1,0 +1,11 @@
+Zufall.saat(7);
+Bote.sage((Zufall.wähle(["a", "b", "c"]) + Zufall.wähle(["a", "b", "c"]) + Zufall.wähle(["a", "b", "c"])));
+Zufall.saat(7);
+Blech<salami> b = [1, 2, 3, 4, 5];
+Bote.sage((Zufall.mische(b)));
+Bote.sage((b));
+Bote.sage((Zufall.mische([9])));
+Bote.sage((Zufall.mische([])));
+probier { Zufall.wähle([]); } verbrannt (KeinStückAnanas a) { Bote.sage((a.nachricht())); }
+probier { Zufall.mische("abc"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Zufall.wähle(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

@@ -1,0 +1,5 @@
+Vorratskammer v = neu Vorratskammer("x");
+Speisekarte<margherita, Blech<diavolo>> m = v.hole("b");
+Bote.sage((m));
+Bote.sage((m.hole("x").länge()));
+Bote.sage((v.schlüssel()));

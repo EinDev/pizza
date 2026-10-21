@@ -1,0 +1,14 @@
+'((Tomate))' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).
+'NaN' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).
+'1s' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).
+TypAnanas
+Schlüssel einer Vorratskammer müssen Texte sein, nicht 1.
+TypAnanas
+Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).
+LaufzeitAnanas
+LaufzeitAnanas
+0
+Die Vorratskammer 'k' ist voll (Limit 1 MiB).
+0
+LaufzeitAnanas
+1000

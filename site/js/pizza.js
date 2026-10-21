@@ -27,7 +27,7 @@
 
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii',
-    'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe'];
+    'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zufall', 'Vorratskammer'];
 
   const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
 
@@ -901,7 +901,7 @@
         if (this.istOp('.')) {
           this.p++;
           const nt = this.c;
-          if (nt.t !== 'name') this.fehler('Erwartet einen Namen nach \'.\', gefunden ' + this.beschreibe(nt));
+          if (nt.t !== 'name' && nt.t !== 'kw') this.fehler('Erwartet einen Namen nach \'.\', gefunden ' + this.beschreibe(nt));
           this.p++;
           if (this.istOp('(')) {
             const args = this.argumente();
@@ -1365,6 +1365,23 @@
     return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k + ' €';
   }
 
+  // mulberry32 als Objekt: eigener Strom mit Saat (K-078)
+  function normSaat(n) { const m = 4294967296; return ((n % m) + m) % m; }
+  class ZufallGen {
+    constructor(saat) { this.saat = normSaat(saat); this.zustand = this.saat | 0; }
+    r() {
+      let a = this.zustand;
+      a = a + 0x6D2B79F5 | 0;
+      this.zustand = a;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+  }
+  class Kammer {
+    constructor(name) { this.name = name; this.daten = new Map(); }
+  }
+
   function mulberry32(a) {
     return function () {
       a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -1714,12 +1731,80 @@
     'potenz': function (m, pos) { return Math.pow(this.zahl(pos[0], 'potenz'), this.zahl(pos[1], 'potenz')); }
   });
 
-  const ZUFALL_M = tabelle({
-    'zahl': function (m, pos) {
+  // Methoden eines Zufallsstroms; `g` ist der ZufallGen (global oder eigener aus `neu Zufall`)
+  const ZUFALL_GEN_M = {
+    'zahl': function (g, pos) {
       let a = this.ganzzahl(pos[0], 'Zufall.zahl'), b = this.ganzzahl(pos[1], 'Zufall.zahl');
       if (a > b) { const t = a; a = b; b = t; }
-      return a + Math.floor(this.zufall() * (b - a + 1));
+      return a + Math.floor(g.r() * (b - a + 1));
+    },
+    'kommazahl': function (g, pos) {
+      if (!pos.length) return g.r();
+      let a = this.zahl(pos[0], 'Zufall.kommazahl'), b = this.zahl(pos[1], 'Zufall.kommazahl');
+      if (a > b) { const t = a; a = b; b = t; }
+      return a + g.r() * (b - a);
+    },
+    'wahr': function (g, pos) { const p = this.zahl(pos[0], 'Zufall.wahr'); return g.r() < p; },
+    'wähle': function (g, pos) {
+      const b = pos[0];
+      if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Zufall.wähle braucht ein Blech, nicht ' + this.darstellung(b) + '.');
+      if (!b.length) throw this.ananas('KeinStückAnanas', 'Das Blech ist leer – kein Stück da.');
+      return b[Math.floor(g.r() * b.length)];
+    },
+    'mische': function (g, pos) {
+      const b = pos[0];
+      if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Zufall.mische braucht ein Blech, nicht ' + this.darstellung(b) + '.');
+      const c = b.slice();
+      for (let i = c.length - 1; i >= 1; i--) {
+        const j = Math.floor(g.r() * (i + 1));
+        const t = c[i]; c[i] = c[j]; c[j] = t;
+      }
+      return c;
+    },
+    'saat': function (g) { return g.saat; },
+    'alsText': function (g) { return this.text(g); }
+  };
+  const ZUFALL_OBJ_M = tabelle(ZUFALL_GEN_M);
+  const ZUFALL_M = tabelle(Object.assign({}, ...Object.keys(ZUFALL_GEN_M).map(k => ({
+    [k]: function (m, pos, ben, node) { return ZUFALL_GEN_M[k].call(this, this.zufallGlobal, pos, ben, node); }
+  })), {
+    'saat': function (m, pos) {
+      if (!pos.length) return this.zufallGlobal.saat;
+      this.zufallGlobal = new ZufallGen(this.ganzzahl(pos[0], 'Zufall.saat'));
+      return null;
     }
+  }));
+
+  // ---------------------------------------------------------------- Vorratskammer (K-079/K-080)
+  const KAMMER_M = tabelle({
+    'lege': function (k, pos) {
+      const s = this.kammerSchluessel(pos[0]);
+      const w = this.einlagern(pos.length > 1 ? pos[1] : null);
+      const alt = k.daten.has(s) ? k.daten.get(s) : undefined;
+      k.daten.set(s, w);
+      this.kammerGeaendert(k, s, w, () => { if (alt === undefined) k.daten.delete(s); else k.daten.set(s, alt); });
+      return k;
+    },
+    'hole': function (k, pos, ben) {
+      const s = this.kammerSchluessel(pos[0]);
+      if (k.daten.has(s)) return this.auslagern(k.daten.get(s));
+      const e = arg(pos, ben, 1, 'ersatz');
+      return e === undefined ? null : e;
+    },
+    'hat': function (k, pos) { return k.daten.has(this.kammerSchluessel(pos[0])); },
+    'entferne': function (k, pos) {
+      const s = this.kammerSchluessel(pos[0]);
+      if (!k.daten.has(s)) return null;
+      const alt = k.daten.get(s);
+      k.daten.delete(s);
+      this.kammerGeaendert(k, s, null, null);
+      return this.auslagern(alt);
+    },
+    'schlüssel': function (k) { return Array.from(k.daten.keys()); },
+    'länge': function (k) { return k.daten.size; },
+    'leeren': function (k) { k.daten.clear(); this.kammerGeaendert(k, null, null, null); return k; },
+    'name': function (k) { return k.name; },
+    'alsText': function (k) { return this.text(k); }
   });
 
   const SPIEGEL_M = tabelle({
@@ -1826,7 +1911,7 @@
   const TABELLEN = new Map([
     [Dauer, DAUER_M], [BelagDef, BELAG_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
     [Zustellung, ZUST_M], [Stueck, STUECK_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
-    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M]
+    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
   ]);
 
   // =====================================================================
@@ -1867,7 +1952,12 @@
       this.s = null;
       this.st = 0;
       this.instanzen = 0;
-      this.zufall = mulberry32(42);
+      const saat = opt.zufallsSaat;
+      this.zufallGlobal = new ZufallGen(typeof saat === 'number' && Number.isInteger(saat) ? saat : 42);
+      this.vorratOpt = opt.vorrat !== null && typeof opt.vorrat === 'object' ? opt.vorrat : null;
+      this.onVorrat = typeof opt.onVorrat === 'function' ? opt.onVorrat : null;
+      this.kammern = new Map();
+      this.w0101 = false;
       this.globalCtx = { dies: null, klasse: null, unten: null, ktor: false };
       this.global = new Scope(null, this.globalCtx, true);
       this.globalCache = { cache: null };
@@ -1970,6 +2060,8 @@
       if (v instanceof OfenRoh) return 'Rohling';
       if (v instanceof UiTheke) return 'Theke';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art];
+      if (v instanceof ZufallGen) return 'Zufall';
+      if (v instanceof Kammer) return 'Vorratskammer';
       return 'Unbekanntes';
     }
 
@@ -2124,6 +2216,87 @@
       }
       this.lieferungenNachEnde();
       this.uiEnde();
+    }
+
+    // ---------- Vorratskammer ----------
+    kammerSchluessel(k) {
+      if (typeof k !== 'string') throw this.ananas('TypAnanas', 'Schlüssel einer Vorratskammer müssen Texte sein, nicht ' + this.darstellung(k) + '.');
+      return k;
+    }
+
+    // Pizza-Wert → JSON-Wert (K-080); wirft TypAnanas für nicht einlagerbare Werte
+    einlagern(v) {
+      const nein = () => this.ananas('TypAnanas', '\'' + this.textSicher(v) + '\' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).');
+      if (v === null || v === undefined) return null;
+      switch (typeof v) {
+        case 'number': if (!isFinite(v)) throw nein(); return Object.is(v, -0) ? 0 : v;
+        case 'string': case 'boolean': return v;
+      }
+      if (Array.isArray(v)) return v.map(x => this.einlagern(x));
+      if (v instanceof Map) {
+        const paare = [];
+        for (const [k, w] of v) {
+          if (typeof k !== 'string') throw nein();
+          paare.push([k, this.einlagern(w)]);
+        }
+        return { speisekarte: paare };
+      }
+      throw nein();
+    }
+
+    textSicher(v) { try { return this.text(v); } catch (e) { return this.typName(v); } }
+
+    // JSON-Wert → neuer Pizza-Wert (tiefe Kopie)
+    auslagern(j) {
+      if (j === null || typeof j !== 'object') return j === undefined ? null : j;
+      if (Array.isArray(j)) return j.map(x => this.auslagern(x));
+      if (Array.isArray(j.speisekarte)) {
+        const m = new Map();
+        for (const p of j.speisekarte) if (Array.isArray(p) && typeof p[0] === 'string') m.set(p[0], this.auslagern(p[1]));
+        return m;
+      }
+      return null;
+    }
+
+    kammerEintraege(k) {
+      return Array.from(k.daten, ([s, w]) => [s, JSON.parse(JSON.stringify(w))]);
+    }
+
+    kammerGeaendert(k, schluessel, wert, rueckgaengig) {
+      const groesse = new TextEncoder().encode(JSON.stringify({ v: 1, name: k.name, eintraege: Array.from(k.daten) })).length;
+      if (groesse > 1048576 && rueckgaengig !== null) {
+        rueckgaengig();
+        throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.name + '\' ist voll (Limit 1 MiB).');
+      }
+      this.emit({ typ: 'vorrat', name: k.name, schluessel, wert: wert === null ? null : JSON.parse(JSON.stringify(wert)) });
+      if (this.onVorrat !== null) {
+        let ok = true;
+        try { ok = this.onVorrat(k.name, this.kammerEintraege(k)) !== false; } catch (e) { ok = false; }
+        if (!ok) throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.name + '\' konnte nicht gespeichert werden.');
+      }
+    }
+
+    neueKammer(pos, ben, node) {
+      const n = arg(pos, ben, 0, 'name');
+      const name = n === undefined || n === null ? '' : this.text(n);
+      if (!/^[a-z0-9-]{1,40}$/.test(name)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Kammername \'' + name + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
+      const da = this.kammern.get(name);
+      if (da !== undefined) return da;
+      if (this.vorratOpt === null && this.onVorrat === null && !this.w0101) {
+        this.w0101 = true;
+        this.warnung('W0101', 'Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.', node);
+      }
+      const k = new Kammer(name);
+      let eintraege = null;
+      if (this.vorratOpt !== null) { try { eintraege = this.vorratOpt[name]; } catch (e) { eintraege = null; } }
+      if (eintraege && !Array.isArray(eintraege) && Array.isArray(eintraege.eintraege)) eintraege = eintraege.eintraege;
+      if (Array.isArray(eintraege)) {
+        for (const p of eintraege) {
+          if (Array.isArray(p) && typeof p[0] === 'string') k.daten.set(p[0], JSON.parse(JSON.stringify(p[1] === undefined ? null : p[1])));
+        }
+      }
+      this.kammern.set(name, k);
+      return k;
     }
 
     // ---------- Theke ----------
@@ -2572,6 +2745,15 @@
         case 'hawaii': throw this.panik();
         case 'Dauer': if (v === null || v instanceof Dauer) return; was = 'keine Dauer'; break;
         case 'Pizza': if (v === null || v instanceof Pizza) return; was = 'keine Pizza'; break;
+        case 'Vorratskammer':
+          if (this.klassen.has(typ.name)) { const k = this.klassen.get(typ.name); if (v === null || this.instanzVon(v, k)) return; was = 'kein(e) ' + k.name; break; }
+          if (v === null || v instanceof Kammer) return;
+          was = 'keine Vorratskammer';
+          break;
+        case 'Zufall':
+          if (v === null || v instanceof ZufallGen || this.klassen.has('Zufall')) return;
+          was = 'kein Zufall';
+          break;
         case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe': {
           if (this.klassen.has(typ.name) || v === null) {
             const k = this.klassen.get(typ.name);
@@ -2636,6 +2818,8 @@
       if (v instanceof Reste) return 'Reste(' + this.text(v.wert) + ')';
       if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
       if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
+      if (v instanceof ZufallGen) return 'Zufall(' + v.saat + ')';
+      if (v instanceof Kammer) return 'Vorratskammer(' + v.name + ')';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
       if (v === AUTO) return 'auto';
       return String(v);
@@ -3527,6 +3711,12 @@
       if (!this.klassen.has(tn)) {
         if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
         if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
+        if (tn === 'Zufall') {
+          const sa = arg(pos, ben, 0, 'saat');
+          if (sa === undefined || sa === null) return new ZufallGen(Math.floor(this.zufallGlobal.r() * 4294967296));
+          return new ZufallGen(this.ganzzahl(sa, 'Zufall'));
+        }
+        if (tn === 'Vorratskammer') return this.neueKammer(pos, ben, n);
         if (tn === 'Theke') {
           if (this.uiTheke !== null) throw this.ananas('LaufzeitAnanas', 'Es gibt nur eine Theke pro Programm.');
           const titel = arg(pos, ben, 0, 'titel');

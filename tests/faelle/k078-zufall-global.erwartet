@@ -1,0 +1,14 @@
+42
+[4, 3, 6, 5, 2, 4, 2, 4, 6, 3]
+7
+[1, 1, 6, 5, 4, 3]
+0.011704753153026104
+0.06195825757458806
+0.97690763277933
+10.117047531530261
+ja nein nein ja nein ja
+4294967295
+7
+Zufall.saat braucht eine Ganzzahl, nicht 2.5.
+Zufall.wahr braucht eine Zahl, nicht "x".
+Zufall.kommazahl braucht eine Zahl, nicht "x".

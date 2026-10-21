@@ -1,0 +1,21 @@
+Bote.sage((Zufall.saat()));
+Blech<salami> b = [];
+für (salami i = 0; i < 10; i++) { b.hinzu(Zufall.zahl(1, 6)); }
+Bote.sage((b));
+Zufall.saat(7);
+Bote.sage((Zufall.saat()));
+Bote.sage(([Zufall.zahl(1, 6), Zufall.zahl(1, 6), Zufall.zahl(1, 6), Zufall.zahl(1, 6), Zufall.zahl(1, 6), Zufall.zahl(1, 6)]));
+Zufall.saat(7);
+Bote.sage((Zufall.kommazahl()));
+Bote.sage((Zufall.kommazahl()));
+Bote.sage((Zufall.kommazahl()));
+Zufall.saat(7);
+Bote.sage((Zufall.kommazahl(20, 10)));
+Bote.sage((Zufall.wahr(0.5) + " " + Zufall.wahr(0.5) + " " + Zufall.wahr(0) + " " + Zufall.wahr(1) + " " + Zufall.wahr(-3) + " " + Zufall.wahr(7)));
+Zufall.saat(-1);
+Bote.sage((Zufall.saat()));
+Zufall.saat(4294967296 + 7);
+Bote.sage((Zufall.saat()));
+probier { Zufall.saat(2.5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Zufall.wahr("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Zufall.kommazahl(1, "x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
