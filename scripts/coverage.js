@@ -102,7 +102,7 @@ function funktionsName(quelle, zeile) {
   const q = s.match(/^\s*['"]([^'"]+)['"]\s*:\s*(?:function\b|\([^)]*\)\s*=>)/);
   if (q) {
     for (let z = zeile - 1; z > 0 && z > zeile - 400; z--) {
-      const t = (quelle[z - 1] || '').match(/^\s*(?:const|let|var)\s+([\w$]+)\s*=/);
+      const t = (quelle[z - 1] || '').match(/^\s*(?:const|let|var)\s+([A-Z][A-Z0-9_]*)\s*=/);
       if (t) return t[1] + '.' + q[1];
     }
     return q[1];
