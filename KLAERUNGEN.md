@@ -1,8 +1,8 @@
-# Klärungsprotokoll pizza v3.0 (K-001 …)
+| U-21 ✅ (0d34810) || U-18 ✅ (0d34810) || U-16 ✅ (0d34810) || U-13 ✅ (0d34810) || U-06 ✅ (0d34810) || U-05 ✅ (0d34810) || U-04 ✅ (0d34810) || U-03 ✅ (0d34810) || U-02 ✅ (0d34810) || U-01 (optional) ✅ (0d34810) |# Klärungsprotokoll pizza v3.0 (K-001 …)
 
 Entscheidungsprotokoll des Klärungs-Agenten. Jede Klärung ist verbindlich und in `SPEC.md` §15 (bzw. §11.1)
 als Vertragstext eingearbeitet; Regressionstests liegen in `pruefstand/faelle/a10-klaerungen.js` (grün) und
-`pruefstand/faelle/a11-klaerungen-offen.js` (rot, bis die Umsetzungsaufträge erledigt sind).
+`pruefstand/faelle/a11-klaerungen-offen.js` (Fälle mit ausstehender Umsetzung; zählen nicht als Fehlschlag, derzeit leer).
 
 Leitlinien (in dieser Reihenfolge): (a) bestehendes, sinnvolles Interpreter-Verhalten bevorzugen, (b) Konsistenz
 mit Java-artigen Erwartungen und der Pizzeria-Metapher, (c) Portabilität für den Wasm-/EXE-Pfad, (d) Einfachheit.
@@ -78,8 +78,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   `alsZahl`: `"<text>" ist keine Zahl.`, `liesZahl`/`frageZahl`: `'<eingabe>' ist keine Zahl.`
 - **Begründung:** Portabilität (Rust-Laufzeit muss keine JS-`Number()`-Grammatik nachbauen), Konsistenz mit §1 und
   deutschem Dezimalkomma; Spiele lesen Zahlen auf einem Weg.
-- **Betroffen:** SPEC §11.1, §14.11, §15; Auftrag U-02 (Interpreter), U-07 (Doku).
-- **Status:** offen (Test a11).
+- **Betroffen:** SPEC §11.1, §14.11, §15; U-02 (Interpreter, umgesetzt in 0d34810), U-07 (Doku).
+- **Status:** fest (Tests a10).
 
 ### K-008 `liesZahl`/`frageZahl` am Eingabeende
 - **Frage:** `funghi x = Bestellannahme.frageZahl(…)` wirft bei EOF TypAnanas, weil `karton` nicht in `funghi` passt.
@@ -88,8 +88,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   zurückgegeben wird; ungültige Eingabe bleibt TypAnanas. Keine neue Ananas-Klasse.
 - **Begründung:** Java-artig (`getOrDefault`), eine Zeile für Spiele-Autoren, keine Sonderregel im Typsystem,
   keine zusätzliche Fehlerart im HOST-ABI. (`standard` ist ein Schlüsselwort, daher `ersatz`.)
-- **Betroffen:** SPEC §11.1; Auftrag U-03 (Interpreter), U-07 (Doku/Beispiele).
-- **Status:** offen (Test a11).
+- **Betroffen:** SPEC §11.1; U-03 (Interpreter, umgesetzt in 0d34810), U-07 (Doku/Beispiele).
+- **Status:** fest (Tests a10).
 
 ### K-009 Zeilen lesen: Trimmen, Umbruch, EOF, Prompt
 - **Entscheidung:** `lies()` liefert die Zeile unverändert (kein Trimmen), nur **ein** abschließendes `\n` bzw. `\r\n`
@@ -139,8 +139,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (plus ` (Zeile N)`, wenn bekannt), Exit 1.
   Motorspezifische Details kommen in ein **optionales Feld `detail`** (nicht in `.erwartet`, von Differenztests ignoriert).
 - **Begründung:** Vergleichbare Ereignisse über Motoren; Details bleiben für die Fehlersuche erhalten.
-- **Betroffen:** Interpreter (U-04), Host (U-12), Compiler/Laufzeit (U-11), Differenztests (U-14), ARCHITEKTUR §1 (Hinweis).
-- **Status:** offen.
+- **Betroffen:** Interpreter (U-04, umgesetzt in 0d34810), Host (U-12), Compiler/Laufzeit (U-11), Differenztests (U-14), ARCHITEKTUR §1 (Hinweis).
+- **Status:** fest (Interpreter), offen (Host, Compiler, Differenztests).
 
 ### K-015 `abbrechen`/`weiter` außerhalb einer Schleife
 - **Frage:** Heute beendet `abbrechen` in Methode/Lambda/Ofen still den Block (Wert `karton`); §4 schweigt.
@@ -149,8 +149,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   von `solange`/`für` oder im Arm einer `wähle`-**Anweisung**; `weiter` nur im Schleifenrumpf. Methoden-, Konstruktor-,
   Lambda- und Ofen-Rümpfe beginnen einen neuen Kontext (eine umgebende Schleife zählt nicht).
 - **Begründung:** Java-Verhalten, statisch prüfbar (gut für den Compiler), stilles Verschlucken ist eine Fehlerquelle.
-- **Betroffen:** Interpreter-Parser (U-05), `tests/differenz/korpus/kontrolle-ausserhalb-schleife.pizza` (U-15), Doku (U-07).
-- **Status:** offen (Test a11).
+- **Betroffen:** Interpreter-Parser (U-05, umgesetzt in 0d34810), `tests/differenz/korpus/kontrolle-ausserhalb-schleife.pizza` (U-15), Doku (U-07). Ergänzung für `wähle`-Ausdrücke: K-055.
+- **Status:** fest (Tests a10).
 
 ### K-016 Besitzprüfung ist syntaktisch; `schieb` für alle Typen
 - **Entscheidung:** BesitzAnanas nur, wenn die rechte Seite einer Deklaration/Zuweisung ein **Name oder Feldzugriff**
@@ -289,7 +289,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Entscheidung:** `auto` ist nur als Argument von `schneide(auto)` gültig; jede andere Verwendung des undeklarierten
   Namens → `LaufzeitAnanas: 'auto' ist nicht definiert.` Eine eigene Variable `auto` ist erlaubt und gewinnt.
 - **Begründung:** Kein Sentinel-Wert im Typsystem (Wasm-Laufzeit braucht keinen „Unbekanntes“-Typ).
-- **Betroffen:** Interpreter (U-21). **Status:** offen (Test a11).
+- **Betroffen:** Interpreter (U-21, umgesetzt in 0d34810). **Status:** fest (Test a10).
 
 ### K-039 Pizza-Methoden mit Text
 - **Entscheidung:** `p.hat("Tomate")` akzeptiert einen Belagnamen als Text (gleich `p.hat(Tomate)`); `p + "x"` ist
@@ -311,7 +311,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Entscheidung:** Hat ein Leseversuch EOF geliefert, liefern alle weiteren EOF – in jedem Motor. Ein `null`-Eintrag in
   `optionen.eingabe` bedeutet EOF ab dieser Stelle (spätere Einträge werden ignoriert). `hatMehr()` nach EOF → `nein`.
 - **Begründung:** EINGABE.md §1 („nach EOF erneut → wieder karton“), Host-stdin verhält sich so.
-- **Betroffen:** Interpreter (U-16). **Status:** offen (Test a11).
+- **Betroffen:** Interpreter (U-16, umgesetzt in 0d34810). **Status:** fest (Test a10).
 
 ### K-043 Host-Ladefehler
 - **Entscheidung:** Kann ein Host ein `.pkarton` nicht laden (ungültig, falsche ABI-Version), sendet er
@@ -344,7 +344,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   ganze ms (`0.5ms` → 1, `0.4ms` → 0); `schritte` und `zeitMs` sind stets Ganzzahlen; Budgets sind `floor(...)`
   (Ofen bereits, Lieferung: `floor(max_ms × Faktor)`). Dauer-Werte selbst bleiben Kommazahlen (`10s / 3`).
 - **Begründung:** Portabel (i64-Zähler), vergleichbar, §14.2 spricht von „Uhr-Millisekunden“.
-- **Betroffen:** Interpreter (U-18), Host-JSON (U-12). **Status:** offen (Test a11).
+- **Betroffen:** Interpreter (U-18, umgesetzt in 0d34810), Host-JSON (U-12). **Status:** fest (Test a10), offen (Host).
 
 ### K-048 Rundungsformel
 - **Entscheidung (präzisiert §14.11):** `x.runden()`/`Mathe.runden(x)` = `sign(x) · round(|x|)` (half away from zero, keine
@@ -382,7 +382,18 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 
 ### K-054 `leeren` im Terminal
 - **Entscheidung:** CLI und Host senden bei TTY `\x1b[2J\x1b[3J\x1b[H` (löscht auch den Scrollback); ohne TTY nichts.
-- **Betroffen:** bin/pizza.js (U-13). **Status:** offen (kosmetisch).
+- **Betroffen:** bin/pizza.js (U-13, umgesetzt in 0d34810), Host (U-12). **Status:** fest (CLI), offen (Host).
+
+### K-055 `abbrechen`/`weiter` im Block-Arm eines `wähle`-Ausdrucks
+- **Frage:** K-015 erlaubt `abbrechen` im Arm einer `wähle`-**Anweisung** (verlässt das `wähle`). Gilt das auch für
+  Block-Arme eines `wähle`-**Ausdrucks**, der innerhalb einer Schleife steht?
+- **Entscheidung (Vorschlag Interpreter-Agent, bestätigt):** Nein. Block-Arme eines `wähle`-Ausdrucks beginnen – wie
+  Lambda- und Ofen-Rümpfe – einen **neuen Kontext**: `abbrechen`/`weiter` dort → P0012, auch wenn der Ausdruck in einer
+  Schleife steht. Den Wert liefert `serviere (x);` (§14.5).
+- **Begründung:** Ein Ausdruck muss einen Wert liefern; ein stilles `karton` durch `abbrechen` wäre genau das, was K-015
+  abschafft. Die Anweisungsform bleibt wie bei Java-`switch` (break verlässt das switch). Konsistent mit K-015, da dort
+  „Kontextgrenze = alles, was einen Wert produziert“ gilt (Lambda, Ofen, wähle-Ausdruck).
+- **Betroffen:** SPEC §15.3 (K-015 ergänzt), Doku (U-07). **Status:** fest (Test a10).
 
 ---
 
@@ -428,9 +439,7 @@ streichen) · 20:stuecke-ownership (Prüfung syntaktisch K-016, `p + X` wieder 8
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
-- Stand des letzten Prüfstand-Laufs: alle 13 a11-Fälle (K-007, K-008, K-015, K-038, K-042, K-047) werden mit der **uncommitteten** Arbeitskopie von `site/js/pizza.js` bereits grün gemeldet – sobald der Interpreter-Agent committet hat, die Fälle nach a10 verschieben und die Status in diesem Protokoll/SPEC §15 auf „fest“ setzen.
-- Die Prüfstand-Gruppe „§15 Klärungen – Umsetzung offen“ (a11) ist absichtlich rot (derzeit 1/10 grün), bis U-02, U-03
-  und U-05 umgesetzt sind; danach die Fälle nach a10 verschieben.
+- Interpreter-Commit 0d34810 setzt U-01…06, 13, 16, 18, 21 um; die 13 a11-Fälle wurden nach a10 verschoben, a11 ist leer (Konvention bleibt).
 - Von den im Auftrag genannten Beispielen waren Pizza-Literal, W0032, Panik-Banner, Schrittzählung, Zahlformatierung,
   Blech-Mutation und `karton` je Typ bereits in SPEC §14 (Interpreter-Agent) geklärt; dieses Protokoll bestätigt und
   ergänzt sie (K-001, K-002, K-005, K-010, K-017, K-030) und fügt die neuen Punkte aus EINGABE/HOST-ABI hinzu.
