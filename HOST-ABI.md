@@ -33,6 +33,7 @@ Der Host muss die Bytes **während des Aufrufs** kopieren/dekodieren (Speicher k
 | `eingabe` | `(art i32, prompt_ptr i32, prompt_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | siehe unten; Host emittiert danach `{ typ: "eingabe", text }` |
 | `ui_senden` | `(ptr i32, len i32) -> ()` | Theke (THEKE.md §3): UTF-8-JSON an den Renderer; Ereignis `{ typ: "ui", nachricht }` |
 | `ui_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | Theke: nächstes Renderer-Ereignis (UTF-8-JSON), siehe unten |
+| `echtzeit_ms` | `() -> f64` | Wanduhr: ms seit 1970-01-01 (ganze ms) für `Uhr.echt()` (K-087) |
 | `vorrat_lesen` | `(name_ptr i32, name_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | Vorratskammer: gespeicherten Inhalt lesen (K-081), siehe unten |
 | `vorrat_schreiben` | `(name_ptr i32, name_len i32, json_ptr i32, json_len i32, ereignis_ptr i32, ereignis_len i32) -> i32` | Vorratskammer: Änderung melden + speichern; Ereignis `{ typ: "vorrat", name, schluessel, wert }` |
 
@@ -42,6 +43,8 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Basis (immer):** `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler`, `panik`, `eingabe`.
 - **Gruppe `theke`:** `ui_senden`, `ui_warte` – nur wenn das Programm die Theke benutzt (`neu Theke/Schild/…`).
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
+- **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
+  (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
 
 Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["theke", "vorrat"]`.
