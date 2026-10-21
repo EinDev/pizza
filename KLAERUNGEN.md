@@ -976,6 +976,45 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Betroffen:** Compiler/Laufzeit (U-66: Kartonkopie von Rohling/Sicht, Wachen-Reihenfolge, Stück-P0002-Summe), Doku (U-65,
   Hinweis). **Status:** fest; Interpreter entspricht (72cb857, f29baa7, 8f922fd).
 
+### K-102 Küchenbrigade im Wasm: Umsetzungsentscheidungen und Vertragslücken aus P2 (U-66)
+- **Frage:** THREADS.md §4.3–§4.5 ließ beim Wasm-Motor einige Punkte offen bzw. als Entwurf. Entscheidung des Compiler-Agenten
+  (Ergebnis bitgleich zum Interpreter auf allen `kueche-*`, a14 und dem Korpus; Interpreter-Referenz unverändert):
+  1. **Inline-Pfad** (`kueche_auftrag` → `-1`): Stücke laufen nacheinander mit demselben Code und demselben Zustands-Reset wie
+     in einem Klon (`kueche_stueck`); jeder Bericht wird hinter die Heap-Grenze gerettet, **zusammengeführt wird erst nach dem
+     letzten (bzw. ersten abbrechenden) Stück** – nicht nach jedem Bericht (THREADS §4.4 Punkt 4), weil der Reset sonst das
+     Warnungsgedächtnis des Zusammenführens (D5) zurückdrehen würde. Beobachtbar ist das nicht (D4: Ereignisse vor der Rückkehr).
+  2. **Innere Brigaden** (in einem Stück) laufen immer im Modul; `kueche_auftrag` kommt nur aus der Hauptküche, nie
+     verschachtelt (erlaubt nach SPEC §17.1 „Hosts dürfen innere Brigaden sequentiell ausführen“).
+  3. Stücknummern in `kueche_stueck`/`kueche_bericht` sind **1 … n**. `kueche_stueck` erzeugt der Compiler (multi-value-Hülle um
+     `rt_kueche_stueck`/`rt_kueche_laenge`; der C-ABI von Rust kennt keine Mehrfachrückgabe) und exportiert es nur mit Gruppe
+     `kueche`. Die Gruppe wird syntaktisch erkannt (`….brigade(…)`/`….brigade`); eine eigene Methode `brigade` importiert sie
+     ebenfalls (harmlos). Ohne Gruppe liefern die Linker-Stubs `-1` → Inline-Pfad.
+  4. **Zustand der Hauptküche** (THREADS §4.4 Punkt 6, Variante (c) verallgemeinert): beim Anschnitt wird der ganze veränderliche
+     statische Bereich der Laufzeit `[STATISCH_START, __heap_base)` (.data/.bss, derzeit 640 Bytes; der Linker setzt
+     `STATISCH_START` per Datensegment, `laufzeit/baue.js` ermittelt ihn) in den Auftrag kopiert und vor jedem Stück
+     zurückgeschrieben (dazu `HEAP_TOP := Grenze`, Klassenzähler, `tot`-Flags der Rahmen, W0003-Flags). Wachsende Laufzeitstrukturen
+     (Lieferungen, Warnungen, Namen, Rahmen, Kühlschrank …) fallen damit automatisch auf ihren Stand beim Anschnitt zurück.
+     Wo die Laufzeit sonst *lesend* in Hauptküchen-Objekte schriebe, tut sie es in einer Küche nicht: Kühlschrank copy-on-write
+     (D12), kein nachträglicher Hashindex einer Speisekarte, keine Namens-ID-Merker in Texten der Hauptküche.
+  5. **Kartonformat:** `PKF1` (HOST-ABI Anhang A) enthält ein Tag „fest“ (Bits eines unveränderlichen Werts, der beim Anschnitt
+     schon existierte) – gültig nur zwischen Instanzen mit demselben Schnappschuss. Das Format ist daher laufzeitintern und
+     **nicht** das zwischen Interpreter und Laufzeit geteilte Format aus THREADS §4.3; P8 (Interpreter-Köche) braucht ein
+     eigenes, namensbasiertes Format. Berichte (Status, sᵢ, dᵢ, cᵢ, Lieferungen, Ananas-Zähler, Ereignisse, Nutzlast) ebenda.
+  6. **D13:** Jedes Stück darf `min(Restspeicher beim Anschnitt, 256 MiB)` neu belegen, gemessen ab der Heap-Spitze beim
+     Stückbeginn (Inline-Pfad: hinter den geretteten Berichten) – in beiden Pfaden derselbe Betrag.
+  7. **Trap** in einem Stück auf dem Inline-Pfad beendet den Lauf wie jeder Trap (K-014, interner Fehler, Exit 1); „Trap im
+     Klon → Abbruch dieses Stücks“ (THREADS §4.5) gilt nur für Klone (P3/P4).
+  8. Die „Schnappschuss-Invarianz im Debug-Build“ (THREADS §5 Punkt 6) entfällt vorerst: Freie Kapazität von Vektoren, die
+     Text-Anhänge-Arena und der Argumentstapel liegen unterhalb der Grenze und werden von Stücken legitim beschrieben (nur
+     ungenutzte Bytes). Ersatz: `tests/wasm/klon-host.js` führt jedes Brigade-Programm des Korpus zusätzlich mit echten
+     Klon-Instanzen (Speicherkopie) in drei Planungen aus (vor, rückwärts mit wiederverwendetem Klon, je Stück ein Klon) –
+     identisch zum Interpreter.
+  9. Nebenbei: Zuweisungen an „Feld oder globale Variable“ gleichen Namens (unqualifiziert in einer Methode) kompilieren jetzt
+     (bisher Fallback „mehrdeutig“; nötig für `beispiele/pizzafunktionen/kuechenbrigade.pizza` im reinen Wasm-Modus).
+- **Festgehalten:** HOST-ABI §2/§3/§6 + Anhang A (Gruppe `kueche` endgültig, `abi_version` bleibt 1), IR.md §1/§6a/§7.
+- **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
+  bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅).
+
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -1047,7 +1086,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-63 ✅ (72cb857, f29baa7, 8f922fd) | `site/js/pizza.js`, `tests/faelle/kueche-*`, `tests/run-tests.js` (Interpreter-Agent, THREADS P1) | K-097 … K-099: `brigade`, `KüchenAnanas` (am Ende von `ANANAS_BAUM`), Einfrieren + Wachen, Kartonkopie, Zusammenführen D1–D15, Optionen `koeche` (ignoriert) und `kuechenChaos`; Abnahme durch den Klärungs-Agenten: Lücken in K-101 festgeschrieben, `a14-kueche-offen.js` → `a14-kueche.js` | a14 (alle Fälle grün) |
 | U-64 ✅ (37c88f2) | `site/js/pizzaiolo/frontend.js` (Compiler-Agent, P1b) | K-100: `brigade`/`KüchenAnanas` → `nichtUnterstuetzt` (Auto fällt auf den Interpreter zurück) | tests/wasm |
 | U-65 | `site/js/doku/20-pizzafunktionen.js`, `site/beispiele/pizzafunktionen/kuechenbrigade.pizza` (Doku-/Beispiel-Agent, P1c) | SPEC §17 erklären (Teilsummen, Uhr `belege` vs. `brigade`, gefangene KüchenAnanas); Doku-Blöcke laufen im Prüfstand | Prüfstand Doku/Beispiele |
-| U-66 | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-098 … K-101: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen | tests/differenz `kueche-*` |
+| U-66 ✅ (70f05a8 ff.) | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-098 … K-101: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen – Umsetzungsentscheidungen in K-102 | tests/differenz `kueche-*`, tests/wasm (Klon-Host) |
 | U-67 | `site/js/pizzaiolo/host-js.js`, `pizzaiolo.js`, `koch.js` (Compiler-Agent, P3) | K-100: `kuechenPool`, Klon-Instanzen, SAB-Protokoll, Option `koeche`, `kuechenChaos` | Differenz `wasm` vs. `wasm-koeche4` |
 | U-68 | `host/**` (Native-Host-Agent, P4) | K-100: Gruppe `kueche`, `--koeche=N`, `--info` `Köche: N`, Koch-Stapel wie Hauptthread | Differenz `host-koeche4`, CI-Smoke |
 | U-69 | `site/js/worker.js`, `ui/**` (UI-Agent, P5) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
