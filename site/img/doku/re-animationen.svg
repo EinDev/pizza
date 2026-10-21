@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Die sechs Animationen puls, huepfen, wackeln, funkeln, einblenden und aufpoppen als kleine Kacheln mit ihren Standarddauern. Rechts steigt ein schwebender Text +12 über einem Knopf auf und verblasst. Unten: rein visuell, das Programm läuft gleich weiter.</title>
+
+  <g font-size="15" fill="#2F2A26" text-anchor="middle">
+    <!-- Kacheln -->
+    <g fill="#FFF6E0" stroke="#2F2A26" stroke-width="2">
+      <rect x="20" y="20" width="128" height="140" rx="10"/>
+      <rect x="160" y="20" width="128" height="140" rx="10"/>
+      <rect x="300" y="20" width="128" height="140" rx="10"/>
+      <rect x="20" y="172" width="128" height="140" rx="10"/>
+      <rect x="160" y="172" width="128" height="140" rx="10"/>
+      <rect x="300" y="172" width="128" height="140" rx="10"/>
+    </g>
+
+    <!-- puls: kurz größer, dann zurück -->
+    <rect x="46" y="54" width="76" height="40" rx="7" fill="none" stroke="#D9452B" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="50" y="58" width="68" height="32" rx="6" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <text x="84" y="80" font-weight="700">42 €</text>
+    <path d="M40,50 l-6,-6 M128,50 l6,-6 M40,98 l-6,6 M128,98 l6,6" stroke="#D9452B" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- huepfen: hoch und zurück -->
+    <rect x="189" y="76" width="70" height="26" rx="13" fill="none" stroke="#C8955A" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="189" y="46" width="70" height="26" rx="13" fill="#D9452B" stroke="#2F2A26" stroke-width="2"/>
+    <text x="224" y="64" font-size="13" font-weight="700" fill="#FFF6E0">Backen!</text>
+    <ellipse cx="224" cy="114" rx="26" ry="4" fill="#E8C48A"/>
+    <path d="M272,96 L272,52 M266,58 L272,50 L278,58" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- wackeln: seitlich hin und her -->
+    <rect x="323" y="58" width="70" height="26" rx="13" fill="none" stroke="#C8955A" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="335" y="58" width="70" height="26" rx="13" fill="none" stroke="#C8955A" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="329" y="58" width="70" height="26" rx="13" fill="#D9452B" stroke="#2F2A26" stroke-width="2"/>
+    <text x="364" y="76" font-size="13" font-weight="700" fill="#FFF6E0">Nein!</text>
+    <path d="M314,100 L330,100 M320,94 L314,100 L320,106 M414,100 L398,100 M408,94 L414,100 L408,106" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- funkeln: goldenes Leuchten mit Funken -->
+    <rect x="44" y="208" width="80" height="40" rx="9" fill="#F2B33D" opacity="0.35"/>
+    <rect x="50" y="212" width="68" height="32" rx="6" fill="#E8C48A" stroke="#F2B33D" stroke-width="3"/>
+    <text x="84" y="234" font-weight="700">Jackpot</text>
+    <g fill="#F2B33D" stroke="#2F2A26" stroke-width="1">
+      <path d="M44,196 l3,7 l7,3 l-7,3 l-3,7 l-3,-7 l-7,-3 l7,-3 z"/>
+      <path d="M126,250 l2.5,6 l6,2.5 l-6,2.5 l-2.5,6 l-2.5,-6 l-6,-2.5 l6,-2.5 z"/>
+      <path d="M124,190 l2,4.5 l4.5,2 l-4.5,2 l-2,4.5 l-2,-4.5 l-4.5,-2 l4.5,-2 z"/>
+    </g>
+
+    <!-- einblenden: neue Zeile erscheint von unten -->
+    <rect x="186" y="196" width="76" height="22" rx="5" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+    <text x="224" y="212" font-size="13">Margherita</text>
+    <g opacity="0.4">
+      <rect x="186" y="232" width="76" height="22" rx="5" fill="#E8C48A" stroke="#C8955A" stroke-width="2"/>
+      <text x="224" y="248" font-size="13">Funghi</text>
+    </g>
+    <path d="M274,262 L274,234 M268,240 L274,232 L280,240" fill="none" stroke="#2F2A26" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- aufpoppen: klein, etwas zu groß, dann normal -->
+    <rect x="322" y="200" width="84" height="56" rx="14" fill="none" stroke="#D9452B" stroke-width="2" stroke-dasharray="5 4"/>
+    <rect x="326" y="204" width="76" height="48" rx="12" fill="#3E8E41" stroke="#2F2A26" stroke-width="2"/>
+    <text x="364" y="226" font-size="13" font-weight="700" fill="#FFF6E0">Erfolg!</text>
+    <text x="364" y="244" font-size="12" fill="#FFF6E0">10 Pizzen</text>
+
+    <!-- Beschriftungen -->
+    <text x="84" y="146" font-size="14" font-weight="700">puls <tspan font-weight="400" font-size="12">400 ms</tspan></text>
+    <text x="224" y="146" font-size="14" font-weight="700">huepfen <tspan font-weight="400" font-size="12">350 ms</tspan></text>
+    <text x="364" y="146" font-size="14" font-weight="700">wackeln <tspan font-weight="400" font-size="12">400 ms</tspan></text>
+    <text x="84" y="298" font-size="14" font-weight="700">funkeln <tspan font-weight="400" font-size="12">800 ms</tspan></text>
+    <text x="224" y="298" font-size="14" font-weight="700">einblenden <tspan font-weight="400" font-size="12">300 ms</tspan></text>
+    <text x="364" y="298" font-size="14" font-weight="700">aufpoppen <tspan font-weight="400" font-size="12">450 ms</tspan></text>
+
+    <!-- schwebe -->
+    <rect x="442" y="20" width="178" height="292" rx="10" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+    <text x="531" y="46" font-weight="700">schwebe <tspan font-weight="400" font-size="13">1 s</tspan></text>
+    <text x="531" y="88" font-size="22" font-weight="800" fill="#3E8E41" opacity="0.2">+12</text>
+    <text x="531" y="132" font-size="22" font-weight="800" fill="#3E8E41" opacity="0.5">+12</text>
+    <text x="531" y="176" font-size="22" font-weight="800" fill="#3E8E41">+12</text>
+    <path d="M582,180 L582,80 M576,88 L582,78 L588,88" fill="none" stroke="#2F2A26" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="486" y="200" width="90" height="34" rx="17" fill="#D9452B" stroke="#2F2A26" stroke-width="2"/>
+    <text x="531" y="222" font-weight="700" fill="#FFF6E0">Backen!</text>
+    <text x="531" y="266" font-size="13">steigt über dem Knopf</text>
+    <text x="531" y="284" font-size="13">auf und verblasst</text>
+
+    <!-- Fußzeile -->
+    <text x="320" y="342" font-size="14">Rein visuell: kein Ereignis, keine Wartezeit – der Knopf bleibt klickbar.</text>
+  </g>
+</svg>

@@ -883,12 +883,12 @@
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)` und `stil(schlüssel, wert)`. Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung` **ersetzt** den alten Rückruf." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung` **ersetzt** den alten Rückruf." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
               zeilen: [
-                ["`Theke`", "das Fenster", "`neu Theke(titel, breite: 480, hoehe: 360)`", "`zeige(zutat)`, `bediene()`, `schliesse()`, `setzeTitel(t)`"],
+                ["`Theke`", "das Fenster", "`neu Theke(titel, breite: 480, hoehe: 360)`", "`zeige(zutat)`, `bediene()`, `schliesse()`, `setzeTitel(t)`, `schwebe(text, bei)`"],
                 ["`Schild`", "Text zum Anzeigen", "`neu Schild(text)`", "`text()`, `setzeText(t)`"],
                 ["`Knopf`", "Knopf zum Klicken", "`neu Knopf(text)` oder `neu Knopf(text, () -> { … })`", "`text()`, `setzeText(t)`, `beiKlick(fn)`, `aktiv(ja/nein)`"],
                 ["`Eingabe`", "einzeiliges Textfeld", "`neu Eingabe(wert: \"\", platzhalter: \"\")`", "`wert()`, `setzeWert(t)`, `beiAenderung(fn)` (bekommt den Text), `beiEnter(fn)`"],
@@ -952,6 +952,86 @@
             },
             { art: "ausgabe", text: "Fertig nach 3 s" },
             { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Animationen: hüpfen, funkeln, schweben",
+          inhalt: [
+            { art: "text", md: "Ein bisschen Bewegung macht ein Spiel lebendig: Der Knopf hüpft, die Kasse pulsiert, über dem Knopf steigt „+1“ auf. Animationen sind **rein visuell** – sie ändern nichts am Ablauf deines Programms: kein Ereignis, keine Wartezeit, kein Einfluss auf Variablen oder Uhr. Ein hüpfender Knopf bleibt klickbar, und dein Programm macht genau dasselbe wie ohne Animation." },
+            { art: "bild", src: "img/doku/re-animationen.svg", alt: "Sechs Kacheln: puls (ein Schild wird kurz größer, 400 ms), huepfen (ein Knopf springt hoch, 350 ms), wackeln (ein Knopf wackelt seitlich, 400 ms), funkeln (ein Schild leuchtet golden mit Funken, 800 ms), einblenden (eine neue Zeile erscheint von unten, 300 ms), aufpoppen (ein Erfolg springt aus klein auf volle Größe, 450 ms). Rechts steigt ein grünes +12 über einem Knopf auf und verblasst (schwebe, 1 s). Unten: rein visuell, kein Ereignis, keine Wartezeit, der Knopf bleibt klickbar.", unterschrift: "Sechs Arten für `animiere` und der Schwebetext von `schwebe` – mit ihren Standarddauern." },
+            {
+              art: "tabelle",
+              kopf: ["Methode", "an", "Was passiert"],
+              zeilen: [
+                ["`animiere(art, dauer)`", "jeder Zutat", "spielt die Animation einmal ab; `dauer` ist freiwillig. Gibt die Zutat zurück (verkettbar)."],
+                ["`schwebe(text, bei, farbe, dauer)`", "der `Theke`", "lässt `text` über der Zutat `bei` aufsteigen und verblassen – ohne `bei` in der Fenstermitte. `farbe` wie beim Stil (`tomate`, `basilikum`, `mozzarella`, `kruste`, `normal`). Nur `text` ist nötig; gibt die Theke zurück."],
+                ["`uebergang(ja)`", "jeder Zutat", "schaltet weiches Ein- und Ausblenden ein: `sichtbar(…)` blendet über, und in `Stapel`, `Reihe` und `Abschnitt` blenden **neu hinzugefügte** Zutaten ein. `uebergang()` liest den Wert (Standard `nein`)."]
+              ]
+            },
+            {
+              art: "tabelle",
+              kopf: ["Animation", "Wirkung", "Standarddauer"],
+              zeilen: [
+                ["`puls`", "kurz etwas größer, dann zurück – z. B. die Kasse nach einem Verkauf", "400 ms"],
+                ["`huepfen`", "springt ein Stück hoch und landet wieder", "350 ms"],
+                ["`wackeln`", "wackelt seitlich – „das geht gerade nicht“", "400 ms"],
+                ["`funkeln`", "leuchtet golden mit ein paar Funken – für Glückstreffer", "800 ms"],
+                ["`einblenden`", "erscheint sanft von unten – für neue Zeilen", "300 ms"],
+                ["`aufpoppen`", "springt aus klein auf volle Größe – für Erfolge", "450 ms"],
+                ["`schwebe`", "Text steigt auf und verblasst", "1 s"],
+                ["`uebergang`", "weiches Ein- und Ausblenden", "200 ms"]
+              ]
+            },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "z2" }, { typ: "klick", id: "z2" }, { typ: "klick", id: "z2" }],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "salami pizzen = 0;",
+                "Schild kasse = neu Schild(\"0 Pizzen\").stil(\"schrift\", \"gross\");",
+                "Knopf backen = neu Knopf(\"Backen!\", () -> {",
+                "    pizzen++;",
+                "    kasse.setzeText((pizzen + \" Pizzen\")).animiere(\"puls\");",
+                "    backen.animiere(\"huepfen\");",
+                "    theke.schwebe(\"+1\", bei: backen, farbe: \"basilikum\");",
+                "    falls (pizzen == 3) { kasse.animiere(\"funkeln\", 1s); }",
+                "});",
+                "theke.zeige(neu Stapel([kasse, backen]));",
+                "theke.bediene();",
+                "Bote.sage((\"Gebacken: \" + pizzen));"
+              )
+            },
+            { art: "ausgabe", text: "Gebacken: 3" },
+            { art: "text", md: "Bei jedem Klick pulsiert die Kasse, der Knopf hüpft, und ein grünes „+1“ schwebt über ihm hoch. Beim dritten Klick funkelt die Kasse eine Sekunde lang. Die Ausgabe ist dieselbe wie ganz ohne Animationen." },
+            { art: "text", md: "**Regeln im Überblick:**\n\n- Die Art ist genau einer der sechs Namen oben (Groß-/Kleinschreibung zählt). Sonst: `LaufzeitAnanas: Animation 'tanzen' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.`\n- `dauer` ist eine Dauer von **50 ms bis 5 s**. Zu kurz oder zu lang: `LaufzeitAnanas: Eine Animation dauert 50ms bis 5s, nicht 10s.` Eine Zahl statt einer Dauer: `TypAnanas: animiere(dauer: …) braucht eine Dauer, nicht 300.` Ohne `dauer` gilt die Standarddauer der Art.\n- Alle Parameter gehen auch benannt: `knopf.animiere(\"wackeln\", dauer: 200ms)`, `theke.schwebe(\"+12\", bei: knopf, farbe: \"basilikum\")`.\n- `bei` muss eine Zutat sein (sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`), `farbe` einer der Farbwerte vom Stil.\n- Eine neue Animation an derselben Zutat ersetzt die laufende; mehrere Schwebetexte dürfen gleichzeitig steigen. Die anderen Zutaten verrutschen dabei nie.\n- Ein `Fortschritt` gleitet immer weich zum neuen Wert – dafür brauchst du kein `uebergang`." },
+            { art: "hinweis", ton: "info", md: "**W0102:** Ist die Theke gerade nicht offen (noch nichts gezeigt oder schon geschlossen) oder liegt die Zutat nicht auf der gezeigten Theke, fällt die Animation einfach aus – mit einer Warnung statt eines Fehlers: `W0102: Animation entfällt – die Theke ist nicht offen.` bzw. `W0102: Animation entfällt – 'z3' liegt nicht auf der Theke.` Dein Programm läuft weiter; ein Spiel kann so nach dem Schließen des Fensters noch in Ruhe speichern. Falsche Argumente (unbekannte Art, Dauer außerhalb von 50 ms bis 5 s) sind dagegen immer eine Ananas." },
+            { art: "text", md: "**Weiche Übergänge:** Mit `uebergang(ja)` an einem Stapel blendet jede neu hinzugefügte Zeile sanft ein; an einer Zutat blendet `sichtbar(ja)`/`sichtbar(nein)` über, statt hart umzuschalten." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "z3" }, { typ: "klick", id: "z3" }, { typ: "klick", id: "z3" }, { typ: "klick", id: "z3" }, { typ: "klick", id: "z3" }],
+              code: z(
+                "Theke theke = neu Theke(\"Bestellungen\");",
+                "Stapel liste = neu Stapel([]).uebergang(ja);",
+                "Schild lob = neu Schild(\"Fünf Bestellungen!\").sichtbar(nein);",
+                "salami n = 0;",
+                "Knopf neue = neu Knopf(\"Neue Bestellung\", () -> {",
+                "    n++;",
+                "    liste.hinzu(neu Schild((\"Bestellung \" + n)));",
+                "    falls (n == 5) { lob.sichtbar(ja).animiere(\"aufpoppen\"); }",
+                "});",
+                "theke.zeige(neu Stapel([neue, liste, lob]));",
+                "theke.bediene();",
+                "Bote.sage((n + \" Bestellungen, Übergang: \" + liste.uebergang()));"
+              )
+            },
+            { art: "ausgabe", text: "5 Bestellungen, Übergang: ja" },
+            { art: "text", md: "Jede neue Bestellung gleitet in die Liste; bei der fünften erscheint das Lob und poppt auf." },
+            { art: "text", md: "**Weniger Bewegung:** Hast du im Betriebssystem „Animationen reduzieren“ bzw. „Bewegung reduzieren“ eingeschaltet, bewegt sich nichts: `puls`, `huepfen`, `wackeln`, `einblenden`, `aufpoppen` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, ein Schwebetext steht für seine Dauer still da (die Information bleibt), und ein `Fortschritt` springt direkt zum neuen Wert. Das gilt im Playground und im heruntergeladenen Programm gleich." }
           ]
         },
         {
