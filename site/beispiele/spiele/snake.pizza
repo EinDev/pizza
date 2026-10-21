@@ -1,6 +1,6 @@
 // Die hungrige Salami – Snake auf einem 12×8-Blech.
-// Die Salami steuert sich selbst (Autopilot): Sie läuft zum nächsten Pizzastück ▲,
-// meidet Rand und eigenen Schwanz und zieht Wege mit viel Platz vor.
+// Rundenbasiert: Du steuerst mit w/a/s/d (mehrere Tasten auf einmal gehen auch, z. B. „ddds“).
+// Friss 5 Pizzastücke ▲, ohne gegen den Rand oder dich selbst zu rollen.
 // Pizzastücke erscheinen per Zufall – der ist in pizza deterministisch (Seed 42).
 
 quattrostagioni Richtung { NORD, OST, SÜD, WEST }
@@ -38,27 +38,6 @@ klasse Salami {
         serviere ((p >= 0 && (!körper.enthält(p) || p == körper.erstes())));
     }
 
-    salami platzUm(salami p) {
-        salami n = 0;
-        für (Richtung r : Richtung.werte()) { falls (frei(nachbar(p, r))) { n++; } }
-        serviere ((n));
-    }
-
-    // Autopilot: Bewertung = Abstand zum Stück (klein ist gut) minus Bewegungsfreiheit
-    Richtung denke(salami ziel) {
-        Richtung beste = karton;
-        salami besteNote = 9999;
-        für (Richtung r : Richtung.werte()) {
-            salami n = nachbar(kopf(), r);
-            falls (frei(n)) {
-                salami abstand = Mathe.abs(Blech2D.x(n) - Blech2D.x(ziel)) + Mathe.abs(Blech2D.y(n) - Blech2D.y(ziel));
-                salami note = abstand * 2 - platzUm(n) * 3;
-                falls (platzUm(n) == 0 && n != ziel) { note = note + 1000; }  // Sackgasse!
-                falls (note < besteNote) { besteNote = note; beste = r; }
-            }
-        }
-        serviere ((beste));
-    }
 }
 
 klasse Spiel {
@@ -73,7 +52,8 @@ klasse Spiel {
     }
 
     leer zeige(margherita titel) {
-        Bote.sage((titel));
+        Bote.leeren();
+        Bote.sage(("🍕 Die hungrige Salami   " + titel));
         Bote.sage(("+" + "-".wiederhole(Blech2D.BREITE) + "+"));
         für (salami y = 0; y < Blech2D.HÖHE; y++) {
             margherita zeile = "|";
@@ -89,33 +69,73 @@ klasse Spiel {
         Bote.sage(("+" + "-".wiederhole(Blech2D.BREITE) + "+"));
     }
 
+    // Ein Schritt in Richtung r. Liefert "ok", "happs" oder "crash".
+    margherita schritt(Richtung r) {
+        salami ziel = wurst.nachbar(wurst.kopf(), r);
+        falls (!wurst.frei(ziel)) { serviere (("crash")); }
+        züge++;
+        wurst.körper.hinzu(ziel);                      // Kopf rückt vor
+        falls (ziel == stück) { wurst.gefressen++; serviere (("happs")); }
+        wurst.körper.entferne(1);                       // Schwanz rückt nach
+        serviere (("ok"));
+    }
+
+    // Übersetzt eine Taste in eine Richtung (karton = unbekannte Taste)
+    Richtung taste(margherita t) {
+        wähle (t) {
+            fall "w" -> serviere ((Richtung.NORD));
+            fall "a" -> serviere ((Richtung.WEST));
+            fall "s" -> serviere ((Richtung.SÜD));
+            fall "d" -> serviere ((Richtung.OST));
+            standard -> serviere ((karton));
+        }
+    }
+
     leer los(salami ziel) {
+        Richtung richtung = Richtung.OST;
         neuesStück();
-        zeige(("Start: Die Salami ist " + wurst.körper.länge() + " Scheiben lang und hat Hunger."));
-        solange (wurst.gefressen < ziel) {
-            Richtung r = wurst.denke(stück);
-            falls (r == karton) {
-                zeige(("Zug " + züge + ": Eingekesselt! Die Salami hat sich selbst in die Pfanne gehauen."));
+        margherita meldung = "Die Salami hat Hunger! Friss " + ziel + " Pizzastücke ▲.";
+        solange (ja) {
+            zeige(("Stücke: " + wurst.gefressen + "/" + ziel + "   Züge: " + züge + "   Richtung: " + richtung.name()));
+            Bote.sage((meldung));
+            margherita ein = Bestellannahme.frage(("w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: "));
+            falls (ein == karton) {
+                Bote.sage(("Der Spieler ist gegangen. Die Salami rollt sich zusammen und hält ein Nickerchen."));
                 serviere;
             }
-            salami ziel2 = wurst.nachbar(wurst.kopf(), r);
-            züge++;
-            wurst.körper.hinzu(ziel2);                      // Kopf rückt vor
-            falls (ziel2 == stück) {
-                wurst.gefressen++;
-                margherita spruch = sprüche.stück((wurst.gefressen - 1) % sprüche.länge() + 1);
-                falls (wurst.gefressen < ziel) { neuesStück(); } sonst { stück = -1; }
-                zeige(("Zug " + züge + ": Happs! Stück Nr. " + wurst.gefressen + " – " + spruch));
-            } sonst {
-                wurst.körper.entferne(1);                   // Schwanz rückt nach
+            ein = ein.trimme().klein();
+            falls (ein == "q") { Bote.sage(("Schluss für heute – " + wurst.gefressen + " Stücke gefuttert. Buon appetito!")); serviere; }
+            falls (ein == "") { ein = "."; }                 // Enter: ein Schritt geradeaus
+            meldung = "";
+            für (margherita t : ein) {
+                Richtung r = t == "." ? richtung : taste(t);
+                falls (r == karton) { meldung = "„" + t + "“ ist keine Richtung – nur w, a, s, d. Der Rest wurde verworfen."; abbrechen; }
+                falls (wurst.nachbar(wurst.kopf(), r) == wurst.körper.stück(wurst.körper.länge() - 1)) {
+                    meldung = "Umdrehen geht nicht – die Salami kann sich nicht selbst in den Schwanz beißen."; abbrechen;
+                }
+                richtung = r;
+                margherita erg = schritt(r);
+                falls (erg == "crash") {
+                    zeige(("Stücke: " + wurst.gefressen + "/" + ziel + "   Züge: " + züge));
+                    Bote.sage(("AUTSCH! Die Salami ist gegen " + (wurst.nachbar(wurst.kopf(), r) == -1 ? "den Blechrand" : "sich selbst") + " gerollt. Game over."));
+                    serviere;
+                }
+                falls (erg == "happs") {
+                    falls (wurst.gefressen == ziel) {
+                        stück = -1;
+                        zeige(("Stücke: " + ziel + "/" + ziel + "   Züge: " + züge));
+                        Bote.sage(("Satt! Die Salami ist " + wurst.körper.länge() + " Scheiben lang. Du hast gewonnen – Bellissimo!"));
+                        serviere;
+                    }
+                    neuesStück();
+                    meldung = "Happs! " + sprüche.stück((wurst.gefressen - 1) % sprüche.länge() + 1);
+                    abbrechen;                               // neues Stück: erst mal schauen
+                }
             }
         }
-        Bote.sage(("Satt nach " + züge + " Zügen! Die Salami ist jetzt " + wurst.körper.länge() + " Scheiben lang."));
     }
 }
 
-Blech<margherita> sprüche = ["knusprig!", "mit extra Käse!", "noch warm!", "Rand inklusive!",
-                             "Mamma mia!", "Bellissimo!", "Ein Stück geht immer.", "Burp. Scusi.",
-                             "Nur noch ein Minzblättchen …", "Salami auf Salami!", "Der Gürtel spannt.", "Doppelt belegt!"];
+Blech<margherita> sprüche = ["knusprig!", "mit extra Käse!", "noch warm!", "Rand inklusive!", "Mamma mia!"];
 Spiel spiel = neu Spiel();
-spiel.los(12);
+spiel.los(5);

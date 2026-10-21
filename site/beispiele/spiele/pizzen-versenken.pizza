@@ -1,6 +1,6 @@
-// Pizzen versenken – Schiffe versenken mit Pizzen auf dem Blech.
-// Luigi jagt systematisch (Schachbrettmuster + Nachbarn absuchen nach einem Treffer),
-// Mario schießt einfach drauflos. Wer zuerst alle Pizzen des anderen versenkt, gewinnt.
+// Pizzen versenken – Schiffe versenken mit Pizzen auf dem Blech. Du gegen Luigi!
+// Du schießt mit Koordinaten wie „B5“. Luigi jagt systematisch: Schachbrettmuster, und nach
+// einem Treffer sucht er die Nachbarfelder ab. Wer zuerst alle Pizzen des anderen versenkt, gewinnt.
 
 klasse Pizzaform {
     margherita name;
@@ -101,40 +101,77 @@ klasse Kapitän {
     }
 }
 
-Blech<margherita> flotte = ["Familienpizza", "Calzone", "Pizzabrötchen", "Pizzabrötchen"];
-Blech<salami> größen = [4, 3, 2, 2];
-Ofenblech blechL = neu Ofenblech();   // Luigis Pizzen
-Ofenblech blechM = neu Ofenblech();   // Marios Pizzen
-für (salami i : [1 .. 4]) {
-    blechL.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
-    blechM.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
-}
-Kapitän luigi = neu Kapitän("Luigi", ja);
-Kapitän mario = neu Kapitän("Mario", nein);
+klasse Seeschlacht {
+    tiefkühl margherita koord(salami f) { serviere (("ABCDEFGH".zeichen((f - 1) % 8 + 1) + (((f - 1) / 8).ganz() + 1))); }
 
-Bote.sage(("Pizzen versenken! Je eine Familienpizza (4), eine Calzone (3) und zwei Pizzabrötchen (2)."));
-salami runde = 0;
-Kapitän sieger = karton;
-solange (sieger == karton) {
-    runde++;
-    für (Kapitän k : [luigi, mario]) {
-        falls (sieger == karton) {
-            Ofenblech ziel = k == luigi ? blechM : blechL;
-            salami f = k.zielen();
-            margherita erg = ziel.schuss(f);
-            k.merke(f, erg);
-            margherita koord = "ABCDEFGH".zeichen((f - 1) % 8 + 1) + (((f - 1) / 8).ganz() + 1);
-            falls (erg == "Treffer") { Bote.sage(("Runde " + runde + ": " + k.name + " auf " + koord + " – Treffer! Es riecht nach Käse.")); }
-            sonst falls (erg != "daneben") { Bote.sage(("Runde " + runde + ": " + k.name + " auf " + koord + " – " + erg + " VERSENKT! Blubb, blubb, Mozzarella.")); }
-            falls (ziel.alleVersenkt()) { sieger = k; }
+    tiefkühl leer bild(Ofenblech deins, Ofenblech seins, margherita meldung) {
+        Bote.leeren();
+        Bote.sage(("🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)"));
+        Bote.sage((""));
+        Bote.sage(("  Dein Blech            Luigis Blech"));
+        Bote.sage(("  A B C D E F G H       A B C D E F G H"));
+        für (salami y = 0; y < 8; y++) { Bote.sage((deins.zeile(y, ja) + "     " + seins.zeile(y, nein))); }
+        Bote.sage(("(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)"));
+        Bote.sage((""));
+        Bote.sage((meldung));
+    }
+
+    // Liest eine Koordinate wie „b5“. -1 = Spieler ist gegangen.
+    tiefkühl salami frageSchuss(Kapitän du) {
+        solange (ja) {
+            margherita a = Bestellannahme.frage(("Dein Schuss (z. B. B5): "));
+            falls (a == karton) { serviere ((-1)); }
+            a = a.trimme().groß();
+            falls (a.länge() != 2 || !"ABCDEFGH".enthält(a.zeichen(1)) || !"12345678".enthält(a.zeichen(2))) {
+                Bote.sage(("„" + a + "“? Erst der Buchstabe (A–H), dann die Zahl (1–8), z. B. C3."));
+            } sonst {
+                salami x = 0;
+                solange ("ABCDEFGH".zeichen(x + 1) != a.zeichen(1)) { x++; }
+                salami f = Ofenblech.feld(x, a.zeichen(2).alsZahl() - 1);
+                falls (du.geschossen.stück(f)) { Bote.sage(("Auf " + a + " hast du schon geschossen. Da schwimmt nur noch Oregano.")); }
+                sonst { serviere ((f)); }
+            }
         }
+    }
+
+    tiefkühl margherita bericht(margherita wer, salami f, margherita erg) {
+        falls (erg == "daneben") { serviere ((wer + " auf " + koord(f) + ": daneben. Platsch.")); }
+        falls (erg == "Treffer") { serviere ((wer + " auf " + koord(f) + ": TREFFER! Es riecht nach Käse.")); }
+        serviere ((wer + " auf " + koord(f) + ": " + erg + " VERSENKT! Blubb, blubb, Mozzarella."));
     }
 }
 
-Bote.sage((""));
-Bote.sage(("  Luigis Blech          Marios Blech"));
-Bote.sage(("  A B C D E F G H       A B C D E F G H"));
-für (salami y = 0; y < 8; y++) { Bote.sage((blechL.zeile(y, ja) + "     " + blechM.zeile(y, ja))); }
-Bote.sage(("(x = getroffen, · = Wasser, O = unentdeckte Pizza)"));
-Bote.sage((""));
-Bote.sage((sieger.name + " gewinnt nach " + runde + " Runden! Schüsse: Luigi " + luigi.schüsse + ", Mario " + mario.schüsse + "."));
+Blech<margherita> flotte = ["Familienpizza", "Calzone", "Pizzabrötchen", "Pizzabrötchen"];
+Blech<salami> größen = [4, 3, 2, 2];
+Ofenblech deinBlech = neu Ofenblech();
+Ofenblech luigisBlech = neu Ofenblech();
+für (salami i : [1 .. 4]) {
+    deinBlech.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
+    luigisBlech.verstecke(neu Pizzaform(flotte.stück(i), größen.stück(i)));
+}
+Kapitän du = neu Kapitän("Du", nein);
+Kapitän luigi = neu Kapitän("Luigi", ja);
+
+margherita meldung = "Luigi hat seine Pizzen versteckt. Feuer frei!";
+solange (ja) {
+    Seeschlacht.bild(deinBlech, luigisBlech, meldung);
+    salami f = Seeschlacht.frageSchuss(du);
+    falls (f == -1) { Bote.sage(("Der Spieler ist gegangen. Luigi isst die übrigen Pizzen – auch die versenkten.")); abbrechen; }
+    margherita erg = luigisBlech.schuss(f);
+    du.merke(f, erg);
+    meldung = Seeschlacht.bericht("Du", f, erg);
+    falls (luigisBlech.alleVersenkt()) {
+        Seeschlacht.bild(deinBlech, luigisBlech, meldung);
+        Bote.sage(("Alle Pizzen von Luigi versenkt – du gewinnst nach " + du.schüsse + " Schüssen! Luigi bäckt dir eine neue Flotte."));
+        abbrechen;
+    }
+    salami lf = luigi.zielen();
+    margherita lerg = deinBlech.schuss(lf);
+    luigi.merke(lf, lerg);
+    meldung = meldung + "   " + Seeschlacht.bericht("Luigi", lf, lerg);
+    falls (deinBlech.alleVersenkt()) {
+        Seeschlacht.bild(deinBlech, luigisBlech, meldung);
+        Bote.sage(("Luigi hat alle deine Pizzen versenkt. Er gewinnt nach " + luigi.schüsse + " Schüssen. Revanche?"));
+        abbrechen;
+    }
+}

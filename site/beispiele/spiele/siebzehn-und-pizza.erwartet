@@ -1,46 +1,83 @@
-♠ Siebzehn und Pizza ♠  Giovanni startet mit 50,00 €, Einsatz 10,00 € pro Runde.
+♠ Siebzehn und Pizza ♠  Du startest mit 50,00 €. Wer über 21 kommt, verbrennt!
+Dein Einsatz in Euro (1–50, Enter = 10): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 50,00 €   Einsatz: 10,00 €
 
-— Runde 1 —
-Luigi zeigt: Olive-10  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: "Noch eine!" … Olive-Ass
-Giovanni: Olive-4, Käse-3, Olive-Ass  = 18
-Luigi:    Olive-10, Käse-Ass  = 21
+Luigi: Olive-10, [verdeckt unterm Teig]
+Du:    Olive-4, Käse-3  = 7
+
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 50,00 €   Einsatz: 10,00 €
+
+Luigi: Olive-10, [verdeckt unterm Teig]
+Du:    Olive-4, Käse-3, Olive-Ass  = 18
+
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 50,00 €   Einsatz: 10,00 €
+
+Luigi: Olive-10, Käse-Ass  = 21
+Du:    Olive-4, Käse-3, Olive-Ass  = 18
+
 Die Bank gewinnt. Luigi grinst unter dem Schnurrbart.  Kasse: 40,00 €
+Noch eine Runde? (j/n): Luigi zwirbelt den Schnurrbart: „Ja oder nein, amico?“
+Noch eine Runde? (j/n): Dein Einsatz in Euro (1–40, Enter = 10): „hundert“ ist kein Geld. Luigi nimmt nur Euro, keine Pizzagutscheine.
+Dein Einsatz in Euro (1–40, Enter = 10): Setzen kannst du nur ganze Euro zwischen 1 und 40.
+Dein Einsatz in Euro (1–40, Enter = 10): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 40,00 €   Einsatz: 20,00 €
 
-— Runde 2 —
-Luigi zeigt: Tomate-8  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: Salami-10, Olive-Dame  = 20
-Luigi:    Tomate-8, Salami-Bube  = 18
-Giovanni gewinnt – 20 schlägt 18.  Kasse: 50,00 €
+Luigi: Tomate-8, [verdeckt unterm Teig]
+Du:    Salami-10, Olive-Dame  = 20
 
-— Runde 3 —
-Luigi zeigt: Käse-Dame  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: "Noch eine!" … Käse-5
-Giovanni: "Noch eine!" … Olive-3
-Giovanni: Olive-6, Tomate-4, Käse-5, Olive-3  = 18
-Luigi:    Käse-Dame, Käse-2, Olive-König  = 22
-Luigi verbrennt! Der Ofen war zu heiß.  Kasse: 60,00 €
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 40,00 €   Einsatz: 20,00 €
 
-— Runde 4 —
-Luigi zeigt: Tomate-7  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: "Noch eine!" … Olive-2
-Giovanni: "Noch eine!" … Tomate-5
-Giovanni: Salami-3, Olive-Bube, Olive-2, Tomate-5  = 20
-Luigi:    Tomate-7, Tomate-Bube  = 17
-Giovanni gewinnt – 20 schlägt 17.  Kasse: 70,00 €
+Luigi: Tomate-8, Salami-Bube  = 18
+Du:    Salami-10, Olive-Dame  = 20
 
-— Runde 5 —
-Luigi zeigt: Olive-8  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: "Noch eine!" … Salami-6
-Giovanni: Olive-7, Käse-8, Salami-6  = 21
-Luigi:    Olive-8, Tomate-6, Salami-König  = 24
-Luigi verbrennt! Der Ofen war zu heiß.  Kasse: 80,00 €
+Du gewinnst – 20 schlägt 18!  Kasse: 60,00 €
+Noch eine Runde? (j/n): Dein Einsatz in Euro (1–60, Enter = 10): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 60,00 €   Einsatz: 15,00 €
 
-— Runde 6 —
-Luigi zeigt: Käse-6  (die zweite Karte liegt verdeckt unterm Teig)
-Giovanni: Salami-9, Tomate-3  = 12
-Luigi:    Käse-6, Salami-2, Käse-4, Tomate-2, Käse-10  = 24
-Luigi verbrennt! Der Ofen war zu heiß.  Kasse: 90,00 €
+Luigi: Käse-Dame, [verdeckt unterm Teig]
+Du:    Olive-6, Tomate-4  = 10
 
-Giovanni geht mit 90,00 € nach Hause – die Pizza geht heute auf ihn!
-Im Stapel liegen noch 17 Karten.
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 60,00 €   Einsatz: 15,00 €
+
+Luigi: Käse-Dame, [verdeckt unterm Teig]
+Du:    Olive-6, Tomate-4, Käse-5  = 15
+
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 60,00 €   Einsatz: 15,00 €
+
+Luigi: Käse-Dame, [verdeckt unterm Teig]
+Du:    Olive-6, Tomate-4, Käse-5, Olive-3  = 18
+
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 60,00 €   Einsatz: 15,00 €
+
+Luigi: Käse-Dame, Käse-2, Olive-König  = 22
+Du:    Olive-6, Tomate-4, Käse-5, Olive-3  = 18
+
+Luigi verbrennt! Der Ofen war zu heiß.  Kasse: 75,00 €
+Noch eine Runde? (j/n): Dein Einsatz in Euro (1–75, Enter = 10): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 75,00 €   Einsatz: 5,00 €
+
+Luigi: Tomate-7, [verdeckt unterm Teig]
+Du:    Salami-3, Olive-Bube  = 13
+
+Karte? (j/n): Luigi zwirbelt den Schnurrbart: „Ja oder nein, amico?“
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 75,00 €   Einsatz: 5,00 €
+
+Luigi: Tomate-7, [verdeckt unterm Teig]
+Du:    Salami-3, Olive-Bube, Olive-2  = 15
+
+Karte? (j/n): «leeren»
+♠ Siebzehn und Pizza ♠   Kasse: 75,00 €   Einsatz: 5,00 €
+
+Luigi: Tomate-7, Tomate-Bube  = 17
+Du:    Salami-3, Olive-Bube, Olive-2  = 15
+
+Die Bank gewinnt. Luigi grinst unter dem Schnurrbart.  Kasse: 70,00 €
+Noch eine Runde? (j/n): 
+Du gehst mit 70,00 € nach Hause – die Pizza geht heute auf dich!

@@ -1,7 +1,7 @@
 // Vier Oliven – Vier gewinnt auf dem Pizzablech (7 Spalten × 6 Reihen).
 // Olivia (●, schwarze Oliven) denkt mit Negamax + Alpha-Beta und vertieft schrittweise –
 // aber nur so lange, wie der Ofen ihr Bedenkzeit gibt: ofen(...) { zwischenstand(...) } roh (r) {...}.
-// Oliver (○, grüne Oliven) spielt nach Bauchgefühl: gewinnen, blocken, sonst Mitte.
+// Du spielst die grünen Oliven (○): Spaltennummer 1–7 eingeben. Ende der Eingabe = Spieler gegangen.
 
 klasse Spielblech {
     tiefkühl salami SPALTEN = 7;
@@ -116,7 +116,7 @@ klasse Olivia {
     salami ziehe(Spielblech echt) {
         Spielblech b = echt.kopie();
         tiefe = 0;
-        serviere ((ofen(temperatur: 400, zeit: 60s) {
+        serviere ((ofen(temperatur: 450, zeit: 75s) {
             salami zug = 0;
             für (salami t : [1 .. 42 - b.steine]) {
                 zug = besterZug(b, t);
@@ -130,47 +130,46 @@ klasse Olivia {
     }
 }
 
-klasse Oliver {
-    salami ziehe(Spielblech b) {
-        für (salami wer : [2, 1]) {                     // erst eigenen Sieg suchen, dann Olivia blocken
-            für (salami s : [1 .. 7]) {
-                falls (b.passt(s)) {
-                    b.lege(s, wer);
-                    diavolo sieg = b.vier(s);
-                    b.nimm(s);
-                    falls (sieg) { serviere ((s)); }
-                }
-            }
+klasse Tisch {
+    tiefkühl leer bild(Spielblech b, margherita meldung) {
+        Bote.leeren();
+        Bote.sage(("🫒 Vier Oliven – Du (○) gegen Olivia (●)"));
+        Bote.sage((""));
+        b.zeige();
+        Bote.sage((""));
+        Bote.sage((meldung));
+    }
+
+    // Fragt nach einer Spalte mit Platz. -1 = Spieler ist gegangen.
+    tiefkühl salami frageSpalte(Spielblech b) {
+        solange (ja) {
+            margherita a = Bestellannahme.frage(("Deine Spalte (1–7): "));
+            falls (a == karton) { serviere ((-1)); }
+            a = a.trimme();
+            falls (a.länge() != 1 || !"1234567".enthält(a)) { Bote.sage(("„" + a + "“? Bitte eine Spalte von 1 bis 7.")); }
+            sonst falls (!b.passt(a.alsZahl())) { Bote.sage(("Spalte " + a + " ist voll – da passt keine Olive mehr drauf.")); }
+            sonst { serviere ((a.alsZahl())); }
         }
-        salami s = Zufall.zahl(2, 6);                   // Bauchgefühl: irgendwo in der Mitte
-        solange (!b.passt(s)) { s = Zufall.zahl(1, 7); }
-        serviere ((s));
     }
 }
 
 Spielblech blech = neu Spielblech();
 Olivia olivia = neu Olivia();
-Oliver oliver = neu Oliver();
-Bote.sage(("Vier Oliven! Olivia (●) denkt im Ofen nach, Oliver (○) aus dem Bauch."));
+margherita meldung = "Du fängst an. Olivia denkt im Ofen nach – aber nur, solange er heiß ist.";
 salami sieger = 0;
-salami zugNr = 0;
 solange (sieger == 0 && blech.steine < 42) {
-    zugNr++;
-    salami wer = zugNr % 2 == 1 ? 1 : 2;
-    salami s;
-    falls (wer == 1) {
-        s = olivia.ziehe(blech);
-        Bote.sage(("Zug " + zugNr + ": Olivia legt ● in Spalte " + s + "  (durchdacht bis Tiefe " + olivia.tiefe + ")"));
-    } sonst {
-        s = oliver.ziehe(blech);
-        Bote.sage(("Zug " + zugNr + ": Oliver legt ○ in Spalte " + s));
-    }
-    blech.lege(s, wer);
-    falls (blech.vier(s)) { sieger = wer; }
-    falls (zugNr % 6 == 0 && sieger == 0) { blech.zeige(); }
+    Tisch.bild(blech, meldung);
+    salami s = Tisch.frageSpalte(blech);
+    falls (s == -1) { Bote.sage(("Der Spieler ist gegangen. Olivia isst die grünen Oliven auf.")); serviere; }
+    blech.lege(s, 2);
+    falls (blech.vier(s)) { sieger = 2; meldung = "Du: Spalte " + s + " – und das sind vier!"; abbrechen; }
+    falls (blech.steine == 42) { abbrechen; }
+    salami o = olivia.ziehe(blech);
+    blech.lege(o, 1);
+    meldung = "Du: Spalte " + s + ".  Olivia: Spalte " + o + "  (durchdacht bis Tiefe " + olivia.tiefe + ")";
+    falls (blech.vier(o)) { sieger = 1; }
 }
-Bote.sage((""));
-blech.zeige();
-falls (sieger == 1) { Bote.sage(("Vier schwarze Oliven in einer Reihe – Olivia gewinnt! Oliver isst zum Trost die grünen.")); }
-sonst falls (sieger == 2) { Bote.sage(("Oliver gewinnt! Das Bauchgefühl hat den Ofen geschlagen.")); }
-sonst { Bote.sage(("Blech voll, keiner gewinnt. Dann eben Pizza Olivia-Oliver halb-halb.")); }
+Tisch.bild(blech, meldung);
+falls (sieger == 1) { Bote.sage(("Vier schwarze Oliven in einer Reihe – Olivia gewinnt! Trost-Olive gefällig?")); }
+sonst falls (sieger == 2) { Bote.sage(("Vier grüne Oliven! Du hast den Ofen geschlagen – Olivia gratuliert mit Olivenöl.")); }
+sonst { Bote.sage(("Blech voll, keiner gewinnt. Pizza halb grün, halb schwarz.")); }

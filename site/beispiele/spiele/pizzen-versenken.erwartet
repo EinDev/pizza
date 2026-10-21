@@ -1,32 +1,244 @@
-Pizzen versenken! Je eine Familienpizza (4), eine Calzone (3) und zwei Pizzabrötchen (2).
-Runde 3: Luigi auf B6 – Treffer! Es riecht nach Käse.
-Runde 4: Luigi auf B5 – Treffer! Es riecht nach Käse.
-Runde 8: Luigi auf B4 – Treffer! Es riecht nach Käse.
-Runde 8: Mario auf C3 – Treffer! Es riecht nach Käse.
-Runde 9: Mario auf E1 – Treffer! Es riecht nach Käse.
-Runde 10: Luigi auf C5 – Treffer! Es riecht nach Käse.
-Runde 11: Luigi auf B3 – Familienpizza VERSENKT! Blubb, blubb, Mozzarella.
-Runde 11: Mario auf D6 – Treffer! Es riecht nach Käse.
-Runde 13: Luigi auf C4 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
-Runde 13: Mario auf D8 – Treffer! Es riecht nach Käse.
-Runde 14: Mario auf F1 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
-Runde 15: Luigi auf B2 – Treffer! Es riecht nach Käse.
-Runde 20: Luigi auf A2 – Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
-Runde 21: Mario auf G4 – Treffer! Es riecht nach Käse.
-Runde 25: Luigi auf F6 – Treffer! Es riecht nach Käse.
-Runde 26: Luigi auf F5 – Treffer! Es riecht nach Käse.
-Runde 30: Luigi auf F4 – Calzone VERSENKT! Blubb, blubb, Mozzarella.
+«leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
 
-  Luigis Blech          Marios Blech
+  Dein Blech            Luigis Blech
   A B C D E F G H       A B C D E F G H
-1 ~ · ~ · x x ~ ·     1 · · · ~ ~ ~ ~ ~
-2 · ~ O · ~ · ~ ·     2 x x · ~ ~ ~ ~ ~
-3 ~ · x · ~ ~ ~ ·     3 · x · ~ ~ ~ ~ ~
-4 ~ ~ O · ~ O x ~     4 · x x · ~ x ~ ~
-5 · · ~ O · ~ ~ ·     5 · x x · ~ x · ~
-6 ~ ~ · x · ~ · ·     6 · x · ~ · x · ~
-7 ~ ~ ~ O · ~ · ~     7 ~ · ~ ~ ~ · ~ ~
-8 ~ ~ ~ x · ~ ~ ·     8 ~ · ~ · ~ ~ ~ ~
-(x = getroffen, · = Wasser, O = unentdeckte Pizza)
+1 ~ ~ ~ ~ O O ~ ~     1 ~ ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ ~ ~ ~     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ ~ ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ ~ ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ ~ ~     5 ~ ~ ~ ~ ~ ~ ~ ~
+6 ~ ~ ~ O ~ ~ ~ ~     6 ~ ~ ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
 
-Luigi gewinnt nach 30 Runden! Schüsse: Luigi 30, Mario 29.
+Luigi hat seine Pizzen versteckt. Feuer frei!
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ ~ ~ ~     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ ~ ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ ~ ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ ~ ~     5 ~ ~ ~ ~ ~ ~ ~ ~
+6 ~ ~ ~ O ~ ~ ~ ~     6 ~ ~ ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf A1: daneben. Platsch.   Luigi auf C1: daneben. Platsch.
+Dein Schuss (z. B. B5): „Z9“? Erst der Buchstabe (A–H), dann die Zahl (1–8), z. B. C3.
+Dein Schuss (z. B. B5): Auf A1 hast du schon geschossen. Da schwimmt nur noch Oregano.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ ~ ~ ~     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ ~ ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ ~ ~ ~ ~ ~ ~ ~
+6 ~ ~ ~ O ~ ~ ~ ~     6 ~ ~ ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf B3: TREFFER! Es riecht nach Käse.   Luigi auf G5: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ ~ ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ ~ ~ ~ ~ ~ ~ ~
+6 ~ ~ ~ O ~ ~ ~ ~     6 ~ ~ ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf B4: TREFFER! Es riecht nach Käse.   Luigi auf H2: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ ~ ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ ~ ~ ~
+6 ~ · ~ O ~ ~ ~ ~     6 ~ ~ ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf B5: TREFFER! Es riecht nach Käse.   Luigi auf B6: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ ~ ~ ~
+6 ~ · ~ O ~ ~ ~ ~     6 ~ x ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ~
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf B6: Familienpizza VERSENKT! Blubb, blubb, Mozzarella.   Luigi auf F2: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ ~ ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ ~ ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ ~ ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf H8: daneben. Platsch.   Luigi auf H6: daneben. Platsch.
+Dein Schuss (z. B. B5): „F 4“? Erst der Buchstabe (A–H), dann die Zahl (1–8), z. B. C3.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ x ~ ~
+5 ~ ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ ~ ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf F4: TREFFER! Es riecht nach Käse.   Luigi auf G7: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ O ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ ~ ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf F5: TREFFER! Es riecht nach Käse.   Luigi auf A5: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ O ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ x ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x ~ ~ ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf F6: Calzone VERSENKT! Blubb, blubb, Mozzarella.   Luigi auf C3: TREFFER! Es riecht nach Käse.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ x ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ x ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ O ~ ~ O O ~     4 ~ x x ~ ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf C4: TREFFER! Es riecht nach Käse.   Luigi auf C2: TREFFER! Es riecht nach Käse.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ x ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ ~ x ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ x ~ ~ O O ~     4 ~ x x · ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x ~ ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf D4: daneben. Platsch.   Luigi auf C4: Calzone VERSENKT! Blubb, blubb, Mozzarella.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ x ~ ~ · ~ ·     2 ~ ~ ~ ~ ~ ~ ~ ~
+3 ~ · x ~ ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ x ~ ~ O O ~     4 ~ x x · ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x x ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf C5: Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.   Luigi auf B3: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ x ~ ~ · ~ ·     2 x ~ ~ ~ ~ ~ ~ ~
+3 ~ · x · ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ x ~ ~ O O ~     4 ~ x x · ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x x ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf A2: TREFFER! Es riecht nach Käse.   Luigi auf D3: daneben. Platsch.
+Dein Schuss (z. B. B5): «leeren»
+🍕 Pizzen versenken – Familienpizza (4), Calzone (3), 2× Pizzabrötchen (2)
+
+  Dein Blech            Luigis Blech
+  A B C D E F G H       A B C D E F G H
+1 ~ ~ · ~ O O ~ ~     1 · ~ ~ ~ ~ ~ ~ ~
+2 ~ ~ x ~ ~ · ~ ·     2 x x ~ ~ ~ ~ ~ ~
+3 ~ · x · ~ ~ ~ ~     3 ~ x ~ ~ ~ ~ ~ ~
+4 ~ ~ x ~ ~ O O ~     4 ~ x x · ~ x ~ ~
+5 · ~ ~ O ~ ~ · ~     5 ~ x x ~ ~ x ~ ~
+6 ~ · ~ O ~ ~ ~ ·     6 ~ x ~ ~ ~ x ~ ~
+7 ~ ~ ~ O ~ ~ · ~     7 ~ ~ ~ ~ ~ ~ ~ ~
+8 ~ ~ ~ O ~ ~ ~ ~     8 ~ ~ ~ ~ ~ ~ ~ ·
+(O = deine Pizza, x = Treffer, · = Wasser, ~ = unbekannt)
+
+Du auf B2: Pizzabrötchen VERSENKT! Blubb, blubb, Mozzarella.
+Alle Pizzen von Luigi versenkt – du gewinnst nach 14 Schüssen! Luigi bäckt dir eine neue Flotte.

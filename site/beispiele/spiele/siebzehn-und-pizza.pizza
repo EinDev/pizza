@@ -1,6 +1,7 @@
 // Siebzehn und Pizza – Blackjack in der Pizzeria.
-// Gast Giovanni spielt gegen Pizzaiolo Luigi (die Bank). Die Karten tragen Beläge statt Farben.
-// Giovanni folgt der Grundstrategie, Luigi muss bis 17 ziehen. Gemischt wird deterministisch.
+// Du spielst gegen Pizzaiolo Luigi (die Bank). Die Karten tragen Beläge statt Farben.
+// Du setzt, ziehst Karten („Karte? (j/n)“) und hoffst auf 21. Luigi muss bis 17 ziehen.
+// Ende der Eingabe (karton) = der Spieler ist gegangen.
 
 quattrostagioni Belagfarbe { TOMATE, KÄSE, SALAMI, OLIVE }
 
@@ -55,60 +56,103 @@ klasse Hand {
 }
 
 speisekarte klasse Pizzeria {
-    tiefkühl diavolo giovanniZieht(Hand h, Karte luigiOffen) {
-        salami s = h.summe();
-        falls (s <= 11) { serviere ((ja)); }
-        falls (s >= 17) { serviere ((nein)); }
-        // 12–16: nur ziehen, wenn Luigis offene Karte stark ist
-        serviere ((luigiOffen.wert() >= 7));
+    // Ja/Nein-Frage. Liefert "j", "n" oder karton (Spieler ist gegangen).
+    tiefkühl margherita jaNein(margherita frage) {
+        solange (ja) {
+            margherita a = Bestellannahme.frage((frage + " (j/n): "));
+            falls (a == karton) { serviere ((karton)); }
+            a = a.trimme().klein();
+            falls (a == "j" || a == "ja") { serviere (("j")); }
+            falls (a == "n" || a == "nein") { serviere (("n")); }
+            Bote.sage(("Luigi zwirbelt den Schnurrbart: „Ja oder nein, amico?“"));
+        }
     }
+
+    // Einsatz erfragen: ganze Euro von 1 bis kasse, leere Eingabe = 10 €. -1 = gegangen.
+    tiefkühl salami frageEinsatz(salami kasse) {
+        salami vorschlag = Mathe.min(10, kasse);
+        solange (ja) {
+            margherita a = Bestellannahme.frage(("Dein Einsatz in Euro (1–" + kasse + ", Enter = " + vorschlag + "): "));
+            falls (a == karton) { serviere ((-1)); }
+            falls (a.trimme() == "") { serviere ((vorschlag)); }
+            probier {
+                funghi e = a.trimme().alsZahl();
+                falls (e == e.ganz() && e >= 1 && e <= kasse) { serviere ((e)); }
+                Bote.sage(("Setzen kannst du nur ganze Euro zwischen 1 und " + kasse + "."));
+            } verbrannt (TypAnanas x) {
+                Bote.sage(("„" + a + "“ ist kein Geld. Luigi nimmt nur Euro, keine Pizzagutscheine."));
+            }
+        }
+    }
+
+    tiefkühl leer tisch(Hand gast, Hand bank, diavolo verdeckt, salami kasse, salami einsatz) {
+        Bote.leeren();
+        Bote.sage(("♠ Siebzehn und Pizza ♠   Kasse: " + kasse.euro() + "   Einsatz: " + einsatz.euro()));
+        Bote.sage((""));
+        falls (verdeckt) { Bote.sage(("Luigi: " + bank.karten.erstes() + ", [verdeckt unterm Teig]")); }
+        sonst { Bote.sage(("Luigi: " + bank)); }
+        Bote.sage(("Du:    " + gast));
+        Bote.sage((""));
+    }
+
+    tiefkühl leer gegangen() { Bote.sage((""));  Bote.sage(("Der Spieler ist gegangen. Luigi steckt die Karten wieder in den Pizzakarton.")); }
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         Kartenstapel stapel = neu Kartenstapel();
         salami kasse = 50;
-        salami einsatz = 10;
-        Bote.sage(("♠ Siebzehn und Pizza ♠  Giovanni startet mit " + kasse.euro() + ", Einsatz " + einsatz.euro() + " pro Runde."));
+        Bote.sage(("♠ Siebzehn und Pizza ♠  Du startest mit " + kasse.euro() + ". Wer über 21 kommt, verbrennt!"));
 
-        für (salami runde : [1 .. 6]) {
-            Bote.sage((""));
-            Bote.sage(("— Runde " + runde + " —"));
+        solange (kasse > 0) {
+            falls (stapel.karten.länge() < 12) {
+                Bote.sage(("Der Stapel ist fast leer – Luigi macht Feierabend."));
+                abbrechen;
+            }
+            salami einsatz = frageEinsatz(kasse);
+            falls (einsatz == -1) { gegangen(); serviere; }
             Hand gast = neu Hand();
             Hand bank = neu Hand();
             gast.nimm(stapel.zieh()); bank.nimm(stapel.zieh());
             gast.nimm(stapel.zieh()); bank.nimm(stapel.zieh());
-            Karte offen = bank.karten.erstes();
-            Bote.sage(("Luigi zeigt: " + offen + "  (die zweite Karte liegt verdeckt unterm Teig)"));
 
-            solange (giovanniZieht(gast, offen)) {
-                Karte k = stapel.zieh();
-                gast.nimm(k);
-                Bote.sage(("Giovanni: \"Noch eine!\" … " + k));
+            diavolo blackjack = gast.summe() == 21;
+            solange (!blackjack && gast.summe() < 21) {
+                tisch(gast, bank, ja, kasse, einsatz);
+                margherita a = jaNein(("Karte?"));
+                falls (a == karton) { gegangen(); serviere; }
+                falls (a == "n") { abbrechen; }
+                gast.nimm(stapel.zieh());
             }
-            Bote.sage(("Giovanni: " + gast));
 
             margherita ergebnis;
             salami gewinn;
-            falls (gast.summe() == 21 && gast.karten.länge() == 2) {
-                ergebnis = "Pizza Perfetta! Blackjack für Giovanni.";
-                gewinn = einsatz + einsatz / 2;
+            falls (blackjack) {
+                tisch(gast, bank, nein, kasse, einsatz);
+                ergebnis = "Pizza Perfetta! Blackjack – du bekommst das Anderthalbfache.";
+                gewinn = (einsatz * 3 / 2).ganz();
             } sonst falls (gast.istVerbrannt()) {
-                ergebnis = "Verbrannt! Giovanni hat über 21 – der Rand ist schwarz.";
+                tisch(gast, bank, nein, kasse, einsatz);
+                ergebnis = "Verbrannt! Über 21 – der Rand ist schwarz.";
                 gewinn = -einsatz;
             } sonst {
                 solange (bank.summe() < 17) { bank.nimm(stapel.zieh()); }
-                Bote.sage(("Luigi:    " + bank));
+                tisch(gast, bank, nein, kasse, einsatz);
                 falls (bank.istVerbrannt()) { ergebnis = "Luigi verbrennt! Der Ofen war zu heiß."; gewinn = einsatz; }
-                sonst falls (gast.summe() > bank.summe()) { ergebnis = "Giovanni gewinnt – " + gast.summe() + " schlägt " + bank.summe() + "."; gewinn = einsatz; }
+                sonst falls (gast.summe() > bank.summe()) { ergebnis = "Du gewinnst – " + gast.summe() + " schlägt " + bank.summe() + "!"; gewinn = einsatz; }
                 sonst falls (gast.summe() < bank.summe()) { ergebnis = "Die Bank gewinnt. Luigi grinst unter dem Schnurrbart."; gewinn = -einsatz; }
-                sonst { ergebnis = "Gleichstand – jeder bekommt sein Stück zurück."; gewinn = 0; }
+                sonst { ergebnis = "Gleichstand – du bekommst deinen Einsatz zurück."; gewinn = 0; }
             }
             kasse += gewinn;
             Bote.sage((ergebnis + "  Kasse: " + kasse.euro()));
+            falls (kasse > 0) {
+                margherita nochmal = jaNein(("Noch eine Runde?"));
+                falls (nochmal == karton) { gegangen(); serviere; }
+                falls (nochmal == "n") { abbrechen; }
+            }
         }
         Bote.sage((""));
-        falls (kasse > 50) { Bote.sage(("Giovanni geht mit " + kasse.euro() + " nach Hause – die Pizza geht heute auf ihn!")); }
-        sonst falls (kasse < 50) { Bote.sage(("Giovanni hat " + (50 - kasse).euro() + " verloren. Immerhin gab's Pizza.")); }
-        sonst { Bote.sage(("Plusminus null. Giovanni bestellt trotzdem eine Margherita.")); }
-        Bote.sage(("Im Stapel liegen noch " + stapel.karten.länge() + " Karten."));
+        falls (kasse > 50) { Bote.sage(("Du gehst mit " + kasse.euro() + " nach Hause – die Pizza geht heute auf dich!")); }
+        sonst falls (kasse == 0) { Bote.sage(("Pleite! Luigi schenkt dir trotzdem eine Margherita. Aus Mitleid.")); }
+        sonst falls (kasse < 50) { Bote.sage(("Du hast " + (50 - kasse).euro() + " verloren. Immerhin gab's Pizza.")); }
+        sonst { Bote.sage(("Plusminus null. Du bestellst trotzdem eine Margherita.")); }
     }
 }

@@ -1,35 +1,27 @@
-Wie viele Pizzen hat Luigi heute gebacken? (1 bis 1000)
-Bianca: "Teile und herrsche – wie eine Pizza."   Rocco: "Bauchgefühl! Ich spür das im Teig."
+🍕 Wie viele Pizzen hat Luigi heute gebacken? (1 bis 100)
 
-Montag: Luigi hat 602 Pizzen gebacken. (Psst!)
-  Bianca (10): 500↑ 750↓ 625↓ 562↑ 593↑ 609↓ 601↑ 605↓ 603↓ 602✓
-  Rocco  (13): 670↓ 117↑ 408↑ 480↑ 599↑ 660↓ 628↓ 606↓ 605↓ 603↓ 600↑ 601↑ 602✓
-  → Bianca holt sich das Stück.
-
-Dienstag: Luigi hat 449 Pizzen gebacken. (Psst!)
-  Bianca (10): 500↓ 250↑ 375↑ 437↑ 468↓ 452↓ 444↑ 448↑ 450↓ 449✓
-  Rocco  (15): 687↓ 419↑ 421↑ 546↓ 525↓ 427↑ 485↓ 429↑ 444↑ 447↑ 454↓ 452↓ 450↓ 448↑ 449✓
-  → Bianca holt sich das Stück.
-
-Mittwoch: Luigi hat 853 Pizzen gebacken. (Psst!)
-  Bianca (9): 500↑ 750↑ 875↓ 812↑ 843↑ 859↓ 851↑ 855↓ 853✓
-  Rocco  (6): 843↑ 920↓ 905↓ 863↓ 852↑ 853✓
-  → Rocco hatte den richtigen Riecher!
-
-Donnerstag: Luigi hat 7 Pizzen gebacken. (Psst!)
-  Bianca (7): 500↓ 250↓ 125↓ 62↓ 31↓ 15↓ 7✓
-  Rocco  (8): 52↓ 29↓ 17↓ 4↑ 12↓ 6↑ 8↓ 7✓
-  → Bianca holt sich das Stück.
-
-Freitag: Luigi hat 1000 Pizzen gebacken. (Psst!)
-  Bianca (10): 500↑ 750↑ 875↑ 938↑ 969↑ 985↑ 993↑ 997↑ 999↑ 1000✓
-  Rocco  (9): 859↑ 931↑ 946↑ 962↑ 974↑ 976↑ 992↑ 998↑ 1000✓
-  → Rocco hatte den richtigen Riecher!
-
-Samstag: Luigi hat 512 Pizzen gebacken. (Psst!)
-  Bianca (10): 500↑ 750↓ 625↓ 562↓ 531↓ 515↓ 507↑ 511↑ 513↓ 512✓
-  Rocco  (12): 928↓ 82↑ 880↓ 426↑ 853↓ 485↑ 526↓ 486↑ 501↑ 513↓ 508↑ 512✓
-  → Bianca holt sich das Stück.
-
-Endstand: Bianca 4 Stücke (56 Versuche), Rocco 2 Stücke (63 Versuche).
-Binärsuche braucht nie mehr als 10 Versuche, denn 2 hoch 10 = 1024 ≥ 1000.
+Runde 1: Luigi hat die Ofentür zu. Rate mal!
+Dein Tipp (1–100): Das ist keine Zahl, das ist Pizzasprech. Bitte nur Ziffern!
+Dein Tipp (1–100): Zu wenig Teig! Mehr.
+Dein Tipp (51–100): Ganze Pizzen bitte, zwischen 1 und 100. Halbe zählen nicht!
+Dein Tipp (51–100): Ganze Pizzen bitte, zwischen 1 und 100. Halbe zählen nicht!
+Dein Tipp (51–100): Zu viel Teig! Weniger.
+Dein Tipp (51–74): Zu viel Teig! Weniger.
+Dein Tipp (51–61): Zu wenig Teig! Mehr.
+Dein Tipp (61–61): Richtig! 61 Pizzen – erraten mit 5 Versuchen.
+Bianca (Binärsuche): 50↑ 75↓ 62↓ 56↑ 59↑ 60↑ 61✓
+Respekt – so gut wie die Binärsuche!
+Noch eine Runde? (j/n): Bitte j oder n – Luigi versteht nur Pizza und Ja/Nein.
+Noch eine Runde? (j/n): 
+Runde 2: Luigi hat die Ofentür zu. Rate mal!
+Dein Tipp (1–100): Zu viel Teig! Weniger.
+Dein Tipp (1–49): Zu wenig Teig! Mehr.
+Dein Tipp (26–49): Zu wenig Teig! Mehr.
+Dein Tipp (38–49): Zu wenig Teig! Mehr.
+Dein Tipp (44–49): Zu viel Teig! Weniger.
+Dein Tipp (44–45): Zu wenig Teig! Mehr.
+Dein Tipp (45–45): Richtig! 45 Pizzen – erraten mit 7 Versuchen.
+Bianca (Binärsuche): 50↓ 25↑ 37↑ 43↑ 46↓ 44↑ 45✓
+Respekt – so gut wie die Binärsuche!
+Noch eine Runde? (j/n): 
+Feierabend! 2 Runden, im Schnitt 6 Versuche pro Runde. Grazie!

@@ -1,6 +1,6 @@
-// Tic-Tac-Toe: Margherita gegen Diavolo
-// Zwei perfekte KIs (Minimax mit Alpha-Beta-Schnitt) spielen gegeneinander.
-// Wer perfekt spielt, verliert nie – also endet es … unentschieden. Wie immer in Neapel.
+// Tic-Tac-Toe: Du (Margherita, M) gegen Diavolo (D).
+// Diavolo denkt mit Minimax und Alpha-Beta-Schnitt – er verliert nie. Schaffst du ein Unentschieden?
+// Eingabe: Feldnummer 1–9. Ende der Eingabe (karton) heißt: Der Spieler ist gegangen.
 
 klasse Brett {
     Blech<margherita> felder = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
@@ -66,9 +66,10 @@ klasse Pizzaiolo {
     }
 
     salami wähleZug(Brett b) {
-        // Eröffnungsbuch: Auf ein leeres Brett gehört Mozzarella in die Mitte.
+        // Eröffnungsbuch: Mitte nehmen – und ist die schon weg, eine Ecke.
         // (Alles durchzurechnen würde den Ofen sprengen – das weiß jeder Pizzaiolo.)
-        falls (!b.felder.enthält("M") && !b.felder.enthält("D")) { serviere ((5)); }
+        salami belegt = b.felder.filtere(f -> f != " ").länge();
+        falls (belegt <= 1) { serviere ((b.istFrei(5) ? 5 : 1)); }
         salami bester = 0;
         salami besterWert = -100;
         für (salami f : REIHENFOLGE) {
@@ -83,31 +84,81 @@ klasse Pizzaiolo {
     }
 }
 
-Brett brett = neu Brett();
-Pizzaiolo margherita = neu Pizzaiolo("Margherita", "M", "D");
-Pizzaiolo diavolo = neu Pizzaiolo("Diavolo", "D", "M");
-Blech<margherita> sprüche = ["legt Mozzarella auf", "streut Chili auf", "belegt", "beansprucht",
-                             "schiebt ein Stück auf", "rettet", "besetzt", "verteidigt", "krönt"];
+klasse Partie {
+    tiefkühl Pizzaiolo diavolo = neu Pizzaiolo("Diavolo", "D", "M");
 
-Bote.sage(("🍕 Tic-Tac-Toe: Margherita (M) gegen Diavolo (D)"));
-Bote.sage((""));
-Pizzaiolo amZug = margherita;
-salami runde = 1;
-solange (brett.gewinner() == " " && !brett.voll()) {
-    salami vorher = amZug.bedacht;
-    salami feld = amZug.wähleZug(brett);
-    brett.setze(feld, amZug.zeichen);
-    salami gedacht = amZug.bedacht - vorher;
-    margherita notiz = gedacht == 0 ? "aus dem Kochbuch" : "Stellungen bedacht: " + gedacht;
-    Bote.sage(("Zug " + runde + ": " + amZug.name + " " + sprüche.stück(runde) + " Feld " + feld + "  (" + notiz + ")"));
-    brett.zeige();
-    Bote.sage((""));
-    amZug = amZug == margherita ? diavolo : margherita;
-    runde++;
+    tiefkühl leer bild(Brett b, margherita meldung) {
+        Bote.leeren();
+        Bote.sage(("🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)"));
+        Bote.sage((""));
+        b.zeige();
+        Bote.sage((""));
+        Bote.sage((meldung));
+    }
+
+    // Fragt so lange, bis ein freies Feld kommt. -1 = Spieler ist gegangen.
+    tiefkühl salami frageFeld(Brett b) {
+        solange (ja) {
+            margherita ein = Bestellannahme.frage(("Dein Zug (1–9): "));
+            falls (ein == karton) { serviere ((-1)); }
+            ein = ein.trimme();
+            falls (ein.länge() != 1 || !"123456789".enthält(ein)) {
+                Bote.sage(("„" + ein + "“? Bitte eine Ziffer von 1 bis 9 – die Felder sind nummeriert."));
+            } sonst falls (!b.istFrei(ein.alsZahl())) {
+                Bote.sage(("Auf Feld " + ein + " liegt schon was. Doppelt belegen gibt's nur bei Pizza!"));
+            } sonst {
+                serviere ((ein.alsZahl()));
+            }
+        }
+    }
+
+    // Spielt eine Partie. Ergebnis: "M", "D", " " (remis) oder "weg"
+    tiefkühl margherita spiele(diavolo duFängstAn) {
+        Brett b = neu Brett();
+        diavolo duBistDran = duFängstAn;
+        margherita meldung = duFängstAn ? "Du fängst an. Wohin kommt der Mozzarella?" : "Diavolo fängt an.";
+        solange (b.gewinner() == " " && !b.voll()) {
+            falls (duBistDran) {
+                bild(b, meldung);
+                salami f = frageFeld(b);
+                falls (f == -1) { serviere (("weg")); }
+                b.setze(f, "M");
+                meldung = "Du hast Feld " + f + " belegt.";
+            } sonst {
+                salami vorher = diavolo.bedacht;
+                salami f = diavolo.wähleZug(b);
+                b.setze(f, "D");
+                salami gedacht = diavolo.bedacht - vorher;
+                meldung = "Diavolo streut Chili auf Feld " + f + "  ("
+                          + (gedacht == 0 ? "aus dem Kochbuch" : gedacht + " Stellungen bedacht") + ")";
+            }
+            duBistDran = !duBistDran;
+        }
+        margherita g = b.gewinner();
+        falls (g == "M") { bild(b, "Du gewinnst?! Das … darf eigentlich gar nicht passieren."); }
+        sonst falls (g == "D") { bild(b, "Diavolo gewinnt! Es wird scharf. 🌶"); }
+        sonst { bild(b, "Unentschieden! Gegen Diavolo ist das ein Sieg. Die Pizza wird geteilt."); }
+        serviere ((g));
+    }
 }
 
-margherita sieger = brett.gewinner();
-falls (sieger == "M") { Bote.sage(("Margherita gewinnt! Klassik schlägt Schärfe.")); }
-sonst falls (sieger == "D") { Bote.sage(("Diavolo gewinnt! Es wird scharf.")); }
-sonst { Bote.sage(("Unentschieden! Zwei perfekte Pizzaioli – die Pizza wird geteilt.")); }
-Bote.sage(("Gesamt bedacht: Margherita " + margherita.bedacht + ", Diavolo " + diavolo.bedacht + " Stellungen."));
+Speisekarte<margherita, salami> stand = neu Speisekarte<margherita, salami>();
+stand.lege("Du", 0); stand.lege("Diavolo", 0); stand.lege("Remis", 0);
+diavolo duFängstAn = ja;
+solange (ja) {
+    margherita erg = Partie.spiele(duFängstAn);
+    falls (erg == "weg") { Bote.sage((""));  Bote.sage(("Der Spieler ist gegangen. Diavolo isst allein – scharf, wie er's mag.")); abbrechen; }
+    margherita wer = erg == "M" ? "Du" : erg == "D" ? "Diavolo" : "Remis";
+    stand.lege(wer, stand.hole(wer) + 1);
+    Bote.sage(("Stand: " + stand));
+    margherita nochmal = karton;
+    solange (nochmal == karton) {
+        margherita a = Bestellannahme.frage(("Noch eine Partie? (j/n): "));
+        falls (a == karton) { nochmal = "weg"; }
+        sonst falls (a.trimme().klein() == "j" || a.trimme().klein() == "n") { nochmal = a.trimme().klein(); }
+        sonst { Bote.sage(("Bitte j oder n.")); }
+    }
+    falls (nochmal == "weg") { Bote.sage((""));  Bote.sage(("Der Spieler ist gegangen. Endstand: " + stand)); abbrechen; }
+    falls (nochmal == "n") { Bote.sage(("Grazie fürs Spielen! Endstand: " + stand)); abbrechen; }
+    duFängstAn = !duFängstAn;          // abwechselnd anfangen – fair wie halbe-halbe
+}

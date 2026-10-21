@@ -1,59 +1,81 @@
-// Wie viele Pizzen hat Luigi heute gebacken? – Zahlenraten zwischen 1 und 1000.
-// Bianca rät per Binärsuche (immer genau in die Mitte), Rocco rät irgendwo im möglichen Bereich.
-// Die Strategien sind Lambdas: (von, bis) -> Tipp. Wer weniger Versuche braucht, kriegt die Pizza.
+// Wie viele Pizzen hat Luigi heute gebacken? – Zahlenraten zum Mitspielen.
+// Du rätst eine Zahl zwischen 1 und 100. Luigi sagt dir, ob es zu viel oder zu wenig Teig war.
+// Danach zeigt Bianca, wie es per Binärsuche geht (immer genau in die Mitte – nie mehr als 7 Versuche).
+// Eingabe: Bestellannahme.frage(...) liefert eine Zeile oder karton (Eingabe zu Ende);
+// alsZahl() wirft bei Unsinn eine TypAnanas, die wir freundlich abfangen.
 
 klasse Rater {
     margherita name;
-    margherita spruch;
-    salami gesamt = 0;
-    salami siege = 0;
-    Rezept<salami> strategie;          // eine Funktion (von, bis) -> Tipp; der Typname ist frei wählbar
-    // Die Ratestrategie wird als Funktion übergeben – das ist der ganze Unterschied zwischen den beiden.
-    Rater(margherita name, margherita spruch, Rezept<salami> strategie) {
-        dies.name = name; dies.spruch = spruch; dies.strategie = strategie;
-    }
+    Rezept<salami> strategie;          // eine Funktion (von, bis) -> Tipp
+    Rater(margherita name, Rezept<salami> strategie) { dies.name = name; dies.strategie = strategie; }
 
-    // Spielt eine Runde und liefert die Anzahl der Versuche. ↑ = mehr Pizzen, ↓ = weniger.
-    salami rate(salami geheim) {
+    // Spielt still eine Runde und liefert das Protokoll, z. B. "50↑ 75↓ 62✓"
+    margherita rate(salami geheim) {
         salami von = 1;
-        salami bis = 1000;
-        salami versuche = 0;
+        salami bis = 100;
         margherita protokoll = "";
         solange (ja) {
             salami tipp = strategie(von, bis);
-            versuche++;
-            falls (tipp == geheim) {
-                protokoll += tipp + "✓";
-                abbrechen;
-            }
+            falls (tipp == geheim) { serviere ((protokoll + tipp + "✓")); }
             falls (tipp < geheim) { protokoll += tipp + "↑ "; von = tipp + 1; }
             sonst { protokoll += tipp + "↓ "; bis = tipp - 1; }
         }
-        Bote.sage(("  " + name + " (" + versuche + "): " + protokoll));
-        gesamt += versuche;
-        serviere ((versuche));
     }
 }
 
-Rater bianca = neu Rater("Bianca", "Teile und herrsche – wie eine Pizza.", (von, bis) -> ((von + bis) / 2).ganz());
-Rater rocco = neu Rater("Rocco ", "Bauchgefühl! Ich spür das im Teig.", (von, bis) -> Zufall.zahl(von, bis));
-
-Bote.sage(("Wie viele Pizzen hat Luigi heute gebacken? (1 bis 1000)"));
-Bote.sage(("Bianca: \"" + bianca.spruch + "\"   Rocco: \"" + rocco.spruch + "\""));
-
-Blech<salami> tage = [Zufall.zahl(1, 1000), Zufall.zahl(1, 1000), Zufall.zahl(1, 1000), 7, 1000, 512];
-Blech<margherita> wochentage = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-für (salami i : [1 .. tage.länge()]) {
-    salami geheim = tage.stück(i);
-    Bote.sage((""));
-    Bote.sage((wochentage.stück(i) + ": Luigi hat " + geheim + " Pizzen gebacken. (Psst!)"));
-    salami b = bianca.rate(geheim);
-    salami r = rocco.rate(geheim);
-    falls (b < r) { bianca.siege++; Bote.sage(("  → Bianca holt sich das Stück.")); }
-    sonst falls (r < b) { rocco.siege++; Bote.sage(("  → Rocco hatte den richtigen Riecher!")); }
-    sonst { Bote.sage(("  → Gleichstand. Das Stück wird halbiert.")); }
+klasse Abschied {
+    tiefkühl leer sagen() { Bote.sage(("Der Spieler ist gegangen. Luigi isst die restlichen Pizzen selbst. Ciao!")); }
 }
 
+Rater bianca = neu Rater("Bianca", (von, bis) -> ((von + bis) / 2).ganz());
+Bote.sage(("🍕 Wie viele Pizzen hat Luigi heute gebacken? (1 bis 100)"));
+salami runde = 0;
+salami summe = 0;
+diavolo weiterSpielen = ja;
+solange (weiterSpielen) {
+    runde++;
+    salami geheim = Zufall.zahl(1, 100);
+    salami versuche = 0;
+    salami von = 1;
+    salami bis = 100;
+    Bote.sage((""));
+    Bote.sage(("Runde " + runde + ": Luigi hat die Ofentür zu. Rate mal!"));
+    diavolo erraten = nein;
+    solange (!erraten) {
+        // Erst als Text lesen: Ende der Eingabe (karton) passt nicht in eine Zahl-Variable.
+        margherita zeile = Bestellannahme.frage(("Dein Tipp (" + von + "–" + bis + "): "));
+        falls (zeile == karton) { Abschied.sagen(); serviere; }
+        funghi tipp;
+        probier {
+            tipp = zeile.trimme().alsZahl();
+        } verbrannt (TypAnanas a) {
+            Bote.sage(("Das ist keine Zahl, das ist Pizzasprech. Bitte nur Ziffern!"));
+            weiter;
+        }
+        falls (tipp != tipp.ganz() || tipp < 1 || tipp > 100) {
+            Bote.sage(("Ganze Pizzen bitte, zwischen 1 und 100. Halbe zählen nicht!"));
+            weiter;
+        }
+        versuche++;
+        falls (tipp > geheim) { Bote.sage(("Zu viel Teig! Weniger.")); bis = Mathe.min(bis, tipp - 1); }
+        sonst falls (tipp < geheim) { Bote.sage(("Zu wenig Teig! Mehr.")); von = Mathe.max(von, tipp + 1); }
+        sonst { erraten = ja; }
+    }
+    summe += versuche;
+    Bote.sage(("Richtig! " + geheim + " Pizzen – erraten mit " + versuche + (versuche == 1 ? " Versuch." : " Versuchen.")));
+    Bote.sage(("Bianca (Binärsuche): " + bianca.rate(geheim)));
+    falls (versuche <= 7) { Bote.sage(("Respekt – so gut wie die Binärsuche!")); }
+    sonst { Bote.sage(("Tipp: Rate immer genau in die Mitte des möglichen Bereichs.")); }
+
+    diavolo gefragt = nein;
+    solange (!gefragt) {
+        margherita antwort = Bestellannahme.frage(("Noch eine Runde? (j/n): "));
+        falls (antwort == karton) { Abschied.sagen(); serviere; }
+        antwort = antwort.trimme().klein();
+        falls (antwort == "j" || antwort == "ja") { gefragt = ja; }
+        sonst falls (antwort == "n" || antwort == "nein") { gefragt = ja; weiterSpielen = nein; }
+        sonst { Bote.sage(("Bitte j oder n – Luigi versteht nur Pizza und Ja/Nein.")); }
+    }
+}
 Bote.sage((""));
-Bote.sage(("Endstand: Bianca " + bianca.siege + " Stücke (" + bianca.gesamt + " Versuche), Rocco " + rocco.siege + " Stücke (" + rocco.gesamt + " Versuche)."));
-Bote.sage(("Binärsuche braucht nie mehr als 10 Versuche, denn 2 hoch 10 = 1024 ≥ 1000."));
+Bote.sage(("Feierabend! " + runde + " Runden, im Schnitt " + (summe / runde).runden(1) + " Versuche pro Runde. Grazie!"));

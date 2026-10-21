@@ -1,8 +1,8 @@
-// Die Türme von Hanoi – mit Pizzakartons.
-// Luigi muss einen Stapel Kartons von der Theke zum Lieferroller tragen.
+// Die Türme von Hanoi – mit Pizzakartons. Du trägst!
+// Ein Stapel Kartons soll von der Theke zum Lieferroller.
 // Regel: Nie ein großer Karton auf einen kleineren – sonst ist die Pizza darunter platt.
-// Lösung: rekursiv. Um n Kartons zu bewegen, bewegt man n-1 zur Seite, den größten ans Ziel,
-// und dann die n-1 wieder obendrauf.
+// Eingabe: „13“ trägt den obersten Karton von Turm 1 nach Turm 3. „löse“ lässt Luigi rekursiv
+// zu Ende tragen – und zwar aus jeder beliebigen Stellung.
 
 klasse Kartonturm {
     margherita name;
@@ -19,7 +19,7 @@ klasse Luigi {
 
     Luigi(salami höhe, diavolo zeigen) {
         dies.höhe = höhe; dies.zeigen = zeigen;
-        türme = [neu Kartonturm("Theke"), neu Kartonturm("Ablage"), neu Kartonturm("Roller")];
+        türme = [neu Kartonturm("1 Theke"), neu Kartonturm("2 Ablage"), neu Kartonturm("3 Roller")];
         für (salami g = höhe; g >= 1; g--) { türme.stück(1).kartons.hinzu(g); }
     }
 
@@ -48,42 +48,97 @@ klasse Luigi {
         }).verbinde("")));
     }
 
+    // Trägt den obersten Karton. Regelverstoß → StreitAnanas (der Karton bleibt, wo er war).
     leer trage(salami von, salami nach) {
         Kartonturm a = türme.stück(von);
         Kartonturm z = türme.stück(nach);
-        salami g = a.kartons.entferne(a.kartons.länge());
-        falls (g > z.oben()) { wirf neu StreitAnanas(("Karton " + g + " auf " + z.oben() + "? Die Pizza ist platt!")); }
-        z.kartons.hinzu(g);
+        falls (a.kartons.istLeer()) { wirf neu StreitAnanas(("Bei " + a.name + " liegt gar kein Karton.")); }
+        falls (a.oben() > z.oben()) {
+            wirf neu StreitAnanas(("Karton " + a.oben() + " auf Karton " + z.oben() + "? Die Pizza darunter wäre platt!"));
+        }
+        z.kartons.hinzu(a.kartons.entferne(a.kartons.länge()));
         züge++;
-        falls (zeigen) {
-            Bote.sage((""));
-            Bote.sage(("Zug " + züge + ": Karton " + g + " von " + a.name + " nach " + z.name));
-            zeige();
+        falls (zeigen) { Bote.sage(("Zug " + züge + ": Karton " + z.oben() + " von " + a.name + " nach " + z.name)); }
+    }
+
+    salami turmVon(salami nr) {
+        für (salami t : [1 .. 3]) { falls (türme.stück(t).kartons.enthält(nr)) { serviere ((t)); } }
+        serviere ((0));
+    }
+
+    // Rekursiv aus JEDER erlaubten Stellung: bringe die Kartons 1..n auf Turm 'ziel'.
+    // Liegt Karton n schon dort, kümmern wir uns nur um die kleineren. Sonst: kleinere zur Seite,
+    // Karton n ans Ziel, kleinere wieder obendrauf.
+    leer bringe(salami n, salami ziel) {
+        falls (n == 0) { serviere; }
+        salami quelle = turmVon(n);
+        falls (quelle == ziel) { bringe(n - 1, ziel); serviere; }
+        bringe(n - 1, 6 - quelle - ziel);
+        trage(quelle, ziel);
+        bringe(n - 1, ziel);
+    }
+
+    diavolo fertig() { serviere ((türme.stück(3).kartons.länge() == höhe)); }
+}
+
+klasse Laden {
+    tiefkühl leer gegangen() { Bote.sage((""));  Bote.sage(("Der Spieler ist gegangen. Die Kartons bleiben stehen – die Pizza wird kalt.")); }
+
+    // Liest die Anzahl der Kartons (3–6). -1 = gegangen.
+    tiefkühl salami frageHöhe() {
+        solange (ja) {
+            margherita a = Bestellannahme.frage(("Wie viele Pizzakartons? (3–6): "));
+            falls (a == karton) { serviere ((-1)); }
+            a = a.trimme();
+            falls (a.länge() == 1 && "3456".enthält(a)) { serviere ((a.alsZahl())); }
+            Bote.sage(("Luigis Roller trägt 3 bis 6 Kartons. Mehr passt nicht, weniger lohnt nicht."));
         }
     }
+}
 
-    // Das Herzstück: n Kartons von 'von' nach 'nach', 'über' dient als Zwischenlager
-    leer bewege(salami n, salami von, salami nach, salami über) {
-        falls (n == 0) { serviere; }
-        bewege(n - 1, von, über, nach);
-        trage(von, nach);
-        bewege(n - 1, über, nach, von);
+Bote.sage(("Die Türme von Hanoi – mit Pizzakartons."));
+Bote.sage(("Bring alle Kartons von der Theke (1) zum Roller (3). Nie einen großen auf einen kleinen!"));
+salami n = Laden.frageHöhe();
+falls (n == -1) { Laden.gegangen(); }
+sonst {
+    Luigi luigi = neu Luigi(n, nein);
+    salami optimum = 2;
+    für (salami i : [2 .. n]) { optimum = optimum * 2; }
+    optimum--;
+    margherita meldung = "Los geht's! Bestes Ergebnis: " + optimum + " Züge.";
+    diavolo gelöst = nein;
+    solange (!luigi.fertig()) {
+        Bote.leeren();
+        luigi.zeige();
+        Bote.sage((""));
+        Bote.sage(("Züge: " + luigi.züge + "   " + meldung));
+        margherita a = Bestellannahme.frage(("Dein Zug (z. B. 13) oder „löse“: "));
+        falls (a == karton) { Laden.gegangen(); abbrechen; }
+        a = a.trimme().klein().ersetze(" ", "").ersetze("-", "").ersetze(">", "");
+        falls (a == "löse" || a == "loese") {
+            Bote.leeren();
+            Bote.sage(("Luigi seufzt und trägt den Rest selbst:"));
+            luigi.zeigen = ja;
+            luigi.bringe(n, 3);
+            gelöst = ja;
+            Bote.sage((""));
+        } sonst falls (a.länge() == 2 && "123".enthält(a.zeichen(1)) && "123".enthält(a.zeichen(2)) && a.zeichen(1) != a.zeichen(2)) {
+            probier {
+                luigi.trage(a.zeichen(1).alsZahl(), a.zeichen(2).alsZahl());
+                meldung = "Getragen.";
+            } verbrannt (StreitAnanas s) {
+                meldung = s.nachricht();
+            }
+        } sonst {
+            meldung = "„" + a + "“ versteht Luigi nicht. Zwei Ziffern 1–3, z. B. 12.";
+        }
+    }
+    falls (luigi.fertig()) {
+        falls (!gelöst) { Bote.leeren(); }
+        luigi.zeige();
+        Bote.sage((""));
+        falls (gelöst) { Bote.sage(("Geschafft – mit Luigis Hilfe, nach insgesamt " + luigi.züge + " Zügen.")); }
+        sonst falls (luigi.züge == optimum) { Bote.sage(("Perfekt! " + optimum + " Züge – mehr Pizzaiolo geht nicht. (2 hoch " + n + " minus 1)")); }
+        sonst { Bote.sage(("Geschafft in " + luigi.züge + " Zügen! Das Optimum wären " + optimum + " gewesen (2 hoch " + n + " minus 1).")); }
     }
 }
-
-Luigi luigi = neu Luigi(3, ja);
-Bote.sage(("Luigi hat 3 Pizzakartons auf der Theke. Ab auf den Roller!"));
-Bote.sage((""));
-luigi.zeige();
-luigi.bewege(3, 1, 3, 2);
-Bote.sage((""));
-Bote.sage(("Geschafft in " + luigi.züge + " Zügen. Keine Pizza wurde platt gedrückt."));
-
-// Und wie lange dauert das bei größeren Bestellungen? (ohne Bildchen)
-Bote.sage((""));
-für (salami n : [4, 6, 8, 10]) {
-    Luigi helfer = neu Luigi(n, nein);
-    helfer.bewege(n, 1, 3, 2);
-    Bote.sage((n + " Kartons: " + helfer.züge + " Züge  (= 2 hoch " + n + " minus 1)"));
-}
-Bote.sage(("Bei 64 Kartons wäre die Pizza kalt, bevor das Universum endet."));

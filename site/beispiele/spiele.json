@@ -3,73 +3,139 @@
   "beispiele": [
     {
       "id": "tictactoe",
-      "titel": "Tic-Tac-Toe: Margherita gegen Diavolo",
-      "beschreibung": "Zwei perfekte KIs mit Minimax und Alpha-Beta-Schnitt – und wie es sich gehört, endet es unentschieden.",
+      "titel": "Tic-Tac-Toe gegen Diavolo",
+      "beschreibung": "Du spielst Margherita gegen Diavolo, eine Minimax-KI mit Alpha-Beta-Schnitt, die nie verliert. Schaffst du ein Unentschieden?",
       "datei": "spiele/tictactoe.pizza",
       "erwartet": "spiele/tictactoe.erwartet",
+      "eingabe": "spiele/tictactoe.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "KI", "Minimax", "Rekursion", "Klassen", "ASCII-Art"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "KI",
+        "Minimax",
+        "Rekursion",
+        "Klassen",
+        "ASCII-Art"
+      ],
+      "interaktiv": true
     },
     {
       "id": "snake",
       "titel": "Die hungrige Salami (Snake)",
-      "beschreibung": "Snake auf einem 12×8-Blech: Die Salami steuert per Autopilot zu den Pizzastücken und meidet Rand und Schwanz.",
+      "beschreibung": "Rundenbasiertes Snake auf einem 12×8-Blech: mit w/a/s/d (auch mehrere auf einmal) zu fünf Pizzastücken steuern.",
       "datei": "spiele/snake.pizza",
       "erwartet": "spiele/snake.erwartet",
+      "eingabe": "spiele/snake.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "quattrostagioni", "Zufall", "Autopilot", "ASCII-Art"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "quattrostagioni",
+        "Zufall",
+        "ASCII-Art"
+      ],
+      "interaktiv": true
     },
     {
       "id": "siebzehn-und-pizza",
       "titel": "Siebzehn und Pizza (Blackjack)",
-      "beschreibung": "Gast Giovanni gegen Pizzaiolo Luigi: Karten mit Belag-Farben als quattrostagioni, deterministisch gemischt, sechs Runden um echte Euro.",
+      "beschreibung": "Du gegen Pizzaiolo Luigi: Einsatz wählen, „Karte? (j/n)“ – Belag-Farben als quattrostagioni, deterministisch gemischt.",
       "datei": "spiele/siebzehn-und-pizza.pizza",
       "erwartet": "spiele/siebzehn-und-pizza.erwartet",
+      "eingabe": "spiele/siebzehn-und-pizza.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "quattrostagioni", "Zufall", "Lambda", "euro", "hauptgang"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "quattrostagioni",
+        "Zufall",
+        "Lambda",
+        "euro",
+        "hauptgang"
+      ],
+      "interaktiv": true
     },
     {
       "id": "pizzen-versenken",
       "titel": "Pizzen versenken",
-      "beschreibung": "Schiffe versenken, KI gegen KI: Luigi jagt im Schachbrettmuster und sucht Nachbarn ab, Mario schießt drauflos.",
+      "beschreibung": "Schiffe versenken gegen Luigi: Du schießt mit Koordinaten wie B5, Luigi jagt im Schachbrettmuster.",
       "datei": "spiele/pizzen-versenken.pizza",
       "erwartet": "spiele/pizzen-versenken.erwartet",
+      "eingabe": "spiele/pizzen-versenken.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "KI", "Zufall", "Blech", "Lambda", "ASCII-Art"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "KI",
+        "Zufall",
+        "Blech",
+        "Lambda",
+        "ASCII-Art"
+      ],
+      "interaktiv": true
     },
     {
       "id": "vier-oliven",
       "titel": "Vier Oliven (Vier gewinnt)",
-      "beschreibung": "Olivia denkt mit Negamax und iterativer Vertiefung – nur so lange, wie ihr der Ofen Bedenkzeit gibt (zwischenstand + roh).",
+      "beschreibung": "Du gegen Olivia: Sie denkt mit Negamax und iterativer Vertiefung – nur so lange, wie ihr der Ofen Bedenkzeit gibt (zwischenstand + roh).",
       "datei": "spiele/vier-oliven.pizza",
       "erwartet": "spiele/vier-oliven.erwartet",
+      "eingabe": "spiele/vier-oliven.eingabe",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["Spiel", "KI", "ofen", "zwischenstand", "Negamax", "ASCII-Art"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "KI",
+        "ofen",
+        "zwischenstand",
+        "Negamax",
+        "ASCII-Art"
+      ],
+      "interaktiv": true
     },
     {
       "id": "zahlenraten",
-      "titel": "Zahlenraten: Bianca gegen Rocco",
-      "beschreibung": "Wie viele Pizzen hat Luigi gebacken? Binärsuche gegen Bauchgefühl – die Ratestrategien sind Lambdas.",
+      "titel": "Zahlenraten",
+      "beschreibung": "Wie viele Pizzen hat Luigi gebacken? Du rätst, danach zeigt Bianca, wie es per Binärsuche geht. Unsinn fängt eine TypAnanas ab.",
       "datei": "spiele/zahlenraten.pizza",
       "erwartet": "spiele/zahlenraten.erwartet",
+      "eingabe": "spiele/zahlenraten.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "Binärsuche", "Lambda", "Zufall", "Klassen"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "Binärsuche",
+        "Lambda",
+        "Zufall",
+        "Klassen"
+      ],
+      "interaktiv": true
     },
     {
       "id": "hanoi",
       "titel": "Türme von Hanoi mit Pizzakartons",
-      "beschreibung": "Luigi trägt Pizzakartons von der Theke zum Roller – rekursiv, Zug für Zug als ASCII-Bild, mit StreitAnanas als Wächter.",
+      "beschreibung": "Trag die Kartons selbst (z. B. „13“) – oder tippe „löse“, und Luigi löst rekursiv aus jeder Stellung. Falsche Züge werfen eine StreitAnanas.",
       "datei": "spiele/hanoi.pizza",
       "erwartet": "spiele/hanoi.erwartet",
+      "eingabe": "spiele/hanoi.eingabe",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Spiel", "Rekursion", "Blech", "Lambda", "ASCII-Art"]
+      "schlagworte": [
+        "Eingabe",
+        "Spiel",
+        "Rekursion",
+        "Blech",
+        "Lambda",
+        "ASCII-Art"
+      ],
+      "interaktiv": true
     }
   ]
 }

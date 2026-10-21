@@ -1,4 +1,5 @@
-Start: Die Salami ist 3 Scheiben lang und hat Hunger.
+«leeren»
+🍕 Die hungrige Salami   Stücke: 0/5   Züge: 0   Richtung: OST
 +------------+
 |            |
 |            |
@@ -9,7 +10,48 @@ Start: Die Salami ist 3 Scheiben lang und hat Hunger.
 |            |
 |            |
 +------------+
-Zug 6: Happs! Stück Nr. 1 – knusprig!
+Die Salami hat Hunger! Friss 5 Pizzastücke ▲.
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 0/5   Züge: 1   Richtung: OST
++------------+
+|            |
+|            |
+|            |
+|            |
+|  oo@    ▲  |
+|            |
+|            |
+|            |
++------------+
+
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 0/5   Züge: 1   Richtung: OST
++------------+
+|            |
+|            |
+|            |
+|            |
+|  oo@    ▲  |
+|            |
+|            |
+|            |
++------------+
+„x“ ist keine Richtung – nur w, a, s, d. Der Rest wurde verworfen.
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 0/5   Züge: 1   Richtung: OST
++------------+
+|            |
+|            |
+|            |
+|            |
+|  oo@    ▲  |
+|            |
+|            |
+|            |
++------------+
+Umdrehen geht nicht – die Salami kann sich nicht selbst in den Schwanz beißen.
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 1/5   Züge: 6   Richtung: OST
 +------------+
 |            |
 |            |
@@ -20,7 +62,9 @@ Zug 6: Happs! Stück Nr. 1 – knusprig!
 |            |
 |            |
 +------------+
-Zug 9: Happs! Stück Nr. 2 – mit extra Käse!
+Happs! knusprig!
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 2/5   Züge: 9   Richtung: WEST
 +------------+
 |            |
 |            |
@@ -31,114 +75,69 @@ Zug 9: Happs! Stück Nr. 2 – mit extra Käse!
 |         ▲  |
 |            |
 +------------+
-Zug 14: Happs! Stück Nr. 3 – noch warm!
+Happs! mit extra Käse!
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 3/5   Züge: 14   Richtung: OST
 +------------+
 |            |
 |            |
 |            |
 |       o    |
 |       o    |
-|    ▲  ooo  |
-|         @  |
+|    ▲  o    |
+|       oo@  |
 |            |
 +------------+
-Zug 20: Happs! Stück Nr. 4 – Rand inklusive!
+Happs! noch warm!
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 4/5   Züge: 22   Richtung: NORD
 +------------+
 |            |
 |    ▲       |
 |            |
 |            |
 |            |
-|    @oo     |
-|      oooo  |
-|            |
+|    @       |
+|    o       |
+|    ooooo   |
 +------------+
-Zug 24: Happs! Stück Nr. 5 – Mamma mia!
+Happs! Rand inklusive!
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 4/5   Züge: 24   Richtung: NORD
++------------+
+|            |
+|    ▲       |
+|            |
+|    @       |
+|    o       |
+|    o       |
+|    o       |
+|    ooo     |
++------------+
+
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 4/5   Züge: 25   Richtung: NORD
++------------+
+|            |
+|    ▲       |
+|    @       |
+|    o       |
+|    o       |
+|    o       |
+|    o       |
+|    oo      |
++------------+
+
+w/a/s/d (auch mehrere, z. B. ddw), Enter = geradeaus, q = Schluss: «leeren»
+🍕 Die hungrige Salami   Stücke: 5/5   Züge: 26
 +------------+
 |            |
 |    @       |
 |    o       |
 |    o       |
-|  ▲ o       |
-|    ooo     |
-|      o     |
-|            |
+|    o       |
+|    o       |
+|    o       |
+|    oo      |
 +------------+
-Zug 29: Happs! Stück Nr. 6 – Bellissimo!
-+------------+
-|            |
-|  ooo       |
-|  o o       |
-|  o o       |
-|  @ o      ▲|
-|            |
-|            |
-|            |
-+------------+
-Zug 38: Happs! Stück Nr. 7 – Ein Stück geht immer.
-+------------+
-|            |
-|            |
-|            |
-|            |
-|  ooooooooo@|
-|            |
-|           ▲|
-|            |
-+------------+
-Zug 40: Happs! Stück Nr. 8 – Burp. Scusi.
-+------------+
-|            |
-|            |
-|            |
-|         ▲  |
-|   ooooooooo|
-|           o|
-|           @|
-|            |
-+------------+
-Zug 49: Happs! Stück Nr. 9 – Nur noch ein Minzblättchen …
-+------------+
-|            |
-|           ▲|
-|            |
-|       oo@  |
-|       o   o|
-|       ooo o|
-|         ooo|
-|            |
-+------------+
-Zug 53: Happs! Stück Nr. 10 – Salami auf Salami!
-+------------+
-|            |
-|         oo@|
-|         o  |
-|       ooo  |
-|       o    |
-|       ooo  |
-|         oo |
-|▲           |
-+------------+
-Zug 70: Happs! Stück Nr. 11 – Der Gürtel spannt.
-+------------+
-|            |
-|            |
-|            |
-|            |
-|          o |
-|          o▲|
-| oooooooooo |
-|@o          |
-+------------+
-Zug 83: Happs! Stück Nr. 12 – Doppelt belegt!
-+------------+
-|            |
-|            |
-|            |
-|            |
-|            |
-|ooooooooooo@|
-|o           |
-|oo          |
-+------------+
-Satt nach 83 Zügen! Die Salami ist jetzt 15 Scheiben lang.
+Satt! Die Salami ist 8 Scheiben lang. Du hast gewonnen – Bellissimo!

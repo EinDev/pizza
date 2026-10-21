@@ -1,67 +1,106 @@
-🍕 Tic-Tac-Toe: Margherita (M) gegen Diavolo (D)
+«leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
 
-Zug 1: Margherita legt Mozzarella auf Feld 5  (aus dem Kochbuch)
    1 | 2 | 3
   ---+---+---
-   4 | M | 6
+   4 | 5 | 6
   ---+---+---
    7 | 8 | 9
 
-Zug 2: Diavolo streut Chili auf Feld 1  (Stellungen bedacht: 8853)
+Du fängst an. Wohin kommt der Mozzarella?
+Dein Zug (1–9): „x“? Bitte eine Ziffer von 1 bis 9 – die Felder sind nummeriert.
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
    D | 2 | 3
   ---+---+---
    4 | M | 6
   ---+---+---
    7 | 8 | 9
 
-Zug 3: Margherita belegt Feld 3  (Stellungen bedacht: 1702)
-   D | 2 | M
+Diavolo streut Chili auf Feld 1  (aus dem Kochbuch)
+Dein Zug (1–9): Auf Feld 1 liegt schon was. Doppelt belegen gibt's nur bei Pizza!
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   D | 2 | D
   ---+---+---
    4 | M | 6
+  ---+---+---
+   7 | 8 | M
+
+Diavolo streut Chili auf Feld 3  (381 Stellungen bedacht)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   D | M | D
+  ---+---+---
+   4 | M | 6
+  ---+---+---
+   7 | D | M
+
+Diavolo streut Chili auf Feld 8  (46 Stellungen bedacht)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   D | M | D
+  ---+---+---
+   M | M | D
+  ---+---+---
+   7 | D | M
+
+Diavolo streut Chili auf Feld 6  (4 Stellungen bedacht)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   D | M | D
+  ---+---+---
+   M | M | D
+  ---+---+---
+   M | D | M
+
+Unentschieden! Gegen Diavolo ist das ein Sieg. Die Pizza wird geteilt.
+Stand: {Du: 0, Diavolo: 0, Remis: 1}
+Noch eine Partie? (j/n): Bitte j oder n.
+Noch eine Partie? (j/n): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   1 | 2 | 3
+  ---+---+---
+   4 | D | 6
   ---+---+---
    7 | 8 | 9
 
-Zug 4: Diavolo beansprucht Feld 7  (Stellungen bedacht: 257)
-   D | 2 | M
-  ---+---+---
-   4 | M | 6
-  ---+---+---
-   D | 8 | 9
+Diavolo streut Chili auf Feld 5  (aus dem Kochbuch)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
 
-Zug 5: Margherita schiebt ein Stück auf Feld 4  (Stellungen bedacht: 123)
-   D | 2 | M
+   D | M | 3
   ---+---+---
-   M | M | 6
+   4 | D | 6
   ---+---+---
-   D | 8 | 9
+   7 | 8 | 9
 
-Zug 6: Diavolo rettet Feld 6  (Stellungen bedacht: 44)
-   D | 2 | M
-  ---+---+---
-   M | M | D
-  ---+---+---
-   D | 8 | 9
+Diavolo streut Chili auf Feld 1  (1090 Stellungen bedacht)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
 
-Zug 7: Margherita besetzt Feld 9  (Stellungen bedacht: 15)
-   D | 2 | M
+   D | M | 3
   ---+---+---
-   M | M | D
+   4 | D | 6
   ---+---+---
    D | 8 | M
 
-Zug 8: Diavolo verteidigt Feld 2  (Stellungen bedacht: 4)
-   D | D | M
+Diavolo streut Chili auf Feld 7  (134 Stellungen bedacht)
+Dein Zug (1–9): «leeren»
+🍕 Tic-Tac-Toe: Du (M) gegen Diavolo (D)
+
+   D | M | D
   ---+---+---
-   M | M | D
+   M | D | 6
   ---+---+---
    D | 8 | M
 
-Zug 9: Margherita krönt Feld 8  (Stellungen bedacht: 1)
-   D | D | M
-  ---+---+---
-   M | M | D
-  ---+---+---
-   D | M | M
-
-Unentschieden! Zwei perfekte Pizzaioli – die Pizza wird geteilt.
-Gesamt bedacht: Margherita 1841, Diavolo 9158 Stellungen.
+Diavolo gewinnt! Es wird scharf. 🌶
+Stand: {Du: 0, Diavolo: 1, Remis: 1}
+Noch eine Partie? (j/n): Grazie fürs Spielen! Endstand: {Du: 0, Diavolo: 1, Remis: 1}
