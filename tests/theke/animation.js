@@ -53,9 +53,12 @@
     funkeln: { animationen: [{ id: "zaehler", art: "funkeln" }] },
     einblenden: { aenderungen: [NEUE_ZEILE], animationen: [{ id: "z2", art: "einblenden" }] },
     aufpoppen: { animationen: [{ id: "erfolg", art: "aufpoppen" }] },
+    // 3× am selben Knopf (Stapel), 2× am Zähler ganz oben (kein Platz nach oben → Stapel nach unten), Fenstermitte,
+    // ein leerer Text (erzeugt nichts, K-093) – zusammen 6 Schwebetexte
     schwebe: { animationen: [
       { art: "schwebe", text: "+12", id: "backen" }, { art: "schwebe", text: "+12", id: "backen" },
       { art: "schwebe", text: "+12", id: "backen" }, { art: "schwebe", text: "+1 Lehrling", id: "zaehler", farbe: "basilikum" },
+      { art: "schwebe", text: "", id: "backen" }, { art: "schwebe", text: "+1 Ofen", id: "zaehler", farbe: "tomate" },
       { art: "schwebe", text: "Glückstreffer!", farbe: "kruste" }] },
     uebergang: { aenderungen: [{ id: "lehrling", sichtbar: false }, NEUE_ZEILE], animationen: [] }
   };

@@ -488,20 +488,22 @@
   var UEBERGANG_MS = 200;
   var SCHWEBE_MAX = 20;
   var SCHWEBE_STEIGEN = 40;                      // px (theke.css @keyframes theke-schwebe)
-  var SCHWEBE_VERSATZ = [0, -12, 12, -6, 6];   // px, je Anker reihum – kein Zufall (reproduzierbare Bilder)
+  var SCHWEBE_VERSATZ = [0, -12, 12, -6, 6];   // px, seitlich je Platz reihum – kein Zufall (reproduzierbare Bilder)
+  var SCHWEBE_ZEILE = 20;                        // px je Platz: gleichzeitige Texte am selben Anker stapeln sich (K-092)
   var NACHLAUF_MS = 34;                          // ~2 Frames: Klasse erst nach dem letzten Bild entfernen
   var FUNKEN = 8;
   var animRegistry = Object.create(null);
 
-  /** PizzaTheke.registriereAnimation(art, { dauer, spiele(el, eintrag, ctx), ebene? }).
+  /** PizzaTheke.registriereAnimation(art, { dauer, spiele(el, eintrag, ctx), ebene?, leer? }).
    *  dauer: Standarddauer in ms (ohne Feld dauer im Eintrag). ebene: true = läuft in der Schwebe-Ebene (el darf null sein =
    *  Fenstermitte), ersetzt nichts und zählt zum Limit von 20; sonst ersetzt sie die laufende Animation derselben Zutat.
+   *  leer(eintrag) → true: es gäbe nichts zu zeigen – der Eintrag wird übersprungen (kein Lauf, zählt nicht zum Limit).
    *  spiele darf eine Aufräumfunktion zurückgeben (gerufen am Ende, beim Ersetzen, Entfernen, neuen baum, schliesse). */
   function registriereAnimation(art, def) {
     if (typeof art !== "string" || !art) throw new TypeError("PizzaTheke.registriereAnimation: art muss ein nicht-leerer String sein");
     if (!def || typeof def.spiele !== "function") throw new TypeError("PizzaTheke.registriereAnimation: spiele(el, eintrag, ctx) fehlt");
     var d = typeof def.dauer === "number" && isFinite(def.dauer) ? klemmeDauer(def.dauer) : 400;
-    animRegistry[art] = { dauer: d, spiele: def.spiele, ebene: def.ebene === true };
+    animRegistry[art] = { dauer: d, spiele: def.spiele, ebene: def.ebene === true, leer: typeof def.leer === "function" ? def.leer : null };
   }
   function animationsArten() { return Object.keys(animRegistry); }
   function klemmeDauer(ms) { return Math.max(ANIM_MIN, Math.min(ANIM_MAX, Math.round(ms))); }
@@ -537,21 +539,31 @@
   registriereAnimation("schwebe", {
     dauer: 1000,
     ebene: true,
+    /** Leerer Text (auch nur Leerraum): nichts zu zeigen – kein Element, zählt nicht zum Limit (K-093). */
+    leer: function (eintrag) { return alsText(eintrag.text).trim() === ""; },
     spiele: function (el, eintrag, ctx) {
       var wo = ctx.lage(el);
       var t = ctx.teil("theke-schwebe" + (ctx.reduziert ? " theke-schwebe-ruhig" : ""), wo);
       t.textContent = alsText(eintrag.text);
       var farbe = eintrag.farbe;
       if (typeof farbe === "string" && farbe !== "normal" && STIL.farbe.indexOf(farbe) >= 0) t.classList.add("theke-farbe-" + farbe);
+      // Gleichzeitige Texte am selben Anker: Platz 0, 1, 2, … (kleinster freier) → je eine Zeile höher, seitlich reihum (K-092).
       var versatz = SCHWEBE_VERSATZ[ctx.nummer % SCHWEBE_VERSATZ.length];
+      var hoch = ctx.nummer * SCHWEBE_ZEILE;
       t.style.setProperty("--theke-versatz", versatz + "px");
-      // Im sichtbaren Ausschnitt halten: Startpunkt = oben mittig über der Zutat; reicht der Platz nach oben (Text + Steigen)
-      // nicht – z. B. ein Zähler ganz oben –, startet der Text tiefer; am Rand rückt er nach innen. Nur Lage, kein Layout.
+      // Im sichtbaren Ausschnitt halten (nur wenn der Ausschnitt bekannt ist – ohne Layout, z. B. jsdom, bleibt die rohe Lage):
+      // Startpunkt = oben mittig über der Zutat; reicht der Platz nach oben (Text + Steigen) nicht – z. B. ein Zähler ganz
+      // oben –, startet der Text tiefer; am Rand rückt er nach innen; ein Stapel-Platz, dessen Start abgeschnitten würde,
+      // stapelt nach unten (über die Zutat). Nur Lage, kein Layout.
       var s = ctx.sicht(), tb = t.offsetWidth, th = t.offsetHeight;
       var x = wo.x + wo.b / 2, y = wo.y;
       var halb = tb / 2 + Math.abs(versatz) + 4;
       if (s.x1 - s.x0 > 2 * halb) x = Math.max(s.x0 + halb, Math.min(s.x1 - halb, x));
-      y = Math.min(s.y1, Math.max(y, s.y0 + th + (ctx.reduziert ? 0 : SCHWEBE_STEIGEN) + 4));
+      if (s.y1 > s.y0) {
+        y = Math.min(s.y1, Math.max(y, s.y0 + th + (ctx.reduziert ? 0 : SCHWEBE_STEIGEN) + 4));
+        if (hoch > 0 && y - hoch - th < s.y0) hoch = -hoch;
+      }
+      t.style.setProperty("--theke-hoch", hoch + "px");
       t.style.setProperty("--theke-x", (Math.round(x * 10) / 10) + "px");
       t.style.setProperty("--theke-y", (Math.round(y * 10) / 10) + "px");
       t.style.setProperty("--theke-b", "0px");
@@ -609,9 +621,9 @@
     var ebene = dok.createElement("div");
     ebene.className = "theke-ebene";
     var laeufe = new Map();       // Element → laufende Animation (eine je Zutat)
-    var ebenenLaeufe = [];        // Schwebetexte u. Ä. in Startreihenfolge (höchstens SCHWEBE_MAX)
-    var ankerZaehler = Object.create(null);
+    var ebenenLaeufe = [];        // Schwebetexte u. Ä. in Startreihenfolge (höchstens SCHWEBE_MAX); je Lauf anker + platz
     var baumDa = false;
+    var neueKinder = null;        // während def.aktualisiere: neu hinzugekommene Kinder eines uebergang-Behälters (K-091)
     container.appendChild(wurzelEl);
     setzeThema(optionen.thema);
     zeigeLeer("Die Theke wird vorbereitet …");
@@ -680,7 +692,14 @@
       var alle = ebenenLaeufe.slice();
       laeufe.forEach(function (l) { alle.push(l); });
       for (var i = 0; i < alle.length; i++) beendeLauf(alle[i]);
-      ankerZaehler = Object.create(null);
+    }
+    /** Kleinster freier Platz (0, 1, 2, …) unter den laufenden Ebenen-Animationen desselben Ankers – wird am Ende wieder frei. */
+    function freierPlatz(anker) {
+      var belegt = [];
+      for (var i = 0; i < ebenenLaeufe.length; i++) if (ebenenLaeufe[i].anker === anker) belegt[ebenenLaeufe[i].platz] = true;
+      var p = 0;
+      while (belegt[p]) p++;
+      return p;
     }
 
     function animCtx(l, dauer, nummer) {
@@ -688,7 +707,7 @@
         dokument: dok,
         dauer: dauer,
         reduziert: reduziert(),
-        /** Laufende Nummer dieser Ebenen-Animation am selben Anker (0, 1, 2, …) – für feste Versätze. */
+        /** Platz dieser Ebenen-Animation am selben Anker (0, 1, 2, …; kleinster freier unter den laufenden) – für feste Versätze. */
         nummer: nummer,
         ebene: ebene,
         warne: warne,
@@ -726,12 +745,11 @@
 
     function starteAnimation(def, art, el, eintrag, dauer, anker) {
       if (!def.ebene) { var alt = laeufe.get(el); if (alt) beendeLauf(alt); }
-      var l = { art: art, el: el, ebene: def.ebene, stop: [], timer: null, fertig: false };
+      var l = { art: art, el: el, ebene: def.ebene, stop: [], timer: null, fertig: false, anker: anker, platz: 0 };
       var nummer = 0;
       if (def.ebene) {
-        while (ebenenLaeufe.length >= SCHWEBE_MAX) beendeLauf(ebenenLaeufe[0]);   // der älteste weicht
-        nummer = ankerZaehler[anker] || 0;
-        ankerZaehler[anker] = nummer + 1;
+        while (ebenenLaeufe.length >= SCHWEBE_MAX) beendeLauf(ebenenLaeufe[0]);   // der älteste weicht (sein Platz wird frei)
+        nummer = l.platz = freierPlatz(anker);
         ebenenLaeufe.push(l);
       } else {
         laeufe.set(el, l);
@@ -768,6 +786,7 @@
           el = e.el;
           anker = "id " + e.id;
         } else if (!def.ebene) continue;
+        if (def.leer && def.leer(a)) continue;   // z. B. schwebe mit leerem Text: nichts zu zeigen (K-093)
         var dauer = typeof a.dauer === "number" && isFinite(a.dauer) ? klemmeDauer(a.dauer) : def.dauer;
         try { starteAnimation(def, art, el, a, dauer, anker); } catch (err) { warne("Animation fehlgeschlagen:", err); }
       }
@@ -950,8 +969,16 @@
           if (!gewarnt[schl]) { gewarnt[schl] = true; warne("Unbekanntes Feld ignoriert:", schl); }
         }
       }
+      var aussen = neueKinder;
+      neueKinder = [];
       try { def.aktualisiere(e.el, felder, e.ctx); }
       catch (err) { warne("Zutat „" + e.art + "“: aktualisiere() fehlgeschlagen:", err); }
+      var einblenden = neueKinder;
+      neueKinder = aussen;
+      // Erst jetzt ist der Behälter fertig (z. B. hat reiter die nicht gewählten Seiten markiert): nur gezeigte Kinder blenden ein.
+      for (var n = 0; n < einblenden.length; n++) {
+        if (eintragVon.has(einblenden[n]) && gezeigt(einblenden[n])) starteAnimation(UEBERGANG_EIN, "uebergang", einblenden[n], {}, UEBERGANG_MS, null);
+      }
     }
 
     var PLATZHALTER_DEF = {
@@ -979,10 +1006,9 @@
       }
       var rest = [].slice.call(el.children, neu.length);
       for (var j = 0; j < rest.length; j++) { entferneRekursiv(rest[j]); el.removeChild(rest[j]); }
-      if (besitzer && besitzer.uebergang === true && besitzer.gebaut === true && !reduziert()) {
+      if (besitzer && besitzer.uebergang === true && besitzer.gebaut === true && neueKinder && !reduziert()) {
         for (var n = 0; n < neu.length; n++) {
-          if (vorher.indexOf(neu[n]) >= 0 || !eintragVon.has(neu[n]) || !gezeigt(neu[n])) continue;
-          starteAnimation(UEBERGANG_EIN, "uebergang", neu[n], {}, UEBERGANG_MS, null);
+          if (vorher.indexOf(neu[n]) < 0) neueKinder.push(neu[n]);   // Einblenden startet nach def.aktualisiere (aktualisiereEintrag)
         }
       }
     }

@@ -128,8 +128,8 @@ try {
       const reduziert = bewegung === "reduce";
       // Erwartete Anzahl laufender Animationen je Theke (reduziert: Bewegung entfällt, funkeln/schwebe ruhig)
       const erwartet = reduziert
-        ? { puls: 0, huepfen: 0, wackeln: 0, funkeln: 1, einblenden: 0, aufpoppen: 0, schwebe: 5, uebergang: 0 }[fall]
-        : { funkeln: 1 + 8, schwebe: 5, uebergang: 2 }[fall] ?? 1;
+        ? { puls: 0, huepfen: 0, wackeln: 0, funkeln: 1, einblenden: 0, aufpoppen: 0, schwebe: 6, uebergang: 0 }[fall]
+        : { funkeln: 1 + 8, schwebe: 6, uebergang: 2 }[fall] ?? 1;
       if (anzahl.some((n) => n !== erwartet)) { ok = false; console.log(`Animationen ${fall}/${thema}/${bewegung}: ${anzahl} statt ${erwartet}`); }
       const fp = layout.map((l) => JSON.stringify(l));
       if (fp[1] !== fp[0] || fp[2] !== fp[0]) { ok = false; console.log(`Layout springt bei ${fall}/${thema}/${bewegung}:\n  ${fp.join("\n  ")}`); }

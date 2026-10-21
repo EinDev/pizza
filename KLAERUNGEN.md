@@ -758,34 +758,45 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   statt Felder je Zutat („letzter Wert gewinnt“ würde zwei Pulse verschlucken, ein neuer `baum` würde sie wiederholen).
   W0102 statt Ananas: eine Animation darf den Programmablauf nicht ändern (z. B. Speichern nach dem Schließen des Fensters).
 - **Betroffen:** Interpreter (U-56), Compiler/Laufzeit (U-57), Renderer (U-58), Doku/Beispiel (U-59). **Status:** Interpreter
-  umgesetzt (U-56, aed3450; Fälle in a13); offen: Wasm-Laufzeit (U-57), Renderer (U-58), Doku/Beispiel (U-59). Ergänzungen: K-093, K-094.
+  umgesetzt (U-56, aed3450; Fälle in a13); Renderer umgesetzt (U-58, c2b1bd3, bbf5092; Nachträge K-092/K-093 siehe dort);
+  offen: Wasm-Laufzeit (U-57; pizzaiolo meldet bis dahin `nichtUnterstuetzt`, abaf357), Doku/Beispiel (U-59). Ergänzungen: K-093, K-094.
 
 ### K-091 Theke v3: `uebergang` – weiche Zustandswechsel
 - **Entscheidung:** `zutat.uebergang(diavolo)` / `uebergang()` an jeder Zutat (Setter → Zutat, Getter → diavolo; Nicht-diavolo →
   `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`, K-066), Standard `nein`; Feld `uebergang: true` im `baum` nur bei `ja`, in `aendere`
   der neue Wert (wie `aktiv`). Wirkung im Renderer: `sichtbar`-Wechsel blendet ein/aus (Ausblenden: sofort nicht bedienbar, Element
-  erst nach dem Ausblenden versteckt); Behälter (`stapel`, `reihe`, `abschnitt`) blenden per `kinder`-Änderung **neu hinzugekommene**
-  Kinder ein (nicht beim ersten `baum`; entfernte verschwinden sofort). `Fortschritt` gleitet **immer** (bestehendes Renderer-Verhalten,
+  erst nach dem Ausblenden versteckt); Behälter (`stapel`, `reihe`, `abschnitt`, `reiter`) blenden per `kinder`-Änderung **neu hinzugekommene**
+  Kinder ein (nicht beim ersten `baum`; entfernte verschwinden sofort; bei `reiter` nur eine neue Seite, die zugleich gewählt ist – eine
+  nicht gewählte Seite ist nicht gezeigt und blendet erst gar nicht). `Fortschritt` gleitet **immer** (bestehendes Renderer-Verhalten,
   jetzt verbindlich). Kein Hochzählen/Überblenden von Texten (der Zustand ist formatierter Text).
 - **Begründung:** Methode wie `sichtbar`/`aktiv` statt Stil-Schlüssel: kein neuer Werttyp in `stil`, und der Fehlertext von K-068
   (Whitelist, in a13 und `tests/faelle` geprüft) bleibt unverändert.
-- **Betroffen:** U-56, U-57, U-58. **Status:** Interpreter umgesetzt (U-56, aed3450; a13); offen: U-57 (Wasm), U-58 (Renderer).
+- **Betroffen:** U-56, U-57, U-58. **Status:** Interpreter umgesetzt (U-56, aed3450; a13); Renderer umgesetzt (U-58, c2b1bd3; `reiter`
+  als Behälter nachgetragen, Test in `tests/theke/run.js`); offen: U-57 (Wasm).
 
 ### K-092 Theke v3: Darstellung, Barrierefreiheit, Registry (Renderer)
 - **Entscheidung:** Standarddauern `puls` 400 ms (Skalierung 1 → 1,12 → 1), `huepfen` 350 ms (6 px hoch und zurück), `wackeln` 400 ms
   (±6/±4 px seitlich), `funkeln` 800 ms (Leuchten in Thema-Gold + einige Funken an festen Positionen), `einblenden` 300 ms (Deckkraft
   0 → 1, 4 px von unten), `aufpoppen` 450 ms (Skalierung 0,6 → 1,08 → 1 mit Einblenden), `schwebe` 1000 ms (Text fett, startet oben
-  mittig über `bei` bzw. in der Fenstermitte, steigt 40 px und blendet aus; seitlicher Versatz je Anker reihum 0, −12, +12, −6, +6 px – kein
-  Zufall), `uebergang` 200 ms. Nur `transform`/`opacity`/Leuchten, eigene Ebene für Schwebetexte – das Layout ändert sich nie.
-  Gleiche Zutat: neue Animation ersetzt die laufende (Neustart bei gleicher Art); Schwebetexte addieren sich (höchstens 20 gleichzeitig,
-  der älteste weicht). Unbekannte `id`, versteckte Zutat, `takt` → still ignoriert; unbekannte `art` → einmalige Konsolenwarnung.
+  mittig über `bei` bzw. in der Fenstermitte, steigt 40 px und blendet aus), `uebergang` 200 ms. **Gleichzeitige Schwebetexte am selben
+  Anker** (dieselbe `bei`-Zutat bzw. die Fenstermitte) stapeln sich: jeder Text bekommt den kleinsten freien Platz 0, 1, 2, … unter den
+  dort noch laufenden Texten (der Platz wird mit dem Ende wieder frei – kein Hochzählen); Platz n startet n × 20 px (eine Zeile) höher
+  und seitlich reihum 0, −12, +12, −6, +6 px versetzt – kein Zufall, mit gesteuerter Uhr reproduzierbar. **Sichtbar halten** (Lage, nie
+  Layout): reicht der Platz nach oben für Text + Steigen nicht (Zähler ganz oben), startet der Text tiefer; am Rand rückt er nach innen;
+  ein Stapel-Platz, dessen Start oben abgeschnitten würde, stapelt stattdessen nach unten (über die Zutat); ein Text darf beim Steigen
+  oben aus dem Fenster laufen (er blendet dabei aus). Nur `transform`/`opacity`/Leuchten, eigene Ebene für Schwebetexte – das Layout
+  ändert sich nie. Gleiche Zutat: neue Animation ersetzt die laufende (Neustart bei gleicher Art); Schwebetexte addieren sich (höchstens
+  20 gleichzeitig, der älteste weicht). Unbekannte `id`, versteckte Zutat (auch `bei` eines `schwebe`), `takt` → still ignoriert – **kein**
+  Ersatz in der Fenstermitte: ein Text ohne seinen Ursprung verwirrt, und den echten Fehlfall (nicht auf der Theke) meldet schon der
+  Interpreter als W0102; unbekannte `art` → einmalige Konsolenwarnung.
   Farben über die Thema-Variablen (hell/dunkel). **`prefers-reduced-motion: reduce`:** keine Bewegung, keine Übergänge – `puls`,
   `huepfen`, `wackeln`, `aufpoppen`, `einblenden`, `uebergang` entfallen; `funkeln` = ruhiges Leuchten; `schwebe` = Text ruhig für die
   Dauer, dann weg (Information bleibt); `Fortschritt` springt. Registry: `PizzaTheke.registriereAnimation(art, { dauer, spiele(el, eintrag, ctx) })`,
   die eingebauten Arten über dieselbe API. Keine Inline-Styles (strikte CSP der nativen Hülle): `@keyframes`-Klassen oder `Element.animate()`.
 - **Begründung:** Eine Engine + ein CSS in Playground und WebView (WebView2/WebKitGTK melden die OS-Einstellung „Animationen“ als
   `prefers-reduced-motion`) → gleiches Bild (K-082); feste Versätze statt Zufall → reproduzierbare Screenshots.
-- **Betroffen:** Renderer (U-58). **Status:** offen (tests/theke, visuell).
+- **Betroffen:** Renderer (U-58). **Status:** umgesetzt (c2b1bd3, bbf5092; Stapel/Sichtbar-halten/kein Fenstermitte-Ersatz vom Klärungs-Agenten
+  nachgezogen – `tests/theke/run.js`, Screenshots `tests/theke/visuell.mjs` hell/dunkel/reduziert).
 
 ### K-093 Theke v3: `animiere` ohne Art, `schwebe` ohne Text (Lücke aus der Interpreter-Umsetzung U-56)
 - **Frage:** `k.animiere()` meldet im Interpreter `Animation 'karton' gibt es nicht. …` (die Textform des fehlenden Arguments wird
@@ -799,11 +810,13 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
     Zutat, nicht karton.`, `Ein Takt braucht eine Dauer, nicht karton.`, `animiere(dauer: …) braucht eine Dauer, nicht …`).
   - **`schwebe()` / `schwebe(karton)`:** `text` ist Inhalt, kein Attribut – fehlend oder `karton` ergibt die Textform `karton`
     (K-066: `neu Knopf(5)` → `"5"`, `karton` → `"karton"`), also einen Schwebetext „karton“: Eintrag `{"art":"schwebe","text":"karton"}`,
-    keine Ananas, keine Warnung. Ein leerer Text (`schwebe("")`) bleibt erlaubt (Eintrag mit `"text":""`, der Renderer zeigt nichts).
+    keine Ananas, keine Warnung. Ein leerer Text (`schwebe("")`) bleibt erlaubt (Eintrag mit `"text":""`); der Renderer zeigt dafür
+    nichts – **kein Element**, zählt nicht zum Limit 20 und belegt keinen Stapel-Platz; dasselbe gilt für Text nur aus Leerraum.
 - **Begründung:** Leitlinie (a): der Interpreter verhält sich so, der eigene Regressionsfall `tests/faelle/theke-animationen-fehler`
   kodiert den Text bereits; (b) ein Fehlertext je Vokabular-Methode (`stil`, `animiere`) statt zweier; ein schwebendes „karton“ ist
   harmlos, deterministisch und pizza-typisch (der leere Karton fliegt).
-- **Betroffen:** SPEC §16.6 (Arten, `schwebe`); Wasm-Laufzeit (U-57) übernimmt dieselben Texte/Einträge. **Status:** fest (a13).
+- **Betroffen:** SPEC §16.6 (Arten, `schwebe`); Wasm-Laufzeit (U-57) übernimmt dieselben Texte/Einträge; Renderer (leerer Text).
+  **Status:** fest (a13; Renderer umgesetzt, `tests/theke/run.js`).
 
 ### K-094 Theke v3: benannte Parameter bei `animiere` und `schwebe`
 - **Frage:** K-090 nannte für `animiere` nur `dauer:` als benannten Parameter; der Interpreter nimmt auch `art:` benannt an
@@ -916,7 +929,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-29 | `site/js/doku/*.js`, `site/beispiele/theke*` (Doku-/Beispiel-Agent) | Abschnitt „Theke“ mit Rückruf-Signaturen (K-056), Bündelung (K-057), IDs (K-060), W0100 (K-070); Beispiele mit `.ereignisse`/`.ui-erwartet` | Prüfstand Beispiele |
 | U-56 ✅ (aed3450) | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-090/091: `animiere`, `Theke.schwebe`, `uebergang`; Puffer `animationen` (Reihenfolge, max. 32) an den K-057-Synchronisationspunkten, Verwerfen bei `zeige`, W0102 je Aufrufstelle, Fehlertexte; entspricht auch K-093/K-094 | a13 (11 Fälle) |
 | U-57 | `site/js/pizzaiolo/`, `laufzeit/` (Compiler-Agent) | dasselbe in der Wasm-Laufzeit (K-090 … K-091, K-093, K-094), byte-gleiche `ui`-Nachrichten; HOST-ABI unverändert (`ui_senden`); setzt Theke im Compiler voraus (U-27/U-49) | tests/differenz |
-| U-58 | `site/js/theke/**`, `tests/theke/` (Renderer-Agent) | K-090 … K-092: `aendere.animationen`, `uebergang`, Animations-Registry, `prefers-reduced-motion`, Thema; Host nur neu bauen (eingebettete Engine) | tests/theke + visuell |
+| U-58 ✅ (c2b1bd3, bbf5092; Nachträge Klärungs-Agent) | `site/js/theke/**`, `tests/theke/` (Renderer-Agent) | K-090 … K-093: `aendere.animationen`, `uebergang` (auch `reiter`), Animations-Registry (`leer`-Hook), Schwebetext-Stapel je Anker, `prefers-reduced-motion`, Thema; Host nur neu bauen (eingebettete Engine) | tests/theke + visuell |
 | U-59 | `site/js/doku/*.js`, `site/beispiele/idle/` (Doku-/Idle-Agent) | nach U-56: Abschnitt „Animationen“; Pizza-Imperium mit `huepfen`/`schwebe`/`funkeln`/`aufpoppen`/`puls`, `.ui-erwartet` neu erzeugen | Doku-Harness, Prüfstand Beispiele |
 | U-60 ✅ | `site/js/doku/30-referenz.js` (Doku-Agent; Datei ist gerade in Bearbeitung) | K-095: Tabellenzeile `hole(k)` → `hole(k[, ersatz])` („fehlt er → `ersatz`, sonst `karton`“), Beispiel `karte.hole("Tonno", 0)`; Idiom `k.lege(s, k.hole(s, 0) + 1)` erwähnen; Pizza-Imperium darf `hat()`-Umweg durch `hole(k, 0)` ersetzen (Idle-Agent, U-59) | Doku-Harness |
 | U-61 ✅ | `host/**`, THEKE.md, SPEC, HOST-ABI (Host-Agent) | K-096: Theke-Programm ohne Fenster (keine Anzeige, WebView2 fehlt, WebView scheitert) → Meldung + Exit 2 statt W0100; Ausnahmen JSON-Modus/`--ui-ereignisse`/`PIZZA_THEKE=0` | cargo test (`theke_ohne_fenster_bricht_ab` u. a.), test-exe-js |
@@ -950,7 +963,10 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 - Theke (THEKE.md): als SPEC §16 übernommen, K-056 … K-075 festgehalten (K-061 per Nutzerentscheidung: `schliesse` am Programmende, offen bis U-34) und an die Interpreter-Auslegungen (da07b46) und den Renderer (c279044, d9c9090) angeglichen; `a13-theke.js` grün; offen nur noch K-061 (`a12-theke-offen.js`, Interpreter-Umsetzung U-34 läuft). Der Prüfstand unterstützt `uiEreignisse`, `ui`, `.ereignisse`, `.ui-erwartet` und Doku-`uiEreignisse`/`uiErwartet`.
 - Theke v3 Animationen (Nutzerwunsch): K-090 … K-092 festgehalten, SPEC §16.6, THEKE.md §8; Interpreter umgesetzt (U-56, aed3450),
   Fälle in a13 (a12 leer); Lücken aus der Umsetzung als K-093 (`animiere()`/`schwebe()` ohne Argument) und K-094 (alle Parameter
-  auch benannt) festgehalten – Interpreter entspricht, kein neuer Auftrag; offen: U-57 (Wasm), U-58 (Renderer), U-59 (Doku/Idle).
+  auch benannt) festgehalten – Interpreter entspricht, kein neuer Auftrag. Renderer umgesetzt (U-58, c2b1bd3, bbf5092); Rückfragen des
+  Renderer-Agenten entschieden: Schwebetexte am selben Anker stapeln sich senkrecht (kleinster freier Platz, 20 px je Zeile), Sichtbar-
+  halten festgehalten, `reiter` ist Behälter für `uebergang`, leerer Schwebetext erzeugt kein Element, kein Fenstermitte-Ersatz für
+  versteckte `bei`-Zutaten (K-091 … K-093 ergänzt). Offen: U-57 (Wasm; pizzaiolo-Fallback auf den Interpreter, abaf357), U-59 (Doku/Idle).
 - K-088: Vorrat-Namensräume (Beispiel-Tabs vs. eigene Tabs), CLI `--vorrat-loeschen <name>`/`--vorrat-loeschen-alle`, Doku-Block-Felder `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` (Prüfstand umgesetzt).
 - Zufall/Vorratskammer (Nutzerwünsche „RNG“, „State“): K-077 … K-081 festgehalten, SPEC §15.4 und §11; Interpreter ce303cb entspricht (10 Fälle in a10 grün); offen: CLI/UI/Host/Compiler (U-38 … U-44).
 - Theke v2 (Takt zuerst, Nutzerentscheidung): K-084 … K-087 aus THEKE-ERWEITERUNGEN.md übernommen, SPEC §16.5; 8 offene Fälle in a12, 2 in a11 (Zahlformat); Aufträge U-48 … U-52.

@@ -581,7 +581,8 @@
   100% { opacity: 0; transform: scale(.3) rotate(90deg); }
 }
 
-/* Schwebetext: startet oben mittig über der Zutat (bzw. in der Fenstermitte), steigt 40 px und blendet aus */
+/* Schwebetext: startet oben mittig über der Zutat (bzw. in der Fenstermitte), steigt 40 px und blendet aus;
+ * gleichzeitige Texte am selben Anker stapeln sich je eine Zeile höher (--theke-hoch, Engine) und seitlich reihum (--theke-versatz) */
 .theke-schwebe {
   position: absolute;
   left: calc(var(--theke-x) + var(--theke-b) / 2);
@@ -597,15 +598,15 @@
 }
 .theke .theke-schwebe[class*="theke-farbe-"] { color: var(--theke-ton-schrift); }
 @keyframes theke-schwebe {
-  0%   { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), -100%); animation-timing-function: ease-out; }
-  12%  { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - 6px)); animation-timing-function: ease-out; }
+  0%   { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - var(--theke-hoch, 0px))); animation-timing-function: ease-out; }
+  12%  { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - var(--theke-hoch, 0px) - 6px)); animation-timing-function: ease-out; }
   60%  { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - 40px)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - var(--theke-hoch, 0px) - 40px)); }
 }
 /* Reduzierte Bewegung: Text ruhig für die Dauer, dann weg (die Engine entfernt ihn) */
 .theke .theke-schwebe.theke-schwebe-ruhig { animation-name: theke-schwebe-ruhig; }
 @keyframes theke-schwebe-ruhig {
-  from, to { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), -100%); }
+  from, to { opacity: 1; transform: translate(calc(-50% + var(--theke-versatz, 0px)), calc(-100% - var(--theke-hoch, 0px))); }
 }
 
 /* uebergang (K-091): Ein-/Ausblenden; eine ausblendende Zutat ist sofort nicht mehr bedienbar */

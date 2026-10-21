@@ -820,7 +820,11 @@ test("v3: schwebe – Text, Farbe, Anker, feste Versätze reihum, Ende nach Abla
   assert.deepEqual(s.map((e) => e.textContent), ["+0", "+1", "+2", "+3", "+4", "+5", "mitte", "grün", "lila", "12"]);
   assert.deepEqual(s.slice(0, 6).map((e) => e.style.getPropertyValue("--theke-versatz")), ["0px", "-12px", "12px", "-6px", "6px", "0px"]);
   assert.deepEqual(s.slice(6).map((e) => e.style.getPropertyValue("--theke-versatz")), ["0px", "0px", "-12px", "12px"],
-    "eigener Zähler je Anker (Mitte: mitte, lila, 12)");
+    "eigener Platz je Anker (Mitte: mitte, lila, 12)");
+  // Gleichzeitige Texte am selben Anker stapeln sich je 20 px höher (Platz 0, 1, 2, …; K-092). jsdom hat kein Layout
+  // (sicht() = 0×0) → keine Klemmung an den Ausschnitt, kein Kippen des Stapels nach unten.
+  assert.deepEqual(s.slice(0, 6).map((e) => e.style.getPropertyValue("--theke-hoch")), ["0px", "20px", "40px", "60px", "80px", "100px"]);
+  assert.deepEqual(s.slice(6).map((e) => e.style.getPropertyValue("--theke-hoch")), ["0px", "0px", "20px", "40px"]);
   assert.ok(s[7].classList.contains("theke-farbe-basilikum"));
   assert.ok(![...s[8].classList].some((k) => k.startsWith("theke-farbe-")), "unbekannte Farbe → normal");
   assert.equal(s[7].style.getPropertyValue("--theke-anim-dauer"), "500ms");
@@ -831,6 +835,32 @@ test("v3: schwebe – Text, Farbe, Anker, feste Versätze reihum, Ende nach Abla
   assert.equal(schwebe(container).length, 9, "der 500-ms-Text ist weg");
   uhr.vor(500);
   assert.equal(schwebe(container).length, 0);
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v3: schwebe – Platz am Anker wird am Ende wieder frei (kleinster freier Platz, kein Hochzählen)", mitUhr(({ t, container, uhr }) => {
+  t.empfange(ANIM_BAUM());
+  const hoch = () => schwebe(container).map((e) => e.textContent + e.style.getPropertyValue("--theke-hoch"));
+  animiere(t, [{ art: "schwebe", text: "a", id: "k" }, { art: "schwebe", text: "b", id: "k", dauer: 300 }, { art: "schwebe", text: "c", id: "k" }]);
+  assert.deepEqual(hoch(), ["a0px", "b20px", "c40px"]);
+  uhr.vor(400);                                   // b ist weg → Platz 1 frei
+  animiere(t, [{ art: "schwebe", text: "d", id: "k" }, { art: "schwebe", text: "e", id: "k" }]);
+  assert.deepEqual(hoch(), ["a0px", "c40px", "d20px", "e60px"], "d nimmt den freien Platz 1, e den nächsten");
+  uhr.vor(1100);
+  assert.deepEqual(hoch(), []);
+  animiere(t, [{ art: "schwebe", text: "f", id: "k" }]);
+  assert.deepEqual(hoch(), ["f0px"], "nach dem Ende aller: wieder Platz 0");
+}));
+
+test("v3: schwebe – leerer Text (auch nur Leerraum, fehlend): kein Element, zählt nicht zum Limit (K-093)", mitUhr(({ t, container, warnungen }) => {
+  t.empfange(ANIM_BAUM());
+  const liste = [{ art: "schwebe", text: "", id: "k" }, { art: "schwebe", text: "   " }, { art: "schwebe" }, { art: "schwebe", text: "", id: "gibtsnicht" }];
+  for (let i = 1; i <= 20; i++) liste.push({ art: "schwebe", text: String(i), id: "k" });
+  animiere(t, liste);
+  const s = schwebe(container);
+  assert.equal(s.length, 20, "20 echte Texte, keiner durch leere verdrängt");
+  assert.equal(s[0].textContent, "1");
+  assert.equal(s[0].style.getPropertyValue("--theke-hoch"), "0px", "leere Texte belegen keinen Platz");
   assert.deepEqual(warnungen, []);
 }));
 
@@ -933,12 +963,17 @@ test("v3: uebergang an Behältern – neu hinzugekommene Kinder blenden ein, bes
   t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
     { id: "liste", art: "stapel", uebergang: true, kinder: [{ id: "a", art: "schild", text: "a" }, { id: "b", art: "schild", text: "b" }] },
     { id: "ab", art: "abschnitt", titel: "Erfolge", uebergang: true, kinder: [] },
-    { id: "hart", art: "reihe", kinder: [] }] } });
+    { id: "hart", art: "reihe", kinder: [] },
+    { id: "r", art: "reiter", titel: ["A"], gewaehlt: 2, uebergang: true, kinder: [{ id: "p1", art: "schild", text: "eins" }] }] } });
   assert.deepEqual(animKlassen($("a")), [], "erster baum: nichts blendet ein");
   t.empfange({ v: 1, op: "aendere", aenderungen: [
     { id: "liste", kinder: [{ id: "a" }, { id: "c", art: "schild", text: "c" }, { id: "d", art: "schild", text: "d", sichtbar: false }] },
     { id: "ab", kinder: [{ id: "e1", art: "schild", text: "Erste Pizza" }] },
-    { id: "hart", kinder: [{ id: "h1", art: "schild", text: "x" }] }] });
+    { id: "hart", kinder: [{ id: "h1", art: "schild", text: "x" }] },
+    { id: "r", titel: ["A", "B", "C"], gewaehlt: 2, kinder: [{ id: "p1" }, { id: "p2", art: "schild", text: "zwei" }, { id: "p3", art: "schild", text: "drei" }] }] });
+  assert.deepEqual(animKlassen($("p2")), ["theke-ueb-ein"], "reiter ist ein Behälter: neue, gewählte Seite blendet ein (K-091)");
+  assert.deepEqual(animKlassen($("p3")), [], "neue, nicht gewählte Seite: nicht gezeigt → nichts");
+  assert.deepEqual(animKlassen($("p1")), [], "bestehende Seite nicht");
   assert.equal($("b"), null, "entferntes Kind sofort weg");
   assert.deepEqual(animKlassen($("a")), []);
   assert.deepEqual(animKlassen($("c")), ["theke-ueb-ein"]);
