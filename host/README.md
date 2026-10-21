@@ -59,6 +59,44 @@ Hinweis: eine angehängte Signatur (Authenticode) müsste nach dem Einbetten erf
 Die EXE läuft nur auf dem Betriebssystem/der Architektur des verwendeten `pizza-host` – für andere Ziele
 `pizza-host` dort (oder per `cargo build --target …`) bauen und damit einbetten.
 
+## EXE-Download im Browser
+
+Die Website baut die EXE **clientseitig** (`site/js/exe.js`, `PizzaExe`): Programm mit Pizzaiolo zu `.pkarton`
+kompilieren → vorgebautes Host-Binary der gewählten Plattform aus `/bin/` laden → sha256 prüfen (SubtleCrypto;
+in nicht sicheren Kontexten nur die Größe) → `.pkarton` + Trailer anhängen → Blob-Download. Ergebnis byte-gleich
+mit `pizza-host exe` (geprüft von `node host/test-exe-js.js`).
+
+Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Docker-Stage `exe`):
+
+| Ziel-ID | Rust-Target | Linker | Datei |
+|---|---|---|---|
+| `windows-x64` | `x86_64-pc-windows-gnu` | mingw-w64 | `pizza-host-windows-x64-<sha12>.exe` |
+| `linux-x64` | `x86_64-unknown-linux-musl` (statisch) | musl-tools | `pizza-host-linux-x64-<sha12>` |
+| `linux-arm64` | `aarch64-unknown-linux-musl` (statisch, optional) | rust-lld | `pizza-host-linux-arm64-<sha12>` |
+
+Dazu `ziele.json` (`version`, `ziele: [{ id, name, triple, datei, endung, groesse, sha256 }]`). Die Dateinamen
+enthalten den Inhalts-Hash → `immutable` cachebar. Auswahl per `PIZZA_ZIELE="windows-x64 linux-x64"`;
+`linux-arm64` wird übersprungen, wenn das Target nicht installierbar ist (außer `STRICT_BUILD=1`).
+Getestet: Windows-gnu-EXE mit Anhang unter Windows 11, linux-x64 und linux-arm64 (qemu) in Docker/busybox.
+
+**macOS** wird nicht gebaut: Cross-Linken braucht das Apple-SDK (oder zig/cargo-zigbuild), Apple-Silicon-Binaries
+müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quarantäne. Auf einem Mac selbst:
+`cargo build --release` und `pizza-host exe …` funktionieren (ungetestet).
+
+### Hinweise für Nutzer
+
+- **Windows:** Die EXE ist **nicht signiert**. SmartScreen warnt evtl. („Der Computer wurde durch Windows geschützt“
+  → „Weitere Informationen“ → „Trotzdem ausführen“); manche Virenscanner melden unbekannte, unsignierte EXEs
+  (heuristisch). Die EXE ist ein Konsolenprogramm: am besten in der Eingabeaufforderung/PowerShell starten.
+- **Linux:** Browser-Downloads sind nicht ausführbar: `chmod +x programm-linux-x64 && ./programm-linux-x64`.
+  Statisch gelinkt (musl), läuft ohne weitere Bibliotheken.
+
+## Größe & Geschwindigkeit
+
+Release-Profil: `opt-level = "z"`, LTO, `codegen-units = 1`, `strip`, `panic = "abort"`; nur die wasmi-Crates
+mit `opt-level = 3` (reines `"z"` macht die Engine ~25 % langsamer, so ist sie gleich schnell wie `3`).
+wasmi ohne `wat`/`memory64`. Größen: Windows-msvc 1,1 MB, Windows-gnu 1,3 MB, Linux-musl x64 1,5 MB, arm64 1,3 MB.
+
 ## Aufbau
 
 | Datei | Inhalt |
@@ -69,6 +107,9 @@ Die EXE läuft nur auf dem Betriebssystem/der Architektur des verwendeten `pizza
 | `src/main.rs` | Kommandozeile |
 | `tests/abi.rs` | ABI-Tests (WAT) |
 | `test.js` | Differenztest gegen den Interpreter |
+| `test-exe-js.js` | Test für `site/js/exe.js` (byte-gleich mit `pizza-host exe`, EXE läuft) |
+| `baue-ziele.sh` | Cross-Builds + `ziele.json` für den Browser-Download |
+| `tests/demo.pkarton` | kleines Test-Modul (aus `tests/exe.rs`, `--ignored fixture`) |
 
 wasmi-Konfiguration nach HOST-ABI §6: Rekursionstiefe 65 536 Wasm-Aufrufe, Wert-Stapel bis 64 MiB.
 Imports, die ein Modul nicht nutzt, schaden nicht; `ausgabe` wird mit 2 Parametern (ABI v1) oder mit

@@ -51,3 +51,12 @@ fn exe_erzeugen_und_starten() {
     assert_eq!(st.code(), Some(2));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Erzeugt `tests/demo.pkarton` (Fixture für test-exe-js.js und Cross-Tests):
+/// `cargo test --test exe -- --ignored fixture`
+#[test]
+#[ignore]
+fn fixture_schreiben() {
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests").join("demo.pkarton");
+    std::fs::write(p, wat::parse_str(WAT).unwrap()).unwrap();
+}

@@ -93,7 +93,6 @@ fn engine() -> Engine {
         .wasm_multi_memory(false)
         .wasm_tail_call(false)
         .wasm_extended_const(false)
-        .wasm_memory64(false)
         .wasm_wide_arithmetic(false)
         .wasm_custom_page_sizes(false)
         .ignore_custom_sections(true);
