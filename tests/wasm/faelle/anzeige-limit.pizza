@@ -1,0 +1,5 @@
+salami f() {
+    solange (ja) { }
+    serviere (1);
+}
+Bote.sage((f()));

@@ -109,6 +109,36 @@ for (const f of faelle) {
   pruefe('portabel ' + f.name, () => { const p = pruefePortabel(k.pkarton); if (p.length) throw new Error(p.slice(0, 3).join('; ')); });
 }
 
+console.log('▶ anzeige (U-45)');
+// Anzeigeform überall: <text> + " (Zeile Z, Spalte S)" wenn vorhanden; detail nie im Text
+const anzeige = (e) => e.text + (e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '');
+for (const f of eigeneFaelle().filter(x => x.name.includes('anzeige'))) {
+  pruefe('Anzeige ' + f.name, () => {
+    const ri = P.run(f.quelle, f.opt);
+    const rw = Z.run(f.quelle, Object.assign({}, f.opt, { motor: 'wasm' }));
+    const wahl = (r) => r.ereignisse.filter(e => e.typ === 'warnung' || e.typ === 'fehler');
+    const a = wahl(ri).map(anzeige), b = wahl(rw).map(anzeige);
+    if (!a.length) throw new Error('Testfall ohne Warnungen/Fehler');
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(' I: ' + a.join(' | ') + ' // W: ' + b.join(' | '));
+    for (const e of wahl(rw)) if (e.detail !== undefined && e.text.includes(String(e.detail))) throw new Error('detail im Text');
+  });
+}
+pruefe('interner Fehler (Trap): fester Text, detail nur als Feld', () => {
+  // Minimalmodul mit ABI-Exporten, dessen start() trapt
+  const P2 = (f) => { const p = new K.Puffer(); f(p); return p.fertig(); };
+  const typ = P2(p => { p.u32(2); p.byte(0x60); p.u32(0); p.u32(1); p.byte(0x7f); p.byte(0x60); p.u32(0); p.u32(1); p.byte(0x7c); });
+  const fn = P2(p => { p.u32(3); p.u32(0); p.u32(1); p.u32(1); });
+  const mem = P2(p => { p.u32(1); p.byte(0); p.u32(1); });
+  const ex = P2(p => { p.u32(4); p.name('start'); p.byte(0); p.u32(0); p.name('schritte'); p.byte(0); p.u32(1); p.name('zeitMs'); p.byte(0); p.u32(2); p.name('memory'); p.byte(2); p.u32(0); });
+  const rumpf = (c) => { const b = c.bytes(); const p = new K.Puffer(); p.u32(b.length + 1); p.u32(0); p.bytes(b); return p.fertig(); };
+  const code = K.verbinde([new Uint8Array([3]), rumpf(new K.Code().op(0).end()), rumpf(new K.Code().f64(0).end()), rumpf(new K.Code().f64(0).end())]);
+  const m = new WebAssembly.Module(K.verbinde([new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), K.section(1, typ), K.section(3, fn), K.section(5, mem), K.section(7, ex), K.section(10, code)]));
+  const r = Z._teile.hostJs.fuehreModulAus(m, {});
+  const fe = r.ereignisse.find(e => e.typ === 'fehler');
+  if (!fe || fe.text !== 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' || fe.zeile !== null || typeof fe.detail !== 'string' || fe.text.includes(fe.detail)) throw new Error(JSON.stringify(fe));
+  return r.exitCode === 1;
+});
+
 console.log('▶ e2e');
 const stat = { gleich: 0, fallback: 0, syntax: 0 };
 for (const f of faelle) {

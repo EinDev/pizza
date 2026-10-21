@@ -1,0 +1,11 @@
+salami PiZZa = 1;
+salami pizZA = 2;
+@PizzaVeraltet(grund: "zu alt")
+leer alt() { Bote.sage(("alt")); }
+alt();
+Blech<salami> b = [1, 2, 3, 4, 5, 6, 7];
+Bote.sage((b.schneide(7)));
+Teig<salami> t = teig(() -> (42));
+Bote.sage((t.backen()));
+probier { Bote.sage((1 / 0)); } verbrannt (RechenAnanas r) { Bote.sage((r.nachricht())); }
+salami x = "kein salami";
