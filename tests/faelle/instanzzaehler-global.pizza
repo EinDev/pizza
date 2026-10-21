@@ -1,0 +1,5 @@
+klasse A { }
+klasse B { }
+Bote.sage((neu A()));
+Bote.sage((neu B()));
+Bote.sage((neu A()));

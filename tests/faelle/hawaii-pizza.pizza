@@ -1,0 +1,9 @@
+Bote.sage(("vorher"));
+probier {
+    Pizza p = ((Tomate, Ananas));
+} verbrannt (a) {
+    Bote.sage(("gefangen?!"));
+} rand {
+    Bote.sage(("rand?!"));
+}
+Bote.sage(("nachher?!"));

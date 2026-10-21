@@ -1,0 +1,35 @@
+salami n = 5;
+falls (n > 10) { Bote.sage(("groß")); } sonst falls (n > 3) { Bote.sage(("mittel")); } sonst { Bote.sage(("klein")); }
+salami i = 0;
+solange (ja) {
+    i++;
+    falls (i == 2) { weiter; }
+    falls (i > 4) { abbrechen; }
+    Bote.sage(("solange " + i));
+}
+für (salami j = 0; j < 3; j++) { Bote.sage(("für " + j)); }
+für (salami z : [10, 20]) { Bote.sage((z)); }
+für (margherita c : "abc") { Bote.sage((c)); }
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("x", 1);
+k.lege("y", 2);
+für (margherita s : k) { Bote.sage((s + "=" + k.hole(s))); }
+Bote.sage(([1 .. 5]));
+Bote.sage(([3 .. 1]));
+für (Blech<salami> teil : [1 .. 4].schneide(2)) { Bote.sage((teil)); }
+für (salami w : [1, 2, 3, 4]) {
+    wähle (w) {
+        fall 1, 2 -> Bote.sage(("klein"));
+        fall 3 -> { Bote.sage(("drei")); }
+        standard -> Bote.sage(("viel"));
+    }
+}
+margherita name = wähle (2) { fall 1 -> "eins"; fall 2 -> "zwei"; standard -> "?"; };
+Bote.sage((name));
+salami finde() {
+    für (salami q : [1, 2, 3]) {
+        wähle (q) { fall 2 -> serviere ((q * 100)); standard -> Bote.sage(("q " + q)); }
+    }
+    serviere ((-1));
+}
+Bote.sage((finde()));

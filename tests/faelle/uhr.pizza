@@ -1,0 +1,5 @@
+Dauer start = Uhr.jetzt();
+Uhr.vorspulen(1h);
+Dauer jetzt = Uhr.jetzt();
+Bote.sage((jetzt - start >= 1h));
+Bote.sage((jetzt - start < 1h + 1s));

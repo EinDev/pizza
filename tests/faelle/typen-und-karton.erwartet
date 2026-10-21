@@ -1,0 +1,14 @@
+'x' ist salami, aber der Wert 3.5 ist keine Ganzzahl.
+'t' ist margherita, aber der Wert 5 ist kein Text.
+TypAnanas
+TypAnanas
+5
+karton
+Der Karton ist leer.
+Hallo Luigi
+Parameter 'name' ist @NieKarton – aber es kam ein leerer Karton.
+LaufzeitAnanas: 'unbekannt' ist nicht definiert.
+LaufzeitAnanas: Methode 'foo' gibt es auf Pizza nicht.
+GebackenAnanas
+TypAnanas
+Bedingung: TypAnanas

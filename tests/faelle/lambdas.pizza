@@ -1,0 +1,27 @@
+Blech<salami> zahlen = [3, 1, 2];
+Bote.sage((zahlen.belege(x -> x * 2)));
+Bote.sage((zahlen.filtere(x -> x > 1)));
+Bote.sage((zahlen.zusammenklappen((a, b) -> a + b)));
+Bote.sage((zahlen.zusammenklappen((a, b) -> a + b, 10)));
+Bote.sage((zahlen.sortiere()));
+Bote.sage((zahlen));
+Bote.sage((zahlen.sortiere((a, b) -> b - a)));
+Bote.sage((["b", "c", "a"].sortiere()));
+Rezept<salami> verdopple = x -> x * 2;
+Bote.sage((verdopple(21)));
+salami zaehler = 0;
+Rezept<salami> zaehle = () -> { zaehler++; serviere ((zaehler)); };
+zaehle();
+zaehle();
+Bote.sage((zaehler));
+Rezept<salami> macheAddierer(salami n) { serviere ((x -> x + n)); }
+Rezept<salami> plus5 = macheAddierer(5);
+Bote.sage((plus5(10)));
+klasse Rechner { salami basis = 100; salami add(salami x) { serviere ((basis + x)); } }
+Rechner r = neu Rechner();
+Bote.sage(([1, 2].belege(r.add)));
+salami minus(salami a, salami b) { serviere ((a - b)); }
+Bote.sage((minus(b: 1, a: 10)));
+Rezept<salami> typisiert = (salami a, salami b) -> a * b;
+Bote.sage((typisiert(6, 7)));
+Bote.sage((((a, b) -> a + b)(1, 2)));

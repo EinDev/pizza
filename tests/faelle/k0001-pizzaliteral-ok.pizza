@@ -1,0 +1,2 @@
+Pizza mach() { serviere ((Tomate, Mozzarella)); }
+Bote.sage((mach()));

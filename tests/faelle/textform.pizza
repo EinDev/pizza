@@ -1,0 +1,32 @@
+Bote.sage((8));
+Bote.sage((7.5));
+Bote.sage((0.1));
+Bote.sage((ja));
+Bote.sage((nein));
+Bote.sage((karton));
+Bote.sage(([1, 2, 3]));
+Bote.sage((["a", "b"]));
+Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
+k.lege("a", 1);
+k.lege("b", 2);
+k.lege("a", 3);
+Bote.sage((k));
+Bote.sage(((Tomate, Mozzarella)));
+Bote.sage(((())));
+Bote.sage((neu Pizza()));
+Bote.sage((Salami));
+Bote.sage((90s));
+Bote.sage((90ms));
+Bote.sage((2h));
+Bote.sage((3d + 4h));
+Bote.sage((0ms));
+Bote.sage((1.5s));
+klasse Kunde { }
+klasse Gast { margherita alsText() { serviere (("ein Gast")); } }
+Bote.sage((neu Kunde()));
+Bote.sage((neu Kunde()));
+Bote.sage((neu Gast()));
+Bote.sage((neu StreitAnanas("x")));
+Bote.sage(("Text" + 5));
+Bote.sage(("Ananas: " + neu RechenAnanas("kaputt")));
+Bote.sage((1_000_000));

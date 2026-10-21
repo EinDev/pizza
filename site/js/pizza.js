@@ -95,7 +95,7 @@
   ].join('\n');
 
   const STANDARD_LIMIT = 5000000;
-  const MAX_TIEFE = 1000;
+  const MAX_TIEFE = 900;
   const GRUNDPREIS = 5.00;
 
   // =====================================================================
@@ -1671,6 +1671,8 @@
       this.s = null;
       this.tiefe = 0;
       this.instanzen = 0;
+      this.tiefZ = null;
+      this.tiefS = null;
       this.zufall = mulberry32(42);
       this.globalCtx = { dies: null, klasse: null, unten: null, ktor: false };
       this.global = new Scope(null, this.globalCtx, true);
@@ -1741,7 +1743,11 @@
     panik() { return new PanikSig(); }
 
     normalisiere(e) {
-      if (e instanceof RangeError && /call stack|too much recursion|stack/i.test(e.message)) return this.stapel();
+      if (e instanceof RangeError && /call stack|too much recursion|stack/i.test(e.message)) {
+        const w = this.stapel();
+        if (this.tiefZ != null) { w.zeile = this.tiefZ; w.spalte = this.tiefS; }
+        return w;
+      }
       return e;
     }
 
@@ -2689,7 +2695,7 @@
     fuehreAus(m, ctx, pos, ben, node) {
       const sc = new Scope(this.global, ctx, true);
       this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
-      if (++this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); }
+      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
       const z = this.z, s = this.s;
       try {
         const body = m.body.body;
@@ -2711,7 +2717,7 @@
       const n = f.n;
       const sc = new Scope(f.scope, null, false);
       this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
-      if (++this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); }
+      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
       const z = this.z, s = this.s;
       try {
         if (n.ausdr) return this.ausw(n.body, sc);
@@ -2826,7 +2832,7 @@
         if (k.basis !== null) this.konstruiere(k.basis, o, [], null, node);
         this.feldInit(k, o);
       }
-      if (++this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); }
+      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
       const z = this.z, s = this.s;
       try {
         const body = m.body.body;

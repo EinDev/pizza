@@ -1,0 +1,6 @@
+salami PiZZa = 1;
+salami PizZa = 2;
+falls (ja) { salami piZZA = 3; Bote.sage((piZZA)); }
+Bote.sage((PiZZa + PizZa));
+leer f(salami teig, salami Teig) { }
+klasse K { salami menge; salami Menge() { serviere ((1)); } }

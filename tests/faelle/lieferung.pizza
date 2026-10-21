@@ -1,0 +1,26 @@
+Lieferung<salami> l = bestelle(() -> (6 * 7));
+l.trinkgeld(5);
+Zustellung<salami> z = l.warte(max: 30min);
+Bote.sage((z.pünktlich()));
+Bote.sage((z.wert()));
+Bote.sage((l.warte(max: 1ms) == z));
+Lieferung<salami> spaet = bestelle(() -> { Uhr.vorspulen(1h); serviere ((1)); });
+Zustellung<salami> z2 = spaet.warte(max: 30min);
+Bote.sage((z2.pünktlich()));
+Bote.sage((z2.oderGratis((0))));
+probier { z2.wert(); } verbrannt (LieferAnanas a) { Bote.sage((a)); }
+Lieferung<salami> lang = bestelle(() -> { salami i = 0; solange (i < 1000) { i++; } serviere ((i)); });
+Bote.sage((lang.warte(max: 5ms).pünktlich()));
+Lieferung<salami> knapp = bestelle(() -> { salami i = 0; solange (i < 10) { i++; } serviere ((i)); });
+Bote.sage((knapp.trinkgeld(10).warte(max: 50ms).wert()));
+Lieferung<salami> boese = bestelle(() -> { wirf neu StreitAnanas("Kein Käse"); });
+Zustellung<salami> z3 = boese.warte(max: 1min);
+probier { z3.oderGratis((0)); } verbrannt (StreitAnanas a) { Bote.sage((a.nachricht())); }
+bestelle(() -> ("A")).trinkgeld(1).wennDa(x -> Bote.sage(("wennDa " + x)));
+bestelle(() -> ("B")).trinkgeld(5).wennDa(x -> Bote.sage(("wennDa " + x)));
+bestelle(() -> ("C")).wennDa(x -> Bote.sage(("wennDa " + x)));
+bestelle(() -> ("D")).trinkgeld(5).wennDa(x -> Bote.sage(("wennDa " + x)));
+Bote.sage(("Programmende"));
+klasse Laden {
+    tiefkühl leer hauptgang(Blech<margherita> args) { Bote.sage(("hauptgang")); }
+}

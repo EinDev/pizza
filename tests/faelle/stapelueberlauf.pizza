@@ -1,0 +1,2 @@
+salami tief(salami n) { serviere ((tief(n + 1))); }
+tief(0);

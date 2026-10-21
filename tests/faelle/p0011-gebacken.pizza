@@ -1,0 +1,2 @@
+gebacken klasse Basis { }
+klasse Kind erbt Basis { }

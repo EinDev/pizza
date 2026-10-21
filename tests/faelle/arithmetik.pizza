@@ -1,0 +1,24 @@
+Bote.sage((7 / 2));
+Bote.sage((10 % 3));
+Bote.sage((2 + 3 * 4));
+Bote.sage(((2 + 3) * 4));
+Bote.sage((-5 + 2));
+Bote.sage((0.1 + 0.2));
+Bote.sage(("a" + 1 + 2));
+Bote.sage((1 + 2 + "a"));
+Bote.sage((3 < 4 && 4 <= 4));
+Bote.sage((3 > 4 || !(1 == 2)));
+Bote.sage((5 != 5));
+Bote.sage((ja ? "ja!" : "nein!"));
+Bote.sage(("abc" < "abd"));
+salami x = 10;
+x += 5;
+x -= 3;
+x *= 2;
+x /= 4;
+x++;
+x--;
+x++;
+Bote.sage((x));
+probier { Bote.sage((1 / 0)); } verbrannt (RechenAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((1 % 0)); } verbrannt (RechenAnanas a) { Bote.sage((a.typ())); }

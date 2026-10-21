@@ -1,0 +1,3 @@
+klasse MeineAnanas erbt Ananas { MeineAnanas() { unten("eigene"); } }
+probier { wirf neu StreitAnanas("x"); } verbrannt (Ananas a) { Bote.sage((a)); }
+probier { wirf neu MeineAnanas(); } verbrannt (Ananas a) { Bote.sage((a)); }

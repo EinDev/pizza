@@ -1,0 +1,5 @@
+klasse Basis { leer backe() { } }
+klasse Kind erbt Basis {
+    @PizzaÜberschreibt
+    leer backen() { }
+}

@@ -1,0 +1,7 @@
+speisekarte rezeptur Backbar {
+    leer backe(salami grad) wirft VerbranntAnanas;
+    diavolo istFertig();
+}
+klasse Ofenpizza erfüllt Backbar {
+    leer backe(salami grad) { }
+}

@@ -1,0 +1,6 @@
+klasse Alt {
+    @PizzaVeraltet(grund: "Nimm lieber neu()")
+    tiefkühl salami alt() { serviere ((1)); }
+}
+Bote.sage((Alt.alt()));
+Bote.sage((Alt.alt()));

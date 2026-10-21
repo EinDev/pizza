@@ -1,0 +1,8 @@
+Bote.sage(("zuerst"));
+speisekarte klasse Pizzeria {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("Hallo, Pizzawelt!"));
+        Bote.sage((args.länge()));
+    }
+}
+Bote.sage(("danach"));

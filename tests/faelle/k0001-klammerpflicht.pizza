@@ -1,0 +1,3 @@
+salami doppelt(salami x) {
+    serviere x * 2;
+}

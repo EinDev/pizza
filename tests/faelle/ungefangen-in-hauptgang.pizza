@@ -1,0 +1,7 @@
+klasse App {
+    tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage(("start"));
+        Blech<salami> b = [];
+        b.erstes();
+    }
+}

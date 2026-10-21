@@ -1,0 +1,17 @@
+calzone klasse Konto {
+    geheimrezept funghi stand = (1000.0);
+    speisekarte funghi kontostand() { serviere ((stand)); }
+}
+klasse Normal { geheimrezept salami x = 1; salami y = 2; }
+Konto k = neu Konto();
+Bote.sage((k.kontostand()));
+Bote.sage((Spiegel.felder(neu Normal())));
+probier { Spiegel.felder(k); } verbrannt (ZugeklapptAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((k.stand)); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+probier { Bote.sage((neu Normal().x)); } verbrannt (ZugriffsAnanas a) { Bote.sage((a.typ())); }
+Konto offen = k.aufklappen();
+Bote.sage((Spiegel.felder(k)));
+k.stand = 5.0;
+Bote.sage((k.stand));
+Bote.sage((offen.kontostand()));
+probier { neu Normal().aufklappen(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }

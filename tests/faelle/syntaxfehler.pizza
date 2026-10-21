@@ -1,0 +1,2 @@
+salami x = 5
+Bote.sage((x));

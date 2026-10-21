@@ -1,0 +1,9 @@
+Blech<salami> b = [1 .. 8];
+Bote.sage((b.schneide(3)));
+Bote.sage((b.schneide(auto).länge()));
+Bote.sage((b / 4));
+Bote.sage(((b / 4).belege(s -> s.summe())));
+Bote.sage(((b / 4).belege(s -> s.summe()).zusammenklappen((a, c) -> a + c)));
+probier { b / 3; } verbrannt (StreitAnanas a) { Bote.sage((a)); }
+Bote.sage((b.schneide(7).länge()));
+Bote.sage(([1, 2, 3, 4, 5].schneide(2)));

@@ -1,0 +1,24 @@
+klasse MeineAnanas erbt LaufzeitAnanas { speisekarte MeineAnanas(margherita m) { unten(m); } }
+klasse Spezial erbt MeineAnanas { Spezial() { unten("ganz speziell"); } }
+probier {
+    wirf neu MeineAnanas("Teig gerissen");
+} verbrannt (StreitAnanas a) {
+    Bote.sage(("falsch"));
+} verbrannt (LaufzeitAnanas a) {
+    Bote.sage((a.typ() + " / " + a.nachricht()));
+} rand {
+    Bote.sage(("rand"));
+}
+probier { wirf neu Spezial(); } verbrannt (MeineAnanas a) { Bote.sage(("Text: " + a)); }
+probier {
+    probier { wirf neu VerbranntAnanas("heiß"); } rand { Bote.sage(("innen rand")); }
+} verbrannt (GeprüfteAnanas a) {
+    Bote.sage((a.holeNachricht()));
+}
+salami f() {
+    probier { serviere ((1)); } rand { Bote.sage(("rand vor serviere")); }
+    serviere ((2));
+}
+Bote.sage((f()));
+probier { wirf neu StreitAnanas("a"); } verbrannt (x) { Bote.sage(("untypisiert: " + x.typ())); }
+wirf neu Spezial();

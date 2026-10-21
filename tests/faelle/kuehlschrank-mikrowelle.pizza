@@ -1,0 +1,29 @@
+klasse Karte {
+    salami zaehler = 0;
+    @Kühlschrank(haltbar: 3d)
+    speisekarte margherita holeKarte() {
+        zaehler++;
+        serviere (("Karte v" + zaehler));
+    }
+    @Kühlschrank(haltbar: 1h)
+    speisekarte salami quadrat(salami x) { zaehler++; serviere ((x * x)); }
+}
+Karte k = neu Karte();
+Bote.sage((k.holeKarte()));
+Bote.sage((k.holeKarte()));
+Reste<margherita> r = k.holeKarte.mikrowelle();
+Bote.sage((r.wert()));
+Bote.sage((r.istMatschig()));
+Uhr.vorspulen(4d);
+Reste<margherita> r2 = k.holeKarte.mikrowelle();
+Bote.sage((r2.wert()));
+Bote.sage((r2.istMatschig()));
+Bote.sage((k.holeKarte()));
+Bote.sage((k.holeKarte.frisch()));
+Bote.sage((k.holeKarte()));
+Bote.sage((k.zaehler));
+Bote.sage((k.quadrat(3) + k.quadrat(3) + k.quadrat(4)));
+Bote.sage((k.zaehler));
+Karte k2 = neu Karte();
+Bote.sage((k2.holeKarte()));
+Bote.sage((Uhr.jetzt() > 4d));

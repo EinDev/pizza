@@ -1,0 +1,14 @@
+speisekarte rezeptur Backbar {
+    leer backe(salami grad) wirft VerbranntAnanas;
+    diavolo istFertig();
+}
+rohling klasse Halbfertig erfüllt Backbar {
+    diavolo istFertig() { serviere (nein); }
+}
+klasse Ofenpizza erbt Halbfertig {
+    @PizzaÜberschreibt
+    leer backe(salami grad) { Bote.sage(("backe bei " + grad)); }
+}
+Backbar b = neu Ofenpizza();
+b.backe(450);
+Bote.sage((b.istFertig()));

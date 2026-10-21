@@ -1,0 +1,11 @@
+salami zaehler = 0;
+Teig<salami> t = teig(() -> { zaehler++; serviere ((42)); });
+Bote.sage((t.istAufgegangen()));
+Bote.sage((zaehler));
+Bote.sage((t.gehenlassen() == t));
+Bote.sage((t.istAufgegangen()));
+Bote.sage((t.backen()));
+Bote.sage((t.backen()));
+Bote.sage((zaehler));
+Teig<salami> flach = teig(() -> (7));
+Bote.sage((flach.backen()));

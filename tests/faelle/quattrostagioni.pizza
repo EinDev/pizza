@@ -1,0 +1,15 @@
+quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
+Jahreszeit j = Jahreszeit.SOMMER;
+Bote.sage((j));
+Bote.sage((j.name() + " " + j.position()));
+Bote.sage((Jahreszeit.werte()));
+wähle (j) {
+    fall Jahreszeit.FRÜHLING -> Bote.sage(("Spargel"));
+    fall Jahreszeit.SOMMER, Jahreszeit.HERBST -> { Bote.sage(("Tomaten")); }
+    standard -> Bote.sage(("Kohl"));
+}
+wähle (Jahreszeit.WINTER) { fall WINTER -> Bote.sage(("kalt")); standard -> Bote.sage(("warm")); }
+für (Jahreszeit z : Jahreszeit.werte()) { Bote.sage((z.position())); }
+Bote.sage((j == Jahreszeit.SOMMER));
+leer zeige(Jahreszeit z) { Bote.sage(("Zeige " + z)); }
+zeige(Jahreszeit.HERBST);

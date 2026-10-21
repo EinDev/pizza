@@ -1,0 +1,10 @@
+Bote.sage((quadrat(4)));
+Bote.sage((neu Koch("Luigi").gruss()));
+salami quadrat(salami x) { serviere ((x * x)); }
+klasse Koch {
+    margherita name;
+    Koch(margherita name) { dies.name = name; }
+    margherita gruss() { serviere (("Ciao, ich bin " + name)); }
+}
+paket de.luigi.pizzeria;
+import pizza.ofen.*;

@@ -1,0 +1,18 @@
+probier { salami x = 3.5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { margherita t = 5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { diavolo d = 1; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { Pizza p = "Pizza"; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+funghi f = 5;
+Bote.sage((f));
+Pizza nix = karton;
+Bote.sage((nix));
+probier { nix.preis(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+leer gruss(@NieKarton margherita name) { Bote.sage(("Hallo " + name)); }
+gruss("Luigi");
+probier { gruss(karton); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage((unbekannt)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { ((Tomate)).foo(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+gebacken salami G = 1;
+probier { G = 2; } verbrannt (GebackenAnanas a) { Bote.sage((a.typ())); }
+probier { salami s = "5".länge() + 0.5; } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
+probier { falls (1) { } } verbrannt (TypAnanas a) { Bote.sage(("Bedingung: " + a.typ())); }

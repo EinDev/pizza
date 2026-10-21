@@ -274,9 +274,9 @@ function api() {
     ja(/Stapelüberlauf/.test(e.text), e.text);
   });
 
-  test('Rekursion bis Tiefe 900 klappt', () => {
-    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(900)));');
-    gleich(ausgabeText(r.ereignisse), '405450\n');
+  test('Rekursion bis Tiefe 800 klappt', () => {
+    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(800)));');
+    gleich(ausgabeText(r.ereignisse), '320400\n');
   });
 
   test('Determinismus: Zufall mit festem Seed', () => {
@@ -361,11 +361,24 @@ function doku() {
   }
   const abschnitte = sandbox.PIZZA_DOKU || [];
   console.log(grau('  ' + abschnitte.length + ' Abschnitte aus ' + dateien.length + ' Dateien'));
-  for (const a of abschnitte) {
-    (a.inhalt || []).forEach((item, i) => {
-      if (!item || item.art !== 'code') return;
-      const name = (a.id || '?') + '#' + i;
-      if (!passt(name)) return;
+  const ARTEN = new Set(['text', 'code', 'tabelle', 'hinweis', 'ausgabe', 'kurz', 'bild', 'details']);
+  const pruefeBlock = (a, liste, pfad) => {
+    liste.forEach((item, i) => {
+      const name = (a.id || '?') + '#' + pfad + i;
+      if (!item || typeof item !== 'object' || !ARTEN.has(item.art)) {
+        if (passt(name)) ergebnis('doku', name, 'Unbekannte Inhaltsart: ' + JSON.stringify(item && item.art));
+        return;
+      }
+      if (item.art === 'details') {
+        if (!Array.isArray(item.inhalt)) { if (passt(name)) ergebnis('doku', name, 'details ohne inhalt-Array'); return; }
+        pruefeBlock(a, item.inhalt, pfad + i + '.');
+        return;
+      }
+      if (item.art === 'bild') {
+        if (item.src && !/^(https?:|data:)/.test(item.src) && !fs.existsSync(path.join(ROOT, 'site', item.src))) gruppe('doku').notiz.push(name + ': Bild fehlt: ' + item.src);
+        return;
+      }
+      if (item.art !== 'code' || !passt(name)) return;
       if (item.sprache === 'xml' || item.sprache === 'shell') { gruppe('doku').skip++; return; }
       const code = String(item.code || '');
       if (item.ausfuehrbar) {
@@ -373,7 +386,7 @@ function doku() {
         const soll = typeof item.exitCode === 'number' ? item.exitCode : 0;
         let fehler = null;
         if (r.exitCode !== soll) fehler = 'Exit-Code ' + r.exitCode + ', erwartet ' + soll + fehlerZusammenfassung(r) + '\n' + grau(code.split('\n').map(z => '| ' + z).join('\n'));
-        const naechstes = a.inhalt[i + 1];
+        const naechstes = liste[i + 1];
         if (!fehler && naechstes && naechstes.art === 'ausgabe' && typeof naechstes.text === 'string') {
           if (norm(naechstes.text) !== norm(ausgabeText(r.ereignisse))) gruppe('doku').notiz.push(name + ': folgender ausgabe-Block weicht von der echten Ausgabe ab (nur Hinweis)');
         }
@@ -383,7 +396,8 @@ function doku() {
         ergebnis('doku', name + grau(' (nur parse)'), r.ok ? null : r.fehler.text + ' (Zeile ' + r.fehler.zeile + ', Spalte ' + r.fehler.spalte + ')\n' + grau(code.split('\n').map(z => '| ' + z).join('\n')));
       }
     });
-  }
+  };
+  for (const a of abschnitte) pruefeBlock(a, a.inhalt || [], '');
 }
 
 // ---------------------------------------------------------------------

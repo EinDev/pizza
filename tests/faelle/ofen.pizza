@@ -1,0 +1,52 @@
+salami a = ofen(temperatur: 250, zeit: 1s) {
+    salami s = 0;
+    für (salami i = 1; i <= 10; i++) { s += i; }
+    serviere ((s));
+};
+Bote.sage((a));
+salami b = ofen(zeit: 10ms) {
+    salami s = 0;
+    solange (ja) { s++; zwischenstand((s)); }
+    serviere ((s));
+} roh (r) {
+    Bote.sage((r.verbrauchteZeit() > 10ms));
+    serviere ((r.teilergebnis()));
+};
+Bote.sage((b > 0));
+salami c = ofen(temperatur: 500) {
+    serviere ((1));
+} verbrannt (VerbranntAnanas x) {
+    Bote.sage((x.nachricht()));
+    serviere ((-1));
+};
+Bote.sage((c));
+Rezept d = ofen(zeit: 5ms) {
+    solange (ja) { }
+} roh (r) {
+    serviere ((r.teilergebnis()));
+} verbrannt (a) {
+    serviere ((99));
+};
+Bote.sage((d));
+salami e = ofen(zeit: 5ms) {
+    solange (ja) { }
+} verbrannt (VerbranntAnanas x) {
+    Bote.sage((x.nachricht()));
+    serviere ((-2));
+};
+Bote.sage((e));
+Bote.sage((ofen(temperatur: 375, zeit: 10ms) { solange (ja) { } } verbrannt (x) { serviere ((x.nachricht())); }));
+salami m() {
+    salami x = ofen { serviere ((1)); };
+    Bote.sage(("nach dem Ofen"));
+    serviere ((x + 1));
+}
+Bote.sage((m()));
+probier {
+    ofen(zeit: 1s) { wirf neu StreitAnanas("innen"); } verbrannt (VerbranntAnanas v) { Bote.sage(("falsch")); };
+} verbrannt (StreitAnanas s) { Bote.sage(("außen: " + s.nachricht())); }
+salami geschachtelt = ofen(zeit: 1s) {
+    salami innen = ofen(zeit: 3ms) { solange (ja) { } } roh (r) { serviere ((7)); };
+    serviere ((innen * 2));
+};
+Bote.sage((geschachtelt));
