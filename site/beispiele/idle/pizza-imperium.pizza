@@ -207,6 +207,7 @@ klasse Spiel {
     salami minispieleGespielt = 0;
     salami minispieleGewonnen = 0;
     Blech<margherita> minispielSiege = [];   // welche Minispiele schon einmal gewonnen wurden
+    Speisekarte<margherita, salami> siegeJe = neu Speisekarte<margherita, salami>();   // Siege je Grundspiel (Meister-Varianten zählen mit)
     funghi umsatzMini = 0;           // durch Minispiele (diese Runde)
     funghi umsatzMiniAllzeit = 0;
 
@@ -874,6 +875,7 @@ klasse Spiel {
         hawaiiBekehrt = 0; pünktlich = 0; sonderschichten = 0; perfekte = 0; kritikerBesuche = 0; regentage = 0;
         größterKauf = 0; offlineBoni = 0;
         minispielPause = 0; minispieleGespielt = 0; minispieleGewonnen = 0; minispielSiege = []; umsatzMiniAllzeit = 0;
+        siegeJe = neu Speisekarte<margherita, salami>();
         erfolge = []; geschafft = [];
         neuBerechnen();
         nachricht = "Frischer Teig, leere Kasse – auf ein Neues!";
@@ -893,7 +895,7 @@ klasse Spiel {
         s.lege("hawaiiBekehrt", hawaiiBekehrt).lege("pünktlich", pünktlich).lege("sonderschichten", sonderschichten);
         s.lege("perfekte", perfekte).lege("seite", seite).lege("erfolge", erfolge);
         s.lege("minispielPause", minispielPause).lege("minispieleGespielt", minispieleGespielt);
-        s.lege("minispieleGewonnen", minispieleGewonnen).lege("minispielSiege", minispielSiege);
+        s.lege("minispieleGewonnen", minispieleGewonnen).lege("minispielSiege", minispielSiege).lege("siegeJe", siegeJe);
         s.lege("umsatzMini", umsatzMini).lege("umsatzMiniAllzeit", umsatzMiniAllzeit);
         s.lege("briefe", briefe).lege("kritikerBesuche", kritikerBesuche).lege("regentage", regentage);
         s.lege("größterKauf", größterKauf).lege("offlineBoni", offlineBoni);
@@ -922,6 +924,7 @@ klasse Spiel {
         erfolge = s.hole("erfolge", []);
         minispielPause = s.hole("minispielPause", 0); minispieleGespielt = s.hole("minispieleGespielt", 0);
         minispieleGewonnen = s.hole("minispieleGewonnen", 0); minispielSiege = s.hole("minispielSiege", []);
+        siegeJe = s.hole("siegeJe", neu Speisekarte<margherita, salami>());
         umsatzMini = s.hole("umsatzMini", 0); umsatzMiniAllzeit = s.hole("umsatzMiniAllzeit", 0);
         briefe = s.hole("briefe", []);
         kritikerBesuche = s.hole("kritikerBesuche", 0); regentage = s.hole("regentage", 0);
@@ -962,10 +965,15 @@ klasse Minispiel {
     margherita regel;
     salami belohnung;       // Sekunden Produktion
     Dauer schlag;           // so schnell schlägt die Uhr während des Spiels
+    margherita art;         // Grundspiel ("teig", …) – bei der Meister-Variante das Spiel, das sie ersetzt
+    diavolo meister = nein;
 
     Minispiel(margherita s, margherita sym, margherita n, salami b, Dauer d, margherita r) {
-        schlüssel = s; symbol = sym; name = n; belohnung = b; schlag = d; regel = r;
+        schlüssel = s; symbol = sym; name = n; belohnung = b; schlag = d; regel = r; art = s;
     }
+
+    // Meister-Variante: ersetzt das Grundspiel, sobald es dreimal gewonnen wurde.
+    Minispiel ersetzt(margherita grund) { art = grund; meister = ja; serviere (dies); }
 }
 
 // Die Spielecke kennt keine Oberfläche: Sie rechnet, schreibt `status` und meldet
@@ -981,13 +989,27 @@ klasse Spielecke {
         neu Minispiel("ofen", "🌡", "Ofen halten", 10, 500ms,
             "Der Ofen kühlt ständig ab. Halte ihn 10 Sekunden zwischen 380 und 440 °C – mindestens 7 Sekunden müssen sitzen."),
         neu Minispiel("route", "🛵", "Lieferroute", 8, 500ms,
-            "Drei Wege zum Kunden: Wähle binnen 10 Sekunden den schnellsten. Fahrzeit: 2 min je km, 1 min je Ampel, 4 min je Staustufe.")
+            "Drei Wege zum Kunden: Wähle binnen 10 Sekunden den schnellsten. Fahrzeit: 2 min je km, 1 min je Ampel, 4 min je Staustufe."),
+        // Meister-Varianten (nach drei Siegen im Grundspiel)
+        neu Minispiel("teig2", "🌀", "Pizzaiolo-Wurf", 12, 120ms,
+            "Luigi wirft höher und schneller – das grüne Feld ▬▬ ist nur noch zwei Felder breit.").ersetzt("teig"),
+        neu Minispiel("bestellung2", "👨‍👩‍👧‍👦", "Großfamilie", 13, 500ms,
+            "Die ganze Familie bestellt: sechs Beläge, vier Sekunden zum Merken, zwanzig zum Nachklicken.").ersetzt("bestellung"),
+        neu Minispiel("ofen2", "🌋", "Lavastein-Ofen", 13, 500ms,
+            "Lavastein kühlt schneller ab: Halte 400 bis 430 °C – mindestens 7 von 10 Sekunden.").ersetzt("ofen"),
+        neu Minispiel("route2", "🚦", "Rushhour", 12, 500ms,
+            "Feierabendverkehr: Vier Wege, mehr Ampeln, mehr Stau – wähle binnen 10 Sekunden den schnellsten.").ersetzt("route")
     ];
+    salami MEISTER_AB = 3;   // so viele Siege im Grundspiel, bis die Meister-Variante es ersetzt
     Blech<margherita> BELÄGE = ["🍅 Tomate", "🧀 Mozzarella", "🍄 Pilze", "🫒 Oliven", "🍕 Salami", "🌿 Basilikum"];
     Blech<margherita> STRASSEN = ["Via Roma", "Lungomare", "Corso Garibaldi", "Vicolo Stretto", "Ponte Vecchio", "Piazza Dante"];
     Blech<margherita> STAU = ["🟢 frei", "🟡 zäh", "🔴 Stau"];
 
-    margherita läuft = "";      // Schlüssel des laufenden Spiels ("" = keins)
+    margherita läuft = "";      // Grundspiel des laufenden Spiels ("" = keins) – Meister-Varianten laufen unter dem Grundspiel
+    Minispiel aktuell = karton; // das laufende Spiel (Grund- oder Meister-Variante)
+    diavolo meister = nein;
+    salami zielMin = 380;       // Ofen halten
+    salami zielMax = 440;
     margherita status = "";
     salami ticks = 0;
     // Teig fangen: der Zeiger pendelt über 21 Felder, das Ziel ist 3 Felder breit
@@ -1012,31 +1034,44 @@ klasse Spielecke {
     }
     diavolo erlaubt() { serviere (s.modus != "fastenzeit"); }
     diavolo bereit() { serviere (läuft == "" && s.minispielPause <= 0 && erlaubt()); }
-    Dauer intervall() { serviere (läuft == "" ? 500ms : spielNamens(läuft).schlag); }
+    Dauer intervall() { serviere (läuft == "" ? 500ms : aktuell.schlag); }
 
-    diavolo starte(margherita k) {
+    // Welle: Ein Grundspiel weicht nach MEISTER_AB Siegen seiner Meister-Variante.
+    diavolo sichtbar(Minispiel m) {
+        salami siege = s.siegeJe.hole(m.art, 0);
+        serviere (m.meister ? siege >= MEISTER_AB : siege < MEISTER_AB);
+    }
+
+    diavolo starte(margherita schlüssel) {
         falls (!bereit()) { serviere (nein); }
+        Minispiel m = spielNamens(schlüssel);
+        falls (m == karton || !sichtbar(m)) { serviere (nein); }
+        aktuell = m;
+        meister = m.meister;
+        margherita k = m.art;
         läuft = k;
         ticks = 0;
         falls (k == "teig") {
             zone = Zufall.zahl(6, 15);
-            status = "Klick auf „Fangen!“, wenn 🫓 über dem grünen Feld ▬▬▬ schwebt.";
+            status = "Klick auf „Fangen!“, wenn 🫓 über dem grünen Feld " + (meister ? "▬▬" : "▬▬▬") + " schwebt.";
         } sonst falls (k == "bestellung") {
             folge = [];
-            für (salami i : [1 .. 4]) { folge.hinzu(Zufall.wähle(BELÄGE)); }
+            für (salami i : [1 .. (meister ? 6 : 4)]) { folge.hinzu(Zufall.wähle(BELÄGE)); }
             geraten = 0;
             zeigt = ja;
             status = "Merk dir die Bestellung – gleich ist sie weg!";
         } sonst falls (k == "ofen") {
-            grad = 410;
+            grad = meister ? 415 : 410;
             imZiel = 0;
-            status = "Ziel: 380 bis 440 °C. Holz nachlegen heizt um 25 °C, Klappe auf kühlt um 25 °C.";
+            zielMin = meister ? 400 : 380;
+            zielMax = meister ? 430 : 440;
+            status = "Ziel: " + zielMin + " bis " + zielMax + " °C. Holz nachlegen heizt um 25 °C, Klappe auf kühlt um 25 °C.";
         } sonst {
             Blech<margherita> namen = Zufall.mische(STRASSEN);
             wege = []; routen = []; fahrzeit = [];
-            für (salami i : [1 .. 3]) {
+            für (salami i : [1 .. (meister ? 4 : 3)]) {
                 salami zehntel = Zufall.zahl(15, 60);   // 1,5 bis 6 km
-                salami ampeln = Zufall.zahl(0, 6);
+                salami ampeln = Zufall.zahl(0, meister ? 9 : 6);
                 salami stau = Zufall.zahl(0, 2);
                 wege.hinzu(namen.stück(i));
                 fahrzeit.hinzu(zehntel * 2 + ampeln * 10 + stau * 40);
@@ -1052,7 +1087,7 @@ klasse Spielecke {
         salami p = ticks % 40;
         serviere (p <= 20 ? p : 40 - p);
     }
-    diavolo imZiel(salami i) { serviere (i >= zone && i <= zone + 2); }
+    diavolo imZiel(salami i) { serviere (i >= zone && i <= zone + (meister ? 1 : 2)); }
     diavolo imFeld() { serviere (imZiel(zeiger())); }
     // Was auf Feld i (0…20) der Bahn zu sehen ist
     margherita feld(salami i) { serviere (i == zeiger() ? "🫓" : (imZiel(i) ? "▬" : "·")); }
@@ -1085,12 +1120,13 @@ klasse Spielecke {
         falls (läuft != "ofen") { serviere; }
         grad = Mathe.max(250, Mathe.min(485, grad + d));
     }
-    diavolo ofenImZiel() { serviere (grad >= 380 && grad <= 440); }
+    diavolo ofenImZiel() { serviere (grad >= zielMin && grad <= zielMax); }
 
     // ── Lieferroute ──
     leer nimmRoute(salami i) {
         falls (läuft != "route") { serviere; }
-        salami beste = Mathe.min(fahrzeit.stück(1), fahrzeit.stück(2), fahrzeit.stück(3));
+        falls (i > fahrzeit.länge()) { serviere; }
+        salami beste = fahrzeit.zusammenklappen((a, b) -> (Mathe.min(a, b)));
         margherita weg = wege.stück(i);
         falls (fahrzeit.stück(i) <= beste) {
             gewinne("Über " + weg + " in " + (fahrzeit.stück(i) / 10).kompakt(1) + " min – schneller geht's nicht!");
@@ -1114,11 +1150,11 @@ klasse Spielecke {
             falls (ticks >= 80) { verliere("Zu spät – der Teig ist auf dem Boden gelandet."); }
         } sonst falls (läuft == "bestellung") {
             ticks += n;
-            falls (zeigt && ticks >= 6) {
+            falls (zeigt && ticks >= merkTicks()) {
                 zeigt = nein;
                 ticks = 0;
                 status = "Jetzt du: Klick die Beläge in der richtigen Reihenfolge.";
-            } sonst falls (!zeigt && ticks >= 30) {
+            } sonst falls (!zeigt && ticks >= antwortTicks()) {
                 verliere("Zu langsam – der Gast hat sich eine Calzone bestellt.");
             }
         } sonst falls (läuft == "ofen") {
@@ -1126,7 +1162,7 @@ klasse Spielecke {
             solange (k > 0) {
                 k--;
                 ticks++;
-                grad = Mathe.max(250, Mathe.min(485, grad + Zufall.zahl(-16, 6)));
+                grad = Mathe.max(250, Mathe.min(485, grad + (meister ? Zufall.zahl(-20, 8) : Zufall.zahl(-16, 6))));
                 falls (ofenImZiel() && ticks % 2 == 0) { imZiel++; }   // gezählt wird jede volle Sekunde
             }
             falls (ticks >= 20) {
@@ -1139,26 +1175,36 @@ klasse Spielecke {
         }
     }
 
+    salami merkTicks() { serviere (meister ? 8 : 6); }       // 4 bzw. 3 Sekunden
+    salami antwortTicks() { serviere (meister ? 40 : 30); }  // 20 bzw. 15 Sekunden
+
     // Wert für den Balken (0…1)
     funghi balken() {
         falls (läuft == "teig") { serviere (zeiger() / 20); }
-        falls (läuft == "bestellung") { serviere (zeigt ? 1 - ticks / 6 : 1 - ticks / 30); }
+        falls (läuft == "bestellung") { serviere (zeigt ? 1 - ticks / merkTicks() : 1 - ticks / antwortTicks()); }
         falls (läuft == "ofen") { serviere ((grad - 250) / 235); }
         falls (läuft == "route") { serviere (1 - ticks / 20); }
         serviere (0);
     }
 
     leer gewinne(margherita text) {
-        Minispiel m = spielNamens(läuft);
+        Minispiel m = aktuell;
         funghi n = s.minispielGewinn(m.belohnung);
         s.minispieleGewonnen++;
         falls (!s.minispielSiege.enthält(m.schlüssel)) { s.minispielSiege.hinzu(m.schlüssel); }
+        salami siege = s.siegeJe.hole(m.art, 0) + 1;
+        s.siegeJe.lege(m.art, siege);
         beende();
-        s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).euro(kompakt: ja) + ")."));
+        margherita neu_ = "";
+        falls (!m.meister && siege == MEISTER_AB) {
+            Minispiel nächstes = SPIELE.filtere((x) -> (x.meister && x.art == m.art)).erstes();
+            neu_ = " Nonna ist beeindruckt: Ab jetzt gibt es " + nächstes.symbol + " " + nächstes.name + "!";
+        }
+        s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).euro(kompakt: ja) + ")." + neu_));
     }
 
     leer verliere(margherita text) {
-        Minispiel m = spielNamens(läuft);
+        Minispiel m = aktuell;
         beende();
         s.melde((m.symbol + " " + m.name + ": " + text + " Diesmal kein Bonus."));
     }
@@ -1189,7 +1235,10 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Standhaft", "Bekehre drei Hawaii-Gäste zur Margherita.", (s) -> (s.hawaiiBekehrt >= 3)),
     neu Erfolg("Pünktlich wie die Post", "Liefere drei Großbestellungen pünktlich.", (s) -> (s.pünktlich >= 3)),
     neu Erfolg("Heiße Nächte", "Fahre fünf Sonderschichten.", (s) -> (s.sonderschichten >= 5)),
-    neu Erfolg("Nonnas Spielkamerad", "Gewinne jedes der vier Minispiele einmal.", (s) -> (s.minispielSiege.länge() >= 4)),
+    neu Erfolg("Nonnas Spielkamerad", "Gewinne jedes der vier Minispiele einmal.",
+        (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.minispielSiege.enthält(k))).länge() >= 4)),
+    neu Erfolg("Meisterschüler", "Schalte eine Meister-Variante frei (drei Siege in einem Spiel).",
+        (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.siegeJe.hole(k, 0) >= 3)).länge() >= 1)),
     neu Erfolg("Stammspieler", "Spiele 25 Minispiele.", (s) -> (s.minispieleGespielt >= 25)),
     neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
     neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
@@ -1220,6 +1269,8 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Inflationsgewinner", "Schaffe die Inflation.", (s) -> (s.bestanden("inflation"))),
     neu Erfolg("Kleine Küche, großer Umsatz", "Schaffe die Mini-Küche.", (s) -> (s.bestanden("minikueche"))),
     neu Erfolg("Urlaubsvertretung", "Schaffe es ohne Nonnas Geheimrezepte.", (s) -> (s.bestanden("urlaub"))),
+    neu Erfolg("Großmeister der Spielecke", "Gewinne alle vier Meister-Varianten.",
+        (s) -> (["teig2", "bestellung2", "ofen2", "route2"].filtere((k) -> (s.minispielSiege.enthält(k))).länge() >= 4)),
     neu Erfolg("Doppelt hält besser", "Gründe zweimal eine Kette.", (s) -> (s.franchises >= 2)),
     neu Erfolg("Sternenhimmel", "Sammle 100 Michelin-Sterne.", (s) -> (s.sterneAllzeit >= 100)),
     neu Erfolg("Houston, wir haben Hunger", "Eröffne den Saturnring-Lieferdienst.", (s) -> (s.anzahl("saturn") >= 1)),
@@ -1412,7 +1463,7 @@ klasse MinispielZeile {
     }
 
     leer zeichne(Spielecke e, Spiel s) {
-        falls (e.läuft == m.schlüssel) {
+        falls (e.aktuell == m && e.läuft != "") {
             setzeKnopf(knopf, "⏳ läuft", nein);
         } sonst falls (!e.erlaubt()) {
             setzeKnopf(knopf, "🙏 Fastenzeit", nein);
@@ -1715,7 +1766,7 @@ ofenTeil.stil("abstand", 8).stil("ausrichtung", "mitte");
 Blech<Knopf> routenKnöpfe = [];
 Stapel routenTeil = neu Stapel([], id: "routen-teil");
 routenTeil.stil("abstand", 6);
-für (salami i : [1 .. 3]) {
+für (salami i : [1 .. 4]) {    // der vierte Weg nur in der Rushhour
     Knopf k = neu Knopf("", () -> { ecke.nimmRoute(i); nachVerarbeitung(); }, id: "route-" + i);
     routenKnöpfe.hinzu(k);
     routenTeil.hinzu(k);
@@ -2019,7 +2070,7 @@ leer zeichneSpielfeld() {
         ofenTeil.sichtbar(l == "ofen");
         routenTeil.sichtbar(l == "route");
         falls (l != "") {
-            Minispiel m = ecke.spielNamens(l);
+            Minispiel m = ecke.aktuell;
             spielfeld.setzeTitel((m.symbol + " " + m.name));
             falls (ofenFarbe != "") { ofenFarbe = ""; spielAnzeige.stil("farbe", "normal"); }
         }
@@ -2027,10 +2078,15 @@ leer zeichneSpielfeld() {
             für (salami i : [0 .. 20]) { teigFelder.stück(i + 1).stil("farbe", ecke.imZiel(i) ? "basilikum" : "normal"); }
         }
         falls (l == "route") {
-            für (salami i : [1 .. 3]) { routenKnöpfe.stück(i).setzeText((ecke.routen.stück(i))); }
+            für (salami i : [1 .. 4]) {
+                Knopf k = routenKnöpfe.stück(i);
+                diavolo da = i <= ecke.routen.länge();
+                falls (da) { k.setzeText((ecke.routen.stück(i))); }
+                falls (k.sichtbar() != da) { k.sichtbar(da); }
+            }
         }
         // Die Uhr schlägt im Takt des Spiels – bzw. wieder jede Sekunde
-        Dauer schlag = l == "" ? 1s : ecke.spielNamens(l).schlag;
+        Dauer schlag = l == "" ? 1s : ecke.aktuell.schlag;
         taktMs = Mathe.runden(schlag.inMs());
         takt.setzeIntervall(schlag);
     }
@@ -2049,7 +2105,7 @@ leer zeichneSpielfeld() {
         setzeText(spielAnzeige, "🌡 " + ecke.grad + " °C");
         margherita farbe = ecke.ofenImZiel() ? "basilikum" : "tomate";
         falls (farbe != ofenFarbe) { ofenFarbe = farbe; spielAnzeige.stil("farbe", farbe); }
-        status = "Ziel 380–440 °C · im Ziel: " + ecke.imZiel + " von 10 s (7 nötig) · noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s";
+        status = "Ziel " + ecke.zielMin + "–" + ecke.zielMax + " °C · im Ziel: " + ecke.imZiel + " von 10 s (7 nötig) · noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s";
     } sonst {
         setzeText(spielAnzeige, "🛵 Welcher Weg ist am schnellsten?");
         status = status + " Noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s.";
@@ -2066,10 +2122,14 @@ leer zeichneMinispiele() {
     } sonst falls (spiel.minispielPause > 0 && ecke.läuft == "") {
         setzeText(miniKopf, "☕ Nonna macht Pause – in " + (Mathe.decke(spiel.minispielPause / 10) * 10) + " s spielt sie wieder mit." + bilanz);
     } sonst {
-        setzeText(miniKopf, "Kurze Spiele für zwischendurch: Ein Sieg bringt Pizzen im Wert von 8 bis 10 Sekunden Produktion, "
+        setzeText(miniKopf, "Kurze Spiele für zwischendurch: Ein Sieg bringt Pizzen im Wert von 8 bis 13 Sekunden Produktion, "
             + "danach macht Nonna zwei Minuten Pause." + bilanz);
     }
-    für (MinispielZeile z : miniZeilen) { z.zeichne(ecke, spiel); }
+    für (MinispielZeile z : miniZeilen) {
+        diavolo zeigen = ecke.sichtbar(z.m);
+        falls (z.reihe.sichtbar() != zeigen) { z.reihe.sichtbar(zeigen); }
+        falls (zeigen) { z.zeichne(ecke, spiel); }
+    }
 }
 
 leer zeichne() {
