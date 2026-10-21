@@ -111,7 +111,7 @@ for (const f of faelle) {
 
 console.log('▶ anzeige (U-45)');
 // Anzeigeform überall: <text> + " (Zeile Z, Spalte S)" wenn vorhanden; detail nie im Text
-const anzeige = (e) => (e.typ === 'fehler' && e.art === 'ananas' ? e.text.replace(/ (Zeile d+)$/, '') : e.text) + (e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '');
+const anzeige = (e) => (e.typ === 'fehler' && e.art === 'ananas' ? e.text.replace(/ \(Zeile \d+\)$/, '') : e.text) + (e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '');
 for (const f of eigeneFaelle().filter(x => x.name.includes('anzeige'))) {
   pruefe('Anzeige ' + f.name, () => {
     const ri = P.run(f.quelle, f.opt);
