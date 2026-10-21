@@ -206,6 +206,8 @@ klasse Spiel {
             "Jeder Steinofen macht auch die Sonderschicht 20 °C heißer."),
         neu Upgrade("roller", "🛵", "Lieferroller", 7_000, 18, "betrieb",
             "Liefert bis an die Haustür – und bringt Großbestellungen 1 € Trinkgeld."),
+        neu Upgrade("foodtruck", "🚚", "Foodtruck", 25_000, 40, "betrieb",
+            "Parkt immer genau vor der Konkurrenz."),
         neu Upgrade("wuppertal", "🏪", "Filiale in Wuppertal", 80_000, 80, "betrieb",
             "Mit Blick auf die Schwebebahn."),
         neu Upgrade("teigfabrik", "🏭", "Teigfabrik", 1_000_000, 360, "betrieb",
@@ -215,7 +217,18 @@ klasse Spiel {
         neu Upgrade("mond", "🌙", "Pizzeria auf dem Mond", 170_000_000, 7_000, "betrieb",
             "Geringe Schwerkraft – perfekt für luftigen Teig."),
         neu Upgrade("zentrale", "🏢", "Franchise-Zentrale", 2_500_000_000, 30_000, "betrieb",
-            "Gibt es erst ab der ersten Franchise-Filiale. Steuert die ganze Kette.")
+            "Gibt es erst ab der ersten Franchise-Filiale. Steuert die ganze Kette."),
+        // Ab hier geht es nur mit der Kette weiter (jedes Gebäude erscheint erst, wenn das vorige gekauft ist).
+        neu Upgrade("saturn", "🪐", "Saturnring-Lieferdienst", 35_000_000_000, 130_000, "betrieb",
+            "Die Ringe sind aus Parmesan. Behauptet jedenfalls die Werbung."),
+        neu Upgrade("wurmloch", "🕳️", "Wurmloch-Lieferung", 500_000_000_000, 600_000, "betrieb",
+            "Die Pizza kommt an, bevor sie bestellt wurde. Das Trinkgeld leider auch."),
+        neu Upgrade("galaxie", "🌌", "Galaktische Pizzakette", 7_000_000_000_000, 2_800_000, "betrieb",
+            "Milchstraße? Mozzarellastraße."),
+        neu Upgrade("zeitmaschine", "⏳", "Nonnas Zeitmaschine", 100_000_000_000_000, 13_000_000, "betrieb",
+            "Holt Rezepte direkt aus dem Jahr 1890 – original!"),
+        neu Upgrade("multiversum", "🍕", "Pizza-Multiversum", 1_500_000_000_000_000, 60_000_000, "betrieb",
+            "In jedem Universum eine Pizzeria. In keinem gibt es Ananas.")
     ];
 
     // Fünf Ketten (🔥 Ofen, 🫙 Teig, 🎉 Gäste, 🧦 Nonna, 🎲 Spiel): Jedes Rezept braucht das vorige seiner Kette.
@@ -1237,8 +1250,8 @@ meldung.stil("farbe", "tomate").stil("ausrichtung", "mitte");
 // ── Reiter 1: Backstube ──
 Blech<UpgradeZeile> zeilen = [];
 
-Abschnitt upgradeAbschnitt(margherita titel, Blech<Upgrade> liste, margherita id) {
-    Abschnitt a = neu Abschnitt(titel, [], id: id);
+Abschnitt upgradeAbschnitt(margherita titel, Blech<Upgrade> liste, margherita id, Blech<Zutat> vorne) {
+    Abschnitt a = neu Abschnitt(titel, vorne, id: id);
     a.stil("abstand", 6);
     für (Upgrade u : liste) {
         UpgradeZeile z = neu UpgradeZeile(u, () -> {
@@ -1278,11 +1291,26 @@ für (salami m : MENGEN) {
     kaufmengeReihe.hinzu(k);
 }
 
+// Welle im Betrieb: höchstens WELLE_BETRIEB Gebäudezeilen; ältere klappen in die Zeile „Kleinbetriebe“.
+salami WELLE_BETRIEB = 6;
+diavolo alleBetriebe = nein;
+Schild kleinInfo = neu Schild("", id: "klein-info");
+kleinInfo.stil("schrift", "klein").stil("breite", 340);
+Knopf kleinKnopf = neu Knopf("▸ zeigen", () -> {
+    alleBetriebe = !alleBetriebe;
+    spiel.version++;
+    zeichne();
+}, id: "klein-knopf");
+kleinKnopf.stil("breite", 130).stil("farbe", "mozzarella").hinweis("Ältere Gebäude ein- oder ausklappen – sie backen natürlich weiter.");
+Reihe kleinReihe = neu Reihe([kleinInfo, kleinKnopf], id: "kleinbetriebe");
+kleinReihe.stil("abstand", 8);
+kleinReihe.sichtbar(nein);
+
 Stapel backstube = neu Stapel([
     rezeptTeil,
     kaufmengeReihe,
-    upgradeAbschnitt("🛠 Handwerk – mehr Pizzen pro Klick", spiel.handwerk, "handwerk"),
-    upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb")
+    upgradeAbschnitt("🛠 Handwerk – mehr Pizzen pro Klick", spiel.handwerk, "handwerk", []),
+    upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb", [kleinReihe])
 ], id: "backstube");
 backstube.stil("abstand", 8);
 
@@ -1541,13 +1569,33 @@ leer zeichneVoll() {
 
     // Upgrades: in jeder Liste erscheint das nächste, sobald das vorige gekauft ist.
     Upgrade vorher = karton;
+    Blech<UpgradeZeile> betriebOffen = [];
     für (UpgradeZeile z : zeilen) {
         diavolo erstes = z.u == spiel.handwerk.erstes() || z.u == spiel.betrieb.erstes();
         diavolo freigeschaltet = z.u.schlüssel != "zentrale" || spiel.filialen > 0;
-        z.zeigeWenn(freigeschaltet && (erstes || z.u.anzahl > 0 || vorher.anzahl > 0));
+        diavolo offen = freigeschaltet && (erstes || z.u.anzahl > 0 || vorher.anzahl > 0);
+        falls (offen && z.u.art == "betrieb") { betriebOffen.hinzu(z); }
+        z.zeigeWenn(offen);
         z.beschrifte(spiel);
         vorher = z.u;
     }
+    // Welle im Betrieb: die ältesten Gebäude klappen in „Kleinbetriebe“ (außer man klappt sie auf).
+    salami zuviel = betriebOffen.länge() - WELLE_BETRIEB;
+    falls (zuviel > 0) {
+        Blech<margherita> teile = [];
+        funghi klein = 0;
+        funghi alle = 0;
+        für (UpgradeZeile z : betriebOffen) { alle += z.u.gesamt(); }
+        für (salami i : [1 .. zuviel]) {
+            Upgrade u = betriebOffen.stück(i).u;
+            teile.hinzu(u.symbol + "×" + u.anzahl);
+            klein += u.gesamt();
+            falls (!alleBetriebe) { betriebOffen.stück(i).zeigeWenn(nein); }
+        }
+        setzeText(kleinInfo, "🧺 Kleinbetriebe: " + teile.verbinde(" ") + " – backen weiter (" + prozent(klein, alle) + " der Produktion)");
+        setzeKnopf(kleinKnopf, alleBetriebe ? "▾ einklappen" : "▸ zeigen", ja);
+    }
+    falls (kleinReihe.sichtbar() != (zuviel > 0)) { kleinReihe.sichtbar(zuviel > 0); }
 
     margherita imOfen = "Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza";
     setzeText(rezeptInfo, imOfen);
