@@ -290,9 +290,56 @@ function api() {
     ja(/Stapelüberlauf/.test(e.text), e.text);
   });
 
-  test('Rekursion bis Tiefe 800 klappt', () => {
-    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(800)));');
-    gleich(ausgabeText(r.ereignisse), '320400\n');
+  test('Rekursion bis Tiefe 300 klappt', () => {
+    const r = P.run('salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(300)));');
+    gleich(ausgabeText(r.ereignisse), '45150\n');
+  });
+
+  test('Stapeltiefe deterministisch (SPEC §14.4): exakte Grenze, jede Aufrufart', () => {
+    const summe = m => 'salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }\nBote.sage((summe(' + m + ')));';
+    gleich(P.run(summe(373)).exitCode, 0, 'summe(373)');
+    gleich(P.run(summe(374)).exitCode, 1, 'summe(374)');
+    const lam = m => 'Rezept lam = x -> x;\nlam = n -> n == 0 ? 0 : lam(n - 1) + 1;\nBote.sage((lam(' + m + ')));';
+    gleich(P.run(lam(373)).exitCode, 0, 'lambda(373)');
+    gleich(P.run(lam(374)).exitCode, 1, 'lambda(374)');
+    const varianten = [
+      'Rezept lam = x -> x;\nlam = n -> lam(n + 1);\nlam(0);',
+      'salami f(salami n) { serviere ((1 + (1 + (1 + (1 + (1 + (1 + (1 + (1 + f(n + 1)))))))))); }\nf(0);',
+      'klasse K { K(salami x) { neu K(x + 1); } }\nneu K(0);',
+      'salami f(salami n) { serviere (([n].belege(x -> f(x + 1)).erstes())); }\nf(0);',
+      'klasse K { @Kühlschrank salami f(salami n) { serviere ((dies.f.mikrowelle(n + 1).wert())); } }\nneu K().f(0);',
+      'klasse K { margherita alsText() { serviere (("" + neu K())); } }\nBote.sage((neu K()));',
+      'belag B auf Pizza { salami t(salami n) { serviere ((dies.t(n + 1))); } }\n((B)).t(0);',
+      'salami f(salami n) { serviere ((ofen(zeit: 1h) { probier { serviere ((f(n + 1))); } rand { } })); }\nf(0);',
+      'salami f(salami n) { serviere ((teig(() -> f(n + 1)).backen() + bestelle(() -> 1).warte().wert())); }\nf(0);',
+      'salami f(salami n) { serviere (([2, 1].sortiere((a, b) -> f(n + 1)).erstes())); }\nf(0);',
+      'Rezept r = Bote.sage;\nsalami f(salami n) { r(n); serviere ((f(n + 1))); }\nf(0);'
+    ];
+    for (const q of varianten) {
+      const s = [];
+      for (let i = 0; i < 3; i++) {
+        const r = P.run(q);
+        const fe = r.ereignisse.find(e => e.typ === 'fehler');
+        ja(fe && /Stapelüberlauf/.test(fe.text), 'kein Stapelüberlauf bei ' + JSON.stringify(q) + ': ' + (fe && fe.text));
+        s.push(r.schritte);
+      }
+      ja(s[0] === s[1] && s[1] === s[2], 'nicht deterministisch (' + s.join('/') + ') bei ' + JSON.stringify(q));
+    }
+  });
+
+  test('pizza.js läuft ohne Node-Globale (Worker-Kontext: nur self)', () => {
+    const code = fs.readFileSync(path.join(ROOT, 'site', 'js', 'pizza.js'), 'utf8');
+    const sandbox = {};
+    sandbox.self = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(code, sandbox, { filename: 'pizza.js' });
+    const L = sandbox.PizzaLang;
+    ja(L && typeof L.run === 'function', 'self.PizzaLang fehlt');
+    const r = L.run('salami f(salami n) { falls (n == 0) { serviere (0); } serviere ((n + f(n - 1))); }\nBote.sage((f(10)));\nf(100000);');
+    gleich(r.ereignisse[0].text, '55');
+    gleich(r.exitCode, 1, 'Stapelüberlauf im Worker-Kontext');
+    ja(/Stapelüberlauf/.test(r.ereignisse.find(e => e.typ === 'fehler').text), 'Stapelüberlauf-Meldung');
+    ja(!/\bprocess\b|\brequire\(/.test(code.replace(/typeof module[^;]*module\.exports/g, '')), 'pizza.js referenziert process/require');
   });
 
   test('Determinismus: Zufall mit festem Seed', () => {

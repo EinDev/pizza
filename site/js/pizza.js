@@ -95,7 +95,7 @@
   ].join('\n');
 
   const STANDARD_LIMIT = 5000000;
-  const MAX_TIEFE = 900;
+  const MAX_STAPEL = 1500;
   const GRUNDPREIS = 5.00;
 
   // =====================================================================
@@ -1698,10 +1698,8 @@
       this.rueck = null;
       this.z = null;
       this.s = null;
-      this.tiefe = 0;
+      this.st = 0;
       this.instanzen = 0;
-      this.tiefZ = null;
-      this.tiefS = null;
       this.zufall = mulberry32(42);
       this.globalCtx = { dies: null, klasse: null, unten: null, ktor: false };
       this.global = new Scope(null, this.globalCtx, true);
@@ -1775,7 +1773,6 @@
     normalisiere(e) {
       if (e instanceof RangeError && /call stack|too much recursion|stack/i.test(e.message)) {
         const w = this.stapel();
-        if (this.tiefZ != null) { w.zeile = this.tiefZ; w.spalte = this.tiefS; }
         return w;
       }
       return e;
@@ -1809,7 +1806,8 @@
 
     darstellung(v) {
       if (typeof v === 'string') return '"' + v + '"';
-      try { return this.text(v); } catch (e) { return this.typName(v); }
+      const st0 = this.st;
+      try { return this.text(v); } catch (e) { this.st = st0; return this.typName(v); }
     }
 
     zahl(v, wo) {
@@ -2657,7 +2655,12 @@
     rufe(f, pos, ben, node) {
       if (f instanceof Funktion) return this.rufeLambda(f, pos, ben);
       if (f instanceof Gebunden) return this.rufeDecl(this.waehle(f.liste, this.anzahl(pos, ben)), f.obj, pos, ben, node, 'normal');
-      if (f instanceof NativFn) return f.fn.call(this, pos, ben, node);
+      if (f instanceof NativFn) {
+        if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+        const v = f.fn.call(this, pos, ben, node);
+        this.st--;
+        return v;
+      }
       if (f === null || f === undefined) throw this.leer();
       throw this.ananas('TypAnanas', this.darstellung(f) + ' ist keine Funktion – das kann man nicht aufrufen.');
     }
@@ -2685,7 +2688,8 @@
           case 'boolean': return v ? 'j' : 'n';
         }
         if (v instanceof Obj) return 'o' + v.klasse.name + '@' + v.nr;
-        try { return 'x' + this.text(v); } catch (e) { return 'x?'; }
+        const st0 = this.st;
+        try { return 'x' + this.text(v); } catch (e) { this.st = st0; return 'x?'; }
       };
       for (const v of pos) teile.push(k(v));
       if (ben !== null) for (const n in ben) teile.push(n + '=' + k(ben[n]));
@@ -2755,7 +2759,7 @@
     fuehreAus(m, ctx, pos, ben, node) {
       const sc = new Scope(this.global, ctx, true);
       this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
-      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
       const z = this.z, s = this.s;
       try {
         const body = m.body.body;
@@ -2768,7 +2772,7 @@
         }
         return null;
       } finally {
-        this.tiefe--;
+        this.st--;
         this.z = z; this.s = s;
       }
     }
@@ -2777,7 +2781,7 @@
       const n = f.n;
       const sc = new Scope(f.scope, null, false);
       this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
-      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
       const z = this.z, s = this.s;
       try {
         if (n.ausdr) return this.ausw(n.body, sc);
@@ -2791,7 +2795,7 @@
         }
         return null;
       } finally {
-        this.tiefe--;
+        this.st--;
         this.z = z; this.s = s;
       }
     }
@@ -2898,7 +2902,7 @@
         if (k.basis !== null) this.konstruiere(k.basis, o, [], null, node);
         this.feldInit(k, o);
       }
-      if (++this.tiefe > 400) { if (this.tiefe > MAX_TIEFE) { this.tiefe--; throw this.stapel(); } this.tiefZ = this.z; this.tiefS = this.s; }
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
       const z = this.z, s = this.s;
       try {
         const body = m.body.body;
@@ -2907,7 +2911,7 @@
           if (r !== undefined) { this.rueck = null; break; }
         }
       } finally {
-        this.tiefe--;
+        this.st--;
         this.z = z; this.s = s;
       }
     }
@@ -2929,11 +2933,13 @@
     // ---------- Lieferung & Ofen ----------
     liefere(l, budget, node) {
       let z;
+      const st0 = this.st;
       const frame = this.pushFrame('lieferung', budget);
       try {
         const v = this.rufe(l.fn, [], null, node);
         z = new Zustellung(true, v, null);
       } catch (e0) {
+        this.st = st0;
         const e = this.normalisiere(e0);
         if (e instanceof BudgetSig && e.frame === frame) z = new Zustellung(false, null, null);
         else if (e instanceof AnanasWurf) z = new Zustellung(true, null, e);
@@ -2969,6 +2975,7 @@
       const startUhr = this.schritte + this.offset;
       const z0 = this.z, s0 = this.s;
       let wert = null, roh = null;
+      const st0 = this.st;
       try {
         if (temp > 485) throw this.ananas('VerbranntAnanas', 'Zu heiß! Selbst Neapel hat Grenzen.');
         const budget = Math.floor(zeitMs * temp / 250);
@@ -2976,6 +2983,7 @@
         try {
           wert = this.blockWert(n.block, sc);
         } catch (e) {
+          this.st = st0;
           if (e instanceof BudgetSig && e.frame === frame) {
             this.z = z0; this.s = s0;
             if (n.roh) roh = new OfenRoh(frame.zwischen, new Dauer(this.schritte + this.offset - startUhr));
@@ -2985,6 +2993,7 @@
           this.popFrame(frame);
         }
       } catch (e0) {
+        this.st = st0;
         const e = this.normalisiere(e0);
         if (e instanceof AnanasWurf && n.faenge.length) {
           const f = this.findeFang(n.faenge, e.obj);
@@ -3035,28 +3044,35 @@
       switch (n.k) {
         case 'Zahl': case 'Text': case 'Bool': return n.v;
         case 'Name': return this.leseName(n, sc);
-        case 'Bin': return this.binaer(n.op, this.ausw(n.l, sc), this.ausw(n.r, sc), n);
-        case 'MCall': return this.aMCall(n, sc);
-        case 'NCall': return this.namenAufruf(n, sc);
-        case 'Mem': return this.mitglied(this.ausw(n.obj, sc), n.name, n, sc);
-        case 'Log': return this.aLog(n, sc);
-        case 'Un': return this.aUn(n, sc);
-        case 'Tern': return this.aTern(n, sc);
         case 'Dauer': return new Dauer(n.v);
         case 'Karton': return null;
         case 'Dies': return this.aDies(sc);
         case 'Unten': return this.aUnten(sc);
-        case 'Call': return this.rufe(this.ausw(n.callee, sc), this.posArgs(n.args, sc), this.benArgs(n.args, sc), n);
-        case 'UntenCall': return this.aUntenCall(n, sc);
-        case 'Neu': return this.aNeu(n, sc);
-        case 'PizzaLit': return this.aPizzaLit(n, sc);
-        case 'Blech': return this.aBlech(n, sc);
-        case 'Bereich': return this.aBereich(n, sc);
         case 'Lambda': return new Funktion(n, sc);
-        case 'Ofen': return this.ofen(n, sc);
-        case 'WaehleA': return this.aWaehle(n, sc);
       }
-      throw this.ananas('LaufzeitAnanas', 'Unbekannter Ausdruck \'' + n.k + '\'.');
+      // Zusammengesetzte Ausdrücke zählen in die Stapeltiefe (deterministisches Limit, SPEC §14.4)
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      let r;
+      switch (n.k) {
+        case 'Bin': r = this.binaer(n.op, this.ausw(n.l, sc), this.ausw(n.r, sc), n); break;
+        case 'MCall': r = this.aMCall(n, sc); break;
+        case 'NCall': r = this.namenAufruf(n, sc); break;
+        case 'Mem': r = this.mitglied(this.ausw(n.obj, sc), n.name, n, sc); break;
+        case 'Log': r = this.aLog(n, sc); break;
+        case 'Un': r = this.aUn(n, sc); break;
+        case 'Tern': r = this.aTern(n, sc); break;
+        case 'Call': r = this.rufe(this.ausw(n.callee, sc), this.posArgs(n.args, sc), this.benArgs(n.args, sc), n); break;
+        case 'UntenCall': r = this.aUntenCall(n, sc); break;
+        case 'Neu': r = this.aNeu(n, sc); break;
+        case 'PizzaLit': r = this.aPizzaLit(n, sc); break;
+        case 'Blech': r = this.aBlech(n, sc); break;
+        case 'Bereich': r = this.aBereich(n, sc); break;
+        case 'Ofen': r = this.ofen(n, sc); break;
+        case 'WaehleA': r = this.aWaehle(n, sc); break;
+        default: throw this.ananas('LaufzeitAnanas', 'Unbekannter Ausdruck \'' + n.k + '\'.');
+      }
+      this.st--;
+      return r;
     }
 
     aMCall(n, sc) {
@@ -3199,28 +3215,33 @@
     fuehre(n, sc) {
       if (++this.schritte > this.grenze) this.grenzeErreicht();
       this.z = n.z; this.s = n.s;
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      let r;
       switch (n.k) {
-        case 'AusdrAnw': this.ausw(n.e, sc); return undefined;
-        case 'Zuw': this.sZuw(n, sc); return undefined;
-        case 'Var': this.sVar(n, sc); return undefined;
-        case 'Inc': this.sInc(n, sc); return undefined;
-        case 'Block': return this.block(n, sc);
-        case 'Falls': return this.sFalls(n, sc);
-        case 'Solange': return this.sSolange(n, sc);
-        case 'Fuer': return this.sFuer(n, sc);
-        case 'FuerJedes': return this.sFuerJedes(n, sc);
-        case 'Waehle': return this.sWaehle(n, sc);
+        case 'AusdrAnw': this.ausw(n.e, sc); break;
+        case 'Zuw': this.sZuw(n, sc); break;
+        case 'Var': this.sVar(n, sc); break;
+        case 'Inc': this.sInc(n, sc); break;
+        case 'Block': r = this.block(n, sc); break;
+        case 'Falls': r = this.sFalls(n, sc); break;
+        case 'Solange': r = this.sSolange(n, sc); break;
+        case 'Fuer': r = this.sFuer(n, sc); break;
+        case 'FuerJedes': r = this.sFuerJedes(n, sc); break;
+        case 'Waehle': r = this.sWaehle(n, sc); break;
         case 'Serviere':
           this.rueck = n.e === null ? null : this.ausw(n.e, sc);
-          return RET;
+          r = RET;
+          break;
         case 'Wirf': throw this.sWirf(n, sc);
-        case 'Probier': return this.probier(n, sc);
-        case 'Abbrechen': return BRK;
-        case 'Weiter': return CNT;
-        case 'Leer': return undefined;
-        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Belag': case 'Methode': return undefined;
+        case 'Probier': r = this.probier(n, sc); break;
+        case 'Abbrechen': r = BRK; break;
+        case 'Weiter': r = CNT; break;
+        case 'Leer': break;
+        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Belag': case 'Methode': break;
+        default: throw this.ananas('LaufzeitAnanas', 'Unbekannte Anweisung \'' + n.k + '\'.');
       }
-      throw this.ananas('LaufzeitAnanas', 'Unbekannte Anweisung \'' + n.k + '\'.');
+      this.st--;
+      return r;
     }
 
     sZuw(n, sc) {
@@ -3345,10 +3366,12 @@
 
     probier(n, sc) {
       let r;
+      const st0 = this.st;
       try {
         try {
           r = this.block(n.block, sc);
         } catch (e0) {
+          this.st = st0;
           const e = this.normalisiere(e0);
           if (!(e instanceof AnanasWurf)) throw e;
           const f = this.findeFang(n.faenge, e.obj);
@@ -3358,6 +3381,7 @@
           r = this.block(f.block, s2);
         }
       } catch (e0) {
+        this.st = st0;
         const e = this.normalisiere(e0);
         if (n.rand !== null && this.randErlaubt(e)) {
           const rr = this.block(n.rand, sc);

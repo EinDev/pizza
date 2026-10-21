@@ -541,11 +541,28 @@ regelt `EINGABE.md`.
   registrierte werden mit einsortiert. Kein Budget. Ananas dort → ungefangen (Exit 1). Lieferungen ohne `wennDa`
   laufen nie.
 
-### 14.4 Rekursion
+### 14.4 Rekursion und Stapeltiefe (deterministisch)
 
-- Maximale Aufruftiefe **900** (Methoden, Konstruktoren, Lambdas, implizite `alsText`-Aufrufe) → fangbare
-  `LaufzeitAnanas: Zu viele Pizzen übereinander (Stapelüberlauf).` Ein vorher eintretender Stapelüberlauf des Wirts
-  wird genauso gemeldet.
+- Die Laufzeit führt eine **Stapeltiefe T** (Start 0). T erhöht sich um 1 für die Dauer
+  - jeder ausgeführten Anweisung,
+  - jedes zusammengesetzten Ausdrucks (alle Ausdrucksknoten außer Literalen, Namen, `dies`, `unten` als Wert und
+    Lambda-Erzeugung),
+  - jedes Aufrufs eines Rumpfs – gleich welcher Art: Methode, statische Methode, Top-Level-Funktion, Konstruktor
+    (je Klasse der Kette mit eigenem Konstruktor), Belag-Methode (Dispatch), Lambda, Methodenreferenz,
+    Kühlschrank-Methode (`mikrowelle`/`frisch` eingeschlossen), `wennDa`-Rückruf, implizites `alsText`, Rückrufe aus
+    der Bibliothek (`belege`, `filtere`, `sortiere`, `teig`, `bestelle` …),
+  - jedes Aufrufs eines Bibliotheks-Funktionswerts (`teig(…)`, `bestelle(…)`, `teile(…)`, `zwischenstand(…)`,
+    Methodenreferenzen wie `Bote.sage` oder `"abc".länge` als Wert aufgerufen). Direkte Aufrufe wie `Bote.sage(…)`
+    oder `b.länge()` zählen nur über ihren Aufrufknoten.
+- Würde T **1500** überschreiten, entsteht an genau dieser Stelle die fangbare
+  `LaufzeitAnanas: Zu viele Pizzen übereinander (Stapelüberlauf).` Beim Fangen (durch `probier`, einen Ofen oder
+  `warte`) springt T auf den Stand beim Eintritt in dieses `probier`/den Ofen/`warte` zurück.
+- **Referenz:** `salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }` mit
+  `Bote.sage((summe(n)));` als Top-Level-Anweisung läuft bis n = 373; ab n = 374 kommt der Stapelüberlauf. Dasselbe
+  gilt für das Lambda `lam = n -> n == 0 ? 0 : lam(n - 1) + 1;` mit `Bote.sage((lam(n)));`.
+- Damit ist der Abbruch unabhängig vom Stack des Wirts (Node, Browser-Worker, Wasm-Host) und vom JIT-Zustand;
+  ein tatsächlicher Überlauf des Wirt-Stacks darf nie vorher eintreten. Falls er doch eintritt, wird er mit demselben
+  Text gemeldet (dann gilt das als Fehler des Motors).
 
 ### 14.5 Syntax-Präzisierungen und Erweiterungen
 
