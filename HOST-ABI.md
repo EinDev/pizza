@@ -28,6 +28,9 @@ Der Host muss die Bytes **während des Aufrufs** kopieren/dekodieren (Speicher k
 | `warnung` | `(code_ptr i32, code_len i32, text_ptr i32, text_len i32, zeile i32, spalte i32) -> ()` | `{ typ: "warnung", code, text, zeile, spalte }` |
 | `fehler` | `(art i32, code_ptr i32, code_len i32, text_ptr i32, text_len i32, zeile i32, spalte i32) -> ()` | `{ typ: "fehler", code, art, text, zeile, spalte }` |
 | `panik` | `(ptr i32, len i32) -> ()` | `{ typ: "panik", text }` |
+| `schreibe` | `(ptr i32, len i32) -> ()` | `{ typ: "ausgabe", text, umbruch: false }` (`Bote.schreibe`) |
+| `leeren` | `() -> ()` | `{ typ: "leeren" }` (`Bote.leeren`) |
+| `eingabe` | `(art i32, prompt_ptr i32, prompt_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | siehe unten; Host emittiert danach `{ typ: "eingabe", text }` |
 
 `art` bei `fehler`: `1` = `"pizzafehler"`, `2` = `"ananas"`, `3` = `"limit"` (`0` = `"syntax"`, kommt aus Wasm nie vor).
 
@@ -37,6 +40,15 @@ Alle Texte sind bereits fertig formatiert (z. B. `Ungefangene Ananas – StreitA
 **`panik`**: Der Host meldet das Ereignis. Er **darf** danach sofort abbrechen (JS: werfen, wasmi: Trap/`Err`
 zurückgeben) – dann beendet er den Lauf selbst mit Exit-Code **39** (und `ende`). Kehrt `panik` normal zurück,
 wickelt das Modul selbst ab und `start` liefert 39. Beides ist korrekt.
+
+**`eingabe`** (EINGABE.md, `Bestellannahme`): `art` 0 = `"zeile"`, 1 = `"zahl"`; `prompt_len = -1` bedeutet
+`prompt: null` (sonst ist der Prompt bereits vorher per `schreibe` ausgegeben worden und wird nur zur Info
+übergeben). Der Host liefert die nächste Eingabezeile (ohne Zeilenumbruch) als UTF-8 in
+`[puffer_ptr, puffer_ptr + puffer_kap)` und gibt die Byte-Länge zurück; **`-1` = EOF**. Zu lange Zeilen werden
+auf `puffer_kap` Bytes (an einer UTF-8-Zeichengrenze) gekürzt, der Rest verworfen (`puffer_kap` ist ≥ 65 536).
+Der Host emittiert direkt danach `{ typ: "eingabe", text }` (`text: null` bei EOF). JS-Host: `optionen.onEingabe`
+(Vorrang) bzw. `optionen.eingabe: string[]`; fehlt beides → sofort EOF. Warten kostet keine Schritte.
+Nativer Host: liest von stdin.
 
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 
@@ -133,6 +145,12 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
     warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
     fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a], text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
     panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
+    schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
+    leeren: () => emit({ typ: 'leeren' }),
+    eingabe: (art, pp, pn, bp, kap) => {           // hier: keine Eingabe → EOF
+      emit({ typ: 'eingabe', text: null });
+      return -1;
+    },
   };
   inst = new WebAssembly.Instance(new WebAssembly.Module(pkarton), { pizza });
   for (const a of args) {
