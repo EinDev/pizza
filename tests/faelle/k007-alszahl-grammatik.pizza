@@ -1,0 +1,6 @@
+Blech<margherita> gut = ["3,5", " 42 ", "1_000", "-7", "+7", "1_000,5", "0", "007", "-0", "12.25"];
+für (margherita s : gut) { Bote.sage((s.alsZahl())); }
+Blech<margherita> schlecht = ["0x1A", "1e2", ".5", "5.", "Infinity", "NaN", "1.5,2", "", "abc", "1__0", "_1", "1_", "١٢", "- 1", "1 000"];
+für (margherita s : schlecht) {
+    probier { Bote.sage((s.alsZahl())); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+}

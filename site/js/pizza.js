@@ -214,6 +214,7 @@
   class Parser {
     constructor(q, toks) {
       this.q = q; this.t = toks; this.p = 0; this.keinLambda = false;
+      this.ks = { schleife: false, waehle: false };
     }
     get c() { return this.t[this.p]; }
     sieh(o) { const i = this.p + o; return this.t[i < this.t.length ? i : this.t.length - 1]; }
@@ -247,6 +248,12 @@
       if (k.t === 'kw') this.fehler('\'' + k.v + '\' ist ein reserviertes Wort und kann nicht als Name ' + wo + ' verwendet werden');
       this.fehler('Erwartet einen Namen ' + wo + ', gefunden ' + this.beschreibe(k));
     }
+    mitKontext(schleife, waehle, fn) {
+      const alt = this.ks;
+      this.ks = { schleife, waehle };
+      try { return fn(); } finally { this.ks = alt; }
+    }
+
     blockPflicht(wo) {
       if (!this.istOp('{')) this.fehler('Erwartet \'{\' ' + wo + ' (Blöcke brauchen geschweifte Klammern), gefunden ' + this.beschreibe(this.c));
       return this.block();
@@ -450,7 +457,7 @@
           const nt = this.nimm();
           const params = this.parameter();
           const wirft = this.wirftKlausel();
-          const body = this.blockPflicht('für den Konstruktor');
+          const body = this.mitKontext(false, false, () => this.blockPflicht('für den Konstruktor'));
           ktoren.push({ k: 'Ktor', z: nt.z, s: nt.s, name: nt.v, params, body, mods: md, annos: an, wirft });
           continue;
         }
@@ -488,6 +495,10 @@
     }
 
     methode(annos, mods, tok) {
+      return this.mitKontext(false, false, () => this.methodeIntern(annos, mods, tok));
+    }
+
+    methodeIntern(annos, mods, tok) {
       let typ = null;
       if (this.istKw('leer')) this.p++;
       else typ = this.typ(false);
@@ -617,7 +628,7 @@
             this.erwarteOp('(', 'nach \'solange\'');
             const c = this.ausdruck();
             this.erwarteOp(')', 'nach der Bedingung');
-            const body = this.blockPflicht('nach der solange-Bedingung');
+            const body = this.mitKontext(true, false, () => this.blockPflicht('nach der solange-Bedingung'));
             return { k: 'Solange', z: tok.z, s: tok.s, c, body };
           }
           case 'für': return this.fuer();
@@ -630,8 +641,12 @@
             return { k: 'Wirf', z: tok.z, s: tok.s, e };
           }
           case 'probier': return this.probier();
-          case 'abbrechen': this.p++; this.erwarteSemi('nach \'abbrechen\''); return { k: 'Abbrechen', z: tok.z, s: tok.s };
-          case 'weiter': this.p++; this.erwarteSemi('nach \'weiter\''); return { k: 'Weiter', z: tok.z, s: tok.s };
+          case 'abbrechen':
+            if (!this.ks.schleife && !this.ks.waehle) throw new SyntaxFehler('\'abbrechen\' steht außerhalb einer Schleife.', tok.z, tok.s, 'P0012');
+            this.p++; this.erwarteSemi('nach \'abbrechen\''); return { k: 'Abbrechen', z: tok.z, s: tok.s };
+          case 'weiter':
+            if (!this.ks.schleife) throw new SyntaxFehler('\'weiter\' steht außerhalb einer Schleife.', tok.z, tok.s, 'P0012');
+            this.p++; this.erwarteSemi('nach \'weiter\''); return { k: 'Weiter', z: tok.z, s: tok.s };
           case 'sonst': this.fehler('\'sonst\' ohne vorheriges \'falls\'');
           // falls through
           case 'verbrannt': case 'rand': this.fehler('\'' + tok.v + '\' ohne vorheriges \'probier { … }\'');
@@ -721,7 +736,7 @@
         this.p++;
         const quelle = this.ausdruck();
         this.erwarteOp(')', 'nach der Quelle der für-Schleife');
-        const body = this.blockPflicht('nach dem für-Kopf');
+        const body = this.mitKontext(true, false, () => this.blockPflicht('nach dem für-Kopf'));
         return { k: 'FuerJedes', z: tok.z, s: tok.s, typ, name: nameTok.v, nz: nameTok.z, ns: nameTok.s, quelle, body };
       }
       let init = null;
@@ -738,7 +753,7 @@
         for (;;) { upd.push(this.einfacheAnweisung()); if (this.istOp(',')) { this.p++; continue; } break; }
       }
       this.erwarteOp(')', 'am Ende des für-Kopfs');
-      const body = this.blockPflicht('nach dem für-Kopf');
+      const body = this.mitKontext(true, false, () => this.blockPflicht('nach dem für-Kopf'));
       return { k: 'Fuer', z: tok.z, s: tok.s, init, c, upd, body };
     }
 
@@ -765,13 +780,13 @@
         this.erwarteOp('->', 'nach ' + (labels ? 'den fall-Werten' : '\'standard\''));
         let body;
         if (alsAusdruck) {
-          if (this.istOp('{')) body = this.block();
+          if (this.istOp('{')) body = this.mitKontext(false, false, () => this.block());
           else {
             body = this.ausdruck();
             if (this.istOp(';') || this.istOp(',')) this.p++;
             else if (!this.istOp('}')) this.erwarteSemi('nach dem fall-Wert');
           }
-        } else body = this.anweisung();
+        } else body = this.mitKontext(this.ks.schleife, true, () => this.anweisung());
         faelle.push({ labels, body, z: ft.z, s: ft.s });
       }
       this.p++;
@@ -1014,12 +1029,20 @@
       this.keinLambda = false;
       const e = this.ausdruck();
       this.keinLambda = alt;
-      if (!this.istOp(')')) this.fehler('Erwartet \')\' zum Schließen der Klammer aus Zeile ' + t.z + ', gefunden ' + this.beschreibe(this.c));
+      if (!this.istOp(')')) {
+        let hinweis = '';
+        if (this.istOp(',') && e.k === 'Name' && istGross(e.n)) hinweis = ' – Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))';
+        this.fehler('Erwartet \')\' zum Schließen der Klammer aus Zeile ' + t.z + ', gefunden ' + this.beschreibe(this.c) + hinweis);
+      }
       this.p++;
       return e;
     }
 
     lambda() {
+      return this.mitKontext(false, false, () => this.lambdaIntern());
+    }
+
+    lambdaIntern() {
       const t = this.c;
       const params = [];
       if (t.t === 'name') {
@@ -1088,6 +1111,10 @@
       const t = this.nimm();
       let args = { pos: [], ben: null };
       if (this.istOp('(')) args = this.argumente();
+      return this.mitKontext(false, false, () => this.ofenRest(t, args));
+    }
+
+    ofenRest(t, args) {
       const block = this.blockPflicht('nach \'ofen(…)\'');
       let roh = null;
       if (this.istKw('roh')) {
@@ -1321,6 +1348,15 @@
     };
   }
 
+  // K-007: [+-]? Ziffern[_Ziffern]* ((.|,) Ziffern[_Ziffern]*)? nach trim
+  const ZAHLTEXT_RE = /^[+-]?[0-9]+(?:_[0-9]+)*(?:[.,][0-9]+(?:_[0-9]+)*)?$/;
+  function zahlAusText(text) {
+    const t = text.trim();
+    if (!ZAHLTEXT_RE.test(t)) return null;
+    const v = Number(t.replace(/_/g, '').replace(',', '.'));
+    return Object.is(v, -0) ? 0 : v;
+  }
+
   function tabelle(o) { return Object.assign(Object.create(null), o); }
 
   function standardWert(typ) {
@@ -1377,9 +1413,8 @@
     'beginntMit': function (s, pos) { return s.startsWith(this.text(pos[0])); },
     'endetMit': function (s, pos) { return s.endsWith(this.text(pos[0])); },
     'alsZahl': function (s) {
-      const t = s.trim().replace(/_/g, '');
-      const v = Number(t);
-      if (t === '' || !isFinite(v)) throw this.ananas('TypAnanas', '"' + s + '" ist keine Zahl.');
+      const v = zahlAusText(s);
+      if (v === null) throw this.ananas('TypAnanas', '"' + s + '" ist keine Zahl.');
       return v;
     },
     'alsText': function (s) { return s; },
@@ -1539,7 +1574,7 @@
       if (l.zustellung !== null) return l.zustellung;
       const max = arg(pos, ben, 0, 'max');
       let budget = Infinity;
-      if (max !== undefined && max !== null) budget = this.dauerMs(max, 'warte(max: …)') * (1 + l.trinkgeld / 10);
+      if (max !== undefined && max !== null) budget = Math.floor(this.dauerMs(max, 'warte(max: …)') * (1 + l.trinkgeld / 10));
       const z = this.liefere(l, budget, node);
       if (l.rueckruf !== null && z.puenktlich && z.fehler === null) this.rufe(l.rueckruf, [z.wert], null, node);
       return z;
@@ -1613,19 +1648,23 @@
 
   const EINGABE_M = tabelle({
     'lies': function () { return this.liesZeile(null, 'zeile'); },
-    'frage': function (m, pos) { return this.liesZeile(pos.length ? this.text(pos[0]) : '', 'zeile'); },
-    'liesZahl': function () { return this.alsEingabeZahl(this.liesZeile(null, 'zahl')); },
-    'frageZahl': function (m, pos) { return this.alsEingabeZahl(this.liesZeile(pos.length ? this.text(pos[0]) : '', 'zahl')); },
+    'frage': function (m, pos, ben) { const t = arg(pos, ben, 0, 'text'); return this.liesZeile(t === undefined ? '' : this.text(t), 'zeile'); },
+    'liesZahl': function (m, pos, ben) { return this.alsEingabeZahl(this.liesZeile(null, 'zahl'), arg(pos, ben, 0, 'ersatz')); },
+    'frageZahl': function (m, pos, ben) {
+      const t = arg(pos, ben, 0, 'text');
+      return this.alsEingabeZahl(this.liesZeile(t === undefined ? '' : this.text(t), 'zahl'), arg(pos, ben, 1, 'ersatz'));
+    },
     'hatMehr': function () {
+      if (this.eingabeEof) return false;
       if (this.onEingabe !== null) return true;
-      return this.eingabe !== null && this.eingabePos < this.eingabe.length;
+      return this.eingabe !== null && this.eingabePos < this.eingabe.length && this.eingabe[this.eingabePos] !== null;
     }
   });
 
   const UHR_M = tabelle({
     'jetzt': function () { return new Dauer(this.schritte + this.offset); },
     'vorspulen': function (m, pos) {
-      const ms = this.dauerMs(pos[0], 'Uhr.vorspulen');
+      const ms = Math.round(this.dauerMs(pos[0], 'Uhr.vorspulen'));
       if (ms < 0) throw this.ananas('RechenAnanas', 'Die Uhr lässt sich nicht zurückdrehen.');
       this.offset += ms;
       this.neuGrenze();
@@ -1684,6 +1723,7 @@
       this.onEingabe = typeof opt.onEingabe === 'function' ? opt.onEingabe : null;
       this.eingabe = Array.isArray(opt.eingabe) ? opt.eingabe.map(x => x == null ? null : String(x)) : null;
       this.eingabePos = 0;
+      this.eingabeEof = false;
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -1871,22 +1911,23 @@
     liesZeile(prompt, art) {
       if (prompt !== null) this.emit({ typ: 'ausgabe', text: prompt, umbruch: false });
       let zeile = null;
-      if (this.onEingabe !== null) {
+      if (this.eingabeEof) { /* EOF ist endgültig (K-042) */ }
+      else if (this.onEingabe !== null) {
         try { zeile = this.onEingabe({ prompt, art }); } catch (e) { zeile = null; }
         if (zeile === undefined) zeile = null;
       } else if (this.eingabe !== null && this.eingabePos < this.eingabe.length) {
         zeile = this.eingabe[this.eingabePos++];
       }
       if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
+      else this.eingabeEof = true;
       this.emit({ typ: 'eingabe', text: zeile });
       return zeile;
     }
 
-    alsEingabeZahl(zeile) {
-      if (zeile === null) return null;
-      const t = zeile.trim().replace(/,/g, '.');
-      const v = Number(t);
-      if (t === '' || !isFinite(v)) throw this.ananas('TypAnanas', '\'' + zeile + '\' ist keine Zahl.');
+    alsEingabeZahl(zeile, ersatz) {
+      if (zeile === null) return ersatz === undefined ? null : ersatz;
+      const v = zahlAusText(zeile);
+      if (v === null) throw this.ananas('TypAnanas', '\'' + zeile + '\' ist keine Zahl.');
       return v;
     }
 
@@ -2465,7 +2506,6 @@
       if (k !== undefined) return k;
       const b = this.belaege.get(name);
       if (b !== undefined) return b;
-      if (name === 'auto') return AUTO;
       if (istGross(name)) throw this.ananas('UnbekannterBelagAnanas', '\'' + name + '\' steht nicht auf der Zutatenliste.');
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
     }
@@ -3078,7 +3118,13 @@
     aMCall(n, sc) {
       if (n.obj.k === 'Unten') return this.untenAufruf(n, sc);
       const o = this.ausw(n.obj, sc);
-      const pos = this.posArgs(n.args, sc);
+      let pos;
+      const a0 = n.args.pos.length === 1 ? n.args.pos[0] : null;
+      if (n.name === 'schneide' && a0 !== null && a0.k === 'Name' && a0.n === 'auto' && this.finde(sc, 'auto') === null) {
+        // K-038: `auto` ist nur hier gültig; der Namensknoten kostet wie üblich einen Schritt
+        if (++this.schritte > this.grenze) this.grenzeErreicht();
+        pos = [AUTO];
+      } else pos = this.posArgs(n.args, sc);
       const ben = n.args.ben === null ? null : this.benArgs(n.args, sc);
       return this.rufeMethode(o, n.name, pos, ben, n, sc);
     }
@@ -3428,8 +3474,8 @@
       const msg = e && e.message ? e.message : String(e);
       this.emit({
         typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: ' + msg + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
-        zeile: this.z, spalte: this.s
+        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
+        zeile: this.z, spalte: this.s, detail: msg
       });
       return 1;
     }
@@ -3466,11 +3512,11 @@
         if (L) {
           try { exitCode = L.behandleEnde(e); }
           catch (e2) {
-            emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: ' + (e2 && e2.message), zeile: null, spalte: null });
+            emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(e2 && e2.message) });
             exitCode = 1;
           }
         } else {
-          emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: ' + (e && e.message), zeile: null, spalte: null });
+          emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(e && e.message) });
           exitCode = 1;
         }
       }

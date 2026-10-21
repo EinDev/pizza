@@ -1,0 +1,4 @@
+Bote.sage(([1, 2].schneide(auto).länge()));
+salami auto = 3;
+Bote.sage(([1, 2, 3].schneide(auto).länge()));
+Bote.sage((auto));

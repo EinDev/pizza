@@ -1,0 +1,9 @@
+Uhr.vorspulen(0.5ms);
+Uhr.vorspulen(0.4ms);
+Uhr.vorspulen(10s / 3);
+Uhr.vorspulen(2.5);
+Bote.sage((Uhr.jetzt().inMs()));
+Lieferung<salami> l = bestelle(() -> { solange (ja) { } });
+Bote.sage((l.trinkgeld(1).warte(max: 10ms).pünktlich()));
+Lieferung<salami> m = bestelle(() -> (1));
+Bote.sage((m.trinkgeld(-10).warte(max: 1h).pünktlich()));

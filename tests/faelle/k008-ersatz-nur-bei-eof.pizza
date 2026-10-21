@@ -1,0 +1,3 @@
+probier { Bote.sage((Bestellannahme.liesZahl(0))); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((Bestellannahme.frageZahl("? ", 5)));
+Bote.sage((Bestellannahme.liesZahl(0)));

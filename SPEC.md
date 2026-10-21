@@ -574,7 +574,7 @@ regelt `EINGABE.md`.
   ohne ihren `roh`-Zweig verlassen.
 - Die `verbrannt`-Zweige eines Ofens fangen Ananas aus dem Block, die Temperatur-Ananas und die
   „Zu lange im Ofen“-Ananas (wenn kein `roh` existiert) – nicht aber Ananas aus dem `roh`- oder einem `verbrannt`-Block.
-- Ohne `serviere` ist der Wert eines Ofens `karton`; `abbrechen`/`weiter` beenden den Ofen-Block (Wert `karton`).
+- Ohne `serviere` ist der Wert eines Ofens `karton`. `abbrechen`/`weiter` direkt im Ofen-Block sind ein Parse-Fehler P0012 (K-015).
 - `rand` läuft auch bei einem Budget-Abbruch, aber nie bei Panik, P0002 oder PizzaFehlern.
 - **Lieferung:** `warte()` ohne `max` = unbegrenzt; `warte(30min)` positional erlaubt; `trinkgeld` summiert sich;
   Budget = `max × (1 + Summe/10)`. `zwischenstand` außerhalb eines Ofens wird ignoriert.
@@ -726,7 +726,7 @@ regelt `EINGABE.md`.
 - Dauer: zusätzlich `inMinuten()`; Textform rundet auf ganze ms, negative Dauer mit `-` (`-1min 30s`);
   `Dauer / Dauer` → Zahl; Zahl × Dauer → Dauer; Division durch 0 → RechenAnanas.
 - Text: zusätzlich `endetMit(s)`, `istLeer()`, `alsText()`. `länge()`/`zeichen(i)` zählen Unicode-Zeichen (Codepoints).
-  `zerlege("")` → einzelne Zeichen. `alsZahl()` ignoriert Leerraum außen und `_`; sonst `TypAnanas: "<text>" ist keine Zahl.`
+  `zerlege("")` → einzelne Zeichen. `alsZahl()` folgt der Zahltext-Grammatik aus K-007 (Leerraum außen, `_`, Punkt oder Komma); sonst `TypAnanas: "<text>" ist keine Zahl.`
   `groß()`/`klein()` wie JavaScript (`ß` → `SS`).
 - Blech: `entferne(i)` liefert das entfernte Element; `hinzu`, `setze` liefern das Blech; `hinzu()` ohne Argument fügt
   `karton` an; `sortiere`, `umdrehen`, `belege`, `filtere` liefern **neue** Bleche; zusätzlich `kopie()`;

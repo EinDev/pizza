@@ -1,0 +1,6 @@
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.hatMehr()));
+Bote.sage((Bestellannahme.lies()));
+Bote.sage((Bestellannahme.liesZahl(3)));

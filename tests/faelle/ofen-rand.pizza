@@ -37,4 +37,3 @@ probier { ofen(zeit: 2ms) { solange (ja) { } } verbrannt (StreitAnanas s) { Bote
 Bote.sage((ofen(zeit: 1s) { probier { wirf neu StreitAnanas("x"); } verbrannt (s) { serviere (("gefangen im Ofen")); } }));
 salami w = ofen(zeit: 1s) { für (salami i : [1, 2, 3]) { falls (i == 2) { serviere ((i)); } } };
 Bote.sage((w));
-Bote.sage((ofen { abbrechen; }));

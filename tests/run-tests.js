@@ -28,7 +28,8 @@ const gruen = t => f('32', t), rot = t => f('31', t), gelb = t => f('33', t), gr
 const stat = {};
 let gesamtFehl = 0;
 
-function norm(s) { return String(s).replace(/\r\n/g, '\n').replace(/\n+$/, ''); }
+// K-052: CRLF vereinheitlichen, höchstens EINEN Schluss-Zeilenumbruch entfernen
+function norm(s) { return String(s).replace(/\r\n/g, '\n').replace(/\n$/, ''); }
 
 // .erwartet-Regeln (ARCHITEKTUR §3, EINGABE §2): ausgabe/fehlerausgabe/panik je eine Zeile,
 // ausgabe mit umbruch:false ohne Zeilenumbruch, leeren als Zeile «leeren», eingabe erscheint nicht.
@@ -327,6 +328,22 @@ function api() {
     }
   });
 
+  test('K-015: P0012 ist ein Parse-Fehler', () => {
+    const r = P.parse('leer f() {\n  abbrechen;\n}');
+    gleich([r.ok, r.fehler.code, r.fehler.zeile, r.fehler.spalte], [false, 'P0012', 2, 3]);
+    gleich(r.fehler.text, "PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.");
+    const e = P.run('weiter;').ereignisse[0];
+    gleich([e.typ, e.code, e.art], ['fehler', 'P0012', 'syntax']);
+  });
+
+  test('K-014: interner Fehler mit festem Text und Feld detail', () => {
+    const boese = { toString() { throw new Error('kaputt'); } };
+    const r = P.run('Bote.sage(("a"));\nBestellannahme.lies();', { onEingabe: () => boese });
+    gleich(r.exitCode, 1);
+    const e = r.ereignisse.find(x => x.typ === 'fehler');
+    gleich([e.code, e.art, e.text, e.detail], ['LaufzeitAnanas', 'ananas', 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen. (Zeile 2)', 'kaputt']);
+  });
+
   test('pizza.js läuft ohne Node-Globale (Worker-Kontext: nur self)', () => {
     const code = fs.readFileSync(path.join(ROOT, 'site', 'js', 'pizza.js'), 'utf8');
     const sandbox = {};
@@ -356,7 +373,7 @@ function api() {
       { eingabe: ['ignoriert'], onEingabe: (a) => { anfragen.push(a); return antworten.shift(); } });
     gleich(anfragen, [{ prompt: 'A? ', art: 'zeile' }, { prompt: null, art: 'zahl' }, { prompt: null, art: 'zeile' }], 'Anfragen');
     gleich(r.ereignisse.filter(e => e.typ === 'eingabe').map(e => e.text), ['erste', '7', null], 'eingabe-Ereignisse');
-    gleich(ausgabeText(r.ereignisse), 'A? erste\n8\nkarton\nja\n');
+    gleich(ausgabeText(r.ereignisse), 'A? erste\n8\nkarton\nnein\n');
     gleich(r.ereignisse[0], { typ: 'ausgabe', text: 'A? ', umbruch: false });
     const r2 = P.run('Bote.sage((Bestellannahme.lies()));', { onEingabe: () => { throw new Error('Abbruch'); } });
     gleich(ausgabeText(r2.ereignisse), 'karton\n');
@@ -496,7 +513,7 @@ function doku() {
       if (item.sprache === 'xml' || item.sprache === 'shell') { gruppe('doku').skip++; return; }
       const code = String(item.code || '');
       if (item.ausfuehrbar) {
-        const r = P.run(code);
+        const r = P.run(code, Array.isArray(item.eingabe) ? { eingabe: item.eingabe } : {});
         const soll = typeof item.exitCode === 'number' ? item.exitCode : 0;
         let fehler = null;
         if (r.exitCode !== soll) fehler = 'Exit-Code ' + r.exitCode + ', erwartet ' + soll + fehlerZusammenfassung(r) + '\n' + grau(code.split('\n').map(z => '| ' + z).join('\n'));

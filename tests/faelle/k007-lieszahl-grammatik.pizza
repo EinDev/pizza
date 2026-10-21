@@ -1,0 +1,5 @@
+salami i = 0;
+solange (i < 8) {
+    i++;
+    probier { Bote.sage((Bestellannahme.liesZahl())); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+}

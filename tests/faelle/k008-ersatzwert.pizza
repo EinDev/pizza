@@ -1,0 +1,9 @@
+funghi a = Bestellannahme.liesZahl(7);
+Bote.sage((a));
+salami b = Bestellannahme.frageZahl("Zahl? ", 0);
+Bote.sage((b));
+salami c = Bestellannahme.liesZahl(ersatz: -1);
+Bote.sage((c));
+salami d = Bestellannahme.frageZahl(text: "Noch eine? ", ersatz: 9);
+Bote.sage((d));
+Bote.sage((Bestellannahme.liesZahl()));

@@ -83,7 +83,7 @@ if (optionen.ast) {
     onEvent(e) {
       switch (e.typ) {
         case 'ausgabe': process.stdout.write(e.umbruch === false ? e.text : e.text + '\n'); break;
-        case 'leeren': if (process.stdout.isTTY) process.stdout.write('\x1b[2J\x1b[H'); break;
+        case 'leeren': if (process.stdout.isTTY) process.stdout.write('\x1b[2J\x1b[3J\x1b[H'); break;
         case 'fehlerausgabe': process.stderr.write(farbe('31', e.text) + '\n'); break;
         case 'warnung': process.stderr.write(farbe('33', '⚠ ' + e.text) + farbe('90', pos(e)) + '\n'); break;
         case 'fehler': process.stderr.write(farbe('1;31', e.text) + (e.art === 'syntax' || e.art === 'pizzafehler' ? farbe('90', pos(e)) : '') + '\n'); break;

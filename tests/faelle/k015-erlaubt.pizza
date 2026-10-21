@@ -1,0 +1,10 @@
+für (salami i : [1, 2, 3]) {
+    wähle (i) { fall 2 -> { abbrechen; } standard -> Bote.sage((i)); }
+}
+salami n = 0;
+solange (ja) { n++; falls (n > 2) { abbrechen; } }
+Bote.sage((n));
+wähle (5) { fall 5 -> { Bote.sage(("vor")); abbrechen; } }
+für (salami i : [1, 2]) { probier { falls (i == 1) { weiter; } Bote.sage((i)); } rand { } }
+leer f() { für (salami k : [1, 2, 3]) { falls (k == 2) { abbrechen; } Bote.sage(("k" + k)); } }
+f();

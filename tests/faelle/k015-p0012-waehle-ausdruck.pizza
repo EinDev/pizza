@@ -1,0 +1,3 @@
+für (salami i : [1]) {
+    salami x = wähle (i) { fall 1 -> { abbrechen; } standard -> 0; };
+}

@@ -1,0 +1,4 @@
+leer f() {
+    Bote.sage(("a"));
+    abbrechen;
+}

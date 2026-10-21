@@ -1,0 +1,25 @@
+3.5
+42
+1000
+-7
+7
+1000.5
+0
+7
+0
+12.25
+"0x1A" ist keine Zahl.
+"1e2" ist keine Zahl.
+".5" ist keine Zahl.
+"5." ist keine Zahl.
+"Infinity" ist keine Zahl.
+"NaN" ist keine Zahl.
+"1.5,2" ist keine Zahl.
+"" ist keine Zahl.
+"abc" ist keine Zahl.
+"1__0" ist keine Zahl.
+"_1" ist keine Zahl.
+"1_" ist keine Zahl.
+"١٢" ist keine Zahl.
+"- 1" ist keine Zahl.
+"1 000" ist keine Zahl.

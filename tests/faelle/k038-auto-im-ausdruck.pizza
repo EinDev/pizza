@@ -1,0 +1,1 @@
+probier { [1, 2] / auto; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }

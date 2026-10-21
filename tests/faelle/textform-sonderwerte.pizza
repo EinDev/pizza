@@ -1,5 +1,4 @@
 Bote.sage((ofen(zeit: 5ms) { zwischenstand((3)); solange (ja) { } } roh (r) { serviere ((r)); }));
-Bote.sage((auto));
 Bote.sage((J));
 Bote.sage((K));
 Rezept n = neu StreitAnanas("x").nachricht;

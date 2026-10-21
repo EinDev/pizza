@@ -1,0 +1,3 @@
+für (salami i : [1]) {
+    salami s = ofen { abbrechen; };
+}
