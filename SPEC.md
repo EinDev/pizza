@@ -23,7 +23,7 @@ Alle Meldungen, Fehlertexte und Bezeichner der Sprache sind **deutsch**.
 - Zahlen: `42`, `1_000_000`, `7.50`. Unterstriche werden ignoriert.
 - Dauer-Literale: Zahl **direkt** gefolgt von Einheit `ms`, `s`, `min`, `h`, `d` → Wert vom Typ `Dauer`
   (intern Millisekunden). Beispiele: `90s`, `30min`, `1h`, `3d`, `500ms`, `1.5s`.
-- Texte: `"..."` mit Escapes `\n`, `\t`, `\"`, `\\`.
+- Texte: `"..."` mit Escapes `\n`, `\t`, `\r`, `\"`, `\\`, `\'` – andere Sequenzen und Zeilenumbrüche im Text sind Syntaxfehler (K-025).
 - Operatoren/Satzzeichen: `+ - * / % == != < <= > >= && || ! ? : -> = += -= *= /= ++ -- . , ; ( ) { } [ ] @ ..`
 - Anweisungen enden mit `;`. Blöcke stehen in `{ }`.
 
@@ -112,7 +112,8 @@ Mitglieder:
 - Methode: `[mods] Typ|leer name(Parameter) [wirft A, B] { ... }` (bei `rohling`: `;` statt Rumpf)
 - Konstruktor: `[mods] Name(Parameter) { ... }` – Name = Klassenname.
 - Parameter: `[@Annotation] Typ name`.
-- Im Konstruktor ruft `unten(args);` den Basiskonstruktor auf. Fehlt der Aufruf, wird der Basis-Konstruktor ohne Argumente aufgerufen (falls vorhanden).
+- Im Konstruktor ruft `unten(args);` den Basiskonstruktor auf. Fehlt der Aufruf, wird der Basis-Konstruktor **ohne Argumente** aufgerufen;
+  gibt es nur Basiskonstruktoren mit Parametern, ist das ein Aritätsfehler (`LaufzeitAnanas: Konstruktor von 'Basis' erwartet 1 Argument, bekam 0.`, K-037).
 - `dies` = aktuelle Instanz, `unten.methode()` = Methode der Basisklasse.
 - Unqualifizierte Namen in Methoden: lokal → Instanzfeld → statisches Feld (eigene Klasse, dann Basis). Unqualifizierte Aufrufe `m()` → Instanz- oder statische Methode.
 - Statische Mitglieder: `Klasse.feld`, `Klasse.methode()`.
@@ -400,7 +401,7 @@ Ananas
   etwa `LaufzeitAnanas: 'x' ist nicht definiert.` / `LaufzeitAnanas: Methode 'foo' gibt es auf Pizza nicht.`
 - `TypAnanas` bei Typverletzung an Deklarationen/Zuweisungen/Parametern für `salami` (muss ganzzahlig sein),
   `funghi` (Zahl), `margherita` (Text), `diavolo` (Wahrheitswert), `Pizza`, `Dauer`, eigene Klassen (instanceof).
-  `karton` ist für alle Nicht-Primitive erlaubt. Andere/unbekannte Typen (z. B. `Blech<T>`) werden nicht geprüft.
+  `karton` ist für alle Typen außer `salami`, `funghi`, `diavolo` erlaubt (also auch für `margherita`, §14.6/K-034). Andere/unbekannte Typen (z. B. `Blech<T>`) werden nicht geprüft.
   Meldung: `TypAnanas: 'x' ist salami, aber der Wert 3.5 ist keine Ganzzahl.` (sinngemäß, Inhalt frei)
 - Ungefangene Ananas → Programmende, Ausgabe als Fehler-Ereignis `Ungefangene Ananas – Typ: Nachricht (Zeile N)`, Exit-Code 1.
 - Lesen einer Variable, die `karton` ist, ist ok; **Methodenaufruf/Feldzugriff auf `karton`** → `LeererKartonAnanas: Der Karton ist leer.`
@@ -416,7 +417,9 @@ Ananas
 - **Panik-Auslöser** zur Laufzeit: (a) eine Variable/Feld/Parameter vom Typ `hawaii` erhält einen Wert,
   (b) eine Pizza mit dem Belag `Ananas` entsteht (Literal oder `+ Ananas`), (c) `neu Hawaii(...)` (Klasse namens `Hawaii`, beliebige eigene Klasse).
 - Panik ist **nicht fangbar** (`probier`/`verbrannt`/`rand` werden übergangen), beendet sofort,
-  Ereignis `panik` mit exakt diesem Text, Exit-Code **39**:
+  Ereignis `panik` mit exakt diesem Text, Exit-Code **39**. Kanal (K-012, Nutzerentscheidung): CLI, nativer Host und EXE
+  schreiben den Banner nach **stderr**; die Web-UI zeigt ihn als normale Fehlerausgabe (kein Crash-Overlay). In `.erwartet`
+  steht er wie jedes Ereignis des Ausgabestroms (ARCHITEKTUR §3):
 
 ```
 ╔══════════════════════════════════════════════╗
@@ -436,7 +439,8 @@ Exit-Code: 39
 ## 10. Weitere Warnungen (Tier 1)
 
 - `W0032: 'PiZZa' und 'PizZa' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.`
-  – wenn in einem Scope (Block/Parameterliste/Klassenmitglieder) zwei Namen sich nur in Groß-/Kleinschreibung unterscheiden. Einmal pro Paar.
+  – wenn in einem Scope (Block/Parameterliste/Klassenmitglieder) zwei Namen sich nur in Groß-/Kleinschreibung unterscheiden.
+  Einmal pro **später deklariertem** Namen, gepaart mit der frühesten kollidierenden Schreibweise (n Schreibweisen → n−1 Warnungen; §14.8, K-002).
 - Warnungen werden einmal pro Code+Stelle ausgegeben und beeinflussen den Exit-Code nicht.
 
 ---
@@ -448,7 +452,7 @@ Exit-Code: 39
 | `Bote` | `sage(x)` – Ausgabe + Zeilenumbruch · `fehler(x)` – Fehlerausgabe |
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
 | `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI` |
-| `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch** (fester Seed 42, z. B. mulberry32) |
+| `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Seed 42, `a + floor(r · (b − a + 1))` (verbindlich, K-049) |
 | `Spiegel` | `felder(obj)` (§7.8) |
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
@@ -460,6 +464,50 @@ Exit-Code: 39
 `hauptgang`-Args: Blech von Texten.
 
 ---
+
+### 11.1 Ein- und Ausgabe für interaktive Programme (Tier 1)
+
+Übernommen aus `EINGABE.md` (dort bleiben Browser-, Host- und CLI-Details §3–§5); Präzisierungen aus `KLAERUNGEN.md` (K-007 … K-013, K-031, K-042).
+
+**Ausgabe**
+
+| Aufruf | Wirkung | Ereignis |
+|---|---|---|
+| `Bote.sage(x, …)` | Text + Zeilenumbruch | `{ typ: "ausgabe", text }` (`umbruch` weggelassen = kanonisch; `umbruch: true` gleichbedeutend) |
+| `Bote.schreibe(x, …)` | Text **ohne** Zeilenumbruch (Eingabeaufforderungen, Spielfelder) | `{ typ: "ausgabe", text, umbruch: false }` |
+| `Bote.leeren()` | Konsole leeren | `{ typ: "leeren" }` |
+
+**Eingabe – `Bestellannahme` (zeilenbasiert)**
+
+| Aufruf | Rückgabe |
+|---|---|
+| `lies()` | nächste Zeile als `margherita`, **unverändert** (kein Trimmen; nur ein abschließendes `\n`/`\r\n` entfernt); `karton` bei Eingabeende (EOF) |
+| `frage(text)` | `Bote.schreibe(text)` + `lies()` – der Prompt wird **vom Programm** ausgegeben, auch wenn EOF folgt |
+| `liesZahl([ersatz])` / `frageZahl(text[, ersatz])` | Zeile als Zahl nach der **Zahltext-Grammatik** (unten); ungültig → `TypAnanas: '<zeile>' ist keine Zahl.` (die Zeile ist verbraucht); EOF → `karton`, bzw. `ersatz`, falls angegeben (auch benannt `ersatz: …`). `ersatz` gilt **nur** bei EOF. |
+| `hatMehr()` | `diavolo` – interaktiv (`onEingabe`) immer `ja`; vorgegebene Eingabe: `nein`, sobald erschöpft |
+
+- **Zahltext-Grammatik** (gilt gleich für `liesZahl`, `frageZahl` und `Text.alsZahl()`): Leerraum außen entfernen, dann
+  `[+-]? Ziffern[_Ziffern]* ( (.|,) Ziffern[_Ziffern]* )?` – Punkt **oder** Komma als Dezimaltrenner, Unterstriche wie in
+  Literalen. Kein Hex, kein Exponent, kein `.5`/`5.`, kein `Infinity`/`NaN`, keine Unicode-Ziffern → TypAnanas
+  (`alsZahl`: `"<text>" ist keine Zahl.`).
+- **EOF ist endgültig:** nach dem ersten EOF liefert jeder weitere Leseversuch EOF (`karton`), `hatMehr()` → `nein`.
+- Jeder Aufruf kostet nur seine Ausdrucksknoten (§14.1); **Warten** auf Eingabe verbraucht weder Schritte noch simulierte Zeit
+  noch Ofen-/Lieferbudget. Eingabe ist in allen Phasen verfügbar (auch in der `wennDa`-Phase nach Programmende); ein
+  `@Kühlschrank`-Treffer liest nicht erneut.
+- Die Eingabe wird **nicht** vom Programm wiederholt (Echo ist Sache von UI/Terminal). Keine Längenbegrenzung für Zeilen –
+  in keinem Motor.
+- Spiele **müssen** `karton` als „Spieler ist gegangen“ behandeln und sauber enden.
+
+**API (ARCHITEKTUR §1):** `optionen.eingabe?: string[]` (vorgegebene Zeilen; ein `null`-Eintrag bedeutet EOF ab dort) ·
+`optionen.onEingabe?: (anfrage) => string | null` – synchron, `anfrage = { prompt: string|null, art: "zeile"|"zahl" }`;
+`null`, `undefined` oder eine Exception bedeuten EOF, andere Werte werden zu Text; hat Vorrang vor `eingabe`; fehlt beides
+→ sofort EOF. `prompt` ist **informativ** (z. B. Platzhalter des Eingabefelds) und darf von Host/UI nie zusätzlich
+ausgegeben werden. Nach **jedem** Leseversuch folgt `{ typ: "eingabe", text }` (`text: null` bei EOF).
+
+**`.erwartet` (ARCHITEKTUR §3):** `ausgabe` mit `umbruch: false` wird ohne Zeilenumbruch angehängt (der nächste Text
+steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `eingabe`-Ereignisse erscheinen **nicht**.
+Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
+gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
 ## 12. Exit-Codes
 
@@ -700,3 +748,90 @@ regelt `EINGABE.md`.
 - `Zufall.zahl(a, b)`: Ganzzahlen, a > b werden getauscht; Generator mulberry32 mit Seed 42, pro Lauf neu;
   Ergebnis `a + floor(r × (b − a + 1))`.
 - `Spiegel.felder(obj)`: Felder der Basisklassen zuerst, jeweils in Deklarationsreihenfolge; Nicht-Objekt → TypAnanas.
+
+---
+
+## 15. Verbindliche Auslegungen aus dem Klärungsprotokoll (`KLAERUNGEN.md`)
+
+Jede Nummer verweist auf den Eintrag in `KLAERUNGEN.md` (Frage, Begründung, Status, Tests in `pruefstand/faelle/a10-*.js`/`a11-*.js`).
+Einträge mit **[offen]** beschreiben das Sollverhalten; der Referenz-Interpreter bzw. die genannte Komponente wird nachgezogen.
+
+### 15.1 Syntax und Werte
+- **K-001** Pizza-Literal nur bei zwei Klammern in Ausdrucksposition: `f((A))` = Belag `A`, `f((A, B))` = Syntaxfehler P0001,
+  `f(((A, B)))` = Pizza. Bei `((X))` gewinnt ein bekannter Belagname gegen eine gleichnamige Variable.
+- **K-002** W0032: eine Warnung pro später deklariertem Namen (siehe §10, §14.8).
+- **K-003** Zahlliterale ohne Exponent und ohne führenden/abschließenden Punkt. `-` bindet schwächer als Postfix:
+  `-2.5.runden()` = `-(2.5.runden())`; nur nacktes `-Zahl`/`-Dauer` wird zum negativen Literal.
+- **K-004** `salami` = ganzzahlige IEEE-754-Double: exakt bis ±2^53, kein Zweierkomplement-Überlauf
+  (`2147483647 + 1 = 2147483648`), Textform wie `String(x)`. Backends dürfen `i32`/`i64` nur mit Überlaufprüfung nutzen.
+- **K-005** `NaN`, `Infinity`, `-Infinity` sind gültige `funghi`-Werte mit genau diesen Textformen (`Mathe.wurzel(-1)`,
+  Überlauf); `NaN == NaN` → `nein`; `salami` kann sie nicht halten (TypAnanas). Division durch 0 bleibt RechenAnanas.
+- **K-006** `%`: Rest mit Vorzeichen des Dividenden, auch für Kommazahlen; `% 0` → RechenAnanas.
+- **K-024** Nachgestelltes Komma erlaubt in `[1, 2,]` und `quattrostagioni { A, B, C, D, }`; sonst Syntaxfehler.
+- **K-025** Text-Escapes genau `\n \t \r \" \\ \'` (§1).
+- **K-027** Texte in Blech/Speisekarte erscheinen ohne Anführungszeichen (`[""]` → `[]`) – bewusst.
+- **K-028** Eingebaute Funktionen kennen nur ihre dokumentierten benannten Argumente (`stellen`, `start`, `max`,
+  `temperatur`, `zeit`, `haltbar`, `grund`, `ersatz`); unbekannte benannte Argumente werden ignoriert.
+- **K-048** Rundung: `runden()` = `sign(x)·round(|x|)`; `runden(n>0)` = `sign(x)·round(|x|·10^n + 1e-9)/10^n`;
+  `euro()` = `round(|x|·100 + 1e-9)/100` mit Vorzeichen, Komma, zwei Stellen, nie `-0,00 €`.
+- **K-049** `Zufall.zahl`: mulberry32, Seed 42 (§11); erste Werte von `zahl(1, 6)`: 4, 3, 6, 5, 2, 4, 2, 4, 6, 3.
+- **K-053** `schrittLimit` ≤ 0/NaN/fehlend → 5 000 000; nicht-ganzzahlig → Abbruch beim Schritt `floor(limit) + 1`.
+
+### 15.2 Typen, Objekte, Standardbibliothek
+- **K-016** Besitzprüfung ist syntaktisch: nur rechte Seite = Name/Feldzugriff (auch geklammert) → BesitzAnanas; `?:`,
+  Blech-Literale, Methodenrückgaben nicht. `schieb(x)` für Variablen jeden Typs; nicht für Felder (LaufzeitAnanas).
+- **K-017** `übrig` hängt am Pizza-Objekt; `p + Belag`/`p - Belag` → neue Pizza mit 8 Stücken. `==`/`Blech.enthält`
+  vergleichen Pizzen nach Belägen. Speisekarten-Schlüssel: Zahl/Text/Wahrheitswert/`karton` nach Wert (`1` = `1.0`),
+  Beläge nach Name, quattrostagioni-Werte, sonst (Pizza, Dauer, Blech, Objekte) nach Identität.
+- **K-018** Kühlschrank-Schlüssel = Textform der Argumente (Objekte eigener Klassen nach Identität); geworfene Ananas
+  werden nicht gecacht; gecachte Werte kommen per Referenz zurück (§14.10).
+- **K-019** `wennDa` ersetzt den früheren Rückruf; `trinkgeld` nimmt jede Zahl (Faktor `1 + Summe/10` ≤ 0 → sofort zu
+  spät); eine Zustellung ist endgültig.
+- **K-020** Ofen: `temperatur ≤ 0` oder `zeit = 0` → Budget 0 (erster Schritt überschreitet); Grenze exakt `> 485`.
+- **K-021** Bereich `[a .. b]`: beliebige Zahlen, Schritt 1 ab `a`, inklusive, absteigend bei `a > b`;
+  mehr als 10 000 001 Elemente → `RechenAnanas: Der Bereich ist zu groß für ein Blech.`
+- **K-022** `sortiere` ist stabil; Vergleichsfunktion muss eine Zahl liefern (Vorzeichen zählt); ohne Funktion nur
+  Zahlen, Texte (UTF-16-Codeeinheiten, K-040), Dauern, Werte eines quattrostagioni – sonst TypAnanas.
+- **K-023** Preis: je Standardbelag `runde2(unten + Standardpreis)`; eigene `preis()`-Methoden ungerundet;
+  `Ananas.preis()` = 0; eigene Beläge ohne Tabellenpreis 1.00.
+- **K-026** Hawaii: Panik bei jeder Zuweisung (auch `karton`) an `hawaii`-Variable/-Feld/-Parameter, nicht bei
+  Deklaration ohne Initialisierer; `Blech<hawaii>` nur W0666; Belag-Wert `Ananas` allein (ausgeben, `hat`, `-`, `preis()`)
+  keine Panik; W0666 nur für Typ `hawaii`, bloßen Namen `Ananas` und `Ananas` im Pizza-Literal (nicht `Q.Ananas`,
+  `k.Ananas()`); Panik in allen Phasen; `neu Hawaii(…)` auch ohne Klasse.
+- **K-029** `Spiegel.felder`: Instanzfelder (keine `tiefkühl`), Basisklassen zuerst; `karton` → LeererKartonAnanas,
+  Nicht-Objekt → TypAnanas; Unterklassen einer Calzone sind zugeklappt; `aufklappen()` auf Nicht-Calzone → LaufzeitAnanas.
+- **K-033** `hauptgang`: Name entscheidet (erste Klasse, sonst Top-Level-Funktion); Signatur ungeprüft; erster Parameter
+  erhält das Args-Blech; mehr als ein Parameter → Aritätsfehler; Rückgabewert ignoriert.
+- **K-034** `margherita` darf `karton` halten (§8).
+- **K-035** `Teig.istAufgegangen()` → `ja` nur nach `gehenlassen()`.
+- **K-036** Rückgabetyp ungeprüft: `serviere;` → `karton`, `serviere (x)` in `leer` liefert `x`, Rumpfende → `karton`.
+- **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
+- **K-038 [offen]** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
+- **K-039** `p.hat("Tomate")` wie `p.hat(Tomate)`; `p + "x"` ist Textverkettung.
+- **K-047 [offen]** Die simulierte Uhr zählt ganze Millisekunden: `Uhr.vorspulen(d)` rundet kaufmännisch auf ms,
+  `schritte`/`zeitMs` sind Ganzzahlen, Budgets `floor(...)` (Lieferung: `floor(max_ms × Faktor)`).
+
+### 15.3 Ein-/Ausgabe, Motoren, Hosts (siehe §11.1)
+- **K-007 [offen]** Einheitliche Zahltext-Grammatik für `alsZahl`, `liesZahl`, `frageZahl` (§11.1).
+- **K-008 [offen]** `liesZahl(ersatz)` / `frageZahl(text, ersatz)`: Ersatzwert nur bei EOF (§11.1).
+- **K-009/K-010** Zeilen unverändert, Prompt vor dem Lesen, ungültige Zeile verbraucht, Warten kostet nichts (§11.1).
+- **K-011** Der Prompt wird vom Programm ausgegeben; `prompt` in Anfrage/HOST-ABI ist informativ.
+- **K-012 (Nutzerentscheidung)** Panik-Banner bei CLI/Host/EXE → **stderr**, Exit 39; die Web-UI behandelt Hawaii nicht
+  besonders (kein Crash-Overlay, Banner als normale Fehlerausgabe in der Konsole, Exit-Code 39 wie jeder andere). Siehe §9.
+- **K-013 [offen]** Keine Kürzung langer Zeilen; HOST-ABI liefert benötigte Länge, Modul wiederholt mit größerem Puffer.
+- **K-014 [offen]** Interner Fehler jedes Motors: `fehler` mit `code "LaufzeitAnanas"`, `art "ananas"`, Text exakt
+  `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (+ ` (Zeile N)`), optionales Feld `detail`, Exit 1.
+- **K-015 [offen]** `abbrechen`/`weiter` außerhalb einer Schleife (bzw. `abbrechen` außerhalb von Schleife oder
+  `wähle`-Anweisung) → `PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.` / `… 'weiter' …` (Parse-Fehler,
+  art `syntax`, Exit 2). Methoden-, Konstruktor-, Lambda- und Ofen-Rümpfe beginnen einen neuen Kontext.
+- **K-040** Textordnung nach UTF-16-Codeeinheiten (§14.6) – auch in der Wasm-Laufzeit.
+- **K-041 [offen]** HOST-ABI: separater Import `schreibe(ptr, len)`; `ausgabe` bleibt zweistellig.
+- **K-042 [offen]** EOF ist endgültig (§11.1).
+- **K-043 [offen]** Host-Ladefehler: `{typ:"fehler", code:"HOST", art:"intern"}`, Exit 2.
+- **K-044 [offen UI]** `art` ∈ {syntax, pizzafehler, ananas, limit, intern}; Wand-Zeitlimit der UI/CLI = `P0003`
+  (`art: "limit"`, Exit 3), nicht P0002.
+- **K-045** Bei Widersprüchen zwischen WASM.md und HOST-ABI.md gilt HOST-ABI.md.
+- **K-046 [offen]** `umbruch` wird bei `Bote.sage` weggelassen (kanonisch); Exit-Codes genau {0, 1, 2, 3, 39}.
+- **K-030/K-050/K-051/K-052** Doku-`ausgabe` darf den Panik-Banner weglassen; Doku-Codeblöcke dürfen `eingabe: string[]`
+  tragen; `.eingabe`-Fallback neben der `.pizza`; `.erwartet` endet mit genau einem `\n` (Harnische normalisieren höchstens einen).
+- **K-054** `leeren` im Terminal: `\x1b[2J\x1b[3J\x1b[H` nur bei TTY.

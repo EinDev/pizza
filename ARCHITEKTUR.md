@@ -40,7 +40,7 @@ UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhäng
 PizzaLang.version            // "3.0.0"
 PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
-PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
 PizzaLang.BELAEGE            // [{name, preis, nach: string[]}] – eingebaute Zutatenliste
 PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen
 
@@ -49,7 +49,8 @@ PizzaLang.parse(quelltext)
   // Nur Syntax (für Live-Diagnose im Editor). Schnell, wirft nie.
 
 PizzaLang.run(quelltext, optionen)
-  // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[] }
+  // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
+  //                       eingabe?: string[], onEingabe?(anfrage) }     // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
@@ -59,7 +60,11 @@ PizzaLang.run(quelltext, optionen)
 { typ: "ausgabe",       text }                                  // Bote.sage
 { typ: "fehlerausgabe", text }                                  // Bote.fehler
 { typ: "warnung",       code, text, zeile, spalte }             // z. B. W0666, S0007, T0007
-{ typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit"
+{ typ: "ausgabe",       text, umbruch: false }                  // Bote.schreibe (ohne Zeilenumbruch), SPEC §11.1
+{ typ: "leeren" }                                               // Bote.leeren
+{ typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
+{ typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
+                                                                // "intern" = Fehler des Motors/Hosts (KLAERUNGEN K-014, K-043, K-044), optional Feld detail
 { typ: "panik",         text }                                  // Hawaii-Banner (SPEC §9), danach sofort "ende"
 { typ: "ende",          exitCode, schritte, zeitMs }
 ```
@@ -79,7 +84,8 @@ PizzaLang.run(quelltext, optionen)
 - Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - Wand-Zeitlimit in der UI: **10 s** → `worker.terminate()`, Anzeige „Die Pizza ist noch im Ofen (Zeitlimit)“.
-- Bei `panik`: UI ruft sofort `worker.terminate()` und zeigt das Hawaii-Crash-Overlay.
+- Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
+  in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.
 
 ## 3. Beispiel-Manifeste (`site/beispiele/`)
 
@@ -106,7 +112,9 @@ Teil-Manifest, z. B. `grundlagen.json`:
 }
 ```
 - Pfade relativ zu `site/beispiele/`.
+- Optionale Felder `"eingabe": "spiele/x.eingabe"` (eine Zeile pro Eingabe, Tests laufen damit nicht-interaktiv; Fallback: gleichnamige `.eingabe` neben der `.pizza`) und `"interaktiv": true` – siehe SPEC §11.1.
 - `.erwartet` = alle `ausgabe`-, `fehlerausgabe`- und `panik`-Texte in Reihenfolge, je Ereignis eine Zeile
+  (`ausgabe` mit `umbruch: false` ohne Zeilenumbruch, `leeren` als Zeile `«leeren»`, `eingabe` nie – SPEC §11.1)
   (mehrzeiliger Panik-Text bleibt mehrzeilig), abschließender Zeilenumbruch. Warnungen, `fehler` und `ende` stehen **nicht** drin.
 
 ## 4. Doku-Daten (`site/js/doku/*.js`)
@@ -164,5 +172,5 @@ Regeln für jeden Abschnitt:
 - Konsole unter dem Editor (ausgabe / fehlerausgabe / warnung / fehler farblich unterschieden, Exit-Code-Badge).
 - Einklappbares **Seitenpanel** rechts mit Tabs **Doku** · **Beispiele** (auf schmalen Bildschirmen als Overlay/Popup).
 - Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.
-- Hawaii-Panik: Vollbild-Crash-Overlay mit Banner, „PizzaVM neu starten“.
+- Hawaii-Panik: kein Crash-Overlay – Banner als Fehlerausgabe in der Konsole, Exit-Code-Badge 39 (KLAERUNGEN K-012).
 - Hell/Dunkel, deutsch, keine externen Requests zur Laufzeit (alles gebündelt).
