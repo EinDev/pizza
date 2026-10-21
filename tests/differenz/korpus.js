@@ -33,6 +33,7 @@ function laufFelder(x) {
   if (!x) return o;
   if (x.zufallsSaat !== undefined) o.zufallsSaat = x.zufallsSaat;
   if (x.echtzeit !== undefined) o.echtzeit = x.echtzeit;
+  if (x.schrittLimit != null) o.schrittLimit = x.schrittLimit;
   if (x.vorrat && typeof x.vorrat === 'object') o.vorrat = x.vorrat;
   return o;
 }
@@ -57,7 +58,7 @@ function beispiele(warn) {
           b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : (fs.existsSync(dp.replace(/\.pizza$/, '.eingabe')) ? { eingabe: zeilen(lies(dp.replace(/\.pizza$/, '.eingabe'))) } : {}),
           uiAus(b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse')),
           vorratAus(typeof b.vorrat === 'string' ? path.join(dir, b.vorrat) : dp.replace(/\.pizza$/, '.vorrat.json')),
-          laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit })),
+          laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit, schrittLimit: b.schrittLimit })),
         erwartetExit: typeof b.exitCode === 'number' ? b.exitCode : 0,
       });
     }

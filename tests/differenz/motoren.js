@@ -128,17 +128,36 @@ function ladePizzaiolo() {
 const pz = ladePizzaiolo();
 
 /**
- * Kann der Wasm-Motor eine Lauf-Option (U-43)? Bevorzugt eine explizite Fähigkeitenliste
- * (Pizzaiolo.faehigkeiten als Array/Objekt/Funktion), sonst: kommt der Optionsname im Quelltext von pizzaiolo vor?
+ * Fähigkeiten des Wasm-Motors (WASM.md §4): Pizzaiolo.faehigkeiten =
+ *   { version, abi, laufOptionen: [...], importgruppen: [...], features: [...], ereignisse: [...], motoren: [...] }
+ * → null, wenn pizzaiolo (noch) keine maschinenlesbare Auskunft hat.
+ */
+let _wasmFaehigkeiten;
+function wasmFaehigkeiten() {
+  if (_wasmFaehigkeiten !== undefined) return _wasmFaehigkeiten;
+  _wasmFaehigkeiten = null;
+  const Z = pz.Z;
+  if (!Z) return null;
+  let f = Z.faehigkeiten;
+  try { if (typeof f === 'function') f = f(); } catch (_) { f = null; }
+  if (Array.isArray(f)) _wasmFaehigkeiten = { laufOptionen: f.slice() };
+  else if (f && typeof f === 'object') _wasmFaehigkeiten = f;
+  return _wasmFaehigkeiten;
+}
+
+/**
+ * Kann der Wasm-Motor eine Lauf-Option (U-43)? Maßgeblich ist Pizzaiolo.faehigkeiten.laufOptionen;
+ * nur ohne diese Auskunft (ältere pizzaiolo-Stände) Rückfall auf Quelltextsuche.
  */
 let _wasmQuelle = null;
 function wasmKann(option) {
   const Z = pz.Z;
   if (!Z) return false;
-  let f = Z.faehigkeiten;
-  try { if (typeof f === 'function') f = f(); } catch (_) { f = null; }
-  if (Array.isArray(f)) return f.includes(option);
-  if (f && typeof f === 'object') return !!f[option];
+  const f = wasmFaehigkeiten();
+  if (f) {
+    if (Array.isArray(f.laufOptionen)) return f.laufOptionen.includes(option);
+    if (option in f) return !!f[option];   // ältere Objektform { option: true }
+  }
   if (_wasmQuelle === null) {
     _wasmQuelle = '';
     const dateien = [path.join(ROOT, 'site', 'js', 'pizzaiolo.js')];
@@ -365,4 +384,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { benoetigteOptionen, wasmKann, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
