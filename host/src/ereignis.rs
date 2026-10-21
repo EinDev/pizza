@@ -16,6 +16,8 @@ pub enum Ereignis {
     /// `detail`: optionale motorspezifische Einzelheiten (K-014), nicht Teil des Vergleichs.
     Fehler { code: String, art: String, text: String, zeile: Option<i32>, spalte: Option<i32>, detail: Option<String> },
     Panik { text: String },
+    /// Änderung einer Vorratskammer (K-080): `aenderung` = rohes JSON `{"schluessel":…,"wert":…}` vom Modul.
+    Vorrat { name: String, aenderung: String },
     Ende { exit_code: i32, schritte: f64, zeit_ms: f64 },
 }
 
@@ -159,6 +161,12 @@ impl Ereignis {
                 }
             ),
             Ereignis::Panik { text } => format!("{{\"typ\":\"panik\",\"text\":{}}}", json_text(text)),
+            Ereignis::Vorrat { name, aenderung } => {
+                // {"typ":"vorrat","name":…,"schluessel":…,"wert":…} – Felder aus dem Änderungsobjekt des Moduls.
+                let rest = aenderung.trim().strip_prefix('{').unwrap_or("}").trim_start();
+                let rest = if rest.starts_with('}') { rest.to_string() } else { format!(",{}", rest) };
+                format!("{{\"typ\":\"vorrat\",\"name\":{}{}", json_text(name), rest)
+            }
             Ereignis::Ende { exit_code, schritte, zeit_ms } => format!(
                 "{{\"typ\":\"ende\",\"exitCode\":{},\"schritte\":{},\"zeitMs\":{}}}",
                 exit_code,
@@ -172,7 +180,8 @@ impl Ereignis {
 /// Wohin Ereignisse gehen.
 pub enum Senke {
     /// Menschlich lesbar: stdout/stderr wie `bin/pizza.js` (Farbe nur bei TTY und ohne NO_COLOR).
-    Konsole { farbe: bool, info: bool },
+    /// `debug`: technische Details interner Fehler (`detail`) zeigen (`--debug`, K-083).
+    Konsole { farbe: bool, info: bool, debug: bool },
     /// Eine JSON-Zeile pro Ereignis auf stdout.
     Json,
     /// Sammeln (Tests).
@@ -182,7 +191,23 @@ pub enum Senke {
 impl Senke {
     pub fn konsole(info: bool) -> Self {
         let farbe = io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none();
-        Senke::Konsole { farbe, info }
+        Senke::Konsole { farbe, info, debug: false }
+    }
+
+    /// Hinweiszeile der Hülle (kein Ereignis), z. B. `Saat: N` (K-077): Konsole → stderr (grau bei TTY),
+    /// JSON → stderr ohne Farbe, Sammeln → verworfen.
+    pub fn hinweis(&mut self, text: &str) {
+        let _ = io::stdout().flush();
+        match self {
+            Senke::Sammeln(_) => {}
+            Senke::Json => {
+                let _ = writeln!(io::stderr(), "{}", text);
+            }
+            Senke::Konsole { farbe, .. } => {
+                let t = if *farbe { format!("[90m{}[0m", text) } else { text.to_string() };
+                let _ = writeln!(io::stderr(), "{}", t);
+            }
+        }
     }
 
     pub fn sende(&mut self, e: Ereignis) {
@@ -193,7 +218,7 @@ impl Senke {
                 let _ = writeln!(out, "{}", e.als_json());
                 let _ = out.flush();
             }
-            Senke::Konsole { farbe, info } => {
+            Senke::Konsole { farbe, info, debug } => {
                 let f = |code: &str, t: &str| {
                     if *farbe {
                         format!("\x1b[{}m{}\x1b[0m", code, t)
@@ -219,7 +244,8 @@ impl Senke {
                         }
                     }
                     // Kein Echo: das macht das Terminal. UI-Nachrichten gehen ans Fenster, nicht auf die Konsole.
-                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } => {}
+                    // Vorrat: wird gespeichert, nicht angezeigt (wie bin/pizza.js).
+                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } | Ereignis::Vorrat { .. } => {}
                     Ereignis::Leeren => {
                         let mut out = io::stdout().lock();
                         if out.is_terminal() {
@@ -239,6 +265,9 @@ impl Senke {
                         let _ = io::stdout().flush();
                         let p = if art == "syntax" || art == "pizzafehler" { f("90", &pos(zeile, spalte)) } else { String::new() };
                         let _ = writeln!(io::stderr(), "{}{}", f("1;31", text), p);
+                        if let (true, Ereignis::Fehler { detail: Some(d), .. }) = (*debug, &e) {
+                            let _ = writeln!(io::stderr(), "{}", f("90", &format!("detail: {}", d)));
+                        }
                     }
                     Ereignis::Panik { text } => {
                         // Banner nach stderr wie bin/pizza.js und HOST-ABI §7 (Farbe nur bei TTY).

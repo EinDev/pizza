@@ -82,7 +82,12 @@ for (const b of liste) {
   const args = b.args || [];
   const uiDatei = b.ereignisse ? path.join(BEISPIELE, b.ereignisse) : null;
   const uiEreignisse = uiDatei ? zeilen(fs.readFileSync(uiDatei, "utf8")).filter((z) => z.trim()).map((z) => JSON.parse(z)) : undefined;
-  const ref = PizzaLang.run(quelle, { args, eingabe, uiEreignisse });
+  // Manifest-Felder wie tests/run-tests.js (K-077/K-087): feste Saat, feste Wanduhr, Schrittlimit.
+  const lauf = {};
+  if (b.zufallsSaat !== undefined) lauf.zufallsSaat = b.zufallsSaat;
+  if (b.echtzeit !== undefined) lauf.echtzeit = b.echtzeit;
+  if (b.schrittLimit !== undefined) lauf.schrittLimit = b.schrittLimit;
+  const ref = PizzaLang.run(quelle, Object.assign({ args, eingabe, uiEreignisse }, lauf));
   const k = Pizzaiolo.kompiliere(quelle);
   if (!k.ok) {
     nicht++;
@@ -92,8 +97,13 @@ for (const b of liste) {
   }
   const datei = path.join(tmp, b.id + '.pkarton');
   fs.writeFileSync(datei, k.pkarton);
-  const hArgs = ['--ereignisse-json'];
+  // Wie PizzaLang.run ohne vorrat/zufallsSaat: nur im Speicher (W0101) – nie den echten Vorrat des Nutzers anfassen;
+  // im JSON-Modus gilt ohne --saat die feste Saat 42.
+  const hArgs = ['--ereignisse-json', '--kein-vorrat'];
   if (b.eingabe) hArgs.push('--eingabe', path.join(BEISPIELE, b.eingabe));
+  if (Number.isInteger(lauf.zufallsSaat)) hArgs.push('--saat=' + lauf.zufallsSaat);
+  if (lauf.echtzeit !== undefined) hArgs.push('--echtzeit=' + lauf.echtzeit);
+  if (lauf.schrittLimit !== undefined) hArgs.push('--schritte=' + lauf.schrittLimit);
   if (uiDatei) hArgs.push('--ui-ereignisse', uiDatei);
   hArgs.push(datei, ...args);
   const h0 = Date.now();

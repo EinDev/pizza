@@ -288,7 +288,8 @@ const host = {
       argv.push('--ui-ereignisse', uiDatei);
     }
     let vorratOrdner = null;
-    if (opt && opt.zufallsSaat !== undefined) argv.push('--saat=' + opt.zufallsSaat);
+    // K-077: keine Ganzzahl → wie fehlende Saat (42); --saat lehnt das (wie bin/pizza.js) ab, der JSON-Modus nutzt ohne --saat 42.
+    if (opt && Number.isInteger(opt.zufallsSaat)) argv.push('--saat=' + opt.zufallsSaat);
     if (opt && opt.echtzeit !== undefined) argv.push('--echtzeit=' + opt.echtzeit);
     if (opt && opt.vorrat) {
       vorratOrdner = path.join(tmpDir, 'vorrat' + (tmpZaehler++));

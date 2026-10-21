@@ -16,8 +16,12 @@ node test.js                 # Differenztest aller Beispiele gegen den Interpret
 ## Ausführen
 
 ```sh
-pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--vorrat=ordner] --vorrat-loeschen <name>
+pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
+
+Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der Differenz-Runner erkennt daran die Host-Fähigkeiten).
 
 | Ereignis | Ausgabe (Konsole) |
 |---|---|
@@ -40,7 +44,24 @@ pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] program
   kommen die Zeilen aus der Datei (danach EOF) – für Tests.
 - `--ereignisse-json`: jedes Ereignis als JSON-Zeile auf stdout, gleiches Schema wie `PizzaLang.run`
   (ARCHITEKTUR §1, EINGABE.md §2), zuletzt `{"typ":"ende","exitCode":…,"schritte":…,"zeitMs":…}`.
-- `--schritte=N` → Export `limit_setzen(N)`; `--info` → Exit-Code/Schritte/Uhr am Ende nach stderr.
+- `--schritte=N` → Export `limit_setzen(N)`; `--info` → Exit-Code/Schritte/Uhr am Ende nach stderr; `--debug` → zeigt bei
+  internen Fehlern zusätzlich `detail: …`.
+- **Zufall (K-077):** `--saat=N` → Export `saat_setzen(N)` vor `start` (keine Ganzzahl → `--saat braucht eine Ganzzahl.`, Exit 2).
+  Ohne Option eine echte Saat und die Zeile `Saat: N` auf stderr (grau bei TTY) – nur wenn das Modul `saat_setzen` exportiert.
+  Im JSON-Modus (`--ereignisse-json`, `PIZZA_EREIGNISSE_JSON`) gilt ohne `--saat` die feste Saat 42 ohne Anzeige (wie `optionen.zufallsSaat` fehlt).
+- **Vorratskammer (K-079–K-081):** Importe `vorrat_lesen`/`vorrat_schreiben`; eine Datei je Kammer `<ordner>/<name>.json` im Format
+  `{"v":1,"name":…,"eintraege":[…]}`, atomar geschrieben (`<name>.json.<pid>.tmp` + Umbenennen). Standardordner
+  `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe wie bei `bin/pizza.js`,
+  CLI und EXE teilen sich also den Spielstand. `--vorrat=ordner` → anderer Ordner, `--kein-vorrat` → nur im Speicher (W0101).
+  Jede Änderung erzeugt das Ereignis `vorrat` (JSON-Modus), die Konsole zeigt nichts an. Speichern fehlgeschlagen →
+  `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` (macht das Modul).
+- **Vorrat löschen (K-088), ohne Programmlauf:** `--vorrat-loeschen <name>` (auch `=<name>`) → `Vorrat '<name>' gelöscht.` bzw.
+  `Vorrat '<name>' gibt es nicht.` (Exit 0), ungültiger Name → `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`
+  (Exit 2); `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.`
+- **Wanduhr (K-087):** Import `echtzeit_ms` = Systemzeit in ganzen ms; Testoption `--echtzeit=N` (fest, gerundet, wächst nicht).
+- **Importprüfung (HOST-ABI §2):** vor dem Instanziieren; eine unbekannte Funktion →
+  `PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.x' (Gruppe g), die dieser Host nicht kennt – bitte pizza-host aktualisieren.`
+  (Exit 2; Gruppe aus dem Namenspräfix, z. B. `ui_` → theke).
 
 ## EXE erzeugen
 
@@ -56,7 +77,9 @@ Die EXE ist eine Kopie des `pizza-host`-Binaries mit angehängtem `.pkarton`:
 ```
 
 Beim Start liest der Host sein eigenes Binary (`current_exe`), findet die Magie am Dateiende und führt das
-eingebettete Programm aus – **alle** Kommandozeilenargumente gehen dann an `hauptgang`. Betriebssysteme ignorieren
+eingebettete Programm aus. Die EXE versteht **dieselben Optionen** wie `pizza-host` direkt hinter dem Programmnamen
+(`./programm --saat=42 Luigi 3`, `./programm --vorrat-loeschen spielstand`); ab dem ersten Argument, das nicht mit `--` beginnt,
+gehen alle Argumente an `hauptgang`. Betriebssysteme ignorieren
 angehängte Daten (PE-Overlay/ELF-Anhang), die EXE bleibt normal startbar und braucht keine weiteren Dateien.
 `PIZZA_EREIGNISSE_JSON=1` schaltet auch in einer EXE die JSON-Ereignisausgabe ein.
 Hinweis: eine angehängte Signatur (Authenticode) müsste nach dem Einbetten erfolgen.
