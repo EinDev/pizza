@@ -289,6 +289,7 @@
         var alt = knoten.get(id);
         if (k.art === undefined || k.art === alt.art) { aktualisiereEintrag(alt, k); return alt.el; }
         entferneRekursiv(alt.el);
+        if (alt.el.parentNode) alt.el.parentNode.removeChild(alt.el);
       }
       var art = typeof k.art === "string" ? k.art : "";
       var def = registry[art];
