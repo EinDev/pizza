@@ -110,14 +110,14 @@
           art: "details",
           titel: "Mehr: Methoden, Gleichheit, Entfernen mit -",
           inhalt: [
-            { art: "text", md: "- `p - Chili` liefert eine **neue** Pizza ohne (alle) Chili.\n- Die leere Pizza (nur Teig) heißt `(())` oder `neu Pizza()`.\n- Zwei Pizzen sind gleich (`==`), wenn sie dieselben Beläge in derselben Reihenfolge haben." },
+            { art: "text", md: "- `p - Chili` liefert eine **neue** Pizza ohne (alle) Chili.\n- `p + \"Text\"` ist dagegen kein Belag, sondern Textverkettung: `((Tomate)) + \"!\"` ergibt den Text `((Tomate))!`.\n- Die leere Pizza (nur Teig) heißt `(())` oder `neu Pizza()`.\n- Zwei Pizzen sind gleich (`==`), wenn sie dieselben Beläge in derselben Reihenfolge haben." },
             {
               art: "tabelle",
               kopf: ["Methode", "auf", "Ergebnis"],
               zeilen: [
                 ["`preis()`", "Pizza", "Grundpreis 5.00 + Summe der Belagpreise"],
                 ["`beläge()`", "Pizza", "Blech der Belagnamen (als Text), unten → oben"],
-                ["`hat(Belag)`", "Pizza", "`ja`, wenn der Belag drauf ist"],
+                ["`hat(Belag)`", "Pizza", "`ja`, wenn der Belag drauf ist; der Name als Text geht auch: `p.hat(\"Tomate\")`"],
                 ["`anzahlBeläge()`", "Pizza", "Anzahl der Schichten"],
                 ["`alsText()`", "Pizza", "z. B. `((Tomate, Mozzarella))`, leer: `(())`"],
                 ["`übrig()`", "Pizza", "verbleibende Stücke, siehe *Stücke & Ownership*"],
@@ -164,6 +164,7 @@
           titel: "Wann ist ((…)) eine Pizza? Und unbekannte Beläge",
           inhalt: [
             { art: "text", md: "Der Parser erkennt ein Pizza-Literal nur, wenn zwischen `((` und `))` ausschließlich **großgeschriebene, einfache Bezeichner** stehen, durch Kommas getrennt. Alles andere – `((x + 1))`, `((\"Text\"))`, `((a.b))` – ist eine gewöhnliche doppelte Klammerung." },
+            { art: "text", md: "**Achtung bei Aufrufen:** Die Klammer des Aufrufs zählt nicht mit. `Bote.sage((Salami))` übergibt den **Belag** `Salami`, `Bote.sage((Salami, Tomate))` ist ein Syntaxfehler. Eine Pizza im Aufruf braucht drei Klammern: `Bote.sage(((Salami, Tomate)))` – oder du legst sie vorher in eine Variable." },
             { art: "text", md: "Ein großgeschriebener Name, der weder Variable noch Klasse ist, wird auf der **Zutatenliste** nachgeschlagen. Steht er dort nicht, gibt es eine `UnbekannterBelagAnanas` – die kann man fangen:" },
             {
               art: "code",
@@ -179,7 +180,7 @@
               )
             },
             { art: "ausgabe", text: "'Gummibärchen' steht nicht auf der Zutatenliste." },
-            { art: "hinweis", ton: "pizza", md: "Preise sind Kommazahlen. Wer viele Beläge mit `0.80` stapelt, sieht manchmal Fließkomma-Krümel (`7.800000000000001`). Für die Rechnung gibt es `preis().euro()` – das rundet auf zwei Stellen." }
+            { art: "hinweis", ton: "pizza", md: "Preise sind Kommazahlen. Bei Belägen aus der Zutatenliste rundet pizza jede Schicht auf Cent, damit keine Krümel wie `7.800000000000001` entstehen. Eigene `preis()`-Methoden rechnen ungerundet – für die Rechnung gibt es `preis().euro()`." }
           ]
         },
         {
@@ -214,7 +215,7 @@
                 ["Mais", "0.50", ""],
                 ["Knoblauch", "0.30", ""],
                 ["Kapern", "0.70", ""],
-                ["Ananas", "–", "löst Hawaii aus"]
+                ["Ananas", "0.00", "löst Hawaii aus, sobald sie auf einer Pizza liegt"]
               ]
             },
             { art: "hinweis", ton: "warnung", md: "`Ananas` steht zwar auf der Zutatenliste, aber eine Pizza mit Ananas löst eine **nicht fangbare Kernel-Panik** aus (Exit-Code 39). Details im Abschnitt über Hawaii. Wir haben Sie gewarnt." }
@@ -363,7 +364,7 @@
           art: "details",
           titel: "Mehr: Rechnen mit Dauern, Schritte messen",
           inhalt: [
-            { art: "text", md: "- `Uhr.jetzt()` liefert die `Dauer` seit Programmstart.\n- `Uhr.vorspulen(d)` lässt die Uhr um `d` springen – praktisch, um Kühlschrank-Haltbarkeiten zu testen, ohne drei Tage zu warten.\n- Dauern lassen sich addieren, mit Zahlen multiplizieren und vergleichen; als Text erscheinen sie mit den größten Einheiten zuerst." },
+            { art: "text", md: "- `Uhr.jetzt()` liefert die `Dauer` seit Programmstart.\n- `Uhr.vorspulen(d)` lässt die Uhr um `d` springen – praktisch, um Kühlschrank-Haltbarkeiten zu testen, ohne drei Tage zu warten. Die Uhr zählt ganze Millisekunden, `vorspulen(0.5ms)` wird auf 1 ms gerundet.\n- Warten auf eine Eingabe des Gastes kostet keine Zeit auf dieser Uhr.\n- Dauern lassen sich addieren, mit Zahlen multiplizieren und vergleichen; als Text erscheinen sie mit den größten Einheiten zuerst." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -417,7 +418,7 @@
               )
             },
             { art: "ausgabe", text: "Ofen an. Ich schau mal kurz weg ..." },
-            { art: "hinweis", ton: "pizza", md: "Zusätzlich zieht die Weboberfläche nach **10 Sekunden echter Zeit** den Stecker. Fünf Millionen Schritte schafft ein moderner Browser aber meist schneller." }
+            { art: "hinweis", ton: "pizza", md: "Zusätzlich zieht die Weboberfläche nach **10 Sekunden echter Zeit** den Stecker: `PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).`, ebenfalls Exit-Code 3. Warten auf deine Eingabe zählt dabei nicht. Fünf Millionen Schritte schafft ein moderner Browser aber meist schneller." }
           ]
         }
       ]
@@ -462,7 +463,7 @@
               zeilen: [
                 ["`gehenlassen()`", "berechnet den Wert „im Hintergrund“ und merkt ihn sich; gibt den Teig zurück"],
                 ["`backen()`", "liefert den Wert; berechnet ihn nur, falls noch nicht geschehen"],
-                ["`istAufgegangen()`", "`ja`, sobald der Wert berechnet ist"]
+                ["`istAufgegangen()`", "`ja`, sobald `gehenlassen()` aufgerufen wurde – ein bloßes `backen()` lässt den Teig **nicht** aufgehen, auch wenn der Wert dann berechnet ist"]
               ]
             },
             { art: "text", md: "Teig, den niemand backt, wird nie berechnet – auch wenn darin eine Division durch null steckt:" },
@@ -549,8 +550,9 @@
               art: "tabelle",
               kopf: ["Teil", "Bedeutung"],
               zeilen: [
-                ["`temperatur:`", "benanntes Argument, Standard **250**; über **485** → `VerbranntAnanas(\"Zu heiß! Selbst Neapel hat Grenzen.\")`"],
-                ["`zeit:`", "benanntes Argument (Dauer), Standard **60s**"],
+                ["`temperatur:`", "benanntes Argument (Zahl), Standard **250**; 485 geht gerade noch, alles darüber (auch 485.5) → `VerbranntAnanas(\"Zu heiß! Selbst Neapel hat Grenzen.\")`"],
+                ["`zeit:`", "benanntes Argument (Dauer, eine Zahl gilt als ms), Standard **60s**"],
+                ["`ofen(450, 90s)`", "Ohne Namen geht es auch: erst Temperatur, dann Zeit"],
                 ["Budget", "**zeit_ms × temperatur / 250** Schritte – ein heißer Ofen backt schneller"],
                 ["`serviere ((x));`", "liefert den Wert des `ofen`-Ausdrucks – verlässt **nicht** die umgebende Methode"],
                 ["`roh (r)`", "läuft bei Budgetüberschreitung; `r.teilergebnis()` (letzter `zwischenstand` oder `karton`), `r.verbrauchteZeit()` (Dauer)"],
@@ -565,7 +567,8 @@
                 ["`ofen(temperatur: 450, zeit: 90s)`", "90 000 × 450 / 250 = **162 000**"],
                 ["`ofen(temperatur: 485, zeit: 1s)`", "1 000 × 485 / 250 = **1 940**"],
                 ["`ofen(zeit: 50ms)`", "**50** – das reicht für kaum mehr als ein Aufbacken"],
-                ["`ofen(temperatur: 500)`", "gar keins: `VerbranntAnanas`, bevor der Block startet"]
+                ["`ofen(temperatur: 500)`", "gar keins: `VerbranntAnanas`, bevor der Block startet"],
+                ["`ofen(temperatur: 0)` oder `ofen(zeit: 0ms)`", "**0** – schon der erste Schritt ist zu viel (`roh` bzw. `VerbranntAnanas`)"]
               ]
             },
             { art: "text", md: "`roh` und `verbrannt` sind beide optional; wenn beide da sind, steht `roh` zuerst. Das ganze `ofen(...) {...}` ist ein **Ausdruck** und wird als Anweisung mit `;` abgeschlossen. Die genaue verbrauchte Zeit und das genaue Teilergebnis hängen davon ab, wie viele Schritte eine Schleifenrunde kostet." },
@@ -612,7 +615,7 @@
               )
             },
             { art: "ausgabe", text: "Zu lange im Ofen: Budget von 1000 Schritten überschritten." },
-            { art: "text", md: "Zu heiß ist auch keine Lösung. Ab 486 Grad verweigert der Ofen den Dienst – der eigene `verbrannt`-Zweig fängt das, genauso wie selbst geworfene Ananas:" },
+            { art: "text", md: "Zu heiß ist auch keine Lösung. Über 485 Grad verweigert der Ofen den Dienst – der eigene `verbrannt`-Zweig fängt das, genauso wie selbst geworfene Ananas:" },
             {
               art: "code",
               ausfuehrbar: true,
@@ -681,9 +684,11 @@
               kopf: ["Schreibweise", "Wirkung"],
               zeilen: [
                 ["`blech.schneide(n)`", "`n` Teil-Bleche, möglichst gleich groß, vordere ggf. größer"],
-                ["`blech.schneide(auto)`", "8 Stücke – wie bei einer richtigen Pizza (`auto` gibt es nur hier)"],
-                ["`blech / n`", "wie `schneide(n)`, aber **fair**: geht es nicht auf → `StreitAnanas`"],
-                ["`schneide(7)`", "funktioniert, aber Warnung `S0007`"]
+                ["`blech.schneide(auto)`", "8 Stücke – wie bei einer richtigen Pizza. `auto` gibt es **nur** hier; anderswo heißt es `LaufzeitAnanas: 'auto' ist nicht definiert.`"],
+                ["`blech / n`", "wie `schneide(n)`, aber **fair**: geht es nicht auf → `StreitAnanas`; `/ 0` → `RechenAnanas`"],
+                ["mehr Stücke als Elemente", "`[1, 2, 3].schneide(5)` → `[[1], [2], [3], [], []]` – leere Teller gibt es auch"],
+                ["`schneide(0)` oder weniger", "`StreitAnanas: In 0 Stücke schneiden? Das geht nicht.`"],
+                ["`schneide(7)`", "funktioniert, aber Warnung `S0007` (auch bei `blech / 7`)"]
               ]
             },
             {
@@ -763,8 +768,10 @@
               art: "tabelle",
               kopf: ["Situation", "Was passiert"],
               zeilen: [
-                ["`Pizza q = p;` (rechts steht nur ein Bezeichner oder Feldzugriff, der eine Pizza ist)", "`BesitzAnanas: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).`"],
-                ["`Pizza q = schieb(p);`", "Besitz wandert zu `q`; `p` ist danach ein leerer Karton"],
+                ["`Pizza q = p;` oder `q = k.pizza;` (rechts steht nur ein Name oder Feldzugriff, auch in Klammern, und der Wert ist eine Pizza)", "`BesitzAnanas: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).`"],
+                ["rechts steht etwas anderes: `a ? p : q`, `[p]`, `m.hole(k)`, `s.pizza()`", "keine Prüfung – die Regel schaut nur auf die Schreibweise"],
+                ["`Pizza q = schieb(p);`", "Besitz wandert zu `q`; `p` ist danach ein leerer Karton. `schieb` geht mit Variablen jeden Typs, aber nicht mit Feldern (`schieb(k.p)` → `LaufzeitAnanas`)"],
+                ["`Pizza q = p + Käse;`", "erlaubt – das ist eine **neue** Pizza mit wieder 8 Stücken"],
                 ["Lesen von `p` nach `schieb(p)`", "`LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.`"],
                 ["`p = ((Tomate));` nach `schieb(p)`", "erlaubt – neuer Karton, neues Glück"],
                 ["`f(p)`, `serviere ((p));`", "erlaubt: Argumente und Rückgaben sind keine Doppelbesitze"],
@@ -795,7 +802,7 @@
                 "((Tomate, Salami))"
               )
             },
-            { art: "hinweis", ton: "info", md: "**Tier 2 – Laufzeitprüfung statt Borrow-Checker.** Der Playground prüft Ownership erst, wenn die Zeile ausgeführt wird. Die Regel gilt nur für die einfachste Form: Steht rechts vom `=` ein komplizierterer Ausdruck (`p + Salami`, ein Methodenaufruf), entsteht ohnehin eine neue bzw. übergebene Pizza." }
+            { art: "hinweis", ton: "info", md: "**Tier 2 – Laufzeitprüfung statt Borrow-Checker.** Der Playground prüft Ownership erst, wenn die Zeile ausgeführt wird, und nur an der **Schreibweise**: Steht rechts vom `=` ein bloßer Name oder Feldzugriff, der eine Pizza enthält, gibt es die `BesitzAnanas`. Steht dort etwas Komplizierteres (`p + Salami`, ein Methodenaufruf, `?:`), schaut niemand nach." }
           ]
         },
         {
@@ -980,15 +987,17 @@
               art: "tabelle",
               kopf: ["Methode", "auf", "Wirkung"],
               zeilen: [
-                ["`trinkgeld(n)`", "Lieferung", "Priorität; jeder Euro erhöht das Budget um 10 %. Gibt die Lieferung zurück."],
-                ["`warte(max: d)`", "Lieferung", "führt **jetzt** aus, Budget `d_ms × (1 + trinkgeld/10)` Schritte → `Zustellung`. Erneutes `warte` liefert dieselbe Zustellung."],
-                ["`wennDa(fn)`", "Lieferung", "registriert einen Rückruf für **nach Programmende**"],
+                ["`trinkgeld(n)`", "Lieferung", "Priorität; jeder Euro erhöht das Budget um 10 %. Mehrere Trinkgelder **zählen zusammen**. Gibt die Lieferung zurück (verkettbar)."],
+                ["`warte(max: d)` / `warte(d)`", "Lieferung", "führt **jetzt** aus, Budget `d_ms × (1 + Trinkgeld-Summe/10)` Schritte → `Zustellung`. Erneutes `warte` liefert dieselbe Zustellung – geliefert ist geliefert."],
+                ["`warte()`", "Lieferung", "ohne Zeitlimit: wartet, bis die Pizza da ist"],
+                ["`istGeliefert()`", "Lieferung", "`ja`, sobald einmal gewartet wurde"],
+                ["`wennDa(fn)`", "Lieferung", "Rückruf mit dem Wert: klingelt direkt nach einem pünktlichen `warte` (bzw. sofort, wenn schon pünktlich geliefert) – sonst **nach Programmende**. Ein zweites `wennDa` ersetzt das erste."],
                 ["`pünktlich()`", "Zustellung", "`ja`, wenn das Budget gereicht hat"],
                 ["`wert()`", "Zustellung", "der Wert; zu spät → `LieferAnanas: Zu spät – die Pizza ist kalt.`"],
                 ["`oderGratis(v)`", "Zustellung", "der Wert; zu spät → `v` (die Pizza geht aufs Haus)"]
               ]
             },
-            { art: "text", md: "Ananas, die `fn` selbst wirft, kommen bei `wert()` bzw. `oderGratis()` wieder zum Vorschein." },
+            { art: "text", md: "Ananas, die `fn` selbst wirft, fliegen **nicht** schon bei `warte`, sondern erst bei `wert()` bzw. `oderGratis()` – `pünktlich()` kann also `ja` sein, obwohl in der Küche etwas schiefging. Ein `wennDa`-Rückruf läuft dann gar nicht." },
             { art: "text", md: "**Trinkgeld wirkt.** Zwei gleiche Bestellungen mit 100 ms Budget: Ohne Trinkgeld reichen 100 Schritte nicht für eine Schleife mit 200 Runden. Mit 990 € Trinkgeld wird das Budget verhundertfacht (`100 × (1 + 990/10) = 10 000` Schritte)." },
             {
               art: "code",
@@ -1039,7 +1048,7 @@
           art: "details",
           titel: "Rückrufe mit wennDa: wer zuerst klingelt",
           inhalt: [
-            { art: "text", md: "Wer nicht warten will, hinterlässt eine Nachricht an der Tür. Alle Lieferungen mit Rückruf, die bis zum Programmende **nicht** per `warte` abgeholt wurden, laufen **nach Programmende** – sortiert nach **Trinkgeld absteigend**, bei Gleichstand in **Bestellreihenfolge**. Ein Budget gibt es dort nicht mehr." },
+            { art: "text", md: "Wer nicht warten will, hinterlässt eine Nachricht an der Tür. Wird doch noch pünktlich gewartet, klingelt es direkt nach dem `warte`. Alle Lieferungen mit Rückruf, die bis zum Programmende **nicht** per `warte` abgeholt wurden, laufen **nach Programmende** – sortiert nach **Trinkgeld absteigend**, bei Gleichstand in **Bestellreihenfolge**. Ein Budget gibt es dort nicht mehr. Lieferungen ganz ohne `wennDa` und ohne `warte` werden nie gebacken." },
             {
               art: "code",
               ausfuehrbar: true,

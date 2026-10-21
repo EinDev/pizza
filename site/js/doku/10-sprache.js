@@ -54,7 +54,7 @@ speisekarte klasse Pizzeria {
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "Buonasera! Gäste am Tisch: 0" },
         { art: "details", titel: "Genauer: paket, import und die Startreihenfolge", inhalt: [
-          { art: "text", md: "- `paket` und `import` sind erlaubt, werden aber ignoriert – die Standardbibliothek ist immer da.\n- Gestartet wird die **erste Klasse** mit `tiefkühl leer hauptgang(Blech<margherita> args)`. `args` ist ein Blech mit Texten (hier leer)." },
+          { art: "text", md: "- `paket` und `import` sind erlaubt, werden aber ignoriert – die Standardbibliothek ist immer da.\n- Gestartet wird der `hauptgang` der **ersten Klasse**, die einen hat. `args` ist ein Blech mit Texten (hier leer).\n- Es zählt nur der Name: `hauptgang()` ohne Parameter geht auch, ebenso ohne `tiefkühl` (dann wird vorher ein Objekt der Klasse gebacken). Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert.\n- Hat keine Klasse einen `hauptgang`, darf es auch eine lose Funktion `hauptgang` sein." },
           { art: "text", md: "Snack-Modus und Hauptgang vertragen sich: Erst werden alle Klassen registriert (sie dürfen also auch *nach* ihrer Verwendung stehen), dann laufen die losen Anweisungen der Reihe nach, und **danach** wird `hauptgang` serviert." },
           { art: "code", code: code`
 Bote.sage(("1. Antipasto"));
@@ -117,7 +117,7 @@ Bote.sage(backzeit);
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "1000000\n7.5\n1min 30s" },
         { art: "details", titel: "Zahlen, Zeiten und Texte im Detail", inhalt: [
-          { art: "text", md: "- Zahlen: `42`, `7.50`, `1_000_000` (Unterstriche sind nur Deko)\n- Zeitdauern: Zahl **direkt** gefolgt von `ms`, `s`, `min`, `h` oder `d`, z. B. `90s`, `1.5s`\n- Texte stehen in `\"...\"`. Sonderzeichen: `\\n` (neue Zeile), `\\t` (Tab), `\\\"` (Anführungszeichen), `\\\\` (Backslash)\n- Namen dürfen Umlaute und `ß` enthalten: `größe`, `Käse`\n- Wahrheitswerte `ja` / `nein`, der leere Karton `karton`" },
+          { art: "text", md: "- Zahlen: `42`, `7.50`, `1_000_000` (Unterstriche sind nur Deko). Kein Exponent (`1e3`) und keine halben Zahlen wie `.5` oder `5.` – schreib `0.5` bzw. `5.0`.\n- Zeitdauern: Zahl **direkt** gefolgt von `ms`, `s`, `min`, `h` oder `d`, z. B. `90s`, `1.5s`\n- Texte stehen in `\"...\"` und passen in eine Zeile. Sonderzeichen: `\\n` (neue Zeile), `\\t` (Tab), `\\r` (Wagenrücklauf), `\\\"` und `\\'` (Anführungszeichen), `\\\\` (Backslash) – andere Kombinationen mit `\\` sind ein Syntaxfehler\n- Namen dürfen Umlaute und `ß` enthalten: `größe`, `Käse`\n- Wahrheitswerte `ja` / `nein`, der leere Karton `karton`" },
           { art: "code", code: code`
 margherita gruß = "Er sagte: \"Buon appetito!\"\nUnd ging.";
 Bote.sage(gruß);
@@ -211,7 +211,7 @@ Bote.sage(nichts);
           { art: "ausgabe", text: "{Margherita: 8, Diavolo: 9.5}\nkarton" }
         ] },
         { art: "details", titel: "Falscher Wert im Glas: TypAnanas", inhalt: [
-          { art: "text", md: "Typen werden geprüft, wenn du eine Variable anlegst, zuweist oder einer Methode etwas übergibst. Passt der Wert nicht, gibt es eine `TypAnanas`. `karton` passt in alle Typen außer `salami`, `funghi`, `margherita` und `diavolo`." },
+          { art: "text", md: "Typen werden geprüft, wenn du eine Variable anlegst, zuweist oder einer Methode etwas übergibst. Passt der Wert nicht, gibt es eine `TypAnanas`. `karton` passt in alle Typen außer `salami`, `funghi` und `diavolo` – ein `margherita` darf also leer sein (wichtig beim Lesen von Eingaben)." },
           { art: "code", code: code`
 probier {
     salami stücke = 3.5;
@@ -295,13 +295,14 @@ Bote.sage((hunger > 5 ? "satt" : "hungrig"));
         { art: "details", titel: "Alle Operatoren und ihre Reihenfolge", inhalt: [
           { art: "tabelle", kopf: ["Operator", "Bedeutung"], zeilen: [
             ["`+ - * /`", "rechnen; `/` teilt exakt (`7 / 2` ist `3.5`), durch `0` → `RechenAnanas`"],
-            ["`%`", "Rest beim Teilen (`7 % 2` ist `1`)"],
-            ["`== !=`", "gleich / ungleich – klappt auch für Texte, Dauern und Pizzen"],
-            ["`< <= > >=`", "kleiner / größer"],
+            ["`%`", "Rest beim Teilen (`7 % 2` ist `1`); Vorzeichen wie die linke Zahl (`-7 % 2` ist `-1`), `% 0` → `RechenAnanas`"],
+            ["`== !=`", "gleich / ungleich – nach Wert für Zahlen (`1 == 1.0`), Texte, Wahrheitswerte, Dauern, Beläge und Pizzen (gleiche Beläge in gleicher Reihenfolge); Bleche, Speisekarten und Objekte nur, wenn es **dasselbe** Ding ist"],
+            ["`< <= > >=`", "kleiner / größer – für Zahlen, Texte (alphabetisch), Dauern und Werte desselben `quattrostagioni` (nach Position); sonst `TypAnanas`"],
+            ["`+` mit Text", "klebt zusammen, sobald eine Seite ein Text ist – auch `((Tomate)) + \"!\"`"],
             ["`&& || !`", "und / oder / nicht"],
             ["`a ? b : c`", "wenn `a`, dann `b`, sonst `c`"]
           ] },
-          { art: "text", md: "Reihenfolge von schwach nach stark bindend: `?:` · `||` · `&&` · `== !=` · `< <= > >=` · `+ -` · `* / %` · `! -` (vorangestellt)." },
+          { art: "text", md: "Reihenfolge von schwach nach stark bindend: `?:` · `||` · `&&` · `== !=` · `< <= > >=` · `+ -` · `* / %` · `! -` (vorangestellt) · Methodenaufruf mit `.`. Deshalb ist `-2.5.runden()` dasselbe wie `-(2.5.runden())` – für Methoden auf negativen Zahlen Klammern setzen: `(-2.5).runden()`." },
           { art: "code", code: code`
 Bote.sage((7 % 2));
 salami hunger = 3;
@@ -312,7 +313,7 @@ Bote.sage((((Tomate, Käse)) == ((Tomate, Käse))));
           { art: "ausgabe", text: "1\nja\nja" }
         ] },
         { art: "details", titel: "Klammerpflicht und Fehler K0001", inhalt: [
-          { art: "text", md: "Runde Klammern sind in pizza Pflicht:\n\n- `falls`, `solange`, `für` und `wähle` brauchen `( )` um die Bedingung **und** `{ }` um den Block.\n- `serviere` (Rückgabe) braucht Klammern: `serviere (x);`. Nur in `leer`-Methoden darf ein nacktes `serviere;` stehen.\n\nWer `serviere x;` schreibt, bekommt **K0001** – Exit-Code 2, das Programm startet gar nicht erst:" },
+          { art: "text", md: "Runde Klammern sind in pizza Pflicht:\n\n- `falls`, `solange`, `für` und `wähle` brauchen `( )` um die Bedingung **und** `{ }` um den Block.\n- `serviere` (Rückgabe) braucht Klammern: `serviere (x);`. Ein nacktes `serviere;` (ohne Wert) beendet die Methode und liefert `karton` – gedacht für `leer`-Methoden.\n\nWer `serviere x;` schreibt, bekommt **K0001** – Exit-Code 2, das Programm startet gar nicht erst:" },
           { art: "code", code: code`
 klasse Kasse {
     tiefkühl salami summe(salami a, salami b) {
@@ -363,7 +364,7 @@ falls (grad > 485) {
           { art: "ausgabe", text: "Perfekt neapolitanisch." }
         ] },
         { art: "details", titel: "für-Schleifen, abbrechen & weiter", inhalt: [
-          { art: "text", md: "`für` gibt es in zwei Sorten:\n\n- **für jedes**: `für (salami i : [1 .. 10])` – geht ein Blech, die Zeichen eines Texts oder die Schlüssel einer Speisekarte durch. `[a .. b]` zählt von `a` bis einschließlich `b`.\n- **klassisch**: `für (start; bedingung; schritt)`.\n\n`abbrechen;` verlässt die Schleife, `weiter;` springt zur nächsten Runde." },
+          { art: "text", md: "`für` gibt es in zwei Sorten:\n\n- **für jedes**: `für (salami i : [1 .. 10])` – geht ein Blech, die Zeichen eines Texts oder die Schlüssel einer Speisekarte durch. `[a .. b]` zählt in Einerschritten von `a` bis einschließlich `b` – ist `a` größer als `b`, rückwärts: `[3 .. 1]` ist `[3, 2, 1]`.\n- **klassisch**: `für (start; bedingung; schritt)`.\n\n`abbrechen;` verlässt die Schleife, `weiter;` springt zur nächsten Runde." },
           { art: "code", code: code`
 für (salami i : [1 .. 10]) {
     falls (i % 2 == 0) { weiter; }
@@ -390,8 +391,22 @@ für (margherita zutat : lager) {
 `, ausfuehrbar: true, tier: 1 },
           { art: "ausgabe", text: "1\n3\n5\n7\nStück 1\nStück 2\nO-f-e-n-\nMehl: 25\nHefe: 2" }
         ] },
+        { art: "details", titel: "abbrechen & weiter nur in Schleifen (P0012)", inhalt: [
+          { art: "text", md: "`abbrechen` und `weiter` gehören in den Rumpf einer `solange`- oder `für`-Schleife. `abbrechen` darf außerdem in einem Arm einer `wähle`-**Anweisung** stehen – dort verlässt es nur das `wähle`. Überall sonst gibt es schon vor dem Start den PizzaFehler **P0012** (Exit-Code 2)." },
+          { art: "text", md: "Wichtig: Eine Methode, ein Konstruktor, ein Lambda, ein `ofen`-Block und ein Block-Arm eines `wähle`-**Ausdrucks** beginnen jeweils von vorn. Eine Schleife *drumherum* zählt dort nicht – ein `abbrechen` im Lambda kann die äußere Schleife nicht beenden. Im `wähle`-Ausdruck lieferst du den Wert stattdessen mit `serviere (x);`." },
+          { art: "code", code: code`
+klasse Kasse {
+    tiefkühl leer prüfe(salami betrag) {
+        falls (betrag < 0) {
+            abbrechen;   // keine Schleife weit und breit
+        }
+    }
+}
+`, ausfuehrbar: true, exitCode: 2, tier: 1 },
+          { art: "hinweis", ton: "warnung", md: "`PizzaFehler P0012: 'abbrechen' steht außerhalb einer Schleife.` – Richtig wäre hier `serviere;`, das beendet die Methode." }
+        ] },
         { art: "details", titel: "wähle: viele Fälle auf einmal", inhalt: [
-          { art: "text", md: "`wähle` vergleicht einen Wert mit mehreren Möglichkeiten. Nach `->` steht eine Anweisung oder ein Block. Mehrere Werte pro `fall` trennst du mit Komma, `standard` fängt den Rest. Anders als `switch` in Java fällt nichts durch – kein `break` nötig." },
+          { art: "text", md: "`wähle` vergleicht einen Wert mit mehreren Möglichkeiten. Nach `->` steht eine Anweisung oder ein Block. Mehrere Werte pro `fall` trennst du mit Komma, `standard` fängt den Rest. Anders als `switch` in Java fällt nichts durch – kein `break` nötig. `wähle` geht auch als **Ausdruck**, der einen Wert liefert: `margherita s = wähle (x) { fall 1 -> \"eins\"; standard -> \"?\"; };` – in Block-Armen mit `serviere (wert);`." },
           { art: "code", code: code`
 für (margherita bestellung : ["Marinara", "Funghi", "Hawaii?"]) {
     wähle (bestellung) {
@@ -429,7 +444,7 @@ Bote.sage((Küche.mitTrinkgeld(prozent: 25, preis: 8)));
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "8.8\n10" },
         { art: "details", titel: "So liest du eine Methode", inhalt: [
-          { art: "text", md: "`tiefkühl funghi mitTrinkgeld(funghi preis, salami prozent)`\n\n- `tiefkühl` – gehört zur Klasse selbst; Aufruf über den Klassennamen: `Küche.mitTrinkgeld(...)`\n- `funghi` – was zurückkommt (eine Kommazahl). `leer` heißt: es kommt nichts zurück.\n- `(funghi preis, salami prozent)` – die Parameter\n\n**Benannte Argumente** (`prozent: 25`) ordnen nach Parametername zu – die Reihenfolge ist dann egal. In einer `leer`-Methode beendet ein nacktes `serviere;` die Methode vorzeitig:" },
+          { art: "text", md: "`tiefkühl funghi mitTrinkgeld(funghi preis, salami prozent)`\n\n- `tiefkühl` – gehört zur Klasse selbst; Aufruf über den Klassennamen: `Küche.mitTrinkgeld(...)`\n- `funghi` – was zurückkommt (eine Kommazahl). `leer` heißt: es kommt nichts zurück.\n- `(funghi preis, salami prozent)` – die Parameter\n\n**Benannte Argumente** (`prozent: 25`) ordnen nach Parametername zu – die Reihenfolge ist dann egal.\n\nDer Rückgabetyp ist ein Versprechen an den Leser, keine Kontrolle: Ein nacktes `serviere;` beendet jede Methode und liefert `karton`; eine Methode, die ohne `serviere` endet, liefert ebenfalls `karton`. Typisch ist `serviere;` in einer `leer`-Methode, um vorzeitig aufzuhören:" },
           { art: "code", code: code`
 klasse Küche {
     tiefkühl leer ansage(margherita text) {
@@ -444,7 +459,7 @@ Küche.ansage("Ofen ist heiß!");
           { art: "ausgabe", text: "Achtung: Ofen ist heiß!" }
         ] },
         { art: "details", titel: "Lambdas: Mini-Methoden ohne Namen", inhalt: [
-          { art: "text", md: "Ein **Lambda** ist eine kleine Funktion zum Mitgeben: `x -> x * 10` heißt „nimm x, gib x mal 10 zurück“. Formen: `x -> ausdruck`, `(a, b) -> ausdruck` oder mit Block `x -> { serviere ((...)); }`. Lambdas merken sich Variablen aus ihrer Umgebung (Closures). `Klasse.methode` ohne `()` ist eine **Methodenreferenz** – die Methode selbst als Wert." },
+          { art: "text", md: "Ein **Lambda** ist eine kleine Funktion zum Mitgeben: `x -> x * 10` heißt „nimm x, gib x mal 10 zurück“. Formen: `x -> ausdruck`, `(a, b) -> ausdruck` oder mit Block `x -> { serviere ((...)); }`. Lambdas merken sich Variablen aus ihrer Umgebung (Closures). `Klasse.methode` ohne `()` ist eine **Methodenreferenz** – die Methode selbst als Wert. Funktionswerte rufst du mit `f(x)` auf oder ausdrücklich mit `f.rufe(x)`. Fehlende Argumente werden bei Lambdas zu `karton`, überzählige ignoriert." },
           { art: "code", code: code`
 klasse Küche {
     tiefkühl salami verdopple(salami x) {
@@ -599,7 +614,7 @@ Bote.sage((g.beschreibe()));
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "Teig, gebacken + Chili" },
         { art: "details", titel: "Konstruktoren, rohling und @PizzaÜberschreibt", inhalt: [
-          { art: "text", md: "- Im Konstruktor ruft `unten(args);` den Konstruktor der Eltern-Klasse auf. Fehlt er, wird der ohne Argumente aufgerufen (falls es ihn gibt).\n- `unten.methode()` ruft die Version der Eltern-Klasse.\n- Eine `rohling`-Klasse ist ungebackener Teig: Man kann von ihr erben, aber nicht mit `neu` eine machen. `rohling`-Methoden haben keinen Rumpf – die Kinder müssen sie liefern.\n- `@PizzaÜberschreibt` prüft, dass es die Methode oben wirklich gibt." },
+          { art: "text", md: "- Im Konstruktor ruft `unten(args);` den Konstruktor der Eltern-Klasse auf. Fehlt `unten(…)`, wird der Eltern-Konstruktor **ohne Argumente** aufgerufen. Braucht er Argumente, ist das eine `LaufzeitAnanas` („Konstruktor von 'Ofen' erwartet 1 Argument, bekam 0.“) – also `unten(…)` nicht vergessen. Hat die Kind-Klasse gar keinen eigenen Konstruktor, reicht sie ihre Argumente einfach nach oben durch.\n- `unten.methode()` ruft die Version der Eltern-Klasse.\n- Eine `rohling`-Klasse ist ungebackener Teig: Man kann von ihr erben, aber nicht mit `neu` eine machen. `rohling`-Methoden haben keinen Rumpf – die Kinder müssen sie liefern.\n- `@PizzaÜberschreibt` prüft, dass es die Methode oben wirklich gibt." },
           { art: "code", code: code`
 rohling klasse Ofen {
     familienrezept salami grad = 0;
@@ -984,8 +999,8 @@ Bote.sage(("Das hier wird nie serviert."));
           { art: "tabelle", kopf: ["Code", "Bedeutung"], zeilen: [
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
-            ["`2`", "PizzaFehler – Syntax, `K0001`, `B0012`, `R0001`, `Q0004`, `A0001`, `P0011` …"],
-            ["`3`", "Schrittlimit (`P0002`) – die Pizza ist noch im Ofen"],
+            ["`2`", "PizzaFehler – Syntax, `K0001`, `B0012`, `R0001`, `Q0004`, `A0001`, `P0011`, `P0012` …"],
+            ["`3`", "die Pizza ist noch im Ofen – Schrittlimit (`P0002`) oder 10-Sekunden-Zeitlimit im Playground (`P0003`)"],
             ["`39`", "Hawaii. Frag nicht."]
           ] },
           { art: "hinweis", ton: "warnung", md: "Im Beispiel oben erscheint in der Konsole: `Ungefangene Ananas – StreitAnanas: Wer hat das letzte Stück gegessen? (Zeile 2)`. Was vorher ausgegeben wurde, bleibt stehen." },
@@ -1018,9 +1033,20 @@ probier {
 }
 `, ausfuehrbar: true, exitCode: 39, tier: 1 },
         { art: "ausgabe", text: "Der Gast bestellt etwas Exotisches..." },
-        { art: "hinweis", ton: "warnung", md: "Was danach passiert, steht hier nicht. Manche Dinge muss man selbst erleben. Speichere vorher deine Arbeit (`Strg+S`)." },
+        { art: "hinweis", ton: "warnung", md: "Was danach passiert, steht hier nicht. Manche Dinge muss man selbst erleben. Keine Angst um deinen Code: Editor und Tabs bleiben, wie sie sind – nur das Programm ist vorbei." },
         { art: "details", titel: "Nur so viel …", inhalt: [
-          { art: "text", md: "- Schon wenn dein Quelltext so etwas *enthält*, meldet sich der Pizzaiolo vor dem Start mit **W0666** – er sagt nichts. Er schaut nur.\n- Exit-Code `39`. Kein `verbrannt` und kein `rand` hilft.\n- Danach bleibt die Küche erst mal kalt." }
+          { art: "text", md: "- Schon wenn dein Quelltext so etwas *enthält*, meldet sich der Pizzaiolo vor dem Start mit **W0666** – einmal. Er sagt nichts. Er schaut nur.\n- Das Programm endet sofort mit Exit-Code `39`. Kein `verbrannt` und kein `rand` hilft.\n- Im Playground erscheint die Nachricht des Pizzaiolo in der Konsole – dort, wo auch andere Fehler stehen. Im Terminal (Kommandozeile, heruntergeladenes Programm) landet sie auf der Fehlerausgabe (*stderr*)." }
+        ] },
+        { art: "details", titel: "Was genau löst es aus?", inhalt: [
+          { art: "tabelle", kopf: ["Code", "Folge"], zeilen: [
+            ["`Pizza p = ((Tomate, Ananas));` oder `p + Ananas`", "Exit-Code 39 – eine Pizza mit dieser Frucht ist entstanden"],
+            ["`hawaii x = 1;` – jede Zuweisung an eine `hawaii`-Variable, ein solches Feld oder einen solchen Parameter, **auch** `hawaii x = karton;`", "Exit-Code 39"],
+            ["`neu Hawaii(…)` – egal, ob es die Klasse gibt", "Exit-Code 39"],
+            ["`hawaii x;` (ohne Wert) oder `Blech<hawaii>`", "nur W0666 – noch ist nichts passiert"],
+            ["Den Belag allein anfassen: `Bote.sage((Ananas))`, `p.hat(Ananas)`, `p - Ananas`, `Ananas.preis()`", "nur W0666 – schauen ist erlaubt"],
+            ["`Ananas` als Exception-Familie (`verbrannt (Ananas a)`), Namen wie `Q.Ananas`", "nichts – das ist eine ganz normale Ananas"]
+          ] },
+          { art: "text", md: "Das gilt in jeder Phase des Programms – auch in Lieferungen und `wennDa`-Rückrufen nach Programmende." }
         ] }
       ]
     }

@@ -38,12 +38,166 @@
           titel: "Alle Methoden des Boten",
           inhalt: [
             tab([
-              ["`sage(x)`", "Gibt `x` als Text aus, danach kommt ein Zeilenumbruch.", "`Bote.sage((\"Ciao!\"));`"],
-              ["`fehler(x)`", "Wie `sage`, aber auf die Fehlerausgabe (in der Konsole rot). Der Exit-Code bleibt gleich.", "`Bote.fehler((\"Kein Basilikum mehr!\"));`"]
+              ["`sage(x)`", "Gibt `x` als Text aus, danach kommt ein Zeilenumbruch. `Bote.sage()` ohne Argument gibt eine leere Zeile aus.", "`Bote.sage((\"Ciao!\"));`"],
+              ["`schreibe(x)`", "Wie `sage`, aber **ohne** Zeilenumbruch – für Fragen an den Gast und Spielfelder.", "`Bote.schreibe((\"Tisch? \"));`"],
+              ["`fehler(x)`", "Wie `sage`, aber auf die Fehlerausgabe (in der Konsole rot). Der Exit-Code bleibt gleich.", "`Bote.fehler((\"Kein Basilikum mehr!\"));`"],
+              ["`leeren()`", "Wischt die Konsole sauber (im Terminal: Bildschirm löschen).", "`Bote.leeren();`"]
             ]),
-            { art: "hinweis", ton: "info", md: "Die doppelten Klammern in `Bote.sage((x));` haben keine Bedeutung – sie sind nur stilistisch erwünscht. Wie Pizza, Blech, Dauer & Co. als Text aussehen, steht im Kapitel *Ausdrücke*." }
+            { art: "text", md: "Mehrere Argumente werden mit Leerzeichen verbunden: `Bote.sage(\"Tisch\", 4)` gibt `Tisch 4` aus. Wie man den Gast etwas **fragt**, steht unter *Ein- und Ausgabe: Bestellannahme*." },
+            { art: "hinweis", ton: "info", md: "Die doppelten Klammern in `Bote.sage((x));` haben keine Bedeutung – sie sind nur stilistisch erwünscht." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wie Werte als Text aussehen",
+          inhalt: [
+            { art: "text", md: "So erscheinen Werte bei `Bote.sage`, bei `+` mit einem Text und bei `alsText()`:" },
+            {
+              art: "tabelle",
+              kopf: ["Wert", "Text"],
+              zeilen: [
+                ["Ganzzahl / Kommazahl", "wie gewohnt: `8`, `7.5`, `0.1`; sehr groß/klein mit Exponent: `1e+21`; dazu `NaN`, `Infinity`"],
+                ["`ja` / `nein`", "`ja` / `nein`"],
+                ["`karton`", "`karton`"],
+                ["Text", "roh, ohne Anführungszeichen"],
+                ["Blech", "`[1, 2, 3]` – Texte darin ohne Anführungszeichen"],
+                ["Speisekarte", "`{a: 1, b: 2}`"],
+                ["Pizza", "`((Tomate, Mozzarella))`, leer: `(())`"],
+                ["Belag", "sein Name, z. B. `Salami`"],
+                ["Dauer", "`1min 30s`, `90ms`, `2h`, `3d 4h`; größte Einheit zuerst, Nullteile fallen weg; `0ms`; negativ mit `-`"],
+                ["Objekt", "Ergebnis von `alsText()`, sonst `Klassenname@N` (N = laufende Nummer ab 1)"],
+                ["Ananas", "`Typ: Nachricht`"],
+                ["Funktion", "`<Funktion>`"]
+              ]
+            },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "klasse Gast { }",
+                "Bote.sage((neu Gast()));",
+                "Bote.sage((\"Blech: \" + [\"a\", \"b\"]));",
+                "Bote.sage((90s + 250ms));",
+                "Bote.sage((0.1 + 0.2));"
+              )
+            },
+            { art: "ausgabe", text: z("Gast@1", "Blech: [a, b]", "1min 30s 250ms", "0.30000000000000004") },
+            { art: "hinweis", ton: "pizza", md: "`0.30000000000000004` ist kein Rechenfehler von pizza, sondern ganz normales Kommazahl-Krümeln. Für Geld gibt es `euro()`." }
           ]
         }
+      ]
+    },
+    {
+      id: "std-eingabe",
+      gruppe: STD,
+      ordnung: 505,
+      titel: "Ein- und Ausgabe: Bestellannahme",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Mit der `Bestellannahme` fragt dein Programm den Gast etwas und wartet auf seine Antwort – eine Zeile pro Bestellung. Der `Bote` bringt Frage und Antwort an den Tisch. So entstehen interaktive Programme und Spiele." },
+        { art: "bild", src: "img/doku/re-bestellannahme.svg", alt: "Bestelltresen: Der Gast tippt 3 und Enter. Die Bestellannahme macht daraus einen Bon (lies oder liesZahl) und reicht ihn an dein Programm weiter. Auf dem Rückweg bringt der Bote mit schreibe die Frage und mit sage die Antwort. Geht der Gast (Strg+D), kommt ein leerer Karton an.", unterschrift: "Der Gast tippt, die Bestellannahme reicht eine Zeile weiter, der Bote antwortet. Ist der Gast weg, kommt `karton`." },
+        {
+          art: "code",
+          ausfuehrbar: true,
+          tier: 1,
+          eingabe: ["Luigi", "3"],
+          code: z(
+            "margherita name = Bestellannahme.frage(\"Wie heißt du? \");",
+            "falls (name == karton) {",
+            "    Bote.sage((\"Schade – der Gast ist schon weg.\"));",
+            "} sonst {",
+            "    funghi stücke = Bestellannahme.frageZahl(\"Wie viele Stücke? \", 1);",
+            "    Bote.sage((\"Ciao \" + name + \", \" + stücke + \" Stück kommen!\"));",
+            "}"
+          )
+        },
+        { art: "ausgabe", text: "Wie heißt du? Wie viele Stücke? Ciao Luigi, 3 Stück kommen!" },
+        { art: "text", md: "Hier hat der Gast `Luigi` und `3` getippt. Das Programm wiederholt die Eingaben nicht – in der Konsole siehst du sie trotzdem, weil die Konsole mitschreibt. Im Playground erscheint unter der Konsole ein Eingabefeld, sobald das Programm fragt." },
+        {
+          art: "details",
+          titel: "Alle Methoden der Bestellannahme",
+          inhalt: [
+            tab([
+              ["`lies()`", "Nächste Zeile als Text, genau so, wie getippt (nichts wird abgeschnitten). Ist der Gast weg: `karton`.", "`margherita z = Bestellannahme.lies();`"],
+              ["`frage(text)`", "Schreibt `text` (ohne Zeilenumbruch) und liest dann eine Zeile – wie `Bote.schreibe(text)` + `lies()`.", "`Bestellannahme.frage(\"Name? \")`"],
+              ["`liesZahl()` / `liesZahl(ersatz)`", "Nächste Zeile als Zahl. Keine Zahl → `TypAnanas` (die Zeile ist dann verbraucht). Gast weg → `karton` bzw. `ersatz`.", "`Bestellannahme.liesZahl(0)`"],
+              ["`frageZahl(text)` / `frageZahl(text, ersatz)`", "Wie `frage`, aber als Zahl – mit denselben Regeln wie `liesZahl`.", "`Bestellannahme.frageZahl(\"Tisch? \", ersatz: 1)`"],
+              ["`hatMehr()`", "Kommt noch eine Zeile? Bei vorgegebener Eingabe `nein`, sobald alles gelesen ist. Im Playground, wo der Gast live tippt, immer `ja` – bis er die Eingabe beendet.", "`solange (Bestellannahme.hatMehr()) { … }`"]
+            ]),
+            { art: "text", md: "Zur Ausgabe gehören `Bote.schreibe(x)` (ohne Zeilenumbruch), `Bote.sage(x)` (mit Zeilenumbruch) und `Bote.leeren()` (Konsole wischen):" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Bote.schreibe((\"Ofen heizt\"));",
+                "für (salami i : [1 .. 3]) { Bote.schreibe((\".\")); }",
+                "Bote.sage((\" fertig!\"));"
+              )
+            },
+            { art: "ausgabe", text: "Ofen heizt... fertig!" }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wenn der Gast geht: karton und der Ersatzwert",
+          inhalt: [
+            { art: "text", md: "Das Ende der Eingabe heißt **EOF** (*end of file*). Im Playground beendest du die Eingabe mit **Strg+D** oder dem Knopf **Ende** neben dem Eingabefeld, im Terminal mit Strg+D (Windows: Strg+Z, dann Enter). Ab dann liefert jeder Leseversuch `karton`, und `hatMehr()` sagt `nein` – für immer, auch beim nächsten Aufruf." },
+            { art: "hinweis", ton: "warnung", md: "`karton` passt nicht in `salami` oder `funghi`. `salami n = Bestellannahme.liesZahl();` endet am Eingabeende also mit einer `TypAnanas`. Prüfe vorher auf `karton` – oder gib einen **Ersatzwert** mit." },
+            { art: "text", md: "Der Ersatzwert (`liesZahl(ersatz)`, `frageZahl(text, ersatz)`, auch benannt `ersatz: …`) wird **nur** am Eingabeende zurückgegeben. Tippt der Gast Unsinn, gibt es trotzdem eine `TypAnanas`. Hier ist die Eingabe schon zu Ende:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "salami tisch = Bestellannahme.frageZahl(\"Tisch? \", ersatz: 1);",
+                "Bote.sage((\"→ Tisch \" + tisch));"
+              )
+            },
+            { art: "ausgabe", text: "Tisch? → Tisch 1" },
+            { art: "text", md: "Eine Rechnung, die Zahlen liest, bis nichts mehr kommt:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              eingabe: ["8", "9,5", "1.5"],
+              code: z(
+                "funghi summe = 0;",
+                "solange (Bestellannahme.hatMehr()) {",
+                "    summe += Bestellannahme.liesZahl(ersatz: 0);",
+                "}",
+                "Bote.sage((\"Rechnung: \" + summe.euro()));"
+              )
+            },
+            { art: "ausgabe", text: "Rechnung: 19,00 €" },
+            { art: "hinweis", ton: "pizza", md: "Spiele **müssen** `karton` als „Der Gast ist gegangen“ behandeln und sauber enden. Wer einfach weiterfragt, redet mit einem leeren Tisch." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Welche Texte sind Zahlen?",
+          inhalt: [
+            { art: "text", md: "`liesZahl`, `frageZahl` und `Text.alsZahl()` verstehen dieselben Zahlen. Leerraum am Anfang und Ende wird ignoriert, dann gilt:\n\n- optional `+` oder `-` vorne,\n- Ziffern, gern mit `_` gruppiert (`1_000`),\n- optional Nachkommastellen mit **Punkt oder Komma**: `2.5` und `2,5` sind gleich.\n\nNicht erlaubt: Hex (`0x1A`), Exponent (`1e3`), `.5` oder `5.` ohne Ziffer auf beiden Seiten, `Infinity`, `NaN`. Das gibt eine `TypAnanas` mit der Meldung `'<eingabe>' ist keine Zahl.`" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              eingabe: [" 1_000 ", "2,5", "1e3"],
+              code: z(
+                "für (salami runde : [1 .. 3]) {",
+                "    probier {",
+                "        Bote.sage((Bestellannahme.liesZahl()));",
+                "    } verbrannt (TypAnanas a) {",
+                "        Bote.sage((a.nachricht()));",
+                "    }",
+                "}"
+              )
+            },
+            { art: "ausgabe", text: z("1000", "2.5", "'1e3' ist keine Zahl.") }
+          ]
+        },
+        { art: "hinweis", ton: "info", md: "Fertige interaktive Spiele findest du unter **Beispiele → Spiele**: Zahlenraten, Tic-Tac-Toe gegen Diavolo, Siebzehn und Pizza, Pizzen versenken, Vier Oliven, Snake und die Türme von Hanoi. Öffnen, backen, mitspielen." }
       ]
     },
     {
@@ -73,8 +227,9 @@
           inhalt: [
             tab([
               ["`jetzt()`", "Dauer seit Programmstart.", "`Dauer t = Uhr.jetzt();`"],
-              ["`vorspulen(d)`", "Die Uhr springt um die Dauer `d` vor – praktisch, um Haltbarkeiten (`@Kühlschrank`) zu testen.", "`Uhr.vorspulen((3d));`"]
+              ["`vorspulen(d)`", "Die Uhr springt um die Dauer `d` vor (eine Zahl gilt als Millisekunden) – praktisch, um Haltbarkeiten (`@Kühlschrank`) zu testen. Rückwärts geht nicht: `RechenAnanas`.", "`Uhr.vorspulen((3d));`"]
             ]),
+            { art: "text", md: "Die Uhr zählt **ganze Millisekunden**: `Uhr.vorspulen(0.5ms)` wird kaufmännisch auf 1 ms gerundet, `0.4ms` auf 0 ms. Dauer-Werte selbst dürfen Kommazahlen sein (`10s / 3`)." },
             { art: "hinweis", ton: "pizza", md: "Der genaue Wert von `Uhr.jetzt()` hängt von der Schrittzahl ab. Vergleiche lieber mit `<` oder `>=` statt mit `==` – auch ein Pizzaiolo misst die Backzeit nicht auf die Millisekunde." }
           ]
         }
@@ -109,10 +264,12 @@
           inhalt: [
             tab([
               ["`wurzel(x)`", "Quadratwurzel", "`Mathe.wurzel(16)` → `4`"],
-              ["`max(a, b)`", "Größerer Wert", "`Mathe.max(3, 7)` → `7`"],
-              ["`min(a, b)`", "Kleinerer Wert", "`Mathe.min(3, 7)` → `3`"],
+              ["`potenz(a, b)`", "`a` hoch `b`", "`Mathe.potenz(2, 10)` → `1024`"],
+              ["`max(a, b, …)`", "Größter Wert – beliebig viele Zahlen; ganz ohne Zahl → `RechenAnanas`", "`Mathe.max(3, 9, 7)` → `9`"],
+              ["`min(a, b, …)`", "Kleinster Wert – beliebig viele Zahlen", "`Mathe.min(4, 2, 8)` → `2`"],
               ["`abs(x)`", "Betrag (ohne Minus)", "`Mathe.abs(-12)` → `12`"],
-              ["`runden(x)`", "Auf Ganzzahl runden", "`Mathe.runden(7.4)` → `7`"],
+              ["`runden(x)`", "Kaufmännisch auf Ganzzahl runden (.5 geht von der Null weg)", "`Mathe.runden(2.5)` → `3`, `Mathe.runden(-2.5)` → `-3`"],
+              ["`runden(x, n)`", "Kaufmännisch auf `n` Nachkommastellen", "`Mathe.runden(2.675, 2)` → `2.68`"],
               ["`boden(x)`", "Abrunden", "`Mathe.boden(7.9)` → `7`"],
               ["`decke(x)`", "Aufrunden", "`Mathe.decke(7.1)` → `8`"],
               ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"]
@@ -123,10 +280,15 @@
               tier: 1,
               code: z(
                 "Bote.sage((Mathe.boden(7.9) + \" / \" + Mathe.decke(7.1)));",
-                "Bote.sage((Mathe.abs(-12)));"
+                "Bote.sage((Mathe.abs(-12)));",
+                "Bote.sage((Mathe.potenz(2, 10)));",
+                "Bote.sage((Mathe.max(3, 9, 7)));",
+                "Bote.sage((Mathe.runden(2.675, 2)));"
               )
             },
-            { art: "ausgabe", text: z("7 / 8", "12") }
+            { art: "ausgabe", text: z("7 / 8", "12", "1024", "9", "2.68") },
+            { art: "text", md: "**Kaufmännisch runden** heißt: Bei genau .5 geht es von der Null weg (`2.5` → `3`, `-0.5` → `-1`). Bei Nachkommastellen gleicht pizza das Kommazahl-Krümeln aus, deshalb wird `1.005` auf zwei Stellen zu `1.01` und `0.125` zu `0.13` – so wie man es auf dem Kassenbon erwartet." },
+            { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." }
           ]
         },
         {
@@ -135,7 +297,7 @@
           inhalt: [
             { art: "text", md: "`Zufall` rechnet mit einem festen Startwert (Seed 42). Deshalb ist die „zufällige“ Folge bei jedem Lauf dieselbe – jedes Rezept bleibt nachkochbar." },
             tab([
-              ["`zahl(a, b)`", "Ganzzahl zwischen `a` und `b`, beide Grenzen **inklusive**.", "`salami w = Zufall.zahl(1, 6);`"]
+              ["`zahl(a, b)`", "Ganzzahl zwischen `a` und `b`, beide Grenzen **inklusive** (ist `a > b`, werden sie getauscht). Nur Ganzzahlen als Grenzen, sonst `TypAnanas`.", "`salami w = Zufall.zahl(1, 6);`"]
             ]),
             {
               art: "code",
@@ -235,11 +397,10 @@
           art: "details",
           titel: "Zahl-Methoden (salami, funghi)",
           inhalt: [
-            { art: "text", md: "Tipp: Methoden lieber auf Variablen oder geklammerten Ausdrücken aufrufen, z. B. `preis.euro()` oder `((2.5)).euro()`." },
             tab([
-              ["`euro()`", "Als Eurobetrag mit Komma und zwei Nachkommastellen", "`8` → `\"8,00 €\"`"],
-              ["`runden()`", "Auf Ganzzahl runden", "`3.6` → `4`"],
-              ["`runden(n)`", "Auf `n` Nachkommastellen runden", "`3.14159.runden(2)` → `3.14`"],
+              ["`euro()`", "Als Eurobetrag: kaufmännisch auf zwei Stellen gerundet, Komma, ohne Tausenderpunkte; nie `-0,00 €`", "`8` → `\"8,00 €\"`, `0.015` → `\"0,02 €\"`"],
+              ["`runden()`", "Kaufmännisch auf Ganzzahl runden (.5 von der Null weg)", "`3.5` → `4`, `-2.5` → `-3`"],
+              ["`runden(n)`", "Kaufmännisch auf `n` Nachkommastellen (auch benannt: `runden(stellen: 2)`)", "`3.14159.runden(2)` → `3.14`"],
               ["`abs()`", "Betrag (ohne Minus)", "`-7.9` → `7.9`"],
               ["`ganz()`", "Nachkommastellen abschneiden (nicht runden!)", "`-7.9` → `-7`"],
               ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"]
@@ -257,7 +418,20 @@
                 "Bote.sage((pi.alsText() + \"!\"));"
               )
             },
-            { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") }
+            { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") },
+            { art: "text", md: "**Vorsicht mit dem Minus:** `-` bindet schwächer als der Methodenpunkt. `-2.5.abs()` heißt also `-(2.5.abs())` und ergibt `-2.5`. Für Methoden auf negativen Zahlen Klammern setzen:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Bote.sage((-2.5.abs()));",
+                "Bote.sage(((-2.5).abs()));",
+                "Bote.sage(((-0.5).runden()));"
+              )
+            },
+            { art: "ausgabe", text: z("-2.5", "2.5", "-1") },
+            { art: "hinweis", ton: "info", md: "Ganzzahlen (`salami`) sind exakt bis etwa 9 Billiarden (2^53) und laufen nicht über: `2147483647 + 1` ist `2147483648`. Der Rest `%` hat das Vorzeichen der linken Zahl: `-7.5 % 2` ist `-1.5`." }
           ]
         },
         {
@@ -275,8 +449,12 @@
               ["`zeichen(i)`", "Zeichen an Position `i` (ab 1)", "`\"Pizza\".zeichen(1)` → `\"P\"`"],
               ["`wiederhole(n)`", "Text `n`-mal hintereinander", "`\"na\".wiederhole(3)` → `\"nanana\"`"],
               ["`beginntMit(s)`", "Beginnt der Text mit `s`?", "`\"Pizzeria\".beginntMit(\"Pizza\")` → `nein`"],
-              ["`alsZahl()`", "Text als Zahl", "`\"42\".alsZahl()` → `42`"]
+              ["`endetMit(s)`", "Endet der Text mit `s`?", "`\"Pizza\".endetMit(\"za\")` → `ja`"],
+              ["`istLeer()`", "Ist der Text `\"\"`?", "`\"\".istLeer()` → `ja`"],
+              ["`alsText()`", "Der Text selbst", "`\"Teig\".alsText()` → `\"Teig\"`"],
+              ["`alsZahl()`", "Text als Zahl: Punkt **oder** Komma, `_` erlaubt, Leerraum außen egal; sonst `TypAnanas` (siehe *Ein- und Ausgabe*)", "`\"2,5\".alsZahl()` → `2.5`"]
             ]),
+            { art: "text", md: "`länge()` und `zeichen(i)` zählen echte Zeichen, auch Emoji: `\"🍕\".länge()` ist `1`. `groß()` macht aus `ß` ein `SS`." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -292,10 +470,12 @@
                 "Bote.sage((na.wiederhole(3)));",
                 "Bote.sage((t.beginntMit(\"Pizza\")));",
                 "margherita zahl = \"42\";",
-                "Bote.sage((zahl.alsZahl() + 8));"
+                "Bote.sage((zahl.alsZahl() + 8));",
+                "Bote.sage((\" 1_000,5 \".alsZahl()));",
+                "Bote.sage((t.endetMit(\"rita\")));"
               )
             },
-            { art: "ausgabe", text: z("Pizza Margherita (16 Zeichen)", "ja", "Pizza Funghi", "[Tomate, Mozzarella, Basilikum]", "nanana", "ja", "50") },
+            { art: "ausgabe", text: z("Pizza Margherita (16 Zeichen)", "ja", "Pizza Funghi", "[Tomate, Mozzarella, Basilikum]", "nanana", "ja", "50", "1000.5", "ja") },
             { art: "hinweis", ton: "info", md: "`für (margherita c : text) { … }` läuft über die einzelnen Zeichen eines Textes." }
           ]
         },
@@ -303,13 +483,15 @@
           art: "details",
           titel: "Dauer: Literale, Rechnen, Methoden",
           inhalt: [
-            { art: "text", md: "Eine Dauer schreibst du als Zahl **direkt** gefolgt von der Einheit: `500ms`, `90s`, `30min`, `1h`, `3d`, auch `1.5s`. Intern zählt pizza in Millisekunden. Als Text erscheinen die größten Einheiten zuerst, Nullteile fallen weg (`1min 30s`)." },
+            { art: "text", md: "Eine Dauer schreibst du als Zahl **direkt** gefolgt von der Einheit: `500ms`, `90s`, `30min`, `1h`, `3d`, auch `1.5s`. Intern zählt pizza in Millisekunden. Als Text erscheinen die größten Einheiten zuerst, Nullteile fallen weg (`1min 30s`), negative Dauern mit `-` (`-1min 30s`)." },
             tab([
               ["`+` / `-`", "Mit anderer Dauer", "`1min + 30s` → `1min 30s`"],
-              ["`*` / `/`", "Mit einer Zahl", "`2h / 4` → `30min`"],
+              ["`*` / `/`", "Mit einer Zahl (auch `2 * 30s`); durch 0 → `RechenAnanas`", "`2h / 4` → `30min`"],
+              ["Dauer `/` Dauer", "Wie oft passt die eine in die andere? Ergibt eine Zahl.", "`90s / 30s` → `3`"],
               ["`== != < <= > >=`", "Vergleiche", "`90s == 1min + 30s` → `ja`"],
               ["`inMs()`", "Als Millisekunden", "`(90s).inMs()` → `90000`"],
-              ["`inSekunden()`", "Als Sekunden", "`(90s).inSekunden()` → `90`"]
+              ["`inSekunden()`", "Als Sekunden", "`(90s).inSekunden()` → `90`"],
+              ["`inMinuten()`", "Als Minuten", "`(90s).inMinuten()` → `1.5`"]
             ], ["Operation / Methode", "Was sie tut", "Beispiel"]),
             {
               art: "code",
@@ -321,10 +503,12 @@
                 "Bote.sage((2h / 4));",
                 "Bote.sage((backzeit.inMs()));",
                 "Bote.sage((90s == backzeit));",
-                "Bote.sage((3d + 4h));"
+                "Bote.sage((3d + 4h));",
+                "Bote.sage((backzeit / 30s));",
+                "Bote.sage((backzeit.inMinuten()));"
               )
             },
-            { art: "ausgabe", text: z("3min", "30min", "90000", "ja", "3d 4h") }
+            { art: "ausgabe", text: z("3min", "30min", "90000", "ja", "3d 4h", "3", "1.5") }
           ]
         }
       ]
@@ -356,25 +540,43 @@
           art: "details",
           titel: "Alle Methoden des Blechs",
           inhalt: [
-            { art: "text", md: "Schreibweisen: `[a, b, c]`, Bereiche `[1 .. 8]` (inklusive), leeres Blech: `neu Blech<salami>()`. Wer `stück(0)` verlangt, bekommt eine `KeinStückAnanas`." },
+            { art: "text", md: "Schreibweisen: `[a, b, c]` (ein Komma am Ende ist erlaubt), Bereiche `[1 .. 8]` (inklusive, rückwärts mit `[5 .. 1]`), leeres Blech: `neu Blech<salami>()`. Wer `stück(0)` verlangt, bekommt eine `KeinStückAnanas`." },
+            { art: "text", md: "**Ändern oder neu?** Die Spalte *Blech* sagt, ob eine Methode **dein Blech verändert** oder ein **neues** liefert und deins in Ruhe lässt. Wer eine unabhängige Kopie braucht, nimmt `kopie()`." },
             tab([
-              ["`länge()`", "Anzahl Elemente", "`[3, 1, 4].länge()` → `3`"],
-              ["`stück(i)`", "Element an Position `i` (**ab 1**); außerhalb → `KeinStückAnanas`", "`b.stück(1)`"],
-              ["`hinzu(x)`", "Hängt `x` an, gibt das Blech zurück (verkettbar)", "`b.hinzu(9).hinzu(2)`"],
-              ["`entferne(i)`", "Entfernt das Element an Position `i`", "`b.entferne(1)`"],
-              ["`setze(i, x)`", "Ersetzt das Element an Position `i`", "`b.setze(2, 7)`"],
-              ["`enthält(x)`", "Ist `x` drauf?", "`b.enthält(4)` → `ja`"],
-              ["`belege(fn)`", "map: wendet `fn` auf jedes Element an", "`b.belege(x -> x * 2)`"],
-              ["`filtere(fn)`", "Behält nur Elemente, für die `fn` `ja` liefert", "`b.filtere(x -> x > 2)`"],
-              ["`zusammenklappen(fn)` / `(fn, start)`", "reduce: fasst alles zu einem Wert zusammen", "`b.zusammenklappen((a, c) -> a + c, 0)`"],
-              ["`summe()`", "Summe aller Zahlen", "`[1, 2, 3].summe()` → `6`"],
-              ["`erstes()` / `letztes()`", "Erstes bzw. letztes Element", "`b.letztes()`"],
-              ["`umdrehen()`", "Reihenfolge umkehren", "`b.umdrehen()`"],
-              ["`sortiere()` / `sortiere((a, b) -> …)`", "Sortieren, optional mit Vergleichsfunktion", "`b.sortiere()`"],
-              ["`verbinde(trenner)`", "Elemente zu einem Text verbinden", "`b.verbinde(\", \")`"],
-              ["`istLeer()`", "Ist das Blech leer?", "`neu Blech<salami>().istLeer()` → `ja`"],
-              ["`schneide(n)`", "In `n` Teil-Bleche schneiden (siehe *Schneiden*), `schneide(auto)` = 8", "`[1 .. 8].schneide(4)`"]
-            ]),
+              ["`länge()`", "–", "Anzahl Elemente", "`[3, 1, 4].länge()` → `3`"],
+              ["`stück(i)`", "–", "Element an Position `i` (**ab 1**); außerhalb → `KeinStückAnanas`", "`b.stück(1)`"],
+              ["`hinzu(x)`", "**ändert**", "Hängt `x` an, gibt **dasselbe** Blech zurück (verkettbar); `hinzu()` ohne Argument hängt `karton` an", "`b.hinzu(9).hinzu(2)`"],
+              ["`entferne(i)`", "**ändert**", "Entfernt das Element an Position `i` und gibt **das Element** zurück", "`b.entferne(1)` → `3`"],
+              ["`setze(i, x)`", "**ändert**", "Ersetzt das Element an Position `i`, gibt das Blech zurück", "`b.setze(2, 7)`"],
+              ["`kopie()`", "neu", "Unabhängige Kopie", "`Blech<salami> k = b.kopie();`"],
+              ["`enthält(x)`", "–", "Ist `x` drauf? (Pizzen werden nach Belägen verglichen)", "`b.enthält(4)` → `ja`"],
+              ["`belege(fn)`", "neu", "map: wendet `fn` auf jedes Element an", "`b.belege(x -> x * 2)`"],
+              ["`filtere(fn)`", "neu", "Behält nur Elemente, für die `fn` `ja` liefert", "`b.filtere(x -> x > 2)`"],
+              ["`zusammenklappen(fn)` / `(fn, start)`", "–", "reduce: fasst alles zu einem Wert zusammen; `start` geht auch benannt (`start: 0`); leeres Blech ohne Start → `karton`", "`b.zusammenklappen((a, c) -> a + c, 0)`"],
+              ["`summe()`", "–", "Summe aller Zahlen (bei Dauern eine Dauer); leer → `0`", "`[1, 2, 3].summe()` → `6`"],
+              ["`erstes()` / `letztes()`", "–", "Erstes bzw. letztes Element; leeres Blech → `KeinStückAnanas`", "`b.letztes()`"],
+              ["`umdrehen()`", "neu", "Reihenfolge umkehren", "`b.umdrehen()`"],
+              ["`sortiere()` / `sortiere((a, b) -> …)`", "neu", "Sortieren (stabil). Ohne Funktion nur Zahlen, Texte, Dauern oder Werte eines `quattrostagioni`. Die Funktion liefert eine Zahl: negativ = `a` zuerst.", "`b.sortiere((a, c) -> c - a)`"],
+              ["`verbinde(trenner)`", "–", "Elemente zu einem Text verbinden; ohne Trenner direkt aneinander", "`b.verbinde(\", \")`"],
+              ["`istLeer()`", "–", "Ist das Blech leer?", "`neu Blech<salami>().istLeer()` → `ja`"],
+              ["`schneide(n)`", "neu", "In `n` Teil-Bleche schneiden (siehe *Schneiden*), `schneide(auto)` = 8; mehr Stücke als Elemente → leere Teil-Bleche", "`[1 .. 8].schneide(4)`"]
+            ], ["Methode", "Blech", "Was sie tut", "Beispiel"]),
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Blech<salami> b = [3, 1, 2];",
+                "Blech<salami> sortiert = b.sortiere();   // neu – b bleibt",
+                "Bote.sage((b + \" / \" + sortiert));",
+                "Blech<salami> k = b.kopie();",
+                "b.hinzu(9);                              // ändert b",
+                "Bote.sage((b + \" / Kopie: \" + k));",
+                "Bote.sage((\"entfernt: \" + b.entferne(1) + \", übrig: \" + b));"
+              )
+            },
+            { art: "ausgabe", text: z("[3, 1, 2] / [1, 2, 3]", "[3, 1, 2, 9] / Kopie: [3, 1, 2]", "entfernt: 3, übrig: [1, 2, 9]") },
+            { art: "hinweis", ton: "info", md: "`==` vergleicht Bleche (und Speisekarten) nach **Identität**: `[1, 2] == [1, 2]` ist `nein`, denn es sind zwei verschiedene Bleche. Nur dasselbe Blech ist gleich." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -428,16 +630,18 @@
           art: "details",
           titel: "Alle Methoden der Speisekarte",
           inhalt: [
-            { art: "text", md: "Großgeschrieben (`Speisekarte<K, V>`) ist es der Typ. Kleingeschrieben (`speisekarte`) ist es der Modifikator für *public*. `für (K k : karte)` läuft über die **Schlüssel**." },
+            { art: "text", md: "Großgeschrieben (`Speisekarte<K, V>`) ist es der Typ. Kleingeschrieben (`speisekarte`) ist es der Modifikator für *public*. `für (K k : karte)` läuft über die **Schlüssel** – in der Reihenfolge, in der sie zuerst hineingelegt wurden." },
             tab([
-              ["`lege(k, v)`", "Legt `v` unter Schlüssel `k` ab (überschreibt)", "`karte.lege(\"Salami\", 9.5)`"],
+              ["`lege(k, v)`", "Legt `v` unter Schlüssel `k` ab (überschreibt), gibt die Speisekarte zurück", "`karte.lege(\"Salami\", 9.5)`"],
               ["`hole(k)`", "Wert zu `k`; fehlt er → `karton`", "`karte.hole(\"Salami\")`"],
               ["`hat(k)`", "Gibt es den Schlüssel?", "`karte.hat(\"Tonno\")` → `nein`"],
-              ["`entferne(k)`", "Entfernt den Eintrag", "`karte.entferne(\"Salami\")`"],
+              ["`entferne(k)`", "Entfernt den Eintrag und gibt den alten Wert zurück (fehlte er: `karton`)", "`karte.entferne(\"Salami\")` → `9.5`"],
               ["`schlüssel()`", "`Blech` aller Schlüssel", "`karte.schlüssel()`"],
               ["`werte()`", "`Blech` aller Werte", "`karte.werte()`"],
-              ["`länge()`", "Anzahl Einträge", "`karte.länge()`"]
+              ["`länge()`", "Anzahl Einträge", "`karte.länge()`"],
+              ["`istLeer()`", "Gibt es gar keinen Eintrag?", "`karte.istLeer()`"]
             ]),
+            { art: "text", md: "**Was taugt als Schlüssel?** Zahlen, Texte, `ja`/`nein` und `karton` zählen nach ihrem **Wert** (`1` und `1.0` sind derselbe Schlüssel, `\"1\"` ein anderer). Beläge zählen nach ihrem Namen (`hole(Salami)` = `hole(\"Salami\")`), `quattrostagioni`-Werte als solche. Alles andere – Pizzen, Dauern, Bleche, Objekte – zählt nach **Identität**: nur genau dasselbe Ding findet den Eintrag wieder." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -531,7 +735,8 @@
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote`, `Uhr`, `Mathe`, `Zufall`, `Spiegel`." }
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall`, `Spiegel`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
     {
@@ -549,7 +754,10 @@
           zeilen: [
             ["`P0001`", "Syntaxfehler – der Parser erkennt im Rezept kein Rezept.", "2"],
             ["`P0002`", "„Die Pizza ist noch im Ofen.“ – Schrittlimit (Standard 5 000 000) erreicht, vermutlich eine Endlosschleife.", "3"],
+            ["`P0003`", "„Die Pizza ist noch im Ofen (Zeitlimit).“ – der Lauf hat im Playground länger als 10 Sekunden echte Zeit gebraucht.", "3"],
+            ["`P0010`", "Eine Klasse `erbt`/`erfüllt` etwas, das es nicht gibt, oder erbt im Kreis („ein Teigknoten“).", "2"],
             ["`P0011`", "Eine `gebacken`e (finale) Klasse soll mit `erbt` erweitert werden.", "2"],
+            ["`P0012`", "`abbrechen` oder `weiter` steht außerhalb einer Schleife – zum Beispiel direkt in einer Methode.", "2"],
             ["`K0001`", "„Klammerpflicht!“ – `serviere x;` statt `serviere (x);`.", "2"],
             ["`B0012`", "`@Nach`-Verstoß: ein Belag liegt unter dem, auf den er gehört. „Das ist keine Pizza, das ist ein Auflauf.“", "2"],
             ["`R0001`", "Eine Klasse `erfüllt` eine Rezeptur, aber eine Methode fehlt.", "2"],
@@ -562,10 +770,10 @@
           art: "tabelle",
           kopf: ["Code", "Auslöser", "Meldung (gekürzt)"],
           zeilen: [
-            ["`W0003`", "Erster Aufruf einer `@PizzaVeraltet`-Methode", "Grund aus der Annotation"],
+            ["`W0003`", "Erster Aufruf einer `@PizzaVeraltet`-Methode (einmal pro Methode)", "Grund aus der Annotation"],
             ["`W0013`", "`aufklappen()` auf einer Calzone", "„Garantie erloschen. Das ist jetzt eine ganz normale Pizza.“"],
             ["`W0032`", "Zwei Namen im selben Scope unterscheiden sich nur in Groß-/Kleinschreibung", "„Selbst der Pizzaiolo verwechselt die beiden.“"],
-            ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
+            ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"]
           ]
@@ -630,8 +838,8 @@
           zeilen: [
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
-            ["`2`", "PizzaFehler (Syntax, `B0012`, `R0001`, `Q0004`, `A0001`, `P0011`, `K0001` …)"],
-            ["`3`", "Schrittlimit (`P0002`) – die Pizza ist noch im Ofen"],
+            ["`2`", "PizzaFehler (Syntax, `B0012`, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
+            ["`3`", "die Pizza ist noch im Ofen: Schrittlimit (`P0002`) oder 10-Sekunden-Zeitlimit im Playground (`P0003`)"],
             ["`39`", "Hawaii. Der Pizzaiolo hat den Raum verlassen."]
           ]
         },
@@ -647,7 +855,7 @@
           )
         },
         { art: "ausgabe", text: "Wer hat das letzte Stück gegessen?" },
-        { art: "hinweis", ton: "pizza", md: "Warum ausgerechnet 39? Weil es keine gute Antwort auf Ananas gibt. Warnungen verändern den Exit-Code übrigens nie." }
+        { art: "hinweis", ton: "pizza", md: "Warum ausgerechnet 39? Weil es keine gute Antwort auf Ananas gibt. Warnungen verändern den Exit-Code übrigens nie. Andere Zahlen als 0, 1, 2, 3 und 39 gibt es nicht." }
       ]
     },
     {
@@ -658,7 +866,7 @@
       tier: 3,
       inhalt: [
         { art: "kurz", md: "So würde eine „echte“ pizza-Küche arbeiten: Quelltext rein in den Ofen, fertige Pizza im Karton raus. Der Bote liefert fehlende Zutaten." },
-        { art: "hinweis", ton: "warnung", md: "**Nur Spezifikation.** Die Toolchain gibt es (noch) nur auf dem Papier. Im Browser läuft pizza direkt im Interpreter – Ofen vorheizen nicht nötig." },
+        { art: "hinweis", ton: "warnung", md: "**Größtenteils Spezifikation.** `pizzaofen` mit `ofen.xml` und der `pizzabote` gibt es nur auf dem Papier. Am Compiler (`pizzaiolo`, backt zu WebAssembly) und am `.pkarton` wird gerade gebacken – was davon schon geht, steht unter *Motoren & Programm herunterladen*. Im Browser läuft pizza bis dahin direkt im Interpreter – Ofen vorheizen nicht nötig." },
         { art: "bild", src: "img/doku/re-toolchain.svg", alt: "Pipeline: Pizzeria.pizza geht in den Ofen (pizzaiolo backe, pizzaofen), heraus kommt ein .pkarton, daraus die fertige Pizza. Darunter bringt der pizzabote Zutaten wie extra-käse zum Ofen.", unterschrift: "Vom Quelltext zum Karton – und der Bote bringt die Zutaten." },
         {
           art: "tabelle",
@@ -723,6 +931,73 @@
       ]
     },
     {
+      id: "ref-motoren",
+      gruppe: REF,
+      ordnung: 635,
+      titel: "Motoren & Programm herunterladen",
+      tier: 3,
+      inhalt: [
+        { art: "kurz", md: "pizza kann auf zwei Motoren laufen: dem **Interpreter** (liest dein Rezept Zeile für Zeile) und **WebAssembly** (backt es vorher fertig – schneller). Mit WebAssembly lässt sich dein Programm auch als eigenständiges Programm für Windows oder Linux herunterladen." },
+        { art: "hinweis", ton: "warnung", md: "**Ehrlicher Stand:** Der WebAssembly-Compiler wird noch gebacken. Solange heißt die Motor-Auswahl in der Werkzeugleiste **„Wasm (bald)“**, alles läuft im Interpreter, und der Knopf **„Als Programm herunterladen“** ist ausgegraut – fährst du mit der Maus darüber, steht dort der Grund. Sobald der Compiler ausgeliefert ist, funktioniert beides ohne Neuinstallation." },
+        {
+          art: "tabelle",
+          kopf: ["Motor", "Was er macht", "Wann"],
+          zeilen: [
+            ["Interpreter", "führt den Quelltext direkt aus; kann die ganze Sprache", "immer verfügbar"],
+            ["WebAssembly (Wasm)", "der Compiler `pizzaiolo` backt dein Programm zu WebAssembly, der Browser führt es aus", "sobald der Compiler da ist"],
+            ["Auto", "nimmt Wasm, wenn möglich, sonst den Interpreter (der Grund steht am Motor-Abzeichen in der Konsole)", "Standard"]
+          ]
+        },
+        { art: "text", md: "Beide Motoren liefern **dieselbe Ausgabe**, dieselben Fehler und denselben Exit-Code – inklusive Schrittzählung und simulierter Uhr. Wählst du ausdrücklich „Wasm“ und dein Programm nutzt etwas, das der Compiler noch nicht kann, sagt die Konsole das, statt heimlich umzuschalten." },
+        {
+          art: "details",
+          titel: "Als Programm herunterladen (Windows/Linux)",
+          inhalt: [
+            { art: "text", md: "Der Knopf **„Als Programm herunterladen“** backt den Code des aktiven Tabs zu WebAssembly und packt ihn mit einem kleinen Host-Programm zusammen – direkt in deinem Browser, ohne Server. Heraus kommt eine Datei für die gewählte Plattform: unter Windows eine `.exe`, unter Linux eine ausführbare Datei ohne Endung." },
+            {
+              art: "tabelle",
+              kopf: ["System", "So startest du es"],
+              zeilen: [
+                ["Windows", "Doppelklick oder in der Eingabeaufforderung starten. Die `.exe` ist nicht signiert: Zeigt **SmartScreen** „Der Computer wurde durch Windows geschützt“, klick auf *Weitere Informationen → Trotzdem ausführen*."],
+                ["Linux", "Erst ausführbar machen, dann starten: `chmod +x programm && ./programm`"]
+              ]
+            },
+            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground." },
+            {
+              art: "code",
+              sprache: "shell",
+              ausfuehrbar: false,
+              tier: 3,
+              code: z(
+                "$ chmod +x zahlenraten",
+                "$ ./zahlenraten",
+                "$ echo $?",
+                "0"
+              )
+            }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Für Fortgeschrittene: .pkarton und pizza-host",
+          inhalt: [
+            { art: "text", md: "Im selben Dialog gibt es **„nur .pkarton“**: das reine WebAssembly-Paket ohne Host. Es läuft mit dem Kommandozeilen-Host `pizza-host` und lässt sich mit `pizzaofen exe` nachträglich zu einem Programm backen:" },
+            {
+              art: "code",
+              sprache: "shell",
+              ausfuehrbar: false,
+              tier: 3,
+              code: z(
+                "$ pizza-host zahlenraten.pkarton",
+                "$ pizzaofen exe zahlenraten.pkarton -o zahlenraten.exe"
+              )
+            },
+            { art: "text", md: "Ein `.pkarton`, das sich nicht laden lässt (kaputt oder falsche Version), meldet `PizzaFehler HOST: …` und endet mit Exit-Code 2 – das Programm ist dann gar nicht erst gestartet." }
+          ]
+        }
+      ]
+    },
+    {
       id: "ref-playground",
       gruppe: REF,
       ordnung: 640,
@@ -735,12 +1010,26 @@
           kopf: ["Kürzel", "Aktion"],
           zeilen: [
             ["`Strg+Enter`", "Programm ausführen – ab in den Ofen"],
+            ["`Esc`", "Laufendes Programm abbrechen"],
             ["`Strg+S`", "Code lokal im Browser speichern"],
-            ["`Strg+B`", "Seitenpanel (Doku · Beispiele) ein-/ausklappen"]
+            ["`Strg+O`", "`.pizza`-Datei öffnen (oder Datei auf den Editor ziehen)"],
+            ["`Alt+N`", "Neuer Tab"],
+            ["`Alt+W`", "Tab schließen"],
+            ["`Strg+B`", "Seitenpanel (Doku · Beispiele) ein-/ausklappen"],
+            ["`F1` / `Strg+Shift+P`", "Befehlspalette – alle Aktionen durchsuchbar"],
+            ["`Strg+D`", "im Eingabefeld der Konsole: Eingabe beenden (das Programm bekommt `karton`)"]
           ]
         },
-        { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf höchstens 10 Sekunden echte Zeit dauern – danach heißt es: „Die Pizza ist noch im Ofen (Zeitlimit)“." },
-        { art: "hinweis", ton: "pizza", md: "Alles läuft lokal in deinem Browser. Kein Server sieht deinen Code – nicht einmal, wenn du `hawaii` schreibst." }
+        { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf höchstens 10 Sekunden echte Zeit dauern – Warten auf deine Eingabe zählt nicht mit. Danach heißt es `PizzaFehler P0003: Die Pizza ist noch im Ofen (Zeitlimit).` mit Exit-Code 3." },
+        {
+          art: "details",
+          titel: "Code teilen",
+          inhalt: [
+            { art: "text", md: "Der Knopf **„Teilen“** erstellt einen Link zu deinem Skript. Dafür wird das Skript des aktiven Tabs **auf unserem Server gespeichert** – erst, wenn du im Dialog auf **„Link erstellen“** klickst. Wie lange der Link funktioniert, steht im Dialog. Jeder mit dem Link kann den Code lesen; wer ihn öffnet, bekommt das Skript direkt in den Editor." },
+            { art: "hinweis", ton: "warnung", md: "Teile keine Passwörter oder anderen Geheimnisse – auch nicht als Kommentar im Code." }
+          ]
+        },
+        { art: "hinweis", ton: "pizza", md: "Ausgeführt wird alles lokal in deinem Browser. Dein Code verlässt ihn nur, wenn du ihn selbst teilst – nicht einmal, wenn du `hawaii` schreibst." }
       ]
     }
   );
