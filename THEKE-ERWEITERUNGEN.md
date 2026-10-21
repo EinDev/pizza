@@ -217,9 +217,11 @@ nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.
 
 **Minispiele (Spielstand `version` 4 – Stände der Version 2/3 laden mit Standardwerten):** Reiter „🎲 Minispiele“ (Nonnas
 Spielecke), vier kurze, freiwillige Spiele mit einer **gemeinsamen** Pause von 2 min nach jedem Spiel (läuft auch offline ab); ein
-Sieg bringt `portion()` × 8–10 s (Sekundenproduktion bzw. ein Klick, wenn der mehr bringt), eine Niederlage nichts. Uhr ist ein
-zweiter `Takt` (`spieltakt`, 150 ms bzw. 500 ms per `setzeIntervall`, nur während eines Spiels aktiv; Nachholschläge `anzahl > 1`
-werden mitgezählt); Zufall nur über die globale Saat, keine Animationen (Wasm/EXE gleich).
+Sieg bringt `portion()` × 8–10 s (Sekundenproduktion bzw. ein Klick, wenn der mehr bringt), eine Niederlage nichts. Es gibt nur
+**einen** `Takt`: Während eines Spiels schlägt er per `setzeIntervall` alle 150 bzw. 500 ms, die verstrichenen Millisekunden werden
+gesammelt und als ganze Sekunden an den Betrieb weitergegeben (die Backstube backt weiter; Nachholschläge `anzahl > 1` zählen mit).
+Bewusst kein zweiter Takt: Zwei gleichzeitig laufende Takte würden beim Vorspulen der E2E-Uhr (und bei jeder Nachholung) zusätzliche
+Schläge erzeugen, die nicht in `.ereignisse` stehen. Zufall nur über die globale Saat, keine Animationen (Wasm/EXE gleich).
 
 | Spiel | Ablauf | Sieg |
 |---|---|---|
@@ -231,6 +233,7 @@ werden mitgezählt); Zufall nur über die globale Saat, keine Animationen (Wasm/
 Fastenzeit sperrt die Spielecke (ein laufendes Spiel endet ohne Wertung). Statistik: „Anteil Minispiele am Umsatz“ (Runde · gesamt),
 „Minispiele gewonnen“; Erfolge „Nonnas Spielkamerad“ (jedes Spiel einmal gewonnen) und „Stammspieler“ (25 Spiele). Fenster 660 px
 breit (fünf Reiter). Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, startet jedes Spiel, sobald die Pause um ist, und gewinnt **immer**;
-die Spieldauer selbst kostet ihn keine Spielzeit – Obergrenze): Minispiel-Anteil am Umsatz nach 60 min 4,1–4,7 % (je 5-min-Fenster
-3,7–6,1 %), mit Aufstieg 4,1–5,1 %; Klickanteil unverändert 7,7–8,8 %. Tests: `.ereignisse` aus echtem Lauf, jedes Spiel einmal
-gewonnen und einmal verloren, dazu ein gesperrter Startversuch in der Fastenzeit.
+Obergrenze): Minispiel-Anteil am Umsatz nach 60 min 4,4–4,9 % (je 5-min-Fenster 3,2–5,6 %), mit Aufstieg 3,7–4,7 %;
+Klickanteil 7,2–8,4 %. Tests: `.ereignisse` aus echtem Lauf, jedes Spiel einmal
+gewonnen und einmal verloren, dazu die gesperrte Spielecke in der Fastenzeit; der Generator wechselt vor jedem Klick in den
+Reiter des Ziels und bricht bei unsichtbaren Zielen ab (E2E klickt wie ein Nutzer).

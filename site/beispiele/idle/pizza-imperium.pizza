@@ -26,7 +26,7 @@
 //    • Vorratskammer + Uhr.echt() – Speichern und Offline-Fortschritt
 //    • kompakt()/euro(kompakt: ja) – „1,23 Mio. €“
 //    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
-//    • ein zweiter Takt (150/500 ms) – die Uhr der Minispiele
+//    • Takt.setzeIntervall – im Minispiel schlägt die Uhr schneller (150/500 ms)
 //
 //  🎲 Minispiele für zwischendurch (Teig fangen, Bestellung merken, Ofen
 //  halten, Lieferroute): optional, ein Sieg bringt ein paar Sekunden
@@ -724,7 +724,7 @@ klasse Minispiel {
     margherita name;
     margherita regel;
     salami belohnung;       // Sekunden Produktion
-    Dauer schlag;           // Intervall der Spieluhr
+    Dauer schlag;           // so schnell schlägt die Uhr während des Spiels
 
     Minispiel(margherita s, margherita sym, margherita n, salami b, Dauer d, margherita r) {
         schlüssel = s; symbol = sym; name = n; belohnung = b; schlag = d; regel = r;
@@ -1364,22 +1364,25 @@ Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium", "�
 reiter.beiAenderung((n) -> { zeichne(); });   // Imperium/Geheimnisse werden nur gezeichnet, wenn man hinschaut
 
 // ── Die Uhr der Backstube ──
+// Eine Uhr für alles: Während eines Minispiels schlägt sie schneller (150 bzw. 500 ms); die Backstube
+// bekommt die verstrichene Zeit trotzdem in ganzen Sekunden – der Betrieb backt also weiter.
+salami taktMs = 1000;
+salami msRest = 0;
 Takt takt = neu Takt(1s, (n) -> {
-    spiel.vergehe(n);
-    falls (frageId != "") {
-        frageRest = frageRest - n;
-        falls (frageRest <= 0) { frageId = ""; spiel.version++; }
+    msRest = msRest + n * taktMs;
+    salami sek = Mathe.boden(msRest / 1000);
+    msRest = msRest - sek * 1000;
+    diavolo spielLief = ecke.läuft != "";
+    falls (spielLief) { ecke.tick(n); }
+    falls (sek > 0) {
+        spiel.vergehe(sek);
+        falls (frageId != "") {
+            frageRest = frageRest - sek;
+            falls (frageRest <= 0) { frageId = ""; spiel.version++; }
+        }
     }
-    nachVerarbeitung();
+    falls (sek > 0 || (spielLief && ecke.läuft == "")) { nachVerarbeitung(); } sonst { zeichneSpielfeld(); }
 }, id: "takt");
-
-// ── Die Uhr der Minispiele (läuft nur während eines Spiels) ──
-Takt spieltakt = neu Takt(500ms, (n) -> {
-    falls (ecke.läuft == "") { zeichneSpielfeld(); serviere; }
-    ecke.tick(n);
-    falls (ecke.läuft == "") { nachVerarbeitung(); } sonst { zeichneSpielfeld(); }
-}, id: "spieltakt");
-spieltakt.aktiv(nein);
 
 // ─────────────────────────────── Zeichnen ───────────────────────────────
 // voll   – nach Käufen, Rezeptseiten, Ereignissen (spiel.version hat sich geändert)
@@ -1564,7 +1567,6 @@ leer zeichneSpielfeld() {
         falls (l != "") {
             Minispiel m = ecke.spielNamens(l);
             spielfeld.setzeTitel((m.symbol + " " + m.name));
-            spieltakt.setzeIntervall(m.schlag);
             falls (ofenFarbe != "") { ofenFarbe = ""; spielAnzeige.stil("farbe", "normal"); }
         }
         falls (l == "teig") {
@@ -1573,7 +1575,10 @@ leer zeichneSpielfeld() {
         falls (l == "route") {
             für (salami i : [1 .. 3]) { routenKnöpfe.stück(i).setzeText((ecke.routen.stück(i))); }
         }
-        falls (spieltakt.aktiv() != (l != "")) { spieltakt.aktiv(l != ""); }
+        // Die Uhr schlägt im Takt des Spiels – bzw. wieder jede Sekunde
+        Dauer schlag = l == "" ? 1s : ecke.spielNamens(l).schlag;
+        taktMs = Mathe.runden(schlag.inMs());
+        takt.setzeIntervall(schlag);
     }
     falls (l == "") { serviere; }
 
@@ -1670,7 +1675,7 @@ leer nachVerarbeitung() {
 }
 
 // ─────────────────────────────── Aufbauen & los ─────────────────────────
-Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, meldung, reiter, takt, spieltakt], id: "wurzel");
+Stapel wurzel = neu Stapel([kasse, kennzahlen, modusInfo, backen, ofenKnopf, meldung, reiter, takt], id: "wurzel");
 wurzel.stil("abstand", 10);
 
 sortiereErfolge();
