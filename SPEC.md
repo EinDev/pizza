@@ -1010,3 +1010,52 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
+
+### 16.6 Theke v3: Animationen (K-090 … K-092; offen – Interpreter, Compiler, Renderer: Aufträge U-56 … U-58)
+
+Animationen sind **rein visuell**: Sie ändern keinen Programmzustand, erzeugen keine Ereignisse und haben keine Wartezeit.
+Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aendere`, neues Feld `uebergang`; alte Renderer ignorieren beides).
+
+| Methode | an | Rückgabe | Protokoll-Eintrag |
+|---|---|---|---|
+| `animiere(art, dauer?)` (auch `dauer:`) | jeder Zutat | die Zutat | `{"id":"z1","art":"puls"}` (+ `"dauer":300`) in `animationen` |
+| `schwebe(text, bei?, farbe?, dauer?)` (auch benannt) | `Theke` | die Theke | `{"art":"schwebe","text":"+12"}` (+ `"id"` von `bei`, `"farbe"`, `"dauer"`) in `animationen` |
+| `uebergang(diavolo)` / `uebergang()` | jeder Zutat | Setter → Zutat, Getter → diavolo | Feld `"uebergang":true` (Standard `nein`; im `baum` nur bei `ja`, in `aendere` immer der neue Wert) |
+
+- **Arten (K-090):** genau `puls`, `huepfen`, `wackeln`, `funkeln`, `einblenden`, `aufpoppen` (Vergleich der Textform, K-066;
+  Groß-/Kleinschreibung zählt). Sonst `LaufzeitAnanas: Animation 'tanzen' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.`
+  `animiere` an einem `Takt` ist erlaubt und bleibt unsichtbar. Neue Arten = Eintrag in der Laufzeit-Liste + Animations-Registry des Renderers (wie Zutaten).
+- **Dauer (K-090):** `dauer` ist eine `Dauer` (sonst `TypAnanas: animiere(dauer: …) braucht eine Dauer, nicht 300.` bzw.
+  `schwebe(dauer: …) …`), auf ganze ms gerundet (K-047), danach **50 ms ≤ dauer ≤ 5 s**, sonst
+  `LaufzeitAnanas: Eine Animation dauert 50ms bis 5s, nicht 10s.` (Dauer in Textform). Ohne `dauer` (oder `karton`) fehlt das Feld;
+  der Renderer nimmt die Standarddauer der Art (K-092).
+- **`schwebe` (K-090):** `text` wird als Textform gespeichert (K-066), auch leer; `bei` ist eine Zutat oder `karton` (= Fenstermitte),
+  sonst `TypAnanas: schwebe(bei: …) braucht eine Zutat, nicht 5.`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal` mit den
+  Texten von K-068 (`LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.`).
+  Optionale Felder (`id`, `farbe`, `dauer`) stehen **genau dann** im Eintrag, wenn das Argument angegeben und nicht `karton` ist.
+- **Prüfreihenfolge:** Argumente (Art, `bei`, `farbe`, `dauer`) werden immer geprüft – Fehler sind Ananas, unabhängig vom Fensterzustand.
+  Danach: ist die Theke nicht offen (nie gezeigt, nach `geschlossen`/`schliesse()`, keine Theke) → Warnung (§10, **je Aufrufstelle**)
+  `W0102: Animation entfällt – die Theke ist nicht offen.`; liegt die Zutat (bei `schwebe`: `bei`) nicht im gezeigten Baum →
+  `W0102: Animation entfällt – 'z3' liegt nicht auf der Theke.` In beiden Fällen entsteht **kein** Eintrag; keine Ananas (rein visuell).
+  Gezeigt heißt wie in K-057 „im Baum der offenen Theke“ – auch `sichtbar(nein)`, nicht gewählte Reiter-Seiten und `Takt` (Renderer zeigt dann nichts).
+- **Bündelung (K-090):** Einträge werden **in Aufrufreihenfolge** gepuffert, **nicht** zusammengefasst (zwei `puls` = zwei Einträge),
+  höchstens **32 je Nachricht** (weitere entfallen still; die ersten 32 bleiben). Gesendet wird an denselben Synchronisationspunkten
+  wie Änderungen (K-057) als Feld der `aendere`-Nachricht: `{"v":1,"op":"aendere","aenderungen":[…],"animationen":[…]}` – `animationen`
+  nur wenn nicht leer; gibt es nur Animationen, ist `aenderungen` `[]`. Der Renderer wendet erst `aenderungen`, dann `animationen` an
+  (eine Nachricht = ein Bild; `einblenden` auf eine im selben Rückruf per `hinzu` eingefügte Zutat funktioniert). `zeige` verwirft
+  gepufferte Animationen wie gepufferte Änderungen (K-058); am Programmende gehen sie mit dem letzten Flush vor `schliesse` hinaus (K-061).
+- **Determinismus (K-090):** Keine Rückmeldung vom Renderer (kein „Animation fertig“), kein Einfluss auf Rückrufe, Zustand, Zeit oder
+  Budgets; eine laufende Animation hält keine Ereignisse auf (ein hüpfender Knopf bleibt klickbar). Schritte: die normalen Aufrufknoten
+  (§14.1, K-069) – `k.animiere("puls");` kostet so viel wie `k.hinweis("puls");`; die Warnung W0102 kostet nichts.
+  `ui`-Nachrichten sind in `.ui-erwartet`/`uiErwartet` testbar.
+- **`uebergang` (K-091):** `uebergang(diavolo)` (sonst `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`) schaltet weiche Übergänge
+  der Zutat: Wechsel von `sichtbar` blendet ein/aus (Ausblenden: sofort nicht mehr bedienbar), in Behältern blenden **neu
+  hinzugekommene** Kinder ein (nicht im ersten `baum`; entfernte verschwinden sofort). Kein Hochzählen von Texten. Ein `Fortschritt`
+  gleitet **immer** (unabhängig von `uebergang`). Setter lösen keine Rückrufe aus (K-073); Textform unverändert.
+- **Darstellung (K-092, Renderer):** Standarddauern `puls` 400 ms, `huepfen` 350 ms, `wackeln` 400 ms, `funkeln` 800 ms,
+  `einblenden` 300 ms, `aufpoppen` 450 ms, `schwebe` 1000 ms, `uebergang` 200 ms; nur `transform`/`opacity`/Leuchten – das Layout der
+  Nachbarn ändert sich nie; eine neue Animation an derselben Zutat ersetzt die laufende (Schwebetexte addieren sich, höchstens 20
+  gleichzeitig). Farben aus dem Thema (hell/dunkel). **`prefers-reduced-motion: reduce`:** keine Bewegung, keine Übergänge –
+  `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
+  Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
+  `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
