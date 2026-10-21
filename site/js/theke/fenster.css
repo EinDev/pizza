@@ -1,0 +1,3 @@
+/* Hülle für den nativen Host: das Fenster gehört ganz der Theke. */
+html, body { margin: 0; height: 100%; overflow: hidden; }
+.fenster-theke { display: block; height: 100%; }

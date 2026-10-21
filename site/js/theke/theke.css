@@ -1,0 +1,317 @@
+/* pizza v3.0 – Theke: Stile der Render-Engine (THEKE.md).
+ * Alles ist unter .theke gekapselt (Präfix .theke-…); keine globalen Regeln.
+ * Thema: data-theme="light"|"dark" an .theke (Option thema), sonst das data-theme eines Vorfahren
+ * (z. B. <html data-theme="dark"> im Playground), sonst prefers-color-scheme.
+ */
+
+/* ------------------------------------------------------------------ Farbwelt: hell (Mozzarella auf Holzbrett) */
+.theke,
+[data-theme="light"] .theke:not([data-theme]) {
+  --theke-grund: #fbf7f0;
+  --theke-flaeche: #ffffff;
+  --theke-flaeche-2: #f4eee4;
+  --theke-rand: #e4d9c7;
+  --theke-rand-stark: #cdbfa8;
+  --theke-text: #2b2520;
+  --theke-text-2: #6b6054;
+  --theke-text-3: #9a8f81;
+  --theke-schatten: 0 1px 2px rgb(60 40 20 / .08);
+  --theke-schatten-knopf: 0 1px 2px rgb(90 30 15 / .18), inset 0 1px 0 rgb(255 255 255 / .14);
+
+  --theke-tomate: #c8382a;        --theke-tomate-hover: #ad2d20;   --theke-tomate-text: #ffffff;
+  --theke-tomate-schrift: #b3301f; --theke-tomate-flaeche: #fbe9e4; --theke-tomate-rand: #f0c6bc;
+  --theke-basilikum: #2f7a3b;     --theke-basilikum-hover: #25652f; --theke-basilikum-text: #ffffff;
+  --theke-basilikum-schrift: #2b6f36; --theke-basilikum-flaeche: #e7f2e3; --theke-basilikum-rand: #c3dfbd;
+  --theke-kruste: #a5612a;        --theke-kruste-hover: #8c5122;   --theke-kruste-text: #ffffff;
+  --theke-kruste-schrift: #8f5222; --theke-kruste-flaeche: #f6ebdd; --theke-kruste-rand: #e6cfb2;
+  --theke-mozzarella: #f5ecd8;    --theke-mozzarella-hover: #ede0c4; --theke-mozzarella-text: #4a3b22;
+  --theke-mozzarella-schrift: #8a7650; --theke-mozzarella-flaeche: #fdf9f0; --theke-mozzarella-rand: #ece0c6;
+
+  --theke-fokus: #c8382a;
+  color-scheme: light;
+}
+
+/* ------------------------------------------------------------------ Farbwelt: dunkel (Holzofen) */
+.theke[data-theme="dark"],
+[data-theme="dark"] .theke:not([data-theme]) {
+  --theke-grund: #16171a;
+  --theke-flaeche: #1f2125;
+  --theke-flaeche-2: #26282d;
+  --theke-rand: #33363d;
+  --theke-rand-stark: #464a53;
+  --theke-text: #ece7df;
+  --theke-text-2: #aca59b;
+  --theke-text-3: #7f786f;
+  --theke-schatten: 0 1px 2px rgb(0 0 0 / .35);
+  --theke-schatten-knopf: 0 1px 2px rgb(0 0 0 / .4), inset 0 1px 0 rgb(255 255 255 / .12);
+
+  --theke-tomate: #e9563f;        --theke-tomate-hover: #f46c56;   --theke-tomate-text: #ffffff;
+  --theke-tomate-schrift: #ff8a73; --theke-tomate-flaeche: #2f201d; --theke-tomate-rand: #5a2e26;
+  --theke-basilikum: #4f9d55;     --theke-basilikum-hover: #5fb065; --theke-basilikum-text: #ffffff;
+  --theke-basilikum-schrift: #8fd480; --theke-basilikum-flaeche: #1d2a1e; --theke-basilikum-rand: #31502f;
+  --theke-kruste: #c47c3c;        --theke-kruste-hover: #d48d4c;   --theke-kruste-text: #1d140c;
+  --theke-kruste-schrift: #e6b07c; --theke-kruste-flaeche: #2c241c; --theke-kruste-rand: #523d29;
+  --theke-mozzarella: #efe5cf;    --theke-mozzarella-hover: #fbf3e2; --theke-mozzarella-text: #2a2218;
+  --theke-mozzarella-schrift: #f1e6cc; --theke-mozzarella-flaeche: #26241f; --theke-mozzarella-rand: #4a4436;
+
+  --theke-fokus: #ff8a73;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  .theke:not([data-theme]) {
+    --theke-grund: #16171a;
+    --theke-flaeche: #1f2125;
+    --theke-flaeche-2: #26282d;
+    --theke-rand: #33363d;
+    --theke-rand-stark: #464a53;
+    --theke-text: #ece7df;
+    --theke-text-2: #aca59b;
+    --theke-text-3: #7f786f;
+    --theke-schatten: 0 1px 2px rgb(0 0 0 / .35);
+    --theke-schatten-knopf: 0 1px 2px rgb(0 0 0 / .4), inset 0 1px 0 rgb(255 255 255 / .12);
+
+    --theke-tomate: #e9563f;        --theke-tomate-hover: #f46c56;   --theke-tomate-text: #ffffff;
+    --theke-tomate-schrift: #ff8a73; --theke-tomate-flaeche: #2f201d; --theke-tomate-rand: #5a2e26;
+    --theke-basilikum: #4f9d55;     --theke-basilikum-hover: #5fb065; --theke-basilikum-text: #ffffff;
+    --theke-basilikum-schrift: #8fd480; --theke-basilikum-flaeche: #1d2a1e; --theke-basilikum-rand: #31502f;
+    --theke-kruste: #c47c3c;        --theke-kruste-hover: #d48d4c;   --theke-kruste-text: #1d140c;
+    --theke-kruste-schrift: #e6b07c; --theke-kruste-flaeche: #2c241c; --theke-kruste-rand: #523d29;
+    --theke-mozzarella: #efe5cf;    --theke-mozzarella-hover: #fbf3e2; --theke-mozzarella-text: #2a2218;
+    --theke-mozzarella-schrift: #f1e6cc; --theke-mozzarella-flaeche: #26241f; --theke-mozzarella-rand: #4a4436;
+
+    --theke-fokus: #ff8a73;
+    color-scheme: dark;
+  }
+}
+
+/* ------------------------------------------------------------------ Ton je Zutat (Stil „farbe“) */
+.theke {
+  --theke-ton: var(--theke-tomate);
+  --theke-ton-hover: var(--theke-tomate-hover);
+  --theke-ton-text: var(--theke-tomate-text);
+  --theke-ton-schrift: inherit;
+}
+.theke .theke-farbe-tomate     { --theke-ton: var(--theke-tomate);     --theke-ton-hover: var(--theke-tomate-hover);     --theke-ton-text: var(--theke-tomate-text);     --theke-ton-schrift: var(--theke-tomate-schrift);     --theke-ton-flaeche: var(--theke-tomate-flaeche);     --theke-ton-rand: var(--theke-tomate-rand); }
+.theke .theke-farbe-basilikum  { --theke-ton: var(--theke-basilikum);  --theke-ton-hover: var(--theke-basilikum-hover);  --theke-ton-text: var(--theke-basilikum-text);  --theke-ton-schrift: var(--theke-basilikum-schrift);  --theke-ton-flaeche: var(--theke-basilikum-flaeche);  --theke-ton-rand: var(--theke-basilikum-rand); }
+.theke .theke-farbe-kruste     { --theke-ton: var(--theke-kruste);     --theke-ton-hover: var(--theke-kruste-hover);     --theke-ton-text: var(--theke-kruste-text);     --theke-ton-schrift: var(--theke-kruste-schrift);     --theke-ton-flaeche: var(--theke-kruste-flaeche);     --theke-ton-rand: var(--theke-kruste-rand); }
+.theke .theke-farbe-mozzarella { --theke-ton: var(--theke-mozzarella); --theke-ton-hover: var(--theke-mozzarella-hover); --theke-ton-text: var(--theke-mozzarella-text); --theke-ton-schrift: var(--theke-mozzarella-schrift); --theke-ton-flaeche: var(--theke-mozzarella-flaeche); --theke-ton-rand: var(--theke-mozzarella-rand); }
+
+/* ------------------------------------------------------------------ Grundgerüst */
+.theke {
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  background: var(--theke-grund);
+  color: var(--theke-text);
+  font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.theke *, .theke *::before, .theke *::after { box-sizing: border-box; }
+.theke [hidden] { display: none !important; }
+.theke-inhalt { padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
+.theke-inhalt > .theke-zutat { flex: none; }
+
+.theke-leer {
+  margin: auto;
+  padding: 24px;
+  color: var(--theke-text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ Behälter: Stapel / Reihe */
+.theke-behaelter { display: flex; min-width: 0; gap: var(--theke-abstand, 12px); }
+.theke-stapel { flex-direction: column; align-items: stretch; }
+.theke-reihe { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--theke-abstand, 10px); }
+.theke-reihe > .theke-eingabe { flex: 1 1 140px; width: auto; }
+
+.theke-stapel.theke-ausrichtung-start    { align-items: flex-start; }
+.theke-stapel.theke-ausrichtung-mitte    { align-items: center; }
+.theke-stapel.theke-ausrichtung-ende     { align-items: flex-end; }
+.theke-stapel.theke-ausrichtung-strecken { align-items: stretch; }
+.theke-reihe.theke-ausrichtung-start     { justify-content: flex-start; }
+.theke-reihe.theke-ausrichtung-mitte     { justify-content: center; }
+.theke-reihe.theke-ausrichtung-ende      { justify-content: flex-end; }
+.theke-reihe.theke-ausrichtung-strecken  { align-items: stretch; }
+.theke-reihe.theke-ausrichtung-strecken > .theke-zutat { flex: 1 1 0; }
+
+/* Behälter mit Farbe = ruhige, getönte Karte */
+.theke-behaelter[class*="theke-farbe-"] {
+  padding: 14px 16px;
+  background: var(--theke-ton-flaeche);
+  border: 1px solid var(--theke-ton-rand);
+  border-radius: 12px;
+}
+
+/* ------------------------------------------------------------------ Schild */
+.theke-schild {
+  color: var(--theke-ton-schrift);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ Knopf */
+.theke-knopf {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--theke-ton);
+  color: var(--theke-ton-text);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: .01em;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--theke-schatten-knopf);
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color .12s ease, transform .06s ease, box-shadow .12s ease;
+  overflow-wrap: anywhere;
+}
+.theke-knopf:hover:not(:disabled) { background: var(--theke-ton-hover); }
+.theke-knopf:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.theke-knopf:disabled {
+  cursor: not-allowed;
+  background: var(--theke-flaeche-2);
+  border-color: var(--theke-rand);
+  color: var(--theke-text-3);
+  box-shadow: none;
+}
+.theke-knopf.theke-farbe-mozzarella { border-color: var(--theke-mozzarella-rand); }
+
+/* ------------------------------------------------------------------ Eingabe */
+.theke-eingabe {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--theke-rand-stark);
+  border-radius: 9px;
+  background: var(--theke-flaeche);
+  color: var(--theke-text);
+  font: inherit;
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / .04);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.theke-eingabe::placeholder { color: var(--theke-text-3); opacity: 1; }
+.theke-eingabe:hover:not(:disabled):not(:focus) { border-color: var(--theke-text-3); }
+.theke-eingabe:focus { outline: none; border-color: var(--theke-ton); box-shadow: 0 0 0 3px var(--theke-ring, rgb(200 56 42 / .18)); }
+.theke-eingabe:disabled { opacity: .55; cursor: not-allowed; background: var(--theke-flaeche-2); }
+.theke .theke-eingabe.theke-farbe-basilikum { --theke-ring: rgb(47 122 59 / .2); }
+.theke .theke-eingabe.theke-farbe-kruste    { --theke-ring: rgb(165 97 42 / .2); }
+.theke .theke-eingabe.theke-farbe-mozzarella { --theke-ton: var(--theke-mozzarella-schrift); --theke-ring: rgb(138 118 80 / .2); }
+
+/* ------------------------------------------------------------------ Haken */
+.theke-haken {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  cursor: pointer;
+  color: var(--theke-text);
+  user-select: none;
+  -webkit-user-select: none;
+  align-self: flex-start;
+}
+.theke-haken.theke-inaktiv { cursor: not-allowed; opacity: .5; }
+.theke-haken-box {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid var(--theke-rand-stark);
+  border-radius: 6px;
+  background: var(--theke-flaeche);
+  cursor: inherit;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+.theke-haken:hover .theke-haken-box:not(:disabled):not(:checked) { border-color: var(--theke-text-3); }
+.theke-haken-box:disabled { background: var(--theke-flaeche-2); }
+.theke-haken-box:checked { background: var(--theke-ton); border-color: var(--theke-ton); }
+.theke-haken-box::after {
+  content: "";
+  position: absolute;
+  left: 5.5px;
+  top: 2px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--theke-ton-text);
+  border-width: 0 2.25px 2.25px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform .12s ease;
+}
+.theke-haken-box:checked::after { transform: rotate(45deg) scale(1); }
+.theke-haken-text { overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------ Fokus (nur Tastatur) */
+.theke-knopf:focus-visible,
+.theke-haken-box:focus-visible {
+  outline: 2px solid var(--theke-fokus);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ Stil-Whitelist */
+.theke .theke-hat-breite { width: var(--theke-breite); max-width: 100%; flex: none; }
+.theke .theke-hat-hoehe  { height: var(--theke-hoehe); }
+.theke-behaelter.theke-hat-hoehe { overflow: auto; }
+.theke .theke-schild.theke-hat-abstand,
+.theke .theke-platzhalter.theke-hat-abstand { padding: var(--theke-abstand); }
+.theke .theke-knopf.theke-hat-abstand { padding: var(--theke-abstand) calc(var(--theke-abstand) * 1.6); }
+.theke .theke-eingabe.theke-hat-abstand { padding: var(--theke-abstand); }
+.theke .theke-haken.theke-hat-abstand { padding: var(--theke-abstand); }
+
+.theke .theke-schrift-klein { font-size: 12.5px; }
+.theke .theke-schrift-gross { font-size: 20px; font-weight: 650; letter-spacing: -.01em; line-height: 1.3; }
+.theke .theke-schrift-mono  { font-family: ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: .95em; }
+.theke .theke-schild.theke-schrift-klein { color: var(--theke-text-2); }
+.theke .theke-schild.theke-schrift-klein[class*="theke-farbe-"] { color: var(--theke-ton-schrift); }
+
+/* Ausrichtung an Einzel-Zutaten: Lage im Behälter + Textausrichtung */
+.theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-start    { align-self: flex-start; text-align: left; }
+.theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-mitte    { align-self: center; text-align: center; }
+.theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-ende     { align-self: flex-end; text-align: right; }
+.theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-strecken { align-self: stretch; }
+.theke .theke-schild.theke-ausrichtung-strecken { text-align: justify; }
+
+/* ------------------------------------------------------------------ Platzhalter für unbekannte Zutaten */
+.theke-platzhalter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--theke-kruste-rand);
+  border-radius: 9px;
+  background: repeating-linear-gradient(-45deg, var(--theke-kruste-flaeche) 0 8px, transparent 8px 16px);
+  color: var(--theke-kruste-schrift);
+}
+.theke-platzhalter-kopf {
+  font: 500 12px/1.4 ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theke * { transition: none !important; }
+}
