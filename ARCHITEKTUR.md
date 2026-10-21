@@ -1,0 +1,146 @@
+# Architektur & Arbeitsaufteilung
+
+Eine statische One-Page-Web-App (Editor im Fokus), ausgeliefert von nginx im Docker-Container.
+Der pizza-Interpreter läuft **im Browser** (Web Worker) – kein Server-Code, keine Ausführung auf dem Server.
+
+```
+pizza/
+├── SPEC.md                      Sprachvertrag (verbindlich)
+├── ARCHITEKTUR.md               diese Datei
+├── package.json                 Root: "test"-Skript           [Interpreter-Agent]
+├── tests/                       Test-Harness                   [Interpreter-Agent]
+├── bin/pizza.js                 CLI: node bin/pizza.js datei.pizza   [Interpreter-Agent]
+├── ui/                          Editor-Quellcode (CodeMirror 6, esbuild)   [UI-Agent]
+│   ├── package.json
+│   └── src/…
+├── site/                        Web-Root (wird von nginx ausgeliefert)
+│   ├── index.html               [UI-Agent]
+│   ├── favicon.svg              [UI-Agent]
+│   ├── css/                     [UI-Agent]
+│   ├── js/app.bundle.js         Build-Ergebnis von ui/ (generiert, nicht von Hand)  [UI-Agent]
+│   ├── js/worker.js             [UI-Agent]
+│   ├── js/pizza.js              Interpreter (UMD, Browser + Node)   [Interpreter-Agent]
+│   ├── js/doku/*.js             Doku-Inhalte als Daten        [Doku-Agents, Geschichte-Agent]
+│   └── beispiele/               Beispielprogramme             [Beispiel-Agents]
+│       ├── index.json           Liste der Teil-Manifeste (vom Koordinator)
+│       ├── grundlagen.json + grundlagen/*.pizza + *.erwartet     [Beispiel-Agent A]
+│       └── pizzafunktionen.json + pizzafunktionen/*.pizza + *.erwartet   [Beispiel-Agent B]
+├── Dockerfile, compose.yaml, nginx.conf, .dockerignore, .gitignore, README.md   [Infra-Agent]
+```
+
+**Jeder Agent schreibt nur in seine eigenen Dateien.** Bedarf an Änderungen in fremden Dateien → im Abschlussbericht nennen.
+
+---
+
+## 1. Interpreter-API (`site/js/pizza.js`)
+
+UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhängigkeiten.
+
+```js
+PizzaLang.version            // "3.0.0"
+PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
+PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
+PizzaLang.BELAEGE            // [{name, preis, nach: string[]}] – eingebaute Zutatenliste
+PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen
+
+PizzaLang.parse(quelltext)
+  // → { ok: true, ast } | { ok: false, fehler: { code, text, zeile, spalte } }
+  // Nur Syntax (für Live-Diagnose im Editor). Schnell, wirft nie.
+
+PizzaLang.run(quelltext, optionen)
+  // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[] }
+  // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
+```
+
+### Ereignisse (Reihenfolge = Auftreten)
+
+```js
+{ typ: "ausgabe",       text }                                  // Bote.sage
+{ typ: "fehlerausgabe", text }                                  // Bote.fehler
+{ typ: "warnung",       code, text, zeile, spalte }             // z. B. W0666, S0007, T0007
+{ typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit"
+{ typ: "panik",         text }                                  // Hawaii-Banner (SPEC §9), danach sofort "ende"
+{ typ: "ende",          exitCode, schritte, zeitMs }
+```
+
+- `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"B0012"` …).
+- `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: Pizza ist alle. (Zeile 12)`.
+- `text` bei PizzaFehler: `PizzaFehler B0012: 'Käse' liegt unter 'Tomate'. Das ist keine Pizza, das ist ein Auflauf.`
+- `zeile`/`spalte` ab 1, `null` falls unbekannt.
+
+## 2. Worker-Protokoll (`site/js/worker.js`)
+
+```js
+// UI → Worker
+{ typ: "start", code: string, args?: string[] }
+// Worker → UI: jedes Ereignis aus onEvent 1:1 per postMessage (ggf. gebündelt als { typ: "batch", ereignisse: [...] })
+```
+- Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
+- Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
+- Wand-Zeitlimit in der UI: **10 s** → `worker.terminate()`, Anzeige „Die Pizza ist noch im Ofen (Zeitlimit)“.
+- Bei `panik`: UI ruft sofort `worker.terminate()` und zeigt das Hawaii-Crash-Overlay.
+
+## 3. Beispiel-Manifeste (`site/beispiele/`)
+
+`index.json` (vom Koordinator):
+```json
+{ "teile": ["grundlagen.json", "pizzafunktionen.json"] }
+```
+Teil-Manifest, z. B. `grundlagen.json`:
+```json
+{
+  "kategorie": "Grundlagen",
+  "beispiele": [
+    {
+      "id": "hallo-welt",
+      "titel": "Hallo Welt",
+      "beschreibung": "Ein Satz Beschreibung.",
+      "datei": "grundlagen/hallo-welt.pizza",
+      "erwartet": "grundlagen/hallo-welt.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Ausgabe"]
+    }
+  ]
+}
+```
+- Pfade relativ zu `site/beispiele/`.
+- `.erwartet` = alle `ausgabe`-, `fehlerausgabe`- und `panik`-Texte in Reihenfolge, je Ereignis eine Zeile
+  (mehrzeiliger Panik-Text bleibt mehrzeilig), abschließender Zeilenumbruch. Warnungen, `fehler` und `ende` stehen **nicht** drin.
+
+## 4. Doku-Daten (`site/js/doku/*.js`)
+
+Jede Datei registriert Abschnitte:
+```js
+(self.PIZZA_DOKU = self.PIZZA_DOKU || []).push({
+  id: "pizza-literale",
+  gruppe: "Pizza-Funktionen",      // Gruppierung in der Navigation
+  ordnung: 310,                    // Sortierung (aufsteigend) – Bereiche siehe unten
+  titel: "Pizza-Literale",
+  tier: 1,                         // 1 | 2 | 3 → Badge
+  inhalt: [
+    { art: "text", md: "Absatz mit **fett**, *kursiv*, `code` und [Links](#)." },
+    { art: "code", code: "Pizza p = ((Tomate));\nBote.sage((p));", ausfuehrbar: true, tier: 1 },
+    { art: "tabelle", kopf: ["pizza", "Java"], zeilen: [["`tiefkühl`", "static"]] },
+    { art: "hinweis", ton: "info", md: "…" },          // ton: "info" | "warnung" | "pizza"
+    { art: "ausgabe", text: "erwartete Ausgabe (optional)" }
+  ]
+});
+```
+- In Node: `globalThis.self` existiert ggf. nicht → Dateien nutzen `(typeof self !== "undefined" ? self : globalThis)`.
+- Markdown-Untermenge: `**fett**`, `*kursiv*`, `` `code` ``, `[text](url)`, Leerzeilen = Absätze, `- ` Listen.
+- `ausfuehrbar: true` ⇒ Code läuft im Snack-Modus mit Exit-Code 0 (oder `exitCode`-Feld angeben). Der Test-Harness prüft das.
+  `ausfuehrbar: false` ⇒ Code muss trotzdem **parsen** (außer `sprache: "xml"`/`"shell"` – dann gar nicht geprüft).
+- `ordnung`-Bereiche: 0–99 Geschichte · 100–199 Einstieg · 200–299 Sprache · 300–399 Pizza-Funktionen · 400–499 Ananas/Hawaii · 500–599 Standardbibliothek · 600–699 Toolchain/Referenz.
+- Die UI lädt alle Doku-Dateien über eine feste Liste in `index.html` (`<script src="js/doku/…">`). Dateinamen:
+  `00-geschichte.js`, `10-sprache.js`, `20-pizzafunktionen.js`, `30-referenz.js`.
+
+## 5. UI
+
+- One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/BELAEGE).
+- Konsole unter dem Editor (ausgabe / fehlerausgabe / warnung / fehler farblich unterschieden, Exit-Code-Badge).
+- Einklappbares **Seitenpanel** rechts mit Tabs **Doku** · **Beispiele** (auf schmalen Bildschirmen als Overlay/Popup).
+- Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.
+- Hawaii-Panik: Vollbild-Crash-Overlay mit Banner, „PizzaVM neu starten“.
+- Hell/Dunkel, deutsch, keine externen Requests zur Laufzeit (alles gebündelt).
