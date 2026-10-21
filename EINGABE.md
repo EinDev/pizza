@@ -45,8 +45,8 @@ bei Widersprüchen gilt SPEC §11.1.
 
 - Der Interpreter läuft synchron im Worker. Interaktive Eingabe blockiert den Worker per **`SharedArrayBuffer` + `Atomics.wait`**:
   Worker sendet `{ typ: "eingabe-anfrage", prompt, art }`, wartet; die UI schreibt die Zeile (UTF-8) in den geteilten Puffer und weckt per `Atomics.notify`. EOF/Abbruch per Statusflag.
-- Voraussetzung: **Cross-Origin-Isolation** (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`) in `nginx.conf` und im E2E-Testserver. Ohne Isolation (`crossOriginIsolated === false`): Fallback – die UI fragt **vor** dem Lauf alle Eingaben ab („Eingaben vorab eintragen“), deutlich gekennzeichnet.
-- Das Wand-Zeitlimit (10 s) ruht, solange auf Eingabe gewartet wird.
+- Voraussetzung: **Cross-Origin-Isolation** (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`) in `nginx.conf` und im E2E-Testserver. Ohne Isolation (`crossOriginIsolated === false`): **klare Fehlermeldung**, kein Lauf mit Eingabe (Nutzerentscheidung K-083/6 – kein abweichender „Eingaben vorab“-Modus).
+- Es gibt kein Wand-Zeitlimit (K-083/3); es gilt nur das Schrittlimit (P0002), „Abbrechen“ beendet jederzeit.
 - UI: Eingabezeile unten in der Konsole (erscheint nur bei Anfrage, Fokus springt hinein, Enter sendet, Strg+D = EOF, Verlauf mit ↑/↓), Echo der Eingabe in der Konsole (eigener Stil), `Bote.schreibe`-Ausgaben ohne Umbruch korrekt fortgesetzt, `leeren` leert die Konsole, „Abbrechen“ beendet auch während des Wartens.
 
 ## 4. Wasm / Host / CLI

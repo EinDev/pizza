@@ -323,9 +323,9 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Entscheidung:** `art` ∈ {`syntax`, `pizzafehler`, `ananas`, `limit`, `intern`}. `intern` = Fehler von Host/Worker **vor**
   dem Programmstart (K-043 Ladefehler, Worker-/WASM-Instanziierungsfehler); interne Fehler eines **laufenden** Motors
   bleiben `art: "ananas"` (K-014). Das 10-s-Wand-Zeitlimit der UI/CLI meldet
-  `{typ:"fehler", code:"P0003", art:"limit", text:"PizzaFehler P0003: Die Pizza ist noch im Ofen. (Zeitlimit von 10 s erreicht)"}`,
-  Exit 3 – nicht P0002 (das ist das Schrittlimit). `W-WASM`/`wasm` im Worker → `art:"intern"`, Code `WASM`.
-- **Betroffen:** ARCHITEKTUR §1 (hier geändert), UI (U-17), Worker (U-17). **Status:** offen (UI).
+  ~~`P0003`~~ – **ersetzt durch K-083/3 (Nutzerentscheidung): das Wand-Zeitlimit entfällt ganz**, es gilt überall nur das Schrittlimit P0002;
+  der Playground bietet „Abbrechen“. `W-WASM`/`wasm` im Worker → `art:"intern"`, Code `WASM`.
+- **Betroffen:** ARCHITEKTUR §1/§2, SPEC §12, UI (U-17: P0003 entfernen), Doku 30:ref-playground. **Status:** fest (Vertrag), offen (UI).
 
 ### K-045 WASM.md vs. HOST-ABI.md
 - **Entscheidung:** Bei Widersprüchen gilt **HOST-ABI.md** (`panik` darf zurückkehren, Modul wickelt ab; `schritte()`/`zeitMs()`
@@ -589,8 +589,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Status:** fest (Interpreter ce303cb, a10); Harnische außer Prüfstand/run-tests offen (U-43).
 
 ### K-081 Vorratskammer: Backends (Playground, EXE/Host, Wasm)
-- **Entscheidung:** Playground: `localStorage["pizza.vorrat.<name>"]` = Serialisierung aus K-080; kleiner Dialog „Vorrat“ (Kammern
-  ansehen, einzeln löschen); Worker-Brücke synchron (wie Eingabe). EXE/Host: Datei `%APPDATA%\pizza\vorrat\<name>.json` bzw.
+- **Entscheidung:** Playground: `localStorage["pizza.vorrat.<name>"]` = Serialisierung aus K-080; **kein** Ansichts-Dialog – nur der Befehl
+  „Vorrat löschen“ (Kammer wählen/alle), gleichlautend auch in der EXE (`--vorrat-loeschen <name|alle>`, K-083/5); Worker-Brücke synchron (wie Eingabe). EXE/Host: Datei `%APPDATA%\pizza\vorrat\<name>.json` bzw.
   `$XDG_DATA_HOME/pizza/vorrat/<name>.json` (Fallback `~/.local/share`), **atomar** (Temp-Datei + Umbenennen). HOST-ABI (optionale
   Imports, ABI-kompatibel: Modul deklariert sie nur bei Nutzung, Host ohne Unterstützung → W0101-Verhalten): `vorrat_lesen(name_ptr,
   name_len, puffer_ptr, puffer_kap) -> i32` (Länge des JSON, `-1` = keine Kammer, `> kap` → Retry wie K-013) und
@@ -634,7 +634,17 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 6. **Eingabe-Fallback „Eingaben vorab eintragen“** ohne Cross-Origin-Isolation (EINGABE §3) ist ein anderer Modus als nativ.
    (Empfehlung: streichen – ohne Isolation klare Fehlermeldung; die Auslieferung setzt die Header ohnehin.)
 7. **Saat-Standard:** echte Saat in Playground, CLI und EXE – gleich (keine Frage); nur Tests/Beispiele mit 42 – ok.
-- **Status:** technische Punkte fest (U-45 … U-47); Punkte 1–6 offen bis zur Nutzerentscheidung.
+**Nutzerentscheidungen (alle sechs Punkte, über den Koordinator):**
+1. Linux-Variante ohne Theke **gestrichen** (auch arm64-musl ohne Fenster); nur Varianten mit Fenster; fehlende WebView → klare Meldung.
+   Host-Build: Windows per cargo-xwin (MSVC, eine EXE mit Fenster), Linux-Fenster-Variante auf bookworm.
+2. **Argumente-Feld** im Playground für `hauptgang(args)`.
+3. **Wand-Zeitlimit P0003 abgeschafft** – nur Schrittlimit + Abbrechen (K-044 angepasst).
+4. **Thema:** Browser folgt dem OS-Thema und damit auch das Programmfenster; schaltet der Nutzer die Seite um, gilt das auch für das
+   Programmfenster; nativ: OS-Thema.
+5. **Nur „Vorrat löschen“** als gleicher Befehl in beiden Hüllen, kein Ansichts-Dialog.
+6. Eingabe-Fallback „Eingaben vorab“ **gestrichen** – ohne Cross-Origin-Isolation klare Fehlermeldung.
+- **Festgehalten:** THEKE.md §4, EINGABE.md §3, ARCHITEKTUR §2, SPEC §2/§12/§15.3 (K-044)/§15.4/§16.2.
+- **Status:** fest (Vertrag); Umsetzung U-17, U-39, U-42, U-53 … U-55.
 
 ### K-084 Theke v2: `Takt` – Zeitgeber (Nutzerentscheidung: Takt hat Vorrang)
 - **Entscheidung (Vorschlag THEKE-ERWEITERUNGEN §1 übernommen):** `Takt` ist eine **unsichtbare Zutat**: `neu Takt(intervall, beiTakt?)`
@@ -733,7 +743,10 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-44 | `site/beispiele/` (Beispiel-Agent) | Idle-Game mit `Vorratskammer` und `.vorrat.json`; Spiele mit echter Saat prüfen (Tests bleiben bei 42) | Prüfstand Beispiele |
 | U-45 | `ui/**`, `bin/pizza.js`, `host/**` | K-083: einheitliche Anzeigeform von Warnungen/Fehlern `<text> (Zeile Z, Spalte S)`; `detail` nie anzeigen (nur `--debug`) | e2e / manuell |
 | U-46 | `ui/**` | K-083: Saat-Infozeile `Saat: N` in der Konsole statt Badge; Option „feste Saat 42“ | e2e |
-| U-47 | Koordinator | K-083 Punkte 1–6 dem Nutzer vorlegen; danach THEKE.md §4/§6 (Linux-Variante), SPEC §2 (Args), K-044 (P0003), EINGABE §3 (Fallback) nachziehen | – |
+| U-47 ✅ | Klärungs-Agent | K-083: Nutzerentscheidungen 1–6 in THEKE.md §4, EINGABE.md §3, ARCHITEKTUR §2, SPEC §2/§12/§15.3/§15.4/§16.2 eingearbeitet | – |
+| U-53 | `ui/**` (UI-Agent) | K-083: Feld „Argumente“ (→ `optionen.args`), P0003/Wand-Zeitlimit entfernen (nur „Abbrechen“), Theke-Thema folgt dem Seiten-Thema (Standard OS), Befehl „Vorrat löschen“, „Eingaben vorab“-Fallback entfernen → klare Fehlermeldung ohne Isolation | e2e |
+| U-54 | `host/**`, `ziele.json`, `host/baue-ziele.sh`, Dockerfile-Stage exe (Host-/Infra-Agent) | K-083/1: nur Fenster-Varianten (Windows x64 via cargo-xwin/MSVC, Linux x64 bookworm/WebKitGTK 4.1), statische/arm64-Varianten ohne Fenster entfernen; fehlende WebView → klare Fehlermeldung; `--vorrat-loeschen <name|alle>` (K-083/5); OS-Thema | Smoke |
+| U-55 | `site/js/doku/30-referenz.js` (Doku-Agent), `e2e/**` (E2E-Agent) | Zeitlimit-Texte entfernen (P0003), Argumente-Feld, „Vorrat löschen“ dokumentieren; E2E-Zeitlimit-Test entfernen | – |
 | U-48 | `site/js/pizza.js`, `tests/faelle/` (Interpreter-Agent) | K-084 `Takt`; K-085 `tausender`/`kompakt`/`euro(kompakt:)`; K-086 `Fortschritt`/`Abschnitt`/`Tabelle`/`Reiter`/`hinweis`/`schrift: riesig`; K-087 Schrittlimit je Rückruf, `Uhr.echt()` + Option `echtzeit` | a12 (8 Fälle), a11 (2 Fälle) |
 | U-49 | `laufzeit/`, `site/js/pizzaiolo*`, `HOST-ABI.md` (Compiler-Agent) | dieselben Klassen/Methoden; Import `echtzeit_ms() -> f64`; Schrittlimit je Rückruf | tests/differenz |
 | U-50 | `ui/src/ausfuehrung.js`, `host/**` (UI-/Host-Agent) | K-084: aufeinanderfolgende `takt`-Ereignisse derselben id zusammenfassen (Summe `anzahl`); K-087: `echtzeit_ms` im Host | e2e / Smoke |
@@ -743,7 +756,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-14 | `tests/differenz/vergleich.js` | K-014: Feld `detail` beim Vergleich ignorieren | – |
 | U-15 | `tests/differenz/korpus/` | K-015: `kontrolle-ausserhalb-schleife.pizza` auf P0012 (Exit 2) umstellen; K-040: Korpusfall Textordnung U+1F355 vs. U+FF5E | tests/differenz |
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |
-| U-17 | `ui/src/ausfuehrung.js`, `site/js/worker.js` (UI-Agent) | K-044: Wand-Zeitlimit → `P0003`/`art:"limit"`; Worker-Fehler → `art:"intern"`, Code `WASM`/`INTERN` | e2e |
+| U-17 | `ui/src/ausfuehrung.js`, `site/js/worker.js` (UI-Agent) | K-044 (neu): Wand-Zeitlimit **entfernen** (kein P0003, nur „Abbrechen“); Worker-Fehler → `art:"intern"`, Code `WASM`/`INTERN` | e2e |
 | U-18 | `site/js/pizza.js` (`Uhr.vorspulen`, `warte`) | K-047: `vorspulen` rundet auf ganze ms; Lieferbudget `floor(max_ms × Faktor)`; `zeitMs` ganzzahlig | a11 K-047 |
 | U-19 ✅ | `pruefstand/run.js`, `pruefstand/teil-b.js` | erledigt (Klärungs-Agent): Doku-`eingabe`, Manifestfeld `eingabe` + `.eingabe`-Fallback, B1 prüft `interaktiv`/verwaiste `.eingabe`, nur ein Schluss-Umbruch, Banner beidseitig entfernt; `*-offen.js`-Fälle zählen nicht als Fehlschlag und melden grüne Fälle als „nach a10 verschieben“ | Prüfstand selbst |
 | U-20 ✅ | `ARCHITEKTUR.md` §6 | erledigt (Klärungs-Agent): Testfall-Dateiformate dokumentiert | – |

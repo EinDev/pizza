@@ -90,7 +90,9 @@ Renderer → Programm (Ereignis):
 ### Browser (Playground)
 Worker blockiert per `SharedArrayBuffer` + `Atomics.wait` (wie Eingabe). Die UI zeigt die Theke in einem **Vorschaufenster**
 (schwebendes, verschiebbares Panel über dem Editor bzw. eigener Bereich; Titel = Fenstertitel; Schließen-Knopf → `geschlossen`).
-Wand-Zeitlimit ruht während des Wartens. Abbrechen funktioniert immer.
+Kein Wand-Zeitlimit (K-083/3: P0003 abgeschafft, nur Schrittlimit P0002); Abbrechen funktioniert immer.
+**Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard = OS-Thema; schaltet der Nutzer die Seite um,
+gilt das auch für das Programmfenster), nativ dem OS-Thema – gleiche Engine, gleiches CSS, gleiche Farben.
 
 ### Wasm / HOST-ABI
 Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_ptr, puffer_kap) -> i32`
@@ -101,8 +103,10 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
   Die Render-Engine (`site/js/theke/`) ist ins Binary eingebettet (`include_str!`), kein Netzwerk, kein localhost-Server.
 - Das Wasm-Programm läuft in einem eigenen Thread; das Fenster im Hauptthread (Event-Loop von tao). `ui_warte` blockiert auf einem Kanal.
 - Das Fenster erscheint erst beim ersten `zeige`; Programme ohne Theke bleiben reine Konsolenprogramme (kein Fenster).
-- **Varianten:** Windows x64 (eine EXE mit Theke; WebView2-Runtime ist ab Win 10/11 vorhanden – fehlt sie: verständliche Meldung + Konsolenbetrieb),
-  Linux x64 **statisch ohne Theke** (`linux-x64`, W0100) und **Linux x64 mit Theke** (`linux-x64-theke`, glibc, braucht WebKitGTK 4.1 installiert).
+- **Varianten (Nutzerentscheidung K-083/1, Grundsatz K-082):** **nur Varianten mit Theke** – Windows x64 als eine EXE mit Fenster
+  (Build per cargo-xwin/MSVC; WebView2-Runtime ab Win 10/11 vorhanden – fehlt sie: **klare Fehlermeldung**, kein stiller Konsolenbetrieb)
+  und Linux x64 mit Fenster (`linux-x64-theke`, glibc/bookworm, braucht WebKitGTK 4.1 – fehlt es: klare Fehlermeldung). Varianten **ohne**
+  Fenster (statisch `linux-x64`, arm64-musl) werden **nicht** mehr angeboten; W0100 bleibt nur für Tests/CLI ohne Renderer.
   `ziele.json` beschreibt Voraussetzungen; der EXE-Dialog zeigt sie an.
 
 ## 5. Tests

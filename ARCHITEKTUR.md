@@ -109,7 +109,8 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 ```
 - Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
-- Wand-Zeitlimit in der UI: **10 s** → `worker.terminate()`, Anzeige „Die Pizza ist noch im Ofen (Zeitlimit)“.
+- **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
+- Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`).
 - Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
   in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.
 

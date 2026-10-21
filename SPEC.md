@@ -79,7 +79,8 @@ speisekarte klasse Pizzeria {
 ```
 
 **Einstiegspunkt:** Die erste Klasse mit einer Methode `tiefkühl leer hauptgang(Blech<margherita> args)`.
-Sie wird mit einem leeren `Blech` (oder den übergebenen Args) aufgerufen.
+Sie wird mit einem leeren `Blech` (oder den übergebenen Args) aufgerufen – Args kommen aus der Kommandozeile (CLI/EXE) bzw. dem
+Feld „Argumente“ des Playgrounds (K-083/2, gleich in beiden Hüllen).
 
 **Snack-Modus:** Anweisungen dürfen auch direkt auf oberster Ebene stehen (zwischen Deklarationen).
 Ablauf: (1) alle Deklarationen werden registriert (Hoisting), (2) Top-Level-Anweisungen laufen
@@ -524,7 +525,7 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas |
 | 2 | PizzaFehler (Syntax, B0012, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015] …; Host-Ladefehler `HOST` [K-043]) |
-| 3 | Schrittlimit (P0002); Wand-Zeitlimit von UI/CLI (P0003, K-044) |
+| 3 | Schrittlimit (P0002) – ein Wand-Zeitlimit gibt es nicht (K-083/3) |
 | 39 | Hawaii |
 
 ## 13. Tier 3 – nur Spezifikation
@@ -840,9 +841,9 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-041 [offen]** HOST-ABI: separater Import `schreibe(ptr, len)`; `ausgabe` bleibt zweistellig.
 - **K-042** EOF ist endgültig (§11.1).
 - **K-043 [offen]** Host-Ladefehler: `{typ:"fehler", code:"HOST", art:"intern"}`, Exit 2.
-- **K-044 [offen UI]** `art` ∈ {syntax, pizzafehler, ananas, limit, intern}; `intern` nur für Host-/Worker-Fehler vor dem
-  Programmstart (K-043), interne Fehler eines laufenden Motors bleiben `ananas` (K-014). Wand-Zeitlimit der UI/CLI =
-  `P0003` (`art: "limit"`, Exit 3), nicht P0002.
+- **K-044** `art` ∈ {syntax, pizzafehler, ananas, limit, intern}; `intern` nur für Host-/Worker-Fehler vor dem
+  Programmstart (K-043), interne Fehler eines laufenden Motors bleiben `ananas` (K-014). **Kein Wand-Zeitlimit** (P0003 gestrichen,
+  Nutzerentscheidung K-083/3): überall gilt nur das Schrittlimit P0002; der Playground bietet „Abbrechen“.
 - **K-045** Bei Widersprüchen zwischen WASM.md und HOST-ABI.md gilt HOST-ABI.md.
 - **K-046 [offen]** `umbruch` wird bei `Bote.sage` weggelassen (kanonisch); Exit-Codes genau {0, 1, 2, 3, 39}.
 - **K-030/K-050/K-051/K-052** Doku-`ausgabe` darf den Panik-Banner weglassen; Doku-Codeblöcke dürfen `eingabe: string[]`
@@ -866,6 +867,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   nicht gespeichert.` (einmal pro Programm). Serialisierung `{"v":1,"name":"x","eintraege":[["k",wert],…]}`, Speisekarte als
   `{"speisekarte":[["k",v],…]}`, `karton` → `null`, `ja`/`nein` → `true`/`false`.
 - **Backends (K-081):** Playground `localStorage["pizza.vorrat.<name>"]`; EXE/Host JSON-Datei im Nutzer-Datenverzeichnis, atomar;
+  Verwaltung nur über den gleichen Befehl „Vorrat löschen“ in beiden Hüllen (kein Ansichts-Dialog, K-083/5);
   HOST-ABI optionale Imports `vorrat_lesen`/`vorrat_schreiben` (Retry wie K-013); Host ohne Unterstützung → W0101-Verhalten.
 
 ---
@@ -944,6 +946,9 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.`; ungültiger Wert →
   `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
   **K-075:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
+- **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard OS-Thema; der Umschalter wirkt auch auf
+  das Fenster), nativ dem OS-Thema – dieselbe Engine, dasselbe CSS. Nativ gibt es nur Varianten **mit** Fenster (K-083/1); fehlt die
+  System-WebView, erscheint eine klare Fehlermeldung.
 - **Textform (K-071):** Zutaten `Knopf(z3)` (Klassenname + ID in Klammern), Theke `Theke(<titel>)` (leer: `Theke()`).
 - **Schritte (K-069):** Erzeugen/Setzen/`bediene()` kosten die normalen Aufrufknoten; Rückrufe zählen ihre Anweisungen;
   Warten und Zustellung eines Ereignisses kosten 0 (`t.bediene();` ohne Rückruf = 3 Schritte).
