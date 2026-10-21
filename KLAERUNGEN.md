@@ -1,4 +1,4 @@
-| U-33 ✅ (d35d412) || U-32 ✅ (d35d412) || U-31 ✅ (d35d412) || U-21 ✅ (0d34810) || U-18 ✅ (0d34810) || U-16 ✅ (0d34810) || U-13 ✅ (0d34810) || U-06 ✅ (0d34810) || U-05 ✅ (0d34810) || U-04 ✅ (0d34810) || U-03 ✅ (0d34810) || U-02 ✅ (0d34810) || U-01 (optional) ✅ (0d34810) |# Klärungsprotokoll pizza v3.0 (K-001 …)
+# Klärungsprotokoll pizza v3.0 (K-001 …)
 
 Entscheidungsprotokoll des Klärungs-Agenten. Jede Klärung ist verbindlich und in `SPEC.md` §15 (bzw. §11.1)
 als Vertragstext eingearbeitet; Regressionstests liegen in `pruefstand/faelle/a10-klaerungen.js` (grün) und
