@@ -45,6 +45,8 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
 - **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
+- **Gruppe `kueche` (Entwurf, SPEC §17, K-093 – endgültig mit THREADS-Paket P2):** `kueche_auftrag`, `kueche_bericht` – nur wenn
+  das Programm `brigade` enthält; dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
 
 Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["theke", "vorrat"]`.
@@ -105,7 +107,25 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   fehlgeschlagen → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` Ohne Speicherung (Abfrage = 0)
   emittiert der Host nur das Ereignis und gibt `0` zurück. Größenprüfung (1 MiB) macht das Modul selbst.
 
-Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
+**Küchenbrigade – Gruppe `kueche`** (**Entwurf**, SPEC §17, K-093; Einzelheiten THREADS.md §4.3–§4.5, endgültig mit P2):
+
+| Import | Signatur | Bedeutung |
+|---|---|---|
+| `kueche_auftrag` | `(auftrag_ptr i32, n i32) -> i32` | Führt die Stücke 1 … n in **Klon-Instanzen** desselben Moduls aus (Schnappschuss = linearer Speicher der aufrufenden Instanz **jetzt**, kein geteilter Speicher, keine Wasm-Threads). `0` = Berichte liegen bereit; `-1` = keine Köche (das Modul führt die Stücke selbst nacheinander aus – gleiches Ergebnis). Muss Stücke nach einem früheren Abbruch nicht ausführen (SPEC §17.6 D3). |
+| `kueche_bericht` | `(i i32, puffer_ptr i32, kap i32) -> i32` | Länge des Berichts von Stück i; `> kap` → nichts geschrieben, erneut mit größerem Puffer (K-013); `-2` = Stück nicht ausgeführt. |
+
+- Ein Host, der die Gruppe kennt, aber keine Threads hat (oder `koeche = 1`), stellt beide Imports bereit und antwortet `-1`.
+  Ein Host ohne die Gruppe meldet den bekannten Ladefehler (K-043).
+- **Klon-Instanzen** rufen `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler` und `panik` **nie** auf (das
+  Modul schreibt Ereignisse und Abbruchstatus in den Bericht; die Hauptinstanz gibt sie beim Zusammenführen über die normalen
+  Imports aus). Hosts behandeln solche Aufrufe in Klonen als Trap (K-014), **nie** als Lauf-Abbruch – auch `panik` nicht.
+  In Klonen gilt: `eingabe` → `-1`, `ui_warte` → `-1`/`0`, `ui_senden` und `vorrat_*` → Trap (S4 verhindert Aufrufe),
+  `echtzeit_ms` wie sonst, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
+- Trap in einem Klon → das Stück gilt als Abbruch „interner Fehler“ (Text K-014, `detail` = Trap-Meldung), Zusammenführen nach D3.
+- Die Anzahl der Köche (`koeche`, §7) wählt der Host; sie darf nie ein Ereignis, einen Exit-Code, `schritte` oder `zeitMs` ändern.
+
+Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz). Präzisierung für `kueche_auftrag`: Der Host ruft dabei nie
+die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone, Export `kueche_stueck`).
 
 ## 3. Exports
 
@@ -120,7 +140,8 @@ Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 | `saat_setzen` | `(saat f64) -> ()` | Zufallssaat (`optionen.zufallsSaat`, K-077); nur Ganzzahlen, normalisiert `n mod 2^32`; ohne Aufruf 42. Optional, vor `start`. Hosts/Playground erzeugen standardmäßig eine echte Saat und zeigen `Saat: N` an. |
 | `start` | `() -> i32` | führt das Programm aus, liefert den **Exit-Code** |
 | `schritte` | `() -> f64` | ausgeführte Schritte (ganzzahlig) |
-| `zeitMs` | `() -> f64` | simulierte Uhr in ms (= Schritte + vorgespulte Zeit) |
+| `zeitMs` | `() -> f64` | simulierte Uhr in ms (= Schritte + vorgespulte Zeit + Brigade-Ersparnis ≤ 0, SPEC §14.1/§17.6) |
+| `kueche_stueck` | `(auftrag_ptr i32, i i32) -> (i32, i32)` | **Entwurf** (Gruppe `kueche`): nur von Hosts in **Klon-Instanzen** aufzurufen; führt Stück i aus und liefert Zeiger/Länge des Berichts im Klon-Speicher |
 
 Weitere Exports (Laufzeit-Interna, Präfix `rt_`/`__`) sind **nicht** Teil des ABI und dürfen sich ändern.
 
@@ -177,7 +198,11 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 - **Speicher:** Der lineare Speicher wächst über `memory.grow` bis Heap-Limit + Reserve + statische Daten
   (Standard ~ 1,1 GiB im Extremfall; typische Programme brauchen wenige MiB). Hosts sollen bis 2 GiB zulassen.
 - **Determinismus:** Keine Imports für Zeit/Zufall – Uhr und Zufall (mulberry32, Seed 42) sind simuliert.
-  Gleiches `.pkarton` + gleiche Args ⇒ gleiche Ereignisse, gleicher Exit-Code, gleiche `schritte`/`zeitMs`.
+  Gleiches `.pkarton` + gleiche Args ⇒ gleiche Ereignisse, gleicher Exit-Code, gleiche `schritte`/`zeitMs` – auch für jede
+  Anzahl Köche und jede Planung (SPEC §17).
+- **Köche (Gruppe `kueche`, Entwurf):** Der Wirt-Stapel jedes Kochs muss dieselben Grenzen erlauben wie der Hauptthread (oben).
+  Die Anzahl der gleichzeitigen Klone wählt der Host so, dass Klone × Speichergröße in sein Budget passt (Browser 2 GiB gesamt,
+  nativ 50 % RAM) – reine Leistungsentscheidung.
 
 ## 7. Empfohlene CLI-Ausgabe (nativer Host, wie `bin/pizza.js`)
 
@@ -195,6 +220,9 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 ` entfernen), EOF → `-1` |
 | `panik` | stderr: `text` (Banner auf stderr, K-012) |
 | `ende` | Prozess-Exit-Code = `exitCode` |
+
+Option **`--koeche=N`** (`auto` = Standard: logische Kerne, höchstens 16; `1` = keine Köche) für Programme mit Gruppe `kueche`
+(SPEC §17.7, K-093); `--info` zeigt zusätzlich `Köche: N` (tatsächlich genutzt – derselbe Text wie in der Playground-Statusleiste).
 
 ## 8. Minimaler JS-Host (Referenz)
 

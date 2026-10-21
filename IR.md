@@ -36,8 +36,11 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
   felder: [{ name, typ, flags (1 gebacken, 2 statisch), sicht (0, 1 geheim, 2 familie) }],
   methoden: [{ name, fn|null, flags (1 statisch), sicht, nparam, pos, mid }], ktoren: [{ fn, hatUnten, mid }],
   feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (17 + n; 0–16 sind die eingebauten Ananas).
-  `KüchenAnanas` (Interpreter, THREADS.md) gibt es im Wasm noch nicht: Programme mit `brigade` oder `KüchenAnanas` meldet das
-  Frontend als `nichtUnterstuetzt`. Erst mit THREADS-Paket P2 wird sie Laufzeitklasse 17 und eigene Klassen beginnen bei 18.
+  `KüchenAnanas` (SPEC §17, K-093) gibt es im Wasm noch nicht: Programme mit `brigade` oder `KüchenAnanas` meldet das
+  Frontend als `nichtUnterstuetzt`. Erst mit THREADS-Paket P2 wird sie Laufzeitklasse 17 (`erbt LaufzeitAnanas`, am Ende von
+  `ANANAS_BAUM`, bestehende Indizes 0–16 bleiben) und eigene Klassen beginnen bei **18** (`idx` = 18 + n; 0–17 eingebaut).
+  Die Verschiebung ist intern (jedes `.pkarton` bringt seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens
+  `KüchenAnanas` überschattet die eingebaute wie bei allen eingebauten Ananas (K-091).
 - `{ art: "rezeptur", name, basen: [name] }`, `{ art: "enum", name, werte: [name×4] }`,
 - `{ art: "belag", name, nach: [name]|null (null = Tabellenwert), methoden: [{ name, fn, mid }] }`,
 - `{ art: "globalfn", name, fn, nparam, pos, mid }`.

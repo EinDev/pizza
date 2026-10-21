@@ -49,7 +49,7 @@ PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
 PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
 PizzaLang.BELAEGE            // [{name, preis, nach: string[]}] – eingebaute Zutatenliste
-PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen
+PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen (inkl. KüchenAnanas, SPEC §17 – am Ende angehängt)
 
 PizzaLang.parse(quelltext)
   // → { ok: true, ast } | { ok: false, fehler: { code, text, zeile, spalte } }
@@ -59,9 +59,17 @@ PizzaLang.run(quelltext, optionen)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
-  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege) }   // SPEC §15.4 (K-077 … K-081)
+  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege),  // SPEC §15.4 (K-077 … K-081)
+  //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-093)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
+
+**Küchenbrigade (SPEC §17, K-093):** `koeche` = gewünschte Anzahl Köche (Host-Einstellung, nie beobachtbar); der Interpreter
+akzeptiert und **ignoriert** sie (sequentielle Referenz). `kuechenChaos` (nur Tests, Saat) führt die Stücke jeder Brigade in einer
+pseudozufälligen Reihenfolge aus und verwirft danach nach D3 – das Ergebnis muss identisch sein. Der Wasm-Weg
+(`Pizzaiolo.run`) übernimmt dieselben Optionen (`laufOptionen` + `koeche`, `faehigkeiten.importgruppen` + `kueche`; mit P3
+zusätzlich ein Pool-Objekt aus `Pizzaiolo.kuechenPool(k)` als `koeche`). `BUILTINS` und `KEYWORDS` ändern sich nicht
+(`brigade` ist eine Blech-Methode).
 
 **Interne Hilfen für Compiler-Frontends** (`PizzaLang.intern`, keine Endnutzer-API, kann sich mit dem Interpreter ändern):
 
@@ -92,7 +100,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
 { typ: "panik",         text }                                  // Hawaii-Banner (SPEC §9), danach sofort "ende"
-{ typ: "ende",          exitCode, schritte, zeitMs }
+{ typ: "ende",          exitCode, schritte, zeitMs }              // optional koeche: tatsächlich genutzte Köche (SPEC §17.7; nicht in .erwartet, Differenztests ignorieren es)
 ```
 
 - `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"B0012"` …).
@@ -111,6 +119,12 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
 - Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`).
+- **Köche (SPEC §17.7, K-093):** Lauf-Einstellungen-Popover **„Köche: auto | 1 | 2 | 4 | 8“** (localStorage, neben „feste Saat“;
+  `auto` = `navigator.hardwareConcurrency`, höchstens 16). Enthält das kompilierte Programm die Importgruppe `kueche`, erzeugt der
+  Lauf-Worker **vor** `run` einen Köche-Pool (Kinder-Worker; „Abbrechen“ = `worker.terminate()` beendet alle Köche). Ohne
+  Cross-Origin-Isolation, ohne verschachtelte Worker oder im Interpreter-Rückfall läuft die Brigade sequentiell (gleiches
+  Ergebnis). Statusleiste nach dem Lauf: `Köche: N` (tatsächlich genutzt; 1 bei Interpreter/Rückfall) – gleicher Text wie
+  `--info` nativ (`--koeche=N`, HOST-ABI §7). Ereignisse eines Stücks erscheinen frühestens, wenn alle früheren Stücke fertig sind.
 - Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
   in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.
 
@@ -224,3 +238,6 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).
+Küchenbrigade (SPEC §17, K-093): Fälle heißen `kueche-*`; `.optionen.json` darf `koeche`/`kuechenChaos` tragen; das `ende`-Feld
+`koeche` wird von allen Harnischen ignoriert – Ereignisse, Exit-Code, `schritte` und `zeitMs` müssen für jede Köche-Anzahl und
+jede Chaos-Saat identisch sein.
