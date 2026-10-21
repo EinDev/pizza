@@ -24,13 +24,13 @@
   const BELAG_NAMEN = ['Tomate', 'Mozzarella', 'Käse', 'Basilikum', 'Salami', 'Schinken', 'Pilze', 'Oliven', 'Zwiebeln', 'Paprika',
     'Chili', 'Peperoni', 'Rucola', 'Parmesan', 'Gorgonzola', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais',
     'Knoblauch', 'Kapern', 'Ananas'];
-  const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat']);
+  const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter']);
   const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
-    'Haken', 'Stapel', 'Reihe', 'Zufall', 'Vorratskammer']);
+    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
-  const NOCH_NICHT_METHODEN = new Set(['tausender', 'kompakt', 'echt']);
+  const NOCH_NICHT_METHODEN = new Set();
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
@@ -163,6 +163,7 @@
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Belag') this.belagNamen.add(n.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'echt') this.nutztEcht = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
         if (n.k === 'Belag') for (const m of n.methoden) this.methodenNamen.add(m.name);
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
@@ -458,6 +459,7 @@
       const g = [];
       for (const t of this.neuTypen) if (THEKE.has(t) && !this.klassenNamen.has(t)) { g.push('theke'); break; }
       if (this.neuTypen.has('Vorratskammer') && !this.klassenNamen.has('Vorratskammer')) g.push('vorrat');
+      if (this.nutztEcht) g.push('echtzeit');
       return g;
     }
 

@@ -1,6 +1,6 @@
 //! Eingebaute Namen (Intern-IDs). Generiert – Reihenfolge = ID.
 
-pub const NAMEN: [&str; 197] = [
+pub const NAMEN: [&str; 216] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -198,6 +198,25 @@ pub const NAMEN: [&str; 197] = [
     "mische",
     "saat",
     "Vorratskammer",
+    "tausender",
+    "kompakt",
+    "intervall",
+    "setzeIntervall",
+    "beiTakt",
+    "Takt",
+    "Fortschritt",
+    "Abschnitt",
+    "Tabelle",
+    "Reiter",
+    "hinweis",
+    "spalten",
+    "setzeSpalten",
+    "zeilen",
+    "setzeZeilen",
+    "waehle",
+    "gewaehlt",
+    "seiten",
+    "echt",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -399,6 +418,26 @@ pub const N_WAEHLE: u32 = 193;
 pub const N_MISCHE: u32 = 194;
 pub const N_SAAT: u32 = 195;
 pub const N_G_VORRATSKAMMER: u32 = 196;
+
+pub const N_TAUSENDER: u32 = 197;
+pub const N_KOMPAKT: u32 = 198;
+pub const N_INTERVALL: u32 = 199;
+pub const N_SETZEINTERVALL: u32 = 200;
+pub const N_BEITAKT: u32 = 201;
+pub const N_G_TAKT: u32 = 202;
+pub const N_G_FORTSCHRITT: u32 = 203;
+pub const N_G_ABSCHNITT: u32 = 204;
+pub const N_G_TABELLE: u32 = 205;
+pub const N_G_REITER: u32 = 206;
+pub const N_HINWEIS: u32 = 207;
+pub const N_SPALTEN: u32 = 208;
+pub const N_SETZESPALTEN: u32 = 209;
+pub const N_ZEILEN: u32 = 210;
+pub const N_SETZEZEILEN: u32 = 211;
+pub const N_WAEHLE_ASCII: u32 = 212;
+pub const N_GEWAEHLT: u32 = 213;
+pub const N_SEITEN: u32 = 214;
+pub const N_ECHT: u32 = 215;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM).
 pub const K_ANANAS: u32 = 0;

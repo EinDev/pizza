@@ -38,6 +38,9 @@ extern "C" {
     fn eingabe(art: i32, pp: *const u8, pn: i32, bp: *mut u8, kap: i32) -> i32;
 }
 
+#[link(wasm_import_module = "pizza")]
+extern "C" { fn echtzeit_ms() -> f64; }
+pub fn host_echtzeit() -> f64 { unsafe { echtzeit_ms() } }
 pub fn host_ausgabe(b: &[u8]) { unsafe { ausgabe(b.as_ptr(), b.len()) } }
 pub fn host_fehlerausgabe(b: &[u8]) { unsafe { fehlerausgabe(b.as_ptr(), b.len()) } }
 pub fn host_schreibe(b: &[u8]) { unsafe { schreibe(b.as_ptr(), b.len()) } }

@@ -22,7 +22,7 @@ if (!process.argv.includes('--ohne-cargo')) {
 const bytes = fs.readFileSync(ROH);
 const leer = () => 0;
 const inst = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
-  pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0 },
+  pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0 },
 });
 const info = {
   zustand: inst.exports.rt_info(0),

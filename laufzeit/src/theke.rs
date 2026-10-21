@@ -14,8 +14,9 @@ use alloc::vec::Vec;
 pub const A_THEKE: u32 = 24;
 pub const A_ZUTAT: u32 = 25;
 
-const ARTEN: [&str; 6] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe"];
-const ART_NAMEN: [u32; 6] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE];
+const ARTEN: [&str; 11] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter"];
+const ART_NAMEN: [u32; 11] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER];
+fn behaelter(zart: u32) -> bool { matches!(zart, 4 | 5 | 8 | 10) }
 const STIL_NAMEN: [&str; 6] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe"];
 
 #[repr(C)]
@@ -25,6 +26,8 @@ pub struct UiZutat {
     pub art: u32, pub zart: u32, pub id: W, pub eltern: W, pub sichtbar: bool, pub an: bool, pub aktiv: bool,
     pub stil: Vec<(u32, W)>, pub stil_null: Vec<u32>, pub text: W, pub wert: W, pub platzhalter: W, pub kinder: Vec<W>,
     pub bei_klick: W, pub bei_aenderung: W, pub bei_enter: W,
+    pub hinweis: W, pub intervall: f64, pub bei_takt: W, pub fortschritt: f64, pub titel: W, pub titel_liste: Vec<W>,
+    pub gewaehlt: f64, pub spalten: Vec<W>, pub zeilen: Vec<Vec<W>>,
 }
 
 static mut THEKE: W = KARTON;
@@ -109,12 +112,18 @@ fn baum(w: W, out: &mut String) {
         1 => { out.push_str(",\"text\":"); json_text(bytes(z.text), out); if !z.aktiv { out.push_str(",\"aktiv\":false"); } }
         2 => { out.push_str(",\"wert\":"); json_text(bytes(z.wert), out); if !bytes(z.platzhalter).is_empty() { out.push_str(",\"platzhalter\":"); json_text(bytes(z.platzhalter), out); } }
         3 => { out.push_str(",\"text\":"); json_text(bytes(z.text), out); out.push_str(if z.an { ",\"an\":true" } else { ",\"an\":false" }); }
+        6 => { out.push_str(",\"intervall\":"); json_zahl(z.intervall, out); if !z.aktiv { out.push_str(",\"aktiv\":false"); } }
+        7 => { out.push_str(",\"wert\":"); json_zahl(z.fortschritt, out); if !bytes(z.text).is_empty() { out.push_str(",\"text\":"); json_text(bytes(z.text), out); } }
+        8 => { out.push_str(",\"titel\":"); json_text(bytes(z.titel), out); }
+        9 => { out.push_str(",\"spalten\":"); out.push_str(&jliste(&z.spalten)); out.push_str(",\"zeilen\":"); out.push_str(&jzeilen(&z.zeilen)); }
+        10 => { out.push_str(",\"titel\":"); out.push_str(&jliste(&z.titel_liste)); out.push_str(",\"gewaehlt\":"); json_zahl(z.gewaehlt, out); }
         _ => {}
     }
+    if !bytes(z.hinweis).is_empty() { out.push_str(",\"hinweis\":"); json_text(bytes(z.hinweis), out); }
     if !z.sichtbar { out.push_str(",\"sichtbar\":false"); }
     if !z.stil.is_empty() { out.push_str(",\"stil\":"); stil_json(z, out, false); }
     zutat(w).stil_null = Vec::new();
-    if z.zart >= 4 {
+    if behaelter(z.zart) {
         out.push_str(",\"kinder\":[");
         for (i, &k) in z.kinder.iter().enumerate() { if i > 0 { out.push(','); } baum(k, out); }
         out.push(']');
@@ -194,6 +203,9 @@ fn aendere_kinder(w: W) {
     aendere(w, "kinder", o);
 }
 fn jtext(w: W) -> String { let mut o = String::new(); json_text(bytes(w), &mut o); o }
+fn jzahl(x: f64) -> String { let mut o = String::new(); json_zahl(x, &mut o); o }
+fn jliste(v: &[W]) -> String { let mut o = String::from("["); for (i, &w) in v.iter().enumerate() { if i > 0 { o.push(','); } json_text(bytes(w), &mut o); } o.push(']'); o }
+fn jzeilen(v: &[Vec<W>]) -> String { let mut o = String::from("["); for (i, z) in v.iter().enumerate() { if i > 0 { o.push(','); } o.push_str(&jliste(z)); } o.push(']'); o }
 fn jbool(b: bool) -> String { String::from(if b { "true" } else { "false" }) }
 
 fn ui_funktion(f: W, wo: &str) -> Option<W> {
@@ -237,12 +249,13 @@ fn kind(c: W, k: W) -> bool {
     true
 }
 
-pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_ZUTAT | N_G_THEKE) }
+pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_ZUTAT | N_G_THEKE) }
 
 /// `neu X(…)` für Theke-Klassen (nur wenn keine gleichnamige eigene Klasse existiert). None = keine Theke-Klasse.
 pub fn neu(id: u32, pos: &[W], ben: &Ben) -> Option<W> {
     let zart = match id {
         N_G_SCHILD => 0, N_G_KNOPF => 1, N_G_EINGABE => 2, N_G_HAKEN => 3, N_G_STAPEL => 4, N_G_REIHE => 5,
+        N_G_TAKT => 6, N_G_FORTSCHRITT => 7, N_G_ABSCHNITT => 8, N_G_TABELLE => 9, N_G_REITER => 10,
         N_G_ZUTAT => { wirf_ananas(K_ROHLING, "Ein Rohling ist nicht essbar."); return Some(KARTON); }
         N_G_THEKE => return Some(neue_theke(pos, ben)),
         _ => return None,
@@ -284,6 +297,8 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
     let z = neu_w(UiZutat {
         art: A_ZUTAT, zart, id, eltern: KARTON, sichtbar: true, an: false, aktiv: true, stil: Vec::new(), stil_null: Vec::new(),
         text: leer, wert: leer, platzhalter: leer, kinder: Vec::new(), bei_klick: KARTON, bei_aenderung: KARTON, bei_enter: KARTON,
+        hinweis: leer, intervall: 1000.0, bei_takt: KARTON, fortschritt: 0.0, titel: leer, titel_liste: Vec::new(), gewaehlt: 1.0,
+        spalten: Vec::new(), zeilen: Vec::new(),
     });
     let txt = |w: W| -> W { if w == UNDEF { neu_str("") } else { text(w) } };
     match zart {
@@ -306,6 +321,36 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
             let an = arg(pos, ben, 1, N_AN);
             zutat(z).an = if an == UNDEF || an == KARTON { false } else { let b = bool_pruefen(an); if sig() { return KARTON; } b };
         }
+        6 => {
+            let d = arg(pos, ben, 0, N_INTERVALL);
+            match takt_intervall(if d == UNDEF { KARTON } else { d }) { Some(x) => zutat(z).intervall = x, None => return KARTON }
+            match ui_funktion(arg(pos, ben, 1, N_BEITAKT), "Takt") { Some(f) => zutat(z).bei_takt = f, None => return KARTON }
+        }
+        7 => {
+            match fortschritt_wert(arg(pos, ben, 0, N_WERT)) { Some(x) => zutat(z).fortschritt = x, None => return KARTON }
+            let t = arg(pos, ben, 1, N_TEXT);
+            zutat(z).text = if t == UNDEF || t == KARTON { neu_str("") } else { text(t) };
+        }
+        9 => {
+            match tabellen_zeile(arg(pos, ben, 0, N_SPALTEN), "Spalten") { Some(x) => zutat(z).spalten = x, None => return KARTON }
+            match tabellen_zeilen(arg(pos, ben, 1, N_ZEILEN)) { Some(x) => zutat(z).zeilen = x, None => return KARTON }
+        }
+        8 | 10 => {
+            let t = arg(pos, ben, 0, N_TITEL);
+            if zart == 8 { zutat(z).titel = if t == UNDEF || t == KARTON { neu_str("") } else { text(t) }; }
+            else { match tabellen_zeile(t, "Titel") { Some(x) => zutat(z).titel_liste = x, None => return KARTON } }
+            if sig() { return KARTON; }
+            let b = arg(pos, ben, 1, if zart == 8 { N_KINDER } else { N_SEITEN });
+            if b != UNDEF && b != KARTON {
+                if art(b) != A_BLECH {
+                    let mut t = Tb::neu(); t.name(ART_NAMEN[zart as usize]).s(" braucht ein Blech mit Zutaten, nicht "); darstellung(b, &mut t); t.s(".");
+                    wirf_tb(K_TYP, &t);
+                    return KARTON;
+                }
+                let n = blech_v(b).len();
+                for i in 0..n { let k = blech_v(b)[i]; if !kind(z, k) { return KARTON; } }
+            }
+        }
         _ => {
             let b = arg(pos, ben, 0, N_KINDER);
             if b != UNDEF && b != KARTON {
@@ -324,15 +369,65 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
     z
 }
 
+fn takt_intervall(d: W) -> Option<f64> {
+    if art(d) != A_DAUER {
+        let mut t = Tb::neu(); t.s("Ein Takt braucht eine Dauer, nicht "); darstellung(d, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let ms = zl::js_round(dauer_ms(d));
+    if !(ms >= 100.0) {
+        let mut t = Tb::neu(); t.s("Ein Takt braucht mindestens 100ms, nicht "); zl::dauer_text(dauer_ms(d), &mut t.0); t.s(".");
+        wirf_tb(K_LAUFZEIT, &t); return None;
+    }
+    Some(ms)
+}
+fn fortschritt_wert(w: W) -> Option<f64> {
+    if w == UNDEF || w == KARTON { return Some(0.0); }
+    if !ist_zahl(w) {
+        let mut t = Tb::neu(); t.s("Ein Fortschritt braucht eine Zahl zwischen 0 und 1, nicht "); darstellung(w, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let x = f(w);
+    if x != x { return Some(0.0); }
+    Some(if x < 0.0 { 0.0 } else if x > 1.0 { 1.0 } else { x })
+}
+fn tabellen_zeile(b: W, wo: &str) -> Option<Vec<W>> {
+    if b == UNDEF || b == KARTON { return Some(Vec::new()); }
+    if art(b) != A_BLECH {
+        let mut t = Tb::neu(); t.s("Tabelle.").s(wo).s(" braucht ein Blech, nicht "); darstellung(b, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let mut r = Vec::new();
+    let mut i = 0;
+    while i < blech_v(b).len() { let x = text(blech_v(b)[i]); if sig() { return None; } r.push(x); i += 1; }
+    Some(r)
+}
+fn tabellen_zeilen(b: W) -> Option<Vec<Vec<W>>> {
+    if b == UNDEF || b == KARTON { return Some(Vec::new()); }
+    if art(b) != A_BLECH {
+        let mut t = Tb::neu(); t.s("Tabelle-Zeilen brauchen ein Blech aus Blechen, nicht "); darstellung(b, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let mut r = Vec::new();
+    let mut i = 0;
+    while i < blech_v(b).len() { r.push(tabellen_zeile(blech_v(b)[i], "setzeZeilen")?); i += 1; }
+    Some(r)
+}
+
 pub fn tabelle_hat(o: W, id: u32) -> bool {
     if ist_theke(o) { return matches!(id, N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZETITEL | N_TITEL | N_ALSTEXT); }
     let z = zutat(o);
-    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT) { return true; }
+    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS) { return true; }
     match z.zart {
         0 => matches!(id, N_TEXT | N_SETZETEXT),
         1 => matches!(id, N_TEXT | N_SETZETEXT | N_BEIKLICK | N_AKTIV),
         2 => matches!(id, N_WERT | N_SETZEWERT | N_BEIAENDERUNG | N_BEIENTER),
         3 => matches!(id, N_TEXT | N_SETZETEXT | N_AN | N_SETZEAN | N_BEIAENDERUNG),
+        6 => matches!(id, N_AKTIV | N_INTERVALL | N_SETZEINTERVALL | N_BEITAKT),
+        7 => matches!(id, N_WERT | N_SETZEWERT | N_TEXT | N_SETZETEXT),
+        8 => matches!(id, N_HINZU | N_LEEREN | N_TITEL | N_SETZETITEL),
+        9 => matches!(id, N_SPALTEN | N_SETZESPALTEN | N_ZEILEN | N_SETZEZEILEN),
+        10 => matches!(id, N_WAEHLE_ASCII | N_GEWAEHLT | N_BEIAENDERUNG),
         _ => matches!(id, N_HINZU | N_LEEREN),
     }
 }
@@ -341,6 +436,38 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
     if !tabelle_hat(o, id) { return crate::std_m::nicht_gefunden(o, id); }
     if ist_theke(o) { return theke_methode(o, id, pos, knoten); }
     let z = zutat(o);
+    let zart = z.zart;
+    match (zart, id) {
+        (_, N_HINWEIS) => {
+            if pos.is_empty() { return z.hinweis; }
+            let h = if pos[0] == KARTON { neu_str("") } else { let t = text(pos[0]); if sig() { return KARTON; } t };
+            zutat(o).hinweis = h; aendere(o, "hinweis", jtext(h)); return o;
+        }
+        (6, N_INTERVALL) => return dauer(z.intervall),
+        (6, N_SETZEINTERVALL) => { match takt_intervall(a(pos, 0)) { Some(x) => { zutat(o).intervall = x; aendere(o, "intervall", jzahl(x)); return o; } None => return KARTON } }
+        (6, N_BEITAKT) => { match ui_funktion(a(pos, 0), "beiTakt") { Some(f) => { zutat(o).bei_takt = f; return o; } None => return KARTON } }
+        (7, N_WERT) => return zahl(z.fortschritt),
+        (7, N_SETZEWERT) => { match fortschritt_wert(a(pos, 0)) { Some(x) => { zutat(o).fortschritt = x; aendere(o, "wert", jzahl(x)); return o; } None => return KARTON } }
+        (8, N_TITEL) => return z.titel,
+        (8, N_SETZETITEL) => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).titel = t; aendere(o, "titel", jtext(t)); return o; }
+        (9, N_SPALTEN) => return blech(z.spalten.clone()),
+        (9, N_SETZESPALTEN) => { match tabellen_zeile(a(pos, 0), "setzeSpalten") { Some(x) => { let j = jliste(&x); zutat(o).spalten = x; aendere(o, "spalten", j); return o; } None => return KARTON } }
+        (9, N_ZEILEN) => return blech(z.zeilen.iter().map(|r| blech(r.clone())).collect()),
+        (9, N_SETZEZEILEN) => { match tabellen_zeilen(a(pos, 0)) { Some(x) => { let j = jzeilen(&x); zutat(o).zeilen = x; aendere(o, "zeilen", j); return o; } None => return KARTON } }
+        (10, N_WAEHLE_ASCII) => {
+            let n = a(pos, 0);
+            let k = z.kinder.len();
+            if !(ist_zahl(n) && zl::ist_ganz(f(n)) && f(n) >= 1.0 && f(n) <= k as f64) {
+                let mut t = Tb::neu(); t.s("Seite "); text_in_ops(n, &mut t); if sig() { return KARTON; }
+                t.s(" gibt es nicht – der Reiter hat ").n(k as f64).s(if k == 1 { " Seite." } else { " Seiten." });
+                wirf_tb(K_KEINSTUECK, &t); return KARTON;
+            }
+            zutat(o).gewaehlt = f(n); aendere(o, "gewaehlt", jzahl(f(n))); return o;
+        }
+        (10, N_GEWAEHLT) => return zahl(z.gewaehlt),
+        (10, N_BEIAENDERUNG) => { match ui_funktion(a(pos, 0), "beiAenderung") { Some(f) => { zutat(o).bei_aenderung = f; return o; } None => return KARTON } }
+        _ => {}
+    }
     match id {
         N_ID => z.id,
         N_ALSTEXT => text(o),
@@ -375,7 +502,7 @@ pub fn methode(o: W, id: u32, pos: &[W], knoten: i32) -> W {
                 }
             } else {
                 w = text(w); if sig() { return KARTON; }
-                let erlaubt: &[&str] = match ki { 3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono"], _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"] };
+                let erlaubt: &[&str] = match ki { 3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono", "riesig"], _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"] };
                 if !erlaubt.contains(&s(w)) {
                     let mut t = Tb::neu(); t.s("Wert '").t(w).s("' ist für Stil '").t(k).s("' nicht erlaubt. Erlaubt: ");
                     for (i, e) in erlaubt.iter().enumerate() { if i > 0 { t.s(", "); } t.s(e); }
@@ -613,6 +740,15 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
     let typ = feld_text(ev, "typ").unwrap_or_default();
     let zz = zutat(z);
     match typ.as_str() {
+        "takt" => {
+            if zz.zart == 6 && zz.aktiv && zz.bei_takt != KARTON {
+                let anzahl = match feld(ev, "anzahl") {
+                    Some(v) if v.starts_with("n:") => { let x: f64 = v[2..].parse().unwrap_or(0.0); if zl::ist_ganz(x) && x >= 1.0 { x } else { 1.0 } }
+                    _ => 1.0,
+                };
+                rufe(zz.bei_takt, &[zahl(anzahl)], &[], knoten);
+            }
+        }
         "klick" => {
             if zz.zart == 1 && zz.aktiv && zz.bei_klick != KARTON { rufe(zz.bei_klick, &[], &[], knoten); }
         }
@@ -621,6 +757,17 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
                 zutat(z).wert = wert_als_text(ev).unwrap_or_else(|| neu_str(""));
                 let (f, w) = (zutat(z).bei_aenderung, zutat(z).wert);
                 if f != KARTON { rufe(f, &[w], &[], knoten); }
+            } else if zz.zart == 10 {
+                if let Some(v) = feld(ev, "wert") {
+                    if let Some(nt) = v.strip_prefix("n:") {
+                        let n: f64 = nt.parse().unwrap_or(f64::NAN);
+                        if zl::ist_ganz(n) && n >= 1.0 && n <= zutat(z).kinder.len() as f64 {
+                            zutat(z).gewaehlt = n;
+                            let f_ = zutat(z).bei_aenderung;
+                            if f_ != KARTON { rufe(f_, &[zahl(n)], &[], knoten); }
+                        }
+                    }
+                }
             } else if zz.zart == 3 {
                 let v = feld(ev, "wert");
                 zutat(z).an = v == Some("b:1") || v == Some("s:true");
@@ -652,7 +799,9 @@ pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
     match typ {
         N_G_THEKE => Some(ist_theke(v)),
         N_G_ZUTAT => Some(ist_zutat(v)),
-        N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE => Some(ist_zutat(v) && art_name(v) == typ),
+        N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER => Some(ist_zutat(v) && art_name(v) == typ),
         _ => None,
     }
 }
+
+fn text_in_ops(v: W, tb: &mut Tb) { crate::ops::text_in(v, tb) }

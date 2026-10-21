@@ -78,6 +78,7 @@
         emit({ typ: 'ui', nachricht });
         if (typeof optionen.onUi === 'function') { try { optionen.onUi(nachricht); } catch (e) { /* ignorieren */ } }
       },
+      echtzeit_ms: () => (typeof optionen.echtzeit === 'number' && isFinite(optionen.echtzeit) ? Math.round(optionen.echtzeit) : Date.now()),
       vorrat_lesen: (np, nn, bp, kap) => {
         const vorratOpt = optionen.vorrat !== null && typeof optionen.vorrat === 'object' ? optionen.vorrat : null;
         if (kap < 0) return (vorratOpt !== null || typeof optionen.onVorrat === 'function') ? 1 : 0;

@@ -167,6 +167,72 @@ fn to_fixed2(x: f64, out: &mut Vec<u8>) {
     out.push(b'0' + frac % 10);
 }
 
+/// `x.toFixed(n)` für 0 ≤ x < 1e21, n ≤ 20 (exakt, Hälfte aufrunden wie V8)
+pub fn to_fixed(x: f64, n: u32, out: &mut Vec<u8>) {
+    let bits = x.to_bits();
+    let exp = ((bits >> 52) & 0x7ff) as i32;
+    let raw = bits & ((1u64 << 52) - 1);
+    let (mant, e) = if exp == 0 { (raw, -1074i32) } else { (raw | (1u64 << 52), exp - 1075) };
+    let p10: u128 = 10u128.pow(n);
+    let (ganz, frac): (u128, u128) = if e >= 0 {
+        ((mant as u128) << e as u32, 0)
+    } else {
+        let sh = (-e) as u32;
+        let z = (mant as u128) * p10;
+        let mut q = if sh >= 128 { 0 } else { z >> sh };
+        let rest = if sh >= 128 { z } else { z - (q << sh) };
+        if sh < 128 && sh > 0 && rest >= (1u128 << (sh - 1)) { q += 1; }
+        (q / p10, q % p10)
+    };
+    let mut buf = [0u8; 48];
+    let mut i = 48;
+    let mut g = ganz;
+    loop { i -= 1; buf[i] = b'0' + (g % 10) as u8; g /= 10; if g == 0 { break; } }
+    out.extend_from_slice(&buf[i..]);
+    if n > 0 {
+        out.push(b'.');
+        let mut d = [b'0'; 20];
+        let mut fr = frac;
+        for k in (0..n as usize).rev() { d[k] = b'0' + (fr % 10) as u8; fr /= 10; }
+        out.extend_from_slice(&d[..n as usize]);
+    }
+}
+
+/// K-085 `tausenderText(x, n)`
+pub fn tausender_text(x: f64, n: u32, out: &mut Vec<u8>) {
+    let r = runde_auf(x, n as f64);
+    if !r.is_finite() { js_text(r, out); return; }
+    let neg = r < 0.0;
+    let a = r.abs();
+    let mut fix = Vec::new();
+    if a >= 1e21 { js_text(a, &mut fix); } else { to_fixed(a, n, &mut fix); }
+    let (g, k) = match fix.iter().position(|&c| c == b'.') { Some(p) => (&fix[..p], Some(&fix[p + 1..])), None => (&fix[..], None) };
+    if neg { out.push(b'-'); }
+    // \B(?=(\d{3})+(?!\d)): Punkt vor jeder Dreiergruppe von Ziffern bis zum Ende der Ziffernfolge
+    let alle_ziffern = g.iter().all(|c| c.is_ascii_digit());
+    if alle_ziffern {
+        for (i, &c) in g.iter().enumerate() { if i > 0 && (g.len() - i) % 3 == 0 { out.push(b'.'); } out.push(c); }
+    } else { out.extend_from_slice(g); }
+    if let Some(k) = k { out.push(b','); out.extend_from_slice(k); }
+}
+
+fn zahl_mit_komma(x: f64, out: &mut Vec<u8>) {
+    let st = out.len();
+    js_text(x, out);
+    if let Some(p) = out[st..].iter().position(|&c| c == b'.') { out[st + p] = b','; }
+}
+
+/// K-085 `kompaktText(x, n)`
+pub fn kompakt_text(x: f64, n: u32, out: &mut Vec<u8>) {
+    let a = x.abs();
+    if !x.is_finite() || a >= 1e21 { zahl_mit_komma(x, out); return; }
+    let stufen: [(f64, &str); 6] = [(1e18, "Trio."), (1e15, "Brd."), (1e12, "Bio."), (1e9, "Mrd."), (1e6, "Mio."), (1e3, "Tsd.")];
+    for (f, name) in stufen.iter() {
+        if a >= *f { zahl_mit_komma(runde_auf(x / f, n as f64), out); out.push(b' '); out.extend_from_slice(name.as_bytes()); return; }
+    }
+    zahl_mit_komma(runde_auf(x, n as f64), out);
+}
+
 /// `euroText(x)`
 pub fn euro_text(x: f64, out: &mut Vec<u8>) {
     let r = js_round(x.abs() * 100.0 + 1e-9) / 100.0;

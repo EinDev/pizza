@@ -14,7 +14,9 @@ const korpus = require('./korpus.js');
 
 function norm(ev) { return ev.filter(e => e.typ !== 'motor').map(e => JSON.stringify(e)); }
 
-function vergleiche(f) {
+function vergleiche(f0) {
+  // Wanduhr (Uhr.echt) für den Vergleich festhalten, sonst sind beide Läufe nicht reproduzierbar
+  const f = Object.assign({}, f0, { opt: Object.assign({ echtzeit: 1700000000000 }, f0.opt) });
   const ri = P.run(f.quelle, Object.assign({}, f.opt));
   const k = Z.kompiliere(f.quelle);
   if (!k.ok) {

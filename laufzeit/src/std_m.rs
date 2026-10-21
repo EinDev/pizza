@@ -86,7 +86,7 @@ pub fn rufe1(f: W, x: &[W], knoten: i32) -> Option<W> {
 
 // ---------------------------------------------------------------- Tabellen
 pub fn tabelle_hat(o: W, id: u32) -> bool {
-    if ist_zahl(o) { return matches!(id, N_EURO | N_RUNDEN | N_ABS | N_ALSTEXT | N_GANZ); }
+    if ist_zahl(o) { return matches!(id, N_EURO | N_RUNDEN | N_ABS | N_ALSTEXT | N_GANZ | N_TAUSENDER | N_KOMPAKT); }
     if ist_bool(o) { return id == N_ALSTEXT; }
     match art(o) {
         A_TEXT => matches!(id, N_LAENGE | N_GROSS | N_KLEIN | N_ENTHAELT | N_ZERLEGE | N_ERSETZE | N_TRIMME | N_ZEICHEN | N_WIEDERHOLE | N_BEGINNTMIT | N_ENDETMIT | N_ALSZAHL | N_ALSTEXT | N_ISTLEER),
@@ -113,7 +113,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
     match m {
         N_G_BOTE => matches!(id, N_SCHREIBE | N_LEEREN | N_SAGE | N_FEHLER),
         N_G_BESTELLANNAHME => matches!(id, N_LIES | N_FRAGE | N_LIESZAHL | N_FRAGEZAHL | N_HATMEHR),
-        N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN),
+        N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN | N_ECHT),
         N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ),
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
@@ -265,6 +265,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
         (N_G_BESTELLANNAHME, N_FRAGEZAHL) => { let t = arg(pos, ben, 0, N_TEXT); let p = if t == UNDEF { neu_str("") } else { text(t) }; if sig() { return KARTON; } let z = crate::pf::lies_zeile(Some(p), 1); crate::pf::eingabe_zahl(z, arg(pos, ben, 1, N_ERSATZ)) }
         (N_G_BESTELLANNAHME, N_HATMEHR) => bool_w(crate::pf::hat_mehr()),
         (N_G_UHR, N_JETZT) => dauer(z().schritte + z().offset),
+        (N_G_UHR, N_ECHT) => dauer(crate::host_echtzeit()),
         (N_G_UHR, N_VORSPULEN) => {
             let ms = match dauer_ms_pruefen(a(pos, 0), "Uhr.vorspulen") { Some(x) => js_round(x), None => return KARTON };
             if ms < 0.0 { wirf_ananas(K_RECHEN, "Die Uhr lässt sich nicht zurückdrehen."); return KARTON; }
@@ -325,7 +326,29 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
     if ist_zahl(o) {
         let x = f(o);
         return match id {
-            N_EURO => { let mut b = Vec::new(); euro_text(x, &mut b); neu_text(&b) }
+            N_EURO => {
+                let k = arg(pos, ben, 0, N_KOMPAKT);
+                if k != UNDEF && k != KARTON {
+                    let b = bool_pruefen(k); if sig() { return KARTON; }
+                    if b { let mut v = Vec::new(); kompakt_text(x, 2, &mut v); v.extend_from_slice(" €".as_bytes()); return neu_text(&v); }
+                }
+                let mut b = Vec::new(); euro_text(x, &mut b); neu_text(&b)
+            }
+            N_TAUSENDER | N_KOMPAKT => {
+                let wo = if id == N_TAUSENDER { "tausender" } else { "kompakt" };
+                let n = arg(pos, ben, 0, N_STELLEN);
+                let n = if n == UNDEF || n == KARTON { if id == N_TAUSENDER { 0.0 } else { 2.0 } } else {
+                    let k = match ganz_pruefen(n, wo) { Some(k) => k, None => return KARTON };
+                    if k < 0.0 || k > 20.0 {
+                        let mut t = Tb::neu(); t.s(wo).s(": Nachkommastellen müssen zwischen 0 und 20 liegen, nicht ").n(k).s(".");
+                        wirf_tb(K_RECHEN, &t); return KARTON;
+                    }
+                    k
+                };
+                let mut b = Vec::new();
+                if id == N_TAUSENDER { tausender_text(x, n as u32, &mut b); } else { kompakt_text(x, n as u32, &mut b); }
+                neu_text(&b)
+            }
             N_RUNDEN => {
                 let n = arg(pos, ben, 0, N_STELLEN);
                 let n = if n == UNDEF { 0.0 } else { match ganz_pruefen(n, "runden") { Some(n) => n, None => return KARTON } };
