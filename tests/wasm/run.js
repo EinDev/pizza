@@ -109,6 +109,30 @@ for (const f of faelle) {
   pruefe('portabel ' + f.name, () => { const p = pruefePortabel(k.pkarton); if (p.length) throw new Error(p.slice(0, 3).join('; ')); });
 }
 
+console.log('▶ küchenbrigade (P1b: Fallback)');
+{
+  const nu = (q) => { const k = Z.kompiliere(q); return k.ok ? null : (k.nichtUnterstuetzt || [])[0] || null; };
+  pruefe('brigade → nichtUnterstuetzt', () => {
+    const n = nu('Blech<salami> b = [1, 2];\nb.brigade((x) -> x * 2);');
+    if (!n || n.zeile !== 2 || !/Küchenbrigade .*Interpreter/.test(n.grund)) throw new Error(JSON.stringify(n));
+  });
+  for (const q of ['probier { wirf neu KüchenAnanas("x"); } verbrannt (LaufzeitAnanas a) { }',
+    'probier { Bote.sage(1); } verbrannt (KüchenAnanas a) { }', 'klasse K erbt KüchenAnanas { }']) {
+    pruefe('KüchenAnanas → nichtUnterstuetzt: ' + q.slice(0, 30), () => {
+      const n = nu(q);
+      if (!n || !/KüchenAnanas .*Interpreter/.test(n.grund)) throw new Error(JSON.stringify(n));
+    });
+  }
+  pruefe('eigene Klasse KüchenAnanas bleibt kompilierbar', () => Z.kompiliere('klasse KüchenAnanas erbt LaufzeitAnanas { }\n' +
+    'probier { wirf neu KüchenAnanas("k"); } verbrannt (KüchenAnanas a) { Bote.sage(a.typ()); }').ok === true);
+  pruefe('Text "KüchenAnanas brigade" bleibt kompilierbar', () => Z.kompiliere('Bote.sage("KüchenAnanas brigade");').ok === true);
+  pruefe('features ohne brigade', () => !Z.faehigkeiten.features.includes('brigade'));
+  pruefe('motor "wasm" meldet den Grund', () => {
+    try { Z.run('Blech<salami> b = [1];\nb.brigade((x) -> x);', { motor: 'wasm' }); } catch (e) { return /Küchenbrigade/.test(e.message); }
+    return false;
+  });
+}
+
 console.log('▶ anzeige (U-45)');
 // Anzeigeform überall: <text> + " (Zeile Z, Spalte S)" wenn vorhanden; detail nie im Text
 const anzeige = (e) => (e.typ === 'fehler' && e.art === 'ananas' ? e.text.replace(/ \(Zeile \d+\)$/, '') : e.text) + (e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '');
@@ -145,11 +169,11 @@ for (const f of faelle) {
   const r = vergleiche(f);
   if (r.status === 'gleich') { stat.gleich++; ok++; continue; }
   if (r.status === 'syntax') { stat.syntax++; continue; }
-  if (r.status === 'fallback' && /Theke/.test(r.grund)) { stat.fallback++; continue; }
+  if (r.status === 'fallback' && /Theke|Küchenbrigade|KüchenAnanas/.test(r.grund)) { stat.fallback++; continue; }
   fehl++;
   console.log('  ✗ ' + f.name + ' [' + r.status + '] ' + (r.grund || '') + (r.diffs ? '\n    ' + r.diffs.join('\n    ') : '') + (r.fehler ? '\n' + r.fehler : ''));
 }
-console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
+console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-/Küchenbrigade-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
 
 console.log('\n' + (fehl ? '✗ ' + fehl + ' fehlgeschlagen, ' : '✓ ') + ok + ' bestanden');
 process.exitCode = fehl ? 1 : 0;

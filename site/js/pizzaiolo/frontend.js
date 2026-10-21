@@ -39,6 +39,33 @@
     constructor(grund, n) { super(grund); this.grund = grund; this.zeile = n && n.z != null ? n.z : null; this.spalte = n && n.s != null ? n.s : null; }
   }
 
+  // Küchenbrigade (THREADS.md P1b): brigade und KüchenAnanas laufen vorerst nur im Interpreter → ehrlicher Fallback.
+  // Bewusst grob (jeder Methodenname brigade, jede Erwähnung der Klasse KüchenAnanas außer in Texten): ein Fallback ist
+  // immer korrekt, nur langsamer. Laufzeit und Klassenindizes bleiben dadurch unverändert (eigene Klassen ab 17, IR.md §1).
+  const KUECHE_GRUND_BRIGADE = 'Küchenbrigade (brigade) läuft vorerst nur im Interpreter';
+  const KUECHE_GRUND_ANANAS = 'KüchenAnanas gibt es vorerst nur im Interpreter (Küchenbrigade)';
+  function kuechenbrigadeRueckfall(ast) {
+    // Eine eigene Klasse/Rezeptur/Enum namens KüchenAnanas überschattet die eingebaute (wie bei allen Ananas) – dann bleibt
+    // es beim heutigen Verhalten; nur brigade selbst fällt zurück.
+    let brigade = null, ananas = null, eigen = false;
+    const stapel = [ast], gesehen = new Set();
+    while (stapel.length) {
+      const n = stapel.pop();
+      if (n === null || typeof n !== 'object' || gesehen.has(n)) continue;
+      gesehen.add(n);
+      if (Array.isArray(n)) { for (let i = n.length - 1; i >= 0; i--) stapel.push(n[i]); continue; }
+      if (n.k === 'Text') continue;
+      if (!brigade && (n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') brigade = n;
+      if ((n.k === 'Klasse' || n.k === 'Rezeptur' || n.k === 'Enum' || n.k === 'Belag') && n.name === 'KüchenAnanas') eigen = true;
+      if (!ananas && ((n.k === 'Typ' && n.name === 'KüchenAnanas') || (n.k === 'Name' && n.n === 'KüchenAnanas') ||
+        (n.k === 'NCall' && n.name === 'KüchenAnanas'))) ananas = n;
+      const keys = Object.keys(n);
+      for (let i = keys.length - 1; i >= 0; i--) { const v = n[keys[i]]; if (v !== null && typeof v === 'object') stapel.push(v); }
+    }
+    if (brigade) throw new NichtUnterstuetzt(KUECHE_GRUND_BRIGADE, brigade);
+    if (ananas && !eigen) throw new NichtUnterstuetzt(KUECHE_GRUND_ANANAS, ananas);
+  }
+
   // ------------------------------------------------------------ analysiere (Port aus pizza.js)
   function analysiere(ast) {
     const warn = [];
@@ -380,6 +407,7 @@
 
     // ---------------------------------------------------------- Programm
     baue() {
+      kuechenbrigadeRueckfall(this.ast);
       this.vorab();
       const warnungen = analysiere(this.ast).map(w => ({ code: w.code, text: w.text, pos: this.pos({ z: w.zeile, s: w.spalte }) }));
       const startfehler = this.registriere();
