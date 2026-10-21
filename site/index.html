@@ -16,6 +16,11 @@
 <body>
   <a class="skip-link" href="#editor">Zum Editor springen</a>
 
+  <!-- App-Link (#app=<key>): bis zum Start nur dieser Ladebalken (sichtbar per CSS, sobald js/thema.js data-app setzt) -->
+  <div class="app-lade" id="app-lade" data-testid="app-lade" role="progressbar" aria-label="App wird geladen" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="app-lade-balken"><span class="app-lade-fuellung" id="app-lade-fuellung"></span></div>
+  </div>
+
   <header class="kopf">
     <div class="marke">
       <img class="logo-bild" id="logo-bild" src="img/logo.svg" alt="pizza" height="30">
@@ -170,6 +175,15 @@
     <div class="vorschau-inhalt" id="vorschau-inhalt" data-testid="vorschau-inhalt"></div>
   </section>
 
+  <!-- App-Link: Programmende / Fehler – dezente Leiste mit „Nochmal“ und „Code ansehen“ -->
+  <div class="app-ende" id="app-ende" data-testid="app-ende" hidden>
+    <p class="app-ende-text" id="app-ende-text" data-testid="app-ende-text" role="status"></p>
+    <div class="app-ende-knoepfe">
+      <button type="button" class="knopf knopf-mini" id="app-nochmal" data-testid="app-nochmal">Nochmal</button>
+      <a class="knopf knopf-mini" id="app-code" data-testid="app-code" href="./">Code ansehen</a>
+    </div>
+  </div>
+
   <!-- Rückfrage-Dialog -->
   <dialog class="dialog" id="dialog-frage" data-testid="dialog-frage" aria-labelledby="dialog-titel">
     <form method="dialog">
@@ -188,7 +202,7 @@
     <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-schritt-frage">
       <p class="teilen-hinweis" role="note">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Jeder mit dem Link kann es lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
+        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Du bekommst zwei Links: einen, der den Code öffnet, und einen, der die App direkt im Vollbild startet. Jeder mit einem der Links kann den Code lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
       </p>
       <p class="teilen-aus" id="teilen-aus" data-testid="teilen-aus" hidden>Teilen ist auf diesem Server gerade nicht eingerichtet.</p>
       <div class="dialog-knoepfe">
@@ -202,9 +216,15 @@
     <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-schritt-fertig" hidden>
       <p id="teilen-fertig-text"></p>
       <p class="teilen-dauer-fertig" id="teilen-dauer-fertig" data-testid="teilen-dauer-fertig" hidden></p>
+      <p class="teilen-link-titel" id="teilen-url-titel"><strong>Code öffnen</strong> <span>– im Playground mit Editor</span></p>
       <div class="teilen-link">
-        <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-label="Link zum Teilen">
+        <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-labelledby="teilen-url-titel">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
+      </div>
+      <p class="teilen-link-titel" id="teilen-url-app-titel"><strong>App starten</strong> <span>– startet das Programm direkt im Vollbild</span></p>
+      <div class="teilen-link">
+        <input type="text" id="teilen-url-app" data-testid="teilen-url-app" readonly aria-labelledby="teilen-url-app-titel">
+        <button type="button" class="knopf knopf-primaer" id="teilen-kopieren-app" data-testid="teilen-kopieren-app">Kopieren</button>
       </div>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>

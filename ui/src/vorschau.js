@@ -8,7 +8,8 @@ const MERKER = "pizza.vorschau";
 const KOPF_HOEHE = 38;
 
 let rendererVersprechen = null;
-function ladeRenderer() {
+/** Lädt js/theke/theke.js + theke.css einmal (auch vorab, z. B. beim App-Link). */
+export function ladeRenderer() {
   if (!rendererVersprechen) {
     rendererVersprechen = new Promise((resolve) => {
       if (!document.querySelector("link[data-theke-css]")) {

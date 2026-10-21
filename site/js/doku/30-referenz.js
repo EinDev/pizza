@@ -1490,7 +1490,8 @@
           art: "details",
           titel: "Code teilen",
           inhalt: [
-            { art: "text", md: "Der Knopf **„Teilen“** erstellt einen Link zu deinem Skript. Dafür wird das Skript des aktiven Tabs **auf unserem Server gespeichert** – erst, wenn du im Dialog auf **„Link erstellen“** klickst. Wie lange der Link funktioniert, steht im Dialog. Jeder mit dem Link kann den Code lesen; wer ihn öffnet, bekommt das Skript direkt in den Editor." },
+            { art: "text", md: "Der Knopf **„Teilen“** erstellt einen Link zu deinem Skript. Dafür wird das Skript des aktiven Tabs **auf unserem Server gespeichert** – erst, wenn du im Dialog auf **„Link erstellen“** klickst. Wie lange der Link funktioniert, steht im Dialog. Jeder mit dem Link kann den Code lesen." },
+            { art: "text", md: "Du bekommst **zwei Links** zum selben gespeicherten Skript, jeden mit eigenem Kopieren-Knopf:\n\n- **Code öffnen** (`…/#h=<key>`) – öffnet das Skript im Playground in einem neuen Editor-Tab.\n- **App starten** (`…/#app=<key>`) – zeigt nur einen Ladebalken, übersetzt das Programm im Browser (Motor *Auto*) und startet es sofort im Vollbild: Eine Theke füllt das ganze Fenster, ein Konsolenprogramm bekommt eine Vollbild-Konsole mit Eingabe. Am Ende stehen die Ausgabe und die Knöpfe **„Nochmal“** und **„Code ansehen“** da. Der Spielstand (Vorratskammer) ist derselbe wie bei geteilten Tabs im Playground." },
             { art: "hinweis", ton: "warnung", md: "Teile keine Passwörter oder anderen Geheimnisse – auch nicht als Kommentar im Code." }
           ]
         },

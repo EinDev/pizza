@@ -39,8 +39,12 @@ einen Healthcheck unter `/healthz`. Die Seite ist cross-origin-isoliert (COOP/CO
 
 ## Teilen (Betrieb)
 
-Beim Teilen wird der Code serverseitig gespeichert; der Link sieht so aus:
-`https://<pizza-domain>/#h=<key>`. Der Browser spricht nur mit dem pizza-nginx
+Beim Teilen wird der Code serverseitig gespeichert (einmal); der Dialog zeigt danach zwei Links zum selben Schlüssel:
+`https://<pizza-domain>/#h=<key>` (**Code öffnen** – Playground mit Editor) und
+`https://<pizza-domain>/#app=<key>` (**App starten** – nur Ladebalken, dann läuft das Programm im Vollbild; übersetzt wird zur
+Laufzeit im Browser mit dem Motor „Auto“, es wird kein Kompilat gespeichert). Beide Formen stehen im Hash und erreichen den
+Server nur als `GET /api/teilen/<key>`; nginx braucht dafür nichts Zusätzliches. Der App-Link nutzt dieselben Vorratskammern
+(`localStorage` `pizza.vorrat.<name>`) wie geteilte Tabs im Playground. Der Browser spricht nur mit dem pizza-nginx
 (`connect-src 'self'`). Dahinter läuft ein **interner** Speicherdienst, der von außen nicht
 erreichbar ist (keine Domain, kein Port):
 
@@ -94,7 +98,7 @@ Eine Domain, z. B. `pizza.example.com` (die echte Domain steht nur in Coolify, n
    - alle drei Services *healthy*;
    - `https://pizza.example.com/healthz` → `ok`;
    - `https://pizza.example.com/api/konfig` → `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"erstellung"}`;
-   - im Playground teilen → Link `https://pizza.example.com/#h=<key>` in einem anderen Browser öffnen.
+   - im Playground teilen → Links `https://pizza.example.com/#h=<key>` (Code) und `…/#app=<key>` (App im Vollbild) in einem anderen Browser öffnen.
 
 ### Build-Cache
 
