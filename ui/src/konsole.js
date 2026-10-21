@@ -216,6 +216,19 @@ export function erstelleKonsole({ springe }) {
       planeZeichnen();
     },
     sofortZeichnen: zeichneAusgaben,
+    /** Hinweiszeile der Hülle (z. B. „Vorrat 'x' gelöscht.“) – gleicher Text wie die CLI, keine Programmausgabe. */
+    info(text) {
+      const leer = inhalt.querySelector(".konsole-leer");
+      if (leer) leer.remove();
+      zeichneAusgaben();
+      letzteAusgabe = null;
+      const z = document.createElement("div");
+      z.className = "k-zeile k-info";
+      z.dataset.testid = "konsole-info";
+      z.textContent = text;
+      inhalt.appendChild(z);
+      zumEnde();
+    },
     /** K-077: Infozeile „Saat: N“ am Anfang der Konsole (gleicher Text wie die CLI). */
     saat(n) {
       const leer = inhalt.querySelector(".konsole-leer");

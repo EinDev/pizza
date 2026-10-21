@@ -527,6 +527,38 @@ function start() {
     catch (e) { toast("Der Vorrat „" + name + "“ konnte im Browser nicht gespeichert werden (Speicher voll?).", "fehler"); }
   }
 
+  // „Vorrat löschen“ (gleiche Texte wie bin/pizza.js --vorrat-loeschen / --vorrat-loeschen-alle)
+  function vorratNamen(praefix) {
+    const namen = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(praefix) && /^[a-z0-9-]{1,40}$/.test(k.slice(praefix.length))) namen.push(k.slice(praefix.length));
+      }
+    } catch (e) { /* kein Zugriff */ }
+    return namen.sort();
+  }
+  async function vorratLoeschen(name) {
+    const praefix = vorratPraefix(tabs.aktiv());
+    const raum = praefix === VORRAT_BEISPIEL ? " (Vorräte der Beispiele)" : "";
+    if (name == null) {
+      const ok = await frage("Alle Vorräte löschen?", "Alle gespeicherten Vorratskammern" + raum + " werden gelöscht. Spielstände gehen dabei verloren.", "Alle löschen");
+      if (!ok) return;
+      for (const n of vorratNamen(praefix)) { try { localStorage.removeItem(praefix + n); } catch (e) { /* egal */ } }
+      konsoleOeffnen();
+      konsole.info("Alle Vorräte gelöscht.");
+      return;
+    }
+    let da = false;
+    try { da = localStorage.getItem(praefix + name) !== null; } catch (e) { da = false; }
+    if (!da) { konsoleOeffnen(); konsole.info("Vorrat '" + name + "' gibt es nicht."); return; }
+    const ok = await frage("Vorrat löschen?", "Die Vorratskammer „" + name + "“" + raum + " wird gelöscht. Ein Spielstand darin geht verloren.", "Löschen");
+    if (!ok) return;
+    try { localStorage.removeItem(praefix + name); } catch (e) { /* egal */ }
+    konsoleOeffnen();
+    konsole.info("Vorrat '" + name + "' gelöscht.");
+  }
+
   let backenWartet = false;
   async function backen() {
     if (ausfuehrung.laeuft) return;
@@ -938,6 +970,8 @@ function start() {
       { id: "tab-voriger", gruppe: "Tabs", titel: "Vorheriger Tab", kuerzel: K("Alt+Bild↑"), aktion: () => tabs.naechster(-1) },
       { id: "tabs-liste", icon: "chevronDown",  gruppe: "Tabs", titel: "Alle Tabs anzeigen …", aktion: () => tabs.alleTabsMenue() },
       ...tabs.liste.filter((t) => !t.aktiv).map((t) => ({ id: "tab-zu-" + t.id, gruppe: "Wechseln zu", titel: t.name, aktion: () => tabs.wechsle(t.id) })),
+      ...vorratNamen(vorratPraefix(tabs.aktiv())).map((n) => ({ id: "vorrat-" + n, icon: "trash", gruppe: "Vorrat", titel: "Vorrat löschen: " + n, aktion: () => vorratLoeschen(n) })),
+      { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(tabs.aktiv())).length > 0 },
       { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
       { id: "panel", icon: "panel",  gruppe: "Ansicht", titel: "Seitenpanel ein-/ausblenden", kuerzel: K("Strg+B"), aktion: panelUmschalten },
       { id: "doku", icon: "book",  gruppe: "Ansicht", titel: "Doku anzeigen", aktion: () => { setzePanel(true); waehleTab("doku", true); } },
