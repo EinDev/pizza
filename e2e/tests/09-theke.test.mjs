@@ -172,3 +172,33 @@ e2e("Schmaler Viewport: Vorschau als Vollbild, Schließen funktioniert", { viewp
   assert.equal(await fensterZu(page), true);
   assert.equal(await konsolenAusgabe(page), "Theke zu. Gebacken: 0 Pizzen.\n");
 });
+
+e2e("Takt: Schläge mit Nachholregel (anzahl) über die gesteuerte Test-Uhr; echte Wartezeit erzeugt keine Schläge", async ({ page, oeffne }) => {
+  await oeffne();
+  await starteTheke(page, [
+    'Theke theke = neu Theke("Takt", breite: 300, hoehe: 160);',
+    "salami summe = 0;",
+    'Schild s = neu Schild("0", id: "s");',
+    'Takt t = neu Takt(1s, (salami n) -> { summe += n; Bote.sage(("Schlag " + n)); s.setzeText(("" + summe)); falls (summe >= 4) { theke.schliesse(); } }, id: "takt");',
+    "theke.zeige(neu Stapel([s, t]));",
+    "theke.bediene();",
+    'Bote.sage(("Summe " + summe));',
+  ].join("\n"));
+  // Takt ist unsichtbar
+  assert.equal(await page.$eval('#vorschau [data-theke-id="takt"]', (e) => e.hidden || !e.getClientRects().length), true, "Takt unsichtbar");
+  // Uhr ist eingefroren: echte Zeit (> 1 Intervall) erzeugt keinen Schlag
+  await schlafe(1200);
+  assert.equal(await page.evaluate(() => window.__thekeUhr.taktGesendet), 0, "kein Schlag ohne Vorspulen");
+  const zahl = () => page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
+  let vorher = await zahl();
+  await thekeEreignis(page, { typ: "takt", id: "takt", anzahl: 1 });
+  await warteAufBediene(page, vorher);
+  assert.equal(await page.$eval('#vorschau [data-theke-id="s"]', (e) => e.textContent), "1");
+  vorher = await zahl();
+  await thekeEreignis(page, { typ: "takt", id: "takt", anzahl: 3 }); // Nachholregel: ein Schlag mit anzahl 3
+  await warteLaufEnde(page);
+  assert.equal(await ausgabeAusEreignissen(page), "Schlag 1\nSchlag 3\nSumme 4\n");
+  assert.equal(await fensterZu(page), true, "theke.schliesse() im Takt schließt das Fenster");
+  assert.equal(await page.evaluate(() => window.__thekeUhr.timer.size), 0, "Takt-Timer nach dem Schließen gestoppt");
+  assert.ok(vorher > 0);
+});

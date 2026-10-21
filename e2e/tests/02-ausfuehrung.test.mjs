@@ -46,7 +46,9 @@ e2e("Fehlerausgabe (Bote.fehler) erscheint getrennt und rot markiert", async ({ 
   await oeffne();
   await setzeCode(page, 'Bote.sage(("eins"));\nBote.fehler(("zwei"));\nBote.sage(("drei"));\nBote.sage(("vier"));');
   await backen(page);
-  const typen = await page.$$eval("#konsole-inhalt > .k-zeile", (z) => z.map((e) => [e.dataset.typ, e.textContent.replace(/\n$/, "")]));
+  const typen = await page.$$eval("#konsole-inhalt > .k-zeile", (z) => z
+    .filter((e) => e.dataset.typ === "ausgabe" || e.dataset.typ === "fehlerausgabe") // ohne Infozeile „Saat: N“
+    .map((e) => [e.dataset.typ, e.textContent.replace(/\n$/, "")]));
   assert.deepEqual(typen, [["ausgabe", "eins"], ["fehlerausgabe", "zwei"], ["ausgabe", "drei\nvier"]]);
 });
 
@@ -126,6 +128,8 @@ e2e("Endlosschleife: Abbrechen-Knopf und Esc beenden den Lauf sofort", { vorLade
   await page.evaluate(() => { window.__haengen = true; });
   for (const weg of ["knopf", "esc"]) {
     await strg(page, "Enter");
+    // backen() wartet ggf. kurz auf die Fähigkeiten-Prüfung (Motor) – dann erscheint „Abbrechen“
+    await page.waitForSelector("#knopf-abbrechen:not([hidden])", { timeout: 5000 });
     assert.equal(await page.$eval("#knopf-abbrechen", (k) => k.hidden), false, "Abbrechen-Knopf sichtbar während des Laufs");
     assert.equal(await page.$eval("#knopf-backen", (k) => k.hidden), true);
     assert.match((await exitBadge(page)).text, /im Ofen/);

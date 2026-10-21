@@ -31,6 +31,40 @@ export const S = {
 };
 
 /** Zeichnet alle Worker→UI-Ereignisse auf (window.__ereignisse, Batches aufgelöst). */
+/**
+ * Steuerbare Uhr für Theke-Takte (THEKE-ERWEITERUNGEN.md §1, site/js/theke/README.md „zeitgeber“):
+ * Der Renderer bekommt über PizzaTheke.erzeuge(…, { zeitgeber }) eine eingefrorene Uhr. Takte schlagen nur, wenn ein Test
+ * per window.__thekeUhr.vorspulen(ms) Zeit vergehen lässt – dann werden alle Takt-Timer sofort einmal abgefragt.
+ * So ist jeder Schlag (inkl. anzahl nach der Nachholregel) deterministisch; echte Zeit erzeugt nie zusätzliche Schläge.
+ */
+const THEKE_UHR = () => {
+  const uhr = {
+    jetztMs: 0, naechste: 1, timer: new Map(), taktGesendet: 0,
+    jetzt: () => uhr.jetztMs,
+    setzeIntervall: (fn) => { const h = uhr.naechste++; uhr.timer.set(h, fn); return h; },
+    loescheIntervall: (h) => { uhr.timer.delete(h); },
+    vorspulen(ms) { uhr.jetztMs += ms; for (const fn of [...uhr.timer.values()]) { try { fn(); } catch (e) { console.error(e); } } },
+  };
+  window.__thekeUhr = uhr;
+  const umhuelle = (api) => {
+    if (!api || typeof api.erzeuge !== "function" || api.__e2eUhr) return api;
+    const orig = api.erzeuge.bind(api);
+    const neu = Object.create(api);
+    neu.__e2eUhr = true;
+    neu.erzeuge = (container, opt = {}) => orig(container, {
+      ...opt,
+      zeitgeber: opt.zeitgeber || { jetzt: uhr.jetzt, setzeIntervall: uhr.setzeIntervall, loescheIntervall: uhr.loescheIntervall },
+      sende: (ev, ...rest) => {
+        if ((ev && ev.typ === "takt") || ev === "takt") uhr.taktGesendet++;
+        return opt.sende(ev, ...rest);
+      },
+    });
+    return neu;
+  };
+  let wert;
+  Object.defineProperty(window, "PizzaTheke", { configurable: true, get: () => wert, set: (api) => { wert = umhuelle(api); } });
+};
+
 const EREIGNIS_REKORDER = () => {
   const W = window.Worker;
   window.__ereignisse = [];
@@ -129,6 +163,10 @@ export async function seite({ viewport = DESKTOP, farbschema = "light", vorLaden
       });
     });
     await page.evaluateOnNewDocument(EREIGNIS_REKORDER);
+    await page.evaluateOnNewDocument(THEKE_UHR);
+    // Deterministischer Zufall wie in Tests/Beispielen (Saat 42, K-077): Häkchen „feste Saat“ vorbelegen,
+    // sofern ein Test nichts anderes gesetzt hat.
+    await page.evaluateOnNewDocument(() => { try { if (localStorage.getItem("pizza.festeSaat") == null) localStorage.setItem("pizza.festeSaat", "1"); } catch (e) { /* egal */ } });
     if (vorLaden) await page.evaluateOnNewDocument(vorLaden);
     page.on("console", (m) => {
       const t = m.text();
@@ -398,8 +436,18 @@ export function beispieleAusManifesten() {
 
 // ---------------------------------------------------------------- Interaktive Eingabe (EINGABE.md)
 /** Leert die Ereignis-Aufzeichnung (vor einem Lauf aufrufen). */
+/**
+ * Vor jedem Lauf: Ereignis-Aufzeichnung leeren und den Vorrat (Vorratskammer, localStorage „pizza.vorrat.*“) entfernen,
+ * damit jeder Lauf wie die Referenz (.erwartet) mit leerem Vorrat startet – sonst setzt z. B. pizza-imperium
+ * den Spielstand des vorigen Laufs fort.
+ */
 export function ereignisseLeeren(page) {
-  return page.evaluate(() => { window.__ereignisse = []; });
+  return page.evaluate(() => {
+    window.__ereignisse = [];
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith("pizza.vorrat.") || k.startsWith("pizza.vorrat-beispiel.")) localStorage.removeItem(k);
+    } catch (e) { /* egal */ }
+  });
 }
 
 /** Programmausgabe im .erwartet-Format aus den aufgezeichneten Worker-Ereignissen (inkl. «leeren»). */
@@ -537,9 +585,22 @@ export async function thekeEreignis(page, ev) {
   } else if (ev.typ === "aenderung" && typeof ev.wert === "boolean") {
     const box = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
     if ((await box.evaluate((b) => b.checked)) !== ev.wert) await box.click();
+  } else if (ev.typ === "aenderung" && typeof ev.wert === "number" && (await el.evaluate((e) => e.matches(".theke-reiter, [data-theke-art='reiter']")))) {
+    // Reiter: echter Klick auf den Tab mit der (1-basierten) Nummer; bereits gewählter Tab sendet nichts
+    const tab = await el.$(`[role="tab"][data-theke-nr="${ev.wert}"]`);
+    if (!tab) throw new Error("Reiter '" + ev.id + "' hat keinen Tab " + ev.wert);
+    if (await tab.evaluate((t) => t.getAttribute("aria-selected") === "true")) return "deaktiviert";
+    await tab.click();
   } else if (ev.typ === "aenderung") {
     // Wert setzen + input-Event (ein Ereignis pro Zeile in .ereignisse, wie die Testdatei es vorgibt)
     await el.evaluate((e, w) => { const i = e.matches("input") ? e : e.querySelector("input"); i.focus(); i.value = w; i.dispatchEvent(new Event("input", { bubbles: true })); }, String(ev.wert));
+  } else if (ev.typ === "takt") {
+    // Genau so weit vorspulen, dass dieser Takt einen Schlag mit ev.anzahl sendet: Nach jedem Vorspulen werden alle
+    // Timer abgefragt, also gilt 0 ≤ jetzt − letzter < intervall; + anzahl·intervall ergibt floor(…) = anzahl.
+    const intervall = await taktIntervall(page, ev.id);
+    const anzahl = ev.anzahl == null ? 1 : ev.anzahl;
+    const gesendet = await page.evaluate((ms) => { const u = window.__thekeUhr; const vor = u.taktGesendet; u.vorspulen(ms); return u.taktGesendet - vor; }, anzahl * intervall);
+    if (!gesendet) return "deaktiviert"; // inaktiver/entfernter Takt: Renderer sendet nichts, Programm würde ignorieren
   } else if (ev.typ === "enter") {
     const i = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
     if (ev.wert != null) await i.evaluate((x, w) => { if (x.value !== w) x.value = w; }, String(ev.wert));
@@ -582,4 +643,23 @@ export async function warteAufTabMuster(page, name, timeout = 5000) {
     const n = t.textContent;
     return n === b + ".pizza" || (n.startsWith(b + "-") && /^\d+\.pizza$/.test(n.slice(b.length + 1)));
   }, { timeout }, S.tabAktiv, basis);
+}
+
+/** Aktuelles Intervall (ms) eines Takts laut den bisher empfangenen ui-Nachrichten (baum/aendere). */
+export async function taktIntervall(page, id) {
+  const nachrichten = await uiNachrichten(page);
+  let intervall = null;
+  const suche = (k) => {
+    if (!k || typeof k !== "object") return;
+    if (k.id === id && k.intervall != null) intervall = Number(k.intervall);
+    for (const kind of k.kinder || []) suche(kind);
+    for (const v of Object.values(k)) if (v && typeof v === "object" && !Array.isArray(v) && v !== k.kinder) suche(v);
+  };
+  for (const n of nachrichten) {
+    if (n.op === "baum") suche(n.wurzel);
+    else if (n.op === "aendere") for (const a of n.aenderungen || []) if (a.id === id && a.intervall != null) intervall = Number(a.intervall);
+    else if (n.op === "hinzu" || n.op === "ersetze") suche(n);
+  }
+  if (intervall == null) throw new Error("Takt '" + id + "' nicht in den ui-Nachrichten gefunden");
+  return Math.max(100, intervall); // Renderer hebt < 100 ms auf 100 ms an
 }
