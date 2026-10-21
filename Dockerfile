@@ -55,20 +55,25 @@ ARG SKIP_EXE=0
 ARG STRICT_BUILD=0
 RUN if [ "$SKIP_EXE" != "1" ]; then \
         apt-get update && \
-        apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 musl-tools \
+        apt-get install -y --no-install-recommends musl-tools \
             pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev && \
         rm -rf /var/lib/apt/lists/* && \
-        rustup target add x86_64-pc-windows-gnu x86_64-unknown-linux-musl; \
+        rustup target add x86_64-pc-windows-msvc x86_64-unknown-linux-musl && \
+        cargo install --locked --root /usr/local xwin --version 0.10.0 && rm -rf /usr/local/cargo/registry/*; \
     fi
 
 WORKDIR /app
 COPY host/ host/
 # Theke-Renderer (eine Render-Engine für Browser und nativ) – build.rs bettet ihn ins Host-Binary ein.
 COPY site/js/theke/ site/js/theke/
+# Windows: MSVC-Ziel per xwin (MSVC-CRT + Windows-SDK, Lizenz vom Nutzer freigegeben), gelinkt mit rust-lld,
+# CRT statisch → eine EXE ohne Zusatz-DLLs (auch ohne WebView2Loader.dll). Das entpackte SDK liegt im Cache-Mount.
 ENV AUSGABE_DIR=/out \
-    CARGO_TARGET_DIR=/app/host/target
+    CARGO_TARGET_DIR=/app/host/target \
+    XWIN_DIR=/opt/xwin
 RUN --mount=type=cache,id=pizza-cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=pizza-host-target,target=/app/host/target \
+    --mount=type=cache,id=pizza-xwin,target=/opt/xwin \
     mkdir -p /out && \
     if [ "$SKIP_EXE" = "1" ]; then \
         echo ">> SKIP_EXE=1 – keine nativen Binaries."; \

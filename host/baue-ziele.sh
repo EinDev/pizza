@@ -4,12 +4,14 @@
 #   sh host/baue-ziele.sh <ausgabeverzeichnis>     (Standard: $AUSGABE_DIR, sonst host/ziele)
 #
 # Läuft unter Linux (Docker-Stage "exe", siehe Dockerfile). Ziele (Auswahl über PIZZA_ZIELE):
-#   windows-x64      x86_64-pc-windows-gnu      mingw-w64        mit Theke-Fenster (WebView2)
+#   windows-x64      x86_64-pc-windows-msvc     xwin + rust-lld  mit Theke-Fenster (WebView2), CRT statisch, keine Zusatz-DLL
 #   linux-x64        x86_64-unknown-linux-musl  musl-tools       statisch, ohne Theke (W0100)
 #   linux-x64-theke  x86_64-unknown-linux-gnu   gcc + webkit2gtk mit Theke-Fenster (glibc, braucht WebKitGTK 4.1)
 #   linux-arm64      aarch64-unknown-linux-musl rust-lld         statisch, ohne Theke (optional)
 # Theke-Builds brauchen site/js/theke/ (wird per build.rs eingebettet). Scheitert ein Theke-Build, wird
-# windows-x64 ohne Theke gebaut bzw. linux-x64-theke übersprungen (außer STRICT_BUILD=1).
+# linux-x64-theke übersprungen (außer STRICT_BUILD=1); windows-x64 muss gelingen.
+# Windows-SDK/MSVC-CRT: `xwin --accept-license splat` nach $XWIN_DIR/splat (einmalig, danach Cache; Lizenz vom
+# Nutzer freigegeben). Die Download-Rohdaten werden nach dem Entpacken gelöscht.
 # macOS wird nicht gebaut: ohne Apple-SDK/Codesignatur nicht sinnvoll (siehe host/README.md).
 #
 # Ausgabe (direkt in <ausgabeverzeichnis>):
@@ -25,11 +27,12 @@ STRIKT=${STRICT_BUILD:-0}
 
 mkdir -p "$AUS"
 AUS=$(cd "$AUS" && pwd)
-VERSION=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$HIER/Cargo.toml" | head -n 1)
+# CR entfernen: unter Windows ausgecheckt hat Cargo.toml CRLF (sonst landet \r in ziele.json → ungültiges JSON).
+VERSION=$(tr -d '\r' < "$HIER/Cargo.toml" | sed -n 's/^version *= *"\(.*\)"/\1/p' | head -n 1)
 
 triple() {
   case "$1" in
-    windows-x64) echo x86_64-pc-windows-gnu ;;
+    windows-x64) echo x86_64-pc-windows-msvc ;;
     linux-x64) echo x86_64-unknown-linux-musl ;;
     linux-x64-theke) echo x86_64-unknown-linux-gnu ;;
     linux-arm64) echo aarch64-unknown-linux-musl ;;
@@ -56,14 +59,29 @@ voraussetzung() {
 endung() { case "$1" in windows-*) echo ".exe" ;; *) echo "" ;; esac; }
 hat_ziel() { rustup target list --installed 2>/dev/null | grep -qx "$1"; }
 
+# MSVC-CRT + Windows-SDK für das msvc-Ziel bereitstellen (gibt das splat-Verzeichnis aus).
+xwin_splat() {
+  basis=${XWIN_DIR:-$HIER/target/xwin}
+  if [ ! -f "$basis/splat/.fertig" ]; then
+    command -v xwin >/dev/null 2>&1 || { echo ">> FEHLER: xwin fehlt (cargo install --locked xwin)" >&2; return 1; }
+    echo ">> xwin: lade MSVC-CRT + Windows-SDK …" >&2
+    rm -rf "$basis/splat"
+    xwin --accept-license --cache-dir "$basis/dl" splat --output "$basis/splat" >&2 || return 1
+    rm -rf "$basis/dl"
+    touch "$basis/splat/.fertig"
+  fi
+  echo "$basis/splat"
+}
+
 # cargo build für ein Ziel; $3 = 1 → mit Theke (Standard-Features), sonst --no-default-features.
 baue() {
   z=$1; t=$2; mit=$3
   set -- build --release --locked --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host
   [ "$mit" = "1" ] || set -- "$@" --no-default-features
   case "$t" in
-    x86_64-pc-windows-gnu)
-      CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=${CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER:-x86_64-w64-mingw32-gcc} cargo "$@" ;;
+    x86_64-pc-windows-msvc)
+      x=$(xwin_splat) || return 1
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-C target-feature=+crt-static -Lnative=$x/crt/lib/x86_64 -Lnative=$x/sdk/lib/um/x86_64 -Lnative=$x/sdk/lib/ucrt/x86_64"         cargo "$@" ;;
     aarch64-unknown-linux-musl)
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER:-rust-lld} cargo "$@" ;;
     *) cargo "$@" ;;
@@ -85,16 +103,11 @@ for z in $ZIELE; do
       exit 1
     fi
   fi
-  # windows-x64: mit mingw (gnu) würde WebView2Loader.dll zur Laufzeit gebraucht → vorerst ohne Theke (siehe README).
-  case "$z" in linux-x64-theke) theke=1 ;; windows-x64) theke=${PIZZA_WINDOWS_THEKE:-0} ;; *) theke=0 ;; esac
+  case "$z" in windows-x64|linux-x64-theke) theke=1 ;; *) theke=0 ;; esac
   echo ">> Baue $z ($t, Theke: $theke) …"
   if ! baue "$z" "$t" "$theke"; then
     if [ "$STRIKT" = "1" ]; then echo ">> FEHLER: $z fehlgeschlagen" >&2; exit 1; fi
     case "$z" in
-      windows-x64)
-        echo ">> WARNUNG: windows-x64 mit Theke fehlgeschlagen – baue ohne Fenster."
-        theke=0
-        baue "$z" "$t" 0 ;;
       linux-x64-theke|linux-arm64)
         echo ">> WARNUNG: $z fehlgeschlagen – übersprungen."
         continue ;;

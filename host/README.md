@@ -75,7 +75,7 @@ Die Binaries baut `host/baue-ziele.sh <ausgabeverzeichnis>` (POSIX-sh, Linux/Doc
 
 | Ziel-ID | Rust-Target | Linker | Datei |
 |---|---|---|---|
-| `windows-x64` | `x86_64-pc-windows-gnu` | mingw-w64 | `pizza-host-windows-x64-<sha12>.exe` |
+| `windows-x64` | `x86_64-pc-windows-msvc` (mit Theke, CRT statisch) | xwin (MSVC-CRT + Windows-SDK) + rust-lld | `pizza-host-windows-x64-<sha12>.exe` |
 | `linux-x64` | `x86_64-unknown-linux-musl` (statisch, ohne Theke) | musl-tools | `pizza-host-linux-x64-<sha12>` |
 | `linux-x64-theke` | `x86_64-unknown-linux-gnu` (glibc, mit Theke-Fenster) | gcc + libwebkit2gtk-4.1-dev | `pizza-host-linux-x64-theke-<sha12>` |
 | `linux-arm64` | `aarch64-unknown-linux-musl` (statisch, optional) | rust-lld | `pizza-host-linux-arm64-<sha12>` |
@@ -116,9 +116,11 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 - Smoke-Test mit (unsichtbarem) Fenster: `PIZZA_THEKE_SMOKE=1 cargo test --test theke -- --ignored fenster`
   (Linux/CI: `xvfb-run -a` davor). `PIZZA_THEKE_UNSICHTBAR=1` hält das Fenster unsichtbar.
 - WebView-Daten: `%LOCALAPPDATA%pizza	heke` bzw. `$XDG_DATA_HOME/pizza/theke` (nie neben der EXE).
-- **Windows-Download vorerst ohne Fenster:** mingw-Builds bräuchten `WebView2Loader.dll` neben der EXE (die statische
-  Loader-Bibliothek ist MSVC-only). Lokal mit dem msvc-Target gebaut läuft das Fenster. `PIZZA_WINDOWS_THEKE=1` erzwingt
-  den Theke-Build in `baue-ziele.sh` (nur sinnvoll mit MSVC-Toolchain, z. B. cargo-xwin).
+- **Windows-Build:** MSVC-Ziel im Linux-Docker per `xwin --accept-license splat` (Lizenz vom Nutzer freigegeben;
+  Cache-Mount `/opt/xwin`, ~630 MB) und `rust-lld`, `+crt-static` → eine EXE, die nur System-DLLs importiert
+  (kein `vcruntime`, kein `WebView2Loader.dll` – der Loader ist statisch gelinkt). mingw/gnu geht nicht: dessen
+  Loader-Anbindung bräuchte `WebView2Loader.dll` neben der EXE. Erster Build ~4 min (xwin-Installation + SDK-Download),
+  danach mit Cache wenige Sekunden bis ~1 min.
 
 ## Größe & Geschwindigkeit
 
