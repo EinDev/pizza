@@ -36,7 +36,7 @@ probier {
         solange (ja) { }
     };
 } verbrannt (VerbranntAnanas a) {
-    Bote.sage(("Verbrannt: " + a.nachricht()));
+    Bote.sage(("Verbrannt: " + a.typ()));
 }
 
 // 4) Zu heiß ist zu heiß

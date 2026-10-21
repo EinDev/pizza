@@ -61,7 +61,7 @@ klasse Menü {
     }
 }
 
-Bote.sage(("2. " + Menü.vorspeise()));
+Bote.sage(("2. " + Küche.vorspeise()));
 
 klasse Küche {
     tiefkühl margherita vorspeise() {
@@ -375,17 +375,17 @@ Bote.sage((zahlen.filtere(x -> x % 2 == 0)));
 Bote.sage((zahlen.zusammenklappen((a, b) -> a + b)));
 Bote.sage((zahlen.belege(Küche.verdopple)));
 
-// Für Funktionswerte gibt es keinen eigenen Typ – unbekannte Typnamen werden nicht geprüft.
+// Closure: das Lambda merkt sich 'faktor' aus dem umgebenden Scope.
 salami faktor = 3;
-Funktion mal = x -> x * faktor;
-Funktion gruß = () -> {
-    margherita wer = "Luigi";
-    serviere (("Ciao von " + wer));
-};
-Bote.sage((mal(5)));
-Bote.sage((gruß()));
+Bote.sage((zahlen.belege(x -> x * faktor)));
+
+// Lambda mit Block-Rumpf und serviere
+Bote.sage((zahlen.belege(x -> {
+    salami belegt = x + 100;
+    serviere ((belegt));
+})));
 `, ausfuehrbar: true, tier: 1 },
-        { art: "ausgabe", text: "[10, 20, 30, 40]\n[2, 4]\n10\n[2, 4, 6, 8]\n15\nCiao von Luigi" }
+        { art: "ausgabe", text: "[10, 20, 30, 40]\n[2, 4]\n10\n[2, 4, 6, 8]\n[3, 6, 9, 12]\n[101, 102, 103, 104]" }
       ]
     },
     {
@@ -478,8 +478,8 @@ klasse Holzofen erbt Ofen {
     }
 }
 
-Ofen ofenchen = neu Holzofen();
-Bote.sage((ofenchen.beschreibe()));
+Ofen meinOfen = neu Holzofen();
+Bote.sage((meinOfen.beschreibe()));
 
 probier {
     Ofen roher = neu Ofen(250);
@@ -782,7 +782,7 @@ probier {
     Bote.sage(("Wenigstens der Rand..."));
 }
 `, ausfuehrbar: true, exitCode: 39, tier: 1 },
-        { art: "text", md: "Nur so viel: Exit-Code `39`, kein `verbrannt` und kein `rand` hilft, und *irgendwo* liegt danach eine Datei `reste.kaltepizza`." }
+        { art: "text", md: "Nur so viel: Exit-Code `39`, kein `verbrannt` und kein `rand` hilft. Danach bleibt die Küche erst mal kalt." }
       ]
     }
   );
