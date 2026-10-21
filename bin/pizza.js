@@ -129,6 +129,7 @@ if (optionen.ast) {
     }
   };
   if (optionen.eingabe !== null) runOpt.eingabe = optionen.eingabe;
+  else runOpt.onEingabe = () => liesStdinZeile();
 
   // Zufall (K-077): feste Saat per --saat, sonst echte Saat – und anzeigen, damit der Lauf reproduzierbar bleibt
   if (optionen.saat !== null) runOpt.zufallsSaat = optionen.saat;
@@ -161,7 +162,6 @@ if (optionen.ast) {
       } catch (e) { return false; }
     };
   }
-  else runOpt.onEingabe = () => liesStdinZeile();
   const r = P.run(quelle, runOpt);
   process.exitCode = r.exitCode;
 }

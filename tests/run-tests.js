@@ -17,7 +17,7 @@ const P = require(path.join(ROOT, 'site', 'js', 'pizza.js'));
 const argv = process.argv.slice(2);
 const ausfuehrlich = argv.includes('-v');
 const filter = argv.filter(a => a !== '-v')[0] || null;
-const GRUPPEN = ['faelle', 'api', 'beispiele', 'doku'];
+const GRUPPEN = ['faelle', 'api', 'beispiele', 'doku', 'cli'];
 const nurGruppe = filter && GRUPPEN.includes(filter) ? filter : null;
 const namensFilter = filter && !nurGruppe ? filter : null;
 
@@ -646,11 +646,97 @@ function doku() {
 }
 
 // ---------------------------------------------------------------------
+// 5. CLI (bin/pizza.js) – als eigener Prozess, ohne TTY (keine Farben)
+// ---------------------------------------------------------------------
+function cli() {
+  console.log(fett('\n▶ CLI (bin/pizza.js)'));
+  gruppe('cli');
+  const { spawnSync } = require('child_process');
+  const os = require('os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pizza-cli-'));
+  const datei = (name, inhalt) => { const p = path.join(tmp, name); fs.writeFileSync(p, inhalt); return p; };
+  const lauf = (args, stdin) => {
+    const r = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'pizza.js'), ...args],
+      { input: stdin === undefined ? '' : stdin, encoding: 'utf8', env: Object.assign({}, process.env, { NO_COLOR: '1' }) });
+    return { code: r.status, out: r.stdout.replace(/\r\n/g, '\n'), err: r.stderr.replace(/\r\n/g, '\n') };
+  };
+  const tests = [];
+  const test = (name, fn) => tests.push([name, fn]);
+  const gleich = (ist, soll, was) => {
+    if (JSON.stringify(ist) !== JSON.stringify(soll)) throw new Error((was || 'Wert') + ': erwartet ' + JSON.stringify(soll) + ', bekam ' + JSON.stringify(ist));
+  };
+  const wuerfel = datei('wuerfel.pizza', 'Bote.sage((Zufall.zahl(1, 1000000) + " " + Zufall.zahl(1, 1000000)));\n');
+
+  test('K-077/U-46: ohne --saat genau eine Zeile "Saat: N" auf stderr, N ∈ [0, 2^32)', () => {
+    const r = lauf(['--kein-vorrat', wuerfel]);
+    gleich(r.code, 0, 'Exit-Code');
+    const m = /^Saat: (\d+)\n$/.exec(r.err);
+    if (!m) throw new Error('stderr ist nicht exakt "Saat: N\\n": ' + JSON.stringify(r.err));
+    const n = Number(m[1]);
+    if (!(n >= 0 && n < 4294967296)) throw new Error('Saat außerhalb des Bereichs: ' + n);
+    const nochmal = lauf(['--kein-vorrat', '--saat=' + n, wuerfel]);
+    gleich(nochmal.out, r.out, 'gleiche Saat → gleiche Würfe');
+    gleich(nochmal.err, '', 'mit --saat keine Saat-Zeile');
+  });
+
+  test('K-077: --saat=7 wirkt wie optionen.zufallsSaat = 7 (identisch zur Bibliothek)', () => {
+    const r = lauf(['--kein-vorrat', '--saat=7', wuerfel]);
+    const ref = P.run(fs.readFileSync(wuerfel, 'utf8'), { zufallsSaat: 7 }).ereignisse.find(e => e.typ === 'ausgabe').text + '\n';
+    gleich(r.out, ref);
+    const r2 = lauf(['--kein-vorrat', '--saat=-1', wuerfel]);
+    const ref2 = P.run(fs.readFileSync(wuerfel, 'utf8'), { zufallsSaat: -1 }).ereignisse.find(e => e.typ === 'ausgabe').text + '\n';
+    gleich(r2.out, ref2, 'negative Saat normalisiert');
+    gleich(lauf(['--saat=2.5', wuerfel]).code, 2, '--saat ohne Ganzzahl → Exit 2');
+  });
+
+  test('K-083/U-45: Warnungen und Fehler als <text> (Zeile Z, Spalte S), Ananas ohne doppelte Zeile', () => {
+    const p = datei('fehler.pizza', 'salami PiZZa = 1;\nsalami PizZa = 2;\nBote.sage(("vorher"));\nsalami x = 1 / 0;\n');
+    const r = lauf(['--kein-vorrat', '--saat=1', p]);
+    gleich(r.code, 1);
+    gleich(r.out, 'vorher\n');
+    gleich(r.err, "W0032: 'PiZZa' und 'PizZa' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden. (Zeile 2, Spalte 8)\n" +
+      'Ungefangene Ananas – RechenAnanas: Durch null teilen? Das ergibt keine Stücke. (Zeile 4, Spalte 1)\n');
+    const s = lauf(['--saat=1', datei('syntax.pizza', 'salami x = 1\nBote.sage((x));\n')]);
+    gleich([s.code, s.err], [2, "PizzaFehler P0001: Erwartet ';' nach Anweisung, gefunden 'Bote' (Zeile 1, Spalte 13)\n"]);
+    const l = lauf(['--saat=1', '--schritte=50', datei('limit.pizza', 'solange (ja) { }\n')]);
+    gleich([l.code, l.err], [3, 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?) (Zeile 1, Spalte 1)\n']);
+  });
+
+  test('Eingabe: stdin und --eingabe, Exit-Code, --ast', () => {
+    const p = datei('ein.pizza', 'margherita n = Bestellannahme.frage(("Name? "));\nBote.sage(("Ciao " + n));\n');
+    gleich(lauf(['--saat=1', p], 'Luigi\n').out, 'Name? Ciao Luigi\n');
+    const e = datei('ein.eingabe', 'Mario\n');
+    gleich(lauf(['--saat=1', '--eingabe', e, p]).out, 'Name? Ciao Mario\n');
+    const a = lauf(['--ast', p]);
+    gleich([a.code, JSON.parse(a.out).k], [0, 'Programm']);
+  });
+
+  test('Vorrat: --vorrat=ordner speichert atomar als JSON v1 und lädt beim nächsten Lauf; --kein-vorrat → W0101', () => {
+    const ordner = path.join(tmp, 'vorrat');
+    const p = datei('vorrat.pizza', 'Vorratskammer v = neu Vorratskammer("cli-test");\nsalami n = v.hole("n", 0) + 1;\nv.lege("n", n);\nBote.sage((n));\n');
+    gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).out, '1\n');
+    gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).out, '2\n');
+    gleich(JSON.parse(fs.readFileSync(path.join(ordner, 'cli-test.json'), 'utf8')), { v: 1, name: 'cli-test', eintraege: [['n', 2]] });
+    gleich(fs.readdirSync(ordner), ['cli-test.json'], 'keine Temp-Dateien');
+    const k = lauf(['--saat=1', '--kein-vorrat', p]);
+    gleich([k.out, k.err], ['1\n', 'W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert. (Zeile 1, Spalte 19)\n']);
+  });
+
+  for (const [name, fn] of tests) {
+    if (!passt(name)) continue;
+    try { fn(); ergebnis('cli', name, null); }
+    catch (e) { ergebnis('cli', name, String(e && e.message || e)); }
+  }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* egal */ }
+}
+
+// ---------------------------------------------------------------------
 const t0 = Date.now();
 if (!nurGruppe || nurGruppe === 'faelle') faelle();
 if (!nurGruppe || nurGruppe === 'api') api();
 if (!nurGruppe || nurGruppe === 'beispiele') beispiele();
 if (!nurGruppe || nurGruppe === 'doku') doku();
+if (!nurGruppe || nurGruppe === 'cli') cli();
 
 console.log(fett('\n═══ Zusammenfassung ═══'));
 for (const [g, s] of Object.entries(stat)) {
