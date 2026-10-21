@@ -123,6 +123,25 @@ mod tests {
             assert_eq!(js_zahl(x), s, "{:?}", x);
         }
     }
+
+    /// K-083: gleiche Meldungszeile wie `meldungText` in bin/pizza.js.
+    #[test]
+    fn meldung_wie_cli() {
+        use super::meldung_text as m;
+        let w = "W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.";
+        assert_eq!(m(w, Some(1), Some(19)), format!("{} (Zeile 1, Spalte 19)", w));
+        assert_eq!(m(w, None, Some(19)), w);
+        assert_eq!(m("W0032: x", Some(2), None), "W0032: x (Zeile 2)");
+        let a = "Ungefangene Ananas – RechenAnanas: Durch null teilen? Das ergibt keine Stücke.";
+        assert_eq!(m(&format!("{} (Zeile 4)", a), Some(4), Some(1)), format!("{} (Zeile 4, Spalte 1)", a));
+        // andere Zeile im Text → nicht ersetzen, anhängen
+        assert_eq!(m(&format!("{} (Zeile 3)", a), Some(4), Some(1)), format!("{} (Zeile 3) (Zeile 4, Spalte 1)", a));
+        assert_eq!(m("x(Zeile 4)", Some(4), Some(1)), "x(Zeile 4) (Zeile 4, Spalte 1)");
+        let p = "PizzaFehler P0001: Erwartet ';' nach Anweisung, gefunden 'Bote'";
+        assert_eq!(m(p, Some(1), Some(13)), format!("{} (Zeile 1, Spalte 13)", p));
+        let l = "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)";
+        assert_eq!(m(l, Some(1), Some(1)), format!("{} (Zeile 1, Spalte 1)", l));
+    }
 }
 
 impl Ereignis {
@@ -188,6 +207,31 @@ pub enum Senke {
     Sammeln(Vec<Ereignis>),
 }
 
+/// Meldungszeile für Warnungen und Fehler wie `meldungText` in bin/pizza.js (K-083): `<text> (Zeile Z, Spalte S)`.
+/// Endet der Text schon auf ` (Zeile N)` mit derselben Zeile (ungefangene Ananas), ersetzt der Ort diese Angabe.
+pub fn meldung_text(text: &str, zeile: Option<i32>, spalte: Option<i32>) -> String {
+    let Some(z) = zeile else { return text.to_string() };
+    let pos = match spalte {
+        Some(s) => format!(" (Zeile {}, Spalte {})", z, s),
+        None => format!(" (Zeile {})", z),
+    };
+    // JS: /\s\(Zeile (\d+)\)$/ und Number(N) === zeile
+    if let Some(rumpf) = text.strip_suffix(')') {
+        if let Some(i) = rumpf.rfind("(Zeile ") {
+            let ziffern = &rumpf[i + 7..];
+            let vor = &rumpf[..i];
+            if !ziffern.is_empty() && ziffern.bytes().all(|b| b.is_ascii_digit()) {
+                if let Some(ws) = vor.chars().next_back().filter(|c| c.is_whitespace()) {
+                    if ziffern.parse::<f64>().ok() == Some(z as f64) {
+                        return format!("{}{}", &vor[..vor.len() - ws.len_utf8()], pos);
+                    }
+                }
+            }
+        }
+    }
+    format!("{}{}", text, pos)
+}
+
 impl Senke {
     pub fn konsole(info: bool) -> Self {
         let farbe = io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none();
@@ -226,13 +270,6 @@ impl Senke {
                         t.to_string()
                     }
                 };
-                let pos = |z: &Option<i32>, s: &Option<i32>| match z {
-                    Some(z) => match s {
-                        Some(s) => format!(" (Zeile {}, Spalte {})", z, s),
-                        None => format!(" (Zeile {})", z),
-                    },
-                    None => String::new(),
-                };
                 match &e {
                     Ereignis::Ausgabe { text, umbruch } => {
                         let mut out = io::stdout().lock();
@@ -259,12 +296,11 @@ impl Senke {
                     }
                     Ereignis::Warnung { text, zeile, spalte, .. } => {
                         let _ = io::stdout().flush();
-                        let _ = writeln!(io::stderr(), "{}{}", f("33", &format!("⚠ {}", text)), f("90", &pos(zeile, spalte)));
+                        let _ = writeln!(io::stderr(), "{}", f("33", &meldung_text(text, *zeile, *spalte)));
                     }
-                    Ereignis::Fehler { art, text, zeile, spalte, .. } => {
+                    Ereignis::Fehler { text, zeile, spalte, .. } => {
                         let _ = io::stdout().flush();
-                        let p = if art == "syntax" || art == "pizzafehler" { f("90", &pos(zeile, spalte)) } else { String::new() };
-                        let _ = writeln!(io::stderr(), "{}{}", f("1;31", text), p);
+                        let _ = writeln!(io::stderr(), "{}", f("1;31", &meldung_text(text, *zeile, *spalte)));
                         if let (true, Ereignis::Fehler { detail: Some(d), .. }) = (*debug, &e) {
                             let _ = writeln!(io::stderr(), "{}", f("90", &format!("detail: {}", d)));
                         }

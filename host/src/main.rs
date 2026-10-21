@@ -6,7 +6,8 @@
 //! pizza-host exe programm.pkarton -o programm.exe
 //! ```
 //! Optionen, Texte und Exit-Codes wie `bin/pizza.js` (K-082/K-088); eine EXE (eingebettetes Programm) versteht
-//! dieselben Optionen direkt hinter dem Programmnamen, alles ab dem ersten Nicht-Options-Argument geht an `hauptgang`.
+//! dieselben Optionen direkt hinter dem Programmnamen, alles ab dem ersten Nicht-Options-Argument geht an `hauptgang`;
+//! `--` beendet die Optionen (z. B. `programm.exe -- --x`), alles danach geht unverändert an `hauptgang`.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -27,7 +28,9 @@ const OPTIONEN: &str = "Optionen:
   --debug              technische Details interner Fehler zeigen
   --ereignisse-json    alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende; ohne --saat feste Saat 42)
   --ui-ereignisse d    Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
-  --hilfe              diese Hilfe";
+  --hilfe              diese Hilfe
+  --                   Ende der Optionen: alles danach geht unverändert an hauptgang(args)
+                       (nur das erste -- zählt, ein späteres bleibt Argument)";
 
 fn hilfe(eingebettet: bool) -> String {
     if eingebettet {
@@ -36,13 +39,13 @@ fn hilfe(eingebettet: bool) -> String {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
             .unwrap_or_else(|| "programm".into());
         format!(
-            "{n} – pizza-Programm\n\nAufruf:\n  {n} [optionen] [args…]\n  {n} [--vorrat=ordner] --vorrat-loeschen <name>\n  {n} [--vorrat=ordner] --vorrat-loeschen-alle\n\n{o}",
+            "{n} – pizza-Programm\n\nAufruf:\n  {n} [optionen] [--] [args…]\n  {n} [--vorrat=ordner] --vorrat-loeschen <name>\n  {n} [--vorrat=ordner] --vorrat-loeschen-alle\n\n{o}",
             n = name,
             o = OPTIONEN
         )
     } else {
         format!(
-            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
+            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [--] [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
             OPTIONEN
         )
     }
@@ -113,12 +116,20 @@ fn vorrat_standard_ordner() -> Option<PathBuf> {
 fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode> {
     let mut a = Aufruf::default();
     let mut optionen_zu = false;
+    let mut strich = false;
     let mut argv = argv.into_iter();
     let fehler = |t: &str| {
         eprintln!("{}", t);
         Err(beende(2))
     };
     while let Some(x) = argv.next() {
+        // `--` beendet die Optionen (wie bin/pizza.js): das erste `--` vor dem ersten Programmargument wird verbraucht,
+        // alles danach geht unverändert an `hauptgang(args)`; ein späteres `--` bleibt Argument.
+        if x == "--" && !strich && a.args.is_empty() {
+            strich = true;
+            optionen_zu = true;
+            continue;
+        }
         if !optionen_zu && x.starts_with("--") {
             match x.as_str() {
                 "--ui-ereignisse" => {

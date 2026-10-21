@@ -37,6 +37,24 @@ fn exe_erzeugen_und_starten() {
     assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Margherita\n--hilfe\nHallo aus der EXE\n");
     assert_eq!(out.status.code(), Some(2));
 
+    // `--` beendet die Optionen: das erste `--` (vor dem ersten Programmargument) wird verbraucht, der Rest geht
+    // unverändert an das Programm; ein späteres `--` bleibt Argument (wie bin/pizza.js).
+    let lauf = |p: &std::path::Path, args: &[&str]| {
+        let out = Command::new(p).args(args).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
+        (String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), out.status.code())
+    };
+    assert_eq!(lauf(&exe, &["--", "--hilfe"]), ("--hilfe\nHallo aus der EXE\n".into(), Some(1)));
+    assert_eq!(lauf(&exe, &["--", "--x", "--", "y"]), ("--x\n--\ny\nHallo aus der EXE\n".into(), Some(3)));
+    assert_eq!(lauf(&exe, &["a", "--", "b"]), ("a\n--\nb\nHallo aus der EXE\n".into(), Some(3)));
+    assert_eq!(lauf(&exe, &["--"]), ("Hallo aus der EXE\n".into(), Some(0)));
+    let hilfe = lauf(&exe, &["--hilfe"]).0;
+    assert!(hilfe.contains("[optionen] [--] [args…]") && hilfe.contains("\n  --                   Ende der Optionen"), "{}", hilfe);
+    // pizza-host mit Datei: `--` vor und nach der Datei
+    let k = karton.to_str().unwrap();
+    assert_eq!(lauf(host.as_ref(), &["--saat=1", "--kein-vorrat", k, "--", "--info"]), ("--info\nHallo aus der EXE\n".into(), Some(1)));
+    assert_eq!(lauf(host.as_ref(), &["--saat=1", "--kein-vorrat", "--", k, "--", "--x"]), ("--\n--x\nHallo aus der EXE\n".into(), Some(2)));
+    assert_eq!(lauf(host.as_ref(), &["--saat=1", "--kein-vorrat", k, "--info"]), ("--info\nHallo aus der EXE\n".into(), Some(1)));
+
     let out = Command::new(&exe).env("PIZZA_EREIGNISSE_JSON", "1").stdin(Stdio::null()).output().unwrap();
     assert_eq!(
         String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),

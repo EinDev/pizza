@@ -154,7 +154,7 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
 - Tests ohne Fenster: `--ui-ereignisse datei` (JSON-Lines, erschöpft → `{"typ":"geschlossen"}`).
 - Smoke-Test mit (unsichtbarem) Fenster: `PIZZA_THEKE_SMOKE=1 cargo test --test theke -- --ignored fenster`
   (Linux/CI: `xvfb-run -a` davor). `PIZZA_THEKE_UNSICHTBAR=1` hält das Fenster unsichtbar.
-- WebView-Daten: `%LOCALAPPDATA%pizza	heke` bzw. `$XDG_DATA_HOME/pizza/theke` (nie neben der EXE).
+- WebView-Daten: `%LOCALAPPDATA%\pizza\theke` bzw. `$XDG_DATA_HOME/pizza/theke` (nie neben der EXE).
 - **Windows-Build:** MSVC-Ziel im Linux-Docker per `xwin --accept-license splat` (Lizenz vom Nutzer freigegeben;
   Cache-Mount `/opt/xwin`, ~630 MB) und `rust-lld`, `+crt-static` → eine EXE, die nur System-DLLs importiert
   (kein `vcruntime`, kein `WebView2Loader.dll` – der Loader ist statisch gelinkt). mingw/gnu geht nicht: dessen

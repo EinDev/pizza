@@ -2,6 +2,7 @@
 /*
  * pizza CLI
  *   node bin/pizza.js datei.pizza [args…]
+ *   node bin/pizza.js [optionen] [--] datei.pizza [--] [args…]   (`--` = Ende der Optionen, Rest unverändert an hauptgang)
  *   node bin/pizza.js --ast datei.pizza
  *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>   (eine Kammer, ohne Programm)
  *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle     (alle Kammern, ohne Programm)
@@ -25,9 +26,13 @@ const crypto = require('crypto');
 const optionen = { ast: false, info: false, debug: false, schrittLimit: undefined, eingabe: null, saat: null, vorratOrdner: null, keinVorrat: false };
 let datei = null;
 const progArgs = [];
+// `--` beendet die Optionen: das erste `--` vor dem ersten Programmargument wird verbraucht, alles danach geht
+// unverändert an hauptgang(args) (vor der Datei ist das nächste Argument die Datei). Ein späteres `--` bleibt erhalten.
+let optionenZu = false;
 for (let i = 0; i < roh.length; i++) {
   const a = roh[i];
-  if (datei === null && a.startsWith('--')) {
+  if (a === '--' && !optionenZu && progArgs.length === 0) { optionenZu = true; continue; }
+  if (datei === null && !optionenZu && a.startsWith('--')) {
     if (a === '--ast') optionen.ast = true;
     else if (a === '--info') optionen.info = true;
     else if (a.startsWith('--schritte=')) optionen.schrittLimit = Number(a.slice(11));
@@ -55,13 +60,16 @@ for (let i = 0; i < roh.length; i++) {
     else if (a === '--hilfe' || a === '--help') { hilfe(); process.exit(0); }
     else { console.error('Unbekannte Option: ' + a); hilfe(); process.exit(2); }
   } else if (datei === null) datei = a;
-  else progArgs.push(a);
+  else { optionenZu = true; progArgs.push(a); }
 }
 
 function hilfe() {
-  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [args…]' +
+  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [--] [args…]' +
     '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>' +
-    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle');
+    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle' +
+    '\n\n  --   Ende der Optionen: alles danach geht unverändert an hauptgang(args),' +
+    '\n       z. B. node bin/pizza.js datei.pizza -- --mein-arg (vor der Datei: das nächste Argument ist die Datei;' +
+    '\n       nur das erste -- zählt, ein späteres bleibt Argument)');
 }
 
 // „Vorrat löschen“ (Nutzerentscheidung K-083 Nr. 5): gleiche Texte wie Playground/EXE

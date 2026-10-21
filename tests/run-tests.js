@@ -714,6 +714,19 @@ function cli() {
     gleich([l.code, l.err], [3, 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?) (Zeile 1, Spalte 1)\n']);
   });
 
+  test('-- beendet die Optionen: Rest unverändert an hauptgang(args), nur das erste -- zählt', () => {
+    const p = datei('args.pizza', 'speisekarte klasse A {\n  speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {\n    für (margherita a : args) { Bote.sage(("[" + a + "]")); }\n  }\n}\n');
+    const r = lauf(['--kein-vorrat', '--saat=1', p, '--', '--mein-arg']);
+    gleich([r.code, r.out, r.err], [0, '[--mein-arg]\n', '']);
+    gleich(lauf(['--kein-vorrat', '--saat=1', p, '--', '--hilfe']).out, '[--hilfe]\n', '-- --hilfe zeigt keine Hilfe');
+    gleich(lauf(['--kein-vorrat', '--saat=1', p, '--', '--x', '--', 'y']).out, '[--x]\n[--]\n[y]\n', 'späteres -- bleibt');
+    gleich(lauf(['--kein-vorrat', '--saat=1', p, 'a', '--', 'b']).out, '[a]\n[--]\n[b]\n', '-- nach Programmargument bleibt');
+    gleich(lauf(['--kein-vorrat', '--saat=1', '--', p, '--', '--info']).out, '[--]\n[--info]\n', '-- vor der Datei');
+    gleich(lauf(['--kein-vorrat', '--saat=1', p, '--info']).out, '[--info]\n', 'nach der Datei keine Optionen');
+    const h = lauf(['--hilfe']);
+    if (!/datei\.pizza \[--\] \[args…\]/.test(h.out) || !/\n {2}-- {3}Ende der Optionen/.test(h.out)) throw new Error('--hilfe dokumentiert -- nicht: ' + h.out);
+  });
+
   test('Eingabe: stdin und --eingabe, Exit-Code, --ast', () => {
     const p = datei('ein.pizza', 'margherita n = Bestellannahme.frage(("Name? "));\nBote.sage(("Ciao " + n));\n');
     gleich(lauf(['--saat=1', p], 'Luigi\n').out, 'Name? Ciao Luigi\n');
