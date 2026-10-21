@@ -9,6 +9,8 @@ pub enum Ereignis {
     /// Gelesene Eingabezeile (`None` = EOF).
     Eingabe { text: Option<String> },
     Leeren,
+    /// Theke-Nachricht an den Renderer (rohes JSON-Objekt, THEKE.md §3/§4).
+    Ui { nachricht: String },
     Fehlerausgabe { text: String },
     Warnung { code: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
     /// `detail`: optionale motorspezifische Einzelheiten (K-014), nicht Teil des Vergleichs.
@@ -133,6 +135,7 @@ impl Ereignis {
                 text.as_deref().map(json_text).unwrap_or_else(|| "null".into())
             ),
             Ereignis::Leeren => "{\"typ\":\"leeren\"}".to_string(),
+            Ereignis::Ui { nachricht } => format!("{{\"typ\":\"ui\",\"nachricht\":{}}}", nachricht.trim()),
             Ereignis::Fehlerausgabe { text } => {
                 format!("{{\"typ\":\"fehlerausgabe\",\"text\":{}}}", json_text(text))
             }
@@ -215,8 +218,8 @@ impl Senke {
                             let _ = out.flush();
                         }
                     }
-                    // Kein Echo: das macht das Terminal.
-                    Ereignis::Eingabe { .. } => {}
+                    // Kein Echo: das macht das Terminal. UI-Nachrichten gehen ans Fenster, nicht auf die Konsole.
+                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } => {}
                     Ereignis::Leeren => {
                         let mut out = io::stdout().lock();
                         if out.is_terminal() {

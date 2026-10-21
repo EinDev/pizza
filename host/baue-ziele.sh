@@ -64,15 +64,15 @@ for z in $ZIELE; do
   case "$t" in
     x86_64-pc-windows-gnu)
       CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=${CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER:-x86_64-w64-mingw32-gcc} \
-        cargo build --release --locked --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host ;;
+        cargo build --release --locked --no-default-features --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host ;;
     aarch64-unknown-linux-musl)
       if ! CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER:-rust-lld} \
-        cargo build --release --locked --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host; then
+        cargo build --release --locked --no-default-features --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host; then
         if [ "$STRIKT" != "1" ]; then echo ">> WARNUNG: $z fehlgeschlagen – übersprungen."; continue; fi
         exit 1
       fi ;;
     *)
-      cargo build --release --locked --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host ;;
+      cargo build --release --locked --no-default-features --manifest-path "$HIER/Cargo.toml" --target "$t" --bin pizza-host ;;
   esac
   e=$(endung "$z")
   quelle="$ZIELDIR/$t/release/pizza-host$e"

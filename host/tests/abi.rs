@@ -7,7 +7,7 @@ fn lauf(wat_src: &str, args: &[&str], opt: Optionen) -> (i32, Vec<Ereignis>) {
     let wasm = wat::parse_str(wat_src).expect("WAT");
     let mut s = Senke::Sammeln(Vec::new());
     let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-    let code = fuehre_aus(&wasm, &args, &opt, &mut s);
+    let code = fuehre_aus(&wasm, &args, opt, &mut s);
     match s {
         Senke::Sammeln(v) => (code, v),
         _ => unreachable!(),
@@ -135,7 +135,7 @@ fn falsche_abi_version() {
     assert_eq!(e[1], Ereignis::Ende { exit_code: 2, schritte: 0.0, zeit_ms: 0.0 });
     // Kein Wasm überhaupt → ebenfalls Ladefehler.
     let mut senke = Senke::Sammeln(Vec::new());
-    assert_eq!(fuehre_aus(b"keine pizza", &[], &Optionen::default(), &mut senke), 2);
+    assert_eq!(fuehre_aus(b"keine pizza", &[], Optionen::default(), &mut senke), 2);
 }
 
 #[test]

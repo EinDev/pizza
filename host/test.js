@@ -80,7 +80,9 @@ for (const b of liste) {
   const quelle = fs.readFileSync(path.join(BEISPIELE, b.datei), 'utf8');
   const eingabe = b.eingabe ? zeilen(fs.readFileSync(path.join(BEISPIELE, b.eingabe), 'utf8')) : undefined;
   const args = b.args || [];
-  const ref = PizzaLang.run(quelle, { args, eingabe });
+  const uiDatei = b.ereignisse ? path.join(BEISPIELE, b.ereignisse) : null;
+  const uiEreignisse = uiDatei ? zeilen(fs.readFileSync(uiDatei, "utf8")).filter((z) => z.trim()).map((z) => JSON.parse(z)) : undefined;
+  const ref = PizzaLang.run(quelle, { args, eingabe, uiEreignisse });
   const k = Pizzaiolo.kompiliere(quelle);
   if (!k.ok) {
     nicht++;
@@ -92,6 +94,7 @@ for (const b of liste) {
   fs.writeFileSync(datei, k.pkarton);
   const hArgs = ['--ereignisse-json'];
   if (b.eingabe) hArgs.push('--eingabe', path.join(BEISPIELE, b.eingabe));
+  if (uiDatei) hArgs.push('--ui-ereignisse', uiDatei);
   hArgs.push(datei, ...args);
   const h0 = Date.now();
   const r = spawnSync(exe, hArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 });

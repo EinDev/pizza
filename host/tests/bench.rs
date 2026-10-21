@@ -19,6 +19,6 @@ fn schleife_und_rekursion() {
     (i32.and (call $fib (i32.const 33)) (i32.const 0))))"#;
     let wasm = wat::parse_str(wat).unwrap();
     let t = std::time::Instant::now();
-    let code = fuehre_aus(&wasm, &[], &Optionen::default(), &mut Senke::Sammeln(vec![]));
+    let code = fuehre_aus(&wasm, &[], Optionen::default(), &mut Senke::Sammeln(vec![]));
     println!("BENCH: {} ms (exit {})", t.elapsed().as_millis(), code);
 }

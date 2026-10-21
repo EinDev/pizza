@@ -1,7 +1,7 @@
 //! pizza-host – nativer Host für kompilierte pizza-Programme (`.pkarton`).
 //!
 //! ```text
-//! pizza-host [--ereignisse-json] [--info] [--eingabe datei] programm.pkarton [args…]
+//! pizza-host [--ereignisse-json] [--info] [--eingabe datei] [--ui-ereignisse datei] programm.pkarton [args…]
 //! pizza-host exe programm.pkarton -o programm.exe
 //! ```
 
@@ -14,7 +14,7 @@ use pizzahost::{karton, laufen};
 const HILFE: &str = "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus
 
 Aufruf:
-  pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] programm.pkarton [args…]
+  pizza-host [--ereignisse-json] [--info] [--schritte=N] [--eingabe datei] [--ui-ereignisse datei] programm.pkarton [args…]
   pizza-host exe programm.pkarton -o programm.exe
 
 Optionen:
@@ -22,6 +22,7 @@ Optionen:
   --info             am Ende Exit-Code, Schritte und Uhr nach stderr
   --schritte=N       Schrittlimit (Standard: 5000000)
   --eingabe datei    Eingabezeilen aus Datei statt stdin (danach EOF)
+  --ui-ereignisse d  Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
   --hilfe            diese Hilfe";
 
 fn beende(code: i32) -> ExitCode {
@@ -33,9 +34,8 @@ fn main() -> ExitCode {
 
     // Eigenständige EXE: angehängtes .pkarton gefunden → alle Argumente gehören dem Programm.
     if let Some(pkarton) = karton::eingebettet() {
-        let mut senke = if std::env::var_os("PIZZA_EREIGNISSE_JSON").is_some() { Senke::Json } else { Senke::konsole(false) };
-        let code = laufen::fuehre_aus(&pkarton, &argv, &laufen::Optionen::default(), &mut senke);
-        return beende(code);
+        let senke = if std::env::var_os("PIZZA_EREIGNISSE_JSON").is_some() { Senke::Json } else { Senke::konsole(false) };
+        return beende(ausfuehren(pkarton, argv, laufen::Optionen::default(), senke));
     }
 
     if argv.first().map(|s| s.as_str()) == Some("exe") {
@@ -51,6 +51,22 @@ fn main() -> ExitCode {
     while let Some(a) = argv.next() {
         if datei.is_none() && a.starts_with("--") {
             match a.as_str() {
+                "--ui-ereignisse" => {
+                    let Some(pfad) = argv.next() else {
+                        eprintln!("--ui-ereignisse braucht eine Datei");
+                        return beende(2);
+                    };
+                    match std::fs::read_to_string(&pfad) {
+                        Ok(t) => {
+                            let z = laufen::zeilen(&t).into_iter().filter(|l| !l.trim().is_empty()).collect();
+                            opt.ui = Some(laufen::Ui::Vorgabe(z));
+                        }
+                        Err(e) => {
+                            eprintln!("UI-Ereignisdatei nicht lesbar: {} ({})", pfad, e);
+                            return beende(2);
+                        }
+                    }
+                }
                 "--eingabe" => {
                     let Some(pfad) = argv.next() else {
                         eprintln!("--eingabe braucht eine Datei");
@@ -99,8 +115,28 @@ fn main() -> ExitCode {
             return beende(2);
         }
     };
-    let mut senke = if json { Senke::Json } else { Senke::konsole(info) };
-    beende(laufen::fuehre_aus(&pkarton, &prog_args, &opt, &mut senke))
+    let senke = if json { Senke::Json } else { Senke::konsole(info) };
+    beende(ausfuehren(pkarton, prog_args, opt, senke))
+}
+
+/// Führt das Programm aus – mit Theke-Fenster (eigener Programm-Thread, Fenster im Hauptthread),
+/// sofern das Feature aktiv ist und keine vorgegebenen UI-Ereignisse genutzt werden.
+fn ausfuehren(pkarton: Vec<u8>, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
+    // Maschinenlesbarer Modus (--ereignisse-json, Differenztests) öffnet kein Fenster, außer PIZZA_THEKE=1:
+    // ohne --ui-ereignisse gilt dann „kein Renderer“ (W0100) – wie im Interpreter ohne uiEreignisse.
+    #[cfg(feature = "theke")]
+    let fenster_erlaubt = !matches!(senke, Senke::Json) || std::env::var("PIZZA_THEKE").map(|v| v == "1").unwrap_or(false);
+    #[cfg(feature = "theke")]
+    if opt.ui.is_none() && fenster_erlaubt {
+        return pizzahost::theke::starte(move |ui| {
+            let mut opt = opt;
+            let mut senke = senke;
+            opt.ui = ui;
+            laufen::fuehre_aus(&pkarton, &args, opt, &mut senke)
+        });
+    }
+    let mut senke = senke;
+    laufen::fuehre_aus(&pkarton, &args, opt, &mut senke)
 }
 
 fn exe_befehl(args: &[String]) -> ExitCode {
