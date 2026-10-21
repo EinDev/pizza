@@ -1,0 +1,9 @@
+Theke t = neu Theke("S");
+Knopf k = neu Knopf("k", () -> { k.stil("farbe", karton); k.stil("abstand", 4); k.stil("abstand", karton); });
+k.stil("breite", 10);
+k.stil("farbe", "tomate");
+k.stil("schrift", karton);
+t.zeige(k);
+k.stil("breite", karton);
+t.bediene();
+probier { k.stil("css", karton); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }

@@ -1,0 +1,7 @@
+Bote.sage(("ab".ersetze("", "-")));
+Bote.sage(("🍕".ersetze("", "-")));
+Bote.sage(("🍕".ersetze("", "-").länge()));
+Bote.sage(("🍕x🍕".ersetze("x", "-")));
+Bote.sage(("🍕🍕".ersetze("🍕", "P")));
+Bote.sage(("".ersetze("", "x")));
+Bote.sage(("a🍕b".zeichen(2) + "|" + "a🍕b".länge() + "|" + "a🍕b".zerlege("")));

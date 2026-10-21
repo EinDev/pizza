@@ -1300,6 +1300,7 @@
       this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
       this.kinder = (art === 'stapel' || art === 'reihe') ? [] : null;
       this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
+      this.stilNull = null;
     }
   }
 
@@ -1424,7 +1425,11 @@
       const t = pos.length ? this.text(pos[0]) : '';
       return t === '' ? Array.from(s) : s.split(t);
     },
-    'ersetze': function (s, pos) { return s.split(this.text(pos[0])).join(this.text(pos[1])); },
+    'ersetze': function (s, pos) {
+      const such = this.text(pos[0]);
+      if (such === '') return s;
+      return s.split(such).join(this.text(pos[1]));
+    },
     'trimme': function (s) { return s.trim(); },
     'zeichen': function (s, pos) {
       const z = Array.from(s);
@@ -1742,6 +1747,16 @@
       const art = UI_STIL[k];
       if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Stil \'' + k + '\' gibt es nicht. Erlaubt: ' + Object.keys(UI_STIL).join(', ') + '.');
       let w = pos[1];
+      if (w === null || w === undefined) {
+        if (z.stil !== null && k in z.stil) {
+          delete z.stil[k];
+          if (Object.keys(z.stil).length === 0) z.stil = null;
+        }
+        if (z.stilNull === null) z.stilNull = new Set();
+        z.stilNull.add(k);
+        this.uiAendere(z, 'stil', this.uiStilNachricht(z));
+        return z;
+      }
       if (art === 'zahl') {
         if (typeof w !== 'number' || !(w >= 0) || !isFinite(w)) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine Zahl ≥ 0, nicht ' + this.darstellung(w) + '.');
       } else {
@@ -1750,7 +1765,8 @@
       }
       if (z.stil === null) z.stil = {};
       z.stil[k] = w;
-      this.uiAendere(z, 'stil', Object.assign({}, z.stil));
+      if (z.stilNull !== null) z.stilNull.delete(k);
+      this.uiAendere(z, 'stil', this.uiStilNachricht(z));
       return z;
     },
     'alsText': function (z) { return this.text(z); }
@@ -2175,6 +2191,12 @@
       c.kinder.push(k);
     }
 
+    uiStilNachricht(z) {
+      const o = Object.assign({}, z.stil || {});
+      if (z.stilNull !== null) for (const k of z.stilNull) o[k] = null;
+      return o;
+    }
+
     uiAngezeigt(z) {
       const t = this.uiTheke;
       if (t === null || !t.gezeigt || t.geschlossen) return false;
@@ -2193,6 +2215,7 @@
       }
       if (!z.sichtbar) o.sichtbar = false;
       if (z.stil !== null) o.stil = Object.assign({}, z.stil);
+      z.stilNull = null;
       if (z.kinder !== null) o.kinder = z.kinder.map(k => this.uiBaum(k));
       return o;
     }
@@ -2208,6 +2231,9 @@
       if (this.uiOffen.size === 0) return;
       const aenderungen = Array.from(this.uiOffen.values());
       this.uiOffen.clear();
+      for (const a of aenderungen) {
+        if ('stil' in a) { const z = this.uiZutaten.get(a.id); if (z !== undefined) z.stilNull = null; }
+      }
       this.uiSende({ v: 1, op: 'aendere', aenderungen });
     }
 

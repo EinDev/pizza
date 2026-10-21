@@ -575,10 +575,14 @@ function doku() {
       if (item.sprache === 'xml' || item.sprache === 'shell') { gruppe('doku').skip++; return; }
       const code = String(item.code || '');
       if (item.ausfuehrbar) {
-        const r = P.run(code, Array.isArray(item.eingabe) ? { eingabe: item.eingabe } : {});
+        const opt = {};
+        if (Array.isArray(item.eingabe)) opt.eingabe = item.eingabe;
+        if (Array.isArray(item.uiEreignisse)) opt.uiEreignisse = item.uiEreignisse;
+        const r = P.run(code, opt);
         const soll = typeof item.exitCode === 'number' ? item.exitCode : 0;
         let fehler = null;
         if (r.exitCode !== soll) fehler = 'Exit-Code ' + r.exitCode + ', erwartet ' + soll + fehlerZusammenfassung(r) + '\n' + grau(code.split('\n').map(z => '| ' + z).join('\n'));
+        if (!fehler && Array.isArray(item.uiErwartet)) fehler = uiVergleich(item.uiErwartet, r.ereignisse);
         const naechstes = liste[i + 1];
         if (!fehler && naechstes && naechstes.art === 'ausgabe' && typeof naechstes.text === 'string') {
           if (norm(naechstes.text) !== norm(ausgabeText(r.ereignisse))) gruppe('doku').notiz.push(name + ': folgender ausgabe-Block weicht von der echten Ausgabe ab (nur Hinweis)');
