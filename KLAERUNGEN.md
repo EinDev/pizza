@@ -672,8 +672,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   `x.kompakt(n = 2)`: größte Stufe mit `|x| ≥ 10^k`: `Tsd.` 10³, `Mio.` 10⁶, `Mrd.` 10⁹, `Bio.` 10¹², `Brd.` 10¹⁵, `Trio.` 10¹⁸;
   Ergebnis = `runden(x / Stufe, n)` als Dezimaltext mit Komma **ohne** nachgestellte Nullen + Leerzeichen + Stufe
   (`1234567.kompakt()` → `1,23 Mio.`, `.kompakt(1)` → `1,2 Mio.`, `2000000.kompakt()` → `2 Mio.`, `1500.kompakt()` → `1,5 Tsd.`);
-  `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → JS-Textform mit
-  Komma (`1,5e+22`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
+  `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → ~~JS-Textform mit
+  Komma (`1,5e+22`)~~ **ersetzt durch K-103** (weitere Stufen bis `Dezd.`, darüber `m × 10ⁿ`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
 - **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler/Laufzeit (U-49), Doku (U-51). **Status:** fest (a10).
 
 ### K-086 Theke v2: `Fortschritt`, `Abschnitt`, `Tabelle`, `Reiter`, `hinweis`, `schrift: "riesig"`
@@ -1002,6 +1002,32 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   (`laufzeit/src/theke.rs`); Regressionsfall `tests/faelle/theke-texte-karton`, Prüfstand a13 (K-102); Doku-Referenz (Theke-Abschnitt,
   Agent site/js/doku). **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
 
+### K-103 Zahlformat für beliebig große Zahlen (Befund aus dem Pizza-Imperium: Kasse „2,0844997640411506e+21 €“)
+- **Frage:** `kompakt`, `euro()` und `tausender` fielen ab 10²¹ auf die JS-Exponentform (`1,5e+22`, `2,0844997640411506e+21 €`,
+  `2,08e+21`) zurück; ∞ ergab `Infinity,undefined €`. Idle-Spiele erreichen solche Zahlen in Minuten.
+- **Entscheidung (ersetzt die 10²¹-Regel aus K-085):**
+  - `x.kompakt(n)`: Stufen der deutschen langen Skala, größte mit `|x| ≥ 10^k`: `Tsd.` 10³, `Mio.` 10⁶, `Mrd.` 10⁹, `Bio.` 10¹²,
+    `Brd.` 10¹⁵, `Trio.` 10¹⁸, `Trd.` 10²¹, `Quadr.` 10²⁴, `Quadrd.` 10²⁷, `Quint.` 10³⁰, `Quintd.` 10³³, `Sext.` 10³⁶, `Sextd.` 10³⁹,
+    `Sept.` 10⁴², `Septd.` 10⁴⁵, `Okt.` 10⁴⁸, `Oktd.` 10⁵¹, `Non.` 10⁵⁴, `Nond.` 10⁵⁷, `Dez.` 10⁶⁰, `Dezd.` 10⁶³ (Regel wie K-085:
+    `runden(x / Stufe, n)`, Komma, ohne nachgestellte Nullen; Übertrag innerhalb der Stufe bleibt wie bisher: `999999.kompakt(0)` →
+    `1000 Tsd.`). Ab `|x| ≥ 10⁶⁶`: **`m × 10ᵉ`** mit hochgestelltem Exponenten (U+2070 ff., `×` U+00D7): Mantisse und Exponent aus
+    der kürzesten Ziffernfolge (= `x.toExponential()`, dieselben Ziffern wie die Textform), `m = runden(Mantisse, n)` mit Komma ohne
+    nachgestellte Nullen; ergibt die Rundung 10, wird daraus `1 × 10ᵉ⁺¹` (`9,999·10⁷⁰.kompakt()` → `1 × 10⁷¹`, `.kompakt(4)` →
+    `9,999 × 10⁷⁰`). Beispiele: `1,5 Trd.`, `15 Trd.` (1,5·10²²), `1,5 × 10⁶⁶`, `1 × 10³⁰⁰`, `-1 × 10³⁰⁰`.
+    Nie über `log10`/`pow` – nur Literal-Vergleiche, IEEE-Division und Ziffernfolge → bitgleich in allen Motoren.
+  - Unendlich/NaN in allen drei Formaten: `∞`, `-∞`, `NaN` (`euro`: `∞ €`).
+  - `x.tausender(n)` und `x.euro()` (ohne kompakt): unverändert bis `|x| < 10²¹`; ab `|x| ≥ 10²¹` sowie für ∞/NaN **wie
+    `kompakt(2)`** (`euro` mit ` €`): `2,08 Trd. €`, `2,08 Trd.`. Volle Ziffernreihen jenseits von 21 Stellen sind weder lesbar noch
+    exakt (nur 17 signifikante Stellen); die Grenze 10²¹ ist dieselbe, ab der JS selbst in die Exponentform wechselt.
+  - **Textform bleibt** (§14.11, K-005): `text(x)`, `"" + x`, `Bote.sage(x)`, `serviere` zeigen weiterhin `String(x)`
+    (`2.5e+21`, `Infinity`). Sie ist die rundreisefähige Rohform; lesbare Ausgabe ist Sache von `tausender`/`kompakt`/`euro`.
+- **Begründung:** Stufen bis Dezilliarde decken jedes realistische Spiel ab und lesen sich wie Zeitungssprache; darüber ist
+  `× 10ⁿ` kürzer und verständlicher als erfundene Kürzel. Textform zu ändern hätte hunderte Testausgaben und die Rundreise
+  `alsZahl(text(x))` berührt.
+- **Betroffen:** SPEC §14.11/Zahlformat, Interpreter (`kompaktText`/`tausenderText`/`euroText`), Wasm-Laufzeit (`laufzeit/src/zahl.rs`),
+  Regressionsfall `tests/faelle/k103-grosse-zahlen`, Prüfstand a10 (K-085 angepasst, K-103 neu), `tests/wasm/laufzeit-zahlen.js`,
+  Doku-Referenz. Idle-Beispiel: Wächter `summe < 10²¹ ? … : "unbezahlbar"` wird überflüssig; Sterne/Zähler mit `tausender()` formatieren.
+  **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

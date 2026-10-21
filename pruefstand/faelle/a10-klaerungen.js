@@ -742,7 +742,7 @@ Bote.sage((0.5.tausender()));
 Bote.sage((1000000.tausender(0)));
 `, { out: ["1.234.567", "1.234.567,00", "-1.235", "999", "1", "1.000.000"] }),
 
-  F(K, "K-085: kompakt(n) – Stufen Tsd./Mio./Mrd./Bio./Brd./Trio., ohne nachgestellte Nullen, < 1000 gerundet, ≥ 1e21 Exponent", P`
+  F(K, "K-085: kompakt(n) – Stufen Tsd./Mio./Mrd./Bio./Brd./Trio./Trd., ohne nachgestellte Nullen, < 1000 gerundet (K-103: ab 1e21 weiter Stufen)", P`
 Bote.sage((1234567.kompakt()));
 Bote.sage((1234567.kompakt(1)));
 Bote.sage((999.5.kompakt()));
@@ -754,7 +754,27 @@ Bote.sage((0.kompakt()));
 Bote.sage((1234567890.kompakt()));
 Bote.sage((15000000000000000000000.0.kompakt()));
 Bote.sage((1234567.89.euro(kompakt: ja)));
-`, { out: ["1,23 Mio.", "1,2 Mio.", "999,5", "1,5 Tsd.", "2 Mio.", "-1,23 Mio.", "12,35", "0", "1,23 Mrd.", "1,5e+22", "1,23 Mio. €"] }),
+`, { out: ["1,23 Mio.", "1,2 Mio.", "999,5", "1,5 Tsd.", "2 Mio.", "-1,23 Mio.", "12,35", "0", "1,23 Mrd.", "15 Trd.", "1,23 Mio. €"] }),
+
+  // ── K-103 Zahlformat für beliebig große Zahlen ──────────────────────────
+  F(K, "K-103: kompakt/euro(kompakt)/tausender/euro – Stufen bis Dezd. (1e63), darüber m × 10ⁿ hochgestellt, ∞/NaN, nie e+; Textform bleibt String(x)", P`
+funghi x = 1.0;
+für (salami i = 0; i < 21; i++) { x = x * 1000; }
+Bote.sage((x.kompakt()));
+funghi y = 2.5;
+für (salami i = 0; i < 21; i++) { y = y * 10; }
+Bote.sage((y.kompakt() + " | " + y.euro(kompakt: ja) + " | " + y.euro() + " | " + y.tausender(2)));
+Bote.sage((y));
+funghi z = 1.0;
+für (salami i = 0; i < 100; i++) { z = z * 1000; }
+Bote.sage((z.kompakt() + " | " + (z * 4.567).kompakt(1) + " | " + (-z).euro()));
+funghi c = 9999.0;
+für (salami i = 0; i < 67; i++) { c = c * 10; }
+Bote.sage((c.kompakt() + " | " + c.kompakt(4)));
+funghi u = Mathe.potenz(10, 400);
+Bote.sage((u.kompakt() + " | " + (-u).tausender() + " | " + u.euro() + " | " + Mathe.wurzel(-1).kompakt()));
+`, { out: ["1 Dezd.", "2,5 Trd. | 2,5 Trd. € | 2,5 Trd. € | 2,5 Trd.", "2.5e+21", "1 × 10³⁰⁰ | 4,6 × 10³⁰⁰ | -1 × 10³⁰⁰ €",
+           "1 × 10⁷¹ | 9,999 × 10⁷⁰", "∞ | -∞ | ∞ € | NaN"] }),
 
   // ── K-095 Speisekarte.hole(k[, ersatz]) ──────────────────────────────────
   F(K, "K-095: hole(k, ersatz) liefert ersatz nur bei fehlendem Schlüssel – positional oder ersatz:, positional gewinnt, unbekannte Namen ignoriert", P`

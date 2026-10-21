@@ -481,7 +481,7 @@
               ["`ganz()`", "Nachkommastellen abschneiden (nicht runden!)", "`-7.9` → `-7`"],
               ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"],
               ["`tausender()` / `tausender(n)`", "Als Text mit Tausenderpunkten und Dezimalkomma, kaufmännisch auf `n` Stellen (Standard 0)", "`1234567.tausender(2)` → `\"1.234.567,00\"`"],
-              ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
+              ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.` … bis `Dezd.`, darüber `1,5 × 10⁷⁰`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
               ["`euro(kompakt: ja)`", "Eurobetrag in Kurzform", "`1234567.euro(kompakt: ja)` → `\"1,23 Mio. €\"`"]
             ]),
             {
@@ -498,7 +498,7 @@
               )
             },
             { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") },
-            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; ab 10²¹ bleibt es bei der Exponent-Schreibweise (`1,5e+22`)." },
+            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; weiter geht es mit `Trd.`, `Quadr.`, `Quadrd.`, `Quint.` … bis `Dezd.` (10⁶³), darüber `1,5 × 10⁷⁰`. `tausender` und `euro()` wechseln ab 10²¹ in dieselbe Kurzform; Unendlich wird `∞`. Nur die rohe Textform (`Bote.sage((x))`) bleibt bei `2.5e+21`." },
             {
               art: "code",
               ausfuehrbar: true,

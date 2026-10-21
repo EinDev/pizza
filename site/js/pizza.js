@@ -1380,20 +1380,36 @@
 
   function zahlMitKomma(x) { return zahlText(x).replace('.', ','); }
 
-  // K-085: Tausendergruppen mit Punkt, Dezimalkomma, genau n Nachkommastellen (Rundung K-048)
+  // K-085/K-103: Tausendergruppen mit Punkt, Dezimalkomma, genau n Nachkommastellen (Rundung K-048);
+  // ab |x| ≥ 10²¹ wie kompakt(2), ∞/NaN wie kompakt
   function tausenderText(x, n) {
+    if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2);
     const r = rundeAuf(x, n);
-    if (!isFinite(r)) return zahlText(r);
+    if (!isFinite(r)) return kompaktText(r, 2);
     const neg = r < 0;
     const [g, k] = Math.abs(r).toFixed(n).split('.');
     const gg = g.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return (neg ? '-' : '') + gg + (k !== undefined ? ',' + k : '');
   }
 
-  const KOMPAKT_STUFEN = [[1e18, 'Trio.'], [1e15, 'Brd.'], [1e12, 'Bio.'], [1e9, 'Mrd.'], [1e6, 'Mio.'], [1e3, 'Tsd.']];
+  // K-085/K-103: deutsche lange Skala bis Dezilliarde, darüber „m × 10ⁿ“
+  const KOMPAKT_STUFEN = [[1e63, 'Dezd.'], [1e60, 'Dez.'], [1e57, 'Nond.'], [1e54, 'Non.'], [1e51, 'Oktd.'], [1e48, 'Okt.'],
+    [1e45, 'Septd.'], [1e42, 'Sept.'], [1e39, 'Sextd.'], [1e36, 'Sext.'], [1e33, 'Quintd.'], [1e30, 'Quint.'],
+    [1e27, 'Quadrd.'], [1e24, 'Quadr.'], [1e21, 'Trd.'], [1e18, 'Trio.'], [1e15, 'Brd.'], [1e12, 'Bio.'], [1e9, 'Mrd.'],
+    [1e6, 'Mio.'], [1e3, 'Tsd.']];
+  const HOCH = '⁰¹²³⁴⁵⁶⁷⁸⁹';
   function kompaktText(x, n) {
+    if (x !== x) return 'NaN';
+    if (!isFinite(x)) return x < 0 ? '-∞' : '∞';
     const a = Math.abs(x);
-    if (!isFinite(x) || a >= 1e21) return zahlMitKomma(x);
+    if (a >= 1e66) {
+      // Mantisse und Exponent aus der kürzesten Ziffernfolge (wie String(x)), nie über log10/pow
+      const [ms, es] = a.toExponential().split('e');
+      let e = Number(es);
+      let m = rundeAuf(Number(ms), n);
+      if (m >= 10) { m = rundeAuf(m / 10, n); e += 1; }
+      return (x < 0 ? '-' : '') + zahlMitKomma(m) + ' × 10' + String(e).replace(/\d/g, d => HOCH[d]);
+    }
     for (const [f, name] of KOMPAKT_STUFEN) {
       if (a >= f) return zahlMitKomma(rundeAuf(x / f, n)) + ' ' + name;
     }
@@ -1401,6 +1417,7 @@
   }
 
   function euroText(x) {
+    if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2) + ' €';
     const r = Math.round(Math.abs(x) * 100 + 1e-9) / 100;
     const [g, k] = r.toFixed(2).split('.');
     return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k + ' €';

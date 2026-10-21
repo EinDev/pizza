@@ -740,7 +740,7 @@ regelt `EINGABE.md`.
   `Bote.sage()` gibt eine leere Zeile aus.
 - Zahlen: Textform wie JavaScript `String(x)` (`1e+21`, `1e-7`, `-0` → `0`, `0.30000000000000004`).
   `runden()`/`runden(n)`/`Mathe.runden` runden symmetrisch (−2.5 → −3, 2.675 → 2.68). `euro()`: zwei Nachkommastellen,
-  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`).
+  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`); ab `|x| ≥ 10²¹` sowie ∞/NaN wie `euro(kompakt: ja)` (K-103).
 - Dauer: zusätzlich `inMinuten()`; Textform rundet auf ganze ms, negative Dauer mit `-` (`-1min 30s`);
   `Dauer / Dauer` → Zahl; Zahl × Dauer → Dauer; Division durch 0 → RechenAnanas.
 - Text: zusätzlich `endetMit(s)`, `istLeer()`, `alsText()`. `länge()`/`zeichen(i)` zählen Unicode-Zeichen (Codepoints).
@@ -1028,8 +1028,9 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   inaktive oder Nicht-Takt-Zutaten werden ignoriert; `anzahl` fehlt/ungültig → 1; `< 100ms` →
   `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`; Textform `Takt(t1)`; Warten kostet nichts, der Rückruf zählt.
 - **Zahlformat (K-085):** `x.tausender(n = 0)` → `1.234.567` / `1.234.567,00`; `x.kompakt(n = 2)` → `1,23 Mio.` (Stufen `Tsd.`, `Mio.`,
-  `Mrd.`, `Bio.`, `Brd.`, `Trio.`; ohne nachgestellte Nullen; `< 1000` → `runden(x, n)` mit Komma; `≥ 10²¹` → `1,5e+22`);
-  `euro(kompakt: ja)` → `1,23 Mio. €`.
+  `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.`, `Quadrd.`, `Quint.`, … bis `Dezd.` 10⁶³ – K-103; ohne nachgestellte Nullen;
+  `< 1000` → `runden(x, n)` mit Komma; `≥ 10⁶⁶` → `1,5 × 10⁷⁰`; ∞/NaN → `∞`/`-∞`/`NaN`); `euro(kompakt: ja)` → `1,23 Mio. €`;
+  `tausender`/`euro()` ab `|x| ≥ 10²¹` wie `kompakt(2)`. Die Textform (`text(x)`, `Bote.sage(x)`) bleibt `String(x)` (`2.5e+21`).
 - **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu**: die Zählbasis wird beim
   Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).

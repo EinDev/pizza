@@ -198,10 +198,11 @@ pub fn to_fixed(x: f64, n: u32, out: &mut Vec<u8>) {
     }
 }
 
-/// K-085 `tausenderText(x, n)`
+/// K-085/K-103 `tausenderText(x, n)`: ab |x| ≥ 10²¹ sowie ∞/NaN wie `kompakt(2)`
 pub fn tausender_text(x: f64, n: u32, out: &mut Vec<u8>) {
+    if !x.is_finite() || x.abs() >= 1e21 { kompakt_text(x, 2, out); return; }
     let r = runde_auf(x, n as f64);
-    if !r.is_finite() { js_text(r, out); return; }
+    if !r.is_finite() { kompakt_text(r, 2, out); return; }
     let neg = r < 0.0;
     let a = r.abs();
     let mut fix = Vec::new();
@@ -222,19 +223,49 @@ fn zahl_mit_komma(x: f64, out: &mut Vec<u8>) {
     if let Some(p) = out[st..].iter().position(|&c| c == b'.') { out[st + p] = b','; }
 }
 
-/// K-085 `kompaktText(x, n)`
+/// K-085/K-103: deutsche lange Skala bis Dezilliarde (größte zuerst)
+const KOMPAKT_STUFEN: [(f64, &str); 21] = [
+    (1e63, "Dezd."), (1e60, "Dez."), (1e57, "Nond."), (1e54, "Non."), (1e51, "Oktd."), (1e48, "Okt."),
+    (1e45, "Septd."), (1e42, "Sept."), (1e39, "Sextd."), (1e36, "Sext."), (1e33, "Quintd."), (1e30, "Quint."),
+    (1e27, "Quadrd."), (1e24, "Quadr."), (1e21, "Trd."), (1e18, "Trio."), (1e15, "Brd."), (1e12, "Bio."), (1e9, "Mrd."),
+    (1e6, "Mio."), (1e3, "Tsd."),
+];
+const HOCH: [&str; 10] = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
+
+/// K-085/K-103 `kompaktText(x, n)`
 pub fn kompakt_text(x: f64, n: u32, out: &mut Vec<u8>) {
+    if x != x { out.extend_from_slice(b"NaN"); return; }
+    if x.is_infinite() { if x < 0.0 { out.push(b'-'); } out.extend_from_slice("∞".as_bytes()); return; }
     let a = x.abs();
-    if !x.is_finite() || a >= 1e21 { zahl_mit_komma(x, out); return; }
-    let stufen: [(f64, &str); 6] = [(1e18, "Trio."), (1e15, "Brd."), (1e12, "Bio."), (1e9, "Mrd."), (1e6, "Mio."), (1e3, "Tsd.")];
-    for (f, name) in stufen.iter() {
+    if a >= 1e66 {
+        // Mantisse/Exponent aus der kürzesten Ziffernfolge wie `a.toExponential()` (nie über log10/pow)
+        let (d, k) = ziffern(a);
+        let mut ms = alloc::string::String::new();
+        ms.push(d[0] as char);
+        if d.len() > 1 { ms.push('.'); for &c in &d[1..] { ms.push(c as char); } }
+        let mut e: i32 = k - 1;
+        let mut m = runde_auf(ms.parse::<f64>().unwrap_or(f64::NAN), n as f64);
+        if m >= 10.0 { m = runde_auf(m / 10.0, n as f64); e += 1; }
+        if x < 0.0 { out.push(b'-'); }
+        zahl_mit_komma(m, out);
+        out.extend_from_slice(" × 10".as_bytes());
+        if e < 0 { out.push(b'-'); }
+        let mut buf = [0usize; 6];
+        let mut i = 6;
+        let mut ea = e.unsigned_abs() as usize;
+        loop { i -= 1; buf[i] = ea % 10; ea /= 10; if ea == 0 { break; } }
+        for &z in &buf[i..] { out.extend_from_slice(HOCH[z].as_bytes()); }
+        return;
+    }
+    for (f, name) in KOMPAKT_STUFEN.iter() {
         if a >= *f { zahl_mit_komma(runde_auf(x / f, n as f64), out); out.push(b' '); out.extend_from_slice(name.as_bytes()); return; }
     }
     zahl_mit_komma(runde_auf(x, n as f64), out);
 }
 
-/// `euroText(x)`
+/// `euroText(x)` (K-103: ab |x| ≥ 10²¹ sowie ∞/NaN wie `kompakt(2)` + " €")
 pub fn euro_text(x: f64, out: &mut Vec<u8>) {
+    if !x.is_finite() || x.abs() >= 1e21 { kompakt_text(x, 2, out); out.extend_from_slice(" €".as_bytes()); return; }
     let r = js_round(x.abs() * 100.0 + 1e-9) / 100.0;
     let mut fix = Vec::new();
     if r != r { fix.extend_from_slice(b"NaN"); }
