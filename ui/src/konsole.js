@@ -205,7 +205,7 @@ export function erstelleKonsole({ springe }) {
       if (!ev || !ev.typ) return;
       const leer = inhalt.querySelector(".konsole-leer");
       if (leer) leer.remove();
-      if (ev.typ === "ende" || ev.typ === "ui" || ev.typ === "ui-warte") return;
+      if (ev.typ === "ende" || ev.typ === "ui" || ev.typ === "ui-warte" || ev.typ === "vorrat") return;
       ausgabePuffer.push(ev);
       planeZeichnen();
     },
@@ -216,6 +216,16 @@ export function erstelleKonsole({ springe }) {
       planeZeichnen();
     },
     sofortZeichnen: zeichneAusgaben,
+    /** K-077: Infozeile „Saat: N“ am Anfang der Konsole (gleicher Text wie die CLI). */
+    saat(n) {
+      const leer = inhalt.querySelector(".konsole-leer");
+      if (leer) leer.remove();
+      const z = document.createElement("div");
+      z.className = "k-zeile k-saat";
+      z.dataset.testid = "konsole-saat";
+      z.textContent = "Saat: " + n;
+      inhalt.insertBefore(z, inhalt.firstChild);
+    },
     setzeMotor(ev) {
       if (!motorBadge) return;
       if (!ev) { motorBadge.hidden = true; return; }

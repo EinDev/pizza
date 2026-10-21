@@ -146,6 +146,11 @@ function starte(d) {
   var opt = {
     args: Array.isArray(d.args) ? d.args : [],
     eingabe: Array.isArray(d.eingabe) ? d.eingabe.map(String) : undefined,
+    // K-077: Saat kommt von der Seite (echte Saat oder „feste Saat 42“)
+    zufallsSaat: typeof d.zufallsSaat === "number" ? d.zufallsSaat : undefined,
+    // K-080/K-081: Vorrat aus localStorage (von der Seite gelesen) und Rückschreiben über eine Nachricht
+    vorrat: d.vorrat && typeof d.vorrat === "object" ? d.vorrat : undefined,
+    onVorrat: d.vorratAktiv ? function (name, eintraege) { sende({ typ: "vorrat-speichern", name: name, eintraege: eintraege }); return true; } : undefined,
     onEingabe: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? eingabeRueckruf(d.eingabePuffer) : undefined,
     onUiWarte: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined,
     onEvent: function (ev) {

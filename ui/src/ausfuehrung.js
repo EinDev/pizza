@@ -24,7 +24,7 @@ export function interaktivMoeglich() {
 
 const PUFFER_BYTES = 64 * 1024;
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi }) {
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat }) {
   let worker = null, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
   let sab = null, wartet = false, wartezeit = 0, warteBeginn = 0;
@@ -71,6 +71,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
     }
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
     if (ev.typ === "ui") { beiUi && beiUi(ev.nachricht); return; }
+    if (ev.typ === "vorrat-speichern") { beiVorrat && beiVorrat(ev.name, ev.eintraege); return; }
     if (ev.typ === "ui-warte") {
       if (!sab) return;
       if (uiSchlange.length) { signal(1, kodierer.encode(JSON.stringify(uiSchlange.shift()))); return; }

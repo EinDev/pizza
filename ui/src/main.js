@@ -145,6 +145,7 @@ function start() {
 
   const ausfuehrung = erstelleAusfuehrung({
     beiUi(n) { vorschau.nachricht(n); },
+    beiVorrat(name, eintraege) { vorratSpeichern(laufVorratPraefix, name, eintraege); },
     beiStart() {
       vorschau.beenden();
       konsole.leeren(false);
@@ -485,6 +486,47 @@ function start() {
   exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
   knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
 
+  // ---------- Zufallssaat (K-077) ----------
+  const festeSaatBox = $("feste-saat");
+  festeSaatBox.checked = speicher.hole("pizza.festeSaat") === "1";
+  festeSaatBox.addEventListener("change", () => speicher.setze("pizza.festeSaat", festeSaatBox.checked ? "1" : "0"));
+  function neueSaat() {
+    if (festeSaatBox.checked) return 42;
+    try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0]; }
+    catch (e) { return Math.floor(Math.random() * 4294967296); }
+  }
+
+  // ---------- Vorratskammer (K-079 … K-081) ----------
+  // Regel gegen verfälschte Spielstände: Tabs aus Galerie/Doku (Schlüssel „bsp:…“/„doku:…“) haben einen eigenen
+  // Namensraum; alle übrigen Tabs (eigene, Dateien, geteilte, Willkommen) teilen sich die echten Kammern.
+  const VORRAT = "pizza.vorrat.", VORRAT_BEISPIEL = "pizza.vorrat-beispiel.";
+  let laufVorratPraefix = VORRAT;
+  function vorratPraefix(t) { return t && /^(bsp|doku):/.test(t.schluessel || "") ? VORRAT_BEISPIEL : VORRAT; }
+  function vorratVerfuegbar() {
+    try { const k = "pizza.vorrat-test"; localStorage.setItem(k, "1"); localStorage.removeItem(k); return true; } catch (e) { return false; }
+  }
+  function vorratLaden(praefix) {
+    const vorrat = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(praefix)) continue;
+        const name = k.slice(praefix.length);
+        if (!/^[a-z0-9-]{1,40}$/.test(name)) continue;
+        try {
+          const d = JSON.parse(localStorage.getItem(k));
+          if (d && d.v === 1 && Array.isArray(d.eintraege)) vorrat[name] = d.eintraege;
+        } catch (e) { /* kaputter Eintrag wird ignoriert */ }
+      }
+    } catch (e) { /* kein Zugriff */ }
+    return vorrat;
+  }
+  function vorratSpeichern(praefix, name, eintraege) {
+    if (!/^[a-z0-9-]{1,40}$/.test(String(name))) return;
+    try { localStorage.setItem(praefix + name, JSON.stringify({ v: 1, name, eintraege })); }
+    catch (e) { toast("Der Vorrat „" + name + "“ konnte im Browser nicht gespeichert werden (Speicher voll?).", "fehler"); }
+  }
+
   let backenWartet = false;
   async function backen() {
     if (ausfuehrung.laeuft) return;
@@ -511,10 +553,17 @@ function start() {
     }
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
+    const saat = neueSaat();
+    laufVorratPraefix = vorratPraefix(t);
+    const vorratAktiv = vorratVerfuegbar();
     ausfuehrung.starte(code, [], motor, {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
+      zufallsSaat: saat,
+      vorrat: vorratAktiv ? vorratLaden(laufVorratPraefix) : undefined,
+      vorratAktiv,
     });
+    konsole.saat(saat);
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());

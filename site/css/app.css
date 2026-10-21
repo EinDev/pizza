@@ -1131,3 +1131,9 @@ button.k-meldung:hover { border-color: currentColor; }
 
 /* U-45: Ort gehört zum Text („ (Zeile Z, Spalte S)“) – nur dezent abgesetzt, kein Chip */
 .k-ort { padding: 0; border-radius: 0; background: none; font: inherit; font-weight: inherit; opacity: .8; white-space: nowrap; }
+
+/* Saat (K-077) */
+.k-saat { color: var(--text-3); }
+.saat-option { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); white-space: nowrap; cursor: pointer; margin-right: 6px; }
+.saat-option input { accent-color: var(--akzent); margin: 0; }
+@media (max-width: 520px) { .saat-option { display: none; } }
