@@ -45,8 +45,8 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
 - **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
-- **Gruppe `kueche` (Entwurf, SPEC §17, K-100 – endgültig mit THREADS-Paket P2):** `kueche_auftrag`, `kueche_bericht` – nur wenn
-  das Programm `brigade` enthält; dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
+- **Gruppe `kueche` (SPEC §17, K-100, K-102):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
+  (Methodenaufruf oder Methodenreferenz `….brigade`); dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
 
 Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["theke", "vorrat"]`.
@@ -109,15 +109,21 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   fehlgeschlagen → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` Ohne Speicherung (Abfrage = 0)
   emittiert der Host nur das Ereignis und gibt `0` zurück. Größenprüfung (1 MiB) macht das Modul selbst.
 
-**Küchenbrigade – Gruppe `kueche`** (**Entwurf**, SPEC §17, K-100; Einzelheiten THREADS.md §4.3–§4.5, endgültig mit P2):
+**Küchenbrigade – Gruppe `kueche`** (SPEC §17, K-100, K-102; Umsetzung THREADS.md §4.3–§4.5, Berichts- und Kartonformat Anhang A):
 
 | Import | Signatur | Bedeutung |
 |---|---|---|
-| `kueche_auftrag` | `(auftrag_ptr i32, n i32) -> i32` | Führt die Stücke 1 … n in **Klon-Instanzen** desselben Moduls aus (Schnappschuss = linearer Speicher der aufrufenden Instanz **jetzt**, kein geteilter Speicher, keine Wasm-Threads). `0` = Berichte liegen bereit; `-1` = keine Köche (das Modul führt die Stücke selbst nacheinander aus – gleiches Ergebnis). Muss Stücke nach einem früheren Abbruch nicht ausführen (SPEC §17.6 D3). |
-| `kueche_bericht` | `(i i32, puffer_ptr i32, kap i32) -> i32` | Länge des Berichts von Stück i; `> kap` → nichts geschrieben, erneut mit größerem Puffer (K-013); `-2` = Stück nicht ausgeführt. |
+| `kueche_auftrag` | `(auftrag_ptr i32, n i32) -> i32` | Führt die Stücke i = 1 … n in **Klon-Instanzen** desselben Moduls aus (Schnappschuss = linearer Speicher der aufrufenden Instanz **jetzt**, kein geteilter Speicher, keine Wasm-Threads): je Stück `kueche_stueck(auftrag_ptr, i)` in einem Klon, Bericht (Bytes) aufbewahren. `0` = Berichte liegen bereit; `-1` = keine Köche (das Modul führt die Stücke selbst nacheinander aus – „Inline-Pfad“, gleiches Ergebnis). Muss Stücke nach einem früheren Abbruch nicht ausführen (SPEC §17.6 D3). |
+| `kueche_bericht` | `(i i32, puffer_ptr i32, kap i32) -> i32` | Länge des Berichts von Stück i (1 … n); `> kap` → nichts geschrieben, erneut mit größerem Puffer (K-013); `-2` = Stück nicht ausgeführt. Der Host reicht die Bytes unverändert durch (Format: Anhang A, nur informativ). |
 
-- Ein Host, der die Gruppe kennt, aber keine Threads hat (oder `koeche = 1`), stellt beide Imports bereit und antwortet `-1`.
-  Ein Host ohne die Gruppe meldet den bekannten Ladefehler (K-043).
+- Ein Host, der die Gruppe kennt, aber keine Threads hat (oder `koeche = 1`), stellt beide Imports bereit und antwortet `-1`
+  (`kueche_bericht` wird dann nie gerufen). Ein Host ohne die Gruppe meldet den bekannten Ladefehler (K-043).
+- Das Modul fragt `kueche_auftrag` nur in der Hauptküche; **innere** Brigaden (eine Brigade in einem Stück) laufen immer im
+  Modul selbst (K-102). `kueche_auftrag` kann also während eines Laufs mehrmals kommen, aber nie verschachtelt.
+- Die Berichte hängen nur vom Speicher beim Aufruf und von i ab – Reihenfolge, Verteilung auf Klone und Wiederverwendung eines
+  Klons für mehrere Stücke sind frei (jedes `kueche_stueck` setzt den Klon selbst auf den Anschnitt zurück).
+- Speicherbedarf eines Klons: so groß wie der Speicher der aufrufenden Instanz beim Aufruf (der Klon wächst vorher auf diese
+  Größe und bekommt die Kopie); danach kann er beim Ausführen eines Stücks weiter wachsen.
 - **Klon-Instanzen** rufen `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler` und `panik` **nie** auf (das
   Modul schreibt Ereignisse und Abbruchstatus in den Bericht; die Hauptinstanz gibt sie beim Zusammenführen über die normalen
   Imports aus). Hosts behandeln solche Aufrufe in Klonen als Trap (K-014), **nie** als Lauf-Abbruch – auch `panik` nicht.
@@ -143,7 +149,7 @@ die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone
 | `start` | `() -> i32` | führt das Programm aus, liefert den **Exit-Code** |
 | `schritte` | `() -> f64` | ausgeführte Schritte (ganzzahlig) |
 | `zeitMs` | `() -> f64` | simulierte Uhr in ms (= Schritte + vorgespulte Zeit + Brigade-Ersparnis ≤ 0, SPEC §14.1/§17.6) |
-| `kueche_stueck` | `(auftrag_ptr i32, i i32) -> (i32, i32)` | **Entwurf** (Gruppe `kueche`): nur von Hosts in **Klon-Instanzen** aufzurufen; führt Stück i aus und liefert Zeiger/Länge des Berichts im Klon-Speicher |
+| `kueche_stueck` | `(auftrag_ptr i32, i i32) -> (i32, i32)` | Gruppe `kueche` (nur vorhanden, wenn das Modul die Gruppe importiert): nur von Hosts in **Klon-Instanzen** aufzurufen (Speicher = Kopie der Hauptinstanz bei `kueche_auftrag`, `start` nie gerufen); führt Stück i (1 … n) aus und liefert Zeiger/Länge des Berichts im Klon-Speicher (gültig bis zum nächsten Aufruf im selben Klon) |
 
 Weitere Exports (Laufzeit-Interna, Präfix `rt_`/`__`) sind **nicht** Teil des ABI und dürfen sich ändern.
 
@@ -202,7 +208,7 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 - **Determinismus:** Keine Imports für Zeit/Zufall – Uhr und Zufall (mulberry32, Seed 42) sind simuliert.
   Gleiches `.pkarton` + gleiche Args ⇒ gleiche Ereignisse, gleicher Exit-Code, gleiche `schritte`/`zeitMs` – auch für jede
   Anzahl Köche und jede Planung (SPEC §17).
-- **Köche (Gruppe `kueche`, Entwurf):** Der Wirt-Stapel jedes Kochs muss dieselben Grenzen erlauben wie der Hauptthread (oben).
+- **Köche (Gruppe `kueche`):** Der Wirt-Stapel jedes Kochs muss dieselben Grenzen erlauben wie der Hauptthread (oben).
   Die Anzahl der gleichzeitigen Klone wählt der Host so, dass Klone × Speichergröße in sein Budget passt (Browser 2 GiB gesamt,
   nativ 50 % RAM) – reine Leistungsentscheidung.
 
@@ -275,3 +281,30 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
 
 Änderungen, die Hosts brechen, erhöhen `abi_version` und `"abi"` in der Custom Section. Hosts sollen bei
 unbekannter Version mit einer klaren Meldung abbrechen.
+
+## Anhang A: Küchenbericht und Kartonformat `PKF1` (informativ, K-102)
+
+Hosts reichen Berichte nur als Bytes weiter; das Format gehört der Laufzeit (`laufzeit/src/kueche.rs`) und darf sich mit ihr
+ändern (jedes `.pkarton` bringt seine Laufzeit mit). Alle Zahlen little-endian; `u32`/`i32` 4 Bytes, `f64` 8 Bytes,
+`bytes` = `u32` Länge + Bytes.
+
+**Bericht** eines Stücks: `u32 status` (0 ok · 1 Ananas · 2 Budget · 3 PizzaFehler · 4 Schrittlimit · 5 Panik ·
+6 geworfener Wert nicht kartonfähig) · `f64 sᵢ` (Schritte) · `f64 dᵢ` (Küchenuhr − T₀) · `f64 cᵢ` (`neu`) · `f64` Lieferungen ·
+`u32 k`, `k × f64` (Zähler der eingebauten Ananas-Klassen, D10) · `bytes` Ereignisse · Nutzlast:
+ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 frame_id` · PizzaFehler → `i32 pos`, `bytes code`,
+`bytes text` · Schrittlimit → `i32 pos` · sonst nichts. `pos` = Index in die Positionstabelle des Moduls.
+
+**Ereignisse** (in Auftretensreihenfolge, D4): `u8 art` · 1 `ausgabe` / 2 `schreibe` / 3 `fehlerausgabe`: `bytes text` ·
+4 `leeren` · 5 `warnung`: `i32 methode` (W0003: Methoden-ID für „einmal pro Methode“, sonst −1), `i32 zeile`, `i32 spalte`,
+`bytes code`, `bytes text`. Die Hauptinstanz gibt sie beim Zusammenführen über die normalen Imports aus (D5-Filter dort).
+
+**`PKF1`** (Magie `PKF1`, dann ein Wert; Tiefensuche in Kartonreihenfolge, SPEC §17.5): `u8 tag` und Nutzlast –
+0 `karton` · 1 `nein` · 2 `ja` · 3 Zahl `f64` · 4 `auto` · 5 Text `bytes` · 6 Dauer `f64` · 7 **fest** `u64` (unveränderlicher
+Wert – Text, Dauer, Belag, Klasse, Rezeptur, quattrostagioni-Typ/-Wert, Modul –, der beim Anschnitt schon existierte: die
+Bits des Werts, gültig nur zwischen Instanzen mit demselben Schnappschuss) · 8 Modul `u32 id` · 9 Typ `u32 art`, `u32 id`
+(Klasse/quattrostagioni-Typ/Rezeptur) · 10 quattrostagioni-Wert `u32 typ`, `f64 position` · 11 Belag `u32 id` · 12 weggeschoben ·
+13 unbelegt · 20 Blech `u32 n`, n Werte · 21 Speisekarte `u32 n`, n × (Schlüssel, Wert) · 22 Pizza `i32 übrig`, `u32 n`,
+n × `u64` Belag · 23 Pizza-Sicht `u32 schichten`, Wert · 24 Objekt `u32 klasse`, `f64 nummer`, `u32 zugeklappt`,
+Wert `nachricht`, `u32 n`, n × (`u32 feldinfo`, `u8 eigen`, Wert) · 25 Rohling Wert `teilergebnis`, Wert `verbrauchteZeit` ·
+30 Verweis `u32 i` (i-tes bereits geschriebenes Blech/Speisekarte/Pizza/Sicht/Objekt/Rohling – Teilung und Zyklen).
+Nicht kartonfähige Werte haben kein Tag (das Stück endet mit der KüchenAnanas bzw. Status 6).

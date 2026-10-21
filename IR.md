@@ -27,20 +27,24 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
   schiebNamen: [name],                 // Namen, die irgendwo Ziel von schieb(x) sind (Lesezugriffe prüfen „weggeschoben“)
   funktionen: [Funktion],              // id = Index (= Laufzeit-Funktions-ID)
   vorbereiten: fnId,                   // Annotationen + statische Initialisierer (Interpreter: vorbereiten())
-  oben: fnId                           // Top-Level-Anweisungen; liefert den Wert der globalen Variable `hauptgang`
+  oben: fnId,                          // Top-Level-Anweisungen; liefert den Wert der globalen Variable `hauptgang`
+  gruppen: [name]                      // optionale Host-Importgruppen (HOST-ABI §2): theke, vorrat, echtzeit, kueche
 }
 ```
+
+`gruppen` enthält `kueche`, sobald das Programm `….brigade(…)` aufruft oder `….brigade` als Wert nimmt; das Backend exportiert
+dann zusätzlich `kueche_stueck` (HOST-ABI §3). `brigade` selbst ist eine gewöhnliche Blech-Methode (`mcall`) – Anschnitt,
+Stücke und Zusammenführen erledigt die Laufzeit (THREADS.md §4.4, K-102).
 
 `Reg` (Reihenfolge = `registriere()`; innere Klassen direkt nach der äußeren):
 - `{ art: "klasse", name, idx, flags (1 rohling, 2 gebacken, 4 calzone), basis, erfuellt: [name],
   felder: [{ name, typ, flags (1 gebacken, 2 statisch), sicht (0, 1 geheim, 2 familie) }],
   methoden: [{ name, fn|null, flags (1 statisch), sicht, nparam, pos, mid }], ktoren: [{ fn, hatUnten, mid }],
-  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (17 + n; 0–16 sind die eingebauten Ananas).
-  `KüchenAnanas` (SPEC §17, K-100) gibt es im Wasm noch nicht: Programme mit `brigade` oder `KüchenAnanas` meldet das
-  Frontend als `nichtUnterstuetzt`. Erst mit THREADS-Paket P2 wird sie Laufzeitklasse 17 (`erbt LaufzeitAnanas`, am Ende von
-  `ANANAS_BAUM`, bestehende Indizes 0–16 bleiben) und eigene Klassen beginnen bei **18** (`idx` = 18 + n; 0–17 eingebaut).
-  Die Verschiebung ist intern (jedes `.pkarton` bringt seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens
-  `KüchenAnanas` überschattet die eingebaute wie bei allen eingebauten Ananas (K-098).
+  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (**18 + n**; 0–17 sind die eingebauten Ananas).
+  `KüchenAnanas` (SPEC §17, K-100) ist Laufzeitklasse 17 (`erbt LaufzeitAnanas`, am Ende von `ANANAS_BAUM`, Indizes 0–16
+  unverändert; seit THREADS-Paket P2, U-66). Die Verschiebung eigener Klassen von 17 auf 18 ist intern (jedes `.pkarton` bringt
+  seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens `KüchenAnanas` überschattet die eingebaute wie bei allen
+  eingebauten Ananas (K-098).
 - `{ art: "rezeptur", name, basen: [name] }`, `{ art: "enum", name, werte: [name×4] }`,
 - `{ art: "belag", name, nach: [name]|null (null = Tabellenwert), methoden: [{ name, fn, mid }] }`,
 - `{ art: "globalfn", name, fn, nparam, pos, mid }`.
@@ -139,10 +143,23 @@ Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldini
 - Methoden, Konstruktoren und Lambdas sichern beim Eintritt die Position und stellen sie beim Verlassen wieder her
   (auch bei Signal); Top-Level-Code und Initialisierer nicht (wie der Interpreter).
 
+## 6a. Küchenbrigade (SPEC §17, K-101/4, K-102)
+
+- Die Laufzeit hält in `ZUSTAND+56` (`gefroren`, i32) die Heap-Grenze der Hauptküche während eines Stücks, sonst `0`. Alles mit
+  kleinerer Adresse gehört der Hauptküche (S1).
+- **Wache im erzeugten Code** – nur dort, wo das Programm selbst in den Speicher schreibt: Zuweisung, `+=`/`++`, `schieb` an eine
+  **globale Variable** (`gefroren ≠ 0`) bzw. an eine **gefangene Zelle** (`zelle < gefroren`) → `rt_kueche_var(name)` und Sprung
+  zum Handler. Reihenfolge (K-101/4): rechte Seite bzw. alter Wert und Rechnung → Ziel auflösen (undefiniert) → Wache →
+  gebacken/Typ. 0 Schritte. Lokale Slots brauchen keine Wache (ein Stück läuft immer in neuen Rahmen); alle übrigen
+  Schreibwege (Felder, statische Felder, Bleche, …) prüft die Laufzeit selbst.
+- Zuweisungsziel `{art:"dyn", g}` (unqualifizierter Name in einer Methode, gleichnamiges Feld und globale Variable): Feld, wenn
+  `rt_feld_ctx_ziel` eines findet, sonst die globale Variable (noch nicht deklariert → `'x' ist nicht definiert.`).
+
 ## 7. Fallback
 
 Was das Frontend nicht exakt abbilden kann, meldet es als `nichtUnterstuetzt: [{ zeile, spalte, grund }]` – dann läuft
 der Interpreter. Derzeit: Variablendeklaration direkt als `wähle`-Arm, Lambda-Zugriff auf eine im umgebenden Scope erst
 später deklarierte Variable, erneute Deklaration einer gefangenen Variable bzw. mit anderem Typ, Zuweisung an eine
-gefangene gebackene Variable aus einer Lambda, mehrdeutige Ziele (Feld oder globale Variable desselben Namens),
-`schieb` mit gleichnamiger Methode/Variable, `schneide(auto)` bei möglichem Feld `auto`.
+gefangene gebackene Variable aus einer Lambda,
+`schieb` mit gleichnamiger Methode/Variable, `schneide(auto)` bei möglichem Feld `auto`. (`brigade`/`KüchenAnanas` und
+Zuweisungen an „Feld oder globale Variable“ fallen seit P2/U-66 nicht mehr zurück.)

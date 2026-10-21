@@ -1,0 +1,28 @@
+// Unqualifizierter Name in einer Methode, gleichnamiges Feld und globale Variable: Feld zuerst, sonst die globale Variable
+// (bis P2/U-66 Fallback „mehrdeutig“). Gebacken, Typ, +=, ++, schieb und „noch nicht deklariert“ wie im Interpreter.
+klasse Kasse {
+    salami stand;
+    salami konstant = 0;
+    salami spaet = 0;
+    Pizza teller = ((Tomate));
+    Kasse(salami s) { stand = s; }
+    salami buche(salami x) { stand += x; stand++; serviere ((stand)); }
+    tiefkühl salami global(salami x) { stand = stand + x; stand++; serviere ((stand)); }
+    tiefkühl salami frueh() { probier { spaet = 1; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); } serviere ((0)); }
+    tiefkühl salami falsch() { probier { stand = "zehn"; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); } serviere ((stand)); }
+    tiefkühl salami fest() { probier { konstant = 2; } verbrannt (GebackenAnanas a) { Bote.sage((a.nachricht())); } serviere ((konstant)); }
+    tiefkühl Pizza nimm() { serviere ((schieb(teller))); }
+    tiefkühl Blech<salami> koch() { serviere (([1, 2].brigade(i -> { probier { stand = i; } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); } serviere ((stand)); }))); }
+}
+Bote.sage((Kasse.frueh()));
+salami stand = 100;
+gebacken salami konstant = 1;
+salami spaet = 0;
+Pizza teller = ((Käse));
+Kasse k = neu Kasse(5);
+Bote.sage((k.buche(3) + " " + stand));
+Bote.sage((Kasse.global(7) + " " + stand + " " + k.stand));
+Bote.sage((Kasse.falsch() + " " + Kasse.fest()));
+Bote.sage((Kasse.nimm()));
+probier { Bote.sage((teller)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((Kasse.koch() + " " + stand));
