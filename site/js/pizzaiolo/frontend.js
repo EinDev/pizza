@@ -414,7 +414,7 @@
       return {
         format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler: null,
         registrierung: reg, methoden: this.methodenListe.map(m => ({ art: m.art, klasse: m.klasse === undefined ? null : m.klasse, name: m.name })),
-        globale: Array.from(this.globaleNamen.keys()), globaleFunktionen: Array.from(this.globalFnNamen),
+        globale: Array.from(this.globaleNamen.keys()), schiebNamen: Array.from(this.schiebNamen), globaleFunktionen: Array.from(this.globalFnNamen),
         funktionen: this.funktionen, vorbereiten: vorb, oben: oben.id,
         globalInfos: Object.fromEntries(Array.from(this.globalInfos ? this.globalInfos.entries() : []).map(([n, g]) => [n, { typ: g.typ, gebacken: g.gebacken }])),
       };
@@ -677,7 +677,19 @@
         case 'Tern': return { k: 'tern', c: this.ausdr(n.c, sc, fn, d), a: this.ausdr(n.a, sc, fn, d), b: this.ausdr(n.b, sc, fn, d) };
         case 'MCall':
           if (n.obj.k === 'Unten') return { k: 'untenM', name: n.name, args: this.args(n.args, sc, fn, d) };
-          return { k: 'mcall', obj: this.ausdr(n.obj, sc, fn, d), name: n.name, args: this.args(n.args, sc, fn, d) };
+          {
+            const obj = this.ausdr(n.obj, sc, fn, d);
+            const a0 = n.args.pos.length === 1 ? n.args.pos[0] : null;
+            if (n.name === 'schneide' && a0 && a0.k === 'Name' && a0.n === 'auto') {
+              const r = this.loese('auto', sc, fn, a0, 'lesen');
+              if (r.art === 'gname') {
+                const ben = n.args.ben ? n.args.ben.map(b => ({ name: b.name, e: this.ausdr(b.e, sc, fn, d) })) : null;
+                return { k: 'mcall', obj, name: n.name, args: { pos: [{ k: 'konst', art: 'auto', wert: null, p: this.pos(a0), tf: d, zus: false }], ben } };
+              }
+              if (r.art !== 'lokal' && r.art !== 'umg') this.nein('schneide(auto) mit möglicher Variable auto', a0);
+            }
+            return { k: 'mcall', obj, name: n.name, args: this.args(n.args, sc, fn, d) };
+          }
         case 'NCall': return this.ncall(n, sc, fn, d);
         case 'Call': return { k: 'call', callee: this.ausdr(n.callee, sc, fn, d), args: this.args(n.args, sc, fn, d) };
         case 'Mem': return { k: 'mem', obj: this.ausdr(n.obj, sc, fn, d), name: n.name };

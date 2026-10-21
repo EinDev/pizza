@@ -21,6 +21,7 @@
   const JA = W(0xFFFD000000000001n);
   const UNDEF = W(0xFFFF000000000000n);
   const WEG = W(0xFFFF000000000001n);
+  const AUTO = W(0xFFFF000000000002n);
   const MARKE = W(0xFFFC000000000000n);
   const NAN = W(0x7FF8000000000000n);
   const PTR = 0xFFFE0000n << 32n;
@@ -207,12 +208,12 @@
     }
 
     // ---------------- Labels
-    auf(art, t) { const l = { art }; this.labels.push(l); if (art === 'loop') this.c.loop(t); else if (art === 'if') this.c.if_(t); else this.c.block(t); return l; }
-    zu() { this.labels.pop(); this.c.end(); }
-    sonst() { this.c.else_(); }
+    auf(art, t) { this.flush(); const l = { art }; this.labels.push(l); if (art === 'loop') this.c.loop(t); else if (art === 'if') this.c.if_(t); else this.c.block(t); return l; }
+    zu() { this.flush(); this.labels.pop(); this.c.end(); }
+    sonst() { this.flush(); this.c.else_(); }
     tiefe(l) { const i = this.labels.lastIndexOf(l); if (i < 0) throw new Error('Label nicht im Stapel'); return this.labels.length - 1 - i; }
-    br(l) { this.c.br(this.tiefe(l)); }
-    brIf(l) { this.c.brIf(this.tiefe(l)); }
+    br(l) { this.flush(); this.c.br(this.tiefe(l)); }
+    brIf(l) { this.flush(); this.c.brIf(this.tiefe(l)); }
 
     // ---------------- Zustand
     zLoad32(off) { this.c.i32(this.Z).ld32(off); }
@@ -228,20 +229,21 @@
     // ---------------- Schritte
     flush() {
       if (this.pend === 0) return;
-      this.emitFlush();
+      const p = this.pend, st = this.pendStart, pos = this.pendPos;
       this.pend = 0; this.pendStart = false;
+      this.emitFlush(p, st, pos);
     }
-    emitFlush() {
+    emitFlush(pend, start, pos) {
       const c = this.c, Z = this.Z;
       const t = this.temp('F');
-      c.i32(Z).i32(Z).ldf(Z_SCHRITTE).f64(this.pend).op(OP.f64_add).tee(t).stf(Z_SCHRITTE);
+      c.i32(Z).i32(Z).ldf(Z_SCHRITTE).f64(pend).op(OP.f64_add).tee(t).stf(Z_SCHRITTE);
       c.get(t).i32(Z).ldf(Z_GRENZE).op(OP.f64_gt);
       this.auf('if');
-      c.i32(this.pend).i32(this.pendStart ? 1 : 0).i32(this.pendPos).call(this.rt('rt_grenze'));
+      c.i32(pend).i32(start ? 1 : 0).i32(pos).call(this.rt('rt_grenze'));
       this.sigPruefen();
       this.zu();
       this.frei_('F', t);
-      if (this.pendStart) { c.i32(Z).i32(this.pendPos).st32(Z_POS); }
+      if (start) { c.i32(Z).i32(pos).st32(Z_POS); }
     }
     schritt() { this.pend += 1; }
     anwStart(a) {
@@ -344,8 +346,8 @@
       this.ctrl.pop();
       this.handler.pop();
       this.zu();
-      // Epilog
-      c.i32(Z).get(this.altPos).st32(Z_POS);
+      // Epilog (Top-Level, Initialisierer: wie im Interpreter keine Wiederherstellung der Position)
+      if (fn.plus1) c.i32(Z).get(this.altPos).st32(Z_POS);
       c.i32(Z).get(this.altTiefe).st32(Z_TIEFE);
       if (fn.art === 'oben') {
         // Wert der globalen Variable „hauptgang“ zurückgeben
@@ -451,7 +453,8 @@
     flushKopie() {
       if (this.pend === 0) return;
       const p = this.pend, s = this.pendStart, q = this.pendPos;
-      this.emitFlush();
+      this.pend = 0; this.pendStart = false;
+      this.emitFlush(p, s, q);
       this.pend = p; this.pendStart = s; this.pendPos = q;
     }
 
@@ -504,6 +507,7 @@
             case 'zahl': c.f64(e.wert); return 'F';
             case 'bool': c.i32(e.wert ? 1 : 0); return 'B';
             case 'karton': c.i64(KARTON); return 'W';
+            case 'auto': c.i64(AUTO); return 'W';
             case 'text': c.i64(this.be.textW(e.wert)); return 'W';
             case 'dauer': c.f64(e.wert); this.flush(); c.call(this.rt('rt_dauer')); return 'W';
           }
@@ -1578,8 +1582,7 @@
   /** IR → Wasm-Code im Modulbau */
   function erzeuge(ir, mb, info) {
     const be = new Backend(ir, mb, info);
-    be.schiebNamen = new Set();
-    for (const fn of ir.funktionen) for (const s of fn.slots) if (s.weg) be.schiebNamen.add(s.name);
+    be.schiebNamen = new Set(ir.schiebNamen || []);
     const gi = new Map();
     be.globalInfo = (name) => gi.get(name) || { typ: null, gebacken: false };
     if (ir.globalInfos) for (const [n, v] of Object.entries(ir.globalInfos)) gi.set(n, v);

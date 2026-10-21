@@ -369,7 +369,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                     let max = arg(pos, ben, 0, N_MAX);
                     let mut budget = f64::INFINITY;
                     if max != UNDEF && max != KARTON {
-                        match dauer_ms_pruefen(max, "warte(max: …)") { Some(ms) => budget = ms * (1.0 + l.trinkgeld / 10.0), None => return KARTON }
+                        match dauer_ms_pruefen(max, "warte(max: …)") { Some(ms) => budget = crate::zahl::floor(ms * (1.0 + l.trinkgeld / 10.0)), None => return KARTON }
                     }
                     let zs = liefere(o, budget, knoten);
                     if sig() { return KARTON; }
@@ -513,12 +513,12 @@ pub fn lies_zeile(prompt: Option<W>, art: i32) -> W {
     neu_text(&puf[..n])
 }
 pub fn hat_mehr() -> bool { let mut leer: [u8; 0] = []; crate::host_eingabe(2, None, &mut leer) > 0 }
-pub fn eingabe_zahl(zeile: W) -> W {
-    if zeile == KARTON || sig() { return KARTON; }
-    let t: alloc::string::String = crate::zahl::js_trim(s(zeile)).chars().map(|c| if c == ',' { '.' } else { c }).collect();
-    match crate::zahl::js_number(&t) {
-        Some(v) if !t.is_empty() && v.is_finite() => zahl(v),
-        _ => { let mut m = Tb::neu(); m.s("'").t(zeile).s("' ist keine Zahl."); wirf_tb(K_TYP, &m); KARTON }
+pub fn eingabe_zahl(zeile: W, ersatz: W) -> W {
+    if sig() { return KARTON; }
+    if zeile == KARTON { return if ersatz == UNDEF { KARTON } else { ersatz }; }
+    match crate::zahl::zahl_aus_text(s(zeile)) {
+        Some(v) => zahl(v),
+        None => { let mut m = Tb::neu(); m.s("'").t(zeile).s("' ist keine Zahl."); wirf_tb(K_TYP, &m); KARTON }
     }
 }
 

@@ -272,3 +272,32 @@ pub fn mulberry32(a: &mut u32) -> f64 {
 
 /// JS `%` auf Zahlen
 pub fn js_rest(a: f64, b: f64) -> f64 { a % b }
+
+/// K-007: `[+-]? Ziffern[_Ziffern]* ((.|,) Ziffern[_Ziffern]*)?` nach trim; -0 → 0
+pub fn zahl_aus_text(text: &str) -> Option<f64> {
+    let t = js_trim(text);
+    let b = t.as_bytes();
+    let mut i = 0;
+    let mut s = alloc::string::String::new();
+    if i < b.len() && (b[i] == b'+' || b[i] == b'-') { s.push(b[i] as char); i += 1; }
+    let ziffern = |i: &mut usize, s: &mut alloc::string::String| -> bool {
+        let start = *i;
+        loop {
+            let a = *i;
+            while *i < b.len() && b[*i].is_ascii_digit() { s.push(b[*i] as char); *i += 1; }
+            if *i == a { return false; }
+            if *i < b.len() && b[*i] == b'_' && *i + 1 < b.len() && b[*i + 1].is_ascii_digit() { *i += 1; continue; }
+            break;
+        }
+        *i > start
+    };
+    if !ziffern(&mut i, &mut s) { return None; }
+    if i < b.len() && (b[i] == b'.' || b[i] == b',') {
+        s.push('.');
+        i += 1;
+        if !ziffern(&mut i, &mut s) { return None; }
+    }
+    if i != b.len() { return None; }
+    let v: f64 = s.parse().ok()?;
+    Some(if v == 0.0 { 0.0 } else { v })
+}

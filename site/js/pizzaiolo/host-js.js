@@ -26,6 +26,7 @@
     const onEingabe = typeof optionen.onEingabe === 'function' ? optionen.onEingabe : null;
     const eingabe = Array.isArray(optionen.eingabe) ? optionen.eingabe.map(x => x == null ? null : String(x)) : null;
     let eingabePos = 0;
+    let eof = false;
     let inst = null;
     const mem = () => new Uint8Array(inst.exports.memory.buffer);
     const t = (p, n) => dek.decode(mem().subarray(p, p + n));
@@ -40,12 +41,14 @@
       panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
       eingabe: (art, pp, pn, bp, kap) => {
         if (art === 2) {
+          if (eof) return 0;
           if (onEingabe !== null) return 1;
-          return eingabe !== null && eingabePos < eingabe.length ? 1 : 0;
+          return eingabe !== null && eingabePos < eingabe.length && eingabe[eingabePos] !== null ? 1 : 0;
         }
         const prompt = pn >= 0 ? t(pp, pn) : null;
         let zeile = null;
-        if (onEingabe !== null) {
+        if (eof) { /* EOF ist endgültig (K-042) */ }
+        else if (onEingabe !== null) {
           try { zeile = onEingabe({ prompt, art: art === 1 ? 'zahl' : 'zeile' }); } catch (e) { zeile = null; }
           if (zeile === undefined) zeile = null;
         } else if (eingabe !== null && eingabePos < eingabe.length) {
@@ -79,7 +82,7 @@
       exitCode = e.start();
     } catch (x) {
       if (typeof process !== 'undefined' && process.env && process.env.PIZZAIOLO_DEBUG) console.error(x && x.stack);
-      emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: ' + (x && x.message), zeile: null, spalte: null });
+      emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(x && x.message) });
       exitCode = 1;
     }
     const schritte = e.schritte();

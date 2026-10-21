@@ -215,7 +215,6 @@ pub fn global_name(id: u32) -> W {
     if id == N_G_ANANAS { return crate::pf::belag_nach_name(id).unwrap_or(KARTON); }
     if let Some(w) = klasse_wert(id) { return w; }
     if let Some(b) = crate::pf::belag_nach_name(id) { return b; }
-    if id == N_AUTO { return AUTO; }
     let mut t = Tb::neu();
     if ist_gross_name(id) {
         t.s("'").name(id).s("' steht nicht auf der Zutatenliste.");
@@ -252,20 +251,19 @@ fn bote_text(pos: &[W]) -> Option<Vec<u8>> {
 }
 
 pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
-    let _ = ben;
     match (m, name) {
         (N_G_BOTE, N_SAGE) => { if let Some(b) = bote_text(pos) { crate::host_ausgabe(&b); } KARTON }
         (N_G_BOTE, N_SCHREIBE) => { if let Some(b) = bote_text(pos) { crate::host_schreibe(&b); } KARTON }
         (N_G_BOTE, N_FEHLER) => { if let Some(b) = bote_text(pos) { crate::host_fehlerausgabe(&b); } KARTON }
         (N_G_BOTE, N_LEEREN) => { crate::host_leeren(); KARTON }
         (N_G_BESTELLANNAHME, N_LIES) => crate::pf::lies_zeile(None, 0),
-        (N_G_BESTELLANNAHME, N_FRAGE) => { let p = if pos.is_empty() { neu_str("") } else { text(pos[0]) }; if sig() { return KARTON; } crate::pf::lies_zeile(Some(p), 0) }
-        (N_G_BESTELLANNAHME, N_LIESZAHL) => { let z = crate::pf::lies_zeile(None, 1); crate::pf::eingabe_zahl(z) }
-        (N_G_BESTELLANNAHME, N_FRAGEZAHL) => { let p = if pos.is_empty() { neu_str("") } else { text(pos[0]) }; if sig() { return KARTON; } let z = crate::pf::lies_zeile(Some(p), 1); crate::pf::eingabe_zahl(z) }
+        (N_G_BESTELLANNAHME, N_FRAGE) => { let t = arg(pos, ben, 0, N_TEXT); let p = if t == UNDEF { neu_str("") } else { text(t) }; if sig() { return KARTON; } crate::pf::lies_zeile(Some(p), 0) }
+        (N_G_BESTELLANNAHME, N_LIESZAHL) => { let z = crate::pf::lies_zeile(None, 1); crate::pf::eingabe_zahl(z, arg(pos, ben, 0, N_ERSATZ)) }
+        (N_G_BESTELLANNAHME, N_FRAGEZAHL) => { let t = arg(pos, ben, 0, N_TEXT); let p = if t == UNDEF { neu_str("") } else { text(t) }; if sig() { return KARTON; } let z = crate::pf::lies_zeile(Some(p), 1); crate::pf::eingabe_zahl(z, arg(pos, ben, 1, N_ERSATZ)) }
         (N_G_BESTELLANNAHME, N_HATMEHR) => bool_w(crate::pf::hat_mehr()),
         (N_G_UHR, N_JETZT) => dauer(z().schritte + z().offset),
         (N_G_UHR, N_VORSPULEN) => {
-            let ms = match dauer_ms_pruefen(a(pos, 0), "Uhr.vorspulen") { Some(x) => x, None => return KARTON };
+            let ms = match dauer_ms_pruefen(a(pos, 0), "Uhr.vorspulen") { Some(x) => js_round(x), None => return KARTON };
             if ms < 0.0 { wirf_ananas(K_RECHEN, "Die Uhr lässt sich nicht zurückdrehen."); return KARTON; }
             z().offset += ms;
             crate::pf::neu_grenze();
@@ -440,13 +438,10 @@ fn text_methode(o: W, id: u32, pos: &[W], _knoten: i32) -> W {
         }
         N_BEGINNTMIT => { let t = text(a(pos, 0)); if sig() { return KARTON; } bool_w(st.starts_with(s(t))) }
         N_ENDETMIT => { let t = text(a(pos, 0)); if sig() { return KARTON; } bool_w(st.ends_with(s(t))) }
-        N_ALSZAHL => {
-            let t: String = js_trim(st).chars().filter(|&c| c != '_').collect();
-            match js_number(&t) {
-                Some(v) if !t.is_empty() && v.is_finite() => zahl(v),
-                _ => { let mut m = Tb::neu(); m.s("\"").t(o).s("\" ist keine Zahl."); wirf_tb(K_TYP, &m); KARTON }
-            }
-        }
+        N_ALSZAHL => match zahl_aus_text(st) {
+            Some(v) => zahl(v),
+            None => { let mut m = Tb::neu(); m.s("\"").t(o).s("\" ist keine Zahl."); wirf_tb(K_TYP, &m); KARTON }
+        },
         N_ALSTEXT => o,
         N_ISTLEER => bool_w(bytes(o).is_empty()),
         _ => nicht_gefunden(o, id),

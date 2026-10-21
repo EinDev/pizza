@@ -78,11 +78,11 @@ function pruefe() {
   }
   const dauern = [0, 1, 999, 1000, 1500, 60000, 90000, 3600000, 86400000, 90061001, -90000, 0.4, 0.5, -0.5, 1e22, 3 * 86400000 + 4 * 3600000];
   for (const x of dauern) gleich('Dauer(' + x + ')', textVon(e.rt_test_dauer(x)), dauerText(x));
-  const texte = ['42', ' 7.5 ', '1_000', '0x1F', '0b101', '0o17', '1e3', '.5', '5.', '+5', '-5', 'abc', '', '  ', 'Infinity', '1e', '1e400', '-0', '٣'];
+  const texte = ['3,5', '1_000,5', '1__0', '_1', '1_', '42', ' 7.5 ', '1_000', '0x1F', '0b101', '0o17', '1e3', '.5', '5.', '+5', '-5', 'abc', '', '  ', 'Infinity', '1e', '1e400', '-0', '٣'];
   for (const t of texte) {
-    const tt = t.trim().replace(/_/g, '');
-    const v = Number(tt);
-    const soll = (tt === '' || !isFinite(v)) ? 'FEHLER' : zahlText(v);
+    const tt = t.trim();
+    const ok = /^[+-]?[0-9]+(?:_[0-9]+)*(?:[.,][0-9]+(?:_[0-9]+)*)?$/.test(tt);
+    const soll = ok ? zahlText(Number(tt.replace(/_/g, '').replace(',', '.'))) : 'FEHLER';
     const w = e.rt_test_alszahl(textW(t));
     const ist = (BigInt.asUintN(64, w) >> 48n) === 0xFFFCn ? 'FEHLER' : textVon(e.rt_text(w));
     gleich('alsZahl(' + JSON.stringify(t) + ')', ist, soll);
