@@ -257,6 +257,8 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
     },
     ui_senden: (p, n) => emit({ typ: 'ui', nachricht: JSON.parse(t(p, n)) }),
     ui_warte: () => -1,
+    kueche_auftrag: () => -1,                        // keine Köche → das Modul führt die Stücke selbst aus
+    kueche_bericht: () => -2,
   };
   inst = new WebAssembly.Instance(new WebAssembly.Module(pkarton), { pizza });
   for (const a of args) {
