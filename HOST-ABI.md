@@ -33,6 +33,24 @@ Der Host muss die Bytes **während des Aufrufs** kopieren/dekodieren (Speicher k
 | `eingabe` | `(art i32, prompt_ptr i32, prompt_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | siehe unten; Host emittiert danach `{ typ: "eingabe", text }` |
 | `ui_senden` | `(ptr i32, len i32) -> ()` | Theke (THEKE.md §3): UTF-8-JSON an den Renderer; Ereignis `{ typ: "ui", nachricht }` |
 | `ui_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | Theke: nächstes Renderer-Ereignis (UTF-8-JSON), siehe unten |
+| `vorrat_lesen` | `(name_ptr i32, name_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | Vorratskammer: gespeicherten Inhalt lesen (K-081), siehe unten |
+| `vorrat_schreiben` | `(name_ptr i32, name_len i32, json_ptr i32, json_len i32, ereignis_ptr i32, ereignis_len i32) -> i32` | Vorratskammer: Änderung melden + speichern; Ereignis `{ typ: "vorrat", name, schluessel, wert }` |
+
+### Basis-Importe und optionale Importgruppen (abwärtskompatibel)
+
+Ein `.pkarton` importiert **nur, was das Programm braucht**:
+- **Basis (immer):** `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler`, `panik`, `eingabe`.
+- **Gruppe `theke`:** `ui_senden`, `ui_warte` – nur wenn das Programm die Theke benutzt (`neu Theke/Schild/…`).
+- **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
+- Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
+
+Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["theke", "vorrat"]`.
+**Hosts prüfen vor dem Instanziieren** die Importliste des Moduls (JS: `WebAssembly.Module.imports`, wasmi:
+`Module::imports()`). Fehlt einem Host eine Funktion, meldet er (K-043)
+`{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.<name>' (Gruppe <gruppe>), die dieser Host nicht kennt – bitte pizza-host aktualisieren.", zeile: null, spalte: null }`
+und `ende` mit Exit-Code 2. Ein Host, der eine Gruppe kennt, aber nicht anbieten kann (z. B. kein Speicherort,
+kein Fenster), stellt die Funktionen trotzdem bereit und antwortet wie unten beschrieben „nicht verfügbar“ –
+das Programm läuft dann mit W0100 (Theke) bzw. W0101 (Vorrat) weiter.
 
 `art` bei `fehler`: `1` = `"pizzafehler"`, `2` = `"ananas"`, `3` = `"limit"` (`0` = `"syntax"`, kommt aus Wasm nie vor;
 `"intern"` erzeugt nur der Host selbst, siehe §4).
@@ -68,6 +86,22 @@ Fenster geschlossen; Länge `> puffer_kap` → nichts geschrieben, Ereignis blei
 Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1` bzw. `0` für die Abfrage.
 Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts müssen sie bereitstellen.
 
+**`vorrat_lesen` / `vorrat_schreiben`** (K-079–K-081):
+- `vorrat_lesen(name, puffer, -1)` ist eine **Abfrage**: `1` = Speicherung verfügbar (JS-Host: `optionen.vorrat` oder
+  `optionen.onVorrat` gesetzt; nativ: Speicherort beschreibbar), `0` = nicht verfügbar → das Modul warnt beim ersten
+  `neu Vorratskammer` einmal `W0101` und arbeitet nur im Speicher.
+- `vorrat_lesen(name, puffer, kap)`: liefert die gespeicherten **Einträge** der Kammer `name` als UTF-8-JSON-Array
+  `[["schlüssel", wert], …]` (Format K-080; ein gespeichertes Objekt `{"v":1,"name":…,"eintraege":[…]}` gibt der Host als
+  dessen `eintraege` weiter) und gibt die Länge zurück; `-1` = keine Kammer gespeichert; Länge `> kap` → nichts
+  geschrieben, erneuter Aufruf mit größerem Puffer (wie K-013). Aufgerufen beim ersten `neu Vorratskammer(name)`.
+  JS-Host: `JSON.stringify(optionen.vorrat[name])`.
+- `vorrat_schreiben(name, json, ereignis)` wird nach **jeder** Änderung aufgerufen (`lege`, `entferne`, `leeren`):
+  `json` = vollständige Serialisierung `{"v":1,"name":"x","eintraege":[…]}` (K-080), `ereignis` = `{"schluessel":…,"wert":…}`.
+  Der Host emittiert zuerst `{ typ: "vorrat", name, schluessel, wert }` (Werte aus `ereignis`), speichert dann die Kammer
+  (JS: `optionen.onVorrat(name, eintraege)`; nativ: Datei atomar schreiben, K-081) und gibt `0` zurück; `< 0` = Speichern
+  fehlgeschlagen → `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` Ohne Speicherung (Abfrage = 0)
+  emittiert der Host nur das Ereignis und gibt `0` zurück. Größenprüfung (1 MiB) macht das Modul selbst.
+
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 
 ## 3. Exports
@@ -80,6 +114,7 @@ Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz).
 | `speicher_limit_setzen` | `(mib i32) -> ()` | Heap-Obergrenze in MiB (Standard 1024, max. 3072). Optional, vor `start`. |
 | `arg_puffer` | `(len i32) -> i32` | liefert Zeiger auf `len` beschreibbare Bytes für das nächste Argument |
 | `arg_fertig` | `(len i32) -> ()` | übernimmt die `len` Bytes aus dem zuletzt gelieferten Puffer als nächstes Argument |
+| `saat_setzen` | `(saat f64) -> ()` | Zufallssaat (`optionen.zufallsSaat`, K-077); nur Ganzzahlen, normalisiert `n mod 2^32`; ohne Aufruf 42. Optional, vor `start`. Hosts/Playground erzeugen standardmäßig eine echte Saat und zeigen `Saat: N` an. |
 | `start` | `() -> i32` | führt das Programm aus, liefert den **Exit-Code** |
 | `schritte` | `() -> f64` | ausgeführte Schritte (ganzzahlig) |
 | `zeitMs` | `() -> f64` | simulierte Uhr in ms (= Schritte + vorgespulte Zeit) |
