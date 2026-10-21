@@ -3,6 +3,7 @@
  * pizza CLI
  *   node bin/pizza.js datei.pizza [args…]
  *   node bin/pizza.js --ast datei.pizza
+ *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name|alle>   (ohne Programm)
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
  *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
  *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
@@ -36,6 +37,11 @@ for (let i = 0; i < roh.length; i++) {
     }
     else if (a.startsWith('--vorrat=')) optionen.vorratOrdner = a.slice(9);
     else if (a === '--kein-vorrat') optionen.keinVorrat = true;
+    else if (a === '--vorrat-loeschen' || a.startsWith('--vorrat-loeschen=')) {
+      const n = a === '--vorrat-loeschen' ? roh[++i] : a.slice(18);
+      if (n === undefined) { console.error('--vorrat-loeschen braucht einen Kammernamen oder „alle“.'); process.exit(2); }
+      optionen.vorratLoeschen = n;
+    }
     else if (a === '--eingabe' || a.startsWith('--eingabe=')) {
       const pfad = a === '--eingabe' ? roh[++i] : a.slice(10);
       if (!pfad) { console.error('--eingabe braucht eine Datei.'); process.exit(2); }
@@ -51,7 +57,33 @@ for (let i = 0; i < roh.length; i++) {
 }
 
 function hilfe() {
-  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [args…]');
+  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [args…]' +
+    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name|alle>');
+}
+
+// „Vorrat löschen“ (Nutzerentscheidung K-083 Nr. 5): gleiche Texte wie Playground/EXE
+//   Vorrat '<name>' gelöscht.  ·  Vorrat '<name>' gibt es nicht.  ·  Alle Vorräte gelöscht.
+//   ungültiger Name → Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).  (Exit 2)
+if (optionen.vorratLoeschen !== undefined) {
+  const ordner = optionen.vorratOrdner || vorratStandardOrdner();
+  const n = optionen.vorratLoeschen;
+  const KAMMER = /^[a-z0-9-]{1,40}$/;
+  if (n === 'alle') {
+    let dateien = [];
+    try { dateien = fs.readdirSync(ordner); } catch (e) { dateien = []; }
+    for (const d of dateien) {
+      if (d.endsWith('.json') && KAMMER.test(d.slice(0, -5))) { try { fs.unlinkSync(path.join(ordner, d)); } catch (e) { /* weiter */ } }
+    }
+    console.log('Alle Vorräte gelöscht.');
+    process.exit(0);
+  }
+  if (!KAMMER.test(n)) { console.error('Ungültiger Kammername \'' + n + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).'); process.exit(2); }
+  const datei = path.join(ordner, n + '.json');
+  if (!fs.existsSync(datei)) { console.log('Vorrat \'' + n + '\' gibt es nicht.'); process.exit(0); }
+  try { fs.unlinkSync(datei); }
+  catch (e) { console.error('Vorrat \'' + n + '\' konnte nicht gelöscht werden.'); process.exit(1); }
+  console.log('Vorrat \'' + n + '\' gelöscht.');
+  process.exit(0);
 }
 
 if (!datei) { hilfe(); process.exit(2); }
