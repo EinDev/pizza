@@ -301,7 +301,7 @@ klasse Spiel {
         neu Geheimrezept("langteig", "⏳", "72-Stunden-Teig", 6, "gedächtnis", "Drei Tage Gehzeit: Jede Pizza bringt 30 % mehr."),
         neu Geheimrezept("diplomatie", "🍍", "Hawaii-Diplomatie", 6, "mundpropaganda", "Bekehrte Hawaii-Gäste bestellen dreimal so viel."),
         neu Geheimrezept("glückspilz", "🍀", "Glückspilz", 6, "kartenspiel", "Jede dreiunddreißigste Pizza wird perfekt (3 % statt 2 %)."),
-        neu Geheimrezept("vesuvkamin", "🏔", "Vesuv-Kamin", 7, "lavastein", "Der Ofen wird bis 535 °C heiß – die Sonderschicht schafft mehr Ladungen."),
+        neu Geheimrezept("vesuvkamin", "🏔", "Vesuv-Kamin", 7, "lavastein", "Der Ofen glüht sofort mit vollen 485 °C – auch ohne einen einzigen Steinofen."),
         neu Geheimrezept("familienbetrieb", "👪", "Familienbetrieb", 8, "erbstück", "Die Familie backt mit, während du weg bist: drei Viertel statt halber Kraft (weiterhin höchstens 30 Minuten)."),
         neu Geheimrezept("freitagslegende", "🕺", "Freitags-Legende", 9, "diplomatie", "Der Freitagabend-Ansturm dauert 60 statt 30 Sekunden."),
         neu Geheimrezept("mutterhefe", "🧫", "Mutterhefe aus Neapel", 10, "langteig", "Seit 1890 gefüttert, nie ausgegangen: Jede Pizza bringt 50 % mehr."),
@@ -324,13 +324,13 @@ klasse Spiel {
             "Kein Klicken, keine Sonderschicht, keine Feste, keine Minispiele: Nur der Betrieb backt, Ereignisse fallen aus. 3 Lehrlinge helfen beim Start.",
             "Der ganze Betrieb backt für immer +25 %."),
         // Zweite Staffel – ab der ersten Franchise-Kette
-        neu Herausforderung("inflation", "💸", "Inflation", 20_000_000_000,
+        neu Herausforderung("inflation", "💸", "Inflation", 200_000_000_000,
             "Der Großhändler spinnt: Alle Upgrades kosten das Dreifache.",
             "Alle Upgrades kosten für immer 10 % weniger.").abKette(),
-        neu Herausforderung("minikueche", "🤏", "Mini-Küche", 50_000_000_000,
+        neu Herausforderung("minikueche", "🤏", "Mini-Küche", 1_000_000_000_000,
             "Das Bauamt hat Nein gesagt: höchstens 25 Stück je Gebäude.",
             "Der ganze Betrieb backt für immer +50 %.").abKette(),
-        neu Herausforderung("urlaub", "🏖", "Nonna im Urlaub", 100_000_000_000,
+        neu Herausforderung("urlaub", "🏖", "Nonna im Urlaub", 5_000_000_000_000,
             "Nonna ist auf Ischia und hat ihre Geheimrezepte mitgenommen: Keins wirkt.",
             "Geheimrezepte kosten für immer 1 ⭐ weniger (mindestens 1).").abKette()
     ];
@@ -404,7 +404,8 @@ klasse Spiel {
     salami anzahl(margherita schlüssel) { serviere (finde(schlüssel).anzahl); }
 
     salami trinkgeld() { serviere (anzahl("kurier") + anzahl("roller")); }
-    salami ofenTemperatur() { serviere (Mathe.min(kennt("vesuvkamin") ? 535 : 485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
+    // Mehr als 485 °C verträgt kein Ofen (sonst VerbranntAnanas) – der Vesuv-Kamin heizt sofort bis an die Grenze.
+    salami ofenTemperatur() { serviere (kennt("vesuvkamin") ? 485 : Mathe.min(485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
 
     margherita rezeptName() {
         Blech<margherita> b = rezept.beläge();
