@@ -4,8 +4,12 @@
  *   node bin/pizza.js datei.pizza [args…]
  *   node bin/pizza.js --ast datei.pizza
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
+ *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
+ *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
  *             --info (Schritte/Uhr am Ende), --hilfe
  *   Ohne --eingabe liest Bestellannahme interaktiv (synchron) von stdin.
+ *   Vorratskammern (K-081): <ordner>/<name>.json, Standard %APPDATA%\pizza\vorrat bzw.
+ *   $XDG_DATA_HOME/pizza/vorrat (Fallback ~/.local/share/pizza/vorrat); Format {"v":1,"name":…,"eintraege":[…]}.
  */
 'use strict';
 const fs = require('fs');
@@ -13,7 +17,9 @@ const path = require('path');
 const P = require(path.join(__dirname, '..', 'site', 'js', 'pizza.js'));
 
 const roh = process.argv.slice(2);
-const optionen = { ast: false, info: false, schrittLimit: undefined, eingabe: null };
+const os = require('os');
+const crypto = require('crypto');
+const optionen = { ast: false, info: false, schrittLimit: undefined, eingabe: null, saat: null, vorratOrdner: null, keinVorrat: false };
 let datei = null;
 const progArgs = [];
 for (let i = 0; i < roh.length; i++) {
@@ -22,6 +28,13 @@ for (let i = 0; i < roh.length; i++) {
     if (a === '--ast') optionen.ast = true;
     else if (a === '--info') optionen.info = true;
     else if (a.startsWith('--schritte=')) optionen.schrittLimit = Number(a.slice(11));
+    else if (a.startsWith('--saat=')) {
+      const n = Number(a.slice(7));
+      if (!Number.isInteger(n)) { console.error('--saat braucht eine Ganzzahl.'); process.exit(2); }
+      optionen.saat = n;
+    }
+    else if (a.startsWith('--vorrat=')) optionen.vorratOrdner = a.slice(9);
+    else if (a === '--kein-vorrat') optionen.keinVorrat = true;
     else if (a === '--eingabe' || a.startsWith('--eingabe=')) {
       const pfad = a === '--eingabe' ? roh[++i] : a.slice(10);
       if (!pfad) { console.error('--eingabe braucht eine Datei.'); process.exit(2); }
@@ -36,10 +49,18 @@ for (let i = 0; i < roh.length; i++) {
 }
 
 function hilfe() {
-  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--eingabe datei] datei.pizza [args…]');
+  console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [args…]');
 }
 
 if (!datei) { hilfe(); process.exit(2); }
+
+function vorratStandardOrdner() {
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'pizza', 'vorrat');
+  }
+  const basis = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+  return path.join(basis, 'pizza', 'vorrat');
+}
 
 let quelle;
 try { quelle = fs.readFileSync(datei, 'utf8'); }
@@ -95,6 +116,38 @@ if (optionen.ast) {
     }
   };
   if (optionen.eingabe !== null) runOpt.eingabe = optionen.eingabe;
+
+  // Zufall (K-077): feste Saat per --saat, sonst echte Saat – und anzeigen, damit der Lauf reproduzierbar bleibt
+  if (optionen.saat !== null) runOpt.zufallsSaat = optionen.saat;
+  else {
+    runOpt.zufallsSaat = crypto.randomBytes(4).readUInt32LE(0);
+    process.stderr.write(farbe('90', 'Saat: ' + runOpt.zufallsSaat) + '\n');
+  }
+
+  // Vorratskammer (K-081): eine JSON-Datei je Kammer, atomar geschrieben
+  if (!optionen.keinVorrat) {
+    const ordner = optionen.vorratOrdner || vorratStandardOrdner();
+    const pfadVon = (name) => path.join(ordner, name + '.json');
+    runOpt.vorrat = new Proxy({}, {
+      get(_, name) {
+        if (typeof name !== 'string') return undefined;
+        try {
+          const j = JSON.parse(fs.readFileSync(pfadVon(name), 'utf8'));
+          return j && Array.isArray(j.eintraege) ? j.eintraege : undefined;
+        } catch (e) { return undefined; }
+      }
+    });
+    runOpt.onVorrat = (name, eintraege) => {
+      try {
+        fs.mkdirSync(ordner, { recursive: true });
+        const ziel = pfadVon(name);
+        const tmp = ziel + '.' + process.pid + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify({ v: 1, name, eintraege }));
+        fs.renameSync(tmp, ziel);
+        return true;
+      } catch (e) { return false; }
+    };
+  }
   else runOpt.onEingabe = () => liesStdinZeile();
   const r = P.run(quelle, runOpt);
   process.exitCode = r.exitCode;
