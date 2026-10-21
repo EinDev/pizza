@@ -160,7 +160,9 @@
     try { p = alsBytes(pkarton); } catch (e) { return Promise.reject(e); }
     if (!istWasm(p)) return Promise.reject(new Error('PizzaExe: kein gültiges .pkarton (WebAssembly-Magie fehlt).'));
     // optionen werden auch für ziele() gebraucht (basis/fetch)
-    return Promise.all([findeZiel(ziel, optionen), brauchtTheke(p)]).then(function (r) {
+    // Kompilieren verboten (CSP ohne 'wasm-unsafe-eval') → wie bisher Konsolen-EXE statt Abbruch.
+    var theke = brauchtTheke(p).catch(function () { return false; });
+    return Promise.all([findeZiel(ziel, optionen), theke]).then(function (r) {
       var z = r[0], theke = r[1];
       return ladeHost(z, o).then(function (host) {
         return new Blob([verbinde(host, p, { theke: theke })], { type: 'application/octet-stream' });
