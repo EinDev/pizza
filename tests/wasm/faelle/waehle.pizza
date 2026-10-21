@@ -1,0 +1,14 @@
+quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
+salami zaehl = 0;
+salami z() { zaehl++; serviere (zaehl); }
+für (Jahreszeit j : Jahreszeit.werte()) {
+    wähle (j) {
+        fall FRÜHLING, SOMMER -> Bote.sage(("warm"), (j.position()));
+        fall HERBST -> { Bote.sage(("bunt")); abbrechen; }
+        standard -> Bote.sage(("kalt"), (j));
+    }
+}
+für (salami i = 0; i < 4; i++) {
+    margherita s = wähle (i) { fall z() -> "a"; fall 2, z() -> { serviere ("b"); } standard -> "c"; };
+    Bote.sage((i), (s), (zaehl));
+}

@@ -1,0 +1,16 @@
+klasse Karte {
+    salami zaehler = 0;
+    @Kühlschrank(haltbar: 50ms)
+    margherita hole(salami n) { zaehler++; serviere (("Karte" + n + "/" + zaehler)); }
+}
+Karte k = neu Karte();
+Bote.sage((k.hole(1)), (k.hole(1)), (k.hole(2)));
+Uhr.vorspulen(100ms);
+Reste<margherita> r = k.hole.mikrowelle(1);
+Bote.sage((r.wert()), (r.istMatschig()));
+Bote.sage((k.hole(1)));
+Bote.sage((k.hole.frisch(1)));
+@PizzaVeraltet(grund: "zu alt")
+leer alt() { Bote.sage(("alt")); }
+alt();
+alt();

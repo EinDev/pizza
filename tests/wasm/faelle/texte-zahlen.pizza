@@ -1,0 +1,11 @@
+margherita t = "  Straße Ölmühle ÄÖÜ ß Σόφος  ";
+Bote.sage((t.groß()), (t.klein()), (t.trimme()), (t.länge()));
+Bote.sage(("a,b,,c".zerlege(",")), ("äöü".zerlege("")), ("abcabc".ersetze("b", "XY")), ("äx".länge()), ("äx".zeichen(1)));
+Bote.sage(("ab".wiederhole(3)), ("Pizza".beginntMit("Pi")), ("Pizza".endetMit("za")), ("Pizza".enthält("zz")));
+Bote.sage((" 1_000,5 ".alsZahl()), ("-0".alsZahl()), ("12".alsZahl() + 1));
+probier { "0x10".alsZahl(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((1 / 3), (2 / 3), (0.1 + 0.2), (1000000000000000000000 * 1), (123456789 * 1000000000000), (5 % 3), (-7.5 % 2), (2.675.runden(2)), ((-0.5).runden()));
+Bote.sage((8.euro()), (0.015.euro()), ((-0.001).euro()), (1234567.891.euro()));
+Dauer d = 1h + 30min + 5s;
+Bote.sage((d), (d * 2), (d / 3), (d.inSekunden()), (90s), (0ms), (3d + 4h), (-(90s)));
+Bote.sage(("x" < "y"), ("ä" < "z"), ("Z" < "a"), (10 < 9), ("10" + 9), (9 + "10"));

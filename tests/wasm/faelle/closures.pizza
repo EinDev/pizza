@@ -1,0 +1,15 @@
+Blech<Funktion> fs = [];
+für (salami i = 0; i < 3; i++) { salami j = i * 10; fs.hinzu(() -> j + i); }
+für (Funktion f : fs) { Bote.sage((f())); }
+Funktion zaehler = () -> { salami c = 0; serviere ((() -> { c++; serviere (c); })); };
+Funktion z1 = zaehler();
+Funktion z2 = zaehler();
+Bote.sage((z1()), (z1()), (z2()), (z1()));
+salami basis = 5;
+Funktion plus = x -> x + basis;
+basis = 7;
+Bote.sage((plus(1)));
+Blech<salami> zahlen = [1, 2, 3, 4, 5, 6];
+Bote.sage((zahlen.belege(x -> x * basis).filtere(x -> x % 2 == 0).zusammenklappen((a, b) -> a + b)));
+für (salami x : zahlen) { falls (x == 2) { weiter; } falls (x == 5) { abbrechen; } Bote.schreibe((x)); }
+Bote.sage(("!"));

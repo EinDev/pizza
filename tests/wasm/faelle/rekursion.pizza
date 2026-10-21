@@ -1,0 +1,17 @@
+salami summe(salami n) { falls (n == 0) { serviere (0); } serviere ((n + summe(n - 1))); }
+Bote.sage((summe(300)));
+probier { Bote.sage((summe(5000))); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Funktion lam = n -> n == 0 ? 0 : lam(n - 1) + 1;
+Bote.sage((lam(200)));
+probier { Bote.sage((lam(800))); } verbrannt (a) { Bote.sage((a.typ())); }
+klasse Knoten {
+    salami t;
+    Knoten(salami x) { t = x; }
+    salami tiefe(salami k) { falls (k == 0) { serviere (t); } serviere ((dies.tiefe(k - 1) + 1)); }
+}
+Knoten kn = neu Knoten(1);
+Bote.sage((kn.tiefe(100)));
+probier { Bote.sage((kn.tiefe(2000))); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((summe(372)));
+probier { Bote.sage((summe(373))); } verbrannt (LaufzeitAnanas a) { Bote.sage(("373:"), (a.nachricht())); }
+probier { Bote.sage((summe(374))); } verbrannt (LaufzeitAnanas a) { Bote.sage(("374:"), (a.nachricht())); }

@@ -1,0 +1,30 @@
+rohling klasse Form {
+    familienrezept margherita name = "Form";
+    rohling funghi flaeche();
+    margherita alsText() { serviere ((name + "(" + flaeche() + ")")); }
+}
+klasse Kreis erbt Form {
+    funghi r;
+    tiefkühl salami anzahl = 0;
+    Kreis(funghi r) { unten(); dies.r = r; name = "Kreis"; anzahl++; }
+    funghi flaeche() { serviere ((Mathe.PI * r * r)); }
+}
+klasse Quadrat erbt Form {
+    geheimrezept funghi a;
+    Quadrat(funghi a) { dies.a = a; name = "Quadrat"; }
+    funghi flaeche() { serviere ((a * a)); }
+}
+Blech<Form> formen = [neu Kreis(1), neu Quadrat(2), neu Kreis(0.5)];
+für (Form f : formen) { Bote.sage((f), (f.flaeche().runden(2))); }
+Bote.sage((Kreis.anzahl), (formen.erstes() + "!"));
+probier { Bote.sage((formen.stück(2).a)); } verbrannt (ZugriffsAnanas z) { Bote.sage((z.nachricht())); }
+probier { neu Form(); } verbrannt (RohlingAnanas z) { Bote.sage((z.nachricht())); }
+calzone klasse Konto { geheimrezept funghi stand = 1000.0; }
+Konto k = neu Konto();
+probier { Spiegel.felder(k); } verbrannt (ZugeklapptAnanas z) { Bote.sage((z.nachricht())); }
+k.aufklappen();
+Bote.sage((Spiegel.felder(k)), (k.stand));
+klasse Leer { }
+Leer l1 = neu Leer();
+Leer l2 = neu Leer();
+Bote.sage((l1), (l2), (l1 == l2), (l1 == l1));

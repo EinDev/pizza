@@ -1,0 +1,25 @@
+salami hilf() { serviere (7); }
+salami f(salami x) {
+    probier {
+        falls (x > 0) { serviere (x); }
+        wirf neu StreitAnanas("weg");
+    } verbrannt (StreitAnanas a) {
+        serviere ((-1));
+    } rand {
+        hilf();
+    }
+    serviere (99);
+}
+salami g() {
+    probier { serviere (1); } rand { Bote.sage(("rand")); }
+    serviere (2);
+}
+salami h() {
+    für (salami i = 0; i < 5; i++) {
+        probier { falls (i == 2) { abbrechen; } weiter; } rand { Bote.sage(("r"), (i)); }
+    }
+    serviere (3);
+}
+Bote.sage((f(5)), (f(0)), (g()), (h()));
+salami k() { probier { wirf neu StreitAnanas("x"); } rand { serviere (42); } }
+Bote.sage((k()));
