@@ -22,3 +22,4 @@ Bote.sage((u.kompakt() + " | " + (-u).kompakt() + " | " + u.tausender() + " | " 
 funghi n = Mathe.wurzel(-1);
 Bote.sage((n.kompakt() + " | " + n.tausender(2) + " | " + n.euro()));
 Bote.sage((999999999999999900000.0.tausender() + " | " + 999999999999999900000.0.euro()));
+Bote.sage((999999999999999900000.0.tausender(7) + " | " + 999999999999999900000.0.tausender(18) + " | " + (-999999999999999900000.0).tausender(7)));

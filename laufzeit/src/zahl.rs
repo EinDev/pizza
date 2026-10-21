@@ -202,11 +202,11 @@ pub fn to_fixed(x: f64, n: u32, out: &mut Vec<u8>) {
 pub fn tausender_text(x: f64, n: u32, out: &mut Vec<u8>) {
     if !x.is_finite() || x.abs() >= 1e21 { kompakt_text(x, 2, out); return; }
     let r = runde_auf(x, n as f64);
-    if !r.is_finite() { kompakt_text(r, 2, out); return; }
+    if !r.is_finite() || r.abs() >= 1e21 { kompakt_text(r, 2, out); return; } // Rundung kann 10²¹ erreichen
     let neg = r < 0.0;
     let a = r.abs();
     let mut fix = Vec::new();
-    if a >= 1e21 { js_text(a, &mut fix); } else { to_fixed(a, n, &mut fix); }
+    to_fixed(a, n, &mut fix);
     let (g, k) = match fix.iter().position(|&c| c == b'.') { Some(p) => (&fix[..p], Some(&fix[p + 1..])), None => (&fix[..], None) };
     if neg { out.push(b'-'); }
     // \B(?=(\d{3})+(?!\d)): Punkt vor jeder Dreiergruppe von Ziffern bis zum Ende der Ziffernfolge

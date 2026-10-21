@@ -1385,7 +1385,7 @@
   function tausenderText(x, n) {
     if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2);
     const r = rundeAuf(x, n);
-    if (!isFinite(r)) return kompaktText(r, 2);
+    if (!isFinite(r) || Math.abs(r) >= 1e21) return kompaktText(r, 2); // Rundung kann 10²¹ erreichen
     const neg = r < 0;
     const [g, k] = Math.abs(r).toFixed(n).split('.');
     const gg = g.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
