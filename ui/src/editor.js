@@ -143,7 +143,7 @@ function pizzaLinter(view) {
     if (bis === von && von > z.from) von--;
     if (bis === von) bis = Math.min(von + 1, doc.length);
   }
-  return [{ from: von, to: bis, severity: "error", source: f.code || "Syntax", message: (f.code ? f.code + ": " : "") + f.text }];
+  return [{ from: von, to: bis, severity: "error", source: f.code || "Syntax", message: (f.code && !String(f.text).includes(f.code) ? f.code + ": " : "") + f.text }];
 }
 
 // ---------- Themen ----------

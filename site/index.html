@@ -10,15 +10,7 @@
   <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="img/logo-icon.svg" type="image/svg+xml">
-  <script>
-    // Thema vor dem ersten Zeichnen setzen (kein Aufblitzen)
-    (function () {
-      var t = null;
-      try { t = localStorage.getItem("pizza.thema"); } catch (e) {}
-      if (t !== "light" && t !== "dark") t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
-      document.documentElement.dataset.theme = t;
-    })();
-  </script>
+  <script src="js/thema.js"></script>
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -26,9 +18,7 @@
 
   <header class="kopf">
     <div class="marke">
-      <img class="logo-bild" id="logo-bild" src="img/logo.svg" alt="pizza" height="30"
-           onload="this.parentNode.classList.add('mit-bild')"
-           onerror="if(this.dataset.backen){this.removeAttribute('data-backen');this.src='img/logo.svg';}else{this.parentNode.classList.remove('mit-bild');this.hidden=true;}">
+      <img class="logo-bild" id="logo-bild" src="img/logo.svg" alt="pizza" height="30">
       <svg class="logo" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="#logo-symbol"/></svg>
       <span class="marke-name">pizza</span>
       <span class="version" id="version" title="Sprachversion">v3.0</span>

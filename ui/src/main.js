@@ -139,6 +139,18 @@ function start() {
   });
 
   const logoBild = $("logo-bild");
+  if (logoBild) {
+    const marke = logoBild.parentNode;
+    const geladen = () => { marke.classList.add("mit-bild"); };
+    const fehler = () => {
+      if (logoBild.dataset.backen) { logoBild.removeAttribute("data-backen"); logoBild.src = "img/logo.svg"; return; }
+      marke.classList.remove("mit-bild");
+      logoBild.hidden = true;
+    };
+    logoBild.addEventListener("load", geladen);
+    logoBild.addEventListener("error", fehler);
+    if (logoBild.complete) { if (logoBild.naturalWidth > 0) geladen(); else fehler(); }
+  }
   function logoBacken(an) {
     if (!logoBild || logoBild.hidden) return;
     if (an) { logoBild.dataset.backen = "1"; logoBild.src = "img/logo-backen.svg"; }
@@ -277,12 +289,12 @@ function start() {
   });
 
   // Tabs
-  const tabs = [...panel.querySelectorAll('[role="tab"]')];
+  const panelTabs = [...panel.querySelectorAll('[role="tab"]')];
   let aktiverTab = speicher.hole("pizza.tab") === "beispiele" ? "beispiele" : "doku";
   function waehleTab(name, fokus) {
     aktiverTab = name;
     speicher.setze("pizza.tab", name);
-    for (const t of tabs) {
+    for (const t of panelTabs) {
       const an = t.id === "tab-" + name;
       t.setAttribute("aria-selected", String(an));
       t.tabIndex = an ? 0 : -1;
@@ -291,21 +303,21 @@ function start() {
     }
     aktiverTabGeladen();
   }
-  tabs.forEach((t, i) => {
+  panelTabs.forEach((t, i) => {
     t.addEventListener("click", () => waehleTab(t.id.replace("tab-", ""), false));
     t.addEventListener("keydown", (e) => {
       let j = null;
-      if (e.key === "ArrowRight") j = (i + 1) % tabs.length;
-      else if (e.key === "ArrowLeft") j = (i - 1 + tabs.length) % tabs.length;
+      if (e.key === "ArrowRight") j = (i + 1) % panelTabs.length;
+      else if (e.key === "ArrowLeft") j = (i - 1 + panelTabs.length) % panelTabs.length;
       else if (e.key === "Home") j = 0;
-      else if (e.key === "End") j = tabs.length - 1;
-      if (j != null) { e.preventDefault(); waehleTab(tabs[j].id.replace("tab-", ""), true); }
+      else if (e.key === "End") j = panelTabs.length - 1;
+      if (j != null) { e.preventDefault(); waehleTab(panelTabs[j].id.replace("tab-", ""), true); }
     });
   });
 
   // ---------- Doku & Beispiele (öffnen jeweils in einem eigenen Editor-Tab) ----------
   function oeffneCode(code, titel, schluessel) {
-    const name = (titel || "doku").toLowerCase().replace(/[^p{L}p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) + ".pizza";
+    const name = (titel || "doku").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) + ".pizza";
     const { neu } = tabs.oeffne(code, name, schluessel);
     if (!neu) toast("Bereits geöffnet – zum Tab gewechselt.", "info");
     if (schmal.matches) setzePanel(false, { fokus: false });
