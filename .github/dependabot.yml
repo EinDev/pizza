@@ -1,0 +1,47 @@
+# Dependabot: hält Zutaten frisch, bevor sie im Kühlschrank matschig werden.
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule: { interval: "weekly", day: "monday" }
+    groups:
+      codemirror:
+        patterns: ["@codemirror/*", "@lezer/*"]
+      build:
+        patterns: ["esbuild"]
+    commit-message: { prefix: "deps(ui)" }
+
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule: { interval: "weekly", day: "monday" }
+    groups:
+      e2e:
+        patterns: ["*"]
+    commit-message: { prefix: "deps(e2e)" }
+
+  - package-ecosystem: "cargo"
+    directories: ["/host", "/laufzeit"]
+    schedule: { interval: "weekly", day: "monday" }
+    groups:
+      rust:
+        patterns: ["*"]
+    commit-message: { prefix: "deps(rust)" }
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message: { prefix: "deps(ci)" }
+
+  - package-ecosystem: "docker"
+    directories: ["/", "/hastebin"]
+    schedule: { interval: "weekly", day: "monday" }
+    commit-message: { prefix: "deps(docker)" }
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    commit-message: { prefix: "deps(compose)" }
