@@ -1104,3 +1104,36 @@ button.k-meldung:hover { border-color: currentColor; }
 .k-panik-text { white-space: pre; overflow-x: auto; overflow-wrap: normal; }
 .beta-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; margin-left: 6px; border-radius: 999px; vertical-align: middle;
   font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--info); background: var(--info-weich); }
+
+/* ---------------- Theke-Vorschaufenster (schwebend über allem) ---------------- */
+.vorschau {
+  position: fixed; z-index: 60; left: 50%; top: 50%;
+  display: flex; flex-direction: column;
+  width: 482px; height: 400px; min-width: 240px; min-height: 140px;
+  max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  background: var(--flaeche); color: var(--text);
+  border: 1px solid var(--rand-stark); border-radius: 12px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .08), 0 18px 48px rgb(30 18 8 / .22);
+  overflow: hidden; resize: both;
+}
+:root[data-theme="dark"] .vorschau { box-shadow: 0 2px 6px rgb(0 0 0 / .3), 0 18px 48px rgb(0 0 0 / .55); }
+.vorschau:focus { outline: none; }
+.vorschau:focus-visible { outline: 2px solid var(--fokus); outline-offset: 2px; }
+.vorschau.zieht { user-select: none; }
+.vorschau-kopf {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 6px 0 12px; flex: none;
+  background: var(--flaeche-2); border-bottom: 1px solid var(--rand); cursor: grab; touch-action: none; user-select: none;
+}
+.vorschau.zieht .vorschau-kopf { cursor: grabbing; }
+.vorschau-icon { display: inline-grid; color: var(--akzent); }
+.vorschau-icon svg, .vorschau-zu svg { width: 15px; height: 15px; }
+.vorschau-titel { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vorschau-zu { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: none; color: var(--text-2); cursor: pointer; }
+.vorschau-zu:hover { background: var(--fehler-weich); color: var(--fehler); }
+.vorschau-inhalt { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.vorschau-hinweis { margin: 0; padding: 16px; color: var(--text-2); font-size: 13px; }
+@media (max-width: 599.98px) {
+  .vorschau { inset: 0 !important; width: auto !important; height: auto !important; max-width: none; max-height: none; border-radius: 0; border: 0; resize: none; }
+  .vorschau-kopf { cursor: default; height: 48px; }
+}
+

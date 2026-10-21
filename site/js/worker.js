@@ -27,6 +27,11 @@ function ladePizzaiolo() {
     PZ = self.Pizzaiolo || null;
     if (!PZ) pzFehler = "pizzaiolo.js definiert kein Pizzaiolo-Objekt";
     else if (typeof PZ.unterstuetzt === "function" && !PZ.unterstuetzt()) { pzFehler = "WebAssembly wird in diesem Browser nicht unterstützt"; PZ = null; }
+    else {
+      // Darf hier überhaupt Wasm kompiliert werden? (CSP ohne 'wasm-unsafe-eval' blockiert WebAssembly.Module)
+      try { new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])); }
+      catch (e) { pzFehler = "WebAssembly ist durch die Sicherheitsrichtlinie der Seite blockiert"; PZ = null; }
+    }
   } catch (e) {
     PZ = null;
     pzFehler = "Wasm-Compiler (pizzaiolo.js) ist noch nicht verfügbar";
@@ -84,6 +89,26 @@ function eingabeRueckruf(sab) {
   };
 }
 
+/* ---------- Theke (THEKE.md §4): blockierend auf das nächste UI-Ereignis warten ----------
+ * Gleicher Puffer wie bei der Eingabe (die beiden Wartezustände schließen sich aus). Status 1 = JSON-Ereignis, 2/3 = kein Ereignis. */
+function uiWarteRueckruf(sab) {
+  var ctrl = new Int32Array(sab, 0, 2);
+  var daten = new Uint8Array(sab, 8);
+  var dekoder = new TextDecoder();
+  return function () {
+    Atomics.store(ctrl, 0, 0);
+    Atomics.store(ctrl, 1, 0);
+    sende({ typ: "ui-warte" });
+    flush();
+    while (Atomics.load(ctrl, 0) === 0) Atomics.wait(ctrl, 0, 0);
+    if (Atomics.load(ctrl, 0) !== 1) return null;
+    var n = Math.min(Atomics.load(ctrl, 1), daten.length);
+    var kopie = new Uint8Array(n);
+    kopie.set(daten.subarray(0, n));
+    try { return JSON.parse(dekoder.decode(kopie)); } catch (e) { return null; }
+  };
+}
+
 function wasmFehler(text, zeile, spalte) {
   sende({ typ: "motor", motor: "wasm", grund: text });
   sende({ typ: "fehler", code: "W-WASM", art: "wasm", text: text, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte });
@@ -122,6 +147,7 @@ function starte(d) {
     args: Array.isArray(d.args) ? d.args : [],
     eingabe: Array.isArray(d.eingabe) ? d.eingabe.map(String) : undefined,
     onEingabe: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? eingabeRueckruf(d.eingabePuffer) : undefined,
+    onUiWarte: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined,
     onEvent: function (ev) {
       if (!ev) return;
       if (ev.typ === "motor") {

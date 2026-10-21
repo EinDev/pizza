@@ -7,6 +7,7 @@ import { erstelleBeispiele } from "./beispiele.js";
 import { ausInterpreterErgaenzen } from "./woerter.js";
 import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
+import { erstelleVorschau } from "./vorschau.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -136,8 +137,16 @@ function start() {
   const knopfBacken = $("knopf-backen"), knopfAbbr = $("knopf-abbrechen");
   let laufName = "";
 
+  // Theke-Vorschaufenster (UI-Ereignisse gehen über die Ausführung zurück ans Programm)
+  const vorschau = erstelleVorschau({
+    beiEreignis: (ev) => ausfuehrung.uiEreignis(ev),
+    beiZu: () => editor.view.focus(),
+  });
+
   const ausfuehrung = erstelleAusfuehrung({
+    beiUi(n) { vorschau.nachricht(n); },
     beiStart() {
+      vorschau.beenden();
       konsole.leeren(false);
       konsole.setzeLauf({ laeuft: true, name: laufName });
       knopfBacken.hidden = true;
@@ -150,6 +159,7 @@ function start() {
     beiEnde(info) {
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
+      vorschau.beenden();
       knopfBacken.hidden = false;
       knopfAbbr.hidden = true;
       document.body.classList.remove("laeuft");
@@ -185,26 +195,28 @@ function start() {
   const optAuto = motorWahl.querySelector('option[value="auto"]');
   const optWasm = motorWahl.querySelector('option[value="wasm"]');
   const knopfPkarton = $("knopf-pkarton");
-  // Einmalige Migration: Der Standard ist (vorerst) der Interpreter – auch für alte „auto“-Wahl.
-  if (speicher.hole("pizza.motorStand") !== "2") {
-    const alt = speicher.hole("pizza.motor");
-    if (alt == null || alt === "auto") speicher.setze("pizza.motor", "interpreter");
-    speicher.setze("pizza.motorStand", "2");
+  // Standard ist Auto (Wasm mit Fallback). Einmalig: Wer durch die Zwischen-Migration (Stand 2) auf „interpreter“
+  // gesetzt wurde und nicht selbst gewählt hat, kommt zurück auf Auto. Explizite Wahl wird respektiert.
+  if (speicher.hole("pizza.motorStand") !== "3") {
+    if (speicher.hole("pizza.motorStand") === "2" && speicher.hole("pizza.motor") === "interpreter" && speicher.hole("pizza.motorExplizit") !== "1") {
+      speicher.setze("pizza.motor", "auto");
+    }
+    speicher.setze("pizza.motorStand", "3");
   }
   const gespeicherterMotor = () => {
     const m = speicher.hole("pizza.motor");
-    return ["auto", "wasm", "interpreter"].includes(m) ? m : "interpreter";
+    return ["auto", "wasm", "interpreter"].includes(m) ? m : "auto";
   };
   let faehigkeiten = null, letztePruefung = 0, pruefungLaeuft = null;
   function wendeMotorAn() {
     const wasm = !!(faehigkeiten && faehigkeiten.wasm);
     const unbekannt = !faehigkeiten;
     optWasm.disabled = !wasm && !unbekannt;
-    optWasm.textContent = wasm || unbekannt ? "Wasm (Beta)" : "Wasm (bald)";
+    optWasm.textContent = wasm || unbekannt ? "Wasm" : "Wasm (bald)";
     const grund = faehigkeiten && !wasm ? (faehigkeiten.grund || "Wasm-Compiler nicht verfügbar") : "";
     optWasm.title = grund ? "Nicht verfügbar: " + grund : (faehigkeiten && faehigkeiten.version ? "pizzaiolo " + faehigkeiten.version : "");
-    optAuto.textContent = "Auto (Beta)";
-    optAuto.title = wasm || unbekannt ? "Beta: Wasm, bei Bedarf Interpreter" : "Interpreter, bis der Wasm-Compiler verfügbar ist";
+    optAuto.textContent = wasm || unbekannt ? "Auto (Wasm)" : "Auto";
+    optAuto.title = wasm || unbekannt ? "Wasm, bei Bedarf (z. B. Theke) Interpreter" : "Interpreter, bis der Wasm-Compiler verfügbar ist";
     const g = gespeicherterMotor();
     // gespeicherte Wahl „wasm“ als „Auto“ anzeigen, aber NICHT überschreiben
     motorWahl.value = g === "wasm" && optWasm.disabled ? "auto" : g;
@@ -235,7 +247,7 @@ function start() {
       faehigkeiten = f && f.typ === "faehigkeiten" ? f : { wasm: false, grund: (f && f.grund) || "Prüfung fehlgeschlagen" };
       pruefungLaeuft = null;
       wendeMotorAn();
-      if (!vorher && faehigkeiten.wasm && letztePruefung && document.body.classList.contains("bereit")) toast("Wasm-Motor ist jetzt verfügbar ⚡", "ok");
+      if (vorher === false && faehigkeiten.wasm) toast("Wasm-Motor ist jetzt verfügbar.", "ok");
       return faehigkeiten;
     });
     return pruefungLaeuft;
@@ -255,6 +267,7 @@ function start() {
   motorWahl.addEventListener("change", () => {
     zeigeMotorIcon();
     speicher.setze("pizza.motor", motorWahl.value);
+    speicher.setze("pizza.motorExplizit", "1");
     const name = motorWahl.options[motorWahl.selectedIndex].text;
     toast(ausfuehrung.laeuft ? "Motor: " + name + " – gilt ab dem nächsten Lauf." : "Motor: " + name, "info");
   });
@@ -712,6 +725,7 @@ function start() {
     document.documentElement.dataset.theme = t;
     if (merken) speicher.setze("pizza.thema", t);
     editor.setzeThema(t === "dark");
+    if (typeof vorschau !== "undefined") vorschau.setzeThema();
     themaKnopf.setAttribute("aria-label", t === "dark" ? "Helles Thema einschalten" : "Dunkles Thema einschalten");
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", t === "dark" ? "#16171a" : "#fbf7f0"));
   }
@@ -847,7 +861,7 @@ function start() {
   hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
 
   // ---------- Befehlspalette ----------
-  const motorNamen = { interpreter: "Interpreter", wasm: "Wasm (Beta)", auto: "Auto (Beta)" };
+  const motorNamen = { auto: "Auto (Wasm)", wasm: "Wasm", interpreter: "Interpreter" };
   function setzeMotor(m) {
     motorWahl.value = m;
     motorWahl.dispatchEvent(new Event("change"));
@@ -941,6 +955,7 @@ function start() {
     if ((mod || e.altKey) && taste === "PageDown") { stopp(); tabs.naechster(1); return; }
     if ((mod || e.altKey) && taste === "PageUp") { stopp(); tabs.naechster(-1); return; }
     if (e.key === "Escape") {
+      if (e.target && e.target.closest && e.target.closest("#vorschau")) return; // Esc im Theke-Fenster: nichts tun
       if (ausfuehrung.laeuft) { e.preventDefault(); ausfuehrung.abbrechen(); return; }
       if (schmal.matches && panelOffen) { e.preventDefault(); setzePanel(false); }
     }

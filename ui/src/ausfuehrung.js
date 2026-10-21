@@ -24,15 +24,16 @@ export function interaktivMoeglich() {
 
 const PUFFER_BYTES = 64 * 1024;
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde }) {
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi }) {
   let worker = null, timer = null, start = 0, laufId = 0;
+  let uiWartet = false, uiSchlange = [];
   let sab = null, wartet = false, restMs = ZEITLIMIT_MS, timerStart = 0, wartezeit = 0, warteBeginn = 0;
   const kodierer = new TextEncoder();
 
   function aufraeumen() {
     if (timer) { clearTimeout(timer); timer = null; }
-    if (wartet && sab) signal(3);
-    wartet = false;
+    if ((wartet || uiWartet) && sab) signal(3);
+    wartet = false; uiWartet = false; uiSchlange = [];
     if (worker) { try { worker.terminate(); } catch (e) { /* egal */ } worker = null; }
     sab = null;
   }
@@ -83,6 +84,15 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       return;
     }
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
+    if (ev.typ === "ui") { beiUi && beiUi(ev.nachricht); return; }
+    if (ev.typ === "ui-warte") {
+      if (!sab) return;
+      if (uiSchlange.length) { signal(1, kodierer.encode(JSON.stringify(uiSchlange.shift()))); return; }
+      uiWartet = true;
+      warteBeginn = performance.now();
+      pausiereTimer(); // Wand-Zeitlimit ruht, solange die Theke auf den Gast wartet
+      return;
+    }
     if (ev.typ === "eingabe-anfrage") {
       if (!sab) return;
       wartet = true;
@@ -97,6 +107,16 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
   return {
     get laeuft() { return worker !== null; },
     get wartetAufEingabe() { return wartet; },
+    /** UI-Ereignis aus der Theke an das Programm (wird gepuffert, falls es gerade nicht wartet). */
+    uiEreignis(ereignis) {
+      if (!worker || !sab) return;
+      if (uiWartet) {
+        uiWartet = false;
+        wartezeit += performance.now() - warteBeginn;
+        signal(1, kodierer.encode(JSON.stringify(ereignis)));
+        starteTimer(laufId);
+      } else uiSchlange.push(ereignis);
+    },
     /** Antwort auf eine Eingabe-Anfrage: Text oder null (= EOF). */
     antworte(text) {
       if (!wartet || !sab) return false;

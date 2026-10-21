@@ -36,9 +36,9 @@
         <span class="sr-only">Motor</span>
         <svg class="motor-icon" id="motor-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
         <select id="motor-wahl" data-testid="motor-umschalter" aria-label="Ausführungsmotor">
+          <option value="auto">Auto (Wasm)</option>
+          <option value="wasm">Wasm</option>
           <option value="interpreter">Interpreter</option>
-          <option value="wasm">Wasm (Beta)</option>
-          <option value="auto">Auto (Beta)</option>
         </select>
       </label>
     </div>
@@ -137,6 +137,16 @@
   </main>
 
   </div>
+
+  <!-- Theke-Vorschau: schwebendes Fenster über allem (außer Dialogen/Toasts) -->
+  <section class="vorschau" id="vorschau" data-testid="vorschau" role="dialog" aria-modal="false" tabindex="-1" aria-labelledby="vorschau-titel" hidden>
+    <header class="vorschau-kopf" id="vorschau-kopf" title="Zum Verschieben ziehen">
+      <span class="vorschau-icon" id="vorschau-icon" aria-hidden="true"></span>
+      <h2 class="vorschau-titel" id="vorschau-titel" data-testid="vorschau-titel">Theke</h2>
+      <button type="button" class="vorschau-zu" id="vorschau-schliessen" data-testid="vorschau-schliessen" aria-label="Theke schließen" title="Schließen (Esc)"></button>
+    </header>
+    <div class="vorschau-inhalt" id="vorschau-inhalt" data-testid="vorschau-inhalt"></div>
+  </section>
 
   <!-- Rückfrage-Dialog -->
   <dialog class="dialog" id="dialog-frage" data-testid="dialog-frage" aria-labelledby="dialog-titel">

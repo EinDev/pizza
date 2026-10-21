@@ -213,7 +213,7 @@ export function erstelleKonsole({ springe }) {
       if (!ev || !ev.typ) return;
       const leer = inhalt.querySelector(".konsole-leer");
       if (leer) leer.remove();
-      if (ev.typ === "ende") return;
+      if (ev.typ === "ende" || ev.typ === "ui" || ev.typ === "ui-warte") return;
       ausgabePuffer.push(ev);
       planeZeichnen();
     },
