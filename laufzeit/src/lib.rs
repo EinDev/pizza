@@ -124,6 +124,16 @@ pub fn alloc_roh(groesse: u32, ausr: u32) -> *mut u8 {
     }
 }
 
+/// Passt eine Allokation von `groesse` Bytes noch unter die harte Grenze (Limit + Reserve)? Große Einzelallokationen
+/// (z. B. Textverkettung) prüfen das vorher und werfen sonst die Kühlschrank-Ananas, statt in `alloc_roh` zu trappen.
+pub fn speicher_passt(groesse: u32) -> bool {
+    unsafe {
+        heap_init();
+        let benutzt = (HEAP_TOP - HEAP_START) as u64 + groesse as u64 + 16;
+        benutzt <= SPEICHER_LIMIT as u64 + RESERVE as u64
+    }
+}
+
 /// Prüft, ob das Speicherlimit überschritten wurde, und wirft dann die Kühlschrank-Ananas.
 pub fn speicher_pruefen() {
     unsafe {

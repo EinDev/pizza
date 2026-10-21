@@ -1,0 +1,14 @@
+// Fuzz-Fund gueltig-s42-266: Text verdoppeln, bis die Motorgrenze erreicht ist.
+// Erwartet: fangbare LaufzeitAnanas „Der Kühlschrank ist voll“ statt internem Fehler (K-014).
+// Wo genau die Grenze liegt, hängt vom Motor ab – die Ausgabe hier nicht.
+margherita t = "Käse";
+salami runden = 0;
+probier {
+    für (salami i = 0; i < 40; i++) { t += t; runden++; }
+    Bote.sage(("nie"));
+} verbrannt (LaufzeitAnanas a) {
+    Bote.sage(("gefangen: " + a.nachricht()));
+}
+t = "";
+Bote.sage((runden > 20));
+Bote.sage(("weiter"));
