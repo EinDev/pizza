@@ -2,12 +2,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { e2e, umgebung, editorText, aktiverTabName } from "../hilfen.mjs";
-import { cspAusNginx } from "../server.mjs";
+import { cspAusNginx, headerAusNginx } from "../server.mjs";
 
 test("Server: CSP stammt aus nginx.conf, /healthz antwortet", async () => {
   const { server } = await umgebung();
   assert.ok(cspAusNginx(), "CSP in nginx.conf gefunden");
   assert.equal(server.csp, cspAusNginx());
+  // Alle festen Header aus nginx.conf werden 1:1 gesendet (nichts hart codiert, z. B. 'wasm-unsafe-eval')
+  const index = await fetch(server.url);
+  for (const [name, wert] of Object.entries(headerAusNginx())) assert.equal(index.headers.get(name), wert, name);
   const r = await fetch(server.url + "healthz");
   assert.equal(r.status, 200);
   assert.equal(await r.text(), "ok\n");

@@ -5,6 +5,7 @@ import {
   e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
+  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster,
 } from "../hilfen.mjs";
 
 const { liste: BEISPIELE, fehlend, teile } = beispieleAusManifesten();
@@ -15,13 +16,14 @@ test("Manifeste: alle in index.json gelisteten Teil-Manifeste existieren", () =>
 });
 
 async function karteKlicken(page, b) {
-  const ok = await page.$$eval(S.beispielKarte, (karten, titel) => {
-    const k = karten.find((x) => x.querySelector(".bsp-titel").textContent === titel);
+  // per ID (Titel/Dateinamen sind kategorieübergreifend nicht eindeutig, z. B. „Belag-Baukasten“)
+  const ok = await page.$$eval(S.beispielKarte, (karten, id, titel) => {
+    const k = karten.find((x) => x.dataset.id === id) || karten.find((x) => x.querySelector(".bsp-titel").textContent === titel);
     if (!k) return false;
     k.scrollIntoView({ block: "center" });
     k.click();
     return true;
-  }, b.titel || b.id);
+  }, b.id, b.titel);
   assert.ok(ok, "Karte gefunden: " + b.titel);
 }
 
@@ -70,12 +72,22 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
       try {
         const name = b.datei.split("/").pop();
         await karteKlicken(page, b);
-        await warteAufTab(page, name);
+        await warteAufTabMuster(page, name);
         assert.equal(await editorText(page), quellen[b.datei].replace(/\r\n?/g, "\n"), "Editor zeigt den Beispielcode");
         // per Tastatur backen (Strg+Enter): unabhängig davon, ob etwas den Backen-Knopf überdeckt.
         // Interaktive Programme: jede Eingabe-Anfrage mit der nächsten Zeile aus .eingabe beantworten, danach EOF.
         const zeilen = eingabeZeilen(b) || [];
-        const { gesendet } = await backenInteraktiv(page, zeilen, { timeout: 30_000 });
+        const theke = thekeEreignisse(b);
+        let gesendet = 0;
+        if (theke) {
+          // Theke: Ereignisse im Vorschaufenster nachspielen (Klick/Tippen/Enter/Haken, „geschlossen“ = Schließen-Knopf)
+          await backenTheke(page, theke, { timeout: 30_000 });
+          const uiSoll = thekeUiErwartet(b);
+          if (uiSoll) assert.deepEqual(await uiNachrichten(page), uiSoll, "ui-Nachrichten entsprechen .ui-erwartet");
+          assert.equal(await page.$eval(VORSCHAU, (v) => v.hidden), true, "Programmende schließt das Vorschaufenster");
+        } else {
+          ({ gesendet } = await backenInteraktiv(page, zeilen, { timeout: 30_000 }));
+        }
         if (zeilen.length) assert.equal(gesendet, zeilen.length, "alle Eingabezeilen wurden abgefragt");
         // 1) Ereignisstrom (inkl. «leeren») exakt wie .erwartet
         assert.equal(await ausgabeAusEreignissen(page), b.erwartetText, "Ereignisse entsprechen " + b.erwartet);

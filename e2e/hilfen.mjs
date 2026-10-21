@@ -486,3 +486,100 @@ export function eingabeZeilen(b) {
 export function eingabeUnterstuetzt(page) {
   return page.evaluate(() => !!(window.PizzaLang && /Bestellannahme/.test(String(window.PizzaLang.BUILTINS || "")) || document.querySelector('[data-testid="konsole-eingabe"]')));
 }
+
+// ---------------------------------------------------------------- Theke (THEKE.md): Vorschaufenster
+export const VORSCHAU = '[data-testid="vorschau"], #vorschau';
+export const VORSCHAU_ZU = '[data-testid="vorschau-schliessen"], #vorschau-schliessen';
+
+/** .ereignisse eines Beispiels (JSON-Lines) oder null. */
+export function thekeEreignisse(b) {
+  const datei = b.ereignisse || b.datei.replace(/\.pizza$/, ".ereignisse");
+  const p = path.join(SITE, "beispiele", datei);
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+}
+
+/** .ui-erwartet eines Beispiels (JSON-Lines aller ui-Nachrichten) oder null. */
+export function thekeUiErwartet(b) {
+  const datei = b.uiErwartet || b.datei.replace(/\.pizza$/, ".ui-erwartet");
+  const p = path.join(SITE, "beispiele", datei);
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+}
+
+/** Alle bisher empfangenen ui-Nachrichten (Programm → Renderer). */
+export function uiNachrichten(page) {
+  return page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui").map((e) => e.nachricht));
+}
+
+const uiWarteZahl = (page) => page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
+const laufVorbei = (page) => page.evaluate(() => !document.body.classList.contains("laeuft") && !document.getElementById("knopf-backen").hidden);
+
+/** Wartet, bis das Programm in bediene() auf das nächste Ereignis wartet (oder der Lauf vorbei ist). */
+export async function warteAufBediene(page, vorher, timeout = 8000) {
+  await page.waitForFunction((n) => {
+    const w = (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length;
+    return w > n || (!document.body.classList.contains("laeuft") && !document.getElementById("knopf-backen").hidden);
+  }, { timeout, polling: 20 }, vorher);
+}
+
+/** Spielt ein Theke-Ereignis im Vorschaufenster nach – so nah am Nutzer wie möglich (echte Klicks/Enter). */
+export async function thekeEreignis(page, ev) {
+  if (ev.typ === "geschlossen") { await page.click(VORSCHAU_ZU); return; }
+  const sel = `${VORSCHAU.split(",")[1].trim()} [data-theke-id="${ev.id}"]`;
+  const el = await page.waitForSelector(sel, { timeout: 5000 });
+  if (ev.typ === "klick") {
+    const knopf = (await el.evaluate((e) => e.matches("button"))) ? el : (await el.$("button")) || el;
+    // .ereignisse dürfen Klicks auf deaktivierte Knöpfe enthalten (z. B. belegtes Tic-Tac-Toe-Feld): im Browser
+    // erzeugt so ein Klick kein Ereignis – das Programm würde ihn ohnehin ignorieren.
+    if (await knopf.evaluate((k) => k.disabled || k.getAttribute("aria-disabled") === "true")) return "deaktiviert";
+    await knopf.click();
+  } else if (ev.typ === "aenderung" && typeof ev.wert === "boolean") {
+    const box = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
+    if ((await box.evaluate((b) => b.checked)) !== ev.wert) await box.click();
+  } else if (ev.typ === "aenderung") {
+    // Wert setzen + input-Event (ein Ereignis pro Zeile in .ereignisse, wie die Testdatei es vorgibt)
+    await el.evaluate((e, w) => { const i = e.matches("input") ? e : e.querySelector("input"); i.focus(); i.value = w; i.dispatchEvent(new Event("input", { bubbles: true })); }, String(ev.wert));
+  } else if (ev.typ === "enter") {
+    const i = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
+    if (ev.wert != null) await i.evaluate((x, w) => { if (x.value !== w) x.value = w; }, String(ev.wert));
+    await i.focus();
+    await page.keyboard.press("Enter");
+  } else {
+    throw new Error("Unbekanntes Theke-Ereignis: " + JSON.stringify(ev));
+  }
+}
+
+/**
+ * Backt ein Theke-Programm: wartet auf das Vorschaufenster, spielt die Ereignisse nach (jeweils erst, wenn das
+ * Programm in bediene() wartet), schließt am Ende (falls nicht in den Ereignissen) und wartet auf das Laufende.
+ */
+export async function backenTheke(page, ereignisse, { timeout = 30_000 } = {}) {
+  await ereignisseLeeren(page);
+  await page.focus("#editor .cm-content");
+  await strg(page, "Enter");
+  await page.waitForSelector(`${VORSCHAU.split(",")[1].trim()}:not([hidden]) [data-theke-id]`, { timeout: 10_000 });
+  let geschlossen = false;
+  for (const ev of ereignisse) {
+    if (await laufVorbei(page)) break;
+    await warteAufBediene(page, 0);
+    const vorher = await uiWarteZahl(page);
+    const r = await thekeEreignis(page, ev);
+    if (ev.typ === "geschlossen") { geschlossen = true; break; }
+    if (r !== "deaktiviert") await warteAufBediene(page, vorher);
+  }
+  if (!geschlossen && !(await laufVorbei(page))) await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page, timeout);
+}
+
+/** Wie warteAufTab, akzeptiert aber eindeutig gemachte Namen (name-2.pizza …). */
+export async function warteAufTabMuster(page, name, timeout = 5000) {
+  const basis = name.replace(/\.pizza$/, "");
+  await page.waitForFunction((sel, b) => {
+    const a = document.querySelector(sel);
+    const t = a && a.querySelector(".etab-name");
+    if (!t) return false;
+    const n = t.textContent;
+    return n === b + ".pizza" || (n.startsWith(b + "-") && /^\d+\.pizza$/.test(n.slice(b.length + 1)));
+  }, { timeout }, S.tabAktiv, basis);
+}

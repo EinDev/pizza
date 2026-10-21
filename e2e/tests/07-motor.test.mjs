@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
-  ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen,
+  ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
@@ -29,9 +29,10 @@ async function setzeMotor(page, m) {
 }
 
 /** Backt und liefert Ausgabe, Exit-Text, gemeldeten Motor. */
-async function lauf(page, zeilen = []) {
+async function lauf(page, zeilen = [], theke = null) {
   await ereignisseLeeren(page);
-  await backenInteraktiv(page, zeilen, { timeout: 30_000 });
+  if (theke) await backenTheke(page, theke, { timeout: 30_000 });
+  else await backenInteraktiv(page, zeilen, { timeout: 30_000 });
   const r = {
     ausgabe: await ausgabeAusEreignissen(page),
     konsole: await konsolenAusgabe(page),
@@ -96,11 +97,39 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
     for (const m of modi) {
       await t.test(`${b.datei} (${m})`, async () => {
         await setzeMotor(page, m);
-        const r = await lauf(page, eingabeZeilen(b) || []);
+        const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b));
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
         if (m === "wasm") assert.equal(r.motor, "wasm");
       });
     }
   }
   await schlafe(10);
+});
+
+e2e("Motor-Standard ist „Auto“ (frischer Browser, nichts gemerkt)", async ({ page, oeffne }) => {
+  await oeffne();
+  assert.equal(await page.$eval(WAHL, (w) => w.value), "auto");
+  const v = await motorVerfuegbar(page);
+  assert.equal(v.auto, true);
+});
+
+e2e("Wasm-Lauf zeigt Motor-Badge „Wasm“ (Auto und explizit Wasm), Interpreter-Lauf „Interpreter“", async ({ page, oeffne }) => {
+  await oeffne();
+  const v = await motorVerfuegbar(page);
+  assert.ok(v && v.wasm, "Wasm-Motor verfügbar (motoren.json / pizzaiolo.js)");
+  const badge = () => page.$eval('[data-testid="motor-badge"]', (b) => ({ text: b.textContent, klasse: b.className, hidden: b.hidden || !b.getClientRects().length }));
+  await setzeCode(page, 'Bote.sage(("ofenfrisch"));');
+  for (const m of ["auto", "wasm"]) {
+    await setzeMotor(page, m);
+    const r = await lauf(page);
+    assert.equal(r.ausgabe, "ofenfrisch\n");
+    assert.equal(r.motor, "wasm", m + ": Lauf meldet Motor wasm");
+    const b = await badge();
+    assert.equal(b.hidden, false, m + ": Badge sichtbar");
+    assert.match(b.text, /^Wasm\b/, m + ": Badge-Text „" + b.text + "“");
+  }
+  await setzeMotor(page, "interpreter");
+  const r = await lauf(page);
+  assert.equal(r.motor, "interpreter");
+  assert.match((await badge()).text, /Interpreter/i);
 });

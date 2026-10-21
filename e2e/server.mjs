@@ -9,20 +9,24 @@ import { fileURLToPath } from "node:url";
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 export const WURZEL = path.resolve(HIER, "..", "site");
 
-/** Exakt wie in nginx.conf (add_header … always). Wird beim Start gegen nginx.conf geprüft. */
-export const CSP =
-  "default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; " +
-  "style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
+export const NGINX_CONF = path.resolve(HIER, "..", "nginx.conf");
 
-/** Liest die CSP aus nginx.conf, damit Server und nginx nicht auseinanderlaufen. */
-export function cspAusNginx() {
-  try {
-    const conf = fs.readFileSync(path.resolve(HIER, "..", "nginx.conf"), "utf8");
-    const m = /add_header\s+Content-Security-Policy\s+"([^"]+)"/.exec(conf);
-    return m ? m[1] : null;
-  } catch {
-    return null;
-  }
+/**
+ * Alle festen `add_header Name "Wert" …;` aus nginx.conf (Variablen wie `$pizza_cache_header` ausgenommen).
+ * Bewusst KEIN hart codierter Rückfall: Server und nginx dürfen nicht auseinanderlaufen
+ * (z. B. CSP mit/ohne 'wasm-unsafe-eval'). Fehlt nginx.conf oder die CSP, bricht der Start ab.
+ */
+export function headerAusNginx(datei = NGINX_CONF) {
+  const conf = fs.readFileSync(datei, "utf8");
+  const h = {};
+  for (const m of conf.matchAll(/^[ \t]*add_header[ \t]+([A-Za-z0-9-]+)[ \t]+"([^"]*)"/gm)) h[m[1]] = m[2];
+  if (!h["Content-Security-Policy"]) throw new Error("Keine Content-Security-Policy in " + datei + " gefunden");
+  return h;
+}
+
+/** Die CSP aus nginx.conf. */
+export function cspAusNginx(datei = NGINX_CONF) {
+  return headerAusNginx(datei)["Content-Security-Policy"];
 }
 
 const MIME = {
@@ -52,30 +56,6 @@ function cacheControl(uri, status) {
   return "no-cache";
 }
 
-/** Standard-Header, falls nginx.conf nicht lesbar ist (Stand: EINGABE.md §3 mit Cross-Origin-Isolation). */
-const STANDARD_HEADER = {
-  "Content-Security-Policy": CSP,
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
-  "X-Frame-Options": "DENY",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
-  "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Embedder-Policy": "require-corp",
-  "Cross-Origin-Resource-Policy": "same-origin",
-};
-
-/** Alle festen `add_header Name "Wert" always;` aus nginx.conf (Variablen wie Cache-Control ausgenommen). */
-export function headerAusNginx() {
-  try {
-    const conf = fs.readFileSync(path.resolve(HIER, "..", "nginx.conf"), "utf8");
-    const h = {};
-    for (const m of conf.matchAll(/^s*add_headers+([w-]+)s+"([^"]*)"/gm)) h[m[1]] = m[2];
-    return Object.keys(h).length ? h : null;
-  } catch {
-    return null;
-  }
-}
-
 function header(basisHeader, uri, status) {
   return { ...basisHeader, "Cache-Control": cacheControl(uri, status) };
 }
@@ -86,7 +66,7 @@ function header(basisHeader, uri, status) {
  */
 export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {}) {
   // Header wie nginx; Cross-Origin-Isolation (COOP+COEP) immer an – außer für Fallback-Tests (isolation: false)
-  const basisHeader = { ...STANDARD_HEADER, ...(headerAusNginx() || {}) };
+  const basisHeader = headerAusNginx();
   if (isolation) {
     basisHeader["Cross-Origin-Opener-Policy"] = "same-origin";
     basisHeader["Cross-Origin-Embedder-Policy"] = "require-corp";
