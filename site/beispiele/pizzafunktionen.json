@@ -52,6 +52,16 @@
       "schlagworte": ["schneide", "auto", "belege", "zusammenklappen", "StreitAnanas"]
     },
     {
+      "id": "kuechenbrigade",
+      "titel": "Küchenbrigade: echte Parallelität",
+      "beschreibung": "Hochzeit bei Familie Rossi: 24 Pizzen auf einmal. Mit brigade bekommt jeder Koch eine eigene Küche – alle backen gleichzeitig, auf der Pizza-Uhr zählt nur der langsamste. Wer heimlich in der Hauptküche mitzählt, fängt sich eine KüchenAnanas.",
+      "datei": "pizzafunktionen/kuechenbrigade.pizza",
+      "erwartet": "pizzafunktionen/kuechenbrigade.erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["brigade", "Parallelität", "schneide", "Uhr", "Zufall", "KüchenAnanas"]
+    },
+    {
       "id": "besitz",
       "titel": "Stücke & Besitz",
       "beschreibung": "Jede Pizza gehört genau einem Tisch: schieb() gibt weiter, teile() verteilt Stücke – beim 9. Gast gibt es Streit.",

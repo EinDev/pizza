@@ -718,7 +718,150 @@
               )
             },
             { art: "hinweis", ton: "pizza", md: "`S0007: 7 Stücke? Wer schneidet eine Pizza in 7 Stücke?` – Warnungen ändern den Exit-Code nicht. Nur, wie der Pizzaiolo Sie ansieht." },
-            { art: "hinweis", ton: "info", md: "**Tier 2 – Parallelität wird nacheinander simuliert.** Die Stücke laufen im Playground in einem einzigen Thread; das Ergebnis ist dasselbe, nur die Geschwindigkeit nicht. Echte Parallelität auf mehreren Kernen ist **Tier 3**." }
+            { art: "hinweis", ton: "info", md: "**Tier 2 – `belege` arbeitet nacheinander.** Die Stücke laufen der Reihe nach in einer Küche; die Uhr zählt die Zeit aller Stücke zusammen. Sollen die Köche wirklich gleichzeitig arbeiten, nimm `brigade` statt `belege` – siehe *Küchenbrigade*." }
+          ]
+        }
+      ]
+    },
+
+    // ------------------------------------------------------------------
+    {
+      id: "pf-brigade",
+      gruppe: G,
+      ordnung: 365,
+      titel: "Küchenbrigade (echte Parallelität)",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Mit `brigade` bekommt jedes Element eines Blechs eine **eigene Küche** mit eigenem Koch. Alle kochen gleichzeitig – auf der Pizza-Uhr zählt nur der **langsamste**. In die Hauptküche dürfen die Köche nur **hineinschauen**." },
+        bild("pf-brigade.svg", "Oben die abgeschlossene Hauptküche mit bons, namen und gezählt = 0 als Schnappschuss. Gestrichelte Pfeile: vier Küchen schauen hinein. Jede Küche hat einen Koch und einen eigenen Uhrbalken, Küche 2 ist am langsamsten. Ein roter, durchgestrichener Pfeil zurück in die Hauptküche: schreiben gibt eine KüchenAnanas. Unten kommen vier Kartons 1 bis 4 und ergeben das Blech [r1, r2, r3, r4] – immer in dieser Reihenfolge", "Lesen ja, schreiben nein – und zurück kommt nur, was serviert wird."),
+        { art: "text", md: "Programmier-Begriff: **paralleles Map** (Fork/Join ohne gemeinsamen Zustand). `blech.brigade(fn)` liefert genau dasselbe Blech wie `blech.belege(fn)` – gleiche Werte, gleiche Reihenfolge. Der Unterschied: Jedes Element läuft in einer abgeschotteten Küche, und die Zeit wird so gemessen, als hätten alle Köche gleichzeitig angefangen." },
+        {
+          art: "code",
+          ausfuehrbar: true,
+          tier: 1,
+          code: z(
+            'Blech<salami> bestellungen = [3, 1, 4, 2];   // Minuten im Ofen',
+            '',
+            'salami backe(salami minuten) {',
+            '    Uhr.vorspulen(minuten * 1min);',
+            '    serviere (minuten * 2);                  // zwei Pizzen pro Ofenminute',
+            '}',
+            '',
+            'Dauer t0 = Uhr.jetzt();',
+            'Blech<salami> a = bestellungen.belege(m -> backe(m));',
+            'Bote.sage(("belege:  " + a + " nach " + (Uhr.jetzt() - t0)));',
+            '',
+            'Dauer t1 = Uhr.jetzt();',
+            'Blech<salami> b = bestellungen.brigade(m -> backe(m));',
+            'Bote.sage(("brigade: " + b + " nach " + (Uhr.jetzt() - t1)));'
+          )
+        },
+        { art: "ausgabe", text: z("belege:  [6, 2, 8, 4] nach 10min 64ms", "brigade: [6, 2, 8, 4] nach 4min 28ms") },
+        { art: "text", md: "Gleiches Ergebnis, aber `belege` braucht 3 + 1 + 4 + 2 = 10 Minuten, die Brigade nur so lange wie der Koch mit den 4 Minuten. Die gezählten Schritte (die **Arbeit**) sind bei beiden gleich – nur die **Zeit** ist kürzer." },
+        {
+          art: "details",
+          titel: "Was ein Koch darf – und was nicht (KüchenAnanas)",
+          inhalt: [
+            { art: "text", md: "Beim Start der Brigade wird die Hauptküche **eingefroren**: Alles, was es da schon gibt – Variablen, Objekte, Bleche, Speisekarten, Pizzen –, darf ein Koch **lesen**, aber nicht verändern. Was er selbst anlegt, gehört ihm und ist frei veränderbar. Der einzige Weg zurück ist `serviere`." },
+            {
+              art: "tabelle",
+              kopf: ["In der Küche", "erlaubt?"],
+              zeilen: [
+                ["Variablen und Objekte der Hauptküche **lesen**", "ja – Stand vom Start der Brigade"],
+                ["eigene Variablen, `neu`, eigene Bleche und Pizzen, `kopie()`", "ja, lesen und ändern"],
+                ["Methoden aufrufen, `ofen`, `probier`, eigene `teig`/`bestelle`, `Uhr`, `Zufall`", "ja"],
+                ["`Bote.sage` & Co.", "ja – die Ausgaben erscheinen in der Reihenfolge der Elemente"],
+                ["Variable oder Feld der Hauptküche ändern (`=`, `+=`, `++`)", "nein → `KüchenAnanas`"],
+                ["`hinzu`/`entferne`/`setze` auf einem Blech der Hauptküche", "nein → `KüchenAnanas` (nimm eine `kopie()`)"],
+                ["`Bestellannahme`, `Theke`, `neu Vorratskammer(…)`", "nein – gibt es nur in der Hauptküche"],
+                ["Funktion, Teig, Lieferung oder Zufall-Objekt **servieren**", "nein – nur Werte passen in den Karton"]
+              ]
+            },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                'Blech<margherita> fertig = [];',
+                'salami gezählt = 0;',
+                'probier {',
+                '    [1, 2, 3].brigade(nr -> {',
+                '        Blech<margherita> meins = fertig.kopie();   // eigene Kopie: frei veränderbar',
+                '        meins.hinzu(("Pizza " + nr));',
+                '        gezählt++;                                    // gehört der Hauptküche!',
+                '        serviere (nr);',
+                '    });',
+                '} verbrannt (KüchenAnanas a) {',
+                '    Bote.sage((a.nachricht()));',
+                '}',
+                'probier {',
+                '    [1, 2].brigade(nr -> fertig.hinzu(("Pizza " + nr)));',
+                '} verbrannt (KüchenAnanas a) {',
+                '    Bote.sage((a.nachricht()));',
+                '}',
+                'Blech<salami> zahlen = [1, 2, 3].brigade(nr -> nr * 10);',
+                'gezählt = zahlen.länge();          // zurück in der Hauptküche: alles erlaubt',
+                'Bote.sage((zahlen + " / gezählt: " + gezählt));'
+              )
+            },
+            { art: "ausgabe", text: z("'gezählt' gehört der Hauptküche – ein Koch darf es nur lesen.", "Dieses Blech gehört der Hauptküche – nimm eine kopie().", "[10, 20, 30] / gezählt: 3") },
+            { art: "text", md: "Die `KüchenAnanas` ist eine `LaufzeitAnanas`. Sie fliegt genau an der Stelle, an der geschrieben werden soll – noch bevor sich etwas ändert –, und lässt sich im Koch oder um den `brigade`-Aufruf herum fangen. Auch was nicht in den Karton passt, gibt eine:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                'probier {',
+                '    [1, 2].brigade(x -> (y -> y + x));     // eine Funktion servieren',
+                '} verbrannt (KüchenAnanas a) {',
+                '    Bote.sage((a.nachricht()));',
+                '}',
+                'probier {',
+                '    [1].brigade(x -> Bestellannahme.lies());',
+                '} verbrannt (KüchenAnanas a) {',
+                '    Bote.sage((a.nachricht()));',
+                '}'
+              )
+            },
+            { art: "ausgabe", text: z("Eine Funktion passt in keinen Karton – nur Werte können die Küche verlassen.", "Bestellannahme gibt es nur in der Hauptküche.") },
+            { art: "hinweis", ton: "pizza", md: "Zurück kommen immer **Kopien** – auch eigene Objekte, Bleche und Pizzen. Die gehören dann wieder der Hauptküche und sind dort frei veränderbar." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Immer dasselbe Ergebnis – egal wie viele Köche",
+          inhalt: [
+            { art: "text", md: "Eine Brigade ist **deterministisch**: Ausgabe, Ananas, Exit-Code, Schritte und Pizza-Uhr sind bei jedem Lauf gleich – genau so, als hätten die Köche einer nach dem anderen gekocht.\n\n- **Reihenfolge:** Das Ergebnis-Blech und alle Ausgaben kommen in der Reihenfolge der Elemente, egal welcher Koch zuerst fertig ist.\n- **Ärger:** Werfen mehrere Köche eine Ananas, gewinnt die des **ersten** Elements. Sie fliegt am `brigade`-Aufruf weiter; Köche dahinter zählen, als wären sie nie gelaufen.\n- **Zufall:** Jede Küche würfelt mit einem eigenen Würfel. Dessen Saat zieht die Hauptküche beim Start der Brigade der Reihe nach – mit derselben Saat kommt also immer dasselbe heraus.\n- **Uhr:** Jede Küche hat eine eigene Uhr. Danach steht die Uhr der Hauptküche dort, wo der langsamste Koch fertig wurde." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                'Zufall.saat(42);',
+                'Blech<salami> würfe = [1, 2, 3].brigade(x -> {',
+                '    Bote.sage(("Koch " + x + " würfelt"));',
+                '    serviere (Zufall.zahl(1, 1000));',
+                '});',
+                'Bote.sage((würfe));',
+                'Bote.sage((Zufall.zahl(1, 1000)));   // die Hauptküche würfelt weiter'
+              )
+            },
+            { art: "ausgabe", text: z("Koch 1 würfelt", "Koch 2 würfelt", "Koch 3 würfelt", "[248, 359, 896]", "670") },
+            { art: "text", md: "**Stücke und Köche sind zweierlei.** Wie viele Stücke es gibt, bestimmt dein Programm – meist mit `schneide(n)`. Wie viele Köche gleichzeitig daran arbeiten, bestimmt dagegen der Rechner, auf dem das Programm läuft. Daran ändert sich nur, wie lange du in echt wartest – nie das Ergebnis." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                'Blech<salami> bons = [1 .. 1000];',
+                'Blech<salami> teilsummen = bons.schneide(4).brigade(stapel -> stapel.summe());',
+                'Bote.sage((teilsummen));',
+                'Bote.sage((teilsummen.zusammenklappen((a, b) -> a + b)));'
+              )
+            },
+            { art: "ausgabe", text: z("[31375, 93875, 156375, 218875]", "500500") },
+            { art: "hinweis", ton: "info", md: "Die Küchenbrigade läuft im Interpreter; der Wasm-Motor (Beta) kann sie noch nicht – mit „Auto (Beta)“ übernimmt dann der Interpreter. Er lässt die Köche nacheinander kochen: Ergebnis und Pizza-Uhr sind genau dieselben." },
+            { art: "hinweis", ton: "pizza", md: "Ein ganzes Fest mit 24 Pizzen, vier Köchen und einem Koch, der heimlich mitzählen will, zeigt das Beispiel **Küchenbrigade** unter *Pizza-Funktionen*." }
           ]
         }
       ]

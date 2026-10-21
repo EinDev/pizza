@@ -858,6 +858,7 @@ probier {
             ["`TypAnanas`", "`salami x = 3.5;`"],
             ["`ZugriffsAnanas`", "fremder Zugriff auf ein `geheimrezept`"],
             ["`UnbekannterBelagAnanas`", "Belag steht nicht auf der Zutatenliste"],
+            ["`KüchenAnanas`", "ein Koch einer `brigade` will etwas aus der Hauptküche ändern"],
             ["`LaufzeitAnanas`", "sonstige Fehler, z. B. „'x' ist nicht definiert.“"]
           ] }
         ] },

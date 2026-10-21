@@ -645,6 +645,7 @@
               ["`kopie()`", "neu", "Unabhängige Kopie", "`Blech<salami> k = b.kopie();`"],
               ["`enthält(x)`", "–", "Ist `x` drauf? (Pizzen werden nach Belägen verglichen)", "`b.enthält(4)` → `ja`"],
               ["`belege(fn)`", "neu", "map: wendet `fn` auf jedes Element an", "`b.belege(x -> x * 2)`"],
+              ["`brigade(fn)`", "neu", "wie `belege`, aber jedes Element in einer eigenen Küche – gleichzeitig, Hauptküche nur lesbar (siehe *Küchenbrigade*)", "`b.brigade(x -> x * 2)`"],
               ["`filtere(fn)`", "neu", "Behält nur Elemente, für die `fn` `ja` liefert", "`b.filtere(x -> x > 2)`"],
               ["`zusammenklappen(fn)` / `(fn, start)`", "–", "reduce: fasst alles zu einem Wert zusammen; `start` geht auch benannt (`start: 0`); leeres Blech ohne Start → `karton`", "`b.zusammenklappen((a, c) -> a + c, 0)`"],
               ["`summe()`", "–", "Summe aller Zahlen (bei Dauern eine Dauer); leer → `0`", "`[1, 2, 3].summe()` → `6`"],
