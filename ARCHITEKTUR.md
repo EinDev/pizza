@@ -175,3 +175,23 @@ Regeln für jeden Abschnitt:
 - Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.
 - Hawaii-Panik: kein Crash-Overlay – Banner als Fehlerausgabe in der Konsole, Exit-Code-Badge 39 (KLAERUNGEN K-012).
 - Hell/Dunkel, deutsch, keine externen Requests zur Laufzeit (alles gebündelt).
+
+## 6. Testfall-Dateien (Vertrag für Harnische)
+
+Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) lesen dieselben Formate:
+
+| Ort | Datei | Inhalt |
+|---|---|---|
+| `tests/faelle/` | `<name>.pizza` | Quelltext des Falls |
+| | `<name>.erwartet` | Ausgabestrom nach §3 (`ausgabe`/`fehlerausgabe`/`panik`, `umbruch:false` ohne Umbruch, `«leeren»`), endet mit genau einem `\n` |
+| | `<name>.exitcode` | erwarteter Exit-Code (eine Zahl); fehlt → 0 |
+| | `<name>.warnungen` | erwartete `warnung`-Texte, je Zeile ein Text (`W0666: …`), in Reihenfolge; fehlt → nicht geprüft |
+| | `<name>.fehler` | erwartete `fehler`-Texte (eine Zeile pro Ereignis); fehlt → nicht geprüft |
+| | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
+| | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
+| `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
+| `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |
+| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ |
+| Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional) |
+
+Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).

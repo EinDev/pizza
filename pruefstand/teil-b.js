@@ -79,7 +79,16 @@ function ladeManifeste() {
         const t = fs.readFileSync(ep, "utf8");
         if (t.length && !t.endsWith("\n")) fehler.push(`${wo}: ${b.erwartet} ohne abschließenden Zeilenumbruch (ARCHITEKTUR §3)`);
       }
-      if (dp && istDatei(dp) && ep && istDatei(ep)) beispiele.push({ teil, id: b.id, titel: b.titel, datei: dp, erwartet: ep, exitCode: b.exitCode, tier: b.tier });
+      // SPEC §11.1 / K-051: optionales Feld eingabe (Datei muss existieren), Fallback gleichnamige .eingabe;
+      // interaktiv: true verlangt eine Eingabedatei
+      let eingabe = null;
+      if ("eingabe" in b) {
+        if (typeof b.eingabe !== "string" || !b.eingabe.trim()) fehler.push(`${wo}: 'eingabe' ist kein Dateipfad`);
+        else { eingabe = path.join(BSP, b.eingabe); if (!istDatei(eingabe)) { fehler.push(`${wo}: eingabe ${b.eingabe} fehlt`); eingabe = null; } }
+      } else if (dp && istDatei(dp.replace(/\.pizza$/, ".eingabe"))) eingabe = dp.replace(/\.pizza$/, ".eingabe");
+      if ("interaktiv" in b && typeof b.interaktiv !== "boolean") fehler.push(`${wo}: 'interaktiv' ist kein Boolean`);
+      if (b.interaktiv === true && !eingabe) fehler.push(`${wo}: interaktiv ohne Eingabedatei (eingabe-Feld oder .eingabe neben der .pizza, SPEC §11.1)`);
+      if (dp && istDatei(dp) && ep && istDatei(ep)) beispiele.push({ teil, id: b.id, titel: b.titel, datei: dp, erwartet: ep, exitCode: b.exitCode, tier: b.tier, eingabe, interaktiv: b.interaktiv === true });
     });
   }
   return { fehler, hinweise, beispiele };
@@ -96,6 +105,11 @@ function pruefeBeispielDateien() {
   }
   for (const p of alleDateien(BSP, (f) => f.endsWith(".erwartet"))) {
     if (!istDatei(p.replace(/\.erwartet$/, ".pizza"))) fehler.push(`${rel(p)} ohne zugehörige .pizza`);
+  }
+  // K-051: jede .eingabe-Datei gehört zu einem referenzierten Beispiel (per Manifestfeld oder als gleichnamiger Fallback)
+  const eingaben = new Set(beispiele.filter((b) => b.eingabe).map((b) => path.resolve(b.eingabe)));
+  for (const p of alleDateien(BSP, (f) => f.endsWith(".eingabe"))) {
+    if (!eingaben.has(path.resolve(p))) fehler.push(`${rel(p)} wird von keinem Beispiel genutzt (weder eingabe-Feld noch gleichnamige .pizza im Manifest)`);
   }
   return { fehler };
 }

@@ -61,13 +61,19 @@ class Ausführer {
 const norm = (s) => String(s).replace(/\r\n/g, "\n");
 const j = (x) => JSON.stringify(x);
 
-function erwartetText(res, ohnePanik) {
+function erwartetText(res) {
   return res.ereignisse
-    .filter((e) => e.typ === "ausgabe" || e.typ === "fehlerausgabe" || e.typ === "leeren" || (e.typ === "panik" && !ohnePanik))
-    // EINGABE.md §2: umbruch:false ohne Zeilenumbruch, leeren als Zeile «leeren»
+    .filter((e) => e.typ === "ausgabe" || e.typ === "fehlerausgabe" || e.typ === "leeren" || e.typ === "panik")
+    // SPEC §11.1 / ARCHITEKTUR §3: umbruch:false ohne Zeilenumbruch, leeren als Zeile «leeren», eingabe nie
     .map((e) => (e.typ === "leeren" ? "«leeren»\n" : norm(e.text) + (e.umbruch === false ? "" : "\n")))
     .join("");
 }
+
+// ARCHITEKTUR §3: .erwartet endet mit genau einem Zeilenumbruch → beidseitig höchstens EINEN entfernen (K-052),
+// damit ein abschließendes Bote.sage(("")) prüfbar bleibt.
+const ohneSchlussUmbruch = (s) => s.replace(/\n$/, "");
+// ARCHITEKTUR §4: Doku-ausgabe-Blöcke dürfen den Panik-Banner weglassen (K-030) → Banner beidseitig entfernen.
+const ohneBanner = (s) => s.split(BANNER + "\n").join("").split(BANNER).join("");
 
 function bewerte(f, res) {
   const err = [];
@@ -121,9 +127,10 @@ function bewerte(f, res) {
     else if (norm(p.text).replace(/\n+$/, "") !== BANNER) err.push(`Panik-Text weicht vom SPEC-Banner ab:\n${norm(p.text)}`);
   } else if (ev.some((e) => e.typ === "panik")) err.push("unerwartetes 'panik'-Ereignis");
   if (f.erwartetDatei !== undefined) {
-    const ist = erwartetText(res, f.ohnePanik);
-    const soll = norm(f.erwartetDatei);
-    if (ist.replace(/\n+$/, "") !== soll.replace(/\n+$/, "")) err.push(`Ausgabe weicht von .erwartet ab:\n--- ist ---\n${ist}--- soll ---\n${soll}`);
+    let ist = erwartetText(res);
+    let soll = norm(f.erwartetDatei);
+    if (f.bannerOptional) { ist = ohneBanner(ist); soll = ohneBanner(soll); }
+    if (ohneSchlussUmbruch(ist) !== ohneSchlussUmbruch(soll)) err.push(`Ausgabe weicht von .erwartet ab:\n--- ist ---\n${ist}--- soll ---\n${soll}`);
   }
   if (f.check) {
     let r;
@@ -139,7 +146,9 @@ function ladeFälle() {
   const dir = path.join(__dirname, "faelle");
   const fälle = [];
   for (const d of fs.readdirSync(dir).filter((x) => x.endsWith(".js")).sort()) {
-    for (const f of require(path.join(dir, d))) fälle.push(f);
+    // *-offen.js: Fälle zu Klärungen, deren Umsetzung noch aussteht (KLAERUNGEN.md) – zählen nicht als Fehlschlag.
+    const offen = /-offen\.js$/.test(d);
+    for (const f of require(path.join(dir, d))) fälle.push(offen ? Object.assign({ offen: true }, f) : f);
   }
   return fälle;
 }
@@ -153,11 +162,15 @@ function beispielFälle() {
   }));
 }
 
-// EINGABE.md §2: vorgegebene Eingabe aus der .eingabe-Datei neben der .pizza (Manifest-Feld "eingabe" zeigt dorthin)
+// SPEC §11.1 / ARCHITEKTUR §3: vorgegebene Eingabe aus dem Manifest-Feld "eingabe", sonst aus der gleichnamigen
+// .eingabe-Datei neben der .pizza (Fallback, K-051). Eine Zeile pro Eingabe, letzter Zeilenumbruch zählt nicht.
 function eingabeZeilen(b) {
-  const datei = b.datei.replace(/\.pizza$/, ".eingabe");
+  const datei = b.eingabe || b.datei.replace(/\.pizza$/, ".eingabe");
   if (!fs.existsSync(datei)) return undefined;
-  const zeilen = norm(fs.readFileSync(datei, "utf8")).split("\n");
+  return eingabeAusText(fs.readFileSync(datei, "utf8"));
+}
+function eingabeAusText(t) {
+  const zeilen = norm(t).split("\n");
   if (zeilen.length && zeilen[zeilen.length - 1] === "") zeilen.pop();
   return zeilen;
 }
@@ -178,9 +191,12 @@ function dokuFälle() {
           const name = `${d.datei}:${a.id} #${pfad}${i}`;
           if (b.ausfuehrbar === true) {
             const f = { p, name, code: b.code, exit: typeof b.exitCode === "number" ? b.exitCode : 0, panikErlaubt: true };
+            // ARCHITEKTUR §4 / K-050: Codeblöcke dürfen vorgegebene Eingabe tragen (string[] oder Text mit Zeilen)
+            if (Array.isArray(b.eingabe)) f.eingabe = b.eingabe.map(String);
+            else if (typeof b.eingabe === "string") f.eingabe = eingabeAusText(b.eingabe);
             const next = inhalt[i + 1];
-            // Doku-"ausgabe" zeigt die Konsole; der Panik-Banner erscheint im Overlay → nicht verlangt
-            if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.ohnePanik = true; }
+            // Doku-"ausgabe" darf den Panik-Banner weglassen (ARCHITEKTUR §4, K-030) → Banner beidseitig entfernt
+            if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.bannerOptional = true; }
             out.push(f);
           } else if (b.ausfuehrbar === false) {
             out.push({ p, name: name + " (nur parsen)", parseOnly: b.code });
@@ -218,10 +234,11 @@ async function teilA() {
     gruppen.get(f.p).push(f);
   }
   const aus = new Ausführer();
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, offenOk = 0, offenRot = 0;
   const statistik = [];
   for (const [p, fälle] of gruppen) {
     let gOk = 0;
+    const istOffen = fälle.every((f) => f.offen);
     const meldungen = [];
     for (const f of fälle) {
       let err;
@@ -248,20 +265,28 @@ async function teilA() {
           }
         }
       }
+      if (f.offen) {
+        // offene Klärung: rot ist der erwartete Zustand; grün heißt „Umsetzung erledigt → nach a10 verschieben“
+        if (err.length) { offenRot++; if (verbose) meldungen.push({ f, err }); }
+        else { offenOk++; gOk++; meldungen.push({ f, err: [], hinweis: "jetzt grün – Fall nach a10-klaerungen.js verschieben" }); }
+        continue;
+      }
       if (err.length) { fail++; meldungen.push({ f, err }); }
       else { ok++; gOk++; if (verbose) meldungen.push({ f, err: [] }); }
     }
     const kopf = `${p}`.padEnd(34) + ` ${gOk}/${fälle.length}`;
-    console.log(gOk === fälle.length ? grün("✓ ") + kopf : rot("✗ ") + kopf);
-    for (const { f, err } of meldungen) {
+    if (istOffen) console.log(gelb("○ ") + kopf + grau("  (offen – Umsetzung ausstehend, zählt nicht als Fehlschlag)"));
+    else console.log(gOk === fälle.length ? grün("✓ ") + kopf : rot("✗ ") + kopf);
+    for (const { f, err, hinweis } of meldungen) {
+      if (hinweis) { console.log(gelb("    ! " + f.name) + grau(" – " + hinweis)); continue; }
       if (!err.length) { console.log(grau("    ✓ " + f.name)); continue; }
-      console.log(rot("    ✗ " + f.name));
+      console.log((f.offen ? gelb("    ○ ") : rot("    ✗ ")) + f.name);
       for (const e of err) console.log("        " + e.split("\n").join("\n        "));
     }
-    statistik.push({ p, ok: gOk, n: fälle.length });
+    statistik.push({ p, ok: gOk, n: fälle.length, offen: istOffen });
   }
   aus.stop();
-  return { übersprungen: false, ok, fail, gruppen: statistik };
+  return { übersprungen: false, ok, fail, offenOk, offenRot, gruppen: statistik };
 }
 
 // ───────────────────────── Teil B ─────────────────────────
@@ -294,6 +319,10 @@ function teilBausführen() {
     if (a.übersprungen) zus.push("Teil A: übersprungen – Interpreter fehlt");
     else {
       zus.push(`Teil A: ${a.ok}/${a.ok + a.fail} Fälle bestanden` + (a.fail ? rot(` (${a.fail} Abweichungen)`) : ""));
+      if (a.offenOk + a.offenRot) {
+        zus.push(`Teil A offen: ${a.offenOk}/${a.offenOk + a.offenRot} Klärungsfälle mit ausstehender Umsetzung bereits grün` +
+          (a.offenOk ? gelb(" – grüne Fälle nach a10-klaerungen.js verschieben") : ""));
+      }
       if (a.fail) fehlgeschlagen = true;
     }
   }

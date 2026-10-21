@@ -409,8 +409,8 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 | U-16 | `site/js/pizza.js` (`liesZeile`) | K-042: EOF endgültig (Flag setzen; `null`-Eintrag in `eingabe` = EOF ab dort) | a11 K-042 |
 | U-17 | `ui/src/ausfuehrung.js`, `site/js/worker.js` (UI-Agent) | K-044: Wand-Zeitlimit → `P0003`/`art:"limit"`; Worker-Fehler → `art:"intern"`, Code `WASM`/`INTERN` | e2e |
 | U-18 | `site/js/pizza.js` (`Uhr.vorspulen`, `warte`) | K-047: `vorspulen` rundet auf ganze ms; Lieferbudget `floor(max_ms × Faktor)`; `zeitMs` ganzzahlig | a11 K-047 |
-| U-19 | `pruefstand/run.js`, `pruefstand/teil-b.js` (Prüfstand-Agent) | K-050 (`eingabe` an Doku-Blöcken), K-051 (`.eingabe`-Fallback + B1-Prüfungen), K-052 (nur einen Schluss-Umbruch normalisieren), K-030 (Banner beidseitig entfernen statt `ohnePanik`) | Prüfstand selbst |
-| U-20 | `ARCHITEKTUR.md` oder `tests/README.md` (Interpreter-Agent) | Testfall-Dateiformate (`.warnungen`, `.fehler`, `.exitcode`, `.optionen.json`, `.eingabe`, Korpus-Kopfzeilen) dokumentieren | – |
+| U-19 ✅ | `pruefstand/run.js`, `pruefstand/teil-b.js` | erledigt (Klärungs-Agent): Doku-`eingabe`, Manifestfeld `eingabe` + `.eingabe`-Fallback, B1 prüft `interaktiv`/verwaiste `.eingabe`, nur ein Schluss-Umbruch, Banner beidseitig entfernt; `*-offen.js`-Fälle zählen nicht als Fehlschlag und melden grüne Fälle als „nach a10 verschieben“ | Prüfstand selbst |
+| U-20 ✅ | `ARCHITEKTUR.md` §6 | erledigt (Klärungs-Agent): Testfall-Dateiformate dokumentiert | – |
 | U-21 | `site/js/pizza.js` (`globalerName`, `aufrufZiel`) | K-038: `auto` nur als `schneide`-Argument; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.` | a11 K-038 |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):
@@ -428,6 +428,7 @@ streichen) · 20:stuecke-ownership (Prüfung syntaktisch K-016, `p + X` wieder 8
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Stand des letzten Prüfstand-Laufs: alle 13 a11-Fälle (K-007, K-008, K-015, K-038, K-042, K-047) werden mit der **uncommitteten** Arbeitskopie von `site/js/pizza.js` bereits grün gemeldet – sobald der Interpreter-Agent committet hat, die Fälle nach a10 verschieben und die Status in diesem Protokoll/SPEC §15 auf „fest“ setzen.
 - Die Prüfstand-Gruppe „§15 Klärungen – Umsetzung offen“ (a11) ist absichtlich rot (derzeit 1/10 grün), bis U-02, U-03
   und U-05 umgesetzt sind; danach die Fälle nach a10 verschieben.
 - Von den im Auftrag genannten Beispielen waren Pizza-Literal, W0032, Panik-Banner, Schrittzählung, Zahlformatierung,

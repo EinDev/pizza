@@ -1,7 +1,9 @@
 # Ein- & Ausgabe für interaktive Programme (Vertrag, Ergänzung zu SPEC §11)
 
 Nutzer: „Mach bitte Support für In- und Output, sodass die Games interaktiv sein können. Ich will keine nicht-interaktiven Games.“
-Status: verbindlich. Der Klärungs-Agent arbeitet diesen Text später in `SPEC.md` ein (§11.1).
+Status: **abgelöst durch `SPEC.md` §11.1** (Sprache und API; dort verbindlich, inkl. der Klärungen K-007 … K-013, K-031,
+K-041, K-042 aus `KLAERUNGEN.md`). Dieses Dokument behält die Umsetzungsdetails für Browser, Wasm/Host und CLI (§3–§5);
+bei Widersprüchen gilt SPEC §11.1.
 
 ## 1. Sprache (Tier 1)
 
@@ -17,7 +19,7 @@ Status: verbindlich. Der Klärungs-Agent arbeitet diesen Text später in `SPEC.m
 |---|---|
 | `Bestellannahme.lies()` | nächste Eingabezeile als `margherita` (ohne Zeilenumbruch); **`karton`**, wenn keine Eingabe mehr kommt (Ende/EOF) |
 | `Bestellannahme.frage(text)` | wie `Bote.schreibe(text)` + `lies()` |
-| `Bestellannahme.liesZahl()` / `frageZahl(text)` | Zeile als Zahl (`trimme`, Komma als Dezimaltrenner erlaubt); keine gültige Zahl → `TypAnanas: '<eingabe>' ist keine Zahl.`; EOF → `karton` |
+| `Bestellannahme.liesZahl([ersatz])` / `frageZahl(text[, ersatz])` | Zeile als Zahl nach der Zahltext-Grammatik aus SPEC §11.1 (trimmen; Punkt oder Komma als Dezimaltrenner, `_` erlaubt; kein Hex/Exponent – K-007); keine gültige Zahl → `TypAnanas: '<eingabe>' ist keine Zahl.`; EOF → `karton` bzw. `ersatz`, falls angegeben (auch `ersatz: …`; nur bei EOF – K-008) |
 | `Bestellannahme.hatMehr()` | `diavolo`: ob (noch) Eingabe möglich ist – interaktiv immer `ja`, vorgegebene Eingabe: `nein` sobald erschöpft |
 
 - Jeder Aufruf kostet 1 Schritt (wie andere Aufrufe). Warten auf Eingabe verbraucht **keine** Schritte und **keine** simulierte Zeit.
@@ -30,6 +32,8 @@ Status: verbindlich. Der Klärungs-Agent arbeitet diesen Text später in `SPEC.m
 - `optionen.eingabe?: string[]` – vorgegebene Zeilen (Tests, nicht-interaktiv). Erschöpft → EOF.
 - `optionen.onEingabe?: (anfrage) => string | null` – **synchroner** Rückruf für interaktive Eingabe; `null` = EOF.
   `anfrage = { prompt: string|null, art: "zeile"|"zahl" }`. Hat Vorrang vor `eingabe`. Fehlt beides → sofort EOF.
+  `prompt` ist **informativ** (z. B. Platzhalter des Eingabefelds): den Prompt gibt das Programm selbst als
+  `ausgabe` mit `umbruch: false` aus; UI/Host dürfen ihn nie zusätzlich ausgeben (K-011). EOF ist endgültig (K-042).
 - Neue Ereignisse:
   - `{ typ: "ausgabe", text, umbruch: false }` für `Bote.schreibe` (bei `Bote.sage` ist `umbruch` weggelassen oder `true`).
   - `{ typ: "leeren" }` für `Bote.leeren()`.
@@ -47,7 +51,7 @@ Status: verbindlich. Der Klärungs-Agent arbeitet diesen Text später in `SPEC.m
 
 ## 4. Wasm / Host / CLI
 
-- HOST-ABI: Import `pizza.eingabe(art: i32, prompt_ptr, prompt_len, puffer_ptr, puffer_kap) -> i32` (Länge in Bytes, `-1` = EOF; zu lange Zeilen werden abgeschnitten, Rest verworfen), plus `pizza.leeren()` und `ausgabe` mit Umbruch-Flag (oder separates `schreibe`). JS-Host bildet das auf `onEingabe`/`eingabe` ab.
+- HOST-ABI: Import `pizza.eingabe(art: i32, prompt_ptr, prompt_len, puffer_ptr, puffer_kap) -> i32` (Rückgabe = benötigte Länge in Bytes, `-1` = EOF). **Keine Kürzung** (K-013): passt die Zeile nicht in `puffer_kap`, schreibt der Host nichts, behält die Zeile und das Modul ruft mit größerem Puffer erneut auf. `prompt_ptr/len` ist informativ – der Prompt wird vom Modul über `schreibe` ausgegeben (K-011). Dazu `pizza.leeren()` und ein **separater** Import `pizza.schreibe(ptr, len)`; `ausgabe(ptr, len)` bleibt zweistellig (K-041). JS-Host bildet das auf `onEingabe`/`eingabe` ab. Der Panik-Banner geht bei CLI/Host/EXE nach stderr (K-012).
 - `bin/pizza.js`: liest interaktiv von stdin (synchron, `fs.readSync(0, …)`), Option `--eingabe datei` für vorgegebene Zeilen; `leeren` → ANSI-Clear nur bei TTY.
 - `pizza-host` (nativ/EXE): liest von stdin; EOF → `-1`.
 
