@@ -28,12 +28,12 @@ const norm = (r) => JSON.stringify([r.ereignisse.filter(e => e.typ !== 'motor').
   const k = Object.assign({}, e); delete k.detail; delete k.koeche; if (k.umbruch === true) delete k.umbruch; return k;
 }), r.exitCode, r.schritte]);
 
-(async () => {
-  const aus = { ok: false };
+/** ein Versuch auf frischem Pool → { getoetet, nachgekocht, gleich1, gleich2, koeche2, lebend, … } */
+async function versuch(soll) {
+  const aus = {};
   const pool = koch.kuechenPoolSync(4, { nachkochFrist: 200 });
-  if (!pool) { aus.grund = 'kein Pool'; console.log(JSON.stringify(aus)); return; }
+  if (!pool) return { keinPool: true };
   try {
-    const soll = norm(P.run(quelle, Object.assign({}, opt)));
     let getoetet = null;
     pool._testHaken = ({ koeche }) => {
       if (getoetet !== null) return;
@@ -49,20 +49,36 @@ const norm = (r) => JSON.stringify([r.ereignisse.filter(e => e.typ !== 'motor').
     aus.getoetet = getoetet;
     aus.nachgekocht = pool.nachgekocht;
     aus.gleich1 = norm(r1) === soll;
-    aus.koeche1 = r1.koeche;
+    if (!aus.gleich1) aus.ist = norm(r1).slice(0, 300);
     // zweite Brigade: der tote Koch steht noch mitten im Stück (F_AKTUELL) → bleibt draußen
     const r2 = Z.run(quelle, Object.assign({ motor: 'wasm', koeche: pool }, opt));
     aus.gleich2 = norm(r2) === soll;
     aus.koeche2 = r2.koeche;
-    // eine Runde Ereignisschleife: exit-Ereignis markiert den Koch als tot
-    await new Promise(ok => setTimeout(ok, 100));
+    // Ereignisschleife: das exit-Ereignis nimmt den Koch ganz aus dem Pool
+    for (let t = 0; t < 40 && pool.lebend !== 2; t++) await new Promise(ok => setTimeout(ok, 50));
     aus.lebend = pool.lebend;
-    if (!aus.gleich1) aus.ist = norm(r1).slice(0, 300);
-    aus.ok = getoetet !== null && aus.nachgekocht >= 1 && aus.gleich1 && aus.gleich2 && aus.koeche2 === 3 && aus.lebend === 2;
-  } catch (e) {
-    aus.fehler = String(e && e.stack || e);
   } finally {
     pool.beenden();
+  }
+  return aus;
+}
+
+(async () => {
+  const aus = { ok: false, versuche: [] };
+  try {
+    const soll = norm(P.run(quelle, Object.assign({}, opt)));
+    // Bis zu 3 Versuche: ob der Haken einen Koch mitten im Stück erwischt (und nicht zwischen F_AKTUELL := 0 und der
+    // Abgabe), hängt von der Planung ab. Ein falsches Ergebnis nach einem Tod ist dagegen sofort ein Fehler.
+    for (let n = 0; n < 3 && !aus.ok; n++) {
+      const v = await versuch(soll);
+      aus.versuche.push(v);
+      if (v.keinPool) { aus.grund = 'kein Pool'; break; }
+      if (v.getoetet !== null && (!v.gleich1 || !v.gleich2 || v.nachgekocht < 1)) { aus.grund = 'falsches Ergebnis nach Tod'; break; }
+      aus.ok = v.getoetet !== null && v.koeche2 === 3 && v.lebend === 2;
+    }
+    if (!aus.ok && !aus.grund) aus.grund = 'kein Koch mitten im Stück getroffen';
+  } catch (e) {
+    aus.fehler = String(e && e.stack || e);
   }
   console.log(JSON.stringify(aus));
 })();
