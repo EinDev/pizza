@@ -647,3 +647,10 @@ Neue Erfolge (Paket 6, je Bereich 1–2): „Grüner Daumen“ (alle Beete 20), 
 Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle Helfer), „Prime Time“ (TV-Spot), „Doktor der Pizzologie“
 (10 Forschungen), „Herzensangelegenheit“ (10 Herzen), „Schnurr“ (Laune 5), „Weltmeister“ (Gold bei der Weltmeisterschaft),
 „Alle Sticker“ (12/12), „Zinseszins“ (erste Zinsen).
+
+### 12.8 Stand (umgesetzt)
+
+| Paket | Inhalt | Commit | Messung |
+|---|---|---|---|
+| Design | §12.1–12.7 | 4bdd1be | Baseline vor dem Umbau (positionen2.mjs, pi3.ereignisse, alle Takte): 865 Zustände, 66 mit Layout-Bewegung, 422 nur Textbreite |
+| 1 | Raster 860 × 800, 8 feste Reiter, 2 Spalten, Bestand auf feste Plätze, 12 Platzhalter mit Freischalt-Kette, Spielstand v6, Panels gekapselt (`aktualisiere()` je Versionszähler). IDs: Betrieb `kauf-betrieb-n`/`kauf-klein-n`, Herausforderungen `probe-start-n`, Minispiele `mini-<grundspiel>`, `modus-info` immer da | be5d2a4 | pi4.ereignisse 886 Zustände → **0 Verstöße**; Bot 120 min 45.477 Zustände → **0**; Klickanteil 4,6 % (60 min) / 4,1 % (240 min, Aufstieg); Freischalt-Minuten (Wirkung noch 0): Garten 4 · Weinkeller 10 · Personal 28 · Lieferzonen 44 · Helfer 66 · Marketing 122 · Labor 138 · Stammgäste 155 · Katze 160 · Wettbewerb 185 · Album 187 · Banca 213 |
