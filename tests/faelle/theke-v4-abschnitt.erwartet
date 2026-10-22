@@ -1,0 +1,8 @@
+nein nein
+ja ja
+Erwartet diavolo (ja/nein), bekam 1.
+Erwartet diavolo (ja/nein), bekam "ja".
+beiAenderung() braucht eine Funktion, z. B. () -> { … }.
+zu: nein nein
+zu: ja ja
+nein nein ja

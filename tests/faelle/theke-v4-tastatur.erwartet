@@ -1,0 +1,7 @@
+Tastatur() braucht eine Funktion, z. B. () -> { … }.
+Erwartet diavolo (ja/nein), bekam "ja".
+Tastatur(z1) ja Tastatur(zwei)
+k1 Leertaste
+k2 a
+stumm Hoch
+nein ja

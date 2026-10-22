@@ -1,0 +1,12 @@
+Theke t = neu Theke("K");
+Tastatur k = neu Tastatur(taste -> Bote.sage(("k1 " + taste)));
+Tastatur k2 = neu Tastatur(beiTaste: taste -> Bote.sage(("k2 " + taste)), id: "zwei");
+Tastatur stumm = neu Tastatur();
+Tastatur draussen = neu Tastatur(taste -> Bote.sage(("nie " + taste)));
+probier { neu Tastatur(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { stumm.aktiv("ja"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Bote.sage((k + " " + stumm.aktiv() + " " + k2));
+Knopf kn = neu Knopf("stopp", () -> { k.aktiv(nein); stumm.beiTaste(taste -> Bote.sage(("stumm " + taste))); });
+t.zeige(neu Stapel([k, k2, stumm, kn]));
+t.bediene();
+Bote.sage((k.aktiv() + " " + stumm.aktiv()));

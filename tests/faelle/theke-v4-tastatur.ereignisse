@@ -1,0 +1,12 @@
+{"typ":"taste","id":"z1","taste":"Leertaste"}
+{"typ":"taste","id":"zwei","taste":"a"}
+{"typ":"taste","id":"z1","taste":""}
+{"typ":"taste","id":"z1"}
+{"typ":"taste","id":"z1","taste":5}
+{"typ":"taste","id":"z2","taste":"Enter"}
+{"typ":"taste","id":"z3","taste":"Enter"}
+{"typ":"klick","id":"z5"}
+{"typ":"taste","id":"z1","taste":"Hoch"}
+{"typ":"taste","id":"z2","taste":"Hoch"}
+{"typ":"klick","id":"z1"}
+{"typ":"taste","id":"z5","taste":"Enter"}

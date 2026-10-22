@@ -1,0 +1,17 @@
+Theke t = neu Theke("S");
+Schild s = neu Schild("Lang");
+Knopf k = neu Knopf("Kaufen");
+s.stil("zeilen", 2);
+k.stil("mindestbreite", 120).stil("zeilen", 1);
+probier { s.stil("zeilen", 0); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("zeilen", 1.5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("zeilen", "2"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("zeilen", -3); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("mindestbreite", -1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("mindestbreite", "breit"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("minbreite", 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+k.stil("mindestbreite", 0);
+k.stil("mindestbreite", 80.5);
+Knopf r = neu Knopf("r", () -> { s.stil("zeilen", 3); k.stil("mindestbreite", karton); s.stil("zeilen", karton); s.stil("mindestbreite", 40); });
+t.zeige(neu Stapel([s, k, r]));
+t.bediene();

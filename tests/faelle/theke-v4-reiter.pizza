@@ -1,0 +1,20 @@
+Theke t = neu Theke("R");
+Schild a = neu Schild("A");
+Schild b = neu Schild("B");
+Schild c = neu Schild("C");
+Reiter r = neu Reiter(["Eins"], [a, b, c]);
+Bote.sage((r.titel(1) + "|" + r.titel(2) + "|" + r.titel(3)));
+r.setzeTitel(3, "Drei");
+Bote.sage((r.titel(2) + "|" + r.titel(3)));
+probier { r.setzeTitel(4, "x"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(0); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(1.5); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel("2"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+Reiter einzel = neu Reiter(["x"], [neu Schild("s")]);
+probier { einzel.setzeTitel(2, "y"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+Knopf k = neu Knopf("neu", () -> { r.setzeTitel(2, "Zwei •").setzeTitel(1, karton); b.sichtbar(nein); r.waehle(2); });
+r.beiAenderung(n -> Bote.sage(("seite " + n + " " + r.titel(n))));
+t.zeige(neu Stapel([r, k]));
+t.bediene();
+Bote.sage((r.gewaehlt() + " " + r.titel(1) + " " + b.sichtbar()));

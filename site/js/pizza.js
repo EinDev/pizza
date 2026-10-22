@@ -28,7 +28,7 @@
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii',
     'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
-    'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer'];
+    'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zufall', 'Vorratskammer'];
 
   const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'];
 
@@ -1189,18 +1189,23 @@
   // ---------- Theke (UI-Framework, THEKE.md) ----------
   const UI_KLASSEN = {
     Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe',
-    Takt: 'takt', Fortschritt: 'fortschritt', Abschnitt: 'abschnitt', Tabelle: 'tabelle', Reiter: 'reiter'
+    Takt: 'takt', Fortschritt: 'fortschritt', Abschnitt: 'abschnitt', Tabelle: 'tabelle', Reiter: 'reiter',
+    Auswahl: 'auswahl', Tastatur: 'tastatur'
   };
   const UI_ART_NAME = {
     schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe',
-    takt: 'Takt', fortschritt: 'Fortschritt', abschnitt: 'Abschnitt', tabelle: 'Tabelle', reiter: 'Reiter'
+    takt: 'Takt', fortschritt: 'Fortschritt', abschnitt: 'Abschnitt', tabelle: 'Tabelle', reiter: 'Reiter',
+    auswahl: 'Auswahl', tastatur: 'Tastatur'
   };
   const UI_BEHAELTER = { stapel: true, reihe: true, abschnitt: true, reiter: true };
+  // Stil-Whitelist (K-068, K-113): Reihenfolge der Schlüssel ist der Erlaubt-Text der Fehlermeldung (beide Laufzeiten gleich).
+  // 'zahl' = Zahl ≥ 0, 'ganzzahl' = ganze Zahl ≥ 1, Liste = Vokabular.
   const UI_STIL = {
     breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
     ausrichtung: ['links', 'mitte', 'rechts'],
     schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
-    farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal']
+    farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal'],
+    zeilen: 'ganzzahl', mindestbreite: 'zahl'
   };
   // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
   const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
@@ -1220,7 +1225,10 @@
       this.stilNull = null; this.hinweis = ''; this.uebergang = false;
       this.intervall = 1000; this.beiTakt = null;            // Takt
       this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
-      this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter
+      this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter / Auswahl
+      this.klappbar = false; this.zu = false;                // Abschnitt (K-108)
+      this.optionen = null;                                  // Auswahl (K-109)
+      this.beiTaste = null;                                  // Tastatur (K-110)
       this.spalten = null; this.zeilen = null;               // Tabelle
     }
   }
@@ -1679,7 +1687,12 @@
     'runden': function (m, pos) { return rundeAuf(this.zahl(pos[0], 'runden'), pos.length > 1 ? this.ganzzahl(pos[1], 'runden') : 0); },
     'boden': function (m, pos) { return Math.floor(this.zahl(pos[0], 'boden')); },
     'decke': function (m, pos) { return Math.ceil(this.zahl(pos[0], 'decke')); },
-    'potenz': function (m, pos) { return Math.pow(this.zahl(pos[0], 'potenz'), this.zahl(pos[1], 'potenz')); }
+    'potenz': function (m, pos) { return Math.pow(this.zahl(pos[0], 'potenz'), this.zahl(pos[1], 'potenz')); },
+    // K-111: exakt wie Math.* (Sonderfälle: log(0) → -Infinity, log(-1) → NaN, exp(710) → Infinity)
+    'log': function (m, pos) { return Math.log(this.zahl(pos[0], 'log')); },
+    'log10': function (m, pos) { return Math.log10(this.zahl(pos[0], 'log10')); },
+    'log2': function (m, pos) { return Math.log2(this.zahl(pos[0], 'log2')); },
+    'exp': function (m, pos) { return Math.exp(this.zahl(pos[0], 'exp')); }
   });
 
   // Methoden eines Zufallsstroms; `g` ist der ZufallGen (global oder eigener aus `neu Zufall`)
@@ -1834,6 +1847,9 @@
       }
       if (art === 'zahl') {
         if (typeof w !== 'number' || !(w >= 0) || !isFinite(w)) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine Zahl ≥ 0, nicht ' + this.darstellung(w) + '.');
+      } else if (art === 'ganzzahl') {
+        // K-113: zeilen – ganze Zahl ≥ 1
+        if (typeof w !== 'number' || !Number.isInteger(w) || w < 1) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine ganze Zahl ≥ 1, nicht ' + this.darstellung(w) + '.');
       } else {
         w = this.text(w);
         if (art.indexOf(w) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + w + '\' ist für Stil \'' + k + '\' nicht erlaubt. Erlaubt: ' + art.join(', ') + '.');
@@ -1906,7 +1922,21 @@
     }),
     abschnitt: uiTabelle(Object.assign({}, UI_CONTAINER_M, {
       'titel': function (z) { return z.titel; },
-      'setzeTitel': function (z, pos) { z.titel = this.text(pos[0]); this.uiAendere(z, 'titel', z.titel); return z; }
+      'setzeTitel': function (z, pos) { z.titel = this.text(pos[0]); this.uiAendere(z, 'titel', z.titel); return z; },
+      // K-108: klappbar/zu – Getter/Setter-Überladung wie sichtbar; beiAenderung(fn) → fn(zu)
+      'klappbar': function (z, pos) {
+        if (!pos.length) return z.klappbar;
+        z.klappbar = this.bool(pos[0]);
+        this.uiAendere(z, 'klappbar', z.klappbar);
+        return z;
+      },
+      'zu': function (z, pos) {
+        if (!pos.length) return z.zu;
+        z.zu = this.bool(pos[0]);
+        this.uiAendere(z, 'zu', z.zu);
+        return z;
+      },
+      'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
     })),
     tabelle: uiTabelle({
       'spalten': function (z) { return z.spalten.slice(); },
@@ -1916,17 +1946,47 @@
     }),
     reiter: uiTabelle({
       'waehle': function (z, pos) {
-        const n = pos[0];
-        if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) {
-          throw this.ananas('KeinStückAnanas', 'Seite ' + this.text(n) + ' gibt es nicht – der Reiter hat ' + z.kinder.length + ' Seite' + (z.kinder.length === 1 ? '' : 'n') + '.');
-        }
+        const n = this.reiterSeite(z, pos[0]);
+        z.gewaehlt = n;
+        this.uiAendere(z, 'gewaehlt', n);
+        return z;
+      },
+      'gewaehlt': function (z) { return z.gewaehlt; },
+      'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; },
+      // K-107: Titel einer Seite lesen/setzen; Titelliste wird mit "" aufgefüllt, Nachricht als ganze Liste
+      'titel': function (z, pos) {
+        const n = this.reiterSeite(z, pos[0]);
+        return n <= z.titelListe.length ? z.titelListe[n - 1] : '';
+      },
+      'setzeTitel': function (z, pos) {
+        const n = this.reiterSeite(z, pos[0]);
+        while (z.titelListe.length < n) z.titelListe.push('');
+        z.titelListe[n - 1] = this.text(pos[1]);  // K-102: karton → "karton" (Zustandsfeld)
+        this.uiAendere(z, 'titel', z.titelListe.slice());
+        return z;
+      }
+    }),
+    // K-109: Auswahl – genau eine Option gewählt
+    auswahl: uiTabelle(Object.assign({}, UI_AKTIV_M, {
+      'optionen': function (z) { return z.optionen.slice(); },
+      'setzeOptionen': function (z, pos) {
+        z.optionen = this.auswahlOptionen(pos[0]);
+        this.uiAendere(z, 'optionen', z.optionen.slice());
+        return z;
+      },
+      'waehle': function (z, pos) {
+        const n = this.auswahlOption(z, pos[0]);
         z.gewaehlt = n;
         this.uiAendere(z, 'gewaehlt', n);
         return z;
       },
       'gewaehlt': function (z) { return z.gewaehlt; },
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
-    })
+    })),
+    // K-110: Tastatur – unsichtbare Zutat wie Takt
+    tastatur: uiTabelle(Object.assign({}, UI_AKTIV_M, {
+      'beiTaste': function (z, pos) { z.beiTaste = this.uiFunktion(pos[0], 'beiTaste'); return z; }
+    }))
   };
   const THEKE_M = tabelle({
     'zeige': function (t, pos) { this.uiZeige(t, pos[0]); return t; },
@@ -2048,7 +2108,7 @@
         ['Bote', new Modul('Bote', BOTE_M, null)],
         ['Bestellannahme', new Modul('Bestellannahme', EINGABE_M, null)],
         ['Uhr', new Modul('Uhr', UHR_M, null)],
-        ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI })],
+        ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI, E: Math.E })],
         ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
         ['Spiegel', new Modul('Spiegel', SPIEGEL_M, null)],
         ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
@@ -2456,6 +2516,16 @@
           }
           break;
         }
+        case 'auswahl': {
+          // K-109: erst optionen (Blech-Prüfung), dann gewaehlt (Bereichsprüfung gegen die Anzahl)
+          z.optionen = this.auswahlOptionen(arg(pos, ben, 0, 'optionen'));
+          const g = arg(pos, ben, 1, 'gewaehlt');
+          z.gewaehlt = g === undefined || g === null ? 1 : this.auswahlOption(z, g);
+          break;
+        }
+        case 'tastatur':
+          z.beiTaste = this.uiFunktion(arg(pos, ben, 0, 'beiTaste'), 'Tastatur');
+          break;
         default: {
           const b = arg(pos, ben, 0, 'kinder');
           if (b !== undefined && b !== null) {
@@ -2480,6 +2550,30 @@
       if (typeof w !== 'number') throw this.ananas('TypAnanas', 'Ein Fortschritt braucht eine Zahl zwischen 0 und 1, nicht ' + this.darstellung(w) + '.');
       if (Number.isNaN(w)) return 0;
       return w < 0 ? 0 : w > 1 ? 1 : w;
+    }
+
+    // K-107/K-086: Seitennummer eines Reiters – ganze Zahl 1 … Zahl der Kinder, sonst KeinStückAnanas (Textform von n)
+    reiterSeite(z, n) {
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) {
+        throw this.ananas('KeinStückAnanas', 'Seite ' + this.text(n) + ' gibt es nicht – der Reiter hat ' + z.kinder.length + ' Seite' + (z.kinder.length === 1 ? '' : 'n') + '.');
+      }
+      return n;
+    }
+
+    // K-109: Optionen einer Auswahl – Blech → Textformen (karton → "karton"); fehlend/karton → []
+    auswahlOptionen(b) {
+      if (b === null || b === undefined) return [];
+      if (!Array.isArray(b)) throw this.ananas('TypAnanas', 'Auswahl braucht ein Blech mit Optionen, nicht ' + this.darstellung(b) + '.');
+      return b.map(x => this.text(x));
+    }
+
+    // K-109: Optionsnummer – ganze Zahl 1 … Anzahl, sonst KeinStückAnanas („1 Option“ im Singular)
+    auswahlOption(z, n) {
+      const anzahl = z.optionen.length;
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > anzahl) {
+        throw this.ananas('KeinStückAnanas', 'Option ' + this.text(n) + ' gibt es nicht – die Auswahl hat ' + anzahl + ' Option' + (anzahl === 1 ? '' : 'en') + '.');
+      }
+      return n;
     }
 
     tabellenZeile(b, wo) {
@@ -2535,9 +2629,11 @@
         case 'haken': o.text = z.text; o.an = z.an; break;
         case 'takt': o.intervall = z.intervall; if (!z.aktiv) o.aktiv = false; break;
         case 'fortschritt': o.wert = z.fortschritt; if (z.text !== '') o.text = z.text; break;
-        case 'abschnitt': o.titel = z.titel; break;
+        case 'abschnitt': o.titel = z.titel; if (z.klappbar) o.klappbar = true; if (z.zu) o.zu = true; break;
         case 'tabelle': o.spalten = z.spalten.slice(); o.zeilen = z.zeilen.map(x => x.slice()); break;
         case 'reiter': o.titel = z.titelListe.slice(); o.gewaehlt = z.gewaehlt; break;
+        case 'auswahl': o.optionen = z.optionen.slice(); o.gewaehlt = z.gewaehlt; if (!z.aktiv) o.aktiv = false; break;
+        case 'tastatur': if (!z.aktiv) o.aktiv = false; break;
       }
       if (z.hinweis !== '') o.hinweis = z.hinweis;
       if (!z.sichtbar) o.sichtbar = false;
@@ -2684,6 +2780,24 @@
             if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) break;
             z.gewaehlt = n;
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [n], null, node);
+          } else if (z.art === 'abschnitt') {
+            // K-108: nur ein klappbarer Abschnitt nimmt den Zustand an; wert wie beim Haken
+            if (!z.klappbar) break;
+            z.zu = ev.wert === true || ev.wert === 'true';
+            if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.zu], null, node);
+          } else if (z.art === 'auswahl') {
+            // K-109: nur aktiv, ganze Zahl 1 … Anzahl
+            if (!z.aktiv) break;
+            const n = ev.wert;
+            if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.optionen.length) break;
+            z.gewaehlt = n;
+            if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [n], null, node);
+          }
+          break;
+        case 'taste':
+          // K-110: aktive Tastatur mit Rückruf, taste nicht-leerer Text; Zustellung kostet 0 Schritte
+          if (z.art === 'tastatur' && z.aktiv && z.beiTaste !== null && typeof ev.taste === 'string' && ev.taste !== '') {
+            this.rufe(z.beiTaste, [ev.taste], null, node);
           }
           break;
         case 'enter':
@@ -2920,7 +3034,7 @@
           was = 'kein Zufall';
           break;
         case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe':
-        case 'Takt': case 'Fortschritt': case 'Abschnitt': case 'Tabelle': case 'Reiter': {
+        case 'Takt': case 'Fortschritt': case 'Abschnitt': case 'Tabelle': case 'Reiter': case 'Auswahl': case 'Tastatur': {
           if (this.klassen.has(typ.name) || v === null) {
             const k = this.klassen.get(typ.name);
             if (k === undefined || v === null || this.instanzVon(v, k)) return;

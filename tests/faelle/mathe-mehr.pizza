@@ -7,6 +7,6 @@ probier { Mathe.max(); } verbrannt (RechenAnanas a) { Bote.sage((a.nachricht()))
 probier { Mathe.min(); } verbrannt (RechenAnanas a) { Bote.sage((a.typ())); }
 probier { Mathe.wurzel("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { Mathe.gibts(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
-probier { Mathe.E; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.X; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
 Rezept w = Mathe.wurzel;
 Bote.sage((w(81)));

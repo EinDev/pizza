@@ -11,6 +11,8 @@ const schliesse = () => ({ v: 1, op: "schliesse" });
 
 // ── Theke v3 – Animationen (SPEC §16.6, K-090 … K-092; Interpreter U-56) ──
 const T6 = "§16.6 Theke-Animationen (K-090 …)";
+// ── Theke v4 (SPEC §16.7, K-107 … K-113) ──
+const T7 = "§16.7 Theke v4 (K-107 …)";
 const aendereA = (aenderungen, animationen) =>
   animationen && animationen.length ? { v: 1, op: "aendere", aenderungen, animationen } : { v: 1, op: "aendere", aenderungen };
 /** Prüft die Texte aller Warnungen eines Codes der Reihe nach (enthält-Vergleich). */
@@ -343,7 +345,7 @@ Bote.sage((k.aktiv() + " " + k.sichtbar() + " " + k));
 t.zeige(k);
 `, {
     uiEreignisse: [],
-    out: ["5", "typ", "Stil 'rahmen' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.",
+    out: ["5", "typ", "Stil 'rahmen' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.",
       "Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.",
       "ausrichtung", "Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.", "breite-typ", "ja ja Knopf(z1)"],
     ui: [fenster("T", 100, 100), baum({ id: "z1", art: "knopf", text: "5", stil: { schrift: "gross", breite: 2.5 } }), schliesse()],
@@ -698,7 +700,7 @@ Bote.sage(("ok"));
       "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
       "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
       "Animation '5' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
-      "Stil 'karton' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.",
+      "Stil 'karton' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.",
       "ok",
     ],
     noWarn: ["W0102"],
@@ -759,5 +761,207 @@ für (salami i = 1; i <= 40; i++) { t.schwebe(i, bei: s); }
       baum({ id: "z3", art: "stapel", kinder: [{ id: "z1", art: "schild", text: "s" }, { id: "z2", art: "takt", intervall: 1000 }] }),
       aendereA([], [{ id: "z2", art: "puls" }].concat(Array.from({ length: 31 }, (_, i) => ({ art: "schwebe", text: String(i + 1), id: "z1" })))),
       schliesse()],
+  }),
+
+  // ── Theke v4 (SPEC §16.7, K-107 … K-113) ──
+  F(T7, "K-107: Reiter.setzeTitel/titel – Auffüllen mit \"\", karton → 'karton', titel als ganze Liste, Ananas wie waehle (Singular '1 Seite'); Seite ausblenden nur über sichtbar, gewaehlt bleibt", P`
+Theke t = neu Theke("R");
+Schild a = neu Schild("A");
+Schild b = neu Schild("B");
+Schild c = neu Schild("C");
+Reiter r = neu Reiter(["Eins"], [a, b, c]);
+Bote.sage((r.titel(1) + "|" + r.titel(2) + "|" + r.titel(3)));
+Bote.sage((r.setzeTitel(3, "Drei") == r));
+probier { r.setzeTitel(4, "x"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(0); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(1.5); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Reiter(["x"], [neu Schild("s")]).titel(2); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+Knopf k = neu Knopf("neu", () -> { r.setzeTitel(2, "Zwei •").setzeTitel(1, karton); b.sichtbar(nein); r.waehle(2); });
+r.beiAenderung(n -> Bote.sage(("seite " + n + " " + r.titel(n))));
+t.zeige(neu Stapel([r, k]));
+t.bediene();
+Bote.sage((r.gewaehlt() + " " + r.titel(1) + " " + b.sichtbar()));
+`, {
+    uiEreignisse: [{ typ: "klick", id: "z7" }, { typ: "aenderung", id: "z4", wert: 3 }],
+    out: ["Eins||", "ja",
+      "Seite 4 gibt es nicht – der Reiter hat 3 Seiten.",
+      "Seite 0 gibt es nicht – der Reiter hat 3 Seiten.",
+      "Seite 1.5 gibt es nicht – der Reiter hat 3 Seiten.",
+      "Seite 2 gibt es nicht – der Reiter hat 1 Seite.",
+      "seite 3 Drei", "3 karton nein"],
+    ui: [fenster("R"),
+      baum({ id: "z8", art: "stapel", kinder: [
+        { id: "z4", art: "reiter", titel: ["Eins", "", "Drei"], gewaehlt: 1, kinder: [
+          { id: "z1", art: "schild", text: "A" }, { id: "z2", art: "schild", text: "B" }, { id: "z3", art: "schild", text: "C" }] },
+        { id: "z7", art: "knopf", text: "neu" }] }),
+      aendere({ id: "z4", titel: ["karton", "Zwei •", "Drei"], gewaehlt: 2 }, { id: "z2", sichtbar: false })],
+  }),
+
+  F(T7, "K-108: Abschnitt klappbar/zu (Getter/Setter, diavolo-Pflicht), Felder im baum nur bei Abweichung, aendere mit neuem Wert; aenderung nur für klappbare Abschnitte (true/false/'true'/'false'), Zustand vor dem Rückruf, auch ohne Rückruf; Setter senden keinen Rückruf", P`
+Theke t = neu Theke("A");
+Schild s = neu Schild("Inhalt");
+Abschnitt a = neu Abschnitt("Erledigt", [s]);
+Bote.sage((a.klappbar() + " " + a.zu()));
+Bote.sage((a.klappbar(ja).zu(ja) == a));
+a.beiAenderung(z -> Bote.sage(("zu: " + z + " " + a.zu())));
+probier { a.klappbar(1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.zu("ja"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Abschnitt fest = neu Abschnitt("Fest", [neu Schild("f")]).zu(ja);
+Abschnitt ohne = neu Abschnitt("Ohne", []).klappbar(ja);
+Knopf k = neu Knopf("auf", () -> { a.zu(nein); fest.klappbar(ja); });
+t.zeige(neu Stapel([a, fest, ohne, k]));
+t.bediene();
+Bote.sage((a.zu() + " " + fest.zu() + " " + ohne.zu()));
+`, {
+    uiEreignisse: [
+      { typ: "aenderung", id: "z2", wert: false }, { typ: "aenderung", id: "z2", wert: "true" },
+      { typ: "aenderung", id: "z4", wert: false }, { typ: "aenderung", id: "z5", wert: true },
+      { typ: "klick", id: "z6" }, { typ: "aenderung", id: "z4", wert: "false" }],
+    out: ["nein nein", "ja", "Erwartet diavolo (ja/nein), bekam 1.", "Erwartet diavolo (ja/nein), bekam \"ja\".",
+      "zu: nein nein", "zu: ja ja", "nein nein ja"],
+    ui: [fenster("A"),
+      baum({ id: "z7", art: "stapel", kinder: [
+        { id: "z2", art: "abschnitt", titel: "Erledigt", klappbar: true, zu: true, kinder: [{ id: "z1", art: "schild", text: "Inhalt" }] },
+        { id: "z4", art: "abschnitt", titel: "Fest", zu: true, kinder: [{ id: "z3", art: "schild", text: "f" }] },
+        { id: "z5", art: "abschnitt", titel: "Ohne", klappbar: true, kinder: [] },
+        { id: "z6", art: "knopf", text: "auf" }] }),
+      aendere({ id: "z2", zu: false }, { id: "z4", klappbar: true })],
+  }),
+
+  F(T7, "K-109: Auswahl – Konstruktor (positional/benannt, Textform, fehlend → [] / 1), optionen() ist Kopie, setzeOptionen lässt gewaehlt stehen, waehle verkettbar, Ananas-Texte (Singular '1 Option', '0 Optionen'); aenderung nur aktiv und ganz in 1 … n", P`
+Theke t = neu Theke("W");
+Auswahl w = neu Auswahl(["1×", "10×", "100×", "Max"]);
+Bote.sage((w.gewaehlt() + " " + w.optionen() + " " + w.aktiv() + " " + w));
+Auswahl v = neu Auswahl(optionen: [1, karton, ja], gewaehlt: 3, id: "v");
+Bote.sage((v.optionen() + " " + v.gewaehlt()));
+Auswahl ohne = neu Auswahl();
+Bote.sage((ohne.optionen() + " " + ohne.gewaehlt()));
+probier { neu Auswahl(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Auswahl(["a"], 2); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle(7); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle("2"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { ohne.waehle(1); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.setzeOptionen("x"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+w.optionen().hinzu("Extra");
+Bote.sage((w.optionen().länge()));
+w.beiAenderung(n -> Bote.sage(("gewählt " + n + " " + w.gewaehlt())));
+v.beiAenderung(n -> Bote.sage(("v " + n)));
+Knopf k = neu Knopf("k", () -> { Bote.sage((w.setzeOptionen(["A", "B"]).waehle(2) == w)); v.aktiv(nein); });
+t.zeige(neu Stapel([w, v, k]));
+t.bediene();
+Bote.sage((w.gewaehlt() + " " + v.gewaehlt() + " " + v.aktiv()));
+`, {
+    uiEreignisse: [
+      { typ: "aenderung", id: "z1", wert: 3 }, { typ: "aenderung", id: "z1", wert: 5 }, { typ: "aenderung", id: "z1", wert: "2" },
+      { typ: "aenderung", id: "v", wert: 1 }, { typ: "klick", id: "z5" }, { typ: "aenderung", id: "v", wert: 2 },
+      { typ: "aenderung", id: "z1", wert: 3 }, { typ: "aenderung", id: "z1", wert: 1 }, { typ: "aenderung", id: "z2", wert: 1 }],
+    out: ["1 [1×, 10×, 100×, Max] ja Auswahl(z1)", "[1, karton, ja] 3", "[] 1",
+      "Auswahl braucht ein Blech mit Optionen, nicht 5.",
+      "Option 2 gibt es nicht – die Auswahl hat 1 Option.",
+      "Option 7 gibt es nicht – die Auswahl hat 4 Optionen.",
+      "Option 2 gibt es nicht – die Auswahl hat 4 Optionen.",
+      "Option 1 gibt es nicht – die Auswahl hat 0 Optionen.",
+      "Auswahl braucht ein Blech mit Optionen, nicht \"x\".",
+      "4", "gewählt 3 3", "v 1", "ja", "gewählt 1 1", "1 1 nein"],
+    ui: [fenster("W"),
+      baum({ id: "z6", art: "stapel", kinder: [
+        { id: "z1", art: "auswahl", optionen: ["1×", "10×", "100×", "Max"], gewaehlt: 1 },
+        { id: "v", art: "auswahl", optionen: ["1", "karton", "ja"], gewaehlt: 3 },
+        { id: "z5", art: "knopf", text: "k" }] }),
+      aendere({ id: "z1", optionen: ["A", "B"], gewaehlt: 2 }, { id: "v", aktiv: false })],
+  }),
+
+  F(T7, "K-109/110: Typnamen Auswahl/Tastatur – Typprüfung bei Zuweisung, Zutat als Obertyp, aktiv:false im baum", P`
+Theke t = neu Theke("T");
+Auswahl a = neu Auswahl(["x"]).aktiv(nein);
+Tastatur k = neu Tastatur().aktiv(nein);
+Zutat z = a;
+Bote.sage((z + " " + k.aktiv()));
+probier { Auswahl falsch = k; } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { Tastatur falsch = 5; } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+t.zeige(neu Reihe([a, k]));
+`, {
+    out: ["Auswahl(z1) nein",
+      "'falsch' ist Auswahl, aber der Wert Tastatur(z2) ist kein(e) Auswahl.",
+      "'falsch' ist Tastatur, aber der Wert 5 ist kein(e) Tastatur."],
+    ui: [fenster("T"), baum({ id: "z3", art: "reihe", kinder: [
+      { id: "z1", art: "auswahl", optionen: ["x"], gewaehlt: 1, aktiv: false }, { id: "z2", art: "tastatur", aktiv: false }] }), schliesse()],
+  }),
+
+  F(T7, "K-109: erbt Auswahl → PizzaFehler P0010", P`
+klasse Meine erbt Auswahl { }
+`, { exit: 2, fehler: { code: "P0010", art: "pizzafehler" } }),
+
+  F(T7, "K-110: erbt Tastatur → PizzaFehler P0010", P`
+klasse Meine erbt Tastatur { }
+`, { exit: 2, fehler: { code: "P0010", art: "pizzafehler" } }),
+
+  F(T7, "K-110: Tastatur – unsichtbare Zutat (positional/benannt beiTaste, id), fn(taste) nur für aktive Tastatur mit Rückruf im Baum und nicht-leerem Text; mehrere Tastaturen bekommen jede Taste in Baumreihenfolge; animiere erlaubt", P`
+Theke t = neu Theke("K");
+Tastatur k = neu Tastatur(taste -> Bote.sage(("k1 " + taste)));
+Tastatur k2 = neu Tastatur(beiTaste: taste -> Bote.sage(("k2 " + taste)), id: "zwei");
+Tastatur stumm = neu Tastatur();
+Tastatur draussen = neu Tastatur(taste -> Bote.sage(("nie " + taste)));
+probier { neu Tastatur(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Bote.sage((k + " " + stumm.aktiv() + " " + k2));
+Knopf kn = neu Knopf("stopp", () -> { k.aktiv(nein); stumm.beiTaste(taste -> Bote.sage(("stumm " + taste))); k2.animiere("puls"); });
+t.zeige(neu Stapel([k, k2, stumm, kn]));
+t.bediene();
+Bote.sage((k.aktiv() + " " + stumm.aktiv()));
+`, {
+    uiEreignisse: [
+      { typ: "taste", id: "z1", taste: "Leertaste" }, { typ: "taste", id: "zwei", taste: "Leertaste" },
+      { typ: "taste", id: "z1", taste: "" }, { typ: "taste", id: "z1" }, { typ: "taste", id: "z1", taste: 5 },
+      { typ: "taste", id: "z2", taste: "Enter" }, { typ: "taste", id: "z3", taste: "Enter" },
+      { typ: "klick", id: "z5" },
+      { typ: "taste", id: "z1", taste: "Hoch" }, { typ: "taste", id: "z2", taste: "Hoch" },
+      { typ: "klick", id: "z1" }, { typ: "taste", id: "z5", taste: "Enter" }],
+    out: ["Tastatur() braucht eine Funktion, z. B. () -> { … }.", "Tastatur(z1) ja Tastatur(zwei)",
+      "k1 Leertaste", "k2 Leertaste", "stumm Hoch", "nein ja"],
+    noWarn: ["W0102"],
+    ui: [fenster("K"),
+      baum({ id: "z6", art: "stapel", kinder: [
+        { id: "z1", art: "tastatur" }, { id: "zwei", art: "tastatur" }, { id: "z2", art: "tastatur" }, { id: "z5", art: "knopf", text: "stopp" }] }),
+      aendereA([{ id: "z1", aktiv: false }], [{ id: "zwei", art: "puls" }])],
+  }),
+
+  F(T7, "K-110/069: Zustellung einer Taste kostet 0 Schritte (wie beim Takt: bediene + zwei leere Rückrufe = 8 Schritte; vor bediene 1 Schritt weniger als im Takt-Fall, weil neu Tastatur(fn) ein Argument weniger hat)", P`
+Theke t = neu Theke("T");
+Tastatur k = neu Tastatur(() -> { });
+t.zeige(k);
+Bote.sage((Uhr.jetzt()));
+t.bediene();
+Bote.sage((Uhr.jetzt()));
+`, { uiEreignisse: [{ typ: "taste", id: "z1", taste: "a" }, { typ: "taste", id: "z1", taste: "b" }], out: ["15ms", "23ms"] }),
+
+  F(T7, "K-113: Stile zeilen (ganze Zahl ≥ 1) und mindestbreite (Zahl ≥ 0) – Fehlertexte, Erlaubt-Liste endet auf 'zeilen, mindestbreite', Entfernen mit karton → null", P`
+Theke t = neu Theke("S");
+Schild s = neu Schild("Lang");
+Knopf k = neu Knopf("Kaufen");
+s.stil("zeilen", 2);
+k.stil("mindestbreite", 120).stil("zeilen", 1);
+probier { s.stil("zeilen", 0); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("zeilen", 1.5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("zeilen", "2"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("mindestbreite", -1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("minbreite", 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+k.stil("mindestbreite", 0);
+k.stil("mindestbreite", 80.5);
+Knopf r = neu Knopf("r", () -> { s.stil("zeilen", 3); k.stil("mindestbreite", karton); s.stil("zeilen", karton); s.stil("mindestbreite", 40); });
+t.zeige(neu Stapel([s, k, r]));
+t.bediene();
+`, {
+    uiEreignisse: [{ typ: "klick", id: "z3" }],
+    out: ["Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.",
+      "Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 1.5.",
+      "Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht \"2\".",
+      "Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht -1.",
+      "Stil 'minbreite' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite."],
+    ui: [fenster("S"),
+      baum({ id: "z4", art: "stapel", kinder: [
+        { id: "z1", art: "schild", text: "Lang", stil: { zeilen: 2 } },
+        { id: "z2", art: "knopf", text: "Kaufen", stil: { mindestbreite: 80.5, zeilen: 1 } },
+        { id: "z3", art: "knopf", text: "r" }] }),
+      aendere({ id: "z1", stil: { mindestbreite: 40, zeilen: null } }, { id: "z2", stil: { zeilen: 1, mindestbreite: null } })],
   }),
 ];

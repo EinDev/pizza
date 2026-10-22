@@ -1,0 +1,16 @@
+1 [1×, 10×, 100×, Max] ja Auswahl(z1)
+[1, karton, ja] 3
+[] 1
+Auswahl braucht ein Blech mit Optionen, nicht 5.
+Option 2 gibt es nicht – die Auswahl hat 1 Option.
+Option 7 gibt es nicht – die Auswahl hat 4 Optionen.
+Option 0 gibt es nicht – die Auswahl hat 4 Optionen.
+Option 2 gibt es nicht – die Auswahl hat 4 Optionen.
+Option 1 gibt es nicht – die Auswahl hat 0 Optionen.
+Auswahl braucht ein Blech mit Optionen, nicht "x".
+Erwartet diavolo (ja/nein), bekam 1.
+4
+gewählt 3 3
+v 1
+gewählt 1 1
+1 1 nein

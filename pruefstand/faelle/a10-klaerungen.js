@@ -908,6 +908,36 @@ Bote.sage(("vor"));
 neu Hawaii();
 `, { exit: 39, out: ["vor"], panik: true }),
 
+  // ── K-111 Mathe.log/log10/log2/exp/E ─────────────────────────────────────
+  F(K, "K-111: log, log10, log2, exp exakt wie Math.* inkl. Sonderfälle (log(0) → -Infinity, log(-1) → NaN, exp(710) → Infinity, exp(-∞) → 0, NaN durchgereicht); E ohne Klammern wie PI", P`
+Bote.sage((Mathe.log(1) + " " + Mathe.log(Mathe.E) + " " + Mathe.log(0) + " " + Mathe.log(-1) + " " + Mathe.log(Mathe.potenz(10, 400))));
+Bote.sage((Mathe.log10(1000) + " " + Mathe.log10(0.001) + " " + Mathe.log2(8) + " " + Mathe.log2(0.5) + " " + Mathe.log10(0)));
+Bote.sage((Mathe.exp(0) + " " + Mathe.exp(1) + " " + Mathe.exp(710) + " " + Mathe.exp(-Mathe.potenz(10, 400)) + " " + Mathe.exp(Mathe.wurzel(-1))));
+Bote.sage((Mathe.E + " " + Mathe.PI));
+Bote.sage((Mathe.log(1000) / Mathe.log(10)));
+Bote.sage((Mathe.log(2.5) + " " + Mathe.exp(2.5) + " " + Mathe.log10(7) + " " + Mathe.log2(10)));
+funghi f = Mathe.log(0);
+Bote.sage((f));
+Rezept l = Mathe.log;
+Bote.sage((l(Mathe.E * Mathe.E)));
+`, {
+    out: ["0 1 -Infinity NaN Infinity", "3 -3 3 -1 -Infinity", "1 2.718281828459045 Infinity 0 NaN",
+      "2.718281828459045 3.141592653589793", "2.9999999999999996",
+      "0.9162907318741551 12.182493960703473 0.8450980400142568 3.321928094887362", "-Infinity", "2"],
+  }),
+
+  F(K, "K-111: Nicht-Zahl → TypAnanas wie bei wurzel; salami kann log(0) nicht halten (K-005); Mathe.e gibt es nicht", P`
+probier { Mathe.log("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.exp(karton); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.log10(ja); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.log2(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { salami s = Mathe.log(0); } verbrannt (TypAnanas a) { Bote.sage(("salami")); }
+probier { Mathe.e; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+`, {
+    out: ["log braucht eine Zahl, nicht \"x\".", "exp braucht eine Zahl, nicht karton.", "log10 braucht eine Zahl, nicht ja.",
+      "log2 braucht eine Zahl, nicht karton.", "salami", "'e' gibt es bei Mathe nicht."],
+  }),
+
   F(K, "K-105 API: keine Beläge, keine Pizza-Typen, kein teile, keine Belag-Keywords", P`
 Bote.sage(("ok"));
 `, {
