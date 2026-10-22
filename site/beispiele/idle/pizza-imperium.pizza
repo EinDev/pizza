@@ -557,11 +557,11 @@ klasse Wettbewerb {
         sonst falls (wurf <= g + SILBER_PROZENT) { silber++; medaille = "🥈 Silber"; }
         sonst { bronze++; medaille = "🥉 Bronze"; }
         letztes = "Zuletzt: " + medaille + " bei der " + nameDativ() + " (Qualität " + q + ", Gold-Chance " + g + " %).";
-        // P5-Haken Album: fundChance("wettbewerb")
         version++;
         s.neuBerechnen();            // der Bonus hat sich geändert
         s.melde(((scout ? "🔭 Der Scout meldet: " : "🏆 ") + medaille + " bei der " + nameDativ() + " (Startgeld " + preis_.währung("€", kompakt: ja)
             + ")! Pokale " + pokaleText() + " – +" + bonusPunkte() + " % auf alles, für immer."));
+        s.fundChance("wettbewerb");   // 📒 Sammelalbum (P5) – nach der Meldung: der Fund kommt davor in die Meldungszeile
         serviere (ja);
     }
 
@@ -619,6 +619,75 @@ klasse Wettbewerb {
     }
 }
 // ── Ende P5 Wettbewerb (Modell) ──
+
+// ── P5 Album ── Modell des Sammelalbums (Labor, #11): zwölf Sticker in drei Reihen zu vier, eine dauerhafte Sammlung
+// (überlebt Neueröffnung und Franchise, nur „Neu anfangen“ leert sie). Kennt keine Oberfläche; Zufall nur in fund() –
+// ob gezogen wird, entscheidet Spiel.fundChance() (erst nach der Freischaltung, sonst ändert sich der Zufallsstrom).
+klasse Sticker {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami reihe;           // 1 … 3
+    margherita text;
+
+    Sticker(margherita s, margherita sym, margherita n, salami r, margherita t) {
+        schlüssel = s; symbol = sym; name = n; reihe = r; text = t;
+    }
+}
+
+klasse Album {
+    salami REIHEN = 3;
+    Blech<Sticker> STICKER = [
+        neu Sticker("margherita", "🍕", "Margherita", 1, "Die Königin. Seit 1889 unverändert – Nonna behauptet, sie war dabei."),
+        neu Sticker("tomate", "🍅", "Tomate", 1, "San Marzano, sonnengereift. Riecht sogar auf dem Sticker."),
+        neu Sticker("mozzarella", "🧀", "Mozzarella", 1, "Fior di latte. Der Sticker klebt ein bisschen mehr als die anderen."),
+        neu Sticker("basilikum", "🌿", "Basilikum", 1, "Drei Blätter, nie mehr. Sagt Nonna. Immer."),
+        neu Sticker("glut", "🔥", "Ofenglut", 2, "485 °C in Stickerform – nicht anfassen."),
+        neu Sticker("roller", "🛵", "Lieferroller", 2, "Mit Warmhaltebox und Nonna-Navi."),
+        neu Sticker("pizzaiolo", "🧑‍🍳", "Pizzaiolo", 2, "Wirft den Teig bis an die Decke – auf dem Sticker für immer in der Luft."),
+        neu Sticker("pizzakarton", "📦", "Pizzakarton", 2, "Der Sticker ist größer als gedacht. Passt trotzdem aufs Feld."),
+        neu Sticker("stern", "⭐", "Michelin-Stern", 3, "Glänzt. Der Guide Michelin weiß nichts davon."),
+        neu Sticker("zentrale", "🏢", "Zentrale", 3, "Franchise-Zentrale. Hauptversammlung im Ofen, Tagesordnung: mehr Pizza."),
+        neu Sticker("mond", "🌙", "Mondpizzeria", 3, "Geringe Schwerkraft – der Sticker schwebt fast aus dem Album."),
+        neu Sticker("ananas", "🍍", "Ananas", 3, "Der umstrittenste Sticker. Nonna hat ihn verkehrt herum eingeklebt.")
+    ];
+    Speisekarte<margherita, margherita> gefunden = neu Speisekarte<margherita, margherita>();   // Sticker → Quelle des Funds
+    salami version = 0;     // zählt hoch bei jedem Fund, Laden und Leeren (die Oberfläche schaut nur darauf)
+
+    diavolo hat(margherita k) { serviere (gefunden.hat(k)); }
+    salami anzahl() { serviere (gefunden.länge()); }
+    diavolo voll() { serviere (anzahl() >= STICKER.länge()); }
+    margherita quelle(margherita k) { serviere (gefunden.hole(k, "")); }
+    // Fehlende Sticker in fester Reihenfolge (Liste) – so ist die Ziehung bei gleicher Saat gleich.
+    Blech<Sticker> fehlende() { serviere (STICKER.filtere((st) -> (!gefunden.hat(st.schlüssel)))); }
+    diavolo reiheVoll(salami r) {
+        für (Sticker st : STICKER) { falls (st.reihe == r && !gefunden.hat(st.schlüssel)) { serviere (nein); } }
+        serviere (ja);
+    }
+    salami volleReihen() {
+        salami n = 0;
+        für (salami r : [1 .. REIHEN]) { falls (reiheVoll(r)) { n++; } }
+        serviere (n);
+    }
+    // Ein zufälliger fehlender Sticker (Zufall mit Saat); karton, wenn das Album voll ist.
+    Sticker fund(margherita quelle_) {
+        Blech<Sticker> fehlt = fehlende();
+        falls (fehlt.istLeer()) { serviere (karton); }
+        Sticker st = Zufall.wähle(fehlt);
+        gefunden.lege(st.schlüssel, quelle_);
+        version++;
+        serviere (st);
+    }
+    leer leere() { gefunden = neu Speisekarte<margherita, margherita>(); version++; }
+    // Spielstand: Speisekarte Sticker → Quelle; unbekannte Schlüssel fallen beim Laden weg
+    Speisekarte<margherita, margherita> alsSpeisekarte() { serviere (gefunden); }
+    leer lade(Speisekarte<margherita, Vorrat> alt) {
+        gefunden = neu Speisekarte<margherita, margherita>();
+        für (Sticker st : STICKER) { falls (alt.hat(st.schlüssel)) { gefunden.lege(st.schlüssel, "" + alt.hole(st.schlüssel)); } }
+        version++;
+    }
+}
+// ── Ende P5 Album (Modell) ──
 
 // ─────────────────────────────── Das Spiel ──────────────────────────────
 // Kennt keine Oberfläche: rechnet nur und schreibt die letzte Neuigkeit in `nachricht`.
@@ -1046,7 +1115,7 @@ klasse Spiel {
     // Schlüssel → Stück; Marketing und Helfer haben eigene Listen (KAMPAGNEN, ALLE_HELFER) und eigene Kauf-Methoden.
     diavolo hatInhalt(margherita s) {
         serviere (s == "garten" || s == "weinkeller" || s == "personal" || s == "lieferzonen" || s == "marketing" || s == "helfer"
-            || s == "labor" || s == "stammgaeste" || s == "katze" || s == "wettbewerb");
+            || s == "labor" || s == "stammgaeste" || s == "katze" || s == "wettbewerb" || s == "album");
     }
     Blech<Posten> postenVon(margherita s) {
         falls (s == "garten") { serviere (BEETE); }
@@ -1399,6 +1468,39 @@ klasse Spiel {
     diavolo nimmAmWettbewerbTeil() { serviere (wettbewerb.teilnehmen(dies, nein)); }   // nur aus dem Klick-Rückruf
     // ── Ende P5 Wettbewerb (Spiel) ──
 
+    // ── P5 Album ── Sammelalbum (Labor, #11): Funde aus Ereignis, Sonderschicht (Klick und Pino), Minispiel-Sieg (Hand und
+    // Nonna) und Wettbewerb (ruft fundChance("wettbewerb")). Volle Reihen zählen als Prozentpunkte im Alles-Bonus
+    // (bonusPunkte(), wie die Lieferzonen) – kein eigener Faktor, sonst zündet die Franchise-Kaskade (Paket 3).
+    Album album = neu Album();
+    funghi ALBUM_FUNDCHANCE = 0.012;   // Nutzer: voll erst nach 4–6 h aktiven Spiels – Bot (Saat 42/7/99): 4,5 % füllte es in 81–97 min, 1,2 % ≈ 5 h
+    salami ALBUM_PUNKTE_JE_REIHE = 10;
+    Blech<margherita> ALBUM_QUELLEN = ["ereignis", "sonderschicht", "minispiel", "wettbewerb"];
+    Blech<margherita> ALBUM_QUELLEN_TEXT = ["bei einem Ereignis", "in der Sonderschicht", "beim Minispiel-Sieg", "beim Pizza-Wettbewerb"];
+    margherita albumQuelleText(margherita q) {
+        für (salami i : [1 .. ALBUM_QUELLEN.länge()]) { falls (ALBUM_QUELLEN.stück(i) == q) { serviere (ALBUM_QUELLEN_TEXT.stück(i)); } }
+        serviere (q);
+    }
+    salami albumPunkte() { serviere (istFrei("album") ? album.volleReihen() * ALBUM_PUNKTE_JE_REIHE : 0); }
+    diavolo albumVoll() { serviere (istFrei("album") && album.voll()); }   // für den Erfolg „Alle Sticker“ (Paket 6)
+    // ALBUM_FUNDCHANCE (1,2 %) Chance auf einen zufälligen fehlenden Sticker. Gezogen wird erst nach der Freischaltung und nur, solange etwas
+    // fehlt – vorher bleibt der Zufallsstrom unberührt. Ändert nur Zahlen und Text (R1): Die Fundmeldung kommt VOR die
+    // Meldung des Auslösers in die Meldungszeile. Liefert ja bei einem Fund.
+    diavolo fundChance(margherita quelle) {
+        falls (!istFrei("album") || album.voll()) { serviere (nein); }
+        falls (!Zufall.wahr(ALBUM_FUNDCHANCE)) { serviere (nein); }
+        salami reihenVorher = album.volleReihen();
+        Sticker st = album.fund(quelle);
+        falls (st == karton) { serviere (nein); }
+        salami reihen = album.volleReihen();
+        falls (reihen != reihenVorher) { neuBerechnen(); }
+        margherita text = "📒 Sticker " + albumQuelleText(quelle) + ": " + st.symbol + " " + st.name + " (" + album.anzahl() + "/" + album.STICKER.länge() + ")"
+            + (album.voll() ? " – das Album ist voll! Nonna rahmt es ein." : (reihen != reihenVorher ? " – Reihe voll: +" + ALBUM_PUNKTE_JE_REIHE + " % auf alles!" : "."));
+        nachricht = text + " " + nachricht;
+        Bote.sage((text));
+        serviere (ja);
+    }
+    // ── Ende P5 Album (Spiel) ──
+
     // gelernt: Nonna hat es verraten. kennt: es wirkt (im Urlaub wirkt keins).
     diavolo gelernt(margherita talent) { serviere (talente.enthält(talent)); }
     diavolo kennt(margherita talent) { serviere (modus != "urlaub" && talente.enthält(talent)); }
@@ -1416,7 +1518,7 @@ klasse Spiel {
     }
     // Prozentpunkte der Bereiche auf den Alles-Bonus: Viertel (+5 je Viertel), laufende Kampagnen auf Betrieb/alles (Flyer +25,
     // Radio +50, TV +100) und Treueherzen (+0,5 je Herz, höchstens 100 Herzen)
-    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte() + katzePunkte() + wettbewerbPunkte()); }
+    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte() + katzePunkte() + wettbewerbPunkte() + albumPunkte()); }
 
     leer neuBerechnen() {
         // Alles-Faktor; Fernsehspot (Marketing „alles“) wirkt wie der Freitagabend auf Betrieb und Klick, nicht auf den Preis
@@ -1605,6 +1707,7 @@ klasse Spiel {
             großbestellung();
         }
         neuBerechnen();
+        fundChance("ereignis");        // 📒 Sammelalbum (P5)
     }
 
     leer beendeEffekt() {
@@ -1749,6 +1852,7 @@ klasse Spiel {
         funghi bonus = ladungen * portion();
         backe(bonus); großeEinnahmen++;
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
+        fundChance("sonderschicht");   // 📒 Sammelalbum (P5): Klick und Pino
     }
 
     // ── Feinkost ──
@@ -2023,7 +2127,7 @@ klasse Spiel {
         kampagnenGestartet = 0; helferEinsätze = 0;
         forschung = []; forschungLäuft = ""; forschungRest = 0;
         herzen = 0; gebäudeGekauft = 0; großbestellungen = 0;
-        katze.zurück(); wettbewerb.allesZurück();
+        katze.zurück(); wettbewerb.allesZurück(); album.leere();
         gastWunsch = neu Speisekarte<margherita, salami>(); gastStart = neu Speisekarte<margherita, funghi>(); gastZiel = neu Speisekarte<margherita, funghi>();
         versionGeheim++; versionErfolge++; versionBereiche++; versionSpiele++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
         neuBerechnen();
@@ -2061,6 +2165,7 @@ klasse Spiel {
         s.lege("forschung", forschung).lege("forschungLäuft", forschungLäuft).lege("forschungRest", forschungRest);
         s.lege("herzen", herzen).lege("gebäudeGekauft", gebäudeGekauft).lege("großbestellungen", großbestellungen);
         s.lege("katze", katze.alsSpeisekarte()).lege("wettbewerb", wettbewerb.alsSpeisekarte());
+        s.lege("sticker", album.alsSpeisekarte());   // 📒 P5
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -2145,6 +2250,7 @@ klasse Spiel {
         großbestellungen = Mathe.max(pünktlich, s.hole("großbestellungen", pünktlich));   // vor Paket 5 zählte der Wunsch pünktliche
         katze.lade(s.hole("katze", neu Speisekarte<margherita, Vorrat>()));   // P5: fehlt im alten Stand → Vorgaben
         wettbewerb.ladeAus(s.hole("wettbewerb", neu Speisekarte<margherita, Vorrat>()));
+        album.lade(s.hole("sticker", neu Speisekarte<margherita, Vorrat>()));   // 📒 P5: fehlt im alten Stand → leer
         gastWunsch = ladeGäste(bereiche, "gastWunsch"); gastStart = ladeGäste(bereiche, "gastStart"); gastZiel = ladeGäste(bereiche, "gastZiel");
         falls (istFrei("stammgaeste")) { starteWünsche(); }
         versionGarten++; versionWeinkeller++; versionPersonal++; versionLieferzonen++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
@@ -2434,6 +2540,7 @@ klasse Spielecke {
             neu_ = " Nonna ist beeindruckt: Ab jetzt gibt es " + nächstes.symbol + " " + nächstes.name + "!";
         }
         s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).währung("€", kompakt: ja) + ")." + neu_));
+        s.fundChance("minispiel");   // 📒 Sammelalbum (P5): Hand und Nonna
     }
 
     leer verliere(margherita text) {
@@ -2672,6 +2779,7 @@ leer synchronisiere() {
     zLabor.setze(spiel.versionLabor);
     zStammgaeste.setze(spiel.versionStammgäste);
     zWettbewerb.setze(spiel.wettbewerb.version);   // P5
+    zAlbum.setze(spiel.album.version);   // 📒 P5
     zSekunde.setze(spiel.sekunden);
     zNachricht.setze(spiel.nachricht);
     zTakt.setze(zTakt.wert() + 1);
@@ -3384,6 +3492,66 @@ klasse WettbewerbPanel {
 WettbewerbPanel wettbewerbPanel = neu WettbewerbPanel();
 // ── Ende P5 Wettbewerb (Oberfläche) ──
 
+// ── P5 Album ── Oberfläche des Sammelalbums: drei Zeilen zu vier Sticker-Feldern fester Breite (4 · 86 + 3 · 8 = 368 ≤ 370)
+// und fester Zeilenhöhe – ein Fund im Takt (Ereignis, Pino, Nonna) wechselt nur den Text „❔“ → Symbol (R1). Die Zeilen
+// gehören von Anfang an zum Bereich-Panel (das BereichPanel hängt `zeilen` an) und sind sichtbar, sobald das Album frei ist –
+// das ändert nur der Freischalt-Klick (R1/R3). Die
+// Zusammenfassung „n/12 – volle Reihen“ steht wie bei allen Bereichen im Kopf des Panels (albumKopfText, BereichPanel
+// delegiert). Alle Texte hängen an zAlbum (= spiel.album.version, in synchronisiere gesetzt) – sie rechnen nur nach einem Fund.
+Zettel zAlbum = neu Zettel(-1);
+salami STICKER_BREITE = 86;
+
+margherita albumKopfText() {
+    zBereiche.wert();
+    falls (!spiel.istFrei("album")) { serviere (""); }
+    zAlbum.wert();
+    Album a = spiel.album;
+    falls (a.voll()) { serviere ("📒 Sammelalbum: alle " + a.STICKER.länge() + " Sticker! Volle Reihen: " + a.volleReihen() + " – +" + spiel.albumPunkte() + " % auf alles (zählt wie Sterne, für immer)."); }
+    serviere ("📒 Sammelalbum: " + a.anzahl() + "/" + a.STICKER.länge() + " Sticker – volle Reihen: " + a.volleReihen() + " (+" + spiel.ALBUM_PUNKTE_JE_REIHE
+        + " % auf alles je Reihe, zählt wie Sterne). Sticker bleiben für immer.");
+}
+
+klasse AlbumPanel {
+    Blech<Zutat> zeilen = [];
+    Blech<Schild> felder = [];
+
+    AlbumPanel() {
+        Album a = spiel.album;
+        salami jeReihe = a.STICKER.länge() / a.REIHEN;
+        für (salami r : [1 .. a.REIHEN]) {
+            Blech<Zutat> reihe = [];
+            für (salami j : [1 .. jeReihe]) {
+                salami n = (r - 1) * jeReihe + j;
+                Schild f = kleinSchild("bereich-album-sticker-" + n, 2, STICKER_BREITE);
+                f.stil("ausrichtung", "mitte");
+                f.binde("text", () -> feldText(n));
+                f.binde("hinweis", () -> feldHinweis(n));
+                felder.hinzu(f); reihe.hinzu(f);
+            }
+            Reihe z = zeile("bereich-album-" + r, reihe, ZEILE_HOEHE);
+            z.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei("album")); });
+            zeilen.hinzu(z);
+        }
+    }
+
+    margherita feldText(salami n) {
+        zAlbum.wert();
+        Sticker st = spiel.album.STICKER.stück(n);
+        serviere (spiel.album.hat(st.schlüssel) ? st.symbol + " " + st.name : "❔");
+    }
+
+    margherita feldHinweis(salami n) {
+        zAlbum.wert();
+        Sticker st = spiel.album.STICKER.stück(n);
+        falls (!spiel.album.hat(st.schlüssel)) {
+            serviere ("❔ Noch nicht gefunden. Jedes Ereignis, jede Sonderschicht, jeder Minispiel-Sieg und Wettbewerb hat "
+                + (spiel.ALBUM_FUNDCHANCE * 100).kompakt(1) + " % Chance auf einen fehlenden Sticker. Volle Reihe: +" + spiel.ALBUM_PUNKTE_JE_REIHE + " % auf alles.");
+        }
+        serviere (st.symbol + " " + st.name + " – " + st.text + " Gefunden " + spiel.albumQuelleText(spiel.album.quelle(st.schlüssel)) + ".");
+    }
+}
+// ── Ende P5 Album (Oberfläche) ──
+
 // ─────────────────────────────── Bereiche (Hof · Stadt · Labor) ─────────
 // Ein Panel je Bereich – unsichtbar, bis der Bereich angeboten ist (Vorgänger der Kette frei). Angeboten zeigt es EINE Zeile:
 // Teaser + Freischalt-Knopf frei-<schlüssel>. Der Freischalt-Klick lässt im selben Rückruf den Inhalt wachsen: Kopfzeile
@@ -3410,6 +3578,7 @@ klasse BereichPanel {
     Blech<Posten> posten = [];
     Fortschritt laborBalken = karton;
     KatzePanel katzePanel = karton;   // P5: nur bei der Katze
+    AlbumPanel albumPanel = karton;   // 📒 P5: nur beim Sammelalbum
 
     salami zeilenZahl(margherita s) {
         falls (s == "garten" || s == "lieferzonen" || s == "labor") { serviere (3); }
@@ -3505,6 +3674,7 @@ klasse BereichPanel {
         // P5: Katze, Wettbewerb, Sammelalbum und Banca bauen ihre Zeilen selbst (eigene Panel-Klassen) und liefern den Kopftext
         falls (s == "katze") { für (Zutat z : katzePanel.zeilen) { kinder.hinzu(z); } }
         falls (s == "wettbewerb") { für (Zutat z : wettbewerbPanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "album") { albumPanel = neu AlbumPanel(); für (Zutat z : albumPanel.zeilen) { kinder.hinzu(z); } }
         teil = panel(b.titel(), "bereich-" + s, kinder);
         teil.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) || spiel.freischaltbar(b.schlüssel)); });
     }
@@ -3523,6 +3693,7 @@ klasse BereichPanel {
         margherita s = b.schlüssel;
         falls (s == "katze") { serviere (katzePanel.kopfText()); }   // P5
         falls (s == "wettbewerb") { serviere (wettbewerbPanel.kopfText()); }
+        falls (s == "album") { serviere (albumKopfText()); }   // 📒 P5
         falls (inhaltOffen()) {
             falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet) – eine Pizza bringt " + spiel.preis().währung("€") + "."); }
             falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
