@@ -5,11 +5,21 @@
 // Lieferungen: "30 Minuten oder gratis" – Trinkgeld macht die Fahrer schneller.
 // Enter übernimmt den Wert von gestern. Pizza-Uhr: 1 Schritt = 1 ms.
 
+// Eine Pizza auf Luigis Karte: Name, Anzahl Beläge (= Arbeit im Ofen) und Grundpreis
+klasse Pizza {
+    margherita name;
+    salami beläge;
+    funghi preis;
+    Pizza(margherita name, salami beläge, funghi preis) {
+        dies.name = name; dies.beläge = beläge; dies.preis = preis;
+    }
+}
+
 speisekarte klasse Tycoon {
     tiefkühl Blech<Pizza> karte = [
-        ((Tomate, Mozzarella, Basilikum)), ((Tomate, Käse, Salami)),
-        ((Tomate, Mozzarella, Pilze, Schinken)), ((Tomate, Käse, Thunfisch, Zwiebeln)),
-        ((Tomate, Mozzarella, Rucola, Parmesan))
+        neu Pizza("Margherita", 3, 8.00), neu Pizza("Salami", 3, 8.50),
+        neu Pizza("Prosciutto e Funghi", 4, 10.00), neu Pizza("Tonno", 4, 9.50),
+        neu Pizza("Rucola", 4, 9.70)
     ];
     tiefkühl Blech<margherita> tage = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
     tiefkühl diavolo gegangen = nein;
@@ -33,7 +43,7 @@ speisekarte klasse Tycoon {
     }
 
     tiefkühl leer backe(Pizza p) {
-        salami griffe = p.anzahlBeläge() * 3;
+        salami griffe = p.beläge * 3;
         solange (griffe > 0) { griffe--; }
     }
 
@@ -45,7 +55,7 @@ speisekarte klasse Tycoon {
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         Bote.sage(("=== Pizzeria-Tycoon: Deine erste Woche bei Luigi ==="));
-        Bote.sage(("Koch: 12 €/Tag, Zutaten: 2 € pro Pizza, Grundpreise 7,50–9,50 €."));
+        Bote.sage(("Koch: 12 €/Tag, Zutaten: 2 € pro Pizza, Grundpreise 8,00–10,00 €."));
         Blech<funghi> gewinne = [];
         salami aufschlag = 1; salami grad = 300; salami köche = 2; salami tipp = 1;
 
@@ -81,7 +91,7 @@ speisekarte klasse Tycoon {
                 };
                 für (salami i = 1; i <= n; i++) {
                     verkauft.hinzu(stapel.stück(i));
-                    kasse += karte.stück(stapel.stück(i)).preis() + aufschlag;
+                    kasse += karte.stück(stapel.stück(i)).preis + aufschlag;
                 }
                 fertig += n;
             }
@@ -89,7 +99,7 @@ speisekarte klasse Tycoon {
             salami gratis = 0;
             für (salami d = 1; d <= Mathe.min(3, fertig); d++) {
                 salami weg = Zufall.zahl(15, 40);
-                funghi preis = karte.stück(verkauft.stück(d)).preis() + aufschlag;
+                funghi preis = karte.stück(verkauft.stück(d)).preis + aufschlag;
                 funghi bezahlt = bestelle(() -> (Tycoon.liefere(weg, preis)))
                     .trinkgeld(tipp).warte(max: 320ms).oderGratis((0));
                 falls (bezahlt == 0) { gratis++; kasse -= preis; }

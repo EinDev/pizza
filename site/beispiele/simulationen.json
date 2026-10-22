@@ -16,7 +16,7 @@
         "ofen",
         "bestelle",
         "trinkgeld",
-        "Speisekarte",
+        "Klasse",
         "Balkendiagramm",
         "Eingabe"
       ],
@@ -99,15 +99,15 @@
     {
       "id": "belag-baukasten",
       "titel": "Belag-Baukasten",
-      "beschreibung": "Eigene Beläge als Decorators: Trüffel, Blattgold, Happy Hour und Extrascharf rechnen Preise und Beschreibungen Schicht für Schicht – und Kaviar wirft eine eigene Ananas.",
+      "beschreibung": "Eigene Beläge als Decorator-Klassen: Trüffel, Blattgold, Happy Hour und Extrascharf umwickeln die Pizza darunter und rechnen Preise und Beschreibungen Schicht für Schicht – Kaviar wirft eine eigene Ananas.",
       "datei": "simulationen/belag-baukasten.pizza",
       "erwartet": "simulationen/belag-baukasten.erwartet",
       "exitCode": 0,
       "tier": 1,
       "schlagworte": [
-        "belag",
         "Decorator",
-        "@Nach",
+        "rezeptur",
+        "erbt",
         "unten",
         "eigene Ananas",
         "probier"
@@ -116,7 +116,7 @@
     {
       "id": "hawaii-alarm",
       "titel": "Hawaii-Alarm",
-      "beschreibung": "Du überwachst Robo-Luigi am Fließband: Wie viele Zufallsbeläge? Und wenn er eine Ananas greift – Filter, wegwerfen oder durchwinken? Durchwinken endet mit Kernel Panic (Exit 39); die Beispiel-Eingabe tut genau das kurz vorm Ziel.",
+      "beschreibung": "Du überwachst Robo-Luigi am Fließband: Wie viele Zufallsbeläge? Und wenn er eine Ananas greift – Filter, wegwerfen oder durchwinken? Durchwinken macht die Pizza zur hawaii und endet mit Kernel Panic (Exit 39); die Beispiel-Eingabe tut genau das kurz vorm Ziel.",
       "datei": "simulationen/hawaii-alarm.pizza",
       "erwartet": "simulationen/hawaii-alarm.erwartet",
       "eingabe": "simulationen/hawaii-alarm.eingabe",
