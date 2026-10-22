@@ -2,7 +2,7 @@
 //! Drehung += drehtempo·dt (2D um die Bildmitte, 3D um die Hochachse).
 
 use super::*;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 use crate::welt::lage;
 
 pub const TEMPO_X: usize = 0;
@@ -16,7 +16,7 @@ pub const DAEMPFUNG: usize = 7;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Bewegung",
+        name: "Bewegung", genus: Genus::F,
         raum: Raum::Beide,
         braucht: &[],
         felder: &[

@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::paket::LichtB;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const ART_FELD: usize = 0;
 pub const FARBE: usize = 1;
@@ -13,7 +13,7 @@ pub const SCHATTEN: usize = 4;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Licht",
+        name: "Licht", genus: Genus::N,
         raum: Raum::Drei,
         braucht: &[],
         felder: &[

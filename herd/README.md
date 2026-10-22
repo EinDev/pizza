@@ -95,7 +95,7 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `puffer` | `(len i32) → ptr` | Austauschpuffer ≥ len Bytes, 8-Byte-ausgerichtet; gültig bis zum nächsten `puffer` |
 | `fehler_art` / `fehler_code` | `() → i32` | Art/Code des letzten Fehlers (0 = keiner) |
 | `fehler_text` | `(ptr, kap) → len` | Text des letzten Fehlers (ohne `…Ananas: `), Retry |
-| `fehler_neu` | `() → i32` | 1, wenn seit dem letzten Aufruf ein Fehler gesetzt wurde (setzt zurück) |
+| `fehler_neu` | `() → i32` | 1, wenn der **letzte** Aufruf mit Fehlerprotokoll fehlschlug, sonst 0; setzt zurück. Jeder solche Aufruf setzt die Markierung neu (seit H1b-Nachtrag) – ein früherer, nicht abgefragter i32-Fehler macht ein späteres echtes NaN also nicht zum Fehler |
 | `melde_typfehler` | `(typ, feld, ptr, len) → −1` | setzt `TypAnanas: <Name>.<feld> braucht <erwartet>, nicht <darstellung>.` – für Werte, deren Typ nur die Anbindung kennt (z. B. Text statt Zahl) |
 | `welt_neu` | `(breite f64, hoehe f64, titel_ptr, titel_len) → 0` | einmal je Programm; Teil 1 = Kamera (0, 3, 8) → (0, 0, 0), Teil 2 = Sonne (0.5, 1, 0.3) mit `Licht(art: sonne)`. Prüft Ganzzahl und 64 … 4096 |
 | `welt_titel` | `(ptr, len) → 0` | Titel ändern (gehört zum Szenenzustand) |
@@ -119,8 +119,8 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `komp_haenge` | `(komp, teil) → 0` | prüft: lose, Raum, Art frei, Voraussetzungen |
 | `komp_loese` | `(komp) → 0` | wieder lose (Werte bleiben); verweigert, wenn eine andere Komponente am Teil sie braucht |
 | `komp_von` | `(teil, typ) → handle∣0` | `teil.<name>()` |
-| `komp_info` | `(komp, was) → i32` | 1 Typnummer, 2 Teil (0 = lose), 3 zerstört (0/1, wirft nie) |
-| `typ_nummer` | `(ptr, len) → typ∣0` | nach Name |
+| `komp_info` | `(komp, was) → i32` | 1 Typnummer, 2 Teil (0 = lose **oder zerstört**, wirft dann nicht), 3 zerstört (0/1, wirft nie) |
+| `typ_nummer` | `(ptr, len) → typ` | nach Name; unbekannt → −2, `Eine Komponente 'Pendel' gibt es nicht.` (Code 19; bis H1b: 0 ohne Fehler) |
 | `feld_nummer` | `(typ, ptr, len) → feld` | nach Name; unbekannt → `<Name> hat kein Feld 'x'.` |
 | `setze_zahl` | `(komp, feld, wert f64) → 0` | zahl/ganz (Bereich), diavolo (0/1), wahl (Index), teil/form/bildchen (ID, 0 = karton), farbe (0xRRGGBBAA; Text wird `#rrggbbaa`) |
 | `hole_zahl` | `(komp, feld) → f64` | wie oben; farbe → 0xRRGGBBAA; bildchen-liste → Länge |
@@ -151,7 +151,7 @@ für 2D-Teile.`).
 (intern) · 17 Raum unbekannt (intern) · 18 Lage-Bereich (ebene) · 20 Typnummer unbekannt (intern) · 21 Komponente hängt schon
 · 22 Komponente falscher Raum · 23 Art schon am Teil · 24 Voraussetzung fehlt · 25 wird gebraucht · 26 Handle unbekannt
 (intern) · 27 Feld unbekannt · 28 Feld falscher Typ · 29 Feld Bereich · 30 Wahl unbekannt · 31 Farbe unbekannt ·
-40 teile · 41 dicke · 42 Punkte · 43 Dreiecke · 44 Punkt-Index · 45 Bildchen zu groß · 46 Bildchen-Zeichen · 47 Bildchen
+19 Komponentenname unbekannt · 40 teile (Bereich) · 51 teile keine Ganzzahl (TypAnanas `Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.`) · 41 dicke · 42 Punkte · 43 Dreiecke · 44 Punkt-Index · 45 Bildchen zu groß · 46 Bildchen-Zeichen · 47 Bildchen
 ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern).
 
 **Was die Anbindung selbst tut:** Sprachtypen prüfen (Zahl/Text/Blech …, bei falschem Typ `melde_typfehler`), Fabriken
@@ -230,7 +230,7 @@ nach der **Blickrichtung** (Horizont `himmel_unten`, Zenit `himmel_oben`, darunt
 ## 5. Schema (`site/js/herd/schema.json`)
 
 Erzeugt von `node herd/baue.js` aus `schema_json`; ein Test vergleicht Datei und Kern. Inhalt: `format`, `feldtypen`
-(Nummer, Name, `erwartet`-Text), `komponenten` (Name, Nummer = Typnummer, Raum `2D|3D|beide`, `braucht`, `system`, `felder`
+(Nummer, Name, `erwartet`-Text), `komponenten` (Name, Nummer = Typnummer, `genus` `m|f|n` für Fehlertexte wie „Dieser Kreis …“, Raum `2D|3D|beide`, `braucht`, `system`, `felder`
 mit Nummer, Name, Typ, Standard, min, max, `wahl`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (für die
 Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf darunter sein), `palette` (Name, Hex, Zeichen),
 `grundformen`. Test-Komponenten (`Probe`) fehlen.

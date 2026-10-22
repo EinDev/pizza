@@ -2,14 +2,14 @@
 //! `komponenten/mod.rs` genügen; Schema, ABI und Speicher behandeln sie ohne weitere Änderung.
 
 use super::*;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const WERT: usize = 0;
 pub const ZAEHLER: usize = 6;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Probe",
+        name: "Probe", genus: Genus::F,
         raum: Raum::Beide,
         braucht: &[],
         felder: &[

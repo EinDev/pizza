@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::paket::flach_art;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const RADIUS: usize = 0;
 pub const FARBE: usize = 1;
@@ -10,7 +10,7 @@ pub const UMRISS: usize = 2;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Kreis",
+        name: "Kreis", genus: Genus::M,
         raum: Raum::Zwei,
         braucht: &[],
         felder: &[Feld::zahl("radius", 10.0).min(0.0), Feld::farbe("farbe", "weiss"), Feld::zahl("umriss", 0.0).min(0.0)],

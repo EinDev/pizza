@@ -161,10 +161,45 @@ impl Feld {
     }
 }
 
+/// Grammatisches Geschlecht des Komponentennamens (für Fehlertexte: „Dieser Kreis …“, „… schon eine Bewegung.“).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Genus {
+    M,
+    F,
+    N,
+}
+
+impl Genus {
+    pub fn name(self) -> &'static str {
+        match self {
+            Genus::M => "m",
+            Genus::F => "f",
+            Genus::N => "n",
+        }
+    }
+    /// Demonstrativ im Nominativ: Dieser/Diese/Dieses
+    pub fn dieser(self) -> &'static str {
+        match self {
+            Genus::M => "Dieser",
+            Genus::F => "Diese",
+            Genus::N => "Dieses",
+        }
+    }
+    /// unbestimmter Artikel im Akkusativ: einen/eine/ein
+    pub fn einen(self) -> &'static str {
+        match self {
+            Genus::M => "einen",
+            Genus::F => "eine",
+            Genus::N => "ein",
+        }
+    }
+}
+
 /// Schema einer Komponentenart. Öffentliche Felder zuerst (Feldnummer = Position + 1), verborgene danach.
 #[derive(Clone, Copy, Debug)]
 pub struct Schema {
     pub name: &'static str,
+    pub genus: Genus,
     pub raum: Raum,
     /// Namen der Komponenten, die am selben Teil hängen müssen.
     pub braucht: &'static [&'static str],

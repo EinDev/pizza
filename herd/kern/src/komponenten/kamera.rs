@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::paket::KameraB;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const SICHT: usize = 0;
 pub const NAH: usize = 1;
@@ -12,7 +12,7 @@ pub const AKTIV: usize = 3;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Kamera",
+        name: "Kamera", genus: Genus::F,
         raum: Raum::Drei,
         braucht: &[],
         felder: &[

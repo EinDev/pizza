@@ -106,7 +106,10 @@ impl Kern {
     }
     fn ri(&mut self, e: Erg<i32>) -> i32 {
         match e {
-            Ok(v) => v,
+            Ok(v) => {
+                self.fehler_neu = false;
+                v
+            }
             Err(f) => {
                 let a = f.art;
                 self.fehler_setzen(f);
@@ -116,7 +119,10 @@ impl Kern {
     }
     fn rf(&mut self, e: Erg<f64>) -> f64 {
         match e {
-            Ok(v) => v,
+            Ok(v) => {
+                self.fehler_neu = false;
+                v
+            }
             Err(f) => {
                 self.fehler_setzen(f);
                 f64::NAN
@@ -140,7 +146,9 @@ impl Kern {
     pub fn fehler_text(&self) -> &str {
         self.fehler.as_ref().map(|f| f.text.as_str()).unwrap_or("")
     }
-    /// 1, wenn seit dem letzten Aufruf ein Fehler gesetzt wurde (setzt die Markierung zurück).
+    /// 1, wenn der **letzte** Aufruf mit Fehlerprotokoll fehlschlug (jeder solche Aufruf setzt die Markierung neu: 1 bei
+    /// Fehler, sonst 0); liest und setzt zurück. So bleibt ein echtes NaN aus `hole_zahl` eindeutig, auch wenn die Anbindung
+    /// nach einem früheren i32-Fehler `fehler_neu` nicht abgefragt hat.
     pub fn fehler_neu(&mut self) -> i32 {
         let n = self.fehler_neu;
         self.fehler_neu = false;
@@ -507,6 +515,12 @@ impl Kern {
                     Err(f) => Err(f),
                 };
             }
+            if was == 2 {
+                // an einer zerstörten Komponente: 0 (an keinem Teil), wirft nicht
+                if let Err(f) = w.komp(komp as u32) {
+                    return if f.code == fehler::code::TEIL_ENTFERNT { Ok(0) } else { Err(f) };
+                }
+            }
             let (a, z) = w.komp(komp as u32)?;
             Ok(match was {
                 1 => a as i32 + 1,
@@ -516,9 +530,13 @@ impl Kern {
         })();
         self.ri(e)
     }
-    /// Typnummer nach Name (0 = unbekannt).
-    pub fn typ_nummer(&self, name: &[u8]) -> i32 {
-        ARTEN.iter().position(|a| a.schema.name.as_bytes() == name).map(|p| p as i32 + 1).unwrap_or(0)
+    /// Typnummer nach Name; unbekannt → −2 mit `Eine Komponente 'X' gibt es nicht.` (Code 19).
+    pub fn typ_nummer(&mut self, name: &[u8]) -> i32 {
+        let e = match ARTEN.iter().position(|a| a.schema.name.as_bytes() == name) {
+            Some(p) => Ok(p as i32 + 1),
+            None => Err(fehler::komp_name(&String::from_utf8_lossy(name))),
+        };
+        self.ri(e)
     }
     /// Feldnummer nach Name; unbekannt → Fehler `<Name> hat kein Feld 'x'.`
     pub fn feld_nummer(&mut self, typ: i32, name: &[u8]) -> i32 {
@@ -736,8 +754,14 @@ impl Kern {
             if !(1..=6).contains(&art) {
                 return Err(fehler::form_art(art));
             }
-            if matches!(art, 2 | 3 | 4 | 6) && !(ganz(teile) && (3.0..=128.0).contains(&teile)) {
-                return Err(fehler::form_teile(teile));
+            if matches!(art, 2 | 3 | 4 | 6) {
+                if teile.is_finite() && !ganz(teile) {
+                    let name = ["", "wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"][art as usize];
+                    return Err(fehler::form_teile_ganz(name, teile));
+                }
+                if !(ganz(teile) && (3.0..=128.0).contains(&teile)) {
+                    return Err(fehler::form_teile(teile));
+                }
             }
             if art == 6 && !(0.05..=0.9).contains(&dicke) {
                 return Err(fehler::form_dicke(dicke));
@@ -1098,7 +1122,7 @@ pub fn schema_json(mit_test: bool) -> String {
         }
         erste = false;
         let sc = &a.schema;
-        s.push_str(&alloc::format!("\n    {{\"name\": \"{}\", \"nummer\": {}, \"raum\": \"{}\", \"braucht\": [", sc.name, i + 1, sc.raum.name()));
+        s.push_str(&alloc::format!("\n    {{\"name\": \"{}\", \"nummer\": {}, \"genus\": \"{}\", \"raum\": \"{}\", \"braucht\": [", sc.name, i + 1, sc.genus.name(), sc.raum.name()));
         for (k, b) in sc.braucht.iter().enumerate() {
             if k > 0 {
                 s.push_str(", ");

@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::paket::flach_art;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const BREITE: usize = 0;
 pub const HOEHE: usize = 1;
@@ -12,7 +12,7 @@ pub const UMRISS: usize = 4;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Rechteck",
+        name: "Rechteck", genus: Genus::N,
         raum: Raum::Zwei,
         braucht: &[],
         felder: &[

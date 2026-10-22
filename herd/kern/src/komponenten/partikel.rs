@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 use super::*;
 use crate::paket::flach_art;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 use crate::welt::GRAD;
 
 pub const RATE: usize = 0;
@@ -32,7 +32,7 @@ const T: usize = 6;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Partikel",
+        name: "Partikel", genus: Genus::N,
         raum: Raum::Zwei,
         braucht: &[],
         felder: &[

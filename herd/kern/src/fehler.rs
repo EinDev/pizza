@@ -4,6 +4,7 @@
 use alloc::format;
 use alloc::string::String;
 
+use crate::schema::Genus;
 use crate::zahl::zahl_text;
 
 /// Ananas-Arten (Rückgabe `-art` bzw. `fehler_art()`).
@@ -52,7 +53,9 @@ pub mod code {
     pub const FELD_BEREICH: i32 = 29;
     pub const FELD_WAHL: i32 = 30;
     pub const FARBE: i32 = 31;
+    pub const KOMP_NAME: i32 = 19;
     pub const FORM_TEILE: i32 = 40;
+    pub const FORM_TEILE_GANZ: i32 = 51;
     pub const FORM_DICKE: i32 = 41;
     pub const FORM_PUNKTE: i32 = 42;
     pub const FORM_DREIECKE: i32 = 43;
@@ -141,21 +144,29 @@ pub fn raum(r: i32) -> Fehler {
 pub fn komp_typ(t: i32) -> Fehler {
     f(art::INTERN, code::KOMP_TYP, format!("Komponenten-Typ {} gibt es nicht.", t))
 }
+/// „Eine Komponente 'Pendel' gibt es nicht.“ (`typ_nummer` mit unbekanntem Namen)
+pub fn komp_name(name: &str) -> Fehler {
+    laufzeit(code::KOMP_NAME, format!("Eine Komponente '{}' gibt es nicht.", name))
+}
+/// „Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.“
+pub fn form_teile_ganz(form: &str, w: f64) -> Fehler {
+    typ(code::FORM_TEILE_GANZ, format!("Form.{}(teile: …) braucht eine Ganzzahl, nicht {}.", form, zahl_text(w)))
+}
 pub fn komp_unbekannt(k: u32) -> Fehler {
     f(art::INTERN, code::KOMP_UNBEKANNT, format!("Komponente {} gibt es nicht.", k))
 }
-pub fn komp_haengt(name: &str, teil: u32) -> Fehler {
-    laufzeit(code::KOMP_HAENGT, format!("Diese {} hängt schon an Teil {}.", name, teil))
+pub fn komp_haengt(name: &str, genus: Genus, teil: u32) -> Fehler {
+    laufzeit(code::KOMP_HAENGT, format!("{} {} hängt schon an Teil {}.", genus.dieser(), name, teil))
 }
 pub fn komp_raum(name: &str, drei_d: bool) -> Fehler {
     laufzeit(code::KOMP_RAUM, format!("{} gibt es nur für {}-Teile.", name, if drei_d { "3D" } else { "2D" }))
 }
-pub fn komp_doppelt(teil: u32, name: &str) -> Fehler {
-    laufzeit(code::KOMP_DOPPELT, format!("Teil {} hat schon eine {}.", teil, name))
+pub fn komp_doppelt(teil: u32, name: &str, genus: Genus) -> Fehler {
+    laufzeit(code::KOMP_DOPPELT, format!("Teil {} hat schon {} {}.", teil, genus.einen(), name))
 }
 /// „Animation braucht ein Bild am selben Teil.“
-pub fn komp_braucht(name: &str, braucht: &str) -> Fehler {
-    laufzeit(code::KOMP_BRAUCHT, format!("{} braucht ein {} am selben Teil.", name, braucht))
+pub fn komp_braucht(name: &str, braucht: &str, genus: Genus) -> Fehler {
+    laufzeit(code::KOMP_BRAUCHT, format!("{} braucht {} {} am selben Teil.", name, genus.einen(), braucht))
 }
 pub fn komp_gebraucht(name: &str, von: &str) -> Fehler {
     laufzeit(code::KOMP_GEBRAUCHT, format!("{} wird von {} am selben Teil gebraucht.", name, von))

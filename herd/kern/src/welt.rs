@@ -439,7 +439,7 @@ impl Welt {
         let tz = self.zeile(teil)?;
         let schon = self.speicher[a].teil[z];
         if schon != 0 {
-            return Err(fehler::komp_haengt(schema.name, schon));
+            return Err(fehler::komp_haengt(schema.name, schema.genus, schon));
         }
         let drei_d = self.teile.drei_d[tz];
         if !schema.raum.passt(drei_d) {
@@ -447,12 +447,13 @@ impl Welt {
         }
         let n = self.arten.len();
         if self.teile.komp[tz * n + a] != 0 {
-            return Err(fehler::komp_doppelt(teil, schema.name));
+            return Err(fehler::komp_doppelt(teil, schema.name, schema.genus));
         }
         for b in schema.braucht {
             let hat = self.art_index(b).map(|bi| self.teile.komp[tz * n + bi] != 0).unwrap_or(false);
             if !hat {
-                return Err(fehler::komp_braucht(schema.name, b));
+                let genus = self.art_index(b).map(|bi| self.arten[bi].schema.genus).unwrap_or(crate::schema::Genus::N);
+                return Err(fehler::komp_braucht(schema.name, b, genus));
             }
         }
         self.teile.komp[tz * n + a] = h;

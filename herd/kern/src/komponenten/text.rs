@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::paket::flach_art;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 use crate::schrift;
 
 pub const INHALT: usize = 0;
@@ -12,7 +12,7 @@ pub const AUSRICHTUNG: usize = 3;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Text",
+        name: "Text", genus: Genus::M,
         raum: Raum::Zwei,
         braucht: &[],
         felder: &[

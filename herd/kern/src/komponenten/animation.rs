@@ -1,7 +1,7 @@
 //! `Animation` (2D, braucht `Bild`): spielt eine Bildchen-Folge ab und setzt `Bild.bildchen` auf `bilder[nummer]`.
 
 use super::*;
-use crate::schema::{Feld, Raum, Schema, Spalte};
+use crate::schema::{Genus, Feld, Raum, Schema, Spalte};
 
 pub const BILDER: usize = 0;
 pub const PRO_SEKUNDE: usize = 1;
@@ -13,7 +13,7 @@ pub const ZEIT: usize = 5;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Animation",
+        name: "Animation", genus: Genus::F,
         raum: Raum::Zwei,
         braucht: &["Bild"],
         felder: &[

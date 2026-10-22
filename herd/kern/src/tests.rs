@@ -4,7 +4,7 @@ use crate::abi::{teilfeld as tf, Kern, TEIL_METHODEN};
 use crate::komponenten::ARTEN;
 use crate::paket::{abschnitt, Leser, INST2D_BYTES, INST3D_BYTES};
 
-fn typ(k: &Kern, name: &str) -> i32 {
+fn typ(k: &mut Kern, name: &str) -> i32 {
     let t = k.typ_nummer(name.as_bytes());
     assert!(t > 0, "Typ {}", name);
     t
@@ -31,9 +31,9 @@ fn welt_mit_kamera_und_sonne() {
     let mut k = welt();
     assert_eq!(k.teil_hole(1, tf::RAUM), 3.0);
     assert_eq!(k.teil_hole(2, tf::Y), 1.0);
-    let kam = typ(&k, "Kamera");
+    let kam = typ(&mut k, "Kamera");
     assert!(k.komp_von(1, kam) > 0);
-    let licht = typ(&k, "Licht");
+    let licht = typ(&mut k, "Licht");
     let l = k.komp_von(2, licht);
     assert_eq!(text(&mut k, l, 1), "sonne");
     // zweiter Herd
@@ -55,7 +55,7 @@ fn herd_groesse_pruefen() {
 #[test]
 fn komponenten_generisch_und_fehlertexte() {
     let mut k = welt();
-    let kreis = typ(&k, "Kreis");
+    let kreis = typ(&mut k, "Kreis");
     let t = k.teil_neu(2);
     let c = k.komp_neu(kreis);
     let r = feld(&mut k, kreis, "radius");
@@ -68,11 +68,11 @@ fn komponenten_generisch_und_fehlertexte() {
     // schon angehängt
     let t2 = k.teil_neu(2);
     assert_eq!(k.komp_haenge(c, t2), -2);
-    assert_eq!(k.fehler_text(), format!("Diese Kreis hängt schon an Teil {}.", t));
+    assert_eq!(k.fehler_text(), format!("Dieser Kreis hängt schon an Teil {}.", t));
     // doppelt
     let c2 = k.komp_neu(kreis);
     assert_eq!(k.komp_haenge(c2, t), -2);
-    assert_eq!(k.fehler_text(), format!("Teil {} hat schon eine Kreis.", t));
+    assert_eq!(k.fehler_text(), format!("Teil {} hat schon einen Kreis.", t));
     // falscher Raum
     let t3 = k.teil_neu(3);
     assert_eq!(k.komp_haenge(c2, t3), -2);
@@ -85,7 +85,7 @@ fn komponenten_generisch_und_fehlertexte() {
     assert_eq!(k.setze_text(c, fa, b"#FF000080"), 0);
     assert_eq!(k.hole_zahl(c, fa), 0xFF000080u32 as f64);
     // Wahl
-    let text_t = typ(&k, "Text");
+    let text_t = typ(&mut k, "Text");
     let tx = k.komp_neu(text_t);
     let au = feld(&mut k, text_t, "ausrichtung");
     assert_eq!(k.setze_text(tx, au, b"oben"), -2);
@@ -100,7 +100,7 @@ fn komponenten_generisch_und_fehlertexte() {
 #[test]
 fn voraussetzungen_und_loesen() {
     let mut k = welt();
-    let (bild, anim) = (typ(&k, "Bild"), typ(&k, "Animation"));
+    let (bild, anim) = (typ(&mut k, "Bild"), typ(&mut k, "Animation"));
     let t = k.teil_neu(2);
     let a = k.komp_neu(anim);
     assert_eq!(k.komp_haenge(a, t), -2);
@@ -132,7 +132,7 @@ fn hierarchie_kopie_entferne() {
     assert_eq!(k.teil_haenge(d3, a), -2);
     assert_eq!(k.fehler_text(), "Ein 3D-Teil kann nicht an einem 2D-Teil hängen.");
     // Kopie mit Komponenten und Kindern
-    let kreis = typ(&k, "Kreis");
+    let kreis = typ(&mut k, "Kreis");
     let c = k.komp_neu(kreis);
     k.komp_haenge(c, b);
     k.setze_zahl(c, 1, 33.0);
@@ -163,7 +163,7 @@ fn hierarchie_kopie_entferne() {
 #[test]
 fn trifft_huellen() {
     let mut k = welt();
-    let (kreis, rechteck) = (typ(&k, "Kreis"), typ(&k, "Rechteck"));
+    let (kreis, rechteck) = (typ(&mut k, "Kreis"), typ(&mut k, "Rechteck"));
     let a = k.teil_neu(2);
     let ka = k.komp_neu(kreis);
     k.komp_haenge(ka, a);
@@ -183,7 +183,7 @@ fn trifft_huellen() {
 #[test]
 fn bewegung_und_animation() {
     let mut k = welt();
-    let (bild, anim, bew) = (typ(&k, "Bild"), typ(&k, "Animation"), typ(&k, "Bewegung"));
+    let (bild, anim, bew) = (typ(&mut k, "Bild"), typ(&mut k, "Animation"), typ(&mut k, "Bewegung"));
     let z: Vec<u8> = [b"ws".as_slice(), b"sw"].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
     let b1 = k.bildchen_neu(&z, &[]);
     let b2 = k.bildchen_neu(&z, &[]);
@@ -214,7 +214,7 @@ fn bewegung_und_animation() {
 fn partikel_deterministisch() {
     let lauf = || {
         let mut k = welt();
-        let p = typ(&k, "Partikel");
+        let p = typ(&mut k, "Partikel");
         let t = k.teil_neu(2);
         k.teil_lage(t, 320.0, 180.0, 0.0);
         let e = k.komp_neu(p);
@@ -235,7 +235,7 @@ fn partikel_deterministisch() {
 #[test]
 fn bildpaket_2d_reihenfolge_und_culling() {
     let mut k = welt();
-    let r = typ(&k, "Rechteck");
+    let r = typ(&mut k, "Rechteck");
     let mut teile = vec![];
     for (i, (x, ebene)) in [(10.0, 2.0), (20.0, 1.0), (-100.0, 0.0), (30.0, 1.0)].iter().enumerate() {
         let t = k.teil_neu(2);
@@ -265,7 +265,7 @@ fn bildpaket_2d_reihenfolge_und_culling() {
 #[test]
 fn bildpaket_3d_batches_und_schatten() {
     let mut k = welt();
-    let ko = typ(&k, "Koerper");
+    let ko = typ(&mut k, "Koerper");
     let w = k.form_grund(1, 0.0, 0.0);
     let e = k.form_grund(5, 0.0, 0.0);
     let boden = k.teil_neu(3);
@@ -309,6 +309,9 @@ fn eigene_form_und_bildchen_fehler() {
     assert!(k.form_eigene(&p, &[0.0, 2.0, 1.0, 0.0, 1.0, 3.0], 1) > 0);
     assert_eq!(k.form_grund(2, 2.0, 0.0), -2);
     assert_eq!(k.fehler_text(), "teile muss zwischen 3 und 128 liegen, nicht 2.");
+    assert_eq!(k.form_grund(2, 24.5, 0.0), -1);
+    assert_eq!(k.fehler_text(), "Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.");
+    assert_eq!(k.fehler_code(), crate::fehler::code::FORM_TEILE_GANZ);
     let z: Vec<u8> = [b"wx".as_slice()].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
     assert_eq!(k.bildchen_neu(&z, &[]), -2);
     assert_eq!(k.fehler_text(), "Das Zeichen 'x' hat im Bildchen keine Farbe.");
@@ -317,7 +320,7 @@ fn eigene_form_und_bildchen_fehler() {
     assert!(id > 0);
     assert_eq!(k.ressource_hole(id, 2), 2.0);
     // Bildchen statt Form
-    let ko = typ(&k, "Koerper");
+    let ko = typ(&mut k, "Koerper");
     let c = k.komp_neu(ko);
     assert_eq!(k.setze_zahl(c, 1, id as f64), -1);
     assert_eq!(k.fehler_text(), "Koerper.form braucht eine Form, nicht Bildchen(2×1).");
@@ -330,7 +333,7 @@ fn erweiterungsprobe_eine_datei_eine_zeile() {
     assert!(json.contains("\"name\": \"Probe\""));
     assert!(!crate::abi::schema_json(false).contains("Probe"));
     let mut k = welt();
-    let p = typ(&k, "Probe");
+    let p = typ(&mut k, "Probe");
     assert_eq!(p as usize, ARTEN.len()); // letzte Zeile der Registry
     let t = k.teil_neu(3);
     let c = k.komp_neu(p);
@@ -368,4 +371,49 @@ fn schema_datei_aktuell_und_keine_kollision() {
         let klein: String = n[..1].to_lowercase() + &n[1..];
         assert!(!TEIL_METHODEN.contains(&klein.as_str()), "Komponente {} kollidiert mit Teil-Methode", n);
     }
+}
+
+#[test]
+fn befunde_h3_genus_typname_info_fehlermarke() {
+    let mut k = welt();
+    let (kreis, bild, bew, anim) = (typ(&mut k, "Kreis"), typ(&mut k, "Bild"), typ(&mut k, "Bewegung"), typ(&mut k, "Animation"));
+    let t = k.teil_neu(2);
+    // Genus: Dieser Kreis / einen Kreis, Dieses Bild / ein Bild, Diese Bewegung / eine Bewegung
+    for (art, dieser, einen) in [(kreis, "Dieser Kreis", "einen Kreis"), (bild, "Dieses Bild", "ein Bild"), (bew, "Diese Bewegung", "eine Bewegung")] {
+        let a = k.komp_neu(art);
+        assert_eq!(k.komp_haenge(a, t), 0);
+        let t2 = k.teil_neu(2);
+        assert_eq!(k.komp_haenge(a, t2), -2);
+        assert_eq!(k.fehler_text(), format!("{} hängt schon an Teil {}.", dieser, t));
+        let b = k.komp_neu(art);
+        assert_eq!(k.komp_haenge(b, t), -2);
+        assert_eq!(k.fehler_text(), format!("Teil {} hat schon {}.", t, einen));
+    }
+    let t3 = k.teil_neu(2);
+    let a = k.komp_neu(anim);
+    assert_eq!(k.komp_haenge(a, t3), -2);
+    assert_eq!(k.fehler_text(), "Animation braucht ein Bild am selben Teil.");
+    assert!(k.schema_json().contains("\"name\": \"Kreis\", \"nummer\": 2, \"genus\": \"m\""));
+    // unbekannter Komponentenname
+    assert_eq!(k.typ_nummer(b"Pendel"), -2);
+    assert_eq!(k.fehler_text(), "Eine Komponente 'Pendel' gibt es nicht.");
+    assert_eq!(k.fehler_code(), crate::fehler::code::KOMP_NAME);
+    // komp_info(·, 2) an zerstörter Komponente: 0, ohne Fehler
+    let t4 = k.teil_neu(2);
+    let c = k.komp_neu(kreis);
+    k.komp_haenge(c, t4);
+    assert_eq!(k.komp_info(c, 2), t4);
+    k.teil_entferne(t4);
+    assert_eq!(k.komp_info(c, 2), 0);
+    assert_eq!(k.komp_info(c, 3), 1);
+    // Fehlermarke: ein alter i32-Fehler macht ein späteres echtes NaN nicht zum Fehler
+    let t5 = k.teil_neu(2);
+    let c5 = k.komp_neu(kreis);
+    k.komp_haenge(c5, t5);
+    assert_eq!(k.teil_neu(7), -3); // Anbindungsfehler, fehler_neu wird nicht abgefragt
+    assert_eq!(k.setze_zahl(c5, 1, 5.0), 0);
+    assert_eq!(k.hole_zahl(c5, 1), 5.0);
+    assert_eq!(k.fehler_neu(), 0);
+    assert!(k.teil_hole(t4, 1).is_nan());
+    assert_eq!(k.fehler_neu(), 1);
 }

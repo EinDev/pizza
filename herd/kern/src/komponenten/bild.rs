@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::paket::flach_art;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 
 pub const BILDCHEN: usize = 0;
 pub const GROESSE: usize = 1;
@@ -11,7 +11,7 @@ pub const SPIEGELN: usize = 3;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Bild",
+        name: "Bild", genus: Genus::N,
         raum: Raum::Zwei,
         braucht: &[],
         felder: &[

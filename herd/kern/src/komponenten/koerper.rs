@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::paket::Koerper3;
-use crate::schema::{Feld, Raum, Schema};
+use crate::schema::{Genus, Feld, Raum, Schema};
 use crate::welt::kasten_3d;
 
 pub const FORM: usize = 0;
@@ -14,7 +14,7 @@ pub const SCHATTEN: usize = 5;
 
 pub static ART: Art = Art {
     schema: Schema {
-        name: "Koerper",
+        name: "Koerper", genus: Genus::M,
         raum: Raum::Drei,
         braucht: &[],
         felder: &[
