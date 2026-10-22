@@ -1588,6 +1588,26 @@ der Takt bleibt nur für die Simulation. Protokoll bleibt v1, der Renderer bleib
   Stil 'farbe' von …`). Typischer Fehler: ein gewöhnliches Feld statt eines Zettels lesen. Ausweg für objektlastige Zustände: ein Zettel
   `stand` als Taktgeber (`stand.setze(stand.wert() + 1)` im Rückruf, `stand.wert();` am Anfang des Ausdrucks).
 - **Betroffen:** SPEC §16.8, THEKE.md §8, Doku-Referenz (Fehlertexte-Tabelle W0103), Interpreter, Wasm. **Status:** fest.
+
+### K-119 Theke v5: Vertragslücken aus der Umsetzung (Interpreter a07c1f1, Wasm 75b2b0e/67c446f) – entschieden wie umgesetzt
+- **Erlaubt in Bindungen:** `bei*`-Registrierungen (`beiKlick`, `beiAenderung`, `beiEnter`, `beiTakt`, `beiTaste`), `id()`, `alsText()`,
+  `Theke.titel()` – sie ändern keinen Zustand, den der Renderer sieht, und stehen nicht auf der Verbotsliste von K-118.
+- **`binde` wertet nur die neue Bindung sofort aus;** Bindungen, die deren Eigenschaft lesen, folgen erst am nächsten Synchronisationspunkt
+  (`a.text()` zeigt bis dahin den alten Wert).
+- **Prüfreihenfolge:** Argument-Umwandlung vor der Gebunden-Prüfung (gebundene Eigenschaft + falscher Typ → TypAnanas, nicht „ist gebunden“);
+  `stil(k, w)`: Schlüssel-Whitelist → Wert → Gebunden; `binde(e, fn)`: Eigenschaftsname vor Funktionsprüfung, auch bei `binde(e, karton)`
+  (ungültiger Name → LaufzeitAnanas). `titel(n)` eines Reiters mit ungültigem `n` wirft KeinStückAnanas **ohne** Quellenregistrierung.
+- **Werfende Erstauswertung** beim `binde`: die Bindung bleibt registriert (sauber, ohne Quellen – rechnet nie wieder, bis sie ersetzt oder
+  gelöst wird); W0103 wird nach dem Ausdruck und **vor** der Setter-Prüfung des Ergebnisses ausgegeben (wirft der Ausdruck selbst → keine Warnung).
+- **Bindungs-Ananas im Flush** (Lücke zu K-057): die bereits gepufferten `aendere`-Einträge (inkl. Werte vorher ausgewerteter Bindungen) und
+  Animationen gehen **vor** dem Weiterwerfen hinaus – wie bei einer Rückruf-Ananas; an allen Synchronisationspunkten, auch `uiEnde` vor `schliesse`.
+- **Nach der Zyklus-Ananas** („kommen nicht zur Ruhe“) gelten **alle** Bindungen als sauber; sie rechnen erst wieder, wenn sich eine Quelle
+  ändert (dann ggf. erneute Ananas). Das Programm läuft weiter, `uiEnde` wirft nicht erneut. Zähler: höchstens 100 Durchläufe; innerhalb eines
+  Durchlaufs werden Bindungen, die durch eine frühere Bindung desselben Durchlaufs schmutzig wurden und noch nicht an der Reihe waren, im selben
+  Durchlauf ausgewertet (beide Laufzeiten gleich).
+- **`setze()` ohne Argument** → `karton`. `Theke.setzeTitel` mit gleichem Titel sendet `fenster` erneut (die Theke ist keine Zutat, K-117 gilt
+  für Zutaten-Eigenschaften); `Zettel.setze` auf einen Wert mit anderem Typ, aber gleicher Textform ist eine Änderung (`gleich`, nicht Textform).
+- **Betroffen:** SPEC §16.8 (nachgetragen). **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

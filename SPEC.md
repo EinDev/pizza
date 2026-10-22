@@ -1160,6 +1160,14 @@ preis.binde("text", () -> anzahl.wert().alsZahl() * 8);        // folgt dem Tipp
   erste echte Änderung; „a → b → a“ in einem Rückruf sendet `a` (Vergleich gegen den aktuellen Zustand).
 - **Schritte (K-069/K-087):** `neu Zettel`, `wert()`, `setze()`, `binde()` kosten normale Aufrufknoten; die Auswertung einer Bindung zählt die
   Schritte ihres Ausdrucks – beim `binde` sofort, sonst am Synchronisationspunkt innerhalb des laufenden Rückruf-Budgets (K-087). Warten 0.
+- **Präzisierungen (K-119):** `bei*`-Registrierungen, `id()`, `alsText()`, `Theke.titel()` sind in Bindungen erlaubt. `binde` wertet nur die
+  neue Bindung sofort aus (abhängige folgen am nächsten Synchronisationspunkt). Prüfreihenfolge: Argument-Umwandlung vor der Gebunden-Prüfung;
+  `stil(k, w)`: Schlüssel → Wert → Gebunden; `binde(e, fn)`: Eigenschaftsname vor Funktionsprüfung (auch bei `karton`). Eine beim `binde`
+  werfende Bindung bleibt registriert (sauber, ohne Quellen); W0103 kommt nach dem Ausdruck, vor der Setter-Prüfung des Ergebnisses. Wirft eine
+  Bindung im Flush, gehen die gepufferten Einträge und Animationen **vor** dem Weiterwerfen hinaus (wie bei einer Rückruf-Ananas, auch am
+  Programmende vor `schliesse`). Nach der Zyklus-Ananas gelten alle Bindungen als sauber (rechnen erst bei der nächsten Quellenänderung wieder);
+  innerhalb eines Durchlaufs werden später stehende, inzwischen schmutzige Bindungen noch im selben Durchlauf ausgewertet. `setze()` ohne
+  Argument → `karton`; `Theke.setzeTitel` mit gleichem Titel sendet `fenster` erneut (K-117 gilt für Zutaten-Eigenschaften).
 - **Umstellung eines `zeichne()`-Programms:** (1) jede angezeigte Größe auf einen `Zettel` legen (oder sie aus Zutat-Gettern ableiten);
   (2) jeden `setzeText`/`aktiv`/`stil`-Aufruf in `zeichne()` durch eine Bindung beim Aufbau ersetzen; (3) Rückrufe ändern nur Zettel/Zustand und
   rufen kein `zeichne()` mehr; (4) „gezeigt“-Merkvariablen und Hand-Vergleiche streichen (K-117); (5) der `Takt` ruft nur die Simulation.
