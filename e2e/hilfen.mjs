@@ -592,6 +592,25 @@ export async function thekeEreignis(page, ev) {
     });
     if (unsichtbar) throw new Error(`Theke-Ereignis ${JSON.stringify(ev)} zielt auf eine unsichtbare Zutat (aktiver Reiter: ${unsichtbar}) – das kann kein Nutzer klicken; .ereignisse prüfen`);
     await knopf.click();
+  } else if (ev.typ === "taste") {
+    // Tastatur (v4, K-110): Fokus auf die Theke-Wurzel – nicht auf einem Knopf lassen, sonst klickte die Leertaste ihn zusätzlich
+    // (das wäre ein zweites Ereignis, das nicht in der .ereignisse steht) –, dann die Taste wie ein Nutzer drücken.
+    const TASTEN = { Leertaste: "Space", Links: "ArrowLeft", Rechts: "ArrowRight", Hoch: "ArrowUp", Runter: "ArrowDown",
+      "Rücktaste": "Backspace", Entfernen: "Delete", Pos1: "Home", Ende: "End", BildHoch: "PageUp", BildRunter: "PageDown" };
+    await el.evaluate((e) => { const w = e.closest(".theke"); w.focus(); });
+    await page.keyboard.press(TASTEN[ev.taste] || ev.taste);
+  } else if (ev.typ === "aenderung" && typeof ev.wert === "boolean" && (await el.evaluate((e) => e.matches(".theke-abschnitt")))) {
+    // Klappbarer Abschnitt (v4, K-108): wert = neuer zu-Zustand; Klick auf den Kopf, nur wenn er sich ändert
+    const kopf = await el.$(":scope > .theke-abschnitt-titel > .theke-abschnitt-knopf");
+    if (!kopf) throw new Error("Abschnitt '" + ev.id + "' ist nicht klappbar");
+    if ((await kopf.evaluate((k) => k.getAttribute("aria-expanded") === "false")) === ev.wert) return "deaktiviert";
+    await kopf.click();
+  } else if (ev.typ === "aenderung" && typeof ev.wert === "number" && (await el.evaluate((e) => e.matches(".theke-auswahl")))) {
+    // Auswahl (v4, K-109): echter Klick auf die Option mit der (1-basierten) Nummer; bereits gewählte sendet nichts
+    const option = await el.$(`[role="radio"][data-theke-nr="${ev.wert}"]`);
+    if (!option) throw new Error("Auswahl '" + ev.id + "' hat keine Option " + ev.wert);
+    if (await option.evaluate((o) => o.getAttribute("aria-checked") === "true" || o.disabled)) return "deaktiviert";
+    await option.click();
   } else if (ev.typ === "aenderung" && typeof ev.wert === "boolean") {
     const box = (await el.evaluate((e) => e.matches("input"))) ? el : await el.$("input");
     if ((await box.evaluate((b) => b.checked)) !== ev.wert) await box.click();

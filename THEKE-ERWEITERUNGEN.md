@@ -399,6 +399,7 @@ alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 | 10 fps | Takt 100 ms, Produktion anteilig, Uhren in ganzen Sekunden, Speichern nach Spielzeit | 45791eb |
 | Namensraum | Kammer `pizza-imperium/spielstand` (K-106), alte Stände werden übernommen | e8dcf3e |
 | 4 | Animationen: hüpfen/schweben am Backen-Knopf, funkeln/aufpoppen an der Meldung, puls an der Kasse, einblenden für Neues | 43dd57b |
+| v4 | Theke v4 im Spiel: Kaufmenge als `Auswahl`; Kleinbetriebe (echte Gebäudezeilen), „✅ Gelernt“, „✅ Geschafft“ als klappbare Abschnitte (zu); Reiter „Geheimnisse“ erst ab 1 ⭐ (`sichtbar`), Titel „📜 Geheimnisse (n)“ (lernbare Rezepte) und „⭐ Imperium •“ (Sterne/Filialen warten); Herausforderungen erst ab 3 ⭐; `zeilen` statt fester Höhen (Kennzahlen 2, Meldung 3, Zeilen 2, Geheimrezept-Plätze 3); `Tastatur`: Leertaste backt (nie schneller als Klicken), Minispiele mit Leertaste/1–6/↑↓/1–4. Kein `Mathe.log` (Summe gerundeter Einzelpreise hat keine geschlossene Form) | (dieser Commit) |
 
 Balancing-Bot (Saat 42, 5 Klicks/s, Aufstieg: Neueröffnung bei Verdopplung, Kette ab 5 neuen Filialen): Sterne insgesamt
 nach 2 h 40 · 3 h 441 · 4 h 1.500 · 5 h 3.600 · 6 h 8.600 · 8 h 20.000 · 11,5 h 47.000 (vorher: 10.000 nach 4,5 h, Millionen danach);
