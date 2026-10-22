@@ -1,5 +1,7 @@
 'use strict';
-/* Sammelt alle Beispiele (site/beispiele/**) und Doku-Codeblöcke (site/js/doku, rekursiv inkl. details). */
+/* Sammelt alle Beispiele (site/beispiele/**) und Doku-Codeblöcke (site/js/doku, rekursiv inkl. details).
+ * Renderer-Ereignisse (Theke/Herd) laufen mit: Manifestfeld "ereignisse" bzw. gleichnamige .ereignisse (JSON-Lines),
+ * Doku-Feld uiEreignisse – sonst liefen Theke- und Herd-Programme hier nur ohne Renderer. */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -18,6 +20,8 @@ function beispiele() {
       if (!dp || !fs.existsSync(dp)) continue;
       const opt = { args: b.args || [] };
       if (b.eingabe && fs.existsSync(path.join(dir, b.eingabe))) opt.eingabe = fs.readFileSync(path.join(dir, b.eingabe), 'utf8').replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
+      const ep = b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse');
+      if (ep !== dp && fs.existsSync(ep)) opt.uiEreignisse = fs.readFileSync(ep, 'utf8').split(/\r?\n/).filter(z => z.trim()).map(z => JSON.parse(z));
       r.push({ name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei), quelle: fs.readFileSync(dp, 'utf8'), opt });
     }
   }
@@ -34,7 +38,7 @@ function doku() {
   const geh = (a, liste, pfad) => liste.forEach((item, i) => {
     if (!item || typeof item !== 'object') return;
     if (item.art === 'details' && Array.isArray(item.inhalt)) return geh(a, item.inhalt, pfad + i + '.');
-    if (item.art === 'code' && item.ausfuehrbar && item.sprache !== 'xml' && item.sprache !== 'shell') r.push({ name: 'doku:' + a.id + '#' + pfad + i, quelle: String(item.code || ''), opt: {} });
+    if (item.art === 'code' && item.ausfuehrbar && item.sprache !== 'xml' && item.sprache !== 'shell') r.push({ name: 'doku:' + a.id + '#' + pfad + i, quelle: String(item.code || ''), opt: Array.isArray(item.uiEreignisse) ? { uiEreignisse: item.uiEreignisse } : {} });
   });
   for (const a of sandbox.PIZZA_DOKU || []) geh(a, a.inhalt || [], '');
   return r;
