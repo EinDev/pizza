@@ -30,9 +30,9 @@ Inhalt: §0 Kurzfassung · §1 Projektformat · §2 Teil A Modulsystem · §3 Te
 | E5 | **Ein Projekt-Namensraum** für oberste Deklarationen; gleicher Name in zwei Dateien → Startfehler | einfachste Regel, keine qualifizierten Namen nötig, Texte (`alsText`, Fehlermeldungen) bleiben unverändert | Namensraum je Datei mit `teig.Teig` (Umbau der Namensauflösung in zwei Motoren, Textformen ändern sich) |
 | E6 | **Sichtbarkeit:** eine Datei sieht ihre eigenen Deklarationen und die der Dateien, die sie **direkt** bestellt; `geheimrezept` auf oberster Ebene = nur in der eigenen Datei | `bestellt` hat Bedeutung, Abhängigkeiten sind ablesbar; vorhandener Modifikator | transitive Sichtbarkeit (versteckte Abhängigkeiten), gar keine Prüfung (`bestellt` wäre Deko) |
 | E7 | Prüfung von E5/E6 als **Startprüfung** im gemeinsamen Code (`PizzaLang.intern.pruefe`) – konservativ, nie falsch-positiv | Compiler und Interpreter nutzen dieselbe Funktion → bitgleich ohne doppelte Umsetzung | Laufzeitprüfung in beiden Motoren |
-| E8 | **Nebendateien** enthalten nur Deklarationen (Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen), Top-Level-**Variablen** und `bestellt`; sonstige Anweisungen nur in der Hauptdatei | Ablauf bleibt in einer Datei lesbar; Ladereihenfolge betrifft nur Initialisierungen | Snack-Code überall (unübersichtliche Reihenfolge) |
+| E8 | **Nebendateien** enthalten nur Deklarationen (Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen), Top-Level-**Variablen** und `bestellt`; sonstige Anweisungen und `hauptgang` nur in der Hauptdatei | Ablauf bleibt in einer Datei lesbar; Ladereihenfolge betrifft nur Initialisierungen | Snack-Code überall (unübersichtliche Reihenfolge) |
 | E9 | **Ladereihenfolge:** Tiefensuche ab Hauptdatei, `bestellt` in Textreihenfolge, Abhängigkeiten zuerst, jede Datei einmal, Hauptdatei zuletzt; nicht erreichbare Dateien gehören nicht zum Programm; **Zyklus = Fehler** | deterministisch, ohne Sortierregeln; entspricht dem Lesen von oben nach unten | alphabetisch (überraschend), Zyklen erlauben (Initialisierungsreihenfolge unklar) |
-| E10 | Fehlerorte: Ereignisse bekommen Feld **`datei`**; Texte nennen die Datei **nur außerhalb der Hauptdatei** („(Zeile 12 in rezepte/teig.pizza)“) | alle bestehenden `.erwartet`/`.fehler`/Doku-Texte bleiben gültig | Datei immer im Text (alle Testdateien neu) |
+| E10 | Fehlerorte: Ereignisse bekommen Feld **`datei`**; Texte nennen die Datei **nur außerhalb der Hauptdatei** („(rezepte/teig.pizza, Zeile 12)“); `datei` ist `null`, solange das Programm aus genau einer `.pizza`-Datei besteht | alle bestehenden `.erwartet`/`.fehler`/Doku-Texte bleiben gültig | Datei immer im Text (alle Testdateien neu) |
 | E11 | **Host-ABI v2:** `warnung`/`fehler` bekommen `datei_ptr, datei_len`; `abi_version()` = 2; pkarton bleibt **ein** Wasm-Modul | Host muss nichts über Projekte wissen; keine Abschnitts-Parser im Host | Dateiindex + Tabelle in Custom Section (jeder Host bräuchte einen Abschnittsleser) |
 | E12 | **Assets** (Bilder, Textdateien) liegen im Projektordner und werden ins pkarton als **Datensegment** eingebettet; EXE-Format (`PKARTON1`-Anhang) unverändert | „ein Modul, kein Container“ (HOST-ABI §1) bleibt wahr, Host liest nichts nach | zweiter Anhang/Container, Host-Import `datei_lesen` |
 | E13 | **PNG** wird im **Herd-Kern (Rust, no_std)** dekodiert – überall derselbe Code (`kern.wasm` im Browser/Interpreter/Wasm, nativ eingebaut) | bitgleich per Konstruktion; Browser-Decoder (Farbmanagement, Gamma) wären es nicht | Browser `createImageBitmap`/Canvas (nicht bitgleich), Dekodierung in `pizza.js` (zweite Implementierung) |
@@ -109,8 +109,10 @@ Texte (`.pizza .txt .json .csv .md`) als String (UTF-8), alles andere als `Uint8
 
 ### 1.5 Ein-Datei-Programme (E24)
 
-Ein String ist eine Sammlung `{ dateien: { "hauptgang.pizza": code }, hauptdatei: "hauptgang.pizza" }` mit einer Besonderheit: das Feld
-`datei` der Ereignisse ist `null` (heutiges Verhalten, keine Testdatei ändert sich). `bestellt` in einem Ein-Datei-Programm ohne
+Ein String ist eine Sammlung `{ dateien: { "hauptgang.pizza": code }, hauptdatei: "hauptgang.pizza" }`. **Regel für alle Motoren und
+Eingabeformen:** Besteht das Programm (die erreichbaren Dateien, §2.2) aus genau **einer** `.pizza`-Datei, ist das Feld `datei` der Ereignisse
+`null` und kein Text nennt eine Datei – egal ob als String, CLI-Datei oder Ein-Datei-Projekt geladen. So vergleichen Differenztests nie
+`null` mit einem Pfad, und keine bestehende Testdatei ändert sich. `bestellt` in einem Ein-Datei-Programm ohne
 Sammlung → `PizzaFehler P0015` (Datei fehlt). CLI: `node bin/pizza.js spiel/hauptgang.pizza` → Projektwurzel = nächster Ordner aufwärts
 mit `pizza.json`, sonst der Ordner der Datei; die angegebene Datei ist die Hauptdatei.
 
@@ -173,8 +175,10 @@ verschieden).
 Erlaubt: `bestellt`, `paket`, `import`, Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen, Top-Level-Variablen (auch `gebacken`,
 mit beliebigem Initialisierer). Jede andere Anweisung →
 `PizzaFehler P0017: In rezepte/teig.pizza dürfen nur Rezepte stehen (Klassen, Funktionen, Variablen) – Anweisungen gehören in die Hauptdatei hauptgang.pizza.`
-`hauptgang` wird wie heute gesucht (K-033: erste Klasse mit `hauptgang`, sonst Top-Level-Funktion) – **„erste“ in Ladereihenfolge**.
-Empfehlung (Doku, keine Regel): `hauptgang` steht in der Hauptdatei.
+**`hauptgang` gehört in die Hauptdatei:** eine Methode oder Top-Level-Funktion `hauptgang` in einer Nebendatei →
+`PizzaFehler P0017: hauptgang gehört in die Hauptdatei hauptgang.pizza, nicht nach rezepte/teig.pizza.` In der Hauptdatei wird er wie heute
+gesucht (K-033: erste Klasse mit `hauptgang`, sonst Top-Level-Funktion). Damit ist der Einstieg immer eindeutig, unabhängig von der
+Ladereihenfolge.
 
 ### 2.4 Namen und Konflikte (E5)
 
@@ -205,9 +209,9 @@ Empfehlung (Doku, keine Regel): `hauptgang` steht in der Hauptdatei.
 
 ### 2.6 Fehlerorte (E10)
 
-- Ereignisse `fehler` und `warnung` erhalten das Feld **`datei`** (Projektpfad; `null` bei Ein-Datei-Läufen aus einem String, §1.5).
+- Ereignisse `fehler` und `warnung` erhalten das Feld **`datei`** (Projektpfad; `null` bei Programmen aus genau einer Datei, §1.5).
   `zeile`/`spalte` beziehen sich auf diese Datei.
-- Texte: In der Hauptdatei unverändert („Ungefangene Ananas – … (Zeile 12)“). In anderen Dateien „(Zeile 12 in rezepte/teig.pizza)“.
+- Texte: In der Hauptdatei unverändert („Ungefangene Ananas – … (Zeile 12)“). In anderen Dateien „(rezepte/teig.pizza, Zeile 12)“ – dasselbe Muster wie in der CLI.
   CLI (K-083): `<text> (Zeile Z, Spalte S)` bzw. `<text> (rezepte/teig.pizza, Zeile Z, Spalte S)`.
 - Die Startprüfungen P0014–P0019 und Syntaxfehler tragen die Datei, in der die Ursache steht.
 - **Stapel:** Bei ungefangener Ananas zählt der Ort, an dem sie entsteht (wie heute) – keine Aufrufkette (unverändert).
@@ -351,9 +355,9 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 | Methode + Pfad | Zweck | Antwort |
 |---|---|---|
 | `GET /api/konfig` | Fähigkeiten für die UI | `{ "teilen": true, "aufbewahrungTage": 90, "aufbewahrungAb": "letzteVersion", "grenzen": { "dateien": 100, "dateiBytes": 2097152, "projektBytes": 8388608 } }`; Dienst nicht erreichbar → nginx liefert `{"teilen":false}` |
-| `POST /api/teilen/fehlend` | Body `{ "sha256": [ … ] }` (≤ 101 Einträge) | `{ "fehlend": [ … ] }` |
-| `PUT /api/teilen/blob/<sha256>` | Body = Rohbytes (≤ `dateiBytes`) | `201` neu / `200` vorhanden; Hash wird geprüft (`422` bei Abweichung) |
-| `GET /api/teilen/blob/<sha256>` | Inhalt | `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment` |
+| `POST /api/blob/fehlend` | Body `{ "sha256": [ … ] }` (≤ 101 Einträge) | `{ "fehlend": [ … ] }` |
+| `PUT /api/blob/<sha256>` | Body = Rohbytes (≤ `dateiBytes`) | `201` neu / `200` vorhanden; Hash wird geprüft (`422` bei Abweichung) |
+| `GET /api/blob/<sha256>` | Inhalt | `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment` |
 | `POST /api/teilen` | Body = Manifest | neuer Link: `201 { "id", "version": 1, "schluessel" }`; fehlende Blobs → `409 { "fehlend": [ … ] }` |
 | `POST /api/teilen/<id>` | Body = Manifest, Kopf `Authorization: Bearer <schluessel>` | neue Version: `201 { "id", "version": n }`; falscher Schlüssel `403`; unbekannt/abgelaufen `404` |
 | `GET /api/teilen/<id>` | neueste Version | `{ "id", "version", "versionen", "geaendert", "ablauf", "projekt": <Manifest> }`, `Cache-Control: no-cache` |
@@ -401,7 +405,7 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 | Projekt gesamt | 8 MiB | Dienst (Summe `groesse` der Manifest-Einträge, gegen echte Blobgrößen geprüft) |
 | Manifest | 64 KiB | nginx + Dienst |
 | `.pizza`-Datei | 512 KiB | Dienst (Typregel) |
-| Anfragen | Erstellen/Version: 10/min je IP; Blob-PUT: 120/min; Lesen: 120/min | nginx `limit_req` (erste Linie) + Dienst (gleitendes Fenster je `X-Real-IP`, nur im Speicher) |
+| Anfragen | Erstellen/Version/Löschen: 10/min je IP (Burst 3); Manifest lesen (`GET /api/teilen/…`): 60/min (Burst 20); Blob-PUT und `fehlend`: 600/min (Burst 200); Blob-GET: **kein** Zähler im Dienst, nginx 1200/min (Burst 300) | nginx `limit_req` (erste Linie) + Dienst (gleitendes Fenster je `X-Real-IP`, nur im Speicher). Begründung: ein Projekt sind bis zu 101 Anfragen (Manifest + Blobs); Blobs sind unveränderlich und `immutable` gecacht, wiederholtes Öffnen kostet den Server kaum etwas, und Missbrauch begrenzen Größen-, Speicher- und Erstell-Grenzen |
 | Versionen je Link | 200 | Dienst |
 
 ### 4.7 Ablage im Volume
@@ -436,7 +440,7 @@ Ein Prozess, je Link eine Sperre im Speicher; kein Datenbankserver. Beim Start: 
   (abgebrochenes tmp), Speicherdeckel, Rate-Limit, kein Inhalt im Log (Log-Senke abfangen).
 - E2E (neu `18-teilen-versionen.test.mjs`, mit lokalem Dienst aus `e2e/server.mjs` gestartet, `windowsHide`): Teilen → Link öffnen →
   ändern → „Neue Version“ → alter Link zeigt v2 → `@1` zeigt v1 → App-Link startet v2 → „Neuer Link“ → Löschen → 404-Meldung; Projekt mit
-  PNG (Dedup: zweite Version lädt das Bild nicht erneut hoch – gezählte PUTs).
+  PNG (Dedup: zweite Version lädt das Bild nicht erneut hoch – gezählte PUTs); Projekt mit 100 Dateien zweimal hintereinander öffnen ohne 429.
 - Docker: `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest gegen `/api/konfig`.
 
 ---
@@ -699,7 +703,7 @@ Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 �
 | Nr. | Titel | Kern |
 |---|---|---|
 | K-138 | Projekte: Ordner, `pizza.json`, Hauptdatei, Pfadregeln, Dateisammlung | E1–E3, E24, §1 |
-| K-139 | `bestellt`: Syntax, erreichbare Dateien, Ladereihenfolge, Zyklen, Nebendateien | E4, E8, E9, §2.1–§2.3 (P0014, P0015, P0017, W0105) |
+| K-139 | `bestellt`: Syntax, erreichbare Dateien, Ladereihenfolge, Zyklen, Nebendateien, `hauptgang` nur in der Hauptdatei | E4, E8, E9, §2.1–§2.3 (P0014, P0015, P0017, W0105) |
 | K-140 | Ein Projekt-Namensraum, Sichtbarkeit, `geheimrezept` auf oberster Ebene, konservative Startprüfung | E5–E7, §2.4–§2.5 (P0016, P0018, P0019) |
 | K-141 | Fehlerorte mit Datei; Host-ABI v2 | E10, E11, §2.6, §2.8 |
 | K-142 | Playground-Projekte: IndexedDB, ein Projekt je Fenster, Migration der Tabs, ZIP | E15–E17, §3 |
