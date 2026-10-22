@@ -715,3 +715,11 @@ Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle 
    Verschiebungen“ gezählt – Ziel: wenige). **Neu: Leerraum je Seite** = 1 − (Fläche der sichtbaren Blatt-Elemente ÷ Fläche der
    Seite bis zum untersten Element), außerdem Zeilen mit leerem/„—“-Text; Ziel: wenig, keine „—“-Zeilen.
 7. Theke-Wunsch „unsichtbar, hält den Platz“: **entfällt.**
+8. **Nachtrag (Befund 3b, Paket 4b):** 32 der 45 klickbedingten Verschiebungen kamen daher, dass das Rezeptbuch unter dem
+   wachsenden Betrieb lag. Wachsen darf nur unten anhängen – deshalb stehen **wachsende Listen als letztes Element ihrer Spalte**:
+   Backstube links **Rezeptbuch · Feinkost · Betrieb**, rechts **Kaufmenge · Meisterbriefe · Handwerk**. Feinkost und Meisterbriefe
+   sind je **eine feste Zeile** mit zwei halben Knöpfen (die beiden offenen Angebote; Name/Wirkung im Hinweis und im Zeilentext)
+   und erscheinen genau einmal je Runde – nur im Klick-Rückruf (Carlos letzte Seite im Takt zeigt erst nach dem nächsten Kauf das
+   Angebot). Verbleibend je Runde: zwei klickgebundene Einfügungen (Feinkost, Meisterbriefe) und – mit Nonnas Gedächtnis nach einer
+   Neueröffnung – das Nachwachsen des Betriebs unter der stehen gebliebenen Feinkost (bekannter Rest). Ziel: klickbedingte
+   Verschiebungen nur noch beim Verschwinden/Ersetzen alter Elemente (Neueröffnung, Franchise, Kleinbetriebe, Rezept gelernt).
