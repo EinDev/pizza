@@ -94,3 +94,23 @@ fn kaputtes_paket_ist_ein_fehler() {
     };
     assert!(matches!(g.bild(b"kein paket"), Err(herd_glut::Fehler::Paket(_))));
 }
+
+#[test]
+fn schatten_auch_wenn_das_erste_bild_keine_hat() {
+    // Titelbild ohne 3D, dann Körper mit Schatten: die Shadow-Map muss nachträglich entstehen
+    let text = "welt_neu 320 180 \"S\"\ntakte 1\ntyp_nummer \"Koerper\" -> T\nform_grund 1 0 0 -> W\nform_grund 5 0 0 -> E\n\
+teil_neu 3 -> b\nteil_groesse b 20 1 20\nkomp_neu T -> k\nsetze_zahl k 1 E\nkomp_haenge k b\n\
+teil_neu 3 -> w\nteil_lage w 0 0.5 0\nkomp_neu T -> k\nsetze_zahl k 1 W\nkomp_haenge k w\ntakte 1\n";
+    let mut auf = Aufruf { bilder: Some(vec![1, 2]), groesse: (320, 180), glut: software(), vorgaben: Vec::new() };
+    let Ok(mut g1) = neue_glut(&auf) else {
+        eprintln!("übersprungen: kein Software-Adapter");
+        return;
+    };
+    let a = rendere(&mut g1, text, &auf).unwrap();
+    assert!(g1.statistik().schatten_draw_calls > 0);
+    auf.bilder = Some(vec![2]);
+    let mut g2 = neue_glut(&auf).unwrap();
+    let b = rendere(&mut g2, text, &auf).unwrap();
+    let (m, inn) = vergleiche(&a.last().unwrap().1, &b.last().unwrap().1);
+    assert!(m < 0.05 && inn > 99.9, "Bild 2 hängt vom Vorgänger ab: {} {}", m, inn);
+}

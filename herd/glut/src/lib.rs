@@ -758,13 +758,10 @@ impl Glut {
     }
 
     fn bindegruppen(&mut self, schatten_noetig: bool) {
-        if schatten_noetig && self.bg_schatten.is_none() {
-            // Shadow-Map erst anlegen, wenn eine Szene Schatten hat (16 MB bei 2048²)
-            let groesse = self.schatten_map.texture().width();
-            if groesse != SCHATTEN_GROESSE {
-                self.schatten_map = Glut::tiefen_textur(&self.device, "herd shadow-map", SCHATTEN_GROESSE, SCHATTEN_GROESSE, 1);
-                self.bg_haupt = None;
-            }
+        // Shadow-Map erst anlegen, wenn ein Bild Schatten hat (16 MB bei 2048²) – auch wenn frühere Bilder keine hatten
+        if schatten_noetig && self.schatten_map.texture().width() != SCHATTEN_GROESSE {
+            self.schatten_map = Glut::tiefen_textur(&self.device, "herd shadow-map", SCHATTEN_GROESSE, SCHATTEN_GROESSE, 1);
+            self.bg_haupt = None;
         }
         if self.bg_haupt.is_none() {
             self.bg_haupt = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
