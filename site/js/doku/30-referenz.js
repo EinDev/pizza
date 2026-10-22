@@ -256,7 +256,7 @@
       titel: "Mathe",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "`Mathe` rechnet für dich: Wurzel, Potenz, Runden, Kreiszahl – Pizzen sind rund. Fürs Würfeln gibt es `Zufall` (eigener Abschnitt)." },
+        { art: "kurz", md: "`Mathe` rechnet für dich: Wurzel, Potenz, Logarithmus, Runden, Kreiszahl – Pizzen sind rund. Fürs Würfeln gibt es `Zufall` (eigener Abschnitt)." },
         {
           art: "code",
           ausfuehrbar: true,
@@ -286,7 +286,12 @@
               ["`runden(x, n)`", "Kaufmännisch auf `n` Nachkommastellen", "`Mathe.runden(2.675, 2)` → `2.68`"],
               ["`boden(x)`", "Abrunden", "`Mathe.boden(7.9)` → `7`"],
               ["`decke(x)`", "Aufrunden", "`Mathe.decke(7.1)` → `8`"],
-              ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"]
+              ["`log(x)`", "Natürlicher Logarithmus (Basis `E`)", "`Mathe.log(Mathe.E)` → `1`"],
+              ["`log10(x)`", "Zehnerlogarithmus – wie viele Nullen?", "`Mathe.log10(1000)` → `3`"],
+              ["`log2(x)`", "Zweierlogarithmus – wie oft verdoppelt?", "`Mathe.log2(8)` → `3`"],
+              ["`exp(x)`", "`E` hoch `x` (Umkehrung von `log`)", "`Mathe.exp(0)` → `1`"],
+              ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"],
+              ["`E`", "Die Eulersche Zahl 2,718… (Konstante, ohne `()`)", "`Mathe.E`"]
             ]),
             {
               art: "code",
@@ -302,7 +307,22 @@
             },
             { art: "ausgabe", text: z("7 / 8", "12", "1024", "9", "2.68") },
             { art: "text", md: "**Kaufmännisch runden** heißt: Bei genau .5 geht es von der Null weg (`2.5` → `3`, `-0.5` → `-1`). Bei Nachkommastellen gleicht pizza das Kommazahl-Krümeln aus, deshalb wird `1.005` auf zwei Stellen zu `1.01` und `0.125` zu `0.13` – so wie man es auf dem Kassenbon erwartet." },
-            { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." }
+            { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." },
+            { art: "text", md: "**Logarithmen** beantworten „`E`/10/2 hoch was ergibt `x`?“ – praktisch, wenn ein Idle-Spiel ausrechnen soll, wie viele Öfen man sich auf einmal leisten kann, ohne eine Schleife zu drehen. Die Umkehrung ist `exp`: `Mathe.exp(Mathe.log(x))` ist (bis aufs Krümeln) wieder `x`." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Bote.sage((Mathe.log10(1000) + \" / \" + Mathe.log2(8)));",
+                "Bote.sage((Mathe.log(Mathe.E) + \" / \" + Mathe.exp(0)));",
+                "salami preis = 50;",
+                "salami kasse = 5000;",
+                "Bote.sage((\"Zehnerpotenzen im Budget: \" + Mathe.boden(Mathe.log10(kasse / preis))));"
+              )
+            },
+            { art: "ausgabe", text: z("3 / 3", "1 / 1", "Zehnerpotenzen im Budget: 2") },
+            { art: "text", md: "**Sonderfälle** wie in jeder Sprache: `Mathe.log(0)` ist `-Infinity`, `Mathe.log(-1)` ist `NaN`, `Mathe.exp(710)` ist `Infinity`; `NaN` wird durchgereicht. Ein `log(x, basis)` mit zwei Argumenten gibt es absichtlich **nicht**: `Mathe.log(1000) / Mathe.log(10)` ergibt `2.9999999999999996` – Kommazahl-Krümel. Nimm für Zehner- und Zweierpotenzen immer `log10` und `log2`, die liefern glatte `3`." }
           ]
         }
       ]
