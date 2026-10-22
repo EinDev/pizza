@@ -929,7 +929,7 @@
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung` **ersetzt** den alten Rückruf." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
@@ -941,11 +941,13 @@
                 ["`Haken`", "Ankreuzfeld", "`neu Haken(text, an: nein)`", "`an()`, `setzeAn(ja/nein)`, `beiAenderung(fn)` (bekommt `ja`/`nein`)"],
                 ["`Stapel`", "Zutaten untereinander", "`neu Stapel([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
                 ["`Reihe`", "Zutaten nebeneinander", "`neu Reihe([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
-                ["`Abschnitt`", "Stapel mit Überschrift", "`neu Abschnitt(\"Karte\", [a, b])`", "wie `Stapel`, dazu `titel()`, `setzeTitel(t)`"],
-                ["`Reiter`", "mehrere Seiten mit Reitern oben, eine ist sichtbar", "`neu Reiter([\"Ofen\", \"Karte\"], [seite1, seite2])`", "`waehle(n)` (ab 1), `gewaehlt()`, `beiAenderung(fn)` (bekommt die Seitennummer)"],
+                ["`Abschnitt`", "Stapel mit Überschrift, auf Wunsch zuklappbar", "`neu Abschnitt(\"Karte\", [a, b])`", "wie `Stapel`, dazu `titel()`, `setzeTitel(t)`, `klappbar(ja)` (der Gast darf am Kopf zu- und aufklappen), `zu(ja)`/`zu()` (Inhalt eingeklappt – geht auch ohne `klappbar`), `beiAenderung(fn)` (bekommt `ja`, wenn zugeklappt wurde)"],
+                ["`Reiter`", "mehrere Seiten mit Reitern oben, eine ist sichtbar", "`neu Reiter([\"Ofen\", \"Karte\"], [seite1, seite2])`", "`waehle(n)` (ab 1), `gewaehlt()`, `beiAenderung(fn)` (bekommt die Seitennummer), `setzeTitel(n, t)`, `titel(n)`. Eine Seite mit `sichtbar(nein)` verliert ihren Reiter"],
+                ["`Auswahl`", "Umschalter: genau eine Option ist gewählt", "`neu Auswahl([\"1×\", \"10×\", \"100×\", \"Max\"], gewaehlt: 1)`", "`waehle(n)` (ab 1), `gewaehlt()`, `optionen()`, `setzeOptionen(b)`, `beiAenderung(fn)` (bekommt die Nummer), `aktiv(ja/nein)`"],
                 ["`Fortschritt`", "Fortschrittsbalken", "`neu Fortschritt(wert: 0, text: \"\")`", "`wert()`, `setzeWert(x)` (0 bis 1, wird begrenzt), `text()`, `setzeText(t)`"],
                 ["`Tabelle`", "Tabelle zum Anzeigen", "`neu Tabelle(spalten, zeilen)`", "`spalten()`, `setzeSpalten(b)`, `zeilen()`, `setzeZeilen(b)` – Zellen erscheinen als Text"],
-                ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"]
+                ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"],
+                ["`Tastatur`", "unsichtbar wie der Takt: meldet Tastendrücke im Fenster", "`neu Tastatur(taste -> { … })`", "`beiTaste(fn)` (bekommt den Tastennamen als Text), `aktiv(ja/nein)` – muss im gezeigten Baum liegen (siehe *Tasten, Umschalter, Klappen*)"]
               ]
             },
             { art: "text", md: "Stapel, Reihen, Abschnitte und Reiter lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Jede Zutat kann außerdem einen **Hinweis** tragen: `knopf.hinweis(\"Lässt den Teig gehen\")` zeigt den Text, wenn der Gast mit der Maus darüber fährt; `hinweis()` liest ihn." },
@@ -1144,9 +1146,12 @@
                 ["`abstand`", "Luft um die Zutat in Pixeln (Ganzzahl ≥ 0)"],
                 ["`ausrichtung`", "`\"links\"`, `\"mitte\"`, `\"rechts\"`"],
                 ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"riesig\"`, `\"mono\"`"],
-                ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"]
+                ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"],
+                ["`zeilen`", "ganze Zahl ≥ 1: die Zutat ist **genau** so viele Textzeilen hoch – auch bei kürzerem Text; längerer Text wird mit „…“ abgeschnitten. Wirkt auf den Text von `Schild`, `Knopf` und `Haken`; andere Zutaten ignorieren den Schlüssel."],
+                ["`mindestbreite`", "Pixel (Zahl ≥ 0): die Zutat wird nie schmaler als das, darf aber wachsen – damit Knöpfe stehen bleiben, wenn ihr Text sich ändert"]
               ]
             },
+            { art: "text", md: "`zeilen` und `mindestbreite` sorgen für ein **ruhiges Layout**: Ein `Schild` mit `stil(\"zeilen\", 2)` wackelt nicht, wenn die Meldung mal eine Zeile länger ist, und ein Kaufknopf mit `stil(\"mindestbreite\", 120)` springt nicht, wenn aus `9 €` plötzlich `1.250 €` wird. `stil(schlüssel, karton)` entfernt einen Stil wieder." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1160,7 +1165,7 @@
               )
             },
             { art: "ausgabe", text: "titel: Pizzeria Luigi" },
-            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Unbekannter Stil 'x'.`, unpassende Werte eine `TypAnanas`." }
+            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
           ]
         },
         {
