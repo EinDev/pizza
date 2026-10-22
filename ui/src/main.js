@@ -16,9 +16,10 @@ import { verpacke, entpacke } from "./teilen.js";
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
 
-Pizza p = ((Tomate, Mozzarella, Basilikum));
-Bote.sage(("Frisch aus dem Ofen: " + p));
-Bote.sage(("Das macht " + p.preis().euro() + "."));
+Blech<margherita> beläge = ["Tomate", "Mozzarella", "Basilikum"];
+Bote.sage(("Frisch aus dem Ofen: Margherita mit " + beläge.verbinde(", ")));
+funghi preis = 5.00 + 1.00 + 1.50 + 0.50;
+Bote.sage(("Das macht " + preis.euro() + "."));
 
 // Ein Ofen mit Zeitbudget: summiert, solange die Zeit reicht.
 salami summe = ofen(temperatur: 300, zeit: 90s) {
