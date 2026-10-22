@@ -60,7 +60,7 @@ klasse Upgrade {
     funghi wirkung;
     funghi faktor;
     salami anzahl = 0;
-    salami höchstens = 1000; // mehr Stück gibt es nicht („ausgebaut“)
+    salami höchstens = -1;   // mehr Stück gibt es nicht („ausgebaut“); -1 = unbegrenzt
     funghi preisJetzt = 0;   // Preis des nächsten Stücks
     margherita zeile = "";   // Beschriftung für die Oberfläche
 
@@ -87,6 +87,7 @@ klasse Upgrade {
     }
 
     funghi gesamt() { serviere (wirkung * anzahl); }
+    diavolo ausgebaut() { serviere (höchstens >= 0 && anzahl >= höchstens); }
 
     // Kaufmenge: k Stück kosten genau die Summe der (gerundeten) Einzelpreise – wie k Einzelkäufe.
     funghi kostenFür(salami k) {
@@ -679,7 +680,7 @@ klasse Spiel {
     // So viele Stück darf man noch kaufen (Mini-Küche: höchstens 25 je Gebäude)
     // (Anteil-Handwerk: höchstens ANTEIL_MAX Stück)
     salami kaufGrenze(Upgrade u) {
-        salami g = Mathe.max(0, u.höchstens - u.anzahl);
+        salami g = u.höchstens >= 0 ? Mathe.max(0, u.höchstens - u.anzahl) : 1000;
         serviere (modus == "minikueche" && u.art == "betrieb" ? Mathe.min(g, Mathe.max(0, 25 - u.anzahl)) : g);
     }
 
@@ -1058,7 +1059,7 @@ klasse Spiel {
         kritikerBesuche = s.hole("kritikerBesuche", 0); regentage = s.hole("regentage", 0);
         größterKauf = s.hole("größterKauf", 0); offlineBoni = s.hole("offlineBoni", 0);
         Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
-        für (Upgrade u : handwerk) { u.setzeAnzahl(Mathe.min(stück.hole(u.schlüssel, 0), u.höchstens)); }   // ältere Stände: über dem Deckel wird gekappt
+        für (Upgrade u : handwerk) { salami n = stück.hole(u.schlüssel, 0); u.setzeAnzahl(u.höchstens >= 0 ? Mathe.min(n, u.höchstens) : n); }   // ältere Stände: über dem Deckel wird gekappt
         für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
         rezept = neu Rezept();
         seite = 0;
@@ -1484,7 +1485,7 @@ klasse UpgradeZeile {
         faktor = s.preisFaktor();
         grenze = s.kaufGrenze(u);
         falls (!erlaubt) {
-            margherita grund = u.anzahl >= u.höchstens ? "✅ ausgebaut" : s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
+            margherita grund = u.ausgebaut() ? "✅ ausgebaut" : s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
             falls (knopf.text() != grund) { knopf.setzeText((grund)); }
         }
         stufe = -1;
@@ -1517,7 +1518,7 @@ klasse UpgradeZeile {
     leer zeichne(funghi geld, salami menge) {
         falls (!erlaubt) {
             falls (knopf.aktiv()) { knopf.aktiv(nein); }
-            salami voll = u.anzahl >= u.höchstens ? 20 : 0;   // ausgebaut: Balken voll
+            salami voll = u.ausgebaut() ? 20 : 0;   // ausgebaut: Balken voll
             falls (stufe != voll) { stufe = voll; balken.setzeWert(voll / 20); }
             serviere;
         }
