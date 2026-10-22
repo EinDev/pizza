@@ -125,12 +125,12 @@ klasse Feinkost {
     margherita schlüssel;
     margherita symbol;
     margherita name;
-    salami prozent;
+    salami plus;
     funghi preis;
     margherita text;
 
     Feinkost(margherita s, margherita sym, margherita n, salami p, funghi pr, margherita t) {
-        schlüssel = s; symbol = sym; name = n; prozent = p; preis = pr; text = t;
+        schlüssel = s; symbol = sym; name = n; plus = p; preis = pr; text = t;
     }
 }
 
@@ -296,7 +296,7 @@ klasse Spiel {
     Blech<Meisterbrief> ALLE_BRIEFE = [];
     Blech<margherita> briefe = [];   // gekaufte Meisterbriefe (Schlüssel) – verfallen bei jeder Neueröffnung
 
-    Blech<Feinkost> FEINKOST = [
+    Blech<Feinkost> HÄNDLER_WAREN = [
         neu Feinkost("sanmarzano", "🍅", "San-Marzano-Tomaten", 15, 300_000_000_000, "Am Vesuv gereift. Nonna erkennt sie am Duft."),
         neu Feinkost("tipo00", "🌾", "Mehl Tipo 00", 15, 1_800_000_000_000, "So fein, dass es beim Öffnen der Tüte schwebt."),
         neu Feinkost("büffel", "🐃", "Büffelmozzarella aus Kampanien", 20, 10_800_000_000_000, "Die Büffel heißen Gina, Bruno und Signora Rossi."),
@@ -713,14 +713,14 @@ klasse Spiel {
     // ── Feinkost ──
     funghi feinkostFaktor() {
         funghi f = 1;
-        für (Feinkost k : FEINKOST) { falls (feinkost.enthält(k.schlüssel)) { f = f * (1 + k.prozent / 100); } }
+        für (Feinkost k : HÄNDLER_WAREN) { falls (feinkost.enthält(k.schlüssel)) { f = f * (1 + k.plus / 100); } }
         serviere (f);
     }
     diavolo feinkostOffen() { serviere (rezeptFertig() && !rezeptGesperrt()); }
     // Welle: höchstens zwei Angebote, in der Reihenfolge der Liste
     Blech<Feinkost> feinkostAngebot() {
         Blech<Feinkost> welle = [];
-        für (Feinkost k : FEINKOST) { falls (welle.länge() < 2 && !feinkost.enthält(k.schlüssel)) { welle.hinzu(k); } }
+        für (Feinkost k : HÄNDLER_WAREN) { falls (welle.länge() < 2 && !feinkost.enthält(k.schlüssel)) { welle.hinzu(k); } }
         serviere (welle);
     }
     diavolo kaufeFeinkost(Feinkost k) {
@@ -728,7 +728,7 @@ klasse Spiel {
         geld -= k.preis;
         feinkost.hinzu(k.schlüssel);
         neuBerechnen();
-        melde(("🧀 Frisch vom Feinkost-Händler: " + k.symbol + " " + k.name + " – jede Pizza bringt " + k.prozent + " % mehr. Eine Pizza kostet jetzt "
+        melde(("🧀 Frisch vom Feinkost-Händler: " + k.symbol + " " + k.name + " – jede Pizza bringt " + k.plus + " % mehr. Eine Pizza kostet jetzt "
             + preis().euro() + "."));
         serviere (ja);
     }
@@ -1332,7 +1332,7 @@ Blech<Erfolg> ERFOLGE = [
         (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.siegeJe.hole(k, 0) >= 3)).länge() >= 1)),
     neu Erfolg("Stammspieler", "Spiele 25 Minispiele.", (s) -> (s.minispieleGespielt >= 25)),
     neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
-    neu Erfolg("Feinschmecker", "Kaufe alles, was der Feinkost-Händler hat – in einer Runde.", (s) -> (s.feinkost.länge() >= s.FEINKOST.länge())),
+    neu Erfolg("Feinschmecker", "Kaufe alles, was der Feinkost-Händler hat – in einer Runde.", (s) -> (s.feinkost.länge() >= s.HÄNDLER_WAREN.länge())),
     neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
     neu Erfolg("Großeinkauf", "Kaufe 50 Stück auf einmal.", (s) -> (s.größterKauf >= 50)),
     neu Erfolg("Meisterhaft", "Häng 10 Meisterbriefe in einer Runde an die Wand.", (s) -> (s.briefe.länge() >= 10)),
@@ -1681,14 +1681,14 @@ leer zeichneFeinkost() {
     für (salami i : [1 .. 2]) {
         Feinkost k = feinkostPlatz.stück(i);
         falls (k != karton) {
-            setzeText(feinkostInfos.stück(i), k.symbol + " " + k.name + " – jede Pizza +" + k.prozent + " %. " + k.text);
+            setzeText(feinkostInfos.stück(i), k.symbol + " " + k.name + " – jede Pizza +" + k.plus + " %. " + k.text);
             setzeKnopf(feinkostKnöpfe.stück(i), k.preis.euro(kompakt: ja), spiel.geld >= k.preis);
         } sonst {
             setzeText(feinkostInfos.stück(i), "— Der Händler hat alles verkauft, was er hatte. Grazie!");
             setzeKnopf(feinkostKnöpfe.stück(i), "—", nein);
         }
     }
-    Blech<Feinkost> lager = spiel.FEINKOST.filtere((k) -> (spiel.feinkost.enthält(k.schlüssel)));
+    Blech<Feinkost> lager = spiel.HÄNDLER_WAREN.filtere((k) -> (spiel.feinkost.enthält(k.schlüssel)));
     setzeText(lagerInfo, lager.istLeer() ? "Nonnas Rezeptbuch ist ausgelesen – jetzt geht es um die Zutaten. Das Lager ist noch leer."
         : "✅ Im Lager: " + lager.belege((k) -> (k.symbol + " " + k.name)).verbinde(" · "));
 }
