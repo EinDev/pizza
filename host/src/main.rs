@@ -302,6 +302,8 @@ fn echte_saat() -> f64 {
 }
 
 fn main() -> ExitCode {
+    // PIZZA_KEIN_DIALOG (Tests/CI): Windows-Fehlerdialoge aus, bevor irgendetwas schiefgehen kann.
+    konsole::dialoge_abschalten_falls_gewuenscht();
     // Theke-EXE (Subsystem WINDOWS) aus einem Terminal gestartet → Ausgaben dorthin (vor jeder Ausgabe).
     konsole::anhaengen();
     let argv: Vec<String> = std::env::args().skip(1).collect();

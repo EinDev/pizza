@@ -22,6 +22,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const cp = require('child_process');
+// Nie ein sichtbarer Dialog aus Testläufen (K-096-Meldungsfenster, Windows-Fehlerdialoge, Theke-Fenster): alle
+// gestarteten Hosts/EXEs erben PIZZA_KEIN_DIALOG=1 (host/src/konsole.rs).
+process.env.PIZZA_KEIN_DIALOG = '1';
 
 const ROOT = path.join(__dirname, '..', '..');
 const PizzaLang = require(path.join(ROOT, 'site', 'js', 'pizza.js'));
@@ -289,7 +292,7 @@ const hostPfad = findeHost();
 let _hostHilfe = null;
 function hostHilfe() {
   if (_hostHilfe === null) {
-    try { const p = cp.spawnSync(hostPfad, ['--hilfe'], { encoding: 'utf8', timeout: 10000 }); _hostHilfe = String(p.stdout || '') + String(p.stderr || ''); }
+    try { const p = cp.spawnSync(hostPfad, ['--hilfe'], { windowsHide: true, encoding: 'utf8', timeout: 10000 }); _hostHilfe = String(p.stdout || '') + String(p.stderr || ''); }
     catch (_) { _hostHilfe = ''; }
   }
   return _hostHilfe;
@@ -371,7 +374,7 @@ const host = {
     const nullAb = zeilenIn.indexOf(null);
     if (nullAb >= 0) zeilenIn = zeilenIn.slice(0, nullAb);
     const stdin = zeilenIn.map(z => z + '\n').join('');
-    const p = cp.spawnSync(hostPfad, argv, { encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
+    const p = cp.spawnSync(hostPfad, argv, { windowsHide: true, encoding: 'utf8', input: stdin, timeout: 60000, maxBuffer: 256 * 1024 * 1024 });
     const ms = jetzt() - t0;
     try { fs.unlinkSync(datei); if (uiDatei) fs.unlinkSync(uiDatei); if (vorratOrdner) fs.rmSync(vorratOrdner, { recursive: true, force: true }); } catch (_) {}
     if (p.error) return { status: 'wurf', fehler: 'Host-Start: ' + p.error.message };

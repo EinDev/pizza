@@ -2,7 +2,10 @@
 //! mit handgeschriebenen Modulen (WAT) und als End-to-End-Test der EXE (Spielstand überlebt zwei Läufe).
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod gemeinsam;
+use gemeinsam::befehl;
 
 use pizzahost::ereignis::{Ereignis, Senke};
 use pizzahost::laufen::{eintraege_roh, fuehre_aus, Optionen};
@@ -172,12 +175,12 @@ fn spielstand_ueberlebt_zwei_exe_laeufe() {
     let karton = dir.join("zaehler.pkarton");
     std::fs::write(&karton, wat::parse_str(ZAEHLER_WAT).unwrap()).unwrap();
     let exe = dir.join(format!("zaehler{}", std::env::consts::EXE_SUFFIX));
-    let st = Command::new(env!("CARGO_BIN_EXE_pizza-host")).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap();
+    let st = befehl(env!("CARGO_BIN_EXE_pizza-host")).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap();
     assert!(st.success());
     let vorrat = dir.join("vorrat");
     let vorrat_opt = format!("--vorrat={}", vorrat.display());
     let lauf = |args: &[&str]| {
-        let out = Command::new(&exe).args(args).stdin(Stdio::null()).output().unwrap();
+        let out = befehl(&exe).args(args).stdin(Stdio::null()).output().unwrap();
         (
             out.status.code(),
             String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),

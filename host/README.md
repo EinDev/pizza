@@ -173,6 +173,10 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
     (Linux: „… konnte nicht geöffnet werden (die WebView WebKitGTK 4.1 ließ sich nicht starten).“) und Exit 2.
   Theke-EXE ohne Terminal (Doppelklick): Meldung zusätzlich als Meldungsfenster; aus einem Terminal per `AttachConsole` dort.
   Programme ohne Theke laufen immer, auch ohne Anzeige. Test: `PIZZA_TEST_OHNE_WEBVIEW2=1` (Windows) simuliert die fehlende Runtime.
+  **`PIZZA_KEIN_DIALOG=1` (Tests/CI/Agenten):** nie ein sichtbarer Dialog – kein Meldungsfenster (Meldung nur auf stderr),
+  Windows-Fehlerdialoge aus (`SetErrorMode`, WER ohne UI), Theke-Fenster bleibt unsichtbar. Alle Test-Skripte
+  (`host/test*.js`, `smoke-koeche.js`, `tests/differenz`, `cargo test` über `tests/gemeinsam`) setzen es.
+  `PIZZA_TEST_KEIN_STDERR=1` simuliert (nur zusammen damit) den Doppelklick-Fall ohne stderr.
 - **Ausnahmen (fensterlos, W0100 wie bisher):** `PIZZA_THEKE=0` (Tests/CI), JSON-Modus (`--ereignisse-json`,
   `PIZZA_EREIGNISSE_JSON`, außer `PIZZA_THEKE=1`) und `--ui-ereignisse`.
 - **Linux: WebKitGTK fehlt (K-083)** → ein Programm mit Theke startet gar nicht erst, sondern meldet auf stderr

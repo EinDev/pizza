@@ -1,7 +1,10 @@
 //! Theke-Anbindung (THEKE.md §4): `ui_senden`/`ui_warte` mit vorgegebenen Ereignissen und – falls eine Anzeige
 //! da ist und `PIZZA_THEKE_SMOKE=1` gesetzt ist – mit echtem Fenster.
 
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod gemeinsam;
+use gemeinsam::befehl;
 
 use pizzahost::ereignis::{Ereignis, Senke};
 use pizzahost::laufen::{fuehre_aus, Optionen, Ui};
@@ -77,7 +80,7 @@ fn cli_ui_ereignisse_datei() {
     std::fs::write(&k, wat::parse_str(WAT).unwrap()).unwrap();
     let ev = dir.join("t.ereignisse");
     std::fs::write(&ev, "{\"typ\":\"klick\",\"id\":\"z1\"}\n").unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_pizza-host"))
+    let out = befehl(env!("CARGO_BIN_EXE_pizza-host"))
         .arg("--ereignisse-json")
         .arg("--ui-ereignisse")
         .arg(&ev)
@@ -103,7 +106,7 @@ fn fenster_smoke() {
     let k = dir.join("t.pkarton");
     std::fs::write(&k, wat::parse_str(WAT).unwrap()).unwrap();
     let t = std::time::Instant::now();
-    let out = Command::new(env!("CARGO_BIN_EXE_pizza-host"))
+    let out = befehl(env!("CARGO_BIN_EXE_pizza-host"))
         .arg(&k)
         .env("PIZZA_THEKE_SMOKE", "1")
         .env("PIZZA_THEKE_UNSICHTBAR", "1")
@@ -134,7 +137,7 @@ fn ohne_fenster(wat: &str, name: &str, extra: &[(&str, &str)]) -> std::process::
     std::fs::create_dir_all(&dir).unwrap();
     let k = dir.join("t.pkarton");
     std::fs::write(&k, wat::parse_str(wat).unwrap()).unwrap();
-    let mut c = Command::new(env!("CARGO_BIN_EXE_pizza-host"));
+    let mut c = befehl(env!("CARGO_BIN_EXE_pizza-host"));
     c.arg("--kein-vorrat")
         .arg(&k)
         .env_remove("PIZZA_THEKE")
@@ -246,4 +249,79 @@ fn takt_vorgabe_bleibt_einzeln() {
     let Senke::Sammeln(e) = s else { unreachable!() };
     let n = e.iter().filter(|x| matches!(x, Ereignis::Ausgabe { text, .. } if *text == t)).count();
     assert_eq!(n, 2);
+}
+
+/// Der Pfad, der beim Doppelklick (kein Terminal, kein stderr) das K-096-Meldungsfenster zeigt – hier mit
+/// `PIZZA_KEIN_DIALOG=1` (immer gesetzt über `befehl`): Der Host meldet nur auf stderr, endet sofort mit Exit 2
+/// (ein Meldungsfenster würde blockieren) und hat während des ganzen Laufs kein sichtbares Fenster.
+/// `PIZZA_TEST_KEIN_STDERR` simuliert das fehlende stderr und wirkt nur zusammen mit `PIZZA_KEIN_DIALOG`.
+#[cfg(all(feature = "theke", windows))]
+#[test]
+fn theke_abbruch_ohne_stderr_zeigt_keinen_dialog() {
+    use std::ffi::c_void;
+    #[link(name = "user32")]
+    extern "system" {
+        fn EnumWindows(f: extern "system" fn(*mut c_void, isize) -> i32, l: isize) -> i32;
+        fn GetWindowThreadProcessId(h: *mut c_void, pid: *mut u32) -> u32;
+        fn IsWindowVisible(h: *mut c_void) -> i32;
+    }
+    struct Suche {
+        pid: u32,
+        gefunden: u32,
+    }
+    extern "system" fn je_fenster(h: *mut c_void, l: isize) -> i32 {
+        let s = unsafe { &mut *(l as *mut Suche) };
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(h, &mut pid) };
+        if pid == s.pid && unsafe { IsWindowVisible(h) } != 0 {
+            s.gefunden += 1;
+        }
+        1
+    }
+    let sichtbare_fenster = |pid: u32| {
+        let mut s = Suche { pid, gefunden: 0 };
+        unsafe { EnumWindows(je_fenster, &mut s as *mut Suche as isize) };
+        s.gefunden
+    };
+
+    let dir = std::env::temp_dir().join(format!("pizza-theke-kein-dialog-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let k = dir.join("t.pkarton");
+    std::fs::write(&k, wat::parse_str(WAT).unwrap()).unwrap();
+    let mut kind = befehl(env!("CARGO_BIN_EXE_pizza-host"))
+        .arg("--kein-vorrat")
+        .arg(&k)
+        .env_remove("PIZZA_THEKE")
+        .env("PIZZA_KEIN_DIALOG", "1")
+        .env("PIZZA_TEST_OHNE_WEBVIEW2", "1")
+        .env("PIZZA_TEST_KEIN_STDERR", "1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let pid = kind.id();
+    let start = std::time::Instant::now();
+    let mut fenster = 0;
+    let status = loop {
+        fenster += sichtbare_fenster(pid);
+        if let Some(st) = kind.try_wait().unwrap() {
+            break Some(st);
+        }
+        if start.elapsed() > std::time::Duration::from_secs(20) {
+            let _ = kind.kill(); // nur dieses eine Kind
+            let _ = kind.wait();
+            break None;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    };
+    let out = kind.wait_with_output().unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(fenster, 0, "sichtbares Fenster während des Laufs");
+    let status = status.expect("Host hing (Meldungsfenster?) und wurde nach 20 s beendet");
+    assert_eq!(status.code(), Some(2), "stderr: {}", err);
+    assert!(err.contains("braucht die Microsoft Edge WebView2 Runtime"), "{}", err);
+    assert!(err.contains("(Meldungsfenster unterdrückt: PIZZA_KEIN_DIALOG)"), "Pfad des Meldungsfensters nicht erreicht: {}", err);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "");
 }

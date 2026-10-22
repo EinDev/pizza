@@ -14,6 +14,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Nie ein sichtbarer Dialog aus Testläufen (K-096-Meldungsfenster, Windows-Fehlerdialoge, Theke-Fenster): alle
+// gestarteten Hosts/EXEs erben PIZZA_KEIN_DIALOG=1 (host/src/konsole.rs).
+process.env.PIZZA_KEIN_DIALOG = '1';
 
 const WURZEL = path.join(__dirname, '..');
 const BEISPIELE = path.join(WURZEL, 'site', 'beispiele');
@@ -107,7 +110,7 @@ for (const b of liste) {
   if (uiDatei) hArgs.push('--ui-ereignisse', uiDatei);
   hArgs.push(datei, ...args);
   const h0 = Date.now();
-  const r = spawnSync(exe, hArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 });
+  const r = spawnSync(exe, hArgs, { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 });
   hostMs += Date.now() - h0;
   const hostEr = r.stdout.split('\n').filter(Boolean).map((z) => JSON.parse(z));
   const refEr = ref.ereignisse.concat([]);
@@ -141,8 +144,8 @@ for (const [i, [name, quelle, opts, progArgs]] of konsolenFaelle.entries()) {
   const pk = path.join(tmp, id + '.pkarton');
   fs.writeFileSync(pk, k.pkarton);
   const gemeinsam = ['--kein-vorrat', '--saat=1', ...opts];
-  const cli = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), ...gemeinsam, pz, ...(progArgs || [])], { encoding: 'utf8', env: umgebung, input: '' });
-  const host = spawnSync(exe, [...gemeinsam, pk, ...(progArgs || [])], { encoding: 'utf8', env: umgebung, input: '' });
+  const cli = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), ...gemeinsam, pz, ...(progArgs || [])], { windowsHide: true, encoding: 'utf8', env: umgebung, input: '' });
+  const host = spawnSync(exe, [...gemeinsam, pk, ...(progArgs || [])], { windowsHide: true, encoding: 'utf8', env: umgebung, input: '' });
   const n = (t) => t.replace(/\r\n/g, '\n');
   // `--info` meldet die Uhr: CLI (Interpreter) und Host zählen gleich, also auch das zeichengleich.
   const diff = n(cli.stdout) !== n(host.stdout) ? 'stdout: CLI ' + JSON.stringify(n(cli.stdout)) + ', Host ' + JSON.stringify(n(host.stdout))
@@ -154,8 +157,8 @@ for (const [i, [name, quelle, opts, progArgs]] of konsolenFaelle.entries()) {
 // --version: Host und CLI nennen dieselbe Sprachversion (PizzaLang.version = Paketversion des Hosts).
 if (!filter || 'version'.includes(filter)) {
   kGesamt++;
-  const hv = spawnSync(exe, ['--version'], { encoding: 'utf8', env: umgebung });
-  const cv = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), '--version'], { encoding: 'utf8', env: umgebung });
+  const hv = spawnSync(exe, ['--version'], { windowsHide: true, encoding: 'utf8', env: umgebung });
+  const cv = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), '--version'], { windowsHide: true, encoding: 'utf8', env: umgebung });
   const erwartetH = 'pizza-host ' + PizzaLang.version + ' (pizza ' + PizzaLang.version + ')\n';
   const erwartetC = 'pizza ' + PizzaLang.version + '\n';
   const n = (t) => t.replace(/\r\n/g, '\n');

@@ -10,6 +10,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+// Nie ein sichtbarer Dialog aus Testläufen (K-096-Meldungsfenster, Windows-Fehlerdialoge, Theke-Fenster): alle
+// gestarteten Hosts/EXEs erben PIZZA_KEIN_DIALOG=1 (host/src/konsole.rs).
+process.env.PIZZA_KEIN_DIALOG = '1';
 
 const WURZEL = path.join(__dirname, '..');
 globalThis.PizzaLang = require(path.join(WURZEL, 'site', 'js', 'pizza.js'));
@@ -27,7 +30,7 @@ function karton(name, quelle) {
   fs.writeFileSync(p, k.pkarton);
   return p;
 }
-const lauf = (args) => spawnSync(exe, ['--kein-vorrat', ...args], { encoding: 'utf8', env, input: '', maxBuffer: 64 << 20 });
+const lauf = (args) => spawnSync(exe, ['--kein-vorrat', ...args], { windowsHide: true, encoding: 'utf8', env, input: '', maxBuffer: 64 << 20 });
 
 const faelle = path.join(WURZEL, 'tests', 'faelle');
 for (const f of fs.readdirSync(faelle).filter((d) => /^kueche-.*\.pizza$/.test(d)).sort()) {

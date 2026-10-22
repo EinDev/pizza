@@ -1,6 +1,9 @@
 //! End-to-End: `pizza-host exe` erzeugt eine eigenständige EXE, die das eingebettete Programm ausführt.
 
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod gemeinsam;
+use gemeinsam::befehl;
 
 const WAT: &str = r#"(module
   (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
@@ -29,18 +32,18 @@ fn exe_erzeugen_und_starten() {
     let exe = dir.join(format!("demo{}", std::env::consts::EXE_SUFFIX));
 
     let host = env!("CARGO_BIN_EXE_pizza-host");
-    let st = Command::new(host).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap();
+    let st = befehl(host).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap();
     assert!(st.success());
 
     // Alle Argumente gehören dem Programm – auch solche, die wie Host-Optionen aussehen.
-    let out = Command::new(&exe).args(["Margherita", "--hilfe"]).stdin(Stdio::null()).output().unwrap();
+    let out = befehl(&exe).args(["Margherita", "--hilfe"]).stdin(Stdio::null()).output().unwrap();
     assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Margherita\n--hilfe\nHallo aus der EXE\n");
     assert_eq!(out.status.code(), Some(2));
 
     // `--` beendet die Optionen: das erste `--` (vor dem ersten Programmargument) wird verbraucht, der Rest geht
     // unverändert an das Programm; ein späteres `--` bleibt Argument (wie bin/pizza.js).
     let lauf = |p: &std::path::Path, args: &[&str]| {
-        let out = Command::new(p).args(args).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
+        let out = befehl(p).args(args).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
         (String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), out.status.code())
     };
     assert_eq!(lauf(&exe, &["--", "--hilfe"]), ("--hilfe\nHallo aus der EXE\n".into(), Some(1)));
@@ -55,7 +58,7 @@ fn exe_erzeugen_und_starten() {
     assert_eq!(lauf(host.as_ref(), &["--saat=1", "--kein-vorrat", "--", k, "--", "--x"]), ("--\n--x\nHallo aus der EXE\n".into(), Some(2)));
     assert_eq!(lauf(host.as_ref(), &["--saat=1", "--kein-vorrat", k, "--info"]), ("--info\nHallo aus der EXE\n".into(), Some(1)));
 
-    let out = Command::new(&exe).env("PIZZA_EREIGNISSE_JSON", "1").stdin(Stdio::null()).output().unwrap();
+    let out = befehl(&exe).env("PIZZA_EREIGNISSE_JSON", "1").stdin(Stdio::null()).output().unwrap();
     assert_eq!(
         String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"),
         "{\"typ\":\"ausgabe\",\"text\":\"Hallo aus der EXE\"}\n{\"typ\":\"ende\",\"exitCode\":0,\"schritte\":3,\"zeitMs\":3}\n"
@@ -65,7 +68,7 @@ fn exe_erzeugen_und_starten() {
     // Ungültiges .pkarton wird abgelehnt.
     let kaputt = dir.join("kaputt.pkarton");
     std::fs::write(&kaputt, b"keine pizza").unwrap();
-    let st = Command::new(host).arg("exe").arg(&kaputt).arg("-o").arg(dir.join("x.exe")).status().unwrap();
+    let st = befehl(host).arg("exe").arg(&kaputt).arg("-o").arg(dir.join("x.exe")).status().unwrap();
     assert_eq!(st.code(), Some(2));
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -94,7 +97,7 @@ fn panik_banner_nach_stderr() {
     std::fs::create_dir_all(&dir).unwrap();
     let karton = dir.join("panik.pkarton");
     std::fs::write(&karton, wat::parse_str(wat).unwrap()).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_pizza-host")).arg(&karton).stdin(Stdio::null()).output().unwrap();
+    let out = befehl(env!("CARGO_BIN_EXE_pizza-host")).arg(&karton).stdin(Stdio::null()).output().unwrap();
     assert_eq!(out.status.code(), Some(39));
     assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "vorher\n");
     assert_eq!(String::from_utf8_lossy(&out.stderr).replace("\r\n", "\n"), "BANNER\n");
@@ -119,11 +122,11 @@ fn theke_exe_ohne_terminal() {
     let karton = dir.join("theke.pkarton");
     std::fs::write(&karton, wat::parse_str(wat).unwrap()).unwrap();
     let exe = dir.join(format!("theke{}", std::env::consts::EXE_SUFFIX));
-    assert!(Command::new(host).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap().success());
+    assert!(befehl(host).arg("exe").arg(&karton).arg("-o").arg(&exe).status().unwrap().success());
     let demo = dir.join("demo.pkarton");
     std::fs::write(&demo, wat::parse_str(WAT).unwrap()).unwrap();
     let konsole = dir.join(format!("konsole{}", std::env::consts::EXE_SUFFIX));
-    assert!(Command::new(host).arg("exe").arg(&demo).arg("-o").arg(&konsole).status().unwrap().success());
+    assert!(befehl(host).arg("exe").arg(&demo).arg("-o").arg(&konsole).status().unwrap().success());
 
     let mit = std::fs::read(&exe).unwrap();
     let ohne = std::fs::read(&konsole).unwrap();
@@ -134,7 +137,7 @@ fn theke_exe_ohne_terminal() {
         assert_eq!(pizzahost::karton::subsystem(&mit), None);
     }
     // Umleitung (Pipe) bleibt erhalten, Exit-Code kommt an. PIZZA_THEKE=0: nie ein Fenster im Test.
-    let out = Command::new(&exe).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
+    let out = befehl(&exe).env("PIZZA_THEKE", "0").stdin(Stdio::null()).output().unwrap();
     assert_eq!(String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n"), "Theke-Programm\n");
     assert_eq!(out.status.code(), Some(3));
     let _ = std::fs::remove_dir_all(&dir);

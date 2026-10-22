@@ -12,6 +12,9 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+// Nie ein sichtbarer Dialog aus Testläufen (K-096-Meldungsfenster, Windows-Fehlerdialoge, Theke-Fenster): alle
+// gestarteten Hosts/EXEs erben PIZZA_KEIN_DIALOG=1 (host/src/konsole.rs).
+process.env.PIZZA_KEIN_DIALOG = '1';
 const PizzaExe = require(path.join(__dirname, '..', 'site', 'js', 'exe.js'));
 
 let fehler = 0;
@@ -71,11 +74,11 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
     if (z._laeuft) {
       // Byte-Vergleich mit `pizza-host exe` desselben Binaries und Ausführung.
       const ziel = path.join(tmp, 'ref-' + z.id + ext);
-      const e = spawnSync(z._pfad, ['exe', path.join(__dirname, 'tests', 'demo.pkarton'), '-o', ziel], { encoding: 'utf8' });
+      const e = spawnSync(z._pfad, ['exe', path.join(__dirname, 'tests', 'demo.pkarton'), '-o', ziel], { windowsHide: true, encoding: 'utf8' });
       ok(e.status === 0 && fs.readFileSync(ziel).equals(bytes), z.id + ': identisch mit `pizza-host exe`');
       const aus = path.join(tmp, PizzaExe.dateiname('demo.pizza', z));
       fs.writeFileSync(aus, bytes, { mode: 0o755 });
-      const l = spawnSync(aus, ['Margherita'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const l = spawnSync(aus, ['Margherita'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       ok(l.status === 1 && l.stdout.replace(/\r/g, '') === 'Margherita\nHallo aus der EXE\n', z.id + ': erzeugte EXE läuft (Exit ' + l.status + ')');
     }
   }
@@ -96,20 +99,24 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
       const kp = path.join(tmp, 'theke.pkarton');
       fs.writeFileSync(kp, thekeKarton);
       const ziel = path.join(tmp, 'ref-theke-' + z.id + ext);
-      const e = spawnSync(z._pfad, ['exe', kp, '-o', ziel], { encoding: 'utf8' });
+      const e = spawnSync(z._pfad, ['exe', kp, '-o', ziel], { windowsHide: true, encoding: 'utf8' });
       ok(e.status === 0 && fs.readFileSync(ziel).equals(mit), z.id + ': Theke-EXE identisch mit `pizza-host exe`');
       if (z.id === 'linux-x64') {
         // Starter: ohne WebKitGTK (hier simuliert) verständliche Meldung + Exit 2, kein Lader-Fehler, kein Fensterversuch.
         fs.chmodSync(ziel, 0o755);
-        const l = spawnSync(ziel, [], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBKIT: '1' }) });
+        const l = spawnSync(ziel, [], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBKIT: '1' }) });
         ok(l.status === 2 && /braucht WebKitGTK 4\.1.*sudo apt install libwebkit2gtk-4\.1-0/.test(l.stderr), z.id + ': Theke-EXE ohne WebKitGTK → Meldung, Exit 2 (' + l.status + ')');
       }
       if (process.platform === 'win32' && z.name === 'lokal') {
         // K-096 (nur das frisch gebaute lokale Binary; host/ziele kann älter sein): ohne WebView2-Runtime (hier simuliert) Meldung + Exit 2 statt W0100 – kein Fensterversuch, kein Programmlauf.
         const env = Object.assign({}, process.env, { PIZZA_TEST_OHNE_WEBVIEW2: '1' });
         delete env.PIZZA_THEKE;
-        const l = spawnSync(ziel, ['--kein-vorrat'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
+        const l = spawnSync(ziel, ['--kein-vorrat'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env });
         ok(l.status === 2 && /braucht die Microsoft Edge WebView2 Runtime/.test(l.stderr) && l.stdout === '', z.id + ': Theke-EXE ohne WebView2 → Meldung, Exit 2 (' + l.status + ')');
+        // Doppelklick-Fall (kein stderr, hier simuliert – wirkt nur mit PIZZA_KEIN_DIALOG): statt Meldungsfenster nur
+        // stderr; ein Meldungsfenster würde blockieren → das Ende vor dem Timeout belegt, dass keins kam.
+        const k = spawnSync(ziel, ['--kein-vorrat'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000, env: Object.assign({}, env, { PIZZA_TEST_KEIN_STDERR: '1' }) });
+        ok(k.status === 2 && /Meldungsfenster unterdrückt: PIZZA_KEIN_DIALOG/.test(k.stderr), z.id + ': Theke-EXE ohne stderr + PIZZA_KEIN_DIALOG → kein Meldungsfenster, Exit 2 (' + k.status + ')');
       }
     }
   }

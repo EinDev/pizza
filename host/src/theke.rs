@@ -164,7 +164,8 @@ fn fenster(erste: String, rx: Receiver<AnHaupt>, von: Sender<String>) -> Result<
     #[cfg(not(windows))]
     const FEHLT: &str = crate::anzeige::FENSTER_FEHLGESCHLAGEN;
     // Test-/CI-Modus: Fenster nie sichtbar machen (Smoke-Test ohne aufpoppende Fenster).
-    let unsichtbar = std::env::var_os("PIZZA_THEKE_UNSICHTBAR").is_some();
+    // PIZZA_KEIN_DIALOG schließt das ein: Tests lösen nie ein sichtbares Fenster aus.
+    let unsichtbar = std::env::var_os("PIZZA_THEKE_UNSICHTBAR").is_some() || crate::konsole::dialoge_unterdrueckt();
     let event_loop = EventLoopBuilder::<Fe>::with_user_event().build();
     let fenster = match WindowBuilder::new()
         .with_title("Theke")
