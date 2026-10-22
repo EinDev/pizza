@@ -81,6 +81,40 @@ e2e("Vorschaufenster ist an der Titelleiste verschiebbar und merkt sich die Posi
   await warteLaufEnde(page);
 });
 
+e2e("Jeder Lauf übernimmt breite/hoehe des Programms; Größe von Hand gilt bis zum Laufende (K-123)", async ({ page, oeffne }) => {
+  await oeffne();
+  const prog = (titel, b, h) => [
+    `Theke theke = neu Theke("${titel}", breite: ${b}, hoehe: ${h});`,
+    'Knopf k = neu Knopf("Titel", () -> { theke.setzeTitel("Neu"); }, id: "k");',
+    "theke.zeige(neu Stapel([k]));",
+    "theke.bediene();",
+  ].join("\n");
+  await starteTheke(page, prog("Klein", 300, 160));
+  const a = await fensterBox(page);
+  assert.ok(Math.abs(a.w - 302) <= 1, "Breite aus dem Programm: " + JSON.stringify(a));
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+  // zweiter Lauf, anderes Programm → neue Größe (früher: gemerkte Größe der Sitzung)
+  await starteTheke(page, prog("Groß", 520, 300));
+  const b = await fensterBox(page);
+  assert.ok(Math.abs(b.w - 522) <= 1 && b.h > a.h + 100, "zweiter Lauf übernimmt die Programmgröße: " + JSON.stringify(b));
+  // Nutzer zieht das Fenster in diesem Lauf größer → setzeTitel (sendet fenster erneut) ändert die Größe nicht
+  await page.$eval(FENSTER, (f) => { f.style.width = "600px"; });
+  await page.waitForFunction(() => { const g = JSON.parse(sessionStorage.getItem("pizza.vorschau") || "null"); return g && Math.abs(g.w - 600) <= 1; }, { timeout: 3000 });
+  const vorher = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
+  await thekeEreignis(page, { typ: "klick", id: "k" });
+  await warteAufBediene(page, vorher);
+  assert.equal(await page.$eval("#vorschau-titel", (t) => t.textContent), "Neu");
+  assert.ok(Math.abs((await fensterBox(page)).w - 600) <= 1, "Größe von Hand bleibt im selben Lauf");
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+  // nächster Lauf: wieder die Programmgröße
+  await starteTheke(page, prog("Groß", 520, 300));
+  assert.ok(Math.abs((await fensterBox(page)).w - 522) <= 1, "neuer Lauf → wieder Programmgröße");
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+});
+
 e2e("Schließen des Fensters beendet bediene() – Programm läuft zu Ende", async ({ page, oeffne }) => {
   await oeffne();
   await starteTheke(page, HALLO);

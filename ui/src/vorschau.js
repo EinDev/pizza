@@ -1,6 +1,7 @@
 // Theke-Vorschau (THEKE.md §4): schwebendes App-Fenster über allem (außer Dialogen/Toasts).
-// Titelleiste verschiebt, Ecke ändert die Größe, Startgröße aus breite/hoehe (zentriert, nie größer als der Viewport),
-// Position/Größe pro Sitzung gemerkt. Kein Abdunkeln – Editor/Konsole bleiben bedienbar. Esc schließt NICHT.
+// Titelleiste verschiebt, Ecke ändert die Größe. Größe (K-123): jeder Lauf übernimmt breite/hoehe des Programms (nie größer
+// als der Viewport) – außer der Nutzer hat das Fenster in diesem Lauf schon selbst verschoben oder in der Größe geändert.
+// Position: zentriert, bis der Nutzer das Fenster einmal verschiebt; danach bleibt die gemerkte Stelle (pro Sitzung). Kein Abdunkeln – Editor/Konsole bleiben bedienbar. Esc schließt NICHT.
 // Mobil (< 600px): Vollbild-Sheet. Renderer (js/theke/theke.js + theke.css) wird erst bei Bedarf geladen.
 import { iconSvg } from "./icons.js";
 
@@ -45,7 +46,8 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
   // Geometrie in CSS-Pixeln: x/y = linke obere Ecke, w/h = Außengröße (inkl. Titelleiste)
   let geo = null;
   if (!vollbild) { try { geo = JSON.parse(sessionStorage.getItem(MERKER) || "null"); } catch (e) { geo = null; } }
-  let vorgabeGesetzt = !!geo;
+  // K-123: je Lauf – Programmgröße schon übernommen? Nutzer hat in diesem Lauf verschoben/gezogen?
+  let groesseUebernommen = false, nutzerGeaendert = false;
 
   const mobil = () => window.matchMedia("(max-width: 599.98px)").matches;
   const themaJetzt = () => (document.documentElement.dataset.theme === "dark" ? "dunkel" : "hell");
@@ -63,17 +65,20 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     fenster.style.width = geo.w + "px";
     fenster.style.height = geo.h + "px";
   }
+  /** Programmgröße übernehmen: zentriert – oder an der gemerkten Stelle, wenn der Nutzer das Fenster je verschoben hat. */
   function zentriere(breite, hoehe) {
     const w = (Number(breite) || 480) + 2, h = (Number(hoehe) || 360) + KOPF_HOEHE + 2;
-    geo = { w, h, x: (window.innerWidth - w) / 2, y: (window.innerHeight - h) / 2 };
+    const bleib = !!(geo && geo.verschoben);
+    geo = bleib ? { w, h, x: geo.x, y: geo.y, verschoben: true } : { w, h, x: (window.innerWidth - w) / 2, y: (window.innerHeight - h) / 2 };
     wende();
   }
 
   function fensterInfo(info) {
     if (info.titel != null) titelEl.textContent = info.titel || "Theke";
-    // Startgröße nur beim ersten Mal in dieser Sitzung aus breite/hoehe (danach gilt die gemerkte Größe)
-    if (!vollbild && !vorgabeGesetzt && (info.breite || info.hoehe)) {
-      vorgabeGesetzt = true;
+    // K-123: jeder Lauf nimmt breite/hoehe des Programms – einmal je Lauf (setzeTitel sendet fenster erneut) und nur, solange
+    // der Nutzer das Fenster in diesem Lauf nicht selbst verschoben oder in der Größe geändert hat
+    if (!vollbild && !groesseUebernommen && !nutzerGeaendert) {
+      groesseUebernommen = true;
       zentriere(info.breite, info.hoehe);
       merke();
     }
@@ -82,6 +87,8 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
   async function oeffne() {
     const nr = ++laufNr;
     offen = true;
+    groesseUebernommen = false;
+    nutzerGeaendert = false;
     titelEl.textContent = "Theke";
     inhalt.textContent = "";
     if (vollbild) wende(); else if (!geo) zentriere(480, 360); else wende();
@@ -143,7 +150,11 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     kopf.setPointerCapture(e.pointerId);
     const start = { x: e.clientX, y: e.clientY, gx: geo.x, gy: geo.y };
     fenster.classList.add("zieht");
-    const bewege = (ev) => { geo.x = start.gx + ev.clientX - start.x; geo.y = start.gy + ev.clientY - start.y; wende(); };
+    const bewege = (ev) => {
+      geo.x = start.gx + ev.clientX - start.x; geo.y = start.gy + ev.clientY - start.y;
+      geo.verschoben = true; nutzerGeaendert = true;
+      wende();
+    };
     const ende = () => {
       fenster.classList.remove("zieht");
       kopf.removeEventListener("pointermove", bewege);
@@ -161,7 +172,7 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     new ResizeObserver(() => {
       if (vollbild || !offen || mobil() || !geo || fenster.hidden) return;
       const w = fenster.offsetWidth, h = fenster.offsetHeight;
-      if (Math.abs(w - geo.w) > 1 || Math.abs(h - geo.h) > 1) { geo.w = w; geo.h = h; merke(); }
+      if (Math.abs(w - geo.w) > 1 || Math.abs(h - geo.h) > 1) { geo.w = w; geo.h = h; nutzerGeaendert = true; merke(); }
     }).observe(fenster);
   }
   window.addEventListener("resize", () => { if (offen) wende(); });
