@@ -494,7 +494,7 @@ fn zettel_methode(o: W, id: u32, pos: &[W]) -> W {
 }
 
 // ---------------------------------------------------------------- JSON
-fn json_text(s: &[u8], out: &mut String) {
+pub(crate) fn json_text(s: &[u8], out: &mut String) {
     out.push('"');
     let st = unsafe { core::str::from_utf8_unchecked(s) };
     for c in st.chars() {

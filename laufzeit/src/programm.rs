@@ -143,6 +143,8 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
         N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),
         N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => if crate::kueche::nur_hauptkueche(crate::kueche::T_KAMMER_NEU) { KARTON } else { crate::vorrat::neue_kammer(pos, &ben, knoten) },
+        // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten aus dem Schema des Kerns
+        _ if klasse_eintrag(id).is_none() && crate::herd::neu_moeglich(id) => crate::herd::neu(id, pos, &ben),
         _ => match klasse_eintrag(id) {
             None => {
                 let mut t = Tb::neu();

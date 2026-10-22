@@ -19,6 +19,7 @@ pub mod karte;
 pub mod theke;
 pub mod vorrat;
 pub mod kueche;
+pub mod herd;
 
 use core::panic::PanicInfo;
 use wert::*;

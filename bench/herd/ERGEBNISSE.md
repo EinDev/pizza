@@ -21,6 +21,26 @@ eine Leerlauf-Schleife gleicher Form (Blech-Zugriff, Rechnung), Bestwert aus 3 L
 Der Rest des Interpreter-Aufrufs ist Methodenauflösung, Argumentprüfung und der Küchen-Schutz (`nurHauptkueche`); der Grenzübergang
 JS → Wasm selbst ist der kleinere Teil.
 
+## Wasm
+
+Wasm-Programm-Pfad (Paket H4): die Laufzeit ruft den Kern über die Importgruppe `herd`, deren Importe der JS-Host **direkt an die
+Exporte von `kern.wasm` bindet** (HOST-ABI §2) – kein JS zwischen Programm und Kern. Ziel B2 (HERD.md §6): ≤ 80 ns je Setter (Chrome).
+
+`node bench/herd/setter-wasm.js 1000 60` – wie der Interpreter-Lauf (1000 Kreise, 60 Takte, Leerlauf abgezogen, Bestwert aus 3); dazu
+der reine Grenzübergang (kleines Wasm-Modul, das den Import in einer Schleife ruft). Node v22.15.1 (V8), i7-13700KF, 2026-10-22, < 2 s:
+
+| Aufruf | Kosten je Aufruf |
+|---|---|
+| Grenzübergang `herd.teil_lage` (Programm-Wasm → kern.wasm, direkt gebunden, inkl. Kern-Arbeit) | ≈ 7 ns |
+| Grenzübergang `herd.setze_zahl` (direkt gebunden, inkl. Kern-Arbeit) | ≈ 7 ns |
+| zum Vergleich: `herd.teil_lage` über eine JS-Hülle | ≈ 20 ns |
+| pizza `teil.setzeLage(x, y)` im Wasm-Motor (Methodenauflösung + Argumente + Kern) | ≈ 58 ns |
+| pizza `kreis.setzeRadius(r)` (generischer Komponenten-Setter → `setze_zahl`) | ≈ 28 ns |
+
+Damit liegt der Setter im Wasm-Pfad unter dem Ziel von 80 ns (Node/V8 als Näherung für Chrome; die Browser-Messung folgt mit H6/H7).
+Der Grenzübergang selbst ist der kleinste Teil – den Rest kosten Namensauflösung (`rt_mcall` → Tabelle nach Namens-ID) und
+Argumentprüfung in der Laufzeit. Ein Batching-Import `setze_zahlen` ist nicht nötig.
+
 ## Kern
 
 `node bench/herd/mess-kern.js` (baut `herd-skript` mit `cargo build -j 2 --release`): spielt B1–B4 in **voller Größe** aus

@@ -383,6 +383,11 @@ const host = {
     catch (e) { return { status: 'wurf', fehler: 'Host-Ausgabe ist kein JSON: ' + e.message + '\n' + String(p.stdout).slice(0, 500) + '\n' + String(p.stderr).slice(0, 500) }; }
     const ende = ev.filter(e => e && e.typ === 'ende').pop();
     if (!ende) return { status: 'wurf', fehler: 'Host lieferte kein "ende"-Ereignis (Prozess-Exit ' + p.status + ')\n' + String(p.stderr).slice(0, 500) };
+    // Gruppe herd (HOST-ABI §2): kennt der native Host erst ab Paket H5 – sein K-043-Ladefehler ist erwartet, keine Abweichung
+    if (ende.exitCode === 2 && ev.some(e => e && e.typ === 'fehler' && e.code === 'HOST' && /'herd.|Gruppe herd/.test(e.text || ''))
+      && WebAssembly.Module.imports(new WebAssembly.Module(k.pkarton)).some(i => i.module === 'herd')) {
+      return { status: 'übersprungen', grund: 'Gruppe herd: nativer Host erst ab Paket H5 (erwarteter K-043-Ladefehler)' };
+    }
     const res = ergebnisAus({ exitCode: ende.exitCode, ereignisse: ev, schritte: ende.schritte, zeitMs: ende.zeitMs }, ms);
     res.prozessExit = p.status;
     return res;

@@ -81,7 +81,7 @@ PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebau
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
 PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
-PizzaLang.intern.HERD_TYPEN        // Herd-Klassen + Komponentennamen (SPEC §18; Compiler-Fallback „Herd: …“ bis Paket H4)
+PizzaLang.intern.HERD_TYPEN        // Herd-Klassen + Komponentennamen (SPEC §18; der Compiler leitet daraus die Importgruppe herd ab)
 ```
 Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück. `BELAEGE`, `intern.BELAEGE` und
 `intern.GRUNDPREIS` gibt es seit K-105 nicht mehr (kein eingebautes Pizza-Objekt).

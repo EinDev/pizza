@@ -45,6 +45,9 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
 - **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
+- **Gruppe `herd` (SPEC §18, Paket H4):** Modul `herd` (Exporte von `kern.wasm`, siehe unten) und `herd_kern`, `herd_schreibe`,
+  `herd_lies`, `herd_warte`, `herd_senden` – nur wenn das Programm Herd-Klassen benutzt (`neu Herd/Form/Bildchen/<Komponente>`,
+  `Form.…`, `Herd.…`). Siehe unten „Herd“.
 - **Gruppe `kueche` (SPEC §17, K-100, K-104):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
   (Methodenaufruf oder Methodenreferenz `….brigade`); dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
@@ -135,6 +138,71 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   `echtzeit_ms` wie sonst, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
 - Trap in einem Klon → das Stück gilt als Abbruch „interner Fehler“ (Text K-014, `detail` = Trap-Meldung), Zusammenführen nach D3.
 - Die Anzahl der Köche (`koeche`, §7) wählt der Host; sie darf nie ein Ereignis, einen Exit-Code, `schritte` oder `zeitMs` ändern.
+
+**Herd – Gruppe `herd`** (SPEC §18, HERD.md, Kern-ABI `herd/README.md` §3; Paket H4):
+
+Die Gruppe hat zwei Teile. **Modul `herd`**: Importe mit **genau den Namen und Signaturen der Exporte von `kern.wasm`** – ein
+JS-Host bindet sie direkt (`imports.herd = kernInstanz.exports`, numerische Aufrufe Wasm → Wasm ohne JS dazwischen), ein nativer
+Host je Import eine Hostfunktion, die die gleichnamige Methode von `herd_kern::Kern` ruft. Alle Zeiger dieser Importe zeigen in
+den **Speicher des Kerns** (Austauschpuffer `puffer(len)`); das Modul liest und schreibt dort nie selbst, sondern über den
+Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul importiert nur, was die Laufzeit braucht:
+
+| Import (Modul `herd`) | Signatur | Kern-ABI (README §3) |
+|---|---|---|
+| `puffer` | `(len i32) -> i32` | Austauschpuffer im Kern-Speicher |
+| `fehler_art`, `fehler_neu` | `() -> i32` | Fehlerprotokoll |
+| `fehler_text` | `(ptr i32, kap i32) -> i32` | Text des letzten Fehlers (Retry K-013) |
+| `melde_typfehler` | `(typ i32, feld i32, ptr i32, len i32) -> i32` | TypAnanas mit Darstellung des Werts |
+| `welt_neu` | `(breite f64, hoehe f64, ptr i32, len i32) -> i32` | `neu Herd` |
+| `welt_titel`, `welt_hintergrund` | `(ptr i32, len i32) -> i32` | |
+| `welt_himmel` | `(op i32, on i32, up i32, un i32) -> i32` | |
+| `welt_umgebung` | `(ptr i32, len i32, staerke f64) -> i32` | |
+| `welt_nebel` | `(ptr i32, len i32, von f64, bis f64) -> i32` | |
+| `teil_neu` | `(raum i32) -> i32` | |
+| `teil_entferne`, `teil_kopie` | `(teil i32) -> i32` | |
+| `teil_haenge`, `teil_trifft` | `(a i32, b i32) -> i32` | |
+| `teil_kinder` | `(teil i32, ptr i32, kap i32) -> i32` | Retry (kap in Elementen) |
+| `teil_setze` | `(teil i32, feld i32, wert f64) -> i32` | Lage-Feld |
+| `teil_hole` | `(teil i32, feld i32) -> f64` | NaN + `fehler_neu` = Fehler |
+| `teil_lage`, `teil_verschiebe`, `teil_groesse`, `teil_schaue` | `(teil i32, x f64, y f64, z f64) -> i32` | |
+| `komp_neu` | `(typ i32) -> i32` | **generisch**: Typnummer aus dem Schema |
+| `komp_haenge` | `(komp i32, teil i32) -> i32` | |
+| `komp_loese` | `(komp i32) -> i32` | |
+| `komp_von`, `komp_info` | `(a i32, b i32) -> i32` | |
+| `typ_nummer` | `(ptr i32, len i32) -> i32` | |
+| `feld_nummer` | `(typ i32, ptr i32, len i32) -> i32` | |
+| `setze_zahl` | `(komp i32, feld i32, wert f64) -> i32` | **generisch**: Feldnummer aus dem Schema |
+| `hole_zahl` | `(komp i32, feld i32) -> f64` | |
+| `setze_text`, `hole_text`, `setze_liste`, `hole_liste` | `(komp i32, feld i32, ptr i32, len/kap i32) -> i32` | Texte/Listen im Kern-Speicher |
+| `form_grund` | `(art i32, teile f64, dicke f64) -> i32` | |
+| `form_eigene` | `(pp i32, pn i32, dp i32, dn i32, glatt i32) -> i32` | |
+| `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |
+| `ressource_hole` | `(id i32, was i32) -> f64` | |
+| `takt`, `paket_voll` | `() -> i32` | |
+| `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |
+| `hash_szene`, `hash_paket` | `(ptr i32) -> i32` | 16 Hex-Ziffern in den Kern-Puffer |
+| `schema_json` | `(ptr i32, kap i32) -> i32` | Schema (Retry); daraus baut die Laufzeit alle Komponentenklassen |
+
+| Import (Modul `pizza`) | Signatur | Bedeutung |
+|---|---|---|
+| `herd_kern` | `(pflicht i32) -> i32` | `1` = Kern da. `0` = fehlt; bei `pflicht = 1` (Startprüfung, Programm enthält `neu Herd/Form/Bildchen` oder `Form.…`/`Herd.…`) sendet der Host vorher `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).", zeile: null, spalte: null }` und das Modul endet mit Exit 2, 0 Schritten (wie der Interpreter, K-128) |
+| `herd_schreibe` | `(kern_ptr i32, ptr i32, len i32) -> ()` | Kopierweg Programm → Kern: `len` Bytes ab `ptr` (Programm-Speicher) nach `kern_ptr` (Kern-Speicher) |
+| `herd_lies` | `(ptr i32, kern_ptr i32, len i32) -> ()` | Kopierweg Kern → Programm |
+| `herd_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | nächstes Fenster-Ereignis (UTF-8-JSON, z. B. `{"typ":"takt","anzahl":2,"tasten":[…],"maus":[x,y],"knoepfe":1}`, `{"typ":"geschlossen"}`); genau wie `ui_warte`: `-1` = kein Renderer/geschlossen, Länge `> kap` → nichts geschrieben, Retry (K-013), **`kap = -1`** = Abfrage „Renderer da?“ (`1`/`0`; `0` → `backe` öffnet und schließt das Fenster und warnt W0104). JS-Host: dieselbe Quelle wie `ui_warte` (`onUiWarte` bzw. `uiEreignisse`) |
+| `herd_senden` | `(ptr i32, len i32, paket_len i32) -> ()` | Fenster-Ereignis als JSON **ohne** `typ`: `{"art":"fenster","titel","breite","hoehe"}`, `{"art":"bild","bildnummer","szene","paket"}`, `{"art":"schliesse"}`. Der Host meldet `{ typ: "herd", … }` (Schlüsselreihenfolge wie im JSON) und gibt es an den Renderer. `paket_len ≥ 0` (nur `bild`): das Bildpaket liegt im Kern ab `bild_zeiger()` (`paket_len` Bytes, gültig bis zum nächsten `bild`) – der Host liest es dort für den Renderer (JS: `optionen.onHerd(art, daten)` mit `daten.bytes`); die Bytes stehen **nie** im Ereignis |
+
+- **Ablauf je Bild** (Vertrag für bitgleiche Hashes, wie der Interpreter): Fenster öffnen = `paket_voll` + `herd_senden(fenster)`; je
+  `takt`-Ereignis Eingabe übernehmen, `n` × (Rückruf, `takt`), dann `bild(n)` → `hash_szene` → `hash_paket` → `herd_senden(bild)`.
+  Spielschleife, Eingabezustand, Schrittbudget je Takt (K-087), Fehlertexte und W0104 erledigt das Modul; der Host kennt keine
+  Komponente, kein Feld und keinen Feldtyp – eine neue Komponente im Kern ändert dieses ABI nicht.
+- **Ohne Fenster/Renderer**: `herd_warte(…, -1)` → `0`; der Host stellt alle Importe trotzdem bereit (Programm läuft mit W0104).
+  Der native Host bricht Herd-Programme ohne mögliches Fenster vor dem Start ab (K-130), W0104 nur im JSON-/Testmodus.
+- **Ohne Gruppe**: ein Host, der `herd` nicht kennt, meldet beim Laden K-043 (`'herd.<name>'`). Programme ohne Herd importieren
+  die Gruppe nicht (der Linker entfernt sie). Der JS-Host instanziiert `kern.wasm` nur für Programme mit Gruppe `herd` – je Lauf eine
+  neue Kern-Instanz (eine Welt je Programm); `optionen.herdKern` (`WebAssembly.Module` oder Bytes), in Node ohne Option
+  `site/js/herd/kern.wasm`. Im zweiteiligen Schnellpfad (Laufzeit importiert immer alles) bekommen Programme ohne Herd Platzhalter.
+- **Klone** (Küchenbrigade): alle Importe der Gruppe (`herd.*` und `pizza.herd_*`) sind in Klon-Instanzen **Trap**; das Modul ruft
+  sie dort nie (Herd-Methoden, `neu Herd/…` und Herd-Komponenten werfen vorher `KüchenAnanas: Den Herd gibt es nur in der Hauptküche.`).
 
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz). Präzisierung für `kueche_auftrag`: Der Host ruft dabei nie
 die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone, Export `kueche_stueck`).

@@ -28,7 +28,8 @@
     'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
-  // Herd (SPEC §18): kennt der Compiler noch nicht (Paket H4) → ehrlicher Fallback mit Grund „Herd: …“
+  // Herd (SPEC §18): Klassennamen nur für die Importgruppe `herd` – Verhalten und Komponenten kommen zur Laufzeit
+  // generisch aus dem Schema des geladenen Kerns (laufzeit/src/herd.rs), eine neue Komponente braucht hier nichts
   const HERD_TYPEN = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').intern.HERD_TYPEN || []; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.intern && self.PizzaLang.intern.HERD_TYPEN) || [])));
   const NOCH_NICHT_METHODEN = new Set();
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Methode']);
@@ -136,6 +137,7 @@
       this.methodenNamen = new Set();
       this.zugewiesen = new Set();
       this.neuTypen = new Set();
+      this.herdStatisch = new Set();   // Form.…/Herd.… (statische Herd-Module)
       this.globalGenutzt = new Set();
       this.globalFnDecl = new Map();
       this.klassenNamen = new Set();
@@ -159,6 +161,7 @@
         if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd')) this.herdStatisch.add(n.obj.n);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'echt') this.nutztEcht = true;
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
@@ -281,6 +284,28 @@
               }
               if (!ok) pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
             }
+          }
+        }
+        // K-133 (wie pruefeHerd im Interpreter): Theke und Herd zusammen → P0013 an der Stelle des späteren neu
+        {
+          const knoten = [], gesehen = new Set();
+          const geh = (x) => {
+            if (x === null || typeof x !== 'object' || gesehen.has(x)) return;
+            gesehen.add(x);
+            if (Array.isArray(x)) { for (const y of x) geh(y); return; }
+            if (x.k === 'Neu' && x.typ) knoten.push(x);
+            for (const key in x) { const v = x[key]; if (v !== null && typeof v === 'object') geh(v); }
+          };
+          geh(this.ast.body);
+          knoten.sort((a, b) => (a.z - b.z) || (a.s - b.s));
+          let herd = false, theke = false;
+          for (const n of knoten) {
+            const name = n.typ.name;
+            if (this.klassenNamen.has(name)) continue;
+            if (name === 'Theke') theke = true;
+            else if (name === 'Herd') herd = true;
+            else continue;
+            if (herd && theke) pf('P0013', 'Theke und Herd in einem Programm gibt es noch nicht.', n);
           }
         }
       } catch (e) {
@@ -435,7 +460,7 @@
         format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler: null,
         registrierung: reg, methoden: this.methodenListe.map(m => ({ art: m.art, klasse: m.klasse === undefined ? null : m.klasse, name: m.name })),
         globale: Array.from(this.globaleNamen.keys()), schiebNamen: Array.from(this.schiebNamen),
-        gruppen: this.gruppen(), globaleFunktionen: Array.from(this.globalFnNamen),
+        gruppen: this.gruppen(), herdNoetig: this.herdNoetig(), globaleFunktionen: Array.from(this.globalFnNamen),
         funktionen: this.funktionen, vorbereiten: vorb, oben: oben.id,
         globalInfos: Object.fromEntries(Array.from(this.globalInfos ? this.globalInfos.entries() : []).map(([n, g]) => [n, { typ: g.typ, gebacken: g.gebacken }])),
       };
@@ -450,7 +475,15 @@
       if (this.neuTypen.has('Vorratskammer') && !this.klassenNamen.has('Vorratskammer')) g.push('vorrat');
       if (this.nutztEcht) g.push('echtzeit');
       if (this.nutztBrigade) g.push('kueche');
+      if (this.herdNoetig() || Array.from(this.neuTypen).some(t => HERD_TYPEN.has(t) && !this.klassenNamen.has(t))) g.push('herd');
       return g;
+    }
+
+    /** braucht den Herd-Kern vor dem Start (wie pruefeHerd im Interpreter): neu Herd/Form/Bildchen oder Form.…/Herd.… */
+    herdNoetig() {
+      for (const t of ['Herd', 'Form', 'Bildchen']) if (this.neuTypen.has(t) && !this.klassenNamen.has(t)) return true;
+      for (const t of this.herdStatisch) if (!this.klassenNamen.has(t)) return true;
+      return false;
     }
 
     /** Globale, die nur im Top-Level-Code vorkommen, werden lokale Slots von <oben> (schneller, gleiche Semantik). */
@@ -723,8 +756,6 @@
         case 'Karton': return { k: 'konst', art: 'karton', wert: null };
         case 'Name': {
           const ref = this.loese(n.n, sc, fn, n, 'lesen');
-          // statisch Form.…/Herd.… (eingebaute Herd-Module) → Fallback statt rt_global_name (Paket H4)
-          if (ref.art === 'gname' && (n.n === 'Form' || n.n === 'Herd') && !this.klassenNamen.has(n.n)) this.nein('Herd: ' + n.n + ' wird vom Compiler noch nicht unterstützt', n);
           return { k: 'lies', ref, name: n.n };
         }
         case 'Bin': return { k: 'bin', op: BIN_OPS[n.op], l: this.ausdr(n.l, sc, fn, d), r: this.ausdr(n.r, sc, fn, d) };
@@ -745,8 +776,7 @@
         case 'Unten': return { k: 'unten' };
         case 'UntenCall': return { k: 'untenCall', args: this.args(n.args, sc, fn, d) };
         case 'Neu':
-          if (HERD_TYPEN.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Herd: Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
-          if (!UNTERSTUETZTE_TYPEN.has(n.typ.name) && TYPEN_REFERENZ.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
+          if (!UNTERSTUETZTE_TYPEN.has(n.typ.name) && !HERD_TYPEN.has(n.typ.name) && TYPEN_REFERENZ.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
           return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
         case 'Blech': return { k: 'blech', elemente: n.elemente.map(e => this.ausdr(e, sc, fn, d)) };
         case 'Bereich': return { k: 'bereich', a: this.ausdr(n.a, sc, fn, d), b: this.ausdr(n.b, sc, fn, d) };

@@ -16,14 +16,19 @@ const ZIEL = path.join(HIER, '..', 'site', 'js', 'pizzaiolo');
 const ROH = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'pizza_laufzeit.wasm');
 
 if (!process.argv.includes('--ohne-cargo')) {
-  const r = cp.spawnSync('cargo', ['build', '--release'], { cwd: HIER, stdio: 'inherit', shell: process.platform === 'win32' });
+  const r = cp.spawnSync('cargo', ['build', '--release', '-j', '2'], { cwd: HIER, stdio: 'inherit', shell: process.platform === 'win32', windowsHide: true });
   if (r.status !== 0) { console.error('cargo build fehlgeschlagen'); process.exit(1); }
 }
 const bytes = fs.readFileSync(ROH);
 const leer = () => 0;
-const inst = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
-  pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0, kueche_auftrag: () => -1, kueche_bericht: () => -2 },
-});
+// Platzhalter für alle Importe (Gruppe herd: Modul „herd“ = Kern-Exporte, pizza.herd_* – hier nie gerufen)
+const importe = { pizza: { eingabe: () => -1, ui_warte: () => -1, vorrat_lesen: () => -1, kueche_auftrag: () => -1, kueche_bericht: () => -2 }, herd: {} };
+for (const im of WebAssembly.Module.imports(new WebAssembly.Module(bytes))) {
+  if (im.kind !== 'function') continue;
+  importe[im.module] = importe[im.module] || {};
+  if (!(im.name in importe[im.module])) importe[im.module][im.name] = im.module === 'herd' ? () => -1 : leer;
+}
+const inst = new WebAssembly.Instance(new WebAssembly.Module(bytes), importe);
 // Beginn der veränderlichen statischen Daten (.data/.bss): das Datensegment, in dem ZUSTAND liegt (wasm-ld legt
 // .rodata vor .data vor .bss). Die Küchenbrigade sichert [statischStart, __heap_base) beim Anschnitt (THREADS.md §4.4).
 function statischStart(zustand) {

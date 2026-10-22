@@ -15,6 +15,53 @@
 
   class PanikAbbruch extends Error {}
 
+  // ---------- Herd (HOST-ABI §2, Gruppe herd): Kern-Modul laden ----------
+  const HERD_KERN_FEHLT = 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).';
+  let herdStandard;                          // undefined: noch nicht versucht · null: nicht vorhanden · Module
+  const herdCache = new WeakMap();           // Bytes → Module
+  /** optionen.herdKern (WebAssembly.Module oder Bytes) bzw. in Node site/js/herd/kern.wasm → Module oder null */
+  function herdModul(k) {
+    if (k !== undefined && k !== null) {
+      if (k instanceof WebAssembly.Module) return k;
+      if (typeof k !== 'object') return null;
+      let m = herdCache.get(k);
+      if (m === undefined) { try { m = new WebAssembly.Module(k); } catch (e) { m = null; } herdCache.set(k, m); }
+      return m;
+    }
+    if (herdStandard === undefined) {
+      herdStandard = null;
+      // HERD-NODE-ANFANG – nur Node (wie pizza.js); im Browser übergibt der Worker optionen.herdKern
+      if (typeof require === 'function' && typeof __dirname === 'string') {
+        try { herdStandard = new WebAssembly.Module(require('fs').readFileSync(require('path').join(__dirname, '..', 'herd', 'kern.wasm'))); } catch (e) { herdStandard = null; }
+      }
+      // HERD-NODE-ENDE
+    }
+    return herdStandard;
+  }
+  /** neue Kern-Instanz (eine Welt je Lauf) oder null */
+  function herdInstanz(k) {
+    const m = herdModul(k);
+    if (m === null) return null;
+    try {
+      const e = new WebAssembly.Instance(m, {}).exports;
+      return typeof e.abi_version === 'function' && e.abi_version() === 1 ? e : null;
+    } catch (e) { return null; }
+  }
+  const herdStubs = new WeakMap();           // Laufzeit-Modul → Platzhalter für Modul „herd“ (Programme ohne Gruppe herd)
+  function herdPlatzhalter(modul) {
+    let s = herdStubs.get(modul);
+    if (s === undefined) {
+      s = {};
+      for (const im of WebAssembly.Module.imports(modul)) if (im.module === 'herd') s[im.name] = () => { throw new Error('Herd-Kern nicht geladen (herd.' + im.name + ')'); };
+      herdStubs.set(modul, s);
+    }
+    return s;
+  }
+  function brauchtHerd(modul) {
+    if (modul instanceof WebAssembly.Module) return WebAssembly.Module.imports(modul).some(i => i.module === 'herd');
+    return Array.isArray(modul.gruppen) ? modul.gruppen.includes('herd') : WebAssembly.Module.imports(modul.programm).some(i => i.module === 'herd');
+  }
+
   /**
    * Führt aus. modul: WebAssembly.Module des Einzelmoduls (.pkarton) – oder zweiteilig:
    * { laufzeit: WebAssembly.Module, programm: WebAssembly.Module, tabellenZuwachs, speicherSeiten }.
@@ -39,6 +86,28 @@
     const mem = () => new Uint8Array(inst.exports.memory.buffer);
     const t = (p, n) => dek.decode(mem().subarray(p, p + n));
     const pos = (x) => (x > 0 ? x : null);
+    // Herd: Kern-Instanz nur für Programme mit Gruppe herd; ihre Exporte werden direkt als Modul „herd“ gebunden
+    const laufzeitModul = modul instanceof WebAssembly.Module ? modul : modul.laufzeit;
+    const kern = brauchtHerd(modul) ? herdInstanz(optionen.herdKern) : null;
+    const onHerd = typeof optionen.onHerd === 'function' ? optionen.onHerd : null;
+    let kernU8 = null;
+    const kernMem = () => { const b = kern.memory.buffer; if (kernU8 === null || kernU8.buffer !== b) kernU8 = new Uint8Array(b); return kernU8; };
+    // Renderer-Ereignisse (Theke ui_warte und Herd herd_warte teilen dieselbe Quelle: onUiWarte / uiEreignisse)
+    const warte = (bp, kap) => {
+      if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
+      if (uiAusstehend === null) {
+        let ev = null;
+        if (typeof optionen.onUiWarte === 'function') { try { ev = optionen.onUiWarte(); } catch (e) { ev = null; } }
+        else if (Array.isArray(optionen.uiEreignisse)) ev = uiPos < optionen.uiEreignisse.length ? optionen.uiEreignisse[uiPos++] : { typ: 'geschlossen' };
+        if (ev === null || ev === undefined || typeof ev !== 'object') return -1;
+        uiAusstehend = enk.encode(typeof ev === 'string' ? ev : JSON.stringify(ev));
+      }
+      const b = uiAusstehend;
+      if (b.length > kap) return b.length;
+      mem().set(b, bp);
+      uiAusstehend = null;
+      return b.length;
+    };
     const pizza = {
       ausgabe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n) }),
       schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
@@ -131,29 +200,38 @@
         mem().set(b, p);
         return b.length;
       },
-      ui_warte: (bp, kap) => {
-        if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
-        if (uiAusstehend === null) {
-          let ev = null;
-          if (typeof optionen.onUiWarte === 'function') { try { ev = optionen.onUiWarte(); } catch (e) { ev = null; } }
-          else if (Array.isArray(optionen.uiEreignisse)) ev = uiPos < optionen.uiEreignisse.length ? optionen.uiEreignisse[uiPos++] : { typ: 'geschlossen' };
-          if (ev === null || ev === undefined || typeof ev !== 'object') return -1;
-          uiAusstehend = enk.encode(typeof ev === 'string' ? ev : JSON.stringify(ev));
+      ui_warte: warte,
+      // Gruppe herd (HOST-ABI §2): Kern da? (pflicht = 1 und fehlt → HOST-Fehler wie im Interpreter, K-128)
+      herd_kern: (pflicht) => {
+        if (kern !== null) return 1;
+        if (pflicht === 1) emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+        return 0;
+      },
+      // Kopierweg (selten: Texte, Listen, Hashes): Programm-Speicher ↔ Kern-Speicher
+      herd_schreibe: (kp, pp, n) => { kernMem().set(mem().subarray(pp, pp + n), kp); },
+      herd_lies: (pp, kp, n) => { mem().set(kernMem().subarray(kp, kp + n), pp); },
+      herd_warte: warte,
+      // Ereignis (JSON ohne typ); Bildpaket-Bytes nur an onHerd, nie in die Ereignisliste (SPEC §18.7)
+      herd_senden: (p, n, paketLen) => {
+        const daten = JSON.parse(t(p, n));
+        const art = daten.art;
+        delete daten.art;
+        emit(Object.assign({ typ: 'herd', art }, daten));
+        if (onHerd !== null) {
+          if (paketLen >= 0 && kern !== null) { const z = kern.bild_zeiger(); daten.bytes = kernMem().slice(z, z + paketLen); }
+          try { onHerd(art, daten); } catch (x) { /* Renderer-Fehler ignorieren */ }
         }
-        const b = uiAusstehend;
-        if (b.length > kap) return b.length;
-        mem().set(b, bp);
-        uiAusstehend = null;
-        return b.length;
       },
     };
+    // Modul „herd“: die Exporte von kern.wasm direkt (numerische Aufrufe ohne JS dazwischen); ohne Kern Platzhalter
+    const herd = kern !== null ? kern : herdPlatzhalter(laufzeitModul);
     let e, startFn;
     if (modul instanceof WebAssembly.Module) {
-      inst = new WebAssembly.Instance(modul, { pizza });
+      inst = new WebAssembly.Instance(modul, { pizza, herd });
       e = inst.exports;
       startFn = e.start;
     } else {
-      inst = new WebAssembly.Instance(modul.laufzeit, { pizza });
+      inst = new WebAssembly.Instance(modul.laufzeit, { pizza, herd });
       e = inst.exports;
       const tab = e.__indirect_function_table;
       if (modul.tabellenZuwachs) tab.grow(modul.tabellenZuwachs);

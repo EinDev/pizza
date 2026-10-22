@@ -14,7 +14,8 @@ function pruefePortabel(bytes) {
   const m = K.leseModul(bytes);
   for (const t of m.typen) for (const x of t.p.concat(t.e)) if (!WERTTYPEN.has(x)) probleme.push('Typ mit Nicht-Zahl-Werttyp 0x' + x.toString(16));
   for (const i of m.importe) {
-    if (i.modul !== 'pizza') probleme.push('Import aus fremdem Modul: ' + i.modul + '.' + i.name);
+    // Modul „herd“ = Exporte des Herd-Kerns (HOST-ABI §2, Gruppe herd)
+    if (i.modul !== 'pizza' && i.modul !== 'herd') probleme.push('Import aus fremdem Modul: ' + i.modul + '.' + i.name);
     if (i.art !== 0) probleme.push('Nicht-Funktions-Import: ' + i.name);
   }
   if (m.tabellen.length > 1) probleme.push('mehr als eine Tabelle');

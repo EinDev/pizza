@@ -31,7 +31,13 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
     pizza.ui_warte = (p, kap) => (kap < 0 ? 0 : -1);
     pizza.echtzeit_ms = () => echtzeit;
     pizza.kueche_auftrag = () => -1;
-    return { pizza };
+    // Gruppe herd: in Klonen immer Trap (HOST-ABI §2) – die Laufzeit wirft dort vorher die KüchenAnanas
+    const herd = {};
+    for (const im of WebAssembly.Module.imports(modul)) {
+      if (im.module === 'herd') herd[im.name] = () => { throw new Error('Klon rief herd.' + im.name); };
+      else if (im.module === 'pizza' && im.name.startsWith('herd_')) pizza[im.name] = verboten(im.name);
+    }
+    return { pizza, herd };
   };
   const neuerKlon = (schnapp) => {
     stats.klone++;
@@ -99,7 +105,19 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
       return b.length;
     },
   };
-  inst = new WebAssembly.Instance(modul, { pizza });
+  // Gruppe herd (nur Hauptinstanz): Kern-Exporte direkt, Kopierweg, kein Renderer
+  let herd = {};
+  if (WebAssembly.Module.imports(modul).some(i => i.module === 'herd')) {
+    const kern = new WebAssembly.Instance(new WebAssembly.Module(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'site', 'js', 'herd', 'kern.wasm'))), {}).exports;
+    const km = () => new Uint8Array(kern.memory.buffer);
+    herd = kern;
+    pizza.herd_kern = () => 1;
+    pizza.herd_schreibe = (kp, pp, n) => { km().set(mem().subarray(pp, pp + n), kp); };
+    pizza.herd_lies = (pp, kp, n) => { mem().set(km().subarray(kp, kp + n), pp); };
+    pizza.herd_warte = (p, kap) => (kap < 0 ? 0 : -1);
+    pizza.herd_senden = (p, n) => { const d = JSON.parse(t(p, n)); const art = d.art; delete d.art; emit(Object.assign({ typ: 'herd', art }, d)); };
+  }
+  inst = new WebAssembly.Instance(modul, { pizza, herd });
   const e = inst.exports;
   if (typeof optionen.schrittLimit === 'number' && optionen.schrittLimit > 0) e.limit_setzen(optionen.schrittLimit);
   if (typeof optionen.zufallsSaat === 'number' && Number.isInteger(optionen.zufallsSaat)) e.saat_setzen(optionen.zufallsSaat);

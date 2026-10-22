@@ -168,6 +168,8 @@
       }
       for (const w of ir.warnungen) { c.i32(this.text(w.code)).i32(this.text(w.text)).i32(w.pos); call('rt_warnung_statisch'); }
       if (ir.startfehler) { const sf = ir.startfehler; c.i32(this.text(sf.code)).i32(this.text(sf.text)).i32(sf.pos); call('rt_startfehler'); }
+      // Herd (K-128): Kern vor dem Start nötig → rt_lauf prüft ihn nach den Startfehlern (pizza.herd_kern(1))
+      if (ir.herdNoetig) call('rt_herd_noetig');
       // globale Funktionsvariablen
       const gnamen = ir.globale || [];
       for (const n of ir.globaleFunktionen || []) {

@@ -28,9 +28,15 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
   funktionen: [Funktion],              // id = Index (= Laufzeit-Funktions-ID)
   vorbereiten: fnId,                   // Annotationen + statische Initialisierer (Interpreter: vorbereiten())
   oben: fnId,                          // Top-Level-Anweisungen; liefert den Wert der globalen Variable `hauptgang`
-  gruppen: [name]                      // optionale Host-Importgruppen (HOST-ABI §2): theke, vorrat, echtzeit, kueche
+  gruppen: [name],                     // optionale Host-Importgruppen (HOST-ABI §2): theke, vorrat, echtzeit, kueche, herd
+  herdNoetig: bool                     // Herd-Kern vor dem Start nötig (neu Herd/Form/Bildchen, Form.…/Herd.…) → rt_herd_noetig
 }
 ```
+
+`gruppen` enthält `herd`, sobald das Programm eine Herd-Klasse mit `neu` erzeugt (Namen aus `PizzaLang.intern.HERD_TYPEN`) oder
+`Form.…`/`Herd.…` nutzt (jeweils ohne eigene Klasse gleichen Namens); Herd-Aufrufe sind gewöhnliche `neu`/`mcall`/`lies` – Klassen,
+Methoden und Komponenten löst die Laufzeit aus dem Schema des Kerns auf (keine Herd-Knoten in der IR). P0013 (K-133) ist ein
+Startfehler wie P0010.
 
 `gruppen` enthält `kueche`, sobald das Programm `….brigade(…)` aufruft oder `….brigade` als Wert nimmt; das Backend exportiert
 dann zusätzlich `kueche_stueck` (HOST-ABI §3). `brigade` selbst ist eine gewöhnliche Blech-Methode (`mcall`) – Anschnitt,
