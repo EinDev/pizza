@@ -492,6 +492,134 @@ klasse Katze {
 }
 // ── Ende P5 Katze (Modell) ──
 
+// ── P5 Wettbewerb ── (Modell; Bereich #10, Stadt)
+// 🏆 Pizza-Wettbewerb: Alle ABSTAND Spielsekunden (600) ein Wettbewerb, davon die letzten OFFEN_SEKUNDEN (120) zur Anmeldung offen; die
+// Namen rotieren. Teilnehmen kostet STARTGELD_SEKUNDEN (30) Sekunden Umsatz und wird SOFORT ausgewertet (Klick oder Scout,
+// höchstens einmal je Wettbewerb): Qualität q = Rezeptseiten + Feinkost + min(Sterne, 10); Gold 10 % + 2 % · q (höchstens 50 %),
+// Silber 30 %, sonst Bronze – ein Zug aus `Zufall`, nur hier. Pokale sind eine Sammlung (überleben Neueröffnung und Franchise,
+// nur „Neu anfangen“ leert sie); jeder Pokalpunkt (🥇3 🥈2 🥉1) ist POKAL_PUNKTE Prozentpunkt(e) im Alles-Bonus wie Sterne und
+// Viertel (Spiel.bonusPunkte), zusammen höchstens POKAL_HÖCHSTENS. Die Uhr ist eine Uhr, kein Kauf: Sie läuft nur, solange der
+// Bereich frei ist, in Spielsekunden (offline steht sie), und läuft über Neueröffnung und Franchise weiter – sonst ließe sich
+// mit einer Neueröffnung der nächste Wettbewerb herbeizaubern. Kennt keine Oberfläche; `version` zählt jede Änderung.
+klasse Wettbewerb {
+    Blech<margherita> NAMEN = ["Stadtmeisterschaft", "Regionale", "Italienische Meisterschaft", "Weltmeisterschaft"];
+    Blech<margherita> NAMEN_DATIV = ["Stadtmeisterschaft", "Regionalen", "Italienischen Meisterschaft", "Weltmeisterschaft"];   // „bei der …“
+    salami ABSTAND = 600;            // Sekunden von Wettbewerb zu Wettbewerb
+    salami OFFEN_SEKUNDEN = 120;     // davon offen zur Anmeldung (am Ende des Abstands)
+    salami ERSTER = 60;              // nach der Freischaltung öffnet der erste nach 60 s
+    salami STARTGELD_SEKUNDEN = 30;
+    salami STARTGELD_MINDESTENS = 10_000;
+    salami GOLD_GRUND = 10;          // Gold-Chance in Prozent: GOLD_GRUND + GOLD_JE_QUALITÄT · q, höchstens GOLD_HÖCHSTENS
+    salami GOLD_JE_QUALITÄT = 2;
+    salami GOLD_HÖCHSTENS = 50;
+    salami SILBER_PROZENT = 30;      // Silber-Chance in Prozent, Rest Bronze
+    salami POKAL_PUNKTE = 1;         // Prozentpunkte im Alles-Bonus je Pokalpunkt (🥇3 🥈2 🥉1) – Hebel für Paket 6
+    salami POKAL_HÖCHSTENS = 100;    // höchstens so viele Prozentpunkte insgesamt
+
+    salami bis = 60;                 // Sekunden, bis der nächste öffnet (solange keiner offen ist; = ERSTER)
+    salami offenRest = 0;            // Sekunden, die der laufende noch offen ist (0 = keiner offen)
+    salami nummer = 0;               // so viele Wettbewerbe sind schon vorbei (Name = NAMEN[nummer mod 4])
+    diavolo dabei = nein;            // am laufenden schon teilgenommen
+    salami gold = 0;
+    salami silber = 0;
+    salami bronze = 0;
+    salami teilnahmen = 0;
+    salami scoutTeilnahmen = 0;
+    margherita letztes = "";         // Ergebnis der letzten Teilnahme ("" = noch keine)
+    salami version = 0;
+
+    margherita name() { serviere (NAMEN.stück(nummer % NAMEN.länge() + 1)); }
+    margherita nameDativ() { serviere (NAMEN_DATIV.stück(nummer % NAMEN.länge() + 1)); }
+    diavolo offen() { serviere (offenRest > 0); }
+    salami qualität(Spiel s) { serviere (s.seite + s.feinkost.länge() + Mathe.min(s.sterne, 10)); }
+    salami goldProzent(Spiel s) { serviere (Mathe.min(GOLD_HÖCHSTENS, GOLD_GRUND + GOLD_JE_QUALITÄT * qualität(s))); }
+    funghi startgeld(Spiel s) { serviere (Mathe.max(STARTGELD_MINDESTENS, Mathe.runden(s.proSekunde() * s.preis() * STARTGELD_SEKUNDEN))); }
+    salami pokalPunkte() { serviere (3 * gold + 2 * silber + bronze); }
+    salami bonusPunkte() { serviere (Mathe.min(POKAL_HÖCHSTENS, POKAL_PUNKTE * pokalPunkte())); }
+    margherita pokaleText() { serviere ("🥇" + gold + " 🥈" + silber + " 🥉" + bronze); }
+    // Fastenzeit (Herausforderung): keine Feste – auch kein Wettbewerb (wie Ereignisse); die Uhr läuft weiter, nur die Anmeldung ist zu.
+    diavolo gesperrt(Spiel s) { serviere (s.modus == "fastenzeit"); }
+    diavolo kannTeilnehmen(Spiel s) { serviere (s.istFrei("wettbewerb") && !gesperrt(s) && offen() && !dabei && s.geld >= startgeld(s)); }
+
+    // Teilnehmen (Klick: scout = nein; Wettbewerbs-Scout im Helfer-Takt: scout = ja) – gleiche Rechnung, gleicher Ertrag (R2).
+    diavolo teilnehmen(Spiel s, diavolo scout) {
+        falls (!kannTeilnehmen(s)) { serviere (nein); }
+        funghi preis_ = startgeld(s);
+        s.geld -= preis_;
+        dabei = ja;
+        teilnahmen++;
+        falls (scout) { scoutTeilnahmen++; }
+        salami q = qualität(s);
+        salami g = goldProzent(s);
+        salami wurf = Zufall.zahl(1, 100);
+        margherita medaille = "";
+        falls (wurf <= g) { gold++; medaille = "🥇 Gold"; }
+        sonst falls (wurf <= g + SILBER_PROZENT) { silber++; medaille = "🥈 Silber"; }
+        sonst { bronze++; medaille = "🥉 Bronze"; }
+        letztes = "Zuletzt: " + medaille + " bei der " + nameDativ() + " (Qualität " + q + ", Gold-Chance " + g + " %).";
+        // P5-Haken Album: fundChance("wettbewerb")
+        version++;
+        s.neuBerechnen();            // der Bonus hat sich geändert
+        s.melde(((scout ? "🔭 Der Scout meldet: " : "🏆 ") + medaille + " bei der " + nameDativ() + " (Startgeld " + preis_.währung("€", kompakt: ja)
+            + ")! Pokale " + pokaleText() + " – +" + bonusPunkte() + " % auf alles, für immer."));
+        serviere (ja);
+    }
+
+    // Im Takt (ganze Spielsekunden), nur wenn der Bereich frei ist: öffnet und schließt – ändert nur Zahlen und Texte.
+    leer takt(Spiel s, salami n) {
+        falls (!s.istFrei("wettbewerb")) { serviere; }
+        falls (offenRest > 0) {
+            offenRest = offenRest - n;
+            falls (offenRest <= 0) {
+                offenRest = 0;
+                nummer++;
+                dabei = nein;
+                bis = ABSTAND - OFFEN_SEKUNDEN;
+                version++;
+            }
+            serviere;
+        }
+        bis = bis - n;
+        falls (bis <= 0) {
+            bis = 0;
+            offenRest = OFFEN_SEKUNDEN;
+            dabei = nein;
+            version++;
+            falls (gesperrt(s)) { serviere; }   // Fastenzeit: keine Einladung
+            s.melde(("🏆 Die " + name() + " ist eröffnet – " + OFFEN_SEKUNDEN + " s Anmeldung, Startgeld " + startgeld(s).währung("€", kompakt: ja)
+                + " (Stadt › Pizza-Wettbewerb)."));
+        }
+    }
+
+    // „Neu anfangen“: alles auf Anfang (auch die Pokale); version zählt weiter, damit die Oberfläche es merkt.
+    leer allesZurück() {
+        bis = ERSTER; offenRest = 0; nummer = 0; dabei = nein;
+        gold = 0; silber = 0; bronze = 0; teilnahmen = 0; scoutTeilnahmen = 0; letztes = "";
+        version++;
+    }
+
+    Speisekarte<margherita, Vorrat> alsSpeisekarte() {
+        Speisekarte<margherita, Vorrat> k = neu Speisekarte<margherita, Vorrat>();
+        k.lege("bis", bis).lege("offenRest", offenRest).lege("nummer", nummer).lege("dabei", dabei);
+        k.lege("gold", gold).lege("silber", silber).lege("bronze", bronze);
+        k.lege("teilnahmen", teilnahmen).lege("scout", scoutTeilnahmen).lege("letztes", letztes);
+        serviere (k);
+    }
+    // Fehlende Felder (älterer Stand derselben Fassung) = Anfangswerte; Uhren geklemmt.
+    leer ladeAus(Speisekarte<margherita, Vorrat> k) {
+        bis = Mathe.max(0, Mathe.min(k.hole("bis", ERSTER), ABSTAND - OFFEN_SEKUNDEN));
+        offenRest = Mathe.max(0, Mathe.min(k.hole("offenRest", 0), OFFEN_SEKUNDEN));
+        falls (bis <= 0 && offenRest <= 0) { bis = 1; }
+        nummer = Mathe.max(0, k.hole("nummer", 0));
+        dabei = offenRest > 0 && k.hole("dabei", nein) == ja;
+        gold = Mathe.max(0, k.hole("gold", 0)); silber = Mathe.max(0, k.hole("silber", 0)); bronze = Mathe.max(0, k.hole("bronze", 0));
+        teilnahmen = Mathe.max(0, k.hole("teilnahmen", 0)); scoutTeilnahmen = Mathe.max(0, k.hole("scout", 0));
+        letztes = k.hole("letztes", "");
+        version++;
+    }
+}
+// ── Ende P5 Wettbewerb (Modell) ──
+
 // ─────────────────────────────── Das Spiel ──────────────────────────────
 // Kennt keine Oberfläche: rechnet nur und schreibt die letzte Neuigkeit in `nachricht`.
 // Zeit zählt in Sekunden (Takt-Schlägen).
@@ -918,7 +1046,7 @@ klasse Spiel {
     // Schlüssel → Stück; Marketing und Helfer haben eigene Listen (KAMPAGNEN, ALLE_HELFER) und eigene Kauf-Methoden.
     diavolo hatInhalt(margherita s) {
         serviere (s == "garten" || s == "weinkeller" || s == "personal" || s == "lieferzonen" || s == "marketing" || s == "helfer"
-            || s == "labor" || s == "stammgaeste" || s == "katze");
+            || s == "labor" || s == "stammgaeste" || s == "katze" || s == "wettbewerb");
     }
     Blech<Posten> postenVon(margherita s) {
         falls (s == "garten") { serviere (BEETE); }
@@ -1116,12 +1244,13 @@ klasse Spiel {
         serviere (ja);
     }
     // Im Takt, jede volle Sekunde (vor dem Effekt-Abzweig in ticke): Pino zündet im selben Schlag, in dem der Ofen bereit wird;
-    // Carlo liest, sobald die Seite bezahlbar ist (nicht im Hawaii-Verbot – das prüft blättere()). Nonnas Spiel und der Scout
-    // laufen in der Spielecke bzw. kommen mit dem Wettbewerb (Paket 5).
+    // Carlo liest, sobald die Seite bezahlbar ist (nicht im Hawaii-Verbot – das prüft blättere()). Nonnas Spiel läuft in der
+    // Spielecke; der Scout meldet sich an, sobald ein Wettbewerb offen ist und das Startgeld reicht (P5, ersetzt den Klick).
     leer helferTakt() {
         falls (helfer.istLeer() || !istFrei("helfer")) { serviere; }
         falls (hatHelfer("pino") && ofenBereit()) { sonderschicht(); helferEinsätze++; versionHelfer++; }
         falls (hatHelfer("carlo") && blättere()) { helferEinsätze++; versionHelfer++; }
+        falls (hatHelfer("scout") && wettbewerb.teilnehmen(dies, ja)) { helferEinsätze++; versionHelfer++; }
     }
 
     // 🧪 Rezeptlabor
@@ -1261,6 +1390,15 @@ klasse Spiel {
     salami katzePunkte() { serviere (istFrei("katze") ? KATZE_PUNKTE_JE_LAUNE * katze.laune : 0); }
     // ── Ende P5 Katze (Spiel) ──
 
+    // ── P5 Wettbewerb ── (Spiel-Anteil: Modell, Bonus, Klick)
+    // Das Modell steht in `klasse Wettbewerb`; das Spiel hält es, ruft dessen Takt (ticke, vor den Helfern), lässt den Scout
+    // teilnehmen (helferTakt), zählt die Pokalpunkte in bonusPunkte(), speichert/lädt es und leert es bei „Neu anfangen“.
+    // Offline steht die Uhr (ladeAus ruft nichts nach).
+    Wettbewerb wettbewerb = neu Wettbewerb();
+    funghi wettbewerbPunkte() { serviere (istFrei("wettbewerb") ? wettbewerb.bonusPunkte() : 0); }
+    diavolo nimmAmWettbewerbTeil() { serviere (wettbewerb.teilnehmen(dies, nein)); }   // nur aus dem Klick-Rückruf
+    // ── Ende P5 Wettbewerb (Spiel) ──
+
     // gelernt: Nonna hat es verraten. kennt: es wirkt (im Urlaub wirkt keins).
     diavolo gelernt(margherita talent) { serviere (talente.enthält(talent)); }
     diavolo kennt(margherita talent) { serviere (modus != "urlaub" && talente.enthält(talent)); }
@@ -1278,7 +1416,7 @@ klasse Spiel {
     }
     // Prozentpunkte der Bereiche auf den Alles-Bonus: Viertel (+5 je Viertel), laufende Kampagnen auf Betrieb/alles (Flyer +25,
     // Radio +50, TV +100) und Treueherzen (+0,5 je Herz, höchstens 100 Herzen)
-    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte() + katzePunkte()); }
+    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte() + katzePunkte() + wettbewerbPunkte()); }
 
     leer neuBerechnen() {
         // Alles-Faktor; Fernsehspot (Marketing „alles“) wirkt wie der Freitagabend auf Betrieb und Klick, nicht auf den Preis
@@ -1402,6 +1540,7 @@ klasse Spiel {
 
     leer ticke(salami n) {
         falls (ofenKühlt > 0) { ofenKühlt = Mathe.max(0, ofenKühlt - n); }
+        wettbewerb.takt(dies, n);   // P5: öffnet/schließt den Wettbewerb (vor den Helfern: der Scout meldet sich im selben Schlag an)
         helferTakt();          // Pino zündet im selben Schlag, in dem der Ofen bereit wird; Carlo liest
         kampagnenTakt(n);      // Marketing läuft ab – vor dem Effekt-Abzweig, sonst stünde die Uhr während eines Fests
         forschungTakt(n);      // das Rezeptlabor forscht weiter (ebenfalls vor dem Abzweig)
@@ -1884,7 +2023,7 @@ klasse Spiel {
         kampagnenGestartet = 0; helferEinsätze = 0;
         forschung = []; forschungLäuft = ""; forschungRest = 0;
         herzen = 0; gebäudeGekauft = 0; großbestellungen = 0;
-        katze.zurück();
+        katze.zurück(); wettbewerb.allesZurück();
         gastWunsch = neu Speisekarte<margherita, salami>(); gastStart = neu Speisekarte<margherita, funghi>(); gastZiel = neu Speisekarte<margherita, funghi>();
         versionGeheim++; versionErfolge++; versionBereiche++; versionSpiele++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
         neuBerechnen();
@@ -1921,7 +2060,7 @@ klasse Spiel {
         s.lege("helfer", helfer).lege("kampagnen", kampagnenGestartet).lege("helferEinsätze", helferEinsätze);
         s.lege("forschung", forschung).lege("forschungLäuft", forschungLäuft).lege("forschungRest", forschungRest);
         s.lege("herzen", herzen).lege("gebäudeGekauft", gebäudeGekauft).lege("großbestellungen", großbestellungen);
-        s.lege("katze", katze.alsSpeisekarte());
+        s.lege("katze", katze.alsSpeisekarte()).lege("wettbewerb", wettbewerb.alsSpeisekarte());
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -2005,6 +2144,7 @@ klasse Spiel {
         herzen = Mathe.max(0, Mathe.min(HERZEN_HÖCHSTENS, s.hole("herzen", 0))); gebäudeGekauft = s.hole("gebäudeGekauft", 0);
         großbestellungen = Mathe.max(pünktlich, s.hole("großbestellungen", pünktlich));   // vor Paket 5 zählte der Wunsch pünktliche
         katze.lade(s.hole("katze", neu Speisekarte<margherita, Vorrat>()));   // P5: fehlt im alten Stand → Vorgaben
+        wettbewerb.ladeAus(s.hole("wettbewerb", neu Speisekarte<margherita, Vorrat>()));
         gastWunsch = ladeGäste(bereiche, "gastWunsch"); gastStart = ladeGäste(bereiche, "gastStart"); gastZiel = ladeGäste(bereiche, "gastZiel");
         falls (istFrei("stammgaeste")) { starteWünsche(); }
         versionGarten++; versionWeinkeller++; versionPersonal++; versionLieferzonen++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
@@ -2531,6 +2671,7 @@ leer synchronisiere() {
     zHelfer.setze(spiel.versionHelfer);
     zLabor.setze(spiel.versionLabor);
     zStammgaeste.setze(spiel.versionStammgäste);
+    zWettbewerb.setze(spiel.wettbewerb.version);   // P5
     zSekunde.setze(spiel.sekunden);
     zNachricht.setze(spiel.nachricht);
     zTakt.setze(zTakt.wert() + 1);
@@ -3129,6 +3270,120 @@ klasse KatzePanel {
 }
 // ── Ende P5 Katze (Oberfläche) ──
 
+// ── P5 Wettbewerb ── (Oberfläche; Bereich #10, Stadt)
+// Inhalt des Bereichs-Panels „🏆 Pizza-Wettbewerb“ (bereich-wettbewerb): Das BereichPanel liefert Teaser-Zeile und Kopf und
+// delegiert den Rest hierher – Kopftext (Qualität und Chancen) und vier Zeilen:
+//   bereich-wettbewerb-1 (Reihe): …-info-1 „Nächster: Name in n s“ / „Name – offen, noch n s“ + …-knopf-1 „Teilnehmen · Startgeld“ / „✅ dabei“
+//   …-info-2 letztes Ergebnis · …-info-3 „Pokale: 🥇a 🥈b 🥉c“ · …-info-4 „Bonus +p %“
+// Die Zeilen gehören von Anfang an zum Panel (das BereichPanel hängt `zeilen` an) und sind sichtbar, sobald der Wettbewerb frei
+// ist – das ändert nur der Freischalt-Klick (R1/R3). Danach ändern sich nur Texte und aktiv (R1): Countdown in Zehnersekunden
+// an zTakt (K-117 entprellt), alles andere an zWettbewerb (spiegelt Wettbewerb.version), zVersion (Startgeld, Qualität) und zBereiche.
+Zettel zWettbewerb = neu Zettel(-1);
+
+klasse WettbewerbPanel {
+    Schild status;
+    Knopf knopf;
+    Schild ergebnis;
+    Schild pokale;
+    Schild bonus;
+    Blech<Zutat> zeilen = [];
+
+    WettbewerbPanel() {
+        status = kleinSchild("bereich-wettbewerb-info-1", 2, SCHILD_BREITE);
+        status.binde("text", () -> statusText());
+        knopf = zeilenKnopf("bereich-wettbewerb-knopf-1", KNOPF_BREITE);
+        knopf.binde("text", () -> knopfText());
+        knopf.binde("aktiv", () -> knopfAktiv());
+        knopf.beiKlick(() -> { falls (spiel.nimmAmWettbewerbTeil()) { speichere(); nachVerarbeitung(); } });
+        knopf.hinweis("Startgeld = 30 s Umsatz. Das Ergebnis kommt sofort – höchstens eine Teilnahme je Wettbewerb. Pokale bleiben für immer.");
+        Reihe r = zeile("bereich-wettbewerb-1", [status, knopf], ZEILE_HOEHE);
+        ergebnis = kleinSchild("bereich-wettbewerb-info-2", 2, INNEN);
+        ergebnis.binde("text", () -> ergebnisText());
+        pokale = kleinSchild("bereich-wettbewerb-info-3", 1, INNEN);
+        pokale.binde("text", () -> pokaleText());
+        bonus = kleinSchild("bereich-wettbewerb-info-4", 1, INNEN);
+        bonus.binde("text", () -> bonusText());
+        zeilen = [r, ergebnis, pokale, bonus];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("wettbewerb")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        zVersion.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        salami g = w.goldProzent(spiel);
+        serviere ("🏆 Alle 10 min ein Wettbewerb, 2 min offen. Qualität " + w.qualität(spiel) + " (Rezeptseiten + Feinkost + Sterne bis 10): 🥇 "
+            + g + " % · 🥈 " + w.SILBER_PROZENT + " % · 🥉 " + (100 - g - w.SILBER_PROZENT) + " %");
+    }
+
+    margherita statusText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        zTakt.wert();   // Countdown in Zehnersekunden (K-117: gleicher Text sendet nichts)
+        Wettbewerb w = spiel.wettbewerb;
+        falls (w.gesperrt(spiel)) { serviere ("🙏 Fastenzeit – keine Wettbewerbe. " + (w.offen() ? "Die " + w.name() + " läuft ohne dich." : "Nächster: " + w.name() + " in " + (Mathe.decke(w.bis / 10) * 10) + " s")); }
+        falls (w.offen()) {
+            serviere ("🏆 " + w.name() + (w.dabei ? " – angemeldet, schließt in " : " – offen, noch ") + (Mathe.decke(w.offenRest / 10) * 10) + " s");
+        }
+        serviere ("⏳ Nächster: " + w.name() + " in " + (Mathe.decke(w.bis / 10) * 10) + " s");
+    }
+
+    margherita knopfText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        falls (spiel.wettbewerb.dabei) { serviere ("✅ dabei"); }
+        zVersion.wert();
+        serviere ("Teilnehmen · " + spiel.wettbewerb.startgeld(spiel).währung("€", kompakt: ja));
+    }
+
+    diavolo knopfAktiv() {
+        falls (!frei()) { serviere (nein); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        falls (!w.offen() || w.dabei) { serviere (nein); }
+        zTakt.wert();
+        serviere (w.kannTeilnehmen(spiel));
+    }
+
+    margherita ergebnisText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        falls (w.letztes == "") {
+            serviere ("Noch keine Teilnahme – die Jury poliert schon die Gabeln. Das Ergebnis kommt sofort beim Teilnehmen.");
+        }
+        serviere (w.letztes);
+    }
+
+    margherita pokaleText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        serviere ("Pokale: " + w.pokaleText() + " · " + w.teilnahmen + (w.teilnahmen == 1 ? " Teilnahme" : " Teilnahmen"));
+    }
+
+    margherita bonusText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        serviere ("Bonus +" + w.bonusPunkte() + " % auf alles (Pokalpunkte 🥇3 🥈2 🥉1, höchstens +" + w.POKAL_HÖCHSTENS + ", zählt wie Sterne)");
+    }
+
+    // Zeilentext des Wettbewerbs-Scouts im Helfer-Panel (angestellt): vor der Freischaltung wie bisher, danach seine Bilanz.
+    // Quellen kommen aus dem Helfer-Panel (zBereiche, zHelfer – jeder Scout-Einsatz zählt versionHelfer hoch).
+    margherita scoutText(Helfer h) {
+        falls (!spiel.istFrei("wettbewerb")) { serviere (h.symbol + " " + h.name + " – wartet auf den ersten Wettbewerb. " + h.text); }
+        salami n = spiel.wettbewerb.scoutTeilnahmen;
+        serviere (h.symbol + " " + h.name + " – meldet dich an, sobald ein Wettbewerb offen ist und das Startgeld reicht. "
+            + (n == 0 ? "Noch nicht im Einsatz." : n + "-mal angemeldet."));
+    }
+}
+WettbewerbPanel wettbewerbPanel = neu WettbewerbPanel();
+// ── Ende P5 Wettbewerb (Oberfläche) ──
+
 // ─────────────────────────────── Bereiche (Hof · Stadt · Labor) ─────────
 // Ein Panel je Bereich – unsichtbar, bis der Bereich angeboten ist (Vorgänger der Kette frei). Angeboten zeigt es EINE Zeile:
 // Teaser + Freischalt-Knopf frei-<schlüssel>. Der Freischalt-Klick lässt im selben Rückruf den Inhalt wachsen: Kopfzeile
@@ -3249,6 +3504,7 @@ klasse BereichPanel {
         }
         // P5: Katze, Wettbewerb, Sammelalbum und Banca bauen ihre Zeilen selbst (eigene Panel-Klassen) und liefern den Kopftext
         falls (s == "katze") { für (Zutat z : katzePanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "wettbewerb") { für (Zutat z : wettbewerbPanel.zeilen) { kinder.hinzu(z); } }
         teil = panel(b.titel(), "bereich-" + s, kinder);
         teil.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) || spiel.freischaltbar(b.schlüssel)); });
     }
@@ -3266,6 +3522,7 @@ klasse BereichPanel {
     margherita kopfText() {
         margherita s = b.schlüssel;
         falls (s == "katze") { serviere (katzePanel.kopfText()); }   // P5
+        falls (s == "wettbewerb") { serviere (wettbewerbPanel.kopfText()); }
         falls (inhaltOffen()) {
             falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet) – eine Pizza bringt " + spiel.preis().währung("€") + "."); }
             falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
@@ -3308,7 +3565,7 @@ klasse BereichPanel {
         }
         falls (s == "helfer") {
             Helfer h = spiel.ALLE_HELFER.stück(i);
-            falls (h.schlüssel == "scout" && spiel.hatHelfer("scout")) { serviere (h.symbol + " " + h.name + " – wartet auf den ersten Wettbewerb. " + h.text); }
+            falls (h.schlüssel == "scout" && spiel.hatHelfer("scout")) { serviere (wettbewerbPanel.scoutText(h)); }   // P5
             serviere (h.symbol + " " + h.name + " – " + h.wirkung + ". " + h.text);
         }
         falls (s == "labor") { serviere (laborText(i)); }
