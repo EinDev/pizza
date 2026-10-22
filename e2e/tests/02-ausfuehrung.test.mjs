@@ -154,7 +154,7 @@ e2e("Endlosschleife: Abbrechen-Knopf und Esc beenden den Lauf sofort", { vorLade
 
 e2e("Hawaii: Panik-Banner als normale Fehlerausgabe, Exit 39 im Fehler-Stil, kein Overlay", async ({ page, oeffne }) => {
   await oeffne();
-  await setzeCode(page, 'Bote.sage(("vor"));\nPizza p = ((Tomate, Ananas));\nBote.sage(("nach"));');
+  await setzeCode(page, 'Bote.sage(("vor"));\nneu Hawaii();\nBote.sage(("nach"));');
   await backen(page);
   // Kein Crash-Overlay mehr (Nutzerentscheidung)
   assert.equal(await hawaiiOverlayOffen(page), false, "kein Hawaii-Overlay");
