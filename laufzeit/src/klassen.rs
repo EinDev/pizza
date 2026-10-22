@@ -799,6 +799,7 @@ pub fn mitglied(o: W, id: u32, ctxk: i32) -> W {
         A_MODUL => {
             let m = obj::<Ref>(o).id;
             if m == N_G_MATHE && id == N_G_PI { return zahl(core::f64::consts::PI); }
+            if m == N_G_MATHE && id == N_G_E { return zahl(core::f64::consts::E); }  // K-111
             if crate::std_m::modul_hat(m, id) { return neu_w(Nativ { art: A_NATIV, was: 0, empf: o, name: id, modul: u32::MAX }); }
             let mut t = Tb::neu();
             t.s("'").name(id).s("' gibt es bei ").name(m).s(" nicht.");

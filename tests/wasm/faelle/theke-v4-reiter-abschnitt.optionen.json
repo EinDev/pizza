@@ -1,0 +1,11 @@
+{ "uiEreignisse": [
+  { "typ": "aenderung", "id": "z8", "wert": true },
+  { "typ": "aenderung", "id": "z8", "wert": "false" },
+  { "typ": "aenderung", "id": "z9", "wert": true },
+  { "typ": "aenderung", "id": "z10", "wert": true },
+  { "typ": "aenderung", "id": "z8", "wert": "nein" },
+  { "typ": "aenderung", "id": "z4", "wert": 3 },
+  { "typ": "aenderung", "id": "z4", "wert": 4 },
+  { "typ": "klick", "id": "z8" },
+  { "typ": "aenderung", "id": "z8", "wert": "true" }
+] }

@@ -1,7 +1,7 @@
 //! Eingebaute Namen (Intern-IDs). Reihenfolge = ID. Namen, die nicht hier stehen, bekommen zur Laufzeit
 //! fortlaufende IDs (text.rs::name_id); die Tabelle ist rein intern (kein JS-Spiegel, der Compiler übergibt Namen als Text).
 
-pub const NAMEN: [&str; 191] = [
+pub const NAMEN: [&str; 203] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -192,6 +192,18 @@ pub const NAMEN: [&str; 191] = [
     "bei",
     "farbe",
     "namensraum",
+    "Auswahl",
+    "Tastatur",
+    "optionen",
+    "setzeOptionen",
+    "klappbar",
+    "zu",
+    "beiTaste",
+    "log",
+    "log10",
+    "log2",
+    "exp",
+    "E",
     "brigade",
 ];
 
@@ -388,7 +400,23 @@ pub const N_DAUER: u32 = 186;
 pub const N_BEI: u32 = 187;
 pub const N_FARBE: u32 = 188;
 pub const N_NAMENSRAUM: u32 = 189;
-pub const N_BRIGADE: u32 = 190;
+
+// Theke v4 (K-107 … K-113) und Mathe (K-111)
+pub const N_G_AUSWAHL: u32 = 190;
+pub const N_G_TASTATUR: u32 = 191;
+pub const N_OPTIONEN: u32 = 192;
+pub const N_SETZEOPTIONEN: u32 = 193;
+pub const N_KLAPPBAR: u32 = 194;
+pub const N_ZU: u32 = 195;
+pub const N_BEITASTE: u32 = 196;
+pub const N_LOG: u32 = 197;
+pub const N_LOG10: u32 = 198;
+pub const N_LOG2: u32 = 199;
+pub const N_EXP: u32 = 200;
+pub const N_G_E: u32 = 201;
+
+// Küchenbrigade (SPEC §17)
+pub const N_BRIGADE: u32 = 202;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM, K-105: 16 Einträge = Indizes 0–15; eigene Klassen ab 16).
 pub const K_ANANAS: u32 = 0;

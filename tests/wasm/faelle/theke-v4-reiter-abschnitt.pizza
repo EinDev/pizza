@@ -1,0 +1,42 @@
+// Theke v4 (K-107/K-108) im Wasm == Interpreter: Reiter-Titel, Seiten ausblenden, klappbarer Abschnitt
+Theke t = neu Theke("v4");
+Schild s1 = neu Schild("eins");
+Schild s2 = neu Schild("zwei");
+Schild s3 = neu Schild("drei");
+Reiter r = neu Reiter(["A"], [s1, s2, s3]);
+Bote.sage(("titel: '" + r.titel(1) + "' '" + r.titel(2) + "' '" + r.titel(3) + "'"));
+r.setzeTitel(3, "C •");
+Bote.sage(("nach setzeTitel: '" + r.titel(1) + "' '" + r.titel(2) + "' '" + r.titel(3) + "'"));
+probier { r.setzeTitel(4, "D"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(0); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel(1.5); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.titel("x"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { r.setzeTitel(); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+Reiter einzeln = neu Reiter([], [neu Schild("solo")]);
+probier { einzeln.titel(2); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+einzeln.setzeTitel(1);
+Bote.sage(("karton-Titel: " + einzeln.titel(1)));
+einzeln.setzeTitel(1, 42).setzeTitel(1, ja);
+Bote.sage(("verkettet: " + einzeln.titel(1)));
+
+Schild inhalt = neu Schild("Inhalt");
+Abschnitt a = neu Abschnitt("Erledigt", [inhalt]).klappbar(ja).zu(ja);
+Abschnitt b = neu Abschnitt("Offen", []);
+Abschnitt c = neu Abschnitt("Nur zu", []).zu(ja);
+Bote.sage(("a: " + a.klappbar() + " " + a.zu() + " b: " + b.klappbar() + " " + b.zu()));
+probier { b.klappbar(1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { b.zu("ja"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+a.beiAenderung((zu) -> { Bote.sage(("a geklappt: " + zu + " / " + a.zu())); });
+b.beiAenderung((zu) -> { Bote.sage(("b geklappt (darf nicht): " + zu)); });
+r.beiAenderung((n) -> { Bote.sage(("Seite " + n + " / " + r.gewaehlt())); });
+
+Stapel wurzel = neu Stapel([r, a, b, c]);
+t.zeige(wurzel);
+// Änderungen im gezeigten Baum: titel als ganze Liste, klappbar/zu als neuer Wert
+r.setzeTitel(2, "B");
+s2.sichtbar(nein);
+r.waehle(2);
+b.klappbar(ja);
+c.zu(nein);
+t.bediene();
+Bote.sage(("ende: a.zu=" + a.zu() + " b.zu=" + b.zu() + " r=" + r.gewaehlt()));

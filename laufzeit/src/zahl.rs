@@ -7,6 +7,213 @@ pub fn floor(x: f64) -> f64 { libm::floor(x) }
 pub fn ceil(x: f64) -> f64 { libm::ceil(x) }
 pub fn trunc(x: f64) -> f64 { libm::trunc(x) }
 pub fn sqrt(x: f64) -> f64 { libm::sqrt(x) }
+// ---------------------------------------------------------------- K-111: Mathe.log/log10/log2/exp bitgleich zu V8
+// Port der fdlibm-Routinen, so wie V8 sie in src/base/ieee754.cc verwendet (Sun e_log.c, Sun e_log10.c über log(),
+// FreeBSD e_log2.c mit k_log1p, fdlibm e_exp.c mit V8-Sonderfall exp(1) = E). Nur Double-Operationen, keine FMA.
+// libm 0.2 (musl-Fassung von log/log10/exp) weicht in einzelnen Bits ab – Stichprobentest tests/wasm/laufzeit-zahlen.js.
+
+#[inline] fn hi_wort(x: f64) -> i32 { (x.to_bits() >> 32) as i32 }
+#[inline] fn lo_wort(x: f64) -> u32 { x.to_bits() as u32 }
+#[inline] fn mit_hi(x: f64, hi: i32) -> f64 { f64::from_bits(((hi as u32 as u64) << 32) | (x.to_bits() & 0xFFFF_FFFF)) }
+#[inline] fn mit_lo(x: f64, lo: u32) -> f64 { f64::from_bits((x.to_bits() & 0xFFFF_FFFF_0000_0000) | lo as u64) }
+
+const LG1: f64 = 6.666666666666735130e-01;
+const LG2: f64 = 3.999999999940941908e-01;
+const LG3: f64 = 2.857142874366239149e-01;
+const LG4: f64 = 2.222219843214978396e-01;
+const LG5: f64 = 1.818357216161805012e-01;
+const LG6: f64 = 1.531383769920937332e-01;
+const LG7: f64 = 1.479819860511658591e-01;
+const LN2_HI: f64 = 6.93147180369123816490e-01;
+const LN2_LO: f64 = 1.90821492927058770002e-10;
+const TWO54: f64 = 1.80143985094819840000e+16;
+
+/// `Math.log(x)` – Sun fdlibm e_log.c (wie V8 base::ieee754::log)
+pub fn log(x: f64) -> f64 {
+    let mut x = x;
+    let mut hx = hi_wort(x);
+    let lx = lo_wort(x);
+    let mut k: i32 = 0;
+    if hx < 0x0010_0000 {
+        if ((hx & 0x7FFF_FFFF) as u32 | lx) == 0 { return f64::NEG_INFINITY; }
+        if hx < 0 { return f64::NAN; }
+        k -= 54;
+        x *= TWO54;
+        hx = hi_wort(x);
+    }
+    if hx >= 0x7FF0_0000 { return x + x; }
+    k += (hx >> 20) - 1023;
+    hx &= 0x000F_FFFF;
+    let mut i = (hx + 0x95F64) & 0x10_0000;
+    x = mit_hi(x, hx | (i ^ 0x3FF0_0000));
+    k += i >> 20;
+    let f = x - 1.0;
+    if (0x000F_FFFF & (2 + hx)) < 3 {
+        if f == 0.0 {
+            if k == 0 { return 0.0; }
+            let dk = k as f64;
+            return dk * LN2_HI + dk * LN2_LO;
+        }
+        let r = f * f * (0.5 - 0.33333333333333333 * f);
+        if k == 0 { return f - r; }
+        let dk = k as f64;
+        return dk * LN2_HI - ((r - dk * LN2_LO) - f);
+    }
+    let s = f / (2.0 + f);
+    let dk = k as f64;
+    let z = s * s;
+    i = hx - 0x6147A;
+    let w = z * z;
+    let j = 0x6B851 - hx;
+    let t1 = w * (LG2 + w * (LG4 + w * LG6));
+    let t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7)));
+    i |= j;
+    let r = t2 + t1;
+    if i > 0 {
+        let hfsq = 0.5 * f * f;
+        if k == 0 { f - (hfsq - s * (hfsq + r)) } else { dk * LN2_HI - ((hfsq - (s * (hfsq + r) + dk * LN2_LO)) - f) }
+    } else if k == 0 { f - s * (f - r) } else { dk * LN2_HI - ((s * (f - r) - dk * LN2_LO) - f) }
+}
+
+/// `Math.log10(x)` – Sun fdlibm e_log10.c (n·log10_2hi + (n·log10_2lo + ivln10·log(x)); wie V8)
+pub fn log10(x: f64) -> f64 {
+    const IVLN10: f64 = 4.34294481903251816668e-01;
+    const LOG10_2HI: f64 = 3.01029995663611771306e-01;
+    const LOG10_2LO: f64 = 3.69423907715893078616e-13;
+    let mut x = x;
+    let mut hx = hi_wort(x);
+    let lx = lo_wort(x);
+    let mut k: i32 = 0;
+    if hx < 0x0010_0000 {
+        if ((hx & 0x7FFF_FFFF) as u32 | lx) == 0 { return f64::NEG_INFINITY; }
+        if hx < 0 { return f64::NAN; }
+        k -= 54;
+        x *= TWO54;
+        hx = hi_wort(x);
+    }
+    if hx >= 0x7FF0_0000 { return x + x; }
+    k += (hx >> 20) - 1023;
+    let i = ((k as u32) & 0x8000_0000) >> 31;
+    hx = (hx & 0x000F_FFFF) | (((0x3FF - i) as i32) << 20);
+    let y = (k + i as i32) as f64;
+    x = mit_hi(x, hx);
+    let z = y * LOG10_2LO + IVLN10 * log(x);
+    z + y * LOG10_2HI
+}
+
+/// k_log.h `k_log1p(f)`: log(1+f) - f + hfsq für |f| klein
+#[inline]
+fn k_log1p(f: f64) -> f64 {
+    let s = f / (2.0 + f);
+    let z = s * s;
+    let w = z * z;
+    let t1 = w * (LG2 + w * (LG4 + w * LG6));
+    let t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7)));
+    let r = t2 + t1;
+    let hfsq = 0.5 * f * f;
+    s * (hfsq + r)
+}
+
+/// `Math.log2(x)` – FreeBSD e_log2.c mit k_log1p (wie V8)
+pub fn log2(x: f64) -> f64 {
+    const IVLN2HI: f64 = 1.44269504072144627571e+00;
+    const IVLN2LO: f64 = 1.67517131648865118353e-10;
+    let mut x = x;
+    let mut hx = hi_wort(x);
+    let lx = lo_wort(x);
+    let mut k: i32 = 0;
+    if hx < 0x0010_0000 {
+        if ((hx & 0x7FFF_FFFF) as u32 | lx) == 0 { return f64::NEG_INFINITY; }
+        if hx < 0 { return f64::NAN; }
+        k -= 54;
+        x *= TWO54;
+        hx = hi_wort(x);
+    }
+    if hx >= 0x7FF0_0000 { return x + x; }
+    if hx == 0x3FF0_0000 && lx == 0 { return 0.0; }
+    k += (hx >> 20) - 1023;
+    hx &= 0x000F_FFFF;
+    let i = (hx + 0x95F64) & 0x10_0000;
+    x = mit_hi(x, hx | (i ^ 0x3FF0_0000));
+    k += i >> 20;
+    let y = k as f64;
+    let f = x - 1.0;
+    let hfsq = 0.5 * f * f;
+    let r = k_log1p(f);
+    let mut hi = f - hfsq;
+    hi = mit_lo(hi, 0);
+    let lo = (f - hi) - hfsq + r;
+    let mut val_hi = hi * IVLN2HI;
+    let mut val_lo = (lo + hi) * IVLN2LO + lo * IVLN2HI;
+    let w = y + val_hi;
+    val_lo += (y - w) + val_hi;
+    val_hi = w;
+    val_lo + val_hi
+}
+
+/// `Math.exp(x)` – fdlibm e_exp.c mit V8-Sonderfall exp(1) = E
+pub fn exp(x: f64) -> f64 {
+    const HALF: [f64; 2] = [0.5, -0.5];
+    const O_THRESHOLD: f64 = 7.09782712893383973096e+02;
+    const U_THRESHOLD: f64 = -7.45133219101941108420e+02;
+    const LN2HI: [f64; 2] = [6.93147180369123816490e-01, -6.93147180369123816490e-01];
+    const LN2LO: [f64; 2] = [1.90821492927058770002e-10, -1.90821492927058770002e-10];
+    const INVLN2: f64 = 1.44269504088896338700e+00;
+    const P1: f64 = 1.66666666666666019037e-01;
+    const P2: f64 = -2.77777777770155933842e-03;
+    const P3: f64 = 6.61375632143793436117e-05;
+    const P4: f64 = -1.65339022054652515390e-06;
+    const P5: f64 = 4.13813679705723846039e-08;
+    const E: f64 = 2.718281828459045;
+    const HUGE: f64 = 1.0e+300;
+    const TWOM1000: f64 = 9.33263618503218878990e-302;
+    const TWO1023: f64 = 8.988465674311579539e307;
+    let mut x = x;
+    let mut hi = 0.0;
+    let mut lo = 0.0;
+    let mut k: i32 = 0;
+    let hx0 = hi_wort(x);
+    let xsb = ((hx0 >> 31) & 1) as usize;
+    let hx = hx0 & 0x7FFF_FFFF;
+    if hx >= 0x4086_2E42 {
+        if hx >= 0x7FF0_0000 {
+            let lx = lo_wort(x);
+            if ((hx & 0xFFFFF) as u32 | lx) != 0 { return x + x; }
+            return if xsb == 0 { x } else { 0.0 };
+        }
+        if x > O_THRESHOLD { return HUGE * HUGE; }
+        if x < U_THRESHOLD { return TWOM1000 * TWOM1000; }
+    }
+    if hx > 0x3FD6_2E42 {
+        if hx < 0x3FF0_A2B2 {
+            if x == 1.0 { return E; }
+            hi = x - LN2HI[xsb];
+            lo = LN2LO[xsb];
+            k = 1 - xsb as i32 - xsb as i32;
+        } else {
+            k = (INVLN2 * x + HALF[xsb]) as i32;
+            let t = k as f64;
+            hi = x - t * LN2HI[0];
+            lo = t * LN2LO[0];
+        }
+        x = hi - lo;
+    } else if hx < 0x3E30_0000 {
+        if HUGE + x > 1.0 { return 1.0 + x; }
+    } else {
+        k = 0;
+    }
+    let t = x * x;
+    let twopk = if k >= -1021 { f64::from_bits(((0x3FF0_0000i32 + (k << 20)) as u32 as u64) << 32) } else { f64::from_bits(((0x3FF0_0000i32 + ((k + 1000) << 20)) as u32 as u64) << 32) };
+    let c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+    if k == 0 { return 1.0 - ((x * c) / (c - 2.0) - x); }
+    let y = 1.0 - ((lo - (x * c) / (2.0 - c)) - hi);
+    if k >= -1021 {
+        if k == 1024 { return y * 2.0 * TWO1023; }
+        y * twopk
+    } else {
+        y * twopk * TWOM1000
+    }
+}
 
 /// `Number.isInteger(x)`
 pub fn ist_ganz(x: f64) -> bool { x.is_finite() && trunc(x) == x }

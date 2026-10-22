@@ -1,0 +1,19 @@
+{ "uiEreignisse": [
+  { "typ": "aenderung", "id": "z1", "wert": 1 },
+  { "typ": "aenderung", "id": "z1", "wert": 4 },
+  { "typ": "aenderung", "id": "z1", "wert": "2" },
+  { "typ": "aenderung", "id": "z1", "wert": 2.5 },
+  { "typ": "aenderung", "id": "z2", "wert": 1 },
+  { "typ": "aenderung", "id": "mix", "wert": 3 },
+  { "typ": "taste", "id": "z3", "taste": "Leertaste" },
+  { "typ": "taste", "id": "z3", "taste": "" },
+  { "typ": "taste", "id": "z3", "taste": 5 },
+  { "typ": "taste", "id": "z3" },
+  { "typ": "taste", "id": "z4", "taste": "a" },
+  { "typ": "taste", "id": "z5", "taste": "Enter" },
+  { "typ": "taste", "id": "z6", "taste": "Escape" },
+  { "typ": "taste", "id": "z1", "taste": "x" },
+  { "typ": "klick", "id": "z3" },
+  { "typ": "taste", "id": "z3", "taste": "ä" },
+  { "typ": "aenderung", "id": "z1", "wert": 2 }
+] }

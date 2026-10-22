@@ -14,10 +14,16 @@ use alloc::vec::Vec;
 pub const A_THEKE: u32 = 20;
 pub const A_ZUTAT: u32 = 21;
 
-const ARTEN: [&str; 11] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter"];
-const ART_NAMEN: [u32; 11] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER];
+/// zart: 0 schild, 1 knopf, 2 eingabe, 3 haken, 4 stapel, 5 reihe, 6 takt, 7 fortschritt, 8 abschnitt, 9 tabelle, 10 reiter,
+/// v4 (K-109/K-110): 11 auswahl, 12 tastatur
+const ARTEN: [&str; 13] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter", "auswahl", "tastatur"];
+const ART_NAMEN: [u32; 13] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER, N_G_AUSWAHL, N_G_TASTATUR];
 fn behaelter(zart: u32) -> bool { matches!(zart, 4 | 5 | 8 | 10) }
-const STIL_NAMEN: [&str; 6] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe"];
+/// K-068/K-113: Stil-Whitelist in verbindlicher Reihenfolge (Fehlertext „Erlaubt: …“)
+const STIL_NAMEN: [&str; 8] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite"];
+/// Art je Stil: 0 = Zahl ≥ 0, 1 = Vokabular (ausrichtung/schrift/farbe), 2 = ganze Zahl ≥ 1 (zeilen)
+const STIL_ART: [u8; 8] = [0, 0, 0, 1, 1, 1, 2, 0];
+const STIL_ERLAUBT: &str = "breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite";
 
 #[repr(C)]
 pub struct UiTheke { pub art: u32, pub gezeigt: u32, pub geschlossen: u32, pub _r: u32, pub titel: W, pub breite: f64, pub hoehe: f64, pub wurzel: W }
@@ -28,6 +34,8 @@ pub struct UiZutat {
     pub bei_klick: W, pub bei_aenderung: W, pub bei_enter: W,
     pub hinweis: W, pub intervall: f64, pub bei_takt: W, pub fortschritt: f64, pub titel: W, pub titel_liste: Vec<W>,
     pub gewaehlt: f64, pub spalten: Vec<W>, pub zeilen: Vec<Vec<W>>, pub uebergang: bool,
+    // Theke v4: Abschnitt klappbar/zu (K-108), Auswahl-Optionen (K-109), Tastatur-Rückruf (K-110)
+    pub klappbar: bool, pub zu: bool, pub optionen: Vec<W>, pub bei_taste: W,
 }
 
 static mut THEKE: W = KARTON;
@@ -120,9 +128,16 @@ fn baum(w: W, out: &mut String) {
         3 => { out.push_str(",\"text\":"); json_text(bytes(z.text), out); out.push_str(if z.an { ",\"an\":true" } else { ",\"an\":false" }); }
         6 => { out.push_str(",\"intervall\":"); json_zahl(z.intervall, out); if !z.aktiv { out.push_str(",\"aktiv\":false"); } }
         7 => { out.push_str(",\"wert\":"); json_zahl(z.fortschritt, out); if !bytes(z.text).is_empty() { out.push_str(",\"text\":"); json_text(bytes(z.text), out); } }
-        8 => { out.push_str(",\"titel\":"); json_text(bytes(z.titel), out); }
+        8 => {
+            out.push_str(",\"titel\":"); json_text(bytes(z.titel), out);
+            // K-108: nur bei Abweichung vom Standard (nein)
+            if z.klappbar { out.push_str(",\"klappbar\":true"); }
+            if z.zu { out.push_str(",\"zu\":true"); }
+        }
         9 => { out.push_str(",\"spalten\":"); out.push_str(&jliste(&z.spalten)); out.push_str(",\"zeilen\":"); out.push_str(&jzeilen(&z.zeilen)); }
         10 => { out.push_str(",\"titel\":"); out.push_str(&jliste(&z.titel_liste)); out.push_str(",\"gewaehlt\":"); json_zahl(z.gewaehlt, out); }
+        11 => { out.push_str(",\"optionen\":"); out.push_str(&jliste(&z.optionen)); out.push_str(",\"gewaehlt\":"); json_zahl(z.gewaehlt, out); if !z.aktiv { out.push_str(",\"aktiv\":false"); } }
+        12 => { if !z.aktiv { out.push_str(",\"aktiv\":false"); } }
         _ => {}
     }
     if !bytes(z.hinweis).is_empty() { out.push_str(",\"hinweis\":"); json_text(bytes(z.hinweis), out); }
@@ -263,13 +278,14 @@ fn kind(c: W, k: W) -> bool {
     true
 }
 
-pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_ZUTAT | N_G_THEKE) }
+pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_AUSWAHL | N_G_TASTATUR | N_G_ZUTAT | N_G_THEKE) }
 
 /// `neu X(…)` für Theke-Klassen (nur wenn keine gleichnamige eigene Klasse existiert). None = keine Theke-Klasse.
 pub fn neu(id: u32, pos: &[W], ben: &Ben) -> Option<W> {
     let zart = match id {
         N_G_SCHILD => 0, N_G_KNOPF => 1, N_G_EINGABE => 2, N_G_HAKEN => 3, N_G_STAPEL => 4, N_G_REIHE => 5,
         N_G_TAKT => 6, N_G_FORTSCHRITT => 7, N_G_ABSCHNITT => 8, N_G_TABELLE => 9, N_G_REITER => 10,
+        N_G_AUSWAHL => 11, N_G_TASTATUR => 12,
         N_G_ZUTAT => { wirf_ananas(K_ROHLING, "Ein Rohling ist nicht essbar."); return Some(KARTON); }
         N_G_THEKE => return Some(neue_theke(pos, ben)),
         _ => return None,
@@ -313,6 +329,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         text: leer, wert: leer, platzhalter: leer, kinder: Vec::new(), bei_klick: KARTON, bei_aenderung: KARTON, bei_enter: KARTON,
         hinweis: leer, intervall: 1000.0, bei_takt: KARTON, fortschritt: 0.0, titel: leer, titel_liste: Vec::new(), gewaehlt: 1.0,
         spalten: Vec::new(), zeilen: Vec::new(), uebergang: false,
+        klappbar: false, zu: false, optionen: Vec::new(), bei_taste: KARTON,
     });
     let txt = |w: W| -> W { if w == UNDEF { neu_str("") } else { text(w) } };
     match zart {
@@ -348,6 +365,18 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         9 => {
             match tabellen_zeile(arg(pos, ben, 0, N_SPALTEN), "Spalten") { Some(x) => zutat(z).spalten = x, None => return KARTON }
             match tabellen_zeilen(arg(pos, ben, 1, N_ZEILEN)) { Some(x) => zutat(z).zeilen = x, None => return KARTON }
+        }
+        // K-109: neu Auswahl(optionen, gewaehlt: 1)
+        11 => {
+            match auswahl_optionen(arg(pos, ben, 0, N_OPTIONEN)) { Some(x) => zutat(z).optionen = x, None => return KARTON }
+            let g = arg(pos, ben, 1, N_GEWAEHLT);
+            if g != UNDEF && g != KARTON {
+                match auswahl_index(g, zutat(z).optionen.len()) { Some(n) => zutat(z).gewaehlt = n, None => return KARTON }
+            }
+        }
+        // K-110: neu Tastatur(beiTaste?)
+        12 => {
+            match ui_funktion(arg(pos, ben, 0, N_BEITASTE), "Tastatur") { Some(f) => zutat(z).bei_taste = f, None => return KARTON }
         }
         8 | 10 => {
             let t = arg(pos, ben, 0, N_TITEL);
@@ -416,6 +445,34 @@ fn tabellen_zeile(b: W, wo: &str) -> Option<Vec<W>> {
     while i < blech_v(b).len() { let x = text(blech_v(b)[i]); if sig() { return None; } r.push(x); i += 1; }
     Some(r)
 }
+/// K-109: Optionen einer Auswahl – Blech → Textformen (karton → "karton"), fehlend/karton → [], sonst TypAnanas
+fn auswahl_optionen(b: W) -> Option<Vec<W>> {
+    if b == UNDEF || b == KARTON { return Some(Vec::new()); }
+    if art(b) != A_BLECH {
+        let mut t = Tb::neu(); t.s("Auswahl braucht ein Blech mit Optionen, nicht "); darstellung(b, &mut t); t.s(".");
+        wirf_tb(K_TYP, &t); return None;
+    }
+    let mut r = Vec::new();
+    let mut i = 0;
+    while i < blech_v(b).len() { let x = text(blech_v(b)[i]); if sig() { return None; } r.push(x); i += 1; }
+    Some(r)
+}
+/// K-109: `n` ganze Zahl 1 … anzahl, sonst KeinStückAnanas „Option 7 gibt es nicht – die Auswahl hat 4 Optionen.“
+fn auswahl_index(n: W, anzahl: usize) -> Option<f64> {
+    if ist_zahl(n) && zl::ist_ganz(f(n)) && f(n) >= 1.0 && f(n) <= anzahl as f64 { return Some(f(n)); }
+    let mut t = Tb::neu(); t.s("Option "); text_in_ops(n, &mut t); if sig() { return None; }
+    t.s(" gibt es nicht – die Auswahl hat ").n(anzahl as f64).s(if anzahl == 1 { " Option." } else { " Optionen." });
+    wirf_tb(K_KEINSTUECK, &t);
+    None
+}
+/// K-107: `n` ganze Zahl 1 … Seitenzahl, sonst KeinStückAnanas „Seite 7 gibt es nicht – der Reiter hat 2 Seiten.“
+fn reiter_seite(n: W, anzahl: usize) -> Option<usize> {
+    if ist_zahl(n) && zl::ist_ganz(f(n)) && f(n) >= 1.0 && f(n) <= anzahl as f64 { return Some(f(n) as usize); }
+    let mut t = Tb::neu(); t.s("Seite "); text_in_ops(n, &mut t); if sig() { return None; }
+    t.s(" gibt es nicht – der Reiter hat ").n(anzahl as f64).s(if anzahl == 1 { " Seite." } else { " Seiten." });
+    wirf_tb(K_KEINSTUECK, &t);
+    None
+}
 fn tabellen_zeilen(b: W) -> Option<Vec<Vec<W>>> {
     if b == UNDEF || b == KARTON { return Some(Vec::new()); }
     if art(b) != A_BLECH {
@@ -439,9 +496,11 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         3 => matches!(id, N_TEXT | N_SETZETEXT | N_AN | N_SETZEAN | N_BEIAENDERUNG),
         6 => matches!(id, N_AKTIV | N_INTERVALL | N_SETZEINTERVALL | N_BEITAKT),
         7 => matches!(id, N_WERT | N_SETZEWERT | N_TEXT | N_SETZETEXT),
-        8 => matches!(id, N_HINZU | N_LEEREN | N_TITEL | N_SETZETITEL),
+        8 => matches!(id, N_HINZU | N_LEEREN | N_TITEL | N_SETZETITEL | N_KLAPPBAR | N_ZU | N_BEIAENDERUNG),
         9 => matches!(id, N_SPALTEN | N_SETZESPALTEN | N_ZEILEN | N_SETZEZEILEN),
-        10 => matches!(id, N_WAEHLE_ASCII | N_GEWAEHLT | N_BEIAENDERUNG),
+        10 => matches!(id, N_WAEHLE_ASCII | N_GEWAEHLT | N_BEIAENDERUNG | N_TITEL | N_SETZETITEL),
+        11 => matches!(id, N_OPTIONEN | N_SETZEOPTIONEN | N_WAEHLE_ASCII | N_GEWAEHLT | N_BEIAENDERUNG | N_AKTIV),
+        12 => matches!(id, N_BEITASTE | N_AKTIV),
         _ => matches!(id, N_HINZU | N_LEEREN),
     }
 }
@@ -489,19 +548,45 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         (7, N_SETZETEXT) => { let x = a(pos, 0); let t = if x == UNDEF || x == KARTON { neu_str("") } else { let t = text(x); if sig() { return KARTON; } t }; zutat(o).text = t; aendere(o, "text", jtext(t)); return o; }
         (8, N_TITEL) => return z.titel,
         (8, N_SETZETITEL) => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).titel = t; aendere(o, "titel", jtext(t)); return o; }
+        // K-108: klappbar(d)/klappbar(), zu(d)/zu() – Getter/Setter wie aktiv/sichtbar
+        (8, N_KLAPPBAR) => {
+            if pos.is_empty() { return bool_w(z.klappbar); }
+            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
+            zutat(o).klappbar = b; aendere(o, "klappbar", jbool(b)); return o;
+        }
+        (8, N_ZU) => {
+            if pos.is_empty() { return bool_w(z.zu); }
+            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
+            zutat(o).zu = b; aendere(o, "zu", jbool(b)); return o;
+        }
+        // K-107: Reiter.setzeTitel(n, text) / titel(n) – Titelliste wird mit "" aufgefüllt, Nachricht als ganze Liste
+        (10, N_SETZETITEL) => {
+            let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n, None => return KARTON };
+            while zutat(o).titel_liste.len() < n { zutat(o).titel_liste.push(neu_str("")); }  // Reihenfolge wie Interpreter: erst auffüllen, dann Textform
+            let t = text(a(pos, 1)); if sig() { return KARTON; }
+            let z = zutat(o);
+            z.titel_liste[n - 1] = t;
+            let j = jliste(&z.titel_liste);
+            aendere(o, "titel", j); return o;
+        }
+        (10, N_TITEL) => {
+            let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n, None => return KARTON };
+            return if n <= z.titel_liste.len() { z.titel_liste[n - 1] } else { neu_str("") };
+        }
+        // K-109: Auswahl
+        (11, N_OPTIONEN) => return blech(z.optionen.clone()),
+        (11, N_SETZEOPTIONEN) => { match auswahl_optionen(a(pos, 0)) { Some(x) => { let j = jliste(&x); zutat(o).optionen = x; aendere(o, "optionen", j); return o; } None => return KARTON } }
+        (11, N_WAEHLE_ASCII) => { match auswahl_index(a(pos, 0), z.optionen.len()) { Some(n) => { zutat(o).gewaehlt = n; aendere(o, "gewaehlt", jzahl(n)); return o; } None => return KARTON } }
+        (11, N_GEWAEHLT) => return zahl(z.gewaehlt),
+        // K-110: Tastatur
+        (12, N_BEITASTE) => { match ui_funktion(a(pos, 0), "beiTaste") { Some(f) => { zutat(o).bei_taste = f; return o; } None => return KARTON } }
         (9, N_SPALTEN) => return blech(z.spalten.clone()),
         (9, N_SETZESPALTEN) => { match tabellen_zeile(a(pos, 0), "setzeSpalten") { Some(x) => { let j = jliste(&x); zutat(o).spalten = x; aendere(o, "spalten", j); return o; } None => return KARTON } }
         (9, N_ZEILEN) => return blech(z.zeilen.iter().map(|r| blech(r.clone())).collect()),
         (9, N_SETZEZEILEN) => { match tabellen_zeilen(a(pos, 0)) { Some(x) => { let j = jzeilen(&x); zutat(o).zeilen = x; aendere(o, "zeilen", j); return o; } None => return KARTON } }
         (10, N_WAEHLE_ASCII) => {
-            let n = a(pos, 0);
-            let k = z.kinder.len();
-            if !(ist_zahl(n) && zl::ist_ganz(f(n)) && f(n) >= 1.0 && f(n) <= k as f64) {
-                let mut t = Tb::neu(); t.s("Seite "); text_in_ops(n, &mut t); if sig() { return KARTON; }
-                t.s(" gibt es nicht – der Reiter hat ").n(k as f64).s(if k == 1 { " Seite." } else { " Seiten." });
-                wirf_tb(K_KEINSTUECK, &t); return KARTON;
-            }
-            zutat(o).gewaehlt = f(n); aendere(o, "gewaehlt", jzahl(f(n))); return o;
+            let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n as f64, None => return KARTON };
+            zutat(o).gewaehlt = n; aendere(o, "gewaehlt", jzahl(n)); return o;
         }
         (10, N_GEWAEHLT) => return zahl(z.gewaehlt),
         (10, N_BEIAENDERUNG) => { match ui_funktion(a(pos, 0), "beiAenderung") { Some(f) => { zutat(o).bei_aenderung = f; return o; } None => return KARTON } }
@@ -521,7 +606,7 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             let ki = match STIL_NAMEN.iter().position(|&n| n == ks) {
                 Some(i) => i as u32,
                 None => {
-                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.");
+                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' gibt es nicht. Erlaubt: ").s(STIL_ERLAUBT).s(".");
                     wirf_tb(K_LAUFZEIT, &t); return KARTON;
                 }
             };
@@ -534,9 +619,15 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 aendere(o, "stil", j);
                 return o;
             }
-            if ki <= 2 {
+            // K-068/K-113: Zahlstile (breite, hoehe, abstand, mindestbreite) Zahl ≥ 0; zeilen ganze Zahl ≥ 1; sonst Vokabular
+            if STIL_ART[ki as usize] == 0 {
                 if !(ist_zahl(w) && f(w) >= 0.0 && f(w).is_finite()) {
                     let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine Zahl ≥ 0, nicht "); darstellung(w, &mut t); t.s(".");
+                    wirf_tb(K_TYP, &t); return KARTON;
+                }
+            } else if STIL_ART[ki as usize] == 2 {
+                if !(ist_zahl(w) && zl::ist_ganz(f(w)) && f(w) >= 1.0) {
+                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine ganze Zahl ≥ 1, nicht "); darstellung(w, &mut t); t.s(".");
                     wirf_tb(K_TYP, &t); return KARTON;
                 }
             } else {
@@ -852,6 +943,14 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
         "klick" => {
             if zz.zart == 1 && zz.aktiv && zz.bei_klick != KARTON { rufe(zz.bei_klick, &[], &[], knoten); }
         }
+        // K-110: Taste nur für eine aktive Tastatur mit Rückruf und nicht-leerem Text
+        "taste" => {
+            if zz.zart == 12 && zz.aktiv && zz.bei_taste != KARTON {
+                if let Some(t) = feld_text(ev, "taste") {
+                    if !t.is_empty() { rufe(zz.bei_taste, &[neu_str(&t)], &[], knoten); }
+                }
+            }
+        }
         "aenderung" => {
             if zz.zart == 2 {
                 zutat(z).wert = wert_als_text(ev).unwrap_or_else(|| neu_str(""));
@@ -873,6 +972,28 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
                 zutat(z).an = v == Some("b:1") || v == Some("s:true");
                 let (f, w) = (zutat(z).bei_aenderung, bool_w(zutat(z).an));
                 if f != KARTON { rufe(f, &[w], &[], knoten); }
+            } else if zz.zart == 8 {
+                // K-108: nur ein klappbarer Abschnitt nimmt das Ereignis an; wert = neuer zu-Zustand (wie Haken)
+                if zz.klappbar {
+                    let v = feld(ev, "wert");
+                    zutat(z).zu = v == Some("b:1") || v == Some("s:true");
+                    let (f, w) = (zutat(z).bei_aenderung, bool_w(zutat(z).zu));
+                    if f != KARTON { rufe(f, &[w], &[], knoten); }
+                }
+            } else if zz.zart == 11 {
+                // K-109: aktive Auswahl, ganzer wert in 1 … Anzahl
+                if zz.aktiv {
+                    if let Some(v) = feld(ev, "wert") {
+                        if let Some(nt) = v.strip_prefix("n:") {
+                            let n: f64 = nt.parse().unwrap_or(f64::NAN);
+                            if zl::ist_ganz(n) && n >= 1.0 && n <= zutat(z).optionen.len() as f64 {
+                                zutat(z).gewaehlt = n;
+                                let f_ = zutat(z).bei_aenderung;
+                                if f_ != KARTON { rufe(f_, &[zahl(n)], &[], knoten); }
+                            }
+                        }
+                    }
+                }
             }
         }
         "enter" => {
@@ -899,7 +1020,7 @@ pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
     match typ {
         N_G_THEKE => Some(ist_theke(v)),
         N_G_ZUTAT => Some(ist_zutat(v)),
-        N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER => Some(ist_zutat(v) && art_name(v) == typ),
+        N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_AUSWAHL | N_G_TASTATUR => Some(ist_zutat(v) && art_name(v) == typ),
         _ => None,
     }
 }

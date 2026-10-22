@@ -924,7 +924,7 @@
             "theke.bediene();"
           )
         },
-        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. Die Theke läuft im Interpreter; der Wasm-Motor (Beta) kann sie noch nicht – mit „Auto (Beta)“ übernimmt dann der Interpreter." },
+        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. Die Theke läuft in beiden Motoren gleich – im Interpreter und im Wasm-Motor (auch im heruntergeladenen Programm)." },
         {
           art: "details",
           titel: "Alle Zutaten",
@@ -1363,7 +1363,7 @@
           ]
         },
         { art: "text", md: "Dazu kommen die Typen der Pizza-Funktionen (`Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Reste<T>`), die Theke-Zutaten und **deine eigenen Klassen** – jede Klasse ist auch ein Typ." },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`, `Auswahl`, `Tastatur`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },

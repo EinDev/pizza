@@ -114,3 +114,66 @@
     window.__theken2[p[0]] = t;
   });
 })();
+
+/* Demo der v4-Zutaten (K-107 … K-113): Reiter mit versteckter Seite, klappbare Abschnitte, Auswahl, Tastatur, zeilen/mindestbreite.
+ * Das Mini-„Programm“ übernimmt Gast-Wechsel (aenderung) wie die Laufzeit (Zustand vor dem Rückruf) und zeigt Tasten im Schild. */
+(function () {
+  "use strict";
+  var protokoll = document.getElementById("protokoll");
+  var LANG = "Ein sehr langer Beschreibungstext, der auf keinen Fall in eine Zeile passt und deshalb mit Auslassungspunkten enden muss, damit das Layout ruhig bleibt.";
+  function baum() {
+    return {
+      v: 1, op: "baum",
+      wurzel: { id: "wurzel", art: "stapel", kinder: [
+        { id: "tasten", art: "tastatur" },
+        { id: "taste-schild", art: "schild", text: "Taste: –", stil: { schrift: "klein" } },
+        { id: "menge-zeile", art: "reihe", kinder: [
+          { id: "menge-schild", art: "schild", text: "Kaufmenge" },
+          { id: "menge", art: "auswahl", optionen: ["1×", "10×", "100×", "Max"], gewaehlt: 2 },
+          { id: "menge-aus", art: "auswahl", optionen: ["an", "aus"], gewaehlt: 1, aktiv: false, stil: { farbe: "basilikum" } }
+        ] },
+        { id: "reiter", art: "reiter", titel: ["Backstube", "Geheim", "Statistik •"], gewaehlt: 2, kinder: [
+          { id: "backstube", art: "stapel", kinder: [
+            { id: "kurz", art: "schild", text: "Kurz.", stil: { zeilen: 2, farbe: "kruste" } },
+            { id: "lang", art: "schild", text: LANG, stil: { zeilen: 2, farbe: "kruste" } },
+            { id: "knoepfe", art: "reihe", kinder: [
+              { id: "k-kurz", art: "knopf", text: "Kaufen", stil: { zeilen: 1, mindestbreite: 160 } },
+              { id: "k-lang", art: "knopf", text: "Steinofen kaufen – 1,2 Tsd. € (sehr lange Beschriftung)", stil: { zeilen: 1, mindestbreite: 160 } },
+              { id: "k-zwei", art: "knopf", text: "Zwei Zeilen: " + LANG, stil: { zeilen: 2, mindestbreite: 160, farbe: "basilikum" } }
+            ] },
+            { id: "haken-lang", art: "haken", text: LANG, an: true, stil: { zeilen: 1 } }
+          ] },
+          { id: "geheim", art: "schild", text: "Diese Seite ist versteckt – ihr Tab fehlt.", sichtbar: false },
+          { id: "statistik", art: "schild", text: "Statistik-Seite (Ersatz für die versteckte Seite 2)." }
+        ] },
+        { id: "erledigt", art: "abschnitt", titel: "Erledigt (3)", klappbar: true, kinder: [
+          { id: "e1", art: "schild", text: "Lehrling eingestellt" },
+          { id: "e2", art: "schild", text: "Steinofen gekauft" }
+        ] },
+        { id: "klein", art: "abschnitt", titel: "Kleinbetriebe", klappbar: true, zu: true, stil: { farbe: "basilikum" }, kinder: [
+          { id: "kb1", art: "schild", text: "Imbiss" }
+        ] },
+        { id: "fest", art: "abschnitt", titel: "Ohne klappbar – wie bisher", kinder: [
+          { id: "f1", art: "schild", text: "Inhalt" }
+        ] }
+      ] }
+    };
+  }
+  window.__theken4 = {};
+  window.__ereignisse4 = [];
+  [["hell4", "hell"], ["dunkel4", "dunkel"]].forEach(function (p) {
+    var t = PizzaTheke.erzeuge(document.getElementById(p[0]), {
+      thema: p[1],
+      sende: function (e) {
+        window.__ereignisse4.push(e);
+        protokoll.textContent += p[0] + ": " + JSON.stringify(e) + "\n";
+        if (e.typ === "aenderung" && (e.id === "menge" || e.id === "reiter")) t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: e.id, gewaehlt: e.wert }] });
+        if (e.typ === "aenderung" && (e.id === "erledigt" || e.id === "klein")) t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: e.id, zu: e.wert }] });
+        if (e.typ === "taste") t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "taste-schild", text: "Taste: " + e.taste }] });
+      }
+    });
+    t.empfange({ v: 1, op: "fenster", titel: "Pizza-Imperium v4" });
+    t.empfange(baum());
+    window.__theken4[p[0]] = t;
+  });
+})();

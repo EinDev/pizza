@@ -1405,11 +1405,13 @@ Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeb
   (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `log(Infinity)` → `Infinity`, `exp(-Infinity)` → `0`, `exp(710)` → `Infinity`, `NaN`
   durchgereicht; K-005). Kein zweistelliges `log(x, basis)` – `log(1000)/log(10)` wäre `2.9999999999999996`, dafür gibt es `log10`/`log2`.
   Nicht-Zahl → TypAnanas wie bei `wurzel`. Schritte: normaler Aufruf.
-- **Bitgleichheit (Pflicht):** Die Wasm-Laufzeit muss für jeden Eingabewert dasselbe Bitmuster liefern wie V8 (`Math.*`, fdlibm-Algorithmen
-  `e_log.c`, `e_exp.c`, `e_log10.c`/`e_log2.c` mit `k_log.h`). `libm` (musl) darf nur verwendet werden, wenn ein Stichprobentest
-  (`tests/wasm/laufzeit-zahlen.js`: die 5000 Pseudozufallswerte + Ränder 0, −0, subnormal, nahe 1, negativ, ±∞, NaN, 1e±300) **keine**
-  Abweichung zeigt; sonst Port der fdlibm-Routinen nach `laufzeit/src/zahl.rs` (nur Double-Operationen). Begründung: K-103 meidet
-  `log10`/`pow` wegen genau dieser Gefahr; `Mathe.log` ist aber ein erwartbarer Standardbaustein jeder Sprache.
+- **Bitgleichheit (Pflicht):** Die Wasm-Laufzeit muss für jeden Eingabewert dasselbe Bitmuster liefern wie V8 (`Math.*`,
+  `src/base/ieee754.cc`: Sun-fdlibm `e_log.c`, `e_log10.c` in der Form `ivln10 · log(x)`, FreeBSD `e_log2.c` mit `k_log1p`, `e_exp.c`
+  mit Sonderfall `exp(1) = E`). **Befund der Umsetzung:** `libm` 0.2 (musl) weicht ab – 1515 von 86 200 Stichproben (log 36, log10 1470,
+  exp(1) 9) –, deshalb sind die vier Routinen als fdlibm-Port in `laufzeit/src/zahl.rs` (nur Double-Operationen); Nachweis
+  `tests/wasm/laufzeit-zahlen.js`: 24 550 Eingaben × 4 Funktionen = 98 200 Bitvergleiche, 0 Abweichungen (Pseudozufall, exp-Bereich
+  [−745, 710], subnormal, Ränder 0/−0/5e-324/1±1e-16/±∞/NaN/1e±300). Begründung: K-103 meidet `log10`/`pow` wegen genau dieser Gefahr;
+  `Mathe.log` ist aber ein erwartbarer Standardbaustein jeder Sprache.
 - **Betroffen:** SPEC §11-Tabelle (`Mathe`) + §14.11; Interpreter (`MATHE_M`, Modul-Konstante `E`), Wasm (`namen.rs`: `log`, `log10`,
   `log2`, `exp`, `E`; `std_m.rs`, `klassen.rs` Konstante, `zahl.rs`), `tests/wasm/laufzeit-zahlen.js`, Prüfstand a10/a08, `tests/faelle`,
   Differenzkorpus, Doku-Referenz (Mathe-Tabelle). **Status:** fest.

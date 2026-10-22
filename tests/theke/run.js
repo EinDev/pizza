@@ -43,8 +43,8 @@ test("API-Oberfläche", mitUmgebung(({ PizzaTheke, t }) => {
   assert.equal(PizzaTheke.version, 1);
   for (const f of ["erzeuge", "registriere", "arten"]) assert.equal(typeof PizzaTheke[f], "function");
   for (const f of ["empfange", "zerstoere", "schliessen", "setzeThema"]) assert.equal(typeof t[f], "function");
-  assert.deepEqual(PizzaTheke.arten().sort(), ["abschnitt", "eingabe", "fortschritt", "haken", "knopf", "reihe", "reiter", "schild",
-    "stapel", "tabelle", "takt"]);
+  assert.deepEqual(PizzaTheke.arten().sort(), ["abschnitt", "auswahl", "eingabe", "fortschritt", "haken", "knopf", "reihe", "reiter", "schild",
+    "stapel", "tabelle", "takt", "tastatur"]);
 }));
 
 test("baum rendert alle v1-Zutaten mit echten Elementen", mitUmgebung(({ t, $ }) => {
@@ -1008,4 +1008,384 @@ test("v3: uebergang-Behälter + einblenden auf das neue Kind im selben aendere �
   t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "liste", kinder: [{ id: "n", art: "schild", text: "neu" }] }],
     animationen: [{ id: "n", art: "einblenden" }] });
   assert.deepEqual(animKlassen($("n")), ["theke-anim-einblenden"]);
+}));
+
+// ====================================================================== v4: Reiter-Seiten, klappbarer Abschnitt, Auswahl, Tastatur, Stile (K-107 … K-113, SPEC §16.7)
+
+const taste = (win, ziel, key, extra = {}) => {
+  const ev = new win.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...extra });
+  ziel.dispatchEvent(ev);
+  return ev;
+};
+
+test("v4 K-107 reiter: versteckte Seite → Tab hidden, Ersatzseite ohne Ereignis, Pfeiltasten überspringen", mitUmgebung(({ t, $, win, ereignisse, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "r", art: "reiter", titel: ["A", "B", "C", "D"], gewaehlt: 2, kinder: [
+    { id: "p1", art: "schild", text: "1" }, { id: "p2", art: "schild", text: "2" }, { id: "p3", art: "schild", text: "3", sichtbar: false },
+    { id: "p4", art: "schild", text: "4" }] } });
+  const tabs = () => [...$("r").querySelectorAll("[role=tab]")];
+  const gezeigt = () => ["p1", "p2", "p3", "p4"].map((id) => !$(id).classList.contains("theke-reiter-aus"));
+  assert.deepEqual(tabs().map((b) => b.hidden), [false, false, true, false], "schon im baum versteckte Seite hat keinen Tab");
+  assert.deepEqual(gezeigt(), [false, true, false, false]);
+  // gewählte Seite 2 verstecken → nächste sichtbare danach (4, da 3 versteckt), kein Ereignis
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p2", sichtbar: false }] });
+  assert.deepEqual(tabs().map((b) => b.hidden), [false, true, true, false]);
+  assert.deepEqual(gezeigt(), [false, false, false, true]);
+  assert.deepEqual(tabs().map((b) => b.getAttribute("aria-selected")), ["false", "false", "false", "true"]);
+  assert.deepEqual(tabs().map((b) => b.tabIndex), [-1, -1, -1, 0]);
+  assert.equal($("r").querySelector("[role=tabpanel]").getAttribute("aria-label"), "D");
+  assert.deepEqual(ereignisse, []);
+  // auch Seite 4 weg → letzte sichtbare davor (1)
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p4", sichtbar: false }] });
+  assert.deepEqual(gezeigt(), [true, false, false, false]);
+  assert.deepEqual(ereignisse, []);
+  // alle versteckt → leere Leiste, leere Fläche
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p1", sichtbar: false }] });
+  assert.deepEqual(tabs().map((b) => b.hidden), [true, true, true, true]);
+  assert.deepEqual(gezeigt(), [false, false, false, false]);
+  assert.equal($("r").querySelector("[role=tabpanel]").hasAttribute("aria-label"), false);
+  // zurück: 2 und 4 sichtbar → gewaehlt (2) gilt wieder
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p2", sichtbar: true }, { id: "p4", sichtbar: true }] });
+  assert.deepEqual(tabs().map((b) => b.hidden), [true, false, true, false]);
+  assert.deepEqual(gezeigt(), [false, true, false, false]);
+  // Pfeiltasten überspringen versteckte Seiten (mit Umlauf), Home/End auf die erste/letzte sichtbare
+  taste(win, tabs()[1], "ArrowRight");
+  assert.deepEqual(gezeigt(), [false, false, false, true]);
+  taste(win, tabs()[3], "ArrowRight");
+  assert.deepEqual(gezeigt(), [false, true, false, false], "Umlauf über die versteckten 1 und 3");
+  taste(win, tabs()[1], "ArrowLeft");
+  assert.deepEqual(gezeigt(), [false, false, false, true]);
+  taste(win, tabs()[3], "Home");
+  assert.deepEqual(gezeigt(), [false, true, false, false]);
+  taste(win, tabs()[1], "End");
+  assert.deepEqual(gezeigt(), [false, false, false, true]);
+  assert.deepEqual(ereignisse.map((e) => e.wert), [4, 2, 4, 2, 4], "nur Gast-Wechsel senden die echte Seitennummer");
+  // Klick auf die Ersatzseite, wenn gewaehlt versteckt ist: sendet die echte Nummer nur bei Wechsel der gezeigten Seite
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "r", gewaehlt: 3 }] });
+  assert.deepEqual(gezeigt(), [false, false, false, true], "gewaehlt 3 ist versteckt → 4");
+  assert.equal(ereignisse.length, 5);
+  tabs()[3].click();
+  assert.equal(ereignisse.length, 5, "Klick auf die schon gezeigte Ersatzseite sendet nichts");
+  tabs()[1].click();
+  assert.deepEqual(ereignisse.at(-1), { typ: "aenderung", id: "r", wert: 2 });
+  assert.deepEqual(warnungen, []);
+}));
+
+test("v4 K-107 reiter: weich ausblendende Seite (uebergang) – Tab sofort weg, Ersatzseite sofort; gezeigt() stimmt", mitUhr(({ t, $, uhr, ereignisse }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "r", art: "reiter", titel: ["A", "B"], gewaehlt: 1, kinder: [
+    { id: "p1", art: "stapel", uebergang: true, kinder: [{ id: "k", art: "knopf", text: "x" }] }, { id: "p2", art: "schild", text: "2" }] } });
+  const tabs = () => [...$("r").querySelectorAll("[role=tab]")];
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p1", sichtbar: false }] });
+  assert.equal($("p1").hidden, false, "blendet noch aus");
+  assert.ok($("p1").classList.contains("theke-ueb-aus"));
+  assert.deepEqual(tabs().map((b) => b.hidden), [true, false], "Tab verschwindet sofort");
+  assert.equal($("p2").classList.contains("theke-reiter-aus"), false, "Ersatzseite sofort gezeigt");
+  animiere(t, [{ id: "k", art: "puls" }]);
+  assert.deepEqual(animKlassen($("k")), [], "Kind der ausblendenden Seite gilt als nicht gezeigt");
+  uhr.vor(250);
+  assert.equal($("p1").hidden, true);
+  assert.deepEqual(tabs().map((b) => b.hidden), [true, false]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p1", sichtbar: true }] });
+  assert.deepEqual(tabs().map((b) => b.hidden), [false, false]);
+  assert.equal($("p1").classList.contains("theke-reiter-aus"), false, "gewaehlt 1 gilt wieder");
+  assert.deepEqual(ereignisse, []);
+}));
+
+test("v4 K-107 Registry-Hook kindSichtbar: eigener Behälter erfährt sichtbar-Wechsel seiner Kinder (auch in innerem Bereich)", mitUmgebung(({ PizzaTheke, t }) => {
+  const protokoll = [];
+  PizzaTheke.registriere("kiste", {
+    felder: ["kinder"],
+    erzeuge(k, ctx) { const el = ctx.dokument.createElement("div"); el.appendChild(ctx.dokument.createElement("div")); return el; },
+    aktualisiere(el, f, ctx) { if (f.kinder) ctx.setzeKinder(el.firstChild, f.kinder); },
+    kindSichtbar(el, kindEl, ctx) { protokoll.push([ctx.id, kindEl.getAttribute("data-theke-id"), kindEl.hidden]); },
+  });
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "ki", art: "kiste", kinder: [{ id: "a", art: "schild", text: "a" }, { id: "b", art: "schild", text: "b", sichtbar: false }] },
+    { id: "c", art: "schild", text: "c" }] } });
+  assert.deepEqual(protokoll, [], "im Bau noch nicht angehängt → kein Hook (der Behälter zeichnet ohnehin)");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "a", sichtbar: false }, { id: "a", sichtbar: false }, { id: "b", sichtbar: true }, { id: "c", sichtbar: false }] });
+  assert.deepEqual(protokoll, [["ki", "a", true], ["ki", "b", false]], "nur echte Wechsel; stapel hat keinen Hook");
+}));
+
+test("v4 K-108 abschnitt: klappbar → Kopf-Knopf mit aria-expanded, Klick klappt sofort und sendet aenderung; zu vom Programm sendet nie", mitUmgebung(({ t, $, ereignisse, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "a", art: "abschnitt", titel: "Erledigt", klappbar: true, kinder: [{ id: "k", art: "knopf", text: "x" }] },
+    { id: "b", art: "abschnitt", titel: "Fest", kinder: [{ id: "s", art: "schild", text: "y" }] },
+    { id: "c", art: "abschnitt", titel: "Zu", klappbar: true, zu: true, kinder: [] },
+    { id: "d", art: "abschnitt", titel: "", klappbar: true, kinder: [] }] } });
+  const kopf = (id) => $(id).querySelector(".theke-abschnitt-titel");
+  const knopf = (id) => kopf(id).querySelector("button");
+  const inhalt = (id) => $(id).querySelector(".theke-abschnitt-inhalt");
+  assert.equal(kopf("a").tagName, "H3");
+  assert.ok(knopf("a"), "klappbar: Knopf im Kopf");
+  assert.equal(knopf("a").type, "button");
+  assert.equal(knopf("a").textContent, "Erledigt");
+  assert.equal(knopf("a").getAttribute("aria-expanded"), "true");
+  assert.equal(inhalt("a").hidden, false);
+  assert.equal(knopf("b"), null, "nicht klappbar: kein Knopf, Kopf wie bisher");
+  assert.equal(kopf("b").textContent, "Fest");
+  assert.equal(knopf("c").getAttribute("aria-expanded"), "false");
+  assert.equal(inhalt("c").hidden, true, "zu im baum: Inhalt sofort hidden");
+  assert.equal(kopf("d").hidden, false, "leerer Titel + klappbar: Kopf (nur Pfeil) bleibt sichtbar");
+  assert.equal(knopf("d").textContent, "");
+
+  knopf("a").click();
+  assert.equal(inhalt("a").hidden, true, "sofort lokal zugeklappt");
+  assert.equal(knopf("a").getAttribute("aria-expanded"), "false");
+  assert.deepEqual(ereignisse, [{ typ: "aenderung", id: "a", wert: true }]);
+  knopf("a").click();
+  assert.equal(inhalt("a").hidden, false);
+  assert.deepEqual(ereignisse.at(-1), { typ: "aenderung", id: "a", wert: false });
+  // Programm setzt zu → kein Ereignis; nicht klappbar + zu → Inhalt weg, kein Knopf
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "a", zu: true }, { id: "b", zu: true }, { id: "c", zu: false }] });
+  assert.equal(inhalt("a").hidden, true);
+  assert.equal(knopf("a").getAttribute("aria-expanded"), "false");
+  assert.equal(inhalt("b").hidden, true);
+  assert.equal(knopf("b"), null);
+  assert.equal(inhalt("c").hidden, false);
+  assert.equal(ereignisse.length, 2);
+  // klappbar nachträglich aus/an; Titel bleibt
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "a", klappbar: false }, { id: "b", klappbar: true, titel: "Jetzt klappbar" }] });
+  assert.equal(knopf("a"), null);
+  assert.equal(kopf("a").textContent, "Erledigt");
+  assert.equal(knopf("b").textContent, "Jetzt klappbar");
+  knopf("b").click();
+  assert.equal(inhalt("b").hidden, false);
+  assert.deepEqual(ereignisse.at(-1), { typ: "aenderung", id: "b", wert: false });
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "b", titel: "" }] });
+  assert.equal(kopf("b").hidden, false);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "b", klappbar: false }] });
+  assert.equal(kopf("b").hidden, true, "ohne klappbar versteckt der leere Titel den Kopf");
+  assert.deepEqual(warnungen, [], "klappbar/zu sind bekannte Felder");
+}));
+
+test("v4 K-108 abschnitt: zu → Kinder gelten als nicht gezeigt; mit uebergang blendet der Inhalt weich; Aufräumen", mitUhr(({ t, $, uhr, ereignisse }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "a", art: "abschnitt", titel: "A", klappbar: true, uebergang: true, kinder: [{ id: "k", art: "knopf", text: "x" }] },
+    { id: "b", art: "abschnitt", titel: "B", zu: true, kinder: [{ id: "s", art: "schild", text: "y" }] }] } });
+  animiere(t, [{ id: "s", art: "puls" }]);
+  assert.deepEqual(animKlassen($("s")), [], "Kind eines zugeklappten Abschnitts: nicht gezeigt");
+  const inhalt = $("a").querySelector(".theke-abschnitt-inhalt");
+  $("a").querySelector("button").click();
+  assert.equal(inhalt.hidden, false, "blendet noch aus");
+  assert.ok(inhalt.classList.contains("theke-ueb-aus"));
+  assert.ok(inhalt.hasAttribute("inert"));
+  $("k").click();
+  assert.deepEqual(ereignisse, [{ typ: "aenderung", id: "a", wert: true }], "Kind des ausblendenden Inhalts sendet nicht mehr");
+  animiere(t, [{ id: "k", art: "puls" }]);
+  assert.deepEqual(animKlassen($("k")), []);
+  uhr.vor(250);
+  assert.equal(inhalt.hidden, true);
+  assert.ok(!inhalt.classList.contains("theke-ueb-aus"));
+  $("a").querySelector("button").click();
+  assert.equal(inhalt.hidden, false);
+  assert.deepEqual(animKlassen(inhalt), ["theke-ueb-ein"], "Inhalt blendet ein");
+  uhr.vor(250);
+  assert.deepEqual(animKlassen(inhalt), []);
+  // Timer eines laufenden Ausblendens wird beim Entfernen gelöscht
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "a", zu: true }] });
+  assert.ok(inhalt.classList.contains("theke-ueb-aus"));
+  assert.equal(uhr.spaeter.size, 1);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "w", kinder: [] }] });
+  assert.equal(uhr.spaeter.size, 0, "kein verwaister Timer");
+  assert.equal(ereignisse.length, 2);
+}));
+
+test("v4 K-109 auswahl: radiogroup, Klick/Pfeile/Home/End senden nur bei Wechsel, Klemmen, aktiv:false", mitUmgebung(({ t, $, win, ereignisse, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "m", art: "auswahl", optionen: ["1×", "10×", "100×", "Max"], gewaehlt: 1, stil: { farbe: "basilikum" } }] } });
+  const el = $("m");
+  const opt = () => [...el.querySelectorAll("[role=radio]")];
+  assert.equal(el.getAttribute("role"), "radiogroup");
+  assert.ok(el.classList.contains("theke-farbe-basilikum"));
+  assert.deepEqual(opt().map((o) => o.textContent), ["1×", "10×", "100×", "Max"]);
+  assert.deepEqual(opt().map((o) => o.tagName + ":" + o.type), Array(4).fill("BUTTON:button"));
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["true", "false", "false", "false"]);
+  assert.deepEqual(opt().map((o) => o.tabIndex), [0, -1, -1, -1]);
+  assert.deepEqual(opt().map((o) => o.classList.contains("theke-auswahl-option-an")), [true, false, false, false]);
+
+  opt()[1].click();
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "true", "false", "false"], "sofort lokal");
+  assert.deepEqual(ereignisse, [{ typ: "aenderung", id: "m", wert: 2 }]);
+  opt()[1].click();
+  assert.equal(ereignisse.length, 1, "gleiche Option: nichts");
+  // Tastatur: Pfeile mit Umlauf, Home/End; Hoch/Runter bleiben unangetastet (gehören einer Tastatur)
+  assert.equal(taste(win, opt()[1], "ArrowRight").defaultPrevented, true);
+  assert.equal(taste(win, opt()[2], "ArrowRight").defaultPrevented, true);
+  taste(win, opt()[3], "ArrowRight");
+  taste(win, opt()[0], "ArrowLeft");
+  taste(win, opt()[3], "Home");
+  taste(win, opt()[0], "End");
+  assert.equal(taste(win, opt()[3], "ArrowDown").defaultPrevented, false);
+  assert.deepEqual(ereignisse.map((e) => e.wert), [2, 3, 4, 1, 4, 1, 4]);
+  assert.equal(win.document.activeElement, opt()[3], "Tastenwahl fokussiert die neue Option");
+  // Programm wählt → kein Ereignis; Klemmen auf 1…n; ungültig → 1 + Warnung
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", gewaehlt: 2 }] });
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "true", "false", "false"]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", gewaehlt: 9 }] });
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "false", "false", "true"]);
+  assert.deepEqual(warnungen, []);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", gewaehlt: 0 }] });
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["true", "false", "false", "false"]);
+  assert.ok(warnungen.some((w) => /auswahl\.gewaehlt/.test(w)));
+  assert.equal(ereignisse.length, 7);
+  // optionen als ganze Liste; gewaehlt bleibt roh und wird geklemmt
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", gewaehlt: 3, optionen: ["a", "b"] }] });
+  assert.deepEqual(opt().map((o) => o.textContent), ["a", "b"]);
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "true"]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", optionen: ["a", "b", "c", "d"] }] });
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "false", "true", "false"], "roh gespeichertes gewaehlt 3 gilt wieder");
+  // aktiv:false → alle Knöpfe deaktiviert, kein Ereignis (auch nicht per Klick-Ereignis oder Taste)
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", aktiv: false }] });
+  assert.deepEqual(opt().map((o) => o.disabled), [true, true, true, true]);
+  assert.ok(el.classList.contains("theke-inaktiv"));
+  opt()[0].dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+  taste(win, opt()[2], "ArrowRight");
+  assert.equal(ereignisse.length, 7);
+  assert.deepEqual(opt().map((o) => o.getAttribute("aria-checked")), ["false", "false", "true", "false"]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", aktiv: true }] });
+  assert.deepEqual(opt().map((o) => o.disabled), [false, false, false, false]);
+  opt()[0].click();
+  assert.deepEqual(ereignisse.at(-1), { typ: "aenderung", id: "m", wert: 1 });
+  // leere Liste: nichts zu wählen, keine Ausnahme
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", optionen: [] }] });
+  assert.equal(opt().length, 0);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "m", optionen: "x" }] });
+  assert.ok(warnungen.some((w) => /auswahl\.optionen/.test(w)));
+}));
+
+test("v4 K-110 tastatur: unsichtbar; keydown auf der Wurzel → taste mit deutschen Sondertasten; Filter; mehrere in Baumreihenfolge", mitUmgebung(({ t, $, win, ereignisse, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "k", art: "knopf", text: "Fangen!" }, { id: "e", art: "eingabe", wert: "" },
+    { id: "t1", art: "tastatur" }, { id: "t2", art: "tastatur", aktiv: false }] } });
+  const wurzel = t.element;
+  assert.equal(wurzel.getAttribute("tabindex"), "-1");
+  assert.equal($("t1").hidden, true);
+  assert.equal($("t1").getAttribute("aria-hidden"), "true");
+  const paare = [[" ", "Leertaste"], ["ArrowLeft", "Links"], ["ArrowRight", "Rechts"], ["ArrowUp", "Hoch"], ["ArrowDown", "Runter"],
+    ["Backspace", "Rücktaste"], ["Delete", "Entfernen"], ["Home", "Pos1"], ["End", "Ende"], ["PageUp", "BildHoch"], ["PageDown", "BildRunter"],
+    ["Enter", "Enter"], ["Escape", "Escape"], ["Tab", "Tab"], ["F1", "F1"], ["F12", "F12"], ["a", "a"], ["A", "A"], ["1", "1"], ["+", "+"], ["ä", "ä"]];
+  for (const [key] of paare) taste(win, wurzel, key);
+  assert.deepEqual(ereignisse, paare.map(([, name]) => ({ typ: "taste", id: "t1", taste: name })), "nur die aktive Tastatur t1");
+  ereignisse.length = 0;
+  // nicht gesendet: Modifikatoren, Dead/Unidentified, Komposition, Wiederholung, Ziel in einer Eingabe
+  for (const key of ["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "NumLock", "ScrollLock", "Fn", "Dead", "Unidentified", ""]) taste(win, wurzel, key);
+  taste(win, wurzel, "a", { repeat: true });
+  taste(win, wurzel, "a", { isComposing: true });
+  taste(win, wurzel, "Process", { keyCode: 229 });
+  taste(win, $("e"), "a");
+  taste(win, $("e"), " ");
+  assert.deepEqual(ereignisse, []);
+  // Taste auf einem fokussierten Knopf erreicht die Tastatur zusätzlich
+  taste(win, $("k"), " ");
+  taste(win, $("k"), "Enter");
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "Leertaste" }, { typ: "taste", id: "t1", taste: "Enter" }]);
+  ereignisse.length = 0;
+  // mehrere aktive Tastaturen: Baumreihenfolge, auch nach Umsortieren per kinder
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "t2", aktiv: true }] });
+  taste(win, wurzel, "x");
+  assert.deepEqual(ereignisse.map((e) => e.id), ["t1", "t2"]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "w", kinder: [{ id: "t2" }, { id: "k" }, { id: "t1" }] }] });
+  ereignisse.length = 0;
+  taste(win, wurzel, "x");
+  assert.deepEqual(ereignisse.map((e) => e.id), ["t2", "t1"]);
+  // inaktiv / entfernt → nichts; nach schliesse nichts
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "t1", aktiv: false }, { id: "w", kinder: [{ id: "k" }, { id: "t1" }] }] });
+  ereignisse.length = 0;
+  taste(win, wurzel, "x");
+  assert.deepEqual(ereignisse, []);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "t1", aktiv: true }] });
+  taste(win, wurzel, "y");
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "y" }]);
+  t.empfange({ v: 1, op: "schliesse" });
+  taste(win, wurzel, "y");
+  assert.equal(ereignisse.length, 1);
+  assert.deepEqual(warnungen, [], "aktiv ist ein bekanntes Feld");
+}));
+
+test("v4 K-110 tastatur: preventDefault für Leertaste/Pfeile/Pos1/Ende/Bild nur mit aktiver Tastatur und Ziel = Wurzel", mitUmgebung(({ t, $, win }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [{ id: "k", art: "knopf", text: "x" }, { id: "t1", art: "tastatur", aktiv: false }] } });
+  const wurzel = t.element;
+  assert.equal(taste(win, wurzel, " ").defaultPrevented, false, "keine aktive Tastatur");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "t1", aktiv: true }] });
+  for (const key of [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"])
+    assert.equal(taste(win, wurzel, key).defaultPrevented, true, key);
+  for (const key of ["a", "Enter", "Escape", "Tab", "F5", "Backspace"]) assert.equal(taste(win, wurzel, key).defaultPrevented, false, key);
+  assert.equal(taste(win, $("k"), " ").defaultPrevented, false, "fokussierter Knopf behält Leertaste");
+  assert.equal(taste(win, $("k"), "Enter").defaultPrevented, false);
+  assert.equal(taste(win, $("k"), "ArrowDown").defaultPrevented, false);
+}));
+
+test("v4 K-110 Fokus beim baum: Wurzel wird fokussiert, wenn nichts (oder body) fokussiert ist – sonst kein Fokusdiebstahl", mitUmgebung(({ t, $, doc }) => {
+  assert.equal(doc.activeElement, doc.body);
+  t.empfange(BAUM);
+  assert.equal(doc.activeElement, t.element, "nichts fokussiert → Wurzel");
+  $("z2").focus();
+  assert.equal(doc.activeElement, $("z2"));
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "n", art: "schild", text: "neu" } });
+  assert.equal(doc.activeElement, t.element, "neuer baum entfernt das fokussierte Feld → body → Wurzel");
+  // etwas außerhalb der Theke (Editor) ist fokussiert → bleibt
+  const editor = doc.createElement("textarea");
+  doc.body.appendChild(editor);
+  editor.focus();
+  t.empfange(BAUM);
+  assert.equal(doc.activeElement, editor, "kein Fokusdiebstahl");
+  editor.remove();
+}));
+
+test("v4 K-110 Registry-Hook taste: eigene Zutat bekommt Tastennamen, Rückgabe true zählt als aktiv", mitUmgebung(({ PizzaTheke, t, win, ereignisse }) => {
+  PizzaTheke.registriere("lauscher", {
+    erzeuge(k, ctx) { return ctx.dokument.createElement("div"); },
+    taste(el, name, ctx, e) { ctx.sende("taste", { taste: name, typ2: e.type }); return name === "Leertaste"; },
+  });
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "l", art: "lauscher" } });
+  assert.equal(taste(win, t.element, "ArrowUp").defaultPrevented, false, "Rückgabe false → nicht aktiv → kein preventDefault");
+  assert.equal(taste(win, t.element, " ").defaultPrevented, true);
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "l", taste: "Hoch", typ2: "keydown" }, { typ: "taste", id: "l", taste: "Leertaste", typ2: "keydown" }]);
+}));
+
+test("v4 K-113 Stile zeilen/mindestbreite: Custom-Properties + Klassen, null entfernt, ungültig ignoriert; knopf-Text im span", mitUmgebung(({ t, $, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "s", art: "schild", text: "lang", stil: { zeilen: 2, mindestbreite: 120 } },
+    { id: "k", art: "knopf", text: "Kaufen", stil: { zeilen: 1, mindestbreite: 160.5 } },
+    { id: "h", art: "haken", text: "Haken", stil: { zeilen: 3 } },
+    { id: "f", art: "fortschritt", wert: 0.5, stil: { zeilen: 2, mindestbreite: "voll" } }] } });
+  assert.equal($("s").style.getPropertyValue("--theke-zeilen"), "2");
+  assert.ok($("s").classList.contains("theke-hat-zeilen"));
+  assert.equal($("s").style.getPropertyValue("--theke-mindestbreite"), "120px");
+  assert.ok($("s").classList.contains("theke-hat-mindestbreite"));
+  assert.equal($("k").style.getPropertyValue("--theke-mindestbreite"), "160.5px");
+  assert.equal($("k").style.getPropertyValue("--theke-zeilen"), "1");
+  assert.equal($("k").querySelector(".theke-knopf-text").textContent, "Kaufen");
+  assert.equal($("k").textContent, "Kaufen");
+  assert.equal($("h").style.getPropertyValue("--theke-zeilen"), "3");
+  assert.equal($("f").style.getPropertyValue("--theke-zeilen"), "2", "andere Arten tragen die Property, das CSS ignoriert sie");
+  assert.equal($("f").style.getPropertyValue("--theke-mindestbreite"), "100%");
+  assert.deepEqual(warnungen, []);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "s", stil: { zeilen: null, mindestbreite: null } }, { id: "k", text: "Teurer kaufen" }] });
+  assert.equal($("s").style.getPropertyValue("--theke-zeilen"), "");
+  assert.ok(!$("s").classList.contains("theke-hat-zeilen"));
+  assert.equal($("s").style.getPropertyValue("--theke-mindestbreite"), "");
+  assert.ok(!$("s").classList.contains("theke-hat-mindestbreite"));
+  assert.equal($("k").textContent, "Teurer kaufen");
+  assert.equal($("k").children.length, 1);
+  for (const falsch of [0, -1, 1.5, "2", NaN, Infinity, true]) {
+    warnungen.length = 0;
+    t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "h", stil: { zeilen: falsch } }] });
+    assert.ok(warnungen.some((w) => /stil\.zeilen/.test(w)), String(falsch));
+    assert.equal($("h").style.getPropertyValue("--theke-zeilen"), "3", "alter Wert bleibt: " + String(falsch));
+  }
+  warnungen.length = 0;
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "h", stil: { mindestbreite: "breit" } }] });
+  assert.ok(warnungen.some((w) => /stil\.mindestbreite/.test(w)));
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "h", stil: { mindestbreite: 99999 } }] });
+  assert.equal($("h").style.getPropertyValue("--theke-mindestbreite"), "4000px", "wie breite geklemmt");
+}));
+
+test("v4: keine Feldwarnungen bei vollständigen v4-Knoten", mitUmgebung(({ t, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "a", art: "abschnitt", titel: "T", klappbar: true, zu: true, uebergang: true, kinder: [] },
+    { id: "m", art: "auswahl", optionen: ["a"], gewaehlt: 1, aktiv: false, stil: { farbe: "kruste", zeilen: 1, mindestbreite: 10 } },
+    { id: "t1", art: "tastatur", aktiv: false, hinweis: "x" },
+    { id: "r", art: "reiter", titel: ["A"], gewaehlt: 1, kinder: [{ id: "p", art: "schild", text: "p", sichtbar: false }] }] } });
+  assert.deepEqual(warnungen, []);
 }));

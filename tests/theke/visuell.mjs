@@ -102,6 +102,72 @@ try {
       await page.screenshot({ path: path.join(ARTEFAKTE, `v2-${id}-${schema}.png`), clip: await (await page.$("#" + id)).boundingBox() });
     }
 
+    // v4 (K-107 … K-113): Reiter mit versteckter Seite, Auswahl-Klick, Abschnitt klappen, Tastatur, zeilen/mindestbreite
+    const v4a = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const tabs = [...document.querySelectorAll("#hell4 [data-theke-id=reiter] [role=tab]")];
+      return {
+        tabsSichtbar: tabs.map((b) => b.offsetHeight > 0),
+        geheimWeg: q("#hell4 [data-theke-id=geheim]").offsetHeight === 0,
+        statistikDa: q("#hell4 [data-theke-id=statistik]").offsetHeight > 0,     // gewaehlt 2 ist versteckt → Ersatzseite 3 (nächste sichtbare)
+        backstubeWeg: q("#hell4 [data-theke-id=backstube]").offsetHeight === 0,
+        kleinZu: q("#hell4 [data-theke-id=klein] .theke-abschnitt-inhalt").offsetHeight === 0,
+        pfeil: getComputedStyle(q("#hell4 [data-theke-id=klein] .theke-abschnitt-knopf"), "::before").content,
+        tastaturUnsichtbar: getComputedStyle(q("#hell4 [data-theke-id=tasten]")).display === "none",
+        mengeAus: [...document.querySelectorAll("#hell4 [data-theke-id=menge-aus] [role=radio]")].every((b) => b.disabled),
+        // K-110: ein Klick ins Fenster (oben auf den deaktivierten Knopf „Aus“) gibt der Theke-Wurzel (tabindex=-1) den Fokus
+        wurzelFokus: document.activeElement === q("#hell .theke"),
+      };
+    });
+    const v4aErw = { tabsSichtbar: [true, false, true], geheimWeg: true, statistikDa: true, backstubeWeg: true, kleinZu: true, pfeil: '"▸"',
+      tastaturUnsichtbar: true, mengeAus: true, wurzelFokus: true };
+    if (JSON.stringify(v4a) !== JSON.stringify(v4aErw)) { ok = false; console.log("v4 (Start) falsch:", JSON.stringify(v4a)); }
+    await page.screenshot({ path: path.join(ARTEFAKTE, `v4-hell4-${schema}.png`), clip: await (await page.$("#hell4")).boundingBox() });
+    await page.screenshot({ path: path.join(ARTEFAKTE, `v4-dunkel4-${schema}.png`), clip: await (await page.$("#dunkel4")).boundingBox() });
+    // Interaktion: Auswahl-Klick, Abschnitt klappen (Klick + Enter – Enter erreicht zusätzlich die Tastatur, K-110),
+    // Reiter-Klick auf die erste Seite, Tasten auf der fokussierten Wurzel (Shift: Modifikator → nichts), Tippen in einer anderen Theke/Eingabe → nichts
+    await page.click("#hell4 [data-theke-id=menge] [role=radio]:nth-child(4)");
+    await page.click("#hell4 [data-theke-id=menge] [role=radio]:nth-child(4)");          // gleiche Option: nichts
+    await page.click("#hell4 [data-theke-id=erledigt] .theke-abschnitt-knopf");
+    await page.focus("#hell4 [data-theke-id=klein] .theke-abschnitt-knopf");
+    await page.keyboard.press("Enter");
+    await page.click("#hell4 [data-theke-id=reiter] [role=tab]:nth-child(1)");
+    await page.focus("#hell4 .theke");
+    await page.keyboard.press("Space");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Shift");
+    await page.focus("#hell [data-theke-id=anzahl]");
+    await page.keyboard.press("x");
+    const v4b = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const h = (s) => Math.round(q(s).getBoundingClientRect().height * 10) / 10;
+      const w = (s) => Math.round(q(s).getBoundingClientRect().width * 10) / 10;
+      return {
+        ereignisse: window.__ereignisse4,
+        erledigtZu: q("#hell4 [data-theke-id=erledigt] .theke-abschnitt-inhalt").offsetHeight === 0,
+        kleinOffen: q("#hell4 [data-theke-id=klein] .theke-abschnitt-inhalt").offsetHeight > 0,
+        pfeilOffen: getComputedStyle(q("#hell4 [data-theke-id=klein] .theke-abschnitt-knopf"), "::before").content,
+        backstubeDa: q("#hell4 [data-theke-id=backstube]").offsetHeight > 0,
+        tasteSchild: q("#hell4 [data-theke-id=taste-schild]").textContent,
+        mengeAn: q("#hell4 [data-theke-id=menge] [aria-checked=true]").textContent,
+        // zeilen (K-113): kurzer und langer Text gleich hoch (= n Zeilen), Knopf mit zeilen 2 höher, mindestbreite greift, Haken-Text eine Zeile
+        schildGleich: h("#hell4 [data-theke-id=kurz]") === h("#hell4 [data-theke-id=lang]"),
+        schildZeilen: h("#hell4 [data-theke-id=lang]") / parseFloat(getComputedStyle(q("#hell4 [data-theke-id=lang]")).lineHeight),
+        knopfGleich: h("#hell4 [data-theke-id=k-kurz]") === h("#hell4 [data-theke-id=k-lang]"),
+        knopfZweiHoeher: h("#hell4 [data-theke-id=k-zwei]") > h("#hell4 [data-theke-id=k-lang]"),
+        knopfMindestbreite: w("#hell4 [data-theke-id=k-kurz]") >= 160,
+        hakenEineZeile: h("#hell4 [data-theke-id=haken-lang] .theke-haken-text") < 30,
+      };
+    });
+    const v4bErw = { ereignisse: [
+      { typ: "aenderung", id: "menge", wert: 4 }, { typ: "aenderung", id: "erledigt", wert: true }, { typ: "taste", id: "tasten", taste: "Enter" },
+      { typ: "aenderung", id: "klein", wert: false }, { typ: "aenderung", id: "reiter", wert: 1 },
+      { typ: "taste", id: "tasten", taste: "Leertaste" }, { typ: "taste", id: "tasten", taste: "Links" }],
+      erledigtZu: true, kleinOffen: true, pfeilOffen: '"▾"', backstubeDa: true, tasteSchild: "Taste: Links", mengeAn: "Max",
+      schildGleich: true, schildZeilen: 2, knopfGleich: true, knopfZweiHoeher: true, knopfMindestbreite: true, hakenEineZeile: true };
+    if (JSON.stringify(v4b) !== JSON.stringify(v4bErw)) { ok = false; console.log("v4 (Interaktion/Layout) falsch:", JSON.stringify(v4b)); }
+    await page.screenshot({ path: path.join(ARTEFAKTE, `v4-hell4-geklickt-${schema}.png`), clip: await (await page.$("#hell4")).boundingBox() });
+
     // Fokusring per Tastatur zeigen (dunkles Fenster)
     await page.focus("#dunkel [data-theke-id=anzahl]");
     await page.keyboard.press("Tab");
