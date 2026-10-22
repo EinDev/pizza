@@ -122,6 +122,8 @@ for (const b of liste) {
 console.log('\nKonsole Host ↔ CLI:');
 const konsolenFaelle = [
   ['W0101 mit --kein-vorrat', 'Vorratskammer v = neu Vorratskammer("cli-test");\nBote.sage((v.hole("n", 0)));\n', []],
+  // K-106: Kennung `spiel/stand` – mit --kein-vorrat nur im Speicher; Textform/Methoden zeichengleich mit der CLI.
+  ['Namensraum mit --kein-vorrat', 'Vorratskammer v = neu Vorratskammer("stand", namensraum: "spiel");\nv.lege("n", 1);\nBote.sage((v.hole("n", 0)));\nBote.sage((v.name()));\nBote.sage((v.namensraum()));\nBote.sage((v));\n', []],
   ['W0032 + ungefangene Ananas', 'salami PiZZa = 1;\nsalami PizZa = 2;\nBote.sage(("vorher"));\nsalami x = 1 / 0;\n', []],
   ['P0002 Schrittlimit + --info', 'solange (ja) { }\n', ['--schritte=50', '--info']],
   ['-- als Ende der Optionen', 'speisekarte klasse A {\n  speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {\n    für (margherita a : args) { Bote.sage(("[" + a + "]")); }\n  }\n}\n', [], ['--', '--x', '--', 'y']],

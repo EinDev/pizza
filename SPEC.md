@@ -405,7 +405,7 @@ Exit-Code: 39
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
 | `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI` |
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
-| `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name)`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name` – §15.4 (K-079 … K-081, offen) |
+| `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
@@ -805,7 +805,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   tragen; `.eingabe`-Fallback neben der `.pizza`; `.erwartet` endet mit genau einem `\n` (Harnische normalisieren höchstens einen).
 - **K-054** `leeren` im Terminal: `\x1b[2J\x1b[3J\x1b[H` nur bei TTY.
 
-### 15.4 Zufall und Vorratskammer (K-077 … K-081; Interpreter ce303cb – Hosts/Compiler offen)
+### 15.4 Zufall und Vorratskammer (K-077 … K-081, K-106)
 
 - **Saat (K-077):** `optionen.zufallsSaat` (Ganzzahl, normalisiert `mod 2^32`; fehlt/ungültig → 42). Playground, CLI (`--saat=N`,
   sonst Infozeile `Saat: N`) und EXE nutzen standardmäßig eine echte Saat und zeigen **denselben Text** `Saat: N` an (Konsole bzw. Terminal, keine Ereignis-Ausgabe); Tests/Beispiele bleiben bei 42.
@@ -816,7 +816,15 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   (`mische`: n−1). Referenz Saat 7: `zahl(1, 6)` → 1 1 6 5 4 3, `mische([1 .. 5])` → `[4, 2, 3, 5, 1]`.
 - **Vorratskammer (K-079):** `neu Vorratskammer(name)` (`[a-z0-9-]{1,40}`), `lege(k, v)`, `hole(k[, ersatz])`, `hat(k)`, `entferne(k)`,
   `schlüssel()`, `länge()`, `leeren()`, `name()`; Werte: Zahlen (endlich), Texte, Wahrheitswerte, `karton`, Bleche/Speisekarten daraus;
-  tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<name>)`.
+  tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<kennung>)`.
+- **Namensraum (K-106):** `neu Vorratskammer(name, namensraum)` (zweiter Parameter, auch `namensraum:`; fehlend/`karton` = ohne;
+  `[a-z0-9-]{1,40}`, sonst `LaufzeitAnanas: Ungültiger Namensraum 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`). **Kennung** =
+  `name` bzw. `namensraum/name`; sie steht in `optionen.vorrat`, `onVorrat`, dem `vorrat`-Ereignis (`name`), der Serialisierung, im
+  HOST-ABI, in den Ananas-Texten und der Textform; gleiche Kennung = gleiche Kammer. `namensraum()` → Text oder `karton`, `name()`
+  ohne Raum. Ablage: ohne Namensraum gehört die Kammer dem Tab (K-088), mit Namensraum dem Programm – Browser immer
+  `pizza.vorrat.<raum>/<name>` (auch Beispiel-/Doku-Tabs, geteilte Tabs, App-Links jeder Fassung), nativ `<ordner>/<raum>/<name>.json`;
+  Host/CLI/Browser validieren die Kennung selbst (kein Pfad-Traversal). „Vorrat löschen“ bietet zusätzlich alle Kammern mit
+  Namensraum; `--vorrat-loeschen raum/name`, `--vorrat-loeschen-alle` erfasst auch Raum-Ordner.
 - **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)` (Doku-Blöcke: Felder `zufallsSaat`,
   `vorrat`, `vorratErwartet`, `echtzeit`, K-088), Ereignis
   `{ typ: "vorrat", name, schluessel, wert }` (nicht in `.erwartet`); ohne beides `W0101: Keine Vorratskammer verfügbar – Zustand wird

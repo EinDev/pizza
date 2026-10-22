@@ -797,7 +797,7 @@ function cli() {
     const r2 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen=eins']);
     gleich([r2.code, r2.out], [0, "Vorrat 'eins' gibt es nicht.\n"]);
     const r3 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'Groß Name']);
-    gleich([r3.code, r3.out, r3.err], [2, '', "Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).\n"]);
+    gleich([r3.code, r3.out, r3.err], [2, '', "Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').\n"]);
     const ra = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'alle']);
     gleich([ra.code, ra.out], [0, "Vorrat 'alle' gelöscht.\n"], 'Kammer namens alle einzeln');
     gleich(fs.readdirSync(ordner).sort(), ['notiz.txt', 'zwei.json']);
@@ -806,6 +806,36 @@ function cli() {
     gleich(fs.readdirSync(ordner), ['notiz.txt'], 'nur Kammer-Dateien gelöscht');
     gleich(lauf(['--vorrat=' + path.join(tmp, 'gibtsnicht'), '--vorrat-loeschen-alle']).out, 'Alle Vorräte gelöscht.\n');
     gleich(lauf(['--vorrat-loeschen']).code, 2, 'ohne Namen');
+  });
+
+  test('Vorrat mit Namensraum (K-106): <ordner>/<raum>/<name>.json, Kennung im JSON, --vorrat-loeschen raum/name, -alle räumt Raum-Ordner, ungültige Kennung → Exit 2', () => {
+    const ordner = path.join(tmp, 'raum');
+    const p = datei('raum.pizza', 'Vorratskammer v = neu Vorratskammer("stand", namensraum: "spiel");\nsalami n = v.hole("n", 0) + 1;\nv.lege("n", n);\nneu Vorratskammer("stand").lege("n", 0);\nBote.sage((n + " " + v));\n');
+    gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).out, '1 Vorratskammer(spiel/stand)\n');
+    gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).out, '2 Vorratskammer(spiel/stand)\n');
+    gleich(JSON.parse(fs.readFileSync(path.join(ordner, 'spiel', 'stand.json'), 'utf8')), { v: 1, name: 'spiel/stand', eintraege: [['n', 2]] });
+    gleich(fs.readdirSync(ordner).sort(), ['spiel', 'stand.json']);
+    gleich(fs.readdirSync(path.join(ordner, 'spiel')), ['stand.json'], 'keine Temp-Dateien im Raum-Ordner');
+    const r1 = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', 'spiel/stand']);
+    gleich([r1.code, r1.out, r1.err], [0, "Vorrat 'spiel/stand' gelöscht.\n", '']);
+    gleich(lauf(['--vorrat=' + ordner, '--vorrat-loeschen=spiel/stand']).out, "Vorrat 'spiel/stand' gibt es nicht.\n");
+    fs.writeFileSync(path.join(tmp, 'x.json'), '{}');  // liegt eine Ebene über dem Vorratsordner – darf nie erreicht werden
+    for (const k of ['../x', 'a/b/c', 'spiel/', '/stand', 'Groß/stand']) {
+      const r = lauf(['--vorrat=' + ordner, '--vorrat-loeschen', k]);
+      gleich([r.code, r.out, r.err], [2, '', "Ungültiger Kammername '" + k + "' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').\n"], k);
+    }
+    gleich(fs.existsSync(path.join(tmp, 'x.json')), true, 'kein Pfad aus ungeprüftem Text (../x bleibt unangetastet)');
+    gleich(lauf(['--saat=1', '--vorrat=' + ordner, p]).out, '1 Vorratskammer(spiel/stand)\n', 'nach dem Löschen wieder bei 1');
+    fs.mkdirSync(path.join(ordner, 'Fremd'));
+    fs.writeFileSync(path.join(ordner, 'Fremd', 'a.json'), '{}');
+    fs.writeFileSync(path.join(ordner, 'spiel', 'notiz.txt'), 'bleibt');
+    fs.mkdirSync(path.join(ordner, 'anderes'));
+    fs.writeFileSync(path.join(ordner, 'anderes', 'k.json'), '{}');
+    const ra = lauf(['--vorrat=' + ordner, '--vorrat-loeschen-alle']);
+    gleich([ra.code, ra.out], [0, 'Alle Vorräte gelöscht.\n']);
+    gleich(fs.readdirSync(ordner).sort(), ['Fremd', 'spiel'], 'leerer Raum-Ordner entfernt, fremder Ordner und nicht leerer Raum bleiben');
+    gleich(fs.readdirSync(path.join(ordner, 'spiel')), ['notiz.txt']);
+    gleich(fs.readdirSync(path.join(ordner, 'Fremd')), ['a.json'], 'ungültiger Raumname wird nicht angefasst');
   });
 
   for (const [name, fn] of tests) {

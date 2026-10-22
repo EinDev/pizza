@@ -93,7 +93,11 @@ Fenster geschlossen; Länge `> puffer_kap` → nichts geschrieben, Ereignis blei
 Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1` bzw. `0` für die Abfrage.
 Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts müssen sie bereitstellen.
 
-**`vorrat_lesen` / `vorrat_schreiben`** (K-079–K-081):
+**`vorrat_lesen` / `vorrat_schreiben`** (K-079–K-081, K-106):
+- `name` ist die **Kennung** der Kammer (K-106): `name` ohne bzw. `namensraum/name` mit Namensraum (`pizza-imperium/spielstand`),
+  beide Teile `[a-z0-9-]{1,40}`. Der Host **prüft die Kennung selbst** (höchstens ein `/`, Teile einzeln) und baut Pfade nur aus
+  den geprüften Teilen (`<ordner>/<raum>/<name>.json`); ungültige Kennung → `vorrat_lesen` `-1`, `vorrat_schreiben` `-1`
+  (kein Pfad-Traversal, auch bei manipuliertem Modul). JS-Host: Schlüssel von `optionen.vorrat`/`onVorrat` = Kennung.
 - `vorrat_lesen(name, puffer, -1)` ist eine **Abfrage**: `1` = Speicherung verfügbar (JS-Host: `optionen.vorrat` oder
   `optionen.onVorrat` gesetzt; nativ: Speicherort beschreibbar), `0` = nicht verfügbar → das Modul warnt beim ersten
   `neu Vorratskammer` einmal `W0101` und arbeitet nur im Speicher.

@@ -58,7 +58,7 @@ PizzaLang.run(quelltext, optionen)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
-  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege),  // SPEC §15.4 (K-077 … K-081)
+  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(kennung, eintraege),  // SPEC §15.4 (K-077 … K-081, K-106: Kennung = name | namensraum/name)
   //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-100)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
@@ -93,7 +93,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
 { typ: "ui",            nachricht }                             // Theke-Protokollnachricht Programm → Renderer (SPEC §16; nicht in .erwartet, sondern .ui-erwartet)
-{ typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; nicht in .erwartet)
+{ typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; name = Kennung `raum/name`, K-106; nicht in .erwartet)
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
@@ -116,7 +116,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
-- Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`).
+- Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`). Kammern **mit Namensraum** (K-106) liegen unabhängig vom Tab unter `pizza.vorrat.<raum>/<name>` (nativ `<ordner>/<raum>/<name>.json`) – ein Spielstand für Beispiel-Tab, geteilte Tabs und App-Links jeder Fassung.
 - **Köche (SPEC §17.7, K-100):** Lauf-Einstellungen-Popover **„Köche: auto | 1 | 2 | 4 | 8“** (localStorage, neben „feste Saat“;
   `auto` = `navigator.hardwareConcurrency`, höchstens 16). Enthält das kompilierte Programm die Importgruppe `kueche`, erzeugt der
   Lauf-Worker **vor** `run` einen Köche-Pool (Kinder-Worker; „Abbrechen“ = `worker.terminate()` beendet alle Köche). Ohne
@@ -230,7 +230,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
 | `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
-| Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kammer>": [["schlüssel", wert], …] }` → `optionen.vorrat`; Tests laufen mit `zufallsSaat` 42 (Standard) |
+| Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kennung>": [["schlüssel", wert], …] }` → `optionen.vorrat` (Kennung `kammer` oder `raum/kammer`, K-106); Tests laufen mit `zufallsSaat` 42 (Standard) |
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |

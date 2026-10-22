@@ -1093,6 +1093,53 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   geändert (`besitz.pizza`, `schneiden.pizza`, `freitagabend-ansturm.pizza`, `hanoi.pizza`, Doku, `std-besitz.pizza` – auf diesem Branch zu `std-schieb.pizza` –, `teile-rand.pizza` – hier gelöscht –, `hawaii-pizza` – hier `hawaii-nicht-fangbar`).
 - **Status:** fest (Entscheidung). Umsetzung vollständig auf dem lokalen Branch `bereinigung-pizza-objekt` (Worktree `D:\Projekte\pizza-bereinigung`);
   Merge nach master erst nach „Idle angepasst“. Prüfstand: K-105-Fälle in `a10-klaerungen.js` (vor dem Merge in `a11-klaerungen-offen.js`).
+### K-106 Vorratskammer: Namensraum – ein Spielstand für alle Fassungen eines Programms (Nutzerwunsch)
+- **Frage/Befund:** Nutzerwunsch „Namespaces im Savegame, sodass ein Spiel in mehreren Versionen dasselbe Storage verwendet.“
+  Befund im Code: Der Kammername ist **bereits** der geräteweite Schlüssel – im Playground teilen eigene Tabs, Datei-Tabs,
+  geteilte Tabs (`#h=`) und App-Links (`#app=`, jeder Teilen-Schlüssel) `localStorage["pizza.vorrat.<name>"]`, EXE und CLI
+  `<ordner>/<name>.json`. Getrennt ist nur der Beispiel-/Doku-Namensraum `pizza.vorrat-beispiel.<name>` (K-088 a) – und das
+  Idle-Spiel läuft als Beispiel: Galerie-Tab und App-Link haben verschiedene Stände. Zusätzlich fehlte eine Gruppierung mehrerer
+  Kammern eines Spiels und ein Weg, diese Zuordnung im Programm auszusprechen.
+- **Entscheidung – Sprache:** `neu Vorratskammer(name, namensraum)` – zweiter Parameter, positional oder benannt
+  (`neu Vorratskammer("spielstand", namensraum: "pizza-imperium")`, K-094/K-095). `namensraum` fehlend oder `karton` → **ohne**
+  Namensraum (alles wie bisher; typisierter Parameter nach K-102); sonst Textform des Werts, erlaubt `[a-z0-9-]{1,40}`, sonst
+  `LaufzeitAnanas: Ungültiger Namensraum 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` (geprüft **nach** dem Kammernamen).
+  **Kennung** einer Kammer = `name` ohne bzw. `namensraum + "/" + name` mit Namensraum (`pizza-imperium/spielstand`). Die Kennung
+  ist der Schlüssel in `optionen.vorrat`, das erste Argument von `onVorrat(kennung, eintraege)`, das Feld `name` im Ereignis
+  `{ typ: "vorrat", name, schluessel, wert }` und in der Serialisierung (`{"v":1,"name":"<kennung>","eintraege":[…]}`), der Name
+  im HOST-ABI (`vorrat_lesen`/`vorrat_schreiben`, Signaturen unverändert), der Name in den Ananas-Texten (`Die Vorratskammer
+  'pizza-imperium/spielstand' ist voll (Limit 1 MiB).`, `… konnte nicht gespeichert werden.`, KüchenAnanas aus K-099) und die
+  Textform `Vorratskammer(pizza-imperium/spielstand)`. **Gleiche Kennung = gleiche Kammer** (ersetzt „gleicher Name“ aus K-079):
+  `neu Vorratskammer("a")` und `neu Vorratskammer("a", namensraum: "x")` sind zwei Kammern. Neue Methode `namensraum()` → Text
+  oder `karton`; `name()` bleibt der Kammername ohne Raum. Limits (1 MiB je Kammer, 2 MiB je Programm) unverändert. Bitgleich in
+  Interpreter und Wasm-Laufzeit.
+- **Entscheidung – Ablage (ergänzt K-088 a):** Ohne Namensraum gehört die Kammer dem **Tab**: Beispiel-/Doku-Tabs →
+  `pizza.vorrat-beispiel.<name>`, alle anderen → `pizza.vorrat.<name>` (K-088 bleibt). Mit Namensraum gehört die Kammer dem
+  **Programm**: im Browser immer `localStorage["pizza.vorrat.<raum>/<name>"]` – auch im Beispiel-/Doku-Tab, in geteilten Tabs und
+  App-Links jeder Fassung; nativ `<ordner>/<raum>/<name>.json` (EXE und `node bin/pizza.js` im selben Datenordner; `--vorrat=ordner`
+  und `--kein-vorrat` wirken wie bisher auf alle Kammern). Browser und native Ablage bleiben getrennt (verschiedene Speicher), das
+  Verhalten ist gleich. Begründung für die Beispiele: Der Namensraum ist die ausdrückliche Erklärung des Autors „dies ist **ein**
+  Spielstand, wo immer das Programm läuft“ – genau der Fall des Idle-Spiels; Lehrbeispiele ohne Namensraum bleiben isoliert und
+  können weiterhin nichts verfälschen. Tests fassen den echten Vorrat nie an: Prüfstand/run-tests/Doku-Blöcke arbeiten mit
+  `optionen.vorrat` im Speicher (bzw. W0101), `host/test.js` mit `--kein-vorrat`, E2E in frischen Browser-Kontexten.
+- **Verwaltung:** Playground „Vorrat löschen“ bietet die Kammern des aktiven Tab-Namensraums **und** alle Kammern mit Namensraum
+  (Anzeige mit Kennung `raum/name`); „Alle Vorräte löschen“ löscht genau diese Liste. CLI/EXE: `--vorrat-loeschen <kennung>`
+  (auch `raum/name`), `--vorrat-loeschen-alle` löscht zusätzlich alle `<raum>/<name>.json` gültiger Kennung (leer gewordene
+  Raum-Ordner werden entfernt); Texte `Vorrat 'raum/name' gelöscht.`, `Vorrat 'raum/name' gibt es nicht.`; ungültige Kennung →
+  Exit 2 `Ungültiger Kammername 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` (CLI und Host gleich).
+- **Sicherheit:** Host (Rust), CLI und Browser prüfen die Kennung **selbst** (höchstens ein `/`, beide Teile einzeln gegen
+  `[a-z0-9-]{1,40}`) und bauen Pfade nur aus den geprüften Teilen (`ordner.join(raum).join(name + ".json")`), nie aus dem Rohtext;
+  ungültige Kennung → `vorrat_lesen` liefert `-1`, `vorrat_schreiben` `-1` (Speicher-Ananas) – kein Pfad-Traversal, auch bei einem
+  manipulierten `.pkarton`.
+- **Kompatibilität:** Ohne Namensraum ändert sich nichts (Schlüssel, Dateien, Ereignisse, Texte, `.vorrat.json`). Die Migration
+  alter Stände ist Sache des Programms: alte Kammer (ohne Namensraum) öffnen, Einträge kopieren, alte Kammer leeren – im
+  Beispiel-Tab findet sie den Beispiel-Stand, im App-Link den echten, beide landen im gemeinsamen Raum.
+- **Betroffen:** SPEC §15.4 + Tabelle §15; Interpreter (`neueKammer`, Kammer-Identität, Textform, `namensraum()`); Wasm-Laufzeit
+  (`laufzeit/src/vorrat.rs`, Name `namensraum`); HOST-ABI (Kennungsform); Host (`laufen.rs` Validierung/Pfadbau, `main.rs` Löschen);
+  CLI (`bin/pizza.js`); UI (`ui/src/vorrat.js`, `main.js`, `app.js`); Doku-Referenz; Regressionsfälle `tests/faelle/k106-*`,
+  Prüfstand a10, `tests/differenz`, `host/test.js`, E2E (zwei App-Links mit gleichem Namensraum teilen den Stand; Beispiel-Tab mit
+  Namensraum schreibt nach `pizza.vorrat.`). Idle-Spiel (eigener Agent): `neu Vorratskammer("spielstand", namensraum: "pizza-imperium")`
+  + Migration. **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, Host, CLI, UI, Doku; `test:differenz`, E2E grün).
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

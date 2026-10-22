@@ -1,0 +1,29 @@
+// K-106: Vorratskammer mit Namensraum – Kennung "raum/name" in Eingangszustand, Ereignissen und Textform
+Vorratskammer v = neu Vorratskammer("stand", namensraum: "spiel");
+Bote.sage((v.hole("punkte")));
+Bote.sage((v + " " + v.name() + " " + v.namensraum()));
+v.lege("punkte", 6);
+// positional und benannt gleichwertig, gleiche Kennung = gleiche Kammer
+Vorratskammer w = neu Vorratskammer("stand", "spiel");
+Bote.sage((w.hole("punkte") + " " + (v == w)));
+// gleicher Name, anderer Raum → getrennte Kammer
+Vorratskammer x = neu Vorratskammer("stand", namensraum: "anderes-spiel");
+Bote.sage((x.hole("punkte", -1) + " " + x.länge()));
+x.lege("punkte", 1);
+Bote.sage((v.hole("punkte") + " " + x.hole("punkte")));
+// ohne Namensraum und karton: eigene Kammer, Kennung = reiner Name, namensraum() = karton
+Vorratskammer o = neu Vorratskammer("stand");
+Vorratskammer k = neu Vorratskammer("stand", karton);
+Bote.sage((o.hole("punkte", 0) + " " + (o == k) + " " + o + " " + o.namensraum()));
+Vorratskammer b = neu Vorratskammer("stand", namensraum: karton);
+Bote.sage(((o == b)));
+o.lege("punkte", 9);
+Bote.sage((v.hole("punkte") + " " + x.hole("punkte") + " " + o.hole("punkte")));
+// Namensraum: Textform des Werts (Zahl → Text)
+Bote.sage((neu Vorratskammer("n", 7)));
+// ungültiger Namensraum → fangbare LaufzeitAnanas; ungültiger Kammername gewinnt
+probier { neu Vorratskammer("x", "Groß/Raum"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Vorratskammer("x", namensraum: ""); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Vorratskammer("x", "a".wiederhole(41)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ())); }
+probier { neu Vorratskammer("Groß Name", namensraum: "Groß"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((v.länge() + " " + x.länge() + " " + o.länge()));

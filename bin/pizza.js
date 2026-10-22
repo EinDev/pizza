@@ -4,8 +4,8 @@
  *   node bin/pizza.js datei.pizza [args…]
  *   node bin/pizza.js [optionen] [--] datei.pizza [--] [args…]   (`--` = Ende der Optionen, Rest unverändert an hauptgang)
  *   node bin/pizza.js --ast datei.pizza
- *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>   (eine Kammer, ohne Programm)
- *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle     (alle Kammern, ohne Programm)
+ *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <kennung> (eine Kammer, ohne Programm; auch raum/name)
+ *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle     (alle Kammern, ohne Programm, auch mit Namensraum)
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
  *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
  *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
@@ -14,6 +14,8 @@
  *   Ohne --eingabe liest Bestellannahme interaktiv (synchron) von stdin.
  *   Vorratskammern (K-081): <ordner>/<name>.json, Standard %APPDATA%\pizza\vorrat bzw.
  *   $XDG_DATA_HOME/pizza/vorrat (Fallback ~/.local/share/pizza/vorrat); Format {"v":1,"name":…,"eintraege":[…]}.
+ *   Mit Namensraum (K-106): <ordner>/<raum>/<name>.json, Kennung "raum/name" (Feld name = Kennung); die Kennung
+ *   wird hier selbst geprüft (beide Teile [a-z0-9-]{1,40}), Pfade entstehen nur aus den geprüften Teilen.
  */
 'use strict';
 const fs = require('fs');
@@ -65,31 +67,56 @@ for (let i = 0; i < roh.length; i++) {
 
 function hilfe() {
   console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [--] [args…]' +
-    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <name>' +
+    '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <kennung>   (Kennung: name oder raum/name)' +
     '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle' +
     '\n\n  --   Ende der Optionen: alles danach geht unverändert an hauptgang(args),' +
     '\n       z. B. node bin/pizza.js datei.pizza -- --mein-arg (vor der Datei: das nächste Argument ist die Datei;' +
     '\n       nur das erste -- zählt, ein späteres bleibt Argument)');
 }
 
+// Kammer-Kennung (K-079/K-106): "name" oder "raum/name", beide Teile [a-z0-9-]{1,40}. Liefert den Dateipfad
+// – gebaut nur aus den geprüften Teilen – oder null bei ungültiger Kennung (kein Pfad-Traversal).
+const KAMMER = /^[a-z0-9-]{1,40}$/;
+function kammerPfad(ordner, kennung) {
+  if (typeof kennung !== 'string') return null;
+  const teile = kennung.split('/');
+  if (teile.length > 2 || !teile.every(t => KAMMER.test(t))) return null;
+  return teile.length === 2 ? path.join(ordner, teile[0], teile[1] + '.json') : path.join(ordner, teile[0] + '.json');
+}
+// Kammer-Dateien eines Ordners (nur gültige Namen) löschen; liefert die Anzahl der übrig gebliebenen Einträge
+function kammernLoeschen(ordner) {
+  let eintraege = [];
+  try { eintraege = fs.readdirSync(ordner); } catch (e) { return -1; }
+  let rest = 0;
+  for (const d of eintraege) {
+    if (d.endsWith('.json') && KAMMER.test(d.slice(0, -5))) { try { fs.unlinkSync(path.join(ordner, d)); continue; } catch (e) { /* weiter */ } }
+    rest++;
+  }
+  return rest;
+}
+
 // „Vorrat löschen“ (Nutzerentscheidung K-083 Nr. 5): gleiche Texte wie Playground/EXE
-//   Vorrat '<name>' gelöscht.  ·  Vorrat '<name>' gibt es nicht.  ·  Alle Vorräte gelöscht.
-//   ungültiger Name → Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).  (Exit 2)
+//   Vorrat '<kennung>' gelöscht.  ·  Vorrat '<kennung>' gibt es nicht.  ·  Alle Vorräte gelöscht.
+//   ungültige Kennung → Ungültiger Kammername '<X>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').  (Exit 2)
 if (optionen.vorratLoeschen !== undefined) {
   const ordner = optionen.vorratOrdner || vorratStandardOrdner();
   const n = optionen.vorratLoeschen;
-  const KAMMER = /^[a-z0-9-]{1,40}$/;
   if (typeof n === 'object') {
-    let dateien = [];
-    try { dateien = fs.readdirSync(ordner); } catch (e) { dateien = []; }
-    for (const d of dateien) {
-      if (d.endsWith('.json') && KAMMER.test(d.slice(0, -5))) { try { fs.unlinkSync(path.join(ordner, d)); } catch (e) { /* weiter */ } }
+    // K-106: zusätzlich eine Ebene tiefer – <ordner>/<raum>/<name>.json gültiger Kennung; leere Raum-Ordner entfernen
+    let eintraege = [];
+    try { eintraege = fs.readdirSync(ordner, { withFileTypes: true }); } catch (e) { eintraege = []; }
+    for (const d of eintraege) {
+      if (d.isDirectory() && KAMMER.test(d.name)) {
+        const raum = path.join(ordner, d.name);
+        if (kammernLoeschen(raum) === 0) { try { fs.rmdirSync(raum); } catch (e) { /* weiter */ } }
+      }
     }
+    kammernLoeschen(ordner);
     console.log('Alle Vorräte gelöscht.');
     process.exit(0);
   }
-  if (!KAMMER.test(n)) { console.error('Ungültiger Kammername \'' + n + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).'); process.exit(2); }
-  const datei = path.join(ordner, n + '.json');
+  const datei = kammerPfad(ordner, n);
+  if (datei === null) { console.error('Ungültiger Kammername \'' + n + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen, mit Namensraum \'raum/name\').'); process.exit(2); }
   if (!fs.existsSync(datei)) { console.log('Vorrat \'' + n + '\' gibt es nicht.'); process.exit(0); }
   try { fs.unlinkSync(datei); }
   catch (e) { console.error('Vorrat \'' + n + '\' konnte nicht gelöscht werden.'); process.exit(1); }
@@ -181,23 +208,25 @@ if (optionen.ast) {
     process.stderr.write(farbe('90', 'Saat: ' + runOpt.zufallsSaat) + '\n');
   }
 
-  // Vorratskammer (K-081): eine JSON-Datei je Kammer, atomar geschrieben
+  // Vorratskammer (K-081/K-106): eine JSON-Datei je Kammer, atomar geschrieben; Kennung "name" oder "raum/name"
+  // wird hier selbst geprüft (ungültig → kein Eingangszustand bzw. Speicher-Ananas)
   if (!optionen.keinVorrat) {
     const ordner = optionen.vorratOrdner || vorratStandardOrdner();
-    const pfadVon = (name) => path.join(ordner, name + '.json');
     runOpt.vorrat = new Proxy({}, {
       get(_, name) {
-        if (typeof name !== 'string') return undefined;
+        const pfad = kammerPfad(ordner, name);
+        if (pfad === null) return undefined;
         try {
-          const j = JSON.parse(fs.readFileSync(pfadVon(name), 'utf8'));
+          const j = JSON.parse(fs.readFileSync(pfad, 'utf8'));
           return j && Array.isArray(j.eintraege) ? j.eintraege : undefined;
         } catch (e) { return undefined; }
       }
     });
     runOpt.onVorrat = (name, eintraege) => {
+      const ziel = kammerPfad(ordner, name);
+      if (ziel === null) return false;
       try {
-        fs.mkdirSync(ordner, { recursive: true });
-        const ziel = pfadVon(name);
+        fs.mkdirSync(path.dirname(ziel), { recursive: true });
         const tmp = ziel + '.' + process.pid + '.tmp';
         fs.writeFileSync(tmp, JSON.stringify({ v: 1, name, eintraege }));
         fs.renameSync(tmp, ziel);
