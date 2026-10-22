@@ -1,0 +1,18 @@
+[package]
+name = "herd-glut-web"
+description = "Herd-Glut im Browser (Paket H6): wasm-bindgen-Hülle um herd-glut – WebGPU bevorzugt, Rückfall WebGL2, Ziel (Offscreen-)Canvas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Nur für wasm32-unknown-unknown (node herd/baue-web.js); nativ ein leeres cdylib (nicht in default-members).
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+herd-glut = { path = "../glut" }
+# wasm-bindgen-cli muss exakt dieselbe Version haben (herd/baue-web.js prüft das)
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["OffscreenCanvas", "HtmlCanvasElement"] }

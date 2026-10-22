@@ -118,6 +118,8 @@ export function umgebung() {
           "--no-first-run", "--no-default-browser-check", "--disable-extensions",
           "--disable-background-networking", "--disable-sync", "--mute-audio",
           "--lang=de-DE", "--font-render-hinting=none", "--hide-scrollbars=false",
+          // Nie die echte GPU (Herd, H6): WebGL2 kommt aus SwiftShader (Software), WebGPU gibt es so nicht → Herd nimmt WebGL2
+          "--disable-gpu", "--enable-unsafe-swiftshader",
           ...(process.platform === "linux" ? ["--no-sandbox", "--disable-dev-shm-usage"] : []),
         ],
         defaultViewport: DESKTOP,

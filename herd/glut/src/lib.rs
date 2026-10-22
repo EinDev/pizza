@@ -11,6 +11,9 @@
 //! Fenster (Paket H5): `Glut::neu(Ziel::Fenster { fenster: Arc::new(winit_fenster), breite, hoehe }, &opt)`, dann je Bild
 //! `glut.bild(paket)` (zeichnet und zeigt an) und bei Größenänderung `glut.groesse(b, h)`.
 //!
+//! Browser (Paket H6, `herd/glut-web`): `Glut::neu_async(Ziel::OffscreenCanvas { canvas, breite, hoehe }, &opt).await`
+//! (bzw. `Ziel::Canvas` im Hauptthread-Rückfall) – wgpu nimmt WebGPU, sonst WebGL2; gleiche Shader, gleiche Instanzformate.
+//!
 //! **Adapter:** Standard ist der Software-Adapter (WARP unter Windows, lavapipe/llvmpipe unter Linux); die echte GPU nur mit
 //! `Optionen { adapter: Adapter::Gpu, .. }`. `HERD_SOFTWARE=1` erzwingt immer Software. Ohne Software-Adapter → Fehler,
 //! nie ein stiller Rückfall auf die GPU.
@@ -69,6 +72,12 @@ impl<T: raw_window_handle::HasWindowHandle + raw_window_handle::HasDisplayHandle
 pub enum Ziel {
     Offscreen { breite: u32, hoehe: u32 },
     Fenster { fenster: Arc<dyn FensterHandle>, breite: u32, hoehe: u32 },
+    /// Browser: ein (per `transferControlToOffscreen` übertragenes) `OffscreenCanvas` im Render-Worker (H6).
+    #[cfg(target_arch = "wasm32")]
+    OffscreenCanvas { canvas: web_sys::OffscreenCanvas, breite: u32, hoehe: u32 },
+    /// Browser-Rückfall: `<canvas>` im Hauptthread (ohne OffscreenCanvas/rAF im Worker).
+    #[cfg(target_arch = "wasm32")]
+    Canvas { canvas: web_sys::HtmlCanvasElement, breite: u32, hoehe: u32 },
 }
 
 #[derive(Debug)]
@@ -185,6 +194,9 @@ pub struct Glut {
     ansicht: wgpu::Buffer,
     schatten_map: wgpu::TextureView,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
+    /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
+    /// D2Array-Ansicht → Atlas immer mit mindestens 2 Schichten anlegen (sonst 1)
+    atlas_min: u32,
     schrift: (wgpu::Texture, wgpu::TextureView, u32, u32),
     netze: Vec<Option<Netz>>,
     inst2d: Wachspuffer,
@@ -200,12 +212,22 @@ pub struct Glut {
     zuege: Vec<[u32; 4]>,
 }
 
+/// Welche Schnittstelle die Glut nutzt (im Browser WebGPU oder WebGL2; nativ immer `Nativ`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Schnittstelle {
+    Nativ,
+    WebGpu,
+    WebGl2,
+}
+
 fn software_erzwungen() -> bool {
     std::env::var("HERD_SOFTWARE").map(|v| !v.is_empty() && v != "0").unwrap_or(false)
 }
 
 fn standard_backends() -> wgpu::Backends {
-    if cfg!(windows) {
+    if cfg!(target_arch = "wasm32") {
+        wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL
+    } else if cfg!(windows) {
         wgpu::Backends::DX12
     } else if cfg!(target_os = "linux") {
         wgpu::Backends::VULKAN | wgpu::Backends::GL
@@ -217,28 +239,45 @@ fn standard_backends() -> wgpu::Backends {
 /// Adapterwahl. Software: `force_fallback_adapter` + Prüfung `DeviceType::Cpu`, sonst Fehler (kein Rückfall auf die GPU).
 /// Hinweis: wgpu fragt beim Aufzählen unter DX12 die Fähigkeiten **aller** Adapter ab (kurzlebiges Gerät je Adapter,
 /// ohne Zeichnen) – das lässt sich über die öffentliche wgpu-API nicht vermeiden.
-fn adapter_waehlen(inst: &wgpu::Instance, opt: &Optionen, flaeche: Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter, Fehler> {
+async fn adapter_waehlen(inst: &wgpu::Instance, opt: &Optionen, flaeche: Option<&wgpu::Surface<'_>>) -> Result<wgpu::Adapter, Fehler> {
     let software = opt.adapter == Adapter::Software || software_erzwungen();
     if software {
-        let a = pollster::block_on(inst.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::LowPower,
-            force_fallback_adapter: true,
-            compatible_surface: flaeche,
-            ..Default::default()
-        }))
-        .map_err(|e| Fehler::KeinSoftwareAdapter(e.to_string()))?;
+        let a = inst
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::LowPower,
+                force_fallback_adapter: true,
+                compatible_surface: flaeche,
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| Fehler::KeinSoftwareAdapter(e.to_string()))?;
         let info = a.get_info();
         if info.device_type != wgpu::DeviceType::Cpu {
             return Err(Fehler::KeinSoftwareAdapter(format!("angeboten wurde {} ({:?}) – kein Software-Adapter", info.name, info.device_type)));
         }
         return Ok(a);
     }
-    pollster::block_on(inst.request_adapter(&wgpu::RequestAdapterOptions {
+    inst.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
         force_fallback_adapter: false,
         compatible_surface: flaeche,
         ..Default::default()
-    }))
+    })
+    .await
+    .map_err(|e| Fehler::KeinAdapter(e.to_string()))
+}
+
+/// Browser: den Adapter wählt der Browser (WebGPU bzw. WebGL2 der Fläche). Kein Software-Zwang – in Tests sorgt der
+/// Browser selbst dafür (Chrome headless `--disable-gpu` → SwiftShader).
+#[cfg(target_arch = "wasm32")]
+async fn adapter_web(inst: &wgpu::Instance, flaeche: &wgpu::Surface<'_>) -> Result<wgpu::Adapter, Fehler> {
+    inst.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::HighPerformance,
+        force_fallback_adapter: false,
+        compatible_surface: Some(flaeche),
+        ..Default::default()
+    })
+    .await
     .map_err(|e| Fehler::KeinAdapter(e.to_string()))
 }
 
@@ -275,15 +314,21 @@ fn u16_at(b: &[u8], i: usize) -> u32 {
 }
 
 impl Glut {
-    /// Neue Glut für ein Ziel.
+    /// Neue Glut für ein Ziel (nativ: blockiert, bis Adapter und Gerät bereit sind).
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn neu(ziel: Ziel, opt: &Optionen) -> Result<Glut, Fehler> {
+        pollster::block_on(Glut::neu_async(ziel, opt))
+    }
+
+    /// Neue Glut für ein Ziel, ohne zu blockieren (im Browser der einzige Weg; nativ gleichwertig zu `neu`).
+    pub async fn neu_async(ziel: Ziel, opt: &Optionen) -> Result<Glut, Fehler> {
         let mut d = wgpu::InstanceDescriptor::new_without_display_handle();
         d.backends = wgpu::Backends::from_env().unwrap_or(standard_backends());
         match ziel {
             Ziel::Offscreen { breite, hoehe } => {
                 let instance = wgpu::Instance::new(d);
-                let adapter = adapter_waehlen(&instance, opt, None)?;
-                let (device, queue) = Glut::geraet(&adapter)?;
+                let adapter = adapter_waehlen(&instance, opt, None).await?;
+                let (device, queue) = Glut::geraet(&adapter).await?;
                 let format = wgpu::TextureFormat::Rgba8Unorm;
                 let z = Glut::offscreen_ziel(&device, breite.max(1), hoehe.max(1), format);
                 Glut::fertig(instance, adapter, device, queue, opt, z, breite.max(1), hoehe.max(1), format)
@@ -292,43 +337,66 @@ impl Glut {
                 d.display = Some(Box::new(fenster.clone()));
                 let instance = wgpu::Instance::new(d);
                 let flaeche = instance.create_surface(wgpu::SurfaceTarget::DisplayAndWindow(Box::new(fenster))).map_err(|e| Fehler::Flaeche(e.to_string()))?;
-                let adapter = adapter_waehlen(&instance, opt, Some(&flaeche))?;
-                let (device, queue) = Glut::geraet(&adapter)?;
-                let caps = flaeche.get_capabilities(&adapter);
-                if caps.formats.is_empty() {
-                    return Err(Fehler::Flaeche("die Fläche bietet kein Format an".into()));
-                }
-                // Shader geben sRGB-kodierte Werte aus → Ansicht ohne automatische sRGB-Umwandlung
-                let format = caps.formats.iter().copied().find(|f| !f.is_srgb()).unwrap_or(caps.formats[0]);
-                let ansicht_format = format.remove_srgb_suffix();
-                let alpha = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::Opaque) { wgpu::CompositeAlphaMode::Opaque } else { caps.alpha_modes[0] };
-                let einrichtung = wgpu::SurfaceConfiguration {
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    format,
-                    width: breite.max(1),
-                    height: hoehe.max(1),
-                    present_mode: if opt.vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
-                    desired_maximum_frame_latency: 2,
-                    alpha_mode: alpha,
-                    view_formats: if ansicht_format != format { vec![ansicht_format] } else { vec![] },
-                    color_space: wgpu::SurfaceColorSpace::Auto,
-                };
-                flaeche.configure(&device, &einrichtung);
-                let z = ZielArt::Fenster { flaeche, einrichtung, ansicht_format };
-                Glut::fertig(instance, adapter, device, queue, opt, z, breite.max(1), hoehe.max(1), ansicht_format)
+                let adapter = adapter_waehlen(&instance, opt, Some(&flaeche)).await?;
+                Glut::flaeche_glut(instance, adapter, flaeche, opt, breite, hoehe).await
+            }
+            #[cfg(target_arch = "wasm32")]
+            Ziel::OffscreenCanvas { canvas, breite, hoehe } => {
+                let instance = wgpu::util::new_instance_with_webgpu_detection(d).await;
+                let flaeche = instance.create_surface(wgpu::SurfaceTarget::OffscreenCanvas(canvas)).map_err(|e| Fehler::Flaeche(e.to_string()))?;
+                let adapter = adapter_web(&instance, &flaeche).await?;
+                Glut::flaeche_glut(instance, adapter, flaeche, opt, breite, hoehe).await
+            }
+            #[cfg(target_arch = "wasm32")]
+            Ziel::Canvas { canvas, breite, hoehe } => {
+                let instance = wgpu::util::new_instance_with_webgpu_detection(d).await;
+                let flaeche = instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas)).map_err(|e| Fehler::Flaeche(e.to_string()))?;
+                let adapter = adapter_web(&instance, &flaeche).await?;
+                Glut::flaeche_glut(instance, adapter, flaeche, opt, breite, hoehe).await
             }
         }
     }
 
-    fn geraet(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), Fehler> {
-        let limits = wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits());
-        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("herd glut"),
-            required_features: wgpu::Features::empty(),
-            required_limits: limits,
-            ..Default::default()
-        }))
-        .map_err(|e| Fehler::KeinGeraet(e.to_string()))
+    /// Fenster bzw. Canvas: Gerät anlegen und die Fläche einrichten (Format ohne sRGB-Umwandlung, undurchsichtig).
+    async fn flaeche_glut(instance: wgpu::Instance, adapter: wgpu::Adapter, flaeche: wgpu::Surface<'static>, opt: &Optionen, breite: u32, hoehe: u32) -> Result<Glut, Fehler> {
+        let (device, queue) = Glut::geraet(&adapter).await?;
+        let caps = flaeche.get_capabilities(&adapter);
+        if caps.formats.is_empty() {
+            return Err(Fehler::Flaeche("die Fläche bietet kein Format an".into()));
+        }
+        // Shader geben sRGB-kodierte Werte aus → Ansicht ohne automatische sRGB-Umwandlung
+        let format = caps.formats.iter().copied().find(|f| !f.is_srgb()).unwrap_or(caps.formats[0]);
+        let ansicht_format = format.remove_srgb_suffix();
+        let alpha = if caps.alpha_modes.contains(&wgpu::CompositeAlphaMode::Opaque) { wgpu::CompositeAlphaMode::Opaque } else { caps.alpha_modes[0] };
+        let einrichtung = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            width: breite.max(1),
+            height: hoehe.max(1),
+            present_mode: if opt.vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
+            desired_maximum_frame_latency: 2,
+            alpha_mode: alpha,
+            view_formats: if ansicht_format != format { vec![ansicht_format] } else { vec![] },
+            color_space: wgpu::SurfaceColorSpace::Auto,
+        };
+        flaeche.configure(&device, &einrichtung);
+        let z = ZielArt::Fenster { flaeche, einrichtung, ansicht_format };
+        Glut::fertig(instance, adapter, device, queue, opt, z, breite.max(1), hoehe.max(1), ansicht_format)
+    }
+
+    async fn geraet(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue), Fehler> {
+        // WebGL2 kann weniger als „downlevel“ (z. B. keine Storage-Puffer) – die Glut braucht davon nichts
+        let webgl = cfg!(target_arch = "wasm32") && adapter.get_info().backend == wgpu::Backend::Gl;
+        let grund = if webgl { wgpu::Limits::downlevel_webgl2_defaults() } else { wgpu::Limits::downlevel_defaults() };
+        adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("herd glut"),
+                required_features: wgpu::Features::empty(),
+                required_limits: grund.using_resolution(adapter.limits()),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| Fehler::KeinGeraet(e.to_string()))
     }
 
     fn offscreen_ziel(dev: &wgpu::Device, breite: u32, hoehe: u32, format: wgpu::TextureFormat) -> ZielArt {
@@ -456,7 +524,8 @@ impl Glut {
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let schatten_map = Glut::tiefen_textur(dev, "herd shadow-map", 1, 1, 1);
-        let atlas = Glut::atlas_textur(dev, 1, 1);
+        let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
+        let atlas = Glut::atlas_textur(dev, 1, atlas_min);
         let schrift = Glut::schrift_textur(dev, 1, 1);
         let inst2d = Wachspuffer::neu(dev, "herd inst2d", wgpu::BufferUsages::VERTEX);
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
@@ -482,6 +551,7 @@ impl Glut {
             ansicht,
             schatten_map,
             atlas: (atlas.0, atlas.1, 0),
+            atlas_min,
             schrift: (schrift.0, schrift.1, 1, 1),
             netze: Vec::new(),
             inst2d,
@@ -563,6 +633,14 @@ impl Glut {
         (mehrfach, Glut::tiefen_textur(dev, "herd tiefe", b, h, msaa))
     }
 
+    /// Browser: WebGPU oder WebGL2 (nativ: `Nativ`).
+    pub fn schnittstelle(&self) -> Schnittstelle {
+        match self.adapter.get_info().backend {
+            wgpu::Backend::BrowserWebGpu => Schnittstelle::WebGpu,
+            wgpu::Backend::Gl if cfg!(target_arch = "wasm32") => Schnittstelle::WebGl2,
+            _ => Schnittstelle::Nativ,
+        }
+    }
     /// Angaben zum gewählten Adapter (Name, Backend, Gerätetyp).
     pub fn adapter_info(&self) -> wgpu::AdapterInfo {
         self.adapter.get_info()
@@ -671,7 +749,7 @@ impl Glut {
         if n <= self.atlas.2 {
             return;
         }
-        let (t, v) = Glut::atlas_textur(&self.device, ATLAS_SEITE, n);
+        let (t, v) = Glut::atlas_textur(&self.device, ATLAS_SEITE, n.max(self.atlas_min));
         if self.atlas.2 > 0 {
             let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("herd atlas kopie") });
             enc.copy_texture_to_texture(

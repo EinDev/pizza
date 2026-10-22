@@ -7,8 +7,11 @@ license.workspace = true
 
 [dependencies]
 herd-kern = { path = "../kern" }
-pollster = "0.4"
 raw-window-handle = "0.6"
+
+# nativ: blockierend auf wgpu warten (im Browser gibt es kein Blockieren → Glut::neu_async, H6)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "dx12"] }
@@ -16,5 +19,10 @@ wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl"
 [target.'cfg(target_os = "linux")'.dependencies]
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "vulkan", "gles"] }
 
-[target.'cfg(not(any(windows, target_os = "linux")))'.dependencies]
+[target.'cfg(not(any(windows, target_os = "linux", target_arch = "wasm32")))'.dependencies]
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl"] }
+
+# Browser (Paket H6, herd/glut-web): WebGPU bevorzugt, Rückfall WebGL2 – wgpu wählt beim Anlegen (Glut::neu_async)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "webgpu", "webgl"] }
+web-sys = { version = "0.3", features = ["OffscreenCanvas", "HtmlCanvasElement"] }

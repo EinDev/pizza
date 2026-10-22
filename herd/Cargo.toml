@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["kern", "kern-wasm", "skript", "glut", "werkzeug"]
+members = ["kern", "kern-wasm", "skript", "glut", "glut-web", "werkzeug"]
 # kern-wasm ist nativ leer (nur für wasm32v1-none über baue.js); glut/werkzeug zeichnen nur offscreen mit Software-Adapter.
+# glut-web (Browser-Glut, wasm32-unknown-unknown über baue-web.js) ist absichtlich kein default-member.
 default-members = ["kern", "kern-wasm", "skript", "glut", "werkzeug"]
 
 [workspace.package]
