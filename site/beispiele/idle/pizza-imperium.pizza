@@ -15,8 +15,9 @@
 //  Die Breite kommt aus zwölf Bereichen (Zutaten-Garten, Weinkeller, Personal, Lieferzonen, Nonnas Helfer,
 //  Marketing, Rezeptlabor, Stammgäste, Nonnas Katze, Pizza-Wettbewerb, Sammelalbum, Banca di Napoli), die man
 //  der Reihe nach gegen Euro freischaltet – jeder hat seinen festen Platz auf den Reitern Hof, Stadt und Labor.
-//  Auf dem Hof (Paket 2): 🍅 drei Beete machen jede Pizza teurer, 🍷 vier Getränke bringen im Takt einen Anteil des
-//  Pizza-Umsatzes nebenbei, 👩‍🍳 vier Rollen mit Stufe 0…10 (Trinkgeld, Abkühlzeit, Upgrade-Preise, Hawaii-Bonus).
+//  Auf dem Hof (Paket 2): 🍅 drei Beete machen jede Pizza teurer (zusammen höchstens +50 %), 🍷 vier Getränke bringen
+//  im Takt einen Anteil des Pizza-Umsatzes nebenbei (Nebeneinkommen in die Kasse – zählt nicht für Sterne),
+//  👩‍🍳 vier Rollen mit Stufe 0…10 (Trinkgeld, Abkühlzeit, Upgrade-Preise, Hawaii-Bonus).
 //  Stückkäufe fangen bei jeder Neueröffnung von vorn an, die Freischaltung bleibt.
 //
 //  Statisches Raster (v6): Das Fenster ist 860 × 800 groß, der Kopf (Kasse, Kennzahlen, Hinweiszeile, Backen und
@@ -483,25 +484,32 @@ klasse Spiel {
     salami versionBereiche = 0;      // zählt hoch, wenn sich an den Freischaltungen etwas ändert
 
     // ── Inhalt der Bereiche (Paket 2: Hof) ──
-    // 🍅 Garten: drei Beete, jedes Stück macht die Pizza teurer (+1 / +1,5 / +2,5 % je Stück, zusammen höchstens +100 %).
+    // 🍅 Garten: drei Beete, jedes Stück macht die Pizza teurer (+0,5 / +0,75 / +1,25 % je Stück, zusammen höchstens +50 %).
+    // Balancing (Bot, Saat 42/7/99, 5 Klicks/s, mit Aufstieg): Der Garten wirkt multiplikativ auf jeden Euro – mit +100 % lag
+    // die Sternekurve nach 4 h beim Siebenfachen; Grundpreise aller Hof-Posten verdoppelt, damit die Stückkäufe nicht jede
+    // Neueröffnung sofort wieder voll sind (Ziel: Hof zusammen ≤ ×1,5 auf die Sternekurve von Paket 1).
     Blech<Posten> BEETE = [
-        neu Posten("tomaten", "🍅", "Tomaten", 20_000, 1.5, 1, 20, "San-Marzano-Ableger hinter dem Haus. Nonna redet mit ihnen – auf Neapolitanisch."),
-        neu Posten("basilikum", "🌿", "Basilikum", 60_000, 1.5, 1.5, 20, "Duftet bis auf die Straße. Die Nachbarn beschweren sich nicht."),
-        neu Posten("oregano", "🪴", "Oregano", 200_000, 1.5, 2.5, 20, "Wild, bergig, störrisch. Wächst nur, wenn niemand hinsieht.")
+        neu Posten("tomaten", "🍅", "Tomaten", 40_000, 1.5, 0.5, 20, "San-Marzano-Ableger hinter dem Haus. Nonna redet mit ihnen – auf Neapolitanisch."),
+        neu Posten("basilikum", "🌿", "Basilikum", 120_000, 1.5, 0.75, 20, "Duftet bis auf die Straße. Die Nachbarn beschweren sich nicht."),
+        neu Posten("oregano", "🪴", "Oregano", 400_000, 1.5, 1.25, 20, "Wild, bergig, störrisch. Wächst nur, wenn niemand hinsieht.")
     ];
-    // 🍷 Weinkeller: vier Getränke, jedes Stück bringt einen Anteil des Pizza-Umsatzes pro Sekunde dazu – ganz ohne Ofen.
+    // 🍷 Weinkeller: vier Getränke, jedes Stück bringt einen Anteil des Pizza-Umsatzes pro Sekunde dazu – ganz ohne Ofen
+    // (0,05 / 0,125 / 0,25 / 0,5 % je Stück, bei 25 Stück je Getränk zusammen höchstens +23 %). Reines Nebeneinkommen:
+    // landet in der Kasse und in der Statistik, zählt aber nicht für Sterne oder Herausforderungsziele.
     Blech<Posten> GETRÄNKE = [
-        neu Posten("acqua", "🫧", "Acqua frizzante", 50_000, 1.3, 0.1, 25, "Mit oder ohne Kohlensäure? Mit. Immer mit."),
-        neu Posten("limonata", "🍋", "Limonata", 250_000, 1.3, 0.25, 25, "Aus Zitronen von der Amalfiküste. Die Kerne spuckt Luigi selbst aus."),
-        neu Posten("chianti", "🍷", "Chianti", 1_500_000, 1.3, 0.5, 25, "In der Korbflasche. Der Korb ist das Wichtigste, sagt Nonna."),
-        neu Posten("espresso", "☕", "Espresso", 8_000_000, 1.3, 1, 25, "Kurz, schwarz, aufrecht an der Theke. Wer sich setzt, zahlt doppelt.")
+        neu Posten("acqua", "🫧", "Acqua frizzante", 100_000, 1.3, 0.05, 25, "Mit oder ohne Kohlensäure? Mit. Immer mit."),
+        neu Posten("limonata", "🍋", "Limonata", 500_000, 1.3, 0.125, 25, "Aus Zitronen von der Amalfiküste. Die Kerne spuckt Luigi selbst aus."),
+        neu Posten("chianti", "🍷", "Chianti", 3_000_000, 1.3, 0.25, 25, "In der Korbflasche. Der Korb ist das Wichtigste, sagt Nonna."),
+        neu Posten("espresso", "☕", "Espresso", 16_000_000, 1.3, 0.5, 25, "Kurz, schwarz, aufrecht an der Theke. Wer sich setzt, zahlt doppelt.")
     ];
-    // 👩‍🍳 Personal: vier Rollen mit Stufe 0…10 (Preis 2 Mio · 2^Stufe · Rollenfaktor 1 / 1,5 / 2 / 3).
+    // 👩‍🍳 Personal: vier Rollen mit Stufe 0…10 (Preis 4 Mio · 2^Stufe · Rollenfaktor 1 / 1,5 / 2 / 3).
+    // Rosa nur 2 % je Stufe: Die Sonderschicht ist spät die größte Einnahme (77 Ladungen je 45 s mit Lavastein ≈ ×1,7 des
+    // Betriebs) – 5 % je Stufe hätte sie verdoppelt. Enzo nur 0,5 % je Stufe (stapelt multiplikativ mit der Inflations-Belohnung).
     Blech<Posten> ROLLEN = [
-        neu Posten("luigi", "👨‍🍳", "Kellner Luigi", 2_000_000, 2, 1, 10, "Trinkgeld +1 je Stufe – Großbestellungen kommen pünktlicher. Luigi merkt sich jeden Gast. Und jede Ananas."),
-        neu Posten("rosa", "🧽", "Spülkraft Rosa", 3_000_000, 2, 1.5, 10, "Der Ofen kühlt 5 % je Stufe schneller ab. Rosa scheuert auch die Glut. Niemand weiß, wie."),
-        neu Posten("enzo", "🧮", "Buchhalter Enzo", 4_000_000, 2, 2, 10, "Upgrades 1 % je Stufe billiger. Enzo rechnet mit dem Abakus – schneller als die Kasse."),
-        neu Posten("bruno", "🕴", "Türsteher Bruno", 6_000_000, 2, 3, 10, "Hawaii-Gäste bestellen nach der Bekehrung +20 % je Stufe mehr. Bruno lächelt nie. Außer bei Margherita.")
+        neu Posten("luigi", "👨‍🍳", "Kellner Luigi", 4_000_000, 2, 1, 10, "Trinkgeld +1 je Stufe – Großbestellungen kommen pünktlicher. Luigi merkt sich jeden Gast. Und jede Ananas."),
+        neu Posten("rosa", "🧽", "Spülkraft Rosa", 6_000_000, 2, 1.5, 10, "Der Ofen kühlt 2 % je Stufe schneller ab. Rosa scheuert auch die Glut. Niemand weiß, wie."),
+        neu Posten("enzo", "🧮", "Buchhalter Enzo", 8_000_000, 2, 2, 10, "Upgrades 0,5 % je Stufe billiger. Enzo rechnet mit dem Abakus – schneller als die Kasse."),
+        neu Posten("bruno", "🕴", "Türsteher Bruno", 12_000_000, 2, 3, 10, "Hawaii-Gäste bestellen nach der Bekehrung +20 % je Stufe mehr. Bruno lächelt nie. Außer bei Margherita.")
     ];
     Speisekarte<margherita, salami> garten = neu Speisekarte<margherita, salami>();       // Stück je Beet (Schlüssel) – diese Runde
     Speisekarte<margherita, salami> weinkeller = neu Speisekarte<margherita, salami>();   // Stück je Getränk
@@ -509,7 +517,7 @@ klasse Spiel {
     salami versionGarten = 0;        // zählen hoch, wenn sich am Inhalt eines Bereichs etwas ändert (Kauf, Rundenreset)
     salami versionWeinkeller = 0;
     salami versionPersonal = 0;
-    funghi umsatzGetränke = 0;       // Getränkeumsatz diese Runde (zählt zu umsatz/umsatzKette, nicht zu den Pizzen)
+    funghi umsatzGetränke = 0;       // Getränkeumsatz diese Runde (nur Kasse und Statistik – zählt nicht zu umsatz/umsatzKette)
     funghi umsatzGetränkeAllzeit = 0;
     funghi getränkeWert = 0;         // Getränke-€/s, in neuBerechnen() ausgerechnet
 
@@ -588,14 +596,15 @@ klasse Spiel {
     diavolo postenVoll(margherita s, Posten p) { serviere (stück(s, p) >= p.höchstens); }
     funghi postenPreis(margherita s, Posten p) { serviere (p.preisBei(stück(s, p))); }
 
-    // Garten: Summe der Stück-Wirkungen in Prozent, höchstens +100 %.
+    // Garten: Summe der Stück-Wirkungen in Prozent, höchstens +50 %.
+    salami GARTEN_HÖCHSTENS = 50;
     funghi gartenProzent() {
         falls (!istFrei("garten")) { serviere (0); }
         funghi p = 0;
         für (Posten b : BEETE) { p = p + stück("garten", b) * b.wirkung; }
-        serviere (Mathe.min(100, p));
+        serviere (Mathe.min(GARTEN_HÖCHSTENS, p));
     }
-    // Weinkeller: Anteil des Pizza-Umsatzes pro Sekunde in Prozent (0,1 / 0,25 / 0,5 / 1 % je Stück).
+    // Weinkeller: Anteil des Pizza-Umsatzes pro Sekunde in Prozent (0,05 / 0,125 / 0,25 / 0,5 % je Stück).
     funghi getränkeProzent() {
         falls (!istFrei("weinkeller")) { serviere (0); }
         funghi p = 0;
@@ -604,11 +613,13 @@ klasse Spiel {
     }
     // €/s eines Getränks mit seiner aktuellen Stückzahl
     funghi getränkWert(Posten g) { serviere (proSekunde() * preis() * stück("weinkeller", g) * g.wirkung / 100); }
-    // Was eine Rolle auf ihrer Stufe bewirkt (für Zeile und Meldung)
+    // Was eine Rolle auf ihrer Stufe bewirkt (für Zeile und Meldung); Rosa und Enzo in Prozent je Stufe
+    salami ROSA_PROZENT = 2;
+    funghi ENZO_PROZENT = 0.5;
     margherita rollenWirkung(Posten r, salami st) {
         falls (r.schlüssel == "luigi") { serviere ("Trinkgeld +" + st); }
-        falls (r.schlüssel == "rosa") { serviere ("Ofen kühlt " + (5 * st) + " % schneller"); }
-        falls (r.schlüssel == "enzo") { serviere ("Upgrades " + st + " % billiger"); }
+        falls (r.schlüssel == "rosa") { serviere ("Ofen kühlt " + (ROSA_PROZENT * st) + " % schneller"); }
+        falls (r.schlüssel == "enzo") { serviere ("Upgrades " + (ENZO_PROZENT * st).kompakt(1) + " % billiger"); }
         serviere ("Hawaii-Bonus +" + (20 * st) + " %");
     }
 
@@ -641,12 +652,12 @@ klasse Spiel {
         serviere (ja);
     }
 
-    // Getränke verkaufen sich im Takt von selbst: zählen zu Kasse und Umsatz (auch für Sterne), nicht zu den Pizzen.
+    // Getränke verkaufen sich im Takt von selbst: Nebeneinkommen in die Kasse und in die Statistik (Umsatz insgesamt,
+    // Getränkeumsatz) – nicht in den Runden-Umsatz (Herausforderungsziele) und nicht in die Kette (Sterne), sonst
+    // schaukelt der Weinkeller die Sterne hoch.
     leer verkaufeGetränke(funghi erlös) {
         geld += erlös;
-        umsatz += erlös;
         umsatzAllzeit += erlös;
-        umsatzKette += erlös;
         umsatzGetränke += erlös;
         umsatzGetränkeAllzeit += erlös;
     }
@@ -913,8 +924,8 @@ klasse Spiel {
     }
 
     // ── Aktionen der Spielerin ──
-    // Preisfaktor für Upgrades (Inflation ×3, Belohnung −10 %, Buchhalter Enzo −1 % je Stufe)
-    funghi preisFaktor() { serviere ((modus == "inflation" ? 3 : 1) * (bestanden("inflation") ? 0.9 : 1) * (1 - 0.01 * stufe("enzo"))); }
+    // Preisfaktor für Upgrades (Inflation ×3, Belohnung −10 %, Buchhalter Enzo −0,5 % je Stufe – multiplikativ, zusammen höchstens 0,9 · 0,95)
+    funghi preisFaktor() { serviere ((modus == "inflation" ? 3 : 1) * (bestanden("inflation") ? 0.9 : 1) * (1 - ENZO_PROZENT / 100 * stufe("enzo"))); }
     // So viele Stück darf man noch kaufen (Mini-Küche: höchstens 25 je Gebäude)
     // (Anteil-Handwerk: höchstens ANTEIL_MAX Stück)
     salami kaufGrenze(Upgrade u) {
@@ -980,8 +991,8 @@ klasse Spiel {
             serviere;
         }
         sonderschichten++;
-        // Rosa: der Ofen kühlt 5 % je Stufe schneller ab
-        ofenKühlt = Mathe.max(1, Mathe.runden((kennt("ewigeglut") ? 20 : (kennt("lavastein") ? 45 : 120)) * (1 - 0.05 * stufe("rosa"))));
+        // Rosa: der Ofen kühlt 2 % je Stufe schneller ab
+        ofenKühlt = Mathe.max(1, Mathe.runden((kennt("ewigeglut") ? 20 : (kennt("lavastein") ? 45 : 120)) * (1 - ROSA_PROZENT / 100 * stufe("rosa"))));
         funghi bonus = ladungen * portion();
         backe(bonus); großeEinnahmen++;
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
@@ -2354,14 +2365,14 @@ klasse BereichPanel {
             gezeigtInhalt = v; gezeigt = spiel.versionBereiche; gezeigteVersion = spiel.version;
             setzeKnopf(freiKnopf, "✅", nein);
             falls (s == "garten") {
-                setzeText(kopf, "🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +100 %, 20 Stück je Beet)");
+                setzeText(kopf, "🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet)");
             } sonst falls (s == "weinkeller") {
-                setzeText(kopf, "🍷 Weinkeller: " + spiel.getränkeWert.euro(kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(2) + " % extra, läuft von selbst)");
+                setzeText(kopf, "🍷 Weinkeller: " + spiel.getränkeWert.euro(kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)");
             } sonst {
                 salami stufen = 0;
                 für (Posten r : posten) { stufen += spiel.stück(s, r); }
-                setzeText(kopf, "👩‍🍳 Personal " + stufen + "/" + (10 * posten.länge()) + ": Trinkgeld +" + spiel.stufe("luigi") + " · Ofen −" + (5 * spiel.stufe("rosa"))
-                    + " % · Rabatt " + spiel.stufe("enzo") + " % · Hawaii +" + (20 * spiel.stufe("bruno")) + " %");
+                setzeText(kopf, "👩‍🍳 Personal " + stufen + "/" + (10 * posten.länge()) + ": Trinkgeld +" + spiel.stufe("luigi") + " · Ofen −" + (spiel.ROSA_PROZENT * spiel.stufe("rosa"))
+                    + " % · Rabatt " + (spiel.ENZO_PROZENT * spiel.stufe("enzo")).kompakt(1) + " % · Hawaii +" + (20 * spiel.stufe("bruno")) + " %");
             }
             für (salami i : [1 .. 4]) {
                 falls (i > posten.länge()) {   // Garten, Zeile 4: die Ernte
@@ -2375,10 +2386,10 @@ klasse BereichPanel {
                 diavolo voll = n >= p.höchstens;
                 preise.setze(i, voll ? -1 : p.preisBei(n));
                 falls (s == "garten") {
-                    setzeText(infos.stück(i), p.symbol + " " + p.name + " ×" + n + " – +" + p.wirkung.kompakt(1) + " % Preis je Stück");
+                    setzeText(infos.stück(i), p.symbol + " " + p.name + " ×" + n + " – +" + p.wirkung.kompakt(2) + " % Preis je Stück");
                     setzeKnopf(knöpfe.stück(i), voll ? "✅ voll" : preise.stück(i).euro(kompakt: ja), !voll && spiel.geld >= preise.stück(i));
                 } sonst falls (s == "weinkeller") {
-                    setzeText(infos.stück(i), p.symbol + " " + p.name + " ×" + n + " – " + spiel.getränkWert(p).euro(kompakt: ja) + "/s (" + p.wirkung.kompakt(2) + " % je Stück)");
+                    setzeText(infos.stück(i), p.symbol + " " + p.name + " ×" + n + " – " + spiel.getränkWert(p).euro(kompakt: ja) + "/s (" + p.wirkung.kompakt(3) + " % je Stück)");
                     setzeKnopf(knöpfe.stück(i), voll ? "✅ voll" : preise.stück(i).euro(kompakt: ja), !voll && spiel.geld >= preise.stück(i));
                 } sonst {
                     setzeText(infos.stück(i), p.symbol + " " + p.name + " – Stufe " + n + "/" + p.höchstens + ": " + spiel.rollenWirkung(p, n));
