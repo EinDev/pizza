@@ -4,5 +4,5 @@
 {"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":""}]}
 {"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":"Wohin soll die Pizza? Die Straße fehlt."}]}
 {"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":"Die Postleitzahl braucht genau 5 Ziffern."}]}
-{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":""},{"id":"formular","sichtbar":false},{"id":"bestaetigung","text":"Danke, Luigi! Deine ((Tomate, Mozzarella, Chili)) ist unterwegs nach Ofengasse 7, 80331.","sichtbar":true},{"id":"kopf","text":"Bestellung angenommen"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"hinweis","text":""},{"id":"formular","sichtbar":false},{"id":"bestaetigung","text":"Danke, Luigi! Deine Margherita mit Chili ist unterwegs nach Ofengasse 7, 80331.","sichtbar":true},{"id":"kopf","text":"Bestellung angenommen"}]}
 {"v":1,"op":"fenster","titel":"Bestellung #1","breite":400,"hoehe":360}

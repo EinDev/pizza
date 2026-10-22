@@ -1,10 +1,13 @@
-// Pizzarechner: Anzahl eintippen, Beläge anhaken – der Preis rechnet sich von selbst.
-// Grundlage ist immer eine Margherita ((Tomate, Mozzarella)) für 7,50 €.
-// Die Preise kommen direkt von den Belägen: Salami.preis() kennt die Zutatenliste.
+// Pizzarechner: Anzahl eintippen, Extras anhaken – der Preis rechnet sich von selbst.
+// Grundlage ist immer eine Margherita für 7,50 €; die Aufpreise der Extras stehen
+// auf einer Speisekarte (Map): Name → Preis.
 
 Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 340);
 
-Blech<Belag> angebot = [Salami, Pilze, Oliven, Rucola, Chili];
+funghi GRUNDPREIS = 7.50;
+Blech<margherita> angebot = ["Salami", "Pilze", "Oliven", "Rucola", "Chili"];
+Speisekarte<margherita, funghi> aufpreis = neu Speisekarte<margherita, funghi>()
+    .lege("Salami", 1.50).lege("Pilze", 1.00).lege("Oliven", 1.00).lege("Rucola", 1.00).lege("Chili", 0.50);
 Blech<Haken> haken = [];
 
 Schild titel = neu Schild("Margherita + Extras", id: "titel");
@@ -15,13 +18,18 @@ Schild preis = neu Schild("", id: "preis");
 preis.stil("schrift", "gross");
 preis.stil("farbe", "basilikum");
 
-// Baut die Pizza aus den angehakten Belägen (unten Margherita, oben die Extras).
-Pizza belegte() {
-    Pizza p = ((Tomate, Mozzarella));
+// Die angehakten Extras, in der Reihenfolge des Angebots
+Blech<margherita> extras() {
+    Blech<margherita> gewählt = [];
     für (salami i : [1 .. angebot.länge()]) {
-        falls (haken.stück(i).an()) { p = p + angebot.stück(i); }
+        falls (haken.stück(i).an()) { gewählt.hinzu(angebot.stück(i)); }
     }
-    serviere ((p));
+    serviere ((gewählt));
+}
+
+// Margherita plus alle Aufpreise
+funghi preisVon(Blech<margherita> gewählt) {
+    serviere ((GRUNDPREIS + gewählt.belege(e -> aufpreis.hole(e)).summe()));
 }
 
 leer rechne() {
@@ -38,8 +46,8 @@ leer rechne() {
             preis.stil("farbe", "tomate");
             serviere;
         }
-        Pizza p = belegte();
-        preis.setzeText(("" + n + " × " + p.preis().euro() + " = " + (n * p.preis()).euro()));
+        funghi einzel = preisVon(extras());
+        preis.setzeText(("" + n + " × " + einzel.euro() + " = " + (n * einzel).euro()));
         preis.stil("farbe", "basilikum");
     } verbrannt (TypAnanas a) {
         preis.setzeText(("'" + text + "' ist keine Zahl. Probier's mit Ziffern."));
@@ -47,17 +55,19 @@ leer rechne() {
     }
 }
 
-für (Belag b : angebot) {
-    Haken h = neu Haken(b.name() + " (+" + b.preis().euro() + ")", id: b.name().klein());
+für (margherita b : angebot) {
+    Haken h = neu Haken(b + " (+" + aufpreis.hole(b).euro() + ")", id: b.klein());
     h.beiAenderung(an -> { rechne(); });
     haken.hinzu(h);
 }
 anzahl.beiAenderung(t -> { rechne(); });
 
-Stapel extras = neu Stapel(haken);
-theke.zeige(neu Stapel([titel, anzahl, extras, preis]));
+Stapel liste = neu Stapel(haken);
+theke.zeige(neu Stapel([titel, anzahl, liste, preis]));
 rechne();
 theke.bediene();
 
-Bote.sage(("Bestellt: " + anzahl.wert().trimme() + " × " + belegte().alsText()));
+Blech<margherita> gewählt = extras();
+Bote.sage(("Bestellt: " + anzahl.wert().trimme() + " × Margherita"
+    + (gewählt.istLeer() ? "" : " mit " + gewählt.verbinde(", "))));
 Bote.sage(("Letzter Stand: " + preis.text()));

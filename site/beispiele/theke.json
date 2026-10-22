@@ -33,7 +33,7 @@
         "Theke",
         "Eingabe",
         "Haken",
-        "Pizza",
+        "Speisekarte",
         "euro()",
         "probier"
       ],
@@ -99,7 +99,7 @@
     {
       "id": "theke-belag-baukasten",
       "titel": "Belag-Baukasten",
-      "beschreibung": "Beläge in Schichten anhaken: Der Baukasten prüft die @Nach-Regeln selbst und erklärt freundlich, warum Mozzarella nicht unter die Tomate gehört.",
+      "beschreibung": "Beläge in Schichten anhaken: Die Regeln stehen auf einer Speisekarte, der Baukasten prüft sie selbst und erklärt freundlich, warum Mozzarella nicht unter die Tomate gehört.",
       "datei": "theke/belag-baukasten.pizza",
       "erwartet": "theke/belag-baukasten.erwartet",
       "ereignisse": "theke/belag-baukasten.ereignisse",
@@ -109,8 +109,7 @@
       "schlagworte": [
         "Theke",
         "Haken",
-        "Pizza",
-        "@Nach",
+        "Klasse",
         "Speisekarte"
       ],
       "theke": true
