@@ -203,10 +203,10 @@ echten Lauf (Interpreter, Saat 42) mit Takt-Sprüngen bis zur ersten Franchise.
 
 | Ebene | Freischaltung | Mechanik |
 |---|---|---|
-| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋, +10 % auf alles je **aktivem** Stern |
+| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋ bis 100, darüber ⌊100 · ⁴√(Umsatz / 10 Mrd. €)⌋ (v5, §11.6), +10 % auf alles je **aktivem** Stern |
 | 📜 Geheimrezepte | 1. Stern | Talentbaum, kostet Sterne (ausgegebene Sterne verlieren ihre +10 %): Holzofen-Glut (1 ⭐, Betrieb +50 %), Sauerteig von 1890 (1 ⭐, Preis +20 %), Stammgäste (2 ⭐, Ereignisse doppelt so oft und doppelt so ergiebig), Nonnas Sparstrumpf (2 ⭐, nach Holzofen: Start mit 10 Lehrlingen + 5 Steinöfen), Nonnas Gedächtnis (3 ⭐, nach Sauerteig: Rezeptbuch bleibt), Lavastein-Ofen (4 ⭐, nach Holzofen: Sonderschicht doppelt so lang, 45 s Abkühlung) |
 | 🏅 Herausforderungen | 3 Sterne insgesamt | Neueröffnung unter Auflagen, Ziel = Umsatz der Runde, Belohnung für immer: Neapel-Modus (nur Lehrlinge/Steinöfen, 5 Mio. € → beide ×3), Hawaii-Verbot verschärft (kein Rezeptbuch, Hawaii-Gäste fliegen raus, 1 Mrd. € → Preis +25 %), Fastenzeit (kein Klicken, keine Sonderschicht, keine Ereignisse, 5 Mrd. € → Betrieb +25 %); „Aufgeben“ hebt die Auflagen auf |
-| 🏢 Franchise | 25 Sterne in der laufenden Kette | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale; setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
+| 🏢 Franchise | 25 Sterne in der laufenden Kette (v5: 100) | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale (v5: +200 %, **zusammen** mit den Sternen statt mal); setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
 
 Jeder Neustart (Neueröffnung, Herausforderung, Aufgeben, Franchise, Neu anfangen) fragt nach: erster Klick ändert den Knopftext,
 der zweite binnen 10 s bestätigt. **Klicken:** Klickwert = (1 + feste Handwerk-Pizzen) × Sterne × Filialen + Anteil (0,05 % je
@@ -385,3 +385,23 @@ alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 | W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks |
 | W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) |
 | W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt |
+| W7 | Feste Höhe ohne Umbruch-Sprung für `Schild` (z. B. `stil("zeilen", 2)` mit Auslassungszeichen) bzw. Mindestbreite für Knöpfe | ruhiges UI: Texte wachsen, Knöpfe bleiben stehen | `stil("hoehe", …)` – längerer Text läuft über |
+
+### 11.6 Stand (umgesetzt, Spielstand `version` 5)
+
+| Paket | Inhalt | Commit |
+|---|---|---|
+| 1 | Rezeptbuch verschwindet nach dem Lesen; Geheimrezepte als Welle (3 offen, „✅ Gelernt“) | 7bdb8cd |
+| 2 | Kaufmenge 1×/10×/100×/Max (Umschalter, Summe der gerundeten Einzelpreise) | 625a02f |
+| 3a–3h | 22 Geheimrezepte in 5 Ketten · 6 Gebäude (Foodtruck, Saturnring … Multiversum) + Kleinbetriebe-Welle · 56 Meisterbriefe · 6 Ereignisse mit Bedingung · ≈ 30 Erfolge als Welle · 2. Herausforderungs-Staffel (Inflation, Mini-Küche, Nonna im Urlaub) · Meister-Minispiele · Feinkost-Händler | e11da79 … 2f14048 |
+| Kurve | Sterne über 100 mit vierter Wurzel, Sterne + Filialen additiv, Kette ab 100 Sternen, Geheimrezepte je gelerntem +40 % | a760ede |
+| ruhiges UI | feste Höhen/Breiten, Betrieb über Handwerk, feste Plätze für Geheimrezepte/Meisterbriefe/Feinkost | 10c3906 |
+| 10 fps | Takt 100 ms, Produktion anteilig, Uhren in ganzen Sekunden, Speichern nach Spielzeit | 45791eb |
+| Namensraum | Kammer `pizza-imperium/spielstand` (K-106), alte Stände werden übernommen | e8dcf3e |
+| 4 | Animationen: hüpfen/schweben am Backen-Knopf, funkeln/aufpoppen an der Meldung, puls an der Kasse, einblenden für Neues | 43dd57b |
+
+Balancing-Bot (Saat 42, 5 Klicks/s, Aufstieg: Neueröffnung bei Verdopplung, Kette ab 5 neuen Filialen): Sterne insgesamt
+nach 2 h 40 · 3 h 441 · 4 h 1.500 · 5 h 3.600 · 6 h 8.600 · 8 h 20.000 · 11,5 h 47.000 (vorher: 10.000 nach 4,5 h, Millionen danach);
+erste Kette nach ≈ 2,5 h (vorher ≈ 1,3 h); Pizza-Multiversum in 12 h nicht erreicht. Klickanteil gesamt 6–8 % ohne, 11–13 % mit
+Aufstieg. Ruhiges UI: von 66 Käufen aus dem Testlauf verschieben nur noch 7 Knöpfe (neue Gebäudeart/Kleinbetriebe), vorher 21 von 44.
+CPU im Playground bei 10 Takten/s: ≈ 10 % eines Kerns. Extremstand (3·10⁷ Sterne, 9·10²¹ €, 150 Filialen): keine Ananas, Interpreter = Wasm.
