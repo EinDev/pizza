@@ -1090,7 +1090,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   `BesitzAnanas` und die Belag-Namen (Indizes der Namen und der eingebauten Ananas verschieben sich – `frontend.js` „Klassenindex 18 + n“
   und IR.md §1 werden zu „16 + n“); `laufzeit.wasm` ist ein Binärkonflikt (nach dem Merge neu bauen); `a14-kueche.js`, `kueche-*`-Fälle
   und SPEC §17.5 verweisen auf Pizza-Sicht/Stück; Beispiel-/Test-/Doku-Dateien des Branches enthalten noch Pizza-Literale, falls dort
-  geändert (`besitz.pizza`, `schneiden.pizza`, `freitagabend-ansturm.pizza`, `hanoi.pizza`, Doku, `std-besitz.pizza`, `teile-rand.pizza`).
+  geändert (`besitz.pizza`, `schneiden.pizza`, `freitagabend-ansturm.pizza`, `hanoi.pizza`, Doku, `std-besitz.pizza` – auf diesem Branch zu `std-schieb.pizza` –, `teile-rand.pizza` – hier gelöscht –, `hawaii-pizza` – hier `hawaii-nicht-fangbar`).
 - **Status:** fest (Entscheidung). Umsetzung vollständig auf dem lokalen Branch `bereinigung-pizza-objekt` (Worktree `D:\Projekte\pizza-bereinigung`);
   Merge nach master erst nach „Idle angepasst“. Prüfstand: K-105-Fälle in `a10-klaerungen.js` (vor dem Merge in `a11-klaerungen-offen.js`).
 ---
@@ -1099,7 +1099,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 
 | Nr. | Datei(en) | Was | Testfall |
 |---|---|---|---|
-| U-01 (optional) | `site/js/pizza.js` (Parser) | Fehlertext bei `f((A, B))` ergänzen: „Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))“ | a10 K-001 (Code bleibt P0001) |
+| U-01 (gegenstandslos seit K-105) | `site/js/pizza.js` (Parser) | Fehlertext bei `f((A, B))` ergänzen: „Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))“ – entfällt, es gibt kein Pizza-Literal mehr | a10 K-001 (Code bleibt P0001) |
 | U-02 | `site/js/pizza.js` (`alsZahl`, `alsEingabeZahl`) | K-007: gemeinsame Grammatik `[+-]?Ziffern[_Ziffern]*((.|,)Ziffern[_Ziffern]*)?` nach trim; Hex/Exponent/`.5`/`5.`/`Infinity` → TypAnanas; Fehlertexte unverändert | a11 K-007 (3 Fälle) |
 | U-03 | `site/js/pizza.js` (`Bestellannahme`) | K-008: `liesZahl(ersatz)`, `frageZahl(text, ersatz)`, auch benannt `ersatz:`; nur bei EOF; `onEingabe`-Anfrage unverändert | a11 K-008 (2 Fälle) |
 | U-04 | `site/js/pizza.js` (`behandleEnde`, `run`) | K-014: Text interner Fehler exakt `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (+ ` (Zeile N)`), Details in Feld `detail` | nicht automatisierbar (Code-Review) |
@@ -1180,8 +1180,8 @@ klingelt sofort, §14.3; `istGeliefert`, `warte()` ohne max, Trinkgeld kumuliert
 Dauern, `rufe`, benannte `start:`/`stellen:`; Rückgabewerte von `entferne`/`setze`/`hinzu`; Leer-Fälle; Mutation vs. Kopie
 kennzeichnen; Speisekarten-Reihenfolge und Schlüsseltypen K-017; Rundung „kaufmännisch“ K-048; `alsZahl`-Grammatik K-007;
 Textform-Tabelle aus SPEC §5 übernehmen – der Querverweis „Kapitel Ausdrücke“ ist tot; Tipp „Methoden lieber auf Variablen“
-streichen) · 20:stuecke-ownership (Prüfung syntaktisch K-016, `p + X` wieder 8 Stücke K-017) · 20:pf-ofen („über 485“, positional) ·
-20:pf-schneiden (`auto` K-038, `/ 0` RechenAnanas, n > Länge) · 20:pizza-literale (`hat("Text")` K-039) · 30:ref-codes (W0003 pro
+streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K-105 entfallen) · 20:pf-ofen („über 485“, positional) ·
+20:pf-schneiden (`auto` K-038, `/ 0` RechenAnanas, n > Länge) · 20:pizza-literale (Abschnitt mit K-105 entfernt) · 30:ref-codes (W0003 pro
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
