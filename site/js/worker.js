@@ -144,10 +144,9 @@ function koecheWahl(k) {
 var kuechenStand = null;
 function holePool(k) {
   if (!PZ || typeof PZ.kuechenPool !== "function" || k === 1) return Promise.resolve(null);
-  if (kuechenStand && kuechenStand.k === k) {
-    if (!kuechenStand.pool || !kuechenStand.pool._beendet) return kuechenStand.versprechen;
-  }
-  if (kuechenStand && kuechenStand.pool) { try { kuechenStand.pool.beenden(); } catch (e) { /* egal */ } }
+  if (kuechenStand && kuechenStand.k === k) return kuechenStand.versprechen;
+  // nur dieser Worker beendet seine Pools – danach gilt der alte Stand nicht mehr
+  if (kuechenStand && kuechenStand.pool) { try { kuechenStand.pool.beenden(); } catch (e) { /* egal */ } kuechenStand.pool = null; }
   var stand = { k: k, pool: null, versprechen: null };
   var url;
   try { url = new URL("pizzaiolo/koch.js", self.location.href).href; } catch (e) { url = undefined; }
@@ -157,7 +156,7 @@ function holePool(k) {
   kuechenStand = stand;
   return stand.versprechen;
 }
-function poolLebt() { return !!(kuechenStand && kuechenStand.pool && !kuechenStand.pool._beendet); }
+function poolLebt() { return !!(kuechenStand && kuechenStand.pool); }
 
 function wasmFehler(text, zeile, spalte) {
   sende({ typ: "motor", motor: "wasm", grund: text });
