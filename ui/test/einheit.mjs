@@ -41,4 +41,30 @@ assert.equal(m["sage"], "methode");
 assert.ok(toks("StreitAnanas a").some(([a, b]) => a === "StreitAnanas" && b === "ananas"));
 assert.ok(toks("((  ))").every(([, b]) => b === "klammer"));   // doppelte Klammern sind nur Klammern
 assert.ok(!toks("belag X auf Pizza { }").some(([, b]) => b === "keyword"));   // belag/auf nicht mehr reserviert
+// Autovervollständigung/Highlighting: Wortlisten passen zum Interpreter und zu SPEC §16 (bis v7)
+{
+  const { createRequire } = await import("node:module");
+  const PL = createRequire(import.meta.url)("../../site/js/pizza.js");
+  const W = await import("../src/woerter.js");
+  for (const t of PL.TYPEN) assert.ok(W.TYPEN.has(t), "Typ fehlt in woerter.js: " + t);
+  for (const b of PL.BUILTINS) assert.ok(W.BUILTINS.has(b), "Builtin fehlt in woerter.js: " + b);
+  assert.deepEqual(W.STIL_SCHLUESSEL, Object.keys(PL.intern.UI_STIL), "Stil-Schlüssel wie im Interpreter");
+  for (const [k, v] of Object.entries(PL.intern.UI_STIL)) if (Array.isArray(v)) assert.deepEqual(W.STIL_WERTE[k], v, "Stil-Werte " + k);
+  for (const m of ["log", "log10", "log2", "exp", "E", "potenz"]) assert.ok(W.MITGLIEDER.Mathe.includes(m), "Mathe." + m);
+  assert.deepEqual(W.MITGLIEDER.Zettel, ["aus"]);
+  for (const m of ["wert", "setze", "binde", "bindeStil", "marke", "namensraum", "beiTaste", "setzeOptionen", "klappbar", "zu", "waehle"])
+    assert.ok(W.ALLE_METHODEN.includes(m), "Methode " + m);
+  for (const z of ["Zettel", "Auswahl", "Tastatur", "Vorratskammer"]) assert.ok(W.TYPEN.has(z), z);
+  const v = (s) => { const r = W.textArgumentVorschlaege(s); return r && { von: r.von, liste: r.liste }; };
+  assert.deepEqual(v('r.stil("sen').liste, W.STIL_SCHLUESSEL);
+  assert.equal(v('r.stil("sen').von, 'r.stil("'.length);
+  assert.ok(v('t.bindeStil("').liste.includes("spalten"));
+  assert.deepEqual(v('r.stil("senkrecht", "ob').liste, ["oben", "mitte", "unten", "strecken"]);
+  assert.ok(v('s.binde("ma').liste.includes("marke"));
+  assert.equal(v('stil("breite", "'), null);
+  assert.equal(v('Bote.sage(("hallo'), null);
+  // Highlighting: Theke-/v7-Namen sind eingebaute Typen (ohne geladenen Interpreter)
+  assert.equal(Object.fromEntries(toks("Zettel z = Zettel.aus(() -> 1); Auswahl a; Tastatur t;"))["Auswahl"], "typ");
+  assert.equal(toks("Zettel.aus")[0][1], "typ");
+}
 console.log("alle Tests ok");

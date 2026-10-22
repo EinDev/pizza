@@ -14,7 +14,7 @@ import {
 import { linter, lintGutter, lintKeymap, forceLinting, forEachDiagnostic } from "@codemirror/lint";
 import { pizzaUnterstuetzung } from "./sprache.js";
 import { icon as iconEl } from "./icons.js";
-import { KEYWORDS, TYPEN, BUILTINS, ANANAS, ANNOTATIONEN } from "./woerter.js";
+import { KEYWORDS, TYPEN, BUILTINS, ANANAS, ANNOTATIONEN, MITGLIEDER, KONSTANTEN, ALLE_METHODEN, textArgumentVorschlaege } from "./woerter.js";
 
 // Falten von { … }-Blöcken (StreamLanguage liefert keine Faltbereiche)
 const klammerFalten = foldService.of((state, von, bis) => {
@@ -80,21 +80,19 @@ const SNIPPETS = [
   snippetCompletion("serviere ((${}));", { label: "serviere", detail: "return", type: "keyword", boost: 4 }),
   snippetCompletion("Bote.sage((${}));", { label: "Bote.sage", detail: "Ausgabe", type: "function", boost: 6 }),
   snippetCompletion("quattrostagioni ${Name} { ${A}, ${B}, ${C}, ${D} }", { label: "quattrostagioni", detail: "Enum mit 4 Werten", type: "keyword", boost: 3 }),
+  // Theke v5/v7 (SPEC §16.8, §16.10) und Vorratskammer mit Namensraum (§15.4, K-106)
+  snippetCompletion("Zettel ${name} = neu Zettel(${0});", { label: "Zettel", detail: "beobachtbarer Wert (Theke v5)", type: "class", boost: 3 }),
+  snippetCompletion("Zettel ${name} = Zettel.aus(() -> ${});", { label: "Zettel.aus", detail: "abgeleiteter Zettel (Theke v7)", type: "function", boost: 3 }),
+  snippetCompletion("Vorratskammer ${kammer} = neu Vorratskammer(\"${spielstand}\", namensraum: \"${mein-spiel}\");",
+    { label: "Vorratskammer", detail: "persistenter Zustand (mit Namensraum)", type: "class", boost: 3 }),
 ];
 
-const MITGLIEDER = {
-  Bote: ["sage", "fehler"], Uhr: ["jetzt", "vorspulen"], Mathe: ["wurzel", "max", "min", "abs", "runden", "boden", "decke", "PI"],
-  Zufall: ["zahl"], Spiegel: ["felder"],
-};
-const ALLE_METHODEN = ["hat", "alsText", "name", "euro", "runden", "abs", "ganz", "tausender", "kompakt",
-  "länge", "groß", "klein", "enthält", "zerlege", "ersetze", "trimme", "zeichen", "wiederhole", "beginntMit", "endetMit", "alsZahl",
-  "stück", "hinzu", "entferne", "setze", "kopie", "belege", "brigade", "filtere", "zusammenklappen", "summe", "erstes", "letztes", "umdrehen",
-  "sortiere", "verbinde", "istLeer", "schneide", "lege", "hole", "schlüssel", "werte", "inMs", "inSekunden", "inMinuten",
-  "gehenlassen", "backen", "istAufgegangen", "trinkgeld", "warte", "wennDa", "pünktlich", "wert", "oderGratis", "istGeliefert",
-  "teilergebnis", "verbrauchteZeit", "mikrowelle", "frisch", "istMatschig",
-  "aufklappen", "nachricht", "holeNachricht", "typ", "position"];
-
 function pizzaVervollstaendigung(ctx) {
+  // Text-Argumente: stil("…"), bindeStil("…"), binde("…"), animiere("…") und Stil-Werte
+  const zeile = ctx.state.doc.lineAt(ctx.pos);
+  const txt = textArgumentVorschlaege(zeile.text.slice(0, ctx.pos - zeile.from));
+  if (txt) return { from: zeile.from + txt.von, options: txt.liste.map((w) => ({ label: w, type: txt.art })), validFor: /^[\p{L}]*$/u };
+
   // Annotationen
   const anno = ctx.matchBefore(/@[\p{L}_]*/u);
   if (anno) return { from: anno.from + 1, options: ANNOTATIONEN.map((a) => ({ label: a, type: "annotation", detail: "Annotation" })) };
@@ -105,7 +103,7 @@ function pizzaVervollstaendigung(ctx) {
     const [obj] = punkt.text.split(".");
     const from = punkt.from + punkt.text.lastIndexOf(".") + 1;
     const liste = MITGLIEDER[obj] || ALLE_METHODEN;
-    return { from, options: liste.map((m) => ({ label: m, type: m === "PI" ? "constant" : "method", apply: m })), validFor: /^[\p{L}\p{N}_]*$/u };
+    return { from, options: liste.map((m) => ({ label: m, type: KONSTANTEN.has(m) ? "constant" : "method", apply: m })), validFor: /^[\p{L}\p{N}_]*$/u };
   }
 
   const wort = ctx.matchBefore(/[\p{L}_][\p{L}\p{N}_]*/u);
@@ -114,7 +112,7 @@ function pizzaVervollstaendigung(ctx) {
   const optionen = [
     ...SNIPPETS,
     ...[...KEYWORDS].map((k) => ({ label: k, type: "keyword" })),
-    ...[...TYPEN].map((k) => ({ label: k, type: "type", detail: "Typ" })),
+    ...[...TYPEN].filter((k) => !BUILTINS.has(k)).map((k) => ({ label: k, type: "type", detail: "Typ" })), // Zufall: nur als Modul
     ...[...BUILTINS].map((k) => ({ label: k, type: /^[a-z]/.test(k) ? "function" : "namespace", detail: "eingebaut" })),
     ...[...ANANAS].map((k) => ({ label: k, type: "class", detail: "Ananas" })),
   ];
