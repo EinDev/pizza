@@ -184,12 +184,12 @@ pub extern "C" fn rt_fang_passt(typ: u32) -> i32 {
 #[no_mangle]
 pub extern "C" fn rt_fang_obj() -> W { unsafe { crate::ZUSTAND.sig = 0; WURF_OBJ } }
 
-struct Gesichert { sig: i32, obj: W, pos: i32, frame: u32, pfc: &'static str, pft: W, pfp: i32 }
+struct Gesichert { sig: i32, obj: W, pos: i32, frame: u32 }
 static mut GESICHERT: Vec<Gesichert> = Vec::new();
 #[no_mangle]
 pub extern "C" fn rt_sig_sichern() -> i32 {
     unsafe {
-        GESICHERT.push(Gesichert { sig: crate::ZUSTAND.sig, obj: WURF_OBJ, pos: WURF_POS, frame: BUDGET_FRAME, pfc: PF_CODE, pft: PF_TEXT, pfp: PF_POS });
+        GESICHERT.push(Gesichert { sig: crate::ZUSTAND.sig, obj: WURF_OBJ, pos: WURF_POS, frame: BUDGET_FRAME });
         crate::ZUSTAND.sig = 0;
         (GESICHERT.len() - 1) as i32
     }
@@ -199,7 +199,7 @@ pub extern "C" fn rt_sig_wieder(h: i32) {
     unsafe {
         let g = &GESICHERT[h as usize];
         if crate::ZUSTAND.sig == 0 {
-            crate::ZUSTAND.sig = g.sig; WURF_OBJ = g.obj; WURF_POS = g.pos; BUDGET_FRAME = g.frame; PF_CODE = g.pfc; PF_TEXT = g.pft; PF_POS = g.pfp;
+            crate::ZUSTAND.sig = g.sig; WURF_OBJ = g.obj; WURF_POS = g.pos; BUDGET_FRAME = g.frame;
         }
         GESICHERT.truncate(h as usize);
     }

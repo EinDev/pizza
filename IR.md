@@ -132,7 +132,8 @@ Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldini
 ## 6. Ananas-Konvention (ohne Wasm-EH)
 
 - Ein **Signalregister** `sig`: 0 = keins, 1 = Ananas (fangbar), 2 = Budget (nur `ofen`/`warte` fangen, `rand` läuft),
-  3 = PizzaFehler, 4 = Schrittlimit, 5 = Panik (3–5 fatal, `rand` läuft nicht).
+  3 = reserviert (ehemals PizzaFehler B0012 – seit K-105 entsteht zur Laufzeit keiner mehr), 4 = Schrittlimit, 5 = Panik
+  (3–5 fatal, `rand` läuft nicht).
 - Nach jeder Operation, die werfen kann, `sig != 0` → Sprung zum innersten Handler (`probier`, `ofen`) bzw. Funktionsende.
 - Erzeugte Ananas tragen die **aktuelle Position**, `wirf` die Position der `wirf`-Anweisung.
 - Rückgabewerte laufen wie im Interpreter über ein globales `rueck`-Register (relevant für `rand`-Blöcke, die

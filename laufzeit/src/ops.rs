@@ -10,15 +10,14 @@ use alloc::vec::Vec;
 // ---------------------------------------------------------------- Signale
 pub const SIG_ANANAS: i32 = 1;
 pub const SIG_BUDGET: i32 = 2;
-pub const SIG_PF: i32 = 3;
+/// 3 war der PizzaFehler zur Laufzeit (B0012); seit K-105 entsteht keiner mehr – Nummer bleibt reserviert, damit die
+/// Signalnummern des Backends (IR.md §6) stabil bleiben.
+pub const SIG_PF_RESERVIERT: i32 = 3;
 pub const SIG_LIMIT: i32 = 4;
 pub const SIG_PANIK: i32 = 5;
 
 pub static mut WURF_OBJ: W = KARTON;
 pub static mut WURF_POS: i32 = 0;
-pub static mut PF_CODE: &str = "";
-pub static mut PF_TEXT: W = KARTON;
-pub static mut PF_POS: i32 = 0;
 pub static mut BUDGET_FRAME: u32 = 0;
 
 pub fn setze_sig(s: i32) { unsafe { if crate::ZUSTAND.sig == 0 { crate::ZUSTAND.sig = s; } } }
@@ -49,13 +48,6 @@ pub fn wirf_ananas_w(knr: u32, t: W) {
 pub fn wirf_ananas(knr: u32, t: &str) { if crate::sig() { return; } wirf_ananas_w(knr, neu_str(t)); }
 pub fn wirf_tb(knr: u32, tb: &Tb) { if crate::sig() { return; } wirf_ananas_w(knr, tb.fertig()); }
 pub fn wirf_leer() { wirf_ananas(K_LEERERKARTON, "Der Karton ist leer."); }
-pub fn wirf_pf(code: &'static str, t: W, pos: i32) {
-    unsafe {
-        if crate::ZUSTAND.sig != 0 { return; }
-        PF_CODE = code; PF_TEXT = t; PF_POS = pos;
-        crate::ZUSTAND.sig = SIG_PF;
-    }
-}
 pub fn wirf_panik() { setze_sig(SIG_PANIK); }
 pub fn wirf_weg(name: u32) {
     let mut t = Tb::neu();

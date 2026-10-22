@@ -123,9 +123,6 @@ pub fn js_text(x: f64, out: &mut Vec<u8>) {
 /// zahlText: -0 → "0"
 pub fn zahl_text(x: f64, out: &mut Vec<u8>) { js_text(x, out) }
 
-/// `runde2`
-pub fn runde2(x: f64) -> f64 { js_round(x * 100.0) / 100.0 }
-
 /// `rundeAuf(x, n)`
 pub fn runde_auf(x: f64, n: f64) -> f64 {
     if n == 0.0 || n != n {

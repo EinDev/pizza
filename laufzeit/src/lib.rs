@@ -64,7 +64,7 @@ pub struct Zustand {
     pub grenze: f64,    // 8
     pub offset: f64,    // 16
     pub rueck: u64,     // 24
-    pub sig: i32,       // 32  0 keins, 1 Ananas, 2 Budget, 3 PizzaFehler, 4 Limit, 5 Panik
+    pub sig: i32,       // 32  0 keins, 1 Ananas, 2 Budget, 3 reserviert (ehemals PizzaFehler, K-105), 4 Limit, 5 Panik
     pub pos: i32,       // 36  aktuelle Position (Index in Positionstabelle)
     pub tiefe: i32,     // 40
     pub argtop: u32,    // 44  Argumentstapel-Spitze

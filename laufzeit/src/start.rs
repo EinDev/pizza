@@ -262,13 +262,6 @@ fn ende() -> i32 {
         match s {
             SIG_PANIK => { crate::host_panik(BANNER.as_bytes()); 39 }
             _ if { let s0 = z().sig; z().sig = 0; crate::theke::ui_ende(); z().sig = s0; false } => 0,
-            SIG_PF => {
-                let mut t = Tb::neu();
-                t.s("PizzaFehler ").s(PF_CODE).s(": ").t(PF_TEXT);
-                let (a, b) = pos_zs(PF_POS);
-                crate::host_fehler(1, PF_CODE.as_bytes(), &t.0, a, b);
-                2
-            }
             SIG_LIMIT => {
                 let (a, b) = pos_zs(z().pos);
                 crate::host_fehler(3, b"P0002", "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)".as_bytes(), a, b);
