@@ -145,15 +145,6 @@
           }
           case 'rezeptur': c.i32(this.text(r.name)); call('rt_rezeptur'); c.op(OP.drop); rezNamen.push(r); rezIdx++; break;
           case 'enum': c.i32(this.text(r.name)).i32(this.u32Array(r.werte.map(w => this.text(w)))).i32(r.werte.length); call('rt_enum'); c.op(OP.drop); break;
-          case 'belag': {
-            c.i32(this.text(r.name));
-            if (r.nach) c.i32(this.u32Array(r.nach.map(n => this.text(n)))).i32(r.nach.length);
-            else c.i32(0).i32(-1);
-            call('rt_belag');
-            c.set(0);
-            for (const m of r.methoden) { c.get(0).i32(this.text(m.name)).i32(m.fn); call('rt_belag_methode'); c.op(OP.drop); }
-            break;
-          }
           case 'globalfn': c.i32(-1).i32(this.text(r.name)).i32(r.fn).i32(1).i32(0).i32(r.nparam).i32(r.pos); call('rt_methode'); c.op(OP.drop); break;
         }
       }
@@ -641,11 +632,6 @@
           this.effekt('rt_neu', e.tf);
           return 'W';
         }
-        case 'pizza': {
-          c.i32(this.be.u32Array(e.belaege.map(b => this.be.text(b)))).i32(e.belaege.length);
-          this.effekt('rt_pizza', e.tf);
-          return 'W';
-        }
         case 'blech': {
           const a = this.argTemps({ pos: e.elemente, ben: null });
           const p = this.temp('B');
@@ -1128,7 +1114,8 @@
         this.frei_('F', x);
         return 'F';
       }
-      if (['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'hawaii'].includes(typ) || true) {
+      {
+        // alle übrigen Typen (Dauer, hawaii, Klassen, Theke …): Laufzeitprüfung rt_typ_pruefen
         this.konv(t, 'W');
         const w = this.temp('W');
         c.set(w);
@@ -1143,24 +1130,11 @@
       }
     }
 
-    besitzPruefen(t) {
-      if (t !== 'W') return;
-      const c = this.c;
-      const w = this.temp('W');
-      c.tee(w);
-      this.flush();
-      c.call(this.rt('rt_besitz'));
-      this.sigPruefen();
-      c.get(w);
-      this.frei_('W', w);
-    }
-
     varDekl(d, a) {
       const c = this.c;
       let t;
       if (d.init) {
         t = this.ausdr(d.init);
-        if (d.besitz) this.besitzPruefen(t);
         t = this.typPruefen(t, d.typ, d.name);
       } else {
         if (d.std === null) { c.i64(KARTON); t = 'W'; }
@@ -1302,7 +1276,6 @@
       const name = a.ziel.name;
       if (a.op === '=') {
         let t = this.ausdr(a.wert);
-        if (a.besitz) this.besitzPruefen(t);
         this.schreibeVar(ziel, t, name);
         if (ziel.feld !== undefined) this.frei_('B', ziel.feld);
         return;
@@ -1617,7 +1590,6 @@
       const c = this.c;
       if (a.k === 'statinit') c.i32(this.Z).i32(a.p).st32(Z_POS);
       let t = this.ausdr(a.e);
-      if (a.besitz) this.besitzPruefen(t);
       this.konv(t, 'W');
       const w = this.temp('W'); c.set(w);
       if (a.k === 'feldinit') this.dies(); else c.i64(KARTON);
