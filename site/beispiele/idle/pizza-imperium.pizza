@@ -17,7 +17,7 @@
 //  (mit halber Kraft, höchstens 30 Minuten lang).
 //
 //  Sprache im Einsatz:
-//    • Takt              – die Uhr der Backstube (1 Schlag pro Sekunde)
+//    • Takt              – die Uhr der Backstube (10 Schläge pro Sekunde, Produktion anteilig)
 //    • Pizza + Belag     – Nonnas Rezeptbuch legt Beläge auf, preis() zählt
 //    • @Kühlschrank      – Upgrade-Kosten werden nur einmal ausgerechnet
 //    • ofen(…) roh       – die Sonderschicht backt, bis das Ofen-Budget leer ist
@@ -26,7 +26,7 @@
 //    • Vorratskammer + Uhr.echt() – Speichern und Offline-Fortschritt
 //    • kompakt()/euro(kompakt: ja) – „1,23 Mio. €“
 //    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
-//    • Takt.setzeIntervall – im Minispiel schlägt die Uhr schneller (150/500 ms)
+//    • Takt.setzeIntervall – im Minispiel schlägt die Uhr im Takt des Spiels (120–500 ms)
 //
 //  🎲 Minispiele für zwischendurch (Teig fangen, Bestellung merken, Ofen
 //  halten, Lieferroute): optional, ein Sieg bringt ein paar Sekunden
@@ -463,19 +463,25 @@ klasse Spiel {
         umsatzKlickAllzeit += erlös;
     }
 
-    // Takt: n Sekunden sind vergangen (n > 1, wenn der Renderer nachholt).
-    leer vergehe(salami n) {
-        sekunden += n;
-        falls (minispielPause > 0) { minispielPause = Mathe.max(0, minispielPause - n); }
-        salami rest = n;
-        // Ein laufender Effekt gilt nur für seine Restdauer.
-        falls (effekt != "" && effektRest < rest) {
-            backe(proSekunde() * effektRest);
-            rest = rest - effektRest;
-            ticke(effektRest);
+    // Takt: `ms` Millisekunden sind vergangen (10 Schläge pro Sekunde; mehr, wenn der Renderer nachholt).
+    // Der Betrieb backt anteilig (Rate × Zeit, Bruchteile von Pizzen zählen mit – nichts geht durch Runden verloren);
+    // die Uhren (Ereignisse, Effekte, Ofen, Nonnas Pause) laufen in ganzen Sekunden. Holt der Renderer viel auf einmal
+    // nach, wird Sekunde für Sekunde gerechnet – ein Freitagabend wirkt also genau 30 Sekunden lang.
+    salami msInSekunde = 0;          // Bruchteil der laufenden Sekunde
+    leer vergehe(salami ms) {
+        salami rest = ms;
+        solange (rest > 0) {
+            salami schritt = Mathe.min(rest, 1000 - msInSekunde);
+            backe(proSekunde() * schritt / 1000);
+            msInSekunde += schritt;
+            rest -= schritt;
+            falls (msInSekunde >= 1000) {
+                msInSekunde = 0;
+                sekunden++;
+                falls (minispielPause > 0) { minispielPause--; }
+                ticke(1);
+            }
         }
-        backe(proSekunde() * rest);
-        ticke(rest);
     }
 
     leer ticke(salami n) {
@@ -1315,11 +1321,11 @@ Blech<Erfolg> ERFOLGE = [
 // Vorratskammer: Spielstand laden (Playground: Browser-Speicher, EXE: Datei im Nutzerverzeichnis).
 Vorratskammer kammer = neu Vorratskammer("pizza-imperium");
 falls (kammer.hat("spielstand")) { spiel.ladeAus(kammer.hole("spielstand")); }
-salami seitSpeichern = 0;
+salami gespeichertBei = 0;     // Spielsekunde des letzten Speicherns (alle 30 s wird gespeichert)
 
 leer speichere() {
     kammer.lege("spielstand", spiel.alsSpeisekarte());
-    seitSpeichern = 0;
+    gespeichertBei = spiel.sekunden;
 }
 
 // ═══════════════════════════════ Oberfläche ═════════════════════════════
@@ -1388,6 +1394,27 @@ klasse UpgradeZeile {
 
     leer zeigeWenn(diavolo an) { falls (reihe.sichtbar() != an) { reihe.sichtbar(an); } }
 
+    // Max: Bei 10 Takten pro Sekunde wird nur neu gezählt, wenn die Kasse aus [unten, oben) herausläuft.
+    salami maxK = 0;
+    funghi maxUnten = 0;
+    funghi maxOben = -1;
+    salami maxAnzahl = -1;
+    funghi maxFaktor = -1;
+    salami maxBei(funghi geld) {
+        falls (maxAnzahl == u.anzahl && maxFaktor == faktor && geld >= maxUnten && (maxOben < 0 || geld < maxOben)) { serviere (maxK); }
+        salami k = 0;
+        funghi summe = 0;
+        funghi nächster = u.kostenBei(u.anzahl) * faktor;
+        solange (k < 1000 && summe + nächster <= geld) {
+            summe += nächster;
+            k++;
+            nächster = u.kostenBei(u.anzahl + k) * faktor;
+        }
+        maxK = k; maxUnten = summe; maxOben = k < 1000 ? summe + nächster : -1;
+        maxAnzahl = u.anzahl; maxFaktor = faktor;
+        serviere (k);
+    }
+
     // menge: 1, 10, 100 oder 0 (= Max). Der Knopf zeigt den Preis zuerst, dann die Menge.
     leer zeichne(funghi geld, salami menge) {
         falls (!erlaubt) {
@@ -1396,7 +1423,7 @@ klasse UpgradeZeile {
             serviere;
         }
         salami k = Mathe.min(menge, grenze);
-        falls (menge == 0) { k = Mathe.min(u.maxFür(geld / faktor), grenze); }
+        falls (menge == 0) { k = Mathe.min(maxBei(geld), grenze); }
         salami gerechnet = Mathe.max(k, 1);
         falls (summeMenge != gerechnet || summeAnzahl != u.anzahl || summeFaktor != faktor) {
             summe = u.kostenFür(gerechnet) * faktor;
@@ -1847,24 +1874,21 @@ Reiter reiter = neu Reiter(["🍕 Backstube", "🏆 Erfolge", "⭐ Imperium", "�
 reiter.beiAenderung((n) -> { zeichne(); });   // Imperium/Geheimnisse werden nur gezeichnet, wenn man hinschaut
 
 // ── Die Uhr der Backstube ──
-// Eine Uhr für alles: Während eines Minispiels schlägt sie schneller (150 bzw. 500 ms); die Backstube
-// bekommt die verstrichene Zeit trotzdem in ganzen Sekunden – der Betrieb backt also weiter.
-salami taktMs = 1000;
-salami msRest = 0;
-Takt takt = neu Takt(1s, (n) -> {
-    msRest = msRest + n * taktMs;
-    salami sek = Mathe.boden(msRest / 1000);
-    msRest = msRest - sek * 1000;
+// Eine Uhr für alles, 10 Schläge pro Sekunde: Kasse und Balken laufen flüssig. Während eines Minispiels schlägt sie
+// im Takt des Spiels (120 bis 500 ms); die Backstube bekommt die verstrichene Zeit in Millisekunden und backt weiter.
+salami TAKT_MS = 100;
+salami taktMs = TAKT_MS;
+Takt takt = neu Takt(100ms, (n) -> {
+    salami sekVorher = spiel.sekunden;
     diavolo spielLief = ecke.läuft != "";
     falls (spielLief) { ecke.tick(n); }
-    falls (sek > 0) {
-        spiel.vergehe(sek);
-        falls (frageId != "") {
-            frageRest = frageRest - sek;
-            falls (frageRest <= 0) { frageId = ""; spiel.version++; }
-        }
+    spiel.vergehe(n * taktMs);
+    salami sek = spiel.sekunden - sekVorher;
+    falls (sek > 0 && frageId != "") {
+        frageRest = frageRest - sek;
+        falls (frageRest <= 0) { frageId = ""; spiel.version++; }
     }
-    falls (sek > 0 || (spielLief && ecke.läuft == "")) { nachVerarbeitung(); } sonst { zeichneSpielfeld(); }
+    nachVerarbeitung();
 }, id: "takt");
 
 // ─────────────────────────────── Zeichnen ───────────────────────────────
@@ -2149,7 +2173,7 @@ leer zeichneSpielfeld() {
             }
         }
         // Die Uhr schlägt im Takt des Spiels – bzw. wieder jede Sekunde
-        Dauer schlag = l == "" ? 1s : ecke.aktuell.schlag;
+        Dauer schlag = l == "" ? 100ms : ecke.aktuell.schlag;
         taktMs = Mathe.runden(schlag.inMs());
         takt.setzeIntervall(schlag);
     }
@@ -2234,11 +2258,11 @@ leer zeichne() {
     }
     // Die Reiter „Imperium“ und „Geheimnisse“ (Tabellen!) nur, wenn sie offen sind – spart große Nachrichten.
     salami r = reiter.gewaehlt();
-    diavolo auffrischen = voll || aufrufe % 5 == 0 || gezeigterReiter != r;
+    diavolo auffrischen = voll || spiel.sekunden != aufrufe || gezeigterReiter != r;
     falls (r == 3 && auffrischen) { zeichneImperium(); }
     falls (r == 4 && auffrischen) { zeichneGeheimnisse(); }
     gezeigterReiter = r;
-    aufrufe++;
+    aufrufe = spiel.sekunden;
 }
 
 leer nachVerarbeitung() {
@@ -2257,8 +2281,7 @@ leer nachVerarbeitung() {
     }
     gemeldeteFilialen = fil;
     zeichne();
-    seitSpeichern++;
-    falls (seitSpeichern >= 30) { speichere(); }
+    falls (spiel.sekunden - gespeichertBei >= 30 || spiel.sekunden < gespeichertBei) { speichere(); }
 }
 
 // ─────────────────────────────── Aufbauen & los ─────────────────────────
