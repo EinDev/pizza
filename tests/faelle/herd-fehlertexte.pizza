@@ -52,6 +52,7 @@ zeig(() -> herd.text("x", 1, 2, ausrichtung: "quer"));
 zeig(() -> Form.kugel(teile: 2));
 zeig(() -> Form.ring(dicke: 1));
 zeig(() -> Form.kegel(teile: "viele"));
+zeig(() -> Form.kugel(teile: 24.5));
 zeig(() -> neu Form([0, 0, 0, 1], [0, 1, 2]));
 zeig(() -> neu Form("punkte", [0, 1, 2]));
 zeig(() -> neu Form([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2, 3]));
@@ -76,3 +77,7 @@ zeig(() -> wk.radius());
 zeig(() -> wk.teil());
 zeig(() -> weg.entferne());
 Bote.sage((wk + " " + weg + " " + weg.entfernt()));
+// Genus aus dem Schema (Kern-Texte)
+Kreis kk = herd.kreis(5, 5, 2).kreis();
+zeig(() -> herd.gruppe().mit(kk));
+zeig(() -> kk.teil().mit(neu Kreis()));

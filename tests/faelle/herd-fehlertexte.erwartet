@@ -44,6 +44,7 @@ LaufzeitAnanas: Text.ausrichtung kennt 'quer' nicht. Erlaubt: links, mitte, rech
 LaufzeitAnanas: teile muss zwischen 3 und 128 liegen, nicht 2.
 LaufzeitAnanas: dicke muss zwischen 0.05 und 0.9 liegen, nicht 1.
 TypAnanas: kegel() braucht eine Zahl für 'teile', nicht "viele".
+TypAnanas: Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.
 LaufzeitAnanas: Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).
 LaufzeitAnanas: Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).
 LaufzeitAnanas: Form braucht Dreiecke als Blech von Punkt-Nummern (Länge durch 3 teilbar).
@@ -63,3 +64,5 @@ LaufzeitAnanas: Teil 7 ist schon entfernt.
 LaufzeitAnanas: Teil 7 ist schon entfernt.
 LaufzeitAnanas: Teil 7 ist schon entfernt.
 Kreis(7) Teil(7) ja
+LaufzeitAnanas: Dieser Kreis hängt schon an Teil 8.
+LaufzeitAnanas: Teil 8 hat schon einen Kreis.

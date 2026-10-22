@@ -3419,7 +3419,7 @@
         // lose: <Name>(); zerstört: das Teil, an dem sie zuletzt hing
         const e = this.hk.e;
         let t = v.teil;
-        if (e.komp_info(v.h, 3) !== 1) { t = e.komp_info(v.h, 2); if (t < 0) { e.fehler_neu(); t = v.teil; } }
+        if (e.komp_info(v.h, 3) !== 1) t = e.komp_info(v.h, 2);
         return v.art.name + '(' + (t > 0 ? t : '') + ')';
       }
       if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
@@ -5074,7 +5074,8 @@
     };
     t.teil = function (k) {
       const e = this.hk.e;
-      if (e.komp_info(k.h, 3) === 1) this.herdI(e.komp_info(k.h, 2));   // zerstört → Kern-Text „Teil 7 ist schon entfernt.“
+      // zerstört (komp_info 3) → Kern-Text „Teil 7 ist schon entfernt.“ über das zuletzt bekannte Teil (komp_info 2 liefert dann 0)
+      if (e.komp_info(k.h, 3) === 1) this.herdF(e.teil_hole(k.teil, 1));
       const id = this.herdI(e.komp_info(k.h, 2));
       k.teil = id;
       return id === 0 ? null : this.herdTeilObj(id);
@@ -5171,7 +5172,11 @@
       else {
         const name = this.text(n === undefined ? null : n);
         art = this.hk.schema.nachName.get(name);
-        if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Eine Komponente \'' + name + '\' gibt es nicht.');
+        if (art === undefined) {   // unbekannt → Kern-Text „Eine Komponente 'X' gibt es nicht.“ (typ_nummer, Code 19)
+          const k = this.hk;
+          this.herdI(k.e.typ_nummer(k.text(name), k.len));
+          throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Komponente ' + name + ' fehlt im Schema.');
+        }
       }
       const e = this.hk.e;
       const h = this.herdI(e.komp_von(t.id, art.nummer));

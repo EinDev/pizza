@@ -134,7 +134,7 @@ Bote.sage((h + " " + h.breite() + " " + h.hoehe()));
     ],
   }),
 
-  F(T, "§18.4: Komponenten-Fehlertexte (Typ, Bereich, Wahl, Farbe, Feld, Raum, hängt schon, Voraussetzung, entfernt)", P`
+  F(T, "§18.4: Komponenten-Fehlertexte (Typ, Bereich, Wahl, Farbe, Feld, Raum, hängt schon, Voraussetzung, entfernt, Genus)", P`
 leer zeig(Rezept f) { probier { f(); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); } }
 Herd h = neu Herd();
 zeig(() -> neu Kreis(radius: "x"));
@@ -154,6 +154,11 @@ zeig(() -> g.mit(neu Animation()));
 zeig(() -> g.haenge(t));
 g.entferne();
 zeig(() -> g.x());
+zeig(() -> b.teil());
+Kreis kk = h.kreis(1, 1, 1).kreis();
+zeig(() -> h.gruppe().mit(kk));
+zeig(() -> kk.teil().mit(neu Kreis()));
+zeig(() -> t.ohne("Pendel"));
 `, {
     out: [
       "TypAnanas: Kreis.radius braucht eine Zahl, nicht \"x\".",
@@ -169,6 +174,10 @@ zeig(() -> g.x());
       "LaufzeitAnanas: Animation braucht ein Bild am selben Teil.",
       "LaufzeitAnanas: Ein 2D-Teil kann nicht an einem 3D-Teil hängen.",
       "LaufzeitAnanas: Teil 4 ist schon entfernt.",
+      "LaufzeitAnanas: Teil 4 ist schon entfernt.",
+      "LaufzeitAnanas: Dieser Kreis hängt schon an Teil 5.",
+      "LaufzeitAnanas: Teil 5 hat schon einen Kreis.",
+      "LaufzeitAnanas: Eine Komponente 'Pendel' gibt es nicht.",
     ],
   }),
 
@@ -202,9 +211,10 @@ Bote.sage((Herd.farbe(255, 128.4, -3) + " " + Herd.farbe(1, 2, 300, a: 0.5) + " 
 Herd h = neu Herd();
 Bote.sage((Form.wuerfel() + " " + Form.kugel(teile: 8).id() + " " + neu Bildchen(["ab", "k"], farben: karton)));
 probier { Form.kugel(teile: 2); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { Form.kugel(teile: 24.5); } verbrannt (TypAnanas x) { Bote.sage((x.nachricht())); }
 probier { neu Bildchen(["q"]); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
 `, {
-    out: ["#ff8000ff #0102ff80 #000000ff", "Form(1) 2 Bildchen(2×2)", "teile muss zwischen 3 und 128 liegen, nicht 2.", "Das Zeichen 'q' hat im Bildchen keine Farbe."],
+    out: ["#ff8000ff #0102ff80 #000000ff", "Form(1) 2 Bildchen(2×2)", "teile muss zwischen 3 und 128 liegen, nicht 2.", "Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.", "Das Zeichen 'q' hat im Bildchen keine Farbe."],
   }),
 
   F(T, "K-133: Theke und Herd zusammen → P0013 vor dem Start (Position des späteren neu)", P`
