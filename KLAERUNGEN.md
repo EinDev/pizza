@@ -1082,9 +1082,11 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   E2E `02-ausfuehrung` (Hawaii-Auslöser), Prüfstand (a06 ersetzt durch K-105-Fälle, Anpassungen in a03/a04/a05/a07/a08/a10/a13/a14).
 - **Idle (`site/beispiele/idle/**`, anderer Agent; Nutzerentscheidung: entfernt wird erst nach „Idle angepasst“):** zu ersetzen sind
   `erste-pizzeria.pizza` Z. 8–9 (`Pizza margherita = ((Tomate, Mozzarella, Basilikum)); … margherita.preis()` → feste Zahl 8 oder eigene
-  Klasse) und `pizza-imperium.pizza` Z. 340 (`Pizza rezept = ((…))`), Z. 342 (`Blech<Belag> SEITEN = [Salami, …]` → `Blech<margherita>`),
-  Z. 390 (`rezept.preis()`), Z. 415 (`rezept.beläge()`), Z. 644 (`Belag b = SEITEN.stück(seite)` und das folgende `rezept + b`),
-  Z. 748 (`rezept = ((Tomate, Mozzarella, Basilikum))`) – z. B. eigene Klasse `Rezept` mit `Blech<margherita>` Beläge und `Speisekarte` Preise.
+  Klasse) und `pizza-imperium.pizza` (Stand master 5e6bf55) Z. 372 (`Pizza rezept = ((…))`), Z. 374 (`Blech<Belag> SEITEN = [Salami, …]` →
+  `Blech<margherita>`), Z. 422 (`rezept.preis()`), Z. 447 (`rezept.beläge()`), Z. 684–685 (`Belag b = SEITEN.stück(seite); rezept = rezept + b;`),
+  Z. 815, 903, 1033 (`rezept = ((Tomate, Mozzarella, Basilikum))`), Z. 1036 (`rezept = rezept + SEITEN.stück(seite)`), Z. 2140 (Belag-Textform im
+  Knopf) – z. B. eigene Klasse `Rezept` mit `Blech<margherita>` Beläge und `Speisekarte` Preise (Grundpreis 5, Tomate 1, Mozzarella 1,5, Basilikum 0,5,
+  Salami 1,5, Pilze 1, Oliven 1, Parmesan 1,2, Rucola 1, Gorgonzola 1,5, Artischocken 1,5, Knoblauch 0,3 – dann bleiben alle Zahlen des Spiels gleich).
 - **Multithreading-Branch (`D:\Projekte\pizza-threads`, Merge-Hinweise):** `laufzeit/src/kueche.rs` kopiert `A_PIZZA`/`A_SICHT`/`A_STUECK`/
   `A_BELAG` für PKF1 (Z. 188, 213, 226, 251–258, 342–348) – diese Zweige entfallen; `namen.rs` verliert `UnbekannterBelagAnanas`,
   `BesitzAnanas` und die Belag-Namen (Indizes der Namen und der eingebauten Ananas verschieben sich – `frontend.js` „Klassenindex 18 + n“
