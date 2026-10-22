@@ -10,8 +10,8 @@ use crate::{sig, zahl as zl};
 use alloc::string::String;
 use alloc::vec::Vec;
 
-pub const A_ZUFALL: u32 = 26;
-pub const A_KAMMER: u32 = 27;
+pub const A_ZUFALL: u32 = 22;
+pub const A_KAMMER: u32 = 23;
 
 // ================================================================ Zufall
 #[repr(C)]

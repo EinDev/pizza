@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 pub struct Param { pub name: u32, pub typ: u32, pub nie_karton: bool, pub gebacken: bool }
 pub struct FnInfo { pub tab: u32, pub params: Vec<Param>, pub name: u32 }
 pub struct Methode {
-    pub name: u32, pub klasse: i32, pub belag: i32, pub fnid: i32, pub statisch: bool, pub sicht: u8,
+    pub name: u32, pub klasse: i32, pub fnid: i32, pub statisch: bool, pub sicht: u8,
     pub haltbar: f64, pub veraltet: W, pub gewarnt: bool, pub hat_unten: bool,
 }
 pub struct FeldInfo { pub name: u32, pub typ: u32, pub gebacken: bool, pub sicht: u8, pub klasse: u32 }
@@ -189,7 +189,6 @@ pub fn pruefe_typ(typ: u32, v: W, name: u32) -> bool {
         N_DIAVOLO => { if ist_bool(v) { return true; } was = "kein Wahrheitswert"; }
         N_HAWAII => { wirf_panik(); return false; }
         N_G_DAUER => { if v == KARTON || art(v) == A_DAUER { return true; } was = "keine Dauer"; }
-        N_G_PIZZA => { if v == KARTON || art(v) == A_PIZZA { return true; } was = "keine Pizza"; }
         N_G_ZUFALL => {
             if v == KARTON || crate::vorrat::ist_zufall(v) || klasse_eintrag(typ).is_some() { return true; }
             was = "kein Zufall";
@@ -451,8 +450,6 @@ pub fn rufe_methode(o: W, name: u32, pos: &[W], ben: &Ben, knoten: i32, ctxk: i3
     if o == KARTON || o == UNDEF { wirf_leer(); return KARTON; }
     match art(o) {
         A_OBJ => obj_methode(o, name, pos, ben, knoten, ctxk, mit_sc),
-        A_PIZZA => { let n = obj::<Pizza>(o).s.len(); crate::pf::pizza_aufruf(o, n, name, pos, ben, knoten) }
-        A_SICHT => { let si = obj::<Sicht>(o); crate::pf::pizza_aufruf(si.pizza, si.k as usize, name, pos, ben, knoten) }
         A_KLASSE => statischer_aufruf(obj::<Ref>(o).id, name, pos, ben, knoten, ctxk, ctxd, mit_sc),
         A_ENUMT => {
             if name == N_WERTE { return blech(enm(obj::<Ref>(o).id).werte.clone()); }
@@ -562,7 +559,7 @@ pub extern "C" fn rt_rufe(fw: W, args: u32, npos: u32, bennamen: u32, nben: u32,
     r
 }
 
-/// aufrufZiel ohne lokale Variablen: Methoden des Kontexts / Pizza-Methoden. UNDEF → Name als Wert auflösen.
+/// aufrufZiel ohne lokale Variablen: Methoden des Kontexts. UNDEF → Name als Wert auflösen.
 #[no_mangle]
 pub extern "C" fn rt_ncall_ziel(name: u32, ctxd: W, ctxk: i32) -> W {
     let id = name_id(ptr_w(name));
@@ -572,8 +569,6 @@ pub extern "C" fn rt_ncall_ziel(name: u32, ctxd: W, ctxk: i32) -> W {
         let mut gef = finde_methode_liste(start, id);
         if gef.is_none() && d { gef = finde_methode_liste(ctxk, id); }
         if let Some((k, _)) = gef { return MLISTE | ((k as u64) << 16) | id as u64; }
-    } else if art(ctxd) == A_PIZZA {
-        if crate::pf::pizza_hat_methode(ctxd, id) { return PIZZAM | id as u64; }
     }
     UNDEF
 }
@@ -590,10 +585,6 @@ pub extern "C" fn rt_rufe_ziel(fw: W, args: u32, npos: u32, bennamen: u32, nben:
         let dobj = if art(ctxd) == A_OBJ { ctxd } else { KARTON };
         let m = waehle(l, anzahl(pos, &ben));
         if meth(l[0]).sicht != 0 && !pruefe_methoden_zugriff(m, ctxk) { KARTON } else { rufe_decl(m, dobj, pos, &ben, knoten, 0) }
-    } else if (fw >> 32) == (PIZZAM >> 32) {
-        let id = (fw & 0xFFFF_FFFF) as u32;
-        let n = obj::<Pizza>(ctxd).s.len();
-        crate::pf::pizza_aufruf(ctxd, n, id, pos, &ben, knoten)
     } else if art(fw) == A_GEBUNDEN && {
         let g = obj::<Gebunden>(fw);
         let l = gebunden_liste(g);
@@ -810,7 +801,6 @@ pub fn mitglied(o: W, id: u32, ctxk: i32) -> W {
             wirf_tb(K_LAUFZEIT, &t);
             KARTON
         }
-        A_PIZZA | A_SICHT => neu_w(Nativ { art: A_NATIV, was: 0, empf: o, name: id, modul: ctxk as u32 }),
         _ => {
             if crate::std_m::tabelle_hat(o, id) { return neu_w(Nativ { art: A_NATIV, was: 0, empf: o, name: id, modul: u32::MAX }); }
             let mut t = Tb::neu();

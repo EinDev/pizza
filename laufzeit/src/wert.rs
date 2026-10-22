@@ -17,8 +17,6 @@ pub const WEG: W = 0xFFFF_0000_0000_0001;
 pub const AUTO: W = 0xFFFF_0000_0000_0002;
 /// Methodenliste auf `dies` (nur intern zwischen rt_ncall_ziel und rt_rufe_ziel): MLISTE | (klasse<<16 | name)
 pub const MLISTE: u64 = 0xFFFF_0001_0000_0000;
-/// Pizza-Methode auf `dies` (Belag-Methoden): PIZZAM | name
-pub const PIZZAM: u64 = 0xFFFF_0002_0000_0000;
 pub const NAN: W = 0x7FF8_0000_0000_0000;
 
 #[inline(always)] pub fn zahl(x: f64) -> W { if x != x { NAN } else { x.to_bits() } }
@@ -30,30 +28,28 @@ pub const NAN: W = 0x7FF8_0000_0000_0000;
 #[inline(always)] pub fn ptr_w(p: u32) -> W { PTR | p as u64 }
 #[inline(always)] pub fn p(w: W) -> u32 { w as u32 }
 
-// Objektarten
+// Objektarten (K-105: Pizza/Sicht/Belag/Stück entfernt, Nummern kompakt neu vergeben; A_TEXT = 1 ist im Compiler
+// fest verdrahtet – backend-wasm.js schreibt Textkonstanten mit art 1 –, alle anderen Nummern sind rein laufzeitintern;
+// A_THEKE/A_ZUTAT stehen in theke.rs, A_ZUFALL/A_KAMMER in vorrat.rs)
 pub const A_TEXT: u32 = 1;
 pub const A_BLECH: u32 = 2;
 pub const A_KARTE: u32 = 3;
 pub const A_DAUER: u32 = 4;
-pub const A_PIZZA: u32 = 5;
-pub const A_SICHT: u32 = 6;
-pub const A_BELAG: u32 = 7;
-pub const A_OBJ: u32 = 8;
-pub const A_ENUMW: u32 = 9;
-pub const A_KLASSE: u32 = 10;
-pub const A_ENUMT: u32 = 11;
-pub const A_REZEPTUR: u32 = 12;
-pub const A_MODUL: u32 = 13;
-pub const A_FUNKTION: u32 = 14;
-pub const A_GEBUNDEN: u32 = 15;
-pub const A_NATIV: u32 = 16;
-pub const A_TEIG: u32 = 17;
-pub const A_LIEF: u32 = 18;
-pub const A_ZUST: u32 = 19;
-pub const A_STUECK: u32 = 20;
-pub const A_RESTE: u32 = 21;
-pub const A_ROH: u32 = 22;
-pub const A_ZELLE: u32 = 23;
+pub const A_OBJ: u32 = 5;
+pub const A_ENUMW: u32 = 6;
+pub const A_KLASSE: u32 = 7;
+pub const A_ENUMT: u32 = 8;
+pub const A_REZEPTUR: u32 = 9;
+pub const A_MODUL: u32 = 10;
+pub const A_FUNKTION: u32 = 11;
+pub const A_GEBUNDEN: u32 = 12;
+pub const A_NATIV: u32 = 13;
+pub const A_TEIG: u32 = 14;
+pub const A_LIEF: u32 = 15;
+pub const A_ZUST: u32 = 16;
+pub const A_RESTE: u32 = 17;
+pub const A_ROH: u32 = 18;
+pub const A_ZELLE: u32 = 19;
 
 #[inline(always)]
 pub fn art(w: W) -> u32 {
@@ -74,9 +70,6 @@ pub fn obj<T>(w: W) -> &'static mut T { unsafe { &mut *(p(w) as *mut T) } }
 #[repr(C)] pub struct Blech { pub art: u32, pub _r: u32, pub v: Vec<W> }
 pub use crate::karte::Karte;
 #[repr(C)] pub struct Dauer { pub art: u32, pub _r: u32, pub ms: f64 }
-#[repr(C)] pub struct Pizza { pub art: u32, pub uebrig: i32, pub s: Vec<W> }
-#[repr(C)] pub struct Sicht { pub art: u32, pub k: u32, pub pizza: W }
-#[repr(C)] pub struct Belag { pub art: u32, pub id: u32, pub name: W, pub preis: f64, pub nach: Vec<u32>, pub methoden: Vec<(u32, u32)> }
 #[repr(C)] pub struct Feld { pub w: W, pub info: u32, pub besitzer: u32 }
 #[repr(C)] pub struct Obj { pub art: u32, pub klasse: u32, pub nr: f64, pub felder: Vec<Feld>, pub zugeklappt: u32, pub nachricht: W, pub cache: u32 }
 #[repr(C)] pub struct EnumW { pub art: u32, pub e: u32, pub name: W, pub pos: f64 }
@@ -87,7 +80,6 @@ pub use crate::karte::Karte;
 #[repr(C)] pub struct Teig { pub art: u32, pub fertig: u32, pub auf: u32, pub _r: u32, pub fnw: W, pub wert: W }
 #[repr(C)] pub struct Lief { pub art: u32, pub nr: u32, pub fnw: W, pub trinkgeld: f64, pub zust: W, pub rueckruf: W }
 #[repr(C)] pub struct Zust { pub art: u32, pub puenktlich: u32, pub wert: W, pub fehler: W, pub fzeile: i32, pub fpos: i32 }
-#[repr(C)] pub struct Stueck { pub art: u32, pub gegessen: u32, pub pizza: W }
 #[repr(C)] pub struct Reste { pub art: u32, pub matschig: u32, pub wert: W }
 #[repr(C)] pub struct Roh { pub art: u32, pub _r: u32, pub teil: W, pub zeit: W }
 #[repr(C)] pub struct Zelle { pub art: u32, pub _r: u32, pub w: W }

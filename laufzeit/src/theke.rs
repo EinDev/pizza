@@ -11,8 +11,8 @@ use crate::{sig, zahl as zl};
 use alloc::string::String;
 use alloc::vec::Vec;
 
-pub const A_THEKE: u32 = 24;
-pub const A_ZUTAT: u32 = 25;
+pub const A_THEKE: u32 = 20;
+pub const A_ZUTAT: u32 = 21;
 
 const ARTEN: [&str; 11] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter"];
 const ART_NAMEN: [u32; 11] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER];

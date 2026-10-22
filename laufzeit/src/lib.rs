@@ -1,4 +1,4 @@
-//! pizzaiolo-Laufzeit: Werte, Texte, Standardbibliothek, Objektmodell, Pizza-Funktionen.
+//! pizzaiolo-Laufzeit: Werte, Texte, Standardbibliothek, Objektmodell, Ofen/Teig/Lieferung, Theke, Vorrat.
 //! Wird vom Compiler mit dem Programmcode zu EINEM Wasm-Modul gelinkt (HOST-ABI.md).
 #![no_std]
 #![allow(static_mut_refs, clippy::missing_safety_doc, dead_code)]
@@ -251,4 +251,4 @@ pub extern "C" fn rt_info(i: i32) -> i32 {
     }
 }
 
-pub fn start_init() { text::namen_init(); klassen::eingebaute_klassen(); pf::belaege_init(); argstapel_init(); }
+pub fn start_init() { text::namen_init(); klassen::eingebaute_klassen(); argstapel_init(); }

@@ -58,7 +58,6 @@ static mut METH_POS: Vec<(u32, i32)> = Vec::new();
 fn init() {
     namen_init();
     eingebaute_klassen();
-    crate::pf::belaege_init();
     crate::argstapel_init();
 }
 
@@ -126,7 +125,7 @@ pub extern "C" fn rt_klasse_feldinit(k: i32, f: i32) { kl(k as u32).feld_init = 
 pub extern "C" fn rt_methode(k: i32, name: u32, f: i32, flags: i32, sicht: i32, nparam: i32, pos: i32) -> i32 {
     unsafe {
         let id = name_id(ptr_w(name));
-        METH.push(Methode { name: id, klasse: k, belag: -1, fnid: f, statisch: flags & 1 != 0 || k < 0, sicht: sicht as u8, haltbar: -1.0, veraltet: UNDEF, gewarnt: false, hat_unten: false });
+        METH.push(Methode { name: id, klasse: k, fnid: f, statisch: flags & 1 != 0 || k < 0, sicht: sicht as u8, haltbar: -1.0, veraltet: UNDEF, gewarnt: false, hat_unten: false });
         let m = (METH.len() - 1) as u32;
         if f < 0 { ROHLING_PARAMS.push((m, nparam as u32)); }
         METH_POS.push((m, pos));
@@ -142,7 +141,7 @@ pub extern "C" fn rt_methode(k: i32, name: u32, f: i32, flags: i32, sicht: i32, 
 #[no_mangle]
 pub extern "C" fn rt_ktor(k: i32, f: i32, hat_unten: i32) -> i32 {
     unsafe {
-        METH.push(Methode { name: kl(k as u32).name, klasse: k, belag: -1, fnid: f, statisch: false, sicht: 0, haltbar: -1.0, veraltet: UNDEF, gewarnt: false, hat_unten: hat_unten != 0 });
+        METH.push(Methode { name: kl(k as u32).name, klasse: k, fnid: f, statisch: false, sicht: 0, haltbar: -1.0, veraltet: UNDEF, gewarnt: false, hat_unten: hat_unten != 0 });
         let m = (METH.len() - 1) as u32;
         kl(k as u32).ktoren.push(m);
         m as i32
@@ -192,31 +191,6 @@ pub extern "C" fn rt_enum(name: u32, werte: u32, n: u32) -> i32 {
         ENUMS.push(EnumT { name: name_id(ptr_w(name)), werte: ws, wert: w });
         KLASSEN_NAME.push((name_id(ptr_w(name)), 2, id));
         id as i32
-    }
-}
-/// Eigener Belag; nach = Array von Text-Zeigern (n < 0: Tabellenwert verwenden)
-#[no_mangle]
-pub extern "C" fn rt_belag(name: u32, nach: u32, n: i32) -> W {
-    init();
-    let id = name_id(ptr_w(name));
-    let tab = crate::pf::TABELLE.iter().find(|x| x.0 == id);
-    let preis = match tab { Some(&(_, p, _)) if p == p => p, _ => 1.0 };
-    let nach_v: Vec<u32> = if n < 0 { tab.map(|t| t.2.to_vec()).unwrap_or_default() } else {
-        (0..n as u32).map(|i| name_id(ptr_w(unsafe { *((nach + i * 4) as *const u32) }))).collect()
-    };
-    let b = neu_w(Belag { art: A_BELAG, id, name: name_text(id), preis, nach: nach_v, methoden: Vec::new() });
-    unsafe { crate::pf::BELAEGE.push((id, b)); }
-    b
-}
-#[no_mangle]
-pub extern "C" fn rt_belag_methode(b: W, name: u32, f: i32) -> i32 {
-    unsafe {
-        let id = name_id(ptr_w(name));
-        METH.push(Methode { name: id, klasse: -1, belag: 0, fnid: f, statisch: false, sicht: 0, haltbar: -1.0, veraltet: UNDEF, gewarnt: false, hat_unten: false });
-        let m = (METH.len() - 1) as u32;
-        let be = obj::<Belag>(b);
-        match be.methoden.iter_mut().find(|x| x.0 == id) { Some(x) => x.1 = m, None => be.methoden.push((id, m)) }
-        m as i32
     }
 }
 #[no_mangle]

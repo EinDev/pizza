@@ -136,7 +136,6 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
     let r = match id {
         N_G_BLECH => blech(if !pos.is_empty() && art(pos[0]) == A_BLECH { blech_v(pos[0]).clone() } else { Vec::new() }),
         N_G_SPEISEKARTE => crate::karte::neu_karte(),
-        N_G_PIZZA => crate::pf::neue_pizza(Vec::new()),
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
         N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),
         N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => crate::vorrat::neue_kammer(pos, &ben, knoten),
@@ -214,7 +213,6 @@ pub extern "C" fn rt_typ_pruefen(typ: u32, v: W, name: u32) -> i32 {
     if typ == 0 { return 1; }
     pruefe_typ(name_id(ptr_w(typ)), v, name_id(ptr_w(name))) as i32
 }
-#[no_mangle] pub extern "C" fn rt_besitz(v: W) { if art(v) == A_PIZZA { wirf_besitz(); } }
 #[no_mangle]
 pub extern "C" fn rt_gebacken(name: u32) {
     let mut t = Tb::neu();
@@ -239,7 +237,6 @@ pub extern "C" fn rt_fuer_liste(q: W) -> W {
         A_TEXT => blech(s(q).chars().map(|c| { let mut b = [0u8; 4]; neu_str(c.encode_utf8(&mut b)) }).collect()),
         A_KARTE => blech(crate::karte::schluessel(obj::<Karte>(q))),
         A_ENUMT => blech(enm(obj::<Ref>(q).id).werte.clone()),
-        A_PIZZA => blech(obj::<Pizza>(q).s.clone()),
         _ => {
             if q == KARTON || q == UNDEF { wirf_leer(); return KARTON; }
             let mut t = Tb::neu();

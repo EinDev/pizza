@@ -1,4 +1,4 @@
-//! Pizzen & Beläge, Schritte/Budgets, Ofen, Teig, Lieferung, Kühlschrank, Eingabe, Zufall.
+//! Schritte/Budgets, Ofen, Teig, Lieferung, Zustellung, Kühlschrank, Eingabe, Zufall.
 
 use crate::klassen::*;
 use crate::namen::*;
@@ -8,137 +8,6 @@ use crate::text::*;
 use crate::wert::*;
 use crate::{sig, z};
 use alloc::vec::Vec;
-
-// ---------------------------------------------------------------- Beläge
-pub static mut BELAEGE: Vec<(u32, W)> = Vec::new();
-pub const TABELLE: [(u32, f64, &[u32]); 24] = [
-    (N_G_TOMATE, 1.00, &[]), (N_G_MOZZARELLA, 1.50, &[N_G_TOMATE]), (N_G_KAESE, 1.00, &[N_G_TOMATE]),
-    (N_G_BASILIKUM, 0.50, &[N_G_MOZZARELLA]), (N_G_SALAMI, 1.50, &[]), (N_G_SCHINKEN, 1.50, &[]), (N_G_PILZE, 1.00, &[]),
-    (N_G_OLIVEN, 1.00, &[]), (N_G_ZWIEBELN, 0.50, &[]), (N_G_PAPRIKA, 0.80, &[]), (N_G_CHILI, 0.50, &[]),
-    (N_G_PEPERONI, 0.80, &[]), (N_G_RUCOLA, 1.00, &[N_G_MOZZARELLA]), (N_G_PARMESAN, 1.20, &[N_G_TOMATE]),
-    (N_G_GORGONZOLA, 1.50, &[N_G_TOMATE]), (N_G_THUNFISCH, 2.00, &[]), (N_G_SARDELLEN, 1.80, &[]),
-    (N_G_ARTISCHOCKEN, 1.50, &[]), (N_G_SPINAT, 1.00, &[]), (N_G_EI, 0.80, &[]), (N_G_MAIS, 0.50, &[]),
-    (N_G_KNOBLAUCH, 0.30, &[]), (N_G_KAPERN, 0.70, &[]), (N_G_ANANAS, f64::NAN, &[]),
-];
-
-pub fn belaege_init() {
-    unsafe {
-        if !BELAEGE.is_empty() { return; }
-        for &(n, p, nach) in TABELLE.iter() {
-            let b = neu_w(Belag { art: A_BELAG, id: n, name: name_text(n), preis: if p != p { 0.0 } else { p }, nach: nach.to_vec(), methoden: Vec::new() });
-            BELAEGE.push((n, b));
-        }
-    }
-}
-pub fn belag_nach_name(id: u32) -> Option<W> {
-    unsafe { for &(n, b) in BELAEGE.iter().rev() { if n == id { return Some(b); } } }
-    None
-}
-pub fn tabellen_preis(id: u32) -> Option<f64> {
-    for &(n, p, _) in TABELLE.iter() { if n == id { return if p != p { None } else { Some(p) }; } }
-    None
-}
-pub fn standard_preis(b: W) -> f64 {
-    let be = obj::<Belag>(b);
-    if let Some(p) = tabellen_preis(be.id) { return p; }
-    be.preis
-}
-
-/// neuePizza(s)
-pub fn neue_pizza(s: Vec<W>) -> W {
-    for &x in s.iter() { if obj::<Belag>(x).id == N_G_ANANAS { wirf_panik(); return KARTON; } }
-    for i in 0..s.len() {
-        let x = obj::<Belag>(s[i]);
-        if x.nach.is_empty() { continue; }
-        for j in i + 1..s.len() {
-            let y = obj::<Belag>(s[j]);
-            if x.nach.contains(&y.id) {
-                let mut t = Tb::neu();
-                t.s("'").t(x.name).s("' liegt unter '").t(y.name).s("'. Das ist keine Pizza, das ist ein Auflauf.");
-                wirf_pf("B0012", t.fertig(), z().pos);
-                return KARTON;
-            }
-        }
-    }
-    neu_w(Pizza { art: A_PIZZA, uebrig: 8, s })
-}
-
-/// Pizza-Literal: Belagnamen (Text-Zeiger) im Speicher
-#[no_mangle]
-pub extern "C" fn rt_pizza(namen: u32, n: u32) -> W {
-    let mut s = Vec::with_capacity(n as usize);
-    for i in 0..n {
-        let id = name_id(ptr_w(unsafe { *((namen + i * 4) as *const u32) }));
-        match belag_nach_name(id) {
-            Some(b) => s.push(b),
-            None => {
-                let mut t = Tb::neu();
-                t.s("'").name(id).s("' steht nicht auf der Zutatenliste.");
-                wirf_tb(K_UNBEKANNTERBELAG, &t);
-                return KARTON;
-            }
-        }
-    }
-    let r = neue_pizza(s);
-    crate::speicher_pruefen();
-    r
-}
-
-pub fn belag_methode(b: W, name: u32) -> Option<u32> {
-    for &(n, m) in obj::<Belag>(b).methoden.iter() { if n == name { return Some(m); } }
-    None
-}
-
-pub fn pizza_hat_methode(pz: W, name: u32) -> bool {
-    if name == N_PREIS || matches!(name, N_BELAEGE | N_HAT | N_ANZAHLBELAEGE | N_ALSTEXT | N_UEBRIG | N_BESCHREIBUNG) { return true; }
-    obj::<Pizza>(pz).s.iter().any(|&b| belag_methode(b, name).is_some())
-}
-
-fn belag_aufruf(m: u32, pz: W, k: usize, pos: &[W], ben: &Ben) -> W {
-    let sicht = neu_w(Sicht { art: A_SICHT, k: k as u32, pizza: pz });
-    fuehre_aus(m, pz, sicht, pos, ben)
-}
-
-pub fn preis_bis(pz: W, k: usize) -> W {
-    if k == 0 { return zahl(5.0); }
-    let b = obj::<Pizza>(pz).s[k - 1];
-    if let Some(m) = belag_methode(b, N_PREIS) { return belag_aufruf(m, pz, k - 1, &[], &[]); }
-    let unten = preis_bis(pz, k - 1);
-    if sig() { return KARTON; }
-    // runde2(preisBis + standardPreis) – mit JS-`+` (auch wenn unten kein Zahlwert ist)
-    let summe = binaer(OP_PLUS, unten, zahl(standard_preis(b)), 0);
-    if sig() { return KARTON; }
-    if ist_zahl(summe) { zahl(crate::zahl::runde2(f(summe))) } else { zahl(f64::NAN) }
-}
-
-/// pizzaAufruf(p, k, name, …)
-pub fn pizza_aufruf(pz: W, k: usize, name: u32, pos: &[W], ben: &Ben, _knoten: i32) -> W {
-    if name == N_PREIS { return preis_bis(pz, k); }
-    let s = &obj::<Pizza>(pz).s;
-    let mut i = k;
-    while i >= 1 {
-        if let Some(m) = belag_methode(s[i - 1], name) { return belag_aufruf(m, pz, i - 1, pos, ben); }
-        i -= 1;
-    }
-    match name {
-        N_BELAEGE => blech(s[..k].iter().map(|&b| obj::<Belag>(b).name).collect()),
-        N_HAT => {
-            let x = a(pos, 0);
-            let n = if art(x) == A_BELAG { obj::<Belag>(x).name } else { let t = text(x); if sig() { return KARTON; } t };
-            bool_w(s[..k].iter().any(|&b| bytes(obj::<Belag>(b).name) == bytes(n)))
-        }
-        N_ANZAHLBELAEGE => zahl(k as f64),
-        N_ALSTEXT => { let mut t = Tb::neu(); pizza_text(s, k, &mut t); t.fertig() }
-        N_UEBRIG => zahl(obj::<Pizza>(pz).uebrig as f64),
-        N_BESCHREIBUNG => neu_str("Teig"),
-        _ => {
-            let mut t = Tb::neu();
-            t.s("Methode '").name(name).s("' gibt es auf Pizza nicht.");
-            wirf_tb(K_LAUFZEIT, &t);
-            KARTON
-        }
-    }
-}
 
 // ---------------------------------------------------------------- Schritte & Budgets
 pub struct Frame { pub id: u32, pub ofen: bool, pub ende: f64, pub zwischen: W, pub tot: bool }
@@ -408,20 +277,6 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                     if zs.puenktlich == 0 { return if pos.is_empty() { KARTON } else { pos[0] }; }
                     zs.wert
                 }
-                N_ALSTEXT => text(o),
-                _ => crate::std_m::nicht_gefunden(o, id),
-            }
-        }
-        A_STUECK => {
-            let st = obj::<Stueck>(o);
-            match id {
-                N_PIZZA => st.pizza,
-                N_ESSEN => {
-                    if st.gegessen != 0 { wirf_ananas(K_STREIT, "Dieses Stück ist schon gegessen."); return KARTON; }
-                    st.gegessen = 1;
-                    KARTON
-                }
-                N_ISTGEGESSEN => bool_w(st.gegessen != 0),
                 N_ALSTEXT => text(o),
                 _ => crate::std_m::nicht_gefunden(o, id),
             }
