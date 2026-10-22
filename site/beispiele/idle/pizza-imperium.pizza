@@ -46,11 +46,11 @@
 //    • Takt              – die Uhr der Backstube (10 Schläge pro Sekunde, Produktion anteilig)
 //    • klasse Rezept     – Nonnas Rezeptbuch legt Beläge auf, die Speisekarte zählt den Preis
 //    • @Kühlschrank      – Upgrade-Kosten werden nur einmal ausgerechnet
-//    • ofen(…) roh       – die Sonderschicht backt, bis das Ofen-Budget leer ist
-//    • bestelle/trinkgeld – Großbestellungen kommen nur mit Trinkgeld pünktlich
+//    • ofen(zeit:) roh   – die Sonderschicht backt, bis das Zeitbudget leer ist (heißer = mehr Budget: Spielregel, K-127)
+//    • bestelle/priorität – Großbestellungen: Trinkgeld ist Spielregel (Priorität + Zeitbudget 40 ms · (1 + Trinkgeld/10))
 //    • Zufall            – Ereignisse und perfekte Pizzen
 //    • Vorratskammer + Uhr.echt() – Speichern und Offline-Fortschritt
-//    • kompakt()/euro(kompakt: ja) – „1,23 Mio. €“
+//    • kompakt()/währung("€", kompakt: ja) – „1,23 Mio. €“
 //    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
 //    • Takt.setzeIntervall – im Minispiel schlägt die Uhr im Takt des Spiels (120–500 ms)
 //    • Theke v4          – Kaufmenge als Auswahl, Kleinbetriebe/Gelerntes/Geschafftes als klappbare Abschnitte,
@@ -667,7 +667,7 @@ klasse Spiel {
         frei.hinzu(s);
         versionBereiche++;
         margherita wo = b.reiter == "hof" ? "auf dem Hof" : (b.reiter == "stadt" ? "in der Stadt" : "im Labor");
-        melde((b.symbol + " " + b.name + " freigeschaltet (" + b.preis.euro(kompakt: ja) + ")! "
+        melde((b.symbol + " " + b.name + " freigeschaltet (" + b.preis.währung("€", kompakt: ja) + ")! "
             + (hatInhalt(s) ? "Nonna bindet sich die Schürze um – " + wo + " geht es los." : "Nonna räumt schon den Platz frei – der Inhalt kommt mit dem nächsten Paket.")));
         serviere (ja);
     }
@@ -745,12 +745,12 @@ klasse Spiel {
             versionGarten++;
             neuBerechnen();
             melde((p.symbol + " " + p.name + " gepflanzt (×" + (n + 1) + (n + 1 >= p.höchstens ? ", das Beet ist voll" : "") + "): Die Ernte bringt +"
-                + gartenProzent().kompakt(1) + " % je Pizza – jetzt " + preis().euro() + "."));
+                + gartenProzent().kompakt(1) + " % je Pizza – jetzt " + preis().währung("€") + "."));
         } sonst falls (s == "weinkeller") {
             versionWeinkeller++;
             neuBerechnen();
             melde((p.symbol + " " + p.name + " ins Regal (×" + (n + 1) + (n + 1 >= p.höchstens ? ", das Regal ist voll" : "") + "): Der Weinkeller bringt jetzt "
-                + getränkeWert.euro(kompakt: ja) + " pro Sekunde nebenbei."));
+                + getränkeWert.währung("€", kompakt: ja) + " pro Sekunde nebenbei."));
         } sonst falls (s == "lieferzonen") {
             versionLieferzonen++;
             neuBerechnen();
@@ -814,7 +814,7 @@ klasse Spiel {
         kampagnenGestartet++;
         versionMarketing++;
         neuBerechnen();
-        melde((c.symbol + " " + c.name + " gestartet (" + preis_.euro(kompakt: ja) + "): " + c.wirkung() + ". " + c.text));
+        melde((c.symbol + " " + c.name + " gestartet (" + preis_.währung("€", kompakt: ja) + "): " + c.wirkung() + ". " + c.text));
         serviere (ja);
     }
     // Im Takt (ganze Sekunden): erst läuft die Kampagne ab, dann die Pause. Das Ende ändert nur Zahlen (neuBerechnen), kein Layout.
@@ -868,7 +868,7 @@ klasse Spiel {
         geld -= h.preis;
         helfer.hinzu(h.schlüssel);
         versionHelfer++;
-        melde((h.symbol + " " + h.name + " angestellt (" + h.preis.euro(kompakt: ja) + ") – " + h.wirkung + ". " + h.text));
+        melde((h.symbol + " " + h.name + " angestellt (" + h.preis.währung("€", kompakt: ja) + ") – " + h.wirkung + ". " + h.text));
         serviere (ja);
     }
     // Im Takt, jede volle Sekunde (vor dem Effekt-Abzweig in ticke): Pino zündet im selben Schlag, in dem der Ofen bereit wird;
@@ -949,7 +949,7 @@ klasse Spiel {
     salami anzahl(margherita schlüssel) { serviere (finde(schlüssel).anzahl); }
 
     salami trinkgeld() { serviere (anzahl("kurier") + anzahl("roller") + stufe("luigi")); }   // Luigi: +1 je Stufe
-    // Mehr als 485 °C verträgt kein Ofen (sonst VerbranntAnanas) – der Vesuv-Kamin heizt sofort bis an die Grenze.
+    // Mehr als 485 °C verträgt kein Ofen (Spielregel – K-127: die Sprache kennt keine Temperatur mehr) – der Vesuv-Kamin heizt sofort bis an die Grenze.
     salami ofenTemperatur() { serviere (kennt("vesuvkamin") ? 485 : Mathe.min(485, 250 + 20 * anzahl("steinofen") + 10 * sterne)); }
 
     margherita rezeptName() {
@@ -1126,7 +1126,7 @@ klasse Spiel {
             + "Der Gast ist bekehrt und bestellt " + pizzen(bonus) + "!"));
     }
 
-    // Lieferung mit Trinkgeld: Mehr Kuriere/Roller → mehr Trinkgeld → größeres Budget → pünktlich.
+    // Lieferung mit Trinkgeld (Spielregel, K-127): Mehr Kuriere/Roller → mehr Trinkgeld → größeres Zeitbudget → pünktlich.
     leer großbestellung() {
         salami bleche = Zufall.zahl(10, 40);
         salami tg = trinkgeld();
@@ -1135,15 +1135,15 @@ klasse Spiel {
             für (salami i : [1 .. bleche]) { fertig++; }
             serviere (fertig);
         });
-        l.trinkgeld(tg);
-        Zustellung<salami> z = l.warte(max: 40ms);
+        l.priorität(tg);   // K-127: Priorität statt Trinkgeld – ordnet nur die wennDa-Phase; das Zeitbudget rechnet das Spiel selbst
+        Zustellung<salami> z = l.warte(max: 40ms * (1 + tg / 10));   // jeder Euro Trinkgeld +10 % Zeit (Spielregel, früher Sprachregel)
         falls (z.pünktlich() || kennt("mundpropaganda")) {
             pünktlich++;
             funghi bonus = bleche * portion() * gästeFaktor();
             backe(bonus); großeEinnahmen++;
             margherita wie = kennt("mundpropaganda") ? "dank Mundpropaganda" : (tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld");
             melde(("📦 Großbestellung über " + bleche + " Bleche – " + wie + " pünktlich geliefert: +"
-                + (bonus * preis()).euro(kompakt: ja) + "."));
+                + (bonus * preis()).währung("€", kompakt: ja) + "."));
         } sonst {
             melde(("📦 Großbestellung über " + bleche + " Bleche – leider zu spät, die Pizza ist kalt. "
                 + "Mehr Kuriere und Roller bringen mehr Trinkgeld."));
@@ -1200,7 +1200,7 @@ klasse Spiel {
         margherita b = SEITEN.stück(seite);
         rezept.belegeMit(b);
         neuBerechnen();
-        melde(("📖 Nonna verrät Seite " + seite + ": " + b + "! Eine Pizza kostet jetzt " + preis().euro() + "."
+        melde(("📖 Nonna verrät Seite " + seite + ": " + b + "! Eine Pizza kostet jetzt " + preis().währung("€") + "."
             + (rezeptFertig() ? " Das Rezeptbuch ist ausgelesen – Nonna legt es zurück in die Schublade. Grazie, Nonna!" : "")));
         serviere (ja);
     }
@@ -1208,13 +1208,13 @@ klasse Spiel {
     diavolo ofenBereit() { serviere (ofenKühlt <= 0 && modus != "fastenzeit"); }
 
     // Sonderschicht: Der Ofen backt Ladung um Ladung, bis sein Zeitbudget aufgebraucht ist.
-    // Heißer (mehr Steinöfen, mehr Sterne) = größeres Budget = mehr Ladungen.
+    // Heißer (mehr Steinöfen, mehr Sterne) = größeres Zeitbudget (zeit · grad/250 – Spielregel, K-127) = mehr Ladungen.
     leer sonderschicht() {
         falls (!ofenBereit()) { serviere; }
-        salami grad = Mathe.min(485, ofenTemperatur());     // mehr verträgt kein Ofen (sonst VerbranntAnanas)
+        salami grad = Mathe.min(485, ofenTemperatur());     // mehr verträgt kein Ofen (Spielregel)
         salami ladungen = 0;
         probier {
-            ladungen = ofen(temperatur: grad, zeit: 100ms * (kennt("lavastein") ? 2 : 1)) {
+            ladungen = ofen(zeit: 100ms * (kennt("lavastein") ? 2 : 1) * grad / 250) {   // K-127: heißer = größeres Budget ist Spielregel (grad/250)
                 salami n = 0;
                 solange (ja) { n++; zwischenstand((n)); }
             } roh (r) {
@@ -1253,7 +1253,7 @@ klasse Spiel {
         feinkost.hinzu(k.schlüssel);
         neuBerechnen();
         melde(("🧀 Frisch vom Feinkost-Händler: " + k.symbol + " " + k.name + " – jede Pizza bringt " + k.plus + " % mehr. Eine Pizza kostet jetzt "
-            + preis().euro() + "."));
+            + preis().währung("€") + "."));
         serviere (ja);
     }
 
@@ -1434,7 +1434,7 @@ klasse Spiel {
         versionGeheim++;
         neuBerechnen();
         melde((h.symbol + " Herausforderung „" + h.name + "“ beginnt" + (neu_ > 0 ? " (+" + anz(neu_) + " ⭐)" : "") + ": " + h.regel
-            + " Ziel: " + h.ziel.euro(kompakt: ja) + " Umsatz."));
+            + " Ziel: " + h.ziel.währung("€", kompakt: ja) + " Umsatz."));
         serviere (ja);
     }
 
@@ -1626,8 +1626,8 @@ klasse Spiel {
             falls (getränkeNachts > 0) { verkaufeGetränke(getränkeNachts); }
             offlineBoni++;
             melde(("🌙 Während du weg warst (" + (1min * Mathe.boden(weg / 60)) + (weg > gezählt ? " – gezählt werden höchstens 30min" : "")
-                + "), hat dein Betrieb mit " + (familie ? "drei Vierteln" : "halber") + " Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."
-                + (getränkeNachts > 0 ? " Der Weinkeller: +" + getränkeNachts.euro(kompakt: ja) + "." : "")));
+                + "), hat dein Betrieb mit " + (familie ? "drei Vierteln" : "halber") + " Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).währung("€", kompakt: ja) + "."
+                + (getränkeNachts > 0 ? " Der Weinkeller: +" + getränkeNachts.währung("€", kompakt: ja) + "." : "")));
         }
         serviere (ja);
     }
@@ -1885,7 +1885,7 @@ klasse Spielecke {
             Minispiel nächstes = SPIELE.filtere((x) -> (x.meister && x.art == m.art)).erstes();
             neu_ = " Nonna ist beeindruckt: Ab jetzt gibt es " + nächstes.symbol + " " + nächstes.name + "!";
         }
-        s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).euro(kompakt: ja) + ")." + neu_));
+        s.melde((m.symbol + " " + m.name + ": " + text + " +" + Spiel.pizzen(n) + " (" + (n * s.preis()).währung("€", kompakt: ja) + ")." + neu_));
     }
 
     leer verliere(margherita text) {
@@ -2174,11 +2174,11 @@ klasse KopfPanel {
     KopfPanel() {
         kasse = neu Schild("", id: "kasse");
         kasse.stil("schrift", "riesig").stil("farbe", "basilikum").stil("ausrichtung", "mitte").stil("breite", VOLL).stil("zeilen", 1);
-        kasse.binde("text", () -> { zTakt.wert(); serviere (spiel.geld.euro(kompakt: ja)); });
+        kasse.binde("text", () -> { zTakt.wert(); serviere (spiel.geld.währung("€", kompakt: ja)); });
         kennzahlen = neu Schild("", id: "kennzahlen");
         kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte").stil("zeilen", 2).stil("breite", VOLL);
         kennzahlen.binde("text", () -> kennzahlenText());
-        kennzahlen.binde("hinweis", () -> { zVersion.wert(); serviere ("Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza"); });
+        kennzahlen.binde("hinweis", () -> { zVersion.wert(); serviere ("Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().währung("€") + " pro Pizza"); });
         hinweis = neu Schild("", id: "modus-info");
         hinweis.stil("schrift", "klein").stil("farbe", "kruste").stil("ausrichtung", "mitte").stil("zeilen", 1).stil("breite", VOLL);
         hinweis.binde("text", () -> hinweisText());
@@ -2205,7 +2205,7 @@ klasse KopfPanel {
     margherita kennzahlenText() {
         zVersion.wert(); zSekunde.wert();
         margherita z = Spiel.pizzen(spiel.proKlick()) + " pro Klick · " + spiel.proSekunde().kompakt(1)
-            + " pro Sekunde · " + spiel.preis().euro() + " pro Pizza";
+            + " pro Sekunde · " + spiel.preis().währung("€") + " pro Pizza";
         falls (spiel.sterne > 0) { z = z + " · ⭐ " + Spiel.anz(spiel.sterne) + " aktiv"; }
         falls (spiel.filialen > 0) { z = z + " · 🏢 " + Spiel.anz(spiel.filialen); }
         salami neu_ = spiel.neueSterne();
@@ -2223,7 +2223,7 @@ klasse KopfPanel {
         zVersion.wert(); zSekunde.wert();
         falls (spiel.modus == "") { serviere (""); }
         Herausforderung hf = spiel.herausforderung(spiel.modus);
-        serviere (hf.symbol + " " + hf.name + ": " + spiel.umsatz.euro(kompakt: ja) + " von " + hf.ziel.euro(kompakt: ja)
+        serviere (hf.symbol + " " + hf.name + ": " + spiel.umsatz.währung("€", kompakt: ja) + " von " + hf.ziel.währung("€", kompakt: ja)
             + " Umsatz (" + prozent(spiel.umsatz, hf.ziel) + ")");
     }
 
@@ -2332,7 +2332,7 @@ klasse UpgradeSlot {
     }
     margherita preisText(salami menge) {
         salami k = Mathe.min(menge, grenze);
-        serviere (summeFür(k).euro(kompakt: ja) + (k > 1 ? " (×" + k + ")" : ""));
+        serviere (summeFür(k).währung("€", kompakt: ja) + (k > 1 ? " (×" + k + ")" : ""));
     }
 
     margherita infoText() {
@@ -2374,7 +2374,7 @@ klasse UpgradeSlot {
         salami k = Mathe.min(menge, grenze);
         falls (menge == 0) { k = Mathe.min(maxBei(geld), grenze); }
         funghi s = summeFür(k);
-        margherita text = s.euro(kompakt: ja);
+        margherita text = s.währung("€", kompakt: ja);
         falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (k > 1) { text = text + " (×" + k + ")"; }
         knopfText = text;
         diavolo leistbar = k >= 1 && geld >= s;
@@ -2520,7 +2520,7 @@ klasse RezeptPanel {
 
     RezeptPanel() {
         ofenInfo = kleinSchild("rezept-ofen", 1, INNEN);
-        ofenInfo.binde("text", () -> { zVersion.wert(); serviere ("Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().euro() + " pro Pizza"); });
+        ofenInfo.binde("text", () -> { zVersion.wert(); serviere ("Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().währung("€") + " pro Pizza"); });
         rezeptInfo = kleinSchild("rezept-info", 2, SCHILD_BREITE);
         rezeptInfo.binde("text", () -> {
             zVersion.wert();
@@ -2535,7 +2535,7 @@ klasse RezeptPanel {
             zVersion.wert();
             falls (spiel.rezeptGesperrt()) { serviere ("📖 🔒"); }
             falls (spiel.rezeptFertig()) { serviere ("📖 ✅"); }
-            serviere ("📖 Seite " + (spiel.seite + 1) + " · " + spiel.seitenKosten().euro(kompakt: ja));
+            serviere ("📖 Seite " + (spiel.seite + 1) + " · " + spiel.seitenKosten().währung("€", kompakt: ja));
         });
         rezeptKnopf.binde("aktiv", () -> {
             zVersion.wert();
@@ -2553,7 +2553,7 @@ klasse RezeptPanel {
             k.binde("text", () -> {
                 zPlaetze.wert(); zVersion.wert();
                 Feinkost f = platz.stück(i);
-                falls (f != karton) { serviere (f.preis.euro(kompakt: ja)); }
+                falls (f != karton) { serviere (f.preis.währung("€", kompakt: ja)); }
                 serviere (spiel.feinkostOffen() ? "—" : "🔒");
             });
             k.binde("aktiv", () -> {
@@ -2622,7 +2622,7 @@ klasse BriefPanel {
             Knopf k = zeilenKnopf("brief-kauf-" + i, KNOPF_BREITE);
             k.beiKlick(() -> { falls (spiel.kaufeBrief(platz.stück(i))) { nachKauf(); } });
             k.hinweis("Einmal kaufen, wirkt bis zur nächsten Neueröffnung.");
-            k.binde("text", () -> { zPlaetze.wert(); Meisterbrief b = platz.stück(i); serviere (b == karton ? "—" : b.preis.euro(kompakt: ja)); });
+            k.binde("text", () -> { zPlaetze.wert(); Meisterbrief b = platz.stück(i); serviere (b == karton ? "—" : b.preis.währung("€", kompakt: ja)); });
             k.binde("aktiv", () -> {
                 zPlaetze.wert();
                 Meisterbrief b = platz.stück(i);
@@ -2687,7 +2687,7 @@ klasse BereichPanel {
         freiKnopf.binde("text", () -> {
             zBereiche.wert();
             falls (spiel.istFrei(b.schlüssel)) { serviere ("✅"); }
-            serviere (spiel.freischaltbar(b.schlüssel) ? "Freischalten · " + b.preis.euro(kompakt: ja) : "🔒");
+            serviere (spiel.freischaltbar(b.schlüssel) ? "Freischalten · " + b.preis.währung("€", kompakt: ja) : "🔒");
         });
         freiKnopf.binde("aktiv", () -> {
             zBereiche.wert();
@@ -2751,11 +2751,11 @@ klasse BereichPanel {
         margherita s = b.schlüssel;
         falls (inhaltOffen()) {
             falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet)"); }
-            falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.euro(kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
+            falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
             falls (s == "lieferzonen") { serviere ("🛵 Lieferzonen: " + spiel.viertelAnzahl() + "/" + posten.länge() + " Viertel – +" + spiel.viertelProzent() + " % auf alles (je Viertel +" + spiel.VIERTEL_PROZENT + ", zählt wie Sterne; Einmal-Kauf je Runde)"); }
             falls (s == "marketing") {
                 salami n = spiel.kampagnenLaufend();
-                falls (n == 0) { serviere ("📣 Marketing: keine Kampagne läuft – jede kostet 60 s Umsatz (" + spiel.kampagnePreis().euro(kompakt: ja) + "), mehrere dürfen zugleich laufen."); }
+                falls (n == 0) { serviere ("📣 Marketing: keine Kampagne läuft – jede kostet 60 s Umsatz (" + spiel.kampagnePreis().währung("€", kompakt: ja) + "), mehrere dürfen zugleich laufen."); }
                 serviere ("📣 Marketing: " + n + (n == 1 ? " Kampagne läuft" : " Kampagnen laufen") + " – +" + spiel.marketingPunkte().kompakt(0) + " % auf alles · Preis ×" + spiel.marketingFaktor("preis").kompakt(2));
             }
             falls (s == "helfer") {
@@ -2788,12 +2788,12 @@ klasse BereichPanel {
             serviere (h.symbol + " " + h.name + " – " + h.wirkung + ". " + h.text);
         }
         falls (i > posten.länge()) {   // Garten, Zeile 4: die Ernte
-            serviere ("🧺 Ernte: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza – eine Pizza bringt " + spiel.preis().euro() + ".");
+            serviere ("🧺 Ernte: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza – eine Pizza bringt " + spiel.preis().währung("€") + ".");
         }
         Posten p = posten.stück(i);
         salami n = spiel.stück(s, p);
         falls (s == "garten") { serviere (p.symbol + " " + p.name + " ×" + n + " – +" + p.wirkung.kompakt(2) + " % Preis je Stück"); }
-        falls (s == "weinkeller") { serviere (p.symbol + " " + p.name + " ×" + n + " – " + spiel.getränkWert(p).euro(kompakt: ja) + "/s (" + p.wirkung.kompakt(3) + " % je Stück)"); }
+        falls (s == "weinkeller") { serviere (p.symbol + " " + p.name + " ×" + n + " – " + spiel.getränkWert(p).währung("€", kompakt: ja) + "/s (" + p.wirkung.kompakt(3) + " % je Stück)"); }
         serviere (p.symbol + " " + p.name + " – Stufe " + n + "/" + p.höchstens + ": " + spiel.rollenWirkung(p, n));
     }
 
@@ -2809,18 +2809,18 @@ klasse BereichPanel {
                 zTakt.wert();   // Countdown in Zehnersekunden (K-117: gleicher Text sendet nichts)
                 serviere (rest > 0 ? "⏳ läuft noch " + (Mathe.decke(rest / 10) * 10) + " s" : "☕ Pause " + (Mathe.decke(pause / 10) * 10) + " s");
             }
-            serviere ("Starten · " + spiel.kampagnePreis().euro(kompakt: ja));
+            serviere ("Starten · " + spiel.kampagnePreis().währung("€", kompakt: ja));
         }
         falls (s == "helfer") {
             Helfer h = spiel.ALLE_HELFER.stück(i);
-            serviere (spiel.hatHelfer(h.schlüssel) ? "✅ angestellt" : h.preis.euro(kompakt: ja));
+            serviere (spiel.hatHelfer(h.schlüssel) ? "✅ angestellt" : h.preis.währung("€", kompakt: ja));
         }
         falls (i > posten.länge()) { serviere ("—"); }
         Posten p = posten.stück(i);
         salami n = spiel.stück(s, p);
-        falls (s == "lieferzonen") { serviere (n >= 1 ? "✅ " + p.name : p.name + " · " + p.preisBei(0).euro(kompakt: ja)); }
+        falls (s == "lieferzonen") { serviere (n >= 1 ? "✅ " + p.name : p.name + " · " + p.preisBei(0).währung("€", kompakt: ja)); }
         falls (n >= p.höchstens) { serviere (s == "personal" ? "✅ Chef" : "✅ voll"); }
-        serviere ((s == "personal" ? "Befördern · " : "") + p.preisBei(n).euro(kompakt: ja));
+        serviere ((s == "personal" ? "Befördern · " : "") + p.preisBei(n).währung("€", kompakt: ja));
     }
 
     diavolo knopfAktiv(salami i) {
@@ -2877,8 +2877,8 @@ klasse ImperiumPanel {
                 serviere ("Der Guide Michelin ist begeistert: " + Spiel.anz(neu_) + (neu_ == 1 ? " Stern" : " Sterne") + " (+" + spiel.prozentJeStern()
                     + " % je Stern) warten. Neueröffnen setzt Kasse, Upgrades und Rezeptbuch zurück.");
             }
-            serviere ("Nächster Michelin-Stern ab " + spiel.nächsterStern().euro(kompakt: ja) + " Umsatz in dieser Kette (bisher "
-                + spiel.umsatzKette.euro(kompakt: ja) + ").");
+            serviere ("Nächster Michelin-Stern ab " + spiel.nächsterStern().währung("€", kompakt: ja) + " Umsatz in dieser Kette (bisher "
+                + spiel.umsatzKette.währung("€", kompakt: ja) + ").");
         });
         prestigeBalken = neu Fortschritt(id: "prestige-balken");
         prestigeBalken.stil("farbe", "kruste").stil("breite", SCHILD_BREITE);
@@ -2983,12 +2983,12 @@ klasse ImperiumPanel {
         serviere ([
             ["Pizzen (Runde)", spiel.pizzen.kompakt(1)],
             ["Pizzen (insgesamt)", spiel.pizzenAllzeit.kompakt(1)],
-            ["Umsatz insgesamt", spiel.umsatzAllzeit.euro(kompakt: ja)],
+            ["Umsatz insgesamt", spiel.umsatzAllzeit.währung("€", kompakt: ja)],
             ["Anteil Klicken (Runde)", prozent(spiel.umsatzKlick, spiel.umsatz)],
             ["Anteil Klicken (gesamt)", prozent(spiel.umsatzKlickAllzeit, spiel.umsatzAllzeit)],
             ["Anteil Minispiele (Runde)", prozent(spiel.umsatzMini, spiel.umsatz)],
             ["Anteil Minispiele (gesamt)", prozent(spiel.umsatzMiniAllzeit, spiel.umsatzAllzeit)],
-            ["Getränkeumsatz", spiel.umsatzGetränkeAllzeit.euro(kompakt: ja) + " (" + prozent(spiel.umsatzGetränkeAllzeit, spiel.umsatzAllzeit) + ")"],
+            ["Getränkeumsatz", spiel.umsatzGetränkeAllzeit.währung("€", kompakt: ja) + " (" + prozent(spiel.umsatzGetränkeAllzeit, spiel.umsatzAllzeit) + ")"],
             ["Klicks", spiel.klicks.tausender()],
             ["Spielzeit", (1s * spiel.sekunden).alsText()],
             ["Michelin-Sterne (insgesamt)", Spiel.anz(spiel.sterneAllzeit)],
@@ -3051,7 +3051,7 @@ klasse ProbePlatz {
             quelleNonna();
             falls (!spiel.herausforderungenOffen()) { serviere ("🔒 Ab 3 Michelin-Sternen fordert Nonna dich heraus. Bisher: " + spiel.sterneAllzeit + " von 3."); }
             falls (h == karton) { serviere (spiel.filialen <= 0 ? "— Mit einer Franchise-Kette wartet die nächste Staffel." : "— Nonna hat gerade keine neue Prüfung für dich."); }
-            serviere (h.symbol + " " + h.name + " – Ziel " + h.ziel.euro(kompakt: ja) + " Umsatz. " + h.regel + " Belohnung: " + h.belohnung);
+            serviere (h.symbol + " " + h.name + " – Ziel " + h.ziel.währung("€", kompakt: ja) + " Umsatz. " + h.regel + " Belohnung: " + h.belohnung);
         });
         knopf = zeilenKnopf("probe-start-" + nr, KNOPF_BREITE);
         knopf.hinweis("Startet eine Neueröffnung unter Auflagen (wartende Sterne gibt es dazu). Kasse, Upgrades und Rezeptbuch fangen von vorn an.");
@@ -3124,7 +3124,7 @@ klasse NonnaPanel {
             falls (spiel.modus != "") {
                 quelleNonnaSekunde();
                 Herausforderung h = spiel.herausforderung(spiel.modus);
-                serviere (h.symbol + " " + h.name + " läuft: " + spiel.umsatz.euro(kompakt: ja) + " von " + h.ziel.euro(kompakt: ja) + " Umsatz. " + h.regel);
+                serviere (h.symbol + " " + h.name + " läuft: " + spiel.umsatz.währung("€", kompakt: ja) + " von " + h.ziel.währung("€", kompakt: ja) + " Umsatz. " + h.regel);
             }
             falls (spiel.herausforderungenOffen()) { serviere ("Eine Runde unter Auflagen – schaffst du das Ziel, gilt die Belohnung für immer, auch nach einer Franchise-Gründung."); }
             serviere ("🔒 Ab 3 Michelin-Sternen fordert Nonna dich heraus. Bisher: " + spiel.sterneAllzeit + " von 3.");
@@ -3617,5 +3617,5 @@ thekeOffen = ja;
 theke.bediene();
 
 speichere();
-Bote.sage(("Feierabend! " + Spiel.pizzen(spiel.pizzenAllzeit) + " gebacken, " + spiel.umsatzAllzeit.euro(kompakt: ja)
+Bote.sage(("Feierabend! " + Spiel.pizzen(spiel.pizzenAllzeit) + " gebacken, " + spiel.umsatzAllzeit.währung("€", kompakt: ja)
     + " Umsatz, " + spiel.erfolge.länge() + " Erfolge."));
