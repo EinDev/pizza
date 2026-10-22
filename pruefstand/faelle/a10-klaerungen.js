@@ -960,6 +960,35 @@ probier { Mathe.e; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); 
       "log2 braucht eine Zahl, nicht karton.", "salami", "'e' gibt es bei Mathe nicht."],
   }),
 
+  // ── K-137 Mathe: Winkelfunktionen und Grad/Bogenmaß ──────────────────────
+  F(K, "K-137: sin, cos, tan, asin, acos, atan, atan2 im Bogenmaß, Bits wie fdlibm (Math.* in V8 12.x) inkl. NaN/∞/−0; bogen = x · (π/180), grad = x · (180/π)", P`
+Bote.sage((Mathe.sin(Mathe.PI) + " " + Mathe.cos(Mathe.PI) + " " + Mathe.tan(Mathe.PI / 4) + " " + Mathe.tan(Mathe.PI / 2)));
+Bote.sage((Mathe.sin(1) + " " + Mathe.cos(1) + " " + Mathe.tan(1) + " " + Mathe.sin(Mathe.potenz(10, 22)) + " " + Mathe.cos(Mathe.potenz(10, 300))));
+Bote.sage((Mathe.asin(1) + " " + Mathe.acos(-1) + " " + Mathe.atan(1) + " " + Mathe.asin(2) + " " + Mathe.sin(Mathe.exp(710))));
+Bote.sage((Mathe.atan2(1, -1) + " " + Mathe.atan2(-0, -1) + " " + Mathe.atan2(0, 0) + " " + Mathe.atan2(5, 0) + " " + Mathe.atan2(-1, -0)));
+Bote.sage((Mathe.bogen(180) + " " + Mathe.grad(Mathe.PI) + " " + Mathe.grad(Mathe.bogen(30)) + " " + Mathe.sin(Mathe.bogen(30))));
+Rezept s = Mathe.sin;
+Rezept w = Mathe.atan2;
+Bote.sage((s(Mathe.PI / 6) + " " + Mathe.grad(w(1, 1))));
+`, {
+    out: ["1.2246467991473532e-16 -1 0.9999999999999999 16331239353195370",
+      "0.8414709848078965 0.5403023058681398 1.5574077246549023 -0.8522008497671888 -0.5753861119575491",
+      "1.5707963267948966 3.141592653589793 0.7853981633974483 NaN NaN",
+      "2.356194490192345 -3.141592653589793 0 1.5707963267948966 -1.5707963267948966",
+      "3.141592653589793 180 29.999999999999996 0.49999999999999994", "0.49999999999999994 45"],
+  }),
+
+  F(K, "K-137: Nicht-Zahl → TypAnanas (atan2 prüft beide Argumente), unbekannte Winkelfunktion → LaufzeitAnanas", P`
+probier { Mathe.sin("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.atan2(1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.atan2(ja, 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.bogen(karton); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.sinus(1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+`, {
+    out: ["sin braucht eine Zahl, nicht \"x\".", "atan2 braucht eine Zahl, nicht karton.", "atan2 braucht eine Zahl, nicht ja.",
+      "bogen braucht eine Zahl, nicht karton.", "Methode 'sinus' gibt es bei Mathe nicht."],
+  }),
+
   F(K, "K-105 API: keine Beläge, keine Pizza-Typen, kein teile, keine Belag-Keywords", P`
 Bote.sage(("ok"));
 `, {

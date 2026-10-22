@@ -1,0 +1,22 @@
+Bote.sage((Mathe.sin(0) + " " + Mathe.sin(Mathe.PI / 2) + " " + Mathe.sin(Mathe.PI) + " " + Mathe.cos(0) + " " + Mathe.cos(Mathe.PI)));
+Bote.sage((Mathe.tan(Mathe.PI / 4) + " " + Mathe.tan(Mathe.PI / 2) + " " + Mathe.sin(1) + " " + Mathe.cos(1) + " " + Mathe.tan(1)));
+Bote.sage((Mathe.asin(1) + " " + Mathe.acos(-1) + " " + Mathe.atan(1) + " " + Mathe.asin(2) + " " + Mathe.acos(0.5)));
+Bote.sage((Mathe.atan2(1, 1) + " " + Mathe.atan2(1, -1) + " " + Mathe.atan2(-1, -1) + " " + Mathe.atan2(0, -1) + " " + Mathe.atan2(-0, -1)));
+Bote.sage((Mathe.atan2(0, 0) + " " + Mathe.atan2(-0, 0) + " " + Mathe.atan2(5, 0) + " " + Mathe.atan2(Mathe.exp(710), Mathe.exp(710))));
+Bote.sage((Mathe.sin(Mathe.potenz(10, 22)) + " " + Mathe.cos(Mathe.potenz(10, 300)) + " " + Mathe.tan(Mathe.potenz(10, 300)) + " " + Mathe.sin(Mathe.potenz(2, 1023))));
+Bote.sage((Mathe.sin(Mathe.exp(710)) + " " + Mathe.cos(Mathe.wurzel(-1)) + " " + Mathe.atan(Mathe.exp(710)) + " " + Mathe.sin(-0) + " " + Mathe.atan(-0)));
+Bote.sage((Mathe.sin(Mathe.potenz(2, -1074)) + " " + Mathe.tan(-Mathe.potenz(2, -1074)) + " " + Mathe.cos(Mathe.potenz(2, -1074)) + " " + Mathe.asin(-Mathe.potenz(2, -1030))));
+Bote.sage((Mathe.bogen(180) + " " + Mathe.bogen(90) + " " + Mathe.bogen(-45) + " " + Mathe.grad(Mathe.PI) + " " + Mathe.grad(1)));
+Bote.sage((Mathe.grad(Mathe.bogen(30)) + " " + Mathe.sin(Mathe.bogen(30)) + " " + Mathe.cos(Mathe.bogen(60)) + " " + Mathe.bogen(Mathe.exp(710))));
+funghi summe = 0;
+für (pepperoni i = 0; i < 360; i = i + 15) { summe = summe + Mathe.sin(Mathe.bogen(i)) * Mathe.cos(Mathe.bogen(i)); }
+Bote.sage((summe));
+probier { Mathe.sin("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.atan2(1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.atan2(ja, 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.grad(karton); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.Sin(1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Rezept s = Mathe.sin;
+Rezept w = Mathe.atan2;
+Rezept g = Mathe.grad;
+Bote.sage((s(Mathe.PI / 6) + " " + w(-1, 0) + " " + g(w(1, 1))));

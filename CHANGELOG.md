@@ -35,6 +35,8 @@ Seit 3.0 gab es einige inkompatible Änderungen – vor allem den Auszug der ein
   Abschnitt-Titel und Tabellenzellen, feste Innenbreite unabhängig vom Rollbalken (K-120 … K-122, K-124).
 - **Theke v7:** abgeleiteter Zettel `Zettel.aus(() -> …)` und Spaltengewichte `stil("spalten", [2, 1, 1])` (K-125, K-126).
 - **Mathe:** `Mathe.log`, `log10`, `log2`, `exp` und die Konstante `Mathe.E`, in allen Motoren bitgleich (K-111).
+- **Mathe – Winkel:** `Mathe.sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2(y, x)` im Bogenmaß und die Umrechnung
+  `Mathe.bogen(grad)` / `Mathe.grad(bogen)` – in jedem Browser, in der App und in Wasm Bit für Bit gleich (fdlibm, K-137).
 - **Speisekarte:** `hole(k, ersatz)` mit Ersatzwert, so wie bei der Vorratskammer (K-095).
 - **Vorratskammer mit Namensraum:** `neu Vorratskammer("spielstand", namensraum: "mein-spiel")`. Alle Fassungen eines Programms
   teilen sich dann einen Spielstand, egal ob als Beispiel, Teilen-Link, App-Link oder EXE. Löschen geht mit

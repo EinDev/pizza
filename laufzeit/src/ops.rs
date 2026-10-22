@@ -428,8 +428,12 @@ pub extern "C" fn rt_test_betrag(x: f64) -> W { let mut b = Vec::new(); zahl::be
 pub extern "C" fn rt_test_dauer(x: f64) -> W { let mut b = Vec::new(); zahl::dauer_text(x, &mut b); crate::text::neu_text(&b) }
 #[no_mangle]
 pub extern "C" fn rt_test_runden(x: f64, n: f64) -> f64 { zahl::runde_auf(x, n) }
-/// K-111: Mathe-Funktionen für den Bitgleichheitstest (op 0 = log, 1 = log10, 2 = log2, 3 = exp)
+/// K-111/K-137: Mathe-Funktionen für den Bitgleichheitstest (op 0 = log, 1 = log10, 2 = log2, 3 = exp, 4 = sin, 5 = cos,
+/// 6 = tan, 7 = asin, 8 = acos, 9 = atan, 10 = bogen, 11 = grad)
 #[no_mangle]
-pub extern "C" fn rt_test_mathe(op: i32, x: f64) -> f64 { match op { 0 => zahl::log(x), 1 => zahl::log10(x), 2 => zahl::log2(x), _ => zahl::exp(x) } }
+pub extern "C" fn rt_test_mathe(op: i32, x: f64) -> f64 { match op { 0 => zahl::log(x), 1 => zahl::log10(x), 2 => zahl::log2(x), 3 => zahl::exp(x), 4 => zahl::sin(x), 5 => zahl::cos(x), 6 => zahl::tan(x), 7 => zahl::asin(x), 8 => zahl::acos(x), 9 => zahl::atan(x), 10 => zahl::bogen(x), _ => zahl::grad(x) } }
+/// K-137: `Mathe.atan2(y, x)` für den Bitgleichheitstest
+#[no_mangle]
+pub extern "C" fn rt_test_atan2(y: f64, x: f64) -> f64 { zahl::atan2(y, x) }
 #[no_mangle]
 pub extern "C" fn rt_test_alszahl(t: W) -> W { let r = crate::std_m::tabellen_methode(t, N_ALSZAHL, &[], &[], 0, false); if crate::sig() { crate::z().sig = 0; return KARTON; } r }

@@ -1869,6 +1869,35 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (SPEC §18.6) – genug für ein 2D- und ein 3D-Spiel; alles Weitere über die Roadmap (HERD.md §10). Umriss-Parameter heißt `umriss`, weil
   `rand` ein reserviertes Wort ist. Kein Material-Objekt in v1 (Felder am `Koerper`; geteiltes `Material` = H-K2). **Status:** fest.
 
+### K-137 Standardbibliothek: Winkelfunktionen `Mathe.sin` … `atan2`, `bogen`, `grad` (Herd)
+- **Frage:** Spiele mit Herd brauchen Lenkung, Kreisbahnen und Orbit-Kamera – ohne `sin`/`cos`/`atan2` geht das nicht. Herd dreht in Grad.
+- **Entscheidung:** `Mathe.sin(x)`, `cos(x)`, `tan(x)`, `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` (Bogenmaß, Ergebnis `funghi`) und die
+  Umrechnung `Mathe.bogen(grad)` = `grad · (π / 180)`, `Mathe.grad(bogen)` = `bogen · (180 / π)` – je **eine** Multiplikation mit dem korrekt
+  gerundeten Quotienten (JS `Math.PI / 180`, Rust `PI / 180.0` als Konstante), damit beide Motoren gleich runden. Keine Umrechnung in den
+  Winkelfunktionen selbst (kein `sinGrad`): ein Weg, wie in JS. Nicht-Zahl → TypAnanas wie `wurzel` (`atan2` prüft `y`, dann `x`);
+  Methodenreferenzen (`Rezept s = Mathe.sin;`) gehen; Schritte: normaler Aufruf.
+- **Bezug der Bits:** Sun fdlibm 5.3 in der Fassung von V8 `src/base/ieee754.cc` (`sin`/`cos`/`tan` über `__ieee754_rem_pio2` und
+  `__kernel_rem_pio2` mit 396 Hex-Ziffern von 2/π, `k_sin`/`k_cos`/`k_tan`, `e_asin`, `e_acos`, `s_atan`, `e_atan2`) – das ist `Math.*` in
+  Node 22 (V8 12.4). **Befund:** `Math.*` ist kein fester Bezug: headless Chrome 156 weicht in 41 613 Stichproben bei **jeder**
+  transzendenten Funktion von Node 22 ab (sin 708, cos 745, tan 849, asin 349, acos 452, atan 587, atan2 3964; auch log 464, log10 1189,
+  log2 49, exp 1077 – nur `sqrt` gleich). Der Interpreter rechnet deshalb **nicht** mit `Math.sin` & Co., sondern mit einem JS-Port
+  desselben fdlibm-Codes (`pizza.js` `WINKEL`, nur Double-Operationen, Wörter über `DataView`) – so liefern Interpreter (in jedem Browser,
+  Node, App) und Wasm-Laufzeit dieselben Bits. Gegenprobe: der Port gibt in Chrome 156 und Node 22 für 101 613 Eingaben × 9 Funktionen
+  dieselben Bits.
+- **Wasm-Laufzeit:** `libm` 0.2 gemessen gegen Node 22 (301 613 Eingaben, atan2 904 839 Paare): `asin`, `acos`, `atan` bitgleich → bleiben
+  `libm`; `sin` (1291 Abweichungen), `cos` (1576), `tan` (9), `atan2` (151) nicht → Port nach fdlibm in `laufzeit/src/zahl.rs` (wie K-111).
+  Lizenz fdlibm: Sun-Vermerk „Permission to use, copy, modify, and distribute this software is freely granted, provided that this notice is
+  preserved“ (in `zahl.rs` und `pizza.js` mitgeführt); V8 selbst BSD-3. Nicht übernommen: V8s glibc-Variante (`V8_USE_LIBM_TRIG_FUNCTIONS`,
+  LGPL) – Node 22 baut ohne sie.
+- **Nachweis:** `tests/wasm/laufzeit-zahlen.js` – 40 000 Pseudozufallswerte + Ränder (±0, Subnormale, 2^-27/2^-28, 0.4375/0.6744/0.975,
+  Vielfache von π/6, π/4, π/2 bis ±100π, Grad 0…359, nahe k·π/2, 1e±300, 1.8e308, ±∞, NaN, beliebige Bitmuster): 582 745 Bitvergleiche
+  Wasm == Interpreter-Port == `Math.*` (Node 22), 0 Abweichungen; `tests/faelle/k137-mathe-winkel`, Prüfstand a10, Doku-Block.
+- **Folge für K-111:** Der Interpreter nutzt für `log`/`log10`/`log2`/`exp` weiter `Math.*` – in Chrome 156 also andere Bits als die
+  Wasm-Laufzeit (die bleibt fdlibm). Offene Umsetzung: denselben JS-Port wie hier auch für diese vier.
+- **Betroffen:** SPEC §11-Tabelle (`Mathe`) + §14.11; Interpreter (`MATHE_M`, `WINKEL`, `intern.WINKEL` für Tests), Wasm (`namen.rs`
+  `sin` … `grad` = 211–219, `std_m.rs`, `zahl.rs`, Testhaken `rt_test_mathe` 4–11 und `rt_test_atan2`), Editor-Wörter, Doku-Referenz
+  (Mathe). **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

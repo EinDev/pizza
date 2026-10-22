@@ -137,7 +137,70 @@ function pruefe() {
     if (!(bits(ist) === bits(soll) || (Number.isNaN(ist) && Number.isNaN(soll)))) mathe.push(name + '(' + x + '): ' + ist + ' ≠ ' + soll);
   }
   for (const f of mathe) fehler.push(f);
-  return { anzahl: zs.length * 2 + betraege.length + texte.length + mz.length * 4, fehler, mathe: mz.length * 4, matheFehler: mathe.length };
+  const w = winkel(e, bits);
+  for (const f of w.fehler) fehler.push(f);
+  return { anzahl: zs.length * 2 + betraege.length + texte.length + mz.length * 4 + w.anzahl, fehler, mathe: mz.length * 4, matheFehler: mathe.length,
+    winkel: w.anzahl, winkelFehler: w.fehler.length };
+}
+
+/** K-137: Eingaben für die Winkelfunktionen – Ränder, Vielfache von π, Subnormale, ±0, ±∞, NaN, Riesen bis 1.8e308 (deterministisch). */
+function winkelEingaben(n) {
+  let s = 0x9E3779B9;
+  const r = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const b = new DataView(new ArrayBuffer(8));
+  const xs = [0, -0, 5e-324, -5e-324, 2.2250738585072014e-308, 2.225073858507201e-308, 1e-300, 1e-200, 1e-20, 1e-8, 2 ** -26, 2 ** -27, 2 ** -28, 2 ** -57,
+    Infinity, -Infinity, NaN, 1, -1, 0.5, -0.5, 1 + 2 ** -52, 1 - 2 ** -53, 0.975, 0.4375, 0.4374999999999999, 0.6743358, 0.6744, 0.78125, 1.1875, 2.4375, 3.0625,
+    2, 3, 10, 100, 1e5, 1e10, 1e15, 2 ** 52, 2 ** 53, 2 ** 66, 1e20, 1e22, 1e100, 1e200, 1e300, 1.7976931348623157e308, 2 ** 19 * Math.PI / 2, 2 ** 20 * Math.PI / 2];
+  for (let k = -100; k <= 100; k++) xs.push(k * Math.PI, k * Math.PI / 2, k * Math.PI / 4, k * Math.PI / 6, k * Math.PI / 3, k);
+  for (let k = 0; k < 360; k++) xs.push(k * (Math.PI / 180));
+  for (let i = 0; i < n; i++) {
+    const art = i % 8;
+    let x;
+    if (art === 0) x = (r() - 0.5) * 20;
+    else if (art === 1) x = (r() - 0.5) * 2;                                         // asin/acos
+    else if (art === 2) x = (r() - 0.5) * 2e6;
+    else if (art === 3) x = (r() < 0.5 ? -1 : 1) * Math.pow(10, r() * 600 - 300);  // 1e-300 … 1e300
+    else if (art === 4) { b.setUint32(0, (r() * 4294967296) >>> 0); b.setUint32(4, (r() * 4294967296) >>> 0); x = b.getFloat64(0); }  // beliebige Bits
+    else if (art === 5) x = (r() < 0.5 ? -1 : 1) * r() * 2.2250738585072014e-308;  // subnormal
+    else if (art === 6) x = Math.round((r() - 0.5) * 2e4) * Math.PI / 2 + (r() - 0.5) * 1e-9;  // dicht an Vielfachen von π/2
+    else x = (r() - 0.5) * 1e-6;
+    xs.push(x);
+  }
+  return xs;
+}
+
+/** K-137: Wasm-Laufzeit == Interpreter-Port (pizza.js WINKEL) == V8-fdlibm (Math.* in Node 22 / V8 12.4), Bit für Bit. */
+function winkel(e, bits) {
+  const W = require(path.join(__dirname, '..', '..', 'site', 'js', 'pizza.js')).intern.WINKEL;
+  const fehler = [];
+  const gleich = (a, b) => bits(a) === bits(b) || (Number.isNaN(a) && Number.isNaN(b));
+  const xs = winkelEingaben(40000);
+  let anzahl = 0;
+  const fns = [[4, 'sin'], [5, 'cos'], [6, 'tan'], [7, 'asin'], [8, 'acos'], [9, 'atan']];
+  for (const x of xs) for (const [op, name] of fns) {
+    const ist = e.rt_test_mathe(op, x), port = W[name](x), soll = Math[name](x);
+    anzahl++;
+    if (!gleich(ist, port)) fehler.push(name + '(' + x + '): Wasm ' + ist + ' ≠ Interpreter ' + port);
+    else if (!gleich(port, soll)) fehler.push(name + '(' + x + '): ' + port + ' ≠ Math.' + name + ' ' + soll + ' (Bezug fdlibm/V8 12.x)');
+  }
+  // bogen/grad: fester Rechenweg x · (π/180) bzw. x · (180/π)
+  for (const x of xs) for (const [op, name, fn] of [[10, 'bogen', (v) => v * (Math.PI / 180)], [11, 'grad', (v) => v * (180 / Math.PI)]]) {
+    const ist = e.rt_test_mathe(op, x), port = W[name](x), soll = fn(x);
+    anzahl++;
+    if (!gleich(ist, port) || !gleich(port, soll)) fehler.push(name + '(' + x + '): Wasm ' + ist + ', Interpreter ' + port + ', Formel ' + soll);
+  }
+  // atan2: Paare aus der Liste, Sonderwerte kreuz und quer
+  const paare = [];
+  for (let i = 0; i < xs.length; i++) paare.push([xs[xs.length - 1 - i], xs[i]], [xs[i], 1], [xs[i], -xs[(i + 7) % xs.length]], [xs[i], xs[i] * 3], [xs[i], 0], [xs[i], -0]);
+  const sp = [0, -0, 5e-324, -5e-324, 1, -1, 1e300, -1e300, Infinity, -Infinity, NaN];
+  for (const y of sp) for (const x of sp) paare.push([y, x]);
+  for (const [y, x] of paare) {
+    const ist = e.rt_test_atan2(y, x), port = W.atan2(y, x), soll = Math.atan2(y, x);
+    anzahl++;
+    if (!gleich(ist, port)) fehler.push('atan2(' + y + ', ' + x + '): Wasm ' + ist + ' ≠ Interpreter ' + port);
+    else if (!gleich(port, soll)) fehler.push('atan2(' + y + ', ' + x + '): ' + port + ' ≠ Math.atan2 ' + soll + ' (Bezug fdlibm/V8 12.x)');
+  }
+  return { anzahl, fehler };
 }
 
 module.exports = { pruefe };
@@ -146,5 +209,6 @@ if (require.main === module) {
   for (const f of r.fehler.slice(0, 40)) console.log('  ✗ ' + f);
   console.log(r.fehler.length ? r.fehler.length + ' Abweichungen' : 'Laufzeit-Formatierung: alles gleich (' + r.anzahl + ' Fälle)');
   console.log('Mathe log/log10/log2/exp (K-111): ' + r.mathe + ' Werte geprüft, ' + r.matheFehler + ' Abweichungen');
+  console.log('Mathe Winkel sin … atan2, bogen/grad (K-137): ' + r.winkel + ' Werte geprüft, ' + r.winkelFehler + ' Abweichungen');
   process.exitCode = r.fehler.length ? 1 : 0;
 }

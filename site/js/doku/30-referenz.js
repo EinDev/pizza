@@ -290,6 +290,11 @@
               ["`log10(x)`", "Zehnerlogarithmus – wie viele Nullen?", "`Mathe.log10(1000)` → `3`"],
               ["`log2(x)`", "Zweierlogarithmus – wie oft verdoppelt?", "`Mathe.log2(8)` → `3`"],
               ["`exp(x)`", "`E` hoch `x` (Umkehrung von `log`)", "`Mathe.exp(0)` → `1`"],
+              ["`sin(x)`, `cos(x)`, `tan(x)`", "Sinus, Kosinus, Tangens – Winkel im **Bogenmaß**", "`Mathe.cos(0)` → `1`"],
+              ["`asin(x)`, `acos(x)`, `atan(x)`", "Umkehrfunktionen – Ergebnis im Bogenmaß; außerhalb von −1…1 liefern `asin`/`acos` `NaN`", "`Mathe.atan(1)` → `0.7853981633974483`"],
+              ["`atan2(y, x)`", "Winkel des Punkts (`x` | `y`) – **erst `y`, dann `x`**; Ergebnis von −π bis π", "`Mathe.atan2(1, 0)` → `1.5707963267948966`"],
+              ["`bogen(grad)`", "Grad → Bogenmaß: `grad · (PI / 180)`", "`Mathe.bogen(180)` → `3.141592653589793`"],
+              ["`grad(bogen)`", "Bogenmaß → Grad: `bogen · (180 / PI)`", "`Mathe.grad(Mathe.PI)` → `180`"],
               ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"],
               ["`E`", "Die Eulersche Zahl 2,718… (Konstante, ohne `()`)", "`Mathe.E`"]
             ]),
@@ -322,7 +327,23 @@
               )
             },
             { art: "ausgabe", text: z("3 / 3", "1 / 1", "Zehnerpotenzen im Budget: 2") },
-            { art: "text", md: "**Sonderfälle** wie in jeder Sprache: `Mathe.log(0)` ist `-Infinity`, `Mathe.log(-1)` ist `NaN`, `Mathe.exp(710)` ist `Infinity`; `NaN` wird durchgereicht. Ein `log(x, basis)` mit zwei Argumenten gibt es absichtlich **nicht**: `Mathe.log(1000) / Mathe.log(10)` ergibt `2.9999999999999996` – Kommazahl-Krümel. Nimm für Zehner- und Zweierpotenzen immer `log10` und `log2`, die liefern glatte `3`." }
+            { art: "text", md: "**Sonderfälle** wie in jeder Sprache: `Mathe.log(0)` ist `-Infinity`, `Mathe.log(-1)` ist `NaN`, `Mathe.exp(710)` ist `Infinity`; `NaN` wird durchgereicht. Ein `log(x, basis)` mit zwei Argumenten gibt es absichtlich **nicht**: `Mathe.log(1000) / Mathe.log(10)` ergibt `2.9999999999999996` – Kommazahl-Krümel. Nimm für Zehner- und Zweierpotenzen immer `log10` und `log2`, die liefern glatte `3`." },
+            { art: "text", md: "**Winkel** rechnen `sin`, `cos` & Co. im Bogenmaß (ein Vollkreis ist `2 · PI`); `bogen` und `grad` rechnen um – Herd dreht in Grad. Für Kreisbahnen nimmst du `cos` für x und `sin` für y, zum Lenken liefert `atan2(dy, dx)` die Richtung zum Ziel. Krümel bleiben: `Mathe.sin(Mathe.PI)` ist `1.2246467991473532e-16`, nicht `0` – runde für die Anzeige. Die Ergebnisse sind in jedem Browser und in der App Bit für Bit gleich." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "// Vier Punkte auf einem Kreis mit Radius 10",
+                "für (salami g = 0; g < 360; g = g + 90) {",
+                "    funghi w = Mathe.bogen(g);",
+                "    Bote.sage((g + \"°: \" + Mathe.runden(10 * Mathe.cos(w), 2) + \" | \" + Mathe.runden(10 * Mathe.sin(w), 2)));",
+                "}",
+                "// Lenken: In welcher Richtung liegt das Ziel (3 | 3)?",
+                "Bote.sage((\"Richtung: \" + Mathe.grad(Mathe.atan2(3, 3)) + \"°\"));"
+              )
+            },
+            { art: "ausgabe", text: z("0°: 10 | 0", "90°: 0 | 10", "180°: -10 | 0", "270°: 0 | -10", "Richtung: 45°") }
           ]
         }
       ]

@@ -30,7 +30,7 @@ export const MITGLIEDER = {
   Bote: ["sage", "fehler", "schreibe", "leeren"],
   Bestellannahme: ["lies", "liesZahl", "frage", "hatMehr"],
   Uhr: ["jetzt", "vorspulen", "echt"],
-  Mathe: ["wurzel", "max", "min", "abs", "runden", "boden", "decke", "potenz", "log", "log10", "log2", "exp", "PI", "E"],
+  Mathe: ["wurzel", "max", "min", "abs", "runden", "boden", "decke", "potenz", "log", "log10", "log2", "exp", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "bogen", "grad", "PI", "E"],
   Zufall: ["zahl", "saat", "kommazahl", "wahr", "wähle", "mische"],
   Spiegel: ["felder"],
   Zettel: ["aus"], // v7 (K-125): abgeleiteter Zettel

@@ -1,7 +1,7 @@
 //! Eingebaute Namen (Intern-IDs). Reihenfolge = ID. Namen, die nicht hier stehen, bekommen zur Laufzeit
 //! fortlaufende IDs (text.rs::name_id); die Tabelle ist rein intern (kein JS-Spiegel, der Compiler übergibt Namen als Text).
 
-pub const NAMEN: [&str; 211] = [
+pub const NAMEN: [&str; 220] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -213,6 +213,15 @@ pub const NAMEN: [&str; 211] = [
     "währung",
     "priorität",
     "symbol",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "atan2",
+    "bogen",
+    "grad",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -443,6 +452,17 @@ pub const N_AUS: u32 = 207;
 pub const N_WAEHRUNG: u32 = 208;
 pub const N_PRIORITAET: u32 = 209;
 pub const N_SYMBOL: u32 = 210;
+
+// K-137: Winkelfunktionen in `Mathe`
+pub const N_SIN: u32 = 211;
+pub const N_COS: u32 = 212;
+pub const N_TAN: u32 = 213;
+pub const N_ASIN: u32 = 214;
+pub const N_ACOS: u32 = 215;
+pub const N_ATAN: u32 = 216;
+pub const N_ATAN2: u32 = 217;
+pub const N_BOGEN: u32 = 218;
+pub const N_GRAD: u32 = 219;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM, K-105: 16 Einträge = Indizes 0–15; eigene Klassen ab 16).
 pub const K_ANANAS: u32 = 0;

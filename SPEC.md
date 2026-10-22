@@ -401,7 +401,7 @@ Exit-Code: 39
 |---|---|
 | `Bote` | `sage(x)` – Ausgabe + Zeilenumbruch · `fehler(x)` – Fehlerausgabe |
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
-| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI`; ferner `potenz(a, b)`, `runden(x, n)`, `log(x)`, `log10(x)`, `log2(x)`, `exp(x)`, `E` (§14.11, K-111) |
+| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI`; ferner `potenz(a, b)`, `runden(x, n)`, `log(x)`, `log10(x)`, `log2(x)`, `exp(x)`, `E` (§14.11, K-111); `sin(x)`, `cos(x)`, `tan(x)`, `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)`, `bogen(grad)`, `grad(bogen)` (§14.11, K-137) |
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
 | `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
@@ -700,6 +700,14 @@ regelt `EINGABE.md`.
 - Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`; **K-111:** `log(x)`
   (natürlicher Logarithmus), `log10(x)`, `log2(x)`, `exp(x)` und die Konstante `E` – Verhalten und Bitmuster wie `Math.log/log10/log2/exp/E`
   in JavaScript (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `exp(710)` → `Infinity`; Nicht-Zahl → TypAnanas wie `wurzel`); kein `log(x, basis)`.
+  **K-137:** `sin(x)`, `cos(x)`, `tan(x)`, `asin(x)`, `acos(x)`, `atan(x)` und `atan2(y, x)` (erst `y`, dann `x`) im Bogenmaß, Ergebnis
+  `funghi`. Das Bitmuster ist für jede Eingabe festgelegt durch Sun fdlibm 5.3 (`s_sin.c`, `s_cos.c`, `s_tan.c`, `e_asin.c`, `e_acos.c`,
+  `s_atan.c`, `e_atan2.c` mit `e_rem_pio2.c`/`k_rem_pio2.c`, in der Fassung von V8 `src/base/ieee754.cc`) – nicht durch das `Math.*` des
+  jeweiligen JS-Motors (die Motoren weichen voneinander ab). NaN/±∞/−0 wie dort und wie JS: `sin(±∞)`/`cos(±∞)`/`tan(±∞)` → `NaN`,
+  `asin`/`acos` außerhalb [−1, 1] → `NaN`, `atan(±∞)` → `±π/2`, `sin(−0)` → `−0`, `atan2(±0, −0)` → `±π`, `atan2(±0, +0)` → `±0`, `atan2(y, ±0)` → `±π/2`.
+  Umrechnung mit festem Rechenweg (eine Multiplikation, die Konstante ist der korrekt gerundete Quotient):
+  `bogen(g)` = `g · (π / 180)`, `grad(b)` = `b · (180 / π)` – also z. B. `grad(bogen(30))` = `29.999999999999996`.
+  Nicht-Zahl → TypAnanas wie `wurzel` (`atan2` prüft erst `y`, dann `x`). Schritte: normaler Aufruf.
 - Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
   `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Reste
   `Reste(<wert>)`; roh-Info `Roh(<teilergebnis>)`; Funktionen `<Funktion>`; Klassen, Module und quattrostagioni-Typen

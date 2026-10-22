@@ -102,7 +102,8 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_BOTE => matches!(id, N_SCHREIBE | N_LEEREN | N_SAGE | N_FEHLER),
         N_G_BESTELLANNAHME => matches!(id, N_LIES | N_FRAGE | N_LIESZAHL | N_FRAGEZAHL | N_HATMEHR),
         N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN | N_ECHT),
-        N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ | N_LOG | N_LOG10 | N_LOG2 | N_EXP),
+        N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ | N_LOG | N_LOG10 | N_LOG2 | N_EXP
+            | N_SIN | N_COS | N_TAN | N_ASIN | N_ACOS | N_ATAN | N_ATAN2 | N_BOGEN | N_GRAD),
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
         N_G_ZETTEL => id == N_AUS,   // K-125
@@ -257,6 +258,20 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
         (N_G_MATHE, N_LOG10) => match zahl_pruefen(a(pos, 0), "log10") { Some(x) => zahl(log10(x)), None => KARTON },
         (N_G_MATHE, N_LOG2) => match zahl_pruefen(a(pos, 0), "log2") { Some(x) => zahl(log2(x)), None => KARTON },
         (N_G_MATHE, N_EXP) => match zahl_pruefen(a(pos, 0), "exp") { Some(x) => zahl(exp(x)), None => KARTON },
+        // K-137: Winkelfunktionen (fdlibm, bitgleich zum Interpreter) und Grad/Bogenmaß
+        (N_G_MATHE, N_SIN) => match zahl_pruefen(a(pos, 0), "sin") { Some(x) => zahl(sin(x)), None => KARTON },
+        (N_G_MATHE, N_COS) => match zahl_pruefen(a(pos, 0), "cos") { Some(x) => zahl(cos(x)), None => KARTON },
+        (N_G_MATHE, N_TAN) => match zahl_pruefen(a(pos, 0), "tan") { Some(x) => zahl(tan(x)), None => KARTON },
+        (N_G_MATHE, N_ASIN) => match zahl_pruefen(a(pos, 0), "asin") { Some(x) => zahl(asin(x)), None => KARTON },
+        (N_G_MATHE, N_ACOS) => match zahl_pruefen(a(pos, 0), "acos") { Some(x) => zahl(acos(x)), None => KARTON },
+        (N_G_MATHE, N_ATAN) => match zahl_pruefen(a(pos, 0), "atan") { Some(x) => zahl(atan(x)), None => KARTON },
+        (N_G_MATHE, N_ATAN2) => {
+            let y = match zahl_pruefen(a(pos, 0), "atan2") { Some(x) => x, None => return KARTON };
+            let x = match zahl_pruefen(a(pos, 1), "atan2") { Some(x) => x, None => return KARTON };
+            zahl(atan2(y, x))
+        }
+        (N_G_MATHE, N_BOGEN) => match zahl_pruefen(a(pos, 0), "bogen") { Some(x) => zahl(bogen(x)), None => KARTON },
+        (N_G_MATHE, N_GRAD) => match zahl_pruefen(a(pos, 0), "grad") { Some(x) => zahl(grad(x)), None => KARTON },
         (N_G_MATHE, N_MAX) => mathe_extrem(pos, true, "max"),
         (N_G_MATHE, N_MIN) => mathe_extrem(pos, false, "min"),
         (N_G_MATHE, N_ABS) => match zahl_pruefen(a(pos, 0), "abs") { Some(x) => zahl(x.abs()), None => KARTON },
