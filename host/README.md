@@ -276,7 +276,7 @@ Linux-Download = Starter (~1 MB) + eingebetteter Theke-Teil (~2 MB).
 
 **Mit Herd (H5, Kern + Glut/wgpu-DX12 + winit + png; Kern mit `opt-level = 3`):** Windows-msvc (lokal, `cargo build --release`)
 vorher 1 698 816 Bytes (1,62 MiB) → nachher **4 411 904 Bytes (4,21 MiB)** – Ziel ≤ 6 MB (K-130) erfüllt.
-LINUX_GROESSE
+Docker-Bau (`baue-ziele.sh`): Windows-msvc **4 632 064 Bytes (4,42 MiB)**; Linux-Starter (Herd + eingebetteter Theke-Teil) **9 288 216 Bytes (8,86 MiB)**, `readelf -d` NEEDED nur `libgcc_s.so.1`, `libm.so.6`, `libc.so.6` – keine X11-/Wayland-/xkbcommon-/Vulkan-/GL-Bibliothek (K-130).
 
 ## Aufbau
 

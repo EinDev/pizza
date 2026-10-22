@@ -386,6 +386,8 @@ fn main() -> ExitCode {
 /// Herd-Optionen der Kommandozeile.
 struct HerdAufruf {
     bilder: Option<PathBuf>,
+    /// nur mit Feature `herd` gelesen (Theke-Teil des Linux-Starters ohne Herd)
+    #[cfg_attr(not(feature = "herd"), allow(dead_code))]
     nur: Option<Vec<u64>>,
     messung: bool,
 }
