@@ -550,11 +550,12 @@ function start() {
   }
   koecheZeigen();
   koecheFeld.addEventListener("change", (e) => {
-    if (e.target && e.target.name === "koeche") { speichereKoeche(e.target.value); laufPunkt(); }
+    // Wechsel → warmen Lauf-Worker samt Köchen freigeben (sonst lebte z. B. bei „Köche: 1“ der alte Pool weiter)
+    if (e.target && e.target.name === "koeche") { speichereKoeche(e.target.value); laufPunkt(); ausfuehrung.verwerfeWarm(); }
   });
   // Ohne Cross-Origin-Isolation gibt es keine echten Köche – gleiches Ergebnis wie „Köche: 1“, nur ein dezenter Hinweis
   $("koeche-hinweis").hidden = koecheMoeglich();
-  window.addEventListener("storage", (e) => { if (e.key === KOECHE_SCHLUESSEL) { koecheZeigen(); laufPunkt(); } });
+  window.addEventListener("storage", (e) => { if (e.key === KOECHE_SCHLUESSEL) { koecheZeigen(); laufPunkt(); ausfuehrung.verwerfeWarm(); } });
   laufPunkt();
   function neueSaat() {
     if (festeSaatBox.checked) return 42;

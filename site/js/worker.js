@@ -143,10 +143,11 @@ function koecheWahl(k) {
 // damit nicht jeder Lauf erneut bis zur Frist von kuechenPool wartet.
 var kuechenStand = null;
 function holePool(k) {
-  if (!PZ || typeof PZ.kuechenPool !== "function" || k === 1) return Promise.resolve(null);
   if (kuechenStand && kuechenStand.k === k) return kuechenStand.versprechen;
-  // nur dieser Worker beendet seine Pools – danach gilt der alte Stand nicht mehr
+  // nur dieser Worker beendet seine Pools – danach gilt der alte Stand nicht mehr; „Köche: 1“ gibt den Pool frei
+  // (K-104/14: sonst meldete ende weiter poolWarm und die Seite hielte die alten Köche am Leben)
   if (kuechenStand && kuechenStand.pool) { try { kuechenStand.pool.beenden(); } catch (e) { /* egal */ } kuechenStand.pool = null; }
+  if (!PZ || typeof PZ.kuechenPool !== "function" || k === 1) { kuechenStand = null; return Promise.resolve(null); }
   var stand = { k: k, pool: null, versprechen: null };
   var url;
   try { url = new URL("pizzaiolo/koch.js", self.location.href).href; } catch (e) { url = undefined; }

@@ -172,6 +172,11 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       }
       worker.postMessage(nachricht);
     },
+    /** Köche-Einstellung geändert (K-104/14): einen ruhenden, warm gehaltenen Lauf-Worker samt Köche-Pool beenden –
+     *  der nächste Lauf startet frisch mit der neuen Anzahl. Ein laufender Lauf bleibt unberührt. */
+    verwerfeWarm() {
+      if (!laeuft) verwerfe();
+    },
     abbrechen() {
       if (!laeuft) return;
       const id = laufId;

@@ -154,6 +154,40 @@ e2e("Köche: Abbrechen während eines Brigade-Laufs beendet alle Köche, der nä
   assert.equal(await page.evaluate(() => window.__laufWorker), basisWorker + 2, "nach Abbrechen ein frischer Lauf-Worker");
 });
 
+// K-104/14: Bisher blieb beim Wechsel auf „Köche: 1“ der warme Lauf-Worker samt Pool liegen (drei Koch-Worker im Leerlauf).
+e2e("Köche: Wechsel der Einstellung gibt den warmen Pool frei, „Köche: 1“ legt keinen neuen an",
+  { timeout: 120_000, vorLaden: workerZaehler }, async ({ page, oeffne }) => {
+  await oeffne();
+  await setzeCode(page, BRIGADE);
+  await setzeKoeche(page, "4");
+  await page.waitForFunction(() => window.__laufWorker >= 1);   // Fähigkeiten-Prüfung
+  const basisWorker = await page.evaluate(() => window.__laufWorker);
+  const vier = await lauf(page);
+  assert.equal(vier.ende.koeche, 4);
+  assert.equal(await kochZiele(page), 3, "warmer Pool: drei Koch-Worker");
+
+  // nur umschalten, ohne zu backen: die Köche verschwinden sofort
+  await setzeKoeche(page, "1");
+  const bis = Date.now() + 5000;
+  while ((await kochZiele(page)) > 0 && Date.now() < bis) await schlafe(50);
+  assert.equal(await kochZiele(page), 0, "Wechsel auf „Köche: 1“ beendet alle Köche");
+
+  const eins = await lauf(page);
+  assert.equal(eins.ausgabe, BRIGADE_ERWARTET, "Köche 1: gleiche Ausgabe");
+  assert.equal(eins.ende.koeche, 1);
+  assert.equal(await kochZiele(page), 0, "„Köche: 1“ legt keinen Pool an");
+  assert.equal(await page.evaluate(() => window.__laufWorker), basisWorker + 2, "nach dem Wechsel ein frischer Lauf-Worker");
+
+  // zurück auf 4: neuer Pool, gleiches Ergebnis
+  await setzeKoeche(page, "4");
+  const wieder = await lauf(page);
+  assert.equal(wieder.ausgabe, BRIGADE_ERWARTET);
+  assert.equal(wieder.ende.koeche, 4);
+  assert.equal(wieder.ende.schritte, eins.ende.schritte);
+  assert.equal(wieder.ende.zeitMs, eins.ende.zeitMs);
+  assert.equal(await kochZiele(page), 3, "wieder drei Koch-Worker");
+});
+
 e2e("Köche ohne Cross-Origin-Isolation: Hinweis im Popover, Ergebnis wie mit einem Koch", { isolation: false, timeout: 90_000 }, async ({ page, oeffne }) => {
   await oeffne();
   assert.equal(await page.evaluate(() => window.crossOriginIsolated), false);
