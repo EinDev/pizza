@@ -2078,6 +2078,154 @@
     return { sin, cos, tan, asin, acos, atan, atan2, bogen: (x) => x * BOGEN_PRO_GRAD, grad: (x) => x * GRAD_PRO_BOGEN };
   })();
 
+  // ---------------------------------------------------------------- K-111/U-72: log, log10, log2, exp (fdlibm, wie V8 12.x)
+  // Wie WINKEL: nicht Math.log & Co. (Chrome 156 liefert andere Bits als Node 22 und die Wasm-Laufzeit). Port derselben
+  // Routinen wie laufzeit/src/zahl.rs bzw. V8 src/base/ieee754.cc: Sun e_log.c, e_log10.c (über log), FreeBSD e_log2.c mit
+  // k_log1p, fdlibm e_exp.c mit V8-Sonderfall exp(1) = E. Nur Double-Operationen. fdlibm-Lizenzvermerk siehe WINKEL.
+  const LOGEXP = (function () {
+    const dv = new DataView(new ArrayBuffer(8));
+    const hi = (x) => { dv.setFloat64(0, x); return dv.getInt32(0); };
+    const lo = (x) => { dv.setFloat64(0, x); return dv.getUint32(4); };
+    const mitHi = (x, h) => { dv.setFloat64(0, x); dv.setInt32(0, h); return dv.getFloat64(0); };
+    const ohneLo = (x) => { dv.setFloat64(0, x); dv.setUint32(4, 0); return dv.getFloat64(0); };
+    const worte = (h, l) => { dv.setInt32(0, h); dv.setUint32(4, l); return dv.getFloat64(0); };
+    const LG1 = 6.666666666666735130e-01, LG2 = 3.999999999940941908e-01, LG3 = 2.857142874366239149e-01,
+      LG4 = 2.222219843214978396e-01, LG5 = 1.818357216161805012e-01, LG6 = 1.531383769920937332e-01,
+      LG7 = 1.479819860511658591e-01, LN2_HI = 6.93147180369123816490e-01, LN2_LO = 1.90821492927058770002e-10,
+      TWO54 = 1.80143985094819840000e+16;
+
+    // e_log.c
+    function log(x) {
+      let hx = hi(x), k = 0;
+      const lx = lo(x);
+      if (hx < 0x00100000) {
+        if (((hx & 0x7FFFFFFF) | lx) === 0) return -Infinity;
+        if (hx < 0) return NaN;
+        k -= 54; x *= TWO54; hx = hi(x);
+      }
+      if (hx >= 0x7FF00000) return x + x;
+      k += (hx >> 20) - 1023;
+      hx &= 0x000FFFFF;
+      let i = (hx + 0x95F64) & 0x100000;
+      x = mitHi(x, hx | (i ^ 0x3FF00000));
+      k += i >> 20;
+      const f = x - 1;
+      if ((0x000FFFFF & (2 + hx)) < 3) {
+        if (f === 0) { if (k === 0) return 0; return k * LN2_HI + k * LN2_LO; }
+        const r = f * f * (0.5 - 0.33333333333333333 * f);
+        if (k === 0) return f - r;
+        return k * LN2_HI - ((r - k * LN2_LO) - f);
+      }
+      const s = f / (2 + f), dk = k, z = s * s;
+      i = hx - 0x6147A;
+      const w = z * z, j = 0x6B851 - hx;
+      const t1 = w * (LG2 + w * (LG4 + w * LG6));
+      const t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7)));
+      i |= j;
+      const r = t2 + t1;
+      if (i > 0) {
+        const hfsq = 0.5 * f * f;
+        return k === 0 ? f - (hfsq - s * (hfsq + r)) : dk * LN2_HI - ((hfsq - (s * (hfsq + r) + dk * LN2_LO)) - f);
+      }
+      return k === 0 ? f - s * (f - r) : dk * LN2_HI - ((s * (f - r) - dk * LN2_LO) - f);
+    }
+
+    // e_log10.c
+    const IVLN10 = 4.34294481903251816668e-01, LOG10_2HI = 3.01029995663611771306e-01, LOG10_2LO = 3.69423907715893078616e-13;
+    function log10(x) {
+      let hx = hi(x), k = 0;
+      const lx = lo(x);
+      if (hx < 0x00100000) {
+        if (((hx & 0x7FFFFFFF) | lx) === 0) return -Infinity;
+        if (hx < 0) return NaN;
+        k -= 54; x *= TWO54; hx = hi(x);
+      }
+      if (hx >= 0x7FF00000) return x + x;
+      k += (hx >> 20) - 1023;
+      const i = k >>> 31;
+      hx = (hx & 0x000FFFFF) | ((0x3FF - i) << 20);
+      const y = k + i;
+      x = mitHi(x, hx);
+      const z = y * LOG10_2LO + IVLN10 * log(x);
+      return z + y * LOG10_2HI;
+    }
+
+    // k_log.h k_log1p(f): log(1+f) - f + hfsq für |f| klein
+    function kLog1p(f) {
+      const s = f / (2 + f), z = s * s, w = z * z;
+      const t1 = w * (LG2 + w * (LG4 + w * LG6));
+      const t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7)));
+      const r = t2 + t1, hfsq = 0.5 * f * f;
+      return s * (hfsq + r);
+    }
+
+    // FreeBSD e_log2.c
+    const IVLN2HI = 1.44269504072144627571e+00, IVLN2LO = 1.67517131648865118353e-10;
+    function log2(x) {
+      let hx = hi(x), k = 0;
+      const lx = lo(x);
+      if (hx < 0x00100000) {
+        if (((hx & 0x7FFFFFFF) | lx) === 0) return -Infinity;
+        if (hx < 0) return NaN;
+        k -= 54; x *= TWO54; hx = hi(x);
+      }
+      if (hx >= 0x7FF00000) return x + x;
+      if (hx === 0x3FF00000 && lx === 0) return 0;
+      k += (hx >> 20) - 1023;
+      hx &= 0x000FFFFF;
+      const i = (hx + 0x95F64) & 0x100000;
+      x = mitHi(x, hx | (i ^ 0x3FF00000));
+      k += i >> 20;
+      const y = k, f = x - 1, hfsq = 0.5 * f * f, r = kLog1p(f);
+      const h = ohneLo(f - hfsq);
+      const l = (f - h) - hfsq + r;
+      let valHi = h * IVLN2HI, valLo = (l + h) * IVLN2LO + l * IVLN2HI;
+      const w = y + valHi;
+      valLo += (y - w) + valHi;
+      valHi = w;
+      return valLo + valHi;
+    }
+
+    // e_exp.c (V8: exp(1) = E)
+    const HALF = [0.5, -0.5], O_THRESHOLD = 7.09782712893383973096e+02, U_THRESHOLD = -7.45133219101941108420e+02,
+      LN2HI = [6.93147180369123816490e-01, -6.93147180369123816490e-01], LN2LO = [1.90821492927058770002e-10, -1.90821492927058770002e-10],
+      INVLN2 = 1.44269504088896338700e+00, P1 = 1.66666666666666019037e-01, P2 = -2.77777777770155933842e-03,
+      P3 = 6.61375632143793436117e-05, P4 = -1.65339022054652515390e-06, P5 = 4.13813679705723846039e-08,
+      E = 2.718281828459045, HUGE = 1.0e+300, TWOM1000 = 9.33263618503218878990e-302, TWO1023 = 8.988465674311579539e307;
+    function exp(x) {
+      let hi_ = 0, lo_ = 0, k = 0;
+      const hx0 = hi(x), xsb = (hx0 >> 31) & 1, hx = hx0 & 0x7FFFFFFF;
+      if (hx >= 0x40862E42) {
+        if (hx >= 0x7FF00000) {
+          if (((hx & 0xFFFFF) | lo(x)) !== 0) return x + x;
+          return xsb === 0 ? x : 0;
+        }
+        if (x > O_THRESHOLD) return HUGE * HUGE;
+        if (x < U_THRESHOLD) return TWOM1000 * TWOM1000;
+      }
+      if (hx > 0x3FD62E42) {
+        if (hx < 0x3FF0A2B2) {
+          if (x === 1) return E;
+          hi_ = x - LN2HI[xsb]; lo_ = LN2LO[xsb]; k = 1 - xsb - xsb;
+        } else {
+          k = Math.trunc(INVLN2 * x + HALF[xsb]);
+          hi_ = x - k * LN2HI[0]; lo_ = k * LN2LO[0];
+        }
+        x = hi_ - lo_;
+      } else if (hx < 0x3E300000) {
+        if (HUGE + x > 1) return 1 + x;
+      } else k = 0;
+      const t = x * x;
+      const twopk = k >= -1021 ? worte((0x3FF00000 + (k << 20)) | 0, 0) : worte((0x3FF00000 + ((k + 1000) << 20)) | 0, 0);
+      const c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+      if (k === 0) return 1 - ((x * c) / (c - 2) - x);
+      const y = 1 - ((lo_ - (x * c) / (2 - c)) - hi_);
+      if (k >= -1021) return k === 1024 ? y * 2 * TWO1023 : y * twopk;
+      return y * twopk * TWOM1000;
+    }
+    return { log, log10, log2, exp };
+  })();
+
   const MATHE_M = tabelle({
     'wurzel': function (m, pos) { return Math.sqrt(this.zahl(pos[0], 'wurzel')); },
     'max': function (m, pos) { if (!pos.length) throw this.ananas('RechenAnanas', 'max() ohne Zahlen?'); return Math.max.apply(null, pos.map(x => this.zahl(x, 'max'))); },
@@ -2087,11 +2235,11 @@
     'boden': function (m, pos) { return Math.floor(this.zahl(pos[0], 'boden')); },
     'decke': function (m, pos) { return Math.ceil(this.zahl(pos[0], 'decke')); },
     'potenz': function (m, pos) { return Math.pow(this.zahl(pos[0], 'potenz'), this.zahl(pos[1], 'potenz')); },
-    // K-111: exakt wie Math.* (Sonderfälle: log(0) → -Infinity, log(-1) → NaN, exp(710) → Infinity)
-    'log': function (m, pos) { return Math.log(this.zahl(pos[0], 'log')); },
-    'log10': function (m, pos) { return Math.log10(this.zahl(pos[0], 'log10')); },
-    'log2': function (m, pos) { return Math.log2(this.zahl(pos[0], 'log2')); },
-    'exp': function (m, pos) { return Math.exp(this.zahl(pos[0], 'exp')); },
+    // K-111/U-72: fdlibm-Port LOGEXP statt Math.* (Sonderfälle: log(0) → -Infinity, log(-1) → NaN, exp(710) → Infinity)
+    'log': function (m, pos) { return LOGEXP.log(this.zahl(pos[0], 'log')); },
+    'log10': function (m, pos) { return LOGEXP.log10(this.zahl(pos[0], 'log10')); },
+    'log2': function (m, pos) { return LOGEXP.log2(this.zahl(pos[0], 'log2')); },
+    'exp': function (m, pos) { return LOGEXP.exp(this.zahl(pos[0], 'exp')); },
     // K-137: Winkelfunktionen im Bogenmaß – fdlibm-Port WINKEL statt Math.* (in jedem JS-Motor und in Wasm dieselben Bits)
     'sin': function (m, pos) { return WINKEL.sin(this.zahl(pos[0], 'sin')); },
     'cos': function (m, pos) { return WINKEL.cos(this.zahl(pos[0], 'cos')); },
@@ -6195,7 +6343,8 @@
       STANDARD_LIMIT,
       UI_STIL: JSON.parse(JSON.stringify(UI_STIL)),
       HERD_TYPEN: HERD_KLASSEN.concat(HERD_KOMPONENTEN),
-      WINKEL: Object.assign({}, WINKEL)   // K-137: Winkelfunktionen (Bitgleichheitstest gegen die Wasm-Laufzeit)
+      WINKEL: Object.assign({}, WINKEL),  // K-137: Winkelfunktionen (Bitgleichheitstest gegen die Wasm-Laufzeit)
+      LOGEXP: Object.assign({}, LOGEXP)   // U-72: log/log10/log2/exp (ebenso)
     }
   };
 });

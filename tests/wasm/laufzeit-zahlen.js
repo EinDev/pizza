@@ -131,10 +131,15 @@ function pruefe() {
   }
   mz.push(0, -0, 5e-324, -5e-324, 2.2250738585072014e-308, 1 - 1e-16, 1 + 1e-16, 1 - 2 ** -53, 1 + 2 ** -52, 0.5, 2, 10, 1000, 1024, 2 ** -1022, -1, -1e-300, Infinity, -Infinity, NaN,
     1e300, 1e-300, 709.78, 709.782712893384, 709.7827128933841, 710, -708.3964185322641, -745, -745.1332191019411, -745.1332191019412, -746, 1e-10, 2 ** 1023, 2 ** -1074);
+  // U-72: zusätzlich der Interpreter-Port (pizza.js LOGEXP) – Wasm == Port == Math.* (Node 22 / V8 12.4)
+  for (const x of winkelEingaben(40000)) mz.push(x);
+  const L = require(path.join(__dirname, '..', '..', 'site', 'js', 'pizza.js')).intern.LOGEXP;
+  const gl = (a, b) => bits(a) === bits(b) || (Number.isNaN(a) && Number.isNaN(b));
   const fns = [[0, 'log', Math.log], [1, 'log10', Math.log10], [2, 'log2', Math.log2], [3, 'exp', Math.exp]];
   for (const x of mz) for (const [op, name, fn] of fns) {
-    const ist = e.rt_test_mathe(op, x), soll = fn(x);
-    if (!(bits(ist) === bits(soll) || (Number.isNaN(ist) && Number.isNaN(soll)))) mathe.push(name + '(' + x + '): ' + ist + ' ≠ ' + soll);
+    const ist = e.rt_test_mathe(op, x), port = L[name](x), soll = fn(x);
+    if (!gl(ist, port)) mathe.push(name + '(' + x + '): Wasm ' + ist + ' ≠ Interpreter ' + port);
+    else if (!gl(port, soll)) mathe.push(name + '(' + x + '): ' + port + ' ≠ Math.' + name + ' ' + soll + ' (Bezug fdlibm/V8 12.x)');
   }
   for (const f of mathe) fehler.push(f);
   const w = winkel(e, bits);

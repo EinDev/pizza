@@ -1893,7 +1893,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Vielfache von π/6, π/4, π/2 bis ±100π, Grad 0…359, nahe k·π/2, 1e±300, 1.8e308, ±∞, NaN, beliebige Bitmuster): 582 745 Bitvergleiche
   Wasm == Interpreter-Port == `Math.*` (Node 22), 0 Abweichungen; `tests/faelle/k137-mathe-winkel`, Prüfstand a10, Doku-Block.
 - **Folge für K-111:** Der Interpreter nutzt für `log`/`log10`/`log2`/`exp` weiter `Math.*` – in Chrome 156 also andere Bits als die
-  Wasm-Laufzeit (die bleibt fdlibm). Offene Umsetzung U-72: denselben JS-Port wie hier auch für diese vier.
+  Wasm-Laufzeit (die bleibt fdlibm). Offene Umsetzung U-72: denselben JS-Port wie hier auch für diese vier. **Erledigt (U-72):** `pizza.js` `LOGEXP`
+  (fdlibm-Port wie `WINKEL`), Bitgleichheit Wasm == Interpreter in Node und Chrome.
 - **Betroffen:** SPEC §11-Tabelle (`Mathe`) + §14.11; Interpreter (`MATHE_M`, `WINKEL`, `intern.WINKEL` für Tests), Wasm (`namen.rs`
   `sin` … `grad` = 211–219, `std_m.rs`, `zahl.rs`, Testhaken `rt_test_mathe` 4–11 und `rt_test_atan2`), Editor-Wörter, Doku-Referenz
   (Mathe). **Status:** fest.
@@ -1973,7 +1974,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-69 ✅ | `site/js/worker.js`, `ui/**` (UI-Agent, P5; Entscheidungen K-104 Punkt 13) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
 | U-70 ✅ | `tests/differenz/**`, `tests/fuzz/**`, `e2e/**`, `pruefstand/run.js` (Harnisch-Agents, P6) | K-099/K-100: Köche-Varianten, Chaos-Planung, Fuzz-Produktionen `brigade`, Feld `koeche` ignorieren; Prüfstand optional Feld `koeche` durchreichen – erledigt, Entscheidungen K-104 Punkt 14 | tests/fuzz, tests/differenz, e2e |
 | U-71 ✅ | `site/beispiele/idle/erste-pizzeria.ui-erwartet` (Idle-Agent) | erledigt: Beispiel auf `Zettel`/`binde` umgestellt (Kasse, Pizzen pro Klick, Teigschaber als Zettel; Texte und `kaufen:aktiv` gebunden; Rückrufe setzen nur Zettel, kein `zeige()` mehr); `.ui-erwartet` aus echtem Lauf neu erzeugt (18/18 Nachrichten, `fenster`/`baum` gleich, in `aendere` entfallen nur Einträge mit unverändertem Wert), `.erwartet`/`.ereignisse` unverändert | Prüfstand Beispiele, E2E „Alle Beispiele“ |
-| U-72 | `site/js/pizza.js` (`MATHE_M`), `tests/wasm/laufzeit-zahlen.js` | K-137 Folge für K-111: `log`/`log10`/`log2`/`exp` im Interpreter von `Math.*` auf einen fdlibm-Port wie `WINKEL` umstellen (Vorlage `laufzeit/src/zahl.rs`), weil Chrome 156 andere Bits liefert als Node 22 und die Wasm-Laufzeit | `laufzeit-zahlen.js`: Wasm == Port == `Math.*` (Node 22) |
+| U-72 ✅ | `site/js/pizza.js` (`MATHE_M`), `tests/wasm/laufzeit-zahlen.js` | K-137 Folge für K-111: `log`/`log10`/`log2`/`exp` im Interpreter von `Math.*` auf einen fdlibm-Port wie `WINKEL` umstellen (Vorlage `laufzeit/src/zahl.rs`), weil Chrome 156 andere Bits liefert als Node 22 und die Wasm-Laufzeit – erledigt: Port `LOGEXP` in `pizza.js` (`intern.LOGEXP`), `laufzeit-zahlen.js` 264 664 Bitvergleiche Wasm == Port == `Math.*` (Node 22), 0 Abweichungen; Gegenprobe headless Chrome 155 vs. Node 22 über 100 022 Eingaben × 4: Port 0 Abweichungen (`Math.*` dort: log 207, log10 5086, log2 13, exp 4071) | `laufzeit-zahlen.js`: Wasm == Port == `Math.*` (Node 22) |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):
 10:typen (karton in margherita, K-034) · 20:pf-teig (`istAufgegangen`, K-035) · 20:pf-lieferung (`wennDa` + `warte`
