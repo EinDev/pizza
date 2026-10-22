@@ -234,6 +234,8 @@ fn bindungen_auswerten() {
                 t.s("Die Bindungen kommen nicht zur Ruhe – "); feld_in(b.feld, &mut t); t.s(" von "); text_in(b.zutat, &mut t); t.s(" hängt von sich selbst ab.");
                 wirf_tb(K_LAUFZEIT, &t);
             }
+            // K-119: nach der Zyklus-Ananas sind alle Bindungen sauber (sie rechnen erst wieder bei einer Quellenänderung)
+            for b in BINDUNGEN.iter_mut() { b.dirty = false; }
         }
     }
 }
@@ -536,8 +538,8 @@ fn fenster_nachricht(t: &UiTheke) {
 
 /// Programmende: letzte Änderungen senden, offenes Fenster schließen
 pub fn ui_ende() {
+    // K-119: auch nach einer Bindungs-Ananas im Flush geht schliesse noch hinaus (das Signal bleibt)
     ui_flush();
-    if sig() { return; }
     let t = unsafe { THEKE };
     if t == KARTON { return; }
     let th = obj::<UiTheke>(t);
@@ -551,7 +553,17 @@ pub fn ui_ende() {
 pub fn ui_flush() {
     // K-116: Bindungen zuerst – die Nachricht zeigt den Zustand am Synchronisationspunkt (K-115)
     bindungen_auswerten();
-    if sig() { return; }
+    // K-119: wirft eine Bindung, gehen die bereits gepufferten Einträge trotzdem hinaus (try/finally), dann wird weitergeworfen
+    let s0 = crate::z().sig;
+    if s0 == 0 { sende_puffer(); return; }
+    let (o0, p0) = unsafe { (WURF_OBJ, WURF_POS) };
+    crate::z().sig = 0;
+    sende_puffer();
+    crate::z().sig = s0;
+    unsafe { WURF_OBJ = o0; WURF_POS = p0; }
+}
+
+fn sende_puffer() {
     unsafe {
         if OFFEN.is_empty() && ANIM.is_empty() { return; }
         for (id, felder) in OFFEN.iter() {
