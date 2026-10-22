@@ -668,3 +668,34 @@ Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle 
 | 2 | Hof: Garten (3 Beete, Preis je Pizza), Weinkeller (4 Getränke, Nebeneinkommen €/s, offline halbe Kraft), Personal (4 Rollen, Stufe 0…10). Kaufmenge im Hof immer 1 Stück, Preise fest in € (`Posten`/`postenVon`/`kaufePosten`) | b9f9eef, 5a76d6c | 0 Verstöße (pi4 1.184, Bot 60 min 22.687, Bot 120 min 47.082 Zustände); Klickanteil 4,1 % / 2,3 %; Getränke 5,7–10 % des Umsatzes. **Zu schnell:** Sterne 2 h 100 (×2,5), 3 h 2.455 (×5,4), 4 h 11.329 (×7,5); Katze 132 · Wettbewerb 133 · Album 150 · Banca 168 min → Nachjustierung 2c |
 | 2c | Hof-Balancing: Getränke nicht mehr in `umsatz`/`umsatzKette`, Anteile halbiert; Garten +50 % Deckel; Rosa 2 %/Stufe, Enzo 0,5 %/Stufe; Hof-Grundpreise ×2 | 2dc3a8c | Sterne 2/3/4 h: Saat 42 40 / 305 / 1.577 · Saat 7 40 / 304 / 1.796 · Saat 99 40 / 460 / 1.898 (Grenze 60 / 660 / 2.250 ✓); Klickanteil 4,9 % (60 min), 3,2–4,8 % (240 min); 0 Verstöße (1.278 Zustände); Freischaltungen Saat 42: 4 · 10 · 38 · 44 · 66 · 120 · 166 · 166 · 170 · 173 · 194 · > 240 (Ballung nach der Franchise → Preise §12.3 nachgezogen). E2E 05 „Pizza-Imperium“ war seit K-123 rot (Browser-Klick auf `kauf-betrieb-1` erzeugte kein Ereignis): weder Spiel noch Renderer – das Fenster in Programmgröße legte den Knopf unten mittig unter den Playground-Toast „… in neuem Tab geöffnet“, der Klicks abfing; behoben mit `pointer-events: none` am Toast (site/css/app.css), Regressionstest in E2E 09 |
 | 2b | Bindungen (Theke v5) + Theke v6: kein `zeichne()`/`aktualisiere()` je Takt, Zettel `zTakt` + Versions-Spiegel je Panel (`synchronisiere()`), `zPlaetze` nur in nachKauf/nachLernen/nachAufstieg (R1), Marken „⭐ n“/„📜 n“ am Imperium-/Nonna-Reiter, Innenbreite 820 = 2 × 404 + 12 mit `senkrecht: oben`, Erfolge-Tabelle fest 12 Zeilen | 1d400fc | 0 Verstöße (pi4 1.278, Bot 120 min 46.258 Zustände); Kurve 40 / 305 / 1.577; Klickanteil 4,9 %; E2E 05/07 grün; ui-Einträge gleich (die Wächter entprellten schon), Laufzeit ≈ +10 % |
+
+### 12.9 Regel R3 – Unsichtbar, bis es angeboten wird (Nachtrag, Paket 3b)
+
+> R3 (Nutzer, wörtlich): „Wenn etwas noch nicht freigeschaltet und auch nicht kaufbar ist, soll es verschwinden und erst später
+> angezeigt werden. Auch ganze Tabs.“
+
+Keine 🔒-Platzhalter mit Text oder Preis für Dinge, die man noch nicht kaufen kann. **Angeboten** (= sichtbar) ist etwas, sobald
+man es kaufen *könnte* – unabhängig vom Kontostand: ein Bereich, dessen Vorgänger in der Kette frei ist; das nächste Gebäude, sobald
+das vorige gekauft ist; eine Feinkost-Zeile, sobald das Rezeptbuch ausgelesen ist; ein Meisterbrief, sobald die Stufe erreicht ist;
+Geheimrezepte/Herausforderungen, sobald der Stern da ist. Der Kontostand blendet nie etwas ein oder aus (sonst flackert es und
+Käufe an anderer Stelle ließen Panels verschwinden – R1).
+
+Vereinbarkeit mit R1 (nichts wandert ohne Klick):
+- **(a) Platz bleibt reserviert.** Innerhalb einer Seite nimmt ein unsichtbares Element seinen festen Platz ein: Zeilen sind
+  Reihen mit fester `hoehe`, deren Kinder `sichtbar(nein)` sind; ein ganzes Panel liegt in einem Stapel fester Höhe und ist
+  selbst unsichtbar – beim Erscheinen verschiebt sich nichts. **Wunsch an die Theke:** ein Stil/Zustand „unsichtbar, hält den
+  Platz“ (`visibility: hidden` statt `display: none`), damit Zeilen und Panels ohne Hüllen-Behälter verschwinden können.
+- **(b) Reiter** noch nicht verfügbarer Seiten sind ausgeblendet (`seite.sichtbar(nein)`). Immer sichtbar: 🍕 Backstube,
+  🌱 Hof (der Garten ist von Anfang an angeboten), 🎲 Spiele, 🏆 Erfolge, ⭐ Imperium (Statistik, Neu anfangen). Erscheinen
+  durch Klick: 🏙 Stadt (Freischalten von Personal → Lieferzonen angeboten), 🔬 Labor (Freischalten der Lieferzonen → Helfer
+  angeboten), 📜 Nonna (erster Stern, vergeben beim Klick „Neueröffnung“). Reiter-Reihenfolge = erwartete Erscheinensfolge, die
+  immer sichtbaren zuerst: **Backstube · Hof · Spiele · Erfolge · Imperium · Stadt · Labor · Nonna** – ein neuer Tab wird rechts
+  angehängt und verschiebt keinen bestehenden. Da alle drei Erscheinen klickgebunden sind, gilt ohnehin R1.
+- **(c) Erscheinen ohne Klick** ist die einzige erlaubte klicklose Änderung (z. B. Carlo liest die letzte Rezeptseite im Takt →
+  Feinkost-Zeilen erscheinen; Wettbewerb wird „offen“) und darf nichts Bestehendes verschieben (a). Die Positionsmessung
+  (`positionen2b.mjs`) zählt „erschienen“ getrennt von „verschoben“ – erlaubt, solange kein vorhandenes Element wandert.
+
+Betroffen (Paket 3b): BereichPanels (statt „🔒 Noch verschlossen – zuerst …“ unsichtbar; angebotene zeigen Teaser + Preis-Knopf),
+Betrieb-/Handwerk-Slots noch nicht erreichter Upgrades, Feinkost-Zeilen, Meisterbrief-Plätze ohne Brief, Geheimrezept-/
+Herausforderungs-Plätze vor dem Stern, Franchise-Panel vor 100 Sternen in der Kette (Text „ab 100 ⭐“ bleibt im Aufstieg-Panel),
+Kleinbetriebe-Abschnitt ohne Kleinbetriebe, Kaufmenge-Reihe (bleibt – sie ist von Anfang an nutzbar), Reiter-Reihenfolge.
