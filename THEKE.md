@@ -8,7 +8,8 @@ Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: W
 
 > **Status:** Sprache, Verhalten und Protokoll sind verbindlich in **`SPEC.md` §16** festgeschrieben (Klärungen K-056 … K-075 in
 > `KLAERUNGEN.md`, Stand Interpreter da07b46 / Renderer d9c9090; **v5 reaktives Modell** `Zettel`/`binde`/`bindeStil`, nur echte
-> Änderungen: SPEC §16.8, K-116 … K-119, Interpreter a07c1f1/ce98d85, Wasm 75b2b0e/67c446f/1b431e7). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
+> Änderungen: SPEC §16.8, K-116 … K-119, Interpreter a07c1f1/ce98d85, Wasm 75b2b0e/67c446f/1b431e7; **v6 ruhiges Raster** `senkrecht`, `marke`,
+> `zeilen` an Abschnitt/Tabelle, feste Innenbreite, Vorschaugröße je Lauf: SPEC §16.9, K-120 … K-124). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
 > Tiers (§6) und Zuständigkeiten (§7); bei Widersprüchen gilt SPEC §16. Abschnitt 8 listet die Präzisierungen.
 
 ## 1. Grundidee
@@ -51,7 +52,8 @@ theke.bediene();
 
 - Gemeinsame Basisklasse **`Zutat`** (`neu Zutat()` → RohlingAnanas; `erbt Knopf` → P0010) mit `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`
   (eine kleine Whitelist: `breite`, `hoehe`, `abstand`, `ausrichtung`, `schrift` = `"klein"|"normal"|"gross"|"mono"|"riesig"`, `farbe` = Themenfarben `"tomate"|"basilikum"|"mozzarella"|"kruste"|"normal"`,
-  v4: `zeilen` = feste Zeilenzahl mit „…“, `mindestbreite` in px – K-113).
+  v4: `zeilen` = feste Zeilenzahl mit „…“, `mindestbreite` in px – K-113; v6: `senkrecht` = `"oben"|"mitte"|"unten"|"strecken"` quer zur Reihe – K-120).
+  v6: `marke(t)` / `marke()` – Badge am Reiter-Tab dieser Seite (K-124).
   Keine freien CSS-Strings (Sicherheit + Portabilität).
 - **v2/v4-Zutaten** (SPEC §16.5/§16.7): `Takt`, `Fortschritt`, `Abschnitt` (v4: `klappbar`/`zu`/`beiAenderung`), `Tabelle`, `Reiter` (v4: `setzeTitel(n, t)`,
   `titel(n)`, Seite ausblenden per `sichtbar`), `Auswahl` (Segment-Umschalter), `Tastatur` (unsichtbar, `beiTaste(fn)` → `fn(taste)`).
@@ -103,6 +105,9 @@ Renderer → Programm (Ereignis):
 Worker blockiert per `SharedArrayBuffer` + `Atomics.wait` (wie Eingabe). Die UI zeigt die Theke in einem **Vorschaufenster**
 (schwebendes, verschiebbares Panel über dem Editor bzw. eigener Bereich; Titel = Fenstertitel; Schließen-Knopf → `geschlossen`).
 Kein Wand-Zeitlimit (K-083/3: P0003 abgeschafft, nur Schrittlimit P0002); Abbrechen funktioniert immer.
+**Größe (K-123):** Jeder Lauf übernimmt `breite`/`hoehe` des Programms (nie größer als der Viewport) – außer der Nutzer hat das Fenster
+in diesem Lauf schon verschoben oder gezogen; die Position bleibt zentriert, bis der Nutzer das Fenster einmal verschiebt (Sitzung).
+**Innenbreite (K-122):** in Playground und EXE immer `breite − 40` px, mit und ohne Rollbalken (Rinne immer reserviert).
 **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard = OS-Thema; schaltet der Nutzer die Seite um,
 gilt das auch für das Programmfenster), nativ dem OS-Thema – gleiche Engine, gleiches CSS, gleiche Farben.
 
@@ -191,3 +196,8 @@ Tastaturereignisse (`Auswahl`, `Tastatur`, v4 – K-109/K-110).
   `binde`), Registrierungsreihenfolge, höchstens 100 Durchläufe (sonst LaufzeitAnanas „kommen nicht zur Ruhe“); eine Bindung rechnet nur
   (Setter/`setze` darin → LaufzeitAnanas), Setter einer gebundenen Eigenschaft → LaufzeitAnanas; `W0103`, wenn eine Bindung keine Quelle liest.
   **Nur echte Änderungen werden gesendet** (K-117, ersetzt K-073 Satz 2) – auch für Setter. Protokoll v1, Renderer unverändert.
+- **Theke v6 (K-120 … K-124, SPEC §16.9; Wünsche des Idle-Redesigns „Knöpfe dürfen nie wandern“):** Stil `senkrecht` (`oben|mitte|unten|strecken`)
+  an einer `Reihe` für ihre Kinder bzw. an einem Kind der Reihe für sich selbst (statt neuer `ausrichtung`-Werte – die ist an der Reihe waagrecht);
+  `zeilen` auch für Abschnitt-Titel und jede Tabellenzelle (Tabelle dann mit festen, gleich breiten Spalten); feste Innenbreite `breite − 40` px mit
+  und ohne Rollbalken (8-px-Rinne immer reserviert, waagrecht `clip`); Playground-Vorschau nimmt die Programmgröße bei jedem Lauf; `marke(t)` an jeder
+  Zutat – der Reiter zeigt sie als Badge über dem Tab ihrer Seite (bindbar, Feld `marke` nur wenn nicht leer), keine feste Tab-Breite. Protokoll v1.

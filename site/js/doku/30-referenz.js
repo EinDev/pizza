@@ -929,7 +929,7 @@
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten) sowie `binde(eigenschaft, fn)` und `bindeStil(schlüssel, fn)` – eine Eigenschaft oder ein Stil folgt dann einem Ausdruck (siehe *Zettel & Bindungen*). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten), `marke(text)` (ein Abzeichen am Reiter, siehe *Reiter*) sowie `binde(eigenschaft, fn)` und `bindeStil(schlüssel, fn)` – eine Eigenschaft oder ein Stil folgt dann einem Ausdruck (siehe *Zettel & Bindungen*). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
@@ -1084,7 +1084,7 @@
                 ["`binde(eigenschaft, karton)`, `bindeStil(schlüssel, karton)`", "löst die Bindung – danach darf die Eigenschaft wieder von Hand gesetzt werden. Ein erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung."]
               ]
             },
-            { art: "text", md: "**Bindbar sind:** `Schild` `text`; `Knopf` `text`, `aktiv`; `Eingabe` `wert`; `Haken` `text`, `an`; `Takt` `aktiv`, `intervall`; `Fortschritt` `wert`, `text`; `Abschnitt` `titel`, `klappbar`, `zu`; `Tabelle` `spalten`, `zeilen`; `Reiter` `gewaehlt`; `Auswahl` `optionen`, `gewaehlt`, `aktiv`; `Tastatur` `aktiv` – und bei **jeder** Zutat `sichtbar` und `hinweis`. Alle Stile gehen über `bindeStil`. Die Kinder eines Stapels sind nicht bindbar: Listen bleiben bei `hinzu` und `leeren`. Etwas anderes ergibt `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis.`; ohne Funktion `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.`" },
+            { art: "text", md: "**Bindbar sind:** `Schild` `text`; `Knopf` `text`, `aktiv`; `Eingabe` `wert`; `Haken` `text`, `an`; `Takt` `aktiv`, `intervall`; `Fortschritt` `wert`, `text`; `Abschnitt` `titel`, `klappbar`, `zu`; `Tabelle` `spalten`, `zeilen`; `Reiter` `gewaehlt`; `Auswahl` `optionen`, `gewaehlt`, `aktiv`; `Tastatur` `aktiv` – und bei **jeder** Zutat `sichtbar`, `hinweis` und `marke`. Alle Stile gehen über `bindeStil`. Die Kinder eines Stapels sind nicht bindbar: Listen bleiben bei `hinzu` und `leeren`. Etwas anderes ergibt `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis, marke.`; ohne Funktion `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.`" },
             { art: "text", md: "**Quellen: Zettel *und* Zutaten.** Nicht nur `zettel.wert()` wird als Quelle gemerkt, sondern auch jeder **Getter einer Zutat**: `eingabe.wert()`, `haken.an()`, `knopf.aktiv()`, `reiter.gewaehlt()`, `abschnitt.zu()`, `schild.text()` … Tippt der Gast in eine Eingabe oder hakt er etwas an, rechnen alle Bindungen neu, die diesen Getter gelesen haben – ganz ohne `beiAenderung`. Der Pizzarechner braucht so keinen einzigen Rückruf mehr:" },
             {
               art: "code",
@@ -1244,7 +1244,7 @@
             { art: "text", md: "Der Gast drückt die Leertaste (1 Pizza), schaltet auf **10×**, drückt wieder Leertaste (11 Pizzen), tippt ein `a` (interessiert den Rückruf nicht), klappt die Hilfe zu und beendet mit **Enter**. In den Testereignissen sieht das so aus: `{\"typ\":\"taste\",\"id\":\"tasten\",\"taste\":\"Leertaste\"}`, `{\"typ\":\"aenderung\",\"id\":\"menge\",\"wert\":2}` und `{\"typ\":\"aenderung\",\"id\":\"hilfe\",\"wert\":true}` – beim Abschnitt ist `wert` der neue `zu`-Zustand." },
             { art: "text", md: "**Auswahl:** `neu Auswahl(optionen, gewaehlt: 1)` – die Optionen sind ein Blech, jeder Eintrag wird als Text gezeigt. `waehle(n)` und `gewaehlt()` zählen ab 1 wie beim Reiter; eine Nummer außerhalb ergibt `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4 Optionen.` `setzeOptionen(b)` tauscht die Liste aus, die gewählte Nummer bleibt. Mit `aktiv(nein)` ist der Umschalter ausgegraut und Ereignisse werden ignoriert. Wie beim Haken ist der Zustand schon umgeschaltet, wenn dein Rückruf läuft – `menge.gewaehlt()` liefert darin bereits die neue Nummer." },
             { art: "text", md: "**Klappbarer Abschnitt:** `klappbar(ja)` macht den Kopf zum Knopf (Pfeil ▸/▾); `zu(ja)` klappt den Inhalt zu, auch ohne `klappbar` – dann steuert nur dein Programm. Klappt der Gast, kommt `beiAenderung(fn)` mit `ja` (zu) oder `nein` (offen); setzt dein Programm `zu(…)`, kommt nichts. Die Kinder eines zugeklappten Abschnitts liegen weiter auf der Theke (kein `W0102`), nur zeigt das Fenster eine Animation dort nicht. Mit `uebergang(ja)` am Abschnitt gleitet der Inhalt weich auf und zu." },
-            { art: "text", md: "**Reiter:** `setzeTitel(n, text)` ändert die Beschriftung einer Seite (`reiter.setzeTitel(2, \"Karte •\")` für „hier gibt es Neues“), `titel(n)` liest sie. Eine Seite verschwindet samt Reiter mit `seite.sichtbar(nein)` – kein eigenes Kommando, dasselbe `sichtbar` wie überall. `gewaehlt()` bleibt dabei Programmzustand: Versteckst du die gewählte Seite, zeigt der Gast-Bildschirm ersatzweise die nächste sichtbare Seite dahinter (sonst die letzte davor), ohne dass ein Ereignis kommt – erst der nächste Klick auf einen Reiter meldet wieder eine echte Seitennummer." },
+            { art: "text", md: "**Reiter:** `setzeTitel(n, text)` ändert die Beschriftung einer Seite (`reiter.setzeTitel(2, \"Karte •\")` für „hier gibt es Neues“), `titel(n)` liest sie. Eine Seite verschwindet samt Reiter mit `seite.sichtbar(nein)` – kein eigenes Kommando, dasselbe `sichtbar` wie überall. `gewaehlt()` bleibt dabei Programmzustand: Versteckst du die gewählte Seite, zeigt der Gast-Bildschirm ersatzweise die nächste sichtbare Seite dahinter (sonst die letzte davor), ohne dass ein Ereignis kommt – erst der nächste Klick auf einen Reiter meldet wieder eine echte Seitennummer. **Marke:** `seite.marke(\"⭐ 3\")` hängt ein kleines Abzeichen über den Reiter dieser Seite – es schwebt über der Ecke und schiebt keinen Reiter zur Seite, egal wie lang es ist oder wann es kommt (der Platz darüber ist immer frei). `marke(\"\")` oder `marke(karton)` nimmt es weg, `marke()` liest es. Am schönsten mit einer Bindung: `seite.binde(\"marke\", () -> (sterne.wert() > 0 ? \"⭐ \" + sterne.wert() : \"\"))`." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1255,10 +1255,11 @@
                 "lager.sichtbar(nein);            // der Reiter „Lager“ verschwindet aus der Leiste",
                 "reiter.waehle(3);                // erlaubt – der Gast sieht ersatzweise „Karte“",
                 "reiter.setzeTitel(3, \"Lager • neu\");",
-                "Bote.sage((reiter.titel(3) + \" / gewählt: \" + reiter.gewaehlt()));"
+                "lager.marke(\"3\");                // Abzeichen über dem Reiter „Lager“",
+                "Bote.sage((reiter.titel(3) + \" / gewählt: \" + reiter.gewaehlt() + \" / Marke: \" + lager.marke()));"
               )
             },
-            { art: "ausgabe", text: "Lager • neu / gewählt: 3" },
+            { art: "ausgabe", text: "Lager • neu / gewählt: 3 / Marke: 3" },
             { art: "text", md: "**Tastatur:** `neu Tastatur(taste -> { … })` oder `beiTaste(fn)` – der Rückruf bekommt den Namen der Taste als Text. Ein Druck ist ein Ereignis: Hält der Gast die Taste gedrückt, kommt **keine** Wiederholung. Mehrere aktive Tastaturen im Baum bekommen jede Taste. Tasten, die der Gast in eine fokussierte `Eingabe` tippt, gehören dem Feld und erreichen die Tastatur nicht; eine Taste hat genau einen Empfänger: Nach einem Mausklick liegt der Fokus wieder auf der Theke, die Leertaste geht also an die Tastatur und klickt den Knopf nicht noch einmal; wer einen Knopf mit Tab ansteuert, löst ihn mit Leertaste/Enter aus, und die Tastatur bekommt diese Taste dann nicht. Im Playground gehen Tasten an die Theke, sobald der Gast einmal ins Vorschaufenster geklickt hat; was du im Editor tippst, bleibt im Editor." },
             {
               art: "tabelle",
@@ -1397,13 +1398,14 @@
                 ["`breite`, `hoehe`", "Größe in Pixeln (Ganzzahl ≥ 0)"],
                 ["`abstand`", "Luft um die Zutat in Pixeln (Ganzzahl ≥ 0)"],
                 ["`ausrichtung`", "`\"links\"`, `\"mitte\"`, `\"rechts\"`"],
+                ["`senkrecht`", "`\"oben\"`, `\"mitte\"`, `\"unten\"`, `\"strecken\"` – die Lage quer zu einer `Reihe`: an der Reihe für **alle** Kinder (ohne Stil stehen sie mittig), an einer Zutat direkt in einer Reihe nur für sie selbst. `\"oben\"` macht zwei verschieden hohe Spalten oben bündig, `\"strecken\"` gleich hoch. Andere Zutaten ignorieren den Schlüssel."],
                 ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"riesig\"`, `\"mono\"`"],
                 ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"],
-                ["`zeilen`", "ganze Zahl ≥ 1: die Zutat ist **genau** so viele Textzeilen hoch – auch bei kürzerem Text; längerer Text wird mit „…“ abgeschnitten. Wirkt auf den Text von `Schild`, `Knopf` und `Haken`; andere Zutaten ignorieren den Schlüssel."],
+                ["`zeilen`", "ganze Zahl ≥ 1: die Zutat ist **genau** so viele Textzeilen hoch – auch bei kürzerem Text; längerer Text wird mit „…“ abgeschnitten. Wirkt auf den Text von `Schild`, `Knopf` und `Haken`, auf den Titel eines `Abschnitt`s und auf **jede Zelle** einer `Tabelle` (dann teilen sich die Spalten die Breite gleichmäßig – kein Text schiebt eine Spalte); andere Zutaten ignorieren den Schlüssel. Achtung: `stil(\"zeilen\", 1)` sind Textzeilen **je Zelle**, `tabelle.zeilen()` die Datenzeilen."],
                 ["`mindestbreite`", "Pixel (Zahl ≥ 0): die Zutat wird nie schmaler als das, darf aber wachsen – damit Knöpfe stehen bleiben, wenn ihr Text sich ändert"]
               ]
             },
-            { art: "text", md: "`zeilen` und `mindestbreite` sorgen für ein **ruhiges Layout**: Ein `Schild` mit `stil(\"zeilen\", 2)` wackelt nicht, wenn die Meldung mal eine Zeile länger ist, und ein Kaufknopf mit `stil(\"mindestbreite\", 120)` springt nicht, wenn aus `9 €` plötzlich `1.250 €` wird. `stil(schlüssel, karton)` entfernt einen Stil wieder." },
+            { art: "text", md: "`zeilen` und `mindestbreite` sorgen für ein **ruhiges Layout**: Ein `Schild` mit `stil(\"zeilen\", 2)` wackelt nicht, wenn die Meldung mal eine Zeile länger ist, und ein Kaufknopf mit `stil(\"mindestbreite\", 120)` springt nicht, wenn aus `9 €` plötzlich `1.250 €` wird. `stil(schlüssel, karton)` entfernt einen Stil wieder. Für feste Raster: Der Inhalt des Fensters ist **immer `breite − 40` Pixel** breit – mit und ohne Rollbalken (bei `breite: 860` also 820: zwei Spalten à 404 mit `abstand` 12 passen genau nebeneinander)." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1417,7 +1419,7 @@
               )
             },
             { art: "ausgabe", text: "titel: Pizzeria Luigi" },
-            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
+            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
           ]
         },
         {
@@ -1428,7 +1430,7 @@
               art: "tabelle",
               kopf: ["Wo", "Was der Gast sieht"],
               zeilen: [
-                ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor; Schließen-Knopf = Fenster zu. Abbrechen (`Esc`) geht immer."],
+                ["Playground", "ein schwebendes **Vorschaufenster** über dem Editor, bei jedem Lauf in der Größe `breite` × `hoehe` deines Programms (höchstens so groß wie das Browserfenster; ziehst du es während des Laufs größer, bleibt das bis zum Laufende); Schließen-Knopf = Fenster zu. Abbrechen (`Esc`) geht immer."],
                 ["Windows (`.exe`)", "ein echtes Fenster, gezeichnet von der eingebauten WebView2 von Windows 10/11. Fehlt sie, bricht das Programm mit einer klaren Fehlermeldung ab (mit Link zum kostenlosen Download)."],
                 ["Linux", "ein echtes Fenster; braucht die Bibliothek **WebKitGTK 4.1** auf dem Rechner (meist über den Paketmanager installierbar). Fehlt sie, gibt es eine klare Fehlermeldung."],
                 ["Linux ohne Bildschirm (z. B. per SSH)", "kein Fenster möglich – das Programm bricht sofort mit einer verständlichen Meldung ab und bittet, es in einer grafischen Sitzung zu starten."]

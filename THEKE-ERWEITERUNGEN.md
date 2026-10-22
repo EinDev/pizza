@@ -505,6 +505,10 @@ Fenster **860 × 800** (vorher 660 × 780): Die Reiterleiste scrollt bei Überbr
 gemessen: 5 Reiter 611 px, 8 Reiter 793 px) – mit 860 px passen acht feste Reiter, und Panels stehen **zweispaltig**
 (Breite = Breite in Idle-Games: nebeneinander statt untereinander). Playground-Vorschau zentriert und begrenzt auf den Viewport,
 EXE übernimmt `breite`/`hoehe`.
+**Theke v6 (K-120 … K-124, SPEC §16.9)** liefert dafür: Innenbreite immer `breite − 40` = 820 px (mit und ohne Rollbalken), Stil
+`senkrecht` (`oben`/`strecken`) an der Spalten-Reihe, `zeilen` an Abschnitt-Titeln und Tabellenzellen, `marke` an einer Reiter-Seite (Badge
+über dem Tab, verschiebt nichts – z. B. „⭐ 3“) und eine Playground-Vorschau, die bei jedem Lauf 860 × 800 übernimmt. Die Reiterleiste ist
+dafür oben 7 px höher.
 
 ```
 ┌ Kopf (fest, immer) ────────────────────────────────────────────────────────┐

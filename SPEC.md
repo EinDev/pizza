@@ -858,7 +858,7 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 | `Zettel` (v5, §16.8) | beobachtbarer Wert (keine Zutat) | `(wert = karton)` | `wert()`, `setze(w)` → Zettel |
 
 Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`,
-v5: `binde(eigenschaft, fn)`, `bindeStil(schlüssel, fn)` (§16.8).
+v5: `binde(eigenschaft, fn)`, `bindeStil(schlüssel, fn)` (§16.8), v6: `marke(t)` / `marke()` (Badge am Reiter-Tab, §16.9).
 Jede Zutat nimmt `id: "…"` im Konstruktor. **Setter liefern die Zutat** (verkettbar); `aktiv()`/`sichtbar()` ohne Argument sind Getter.
 Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` (v2: `Takt`, `Fortschritt`, `Abschnitt`, `Tabelle`,
 `Reiter`; v4: `Auswahl`, `Tastatur`) sind eingebaute Klassen: `erbt Knopf` →
@@ -926,8 +926,9 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   `LaufzeitAnanas: Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.` bzw. TypAnanas bei Nicht-Zahl; `ausrichtung` ∈ `links|mitte|rechts`;
   `schrift` ∈ `klein|normal|gross|mono|riesig`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`; **K-113:** `zeilen` ganze Zahl ≥ 1
   (feste Zeilenzahl mit „…“, wirkt auf den Text von Schild/Knopf/Haken; `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`),
-  `mindestbreite` Zahl ≥ 0 in Pixeln (`min-width`, jede Zutat). Unbekannter Schlüssel →
-  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; ungültiger Wert →
+  `mindestbreite` Zahl ≥ 0 in Pixeln (`min-width`, jede Zutat); **K-120:** `senkrecht` ∈ `oben|mitte|unten|strecken` (Lage quer zur Reihe,
+  §16.9); **K-121:** `zeilen` wirkt auch auf den Abschnitt-Titel und jede Tabellenzelle. Unbekannter Schlüssel →
+  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.`; ungültiger Wert →
   `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
   **K-075:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
 - **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard OS-Thema; der Umschalter wirkt auch auf
@@ -945,7 +946,7 @@ Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
 `{"v":1,"op":"schliesse"}` (durch `schliesse()` und am Programmende bei offenem Fenster, K-061).
 Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe` (v2: `takt|fortschritt|abschnitt|tabelle|reiter`, v4: `auswahl|tastatur`). **Zustandsfelder immer:** `schild`/`knopf`: `text`;
 `eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
-`platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
+`platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt), `hinweis`/`marke` (v6, K-124; nicht leer). Zahlen als JSON-Zahlen, Texte als
 Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
 vollständig); ein vollständiger Knoten (mit `art`) ist dort der ganze Zustand – auch bei wiederverwendetem Element gelten fehlende
@@ -1117,12 +1118,12 @@ preis.binde("text", () -> anzahl.wert().alsZahl() * 8);        // folgt dem Tipp
   löst die Bindung (kein Fehler, wenn keine besteht); erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung (neue Registrierung).
   Eigenschaftsname/Schlüssel als Textform. **Bindbar** (Reihenfolge = Fehlertext): Schild `text`; Knopf `text, aktiv`; Eingabe `wert`; Haken
   `text, an`; Takt `aktiv, intervall`; Fortschritt `wert, text`; Abschnitt `titel, klappbar, zu`; Tabelle `spalten, zeilen`; Reiter `gewaehlt`;
-  Auswahl `optionen, gewaehlt, aktiv`; Tastatur `aktiv`; jede Zutat zusätzlich `sichtbar, hinweis`; Stile nur über `bindeStil` (alle Schlüssel
-  von K-068/K-113). Sonst `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis.`; keine Funktion →
+  Auswahl `optionen, gewaehlt, aktiv`; Tastatur `aktiv`; jede Zutat zusätzlich `sichtbar, hinweis, marke` (v6, K-124); Stile nur über `bindeStil`
+  (alle Schlüssel von K-068/K-113/K-120). Sonst `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis, marke.`; keine Funktion →
   `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.` (bzw. `bindeStil()`); unbekannter Stil → `Stil 'x' gibt es nicht. Erlaubt: …`.
   `kinder` sind nicht bindbar (Listen bleiben `hinzu`/`leeren`).
 - **Quellen (K-116):** Während `fn` läuft, erfasst die Laufzeit jeden gelesenen Zettel (`wert()`) und jeden gelesenen **Zutat-Getter** –
-  `text()`, `wert()`, `an()`, `aktiv()`, `sichtbar()`, `hinweis()`, `uebergang()`, `intervall()`, `titel()`/`titel(n)`, `klappbar()`, `zu()`,
+  `text()`, `wert()`, `an()`, `aktiv()`, `sichtbar()`, `hinweis()`, `marke()`, `uebergang()`, `intervall()`, `titel()`/`titel(n)`, `klappbar()`, `zu()`,
   `gewaehlt()`, `optionen()`, `spalten()`, `zeilen()` – als Quelle `(Objekt, Feld)`; die Quellen werden bei jeder Auswertung neu erfasst
   (bedingte Lesezugriffe). Ändert sich eine Quelle (Zettel-`setze` mit anderem Wert, Zutat-Setter, Renderer-Ereignis `aenderung`/`enter`, das
   `wert`/`an`/`gewaehlt`/`zu` setzt, oder eine andere Bindung), wird jede lesende Bindung **schmutzig**. Lesen außerhalb einer Bindung erfasst nichts.
@@ -1144,7 +1145,7 @@ preis.binde("text", () -> anzahl.wert().alsZahl() * 8);        // folgt dem Tipp
   `Stil 'farbe' von Schild(z1) ist gebunden – …`). Renderer-Ereignisse dürfen gebundene Eigenschaften setzen (der Gast tippt in eine
   gebundene `Eingabe`): der Zustand folgt dem Gast, bis sich eine Quelle der Bindung ändert.
 - **Eine Bindung rechnet nur (K-118):** In `fn` sind alle Methoden verboten, die Zustand ändern oder senden – Zutat-Setter (`setzeText`,
-  `setzeWert`, `setzeAn`, `aktiv(d)`, `sichtbar(d)`, `hinweis(t)`, `uebergang(d)`, `stil(k, w)`, `setzeIntervall`, `setzeTitel`, `klappbar(d)`,
+  `setzeWert`, `setzeAn`, `aktiv(d)`, `sichtbar(d)`, `hinweis(t)`, `marke(t)`, `uebergang(d)`, `stil(k, w)`, `setzeIntervall`, `setzeTitel`, `klappbar(d)`,
   `zu(d)`, `waehle`, `setzeOptionen`, `setzeSpalten`, `setzeZeilen`), `hinzu`, `leeren`, `binde`, `bindeStil`, `animiere`, `Theke.schwebe`/
   `zeige`/`bediene`/`schliesse`/`setzeTitel`, `Zettel.setze` → `LaufzeitAnanas: Eine Bindung rechnet nur – 'setzeText' ist darin nicht erlaubt.`
   (Methodenname wie gerufen; überladene Getter ohne Argument sind erlaubt). Getter, Konstruktoren, `Bote`, eigene Methoden sind erlaubt.
@@ -1171,6 +1172,35 @@ preis.binde("text", () -> anzahl.wert().alsZahl() * 8);        // folgt dem Tipp
 - **Umstellung eines `zeichne()`-Programms:** (1) jede angezeigte Größe auf einen `Zettel` legen (oder sie aus Zutat-Gettern ableiten);
   (2) jeden `setzeText`/`aktiv`/`stil`-Aufruf in `zeichne()` durch eine Bindung beim Aufbau ersetzen; (3) Rückrufe ändern nur Zettel/Zustand und
   rufen kein `zeichne()` mehr; (4) „gezeigt“-Merkvariablen und Hand-Vergleiche streichen (K-117); (5) der `Takt` ruft nur die Simulation.
+
+### 16.9 Theke v6: ruhiges Raster – `senkrecht`, `marke`, `zeilen` an Abschnitt/Tabelle, feste Innenbreite (K-120 … K-124)
+
+Wünsche aus dem Idle-Redesign („Knöpfe dürfen nie wandern“, THEKE-ERWEITERUNGEN §12). Protokoll v1 (neuer Stil-Schlüssel, neues
+optionales Feld `marke`); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten.
+
+```pizza
+Zettel sterne = neu Zettel(0);
+Stapel links = neu Stapel([…]).stil("breite", 404);
+Stapel rechts = neu Stapel([…]).stil("breite", 404);
+Reihe spalten = neu Reihe([links, rechts]).stil("senkrecht", "oben").stil("abstand", 12);   // 2 · 404 + 12 = 860 − 40
+Stapel imperium = neu Stapel([…]);
+imperium.binde("marke", () -> (sterne.wert() > 0 ? "⭐ " + sterne.wert() : ""));          // Badge am Tab, verschiebt nichts
+Reiter reiter = neu Reiter(["🍕 Backstube", "⭐ Imperium"], [neu Stapel([spalten]), imperium]);
+```
+
+- **`senkrecht` (K-120):** Stil `oben|mitte|unten|strecken` – an einer `Reihe` die Lage aller Kinder quer zur Reihe (ohne Stil `mitte`),
+  an einer Zutat direkt in einer Reihe ihre eigene Lage (schlägt `ausrichtung`), sonst ohne Wirkung; `strecken` = gleich hohe Kinder.
+  `ausrichtung` bleibt `links|mitte|rechts` (Hauptachse der Reihe). Fehlertexte und Bindung wie jeder Vokabular-Stil (§16.2, §16.8).
+- **`zeilen` (K-121):** auch Abschnitt-Titel (auch klappbar) und **jede Tabellenzelle** inkl. Kopfzeile genau n Zeilen, Rest „…“; die
+  Tabelle hat dann feste, gleich breite Spalten. Nur Renderer.
+- **Feste Innenbreite (K-122):** der Inhalt ist **immer `breite − 40` px** breit, mit und ohne Rollbalken (Rinne von 8 px immer
+  reserviert; Chromium/Edge, WebView2, WebKitGTK); waagrecht wird abgeschnitten statt gerollt. Nur Renderer.
+- **Vorschaugröße (K-123):** die Playground-Vorschau übernimmt `breite`/`hoehe` bei **jedem** Lauf, außer der Nutzer hat das Fenster in
+  diesem Lauf schon verschoben oder gezogen. Nur UI.
+- **`marke` (K-124):** `zutat.marke(t)` → Zutat, `marke()` → Text, an jeder Zutat; optionales Feld wie `hinweis` (`karton` → `""`, sonst
+  Textform; leer = keine Marke). Der `Reiter` zeigt die Marke einer **Seite** als Badge über der rechten oberen Ecke ihres Tabs – im Rand,
+  den die Leiste immer hat; Tabs verschieben sich nie. Bindbar (`binde("marke", …)`), Getter ist Quelle, Setter einer gebundenen Marke wirft,
+  `marke(t)` in einer Bindung ist verboten (K-118). Knoten-Feld `marke` nur wenn nicht leer; außerhalb eines Reiters gesendet, nicht gezeigt.
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)

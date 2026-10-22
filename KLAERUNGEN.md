@@ -1608,6 +1608,75 @@ der Takt bleibt nur für die Simulation. Protokoll bleibt v1, der Renderer bleib
 - **`setze()` ohne Argument** → `karton`. `Theke.setzeTitel` mit gleichem Titel sendet `fenster` erneut (die Theke ist keine Zutat, K-117 gilt
   für Zutaten-Eigenschaften); `Zettel.setze` auf einen Wert mit anderem Typ, aber gleicher Textform ist eine Änderung (`gleich`, nicht Textform).
 - **Betroffen:** SPEC §16.8 (nachgetragen). **Status:** fest.
+
+### Theke v6 – Wünsche aus dem Idle-Redesign (THEKE-ERWEITERUNGEN.md §12, „Knöpfe dürfen nie wandern“): K-120 … K-124
+
+Fünf Wünsche des Idle-Agenten (statisches Raster 860 × 800, zwei Spalten, acht feste Reiter). Rückwärtskompatibilität war ausdrücklich
+nicht nötig; alle Beispiele, Doku-Blöcke und Tests laufen umgestellt. Protokoll bleibt v1 (neuer Stil-Schlüssel, neues optionales Feld
+`marke`); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten. Umgesetzt: Laufzeiten a732d3e, Renderer b6d4177, UI 03d6c1e.
+
+### K-120 Theke v6: Stil `senkrecht` – Lage quer zur Reihe (Wunsch 1: „Reihe mit ausrichtung oben/strecken“) – anders gelöst
+- **Problem:** Eine `Reihe` zentriert ungleich hohe Kinder senkrecht (`align-items: center`); zwei Spalten-Stapel verschiedener Höhe stehen
+  dann nicht oben bündig, und ihre Inhalte wandern, wenn eine Spalte wächst.
+- **Entscheidung:** **eigener Stil-Schlüssel `senkrecht`** mit `oben | mitte | unten | strecken` statt neuer Werte für `ausrichtung`.
+  Begründung: `ausrichtung` ist an der Reihe die **Hauptachse** (`links|mitte|rechts` = waagrecht); dieselbe Taste für die Querachse wäre
+  mehrdeutig (`mitte`), schlösse „rechts **und** oben“ aus, und die vorhandenen Renderer-Synonyme (`oben` = `start`) wirken an der Reihe
+  waagrecht – sie wären stillschweigend falsch. `ausrichtung` bleibt unverändert `links|mitte|rechts`.
+- **Wirkung (Renderer):** an einer `Reihe` die Lage **aller Kinder** quer zur Reihe (`align-items`; ohne Stil bleibt es `mitte`);
+  an einer Zutat, die **direkt in einer Reihe** liegt, ihre **eigene** Lage (`align-self`, schlägt `ausrichtung`); sonst ohne Wirkung (wie
+  `zeilen` an einer Eingabe). `strecken` = alle Kinder so hoch wie das höchste (gleich hohe Spalten). Die Reihe bricht weiter um
+  (`flex-wrap`), jede Zeile für sich.
+- **Laufzeit:** Whitelist endet auf `…, zeilen, mindestbreite, senkrecht` (Fehlertext `Stil 'x' gibt es nicht. Erlaubt: breite, hoehe,
+  abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.`); Wert-Prüfung wie `ausrichtung` (Textform, sonst
+  `LaufzeitAnanas: Wert 'links' ist für Stil 'senkrecht' nicht erlaubt. Erlaubt: oben, mitte, unten, strecken.`); `karton` entfernt
+  (K-075); bindbar per `bindeStil("senkrecht", …)`.
+- **Betroffen:** SPEC §16.2/§16.9, THEKE.md §2/§8, Referenz `std-theke`. **Status:** fest.
+
+### K-121 Theke v6: Stil `zeilen` auch für den Abschnitt-Titel und jede Tabellenzelle (Wunsch 2) – umgesetzt (nur Renderer)
+- `zeilen` war schon an jeder Zutat erlaubt (K-113: „andere Zutaten ignorieren ihn“); keine Laufzeit- und keine Protokolländerung.
+- **Abschnitt:** der Titel ist **genau n Zeilen** hoch, längerer Text endet mit „…“ – auch klappbar (der Pfeil bleibt, geklemmt wird der
+  Text daneben). Ein leerer Titel eines nicht klappbaren Abschnitts zeigt wie bisher keinen Kopf.
+- **Tabelle:** **jede Zelle** (auch die Kopfzeile) ist genau n Zeilen hoch, Rest „…“; die Tabelle bekommt dabei **feste Spalten**
+  (`table-layout: fixed`, die Spalten teilen sich die Breite gleichmäßig) – sonst würde ein längerer Text die Spalten verschieben. Zahlen-
+  Spalten bleiben rechtsbündig. Namensgleichheit beachten: `stil("zeilen", n)` = Textzeilen **je Zelle**, `Tabelle.zeilen()` = Datenzeilen.
+- **Betroffen:** SPEC §16.2/§16.9, Referenz `std-theke` (Stil-Tabelle). **Status:** fest.
+
+### K-122 Theke v6: feste Innenbreite unabhängig vom Rollbalken (Wunsch 3) – umgesetzt (Renderer, gleiches CSS in Browser und EXE)
+- **Vorher:** Innenbreite 820 px ohne / 805 px mit Rollbalken (Fenster 860) – erscheint der Rollbalken, bricht eine knapp passende Reihe um.
+- **Jetzt:** Die Theke rollt senkrecht **immer** (`overflow-y: scroll`) mit einem gestalteten **8-px-Rollbalken** (Spur durchsichtig, ohne
+  Überlauf unsichtbar, Daumen in Themenfarben hell/dunkel); der Inhalt hat links 20 px, rechts 12 px + 8 px Rinne. **Innenbreite =
+  `breite − 40` px, mit und ohne Rollbalken** (860 → 820). Gemessen (`tests/theke/visuell.mjs`, echte Rollbalken): 440 → 400 mit und ohne.
+  Gilt für Chromium/Edge (Playground), WebView2 (EXE Windows) und WebKitGTK (EXE Linux) – alle kennen `::-webkit-scrollbar`. Firefox:
+  `scrollbar-gutter: stable` + schmaler Standard-Rollbalken (Innenbreite kann dort um wenige px abweichen).
+- Waagrecht schneidet der Inhaltsbereich ab (`overflow-x: clip`): eine Animation am Rand (`puls`, `aufpoppen`) lässt keinen waagrechten
+  Rollbalken aufblitzen. Behälter mit `stil("hoehe", …)` rollen unverändert (`overflow: auto`, keine reservierte Rinne).
+- **Faustregel fürs Raster:** zwei Spalten der Breite b mit `abstand` a passen nebeneinander, wenn `2·b + a ≤ breite − 40` (860: 2 · 404 + 12).
+- **Betroffen:** SPEC §16.9, THEKE.md §4/§8, `site/js/theke/README.md`. **Status:** fest.
+
+### K-123 Playground-Vorschau: jeder Lauf übernimmt `breite`/`hoehe` (Wunsch 4) – umgesetzt (UI)
+- **Vorher:** nur der erste Lauf einer Sitzung übernahm die Programmgröße, danach galt die gemerkte Größe – ein Programm mit 860 × 800
+  erschien nach einem 480 × 360-Programm zu klein (und umgekehrt).
+- **Jetzt:** **jeder Lauf** nimmt `breite`/`hoehe` des Programms (nie größer als der Viewport), einmal je Lauf beim ersten `fenster`.
+  Hat der Nutzer das Fenster **in diesem Lauf** schon verschoben oder an der Ecke gezogen, bleibt seine Größe bis zum Laufende (ein
+  erneutes `fenster` durch `setzeTitel` ändert nichts). Position: zentriert, bis der Nutzer das Fenster einmal verschiebt – danach öffnet
+  es an der gemerkten Stelle (Sitzung, `sessionStorage`). App-Link (Vollbild) unverändert; die EXE übernimmt die Größe ohnehin.
+- **Betroffen:** THEKE.md §4 (Browser), `ui/src/vorschau.js`, E2E `09-theke`. **Status:** fest.
+
+### K-124 Theke v6: `marke` – Badge am Reiter-Tab, der nichts verschiebt (Wunsch 5: „feste Tab-Breite oder Badge“) – Badge umgesetzt
+- **Entscheidung:** **Badge**, keine feste Tab-Breite. Acht Reiter mit Emoji-Titeln füllen 860 px schon fast (gemessen 793 px); gleich
+  breite Tabs gewinnen nichts, und ein Zähler im Titel verschiebt die Nachbarn weiterhin. Die Marke liegt **über** der rechten oberen
+  Tab-Ecke, absolut positioniert in einem Rand, den die Reiter-Leiste **immer** hat (7 px oben) – Tab und Nachbarn bewegen sich nie,
+  egal ob, wie lang oder wann eine Marke erscheint (lang → „…“).
+- **Sprache:** `zutat.marke(t)` → Zutat / `marke()` → Text an **jeder Zutat** (wie `hinweis`): der `Reiter` zeigt die Marke einer
+  **Seite** an deren Tab – wie K-107 (die Seite steuert ihren Tab per `sichtbar`), ohne Seitennummer. Optionales Feld wie `hinweis`:
+  `karton` → `""` (= keine Marke), sonst Textform; ohne Argument Getter (Quelle einer Bindung). **Bindbar** für jede Zutat:
+  `Bindbar: …, sichtbar, hinweis, marke.`; Setter einer gebundenen Marke → `'marke' von Stapel(imp) ist gebunden – …`; `marke(t)` in einer
+  Bindung → `Eine Bindung rechnet nur – 'marke' ist darin nicht erlaubt.` Außerhalb eines Reiters wird die Marke gesendet, aber nicht angezeigt.
+- **Protokoll:** Feld `marke` (Text) im Knoten **nur wenn nicht leer**, in `aendere` der neue Wert; K-115/K-117 gelten (ganzer Knoten ohne
+  `marke` = keine Marke; gleicher Wert sendet nichts). Wasm: Name `marke` = 206, Feld 16.
+- **Renderer:** Tab = `span.theke-reiter-tab-text` + `span.theke-reiter-marke` (`aria-hidden`; der Tab bekommt `aria-label` „Titel (Marke)“);
+  Farbe aus `farbe` des Reiters (Ton), hell/dunkel.
+- **Betroffen:** SPEC §16.1/§16.3/§16.8/§16.9, THEKE.md §2/§3/§8, Referenz `std-theke`. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -1701,6 +1770,11 @@ streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Theke v6 (Wünsche des Idle-Redesigns, THEKE-ERWEITERUNGEN §12): K-120 … K-124 festgehalten, SPEC §16.9; umgesetzt in Interpreter + Wasm
+  (a732d3e – `senkrecht`, `marke`; bitgleich), Renderer (b6d4177 – `senkrecht`, `zeilen` an Abschnitt/Tabelle, feste Innenbreite `breite − 40`,
+  Marke über dem Tab), UI (03d6c1e – Vorschau nimmt die Programmgröße je Lauf), Host neu gebaut (Renderer eingebettet). Protokollsichtbar:
+  Erlaubt-Text der Stile endet auf `…, senkrecht`, Bindbar-Liste auf `…, hinweis, marke` (Fälle/Prüfstand angepasst; neu a16-theke-v6).
+  Merge-Hinweis Multithreading-Branch: `laufzeit/src/namen.rs` hängt `marke` als 206 an (NAMEN 207).
 - Theke v5 (Nutzerwunsch „event-driven UI, kein Repaint je Frame“): K-116 … K-119 festgehalten, SPEC §16.8, THEKE.md §2/§8; umgesetzt
   und bitgleich in Interpreter (a07c1f1, ce98d85), Wasm-Laufzeit (75b2b0e, 67c446f, 1b431e7 – Art 24, Namen 203–205), Doku/Beispiele (6feefdc);
   Renderer und Host unverändert. `test:differenz` 1040 Fälle ohne Abweichung, Host 55/55. **K-117 ist protokollsichtbar** (identische Setzvorgänge
