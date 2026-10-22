@@ -108,10 +108,10 @@ ${fang("Bote.sage((zähle([1, 2])))")}
   F(K, "§17.3 S3: statisches Feld und schieb(x) einer Hauptküchen-Variable", P`
 klasse Küche { tiefkühl salami zähler = 0; }
 ${fang("[1].brigade(x -> { Küche.zähler = 5; serviere (x); })")}
-Pizza p = ((Salami));
+margherita p = "Salami";
 ${fang("[1].brigade(x -> schieb(p))")}
 Bote.sage((Küche.zähler + " " + p));
-`, { out: [VAR("zähler"), VAR("p"), "0 ((Salami))"] }),
+`, { out: [VAR("zähler"), VAR("p"), "0 Salami"] }),
 
   F(K, "§17.3 S3: Feldzuweisung an vorhandenem Objekt (direkt und über eine Methode)", P`
 klasse Box { salami w = 1; leer erhöhe() { w = w + 1; } }
@@ -149,16 +149,6 @@ Bote.sage(([1].brigade(x -> m.hole("a"))));
 Bote.sage((m));
 `, { out: ["Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.",
     "Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.", "[1]", "{a: 1}"] }),
-
-  F(K, "§17.3 S3: teile(p) auf vorhandener Pizza, essen() auf vorhandenem Stück; übrig()/istGegessen() lesen", P`
-Pizza p = ((Salami));
-Stück<Pizza> s = teile(p);
-${fang("[1].brigade(x -> teile(p))")}
-${fang("[1].brigade(x -> s.essen())")}
-Bote.sage(([1].brigade(x -> p.übrig())));
-Bote.sage((p.übrig() + " " + s.istGegessen()));
-`, { out: ["Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.",
-    "Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.", "[7]", "7 nein"] }),
 
   F(K, "§17.3 S3: Teig der Hauptküche – gehenlassen/backen (roh) werfen ohne T0007; gebacken ist lesbar", P`
 Teig<salami> t = teig(() -> (6 * 7));
@@ -296,18 +286,18 @@ Bote.sage(("ende"));
 `, { out: ["ende"] }),
 
   // ── §17.5 Kartonfähigkeit ──────────────────────────────────────────────────────────
-  F(K, "§17.5: kartonfähige Werte verlassen die Küche (Zahl, Text, Dauer, Belag, Enum, Pizza mit übrig, Speisekarte, karton)", P`
+  F(K, "§17.5: kartonfähige Werte verlassen die Küche (Zahl, Text, Dauer, Enum, Objekt, Speisekarte, karton)", P`
 quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
+klasse Pizza { margherita belag = "Salami"; margherita alsText() { serviere (("((" + belag + "))")); } }
 Blech<salami> r = [1].brigade(x -> {
-    Pizza p = ((Salami));
-    teile(p);
+    Pizza p = neu Pizza();
     Speisekarte<margherita, salami> m = neu Speisekarte<margherita, salami>();
     m.lege("x", x);
-    serviere ([x, "t", 2s, Salami, Jahreszeit.SOMMER, p, m, karton, ja]);
+    serviere ([x, "t", 2s, Jahreszeit.SOMMER, p, m, karton, ja]);
 });
 Bote.sage((r));
-Bote.sage((r.stück(1).stück(6).übrig()));
-`, { out: ["[[1, t, 2s, Salami, SOMMER, ((Salami)), {x: 1}, karton, ja]]", "7"] }),
+Bote.sage((r.stück(1).stück(5).belag));
+`, { out: ["[[1, t, 2s, SOMMER, ((Salami)), {x: 1}, karton, ja]]", "Salami"] }),
 
   F(K, "§17.5: nicht kartonfähig → KüchenAnanas am brigade-Aufruf (ungefangen: Zeile des Aufrufs)", P`
 Blech<salami> b = [1, 2];
@@ -323,13 +313,12 @@ Schild s = neu Schild("x");
 ${fang("[1].brigade(x -> teig(() -> (x)))")}
 ${fang("[1].brigade(x -> bestelle(() -> (x)))")}
 ${fang("[1].brigade(x -> bestelle(() -> (x)).warte())")}
-${fang("[1].brigade(x -> { Pizza q = ((Salami)); serviere (teile(q)); })")}
 ${fang("[1].brigade(x -> neu Zufall(x))")}
 ${fang("[1].brigade(x -> v)")}
 ${fang("[1].brigade(x -> s)")}
 ${fang("[1].brigade(x -> [x, teig(() -> (x))])")}
 ${fang("[1].brigade(x -> Bote.sage)")}
-`, { vorrat: {}, out: [KARTON("Ein Teig"), KARTON("Eine Lieferung"), KARTON("Eine Zustellung"), KARTON("Ein Stück"),
+`, { vorrat: {}, out: [KARTON("Ein Teig"), KARTON("Eine Lieferung"), KARTON("Eine Zustellung"),
     KARTON("Ein Zufall"), KARTON("Eine Vorratskammer"), KARTON("Eine Theke-Zutat"), KARTON("Ein Teig"), KARTON("Eine Funktion")] }),
 
   // verbrauchteZeit: Budget 3ms ist beim 4. Schritt überschritten (§14.2: ofen(zeit: 5ms) { solange (ja) { } } → 6ms)
@@ -339,18 +328,6 @@ Bote.sage((r));
 Bote.sage((r.stück(2).teilergebnis() + " " + r.stück(2).verbrauchteZeit()));
 ${fang("[1].brigade(x -> ofen(zeit: 10ms) { zwischenstand((teig(() -> (x)))); solange (ja) { } } roh (info) { serviere (info); })")}
 `, { out: ["[Roh(1), Roh(2)]", "2 4ms", KARTON("Ein Teig")] }),
-
-  // Sicht auf Schichten 1..k−1 (§6): Textform ((Tomate, Käse)), preis = 5.00 + 1.00 + 1.00
-  F(K, "§17.5 (K-101/1): Pizza-Sicht (unten als Wert) ist kartonfähig – gleiche Schichtenzahl, Textform und preis()", P`
-belag Trüffel auf Pizza {
-    speisekarte Pizza drunter() { serviere (unten); }
-}
-Pizza p = ((Tomate, Käse, Trüffel));
-Blech<Pizza> r = [1].brigade(x -> p.drunter());
-Bote.sage((r));
-Bote.sage((r.stück(1).preis()));
-Bote.sage((p.drunter()));
-`, { out: ["[((Tomate, Käse))]", "7", "((Tomate, Käse))"] }),
 
   F(K, "§17.5: geworfener Wert nicht kartonfähig → 'Was der Koch geworfen hat, passt in keinen Karton.'", P`
 klasse TeigAnanas erbt LaufzeitAnanas {

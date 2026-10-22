@@ -8,27 +8,11 @@ const K = "§15 Klärungen (K-001 …)";
 const schritte = (soll) => (res) => (res.schritte === soll ? undefined : `schritte ${res.schritte}, erwartet ${soll}`);
 
 module.exports = [
-  // ── K-001 Pizza-Literal und Aufrufklammern ─────────────────────────────
-  F(K, "K-001: Bote.sage((Salami)) ist ein Belag, kein Literal", P`
-Bote.sage((Salami));
-Bote.sage(((Salami)));
-`, { out: ["Salami", "((Salami))"] }),
-
-  F(K, "K-001: Zwei-Belag-Literal im Aufruf braucht drei Klammern", P`
-Bote.sage(((Salami, Tomate)));
-Bote.sage(((( Salami , Tomate ))).preis());
-`, { out: ["((Salami, Tomate))", "7.5"] }),
-
-  F(K, "K-001: Bote.sage((Salami, Tomate)) ist ein Syntaxfehler (P0001, Exit 2)", P`
-Bote.sage((Salami, Tomate));
-`, { exit: 2, fehler: { code: "P0001", art: "syntax", zeile: 1 } }),
-
-  F(K, "K-001: ((X)) mit bekanntem Belagnamen gewinnt gegen gleichnamige Variable", P`
-Pizza Salami = ((Tomate));
-Bote.sage(((Salami)));
-salami Kerstin = 3;
-Bote.sage(((Kerstin)));
-`, { out: ["((Salami))", "3"] }),
+  // ── K-001 Pizza-Literal und Aufrufklammern – abgelöst durch K-105 (kein Literal mehr, Fälle unten bei K-105) ──
+  F(K, "K-001 (K-105): Bote.sage((Salami, Tomate)) und f(((A, B))) sind Syntaxfehler (P0001, Exit 2)", P`
+leer f(salami a) { }
+f(((1, 2)));
+`, { exit: 2, fehler: { code: "P0001", art: "syntax", zeile: 2 } }),
 
   // ── K-002 W0032 bei drei Schreibweisen ─────────────────────────────────
   F(K, "K-002: drei Schreibweisen im selben Scope → genau 2 Warnungen, Partner = früheste", P`
@@ -174,39 +158,19 @@ Bote.sage((Bestellannahme.lies()));
     },
   }),
 
-  // ── K-016 Besitz ────────────────────────────────────────────────────────
-  F(K, "K-016: BesitzAnanas nur bei rechter Seite = Name/Feld (auch geklammert)", P`
-Pizza p = ((Tomate));
-probier { Pizza q = (p); } verbrannt (BesitzAnanas a) { Bote.sage(("besitz")); }
-Pizza r = ja ? p : p;
-Blech<Pizza> b = [p];
-Speisekarte<margherita, Pizza> m = neu Speisekarte<margherita, Pizza>();
-m.lege("a", p);
-Pizza s = m.hole("a");
-Bote.sage((r == s));
-`, { out: ["besitz", "ja"] }),
-
+  // ── K-016 Besitz – Besitzprüfung abgelöst durch K-105, schieb bleibt ─────
   F(K, "K-016: schieb funktioniert für Variablen jeden Typs, nicht für Felder", P`
 salami x = 5;
 salami y = schieb(x);
 Bote.sage((y));
 probier { Bote.sage((x)); } verbrannt (LeererKartonAnanas a) { Bote.sage(("weg")); }
-klasse K { Pizza p = ((Tomate)); }
+klasse K { margherita p = "Tomate"; }
 K k = neu K();
-probier { Pizza q = schieb(k.p); } verbrannt (LaufzeitAnanas a) { Bote.sage(("nur Namen")); }
+probier { margherita q = schieb(k.p); } verbrannt (LaufzeitAnanas a) { Bote.sage(("nur Namen")); }
 `, { out: ["5", "weg", "nur Namen"] }),
 
-  // ── K-017 Identität von Pizzen und Schlüsseln ───────────────────────────
-  F(K, "K-017: p + Belag hat wieder 8 Stücke; Blech.enthält vergleicht Pizzen nach Belägen", P`
-Pizza p = ((Tomate));
-teile(p);
-Pizza q = p + Salami - Salami;
-Bote.sage((p.übrig() + " " + q.übrig()));
-Bote.sage((q == p));
-Bote.sage(([((Tomate))].enthält(((Tomate)))));
-`, { out: ["7 8", "ja", "ja"] }),
-
-  F(K, "K-017: Speisekarten-Schlüssel: Zahl/Text/karton nach Wert (1 = 1.0), Beläge nach Name, Pizzen nach Identität", P`
+  // ── K-017 Identität von Schlüsseln (Pizza-Teil abgelöst durch K-105) ─────
+  F(K, "K-017: Speisekarten-Schlüssel: Zahl/Text/karton nach Wert (1 = 1.0), quattrostagioni-Werte, Objekte nach Identität", P`
 Speisekarte<salami, margherita> m = neu Speisekarte<salami, margherita>();
 m.lege(1, "eins");
 m.lege(1.0, "einsnull");
@@ -214,15 +178,17 @@ m.lege("1", "text");
 Bote.sage((m.länge() + " " + m.hole(1)));
 m.lege(karton, "leer");
 Bote.sage((m.hat(karton)));
+quattrostagioni Belag { Salami, Tomate, Käse, Pilze }
+klasse Pizza { }
 Speisekarte<Pizza, salami> n = neu Speisekarte<Pizza, salami>();
-n.lege(((Tomate)), 1);
-Bote.sage((n.hat(((Tomate)))));
-n.lege(Salami, 2);
-Bote.sage((n.hat(Salami) + " " + n.hat("Salami")));
-`, { out: ["2 einsnull", "ja", "nein", "ja ja"] }),
+n.lege(neu Pizza(), 1);
+Bote.sage((n.hat(neu Pizza())));
+n.lege(Belag.Salami, 2);
+Bote.sage((n.hat(Belag.Salami) + " " + n.hat("Salami")));
+`, { out: ["2 einsnull", "ja", "nein", "ja nein"] }),
 
   // ── K-018 Kühlschrank-Schlüssel ─────────────────────────────────────────
-  F(K, "K-018: Cache-Schlüssel = Textform (Blech/Pizza nach Inhalt), Objekte nach Identität; Ananas nicht gecacht", P`
+  F(K, "K-018: Cache-Schlüssel = Textform (Blech nach Inhalt), Objekte nach Identität; Ananas nicht gecacht", P`
 klasse P { salami v; P(salami v) { dies.v = v; } speisekarte margherita alsText() { serviere ("P"); } }
 klasse K {
   @Kühlschrank(haltbar: 1h) salami m(Blech<salami> b) { Bote.sage(("rechne m")); serviere (b.länge()); }
@@ -241,14 +207,14 @@ probier { k.w(1); } verbrannt (StreitAnanas x) { Bote.sage(("1")); }
 probier { k.w(1); } verbrannt (StreitAnanas x) { Bote.sage(("2")); }
 `, { out: ["rechne m", "rechne m", "2", "2", "rechne o", "rechne o", "1", "2"] }),
 
-  F(K, "K-018: gecachte Pizza ist dasselbe Objekt (übrig geteilt)", P`
-klasse K { @Kühlschrank(haltbar: 1h) Pizza m() { serviere (((Tomate))); } }
+  F(K, "K-018: gecachter Wert kommt per Referenz zurück (dasselbe Blech)", P`
+klasse K { @Kühlschrank(haltbar: 1h) Blech<salami> m() { serviere (([1])); } }
 K k = neu K();
-Pizza a = k.m();
-Pizza b = k.m();
-teile(a);
-Bote.sage((b.übrig()));
-`, { out: ["7"] }),
+Blech<salami> a = k.m();
+Blech<salami> b = k.m();
+a.hinzu(2);
+Bote.sage((b.länge() + " " + (a == b)));
+`, { out: ["2 ja"] }),
 
   // ── K-019 Lieferung ─────────────────────────────────────────────────────
   F(K, "K-019: wennDa ersetzt den früheren Rückruf", P`
@@ -287,7 +253,7 @@ probier { Blech<salami> b = [1 .. karton]; } verbrannt (TypAnanas a) { Bote.sage
 `, { out: ["[0.5, 1.5, 2.5]", "[3, 2]", "[1]", "10000001", "Der Bereich ist zu groß für ein Blech.", "typ"] }),
 
   // ── K-022 sortiere ──────────────────────────────────────────────────────
-  F(K, "K-022: sortiere ist stabil; nur das Vorzeichen zählt; Nicht-Zahl → TypAnanas; diavolo/Pizza nicht vergleichbar", P`
+  F(K, "K-022: sortiere ist stabil; nur das Vorzeichen zählt; Nicht-Zahl → TypAnanas; diavolo nicht vergleichbar", P`
 Bote.sage((["bb", "a", "cc", "d"].sortiere((x, y) -> x.länge() - y.länge())));
 Bote.sage(([3, 1, 2].sortiere((x, y) -> 0)));
 Bote.sage(([3, 1, 2].sortiere((x, y) -> x > y ? 1 : -1)));
@@ -295,18 +261,7 @@ probier { [2, 1].sortiere((x, y) -> ja); } verbrannt (TypAnanas a) { Bote.sage((
 probier { [ja, nein].sortiere(); } verbrannt (TypAnanas a) { Bote.sage(("typ2")); }
 `, { out: ["[a, d, bb, cc]", "[3, 1, 2]", "[1, 2, 3]", "typ", "typ2"] }),
 
-  // ── K-023 Preisrundung ──────────────────────────────────────────────────
-  F(K, "K-023: Standardbeläge je Schicht auf Cent gerundet, eigene preis()-Methoden ungerundet; Ananas.preis() = 0", P`
-Bote.sage((((Tomate, Chili, Knoblauch)).preis()));
-Bote.sage((((Tomate, Chili, Knoblauch, Kapern)).preis()));
-@Nach(Tomate)
-belag Trüffel auf Pizza { speisekarte funghi preis() { serviere ((unten.preis() + 4.555)); } }
-Bote.sage((((Tomate, Trüffel)).preis()));
-Bote.sage((((Tomate, Trüffel, Chili)).preis()));
-belag Gold auf Pizza { }
-Bote.sage((((Gold)).preis() + " " + Gold.preis()));
-Bote.sage((Ananas.preis()));
-`, { out: ["6.8", "7.5", "10.555", "11.06", "6 1", "0"], warn: ["W0666"] }),
+  // ── K-023 Preisrundung – abgelöst durch K-105 (keine eingebauten Preise mehr) ──
 
   // ── K-024 Nachgestellte Kommas ──────────────────────────────────────────
   F(K, "K-024: nachgestelltes Komma erlaubt in Blech-Literal und quattrostagioni", P`
@@ -315,10 +270,6 @@ Bote.sage((b));
 quattrostagioni Q { A, B, C, D, }
 Bote.sage((Q.werte()));
 `, { out: ["[1, 2]", "[A, B, C, D]"] }),
-
-  F(K, "K-024: nachgestelltes Komma im Pizza-Literal ist ein Syntaxfehler", P`
-Pizza p = ((Tomate, Käse,));
-`, { exit: 2, fehler: { code: "P0001", art: "syntax" } }),
 
   F(K, "K-024: nachgestelltes Komma in Argumentliste ist ein Syntaxfehler", P`
 leer f(salami a) { }
@@ -347,14 +298,12 @@ hawaii y = karton;
 Bote.sage(("nie"));
 `, { exit: 39, out: ["ok"], panik: true, warnAnzahl: { W0666: 1 } }),
 
-  F(K, "K-026: Belag-Wert Ananas allein (sage, hat, -) → keine Panik, W0666 genau einmal", P`
-Pizza p = ((Tomate));
+  F(K, "K-026: Name Ananas → keine Panik, keine Warnung; Blech<hawaii> → W0666 genau einmal (K-105)", P`
 Bote.sage((Ananas));
-Bote.sage((p.hat(Ananas)));
-Bote.sage((p - Ananas));
 Blech<hawaii> b = [1];
-Bote.sage((b));
-`, { out: ["Ananas", "nein", "((Tomate))", "[1]"], warnAnzahl: { W0666: 1 } }),
+Blech<hawaii> c = [2];
+Bote.sage((b + " " + c));
+`, { out: ["Ananas", "[1] [2]"], warnAnzahl: { W0666: 1 } }),
 
   F(K, "K-026: Q.Ananas und Methodenname Ananas lösen weder W0666 noch Panik aus", P`
 quattrostagioni Q { A, B, C, Ananas }
@@ -364,7 +313,7 @@ neu K().Ananas();
 `, { out: ["Ananas", "m"], noWarn: ["W0666"] }),
 
   F(K, "K-026: Panik in der wennDa-Phase nach Programmende → Exit 39", P`
-Lieferung<salami> l = bestelle(() -> { Pizza p = ((Ananas)); serviere (1); });
+Lieferung<salami> l = bestelle(() -> { hawaii p = 1; serviere (1); });
 l.wennDa(x -> Bote.sage((x)));
 Bote.sage(("ende"));
 `, { exit: 39, out: ["ende"], panik: true }),
@@ -389,7 +338,7 @@ klasse B { salami x = 1; }
 klasse K erbt B { tiefkühl salami s = 9; salami y = 2; }
 Bote.sage((Spiegel.felder(neu K())));
 probier { Spiegel.felder(karton); } verbrannt (LeererKartonAnanas a) { Bote.sage(("leer")); }
-probier { Spiegel.felder(((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("typ")); }
+probier { Spiegel.felder(((1s))); } verbrannt (TypAnanas a) { Bote.sage(("typ")); }
 probier { neu K().aufklappen(); } verbrannt (LaufzeitAnanas a) { Bote.sage(("keine Calzone")); }
 `, { out: ["{x: 1, y: 2}", "leer", "typ", "keine Calzone"] }),
 
@@ -445,14 +394,13 @@ neu Kind();
 `, { exit: 1, out: ["basis 7"], fehler: { code: "LaufzeitAnanas", art: "ananas", zeile: 5,
       text: "Ungefangene Ananas – LaufzeitAnanas: Konstruktor von 'Basis' erwartet 1 Argument, bekam 0. (Zeile 5)" } }),
 
-  // ── K-039 Pizza-Methoden mit Text ───────────────────────────────────────
-  F(K, "K-039: hat(\"Tomate\") wie hat(Tomate); Pizza + Text ist Textverkettung", P`
-Pizza p = ((Tomate));
-Bote.sage((p.hat("Tomate")));
-Bote.sage((p.hat("Käse")));
+  // ── K-039 Pizza-Methoden mit Text – abgelöst durch K-105; + mit einem Text bleibt Textverkettung (§5) ──
+  F(K, "K-039 (K-105): Objekt + Text ist Textverkettung über alsText()", P`
+klasse Pizza { margherita alsText() { serviere (("((Tomate))")); } }
+Pizza p = neu Pizza();
 Bote.sage((p + "!"));
 Bote.sage(("Pizza: " + p));
-`, { out: ["ja", "nein", "((Tomate))!", "Pizza: ((Tomate))"] }),
+`, { out: ["((Tomate))!", "Pizza: ((Tomate))"] }),
 
   // ── K-048 Rundungsformel ────────────────────────────────────────────────
   F(K, "K-048: Rundung half-away-from-zero, Epsilon nur bei runden(n>0) und euro()", P`
@@ -719,7 +667,7 @@ Bote.sage((v.länge()));
 
   F(K, "K-079: ungültige Werte, Schlüssel und Namen → TypAnanas/LaufzeitAnanas", P`
 Vorratskammer v = neu Vorratskammer("k");
-probier { v.lege("p", ((Tomate))); } verbrannt (TypAnanas a) { Bote.sage(("pizza")); }
+probier { v.lege("p", 1s); } verbrannt (TypAnanas a) { Bote.sage(("pizza")); }
 probier { v.lege("f", Mathe.wurzel(-1)); } verbrannt (TypAnanas a) { Bote.sage(("nan")); }
 probier { v.lege(1, 2); } verbrannt (TypAnanas a) { Bote.sage(("schlüssel")); }
 probier { Vorratskammer x = neu Vorratskammer("Groß Name"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
@@ -792,13 +740,14 @@ Bote.sage((z));
 Bote.sage((k.länge()));
 `, { out: ["1", "99", "7", "5", "karton", "karton", "karton", "1", "1"] }),
 
-  F(K, "K-095: gespeicherter karton bleibt karton (hat = ja); Belag-Schlüssel wie Text; ersatz kommt unverändert zurück (keine Kopie)", P`
+  F(K, "K-095: gespeicherter karton bleibt karton (hat = ja); quattrostagioni-Schlüssel nach Identität; ersatz kommt unverändert zurück (keine Kopie)", P`
 Speisekarte<margherita, salami> k = neu Speisekarte<margherita, salami>();
 k.lege("n", karton);
 Bote.sage((k.hole("n", 99) + " " + k.hat("n")));
+quattrostagioni Belag { Salami, Tomate, Käse, Pilze }
 Speisekarte<Belag, salami> b = neu Speisekarte<Belag, salami>();
-b.lege(Salami, 3);
-Bote.sage((b.hole(Salami, -1) + " " + b.hole(Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
+b.lege(Belag.Salami, 3);
+Bote.sage((b.hole(Belag.Salami, -1) + " " + b.hole(Belag.Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
 Speisekarte<margherita, Blech<salami>> l = neu Speisekarte<margherita, Blech<salami>>();
 Blech<salami> e = [];
 Blech<salami> r = l.hole("liste", e);
@@ -819,4 +768,119 @@ probier {
 t = "";
 Bote.sage(("weiter"));
 `, { out: ["Der Kühlschrank ist voll (Speicherlimit erreicht).", "weiter"] }),
+
+  // ── K-105 Sprach-Bereinigung: Pizza-Objekt, Beläge, teile/Stück entfernt ─────────────────────────
+  // Entfernte Dinge verhalten sich wie jeder unbekannte Name – keine Sonderbehandlung, keine Sondermeldung.
+
+  F(K, "K-105 Belagname ist ein unbekannter Name", P`
+Bote.sage((Tomate));
+`, { exit: 1, fehler: { code: "LaufzeitAnanas", textEnthält: "'Tomate' ist nicht definiert." } }),
+
+  F(K, "K-105 ((A, B)) ist kein Literal mehr – Syntaxfehler", P`
+Bote.sage((("x")));
+Pizza p = ((Tomate, Mozzarella));
+`, { exit: 2, fehler: { code: "P0001", art: "syntax", zeile: 2 } }),
+
+  F(K, "K-105 (()) ist kein Literal mehr – Syntaxfehler", P`
+Pizza p = (());
+`, { exit: 2, fehler: { code: "P0001", art: "syntax" } }),
+
+  F(K, "K-105 neu Pizza() ohne eigene Klasse → UnbekanntePizzaAnanas (unbekannte Klasse)", P`
+Pizza p = neu Pizza();
+`, { exit: 1, fehler: { code: "UnbekanntePizzaAnanas", textEnthält: "Klasse 'Pizza' steht nicht auf der Speisekarte." } }),
+
+  F(K, "K-105 teile ist kein Builtin mehr", P`
+salami x = 1;
+Bote.sage((teile(x)));
+`, { exit: 1, fehler: { code: "LaufzeitAnanas", textEnthält: "'teile' ist nicht definiert." } }),
+
+  F(K, "K-105 belag … auf Pizza ist keine Deklaration mehr – Syntaxfehler", P`
+belag Trüffel auf Pizza {
+    speisekarte funghi preis() { serviere ((4.5)); }
+}
+`, { exit: 2, fehler: { code: "P0001", art: "syntax" } }),
+
+  F(K, "K-105 belag und auf sind keine reservierten Wörter mehr", P`
+salami belag = 3;
+margherita auf = "auf";
+Bote.sage((belag + " " + auf));
+`, { out: ["3 auf"] }),
+
+  F(K, "K-105 entfernte Ananas-Klassen sind unbekannte Klassen", P`
+probier {
+    wirf neu UnbekannterBelagAnanas("x");
+} verbrannt (UnbekanntePizzaAnanas a) {
+    Bote.sage((a.nachricht()));
+}
+probier {
+    wirf neu BesitzAnanas("y");
+} verbrannt (UnbekanntePizzaAnanas a) {
+    Bote.sage((a.nachricht()));
+}
+`, { out: ["Klasse 'UnbekannterBelagAnanas' steht nicht auf der Speisekarte.", "Klasse 'BesitzAnanas' steht nicht auf der Speisekarte."] }),
+
+  F(K, "K-105 eigene Klasse Pizza funktioniert wie jede Klasse (Typprüfung, neu, alsText)", P`
+klasse Pizza {
+    Blech<margherita> beläge;
+    Pizza(Blech<margherita> b) { beläge = b; }
+    funghi preis() { serviere ((5 + beläge.länge() * 1.5)); }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+Pizza p = neu Pizza(["Tomate", "Mozzarella"]);
+Pizza q = p;
+Bote.sage((p), (p.preis().euro()), (q == p));
+`, { out: ["((Tomate, Mozzarella)) 8,00 € ja"] }),
+
+  F(K, "K-105 eigene Variablen mit Belagnamen gewinnen immer (kein Belag-Vorrang mehr, ersetzt K-001)", P`
+margherita Tomate = "rot";
+salami Salami = 2;
+Bote.sage(((Tomate)), ((Salami)));
+`, { out: ["rot 2"] }),
+
+  F(K, "K-105 Zuweisung per Name ist für jeden Typ erlaubt (keine BesitzAnanas), schieb bleibt", P`
+klasse Pizza { salami n = 1; }
+Pizza a = neu Pizza();
+Pizza b = a;
+Pizza c = schieb(b);
+Bote.sage((c.n));
+probier {
+    Bote.sage((b));
+} verbrannt (LeererKartonAnanas x) {
+    Bote.sage((x.nachricht()));
+}
+`, { out: ["1", "'b' wurde weggeschoben – der Karton ist leer."] }),
+
+  F(K, "K-105 bloßer Name Ananas ist der Klassenwert, keine W0666 (ersetzt K-026 teilweise)", P`
+Bote.sage((Ananas));
+`, { out: ["Ananas"], noWarn: ["W0666"] }),
+
+  F(K, "K-105 Hawaii bleibt: Typ hawaii warnt W0666 und paniert bei Zuweisung", P`
+Bote.sage(("vor"));
+hawaii h = 1;
+Bote.sage(("nach"));
+`, { exit: 39, out: ["vor"], warn: ["W0666"], panik: true }),
+
+  F(K, "K-105 Hawaii bleibt: neu Hawaii(…) paniert", P`
+Bote.sage(("vor"));
+neu Hawaii();
+`, { exit: 39, out: ["vor"], panik: true }),
+
+  F(K, "K-105 API: keine Beläge, keine Pizza-Typen, kein teile, keine Belag-Keywords", P`
+Bote.sage(("ok"));
+`, {
+    out: ["ok"],
+    check(res) {
+      const PL = require("../../site/js/pizza.js");
+      const e = [];
+      if (PL.BELAEGE !== undefined) e.push("PizzaLang.BELAEGE existiert noch");
+      if (PL.intern && (PL.intern.BELAEGE !== undefined || PL.intern.GRUNDPREIS !== undefined)) e.push("intern.BELAEGE/GRUNDPREIS existieren noch");
+      for (const t of ["Pizza", "Stück"]) if (PL.TYPEN.includes(t)) e.push("TYPEN enthält " + t);
+      if (PL.BUILTINS.includes("teile")) e.push("BUILTINS enthält teile");
+      if (!PL.BUILTINS.includes("schieb")) e.push("BUILTINS ohne schieb");
+      for (const a of ["BesitzAnanas", "UnbekannterBelagAnanas"]) if (PL.ANANAS.includes(a)) e.push("ANANAS enthält " + a);
+      for (const a of ["UnbekanntePizzaAnanas", "KeinStückAnanas", "StreitAnanas", "KüchenAnanas"]) if (!PL.ANANAS.includes(a)) e.push("ANANAS ohne " + a);
+      for (const k of ["belag", "auf"]) if (PL.KEYWORDS.includes(k)) e.push("KEYWORDS enthält " + k);
+      return e;
+    }
+  }),
 ];

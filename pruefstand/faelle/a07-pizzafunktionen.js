@@ -244,79 +244,55 @@ Bote.sage((gesamt));
 `, { out: ["36"] }),
 
   // ───────── §7.5 ─────────
-  F(B, "Pizza q = p; → BesitzAnanas (Text wörtlich)", P`
-Pizza p = ((Tomate));
+  F(B, "Zuweisung und Deklaration per Name sind für jeden Typ erlaubt (K-105: keine BesitzAnanas)", P`
+klasse Pizza { margherita n = "Tomate"; }
+Pizza p = neu Pizza();
 Pizza q = p;
-`, { exit: 1, fehler: { code: "BesitzAnanas", textEnthält: "BesitzAnanas: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p)." } }),
-
-  F(B, "Zuweisung q = p; → BesitzAnanas", P`
-Pizza p = ((Tomate));
-Pizza q = ((Käse));
-q = p;
-`, { exit: 1, fehler: { code: "BesitzAnanas" } }),
-
-  F(B, "Feldzugriff als rechte Seite → BesitzAnanas", P`
-klasse Tisch { Pizza p = ((Tomate)); }
+Pizza r = (p);
+q = r;
+klasse Tisch { Pizza belegt = neu Pizza(); }
 Tisch t = neu Tisch();
-Pizza q = t.p;
-`, { exit: 1, fehler: { code: "BesitzAnanas" } }),
-
-  F(B, "BesitzAnanas ist fangbar", P`
-Pizza p = ((Tomate));
-probier { Pizza q = p; } verbrannt (BesitzAnanas a) { Bote.sage(("gefangen")); }
-`, { out: ["gefangen"] }),
+Pizza s = t.belegt;
+Bote.sage((q == p), (s == t.belegt));
+`, { out: ["ja ja"] }),
 
   F(B, "Argumentübergabe und Rückgabe sind erlaubt", P`
+klasse Pizza { margherita n; Pizza(margherita n) { dies.n = n; } margherita alsText() { serviere ((n)); } }
 klasse K {
-    tiefkühl funghi preisVon(Pizza x) { serviere ((x.preis())); }
-    tiefkühl Pizza mach() { Pizza p = ((Tomate)); serviere ((p)); }
+    tiefkühl salami länge(Pizza x) { serviere ((x.n.länge())); }
+    tiefkühl Pizza mach() { Pizza p = neu Pizza("Tomate"); serviere ((p)); }
 }
-Pizza p = ((Tomate));
-Bote.sage((K.preisVon(p)));
+Pizza p = neu Pizza("Tomate");
+Bote.sage((K.länge(p)));
 Bote.sage((p));
 Pizza q = K.mach();
 Bote.sage((q));
-`, { out: ["6", "((Tomate))", "((Tomate))"] }),
+`, { out: ["6", "Tomate", "Tomate"] }),
 
-  F(B, "p + Belag als rechte Seite ist kein Besitzwechsel", P`
-Pizza p = ((Tomate));
-Pizza q = p + Salami;
-Bote.sage((p));
+  F(B, "schieb(p): Wert übergeben, Neuzuweisung erlaubt – für Variablen jeden Typs", P`
+margherita p = "Tomate";
+margherita q = schieb(p);
 Bote.sage((q));
-`, { out: ["((Tomate))", "((Tomate, Salami))"] }),
-
-  F(B, "schieb(p): Wert übergeben, Neuzuweisung erlaubt", P`
-Pizza p = ((Tomate));
-Pizza q = schieb(p);
-Bote.sage((q));
-p = ((Käse));
+p = "Käse";
 Bote.sage((p));
-`, { out: ["((Tomate))", "((Käse))"] }),
+Blech<salami> b = [1];
+Blech<salami> c = schieb(b);
+c.hinzu(2);
+Bote.sage((c));
+`, { out: ["Tomate", "Käse", "[1, 2]"] }),
 
   F(B, "Lesen nach schieb → LeererKartonAnanas (Text wörtlich)", P`
-Pizza p = ((Tomate));
-Pizza q = schieb(p);
+salami p = 1;
+salami q = schieb(p);
 Bote.sage((p));
 `, { exit: 1, fehler: { code: "LeererKartonAnanas", textEnthält: "LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer." } }),
 
-  F(B, "teile/übrig/Stück-Methoden, zweites essen → StreitAnanas", P`
-Pizza p = ((Tomate, Käse));
-Bote.sage((p.übrig()));
-Stück<Pizza> s = teile(p);
-Bote.sage((p.übrig()));
-Bote.sage((s.pizza()));
-Bote.sage((s.istGegessen()));
-s.essen();
-Bote.sage((s.istGegessen()));
-s.essen();
-`, { exit: 1, out: ["8", "7", "((Tomate, Käse))", "nein", "ja"], fehler: { code: "StreitAnanas", textEnthält: "StreitAnanas: Dieses Stück ist schon gegessen." } }),
-
-  F(B, "Neuntes teile → StreitAnanas: Pizza ist alle.", P`
-Pizza p = ((Tomate));
-für (salami i = 0; i < 8; i++) { Stück<Pizza> s = teile(p); }
-Bote.sage((p.übrig()));
-Stück<Pizza> zuviel = teile(p);
-`, { exit: 1, out: ["0"], fehler: { code: "StreitAnanas", textEnthält: "StreitAnanas: Pizza ist alle." } }),
+  F(B, "schieb auf einem Parameter leert nur den Parameter", P`
+klasse Tisch { margherita belegt; Tisch(margherita b) { dies.belegt = schieb(b); } }
+margherita g = "Pilze";
+Tisch t = neu Tisch(g);
+Bote.sage((t.belegt + " " + g));
+`, { out: ["Pilze Pilze"] }),
 
   // ───────── §7.6 ─────────
   F(K, "@Kühlschrank: Cache pro Argumentliste", LADEN + P`

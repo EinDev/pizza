@@ -4,24 +4,18 @@
 const { P, F } = require("../lib/helfer");
 const A = "API (ARCHITEKTUR §1)";
 
-const KEYWORDS = `paket import klasse rezeptur rohling calzone belag auf quattrostagioni
+const KEYWORDS = `paket import klasse rezeptur rohling calzone quattrostagioni
 erbt erfüllt speisekarte familienrezept geheimrezept tiefkühl gebacken
 leer neu dies unten serviere falls sonst für solange wähle fall standard
 probier verbrannt rand wirf wirft abbrechen weiter ja nein karton ofen roh`.split(/\s+/);
 
-const TYPEN = ["salami", "funghi", "margherita", "diavolo", "Dauer", "Pizza", "Blech", "Speisekarte",
-  "Teig", "Lieferung", "Zustellung", "Stück", "Reste", "Rohling", "hawaii"];
-const BUILTINS = ["Bote", "Uhr", "Mathe", "Zufall", "Spiegel", "teig", "bestelle", "schieb", "teile", "zwischenstand"];
-const BELAEGE = {
-  Tomate: [1.0, []], Mozzarella: [1.5, ["Tomate"]], Käse: [1.0, ["Tomate"]], Basilikum: [0.5, ["Mozzarella"]],
-  Salami: [1.5, []], Schinken: [1.5, []], Pilze: [1.0, []], Oliven: [1.0, []], Zwiebeln: [0.5, []],
-  Paprika: [0.8, []], Chili: [0.5, []], Peperoni: [0.8, []], Rucola: [1.0, ["Mozzarella"]],
-  Parmesan: [1.2, ["Tomate"]], Gorgonzola: [1.5, ["Tomate"]], Thunfisch: [2.0, []], Sardellen: [1.8, []],
-  Artischocken: [1.5, []], Spinat: [1.0, []], Ei: [0.8, []], Mais: [0.5, []], Knoblauch: [0.3, []], Kapern: [0.7, []],
-};
-const ANANAS = ["Ananas", "GeprüfteAnanas", "LaufzeitAnanas", "VerbranntAnanas", "LieferAnanas", "StreitAnanas",
-  "RechenAnanas", "LeererKartonAnanas", "RohlingAnanas", "BesitzAnanas", "GebackenAnanas", "TypAnanas",
-  "KeinStückAnanas", "ZugriffsAnanas", "UnbekannterBelagAnanas", "ZugeklapptAnanas", "UnbekanntePizzaAnanas"];
+const TYPEN = ["salami", "funghi", "margherita", "diavolo", "Dauer", "Blech", "Speisekarte",
+  "Teig", "Lieferung", "Zustellung", "Reste", "Rohling", "hawaii"];
+const BUILTINS = ["Bote", "Uhr", "Mathe", "Zufall", "Spiegel", "teig", "bestelle", "schieb", "zwischenstand"];
+// Reihenfolge verbindlich (SPEC §8, K-105): 16 Einträge, die Wasm-Laufzeit spiegelt die Klassenindizes
+const ANANAS = ["Ananas", "GeprüfteAnanas", "VerbranntAnanas", "LieferAnanas", "LaufzeitAnanas", "StreitAnanas",
+  "RechenAnanas", "LeererKartonAnanas", "RohlingAnanas", "GebackenAnanas", "TypAnanas", "KeinStückAnanas",
+  "ZugriffsAnanas", "ZugeklapptAnanas", "UnbekanntePizzaAnanas", "KüchenAnanas"];
 
 function fehlt(liste, soll) {
   if (!Array.isArray(liste)) return "kein Array";
@@ -39,26 +33,14 @@ module.exports = [
   api(A, "KEYWORDS enthält nicht 'pizza' (§1: kein Keyword mehr)", (L) =>
     Array.isArray(L.KEYWORDS) && !L.KEYWORDS.includes("pizza") ? undefined : "'pizza' ist in KEYWORDS"),
   api(A, "KEYWORDS enthält keine Builtin-Funktionen (§1)", (L) => {
-    const x = (L.KEYWORDS || []).filter((k) => ["teig", "bestelle", "schieb", "teile", "zwischenstand"].includes(k));
+    const x = (L.KEYWORDS || []).filter((k) => ["teig", "bestelle", "schieb", "zwischenstand"].includes(k));
     return x.length ? "Builtins als Keyword: " + x.join(", ") : undefined;
   }),
   api(A, "TYPEN enthält eingebaute Typnamen inkl. hawaii", (L) => fehlt(L.TYPEN, TYPEN)),
   api(A, "BUILTINS enthält globale Objekte/Funktionen", (L) => fehlt(L.BUILTINS, BUILTINS)),
-  api(A, "BELAEGE: Zutatenliste mit name/preis/nach (24 inkl. Ananas)", (L) => {
-    const b = L.BELAEGE;
-    if (!Array.isArray(b)) return "kein Array";
-    const err = [];
-    for (const [n, [preis, nach]] of Object.entries(BELAEGE)) {
-      const e = b.find((x) => x && x.name === n);
-      if (!e) { err.push("fehlt " + n); continue; }
-      if (Math.abs(Number(e.preis) - preis) > 1e-9) err.push(n + ".preis=" + e.preis);
-      if (!Array.isArray(e.nach) || e.nach.join() !== nach.join()) err.push(n + ".nach=" + JSON.stringify(e.nach));
-    }
-    if (!b.find((x) => x && x.name === "Ananas")) err.push("fehlt Ananas");
-    if (b.length !== 24) err.push("Anzahl " + b.length + " statt 24");
-    return err.length ? err.join("; ") : undefined;
-  }),
   api(A, "ANANAS enthält alle Klassen des Baums (§8)", (L) => fehlt(L.ANANAS, ANANAS)),
+  api(A, "ANANAS in verbindlicher Reihenfolge, genau 16 Einträge (§8, K-105)", (L) =>
+    Array.isArray(L.ANANAS) && JSON.stringify(L.ANANAS) === JSON.stringify(ANANAS) ? undefined : "ANANAS = " + JSON.stringify(L.ANANAS)),
   api(A, "parse(ok) → { ok: true, ast }", (L) => {
     const r = L.parse('Bote.sage(("Hallo"));');
     return r && r.ok === true && r.ast ? undefined : "Ergebnis: " + JSON.stringify(r).slice(0, 200);
@@ -78,7 +60,7 @@ module.exports = [
     const r = L.parse("klasse K { tiefkühl salami f() { salami x = 1; serviere x; } }");
     return r && r.ok === false && r.fehler && r.fehler.code === "K0001" ? undefined : "Ergebnis: " + JSON.stringify(r).slice(0, 200);
   }),
-  api(A, "parse wirft nie (leer, Müll, offener Kommentar/Text, Pizza-Literale)", (L) => {
+  api(A, "parse wirft nie (leer, Müll, offener Kommentar/Text, Doppelklammern)", (L) => {
     const quellen = ["", "{{{ ))) klasse", "/* offen", '"offen', "((", "(())", "@", "\u0000", "für (", "ofen(zeit: ) {"];
     for (const q of quellen) {
       try {

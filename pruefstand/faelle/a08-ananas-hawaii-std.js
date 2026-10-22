@@ -87,10 +87,6 @@ diavolo d = 1;
 funghi f = "a";
 `, { exit: 1, fehler: { code: "TypAnanas" } }),
 
-  F(A, "TypAnanas: Pizza mit Zahl", P`
-Pizza p = 5;
-`, { exit: 1, fehler: { code: "TypAnanas" } }),
-
   F(A, "TypAnanas: Dauer mit Zahl", P`
 Dauer d = 5;
 `, { exit: 1, fehler: { code: "TypAnanas" } }),
@@ -117,7 +113,7 @@ klasse Tier { }
 klasse Hund erbt Tier { }
 funghi f = 3;
 Tier t = neu Hund();
-Pizza p = karton;
+Dauer p = karton;
 Hund h = karton;
 Blech<salami> b = ["kein", "salami"];
 Bote.sage((f));
@@ -126,9 +122,9 @@ Bote.sage((b));
 `, { out: ["3", "karton", "[kein, salami]"] }),
 
   F(A, "karton lesen ist ok, Methodenaufruf darauf → LeererKartonAnanas", P`
-Pizza p = karton;
+Dauer p = karton;
 Bote.sage((p));
-Bote.sage((p.preis()));
+Bote.sage((p.inMs()));
 `, { exit: 1, out: ["karton"], fehler: { code: "LeererKartonAnanas", textEnthält: "LeererKartonAnanas: Der Karton ist leer." } }),
 
   F(A, "Feldzugriff auf karton → LeererKartonAnanas", P`
@@ -144,15 +140,17 @@ hawaii h = 1;
 Bote.sage(("nachher"));
 `, { exit: 39, out: ["vorher"], panik: true, warnAnzahl: { W0666: 1 }, warnText: { W0666 } }),
 
-  F(H, "Pizza-Literal mit Ananas → Panik", P`
-Pizza p = ((Tomate, Ananas));
-`, { exit: 39, panik: true, warnAnzahl: { W0666: 1 } }),
-
-  F(H, "p + Ananas → Panik", P`
-Pizza p = ((Tomate));
+  F(H, "hawaii-Feld erhält einen Wert → Panik", P`
+klasse K { hawaii h; }
+K k = neu K();
 Bote.sage(("noch gut"));
-Pizza q = p + Ananas;
-`, { exit: 39, out: ["noch gut"], panik: true }),
+k.h = 1;
+`, { exit: 39, out: ["noch gut"], panik: true, warnAnzahl: { W0666: 1 } }),
+
+  F(H, "bloßer Name Ananas ist der Klassenwert der Basis-Ananas – keine Panik, keine W0666 (K-105)", P`
+Bote.sage((Ananas));
+probier { wirf neu Ananas("x"); } verbrannt (Ananas a) { Bote.sage((a)); }
+`, { out: ["Ananas", "Ananas: x"], noWarn: ["W0666"] }),
 
   F(H, "neu Hawaii() (eigene Klasse) → Panik", P`
 klasse Hawaii { }
@@ -178,7 +176,7 @@ probier {
   F(H, "Nur Quelltext enthält hawaii/Ananas → genau eine W0666, Exit 0", P`
 falls (nein) {
     hawaii h = 1;
-    Pizza p = ((Tomate, Ananas));
+    Blech<hawaii> p = [1];
 }
 Blech<hawaii> b = [];
 Bote.sage(("ruhig"));
@@ -284,7 +282,7 @@ funghi m = -3.7;
 Bote.sage((m.abs()));
 Bote.sage((m.ganz()));
 Bote.sage((x.alsText() + "!"));
-Bote.sage((((Tomate, Mozzarella, Basilikum)).preis().euro()));
+Bote.sage(((5 + 1.5 + 1 + 0.5).euro()));
 `, { out: ["8,00 €", "7,50 €", "3.14", "3", "3.7", "-3", "3.14159!", "8,00 €"] }),
 
   F(S, "Text-Methoden", P`
@@ -399,13 +397,12 @@ Bote.sage(((1s).inMs()));
 Bote.sage(((90s).inSekunden()));
 `, { out: ["1min 30s", "30min", "6s", "30s", "ja", "1000", "90"] }),
 
-  F(S, "neu Blech<T>(), neu Speisekarte<K, V>(), neu Pizza()", P`
+  F(S, "neu Blech<T>(), neu Speisekarte<K, V>()", P`
 Bote.sage((neu Blech<salami>()));
 Bote.sage((neu Speisekarte<margherita, salami>()));
-Bote.sage((neu Pizza()));
 `, {
     // Speisekarte leer: SPEC gibt nur {a: 1, b: 2} vor → leere Form "{}" ist die naheliegende Lesart
-    out: ["[]", "{}", "(())"],
+    out: ["[]", "{}"],
   }),
 
   // ───────── §12 ─────────

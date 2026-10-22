@@ -241,10 +241,10 @@ für (salami i = 0; i < 3; i++) { Bote.sage((K.f())); }
 `, { out: ["vorher", "1", "1", "1"], warnAnzahl: { W0003: 1 } }),
 
   F(D, "@NieKarton-Parameter mit karton → LeererKartonAnanas (Kl. 15)", P`
-klasse K { tiefkühl leer f(@NieKarton Pizza p) { Bote.sage((p)); } }
-K.f(((Tomate)));
+klasse K { tiefkühl leer f(@NieKarton Dauer p) { Bote.sage((p)); } }
+K.f(((2s)));
 K.f(karton);
-`, { exit: 1, out: ["((Tomate))"], fehler: { code: "LeererKartonAnanas" } }),
+`, { exit: 1, out: ["2s"], fehler: { code: "LeererKartonAnanas" } }),
 
   F(D, "Annotationen: Metadaten, Schlüssel mit : und =", P`
 @Pizzaiolo(autor: "Luigi")
