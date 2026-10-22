@@ -490,9 +490,16 @@ function start() {
       exeStatus(2, "2/3 · Programm für " + zielName(ziel) + " wird verpackt …");
       const PE = await ladeExeSkript();
       if (!PE) throw new Error(exeGrund);
+      // Importgruppen, die der Host des Ziels (noch) nicht kennt (z. B. `herd` vor H5) → kein Download einer EXE,
+      // die beim Start nur K-043 meldet. Ziele mit `gruppen` in ziele.json bestimmen selbst, was geht.
+      if (typeof PE.fehlendeGruppen === "function") {
+        let fehlend = [];
+        try { fehlend = PE.fehlendeGruppen(r.daten, ziel); } catch (e) { /* Prüfung nicht möglich → baue() entscheidet */ }
+        if (fehlend.length) throw new Error(PE.gruppenMeldung(fehlend));
+      }
       let blob;
       try { blob = await PE.baue(r.daten, ziel); }
-      catch (e) { throw new Error("Das Programm konnte nicht verpackt werden: " + (e && e.message ? e.message : String(e)) + " (fehlen die Host-Programme unter bin/?)"); }
+      catch (e) { if (e && e.code === "GRUPPE_FEHLT") throw e; throw new Error("Das Programm konnte nicht verpackt werden: " + (e && e.message ? e.message : String(e)) + " (fehlen die Host-Programme unter bin/?)"); }
       if (!(blob instanceof Blob)) blob = new Blob([blob], { type: "application/octet-stream" });
       exeStatus(3, "3/3 · Fertig – „" + dateiname + "“ (" + new Intl.NumberFormat("de-DE").format(Math.round(blob.size / 1024)) + " KB) wird heruntergeladen.");
       const url = URL.createObjectURL(blob);

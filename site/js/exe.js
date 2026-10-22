@@ -5,6 +5,9 @@
  *   PizzaExe.baue(pkartonBytes, ziel, optionen?)    → Promise<Blob>   (Host-Binary laden, sha256 prüfen, .pkarton + Trailer anhängen)
  *   PizzaExe.verbinde(hostBytes, pkartonBytes, { theke }?) → Uint8Array (synchron, gleiche Bytes wie `pizza-host exe`)
  *   PizzaExe.brauchtTheke(pkartonBytes)             → Promise<boolean> (importiert die Gruppe `theke`, pizza.ui_*)
+ *   PizzaExe.gruppen(pkartonBytes)                  → string[] (Importgruppen aus der Custom Section `pizzaiolo`, HOST-ABI §2)
+ *   PizzaExe.fehlendeGruppen(pkartonBytes, ziel)    → string[] (Gruppen, die der Host des Ziels nicht anbietet)
+ *   PizzaExe.gruppenMeldung(fehlend)                → freundlicher Text für die UI ("" wenn nichts fehlt)
  *   PizzaExe.dateiname(name, ziel)                  → z. B. "hallo-welt.exe" / "hallo-welt-linux-x64"
  *   PizzaExe.hinweis(ziel)                          → kurzer Text für die UI (SmartScreen / chmod +x)
  *
@@ -12,6 +15,10 @@
  * Format (host/README.md): [Host-Binary][pkarton][u64 LE Länge][8 Byte "PKARTON1"].
  * Windows (PE): Subsystem im PE-Kopf = WINDOWS (2) für Programme mit Theke (kein Terminal beim Doppelklick),
  * sonst CONSOLE (3) – wie host/src/karton.rs.
+ * Importgruppen: ein Ziel in ziele.json kann `gruppen: [...]` angeben (welche optionalen Gruppen sein Host kennt). Fehlt die
+ * Angabe (ziele.json vor Herd H5), gilt HOST_GRUPPEN (pizza-host ohne Herd). Braucht das Programm eine Gruppe, die der Host nicht kennt, bricht
+ * baue() vor dem Laden des Host-Binaries ab (Fehler mit `.code = "GRUPPE_FEHLT"`, `.gruppen`) – statt einer EXE, die
+ * beim Start mit K-043 endet.
  */
 (function (wurzel, fabrik) {
   if (typeof module === 'object' && module.exports) module.exports = fabrik();
@@ -22,6 +29,8 @@
   var MAGIE = [0x50, 0x4b, 0x41, 0x52, 0x54, 0x4f, 0x4e, 0x31]; // "PKARTON1"
   var zwischenspeicher = {}; // URL → Promise<Uint8Array>
   var zieleCache = {};
+  // Optionale Importgruppen, die die vorgefertigten Hosts ohne eigene Angabe (`ziel.gruppen`) kennen (host/src/laufen.rs, IMPORTE).
+  var HOST_GRUPPEN = ['theke', 'vorrat', 'echtzeit', 'kueche'];
 
   function opt(o) {
     o = o || {};
@@ -77,6 +86,54 @@
         return WebAssembly.Module.imports(m).some(function (i) { return (i.module === 'pizza' && /^(ui_|herd_)/.test(i.name)) || i.module === 'herd'; });
       });
     } catch (e) { return Promise.reject(e); }
+  }
+
+  /** LEB128 (u32) ab b[i] → [wert, neue Position]. */
+  function leb(b, i) {
+    var w = 0, f = 1, x;
+    do {
+      if (i >= b.length) throw new Error('PizzaExe: .pkarton abgeschnitten.');
+      x = b[i++]; w += (x & 0x7f) * f; f *= 128;
+    } while (x & 0x80);
+    return [w, i];
+  }
+
+  /** Importgruppen aus der Custom Section `pizzaiolo` (Byte-Ebene, ohne WebAssembly.compile – geht auch bei strenger CSP). */
+  function gruppen(pkarton) {
+    var b = alsBytes(pkarton);
+    if (!istWasm(b)) throw new Error('PizzaExe: kein gültiges .pkarton (WebAssembly-Magie fehlt).');
+    var i = 8;
+    while (i < b.length) {
+      var id = b[i++];
+      var r = leb(b, i), groesse = r[0];
+      i = r[1];
+      var ende = i + groesse;
+      if (ende > b.length) throw new Error('PizzaExe: .pkarton abgeschnitten.');
+      if (id === 0) {
+        var n = leb(b, i), nameEnde = n[1] + n[0];
+        var name = new TextDecoder().decode(b.subarray(n[1], nameEnde));
+        if (name === 'pizzaiolo') {
+          var meta = JSON.parse(new TextDecoder().decode(b.subarray(nameEnde, ende)));
+          return Array.isArray(meta && meta.gruppen) ? meta.gruppen.map(String) : [];
+        }
+      }
+      i = ende;
+    }
+    return [];
+  }
+
+  /** Gruppen des Programms, die der Host des Ziels nicht anbietet (`ziel.gruppen` aus ziele.json, sonst HOST_GRUPPEN). */
+  function fehlendeGruppen(pkarton, ziel) {
+    var kann = ziel && typeof ziel === 'object' && Array.isArray(ziel.gruppen) ? ziel.gruppen : HOST_GRUPPEN;
+    return gruppen(pkarton).filter(function (g) { return kann.indexOf(g) < 0; });
+  }
+
+  function gruppenMeldung(fehlend) {
+    if (!fehlend || !fehlend.length) return '';
+    if (fehlend.indexOf('herd') >= 0) return 'Herd-Spiele lassen sich noch nicht als EXE exportieren – im Playground und per App-Link laufen sie schon.';
+    return 'Dieses Programm braucht ' + (fehlend.length > 1 ? 'die Funktionen ' : 'die Funktion ') +
+      fehlend.map(function (g) { return '„' + g + '“'; }).join(', ') +
+      ', die die EXE-Version noch nicht kann – im Playground und per App-Link läuft es schon.';
   }
 
   function verbinde(host, pkarton, optionen) {
@@ -160,9 +217,18 @@
     try { p = alsBytes(pkarton); } catch (e) { return Promise.reject(e); }
     if (!istWasm(p)) return Promise.reject(new Error('PizzaExe: kein gültiges .pkarton (WebAssembly-Magie fehlt).'));
     // optionen werden auch für ziele() gebraucht (basis/fetch)
+    var gruppenPruefung = findeZiel(ziel, optionen).then(function (z) {
+      var fehlend = fehlendeGruppen(p, z);
+      if (fehlend.length) {
+        var e = new Error(gruppenMeldung(fehlend));
+        e.code = 'GRUPPE_FEHLT'; e.gruppen = fehlend;
+        throw e;
+      }
+      return z;
+    });
     // Kompilieren verboten (CSP ohne 'wasm-unsafe-eval') → wie bisher Konsolen-EXE statt Abbruch.
     var theke = brauchtTheke(p).catch(function () { return false; });
-    return Promise.all([findeZiel(ziel, optionen), theke]).then(function (r) {
+    return Promise.all([gruppenPruefung, theke]).then(function (r) {
       var z = r[0], theke = r[1];
       return ladeHost(z, o).then(function (host) {
         return new Blob([verbinde(host, p, { theke: theke })], { type: 'application/octet-stream' });
@@ -186,5 +252,5 @@
     return '';
   }
 
-  return { version: '1.0.0', ziele: ziele, baue: baue, verbinde: verbinde, brauchtTheke: brauchtTheke, subsystem: subsystem, dateiname: dateiname, hinweis: hinweis, _anhangLaenge: anhangLaenge };
+  return { version: '1.0.0', ziele: ziele, baue: baue, verbinde: verbinde, brauchtTheke: brauchtTheke, gruppen: gruppen, fehlendeGruppen: fehlendeGruppen, gruppenMeldung: gruppenMeldung, subsystem: subsystem, dateiname: dateiname, hinweis: hinweis, _anhangLaenge: anhangLaenge };
 });
