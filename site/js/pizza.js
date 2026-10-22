@@ -18,48 +18,21 @@
   const VERSION = '3.0.0';
 
   const KEYWORDS = [
-    'paket', 'import', 'klasse', 'rezeptur', 'rohling', 'calzone', 'belag', 'auf', 'quattrostagioni',
+    'paket', 'import', 'klasse', 'rezeptur', 'rohling', 'calzone', 'quattrostagioni',
     'erbt', 'erfüllt', 'speisekarte', 'familienrezept', 'geheimrezept', 'tiefkühl', 'gebacken',
     'leer', 'neu', 'dies', 'unten', 'serviere', 'falls', 'sonst', 'für', 'solange', 'wähle', 'fall', 'standard',
     'probier', 'verbrannt', 'rand', 'wirf', 'wirft', 'abbrechen', 'weiter', 'ja', 'nein', 'karton', 'ofen', 'roh'
   ];
   const KW = new Set(KEYWORDS);
 
-  const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
-    'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii',
+  const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
+    'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii',
     'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
     'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer'];
 
-  const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'];
+  const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'];
 
-  const BELAEGE = [
-    { name: 'Tomate', preis: 1.00, nach: [] },
-    { name: 'Mozzarella', preis: 1.50, nach: ['Tomate'] },
-    { name: 'Käse', preis: 1.00, nach: ['Tomate'] },
-    { name: 'Basilikum', preis: 0.50, nach: ['Mozzarella'] },
-    { name: 'Salami', preis: 1.50, nach: [] },
-    { name: 'Schinken', preis: 1.50, nach: [] },
-    { name: 'Pilze', preis: 1.00, nach: [] },
-    { name: 'Oliven', preis: 1.00, nach: [] },
-    { name: 'Zwiebeln', preis: 0.50, nach: [] },
-    { name: 'Paprika', preis: 0.80, nach: [] },
-    { name: 'Chili', preis: 0.50, nach: [] },
-    { name: 'Peperoni', preis: 0.80, nach: [] },
-    { name: 'Rucola', preis: 1.00, nach: ['Mozzarella'] },
-    { name: 'Parmesan', preis: 1.20, nach: ['Tomate'] },
-    { name: 'Gorgonzola', preis: 1.50, nach: ['Tomate'] },
-    { name: 'Thunfisch', preis: 2.00, nach: [] },
-    { name: 'Sardellen', preis: 1.80, nach: [] },
-    { name: 'Artischocken', preis: 1.50, nach: [] },
-    { name: 'Spinat', preis: 1.00, nach: [] },
-    { name: 'Ei', preis: 0.80, nach: [] },
-    { name: 'Mais', preis: 0.50, nach: [] },
-    { name: 'Knoblauch', preis: 0.30, nach: [] },
-    { name: 'Kapern', preis: 0.70, nach: [] },
-    { name: 'Ananas', preis: null, nach: [] }
-  ];
-  const BELAG_TABELLE = new Map(BELAEGE.map(b => [b.name, b]));
-
+  // Reihenfolge verbindlich (SPEC §8, K-105): PizzaLang.ANANAS und die Klassenindizes der Wasm-Laufzeit spiegeln sie.
   const ANANAS_BAUM = [
     ['Ananas', null],
     ['GeprüfteAnanas', 'Ananas'],
@@ -70,12 +43,10 @@
     ['RechenAnanas', 'LaufzeitAnanas'],
     ['LeererKartonAnanas', 'LaufzeitAnanas'],
     ['RohlingAnanas', 'LaufzeitAnanas'],
-    ['BesitzAnanas', 'LaufzeitAnanas'],
     ['GebackenAnanas', 'LaufzeitAnanas'],
     ['TypAnanas', 'LaufzeitAnanas'],
     ['KeinStückAnanas', 'LaufzeitAnanas'],
     ['ZugriffsAnanas', 'LaufzeitAnanas'],
-    ['UnbekannterBelagAnanas', 'LaufzeitAnanas'],
     ['ZugeklapptAnanas', 'LaufzeitAnanas'],
     ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'],
     ['KüchenAnanas', 'LaufzeitAnanas']        // Küchenbrigade (THREADS.md §2.3) – am Ende angehängt, Indizes bleiben
@@ -99,7 +70,6 @@
 
   const STANDARD_LIMIT = 5000000;
   const MAX_STAPEL = 1500;
-  const GRUNDPREIS = 5.00;
 
   // =====================================================================
   // LEXER
@@ -203,11 +173,6 @@
   // PARSER
   // =====================================================================
 
-  function istGross(w) {
-    const c = w[0];
-    return c !== c.toLowerCase() && c === c.toUpperCase();
-  }
-
   function sichtbarkeit(mods) {
     if (mods.indexOf('geheimrezept') >= 0) return 'geheimrezept';
     if (mods.indexOf('familienrezept') >= 0) return 'familienrezept';
@@ -282,7 +247,7 @@
       const tok = this.c;
       const annos = this.annotationen();
       const mods = this.modifikatoren();
-      if (this.istKw('klasse') || this.istKw('rezeptur') || this.istKw('quattrostagioni') || this.istKw('belag')) {
+      if (this.istKw('klasse') || this.istKw('rezeptur') || this.istKw('quattrostagioni')) {
         return this.typDekl(annos, mods, tok);
       }
       if (this.istOp('<')) { this.generikaUeberspringen(); return this.methode(annos, mods, tok); }
@@ -428,8 +393,7 @@
     typDekl(annos, mods, tok) {
       if (this.istKw('klasse')) return this.klasse(annos, mods, tok);
       if (this.istKw('rezeptur')) return this.rezeptur(annos, mods, tok);
-      if (this.istKw('quattrostagioni')) return this.quattro(annos, mods, tok);
-      return this.belag(annos, mods, tok);
+      return this.quattro(annos, mods, tok);
     }
 
     klasse(annos, mods, tok) {
@@ -451,7 +415,7 @@
         const mt = this.c;
         const an = this.annotationen();
         const md = this.modifikatoren();
-        if (this.istKw('klasse') || this.istKw('rezeptur') || this.istKw('quattrostagioni') || this.istKw('belag')) {
+        if (this.istKw('klasse') || this.istKw('rezeptur') || this.istKw('quattrostagioni')) {
           innere.push(this.typDekl(an, md, mt));
           continue;
         }
@@ -576,25 +540,6 @@
       return { k: 'Enum', z: tok.z, s: tok.s, name: name.v, werte, mods, annos };
     }
 
-    belag(annos, mods, tok) {
-      this.p++;
-      const name = this.erwarteName('für den Belag');
-      let auf = null;
-      if (this.istKw('auf')) { this.p++; auf = this.typ(false); }
-      this.erwarteOp('{', 'nach dem Kopf des Belags');
-      const methoden = [];
-      while (!this.istOp('}')) {
-        if (this.c.t === 'eof') this.fehler('Belag \'' + name.v + '\' wird nicht geschlossen – es fehlt \'}\'');
-        if (this.istOp(';')) { this.p++; continue; }
-        const mt = this.c;
-        const an = this.annotationen();
-        const md = this.modifikatoren();
-        methoden.push(this.methode(an, md, mt));
-      }
-      this.p++;
-      return { k: 'Belag', z: tok.z, s: tok.s, name: name.v, auf, methoden, mods, annos };
-    }
-
     // ---------- Anweisungen ----------
     block() {
       const tok = this.erwarteOp('{');
@@ -656,7 +601,7 @@
           // falls through
           case 'fall': case 'standard': this.fehler('\'' + tok.v + '\' ist nur innerhalb von \'wähle\' erlaubt');
           // falls through
-          case 'klasse': case 'rezeptur': case 'quattrostagioni': case 'belag':
+          case 'klasse': case 'rezeptur': case 'quattrostagioni':
             this.fehler('\'' + tok.v + '\' darf nur auf oberster Ebene oder in einer Klasse stehen');
           // falls through
           default:
@@ -990,36 +935,7 @@
       return -1;
     }
 
-    pizzaLiteral() {
-      const s = this.p;
-      const t0 = this.t[s];
-      let i = s + 2;
-      const op = (j, v) => { const k = this.t[j]; return k && k.t === 'op' && k.v === v; };
-      if (op(i, ')') && op(i + 1, ')')) {
-        this.p = i + 2;
-        return { k: 'PizzaLit', z: t0.z, s: t0.s, belaege: [] };
-      }
-      const namen = [];
-      for (;;) {
-        const k = this.t[i];
-        if (!k || k.t !== 'name' || !istGross(k.v)) return null;
-        namen.push({ n: k.v, z: k.z, s: k.s });
-        i++;
-        if (op(i, ',')) { i++; continue; }
-        break;
-      }
-      if (op(i, ')') && op(i + 1, ')')) {
-        this.p = i + 2;
-        return { k: 'PizzaLit', z: t0.z, s: t0.s, belaege: namen };
-      }
-      return null;
-    }
-
     klammer() {
-      if (this.istOp('(', 1)) {
-        const lit = this.pizzaLiteral();
-        if (lit) return lit;
-      }
       if (!this.keinLambda) {
         const ende = this.passendeKlammer(this.p);
         if (ende >= 0) {
@@ -1032,11 +948,7 @@
       this.keinLambda = false;
       const e = this.ausdruck();
       this.keinLambda = alt;
-      if (!this.istOp(')')) {
-        let hinweis = '';
-        if (this.istOp(',') && e.k === 'Name' && istGross(e.n)) hinweis = ' – Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))';
-        this.fehler('Erwartet \')\' zum Schließen der Klammer aus Zeile ' + t.z + ', gefunden ' + this.beschreibe(this.c) + hinweis);
-      }
+      if (!this.istOp(')')) this.fehler('Erwartet \')\' zum Schließen der Klammer aus Zeile ' + t.z + ', gefunden ' + this.beschreibe(this.c));
       this.p++;
       return e;
     }
@@ -1191,8 +1103,6 @@
       if (Array.isArray(n)) { for (const x of n) geh(x); return; }
       switch (n.k) {
         case 'Typ': if (n.name === 'hawaii') merke(n.z, n.s); break;
-        case 'Name': if (n.n === 'Ananas') merke(n.z, n.s); break;
-        case 'PizzaLit': for (const b of n.belaege) if (b.n === 'Ananas') merke(b.z, b.s); break;
         case 'Programm': pruefe(declsVon(n.body, true)); break;
         case 'Block': if (!gemergt.has(n)) pruefe(declsVon(n.body, false)); break;
         case 'Methode': case 'Ktor': case 'Lambda':
@@ -1235,11 +1145,6 @@
   // =====================================================================
 
   class Dauer { constructor(ms) { this.ms = ms; } }
-  class Pizza { constructor(s) { this.schichten = s; this.uebrig = 8; } }
-  class PizzaSicht { constructor(p, k) { this.pizza = p; this.k = k; } }
-  class BelagDef {
-    constructor(name, preis, nach) { this.name = name; this.preis = preis; this.nach = nach; this.methoden = null; }
-  }
   class Klasse {
     constructor(name, decl) {
       this.name = name; this.decl = decl; this.basis = null; this.erfuellt = [];
@@ -1277,7 +1182,6 @@
     constructor(fn, nr) { this.fn = fn; this.nr = nr; this.trinkgeld = 0; this.zustellung = null; this.rueckruf = null; }
   }
   class Zustellung { constructor(p, w, f) { this.puenktlich = p; this.wert = w; this.fehler = f; } }
-  class Stueck { constructor(p) { this.pizza = p; this.gegessen = false; } }
   class Reste { constructor(w, m) { this.wert = w; this.matschig = m; } }
   class OfenRoh { constructor(t, d) { this.teil = t; this.zeit = d; } }
   const AUTO = { auto: true };
@@ -1346,7 +1250,7 @@
   class KartonFehler { constructor(art) { this.art = art; } }
 
   const BRK = { brk: 1 }, CNT = { cnt: 1 }, RET = { ret: 1 };
-  const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
+  const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Methode']);
 
   function zahlText(v) { return Object.is(v, -0) ? '0' : String(v); }
 
@@ -1362,14 +1266,6 @@
     }
     return (neg ? '-' : '') + teile.join(' ');
   }
-
-  function pizzaText(s, k) {
-    const n = [];
-    for (let i = 0; i < k; i++) n.push(s[i].name);
-    return '((' + n.join(', ') + '))';
-  }
-
-  function runde2(x) { return Math.round(x * 100) / 100; }
 
   function rundeAuf(x, n) {
     if (!n) return Math.sign(x) * Math.round(Math.abs(x));
@@ -1630,30 +1526,10 @@
     'alsText': function (m) { return this.text(m); }
   });
 
-  const BELAG_M = tabelle({
-    'name': function (b) { return b.name; },
-    'preis': function (b) { return this.standardPreis(b); },
-    'alsText': function (b) { return b.name; }
-  });
-
   const ENUM_M = tabelle({
     'name': function (e) { return e.name; },
     'position': function (e) { return e.pos; },
     'alsText': function (e) { return e.name; }
-  });
-
-  const PIZZA_M = tabelle({
-    'beläge': function (p, k) { const r = []; for (let i = 0; i < k; i++) r.push(p.schichten[i].name); return r; },
-    'hat': function (p, k, pos) {
-      const x = pos[0];
-      const name = x instanceof BelagDef ? x.name : this.text(x);
-      for (let i = 0; i < k; i++) if (p.schichten[i].name === name) return true;
-      return false;
-    },
-    'anzahlBeläge': function (p, k) { return k; },
-    'alsText': function (p, k) { return pizzaText(p.schichten, k); },
-    'übrig': function (p) { return p.uebrig; },
-    'beschreibung': function () { return 'Teig'; }
   });
 
   const ANANAS_M = tabelle({
@@ -1732,18 +1608,6 @@
       return z.wert;
     },
     'alsText': function (z) { return this.text(z); }
-  });
-
-  const STUECK_M = tabelle({
-    'pizza': function (s) { return s.pizza; },
-    'essen': function (s) {
-      if (this.kueche !== null && this.istGefroren(s)) throw this.ananas('KüchenAnanas', 'Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.');
-      if (s.gegessen) throw this.ananas('StreitAnanas', 'Dieses Stück ist schon gegessen.');
-      s.gegessen = true;
-      return null;
-    },
-    'istGegessen': function (s) { return s.gegessen; },
-    'alsText': function (s) { return this.text(s); }
   });
 
   const RESTE_M = tabelle({
@@ -2097,8 +1961,8 @@
   });
 
   const TABELLEN = new Map([
-    [Dauer, DAUER_M], [BelagDef, BELAG_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
-    [Zustellung, ZUST_M], [Stueck, STUECK_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
+    [Dauer, DAUER_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
+    [Zustellung, ZUST_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
     [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
   ]);
 
@@ -2147,7 +2011,6 @@
       this.klassen = new Map();
       this.klassenListe = [];
       this.alleMethoden = [];
-      this.belaege = new Map();
       this.warnSet = new Set();
       this.lieferungen = [];
       this.lieferNr = 0;
@@ -2165,10 +2028,9 @@
       // Küchenbrigade: aktuelle Küche (null = Hauptküche); kuechenChaos (nur Tests) permutiert die Stück-Reihenfolge
       this.kueche = null;
       this.chaos = typeof opt.kuechenChaos === 'number' && Number.isInteger(opt.kuechenChaos) ? new ZufallGen(opt.kuechenChaos) : null;
-      this.globalCtx = { dies: null, klasse: null, unten: null, ktor: false };
+      this.globalCtx = { dies: null, klasse: null, ktor: false };
       this.global = new Scope(null, this.globalCtx, true);
       this.globalCache = { cache: null };
-      for (const b of BELAEGE) this.belaege.set(b.name, new BelagDef(b.name, b.preis === null ? 0 : b.preis, b.nach.slice()));
       for (const [name, basis] of ANANAS_BAUM) {
         const k = new Klasse(name, null);
         k.basis = basis ? this.klassen.get(basis) : null;
@@ -2192,15 +2054,6 @@
           const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
           L.lieferungen.push(l);
           return l;
-        })],
-        ['teile', new NativFn('teile', function (pos) {
-          const p = pos[0];
-          if (p === null || p === undefined) throw L.leer();
-          if (!(p instanceof Pizza)) throw L.ananas('TypAnanas', 'teile() braucht eine Pizza, nicht ' + L.darstellung(p) + '.');
-          if (L.kueche !== null && L.istGefroren(p)) throw L.ananas('KüchenAnanas', 'Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.');
-          if (p.uebrig <= 0) throw L.ananas('StreitAnanas', 'Pizza ist alle.');
-          p.uebrig--;
-          return new Stueck(p);
         })],
         ['zwischenstand', new NativFn('zwischenstand', function (pos) {
           // in einer Küche zählen nur Öfen, die in der Küche geöffnet wurden (THREADS.md §2.2)
@@ -2235,7 +2088,6 @@
     }
     leer() { return this.ananas('LeererKartonAnanas', 'Der Karton ist leer.'); }
     weggeschoben(name) { return this.ananas('LeererKartonAnanas', '\'' + name + '\' wurde weggeschoben – der Karton ist leer.'); }
-    besitz() { return this.ananas('BesitzAnanas', 'Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).'); }
     stapel() { return this.ananas('LaufzeitAnanas', 'Zu viele Pizzen übereinander (Stapelüberlauf).'); }
     panik() { return new PanikSig(); }
 
@@ -2262,8 +2114,6 @@
       if (Array.isArray(v)) return 'Blech';
       if (v instanceof Map) return 'Speisekarte';
       if (v instanceof Dauer) return 'Dauer';
-      if (v instanceof Pizza || v instanceof PizzaSicht) return 'Pizza';
-      if (v instanceof BelagDef) return 'Belag';
       if (v instanceof Obj) return v.klasse.name;
       if (v instanceof EnumWert) return v.typ.name;
       if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur) return 'Klasse ' + v.name;
@@ -2272,7 +2122,6 @@
       if (v instanceof Teig) return 'Teig';
       if (v instanceof Lieferung) return 'Lieferung';
       if (v instanceof Zustellung) return 'Zustellung';
-      if (v instanceof Stueck) return 'Stück';
       if (v instanceof Reste) return 'Reste';
       if (v instanceof OfenRoh) return 'Rohling';
       if (v instanceof UiTheke) return 'Theke';
@@ -2315,10 +2164,7 @@
       }
       return i;
     }
-    schluessel(k) {
-      if (k instanceof BelagDef) return k.name;
-      return k === undefined ? null : k;
-    }
+    schluessel(k) { return k === undefined ? null : k; }
     anzahl(pos, ben) {
       if (ben === null) return pos.length;
       let n = pos.length;
@@ -2901,25 +2747,6 @@
           this.klassen.set(d.name, e);
           break;
         }
-        case 'Belag': {
-          const tab = BELAG_TABELLE.get(d.name);
-          const na = d.annos.find(a => a.name === 'Nach');
-          let nach;
-          if (na) {
-            nach = [];
-            if (na.args) for (const e of na.args.pos) { if (e.k === 'Name') nach.push(e.n); else if (e.k === 'Text') nach.push(e.v); }
-          } else nach = tab ? tab.nach.slice() : [];
-          const b = new BelagDef(d.name, tab && tab.preis !== null ? tab.preis : 1.00, nach);
-          b.methoden = new Map();
-          for (const md of d.methoden) {
-            const m = new Methode(md, null);
-            m.belag = b;
-            this.alleMethoden.push(m);
-            b.methoden.set(m.name, m);
-          }
-          this.belaege.set(d.name, b);
-          break;
-        }
         case 'Methode': {
           const m = new Methode(d, null);
           m.statisch = true;
@@ -2996,11 +2823,6 @@
             }
             if (!ok) throw this.pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
           }
-        } else if (d.k === 'Belag') {
-          for (const md of d.methoden) {
-            if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-            if (md.name !== 'preis' && !(md.name in PIZZA_M)) throw this.pf('A0001', 'Methode \'' + md.name + '\' in Belag \'' + d.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
-          }
         }
       }
     }
@@ -3053,14 +2875,13 @@
         }
       }
       for (const k of this.klassenListe) {
-        const ctx = { dies: null, klasse: k, unten: null, ktor: false };
+        const ctx = { dies: null, klasse: k, ktor: false };
         for (const f of k.statischeFelder) {
           for (const d of f.decls) {
             if (d.init === null) continue;
             this.z = d.z; this.s = d.s;
             const sc = new Scope(this.global, ctx, true);
             const v = this.ausw(d.init, sc);
-            if (v instanceof Pizza && (d.init.k === 'Name' || d.init.k === 'Mem')) throw this.besitz();
             this.pruefeTyp(f.typ, v, d.name);
             k.statisch.get(d.name).w = v;
           }
@@ -3082,7 +2903,6 @@
         case 'diavolo': if (typeof v === 'boolean') return; was = 'kein Wahrheitswert'; break;
         case 'hawaii': throw this.panik();
         case 'Dauer': if (v === null || v instanceof Dauer) return; was = 'keine Dauer'; break;
-        case 'Pizza': if (v === null || v instanceof Pizza) return; was = 'keine Pizza'; break;
         case 'Vorratskammer':
           if (this.klassen.has(typ.name)) { const k = this.klassen.get(typ.name); if (v === null || this.instanzVon(v, k)) return; was = 'kein(e) ' + k.name; break; }
           if (v === null || v instanceof Kammer) return;
@@ -3143,9 +2963,6 @@
         return '{' + t.join(', ') + '}';
       }
       if (v instanceof Dauer) return dauerText(v.ms);
-      if (v instanceof Pizza) return pizzaText(v.schichten, v.schichten.length);
-      if (v instanceof PizzaSicht) return pizzaText(v.pizza.schichten, v.k);
-      if (v instanceof BelagDef) return v.name;
       if (v instanceof EnumWert) return v.name;
       if (v instanceof Obj) return this.objText(v);
       if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur || v instanceof Modul) return v.name;
@@ -3153,7 +2970,6 @@
       if (v instanceof Teig) return v.fertig ? 'Teig(' + this.text(v.wert) + ')' : 'Teig(roh)';
       if (v instanceof Lieferung) return 'Lieferung #' + v.nr;
       if (v instanceof Zustellung) return v.puenktlich ? 'Zustellung(' + (v.fehler ? 'Ananas' : this.text(v.wert)) + ')' : 'Zustellung(zu spät)';
-      if (v instanceof Stueck) return 'Stück von ' + this.text(v.pizza);
       if (v instanceof Reste) return 'Reste(' + this.text(v.wert) + ')';
       if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
       if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
@@ -3180,14 +2996,6 @@
       if (a === null || b === null || a === undefined || b === undefined) return false;
       if (typeof a !== 'object' || typeof b !== 'object') return false;
       if (a instanceof Dauer && b instanceof Dauer) return a.ms === b.ms;
-      const pa = a instanceof Pizza ? a.schichten : a instanceof PizzaSicht ? a.pizza.schichten.slice(0, a.k) : null;
-      const pb = b instanceof Pizza ? b.schichten : b instanceof PizzaSicht ? b.pizza.schichten.slice(0, b.k) : null;
-      if (pa && pb) {
-        if (pa.length !== pb.length) return false;
-        for (let i = 0; i < pa.length; i++) if (pa[i].name !== pb[i].name) return false;
-        return true;
-      }
-      if (a instanceof BelagDef && b instanceof BelagDef) return a.name === b.name;
       return false;
     }
 
@@ -3206,19 +3014,10 @@
           if (zz) return a + b;
           if (typeof a === 'string' || typeof b === 'string') return this.text(a) + this.text(b);
           if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms + b.ms);
-          if ((a instanceof Pizza || a instanceof PizzaSicht) && b instanceof BelagDef) {
-            const s = a instanceof Pizza ? a.schichten.slice() : a.pizza.schichten.slice(0, a.k);
-            s.push(b);
-            return this.neuePizza(s);
-          }
           throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht addieren.');
         case '-':
           if (zz) return a - b;
           if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms - b.ms);
-          if ((a instanceof Pizza || a instanceof PizzaSicht) && b instanceof BelagDef) {
-            const s = (a instanceof Pizza ? a.schichten : a.pizza.schichten.slice(0, a.k)).filter(x => x.name !== b.name);
-            return this.neuePizza(s);
-          }
           throw this.ananas('TypAnanas', this.typName(b) + ' kann man nicht von ' + this.typName(a) + ' abziehen.');
         case '*':
           if (zz) return a * b;
@@ -3261,61 +3060,6 @@
         case '>=': return zz ? a >= b : this.vergleiche(a, b) >= 0;
       }
       throw this.ananas('LaufzeitAnanas', 'Unbekannter Operator \'' + op + '\'.');
-    }
-
-    // ---------- Pizzen ----------
-    belag(name) {
-      const b = this.belaege.get(name);
-      if (b === undefined) throw this.ananas('UnbekannterBelagAnanas', '\'' + name + '\' steht nicht auf der Zutatenliste.');
-      return b;
-    }
-
-    neuePizza(s) {
-      for (let i = 0; i < s.length; i++) if (s[i].name === 'Ananas') throw this.panik();
-      for (let i = 0; i < s.length; i++) {
-        const x = s[i];
-        if (x.nach.length === 0) continue;
-        for (let j = i + 1; j < s.length; j++) {
-          if (x.nach.indexOf(s[j].name) >= 0) {
-            throw new PizzaFehlerSig('B0012', '\'' + x.name + '\' liegt unter \'' + s[j].name + '\'. Das ist keine Pizza, das ist ein Auflauf.', this.z, this.s);
-          }
-        }
-      }
-      return new Pizza(s);
-    }
-
-    standardPreis(b) {
-      const t = BELAG_TABELLE.get(b.name);
-      if (t && t.preis !== null) return t.preis;
-      return b.preis !== undefined && b.preis !== null ? b.preis : 1.00;
-    }
-
-    preisBis(p, k) {
-      if (k === 0) return GRUNDPREIS;
-      const b = p.schichten[k - 1];
-      if (b.methoden !== null) {
-        const m = b.methoden.get('preis');
-        if (m !== undefined) return this.belagMethode(m, p, k - 1, [], null, null);
-      }
-      return runde2(this.preisBis(p, k - 1) + this.standardPreis(b));
-    }
-
-    pizzaAufruf(p, k, name, pos, ben, node) {
-      if (name === 'preis') return this.preisBis(p, k);
-      for (let i = k; i >= 1; i--) {
-        const b = p.schichten[i - 1];
-        if (b.methoden !== null) {
-          const m = b.methoden.get(name);
-          if (m !== undefined) return this.belagMethode(m, p, i - 1, pos, ben, node);
-        }
-      }
-      const f = PIZZA_M[name];
-      if (f !== undefined) return f.call(this, p, k, pos, ben, node);
-      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf Pizza nicht.');
-    }
-
-    belagMethode(m, p, k, pos, ben, node) {
-      return this.fuehreAus(m, { dies: p, klasse: null, unten: new PizzaSicht(p, k), ktor: false }, pos, ben, node);
     }
 
     // ---------- Namen & Felder ----------
@@ -3372,12 +3116,8 @@
     globalerName(name) {
       const g = this.globals.get(name);
       if (g !== undefined) return g;
-      if (name === 'Ananas') return this.belaege.get('Ananas');
       const k = this.klassen.get(name);
       if (k !== undefined) return k;
-      const b = this.belaege.get(name);
-      if (b !== undefined) return b;
-      if (istGross(name)) throw this.ananas('UnbekannterBelagAnanas', '\'' + name + '\' steht nicht auf der Zutatenliste.');
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
     }
 
@@ -3465,9 +3205,6 @@
         if (o.methoden[name]) return new NativFn(o.name + '.' + name, (pos, ben, node) => o.methoden[name].call(this, o, pos, ben, node));
         throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es bei ' + o.name + ' nicht.');
       }
-      if (o instanceof Pizza || o instanceof PizzaSicht) {
-        return new NativFn(name, (pos, ben, node) => this.rufeMethode(o, name, pos, ben, node, sc), o);
-      }
       const tab = this.tabelleVon(o);
       if (tab !== null && tab[name] !== undefined) {
         return new NativFn(name, (pos, ben, node) => tab[name].call(this, o, pos, ben, node), o);
@@ -3512,8 +3249,6 @@
           if (o instanceof Obj) return this.objMethode(o, name, pos, ben, node, sc);
           if (Array.isArray(o)) tab = BLECH_M;
           else if (o instanceof Map) tab = KARTE_M;
-          else if (o instanceof Pizza) return this.pizzaAufruf(o, o.schichten.length, name, pos, ben, node);
-          else if (o instanceof PizzaSicht) return this.pizzaAufruf(o.pizza, o.k, name, pos, ben, node);
           else if (o instanceof Modul) {
             const f = o.methoden[name];
             if (f === undefined) throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
@@ -3591,7 +3326,7 @@
       if (!m.statisch && dies === null && m.klasse !== null) {
         throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
       }
-      return this.fuehreAus(m, { dies: m.statisch ? null : dies, klasse: m.klasse, unten: null, ktor: false }, pos, ben, node);
+      return this.fuehreAus(m, { dies: m.statisch ? null : dies, klasse: m.klasse, ktor: false }, pos, ben, node);
     }
 
     cacheSchluessel(pos, ben) {
@@ -3617,7 +3352,7 @@
         if (!m.statisch && dies === null && m.klasse !== null) {
           throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
         }
-        return this.fuehreAus(m, { dies, klasse: m.klasse, unten: null, ktor: false }, pos, ben, node);
+        return this.fuehreAus(m, { dies, klasse: m.klasse, ktor: false }, pos, ben, node);
       };
       if (m.haltbar < 0) {
         const v = rechne();
@@ -3768,11 +3503,6 @@
         const d = ctx.dies instanceof Obj ? ctx.dies : null;
         const l = this.findeMethodeListe(d !== null ? d.klasse : ctx.klasse, name) || (d !== null ? this.findeMethodeListe(ctx.klasse, name) : null);
         if (l !== null) return new Gebunden(d, l, name);
-      } else if (ctx.dies instanceof Pizza) {
-        const p = ctx.dies;
-        let gefunden = PIZZA_M[name] !== undefined || name === 'preis';
-        for (const b of p.schichten) if (b.methoden && b.methoden.has(name)) gefunden = true;
-        if (gefunden) return new NativFn(name, (pos, ben, node) => this.pizzaAufruf(p, p.schichten.length, name, pos, ben, node), p);
       }
       if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
       return this.leseName({ n: name }, sc);
@@ -3794,7 +3524,6 @@
     untenAufruf(n, sc) {
       const ctx = sc.ctx;
       const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      if (ctx.unten !== null) return this.rufeMethode(ctx.unten, n.name, pos, ben, n, sc);
       if (ctx.klasse === null || ctx.klasse.basis === null) throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht – keine Basisklasse.');
       const l = this.findeMethodeListe(ctx.klasse.basis, n.name);
       if (l !== null) {
@@ -3838,7 +3567,7 @@
         return;
       }
       const m = this.waehle(k.ktoren, this.anzahl(pos, ben));
-      const ctx = { dies: o, klasse: k, unten: null, ktor: true };
+      const ctx = { dies: o, klasse: k, ktor: true };
       const sc = new Scope(this.global, ctx, true);
       this.bindeParameter(m.params, sc, pos, ben, 'Konstruktor von \'' + k.name + '\'', true);
       if (!m.hatUnten) {
@@ -3860,13 +3589,12 @@
     }
 
     feldInit(k, o) {
-      const ctx = { dies: o, klasse: k, unten: null, ktor: true };
+      const ctx = { dies: o, klasse: k, ktor: true };
       for (const f of k.felder) {
         for (const d of f.decls) {
           if (d.init === null) continue;
           const sc = new Scope(this.global, ctx, true);
           const v = this.ausw(d.init, sc);
-          if (v instanceof Pizza && (d.init.k === 'Name' || d.init.k === 'Mem')) throw this.besitz();
           this.pruefeTyp(f.typ, v, d.name);
           o.felder.get(d.name).w = v;
         }
@@ -4007,7 +3735,6 @@
         case 'Call': r = this.rufe(this.ausw(n.callee, sc), this.posArgs(n.args, sc), this.benArgs(n.args, sc), n); break;
         case 'UntenCall': r = this.aUntenCall(n, sc); break;
         case 'Neu': r = this.aNeu(n, sc); break;
-        case 'PizzaLit': r = this.aPizzaLit(n, sc); break;
         case 'Blech': r = this.aBlech(n, sc); break;
         case 'Bereich': r = this.aBereich(n, sc); break;
         case 'Ofen': r = this.ofen(n, sc); break;
@@ -4059,7 +3786,6 @@
     }
     aUnten(sc) {
       const ctx = sc.ctx;
-      if (ctx.unten !== null) return ctx.unten;
       if (ctx.dies !== null) return ctx.dies;
       throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht.');
     }
@@ -4104,19 +3830,11 @@
       switch (tn) {
         case 'Blech': return pos.length && Array.isArray(pos[0]) ? pos[0].slice() : [];
         case 'Speisekarte': return new Map();
-        case 'Pizza': return this.neuePizza([]);
       }
       const k = this.klassen.get(tn);
       if (k === undefined) throw this.ananas('UnbekanntePizzaAnanas', 'Klasse \'' + tn + '\' steht nicht auf der Speisekarte.');
       if (!(k instanceof Klasse)) throw this.ananas('RohlingAnanas', '\'' + tn + '\' kann man nicht mit neu backen.');
       return this.instanziiere(k, pos, ben, n);
-    }
-    aPizzaLit(n, sc) {
-      const bl = n.belaege;
-      if (bl.length === 1 && bl[0].n !== 'Ananas' && !this.belaege.has(bl[0].n)) return this.leseName(bl[0], sc);
-      const s = new Array(bl.length);
-      for (let i = 0; i < bl.length; i++) s[i] = this.belag(bl[i].n);
-      return this.neuePizza(s);
     }
     aBlech(n, sc) {
       const e = n.elemente;
@@ -4211,7 +3929,7 @@
         case 'Abbrechen': r = BRK; break;
         case 'Weiter': r = CNT; break;
         case 'Leer': break;
-        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Belag': case 'Methode': break;
+        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Methode': break;
         default: throw this.ananas('LaufzeitAnanas', 'Unbekannte Anweisung \'' + n.k + '\'.');
       }
       this.st--;
@@ -4225,7 +3943,6 @@
       let w;
       if (n.op === '=') {
         w = this.ausw(n.wert, sc);
-        if (w instanceof Pizza && (n.wert.k === 'Name' || n.wert.k === 'Mem')) throw this.besitz();
       } else {
         if (v.weg) throw this.weggeschoben(name);
         w = this.binaer(n.op[0], v.w, this.ausw(n.wert, sc), n);
@@ -4239,7 +3956,6 @@
         const d = ds[i];
         if (d.init !== null) {
           const v = this.ausw(d.init, sc);
-          if (v instanceof Pizza && (d.init.k === 'Name' || d.init.k === 'Mem')) throw this.besitz();
           this.pruefeTyp(typ, v, d.name);
           sc.vars.set(d.name, new Var(v, typ, n.gebacken));
         } else {
@@ -4303,7 +4019,6 @@
       else if (typeof q === 'string') liste = Array.from(q);
       else if (q instanceof Map) liste = Array.from(q.keys());
       else if (q instanceof EnumTyp) liste = q.werte.slice();
-      else if (q instanceof Pizza) liste = q.schichten.slice();
       else if (q === null) throw this.leer();
       else throw this.ananas('TypAnanas', 'Über ' + this.typName(q) + ' kann man nicht laufen.');
       for (let i = 0; i < liste.length; i++) {
@@ -4447,14 +4162,12 @@
           if (x.ctx !== null) merke(x.ctx.dies);
         } else if (x instanceof Obj) { for (const v of x.felder.values()) merke(v); cache(x.cache); }
         else if (x instanceof Klasse) { for (const v of x.statisch.values()) merke(v); cache(x.cache); }
-        else if (x instanceof PizzaSicht) merke(x.pizza);
         else if (x instanceof Funktion) merke(x.scope);
         else if (x instanceof Gebunden) merke(x.obj);
         else if (x instanceof NativFn) merke(x.ziel);
         else if (x instanceof Teig) { merke(x.fn); merke(x.wert); }
         else if (x instanceof Lieferung) { merke(x.fn); merke(x.rueckruf); merke(x.zustellung); }
         else if (x instanceof Zustellung) { merke(x.wert); if (x.fehler !== null) merke(x.fehler.obj); }
-        else if (x instanceof Stueck) merke(x.pizza);
         else if (x instanceof Reste) merke(x.wert);
         else if (x instanceof OfenRoh) merke(x.teil);
         else if (x === this.globalCache) cache(x.cache);
@@ -4467,7 +4180,6 @@
       if (v instanceof Teig) return 'Ein Teig';
       if (v instanceof Lieferung) return 'Eine Lieferung';
       if (v instanceof Zustellung) return 'Eine Zustellung';
-      if (v instanceof Stueck) return 'Ein Stück';
       if (v instanceof Reste) return 'Reste';
       if (v instanceof ZufallGen) return 'Ein Zufall';
       if (v instanceof Kammer) return 'Eine Vorratskammer';
@@ -4478,7 +4190,7 @@
     kartoniere(v, memo) {
       if (v === null || v === undefined) return null;
       if (typeof v !== 'object') return v;
-      if (v instanceof Dauer || v instanceof BelagDef || v instanceof EnumWert || v instanceof Klasse || v instanceof EnumTyp ||
+      if (v instanceof Dauer || v instanceof EnumWert || v instanceof Klasse || v instanceof EnumTyp ||
           v instanceof Rezeptur || v instanceof Modul || v === AUTO) return v;
       const da = memo.get(v);
       if (da !== undefined) return da;
@@ -4492,18 +4204,6 @@
         const r = new Map();
         memo.set(v, r);
         for (const [k, w] of v) r.set(this.kartoniere(k, memo), this.kartoniere(w, memo));
-        return r;
-      }
-      if (v instanceof Pizza) {
-        const r = new Pizza(v.schichten.slice());
-        r.uebrig = v.uebrig;
-        memo.set(v, r);
-        return r;
-      }
-      if (v instanceof PizzaSicht) {
-        const r = new PizzaSicht(null, v.k);
-        memo.set(v, r);
-        r.pizza = this.kartoniere(v.pizza, memo);
         return r;
       }
       if (v instanceof Obj) {
@@ -4787,7 +4487,6 @@
     KEYWORDS: KEYWORDS.slice(),
     TYPEN: TYPEN.slice(),
     BUILTINS: BUILTINS.slice(),
-    BELAEGE: BELAEGE.map(b => ({ name: b.name, preis: b.preis, nach: b.nach.slice() })),
     ANANAS: ANANAS.slice(),
     PANIK_TEXT: PANIK_BANNER,
     parse,
@@ -4797,10 +4496,8 @@
       analysiere: (ast) => analysiere(ast).map(w => Object.assign({}, w)),
       pruefe: pruefeStart,
       ANANAS_BAUM: ANANAS_BAUM.map(a => [a[0], a[1]]),
-      BELAEGE: BELAEGE.map(b => ({ name: b.name, preis: b.preis, nach: b.nach.slice() })),
       MAX_STAPEL,
       STANDARD_LIMIT,
-      GRUNDPREIS,
       UI_STIL: JSON.parse(JSON.stringify(UI_STIL))
     }
   };

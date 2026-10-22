@@ -210,15 +210,15 @@ function api() {
     gleich(P.version, '3.0.0', 'version');
     for (const k of ['klasse', 'serviere', 'calzone', 'quattrostagioni', 'ofen', 'roh', 'karton', 'wähle', 'für']) ja(P.KEYWORDS.includes(k), 'KEYWORDS fehlt ' + k);
     ja(!P.KEYWORDS.includes('pizza'), "'pizza' darf kein Keyword sein");
-    for (const t of ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte', 'hawaii']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
-    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'teile', 'zwischenstand'].sort(), 'BUILTINS');
-    const kaese = P.BELAEGE.find(b => b.name === 'Käse');
-    gleich(kaese, { name: 'Käse', preis: 1, nach: ['Tomate'] }, 'BELAEGE Käse');
-    ja(P.BELAEGE.some(b => b.name === 'Ananas'), 'BELAEGE Ananas');
-    gleich(P.BELAEGE.length, 24, 'Anzahl Beläge');
-    gleich(P.ANANAS.length, 18, 'Anzahl Ananas');
-    ja(P.ANANAS.includes('KeinStückAnanas') && P.ANANAS.includes('ZugeklapptAnanas'), 'ANANAS');
-    gleich(P.ANANAS[17], 'KüchenAnanas', 'KüchenAnanas am Ende angehängt (THREADS.md §4.2)');
+    for (const t of ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte', 'hawaii']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
+    for (const k of ['belag', 'auf']) ja(!P.KEYWORDS.includes(k), "'" + k + "' ist kein Keyword mehr (K-105)");
+    for (const t of ['Pizza', 'Stück', 'Belag']) ja(!P.TYPEN.includes(t), 'TYPEN ohne ' + t + ' (K-105)');
+    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'].sort(), 'BUILTINS');
+    ja(P.BELAEGE === undefined, 'BELAEGE entfällt (K-105)');
+    // Reihenfolge verbindlich (SPEC §8, K-105) – die Wasm-Laufzeit spiegelt die Klassenindizes
+    gleich(P.ANANAS, ['Ananas', 'GeprüfteAnanas', 'VerbranntAnanas', 'LieferAnanas', 'LaufzeitAnanas', 'StreitAnanas', 'RechenAnanas',
+      'LeererKartonAnanas', 'RohlingAnanas', 'GebackenAnanas', 'TypAnanas', 'KeinStückAnanas', 'ZugriffsAnanas', 'ZugeklapptAnanas',
+      'UnbekanntePizzaAnanas', 'KüchenAnanas'], 'ANANAS (16, Reihenfolge)');
   });
 
   test('parse: ok mit AST', () => {
@@ -269,7 +269,7 @@ function api() {
     const i = spec.indexOf('╔');
     const ende = spec.indexOf('```', i);
     const soll = spec.slice(i, ende).replace(/\n+$/, '');
-    const r = P.run('Pizza p = ((Tomate, Ananas));');
+    const r = P.run('hawaii h = 1;');
     gleich(r.exitCode, 39, 'Exit-Code');
     const pe = r.ereignisse.find(e => e.typ === 'panik');
     gleich(pe && pe.text, soll, 'Banner');
@@ -299,7 +299,7 @@ function api() {
   });
 
   test('Ungefangene Ananas: Text, Code, Zeile', () => {
-    const r = P.run('Bote.sage(("a"));\nPizza p = ((Tomate));\nsalami i = 0;\nsolange (i < 9) { teile(p); i++; }');
+    const r = P.run('Bote.sage(("a"));\nsalami i = 0;\nsolange (i < 9) {\n  falls (i >= 8) { wirf neu StreitAnanas("Pizza ist alle."); }\n  i++;\n}');
     gleich(r.exitCode, 1);
     const e = r.ereignisse.find(x => x.typ === 'fehler');
     gleich([e.code, e.art, e.text, e.zeile], ['StreitAnanas', 'ananas', 'Ungefangene Ananas – StreitAnanas: Pizza ist alle. (Zeile 4)', 4]);
@@ -360,7 +360,6 @@ function api() {
       'salami f(salami n) { serviere (([n].belege(x -> f(x + 1)).erstes())); }\nf(0);',
       'klasse K { @Kühlschrank salami f(salami n) { serviere ((dies.f.mikrowelle(n + 1).wert())); } }\nneu K().f(0);',
       'klasse K { margherita alsText() { serviere (("" + neu K())); } }\nBote.sage((neu K()));',
-      'belag B auf Pizza { salami t(salami n) { serviere ((dies.t(n + 1))); } }\n((B)).t(0);',
       'salami f(salami n) { serviere ((ofen(zeit: 1h) { probier { serviere ((f(n + 1))); } rand { } })); }\nf(0);',
       'salami f(salami n) { serviere ((teig(() -> f(n + 1)).backen() + bestelle(() -> 1).warte().wert())); }\nf(0);',
       'salami f(salami n) { serviere (([2, 1].sortiere((a, b) -> f(n + 1)).erstes())); }\nf(0);',
@@ -413,13 +412,14 @@ function api() {
     gleich([f.code, f.text, f.zeile, f.spalte], [fe.code, fe.text, fe.zeile, fe.spalte], 'pruefe = fehler-Ereignis');
     gleich(I.pruefe(P.parse('klasse A { }').ast), null);
     gleich(I.pruefe(P.parse('quattrostagioni J { A }').ast).code, 'Q0004');
-    gleich(I.ANANAS_BAUM.length, 18);
-    gleich(I.ANANAS_BAUM[17], ['KüchenAnanas', 'LaufzeitAnanas']);
+    gleich(I.ANANAS_BAUM.length, 16);
+    gleich(I.ANANAS_BAUM[15], ['KüchenAnanas', 'LaufzeitAnanas']);
     gleich(I.ANANAS_BAUM[0], ['Ananas', null]);
-    gleich([I.MAX_STAPEL, I.STANDARD_LIMIT, I.GRUNDPREIS], [1500, 5000000, 5]);
-    I.BELAEGE[0].preis = 99;
-    gleich(P.intern.BELAEGE[0].preis === 99 ? 'geteilt' : 'kopie', 'geteilt', 'intern-Objekt ist einmalig erzeugt');
-    gleich(P.run('Bote.sage((((Tomate)).preis()));').ereignisse[0].text, '6', 'Interpreter unbeeinflusst');
+    gleich([I.MAX_STAPEL, I.STANDARD_LIMIT, I.GRUNDPREIS, I.BELAEGE], [1500, 5000000, undefined, undefined]);
+    I.ANANAS_BAUM.push(['FremdAnanas', 'Ananas']);
+    gleich(P.intern.ANANAS_BAUM.length === 17 ? 'geteilt' : 'kopie', 'geteilt', 'intern-Objekt ist einmalig erzeugt');
+    gleich(P.run('neu FremdAnanas("x");').exitCode, 1, 'Interpreter unbeeinflusst');
+    I.ANANAS_BAUM.pop();
   });
 
   test('Vorratskammer: onVorrat erhält die vollständige Kammer (Kopie), Fehlschlag → LaufzeitAnanas, kein W0101', () => {
@@ -505,7 +505,7 @@ function api() {
       ['falls (nein) { } sonst falls (ja) { }', 4],
       ['für (salami i = 0; i < 3; i++) { }', 1 + 2 + 4 * 3 + 3 * 1],
       ['salami f(salami a) { serviere ((a)); }\nf(1);', 5],
-      ['Pizza p = ((Tomate, Käse));', 2],
+      ['Dauer d = 1s + 500ms;', 4],
       ['Uhr.vorspulen(1h);', 4],
       ['klasse K { salami x = 5; }\nK k = neu K();', 3],
       ['solange (nein) { }', 2],
