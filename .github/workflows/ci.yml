@@ -256,6 +256,9 @@ jobs:
         if: steps.da.outputs.ja == 'true'
         working-directory: host
         run: cargo build --release
+      - name: Küchenbrigade-Smoke (--koeche=4, Chaos, --info „Köche: N“)
+        if: steps.da.outputs.ja == 'true'
+        run: node host/smoke-koeche.js
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.da.outputs.ja == 'true'
         with:

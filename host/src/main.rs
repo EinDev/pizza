@@ -23,8 +23,10 @@ const OPTIONEN: &str = "Optionen:
   --vorrat-loeschen-alle    alle Vorratskammern löschen (ohne Programmlauf)
   --eingabe datei      Eingabezeilen aus Datei statt stdin (danach EOF)
   --schritte=N         Schrittlimit (Standard: 5000000)
+  --koeche=N           Köche der Küchenbrigade: auto (Standard, logische Kerne, höchstens 16) oder 1 … 64 (1 = aus)
   --echtzeit=N         Test: Uhr.echt() liefert fest N ms (sonst Systemzeit)
-  --info               am Ende Exit-Code, Schritte und Uhr nach stderr
+  --kuechen-chaos=N    Test: Stücke der Küchenbrigade in zufälliger Reihenfolge (Saat N) – Ergebnis muss gleich sein
+  --info               am Ende Exit-Code, Schritte und Uhr nach stderr (bei Küchenbrigade auch Köche: N)
   --debug              technische Details interner Fehler zeigen
   --ereignisse-json    alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende; ohne --saat feste Saat 42)
   --ui-ereignisse d    Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
@@ -45,7 +47,7 @@ fn hilfe(eingebettet: bool) -> String {
         )
     } else {
         format!(
-            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [--] [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
+            "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--koeche=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [--] [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
             OPTIONEN
         )
     }
@@ -181,6 +183,17 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
                     }
                     a.opt.echtzeit = Some(n);
                 }
+                s if s.starts_with("--koeche=") => match &s[9..] {
+                    "auto" => a.opt.koeche = None,
+                    n => match n.parse::<usize>() {
+                        Ok(k) if (1..=64).contains(&k) => a.opt.koeche = Some(k),
+                        _ => return fehler("--koeche braucht auto oder eine Zahl von 1 bis 64."),
+                    },
+                },
+                s if s.starts_with("--kuechen-chaos=") => match s[16..].parse::<u64>() {
+                    Ok(n) => a.opt.kuechen_chaos = Some(n),
+                    Err(_) => return fehler("--kuechen-chaos braucht eine Ganzzahl ≥ 0."),
+                },
                 s if s.starts_with("--schritte=") => match s[11..].parse::<f64>() {
                     Ok(n) => a.opt.schritt_limit = Some(n),
                     Err(_) => return fehler(&format!("Ungültiges Schrittlimit: {}", s)),

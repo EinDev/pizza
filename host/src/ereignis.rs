@@ -232,6 +232,15 @@ pub fn meldung_text(text: &str, zeile: Option<i32>, spalte: Option<i32>) -> Stri
     format!("{}{}", text, pos)
 }
 
+/// `--info`-Zeile am Ende (wie bin/pizza.js), bei Programmen mit Küchenbrigade zusätzlich ` · Köche: N`.
+pub fn info_zeile(exit_code: i32, schritte: f64, zeit_ms: f64, koeche: Option<usize>) -> String {
+    let mut t = format!("— Exit-Code {} · {} Schritte · Uhr {} ms", exit_code, json_zahl(schritte), json_zahl(zeit_ms));
+    if let Some(k) = koeche {
+        t.push_str(&format!(" · Köche: {}", k));
+    }
+    t
+}
+
 impl Senke {
     pub fn konsole(info: bool) -> Self {
         let farbe = io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none();
@@ -251,6 +260,20 @@ impl Senke {
                 let t = if *farbe { format!("[90m{}[0m", text) } else { text.to_string() };
                 let _ = writeln!(io::stderr(), "{}", t);
             }
+        }
+    }
+
+    /// Sendet `ende`; `koeche` = tatsächlich genutzte Köche bei Programmen mit Gruppe `kueche` (SPEC §17.7, K-100) –
+    /// erscheint nur in der `--info`-Zeile (` · Köche: N`), nie im Ereignis selbst (JSON unverändert).
+    pub fn ende(&mut self, exit_code: i32, schritte: f64, zeit_ms: f64, koeche: Option<usize>) {
+        match (&*self, koeche) {
+            (Senke::Konsole { farbe, info: true, .. }, Some(_)) => {
+                let _ = io::stdout().flush();
+                let t = info_zeile(exit_code, schritte, zeit_ms, koeche);
+                let t = if *farbe { format!("[90m{}[0m", t) } else { t };
+                let _ = writeln!(io::stderr(), "{}", t);
+            }
+            _ => self.sende(Ereignis::Ende { exit_code, schritte, zeit_ms }),
         }
     }
 
@@ -313,11 +336,7 @@ impl Senke {
                     Ereignis::Ende { exit_code, schritte, zeit_ms } => {
                         let _ = io::stdout().flush();
                         if *info {
-                            let _ = writeln!(
-                                io::stderr(),
-                                "{}",
-                                f("90", &format!("— Exit-Code {} · {} Schritte · Uhr {} ms", exit_code, json_zahl(*schritte), json_zahl(*zeit_ms)))
-                            );
+                            let _ = writeln!(io::stderr(), "{}", f("90", &info_zeile(*exit_code, *schritte, *zeit_ms, None)));
                         }
                     }
                 }

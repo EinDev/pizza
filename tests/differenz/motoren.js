@@ -262,7 +262,8 @@ const host = {
   name: 'host',
   verfuegbar: !!(hostPfad && pz.Z && typeof pz.Z.kompiliere === 'function'),
   grund: !hostPfad ? 'host/target/*/pizza-host nicht gebaut (oder PIZZA_HOST setzen)' : (!pz.Z ? 'braucht pizzaiolo.js zum Kompilieren' : null),
-  lauf(q, opt, cache) {
+  // THREADS §5 Punkt 3: `host` = ohne Köche (`--koeche=1`, Inline-Pfad), Variante `host-koeche4` unten.
+  lauf(q, opt, cache, koeche = ['--koeche=1']) {
     const k = kompilat(q, cache);
     if (k && k.wurf) return { status: 'wurf', fehler: 'kompiliere() hat geworfen: ' + k.wurf };
     if (k && k.ok === false && k.nichtUnterstuetzt) return { status: 'fallback', grund: fallbackGrund(k) };
@@ -279,6 +280,7 @@ const host = {
     fs.writeFileSync(datei, k.pkarton);
     // CLI laut host/src/main.rs: pizza-host [--ereignisse-json] [--schritte=N] programm.pkarton [args…]
     const argv = ['--ereignisse-json'];
+    if (hostHilfe().includes('--koeche')) argv.push(...koeche);
     if (opt && opt.schrittLimit != null) argv.push('--schritte=' + opt.schrittLimit);
     // Theke (THEKE.md §5): vorgegebene Renderer-Ereignisse als JSON-Lines-Datei → --ui-ereignisse.
     let uiDatei = null;
@@ -320,11 +322,23 @@ const host = {
   },
 };
 
+// Nativer Host mit 4 Köchen (P4, `--koeche=4`; PIZZA_KUECHEN_CHAOS=N zusätzlich `--kuechen-chaos=N`) – nur Programme mit brigade.
+const hostKoeche4 = {
+  name: 'host-koeche4',
+  verfuegbar: host.verfuegbar && hostHilfe().includes('--koeche'),
+  grund: host.grund || 'Host ohne --koeche',
+  lauf(q, opt, cache) {
+    if (!/\.\s*brigade\b/.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    const chaos = process.env.PIZZA_KUECHEN_CHAOS;
+    return host.lauf(q, opt, cache, ['--koeche=4'].concat(chaos ? ['--kuechen-chaos=' + chaos] : []));
+  },
+};
+
 function aufraeumen() {
   if (tmpDir) { try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {} }
 }
 
-let ALLE = [interpreter, wasm, host];
+let ALLE = [interpreter, wasm, host, hostKoeche4];
 if (process.env.PIZZA_MOTOREN) {
   const nur = process.env.PIZZA_MOTOREN.split(',').map(s => s.trim());
   for (const m of ALLE) if (m !== interpreter && !nur.includes(m.name)) { m.verfuegbar = false; m.grund = 'per PIZZA_MOTOREN abgewählt'; }
@@ -388,4 +402,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, hostKoeche4, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };

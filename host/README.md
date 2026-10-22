@@ -11,12 +11,13 @@ cd host
 cargo build --release        # → target/release/pizza-host(.exe)
 cargo test                   # ABI-Tests mit handgeschriebenen Wasm-Modulen
 node test.js                 # Differenztest aller Beispiele gegen den Interpreter (braucht site/js/pizzaiolo.js)
+node smoke-koeche.js         # Küchenbrigade: --koeche=4 (auch Chaos) = --koeche=1, --info „Köche: N“
 ```
 
 ## Ausführen
 
 ```sh
-pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--info] [--schritte=N] [--saat=N] [--koeche=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
 pizza-host [--vorrat=ordner] --vorrat-loeschen <name>
 pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
@@ -59,6 +60,18 @@ Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der 
   `Vorrat '<name>' gibt es nicht.` (Exit 0), ungültiger Name → `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`
   (Exit 2); `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.`
 - **Wanduhr (K-087):** Import `echtzeit_ms` = Systemzeit in ganzen ms; Testoption `--echtzeit=N` (fest, gerundet, wächst nicht).
+- **Küchenbrigade (SPEC §17, HOST-ABI §2 Gruppe `kueche`, `src/kueche.rs`):** `kueche_auftrag` kopiert den Speicher der
+  Hauptinstanz und verteilt die Stücke auf Koch-Threads (`std::thread::scope`, Stapel 16 MiB wie der Programm-Thread); jeder
+  Koch hat eine eigene Klon-Instanz (eigener `Store`, gleiches `Module`), die innerhalb eines Laufs wiederverwendet wird, und
+  ruft dort `kueche_stueck(auftrag, i)`. Bricht ein Stück ab, beginnen spätere Stücke nicht mehr (D3). Klone dürfen keine
+  Ausgabe-/Ende-Imports rufen (Trap, nie Lauf-Abbruch); ein Trap im Klon als frühester Abbruch → interner Fehler (K-014).
+  `--koeche=N`: `auto` (Standard: logische Kerne, höchstens 16) oder 1 … 64, `1` = keine Köche (das Modul arbeitet selbst).
+  Klone × Speichergröße ≤ 50 % RAM. Lohnt sich die Speicherkopie nicht (feine Stücke, großer Speicher), arbeitet der Host bei
+  Brigaden derselben Stückzahl ohne Köche und probiert es später wieder (K-104). Die Anzahl ist nie beobachtbar: gleiche
+  Ereignisse, Exit-Codes, `schritte`, `zeitMs`. `--info` hängt bei Programmen mit Gruppe `kueche` ` · Köche: N` an (höchste
+  tatsächlich genutzte Anzahl, K-100). Testoption `--kuechen-chaos=N`: zufällige Reihenfolge, Verzögerungen, frische Klone –
+  Ergebnis muss gleich bleiben. Smoke-Test: `node smoke-koeche.js` (auch in CI). Messung (Windows, 24 logische Kerne,
+  8 Stücke à 3,2·10⁶ Schritte): 1 / 2 / 4 / 8 Köche = 7,2 / 3,6 / 1,9 / 1,0 s (Speedup 7,0× bei 8).
 - **Importprüfung (HOST-ABI §2):** vor dem Instanziieren; eine unbekannte Funktion →
   `PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.x' (Gruppe g), die dieser Host nicht kennt – bitte pizza-host aktualisieren.`
   (Exit 2; Gruppe aus dem Namenspräfix, z. B. `ui_` → theke).

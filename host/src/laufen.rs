@@ -29,6 +29,10 @@ pub struct Optionen {
     pub echtzeit: Option<f64>,
     /// Ordner der Vorratskammern (K-081); `None` → keine Speicherung (`--kein-vorrat`, W0101-Verhalten).
     pub vorrat: Option<PathBuf>,
+    /// Köche der Küchenbrigade (`--koeche=N`, SPEC §17.7); `None` → `auto` (logische Kerne, höchstens 16), `1` = keine.
+    pub koeche: Option<usize>,
+    /// Testoption `--kuechen-chaos=SAAT`: Stücke in zufälliger Reihenfolge, mit Verzögerungen und wechselnden Klonen.
+    pub kuechen_chaos: Option<u64>,
 }
 
 /// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit, kueche).
@@ -192,6 +196,14 @@ pub fn vorrat_datei_schreiben(ordner: &Path, name: &str, json: &[u8]) -> std::io
         return Err(e);
     }
     Ok(())
+}
+
+/// Wert von `echtzeit_ms` (K-087): fester Wert (gerundet wie Math.round) oder Systemzeit.
+pub fn echtzeit_wert(fest: Option<f64>) -> f64 {
+    match fest {
+        Some(x) if x.is_finite() => (x + 0.5).floor(),
+        _ => systemzeit_ms(),
+    }
 }
 
 /// Ganze Millisekunden seit 1970-01-01 (Systemzeit, K-087).
@@ -406,6 +418,8 @@ struct Zustand {
     vorrat_wartend: Option<Vec<u8>>,
     /// Fester Wert für `echtzeit_ms`.
     echtzeit: Option<f64>,
+    /// Köche der Küchenbrigade (Gruppe `kueche`).
+    kueche: crate::kueche::Kueche,
 }
 
 /// Marker-Fehler, mit dem der Host nach `panik` den Lauf abbricht.
@@ -523,7 +537,9 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
         Some(z) => Quelle::Zeilen(z.iter().cloned().collect()),
         None => Quelle::Stdin { eof: false },
     };
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit };
+    let koeche = opt.koeche.unwrap_or_else(crate::kueche::auto);
+    let kueche = crate::kueche::Kueche::neu(module.clone(), koeche, opt.kuechen_chaos, opt.echtzeit);
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit, kueche };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -586,17 +602,44 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap("pizza", "ui_verfuegbar", |c: Caller<'_, Zustand>| -> i32 {
             c.data().theke.ui.is_some() as i32
         })?;
-        // Küchenbrigade (Gruppe `kueche`, SPEC §17): dieser Host hat noch keine Köche (THREADS-Paket P4) → `-1`, das Modul
-        // führt die Stücke selbst nacheinander aus (gleiches Ergebnis); `kueche_bericht` wird dann nie gerufen (-2).
-        linker.func_wrap("pizza", "kueche_auftrag", |_c: Caller<'_, Zustand>, _auftrag: i32, _n: i32| -> i32 { -1 })?;
-        linker.func_wrap("pizza", "kueche_bericht", |_c: Caller<'_, Zustand>, _i: i32, _p: i32, _kap: i32| -> i32 { -2 })?;
+        // Küchenbrigade (Gruppe `kueche`, SPEC §17, src/kueche.rs): Stücke in Klon-Instanzen auf Koch-Threads; `-1` = keine
+        // Köche (`--koeche=1`, ein Stück, …) → das Modul führt die Stücke selbst aus (gleiches Ergebnis).
+        linker.func_wrap(
+            "pizza",
+            "kueche_auftrag",
+            |mut c: Caller<'_, Zustand>, auftrag: i32, n: i32| -> Result<i32, wasmi::Error> {
+                let Some(Extern::Memory(mem)) = c.get_export("memory") else {
+                    return Err(wasmi::Error::new("Export 'memory' fehlt"));
+                };
+                let (daten, zustand) = mem.data_and_store_mut(&mut c);
+                zustand.kueche.auftrag(daten, auftrag, n).map_err(wasmi::Error::new)
+            },
+        )?;
+        // Bericht von Stück i: Länge, `> kap` → nichts geschrieben (K-013), -2 = nicht ausgeführt.
+        linker.func_wrap(
+            "pizza",
+            "kueche_bericht",
+            |mut c: Caller<'_, Zustand>, i: i32, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> {
+                let Some(Extern::Memory(mem)) = c.get_export("memory") else {
+                    return Err(wasmi::Error::new("Export 'memory' fehlt"));
+                };
+                let (daten, zustand) = mem.data_and_store_mut(&mut c);
+                let Some(b) = zustand.kueche.bericht(i) else {
+                    return Ok(-2);
+                };
+                if b.len() > kap.max(0) as usize {
+                    return Ok(b.len() as i32);
+                }
+                let p = puffer as u32 as usize;
+                let Some(ziel) = daten.get_mut(p..p + b.len()) else {
+                    return Err(wasmi::Error::new("kueche_bericht: Puffer außerhalb des Speichers"));
+                };
+                ziel.copy_from_slice(b);
+                Ok(b.len() as i32)
+            },
+        )?;
         // Wanduhr für `Uhr.echt()` (K-087): ganze ms seit 1970; `--echtzeit=N` → fester Wert (gerundet, wie Math.round).
-        linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 {
-            match c.data().echtzeit {
-                Some(x) if x.is_finite() => (x + 0.5).floor(),
-                _ => systemzeit_ms(),
-            }
-        })?;
+        linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 { echtzeit_wert(c.data().echtzeit) })?;
         // Vorratskammer (K-079–K-081): kap -1 = Abfrage; sonst Einträge als JSON-Array, -1 = keine Kammer,
         // Länge > kap → nichts schreiben, Daten behalten, erneuter Aufruf mit größerem Puffer (wie K-013).
         linker.func_wrap(
@@ -807,7 +850,9 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
     };
     let schritte = schritte_f.and_then(|f| f.call(&mut *store, ()).ok()).unwrap_or(0.0);
     let zeit_ms = zeit_f.and_then(|f| f.call(&mut *store, ()).ok()).unwrap_or(0.0);
-    store.data_mut().senke.sende(Ereignis::Ende { exit_code, schritte, zeit_ms });
+    // `Köche: N` (tatsächlich genutzt) nur bei Programmen mit Gruppe `kueche` (SPEC §17.7, K-100) – nur in der `--info`-Zeile.
+    let koeche = module.imports().any(|i| i.module() == "pizza" && i.name().starts_with("kueche_")).then(|| store.data().kueche.genutzt);
+    store.data_mut().senke.ende(exit_code, schritte, zeit_ms, koeche);
     exit_code
 }
 
