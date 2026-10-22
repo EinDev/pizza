@@ -1,181 +1,371 @@
-use super::*;
-use crate::kodierer::{Bild, Nachricht as N};
+//! Kern-Tests über das generische ABI (wie es Interpreter, Wasm-Laufzeit und Host benutzen).
 
-fn kern_mit(nachrichten: &[Vec<u8>]) -> Kern {
+use crate::abi::{teilfeld as tf, Kern, TEIL_METHODEN};
+use crate::komponenten::ARTEN;
+use crate::paket::{abschnitt, Leser, INST2D_BYTES, INST3D_BYTES};
+
+fn typ(k: &Kern, name: &str) -> i32 {
+    let t = k.typ_nummer(name.as_bytes());
+    assert!(t > 0, "Typ {}", name);
+    t
+}
+fn feld(k: &mut Kern, t: i32, name: &str) -> i32 {
+    let f = k.feld_nummer(t, name.as_bytes());
+    assert!(f > 0, "Feld {}", name);
+    f
+}
+fn welt() -> Kern {
     let mut k = Kern::neu();
-    for n in nachrichten {
-        k.nachricht(n).expect("Nachricht");
-    }
+    assert_eq!(k.welt_neu(640.0, 360.0, "Test".as_bytes()), 0);
     k
 }
-
-#[test]
-fn fenster_und_schliesse() {
-    let mut k = Kern::neu();
-    assert_eq!(k.nachricht(&N::fenster(320, 200, "Hallo Herd")), Ok(1));
-    assert_eq!(k.fenster().unwrap().titel, "Hallo Herd");
-    assert!(k.offen());
-    assert_eq!(k.nachricht(&N::schliesse()), Ok(5));
-    assert!(!k.offen());
+fn text(k: &mut Kern, komp: i32, f: i32) -> String {
+    let mut b = [0u8; 256];
+    let n = k.hole_text(komp, f, &mut b);
+    assert!(n >= 0);
+    String::from_utf8(b[..n as usize].to_vec()).unwrap()
 }
 
 #[test]
-fn kaputte_nachrichten_liefern_fehler() {
-    let mut k = Kern::neu();
-    assert_eq!(k.nachricht(&[]), Err(Fehler::Leer));
-    assert_eq!(k.nachricht(&[9]), Err(Fehler::UnbekannteArt));
-    assert_eq!(k.nachricht(&[1, 0x40]), Err(Fehler::Abgeschnitten));
-    assert_eq!(k.nachricht(&[5, 0]), Err(Fehler::Ueberhang));
-    // Bild mit unbekanntem Befehl
-    let mut b = vec![2, 1, 0, 0, 0, 1, 0, 0, 0, 0x7F];
-    assert_eq!(k.nachricht(&b), Err(Fehler::UnbekannterBefehl));
-    // Riesige Anzahl ohne Daten → abgeschnitten, keine Allokation
-    b = vec![2, 1, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0x7F];
-    assert_eq!(k.nachricht(&b), Err(Fehler::Abgeschnitten));
-    // Vieleck mit riesigem n
-    b = vec![2, 1, 0, 0, 0, 1, 0, 0, 0, 0x05, 0xFF, 0xFF, 0xFF, 0xFF];
-    assert_eq!(k.nachricht(&b), Err(Fehler::Abgeschnitten));
-    // eigene Form mit Index außerhalb
-    let f = N::eigene_form(3, &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0], &[0, 1, 5], false);
-    assert_eq!(k.nachricht(&f), Err(Fehler::Ungueltig));
-    // Bildchen zu kurz
-    let mut bc = N::bildchen(4, 2, 2, &[0; 16]);
-    bc.pop();
-    assert_eq!(k.nachricht(&bc), Err(Fehler::Abgeschnitten));
-    // Text mit kaputtem UTF-8
-    let t = vec![1, 64, 0, 64, 0, 2, 0, 0, 0, 0xC3, 0x28];
-    assert_eq!(k.nachricht(&t), Err(Fehler::Ungueltig));
-    // Zustand blieb leer
-    assert!(k.fenster().is_none());
+fn welt_mit_kamera_und_sonne() {
+    let mut k = welt();
+    assert_eq!(k.teil_hole(1, tf::RAUM), 3.0);
+    assert_eq!(k.teil_hole(2, tf::Y), 1.0);
+    let kam = typ(&k, "Kamera");
+    assert!(k.komp_von(1, kam) > 0);
+    let licht = typ(&k, "Licht");
+    let l = k.komp_von(2, licht);
+    assert_eq!(text(&mut k, l, 1), "sonne");
+    // zweiter Herd
+    assert_eq!(k.welt_neu(640.0, 360.0, b""), -2);
+    assert_eq!(k.fehler_text(), "Es gibt nur einen Herd pro Programm.");
 }
 
 #[test]
-fn jede_abgeschnittene_nachricht_ist_ein_fehler() {
-    for s in demo::alle() {
-        for n in &s.nachrichten {
-            for l in 0..n.len() {
-                let mut k = Kern::neu();
-                assert!(k.nachricht(&n[..l]).is_err(), "{}: Länge {} von {}", s.name, l, n.len());
-            }
-        }
+fn herd_groesse_pruefen() {
+    let mut k = Kern::neu();
+    assert_eq!(k.teil_neu(2), -2);
+    assert_eq!(k.fehler_text(), "Erst braucht es einen Herd (neu Herd(…)).");
+    assert_eq!(k.welt_neu(2.5, 360.0, b""), -1);
+    assert_eq!(k.fehler_text(), "Herd(breite: …) braucht eine Ganzzahl, nicht 2.5.");
+    assert_eq!(k.welt_neu(640.0, 10.0, b""), -2);
+    assert_eq!(k.fehler_text(), "Herd(hoehe: …) muss zwischen 64 und 4096 liegen, nicht 10.");
+}
+
+#[test]
+fn komponenten_generisch_und_fehlertexte() {
+    let mut k = welt();
+    let kreis = typ(&k, "Kreis");
+    let t = k.teil_neu(2);
+    let c = k.komp_neu(kreis);
+    let r = feld(&mut k, kreis, "radius");
+    assert_eq!(k.hole_zahl(c, r), 10.0);
+    assert_eq!(k.setze_zahl(c, r, 25.0), 0);
+    assert_eq!(k.setze_zahl(c, r, -1.0), -2);
+    assert_eq!(k.fehler_text(), "Kreis.radius muss mindestens 0 sein, nicht -1.");
+    assert_eq!(k.komp_haenge(c, t), 0);
+    assert_eq!(k.komp_von(t, kreis), c);
+    // schon angehängt
+    let t2 = k.teil_neu(2);
+    assert_eq!(k.komp_haenge(c, t2), -2);
+    assert_eq!(k.fehler_text(), format!("Diese Kreis hängt schon an Teil {}.", t));
+    // doppelt
+    let c2 = k.komp_neu(kreis);
+    assert_eq!(k.komp_haenge(c2, t), -2);
+    assert_eq!(k.fehler_text(), format!("Teil {} hat schon eine Kreis.", t));
+    // falscher Raum
+    let t3 = k.teil_neu(3);
+    assert_eq!(k.komp_haenge(c2, t3), -2);
+    assert_eq!(k.fehler_text(), "Kreis gibt es nur für 2D-Teile.");
+    // Farbe
+    let fa = feld(&mut k, kreis, "farbe");
+    assert_eq!(text(&mut k, c, fa), "weiss");
+    assert_eq!(k.setze_text(c, fa, b"lila"), -2);
+    assert_eq!(k.fehler_text(), "Farbe 'lila' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.");
+    assert_eq!(k.setze_text(c, fa, b"#FF000080"), 0);
+    assert_eq!(k.hole_zahl(c, fa), 0xFF000080u32 as f64);
+    // Wahl
+    let text_t = typ(&k, "Text");
+    let tx = k.komp_neu(text_t);
+    let au = feld(&mut k, text_t, "ausrichtung");
+    assert_eq!(k.setze_text(tx, au, b"oben"), -2);
+    assert_eq!(k.fehler_text(), "Text.ausrichtung kennt 'oben' nicht. Erlaubt: links, mitte, rechts.");
+    // Typfehler aus der Anbindung
+    assert_eq!(k.melde_typfehler(kreis, r, b"\"hallo\""), -1);
+    assert_eq!(k.fehler_text(), "Kreis.radius braucht eine Zahl, nicht \"hallo\".");
+    assert_eq!(k.feld_nummer(kreis, b"x"), -2);
+    assert_eq!(k.fehler_text(), "Kreis hat kein Feld 'x'.");
+}
+
+#[test]
+fn voraussetzungen_und_loesen() {
+    let mut k = welt();
+    let (bild, anim) = (typ(&k, "Bild"), typ(&k, "Animation"));
+    let t = k.teil_neu(2);
+    let a = k.komp_neu(anim);
+    assert_eq!(k.komp_haenge(a, t), -2);
+    assert_eq!(k.fehler_text(), "Animation braucht ein Bild am selben Teil.");
+    let b = k.komp_neu(bild);
+    assert_eq!(k.komp_haenge(b, t), 0);
+    assert_eq!(k.komp_haenge(a, t), 0);
+    assert_eq!(k.komp_loese(b), -2);
+    assert_eq!(k.fehler_text(), "Bild wird von Animation am selben Teil gebraucht.");
+    assert_eq!(k.komp_loese(a), 0);
+    assert_eq!(k.komp_info(a, 2), 0);
+    assert_eq!(k.komp_loese(b), 0);
+}
+
+#[test]
+fn hierarchie_kopie_entferne() {
+    let mut k = welt();
+    let a = k.teil_neu(2);
+    let b = k.teil_neu(2);
+    k.teil_lage(a, 100.0, 50.0, 0.0);
+    k.teil_lage(b, 10.0, 0.0, 0.0);
+    assert_eq!(k.teil_haenge(b, a), 0);
+    assert_eq!(k.teil_hole(b, tf::WELT_X), 110.0);
+    k.teil_setze(a, tf::DREHUNG, 90.0);
+    assert!((k.teil_hole(b, tf::WELT_Y) - 60.0).abs() < 1e-9);
+    assert_eq!(k.teil_haenge(a, b), -2);
+    assert_eq!(k.fehler_text(), format!("Teil {} kann nicht an seinem eigenen Kind hängen.", a));
+    let d3 = k.teil_neu(3);
+    assert_eq!(k.teil_haenge(d3, a), -2);
+    assert_eq!(k.fehler_text(), "Ein 3D-Teil kann nicht an einem 2D-Teil hängen.");
+    // Kopie mit Komponenten und Kindern
+    let kreis = typ(&k, "Kreis");
+    let c = k.komp_neu(kreis);
+    k.komp_haenge(c, b);
+    k.setze_zahl(c, 1, 33.0);
+    let a2 = k.teil_kopie(a);
+    assert!(a2 > b);
+    assert_eq!(k.teil_hole(a2, tf::KINDER), 1.0);
+    let mut kinder = [0u32; 4];
+    assert_eq!(k.teil_kinder(a2, &mut kinder), 1);
+    let b2 = kinder[0] as i32;
+    let c2 = k.komp_von(b2, kreis);
+    assert!(c2 > 0 && c2 != c);
+    assert_eq!(k.hole_zahl(c2, 1), 33.0);
+    // Entfernen samt Kindern
+    assert_eq!(k.teil_entferne(a), 0);
+    assert_eq!(k.teil_hole(b, tf::ENTFERNT), 1.0);
+    assert!(k.teil_hole(b, tf::X).is_nan());
+    assert_eq!(k.fehler_neu(), 1);
+    assert_eq!(k.fehler_text(), format!("Teil {} ist schon entfernt.", b));
+    assert!(k.hole_zahl(c, 1).is_nan());
+    assert_eq!(k.fehler_text(), format!("Teil {} ist schon entfernt.", b));
+    // die Kopie lebt weiter
+    assert!((k.teil_hole(b2, tf::WELT_Y) - 60.0).abs() < 1e-9);
+    // IDs werden nie wiederverwendet
+    let neu = k.teil_neu(2);
+    assert!(neu > b2);
+}
+
+#[test]
+fn trifft_huellen() {
+    let mut k = welt();
+    let (kreis, rechteck) = (typ(&k, "Kreis"), typ(&k, "Rechteck"));
+    let a = k.teil_neu(2);
+    let ka = k.komp_neu(kreis);
+    k.komp_haenge(ka, a);
+    k.teil_lage(a, 100.0, 100.0, 0.0);
+    let b = k.teil_neu(2);
+    let rb = k.komp_neu(rechteck);
+    k.komp_haenge(rb, b);
+    k.teil_lage(b, 115.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(a, b), 1);
+    k.teil_lage(b, 120.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(a, b), 0);
+    k.teil_setze(b, tf::SICHTBAR, 0.0);
+    k.teil_lage(b, 100.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(a, b), 0);
+}
+
+#[test]
+fn bewegung_und_animation() {
+    let mut k = welt();
+    let (bild, anim, bew) = (typ(&k, "Bild"), typ(&k, "Animation"), typ(&k, "Bewegung"));
+    let z: Vec<u8> = [b"ws".as_slice(), b"sw"].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
+    let b1 = k.bildchen_neu(&z, &[]);
+    let b2 = k.bildchen_neu(&z, &[]);
+    assert!(b1 > 0 && b2 > b1);
+    let t = k.teil_neu(2);
+    let kb = k.komp_neu(bild);
+    k.komp_haenge(kb, t);
+    let ka = k.komp_neu(anim);
+    k.komp_haenge(ka, t);
+    assert_eq!(k.setze_liste(ka, 1, &[b1 as u32, b2 as u32]), 0);
+    k.setze_zahl(ka, 2, 30.0); // 30 Bilder/s → alle 2 Takte weiter
+    let kw = k.komp_neu(bew);
+    k.komp_haenge(kw, t);
+    k.setze_zahl(kw, 1, 60.0);
+    for _ in 0..2 {
+        k.takt();
     }
+    assert!((k.teil_hole(t, tf::X) - 2.0).abs() < 1e-12);
+    assert_eq!(k.hole_zahl(ka, 5), 2.0);
+    assert_eq!(k.hole_zahl(kb, 1), b2 as f64);
+    for _ in 0..2 {
+        k.takt();
+    }
+    assert_eq!(k.hole_zahl(ka, 5), 1.0);
 }
 
 #[test]
-fn zufaellige_bytes_paniken_nie() {
-    // einfacher deterministischer Zufall (xorshift)
-    let mut x: u32 = 0x1234_5678;
-    let mut zufall = || {
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        x
+fn partikel_deterministisch() {
+    let lauf = || {
+        let mut k = welt();
+        let p = typ(&k, "Partikel");
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 320.0, 180.0, 0.0);
+        let e = k.komp_neu(p);
+        k.komp_haenge(e, t);
+        k.setze_zahl(e, 1, 600.0);
+        for _ in 0..90 {
+            k.takt();
+        }
+        k.bild(90);
+        (k.hash_szene(), k.hash_paket(), k.paket().len())
     };
-    let vorlage = demo::drei_d().nachrichten;
-    for runde in 0..3000 {
-        let mut n = vorlage[runde % vorlage.len()].clone();
-        let kipp = 1 + zufall() as usize % 6;
-        for _ in 0..kipp {
-            let i = zufall() as usize % n.len();
-            n[i] = zufall() as u8;
-        }
-        let mut k = Kern::neu();
-        for v in &vorlage[..vorlage.len() - 1] {
-            let _ = k.nachricht(v);
-        }
-        let _ = k.nachricht(&n);
-        let _ = k.bereite(64 + zufall() % 300, 64 + zufall() % 300);
-    }
+    let a = lauf();
+    assert_eq!(a, lauf());
+    // 600/s · 1 s Lebensdauer ≈ 600 Teilchen → so viele 2D-Instanzen
+    assert!(a.2 > 500 * INST2D_BYTES);
 }
 
 #[test]
-fn liste_ist_lesbar_und_seitentreu() {
-    let mut k = kern_mit(&demo::zwei_d().nachrichten);
-    let l = k.bereite(1000, 1000).to_vec();
-    let a = Ansicht::neu(&l).expect("Liste");
-    assert_eq!(a.ziel(), (1000, 1000));
-    // 640×360 in 1000×1000 → 1000×563, mittig
-    assert_eq!(a.ansichtsfenster(), [0, 218, 1000, 563]);
-    assert_eq!(a.flags() & flag::DREI_D, 0);
-    let zuege: Vec<Zug> = a.zuege().collect();
-    assert!(!zuege.is_empty());
-    assert!(zuege.iter().all(|z| z.durchgang == durchgang::FLACH));
-    // Bildchen-Züge verweisen auf Bildchen 1/2
-    assert!(zuege.iter().any(|z| z.textur == 1));
-    let ecken = a.abschnitt(abschnitt::ECKEN2D).len() / ECKE2D_BYTES;
-    let idx = a.abschnitt(abschnitt::INDIZES2D);
-    for i in idx.chunks_exact(4) {
-        assert!((u32::from_le_bytes([i[0], i[1], i[2], i[3]]) as usize) < ecken);
+fn bildpaket_2d_reihenfolge_und_culling() {
+    let mut k = welt();
+    let r = typ(&k, "Rechteck");
+    let mut teile = vec![];
+    for (i, (x, ebene)) in [(10.0, 2.0), (20.0, 1.0), (-100.0, 0.0), (30.0, 1.0)].iter().enumerate() {
+        let t = k.teil_neu(2);
+        k.teil_lage(t, *x, 10.0, 0.0);
+        k.teil_setze(t, tf::EBENE, *ebene);
+        let c = k.komp_neu(r);
+        k.komp_haenge(c, t);
+        teile.push((t, i));
     }
-    // Texturen: weiß, zwei Bildchen, Schrift
-    let t: Vec<TexturEintrag> = a.texturen().collect();
-    assert_eq!(t[0].id, textur::WEISS);
-    assert_eq!(t[1].id, 1);
-    assert_eq!(t[2].id, 2);
+    let n = k.bild(1);
+    assert!(n > 0);
+    let l = Leser::neu(k.paket()).unwrap();
+    assert_eq!(l.feld(), (640, 360));
+    let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D).unwrap();
+    assert_eq!(d.len(), 3 * INST2D_BYTES); // eins außerhalb
+    let xs: Vec<f32> = d.chunks_exact(INST2D_BYTES).map(|c| f32::from_le_bytes([c[16], c[17], c[18], c[19]])).collect();
+    assert_eq!(xs, vec![20.0, 30.0, 10.0]);
+    // Schrift nur im ersten Paket
+    assert!(l.abschnitte().any(|(a, _)| a == abschnitt::SCHRIFT));
+    k.bild(2);
+    assert!(!Leser::neu(k.paket()).unwrap().abschnitte().any(|(a, _)| a == abschnitt::SCHRIFT));
+    k.paket_voll();
+    k.bild(3);
+    assert!(Leser::neu(k.paket()).unwrap().abschnitte().any(|(a, _)| a == abschnitt::SCHRIFT));
 }
 
 #[test]
-fn drei_d_hat_alle_durchgaenge() {
-    let mut k = kern_mit(&demo::drei_d().nachrichten);
-    let l = k.bereite(640, 360).to_vec();
-    let a = Ansicht::neu(&l).unwrap();
-    assert_ne!(a.flags() & flag::DREI_D, 0);
-    assert_ne!(a.flags() & flag::SCHATTEN, 0);
-    assert_eq!(a.schatten_groesse(), szene::SCHATTEN_GROESSE);
-    assert_eq!(a.abschnitt(abschnitt::SZENE).len(), SZENE_BYTES);
-    let z: Vec<Zug> = a.zuege().collect();
-    // Durchgänge in Reihenfolge
-    for w in z.windows(2) {
-        assert!(w[0].durchgang <= w[1].durchgang);
+fn bildpaket_3d_batches_und_schatten() {
+    let mut k = welt();
+    let ko = typ(&k, "Koerper");
+    let w = k.form_grund(1, 0.0, 0.0);
+    let e = k.form_grund(5, 0.0, 0.0);
+    let boden = k.teil_neu(3);
+    k.teil_groesse(boden, 20.0, 1.0, 20.0);
+    let kb = k.komp_neu(ko);
+    k.setze_zahl(kb, 1, e as f64);
+    k.komp_haenge(kb, boden);
+    for i in 0..5 {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, i as f64 - 2.0, 0.5, 0.0);
+        let c = k.komp_neu(ko);
+        k.setze_zahl(c, 1, w as f64);
+        k.komp_haenge(c, t);
     }
-    for d in [durchgang::SCHATTEN, durchgang::HIMMEL, durchgang::UNDURCHSICHTIG, durchgang::DURCHSICHTIG, durchgang::FLACH] {
-        assert!(z.iter().any(|x| x.durchgang == d), "Durchgang {} fehlt", d);
-    }
-    let inst = a.abschnitt(abschnitt::INSTANZEN).len() / INSTANZ_BYTES;
-    for x in &z {
-        if x.durchgang != durchgang::HIMMEL && x.durchgang != durchgang::FLACH {
-            assert!((x.erste_instanz + x.instanz_anzahl) as usize <= inst);
-            assert!(k.netz(x.netz).is_some());
-        }
-    }
-    // Durchsichtige: je zwei Züge (Rückseiten, dann Vorderseiten)
-    let d: Vec<&Zug> = z.iter().filter(|x| x.durchgang == durchgang::DURCHSICHTIG).collect();
-    assert_eq!(d.len(), 4);
-    assert_eq!((d[0].seiten, d[1].seiten), (1, 2));
+    // weit hinter der Kamera: kein Zeichnen
+    let t = k.teil_neu(3);
+    k.teil_lage(t, 0.0, 0.5, 100.0);
+    let c = k.komp_neu(ko);
+    k.setze_zahl(c, 1, w as f64);
+    k.komp_haenge(c, t);
+    k.bild(1);
+    let l = Leser::neu(k.paket()).unwrap();
+    let (_, z) = l.abschnitte().find(|(a, _)| *a == abschnitt::ZUEGE3D).unwrap();
+    let zuege: Vec<[u32; 4]> = z.chunks_exact(16).map(|c| [0, 4, 8, 12].map(|o| u32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]))).collect();
+    // Würfel: fest (5) + Schatten; Ebene: fest + Schatten
+    assert_eq!(zuege.iter().filter(|z| z[0] == 1).map(|z| z[3]).sum::<u32>(), 6);
+    assert!(zuege.iter().any(|z| z[0] == 2));
+    let (_, i) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST3D).unwrap();
+    assert!(i.len() >= 6 * INST3D_BYTES);
+    assert!(l.flags() & 3 == 3);
 }
 
 #[test]
-fn ohne_bild_gibt_es_eine_leere_liste() {
-    let mut k = Kern::neu();
-    let l = k.bereite(100, 50).to_vec();
-    let a = Ansicht::neu(&l).unwrap();
-    assert_eq!(a.zuege().count(), 0);
-    assert_eq!(a.klar()[0], 1.0);
+fn eigene_form_und_bildchen_fehler() {
+    let mut k = welt();
+    assert_eq!(k.form_eigene(&[0.0, 0.0], &[0.0, 1.0, 2.0], 0), -2);
+    assert_eq!(k.fehler_text(), "Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).");
+    let p = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    assert_eq!(k.form_eigene(&p, &[0.0, 1.0, 7.0], 0), -2);
+    assert_eq!(k.fehler_text(), "Punkt 7 gibt es nicht – die Form hat 4 Punkte.");
+    assert!(k.form_eigene(&p, &[0.0, 2.0, 1.0, 0.0, 1.0, 3.0], 1) > 0);
+    assert_eq!(k.form_grund(2, 2.0, 0.0), -2);
+    assert_eq!(k.fehler_text(), "teile muss zwischen 3 und 128 liegen, nicht 2.");
+    let z: Vec<u8> = [b"wx".as_slice()].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
+    assert_eq!(k.bildchen_neu(&z, &[]), -2);
+    assert_eq!(k.fehler_text(), "Das Zeichen 'x' hat im Bildchen keine Farbe.");
+    let f: Vec<u8> = [b"x".as_slice(), b"#00ff00"].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
+    let id = k.bildchen_neu(&z, &f);
+    assert!(id > 0);
+    assert_eq!(k.ressource_hole(id, 2), 2.0);
+    // Bildchen statt Form
+    let ko = typ(&k, "Koerper");
+    let c = k.komp_neu(ko);
+    assert_eq!(k.setze_zahl(c, 1, id as f64), -1);
+    assert_eq!(k.fehler_text(), "Koerper.form braucht eine Form, nicht Bildchen(2×1).");
 }
 
 #[test]
-fn hash_ist_reproduzierbar() {
-    for s in demo::alle() {
-        let mut a = kern_mit(&s.nachrichten);
-        let mut b = kern_mit(&s.nachrichten);
-        a.bereite(640, 360);
-        b.bereite(640, 360);
-        assert_eq!(a.fnv(), b.fnv(), "{}", s.name);
-        // zweimal vorbereiten ändert nichts
-        a.bereite(640, 360);
-        assert_eq!(a.fnv(), b.fnv());
+fn erweiterungsprobe_eine_datei_eine_zeile() {
+    // Probe steht nur im Testbau in der Registry; Schema und ABI behandeln sie generisch.
+    let json = crate::abi::schema_json(true);
+    assert!(json.contains("\"name\": \"Probe\""));
+    assert!(!crate::abi::schema_json(false).contains("Probe"));
+    let mut k = welt();
+    let p = typ(&k, "Probe");
+    assert_eq!(p as usize, ARTEN.len()); // letzte Zeile der Registry
+    let t = k.teil_neu(3);
+    let c = k.komp_neu(p);
+    let wert = feld(&mut k, p, "wert");
+    let name = feld(&mut k, p, "name");
+    let sorte = feld(&mut k, p, "sorte");
+    assert_eq!(text(&mut k, c, sorte), "funghi");
+    assert_eq!(k.setze_zahl(c, wert, 11.0), -2);
+    assert_eq!(k.fehler_text(), "Probe.wert muss zwischen 0 und 10 liegen, nicht 11.");
+    assert_eq!(k.setze_zahl(c, wert, 2.5), 0);
+    assert_eq!(k.setze_text(c, name, "Käse".as_bytes()), 0);
+    assert_eq!(text(&mut k, c, name), "Käse");
+    assert_eq!(k.setze_text(c, sorte, b"diavolo"), 0);
+    assert_eq!(k.hole_zahl(c, sorte), 2.0);
+    let stufe = feld(&mut k, p, "stufe");
+    assert_eq!(k.setze_zahl(c, stufe, 1.5), -1);
+    assert_eq!(k.fehler_text(), "Probe.stufe braucht eine Ganzzahl, nicht 1.5.");
+    assert_eq!(k.komp_haenge(c, t), 0);
+    k.takt();
+    k.takt();
+    // verborgenes Feld ist nicht erreichbar
+    assert!(k.hole_zahl(c, 7).is_nan());
+    let s1 = k.hash_szene();
+    k.takt();
+    assert_ne!(s1, k.hash_szene());
+}
+
+#[test]
+fn schema_datei_aktuell_und_keine_kollision() {
+    let pfad = concat!(env!("CARGO_MANIFEST_DIR"), "/../../site/js/herd/schema.json");
+    let datei = std::fs::read_to_string(pfad).expect("site/js/herd/schema.json fehlt (node herd/baue.js)");
+    assert_eq!(datei.replace("\r\n", "\n"), crate::abi::schema_json(false), "schema.json veraltet: node herd/baue.js");
+    for a in ARTEN {
+        let n = a.schema.name;
+        let klein: String = n[..1].to_lowercase() + &n[1..];
+        assert!(!TEIL_METHODEN.contains(&klein.as_str()), "Komponente {} kollidiert mit Teil-Methode", n);
     }
-}
-
-#[test]
-fn erneutes_senden_erhoeht_version() {
-    let mut k = Kern::neu();
-    k.nachricht(&N::grundform(1, 1, 0, 0.0)).unwrap();
-    let mut b = Bild::neu(1);
-    b.zeichne(1, [0.0; 3], [1.0; 3], 0.0, 0.0, 0.0, crate::kodierer::palette::WEISS, 0.3, 0.0, 0);
-    k.nachricht(&b.fertig()).unwrap();
-    let v1 = Ansicht::neu(k.bereite(64, 64)).unwrap().netze().next().unwrap().version;
-    k.nachricht(&N::grundform(1, 2, 8, 0.0)).unwrap();
-    let v2 = Ansicht::neu(k.bereite(64, 64)).unwrap().netze().next().unwrap().version;
-    assert!(v2 > v1);
 }

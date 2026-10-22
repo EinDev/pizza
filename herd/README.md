@@ -1,0 +1,252 @@
+# Herd – Kern, Bildpaket, ABI
+
+Konzept und Vertrag: `HERD.md` (Schichten, Leistung, Roadmap) und `SPEC.md` §18 (Sprache). Diese Datei beschreibt die
+Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildpaket-Format v1**, Schema, Bauen, Tests.
+
+## 1. Aufbau
+
+| Crate | Inhalt |
+|---|---|
+| `kern/` (`herd-kern`, `no_std` + `alloc` + `libm`) | Welt (Teile, Lage, Hierarchie), Komponenten-Registry, Systeme, Ressourcen (Formen, Bildchen-Atlas, Schrift), Bildpaket, Hashes, ABI (`Kern`) |
+| `kern-wasm/` | Wasm-Hülle: exportiert jede `Kern`-Methode unter gleichem Namen, keine Importe, eigener Allocator. Nur für `wasm32v1-none` |
+| `gpu/` (`herd-gpu`, wgpu) | Sichtprüfung: zeichnet ein Bildpaket offscreen (Paket H2 macht daraus die Glut mit Fenster/Web) |
+| `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Skripte nativ abspielen (Determinismus-Test, Messung) |
+
+Dateien im Kern (`kern/src`): `welt.rs` (Teile, Lage, Welt-Matrizen, Komponenten-Verwaltung), `komponenten/` (Registry +
+eine Datei je Komponente), `schema.rs` (Feldtypen, Schema, Spalten-Speicher), `abi.rs` (`Kern` = Herd-ABI, Szenen-Hash,
+Schema-JSON), `paket.rs` (Bildpaket), `ressourcen.rs` (Formen, Atlas), `formen.rs`, `schrift.rs` (+ `schrift/atlas.bin`),
+`farbe.rs`, `fehler.rs` (alle Fehlertexte), `zahl.rs` (Zahl → Text wie JS `String(x)`), `hash.rs` (FNV-1a 64), `mathe.rs`
+(f32-Hilfen für die Formen).
+
+**Datenmodell.** Ein Teil hat eine ID (u32, ab 1, nie wiederverwendet; 1 = Kamera, 2 = Sonne), einen Raum (2D/3D, fest),
+Eltern/Kinder und eine Lage (`x y z drehung neigung rollen groesseX groesseY groesseZ`, f64, relativ zu den Eltern) sowie
+`ebene` und `sichtbar`. Teile liegen dicht (Struktur von Arrays) mit Abbildung ID → Zeile. Welt-Matrizen werden nur für
+veränderte Teilbäume neu berechnet (Markierung beim Ändern, Berechnung beim Bild bzw. bei Abfragen).
+Komponenten haben ein **Handle** (u32, ab 1, eigener Zahlenraum, nie wiederverwendet). Sie können **lose** existieren
+(`komp_neu`, Werte im Kern geprüft) und an höchstens ein Teil gehängt werden; je Teil höchstens eine je Art. Der Speicher
+je Art ist ein Sparse-Set: dichte Zeilen, eine Spalte je Feld (f64 für zahlartige Felder, Texte, Farben, Listen,
+verborgene Puffer). Wird ein Teil entfernt, sind seine Komponenten **zerstört** (jede Nutzung meldet „Teil 7 ist schon
+entfernt.“); `komp_loese` (Sprache: `ohne`) macht sie wieder lose.
+
+**Determinismus (K-129).** Zustand in f64, nur `libm`, keine FMA (Rust kontrahiert nie), keine HashMap, Reihenfolgen nur
+nach IDs/Registry. NaN wird im Szenen-Hash kanonisch gehasht, im Paket werden f32 nicht endlich/−0 → 0 geschrieben.
+Sortierungen haben eindeutige Schlüssel bzw. sind stabil.
+
+## 2. Komponenten-Registry (Schicht 3)
+
+`kern/src/komponenten/mod.rs`:
+
+```rust
+pub static ARTEN: &[&Art] = &[
+    &rechteck::ART, &kreis::ART, &text::ART, &bild::ART, &koerper::ART, &licht::ART, &kamera::ART,
+    &bewegung::ART, &animation::ART, &partikel::ART,
+    #[cfg(any(test, feature = "probe"))]
+    &probe::ART,
+];
+```
+
+Position = **Typnummer** (1 …) = Systemreihenfolge. Eine Komponente ist ein Modul mit
+
+```rust
+pub static ART: Art = Art {
+    schema: Schema { name: "Bewegung", raum: Raum::Beide, braucht: &[], felder: &[
+        Feld::zahl("tempoX", 0.0), …, Feld::zahl("daempfung", 0.0).bereich(0.0, 1.0),
+        Feld::intern("zeit", 0.0),        // verborgene Felder stehen am Ende
+    ]},
+    nur_test: false,
+    takt: Some(takt),      // System: fn(&mut Welt, &mut Speicher) – läuft je Takt über die dichten Zeilen
+    bild: None,            // Bildbeitrag: fn(&Welt, &Speicher, &mut Bildbau) – Instanzen/Lichter/Kameras
+    huelle: None,          // für trifft: fn(&Welt, &Speicher, komp_zeile, teil_zeile) -> Option<Huelle>
+};
+```
+
+Feldtypen: `zahl` (f64, Bereich), `ganz`, `diavolo` (0/1), `text`, `wahl` (Index in fester Liste), `farbe` (RGBA8 + Text, wie
+gesetzt), `teil`, `form`, `bildchen` (IDs, 0 = karton), `bildchen-liste`; verborgen: `intern` (f64), `puffer` (f64-Liste je
+Komponente, z. B. Teilchen). Feldnummer = Position + 1 (nur öffentliche Felder). Anleitung für neue Komponenten: §8 und
+HERD.md §9.
+
+## 3. Herd-ABI
+
+Jede Zeile ist **ein Export von `kern.wasm`** (Modul ohne Importe, exportiert `memory`) und gleichzeitig eine Methode von
+`herd_kern::Kern` mit gleichem Namen (nativ: wasmi-Hostfunktion → Methode). In Rust sind (Zeiger, Länge)-Paare Slices.
+Typen nur `i32`/`f64`. Alle Zeiger zeigen in den Speicher **des Kerns**: Die Anbindung holt sich mit `puffer(len)` einen
+Austauschpuffer, schreibt Texte (UTF-8)/Zahlen hinein und übergibt den Zeiger. Achtung: Nach jedem Aufruf kann der
+Speicher gewachsen sein – JS-Ansichten (`Uint8Array` auf `memory.buffer`) danach neu anlegen.
+
+**Direkt bindbar** (rein numerisch, kein fremder Speicher): ein Programm-Wasm kann diese Importe im Browser unmittelbar an
+die Exporte von `kern.wasm` binden (`imports.herd = kern.exports`): `teil_*` (außer `teil_kinder`), `komp_*`, `setze_zahl`,
+`hole_zahl`, `form_grund`, `ressource_hole`, `takt`, `bild`, `paket_voll`, `fehler_art`, `fehler_code`, `fehler_neu`,
+`welt_hole`. Alles mit Texten/Listen geht über eine kleine Hülle, die zwischen den Speichern kopiert (selten).
+
+**Fehlerprotokoll.** i32-Rückgaben: ≥ 0 Erfolg (ID, Länge, 0), **< 0 = −Fehlerart**. f64-Rückgaben: **NaN** bei Fehler
+(dann liefert `fehler_neu()` 1; ein NaN ohne Fehler ist ein echter Wert). Fehlerarten: 1 = `TypAnanas`, 2 =
+`LaufzeitAnanas`, 3 = intern (Anbindungsfehler; melden als `LaufzeitAnanas: Interner Fehler im Herd: <text>`). Die Anbindung
+wirft `<Art>: <fehler_text>` – Texte entstehen nur im Kern (`fehler.rs`). `fehler_code()` unterscheidet die Fälle (Tabelle
+unten), z. B. für Sonderbehandlung in der Anbindung.
+
+**Längen-Retry (K-013).** Funktionen mit `(ptr, kap)`-Ausgabe liefern die benötigte Länge (Bytes bzw. Elemente). Ist sie
+größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem Puffer.
+
+| Export | Signatur | Bedeutung |
+|---|---|---|
+| `abi_version` | `() → i32` | 1 |
+| `puffer` | `(len i32) → ptr` | Austauschpuffer ≥ len Bytes, 8-Byte-ausgerichtet; gültig bis zum nächsten `puffer` |
+| `fehler_art` / `fehler_code` | `() → i32` | Art/Code des letzten Fehlers (0 = keiner) |
+| `fehler_text` | `(ptr, kap) → len` | Text des letzten Fehlers (ohne `…Ananas: `), Retry |
+| `fehler_neu` | `() → i32` | 1, wenn seit dem letzten Aufruf ein Fehler gesetzt wurde (setzt zurück) |
+| `melde_typfehler` | `(typ, feld, ptr, len) → −1` | setzt `TypAnanas: <Name>.<feld> braucht <erwartet>, nicht <darstellung>.` – für Werte, deren Typ nur die Anbindung kennt (z. B. Text statt Zahl) |
+| `welt_neu` | `(breite f64, hoehe f64, titel_ptr, titel_len) → 0` | einmal je Programm; Teil 1 = Kamera (0, 3, 8) → (0, 0, 0), Teil 2 = Sonne (0.5, 1, 0.3) mit `Licht(art: sonne)`. Prüft Ganzzahl und 64 … 4096 |
+| `welt_titel` | `(ptr, len) → 0` | Titel ändern (gehört zum Szenenzustand) |
+| `welt_hintergrund` | `(ptr, len) → 0` | Farbe (Standard `mozzarella`) |
+| `welt_himmel` | `(oben_ptr, oben_len, unten_ptr, unten_len) → 0` | Verlauf; `unten_len = 0` → wie oben |
+| `welt_umgebung` | `(ptr, len, staerke f64) → 0` | Umgebungslicht (Standard: Himmel oben bzw. Hintergrund, 0.35) |
+| `welt_nebel` | `(ptr, len, von f64, bis f64) → 0` | `von ≥ bis` schaltet ab |
+| `welt_hole` | `(was) → f64` | 1 Breite, 2 Höhe, 3 Takte, 4 nächste Teil-ID, 5 lebende Teile, 6 Ressourcen |
+| `teil_neu` | `(raum 2∣3) → id` | leeres Teil an der Wurzel |
+| `teil_entferne` | `(teil) → 0` | samt Kindern; Komponenten zerstört |
+| `teil_kopie` | `(teil) → id` | Kopie samt Komponenten und Kindern, hängt am selben Eltern-Teil; IDs: Kopie, dann Komponenten in Registry-Reihenfolge, dann Kinder (Tiefe zuerst) |
+| `teil_haenge` | `(teil, an) → 0` | `an = 0` löst; lokale Lage bleibt; Zyklus/Raum → Fehler |
+| `teil_kinder` | `(teil, ptr, kap) → n` | Kinder-IDs (u32 LE) in Anhänge-Reihenfolge, Retry (kap in Elementen) |
+| `teil_setze` | `(teil, feld, wert f64) → 0` | Lage-Feld (Tabelle unten) |
+| `teil_hole` | `(teil, feld) → f64` | Lage-Feld lesen; `14` (entfernt) wirft nie |
+| `teil_lage` / `teil_verschiebe` | `(teil, x, y, z) → 0` | `setzeLage`/`verschiebe`; 2D: z ≠ 0 → Fehler |
+| `teil_groesse` | `(teil, sx, sy, sz) → 0` | `setzeGroesse` (2D ignoriert sz) |
+| `teil_schaue` | `(teil, x, y, z) → 0` | `schaueAuf` (nur 3D): −z-Achse zeigt auf den Punkt, rollen = 0 |
+| `teil_trifft` | `(a, b) → 0∣1` | Hüllen (SPEC §18.4) |
+| `komp_neu` | `(typ) → handle` | lose Komponente mit Standardwerten |
+| `komp_haenge` | `(komp, teil) → 0` | prüft: lose, Raum, Art frei, Voraussetzungen |
+| `komp_loese` | `(komp) → 0` | wieder lose (Werte bleiben); verweigert, wenn eine andere Komponente am Teil sie braucht |
+| `komp_von` | `(teil, typ) → handle∣0` | `teil.<name>()` |
+| `komp_info` | `(komp, was) → i32` | 1 Typnummer, 2 Teil (0 = lose), 3 zerstört (0/1, wirft nie) |
+| `typ_nummer` | `(ptr, len) → typ∣0` | nach Name |
+| `feld_nummer` | `(typ, ptr, len) → feld` | nach Name; unbekannt → `<Name> hat kein Feld 'x'.` |
+| `setze_zahl` | `(komp, feld, wert f64) → 0` | zahl/ganz (Bereich), diavolo (0/1), wahl (Index), teil/form/bildchen (ID, 0 = karton), farbe (0xRRGGBBAA; Text wird `#rrggbbaa`) |
+| `hole_zahl` | `(komp, feld) → f64` | wie oben; farbe → 0xRRGGBBAA; bildchen-liste → Länge |
+| `setze_text` | `(komp, feld, ptr, len) → 0` | text, wahl (Name), farbe (Palette/Hex) |
+| `hole_text` | `(komp, feld, ptr, kap) → len` | text, wahl (Name), farbe (**wie gesetzt**), Retry |
+| `setze_liste` | `(komp, feld, ptr, n) → 0` | bildchen-liste: n × u32 LE (IDs) |
+| `hole_liste` | `(komp, feld, ptr, kap) → n` | Retry (kap in Elementen) |
+| `form_grund` | `(art, teile f64, dicke f64) → id` | 1 Würfel, 2 Kugel, 3 Zylinder, 4 Kegel, 5 Ebene, 6 Ring; `teile` 3 … 128 (Kugel/Zylinder/Kegel/Ring), `dicke` 0.05 … 0.9 (Ring) |
+| `form_eigene` | `(punkte_ptr, n_zahlen, dreiecke_ptr, n_zahlen, glatt) → id` | beide als f64 LE (Dreiecke als Zahlen, damit der Kern Ganzzahl/Bereich prüft) |
+| `bildchen_neu` | `(zeilen_ptr, zeilen_len, farben_ptr, farben_len) → id` | Zeilen: Folge `u32 Länge + UTF-8`; Farben: Folge von Paaren `u32 Länge + Zeichen`, `u32 Länge + Farbtext` (leer = keine). **Zeichen werden im Kern aufgelöst** (Palette `w s g o t r p b l m e k a y h u v`, `.`/Leerzeichen durchsichtig, Zuordnung hat Vorrang) |
+| `bildchen_rgba` | `(breite, hoehe, ptr) → id` | breite × hoehe × 4 Bytes RGBA8 |
+| `ressource_hole` | `(id, was) → f64` | 1 Art (1 Form, 2 Bildchen), 2 Breite, 3 Höhe, 4 Ecken, 5 Dreiecke |
+| `takt` | `() → 0` | alle Systeme, dt = 1/60 |
+| `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
+| `bild_zeiger` | `() → ptr` | |
+| `paket_voll` | `() → 0` | nächstes Paket enthält wieder alle Ressourcen (neue Glut, Fenster neu geöffnet) |
+| `hash_szene` / `hash_paket` | `(ptr) → 16` | FNV-1a 64 als 16 Hex-Ziffern (Kleinbuchstaben) über den Szenenzustand bzw. das letzte Paket |
+| `schema_json` | `(ptr, kap) → len` | Schema (§5), Retry |
+
+**Lage-Felder** (`teil_setze`/`teil_hole`): 1 x, 2 y, 3 z, 4 drehung, 5 neigung, 6 rollen, 7 groesseX, 8 groesseY,
+9 groesseZ, 10 ebene (2D, Ganzzahl), 11 sichtbar (0/1); nur lesen: 12 raum (2/3), 13 eltern (0 = keins), 14 entfernt (0/1),
+15 weltX, 16 weltY, 17 weltZ, 18 Anzahl Kinder. 3D-Felder (z, neigung, rollen, groesseZ) an 2D-Teilen und `ebene` an
+3D-Teilen → `LaufzeitAnanas: Teil 5 ist ein 2D-Teil – neigung gibt es nur für 3D-Teile.` (bzw. `… 3D-Teil – ebene gibt es nur
+für 2D-Teile.`).
+
+**Fehlercodes** (`fehler_code`): 1 Herd-Größe keine Ganzzahl · 2 Herd-Größe Bereich · 3 noch kein Herd · 4 zweiter Herd ·
+10 Teil entfernt · 11 Teil unbekannt · 12 Hängen: Zyklus · 13 Hängen: Raum · 14 nur 3D · 15 nur 2D · 16 Lage-Feld unbekannt
+(intern) · 17 Raum unbekannt (intern) · 18 Lage-Bereich (ebene) · 20 Typnummer unbekannt (intern) · 21 Komponente hängt schon
+· 22 Komponente falscher Raum · 23 Art schon am Teil · 24 Voraussetzung fehlt · 25 wird gebraucht · 26 Handle unbekannt
+(intern) · 27 Feld unbekannt · 28 Feld falscher Typ · 29 Feld Bereich · 30 Wahl unbekannt · 31 Farbe unbekannt ·
+40 teile · 41 dicke · 42 Punkte · 43 Dreiecke · 44 Punkt-Index · 45 Bildchen zu groß · 46 Bildchen-Zeichen · 47 Bildchen
+ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern).
+
+**Was die Anbindung selbst tut:** Sprachtypen prüfen (Zahl/Text/Blech …, bei falschem Typ `melde_typfehler`), Fabriken
+zusammensetzen (`herd.kreis(x, y, r, farbe:)` = `teil_neu(2)` + `teil_lage` + `komp_neu(Kreis)` + Felder + `komp_haenge`),
+Objektidentität (Handle → pizza-Objekt), Textformen (`Teil(3)`, `Bewegung(3)`), Getter/Setter-Namen aus dem Schema,
+`bildnummer`/`zeit`, Eingabe, Fenster-Ereignisse. `bildnummer` gibt die Anbindung an `bild(n)` (sie steht im Paketkopf).
+
+## 4. Bildpaket v1 (Kern → Glut)
+
+Little Endian, feldweise geschrieben. Hängt **nicht** von Fenster- oder Gerätegröße ab (nur vom logischen Spielfeld
+`breite × hoehe`); Kantenglättung und Pixeldichte macht die Glut (SDF, MSAA).
+
+**Kopf (32 Bytes):** `"HZP1"` · `u32 version = 1` · `u32 bildnummer` · `u16 breite` · `u16 hoehe` · `u32 flags`
+(1 = 3D-Züge vorhanden, 2 = Schattendurchgang, 4 = Himmelsverlauf zeichnen) · `u32 anzahl_abschnitte` · `u32 länge_gesamt` ·
+`u32 0`.
+**Abschnitte** folgen: `u32 art` · `u32 länge` · Daten · Auffüllung auf 4 Bytes. Reihenfolge: Ressourcen-Deltas (1–4), dann 10,
+11, 12, 13. Unbekannte Arten überspringen.
+
+| Art | Name | Inhalt |
+|---|---|---|
+| 1 | SCHRIFT | `u16 breite, u16 hoehe, f32 em, f32 spanne`, dann `breite × hoehe` Bytes R8 (SDF, 0.5 = Kante). Im ersten Paket (und nach `paket_voll`) |
+| 2 | ATLAS_SEITE | `u32 seite, u16 breite, u16 hoehe` – neue Bildchen-Atlasseite (RGBA8, 2048 × 2048, anfangs durchsichtig; Seiten sind die Schichten eines Textur-Arrays) |
+| 3 | ATLAS_STUECK | `u32 seite, u16 x, u16 y, u16 b, u16 h`, dann `b × h × 4` Bytes RGBA8 (Zeilen von oben) |
+| 4 | NETZ | `u32 id, u32 ecken, u32 indizes, f32 min[3], f32 max[3]`, dann `ecken × 32` Bytes (`f32 pos[3], normale[3], uv[2]`), dann `indizes × u32` (Dreiecke, Vorderseite gegen den Uhrzeigersinn) |
+| 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
+| 11 | INST3D | n × 72 Bytes 3D-Instanzen |
+| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH) |
+| 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
+
+Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
+gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
+
+**SZENE (592 Bytes, std140-gleich, alles f32):**
+`ansicht_proj mat4` (spaltenweise, Tiefe 0 … 1, Seitenverhältnis = breite/hoehe) · `licht_proj mat4` (Sonne, orthografisch,
+auf Shadow-Map-Texel 2048 eingerastet) · `kamera vec4` (xyz) · `sonne_richtung vec4` (xyz zur Sonne, normiert; w = 1 Schatten
+an) · `sonne_farbe vec4` (linear × Stärke; 0 = keine Sonne) · `umgebung_oben vec4` · `umgebung_unten vec4` (linear × Stärke)
+· `nebel_farbe vec4` (linear; w = 1 an) · `nebel vec4` (von, bis, 1/(bis − von)) · `himmel_oben vec4` · `himmel_unten vec4`
+(linear) · `hintergrund vec4` (**sRGB** 0 … 1) · `schatten vec4` (1/2048, Normalenversatz in Welt-Einheiten = 1 Texel,
+Tiefen-Bias, Texelgröße Welt) · `feld vec4` (breite, hoehe, 1/breite, 1/hoehe) · `zahlen vec4` (x = Anzahl Punktlichter
+0 … 8) · `licht_pos[8] vec4` (xyz, w = Reichweite) · `licht_farbe[8] vec4` (linear × Stärke).
+
+**INST3D (72 Bytes):** `f32 zeile0[4], zeile1[4], zeile2[4]` (Welt-Matrix 3 × 4 zeilenweise: Rotation·Skalierung | Verschiebung;
+Normalenmatrix = Kofaktoren der 3 × 3, im Shader) · `u8 r, g, b, a` (sRGB, nicht vormultipliziert) · `f32 glanz` (0 … 1) ·
+`f32 leuchten` (0 … 1) · `u16 u0, v0, u1, v1` (Atlas-Pixel der Textur) · `u32 textur` (Bits 0–15 Atlasseite, Bit 16 = hat
+Textur). Texturkoordinate: `atlas = (u0, v0) + clamp(uv · (u1 − u0, v1 − v0), 0.5, Größe − 0.5)`, nächster Nachbar;
+Texel mit Deckkraft < ½ werden verworfen (auch im Schatten).
+
+**Züge:** In Listenreihenfolge. Für jedes Netz (aufsteigende ID) folgen die undurchsichtigen Instanzen in drei Gruppen:
+[wirft Schatten, außerhalb der Sicht] [wirft Schatten, sichtbar] [wirft keinen, sichtbar] – je nach Teil-ID. `FEST` zeichnet
+die sichtbaren (Tiefe schreiben), `SCHATTEN` die werfenden in die Shadow-Map (Tiefe aus `licht_proj`). Danach `DURCH` (Farbe
+mit Deckkraft < 1) von hinten nach vorn (Abstand entlang der Blickrichtung, dann Teil-ID), aufeinanderfolgende gleiche Netze
+zusammengefasst; je Zug erst Rückseiten, dann Vorderseiten, Tiefe testen, nicht schreiben. Frustum-Culling ist erledigt.
+
+**INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
+(Mitte, Spielfeld-Pixel, y nach unten) · `f32 hx, hy` (halbe Ausdehnung lokal) · `f32 p0, p1` · `u8 r, g, b, a` (sRGB) ·
+`u32 art | seite << 8` · `u16 u0, v0, u1, v1` (Atlas-Pixel). Eckpunkt `c ∈ {−1, 1}²`: `lokal = c · (h + rand)` mit `rand = 1`
+bei Rechteck/Kreis (Saum für die Kantenglättung), sonst 0; `pos = M · lokal + t`; Texturkoordinate (Bild/Glyphe)
+`uv = mix((u0, v0), (u1, v1), (c + 1) / 2)` (c.y = −1 oben).
+
+| art | Bedeutung |
+|---|---|
+| 1 Rechteck | abgerundetes Rechteck, halbe Größe `h`, Rundung `p0` (≤ min(h)), Umriss `p1` (> 0: nur ein Rand dieser Dicke nach innen) |
+| 2 Kreis | Radius `hx`, Umriss `p1`; auch Partikel |
+| 3 Bild | Atlasseite `seite`, Texel nächster Nachbar (pixelscharf, auf das Rechteck geklemmt), × Farbe (Tönung) |
+| 4 Glyphe | SCHRIFT-Textur (linear), Kante bei 0.5, × Farbe |
+
+Alle 2D-Instanzen sind **eine** Liste in Zeichenreihenfolge (`ebene`, dann Teil-ID, dann Registry-Reihenfolge, dann
+Glyphen-/Teilchenreihenfolge) → ein instanzierter Draw-Call (6 Ecken × k), über der 3D-Szene, ohne Tiefe, Mischen
+„source over“ in sRGB. Spielfeld-Culling ist erledigt.
+
+**Zeichenfolge der Glut:** Ziel mit `hintergrund` füllen (Spielfeld seitentreu einpassen, Ränder ebenfalls Hintergrund) →
+falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → INST2D.
+
+## 5. Schema (`site/js/herd/schema.json`)
+
+Erzeugt von `node herd/baue.js` aus `schema_json`; ein Test vergleicht Datei und Kern. Inhalt: `format`, `feldtypen`
+(Nummer, Name, `erwartet`-Text), `komponenten` (Name, Nummer = Typnummer, Raum `2D|3D|beide`, `braucht`, `system`, `felder`
+mit Nummer, Name, Typ, Standard, min, max, `wahl`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (für die
+Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf darunter sein), `palette` (Name, Hex, Zeichen),
+`grundformen`. Test-Komponenten (`Probe`) fehlen.
+
+## 6. Bauen
+
+- `node herd/baue.js` → `cargo build --release -p herd-kern-wasm --target wasm32v1-none` (Features wie die Laufzeit:
+  `+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue`, `herd/.cargo/config.toml`), schreibt
+  `site/js/herd/kern.wasm` (keine Importe, kein wasm-bindgen) und `site/js/herd/schema.json`. `--pruefe` vergleicht nur.
+- Nativ: `cargo build` im Ordner `herd/` (Kern ist eine rlib ohne Abhängigkeiten außer `libm`).
+
+## 7. Tests
+
+- `cargo test` (im Ordner `herd/`): Kern (ABI, Fehlertexte, Hierarchie, Systeme, Bildpaket, Erweiterungsprobe, Schema-Datei
+  aktuell, keine Namenskollision), GPU (Offscreen-Bild, wenn ein Adapter da ist).
+- `node herd/test-kern.js`: spielt Szenen-Skripte (B1–B4 klein und voll, Hierarchie/Kopie/Entfernen) gegen `kern.wasm` und
+  gegen den nativen Kern (`herd-bild skript`) und vergleicht **jeden Rückgabewert** und Szenen-/Paket-Hash je Bild – bitgleich.
+
+## 8. Eine Komponente hinzufügen
+
+Siehe HERD.md §9. Kurz: Datei `kern/src/komponenten/<name>.rs` mit `pub static ART: Art` (Schema, optional `takt`, `bild`,
+`huelle`), `pub mod <name>;` und **eine Zeile** in `ARTEN`; `node herd/baue.js`. Die Test-Komponente
+`komponenten/probe.rs` (nur `cfg(test)`/Feature `probe`) zeigt, dass das genügt (`cargo test erweiterungsprobe`).

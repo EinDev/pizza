@@ -1,0 +1,76 @@
+{
+  "format": "herd-schema/1",
+  "feldtypen": [{"nummer": 1, "name": "zahl", "erwartet": "eine Zahl"}, {"nummer": 2, "name": "ganz", "erwartet": "eine Ganzzahl"}, {"nummer": 3, "name": "diavolo", "erwartet": "ja/nein"}, {"nummer": 4, "name": "text", "erwartet": "einen Text"}, {"nummer": 5, "name": "wahl", "erwartet": "einen Text"}, {"nummer": 6, "name": "farbe", "erwartet": "eine Farbe"}, {"nummer": 7, "name": "teil", "erwartet": "ein Teil"}, {"nummer": 8, "name": "form", "erwartet": "eine Form"}, {"nummer": 9, "name": "bildchen", "erwartet": "ein Bildchen"}, {"nummer": 10, "name": "bildchen-liste", "erwartet": "ein Blech aus Bildchen"}],
+  "komponenten": [
+    {"name": "Rechteck", "nummer": 1, "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "breite", "typ": "zahl", "standard": 10, "min": 0, "max": null},
+      {"nummer": 2, "name": "hoehe", "typ": "zahl", "standard": 10, "min": 0, "max": null},
+      {"nummer": 3, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
+      {"nummer": 4, "name": "rundung", "typ": "zahl", "standard": 0, "min": 0, "max": null},
+      {"nummer": 5, "name": "umriss", "typ": "zahl", "standard": 0, "min": 0, "max": null}]},
+    {"name": "Kreis", "nummer": 2, "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "radius", "typ": "zahl", "standard": 10, "min": 0, "max": null},
+      {"nummer": 2, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
+      {"nummer": 3, "name": "umriss", "typ": "zahl", "standard": 0, "min": 0, "max": null}]},
+    {"name": "Text", "nummer": 3, "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "inhalt", "typ": "text", "standard": "", "min": null, "max": null},
+      {"nummer": 2, "name": "groesse", "typ": "zahl", "standard": 16, "min": 0, "max": null},
+      {"nummer": 3, "name": "farbe", "typ": "farbe", "standard": "ofen", "min": null, "max": null},
+      {"nummer": 4, "name": "ausrichtung", "typ": "wahl", "standard": "links", "min": null, "max": null, "wahl": ["links", "mitte", "rechts"]}]},
+    {"name": "Bild", "nummer": 4, "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "bildchen", "typ": "bildchen", "standard": null, "min": null, "max": null},
+      {"nummer": 2, "name": "groesse", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 3, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
+      {"nummer": 4, "name": "spiegeln", "typ": "diavolo", "standard": false, "min": null, "max": null}]},
+    {"name": "Koerper", "nummer": 5, "raum": "3D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "form", "typ": "form", "standard": null, "min": null, "max": null},
+      {"nummer": 2, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
+      {"nummer": 3, "name": "glanz", "typ": "zahl", "standard": 0.3, "min": 0, "max": 1},
+      {"nummer": 4, "name": "leuchten", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 5, "name": "bild", "typ": "bildchen", "standard": null, "min": null, "max": null},
+      {"nummer": 6, "name": "schatten", "typ": "diavolo", "standard": true, "min": null, "max": null}]},
+    {"name": "Licht", "nummer": 6, "raum": "3D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "art", "typ": "wahl", "standard": "punkt", "min": null, "max": null, "wahl": ["punkt", "sonne"]},
+      {"nummer": 2, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
+      {"nummer": 3, "name": "staerke", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 4, "name": "reichweite", "typ": "zahl", "standard": 10, "min": 0, "max": null},
+      {"nummer": 5, "name": "schatten", "typ": "diavolo", "standard": true, "min": null, "max": null}]},
+    {"name": "Kamera", "nummer": 7, "raum": "3D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "sicht", "typ": "zahl", "standard": 60, "min": 1, "max": 170},
+      {"nummer": 2, "name": "nah", "typ": "zahl", "standard": 0.1, "min": 0.001, "max": null},
+      {"nummer": 3, "name": "fern", "typ": "zahl", "standard": 500, "min": 0.001, "max": null},
+      {"nummer": 4, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null}]},
+    {"name": "Bewegung", "nummer": 8, "raum": "beide", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "tempoX", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 2, "name": "tempoY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 3, "name": "tempoZ", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 4, "name": "beschleunigungX", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 5, "name": "beschleunigungY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 6, "name": "beschleunigungZ", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 7, "name": "drehtempo", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 8, "name": "daempfung", "typ": "zahl", "standard": 0, "min": 0, "max": 1}]},
+    {"name": "Animation", "nummer": 9, "raum": "2D", "braucht": ["Bild"], "system": true, "felder": [
+      {"nummer": 1, "name": "bilder", "typ": "bildchen-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 2, "name": "proSekunde", "typ": "zahl", "standard": 8, "min": 0, "max": null},
+      {"nummer": 3, "name": "schleife", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 4, "name": "laeuft", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 5, "name": "nummer", "typ": "ganz", "standard": 1, "min": 1, "max": null}]},
+    {"name": "Partikel", "nummer": 10, "raum": "2D", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "rate", "typ": "zahl", "standard": 30, "min": 0, "max": 100000},
+      {"nummer": 2, "name": "lebensdauer", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 3, "name": "tempo", "typ": "zahl", "standard": 80, "min": null, "max": null},
+      {"nummer": 4, "name": "richtung", "typ": "zahl", "standard": 270, "min": null, "max": null},
+      {"nummer": 5, "name": "streuung", "typ": "zahl", "standard": 360, "min": 0, "max": 360},
+      {"nummer": 6, "name": "schwerkraft", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 7, "name": "groesse", "typ": "zahl", "standard": 6, "min": 0, "max": null},
+      {"nummer": 8, "name": "groesseEnde", "typ": "zahl", "standard": 0, "min": 0, "max": null},
+      {"nummer": 9, "name": "farbe", "typ": "farbe", "standard": "senf", "min": null, "max": null},
+      {"nummer": 10, "name": "farbeEnde", "typ": "farbe", "standard": "tomate", "min": null, "max": null},
+      {"nummer": 11, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 12, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]}
+  ],
+  "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
+  "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],
+  "palette": [{"name": "weiss", "hex": "#FFFFFF", "zeichen": "w"}, {"name": "schwarz", "hex": "#000000", "zeichen": "s"}, {"name": "grau", "hex": "#8A8580", "zeichen": "g"}, {"name": "ofen", "hex": "#2F2A26", "zeichen": "o"}, {"name": "tomate", "hex": "#D9452B", "zeichen": "t"}, {"name": "salami", "hex": "#A83232", "zeichen": "r"}, {"name": "schinken", "hex": "#F2A0A0", "zeichen": "p"}, {"name": "basilikum", "hex": "#3E8E41", "zeichen": "b"}, {"name": "oliven", "hex": "#6B7A2A", "zeichen": "l"}, {"name": "mozzarella", "hex": "#FFF6E0", "zeichen": "m"}, {"name": "teig", "hex": "#E8C48A", "zeichen": "e"}, {"name": "kruste", "hex": "#C8955A", "zeichen": "k"}, {"name": "ananas", "hex": "#F5C518", "zeichen": "a"}, {"name": "senf", "hex": "#F2B33D", "zeichen": "y"}, {"name": "himmel", "hex": "#8EC9F0", "zeichen": "h"}, {"name": "wasser", "hex": "#2E6FD9", "zeichen": "u"}, {"name": "aubergine", "hex": "#5B2A6E", "zeichen": "v"}],
+  "grundformen": ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"]
+}

@@ -1,12 +1,16 @@
 [package]
 name = "herd-kern"
-description = "Herd-Kern: Nachrichten → Zeichenliste (no_std, bitgleich nativ = Wasm)"
+description = "Herd-Kern: Welt, Komponenten, Systeme → Bildpaket (no_std, bitgleich nativ = Wasm)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
 path = "src/lib.rs"
+
+[features]
+# Test-Komponente `Probe` auch außerhalb von `cargo test` (z. B. für Werkzeuge).
+probe = []
 
 [dependencies]
 libm = "0.2.16"

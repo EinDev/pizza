@@ -1,4 +1,5 @@
-//! Wasm-Hülle des Herd-Kerns: Exporte `hz_*` (siehe herd/README.md), keine Importe, eigener kleiner Allocator.
+//! Wasm-Hülle des Herd-Kerns: die Exporte des Herd-ABI (herd/README.md), keine Importe, eigener kleiner Allocator.
+//! Jeder Export ruft genau die gleichnamige Methode von `herd_kern::Kern`.
 //! Wird nur für `wasm32v1-none` gebaut (`node herd/baue.js`); nativ ist die Crate leer.
 
 #![cfg_attr(target_arch = "wasm32", no_std)]
@@ -100,7 +101,8 @@ mod wasm {
 
     struct Zustand {
         kern: Option<Kern>,
-        puffer: Vec<u8>,
+        /// Austauschpuffer für Texte/Listen (8-Byte-ausgerichtet)
+        puffer: Vec<u64>,
     }
     struct Global(UnsafeCell<Zustand>);
     unsafe impl Sync for Global {}
@@ -109,101 +111,127 @@ mod wasm {
     fn z() -> &'static mut Zustand {
         unsafe { &mut *Z.0.get() }
     }
-    fn kern() -> &'static mut Kern {
+    fn k() -> &'static mut Kern {
         z().kern.get_or_insert_with(Kern::neu)
     }
-
-    // ---------------- Exporte ----------------
-
-    /// Version des Zeichenlisten-Formats.
-    #[no_mangle]
-    pub extern "C" fn hz_version() -> u32 {
-        herd_kern::liste::VERSION
+    fn b<'a>(p: i32, l: i32) -> &'a [u8] {
+        if l <= 0 || p == 0 {
+            &[]
+        } else {
+            unsafe { core::slice::from_raw_parts(p as usize as *const u8, l as usize) }
+        }
     }
-
-    /// Eingabepuffer für eine Nachricht von `laenge` Bytes; der Zeiger gilt bis zum nächsten `hz_puffer`.
-    #[no_mangle]
-    pub extern "C" fn hz_puffer(laenge: u32) -> *mut u8 {
-        let p = &mut z().puffer;
-        p.clear();
-        p.resize(laenge as usize, 0);
-        p.as_mut_ptr()
+    fn bm<'a>(p: i32, l: i32) -> &'a mut [u8] {
+        if l <= 0 || p == 0 {
+            &mut []
+        } else {
+            unsafe { core::slice::from_raw_parts_mut(p as usize as *mut u8, l as usize) }
+        }
     }
-
-    /// Verarbeitet die ersten `laenge` Bytes des Eingabepuffers. Ergebnis: Nachrichtenart 1 … 5 oder Fehler < 0.
-    #[no_mangle]
-    pub extern "C" fn hz_nachricht(laenge: u32) -> i32 {
-        let zs = z();
-        let n = (laenge as usize).min(zs.puffer.len());
-        let k = zs.kern.get_or_insert_with(Kern::neu);
-        match k.nachricht(&zs.puffer[..n]) {
-            Ok(a) => a as i32,
-            Err(f) => f as i32,
+    fn zahlen(p: i32, n: i32) -> Vec<f64> {
+        b(p, n.max(0) * 8).chunks_exact(8).map(|c| f64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]])).collect()
+    }
+    fn ids(p: i32, n: i32) -> Vec<u32> {
+        b(p, n.max(0) * 4).chunks_exact(4).map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect()
+    }
+    /// Text-Ausgabe mit Retry (K-013): passt er nicht, wird nichts geschrieben.
+    fn text_aus(t: &[u8], p: i32, kap: i32) -> i32 {
+        if t.len() as i64 <= kap as i64 {
+            bm(p, t.len() as i32).copy_from_slice(t);
+        }
+        t.len() as i32
+    }
+    fn ids_aus(v: &[u32], p: i32) {
+        let ziel = bm(p, v.len() as i32 * 4);
+        for (i, x) in v.iter().enumerate() {
+            ziel[i * 4..i * 4 + 4].copy_from_slice(&x.to_le_bytes());
         }
     }
 
-    /// Bereitet das letzte Bild für `breite × hoehe` Gerätepixel vor; Ergebnis: Länge der Zeichenliste.
-    #[no_mangle]
-    pub extern "C" fn hz_bereite(breite: u32, hoehe: u32) -> u32 {
-        kern().bereite(breite, hoehe).len() as u32
+    macro_rules! export {
+        ($(fn $name:ident($($a:ident: $t:ty),*) -> $r:ty $body:block)*) => {
+            $(
+                #[no_mangle]
+                pub extern "C" fn $name($($a: $t),*) -> $r $body
+            )*
+        };
     }
 
-    #[no_mangle]
-    pub extern "C" fn hz_liste() -> *const u8 {
-        kern().liste().as_ptr()
-    }
-
-    #[no_mangle]
-    pub extern "C" fn hz_liste_laenge() -> u32 {
-        kern().liste().len() as u32
-    }
-
-    /// Ecken des Netzes `id` (Länge = ecken × 32 laut Netztabelle) oder 0.
-    #[no_mangle]
-    pub extern "C" fn hz_netz_ecken(id: u32) -> *const u8 {
-        kern().netz(id).map(|n| n.0.as_ptr()).unwrap_or(core::ptr::null())
-    }
-
-    /// Indizes des Netzes `id` (u32, Länge = indizes × 4) oder 0.
-    #[no_mangle]
-    pub extern "C" fn hz_netz_indizes(id: u32) -> *const u8 {
-        kern().netz(id).map(|n| n.1.as_ptr()).unwrap_or(core::ptr::null())
-    }
-
-    /// Texturdaten `id` (RGBA8 bzw. R8) oder 0.
-    #[no_mangle]
-    pub extern "C" fn hz_textur(id: u32) -> *const u8 {
-        kern().textur(id).map(|t| t.as_ptr()).unwrap_or(core::ptr::null())
-    }
-
-    /// Fensterangaben: 0 Breite, 1 Höhe, 2 Zeiger auf den Titel (UTF-8), 3 Titellänge, 4 offen (0/1). Ohne `fenster` 0.
-    #[no_mangle]
-    pub extern "C" fn hz_fenster(was: u32) -> u32 {
-        let k = kern();
-        if was == 4 {
-            return k.offen() as u32;
+    export! {
+        fn abi_version() -> i32 { 1 }
+        fn puffer(laenge: i32) -> i32 {
+            let p = &mut z().puffer;
+            let n = (laenge.max(0) as usize).div_ceil(8).max(1);
+            if p.len() < n {
+                p.resize(n, 0);
+            }
+            p.as_mut_ptr() as usize as i32
         }
-        match k.fenster() {
-            None => 0,
-            Some(f) => match was {
-                0 => f.breite as u32,
-                1 => f.hoehe as u32,
-                2 => f.titel.as_ptr() as u32,
-                3 => f.titel.len() as u32,
-                _ => 0,
-            },
+
+        fn fehler_art() -> i32 { k().fehler_art() }
+        fn fehler_code() -> i32 { k().fehler_code() }
+        fn fehler_neu() -> i32 { k().fehler_neu() }
+        fn fehler_text(p: i32, kap: i32) -> i32 { text_aus(k().fehler_text().as_bytes(), p, kap) }
+        fn melde_typfehler(typ: i32, feld: i32, p: i32, l: i32) -> i32 { k().melde_typfehler(typ, feld, b(p, l)) }
+
+        fn welt_neu(breite: f64, hoehe: f64, p: i32, l: i32) -> i32 { k().welt_neu(breite, hoehe, b(p, l)) }
+        fn welt_titel(p: i32, l: i32) -> i32 { k().welt_titel(b(p, l)) }
+        fn welt_hintergrund(p: i32, l: i32) -> i32 { k().welt_hintergrund(b(p, l)) }
+        fn welt_himmel(op: i32, ol: i32, up: i32, ul: i32) -> i32 { k().welt_himmel(b(op, ol), b(up, ul)) }
+        fn welt_umgebung(p: i32, l: i32, staerke: f64) -> i32 { k().welt_umgebung(b(p, l), staerke) }
+        fn welt_nebel(p: i32, l: i32, von: f64, bis: f64) -> i32 { k().welt_nebel(b(p, l), von, bis) }
+        fn welt_hole(was: i32) -> f64 { k().welt_hole(was) }
+
+        fn teil_neu(raum: i32) -> i32 { k().teil_neu(raum) }
+        fn teil_entferne(teil: i32) -> i32 { k().teil_entferne(teil) }
+        fn teil_kopie(teil: i32) -> i32 { k().teil_kopie(teil) }
+        fn teil_haenge(teil: i32, an: i32) -> i32 { k().teil_haenge(teil, an) }
+        fn teil_kinder(teil: i32, p: i32, kap: i32) -> i32 {
+            let mut v = alloc::vec![0u32; kap.max(0) as usize];
+            let n = k().teil_kinder(teil, &mut v);
+            if n >= 0 && n <= kap { ids_aus(&v[..n as usize], p); }
+            n
         }
-    }
+        fn teil_setze(teil: i32, feld: i32, wert: f64) -> i32 { k().teil_setze(teil, feld, wert) }
+        fn teil_hole(teil: i32, feld: i32) -> f64 { k().teil_hole(teil, feld) }
+        fn teil_lage(teil: i32, x: f64, y: f64, zz: f64) -> i32 { k().teil_lage(teil, x, y, zz) }
+        fn teil_verschiebe(teil: i32, x: f64, y: f64, zz: f64) -> i32 { k().teil_verschiebe(teil, x, y, zz) }
+        fn teil_groesse(teil: i32, x: f64, y: f64, zz: f64) -> i32 { k().teil_groesse(teil, x, y, zz) }
+        fn teil_schaue(teil: i32, x: f64, y: f64, zz: f64) -> i32 { k().teil_schaue(teil, x, y, zz) }
+        fn teil_trifft(a: i32, bb: i32) -> i32 { k().teil_trifft(a, bb) }
 
-    /// FNV-1a 64 über Zeichenliste + Ressourcendaten (wie `Kern::fnv`).
-    #[no_mangle]
-    pub extern "C" fn hz_fnv() -> u64 {
-        kern().fnv()
-    }
+        fn komp_neu(typ: i32) -> i32 { k().komp_neu(typ) }
+        fn komp_haenge(komp: i32, teil: i32) -> i32 { k().komp_haenge(komp, teil) }
+        fn komp_loese(komp: i32) -> i32 { k().komp_loese(komp) }
+        fn komp_von(teil: i32, typ: i32) -> i32 { k().komp_von(teil, typ) }
+        fn komp_info(komp: i32, was: i32) -> i32 { k().komp_info(komp, was) }
+        fn typ_nummer(p: i32, l: i32) -> i32 { k().typ_nummer(b(p, l)) }
+        fn feld_nummer(typ: i32, p: i32, l: i32) -> i32 { k().feld_nummer(typ, b(p, l)) }
 
-    /// Vergisst alles (neuer Kern, z. B. für ein neues Programm).
-    #[no_mangle]
-    pub extern "C" fn hz_zuruecksetzen() {
-        z().kern = Some(Kern::neu());
+        fn setze_zahl(komp: i32, feld: i32, wert: f64) -> i32 { k().setze_zahl(komp, feld, wert) }
+        fn hole_zahl(komp: i32, feld: i32) -> f64 { k().hole_zahl(komp, feld) }
+        fn setze_text(komp: i32, feld: i32, p: i32, l: i32) -> i32 { k().setze_text(komp, feld, b(p, l)) }
+        fn hole_text(komp: i32, feld: i32, p: i32, kap: i32) -> i32 { k().hole_text(komp, feld, bm(p, kap)) }
+        fn setze_liste(komp: i32, feld: i32, p: i32, n: i32) -> i32 { k().setze_liste(komp, feld, &ids(p, n)) }
+        fn hole_liste(komp: i32, feld: i32, p: i32, kap: i32) -> i32 {
+            let mut v = alloc::vec![0u32; kap.max(0) as usize];
+            let n = k().hole_liste(komp, feld, &mut v);
+            if n >= 0 && n <= kap { ids_aus(&v[..n as usize], p); }
+            n
+        }
+
+        fn form_grund(art: i32, teile: f64, dicke: f64) -> i32 { k().form_grund(art, teile, dicke) }
+        fn form_eigene(pp: i32, pn: i32, dp: i32, dn: i32, glatt: i32) -> i32 { k().form_eigene(&zahlen(pp, pn), &zahlen(dp, dn), glatt) }
+        fn bildchen_neu(zp: i32, zl: i32, fp: i32, fl: i32) -> i32 { k().bildchen_neu(b(zp, zl), b(fp, fl)) }
+        fn bildchen_rgba(breite: i32, hoehe: i32, p: i32) -> i32 { k().bildchen_rgba(breite, hoehe, b(p, breite.max(0).saturating_mul(hoehe.max(0)).saturating_mul(4))) }
+        fn ressource_hole(id: i32, was: i32) -> f64 { k().ressource_hole(id, was) }
+
+        fn takt() -> i32 { k().takt() }
+        fn bild(bildnummer: i32) -> i32 { k().bild(bildnummer) }
+        fn bild_zeiger() -> i32 { k().paket().as_ptr() as usize as i32 }
+        fn paket_voll() -> i32 { k().paket_voll() }
+        fn hash_szene(p: i32) -> i32 { let h = k().hash_szene(); text_aus(&herd_kern::hash::hex(h), p, 16) }
+        fn hash_paket(p: i32) -> i32 { let h = k().hash_paket(); text_aus(&herd_kern::hash::hex(h), p, 16) }
+        fn schema_json(p: i32, kap: i32) -> i32 { text_aus(k().schema_json().as_bytes(), p, kap) }
     }
 }

@@ -163,6 +163,8 @@ pub struct Satzstueck {
     pub v0: f32,
     pub u1: f32,
     pub v1: f32,
+    /// Rechteck im Schriftatlas (Pixel)
+    pub px: [u16; 4],
 }
 
 fn normalisiere(c: char) -> Option<u32> {
@@ -221,6 +223,7 @@ pub fn setze(s: &Schrift, text: &str, groesse: f32, ausrichtung: u8, mut ausgabe
                     v0: g.y as f32 * hb,
                     u1: (g.x as f32 + g.b as f32) * ab,
                     v1: (g.y as f32 + g.h as f32) * hb,
+                    px: [g.x, g.y, g.x + g.b, g.y + g.h],
                 });
             }
             stift += g.vorschub;

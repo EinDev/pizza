@@ -3,13 +3,21 @@
 
 use alloc::vec::Vec;
 
-use crate::lesen::FormDaten;
-use crate::liste::Schreibe;
 use crate::mathe::*;
+
+/// Beschreibung einer Form: `art` 0 = eigene (Punkte/Dreiecke), 1 Würfel, 2 Kugel, 3 Zylinder, 4 Kegel, 5 Ebene, 6 Ring.
+#[derive(Clone, Debug)]
+pub struct FormDaten {
+    pub art: u8,
+    pub teile: u32,
+    pub dicke: f32,
+    pub glatt: bool,
+    pub punkte: Vec<f32>,
+    pub dreiecke: Vec<u32>,
+}
 
 #[derive(Clone, Debug)]
 pub struct Netz {
-    pub version: u32,
     /// Ecken: je 8 × f32 (Position, Normale, UV), Little Endian.
     pub ecken: Vec<u8>,
     /// Indizes: u32 Little Endian.
@@ -41,7 +49,9 @@ impl Bau {
         let mut mi = V3::neu(f32::MAX, f32::MAX, f32::MAX);
         let mut ma = V3::neu(f32::MIN, f32::MIN, f32::MIN);
         for e in &self.e {
-            ecken.f32s(e);
+            for x in e {
+                ecken.extend_from_slice(&fin(*x).to_le_bytes());
+            }
             let p = V3::neu(fin(e[0]), fin(e[1]), fin(e[2]));
             mi = mi.min(p);
             ma = ma.max(p);
@@ -52,10 +62,9 @@ impl Bau {
         }
         let mut indizes = Vec::with_capacity(self.i.len() * 4);
         for x in &self.i {
-            indizes.u32(*x);
+            indizes.extend_from_slice(&x.to_le_bytes());
         }
         Netz {
-            version: 0,
             ecken_anzahl: self.e.len() as u32,
             index_anzahl: self.i.len() as u32,
             ecken,
@@ -278,7 +287,7 @@ fn eigene(punkte: &[f32], dreiecke: &[u32], glatt: bool) -> Netz {
     b.fertig()
 }
 
-/// Netz aus einer `form`-Nachricht.
+/// Netz aus einer Formbeschreibung (Parameter bereits geprüft).
 pub fn netz_aus(f: &FormDaten) -> Netz {
     let teile = if f.teile < 3 {
         3
@@ -336,7 +345,7 @@ mod tests {
     #[test]
     fn grundformen_windung_und_groesse() {
         for art in 1..=6u8 {
-            let f = FormDaten { id: 1, art, teile: 16, dicke: 0.3, glatt: false, punkte: Vec::new(), dreiecke: Vec::new() };
+            let f = FormDaten { art, teile: 16, dicke: 0.3, glatt: false, punkte: Vec::new(), dreiecke: Vec::new() };
             let n = netz_aus(&f);
             pruefe_windung(&n);
             assert!(n.max.x <= 0.5001 && n.min.x >= -0.5001, "Art {} zu groß", art);
