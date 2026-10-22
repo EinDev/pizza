@@ -346,7 +346,7 @@ Bote.sage((k.aktiv() + " " + k.sichtbar() + " " + k));
 t.zeige(k);
 `, {
     uiEreignisse: [],
-    out: ["5", "typ", "Stil 'rahmen' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.",
+    out: ["5", "typ", "Stil 'rahmen' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.",
       "Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.",
       "ausrichtung", "Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.", "breite-typ", "ja ja Knopf(z1)"],
     ui: [fenster("T", 100, 100), baum({ id: "z1", art: "knopf", text: "5", stil: { schrift: "gross", breite: 2.5 } }), schliesse()],
@@ -703,7 +703,7 @@ Bote.sage(("ok"));
       "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
       "Animation 'karton' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
       "Animation '5' gibt es nicht. Erlaubt: puls, huepfen, wackeln, funkeln, einblenden, aufpoppen.",
-      "Stil 'karton' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.",
+      "Stil 'karton' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.",
       "ok",
     ],
     noWarn: ["W0102"],
@@ -959,7 +959,7 @@ t.bediene();
       "Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 1.5.",
       "Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht \"2\".",
       "Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht -1.",
-      "Stil 'minbreite' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite."],
+      "Stil 'minbreite' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht."],
     ui: [fenster("S"),
       baum({ id: "z4", art: "stapel", kinder: [
         { id: "z1", art: "schild", text: "Lang", stil: { zeilen: 2 } },

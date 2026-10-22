@@ -38,8 +38,10 @@ const F_GEWAEHLT: u32 = 12;
 const F_OPTIONEN: u32 = 13;
 const F_SPALTEN: u32 = 14;
 const F_ZEILEN: u32 = 15;
+/// Theke v6 (K-124): Marke am Reiter-Tab der Seite (optionales Textfeld wie hinweis)
+const F_MARKE: u32 = 16;
 const F_STIL: u32 = 32;
-const FELD_NAMEN: [&str; 16] = ["wert", "text", "wert", "an", "aktiv", "sichtbar", "hinweis", "uebergang", "intervall", "titel", "klappbar", "zu", "gewaehlt", "optionen", "spalten", "zeilen"];
+const FELD_NAMEN: [&str; 17] = ["wert", "text", "wert", "an", "aktiv", "sichtbar", "hinweis", "uebergang", "intervall", "titel", "klappbar", "zu", "gewaehlt", "optionen", "spalten", "zeilen", "marke"];
 
 /// Bindung (K-116): Zutat + Feld ← Ausdruck; Quellen (Objekt, Feld) werden bei jeder Auswertung neu erfasst.
 struct Bindung { zutat: W, feld: u32, fnw: W, dirty: bool, quellen: Vec<(W, u32)>, knoten: i32 }
@@ -56,11 +58,11 @@ const DURCHLAEUFE_MAX: u32 = 100;
 const ARTEN: [&str; 13] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter", "auswahl", "tastatur"];
 const ART_NAMEN: [u32; 13] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER, N_G_AUSWAHL, N_G_TASTATUR];
 fn behaelter(zart: u32) -> bool { matches!(zart, 4 | 5 | 8 | 10) }
-/// K-068/K-113: Stil-Whitelist in verbindlicher Reihenfolge (Fehlertext „Erlaubt: …“)
-const STIL_NAMEN: [&str; 8] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite"];
-/// Art je Stil: 0 = Zahl ≥ 0, 1 = Vokabular (ausrichtung/schrift/farbe), 2 = ganze Zahl ≥ 1 (zeilen)
-const STIL_ART: [u8; 8] = [0, 0, 0, 1, 1, 1, 2, 0];
-const STIL_ERLAUBT: &str = "breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite";
+/// K-068/K-113/K-120: Stil-Whitelist in verbindlicher Reihenfolge (Fehlertext „Erlaubt: …“)
+const STIL_NAMEN: [&str; 9] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht"];
+/// Art je Stil: 0 = Zahl ≥ 0, 1 = Vokabular (ausrichtung/schrift/farbe/senkrecht), 2 = ganze Zahl ≥ 1 (zeilen)
+const STIL_ART: [u8; 9] = [0, 0, 0, 1, 1, 1, 2, 0, 1];
+const STIL_ERLAUBT: &str = "breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht";
 
 #[repr(C)]
 pub struct UiTheke { pub art: u32, pub gezeigt: u32, pub geschlossen: u32, pub _r: u32, pub titel: W, pub breite: f64, pub hoehe: f64, pub wurzel: W }
@@ -73,6 +75,8 @@ pub struct UiZutat {
     pub gewaehlt: f64, pub spalten: Vec<W>, pub zeilen: Vec<Vec<W>>, pub uebergang: bool,
     // Theke v4: Abschnitt klappbar/zu (K-108), Auswahl-Optionen (K-109), Tastatur-Rückruf (K-110)
     pub klappbar: bool, pub zu: bool, pub optionen: Vec<W>, pub bei_taste: W,
+    // Theke v6 (K-124): Marke am Reiter-Tab dieser Seite
+    pub marke: W,
 }
 
 static mut THEKE: W = KARTON;
@@ -100,7 +104,7 @@ pub fn ist_zettel(w: W) -> bool { art(w) == A_ZETTEL }
 pub fn art_name(w: W) -> u32 { ART_NAMEN[zutat(w).zart as usize] }
 
 // ---------------------------------------------------------------- Bindungen (Theke v5, K-116 … K-118)
-/// bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); `sichtbar, hinweis` kommen für jede Zutat dazu
+/// bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); `sichtbar, hinweis, marke` kommen für jede Zutat dazu
 fn bindbar(zart: u32) -> Vec<u32> {
     let mut v: Vec<u32> = match zart {
         0 => alloc::vec![F_TEXT], 1 => alloc::vec![F_TEXT, F_AKTIV], 2 => alloc::vec![F_WERT], 3 => alloc::vec![F_TEXT, F_AN],
@@ -108,7 +112,7 @@ fn bindbar(zart: u32) -> Vec<u32> {
         9 => alloc::vec![F_SPALTEN, F_ZEILEN], 10 => alloc::vec![F_GEWAEHLT], 11 => alloc::vec![F_OPTIONEN, F_GEWAEHLT, F_AKTIV],
         12 => alloc::vec![F_AKTIV], _ => Vec::new(),
     };
-    v.push(F_SICHTBAR); v.push(F_HINWEIS);
+    v.push(F_SICHTBAR); v.push(F_HINWEIS); v.push(F_MARKE);
     v
 }
 /// `'text'` bzw. `Stil 'farbe'` (Fehlertexte K-116/K-118)
@@ -137,12 +141,12 @@ fn gebunden(o: W, feld: u32) -> bool {
     true
 }
 /// K-118 „eine Bindung rechnet nur“: in einer Bindung sind Zustandsänderungen verboten (true = geworfen).
-/// Überladene Getter/Setter (aktiv, sichtbar, hinweis, uebergang, klappbar, zu) sind ohne Argument erlaubt.
+/// Überladene Getter/Setter (aktiv, sichtbar, hinweis, marke, uebergang, klappbar, zu) sind ohne Argument erlaubt.
 fn nur_rechnen(id: u32, pos: &[W]) -> bool {
     if unsafe { AKTIV } < 0 { return false; }
     let verboten = matches!(id, N_SETZETEXT | N_SETZEWERT | N_SETZEAN | N_SETZEINTERVALL | N_SETZETITEL | N_WAEHLE_ASCII | N_SETZEOPTIONEN
         | N_SETZESPALTEN | N_SETZEZEILEN | N_HINZU | N_LEEREN | N_BINDE | N_BINDESTIL | N_ANIMIERE | N_STIL | N_SCHWEBE | N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZE)
-        || (matches!(id, N_AKTIV | N_SICHTBAR | N_HINWEIS | N_UEBERGANG | N_KLAPPBAR | N_ZU) && !pos.is_empty());
+        || (matches!(id, N_AKTIV | N_SICHTBAR | N_HINWEIS | N_MARKE | N_UEBERGANG | N_KLAPPBAR | N_ZU) && !pos.is_empty());
     if !verboten { return false; }
     let mut t = Tb::neu();
     t.s("Eine Bindung rechnet nur – '").name(id).s("' ist darin nicht erlaubt.");
@@ -248,9 +252,9 @@ fn geaendert(o: W, feld: u32, nachricht: bool, json: String) {
 fn liste_gleich(a: &[W], b: &[W]) -> bool { a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| bytes(*x) == bytes(*y)) }
 fn schreibe_text(o: W, feld: u32, t: W, nachricht: bool) {
     let z = zutat(o);
-    let alt = match feld { F_TEXT => z.text, F_WERT => z.wert, F_HINWEIS => z.hinweis, _ => z.titel };
+    let alt = match feld { F_TEXT => z.text, F_WERT => z.wert, F_HINWEIS => z.hinweis, F_MARKE => z.marke, _ => z.titel };
     if bytes(alt) == bytes(t) { return; }
-    match feld { F_TEXT => z.text = t, F_WERT => z.wert = t, F_HINWEIS => z.hinweis = t, _ => z.titel = t }
+    match feld { F_TEXT => z.text = t, F_WERT => z.wert = t, F_HINWEIS => z.hinweis = t, F_MARKE => z.marke = t, _ => z.titel = t }
     geaendert(o, feld, nachricht, jtext(t));
 }
 fn schreibe_bool(o: W, feld: u32, b: bool, nachricht: bool) {
@@ -336,7 +340,11 @@ fn stil_wert(ki: u32, k: W, w: W) -> Option<W> {
         return Some(w);
     }
     let w = text(w); if sig() { return None; }
-    let erlaubt: &[&str] = match ki { 3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono", "riesig"], _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"] };
+    let erlaubt: &[&str] = match ki {
+        3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono", "riesig"],
+        8 => &["oben", "mitte", "unten", "strecken"],   // K-120: senkrecht
+        _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"],
+    };
     if !erlaubt.contains(&s(w)) {
         let mut t = Tb::neu(); t.s("Wert '").t(w).s("' ist für Stil '").t(k).s("' nicht erlaubt. Erlaubt: ");
         for (i, e) in erlaubt.iter().enumerate() { if i > 0 { t.s(", "); } t.s(e); }
@@ -361,8 +369,8 @@ fn umwandeln(o: W, feld: u32, w: W) -> Option<Feldwert> {
     Some(match feld {
         // K-102: text des Fortschritts ist ein optionales Feld – karton/fehlend → ""; sonst Textform (karton → "karton")
         F_TEXT if zart == 7 && (w == UNDEF || w == KARTON) => Feldwert::T(neu_str("")),
-        F_HINWEIS if w == UNDEF || w == KARTON => Feldwert::T(neu_str("")),
-        F_TEXT | F_WERT | F_TITEL | F_HINWEIS if !(feld == F_WERT && zart == 7) => { let t = text(w); if sig() { return None; } Feldwert::T(t) }
+        F_HINWEIS | F_MARKE if w == UNDEF || w == KARTON => Feldwert::T(neu_str("")),
+        F_TEXT | F_WERT | F_TITEL | F_HINWEIS | F_MARKE if !(feld == F_WERT && zart == 7) => { let t = text(w); if sig() { return None; } Feldwert::T(t) }
         F_WERT => Feldwert::Z(fortschritt_wert(w)?),
         F_AN | F_AKTIV | F_SICHTBAR | F_UEBERGANG | F_KLAPPBAR | F_ZU => { let b = bool_pruefen(w); if sig() { return None; } Feldwert::B(b) }
         F_INTERVALL => Feldwert::Z(takt_intervall(w)?),
@@ -513,6 +521,7 @@ fn baum(w: W, out: &mut String) {
         _ => {}
     }
     if !bytes(z.hinweis).is_empty() { out.push_str(",\"hinweis\":"); json_text(bytes(z.hinweis), out); }
+    if !bytes(z.marke).is_empty() { out.push_str(",\"marke\":"); json_text(bytes(z.marke), out); }
     if !z.sichtbar { out.push_str(",\"sichtbar\":false"); }
     if z.uebergang { out.push_str(",\"uebergang\":true"); }
     if !z.stil.is_empty() { out.push_str(",\"stil\":"); stil_json(z, out, false); }
@@ -722,7 +731,7 @@ fn neue_zutat(zart: u32, pos: &[W], ben: &Ben) -> W {
         text: leer, wert: leer, platzhalter: leer, kinder: Vec::new(), bei_klick: KARTON, bei_aenderung: KARTON, bei_enter: KARTON,
         hinweis: leer, intervall: 1000.0, bei_takt: KARTON, fortschritt: 0.0, titel: leer, titel_liste: Vec::new(), gewaehlt: 1.0,
         spalten: Vec::new(), zeilen: Vec::new(), uebergang: false,
-        klappbar: false, zu: false, optionen: Vec::new(), bei_taste: KARTON,
+        klappbar: false, zu: false, optionen: Vec::new(), bei_taste: KARTON, marke: leer,
     });
     let txt = |w: W| -> W { if w == UNDEF { neu_str("") } else { text(w) } };
     match zart {
@@ -882,7 +891,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
     if ist_theke(o) { return matches!(id, N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZETITEL | N_TITEL | N_ALSTEXT | N_SCHWEBE); }
     if ist_zettel(o) { return matches!(id, N_WERT | N_SETZE | N_ALSTEXT); }
     let z = zutat(o);
-    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS | N_UEBERGANG | N_ANIMIERE | N_BINDE | N_BINDESTIL) { return true; }
+    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS | N_MARKE | N_UEBERGANG | N_ANIMIERE | N_BINDE | N_BINDESTIL) { return true; }
     match z.zart {
         0 => matches!(id, N_TEXT | N_SETZETEXT),
         1 => matches!(id, N_TEXT | N_SETZETEXT | N_BEIKLICK | N_AKTIV),
@@ -915,6 +924,10 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         (_, N_HINWEIS) => {
             if pos.is_empty() { quelle(o, F_HINWEIS); return z.hinweis; }
             return setter(o, F_HINWEIS, pos[0]);
+        }
+        (_, N_MARKE) => {
+            if pos.is_empty() { quelle(o, F_MARKE); return z.marke; }
+            return setter(o, F_MARKE, pos[0]);
         }
         (_, N_UEBERGANG) => {
             if pos.is_empty() { quelle(o, F_UEBERGANG); return bool_w(z.uebergang); }

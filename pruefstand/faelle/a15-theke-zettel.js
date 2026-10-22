@@ -258,7 +258,7 @@ t.bediene();
 `, {
     uiEreignisse: [{ typ: "klick", id: "an" }, { typ: "klick", id: "an" }, { typ: "klick", id: "gleich" }, { typ: "klick", id: "aus" }, { typ: "klick", id: "aus" }, { typ: "klick", id: "schmal" }],
     out: [
-      "Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.",
+      "Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.",
       "Wert 'oben' ist für Stil 'ausrichtung' nicht erlaubt. Erlaubt: links, mitte, rechts.",
       "bindeStil() braucht eine Funktion, z. B. () -> { … }.",
     ],
@@ -370,7 +370,7 @@ probier { [1].brigade(x -> { serviere (a.wert()); }); } verbrannt (KüchenAnanas
     out: [
       "Zettel(5) Zettel(karton) Zettel(x) 7",
       "'falsch' ist Zettel, aber der Wert 5 ist kein(e) Zettel.",
-      "'farbe' lässt sich an Schild(s) nicht binden. Bindbar: text, sichtbar, hinweis.",
+      "'farbe' lässt sich an Schild(s) nicht binden. Bindbar: text, sichtbar, hinweis, marke.",
       "binde() braucht eine Funktion, z. B. () -> { … }.",
       "Läufe: 1",
       "Läufe: 2 [1, 2, 3] 2s",

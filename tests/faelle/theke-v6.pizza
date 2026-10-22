@@ -1,0 +1,32 @@
+// Theke v6 (K-120, K-124): Stil senkrecht (oben/mitte/unten/strecken) und marke (Badge am Reiter-Tab der Seite).
+Theke t = neu Theke("v6", breite: 860, hoehe: 800);
+Zettel sterne = neu Zettel(0);
+Stapel links = neu Stapel([neu Schild("links")], id: "links");
+Stapel rechts = neu Stapel([neu Schild("rechts"), neu Schild("zwei")], id: "rechts");
+Reihe spalten = neu Reihe([links, rechts], id: "spalten").stil("senkrecht", "oben");
+rechts.stil("senkrecht", "strecken");
+probier { spalten.stil("senkrecht", "links"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { spalten.stil("senkrecht", 3); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { spalten.stil("ausrichtung", "oben"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Stapel backstube = neu Stapel([spalten], id: "backstube").marke("neu");
+Stapel imperium = neu Stapel([neu Schild("Imperium")], id: "imperium");
+imperium.binde("marke", () -> (sterne.wert() > 0 ? "⭐ " + sterne.wert() : ""));
+Stapel dritte = neu Stapel(id: "leer").marke(karton);
+Reiter r = neu Reiter(["Backstube", "Imperium", "Leer"], [backstube, imperium, dritte], id: "r");
+Bote.sage(("marke: " + backstube.marke() + " | " + imperium.marke() + " | '" + dritte.marke() + "'"));
+probier { imperium.marke("x"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { links.binde("titel", () -> ("x")); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Knopf stern = neu Knopf("Stern", () -> { sterne.setze(sterne.wert() + 1); }, id: "stern");
+Knopf weg = neu Knopf("weg", () -> {
+    backstube.marke("");             // leer: Marke weg
+    backstube.marke("");             // gleich: nichts (K-117)
+    dritte.marke(12);                  // Textform
+    spalten.stil("senkrecht", karton).stil("senkrecht", "unten");
+    rechts.stil("senkrecht", karton);
+}, id: "weg");
+Knopf bindStil = neu Knopf("bindStil", () -> {
+    spalten.bindeStil("senkrecht", () -> (sterne.wert() > 1 ? "strecken" : "mitte"));
+}, id: "bindStil");
+t.zeige(neu Stapel([r, stern, weg, bindStil]));
+t.bediene();
+Bote.sage(("ende: " + backstube.marke() + " | " + imperium.marke() + " | " + dritte.marke()));

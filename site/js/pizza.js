@@ -1198,14 +1198,16 @@
     auswahl: 'Auswahl', tastatur: 'Tastatur'
   };
   const UI_BEHAELTER = { stapel: true, reihe: true, abschnitt: true, reiter: true };
-  // Stil-Whitelist (K-068, K-113): Reihenfolge der Schlüssel ist der Erlaubt-Text der Fehlermeldung (beide Laufzeiten gleich).
+  // Stil-Whitelist (K-068, K-113, K-120): Reihenfolge der Schlüssel ist der Erlaubt-Text der Fehlermeldung (beide Laufzeiten gleich).
   // 'zahl' = Zahl ≥ 0, 'ganzzahl' = ganze Zahl ≥ 1, Liste = Vokabular.
   const UI_STIL = {
     breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
     ausrichtung: ['links', 'mitte', 'rechts'],
     schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
     farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal'],
-    zeilen: 'ganzzahl', mindestbreite: 'zahl'
+    zeilen: 'ganzzahl', mindestbreite: 'zahl',
+    // Theke v6 (K-120): senkrechte Lage – an einer Reihe für ihre Kinder, an einer Zutat direkt in einer Reihe für sich selbst
+    senkrecht: ['oben', 'mitte', 'unten', 'strecken']
   };
   // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
   const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
@@ -1234,6 +1236,7 @@
       this.kinder = UI_BEHAELTER[art] === true ? [] : null;
       this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
       this.stilNull = null; this.hinweis = ''; this.uebergang = false;
+      this.marke = '';                                       // Theke v6 (K-124): Marke am Reiter-Tab dieser Seite
       this.intervall = 1000; this.beiTakt = null;            // Takt
       this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
       this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter / Auswahl
@@ -1829,6 +1832,12 @@
       this.uiSetze(z, 'hinweis', this.uiWandle(z, 'hinweis', pos[0]), 'setter');
       return z;
     },
+    // Theke v6 (K-124): Marke (Badge) – der Reiter zeigt sie am Tab dieser Seite; optionales Feld wie hinweis
+    'marke': function (z, pos) {
+      if (!pos.length) { this.uiLies(z, 'marke'); return z.marke; }
+      this.uiSetze(z, 'marke', this.uiWandle(z, 'marke', pos[0]), 'setter');
+      return z;
+    },
     'uebergang': function (z, pos) {
       if (!pos.length) { this.uiLies(z, 'uebergang'); return z.uebergang; }
       this.uiSetze(z, 'uebergang', this.uiWandle(z, 'uebergang', pos[0]), 'setter');
@@ -1965,13 +1974,13 @@
       'beiTaste': function (z, pos) { z.beiTaste = this.uiFunktion(pos[0], 'beiTaste'); return z; }
     }))
   };
-  // Theke v5 (K-116): bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); sichtbar, hinweis für jede Zutat
+  // Theke v5 (K-116): bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); sichtbar, hinweis, marke (K-124) für jede Zutat
   const UI_BINDBAR = {
     schild: ['text'], knopf: ['text', 'aktiv'], eingabe: ['wert'], haken: ['text', 'an'], stapel: [], reihe: [],
     takt: ['aktiv', 'intervall'], fortschritt: ['wert', 'text'], abschnitt: ['titel', 'klappbar', 'zu'], tabelle: ['spalten', 'zeilen'],
     reiter: ['gewaehlt'], auswahl: ['optionen', 'gewaehlt', 'aktiv'], tastatur: ['aktiv']
   };
-  const UI_BINDBAR_ALLE = ['sichtbar', 'hinweis'];
+  const UI_BINDBAR_ALLE = ['sichtbar', 'hinweis', 'marke'];
   // Protokollfeld → internes Feld der UiZutat, wo die Namen abweichen
   const UI_FELD_INTERN = { 'fortschritt.wert': 'fortschritt', 'reiter.titel': 'titelListe' };
   const THEKE_M = tabelle({
@@ -2029,7 +2038,7 @@
   // Verbotsliste von K-118 und bleiben erlaubt.
   const UI_REIN = new Set(['id', 'alsText', 'text', 'wert', 'an', 'intervall', 'titel', 'gewaehlt', 'optionen', 'spalten', 'zeilen',
     'beiKlick', 'beiAenderung', 'beiEnter', 'beiTakt', 'beiTaste']);
-  const UI_UEBERLADEN = new Set(['aktiv', 'sichtbar', 'hinweis', 'uebergang', 'klappbar', 'zu']);
+  const UI_UEBERLADEN = new Set(['aktiv', 'sichtbar', 'hinweis', 'marke', 'uebergang', 'klappbar', 'zu']);
   function nurRechnen(tab) {
     for (const k of Object.keys(tab)) {
       if (UI_REIN.has(k)) continue;
@@ -2661,6 +2670,7 @@
         case 'tastatur': if (!z.aktiv) o.aktiv = false; break;
       }
       if (z.hinweis !== '') o.hinweis = z.hinweis;
+      if (z.marke !== '') o.marke = z.marke;
       if (!z.sichtbar) o.sichtbar = false;
       if (z.uebergang) o.uebergang = true;
       if (z.stil !== null) o.stil = Object.assign({}, z.stil);
@@ -2683,7 +2693,7 @@
       switch (feld) {
         case 'text': return z.art === 'fortschritt' && (v === undefined || v === null) ? '' : this.text(v);
         case 'wert': return z.art === 'fortschritt' ? this.fortschrittWert(v) : this.text(v);
-        case 'hinweis': return v === undefined || v === null ? '' : this.text(v);
+        case 'hinweis': case 'marke': return v === undefined || v === null ? '' : this.text(v);
         case 'titel': return this.text(v);
         case 'an': case 'aktiv': case 'sichtbar': case 'uebergang': case 'klappbar': case 'zu': return this.bool(v);
         case 'intervall': return this.taktIntervall(v);

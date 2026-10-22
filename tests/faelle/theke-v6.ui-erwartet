@@ -1,0 +1,7 @@
+{"v":1,"op":"fenster","titel":"v6","breite":860,"hoehe":800}
+{"v":1,"op":"baum","wurzel":{"id":"z5","art":"stapel","kinder":[{"id":"r","art":"reiter","titel":["Backstube","Imperium","Leer"],"gewaehlt":1,"kinder":[{"id":"backstube","art":"stapel","marke":"neu","kinder":[{"id":"spalten","art":"reihe","stil":{"senkrecht":"oben"},"kinder":[{"id":"links","art":"stapel","kinder":[{"id":"z1","art":"schild","text":"links"}]},{"id":"rechts","art":"stapel","stil":{"senkrecht":"strecken"},"kinder":[{"id":"z2","art":"schild","text":"rechts"},{"id":"z3","art":"schild","text":"zwei"}]}]}]},{"id":"imperium","art":"stapel","kinder":[{"id":"z4","art":"schild","text":"Imperium"}]},{"id":"leer","art":"stapel","kinder":[]}]},{"id":"stern","art":"knopf","text":"Stern"},{"id":"weg","art":"knopf","text":"weg"},{"id":"bindStil","art":"knopf","text":"bindStil"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"imperium","marke":"⭐ 1"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"backstube","marke":""},{"id":"leer","marke":"12"},{"id":"spalten","stil":{"senkrecht":"unten"}},{"id":"rechts","stil":{"senkrecht":null}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"spalten","stil":{"senkrecht":"mitte"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"imperium","marke":"⭐ 2"},{"id":"spalten","stil":{"senkrecht":"strecken"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"imperium","marke":"⭐ 3"}]}

@@ -1,7 +1,7 @@
 //! Eingebaute Namen (Intern-IDs). Reihenfolge = ID. Namen, die nicht hier stehen, bekommen zur Laufzeit
 //! fortlaufende IDs (text.rs::name_id); die Tabelle ist rein intern (kein JS-Spiegel, der Compiler übergibt Namen als Text).
 
-pub const NAMEN: [&str; 206] = [
+pub const NAMEN: [&str; 207] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -208,6 +208,7 @@ pub const NAMEN: [&str; 206] = [
     "Zettel",
     "binde",
     "bindeStil",
+    "marke",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -425,6 +426,9 @@ pub const N_BRIGADE: u32 = 202;
 pub const N_G_ZETTEL: u32 = 203;
 pub const N_BINDE: u32 = 204;
 pub const N_BINDESTIL: u32 = 205;
+
+// Theke v6 (K-124): Marke am Reiter-Tab (`zutat.marke(t)` / `marke()`)
+pub const N_MARKE: u32 = 206;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM, K-105: 16 Einträge = Indizes 0–15; eigene Klassen ab 16).
 pub const K_ANANAS: u32 = 0;

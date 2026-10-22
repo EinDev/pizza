@@ -1,0 +1,7 @@
+Wert 'links' ist für Stil 'senkrecht' nicht erlaubt. Erlaubt: oben, mitte, unten, strecken.
+Wert '3' ist für Stil 'senkrecht' nicht erlaubt. Erlaubt: oben, mitte, unten, strecken.
+Wert 'oben' ist für Stil 'ausrichtung' nicht erlaubt. Erlaubt: links, mitte, rechts.
+marke: neu |  | ''
+'marke' von Stapel(imperium) ist gebunden – setze den Zettel, nicht die Zutat.
+'titel' lässt sich an Stapel(links) nicht binden. Bindbar: sichtbar, hinweis, marke.
+ende:  | ⭐ 3 | 12
