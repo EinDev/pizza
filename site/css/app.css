@@ -171,6 +171,7 @@ kbd {
 .knopf-geist { background: transparent; color: var(--text-2); }
 .knopf-geist:hover { background: var(--flaeche-2); color: var(--text); }
 .knopf-icon-only { width: 34px; padding: 0; }
+a.knopf { text-decoration: none; }
 .knopf-abbrechen { background: var(--flaeche-2); border-color: var(--rand-stark); }
 .knopf-abbrechen:hover { border-color: var(--akzent); color: var(--akzent); }
 .knopf-mini {
