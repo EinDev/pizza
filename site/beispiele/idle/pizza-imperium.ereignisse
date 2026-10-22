@@ -395,9 +395,9 @@
 {"typ":"klick","id":"neueroeffnung"}
 {"typ":"klick","id":"neueroeffnung"}
 {"typ":"aenderung","id":"reiter","wert":4}
-{"typ":"klick","id":"geheim-holzofen"}
-{"typ":"klick","id":"geheim-sauerteig"}
-{"typ":"klick","id":"geheim-stammgäste"}
+{"typ":"klick","id":"geheim-lernen-1"}
+{"typ":"klick","id":"geheim-lernen-2"}
+{"typ":"klick","id":"geheim-lernen-3"}
 {"typ":"klick","id":"probe-neapel"}
 {"typ":"klick","id":"probe-neapel"}
 {"typ":"aenderung","id":"reiter","wert":1}
@@ -542,7 +542,8 @@
 {"typ":"klick","id":"neueroeffnung"}
 {"typ":"klick","id":"neueroeffnung"}
 {"typ":"aenderung","id":"reiter","wert":4}
-{"typ":"klick","id":"geheim-sparstrumpf"}
+{"typ":"takt","id":"takt","anzahl":1}
+{"typ":"klick","id":"geheim-lernen-1"}
 {"typ":"aenderung","id":"reiter","wert":1}
 {"typ":"klick","id":"backen"}
 {"typ":"takt","id":"takt","anzahl":300}

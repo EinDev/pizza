@@ -1363,7 +1363,7 @@ klasse UpgradeZeile {
     UpgradeZeile(Upgrade upgrade, Funktion beiKauf) {
         u = upgrade;
         info = neu Schild("", id: "info-" + u.schlüssel);
-        info.stil("schrift", "klein");
+        info.stil("schrift", "klein").stil("hoehe", 34);   // feste Höhe (zwei Zeilen): der Knopf springt nicht, wenn der Text umbricht
         balken = neu Fortschritt(id: "balken-" + u.schlüssel);
         balken.stil("farbe", "basilikum");
         Stapel links = neu Stapel([info, balken]);
@@ -1416,27 +1416,33 @@ klasse UpgradeZeile {
     }
 }
 
-// Eine Zeile in Nonnas Geheimrezepten
-klasse RezeptZeile {
-    Geheimrezept r;
+// Ein fester Platz in Nonnas Geheimrezepten: Wird das Rezept gelernt, rückt hier das nächste nach –
+// die anderen Plätze bleiben, wo sie sind.
+klasse RezeptPlatz {
+    Geheimrezept r = karton;
     Schild info;
     Knopf knopf;
     Reihe reihe;
 
-    RezeptZeile(Geheimrezept rezept, Funktion beiKlick) {
-        r = rezept;
-        info = neu Schild("", id: "geheim-info-" + r.schlüssel);
+    RezeptPlatz(salami nr, Funktion beiKlick) {
+        info = neu Schild("", id: "geheim-info-" + nr);
         info.stil("schrift", "klein").stil("breite", 340);
-        knopf = neu Knopf("", beiKlick, id: "geheim-" + r.schlüssel);
-        knopf.stil("breite", 130).hinweis(r.text);
-        reihe = neu Reihe([info, knopf], id: "geheim-zeile-" + r.schlüssel);
+        knopf = neu Knopf("", beiKlick, id: "geheim-lernen-" + nr);
+        knopf.stil("breite", 130);
+        reihe = neu Reihe([info, knopf], id: "geheim-platz-" + nr);
         reihe.stil("abstand", 8);
     }
 
     leer zeichne(Spiel s) {
-        margherita voraus = r.braucht == "" ? "" : " (braucht " + s.rezeptNamens(r.braucht).name + ")";
+        falls (r == karton) {
+            setzeText(info, "— Nonna überlegt noch, was sie dir als Nächstes verrät.");
+            setzeKnopf(knopf, "—", nein);
+            serviere;
+        }
+        margherita voraus = r.braucht == "" ? "" : " (nach " + s.rezeptNamens(r.braucht).name + ")";
         setzeText(info, r.symbol + " " + r.name + voraus + " – " + r.text);
-        setzeKnopf(knopf, s.rezeptKosten(r) + " ⭐ lernen", s.lernbar(r));
+        falls (knopf.hinweis() != r.text) { knopf.hinweis((r.text)); }
+        setzeKnopf(knopf, Spiel.anz(s.rezeptKosten(r)) + " ⭐ lernen", s.lernbar(r));
     }
 }
 
@@ -1513,21 +1519,21 @@ Theke theke = neu Theke("Pizza-Imperium", breite: 660, hoehe: 780);
 Schild kasse = neu Schild("", id: "kasse");
 kasse.stil("schrift", "riesig").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
 Schild kennzahlen = neu Schild("", id: "kennzahlen");
-kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte");
+kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte").stil("hoehe", 36);   // feste Höhe: nichts darunter springt
 Schild modusInfo = neu Schild("", id: "modus-info");
 modusInfo.stil("schrift", "klein").stil("farbe", "kruste").stil("ausrichtung", "mitte");
 modusInfo.sichtbar(nein);
 
 Knopf backen = neu Knopf("", () -> { spiel.klick(); nachVerarbeitung(); }, id: "backen");
-backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("ausrichtung", "mitte");
+backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("breite", 440).stil("ausrichtung", "mitte");
 backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen. Später bringt jeder Klick zusätzlich einen kleinen Anteil der Sekundenproduktion – das große Geld macht der Betrieb.");
 
 Knopf ofenKnopf = neu Knopf("", () -> { spiel.sonderschicht(); nachVerarbeitung(); }, id: "sonderschicht");
-ofenKnopf.stil("farbe", "kruste").stil("ausrichtung", "mitte");
+ofenKnopf.stil("farbe", "kruste").stil("ausrichtung", "mitte").stil("breite", 440);
 ofenKnopf.hinweis("Der Ofen backt Ladung um Ladung, bis sein Zeitbudget leer ist. Heißer = mehr Ladungen.");
 
 Schild meldung = neu Schild("", id: "meldung");
-meldung.stil("farbe", "tomate").stil("ausrichtung", "mitte");
+meldung.stil("farbe", "tomate").stil("ausrichtung", "mitte").stil("hoehe", 66);   // drei Zeilen Platz, ob lang oder kurz
 
 // ── Reiter 1: Backstube ──
 Blech<UpgradeZeile> zeilen = [];
@@ -1583,21 +1589,34 @@ für (salami i : [1 .. 3]) {
 
 leer zeichneBriefe() {
     Blech<Meisterbrief> welle = spiel.offeneBriefe();
+    // Feste Plätze: Wer noch offen ist, bleibt, wo er ist; freie Plätze bekommen den nächsten aus der Welle.
     für (salami i : [1 .. 3]) {
-        Reihe r = briefReihen.stück(i);
-        falls (i <= welle.länge()) {
-            Meisterbrief b = welle.stück(i);
-            briefPlatz.setze(i, b);
+        Meisterbrief b = briefPlatz.stück(i);
+        falls (b != karton && !welle.enthält(b)) { briefPlatz.setze(i, karton); }
+    }
+    für (Meisterbrief b : welle) {
+        falls (!briefPlatz.enthält(b)) {
+            salami frei = 0;
+            für (salami i : [1 .. 3]) { falls (frei == 0 && briefPlatz.stück(i) == karton) { frei = i; } }
+            falls (frei > 0) { briefPlatz.setze(frei, b); }
+        }
+    }
+    für (salami i : [1 .. 3]) {
+        Meisterbrief b = briefPlatz.stück(i);
+        falls (b != karton) {
             setzeText(briefInfos.stück(i), b.symbol + " " + b.name + " – " + spiel.finde(b.gebäude).name + " ×1,25 (ab " + b.stufe + " Stück)");
             setzeKnopf(briefKnöpfe.stück(i), b.preis.euro(kompakt: ja), spiel.geld >= b.preis);
         } sonst {
-            briefPlatz.setze(i, karton);
+            setzeText(briefInfos.stück(i), "— Der nächste Meisterbrief kommt, sobald ein Gebäude 10, 25, 50 oder 100 Stück erreicht.");
+            setzeKnopf(briefKnöpfe.stück(i), "—", nein);
         }
-        falls (r.sichtbar() != (i <= welle.länge())) { r.sichtbar(i <= welle.länge()); }
+        Reihe r = briefReihen.stück(i);
+        falls (!r.sichtbar()) { r.sichtbar(ja); }
     }
     salami n = spiel.briefe.länge();
-    falls (n > 0) { setzeText(briefKopf, "✅ " + n + (n == 1 ? " Meisterbrief" : " Meisterbriefe") + " an der Wand – sie verfallen bei der nächsten Neueröffnung."); }
-    falls (briefKopf.sichtbar() != (n > 0)) { briefKopf.sichtbar(n > 0); }
+    setzeText(briefKopf, n > 0 ? "✅ " + n + (n == 1 ? " Meisterbrief" : " Meisterbriefe") + " an der Wand – sie verfallen bei der nächsten Neueröffnung."
+        : "Noch hängt kein Meisterbrief an der Wand.");
+    falls (!briefKopf.sichtbar()) { briefKopf.sichtbar(ja); }
     diavolo zeigen = n > 0 || !welle.istLeer();
     falls (briefTeil.sichtbar() != zeigen) { briefTeil.sichtbar(zeigen); }
 }
@@ -1639,10 +1658,10 @@ kleinReihe.sichtbar(nein);
 
 Stapel backstube = neu Stapel([
     rezeptTeil,
-    briefTeil,
     kaufmengeReihe,
+    upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb", [kleinReihe]),
     upgradeAbschnitt("🛠 Handwerk – mehr Pizzen pro Klick", spiel.handwerk, "handwerk", []),
-    upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb", [kleinReihe])
+    briefTeil
 ], id: "backstube");
 backstube.stil("abstand", 8);
 
@@ -1705,12 +1724,13 @@ gelerntInfo.stil("schrift", "klein").stil("farbe", "basilikum");
 gelerntInfo.sichtbar(nein);
 Abschnitt geheimTeil = neu Abschnitt("📜 Nonnas Geheimrezepte", [geheimInfo, gelerntInfo], id: "geheimrezepte");
 geheimTeil.stil("abstand", 6);
-Blech<RezeptZeile> rezeptZeilen = [];
-für (Geheimrezept r : spiel.REZEPTE) {
-    RezeptZeile z = neu RezeptZeile(r, () -> {
-        falls (spiel.lerne(r)) { speichere(); nachVerarbeitung(); }
+Blech<RezeptPlatz> rezeptPlätze = [];
+für (salami i : [1 .. 3]) {
+    RezeptPlatz z = neu RezeptPlatz(i, () -> {
+        Geheimrezept r = rezeptPlätze.stück(i).r;
+        falls (r != karton && spiel.lerne(r)) { speichere(); nachVerarbeitung(); }
     });
-    rezeptZeilen.hinzu(z);
+    rezeptPlätze.hinzu(z);
     geheimTeil.hinzu(z.reihe);
 }
 
@@ -2054,8 +2074,15 @@ leer zeichneGeheimnisse() {
     }
     // Welle: nur die offenen Rezepte zeigen, Gelerntes klappt in eine Zeile.
     Blech<Geheimrezept> welle = spiel.offeneRezepte();
-    für (RezeptZeile z : rezeptZeilen) {
-        diavolo zeigen = spiel.rezepteOffen() && welle.enthält(z.r);
+    für (RezeptPlatz z : rezeptPlätze) { falls (z.r != karton && !welle.enthält(z.r)) { z.r = karton; } }
+    für (Geheimrezept r : welle) {
+        falls (rezeptPlätze.filtere((z) -> (z.r == r)).istLeer()) {
+            Blech<RezeptPlatz> frei = rezeptPlätze.filtere((z) -> (z.r == karton));
+            falls (!frei.istLeer()) { RezeptPlatz f = frei.erstes(); f.r = r; }
+        }
+    }
+    für (RezeptPlatz z : rezeptPlätze) {
+        diavolo zeigen = spiel.rezepteOffen();
         falls (z.reihe.sichtbar() != zeigen) { z.reihe.sichtbar(zeigen); }
         falls (zeigen) { z.zeichne(spiel); }
     }
