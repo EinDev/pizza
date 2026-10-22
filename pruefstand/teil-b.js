@@ -266,7 +266,12 @@ function lokaleRefs(html) {
   const refs = [];
   const re = /\s(src|href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
   let m;
-  while ((m = re.exec(html))) refs.push({ attr: m[1], wert: (m[3] ?? m[4] ?? m[5]).trim() });
+  while ((m = re.exec(html))) {
+    // href eines <a> ist ein Link zum Anklicken, kein Laden – extern erlaubt
+    const tag = html.slice(html.lastIndexOf("<", m.index), m.index);
+    const anker = m[1].toLowerCase() === "href" && /^<a\s/i.test(tag);
+    refs.push({ attr: m[1], wert: (m[3] ?? m[4] ?? m[5]).trim(), anker });
+  }
   return refs;
 }
 
@@ -276,8 +281,9 @@ function pruefeIndexHtml() {
   const p = path.join(SITE, "index.html");
   if (!istDatei(p)) return { fehler: ["site/index.html fehlt"] };
   const html = fs.readFileSync(p, "utf8");
-  for (const { attr, wert } of lokaleRefs(html)) {
+  for (const { attr, wert, anker } of lokaleRefs(html)) {
     if (!wert || wert.startsWith("#") || /^(data|mailto|javascript|tel):/i.test(wert)) continue;
+    if (anker && /^https:\/\//i.test(wert)) continue;
     if (/^(https?:)?\/\//i.test(wert)) { fehler.push(`index.html: externe Referenz ${attr}="${wert}"`); continue; }
     const ohne = decodeURI(wert.split(/[?#]/)[0]).replace(/^\.\//, "").replace(/^\//, "");
     if (!ohne) continue;
@@ -329,7 +335,9 @@ function pruefeCdn() {
       if (gesehen.has(url)) continue;
       gesehen.add(url);
       const vor = s.slice(Math.max(0, m.index - 40), m.index);
-      const ladeKontext = /(src|href)\s*=\s*["']?$|url\(\s*["']?$|@import\s+["']?$|importScripts\(\s*["']$|import\s*\(\s*["']$|from\s+["']$|fetch\(\s*["']$/i.test(vor);
+      let ladeKontext = /(src|href)\s*=\s*["']?$|url\(\s*["']?$|@import\s+["']?$|importScripts\(\s*["']$|import\s*\(\s*["']$|from\s+["']$|fetch\(\s*["']$/i.test(vor);
+      // href eines <a> ist ein Link zum Anklicken, kein Laden
+      if (ladeKontext && /href\s*=\s*["']?$/i.test(vor) && /^<a\s/i.test(s.slice(s.lastIndexOf("<", m.index), m.index))) ladeKontext = false;
       const host = (/\/\/([^/:?#]+)/.exec(url) || [])[1] || "";
       if (CDN_HOST.test(host) || ladeKontext) fehler.push(`${r}: externe/CDN-URL ${url}`);
       else hinweise.push(`${r}: URL (kein Lade-Kontext) ${url}`);
