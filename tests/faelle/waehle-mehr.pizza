@@ -6,7 +6,7 @@ test("c");
 test("z");
 salami x = 3;
 wähle (x) { fall 1 + 2 -> Bote.sage(("drei")); standard -> Bote.sage(("?")); }
-wähle (((Tomate))) { fall ((Tomate)) -> Bote.sage(("Pizza gleich")); }
+wähle (90s) { fall 1min + 30s -> Bote.sage(("Dauer gleich")); }
 für (salami i : [1, 2, 3]) { wähle (i) { fall 2 -> abbrechen; standard -> Bote.sage((i)); } }
 wähle (5) { }
 margherita r = wähle (9) { fall 1 -> "x"; };

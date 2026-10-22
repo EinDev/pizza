@@ -3,8 +3,7 @@ salami zaehler = 0;
 Blech<salami> zahlen = [1, 2, 3];
 Speisekarte<margherita, salami> karte = neu Speisekarte();
 karte.lege("a", 1);
-Pizza p = ((Tomate, Käse));
-Stück<Pizza> st = teile(p);
+margherita p = "Tomate";
 Teig<salami> t = teig(() -> (7));
 Lieferung<salami> l = bestelle(() -> (8));
 Zufall z = neu Zufall(saat: 5);
@@ -31,8 +30,6 @@ Blech<margherita> meldungen = [1].brigade(x -> [
     versuch(() -> { zahlen.setze(1, 9); }),
     versuch(() -> { karte.lege("b", 2); }),
     versuch(() -> { karte.entferne("a"); }),
-    versuch(() -> { teile(p); }),
-    versuch(() -> { st.essen(); }),
     versuch(() -> { t.gehenlassen(); }),
     versuch(() -> { t.backen(); }),
     versuch(() -> { l.trinkgeld(1); }),
@@ -54,7 +51,7 @@ Blech<margherita> lesen = [1, 2].brigade(i -> {
     lokal++;
     Konto neu1 = neu Konto();
     neu1.stand = 99;
-    serviere ((eigen + " " + lokal + " " + karte.hole("a") + " " + k.stand + " " + neu1.stand + " " + p.übrig() + " " + st.istGegessen() + " " + z.saat()));
+    serviere ((eigen + " " + lokal + " " + karte.hole("a") + " " + k.stand + " " + neu1.stand + " " + p + " " + z.saat()));
 });
 Bote.sage((lesen));
 
@@ -66,4 +63,4 @@ da.warte();
 Bote.sage(([1].brigade(x -> fertig.backen() + da.warte().wert())));
 
 // Nach der Brigade ist die Hauptküche unverändert
-Bote.sage((zaehler + " " + zahlen + " " + karte + " " + k.stand + " " + Konto.gesamt + " " + p.übrig()));
+Bote.sage((zaehler + " " + zahlen + " " + karte + " " + k.stand + " " + Konto.gesamt + " " + p));

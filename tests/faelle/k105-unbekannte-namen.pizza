@@ -1,0 +1,10 @@
+// K-105: entfernte Pizza-Fachlogik verhält sich wie jeder unbekannte Name – keine Sondermeldung
+probier { Bote.sage((Tomate)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((Käse.preis())); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+salami x = 1;
+probier { Bote.sage((teile(x))); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+probier { Bote.sage((neu Pizza())); } verbrannt (UnbekanntePizzaAnanas a) { Bote.sage((a)); }
+probier { wirf neu UnbekannterBelagAnanas("x"); } verbrannt (UnbekanntePizzaAnanas a) { Bote.sage((a)); }
+probier { wirf neu BesitzAnanas("y"); } verbrannt (UnbekanntePizzaAnanas a) { Bote.sage((a)); }
+Bote.sage((Ananas));
+Bote.sage((Salami));

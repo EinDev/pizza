@@ -1,4 +1,0 @@
-@Nach(Trüffel)
-belag Blattgold auf Pizza { }
-belag Trüffel auf Pizza { }
-Pizza g = ((Blattgold, Trüffel));

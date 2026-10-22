@@ -1,0 +1,9 @@
+Bote.sage(("vorher"));
+probier {
+    hawaii p = 1;
+} verbrannt (a) {
+    Bote.sage(("gefangen?!"));
+} rand {
+    Bote.sage(("rand?!"));
+}
+Bote.sage(("nachher?!"));

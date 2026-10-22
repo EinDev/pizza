@@ -13,9 +13,10 @@ Bote.sage((k.hat("n")));
 Bote.sage((k.hole("x", unbekannt: 3)));
 salami z = k.hole("zaehler", 0) + 1;
 Bote.sage((z));
+quattrostagioni Belag { Salami, Tomate, Käse, Pilze }
 Speisekarte<Belag, salami> b = neu Speisekarte<Belag, salami>();
-b.lege(Salami, 3);
-Bote.sage((b.hole(Salami, -1) + " " + b.hole(Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
+b.lege(Belag.Salami, 3);
+Bote.sage((b.hole(Belag.Salami, -1) + " " + b.hole(Belag.Tomate, -1) + " " + b.hole("Tomate", ersatz: -2)));
 Speisekarte<margherita, Blech<salami>> l = neu Speisekarte<margherita, Blech<salami>>();
 Blech<salami> e = [];
 Blech<salami> r = l.hole("liste", e);

@@ -8,7 +8,7 @@ Der Karton ist leer.
 Hallo Luigi
 Parameter 'name' ist @NieKarton – aber es kam ein leerer Karton.
 LaufzeitAnanas: 'unbekannt' ist nicht definiert.
-LaufzeitAnanas: Methode 'foo' gibt es auf Pizza nicht.
+LaufzeitAnanas: Methode 'foo' gibt es auf Dauer nicht.
 GebackenAnanas
 TypAnanas
 Bedingung: TypAnanas

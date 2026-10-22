@@ -12,7 +12,7 @@ Bote.sage(([-1, 2, -3].belege(Mathe.abs)));
 Bote.sage(("abc".länge));
 Rezept l = "abcd".länge;
 Bote.sage((l()));
-Rezept pl = ((Tomate, Käse)).preis;
+Rezept pl = [3, 4].summe;
 Bote.sage((pl()));
 Bote.sage((id));
 Rezept rekursiv = n -> n <= 1 ? 1 : n * rekursiv(n - 1);

@@ -22,7 +22,7 @@ Bote.sage(("abc" == "abc"));
 Bote.sage(("b" > "a"));
 Bote.sage(("x" + karton));
 Bote.sage(("Liste: " + [1, 2]));
-Bote.sage(("P: " + ((Tomate))));
+Bote.sage(("P: " + neu Speisekarte<margherita, salami>().lege("a", 1)));
 probier { "abc".gibtsNicht(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
 Bote.sage(("ab".enthält("")));
 Bote.sage(("Wert: " + 1.5 + ja + nein + 2s));

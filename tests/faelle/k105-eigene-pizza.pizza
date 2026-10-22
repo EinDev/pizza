@@ -1,0 +1,28 @@
+// K-105: eine eigene Klasse Pizza ist eine Klasse wie jede andere; Zuweisung per Name ist für jeden Typ erlaubt (keine BesitzAnanas)
+quattrostagioni Belag { Tomate, Mozzarella, Basilikum, Salami }
+klasse Pizza {
+    Blech<Belag> beläge;
+    Pizza(Blech<Belag> b) { beläge = b; }
+    funghi preis() { serviere ((5 + beläge.länge() * 1.5)); }
+    diavolo hat(Belag b) { serviere ((beläge.enthält(b))); }
+    Pizza mit(Belag b) { Blech<Belag> n = beläge.kopie(); n.hinzu(b); serviere ((neu Pizza(n))); }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+Pizza p = neu Pizza([Belag.Tomate, Belag.Mozzarella, Belag.Basilikum]);
+Bote.sage((p), (p.preis().euro()), (p.hat(Belag.Salami)));
+Pizza q = p;
+Bote.sage((q == p));
+Pizza r = p.mit(Belag.Salami);
+Bote.sage((r), (r == p), (p));
+klasse Tisch { Pizza belegt; }
+Tisch t = neu Tisch();
+t.belegt = p;
+Pizza x = t.belegt;
+Bote.sage((x == p));
+Pizza s = schieb(q);
+Bote.sage((s == p));
+probier { Bote.sage((q)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+für (Belag b : p.beläge) { Bote.sage((b)); }
+Pizza nix = karton;
+probier { nix.preis(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
+probier { Pizza falsch = 5; } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

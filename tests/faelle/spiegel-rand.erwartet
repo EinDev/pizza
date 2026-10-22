@@ -1,5 +1,5 @@
 Spiegel.felder braucht ein Objekt, nicht 5.
 LeererKartonAnanas
 {}
-{p: ((Tomate)), n: 0}
+{p: 1s, n: 0}
 [p, n]

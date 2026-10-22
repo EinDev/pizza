@@ -1,9 +1,0 @@
-Bote.sage(("vorher"));
-probier {
-    Pizza p = ((Käse, Tomate));
-} verbrannt (a) {
-    Bote.sage(("gefangen?!"));
-} rand {
-    Bote.sage(("rand?!"));
-}
-Bote.sage(("nachher?!"));

@@ -1,2 +1,2 @@
-Pizza p = karton;
-Bote.sage((p.preis()));
+Dauer p = karton;
+Bote.sage((p.inMs()));
