@@ -103,3 +103,37 @@ herd\target\messung\herd-bild.exe bild tests\herd\bilder\3d-alles.herd tmp\gpu-b
 Jede `bench`-Zeile gibt eine JSON-Zeile aus (`glut_median_ms`, `draw_calls`, Adapter); bitte hier als Tabelle „Glut (GPU)“
 eintragen. Die letzte Zeile rendert das 3D-Referenzbild auf der GPU zum Sichtvergleich mit `tests/herd/bilder/3d-alles.png`.
 `HERD_SOFTWARE=1` erzwingt trotz `--gpu` den Software-Adapter.
+
+## Browser (SwiftShader)
+
+Paket H6: Glut-Web (`site/js/herd/glut_bg.wasm`, wgpu → WebGL2) und `kern.wasm` in **Chrome 155 headless mit `--disable-gpu`**
+– WebGL2 kommt aus **SwiftShader** (ANGLE/Vulkan auf der CPU). Die Zahlen sind daher **nur indikativ** (CPU-Rasterizer, 1280 × 720,
+MSAA 4×); sie zeigen, dass der Pfad trägt und dass Draw-Calls/Instanzen dieselben sind wie nativ. Lauf (≈ 8,5 s, je Benchmark
+höchstens ~2 s gezeichnet): `cd e2e && HERD_MESSUNG=1 node --test tests/15-herd-messung.test.mjs`. Kern und Glut laufen dabei in
+der Seite hintereinander (Kern: `herd/skript.js` gegen `kern.wasm`; Glut: `bild()` + Abwarten der GPU durch ein 1×1-Auslesen),
+volle Größe nach HERD.md §6. i7-13700KF, 2026-10-22:
+
+| Bench | Instanzen | Draw-Calls | Kern je Bild (Takte + Bildpaket, Median) | Glut je Bild (SwiftShader, Median) |
+|---|---|---|---|---|
+| B1: 10 000 Sprites, Bewegung + Animation | 9 911 2D | 1 | 0,65 ms | 84 ms |
+| B2: 10 000 Kreise | 10 000 2D | 1 | 0,34 ms (ohne Programm-Setter) | 84 ms |
+| B3: 1 000 Körper, Sonne + Schatten, 8 Lichter, Nebel | 1 001 3D | 15 (inkl. Schatten) | 0,34 ms | 336 ms |
+| B4: 10 Emitter, ≈ 19 000 Teilchen | 19 243 2D | 1 | 0,88 ms | 153 ms |
+
+Bewertung: Kern im Browser (V8) weit unter dem Ziel ≤ 4 ms (Chrome); Draw-Calls wie nativ (B1 ≤ 4, B3 ≤ 30). Die Glut-Zeiten sind
+reine Software-Rasterung (Pixel × 4 Proben × Fragment-Shader) und sagen über eine echte GPU nichts aus. Pixeltest WebGL2 gegen die
+nativen Referenzbilder: mittlere Abweichung 0,007 … 0,040 %, 99,6 … 100 % der Pixel innerhalb 10/255 (`e2e/tests/13-herd-glut`).
+Größe der Browser-Glut: `glut_bg.wasm` 1 893 KiB roh, **712 KiB gzip** (nginx Stufe 6), 564 KiB Brotli; Glue `glut.js` 138 KiB
+(ohne `wasm-opt` – binaryen ist hier nicht installiert).
+
+### Vom Nutzer auszuführen (Browser, echte GPU)
+
+Bitte nur starten, wenn kein Spiel läuft – beides nutzt die **echte GPU** (in Chrome WebGPU, sonst WebGL2):
+
+1. **Messlauf B1–B4 automatisch** (headless, kein sichtbares Fenster, ≈ 10 s): `cd e2e && set HERD_MESSUNG=1&& set E2E_GPU=1&& node --test
+   tests/15-herd-messung.test.mjs` (PowerShell: `$env:HERD_MESSUNG=1; $env:E2E_GPU=1; node --test tests/15-herd-messung.test.mjs`).
+   Die Ausgabe nennt je Benchmark Schnittstelle (WebGPU/WebGL2), Adapter, Glut- und Kern-Zeit je Bild – bitte als Tabelle
+   „Browser (GPU)“ hier eintragen.
+2. **Echte Bildrate im Playground:** `npm --prefix e2e run server` (oder die laufende Seite), in Chrome die Programme aus
+   `bench/herd/*.pizza` (H7) backen – die Statuszeile unten links im Vorschaufenster zeigt Schnittstelle, fps, Draw-Calls und
+   Instanzen (Ziel HERD.md §6: 60 fps bei B1–B4).

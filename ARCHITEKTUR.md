@@ -130,6 +130,10 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
   Ergebnis). Statusleiste nach dem Lauf: `Köche: N` (tatsächlich genutzt; 1 bei Interpreter/Rückfall) **nur**, wenn das Programm
   `brigade` nutzt (Gruppe `kueche`; Nutzerentscheidung K-100 – das Popover bleibt immer) – gleicher Text wie
   `--info` nativ (`--koeche=N`, HOST-ABI §7). Ereignisse eines Stücks erscheinen frühestens, wenn alle früheren Stücke fertig sind.
+- **Herd (HERD.md §7.2, H6):** Bei Herd-Programmen trägt `start` zusätzlich `herdKern` (WebAssembly.Module, einmal je Seite
+  kompiliert), `herdPort` (MessagePort zum Render-Worker, übertragen) und `herdPuffer` (SAB, Takt-Weg). Der Worker reicht sie als
+  `optionen.herdKern`/`onHerd`/`onUiWarte` an Interpreter **und** Wasm-Motor; Bildpakete gehen nur über den Port, an die UI nur
+  `herd/fenster` und `herd/schliesse`.
 - Bei `panik`: **keine Sonderbehandlung** (Nutzerentscheidung, KLAERUNGEN K-012) – der Banner wird als normale Fehlerausgabe
   in der Konsole gezeigt, der Exit-Code 39 wie jeder andere; der Worker endet regulär mit `ende`. CLI/Host/EXE schreiben den Banner nach **stderr**.
 

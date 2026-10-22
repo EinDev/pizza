@@ -10,6 +10,7 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `kern/` (`herd-kern`, `no_std` + `alloc` + `libm`) | Welt (Teile, Lage, Hierarchie), Komponenten-Registry, Systeme, Ressourcen (Formen, Bildchen-Atlas, Schrift), Bildpaket, Hashes, ABI (`Kern`) |
 | `kern-wasm/` | Wasm-Hülle: exportiert jede `Kern`-Methode unter gleichem Namen, keine Importe, eigener Allocator. Nur für `wasm32v1-none` |
 | `glut/` (`herd-glut`, wgpu) | **Glut** (Schicht 1, §9): zeichnet Bildpakete offscreen (Software-Adapter) oder in ein Fenster (API für H5); Shader in `glut/shader/` |
+| `glut-web/` (`herd-glut-web`) | Browser-Glut (H6): wasm-bindgen-Hülle `GlutWeb` um `herd-glut` für `wasm32-unknown-unknown` (kein default-member) |
 | `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
 | `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
 | `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
@@ -241,6 +242,10 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   `+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue`, `herd/.cargo/config.toml`), schreibt
   `site/js/herd/kern.wasm` (keine Importe, kein wasm-bindgen) und `site/js/herd/schema.json`. `--pruefe` vergleicht nur.
 - Nativ: `cargo build` im Ordner `herd/` (Kern ist eine rlib ohne Abhängigkeiten außer `libm`).
+- Browser-Glut: `node herd/baue-web.js` → `cargo build -j 2 --profile klein -p herd-glut-web --target wasm32-unknown-unknown`,
+  dann `wasm-bindgen --target no-modules` → `site/js/herd/glut.js` + `glut_bg.wasm` (eingecheckt). wasm-bindgen ist im Crate auf
+  `=0.2.129` gepinnt, die CLI muss dieselbe Version haben (`cargo install wasm-bindgen-cli --version 0.2.129 --locked -j 2`; das
+  Skript prüft das). `wasm-opt` wird genutzt, wenn es im PATH liegt.
 
 ## 7. Tests
 
@@ -303,6 +308,10 @@ glut.bild(paket)?;                            // zeichnet und präsentiert; verd
 glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
 ```
 
+- **Browser (H6):** `Glut::neu_async(Ziel::OffscreenCanvas { canvas, breite, hoehe } | Ziel::Canvas { … }, &opt).await` (nur
+  `wasm32`); `Glut::neu` ist nativ `pollster::block_on(neu_async(…))`. wgpu nimmt WebGPU (geprüft per Adapter), sonst WebGL2
+  (`Limits::downlevel_webgl2_defaults`); `schnittstelle()` sagt welches. Auf GL bekommt der Atlas mindestens 2 Schichten.
+  JS-Seite: `site/js/herd/zeichner.js`, `render-worker.js`, `ui/src/herd.js` (HERD.md §7.2).
 - **`Ziel`**: `Offscreen { breite, hoehe }` oder `Fenster { fenster: Arc<dyn FensterHandle>, breite, hoehe }` (`FensterHandle` =
   `HasWindowHandle + HasDisplayHandle + Debug + Send + Sync`, z. B. `winit::window::Window`). Größen in Gerätepixeln; das Spielfeld
   wird seitentreu eingepasst, Ränder in `hintergrund`.

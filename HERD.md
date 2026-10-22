@@ -203,6 +203,29 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
   Hauptthread.
 - Kein WebGPU und kein WebGL2 → Meldung, Lauf endet mit `geschlossen`. CSP: `script-src 'self' 'wasm-unsafe-eval'` genügt.
   Vorschaufenster wie die Theke (Größe K-123), App-Link bildschirmfüllend.
+- **Umsetzung (H6), Entscheidungen:**
+  - **Takt-Weg:** ein eigener **Herd-Puffer** je Lauf (SAB, getrennt vom Eingabe-/Theke-Puffer): Int32 `[0]` Folgenummer,
+    `[1]` geschlossen, `[2]` Länge, ab Byte 16 der `takt` als JSON. **Einziger Schreiber von Takten ist der Zeichner** (Render-Worker
+    bzw. Hauptthread-Rückfall); er zählt die Folgenummer hoch und weckt per `Atomics.notify`, der Programm-Worker wartet mit
+    `Atomics.wait` auf eine neue Nummer. Da der nächste Takt erst nach dem Zeichnen angefordert wird, ist höchstens einer
+    ausstehend – die Nachricht wird nie überschrieben, während sie gelesen wird. `geschlossen` setzen Seite (Schließen-Knopf) oder
+    Zeichner (Fehler); der Programm-Worker setzt es beim nächsten `fenster` zurück. Kein `ui-warte` an die Seite, kein Umweg über
+    den Hauptthread (Latenz: Bild → rAF → Takt direkt). Das HOST-ABI `herd_warte` des Wasm-Motors nutzt denselben Weg
+    (`onUiWarte` des Workers).
+  - **Bildpakete** gehen als übertragene `ArrayBuffer` über einen `MessagePort` (Seite legt den Kanal je Lauf an) an den Zeichner;
+    an die Seite gehen nur `herd/fenster` und `herd/schliesse`. `kern.wasm` kompiliert die Seite **einmal** und gibt das
+    `WebAssembly.Module` jedem Lauf mit (`herdKern`, für Interpreter und Wasm-Motor gleich); geladen werden Kern und Glut nur,
+    wenn das Programm den Herd nutzt (Glut erst beim ersten `fenster`).
+  - **Glut-Web** (`herd/glut-web`, wasm-bindgen 0.2.129, `--target no-modules` → klassisches Skript für `importScripts` und
+    `<script>`), gebaut mit `node herd/baue-web.js`; wgpu wählt WebGPU (mit Adapter-Prüfung), sonst WebGL2. Auf GL legt die Glut den
+    Atlas mit mindestens 2 Schichten an (eine Schicht wird dort `TEXTURE_2D` statt Array).
+  - **Rückfall:** Scheitert der Render-Worker beim Anlegen (kein `requestAnimationFrame` im Worker, kein WebGL2 im
+    OffscreenCanvas), gibt er den Port zurück und dieselbe Glut (`js/herd/zeichner.js`) zeichnet im Hauptthread auf einem frischen
+    Canvas; scheitert auch das → „Dieser Browser kann weder WebGPU noch WebGL2 – der Herd braucht eines davon.“ + `geschlossen`.
+  - **Eingabe:** nur bei Fokus auf dem Canvas; Tastennamen wie `Tastatur` (K-110), Wiederholungen ignoriert, kurz gedrückte
+    Tasten zählen bis zum nächsten Takt, Fokusverlust = alles losgelassen; Maus/Touch in Spielfeld-Koordinaten (wie die Glut
+    seitentreu eingepasst). Canvas in Gerätepixeln (`device-pixel-content-box`, scharf auf HiDPI). Statuszeile im Playground:
+    Schnittstelle, fps, Draw-Calls, Instanzen.
 
 ## 8. Tests (K-134)
 
