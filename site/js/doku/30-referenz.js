@@ -26,13 +26,13 @@
           tier: 1,
           code: z(
             "Bote.sage((\"Bestellung Nr. \" + 42));",
-            "Pizza p = ((Tomate, Mozzarella));",
-            "Bote.sage((p));",
+            "Dauer backzeit = 90s;",
+            "Bote.sage((backzeit));",
             "Bote.sage(([1, 2, 3]));",
             "Bote.fehler((\"Kein Basilikum mehr!\"));"
           )
         },
-        { art: "ausgabe", text: z("Bestellung Nr. 42", "((Tomate, Mozzarella))", "[1, 2, 3]", "Kein Basilikum mehr!") },
+        { art: "ausgabe", text: z("Bestellung Nr. 42", "1min 30s", "[1, 2, 3]", "Kein Basilikum mehr!") },
         {
           art: "details",
           titel: "Alle Methoden des Boten",
@@ -62,8 +62,6 @@
                 ["Text", "roh, ohne Anführungszeichen"],
                 ["Blech", "`[1, 2, 3]` – Texte darin ohne Anführungszeichen"],
                 ["Speisekarte", "`{a: 1, b: 2}`"],
-                ["Pizza", "`((Tomate, Mozzarella))`, leer: `(())`"],
-                ["Belag", "sein Name, z. B. `Salami`"],
                 ["Dauer", "`1min 30s`, `90ms`, `2h`, `3d 4h`; größte Einheit zuerst, Nullteile fallen weg; `0ms`; negativ mit `-`"],
                 ["Objekt", "Ergebnis von `alsText()`, sonst `Klassenname@N` (N = laufende Nummer ab 1)"],
                 ["Ananas", "`Typ: Nachricht`"],
@@ -455,7 +453,7 @@
           ausfuehrbar: true,
           tier: 1,
           code: z(
-            "funghi preis = ((Tomate, Mozzarella, Basilikum)).preis();",
+            "funghi preis = 5 + 1 + 1.5 + 0.5;   // Teig, Tomate, Mozzarella, Basilikum",
             "Bote.sage((preis.euro()));",
             "funghi pi = 3.14159;",
             "Bote.sage((pi.runden(2)));",
@@ -643,7 +641,7 @@
               ["`entferne(i)`", "**ändert**", "Entfernt das Element an Position `i` und gibt **das Element** zurück", "`b.entferne(1)` → `3`"],
               ["`setze(i, x)`", "**ändert**", "Ersetzt das Element an Position `i`, gibt das Blech zurück", "`b.setze(2, 7)`"],
               ["`kopie()`", "neu", "Unabhängige Kopie", "`Blech<salami> k = b.kopie();`"],
-              ["`enthält(x)`", "–", "Ist `x` drauf? (Pizzen werden nach Belägen verglichen)", "`b.enthält(4)` → `ja`"],
+              ["`enthält(x)`", "–", "Ist `x` drauf? Zahlen, Texte, Dauern nach Wert; Bleche und Objekte nach Identität", "`b.enthält(4)` → `ja`"],
               ["`belege(fn)`", "neu", "map: wendet `fn` auf jedes Element an", "`b.belege(x -> x * 2)`"],
               ["`brigade(fn)`", "neu", "wie `belege`, aber jedes Element in einer eigenen Küche – gleichzeitig, Hauptküche nur lesbar (siehe *Küchenbrigade*)", "`b.brigade(x -> x * 2)`"],
               ["`filtere(fn)`", "neu", "Behält nur Elemente, für die `fn` `ja` liefert", "`b.filtere(x -> x > 2)`"],
@@ -737,7 +735,7 @@
               ["`länge()`", "Anzahl Einträge", "`karte.länge()`"],
               ["`istLeer()`", "Gibt es gar keinen Eintrag?", "`karte.istLeer()`"]
             ]),
-            { art: "text", md: "**Was taugt als Schlüssel?** Zahlen, Texte, `ja`/`nein` und `karton` zählen nach ihrem **Wert** (`1` und `1.0` sind derselbe Schlüssel, `\"1\"` ein anderer). Beläge zählen nach ihrem Namen (`hole(Salami)` = `hole(\"Salami\")`), `quattrostagioni`-Werte als solche. Alles andere – Pizzen, Dauern, Bleche, Objekte – zählt nach **Identität**: nur genau dasselbe Ding findet den Eintrag wieder." },
+            { art: "text", md: "**Was taugt als Schlüssel?** Zahlen, Texte, `ja`/`nein` und `karton` zählen nach ihrem **Wert** (`1` und `1.0` sind derselbe Schlüssel, `\"1\"` ein anderer), `quattrostagioni`-Werte als solche. Alles andere – Dauern, Bleche, Objekte – zählt nach **Identität**: nur genau dasselbe Ding findet den Eintrag wieder." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -829,7 +827,7 @@
           art: "details",
           titel: "Was passt hinein?",
           inhalt: [
-            { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Pizzen, Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
+            { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
           ]
         },
         {
@@ -1150,7 +1148,7 @@
       titel: "Keyword-Spickzettel",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "Alle 40 reservierten Wörter von pizza v3.0 auf einen Blick – mit dem passenden Java-Wort daneben." },
+        { art: "kurz", md: "Alle 38 reservierten Wörter von pizza v3.0 auf einen Blick – mit dem passenden Java-Wort daneben." },
         { art: "hinweis", ton: "info", md: "**Groß-/Kleinschreibung zählt:** `speisekarte` ist ein Keyword, `Speisekarte` ein Typ. Und `pizza` ist seit v3.0 **kein** Keyword mehr – `pizza`, `Pizza` und `PiZZa` sind ganz normale Namen." },
         {
           art: "tabelle",
@@ -1162,8 +1160,6 @@
             ["`rezeptur`", "interface", "Fehlende Methode → `R0001`"],
             ["`rohling`", "abstract", "nicht essbar → `RohlingAnanas`"],
             ["`calzone`", "– (versiegelte Kapselung)", "`Spiegel` kommt nicht rein, `aufklappen()` → `W0013`"],
-            ["`belag`", "– (Decorator)", "`belag Trüffel auf Pizza { … }`"],
-            ["`auf`", "–", "Ziel eines `belag`"],
             ["`quattrostagioni`", "enum", "genau 4 Werte, sonst `Q0004`"],
             ["`erbt`", "extends", ""],
             ["`erfüllt`", "implements", ""],
@@ -1175,7 +1171,7 @@
             ["`leer`", "void", ""],
             ["`neu`", "new", ""],
             ["`dies`", "this", ""],
-            ["`unten`", "super", "die Schicht darunter"],
+            ["`unten`", "super", "die Eltern-Klasse – die Basis liegt unten"],
             ["`serviere`", "return", "**Klammerpflicht**: `serviere (x);`, sonst `K0001`"],
             ["`falls`", "if", "Klammern Pflicht"],
             ["`sonst`", "else", "`sonst falls` = else if"],
@@ -1210,11 +1206,11 @@
             ["`Dauer`", "Duration", "Zeitdauer"],
             ["`Blech<T>`", "List<T>", "Liste"],
             ["`Speisekarte<K, V>`", "Map<K, V>", "Map"],
-            ["`Pizza`", "–", "Pizza mit Belägen"],
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "Dazu kommen die Typen der Pizza-Funktionen (`Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Reste<T>`), die Theke-Zutaten und **deine eigenen Klassen** – jede Klasse ist auch ein Typ." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
@@ -1237,7 +1233,6 @@
             ["`P0011`", "Eine `gebacken`e (finale) Klasse soll mit `erbt` erweitert werden.", "2"],
             ["`P0012`", "`abbrechen` oder `weiter` steht außerhalb einer Schleife – zum Beispiel direkt in einer Methode.", "2"],
             ["`K0001`", "„Klammerpflicht!“ – `serviere x;` statt `serviere (x);`.", "2"],
-            ["`B0012`", "`@Nach`-Verstoß: ein Belag liegt unter dem, auf den er gehört. „Das ist keine Pizza, das ist ein Auflauf.“", "2"],
             ["`R0001`", "Eine Klasse `erfüllt` eine Rezeptur, aber eine Methode fehlt.", "2"],
             ["`Q0004`", "`quattrostagioni` hat nicht genau 4 Werte.", "2"],
             ["`A0001`", "`@PizzaÜberschreibt` an einer Methode, die es in Basisklasse/Rezeptur nicht gibt.", "2"]
@@ -1251,7 +1246,7 @@
             ["`W0003`", "Erster Aufruf einer `@PizzaVeraltet`-Methode (einmal pro Methode)", "Grund aus der Annotation"],
             ["`W0013`", "`aufklappen()` auf einer Calzone", "„Garantie erloschen. Das ist jetzt eine ganz normale Pizza.“"],
             ["`W0032`", "Zwei Namen im selben Scope unterscheiden sich nur in Groß-/Kleinschreibung", "„Selbst der Pizzaiolo verwechselt die beiden.“"],
-            ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
+            ["`W0666`", "Typ `hawaii` im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
             ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
@@ -1290,13 +1285,13 @@
                 "Bote.sage((neu Kasse().summe()));"
               )
             },
-            { art: "text", md: "Und ein `B0012` – Käse gehört **auf** die Tomate, nicht darunter:" },
+            { art: "text", md: "Und ein `Q0004` – drei Jahreszeiten sind keine Quattro Stagioni:" },
             {
               art: "code",
               ausfuehrbar: true,
               exitCode: 2,
               tier: 1,
-              code: "Pizza auflauf = ((Käse, Tomate));"
+              code: "quattrostagioni Jahreszeit { FRÜHLING, SOMMER, WINTER }"
             }
           ]
         },
@@ -1318,7 +1313,7 @@
           zeilen: [
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
-            ["`2`", "PizzaFehler (Syntax, `B0012`, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
+            ["`2`", "PizzaFehler (Syntax, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
             ["`3`", "die Pizza ist noch im Ofen: Schrittlimit (`P0002`) erreicht"],
             ["`39`", "Hawaii. Der Pizzaiolo hat den Raum verlassen."]
           ]

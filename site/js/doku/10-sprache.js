@@ -21,13 +21,14 @@
         { art: "kurz", md: "Tippe ein paar Zeilen in den Editor und drücke **Strg+Enter** – schon läuft dein erstes Programm. `Bote.sage(...)` schreibt etwas in die Konsole." },
         { art: "code", code: code`
 Bote.sage(("Hallo, Pizzawelt!"));
-Pizza meine = ((Tomate, Mozzarella, Basilikum));
-Bote.sage(meine);
-Bote.sage(("Kostet: " + meine.preis().euro()));
+salami gäste = 4;
+funghi preis = 8.5;
+Bote.sage(("Gäste: " + gäste));
+Bote.sage(("Kostet: " + (gäste * preis).euro()));
 `, ausfuehrbar: true, tier: 1 },
-        { art: "ausgabe", text: "Hallo, Pizzawelt!\n((Tomate, Mozzarella, Basilikum))\nKostet: 8,00 €" },
+        { art: "ausgabe", text: "Hallo, Pizzawelt!\nGäste: 4\nKostet: 34,00 €" },
         { art: "details", titel: "Was passiert da Zeile für Zeile?", inhalt: [
-          { art: "text", md: "- Zeile 1 gibt einen Text aus.\n- Zeile 2 backt eine Pizza. Beläge stehen in doppelten runden Klammern, **von unten nach oben**.\n- Zeile 3 zeigt die Pizza.\n- Zeile 4 fragt nach dem Preis: Teig `5.00` plus jeder Belag (Tomate 1.00, Mozzarella 1.50, Basilikum 0.50)." },
+          { art: "text", md: "- Zeile 1 gibt einen Text aus.\n- Zeile 2 legt eine Ganzzahl (`salami`) an, Zeile 3 eine Kommazahl (`funghi`).\n- Zeile 4 klebt Text und Zahl mit `+` zusammen.\n- Zeile 5 rechnet die Rechnung aus und formatiert sie mit `euro()` – Komma, zwei Stellen, Eurozeichen." },
           { art: "text", md: "Das Ganze läuft im **Snack-Modus**: Anweisungen dürfen direkt dastehen, ohne Klasse drumherum. Wie ein „richtiges“ Programm aussieht, zeigt der nächste Abschnitt." },
           { art: "hinweis", ton: "pizza", md: "Jeder Code-Block in dieser Doku hat einen Knopf **„Im Editor öffnen“**. Einfach ausprobieren – es brennt höchstens die Pizza an, nie dein Rechner." }
         ] }
@@ -127,7 +128,7 @@ Bote.sage(gruß);
         { art: "details", titel: "Reservierte Wörter (Keywords)", inhalt: [
           { art: "text", md: "Diese Wörter gehören der Sprache – du kannst sie nicht als Namen benutzen:" },
           { art: "tabelle", kopf: ["Bereich", "Keywords"], zeilen: [
-            ["Struktur", "`paket` `import` `klasse` `rezeptur` `rohling` `calzone` `belag` `auf` `quattrostagioni` `erbt` `erfüllt`"],
+            ["Struktur", "`paket` `import` `klasse` `rezeptur` `rohling` `calzone` `quattrostagioni` `erbt` `erfüllt`"],
             ["Modifikatoren", "`speisekarte` `familienrezept` `geheimrezept` `tiefkühl` `gebacken`"],
             ["Werte & Objekte", "`leer` `neu` `dies` `unten` `ja` `nein` `karton`"],
             ["Kontrollfluss", "`serviere` `falls` `sonst` `für` `solange` `wähle` `fall` `standard` `abbrechen` `weiter`"],
@@ -144,14 +145,16 @@ Bote.sage(gruß);
       titel: "Groß- und Kleinschreibung",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "`pizza` und `Pizza` sind zwei verschiedene Namen – Groß und Klein zählt. Und: Ein großgeschriebenes Wort wie `Salami` ist ein **Belag**." },
+        { art: "kurz", md: "`pizza` und `Pizza` sind zwei verschiedene Namen – Groß und Klein zählt. Das eine kann eine Variable sein, das andere eine Klasse." },
         { art: "code", code: code`
 margherita pizza = "kleingeschrieben, ganz legal";
-Pizza belegt = ((Tomate)) + Salami;
+klasse Pizza {
+    tiefkühl margherita art() { serviere (("großgeschrieben: eine Klasse")); }
+}
 Bote.sage(pizza);
-Bote.sage(belegt);
+Bote.sage((Pizza.art()));
 `, ausfuehrbar: true, tier: 1 },
-        { art: "ausgabe", text: "kleingeschrieben, ganz legal\n((Tomate, Salami))" },
+        { art: "ausgabe", text: "kleingeschrieben, ganz legal\ngroßgeschrieben: eine Klasse" },
         { art: "details", titel: "Fast gleiche Namen und die Warnung W0032", inhalt: [
           { art: "text", md: "`pizza`, `Pizza`, `PiZZa` und `piZZA` sind vier gültige, verschiedene Namen. Erlaubt – aber verwirrend. Stehen zwei solche Namen im selben Block, warnt der Pizzaiolo einmal pro Paar mit **W0032**:" },
           { art: "code", code: code`
@@ -161,7 +164,7 @@ Bote.sage(PiZZa + piZZA);
 `, ausfuehrbar: true, tier: 1 },
           { art: "ausgabe", text: "3" },
           { art: "hinweis", ton: "warnung", md: "`W0032: 'PiZZa' und 'piZZA' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.` – Warnungen ändern den Exit-Code nicht." },
-          { art: "text", md: "Ein großgeschriebenes Wort, das weder Variable noch Klasse ist, wird als Belag gelesen. Tippfehler wie `Salamy` enden deshalb in einer `UnbekannterBelagAnanas`." }
+          { art: "text", md: "Üblich ist: Klassen und Typen groß (`Pizzeria`, `Blech`), Variablen und Methoden klein (`gäste`, `backe()`). Pflicht ist das nicht – nur die Eingebauten halten sich dran (`salami` ist ein Typ, `Bote` ein Objekt). Ein Name, den niemand angelegt hat, ist egal in welcher Schreibweise eine `LaufzeitAnanas: 'Salamy' ist nicht definiert.`" }
         ] }
       ]
     },
@@ -173,21 +176,19 @@ Bote.sage(PiZZa + piZZA);
       tier: 1,
       inhalt: [
         { art: "kurz", md: "Ein **Typ** sagt, welche Sorte Wert in eine Variable passt – wie Gläser im Zutatenregal: ins `salami`-Glas kommen nur Ganzzahlen, ins `margherita`-Glas nur Texte." },
-        bild("sp-typen.svg", "Ein Regal mit acht Gläsern: salami enthält 8, funghi 7.5, margherita \"Hallo\", diavolo ja/nein, Dauer 90s, Pizza eine Pizza, Blech [1, 2, 3], Speisekarte {Tisch: 4}.", "Jeder Typ ist ein eigenes Glas im Regal."),
+        bild("sp-typen.svg", "Ein Regal mit sieben Gläsern: salami enthält 8, funghi 7.5, margherita \"Hallo\", diavolo ja/nein, Dauer 90s, Blech [1, 2, 3], Speisekarte {Tisch: 4}.", "Jeder Typ ist ein eigenes Glas im Regal."),
         { art: "code", code: code`
 salami stücke = 8;
 funghi preis = 9.5;
 margherita name = "Diavolo";
 diavolo scharf = ja;
 Dauer backzeit = 2min;
-Pizza p = ((Tomate, Käse, Chili));
 Blech<margherita> sorten = ["Margherita", "Funghi"];
 Bote.sage(stücke + " Stücke " + name + ", scharf: " + scharf);
 Bote.sage(backzeit + 30s);
-Bote.sage(p);
 Bote.sage(sorten);
 `, ausfuehrbar: true, tier: 1 },
-        { art: "ausgabe", text: "8 Stücke Diavolo, scharf: ja\n2min 30s\n((Tomate, Käse, Chili))\n[Margherita, Funghi]" },
+        { art: "ausgabe", text: "8 Stücke Diavolo, scharf: ja\n2min 30s\n[Margherita, Funghi]" },
         { art: "details", titel: "Alle Typen auf einen Blick", inhalt: [
           { art: "tabelle", kopf: ["pizza", "Bedeutung", "Beispiel"], zeilen: [
             ["`salami`", "Ganzzahl", "`8`"],
@@ -195,7 +196,6 @@ Bote.sage(sorten);
             ["`margherita`", "Text", "`\"Hallo\"`"],
             ["`diavolo`", "Wahrheitswert", "`ja`, `nein`"],
             ["`Dauer`", "Zeitdauer", "`90s`, `30min`"],
-            ["`Pizza`", "Pizza", "`((Tomate, Käse))`"],
             ["`Blech<T>`", "Liste", "`[1, 2, 3]`, `[1 .. 8]`"],
             ["`Speisekarte<K, V>`", "Map (Schlüssel → Wert)", "`neu Speisekarte<margherita, funghi>()`"],
             ["`hawaii`", "kompiliert.", "– (siehe *Hawaii*)"]
@@ -204,11 +204,12 @@ Bote.sage(sorten);
 Speisekarte<margherita, funghi> karte = neu Speisekarte<margherita, funghi>();
 karte.lege("Margherita", 8);
 karte.lege("Diavolo", 9.5);
-Pizza nichts = karton;
+margherita nichts = karton;
 Bote.sage(karte);
 Bote.sage(nichts);
 `, ausfuehrbar: true, tier: 1 },
-          { art: "ausgabe", text: "{Margherita: 8, Diavolo: 9.5}\nkarton" }
+          { art: "ausgabe", text: "{Margherita: 8, Diavolo: 9.5}\nkarton" },
+          { art: "text", md: "Eigene Klassen sind auch Typen: Nach `klasse Pizzeria { … }` kannst du `Pizzeria luigi = neu Pizzeria();` schreiben – siehe *Klassen & Objekte*." }
         ] },
         { art: "details", titel: "Falscher Wert im Glas: TypAnanas", inhalt: [
           { art: "text", md: "Typen werden geprüft, wenn du eine Variable anlegst, zuweist oder einer Methode etwas übergibst. Passt der Wert nicht, gibt es eine `TypAnanas`. `karton` passt in alle Typen außer `salami`, `funghi` und `diavolo` – ein `margherita` darf also leer sein (wichtig beim Lesen von Eingaben)." },
@@ -240,12 +241,12 @@ Bote.sage(gäste);
 gäste += 1;
 Bote.sage(gäste);
 
-Pizza bestellung = karton;
+margherita bestellung = karton;
 Bote.sage(bestellung);
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "8\n9\nkarton" },
         { art: "details", titel: "Kurzschreibweisen und wo eine Variable lebt", inhalt: [
-          { art: "text", md: "- `x += 2` heißt `x = x + 2` (genauso `-=`, `*=`, `/=`)\n- `x++;` zählt um 1 hoch, `x--;` um 1 runter\n- Eine Variable gilt nur in ihrem Block `{ }` – wie Belag auf seiner Pizza." },
+          { art: "text", md: "- `x += 2` heißt `x = x + 2` (genauso `-=`, `*=`, `/=`)\n- `x++;` zählt um 1 hoch, `x--;` um 1 runter\n- Eine Variable gilt nur in ihrem Block `{ }` – wie der Käse nur auf seiner Pizza." },
           { art: "code", code: code`
 salami gäste = 4;
 gäste = gäste * 2;
@@ -263,15 +264,15 @@ falls (gäste > 5) {
         { art: "details", titel: "Vorsicht: in einen leeren Karton greifen", inhalt: [
           { art: "text", md: "Einen leeren Karton darfst du anschauen und ausgeben. Wer aber hineingreift – also eine Methode aufruft oder ein Feld liest –, bekommt eine `LeererKartonAnanas`." },
           { art: "code", code: code`
-Pizza bestellung = karton;
+margherita bestellung = karton;
 probier {
-    Bote.sage((bestellung.preis()));
+    Bote.sage((bestellung.länge()));
 } verbrannt (LeererKartonAnanas a) {
     Bote.sage((a.nachricht()));
 }
 `, ausfuehrbar: true, tier: 1 },
           { art: "ausgabe", text: "Der Karton ist leer." },
-          { art: "hinweis", ton: "pizza", md: "Pizzen haben genau **einen Besitzer**: `Pizza q = p;` wirft eine `BesitzAnanas`. Wie man Pizzen weitergibt (`schieb`, `teile`), steht bei den Pizza-Funktionen." }
+          { art: "hinweis", ton: "pizza", md: "Einen Karton kann man auch **leer räumen**: `schieb(x)` holt den Inhalt heraus und lässt `x` leer zurück. Wie das geht und wozu es gut ist, steht bei den Pizza-Funktionen unter *Schieben*." }
         ] }
       ]
     },
@@ -296,9 +297,9 @@ Bote.sage((hunger > 5 ? "satt" : "hungrig"));
           { art: "tabelle", kopf: ["Operator", "Bedeutung"], zeilen: [
             ["`+ - * /`", "rechnen; `/` teilt exakt (`7 / 2` ist `3.5`), durch `0` → `RechenAnanas`"],
             ["`%`", "Rest beim Teilen (`7 % 2` ist `1`); Vorzeichen wie die linke Zahl (`-7 % 2` ist `-1`), `% 0` → `RechenAnanas`"],
-            ["`== !=`", "gleich / ungleich – nach Wert für Zahlen (`1 == 1.0`), Texte, Wahrheitswerte, Dauern, Beläge und Pizzen (gleiche Beläge in gleicher Reihenfolge); Bleche, Speisekarten und Objekte nur, wenn es **dasselbe** Ding ist"],
+            ["`== !=`", "gleich / ungleich – nach Wert für Zahlen (`1 == 1.0`), Texte, Wahrheitswerte und Dauern; Bleche, Speisekarten und Objekte nur, wenn es **dasselbe** Ding ist"],
             ["`< <= > >=`", "kleiner / größer – für Zahlen, Texte (alphabetisch), Dauern und Werte desselben `quattrostagioni` (nach Position); sonst `TypAnanas`"],
-            ["`+` mit Text", "klebt zusammen, sobald eine Seite ein Text ist – auch `((Tomate)) + \"!\"`"],
+            ["`+` mit Text", "klebt zusammen, sobald eine Seite ein Text ist – auch `90s + \"!\"` oder `[1, 2] + \"!\"`"],
             ["`&& || !`", "und / oder / nicht"],
             ["`a ? b : c`", "wenn `a`, dann `b`, sonst `c`"]
           ] },
@@ -308,9 +309,10 @@ Bote.sage((7 % 2));
 salami hunger = 3;
 hunger += 3;
 Bote.sage((hunger > 5 && !nein));
-Bote.sage((((Tomate, Käse)) == ((Tomate, Käse))));
+Bote.sage((1 == 1.0));
+Bote.sage(([1, 2] == [1, 2]));
 `, ausfuehrbar: true, tier: 1 },
-          { art: "ausgabe", text: "1\nja\nja" }
+          { art: "ausgabe", text: "1\nja\nja\nnein" }
         ] },
         { art: "details", titel: "Klammerpflicht und Fehler K0001", inhalt: [
           { art: "text", md: "Runde Klammern sind in pizza Pflicht:\n\n- `falls`, `solange`, `für` und `wähle` brauchen `( )` um die Bedingung **und** `{ }` um den Block.\n- `serviere` (Rückgabe) braucht Klammern: `serviere (x);`. Ein nacktes `serviere;` (ohne Wert) beendet die Methode und liefert `karton` – gedacht für `leer`-Methoden.\n\nWer `serviere x;` schreibt, bekommt **K0001** – Exit-Code 2, das Programm startet gar nicht erst:" },
@@ -795,25 +797,24 @@ Lieferdienst.rufeAn();
             ["`@PizzaVeraltet(grund: \"...\")`", "Warnung `W0003` beim ersten Aufruf"],
             ["`@NieKarton`", "an Parametern: `karton` als Argument → `LeererKartonAnanas`"],
             ["`@Pizzaiolo(autor: \"...\")`", "nur Info – Ehre, wem Ehre gebührt"],
-            ["`@Kühlschrank(haltbar: Dauer)`", "merkt sich Ergebnisse (siehe Pizza-Funktionen)"],
-            ["`@Nach(Belag, ...)`", "Schichtreihenfolge eigener Beläge (siehe Pizza-Funktionen)"]
+            ["`@Kühlschrank(haltbar: Dauer)`", "merkt sich Ergebnisse (siehe Pizza-Funktionen)"]
           ] },
           { art: "code", code: code`
 klasse Kasse {
     @Pizzaiolo(autor: "Luigi")
-    tiefkühl funghi kassiere(@NieKarton Pizza p) {
-        serviere ((p.preis()));
+    tiefkühl funghi kassiere(@NieKarton margherita gericht) {
+        serviere ((gericht == "Salami" ? 9.5 : 8));
     }
 }
 
-Bote.sage((Kasse.kassiere(((Tomate, Salami)))));
+Bote.sage((Kasse.kassiere("Salami")));
 probier {
     Kasse.kassiere(karton);
 } verbrannt (LeererKartonAnanas a) {
     Bote.sage(("Leerer Karton? Dafür zahlt niemand."));
 }
 `, ausfuehrbar: true, tier: 1 },
-          { art: "ausgabe", text: "7.5\nLeerer Karton? Dafür zahlt niemand." }
+          { art: "ausgabe", text: "9.5\nLeerer Karton? Dafür zahlt niemand." }
         ] },
         { art: "details", titel: "Tippfehler beim Überschreiben: A0001", inhalt: [
           { art: "text", md: "Wer `@PizzaÜberschreibt` an eine Methode klebt, die es oben gar nicht gibt (hier: `knetten` statt `kneten`), bekommt **A0001** (Exit-Code 2):" },
@@ -839,7 +840,7 @@ klasse Pizzabrot erbt Brot {
       tier: 1,
       inhalt: [
         { art: "kurz", md: "Geht etwas schief, *wirft* pizza eine **Ananas** (anderswo: Exception). Ananas sind wie ein Stammbaum sortiert: Wer eine Familie fängt, fängt alle Kinder mit." },
-        bild("sp-ananas-baum.svg", "Stammbaum: Oben Ananas. Darunter GeprüfteAnanas mit VerbranntAnanas und LieferAnanas, und LaufzeitAnanas mit zwölf Kindern von StreitAnanas bis UnbekanntePizzaAnanas.", "Alle Ananas stammen von Ananas ab."),
+        bild("sp-ananas-baum.svg", "Stammbaum: Oben Ananas. Darunter GeprüfteAnanas mit VerbranntAnanas und LieferAnanas, und LaufzeitAnanas mit elf Kindern von StreitAnanas bis KüchenAnanas.", "Alle Ananas stammen von Ananas ab."),
         { art: "code", code: code`
 Blech<salami> blech = [1, 2, 3];
 probier {
@@ -857,7 +858,7 @@ probier {
             ["`LeererKartonAnanas`", "Methode oder Feld auf `karton`"],
             ["`TypAnanas`", "`salami x = 3.5;`"],
             ["`ZugriffsAnanas`", "fremder Zugriff auf ein `geheimrezept`"],
-            ["`UnbekannterBelagAnanas`", "Belag steht nicht auf der Zutatenliste"],
+            ["`UnbekanntePizzaAnanas`", "`neu Suppe()` – aber keine Klasse heißt so: „steht nicht auf der Speisekarte“"],
             ["`KüchenAnanas`", "ein Koch einer `brigade` will etwas aus der Hauptküche ändern"],
             ["`LaufzeitAnanas`", "sonstige Fehler, z. B. „'x' ist nicht definiert.“"]
           ] }
@@ -1000,7 +1001,7 @@ Bote.sage(("Das hier wird nie serviert."));
           { art: "tabelle", kopf: ["Code", "Bedeutung"], zeilen: [
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
-            ["`2`", "PizzaFehler – Syntax, `K0001`, `B0012`, `R0001`, `Q0004`, `A0001`, `P0011`, `P0012` …"],
+            ["`2`", "PizzaFehler – Syntax, `K0001`, `R0001`, `Q0004`, `A0001`, `P0011`, `P0012` …"],
             ["`3`", "Schrittlimit (`P0002`) – die Pizza ist noch im Ofen"],
             ["`39`", "Hawaii. Frag nicht."]
           ] },
@@ -1021,11 +1022,11 @@ solange (ja) {
       titel: "Hawaii",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "`hawaii` ist ein gültiger Typ, und `Ananas` steht auf der Zutatenliste. Der Parser ist höflich und akzeptiert alles. Der Pizzaiolo nicht." },
+        { art: "kurz", md: "`hawaii` ist ein gültiger Typ. Der Parser ist höflich und akzeptiert alles. Der Pizzaiolo nicht." },
         { art: "code", code: code`
 Bote.sage(("Der Gast bestellt etwas Exotisches..."));
 probier {
-    Pizza mutig = ((Tomate, Käse, Schinken)) + Ananas;
+    hawaii mutig = "Schinken, Käse – und Ananas";
     Bote.sage(("Hat doch geklappt?"));
 } verbrannt (a) {
     Bote.sage(("Puh, gerade noch gefangen."));
@@ -1036,16 +1037,15 @@ probier {
         { art: "ausgabe", text: "Der Gast bestellt etwas Exotisches..." },
         { art: "hinweis", ton: "warnung", md: "Was danach passiert, steht hier nicht. Manche Dinge muss man selbst erleben. Keine Angst um deinen Code: Editor und Tabs bleiben, wie sie sind – nur das Programm ist vorbei." },
         { art: "details", titel: "Nur so viel …", inhalt: [
-          { art: "text", md: "- Schon wenn dein Quelltext so etwas *enthält*, meldet sich der Pizzaiolo vor dem Start mit **W0666** – einmal. Er sagt nichts. Er schaut nur.\n- Das Programm endet sofort mit Exit-Code `39`. Kein `verbrannt` und kein `rand` hilft.\n- Im Playground erscheint die Nachricht des Pizzaiolo in der Konsole – dort, wo auch andere Fehler stehen. Im Terminal (Kommandozeile, heruntergeladenes Programm) landet sie auf der Fehlerausgabe (*stderr*)." }
+          { art: "text", md: "- Schon wenn dein Quelltext den Typ `hawaii` *enthält*, meldet sich der Pizzaiolo vor dem Start mit **W0666** – einmal. Er sagt nichts. Er schaut nur.\n- Das Programm endet sofort mit Exit-Code `39`. Kein `verbrannt` und kein `rand` hilft.\n- Im Playground erscheint die Nachricht des Pizzaiolo in der Konsole – dort, wo auch andere Fehler stehen. Im Terminal (Kommandozeile, heruntergeladenes Programm) landet sie auf der Fehlerausgabe (*stderr*)." }
         ] },
         { art: "details", titel: "Was genau löst es aus?", inhalt: [
           { art: "tabelle", kopf: ["Code", "Folge"], zeilen: [
-            ["`Pizza p = ((Tomate, Ananas));` oder `p + Ananas`", "Exit-Code 39 – eine Pizza mit dieser Frucht ist entstanden"],
             ["`hawaii x = 1;` – jede Zuweisung an eine `hawaii`-Variable, ein solches Feld oder einen solchen Parameter, **auch** `hawaii x = karton;`", "Exit-Code 39"],
             ["`neu Hawaii(…)` – egal, ob es die Klasse gibt", "Exit-Code 39"],
             ["`hawaii x;` (ohne Wert) oder `Blech<hawaii>`", "nur W0666 – noch ist nichts passiert"],
-            ["Den Belag allein anfassen: `Bote.sage((Ananas))`, `p.hat(Ananas)`, `p - Ananas`, `Ananas.preis()`", "nur W0666 – schauen ist erlaubt"],
-            ["`Ananas` als Exception-Familie (`verbrannt (Ananas a)`), Namen wie `Q.Ananas`", "nichts – das ist eine ganz normale Ananas"]
+            ["`Ananas` als Exception-Familie (`verbrannt (Ananas a)`), der bloße Name `Ananas`, Namen wie `Q.Ananas`", "nichts – das ist eine ganz normale Ananas, die Mutter aller Ausnahmen"],
+            ["Das Wort „Ananas“ in einem Text: `\"Pizza mit Ananas\"`", "nichts – reden darf man darüber"]
           ] },
           { art: "text", md: "Das gilt in jeder Phase des Programms – auch in Lieferungen und `wennDa`-Rückrufen nach Programmende." }
         ] }

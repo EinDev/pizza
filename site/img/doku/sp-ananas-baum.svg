@@ -31,7 +31,7 @@
     <text x="130" y="190">LieferAnanas</text>
   </g>
 
-  <!-- Kinder: Laufzeit (2 Spalten × 6) -->
+  <!-- Kinder: Laufzeit (2 Spalten: 6 + 5) -->
   <g font-size="14" text-anchor="middle" fill="#2F2A26">
     <g fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2">
       <rect x="264" y="143" width="172" height="24" rx="8"/>
@@ -45,20 +45,18 @@
       <rect x="444" y="203" width="186" height="24" rx="8"/>
       <rect x="444" y="233" width="186" height="24" rx="8"/>
       <rect x="444" y="263" width="186" height="24" rx="8"/>
-      <rect x="444" y="293" width="186" height="24" rx="8"/>
     </g>
     <text x="350" y="160">StreitAnanas</text>
     <text x="350" y="190">RechenAnanas</text>
     <text x="350" y="220">LeererKartonAnanas</text>
     <text x="350" y="250">RohlingAnanas</text>
-    <text x="350" y="280">BesitzAnanas</text>
-    <text x="350" y="310">GebackenAnanas</text>
-    <text x="537" y="160">TypAnanas</text>
-    <text x="537" y="190">KeinStückAnanas</text>
-    <text x="537" y="220">ZugriffsAnanas</text>
-    <text x="537" y="250">UnbekannterBelagAnanas</text>
-    <text x="537" y="280">ZugeklapptAnanas</text>
-    <text x="537" y="310">UnbekanntePizzaAnanas</text>
+    <text x="350" y="280">GebackenAnanas</text>
+    <text x="350" y="310">TypAnanas</text>
+    <text x="537" y="160">KeinStückAnanas</text>
+    <text x="537" y="190">ZugriffsAnanas</text>
+    <text x="537" y="220">ZugeklapptAnanas</text>
+    <text x="537" y="250">UnbekanntePizzaAnanas</text>
+    <text x="537" y="280">KüchenAnanas</text>
   </g>
 
   <!-- Erklärung -->

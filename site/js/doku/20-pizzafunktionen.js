@@ -16,32 +16,30 @@
       tier: 2,
       inhalt: [
         { art: "kurz", md: "Pizza-Funktionen sind echte Programmier-Ideen im Pizza-Kostüm: **Teig**, **Ofen**, **Stücke**, **Lieferung**. Wer die Pizzeria versteht, versteht auch das Konzept dahinter." },
-        bild("pf-ueberblick.svg", "Spickzettel: zehn Pizza-Metaphern und das Programmierkonzept dahinter, z. B. Teig = Lazy Evaluation, Ofen = Zeitlimit mit Teilergebnis", "Jede Metapher steht für ein echtes Konzept."),
-        { art: "text", md: "Ein kleiner Rundgang durch die Küche: Pizza bestellen, in den Ofen schieben, schneiden, ein Stück abgeben." },
+        bild("pf-ueberblick.svg", "Spickzettel: neun Pizza-Metaphern und das Programmierkonzept dahinter, z. B. Teig = Lazy Evaluation, Ofen = Zeitlimit mit Teilergebnis", "Jede Metapher steht für ein echtes Konzept."),
+        { art: "text", md: "Ein kleiner Rundgang durch die Küche: etwas in den Ofen schieben, ein Blech schneiden, eine Bestellung an einen anderen Tisch schieben." },
         {
           art: "code",
           ausfuehrbar: true,
           tier: 2,
           code: z(
-            'Pizza p = ((Tomate, Mozzarella, Basilikum));',
-            'Bote.sage(("Bestellt: " + p + " für " + p.preis().euro()));',
             'salami ergebnis = ofen(temperatur: 450, zeit: 90s) {',
             '    serviere (([1 .. 8].summe()));',
             '};',
             'Bote.sage(("Aus dem Ofen: " + ergebnis));',
             'Blech<Blech<salami>> teller = [1 .. 8] / 4;',
             'Bote.sage(("Geschnitten: " + teller));',
-            'Stück<Pizza> meins = teile(p);',
-            'Bote.sage(("Noch übrig: " + p.übrig() + " Stücke"));'
+            'Blech<margherita> tisch1 = ["Margherita", "Funghi"];',
+            'Blech<margherita> tisch2 = schieb(tisch1);',
+            'Bote.sage(("Geschoben: " + tisch2));'
           )
         },
         {
           art: "ausgabe",
           text: z(
-            "Bestellt: ((Tomate, Mozzarella, Basilikum)) für 8,00 €",
             "Aus dem Ofen: 36",
             "Geschnitten: [[1, 2], [3, 4], [5, 6], [7, 8]]",
-            "Noch übrig: 7 Stücke"
+            "Geschoben: [Margherita, Funghi]"
           )
         },
         {
@@ -53,284 +51,18 @@
               art: "tabelle",
               kopf: ["Pizza-Metapher", "Echtes Konzept", "Tier"],
               zeilen: [
-                ["Pizza-Literal `((Tomate, Käse))`, `p + Salami`", "Unveränderliche Werte (immutable data): jede Änderung erzeugt eine neue Pizza", "1"],
-                ["Eigener `belag … auf Pizza`, `unten`", "Decorator-Pattern / Middleware-Kette (`unten` ≈ `super` bzw. `next`)", "1"],
-                ["`@Nach(Tomate)` / B0012 „Auflauf“", "Invarianten, die bei jeder Konstruktion geprüft werden", "1"],
                 ["Simulierte Uhr, Schritte", "Deterministische virtuelle Zeit, Fuel-/Step-Counter", "2"],
                 ["`teig(...)`, `gehenlassen()`, `backen()`", "Lazy Evaluation, Thunk mit Memoisierung (`Lazy<T>`)", "2"],
                 ["`ofen(...) { } roh (r) { }`", "Timeout mit Zeitbudget und Teilergebnis (*anytime algorithm*)", "2"],
                 ["`schneide(n)`, `blech / n`", "Datenparallelität, Fork/Join, Map-Reduce", "2 (sequentiell simuliert)"],
                 ["`blech.brigade(fn)`, `KüchenAnanas`", "Echte Parallelität (paralleles Map) ohne gemeinsamen Zustand, deterministisch", "1"],
-                ["`schieb(p)`, `teile(p)`, `BesitzAnanas`", "Ownership & Move-Semantik (à la Rust), Referenzzählung", "2 (Laufzeitprüfung)"],
+                ["`schieb(p)`, `LeererKartonAnanas`", "Ownership & Move-Semantik (à la Rust): ein Wert wechselt den Besitzer, der alte Karton ist leer", "2 (Laufzeitprüfung)"],
                 ["`@Kühlschrank`, `.mikrowelle()`", "Memoisierung/Caching mit TTL, *stale-while-revalidate*", "2"],
                 ["`bestelle`, `trinkgeld`, `warte`, `wennDa`", "Futures/Promises, Prioritäten, Timeout mit Fallback, Callbacks", "2"],
                 ["`calzone klasse`, `aufklappen()`", "Starke Kapselung, die auch Reflection standhält", "1"]
               ]
             },
             { art: "hinweis", ton: "info", md: "Der Playground läuft komplett im Browser und ist deterministisch: Es gibt **keine echten Threads** und **keine Wanduhr**, und mit derselben Zufalls-Saat (siehe *Zufall*) kommt bei jedem Lauf dasselbe heraus. Zeit wird in Schritten gemessen (1 Schritt = 1 ms simulierte Zeit). `schneide` mit `belege`, `teig` und `bestelle` laufen nacheinander; echte Hintergrund-Threads bei `teig` und `bestelle` sind **Tier 3** – also nur Spezifikation. Mehrere Köche gleichzeitig gibt es mit der *Küchenbrigade* (`brigade`) – mit genau demselben Ergebnis wie nacheinander." }
-          ]
-        }
-      ]
-    },
-
-    // ------------------------------------------------------------------
-    {
-      id: "pizza-literale",
-      gruppe: G,
-      ordnung: 310,
-      titel: "Pizza-Literale & Beläge",
-      tier: 1,
-      inhalt: [
-        { art: "kurz", md: "Eine Pizza schreibst du in **doppelten Klammern**: `((Tomate, Mozzarella))`. Der erste Belag liegt unten, der letzte oben. Preis = 5 € Teig + alle Beläge." },
-        bild("pf-literal.svg", "Pizza im Querschnitt: unten Teig 5,00 €, darauf Tomate 1,00 €, Mozzarella 1,50 €, Basilikum 0,50 €. Summe 8,00 €", "Von links nach rechts im Code = von unten nach oben auf der Pizza."),
-        { art: "text", md: "Programmier-Begriff: Eine Pizza ist ein **unveränderlicher Wert**. `p + Salami` baut eine **neue** Pizza – `p` selbst bleibt, wie es ist." },
-        {
-          art: "code",
-          ausfuehrbar: true,
-          tier: 1,
-          code: z(
-            'Pizza p = ((Tomate, Mozzarella, Basilikum));',
-            'Bote.sage((p));',
-            'Bote.sage((p.preis().euro()));',
-            '',
-            'Pizza scharf = p + Salami;   // neue Pizza',
-            'Bote.sage((scharf));',
-            'Bote.sage((p));              // p ist unverändert'
-          )
-        },
-        {
-          art: "ausgabe",
-          text: z(
-            "((Tomate, Mozzarella, Basilikum))",
-            "8,00 €",
-            "((Tomate, Mozzarella, Basilikum, Salami))",
-            "((Tomate, Mozzarella, Basilikum))"
-          )
-        },
-        {
-          art: "details",
-          titel: "Mehr: Methoden, Gleichheit, Entfernen mit -",
-          inhalt: [
-            { art: "text", md: "- `p - Chili` liefert eine **neue** Pizza ohne (alle) Chili.\n- `p + \"Text\"` ist dagegen kein Belag, sondern Textverkettung: `((Tomate)) + \"!\"` ergibt den Text `((Tomate))!`.\n- Die leere Pizza (nur Teig) heißt `(())` oder `neu Pizza()`.\n- Zwei Pizzen sind gleich (`==`), wenn sie dieselben Beläge in derselben Reihenfolge haben." },
-            {
-              art: "tabelle",
-              kopf: ["Methode", "auf", "Ergebnis"],
-              zeilen: [
-                ["`preis()`", "Pizza", "Grundpreis 5.00 + Summe der Belagpreise"],
-                ["`beläge()`", "Pizza", "Blech der Belagnamen (als Text), unten → oben"],
-                ["`hat(Belag)`", "Pizza", "`ja`, wenn der Belag drauf ist; der Name als Text geht auch: `p.hat(\"Tomate\")`"],
-                ["`anzahlBeläge()`", "Pizza", "Anzahl der Schichten"],
-                ["`alsText()`", "Pizza", "z. B. `((Tomate, Mozzarella))`, leer: `(())`"],
-                ["`übrig()`", "Pizza", "verbleibende Stücke, siehe *Stücke & Ownership*"],
-                ["`name()`", "Belag", "Name als Text, z. B. `Salami`"],
-                ["`preis()`", "Belag", "Preis laut Zutatenliste"]
-              ]
-            },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              tier: 1,
-              code: z(
-                'Pizza scharf = ((Tomate, Mozzarella, Basilikum, Chili, Salami));',
-                'Bote.sage((scharf.preis()));',
-                'Bote.sage((scharf - Chili));',
-                'Bote.sage((scharf.hat(Chili)));',
-                'Bote.sage((scharf.beläge()));',
-                '',
-                'Pizza nackt = (());',
-                'Bote.sage((nackt + " kostet " + nackt.preis()));',
-                '',
-                'Pizza a1 = ((Tomate, Käse));',
-                'Pizza a2 = ((Tomate, Käse));',
-                'Bote.sage((a1 == a2));',
-                'Bote.sage((Salami.name() + " kostet " + Salami.preis().euro()));'
-              )
-            },
-            {
-              art: "ausgabe",
-              text: z(
-                "10",
-                "((Tomate, Mozzarella, Basilikum, Salami))",
-                "ja",
-                "[Tomate, Mozzarella, Basilikum, Chili, Salami]",
-                "(()) kostet 5",
-                "ja",
-                "Salami kostet 1,50 €"
-              )
-            }
-          ]
-        },
-        {
-          art: "details",
-          titel: "Wann ist ((…)) eine Pizza? Und unbekannte Beläge",
-          inhalt: [
-            { art: "text", md: "Der Parser erkennt ein Pizza-Literal nur, wenn zwischen `((` und `))` ausschließlich **großgeschriebene, einfache Bezeichner** stehen, durch Kommas getrennt. Alles andere – `((x + 1))`, `((\"Text\"))`, `((a.b))` – ist eine gewöhnliche doppelte Klammerung." },
-            { art: "text", md: "**Achtung bei Aufrufen:** Die Klammer des Aufrufs zählt nicht mit. `Bote.sage((Salami))` übergibt den **Belag** `Salami`, `Bote.sage((Salami, Tomate))` ist ein Syntaxfehler. Eine Pizza im Aufruf braucht drei Klammern: `Bote.sage(((Salami, Tomate)))` – oder du legst sie vorher in eine Variable." },
-            { art: "text", md: "Ein großgeschriebener Name, der weder Variable noch Klasse ist, wird auf der **Zutatenliste** nachgeschlagen. Steht er dort nicht, gibt es eine `UnbekannterBelagAnanas` – die kann man fangen:" },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              tier: 1,
-              code: z(
-                'probier {',
-                '    Pizza kinder = ((Tomate, Gummibärchen));',
-                '    Bote.sage((kinder));',
-                '} verbrannt (UnbekannterBelagAnanas e) {',
-                '    Bote.sage((e.nachricht()));',
-                '}'
-              )
-            },
-            { art: "ausgabe", text: "'Gummibärchen' steht nicht auf der Zutatenliste." },
-            { art: "hinweis", ton: "pizza", md: "Preise sind Kommazahlen. Bei Belägen aus der Zutatenliste rundet pizza jede Schicht auf Cent, damit keine Krümel wie `7.800000000000001` entstehen. Eigene `preis()`-Methoden rechnen ungerundet – für die Rechnung gibt es `preis().euro()`." }
-          ]
-        },
-        {
-          art: "details",
-          titel: "Die eingebaute Zutatenliste (Preise und @Nach)",
-          inhalt: [
-            { art: "text", md: "Die Spalte `@Nach` sagt, über welchem Belag eine Zutat liegen muss (siehe *Eigene Beläge*)." },
-            {
-              art: "tabelle",
-              kopf: ["Belag", "Preis", "@Nach"],
-              zeilen: [
-                ["Tomate", "1.00", ""],
-                ["Mozzarella", "1.50", "Tomate"],
-                ["Käse", "1.00", "Tomate"],
-                ["Basilikum", "0.50", "Mozzarella"],
-                ["Salami", "1.50", ""],
-                ["Schinken", "1.50", ""],
-                ["Pilze", "1.00", ""],
-                ["Oliven", "1.00", ""],
-                ["Zwiebeln", "0.50", ""],
-                ["Paprika", "0.80", ""],
-                ["Chili", "0.50", ""],
-                ["Peperoni", "0.80", ""],
-                ["Rucola", "1.00", "Mozzarella"],
-                ["Parmesan", "1.20", "Tomate"],
-                ["Gorgonzola", "1.50", "Tomate"],
-                ["Thunfisch", "2.00", ""],
-                ["Sardellen", "1.80", ""],
-                ["Artischocken", "1.50", ""],
-                ["Spinat", "1.00", ""],
-                ["Ei", "0.80", ""],
-                ["Mais", "0.50", ""],
-                ["Knoblauch", "0.30", ""],
-                ["Kapern", "0.70", ""],
-                ["Ananas", "0.00", "löst Hawaii aus, sobald sie auf einer Pizza liegt"]
-              ]
-            },
-            { art: "hinweis", ton: "warnung", md: "`Ananas` steht zwar auf der Zutatenliste, aber eine Pizza mit Ananas löst eine **nicht fangbare Kernel-Panik** aus (Exit-Code 39). Details im Abschnitt über Hawaii. Wir haben Sie gewarnt." }
-          ]
-        }
-      ]
-    },
-
-    // ------------------------------------------------------------------
-    {
-      id: "eigene-belaege",
-      gruppe: G,
-      ordnung: 320,
-      titel: "Eigene Beläge (Decorators)",
-      tier: 1,
-      inhalt: [
-        { art: "kurz", md: "Mit `belag` erfindest du eigene Zutaten. Jede Schicht fragt die Schichten **darunter** (`unten`) und legt ihren Teil obendrauf." },
-        bild("pf-belag-decorator.svg", "Links: Trüffel fragt mit unten nach dem Preis von Tomate und Teig (6,00) und legt 4,50 drauf, macht 10,50. Rechts: Käse über Tomate ist eine Pizza, Käse unter Tomate ein Auflauf (B0012)", "Oben fragt nach unten, das Ergebnis wandert zurück nach oben."),
-        { art: "text", md: "Programmier-Begriff: Das ist das **Decorator-Muster**. `unten` funktioniert wie `super` in Java oder `next()` in einer Middleware-Kette." },
-        {
-          art: "code",
-          ausfuehrbar: true,
-          tier: 1,
-          code: z(
-            '@Nach(Tomate)',
-            'belag Trüffel auf Pizza {',
-            '    speisekarte funghi preis() {',
-            '        serviere ((unten.preis() + 4.50));',
-            '    }',
-            '}',
-            '',
-            'Pizza fein = ((Tomate, Trüffel));',
-            'Bote.sage((fein.preis()));   // 5 Teig + 1 Tomate + 4.50'
-          )
-        },
-        { art: "ausgabe", text: "10.5" },
-        {
-          art: "details",
-          titel: "So funktioniert der Dispatch (mit zweitem Beispiel)",
-          inhalt: [
-            { art: "text", md: "Eine Pizza mit den Schichten `s1 … sk` (unten → oben) beantwortet einen Methodenaufruf `m` von **oben nach unten**:\n\n- Ganz unten beim Teig (`k == 0`) antwortet die eingebaute Pizza: `preis()` liefert den Grundpreis 5.00, `beschreibung()` liefert `\"Teig\"`.\n- Definiert die oberste betrachtete Schicht `sk` die Methode `m`, wird sie ausgeführt. Darin ist `dies` die **ganze** Pizza und `unten` eine Sicht auf die Schichten `1 … k-1`.\n- Sonst wird nach unten durchgereicht. Bei `preis` kommt dabei der Standardpreis der übersprungenen Schicht dazu (laut Zutatenliste, unbekannte eigene Beläge kosten 1.00)." },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              tier: 1,
-              code: z(
-                '@Nach(Tomate)',
-                'belag Trüffel auf Pizza {',
-                '    speisekarte funghi preis() {',
-                '        serviere ((unten.preis() + 4.50));',
-                '    }',
-                '    speisekarte margherita beschreibung() {',
-                '        serviere (("edel: " + unten.beschreibung()));',
-                '    }',
-                '}',
-                '',
-                'belag Extrakäse auf Pizza {',
-                '    speisekarte margherita beschreibung() {',
-                '        serviere ((unten.beschreibung() + " + viel Käse"));',
-                '    }',
-                '}',
-                '',
-                'Pizza fein = ((Tomate, Mozzarella, Trüffel));',
-                'Bote.sage((fein.preis()));',
-                'Bote.sage((fein.beschreibung()));',
-                '',
-                'Pizza deluxe = ((Tomate, Trüffel, Extrakäse));',
-                'Bote.sage((deluxe));',
-                'Bote.sage((deluxe.preis()));',
-                'Bote.sage((deluxe.beschreibung()));'
-              )
-            },
-            { art: "ausgabe", text: z("12", "edel: Teig", "((Tomate, Trüffel, Extrakäse))", "11.5", "edel: Teig + viel Käse") },
-            { art: "text", md: "Nachgerechnet für `deluxe`: Extrakäse hat kein eigenes `preis()` → 1.00 + Preis darunter. Trüffel rechnet `unten.preis() + 4.50`, darunter liegt Tomate (1.00) auf dem Teig (5.00). Macht 1.00 + 4.50 + 1.00 + 5.00 = **11.5**. Bei `beschreibung()` wickelt jede Schicht ihren Text um das Ergebnis von unten." },
-            { art: "text", md: "Eigene Methoden wie `beschreibung()` sind auf **jeder** Pizza aufrufbar, die den Belag trägt. Sie dürfen auch eingebaute Beläge wie `Käse` neu definieren; ohne eigenes `preis()` gilt dann weiter der Preis aus der Zutatenliste." }
-          ]
-        },
-        {
-          art: "details",
-          titel: "@Nach: die Schichtreihenfolge und Fehler B0012",
-          inhalt: [
-            { art: "text", md: "Ein Belag mit `@Nach(Y)` darf **nicht unterhalb** von `Y` liegen. Fehlt `Y` auf der Pizza ganz, ist alles erlaubt. Geprüft wird bei **jeder** Pizza-Erzeugung – im Literal und bei `+`. Weil `+` immer oben auflegt, fliegt man auch damit auf die Nase, wenn man Tomate über den Käse kippt:" },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              exitCode: 2,
-              tier: 1,
-              code: z(
-                'Pizza gut = ((Tomate, Käse));',
-                'Bote.sage((gut));',
-                'Pizza auchGut = ((Käse));          // keine Tomate da? Dann ist alles erlaubt.',
-                'Bote.sage((auchGut));',
-                'Pizza auflauf = auchGut + Tomate;  // Tomate über den Käse kippen ...',
-                'Bote.sage(("Das hier liest niemand mehr."));'
-              )
-            },
-            { art: "ausgabe", text: z("((Tomate, Käse))", "((Käse))") },
-            { art: "hinweis", ton: "warnung", md: "Ein Verstoß ist **keine Ananas**, sondern ein fataler `PizzaFehler` – `probier`/`verbrannt` helfen nicht, das Programm endet mit **Exit-Code 2**:\n\n`PizzaFehler B0012: 'Käse' liegt unter 'Tomate'. Das ist keine Pizza, das ist ein Auflauf.`" },
-            { art: "text", md: "Das gilt genauso für eigene Beläge. `@Nach` steht direkt vor der `belag`-Deklaration und darf mehrere Beläge nennen:" },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              exitCode: 2,
-              tier: 1,
-              code: z(
-                '@Nach(Tomate, Mozzarella)',
-                'belag Burrata auf Pizza { }',
-                '',
-                'Pizza cremig = ((Tomate, Mozzarella, Burrata));',
-                'Bote.sage((cremig.preis()));',
-                'Pizza falsch = ((Burrata, Tomate));   // B0012: Burrata liegt unter Tomate'
-              )
-            },
-            { art: "ausgabe", text: "8.5" }
           ]
         }
       ]
@@ -763,13 +495,13 @@
           art: "details",
           titel: "Was ein Koch darf – und was nicht (KüchenAnanas)",
           inhalt: [
-            { art: "text", md: "Beim Start der Brigade wird die Hauptküche **eingefroren**: Alles, was es da schon gibt – Variablen, Objekte, Bleche, Speisekarten, Pizzen –, darf ein Koch **lesen**, aber nicht verändern. Was er selbst anlegt, gehört ihm und ist frei veränderbar. Der einzige Weg zurück ist `serviere`." },
+            { art: "text", md: "Beim Start der Brigade wird die Hauptküche **eingefroren**: Alles, was es da schon gibt – Variablen, Objekte, Bleche, Speisekarten –, darf ein Koch **lesen**, aber nicht verändern. Was er selbst anlegt, gehört ihm und ist frei veränderbar. Der einzige Weg zurück ist `serviere`." },
             {
               art: "tabelle",
               kopf: ["In der Küche", "erlaubt?"],
               zeilen: [
                 ["Variablen und Objekte der Hauptküche **lesen**", "ja – Stand vom Start der Brigade"],
-                ["eigene Variablen, `neu`, eigene Bleche und Pizzen, `kopie()`", "ja, lesen und ändern"],
+                ["eigene Variablen, `neu`, eigene Bleche und Speisekarten, `kopie()`", "ja, lesen und ändern"],
                 ["Methoden aufrufen, `ofen`, `probier`, eigene `teig`/`bestelle`, `Uhr`, `Zufall`", "ja"],
                 ["`Bote.sage` & Co.", "ja – die Ausgaben erscheinen in der Reihenfolge der Elemente"],
                 ["Variable oder Feld der Hauptküche ändern (`=`, `+=`, `++`)", "nein → `KüchenAnanas`"],
@@ -825,7 +557,7 @@
               )
             },
             { art: "ausgabe", text: z("Eine Funktion passt in keinen Karton – nur Werte können die Küche verlassen.", "Bestellannahme gibt es nur in der Hauptküche.") },
-            { art: "hinweis", ton: "pizza", md: "Zurück kommen immer **Kopien** – auch eigene Objekte, Bleche und Pizzen. Die gehören dann wieder der Hauptküche und sind dort frei veränderbar." }
+            { art: "hinweis", ton: "pizza", md: "Zurück kommen immer **Kopien** – auch eigene Objekte, Bleche und Speisekarten. Die gehören dann wieder der Hauptküche und sind dort frei veränderbar." }
           ]
         },
         {
@@ -870,117 +602,73 @@
 
     // ------------------------------------------------------------------
     {
-      id: "stuecke-ownership",
+      id: "pf-schieb",
       gruppe: G,
       ordnung: 370,
-      titel: "Stücke & Ownership",
+      titel: "Schieben (Ownership)",
       tier: 2,
       inhalt: [
-        { art: "kurz", md: "Eine Pizza steht immer an **genau einem Tisch**. Weitergeben geht mit `schieb` (dann ist dein Karton leer) – oder du gibst mit `teile` nur ein **Stück** ab." },
-        bild("pf-besitz.svg", "Oben: q = schieb(p) bewegt die Pizza von Tisch 1 zu Tisch 2, an Tisch 1 bleibt ein leerer Karton. Kopieren mit Pizza q = p gibt eine BesitzAnanas. Unten: teile(p) nimmt ein Stück heraus, p.übrig() sinkt von 8 auf 7", "Schieben bewegt die ganze Pizza, teilen gibt ein Stück ab."),
-        { art: "text", md: "Programmier-Begriff: **Ownership** mit Move-Semantik, wie in Rust. Jeder Wert hat genau einen Besitzer." },
+        { art: "kurz", md: "Mit `schieb(x)` wandert der Inhalt eines Kartons an einen anderen Tisch. Der alte Karton ist danach **leer** – wer hineingreift, bekommt eine `LeererKartonAnanas`." },
+        bild("pf-besitz.svg", "q = schieb(p) bewegt die Pizza von Tisch 1 zu Tisch 2, an Tisch 1 bleibt ein leerer Karton. Darunter: Lesen von p gibt eine LeererKartonAnanas, p = … füllt den Karton wieder.", "Schieben bewegt den ganzen Inhalt – zurück bleibt ein leerer Karton."),
+        { art: "text", md: "Programmier-Begriff: **Move-Semantik** (Ownership wie in Rust). Ein Wert hat einen Besitzer; `schieb` gibt ihn ausdrücklich weiter, statt ihn stillschweigend zu teilen." },
         {
           art: "code",
           ausfuehrbar: true,
           tier: 2,
           code: z(
-            'Pizza p = ((Tomate, Mozzarella));',
-            'Pizza q = schieb(p);          // p wandert zu q',
-            'Bote.sage((q));',
+            'Blech<margherita> bestellung = ["Margherita", "Funghi"];',
+            'Blech<margherita> tisch2 = schieb(bestellung);   // wandert zu tisch2',
+            'Bote.sage((tisch2));',
             'probier {',
-            '    Bote.sage((p));',
+            '    Bote.sage((bestellung));',
             '} verbrannt (LeererKartonAnanas e) {',
             '    Bote.sage((e.nachricht()));',
             '}',
-            'Stück<Pizza> s = teile(q);',
-            'Bote.sage(("Noch übrig: " + q.übrig()));'
+            'bestellung = ["Diavolo"];                         // neuer Karton, neues Glück',
+            'Bote.sage((bestellung));'
           )
         },
         {
           art: "ausgabe",
           text: z(
-            "((Tomate, Mozzarella))",
-            "'p' wurde weggeschoben – der Karton ist leer.",
-            "Noch übrig: 7"
+            "[Margherita, Funghi]",
+            "'bestellung' wurde weggeschoben – der Karton ist leer.",
+            "[Diavolo]"
           )
         },
         {
           art: "details",
-          titel: "Alle Regeln: kopieren, schieben, neu zuweisen",
+          titel: "Alle Regeln: schieben, zuweisen, neu füllen",
           inhalt: [
             {
               art: "tabelle",
               kopf: ["Situation", "Was passiert"],
               zeilen: [
-                ["`Pizza q = p;` oder `q = k.pizza;` (rechts steht nur ein Name oder Feldzugriff, auch in Klammern, und der Wert ist eine Pizza)", "`BesitzAnanas: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).`"],
-                ["rechts steht etwas anderes: `a ? p : q`, `[p]`, `m.hole(k)`, `s.pizza()`", "keine Prüfung – die Regel schaut nur auf die Schreibweise"],
-                ["`Pizza q = schieb(p);`", "Besitz wandert zu `q`; `p` ist danach ein leerer Karton. `schieb` geht mit Variablen jeden Typs, aber nicht mit Feldern (`schieb(k.p)` → `LaufzeitAnanas`)"],
-                ["`Pizza q = p + Käse;`", "erlaubt – das ist eine **neue** Pizza mit wieder 8 Stücken"],
-                ["Lesen von `p` nach `schieb(p)`", "`LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.`"],
-                ["`p = ((Tomate));` nach `schieb(p)`", "erlaubt – neuer Karton, neues Glück"],
-                ["`f(p)`, `serviere ((p));`", "erlaubt: Argumente und Rückgaben sind keine Doppelbesitze"],
-                ["`teile(p)`", "liefert ein `Stück<Pizza>`, `p.übrig()` sinkt um 1 (Start: 8)"],
-                ["`teile(p)` bei 0 übrigen Stücken", "`StreitAnanas: Pizza ist alle.`"]
+                ["`T q = schieb(p);`", "Der Wert wandert zu `q`; `p` ist danach ein leerer Karton. Geht mit Variablen **jeden Typs** – Zahlen, Texte, Bleche, Objekte"],
+                ["Lesen von `p` nach `schieb(p)`", "`LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.` – auch `Bote.sage((p))` zählt als Lesen"],
+                ["`p = …;` nach `schieb(p)`", "erlaubt – der Karton ist wieder voll und ganz normal benutzbar"],
+                ["`schieb(k.feld)`, `schieb(p + 1)`", "geht nicht: `LaufzeitAnanas: schieb braucht genau einen Variablennamen: schieb(p).`"],
+                ["`T q = p;` (ohne `schieb`)", "erlaubt – bei Blechen, Speisekarten und Objekten zeigen `p` und `q` dann auf **dasselbe** Ding; Zahlen und Texte werden kopiert"],
+                ["`f(p)`, `serviere ((p));`", "erlaubt und kein Schieben – `p` bleibt voll"]
               ]
             },
+            { art: "text", md: "Der Unterschied zwischen Zuweisen und Schieben wird bei Blechen sichtbar: Nach `b = a` hängt ein `b.hinzu(…)` auch an `a` – es ist dasselbe Blech. Nach `schieb(a)` gibt es `a` nicht mehr, und niemand kann sich wundern, warum sein Blech plötzlich länger ist." },
             {
               art: "code",
               ausfuehrbar: true,
               tier: 2,
               code: z(
-                'Pizza p = ((Tomate, Mozzarella));',
-                'probier {',
-                '    Pizza kopie = p;              // zwei Tische, eine Pizza?',
-                '} verbrannt (BesitzAnanas e) {',
-                '    Bote.sage((e.nachricht()));',
-                '}',
-                'Pizza q = schieb(p);',
-                'p = ((Tomate, Salami));           // Neuzuweisung ist erlaubt',
-                'Bote.sage((p));'
-              )
-            },
-            {
-              art: "ausgabe",
-              text: z(
-                "Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).",
-                "((Tomate, Salami))"
-              )
-            },
-            { art: "hinweis", ton: "info", md: "**Tier 2 – Laufzeitprüfung statt Borrow-Checker.** Der Playground prüft Ownership erst, wenn die Zeile ausgeführt wird, und nur an der **Schreibweise**: Steht rechts vom `=` ein bloßer Name oder Feldzugriff, der eine Pizza enthält, gibt es die `BesitzAnanas`. Steht dort etwas Komplizierteres (`p + Salami`, ein Methodenaufruf, `?:`), schaut niemand nach." }
-          ]
-        },
-        {
-          art: "details",
-          titel: "Stücke: essen, zählen, Streit",
-          inhalt: [
-            { art: "text", md: "Jede Pizza hat 8 Stücke. Ein `Stück<Pizza>` kennt seine Pizza (`pizza()`), kann gegessen werden (`essen()`) und weiß, ob das schon passiert ist (`istGegessen()`). Zweimal dasselbe Stück essen gibt Streit – und ein neuntes Stück auch." },
-            {
-              art: "code",
-              ausfuehrbar: true,
-              tier: 2,
-              code: z(
-                'Pizza party = ((Tomate, Mozzarella, Salami));',
-                'Stück<Pizza> s1 = teile(party);',
-                'Stück<Pizza> s2 = teile(party);',
-                'Bote.sage(("Übrig: " + party.übrig()));',
+                'Blech<margherita> a = ["Margherita"];',
+                'Blech<margherita> b = a;             // zwei Namen, ein Blech',
+                'b.hinzu("Funghi");',
+                'Bote.sage((a));',
                 '',
-                's1.essen();',
-                'Bote.sage(("Gegessen? " + s1.istGegessen()));',
-                'Bote.sage((s2.pizza()));',
-                '',
+                'Blech<margherita> c = schieb(a);     // jetzt gehört es nur noch c',
+                'c.hinzu("Diavolo");',
+                'Bote.sage((c));',
                 'probier {',
-                '    s1.essen();',
-                '} verbrannt (StreitAnanas e) {',
-                '    Bote.sage((e.nachricht()));',
-                '}',
-                '',
-                'für (salami i = 1; i <= 6; i++) {',
-                '    teile(party);',
-                '}',
-                'Bote.sage(("Übrig: " + party.übrig()));',
-                'probier {',
-                '    teile(party);',
-                '} verbrannt (StreitAnanas e) {',
+                '    Bote.sage((a.länge()));',
+                '} verbrannt (LeererKartonAnanas e) {',
                 '    Bote.sage((e.nachricht()));',
                 '}'
               )
@@ -988,14 +676,12 @@
             {
               art: "ausgabe",
               text: z(
-                "Übrig: 6",
-                "Gegessen? ja",
-                "((Tomate, Mozzarella, Salami))",
-                "Dieses Stück ist schon gegessen.",
-                "Übrig: 0",
-                "Pizza ist alle."
+                "[Margherita, Funghi]",
+                "[Margherita, Funghi, Diavolo]",
+                "'a' wurde weggeschoben – der Karton ist leer."
               )
-            }
+            },
+            { art: "hinweis", ton: "info", md: "**Tier 2 – Laufzeitprüfung statt Borrow-Checker.** Der Playground merkt sich nur, dass der Karton leer ist, und meckert erst, wenn jemand hineingreift. Eine Prüfung vor dem Start wie in Rust gibt es nicht." }
           ]
         }
       ]
