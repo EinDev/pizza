@@ -1046,7 +1046,7 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
   `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
 
-### 16.7 Theke v4: Reiter-Titel/-Seiten, klappbarer Abschnitt, `Auswahl`, `Tastatur`, Stile `zeilen`/`mindestbreite` (K-107 … K-113)
+### 16.7 Theke v4: Reiter-Titel/-Seiten, klappbarer Abschnitt, `Auswahl`, `Tastatur`, Stile `zeilen`/`mindestbreite` (K-107 … K-113; umgesetzt: Interpreter 6cfa564, Wasm 793acac, Renderer 07fd5b3)
 
 Kein neues `op`, Protokoll v1 (neue `art` `auswahl`/`tastatur`, neue Felder `klappbar`/`zu`, neues Ereignis `taste`, neue Stil-Schlüssel);
 alte Renderer zeigen Platzhalter bzw. ignorieren. Alle Namen in Interpreter und Wasm-Laufzeit gleich (bitgleiche `ui`-Nachrichten).

@@ -1375,6 +1375,13 @@ streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Theke v4 (Wünsche W1–W7 des Idle-Agenten): K-107 … K-113 festgehalten, SPEC §16.7, THEKE.md §8; umgesetzt und abgenommen in Interpreter
+  (6cfa564), Wasm-Laufzeit (793acac, fdlibm-Port für `Mathe.log/log10/log2/exp`), Renderer (07fd5b3) und Doku-Referenz (845611c … 7724990);
+  `test:differenz` 1006 Fälle ohne Abweichung, Host nur neu gebaut. Das Idle-Spiel darf jetzt selbst umstellen (Reiter `setzeTitel`/`sichtbar`,
+  klappbare Abschnitte, `Auswahl` für die Kaufmenge, `Tastatur` in den Minispielen, `Mathe.log` für Max-Kauf, `stil("zeilen", n)`).
+  Merge-Hinweis Multithreading-Branch: `laufzeit/src/namen.rs` hängt 12 Namen 190–201 an (`Auswahl`, `Tastatur`, `optionen`, `setzeOptionen`,
+  `klappbar`, `zu`, `beiTaste`, `log`, `log10`, `log2`, `exp`, `E`) – der Branch endet nach `farbe` (188) mit `brigade`, `KüchenAnanas`
+  und kennt `namensraum` (189) nicht: beide Enden anhängen, Konstanten neu nummerieren, `laufzeit.wasm` neu bauen (`ANANAS_BAUM` bleibt).
 - Küchenbrigade (THREADS.md, Nutzerentscheidungen F1–F10 wie empfohlen): K-097 … K-100, SPEC §17 (THREADS §2/§3 damit
   abgelöst; THREADS bleibt Plan für §4–§6); HOST-ABI-Gruppe `kueche` als Entwurf; Aufträge U-63 … U-70 (U-63 erledigt in
   72cb857 ff., U-64 in 37c88f2). P1 abgenommen: `a14-kueche.js` (62 Fälle, nach dem master-Merge +1 für Theke v3 in S4) grün; die vier Vertragslücken des Interpreter-Agenten
