@@ -796,7 +796,7 @@
           art: "details",
           titel: "Alle Methoden der Vorratskammer",
           inhalt: [
-            { art: "text", md: "`neu Vorratskammer(name)` öffnet die Kammer mit diesem Namen – gibt es sie noch nicht, ist sie leer. Der Name besteht aus Kleinbuchstaben `a–z`, Ziffern und `-` (1–40 Zeichen), z. B. `\"pizza-imperium\"`; sonst gibt es eine `LaufzeitAnanas`. Zweimal `neu` mit demselben Namen öffnet dieselbe Kammer." },
+            { art: "text", md: "`neu Vorratskammer(name)` öffnet die Kammer mit diesem Namen – gibt es sie noch nicht, ist sie leer. Der Name besteht aus Kleinbuchstaben `a–z`, Ziffern und `-` (1–40 Zeichen), z. B. `\"pizza-imperium\"`; sonst gibt es eine `LaufzeitAnanas`. Optional kommt ein **Namensraum** dazu – `neu Vorratskammer(\"spielstand\", namensraum: \"pizza-imperium\")` (auch ohne `namensraum:` als zweites Argument; `karton` heißt „ohne“). Für ihn gelten dieselben Zeichenregeln, sonst `LaufzeitAnanas: Ungültiger Namensraum '…' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` Die **Kennung** der Kammer ist dann `raum/name` (`pizza-imperium/spielstand`) – so erscheint sie in der Textform `Vorratskammer(pizza-imperium/spielstand)` und in Fehlertexten. Zweimal `neu` mit derselben Kennung öffnet dieselbe Kammer; `neu Vorratskammer(\"a\")` und `neu Vorratskammer(\"a\", namensraum: \"x\")` sind zwei verschiedene. Wozu der Namensraum gut ist, steht unten unter *Ein Spielstand für alle Fassungen deines Spiels*." },
             tab([
               ["`lege(schlüssel, wert)`", "Legt `wert` ab (überschreibt) und speichert **sofort**; gibt die Kammer zurück (verkettbar)", "`v.lege(\"punkte\", 120)`"],
               ["`hole(schlüssel)`", "Gespeicherter Wert; fehlt er → `karton`", "`v.hole(\"punkte\")`"],
@@ -806,7 +806,8 @@
               ["`schlüssel()`", "Blech aller Schlüssel, in der Reihenfolge des ersten Ablegens", "`v.schlüssel()`"],
               ["`länge()`", "Anzahl Einträge", "`v.länge()`"],
               ["`leeren()`", "Räumt die ganze Kammer leer (z. B. für „Neues Spiel“)", "`v.leeren();`"],
-              ["`name()`", "Name der Kammer", "`v.name()`"]
+              ["`name()`", "Name der Kammer (ohne Namensraum)", "`v.name()`"],
+              ["`namensraum()`", "Namensraum der Kammer als Text – ohne Namensraum `karton`", "`v.namensraum()`"]
             ]),
             {
               art: "code",
@@ -827,6 +828,32 @@
         },
         {
           art: "details",
+          titel: "Ein Spielstand für alle Fassungen deines Spiels (Namensraum)",
+          inhalt: [
+            { art: "text", md: "Ohne Namensraum gehört eine Kammer dem **Tab**, in dem das Programm läuft: Ein Beispiel aus der Galerie hat einen anderen Stand als derselbe Code in deinem eigenen Tab. Das ist beim Ausprobieren genau richtig – aber nicht für ein Spiel, das du über Jahre weiterbaust: Du teilst Fassung 2 per App-Link, Fassung 3 öffnest du im Editor, und überall soll derselbe Spielstand weitergehen.\n\nDafür gibst du der Kammer einen **Namensraum**: `neu Vorratskammer(\"spielstand\", namensraum: \"pizza-imperium\")`. Damit erklärst du: „Das ist **ein** Spielstand, wo immer dieses Programm läuft.“ Im Playground teilen sich eigene Tabs, Beispiele, geteilte Tabs und App-Links jeder Fassung den Eintrag `pizza.vorrat.pizza-imperium/spielstand` im Browser; heruntergeladenes Programm und Kommandozeile teilen sich die Datei `…/pizza/vorrat/pizza-imperium/spielstand.json`. Browser und Programm bleiben weiterhin getrennt. Mehrere Kammern desselben Spiels (`spielstand`, `erfolge`, `einstellungen`) bekommen einfach denselben Namensraum." },
+            { art: "text", md: "**Umzug eines alten Spielstands:** Hat dein Spiel bisher ohne Namensraum gespeichert, öffnest du beide Kammern, kopierst die Einträge einmalig in die neue und leerst die alte. Im Beispiel-Tab findet das Programm so den Beispiel-Stand, im App-Link den echten – beide landen im gemeinsamen Raum. Für die Ausgabe unten ist die alte Kammer mit `punkte = 120` vorgefüllt; backst du den Block selbst, ist sie leer, es gibt nichts umzuziehen und statt `120` steht dort `karton`:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              vorrat: { spiel: [["punkte", 120]] },
+              vorratErwartet: [{ name: "spiel/stand", schluessel: "punkte", wert: 120 }, { name: "spiel", schluessel: null, wert: null }],
+              code: z(
+                "Vorratskammer alt = neu Vorratskammer(\"spiel\");                        // bisher",
+                "Vorratskammer stand = neu Vorratskammer(\"stand\", namensraum: \"spiel\"); // ab jetzt",
+                "falls (stand.länge() == 0 && alt.länge() > 0) {",
+                "  für (margherita k : alt.schlüssel()) { stand.lege(k, alt.hole(k)); }",
+                "  alt.leeren();",
+                "}",
+                "Bote.sage(stand, stand.namensraum(), stand.name(), stand.hole(\"punkte\"), alt.länge());"
+              )
+            },
+            { art: "ausgabe", text: "Vorratskammer(spiel/stand) spiel stand 120 0" },
+            { art: "text", md: "Beim zweiten Lauf ist die alte Kammer leer, die Bedingung greift nicht mehr – der Umzug passiert nur einmal. Die leere alte Kammer kannst du später mit **„Vorrat löschen“** ganz entfernen." }
+          ]
+        },
+        {
+          art: "details",
           titel: "Was passt hinein?",
           inhalt: [
             { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Pizzen, Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
@@ -840,13 +867,14 @@
               art: "tabelle",
               kopf: ["Wo das Programm läuft", "Wo der Vorrat liegt"],
               zeilen: [
-                ["Playground", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser). Tabs, die du aus **Beispiele** oder dieser Doku öffnest, haben einen **eigenen** Spielstand – so verfälscht das Ausprobieren eines Beispiels nie den Stand deiner eigenen Programme."],
-                ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`"],
-                ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`)"]
+                ["Playground (ohne Namensraum)", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser). Die Kammer gehört dem **Tab**: Tabs, die du aus **Beispiele** oder dieser Doku öffnest, haben einen **eigenen** Spielstand – so verfälscht das Ausprobieren eines Beispiels nie den Stand deiner eigenen Programme."],
+                ["Playground (mit Namensraum)", "ebenfalls im Speicher deines Browsers, als `pizza.vorrat.<raum>/<name>` – die Kammer gehört dem **Programm**: eigene Tabs, Beispiele, geteilte Tabs und App-Links jeder Fassung teilen sich diesen Stand."],
+                ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`, mit Namensraum `%APPDATA%\\pizza\\vorrat\\<raum>\\<name>.json`"],
+                ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`), mit Namensraum `…/vorrat/<raum>/<name>.json`"]
               ]
             },
-            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an. Heruntergeladenes Programm und Kommandozeile (`node bin/pizza.js`) nutzen dagegen **denselben** Ordner und damit denselben Stand." },
-            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` (eine Kammer) bzw. `--vorrat-loeschen-alle` (alle). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
+            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand (auch nicht mit Namensraum): Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an. Heruntergeladenes Programm und Kommandozeile (`node bin/pizza.js`) nutzen dagegen **denselben** Ordner und damit denselben Stand." },
+            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“; Kammern mit Namensraum stehen dort als `raum/name`), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` bzw. `--vorrat-loeschen raum/name` (eine Kammer) oder `--vorrat-loeschen-alle` (alle – auch die Kammern in Namensraum-Ordnern). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
             { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
           ]
         }
@@ -1442,7 +1470,7 @@
                 ["Linux", "Erst ausführbar machen, dann starten: `chmod +x programm && ./programm`"]
               ]
             },
-            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground. Der **Spielstand** (Vorratskammer) liegt in `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe Ordner wie bei `node bin/pizza.js`, Programm und Kommandozeile teilen sich also den Stand." },
+            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground. Der **Spielstand** (Vorratskammer) liegt in `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`; Kammern mit Namensraum im Unterordner `<raum>/`) – derselbe Ordner wie bei `node bin/pizza.js`, Programm und Kommandozeile teilen sich also den Stand." },
             {
               art: "code",
               sprache: "shell",
@@ -1523,8 +1551,8 @@
             ["`--saat=N`", "Feste Zufalls-Saat. Ohne Option gibt es eine echte Saat, angezeigt als `Saat: N`"],
             ["`--vorrat=ordner`", "Vorratskammern in `ordner` statt im Standardordner ablegen"],
             ["`--kein-vorrat`", "Nichts lesen, nichts speichern – die Kammern leben nur im Speicher (Warnung `W0101`)"],
-            ["`--vorrat-loeschen <name>`", "Löscht die Kammer `<name>` und beendet sich (startet kein Programm)"],
-            ["`--vorrat-loeschen-alle`", "Löscht alle Kammern und beendet sich"],
+            ["`--vorrat-loeschen <kennung>`", "Löscht die Kammer `<name>` bzw. `raum/name` (mit Namensraum) und beendet sich (startet kein Programm)"],
+            ["`--vorrat-loeschen-alle`", "Löscht alle Kammern – auch die in Namensraum-Ordnern – und beendet sich"],
             ["`--info`", "Am Ende Exit-Code, Schritte und Uhr ausgeben"],
             ["`--debug`", "Bei internen Fehlern zusätzlich technische Details zeigen (sonst nie)"],
             ["`--ast`", "Nur den Syntaxbaum ausgeben, nichts ausführen – für Neugierige"],
@@ -1564,11 +1592,13 @@
                 "Vorrat 'pizza-imperium' gelöscht.",
                 "$ node bin/pizza.js --vorrat-loeschen pizza-imperium",
                 "Vorrat 'pizza-imperium' gibt es nicht.",
+                "$ node bin/pizza.js --vorrat-loeschen pizza-imperium/spielstand   # Kammer mit Namensraum",
+                "Vorrat 'pizza-imperium/spielstand' gelöscht.",
                 "$ node bin/pizza.js --vorrat-loeschen-alle",
                 "Alle Vorräte gelöscht."
               )
             },
-            { art: "text", md: "Ein ungültiger Name ergibt `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` mit Exit-Code 2. `--vorrat=ordner` lässt sich mit beiden Löschbefehlen kombinieren." }
+            { art: "text", md: "Eine ungültige Kennung ergibt `Ungültiger Kammername '<kennung>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` mit Exit-Code 2. `--vorrat=ordner` lässt sich mit beiden Löschbefehlen kombinieren." }
           ]
         },
         {
@@ -1605,7 +1635,7 @@
         },
         { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf so lange dauern, wie er will – gestoppt wird nur durch das Schrittlimit (`P0002`, 5 000 000 Schritte, Exit-Code 3) oder durch dich: **Esc** bzw. **Abbrechen**." },
         { art: "text", md: "**Argumente:** Im Playground gibt es das Feld **„Argumente“**. Was du dort einträgst, bekommt `hauptgang(Blech<margherita> args)` als Blech von Texten – genau wie beim Aufruf in der Kommandozeile oder beim heruntergeladenen Programm (`./programm Luigi 3`). Ohne Eintrag ist das Blech leer." },
-        { art: "text", md: "**Zufall & Vorrat:** Oben in der Konsole steht bei jedem Lauf `Saat: N`; mit dem Häkchen **„feste Saat 42“** würfelt jeder Lauf gleich (siehe *Zufall*). Vorratskammern liegen im Speicher deines Browsers, Beispiel- und Doku-Tabs haben einen eigenen Spielstand. Aufräumen: Befehlspalette (`F1`) → **„Vorrat löschen“** (siehe *Vorratskammer*)." },
+        { art: "text", md: "**Zufall & Vorrat:** Oben in der Konsole steht bei jedem Lauf `Saat: N`; mit dem Häkchen **„feste Saat 42“** würfelt jeder Lauf gleich (siehe *Zufall*). Vorratskammern liegen im Speicher deines Browsers; Beispiel- und Doku-Tabs haben einen eigenen Spielstand – außer die Kammer trägt einen Namensraum, dann teilen alle Tabs denselben. Aufräumen: Befehlspalette (`F1`) → **„Vorrat löschen“** (siehe *Vorratskammer*)." },
         {
           art: "details",
           titel: "Code teilen",

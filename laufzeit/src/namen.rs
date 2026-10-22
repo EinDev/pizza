@@ -1,6 +1,6 @@
 //! Eingebaute Namen (Intern-IDs). Generiert – Reihenfolge = ID.
 
-pub const NAMEN: [&str; 223] = [
+pub const NAMEN: [&str; 224] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -224,6 +224,7 @@ pub const NAMEN: [&str; 223] = [
     "dauer",
     "bei",
     "farbe",
+    "namensraum",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -452,6 +453,7 @@ pub const N_ART: u32 = 219;
 pub const N_DAUER: u32 = 220;
 pub const N_BEI: u32 = 221;
 pub const N_FARBE: u32 = 222;
+pub const N_NAMENSRAUM: u32 = 223;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM).
 pub const K_ANANAS: u32 = 0;

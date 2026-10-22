@@ -733,6 +733,49 @@ v.lege("x", 1);
 Bote.sage((v.hole("x")));
 `, { out: ["1"], warnAnzahl: { W0101: 1 }, warnText: { W0101: "Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert." } }),
 
+  // ── K-106 Vorratskammer: Namensraum ──────────────────────────────────────
+  F(K, "K-106: Kennung raum/name in optionen.vorrat, Ereignis und Textform; name() ohne Raum, namensraum(); positional = benannt = gleiche Kammer", P`
+Vorratskammer v = neu Vorratskammer("stand", namensraum: "spiel");
+Bote.sage((v.hole("punkte")));
+Bote.sage((v + " " + v.name() + " " + v.namensraum()));
+v.lege("punkte", 6);
+Vorratskammer w = neu Vorratskammer("stand", "spiel");
+Bote.sage((w.hole("punkte") + " " + w.länge()));
+w.entferne("punkte");
+Bote.sage((v.länge()));
+`, {
+    vorrat: { "spiel/stand": [["punkte", 5]], stand: [["punkte", 99]] },
+    out: ["5", "Vorratskammer(spiel/stand) stand spiel", "6 1", "0"],
+    vorratEreignisse: [{ name: "spiel/stand", schluessel: "punkte", wert: 6 }, { name: "spiel/stand", schluessel: "punkte", wert: null }],
+  }),
+
+  F(K, "K-106: gleicher Name, anderer oder kein Raum → getrennte Kammern; karton = ohne Namensraum", P`
+Vorratskammer a = neu Vorratskammer("stand", namensraum: "spiel");
+Vorratskammer b = neu Vorratskammer("stand", namensraum: "anderes");
+Vorratskammer c = neu Vorratskammer("stand");
+Vorratskammer d = neu Vorratskammer("stand", karton);
+a.lege("p", 1);
+b.lege("p", 2);
+d.lege("p", 3);
+Bote.sage((a.hole("p") + " " + b.hole("p") + " " + c.hole("p")));
+Bote.sage((c + " " + c.namensraum() + " " + d.namensraum()));
+`, {
+    vorrat: {},
+    out: ["1 2 3", "Vorratskammer(stand) karton karton"],
+    vorratEreignisse: [{ name: "spiel/stand", schluessel: "p", wert: 1 }, { name: "anderes/stand", schluessel: "p", wert: 2 }, { name: "stand", schluessel: "p", wert: 3 }],
+  }),
+
+  F(K, "K-106: ungültiger Namensraum → LaufzeitAnanas mit festem Text, geprüft nach dem Kammernamen", P`
+probier { neu Vorratskammer("x", namensraum: "Groß/Raum"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Vorratskammer("x", ""); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Vorratskammer("Groß Name", namensraum: "Groß"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((neu Vorratskammer("ok", "a-1")));
+`, {
+    vorrat: {},
+    out: ["Ungültiger Namensraum 'Groß/Raum' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).", "Ungültiger Namensraum '' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).", "Ungültiger Kammername 'Groß Name' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).", "Vorratskammer(a-1/ok)"],
+    vorratEreignisse: [],
+  }),
+
 F(K, "K-085: tausender(n) – Punkt als Tausendertrenner, Komma, genau n Nachkommastellen, Rundung K-048", P`
 Bote.sage((1234567.tausender()));
 Bote.sage((1234567.tausender(2)));

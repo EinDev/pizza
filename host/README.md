@@ -17,7 +17,7 @@ node test.js                 # Differenztest aller Beispiele gegen den Interpret
 
 ```sh
 pizza-host [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
-pizza-host [--vorrat=ordner] --vorrat-loeschen <name>
+pizza-host [--vorrat=ordner] --vorrat-loeschen <kennung>
 pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
 
@@ -49,15 +49,18 @@ Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der 
 - **Zufall (K-077):** `--saat=N` → Export `saat_setzen(N)` vor `start` (keine Ganzzahl → `--saat braucht eine Ganzzahl.`, Exit 2).
   Ohne Option eine echte Saat und die Zeile `Saat: N` auf stderr (grau bei TTY) – nur wenn das Modul `saat_setzen` exportiert.
   Im JSON-Modus (`--ereignisse-json`, `PIZZA_EREIGNISSE_JSON`) gilt ohne `--saat` die feste Saat 42 ohne Anzeige (wie `optionen.zufallsSaat` fehlt).
-- **Vorratskammer (K-079–K-081):** Importe `vorrat_lesen`/`vorrat_schreiben`; eine Datei je Kammer `<ordner>/<name>.json` im Format
-  `{"v":1,"name":…,"eintraege":[…]}`, atomar geschrieben (`<name>.json.<pid>.tmp` + Umbenennen). Standardordner
+- **Vorratskammer (K-079–K-081, K-106):** Importe `vorrat_lesen`/`vorrat_schreiben`; eine Datei je Kammer `<ordner>/<name>.json`
+  bzw. mit Namensraum `<ordner>/<raum>/<name>.json` (Kennung `raum/name`) im Format `{"v":1,"name":…,"eintraege":[…]}`, atomar
+  geschrieben (`<name>.json.<pid>.tmp` im selben Ordner + Umbenennen). Der Host prüft die Kennung selbst (höchstens ein `/`, Teile
+  einzeln `[a-z0-9-]{1,40}`) und baut den Pfad nur aus den geprüften Teilen; ungültige Kennung → `vorrat_lesen` -1, `vorrat_schreiben` -1. Standardordner
   `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe wie bei `bin/pizza.js`,
   CLI und EXE teilen sich also den Spielstand. `--vorrat=ordner` → anderer Ordner, `--kein-vorrat` → nur im Speicher (W0101).
   Jede Änderung erzeugt das Ereignis `vorrat` (JSON-Modus), die Konsole zeigt nichts an. Speichern fehlgeschlagen →
   `LaufzeitAnanas: Die Vorratskammer 'x' konnte nicht gespeichert werden.` (macht das Modul).
-- **Vorrat löschen (K-088), ohne Programmlauf:** `--vorrat-loeschen <name>` (auch `=<name>`) → `Vorrat '<name>' gelöscht.` bzw.
-  `Vorrat '<name>' gibt es nicht.` (Exit 0), ungültiger Name → `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`
-  (Exit 2); `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.`
+- **Vorrat löschen (K-088/K-106), ohne Programmlauf:** `--vorrat-loeschen <kennung>` (auch `=<kennung>`, Kennung `name` oder
+  `raum/name`) → `Vorrat '<kennung>' gelöscht.` bzw. `Vorrat '<kennung>' gibt es nicht.` (Exit 0), ungültige Kennung →
+  `Ungültiger Kammername '<kennung>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` (Exit 2);
+  `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.` (auch `<raum>/<name>.json` gültiger Kennung, leer gewordene Raum-Ordner werden entfernt).
 - **Wanduhr (K-087):** Import `echtzeit_ms` = Systemzeit in ganzen ms; Testoption `--echtzeit=N` (fest, gerundet, wächst nicht).
 - **Importprüfung (HOST-ABI §2):** vor dem Instanziieren; eine unbekannte Funktion →
   `PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.x' (Gruppe g), die dieser Host nicht kennt – bitte pizza-host aktualisieren.`

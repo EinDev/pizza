@@ -1437,7 +1437,8 @@
     }
   }
   class Kammer {
-    constructor(name) { this.name = name; this.daten = new Map(); }
+    // K-106: name = reiner Kammername, raum = Namensraum oder null, kennung = name bzw. raum + "/" + name
+    constructor(name, raum) { this.name = name; this.raum = raum; this.kennung = raum === null ? name : raum + '/' + name; this.daten = new Map(); }
   }
 
   function mulberry32(a) {
@@ -1905,6 +1906,7 @@
     'länge': function (k) { return k.daten.size; },
     'leeren': function (k) { if (this.kueche !== null) this.kuecheKammer(k); k.daten.clear(); this.kammerGeaendert(k, null, null, null); return k; },
     'name': function (k) { return k.name; },
+    'namensraum': function (k) { return k.raum; },  // K-106: Text oder karton
     'alsText': function (k) { return this.text(k); }
   });
 
@@ -2480,39 +2482,44 @@
     }
 
     kammerGeaendert(k, schluessel, wert, rueckgaengig) {
-      const groesse = new TextEncoder().encode(JSON.stringify({ v: 1, name: k.name, eintraege: Array.from(k.daten) })).length;
+      const groesse = new TextEncoder().encode(JSON.stringify({ v: 1, name: k.kennung, eintraege: Array.from(k.daten) })).length;
       if (groesse > 1048576 && rueckgaengig !== null) {
         rueckgaengig();
-        throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.name + '\' ist voll (Limit 1 MiB).');
+        throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' ist voll (Limit 1 MiB).');
       }
-      this.emit({ typ: 'vorrat', name: k.name, schluessel, wert: wert === null ? null : JSON.parse(JSON.stringify(wert)) });
+      this.emit({ typ: 'vorrat', name: k.kennung, schluessel, wert: wert === null ? null : JSON.parse(JSON.stringify(wert)) });
       if (this.onVorrat !== null) {
         let ok = true;
-        try { ok = this.onVorrat(k.name, this.kammerEintraege(k)) !== false; } catch (e) { ok = false; }
-        if (!ok) throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.name + '\' konnte nicht gespeichert werden.');
+        try { ok = this.onVorrat(k.kennung, this.kammerEintraege(k)) !== false; } catch (e) { ok = false; }
+        if (!ok) throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' konnte nicht gespeichert werden.');
       }
     }
 
+    // K-106: neu Vorratskammer(name[, namensraum]) – Kennung = name bzw. namensraum/name; gleiche Kennung = gleiche Kammer
     neueKammer(pos, ben, node) {
       const n = arg(pos, ben, 0, 'name');
       const name = n === undefined || n === null ? '' : this.text(n);
       if (!/^[a-z0-9-]{1,40}$/.test(name)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Kammername \'' + name + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
-      const da = this.kammern.get(name);
+      const r = arg(pos, ben, 1, 'namensraum');
+      const raum = r === undefined || r === null ? null : this.text(r);
+      if (raum !== null && !/^[a-z0-9-]{1,40}$/.test(raum)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Namensraum \'' + raum + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
+      const kennung = raum === null ? name : raum + '/' + name;
+      const da = this.kammern.get(kennung);
       if (da !== undefined) return da;
       if (this.vorratOpt === null && this.onVorrat === null && !this.w0101) {
         this.w0101 = true;
         this.warnung('W0101', 'Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.', node);
       }
-      const k = new Kammer(name);
+      const k = new Kammer(name, raum);
       let eintraege = null;
-      if (this.vorratOpt !== null) { try { eintraege = this.vorratOpt[name]; } catch (e) { eintraege = null; } }
+      if (this.vorratOpt !== null) { try { eintraege = this.vorratOpt[kennung]; } catch (e) { eintraege = null; } }
       if (eintraege && !Array.isArray(eintraege) && Array.isArray(eintraege.eintraege)) eintraege = eintraege.eintraege;
       if (Array.isArray(eintraege)) {
         for (const p of eintraege) {
           if (Array.isArray(p) && typeof p[0] === 'string') k.daten.set(p[0], JSON.parse(JSON.stringify(p[1] === undefined ? null : p[1])));
         }
       }
-      this.kammern.set(name, k);
+      this.kammern.set(kennung, k);
       return k;
     }
 
@@ -3158,7 +3165,7 @@
       if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
       if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
       if (v instanceof ZufallGen) return 'Zufall(' + v.saat + ')';
-      if (v instanceof Kammer) return 'Vorratskammer(' + v.name + ')';
+      if (v instanceof Kammer) return 'Vorratskammer(' + v.kennung + ')';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
       if (v === AUTO) return 'auto';
       return String(v);
@@ -4395,7 +4402,7 @@
     }
     kuecheKammer(k) {
       // Kammern entstehen nur in der Hauptküche (S4) – jede Kammer gehört ihr.
-      throw this.ananas('KüchenAnanas', 'Die Vorratskammer \'' + k.name + '\' gehört der Hauptküche – ein Koch darf nur nachsehen.');
+      throw this.ananas('KüchenAnanas', 'Die Vorratskammer \'' + k.kennung + '\' gehört der Hauptküche – ein Koch darf nur nachsehen.');
     }
 
     // Warnungsgedächtnis (D5): Hauptküche = warnSet/Methode.gewarnt, Küchen zusätzlich eigene Mengen (Kette)

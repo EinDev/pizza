@@ -361,3 +361,40 @@ e2e("App-Link: Laufzeitfehler wird angezeigt", async ({ page, server, basis }) =
   assert.doesNotMatch(t, /nachher/);
   assert.match(await page.$eval("#app-ende-text", (e) => e.textContent), /Exit-Code 1/);
 });
+
+// ---------------------------------------------------------------- Vorrat mit Namensraum (K-106): ein Stand für alle Fassungen
+e2e("App-Link, Vorrat mit Namensraum: zwei verschiedene Fassungen (zwei Schlüssel, anderer Code) teilen pizza.vorrat.<raum>/<name>", async ({ page, neueSeite, server, basis }) => {
+  const FASSUNG_A = [
+    'Vorratskammer v = neu Vorratskammer("stand", namensraum: "e2e-spiel");',
+    'salami n = v.hole("zaehler", 0) + 1;',
+    'v.lege("zaehler", n);',
+    'Bote.sage(("Fassung A: " + n));',
+  ].join("\n");
+  const FASSUNG_B = [
+    'Vorratskammer v = neu Vorratskammer("stand", namensraum: "e2e-spiel");',
+    'Vorratskammer alt = neu Vorratskammer("stand");',
+    'Bote.sage(("Fassung B sieht " + v.hole("zaehler", 0) + " (" + v + "), ohne Raum " + alt.hole("zaehler", 0)));',
+  ].join("\n");
+  server.teilen.ablage.set("fassung-a", verpacke("spiel-v1.pizza", FASSUNG_A));
+  server.teilen.ablage.set("fassung-b", verpacke("spiel-v2.pizza", FASSUNG_B));
+  await page.goto(basis + "#app=fassung-a", { waitUntil: "load" });
+  await warteEnde(page);
+  assert.match(await konsolenText(page), /Fassung A: 1/);
+  const kammer = await page.evaluate(() => JSON.parse(localStorage.getItem("pizza.vorrat.e2e-spiel/stand")));
+  assert.deepEqual(kammer, { v: 1, name: "e2e-spiel/stand", eintraege: [["zaehler", 1]] }, "Schlüssel = pizza.vorrat.<raum>/<name>, Serialisierung mit Kennung");
+  assert.equal(await page.evaluate(() => localStorage.getItem("pizza.vorrat.stand")), null, "keine Kammer ohne Raum angelegt");
+  // Nochmal in derselben Fassung zählt weiter
+  await page.click("#app-nochmal");
+  await warteEnde(page);
+  assert.match(await konsolenText(page), /Fassung A: 2/);
+  // Zweite Fassung (anderer Schlüssel, anderer Code) im selben Browser-Kontext liest denselben Stand
+  const p2 = await neueSeite();
+  await p2.goto(basis + "#app=fassung-b", { waitUntil: "load" });
+  await warteEnde(p2);
+  assert.match(await konsolenText(p2), /Fassung B sieht 2 \(Vorratskammer\(e2e-spiel\/stand\)\), ohne Raum 0/);
+  assert.deepEqual(
+    await p2.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("pizza.vorrat")).sort()),
+    ["pizza.vorrat.e2e-spiel/stand"],
+    "nur die Namensraum-Kammer (alt/stand ohne Raum wurde nie beschrieben)",
+  );
+});

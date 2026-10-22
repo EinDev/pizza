@@ -173,17 +173,48 @@ pub fn eintraege_roh(json: &str) -> Option<&str> {
     }
 }
 
-/// Liest die gespeicherten Einträge der Kammer `name` aus `<ordner>/<name>.json` (K-080/K-081).
+/// Ein Teil einer Kennung (Raum- oder Kammername, K-088/K-106): `[a-z0-9-]{1,40}`.
+pub fn vorrat_teil_gueltig(teil: &str) -> bool {
+    (1..=40).contains(&teil.len()) && teil.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
+/// Zerlegt die Kennung einer Kammer (K-106): `name` → `(None, name)`, `raum/name` → `(Some(raum), name)`;
+/// beide Teile einzeln `[a-z0-9-]{1,40}`, höchstens ein `/`. Alles andere (`../x`, `a//b`, `/a`, `a/`, Großbuchstaben,
+/// 41 Zeichen, …) → `None` – der Host prüft selbst, auch bei einem manipulierten Modul.
+pub fn vorrat_kennung(kennung: &str) -> Option<(Option<&str>, &str)> {
+    match kennung.split_once('/') {
+        Some((raum, name)) => (vorrat_teil_gueltig(raum) && vorrat_teil_gueltig(name)).then_some((Some(raum), name)),
+        None => vorrat_teil_gueltig(kennung).then_some((None, kennung)),
+    }
+}
+
+/// Datei einer Kammer: `<ordner>/<name>.json` bzw. `<ordner>/<raum>/<name>.json` (K-081/K-106) – nur aus den
+/// geprüften Teilen gebaut, nie aus dem Rohtext; ungültige Kennung → `None`.
+pub fn vorrat_pfad(ordner: &Path, kennung: &str) -> Option<PathBuf> {
+    let (raum, name) = vorrat_kennung(kennung)?;
+    let datei = format!("{}.json", name);
+    Some(match raum {
+        Some(r) => ordner.join(r).join(datei),
+        None => ordner.join(datei),
+    })
+}
+
+/// Liest die gespeicherten Einträge der Kammer mit der Kennung `name` (K-080/K-081/K-106); ungültige Kennung oder
+/// keine Datei → `None`.
 pub fn vorrat_datei_lesen(ordner: &Path, name: &str) -> Option<Vec<u8>> {
-    let t = std::fs::read_to_string(ordner.join(format!("{}.json", name))).ok()?;
+    let t = std::fs::read_to_string(vorrat_pfad(ordner, name)?).ok()?;
     eintraege_roh(&t).map(|s| s.as_bytes().to_vec())
 }
 
-/// Speichert eine Kammer atomar (Temp-Datei + Umbenennen, K-081) als `<ordner>/<name>.json`.
+/// Speichert eine Kammer atomar (Temp-Datei im Zielordner + Umbenennen, K-081) unter ihrer Kennung (K-106);
+/// ungültige Kennung → `InvalidInput`.
 pub fn vorrat_datei_schreiben(ordner: &Path, name: &str, json: &[u8]) -> std::io::Result<()> {
-    std::fs::create_dir_all(ordner)?;
-    let ziel = ordner.join(format!("{}.json", name));
-    let tmp = ordner.join(format!("{}.json.{}.tmp", name, std::process::id()));
+    let Some(ziel) = vorrat_pfad(ordner, name) else {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, format!("Ungültige Kennung '{}'", name)));
+    };
+    let zielordner = ziel.parent().unwrap_or(ordner);
+    std::fs::create_dir_all(zielordner)?;
+    let tmp = ziel.with_extension(format!("json.{}.tmp", std::process::id()));
     std::fs::write(&tmp, json)?;
     if let Err(e) = std::fs::rename(&tmp, &ziel) {
         let _ = std::fs::remove_file(&tmp);

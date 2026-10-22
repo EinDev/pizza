@@ -9,7 +9,7 @@ import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
 import { erstelleVorschau } from "./vorschau.js";
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
-import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen } from "./vorrat.js";
+import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen, vorratEntfernen, vorratSchluessel } from "./vorrat.js";
 import { startApp } from "./app.js";
 import { verpacke, entpacke } from "./teilen.js";
 
@@ -552,26 +552,33 @@ function start() {
     if (!vorratSchreiben(praefix, name, eintraege)) toast("Der Vorrat „" + name + "“ konnte im Browser nicht gespeichert werden (Speicher voll?).", "fehler");
   }
 
-  // „Vorrat löschen“ (gleiche Texte wie bin/pizza.js --vorrat-loeschen / --vorrat-loeschen-alle)
-  async function vorratLoeschen(name) {
+  // „Vorrat löschen“ (gleiche Texte wie bin/pizza.js --vorrat-loeschen / --vorrat-loeschen-alle).
+  // Angeboten werden die Kammern des Tab-Namensraums und alle Kammern mit Namensraum (Kennung raum/name, K-106).
+  async function vorratLoeschen(kennung) {
     const praefix = vorratPraefix(tabs.aktiv());
-    const raum = praefix === VORRAT_BEISPIEL ? " (Vorräte der Beispiele)" : "";
-    if (name == null) {
-      const ok = await frage("Alle Vorräte löschen?", "Alle gespeicherten Vorratskammern" + raum + " werden gelöscht. Spielstände gehen dabei verloren.", "Alle löschen");
+    const beispiel = praefix === VORRAT_BEISPIEL;
+    if (kennung == null) {
+      const namen = vorratNamen(praefix);
+      const mitRaum = namen.some((n) => n.includes("/"));
+      const welche = beispiel
+        ? (mitRaum ? "Alle Vorräte der Beispiele und alle Kammern mit Namensraum" : "Alle Vorräte der Beispiele")
+        : "Alle gespeicherten Vorratskammern";
+      const ok = await frage("Alle Vorräte löschen?", welche + " werden gelöscht. Spielstände gehen dabei verloren.", "Alle löschen");
       if (!ok) return;
-      for (const n of vorratNamen(praefix)) { try { localStorage.removeItem(praefix + n); } catch (e) { /* egal */ } }
+      for (const n of namen) vorratEntfernen(praefix, n);
       konsoleOeffnen();
       konsole.info("Alle Vorräte gelöscht.");
       return;
     }
     let da = false;
-    try { da = localStorage.getItem(praefix + name) !== null; } catch (e) { da = false; }
-    if (!da) { konsoleOeffnen(); konsole.info("Vorrat '" + name + "' gibt es nicht."); return; }
-    const ok = await frage("Vorrat löschen?", "Die Vorratskammer „" + name + "“" + raum + " wird gelöscht. Ein Spielstand darin geht verloren.", "Löschen");
+    try { da = localStorage.getItem(vorratSchluessel(praefix, kennung)) !== null; } catch (e) { da = false; }
+    if (!da) { konsoleOeffnen(); konsole.info("Vorrat '" + kennung + "' gibt es nicht."); return; }
+    const raum = kennung.includes("/") ? " (Kammer mit Namensraum, allen Tabs und App-Links gemeinsam)" : (beispiel ? " (Vorrat der Beispiele)" : "");
+    const ok = await frage("Vorrat löschen?", "Die Vorratskammer „" + kennung + "“" + raum + " wird gelöscht. Ein Spielstand darin geht verloren.", "Löschen");
     if (!ok) return;
-    try { localStorage.removeItem(praefix + name); } catch (e) { /* egal */ }
+    vorratEntfernen(praefix, kennung);
     konsoleOeffnen();
-    konsole.info("Vorrat '" + name + "' gelöscht.");
+    konsole.info("Vorrat '" + kennung + "' gelöscht.");
   }
 
   let backenWartet = false;
