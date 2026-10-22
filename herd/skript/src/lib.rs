@@ -571,7 +571,14 @@ impl Spieler {
                         };
                         self.bild(*zeile, nr, aus)
                     } else {
+                        let ist_takt = name == "takt";
+                        if ist_takt {
+                            aus.vor_takt();
+                        }
                         let w = self.ruf(*zeile, name, args)?;
+                        if ist_takt {
+                            aus.nach_takt();
+                        }
                         aus.ruf(*zeile, name, &w);
                         w
                     };

@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["kern", "kern-wasm", "skript", "gpu", "werkzeug"]
-# Die Wasm-Hülle wird nur von baue.js für wasm32v1-none gebaut. (H1a: gpu/werkzeug werden auf das Bildpaket umgestellt.)
-default-members = ["kern", "skript"]
+members = ["kern", "kern-wasm", "skript", "glut", "werkzeug"]
+# kern-wasm ist nativ leer (nur für wasm32v1-none über baue.js); glut/werkzeug zeichnen nur offscreen mit Software-Adapter.
+default-members = ["kern", "kern-wasm", "skript", "glut", "werkzeug"]
 
 [workspace.package]
 version = "3.1.0"
@@ -23,3 +23,18 @@ opt-level = 1
 # Werkzeug und Tests brauchen im Debug-Bau schnelle Atlas-/Bildberechnung.
 [profile.dev.package."*"]
 opt-level = 2
+
+# Messungen (bench/herd): optimiert, aber ohne LTO – baut schnell und mit wenig Speicher.
+[profile.messung]
+inherits = "release"
+lto = false
+codegen-units = 16
+
+# Größenmessung (bench/herd/ERGEBNISSE.md): klein, LTO, ohne Symbole.
+[profile.klein]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

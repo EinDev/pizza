@@ -1,0 +1,245 @@
+#! bild 40 groesse 1280x720
+# 2D-Referenzbild: alle 2D-Komponenten – Rechteck (Rundung, Umriss), Kreis (Umriss), Text in mehreren Größen und
+# Ausrichtungen, Bild (Bildchen, gespiegelt, getönt), Animation, Partikel, Ebenen, Hierarchie mit Drehung, Durchsichtiges.
+# Spielfeld 640 × 360, gerendert in 1280 × 720 (Faktor 2: Kanten bleiben scharf).
+vorgabe TAKTE 40
+welt_neu 640 360 "2D"
+welt_hintergrund "#1b2533"
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+typ_nummer "Text" -> T_T
+typ_nummer "Bild" -> T_B
+typ_nummer "Animation" -> T_A
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Partikel" -> T_P
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_R "farbe" -> R_F
+feld_nummer T_R "rundung" -> R_RUND
+feld_nummer T_R "umriss" -> R_UM
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "umriss" -> K_UM
+feld_nummer T_T "inhalt" -> T_INH
+feld_nummer T_T "groesse" -> T_GR
+feld_nummer T_T "farbe" -> T_F
+feld_nummer T_T "ausrichtung" -> T_AUS
+feld_nummer T_B "bildchen" -> B_BC
+feld_nummer T_B "groesse" -> B_GR
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "spiegeln" -> B_SP
+feld_nummer T_A "bilder" -> A_BILDER
+feld_nummer T_A "proSekunde" -> A_PS
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_P "rate" -> P_RATE
+feld_nummer T_P "lebensdauer" -> P_LEBEN
+feld_nummer T_P "tempo" -> P_TEMPO
+feld_nummer T_P "streuung" -> P_STREU
+feld_nummer T_P "schwerkraft" -> P_SCHWER
+feld_nummer T_P "groesse" -> P_GR
+feld_nummer T_P "groesseEnde" -> P_GRE
+feld_nummer T_P "farbe" -> P_F
+feld_nummer T_P "farbeEnde" -> P_FE
+
+# ---------------- Tafel (Ebene 0) mit Umriss
+teil_neu 2 -> tafel
+teil_lage tafel 320 186 0
+komp_neu T_R -> r
+setze_zahl r R_B 600
+setze_zahl r R_H 320
+setze_text r R_F "#26344a"
+setze_zahl r R_RUND 22
+komp_haenge r tafel
+teil_neu 2 -> rahmen
+teil_lage rahmen 320 186 0
+teil_setze rahmen 10 1
+komp_neu T_R -> r
+setze_zahl r R_B 600
+setze_zahl r R_H 320
+setze_text r R_F "#3a4d68"
+setze_zahl r R_RUND 22
+setze_zahl r R_UM 2
+komp_haenge r rahmen
+
+# ---------------- Überschrift, Text in mehreren Größen
+teil_neu 2 -> t1
+teil_lage t1 320 34 0
+teil_setze t1 10 5
+komp_neu T_T -> t
+setze_text t T_INH "Herd · 2D"
+setze_zahl t T_GR 38
+setze_text t T_F "mozzarella"
+setze_text t T_AUS "mitte"
+komp_haenge t t1
+teil_neu 2 -> t2
+teil_lage t2 320 78 0
+teil_setze t2 10 5
+komp_neu T_T -> t
+setze_text t T_INH "Rechtecke, Kreise, Bildchen, Partikel – alles in einem Draw-Call"
+setze_zahl t T_GR 15
+setze_text t T_F "#9fb3cc"
+setze_text t T_AUS "mitte"
+komp_haenge t t2
+teil_neu 2 -> t3
+teil_lage t3 44 316 0
+teil_setze t3 10 5
+komp_neu T_T -> t
+setze_text t T_INH "klein: Äpfel, Öfen, Übermut – 10 € · 3 × 4 ÷ 2"
+setze_zahl t T_GR 10
+setze_text t T_F "#c9d6e6"
+komp_haenge t t3
+teil_neu 2 -> t4
+teil_lage t4 596 300 0
+teil_setze t4 10 5
+komp_neu T_T -> t
+setze_text t T_INH "rechts 24"
+setze_zahl t T_GR 24
+setze_text t T_F "senf"
+setze_text t T_AUS "rechts"
+komp_haenge t t4
+
+# ---------------- Farbleiste: gerundete Rechtecke, jedes zweite nur Umriss
+wiederhole 6 i
+  teil_neu 2 -> k
+  teil_lage k (70 + i * 52) 130 0
+  teil_setze k 10 2
+  komp_neu T_R -> r
+  setze_zahl r R_B 42
+  setze_zahl r R_H 30
+  setze_zahl r R_RUND (i * 3)
+  setze_zahl r R_UM ((i % 2) * 3)
+  setze_zahl r R_F (3645189119 * boden(1 / (1 + i * i)) + 4071833087 * boden(1 / (1 + (i - 1) * (i - 1))) + 1049510399 * boden(1 / (1 + (i - 2) * (i - 2))) + 779082239 * boden(1 / (1 + (i - 3) * (i - 3))) + 2395599103 * boden(1 / (1 + (i - 4) * (i - 4))) + 1529507583 * boden(1 / (1 + (i - 5) * (i - 5))))
+  komp_haenge r k
+ende
+
+# ---------------- Kreise: gefüllt, Ringe, durchsichtig überlappend (Ebenen)
+teil_neu 2 -> c1
+teil_lage c1 90 200 0
+teil_setze c1 10 2
+komp_neu T_K -> c
+setze_zahl c K_R 34
+setze_text c K_F "tomate"
+komp_haenge c c1
+teil_neu 2 -> c2
+teil_lage c2 130 222 0
+teil_setze c2 10 3
+komp_neu T_K -> c
+setze_zahl c K_R 30
+setze_text c K_F "#2e6fd9b0"
+komp_haenge c c2
+teil_neu 2 -> c3
+teil_lage c3 170 196 0
+teil_setze c3 10 4
+komp_neu T_K -> c
+setze_zahl c K_R 26
+setze_text c K_F "ananas"
+setze_zahl c K_UM 5
+komp_haenge c c3
+wiederhole 5 i
+  teil_neu 2 -> ring
+  teil_lage ring 250 210 0
+  teil_setze ring 10 2
+  komp_neu T_K -> c
+  setze_zahl c K_R (8 + i * 8)
+  setze_text c K_F "#8ec9f0"
+  setze_zahl c K_UM 1.5
+  komp_haenge c ring
+ende
+
+# ---------------- Windrad: Hierarchie mit Drehung (Eltern dreht sich, Kinder drehen mit)
+teil_neu 2 -> rad
+teil_lage rad 480 205 0
+teil_setze rad 10 3
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_D 45
+komp_haenge bw rad
+wiederhole 4 i
+  teil_neu 2 -> arm
+  teil_haenge arm rad
+  teil_setze arm 4 (i * 90)
+  teil_neu 2 -> fluegel
+  teil_haenge fluegel arm
+  teil_lage fluegel 34 0 0
+  komp_neu T_R -> r
+  setze_zahl r R_B 56
+  setze_zahl r R_H 16
+  setze_zahl r R_RUND 8
+  setze_text r R_F "mozzarella"
+  komp_haenge r fluegel
+  teil_neu 2 -> spitze
+  teil_haenge spitze fluegel
+  teil_lage spitze 32 0 0
+  komp_neu T_K -> c
+  setze_zahl c K_R 9
+  setze_text c K_F "salami"
+  komp_haenge c spitze
+ende
+teil_neu 2 -> nabe
+teil_haenge nabe rad
+teil_setze nabe 10 1
+komp_neu T_K -> c
+setze_zahl c K_R 12
+setze_text c K_F "kruste"
+komp_haenge c nabe
+
+# ---------------- Bildchen: Pizza (animiert), gespiegelt, getönt
+bildchen_neu ["....kkkk....", "..kkaaaakk..", ".kaarraaaak.", ".kaaaaarrak.", "kaarraaaaaak", "kaarraabaaak", "kaaaaaaaaaak", "kaabaaarraak", ".kaaaaarrak.", ".karraaaaak.", "..kkaaaakk..", "....kkkk...."] [] -> P1
+bildchen_neu ["....kkkk....", "..kkaaaakk..", ".kaaaarraak.", ".karraaaaak.", "kaarraaabaak", "kaaaaaaaaaak", "kaabaarraaak", "kaaaaarraaak", ".kaaaaaaaak.", ".kaarraaaak.", "..kkaaaakk..", "....kkkk...."] [] -> P2
+teil_neu 2 -> pizza
+teil_lage pizza 400 140 0
+teil_setze pizza 10 2
+komp_neu T_B -> b
+setze_zahl b B_BC P1
+setze_zahl b B_GR 4
+komp_haenge b pizza
+komp_neu T_A -> an
+setze_liste an A_BILDER [P1, P2]
+setze_zahl an A_PS 6
+komp_haenge an pizza
+teil_neu 2 -> pizza2
+teil_lage pizza2 560 140 0
+teil_setze pizza2 4 -15
+teil_setze pizza2 10 2
+komp_neu T_B -> b
+setze_zahl b B_BC P1
+setze_zahl b B_GR 3
+setze_zahl b B_SP 1
+setze_text b B_F "#a0ffa0"
+komp_haenge b pizza2
+
+# ---------------- Partikel: Glut aus dem Ofen (unten), über der Tafel
+teil_neu 2 -> glut
+teil_lage glut 330 300 0
+teil_setze glut 10 4
+komp_neu T_P -> p
+setze_zahl p P_RATE 90
+setze_zahl p P_LEBEN 1.1
+setze_zahl p P_TEMPO 70
+setze_zahl p P_STREU 50
+setze_zahl p P_SCHWER -30
+setze_zahl p P_GR 8
+setze_zahl p P_GRE 1
+setze_text p P_F "#ffe08a"
+setze_text p P_FE "#ff5a1e00"
+komp_haenge p glut
+# Ofen unter der Glut
+teil_neu 2 -> ofen
+teil_lage ofen 330 318 0
+teil_setze ofen 10 3
+komp_neu T_R -> r
+setze_zahl r R_B 90
+setze_zahl r R_H 26
+setze_zahl r R_RUND 13
+setze_text r R_F "ofen"
+komp_haenge r ofen
+
+# ---------------- halbdurchsichtiges Band ganz oben (Ebene 9)
+teil_neu 2 -> band
+teil_lage band 320 352 0
+teil_setze band 10 9
+komp_neu T_R -> r
+setze_zahl r R_B 640
+setze_zahl r R_H 16
+setze_text r R_F "#00000060"
+komp_haenge r band
+takte TAKTE

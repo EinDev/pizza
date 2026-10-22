@@ -84,6 +84,19 @@ fn main() {
             eprintln!("{}", e);
             std::process::exit(1);
         }
+        // --setter: Kosten eines Setters (teil_lage) direkt am Kern, ohne Skript-Auswertung – über alle Teile ab ID 3
+        if a.iter().any(|x| x == "--setter") {
+            let n = sp.kern.welt_hole(4) as i32;
+            let runden = 60;
+            let t = Instant::now();
+            for r in 0..runden {
+                for id in 3..n {
+                    sp.kern.teil_lage(id, (id % 1280) as f64 + r as f64, (id % 720) as f64, 0.0);
+                }
+            }
+            let ns = t.elapsed().as_secs_f64() * 1e9 / (runden as f64 * (n - 3).max(1) as f64);
+            println!("{{\"setter_ns\":{:.1},\"aufrufe\":{}}}", ns, runden * (n - 3).max(0));
+        }
         // erstes Bild (alle Ressourcen, Aufwärmen) nicht mitzählen
         let jb = if m.je_bild.len() > 1 { &m.je_bild[1..] } else { &m.je_bild[..] };
         println!(

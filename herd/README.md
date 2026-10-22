@@ -9,7 +9,7 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 |---|---|
 | `kern/` (`herd-kern`, `no_std` + `alloc` + `libm`) | Welt (Teile, Lage, Hierarchie), Komponenten-Registry, Systeme, Ressourcen (Formen, Bildchen-Atlas, Schrift), Bildpaket, Hashes, ABI (`Kern`) |
 | `kern-wasm/` | Wasm-Hülle: exportiert jede `Kern`-Methode unter gleichem Namen, keine Importe, eigener Allocator. Nur für `wasm32v1-none` |
-| `gpu/` (`herd-gpu`, wgpu) | Sichtprüfung: zeichnet ein Bildpaket offscreen (Paket H2 macht daraus die Glut mit Fenster/Web) |
+| `glut/` (`herd-glut`, wgpu) | **Glut** (Schicht 1, §9): zeichnet Bildpakete offscreen (Software-Adapter) oder in ein Fenster (API für H5); Shader in `glut/shader/` |
 | `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
 | `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
 | `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
@@ -207,8 +207,8 @@ zusammengefasst; je Zug erst Rückseiten, dann Vorderseiten, Tiefe testen, nicht
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
 (Mitte, Spielfeld-Pixel, y nach unten) · `f32 hx, hy` (halbe Ausdehnung lokal) · `f32 p0, p1` · `u8 r, g, b, a` (sRGB) ·
-`u32 art | seite << 8` · `u16 u0, v0, u1, v1` (Atlas-Pixel). Eckpunkt `c ∈ {−1, 1}²`: `lokal = c · (h + rand)` mit `rand = 1`
-bei Rechteck/Kreis (Saum für die Kantenglättung), sonst 0; `pos = M · lokal + t`; Texturkoordinate (Bild/Glyphe)
+`u32 art | seite << 8` · `u16 u0, v0, u1, v1` (Atlas-Pixel). Eckpunkt `c ∈ {−1, 1}²`: `lokal = c · (h + rand)` mit `rand` = Saum für
+die Kantenglättung bei Rechteck/Kreis (ein Gerätepixel, mindestens ein Spielfeldpixel, in lokalen Einheiten), sonst 0; `pos = M · lokal + t`; Texturkoordinate (Bild/Glyphe)
 `uv = mix((u0, v0), (u1, v1), (c + 1) / 2)` (c.y = −1 oben).
 
 | art | Bedeutung |
@@ -223,7 +223,9 @@ Glyphen-/Teilchenreihenfolge) → ein instanzierter Draw-Call (6 Ecken × k), ü
 „source over“ in sRGB. Spielfeld-Culling ist erledigt.
 
 **Zeichenfolge der Glut:** Ziel mit `hintergrund` füllen (Spielfeld seitentreu einpassen, Ränder ebenfalls Hintergrund) →
-falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → INST2D.
+falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → INST2D. Der Himmel ist ein Verlauf
+nach der **Blickrichtung** (Horizont `himmel_unten`, Zenit `himmel_oben`, darunter `himmel_unten`), damit ein Boden im Nebel
+(Nebelfarbe = `himmel_unten`) nahtlos in den Himmel übergeht.
 
 ## 5. Schema (`site/js/herd/schema.json`)
 
@@ -282,3 +284,82 @@ Hex-Ziffern der Bits (zeigt −0 und NaN-Bits), Texte als JSON, Listen `[1,2]`, 
 Siehe HERD.md §9. Kurz: Datei `kern/src/komponenten/<name>.rs` mit `pub static ART: Art` (Schema, optional `takt`, `bild`,
 `huelle`), `pub mod <name>;` und **eine Zeile** in `ARTEN`; `node herd/baue.js`. Die Test-Komponente
 `komponenten/probe.rs` (nur `cfg(test)`/Feature `probe`) zeigt, dass das genügt (`cargo test erweiterungsprobe`).
+
+## 9. Glut (Schicht 1, `herd/glut`)
+
+Lädt nur hoch und zeichnet – keine Geometrie, keine Szenenlogik. Eingabe ist ausschließlich das Bildpaket (§4).
+
+```rust
+use herd_glut::{Adapter, Glut, Optionen, Ziel};
+// offscreen (Werkzeug, Tests, Host --herd-bilder):
+let mut glut = Glut::neu(Ziel::Offscreen { breite: 1280, hoehe: 720 }, &Optionen::default())?;
+let stat = glut.bild(kern.paket())?;          // Ressourcen-Deltas + Instanzen hochladen, Durchgänge ausführen
+let rgba = glut.lies_pixel()?;                // nur offscreen: RGBA8, Zeilen von oben
+glut.groesse(1920, 1080);                     // neue Zielgröße (Gerätepixel)
+// Fenster (Paket H5 – kompiliert und typgeprüft, in diesem Paket nie ausgeführt):
+let mut glut = Glut::neu(Ziel::Fenster { fenster: Arc::new(winit_fenster), breite, hoehe },
+                         &Optionen { adapter: Adapter::Gpu, vsync: true, ..Default::default() })?;
+glut.bild(paket)?;                            // zeichnet und präsentiert; verdeckt/minimiert → Bild ausgelassen
+glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
+```
+
+- **`Ziel`**: `Offscreen { breite, hoehe }` oder `Fenster { fenster: Arc<dyn FensterHandle>, breite, hoehe }` (`FensterHandle` =
+  `HasWindowHandle + HasDisplayHandle + Debug + Send + Sync`, z. B. `winit::window::Window`). Größen in Gerätepixeln; das Spielfeld
+  wird seitentreu eingepasst, Ränder in `hintergrund`.
+- **`Optionen`**: `adapter` (`Software` = Standard: WARP/lavapipe/llvmpipe; `Gpu` nur auf ausdrücklichen Wunsch), `msaa` (4, fällt
+  auf 1 zurück), `instancing` (`false` = Grundlinie, ein Draw-Call je Objekt), `vsync` (Fenster). `HERD_SOFTWARE=1` erzwingt
+  Software. Ohne Software-Adapter → `Fehler::KeinSoftwareAdapter` (kein Rückfall auf die GPU); geprüft wird `DeviceType::Cpu`.
+  Hinweis: wgpu fragt beim Aufzählen unter DX12 die Fähigkeiten **aller** Adapter ab (kurzlebiges Gerät je Adapter, ohne
+  Zeichnen) – über die öffentliche wgpu-API nicht vermeidbar.
+- **Weitere:** `statistik()` (Draw-Calls, davon Schatten, Instanzen 2D/3D, Dreiecke, hochgeladene Bytes), `warte()` (für Messungen),
+  `adapter_info()`, `msaa()`, `setze_instancing(b)`. Neue Glut für eine laufende Welt (Fenster neu) → vorher `kern.paket_voll()`.
+- **Ressourcen:** SCHRIFT → R8-Textur; ATLAS_SEITE → Schicht eines RGBA8-Textur-Arrays 2048² (wächst durch Neuanlage + Kopie);
+  ATLAS_STUECK → `write_texture` in die Schicht; NETZ → Ecken-/Indexpuffer je ID. Shadow-Map (Depth32Float 2048²) erst beim ersten
+  Schattenbild. Instanzpuffer wachsen nur (Zweierpotenzen), Pipelines einmal je Zielformat (Cache).
+- **Durchgänge:** Schatten (nur Tiefe, `licht_proj`, Steigungs-Bias) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
+  `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 2D (**ein** instanzierter Draw-Call, 6 Ecken aus
+  `vertex_index`). Das Ziel speichert sRGB-kodierte Werte (Format ohne sRGB-Umwandlung); 3D rechnet linear.
+
+**Vertex-Layouts:** Netz-Ecke 32 B (`pos` @0, `normale` @12, `uv` @24). INST3D 72 B als Instanzpuffer: Zeilen der Welt-Matrix
+@0/@16/@32 (`Float32x4`), Farbe @48 (`Unorm8x4`), `glanz, leuchten` @52 (`Float32x2`), Atlas-Rechteck @60 (`Uint16x4`),
+`textur` @68 (`Uint32`). INST2D 56 B: `m` @0 (`Float32x4`), `t` @16, `h` @24, `p` @32 (je `Float32x2`), Farbe @40 (`Unorm8x4`),
+`art|seite<<8` @44 (`Uint32`), Atlas-Rechteck @48 (`Uint16x4`). Die Bytes kommen unverändert aus dem Paket.
+
+**Shader** (`glut/shader/`, WGSL; jedes Programm = `gemeinsam.wgsl` + Datei): `gemeinsam` (Uniform-Block SZENE 592 B, Glut-Block
+`Ansicht`: Gerätepixel je Spielfeldpixel, Schriftgröße; sRGB-Umrechnung, Rauschen gegen Farbstufen) · `flach` (2D-Uber-Shader:
+SDF-Rechteck mit Rundung/Umriss, SDF-Kreis/Partikel, Kantenglättung über `fwidth` des Abstands, Atlas-Bild per `textureLoad`
+pixelscharf, SDF-Glyphe) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur,
+Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
+(Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`). Ableitungen nur in gleichförmigem Kontrollfluss, Texturen per
+`textureLoad`/`…Level` (naga-/WebGL2-tauglich).
+
+**Sonnenschatten (H2a repariert):** Ursache der „schwachen Flecken“ war ein veralteter Uniform-Block im Shader (560 statt 592 Bytes,
+ohne `hintergrund`/`feld`): Der Shader las den Tiefen-Bias aus der Hintergrundfarbe (≈ 0,9) und die PCF-Schrittweite aus 1,0 – fast
+alles galt als beleuchtet. Jetzt: Block feldgleich mit `paket.rs`, PCF als **Zeltfilter 5 × 5 Texel aus 9 bilinearen Vergleichen**
+(Castaño 2013, glatte Kanten ohne Treppen), Normalenversatz 0,5 … 2 Texel je nach Lichteinfall, Tiefen-Bias aus dem Kern
+(1,5 Texel) plus Steigungs-Bias im Schattendurchgang. Ergebnis: deutlich sichtbare, weiche Schatten ohne Akne und ohne sichtbares
+Ablösen; bei sehr flacher Sonne in Nahsicht bleibt eine leichte Welligkeit (eine 2048er-Map für die ganze Sicht; Kaskaden =
+spätere Kern-Erweiterung).
+
+## 10. Werkzeug `herd-bild`, Referenzbilder, Messungen
+
+Alle Läufe **offscreen** und standardmäßig auf dem **Software-Adapter**; die echte GPU nur mit `--gpu`/`HERD_GPU=1` (vom Nutzer).
+
+| Aufruf | Zweck |
+|---|---|
+| `herd-bild bild <skript.herd> <ordner> [--bilder=1,60] [--groesse=BxH] [--ohne-instancing] [--msaa=1] [VAR=zahl]` | Skript abspielen, gewählte Bilder (Standard: Kopfzeile bzw. letztes) als PNG |
+| `herd-bild bench <skript.herd> [--groesse=640x360] [--ohne-instancing] [--gpu] [VAR=zahl]` | Glut-Zeit je Bild (ohne Auslesen), Draw-Calls, Instanzen als JSON |
+| `herd-bild referenz [ordner]` | Referenzbilder `tests/herd/bilder/*.herd` → `*.png` neu schreiben |
+| `herd-bild atlas` | Schriftatlas `kern/schrift/atlas.bin` neu erzeugen |
+
+**Referenzbilder** (`tests/herd/bilder/`, Skript + PNG, Kopfzeile `#! bild 40 groesse 1280x720`): `2d-alles` (alle 2D-Komponenten,
+Umriss/Rundung, Text in mehreren Größen, Bildchen gespiegelt/getönt, Animation, Partikel, Ebenen, Hierarchie mit Drehung,
+Durchsichtiges), `3d-alles` (alle Grundformen + eigene Form, Sonne mit Schatten, 2 Punktlichter, Nebel, Himmel, Textur,
+Durchsichtiges, 2D-HUD), `3d-viele` (nach B3: 240 Körper, 8 Lichter), `2d-partikel` (nach B4). **Pixeltest** in `cargo test`
+(`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
+≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht
+(nur die Zahl der Draw-Calls), kaputtes Paket → `Fehler::Paket`, Fenster-API kompiliert (`herd-glut`, ohne Fenster).
+
+**Messungen:** `node bench/herd/mess-kern.js` (Kern nativ/Wasm), `herd-bild bench` (Glut auf WARP), Größe mit Profil `klein` –
+Ergebnisse und die Kommandos für die echte GPU in `bench/herd/ERGEBNISSE.md`. Profile: `messung` (Release ohne LTO, schont
+Speicher) und `klein` (opt-level "z", LTO, strip).

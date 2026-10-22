@@ -1,6 +1,6 @@
 [package]
 name = "herd-werkzeug"
-description = "herd-bild: Nachrichten-Dateien → PNG, Schriftatlas, GLSL-Erzeugung, Demo-Szenen"
+description = "herd-bild: Szenen-Skripte → PNG (Glut offscreen, Software-Adapter), Glut-Messung, Referenzbilder, Schriftatlas"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 herd-kern = { path = "../kern" }
-herd-gpu = { path = "../gpu" }
+herd-glut = { path = "../glut" }
+herd-skript = { path = "../skript" }
 ttf-parser = "0.25.1"
 png = "0.18.1"
-naga = { version = "30.0.1", default-features = false, features = ["wgsl-in", "glsl-out"] }

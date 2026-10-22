@@ -83,17 +83,19 @@ herd.backe(() -> {
 ```
 
 ### 3.1 Schicht 1 – Glut (Render-Backend)
-- **Schnittstelle:** `Glut::neu(ziel) → Glut` (Ziel = Fenster-Surface, Offscreen-Textur oder Canvas), `glut.bild(&bildpaket)`
-  (lädt Ressourcen-Deltas, schreibt Instanzpuffer, führt die Durchgänge aus), `glut.groesse(b, h)`, `glut.lies_pixel()` (nur offscreen).
-  Mehr nicht: keine Szene, keine Spiellogik, keine Geometrie-Erzeugung. Ein weiteres Backend (z. B. Software für CI) implementiert
-  dieselben drei Funktionen.
+- **Schnittstelle:** `Glut::neu(ziel, optionen) → Glut` (Ziel = Fenster-Surface, Offscreen-Textur oder Canvas; Optionen: Adapter,
+  MSAA, Instancing an/aus, VSync), `glut.bild(&bildpaket)` (lädt Ressourcen-Deltas, schreibt Instanzpuffer, führt die Durchgänge aus,
+  liefert Draw-Call-Statistik), `glut.groesse(b, h)`, `glut.lies_pixel()` (nur offscreen). Mehr nicht: keine Szene, keine Spiellogik,
+  keine Geometrie-Erzeugung. Ein weiteres Backend (z. B. Software für CI) implementiert dieselben drei Funktionen. Umsetzung (H2a):
+  `herd/glut`, Details `herd/README.md` §9. **Offscreen, Werkzeuge und Tests nutzen standardmäßig den Software-Adapter** (WARP/lavapipe;
+  `HERD_SOFTWARE=1` erzwingt ihn); die echte GPU nur auf ausdrücklichen Wunsch (Host-Fenster, `herd-bild … --gpu`).
 - **wgpu** überall (Rust). Nativ: Windows DX12 (WARP als Software-Rückfall), Linux Vulkan, sonst GL/EGL; Fenster per **winit**
   (Linux: X11/Wayland per `dlopen` → keine neue Link-Abhängigkeit, K-130). Browser: dieselbe Crate nach `wasm32-unknown-unknown` mit
   `wasm-bindgen` (Crate und `wasm-bindgen-cli` auf **dieselbe** Version gepinnt), Backend **WebGPU, Rückfall WebGL2** (wgpu wählt);
   Ergebnis `site/js/herd/glut_bg.wasm` + Glue, eingecheckt (Docker braucht kein Rust), nur für Herd-Programme geladen, komprimiert
   ausgeliefert.
 - **Shader:** WGSL, fest im Glut eingebaut (2D-Instanzen: Rechteck/Kreis als SDF-Quads mit Kantenglättung, Bild/Atlas pixelscharf,
-  SDF-Text; 3D: Lambert + Blinn-Phong, Eigenleuchten, Textur, bis 8 Punktlichter, Sonnenschatten mit PCF, Nebel, Himmelsverlauf;
+  SDF-Text; 3D: Lambert + Blinn-Phong, Eigenleuchten, Textur, bis 8 Punktlichter, Sonnenschatten mit PCF (Zeltfilter), Nebel, Himmelsverlauf nach Blickrichtung;
   linear rechnen, sRGB ausgeben). Eigene Shader: später (Roadmap).
 - **Leistung:** Instancing je (Form, Textur-Seite), alle Bildchen und Glyphen in einem Atlas, Pipelines einmal erzeugt (Cache),
   Puffer wiederverwendet und nur gewachsen; Ziel: Draw-Calls wachsen mit der Zahl der **Arten**, nicht der Objekte.

@@ -1,6 +1,6 @@
 [package]
-name = "herd-gpu"
-description = "Herd-GPU-Schicht: zeichnet die Zeichenliste des Kerns mit wgpu (offscreen und Fenster)"
+name = "herd-glut"
+description = "Herd-Glut (Schicht 1): zeichnet Bildpakete des Herd-Kerns mit wgpu – offscreen (Software-Adapter) oder in ein Fenster"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

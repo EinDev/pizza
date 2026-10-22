@@ -1,0 +1,231 @@
+#! bild 30 groesse 1280x720
+# 3D-Referenzbild: alle Grundformen + eigene Form, Sonne mit weichem Schatten, Punktlichter, Nebel, Himmelsverlauf,
+# Textur (Bildchen), Durchsichtiges, Glanz und Eigenleuchten, darüber ein 2D-HUD. Spielfeld 1280 × 720.
+vorgabe TAKTE 30
+welt_neu 1280 720 "3D"
+welt_himmel "#4f9ad8" "#f3e6cf"
+welt_umgebung "#bcd6f0" 0.32
+welt_nebel "#f3e6cf" 16 42
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Text" -> T_T
+typ_nummer "Kreis" -> T_KR
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LEUCHT
+feld_nummer T_K "bild" -> K_BILD
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_R "farbe" -> R_F
+feld_nummer T_R "rundung" -> R_RUND
+feld_nummer T_T "inhalt" -> T_INH
+feld_nummer T_T "groesse" -> T_GR
+feld_nummer T_T "farbe" -> T_F
+feld_nummer T_KR "radius" -> KR_R
+feld_nummer T_KR "farbe" -> KR_F
+
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 32 0 -> KUGEL
+form_grund 3 40 0 -> ZYLINDER
+form_grund 4 40 0 -> KEGEL
+form_grund 5 0 0 -> EBENE
+form_grund 6 48 0.32 -> RING
+form_eigene [0, 0.9, 0, -0.5, -0.4, 0.45, 0.5, -0.4, 0.45, 0, -0.4, -0.55] [0, 1, 2, 0, 2, 3, 0, 3, 1, 1, 3, 2] 0 -> TETRA
+bildchen_neu ["kmkmkmkmkm", "mkmkmkmkmk", "kmkmkmkmkm", "mkmkmkmkmk", "kmkmkmkmkm", "mkmkmkmkmk"] [] -> SCHACH
+bildchen_neu ["tttttttt", "twwttwwt", "twwttwwt", "tttttttt", "tttttttt", "twwttwwt", "twwttwwt", "tttttttt"] [] -> FLIESE
+
+# Kamera und Sonne (Richtung zur Sonne: von links, eher flach → lange Schatten nach rechts)
+teil_lage 1 0.4 2.9 7.6
+teil_schaue 1 0.1 0.55 0.2
+teil_lage 2 -0.75 0.7 0.1
+
+# Boden mit Fliesen-Textur
+teil_neu 3 -> boden
+teil_groesse boden 200 1 200
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#b8a07a"
+setze_zahl k K_GLANZ 0.1
+komp_haenge k boden
+# Fliesenfläche unter den Körpern (texturiert)
+teil_neu 3 -> fliesen
+teil_lage fliesen 0 0.01 0
+teil_groesse fliesen 10 1 6
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BILD SCHACH
+setze_text k K_F "#ffffff"
+setze_zahl k K_GLANZ 0.25
+komp_haenge k fliesen
+
+# Würfel (Tomate, dreht sich)
+teil_neu 3 -> w
+teil_lage w -3.4 0.6 -0.6
+teil_groesse w 1.2 1.2 1.2
+teil_setze w 4 25
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "tomate"
+setze_zahl k K_GLANZ 0.35
+komp_haenge k w
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_D 20
+komp_haenge bw w
+# Kugel (Mozzarella, glänzend)
+teil_neu 3 -> ku
+teil_lage ku -1.6 0.75 0.6
+teil_groesse ku 1.5 1.5 1.5
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "mozzarella"
+setze_zahl k K_GLANZ 0.85
+komp_haenge k ku
+# Zylinder (Wasser)
+teil_neu 3 -> zy
+teil_lage zy 0.2 0.8 -1.0
+teil_groesse zy 1.1 1.6 1.1
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "wasser"
+setze_zahl k K_GLANZ 0.5
+komp_haenge k zy
+# Kegel (Senf)
+teil_neu 3 -> ke
+teil_lage ke 1.8 0.7 0.5
+teil_groesse ke 1.2 1.4 1.2
+komp_neu T_K -> k
+setze_zahl k K_FORM KEGEL
+setze_text k K_F "senf"
+setze_zahl k K_GLANZ 0.3
+komp_haenge k ke
+# Ring (Aubergine, aufrecht, dreht sich)
+teil_neu 3 -> ri
+teil_lage ri 3.5 0.95 -0.7
+teil_groesse ri 1.8 1.8 1.8
+teil_setze ri 5 90
+komp_neu T_K -> k
+setze_zahl k K_FORM RING
+setze_text k K_F "aubergine"
+setze_zahl k K_GLANZ 0.6
+komp_haenge k ri
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_D -30
+komp_haenge bw ri
+# eigene Form: Tetraeder (Oliven)
+teil_neu 3 -> te
+teil_lage te -0.4 0.4 1.9
+teil_groesse te 0.9 0.9 0.9
+komp_neu T_K -> k
+setze_zahl k K_FORM TETRA
+setze_text k K_F "basilikum"
+setze_zahl k K_GLANZ 0.2
+komp_haenge k te
+# Texturierter Würfel (Fliese)
+teil_neu 3 -> tw
+teil_lage tw 3.1 0.4 1.5
+teil_groesse tw 0.8 0.8 0.8
+teil_setze tw 4 -20
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BILD FLIESE
+komp_haenge k tw
+# Durchsichtige Kugel und durchsichtiger Würfel vorn
+teil_neu 3 -> gk
+teil_lage gk 1.2 0.55 2.2
+teil_groesse gk 1.1 1.1 1.1
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#8ec9f088"
+setze_zahl k K_GLANZ 0.9
+komp_haenge k gk
+teil_neu 3 -> gw
+teil_lage gw -2.9 0.35 2.0
+teil_groesse gw 0.7 0.7 0.7
+teil_setze gw 4 35
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#f2a0a0a0"
+setze_zahl k K_GLANZ 0.5
+komp_haenge k gw
+
+# Punktlichter mit leuchtenden Kugeln (warm links, kühl rechts)
+teil_neu 3 -> l1
+teil_lage l1 -2.4 1.6 1.4
+komp_neu T_L -> li
+setze_text li L_F "#ff9a3c"
+setze_zahl li L_ST 2.2
+setze_zahl li L_RW 5
+komp_haenge li l1
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#ffc078"
+setze_zahl k K_LEUCHT 1
+setze_zahl k K_SCH 0
+komp_haenge k l1
+teil_groesse l1 0.18 0.18 0.18
+teil_neu 3 -> l2
+teil_lage l2 2.6 1.8 0.6
+komp_neu T_L -> li
+setze_text li L_F "#5aa0ff"
+setze_zahl li L_ST 2.4
+setze_zahl li L_RW 5
+komp_haenge li l2
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#a8ccff"
+setze_zahl k K_LEUCHT 1
+setze_zahl k K_SCH 0
+komp_haenge k l2
+teil_groesse l2 0.18 0.18 0.18
+
+# Säulenreihe in der Ferne (Nebel)
+wiederhole 9 i
+  teil_neu 3 -> s
+  teil_lage s ((i - 4) * 4) 1.5 -14
+  teil_groesse s 0.8 3 0.8
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "teig"
+  komp_haenge k s
+ende
+
+# 2D-HUD darüber
+teil_neu 2 -> hud
+teil_lage hud 150 52 0
+komp_neu T_R -> r
+setze_zahl r R_B 260
+setze_zahl r R_H 70
+setze_text r R_F "#1b2533c8"
+setze_zahl r R_RUND 14
+komp_haenge r hud
+teil_neu 2 -> titel
+teil_lage titel 38 26 0
+teil_setze titel 10 1
+komp_neu T_T -> t
+setze_text t T_INH "Herd · 3D"
+setze_zahl t T_GR 30
+setze_text t T_F "mozzarella"
+komp_haenge t titel
+teil_neu 2 -> unter
+teil_lage unter 40 62 0
+teil_setze unter 10 1
+komp_neu T_T -> t
+setze_text t T_INH "Sonne, Schatten, Nebel, 2 Lichter"
+setze_zahl t T_GR 14
+setze_text t T_F "#9fb3cc"
+komp_haenge t unter
+teil_neu 2 -> punkt
+teil_lage punkt 1240 40 0
+komp_neu T_KR -> c
+setze_zahl c KR_R 12
+setze_text c KR_F "tomate"
+komp_haenge c punkt
+takte TAKTE

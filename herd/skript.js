@@ -258,7 +258,9 @@ class Spieler {
           const nr = b.args.length && b.args[0].wert ? (rechne(b.args[0].wert, this.vars, b.zeile) | 0) >>> 0 : null;
           w = this.bild(b.zeile, nr);
         } else {
+          const t0 = this.mess && b.name === 'takt' ? performance.now() : 0;
           w = this.ruf(b.zeile, b.name, b.args);
+          if (t0) this.mess.takt(performance.now() - t0);
           this.ausgabe(b.zeile, b.name, w);
         }
         if (b.ziel) this.vars.set(b.ziel, w.art === 'I' || w.art === 'F' ? w.x : 0);
