@@ -1684,6 +1684,7 @@ der Takt bleibt nur für die Simulation. Protokoll bleibt v1, der Renderer bleib
 | U-68 ✅ | `host/**` (Native-Host-Agent, P4) | K-100: Gruppe `kueche`, `--koeche=N`, `--info` `Köche: N`, Koch-Stapel wie Hauptthread | Differenz `host-koeche4`, CI-Smoke |
 | U-69 ✅ | `site/js/worker.js`, `ui/**` (UI-Agent, P5; Entscheidungen K-104 Punkt 13) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
 | U-70 ✅ | `tests/differenz/**`, `tests/fuzz/**`, `e2e/**`, `pruefstand/run.js` (Harnisch-Agents, P6) | K-099/K-100: Köche-Varianten, Chaos-Planung, Fuzz-Produktionen `brigade`, Feld `koeche` ignorieren; Prüfstand optional Feld `koeche` durchreichen – erledigt, Entscheidungen K-104 Punkt 14 | tests/fuzz, tests/differenz, e2e |
+| U-71 | `site/beispiele/idle/erste-pizzeria.ui-erwartet` (Idle-Agent) | K-117: Datei aus echtem Lauf mit den vorhandenen `.ereignisse` neu erzeugen (18/18 Nachrichten; nur `info:text`, `backen:text`, `kaufen:text`, `kaufen:aktiv` mit unverändertem Wert entfallen) – kein Code-Umbau nötig; danach optional auf `Zettel`/`binde` umstellen (SPEC §16.8, Anleitung) | Prüfstand Beispiele, E2E „Alle Beispiele“ |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):
 10:typen (karton in margherita, K-034) · 20:pf-teig (`istAufgegangen`, K-035) · 20:pf-lieferung (`wennDa` + `warte`
@@ -1700,6 +1701,11 @@ streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Theke v5 (Nutzerwunsch „event-driven UI, kein Repaint je Frame“): K-116 … K-119 festgehalten, SPEC §16.8, THEKE.md §2/§8; umgesetzt
+  und bitgleich in Interpreter (a07c1f1, ce98d85), Wasm-Laufzeit (75b2b0e, 67c446f, 1b431e7 – Art 24, Namen 203–205), Doku/Beispiele (6feefdc);
+  Renderer und Host unverändert. `test:differenz` 1040 Fälle ohne Abweichung, Host 55/55. **K-117 ist protokollsichtbar** (identische Setzvorgänge
+  senden nichts mehr): alle `.ui-erwartet` der Theke-Beispiele neu erzeugt; offen nur `idle/erste-pizzeria` (U-71, rot bis zur Neuerzeugung).
+  Messung `node bench/theke-zettel.js --alt tmp/pizza-alt.js` (600 Takte): `aendere`-Einträge −77 %, Felder −86 %, Schritte −48 %.
 - Theke v4 (Wünsche W1–W7 des Idle-Agenten): K-107 … K-113 festgehalten, SPEC §16.7, THEKE.md §8; umgesetzt und abgenommen in Interpreter
   (6cfa564), Wasm-Laufzeit (793acac, fdlibm-Port für `Mathe.log/log10/log2/exp`), Renderer (07fd5b3) und Doku-Referenz (845611c … 7724990);
   `test:differenz` 1006 Fälle ohne Abweichung, Host nur neu gebaut. Das Idle-Spiel darf jetzt selbst umstellen (Reiter `setzeTitel`/`sichtbar`,
