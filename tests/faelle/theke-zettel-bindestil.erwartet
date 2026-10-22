@@ -1,4 +1,4 @@
-Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.
+Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.
 Wert 'oben' ist für Stil 'ausrichtung' nicht erlaubt. Erlaubt: links, mitte, rechts.
 Stil 'hoehe' braucht eine Zahl ≥ 0, nicht -1.
 bindeStil() braucht eine Funktion, z. B. () -> { … }.

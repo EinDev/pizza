@@ -104,6 +104,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ | N_LOG | N_LOG10 | N_LOG2 | N_EXP),
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
+        N_G_ZETTEL => id == N_AUS,   // K-125
         _ => false,
     }
 }
@@ -173,7 +174,7 @@ pub fn globaler_wert(id: u32) -> Option<W> {
     unsafe {
         for &(n, w) in CACHE.iter() { if n == id { return Some(w); } }
         let w = match id {
-            N_G_BOTE | N_G_BESTELLANNAHME | N_G_UHR | N_G_MATHE | N_G_ZUFALL | N_G_SPIEGEL => neu_w(Ref { art: A_MODUL, id }),
+            N_G_BOTE | N_G_BESTELLANNAHME | N_G_UHR | N_G_MATHE | N_G_ZUFALL | N_G_SPIEGEL | N_G_ZETTEL => neu_w(Ref { art: A_MODUL, id }),
             N_TEIG | N_BESTELLE | N_ZWISCHENSTAND | N_SCHIEB => neu_w(Nativ { art: A_NATIV, was: id, empf: KARTON, name: id, modul: 0 }),
             _ => return None,
         };
@@ -190,6 +191,8 @@ pub extern "C" fn rt_global_name(name: u32) -> W {
     global_name(id)
 }
 pub fn global_name(id: u32) -> W {
+    // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
+    if id == N_G_ZETTEL { if let Some(w) = klasse_wert(id) { return w; } }
     if let Some(w) = globaler_wert(id) { return w; }
     if let Some(w) = klasse_wert(id) { return w; }
     let mut t = Tb::neu();
@@ -267,6 +270,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
             zahl(js_pow(x, y))
         }
         (N_G_ZUFALL, _) if crate::vorrat::hat_methode(name) => crate::vorrat::modul_methode(name, pos),
+        (N_G_ZETTEL, N_AUS) => crate::theke::zettel_aus(pos, knoten),
         (N_G_SPIEGEL, N_FELDER) => {
             let o = a(pos, 0);
             if o == KARTON || o == UNDEF { wirf_leer(); return KARTON; }

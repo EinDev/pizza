@@ -28,7 +28,7 @@ r.stil("senkrecht", karton);
     out: [
       "Wert 'links' ist für Stil 'senkrecht' nicht erlaubt. Erlaubt: oben, mitte, unten, strecken.",
       "Wert 'oben' ist für Stil 'ausrichtung' nicht erlaubt. Erlaubt: links, mitte, rechts.",
-      "Stil 'senkrechtt' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.",
+      "Stil 'senkrechtt' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.",
     ],
     ui: [
       fenster("S"),

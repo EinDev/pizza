@@ -1207,7 +1207,9 @@
     farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal'],
     zeilen: 'ganzzahl', mindestbreite: 'zahl',
     // Theke v6 (K-120): senkrechte Lage – an einer Reihe für ihre Kinder, an einer Zutat direkt in einer Reihe für sich selbst
-    senkrecht: ['oben', 'mitte', 'unten', 'strecken']
+    senkrecht: ['oben', 'mitte', 'unten', 'strecken'],
+    // Theke v7 (K-126): Spaltengewichte einer Tabelle – Blech aus Zahlen > 0
+    spalten: 'gewichte'
   };
   // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
   const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
@@ -1249,7 +1251,8 @@
     }
   }
   // Theke v5 (K-116): Zettel – beobachtbarer Wert (keine Zutat); abh wie bei UiZutat (Feld 'wert')
-  class Zettel { constructor(w) { this.w = w; this.abh = null; } }
+  // Theke v7 (K-125): abl = UiBindung eines abgeleiteten Zettels (Zettel.aus(fn)), sonst null
+  class Zettel { constructor(w) { this.w = w; this.abh = null; this.abl = null; } }
   // Theke v5 (K-116): eine Bindung – Zutat z, Eigenschaft/Stilschlüssel feld, Ausdruck fn, Aufrufstelle node (W0103);
   // quellen = flache Liste [objekt, feld, objekt, feld, …] der zuletzt gelesenen Quellen
   class UiBindung {
@@ -2020,11 +2023,17 @@
   const ZETTEL_M = tabelle({
     'wert': function (z) { this.uiLies(z, 'wert'); return z.w; },
     'setze': function (z, pos) {
+      // K-125: ein abgeleiteter Zettel hat einen Schreiber – seinen Ausdruck
+      if (z.abl !== null) throw this.ananas('LaufzeitAnanas', 'Der Zettel ist abgeleitet – setze seine Quellen, nicht ihn.');
       const w = pos.length && pos[0] !== undefined ? pos[0] : null;
       if (!this.gleich(z.w, w)) { z.w = w; this.uiSchmutzig(z, 'wert'); }
       return z;
     },
     'alsText': function (z) { return this.text(z); }
+  });
+  // Theke v7 (K-125): Zettel.aus(fn) – abgeleiteter Zettel (wird wie eine Bindung ausgewertet, Ziel ist sein Wert)
+  const ZETTEL_MOD_M = tabelle({
+    'aus': function (m, pos, ben, node) { return this.uiZettelAus(pos, node); }
   });
 
   const TABELLEN = new Map([
@@ -2051,7 +2060,7 @@
       };
     }
   }
-  for (const t of new Set([THEKE_M, ZETTEL_M].concat(Object.values(UI_TABELLEN)))) nurRechnen(t);
+  for (const t of new Set([THEKE_M, ZETTEL_M, ZETTEL_MOD_M].concat(Object.values(UI_TABELLEN)))) nurRechnen(t);
 
   // Regel S4 (THREADS.md §2.3): Eingabe und Theke gibt es nur in der Hauptküche – jede Methode wirft in einer Küche.
   function nurHauptkueche(tab, text) {
@@ -2066,6 +2075,7 @@
   nurHauptkueche(EINGABE_M, 'Bestellannahme gibt es nur in der Hauptküche.');
   for (const t of new Set([THEKE_M].concat(Object.values(UI_TABELLEN)))) nurHauptkueche(t, 'Die Theke gibt es nur in der Hauptküche.');
   nurHauptkueche(ZETTEL_M, 'Zettel gibt es nur in der Hauptküche.');
+  nurHauptkueche(ZETTEL_MOD_M, 'Zettel gibt es nur in der Hauptküche.');
 
   // =====================================================================
   // LAUFZEIT – Interpreter
@@ -2140,6 +2150,7 @@
         ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI, E: Math.E })],
         ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
         ['Spiegel', new Modul('Spiegel', SPIEGEL_M, null)],
+        ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
         ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
         ['bestelle', new NativFn('bestelle', function (pos) {
           const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
@@ -2718,6 +2729,13 @@
         if (typeof w !== 'number' || !Number.isInteger(w) || w < 1) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine ganze Zahl ≥ 1, nicht ' + this.darstellung(w) + '.');
         return w;
       }
+      if (art === 'gewichte') {
+        // K-126: spalten – nicht leeres Blech aus endlichen Zahlen > 0; gespeichert wird eine Kopie
+        if (!Array.isArray(w) || w.length === 0 || !w.every(x => typeof x === 'number' && x > 0 && isFinite(x))) {
+          throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht ein Blech aus Zahlen > 0, nicht ' + this.darstellung(w) + '.');
+        }
+        return w.slice();
+      }
       const t = this.text(w);
       if (art.indexOf(t) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + t + '\' ist für Stil \'' + k + '\' nicht erlaubt. Erlaubt: ' + art.join(', ') + '.');
       return t;
@@ -2749,7 +2767,7 @@
         if (z.stilNull === null) z.stilNull = new Set();
         z.stilNull.add(k);
       } else {
-        if (z.stil !== null && z.stil[k] === w) return;
+        if (z.stil !== null && k in z.stil && uiGleich(z.stil[k], w)) return;
         if (z.stil === null) z.stil = {};
         z.stil[k] = w;
         if (z.stilNull !== null) z.stilNull.delete(k);
@@ -2778,7 +2796,24 @@
       this.uiDirty = true;
     }
 
-    uiBindungName(b) { return (b.stil ? 'Stil ' : '') + '\'' + b.feld + '\' von ' + this.text(b.z); }
+    uiBindungName(b) {
+      if (b.z instanceof Zettel) return 'ein abgeleiteter Zettel';  // K-125
+      return (b.stil ? 'Stil ' : '') + '\'' + b.feld + '\' von ' + this.text(b.z);
+    }
+
+    // K-125: Zettel.aus(fn) – neuer Zettel, dessen Wert eine Bindung ist (sofort ausgewertet, dann an den Synchronisationspunkten)
+    uiZettelAus(pos, node) {
+      const f = pos[0];
+      if (!(f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn)) {
+        throw this.ananas('TypAnanas', 'Zettel.aus() braucht eine Funktion, z. B. () -> { … }.');
+      }
+      const z = new Zettel(null);
+      const b = new UiBindung(z, 'wert', false, f, node);
+      z.abl = b;
+      this.uiBindungen.push(b);
+      this.uiBindungAuswerten(b);
+      return z;
+    }
 
     uiBindungQuellenLoesen(b) {
       const q = b.quellen;
@@ -2835,8 +2870,15 @@
       if (b.erst) {
         b.erst = false;
         if (b.quellen.length === 0) {
-          this.warnung('W0103', 'Die Bindung ' + this.uiBindungName(b) + ' liest weder Zettel noch Zutat – sie rechnet nur einmal.', b.node);
+          this.warnung('W0103', b.z instanceof Zettel ? 'Der abgeleitete Zettel liest weder Zettel noch Zutat – er rechnet nur einmal.'
+            : 'Die Bindung ' + this.uiBindungName(b) + ' liest weder Zettel noch Zutat – sie rechnet nur einmal.', b.node);
         }
+      }
+      if (b.z instanceof Zettel) {
+        // K-125: Ergebnis wie Zettel.setze – nur ein ungleicher Wert (Gleichheit wie ==) macht Leser schmutzig
+        if (v === undefined) v = null;
+        if (!this.gleich(b.z.w, v)) { b.z.w = v; this.uiSchmutzig(b.z, 'wert'); }
+        return;
       }
       if (b.stil) this.uiSetzeStil(b.z, b.feld, this.uiStilWert(b.feld, v), 'bindung');
       else this.uiSetze(b.z, b.feld, this.uiWandle(b.z, b.feld, v), 'bindung');
@@ -3476,7 +3518,8 @@
 
     globalerName(name) {
       const g = this.globals.get(name);
-      if (g !== undefined) return g;
+      // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
+      if (g !== undefined && !(name === 'Zettel' && this.klassen.has(name))) return g;
       const k = this.klassen.get(name);
       if (k !== undefined) return k;
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');

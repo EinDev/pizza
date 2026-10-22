@@ -1079,6 +1079,7 @@
                 ["`neu Zettel(wert)`", "ein beobachtbarer Wert – keine Zutat, wird nicht gezeigt. Ohne Argument steht `karton` drauf. Textform `Zettel(5)`."],
                 ["`zettel.wert()`", "liest den Wert. Innerhalb einer Bindung merkt sich die Theke: *Diese Bindung hängt an diesem Zettel.*"],
                 ["`zettel.setze(w)`", "schreibt den Wert. Ist er **ungleich** dem alten (wie `==`), werden alle Bindungen, die den Zettel gelesen haben, neu gerechnet. Gibt den Zettel zurück."],
+                ["`Zettel.aus(fn)`", "ein **abgeleiteter** Zettel: sein Wert ist das Ergebnis von `fn` (Funktion ohne Parameter) und wird nur neu gerechnet, wenn sich eine gelesene Quelle ändert – wie eine Bindung, nur ohne Zutat. `setze` ist verboten (er hat schon einen Schreiber). Siehe *Abgeleitete Zettel* unten."],
                 ["`zutat.binde(eigenschaft, fn)`", "bindet eine Eigenschaft (`\"text\"`, `\"aktiv\"`, `\"wert\"`, `\"an\"`, `\"sichtbar\"`, `\"hinweis\"` …) an eine Funktion ohne Parameter. Wird sofort einmal ausgewertet; danach immer, wenn sich eine gelesene Quelle ändert. Gibt die Zutat zurück (verkettbar)."],
                 ["`zutat.bindeStil(schlüssel, fn)`", "dasselbe für einen Stil (`\"farbe\"`, `\"breite\"`, `\"zeilen\"` …). Liefert `fn` `karton`, wird der Stil entfernt."],
                 ["`binde(eigenschaft, karton)`, `bindeStil(schlüssel, karton)`", "löst die Bindung – danach darf die Eigenschaft wieder von Hand gesetzt werden. Ein erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung."]
@@ -1145,6 +1146,41 @@
               )
             },
             { art: "ausgabe", text: "Bestellt (2): Salami, Salami" },
+            { art: "text", md: "**Abgeleitete Zettel – eine Rechnung, viele Leser.** Hängen Text, `aktiv` und Balken einer Zutat an derselben (womöglich teuren) Rechnung, legst du die Rechnung auf einen **abgeleiteten Zettel**: `Zettel preis = Zettel.aus(() -> …);`. Er rechnet sofort einmal und danach nur, wenn sich eine seiner Quellen ändert – an denselben Synchronisationspunkten und nach denselben Regeln wie eine Bindung. Beliebig viele Bindungen (und andere abgeleitete Zettel) lesen ihn mit `preis.wert()`; die Rechnung läuft trotzdem nur **einmal** je Änderung. Ein Memo von Hand (`falls (takt == schonGerechnet) …`) brauchst du nicht mehr." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "backen" }, { typ: "klick", id: "backen" }, { typ: "klick", id: "kaufen" }, { typ: "klick", id: "backen" }],
+              uiErwartet: [
+                {"v":1,"op":"fenster","titel":"Ofen-Upgrade","breite":480,"hoehe":360},
+                {"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"info","art":"schild","text":"Ofen Stufe 1 – 0,00 € in der Kasse"},{"id":"kaufen","art":"knopf","text":"Ausbauen für 10,00 €","aktiv":false},{"id":"balken","art":"fortschritt","wert":0},{"id":"backen","art":"knopf","text":"Backen +8 €"}]}},
+                {"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Ofen Stufe 1 – 8,00 € in der Kasse"},{"id":"balken","wert":0.8}]},
+                {"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Ofen Stufe 1 – 16,00 € in der Kasse"},{"id":"kaufen","aktiv":true},{"id":"balken","wert":1}]},
+                {"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Ofen Stufe 2 – 6,00 € in der Kasse"},{"id":"kaufen","text":"Ausbauen für 40,00 €","aktiv":false},{"id":"balken","wert":0.15}]},
+                {"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Ofen Stufe 2 – 14,00 € in der Kasse"},{"id":"balken","wert":0.35}]}
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Ofen-Upgrade\");",
+                "Zettel geld = neu Zettel(0);",
+                "Zettel stufe = neu Zettel(1);",
+                "Zettel preis = Zettel.aus(() -> 10 * stufe.wert() * stufe.wert());   // eine Rechnung für alle drei",
+                "Schild info = neu Schild(id: \"info\");",
+                "info.binde(\"text\", () -> (\"Ofen Stufe \" + stufe.wert() + \" – \" + geld.wert().euro() + \" in der Kasse\"));",
+                "Knopf kaufen = neu Knopf(\"\", id: \"kaufen\");",
+                "kaufen.binde(\"text\", () -> (\"Ausbauen für \" + preis.wert().euro()));",
+                "kaufen.binde(\"aktiv\", () -> geld.wert() >= preis.wert());",
+                "kaufen.beiKlick(() -> { geld.setze(geld.wert() - preis.wert()); stufe.setze(stufe.wert() + 1); });",
+                "Fortschritt balken = neu Fortschritt(id: \"balken\");",
+                "balken.binde(\"wert\", () -> geld.wert() / preis.wert());",
+                "Knopf backen = neu Knopf(\"Backen +8 €\", () -> { geld.setze(geld.wert() + 8); }, id: \"backen\");",
+                "theke.zeige(neu Stapel([info, kaufen, balken, backen]));",
+                "theke.bediene();",
+                "Bote.sage((\"Stufe \" + stufe.wert() + \", nächster Ausbau \" + preis.wert().euro()));"
+              )
+            },
+            { art: "ausgabe", text: "Stufe 2, nächster Ausbau 40,00 €" },
+            { art: "text", md: "Zweimal backen (16 €, der Ausbau für 10 € wird möglich), ausbauen (Stufe 2, 6 € übrig – der Preis springt auf 40 €, Knopftext und Balken folgen), noch einmal backen. `preis` rechnet dabei genau zweimal: beim Erzeugen und nach dem Ausbau.\n\n- **Wann?** Wie eine Bindung: sofort beim `Zettel.aus`, danach an den Synchronisationspunkten. **Im selben Rückruf** liefert `preis.wert()` nach `stufe.setze(…)` noch den alten Preis (wie `schild.text()` einer gebundenen Zutat) – rechne dort mit den Quellen selbst. Ohne `zeige`/`bediene` gibt es keine Synchronisationspunkte; dann rechnet er nur beim Erzeugen.\n- **Gleich bleibt gleich:** Liefert `fn` denselben Wert (wie `==`), merkt niemand etwas. Ein **neues Blech** je Rechnung ist aber immer „anders“ (Identität) – die Leser rechnen dann jedes Mal mit; die Theke sendet trotzdem nur echte Änderungen.\n- **Er rechnet nur:** `fn` darf nichts ändern (wie eine Bindung), `preis.setze(…)` wirft `LaufzeitAnanas: Der Zettel ist abgeleitet – setze seine Quellen, nicht ihn.`, `Zettel.aus` in einer Bindung wirft `Eine Bindung rechnet nur – 'aus' ist darin nicht erlaubt.` Liest `fn` keine Quelle, gibt es `W0103: Der abgeleitete Zettel liest weder Zettel noch Zutat – er rechnet nur einmal.`; kreisen abgeleitete Zettel ohne Ruhe, heißt es nach 100 Durchläufen `Die Bindungen kommen nicht zur Ruhe – ein abgeleiteter Zettel hängt von sich selbst ab.`" },
             { art: "text", md: "**So stellst du ein `zeichne()`-Programm um – in fünf Schritten:**\n\n1. Jede angezeigte Größe auf einen `Zettel` legen – oder sie direkt aus Zutat-Gettern ableiten (`anzahl.wert()`, `haken.an()`).\n2. Jeden `setzeText`-, `aktiv`- und `stil`-Aufruf in `zeichne()` durch ein `binde`/`bindeStil` beim Aufbau ersetzen – in derselben Reihenfolge.\n3. Rückrufe ändern nur noch Zettel und Zustand; der Aufruf `zeichne()` fliegt raus.\n4. „gezeigt“-Merkvariablen und Vergleiche von Hand streichen – die Theke sendet ohnehin nur echte Änderungen.\n5. Der `Takt` ruft nur noch die Simulation (`pizzen.setze(pizzen.wert() + anzahl)`), nie das Zeichnen.\n\nSo umgestellt sind in den Beispielen der **Ofen-Timer** (Zettel `timer`, Anzeige und Knöpfe gebunden) und der **Pizzarechner** (Text und Farbe des Preis-Schilds hängen direkt an der Eingabe und den Haken). Ein `Zettel` ohne Theke ist übrigens eine ganz gewöhnliche Schachtel – `wert()` und `setze()` funktionieren auch in einem Konsolenprogramm, nur beobachtet ihn dann niemand." }
           ]
         },
@@ -1402,7 +1438,8 @@
                 ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"riesig\"`, `\"mono\"`"],
                 ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"],
                 ["`zeilen`", "ganze Zahl ≥ 1: die Zutat ist **genau** so viele Textzeilen hoch – auch bei kürzerem Text; längerer Text wird mit „…“ abgeschnitten. Wirkt auf den Text von `Schild`, `Knopf` und `Haken`, auf den Titel eines `Abschnitt`s und auf **jede Zelle** einer `Tabelle` (dann teilen sich die Spalten die Breite gleichmäßig – kein Text schiebt eine Spalte); andere Zutaten ignorieren den Schlüssel. Achtung: `stil(\"zeilen\", 1)` sind Textzeilen **je Zelle**, `tabelle.zeilen()` die Datenzeilen."],
-                ["`mindestbreite`", "Pixel (Zahl ≥ 0): die Zutat wird nie schmaler als das, darf aber wachsen – damit Knöpfe stehen bleiben, wenn ihr Text sich ändert"]
+                ["`mindestbreite`", "Pixel (Zahl ≥ 0): die Zutat wird nie schmaler als das, darf aber wachsen – damit Knöpfe stehen bleiben, wenn ihr Text sich ändert"],
+                ["`spalten`", "nur `Tabelle`: Blech aus Zahlen > 0 – die **Gewichte** der Spalten. `[1, 6, 3]` teilt die Breite 10 % · 60 % · 30 %; fehlende Gewichte zählen 1, überzählige entfallen. Die Spalten stehen dann fest: langer Text bricht in der Zelle um (mit `zeilen` wird er abgeschnitten) und schiebt keine Spalte. Achtung, Namensgleichheit: `stil(\"spalten\", …)` sind Breiten, `tabelle.spalten()` die Überschriften."]
               ]
             },
             { art: "text", md: "`zeilen` und `mindestbreite` sorgen für ein **ruhiges Layout**: Ein `Schild` mit `stil(\"zeilen\", 2)` wackelt nicht, wenn die Meldung mal eine Zeile länger ist, und ein Kaufknopf mit `stil(\"mindestbreite\", 120)` springt nicht, wenn aus `9 €` plötzlich `1.250 €` wird. `stil(schlüssel, karton)` entfernt einen Stil wieder. Für feste Raster: Der Inhalt des Fensters ist **immer `breite − 40` Pixel** breit – mit und ohne Rollbalken (bei `breite: 860` also 820: zwei Spalten à 404 mit `abstand` 12 passen genau nebeneinander)." },
@@ -1419,7 +1456,26 @@
               )
             },
             { art: "ausgabe", text: "titel: Pizzeria Luigi" },
-            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [],
+              uiErwartet: [
+                {"v":1,"op":"fenster","titel":"Erfolge","breite":480,"hoehe":360},
+                {"v":1,"op":"baum","wurzel":{"id":"erfolge","art":"tabelle","spalten":["","Erfolg","Ziel"],"zeilen":[["🍕","Erste Pizza","1 Pizza"],["🔥","Heißer Ofen","250 °C"]],"stil":{"spalten":[1,6,3]}}},
+                {"v":1,"op":"schliesse"}
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Erfolge\");",
+                "Tabelle erfolge = neu Tabelle([\"\", \"Erfolg\", \"Ziel\"], [[\"🍕\", \"Erste Pizza\", \"1 Pizza\"], [\"🔥\", \"Heißer Ofen\", \"250 °C\"]], id: \"erfolge\");",
+                "erfolge.stil(\"spalten\", [1, 6, 3]);      // Symbol schmal, Name breit, Ziel mittel",
+                "theke.zeige(erfolge);",
+                "Bote.sage((erfolge.zeilen().länge() + \" Erfolge\"));"
+              )
+            },
+            { art: "ausgabe", text: "2 Erfolge" },
+            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
           ]
         },
         {

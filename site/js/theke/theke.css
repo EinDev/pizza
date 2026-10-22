@@ -663,6 +663,11 @@
 }
 .theke .theke-abschnitt-knopf-text { flex: 1 1 auto; min-width: 0; }
 .theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab { table-layout: fixed; }
+/* v7 (K-126): stil.spalten – feste Spalten im Verhältnis der Gewichte (colgroup in %); ohne zeilen bricht langer Text in der
+ * Zelle um statt die Spalte zu verbreitern. */
+.theke .theke-tabelle.theke-hat-spalten .theke-tabelle-tab { table-layout: fixed; }
+.theke .theke-tabelle.theke-hat-spalten .theke-tabelle-tab th,
+.theke .theke-tabelle.theke-hat-spalten .theke-tabelle-tab td { white-space: normal; overflow-wrap: anywhere; }
 .theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab th,
 .theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab td { white-space: normal; vertical-align: top; }
 @supports not (height: 1lh) {

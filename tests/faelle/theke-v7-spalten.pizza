@@ -1,0 +1,24 @@
+// Theke v7 (K-126): Stil spalten – Spaltengewichte einer Tabelle (Blech aus Zahlen > 0). Fehlertexte, Kopie beim Setzen,
+// nur echte Änderungen (elementweise), karton entfernt, bindbar per bindeStil; Erlaubt-Liste endet auf spalten.
+Theke t = neu Theke("Spalten");
+Tabelle tab = neu Tabelle(["", "Erfolg", "Ziel"], [["🍕", "Erste Pizza", "1"]], id: "tab");
+Blech<salami> g = [1, 6, 3];
+tab.stil("spalten", g).stil("zeilen", 1);
+g.setze(1, 9);                                    // die Tabelle hat eine Kopie
+probier { tab.stil("spalten", []); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tab.stil("spalten", [1, 0]); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tab.stil("spalten", [1, "2"]); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tab.stil("spalten", 3); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tab.stil("spalten", [1, -2]); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tab.stil("spaltenn", [1]); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Bote.sage((tab.spalten()));
+Zettel breit = neu Zettel(nein);
+Knopf gleich = neu Knopf("gleich", () -> { tab.stil("spalten", [1, 6, 3]); }, id: "gleich");
+Knopf anders = neu Knopf("anders", () -> { tab.stil("spalten", [1, 4.5, 2]); }, id: "anders");
+Knopf weg = neu Knopf("weg", () -> { tab.stil("spalten", karton); tab.stil("spalten", karton); }, id: "weg");
+Tabelle zwei = neu Tabelle(["a", "b"], [], id: "zwei");
+zwei.bindeStil("spalten", () -> (breit.wert() ? [3, 1] : [1, 1]));
+Knopf um = neu Knopf("um", () -> { breit.setze(!breit.wert()); }, id: "um");
+probier { zwei.stil("spalten", [1, 2]); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+t.zeige(neu Stapel([tab, zwei, gleich, anders, weg, um], id: "w"));
+t.bediene();

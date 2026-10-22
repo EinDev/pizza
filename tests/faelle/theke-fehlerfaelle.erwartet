@@ -2,7 +2,7 @@ Die Theke ist leer.
 Ein Rohling ist nicht essbar.
 Es gibt nur eine Theke pro Programm.
 Die ID 'x' gibt es schon.
-Stil 'css' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.
+Stil 'css' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.
 Wert 'pink' ist für Stil 'farbe' nicht erlaubt. Erlaubt: tomate, basilikum, mozzarella, kruste, normal.
 Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.
 zeige() braucht eine Zutat, nicht 5.

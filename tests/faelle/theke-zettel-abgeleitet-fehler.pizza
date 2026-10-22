@@ -1,0 +1,45 @@
+// Theke v7 (K-125): abgeleiteter Zettel – Fehlerfälle. Ein Schreiber (setze wirft), keine Funktion, in einer Bindung verboten,
+// W0103 ohne Quelle, werfender Ausdruck (beim Erzeugen und am Synchronisationspunkt), Zyklus unter abgeleiteten Zetteln,
+// Blech-Ergebnis zählt nach Identität (K-017) als Änderung, ohne Argument → TypAnanas.
+Theke t = neu Theke("Fehler");
+Zettel z = neu Zettel(1);
+Zettel doppelt = Zettel.aus(() -> (z.wert() * 2));
+probier { doppelt.setze(3); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { doppelt.setze(); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { Zettel.aus(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { Zettel.aus(); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { Zettel.aus(karton); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { Zettel.gibtsnicht(); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Schild s = neu Schild(id: "s");
+probier { s.binde("text", () -> { Zettel.aus(() -> z.wert()); serviere ("x"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Zettel innen = Zettel.aus(() -> { probier { doppelt.setze(1); } verbrannt (LaufzeitAnanas e) { serviere (e.nachricht()); } serviere ("?"); });
+Bote.sage((innen.wert()));
+Zettel fest = Zettel.aus(() -> "fest");
+Bote.sage((fest.wert() + " " + fest + " " + Zettel));
+// werfender Ausdruck beim Erzeugen: fangbar, kein Zettel
+Zettel null_ = neu Zettel(0);
+probier { Zettel.aus(() -> 1 / null_.wert()); } verbrannt (RechenAnanas e) { Bote.sage((e.nachricht())); }
+// werfender Ausdruck am Synchronisationspunkt: Ananas aus bediene (fangbar), Wert bleibt
+Zettel teiler = neu Zettel(2);
+Zettel quote = Zettel.aus(() -> { falls (teiler.wert() == 0) { serviere (1 / 0); } serviere (10 / teiler.wert()); });
+s.binde("text", () -> ("Quote " + quote.wert()));
+// Zyklus: a liest b, b liest a mit wechselnden Werten → nach 100 Durchläufen „ein abgeleiteter Zettel hängt von sich selbst ab“
+Zettel start = neu Zettel(0);
+Zettel b = karton;
+Zettel a = Zettel.aus(() -> (start.wert() + (b == karton ? 0 : b.wert())));
+b = Zettel.aus(() -> (a.wert() + 1));
+Schild zs = neu Schild(id: "zs");
+zs.binde("text", () -> (a.wert() + "/" + b.wert()));
+// Blech-Ergebnis: neues Blech je Rechnung → immer eine Änderung (Identität), die Leser rechnen neu – gleiche Texte senden nichts (K-117)
+Zettel liste = Zettel.aus(() -> [z.wert(), z.wert() > 5]);
+Schild ls = neu Schild(id: "ls");
+ls.binde("text", () -> ("Liste " + liste.wert()));
+Knopf k0 = neu Knopf("0", () -> { teiler.setze(0); }, id: "k0");
+Knopf kz = neu Knopf("z", () -> { z.setze(z.wert() + 10); }, id: "kz");
+Knopf ks = neu Knopf("s", () -> { start.setze(start.wert() + 1); }, id: "ks");
+t.zeige(neu Stapel([s, zs, ls, k0, kz, ks], id: "w"));
+probier { t.bediene(); } verbrannt (RechenAnanas e) { Bote.sage(("bediene: " + e.nachricht())); }
+Bote.sage((quote.wert() + " " + doppelt.wert()));
+probier { t.bediene(); } verbrannt (LaufzeitAnanas e) { Bote.sage(("bediene: " + e.nachricht())); }
+Bote.sage((a.wert() + " " + b.wert() + " " + liste.wert()));
+t.bediene();

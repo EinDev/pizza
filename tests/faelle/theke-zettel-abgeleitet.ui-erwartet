@@ -1,0 +1,7 @@
+{"v":1,"op":"fenster","titel":"Abgeleitet","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"w","art":"stapel","kinder":[{"id":"info","art":"schild","text":"Stufe 1 – 10,00 €"},{"id":"kauf","art":"knopf","text":"Kaufen für 10","aktiv":false},{"id":"balken","art":"fortschritt","wert":0.5},{"id":"mehr","art":"knopf","text":"Geld"},{"id":"gleich","art":"knopf","text":"gleich"},{"id":"menge","art":"eingabe","wert":"2"},{"id":"summe","art":"schild","text":"Summe 20"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"kauf","aktiv":true},{"id":"balken","wert":1}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Stufe 2 – 20,00 €"},{"id":"kauf","text":"Kaufen für 20"},{"id":"summe","text":"Summe 40"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"summe","text":"Summe 60"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"info","text":"Stufe 3 – 30,00 €"},{"id":"kauf","text":"Kaufen für 30","aktiv":false},{"id":"balken","wert":0},{"id":"summe","text":"Summe 90"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"balken","wert":0.8333333333333334}]}

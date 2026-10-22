@@ -9,7 +9,8 @@ Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: W
 > **Status:** Sprache, Verhalten und Protokoll sind verbindlich in **`SPEC.md` §16** festgeschrieben (Klärungen K-056 … K-075 in
 > `KLAERUNGEN.md`, Stand Interpreter da07b46 / Renderer d9c9090; **v5 reaktives Modell** `Zettel`/`binde`/`bindeStil`, nur echte
 > Änderungen: SPEC §16.8, K-116 … K-119, Interpreter a07c1f1/ce98d85, Wasm 75b2b0e/67c446f/1b431e7; **v6 ruhiges Raster** `senkrecht`, `marke`,
-> `zeilen` an Abschnitt/Tabelle, feste Innenbreite, Vorschaugröße je Lauf: SPEC §16.9, K-120 … K-124). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
+> `zeilen` an Abschnitt/Tabelle, feste Innenbreite, Vorschaugröße je Lauf: SPEC §16.9, K-120 … K-124; **v7** abgeleitete Zettel
+> `Zettel.aus(fn)`, Spaltengewichte `stil("spalten", […])`: SPEC §16.10, K-125/K-126). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
 > Tiers (§6) und Zuständigkeiten (§7); bei Widersprüchen gilt SPEC §16. Abschnitt 8 listet die Präzisierungen.
 
 ## 1. Grundidee
@@ -52,7 +53,8 @@ theke.bediene();
 
 - Gemeinsame Basisklasse **`Zutat`** (`neu Zutat()` → RohlingAnanas; `erbt Knopf` → P0010) mit `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`
   (eine kleine Whitelist: `breite`, `hoehe`, `abstand`, `ausrichtung`, `schrift` = `"klein"|"normal"|"gross"|"mono"|"riesig"`, `farbe` = Themenfarben `"tomate"|"basilikum"|"mozzarella"|"kruste"|"normal"`,
-  v4: `zeilen` = feste Zeilenzahl mit „…“, `mindestbreite` in px – K-113; v6: `senkrecht` = `"oben"|"mitte"|"unten"|"strecken"` quer zur Reihe – K-120).
+  v4: `zeilen` = feste Zeilenzahl mit „…“, `mindestbreite` in px – K-113; v6: `senkrecht` = `"oben"|"mitte"|"unten"|"strecken"` quer zur Reihe – K-120;
+  v7: `spalten` = Spaltengewichte einer Tabelle, z. B. `[1, 6, 3]` – K-126).
   v6: `marke(t)` / `marke()` – Badge am Reiter-Tab dieser Seite (K-124).
   Keine freien CSS-Strings (Sicherheit + Portabilität).
 - **v2/v4-Zutaten** (SPEC §16.5/§16.7): `Takt`, `Fortschritt`, `Abschnitt` (v4: `klappbar`/`zu`/`beiAenderung`), `Tabelle`, `Reiter` (v4: `setzeTitel(n, t)`,
@@ -64,6 +66,8 @@ theke.bediene();
   Ausdrücke: `kasse.binde("text", () -> geld.wert().euro())` mit `Zettel geld = neu Zettel(0)`; `geld.setze(geld.wert() + 8)` im
   Klick-Rückruf genügt – die Laufzeit rechnet am Synchronisationspunkt nur die Bindungen neu, deren Quellen (Zettel oder Zutat-Getter wie
   `eingabe.wert()`) sich geändert haben, und sendet nur echte Änderungen. Der `Takt` bleibt für die Simulation, nicht fürs Zeichnen.
+  v7 (K-125): `Zettel preis = Zettel.aus(() -> …)` – ein **abgeleiteter Zettel**, den mehrere Bindungen lesen; er rechnet wie eine Bindung
+  nur, wenn sich eine seiner Quellen ändert (Text, `aktiv` und Balken teilen eine Rechnung ohne Memo von Hand).
 - `bediene()` ohne vorheriges `zeige` → `LaufzeitAnanas: Die Theke ist leer.` Zweites `bediene()` nach Schließen kehrt sofort zurück; `zeige` danach öffnet wieder. Nur eine Theke pro Programm (`LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`). Textformen `Knopf(z3)`, `Theke(Titel)`.
 - Text-Argumente fehlend oder `karton` (K-102): Zustandsfelder (`text`, `wert`, `titel`, Zellen, Schwebetext) nehmen die Textform – `karton` → „karton“, fehlend im Konstruktor → `""`, fehlend in Methoden = `karton`; optionale Felder (`platzhalter`, `hinweis`, Fortschritt-`text`) lassen `karton` weg → `""`.
 - Ananas in Rückrufen laufen wie gewohnt aus `bediene()` heraus (fangbar mit `probier` um `bediene()`).
@@ -201,3 +205,7 @@ Tastaturereignisse (`Auswahl`, `Tastatur`, v4 – K-109/K-110).
   `zeilen` auch für Abschnitt-Titel und jede Tabellenzelle (Tabelle dann mit festen, gleich breiten Spalten); feste Innenbreite `breite − 40` px mit
   und ohne Rollbalken (8-px-Rinne immer reserviert, waagrecht `clip`); Playground-Vorschau nimmt die Programmgröße bei jedem Lauf; `marke(t)` an jeder
   Zutat – der Reiter zeigt sie als Badge über dem Tab ihrer Seite (bindbar, Feld `marke` nur wenn nicht leer), keine feste Tab-Breite. Protokoll v1.
+- **Theke v7 (K-125/K-126, SPEC §16.10; Wünsche des Idle-Redesigns):** `Zettel.aus(fn)` – abgeleiteter Zettel = Bindung ohne Zutat (sofort und an
+  den Synchronisationspunkten, nur bei Quellenänderung, gleiche Verbote/Zyklen-Ananas wie Bindungen, `setze` verboten, Wert zwischen
+  Synchronisationspunkten = letzter berechneter); Stil `spalten` = Spaltengewichte einer Tabelle (Blech aus Zahlen > 0, Renderer `colgroup` in %,
+  feste Spalten auch ohne `zeilen`, fehlende Gewichte 1). Protokoll v1.

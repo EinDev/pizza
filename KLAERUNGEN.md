@@ -1543,7 +1543,7 @@ der Takt bleibt nur für die Simulation. Protokoll bleibt v1, der Renderer bleib
 - **Typ, Textform, Namen:** `Zettel` ist eingebauter Typname (wie `Zutat`; eigene Klasse `Zettel` hat Vorrang, `erbt Zettel` → P0010);
   Textform `Zettel(<Textform des Werts>)` (`Zettel(5)`, `Zettel(karton)`); Typname in Fehlertexten `Zettel`. `Zettel` zählt zur Importgruppe
   `theke` des Compilers (kein eigener Import). Keine abgeleiteten Zettel in v5 (`Zettel.aus(fn)` – Ausblick; jede Bindung **ist** bereits ein
-  abgeleiteter Ausdruck).
+  abgeleiteter Ausdruck). **Seit v7: `Zettel.aus(fn)` (K-125).**
 - **Begründung:** Signale mit automatischer Abhängigkeitserfassung sind das Modell moderner UI-Bibliotheken (Solid, Vue, Svelte 5), passen zur
   synchronen Sprache (keine Zeitpunkte außer K-057) und brauchen weder Protokoll- noch Renderer-Änderung. Zutat-Getter als Quellen ersparen
   die meisten `beiAenderung`-Rückrufe. Die Auswertung an Synchronisationspunkten (statt sofort beim `setze`) bündelt wie bisher und macht
@@ -1677,6 +1677,47 @@ nicht nötig; alle Beispiele, Doku-Blöcke und Tests laufen umgestellt. Protokol
 - **Renderer:** Tab = `span.theke-reiter-tab-text` + `span.theke-reiter-marke` (`aria-hidden`; der Tab bekommt `aria-label` „Titel (Marke)“);
   Farbe aus `farbe` des Reiters (Ton), hell/dunkel.
 - **Betroffen:** SPEC §16.1/§16.3/§16.8/§16.9, THEKE.md §2/§8, Referenz `std-theke`. **Status:** fest.
+
+### Theke v7 – zwei Wünsche aus dem Idle-Redesign: K-125, K-126
+
+Rückwärtskompatibilität war nicht nötig; alle Beispiele, Doku-Blöcke und Tests laufen. Protokoll bleibt v1 (neuer Stil-Schlüssel mit
+Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; Renderer mit `colgroup`.
+
+### K-125 Theke v7: abgeleiteter Zettel `Zettel.aus(fn)` (Wunsch: „eine Rechnung für Text, aktiv und Balken, ohne Memo von Hand“)
+- **Befund:** Das Pizza-Imperium memoisiert in `UpgradeSlot.rechne()` nach `zTakt`/`zMenge` von Hand, damit die drei Bindungen
+  (Knopftext, Knopf aktiv, Balken) eine Rechnung je Takt teilen.
+- **Entscheidung:** `Zettel.aus(fn)` → Zettel – ein Zettel, dessen Wert eine **Bindung ohne Zutat** ist (Ziel = sein Wert). Keine zweite
+  Maschinerie: dieselbe Liste, derselbe Algorithmus (K-116), dieselben Verbote (K-118), dieselbe Fehlerbehandlung (K-119). Sofort beim
+  Erzeugen ausgewertet, sonst nur an den Synchronisationspunkten, wenn eine Quelle sich änderte; Ergebnis wie `Zettel.setze` (Gleichheit
+  `==`, K-017). Mehrere Leser teilen eine Rechnung. Verbindlicher Text: SPEC §16.10.
+- **Lesen zwischen Synchronisationspunkten = letzter Wert** (kein Nachrechnen beim Lesen): einfach, in beiden Laufzeiten gleich und wie
+  der Getter einer gebundenen Zutat (K-119). Verworfen: „frisch beim Lesen“ (Pull) – gäbe zweierlei Zeitpunkte und Zyklenerkennung
+  per Rekursion; im Rückruf rechnet man mit den Quellen selbst.
+- **Form `Zettel.aus(fn)`** statt `neu Zettel(aus: fn)`: `neu Zettel(fn)` speichert schon heute eine Funktion als Wert; ein Modul
+  `Zettel` folgt `Zufall` (Klasse **und** Modul). Eigene Klasse `Zettel` hat Vorrang (K-116) – dann ist `Zettel` die Klasse.
+- **Texte:** `Der Zettel ist abgeleitet – setze seine Quellen, nicht ihn.` (setze, LaufzeitAnanas); `Zettel.aus() braucht eine Funktion,
+  z. B. () -> { … }.` (TypAnanas); `Eine Bindung rechnet nur – 'aus' ist darin nicht erlaubt.`; `W0103: Der abgeleitete Zettel liest weder
+  Zettel noch Zutat – er rechnet nur einmal.`; Zyklus `… – ein abgeleiteter Zettel hängt von sich selbst ab.` (Zettel haben keine ID).
+- **Wasm:** Name `aus` = 207 (NAMEN 208); `Bindung { zutat: zettel, feld: F_ZETTEL }`, Zettel-Feld `abgeleitet` (vorher `_r`);
+  Modul `N_G_ZETTEL` in `globaler_wert`/`modul_hat`/`modul_methode`. Merge-Hinweis Multithreading-Branch: `aus` nach `marke` anhängen.
+- **Betroffen:** SPEC §16.1/§16.10, THEKE.md §2/§8, Referenz „Zettel & Bindungen“, Interpreter, Wasm, Prüfstand `a17-theke-v7.js`,
+  `tests/faelle/theke-zettel-abgeleitet*`, `tests/wasm/faelle/theke-zettel-abgeleitet-kueche`, `theke-zettel-eigene-klasse`. **Status:** fest.
+
+### K-126 Theke v7: Stil `spalten` – Spaltengewichte einer Tabelle (Wunsch: „Breiten oder Gewichte je Spalte“)
+- **Befund:** Mit `zeilen` sind die Spalten fest, aber gleich breit (K-121) – eine Symbolspalte nimmt so viel Platz wie der Erfolgsname.
+- **Entscheidung:** **Gewichte**, keine Pixel: Stil `spalten` mit nicht leerem Blech aus Zahlen > 0, Breite je Spalte = Gewicht / Summe.
+  Gewichte passen zur festen Innenbreite (K-122) und zur Tabellenbreite per `stil("breite")`, ohne dass Pixelsummen aufgehen müssen;
+  absolute Breiten bleiben Sache von `breite`. Fehlende Gewichte zählen 1, überzählige entfallen (Spaltenzahl kann per Bindung wechseln).
+  Mit `spalten` hat die Tabelle immer feste Spalten (`table-layout: fixed`), auch ohne `zeilen`; langer Text bricht dann in der Zelle um.
+  Name `spalten` trotz `Tabelle.spalten()` (Überschriften) – wie `zeilen` (K-121), kurz und naheliegend; der Stil-Schlüssel und die
+  Eigenschaft leben in getrennten Namensräumen (`bindeStil` vs. `binde`).
+- **Laufzeit:** Whitelist endet auf `…, senkrecht, spalten`; Wertprüfung `TypAnanas: Stil 'spalten' braucht ein Blech aus Zahlen > 0,
+  nicht <Darstellung>.`; gespeichert wird eine Kopie; Gleichheit elementweise (K-117); `karton` entfernt (K-075).
+- **Protokoll:** Liste von Zahlen im `stil`-Objekt; ein Renderer ohne v7 warnt „Unbekannter Stil-Schlüssel“ und ignoriert ihn.
+- **Renderer:** `colgroup` mit `col`-Breiten in % (auf 4 Nachkommastellen), Klasse `theke-hat-spalten`; `visuell.mjs` misst 1 : 6 : 3
+  und unveränderte Spalten bei wechselndem Text.
+- **Betroffen:** SPEC §16.2/§16.10, THEKE.md §2/§8, Referenz „IDs und Stil“, `site/js/theke/**`, `tests/theke`, Prüfstand a13/a15/a16
+  (Erlaubt-Text), a17. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
@@ -1770,6 +1811,10 @@ streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator
+- Theke v7 (Wünsche des Idle-Redesigns): K-125 (`Zettel.aus(fn)`, abgeleiteter Zettel = Bindung ohne Zutat) und K-126 (Stil `spalten`,
+  Spaltengewichte der Tabelle) festgehalten, SPEC §16.10; umgesetzt in Interpreter + Wasm (bitgleich), Renderer (`colgroup`), Host neu gebaut.
+  Protokollsichtbar: Erlaubt-Text der Stile endet auf `…, senkrecht, spalten` (Fälle/Prüfstand angepasst; neu a17-theke-v7).
+  Merge-Hinweis Multithreading-Branch: `laufzeit/src/namen.rs` hängt `aus` als 207 an (NAMEN 208).
 - Theke v6 (Wünsche des Idle-Redesigns, THEKE-ERWEITERUNGEN §12): K-120 … K-124 festgehalten, SPEC §16.9; umgesetzt in Interpreter + Wasm
   (a732d3e – `senkrecht`, `marke`; bitgleich), Renderer (b6d4177 – `senkrecht`, `zeilen` an Abschnitt/Tabelle, feste Innenbreite `breite − 40`,
   Marke über dem Tab), UI (03d6c1e – Vorschau nimmt die Programmgröße je Lauf), Host neu gebaut (Renderer eingebettet). Protokollsichtbar:

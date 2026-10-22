@@ -201,6 +201,20 @@ try {
       einzelnOben: true, einzelnUnten: true, titelEineZeile: true, zeilenGleich: true, tabelleOhneUeberlauf: true,
       marken: ["", "⭐ 3", "12"], tabsFest: true };
     if (JSON.stringify(v6) !== JSON.stringify(v6Erw)) { ok = false; console.log("v6 falsch:", JSON.stringify(v6)); }
+    // v7 (K-126): Spaltengewichte – Breiten im Verhältnis 1 : 6 : 3 (± 1 px), wechselnder Text verschiebt keine Spalte
+    const v7 = await page.evaluate(() => {
+      const breiten = () => [...document.querySelectorAll("#hell6 [data-theke-id=tab7] thead th")].map((c) => Math.round(c.getBoundingClientRect().width * 10) / 10);
+      const vorher = breiten();
+      const summe = vorher.reduce((a, b) => a + b, 0);
+      const verhaeltnis = vorher.every((b, i) => Math.abs(b - summe * [0.1, 0.6, 0.3][i]) <= 1) || vorher.join("/");
+      window.__theken6.hell6.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tab7", zeilen: [["🏆", "Ein sehr langer Erfolgsname, der umbrechen muss statt die Spalte zu verbreitern", "1,5 Mio. Pizzen"], ["", "kurz", ""]] }] });
+      const nachher = breiten();
+      const tab = document.querySelector("#hell6 [data-theke-id=tab7]");
+      return { verhaeltnis, spaltenFest: JSON.stringify(vorher) === JSON.stringify(nachher) || nachher.join("/"), ohneUeberlauf: tab.scrollWidth <= tab.clientWidth };
+    });
+    const v7Erw = { verhaeltnis: true, spaltenFest: true, ohneUeberlauf: true };
+    if (JSON.stringify(v7) !== JSON.stringify(v7Erw)) { ok = false; console.log("v7 falsch:", JSON.stringify(v7)); }
+    await (await page.$("#hell6 [data-theke-id=tab7]")).screenshot({ path: path.join(ARTEFAKTE, `v7-spalten-${schema}.png`) });
     for (const id of ["hell6", "dunkel6", "hell6k"]) {
       await page.screenshot({ path: path.join(ARTEFAKTE, `v6-${id}-${schema}.png`), clip: await (await page.$("#" + id)).boundingBox() });
     }

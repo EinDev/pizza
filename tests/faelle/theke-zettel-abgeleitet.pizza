@@ -1,0 +1,31 @@
+// Theke v7 (K-125): abgeleiteter Zettel – Zettel.aus(fn) rechnet sofort, dann nur an den Synchronisationspunkten und nur,
+// wenn sich eine Quelle ändert. Mehrere Bindungen lesen denselben abgeleiteten Zettel; die Rechnung läuft einmal je Änderung.
+Theke t = neu Theke("Abgeleitet");
+Zettel geld = neu Zettel(5);
+Zettel stufe = neu Zettel(1);
+salami rechnungen = 0;
+Zettel preis = Zettel.aus(() -> { rechnungen = rechnungen + 1; serviere (stufe.wert() * 10); });
+Zettel kaufbar = Zettel.aus(() -> (geld.wert() >= preis.wert()));
+Bote.sage((preis.wert() + " " + kaufbar.wert() + " " + preis + " " + rechnungen));
+Schild info = neu Schild(id: "info");
+info.binde("text", () -> ("Stufe " + stufe.wert() + " – " + preis.wert().euro()));
+Knopf kauf = neu Knopf("", () -> {
+    geld.setze((geld.wert() - preis.wert()));
+    stufe.setze((stufe.wert() + 1));
+    Bote.sage(("im Rückruf noch " + preis.wert()));   // erst am Synchronisationspunkt neu (wie ein gebundener Getter, K-119)
+}, id: "kauf");
+kauf.binde("text", () -> ("Kaufen für " + preis.wert()));
+kauf.binde("aktiv", () -> kaufbar.wert());
+Fortschritt balken = neu Fortschritt(id: "balken");
+balken.binde("wert", () -> (geld.wert() / preis.wert()));
+Knopf mehr = neu Knopf("Geld", () -> { geld.setze((geld.wert() + 25)); }, id: "mehr");
+Knopf gleich = neu Knopf("gleich", () -> { stufe.setze(stufe.wert()); }, id: "gleich");
+// Eingabe als Quelle: abgeleitet aus einem Zutat-Getter
+Eingabe menge = neu Eingabe(wert: "2", id: "menge");
+Zettel summe = Zettel.aus(() -> (menge.wert().alsZahl() * preis.wert()));
+Schild summeS = neu Schild(id: "summe");
+summeS.binde("text", () -> ("Summe " + summe.wert()));
+t.zeige(neu Stapel([info, kauf, balken, mehr, gleich, menge, summeS], id: "w"));
+Bote.sage(("Rechnungen bis zeige: " + rechnungen));
+t.bediene();
+Bote.sage((preis.wert() + " " + kaufbar.wert() + " " + geld.wert() + " " + summe.wert() + " " + rechnungen));

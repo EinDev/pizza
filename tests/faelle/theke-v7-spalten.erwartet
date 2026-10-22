@@ -1,0 +1,8 @@
+Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht [].
+Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht [1, 0].
+Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht [1, 2].
+Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht 3.
+Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht [1, -2].
+Stil 'spaltenn' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.
+[, Erfolg, Ziel]
+Stil 'spalten' von Tabelle(zwei) ist gebunden – setze den Zettel, nicht die Zutat.

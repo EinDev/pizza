@@ -4,4 +4,4 @@ Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht "2".
 Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht -3.
 Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht -1.
 Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht "breit".
-Stil 'minbreite' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.
+Stil 'minbreite' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.

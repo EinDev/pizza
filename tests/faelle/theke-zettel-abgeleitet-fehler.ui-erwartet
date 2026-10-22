@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"Fehler","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"w","art":"stapel","kinder":[{"id":"s","art":"schild","text":"Quote 5"},{"id":"zs","art":"schild","text":"0/1"},{"id":"ls","art":"schild","text":"Liste [1, nein]"},{"id":"k0","art":"knopf","text":"0"},{"id":"kz","art":"knopf","text":"z"},{"id":"ks","art":"knopf","text":"s"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ls","text":"Liste [11, ja]"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zs","text":"200/201"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ls","text":"Liste [21, ja]"}]}

@@ -258,7 +258,7 @@ t.bediene();
 `, {
     uiEreignisse: [{ typ: "klick", id: "an" }, { typ: "klick", id: "an" }, { typ: "klick", id: "gleich" }, { typ: "klick", id: "aus" }, { typ: "klick", id: "aus" }, { typ: "klick", id: "schmal" }],
     out: [
-      "Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.",
+      "Stil 'rand' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.",
       "Wert 'oben' ist für Stil 'ausrichtung' nicht erlaubt. Erlaubt: links, mitte, rechts.",
       "bindeStil() braucht eine Funktion, z. B. () -> { … }.",
     ],

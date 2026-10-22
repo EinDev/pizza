@@ -203,7 +203,10 @@
           { id: "e-hoch", art: "schild", text: "drei\nZeilen\nhoch", stil: { zeilen: 3 } },
           { id: "e-unten", art: "knopf", text: "unten", stil: { senkrecht: "unten" } }] },
         { id: "tab", art: "tabelle", spalten: ["Erfolg", "Wann"], stil: { zeilen: 1, schrift: "klein" },
-          zeilen: [["Erste Pizza – ein sehr langer Erfolgsname, der abgeschnitten wird", "0:12"], ["Steinofen", "3:40"], ["—", "—"]] });
+          zeilen: [["Erste Pizza – ein sehr langer Erfolgsname, der abgeschnitten wird", "0:12"], ["Steinofen", "3:40"], ["—", "—"]]  },
+        // v7 (K-126): Spaltengewichte 1 : 6 : 3 – schmale Symbolspalte, feste Spalten ohne zeilen (langer Text bricht um)
+        { id: "tab7", art: "tabelle", spalten: ["", "Erfolg", "Ziel"], stil: { spalten: [1, 6, 3], schrift: "klein" },
+          zeilen: [["🍕", "Erste Pizza", "1 Pizza"], ["🔥", "Steinofen", "1.000 €"]] });
     }
     return {
       v: 1, op: "baum",

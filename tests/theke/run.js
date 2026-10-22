@@ -1563,3 +1563,36 @@ test("v6 K-124 marke: Badge am Tab der Seite, folgt aendere der Seite, leer = ke
   assert.ok(tabs2.every((x) => x.querySelector(".theke-reiter-marke").hidden));
   assert.deepEqual(warnungen, []);
 }));
+
+// ------------------------------------------------------------------ Theke v7 (K-126)
+test("v7 K-126 Stil spalten: colgroup mit Prozent-Breiten nach Gewicht, fehlende Gewichte 1, überzählige entfallen, null entfernt, ungültig ignoriert", mitUmgebung(({ t, $, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "tb", art: "tabelle", spalten: ["", "Erfolg", "Ziel"], zeilen: [["🍕", "Erste Pizza", "1"]], stil: { spalten: [1, 6, 3] } },
+    { id: "s", art: "schild", text: "x", stil: { spalten: [1, 2] } }] } });
+  const tab = $("tb").querySelector("table");
+  const breiten = () => [...tab.querySelectorAll(":scope > colgroup > col")].map((c) => c.style.width);
+  assert.ok($("tb").classList.contains("theke-hat-spalten"));
+  assert.equal(tab.firstChild.nodeName, "COLGROUP");
+  assert.deepEqual(breiten(), ["10%", "60%", "30%"]);
+  assert.equal($("s").querySelector("colgroup"), null, "andere Zutaten ignorieren den Stil");
+  // mehr Spalten als Gewichte → 1; Text ändern lässt die Breiten stehen
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tb", spalten: ["a", "b", "c", "d"], zeilen: [["sehr langer Text", "2", "3", "4"]] }] });
+  assert.deepEqual(breiten(), ["9.0909%", "54.5455%", "27.2727%", "9.0909%"]);
+  assert.equal(tab.querySelectorAll("colgroup").length, 1);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tb", stil: { spalten: [1, 1, 1, 1, 9] } }] });
+  assert.deepEqual(breiten(), ["25%", "25%", "25%", "25%"], "überzählige Gewichte entfallen");
+  for (const falsch of [[], [1, 0], [1, "2"], 3, "1,2", [1, -1]]) {
+    t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tb", stil: { spalten: falsch } }] });
+    assert.deepEqual(breiten(), ["25%", "25%", "25%", "25%"], "alter Wert bleibt: " + JSON.stringify(falsch));
+  }
+  assert.ok(warnungen.some((w) => /stil\.spalten/.test(w)));
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tb", stil: { spalten: null } }] });
+  assert.ok(!$("tb").classList.contains("theke-hat-spalten"));
+  assert.equal(tab.querySelector("colgroup"), null);
+  // K-115: ganzer Knoten ohne stil.spalten → keine Gewichte
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "tb", stil: { spalten: [2, 1] } }] });
+  assert.deepEqual(breiten(), ["40%", "20%", "20%", "20%"]);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "w", kinder: [{ id: "tb", art: "tabelle", spalten: ["a"], zeilen: [] }] }] });
+  assert.equal($("tb").querySelector("colgroup"), null);
+  assert.ok(!$("tb").classList.contains("theke-hat-spalten"));
+}));

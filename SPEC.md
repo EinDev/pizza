@@ -855,7 +855,7 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 | `Eingabe` | Textfeld | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)`, `beiEnter(fn)` |
 | `Haken` | Checkbox | `(text = "", an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` |
 | `Stapel` / `Reihe` | Container vertikal / horizontal | `(Blech<Zutat>)` | `hinzu(zutat)` → Container, `leeren()` |
-| `Zettel` (v5, §16.8) | beobachtbarer Wert (keine Zutat) | `(wert = karton)` | `wert()`, `setze(w)` → Zettel |
+| `Zettel` (v5, §16.8) | beobachtbarer Wert (keine Zutat) | `(wert = karton)`; v7: `Zettel.aus(fn)` – abgeleitet (§16.10) | `wert()`, `setze(w)` → Zettel |
 
 Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`,
 v5: `binde(eigenschaft, fn)`, `bindeStil(schlüssel, fn)` (§16.8), v6: `marke(t)` / `marke()` (Badge am Reiter-Tab, §16.9).
@@ -927,8 +927,9 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   `schrift` ∈ `klein|normal|gross|mono|riesig`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`; **K-113:** `zeilen` ganze Zahl ≥ 1
   (feste Zeilenzahl mit „…“, wirkt auf den Text von Schild/Knopf/Haken; `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`),
   `mindestbreite` Zahl ≥ 0 in Pixeln (`min-width`, jede Zutat); **K-120:** `senkrecht` ∈ `oben|mitte|unten|strecken` (Lage quer zur Reihe,
-  §16.9); **K-121:** `zeilen` wirkt auch auf den Abschnitt-Titel und jede Tabellenzelle. Unbekannter Schlüssel →
-  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht.`; ungültiger Wert →
+  §16.9); **K-121:** `zeilen` wirkt auch auf den Abschnitt-Titel und jede Tabellenzelle; **K-126:** `spalten` = Spaltengewichte einer
+  Tabelle (nicht leeres Blech aus Zahlen > 0, §16.10). Unbekannter Schlüssel →
+  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten.`; ungültiger Wert →
   `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
   **K-075:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
 - **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard OS-Thema; der Umschalter wirkt auch auf
@@ -1201,6 +1202,53 @@ Reiter reiter = neu Reiter(["🍕 Backstube", "⭐ Imperium"], [neu Stapel([spal
   Textform; leer = keine Marke). Der `Reiter` zeigt die Marke einer **Seite** als Badge über der rechten oberen Ecke ihres Tabs – im Rand,
   den die Leiste immer hat; Tabs verschieben sich nie. Bindbar (`binde("marke", …)`), Getter ist Quelle, Setter einer gebundenen Marke wirft,
   `marke(t)` in einer Bindung ist verboten (K-118). Knoten-Feld `marke` nur wenn nicht leer; außerhalb eines Reiters gesendet, nicht gezeigt.
+
+### 16.10 Theke v7: abgeleitete Zettel und Spaltengewichte (K-125, K-126)
+
+Zwei Wünsche aus dem Idle-Redesign: eine Rechnung, die mehrere Bindungen teilen, ohne Memo von Hand; Tabellen mit ungleich breiten,
+festen Spalten. Protokoll v1 (neuer Stil-Schlüssel mit Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten.
+
+```pizza
+Zettel geld = neu Zettel(0);
+Zettel stufe = neu Zettel(1);
+Zettel preis = Zettel.aus(() -> 10 * stufe.wert() * stufe.wert());   // rechnet nur, wenn sich stufe ändert
+kaufen.binde("text", () -> ("Ausbauen für " + preis.wert().euro()));
+kaufen.binde("aktiv", () -> geld.wert() >= preis.wert());
+balken.binde("wert", () -> geld.wert() / preis.wert());             // drei Leser, eine Rechnung
+Tabelle erfolge = neu Tabelle(["", "Erfolg", "Ziel"], []).stil("spalten", [1, 6, 3]);   // 10 % · 60 % · 30 %, fest
+```
+
+- **Abgeleiteter Zettel (K-125):** `Zettel.aus(fn)` → Zettel; `fn` ist eine Funktion ohne Parameter (Lambdas tolerant, §14.9; sonst
+  `TypAnanas: Zettel.aus() braucht eine Funktion, z. B. () -> { … }.`, auch bei `karton`/fehlend). Der Zettel ist eine **Bindung ohne Zutat**:
+  Ziel ist sein Wert. Er wird **sofort** ausgewertet (wie `binde`) und danach nur an den Synchronisationspunkten von §16.8, wenn eine
+  gelesene Quelle sich geändert hat – im selben Algorithmus (Registrierungsreihenfolge = Erzeugungsreihenfolge zwischen den Bindungen,
+  ≤ 100 Durchläufe, schmutzig vor der Auswertung sauber). Quellen wie bei Bindungen (Zettel inkl. anderer abgeleiteter, Zutat-Getter),
+  bei jeder Auswertung neu erfasst. Ergebnis wie `Zettel.setze`: nur ein **ungleicher** Wert (`==`, K-017) ändert ihn und macht seine
+  Leser schmutzig – ein neues Blech/Objekt je Rechnung zählt also immer als Änderung (Identität). Leser: beliebig viele Bindungen und
+  abgeleitete Zettel; die Rechnung läuft einmal je Änderung. `wert()` ist Quelle wie bei jedem Zettel und liefert **zwischen** zwei
+  Synchronisationspunkten den zuletzt berechneten Wert (wie ein gebundener Getter, K-119) – im Rückruf nach `stufe.setze(…)` also noch
+  den alten. Ohne `zeige`/`bediene` gibt es keine Synchronisationspunkte: dann rechnet er nur beim Erzeugen (und am Programmende).
+- **Regeln wie eine Bindung (K-125):** `fn` rechnet nur (K-118 – Setter, `Zettel.setze`, `binde` … werfen); `Zettel.aus` selbst ist in
+  einer Bindung und in einem abgeleiteten Zettel verboten (`Eine Bindung rechnet nur – 'aus' ist darin nicht erlaubt.`). Ein Schreiber:
+  `setze` auf einen abgeleiteten Zettel → `LaufzeitAnanas: Der Zettel ist abgeleitet – setze seine Quellen, nicht ihn.` W0103 (je
+  Aufrufstelle), wenn die erste Auswertung keine Quelle liest: `W0103: Der abgeleitete Zettel liest weder Zettel noch Zutat – er rechnet
+  nur einmal.` Werfender Ausdruck: beim Erzeugen fangbar aus `Zettel.aus` (kein Zettel; die Registrierung bleibt ohne Quellen), am
+  Synchronisationspunkt aus `bediene()` usw. wie eine Bindung (K-119), der Wert bleibt. Zyklus nach 100 Durchläufen:
+  `LaufzeitAnanas: Die Bindungen kommen nicht zur Ruhe – ein abgeleiteter Zettel hängt von sich selbst ab.` (erste schmutzige Bindung
+  in Registrierungsreihenfolge; danach alle sauber, K-119). Schritte wie eine Bindung. Ein abgeleiteter Zettel lässt sich nicht lösen –
+  er lebt bis zum Programmende (nicht in Schleifen je Takt erzeugen).
+- **Name, Typ, Küche (K-125):** `Zettel` ist zusätzlich ein eingebautes Modul mit der Methode `aus` (`Zettel.x()` →
+  `Methode 'x' gibt es bei Zettel nicht.`); eine **eigene** Klasse `Zettel` hat Vorrang (dann gilt ihr `Zettel.aus`, K-116). Typ `Zettel`,
+  Textform `Zettel(<Wert>)` wie jeder Zettel. Nur Hauptküche: `Zettel.aus` und alle Methoden in einer Küche →
+  `KüchenAnanas: Zettel gibt es nur in der Hauptküche.`; nicht kartonfähig („Ein Zettel“).
+- **Spaltengewichte (K-126):** Stil `spalten` = **nicht leeres Blech aus endlichen Zahlen > 0**, sonst
+  `TypAnanas: Stil 'spalten' braucht ein Blech aus Zahlen > 0, nicht [1, 0].`; gespeichert wird eine Kopie (spätere Änderungen am Blech
+  wirken nicht). Gleichheit (K-117) elementweise; `karton` entfernt (K-075); bindbar per `bindeStil("spalten", …)`. Protokoll: Liste
+  von Zahlen im `stil`-Objekt (`"stil":{"spalten":[1,6,3]}`). **Renderer:** nur an `Tabelle`; feste Spalten (`table-layout: fixed`) mit
+  Breite = Gewicht / Summe der ersten n Gewichte (n = Spaltenzahl; fehlende Gewichte zählen 1, überzählige entfallen); langer Text bricht
+  in der Zelle um (mit `zeilen`: abgeschnitten) und verschiebt keine Spalte. Andere Zutaten ignorieren den Stil. `stil("spalten", …)`
+  sind Breiten, `tabelle.spalten()` die Überschriften (wie bei `zeilen`, K-121). Gilt Spaltengewichte und `zeilen` zugleich, bestimmen die
+  Gewichte die Breiten (ohne `spalten` teilen sich die Spalten mit `zeilen` die Breite gleichmäßig, K-121).
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)

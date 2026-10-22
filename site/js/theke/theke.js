@@ -93,6 +93,16 @@
         if (typeof w !== "number" || !isFinite(w) || w < 1 || Math.floor(w) !== w) { warne("Ungültiger Wert für stil.zeilen:", w); continue; }
         el.style.setProperty("--theke-zeilen", String(w));
         el.classList.add("theke-hat-zeilen");
+      } else if (k === "spalten") {
+        // v7 (K-126): Spaltengewichte einer Tabelle – feste Spalten (table-layout: fixed) im Verhältnis der Gewichte;
+        // fehlende Gewichte zählen 1, überzählige entfallen. Andere Zutaten ignorieren den Stil.
+        if (weg) { spaltenGewichte.delete(el); el.classList.remove("theke-hat-spalten"); setzeSpalten(el); continue; }
+        if (!Array.isArray(w) || !w.length || !w.every(function (x) { return typeof x === "number" && isFinite(x) && x > 0; })) {
+          warne("Ungültiger Wert für stil.spalten:", w); continue;
+        }
+        spaltenGewichte.set(el, w.slice());
+        el.classList.add("theke-hat-spalten");
+        setzeSpalten(el);
       } else if (k === "mindestbreite") {
         // v4 (K-113): nie schmaler als … (min-width), darf wachsen – für jede Zutat.
         var mb = weg ? null : laenge(w);
@@ -111,7 +121,7 @@
 
   // K-115: Ein vollständiger Knoten (mit art) in einer kinder-Liste ist der ganze Zustand der Zutat. Felder, die das Programm nur
   // bei Abweichung vom Standard sendet, gelten dort als Standard – auch wenn das Element wiederverwendet wird (Zutat wandert).
-  var STIL_SCHLUESSEL = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht"];
+  var STIL_SCHLUESSEL = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht", "spalten"];
   var STANDARD_FELDER = {
     knopf: { aktiv: true }, takt: { aktiv: true }, auswahl: { aktiv: true }, tastatur: { aktiv: true },
     eingabe: { platzhalter: "" }, fortschritt: { text: "" }, abschnitt: { klappbar: false, zu: false }
@@ -387,6 +397,8 @@
 
   // ---- tabelle: spalten + zeilen (Texte), Zahlenspalten rechtsbündig
   var tabellenZustand = new WeakMap();
+  // v7 (K-126): stil.spalten je Element (Gewichte); wirkt nur an Tabellen
+  var spaltenGewichte = new WeakMap();
   // Zahl (auch 1.234,5 · 1 234 · −3 · 1,5e3), optional mit Größenwort und/oder Einheit: 1,2 Mio. · 8,00 € · 12 % · 0,3/s
   var ZAHL = /^[+\-−]?\s?(?:\d{1,3}(?:[.   ']\d{3})+|\d+)(?:[.,]\d+)?(?:e[+\-]?\d+)?(?:\s?(?:Tsd\.|Mio\.|Mrd\.|Bio\.|Brd\.|Trio\.|k|K|M))?(?:\s?(?:%|‰|€|\$|\/s|\/min|ms|s|x|×))?$/;
   var LEER_ZELLE = /^(?:|[-–—]|…)$/;
@@ -419,6 +431,29 @@
       if (hat.call(f, "spalten") || hat.call(f, "zeilen")) zeichneTabelle(el, z, ctx.dokument);
     }
   });
+  function spaltenZahl(z) {
+    var n = z.spalten.length;
+    for (var r = 0; r < z.zeilen.length; r++) n = Math.max(n, z.zeilen[r].length);
+    return n;
+  }
+  /** v7 (K-126): colgroup aus stil.spalten – Breite je Spalte = Gewicht / Summe (in %), fehlende Gewichte 1; ohne Stil keine colgroup. */
+  function setzeSpalten(el) {
+    var z = tabellenZustand.get(el);
+    if (!z) return;
+    var tab = el.firstChild, d = el.ownerDocument;
+    if (tab.firstChild && tab.firstChild.nodeName === "COLGROUP") tab.removeChild(tab.firstChild);
+    var g = spaltenGewichte.get(el), n = spaltenZahl(z);
+    if (!g || !n) return;
+    var summe = 0, s, gew = [];
+    for (s = 0; s < n; s++) { gew.push(s < g.length ? g[s] : 1); summe += gew[s]; }
+    var cg = d.createElement("colgroup");
+    for (s = 0; s < n; s++) {
+      var col = d.createElement("col");
+      col.style.width = (Math.round(gew[s] / summe * 1e6) / 1e4) + "%";
+      cg.appendChild(col);
+    }
+    tab.insertBefore(cg, tab.firstChild);
+  }
   /** Zelltext in einem span: so klemmt stil.zeilen (K-121) jede Zelle auf genau n Zeilen (td selbst kann das nicht). */
   function zellText(zelle, text, d) {
     var sp = d.createElement("span"); sp.className = "theke-tabelle-text"; sp.textContent = text;
@@ -426,8 +461,8 @@
   }
   function zeichneTabelle(el, z, d) {
     var tab = el.firstChild, kopf = tab.tHead, rumpf = tab.tBodies[0];
-    var n = z.spalten.length, s, r;
-    for (r = 0; r < z.zeilen.length; r++) n = Math.max(n, z.zeilen[r].length);
+    var n = spaltenZahl(z), s, r;
+    setzeSpalten(el);
     var zahl = [];
     for (s = 0; s < n; s++) {
       var gesehen = false, nurZahlen = true;

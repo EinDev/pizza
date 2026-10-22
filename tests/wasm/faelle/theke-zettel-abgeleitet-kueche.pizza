@@ -1,0 +1,14 @@
+// Theke v7 (K-125) im Wasm == Interpreter: Zettel.aus nur in der Hauptküche; abgeleiteter Zettel im Karton; ohne Theke
+Zettel z = neu Zettel(3);
+Zettel d = Zettel.aus(() -> z.wert() * 2);
+leer versuche(Rezept r) {
+    probier { Bote.sage((r())); } verbrannt (KüchenAnanas a) { Bote.sage((a)); }
+}
+versuche(() -> [1].brigade(i -> Zettel.aus(() -> i)));
+versuche(() -> [1].brigade(i -> d.wert()));
+versuche(() -> [1].brigade(i -> d.setze(i)));
+versuche(() -> [1].brigade(i -> [d]));
+Bote.sage((d.wert() + " " + d));
+// ohne Theke: rechnet beim Erzeugen; Synchronisationspunkte gibt es erst mit bediene()/zeige
+z.setze(5);
+Bote.sage((d.wert()));

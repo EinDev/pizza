@@ -1,0 +1,6 @@
+{"v":1,"op":"fenster","titel":"Spalten","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"w","art":"stapel","kinder":[{"id":"tab","art":"tabelle","spalten":["","Erfolg","Ziel"],"zeilen":[["🍕","Erste Pizza","1"]],"stil":{"spalten":[1,6,3],"zeilen":1}},{"id":"zwei","art":"tabelle","spalten":["a","b"],"zeilen":[],"stil":{"spalten":[1,1]}},{"id":"gleich","art":"knopf","text":"gleich"},{"id":"anders","art":"knopf","text":"anders"},{"id":"weg","art":"knopf","text":"weg"},{"id":"um","art":"knopf","text":"um"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"tab","stil":{"spalten":[1,4.5,2],"zeilen":1}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"tab","stil":{"zeilen":1,"spalten":null}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zwei","stil":{"spalten":[3,1]}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"zwei","stil":{"spalten":[1,1]}}]}

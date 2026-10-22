@@ -16,9 +16,10 @@ pub const A_ZUTAT: u32 = 21;
 /// Theke v5 (K-116): Zettel – beobachtbarer Wert (22/23 sind A_ZUFALL/A_KAMMER in vorrat.rs)
 pub const A_ZETTEL: u32 = 24;
 
-/// Zettel (K-116): `neu Zettel(wert = karton)`, `wert()`, `setze(w)`; Textform `Zettel(<Textform>)`
+/// Zettel (K-116): `neu Zettel(wert = karton)`, `wert()`, `setze(w)`; Textform `Zettel(<Textform>)`.
+/// `abgeleitet` ≠ 0: `Zettel.aus(fn)` (K-125) – der Wert ist eine Bindung mit Ziel (Zettel, F_ZETTEL)
 #[repr(C)]
-pub struct Zettel { pub art: u32, pub _r: u32, pub wert: W }
+pub struct Zettel { pub art: u32, pub abgeleitet: u32, pub wert: W }
 
 /// Felder als Quellen/Bindungsziele (K-116): 0 = Zettel.wert, 1 … 15 Zutat-Eigenschaften (Name = Protokollfeld),
 /// Stile ab F_STIL + Stilindex (nur über `bindeStil`).
@@ -58,11 +59,12 @@ const DURCHLAEUFE_MAX: u32 = 100;
 const ARTEN: [&str; 13] = ["schild", "knopf", "eingabe", "haken", "stapel", "reihe", "takt", "fortschritt", "abschnitt", "tabelle", "reiter", "auswahl", "tastatur"];
 const ART_NAMEN: [u32; 13] = [N_G_SCHILD, N_G_KNOPF, N_G_EINGABE, N_G_HAKEN, N_G_STAPEL, N_G_REIHE, N_G_TAKT, N_G_FORTSCHRITT, N_G_ABSCHNITT, N_G_TABELLE, N_G_REITER, N_G_AUSWAHL, N_G_TASTATUR];
 fn behaelter(zart: u32) -> bool { matches!(zart, 4 | 5 | 8 | 10) }
-/// K-068/K-113/K-120: Stil-Whitelist in verbindlicher Reihenfolge (Fehlertext „Erlaubt: …“)
-const STIL_NAMEN: [&str; 9] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht"];
-/// Art je Stil: 0 = Zahl ≥ 0, 1 = Vokabular (ausrichtung/schrift/farbe/senkrecht), 2 = ganze Zahl ≥ 1 (zeilen)
-const STIL_ART: [u8; 9] = [0, 0, 0, 1, 1, 1, 2, 0, 1];
-const STIL_ERLAUBT: &str = "breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht";
+/// K-068/K-113/K-120/K-126: Stil-Whitelist in verbindlicher Reihenfolge (Fehlertext „Erlaubt: …“)
+const STIL_NAMEN: [&str; 10] = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht", "spalten"];
+/// Art je Stil: 0 = Zahl ≥ 0, 1 = Vokabular (ausrichtung/schrift/farbe/senkrecht), 2 = ganze Zahl ≥ 1 (zeilen),
+/// 3 = Spaltengewichte (nicht leeres Blech aus Zahlen > 0, K-126)
+const STIL_ART: [u8; 10] = [0, 0, 0, 1, 1, 1, 2, 0, 1, 3];
+const STIL_ERLAUBT: &str = "breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite, senkrecht, spalten";
 
 #[repr(C)]
 pub struct UiTheke { pub art: u32, pub gezeigt: u32, pub geschlossen: u32, pub _r: u32, pub titel: W, pub breite: f64, pub hoehe: f64, pub wurzel: W }
@@ -115,6 +117,11 @@ fn bindbar(zart: u32) -> Vec<u32> {
     v.push(F_SICHTBAR); v.push(F_HINWEIS); v.push(F_MARKE);
     v
 }
+/// Name einer Bindung in Fehlertexten: `'text' von Schild(z1)`, `Stil 'farbe' von …` bzw. `ein abgeleiteter Zettel` (K-125)
+fn bindung_name_in(o: W, feld: u32, tb: &mut Tb) {
+    if ist_zettel(o) { tb.s("ein abgeleiteter Zettel"); return; }
+    feld_in(feld, tb); tb.s(" von "); text_in(o, tb);
+}
 /// `'text'` bzw. `Stil 'farbe'` (Fehlertexte K-116/K-118)
 fn feld_in(feld: u32, tb: &mut Tb) {
     if feld >= F_STIL { tb.s("Stil '").s(STIL_NAMEN[(feld - F_STIL) as usize]).s("'"); } else { tb.s("'").s(FELD_NAMEN[feld as usize]).s("'"); }
@@ -145,7 +152,7 @@ fn gebunden(o: W, feld: u32) -> bool {
 fn nur_rechnen(id: u32, pos: &[W]) -> bool {
     if unsafe { AKTIV } < 0 { return false; }
     let verboten = matches!(id, N_SETZETEXT | N_SETZEWERT | N_SETZEAN | N_SETZEINTERVALL | N_SETZETITEL | N_WAEHLE_ASCII | N_SETZEOPTIONEN
-        | N_SETZESPALTEN | N_SETZEZEILEN | N_HINZU | N_LEEREN | N_BINDE | N_BINDESTIL | N_ANIMIERE | N_STIL | N_SCHWEBE | N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZE)
+        | N_SETZESPALTEN | N_SETZEZEILEN | N_HINZU | N_LEEREN | N_BINDE | N_BINDESTIL | N_ANIMIERE | N_STIL | N_SCHWEBE | N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZE | N_AUS)
         || (matches!(id, N_AKTIV | N_SICHTBAR | N_HINWEIS | N_MARKE | N_UEBERGANG | N_KLAPPBAR | N_ZU) && !pos.is_empty());
     if !verboten { return false; }
     let mut t = Tb::neu();
@@ -193,6 +200,35 @@ fn binde(o: W, id: u32, pos: &[W], knoten: i32) -> W {
     o
 }
 
+/// K-125: `Zettel.aus(fn)` – neuer Zettel, dessen Wert eine Bindung ist: sofort ausgewertet, dann an den Synchronisationspunkten
+/// (Registrierungsreihenfolge wie jede Bindung). Prüfreihenfolge wie der Interpreter: Küche → „rechnet nur“ → Funktion.
+pub fn zettel_aus(pos: &[W], knoten: i32) -> W {
+    if crate::kueche::nur_hauptkueche(crate::kueche::T_ZETTEL) { return KARTON; }
+    if nur_rechnen(N_AUS, pos) { return KARTON; }
+    let fnw = a(pos, 0);
+    if !(fnw != KARTON && fnw != UNDEF && ist_funktion(fnw)) {
+        wirf_ananas(K_TYP, "Zettel.aus() braucht eine Funktion, z. B. () -> { … }.");
+        return KARTON;
+    }
+    let o = neu_w(Zettel { art: A_ZETTEL, abgeleitet: 1, wert: KARTON });
+    unsafe {
+        BINDUNGEN.push(Bindung { zutat: o, feld: F_ZETTEL, fnw, dirty: false, quellen: Vec::new(), knoten });
+        let i = BINDUNGEN.len() - 1;
+        let r = match rechne(i) { Some(r) => r, None => return KARTON };
+        if BINDUNGEN[i].quellen.is_empty() {
+            crate::start::warnung_w("W0103", Tb::neu().s("Der abgeleitete Zettel liest weder Zettel noch Zutat – er rechnet nur einmal.").fertig(), knoten);
+        }
+        setze_abgeleitet(o, r);
+    }
+    o
+}
+/// K-125: Ergebnis eines abgeleiteten Zettels wie `Zettel.setze` – nur ein ungleicher Wert (Gleichheit wie ==) macht Leser schmutzig
+fn setze_abgeleitet(o: W, r: W) {
+    let r = if r == UNDEF { KARTON } else { r };
+    let z = obj::<Zettel>(o);
+    if !gleich(z.wert, r) { z.wert = r; schmutzig(o, F_ZETTEL); }
+}
+
 /// Ausdruck einer Bindung rufen (0 Argumente): Quellen neu erfassen, währenddessen ist die Bindung AKTIV.
 /// None = der Ausdruck hat geworfen (die Bindung bleibt sauber, das Signal propagiert).
 fn rechne(i: usize) -> Option<W> {
@@ -206,7 +242,7 @@ fn rechne(i: usize) -> Option<W> {
 /// Eine Bindung auswerten: Ausdruck rufen, Ergebnis wie der gleichnamige Setter prüfen/umwandeln und setzen (K-117).
 fn auswerte(i: usize) {
     let (o, feld) = unsafe { (BINDUNGEN[i].zutat, BINDUNGEN[i].feld) };
-    if let Some(r) = rechne(i) { setze_feld(o, feld, r, true); }
+    if let Some(r) = rechne(i) { if feld == F_ZETTEL { setze_abgeleitet(o, r); } else { setze_feld(o, feld, r, true); } }
 }
 
 /// K-116: Auswertung am Synchronisationspunkt – höchstens 100 Durchläufe, je Durchlauf alle Bindungen in Registrierungsreihenfolge,
@@ -235,7 +271,7 @@ fn bindungen_auswerten() {
         if durchlauf >= DURCHLAEUFE_MAX {
             if let Some(b) = BINDUNGEN.iter().find(|b| b.dirty) {
                 let mut t = Tb::neu();
-                t.s("Die Bindungen kommen nicht zur Ruhe – "); feld_in(b.feld, &mut t); t.s(" von "); text_in(b.zutat, &mut t); t.s(" hängt von sich selbst ab.");
+                t.s("Die Bindungen kommen nicht zur Ruhe – "); bindung_name_in(b.zutat, b.feld, &mut t); t.s(" hängt von sich selbst ab.");
                 wirf_tb(K_LAUFZEIT, &t);
             }
             // K-119: nach der Zyklus-Ananas sind alle Bindungen sauber (sie rechnen erst wieder bei einer Quellenänderung)
@@ -289,6 +325,11 @@ fn schreibe_zeilen(o: W, v: Vec<Vec<W>>, nachricht: bool) {
 }
 fn stil_wert_gleich(a: W, b: W) -> bool {
     if ist_zahl(a) && ist_zahl(b) { return f(a) == f(b); }
+    // K-126: Spaltengewichte elementweise (K-117)
+    if ist_ptr(a) && ist_ptr(b) && art(a) == A_BLECH && art(b) == A_BLECH {
+        let (x, y) = (blech_v(a), blech_v(b));
+        return x.len() == y.len() && x.iter().zip(y.iter()).all(|(&p, &q)| f(p) == f(q));
+    }
     if art(a) == A_TEXT && art(b) == A_TEXT { return bytes(a) == bytes(b); }
     a == b
 }
@@ -331,6 +372,15 @@ fn stil_wert(ki: u32, k: W, w: W) -> Option<W> {
             wirf_tb(K_TYP, &t); return None;
         }
         return Some(w);
+    }
+    if STIL_ART[ki as usize] == 3 {
+        // K-126: spalten – nicht leeres Blech aus endlichen Zahlen > 0; gespeichert wird eine Kopie
+        let ok = art(w) == A_BLECH && !blech_v(w).is_empty() && blech_v(w).iter().all(|&x| ist_zahl(x) && f(x) > 0.0 && f(x).is_finite());
+        if !ok {
+            let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht ein Blech aus Zahlen > 0, nicht "); darstellung(w, &mut t); t.s(".");
+            wirf_tb(K_TYP, &t); return None;
+        }
+        return Some(blech(blech_v(w).clone()));
     }
     if STIL_ART[ki as usize] == 2 {
         if !(ist_zahl(w) && zl::ist_ganz(f(w)) && f(w) >= 1.0) {
@@ -420,7 +470,7 @@ fn flush_nach_rueckruf() {
 // ---------------------------------------------------------------- Zettel (K-116)
 fn neuer_zettel(pos: &[W], ben: &Ben) -> W {
     let w = arg(pos, ben, 0, N_WERT);
-    neu_w(Zettel { art: A_ZETTEL, _r: 0, wert: if w == UNDEF { KARTON } else { w } })
+    neu_w(Zettel { art: A_ZETTEL, abgeleitet: 0, wert: if w == UNDEF { KARTON } else { w } })
 }
 fn zettel_methode(o: W, id: u32, pos: &[W]) -> W {
     // Küchenbrigade S4: Zettel gibt es nur in der Hauptküche (auch Getter)
@@ -429,6 +479,8 @@ fn zettel_methode(o: W, id: u32, pos: &[W]) -> W {
         N_WERT => { quelle(o, F_ZETTEL); obj::<Zettel>(o).wert }
         N_SETZE => {
             if nur_rechnen(id, pos) { return KARTON; }
+            // K-125: ein abgeleiteter Zettel hat einen Schreiber – seinen Ausdruck
+            if obj::<Zettel>(o).abgeleitet != 0 { wirf_ananas(K_LAUFZEIT, "Der Zettel ist abgeleitet – setze seine Quellen, nicht ihn."); return KARTON; }
             let w = a(pos, 0);
             let w = if w == UNDEF { KARTON } else { w };
             let z = obj::<Zettel>(o);
@@ -474,6 +526,12 @@ fn json_wert(w: W, out: &mut String) {
     if art(w) == A_TEXT { json_text(bytes(w), out); }
     else if ist_bool(w) { out.push_str(if w == JA { "true" } else { "false" }); }
     else if ist_zahl(w) { json_zahl(f(w), out); }
+    else if art(w) == A_BLECH {
+        // K-126: Stil spalten (Blech aus Zahlen)
+        out.push('[');
+        for (i, &x) in blech_v(w).iter().enumerate() { if i > 0 { out.push(','); } json_wert(x, out); }
+        out.push(']');
+    }
     else { out.push_str("null"); }
 }
 fn stil_json(z: &UiZutat, out: &mut String, mit_null: bool) {

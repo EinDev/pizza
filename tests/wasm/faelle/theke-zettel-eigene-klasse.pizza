@@ -1,0 +1,9 @@
+// K-116/K-125: eine eigene Klasse Zettel hat Vorrang – auch vor Zettel.aus
+klasse Zettel {
+    salami w = 0;
+    Zettel(salami x) { w = x; }
+    salami wert() { serviere (w * 100); }
+}
+Zettel z = neu Zettel(2);
+Bote.sage((z.wert()));
+probier { Zettel.aus(() -> 1); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
