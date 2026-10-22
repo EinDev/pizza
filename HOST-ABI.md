@@ -184,7 +184,7 @@ emit { typ: "ende", exitCode, schritte: inst.schritte(), zeitMs: inst.zeitMs() }
 |---|---|
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas (inkl. Speicherlimit: `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).`) |
-| 2 | PizzaFehler (B0012, R0001, Q0004, A0001, P0010, P0011 …) |
+| 2 | PizzaFehler (R0001, Q0004, A0001, P0010, P0011 … – alle vor dem Start; zur Laufzeit entsteht seit K-105 keiner mehr) |
 | 3 | Schrittlimit (P0002) |
 | 39 | Hawaii-Panik |
 

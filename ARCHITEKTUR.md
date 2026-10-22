@@ -47,8 +47,7 @@ UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhäng
 PizzaLang.version            // "3.0.0"
 PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
-PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
-PizzaLang.BELAEGE            // [{name, preis, nach: string[]}] – eingebaute Zutatenliste
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand)
 PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen (inkl. KüchenAnanas, SPEC §17 – am Ende angehängt)
 
 PizzaLang.parse(quelltext)
@@ -77,13 +76,12 @@ zusätzlich ein Pool-Objekt aus `Pizzaiolo.kuechenPool(k)` als `koeche`). `BUILT
 PizzaLang.intern.analysiere(ast)   // → [{ code, text, zeile, spalte }] – Warnungen vor dem Start (W0666, W0032), sortiert wie im Lauf
 PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte } – Startprüfung (Q0004, P0010, P0011, R0001, A0001), Text wie fehler-Ereignis
 PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebaute Ananas-Hierarchie (SPEC §8)
-PizzaLang.intern.BELAEGE           // wie PizzaLang.BELAEGE (Kopie)
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
-PizzaLang.intern.GRUNDPREIS        // 5 – Pizza-Grundpreis
 PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
 ```
-Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück.
+Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück. `BELAEGE`, `intern.BELAEGE` und
+`intern.GRUNDPREIS` gibt es seit K-105 nicht mehr (kein eingebautes Pizza-Objekt).
 
 ### Ereignisse (Reihenfolge = Auftreten)
 
@@ -103,9 +101,9 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "ende",          exitCode, schritte, zeitMs }              // optional koeche: tatsächlich genutzte Köche (SPEC §17.7; nicht in .erwartet, Differenztests ignorieren es)
 ```
 
-- `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"B0012"` …).
-- `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: Pizza ist alle. (Zeile 12)`.
-- `text` bei PizzaFehler: `PizzaFehler B0012: 'Käse' liegt unter 'Tomate'. Das ist keine Pizza, das ist ein Auflauf.`
+- `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"R0001"` …).
+- `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: 8 Stücke lassen sich nicht fair durch 3 teilen. (Zeile 12)`.
+- `text` bei PizzaFehler: `PizzaFehler R0001: Klasse 'X' erfüllt Rezeptur 'Y' nicht: Methode 'z' fehlt.`
 - `zeile`/`spalte` ab 1, `null` falls unbekannt.
 
 ## 2. Worker-Protokoll (`site/js/worker.js`)
@@ -164,14 +162,14 @@ Teil-Manifest, z. B. `grundlagen.json`:
 Jede Datei registriert Abschnitte:
 ```js
 (self.PIZZA_DOKU = self.PIZZA_DOKU || []).push({
-  id: "pizza-literale",
+  id: "pf-teig",
   gruppe: "Pizza-Funktionen",      // Gruppierung in der Navigation
   ordnung: 310,                    // Sortierung (aufsteigend) – Bereiche siehe unten
-  titel: "Pizza-Literale",
+  titel: "Teig (Lazy Evaluation)",
   tier: 1,                         // 1 | 2 | 3 → Badge
   inhalt: [
     { art: "text", md: "Absatz mit **fett**, *kursiv*, `code` und [Links](#)." },
-    { art: "code", code: "Pizza p = ((Tomate));\nBote.sage((p));", ausfuehrbar: true, tier: 1 },
+    { art: "code", code: "Teig<salami> t = teig(() -> (6 * 7));\nBote.sage((t.gehenlassen().backen()));", ausfuehrbar: true, tier: 1 },
     { art: "tabelle", kopf: ["pizza", "Java"], zeilen: [["`tiefkühl`", "static"]] },
     { art: "hinweis", ton: "info", md: "…" },          // ton: "info" | "warnung" | "pizza"
     { art: "ausgabe", text: "erwartete Ausgabe (optional)" }
@@ -211,7 +209,7 @@ Regeln für jeden Abschnitt:
 
 ## 5. UI
 
-- One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/BELAEGE).
+- One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/ANANAS).
 - Konsole unter dem Editor (ausgabe / fehlerausgabe / warnung / fehler farblich unterschieden, Exit-Code-Badge).
 - Einklappbares **Seitenpanel** rechts mit Tabs **Doku** · **Beispiele** (auf schmalen Bildschirmen als Overlay/Popup).
 - Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.

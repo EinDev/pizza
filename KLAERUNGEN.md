@@ -18,7 +18,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 
 ## Entscheidungen
 
-### K-001 Pizza-Literal und Aufrufklammern
+### K-001 Pizza-Literal und Aufrufklammern *(abgelöst durch K-105 – es gibt kein Pizza-Literal mehr)*
 - **Frage:** Zählt die Klammer eines Aufrufs zum Pizza-Literal? Ist `Bote.sage((Salami, Tomate))` gültig?
 - **Entscheidung:** Nein. Nur zwei Klammern in **Ausdrucksposition** bilden ein Literal. `Bote.sage((Salami))` übergibt
   den Belag-Wert `Salami`; `Bote.sage((Salami, Tomate))` ist ein Syntaxfehler P0001 (Argumentausdruck `(Salami, Tomate)`
@@ -152,7 +152,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Betroffen:** Interpreter-Parser (U-05, umgesetzt in 0d34810), `tests/differenz/korpus/kontrolle-ausserhalb-schleife.pizza` (U-15), Doku (U-07). Ergänzung für `wähle`-Ausdrücke: K-055.
 - **Status:** fest (Tests a10).
 
-### K-016 Besitzprüfung ist syntaktisch; `schieb` für alle Typen
+### K-016 Besitzprüfung ist syntaktisch; `schieb` für alle Typen *(Besitzprüfung abgelöst durch K-105; `schieb`-Teil gilt weiter)*
 - **Entscheidung:** BesitzAnanas nur, wenn die rechte Seite einer Deklaration/Zuweisung ein **Name oder Feldzugriff**
   ist (Klammern darum ändern nichts) und zu einer Pizza auswertet. `?:`, Blech-Literale, Methodenrückgaben
   (`m.hole(k)`, `s.pizza()`) lösen sie nicht aus. `schieb(x)` funktioniert für Variablen **jeden** Typs (danach
@@ -160,7 +160,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Begründung:** Laufzeit-Referenzzählung wäre teuer und schwer portabel; die syntaktische Regel ist stabil und lehrbar.
 - **Status:** fest.
 
-### K-017 Identität von Pizzen, Gleichheit und Schlüssel
+### K-017 Identität von Pizzen, Gleichheit und Schlüssel *(Pizza-/Belag-Teil abgelöst durch K-105; Schlüsselregeln gelten weiter)*
 - **Entscheidung:** Der `teile`-Zähler (`übrig`) hängt am Pizza-Objekt; `p + Belag`/`p - Belag` erzeugen eine neue
   Pizza mit `übrig() == 8`. `==` und `Blech.enthält` vergleichen Pizzen nach Belägen. **Speisekarten-Schlüssel**:
   Zahlen, Texte, Wahrheitswerte, `karton` nach Wert (`1` und `1.0` gleich), Beläge nach Name, quattrostagioni-Werte als
@@ -198,7 +198,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   §14.6), Dauern, Werte eines quattrostagioni; `diavolo`, Pizzen, Objekte → TypAnanas.
 - **Status:** fest.
 
-### K-023 Preisrundung und Sonderpreise
+### K-023 Preisrundung und Sonderpreise *(abgelöst durch K-105)*
 - **Entscheidung:** Für Standardbeläge wird je Schicht `runde2(preis_unten + Standardpreis)` gebildet (vermeidet
   `0.30000000000000004`); eigene `preis()`-Methoden liefern ungerundet. `Ananas.preis()` = 0; eigene Beläge ohne
   Tabellenpreis 1.00 (auch als `Belag.preis()`).
@@ -214,7 +214,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   `P0001: Unbekannte Escape-Sequenz '\x' im Text.`; Zeilenumbruch im Text → Syntaxfehler. §1 ergänzt um `\r`, `\'`.
 - **Status:** fest.
 
-### K-026 Hawaii-Auslöser präzisiert
+### K-026 Hawaii-Auslöser präzisiert *(Belag-Teil abgelöst durch K-105: nur noch Typ `hawaii` und `neu Hawaii(…)`)*
 - **Entscheidung:** Panik bei **jeder** Zuweisung an eine `hawaii`-Variable/-Feld/-Parameter – auch `karton`
   (`hawaii x = karton;`); Deklaration ohne Initialisierer → keine Panik. `Blech<hawaii>` → nur W0666. Der Belag-Wert
   `Ananas` allein (`Bote.sage((Ananas))`, `p.hat(Ananas)`, `p - Ananas`, `Ananas.preis()`) → keine Panik.
@@ -291,7 +291,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Begründung:** Kein Sentinel-Wert im Typsystem (Wasm-Laufzeit braucht keinen „Unbekanntes“-Typ).
 - **Betroffen:** Interpreter (U-21, umgesetzt in 0d34810). **Status:** fest (Test a10).
 
-### K-039 Pizza-Methoden mit Text
+### K-039 Pizza-Methoden mit Text *(abgelöst durch K-105)*
 - **Entscheidung:** `p.hat("Tomate")` akzeptiert einen Belagnamen als Text (gleich `p.hat(Tomate)`); `p + "x"` ist
   Textverkettung (§5: `+` mit Text). Beibehalten und dokumentieren (U-07).
 - **Status:** fest.
@@ -945,7 +945,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 ### K-101 Küchenbrigade: Vertragslücken aus der Interpreter-Umsetzung (P1, 72cb857/f29baa7/8f922fd)
 - **Frage:** Der Interpreter-Agent meldete vier Stellen, an denen SPEC §17 schwieg oder sich widersprach. Entscheidung jeweils
   **wie umgesetzt** (die Umsetzung folgt an allen vier Stellen der sequentiellen Referenz, K-097/F8):
-  1. **Kartonfähigkeit von `Rohling<T>` (roh-Info) und Pizza-Sicht** (`unten` als Wert in einer Belag-Methode) – beide fehlten in
+  1. **Kartonfähigkeit von `Rohling<T>` (roh-Info) und Pizza-Sicht** (`unten` als Wert in einer Belag-Methode; Pizza-Sicht seit K-105 gegenstandslos) – beide fehlten in
      der Tabelle (THREADS §2.4 = SPEC §17.5). Entscheidung: **kartonfähig**, da beide auch aus `belege` als Werte zurückkommen
      (`roh (info) { serviere (info); }`, `serviere (unten)`) und keine Küchenmaschinerie tragen. Kopie: `Roh(…)` mit kopiertem
      Teilergebnis und gleicher `verbrauchteZeit()`; Sicht mit gleicher Schichtenzahl auf eine Pizza-Kopie. Die Tiefensuche

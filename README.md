@@ -3,8 +3,8 @@
 [![CI](https://github.com/EinDev/pizza/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/EinDev/pizza/actions/workflows/ci.yml)
 
 **pizza** ist eine Programmiersprache, die aussieht wie Java, aber riecht wie eine Holzofen-Pizzeria:
-Klassen heißen `klasse`, Exceptions heißen `Ananas`, und wer Käse unter die Tomate legt, bekommt
-einen `PizzaFehler B0012`. Der Playground ist eine statische Web-App mit Editor – der Interpreter
+Klassen heißen `klasse`, Exceptions heißen `Ananas`, Listen sind Bleche, Maps Speisekarten, und wer eine
+Endlosschleife baut, hört: „Die Pizza ist noch im Ofen.“ Der Playground ist eine statische Web-App mit Editor – der Interpreter
 läuft komplett im Browser (Web Worker), der Server liefert nur Teig, äh, Dateien aus.
 
 ## Schnellstart
