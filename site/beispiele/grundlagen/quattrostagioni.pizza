@@ -4,21 +4,26 @@ quattrostagioni Jahreszeit { FRÜHLING, SOMMER, HERBST, WINTER }
 
 speisekarte klasse Saisonkarte {
 
-    tiefkühl Pizza saisonpizza(Jahreszeit zeit) {
-        Pizza basis = ((Tomate, Mozzarella));
+    // Jede Jahreszeit hat ihre Beläge – oben auf Tomate und Mozzarella.
+    tiefkühl Blech<margherita> saisonpizza(Jahreszeit zeit) {
+        Blech<margherita> basis = ["Tomate", "Mozzarella"];
         wähle (zeit.name()) {
-            fall "FRÜHLING" -> serviere ((basis + Spinat + Ei));
-            fall "SOMMER" -> serviere ((basis + Paprika + Zwiebeln));
-            fall "HERBST" -> serviere ((basis + Pilze + Gorgonzola));
-            standard -> serviere ((basis + Schinken + Rucola));
+            fall "FRÜHLING" -> serviere ((basis.hinzu("Spinat").hinzu("Ei")));
+            fall "SOMMER" -> serviere ((basis.hinzu("Paprika").hinzu("Zwiebeln")));
+            fall "HERBST" -> serviere ((basis.hinzu("Pilze").hinzu("Gorgonzola")));
+            standard -> serviere ((basis.hinzu("Schinken").hinzu("Rucola")));
         }
     }
+
+    // Die Preise stehen auf einer Speisekarte, Schlüssel ist der Name der Jahreszeit.
+    tiefkühl Speisekarte<margherita, funghi> preise = neu Speisekarte<margherita, funghi>()
+        .lege("FRÜHLING", 9.30).lege("SOMMER", 8.80).lege("HERBST", 10.00).lege("WINTER", 10.00);
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         Bote.sage(("Die Saisonkarte hat " + Jahreszeit.werte().länge() + " Jahreszeiten:"));
         für (Jahreszeit zeit : Jahreszeit.werte()) {
-            Pizza p = saisonpizza((zeit));
-            Bote.sage((zeit.position() + ". " + zeit + ": " + p + " – " + p.preis().euro()));
+            Blech<margherita> p = saisonpizza((zeit));
+            Bote.sage((zeit.position() + ". " + zeit + ": " + p.verbinde(", ") + " – " + preise.hole(zeit.name()).euro()));
         }
 
         Jahreszeit jetzt = Jahreszeit.SOMMER;

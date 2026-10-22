@@ -1,6 +1,25 @@
 // Fabrik-Muster: Eine Methode entscheidet per wähle, welche Pizza gebacken wird.
 // Unbekannte Wünsche werden mit einer eigenen Ananas abgelehnt.
 
+// Luigis Pizza: Beläge von unten nach oben, Preis aus der Preisliste.
+klasse Pizza {
+    tiefkühl funghi GRUNDPREIS = 5.00;
+    tiefkühl Speisekarte<margherita, funghi> PREISE = neu Speisekarte<margherita, funghi>()
+        .lege("Tomate", 1.00).lege("Mozzarella", 1.50).lege("Basilikum", 0.50).lege("Pilze", 1.00)
+        .lege("Salami", 1.50).lege("Chili", 0.50).lege("Knoblauch", 0.30);
+
+    Blech<margherita> beläge;
+
+    speisekarte Pizza(Blech<margherita> beläge) { dies.beläge = beläge; }
+
+    // mit() und ohne() liefern eine NEUE Pizza – der Boden bleibt, wie er ist.
+    speisekarte Pizza mit(margherita zutat) { serviere ((neu Pizza(beläge.kopie().hinzu(zutat)))); }
+    speisekarte Pizza ohne(margherita zutat) { serviere ((neu Pizza(beläge.filtere(b -> b != zutat)))); }
+
+    speisekarte funghi preis() { serviere ((GRUNDPREIS + beläge.belege(b -> PREISE.hole(b)).summe())); }
+    speisekarte margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+
 klasse UnbekannteSorteAnanas erbt LaufzeitAnanas {
     speisekarte UnbekannteSorteAnanas(margherita sorte) {
         unten(("Die Sorte '" + sorte + "' kennt Luigi nicht."));
@@ -10,12 +29,12 @@ klasse UnbekannteSorteAnanas erbt LaufzeitAnanas {
 speisekarte klasse PizzaFabrik {
 
     speisekarte tiefkühl Pizza backe(margherita sorte) {
-        Pizza boden = ((Tomate, Mozzarella));
+        Pizza boden = neu Pizza(["Tomate", "Mozzarella"]);
         wähle (sorte.klein()) {
-            fall "margherita" -> serviere ((boden + Basilikum));
-            fall "funghi", "pilz" -> serviere ((boden + Pilze));
-            fall "diavolo" -> serviere ((boden + Salami + Chili));
-            fall "marinara" -> serviere ((boden - Mozzarella + Knoblauch));
+            fall "margherita" -> serviere ((boden.mit("Basilikum")));
+            fall "funghi", "pilz" -> serviere ((boden.mit("Pilze")));
+            fall "diavolo" -> serviere ((boden.mit("Salami").mit("Chili")));
+            fall "marinara" -> serviere ((boden.ohne("Mozzarella").mit("Knoblauch")));
             standard -> wirf neu UnbekannteSorteAnanas((sorte));
         }
     }

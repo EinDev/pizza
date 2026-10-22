@@ -6,16 +6,23 @@ speisekarte rezeptur Backbar {
 
 // Ein rohling ist nur ein Bauplan – essen kann man ihn nicht.
 rohling klasse Gericht erfüllt Backbar {
+    // Luigis Preisliste: Grundpreis plus jede Zutat
+    tiefkühl funghi GRUNDPREIS = 5.00;
+    tiefkühl Speisekarte<margherita, funghi> PREISE = neu Speisekarte<margherita, funghi>()
+        .lege("Tomate", 1.00).lege("Mozzarella", 1.50).lege("Basilikum", 0.50)
+        .lege("Salami", 1.50).lege("Chili", 0.50);
+
     familienrezept margherita name;
 
     speisekarte Gericht(margherita name) {
         dies.name = name;
     }
 
-    rohling speisekarte Pizza rezept();
+    // Jedes Gericht kennt seine Zutaten – wie, entscheidet die Unterklasse.
+    rohling speisekarte Blech<margherita> zutaten();
 
     speisekarte funghi preis() {
-        serviere ((dies.rezept().preis()));
+        serviere ((GRUNDPREIS + zutaten().belege(z -> PREISE.hole(z)).summe()));
     }
 
     speisekarte margherita backe(salami grad) {
@@ -23,7 +30,7 @@ rohling klasse Gericht erfüllt Backbar {
     }
 
     speisekarte margherita alsText() {
-        serviere ((name + " " + dies.rezept() + " für " + preis().euro()));
+        serviere ((name + " " + zutaten() + " für " + preis().euro()));
     }
 }
 
@@ -33,9 +40,8 @@ klasse PizzaMargherita erbt Gericht {
     }
 
     @PizzaÜberschreibt
-    speisekarte Pizza rezept() {
-        Pizza p = ((Tomate, Mozzarella, Basilikum));
-        serviere ((p));
+    speisekarte Blech<margherita> zutaten() {
+        serviere ((["Tomate", "Mozzarella", "Basilikum"]));
     }
 }
 
@@ -48,12 +54,12 @@ klasse PizzaDiavolo erbt Gericht {
     }
 
     @PizzaÜberschreibt
-    speisekarte Pizza rezept() {
-        Pizza p = ((Tomate, Mozzarella, Salami));
+    speisekarte Blech<margherita> zutaten() {
+        Blech<margherita> z = ["Tomate", "Mozzarella", "Salami"];
         für (salami i = 1; i <= schärfe; i++) {
-            p = p + Chili;
+            z.hinzu("Chili");
         }
-        serviere ((p));
+        serviere ((z));
     }
 
     @PizzaÜberschreibt

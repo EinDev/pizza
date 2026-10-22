@@ -1,6 +1,14 @@
 // Groß-/Kleinschreibung zählt!
 // pizza, Pizza, PiZZa und piZZA sind vier verschiedene, gültige Namen.
 // (Der Pizzaiolo warnt mit W0032 – aber er backt trotzdem.)
+
+// Pizza: eine eigene Klasse – großes P, der Rest klein.
+klasse Pizza {
+    speisekarte margherita alsText() {
+        serviere (("Pizza: die Klasse mit dem großen P"));
+    }
+}
+
 speisekarte klasse Verwechslungsgefahr {
 
     speisekarte margherita PiZZa() {
@@ -13,13 +21,13 @@ speisekarte klasse Verwechslungsgefahr {
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         margherita pizza = "pizza: eine ganz normale Variable";
-        Pizza echtePizza = ((Tomate, Mozzarella));     // Pizza: der eingebaute Typ
+        Pizza echtePizza = neu Pizza();                // Pizza: unsere Klasse
         Verwechslungsgefahr küche = neu Verwechslungsgefahr();
 
         Bote.sage((pizza));
         Bote.sage((küche.PiZZa()));
         Bote.sage((küche.piZZA()));
-        Bote.sage(("Pizza (der Typ): " + echtePizza));
+        Bote.sage(("" + echtePizza));                   // nutzt alsText()
         Bote.sage(("Gleich? " + (küche.PiZZa() == küche.piZZA())));
 
         // Texte lassen sich angleichen – Namen nicht.
