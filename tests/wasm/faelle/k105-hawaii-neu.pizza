@@ -1,0 +1,11 @@
+// K-105: neu Hawaii(…) paniert weiterhin (Exit 39); der bloße Name Ananas ist nur die Ananas-Klasse (keine W0666).
+Bote.sage((Ananas));
+Ananas a = neu Ananas("saftig");
+Bote.sage((a.nachricht()));
+probier {
+    wirf a;
+} verbrannt (Ananas e) {
+    Bote.sage((e.typ()));
+}
+neu Hawaii("Ananas");
+Bote.sage(("nie"));

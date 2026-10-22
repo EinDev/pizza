@@ -20,7 +20,7 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
   warnungen: [{ code, text, pos }],    // statische Warnungen in Ausgabereihenfolge (wie analysiere())
   startfehler: null | { code, text, pos },  // dann: nur Warnungen + dieser Fehler, Exit 2, 0 Schritte
   registrierung: [Reg],                // exakt in Registrierungsreihenfolge des Interpreters (siehe unten)
-  methoden: [{ art, klasse, name }],   // Laufzeit-Methoden-IDs = Index (Reihenfolge der rt_methode/rt_ktor/rt_belag_methode)
+  methoden: [{ art, klasse, name }],   // Laufzeit-Methoden-IDs = Index (Reihenfolge der rt_methode/rt_ktor)
   globale: [name],                     // Variablen des globalen Scopes (Speicherzellen, Anfangswert „undefiniert“)
   globaleFunktionen: [name],           // Top-Level-Methoden: globale Variable mit Gebunden-Wert
   globalInfos: { name: { typ, gebacken } },
@@ -35,23 +35,24 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
 - `{ art: "klasse", name, idx, flags (1 rohling, 2 gebacken, 4 calzone), basis, erfuellt: [name],
   felder: [{ name, typ, flags (1 gebacken, 2 statisch), sicht (0, 1 geheim, 2 familie) }],
   methoden: [{ name, fn|null, flags (1 statisch), sicht, nparam, pos, mid }], ktoren: [{ fn, hatUnten, mid }],
-  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (17 + n; 0–16 sind die eingebauten Ananas).
-  `KüchenAnanas` (SPEC §17, K-100) gibt es im Wasm noch nicht: Programme mit `brigade` oder `KüchenAnanas` meldet das
-  Frontend als `nichtUnterstuetzt`. Erst mit THREADS-Paket P2 wird sie Laufzeitklasse 17 (`erbt LaufzeitAnanas`, am Ende von
-  `ANANAS_BAUM`, bestehende Indizes 0–16 bleiben) und eigene Klassen beginnen bei **18** (`idx` = 18 + n; 0–17 eingebaut).
-  Die Verschiebung ist intern (jedes `.pkarton` bringt seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens
-  `KüchenAnanas` überschattet die eingebaute wie bei allen eingebauten Ananas (K-098).
+  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (**16 + n**; 0–15 sind die eingebauten Ananas in der
+  Reihenfolge von SPEC §9 / K-105: Ananas, GeprüfteAnanas, VerbranntAnanas, LieferAnanas, LaufzeitAnanas, StreitAnanas, RechenAnanas,
+  LeererKartonAnanas, RohlingAnanas, GebackenAnanas, TypAnanas, KeinStückAnanas, ZugriffsAnanas, ZugeklapptAnanas, UnbekanntePizzaAnanas,
+  KüchenAnanas – `laufzeit/src/namen.rs` `ANANAS_BAUM` und `frontend.js` `ANANAS_BAUM` müssen gleich lang sein).
+  `KüchenAnanas` (SPEC §17, K-100) ist Laufzeitklasse 15, die Küchenbrigade selbst gibt es im Wasm noch nicht: Programme mit
+  `brigade` oder `KüchenAnanas` meldet das Frontend als `nichtUnterstuetzt` (THREADS-Paket P2). Die Indizes sind intern (jedes
+  `.pkarton` bringt seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens `KüchenAnanas` überschattet die eingebaute wie
+  bei allen eingebauten Ananas (K-098).
 - `{ art: "rezeptur", name, basen: [name] }`, `{ art: "enum", name, werte: [name×4] }`,
-- `{ art: "belag", name, nach: [name]|null (null = Tabellenwert), methoden: [{ name, fn, mid }] }`,
 - `{ art: "globalfn", name, fn, nparam, pos, mid }`.
 Basisklassen/Rezepturen werden **nach** allen Registrierungen über den Namen verknüpft (Map-Semantik: spätere gewinnen).
 
 ## 2. Funktionen
 
 ```js
-{ id, art: "methode"|"ktor"|"lambda"|"belag"|"oben"|"feldinit"|"statinit"|"init",
-  name, klasse: idx|null, ktor: bool, belag: bool,   // statischer Kontext (ctx.klasse / ctx.ktor / Belag-Methode)
-  plus1: bool,          // Rumpf zählt +1 Stapeltiefe (Methoden, Konstruktoren, Lambdas, Belag-Methoden)
+{ id, art: "methode"|"ktor"|"lambda"|"oben"|"feldinit"|"statinit"|"init",
+  name, klasse: idx|null, ktor: bool,   // statischer Kontext (ctx.klasse / ctx.ktor)
+  plus1: bool,          // Rumpf zählt +1 Stapeltiefe (Methoden, Konstruktoren, Lambdas)
   strikt: bool,         // Argumentzahl prüfen (Methoden ja, Lambdas nein)
   params: [{ name, typ, nieKarton, gebacken, slot, darst }],
   slots: [{ name, typ: {name, feld}|null, gebacken, zelle, weg, unbelegt, darst, redekl? }],
@@ -80,13 +81,12 @@ Jeder Ausdruck: `{ k, p, tf, zus, … }`; `zus` = zusammengesetzt (zählt Stapel
 | `tern` | `c`, `a`, `b` | |
 | `mcall` | `obj`, `name`, `args` | `o.m(…)` |
 | `untenM` | `name`, `args` | `unten.m(…)` |
-| `ncall` | `name`, `ziel`, `args`, `direkt?` | unqualifizierter Aufruf; `ziel.art`: `wert` (lokale Variable), `kontext` (Methoden von `dies`/Pizza zuerst, dann `ziel.ref`), `name` (Wert von `ziel.ref`), `schiebFehler`; `direkt` = fnId bei statisch auflösbarer Top-Level-Funktion |
+| `ncall` | `name`, `ziel`, `args`, `direkt?` | unqualifizierter Aufruf; `ziel.art`: `wert` (lokale Variable), `kontext` (Methoden von `dies` zuerst, dann `ziel.ref`), `name` (Wert von `ziel.ref`), `schiebFehler`; `direkt` = fnId bei statisch auflösbarer Top-Level-Funktion |
 | `call` | `callee`, `args` | Funktionswert aufrufen |
 | `mem` | `obj`, `name` | Feldzugriff / Methodenreferenz |
 | `dies`, `unten` | – | |
 | `untenCall` | `args` | `unten(…)` im Konstruktor |
-| `neu` | `typ`, `args` | `neu Hawaii(…)` → Panik vor den Argumenten |
-| `pizza` | `belaege: [name]` | Pizza-Literal (ein einzelner unbekannter Name wird zu `lies`) |
+| `neu` | `typ`, `args` | `neu Hawaii(…)` → Panik vor den Argumenten; unbekannte Klasse → `UnbekanntePizzaAnanas` zur Laufzeit |
 | `blech` / `bereich` | `elemente` / `a`, `b` | |
 | `lambda` | `fn` | Closure; Fänge stehen in `funktionen[fn].fang` |
 | `schieb` | `ref`, `name` | `schieb(x)` |
@@ -98,17 +98,18 @@ Jeder Ausdruck: `{ k, p, tf, zus, … }`; `zus` = zusammengesetzt (zählt Stapel
 **Namensreferenzen** `ref`: `{art:"lokal", slot}` · `{art:"umg", idx, typName, gebacken}` (Zelle aus der Lambda-Umgebung) ·
 `{art:"global", g, name, sicher}` (`sicher` = statisch schon deklariert, sonst Laufzeitprüfung „undefiniert“ → Rückfall auf
 den Laufzeitnamen) · `{art:"dyn", name, g|null}` (Feld von `dies`/statisches Feld zur Laufzeit, dann globale Variable, dann
-Laufzeitname) · `{art:"gname", name}` (Bote, Klassen, Beläge … oder „ist nicht definiert“).
+Laufzeitname) · `{art:"gname", name}` (Bote, Klassen, eingebaute Funktionen … oder „ist nicht definiert“; großgeschriebene
+Namen sind gewöhnliche Namen, K-105).
 
 ## 4. Anweisungen (`Anw`)
 
 Jede Anweisung `{ k, p, tf, … }`:
-`ausdr {e}` · `leer` · `var {decls: [{name, ziel (lokal|global), init, typ, gebacken, besitz, std}]}` ·
-`zuw {op, ziel, wert, besitz}` (Ziel: Referenz wie oben, `{art:"mem", obj, name}` oder `{art:"undef", name}`) ·
+`ausdr {e}` · `leer` · `var {decls: [{name, ziel (lokal|global), init, typ, gebacken, std}]}` ·
+`zuw {op, ziel, wert}` (Ziel: Referenz wie oben, `{art:"mem", obj, name}` oder `{art:"undef", name}`) ·
 `inc {ziel, d}` · `block {body}` · `falls {c, dann, sonst, sonstFalls}` · `solange {c, body}` ·
 `fuer {init, c, body, upd}` · `fuerJedes {quelle, slot, typ, name, body}` · `waehle {subj, faelle: [{labels, block, anw}]}` ·
 `serviere {e}` · `wirf {e}` · `probier {block, faenge: [{typ, slot, block}], rand}` · `abbrechen` · `weiter`.
-Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldinit {name, typ, e, besitz}`,
+Nur in Initialisierungsfunktionen (zählen **keinen** eigenen Schritt): `feldinit {name, typ, e}`,
 `statinit {…}`, `annoHaltbar {mid, e}`, `annoVeraltet {mid, e}`, `rufeInit {fn}`.
 
 ## 5. Schritt-Semantik (verbindlich für alle Backends)

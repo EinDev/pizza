@@ -1,0 +1,27 @@
+// K-105: eine eigene Klasse Pizza und Variablen mit großgeschriebenen Namen sind gewöhnliche Klassen/Variablen;
+// belag und auf sind keine Schlüsselwörter mehr.
+klasse Pizza {
+    margherita name;
+    Blech<margherita> belaege;
+    Pizza(margherita n) { name = n; belaege = []; }
+    Pizza mit(margherita b) { belaege.hinzu(b); serviere (dies); }
+    salami anzahl() { serviere (belaege.länge()); }
+    funghi preis() { serviere (5 + belaege.länge() * 1.5); }
+    margherita alsText() { serviere ("Pizza " + name + " " + belaege); }
+}
+margherita Tomate = "Tomate";
+margherita Mozzarella = "Mozzarella";
+Pizza p = neu Pizza("Margherita").mit(Tomate).mit(Mozzarella);
+Bote.sage((p));
+Bote.sage((p.anzahl()));
+Bote.sage((p.preis().euro()));
+Pizza q = p;
+Bote.sage((q == p));
+Bote.sage((neu Pizza("Leer") == neu Pizza("Leer")));
+salami belag = 3;
+salami auf = 4;
+Bote.sage((belag + auf));
+Speisekarte<margherita, salami> preise = neu Speisekarte();
+preise.lege(Tomate, 1);
+Bote.sage((preise.hole("Tomate")));
+für (margherita b : p.belaege) { Bote.sage((b)); }

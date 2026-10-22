@@ -1,0 +1,4 @@
+// K-105: Hawaii-Easter-Egg bleibt – Typ hawaii warnt (W0666) und paniert bei der Zuweisung (Exit 39).
+Bote.sage(("vorher"));
+hawaii h = 1;
+Bote.sage(("nachher"));
