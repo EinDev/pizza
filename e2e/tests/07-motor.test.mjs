@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
   ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
+  beispielZeitlimit, sammelZeitlimit,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
@@ -86,18 +87,19 @@ e2e("Gleiche Ausgabe in allen Modi (Snippets: Ausgabe, Fehler, Ananas, Limit, Ha
   }
 });
 
-e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiele)", { timeout: 150_000 }, async ({ page, oeffne }, t) => {
+// Zeitlimit je Beispiel und Modus (beispielZeitlimit); der Sammeltest bekommt die Summe für beide Nicht-Interpreter-Modi.
+const ALLE_BEISPIELE = beispieleAusManifesten().liste;
+e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiele)", { timeout: sammelZeitlimit(ALLE_BEISPIELE, 2) }, async ({ page, oeffne }, t) => {
   await oeffne();
   const v = await motorVerfuegbar(page);
   if (!v) return t.skip("Motor-Umschalter noch nicht in der UI");
   const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m).filter((m) => m !== "interpreter");
   if (!modi.length) return t.skip("nur Interpreter verfügbar");
-  const { liste } = beispieleAusManifesten();
-  for (const b of liste) {
+  for (const b of ALLE_BEISPIELE) {
     const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.datei);
     await setzeCode(page, code.replace(/\r\n?/g, "\n"));
     for (const m of modi) {
-      await t.test(`${b.datei} (${m})`, async () => {
+      await t.test(`${b.datei} (${m})`, { timeout: beispielZeitlimit(b) }, async () => {
         await setzeMotor(page, m);
         const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b));
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);

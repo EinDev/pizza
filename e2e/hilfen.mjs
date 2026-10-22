@@ -68,6 +68,9 @@ const THEKE_UHR = () => {
 const EREIGNIS_REKORDER = () => {
   const W = window.Worker;
   window.__ereignisse = [];
+  // Wecker: Warte-Helfer (warteAufBediene) melden sich hier an und prüfen sofort bei jedem neuen Ereignis –
+  // statt im 20-ms-Takt zu pollen (beim Pizza-Imperium mit >1000 Theke-Ereignissen sonst ~20 s reines Warten je Lauf).
+  window.__ereignisWecker = new Set();
   window.Worker = class extends W {
     constructor(...a) {
       super(...a);
@@ -76,6 +79,7 @@ const EREIGNIS_REKORDER = () => {
         if (!d || typeof d !== "object") return;
         if (d.typ === "batch" && Array.isArray(d.ereignisse)) window.__ereignisse.push(...d.ereignisse);
         else window.__ereignisse.push(d);
+        for (const f of [...window.__ereignisWecker]) f();
       });
     }
   };
@@ -530,6 +534,22 @@ export function eingabeZeilen(b) {
   return t.replace(/\n$/, "").split("\n");
 }
 
+/**
+ * Zeitlimit für EINEN Lauf eines Beispiels: Grundbudget + Zuschlag je Theke-Ereignis bzw. Eingabezeile.
+ * Statt eines pauschalen Limits für die ganze Beispiel-Schleife bekommt jedes Beispiel (je Modus) sein eigenes Limit –
+ * ein langes Szenario (Pizza-Imperium, >1000 Ereignisse) verdrängt so nicht das Budget der übrigen Beispiele, und ein
+ * hängendes Beispiel scheitert mit seinem eigenen Namen statt als Timeout des Sammeltests.
+ */
+export function beispielZeitlimit(b) {
+  const n = (thekeEreignisse(b)?.length || 0) + (eingabeZeilen(b)?.length || 0);
+  return 15_000 + 50 * n;
+}
+
+/** Summe der Beispiel-Zeitlimits (für den umschließenden Sammeltest) zuzüglich Vorlauf. */
+export function sammelZeitlimit(beispiele, laeufeJeBeispiel = 1) {
+  return 30_000 + laeufeJeBeispiel * beispiele.reduce((s, b) => s + beispielZeitlimit(b), 0);
+}
+
 /** Unterstützen Interpreter und UI interaktive Eingabe? */
 export function eingabeUnterstuetzt(page) {
   return page.evaluate(() => !!(window.PizzaLang && /Bestellannahme/.test(String(window.PizzaLang.BUILTINS || "")) || document.querySelector('[data-testid="konsole-eingabe"]')));
@@ -560,21 +580,117 @@ export function uiNachrichten(page) {
   return page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui").map((e) => e.nachricht));
 }
 
-const uiWarteZahl = (page) => page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
 const laufVorbei = (page) => page.evaluate(() => !document.body.classList.contains("laeuft") && !document.getElementById("knopf-backen").hidden);
+
+/**
+ * Wartet, bis mehr als `vorher` ui-warte-Ereignisse da sind (das Programm wartet in bediene()) oder der Lauf vorbei ist,
+ * und liefert {zahl, vorbei} in EINEM Aufruf. Geweckt wird sofort bei jedem neuen Worker-Ereignis (EREIGNIS_REKORDER);
+ * das Laufende hängt am DOM (Klasse „laeuft“, Backen-Knopf) und wird zusätzlich alle 20 ms geprüft.
+ */
+function bedieneStand(page, vorher, timeout) {
+  return page.evaluate((n, ms) => new Promise((ok, fehler) => {
+    const wecker = window.__ereignisWecker;
+    let iv = 0, zeit = 0;
+    const fertig = () => { clearInterval(iv); clearTimeout(zeit); if (wecker) wecker.delete(pruefe); };
+    function pruefe() {
+      const zahl = (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length;
+      const vorbei = !document.body.classList.contains("laeuft") && !document.getElementById("knopf-backen").hidden;
+      if (zahl > n || vorbei) { fertig(); ok({ zahl, vorbei }); return true; }
+      return false;
+    }
+    if (pruefe()) return;
+    if (wecker) wecker.add(pruefe);
+    iv = setInterval(pruefe, 20);
+    zeit = setTimeout(() => { fertig(); fehler(new Error(`Waiting failed: ${ms}ms exceeded – bediene() wartet nicht (ui-warte ≤ ${n})`)); }, ms);
+  }), vorher, timeout);
+}
 
 /** Wartet, bis das Programm in bediene() auf das nächste Ereignis wartet (oder der Lauf vorbei ist). */
 export async function warteAufBediene(page, vorher, timeout = 8000) {
-  await page.waitForFunction((n) => {
-    const w = (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length;
-    return w > n || (!document.body.classList.contains("laeuft") && !document.getElementById("knopf-backen").hidden);
-  }, { timeout, polling: 20 }, vorher);
+  await bedieneStand(page, vorher, timeout);
+}
+
+/**
+ * Läuft in der Seite: bestimmt für ein Theke-Ereignis das Klickziel (gleiche Regeln wie die ausführlichen Zweige in
+ * thekeEreignis) → {tun:"klick", x, y} | {tun:"deaktiviert"} | {tun:"nichts"} | {tun:"anders"} | {fehler}.
+ * Wartet bis 5 s auf die Zutat (wie waitForSelector).
+ */
+function klickPlan(sel, ev) {
+  const bis = Date.now() + 5000;
+  return new Promise((fertig) => {
+    const versuche = () => {
+      const el = document.querySelector(sel);
+      if (!el) {
+        if (Date.now() > bis) fertig({ fehler: `Waiting for selector \`${sel}\` failed: 5000ms exceeded` });
+        else setTimeout(versuche, 10);
+        return;
+      }
+      fertig(plane(el));
+    };
+    const ziel = (z) => {
+      // wie scrollIntoViewIfNeeded: auch innere Rollbereiche (Vorschau-Inhalt) so wenig wie nötig rollen
+      z.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const r = z.getBoundingClientRect();
+      if (!r.width || !r.height) return { tun: "anders" }; // Sonderfälle meldet der bisherige Weg (Puppeteer) wie gewohnt
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      // Liegt etwas darüber (z. B. Schwebetext), bleibt es beim bisherigen Weg über ElementHandle.click()
+      const oben = document.elementFromPoint(x, y);
+      if (!oben || !(oben === z || z.contains(oben))) return { tun: "anders" };
+      return { tun: "klick", x, y };
+    };
+    const plane = (el) => {
+      const w = ev.wert;
+      if (ev.typ === "klick") {
+        const knopf = el.matches("button") ? el : el.querySelector("button") || el;
+        if (knopf.disabled || knopf.getAttribute("aria-disabled") === "true") return { tun: "deaktiviert" };
+        const r = knopf.getBoundingClientRect();
+        if (!r.width || !r.height) {
+          const tab = document.querySelector("#vorschau")?.querySelector('[role="tab"][aria-selected="true"]');
+          return { fehler: `Theke-Ereignis ${JSON.stringify(ev)} zielt auf eine unsichtbare Zutat (aktiver Reiter: ${tab ? tab.textContent.trim() : "–"}) – das kann kein Nutzer klicken; .ereignisse prüfen` };
+        }
+        return ziel(knopf);
+      }
+      if (ev.typ !== "aenderung") return { tun: "anders" };
+      if (typeof w === "boolean" && el.matches(".theke-abschnitt")) {
+        const kopf = el.querySelector(":scope > .theke-abschnitt-titel > .theke-abschnitt-knopf");
+        if (!kopf) return { fehler: "Abschnitt '" + ev.id + "' ist nicht klappbar" };
+        if ((kopf.getAttribute("aria-expanded") === "false") === w) return { tun: "deaktiviert" };
+        return ziel(kopf);
+      }
+      if (typeof w === "number" && el.matches(".theke-auswahl")) {
+        const option = el.querySelector(`[role="radio"][data-theke-nr="${w}"]`);
+        if (!option) return { fehler: "Auswahl '" + ev.id + "' hat keine Option " + w };
+        if (option.getAttribute("aria-checked") === "true" || option.disabled) return { tun: "deaktiviert" };
+        return ziel(option);
+      }
+      if (typeof w === "boolean") {
+        const box = el.matches("input") ? el : el.querySelector("input");
+        return box.checked !== w ? ziel(box) : { tun: "nichts" };
+      }
+      if (typeof w === "number" && el.matches(".theke-reiter, [data-theke-art='reiter']")) {
+        const tab = el.querySelector(`[role="tab"][data-theke-nr="${w}"]`);
+        if (!tab) return { fehler: "Reiter '" + ev.id + "' hat keinen Tab " + w };
+        if (tab.getAttribute("aria-selected") === "true") return { tun: "deaktiviert" };
+        return ziel(tab);
+      }
+      return { tun: "anders" };
+    };
+    versuche();
+  });
 }
 
 /** Spielt ein Theke-Ereignis im Vorschaufenster nach – so nah am Nutzer wie möglich (echte Klicks/Enter). */
 export async function thekeEreignis(page, ev) {
   if (ev.typ === "geschlossen") { await page.click(VORSCHAU_ZU); return; }
   const sel = `${VORSCHAU.split(",")[1].trim()} [data-theke-id="${ev.id}"]`;
+  // Schneller Weg für alle Klick-Ereignisse (Knopf, Klapp-Kopf, Auswahl-Option, Haken, Reiter-Tab): Ziel suchen, prüfen und in
+  // den sichtbaren Bereich holen in EINEM Seitenaufruf, dann ein echter Mausklick (Input.dispatchMouseEvent) auf seine Mitte –
+  // wie ElementHandle.click(), aber ohne ein halbes Dutzend CDP-Rundreisen je Ereignis (Pizza-Imperium: >900 Klicks je Lauf).
+  const plan = await page.evaluate(klickPlan, sel, ev);
+  if (plan.fehler) throw new Error(plan.fehler);
+  if (plan.tun === "deaktiviert") return "deaktiviert";
+  if (plan.tun === "nichts") return;
+  if (plan.tun === "klick") { await page.mouse.click(plan.x, plan.y); return; }
   const el = await page.waitForSelector(sel, { timeout: 5000 });
   if (ev.typ === "klick") {
     const knopf = (await el.evaluate((e) => e.matches("button"))) ? el : (await el.$("button")) || el;
@@ -653,9 +769,9 @@ export async function backenTheke(page, ereignisse, { timeout = 30_000 } = {}) {
   let nr = 0;
   try {
     for (const ev of ereignisse) {
-      if (await laufVorbei(page)) break;
-      await warteAufBediene(page, 0);
-      const vorher = await uiWarteZahl(page);
+      const stand = await bedieneStand(page, 0, 8000); // ein Aufruf statt laufVorbei + warteAufBediene + Zählen
+      if (stand.vorbei) break;
+      const vorher = stand.zahl;
       const r = await thekeEreignis(page, ev);
       if (ev.typ === "geschlossen") { geschlossen = true; break; }
       if (r !== "deaktiviert") await warteAufBediene(page, vorher);
@@ -683,21 +799,34 @@ export async function warteAufTabMuster(page, name, timeout = 5000) {
   }, { timeout }, S.tabAktiv, basis);
 }
 
-/** Aktuelles Intervall (ms) eines Takts laut den bisher empfangenen ui-Nachrichten (baum/aendere). */
+/**
+ * Aktuelles Intervall (ms) eines Takts laut den bisher empfangenen ui-Nachrichten (baum/aendere).
+ * Läuft vollständig in der Seite und inkrementell: ausgewertet werden nur die seit dem letzten Aufruf neuen Ereignisse
+ * (Cache je Ereignis-Array; ereignisseLeeren() ersetzt das Array → neuer Cache). Früher wurden bei JEDEM takt-Ereignis
+ * alle ui-Nachrichten über CDP nach Node kopiert – beim Pizza-Imperium (338 Takte, ~800 KB ui-Nachrichten) ein
+ * Großteil der Laufzeit. Ergebnis wie zuvor: der zuletzt gemeldete Wert je ID gewinnt.
+ */
 export async function taktIntervall(page, id) {
-  const nachrichten = await uiNachrichten(page);
-  let intervall = null;
-  const suche = (k) => {
-    if (!k || typeof k !== "object") return;
-    if (k.id === id && k.intervall != null) intervall = Number(k.intervall);
-    for (const kind of k.kinder || []) suche(kind);
-    for (const v of Object.values(k)) if (v && typeof v === "object" && !Array.isArray(v) && v !== k.kinder) suche(v);
-  };
-  for (const n of nachrichten) {
-    if (n.op === "baum") suche(n.wurzel);
-    else if (n.op === "aendere") for (const a of n.aenderungen || []) if (a.id === id && a.intervall != null) intervall = Number(a.intervall);
-    else if (n.op === "hinzu" || n.op === "ersetze") suche(n);
-  }
+  const intervall = await page.evaluate((id) => {
+    const ev = window.__ereignisse || [];
+    let c = window.__taktIntervalle;
+    if (!c || c.quelle !== ev || c.pos > ev.length) c = window.__taktIntervalle = { quelle: ev, pos: 0, werte: Object.create(null) };
+    const suche = (k) => {
+      if (!k || typeof k !== "object") return;
+      if (k.id != null && k.intervall != null) c.werte[k.id] = Number(k.intervall);
+      for (const kind of k.kinder || []) suche(kind);
+      for (const v of Object.values(k)) if (v && typeof v === "object" && !Array.isArray(v) && v !== k.kinder) suche(v);
+    };
+    for (; c.pos < ev.length; c.pos++) {
+      const e = ev[c.pos];
+      if (e.typ !== "ui" || !e.nachricht) continue;
+      const n = e.nachricht;
+      if (n.op === "baum") suche(n.wurzel);
+      else if (n.op === "aendere") { for (const a of n.aenderungen || []) if (a.id != null && a.intervall != null) c.werte[a.id] = Number(a.intervall); }
+      else if (n.op === "hinzu" || n.op === "ersetze") suche(n);
+    }
+    return id in c.werte ? c.werte[id] : null;
+  }, id);
   if (intervall == null) throw new Error("Takt '" + id + "' nicht in den ui-Nachrichten gefunden");
   return Math.max(100, intervall); // Renderer hebt < 100 ms auf 100 ms an
 }

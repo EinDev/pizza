@@ -5,7 +5,7 @@ import {
   e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
-  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster,
+  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, beispielZeitlimit, sammelZeitlimit,
 } from "../hilfen.mjs";
 
 const { liste: BEISPIELE, fehlend, teile } = beispieleAusManifesten();
@@ -56,7 +56,8 @@ e2e("Beispiele-Panel: Karten, Kategorien-Chips, Filter", async ({ page, oeffne }
   assert.equal(mitExit, BEISPIELE.filter((b) => b.exitCode !== 0).length);
 });
 
-e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwartet`, { timeout: 150_000 }, async ({ page, oeffne }, t) => {
+// Zeitlimit je Beispiel (beispielZeitlimit), der Sammeltest bekommt die Summe.
+e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwartet`, { timeout: sammelZeitlimit(BEISPIELE) }, async ({ page, oeffne }, t) => {
   assert.ok(BEISPIELE.length > 0);
   await oeffne();
   await zeigePanelTab(page, "beispiele");
@@ -68,7 +69,7 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
   }, BEISPIELE.map((b) => b.datei));
 
   for (const b of BEISPIELE) {
-    await t.test(`${b.kategorie}: ${b.titel} (${b.datei}, Exit ${b.exitCode})`, async () => {
+    await t.test(`${b.kategorie}: ${b.titel} (${b.datei}, Exit ${b.exitCode})`, { timeout: beispielZeitlimit(b) }, async () => {
       try {
         const name = b.datei.split("/").pop();
         await karteKlicken(page, b);
