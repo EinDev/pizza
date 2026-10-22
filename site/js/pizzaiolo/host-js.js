@@ -33,6 +33,9 @@
     let eof = false;
     let ausstehend = null, uiAusstehend = null, uiPos = 0, vorratAusstehend = null;
     let inst = null;
+    // Köche: nur ein Pool-Objekt (Pizzaiolo.kuechenPool) bringt Köche; Zahlen/"auto" erzeugen keinen Pool (THREADS §4.6)
+    const pool = optionen.koeche && typeof optionen.koeche === 'object' && typeof optionen.koeche.brigade === 'function' ? optionen.koeche : null;
+    let berichte = null, koecheGenutzt = 0;
     const mem = () => new Uint8Array(inst.exports.memory.buffer);
     const t = (p, n) => dek.decode(mem().subarray(p, p + n));
     const pos = (x) => (x > 0 ? x : null);
@@ -107,10 +110,27 @@
         }
         return 0;
       },
-      // Küchenbrigade (HOST-ABI §2, Gruppe kueche): dieser Host hat (noch) keine Köche → das Modul führt die Stücke
-      // selbst nacheinander aus (Inline-Pfad, gleiches Ergebnis). Köche-Pool: THREADS-Paket P3.
-      kueche_auftrag: () => -1,
-      kueche_bericht: () => -2,
+      // Küchenbrigade (HOST-ABI §2, Gruppe kueche; THREADS §4.6): mit einem Köche-Pool (optionen.koeche = Pool aus
+      // Pizzaiolo.kuechenPool) laufen die Stücke in Klon-Instanzen; ohne Pool (Zahl, "auto", 1 …) → -1, das Modul führt
+      // die Stücke selbst nacheinander aus (Inline-Pfad, gleiches Ergebnis).
+      kueche_auftrag: (auftrag, n) => {
+        berichte = null;
+        if (pool === null) return -1;
+        const r = pool.brigade(modul, mem(), auftrag, n, { chaos: optionen.kuechenChaos, echtzeit: optionen.echtzeit });
+        if (r === null) return -1;
+        berichte = r.berichte;
+        if (r.koeche > koecheGenutzt) koecheGenutzt = r.koeche;
+        return 0;
+      },
+      kueche_bericht: (i, p, kap) => {
+        const b = berichte !== null ? berichte[i - 1] : undefined;
+        if (b === undefined || b === null) return -2;
+        // Trap in einem Klon → Abbruch „interner Fehler“ (K-014) in der Hauptinstanz, wie ein Trap auf dem Inline-Pfad (K-104)
+        if (!(b instanceof Uint8Array)) throw new Error('Trap in einem Koch (Stück ' + i + '): ' + b.trap);
+        if (b.length > kap) return b.length;   // Retry (K-013)
+        mem().set(b, p);
+        return b.length;
+      },
       ui_warte: (bp, kap) => {
         if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
         if (uiAusstehend === null) {
@@ -164,6 +184,11 @@
     }
     const schritte = e.schritte();
     const zeitMs = e.zeitMs();
+    // `koeche` (K-100): nur wenn wirklich Köche gekocht haben – sonst bleibt `ende` wie bisher
+    if (koecheGenutzt > 0) {
+      emit({ typ: 'ende', exitCode, schritte, zeitMs, koeche: koecheGenutzt });
+      return { exitCode, ereignisse, schritte, zeitMs, koeche: koecheGenutzt };
+    }
     emit({ typ: 'ende', exitCode, schritte, zeitMs });
     return { exitCode, ereignisse, schritte, zeitMs };
   }

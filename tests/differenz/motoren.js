@@ -28,6 +28,7 @@ function normalisiere(ereignisse) {
     // K-014: motorspezifisches 'detail' ignorieren; K-046: umbruch:true ≙ fehlendem umbruch.
     for (const s of Object.keys(e)) {
       if (s === 'motor' || s === 'kompilierMs' || s === 'detail') continue;
+      if (s === 'koeche' && e.typ === 'ende') continue;   // K-100: Anzahl der Köche ist nie beobachtbar
       if (s === 'umbruch' && e[s] === true) continue;
       k[s] = e[s];
     }
@@ -190,7 +191,7 @@ const wasm = {
   name: 'wasm',
   verfuegbar: !!pz.Z,
   grund: pz.fehlt || null,
-  lauf(q, opt, cache) {
+  lauf(q, opt, cache, extra) {
     const k = kompilat(q, cache);
     if (k && k.wurf) return { status: 'wurf', fehler: 'kompiliere() hat geworfen: ' + k.wurf };
     if (k && k.ok === false && k.nichtUnterstuetzt) return { status: 'fallback', grund: fallbackGrund(k) };
@@ -200,7 +201,7 @@ const wasm = {
     if (fehlt.length) return { status: 'fallback', grund: 'Lauf-Option ' + fehlt.join(', ') + ' noch nicht unterstützt' };
     const t0 = jetzt();
     let r;
-    try { r = pz.Z.run(q, Object.assign(laufOptionen(opt), { motor: 'wasm' })); }
+    try { r = pz.Z.run(q, Object.assign(laufOptionen(opt), { motor: 'wasm' }, extra || {})); }
     catch (e) { return { status: 'wurf', fehler: 'run() hat geworfen: ' + String(e && e.stack || e) }; }
     const ms = jetzt() - t0;
     // Syntaxfehler laufen nie in Wasm; sonst muss wirklich Wasm gelaufen sein (kein stiller Fallback).
@@ -209,6 +210,36 @@ const wasm = {
     return ergebnisAus(r, ms);
   },
 };
+
+// ---------------------------------------------------------------- Wasm mit Köchen (THREADS §5 Punkt 3/4, P3)
+// Nur Programme mit `brigade`; ein Pool mit 4 Köchen (3 Worker + Hauptthread) für alle Fälle, synchron angelegt (Node).
+let _pool;
+function koechePool() {
+  if (_pool === undefined) {
+    _pool = null;
+    try {
+      const koch = pz.Z && pz.Z._teile && pz.Z._teile.koch;
+      if (koch && typeof koch.kuechenPoolSync === 'function') _pool = koch.kuechenPoolSync(4);
+    } catch (_) { _pool = null; }
+  }
+  return _pool;
+}
+function koecheVariante(name, extra) {
+  return {
+    name,
+    verfuegbar: !!(pz.Z && pz.Z._teile && pz.Z._teile.koch && pz.Z._teile.koch.moeglich()),
+    grund: pz.fehlt || 'keine Köche möglich (SharedArrayBuffer/worker_threads fehlen)',
+    lauf(q, opt, cache) {
+      if (!/\.\s*brigade\b/.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+      const pool = koechePool();
+      if (!pool) return { status: 'übersprungen', grund: 'Köche-Pool nicht anlegbar' };
+      return wasm.lauf(q, opt, cache, Object.assign({ koeche: pool }, extra));
+    },
+  };
+}
+const wasmKoeche4 = koecheVariante('wasm-koeche4', {});
+const wasmChaos = koecheVariante('wasm-chaos', { kuechenChaos: 7 });
+const wasmRueck = koecheVariante('wasm-rueck', { kuechenChaos: 0 });
 
 // ---------------------------------------------------------------- Nativer Host
 function findeHost() {
@@ -335,10 +366,11 @@ const hostKoeche4 = {
 };
 
 function aufraeumen() {
+  if (_pool) { try { _pool.beenden(); } catch (_) {} _pool = null; }
   if (tmpDir) { try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {} }
 }
 
-let ALLE = [interpreter, wasm, host, hostKoeche4];
+let ALLE = [interpreter, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4];
 if (process.env.PIZZA_MOTOREN) {
   const nur = process.env.PIZZA_MOTOREN.split(',').map(s => s.trim());
   for (const m of ALLE) if (m !== interpreter && !nur.includes(m.name)) { m.verfuegbar = false; m.grund = 'per PIZZA_MOTOREN abgewählt'; }
@@ -402,4 +434,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, host, hostKoeche4, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };

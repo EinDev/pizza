@@ -16,10 +16,11 @@
       backendWasm: require('./pizzaiolo/backend-wasm.js'),
       hostJs: require('./pizzaiolo/host-js.js'),
       laufzeitDaten: require('./pizzaiolo/laufzeit-daten.js'),
+      koch: require('./pizzaiolo/koch.js'),
     };
     PizzaLang = require('./pizza.js');
   } else {
-    const DATEIEN = ['kodierer', 'linker', 'frontend', 'ir', 'backend-wasm', 'host-js', 'laufzeit-daten'];
+    const DATEIEN = ['kodierer', 'linker', 'frontend', 'ir', 'backend-wasm', 'host-js', 'laufzeit-daten', 'koch'];
     const fehlt = !root.PizzaioloTeile || !root.PizzaioloTeile.hostJs || !root.PizzaioloTeile.laufzeitDaten;
     if (fehlt && typeof importScripts === 'function') {
       for (const d of DATEIEN) importScripts('pizzaiolo/' + d + '.js');
@@ -155,7 +156,7 @@
     version: VERSION,
     abi: 1,
     laufOptionen: Object.freeze(['args', 'schrittLimit', 'speicherMiB', 'onEvent', 'eingabe', 'onEingabe', 'zufallsSaat',
-      'vorrat', 'onVorrat', 'echtzeit', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor', 'koeche']),
+      'vorrat', 'onVorrat', 'echtzeit', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor', 'koeche', 'kuechenChaos']),
     importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit', 'kueche']),
     features: Object.freeze(['theke', 'theke-v2', 'takt', 'zufall', 'vorratskammer', 'zahlformat', 'uhr-echt',
       'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv', 'brigade']),
@@ -163,5 +164,17 @@
     motoren: Object.freeze(['auto', 'wasm', 'interpreter']),
   });
 
-  return { version: VERSION, faehigkeiten, unterstuetzt, kompiliere, run, fuehreAus, _kompiliereTeil: kompiliereTeil, _teile: teile };
+  /**
+   * Köche-Pool für die Küchenbrigade (THREADS §4.6): kuechenPool(k = "auto" | 1 | 2 | 4 | 8 …, { url?, budget? })
+   * → Promise<Pool | null>. Vor dem Lauf anlegen und als optionen.koeche übergeben; ohne Pool (null, Zahl, "auto")
+   * führt das Modul die Stücke selbst aus – gleiches Ergebnis. pool.koeche = Anzahl Köche, pool.beenden() beendet sie.
+   * "auto" = logische Kerne, höchstens 16. null ohne SharedArrayBuffer/Cross-Origin-Isolation, im Browser-Hauptthread
+   * oder ohne (verschachtelte) Worker.
+   */
+  function kuechenPool(k, optionen) {
+    if (!teile.koch) return Promise.resolve(null);
+    return teile.koch.kuechenPool(k, optionen);
+  }
+
+  return { version: VERSION, faehigkeiten, unterstuetzt, kompiliere, run, fuehreAus, kuechenPool, _kompiliereTeil: kompiliereTeil, _teile: teile };
 });

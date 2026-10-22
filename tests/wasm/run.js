@@ -173,6 +173,86 @@ console.log('▶ küchenbrigade (P2: Wasm inline + Klon-Vertrag)');
   pruefe('Klon-Vertrag an mindestens 50 Brigade-Programmen geprüft', () => { if (klonFaelle < 50 || klonAuftraege < 100) throw new Error(klonFaelle + ' Programme, ' + klonAuftraege + ' Aufträge'); });
 }
 
+console.log('▶ köche (P3: Pool mit Klon-Instanzen in worker_threads)');
+{
+  const koch = Z._teile.koch;
+  const normK = (r) => r.ereignisse.filter(e => e.typ !== 'motor').map(e => {
+    const k = Object.assign({}, e); delete k.detail; delete k.koeche; if (k.umbruch === true) delete k.umbruch; return JSON.stringify(k);
+  });
+  const fp = (r) => JSON.stringify([normK(r), r.exitCode, r.schritte, r.zeitMs]);
+  pruefe('kuechenPool(1) → null, faehigkeiten: koeche + kuechenChaos', () => koch.anzahl(1) === 1 && Z.faehigkeiten.laufOptionen.includes('kuechenChaos') && typeof Z.kuechenPool === 'function');
+  pruefe('anzahl("auto") = logische Kerne, höchstens 16', () => { const a = koch.anzahl('auto'); return a >= 1 && a <= 16; });
+  const pool = koch.kuechenPoolSync(4);
+  const klein = koch.kuechenPoolSync(3, { fachBytes: 4096 });   // Berichte über mehrere Blöcke
+  pruefe('Pool mit 4 Köchen (worker_threads, synchron angelegt)', () => pool !== null && pool.koeche === 4 && klein !== null);
+  if (pool && klein) {
+    let faelle = [];
+    try {
+      faelle = require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).lade()
+        .filter(f => /\.brigade\s*\(/.test(f.code) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
+        .map(f => ({ name: f.quelle + ':' + f.name, quelle: f.code, opt: f.optionen || {} }));
+    } catch (e) { /* Differenz-Korpus fehlt */ }
+    faelle = faelle.concat(eigeneFaelle().filter(f => f.name.includes('kueche')));
+    let gekocht = 0;
+    for (const f of faelle) {
+      const k = Z.kompiliere(f.quelle);
+      if (!k.ok) continue;
+      const opt = Object.assign({ echtzeit: 1700000000000 }, f.opt);
+      const ri = P.run(f.quelle, Object.assign({}, opt));
+      const soll = fp(ri);
+      const varianten = [['koeche4', { koeche: pool }], ['chaos7', { koeche: pool, kuechenChaos: 7 }], ['rueck', { koeche: pool, kuechenChaos: 0 }],
+        ['bloecke', { koeche: klein, kuechenChaos: 3 }]];
+      for (const [v, extra] of varianten) {
+        pruefe('Köche (' + v + ') ' + f.name, () => {
+          const r = Z.run(f.quelle, Object.assign({ motor: 'wasm' }, opt, extra));
+          if (r.koeche) gekocht++;
+          const ist = fp(r);
+          if (ist !== soll) throw new Error('\n    I: ' + soll.slice(0, 400) + '\n    K: ' + ist.slice(0, 400));
+        });
+      }
+      // .pkarton (ein Modul) statt Schnellpfad (Laufzeit + Programmmodul)
+      pruefe('Köche (.pkarton) ' + f.name, () => fp(Z.fuehreAus(k.pkarton, Object.assign({}, opt, { koeche: pool }))) === soll);
+    }
+    pruefe('Köche haben gekocht (mindestens 100 Läufe mit Pool)', () => { if (gekocht < 100) throw new Error(gekocht + ' Läufe'); });
+    const vergleichePool = (name, q, opt = {}) => pruefe(name, () => {
+      const ri = P.run(q, Object.assign({}, opt));
+      for (const extra of [{}, { koeche: pool }, { koeche: pool, kuechenChaos: 11 }, { koeche: klein, kuechenChaos: 0 }]) {
+        const r = Z.run(q, Object.assign({ motor: 'wasm' }, opt, extra));
+        if (fp(r) !== fp(ri)) throw new Error(JSON.stringify(extra) + '\n    I: ' + fp(ri).slice(0, 300) + '\n    K: ' + fp(r).slice(0, 300));
+        if (extra.koeche && !r.koeche) throw new Error('Pool nicht genutzt');
+      }
+    });
+    vergleichePool('10⁴ winzige Stücke', 'Blech<salami> b = [];\nfür (salami i = 0; i < 10000; i++) { b.hinzu(i); }\nBlech<salami> r = b.brigade(x -> x * 2);\nBote.sage((r.länge()), (r));', { schrittLimit: 1e8 });
+    vergleichePool('große Berichte (10⁴ Zeilen je Stück, mehrere Blöcke)', 'Blech<salami> r = [1, 2, 3].brigade(x -> { für (salami i = 0; i < 10000; i++) { Bote.sage(("Zeile " + i + " von Stück " + x)); } serviere (x); });\nBote.sage((r));', { schrittLimit: 1e8 });
+    vergleichePool('jedes Stück wirft – das erste gewinnt (D3)', 'Blech<salami> r = [1, 2, 3, 4, 5, 6].brigade(x -> { Bote.sage((x)); wirf neu LaufzeitAnanas("Stück " + x); });');
+    vergleichePool('Abbruch in Stück 2 von 8, spätere Stücke laufen lang', 'Blech<salami> r = [1, 2, 3, 4, 5, 6, 7, 8].brigade(x -> { falls (x == 2) { wirf neu LaufzeitAnanas("zwei"); } salami s = 0; für (salami i = 0; i < 20000; i++) { s = s + 1; } serviere (s); });', { schrittLimit: 1e8 });
+    vergleichePool('mehrere Brigaden hintereinander, Speicher wächst dazwischen', 'Blech<salami> g = [];\nfür (salami runde = 0; runde < 5; runde++) {\n  für (salami i = 0; i < 50000; i++) { g.hinzu(i); }\n  Blech<salami> r = [1, 2, 3, 4].brigade(x -> g.länge() + x);\n  Bote.sage((r));\n}', { schrittLimit: 1e8 });
+    pruefe('Trap in einem Klon → interner Fehler (K-014) in der Hauptinstanz', () => {
+      const unecht = { koeche: 2, brigade: (desc, mem, a, n) => ({ berichte: new Array(n).fill({ trap: 'unreachable' }), koeche: 2 }) };
+      const r = Z.run('Blech<salami> r = [1, 2].brigade(x -> x);\nBote.sage((r));', { motor: 'wasm', koeche: unecht });
+      const f = r.ereignisse.find(e => e.typ === 'fehler');
+      return r.exitCode === 1 && f && f.text === 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' && /Trap in einem Koch \(Stück 1\): unreachable/.test(f.detail);
+    });
+    pruefe('Zahl als koeche → kein Pool, ende ohne koeche-Feld', () => {
+      const r = Z.run('Bote.sage(([1, 2].brigade(x -> x)));', { motor: 'wasm', koeche: 4 });
+      const e = r.ereignisse[r.ereignisse.length - 1];
+      return r.koeche === undefined && !('koeche' in e);
+    });
+    pruefe('Pool: ende.koeche = genutzte Köche', () => {
+      const r = Z.run('Bote.sage(([1, 2, 3, 4, 5, 6].brigade(x -> x)));', { motor: 'wasm', koeche: pool });
+      return r.koeche === 4 && r.ereignisse[r.ereignisse.length - 1].koeche === 4;
+    });
+    pruefe('ein Stück → Inline-Pfad', () => Z.run('Bote.sage(([1].brigade(x -> x)));', { motor: 'wasm', koeche: pool }).koeche === undefined);
+  }
+  if (pool) pool.beenden();
+  if (klein) klein.beenden();
+  pruefe('beendeter Pool → Inline-Pfad, gleiches Ergebnis', () => {
+    if (!pool) return true;
+    const r = Z.run('Bote.sage(([1, 2, 3].brigade(x -> x * 3)));', { motor: 'wasm', koeche: pool });
+    return r.koeche === undefined && r.ereignisse[0].text === '[3, 6, 9]';
+  });
+}
+
 console.log('▶ anzeige (U-45)');
 // Anzeigeform überall: <text> + " (Zeile Z, Spalte S)" wenn vorhanden; detail nie im Text
 const anzeige = (e) => (e.typ === 'fehler' && e.art === 'ananas' ? e.text.replace(/ \(Zeile \d+\)$/, '') : e.text) + (e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '');

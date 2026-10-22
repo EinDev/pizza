@@ -1037,6 +1037,29 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      identisch zum Interpreter.
   9. Nebenbei: Zuweisungen an „Feld oder globale Variable“ gleichen Namens (unqualifiziert in einer Methode) kompilieren jetzt
      (bisher Fallback „mehrdeutig“; nötig für `beispiele/pizzafunktionen/kuechenbrigade.pizza` im reinen Wasm-Modus).
+  10. **JS-Köche (P3, U-67)** – Entscheidungen des Compiler-Agenten (`site/js/pizzaiolo/koch.js`, `host-js.js`):
+     (a) `Pizzaiolo.kuechenPool(k)` → `Promise<Pool | null>`, `k` = `"auto"` (logische Kerne, höchstens 16) oder Zahl; der Pool
+     hat **k − 1 Worker, der aufrufende Thread ist der k-te Koch** (er wartet ohnehin). `null` bei k ≤ 1, ohne
+     `SharedArrayBuffer`/Cross-Origin-Isolation, im Browser-Hauptthread (`Atomics.wait` verboten) oder ohne Worker. Nur ein
+     Pool-Objekt in `optionen.koeche` bringt Köche; Zahlen/`"auto"` → `-1` (THREADS §4.6). Node-Harnische: `kuechenPoolSync(k)`
+     (Node-Worker starten auch, während der Erzeuger in `Atomics.wait` steht). `pool.beenden()` beendet alle Köche.
+     (b) Hinweg per `postMessage` (Modul einmal je Worker, je Brigade Schnappschuss-SAB + Steuer-SAB); Rückweg nur über einen
+     festen Fach-SAB je Koch (1 MiB, Berichte blockweise). Weil der aufrufende Thread mitkocht, kann ein Koch, der die Nachricht
+     nie erhält, den Lauf nicht festhalten. Planung: dynamische Warteschlange (`Atomics.add`); Stücke hinter dem kleinsten
+     bekannten Abbruch werden übersprungen (D3, nie gelesen).
+     (c) Köche je Brigade: `min(k − 1, n − 1, Budget / Speichergröße − 3)` Worker (Budget Browser 2 GiB, Node 50 % RAM); ein
+     Stück oder kein Platz → `-1`. Klone werden über Stücke und Brigaden wiederverwendet (Speicher hinter dem Schnappschuss wird
+     genullt); ein Klon, der den Schnappschuss um > 64 MiB übersteigt, wird neu angelegt.
+     (d) **Trap in einem Klon** → der Host wirft in `kueche_bericht(i)` für dieses Stück; die Hauptinstanz endet damit wie bei
+     einem Trap auf dem Inline-Pfad (Punkt 7, K-014, `detail` = „Trap in einem Koch (Stück i): …“). Ein früherer Abbruch gewinnt
+     nach D3 von selbst (die Laufzeit fragt Berichte nur bis zum ersten Abbruch ab). Kein neuer Berichtsstatus.
+     (e) `ende.koeche` / Rückgabe `koeche` nur, wenn wirklich Köche gekocht haben (sonst bleibt `ende` unverändert; Anzeige 1).
+     Differenztests ignorieren das Feld.
+     (f) Testoption `kuechenChaos: saat` (nur mit Pool): Saat 0 = Stücke strikt rückwärts, sonst gemischt; dazu kurze
+     Verzögerungen je Koch (0–2 ms, insgesamt ≈ 32 je Brigade). Differenz-Varianten `wasm-koeche4`, `wasm-chaos` (Saat 7),
+     `wasm-rueck` (Saat 0) – nur Programme mit `brigade`.
+     (g) CSP: Koch-Worker laden `js/pizzaiolo/koch.js` per URL (`worker-src 'self'`), keine Blob-Worker; Browser-URL relativ
+     zum Lauf-Worker wie `importScripts`, Option `url`. Geprüft in Chrome (headless) mit den Headern aus `nginx.conf`.
   11. **Nativer Host (P4, U-68)** – Entscheidungen des Native-Host-Agenten (`host/src/kueche.rs`, `laufen.rs`, `main.rs`):
      (a) Köche = `std::thread::scope`-Threads je Brigade (Stapel 16 MiB wie der Programm-Thread, HOST-ABI §6), je Koch eine
      Klon-Instanz (eigener wasmi-`Store`, gleiches `Module`/`Engine`); Klone werden über Stücke und Brigaden eines Laufs
@@ -1061,7 +1084,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      (7,0×); 200 Brigaden à 8 Stücke à 4·10⁴ Schritte: 20,4 / 10,3 / 5,5 / 3,5 s (5,9×).
 - **Festgehalten:** HOST-ABI §2/§3/§6 + Anhang A (Gruppe `kueche` endgültig, `abi_version` bleibt 1), IR.md §1/§6a/§7.
 - **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
-  bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅).
+  bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅).
 
 ---
 
@@ -1135,7 +1158,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-64 ✅ (37c88f2) | `site/js/pizzaiolo/frontend.js` (Compiler-Agent, P1b) | K-100: `brigade`/`KüchenAnanas` → `nichtUnterstuetzt` (Auto fällt auf den Interpreter zurück) | tests/wasm |
 | U-65 | `site/js/doku/20-pizzafunktionen.js`, `site/beispiele/pizzafunktionen/kuechenbrigade.pizza` (Doku-/Beispiel-Agent, P1c) | SPEC §17 erklären (Teilsummen, Uhr `belege` vs. `brigade`, gefangene KüchenAnanas); Doku-Blöcke laufen im Prüfstand | Prüfstand Doku/Beispiele |
 | U-66 ✅ (70f05a8 ff.) | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-098 … K-101: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen – Umsetzungsentscheidungen in K-104 | tests/differenz `kueche-*`, tests/wasm (Klon-Host) |
-| U-67 | `site/js/pizzaiolo/host-js.js`, `pizzaiolo.js`, `koch.js` (Compiler-Agent, P3) | K-100: `kuechenPool`, Klon-Instanzen, SAB-Protokoll, Option `koeche`, `kuechenChaos` | Differenz `wasm` vs. `wasm-koeche4` |
+| U-67 ✅ | `site/js/pizzaiolo/host-js.js`, `pizzaiolo.js`, `koch.js` (Compiler-Agent, P3) | K-100: `kuechenPool`, Klon-Instanzen, SAB-Protokoll, Option `koeche`, `kuechenChaos` | Differenz `wasm` vs. `wasm-koeche4` |
 | U-68 ✅ | `host/**` (Native-Host-Agent, P4) | K-100: Gruppe `kueche`, `--koeche=N`, `--info` `Köche: N`, Koch-Stapel wie Hauptthread | Differenz `host-koeche4`, CI-Smoke |
 | U-69 | `site/js/worker.js`, `ui/**` (UI-Agent, P5) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
 | U-70 | `tests/differenz/**`, `tests/fuzz/**`, `e2e/**`, `pruefstand/run.js` (Harnisch-Agents, P6) | K-099/K-100: Köche-Varianten, Chaos-Planung, Fuzz-Produktionen `brigade`, Feld `koeche` ignorieren; Prüfstand optional Feld `koeche` durchreichen | – |
