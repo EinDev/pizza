@@ -670,33 +670,45 @@ Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle 
 | 2b | Bindungen (Theke v5) + Theke v6: kein `zeichne()`/`aktualisiere()` je Takt, Zettel `zTakt` + Versions-Spiegel je Panel (`synchronisiere()`), `zPlaetze` nur in nachKauf/nachLernen/nachAufstieg (R1), Marken „⭐ n“/„📜 n“ am Imperium-/Nonna-Reiter, Innenbreite 820 = 2 × 404 + 12 mit `senkrecht: oben`, Erfolge-Tabelle fest 12 Zeilen | 1d400fc | 0 Verstöße (pi4 1.278, Bot 120 min 46.258 Zustände); Kurve 40 / 305 / 1.577; Klickanteil 4,9 %; E2E 05/07 grün; ui-Einträge gleich (die Wächter entprellten schon), Laufzeit ≈ +10 % |
 
 
-### 12.9 Regel R3 – Unsichtbar, bis es angeboten wird (Nachtrag, Paket 3b)
+### 12.9 Regel R3 – Unsichtbar, bis es angeboten wird; Erscheinen in fester Reihenfolge; kompakt (Nachtrag, Paket 3b)
 
 > R3 (Nutzer, wörtlich): „Wenn etwas noch nicht freigeschaltet und auch nicht kaufbar ist, soll es verschwinden und erst später
-> angezeigt werden. Auch ganze Tabs.“
+> angezeigt werden. Auch ganze Tabs.“ – „Es sollte so aufgebaut sein, dass die Dinge in einer festen Reihenfolge auftauchen,
+> sodass sich kaum Dinge bewegen (eigentlich nur, wenn alte verschwinden).“ – „Ich will nicht, dass am Ende jede Menge freier
+> Platz ist, sondern einfach, dass wir weniger Platz brauchen.“
 
-Keine 🔒-Platzhalter mit Text oder Preis für Dinge, die man noch nicht kaufen kann. **Angeboten** (= sichtbar) ist etwas, sobald
-man es kaufen *könnte* – unabhängig vom Kontostand: ein Bereich, dessen Vorgänger in der Kette frei ist; das nächste Gebäude, sobald
-das vorige gekauft ist; eine Feinkost-Zeile, sobald das Rezeptbuch ausgelesen ist; ein Meisterbrief, sobald die Stufe erreicht ist;
-Geheimrezepte/Herausforderungen, sobald der Stern da ist. Der Kontostand blendet nie etwas ein oder aus (sonst flackert es und
-Käufe an anderer Stelle ließen Panels verschwinden – R1).
-
-Vereinbarkeit mit R1 (nichts wandert ohne Klick):
-- **(a) Platz bleibt reserviert.** Innerhalb einer Seite nimmt ein unsichtbares Element seinen festen Platz ein: Zeilen sind
-  Reihen mit fester `hoehe`, deren Kinder `sichtbar(nein)` sind; ein ganzes Panel liegt in einem Stapel fester Höhe und ist
-  selbst unsichtbar – beim Erscheinen verschiebt sich nichts. **Wunsch an die Theke:** ein Stil/Zustand „unsichtbar, hält den
-  Platz“ (`visibility: hidden` statt `display: none`), damit Zeilen und Panels ohne Hüllen-Behälter verschwinden können.
-- **(b) Reiter** noch nicht verfügbarer Seiten sind ausgeblendet (`seite.sichtbar(nein)`). Immer sichtbar: 🍕 Backstube,
-  🌱 Hof (der Garten ist von Anfang an angeboten), 🎲 Spiele, 🏆 Erfolge, ⭐ Imperium (Statistik, Neu anfangen). Erscheinen
-  durch Klick: 🏙 Stadt (Freischalten von Personal → Lieferzonen angeboten), 🔬 Labor (Freischalten der Lieferzonen → Helfer
-  angeboten), 📜 Nonna (erster Stern, vergeben beim Klick „Neueröffnung“). Reiter-Reihenfolge = erwartete Erscheinensfolge, die
-  immer sichtbaren zuerst: **Backstube · Hof · Spiele · Erfolge · Imperium · Stadt · Labor · Nonna** – ein neuer Tab wird rechts
-  angehängt und verschiebt keinen bestehenden. Da alle drei Erscheinen klickgebunden sind, gilt ohnehin R1.
-- **(c) Erscheinen ohne Klick** ist die einzige erlaubte klicklose Änderung (z. B. Carlo liest die letzte Rezeptseite im Takt →
-  Feinkost-Zeilen erscheinen; Wettbewerb wird „offen“) und darf nichts Bestehendes verschieben (a). Die Positionsmessung
-  (`positionen2b.mjs`) zählt „erschienen“ getrennt von „verschoben“ – erlaubt, solange kein vorhandenes Element wandert.
-
-Betroffen (Paket 3b): BereichPanels (statt „🔒 Noch verschlossen – zuerst …“ unsichtbar; angebotene zeigen Teaser + Preis-Knopf),
-Betrieb-/Handwerk-Slots noch nicht erreichter Upgrades, Feinkost-Zeilen, Meisterbrief-Plätze ohne Brief, Geheimrezept-/
-Herausforderungs-Plätze vor dem Stern, Franchise-Panel vor 100 Sternen in der Kette (Text „ab 100 ⭐“ bleibt im Aufstieg-Panel),
-Kleinbetriebe-Abschnitt ohne Kleinbetriebe, Kaufmenge-Reihe (bleibt – sie ist von Anfang an nutzbar), Reiter-Reihenfolge.
+1. **Angeboten = sichtbar.** Etwas ist sichtbar, sobald man es kaufen *könnte* – unabhängig vom Kontostand: ein Bereich, dessen
+   Vorgänger in der Kette frei ist; das nächste Gebäude/Werkzeug, sobald das vorige gekauft ist; Feinkost, sobald das Rezeptbuch
+   ausgelesen ist; ein Meisterbrief, sobald die Stufe erreicht ist; Geheimrezepte/Herausforderungen, sobald der Stern da ist. Der
+   Kontostand blendet nie etwas ein oder aus. Keine 🔒-Platzhalter, keine „—“-Zeilen, keine Hüllen fester Höhe, keine halb leeren
+   Panels: **die Oberfläche beginnt klein und wächst durch Anhängen**; Seiten dürfen scrollen, wenn sie länger werden.
+2. **Reihenfolge = Erscheinensfolge.** Neues wird hinten angehängt – Zeilen unten im Panel, Panels unten in ihrer Spalte, Tabs
+   rechts – und verschiebt nichts Bestehendes. Wo ein Panel später noch wächst (Betrieb, Handwerk), steht es **unten in seiner
+   Spalte** oder nur Klickgebundenes liegt darunter. Bewegung bestehender Elemente nur durch Klick (R1): Kauf, der etwas aufdeckt,
+   Freischalten, Lernen, Starten/Aufgeben, Neueröffnung, Franchise, Neu anfangen. Nie durch Takt/Zufall/Offline – deshalb liegt
+   alles, was im Takt erscheinen oder verschwinden kann (Spielfeld eines Minispiels, Feinkost durch Carlo, Wettbewerb „offen“),
+   **am Ende** seiner Spalte/Seite oder ändert nur Text.
+3. **Tabs:** immer sichtbar 🍕 Backstube · 🌱 Hof · 🎲 Spiele · 🏆 Erfolge · ⭐ Imperium; dann in Erscheinensfolge 🏙 Stadt
+   (Personal frei → Lieferzonen angeboten) · 🔬 Labor (Lieferzonen frei → Helfer angeboten) · 📜 Nonna (erster Stern per Klick
+   „Neueröffnung“). Reihenfolge **Backstube · Hof · Spiele · Erfolge · Imperium · Stadt · Labor · Nonna**, ausgeblendet per
+   `seite.sichtbar(nein)`.
+4. **Seiten (2 Spalten, Panels in Erscheinensfolge, keine festen Höhen):**
+   - Backstube links: 🏭 Betrieb (wächst je Kauf, Kleinbetriebe-Abschnitt erscheint mit dem 7. Gebäude oben im Panel – Klick) ·
+     📖 Rezeptbuch (1 Zeile) · 🧀 Feinkost (erscheint mit dem ausgelesenen Buch, auch durch Carlo – ganz unten, verschiebt nichts).
+     Rechts: Kaufmenge · 🛠 Handwerk (wächst je Kauf) · 🎓 Meisterbriefe (erscheint mit dem ersten Brief, bis 3 Zeilen).
+   - Hof: Garten (#1) · Weinkeller (#2) · Personal (#3) · Katze (#9); Stadt: Lieferzonen (#4) · Marketing (#6) · Stammgäste (#8) ·
+     Wettbewerb (#10); Labor: Helfer (#5) · Rezeptlabor (#7) · Sammelalbum (#11) · Banca (#12) – Reihenfolge links oben → rechts
+     oben → links unten → rechts unten; ein angebotener Bereich zeigt nur Teaser + Freischalt-Knopf (1 Zeile), der freigeschaltete
+     seinen Inhalt (Zeilen wachsen beim Freischalt-Klick).
+   - Imperium links: Aufstieg · Neueröffnung · Franchise (erscheint ab 100 ⭐ in der Kette, unten); rechts: Statistik · Neu anfangen.
+   - Nonna: Geheimrezepte (3 Plätze erscheinen mit dem Stern; „✅ Gelernt“ unten nach dem ersten Lernen) · Herausforderungen
+     (erscheint ab 3 ⭐, unten; Plätze nur mit Inhalt).
+   - Spiele: 4 Spielzeilen, **darunter** das Spielfeld (erscheint beim Start, verschwindet beim Ende im Takt – ganz unten).
+   - Kopf: Kasse · Kennzahlen (2 Zeilen, der Herausforderungs-Stand steht als zweite Zeile darin – keine eigene Modus-Zeile) ·
+     Backen + Sonderschicht · Meldung (3 Zeilen).
+5. **Fenster:** 860 breit (8 Tabs), **Höhe 640** statt 800 – anfangs klein, später scrollt die Seite.
+6. **Messung** (`positionen2b.mjs`): „erschienen am Ende“ ohne Bewegung Bestehender ist erlaubt; Verschiebung bestehender Elemente
+   ohne auslösenden Klick ist Verstoß (Klicks, die etwas aufdecken, zählen als erlaubt, werden aber als „klickbedingte
+   Verschiebungen“ gezählt – Ziel: wenige). **Neu: Leerraum je Seite** = 1 − (Fläche der sichtbaren Blatt-Elemente ÷ Fläche der
+   Seite bis zum untersten Element), außerdem Zeilen mit leerem/„—“-Text; Ziel: wenig, keine „—“-Zeilen.
+7. Theke-Wunsch „unsichtbar, hält den Platz“: **entfällt.**
