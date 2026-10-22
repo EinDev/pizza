@@ -120,6 +120,7 @@
 }
 .theke *, .theke *::before, .theke *::after { box-sizing: border-box; }
 .theke [hidden] { display: none !important; }
+.theke:focus { outline: none; }   /* v4 (K-110): die Wurzel ist fokussierbar (tabindex=-1), aber ohne Rahmen */
 .theke-inhalt { position: relative; padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
 .theke-inhalt > .theke-zutat { flex: none; }
 
@@ -200,6 +201,7 @@
   box-shadow: none;
 }
 .theke-knopf.theke-farbe-mozzarella { border-color: var(--theke-mozzarella-rand); }
+.theke-knopf-text { min-width: 0; overflow-wrap: anywhere; }
 
 /* ------------------------------------------------------------------ Eingabe */
 .theke-eingabe {
@@ -282,6 +284,7 @@
 /* ------------------------------------------------------------------ Stil-Whitelist */
 .theke .theke-hat-breite { width: var(--theke-breite); max-width: 100%; flex: none; }
 .theke .theke-hat-hoehe  { height: var(--theke-hoehe); }
+.theke .theke-hat-mindestbreite { min-width: var(--theke-mindestbreite); }   /* v4 (K-113): nie schmaler, darf wachsen */
 .theke-behaelter.theke-hat-hoehe { overflow: auto; }
 .theke .theke-schild.theke-hat-abstand,
 .theke .theke-platzhalter.theke-hat-abstand { padding: var(--theke-abstand); }
@@ -330,8 +333,8 @@
 }
 .theke .theke-knopf.theke-schrift-riesig { min-height: 64px; padding: 12px 28px; border-radius: 14px; font-size: 26px; }
 
-/* ------------------------------------------------------------------ Takt: nie sichtbar (auch nicht mit sichtbar:true) */
-.theke .theke-takt { display: none !important; }
+/* ------------------------------------------------------------------ Takt, Tastatur: nie sichtbar (auch nicht mit sichtbar:true) */
+.theke .theke-takt, .theke .theke-tastatur { display: none !important; }
 
 /* ------------------------------------------------------------------ Fortschritt */
 .theke-fortschritt {
@@ -417,6 +420,39 @@
 .theke-abschnitt.theke-ausrichtung-ende   > .theke-abschnitt-inhalt { align-items: flex-end; }
 .theke-abschnitt.theke-ausrichtung-mitte  > .theke-abschnitt-titel { text-align: center; }
 .theke-abschnitt.theke-ausrichtung-ende   > .theke-abschnitt-titel { text-align: right; }
+/* v4 (K-108): klappbar – der Kopf ist ein Knopf mit Pfeil ▸ (zu) / ▾ (offen) vor dem Titel */
+.theke-abschnitt-knopf {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.theke-abschnitt-knopf::before {
+  content: "▾";
+  flex: none;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  color: var(--theke-text-3);
+  transition: transform .12s ease;
+}
+.theke-abschnitt-knopf[aria-expanded="false"]::before { content: "▸"; }
+.theke-abschnitt-knopf:hover { background: var(--theke-flaeche-2); }
+.theke-abschnitt[class*="theke-farbe-"] > .theke-abschnitt-titel > .theke-abschnitt-knopf:hover { background: rgb(0 0 0 / .05); }
+.theke-abschnitt-knopf:focus-visible { outline: 2px solid var(--theke-fokus); outline-offset: 0; }
+/* zugeklappt (Inhalt hidden): nur der Kopf bleibt; der Flex-Abstand entfällt mit dem versteckten Inhalt von selbst */
 
 /* ------------------------------------------------------------------ Tabelle */
 .theke-tabelle {
@@ -492,6 +528,78 @@
 .theke-reiter-tab:focus-visible { outline: 2px solid var(--theke-fokus); outline-offset: -2px; }
 .theke-reiter-seiten { display: flex; flex-direction: column; gap: var(--theke-abstand, 12px); padding-top: 14px; min-width: 0; }
 .theke .theke-reiter-seiten > .theke-reiter-aus { display: none !important; }
+
+/* ================================================================== v4-Zutaten (K-107 … K-113, SPEC §16.7) */
+
+/* ------------------------------------------------------------------ Auswahl: Segment-Leiste (role=radiogroup) */
+.theke-auswahl {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid var(--theke-rand);
+  border-radius: 10px;
+  background: var(--theke-flaeche-2);
+  align-self: flex-start;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.theke-reihe > .theke-auswahl { align-self: center; }
+.theke-auswahl-option {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 0 auto;
+  margin: 0;
+  min-height: 30px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--theke-text-2);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .12s ease, background-color .12s ease, box-shadow .12s ease;
+}
+.theke-auswahl-option:hover:not(:disabled) { color: var(--theke-text); }
+.theke-auswahl-option.theke-auswahl-option-an {
+  background: var(--theke-ton);
+  color: var(--theke-ton-text);
+  box-shadow: var(--theke-schatten-knopf);
+}
+.theke .theke-auswahl.theke-farbe-mozzarella .theke-auswahl-option-an { border: 1px solid var(--theke-mozzarella-rand); padding: 3px 13px; }
+.theke-auswahl-option:focus-visible { outline: 2px solid var(--theke-fokus); outline-offset: -2px; }
+.theke-auswahl-option:disabled { cursor: not-allowed; color: var(--theke-text-3); }
+.theke-auswahl.theke-inaktiv { opacity: .6; }
+.theke-auswahl.theke-inaktiv .theke-auswahl-option-an { background: var(--theke-rand-stark); color: var(--theke-flaeche); box-shadow: none; }
+.theke .theke-auswahl.theke-hat-breite { display: flex; }
+
+/* ------------------------------------------------------------------ Stil zeilen (K-113): genau n Zeilen hoch, Rest „…“
+ * Wirkt auf den Text von schild, knopf (innerer span) und haken (Textspan); andere Zutaten ignorieren ihn. */
+.theke .theke-schild.theke-hat-zeilen,
+.theke .theke-knopf.theke-hat-zeilen > .theke-knopf-text,
+.theke .theke-haken.theke-hat-zeilen > .theke-haken-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--theke-zeilen);
+  line-clamp: var(--theke-zeilen);
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: content-box;
+  height: calc(var(--theke-zeilen) * 1lh);
+  min-width: 0;
+}
+.theke .theke-knopf.theke-hat-zeilen > .theke-knopf-text { flex: 1 1 auto; }
+@supports not (height: 1lh) {
+  .theke .theke-schild.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.5em); }
+  .theke .theke-schild.theke-schrift-gross.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.3em); }
+  .theke .theke-schild.theke-schrift-riesig.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.15em); }
+  .theke .theke-knopf.theke-hat-zeilen > .theke-knopf-text { height: calc(var(--theke-zeilen) * 1.25em); }
+  .theke .theke-haken.theke-hat-zeilen > .theke-haken-text { height: calc(var(--theke-zeilen) * 1.5em); }
+}
 
 /* ================================================================== v3: Animationen (K-090 … K-092, SPEC §16.6)
  * Nur transform/opacity/Leuchten (filter) – das Layout der Nachbarn ändert sich nie. Die Dauer kommt per CSSOM als
@@ -611,7 +719,7 @@
 
 /* uebergang (K-091): Ein-/Ausblenden; eine ausblendende Zutat ist sofort nicht mehr bedienbar */
 .theke .theke-ueb-ein { animation: theke-ueb-ein var(--theke-anim-dauer, 200ms) ease-out both; }
-.theke .theke-zutat.theke-ueb-aus { animation: theke-ueb-aus var(--theke-anim-dauer, 200ms) ease-in both; pointer-events: none; }
+.theke .theke-ueb-aus { animation: theke-ueb-aus var(--theke-anim-dauer, 200ms) ease-in both; pointer-events: none; }   /* Zutat oder Teil (Abschnitt-Inhalt) */
 @keyframes theke-ueb-ein { from { opacity: 0; } to { opacity: 1; } }
 @keyframes theke-ueb-aus { from { opacity: 1; } to { opacity: 0; } }
 
@@ -619,7 +727,7 @@
   .theke * { transition: none !important; }
   /* Sicherheitsnetz – die Engine startet diese Arten bei reduzierter Bewegung gar nicht erst (K-092) */
   .theke .theke-anim-puls, .theke .theke-anim-huepfen, .theke .theke-anim-wackeln,
-  .theke .theke-anim-einblenden, .theke .theke-anim-aufpoppen, .theke .theke-ueb-ein, .theke .theke-zutat.theke-ueb-aus { animation: none; }
+  .theke .theke-anim-einblenden, .theke .theke-anim-aufpoppen, .theke .theke-ueb-ein, .theke .theke-ueb-aus { animation: none; }
   .theke .theke-anim-funkeln { animation-name: theke-leuchten; }
   .theke .theke-funken { display: none; }
   .theke .theke-schwebe { animation-name: theke-schwebe-ruhig; }

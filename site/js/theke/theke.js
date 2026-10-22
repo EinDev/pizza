@@ -7,7 +7,9 @@
  *
  *   PizzaTheke.registriere(art, { erzeuge: function (knoten, ctx) { return element; },
  *                                 aktualisiere: function (element, felder, ctx) {},
- *                                 felder?: ["text", …] });   // bekannte Felder (sonst einmalige Warnung)
+ *                                 felder?: ["text", …],      // bekannte Felder (sonst einmalige Warnung)
+ *                                 kindSichtbar?: function (element, kindEl, ctx) {},   // v4: ein Kind hat sichtbar gewechselt
+ *                                 taste?: function (element, taste, ctx, e) { return aktiv; } });   // v4: Tastendruck (K-110)
  *
  * Reines DOM, keine Abhängigkeiten, kein Netzwerk, kein eval, keine Inline-Handler (strikte CSP).
  * Arbeitet ausschließlich mit container.ownerDocument – keine Annahmen über die umgebende Seite.
@@ -78,6 +80,18 @@
         if (weg) { setzeKlasse(el, "theke-ausrichtung-", null); continue; }
         if (!hat.call(STIL.ausrichtung, w)) { warne("Ungültiger Wert für stil.ausrichtung:", w); continue; }
         setzeKlasse(el, "theke-ausrichtung-", STIL.ausrichtung[w]);
+      } else if (k === "zeilen") {
+        // v4 (K-113): genau n Textzeilen hoch, längerer Text mit „…“ – wirkt per CSS auf schild/knopf/haken, sonst still.
+        if (weg) { el.style.removeProperty("--theke-zeilen"); el.classList.remove("theke-hat-zeilen"); continue; }
+        if (typeof w !== "number" || !isFinite(w) || w < 1 || Math.floor(w) !== w) { warne("Ungültiger Wert für stil.zeilen:", w); continue; }
+        el.style.setProperty("--theke-zeilen", String(w));
+        el.classList.add("theke-hat-zeilen");
+      } else if (k === "mindestbreite") {
+        // v4 (K-113): nie schmaler als … (min-width), darf wachsen – für jede Zutat.
+        var mb = weg ? null : laenge(w);
+        if (!weg && mb === null) { warne("Ungültiger Wert für stil.mindestbreite:", w); continue; }
+        if (mb === null) { el.style.removeProperty("--theke-mindestbreite"); el.classList.remove("theke-hat-mindestbreite"); }
+        else { el.style.setProperty("--theke-mindestbreite", mb); el.classList.add("theke-hat-mindestbreite"); }
       } else {
         warne("Unbekannter Stil-Schlüssel ignoriert (" + art + "):", k);
       }
@@ -94,7 +108,11 @@
     registry[art] = {
       erzeuge: def.erzeuge,
       aktualisiere: typeof def.aktualisiere === "function" ? def.aktualisiere : function () {},
-      felder: Array.isArray(def.felder) ? def.felder.slice() : null
+      felder: Array.isArray(def.felder) ? def.felder.slice() : null,
+      /** v4: optional – ein direktes Kind (auch in einem inneren Bereich) hat sichtbar gewechselt → Behälter zeichnet nach. */
+      kindSichtbar: typeof def.kindSichtbar === "function" ? def.kindSichtbar : null,
+      /** v4: optional – Tastendruck auf der Theke (K-110); true zurückgeben = aktiv angenommen (Baumreihenfolge). */
+      taste: typeof def.taste === "function" ? def.taste : null
     };
   }
   function zutatArten() { return Object.keys(registry); }
@@ -114,11 +132,14 @@
       var el = ctx.dokument.createElement("button");
       el.type = "button";
       el.className = "theke-knopf";
+      // Text in einem inneren span: so bleibt er bei stil.zeilen (K-113) zentriert und abschneidbar.
+      var txt = ctx.dokument.createElement("span"); txt.className = "theke-knopf-text";
+      el.appendChild(txt);
       ctx.bei("click", function () { if (!el.disabled) ctx.sende("klick"); });
       return el;
     },
     aktualisiere: function (el, f) {
-      textFeld(el, f);
+      if (hat.call(f, "text")) el.firstChild.textContent = alsText(f.text);
       if (hat.call(f, "aktiv")) el.disabled = f.aktiv === false;
     }
   });
@@ -286,9 +307,11 @@
     }
   });
 
-  // ---- abschnitt: Karte mit Überschrift, Inhalt als Stapel
+  // ---- abschnitt: Karte mit Überschrift, Inhalt als Stapel; v4 (K-108): klappbar (Kopf wird Knopf) und zu (Inhalt hidden)
+  var abschnittZustand = new WeakMap();
+
   registriere("abschnitt", {
-    felder: ["titel", "kinder"],
+    felder: ["titel", "kinder", "klappbar", "zu"],
     erzeuge: function (k, ctx) {
       var d = ctx.dokument;
       var el = d.createElement("section");
@@ -296,17 +319,42 @@
       var kopf = d.createElement("h3"); kopf.className = "theke-abschnitt-titel"; kopf.hidden = true;
       var inhalt = d.createElement("div"); inhalt.className = "theke-behaelter theke-stapel theke-abschnitt-inhalt";
       el.appendChild(kopf); el.appendChild(inhalt);
+      // Der Klapp-Knopf (Pfeil ▸/▾ per CSS vor dem Titel) sitzt nur bei klappbar im Kopf.
+      var knopf = d.createElement("button"); knopf.type = "button"; knopf.className = "theke-abschnitt-knopf";
+      var z = { ctx: ctx, titel: "", klappbar: false, zu: false, kopf: kopf, inhalt: inhalt, knopf: knopf };
+      abschnittZustand.set(el, z);
+      ctx.bei("click", function () {
+        if (!z.klappbar) return;
+        z.zu = !z.zu;                       // sofort lokal, Ereignis nur bei echtem Wechsel (hier immer einer)
+        zeichneAbschnitt(z);
+        ctx.sende("aenderung", { wert: z.zu });
+      }, knopf);
       return el;
     },
     aktualisiere: function (el, f, ctx) {
-      if (hat.call(f, "titel")) {
-        var t = alsText(f.titel);
-        el.children[0].textContent = t;
-        el.children[0].hidden = t === "";
-      }
-      if (hat.call(f, "kinder")) ctx.setzeKinder(el.children[1], f.kinder);
+      var z = abschnittZustand.get(el);
+      if (!z) return;
+      if (hat.call(f, "titel")) z.titel = alsText(f.titel);
+      if (hat.call(f, "klappbar")) z.klappbar = f.klappbar === true;
+      if (hat.call(f, "zu")) z.zu = f.zu === true;
+      if (hat.call(f, "titel") || hat.call(f, "klappbar") || hat.call(f, "zu")) zeichneAbschnitt(z);
+      if (hat.call(f, "kinder")) ctx.setzeKinder(z.inhalt, f.kinder);
     }
   });
+  function zeichneAbschnitt(z) {
+    var kopf = z.kopf, knopf = z.knopf;
+    if (z.klappbar) {
+      if (knopf.parentNode !== kopf) { kopf.textContent = ""; kopf.appendChild(knopf); }
+      knopf.textContent = z.titel;
+      knopf.setAttribute("aria-expanded", z.zu ? "false" : "true");
+      kopf.hidden = false;                 // leerer Titel → nur der Pfeil
+    } else {
+      if (knopf.parentNode === kopf) kopf.removeChild(knopf);
+      kopf.textContent = z.titel;
+      kopf.hidden = z.titel === "";
+    }
+    z.ctx.blende(z.inhalt, !z.zu);         // hidden am Inhaltsbereich; mit uebergang weich
+  }
 
   // ---- tabelle: spalten + zeilen (Texte), Zahlenspalten rechtsbündig
   var tabellenZustand = new WeakMap();
@@ -413,16 +461,16 @@
         if (tab) waehleReiter(z, Number(tab.getAttribute("data-theke-nr")), false);
       }, leiste);
       ctx.bei("keydown", function (e) {
-        var n = leiste.children.length, jetzt = reiterAktuell(z);
-        if (!n || !tabVon(e.target)) return;
-        var ziel = e.key === "ArrowRight" ? jetzt % n + 1 : e.key === "ArrowLeft" ? (jetzt + n - 2) % n + 1
-          : e.key === "Home" ? 1 : e.key === "End" ? n : 0;
-        if (!ziel) return;
+        // Nur über sichtbare Seiten wandern (K-107): Pfeile mit Umlauf, Home/End.
+        var ziel = naechsteNr(reiterSichtbare(z), reiterAktuell(z), e.key);
+        if (!ziel || !tabVon(e.target)) return;
         e.preventDefault();
         waehleReiter(z, ziel, true);
       }, leiste);
       return el;
     },
+    /** Eine Seite hat sichtbar gewechselt (auch weich): Tab aus-/einblenden, ggf. Ersatzseite zeigen – ohne Ereignis. */
+    kindSichtbar: function (el) { var z = reiterZustand.get(el); if (z) zeichneReiter(z); },
     aktualisiere: function (el, f, ctx) {
       var z = reiterZustand.get(el);
       if (!z) return;
@@ -444,10 +492,39 @@
     }
   });
   function reiterAnzahl(z) { return Math.max(z.titel.length, z.seiten.children.length); }
-  /** Gewählte Seite, auf 1…n geklemmt (gewaehlt bleibt roh gespeichert, falls später Seiten dazukommen). */
-  function reiterAktuell(z) { return Math.max(1, Math.min(z.gewaehlt, reiterAnzahl(z))); }
+  /** Ist eine Zutat (Seite, Option …) versteckt? hidden oder gerade weich ausblendend (uebergang). */
+  function versteckt(el) { return el.hidden === true || el.classList.contains("theke-ueb-aus"); }
+  /** Nummern (1-basiert) der sichtbaren Seiten; ein Tab ohne Seite (titel länger als kinder) zählt als sichtbar. */
+  function reiterSichtbare(z) {
+    var n = reiterAnzahl(z), seiten = z.seiten.children, liste = [];
+    for (var i = 0; i < n; i++) if (i >= seiten.length || !versteckt(seiten[i])) liste.push(i + 1);
+    return liste;
+  }
+  /** Tatsächlich gezeigte Seite (K-107): gewaehlt (auf 1…n geklemmt), wenn sichtbar; sonst die nächste sichtbare danach,
+   *  sonst die letzte sichtbare davor; 0 = keine (alle versteckt oder keine Seiten). gewaehlt bleibt roh gespeichert. */
+  function reiterAktuell(z) {
+    var n = reiterAnzahl(z);
+    if (!n) return 0;
+    var g = Math.max(1, Math.min(z.gewaehlt, n)), s = reiterSichtbare(z);
+    if (!s.length) return 0;
+    for (var i = 0; i < s.length; i++) if (s[i] >= g) return s[i];
+    return s[s.length - 1];
+  }
+  /** Ziel einer Tastennavigation in einer sortierten Nummernliste: Pfeile mit Umlauf, Home/End; 0 = keine. */
+  function naechsteNr(liste, jetzt, taste) {
+    var n = liste.length;
+    if (!n) return 0;
+    var k = liste.indexOf(jetzt);
+    if (k < 0) k = 0;
+    if (taste === "ArrowRight") return liste[(k + 1) % n];
+    if (taste === "ArrowLeft") return liste[(k + n - 1) % n];
+    if (taste === "Home") return liste[0];
+    if (taste === "End") return liste[n - 1];
+    return 0;
+  }
   function zeichneReiter(z) {
     var d = z.ctx.dokument, n = reiterAnzahl(z), g = reiterAktuell(z), i;
+    var seiten = z.seiten.children;
     while (z.leiste.children.length > n) z.leiste.removeChild(z.leiste.lastChild);
     while (z.leiste.children.length < n) {
       var b = d.createElement("button");
@@ -464,12 +541,12 @@
       tab.setAttribute("aria-selected", an ? "true" : "false");
       tab.tabIndex = an ? 0 : -1;
       tab.classList.toggle("theke-reiter-tab-an", an);
+      tab.hidden = i < seiten.length && versteckt(seiten[i]);   // versteckte Seite → kein Tab (K-107)
     }
-    var seiten = z.seiten.children;
     for (i = 0; i < seiten.length; i++) seiten[i].classList.toggle("theke-reiter-aus", i + 1 !== g);
-    if (n) z.seiten.setAttribute("aria-label", z.leiste.children[g - 1].textContent); else z.seiten.removeAttribute("aria-label");
+    if (g) z.seiten.setAttribute("aria-label", z.leiste.children[g - 1].textContent); else z.seiten.removeAttribute("aria-label");
   }
-  /** Nutzer wählt Seite nr: sofort lokal umschalten, dann (nur bei echter Änderung) aenderung senden. */
+  /** Nutzer wählt Seite nr: sofort lokal umschalten, dann (nur bei echter Änderung der gezeigten Seite) aenderung senden. */
   function waehleReiter(z, nr, fokus) {
     var n = reiterAnzahl(z);
     if (!(nr >= 1 && nr <= n)) return;
@@ -478,6 +555,132 @@
     zeichneReiter(z);
     if (fokus && z.leiste.children[nr - 1]) z.leiste.children[nr - 1].focus();
     if (nr !== vorher) z.ctx.sende("aenderung", { wert: nr });
+  }
+
+  // ---- auswahl (v4, K-109): Segment-Leiste, genau eine Option gewählt; Ereignis {"typ":"aenderung","id","wert":n}
+  var auswahlZustand = new WeakMap();
+
+  registriere("auswahl", {
+    felder: ["optionen", "gewaehlt", "aktiv"],
+    erzeuge: function (k, ctx) {
+      var d = ctx.dokument;
+      var el = d.createElement("div");
+      el.className = "theke-auswahl";
+      el.setAttribute("role", "radiogroup");
+      var z = { ctx: ctx, optionen: [], gewaehlt: 1, aktiv: true, el: el };
+      auswahlZustand.set(el, z);
+      function optionVon(ziel) {
+        while (ziel && ziel !== el) { if (ziel.parentNode === el) return ziel; ziel = ziel.parentNode; }
+        return null;
+      }
+      ctx.bei("click", function (e) {
+        var o = optionVon(e.target);
+        if (o && z.aktiv && !o.disabled) waehleAuswahl(z, Number(o.getAttribute("data-theke-nr")), false);
+      });
+      ctx.bei("keydown", function (e) {
+        if (!z.aktiv || !optionVon(e.target)) return;
+        var alle = [], ziel;
+        for (var i = 1; i <= z.optionen.length; i++) alle.push(i);
+        ziel = naechsteNr(alle, auswahlAktuell(z), e.key);
+        if (!ziel) return;
+        e.preventDefault();
+        waehleAuswahl(z, ziel, true);
+      });
+      return el;
+    },
+    aktualisiere: function (el, f, ctx) {
+      var z = auswahlZustand.get(el);
+      if (!z) return;
+      if (hat.call(f, "optionen")) {
+        if (Array.isArray(f.optionen)) z.optionen = f.optionen.map(alsText);
+        else { ctx.warne("auswahl.optionen muss eine Liste sein:", f.optionen); z.optionen = []; }
+      }
+      if (hat.call(f, "gewaehlt")) {
+        var g = f.gewaehlt;
+        if (typeof g === "number" && isFinite(g) && g >= 1 && Math.floor(g) === g) z.gewaehlt = g;
+        else { ctx.warne("Ungültiges auswahl.gewaehlt (" + ctx.id + "):", g); z.gewaehlt = 1; }
+      }
+      if (hat.call(f, "aktiv")) z.aktiv = f.aktiv !== false;
+      zeichneAuswahl(z);
+    }
+  });
+  /** Gewählte Option, auf 1…n geklemmt (wie beim Reiter; gewaehlt bleibt roh). */
+  function auswahlAktuell(z) { return Math.max(1, Math.min(z.gewaehlt, z.optionen.length)); }
+  function zeichneAuswahl(z) {
+    var d = z.ctx.dokument, n = z.optionen.length, g = auswahlAktuell(z), el = z.el;
+    while (el.children.length > n) el.removeChild(el.lastChild);
+    while (el.children.length < n) {
+      var b = d.createElement("button");
+      b.type = "button";
+      b.className = "theke-auswahl-option";
+      b.setAttribute("role", "radio");
+      el.appendChild(b);
+    }
+    for (var i = 0; i < n; i++) {
+      var o = el.children[i], an = i + 1 === g;
+      if (o.textContent !== z.optionen[i]) o.textContent = z.optionen[i];
+      o.setAttribute("data-theke-nr", String(i + 1));
+      o.setAttribute("aria-checked", an ? "true" : "false");
+      o.tabIndex = an ? 0 : -1;
+      o.disabled = !z.aktiv;
+      o.classList.toggle("theke-auswahl-option-an", an);
+    }
+    el.classList.toggle("theke-inaktiv", !z.aktiv);
+  }
+  /** Gast wählt Option nr: sofort lokal, aenderung nur bei echtem Wechsel. */
+  function waehleAuswahl(z, nr, fokus) {
+    if (!(nr >= 1 && nr <= z.optionen.length)) return;
+    var vorher = auswahlAktuell(z);
+    z.gewaehlt = nr;
+    zeichneAuswahl(z);
+    if (fokus && z.el.children[nr - 1]) z.el.children[nr - 1].focus();
+    if (nr !== vorher) z.ctx.sende("aenderung", { wert: nr });
+  }
+
+  // ---- tastatur (v4, K-110): unsichtbar wie takt; Ereignis {"typ":"taste","id","taste":"…"} für jede aktive Tastatur
+  // im Baum (Baumreihenfolge). Der keydown-Listener hängt am Theke-Wurzelelement (Engine), Tastennamen s. tastenName.
+  var tastaturZustand = new WeakMap();
+
+  registriere("tastatur", {
+    felder: ["aktiv"],
+    erzeuge: function (k, ctx) {
+      var el = ctx.dokument.createElement("div");
+      el.className = "theke-tastatur";
+      el.hidden = true;
+      el.setAttribute("aria-hidden", "true");
+      tastaturZustand.set(el, { aktiv: true });
+      return el;
+    },
+    aktualisiere: function (el, f) {
+      var z = tastaturZustand.get(el);
+      if (z && hat.call(f, "aktiv")) z.aktiv = f.aktiv !== false;
+    },
+    taste: function (el, name, ctx) {
+      var z = tastaturZustand.get(el);
+      if (!z || !z.aktiv) return false;
+      ctx.sende("taste", { taste: name });
+      return true;
+    }
+  });
+
+  /** Tastenname nach K-110 aus einem keydown-Ereignis; null = nicht senden (Modifikator, Dead, Komposition, Wiederholung). */
+  var TASTEN_DEUTSCH = { " ": "Leertaste", Spacebar: "Leertaste", ArrowLeft: "Links", ArrowRight: "Rechts", ArrowUp: "Hoch",
+    ArrowDown: "Runter", Backspace: "Rücktaste", Delete: "Entfernen", Home: "Pos1", End: "Ende", PageUp: "BildHoch", PageDown: "BildRunter" };
+  var MODIFIKATOREN = ["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "NumLock", "ScrollLock", "Fn", "FnLock",
+    "Hyper", "Super", "Symbol", "SymbolLock", "OS", "Dead", "Unidentified"];
+  /** Tasten, deren Standardwirkung (Scrollen) die Theke unterdrückt, wenn eine aktive Tastatur zuhört und nichts fokussiert ist. */
+  var SCROLL_TASTEN = ["Leertaste", "Links", "Rechts", "Hoch", "Runter", "Pos1", "Ende", "BildHoch", "BildRunter"];
+  function tastenName(e) {
+    if (!e || typeof e.key !== "string" || e.key === "") return null;
+    if (e.repeat || e.isComposing || e.keyCode === 229) return null;
+    if (MODIFIKATOREN.indexOf(e.key) >= 0) return null;
+    return hat.call(TASTEN_DEUTSCH, e.key) ? TASTEN_DEUTSCH[e.key] : e.key;
+  }
+  /** Ziel in einer Eingabe (input/textarea/contenteditable)? Die Tasten gehören dem Feld. */
+  function inEingabe(ziel) {
+    if (!ziel || ziel.nodeType !== 1) return false;
+    var tag = ziel.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || ziel.isContentEditable === true;
   }
 
   // ------------------------------------------------------------------ v3: Animations-Registry (K-090 … K-092, SPEC §16.6)
@@ -615,6 +818,8 @@
 
     var wurzelEl = dok.createElement("div");
     wurzelEl.className = "theke";
+    wurzelEl.setAttribute("tabindex", "-1");   // v4 (K-110): fokussierbar, Tastatur-Listener hängt hier
+    wurzelEl.addEventListener("keydown", tastenDruck);
     var inhalt = dok.createElement("div");
     inhalt.className = "theke-inhalt";
     wurzelEl.appendChild(inhalt);
@@ -649,6 +854,29 @@
       inhalt.appendChild(ebene);
     }
 
+    // -------------------------------------------------------------- v4: Tasten (K-110)
+    /** keydown auf der Theke: Tastenname bestimmen, jeder Zutat mit def.taste in Baumreihenfolge zustellen; die
+     *  Standardwirkung (Scrollen) nur unterdrücken, wenn eine aktive Tastatur zuhört und nichts im Fenster fokussiert ist. */
+    function tastenDruck(e) {
+      if (geschlossen || zerstoert || !baumDa) return;
+      var name = tastenName(e);
+      if (name === null || inEingabe(e.target)) return;
+      var alle = inhalt.querySelectorAll(".theke-zutat"), aktiv = false;
+      for (var i = 0; i < alle.length; i++) {
+        var en = eintragVon.get(alle[i]);
+        if (!en || !en.def.taste) continue;
+        try { if (en.def.taste(alle[i], name, en.ctx, e)) aktiv = true; }
+        catch (err) { warne("Zutat „" + en.art + "“: taste() fehlgeschlagen:", err); }
+      }
+      if (aktiv && e.target === wurzelEl && SCROLL_TASTEN.indexOf(name) >= 0) e.preventDefault();
+    }
+    /** Beim baum: Wurzel fokussieren, wenn nichts anderes fokussiert ist (nativ sofort; Playground ohne Fokusdiebstahl). */
+    function fokussiereWurzel() {
+      var a = dok.activeElement;
+      if (a && a !== dok.body) return;
+      try { wurzelEl.focus({ preventScroll: true }); } catch (e) { try { wurzelEl.focus(); } catch (e2) { /* egal */ } }
+    }
+
     // -------------------------------------------------------------- v3: Animationen & uebergang
     /** prefers-reduced-motion: reduce (WebView2/WebKitGTK melden die OS-Einstellung). Ohne matchMedia (jsdom): nein. */
     function reduziert() {
@@ -662,7 +890,7 @@
       for (var n = el; n && n !== inhalt; n = n.parentNode) {
         if (n.nodeType !== 1) continue;
         if (n.hidden || n.classList.contains("theke-reiter-aus") || n.classList.contains("theke-takt") ||
-            n.classList.contains("theke-ueb-aus")) return false;
+            n.classList.contains("theke-tastatur") || n.classList.contains("theke-ueb-aus")) return false;
       }
       return true;
     }
@@ -793,24 +1021,41 @@
       }
     }
 
-    /** sichtbar-Wechsel; mit uebergang weich (Ausblenden: sofort inert, danach hidden). Reduzierte Bewegung → sofort. */
+    /** sichtbar-Wechsel der Zutat; mit uebergang weich. Danach erfährt der Behälter davon (def.kindSichtbar, K-107). */
     function setzeSichtbar(e, an) {
-      var el = e.el;
-      var weich = e.uebergang === true && e.gebaut === true && !reduziert();
-      if (e.ausblenden !== undefined && e.ausblenden !== null) {   // läuft gerade ein Ausblenden?
-        if (!an) return;
-        beendeAusblenden(e);
-        el.hidden = false;
-        if (weich) starteAnimation(UEBERGANG_EIN, "uebergang", el, {}, UEBERGANG_MS, null);
+      if (blende(e, e, an)) meldeKindSichtbar(e.el);
+    }
+    /** Ruft def.kindSichtbar der nächsten umgebenden Zutat (auch über innere Bereiche wie die Reiter-Seitenfläche hinweg). */
+    function meldeKindSichtbar(kindEl) {
+      for (var p = kindEl.parentNode; p && p !== inhalt; p = p.parentNode) {
+        var e = eintragVon.get(p);
+        if (!e) continue;
+        if (e.def.kindSichtbar) {
+          try { e.def.kindSichtbar(p, kindEl, e.ctx); } catch (err) { warne("Zutat „" + e.art + "“: kindSichtbar() fehlgeschlagen:", err); }
+        }
         return;
       }
-      if (an === !el.hidden) return;
+    }
+    /** Ein-/Ausblenden eines Ziels {el, ausblenden} der Zutat e (die Zutat selbst oder ein Teil wie der Abschnitt-Inhalt):
+     *  hidden; mit uebergang der Zutat weich (Ausblenden: sofort inert + theke-ueb-aus, nach 200 ms hidden). Reduzierte
+     *  Bewegung → sofort. Liefert true, wenn sich etwas geändert hat. */
+    function blende(e, ziel, an) {
+      var el = ziel.el;
+      var weich = e.uebergang === true && e.gebaut === true && !reduziert();
+      if (ziel.ausblenden !== undefined && ziel.ausblenden !== null) {   // läuft gerade ein Ausblenden?
+        if (!an) return false;
+        beendeAusblenden(ziel);
+        el.hidden = false;
+        if (weich) starteAnimation(UEBERGANG_EIN, "uebergang", el, {}, UEBERGANG_MS, null);
+        return true;
+      }
+      if (an === !el.hidden) return false;
       if (an) {
         el.hidden = false;
         if (weich) starteAnimation(UEBERGANG_EIN, "uebergang", el, {}, UEBERGANG_MS, null);
-        return;
+        return true;
       }
-      if (!weich) { el.hidden = true; return; }
+      if (!weich) { el.hidden = true; return true; }
       var alt = laeufe.get(el);
       if (alt) beendeLauf(alt);
       el.setAttribute("inert", "");              // sofort nicht mehr bedienbar (zusätzlich: pointer-events none, sende gesperrt)
@@ -818,18 +1063,27 @@
       if (fokus && fokus !== dok.body && el.contains(fokus) && typeof fokus.blur === "function") fokus.blur();
       el.style.setProperty("--theke-anim-dauer", UEBERGANG_MS + "ms");
       el.classList.add("theke-ueb-aus");
-      e.ausblenden = zeitgeber.nach(function () {
-        e.ausblenden = null;
-        beendeAusblenden(e);
+      ziel.ausblenden = zeitgeber.nach(function () {
+        ziel.ausblenden = null;
+        beendeAusblenden(ziel);
         el.hidden = true;
       }, UEBERGANG_MS + NACHLAUF_MS);
+      return true;
     }
-    function beendeAusblenden(e) {
-      if (e.ausblenden !== undefined && e.ausblenden !== null) { try { zeitgeber.loescheNach(e.ausblenden); } catch (err) { /* egal */ } }
-      e.ausblenden = null;
-      e.el.classList.remove("theke-ueb-aus");
-      e.el.removeAttribute("inert");
-      e.el.style.removeProperty("--theke-anim-dauer");
+    function beendeAusblenden(ziel) {
+      if (ziel.ausblenden !== undefined && ziel.ausblenden !== null) { try { zeitgeber.loescheNach(ziel.ausblenden); } catch (err) { /* egal */ } }
+      ziel.ausblenden = null;
+      ziel.el.classList.remove("theke-ueb-aus");
+      ziel.el.removeAttribute("inert");
+      ziel.el.style.removeProperty("--theke-anim-dauer");
+    }
+    /** Teil-Element einer Zutat (z. B. Abschnitt-Inhalt) ein-/ausblenden – gleiche Mechanik wie sichtbar (ctx.blende). */
+    function blendeTeil(e, el, an) {
+      if (!el || el.nodeType !== 1) return;
+      if (!e.teile) e.teile = new Map();
+      var ziel = e.teile.get(el);
+      if (!ziel) { ziel = { el: el, ausblenden: null }; e.teile.set(el, ziel); }
+      blende(e, ziel, an);
     }
 
     // -------------------------------------------------------------- Knoten bauen / entfernen
@@ -849,6 +1103,14 @@
       var lauf = e.el ? laeufe.get(e.el) : null;
       if (lauf) beendeLauf(lauf);
       if (e.ausblenden !== undefined && e.ausblenden !== null) { try { zeitgeber.loescheNach(e.ausblenden); } catch (err) { /* egal */ } e.ausblenden = null; }
+      if (e.teile) {                             // Teil-Elemente (ctx.blende): Timer und Einblend-Läufe beenden
+        e.teile.forEach(function (ziel) {
+          if (ziel.ausblenden !== null) { try { zeitgeber.loescheNach(ziel.ausblenden); } catch (err) { /* egal */ } ziel.ausblenden = null; }
+          var l = laeufe.get(ziel.el);
+          if (l) beendeLauf(l);
+        });
+        e.teile.clear();
+      }
       for (var i = 0; i < e.listener.length; i++) { var l = e.listener[i]; l[2].removeEventListener(l[0], l[1]); }
       e.listener.length = 0;
       var fns = e.aufraeumen.splice(0, e.aufraeumen.length);
@@ -894,6 +1156,8 @@
         setzeKinder: function (el, kinder) { setzeKinder(el, kinder, eintrag); },
         /** fn() wird einmal gerufen, wenn die Zutat verschwindet (entfernt, neuer baum, schliesse, zerstoere). */
         beimEntfernen: function (fn) { if (typeof fn === "function") eintrag.aufraeumen.push(fn); },
+        /** Teil-Element der Zutat ein-/ausblenden (hidden; mit uebergang der Zutat weich) – wie sichtbar, z. B. Abschnitt-Inhalt. */
+        blende: function (el, an) { blendeTeil(eintrag, el, an !== false); },
         /** Uhr der Instanz: { jetzt(), setzeIntervall(fn, ms), loescheIntervall(h) } (optionen.zeitgeber, für Tests). */
         zeitgeber: zeitgeber,
         warne: warne
@@ -1050,6 +1314,7 @@
         if (!istObjekt(n.wurzel)) { warne("baum ohne wurzel"); zeigeLeer("Die Theke ist leer."); return; }
         inhalt.insertBefore(baue(n.wurzel), ebene);
         baumDa = true;
+        fokussiereWurzel();
       },
       aendere: function (n) {
         var liste = n.aenderungen;
@@ -1110,6 +1375,7 @@
         if (zerstoert) return;
         leereAlles();
         zerstoert = true;
+        wurzelEl.removeEventListener("keydown", tastenDruck);
         if (wurzelEl.parentNode) wurzelEl.parentNode.removeChild(wurzelEl);
       }
     };

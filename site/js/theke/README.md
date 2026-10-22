@@ -57,9 +57,11 @@ Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, glei
 | `stapel`, `reihe` | `kinder` (Liste von Knoten) | – |
 | `takt` | `intervall` (ms; < 100 → 100, ungültig → 1000 + Warnung), `aktiv` | `{"typ":"takt","id","anzahl":n}` (n ≥ 1, s. u.) |
 | `fortschritt` | `wert` (0…1, geklemmt; NaN/kein Zahl → 0), `text` (optional, mittig im Balken) | – |
-| `abschnitt` | `titel`, `kinder` | – |
+| `abschnitt` | `titel`, `kinder`, `klappbar` (bool, v4), `zu` (bool, v4) | `{"typ":"aenderung","id","wert":true/false}` (neuer `zu`-Zustand, nur wenn der Gast klappt) |
 | `tabelle` | `spalten` (Liste Texte), `zeilen` (Liste von Listen; Zellen per `String()`) | – |
-| `reiter` | `titel` (Liste; fehlend/leer → „Seite n“), `gewaehlt` (1-basiert, auf 1…n geklemmt), `kinder` (Seiten) | `{"typ":"aenderung","id","wert":n}` |
+| `reiter` | `titel` (Liste; fehlend/leer → „Seite n“), `gewaehlt` (1-basiert, auf 1…n geklemmt), `kinder` (Seiten; `sichtbar:false` an einer Seite versteckt auch ihren Tab, v4) | `{"typ":"aenderung","id","wert":n}` |
+| `auswahl` (v4) | `optionen` (Liste Texte), `gewaehlt` (1-basiert, auf 1…n geklemmt; ungültig → 1 + Warnung), `aktiv` | `{"typ":"aenderung","id","wert":n}` |
+| `tastatur` (v4) | `aktiv` | `{"typ":"taste","id","taste":"…"}` je Tastendruck auf der Theke (s. u.) |
 
 v2-Zutaten (`THEKE-ERWEITERUNGEN.md`, Abschnitt „v2-Zutaten“ in `theke.js`):
 - **`takt`** ist unsichtbar (`hidden`, `aria-hidden`, per CSS nie angezeigt – auch nicht mit `sichtbar:true`) und läuft, solange
@@ -95,7 +97,48 @@ v2-Zutaten (`THEKE-ERWEITERUNGEN.md`, Abschnitt „v2-Zutaten“ in `theke.js`):
 | `abstand` | Zahl (px, 0–200) | Behälter: Lücke zwischen Kindern; sonst Innenabstand |
 | `ausrichtung` | `start`/`links`/`oben`, `mitte`/`zentriert`, `ende`/`rechts`/`unten`, `strecken` | Stapel: Querachse; Reihe: Hauptachse; Einzel-Zutat: Lage im Behälter + Textausrichtung |
 | `schrift` | `klein`, `normal`, `gross`, `riesig`, `mono` | Klasse `theke-schrift-…` (`riesig`: großer Zähler/Knopf) |
-| `farbe` | `tomate`, `basilikum`, `mozzarella`, `kruste`, `normal` | Schild: Textfarbe; Knopf: Füllung; Eingabe/Haken: Akzent; Behälter: getönte Karte |
+| `farbe` | `tomate`, `basilikum`, `mozzarella`, `kruste`, `normal` | Schild: Textfarbe; Knopf: Füllung; Eingabe/Haken: Akzent; Behälter: getönte Karte; Auswahl: gewählte Option |
+| `zeilen` (v4) | ganze Zahl ≥ 1 | `--theke-zeilen` + Klasse `theke-hat-zeilen`: der Text von `schild`, `knopf` (innerer `span.theke-knopf-text`) und `haken` ist **genau** n Zeilen hoch (`n × 1lh`, auch bei kurzem Text), längerer Text endet mit „…“ (`line-clamp`); andere Zutaten tragen die Property, das CSS ignoriert sie |
+| `mindestbreite` (v4) | wie `breite` (Zahl px 0–4000, `"voll"`, `"auto"`) | `--theke-mindestbreite` + Klasse `theke-hat-mindestbreite` → `min-width` (nie schmaler, darf wachsen); für jede Zutat |
+
+## v4: Reiter-Seiten, klappbarer Abschnitt, Auswahl, Tastatur (K-107 … K-110, SPEC §16.7)
+
+- **Reiter-Seite ausblenden (K-107):** kein neues Feld – `sichtbar:false` an einer Seite versteckt den Tab (`hidden`) und die Seite;
+  Pfeiltasten/Home/End wandern nur über sichtbare Seiten. Zeigt `gewaehlt` auf eine versteckte Seite, zeigt der Renderer die nächste
+  sichtbare danach, sonst die letzte sichtbare davor, und sendet **nichts**; alle versteckt → leere Leiste und Fläche. `gewaehlt` bleibt
+  roh gespeichert (wird die Seite wieder sichtbar, gilt es wieder). Mit `uebergang` an der Seite blendet die Seite weich aus, der Tab
+  verschwindet sofort (eine ausblendende Seite zählt als versteckt). Ein Tab ohne Seite (`titel` länger als `kinder`) zählt als sichtbar.
+  Mechanik: der generische Registry-Hook `kindSichtbar(el, kindEl, ctx)` (s. „Erweitern“) – die Engine ruft ihn nach jedem echten
+  sichtbar-Wechsel eines Kindes an der nächsten umgebenden Zutat.
+- **Abschnitt (K-108):** `klappbar:true` macht den Kopf (`<h3>`) zu einem `<button type=button aria-expanded>` mit Pfeil ▸ (zu) / ▾
+  (offen) per CSS vor dem Titel (leerer Titel → nur der Pfeil, der Kopf bleibt sichtbar). Klick (Enter/Leertaste nativ) klappt sofort lokal
+  und sendet `aenderung` mit `wert` = neuer `zu`-Zustand; `zu` vom Programm sendet nie. `zu:true` setzt `hidden` am Inhaltsbereich
+  (`.theke-abschnitt-inhalt`) – Kinder eines zugeklappten Abschnitts gelten für Animationen als nicht gezeigt und senden nichts; mit
+  `uebergang` blendet der Inhalt weich (sofort `inert` + `theke-ueb-aus`, nach 200 ms `hidden`). Ohne `klappbar`/`zu`: unverändert.
+- **Auswahl (K-109):** Segment-Leiste `role="radiogroup"` mit `<button type=button role="radio" aria-checked>` je Option (Klasse
+  `theke-auswahl-option`, gewählte zusätzlich `theke-auswahl-option-an` in `--theke-ton`, also `stil.farbe`). Roving-Tabindex, Pfeil
+  links/rechts mit Umlauf, Home/End (Hoch/Runter bleiben unangetastet – die gehören einer `tastatur`). Klick/Taste schaltet sofort lokal
+  um und sendet nur bei echtem Wechsel; `gewaehlt` vom Programm sendet nie; `aktiv:false` deaktiviert alle Knöpfe (kein Ereignis).
+- **Tastatur (K-110):** unsichtbar wie `takt` (`hidden`, `aria-hidden`, per CSS nie sichtbar). Das Theke-Wurzelelement bekommt
+  `tabindex="-1"` (`:focus` ohne Rahmen) und den einzigen `keydown`-Listener; beim `baum` fokussiert der Renderer die Wurzel nur, wenn
+  nichts (bzw. `body`) fokussiert ist (`focus({preventScroll:true})`) – ein Editor im Playground behält den Fokus, ein Klick ins Fenster
+  gibt ihn der Theke. Jede aktive Tastatur im Baum bekommt jede Taste in **Baumreihenfolge** (DOM-Reihenfolge, auch nach `kinder`-
+  Umsortierung). Tasten auf einem fokussierten Knopf/Reiter erreichen die Tastatur **zusätzlich** (Leertaste klickt den Knopf und kommt
+  als `Leertaste`). Die Standardwirkung (Scrollen) von Leertaste/Pfeilen/Pos1/Ende/Bild wird **nur** unterdrückt, wenn eine aktive
+  Tastatur zuhört **und** `e.target` die Wurzel ist (nichts im Fenster fokussiert). Mechanik: Registry-Hook `taste(el, name, ctx, e)`.
+
+  Tastennamen (verbindlich, K-110): `e.key`, Sondertasten deutsch:
+
+  | `e.key` | `taste` | | `e.key` | `taste` |
+  |---|---|---|---|---|
+  | `" "` (auch `Spacebar`) | `Leertaste` | | `Backspace` | `Rücktaste` |
+  | `ArrowLeft` / `ArrowRight` | `Links` / `Rechts` | | `Delete` | `Entfernen` |
+  | `ArrowUp` / `ArrowDown` | `Hoch` / `Runter` | | `Home` / `End` | `Pos1` / `Ende` |
+  | `PageUp` / `PageDown` | `BildHoch` / `BildRunter` | | `Enter`, `Escape`, `Tab`, `F1`…`F12`, Zeichen (`a`, `A`, `1`, `+`, `ä`) | unverändert |
+
+  **Nicht gesendet:** reine Modifikatoren (`Shift`, `Control`, `Alt`, `AltGraph`, `Meta`, `CapsLock`, `NumLock`, `ScrollLock`, `Fn`,
+  `FnLock`, `Hyper`, `Super`, `Symbol`, `OS`), `Dead`/`Unidentified`, Komposition (`isComposing` oder `keyCode` 229), Wiederholungen
+  (`e.repeat`), Tasten mit Ziel in einer Eingabe (`input`, `textarea`, `select`, `contenteditable`), leeres `e.key`.
 
 ## Erweitern: neue Zutat
 
@@ -108,15 +151,18 @@ PizzaTheke.registriere("leinwand", {
     return el;
   },
   aktualisiere(el, felder, ctx) { /* nur vorhandene Felder anwenden */ },
+  kindSichtbar(el, kindEl, ctx) {},                   // optional (v4): ein Kind (auch in einem inneren Bereich) hat sichtbar gewechselt
+  taste(el, name, ctx, e) { return false; },          // optional (v4): Tastendruck auf der Theke; true = aktiv angenommen (→ preventDefault-Regel)
 });
 ```
 
 `ctx`: `dokument`, `id`, `sende(typ, extra?)`, `bei(typ, fn, ziel?)` (Listener, beim Entfernen automatisch gelöst),
 `baue(knoten)`, `setzeKinder(el, kinder)` (für eigene Behälter), `beimEntfernen(fn)` (fn wird genau einmal gerufen, wenn die
 Zutat verschwindet: aus `kinder` entfernt, Art gewechselt, neuer `baum`, `schliesse`/`schliessen()`, `zerstoere()` – z. B. um
-Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `warne(…)`. `stil`, `sichtbar` und `hinweis`
-übernimmt die Engine. Wirft `erzeuge`, erscheint ein Platzhalter. Die v1- und v2-Zutaten sind über genau diese API registriert
-(Abschnitte „v1-Zutaten“/„v2-Zutaten“ in `theke.js`).
+Timer zu stoppen), `blende(el, an)` (v4: ein Teil-Element der Zutat – z. B. der Abschnitt-Inhalt – ein-/ausblenden, `hidden`;
+mit `uebergang` der Zutat weich, Timer werden beim Entfernen gelöscht), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`),
+`warne(…)`. `stil`, `sichtbar` und `hinweis` übernimmt die Engine. Wirft `erzeuge`, erscheint ein Platzhalter. Die v1-, v2- und
+v4-Zutaten sind über genau diese API registriert (Abschnitte „v1-Zutaten“/„v2-Zutaten“/„v4“ in `theke.js`).
 
 ## v3: Animationen und `uebergang` (K-090 … K-092, SPEC §16.6)
 
@@ -139,6 +185,7 @@ Timer zu stoppen), `zeitgeber` (die Uhr der Instanz, s. `optionen.zeitgeber`), `
 - **`uebergang`** (Feld an jeder Zutat): `sichtbar:false` → sofort `inert` + `theke-ueb-aus` (kein `klick` mehr), nach 200 ms
   `hidden`; `sichtbar:true` blendet ein (auch mitten im Ausblenden). Behälter mit `uebergang` blenden per `kinder`
   **neu hinzugekommene** Kinder ein (nicht im ersten `baum`, entfernte sofort weg). `fortschritt` gleitet immer (CSS-Transition).
+  v4: beim `abschnitt` gilt dieselbe Mechanik für `zu` (Inhaltsbereich); eine ausblendende Reiter-Seite verliert ihren Tab sofort.
 - **`prefers-reduced-motion: reduce`:** `puls`, `huepfen`, `wackeln`, `einblenden`, `aufpoppen`, `uebergang` entfallen,
   `funkeln` leuchtet ruhig (ohne Funken), `schwebe` steht ruhig für die Dauer und verschwindet, `fortschritt` springt.
 
@@ -183,8 +230,9 @@ einbetten und über ein **Custom-Protocol** ausliefern (z. B. `with_custom_proto
 `theke://lokal/fenster.html`; unter Windows/WebView2 erscheint das als `http://theke.localhost/…`). So bleiben die relativen Pfade
 gültig, `'self'` passt, und es gibt keinen Server. (Inline-`<script>` würde an der CSP der Seite scheitern.)
 
-**Seite → Host:** `window.ipc.postMessage(json)` – jeder IPC-String ist ein Ereignis-JSON (`klick`, `aenderung`, `enter`, `takt`).
-Der Takt-Timer läuft in der Seite; der Host braucht dafür nichts.
+**Seite → Host:** `window.ipc.postMessage(json)` – jeder IPC-String ist ein Ereignis-JSON (`klick`, `aenderung`, `enter`, `takt`,
+`taste`). Der Takt-Timer und der Tastatur-Listener laufen in der Seite; der Host braucht dafür nichts (v4 ändert an der Brücke nichts –
+nur die eingebetteten `theke.js`/`theke.css` sind neu).
 Ausnahme: direkt nach dem Laden kommt einmal **`{"typ":"bereit"}`** – kein Programm-Ereignis, **nicht weiterreichen**.
 Vorher eintreffende `ui`-Nachrichten puffert der Host und sendet sie nach `bereit` in Reihenfolge.
 
