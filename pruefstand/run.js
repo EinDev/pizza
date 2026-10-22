@@ -163,6 +163,27 @@ function bewerte(f, res) {
   return err;
 }
 
+// Küchenbrigade (SPEC §17.7, K-100): Die Anzahl der Köche ist eine Host-Einstellung und nie beobachtbar; ein `koeche`-Feld
+// im `ende` ist Metadatum. Jeder Fall mit brigade läuft deshalb zusätzlich mit anderen Köche-/Chaos-Optionen und muss
+// dieselbe Folge (ohne `koeche`), denselben Exit-Code und dieselben schritte/zeitMs liefern.
+const BRIGADE = /\.\s*brigade\b/;
+const KOECHE_VARIANTEN = [{ koeche: 4, kuechenChaos: 7 }, { koeche: 1, kuechenChaos: 0 }, { koeche: "auto" }];
+const ohneKoeche = (ev) => (ev || []).map((e) => { if (!e || !("koeche" in e)) return e; const k = Object.assign({}, e); delete k.koeche; return k; });
+async function koecheGegenprobe(aus, code, optionen, basis) {
+  const err = [];
+  const soll = j(ohneKoeche(basis.ereignisse));
+  for (const v of KOECHE_VARIANTEN) {
+    const o = Object.assign({}, optionen, v);
+    const m = await aus.run(code, o);
+    const was = "Köche-Variante " + j(v);
+    if (m.fehler) { err.push(was + ": " + m.fehler); continue; }
+    if (m.res.exitCode !== basis.exitCode) err.push(`${was}: Exit-Code ${m.res.exitCode} ≠ ${basis.exitCode}`);
+    if (m.res.schritte !== basis.schritte || m.res.zeitMs !== basis.zeitMs) err.push(`${was}: schritte/zeitMs ${m.res.schritte}/${m.res.zeitMs} ≠ ${basis.schritte}/${basis.zeitMs}`);
+    if (j(ohneKoeche(m.res.ereignisse)) !== soll) err.push(`${was}: andere Ereignisfolge (Köche/Planung beobachtbar)`);
+  }
+  return err;
+}
+
 // ───────────────────────── Teil A ─────────────────────────
 function ladeFälle() {
   const dir = path.join(__dirname, "faelle");
@@ -294,6 +315,8 @@ async function teilA() {
         if (f.zufallsSaat !== undefined) optionen.zufallsSaat = f.zufallsSaat;   // K-077
         if (f.vorrat !== undefined) optionen.vorrat = f.vorrat;                 // K-080
         if (f.echtzeit !== undefined) optionen.echtzeit = f.echtzeit;           // K-087
+        if (f.koeche !== undefined) optionen.koeche = f.koeche;                 // K-100: Host-Einstellung, nie beobachtbar
+        if (f.kuechenChaos !== undefined) optionen.kuechenChaos = f.kuechenChaos;
         const m = await aus.run(f.code, optionen);
         if (m.fehler) err = [m.fehler];
         else {
@@ -304,6 +327,8 @@ async function teilA() {
             if (m2.fehler) err.push(m2.fehler);
             else if (j(m2.res.ereignisse) !== j(m.res.ereignisse)) err.push("zweiter Lauf liefert andere Ereignisse (nicht deterministisch)");
           }
+          // Köche-Gegenprobe (SPEC §17.7, K-100, THREADS §5 Punkt 3/4): koeche/kuechenChaos dürfen nichts ändern
+          if (BRIGADE.test(f.code) && !err.length) err.push(...await koecheGegenprobe(aus, f.code, optionen, m.res));
         }
       }
       if (f.offen) {

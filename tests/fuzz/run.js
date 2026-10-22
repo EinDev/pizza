@@ -3,7 +3,7 @@
  * Fuzzing für pizza v3.0 – deterministisch per Seed.
  *
  *   node tests/fuzz/run.js [--anzahl 2000] [--seed 1] [--robust N] [--nur gueltig|robust] [--eingabe-anteil 0.25]
- *                          [--theke-anteil 0.1] [--vorrat-anteil 0.15] [--saat-anteil 0.3] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
+ *                          [--theke-anteil 0.1] [--vorrat-anteil 0.15] [--saat-anteil 0.3] [--brigade-anteil 0.3] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]
  *   Umgebung: FUZZ_SEED, FUZZ_ANZAHL, FUZZ_ROBUST (Kommandozeile hat Vorrang), PIZZA_MOTOREN, PIZZA_HOST
  *
  * Teil 1 (gültig): grammatikbasierte, terminierende Programme → alle verfügbaren Motoren, Vergleich gegen den
@@ -60,10 +60,13 @@ const zufallOk = probe('Zufall z = neu Zufall(7); Bote.sage((z.kommazahl() + Zuf
 const vorratOk = probe('Vorratskammer v = neu Vorratskammer("p"); v.lege("a", 1);', { vorrat: {} });
 const taktOk = thekeOk && probe('Theke t = neu Theke("x"); Takt k = neu Takt(1s, n -> Bote.sage((n))); t.zeige(neu Stapel([k])); t.bediene();', { uiEreignisse: [{ typ: 'takt', id: 'z1', anzahl: 1 }] });
 const vorratAnteil = zahl(arg('--vorrat-anteil'), 0.15);
+// THREADS §5 Punkt 5: Küchenbrigade – nur, wenn der Interpreter sie kann; Orakel: alle Motoren inkl. Köche-/Chaos-Varianten.
+const brigadeOk = probe('Bote.sage(([1, 2, 3].brigade(x -> x * 2)));');
+const brigadeAnteil = zahl(arg('--brigade-anteil'), zahl(process.env.FUZZ_BRIGADE_ANTEIL, 0.3));
 const saatAnteil = zahl(arg('--saat-anteil'), 0.3);
 const SAATEN = [42, 7, 0, -1, 4294967296 + 5, 123456789, 2147483648, 1.5, 'x'];
-console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)') + (thekeOk ? ' theke-anteil=' + thekeAnteil + (taktOk ? '+Takt' : '') : ' (keine Theke im Interpreter)') + (zufallOk ? ' saat-anteil=' + saatAnteil : '') + (vorratOk ? ' vorrat-anteil=' + vorratAnteil : '')));
-for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(12) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
+console.log(fett('pizza Fuzzing') + grau('  seed=' + seed + ' anzahl=' + anzahl + ' robust=' + robustAnzahl + (eingabeOk ? ' eingabe-anteil=' + eingabeAnteil : ' (Bestellannahme im Interpreter noch nicht verfügbar – keine Eingabe-Programme)') + (thekeOk ? ' theke-anteil=' + thekeAnteil + (taktOk ? '+Takt' : '') : ' (keine Theke im Interpreter)') + (zufallOk ? ' saat-anteil=' + saatAnteil : '') + (vorratOk ? ' vorrat-anteil=' + vorratAnteil : '') + (brigadeOk ? ' brigade-anteil=' + brigadeAnteil : ' (keine Küchenbrigade im Interpreter)')));
+for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(17) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
 
 const stat = {};
 for (const m of MOTOREN) stat[m.name] = { gleich: 0, abweichung: 0, fallback: 0, speicherlimit: 0, wurf: 0, übersprungen: 0, ms: 0 };
@@ -128,6 +131,7 @@ function fund(teil, nr, code, optionen, r) {
 
 const t0 = Date.now();
 let generatorSyntax = 0;
+let brigadeProgramme = 0;
 
 // ------------------------------------------------------------- Teil 1: gültige Programme
 if (nur !== 'robust') {
@@ -139,7 +143,9 @@ if (nur !== 'robust') {
     const mitTheke = thekeOk && z.chance(thekeAnteil);
     const mitVorrat = vorratOk && z.chance(vorratAnteil);
     const saat = zufallOk && z.chance(saatAnteil) ? z.wahl(SAATEN) : undefined;
-    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe, theke: mitTheke, takt: taktOk, zufall: zufallOk, vorrat: mitVorrat, zufallsSaat: saat });
+    const mitBrigade = brigadeOk && z.chance(brigadeAnteil);
+    if (mitBrigade) brigadeProgramme++;
+    const { code, optionen } = erzeuge(s, { eingabe: mitEingabe, theke: mitTheke, takt: taktOk, zufall: zufallOk, vorrat: mitVorrat, zufallsSaat: saat, brigade: mitBrigade });
     let r = pruefeFall(code, optionen);
     // Mehrere Saaten: Programme mit Zufall gelegentlich zusätzlich mit einer anderen Saat vergleichen.
     if (!r.probleme.length && zufallOk && /Zufall/.test(code) && z.chance(0.3)) {
@@ -187,9 +193,9 @@ const dauer = Date.now() - t0;
 console.log(fett('\nErgebnis je Motor'));
 for (const m of MOTOREN) {
   const s = stat[m.name];
-  if (m === M.interpreter) { console.log('  interpreter  Referenz' + grau(' – ' + s.ms.toFixed(0) + ' ms')); continue; }
-  if (!m.verfuegbar) { console.log('  ' + m.name.padEnd(12) + gelb(' übersprungen') + grau(' – ' + m.grund)); continue; }
-  console.log('  ' + m.name.padEnd(12) + ' ' + [gruen(s.gleich + ' gleich'), (s.abweichung ? rot : grau)(s.abweichung + ' Abweichungen'),
+  if (m === M.interpreter) { console.log('  interpreter       Referenz' + grau(' – ' + s.ms.toFixed(0) + ' ms')); continue; }
+  if (!m.verfuegbar) { console.log('  ' + m.name.padEnd(17) + gelb(' übersprungen') + grau(' – ' + m.grund)); continue; }
+  console.log('  ' + m.name.padEnd(17) + ' ' + [gruen(s.gleich + ' gleich'), (s.abweichung ? rot : grau)(s.abweichung + ' Abweichungen'),
     (s.wurf ? rot : grau)(s.wurf + ' Abstürze'), (s.fallback ? gelb : grau)(s.fallback + ' Fallback'), grau(s.speicherlimit + ' Speicherlimit')].join(', ') + grau(' – ' + s.ms.toFixed(0) + ' ms'));
 }
 if (Object.keys(fallbackGruende).length) {
@@ -198,7 +204,7 @@ if (Object.keys(fallbackGruende).length) {
 }
 if (nur !== 'robust') {
   console.log(fett('\nGenerator-Qualität') + grau(' (Exit-Codes des Interpreters über gültige Programme)'));
-  console.log('  ' + Object.entries(exitVerteilung).map(([k, v]) => 'exit ' + k + ': ' + v).join(', ') + (generatorSyntax ? rot('  – ' + generatorSyntax + ' Syntaxfehler (Generatorfehler!)') : ''));
+  console.log('  ' + Object.entries(exitVerteilung).map(([k, v]) => 'exit ' + k + ': ' + v).join(', ') + (brigadeProgramme ? ' – ' + brigadeProgramme + ' mit Küchenbrigade' : '') + (generatorSyntax ? rot('  – ' + generatorSyntax + ' Syntaxfehler (Generatorfehler!)') : ''));
 }
 const eindeutig = new Set(funde.map(x => x.sig)).size;
 for (const [sg, n] of Object.entries(sigZaehler)) if (n > MAX_PRO_SIGNATUR) console.log(grau('  (' + (n - MAX_PRO_SIGNATUR) + ' weitere Funde mit Signatur ' + sg + ' nicht abgelegt)'));

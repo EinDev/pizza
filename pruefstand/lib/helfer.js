@@ -25,6 +25,7 @@ function P(s, ...v) {
  *   ui: object[]              – exakte Liste der ui-Nachrichten (kanonisch verglichen),
  *   zufallsSaat: number       – optionen.zufallsSaat (K-077),
  *   vorrat: object            – optionen.vorrat (K-080), vorratEreignisse: object[] – exakte Liste {name, schluessel, wert},
+ *   koeche, kuechenChaos      – optionen.koeche/kuechenChaos (K-100; nie beobachtbar, brigade-Fälle laufen ohnehin mit Varianten),
  *   check(res, h) → string | string[] | undefined (Fehlermeldungen)
  * }
  */

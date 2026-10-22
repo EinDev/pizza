@@ -39,7 +39,7 @@ const warnungen = [];
 const faelle = K.lade(nur.length ? nur : null, w => warnungen.push(w)).filter(x => !filter || x.name.includes(filter));
 
 console.log(fett('pizza Differenztests') + grau('  (' + faelle.length + ' Fälle)'));
-for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(12) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
+for (const m of MOTOREN) console.log('  Motor ' + m.name.padEnd(17) + (m.verfuegbar ? gruen('verfügbar') : gelb('übersprungen') + grau(' – ' + m.grund)));
 for (const w of warnungen) console.log(gelb('  Hinweis: ') + w);
 
 const stat = {};
@@ -106,13 +106,13 @@ console.log(fett('\nErgebnis je Motor'));
 for (const m of MOTOREN) {
   const s = stat[m.name];
   if (m === M.interpreter) {
-    console.log('  interpreter  Referenz' + grau(' – Selbstkonsistenz geprüft, ' + s.ms.toFixed(0) + ' ms Laufzeit'));
+    console.log('  interpreter       Referenz' + grau(' – Selbstkonsistenz geprüft, ' + s.ms.toFixed(0) + ' ms Laufzeit'));
     continue;
   }
-  if (!m.verfuegbar) { console.log('  ' + m.name.padEnd(12) + gelb(' übersprungen') + grau(' – ' + m.grund)); continue; }
+  if (!m.verfuegbar) { console.log('  ' + m.name.padEnd(17) + gelb(' übersprungen') + grau(' – ' + m.grund)); continue; }
   const teile = [gruen(s.gleich + ' gleich'), (s.abweichung ? rot : grau)(s.abweichung + ' Abweichungen'), (s.wurf ? rot : grau)(s.wurf + ' Abstürze'),
     (s.fallback ? gelb : grau)(s.fallback + ' Fallback'), grau(s.speicherlimit + ' Speicherlimit'), grau(s.übersprungen + ' übersprungen')];
-  console.log('  ' + m.name.padEnd(12) + ' ' + teile.join(', ') + grau(' – ' + s.ms.toFixed(0) + ' ms'));
+  console.log('  ' + m.name.padEnd(17) + ' ' + teile.join(', ') + grau(' – ' + s.ms.toFixed(0) + ' ms'));
 }
 if (fallbackListe.length) {
   console.log(fett('\nFallback (nichtUnterstuetzt) – ' + fallbackListe.length));

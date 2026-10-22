@@ -9,6 +9,9 @@
  * - Funktionen/Lambdas/Closures, Klassen mit Feldern/Methoden/Vererbung/alsText, Bleche, Speisekarten,
  *   Texte (Unicode/Escapes), Pizza-Literale, Dauer, probier/verbrannt/rand, wirf, Ofen, Lieferung, Teig,
  *   wähle (Anweisung und Ausdruck), optional Bestellannahme (EINGABE.md) und selten Hawaii.
+ * - Küchenbrigade (THREADS §5 Punkt 5, opt.brigade): `x.brigade(lambda)` als Anweisung und Ausdruck, verschachtelt (≤ 2),
+ *   Rümpfe mit Ausgaben, Warnungen, Würfen (Abbruch in Stück k), Uhr/Zufall/`neu` in Stücken, Schrittlimit-Abbruch,
+ *   gelegentlich Schreibzugriffen auf Hauptküchen-Eigentum (KüchenAnanas-Wachen) und nicht kartonfähigen Ergebnissen.
  */
 const { Zufall } = require('./zufall');
 
@@ -45,13 +48,24 @@ class Gen {
     this.kammer = false;
     this.hawaii = this.z.chance(opt.hawaiiChance != null ? opt.hawaiiChance : 0.03);
     this.hawaiiGesetzt = false;
+    this.brigadeAn = !!opt.brigade;
+    this.kueche = 0;         // Brigade-Tiefe (0 = Hauptküche)
+    this.kuecheGrenze = 0;   // erster Scope, der der aktuellen Küche gehört
+    this.brigaden = 0;       // erzeugte Brigaden (für erzeuge: kleines Schrittlimit)
   }
 
   // ------------------------------------------------------------- Ausgabe
   zeile(t) { this.zeilen.push('    '.repeat(this.ind) + t); }
   neu(p) { return p + (this.n++); }
   vars(typ) { const out = []; for (const s of this.scopes) for (const v of s) if (v.typ === typ) out.push(v); return out; }
-  schreibbar(typ) { return this.vars(typ).filter(v => !v.nurLesen); }
+  schreibbar(typ) { return this.kuechenFilter(this.vars(typ).filter(v => !v.nurLesen)); }
+  /** In einer Küche meist nur eigene Variablen (sonst KüchenAnanas); selten bewusst Hauptküchen-Eigentum (Wache). */
+  kuechenFilter(liste) {
+    if (!this.kueche || this.z.chance(0.1)) return liste;
+    const eigen = new Set();
+    for (let i = this.kuecheGrenze; i < this.scopes.length; i++) for (const v of this.scopes[i]) eigen.add(v);
+    return liste.filter(v => eigen.has(v));
+  }
   dekl(name, typ, extra = {}) { this.scopes[this.scopes.length - 1].push(Object.assign({ name, typ }, extra)); }
   block(kopf, fn, ende = '}') {
     this.zeile(kopf + ' {');
@@ -202,6 +216,7 @@ class Gen {
       [1, () => '(' + this.bA(d + 1) + ').umdrehen()'],
       [1, () => this.aufruf(B, d)],
       [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.mische(' + this.bA(d + 1) + ')'],
+      [this.brigadeAn && this.kueche < 2 ? 2 : 0, () => { this.brigaden++; return '(' + this.bA(d + 1) + ').brigade(x -> ' + this.lambdaKoerper('x', d + 1) + ')'; }],
     ])();
   }
 
@@ -303,13 +318,17 @@ class Gen {
       [this.zufall ? 2 : 0, () => this.zufallAnweisung()],
       [this.vorrat && this.kammer && !this.inFunktion ? 4 : 0, () => this.vorratAnweisung()],
       [this.hawaii && !this.hawaiiGesetzt ? 1 : 0, () => this.hawaiiAnweisung()],
+      [this.brigadeAn && this.kueche < 2 && !tief ? (this.kueche ? 1 : 4) : 0, () => this.brigade()],
+      [this.kueche ? 5 : 0, () => this.kuechenAnweisung()],
     ];
     z.gewichtet(o)();
   }
 
   deklaration() {
     const z = this.z;
-    const typ = z.wahl([S, S, F, T, D, B, P, Z, K, L, ...this.klassen.map(k => k.name)]);
+    // Konstruktoren eigener Klassen schreiben ein statisches Feld → in der Küche meist vermeiden (KüchenAnanas)
+    const klassen = this.kueche && !z.chance(0.1) ? [] : this.klassen.map(k => k.name);
+    const typ = z.wahl([S, S, F, T, D, B, P, Z, K, L, ...klassen]);
     const name = this.neu('v');
     if (typ === K) {
       this.zeile(K + ' ' + name + ' = neu ' + K + '();');
@@ -490,7 +509,7 @@ class Gen {
   }
 
   karteAnweisung() {
-    const v = this.vars(K);
+    const v = this.kuechenFilter(this.vars(K));
     if (!v.length) return this.deklaration();
     const k = this.z.wahl(v).name;
     this.zeile(this.z.wahl([
@@ -503,8 +522,9 @@ class Gen {
   }
 
   objektAnweisung() {
-    const objs = [];
+    let objs = [];
     for (const k of this.klassen) for (const v of this.vars(k.name)) objs.push(v);
+    objs = this.kuechenFilter(objs);
     if (!objs.length) return this.deklaration();
     const o = this.z.wahl(objs).name;
     this.zeile(this.z.wahl([
@@ -550,6 +570,85 @@ class Gen {
     this.zeile('falls (' + this.dA(1) + ') { ' + variante + ' }');
   }
 
+  // ------------------------------------------------------------- Küchenbrigade (THREADS §2/§3, §5 Punkt 5)
+  /** `Blech<T> r = quelle.brigade(k -> { … serviere ((…)); });` – oft in probier, damit KüchenAnanas/Würfe nicht dominieren. */
+  brigade() {
+    const z = this.z;
+    this.brigaden++;
+    const k = this.neu('k');
+    const r = this.neu('r');
+    // Stücke: Zahlen eines Blechs oder Teilbleche aus schneide(n)
+    const geschnitten = z.chance(0.3);
+    const quelle = geschnitten
+      ? '(' + this.bA(2) + ').schneide(' + z.wahl(['1', '2', '3', '4', 'auto']) + ')'
+      : z.gewichtet([[3, () => '[' + z.int(-2, 2) + ' .. ' + z.int(0, 6) + ']'], [3, () => '(' + this.bA(1) + ')'], [1, () => 'neu Blech<salami>()']])();
+    const art = z.gewichtet([[14, 'S'], [2, 'T'], [2, 'Bon'], [1, 'Funktion']]);
+    const typ = { S: B, T: 'Blech<margherita>', Bon: 'Blech<FuzzBon>', Funktion: B }[art];
+    const mitProbier = z.chance(0.5);
+    if (mitProbier) { this.zeile('probier {'); this.ind++; this.probierTiefe++; }
+    this.zeile(typ + ' ' + r + ' = ' + quelle + '.brigade(' + k + ' -> {');
+    // ---- Rumpf in der Küche
+    const alt = { ind: this.ind, grenze: this.kuecheGrenze, fn: this.inFunktion, schleife: this.schleife, anw: this.anw, max: this.maxAnw, eingabe: this.eingabe };
+    this.ind++; this.tiefe++; this.kueche++;
+    this.scopes.push([]);
+    this.kuecheGrenze = this.scopes.length - 1;
+    this.dekl(k, geschnitten ? B : S, { nurLesen: true, element: true });
+    this.inFunktion = S;
+    this.schleife = 0;                                  // abbrechen/weiter dürfen den Rückruf nicht verlassen
+    this.eingabe = this.eingabe && z.chance(0.05);      // S4: Bestellannahme in der Küche → KüchenAnanas (selten)
+    this.anw = 0; this.maxAnw = 4;
+    const el = geschnitten ? '(' + k + ').summe()' : k;
+    if (z.chance(0.4)) this.zeile('Bote.sage(("Stück " + ' + el + ' + " um " + Uhr.jetzt()));');
+    this.anweisungen(z.int(0, 4));
+    if (art === 'S') this.zeile('serviere ((' + z.wahl([el, el + ' * 2', '(' + el + ' + ' + this.sA(2) + ')', this.sA(1)]) + '));');
+    else if (art === 'T') this.zeile('serviere (("t" + ' + el + ' + ' + this.tA(2) + '));');
+    else if (art === 'Bon') this.zeile('serviere ((neu FuzzBon(' + el + ')));');
+    else this.zeile('serviere ((' + z.wahl(['y -> y', '() -> 1', 'teig(() -> (1))']) + '));');   // nicht kartonfähig
+    this.scopes.pop();
+    this.kueche--; this.tiefe--;
+    this.ind = alt.ind; this.kuecheGrenze = alt.grenze; this.inFunktion = alt.fn; this.schleife = alt.schleife;
+    this.anw = alt.anw; this.maxAnw = alt.max; this.eingabe = alt.eingabe;
+    this.zeile('});');
+    // ---- Ergebnis beobachten
+    if (art === 'Bon') this.zeile('Bote.sage((' + r + ' + " " + ' + r + '.belege(b -> b.doppelt()) + " " + neu FuzzBon(0)));');
+    else this.zeile('Bote.sage((' + r + ' + " " + ' + r + '.länge()));');
+    if (mitProbier) {
+      this.probierTiefe--; this.ind--;
+      const fang = z.wahl(['KüchenAnanas', 'Ananas', 'Ananas', 'LaufzeitAnanas', 'StreitAnanas']);
+      this.zeile('} verbrannt (' + fang + ' a' + r + ') { Bote.sage(("brigade: " + a' + r + '.typ() + " " + a' + r + '.nachricht())); }');
+    } else if (art === 'S') this.dekl(r, B);
+  }
+
+  /** Was nur in Stücken interessant ist: Uhr, Zufall, Abbruch in Stück k, Wachen, Schrittlimit, Kammer lesen. */
+  kuechenAnweisung() {
+    const z = this.z;
+    const sv = this.vars(S).filter(v => v.element);
+    const el = sv.length ? z.wahl(sv).name : this.sLit();
+    z.gewichtet([
+      [3, () => this.zeile('Uhr.vorspulen((Mathe.abs(' + el + ') % ' + z.int(1, 7) + ') * ' + z.wahl(['1ms', '10ms', '1s']) + ');')],
+      [2, () => this.zeile('Bote.sage(("koch " + ' + el + ' + " " + Uhr.jetzt()));')],
+      [1, () => this.zeile('Bote.fehler(("fehlerausgabe " + ' + el + '));')],
+      [2, () => this.zeile('falls (' + el + ' == ' + z.int(-1, 4) + ') { wirf neu ' + z.wahl(['FuzzAnanas', 'StreitAnanas', 'RechenAnanas', 'KüchenAnanas']) + '(("koch " + ' + el + ')); }')],
+      [this.zufall ? 3 : 0, () => this.zeile('Bote.sage((Zufall.zahl(1, 1000) + " " + Zufall.saat()));')],
+      [this.zufall ? 1 : 0, () => this.zeile('Zufall.saat(' + el + ');')],
+      [this.zufall ? 1 : 0, () => { const n = this.neu('kz'); this.zeile('Zufall ' + n + ' = neu Zufall();'); this.dekl(n, 'Zufall'); this.zeile('Bote.sage((' + n + '.zahl(1, 9)));'); }],
+      [2, () => { const n = this.neu('kb'); this.zeile('FuzzBon ' + n + ' = neu FuzzBon(' + el + ');'); this.zeile(n + '.w += 1;'); this.zeile('Bote.sage((' + n + ' + " " + ' + n + '.doppelt()));'); }],
+      [0.5, () => this.zeile('falls (' + el + ' == ' + z.int(0, 3) + ') { salami sl = 0; solange (ja) { sl++; } }')],   // P0002 im Stück (D7)
+      [1, () => {   // Wache: Hauptküchen-Eigentum verändern
+        const aussen = [];
+        for (let i = 0; i < this.kuecheGrenze; i++) for (const v of this.scopes[i]) if (!v.nurLesen && [S, B, K].includes(v.typ)) aussen.push(v);
+        if (this.klassen.length) aussen.push({ name: 'Klasse0.anzahl', typ: S });
+        if (!aussen.length) return this.zeile('Bote.sage(("keine Hauptküche"));');
+        const v = z.wahl(aussen);
+        if (v.typ === S) this.zeile(v.name + z.wahl([' += 1;', '++;', ' = 0;']));
+        else if (v.typ === B) this.zeile(v.name + z.wahl(['.hinzu(1);', '.setze(99, 1);']));
+        else this.zeile(v.name + '.lege("koch", 1);');
+      }],
+      [this.kammer ? 2 : 0, () => this.zeile(z.chance(0.8) ? 'Bote.sage((kv.hole("a") + " " + kv.länge()));' : 'kv.lege("koch", 1);')],
+      [1, () => this.zeile('Bote.sage((' + z.wahl(['[1, 2, 3, 4].schneide(2)', '[3, 1, 2].sortiere()', '"x".wiederhole(3)']) + '));')],
+    ])();
+  }
+
   // ------------------------------------------------------------- Deklarationen (oben)
   klassenErzeugen() {
     const z = this.z;
@@ -557,6 +656,8 @@ class Gen {
     // eigene Ananas immer (für wirf/verbrannt)
     this.zeile('klasse FuzzAnanas erbt StreitAnanas { FuzzAnanas(margherita m) { unten(m); } }');
     this.zeile('klasse FuzzUnterAnanas erbt FuzzAnanas { FuzzUnterAnanas(margherita m) { unten("unter: " + m); } }');
+    // Küchenbrigade: Klasse ohne statischen Zähler – darf in Stücken entstehen und die Küche als Kopie verlassen (D10)
+    if (this.brigadeAn) this.zeile('klasse FuzzBon { salami w = 0; margherita notiz = "bon"; FuzzBon(salami x) { w = x; } salami doppelt() { serviere ((w * 2)); } }');
     for (let i = 0; i < anzahl; i++) {
       const name = 'Klasse' + i;
       const basis = i > 0 && z.chance(0.6) ? 'Klasse' + (i - 1) : null;
@@ -619,7 +720,7 @@ class Gen {
   }
 
   zufallsQuelle() {
-    const v = this.vars('Zufall');
+    const v = this.kuechenFilter(this.vars('Zufall'));
     return v.length && this.z.chance(0.6) ? this.z.wahl(v).name : 'Zufall';
   }
 
@@ -736,6 +837,8 @@ function erzeuge(seed, opt = {}) {
   const g = new Gen(seed, opt);
   const code = g.programm();
   const optionen = { schrittLimit: opt.schrittLimit || 200000 };
+  // D7: mit Brigade gelegentlich ein kleines Schrittlimit (Stück-P0002 bzw. Summen-P0002 am Aufruf)
+  if (g.brigaden && !opt.schrittLimit && g.z.chance(0.15)) optionen.schrittLimit = g.z.int(300, 20000);
   if (opt.eingabe) {
     const z = g.z;
     const n = z.chance(0.15) ? 0 : z.int(0, 12);   // 0 → sofort EOF

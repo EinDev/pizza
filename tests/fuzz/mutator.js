@@ -10,7 +10,8 @@ const POOL = ['klasse', 'X', '{', '}', '(', ')', '((', '))', ';', 'serviere', '"
   '=', '+', '-', '*', '/', '%', 'ä', '#', '\\', 'neu', '<', '>', 'karton', 'dies', 'unten', 'erbt', 'calzone', 'hawaii', 'salami', 'x',
   'Bote.sage((', 'wirf', 'neu StreitAnanas("x")', 'für', 'solange', 'abbrechen;', 'weiter;', 'zwischenstand((', 'teig', 'bestelle', 'schieb(',
   'teile(', 'Bestellannahme.lies()', 'Bote.schreibe((', '9'.repeat(40), '0.', '1e5', '\u0000', '​', '🍕', '\t', '\r', 'quattrostagioni',
-  'rezeptur', 'erfüllt', 'rohling', 'gebacken', 'tiefkühl', 'geheimrezept', '@Kühlschrank(haltbar: 1s)', 'Uhr.vorspulen(', 'Spiegel.felder('];
+  'rezeptur', 'erfüllt', 'rohling', 'gebacken', 'tiefkühl', 'geheimrezept', '@Kühlschrank(haltbar: 1s)', 'Uhr.vorspulen(', 'Spiegel.felder(',
+  '.brigade(', '.brigade(x -> ', 'brigade', 'KüchenAnanas', '.schneide(', 'serviere ((x -> x));'];
 
 function mutiere(code, seed) {
   const z = new Zufall(seed);

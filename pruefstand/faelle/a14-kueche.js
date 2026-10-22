@@ -567,4 +567,12 @@ Blech<salami> r = [1, 2].brigade(x -> {
 });
 Bote.sage((a + " " + b + " " + o.w + " " + r));
 `, { out: ["1 [1, 2] 3 [7, 7]"] }),
+
+  // ── §17.7 Köche sind Host-Einstellung (K-100, THREADS §5 Punkt 3/4) ────────────────
+  // Zusätzlich läuft jeder brigade-Fall im Prüfstand mit { koeche: 4, kuechenChaos: 7 }, { koeche: 1, kuechenChaos: 0 }
+  // und { koeche: "auto" } (Köche-Gegenprobe in run.js) – hier ausdrücklich mit festen Erwartungen.
+  F(K, "§17.7: koeche: 8 und kuechenChaos ändern weder Ausgabe noch schritte/Uhr (D6-Referenz)", P`
+Bote.sage(([1, 2, 3, 4].brigade(x -> { Bote.sage(("Stück " + x)); serviere (x * x); })));
+`, { koeche: 8, kuechenChaos: 3, out: ["Stück 1", "Stück 2", "Stück 3", "Stück 4", "[1, 4, 9, 16]"],
+    check: (res) => { const e = res.ereignisse[res.ereignisse.length - 1]; return e.koeche !== undefined && e.koeche !== 1 ? `ende.koeche ${e.koeche} – der Interpreter kocht allein` : undefined; } }),
 ];

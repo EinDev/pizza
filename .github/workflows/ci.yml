@@ -103,9 +103,12 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
-      # Reproduzierbar und begrenzt (lokal: FUZZ_SEED/FUZZ_ANZAHL beliebig setzen)
+      # Reproduzierbar und begrenzt (lokal: FUZZ_SEED/FUZZ_ANZAHL beliebig setzen). Seit P6 (THREADS §5 Punkt 5) mit
+      # Küchenbrigade: ~30 % der Programme nutzen brigade und laufen zusätzlich in interpreter-chaos, wasm-koeche4,
+      # wasm-chaos und wasm-rueck (Node-Worker); lokal ≈ 50 s, Ziel < 3 min. Der native Host fehlt hier → Job „host“.
       FUZZ_SEED: "42"
-      FUZZ_ANZAHL: "500"
+      FUZZ_ANZAHL: "1000"
+      FUZZ_ROBUST: "500"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: diff
@@ -259,6 +262,18 @@ jobs:
       - name: Küchenbrigade-Smoke (--koeche=4, Chaos, --info „Köche: N“)
         if: steps.da.outputs.ja == 'true'
         run: node host/smoke-koeche.js
+      # THREADS §5 Punkt 3/4 (P6): brigade-Fälle (tests/faelle/kueche-*, Prüfstand a14, Beispiel kuechenbrigade) gegen den
+      # Interpreter – host (--koeche=1), host-koeche4, host-chaos (--kuechen-chaos=N je Fall) und interpreter-chaos.
+      - name: Köche-Differenz (nativer Host, Chaos-Planung)
+        if: steps.da.outputs.ja == 'true'
+        env:
+          PIZZA_MOTOREN: interpreter-chaos,host,host-koeche4,host-chaos
+        run: node tests/differenz/run.js faelle pruefstand beispiele korpus --filter kueche
+      - name: Fuzz mit Küchenbrigade (nativer Host, 150 Programme)
+        if: steps.da.outputs.ja == 'true' && runner.os == 'Linux'
+        env:
+          PIZZA_MOTOREN: interpreter-chaos,host,host-koeche4,host-chaos
+        run: node tests/fuzz/run.js --seed 42 --anzahl 150 --nur gueltig --brigade-anteil 1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.da.outputs.ja == 'true'
         with:

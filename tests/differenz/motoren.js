@@ -8,9 +8,15 @@
  *   { status: "übersprungen", grund }        – Motor kann diesen Fall nicht ausführen
  * Motoren, die (noch) nicht existieren, sind nicht "verfuegbar" und werden übersprungen.
  *
+ * Küchenbrigade (THREADS §5 Punkt 3/4, K-104/14): nur für Programme mit `brigade` laufen zusätzlich
+ *   interpreter-chaos (Permutation, koeche: 4) · wasm-koeche4 · wasm-chaos (Saat 7) · wasm-rueck (Saat 0) ·
+ *   host-koeche4 (--koeche=4) · host-chaos (--koeche=4 --kuechen-chaos=N); N je Programm aus dem Quelltext.
+ *   Alle müssen dieselben normalisierten Ereignisse, Exit-Codes, schritte und zeitMs liefern; `koeche` wird ignoriert.
+ *
  * Umgebung:
  *   PIZZA_HOST=<pfad>        nativer Host (sonst host/target/{release,debug}/pizza-host[.exe])
  *   PIZZA_MOTOREN=a,b        nur diese Motoren (z. B. "interpreter,wasm")
+ *   PIZZA_KUECHEN_CHAOS=N    feste Chaos-Saat für interpreter-chaos/host-chaos
  */
 const fs = require('fs');
 const os = require('os');
@@ -28,7 +34,7 @@ function normalisiere(ereignisse) {
     // K-014: motorspezifisches 'detail' ignorieren; K-046: umbruch:true ≙ fehlendem umbruch.
     for (const s of Object.keys(e)) {
       if (s === 'motor' || s === 'kompilierMs' || s === 'detail') continue;
-      if (s === 'koeche' && e.typ === 'ende') continue;   // K-100: Anzahl der Köche ist nie beobachtbar
+      if (s === 'koeche') continue;   // K-100: Anzahl der Köche ist Host-Metadatum (ende, motor …), nie beobachtbar
       if (s === 'umbruch' && e[s] === true) continue;
       k[s] = e[s];
     }
@@ -104,6 +110,31 @@ const interpreter = {
     const t0 = jetzt();
     let r;
     try { r = PizzaLang.run(q, laufOptionen(opt)); }
+    catch (e) { return { status: 'wurf', fehler: String(e && e.stack || e) }; }
+    return ergebnisAus(r, jetzt() - t0);
+  },
+};
+
+// ---------------------------------------------------------------- Chaos-Planung (THREADS §5 Punkt 4)
+const BRIGADE_RE = /\.\s*brigade\b/;
+/** Chaos-Saat je Programm (stabil, je Fall verschieden – so sieht der Fuzzer viele Planungen). PIZZA_KUECHEN_CHAOS=N: fest. */
+function chaosSaat(q) {
+  if (process.env.PIZZA_KUECHEN_CHAOS) return Number(process.env.PIZZA_KUECHEN_CHAOS) >>> 0;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < q.length; i++) { h ^= q.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return 1 + ((h >>> 0) % 99991);
+}
+
+// Interpreter mit Chaos-Planung (Permutation der Stücke) und `koeche: 4` (akzeptiert, ignoriert – K-100) – nur mit brigade.
+const interpreterChaos = {
+  name: 'interpreter-chaos',
+  verfuegbar: true,
+  grund: null,
+  lauf(q, opt) {
+    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    const t0 = jetzt();
+    let r;
+    try { r = PizzaLang.run(q, Object.assign(laufOptionen(opt), { koeche: 4, kuechenChaos: chaosSaat(q) })); }
     catch (e) { return { status: 'wurf', fehler: String(e && e.stack || e) }; }
     return ergebnisAus(r, jetzt() - t0);
   },
@@ -230,7 +261,7 @@ function koecheVariante(name, extra) {
     verfuegbar: !!(pz.Z && pz.Z._teile && pz.Z._teile.koch && pz.Z._teile.koch.moeglich()),
     grund: pz.fehlt || 'keine Köche möglich (SharedArrayBuffer/worker_threads fehlen)',
     lauf(q, opt, cache) {
-      if (!/\.\s*brigade\b/.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+      if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
       const pool = koechePool();
       if (!pool) return { status: 'übersprungen', grund: 'Köche-Pool nicht anlegbar' };
       return wasm.lauf(q, opt, cache, Object.assign({ koeche: pool }, extra));
@@ -353,15 +384,23 @@ const host = {
   },
 };
 
-// Nativer Host mit 4 Köchen (P4, `--koeche=4`; PIZZA_KUECHEN_CHAOS=N zusätzlich `--kuechen-chaos=N`) – nur Programme mit brigade.
+// Nativer Host mit 4 Köchen (P4, `--koeche=4`) und mit Chaos-Planung (`--kuechen-chaos=N`) – nur Programme mit brigade.
 const hostKoeche4 = {
   name: 'host-koeche4',
   verfuegbar: host.verfuegbar && hostHilfe().includes('--koeche'),
   grund: host.grund || 'Host ohne --koeche',
   lauf(q, opt, cache) {
-    if (!/\.\s*brigade\b/.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
-    const chaos = process.env.PIZZA_KUECHEN_CHAOS;
-    return host.lauf(q, opt, cache, ['--koeche=4'].concat(chaos ? ['--kuechen-chaos=' + chaos] : []));
+    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    return host.lauf(q, opt, cache, ['--koeche=4']);
+  },
+};
+const hostChaos = {
+  name: 'host-chaos',
+  verfuegbar: host.verfuegbar && hostHilfe().includes('--kuechen-chaos'),
+  grund: host.grund || 'Host ohne --kuechen-chaos',
+  lauf(q, opt, cache) {
+    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    return host.lauf(q, opt, cache, ['--koeche=4', '--kuechen-chaos=' + chaosSaat(q)]);
   },
 };
 
@@ -370,7 +409,7 @@ function aufraeumen() {
   if (tmpDir) { try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {} }
 }
 
-let ALLE = [interpreter, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4];
+let ALLE = [interpreter, interpreterChaos, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4, hostChaos];
 if (process.env.PIZZA_MOTOREN) {
   const nur = process.env.PIZZA_MOTOREN.split(',').map(s => s.trim());
   for (const m of ALLE) if (m !== interpreter && !nur.includes(m.name)) { m.verfuegbar = false; m.grund = 'per PIZZA_MOTOREN abgewählt'; }
@@ -434,4 +473,4 @@ function invarianten(r) {
   return p;
 }
 
-module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
+module.exports = { benoetigteOptionen, wasmKann, wasmFaehigkeiten, eingabeUnterstuetzt, ALLE, interpreter, interpreterChaos, wasm, wasmKoeche4, wasmChaos, wasmRueck, host, hostKoeche4, hostChaos, chaosSaat, vergleiche, invarianten, normalisiere, aufraeumen, PizzaLang, ROOT };
