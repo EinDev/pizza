@@ -1028,6 +1028,71 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   Regressionsfall `tests/faelle/k103-grosse-zahlen`, Prüfstand a10 (K-085 angepasst, K-103 neu), `tests/wasm/laufzeit-zahlen.js`,
   Doku-Referenz. Idle-Beispiel: Wächter `summe < 10²¹ ? … : "unbezahlbar"` wird überflüssig; Sterne/Zähler mit `tausender()` formatieren.
   **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
+
+### K-105 Sprach-Bereinigung: das eingebaute Objekt `Pizza`, Beläge und alle Pizza-Fachlogik werden entfernt (Nutzerentscheidung)
+- **Anlass (Nutzer, wörtlich):** „Entferne Konstanten, sowas wie das Objekt ‚Pizza‘ – das ist Fachlogik und gehört auch nicht in eine
+  Spaß-Sprache wie die hier. Hier sollen nur Dinge, die in einer ordentlichen, sehr high-level Programmiersprache auch wären. Nur lustig
+  benannt und vielleicht ein paar merkwürdige Konzepte, das ist okay.“
+- **Leitlinie:** Ein eingebautes Ding **bleibt**, wenn es ein allgemeines Sprachkonzept ist, das eine gute High-Level-Sprache auch hätte
+  (nur pizza-lustig benannt), oder ein kleines, aber allgemeines „merkwürdiges Konzept“. Es geht **raus**, wenn es Domänendaten oder
+  Fachlogik einer Pizzeria ist (Rezepte, Preise, Zutatenkatalog, Schichtregeln, Stückzählung einer Pizza). Halb-Allgemeines wird
+  entfernt, wenn es nur über das Pizza-Objekt existiert – Beispiele definieren so etwas künftig selbst (eigene Klasse `Pizza`).
+- **Bestandsaufnahme (AST-gestützt, nicht per Textsuche):** 181 von 1071 Programmen/Codeblöcken nutzten Pizza-Fachlogik – 22 Beispiele
+  (davon 2 Idle), 54 `tests/faelle`, 14 Differenzkorpus, 1 `tests/wasm/faelle`, 22 Doku-Codeblöcke (und 3 ganze Doku-Abschnitte),
+  72 Prüfstand-Fälle (a06 komplett, dazu a03/a04/a05/a07/a08/a10/a13/a14). Alle eingebauten Objekte, Klassen, Konstanten und
+  Methoden wurden eingeordnet:
+
+  **RAUS (Fachlogik):**
+
+  | Was | Begründung |
+  |---|---|
+  | Typ `Pizza`, Pizza-Literal `((A, B))` / `(())`, `neu Pizza()` | das Domänenobjekt selbst (bisher SPEC §6) |
+  | Belag-Werte (großgeschriebener Name → Belag), die eingebaute **Zutatenliste** (24 Beläge mit Preisen und `@Nach`), **Grundpreis 5.00** | Katalogdaten einer Pizzeria |
+  | Pizza-Methoden `preis()`, `beläge()`, `hat()`, `anzahlBeläge()`, `übrig()`, `beschreibung()`; Belag-Methoden `name()`, `preis()`; `p + Belag`, `p - Belag`, `p += Belag`; `für (b : pizza)`; Beläge als Speisekarten-/Kühlschrank-Schlüssel; Pizza-Gleichheit nach Belägen | Rezept- und Preislogik |
+  | `belag X auf Pizza { … }` (Decorator-Dispatch mit `unten`-Sicht), Keywords `belag` und `auf` (nicht mehr reserviert), `@Nach(…)`, **PizzaFehler B0012** („Auflauf“) | Schichtregeln einer Pizza; damit gibt es keinen PizzaFehler mehr, der erst zur Laufzeit entsteht |
+  | `UnbekannterBelagAnanas` | nur für Beläge |
+  | `teile(p)`, Typ `Stück<T>`, `essen()`, `istGegessen()`, `pizza()`, `übrig()`, `BesitzAnanas`, Meldungen „Pizza ist alle.“ / „Dieses Stück ist schon gegessen.“ | Referenzzählung „8 Stücke je Pizza“ und die Besitzprüfung griffen ausschließlich auf Pizza-Werte (K-016/K-017). Abweichung von der Beispiel-Liste des Nutzers („Ownership schieb/teile“): `schieb` bleibt (unten); ein allgemeines `teile` für beliebige Objekte wäre ein neues Sprachkonzept (jede Zuweisung `Foo b = a;` würde zur BesitzAnanas) – falls gewünscht, als eigene Klärung neu entwerfen |
+  | Hawaii-Auslöser (b) „Pizza mit Belag `Ananas` entsteht“; W0666 für den bloßen Namen `Ananas` und für `Ananas` im Pizza-Literal | hingen am Belag; `Ananas` ist jetzt nur noch die Basisklasse der Ausnahmen (bloßer Name = Klassenwert, Textform `Ananas`, keine Warnung) |
+  | API `PizzaLang.BELAEGE`, `intern.BELAEGE`, `intern.GRUNDPREIS`; `TYPEN` ohne `Pizza`/`Stück`, `BUILTINS` ohne `teile`, `ANANAS` ohne `BesitzAnanas`/`UnbekannterBelagAnanas`, `KEYWORDS` ohne `belag`/`auf`; Editor-Highlighting und Autovervollständigung der Beläge | folgen der Sprache (ARCHITEKTUR §1, §5) |
+  | §17.5 Kartonfähigkeit: Zeilen Pizza, Pizza-Sicht, Belag, Stück; „Ein Stück“ in der Aufzählung nicht kartonfähiger Arten; K-101/3 „Pizza-Sicht kartonfähig“ | gegenstandslos |
+
+  **BLEIBT (allgemeine Konzepte, lustig benannt):** Typen `salami`/`funghi`/`margherita`/`diavolo`/`Dauer`/`Blech`/`Speisekarte`;
+  Modifikatoren, `rezeptur`, `quattrostagioni` (Enum mit genau 4 Werten – merkwürdig, aber allgemein), `calzone`/`aufklappen` (Kapselung),
+  Annotationen `@PizzaÜberschreibt`/`@PizzaVeraltet`/`@NieKarton`/`@Pizzaiolo`/`@Kühlschrank`; `Bote`, `Bestellannahme` (I/O), `Uhr`
+  (simulierte Zeit), `Mathe` (inkl. `PI`), `Zufall`, `Spiegel` (Reflection), `Vorratskammer` (Persistenz); `teig`/`backen` (Lazy),
+  `ofen`/`zwischenstand`/`roh` (Zeitbudget), `bestelle`/`Lieferung`/`trinkgeld`/`wennDa` (Async), `schneide`/`belege`/`zusammenklappen`/
+  `brigade` (Parallelität), `@Kühlschrank`/`mikrowelle`/`frisch` (Caching), **`schieb(x)`** (Move-Semantik für jede Variable, danach
+  `LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.`); alle Werte-Methoden inkl. `euro()`/`tausender()`/`kompakt()`
+  (Zahlformat); Ananas-Hierarchie samt `StreitAnanas` (faires Schneiden), `KeinStückAnanas` (Index), `UnbekanntePizzaAnanas` (= unbekannte
+  Klasse bei `neu`, Text „steht nicht auf der Speisekarte“ – genau die gewünschte „unbekannt“-Meldung); Hawaii-Easter-Egg mit Typ `hawaii`
+  (W0666, Panik bei Zuweisung) und `neu Hawaii(…)`; Theke mit Farbnamen `tomate|basilikum|…` (Themenfarben); alle Floskeln in Meldungen
+  („7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“, „Zu spät – die Pizza ist kalt.“, „Das ist jetzt eine ganz normale Pizza.“, „Zu viele
+  Pizzen übereinander“) – Humor, keine Fachlogik. Doppelte Klammern `Bote.sage(("Hallo"))` bleiben stilistisch erwünscht und bedeutungslos
+  (§5); der Parser braucht keine Literal-Heuristik mehr.
+- **Verhalten bei Nutzung entfernter Dinge** (wie bei jedem unbekannten Namen, keine Sonderbehandlung):
+  `Bote.sage((Tomate));` → `LaufzeitAnanas: 'Tomate' ist nicht definiert.` · `teile(x)` → `LaufzeitAnanas: 'teile' ist nicht definiert.` ·
+  `neu Pizza()` ohne eigene Klasse → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekarte.` · `((Tomate, Käse))`, `(())`,
+  `belag X auf Pizza { }` → Syntaxfehler P0001 · Typen `Pizza`, `Belag`, `Stück<…>` sind ungeprüfte unbekannte Typen (§14.6) · eine **eigene**
+  Klasse `Pizza` und eigene Variablen `Tomate` usw. funktionieren wie jede andere Klasse/Variable.
+- **Betroffen:** SPEC §1 (Keywords, Typen), §5 (Pizza-Literal, Textform), **§6 entfällt**, §7.5 (nur noch `schieb`), §8, §9, §11, §12, §14.5/§14.6/
+  §14.9/§14.11, §15.1/§15.2 (K-001, K-016, K-017, K-023, K-026, K-039 abgelöst), §17.3/§17.5; ARCHITEKTUR §1/§5; WASM.md §2; IR.md; README;
+  THEKE unverändert (nur Floskeln). Interpreter `site/js/pizza.js`, Compiler `site/js/pizzaiolo/{frontend,backend-wasm}.js`, Laufzeit
+  `laufzeit/src/{wert,namen,ops,pf,start,std_m,klassen}.rs` (Neubau `laufzeit.wasm`), UI `ui/src/{woerter,sprache,editor}.js` (Neubau
+  `app.bundle.js`), Host unverändert (die Laufzeit steckt im `.pkarton`). Beispiele, Doku, `tests/faelle`, Differenzkorpus, `tests/wasm/faelle`,
+  E2E `02-ausfuehrung` (Hawaii-Auslöser), Prüfstand (a06 ersetzt durch K-105-Fälle, Anpassungen in a03/a04/a05/a07/a08/a10/a13/a14).
+- **Idle (`site/beispiele/idle/**`, anderer Agent; Nutzerentscheidung: entfernt wird erst nach „Idle angepasst“):** zu ersetzen sind
+  `erste-pizzeria.pizza` Z. 8–9 (`Pizza margherita = ((Tomate, Mozzarella, Basilikum)); … margherita.preis()` → feste Zahl 8 oder eigene
+  Klasse) und `pizza-imperium.pizza` Z. 340 (`Pizza rezept = ((…))`), Z. 342 (`Blech<Belag> SEITEN = [Salami, …]` → `Blech<margherita>`),
+  Z. 390 (`rezept.preis()`), Z. 415 (`rezept.beläge()`), Z. 644 (`Belag b = SEITEN.stück(seite)` und das folgende `rezept + b`),
+  Z. 748 (`rezept = ((Tomate, Mozzarella, Basilikum))`) – z. B. eigene Klasse `Rezept` mit `Blech<margherita>` Beläge und `Speisekarte` Preise.
+- **Multithreading-Branch (`D:\Projekte\pizza-threads`, Merge-Hinweise):** `laufzeit/src/kueche.rs` kopiert `A_PIZZA`/`A_SICHT`/`A_STUECK`/
+  `A_BELAG` für PKF1 (Z. 188, 213, 226, 251–258, 342–348) – diese Zweige entfallen; `namen.rs` verliert `UnbekannterBelagAnanas`,
+  `BesitzAnanas` und die Belag-Namen (Indizes der Namen und der eingebauten Ananas verschieben sich – `frontend.js` „Klassenindex 18 + n“
+  und IR.md §1 werden zu „16 + n“); `laufzeit.wasm` ist ein Binärkonflikt (nach dem Merge neu bauen); `a14-kueche.js`, `kueche-*`-Fälle
+  und SPEC §17.5 verweisen auf Pizza-Sicht/Stück; Beispiel-/Test-/Doku-Dateien des Branches enthalten noch Pizza-Literale, falls dort
+  geändert (`besitz.pizza`, `schneiden.pizza`, `freitagabend-ansturm.pizza`, `hanoi.pizza`, Doku, `std-besitz.pizza`, `teile-rand.pizza`).
+- **Status:** fest (Entscheidung). Umsetzung vollständig auf dem lokalen Branch `bereinigung-pizza-objekt` (Worktree `D:\Projekte\pizza-bereinigung`);
+  Merge nach master erst nach „Idle angepasst“. Prüfstand: K-105-Fälle in `a10-klaerungen.js` (vor dem Merge in `a11-klaerungen-offen.js`).
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
