@@ -210,8 +210,8 @@ echten Lauf (Interpreter, Saat 42) mit Takt-Sprüngen bis zur ersten Franchise.
 
 Jeder Neustart (Neueröffnung, Herausforderung, Aufgeben, Franchise, Neu anfangen) fragt nach: erster Klick ändert den Knopftext,
 der zweite binnen 10 s bestätigt. **Klicken:** Klickwert = (1 + feste Handwerk-Pizzen) × Sterne × Filialen + Anteil (0,05 % je
-Kurier/Tarantella/Roboter/Vesuv) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der
-Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
+Kurier/Tarantella/Roboter/Vesuv, **höchstens 8 Stück je Upgrade**, Knopf dann „✅ ausgebaut“, ältere Stände werden beim Laden
+gekappt) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
 letzten 5 Minuten nach 15 min 12–15 %, nach 30 min 9–14 %, nach 55 min 6–9 % (10 Klicks/s: 18–27 % / 13–15 % / 12–16 %);
 nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.
 
@@ -403,5 +403,21 @@ alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 Balancing-Bot (Saat 42, 5 Klicks/s, Aufstieg: Neueröffnung bei Verdopplung, Kette ab 5 neuen Filialen): Sterne insgesamt
 nach 2 h 40 · 3 h 441 · 4 h 1.500 · 5 h 3.600 · 6 h 8.600 · 8 h 20.000 · 11,5 h 47.000 (vorher: 10.000 nach 4,5 h, Millionen danach);
 erste Kette nach ≈ 2,5 h (vorher ≈ 1,3 h); Pizza-Multiversum in 12 h nicht erreicht. Klickanteil gesamt 6–8 % ohne, 11–13 % mit
-Aufstieg. Ruhiges UI: von 66 Käufen aus dem Testlauf verschieben nur noch 7 Knöpfe (neue Gebäudeart/Kleinbetriebe), vorher 21 von 44.
+Aufstieg (12 h: 17–18 %) – siehe „Klick-Deckel“ unten. Ruhiges UI: von 66 Käufen aus dem Testlauf verschieben nur noch 7 Knöpfe (neue Gebäudeart/Kleinbetriebe), vorher 21 von 44.
+**Klick-Deckel** (Nutzer: Klicken soll weniger attraktiv sein als Automatik, Ziel < 10 % auch mit Aufstieg bei 5 Klicks/s):
+Ursache war der Anteil-Klick – die Anteil-Upgrades haben feste €-Preise (×1,4 je Stück), das Einkommen wächst mit Sternen und
+Filialen um viele Größenordnungen, also kaufte man spät 60–70 Stück (3–3,5 % der Sekundenproduktion je Klick, ×5 Klicks/s). Ein
+steilerer Preis verschiebt das nur (Stückzahl ~ log Einkommen), daher der Deckel: 8 Stück je Anteil-Upgrade (höchstens 1,6 % je
+Klick). Bot (5 Klicks/s, Minispiele an, Saaten 42/7/99):
+
+| Lauf | vorher | mit Deckel |
+|---|---|---|
+| ohne Aufstieg, 60 min: Klickanteil · Umsatz | 6,1 / 6,5 / 7,2 % · 753 / 645 / 648 Mio. € | 4,9 / 5,2 / 5,7 % · 751 / 656 / 717 Mio. € |
+| Aufstieg, 6 h: Klickanteil gesamt | 15,2 / 13,6 / 14,2 % | 3,4 / 3,7 / 3,6 % |
+| Aufstieg, 12 h: Klickanteil gesamt | 17,5 / 17,2 / 17,0 % | 3,5 / 3,6 / 3,7 % |
+| Aufstieg, 12 h: 5-min-Fenster ≥ 10 % (ab min 15) | 98 / 101 / 99 von 141 | 3 / 1 / 1 (Ereignisse kurz nach Neustarts) |
+| Sterne 3 h · 4 h · 6 h · 8 h (Saat 42) | 441 · 1.690 · 10.063 · 23.844 | 451 · 1.530 · 9.863 · 23.582 |
+| Sterne nach 12 h | 58.735 / 59.724 / 58.806 | 57.105 / 56.858 / 58.836 |
+| erste Kette | 134 / 131 / 133 min | 138 / 131 / 126 min |
+
 CPU im Playground bei 10 Takten/s: ≈ 10 % eines Kerns. Extremstand (3·10⁷ Sterne, 9·10²¹ €, 150 Filialen): keine Ananas, Interpreter = Wasm.

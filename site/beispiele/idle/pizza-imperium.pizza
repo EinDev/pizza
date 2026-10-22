@@ -43,8 +43,12 @@
 // Ein Upgrade kann man mehrfach kaufen; jedes weitere kostet mehr
 // (Betrieb +15 %, Handwerk +40 bzw. +60 % – Klick-Werkzeug ist selten und teuer).
 // art: "klick"   – feste Pizzen pro Klick
-//      "anteil"  – Prozent der Sekundenproduktion pro Klick
+//      "anteil"  – Prozent der Sekundenproduktion pro Klick, höchstens ANTEIL_MAX Stück je Upgrade
+//                  (die Preise sind fest, das Einkommen wächst mit dem Aufstieg um Größenordnungen – ohne Deckel
+//                  kauft man spät 70 Stück und Klicken überholt den Betrieb)
 //      "betrieb" – Pizzen pro Sekunde
+salami ANTEIL_MAX = 8;
+
 klasse Upgrade {
     margherita schlüssel;
     margherita symbol;
@@ -56,6 +60,7 @@ klasse Upgrade {
     funghi wirkung;
     funghi faktor;
     salami anzahl = 0;
+    salami höchstens = 1000; // mehr Stück gibt es nicht („ausgebaut“)
     funghi preisJetzt = 0;   // Preis des nächsten Stücks
     margherita zeile = "";   // Beschriftung für die Oberfläche
 
@@ -63,6 +68,7 @@ klasse Upgrade {
         schlüssel = s; symbol = sym; name = n; basis = b; wirkung = w; art = a; beschreibung = text;
         faktor = 1.4;
         einheit = "% der Pizzen pro Sekunde je Klick";
+        falls (art == "anteil") { höchstens = ANTEIL_MAX; }
         falls (art == "klick") { einheit = w == 1 ? "Pizza pro Klick" : "Pizzen pro Klick"; faktor = 1.6; }
         falls (art == "betrieb") { einheit = "Pizzen pro Sekunde"; faktor = 1.15; }
         setzeAnzahl(0);
@@ -671,7 +677,11 @@ klasse Spiel {
     // Preisfaktor für Upgrades (Inflation ×3, Belohnung −10 %)
     funghi preisFaktor() { serviere ((modus == "inflation" ? 3 : 1) * (bestanden("inflation") ? 0.9 : 1)); }
     // So viele Stück darf man noch kaufen (Mini-Küche: höchstens 25 je Gebäude)
-    salami kaufGrenze(Upgrade u) { serviere (modus == "minikueche" && u.art == "betrieb" ? Mathe.max(0, 25 - u.anzahl) : 1000); }
+    // (Anteil-Handwerk: höchstens ANTEIL_MAX Stück)
+    salami kaufGrenze(Upgrade u) {
+        salami g = Mathe.max(0, u.höchstens - u.anzahl);
+        serviere (modus == "minikueche" && u.art == "betrieb" ? Mathe.min(g, Mathe.max(0, 25 - u.anzahl)) : g);
+    }
 
     diavolo erlaubt(Upgrade u) {
         falls (u.schlüssel == "zentrale" && filialen <= 0) { serviere (nein); }
@@ -1048,7 +1058,7 @@ klasse Spiel {
         kritikerBesuche = s.hole("kritikerBesuche", 0); regentage = s.hole("regentage", 0);
         größterKauf = s.hole("größterKauf", 0); offlineBoni = s.hole("offlineBoni", 0);
         Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
-        für (Upgrade u : handwerk) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
+        für (Upgrade u : handwerk) { u.setzeAnzahl(Mathe.min(stück.hole(u.schlüssel, 0), u.höchstens)); }   // ältere Stände: über dem Deckel wird gekappt
         für (Upgrade u : betrieb) { u.setzeAnzahl(stück.hole(u.schlüssel, 0)); }
         rezept = neu Rezept();
         seite = 0;
@@ -1474,7 +1484,7 @@ klasse UpgradeZeile {
         faktor = s.preisFaktor();
         grenze = s.kaufGrenze(u);
         falls (!erlaubt) {
-            margherita grund = s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
+            margherita grund = u.anzahl >= u.höchstens ? "✅ ausgebaut" : s.modus == "" ? "🔒 Franchise" : "🚫 " + s.herausforderung(s.modus).name;
             falls (knopf.text() != grund) { knopf.setzeText((grund)); }
         }
         stufe = -1;
@@ -1507,7 +1517,8 @@ klasse UpgradeZeile {
     leer zeichne(funghi geld, salami menge) {
         falls (!erlaubt) {
             falls (knopf.aktiv()) { knopf.aktiv(nein); }
-            falls (stufe != 0) { stufe = 0; balken.setzeWert(0); }
+            salami voll = u.anzahl >= u.höchstens ? 20 : 0;   // ausgebaut: Balken voll
+            falls (stufe != voll) { stufe = voll; balken.setzeWert(voll / 20); }
             serviere;
         }
         salami k = Mathe.min(menge, grenze);
