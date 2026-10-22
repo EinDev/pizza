@@ -1439,6 +1439,30 @@ Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeb
 - **Betroffen:** SPEC §16.2 (Stile), THEKE.md §2; Interpreter (`UI_STIL`), Wasm (`theke.rs` `STIL_NAMEN`, Zahl-Prüfung je Art statt
   `ki <= 2`, hartkodierte Erlaubt-Liste), Renderer (`wendeStilAn`, CSS `--theke-zeilen`/`--theke-mindestbreite`), `tests/theke`,
   `visuell.mjs`, a13 (zwei Erlaubt-Texte Z. 346/701), `tests/faelle/theke-fehlerfaelle.erwartet`, Doku. **Status:** fest.
+
+### K-115 Theke: `kinder` in `aendere` zeigt den Zustand beim Senden – ganzer Knoten = ganzer Zustand
+- **Befund (Pizza-Imperium):** Die `kinder`-Liste eines `aendere`-Eintrags wurde beim `hinzu`/`leeren` als Schnappschuss gebaut. Stand in
+  derselben Nachricht **vor** dem Elternteil schon ein Eintrag eines Kindes (Reihenfolge = erste Änderung, K-057) und änderte das Programm
+  das Kind **nach** dem `hinzu` (z. B. `sichtbar(ja)`), überschrieb der Renderer den neuen Einzelwert mit dem veralteten Schnappschuss
+  (`sichtbar:false`). Ebenso ging ein vorher gepuffertes `stil`-`null` verloren, weil der Schnappschuss die ausstehenden Stil-Löschungen
+  des Kindes als gesendet markierte. Zweiter Fall (Renderer): eine Zutat wandert in **einer** Nachricht von Behälter p nach q und wird
+  unterwegs (nicht gezeigt, also ohne eigenen Eintrag) geändert – der Renderer verwendet das Element nach `id` wieder und behandelte den
+  vollständigen Knoten als Teil-Update; nur bei Abweichung gesendete Felder (`sichtbar:false`, `aktiv:false`, `stil`, …) blieben stehen.
+- **Grundsatz (verbindlich):** Was der Renderer nach einer Nachricht zeigt, entspricht dem Programmzustand am Synchronisationspunkt.
+- **Entscheidung:**
+  1. `hinzu`/`leeren` merken `kinder` nur vor; die Liste (vollständige Teilbäume wie im `baum`) entsteht **beim Senden** aus dem
+     aktuellen Zustand. Position des Eintrags bleibt „erste Änderung“, alle Werte einer Nachricht stammen damit vom selben Zeitpunkt –
+     die Reihenfolge der Einträge kann keinen veralteten Wert mehr nach vorn holen. Das Serialisieren eines Teilbaums gilt wie im `baum`
+     als Senden der ausstehenden Stil-Löschungen seiner Zutaten (K-075) – jetzt am Synchronisationspunkt statt beim `hinzu`.
+  2. Renderer: Ein **vollständiger Knoten** (mit `art`) in einer `kinder`-Liste ist der ganze Zustand der Zutat, auch wenn das Element
+     wiederverwendet wird: fehlende Standardfelder gelten als Standard (`sichtbar:true`, `hinweis:""`, `uebergang:false`, `aktiv:true`
+     bei Knopf/Takt/Auswahl/Tastatur, `platzhalter:""`, Fortschritt-`text:""`, Abschnitt `klappbar`/`zu:false`), `stil` ersetzt den
+     ganzen Stil. Ein Verweis `{"id"}` ohne `art` bleibt Teil-Update (Element unverändert).
+  - Protokoll bleibt `v:1` (gleiche Felder, gleiche Form); geändert hat sich nur, **wann** der Inhalt von `kinder` entsteht. Kein
+    `.ui-erwartet` der Beispiele/Fälle ändert sich (Pizza-Imperium umgeht den Fall bereits; Workaround darf bleiben).
+- **Betroffen:** SPEC §16.2 (Bündelung), §16.3; THEKE.md; Interpreter (`uiAendere`/`uiFlush`), Wasm (`theke.rs` `aendere_kinder`/
+  `ui_flush`), Renderer (`baueIntern`, `mitStandard`), Host neu gebaut (Renderer eingebettet). Tests: `tests/faelle/k115-kinder-schnappschuss`,
+  a13 (K-115), `tests/theke` (zwei Fälle). **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

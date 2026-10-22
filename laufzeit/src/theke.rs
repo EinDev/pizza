@@ -187,7 +187,11 @@ pub fn ui_flush() {
         for (i, (id, felder)) in OFFEN.iter().enumerate() {
             if i > 0 { o.push(','); }
             o.push_str("{\"id\":"); json_text(bytes(*id), &mut o);
-            for (k, v) in felder.iter() { o.push(','); json_text(k.as_bytes(), &mut o); o.push(':'); o.push_str(v); }
+            for (k, v) in felder.iter() {
+                o.push(','); json_text(k.as_bytes(), &mut o); o.push(':');
+                // K-115: kinder ist nur vorgemerkt – die Liste entsteht jetzt aus dem aktuellen Zustand der Teilbäume
+                if *k == "kinder" { kinder_json(finde_id(bytes(*id)).unwrap(), &mut o); } else { o.push_str(v); }
+            }
             o.push('}');
         }
         o.push(']');
@@ -225,11 +229,13 @@ fn aendere(w: W, feld: &'static str, json: String) {
         match felder.iter_mut().find(|(k, _)| *k == feld) { Some(x) => x.1 = json, None => felder.push((feld, json)) }
     }
 }
-fn aendere_kinder(w: W) {
-    let mut o = String::from("[");
-    for (i, &k) in zutat(w).kinder.iter().enumerate() { if i > 0 { o.push(','); } baum(k, &mut o); }
-    o.push(']');
-    aendere(w, "kinder", o);
+/// K-115: nur vormerken – `ui_flush` schreibt die Liste beim Senden (Zustand am Synchronisationspunkt).
+fn aendere_kinder(w: W) { aendere(w, "kinder", String::new()); }
+fn kinder_json(w: W, out: &mut String) {
+    out.push('[');
+    let n = zutat(w).kinder.len();
+    for i in 0..n { if i > 0 { out.push(','); } let k = zutat(w).kinder[i]; baum(k, out); }
+    out.push(']');
 }
 fn jtext(w: W) -> String { let mut o = String::new(); json_text(bytes(w), &mut o); o }
 fn jzahl(x: f64) -> String { let mut o = String::new(); json_zahl(x, &mut o); o }

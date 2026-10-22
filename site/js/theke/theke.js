@@ -102,6 +102,25 @@
   var registry = Object.create(null);
   var ALLGEMEINE_FELDER = ["id", "art", "stil", "sichtbar", "hinweis", "uebergang"];
 
+  // K-115: Ein vollständiger Knoten (mit art) in einer kinder-Liste ist der ganze Zustand der Zutat. Felder, die das Programm nur
+  // bei Abweichung vom Standard sendet, gelten dort als Standard – auch wenn das Element wiederverwendet wird (Zutat wandert).
+  var STIL_SCHLUESSEL = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite"];
+  var STANDARD_FELDER = {
+    knopf: { aktiv: true }, takt: { aktiv: true }, auswahl: { aktiv: true }, tastatur: { aktiv: true },
+    eingabe: { platzhalter: "" }, fortschritt: { text: "" }, abschnitt: { klappbar: false, zu: false }
+  };
+  function mitStandard(k) {
+    var f = { sichtbar: true, hinweis: "", uebergang: false }, x;
+    var art = hat.call(STANDARD_FELDER, k.art) ? STANDARD_FELDER[k.art] : {};
+    for (x in art) f[x] = art[x];
+    for (x in k) if (hat.call(k, x)) f[x] = k[x];
+    var stil = {}, alt = istObjekt(k.stil) ? k.stil : {};
+    for (var i = 0; i < STIL_SCHLUESSEL.length; i++) stil[STIL_SCHLUESSEL[i]] = null;
+    for (x in alt) if (hat.call(alt, x)) stil[x] = alt[x];
+    f.stil = stil;
+    return f;
+  }
+
   function registriere(art, def) {
     if (typeof art !== "string" || !art) throw new TypeError("PizzaTheke.registriere: art muss ein nicht-leerer String sein");
     if (!def || typeof def.erzeuge !== "function") throw new TypeError("PizzaTheke.registriere: erzeuge(knoten, ctx) fehlt");
@@ -1179,7 +1198,8 @@
       // Bekannte ID ohne Art bzw. mit gleicher Art → vorhandenes Element wiederverwenden und aktualisieren.
       if (id !== null && knoten.has(id)) {
         var alt = knoten.get(id);
-        if (k.art === undefined || k.art === alt.art) { aktualisiereEintrag(alt, k); return alt.el; }
+        if (k.art === undefined) { aktualisiereEintrag(alt, k); return alt.el; }
+        if (k.art === alt.art) { aktualisiereEintrag(alt, mitStandard(k)); return alt.el; }   // K-115: ganzer Zustand
         entferneRekursiv(alt.el);
         if (alt.el.parentNode) alt.el.parentNode.removeChild(alt.el);
       }

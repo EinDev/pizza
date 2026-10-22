@@ -1389,3 +1389,39 @@ test("v4: keine Feldwarnungen bei vollständigen v4-Knoten", mitUmgebung(({ t, w
     { id: "r", art: "reiter", titel: ["A"], gewaehlt: 1, kinder: [{ id: "p", art: "schild", text: "p", sichtbar: false }] }] } });
   assert.deepEqual(warnungen, []);
 }));
+
+test("K-115: vollständiger Knoten in kinder ist der ganze Zustand – wiederverwendetes Element fällt auf Standard zurück", mitUmgebung(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "p", art: "stapel", kinder: [{ id: "c", art: "schild", text: "c", sichtbar: false, hinweis: "h", stil: { farbe: "tomate", breite: 10 } },
+      { id: "k", art: "knopf", text: "k", aktiv: false }] },
+    { id: "q", art: "abschnitt", titel: "leer", klappbar: true, zu: true, kinder: [] }] } });
+  const c = $("c"), k = $("k");
+  assert.equal(c.hidden, true);
+  // Zutaten wandern von p nach q (q steht vorn in der Nachricht): das Programm sendet sie vollständig, ohne Standardfelder.
+  t.empfange({ v: 1, op: "aendere", aenderungen: [
+    { id: "q", titel: "voll", kinder: [{ id: "c", art: "schild", text: "c1", stil: { breite: 10 } }, { id: "k", art: "knopf", text: "k" }] },
+    { id: "p", kinder: [] }] });
+  assert.equal($("c"), c, "Element bleibt erhalten");
+  assert.equal($("k"), k);
+  assert.equal(c.hidden, false);
+  assert.equal(c.textContent, "c1");
+  assert.equal(c.getAttribute("title"), null);
+  assert.equal(c.className.includes("theke-farbe-"), false);
+  assert.equal(c.classList.contains("theke-hat-breite"), true);
+  assert.equal(k.disabled, false);
+  assert.equal($("q").parentNode !== null, true);
+  // Verweis ohne art bleibt ein Teil-Update
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "c", sichtbar: false }] });
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "q", kinder: [{ id: "c" }, { id: "k" }] }] });
+  assert.equal(c.hidden, true);
+}));
+
+test("K-115: Abschnitt als vollständiger Knoten ohne klappbar/zu → aufgeklappt, nicht klappbar", mitUmgebung(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "a", art: "abschnitt", titel: "A", klappbar: true, zu: true, kinder: [{ id: "s", art: "schild", text: "x" }] }] } });
+  const a = $("a");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "w", kinder: [{ id: "a", art: "abschnitt", titel: "A", kinder: [{ id: "s", art: "schild", text: "x" }] }] }] });
+  assert.equal($("a"), a);
+  assert.equal(a.querySelector(".theke-abschnitt-knopf"), null, "nicht mehr klappbar");
+  assert.equal($("s").parentNode.hidden, false, "aufgeklappt");
+}));

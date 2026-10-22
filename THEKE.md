@@ -155,12 +155,12 @@ Tastaturereignisse (`Auswahl`, `Tastatur`, v4 – K-109/K-110).
 ## 8. Präzisierungen (verbindlich in SPEC §16, Klärungen K-056 … K-075)
 
 - Rückrufe: `beiKlick` → `fn()`, `beiAenderung` → `fn(wert)`, `beiEnter` → `fn(text)`; Zustand vor dem Rückruf aktualisiert; Setter lösen keine Rückrufe aus (K-056, K-073).
-- Bündelung: gepufferte Änderungen gezeigter Zutaten, gesendet vor dem Warten, nach jedem Rückruf (auch bei Ananas), vor `schliesse`, vor erneutem `fenster` (`setzeTitel`), am Programmende; ein Eintrag je Zutat, letzter Wert gewinnt, `stil` ganzes Objekt, `kinder` vollständig (K-057).
+- Bündelung: gepufferte Änderungen gezeigter Zutaten, gesendet vor dem Warten, nach jedem Rückruf (auch bei Ananas), vor `schliesse`, vor erneutem `fenster` (`setzeTitel`), am Programmende; ein Eintrag je Zutat, letzter Wert gewinnt, `stil` ganzes Objekt, `kinder` vollständig mit dem Zustand beim Senden (K-057, K-115).
 - `zeige`: erstes Mal `fenster` + `baum`; erneut → neuer `baum`, offene Änderungen verfallen; nach Schließen öffnet `zeige` wieder; `zeige(karton)` → TypAnanas (K-058).
 - Ein Elternteil, keine Zyklen, gezeigte Wurzel belegt → `LaufzeitAnanas: Die Zutat 'z1' liegt schon woanders auf der Theke.` (K-059).
 - Programmende (Nutzerentscheidung, K-061): offenes Fenster wird geschlossen – Laufzeit sendet nach dem letzten Flush `schliesse` (auch bei Ananas/P0002, nicht bei Panik, nicht nach `geschlossen`); Host beendet den Prozess mit dem Exit-Code, UI schließt das Vorschaufenster.
 - Ereignisse mit unpassendem Ziel (unbekannte ID, inaktiver Knopf, falscher Typ, unbekannter `typ`) werden ignoriert; Haken akzeptiert `true`/`"true"`; `{"typ":"bereit"}` ist intern (K-064).
-- Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067).
+- Protokoll: Zustandsfelder immer, `platzhalter`/`aktiv:false`/`sichtbar:false`/`stil` nur bei Abweichung; Renderer akzeptiert in `aendere`-`kinder` auch `{"id"}`-Verweise und behandelt `stil` als Teil-Update (K-067); ein vollständiger Knoten (mit `art`) in `kinder` ist der ganze Zustand – fehlende Felder gelten als Standard, `stil` ersetzt den ganzen Stil (K-115).
 - Stile: Zahlen in Pixeln (auch Kommazahlen), `ausrichtung` `links|mitte|rechts`, Fehlertexte mit erlaubter Liste (K-068); `stil(k, karton)` entfernt den Stil, Nachricht trägt `null` (K-075).
 - HOST-ABI `ui_warte`: Rückgabe = benötigte Länge, Retry mit größerem Puffer (wie K-013); Compiler meldet bis zur Umsetzung `nichtUnterstuetzt` (K-072).
 - **Animationen v3 (K-090 … K-094, SPEC §16.6; umgesetzt: Interpreter U-56, Renderer U-58, Wasm U-57):** `zutat.animiere(art, dauer?)` mit `puls|huepfen|wackeln|funkeln|einblenden|aufpoppen`,

@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"K","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"w","art":"stapel","kinder":[{"id":"s","art":"stapel","kinder":[{"id":"a","art":"schild","text":"a","sichtbar":false}]},{"id":"p","art":"stapel","kinder":[{"id":"c","art":"schild","text":"c","sichtbar":false,"stil":{"farbe":"tomate"}}]},{"id":"q","art":"abschnitt","titel":"leer","kinder":[]},{"id":"z1","art":"knopf","text":"eins"},{"id":"z2","art":"knopf","text":"zwei"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"a","text":"a1","sichtbar":true},{"id":"s","kinder":[{"id":"a","art":"schild","text":"a1"},{"id":"b","art":"schild","text":"b"}]}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"q","titel":"voll","kinder":[{"id":"c","art":"schild","text":"c1"}]},{"id":"p","kinder":[]}]}

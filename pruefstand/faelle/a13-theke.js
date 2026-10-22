@@ -964,4 +964,25 @@ t.bediene();
         { id: "z3", art: "knopf", text: "r" }] }),
       aendere({ id: "z1", stil: { mindestbreite: 40, zeilen: null } }, { id: "z2", stil: { zeilen: 1, mindestbreite: null } })],
   }),
+  F(T, "K-115: kinder entsteht beim Senden – ein späterer Einzelwert (sichtbar) und ein früher entfernter Stil (null) bleiben erhalten", P`
+Theke t = neu Theke("K");
+Schild a = neu Schild("a", id: "a").sichtbar(nein).stil("farbe", "tomate");
+Stapel s = neu Stapel([a], id: "s");
+Knopf k = neu Knopf("los", () -> {
+    a.stil("farbe", karton);
+    s.hinzu(neu Schild("b", id: "b"));
+    a.sichtbar(ja);
+    a.stil("breite", 3);
+}, id: "k");
+t.zeige(neu Stapel([s, k], id: "w"));
+t.bediene();
+`, {
+    uiEreignisse: [{ typ: "klick", id: "k" }],
+    ui: [fenster("K"),
+      baum({ id: "w", art: "stapel", kinder: [
+        { id: "s", art: "stapel", kinder: [{ id: "a", art: "schild", text: "a", sichtbar: false, stil: { farbe: "tomate" } }] },
+        { id: "k", art: "knopf", text: "los" }] }),
+      aendere({ id: "a", stil: { breite: 3, farbe: null }, sichtbar: true },
+        { id: "s", kinder: [{ id: "a", art: "schild", text: "a", stil: { breite: 3 } }, { id: "b", art: "schild", text: "b" }] })],
+  }),
 ];

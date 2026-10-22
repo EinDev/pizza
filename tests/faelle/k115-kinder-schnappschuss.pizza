@@ -1,0 +1,24 @@
+// K-115: Die kinder-Liste einer aendere-Nachricht zeigt die Kinder so, wie sie beim Senden sind –
+// nicht so, wie sie beim hinzu/leeren waren.
+Theke t = neu Theke("K");
+Schild a = neu Schild("a", id: "a").sichtbar(nein);
+Stapel s = neu Stapel([a], id: "s");
+Schild c = neu Schild("c", id: "c").sichtbar(nein).stil("farbe", "tomate");
+Stapel p = neu Stapel([c], id: "p");
+Abschnitt q = neu Abschnitt("leer", [], id: "q");
+// Fall 1: a hat schon einen Eintrag, dann hinzu am Elternteil, dann a.sichtbar(ja) – a muss sichtbar ankommen.
+Knopf eins = neu Knopf("eins", () -> {
+    a.setzeText("a1");
+    s.hinzu(neu Schild("b", id: "b"));
+    a.sichtbar(ja);
+});
+// Fall 2: c wandert von p nach q und wird unterwegs (nicht gezeigt) geändert – kein eigener Eintrag für c.
+Knopf zwei = neu Knopf("zwei", () -> {
+    q.setzeTitel("voll");
+    p.leeren();
+    c.sichtbar(ja).stil("farbe", karton).setzeText("c1");
+    q.hinzu(c);
+});
+t.zeige(neu Stapel([s, p, q, eins, zwei], id: "w"));
+t.bediene();
+Bote.sage((a.sichtbar() + " " + c.sichtbar()));

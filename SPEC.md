@@ -878,7 +878,8 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   Warten in `bediene()`, nach jedem Rückruf, vor `schliesse`, vor dem erneuten `fenster` bei `setzeTitel`, am Programmende
   (wenn die Theke noch offen ist, gefolgt von `schliesse`, K-061). Eine `aendere`-Nachricht hat **einen Eintrag je Zutat** (Reihenfolge = erste Änderung),
   spätere Werte derselben Eigenschaft überschreiben frühere; `stil` wird als **ganzes** Stil-Objekt gesendet, `hinzu`/`leeren`
-  als vollständige `kinder`-Liste (`leeren()` → `[]`). Änderungen an nicht gezeigten Zutaten erzeugen keine Nachricht (ihr Zustand
+  als vollständige `kinder`-Liste (`leeren()` → `[]`) – mit dem Zustand der Kinder **beim Senden**, nicht beim `hinzu` (K-115:
+  was der Renderer nach einer Nachricht zeigt, entspricht dem Programmzustand am Synchronisationspunkt). Änderungen an nicht gezeigten Zutaten erzeugen keine Nachricht (ihr Zustand
   steht im nächsten `baum`). Vom Renderer gemeldete Werte (`aenderung`/`enter`) werden nicht zurückgesendet.
 - **`zeige` (K-058):** sendet beim ersten Mal `fenster`, dann `baum` mit dem vollständigen Zustand; gepufferte Änderungen verfallen.
   Erneutes `zeige` ersetzt den Baum (IDs bleiben); nach `geschlossen`/`schliesse()` öffnet `zeige` die Theke wieder (`fenster` + `baum`).
@@ -944,7 +945,8 @@ Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe
 `platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
 Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
-vollständig); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
+vollständig); ein vollständiger Knoten (mit `art`) ist dort der ganze Zustand – auch bei wiederverwendetem Element gelten fehlende
+Felder als Standard und `stil` ersetzt den ganzen Stil (K-115); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
 Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`
 (v2: `{"typ":"takt","id","anzahl"}`, v4: `{"typ":"taste","id","taste"}`).
 Unbekannte Felder/`art`/`op`/`typ` werden ignoriert bzw. als Platzhalter gerendert (Vorwärtskompatibilität); `v` steigt nur bei

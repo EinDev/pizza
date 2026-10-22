@@ -2648,13 +2648,18 @@
       if (!this.uiAngezeigt(z)) return;
       let e = this.uiOffen.get(z.id);
       if (e === undefined) { e = { id: z.id }; this.uiOffen.set(z.id, e); }
-      e[feld] = feld === 'kinder' ? z.kinder.map(k => this.uiBaum(k)) : wert;
+      // K-115: kinder nur vormerken – die Liste entsteht erst beim Senden (Zustand am Synchronisationspunkt).
+      e[feld] = feld === 'kinder' ? null : wert;
     }
 
     uiFlush() {
       if (this.uiOffen.size === 0 && this.uiAnim.length === 0) return;
       const aenderungen = Array.from(this.uiOffen.values());
       this.uiOffen.clear();
+      // K-115: vorgemerkte kinder-Listen jetzt aus dem aktuellen Zustand (in Eintragsreihenfolge)
+      for (const a of aenderungen) {
+        if ('kinder' in a) a.kinder = this.uiZutaten.get(a.id).kinder.map(k => this.uiBaum(k));
+      }
       for (const a of aenderungen) {
         if ('stil' in a) { const z = this.uiZutaten.get(a.id); if (z !== undefined) z.stilNull = null; }
       }
