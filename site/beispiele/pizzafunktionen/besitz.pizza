@@ -1,7 +1,16 @@
 // Bei Luigi gehört jede Pizza genau einem Tisch.
-// Weitergeben geht nur mit schieb(), teilen nur stückweise mit teile().
+// Weitergeben geht mit schieb(): Danach ist der alte Karton leer.
 
-Pizza tisch1 = ((Tomate, Mozzarella, Salami));
+klasse Pizza {
+    margherita sorte;
+    salami stücke = 8;
+
+    Pizza(margherita sorte) { dies.sorte = sorte; }
+
+    margherita alsText() { serviere ((sorte + " (" + stücke + " Stücke)")); }
+}
+
+Pizza tisch1 = neu Pizza("Salami");
 Bote.sage(("Tisch 1 bekommt: " + tisch1));
 
 // Der Kellner schiebt die Pizza zu Tisch 2 weiter
@@ -13,35 +22,23 @@ probier {
     Bote.sage(("Tisch 1 schaut in den Karton: " + a.nachricht()));
 }
 
-// Einfach kopieren? Gibt's nicht.
-probier {
-    Pizza tisch3 = tisch2;
-} verbrannt (BesitzAnanas a) {
-    Bote.sage(("Tisch 3 wollte kopieren: " + a.nachricht()));
-}
-
 // Neuzuweisung ist erlaubt: Tisch 1 bekommt eine neue Pizza
-tisch1 = ((Tomate, Pilze));
+tisch1 = neu Pizza("Funghi");
 Bote.sage(("Tisch 1 tröstet sich mit: " + tisch1));
 
-// Tisch 2 teilt mit seinen Freunden – jede Pizza hat 8 Stücke
-Bote.sage(("Stücke an Tisch 2: " + tisch2.übrig()));
-Stück<Pizza> erstes = teile(tisch2);
-erstes.essen();
-Bote.sage(("Gast 1 isst. Gegessen? " + erstes.istGegessen() + ", übrig: " + tisch2.übrig()));
-Bote.sage(("Das Stück stammt von: " + erstes.pizza()));
-probier {
-    erstes.essen();
-} verbrannt (StreitAnanas a) {
-    Bote.sage(("Gast 1 will nochmal: " + a.nachricht()));
-}
+// Ohne schieb() zeigen zwei Namen auf DIESELBE Pizza:
+// Wer an Tisch 3 isst, isst von der Pizza an Tisch 2.
+Pizza tisch3 = tisch2;
+tisch3.stücke -= 2;
+Bote.sage(("Tisch 3 isst zwei Stücke. Tisch 2 hat: " + tisch2));
+Bote.sage(("Dieselbe Pizza? " + (tisch2 == tisch3)));
 
-für (salami gast = 2; gast <= 9; gast++) {
-    probier {
-        Stück<Pizza> happen = teile(tisch2);
-        happen.essen();
-        Bote.sage(("Gast " + gast + " isst, übrig: " + tisch2.übrig()));
-    } verbrannt (StreitAnanas a) {
-        Bote.sage(("Gast " + gast + " geht leer aus: " + a.nachricht()));
-    }
+// schieb() geht mit jeder Variable – auch mit einer Zahl
+salami trinkgeld = 3;
+salami kasse = schieb(trinkgeld);
+probier {
+    Bote.sage(("Trinkgeld noch auf dem Tisch? " + trinkgeld));
+} verbrannt (LeererKartonAnanas a) {
+    Bote.sage((a.nachricht()));
 }
+Bote.sage(("In der Kasse: " + kasse + " €"));

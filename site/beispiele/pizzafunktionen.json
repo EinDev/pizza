@@ -2,24 +2,24 @@
   "kategorie": "Pizza-Funktionen",
   "beispiele": [
     {
-      "id": "pizza-literale",
-      "titel": "Pizza-Literale & Preise",
-      "beschreibung": "Luigis Speisekarte: Pizzen in Doppelklammern, Beläge mit + und - auflegen und abnehmen, preis() und beläge().",
-      "datei": "pizzafunktionen/pizza-literale.pizza",
-      "erwartet": "pizzafunktionen/pizza-literale.erwartet",
+      "id": "pizza-klasse",
+      "titel": "Eine eigene Klasse Pizza",
+      "beschreibung": "Luigis Speisekarte als Klasse: Beläge in einem Blech, Preise aus einer tiefkühl-Speisekarte, mit() und ohne() liefern neue Pizzen, alsText() bestimmt die Ausgabe – und gleicht() vergleicht Werte statt Identität.",
+      "datei": "pizzafunktionen/pizza-klasse.pizza",
+      "erwartet": "pizzafunktionen/pizza-klasse.erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Pizza", "Belag", "preis", "beläge", "euro"]
+      "schlagworte": ["Klasse", "alsText", "tiefkühl", "Speisekarte", "euro"]
     },
     {
       "id": "eigene-belaege",
-      "titel": "Eigene Beläge (Decorators)",
-      "beschreibung": "Trüffel und Blattgold als eigene Beläge mit @Nach: jede Schicht umwickelt preis() und beschreibung() und fragt mit unten nach.",
+      "titel": "Eigene Beläge (Decorator-Muster)",
+      "beschreibung": "Trüffel und Blattgold als Schichten: Jede Klasse umwickelt die Pizza darunter, überschreibt preis() und beschreibung() und fragt mit unten nach – die Reihenfolge der Schichten entscheidet über den Preis.",
       "datei": "pizzafunktionen/eigene-belaege.pizza",
       "erwartet": "pizzafunktionen/eigene-belaege.erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["belag", "@Nach", "unten", "Decorator"]
+      "schlagworte": ["rezeptur", "rohling", "erbt", "unten", "Decorator"]
     },
     {
       "id": "teig",
@@ -63,13 +63,13 @@
     },
     {
       "id": "besitz",
-      "titel": "Stücke & Besitz",
-      "beschreibung": "Jede Pizza gehört genau einem Tisch: schieb() gibt weiter, teile() verteilt Stücke – beim 9. Gast gibt es Streit.",
+      "titel": "schieb(): Weitergeben statt Kopieren",
+      "beschreibung": "Jede Pizza gehört genau einem Tisch: schieb() gibt sie weiter und lässt einen leeren Karton zurück – eine normale Zuweisung teilt dagegen dasselbe Objekt.",
       "datei": "pizzafunktionen/besitz.pizza",
       "erwartet": "pizzafunktionen/besitz.erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["schieb", "teile", "übrig", "BesitzAnanas", "StreitAnanas"]
+      "schlagworte": ["schieb", "LeererKartonAnanas", "Referenzen", "Objekte"]
     },
     {
       "id": "kuehlschrank",
@@ -104,32 +104,32 @@
     {
       "id": "lieferdienst",
       "titel": "Komplett: Luigis Lieferdienst",
-      "beschreibung": "Ein ganzer Abend mit hauptgang: Bestellungen in den Ofen, Personalpizza teilen, Lieferungen mit Trinkgeld und wennDa.",
+      "beschreibung": "Ein ganzer Abend mit hauptgang: eigene Pizza-Klasse, Bestellungen in den Ofen, Personalpizza per schieb() in die Pause, Lieferungen mit Trinkgeld und wennDa.",
       "datei": "pizzafunktionen/lieferdienst.pizza",
       "erwartet": "pizzafunktionen/lieferdienst.erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["hauptgang", "ofen", "teile", "bestelle", "wennDa"]
+      "schlagworte": ["hauptgang", "ofen", "schieb", "bestelle", "wennDa"]
     },
     {
       "id": "hawaii",
       "titel": "Hawaii",
-      "beschreibung": "Luigi hat nur eine Regel. Wer Ananas auf die Pizza legt, erlebt eine Kernel-Panik – nicht fangbar, Exit-Code 39.",
+      "beschreibung": "Luigi hat nur eine Regel. Wer eine Hawaii bestellt (neu Hawaii(…)), erlebt eine Kernel-Panik – nicht fangbar, Exit-Code 39.",
       "datei": "pizzafunktionen/hawaii.pizza",
       "erwartet": "pizzafunktionen/hawaii.erwartet",
       "exitCode": 39,
       "tier": 1,
-      "schlagworte": ["hawaii", "Ananas", "Panik", "Easter Egg"]
+      "schlagworte": ["hawaii", "Panik", "Easter Egg", "Exit-Code 39"]
     },
     {
       "id": "auflauf",
-      "titel": "Auflauf-Fehler (B0012)",
-      "beschreibung": "Lehrling Toni legt die Tomate auf den Käse – das ist keine Pizza, das ist ein Auflauf. Fataler PizzaFehler, Exit-Code 2.",
+      "titel": "Auflauf: ungefangene Ananas (Exit 1)",
+      "beschreibung": "Lehrling Toni legt die Tomate auf den Käse – Luigis Regel in der Klasse Pizza wirft eine eigene AuflaufAnanas, die niemand fängt: Das Programm endet mit Exit-Code 1.",
       "datei": "pizzafunktionen/auflauf.pizza",
       "erwartet": "pizzafunktionen/auflauf.erwartet",
-      "exitCode": 2,
+      "exitCode": 1,
       "tier": 1,
-      "schlagworte": ["@Nach", "B0012", "PizzaFehler"]
+      "schlagworte": ["wirf", "eigene Ananas", "Exit-Code 1", "Verkettung"]
     }
   ]
 }

@@ -1,11 +1,11 @@
 === Hochzeit Rossi: 24 Pizzen bestellt ===
-Luigi allein: 24 Pizzen in 36min 724ms
+Luigi allein: 24 Pizzen in 36min 488ms
 
-Luigi 6 Pizzen  54,50 €  Trinkgeld 4 €  9min 202ms
-Mario 6 Pizzen  52,50 €  Trinkgeld 3 €  9min 198ms
-Gina  6 Pizzen  51,00 €  Trinkgeld 4 €  9min 194ms
-Toni  6 Pizzen  54,00 €  Trinkgeld 2 €  9min 202ms
-Brigade: 24 Pizzen in 9min 228ms (der langsamste Koch zählt)
+Luigi 6 Pizzen  54,50 €  Trinkgeld 4 €  9min 140ms
+Mario 6 Pizzen  52,50 €  Trinkgeld 3 €  9min 140ms
+Gina  6 Pizzen  51,00 €  Trinkgeld 4 €  9min 140ms
+Toni  6 Pizzen  54,00 €  Trinkgeld 2 €  9min 140ms
+Brigade: 24 Pizzen in 9min 166ms (der langsamste Koch zählt)
 Umsatz: 212,00 €, Trinkgeld: 13 €
 Gleiche Pizzen wie bei Luigi allein: ja
 

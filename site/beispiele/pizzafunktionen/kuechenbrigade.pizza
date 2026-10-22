@@ -6,6 +6,7 @@
 Zufall.saat(2024);   // gleiche Saat = gleiche Hochzeit, bei jedem Lauf
 
 Blech<margherita> sorten = ["Margherita", "Funghi", "Salami", "Diavolo"];
+Blech<funghi> preise = [8.00, 8.50, 9.00, 9.50];
 Blech<margherita> namen = ["Luigi", "Mario", "Gina", "Toni"];
 
 // Die Bestellung: 24 Pizzen, Sorte 1 bis 4
@@ -13,14 +14,17 @@ Blech<salami> bons = [];
 für (salami i = 1; i <= 24; i++) { bons.hinzu(Zufall.zahl(1, 4)); }
 Bote.sage(("=== Hochzeit Rossi: " + bons.länge() + " Pizzen bestellt ==="));
 
+// Eine fertige Pizza: Sorte und Preis – ein kleines Objekt, das in den Karton passt
+klasse Pizza {
+    margherita sorte;
+    funghi preis;
+    Pizza(margherita sorte, funghi preis) { dies.sorte = sorte; dies.preis = preis; }
+    margherita alsText() { serviere ((sorte)); }
+}
+
 Pizza backe(salami sorte) {
-    Pizza boden = ((Tomate, Mozzarella));
-    Pizza p = boden + Basilikum;
-    falls (sorte == 2) { p = boden + Pilze; }
-    falls (sorte == 3) { p = boden + Salami; }
-    falls (sorte == 4) { p = boden + Salami + Chili; }
     Uhr.vorspulen(90s);              // jede Pizza braucht 90 s im Ofen
-    serviere (p);
+    serviere (neu Pizza(sorten.stück(sorte), preise.stück(sorte)));
 }
 
 // Was ein Koch am Ende abliefert – passt in den Karton, darf also die Küche verlassen
@@ -59,7 +63,7 @@ funghi umsatz = 0;
 salami trinkgeld = 0;
 Blech<Pizza> alle = [];
 für (Bericht b : berichte) {
-    funghi teil = b.pizzen.belege(p -> p.preis()).summe();
+    funghi teil = b.pizzen.belege(p -> p.preis).summe();
     umsatz += teil;
     trinkgeld += b.trinkgeld;
     für (Pizza p : b.pizzen) { alle.hinzu(p); }
@@ -68,10 +72,10 @@ für (Bericht b : berichte) {
 Bote.sage(("Brigade: " + alle.länge() + " Pizzen in " + dauerBrigade + " (der langsamste Koch zählt)"));
 Bote.sage(("Umsatz: " + umsatz.euro() + ", Trinkgeld: " + trinkgeld + " €"));
 
-// Gleiche Pizzen in gleicher Reihenfolge wie bei Luigi allein?
+// Gleiche Pizzen in gleicher Reihenfolge wie bei Luigi allein? (Objekte vergleicht man über ihre Felder.)
 diavolo gleich = ja;
 für (salami i = 1; i <= alle.länge(); i++) {
-    falls (alle.stück(i) != allein.stück(i)) { gleich = nein; }
+    falls (alle.stück(i).sorte != allein.stück(i).sorte) { gleich = nein; }
 }
 Bote.sage(("Gleiche Pizzen wie bei Luigi allein: " + gleich));
 

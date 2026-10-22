@@ -1,35 +1,45 @@
-// Luigis Lieferdienst – alles zusammen: Pizzen, Ofen, Stücke und Lieferungen.
+// Luigis Lieferdienst – alles zusammen: eigene Pizza-Klasse, Ofen, schieb und Lieferungen.
+
+klasse Pizza {
+    margherita name;
+    funghi preis;
+    Pizza(margherita name, funghi preis) { dies.name = name; dies.preis = preis; }
+    margherita alsText() { serviere ((name)); }
+}
 
 speisekarte klasse Lieferdienst {
     tiefkühl funghi kasse = 0;
 
     tiefkühl margherita liefere(margherita kunde, Pizza bestellung) {
-        kasse += bestellung.preis();
-        serviere ((kunde + " bekommt " + bestellung + " für " + bestellung.preis().euro()
+        kasse += bestellung.preis;
+        serviere ((kunde + " bekommt " + bestellung + " für " + bestellung.preis.euro()
             + " (Kasse: " + kasse.euro() + ")"));
     }
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         Bote.sage(("=== Luigis Lieferdienst öffnet ==="));
         Blech<Pizza> bestellungen = [
-            ((Tomate, Mozzarella, Basilikum)),
-            ((Tomate, Käse, Salami, Chili)),
-            ((Tomate, Mozzarella, Thunfisch, Zwiebeln))
+            neu Pizza("Margherita", 8.00),
+            neu Pizza("Diavolo", 9.00),
+            neu Pizza("Tonno", 10.00)
         ];
 
         // Alle Bestellungen in den Ofen – klar im Budget
         funghi wert = ofen(temperatur: 400, zeit: 60s) {
-            serviere ((bestellungen.belege(p -> p.preis()).summe()));
+            serviere ((bestellungen.belege(p -> p.preis).summe()));
         } roh (r) {
             serviere ((0));
         };
         Bote.sage(("Aus dem Ofen: " + bestellungen.länge() + " Pizzen im Wert von " + wert.euro()));
 
-        // Die Personalpizza – Luigi nascht schon mal
-        Pizza personal = ((Tomate, Käse, Pilze));
-        Stück<Pizza> nasch = teile(personal);
-        nasch.essen();
-        Bote.sage(("Luigi nascht ein Stück Personalpizza. Übrig: " + personal.übrig()));
+        // Die Personalpizza nimmt Luigi mit in die Pause – schieb() leert den Karton in der Küche
+        Pizza personal = neu Pizza("Funghi", 8.50);
+        Pizza pause = schieb(personal);
+        probier {
+            Bote.sage(("Personalpizza in der Küche: " + personal));
+        } verbrannt (LeererKartonAnanas a) {
+            Bote.sage(("Luigi macht Pause mit der " + pause + ". " + a.nachricht()));
+        }
 
         // Herr Verdi wartet am Telefon – mit Trinkgeld geht's schneller
         Zustellung<margherita> verdi = bestelle(() -> (Lieferdienst.liefere("Herr Verdi", bestellungen.stück(2))))

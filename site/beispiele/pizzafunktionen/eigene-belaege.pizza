@@ -1,43 +1,71 @@
-// Luigis Feinkost-Ecke: Eigene Beläge sind Decorators.
-// Jede Schicht kann Methoden der Pizza "umwickeln" und fragt
-// mit unten.methode() die Schichten darunter.
+// Luigis Feinkost-Ecke: Edle Beläge sind Decorators.
+// Jede Schicht ist eine eigene Klasse, die eine Pizza umwickelt: Sie kennt die Pizza
+// darunter, fragt sie nach Preis und Beschreibung – und legt ihren Teil obendrauf.
 
-@Nach(Tomate)
-belag Trüffel auf Pizza {
-    speisekarte funghi preis() {
-        serviere ((unten.preis() + 4.50));
-    }
-    speisekarte margherita beschreibung() {
-        serviere ((unten.beschreibung() + " mit Trüffel"));
-    }
+speisekarte rezeptur Pizza {
+    funghi preis();
+    margherita beschreibung();
 }
 
-// Blattgold darf nur über dem Trüffel liegen – und verdoppelt alles darunter
-@Nach(Trüffel)
-belag Blattgold auf Pizza {
-    speisekarte funghi preis() {
-        serviere ((unten.preis() * 2));
-    }
-    speisekarte margherita beschreibung() {
-        serviere ((unten.beschreibung() + " und Blattgold"));
-    }
+// Der Boden: eine Margherita für 7,50 €
+klasse Margherita erfüllt Pizza {
+    speisekarte funghi preis() { serviere ((7.50)); }
+    speisekarte margherita beschreibung() { serviere (("Margherita")); }
+}
+
+// Eine Schicht liegt auf einer anderen Pizza. Was sie kostet, sagt die Unterklasse.
+rohling klasse Schicht erfüllt Pizza {
+    familienrezept Pizza darunter;
+
+    speisekarte Schicht(Pizza darunter) { dies.darunter = darunter; }
+
+    speisekarte funghi preis() { serviere ((darunter.preis())); }
+    speisekarte margherita beschreibung() { serviere ((darunter.beschreibung())); }
+}
+
+klasse Trüffel erbt Schicht {
+    speisekarte Trüffel(Pizza p) { unten((p)); }
+
+    @PizzaÜberschreibt
+    speisekarte funghi preis() { serviere ((unten.preis() + 4.50)); }
+
+    @PizzaÜberschreibt
+    speisekarte margherita beschreibung() { serviere ((unten.beschreibung() + " mit Trüffel")); }
+}
+
+// Blattgold verdoppelt alles, was darunter liegt
+klasse Blattgold erbt Schicht {
+    speisekarte Blattgold(Pizza p) { unten((p)); }
+
+    @PizzaÜberschreibt
+    speisekarte funghi preis() { serviere ((unten.preis() * 2)); }
+
+    @PizzaÜberschreibt
+    speisekarte margherita beschreibung() { serviere ((unten.beschreibung() + " und Blattgold")); }
+}
+
+// Basilikum kostet 50 Cent und ist der Beschreibung keine Erwähnung wert
+klasse Basilikum erbt Schicht {
+    speisekarte Basilikum(Pizza p) { unten((p)); }
+
+    @PizzaÜberschreibt
+    speisekarte funghi preis() { serviere ((unten.preis() + 0.50)); }
 }
 
 Bote.sage(("=== Luigis Feinkost ==="));
 
-Pizza einfach = ((Tomate, Mozzarella));
+Pizza einfach = neu Margherita();
 Bote.sage(("Einfach: " + einfach.beschreibung() + ", " + einfach.preis().euro()));
 
-Pizza edel = einfach + Trüffel;
-Bote.sage(("Edel: " + edel));
-Bote.sage(("  " + edel.beschreibung() + ", " + edel.preis().euro()));
+Pizza edel = neu Trüffel(einfach);
+Bote.sage(("Edel: " + edel.beschreibung() + ", " + edel.preis().euro()));
 
-Pizza protzig = edel + Blattgold;
+Pizza protzig = neu Blattgold(edel);
 Bote.sage(("Protzig: " + protzig.beschreibung() + ", " + protzig.preis().euro()));
 
 // Die Reihenfolge der Schichten entscheidet über den Preis!
-Pizza basilikumOben = protzig + Basilikum;
-Pizza goldOben = edel + Basilikum + Blattgold;
+Pizza basilikumOben = neu Basilikum(protzig);
+Pizza goldOben = neu Blattgold(neu Basilikum(edel));
 Bote.sage(("Basilikum oben: " + basilikumOben.preis().euro()));
 Bote.sage(("Blattgold oben: " + goldOben.preis().euro()));
 Bote.sage(("Luigi: Wer zuletzt vergoldet, verdient am meisten."));
