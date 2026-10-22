@@ -1,0 +1,13 @@
+[package]
+name = "herd-skript"
+description = "Herd-Szenen-Skripte: Folgen von ABI-Aufrufen nativ abspielen (Determinismus-Test, Messung, herd-bild)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "herd-skript"
+path = "src/main.rs"
+
+[dependencies]
+herd-kern = { path = "../kern" }

@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["kern", "kern-wasm", "gpu", "werkzeug"]
+members = ["kern", "kern-wasm", "skript", "gpu", "werkzeug"]
 # Die Wasm-Hülle wird nur von baue.js für wasm32v1-none gebaut. (H1a: gpu/werkzeug werden auf das Bildpaket umgestellt.)
-default-members = ["kern"]
+default-members = ["kern", "skript"]
 
 [workspace.package]
 version = "3.1.0"

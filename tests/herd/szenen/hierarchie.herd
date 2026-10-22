@@ -1,0 +1,158 @@
+# Hierarchie, Kopie, Entfernen, Partikel, Fehler, Abfragen – deckt die übrigen ABI-Aufrufe ab.
+vorgabe TAKTE 40
+abi_version
+teil_neu 2
+fehler_art
+fehler_code
+fehler_text
+welt_neu 640 360 "Hierarchie"
+welt_titel "Hierarchie – äöü€"
+welt_hintergrund "#203040"
+welt_himmel "himmel" ""
+welt_umgebung "weiss" 0.5
+welt_nebel "grau" 5 50
+welt_hole 1
+welt_hole 2
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_KR
+typ_nummer "Text" -> T_T
+typ_nummer "Bild" -> T_B
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Partikel" -> T_P
+typ_nummer "Koerper" -> T_K
+typ_nummer "Animation" -> T_A
+typ_nummer "Gibtsnicht"
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_R "rundung" -> R_RUND
+feld_nummer T_R "umriss" -> R_UM
+feld_nummer T_R "farbe" -> R_F
+feld_nummer T_KR "radius" -> KR_R
+feld_nummer T_KR "x"
+fehler_text
+feld_nummer T_T "inhalt" -> T_INH
+feld_nummer T_T "groesse" -> T_GR
+feld_nummer T_T "ausrichtung" -> T_AUS
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "daempfung" -> BEW_DAEMPF
+feld_nummer T_BEW "beschleunigungY" -> BEW_BY
+feld_nummer T_B "bildchen" -> B_BC
+feld_nummer T_A "bilder" -> A_BILDER
+feld_nummer T_P "saat" -> P_SAAT
+feld_nummer T_P "schwerkraft" -> P_SCHWER
+feld_nummer T_K "form" -> K_FORM
+# Wurzel mit drehender Gruppe, Kinder mit eigener Drehung
+teil_neu 2 -> wurzel
+teil_lage wurzel 320 180 0
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_D 30
+komp_haenge bw wurzel
+wiederhole 6 i
+  teil_neu 2 -> arm
+  teil_haenge arm wurzel
+  teil_lage arm (60 + i * 15) 0 0
+  teil_setze arm 4 (i * 60)
+  teil_setze arm 10 (i % 3)
+  komp_neu T_R -> r
+  setze_zahl r R_B 40
+  setze_zahl r R_H 18
+  setze_zahl r R_RUND 6
+  setze_zahl r R_UM (i % 2 * 3)
+  setze_text r R_F "senf"
+  komp_haenge r arm
+  teil_neu 2 -> kind
+  teil_haenge kind arm
+  teil_lage kind 30 0 0
+  komp_neu T_KR -> kr
+  setze_zahl kr KR_R (5 + i)
+  komp_haenge kr kind
+ende
+teil_kinder wurzel
+teil_hole wurzel 18
+# Text
+teil_neu 2 -> tx
+teil_lage tx 320 20 0
+komp_neu T_T -> t
+setze_text t T_INH "Herd · Hierarchie „äöü“ … ×÷ 10 €"
+setze_zahl t T_GR 22
+setze_text t T_AUS "mitte"
+komp_haenge t tx
+hole_text t T_INH
+hole_text t T_AUS
+setze_text t T_AUS "oben"
+fehler_text
+# Bildchen und Animation
+bildchen_neu ["tt.", ".tt", "t.t"] [] -> b1
+bildchen_neu ["xx", "xx"] [["x", "basilikum"]] -> b2
+bildchen_neu ["qq"] []
+fehler_text
+bildchen_rgba 2 1 [255, 0, 0, 255, 0, 0, 255, 128] -> b3
+ressource_hole b1 2
+ressource_hole b2 1
+teil_neu 2 -> sp
+teil_lage sp 100 300 0
+komp_neu T_B -> bb
+setze_zahl bb B_BC b1
+komp_neu T_A -> an
+komp_haenge an sp
+fehler_text
+komp_haenge bb sp
+komp_haenge an sp
+setze_liste an A_BILDER [b1, b2, b3]
+hole_liste an A_BILDER
+komp_loese bb
+fehler_text
+# Kopie der Gruppe (mit allen Kindern und Komponenten)
+teil_kopie wurzel -> kopie
+teil_verschiebe kopie -150 40 0
+teil_groesse kopie 0.5 0.5 1
+teil_kinder kopie
+# Partikel mit Schwerkraft am Kind einer bewegten Gruppe
+teil_neu 2 -> pq
+teil_lage pq 520 300 0
+komp_neu T_P -> p
+setze_zahl p P_SAAT 42
+setze_zahl p P_SCHWER 200
+komp_haenge p pq
+komp_neu T_BEW -> bw2
+setze_zahl bw2 BEW_X -40
+setze_zahl bw2 BEW_DAEMPF 0.5
+setze_zahl bw2 BEW_BY 10
+komp_haenge bw2 pq
+takte 10
+teil_trifft wurzel kopie
+teil_hole kopie 15
+teil_hole kopie 16
+# Entfernen eines Arms (samt Kind), danach Fehler bei Nutzung
+teil_kinder wurzel
+teil_entferne (wurzel + 1)
+teil_hole (wurzel + 1) 14
+teil_lage (wurzel + 1) 0 0 0
+fehler_text
+fehler_neu
+komp_info r 3
+teil_haenge wurzel kopie
+teil_haenge kopie wurzel
+fehler_text
+takte 10
+# 3D-Teil mit eigener Form und Hängen über Räume
+form_eigene [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1] [0, 1, 2, 0, 2, 3, 0, 3, 1, 1, 3, 2] 1 -> tetra
+form_eigene [0, 0, 0] [0, 0, 5] 0
+fehler_text
+ressource_hole tetra 4
+teil_neu 3 -> d3
+komp_neu T_K -> kk
+setze_zahl kk K_FORM tetra
+komp_haenge kk d3
+teil_haenge d3 wurzel
+fehler_text
+teil_setze wurzel 5 10
+fehler_text
+teil_schaue d3 1 2 3
+teil_hole d3 5
+teil_setze d3 11 0
+paket_voll
+takte TAKTE
+hash_szene
+hash_paket

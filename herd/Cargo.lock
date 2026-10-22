@@ -314,6 +314,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "herd-skript"
+version = "3.1.0"
+dependencies = [
+ "herd-kern",
+]
+
+[[package]]
 name = "herd-werkzeug"
 version = "3.1.0"
 dependencies = [

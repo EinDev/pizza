@@ -1,0 +1,24 @@
+# B2 (HERD.md §6): 2D – N Kreise, das Programm setzt jede Lage in jedem Takt selbst (Setter-Kosten).
+# Klein: N=1000 (Vorgabe), voll: N=10000.
+vorgabe N 1000
+vorgabe TAKTE 30
+welt_neu 1280 720 "B2"
+welt_hintergrund "mozzarella"
+typ_nummer "Kreis" -> T_KREIS
+feld_nummer T_KREIS "radius" -> F_RADIUS
+feld_nummer T_KREIS "farbe" -> F_FARBE
+welt_hole 4 -> ERSTER
+wiederhole N i
+  teil_neu 2 -> t
+  komp_neu T_KREIS -> k
+  setze_zahl k F_RADIUS (3 + zufall(i + 7) * 6)
+  setze_text k F_FARBE "tomate"
+  komp_haenge k t
+ende
+wiederhole TAKTE j
+  wiederhole N i
+    teil_lage (ERSTER + i) ((zufall(i) * 1280 + j * (1 + zufall(i + 1) * 4)) % 1280) ((zufall(i + 2) * 720 + j * 2) % 720) 0
+  ende
+  takt
+  bild
+ende

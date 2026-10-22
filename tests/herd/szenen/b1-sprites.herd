@@ -1,0 +1,39 @@
+# B1 (HERD.md §6): 2D – N Sprites mit Bewegung + Animation, das Programm tut pro Takt nichts.
+# Klein: N=1000 (Vorgabe), voll: N=10000.
+vorgabe N 1000
+vorgabe TAKTE 60
+welt_neu 1280 720 "B1"
+welt_hintergrund "ofen"
+typ_nummer "Bild" -> T_BILD
+typ_nummer "Animation" -> T_ANIM
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_BILD "bildchen" -> F_BILDCHEN
+feld_nummer T_BILD "groesse" -> F_GROESSE
+feld_nummer T_BILD "spiegeln" -> F_SPIEGELN
+feld_nummer T_ANIM "bilder" -> F_BILDER
+feld_nummer T_ANIM "proSekunde" -> F_PS
+feld_nummer T_BEW "tempoX" -> F_TX
+feld_nummer T_BEW "tempoY" -> F_TY
+feld_nummer T_BEW "drehtempo" -> F_DREH
+bildchen_neu ["..yyyy..", ".yyyyyy.", "yyosyosy", "yyyyyyyy", "yyttttyy", "yyyttyyy", ".yyyyyy.", "..yyyy.."] [] -> A1
+bildchen_neu ["..yyyy..", ".yyyyyy.", "yyosyosy", "yyyyyyyy", "yyyyyyyy", "yyttttyy", ".yyyyyy.", "..yyyy.."] [] -> A2
+bildchen_neu ["..yyyy..", ".yyyyyy.", "yyyyyyyy", "yyosyosy", "yyyyyyyy", "yyyttyyy", ".yyyyyy.", "..yyyy.."] [] -> A3
+wiederhole N i
+  teil_neu 2 -> t
+  teil_lage t (zufall(i) * 1280) (zufall(i + 100000) * 720) 0
+  komp_neu T_BILD -> b
+  setze_zahl b F_BILDCHEN A1
+  setze_zahl b F_GROESSE (2 + boden(zufall(i + 600000) * 3))
+  setze_zahl b F_SPIEGELN (i % 2)
+  komp_haenge b t
+  komp_neu T_ANIM -> an
+  setze_liste an F_BILDER [A1, A2, A3, A2]
+  setze_zahl an F_PS (4 + zufall(i + 200000) * 8)
+  komp_haenge an t
+  komp_neu T_BEW -> bw
+  setze_zahl bw F_TX ((zufall(i + 300000) - 0.5) * 240)
+  setze_zahl bw F_TY ((zufall(i + 400000) - 0.5) * 240)
+  setze_zahl bw F_DREH ((zufall(i + 500000) - 0.5) * 180)
+  komp_haenge bw t
+ende
+takte TAKTE

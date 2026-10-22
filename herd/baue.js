@@ -30,7 +30,7 @@ function schemaAus(bytes) {
 
 const pruefe = process.argv.includes('--pruefe');
 if (!pruefe && !process.argv.includes('--ohne-cargo')) {
-  const r = cp.spawnSync('cargo', ['build', '--release', '-p', 'herd-kern-wasm', '--target', 'wasm32v1-none'], { cwd: HIER, stdio: 'inherit', shell: process.platform === 'win32' });
+  const r = cp.spawnSync('cargo', ['build', '-j', '2', '--release', '-p', 'herd-kern-wasm', '--target', 'wasm32v1-none'], { cwd: HIER, stdio: 'inherit', windowsHide: true, shell: process.platform === 'win32' });
   if (r.status !== 0) { console.error('cargo build fehlgeschlagen'); process.exit(1); }
 }
 if (pruefe) {

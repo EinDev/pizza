@@ -10,7 +10,9 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `kern/` (`herd-kern`, `no_std` + `alloc` + `libm`) | Welt (Teile, Lage, Hierarchie), Komponenten-Registry, Systeme, Ressourcen (Formen, Bildchen-Atlas, Schrift), Bildpaket, Hashes, ABI (`Kern`) |
 | `kern-wasm/` | Wasm-Hülle: exportiert jede `Kern`-Methode unter gleichem Namen, keine Importe, eigener Allocator. Nur für `wasm32v1-none` |
 | `gpu/` (`herd-gpu`, wgpu) | Sichtprüfung: zeichnet ein Bildpaket offscreen (Paket H2 macht daraus die Glut mit Fenster/Web) |
-| `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Skripte nativ abspielen (Determinismus-Test, Messung) |
+| `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
+| `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
+| `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
 
 Dateien im Kern (`kern/src`): `welt.rs` (Teile, Lage, Welt-Matrizen, Komponenten-Verwaltung), `komponenten/` (Registry +
 eine Datei je Komponente), `schema.rs` (Feldtypen, Schema, Spalten-Speicher), `abi.rs` (`Kern` = Herd-ABI, Szenen-Hash,
@@ -240,10 +242,40 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
 
 ## 7. Tests
 
-- `cargo test` (im Ordner `herd/`): Kern (ABI, Fehlertexte, Hierarchie, Systeme, Bildpaket, Erweiterungsprobe, Schema-Datei
-  aktuell, keine Namenskollision), GPU (Offscreen-Bild, wenn ein Adapter da ist).
-- `node herd/test-kern.js`: spielt Szenen-Skripte (B1–B4 klein und voll, Hierarchie/Kopie/Entfernen) gegen `kern.wasm` und
-  gegen den nativen Kern (`herd-bild skript`) und vergleicht **jeden Rückgabewert** und Szenen-/Paket-Hash je Bild – bitgleich.
+- `cargo test -j 2` (im Ordner `herd/`, alle Crates): Kern (ABI, Fehlertexte, Hierarchie, Systeme, Bildpaket,
+  Erweiterungsprobe, Schema-Datei aktuell, keine Namenskollision), Skript (Parser, alle Szenen laufen fehlerfrei), Glut und
+  Werkzeug (§9).
+- `node herd/test-kern.js` (**blockierend**, K-129): spielt jedes Szenen-Skript aus `tests/herd/szenen/` gegen
+  `site/js/herd/kern.wasm` (`herd/skript.js`) und gegen den nativen Kern (`herd-skript`, baut mit `cargo build -j 2`)
+  und vergleicht **jede Ausgabezeile** – jeden Rückgabewert und Szenen-/Paket-Hash je Bild. Läufe: B1–B4 klein (viele Takte)
+  und in voller Größe (HERD.md §6, wenige Takte) sowie `hierarchie.herd` (Hierarchie mit Drehung, Kopie, Entfernen,
+  Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`). Bei Abweichung: erste abweichende Zeile mit Kontext.
+  `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
+
+### 7.1 Szenen-Skripte (`*.herd`)
+
+Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `herd/skript/src/lib.rs` (Rust) und
+`herd/skript.js` (JS) – beide Spieler sind absichtlich gleich gebaut.
+
+| Zeile | Bedeutung |
+|---|---|
+| `<abi_name> arg … [-> var]` | ein Aufruf des Herd-ABI (§3) mit gleichem Namen; Zeiger/Längen/Kapazitäten setzt der Spieler (Retry K-013). Rückgabe optional in `var` |
+| `bild [n]` | `bild(n)` (ohne `n`: letzte Nummer + 1), danach Szenen- und Paket-Hash |
+| `takte n` | n × (`takt`, `bild`) |
+| `wiederhole n [var]` … `ende` | Schleife, `var` = 0 … n − 1 (verschachtelbar) |
+| `setze var = ausdruck` | Variable |
+| `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
+
+**Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`.
+Je nach Signatur: `setze_liste` Liste von IDs; `form_eigene` zwei Zahlenlisten; `bildchen_neu` Liste der Zeilen und Liste
+von Paaren `[["x", "#fff"]]`; `bildchen_rgba b h [bytes]`. **Ausdrücke:** f64 mit `+ - * / %` (wie JS), Klammern,
+Vorzeichen, `boden(x)`, `zufall(x)` (Hash von `ToUint32(x)` → [0, 1), in beiden Sprachen bitgleich); i32-Argumente
+wie JS `ToInt32`. Keine Winkelfunktionen (JS-`Math` ≠ libm).
+
+**Ausgabe** (beide Spieler, Zeile für Zeile verglichen): `<skriptzeile> <aufruf> <wert>` – i32 dezimal, f64 als `f` + 16
+Hex-Ziffern der Bits (zeigt −0 und NaN-Bits), Texte als JSON, Listen `[1,2]`, Hashes als Hex – und nach jedem Bild
+`B <nr> <szene> <paket>`. `herd-skript datei.herd N=10000 --nur-bilder` zeigt nur die Bildzeilen,
+`--mess` misst Kern-Zeit je Takt und Bild (Release-Bau für Messungen, §10).
 
 ## 8. Eine Komponente hinzufügen
 

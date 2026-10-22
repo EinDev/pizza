@@ -1,0 +1,397 @@
+'use strict';
+/*
+ * Herd-Szenen-Skripte (*.herd) gegen site/js/herd/kern.wasm – das JS-Gegenstück zu herd/skript (Rust).
+ * Format und Ausgabe: herd/README.md §7. Beide Spieler müssen für dasselbe Skript **dieselben Zeilen** liefern:
+ *   "<zeile> <aufruf> <wert>" je ABI-Aufruf (i32 dezimal, f64 als "f" + 16 Hex-Ziffern der Bits, Text als JSON,
+ *   Listen als [a,b]), nach jedem Bild "B <nr> <szene-hash> <paket-hash>".
+ * Nutzung: const { lies, Spieler } = require('./skript.js');
+ */
+
+const SIGNATUREN = {
+  abi_version: ['', 'I'], fehler_art: ['', 'I'], fehler_code: ['', 'I'], fehler_neu: ['', 'I'], fehler_text: ['', 'T'],
+  melde_typfehler: ['iit', 'I'], welt_neu: ['fft', 'I'], welt_titel: ['t', 'I'], welt_hintergrund: ['t', 'I'],
+  welt_himmel: ['tt', 'I'], welt_umgebung: ['tf', 'I'], welt_nebel: ['tff', 'I'], welt_hole: ['i', 'F'],
+  teil_neu: ['i', 'I'], teil_entferne: ['i', 'I'], teil_kopie: ['i', 'I'], teil_haenge: ['ii', 'I'], teil_kinder: ['i', 'U'],
+  teil_setze: ['iif', 'I'], teil_hole: ['ii', 'F'], teil_lage: ['ifff', 'I'], teil_verschiebe: ['ifff', 'I'],
+  teil_groesse: ['ifff', 'I'], teil_schaue: ['ifff', 'I'], teil_trifft: ['ii', 'I'], komp_neu: ['i', 'I'],
+  komp_haenge: ['ii', 'I'], komp_loese: ['i', 'I'], komp_von: ['ii', 'I'], komp_info: ['ii', 'I'], typ_nummer: ['t', 'I'],
+  feld_nummer: ['it', 'I'], setze_zahl: ['iif', 'I'], hole_zahl: ['ii', 'F'], setze_text: ['iit', 'I'], hole_text: ['ii', 'T'],
+  setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
+  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
+  hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
+};
+
+function fehler(z, t) { throw new Error('Zeile ' + z + ': ' + t); }
+
+// ------------------------------------------------------------------------------------------- Syntax
+
+function ausdruck(t, z) {
+  const toks = [];
+  let i = 0;
+  const ziffer = (c) => c >= '0' && c <= '9';
+  const buchst = (c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_';
+  while (i < t.length) {
+    const c = t[i];
+    if (c === ' ' || c === '\t') { i++; }
+    else if (ziffer(c) || (c === '.' && i + 1 < t.length && ziffer(t[i + 1]))) {
+      const s = i;
+      while (i < t.length && (ziffer(t[i]) || t[i] === '.' || t[i] === 'e' || t[i] === 'E' ||
+        ((t[i] === '-' || t[i] === '+') && (t[i - 1] === 'e' || t[i - 1] === 'E')))) i++;
+      toks.push(t.slice(s, i));
+    } else if (buchst(c)) {
+      const s = i;
+      while (i < t.length && (buchst(t[i]) || ziffer(t[i]))) i++;
+      toks.push(t.slice(s, i));
+    } else if ('+-*/%()'.includes(c)) { toks.push(c); i++; }
+    else fehler(z, "unerwartetes Zeichen '" + c + "' in '" + t + "'");
+  }
+  let p = 0;
+  function summe() {
+    let a = produkt();
+    while (p < toks.length && (toks[p] === '+' || toks[p] === '-')) { const op = toks[p++]; a = { op, a, b: produkt() }; }
+    return a;
+  }
+  function produkt() {
+    let a = faktor();
+    while (p < toks.length && (toks[p] === '*' || toks[p] === '/' || toks[p] === '%')) { const op = toks[p++]; a = { op, a, b: faktor() }; }
+    return a;
+  }
+  function faktor() {
+    if (p >= toks.length) fehler(z, 'Ausdruck unvollständig');
+    const x = toks[p++];
+    if (x === '-') return { neg: faktor() };
+    if (x === '(') { const a = summe(); if (toks[p] !== ')') fehler(z, ') fehlt'); p++; return a; }
+    if (ziffer(x[0]) || x[0] === '.') { const v = Number(x); if (Number.isNaN(v)) fehler(z, "Zahl '" + x + "'"); return { zahl: v }; }
+    if (buchst(x[0])) {
+      if (toks[p] === '(') {
+        p++; const a = summe(); if (toks[p] !== ')') fehler(z, ') fehlt'); p++;
+        if (x !== 'boden' && x !== 'zufall') fehler(z, 'unbekannte Funktion ' + x);
+        return { fn: x, a };
+      }
+      return { v: x };
+    }
+    fehler(z, "unerwartet '" + x + "'");
+  }
+  const a = summe();
+  if (p !== toks.length) fehler(z, "Rest im Ausdruck '" + t + "'");
+  return a;
+}
+
+class Zeiger {
+  constructor(s, zeile) { this.s = s; this.i = 0; this.zeile = zeile; }
+  leer() { while (this.i < this.s.length && ' \t\r'.includes(this.s[this.i])) this.i++; }
+  ende() { this.leer(); return this.i >= this.s.length || this.s[this.i] === '#'; }
+  sieh() { return this.i < this.s.length ? this.s[this.i] : ''; }
+  text() {
+    // JSON-Zeichenkette
+    let j = this.i + 1;
+    while (j < this.s.length && this.s[j] !== '"') j += this.s[j] === '\\' ? 2 : 1;
+    if (j >= this.s.length) fehler(this.zeile, 'Text ohne Ende');
+    const t = JSON.parse(this.s.slice(this.i, j + 1));
+    this.i = j + 1;
+    return t;
+  }
+  wort() {
+    const s = this.i;
+    let tiefe = 0;
+    while (this.i < this.s.length) {
+      const c = this.s[this.i];
+      if (c === '(') tiefe++;
+      else if (c === ')') tiefe--;
+      else if (tiefe <= 0 && ' \t\r,]'.includes(c)) break;
+      this.i++;
+    }
+    return this.s.slice(s, this.i);
+  }
+  arg() {
+    this.leer();
+    const c = this.sieh();
+    if (c === '"') return { text: this.text() };
+    if (c === '[') {
+      this.i++;
+      const v = [];
+      for (;;) {
+        this.leer();
+        const d = this.sieh();
+        if (d === ']') { this.i++; return { liste: v }; }
+        if (d === ',') { this.i++; continue; }
+        if (d === '') fehler(this.zeile, 'Liste ohne ]');
+        v.push(this.arg());
+      }
+    }
+    const w = this.wort();
+    if (!w) fehler(this.zeile, 'Argument erwartet');
+    return { wert: ausdruck(w, this.zeile) };
+  }
+}
+
+function lies(text) {
+  const stapel = [{ befehle: [], kopf: null }];
+  const zeilen = text.split('\n');
+  zeilen.forEach((roh, n) => {
+    const nr = n + 1;
+    const z = new Zeiger(roh.replace(/\r$/, ''), nr);
+    if (z.ende()) return;
+    const wort = z.wort();
+    let b;
+    if (wort === 'wiederhole') {
+      const a = z.arg();
+      if (!a.wert) fehler(nr, 'wiederhole braucht eine Anzahl');
+      const v = z.ende() ? null : z.wort();
+      stapel.push({ befehle: [], kopf: { zeile: nr, anzahl: a.wert, v } });
+      return;
+    } else if (wort === 'ende') {
+      const s = stapel.pop();
+      if (!s.kopf) fehler(nr, 'ende ohne wiederhole');
+      b = { art: 'wiederhole', zeile: s.kopf.zeile, anzahl: s.kopf.anzahl, v: s.kopf.v, rumpf: s.befehle };
+    } else if (wort === 'setze') {
+      z.leer(); const v = z.wort(); z.leer();
+      if (z.sieh() !== '=') fehler(nr, 'setze name = ausdruck');
+      z.i++; z.leer();
+      b = { art: 'setze', zeile: nr, v, wert: ausdruck(z.s.slice(z.i).split('#')[0], nr) };
+    } else if (wort === 'vorgabe') {
+      z.leer(); const v = z.wort(); const a = z.arg();
+      if (!a.wert || a.wert.zahl === undefined) fehler(nr, 'vorgabe name zahl');
+      b = { art: 'vorgabe', v, wert: a.wert.zahl };
+    } else if (wort === 'takte') {
+      const a = z.arg();
+      if (!a.wert) fehler(nr, 'takte anzahl');
+      b = { art: 'takte', zeile: nr, anzahl: a.wert };
+    } else {
+      if (wort !== 'bild' && !SIGNATUREN[wort]) fehler(nr, "unbekannter Aufruf '" + wort + "'");
+      const args = [];
+      let ziel = null;
+      while (!z.ende()) {
+        if (z.s.startsWith('->', z.i)) { z.i += 2; z.leer(); ziel = z.wort(); break; }
+        args.push(z.arg());
+      }
+      const sig = SIGNATUREN[wort];
+      if (sig && sig[0].length !== args.length) fehler(nr, wort + ' braucht ' + sig[0].length + ' Argumente, nicht ' + args.length);
+      b = { art: 'ruf', zeile: nr, name: wort, args, ziel };
+    }
+    stapel[stapel.length - 1].befehle.push(b);
+  });
+  if (stapel.length !== 1) fehler(zeilen.length, 'wiederhole ohne ende');
+  return stapel[0].befehle;
+}
+
+// ------------------------------------------------------------------------------------------- Auswertung
+
+/** Deterministischer Zufall in [0, 1) – gleiche Bits wie herd_skript::zufall. */
+function zufall(x) {
+  let h = Number.isFinite(x) ? Math.trunc(x) >>> 0 : 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 0x846ca68b) >>> 0;
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+function rechne(a, v, z) {
+  if (a.zahl !== undefined) return a.zahl;
+  if (a.v !== undefined) { if (!v.has(a.v)) fehler(z, "Variable '" + a.v + "' unbekannt"); return v.get(a.v); }
+  if (a.neg) return -rechne(a.neg, v, z);
+  if (a.fn) { const x = rechne(a.a, v, z); return a.fn === 'boden' ? Math.floor(x) : zufall(x); }
+  const x = rechne(a.a, v, z), y = rechne(a.b, v, z);
+  switch (a.op) { case '+': return x + y; case '-': return x - y; case '*': return x * y; case '/': return x / y; default: return x % y; }
+}
+
+const ENC = new TextEncoder();
+const DEC = new TextDecoder('utf-8');
+const F64 = new Float64Array(1);
+const U64 = new BigUint64Array(F64.buffer);
+
+/** Kanonische Textform eines Rückgabewerts (wie Wert::text in Rust). */
+function wertText(w) {
+  switch (w.art) {
+    case 'I': return String(w.x);
+    case 'F': F64[0] = w.x; return 'f' + U64[0].toString(16).padStart(16, '0');
+    case 'T': {
+      let o = '"';
+      for (const c of DEC.decode(w.x)) {
+        const k = c.codePointAt(0);
+        if (c === '"') o += '\\"'; else if (c === '\\') o += '\\\\'; else if (c === '\n') o += '\\n';
+        else if (k < 0x20) o += '\\u' + k.toString(16).padStart(4, '0'); else o += c;
+      }
+      return o + '"';
+    }
+    case 'U': return '[' + Array.from(w.x).join(',') + ']';
+    default: return w.x;
+  }
+}
+
+class Spieler {
+  /** @param {WebAssembly.Instance} inst  Instanz von kern.wasm (eine je Spieler) */
+  constructor(inst, vorgaben = {}) {
+    this.k = inst.exports;
+    this.vars = new Map();
+    this.nr = 0;
+    this.gesetzt = new Map(Object.entries(vorgaben));
+    this.zeilen = [];
+    this.nurBilder = false;
+    this.mess = null;
+  }
+  mem() { return new Uint8Array(this.k.memory.buffer); }
+  hex(f) { const p = this.k.puffer(16); f(p); return DEC.decode(this.mem().slice(p, p + 16)); }
+  ausgabe(zeile, name, w) { if (!this.nurBilder && !this.mess) this.zeilen.push(zeile + ' ' + name + ' ' + wertText(w)); }
+
+  spiele(befehle) { this.block(befehle); return this.zeilen; }
+
+  block(bs) {
+    for (const b of bs) {
+      if (b.art === 'vorgabe') this.vars.set(b.v, this.gesetzt.has(b.v) ? Number(this.gesetzt.get(b.v)) : b.wert);
+      else if (b.art === 'setze') this.vars.set(b.v, rechne(b.wert, this.vars, b.zeile));
+      else if (b.art === 'wiederhole') {
+        const n = rechne(b.anzahl, this.vars, b.zeile);
+        for (let i = 0; i < n; i += 1) { if (b.v) this.vars.set(b.v, i); this.block(b.rumpf); }
+      } else if (b.art === 'takte') {
+        const n = rechne(b.anzahl, this.vars, b.zeile);
+        for (let i = 0; i < n; i += 1) {
+          const t0 = this.mess ? performance.now() : 0;
+          const r = this.k.takt();
+          if (this.mess) this.mess.takt(performance.now() - t0);
+          this.ausgabe(b.zeile, 'takt', { art: 'I', x: r });
+          this.bild(b.zeile, null);
+        }
+      } else {
+        let w;
+        if (b.name === 'bild') {
+          const nr = b.args.length && b.args[0].wert ? (rechne(b.args[0].wert, this.vars, b.zeile) | 0) >>> 0 : null;
+          w = this.bild(b.zeile, nr);
+        } else {
+          w = this.ruf(b.zeile, b.name, b.args);
+          this.ausgabe(b.zeile, b.name, w);
+        }
+        if (b.ziel) this.vars.set(b.ziel, w.art === 'I' || w.art === 'F' ? w.x : 0);
+      }
+    }
+  }
+
+  bild(zeile, nr) {
+    this.nr = nr === null ? this.nr + 1 : nr;
+    const t0 = this.mess ? performance.now() : 0;
+    const n = this.k.bild(this.nr | 0);
+    if (this.mess) { this.mess.bild(performance.now() - t0, n); return { art: 'I', x: n }; }
+    const w = { art: 'I', x: n };
+    this.ausgabe(zeile, 'bild', w);
+    const s = this.hex((p) => this.k.hash_szene(p));
+    const pk = this.hex((p) => this.k.hash_paket(p));
+    this.zeilen.push('B ' + this.nr + ' ' + s + ' ' + pk);
+    return w;
+  }
+
+  /** Schreibt Byte-Blöcke in einen Austauschpuffer (8-Byte-ausgerichtet) und liefert ihre Zeiger. */
+  puffer(bloecke) {
+    let gesamt = 0;
+    const off = bloecke.map((b) => { const o = gesamt; gesamt += (b.length + 7) & ~7; return o; });
+    const p = this.k.puffer(Math.max(gesamt, 8));
+    const m = this.mem();
+    bloecke.forEach((b, i) => m.set(b, p + off[i]));
+    return bloecke.map((b, i) => [p + off[i], b.length]);
+  }
+
+  /** Ausgabe mit Retry (K-013): f(ptr, kap) → Länge (Elemente); `breite` Bytes je Element. */
+  aus(f, breite, art) {
+    let kap = 64;
+    for (;;) {
+      const p = this.k.puffer(kap * breite);
+      const n = f(p, kap);
+      if (n < 0) return { art: 'I', x: n };
+      if (n <= kap) {
+        const b = this.mem().slice(p, p + n * breite);
+        return art === 'U' ? { art, x: new Uint32Array(b.buffer, 0, n) } : { art, x: b };
+      }
+      kap = n;
+    }
+  }
+
+  ruf(z, name, args) {
+    const k = this.k, v = this.vars;
+    const zahl = (i) => { if (!args[i].wert) fehler(z, 'Argument ' + (i + 1) + ' von ' + name + ' muss eine Zahl sein'); return rechne(args[i].wert, v, z); };
+    const ii = (i) => zahl(i) | 0;
+    const txt = (i) => { if (args[i].text === undefined) fehler(z, 'Argument ' + (i + 1) + ' von ' + name + ' muss ein Text sein'); return ENC.encode(args[i].text); };
+    const zahlen = (i) => { if (!args[i].liste) fehler(z, 'Liste erwartet'); return args[i].liste.map((a) => { if (!a.wert) fehler(z, 'Liste aus Zahlen erwartet'); return rechne(a.wert, v, z); }); };
+    const strings = (i) => {
+      const aus = [];
+      const flach = (a) => { if (a.text !== undefined) aus.push(a.text); else if (a.liste) a.liste.forEach(flach); else fehler(z, 'Liste aus Texten erwartet'); };
+      if (!args[i].liste) fehler(z, 'Liste erwartet');
+      args[i].liste.forEach(flach);
+      return aus;
+    };
+    const texte = (l) => {
+      const teile = l.map((t) => ENC.encode(t));
+      const b = new Uint8Array(teile.reduce((s, t) => s + 4 + t.length, 0));
+      const dv = new DataView(b.buffer);
+      let o = 0;
+      for (const t of teile) { dv.setUint32(o, t.length, true); b.set(t, o + 4); o += 4 + t.length; }
+      return b;
+    };
+    const f64s = (l) => new Uint8Array(new Float64Array(l).buffer);
+    const I = (x) => ({ art: 'I', x }), F = (x) => ({ art: 'F', x });
+    let p;
+    switch (name) {
+      case 'abi_version': return I(k.abi_version());
+      case 'fehler_art': return I(k.fehler_art());
+      case 'fehler_code': return I(k.fehler_code());
+      case 'fehler_neu': return I(k.fehler_neu());
+      case 'fehler_text': return this.aus((q, kap) => k.fehler_text(q, kap), 1, 'T');
+      case 'melde_typfehler': { const a = ii(0), b = ii(1); p = this.puffer([txt(2)]); return I(k.melde_typfehler(a, b, ...p[0])); }
+      case 'welt_neu': { const a = zahl(0), b = zahl(1); p = this.puffer([txt(2)]); return I(k.welt_neu(a, b, ...p[0])); }
+      case 'welt_titel': p = this.puffer([txt(0)]); return I(k.welt_titel(...p[0]));
+      case 'welt_hintergrund': p = this.puffer([txt(0)]); return I(k.welt_hintergrund(...p[0]));
+      case 'welt_himmel': p = this.puffer([txt(0), txt(1)]); return I(k.welt_himmel(...p[0], ...p[1]));
+      case 'welt_umgebung': { const s = zahl(1); p = this.puffer([txt(0)]); return I(k.welt_umgebung(...p[0], s)); }
+      case 'welt_nebel': { const a = zahl(1), b = zahl(2); p = this.puffer([txt(0)]); return I(k.welt_nebel(...p[0], a, b)); }
+      case 'welt_hole': return F(k.welt_hole(ii(0)));
+      case 'teil_neu': return I(k.teil_neu(ii(0)));
+      case 'teil_entferne': return I(k.teil_entferne(ii(0)));
+      case 'teil_kopie': return I(k.teil_kopie(ii(0)));
+      case 'teil_haenge': return I(k.teil_haenge(ii(0), ii(1)));
+      case 'teil_kinder': { const t = ii(0); return this.aus((q, kap) => k.teil_kinder(t, q, kap), 4, 'U'); }
+      case 'teil_setze': return I(k.teil_setze(ii(0), ii(1), zahl(2)));
+      case 'teil_hole': return F(k.teil_hole(ii(0), ii(1)));
+      case 'teil_lage': return I(k.teil_lage(ii(0), zahl(1), zahl(2), zahl(3)));
+      case 'teil_verschiebe': return I(k.teil_verschiebe(ii(0), zahl(1), zahl(2), zahl(3)));
+      case 'teil_groesse': return I(k.teil_groesse(ii(0), zahl(1), zahl(2), zahl(3)));
+      case 'teil_schaue': return I(k.teil_schaue(ii(0), zahl(1), zahl(2), zahl(3)));
+      case 'teil_trifft': return I(k.teil_trifft(ii(0), ii(1)));
+      case 'komp_neu': return I(k.komp_neu(ii(0)));
+      case 'komp_haenge': return I(k.komp_haenge(ii(0), ii(1)));
+      case 'komp_loese': return I(k.komp_loese(ii(0)));
+      case 'komp_von': return I(k.komp_von(ii(0), ii(1)));
+      case 'komp_info': return I(k.komp_info(ii(0), ii(1)));
+      case 'typ_nummer': p = this.puffer([txt(0)]); return I(k.typ_nummer(...p[0]));
+      case 'feld_nummer': { const t = ii(0); p = this.puffer([txt(1)]); return I(k.feld_nummer(t, ...p[0])); }
+      case 'setze_zahl': return I(k.setze_zahl(ii(0), ii(1), zahl(2)));
+      case 'hole_zahl': return F(k.hole_zahl(ii(0), ii(1)));
+      case 'setze_text': { const a = ii(0), b = ii(1); p = this.puffer([txt(2)]); return I(k.setze_text(a, b, ...p[0])); }
+      case 'hole_text': { const a = ii(0), b = ii(1); return this.aus((q, kap) => k.hole_text(a, b, q, kap), 1, 'T'); }
+      case 'setze_liste': {
+        const a = ii(0), b = ii(1), ids = new Uint32Array(zahlen(2).map((x) => (x | 0) >>> 0));
+        p = this.puffer([new Uint8Array(ids.buffer)]);
+        return I(k.setze_liste(a, b, p[0][0], ids.length));
+      }
+      case 'hole_liste': { const a = ii(0), b = ii(1); return this.aus((q, kap) => k.hole_liste(a, b, q, kap), 4, 'U'); }
+      case 'form_grund': return I(k.form_grund(ii(0), zahl(1), zahl(2)));
+      case 'form_eigene': {
+        const pk = zahlen(0), dr = zahlen(1), gl = ii(2);
+        p = this.puffer([f64s(pk), f64s(dr)]);
+        return I(k.form_eigene(p[0][0], pk.length, p[1][0], dr.length, gl));
+      }
+      case 'bildchen_neu': p = this.puffer([texte(strings(0)), texte(strings(1))]); return I(k.bildchen_neu(...p[0], ...p[1]));
+      case 'bildchen_rgba': {
+        const b = ii(0), h = ii(1), bytes = Uint8Array.from(zahlen(2).map((x) => (x | 0) & 255));
+        p = this.puffer([bytes]);
+        return I(k.bildchen_rgba(b, h, p[0][0]));
+      }
+      case 'ressource_hole': return F(k.ressource_hole(ii(0), ii(1)));
+      case 'takt': return I(k.takt());
+      case 'paket_voll': return I(k.paket_voll());
+      case 'hash_szene': return { art: 'H', x: this.hex((q) => k.hash_szene(q)) };
+      case 'hash_paket': return { art: 'H', x: this.hex((q) => k.hash_paket(q)) };
+      case 'schema_json': return this.aus((q, kap) => k.schema_json(q, kap), 1, 'T');
+      default: fehler(z, "unbekannter Aufruf '" + name + "'");
+    }
+  }
+}
+
+module.exports = { lies, Spieler, zufall, wertText, SIGNATUREN };

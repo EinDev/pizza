@@ -1,0 +1,68 @@
+# B3 (HERD.md §6): 3D – N Körper (6 Formen, 4 Farben, 1 Textur), Sonne mit Schatten, 8 Punktlichter, Nebel.
+# Klein: N=100 (Vorgabe), voll: N=1000. Körper auf einem Gitter (40 Spalten), jeder zweite dreht sich.
+vorgabe N 100
+vorgabe TAKTE 60
+welt_neu 1280 720 "B3"
+welt_himmel "himmel" "mozzarella"
+welt_nebel "mozzarella" 40 110
+welt_umgebung "himmel" 0.4
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_K "form" -> F_FORM
+feld_nummer T_K "farbe" -> F_FARBE
+feld_nummer T_K "glanz" -> F_GLANZ
+feld_nummer T_K "bild" -> F_BILD
+feld_nummer T_L "farbe" -> F_LFARBE
+feld_nummer T_L "reichweite" -> F_REICH
+feld_nummer T_L "staerke" -> F_STAERKE
+feld_nummer T_BEW "drehtempo" -> F_DREH
+form_grund 1 0 0 -> F1
+form_grund 2 24 0 -> F2
+form_grund 3 32 0 -> F3
+form_grund 4 32 0 -> F4
+form_grund 6 32 0.35 -> F5
+form_grund 2 12 0 -> F6
+form_grund 5 0 0 -> EBENE
+bildchen_neu ["kkkkeeee", "kkkkeeee", "kkkkeeee", "kkkkeeee", "eeeekkkk", "eeeekkkk", "eeeekkkk", "eeeekkkk"] [] -> TEX
+teil_lage 1 0 14 34
+teil_schaue 1 0 0 0
+teil_lage 2 0.6 1 0.4
+# Boden
+teil_neu 3 -> boden
+teil_groesse boden 120 1 120
+komp_neu T_K -> k
+setze_zahl k F_FORM EBENE
+setze_text k F_FARBE "basilikum"
+setze_zahl k F_GLANZ 0.05
+komp_haenge k boden
+setze SP = 40
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t ((i % SP - SP / 2 + 0.5) * 1.6) 0.5 ((boden(i / SP) - boden(N / SP) / 2) * 1.6)
+  setze w = 0.6 + zufall(i + 11) * 0.5
+  teil_groesse t w w w
+  komp_neu T_K -> k
+  setze_zahl k F_FORM (F1 + i % 6)
+  setze_zahl k F_GLANZ (zufall(i + 12) * 0.8)
+  # 4 Farben über Indikatoren boden(1 / (1 + d²)) = 1 genau für d = 0 (tomate, senf, wasser, mozzarella)
+  setze c = i % 4
+  setze_zahl k F_FARBE (3645189119 * boden(1 / (1 + c * c)) + 4071833087 * boden(1 / (1 + (c - 1) * (c - 1))) + 779082239 * boden(1 / (1 + (c - 2) * (c - 2))) + 4294369535 * boden(1 / (1 + (c - 3) * (c - 3))))
+  # Textur auf jedem 7. Körper (bild = 0 heißt karton)
+  setze_zahl k F_BILD (TEX * boden(1 / (1 + i % 7)))
+  komp_haenge k t
+  komp_neu T_BEW -> bw
+  setze_zahl bw F_DREH ((i % 2) * 40)
+  komp_haenge bw t
+ende
+# 8 Punktlichter über dem Gitter
+wiederhole 8 j
+  teil_neu 3 -> l
+  teil_lage l ((j % 4 - 1.5) * 14) 3 ((boden(j / 4) - 0.5) * 14)
+  komp_neu T_L -> li
+  setze_zahl li F_LFARBE (4294967295 - j * 285212672)
+  setze_zahl li F_REICH 12
+  setze_zahl li F_STAERKE 1.5
+  komp_haenge li l
+ende
+takte TAKTE

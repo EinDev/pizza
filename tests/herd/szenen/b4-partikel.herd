@@ -1,0 +1,40 @@
+# B4 (HERD.md §6): 2D – 10 Emitter, je RATE × LEBEN Teilchen (voll: RATE=1000, LEBEN=2 → 20 000 Teilchen).
+# Klein: RATE=100 (Vorgabe). Volle Teilchenzahl erst nach LEBEN Sekunden (TAKTE ≥ 120).
+vorgabe RATE 100
+vorgabe LEBEN 2
+vorgabe TAKTE 60
+welt_neu 1280 720 "B4"
+welt_hintergrund "ofen"
+typ_nummer "Partikel" -> T_P
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_P "rate" -> F_RATE
+feld_nummer T_P "lebensdauer" -> F_LEBEN
+feld_nummer T_P "tempo" -> F_TEMPO
+feld_nummer T_P "richtung" -> F_RICHTUNG
+feld_nummer T_P "streuung" -> F_STREUUNG
+feld_nummer T_P "schwerkraft" -> F_SCHWER
+feld_nummer T_P "groesse" -> F_GR
+feld_nummer T_P "groesseEnde" -> F_GRE
+feld_nummer T_P "farbe" -> F_FARBE
+feld_nummer T_P "farbeEnde" -> F_FARBE_E
+feld_nummer T_BEW "tempoX" -> F_TX
+wiederhole 10 e
+  teil_neu 2 -> t
+  teil_lage t (64 + e * 128) 600 0
+  komp_neu T_P -> p
+  setze_zahl p F_RATE RATE
+  setze_zahl p F_LEBEN LEBEN
+  setze_zahl p F_TEMPO (120 + e * 12)
+  setze_zahl p F_RICHTUNG 270
+  setze_zahl p F_STREUUNG (30 + e * 8)
+  setze_zahl p F_SCHWER (60 + e * 10)
+  setze_zahl p F_GR (4 + e % 3)
+  setze_zahl p F_GRE 0
+  setze_text p F_FARBE "ananas"
+  setze_text p F_FARBE_E "#d9452b00"
+  komp_haenge p t
+  komp_neu T_BEW -> bw
+  setze_zahl bw F_TX ((e % 2 - 0.5) * 40)
+  komp_haenge bw t
+ende
+takte TAKTE
