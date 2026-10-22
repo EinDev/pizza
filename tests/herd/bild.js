@@ -5,7 +5,7 @@
  * Software-Adapter (WARP/lavapipe, HERD_SOFTWARE=1 – nie die echte GPU, kein Fenster) zu PNGs.
  *
  *   node tests/herd/bild.js prog.pizza [--ereignisse datei] [--bild n[,m…]] [--png ordner] [--groesse BxH]
- *                                      [--skript datei.herd] [--schreibe] [--still]
+ *                                      [--skript datei.herd] [--schreibe] [--json] [--still]
  *
  * --ereignisse  Renderer-Ereignisse (JSON-Lines; Standard: <prog>.ereignisse neben dem Programm, sonst ein {"typ":"takt"})
  * --bild        Bildnummern (bildnummer des Herds), z. B. 1,60,120; „letztes“ = das letzte gesendete Bild (Standard)
@@ -13,6 +13,8 @@
  * --groesse     Zielgröße in Pixeln (Standard: Spielfeldgröße des Herds)
  * --skript      das aufgezeichnete Szenen-Skript zusätzlich hier speichern
  * --schreibe    <prog>.herd-erwartet (herd-Ereignisse ohne typ) und <prog>.erwartet (Ausgabe) neben dem Programm schreiben
+ * --json        die herd-Ereignisse (ohne typ) als JSON-Array ausgeben – für Doku-Blöcke (herdErwartet); dazu den
+ *               Code des Blocks als .pizza und seine uiEreignisse als .ereignisse speichern (nach Kern-Änderungen neu erzeugen)
  * --still       keine Ausgabe des Programms anzeigen
  *
  * Selbstprüfung: Das Skript wird mit herd/skript.js gegen kern.wasm nachgespielt; jedes Bild muss dieselben Szenen- und
@@ -122,7 +124,7 @@ const r = P.run(quelle, { uiEreignisse: ereignisse });
 const ms = Number(process.hrtime.bigint() - t0) / 1e6;
 WebAssembly.Instance = EchteInstanz;
 
-const still = argv.includes('--still');
+const still = argv.includes('--still') || argv.includes('--json');
 const ausgabe = [];
 for (const e of r.ereignisse) {
   if (e.typ === 'ausgabe') ausgabe.push(e.umbruch === false ? e.text : e.text + '\n');
@@ -141,6 +143,9 @@ console.log('Exit ' + r.exitCode + ' · ' + bilder.length + ' Bilder · ' + ms.t
   (ende && typeof ende.schritte === 'number' ? ' · ' + ende.schritte + ' Schritte' : '') + ' · ' + ZEILEN.length + ' ABI-Aufrufe aufgezeichnet');
 if (!istKern) { console.log('Kein Herd-Kern benutzt – nichts zu zeigen.'); process.exit(r.exitCode ? 1 : 0); }
 
+if (argv.includes('--json')) {
+  console.log('[\n' + herd.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]');
+}
 if (argv.includes('--schreibe')) {
   const basis = datei.replace(/\.pizza$/, '');
   fs.writeFileSync(basis + '.herd-erwartet', herd.map(e => JSON.stringify(e) + '\n').join(''));
