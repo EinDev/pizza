@@ -17,6 +17,8 @@
  *     wartet, bis der Hauptthread den Block abgeholt hat. Weckwort im Pool-SAB. Kein postMessage zurück (Hauptthread blockiert).
  *   - Trap in einem Klon → Fach-Art "trap" mit Meldung; der JS-Host wirft dann in `kueche_bericht` (→ K-014 in der
  *     Hauptinstanz, wie ein Trap auf dem Inline-Pfad, K-104).
+ *   - Stirbt ein Koch mitten im Stück (K-104/10 h), kocht der aufrufende Thread nach einer Frist ohne Fortschritt die
+ *     offenen Stücke selbst nach (bitgleich); ein toter Koch (F_AKTUELL bleibt stehen, error/exit) bekommt keine Stücke mehr.
  */
 (function (root, fabrik) {
   'use strict';
@@ -45,13 +47,19 @@
 
   // ---- gemeinsame Konstanten
   const FACH_KOPF = 32;                 // Bytes Kopf je Fach (8 × i32)
-  const F_ZUSTAND = 0, F_STUECK = 1, F_GESAMT = 2, F_OFFSET = 3, F_LAENGE = 4, F_ART = 5, F_BRIGADE = 6;
+  // F_AKTUELL: Stück, an dem der Koch gerade kocht (0 = keins) – bleibt bei einem mitten im Stück gestorbenen Koch stehen
+  const F_ZUSTAND = 0, F_STUECK = 1, F_GESAMT = 2, F_OFFSET = 3, F_LAENGE = 4, F_ART = 5, F_BRIGADE = 6, F_AKTUELL = 7;
   const ART_BERICHT = 0, ART_TRAP = 1, ART_UEBERSPRUNGEN = 2;
   const S_NAECHSTES = 0, S_MIN_ABBRUCH = 1;   // Steuer-SAB je Brigade (i32)
   const W_WECK = 0, W_BEREIT = 1;             // Pool-SAB (i32)
   const STANDARD_FACH = 1 << 20;
   const KLON_UEBERHANG = 64 << 20;            // Klon verwerfen, wenn sein Speicher den Schnappschuss um mehr übersteigt
   const MAX_AUTO = 16;                        // F6/K-097: auto = logische Kerne, höchstens 16
+  // Nachkochen (Koch gestorben, K-104/10 h): ohne Fortschritt so lange warten, bevor der aufrufende Thread ein vergebenes,
+  // noch offenes Stück selbst kocht – mindestens NACHKOCH_FRIST ms, sonst NACHKOCH_FAKTOR × längstes bekanntes Stück.
+  const NACHKOCH_FRIST = 1000;
+  const NACHKOCH_FAKTOR = 3;
+  const jetzt = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
   const sabDa = () => typeof SharedArrayBuffer === 'function' && typeof Atomics === 'object' && typeof Atomics.wait === 'function';
 
@@ -160,19 +168,20 @@
    * reihe, n, auftrag, nr, chaos, echtzeit). liefere(i, art, bytes) übergibt das Ergebnis (bytes: Bericht oder Trap-Meldung,
    * gültig nur während des Aufrufs). zustand: { klon, modulId } – Klon wird über Stücke und Brigaden wiederverwendet.
    */
-  function arbeite(zustand, desc, modulId, b, kochNr, liefere) {
+  function arbeite(zustand, desc, modulId, b, kochNr, liefere, fach) {
     const st = new Int32Array(b.steuer);
     for (;;) {
       const q = Atomics.add(st, S_NAECHSTES, 1);
       if (q >= b.n) return;
-      stueckAusfuehren(zustand, desc, modulId, b, kochNr, b.reihe ? b.reihe[q] : q + 1, liefere);
+      stueckAusfuehren(zustand, desc, modulId, b, kochNr, b.reihe ? b.reihe[q] : q + 1, liefere, fach);
     }
   }
 
-  /** ein Stück i in einem (wiederverwendeten) Klon */
-  function stueckAusfuehren(zustand, desc, modulId, b, kochNr, i, liefere) {
+  /** ein Stück i in einem (wiederverwendeten) Klon; fach (nur Koch-Worker): F_AKTUELL = i während des Kochens */
+  function stueckAusfuehren(zustand, desc, modulId, b, kochNr, i, liefere, fach) {
     const st = new Int32Array(b.steuer);
     if (i > Atomics.load(st, S_MIN_ABBRUCH)) { liefere(i, ART_UEBERSPRUNGEN, null); return; }   // D3: wird nie gelesen
+    if (fach) Atomics.store(fach, F_AKTUELL, i);
     if (b.chaos !== null && b.chaos !== undefined) chaosPause(b.chaos, kochNr, i, b.n);
     let art = ART_BERICHT, bytes;
     try {
@@ -188,6 +197,7 @@
       zustand.klon = null;   // Zustand nach einem Trap unbrauchbar (u. a. __stack_pointer)
       atomMin(st, S_MIN_ABBRUCH, i);
     }
+    if (fach) Atomics.store(fach, F_AKTUELL, 0);
     liefere(i, art, bytes);
     // Ein wiederverwendeter Klon wächst, wenn Stücke über das Speicherende beim Anschnitt hinaus belegen – dann neu anlegen.
     if (zustand.klon !== null && zustand.klon.memory.buffer.byteLength > b.laenge + KLON_UEBERHANG) zustand.klon = null;
@@ -223,7 +233,7 @@
         const st = new Int32Array(m.steuer);
         if (Atomics.load(st, S_NAECHSTES) >= m.n) return;   // zu spät: alles schon verteilt
         if (modul.id !== m.modulId) return;                 // Modul fehlt → der aufrufende Thread kocht ohne diesen Koch
-        arbeite(zustand, modul.desc, m.modulId, m, init.nr, liefere(m.nr));
+        arbeite(zustand, modul.desc, m.modulId, m, init.nr, liefere(m.nr), fach);
       } else if (m.typ === 'ende') {
         if (typeof close === 'function') close(); else if (typeof process !== 'undefined') process.exit(0);
       }
@@ -252,7 +262,13 @@
       this._nr = 0;
       this._eigen = { klon: null, modulId: -1 };
       this._beendet = false;
+      this._frist = NACHKOCH_FRIST;
+      this.nachgekocht = 0;          // Stücke, die der aufrufende Thread für einen ausgefallenen Koch gekocht hat
+      this._testHaken = null;        // nur Tests: (info) => …, im Warten einer Brigade aufgerufen
     }
+
+    /** Köche (Worker), die noch leben (kein error/exit/messageerror; Pool nicht beendet) */
+    get lebend() { return this._beendet ? 0 : this._koeche.filter(k => !k.tot).length; }
 
     /**
      * Synchron (im blockierenden Import `kueche_auftrag`): Stücke 1 … n in Klonen von desc ausführen.
@@ -264,7 +280,10 @@
       if (this._beendet || n < 2) return null;
       const L = speicher.length;
       const passt = Math.floor(this._budget / Math.max(L, 65536)) - 3;   // Hauptspeicher + Schnappschuss + eigener Klon
-      const w = Math.max(0, Math.min(this._koeche.length, n - 1, passt));
+      // Nur Köche, die leben (Ereignis error/exit/messageerror) und frei sind: steht F_AKTUELL vor einer neuen Brigade noch,
+      // kocht der Koch an einem Stück einer früheren Brigade – oder er starb mitten darin (dann bleibt er draußen).
+      const frei = this._koeche.filter(k => !k.tot && Atomics.load(k.fach, F_AKTUELL) === 0);
+      const w = Math.max(0, Math.min(frei.length, n - 1, passt));
       if (w === 0) return null;
       const nr = ++this._nr;
       const id = modulId(desc);
@@ -278,19 +297,30 @@
       const reihe = chaos !== null ? chaosReihe(n, chaos) : null;
       const auftragNachricht = { typ: 'brigade', nr, modulId: id, steuer: steuerSab, schnapp: schnappSab, laenge: L, auftrag, n,
         reihe, chaos, echtzeit: opt.echtzeit };
-      const genutzt = this._koeche.slice(0, w);
+      const genutzt = frei.slice(0, w);
       for (const k of genutzt) {
         if (k.modulId !== id) { k.worker.postMessage({ typ: 'modul', id, modul: desc }); k.modulId = id; }
         k.worker.postMessage(auftragNachricht);
       }
       const berichte = new Array(n);
       const teile = new Map();      // Koch → { i, puffer }
-      let erledigt = 0;
+      // Je Stück erledigt? (Ein nachgekochtes Stück kann später auch noch vom langsamen Koch kommen – gleiche Bytes, es
+      // zählt nicht doppelt.) Fertig ist die Brigade, wenn die Stücke 1 … min(n, kleinster Abbruch) erledigt sind (D3).
+      const fertig = new Uint8Array(n + 1);
+      let fertigBis = 0;            // Stücke 1 … fertigBis erledigt
+      const t0 = jetzt();
+      let fortschritt = t0, laengstes = 0;
       const ablegen = (i, art, bytes) => {
+        if (fertig[i]) return;
+        fertig[i] = 1;
         if (art === ART_BERICHT) berichte[i - 1] = bytes;
         else if (art === ART_TRAP) berichte[i - 1] = { trap: new TextDecoder().decode(bytes) };
-        erledigt++;
+        const t = jetzt();
+        if (laengstes === 0) laengstes = t - t0;   // erstes Ergebnis: obere Schranke für die Dauer eines Stücks
+        fortschritt = t;
+        while (fertigBis < n && fertig[fertigBis + 1]) fertigBis++;
       };
+      const allesDa = () => fertigBis >= Math.min(n, Atomics.load(st, S_MIN_ABBRUCH));
       const abholen = () => {
         for (const k of genutzt) {
           const f = k.fach;
@@ -308,25 +338,42 @@
       };
       // Der aufrufende Thread kocht mit; Ergebnisse direkt (ohne Fach)
       const eigenLiefere = (i, art, bytes) => ablegen(i, art, bytes ? bytes.slice() : null);
+      const eigenesStueck = (i) => {
+        const ts = jetzt();
+        stueckAusfuehren(this._eigen, desc, id, auftragNachricht, 0, i, eigenLiefere, null);
+        laengstes = Math.max(laengstes, jetzt() - ts);
+      };
       for (;;) {
         abholen();
-        if (erledigt >= n) break;
+        if (allesDa()) break;
         if (Atomics.load(st, S_NAECHSTES) < n) {
           // genau ein Stück selbst ziehen (danach wieder Fächer leeren, damit die Köche weiterarbeiten)
-          this._einStueck(desc, id, auftragNachricht, eigenLiefere);
+          const q = Atomics.add(st, S_NAECHSTES, 1);
+          if (q < n) eigenesStueck(reihe ? reihe[q] : q + 1);
           continue;
         }
         const s = Atomics.load(this._weck, W_WECK);
         abholen();
-        if (erledigt >= n) break;
+        if (allesDa()) break;
+        if (this._testHaken) this._testHaken({ nr, koeche: genutzt });
+        // Alles vergeben, aber seit der Frist kein Fortschritt: ein Koch ist womöglich gestorben (Worker beendet, OOM …;
+        // sein error/exit-Ereignis sieht der blockierte Thread nicht). Das kleinste offene Stück selbst kochen – gleiches
+        // Ergebnis, weil jedes Stück aus demselben Schnappschuss beginnt (K-104/4); kommt es doch noch vom Koch, zählt
+        // es nicht doppelt. Ein bloß langsamer Koch kostet so höchstens Rechenzeit, nie das Ergebnis.
+        if (jetzt() - fortschritt >= Math.max(this._frist, NACHKOCH_FAKTOR * laengstes)) {
+          const m = Math.min(n, Atomics.load(st, S_MIN_ABBRUCH));
+          let i = fertigBis + 1;
+          while (i <= m && fertig[i]) i++;
+          if (i <= m) {
+            this.nachgekocht++;
+            eigenesStueck(i);
+            fortschritt = jetzt();
+            continue;
+          }
+        }
         Atomics.wait(this._weck, W_WECK, s, 50);
       }
       return { berichte, koeche: w + 1 };
-    }
-
-    _einStueck(desc, id, b, liefere) {
-      const q = Atomics.add(new Int32Array(b.steuer), S_NAECHSTES, 1);
-      if (q < b.n) stueckAusfuehren(this._eigen, desc, id, b, 0, b.reihe ? b.reihe[q] : q + 1, liefere);
     }
 
     /** Beendet alle Köche (der Pool ist danach unbrauchbar → Inline-Pfad). */
@@ -368,12 +415,18 @@
     for (let nr = 1; nr < k; nr++) {
       const fach = new SharedArrayBuffer(fachGroesse);
       const init = { typ: 'init', pizzaKoch: true, fach, pool: poolSab, nr };
+      const eintrag = { worker: null, fach: new Int32Array(fach), fachBytes: new Uint8Array(fach), modulId: -1, tot: false };
       let worker;
       if (imNode) {
         const { Worker } = require('worker_threads');
         worker = new Worker(__filename, { workerData: init });
         const w = worker;
-        w.on('error', () => { /* Koch abgestürzt: der aufrufende Thread kocht die Stücke allein weiter */ });
+        // Koch abgestürzt/beendet → fliegt aus dem Pool. Wirkt ab der nächsten Brigade: während einer Brigade blockiert der
+        // aufrufende Thread (keine Ereignisse) und kocht die Stücke eines toten Kochs nach Frist selbst nach (Pool.brigade).
+        const tot = () => { eintrag.tot = true; };
+        w.on('error', tot);
+        w.on('exit', tot);
+        w.on('messageerror', tot);
         if (opt.asynchron) {
           versprechen.push(new Promise((ok) => {
             const fertig = (x) => { w.off('message', bereit); w.off('exit', weg); w.unref(); ok(x); };
@@ -385,16 +438,21 @@
         } else w.unref();
       } else {
         worker = new Worker(kochUrl(opt), { name: 'pizza-koch' });
+        const tot = (e) => { if (e && e.preventDefault) e.preventDefault(); eintrag.tot = true; };
+        worker.addEventListener('error', tot);
+        worker.addEventListener('messageerror', tot);
         versprechen.push(new Promise((ok) => {
           worker.addEventListener('message', (e) => { if (e.data && e.data.typ === 'bereit') ok(true); });
           worker.addEventListener('error', (e) => { if (e && e.preventDefault) e.preventDefault(); ok(false); });
         }));
         worker.postMessage(init);
       }
-      koeche.push({ worker, fach: new Int32Array(fach), fachBytes: new Uint8Array(fach), modulId: -1 });
+      eintrag.worker = worker;
+      koeche.push(eintrag);
     }
     const budget = typeof opt.budget === 'number' && opt.budget > 0 ? opt.budget : standardBudget();
     const pool = new Pool(k, koeche, poolSab, budget);
+    if (typeof opt.nachkochFrist === 'number' && opt.nachkochFrist >= 0) pool._frist = opt.nachkochFrist;
     return { pool, bereit: Promise.all(versprechen).then(l => l.every(Boolean)) };
   }
 

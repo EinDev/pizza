@@ -111,3 +111,87 @@ fn chaos_aendert_nichts() {
         }
     }
 }
+
+/// Viele Brigaden hintereinander (Stückzahl 2 … 9, wechselnde Abbrüche, Merker je Brigade neu gesetzt): auf dem
+/// Inline-Pfad führt das Modul die Stücke selbst aus. Ausgabe je Stück 4 Buchstaben aus dem Bericht, `?` für -2.
+fn modul_viele(brigaden: i32) -> Vec<u8> {
+    let src = format!(
+        r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (import "pizza" "kueche_auftrag" (func $auftrag (param i32 i32) (result i32)))
+  (import "pizza" "kueche_bericht" (func $bericht (param i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "|?")
+  (func $abbruch (param $a i32) (result i32) (i32.rem_u (i32.mul (local.get $a) (i32.const 7)) (i32.const 11)))
+  (func $stueck (export "kueche_stueck") (param $a i32) (param $i i32) (result i32 i32)
+    (local $v i32) (local $k i32)
+    (local.set $v (i32.add (i32.mul (i32.load (i32.const 100)) (i32.const 1000))
+                           (i32.add (i32.mul (local.get $a) (i32.const 31)) (i32.mul (local.get $i) (i32.const 17)))))
+    (block $aus (loop $l
+      (br_if $aus (i32.ge_u (local.get $k) (i32.rem_u (i32.mul (local.get $i) (i32.const 3701)) (i32.const 3000))))
+      (local.set $v (i32.add (i32.mul (local.get $v) (i32.const 1103515245)) (i32.const 12345)))
+      (local.set $k (i32.add (local.get $k) (i32.const 1)))
+      (br $l)))
+    (i32.store (i32.const 2000) (i32.eq (local.get $i) (call $abbruch (local.get $a))))
+    (i32.store8 (i32.const 2004) (i32.add (i32.const 65) (i32.rem_u (local.get $v) (i32.const 26))))
+    (i32.store8 (i32.const 2005) (i32.add (i32.const 65) (i32.rem_u (i32.shr_u (local.get $v) (i32.const 8)) (i32.const 26))))
+    (i32.store8 (i32.const 2006) (i32.add (i32.const 65) (i32.rem_u (i32.shr_u (local.get $v) (i32.const 16)) (i32.const 26))))
+    (i32.store8 (i32.const 2007) (i32.add (i32.const 65) (i32.rem_u (i32.shr_u (local.get $v) (i32.const 24)) (i32.const 26))))
+    (i32.const 2000) (i32.const 8))
+  (func (export "start") (result i32)
+    (local $b i32) (local $n i32) (local $i i32) (local $r i32) (local $rr i32) (local $st i32)
+    (block $fertig (loop $brigaden
+      (br_if $fertig (i32.ge_s (local.get $b) (i32.const {brigaden})))
+      (i32.store (i32.const 100) (local.get $b))
+      (local.set $n (i32.add (i32.const 2) (i32.rem_u (local.get $b) (i32.const 8))))
+      (local.set $r (call $auftrag (local.get $b) (local.get $n)))
+      (local.set $i (i32.const 1))
+      (block $aus (loop $stuecke
+        (br_if $aus (i32.gt_s (local.get $i) (local.get $n)))
+        (if (i32.eq (local.get $r) (i32.const -1))
+          (then
+            (call $stueck (local.get $b) (local.get $i)) (drop) (drop)
+            (call $ausgabe (i32.const 2004) (i32.const 4))
+            (local.set $st (i32.load (i32.const 2000))))
+          (else
+            (local.set $rr (call $bericht (local.get $i) (i32.const 1000) (i32.const 100)))
+            (if (i32.eq (local.get $rr) (i32.const -2))
+              (then (call $ausgabe (i32.const 1) (i32.const 1)) (br $aus)))
+            (call $ausgabe (i32.const 1004) (i32.const 4))
+            (local.set $st (i32.load (i32.const 1000)))))
+        (br_if $aus (local.get $st))
+        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+        (br $stuecke)))
+      (call $ausgabe (i32.const 0) (i32.const 1))
+      (local.set $b (i32.add (local.get $b) (i32.const 1)))
+      (br $brigaden)))
+    (i32.const 0)))"#
+    );
+    wat::parse_str(src).expect("WAT")
+}
+
+#[test]
+fn stresstest_viele_brigaden_mit_chaos_und_ausfaellen() {
+    // Viele Brigaden × Köche × Chaos-Saaten (Reihenfolge, Verzögerungen, frische Klone, ausfallende Köche): immer genau
+    // die Ausgabe des Inline-Pfads, nie ein Hängen (Köche werden nur per join abgewartet).
+    let wasm = modul_viele(80);
+    let (code, soll) = lauf(&wasm, 1, None);
+    assert_eq!(code, 0);
+    let soll = ausgaben(&soll);
+    assert_eq!(soll.iter().filter(|s| *s == "|").count(), 80);
+    assert!(!soll.iter().any(|s| s == "?"));
+    let vorher = pizzahost::kueche::AUSFAELLE.load(std::sync::atomic::Ordering::Relaxed);
+    let mut laeufe = vec![(2, None), (4, None), (8, None)];
+    for saat in 0..5u64 {
+        for koeche in [2, 3, 4, 8] {
+            laeufe.push((koeche, Some(saat)));
+        }
+    }
+    for (koeche, chaos) in laeufe {
+        let (code, e) = lauf(&wasm, koeche, chaos);
+        assert_eq!(code, 0, "koeche={} chaos={:?}", koeche, chaos);
+        assert!(ausgaben(&e) == soll, "koeche={} chaos={:?}", koeche, chaos);
+    }
+    // Der Ausfallpfad wurde wirklich durchlaufen (Chaos-Ausfälle).
+    assert!(pizzahost::kueche::AUSFAELLE.load(std::sync::atomic::Ordering::Relaxed) > vorher);
+}

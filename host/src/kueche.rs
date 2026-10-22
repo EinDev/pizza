@@ -16,6 +16,9 @@
 //!   Wandzeit; ohne ≥ 10 % Gewinn antwortet er bei Brigaden mit derselben Stückzahl `-1` und probiert Köche erst nach
 //!   1, 2, 4 … 64 Brigaden wieder. Unbeobachtbar (Planung frei, SPEC §17.7); unter Chaos immer Köche.
 //! - Klone rufen nie Ausgabe-/Ende-Imports (HOST-ABI §2): solche Aufrufe sind ein Trap des Klons, nie ein Lauf-Abbruch.
+//! - Ausfall eines Kochs (Thread startet nicht, Panik, Klon nicht anlegbar): fehlt dadurch ein Stück bis einschließlich zum
+//!   ersten Abbruch, kocht der aufrufende Thread es in einem Klon nach (gleiches Ergebnis; geht das nicht: `-1`, das Modul
+//!   arbeitet selbst). Gewartet wird nur per `join` der Scope-Threads – kein Condvar/Park, also keine Weckrennen.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -69,7 +72,13 @@ struct KochErgebnis {
     stuecke: Vec<(usize, Ausgang)>,
     klon: Option<Klon>,
     arbeit: Duration,
+    /// Koch nicht gestartet, abgestürzt oder ohne Klon (Ressourcen) – seine Stücke fehlen ggf.
+    ausgefallen: bool,
 }
+
+/// Zähler ausgefallener Köche (nur Diagnose/Tests; u. a. die Chaos-Ausfälle).
+#[doc(hidden)]
+pub static AUSFAELLE: AtomicUsize = AtomicUsize::new(0);
 
 /// Erfahrung mit Brigaden einer Stückzahl: lohnten sich Köche zuletzt? (Nur Leistung, nie beobachtbar.)
 struct Schaetzung {
@@ -152,14 +161,19 @@ impl Kueche {
             griffe
                 .into_iter()
                 .map(|g| match g {
-                    Ok(h) => h.join().unwrap_or_default(),
-                    Err(_) => KochErgebnis::default(),
+                    // Ein Koch, der nicht startet oder unterwegs ausfällt (Panik), verliert alle seine Berichte – auch
+                    // einen, der `kleinster_abbruch` schon gesetzt hat. Die Lücke fängt die Zusammenführung unten ab.
+                    Ok(h) => h.join().unwrap_or_else(|_| KochErgebnis { ausgefallen: true, ..Default::default() }),
+                    Err(_) => KochErgebnis { ausgefallen: true, ..Default::default() },
                 })
                 .collect()
         });
         let mut berichte: Vec<Option<Ausgang>> = (0..n).map(|_| None).collect();
         let mut arbeit = Duration::ZERO;
         for e in ergebnisse {
+            if e.ausgefallen {
+                AUSFAELLE.fetch_add(1, Ordering::Relaxed);
+            }
             arbeit += e.arbeit;
             for (i, a) in e.stuecke {
                 berichte[i - 1] = Some(a);
@@ -181,17 +195,25 @@ impl Kueche {
             sch.bis_probe = sch.abstand;
         }
         // Frühester Abbruch (Status ≠ 0 oder Trap); dahinter wird nichts gemeldet (D3).
+        let grenze = kleinster_abbruch.load(Ordering::SeqCst);
         for (j, b) in berichte.into_iter().enumerate() {
-            match b {
-                None => {
-                    // Konnte ein Koch nicht starten (Thread-Erzeugung), fehlt ein Stück vor dem ersten Abbruch:
-                    // dann arbeitet das Modul selbst (gleiches Ergebnis).
-                    if j < kleinster_abbruch.load(Ordering::SeqCst).saturating_sub(1) {
+            // Fehlt ein Stück bis einschließlich zum ersten Abbruch (Koch nicht gestartet, ausgefallen, Klon nicht
+            // anlegbar), kocht der aufrufende Thread es in einem Klon nach – gleiches Ergebnis, jedes Stück beginnt beim
+            // Schnappschuss. Auch das Abbruch-Stück selbst kann fehlen: ein ausgefallener Koch hat `kleinster_abbruch`
+            // gesetzt, seinen Bericht aber nicht mehr abgegeben (früher: `Ok(0)` mit gekürzten Berichten → die Laufzeit
+            // sah -2 statt des Abbruchs). Geht auch das nicht, arbeitet das Modul selbst (`-1`).
+            let b = match b {
+                None if j < grenze => match self.nachkochen(schnapp, auftrag, j + 1) {
+                    Some(a) => Some(a),
+                    None => {
                         self.berichte.clear();
                         return Ok(-1);
                     }
-                    break;
-                }
+                },
+                b => b,
+            };
+            match b {
+                None => break,
                 Some(Ausgang::Trap(t)) => {
                     self.berichte.clear();
                     return Err(t);
@@ -206,6 +228,20 @@ impl Kueche {
             }
         }
         Ok(0)
+    }
+
+    /// Stück i im aufrufenden Thread in einem (wiederverwendeten oder frischen) Klon; `None` = kein Klon möglich.
+    fn nachkochen(&mut self, schnapp: &[u8], auftrag: i32, i: usize) -> Option<Ausgang> {
+        let mut klon = match self.klone.pop() {
+            Some(k) => k,
+            None => Klon::neu(&self.modul, self.echtzeit).ok()?,
+        };
+        klon.lade(schnapp).ok()?;
+        let (a, brauchbar) = klon.stueck_kochen(auftrag, i);
+        if brauchbar {
+            self.klone.push(klon);
+        }
+        Some(a)
     }
 }
 
@@ -247,49 +283,39 @@ fn koch(
                 frisch = false;
             }
         }
+        // Klon anlegen/bespielen scheitert nur an Ressourcen des Hosts (kein Trap des Programms): der Koch fällt aus, sein
+        // Stück bleibt offen → der aufrufende Thread kocht es nach bzw. das Modul arbeitet selbst (siehe `auftrag`).
         if klon.is_none() {
             match Klon::neu(modul, echtzeit) {
                 Ok(k) => klon = Some(k),
-                Err(e) => {
-                    melde(&mut aus, kleinster_abbruch, i, Ausgang::Trap(e));
-                    break;
-                }
+                Err(_) => return KochErgebnis { stuecke: aus, klon: None, arbeit, ausgefallen: true },
             }
             frisch = false;
         }
         let k = klon.as_mut().expect("Klon");
         if !frisch {
-            if let Err(e) = k.lade(schnapp) {
-                melde(&mut aus, kleinster_abbruch, i, Ausgang::Trap(e));
-                klon = None;
-                break;
+            if k.lade(schnapp).is_err() {
+                return KochErgebnis { stuecke: aus, klon: None, arbeit, ausgefallen: true };
             }
             frisch = true;
         }
         let ts = Instant::now();
-        let r = k.stueck.call(&mut k.store, (auftrag, i as i32));
+        let (a, brauchbar) = k.stueck_kochen(auftrag, i);
         arbeit += ts.elapsed();
-        match r {
-            Ok((p, len)) => {
-                let daten = k.memory.data(&k.store);
-                let (p, len) = (p as u32 as usize, len as u32 as usize);
-                match daten.get(p..p.saturating_add(len)) {
-                    Some(b) => melde(&mut aus, kleinster_abbruch, i, Ausgang::Bericht(b.to_vec())),
-                    None => {
-                        melde(&mut aus, kleinster_abbruch, i, Ausgang::Trap("kueche_stueck: Bericht außerhalb des Speichers".into()));
-                        klon = None;
-                    }
-                }
-            }
-            Err(e) => {
-                melde(&mut aus, kleinster_abbruch, i, Ausgang::Trap(e.to_string()));
-                // Nach einem Trap ist der Klon unbrauchbar (Stapelzeiger mitten im Aufruf); für weitere Stücke ein neuer.
-                klon = None;
-                frisch = false;
-            }
+        melde(&mut aus, kleinster_abbruch, i, a);
+        if !brauchbar {
+            // Nach einem Trap ist der Klon unbrauchbar (Stapelzeiger mitten im Aufruf); für weitere Stücke ein neuer.
+            klon = None;
+            frisch = false;
+        }
+        // Chaos: gelegentlich fällt ein Koch nach einem Stück aus – alle seine Berichte sind verloren, womöglich auch ein
+        // schon gemeldeter Abbruch (wie bei einer Panik; im Release-Build gilt panic = "abort", eine echte Panik beendet
+        // ohnehin den Prozess). Prüft den Ausfallpfad (`auftrag` kocht die fehlenden Stücke nach, gleiches Ergebnis).
+        if chaos.is_some() && z.naechste() % 64 == 0 {
+            return KochErgebnis { stuecke: Vec::new(), klon: None, arbeit, ausgefallen: true };
         }
     }
-    KochErgebnis { stuecke: aus, klon, arbeit }
+    KochErgebnis { stuecke: aus, klon, arbeit, ausgefallen: false }
 }
 
 fn melde(aus: &mut Vec<(usize, Ausgang)>, kleinster_abbruch: &AtomicUsize, i: usize, a: Ausgang) {
@@ -317,6 +343,21 @@ impl Klon {
         let memory = inst.get_memory(&store, "memory").ok_or("Export 'memory' fehlt")?;
         let stueck = inst.get_typed_func::<(i32, i32), (i32, i32)>(&store, "kueche_stueck").map_err(|e| e.to_string())?;
         Ok(Klon { store, memory, stueck, _instanz: inst })
+    }
+
+    /// `kueche_stueck(auftrag, i)` aufrufen → (Bericht oder Trap, Klon danach noch brauchbar?).
+    fn stueck_kochen(&mut self, auftrag: i32, i: usize) -> (Ausgang, bool) {
+        match self.stueck.call(&mut self.store, (auftrag, i as i32)) {
+            Ok((p, len)) => {
+                let daten = self.memory.data(&self.store);
+                let (p, len) = (p as u32 as usize, len as u32 as usize);
+                match daten.get(p..p.saturating_add(len)) {
+                    Some(b) => (Ausgang::Bericht(b.to_vec()), true),
+                    None => (Ausgang::Trap("kueche_stueck: Bericht außerhalb des Speichers".into()), false),
+                }
+            }
+            Err(e) => (Ausgang::Trap(e.to_string()), false),
+        }
     }
 
     /// Speicher auf die Größe des Schnappschusses bringen und überschreiben; ein größerer Rest (wiederverwendeter Klon)

@@ -1060,6 +1060,14 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      `wasm-rueck` (Saat 0) – nur Programme mit `brigade`.
      (g) CSP: Koch-Worker laden `js/pizzaiolo/koch.js` per URL (`worker-src 'self'`), keine Blob-Worker; Browser-URL relativ
      zum Lauf-Worker wie `importScripts`, Option `url`. Geprüft in Chrome (headless) mit den Headern aus `nginx.conf`.
+     (h) **Koch stirbt** (Worker beendet/abgestürzt, OOM – kein Wasm-Trap): Während einer Brigade blockiert der aufrufende
+     Thread und sieht `error`/`exit`/`messageerror` nicht. Ist alles vergeben und seit `max(1 s, 3 × längstes bekanntes
+     Stück)` kein Fortschritt, kocht er das kleinste offene Stück (≤ kleinster Abbruch) selbst nach – bitgleich, weil jedes
+     Stück beim Schnappschuss beginnt; kommt es doch noch vom (nur langsamen) Koch, zählt es nicht doppelt. Fertig ist die
+     Brigade, sobald die Stücke 1 … min(n, kleinster Abbruch) da sind. Ein Koch, dessen Fach-Wort `F_AKTUELL` beim Beginn
+     einer Brigade noch steht (gestorben oder noch an Alt-Arbeit), bekommt keine Stücke; nach den Ereignissen fliegt er ganz
+     aus dem Pool (`pool.lebend`). Test: `tests/wasm/koch-ausfall.js` (eigener Prozess mit Zeitgrenze, `terminate()` mitten
+     im Stück). Echter Wasm-Trap (`unreachable`) in einem Klon: handgebautes Modul in `tests/wasm/run.js`.
   11. **Nativer Host (P4, U-68)** – Entscheidungen des Native-Host-Agenten (`host/src/kueche.rs`, `laufen.rs`, `main.rs`):
      (a) Köche = `std::thread::scope`-Threads je Brigade (Stapel 16 MiB wie der Programm-Thread, HOST-ABI §6), je Koch eine
      Klon-Instanz (eigener wasmi-`Store`, gleiches `Module`/`Engine`); Klone werden über Stücke und Brigaden eines Laufs
@@ -1082,6 +1090,12 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      Programme mit `brigade`; `PIZZA_KUECHEN_CHAOS=N` schaltet Chaos zu). Smoke `host/smoke-koeche.js` in CI.
      (g) Speedup (Windows, 24 logische Kerne, 8 Stücke à 3,2·10⁶ Schritte): 1 / 2 / 4 / 8 Köche = 7,2 / 3,6 / 1,9 / 1,0 s
      (7,0×); 200 Brigaden à 8 Stücke à 4·10⁴ Schritte: 20,4 / 10,3 / 5,5 / 3,5 s (5,9×).
+     (h) **Robustheit:** Der Host wartet nur per `join` der Scope-Threads (kein Condvar/Park → kein Weckrennen wie bei
+     `Atomics.wait` in P3). Lücke behoben: fiel ein Koch aus, nachdem er den kleinsten Abbruch gesetzt hatte, fehlte dessen
+     Bericht und `kueche_auftrag` antwortete `0` mit gekürzten Berichten. Jetzt kocht der aufrufende Thread jedes fehlende
+     Stück ≤ kleinster Abbruch in einem Klon nach (sonst `-1`); ein nicht anlegbarer Klon ist ein Ausfall, kein Trap.
+     Chaos lässt gelegentlich einen Koch ausfallen (Berichte verworfen); Stresstest `host/tests/kueche.rs` (80 Brigaden ×
+     Köche 2–8 × Saaten). Echter Trap im Klon: `trap_im_klon_ist_interner_fehler` (`unreachable`).
   12. **Speicher je Brigade (Laufzeit, ohne GC):** Der Auftrag der Hauptküche (`gefroren == 0`) wird über alle Brigaden eines
      Laufs wiederverwendet (statische Zelle `HAUPT_AUFTRAG`, `laufzeit/src/kueche.rs`; Felder neu gesetzt, Vektoren geleert, Kapazität bleibt). Er trägt
      auch die Arbeitsfläche: Berichtsliste (Kapazität ≥ n vor der Grenze), **ein** Berichtspuffer (Köche-Pfad: alle Berichte

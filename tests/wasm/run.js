@@ -243,7 +243,54 @@ console.log('▶ köche (P3: Pool mit Klon-Instanzen in worker_threads)');
       return r.koeche === 4 && r.ereignisse[r.ereignisse.length - 1].koeche === 4;
     });
     pruefe('ein Stück → Inline-Pfad', () => Z.run('Bote.sage(([1].brigade(x -> x)));', { motor: 'wasm', koeche: pool }).koeche === undefined);
+    pruefe('echter Wasm-Trap (unreachable) in einem Klon → interner Fehler (K-014), kein Hängen', () => {
+      // Handgebautes Modul: start() ruft kueche_auftrag(0, 4) und kueche_bericht(1 … 4); kueche_stueck trappt in Stück 2.
+      const P2 = (f) => { const p = new K.Puffer(); f(p); return p.fertig(); };
+      const I = 0x7f, F64 = 0x7c;
+      const typ = P2(p => {
+        p.u32(5);
+        p.byte(0x60); p.u32(2); p.byte(I); p.byte(I); p.u32(1); p.byte(I);                  // 0: auftrag
+        p.byte(0x60); p.u32(3); p.byte(I); p.byte(I); p.byte(I); p.u32(1); p.byte(I);       // 1: bericht
+        p.byte(0x60); p.u32(0); p.u32(1); p.byte(I);                                         // 2: start
+        p.byte(0x60); p.u32(0); p.u32(1); p.byte(F64);                                       // 3: schritte/zeitMs
+        p.byte(0x60); p.u32(2); p.byte(I); p.byte(I); p.u32(2); p.byte(I); p.byte(I);       // 4: kueche_stueck
+      });
+      const imp = P2(p => { p.u32(2); p.name('pizza'); p.name('kueche_auftrag'); p.byte(0); p.u32(0); p.name('pizza'); p.name('kueche_bericht'); p.byte(0); p.u32(1); });
+      const fn = P2(p => { p.u32(4); p.u32(2); p.u32(3); p.u32(3); p.u32(4); });
+      const mem = P2(p => { p.u32(1); p.byte(0); p.u32(1); });
+      const ex = P2(p => { p.u32(5); p.name('start'); p.byte(0); p.u32(2); p.name('schritte'); p.byte(0); p.u32(3); p.name('zeitMs'); p.byte(0); p.u32(4);
+        p.name('memory'); p.byte(2); p.u32(0); p.name('kueche_stueck'); p.byte(0); p.u32(5); });
+      const rumpf = (c) => { const b = c.bytes(); const p = new K.Puffer(); p.u32(b.length + 1); p.u32(0); p.bytes(b); return p.fertig(); };
+      const start = new K.Code().i32(0).i32(4).call(0).op(K.OP.drop);
+      for (let i = 1; i <= 4; i++) start.i32(i).i32(1000).i32(100).call(1).op(K.OP.drop);
+      start.i32(0).end();
+      const stueck = new K.Code().get(1).i32(2).op(K.OP.i32_eq).if_().op(K.OP.unreachable).end()
+        .i32(2000).i32(0).st32(0).i32(2000).i32(4).end();
+      const code = K.verbinde([new Uint8Array([4]), rumpf(start), rumpf(new K.Code().f64(0).end()), rumpf(new K.Code().f64(0).end()), rumpf(stueck)]);
+      const m = new WebAssembly.Module(K.verbinde([new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), K.section(1, typ), K.section(2, imp),
+        K.section(3, fn), K.section(5, mem), K.section(7, ex), K.section(10, code)]));
+      const ohne = Z._teile.hostJs.fuehreModulAus(m, {});
+      if (ohne.exitCode !== 0) throw new Error('ohne Pool: ' + JSON.stringify(ohne.ereignisse));   // Inline: auftrag -1, bericht -2
+      for (const extra of [{ koeche: pool }, { koeche: pool, kuechenChaos: 0 }, { koeche: klein, kuechenChaos: 5 }]) {
+        const r = Z._teile.hostJs.fuehreModulAus(m, extra);
+        const f = r.ereignisse.find(e => e.typ === 'fehler');
+        if (!(r.exitCode === 1 && f && f.text === 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' && /Trap in einem Koch \(Stück 2\): .*unreachable/i.test(f.detail))) {
+          throw new Error(JSON.stringify(extra.kuechenChaos) + ': ' + JSON.stringify(r.ereignisse));
+        }
+      }
+      // Pool danach weiter brauchbar (der getrappte Klon wurde verworfen)
+      return Z.run('Bote.sage(([1, 2, 3, 4].brigade(x -> x * 3)));', { motor: 'wasm', koeche: pool }).ereignisse[0].text === '[3, 6, 9, 12]';
+    });
   }
+  pruefe('Koch stirbt mitten im Stück (terminate) → Stück nachgekocht, gleich Interpreter, Koch fliegt raus, kein Hängen', () => {
+    // eigener Prozess mit Zeitgrenze: der aufrufende Thread blockiert während der Brigade, ein Hängen fängt nur die Grenze
+    const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'koch-ausfall.js')], { encoding: 'utf8', timeout: 60000 });
+    if (r.error || r.status !== 0) throw new Error('Prozess: ' + (r.error ? r.error.message : 'Exit ' + r.status) + ' ' + (r.stderr || '').slice(0, 300));
+    const zeile = (r.stdout || '').trim().split('\n').pop();
+    const e = JSON.parse(zeile);
+    if (e.grund === 'kein Pool') return true;
+    if (!e.ok) throw new Error(zeile);
+  });
   if (pool) pool.beenden();
   if (klein) klein.beenden();
   pruefe('beendeter Pool → Inline-Pfad, gleiches Ergebnis', () => {
