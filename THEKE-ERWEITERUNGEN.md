@@ -269,7 +269,7 @@ und stattdessen neue auftauchen.“ – „Wenn das Rezeptbuch gelesen ist, entf
 | 🧀 Feinkost-Händler (neu) | 2 Angebote | „✅ Im Lager: 🍅 🧀 …“ | nächstes Angebot, sobald eins gekauft ist |
 | 🎓 Meisterbriefe (neu) | 3 (die billigsten erfüllten) | „✅ n Meisterbriefe“ | bei 10/25/50/100 Stück eines Gebäudes |
 | 🛠 Handwerk | gekaufte + 1 nächstes (≤ 6) | – | wie bisher |
-| 🏭 Betrieb | die 6 jüngsten Gebäude + 1 nächstes | ältere → Zeile „🧺 Kleinbetriebe: 🧑‍🍳×120 🧱×80 … (2 % der Produktion)“ mit Knopf „▸ zeigen“ | neues Gebäude, sobald das vorige gekauft ist |
+| 🏭 Betrieb | 6 Plätze: bis 6 Gebäude je eine Zeile, danach die 5 jüngsten + Kopf „Kleinbetriebe“ (v4) | ältere → klappbarer Abschnitt „🧺 Kleinbetriebe: 🧑‍🍳×120 🧱×80 – 2 % der Produktion“ (zu; aufgeklappt mit Kauf-Knöpfen) | neues Gebäude, sobald das vorige gekauft ist |
 | 📜 Geheimrezepte | 3 (Voraussetzung erfüllt, nach Kosten) | „✅ Gelernt: …“ | nächstes Glied der Kette |
 | 🏅 Herausforderungen | 2 | „✅ Geschafft: 🔥 🍍 🙏“ | zweite Staffel ab der 1. Franchise |
 | 🏆 Erfolge | die letzten 8 erreichten + 3 nächste Ziele | Kopf „32 von 55“ | nächste Ziele nach Fortschritt |
@@ -399,7 +399,7 @@ alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 | 10 fps | Takt 100 ms, Produktion anteilig, Uhren in ganzen Sekunden, Speichern nach Spielzeit | 45791eb |
 | Namensraum | Kammer `pizza-imperium/spielstand` (K-106), alte Stände werden übernommen | e8dcf3e |
 | 4 | Animationen: hüpfen/schweben am Backen-Knopf, funkeln/aufpoppen an der Meldung, puls an der Kasse, einblenden für Neues | 43dd57b |
-| v4 | Theke v4 im Spiel: Kaufmenge als `Auswahl`; Kleinbetriebe (echte Gebäudezeilen), „✅ Gelernt“, „✅ Geschafft“ als klappbare Abschnitte (zu); Reiter „Geheimnisse“ erst ab 1 ⭐ (`sichtbar`), Titel „📜 Geheimnisse (n)“ (lernbare Rezepte) und „⭐ Imperium •“ (Sterne/Filialen warten); Herausforderungen erst ab 3 ⭐; `zeilen` statt fester Höhen (Kennzahlen 2, Meldung 3, Zeilen 2, Geheimrezept-Plätze 3); `Tastatur`: Leertaste backt (nie schneller als Klicken), Minispiele mit Leertaste/1–6/↑↓/1–4. Kein `Mathe.log` (Summe gerundeter Einzelpreise hat keine geschlossene Form) | (dieser Commit) |
+| v4 | Theke v4 im Spiel: Kaufmenge als `Auswahl`; Kleinbetriebe (echte Gebäudezeilen), „✅ Gelernt“, „✅ Geschafft“ als klappbare Abschnitte (zu); Reiter „Geheimnisse“ erst ab 1 ⭐ (`sichtbar`), Titel „📜 Geheimnisse (n)“ (lernbare Rezepte) und „⭐ Imperium •“ (Sterne/Filialen warten); Herausforderungen erst ab 3 ⭐; `zeilen` statt fester Höhen (Kennzahlen 2, Meldung 3, Zeilen 2, Geheimrezept-Plätze 3); `Tastatur`: Leertaste backt (nie schneller als Klicken), Minispiele mit Leertaste/1–6/↑↓/1–4. Kein `Mathe.log` (Summe gerundeter Einzelpreise hat keine geschlossene Form) | 54b71f5 |
 
 Balancing-Bot (Saat 42, 5 Klicks/s, Aufstieg: Neueröffnung bei Verdopplung, Kette ab 5 neuen Filialen): Sterne insgesamt
 nach 2 h 40 · 3 h 441 · 4 h 1.500 · 5 h 3.600 · 6 h 8.600 · 8 h 20.000 · 11,5 h 47.000 (vorher: 10.000 nach 4,5 h, Millionen danach);
