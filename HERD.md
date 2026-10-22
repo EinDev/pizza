@@ -192,6 +192,10 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
   `--ui-ereignisse` sind fensterlos (W0104). Offscreen: `--herd-bilder=ordner [--herd-nur=n,m]` (PNG, Software-Adapter bevorzugt).
 - PE-Subsystem WINDOWS bei Importgruppe `herd`. Linux: Herd im glibc-Starter selbst (wgpu/winit laden alles per `dlopen`; prüfen per
   `readelf -d`). Größe messen; Ziel Windows-EXE ≤ 6 MB.
+- **Umsetzung H5** (`host/README.md` „Herd“): das Bildpaket geht als winit-Nutzerereignis (statt eigenem Kanal) zum Hauptthread; die
+  Takt-Planung ist die des Browser-Zeichners (`zeichner.js`). Fensterbetrieb nimmt die echte GPU, ohne Adapter Software-Rückfall;
+  Vorprüfung vor dem ersten Wasm-Befehl = Anzeige + Ereignisschleife + irgendein Adapter. `--herd-bilder` ohne `--ui-ereignisse`
+  erzeugt selbst Takte (bis Bild 60 bzw. höchste `--herd-nur`-Nummer). Größe: Windows-EXE 4,2 MiB.
 
 ### 7.2 Browser
 - **Programm-Worker** (wie heute): Interpreter oder Programm-Wasm **plus `kern.wasm`** (Instanz im selben Worker, direkte Aufrufe).

@@ -18,6 +18,7 @@ node smoke-koeche.js         # Küchenbrigade: --koeche=4 (auch Chaos) = --koech
 
 ```sh
 pizza-host [--info] [--schritte=N] [--saat=N] [--koeche=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [args…]
+pizza-host [--herd-bilder=ordner [--herd-nur=n,m]] [--herd-messung] spiel.pkarton
 pizza-host [--vorrat=ordner] --vorrat-loeschen <kennung>
 pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
@@ -201,6 +202,70 @@ müssen signiert sein und heruntergeladene Dateien landen in der Gatekeeper-Quar
   Loader-Anbindung bräuchte `WebView2Loader.dll` neben der EXE. Erster Build ~4 min (xwin-Installation + SDK-Download),
   danach mit Cache wenige Sekunden bis ~1 min.
 
+## Herd (Spielfenster, HERD.md §7.1, K-130)
+
+Programme mit Importgruppe `herd` (Modul `herd` = Kern-Exporte, `pizza.herd_*`, HOST-ABI §2) laufen auf dem **nativen Kern**
+(`herd/kern`, Pfad-Abhängigkeit) und zeichnen mit der **Glut** (`herd/glut`, wgpu) in ein **winit-Fenster** – ohne HTML.
+
+- **Anbindung (`src/herd.rs`, immer gebaut):** je Kern-Export eine wasmi-Hostfunktion, die die gleichnamige Methode von
+  `herd_kern::Kern` ruft (alle 51 Exporte, die Laufzeit importiert 46). Der Kern-Speicher ist ein Host-`Vec<u8>`: `puffer(len)` liefert
+  Versatz 8 (nie 0 – 0 heißt „leer“ wie in kern-wasm), Zeiger-Argumente werden zu Slices darin (wächst bei Bedarf); das Bildpaket
+  liegt virtuell ab `0x40000000` (`bild_zeiger`). `herd_schreibe`/`herd_lies` kopieren zwischen Programm- und Kern-Speicher,
+  `herd_warte` = `ui_warte` (gleiche Quelle), `herd_senden` → Ereignis `{"typ":"herd","art":…}` (JSON des Moduls unverändert, `art`
+  zuerst – bitgleich mit Interpreter/Wasm) und Bildpaket (`Kern::paket()`) an den Renderer; `herd_senden(fenster)` öffnet eine
+  geschlossene Quelle wieder. `herd_kern(1)` → 1. Der Kern entsteht beim ersten Aufruf (eine Welt je Lauf).
+  Klone (Küchenbrigade): alle `herd.*`/`pizza.herd_*` sind Trap (`Klon rief herd.x`). Unbekannter Import `herd.x` → K-043 mit
+  `(Gruppe herd)`. Testhilfe `PIZZA_TEST_OHNE_HERD_KERN=1`: `herd_kern(1)` meldet `PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).`
+  (Exit 2), `herd.*` trappen.
+- **Fenster (`src/herd_fenster.rs`, Feature `herd`, Standard):** Programm-Thread (wasmi + Kern, 16 MiB Stapel) ↔ Hauptthread
+  (winit-Ereignisschleife + Glut `Ziel::Fenster`). Das Bildpaket geht als Nutzerereignis (`EventLoopProxy`) zum Hauptthread, wird
+  gezeichnet und präsentiert (vsync), **danach** fordert der Hauptthread den nächsten Takt an – wie `site/js/herd/zeichner.js`:
+  `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`, 60 Takte/s ab dem ersten, höchstens 4 nachgeholt (Rest
+  verfällt), schneller als 60 Hz → warten (`ControlFlow::WaitUntil`). Fenster erst beim ersten `fenster`-Ereignis; Größe = Spielfeld
+  (logische Pixel, bei Bedarf seitentreu auf 90 % des Bildschirms verkleinert), frei veränderbar, HiDPI über Gerätepixel; die Glut
+  passt das Spielfeld seitentreu ein (Ränder = Hintergrund). Eingabe: Tastennamen wie `Tastatur` (K-110: `Leertaste`, `Links`, …,
+  Zeichen wie getippt, keine Modifikatoren, keine Wiederholungen; Loslassen über die physische Taste), kurz gedrückte Tasten/Knöpfe
+  kommen einmal mit, Maus/Touch in Spielfeld-Koordinaten (links 1, rechts 2, Mitte 4, Touch 1), Fokusverlust = alles losgelassen.
+  Schließen → `{"typ":"geschlossen"}`; `schliesse` des Programms → Fenster zu (ein späteres `fenster` öffnet ein neues);
+  **Programmende = Fenster zu**, Prozess endet mit dem Exit-Code. Adapter: im Fensterbetrieb die **echte GPU** (`Adapter::Gpu`),
+  ohne passenden Adapter Software-Rückfall (WARP/lavapipe); `HERD_SOFTWARE=1` und `PIZZA_KEIN_DIALOG` erzwingen Software,
+  `PIZZA_KEIN_DIALOG`/`PIZZA_HERD_UNSICHTBAR` halten das Fenster unsichtbar. Zeichenfehler → Meldung, Fenster zu, `geschlossen`.
+- **Kein Fenster/keine GPU (K-130 wie K-096):** Vorprüfung **vor dem ersten Wasm-Befehl** (Anzeige, winit-Ereignisschleife,
+  irgendein Grafikadapter per Wegwerf-Instanz) → Meldung auf stderr (ohne Terminal als Meldungsfenster, nie mit `PIZZA_KEIN_DIALOG`),
+  Exit 2, `--debug` zeigt `detail`:
+  - `Dieses Programm braucht einen Bildschirm für sein Herd-Fenster. Es wurde keiner gefunden (weder DISPLAY noch WAYLAND_DISPLAY nutzbar, z. B. in einer SSH-Sitzung) – bitte in einer grafischen Sitzung starten.`
+  - `Dieses Programm braucht für sein Herd-Fenster einen Grafiktreiber (Windows: DirectX 12, Linux: Vulkan oder OpenGL). Es wurde keiner gefunden – bitte den Grafiktreiber installieren bzw. aktualisieren (Linux ohne Grafikkarte: Mesa, z. B. sudo apt install mesa-vulkan-drivers bzw. sudo dnf install mesa-vulkan-drivers).`
+  - scheitert erst das Öffnen: `Das Herd-Fenster dieses Programms konnte nicht geöffnet werden.` (Glut ohne jeden Adapter: Grafiktreiber-Meldung).
+  Testhilfen: `PIZZA_TEST_OHNE_ANZEIGE=1`, `PIZZA_TEST_OHNE_GRAFIK=1` (wirken vor jedem Zugriff auf Anzeige/GPU).
+- **Fensterlos mit W0104:** JSON-Modus (außer `PIZZA_HERD=1`), `--ui-ereignisse datei` (takt-Zeilen, erschöpft → `geschlossen`),
+  `PIZZA_HERD=0`, Build ohne Feature `herd`. Theke + Herd in einem Programm ist P0013 (kommt nie bis zum Host); käme eins an, gilt der Herd.
+- **Offscreen `--herd-bilder=ordner [--herd-nur=n,m]`:** ohne Fenster, Glut im Programm-Thread auf dem Software-Adapter; jedes Bild
+  wird gezeichnet (Ressourcen kommen als Deltas), gespeichert werden die gewählten (sonst alle) als `<ordner>/bild-<nr>.png` in
+  Spielfeldgröße. Takte aus `--ui-ereignisse`, sonst erzeugt der Host `{"typ":"takt","anzahl":1}` bis Bild 60 bzw. bis zur höchsten
+  Nummer aus `--herd-nur`, danach `geschlossen`. Mit `--ereignisse-json` kombinierbar.
+- **`--herd-messung`:** je Sekunde eine Zeile auf stderr, z. B.
+  `Herd: 60 Bilder/s (60 Takte) · Bildzeit 16,67 ms · Programm 1,20 ms (7 %) · Kern 0,85 ms (5 %) · Glut 2,10 ms (13 %) · 4 Draw-Calls · 10000 Instanzen (2D 10000, 3D 0)`
+  – Programm = Zeit vom angenommenen Takt bis zum gesendeten Bild ohne Kern; Kern = `takt`, `bild`, Hashes; Glut = `glut.bild`
+  (Hauptthread bzw. offscreen); Draw-Calls/Instanzen des letzten Bildes.
+- **EXE:** PE-Subsystem WINDOWS bei Gruppe `herd` (wie Theke; `karton.rs`, `site/js/exe.js`). **Linux:** der glibc-Starter führt
+  Herd-Programme **selbst** aus (Features `starter,herd`; winit lädt X11/Wayland/xkbcommon, wgpu Vulkan/EGL/GL per `dlopen`); der
+  Theke-Teil wird nur mit `theke` gebaut. `baue-ziele.sh` prüft per `readelf -d`, dass der Starter keine Fenster-/Grafikbibliothek
+  als NEEDED hat, und schreibt die NEEDED-Liste ins Build-Log; `ziele.json` nennt je Ziel `gruppen` (inkl. `herd`) – danach gibt
+  `site/js/exe.js` den EXE-Download für Herd-Programme frei.
+
+### Vom Nutzer auszuführen (echtes Fenster, echte GPU)
+
+Agenten öffnen nie ein Fenster und nutzen nie die GPU. Bitte nur starten, wenn kein Spiel läuft:
+
+```sh
+cd host && cargo build --release
+# Herd-Beispiel kompilieren (oder im Playground als EXE herunterladen und diese mit denselben Optionen starten):
+node -e "global.PizzaLang=require('../site/js/pizza.js');const P=require('../site/js/pizzaiolo.js');const fs=require('fs');fs.writeFileSync('teigball.pkarton',P.kompiliere(fs.readFileSync('../site/beispiele/herd/teigball.pizza','utf8')).pkarton)"
+target/release/pizza-host teigball.pkarton                     # Fensterlauf (Pfeiltasten, Leertaste; Schließen beendet)
+target/release/pizza-host --herd-messung teigball.pkarton      # GPU-Messung: eine Zeile je Sekunde auf stderr
+HERD_SOFTWARE=1 target/release/pizza-host --herd-messung teigball.pkarton   # Vergleich auf WARP
+```
+
 ## Größe & Geschwindigkeit
 
 Release-Profil: `opt-level = "z"`, LTO, `codegen-units = 1`, `strip`, `panic = "abort"`; nur die wasmi-Crates
@@ -208,6 +273,10 @@ mit `opt-level = 3` (reines `"z"` macht die Engine ~25 % langsamer, so ist sie g
 wasmi ohne `wat`/`memory64`. Größen ohne Theke (nur Tests/CLI): Windows-msvc 1,1 MB, Windows-gnu 1,3 MB.
 Mit Theke (wry/tao): Windows-msvc 1,56 MB, Windows-gnu 1,74 MB, Linux-glibc 1,99 MB (+ dynamisch WebKitGTK/GTK).
 Linux-Download = Starter (~1 MB) + eingebetteter Theke-Teil (~2 MB).
+
+**Mit Herd (H5, Kern + Glut/wgpu-DX12 + winit + png; Kern mit `opt-level = 3`):** Windows-msvc (lokal, `cargo build --release`)
+vorher 1 698 816 Bytes (1,62 MiB) → nachher **4 411 904 Bytes (4,21 MiB)** – Ziel ≤ 6 MB (K-130) erfüllt.
+LINUX_GROESSE
 
 ## Aufbau
 
@@ -219,9 +288,12 @@ Linux-Download = Starter (~1 MB) + eingebetteter Theke-Teil (~2 MB).
 | `src/konsole.rs` | Windows: an das Eltern-Terminal anhängen, Meldungsfenster ohne Terminal |
 | `src/main.rs` | Kommandozeile |
 | `src/theke.rs` | Theke-Fenster (wry/tao), Custom-Protocol, Brücke |
+| `src/herd.rs` | Gruppe herd: Kern-Exporte als Hostfunktionen, Kern-Puffer, `herd_*`, Messung |
+| `src/herd_fenster.rs` | Herd-Fenster (winit + Glut), Takt-Planung, Eingabe, Vorprüfung, Offscreen-PNG |
 | `src/starter.rs` | Linux-Starter: WebKitGTK-Probe, Meldung, Theke-Teil per memfd + `exec` |
 | `build.rs` | bettet `site/js/theke/` ein (Starter: zusätzlich den Theke-Teil aus `PIZZA_THEKE_EXE`) |
 | `tests/theke.rs` | `ui_senden`/`ui_warte`, `--ui-ereignisse`, Fenster-Smoke-Test |
+| `tests/herd.rs` | Herd: Importe/Kopierweg gegen den Kern, Kern fehlt, Klone, Vorprüfung, `--ui-ereignisse`, Beispiele bitgleich mit `.herd-erwartet`, Offscreen-PNG gegen `tests/herd/wuerfel-30.png` (K-129) – fensterlos, Software-Adapter |
 | `tests/abi.rs` | ABI-Tests (WAT) |
 | `test.js` | Differenztest gegen den Interpreter |
 | `test-exe-js.js` | Test für `site/js/exe.js` (byte-gleich mit `pizza-host exe`, EXE läuft) |

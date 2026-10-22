@@ -104,6 +104,25 @@ Jede `bench`-Zeile gibt eine JSON-Zeile aus (`glut_median_ms`, `draw_calls`, Ada
 eintragen. Die letzte Zeile rendert das 3D-Referenzbild auf der GPU zum Sichtvergleich mit `tests/herd/bilder/3d-alles.png`.
 `HERD_SOFTWARE=1` erzwingt trotz `--gpu` den Software-Adapter.
 
+## Nativ (Host, H5)
+
+`pizza-host --herd-messung` schreibt je Sekunde: Bilder/s, Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen
+(`host/README.md` „Herd“). Agenten messen nur offscreen auf WARP (`--herd-bilder`, zeichnet und liest jedes gespeicherte Bild aus –
+kein Leistungswert). Größe der Windows-EXE mit Herd: 4 411 904 Bytes (vorher 1 698 816), Ziel ≤ 6 MB erfüllt.
+Es gibt (noch) keine `bench/herd/*.pizza`; gemessen wird mit den Herd-Beispielen (`teigball` = 3D mit Schatten, `teigfaenger` = 2D).
+
+### Vom Nutzer auszuführen (Fenster, echte GPU)
+
+```sh
+cd D:\Projekte\pizza\host
+cargo build --release
+node -e "global.PizzaLang=require('../site/js/pizza.js');const P=require('../site/js/pizzaiolo.js');const fs=require('fs');for(const b of ['teigball','teigfaenger'])fs.writeFileSync(b+'.pkarton',P.kompiliere(fs.readFileSync('../site/beispiele/herd/'+b+'.pizza','utf8')).pkarton)"
+target\release\pizza-host.exe --herd-messung teigball.pkarton
+target\release\pizza-host.exe --herd-messung teigfaenger.pkarton
+```
+
+Bitte die Zeilen nach einigen Sekunden Spiel hier als Tabelle „Nativ (GPU)“ eintragen. Das Fenster schließen beendet den Lauf.
+
 ## Browser (SwiftShader)
 
 Paket H6: Glut-Web (`site/js/herd/glut_bg.wasm`, wgpu → WebGL2) und `kern.wasm` in **Chrome 155 headless mit `--disable-gpu`**
