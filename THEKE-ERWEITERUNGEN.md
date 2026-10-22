@@ -596,7 +596,9 @@ Bestehendes im Raster:
 - Erste vier Stunden: zwölf Freischaltungen + Aufstieg; nie zwei Bereiche „bereit“ zugleich, weil die Kette den Preis erst nach
   dem Vorgänger zeigt. Jeder Bereich wirkt höchstens ×1,5–×2 auf den Kern – die Sternekurve (2 h ≈ 40, 3 h ≈ 440, 4 h ≈ 1.500)
   darf sich um höchstens eine Verdopplung je Zeitpunkt verschieben; der Bot prüft Freischaltzeitpunkte, Klickanteil (< 10 %),
-  Sternekurve und (R2) Ersetzungen paarweise.
+  Sternekurve und (R2) Ersetzungen paarweise. **Abnahmegrenze je Paket** (nach dem Schneeball von Paket 2): Sterne nach 2 / 3 / 4 h
+  höchstens ×1,5 gegenüber Paket 1 (40 / 441 / 1.500 → ≤ 60 / 660 / 2.250), Freischaltzeiten ±30 % um §12.3. Getränke-Einnahmen
+  zählen nicht für Sterne (nicht in `umsatzKette`/`umsatz`).
 - Automatisierter Ertrag (Helfer) zählt als Betrieb, nicht als Klick.
 
 ### 12.5 Spielstand v6
@@ -654,3 +656,4 @@ Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle 
 |---|---|---|---|
 | Design | §12.1–12.7 | 4bdd1be | Baseline vor dem Umbau (positionen2.mjs, pi3.ereignisse, alle Takte): 865 Zustände, 66 mit Layout-Bewegung, 422 nur Textbreite |
 | 1 | Raster 860 × 800, 8 feste Reiter, 2 Spalten, Bestand auf feste Plätze, 12 Platzhalter mit Freischalt-Kette, Spielstand v6, Panels gekapselt (`aktualisiere()` je Versionszähler). IDs: Betrieb `kauf-betrieb-n`/`kauf-klein-n`, Herausforderungen `probe-start-n`, Minispiele `mini-<grundspiel>`, `modus-info` immer da | be5d2a4 | pi4.ereignisse 886 Zustände → **0 Verstöße**; Bot 120 min 45.477 Zustände → **0**; Klickanteil 4,6 % (60 min) / 4,1 % (240 min, Aufstieg); Freischalt-Minuten (Wirkung noch 0): Garten 4 · Weinkeller 10 · Personal 28 · Lieferzonen 44 · Helfer 66 · Marketing 122 · Labor 138 · Stammgäste 155 · Katze 160 · Wettbewerb 185 · Album 187 · Banca 213 |
+| 2 | Hof: Garten (3 Beete, Preis je Pizza), Weinkeller (4 Getränke, Nebeneinkommen €/s, offline halbe Kraft), Personal (4 Rollen, Stufe 0…10). Kaufmenge im Hof immer 1 Stück, Preise fest in € (`Posten`/`postenVon`/`kaufePosten`) | b9f9eef, 5a76d6c | 0 Verstöße (pi4 1.184, Bot 60 min 22.687, Bot 120 min 47.082 Zustände); Klickanteil 4,1 % / 2,3 %; Getränke 5,7–10 % des Umsatzes. **Zu schnell:** Sterne 2 h 100 (×2,5), 3 h 2.455 (×5,4), 4 h 11.329 (×7,5); Katze 132 · Wettbewerb 133 · Album 150 · Banca 168 min → Nachjustierung 2c |
