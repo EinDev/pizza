@@ -1,0 +1,6 @@
+# Nur für den Wasm-Bau (node herd/baue.js): dieselben Features wie die Laufzeit (WASM.md §1.4).
+[target.wasm32v1-none]
+rustflags = [
+  "-C", "target-feature=+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue",
+  "-C", "link-arg=-zstack-size=1048576",
+]

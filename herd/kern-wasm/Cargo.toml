@@ -1,0 +1,13 @@
+[package]
+name = "herd-kern-wasm"
+description = "Wasm-Hülle des Herd-Kerns (Exporte hz_*, ohne Importe)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+herd-kern = { path = "../kern" }

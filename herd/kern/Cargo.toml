@@ -1,0 +1,12 @@
+[package]
+name = "herd-kern"
+description = "Herd-Kern: Nachrichten → Zeichenliste (no_std, bitgleich nativ = Wasm)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libm = "0.2.16"

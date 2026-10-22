@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["kern", "kern-wasm", "gpu", "werkzeug"]
+# Die Wasm-Hülle wird nur von baue.js für wasm32v1-none gebaut.
+default-members = ["kern", "gpu", "werkzeug"]
+
+[workspace.package]
+version = "3.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+# Werkzeug und Tests brauchen im Debug-Bau schnelle Atlas-/Bildberechnung.
+[profile.dev.package."*"]
+opt-level = 2
