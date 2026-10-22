@@ -8,7 +8,7 @@ import { StringStream } from "@codemirror/language";
 assert.equal(sichereUrl("javascript:alert(1)"), null);
 assert.equal(sichereUrl(" JavaScript:alert(1)"), null);
 assert.equal(sichereUrl("data:text/html,x"), null);
-assert.equal(sichereUrl("#pizza-literale"), "#pizza-literale");
+assert.equal(sichereUrl("#pf-schieb"), "#pf-schieb");
 assert.equal(sichereUrl("https://example.org"), "https://example.org");
 const k = inlineParsen("a **fett `x*y`** *kursiv* `<img onerror=x>` [L](javascript:1) [M](#a)");
 assert.deepEqual(k.map((n) => n.typ), ["text", "fett", "text", "kursiv", "text", "code", "text", "link", "text", "link"]);
@@ -28,14 +28,17 @@ function toks(zeile) {
   while (!s.eol()) { const a = s.pos; s.start = a; const t = sp.token(s, st); out.push([zeile.slice(a, s.pos), t]); }
   return out.filter(([, t]) => t);
 }
-const t1 = toks('Pizza p = ((Tomate, Käse)) + Salami; salami x = ((x + 1)); Dauer d = 90s; @Nach(Tomate) "a\\"b" // k');
+const t1 = toks('Pizza p = neu Pizza(); salami x = ((x + 1)); Dauer d = 90s; @Kühlschrank(haltbar: 3d) Bote.sage((Tomate)); "a\\"b" // k');
 const m = Object.fromEntries(t1.map(([a, b]) => [a, b]));
 console.log(t1.map(([a, b]) => a + ":" + b).join("  "));
-assert.equal(m["Pizza"], "typ");
-assert.equal(m["Tomate"], "belag");
+assert.equal(m["Pizza"], "klasse");          // kein eingebauter Typ mehr – ein gewöhnlicher Klassenname (K-105)
+assert.equal(m["Tomate"], "klasse");         // großgeschriebener Name, kein Belag
+assert.equal(m["salami"], "typ");
 assert.equal(m["90s"], "dauer");
-assert.equal(m["@Nach"], "annotation");
-assert.equal(t1.filter(([a, b]) => b === "pizzaKlammer").length, 2);
+assert.equal(m["@Kühlschrank"], "annotation");
+assert.equal(m["Bote"], "builtin");
+assert.equal(m["sage"], "methode");
 assert.ok(toks("StreitAnanas a").some(([a, b]) => a === "StreitAnanas" && b === "ananas"));
-assert.ok(toks("((  ))").every(([, b]) => b === "pizzaKlammer"));
+assert.ok(toks("((  ))").every(([, b]) => b === "klammer"));   // doppelte Klammern sind nur Klammern
+assert.ok(!toks("belag X auf Pizza { }").some(([, b]) => b === "keyword"));   // belag/auf nicht mehr reserviert
 console.log("alle Tests ok");

@@ -1,12 +1,10 @@
 // pizza-Sprachmodus für CodeMirror 6 (StreamLanguage) + statischer Highlighter für Doku-Codeblöcke.
 import { StreamLanguage, StringStream, HighlightStyle, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { tags as t, Tag } from "@lezer/highlight";
-import { KEYWORDS, TYPEN, BUILTINS, BELAEGE, ANANAS } from "./woerter.js";
+import { KEYWORDS, TYPEN, BUILTINS, ANANAS } from "./woerter.js";
 
 // Eigene Tags
 export const pizzaTags = {
-  pizzaKlammer: Tag.define(),
-  belag: Tag.define(t.name),
   ananas: Tag.define(t.className),
   dauer: Tag.define(t.number),
   builtin: Tag.define(t.variableName),
@@ -15,7 +13,6 @@ export const pizzaTags = {
 
 const ID_START = /[\p{L}_]/u;
 const ID_REST = /^[\p{L}\p{N}_]*/u;
-const PIZZA_LITERAL = /^\(\(\s*(?:[A-ZÄÖÜ][\p{L}\p{N}_]*\s*(?:,\s*[A-ZÄÖÜ][\p{L}\p{N}_]*\s*)*)?\)\)/u;
 const DAUER = /^\d[\d_]*(?:\.\d[\d_]*)?(?:ms|min|s|h|d)(?![\p{L}\p{N}_])/u;
 const ZAHL = /^\d[\d_]*(?:\.\d[\d_]*)?/;
 const OPERATOR = /^(?:->|\.\.|==|!=|<=|>=|&&|\|\||\+\+|--|\+=|-=|\*=|\/=|[+\-*/%<>=!?:])/;
@@ -38,16 +35,6 @@ function token(stream, state) {
     state.kommentar = true;
     if (stream.skipTo("*/")) { stream.pos += 2; state.kommentar = false; } else stream.skipToEnd();
     return "kommentar";
-  }
-
-  // Pizza-Literal
-  if (state.pizza) {
-    if (stream.match("))")) { state.pizza = false; return "pizzaKlammer"; }
-    if (stream.eat(",")) return "trenner";
-  } else if (stream.match(PIZZA_LITERAL, false)) {
-    stream.pos += 2;
-    state.pizza = true;
-    return "pizzaKlammer";
   }
 
   const ch = stream.peek();
@@ -75,13 +62,11 @@ function token(stream, state) {
     stream.next();
     stream.match(ID_REST);
     const w = stream.current();
-    if (state.pizza) return BELAEGE.has(w) ? "belag" : "belagUnbekannt";
     if (w === "ja" || w === "nein" || w === "karton") return "wahrheit";
     if (KEYWORDS.has(w)) return state.nachPunkt ? "eigenschaft" : "keyword";
     if (TYPEN.has(w)) return "typ";
     if (istAnanas(w)) return "ananas";
     if (BUILTINS.has(w)) return "builtin";
-    if (/^[A-ZÄÖÜ]/.test(w) && BELAEGE.has(w)) return "belag";
     if (state.nachPunkt) return stream.match(/^\s*\(/, false) ? "methode" : "eigenschaft";
     if (stream.match(/^\s*\(/, false)) return /^[A-ZÄÖÜ]/.test(w) ? "klasse" : "funktion";
     if (/^[A-ZÄÖÜ]/.test(w)) return "klasse";
@@ -96,10 +81,10 @@ function token(stream, state) {
 
 const sprachDef = {
   name: "pizza",
-  startState: () => ({ kommentar: false, pizza: false, nachPunkt: false, tiefe: 0 }),
+  startState: () => ({ kommentar: false, nachPunkt: false, tiefe: 0 }),
   copyState: (s) => ({ ...s }),
   token(stream, state) {
-    if (stream.sol() && !state.pizza) state.nachPunkt = false;
+    if (stream.sol()) state.nachPunkt = false;
     const vorher = stream.pos;
     const typ = token(stream, state);
     if (typ !== null) {
@@ -121,14 +106,10 @@ const sprachDef = {
   },
   tokenTable: {
     kommentar: t.comment,
-    pizzaKlammer: pizzaTags.pizzaKlammer,
-    trenner: t.separator,
     text: t.string,
     annotation: t.annotation,
     dauer: pizzaTags.dauer,
     zahl: t.number,
-    belag: pizzaTags.belag,
-    belagUnbekannt: t.invalid,
     wahrheit: pizzaTags.wahrheit,
     keyword: t.keyword,
     typ: t.typeName,
@@ -149,8 +130,8 @@ export const pizzaSprache = StreamLanguage.define(sprachDef);
 
 // CSS-Klassen pro Token (für Editor UND statische Darstellung identisch)
 const KLASSE = {
-  kommentar: "tk-kommentar", pizzaKlammer: "tk-pizza", trenner: "tk-satz", text: "tk-text",
-  annotation: "tk-annotation", dauer: "tk-dauer", zahl: "tk-zahl", belag: "tk-belag", belagUnbekannt: "tk-belag tk-unbekannt",
+  kommentar: "tk-kommentar", text: "tk-text",
+  annotation: "tk-annotation", dauer: "tk-dauer", zahl: "tk-zahl",
   wahrheit: "tk-wahrheit", keyword: "tk-keyword", typ: "tk-typ", ananas: "tk-ananas", builtin: "tk-builtin",
   eigenschaft: "tk-eigenschaft", methode: "tk-methode", funktion: "tk-funktion", klasse: "tk-klasse",
   variable: "tk-variable", operator: "tk-operator", klammer: "tk-klammer", satz: "tk-satz",
@@ -172,7 +153,7 @@ export function highlightStatisch(code, sprache = "pizza") {
   const zeilen = code.split("\n");
   zeilen.forEach((zeile, i) => {
     if (i > 0) frag.appendChild(document.createTextNode("\n"));
-    if (!state.pizza) state.nachPunkt = false;
+    state.nachPunkt = false;
     const stream = new StringStream(zeile, 4, 4);
     while (!stream.eol()) {
       const start = stream.pos;
