@@ -831,6 +831,9 @@ button.k-meldung:hover { border-color: currentColor; }
   background: var(--text); color: var(--flaeche); padding: 9px 16px; border-radius: 10px;
   box-shadow: var(--schatten-gross); font-size: 13.5px; font-weight: 550;
   transition: opacity .2s, transform .2s;
+  /* reine Meldung (role=status): darf nichts darunter verdecken – sonst schluckt sie ~3 s lang Klicks auf
+     Knöpfe der Theke-Vorschau oder des Editors, die zufällig unten mittig liegen (E2E 05 Pizza-Imperium). */
+  pointer-events: none;
 }
 .toast.sichtbar { opacity: 1; transform: translate(-50%, 0); }
 .toast[data-art="fehler"] { background: var(--fehler); color: #fff; }

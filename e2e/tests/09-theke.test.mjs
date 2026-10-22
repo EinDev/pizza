@@ -115,6 +115,42 @@ e2e("Jeder Lauf übernimmt breite/hoehe des Programms; Größe von Hand gilt bis
   await warteLaufEnde(page);
 });
 
+e2e("Toast-Meldung schluckt keine Klicks auf Knöpfe der Vorschau darunter", async ({ page, oeffne }) => {
+  // Regression E2E 05 „Pizza-Imperium“: seit K-123 (Programmgröße 860×800 je Lauf) lag „kauf-betrieb-1“ unten mittig im
+  // Fenster – genau unter dem Toast „… in neuem Tab geöffnet“ (fixed, z-index über der Vorschau). Ein echter Mausklick
+  // traf ~3 s lang den Toast statt den Knopf, das Programm bekam kein klick-Ereignis.
+  await oeffne();
+  await starteTheke(page, HALLO);
+  // Toast über einen echten Weg auslösen (Strg+S im Editor: „… lokal gespeichert.“), während bediene() wartet
+  await page.focus("#editor .cm-content");
+  await strg(page, "s");
+  await page.waitForSelector("#toast.sichtbar");
+  // Fenster so schieben, dass die Mitte des Knopfs auf der Mitte des Toasts liegt
+  await page.evaluate(() => {
+    const t = document.getElementById("toast").getBoundingClientRect();
+    const f = document.getElementById("vorschau");
+    const k = f.querySelector('[data-theke-id="backen"]');
+    const kb = k.getBoundingClientRect();
+    const fb = f.getBoundingClientRect();
+    f.style.left = fb.left + (t.left + t.width / 2) - (kb.left + kb.width / 2) + "px";
+    f.style.top = fb.top + (t.top + t.height / 2) - (kb.top + kb.height / 2) + "px";
+  });
+  const lage = await page.evaluate(() => {
+    const t = document.getElementById("toast"), k = document.querySelector('#vorschau [data-theke-id="backen"]');
+    const tb = t.getBoundingClientRect(), kb = k.getBoundingClientRect();
+    const x = kb.left + kb.width / 2, y = kb.top + kb.height / 2;
+    return { sichtbar: t.classList.contains("sichtbar") && !t.hidden, ueberlappt: x >= tb.left && x <= tb.right && y >= tb.top && y <= tb.bottom, oben: k.contains(document.elementFromPoint(x, y)) };
+  });
+  assert.deepEqual(lage, { sichtbar: true, ueberlappt: true, oben: true }, "Toast liegt über dem Knopf, der Klick geht trotzdem an den Knopf");
+  const vorher = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
+  await thekeEreignis(page, { typ: "klick", id: "backen" });
+  await warteAufBediene(page, vorher, 3000);
+  assert.equal(await page.$eval("#toast", (t) => t.classList.contains("sichtbar")), true, "Toast war beim Klick noch da");
+  assert.equal(await page.$eval('#vorschau [data-theke-id="zaehler"]', (e) => e.textContent), "1 Pizza gebacken");
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+});
+
 e2e("Schließen des Fensters beendet bediene() – Programm läuft zu Ende", async ({ page, oeffne }) => {
   await oeffne();
   await starteTheke(page, HALLO);
