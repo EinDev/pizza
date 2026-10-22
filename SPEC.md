@@ -1505,3 +1505,123 @@ der Ausführungsreihenfolge der Stücke identisch (Testoption `kuechenChaos`, AR
 - **Hintergrund-Köche** (K-097/F9): ein eigenes Konstrukt mit Küchen-Semantik (z. B. `Auftrag<T> a = koch(() -> …);` …
   `a.abholen()`); `teig`/`bestelle` behalten ihre Semantik (§13).
 - Ein deterministischer gemeinsamer „Bestellblock“ (nur anhängen, Zusammenführung in Stückreihenfolge) kann später ergänzt werden.
+
+## 18. Herd – Spiel-Engine für 2D und 3D (Tier 1 im Interpreter; K-128 … K-136)
+
+Konzept, Rendering, Anbindung und Paketplan: `HERD.md`. Hier steht der verbindliche Vertrag für Sprache, Verhalten und Protokoll.
+Prüfstand: `a18-herd.js`.
+
+### 18.1 Klassen
+
+| Klasse | Konstruktor | Methoden |
+|---|---|---|
+| `Herd` | `(titel = "", breite: 640, hoehe: 360)` | `backe(fn)`, `schliesse()`, `titel()`, `setzeTitel(t)`, `breite()`, `hoehe()`, `bildnummer()`, `zeit()`; Eingabe §18.3; Zeichnen §18.4 |
+| `Form` | `(punkte, dreiecke, glatt: nein)` | `id()`; statisch `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)` |
+| `Bildchen` | `(zeilen, farben: karton)` | `breite()`, `hoehe()`, `id()` |
+
+Statisch an `Herd`: `Herd.farbe(r, g, b, a = 1)` → Text `"#rrggbbaa"` (r, g, b auf 0 … 255 gerundet und geklemmt, a auf 0 … 1 geklemmt
+und × 255 gerundet; Kleinbuchstaben); `Herd.ueberlappt(ax, ay, ab, ah, bx, by, bb, bh)` → diavolo (Rechtecke überlappen sich mit
+positiver Fläche); `Herd.beruehrt(ax, ay, ar, bx, by, br)` → diavolo (Abstand der Mittelpunkte < ar + br).
+
+- `Herd`, `Form`, `Bildchen` sind eingebaute Klassen wie die Theke-Zutaten: `erbt Herd` → P0010; eine eigene Klasse gleichen Namens hat
+  Vorrang. Textformen: `Herd(<titel>)`, `Form(<id>)`, `Bildchen(<breite>×<hoehe>)`.
+- **Ein Herd (K-132):** `neu Herd` zum zweiten Mal → `LaufzeitAnanas: Es gibt nur einen Herd pro Programm.`
+- **Theke und Herd (K-133):** Enthält ein Programm sowohl `neu Herd(…)` als auch `neu Theke(…)` (jeweils die eingebaute Klasse) →
+  vor dem Start `PizzaFehler P0013: Theke und Herd in einem Programm gibt es noch nicht.` (Exit 2, Zeile/Spalte des späteren `neu`).
+- **Größe:** `breite`/`hoehe` ganzzahlig (`TypAnanas: Herd(breite: …) braucht eine Ganzzahl, nicht 2.5.`), 64 … 4096
+  (`LaufzeitAnanas: Herd(breite: …) muss zwischen 64 und 4096 liegen, nicht 10.`); fehlend oder `karton` → Standard. `titel` nimmt die
+  Textform jedes Werts (K-102).
+- **Zahlen-Parameter** aller Methoden verlangen salami/funghi (sonst `TypAnanas: <methode>() braucht eine Zahl für '<parameter>', nicht <Darstellung>.`);
+  benannte Parameter fehlend oder `karton` → Standard. **diavolo-Parameter** (`schatten`, `glatt`) wie K-066.
+
+### 18.2 Spielschleife (K-132)
+
+- **Takt:** 60 Takte pro simulierter Sekunde. `bildnummer()` = Anzahl begonnener Takte (salami, vor dem ersten Takt 0),
+  `zeit()` = `bildnummer() / 60` (funghi, Sekunden).
+- **`backe(fn)`** – `fn` ist eine Funktion ohne Parameter (sonst `TypAnanas: backe() braucht eine Funktion, z. B. () -> { … }.`):
+  1. Beim ersten `backe` (und nach `schliesse()`/`geschlossen` erneut) sendet es `fenster` (§18.5).
+  2. Es wartet auf ein Fenster-Ereignis (kostet weder Schritte noch Zeit noch Budget). `{"typ":"takt","anzahl":n,…}`: Eingabezustand
+     übernehmen (§18.3), dann `n`-mal: `bildnummer` + 1, Bildpuffer leeren, Schrittlimit-Basis setzen (P0002 je Takt, wie K-087),
+     `fn()` aufrufen. Danach eine `bild`-Nachricht mit dem Puffer des **letzten** Takts senden. `anzahl` fehlt/ungültig → 1, höchstens 4
+     (größer → 4). `{"typ":"geschlossen"}` → Schleife endet, Fenster gilt als zu. Andere Ereignisse werden ignoriert.
+  3. `herd.schliesse()` im Rückruf: Der Rückruf läuft zu Ende, **kein** `bild` mehr, `schliesse` wird gesendet, `backe` kehrt zurück.
+- Ananas aus `fn` verlassen `backe` (fangbar mit `probier`); das Fenster bleibt offen, `bildnummer` behält den Wert, der angefangene
+  Takt sendet kein Bild; erneutes `backe` wartet weiter. Panik beendet sofort (keine `schliesse`-Nachricht).
+- **Zeichenbefehle** landen im Bildpuffer; er wird zu Beginn jedes Takts geleert. Befehle außerhalb eines Takts bleiben bis zum Beginn
+  des nächsten Takts stehen und verfallen dann (sie erscheinen also nie) – Zeichnen gehört in den Rückruf.
+- **Programmende (wie K-061):** Ist das Fenster offen (gesendetes `fenster`, kein `schliesse`/`geschlossen`), sendet die Laufzeit am Ende
+  `schliesse` – auch bei Ananas/P0002, nicht bei Panik.
+- **Ohne Renderer (wie K-063):** fehlen `onUiWarte` und `uiEreignisse` → `backe` sendet `fenster`, warnt je Aufrufstelle
+  `W0104: Kein Herd verfügbar – Fenster wird nicht angezeigt.`, sendet `schliesse` und kehrt sofort zurück. `uiEreignisse` erschöpft
+  oder `onUiWarte` liefert `null`/wirft → `geschlossen`. Nativ (EXE/`pizza-host`) bricht ein Herd-Programm ohne mögliches Fenster vor
+  dem Start mit Meldung und Exit 2 ab (K-130); W0104 gilt dort nur im JSON-/Testmodus.
+
+### 18.3 Eingabe (K-132)
+
+Jedes `takt`-Ereignis trägt den Eingabezustand; fehlende Felder bleiben wie zuvor (Anfang: nichts gedrückt, Maus `[0, 0]`):
+`tasten` (Blech von Tastennamen wie `Tastatur`, K-110), `maus` (`[x, y]`, Spielfeld-Koordinaten, Zahlen), `knoepfe` (Bitmaske:
+1 links, 2 rechts, 4 Mitte; Touch = 1). Ungültige Felder werden ignoriert.
+
+- `taste(n)` → diavolo: `n` ist gehalten. `gedrueckt(n)` / `losgelassen(n)`: im **ersten** Takt des Ereignisses Wechsel gegenüber dem
+  vorigen Zustand, in den weiteren Takten desselben Ereignisses `nein`. `n` nimmt die Textform (K-102).
+- `mausX()`, `mausY()` → funghi; `maus(knopf = 1)` gehalten, `klick(knopf = 1)` im ersten Takt neu gedrückt (`knopf` 1 … 3, sonst
+  `LaufzeitAnanas: Maustaste 4 gibt es nicht (1 links, 2 rechts, 3 Mitte).`).
+- Außerhalb von `backe` liefern die Methoden den zuletzt übernommenen Zustand, `gedrueckt`/`losgelassen`/`klick` dort `nein`.
+
+### 18.4 Zeichnen (K-136)
+
+**Farben** (`f`): Text – Palettenname (`weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`,
+`salami #A83232`, `schinken #F2A0A0`, `basilikum #3E8E41`, `oliven #6B7A2A`, `mozzarella #FFF6E0`, `teig #E8C48A`, `kruste #C8955A`,
+`ananas #F5C518`, `senf #F2B33D`, `himmel #8EC9F0`, `wasser #2E6FD9`, `aubergine #5B2A6E`) oder `#rgb` / `#rrggbb` / `#rrggbbaa`
+(Groß-/Kleinschreibung egal). Sonst `LaufzeitAnanas: Farbe 'lila' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.`
+
+**2D** (Spielfeld-Pixel, Ursprung oben links, y nach unten; Reihenfolge = Aufrufreihenfolge, über der 3D-Szene):
+
+| Methode | Befehl |
+|---|---|
+| `hintergrund(f)` | füllt das Bild (letzter Aufruf zählt; Standard `mozzarella`) |
+| `rechteck(x, y, b, h, f, rand: 0, rundung: 0)` | `rand > 0` = nur Umriss dieser Dicke; `rundung` = Eckenradius |
+| `kreis(x, y, r, f, rand: 0)` | Mittelpunkt, Radius |
+| `linie(x1, y1, x2, y2, f, dicke: 2)` | runde Enden |
+| `vieleck(punkte, f, rand: 0)` | `punkte` = Blech `[x1, y1, x2, y2, …]`, mind. 3 Punkte (`LaufzeitAnanas: vieleck() braucht mindestens 3 Punkte als Blech [x1, y1, x2, y2, …].`) |
+| `text(t, x, y, farbe: "ofen", groesse: 16, ausrichtung: "links")` | `t` Textform; `y` = Oberkante; `ausrichtung` `links|mitte|rechts` (sonst `LaufzeitAnanas: Ausrichtung 'oben' gibt es nicht. Erlaubt: links, mitte, rechts.`) |
+| `bild(b, x, y, groesse: 1, farbe: "weiss")` | Bildchen `b` (sonst TypAnanas `bild() braucht ein Bildchen, nicht …`), linke obere Ecke, `groesse` = Pixel je Bildchen-Pixel, `farbe` tönt (multipliziert) |
+| `merke()` / `zurueck()` | Lage (2D-Transformation) sichern/wiederherstellen; höchstens 64 tief (`LaufzeitAnanas: Zu viele merke() ohne zurueck() (höchstens 64).`); `zurueck()` ohne `merke()` → `LaufzeitAnanas: zurueck() ohne passendes merke().`; am Taktbeginn ist die Lage zurückgesetzt |
+| `schiebe(dx, dy)`, `drehe(grad)`, `skaliere(sx, sy = sx)` | wirken auf alle folgenden 2D-Befehle (wie Canvas `translate/rotate/scale`, `drehe` im Uhrzeigersinn) |
+
+**3D** (rechtshändig, y oben; erst die Szene mit Tiefenpuffer, dann 2D darüber):
+
+| Methode | Befehl |
+|---|---|
+| `kamera(x, y, z, zielX: 0, zielY: 0, zielZ: 0, sicht: 60)` | Position, Blickziel, senkrechter Sichtwinkel in Grad (1 … 170, geklemmt); Standard `(0, 3, 8) → (0, 0, 0)`, 60 |
+| `himmel(oben, unten = oben)` | senkrechter Farbverlauf hinter der Szene (Standard: `hintergrund`) |
+| `sonne(x, y, z, farbe: "weiss", staerke: 1, schatten: ja)` | Richtung zur Sonne; Standard `(0.5, 1, 0.3)` |
+| `licht(x, y, z, farbe: "weiss", reichweite: 10)` | Punktlicht; höchstens 8 je Bild (`LaufzeitAnanas: Höchstens 8 Lichter je Bild.`) |
+| `umgebung(farbe, staerke: 0.35)` | Umgebungslicht (Standard: Himmelsfarbe oben, 0,35) |
+| `nebel(farbe, von, bis)` | linearer Nebel nach Abstand zur Kamera |
+| `zeichne(form, x = 0, y = 0, z = 0, groesse: 1, drehung: 0, neigung: 0, rollen: 0, farbe: "weiss", glanz: 0.3, leuchten: 0, bild: karton)` | `form` muss eine Form sein (TypAnanas `zeichne() braucht eine Form, nicht …`); `groesse` Zahl oder Blech `[sx, sy, sz]`; Drehung in Grad: erst `rollen` (z), dann `neigung` (x), dann `drehung` (y); `glanz`/`leuchten` auf 0 … 1 geklemmt; `bild` = Bildchen als Textur |
+
+- Höchstens 100 000 Befehle je Bild (`LaufzeitAnanas: Zu viele Zeichenbefehle in einem Bild (höchstens 100000).`).
+- **Formen:** Grundformen haben Größe 1 um den Ursprung (Würfel Kante 1, Kugel/Zylinder/Kegel Durchmesser 1 und Höhe 1, Ebene 1 × 1 in
+  y = 0 nach oben zeigend, Ring Außendurchmesser 1, `dicke` = Rohrdurchmesser relativ, 0.05 … 0.9). `teile` ganzzahlig 3 … 128
+  (`LaufzeitAnanas: teile muss zwischen 3 und 128 liegen, nicht 2.`). Eigene Form: `punkte` Blech aus Zahlen, Länge durch 3 teilbar, ≥ 3
+  Punkte, höchstens 65 536; `dreiecke` Blech aus Ganzzahlen, Länge durch 3 teilbar, ≥ 1 Dreieck, Indizes 0 … n − 1, Vorderseite gegen den
+  Uhrzeigersinn (`LaufzeitAnanas: Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).`,
+  `LaufzeitAnanas: Form braucht Dreiecke als Blech von Punkt-Nummern (Länge durch 3 teilbar).`,
+  `LaufzeitAnanas: Punkt 7 gibt es nicht – die Form hat 4 Punkte.`); `glatt: ja` = gemittelte Normalen, sonst flach. Die Daten werden
+  beim Erzeugen kopiert.
+- **Bildchen:** `zeilen` = nicht leeres Blech aus Texten, Breite = längste Zeile (kürzere werden durchsichtig aufgefüllt), höchstens
+  256 × 256 (`LaufzeitAnanas: Ein Bildchen darf höchstens 256 × 256 Pixel haben.`); Zeichen `.` und Leerzeichen durchsichtig, sonst die
+  Standardzeichen (`HERD.md` §3.1) bzw. `farben` (Speisekarte Zeichen → Farbe, hat Vorrang); unbekanntes Zeichen →
+  `LaufzeitAnanas: Das Zeichen 'x' hat im Bildchen keine Farbe.`
+
+### 18.5 Protokoll (K-136)
+
+Programm → Renderer: Ereignis `{ typ: "herd", daten: Uint8Array }` (`optionen.onHerd(daten)`), binär, Little Endian, Format in
+`HERD.md` §7 (verbindlich): Nachrichten `fenster` (1), `bild` (2), `form` (3), `bildchen` (4), `schliesse` (5). Zahlen `f32` per
+round-to-nearest aus dem f64-Wert (nicht endlich → 0), Farben RGBA-Bytes, Texte `u32` + UTF-8. Ressourcen werden beim Erzeugen
+gesendet (IDs ab 1, gemeinsam für Formen und Bildchen). Interpreter und Wasm-Laufzeit erzeugen **bitgleiche** Bytes.
+Renderer → Programm: wie die Theke über `onUiWarte`/`uiEreignisse` (HOST-ABI Gruppe `herd`: `herd_senden`, `herd_warte`):
+`{"typ":"takt","anzahl","tasten","maus","knoepfe"}`, `{"typ":"geschlossen"}`; `{"typ":"bereit"}` ist intern.
+`herd`-Ereignisse stehen nicht in `.erwartet`; Tests vergleichen sie über `.herd-erwartet` (HERD.md §9, K-134).
+Die **Pixel** sind auf allen Plattformen visuell gleich (gleiche Shader, Toleranzvergleich), nicht bitgleich (K-129).
