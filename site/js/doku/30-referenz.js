@@ -1615,7 +1615,7 @@
             ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
             ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"],
             ["`W0102`", "`animiere`/`schwebe`, aber die Theke ist nicht offen oder die Zutat liegt nicht auf ihr (je Aufrufstelle)", "„Animation entfällt – die Theke ist nicht offen.“"],
-            ["`W0103`", "`binde`/`bindeStil`, dessen Ausdruck bei der ersten Auswertung weder einen Zettel noch einen Zutat-Getter liest (je Aufrufstelle) – die Bindung rechnet nie wieder", "„Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.“"]
+            ["`W0103`", "`binde`/`bindeStil` bzw. `Zettel.aus`, dessen Ausdruck bei der ersten Auswertung weder einen Zettel noch einen Zutat-Getter liest (je Aufrufstelle) – die Bindung bzw. der abgeleitete Zettel rechnet nie wieder", "„Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.“ bzw. „Der abgeleitete Zettel liest weder Zettel noch Zutat – er rechnet nur einmal.“"]
           ]
         },
         { art: "text", md: "Zwei Warnungen in Aktion – das Programm läuft trotzdem bis zum Ende:" },
