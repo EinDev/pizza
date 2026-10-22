@@ -413,7 +413,20 @@ pub struct Auftrag {
     pub cache_basis: u32,
     /// Kopie der veränderlichen statischen Laufzeitdaten [STATISCH_START, __heap_base)
     pub statisch: Vec<u8>,
+    // ---- Arbeitsfläche der Brigade (nicht für Stücke; Kapazität wird in der Hauptküche über Brigaden hinweg wiederverwendet)
+    /// Berichte als (Adresse, Länge); Kapazität ≥ n vor dem Anschnitt (der Inline-Pfad schiebt während der Stücke)
+    pub berichte: Vec<(u32, u32)>,
+    /// Berichtspuffer: der Köche-Pfad liest die Berichte hier hinein, der Inline-Pfad zieht sie nach den Stücken hierher um
+    pub puffer: Vec<u8>,
+    /// Zusammenführen: Memo der Kartonleser und Maxima der Ananas-Zähler
+    pub memo: Vec<W>,
+    pub max_z: Vec<f64>,
 }
+
+/// Der Auftrag der Hauptküche wird über alle Brigaden hinweg wiederverwendet: die Laufzeit gibt keinen Speicher frei, je
+/// Brigade neu angelegte Aufträge und Berichtspuffer blieben sonst liegen und würden bei jedem Anschnitt mit an die Köche
+/// kopiert. Nur in der Hauptküche (`gefroren == 0`) – Stücke und innere Brigaden fassen ihn nie an (K-104/12).
+static mut HAUPT_AUFTRAG: u32 = 0;
 
 extern "C" { static __heap_base: u8; }
 fn statisch_bereich() -> (u32, u32) {
@@ -546,35 +559,53 @@ pub fn brigade(o: W, f: W, knoten: i32) -> W {
     if !ist_funktion(f) { let x = blech_v(o)[0]; rufe(f, &[x], &[], knoten); return KARTON; }
     // ---- Anschnitt
     let zz = z();
-    let saaten: Vec<f64> = (0..n).map(|_| crate::zahl::floor(crate::vorrat::global_r() * 4294967296.0)).collect();
+    let haupt = zz.gefroren == 0;
     let (s, e) = statisch_bereich();
     let benutzt = unsafe { crate::HEAP_TOP.saturating_sub(crate::HEAP_START) };
     let rest = unsafe { crate::SPEICHER_LIMIT.saturating_sub(benutzt) };
-    let mut berichte: Vec<(u32, u32)> = Vec::with_capacity(n);
-    // Auftrag auf den Heap (Klone lesen ihn aus ihrer Speicherkopie)
-    let auftrag: &mut Auftrag = neu(Auftrag {
-        n: n as u32,
-        blech: o,
-        f,
-        knoten,
-        s0: zz.schritte,
-        off0: zz.offset,
-        t0: zz.schritte + zz.offset,
-        n0: unsafe { INSTANZEN },
-        l0: unsafe { crate::pf::LIEFER_NR } as f64,
-        frozen: 0,
-        frozen0: 0,
-        frozen_alt: zz.gefroren,
-        ev0: unsafe { EREIGNISSE.len() as u32 },
-        speicher_neu: if rest < (256 << 20) { rest } else { 256 << 20 },
-        saaten,
-        zaehler: unsafe { KLASSEN.iter().map(|k| k.zaehler).collect() },
-        tot: unsafe { crate::pf::FRAMES.iter().map(|f| f.tot).collect() },
-        gewarnt: unsafe { METH.iter().map(|m| m.gewarnt).collect() },
-        frame_basis: unsafe { crate::pf::FRAMES.len() as u32 },
-        cache_basis: crate::pf::cache_laenge(),
-        statisch: alloc::vec![0u8; (e - s) as usize],
-    });
+    // Auftrag auf den Heap (Klone lesen ihn aus ihrer Speicherkopie); in der Hauptküche derselbe wie bei der letzten Brigade
+    let auftrag: &mut Auftrag = unsafe {
+        if haupt && HAUPT_AUFTRAG != 0 { &mut *(HAUPT_AUFTRAG as *mut Auftrag) } else {
+            let a = neu(Auftrag {
+                n: 0, blech: KARTON, f: KARTON, knoten: 0, s0: 0.0, off0: 0.0, t0: 0.0, n0: 0.0, l0: 0.0,
+                frozen: 0, frozen0: 0, frozen_alt: 0, ev0: 0, speicher_neu: 0,
+                saaten: Vec::new(), zaehler: Vec::new(), tot: Vec::new(), gewarnt: Vec::new(),
+                frame_basis: 0, cache_basis: 0, statisch: Vec::new(),
+                berichte: Vec::new(), puffer: Vec::new(), memo: Vec::new(), max_z: Vec::new(),
+            });
+            if haupt { HAUPT_AUFTRAG = a as *mut Auftrag as u32; }
+            a
+        }
+    };
+    auftrag.n = n as u32;
+    auftrag.blech = o;
+    auftrag.f = f;
+    auftrag.knoten = knoten;
+    auftrag.s0 = zz.schritte;
+    auftrag.off0 = zz.offset;
+    auftrag.t0 = zz.schritte + zz.offset;
+    auftrag.n0 = unsafe { INSTANZEN };
+    auftrag.l0 = unsafe { crate::pf::LIEFER_NR } as f64;
+    auftrag.frozen = 0;
+    auftrag.frozen0 = 0;
+    auftrag.frozen_alt = zz.gefroren;
+    auftrag.ev0 = unsafe { EREIGNISSE.len() as u32 };
+    auftrag.speicher_neu = if rest < (256 << 20) { rest } else { 256 << 20 };
+    auftrag.saaten.clear();
+    for _ in 0..n { auftrag.saaten.push(crate::zahl::floor(crate::vorrat::global_r() * 4294967296.0)); }
+    unsafe {
+        auftrag.zaehler.clear();
+        auftrag.zaehler.extend(KLASSEN.iter().map(|k| k.zaehler));
+        auftrag.tot.clear();
+        auftrag.tot.extend(crate::pf::FRAMES.iter().map(|f| f.tot));
+        auftrag.gewarnt.clear();
+        auftrag.gewarnt.extend(METH.iter().map(|m| m.gewarnt));
+        auftrag.frame_basis = crate::pf::FRAMES.len() as u32;
+    }
+    auftrag.cache_basis = crate::pf::cache_laenge();
+    auftrag.statisch.resize((e - s) as usize, 0);
+    auftrag.berichte.clear();
+    auftrag.berichte.reserve(n); // vor der Grenze: der Inline-Pfad schiebt während der Stücke, ohne neu zu belegen
     let top = unsafe { (crate::HEAP_TOP + 15) & !15 };
     unsafe { crate::HEAP_TOP = top; }
     auftrag.frozen = top;
@@ -585,25 +616,30 @@ pub fn brigade(o: W, f: W, knoten: i32) -> W {
     // ---- Stücke: Köche des Hosts (nur in der Hauptküche gefragt; innere Brigaden laufen immer inline)
     let koeche = if auftrag.frozen_alt == 0 { unsafe { kueche_auftrag(ap, n as i32) } } else { -1 };
     if koeche == 0 {
-        // Berichte liegen beim Host; die Hauptinstanz hat nichts verändert
+        // Berichte liegen beim Host; die Hauptinstanz hat nichts verändert. Sie kommen hintereinander in den
+        // wiederverwendeten Puffer (wächst nur, wenn ein Lauf mehr braucht als je zuvor).
         zz.gefroren = auftrag.frozen_alt;
-        let mut puf: Vec<u8> = alloc::vec![0u8; 1 << 16];
-        let mut alle: Vec<Vec<u8>> = Vec::new();
+        if auftrag.puffer.len() < (1 << 16) { auftrag.puffer.resize(1 << 16, 0); }
+        let mut off = 0usize;
         for i in 1..=n {
-            let mut len = unsafe { kueche_bericht(i as i32, puf.as_mut_ptr(), puf.len() as i32) };
+            let kap = auftrag.puffer.len() - off;
+            let mut len = unsafe { kueche_bericht(i as i32, auftrag.puffer.as_mut_ptr().add(off), kap as i32) };
             if len == -2 { break; }
-            if len as usize > puf.len() {
-                puf = alloc::vec![0u8; len as usize];
-                len = unsafe { kueche_bericht(i as i32, puf.as_mut_ptr(), puf.len() as i32) };
+            if len > 0 && len as usize > kap {
+                let neu_len = core::cmp::max(off + len as usize, auftrag.puffer.len() * 2);
+                auftrag.puffer.resize(neu_len, 0);
+                len = unsafe { kueche_bericht(i as i32, auftrag.puffer.as_mut_ptr().add(off), (neu_len - off) as i32) };
             }
             if len < 0 { break; }
-            let b = puf[..len as usize].to_vec();
-            let ok = bericht_status(&b) == ST_OK;
-            alle.push(b);
+            let ok = bericht_status(&auftrag.puffer[off..off + len as usize]) == ST_OK;
+            auftrag.berichte.push((off as u32, len as u32));
+            off += len as usize;
             if !ok { break; }
         }
-        let refs: Vec<&[u8]> = alle.iter().map(|b| &b[..]).collect();
-        return zusammenfuehren(auftrag, &refs);
+        // Puffer bewegt sich ab hier nicht mehr → Versätze zu Adressen
+        let basis = auftrag.puffer.as_ptr() as u32;
+        for b in auftrag.berichte.iter_mut() { b.0 += basis; }
+        return zusammenfuehren_auftrag(auftrag);
     }
     // Inline-Pfad: Stücke nacheinander in dieser Instanz, Berichte hinter die Grenze retten
     for i in 0..n {
@@ -613,14 +649,43 @@ pub fn brigade(o: W, f: W, knoten: i32) -> W {
         let ziel = auftrag.frozen;
         unsafe { core::ptr::copy(b.as_ptr(), ziel as *mut u8, len as usize); }
         core::mem::forget(b);
-        berichte.push((ziel, len));
+        auftrag.berichte.push((ziel, len));
         auftrag.frozen = (ziel + len + 15) & !15;
         if !ok { break; }
     }
     wiederherstellen(auftrag);
     zz.gefroren = auftrag.frozen_alt;
-    let refs: Vec<&[u8]> = berichte.iter().map(|&(p, l)| unsafe { core::slice::from_raw_parts(p as *const u8, l as usize) }).collect();
-    zusammenfuehren(auftrag, &refs)
+    // Gerettete Berichte in den Puffer umziehen und die Heap-Spitze auf die Grenze zurücksetzen (zwischen frozen0 und
+    // frozen liegen nur die Berichte). Reicht der Puffer nicht, wächst er in der Hauptküche einmalig (die Berichte bleiben
+    // dann diesmal liegen); innere Brigaden belegen dafür nichts zusätzlich.
+    let gesamt: usize = auftrag.berichte.iter().map(|&(_, l)| l as usize).sum();
+    let passt = auftrag.puffer.len() >= gesamt;
+    if passt || haupt {
+        if !passt { let m = core::cmp::max(gesamt, 1 << 16); auftrag.puffer.resize(m, 0); }
+        let basis = auftrag.puffer.as_mut_ptr();
+        let mut off = 0usize;
+        for b in auftrag.berichte.iter_mut() {
+            unsafe { core::ptr::copy_nonoverlapping(b.0 as *const u8, basis.add(off), b.1 as usize); }
+            b.0 = basis as u32 + off as u32;
+            off += b.1 as usize;
+        }
+        if passt { unsafe { crate::HEAP_TOP = auftrag.frozen0; } }
+    }
+    zusammenfuehren_auftrag(auftrag)
+}
+
+/// Zusammenführen mit der Arbeitsfläche des Auftrags (Memo, Zählermaxima, Berichte werden danach wiederverwendet).
+fn zusammenfuehren_auftrag(a: &mut Auftrag) -> W {
+    let berichte = core::mem::take(&mut a.berichte);
+    let mut memo = core::mem::take(&mut a.memo);
+    let mut max_z = core::mem::take(&mut a.max_z);
+    max_z.clear();
+    max_z.resize(a.zaehler.len(), 0.0);
+    let r = zusammenfuehren(a, &berichte, &mut memo, &mut max_z);
+    a.berichte = berichte;
+    a.memo = memo;
+    a.max_z = max_z;
+    r
 }
 
 fn bericht_status(b: &[u8]) -> u32 { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) }
@@ -642,17 +707,18 @@ fn warnung_weiter(meth: i32, code: &[u8], text: &[u8], zz: i32, ss: i32) {
 }
 
 /// Zusammenführen in Stückreihenfolge (D2–D15).
-fn zusammenfuehren(a: &Auftrag, berichte: &[&[u8]]) -> W {
+/// `berichte`: (Adresse, Länge); `memo`/`max_z`: Arbeitsfläche (max_z mit Nullen vorbelegt, Länge = Zähler).
+fn zusammenfuehren(a: &Auftrag, berichte: &[(u32, u32)], memo: &mut Vec<W>, max_z: &mut Vec<f64>) -> W {
     let zz = z();
     let mut summe = 0.0;
     let mut max_d = 0.0;
     let mut max_c = 0.0;
     let mut max_l = 0.0;
-    let mut max_z: Vec<f64> = alloc::vec![0.0; a.zaehler.len()];
     let mut r: Vec<W> = Vec::with_capacity(a.n as usize);
     let mut abbruch: Option<(u32, usize, usize)> = None; // (status, bericht, offset der Nutzlast)
-    for (bi, b) in berichte.iter().enumerate() {
-        let mut l = Leser { b, i: 0 };
+    let bericht = |bi: usize| -> &[u8] { let (p, l) = berichte[bi]; unsafe { core::slice::from_raw_parts(p as *const u8, l as usize) } };
+    for bi in 0..berichte.len() {
+        let mut l = Leser { b: bericht(bi), i: 0 };
         let status = l.u32();
         let s = l.f64(); let d = l.f64(); let c = l.f64(); let li = l.f64();
         let nz = l.u32() as usize;
@@ -678,10 +744,10 @@ fn zusammenfuehren(a: &Auftrag, berichte: &[&[u8]]) -> W {
         if c > max_c { max_c = c; }
         if li > max_l { max_l = li; }
         if status != ST_OK { abbruch = Some((status, bi, l.i)); break; }
-        let mut memo = Vec::new();
+        memo.clear();
         if l.b.len() < l.i + 4 || &l.b[l.i..l.i + 4] != b"PKF1" { core::arch::wasm32::unreachable(); }
         l.i += 4;
-        r.push(lies_wert(&mut l, &mut memo));
+        r.push(lies_wert(&mut l, memo));
     }
     // ---- Zähler, Uhr (D6, D10)
     zz.schritte = a.s0 + summe;
@@ -693,13 +759,13 @@ fn zusammenfuehren(a: &Auftrag, berichte: &[&[u8]]) -> W {
     }
     crate::pf::neu_grenze();
     if let Some((status, bi, off)) = abbruch {
-        let mut l = Leser { b: berichte[bi], i: off };
+        let mut l = Leser { b: bericht(bi), i: off };
         match status {
             ST_ANANAS => {
                 let pos = l.i32();
                 l.i += 4; // PKF1
-                let mut memo = Vec::new();
-                let o = lies_wert(&mut l, &mut memo);
+                memo.clear();
+                let o = lies_wert(&mut l, memo);
                 wirf_obj(o, pos);
             }
             ST_WURF_KARTON => {

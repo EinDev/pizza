@@ -1082,6 +1082,19 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      Programme mit `brigade`; `PIZZA_KUECHEN_CHAOS=N` schaltet Chaos zu). Smoke `host/smoke-koeche.js` in CI.
      (g) Speedup (Windows, 24 logische Kerne, 8 Stücke à 3,2·10⁶ Schritte): 1 / 2 / 4 / 8 Köche = 7,2 / 3,6 / 1,9 / 1,0 s
      (7,0×); 200 Brigaden à 8 Stücke à 4·10⁴ Schritte: 20,4 / 10,3 / 5,5 / 3,5 s (5,9×).
+  12. **Speicher je Brigade (Laufzeit, ohne GC):** Der Auftrag der Hauptküche (`gefroren == 0`) wird über alle Brigaden eines
+     Laufs wiederverwendet (statische Zelle `HAUPT_AUFTRAG`, `laufzeit/src/kueche.rs`; Felder neu gesetzt, Vektoren geleert, Kapazität bleibt). Er trägt
+     auch die Arbeitsfläche: Berichtsliste (Kapazität ≥ n vor der Grenze), **ein** Berichtspuffer (Köche-Pfad: alle Berichte
+     hintereinander per `kueche_bericht` direkt hinein, anfangs 64 KiB, wächst bei Bedarf auf ≥ das Doppelte; Inline-Pfad: die
+     hinter die Grenze geretteten Berichte ziehen nach dem letzten Stück hierher um und die Heap-Spitze springt auf die Grenze
+     zurück), Memo der Kartonleser und Zählermaxima. Wachsen kostet nur beim neuen Höchststand (alter Puffer bleibt liegen).
+     Innere Brigaden (in einem Stück) legen wie bisher einen eigenen Auftrag an – er verschwindet mit dem Stück; ihr Puffer
+     wächst nie zusätzlich (D13 unverändert). Reentranz ausgeschlossen: der Köche-Pfad kommt nur aus der Hauptküche, Klone und
+     Stücke rufen ihn nie, beim Zusammenführen läuft kein Programmcode. Liegen bleiben je Brigade nur noch die Ergebnisse
+     (Blech + Werte) und ≤ 15 Bytes Ausrichtung. Gemessen (2000 Brigaden à 4 winzige Stücke, JS-Host): Speicher der
+     Hauptinstanz inline 7,13 → 3,13 MiB, mit 4 Köchen 132,13 → 3,13 MiB und 49,5 → 3,1 s; inline 20 000 Brigaden 44,13 → 6,13 MiB.
+     Unbeobachtbar (Differenz inkl. `wasm-koeche4`/`wasm-chaos`/`wasm-rueck`/`host-koeche4` ohne Abweichung). Die
+     Lohnt-sich-Schätzung des nativen Hosts (11 d) bleibt; ihr Anlass „Speicher wächst je Brigade“ ist damit entfallen.
 - **Festgehalten:** HOST-ABI §2/§3/§6 + Anhang A (Gruppe `kueche` endgültig, `abi_version` bleibt 1), IR.md §1/§6a/§7.
 - **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
   bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅).
