@@ -1,15 +1,18 @@
-// K-116/K-118: Zyklus – a = b + 1 und b = a + 1 kommen nie zur Ruhe → LaufzeitAnanas nach 100 Durchläufen,
-// genannt wird die erste schmutzige Bindung in Registrierungsreihenfolge. Löst man eine Bindung, läuft die Theke weiter.
+// K-116/K-118: Zyklus – a = b + z und b = a + 1 kommen nie zur Ruhe → LaufzeitAnanas nach 100 Durchläufen,
+// genannt wird die erste schmutzige Bindung in Registrierungsreihenfolge. Danach sind alle Bindungen sauber: der nächste
+// Synchronisationspunkt wirft nicht erneut (zeige liefert den Stand nach 100 Durchläufen); erst eine Quellenänderung
+// (z.setze) löst den Zyklus wieder aus – der schon gefüllte Puffer geht vor der Ananas hinaus (K-119).
 Theke t = neu Theke("Zyklus");
+Zettel z = neu Zettel(1);
 Schild a = neu Schild("0", id: "a");
 Schild b = neu Schild("0", id: "b");
-a.binde("text", () -> ("" + (b.text().alsZahl() + 1)));
+a.binde("text", () -> ("" + (b.text().alsZahl() + z.wert())));
 b.binde("text", () -> ("" + (a.text().alsZahl() + 1)));
 Bote.sage((a.text() + " " + b.text()));
 Stapel st = neu Stapel([a, b]);
-probier { t.zeige(st); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); b.binde("text", karton); }
+probier { t.zeige(st); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 t.zeige(st);
 Bote.sage((a.text() + " " + b.text()));
-b.setzeText("10");
-t.bediene();
-Bote.sage((a.text() + " " + b.text()));
+z.setze(2);
+probier { t.setzeTitel("Sync"); } verbrannt (LaufzeitAnanas e) { Bote.sage(("erneut: " + e.nachricht())); }
+Bote.sage((a.text() + " " + b.text() + " " + t.titel()));

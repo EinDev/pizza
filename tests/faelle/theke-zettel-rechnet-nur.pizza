@@ -16,6 +16,7 @@ probier { s.binde("text", () -> { k.animiere("puls"); serviere ("y"); }); } verb
 s.binde("text", () -> { Schild tmp = neu Schild("tmp"); Bote.sage(("rechne " + z.wert())); serviere ("z=" + z.wert() + " aktiv=" + k.aktiv() + " sichtbar=" + s.sichtbar() + " " + tmp.text()); });
 Bote.sage(s.text());
 // wirft genau bei z == 3 – aus bediene() heraus; die Theke bleibt offen, die Bindung bleibt sauber, bis z sich wieder ändert
+// (der schon gefüllte Puffer – hier der neue Text von s – geht wie bei einer Rückruf-Ananas vor dem Verlassen hinaus, K-119)
 Schild w = neu Schild(id: "w");
 w.binde("text", () -> { falls (z.wert() == 3) { z.setze(0); } serviere ("w" + z.wert()); });
 st.hinzu(w);

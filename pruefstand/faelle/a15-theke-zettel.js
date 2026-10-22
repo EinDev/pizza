@@ -112,23 +112,32 @@ t.bediene();
     ],
   }),
 
-  F(T, "K-116/K-118: Zyklus (a = b+1, b = a+1) → nach 100 Durchläufen LaufzeitAnanas mit der ersten schmutzigen Bindung; die Ananas verlässt zeige() fangbar, nichts wird gesendet; nach dem Lösen einer Bindung (karton) läuft die Theke", P`
+  F(T, "K-116/K-118/K-119: Zyklus (a = b+z, b = a+1) → nach 100 Durchläufen LaufzeitAnanas mit der ersten schmutzigen Bindung, fangbar aus zeige(); danach sind alle Bindungen sauber (nächster Synchronisationspunkt wirft nicht, Programm läuft weiter); eine Quellenänderung löst den Zyklus erneut aus – der gefüllte Puffer geht vor der Ananas hinaus", P`
 Theke t = neu Theke("Z");
+Zettel z = neu Zettel(1);
 Schild a = neu Schild("0", id: "a");
 Schild b = neu Schild("0", id: "b");
-a.binde("text", () -> ("" + (b.text().alsZahl() + 1)));
+a.binde("text", () -> ("" + (b.text().alsZahl() + z.wert())));
 b.binde("text", () -> ("" + (a.text().alsZahl() + 1)));
 Bote.sage((a.text() + " " + b.text()));
 Stapel st = neu Stapel([a, b]);
-probier { t.zeige(st); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); b.binde("text", karton); }
+probier { t.zeige(st); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 t.zeige(st);
-b.setzeText("10");
-t.bediene();
 Bote.sage((a.text() + " " + b.text()));
+z.setze(2);
+probier { t.setzeTitel("Sync"); } verbrannt (LaufzeitAnanas e) { Bote.sage(("erneut: " + e.nachricht())); }
+Bote.sage((a.text() + " " + b.text() + " " + t.titel()));
 `, {
     uiEreignisse: [],
-    out: ["1 2", "Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(a) hängt von sich selbst ab.", "11 10"],
-    ui: [fenster("Z"), baum({ id: "z1", art: "stapel", kinder: [{ id: "a", art: "schild", text: "203" }, { id: "b", art: "schild", text: "202" }] }), aendere({ id: "b", text: "10" }, { id: "a", text: "11" })],
+    out: [
+      "1 2",
+      "Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(a) hängt von sich selbst ab.",
+      "201 202",
+      "erneut: Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(a) hängt von sich selbst ab.",
+      "501 502 Sync",
+    ],
+    // nach der zweiten Ananas sendet setzeTitel kein fenster mehr; am Programmende wirft uiEnde nicht erneut → schliesse
+    ui: [fenster("Z"), baum({ id: "z1", art: "stapel", kinder: [{ id: "a", art: "schild", text: "201" }, { id: "b", art: "schild", text: "202" }] }), aendere({ id: "a", text: "501" }, { id: "b", text: "502" }), schliesse()],
   }),
 
   F(T, "K-116: Ein Schreiber – Setter auf gebundene Eigenschaft/gebundenen Stil werfen LaufzeitAnanas; andere Eigenschaften bleiben setzbar; binde(…, karton) löst und gibt den Setter frei", P`
@@ -196,7 +205,7 @@ Bote.sage((s.text() + " | " + w.text()));
       fenster("R"),
       baum({ id: "z1", art: "stapel", kinder: [{ id: "s", art: "schild", text: "z=1 ja tmp" }, { id: "k", art: "knopf", text: "k" }, { id: "w", art: "schild", text: "w1" }] }),
       aendere({ id: "s", text: "z=2 ja tmp" }, { id: "w", text: "w2" }),
-      // z = 3: s ist schon neu gerechnet, w wirft – der Puffer geht am nächsten Synchronisationspunkt (bediene) hinaus
+      // z = 3: s ist schon neu gerechnet, w wirft – der Puffer geht wie bei einer Rückruf-Ananas vor dem Verlassen von bediene() hinaus (K-119)
       aendere({ id: "s", text: "z=3 ja tmp" }),
       aendere({ id: "s", text: "z=4 ja tmp" }, { id: "w", text: "w4" }),
     ],

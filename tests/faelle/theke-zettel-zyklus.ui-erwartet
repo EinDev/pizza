@@ -1,3 +1,4 @@
 {"v":1,"op":"fenster","titel":"Zyklus","breite":480,"hoehe":360}
-{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"a","art":"schild","text":"203"},{"id":"b","art":"schild","text":"202"}]}}
-{"v":1,"op":"aendere","aenderungen":[{"id":"b","text":"10"},{"id":"a","text":"11"}]}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"a","art":"schild","text":"201"},{"id":"b","art":"schild","text":"202"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"a","text":"501"},{"id":"b","text":"502"}]}
+{"v":1,"op":"schliesse"}

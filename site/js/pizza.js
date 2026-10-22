@@ -2844,15 +2844,24 @@
         }
         if (!offen) { this.uiDirty = false; return; }
       }
+      // Zyklus: erste schmutzige Bindung nennen; danach sind alle Bindungen sauber (sie rechnen erst wieder, wenn sich eine
+      // Quelle ändert) – das Programm läuft weiter, der nächste Synchronisationspunkt wirft nicht erneut (K-119).
+      let erste = null;
       for (const b of liste) {
-        if (b.dirty) throw this.ananas('LaufzeitAnanas', 'Die Bindungen kommen nicht zur Ruhe – ' + this.uiBindungName(b) + ' hängt von sich selbst ab.');
+        if (b.dirty) { if (erste === null) erste = b; b.dirty = false; }
       }
       this.uiDirty = false;
+      if (erste !== null) throw this.ananas('LaufzeitAnanas', 'Die Bindungen kommen nicht zur Ruhe – ' + this.uiBindungName(erste) + ' hängt von sich selbst ab.');
     }
 
     uiFlush() {
-      // K-116: Bindungen zuerst – die Nachricht zeigt den Zustand am Synchronisationspunkt (K-115)
-      this.uiBindungenAuswerten();
+      // K-116: Bindungen zuerst – die Nachricht zeigt den Zustand am Synchronisationspunkt (K-115). Wirft eine Bindung,
+      // geht der Puffer (auch die Werte vorher ausgewerteter Bindungen, Animationen) wie bei einer Rückruf-Ananas
+      // vor dem Verlassen hinaus, dann läuft die Ananas weiter (K-119).
+      try { this.uiBindungenAuswerten(); } finally { this.uiFlushSenden(); }
+    }
+
+    uiFlushSenden() {
       if (this.uiOffen.size === 0 && this.uiAnim.length === 0) return;
       const aenderungen = Array.from(this.uiOffen.values());
       this.uiOffen.clear();
