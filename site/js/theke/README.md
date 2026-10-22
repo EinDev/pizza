@@ -123,8 +123,10 @@ v2-Zutaten (`THEKE-ERWEITERUNGEN.md`, Abschnitt „v2-Zutaten“ in `theke.js`):
   `tabindex="-1"` (`:focus` ohne Rahmen) und den einzigen `keydown`-Listener; beim `baum` fokussiert der Renderer die Wurzel nur, wenn
   nichts (bzw. `body`) fokussiert ist (`focus({preventScroll:true})`) – ein Editor im Playground behält den Fokus, ein Klick ins Fenster
   gibt ihn der Theke. Jede aktive Tastatur im Baum bekommt jede Taste in **Baumreihenfolge** (DOM-Reihenfolge, auch nach `kinder`-
-  Umsortierung). Tasten auf einem fokussierten Knopf/Reiter erreichen die Tastatur **zusätzlich** (Leertaste klickt den Knopf und kommt
-  als `Leertaste`). Die Standardwirkung (Scrollen) von Leertaste/Pfeilen/Pos1/Ende/Bild wird **nur** unterdrückt, wenn eine aktive
+  Umsortierung). **Eine Taste, ein Empfänger (K-114):** Leertaste/Enter auf einem fokussierten Bedienelement (Knopf, Klapp-Knopf, Haken,
+  Reiter-Tab, Auswahl-Option) und Navigationstasten, die Reiter/Auswahl selbst verarbeiten (`e.defaultPrevented`), erreichen keine
+  Tastatur; ein Zeigerklick (`click` mit `detail > 0`) auf ein Bedienelement fokussiert danach die Wurzel (Listener `zeigerKlick`), damit
+  die nächste Leertaste nicht den Knopf erneut klickt. Tastatur-Klicks (`detail 0`) lassen den Fokus, Tab + Leertaste bleibt bedienbar. Die Standardwirkung (Scrollen) von Leertaste/Pfeilen/Pos1/Ende/Bild wird **nur** unterdrückt, wenn eine aktive
   Tastatur zuhört **und** `e.target` die Wurzel ist (nichts im Fenster fokussiert). Mechanik: Registry-Hook `taste(el, name, ctx, e)`.
 
   Tastennamen (verbindlich, K-110): `e.key`, Sondertasten deutsch:

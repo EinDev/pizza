@@ -1275,10 +1275,12 @@ test("v4 K-110 tastatur: unsichtbar; keydown auf der Wurzel → taste mit deutsc
   taste(win, $("e"), "a");
   taste(win, $("e"), " ");
   assert.deepEqual(ereignisse, []);
-  // Taste auf einem fokussierten Knopf erreicht die Tastatur zusätzlich
+  // K-114: Leertaste/Enter auf einem fokussierten Knopf gehören dem Knopf (kein taste); andere Tasten erreichen die Tastatur
   taste(win, $("k"), " ");
   taste(win, $("k"), "Enter");
-  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "Leertaste" }, { typ: "taste", id: "t1", taste: "Enter" }]);
+  assert.deepEqual(ereignisse, []);
+  taste(win, $("k"), "a");
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "a" }]);
   ereignisse.length = 0;
   // mehrere aktive Tastaturen: Baumreihenfolge, auch nach Umsortieren per kinder
   t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "t2", aktiv: true }] });
@@ -1313,6 +1315,73 @@ test("v4 K-110 tastatur: preventDefault für Leertaste/Pfeile/Pos1/Ende/Bild nur
   assert.equal(taste(win, $("k"), " ").defaultPrevented, false, "fokussierter Knopf behält Leertaste");
   assert.equal(taste(win, $("k"), "Enter").defaultPrevented, false);
   assert.equal(taste(win, $("k"), "ArrowDown").defaultPrevented, false);
+}));
+
+const zeigerKlick = (win, ziel, detail = 1) => {
+  const ev = new win.MouseEvent("click", { bubbles: true, cancelable: true, detail });
+  ziel.dispatchEvent(ev);
+  return ev;
+};
+
+test("v4 K-114 eine Taste, ein Empfänger: Leertaste/Enter auf fokussierten Bedienelementen und Navigationstasten von Reiter/Auswahl erreichen keine Tastatur", mitUmgebung(({ t, $, win, ereignisse }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "k", art: "knopf", text: "Kaufen" }, { id: "h", art: "haken", text: "Extra", an: false },
+    { id: "a", art: "abschnitt", titel: "Mehr", klappbar: true, kinder: [] },
+    { id: "r", art: "reiter", titel: ["Eins", "Zwei"], kinder: [{ id: "s1", art: "stapel", kinder: [] }, { id: "s2", art: "stapel", kinder: [] }] },
+    { id: "m", art: "auswahl", optionen: ["x1", "x10"], gewaehlt: 1 },
+    { id: "t1", art: "tastatur" }] } });
+  const box = $("h").querySelector(".theke-haken-box");
+  const kopf = $("a").querySelector(".theke-abschnitt-knopf");
+  const tab = $("r").querySelectorAll(".theke-reiter-tab")[0];
+  const opt = $("m").querySelectorAll(".theke-auswahl-option")[0];
+  for (const ziel of [$("k"), box, kopf, tab, opt]) { taste(win, ziel, " "); taste(win, ziel, "Enter"); }
+  assert.deepEqual(ereignisse, [], "Leertaste/Enter gehören dem fokussierten Bedienelement");
+  // Navigationstasten, die Reiter/Auswahl selbst verarbeiten, ebenso
+  taste(win, tab, "ArrowRight");
+  taste(win, opt, "ArrowRight");
+  assert.deepEqual(ereignisse.filter((e) => e.typ === "taste"), []);
+  assert.deepEqual(ereignisse.map((e) => e.id), ["r", "m"]);
+  ereignisse.length = 0;
+  // Was ein Bedienelement nicht verarbeitet, kommt an (auch auf dem Haken: er ist keine Eingabe)
+  taste(win, box, "1");
+  taste(win, $("k"), "ArrowDown");
+  taste(win, $("m").querySelectorAll(".theke-auswahl-option")[1], "ArrowDown");
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "1" }, { typ: "taste", id: "t1", taste: "Runter" },
+    { typ: "taste", id: "t1", taste: "Runter" }]);
+}));
+
+test("v4 K-114 Zeigerklick: Fokus geht vom Bedienelement an die Wurzel (Leertaste danach = nur taste); Tastatur-Klick (detail 0) lässt den Fokus", mitUmgebung(({ t, $, win, doc, ereignisse }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "k", art: "knopf", text: "Kaufen" }, { id: "h", art: "haken", text: "Extra", an: false },
+    { id: "e", art: "eingabe", wert: "" }, { id: "s", art: "schild", text: "Text" }, { id: "t1", art: "tastatur" }] } });
+  const wurzel = t.element;
+  // Maus: Browser fokussiert den Knopf beim Drücken, der Klick gibt den Fokus an die Wurzel
+  $("k").focus();
+  zeigerKlick(win, $("k"));
+  assert.equal(doc.activeElement, wurzel);
+  assert.deepEqual(ereignisse, [{ typ: "klick", id: "k" }]);
+  ereignisse.length = 0;
+  const ev = taste(win, doc.activeElement, " ");
+  assert.deepEqual(ereignisse, [{ typ: "taste", id: "t1", taste: "Leertaste" }], "nur taste, kein zweiter Klick");
+  assert.equal(ev.defaultPrevented, true, "Wurzel fokussiert → Scrollen unterdrückt");
+  ereignisse.length = 0;
+  // Haken per Maus (Label-Klick fokussiert die Box, ihr Klick gibt den Fokus zurück)
+  const box = $("h").querySelector(".theke-haken-box");
+  box.focus();
+  box.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  assert.equal(doc.activeElement, wurzel);
+  assert.equal(box.checked, true);
+  ereignisse.length = 0;
+  // Tastatur-Aktivierung (detail 0): Fokus bleibt auf dem Knopf (Tab + Leertaste bleibt bedienbar)
+  $("k").focus();
+  zeigerKlick(win, $("k"), 0);
+  assert.equal(doc.activeElement, $("k"));
+  // Klick auf Eingabe oder Schild: kein Fokuswechsel durch die Theke
+  $("e").focus();
+  zeigerKlick(win, $("e"));
+  assert.equal(doc.activeElement, $("e"));
+  zeigerKlick(win, $("s"));
+  assert.equal(doc.activeElement, $("e"));
 }));
 
 test("v4 K-110 Fokus beim baum: Wurzel wird fokussiert, wenn nichts (oder body) fokussiert ist – sonst kein Fokusdiebstahl", mitUmgebung(({ t, $, doc }) => {

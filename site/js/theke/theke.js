@@ -695,11 +695,18 @@
     if (MODIFIKATOREN.indexOf(e.key) >= 0) return null;
     return hat.call(TASTEN_DEUTSCH, e.key) ? TASTEN_DEUTSCH[e.key] : e.key;
   }
-  /** Ziel in einer Eingabe (input/textarea/contenteditable)? Die Tasten gehören dem Feld. */
+  /** Ziel in einer Eingabe (Textfeld/textarea/select/contenteditable)? Die Tasten gehören dem Feld. Ein Haken (checkbox) ist
+   *  keine Eingabe, sondern ein Bedienelement (K-114). */
   function inEingabe(ziel) {
     if (!ziel || ziel.nodeType !== 1) return false;
     var tag = ziel.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || ziel.isContentEditable === true;
+    if (tag === "INPUT") return ["checkbox", "radio", "button", "submit", "reset"].indexOf(ziel.type) < 0;
+    return tag === "TEXTAREA" || tag === "SELECT" || ziel.isContentEditable === true;
+  }
+  /** Bedienelemente der Theke, die Leertaste/Enter selbst auslösen (K-114). */
+  var BEDIENELEMENTE = ".theke-knopf, .theke-abschnitt-knopf, .theke-haken-box, .theke-reiter-tab, .theke-auswahl-option";
+  function bedienelement(ziel) {
+    return !!(ziel && ziel.nodeType === 1 && typeof ziel.closest === "function" && ziel.closest(BEDIENELEMENTE));
   }
 
   // ------------------------------------------------------------------ v3: Animations-Registry (K-090 … K-092, SPEC §16.6)
@@ -839,6 +846,7 @@
     wurzelEl.className = "theke";
     wurzelEl.setAttribute("tabindex", "-1");   // v4 (K-110): fokussierbar, Tastatur-Listener hängt hier
     wurzelEl.addEventListener("keydown", tastenDruck);
+    wurzelEl.addEventListener("click", zeigerKlick);
     var inhalt = dok.createElement("div");
     inhalt.className = "theke-inhalt";
     wurzelEl.appendChild(inhalt);
@@ -880,6 +888,10 @@
       if (geschlossen || zerstoert || !baumDa) return;
       var name = tastenName(e);
       if (name === null || inEingabe(e.target)) return;
+      // K-114: eine Taste gehört genau einem Empfänger. Was ein fokussiertes Bedienelement selbst verarbeitet (Leertaste/Enter
+      // klicken es, Pfeile/Pos1/Ende wandern in Reiter/Auswahl – deren Handler haben preventDefault gerufen), erreicht keine Tastatur.
+      if (e.defaultPrevented) return;
+      if ((name === "Leertaste" || name === "Enter") && e.target !== wurzelEl && bedienelement(e.target)) return;
       var alle = inhalt.querySelectorAll(".theke-zutat"), aktiv = false;
       for (var i = 0; i < alle.length; i++) {
         var en = eintragVon.get(alle[i]);
@@ -888,6 +900,13 @@
         catch (err) { warne("Zutat „" + en.art + "“: taste() fehlgeschlagen:", err); }
       }
       if (aktiv && e.target === wurzelEl && SCROLL_TASTEN.indexOf(name) >= 0) e.preventDefault();
+    }
+    /** K-114: Nach einem Zeigerklick (Maus/Touch, e.detail > 0) auf ein Bedienelement bleibt der Fokus nicht dort, sondern geht
+     *  an die Wurzel – sonst klickte die nächste Leertaste/Enter den Knopf erneut. Tastatur-Aktivierung (detail 0) bleibt unberührt. */
+    function zeigerKlick(e) {
+      if (zerstoert || !(e.detail > 0) || !bedienelement(e.target)) return;
+      if (dok.activeElement === wurzelEl) return;
+      try { wurzelEl.focus({ preventScroll: true }); } catch (err) { try { wurzelEl.focus(); } catch (err2) { /* egal */ } }
     }
     /** Beim baum: Wurzel fokussieren, wenn nichts anderes fokussiert ist (nativ sofort; Playground ohne Fokusdiebstahl). */
     function fokussiereWurzel() {
@@ -1396,6 +1415,7 @@
         leereAlles();
         zerstoert = true;
         wurzelEl.removeEventListener("keydown", tastenDruck);
+        wurzelEl.removeEventListener("click", zeigerKlick);
         if (wurzelEl.parentNode) wurzelEl.parentNode.removeChild(wurzelEl);
       }
     };

@@ -1387,8 +1387,8 @@ Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeb
   Zeichen so, wie sie getippt werden (`a`, `A`, `1`, `+`, `ä`). **Nicht gesendet:** reine Modifikatoren (`Shift`, `Control`, `Alt`,
   `AltGraph`, `Meta`, `CapsLock`, `NumLock`, `ScrollLock`, `Fn`), `Dead`/`Unidentified`, Eingaben während einer Komposition
   (`isComposing`/keyCode 229), **Wiederholungen bei gedrückter Taste** (`e.repeat` – ein Druck = ein Ereignis) und Tasten in einer
-  fokussierten `Eingabe` (die gehören dem Feld). Tasten erreichen die Tastatur **zusätzlich** zu dem, was ein fokussierter Knopf/Reiter
-  damit tut (Leertaste klickt den fokussierten Knopf und kommt als `Leertaste` an).
+  fokussierten `Eingabe` (die gehören dem Feld). ~~Tasten erreichen die Tastatur **zusätzlich** zu dem, was ein fokussierter Knopf/Reiter
+  damit tut (Leertaste klickt den fokussierten Knopf und kommt als `Leertaste` an).~~ **Ersetzt durch K-114:** eine Taste, ein Empfänger.
 - **Fokus (Browser = nativ):** Das Theke-Wurzelelement ist fokussierbar (`tabindex="-1"`); der Tastatur-Listener hängt dort – Tasten
   im Playground-Editor erreichen die Theke nie. Ein Klick ins Fenster gibt ihm den Fokus; beim `baum` fokussiert der Renderer die Wurzel,
   wenn nichts anderes fokussiert ist (nativ: sofort; Playground: ohne Fokusdiebstahl). Liegt eine aktive Tastatur im Baum, unterdrückt der
@@ -1439,6 +1439,32 @@ Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeb
 - **Betroffen:** SPEC §16.2 (Stile), THEKE.md §2; Interpreter (`UI_STIL`), Wasm (`theke.rs` `STIL_NAMEN`, Zahl-Prüfung je Art statt
   `ki <= 2`, hartkodierte Erlaubt-Liste), Renderer (`wendeStilAn`, CSS `--theke-zeilen`/`--theke-mindestbreite`), `tests/theke`,
   `visuell.mjs`, a13 (zwei Erlaubt-Texte Z. 346/701), `tests/faelle/theke-fehlerfaelle.erwartet`, Doku. **Status:** fest.
+
+### K-114 Nachtrag zu K-110: eine Taste, ein Empfänger – Fokus nach Mausklick (Renderer)
+- **Befund:** Nach einem Mausklick bleibt der Knopf fokussiert (Chromium/WebView2; Safari/WebKitGTK nicht – also schon heute
+  plattformabhängig). Die nächste Leertaste klickte ihn nativ **und** kam als `taste` an: im Pizza-Imperium backte die Leertaste und kaufte
+  zugleich den zuletzt geklickten Kauf-Knopf. Das „zusätzlich“ aus K-110 ist in der Praxis ein Fehler.
+- **Entscheidung (Renderer, Browser = nativ, kein Protokoll-/Sprachwechsel):**
+  1. **Zeigerklick gibt den Fokus an die Wurzel.** Ein Klick mit `e.detail > 0` (Maus/Touch) auf ein Bedienelement – Knopf,
+     Klapp-Knopf eines Abschnitts, Haken (auch über seinen Text), Reiter-Tab, Auswahl-Option – lässt den Fokus nicht dort: der Renderer
+     fokussiert danach die Theke-Wurzel (`preventScroll`). Klicks per Tastatur (`detail 0`) und Klicks in eine `Eingabe` ändern den Fokus
+     nicht. So geht die Leertaste nach einem Mausklick an die Tastatur – und nur dorthin.
+  2. **Eine Taste gehört genau einem Empfänger.** Hat der Nutzer ein Bedienelement per Tab fokussiert, gehören ihm die Tasten, die es selbst
+     verarbeitet: Leertaste/Enter auf Knopf, Klapp-Knopf, Haken, Reiter-Tab und Auswahl-Option; Pfeile links/rechts und Pos1/Ende auf
+     Reiter/Auswahl (deren Handler rufen `preventDefault`). Diese Tasten erreichen **keine** Tastatur. Alle anderen Tasten (Buchstaben,
+     Ziffern, `Escape`, `Tab`, Hoch/Runter …) kommen weiter an. Ein Haken ist dabei keine `Eingabe` (bisher schluckte ein fokussierter Haken
+     jede Taste); Textfelder behalten alle Tasten.
+- **Barrierefreiheit:** Tab + Leertaste/Enter bedient jeden Knopf wie bisher – mit oder ohne Tastatur im Baum –, der Fokus bleibt dabei
+  auf dem Knopf. Nur Mausnutzer verlieren den (für sie unsichtbaren, `:focus-visible` greift nicht) Fokus auf dem Knopf; Tab von der Wurzel
+  aus beginnt beim ersten Bedienelement der Theke.
+- **Verworfen:** Leertaste/Enter auf fokussierten Knöpfen immer per `preventDefault` schlucken, sobald eine Tastatur zuhört – dann könnten
+  Tastaturnutzer in Spielen mit Tastatur keinen Knopf mehr auslösen. Zeitfenster („Mitklick schlucken“) im Programm – nicht deterministisch
+  und Sache des Renderers.
+- **Folge:** Der 300-ms-Workaround im Pizza-Imperium ist überflüssig (es gibt keinen Mitklick mehr) und entfällt (Testdateien aus echtem
+  Lauf neu: nur die vier verschluckten `klick backen` fehlen, Ausgabe und UI-Nachrichten unverändert).
+- **Betroffen:** SPEC §16.7 (Tastatur), `site/js/theke/theke.js` (`zeigerKlick`, `tastenDruck`, `inEingabe`), `site/js/theke/README.md`,
+  Doku-Referenz (Tastatur), `tests/theke/run.js`, E2E 09, Host neu gebaut (Renderer eingebettet), `site/beispiele/idle/pizza-imperium.pizza`.
+  **Status:** fest.
 
 ### K-115 Theke: `kinder` in `aendere` zeigt den Zustand beim Senden – ganzer Knoten = ganzer Zustand
 - **Befund (Pizza-Imperium):** Die `kinder`-Liste eines `aendere`-Eintrags wurde beim `hinzu`/`leeren` als Schnappschuss gebaut. Stand in

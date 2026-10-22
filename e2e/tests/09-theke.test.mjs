@@ -202,3 +202,62 @@ e2e("Takt: Schläge mit Nachholregel (anzahl) über die gesteuerte Test-Uhr; ech
   assert.equal(await page.evaluate(() => window.__thekeUhr.timer.size), 0, "Takt-Timer nach dem Schließen gestoppt");
   assert.ok(vorher > 0);
 });
+
+// K-114: eine Taste, ein Empfänger. Nach einem Mausklick bleibt der Fokus nicht auf dem Knopf (sonst klickte die Leertaste
+// ihn erneut UND die Tastatur bekäme sie); Tab + Leertaste bedient den Knopf weiter, ohne zusätzliches taste.
+e2e("Tastatur (K-114): Mausklick auf Kauf-Knopf, dann Leertaste → nur taste; Tab-Fokus + Leertaste → nur Klick", async ({ page, oeffne }) => {
+  await oeffne();
+  await starteTheke(page, [
+    'Theke theke = neu Theke("Tasten", breite: 300, hoehe: 200);',
+    "salami kaeufe = 0;",
+    "salami tasten = 0;",
+    'Schild s = neu Schild("0/0", id: "s");',
+    'Knopf kauf = neu Knopf("Kaufen", () -> { kaeufe += 1; Bote.sage(("kauf")); s.setzeText(("" + kaeufe + "/" + tasten)); }, id: "kauf");',
+    'Haken h = neu Haken("Extra", id: "haken");',
+    'h.beiAenderung((an) -> { Bote.sage(("haken")); });',
+    'Tastatur t = neu Tastatur((taste) -> { tasten += 1; Bote.sage(("taste " + taste)); s.setzeText(("" + kaeufe + "/" + tasten)); falls (taste == "Escape") { theke.schliesse(); } }, id: "tasten");',
+    "theke.zeige(neu Stapel([s, kauf, h, t]));",
+    "theke.bediene();",
+  ].join("\n"));
+  const zahl = () => page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ui-warte").length);
+  const schild = () => page.$eval('#vorschau [data-theke-id="s"]', (e) => e.textContent);
+  const aktiv = () => page.evaluate(() => { const a = document.activeElement; return a ? (a.className || a.tagName) : null; });
+  // Echter Mausklick auf den Kauf-Knopf
+  let vorher = await zahl();
+  await page.click('#vorschau [data-theke-id="kauf"]');
+  await warteAufBediene(page, vorher);
+  assert.equal(await schild(), "1/0");
+  assert.match(await aktiv(), /^theke( |$)/, "Fokus liegt nach dem Mausklick auf der Theke-Wurzel");
+  // Leertaste: nur taste, kein zweiter Kauf
+  vorher = await zahl();
+  await page.keyboard.press("Space");
+  await warteAufBediene(page, vorher);
+  await schlafe(150);
+  assert.equal(await schild(), "1/1", "Leertaste nach Mausklick: kein zweiter Klick");
+  // Enter ebenso
+  vorher = await zahl();
+  await page.keyboard.press("Enter");
+  await warteAufBediene(page, vorher);
+  await schlafe(150);
+  assert.equal(await schild(), "1/2");
+  // Haken per Mausklick auf den Text (Label fokussiert die Box) → Fokus zurück an die Wurzel
+  vorher = await zahl();
+  await page.click('#vorschau [data-theke-id="haken"] .theke-haken-text');
+  await warteAufBediene(page, vorher);
+  assert.match(await aktiv(), /^theke( |$)/, "Fokus nach Haken-Klick auf der Wurzel");
+  // Barrierefreiheit: Tab auf den Knopf, Leertaste klickt ihn – und nur ihn
+  await page.$eval('#vorschau .theke', (w) => w.focus());
+  vorher = await zahl();
+  await page.keyboard.press("Tab");          // Tab selbst ist eine Taste (K-110) und kommt als taste an
+  await warteAufBediene(page, vorher);
+  assert.match(await aktiv(), /theke-knopf/, "Tab erreicht den Knopf");
+  vorher = await zahl();
+  await page.keyboard.press("Space");
+  await warteAufBediene(page, vorher);
+  await schlafe(150);
+  assert.equal(await schild(), "2/3", "Tab + Leertaste: genau ein Klick, kein taste");
+  assert.match(await aktiv(), /theke-knopf/, "Tastatur-Klick lässt den Fokus auf dem Knopf");
+  await page.keyboard.press("Escape");
+  await warteLaufEnde(page);
+  assert.equal(await konsolenAusgabe(page), "kauf\ntaste Leertaste\ntaste Enter\nhaken\ntaste Tab\nkauf\ntaste Escape\n");
+});

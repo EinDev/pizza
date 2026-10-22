@@ -1107,7 +1107,7 @@
               )
             },
             { art: "ausgabe", text: "Lager • neu / gewählt: 3" },
-            { art: "text", md: "**Tastatur:** `neu Tastatur(taste -> { … })` oder `beiTaste(fn)` – der Rückruf bekommt den Namen der Taste als Text. Ein Druck ist ein Ereignis: Hält der Gast die Taste gedrückt, kommt **keine** Wiederholung. Mehrere aktive Tastaturen im Baum bekommen jede Taste. Tasten, die der Gast in eine fokussierte `Eingabe` tippt, gehören dem Feld und erreichen die Tastatur nicht; ein fokussierter Knopf wird von der Leertaste weiterhin geklickt – die Tastatur bekommt sie zusätzlich. Im Playground gehen Tasten an die Theke, sobald der Gast einmal ins Vorschaufenster geklickt hat; was du im Editor tippst, bleibt im Editor." },
+            { art: "text", md: "**Tastatur:** `neu Tastatur(taste -> { … })` oder `beiTaste(fn)` – der Rückruf bekommt den Namen der Taste als Text. Ein Druck ist ein Ereignis: Hält der Gast die Taste gedrückt, kommt **keine** Wiederholung. Mehrere aktive Tastaturen im Baum bekommen jede Taste. Tasten, die der Gast in eine fokussierte `Eingabe` tippt, gehören dem Feld und erreichen die Tastatur nicht; eine Taste hat genau einen Empfänger: Nach einem Mausklick liegt der Fokus wieder auf der Theke, die Leertaste geht also an die Tastatur und klickt den Knopf nicht noch einmal; wer einen Knopf mit Tab ansteuert, löst ihn mit Leertaste/Enter aus, und die Tastatur bekommt diese Taste dann nicht. Im Playground gehen Tasten an die Theke, sobald der Gast einmal ins Vorschaufenster geklickt hat; was du im Editor tippst, bleibt im Editor." },
             {
               art: "tabelle",
               kopf: ["Taste", "Name im Rückruf"],

@@ -1655,15 +1655,7 @@ Schild modusInfo = neu Schild("", id: "modus-info");
 modusInfo.stil("schrift", "klein").stil("farbe", "kruste").stil("ausrichtung", "mitte");
 modusInfo.sichtbar(nein);
 
-Knopf backen = neu Knopf("", () -> {
-    // Hat gerade die Leertaste gebacken, ist das hier meist derselbe Druck: Die Leertaste klickt auch den fokussierten
-    // Knopf (K-110). Dieser eine Klick zählt nicht – die Leertaste backt nie doppelt.
-    falls (leerWartet) {
-        leerWartet = nein;
-        falls (uhrMs - leerBeiMs <= LEER_FENSTER_MS) { serviere; }
-    }
-    backe();
-}, id: "backen");
+Knopf backen = neu Knopf("", () -> { backe(); }, id: "backen");
 backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("breite", 440).stil("ausrichtung", "mitte");
 backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen (auch mit der Leertaste). Später bringt jeder Klick zusätzlich einen kleinen Anteil der Sekundenproduktion – das große Geld macht der Betrieb.");
 
@@ -1679,19 +1671,16 @@ leer backe() {
 
 // ── Tastatur (Theke v4): Leertaste backt, in den Minispielen spielt man mit Tasten ──
 // Die Leertaste ist nie schneller als die Maus: ein Druck = eine Pizza (Wiederholungen beim Festhalten schickt der
-// Renderer nicht), höchstens eine je Schlag der Uhr, und der Klick, den derselbe Druck auf einem fokussierten
-// Backen-Knopf auslöst, wird geschluckt.
+// Renderer nicht) und höchstens eine je Schlag der Uhr. Ein Druck klickt nie zusätzlich einen Knopf (K-114: eine Taste,
+// ein Empfänger – nach einem Mausklick liegt der Fokus wieder auf der Theke).
 salami uhrMs = 0;            // Spielzeit der Uhr in ms (zählt die Takte)
 salami leerBeiMs = -1000;    // wann die Leertaste zuletzt gebacken hat
-diavolo leerWartet = nein;   // ein Klick auf „Backen“ direkt danach ist derselbe Tastendruck
-salami LEER_FENSTER_MS = 300;
 Blech<margherita> ZIFFERN = ["1", "2", "3", "4", "5", "6"];
 
 leer taste(margherita t) {
     falls (ecke.läuft != "" && reiter.gewaehlt() == 5) { spielTaste(t); serviere; }
     falls (t != "Leertaste" || !backen.aktiv() || leerBeiMs == uhrMs) { serviere; }
     leerBeiMs = uhrMs;
-    leerWartet = ja;
     backe();
 }
 
@@ -1879,8 +1868,6 @@ kleinTeil.klappbar(ja).zu(ja).stil("abstand", 6);
 kleinTeil.hinweis("Die ältesten Gebäude – sie backen natürlich weiter. Ein Klick auf die Überschrift klappt sie auf oder zu.");
 kleinTeil.sichtbar(nein).uebergang(ja);
 salami kleinZahl = 0;     // so viele Gebäudezeilen liegen gerade in „Kleinbetriebe“
-salami kleinSoll = 0;     // … und so viele sollen es sein (umgeordnet wird am Ende von zeichne())
-Blech<UpgradeZeile> kleinOffen = [];
 
 Abschnitt betriebTeil = upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb", [kleinTeil]);
 Stapel backstube = neu Stapel([
@@ -1894,8 +1881,6 @@ Stapel backstube = neu Stapel([
 
 // Die ersten n offenen Gebäude liegen in „Kleinbetriebe“, die übrigen direkt im Betrieb (Reihenfolge bleibt).
 // Nur nötig, wenn sich n ändert – also wenn eine neue Gebäudeart auftaucht oder nach einer Neueröffnung.
-// Als Letztes in zeichne(): Die kinder-Liste in der Nachricht trägt die Zeilen so, wie sie beim hinzu sind –
-// danach ändert sich an ihnen in diesem Durchgang nichts mehr.
 leer ordneBetrieb(Blech<UpgradeZeile> offen, salami n) {
     kleinZahl = n;
     Blech<UpgradeZeile> klein = [];
@@ -2204,8 +2189,7 @@ leer zeichneVoll() {
     }
     // Welle im Betrieb: die ältesten Gebäude wandern in den klappbaren Abschnitt „Kleinbetriebe“.
     salami zuviel = betriebOffen.länge() > WELLE_BETRIEB ? betriebOffen.länge() - WELLE_BETRIEB + 1 : 0;
-    kleinSoll = zuviel;
-    kleinOffen = betriebOffen;
+    falls (zuviel != kleinZahl) { ordneBetrieb(betriebOffen, zuviel); }
     falls (zuviel > 0) {
         Blech<margherita> teile = [];
         funghi klein = 0;
@@ -2517,7 +2501,6 @@ leer zeichne() {
     falls (r == 4 && auffrischen) { zeichneGeheimnisse(); }
     gezeigterReiter = r;
     aufrufe = spiel.sekunden;
-    falls (kleinSoll != kleinZahl) { ordneBetrieb(kleinOffen, kleinSoll); }
 }
 
 leer nachVerarbeitung() {

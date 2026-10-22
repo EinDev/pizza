@@ -1077,7 +1077,10 @@ alte Renderer zeigen Platzhalter bzw. ignorieren. Alle Namen in Interpreter und 
   angenommen für eine aktive Tastatur mit Rückruf und nicht-leerem Text; mehrere aktive Tastaturen bekommen jede Taste (Baumreihenfolge);
   Zustellung 0 Schritte. Tastennamen (Renderer): `e.key`, Sondertasten deutsch – `Leertaste`, `Links`/`Rechts`/`Hoch`/`Runter`, `Rücktaste`,
   `Entfernen`, `Pos1`, `Ende`, `BildHoch`/`BildRunter`; unverändert `Enter`, `Escape`, `Tab`, `F1`…`F12`, Zeichen wie getippt. Nicht gesendet:
-  reine Modifikatoren, `Dead`/`Unidentified`, Komposition, Wiederholungen (`e.repeat`), Tasten in einer fokussierten `Eingabe`. Fokus: Theke-Wurzel
+  reine Modifikatoren, `Dead`/`Unidentified`, Komposition, Wiederholungen (`e.repeat`), Tasten in einer fokussierten `Eingabe` und (K-114)
+  Tasten, die ein fokussiertes Bedienelement selbst verarbeitet (Leertaste/Enter auf Knopf/Haken/Klapp-Knopf/Reiter-Tab/Auswahl-Option,
+  Pfeile links/rechts und Pos1/Ende auf Reiter/Auswahl) – eine Taste, ein Empfänger. Ein Zeigerklick (`detail > 0`) auf ein Bedienelement gibt
+  den Fokus an die Theke-Wurzel zurück (Tab-Fokus bleibt). Fokus: Theke-Wurzel
   `tabindex="-1"`, Listener dort (Editor-Tasten erreichen die Theke nie), Fokus beim `baum`, wenn nichts fokussiert ist; Standardwirkung von
   Leertaste/Pfeilen/Pos1/Ende/Bild wird nur unterdrückt, wenn kein Element im Fenster fokussiert ist. Textform `Tastatur(z1)`.
 - **Stile (K-113):** `zeilen` (ganze Zahl ≥ 1), `mindestbreite` (Zahl ≥ 0, px) – §16.2; Erlaubt-Liste endet auf `…, farbe, zeilen, mindestbreite`.
