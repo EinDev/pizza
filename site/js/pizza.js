@@ -5710,6 +5710,9 @@
             h.imRueckruf = true;
             try {
               this.rufe(fn, [], null, node);
+            } catch (x) {
+              if (x instanceof PanikSig) h.schliessen = false;   // Panik beendet sofort – kein schliesse (§18.2)
+              throw x;
             } finally {
               h.imRueckruf = false;
               h.erster = false;
