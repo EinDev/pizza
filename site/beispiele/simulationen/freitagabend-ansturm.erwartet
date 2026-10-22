@@ -4,20 +4,20 @@ Beläge insgesamt: 1237
 Luigi allein: 312 von 412 Pizzen fertig, dann ist Küchenschluss.
 Wütende Gäste: 100
 
-Luigi 52 Bons |================ 3s 171ms
-Mario 52 Bons |================= 3s 475ms
-Gina  52 Bons |================ 3s 251ms
-Toni  52 Bons |================= 3s 475ms
-Rosa  51 Bons |=============== 3s 91ms
-Enzo  51 Bons |================= 3s 459ms
-Lia   51 Bons |================= 3s 459ms
-Beppe 51 Bons |================ 3s 155ms
+Luigi 52 Bons |================ 3s 170ms
+Mario 52 Bons |================= 3s 474ms
+Gina  52 Bons |================ 3s 250ms
+Toni  52 Bons |================= 3s 474ms
+Rosa  51 Bons |=============== 3s 90ms
+Enzo  51 Bons |================= 3s 458ms
+Lia   51 Bons |================= 3s 458ms
+Beppe 51 Bons |================ 3s 154ms
 Acht Köche: 412 von 412 Pizzen fertig.
 
 --- Abrechnung ---
-Luigi allein:       20s 15ms – dann war Schluss
-Alle Bons am Stück: 26s 536ms (hätte er gebraucht)
-Mit 8 Köchen:       3s 475ms (der langsamste Koch zählt)
+Luigi allein:       20s 14ms – dann war Schluss
+Alle Bons am Stück: 26s 528ms (hätte er gebraucht)
+Mit 8 Köchen:       3s 474ms (der langsamste Koch zählt)
 Beschleunigung:     ca. 7.6x
 Gewerkschaft protestiert: 412 Stücke lassen sich nicht fair durch 8 teilen.
 Mit 4 Köchen wäre es fair: [103, 103, 103, 103]

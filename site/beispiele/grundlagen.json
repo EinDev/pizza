@@ -24,12 +24,12 @@
     {
       "id": "variablen-typen",
       "titel": "Variablen & Typen",
-      "beschreibung": "salami, funghi, margherita, diavolo, Dauer und eine eigene Klasse Pizza als Typ – mit euro(), exakter Division und zwei TypAnanas.",
+      "beschreibung": "salami, funghi, margherita, diavolo, Dauer und eine eigene Klasse Pizza als Typ – mit währung(\"€\"), exakter Division und zwei TypAnanas.",
       "datei": "grundlagen/variablen-typen.pizza",
       "erwartet": "grundlagen/variablen-typen.erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Typen", "Variablen", "Klasse", "euro", "TypAnanas"]
+      "schlagworte": ["Typen", "Variablen", "Klasse", "währung", "TypAnanas"]
     },
     {
       "id": "pizzabuzz",

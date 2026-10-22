@@ -23,7 +23,7 @@ speisekarte klasse Saisonkarte {
         Bote.sage(("Die Saisonkarte hat " + Jahreszeit.werte().länge() + " Jahreszeiten:"));
         für (Jahreszeit zeit : Jahreszeit.werte()) {
             Blech<margherita> p = saisonpizza((zeit));
-            Bote.sage((zeit.position() + ". " + zeit + ": " + p.verbinde(", ") + " – " + preise.hole(zeit.name()).euro()));
+            Bote.sage((zeit.position() + ". " + zeit + ": " + p.verbinde(", ") + " – " + preise.hole(zeit.name()).währung("€")));
         }
 
         Jahreszeit jetzt = Jahreszeit.SOMMER;

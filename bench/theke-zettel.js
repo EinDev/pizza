@@ -40,12 +40,12 @@ für (salami i : [1 .. 5]) {
     }, id: "kauf" + i));
 }
 leer zeichne() {
-    kasse.setzeText((geld.euro()));
+    kasse.setzeText((geld.währung("€")));
     info.setzeText((Mathe.boden(pizzen) + " Pizzen, " + rate + "/s"));
     balken.setzeWert(geld / preis(1) > 1 ? 1 : geld / preis(1));
     für (salami i : [1 .. 5]) {
         Knopf k = knoepfe.stück(i);
-        k.setzeText(("Ofen " + i + " (" + preis(i).euro() + ")"));
+        k.setzeText(("Ofen " + i + " (" + preis(i).währung("€") + ")"));
         k.aktiv(geld >= preis(i));
     }
 }
@@ -67,7 +67,7 @@ Zettel zRate = neu Zettel(rate);
 Zettel zPizzen = neu Zettel(pizzen);
 Zettel zStufen = neu Zettel(0);     // zählt Käufe – Preise hängen davon ab
 Schild kasse = neu Schild(id: "kasse");
-kasse.binde("text", () -> zGeld.wert().euro());
+kasse.binde("text", () -> zGeld.wert().währung("€"));
 Schild info = neu Schild(id: "info");
 info.binde("text", () -> zPizzen.wert() + " Pizzen, " + zRate.wert() + "/s");
 Fortschritt balken = neu Fortschritt(0, id: "balken");
@@ -81,7 +81,7 @@ für (salami i : [1 .. 5]) {
             zGeld.setze(geld); zRate.setze(rate); zStufen.setze(zStufen.wert() + 1);
         }
     }, id: "kauf" + i);
-    k.binde("text", () -> { zStufen.wert(); serviere ("Ofen " + nr + " (" + preis(nr).euro() + ")"); });
+    k.binde("text", () -> { zStufen.wert(); serviere ("Ofen " + nr + " (" + preis(nr).währung("€") + ")"); });
     k.binde("aktiv", () -> { zStufen.wert(); serviere (zGeld.wert() >= preis(nr)); });
     knoepfe.hinzu(k);
 }

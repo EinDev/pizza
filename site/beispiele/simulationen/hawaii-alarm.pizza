@@ -42,7 +42,7 @@ salami frage(margherita text, salami min, salami max) {
 Bote.sage(("=== HAWAII-ALARM – Robo-Luigi am Fließband ==="));
 salami nr = 1;
 solange (nr <= ziel) {
-    Bote.sage(("Pizza " + nr + "/" + ziel + " | Kasse " + kasse.euro() + " | Filter " + "[#]".wiederhole(filter)
+    Bote.sage(("Pizza " + nr + "/" + ziel + " | Kasse " + kasse.währung("€") + " | Filter " + "[#]".wiederhole(filter)
         + " | Ananas in der Kiste: " + kiste.filtere(b -> b == "Ananas").länge()));
     salami griffe = frage("Wie viele Beläge?", 1, 3);
     falls (griffe < 0) { Bote.sage(("Du schaltest Robo-Luigi ab. Feierabend nach " + (nr - 1) + " Pizzen.")); abbrechen; }
@@ -71,12 +71,12 @@ solange (nr <= ziel) {
         Bote.sage(("  Pizza in den Müll. -3,00 €"));
     } sonst {
         kasse += p.preis();
-        Bote.sage(("  Fertig: " + p + " für " + p.preis().euro()));
+        Bote.sage(("  Fertig: " + p + " für " + p.preis().währung("€")));
         falls (nr % 2 == 0) { kiste.hinzu("Ananas"); }   // der Lieferant meint es gut
         nr++;
     }
 }
 
 falls (nr > ziel) {
-    Bote.sage(("Alle " + ziel + " Pizzen fertig – ganz ohne Ananas! Kasse: " + kasse.euro()));
+    Bote.sage(("Alle " + ziel + " Pizzen fertig – ganz ohne Ananas! Kasse: " + kasse.währung("€")));
 }

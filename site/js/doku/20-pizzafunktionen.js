@@ -23,7 +23,7 @@
           ausfuehrbar: true,
           tier: 2,
           code: z(
-            'salami ergebnis = ofen(temperatur: 450, zeit: 90s) {',
+            'salami ergebnis = ofen(zeit: 90s) {',
             '    serviere (([1 .. 8].summe()));',
             '};',
             'Bote.sage(("Aus dem Ofen: " + ergebnis));',
@@ -58,7 +58,7 @@
                 ["`blech.brigade(fn)`, `KüchenAnanas`", "Echte Parallelität (paralleles Map) ohne gemeinsamen Zustand, deterministisch", "1"],
                 ["`schieb(p)`, `LeererKartonAnanas`", "Ownership & Move-Semantik (à la Rust): ein Wert wechselt den Besitzer, der alte Karton ist leer", "2 (Laufzeitprüfung)"],
                 ["`@Kühlschrank`, `.mikrowelle()`", "Memoisierung/Caching mit TTL, *stale-while-revalidate*", "2"],
-                ["`bestelle`, `trinkgeld`, `warte`, `wennDa`", "Futures/Promises, Prioritäten, Timeout mit Fallback, Callbacks", "2"],
+                ["`bestelle`, `priorität`, `warte`, `wennDa`", "Futures/Promises, Prioritäten, Timeout mit Fallback, Callbacks", "2"],
                 ["`calzone klasse`, `aufklappen()`", "Starke Kapselung, die auch Reflection standhält", "1"]
               ]
             },
@@ -237,7 +237,7 @@
       tier: 2,
       inhalt: [
         { art: "kurz", md: "Der **Ofen** gibt einer Rechnung ein Zeitlimit. Wird sie nicht rechtzeitig fertig, bekommst du den letzten **Zwischenstand** statt gar nichts." },
-        bild("pf-ofen.svg", "Ofen mit Thermometer (höchstens 485 °C) und Zeitbudget-Balken mit Zwischenstand-Punkten. Drei Ausgänge: fertig im Budget, Zeit um (roh mit Teilergebnis), zu heiß oder Ananas (verbrannt)", "Fertig, roh oder verbrannt – der Ofen hat drei Ausgänge."),
+        bild("pf-ofen.svg", "Ofen mit Zeitbudget-Balken und Zwischenstand-Punkten. Drei Ausgänge: fertig im Budget, Zeit um (roh mit Teilergebnis), Ananas (verbrannt)", "Fertig, roh oder verbrannt – der Ofen hat drei Ausgänge."),
         { art: "text", md: "Programmier-Begriff: ein **Timeout mit Teilergebnis**. Mit `zwischenstand(x)` merkt sich der Block, was schon fertig ist; der `roh`-Zweig holt es bei Zeitüberschreitung ab." },
         {
           art: "code",
@@ -261,14 +261,14 @@
         { art: "ausgabe", text: z("Etwas gar? ja", "Ganz fertig? nein") },
         {
           art: "details",
-          titel: "Aufbau, Budget-Formel und Temperatur",
+          titel: "Aufbau und Budget",
           inhalt: [
             {
               art: "code",
               ausfuehrbar: false,
               tier: 2,
               code: z(
-                'salami s = ofen(temperatur: 450, zeit: 90s) {',
+                'salami s = ofen(zeit: 90s) {',
                 '    // ... rechnen ...',
                 '    zwischenstand((teilsumme));   // Teilergebnis merken',
                 '    serviere ((summe));            // Wert des ofen-Ausdrucks',
@@ -283,29 +283,27 @@
               art: "tabelle",
               kopf: ["Teil", "Bedeutung"],
               zeilen: [
-                ["`temperatur:`", "benanntes Argument (Zahl), Standard **250**; 485 geht gerade noch, alles darüber (auch 485.5) → `VerbranntAnanas(\"Zu heiß! Selbst Neapel hat Grenzen.\")`"],
-                ["`zeit:`", "benanntes Argument (Dauer, eine Zahl gilt als ms), Standard **60s**"],
-                ["`ofen(450, 90s)`", "Ohne Namen geht es auch: erst Temperatur, dann Zeit"],
-                ["Budget", "**zeit_ms × temperatur / 250** Schritte – ein heißer Ofen backt schneller"],
+                ["`zeit:`", "Argument (Dauer, eine Zahl gilt als ms), Standard **60s**"],
+                ["`ofen(90s)`", "Ohne Namen geht es auch: das erste Argument ist die Zeit"],
+                ["Budget", "**zeit_ms** Schritte – 1 Schritt = 1 ms simulierte Zeit"],
                 ["`serviere ((x));`", "liefert den Wert des `ofen`-Ausdrucks – verlässt **nicht** die umgebende Methode"],
                 ["`roh (r)`", "läuft bei Budgetüberschreitung; `r.teilergebnis()` (letzter `zwischenstand` oder `karton`), `r.verbrauchteZeit()` (Dauer)"],
-                ["`verbrannt (…)`", "fängt Ananas aus dem Block (oder durch zu hohe Temperatur), Syntax wie bei `probier`"]
+                ["`verbrannt (…)`", "fängt Ananas aus dem Block (auch „Zu lange im Ofen“, wenn es keinen `roh`-Zweig gibt), Syntax wie bei `probier`"]
               ]
             },
             {
               art: "tabelle",
               kopf: ["Aufruf", "Budget in Schritten"],
               zeilen: [
-                ["Standardwerte (250 Grad, 60s)", "60 000 × 250 / 250 = **60 000**"],
-                ["`ofen(temperatur: 450, zeit: 90s)`", "90 000 × 450 / 250 = **162 000**"],
-                ["`ofen(temperatur: 485, zeit: 1s)`", "1 000 × 485 / 250 = **1 940**"],
+                ["Standardwert (60s)", "**60 000**"],
+                ["`ofen(zeit: 90s)` oder `ofen(90s)`", "**90 000**"],
+                ["`ofen(zeit: 1s)`", "**1 000**"],
                 ["`ofen(zeit: 50ms)`", "**50** – das reicht für kaum mehr als ein Aufbacken"],
-                ["`ofen(temperatur: 500)`", "gar keins: `VerbranntAnanas`, bevor der Block startet"],
-                ["`ofen(temperatur: 0)` oder `ofen(zeit: 0ms)`", "**0** – schon der erste Schritt ist zu viel (`roh` bzw. `VerbranntAnanas`)"]
+                ["`ofen(zeit: 0ms)`", "**0** – schon der erste Schritt ist zu viel (`roh` bzw. `VerbranntAnanas`)"]
               ]
             },
             { art: "text", md: "`roh` und `verbrannt` sind beide optional; wenn beide da sind, steht `roh` zuerst. Das ganze `ofen(...) {...}` ist ein **Ausdruck** und wird als Anweisung mit `;` abgeschlossen. Die genaue verbrauchte Zeit und das genaue Teilergebnis hängen davon ab, wie viele Schritte eine Schleifenrunde kostet." },
-            { art: "hinweis", ton: "info", md: "**Tier 2:** Das Budget wird in Schritten der simulierten Uhr gemessen. `temperatur` ist nur ein Multiplikator – der Playground rechnet nicht wirklich schneller, wenn man aufdreht." }
+            { art: "hinweis", ton: "info", md: "**Tier 2:** Das Budget wird in Schritten der simulierten Uhr gemessen, nicht in echter Zeit. Eine Ofentemperatur gibt es nicht – wer mehr Budget will, gibt mehr Zeit." }
           ]
         },
         {
@@ -348,13 +346,13 @@
               )
             },
             { art: "ausgabe", text: "Zu lange im Ofen: Budget von 1000 Schritten überschritten." },
-            { art: "text", md: "Zu heiß ist auch keine Lösung. Über 485 Grad verweigert der Ofen den Dienst – der eigene `verbrannt`-Zweig fängt das, genauso wie selbst geworfene Ananas:" },
+            { art: "text", md: "Ganz ohne Zeit geht es auch nicht: Bei `ofen(zeit: 0ms)` ist schon der erste Schritt zu viel. Ohne `roh`-Zweig fängt der eigene `verbrannt`-Zweig das – genauso wie selbst geworfene Ananas:" },
             {
               art: "code",
               ausfuehrbar: true,
               tier: 2,
               code: z(
-                'margherita ergebnis = ofen(temperatur: 500, zeit: 10s) {',
+                'margherita ergebnis = ofen(zeit: 0ms) {',
                 '    serviere (("perfekt"));',
                 '} verbrannt (VerbranntAnanas e) {',
                 '    serviere (("verkohlt: " + e.nachricht()));',
@@ -369,7 +367,7 @@
                 'Bote.sage((kruste));'
               )
             },
-            { art: "ausgabe", text: z("verkohlt: Zu heiß! Selbst Neapel hat Grenzen.", "gerettet: Rand angebrannt") }
+            { art: "ausgabe", text: z("verkohlt: Zu lange im Ofen: Budget von 0 Schritten überschritten.", "gerettet: Rand angebrannt") }
           ]
         }
       ]
@@ -392,7 +390,7 @@
           tier: 2,
           code: z(
             'Blech<salami> zahlen = [1 .. 16];',
-            'Blech<Blech<salami>> stücke = zahlen.schneide(auto);   // 8 Stücke',
+            'Blech<Blech<salami>> stücke = zahlen.schneide(8);   // 8 Stücke',
             'Bote.sage((stücke));',
             '',
             'Blech<salami> teilsummen = stücke.belege(teil -> teil.summe());',
@@ -410,18 +408,16 @@
         },
         {
           art: "details",
-          titel: "Schreibweisen, fair teilen mit / und Warnung S0007",
+          titel: "Schreibweisen und fair teilen mit /",
           inhalt: [
             {
               art: "tabelle",
               kopf: ["Schreibweise", "Wirkung"],
               zeilen: [
-                ["`blech.schneide(n)`", "`n` Teil-Bleche, möglichst gleich groß, vordere ggf. größer"],
-                ["`blech.schneide(auto)`", "8 Stücke – wie bei einer richtigen Pizza. `auto` gibt es **nur** hier; anderswo heißt es `LaufzeitAnanas: 'auto' ist nicht definiert.`"],
+                ["`blech.schneide(n)`", "`n` Teil-Bleche, möglichst gleich groß, vordere ggf. größer; `n` ist eine Ganzzahl und **Pflicht** (`schneide()` → `TypAnanas: schneide braucht eine Ganzzahl, nicht karton.`)"],
                 ["`blech / n`", "wie `schneide(n)`, aber **fair**: geht es nicht auf → `StreitAnanas`; `/ 0` → `RechenAnanas`"],
                 ["mehr Stücke als Elemente", "`[1, 2, 3].schneide(5)` → `[[1], [2], [3], [], []]` – leere Teller gibt es auch"],
-                ["`schneide(0)` oder weniger", "`StreitAnanas: In 0 Stücke schneiden? Das geht nicht.`"],
-                ["`schneide(7)`", "funktioniert, aber Warnung `S0007` (auch bei `blech / 7`)"]
+                ["`schneide(0)` oder weniger", "`StreitAnanas: In 0 Stücke schneiden? Das geht nicht.`"]
               ]
             },
             {
@@ -437,7 +433,7 @@
                 '    Bote.sage((e.nachricht()));',
                 '}',
                 '',
-                '// Erlaubt, aber der Pizzaiolo runzelt die Stirn (Warnung S0007):',
+                '// Jede Stückzahl ab 1 ist erlaubt, auch eine ungerade:',
                 'Bote.sage(([1 .. 14].schneide(7)));'
               )
             },
@@ -450,7 +446,6 @@
                 "[[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14]]"
               )
             },
-            { art: "hinweis", ton: "pizza", md: "`S0007: 7 Stücke? Wer schneidet eine Pizza in 7 Stücke?` – Warnungen ändern den Exit-Code nicht. Nur, wie der Pizzaiolo Sie ansieht." },
             { art: "hinweis", ton: "info", md: "**Tier 2 – `belege` arbeitet nacheinander.** Die Stücke laufen der Reihe nach in einer Küche; die Uhr zählt die Zeit aller Stücke zusammen. Sollen die Köche wirklich gleichzeitig arbeiten, nimm `brigade` statt `belege` – siehe *Küchenbrigade*." }
           ]
         }
@@ -786,11 +781,11 @@
       id: "pf-lieferung",
       gruppe: G,
       ordnung: 390,
-      titel: "Lieferung (Async mit Trinkgeld)",
+      titel: "Lieferung (Async mit Priorität)",
       tier: 2,
       inhalt: [
-        { art: "kurz", md: "Mit `bestelle` gibst du eine Bestellung auf – gekocht wird aber erst, wenn du auf die Lieferung **wartest**. Mehr Trinkgeld = mehr Zeit. Zu spät = gratis." },
-        bild("pf-lieferung.svg", "Links eine Warteschlange von Bestellungen, sortiert nach Trinkgeld: Diavolo 5 €, Margherita 2 €, Funghi 2 €. Mitte ein Roller, der erst bei warte losfährt. Rechts eine 30-Minuten-Uhr: pünktlich gibt wert(), zu spät gibt oderGratis", "Die Lieferung startet erst beim Warten."),
+        { art: "kurz", md: "Mit `bestelle` gibst du eine Bestellung auf – gekocht wird aber erst, wenn du auf die Lieferung **wartest**. Wer zuerst drankommt, sagt die **Priorität**. Zu spät = gratis." },
+        bild("pf-lieferung.svg", "Links eine Warteschlange von Bestellungen, sortiert nach Priorität: Diavolo 5, Margherita 2, Funghi 2. Mitte ein Roller, der erst bei warte losfährt. Rechts eine 30-Minuten-Uhr: pünktlich gibt wert(), zu spät gibt oderGratis", "Die Lieferung startet erst beim Warten."),
         { art: "text", md: "Programmier-Begriff: ein **Future** (auch *Promise*) mit Zeitlimit und Ersatzwert." },
         {
           art: "code",
@@ -802,7 +797,7 @@
             '    serviere ((6 * 7));',
             '});',
             'Bote.sage(("Bestellt. Noch passiert nichts."));',
-            'l.trinkgeld(5);',
+            'l.priorität(5);',
             'Zustellung<salami> z = l.warte(max: 30min);',
             'Bote.sage(("Pünktlich? " + z.pünktlich()));',
             'Bote.sage(("Geliefert: " + z.oderGratis((0))));'
@@ -811,14 +806,14 @@
         { art: "ausgabe", text: z("Bestellt. Noch passiert nichts.", "Bote fährt los ...", "Pünktlich? ja", "Geliefert: 42") },
         {
           art: "details",
-          titel: "Alle Methoden und die Budget-Formel",
+          titel: "Alle Methoden und das Budget",
           inhalt: [
             {
               art: "tabelle",
               kopf: ["Methode", "auf", "Wirkung"],
               zeilen: [
-                ["`trinkgeld(n)`", "Lieferung", "Priorität; jeder Euro erhöht das Budget um 10 %. Mehrere Trinkgelder **zählen zusammen**. Gibt die Lieferung zurück (verkettbar)."],
-                ["`warte(max: d)` / `warte(d)`", "Lieferung", "führt **jetzt** aus, Budget `d_ms × (1 + Trinkgeld-Summe/10)` Schritte → `Zustellung`. Erneutes `warte` liefert dieselbe Zustellung – geliefert ist geliefert."],
+                ["`priorität(n)`", "Lieferung", "setzt die Priorität (jede Zahl, Standard 0; der **letzte** Aufruf gilt). Sie ordnet nur die Rückrufe nach Programmende – am Budget ändert sie nichts. Gibt die Lieferung zurück (verkettbar)."],
+                ["`warte(max: d)` / `warte(d)`", "Lieferung", "führt **jetzt** aus, Budget genau `d_ms` Schritte → `Zustellung`. Erneutes `warte` liefert dieselbe Zustellung – geliefert ist geliefert."],
                 ["`warte()`", "Lieferung", "ohne Zeitlimit: wartet, bis die Pizza da ist"],
                 ["`istGeliefert()`", "Lieferung", "`ja`, sobald einmal gewartet wurde"],
                 ["`wennDa(fn)`", "Lieferung", "Rückruf mit dem Wert: klingelt direkt nach einem pünktlichen `warte` (bzw. sofort, wenn schon pünktlich geliefert) – sonst **nach Programmende**. Ein zweites `wennDa` ersetzt das erste."],
@@ -828,7 +823,7 @@
               ]
             },
             { art: "text", md: "Ananas, die `fn` selbst wirft, fliegen **nicht** schon bei `warte`, sondern erst bei `wert()` bzw. `oderGratis()` – `pünktlich()` kann also `ja` sein, obwohl in der Küche etwas schiefging. Ein `wennDa`-Rückruf läuft dann gar nicht." },
-            { art: "text", md: "**Trinkgeld wirkt.** Zwei gleiche Bestellungen mit 100 ms Budget: Ohne Trinkgeld reichen 100 Schritte nicht für eine Schleife mit 200 Runden. Mit 990 € Trinkgeld wird das Budget verhundertfacht (`100 × (1 + 990/10) = 10 000` Schritte)." },
+            { art: "text", md: "**Zeit wirkt, Priorität nicht.** Zwei gleiche Bestellungen: 100 Schritte (`warte(max: 100ms)`) reichen nicht für eine Schleife mit 200 Runden – daran ändert auch eine hohe Priorität nichts. Mit `warte(max: 10s)` ist genug Zeit." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -844,32 +839,32 @@
                 '    }',
                 '}',
                 '',
-                'Lieferung<salami> geizig = bestelle(() -> (Küche.rechne()));',
-                'Lieferung<salami> großzügig = bestelle(() -> (Küche.rechne()));',
-                'großzügig.trinkgeld(990);',
+                'Lieferung<salami> eilig = bestelle(() -> (Küche.rechne()));',
+                'Lieferung<salami> gemütlich = bestelle(() -> (Küche.rechne()));',
+                'eilig.priorität(99);   // ändert das Budget nicht',
                 '',
-                'Zustellung<salami> kalt = geizig.warte(max: 100ms);',
-                'Bote.sage(("Geizig pünktlich? " + kalt.pünktlich()));',
-                'Bote.sage(("Geizig bekommt: " + kalt.oderGratis((0))));',
+                'Zustellung<salami> kalt = eilig.warte(max: 100ms);',
+                'Bote.sage(("Eilig pünktlich? " + kalt.pünktlich()));',
+                'Bote.sage(("Eilig bekommt: " + kalt.oderGratis((0))));',
                 'probier {',
                 '    Bote.sage((kalt.wert()));',
                 '} verbrannt (LieferAnanas e) {',
                 '    Bote.sage((e.nachricht()));',
                 '}',
                 '',
-                'Zustellung<salami> heiß = großzügig.warte(max: 100ms);',
-                'Bote.sage(("Großzügig pünktlich? " + heiß.pünktlich()));',
-                'Bote.sage(("Großzügig bekommt: " + heiß.wert()));'
+                'Zustellung<salami> heiß = gemütlich.warte(max: 10s);',
+                'Bote.sage(("Gemütlich pünktlich? " + heiß.pünktlich()));',
+                'Bote.sage(("Gemütlich bekommt: " + heiß.wert()));'
               )
             },
             {
               art: "ausgabe",
               text: z(
-                "Geizig pünktlich? nein",
-                "Geizig bekommt: 0",
+                "Eilig pünktlich? nein",
+                "Eilig bekommt: 0",
                 "Zu spät – die Pizza ist kalt.",
-                "Großzügig pünktlich? ja",
-                "Großzügig bekommt: 20100"
+                "Gemütlich pünktlich? ja",
+                "Gemütlich bekommt: 20100"
               )
             }
           ]
@@ -878,7 +873,7 @@
           art: "details",
           titel: "Rückrufe mit wennDa: wer zuerst klingelt",
           inhalt: [
-            { art: "text", md: "Wer nicht warten will, hinterlässt eine Nachricht an der Tür. Wird doch noch pünktlich gewartet, klingelt es direkt nach dem `warte`. Alle Lieferungen mit Rückruf, die bis zum Programmende **nicht** per `warte` abgeholt wurden, laufen **nach Programmende** – sortiert nach **Trinkgeld absteigend**, bei Gleichstand in **Bestellreihenfolge**. Ein Budget gibt es dort nicht mehr. Lieferungen ganz ohne `wennDa` und ohne `warte` werden nie gebacken." },
+            { art: "text", md: "Wer nicht warten will, hinterlässt eine Nachricht an der Tür. Wird doch noch pünktlich gewartet, klingelt es direkt nach dem `warte`. Alle Lieferungen mit Rückruf, die bis zum Programmende **nicht** per `warte` abgeholt wurden, laufen **nach Programmende** – sortiert nach **Priorität absteigend**, bei Gleichstand in **Bestellreihenfolge**. Ein Budget gibt es dort nicht mehr. Lieferungen ganz ohne `wennDa` und ohne `warte` werden nie gebacken." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -888,9 +883,9 @@
                 'Lieferung<margherita> zweite = bestelle(() -> ("Diavolo"));',
                 'Lieferung<margherita> dritte = bestelle(() -> ("Funghi"));',
                 '',
-                'erste.trinkgeld(2);',
-                'zweite.trinkgeld(5);',
-                'dritte.trinkgeld(2);',
+                'erste.priorität(2);',
+                'zweite.priorität(5);',
+                'dritte.priorität(2);',
                 '',
                 'erste.wennDa(x -> (Bote.sage(("Klingel! " + x))));',
                 'zweite.wennDa(x -> (Bote.sage(("Klingel! " + x))));',

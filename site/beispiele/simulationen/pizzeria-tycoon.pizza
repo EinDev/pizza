@@ -78,7 +78,9 @@ speisekarte klasse Tycoon {
             funghi kasse = 0;
             Blech<salami> verkauft = [];
             für (Blech<salami> stapel : wünsche.schneide(köche)) {
-                salami n = ofen(temperatur: grad, zeit: 200ms) {
+                // Ofenbudget: 200 ms bei 250 Grad, heißer = mehr geschafft
+                salami n = ofen(zeit: 200 * grad / 250) {
+                    falls (grad > 485) { wirf neu VerbranntAnanas("Zu heiß! Selbst Neapel hat Grenzen."); }
                     falls (grad > 450 && Zufall.zahl(1, 4) == 4) { wirf neu VerbranntAnanas("angekokelt"); }
                     salami k = 0;
                     für (salami w : stapel) { Tycoon.backe(karte.stück(w)); k++; zwischenstand((k)); }
@@ -101,14 +103,14 @@ speisekarte klasse Tycoon {
                 salami weg = Zufall.zahl(15, 40);
                 funghi preis = karte.stück(verkauft.stück(d)).preis + aufschlag;
                 funghi bezahlt = bestelle(() -> (Tycoon.liefere(weg, preis)))
-                    .trinkgeld(tipp).warte(max: 320ms).oderGratis((0));
+                    .warte(max: 320ms * (1 + tipp / 10)).oderGratis((0));   // jeder Euro Trinkgeld: +10 % Zeit
                 falls (bezahlt == 0) { gratis++; kasse -= preis; }
                 kasse -= tipp;
             }
             funghi gewinn = kasse - köche * 12 - fertig * 2;
             margherita ofenInfo = grad > 485 ? "Ofen VERBRANNT" : fertig + " von " + gäste + " Pizzen fertig"
                 + (kokel > 0 && grad <= 485 ? " (" + kokel + " Blech angekokelt)" : "");
-            Bote.sage((gäste + " Gäste, " + ofenInfo + ", " + gratis + "x gratis geliefert → Gewinn " + gewinn.euro()));
+            Bote.sage((gäste + " Gäste, " + ofenInfo + ", " + gratis + "x gratis geliefert → Gewinn " + gewinn.währung("€")));
             gewinne.hinzu(gewinn);
         }
 
@@ -118,10 +120,10 @@ speisekarte klasse Tycoon {
         für (salami t = 1; t <= gewinne.länge(); t++) {
             funghi g = gewinne.stück(t);
             margherita balken = g >= 0 ? "#".wiederhole(Mathe.runden(g / 5)) : "-".wiederhole(Mathe.runden(-g / 5));
-            Bote.sage((tage.stück(t) + " |" + balken + " " + g.euro()));
+            Bote.sage((tage.stück(t) + " |" + balken + " " + g.währung("€")));
         }
         funghi summe = gewinne.summe();
-        Bote.sage(("Wochenergebnis: " + summe.euro()));
+        Bote.sage(("Wochenergebnis: " + summe.währung("€")));
         Bote.sage((summe >= 150 ? "Luigi umarmt dich. Du bist ein Pizza-Tycoon!" :
             summe >= 0 ? "Luigi nickt zufrieden. Solide Arbeit." : "Luigi zählt schweigend die Kasse. Zweimal."));
     }

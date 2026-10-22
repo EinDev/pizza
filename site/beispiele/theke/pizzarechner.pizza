@@ -46,14 +46,14 @@ Blech<margherita> beurteile() {
             serviere ((["Nur ganze Pizzen, bitte – mindestens eine.", "tomate"]));
         }
         funghi einzel = preisVon(extras());
-        serviere (([("" + n + " × " + einzel.euro() + " = " + (n * einzel).euro()), "basilikum"]));
+        serviere (([("" + n + " × " + einzel.währung("€") + " = " + (n * einzel).währung("€")), "basilikum"]));
     } verbrannt (TypAnanas a) {
         serviere (([("'" + text + "' ist keine Zahl. Probier's mit Ziffern."), "tomate"]));
     }
 }
 
 für (margherita b : angebot) {
-    haken.hinzu(neu Haken(b + " (+" + aufpreis.hole(b).euro() + ")", id: b.klein()));
+    haken.hinzu(neu Haken(b + " (+" + aufpreis.hole(b).währung("€") + ")", id: b.klein()));
 }
 
 // Die Bindungen: Text und Farbe des Schilds folgen Eingabe und Haken.

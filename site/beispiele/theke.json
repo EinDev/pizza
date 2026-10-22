@@ -22,7 +22,7 @@
     {
       "id": "pizzarechner",
       "titel": "Pizzarechner",
-      "beschreibung": "Anzahl eintippen, Extras anhaken – Text und Farbe des Preis-Schilds sind mit binde/bindeStil an Eingabe und Haken gebunden und folgen jeder Änderung von selbst, ohne beiAenderung; mit euro() und freundlicher Meldung bei Tippfehlern.",
+      "beschreibung": "Anzahl eintippen, Extras anhaken – Text und Farbe des Preis-Schilds sind mit binde/bindeStil an Eingabe und Haken gebunden und folgen jeder Änderung von selbst, ohne beiAenderung; mit währung(\"€\") und freundlicher Meldung bei Tippfehlern.",
       "datei": "theke/pizzarechner.pizza",
       "erwartet": "theke/pizzarechner.erwartet",
       "ereignisse": "theke/pizzarechner.ereignisse",
@@ -36,7 +36,7 @@
         "Eingabe",
         "Haken",
         "Speisekarte",
-        "euro()",
+        "währung()",
         "probier"
       ],
       "theke": true

@@ -67,10 +67,10 @@ für (Bericht b : berichte) {
     umsatz += teil;
     trinkgeld += b.trinkgeld;
     für (Pizza p : b.pizzen) { alle.hinzu(p); }
-    Bote.sage((b.koch + " ".wiederhole(6 - b.koch.länge()) + b.pizzen.länge() + " Pizzen  " + teil.euro() + "  Trinkgeld " + b.trinkgeld + " €  " + b.zeit));
+    Bote.sage((b.koch + " ".wiederhole(6 - b.koch.länge()) + b.pizzen.länge() + " Pizzen  " + teil.währung("€") + "  Trinkgeld " + b.trinkgeld + " €  " + b.zeit));
 }
 Bote.sage(("Brigade: " + alle.länge() + " Pizzen in " + dauerBrigade + " (der langsamste Koch zählt)"));
-Bote.sage(("Umsatz: " + umsatz.euro() + ", Trinkgeld: " + trinkgeld + " €"));
+Bote.sage(("Umsatz: " + umsatz.währung("€") + ", Trinkgeld: " + trinkgeld + " €"));
 
 // Gleiche Pizzen in gleicher Reihenfolge wie bei Luigi allein? (Objekte vergleicht man über ihre Felder.)
 diavolo gleich = ja;

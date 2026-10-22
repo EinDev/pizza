@@ -24,11 +24,11 @@ Bote.sage(("Hallo, Pizzawelt!"));
 salami gäste = 4;
 funghi preis = 8.5;
 Bote.sage(("Gäste: " + gäste));
-Bote.sage(("Kostet: " + (gäste * preis).euro()));
+Bote.sage(("Kostet: " + (gäste * preis).währung("€")));
 `, ausfuehrbar: true, tier: 1 },
         { art: "ausgabe", text: "Hallo, Pizzawelt!\nGäste: 4\nKostet: 34,00 €" },
         { art: "details", titel: "Was passiert da Zeile für Zeile?", inhalt: [
-          { art: "text", md: "- Zeile 1 gibt einen Text aus.\n- Zeile 2 legt eine Ganzzahl (`salami`) an, Zeile 3 eine Kommazahl (`funghi`).\n- Zeile 4 klebt Text und Zahl mit `+` zusammen.\n- Zeile 5 rechnet die Rechnung aus und formatiert sie mit `euro()` – Komma, zwei Stellen, Eurozeichen." },
+          { art: "text", md: "- Zeile 1 gibt einen Text aus.\n- Zeile 2 legt eine Ganzzahl (`salami`) an, Zeile 3 eine Kommazahl (`funghi`).\n- Zeile 4 klebt Text und Zahl mit `+` zusammen.\n- Zeile 5 rechnet die Rechnung aus und formatiert sie mit `währung(\"€\")` – Komma, zwei Stellen, dahinter das Währungszeichen." },
           { art: "text", md: "Das Ganze läuft im **Snack-Modus**: Anweisungen dürfen direkt dastehen, ohne Klasse drumherum. Wie ein „richtiges“ Programm aussieht, zeigt der nächste Abschnitt." },
           { art: "hinweis", ton: "pizza", md: "Jeder Code-Block in dieser Doku hat einen Knopf **„Im Editor öffnen“**. Einfach ausprobieren – es brennt höchstens die Pizza an, nie dein Rechner." }
         ] }

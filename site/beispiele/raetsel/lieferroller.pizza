@@ -23,12 +23,12 @@ klasse Roller {
 
     leer packe(salami platz) {
         salami gesamt = beste(1, platz);
-        Bote.sage(("Bestes Trinkgeld: " + gesamt.euro()));
+        Bote.sage(("Bestes Trinkgeld: " + gesamt.währung("€")));
         salami frei = platz;
         für (salami i = 1; i <= namen.länge(); i++) {
             // Wurde Bestellung i genommen? Dann ändert sich das Ergebnis ohne sie.
             falls (beste(i, frei) != beste(i + 1, frei)) {
-                Bote.sage(("  [x] " + namen.stück(i) + " (" + liter.stück(i) + " l, " + trinkgeld.stück(i).euro() + ")"));
+                Bote.sage(("  [x] " + namen.stück(i) + " (" + liter.stück(i) + " l, " + trinkgeld.stück(i).währung("€") + ")"));
                 frei -= liter.stück(i);
             } sonst {
                 Bote.sage(("  [ ] " + namen.stück(i)));

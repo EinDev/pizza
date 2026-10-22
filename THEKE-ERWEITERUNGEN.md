@@ -97,7 +97,7 @@ das aus. Beim Schließen endet der Timer mit der Seite.
 
 ## 2. Zahlformat (P1, Standardbibliothek – kein Renderer)
 
-Idle-Spiele leben von großen Zahlen. `euro()` hat keine Tausendertrennung, `alsText` liefert ab 1e21 Exponenten.
+Idle-Spiele leben von großen Zahlen. `währung()` (bis K-127 `euro()`) hat keine Tausendertrennung, `alsText` liefert ab 1e21 Exponenten.
 
 | Aufruf | Ergebnis |
 |---|---|
@@ -105,7 +105,7 @@ Idle-Spiele leben von großen Zahlen. `euro()` hat keine Tausendertrennung, `als
 | `1234567.tausender()` | `1.234.567` (Nachkommastellen: `tausender(2)` → `1.234.567,00`) |
 | `1234567.kompakt()` | `1,23 Mio.` – Stufen `Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`, dann `1,2e21`; unter 1000 wie `runden(1)` mit Komma |
 | `1234567.kompakt(1)` | `1,2 Mio.` (Nachkommastellen) |
-| `x.euro(kompakt: ja)` | `1,23 Mio. €` |
+| `x.währung("€", kompakt: ja)` | `1,23 Mio. €` (bis K-127 `x.euro(kompakt: ja)`) |
 
 Rundung nach K-048. Bis dahin enthält das Spiel eine eigene Klasse `Format` (gleiches Verhalten), die dann entfallen kann.
 Eine eigene Zutat „Zahlanzeige“ ist **nicht** nötig – Formatierung gehört in die Sprache, das Schild zeigt Text.
@@ -173,7 +173,7 @@ Seiten tragen die Klasse `theke-reiter-aus` (nicht `hidden` – das gehört `sic
 
 **Interpreter (`site/js/pizza.js`, Prüfstand a13):**
 1. Klasse `Takt` (§1) inkl. Ereignis `takt` mit `anzahl`, Bündelung `aktiv`/`intervall` über `aendere`.
-2. Zahl-Methoden `kompakt(n?)`, `tausender(n?)`, `euro(kompakt: ja)` (§2).
+2. Zahl-Methoden `kompakt(n?)`, `tausender(n?)`, `euro(kompakt: ja)` (§2; seit K-127 `währung("€", kompakt: ja)`).
 3. Klassen `Fortschritt`, `Abschnitt`, `Tabelle`, `Reiter`; Methode `hinweis` an `Zutat`; Stil `schrift: "riesig"` in die
    Whitelist (Fehlertext-Liste K-068 erweitern).
 4. Schrittlimit pro Rückruf während `bediene()` und `Uhr.echt()` (§8) – vorher Klärung K-0xx.
@@ -191,7 +191,7 @@ HOST-ABI (Ereignisse kommen über `ui_warte`). `Uhr.echt()` braucht einen Import
 ## 10. Stand im Spiel (umgesetzt)
 
 `pizza-imperium.pizza` nutzt alles aus §1–§8 direkt (kein Fallback mehr, Nutzerentscheidung F8): `Takt` (1 s, passive Produktion
-und Ereignisse in Sekunden), `kompakt()`/`euro(kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
+und Ereignisse in Sekunden), `kompakt()`/`währung("€", kompakt: ja)`/`tausender()` statt eigener Formatklasse, Zufall-API (`wahr` für
 perfekte Pizzen, `wähle` für Ereignisse), `Abschnitt` + `Reiter` (Backstube · Erfolge · Imperium · Geheimnisse · Minispiele), `Fortschritt` je
 Upgrade, für den nächsten Stern, die nächste Filiale und das Ziel einer Herausforderung, `Tabelle` für Erfolge, Aufstieg und
 Statistik, `hinweis` an Knöpfen, `schrift: "riesig"` für die Kasse, Vorratskammer + `Uhr.echt()` für Speichern und

@@ -9,7 +9,7 @@
       "erwartet": "pizzafunktionen/pizza-klasse.erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Klasse", "alsText", "tiefkühl", "Speisekarte", "euro"]
+      "schlagworte": ["Klasse", "alsText", "tiefkühl", "Speisekarte", "währung"]
     },
     {
       "id": "eigene-belaege",
@@ -34,7 +34,7 @@
     {
       "id": "ofen",
       "titel": "Der Ofen: Zeitbudget",
-      "beschreibung": "Berechnungen mit Zeitbudget: zwischenstand, roh-Zweig mit Teilergebnis, verbrannt bei Überschreitung oder über 485 Grad.",
+      "beschreibung": "Berechnungen mit Zeitbudget: zwischenstand, roh-Zweig mit Teilergebnis, verbrannt bei Überschreitung oder eigener Ananas im Ofen; Kurzform ofen(10s).",
       "datei": "pizzafunktionen/ofen.pizza",
       "erwartet": "pizzafunktionen/ofen.erwartet",
       "exitCode": 0,
@@ -44,12 +44,12 @@
     {
       "id": "schneiden",
       "titel": "Schneiden & Zusammenklappen",
-      "beschreibung": "Große Bleche mit schneide(8) und schneide(auto) zerteilen, belegen und zusammenklappen; fair teilen mit blech / n.",
+      "beschreibung": "Große Bleche mit schneide(8) zerteilen, belegen und zusammenklappen; fair teilen mit blech / n.",
       "datei": "pizzafunktionen/schneiden.pizza",
       "erwartet": "pizzafunktionen/schneiden.erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["schneide", "auto", "belege", "zusammenklappen", "StreitAnanas"]
+      "schlagworte": ["schneide", "belege", "zusammenklappen", "StreitAnanas"]
     },
     {
       "id": "kuechenbrigade",
@@ -83,13 +83,13 @@
     },
     {
       "id": "lieferung",
-      "titel": "Lieferung mit Trinkgeld",
-      "beschreibung": "bestelle, trinkgeld, warte(max:) und oderGratis – und abends fahren die wennDa-Lieferungen nach Trinkgeld sortiert los.",
+      "titel": "Lieferung mit Priorität",
+      "beschreibung": "bestelle, priorität, warte(max:) und oderGratis – und abends fahren die wennDa-Lieferungen nach Priorität sortiert los.",
       "datei": "pizzafunktionen/lieferung.pizza",
       "erwartet": "pizzafunktionen/lieferung.erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": ["bestelle", "trinkgeld", "warte", "oderGratis", "wennDa", "LieferAnanas"]
+      "schlagworte": ["bestelle", "priorität", "warte", "oderGratis", "wennDa", "LieferAnanas"]
     },
     {
       "id": "calzone",
@@ -104,7 +104,7 @@
     {
       "id": "lieferdienst",
       "titel": "Komplett: Luigis Lieferdienst",
-      "beschreibung": "Ein ganzer Abend mit hauptgang: eigene Pizza-Klasse, Bestellungen in den Ofen, Personalpizza per schieb() in die Pause, Lieferungen mit Trinkgeld und wennDa.",
+      "beschreibung": "Ein ganzer Abend mit hauptgang: eigene Pizza-Klasse, Bestellungen in den Ofen, Personalpizza per schieb() in die Pause, Lieferungen mit Priorität und wennDa.",
       "datei": "pizzafunktionen/lieferdienst.pizza",
       "erwartet": "pizzafunktionen/lieferdienst.erwartet",
       "exitCode": 0,

@@ -12,8 +12,10 @@ klasse Pizzaiolo {
 
     // Liefert die Backzeit, wenn die Pizza gelingt, sonst 0
     salami backe(salami beläge, salami grad, salami zeit) {
+        diavolo zuHeiß = grad > 485;
         Dauer start = Uhr.jetzt();
-        margherita urteil = ofen(temperatur: grad, zeit: 1ms * zeit) {
+        // Ofeneinheiten = Backzeit × Grad / 250 – das ist das Zeitbudget des Ofens.
+        margherita urteil = zuHeiß ? "verbrannt: Zu heiß! Selbst Neapel hat Grenzen." : ofen(zeit: zeit * grad / 250) {
             falls (grad > 420 && Zufall.zahl(1, 4) == 4) { wirf neu VerbranntAnanas("Rand angekokelt"); }
             salami gar = 0;
             salami nötig = 20 * beläge;

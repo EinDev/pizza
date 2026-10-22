@@ -16,9 +16,9 @@ salami belege(salami beläge) {
     serviere ((1));
 }
 
-// Küchenschluss: 2 Stunden Pizza-Zeit = 20 s auf der Pizza-Uhr (Ofen mit 250 Grad)
+// Küchenschluss: 2 Stunden Pizza-Zeit = 20 s auf der Pizza-Uhr
 salami arbeite(Blech<salami> stapel) {
-    serviere ((ofen(temperatur: 250, zeit: 20s) {
+    serviere ((ofen(zeit: 20s) {
         salami fertig = 0;
         für (salami b : stapel) {
             fertig += belege(b);

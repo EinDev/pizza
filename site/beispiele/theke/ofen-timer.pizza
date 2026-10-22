@@ -34,7 +34,8 @@ ergebnis.bindeStil("farbe", () -> {
 
 // Backt eine Pizza; liefert die erreichte Bräune in Prozent.
 salami backe(Dauer zeit, salami grad) {
-    serviere (ofen(temperatur: grad, zeit: zeit) {
+    // Heißer Ofen = mehr Backzeit pro Timer-Sekunde: das Budget wächst mit grad / 250.
+    serviere (ofen(zeit: zeit * grad / 250) {
         salami braeune = 0;
         solange (braeune < 100) {
             Uhr.vorspulen(5s);

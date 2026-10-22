@@ -101,8 +101,8 @@ Pizza belegt(Blech<margherita> zutaten) {
 
 margherita zeile(margherita name, Pizza p) {
     margherita beschr = p.beschreibung();
-    margherita punkte = ".".wiederhole(Mathe.max(2, 44 - name.länge() - p.preis().euro().länge()));
-    serviere ((name + " " + punkte + " " + p.preis().euro() + "\n   " + beschr + " " + p));
+    margherita punkte = ".".wiederhole(Mathe.max(2, 44 - name.länge() - p.preis().währung("€").länge()));
+    serviere ((name + " " + punkte + " " + p.preis().währung("€") + "\n   " + beschr + " " + p));
 }
 
 Bote.sage(("=== Luigis Belag-Baukasten ==="));
@@ -127,7 +127,7 @@ für (salami i = 1; i <= karte.länge(); i++) {
 Bote.sage((""));
 Bote.sage(("Reihenfolge zählt: Die Happy Hour rabattiert nur, was unter ihr liegt."));
 Pizza ohneChili = neu Extrascharf(belegt(["Tomate", "Käse"]));
-Bote.sage(("Extrascharf ohne Chili kostet nichts extra: " + ohneChili.preis().euro()));
+Bote.sage(("Extrascharf ohne Chili kostet nichts extra: " + ohneChili.preis().währung("€")));
 
 margherita rechts(margherita t) { serviere ((" ".wiederhole(10 - t.länge()) + t)); }
 
@@ -136,19 +136,19 @@ margherita rechts(margherita t) { serviere ((" ".wiederhole(10 - t.länge()) + t
 Bote.sage((""));
 Bote.sage(("Preis-Turm:"));
 Pizza turm = belegt(["Tomate"]);
-Bote.sage((rechts(turm.preis().euro()) + "  " + turm));
+Bote.sage((rechts(turm.preis().währung("€")) + "  " + turm));
 Blech<Funktion> schichten = [p -> neu Zutat(p, "Mozzarella"), p -> neu Zutat(p, "Chili"), p -> neu Trüffel(p),
     p -> neu Extrascharf(p), p -> neu Blattgold(p), p -> neu HappyHour(p)];
 für (Funktion schicht : schichten) {
     turm = schicht(turm);
-    Bote.sage((rechts(turm.preis().euro()) + "  + " + turm.name));
+    Bote.sage((rechts(turm.preis().währung("€")) + "  + " + turm.name));
 }
 Bote.sage(("           = " + turm.beschreibung()));
 
 Bote.sage((""));
 probier {
     Pizza protzig = neu Kaviar(basis);
-    Bote.sage(("Kaviar-Pizza: " + protzig.preis().euro()));
+    Bote.sage(("Kaviar-Pizza: " + protzig.preis().währung("€")));
 } verbrannt (PreisAnanas a) {
     Bote.sage(("Abgefangen: " + a.typ() + " – " + a.nachricht()));
 }

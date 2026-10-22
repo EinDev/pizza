@@ -1,10 +1,10 @@
 // Luigis Holzofen: Jede Berechnung bekommt ein Zeitbudget.
-// Budget in Schritten = zeit_ms × temperatur / 250 – heißer Ofen = schneller.
+// Budget in Schritten = Zeit in Millisekunden – mehr Zeit, mehr Budget.
 
 Bote.sage(("=== Luigi heizt den Ofen ==="));
 
 // 1) Kleine Arbeit, großzügiges Budget: läuft locker durch
-salami teller = ofen(temperatur: 300, zeit: 60s) {
+salami teller = ofen(zeit: 60s) {
     salami summe = 0;
     für (salami tisch = 1; tisch <= 10; tisch++) {
         summe += tisch;
@@ -15,7 +15,7 @@ Bote.sage(("Teller für alle Tische: " + teller));
 
 // 2) Luigi zählt Pizzen und vergisst aufzuhören.
 //    Der roh-Zweig rettet das letzte Zwischenergebnis.
-salami gezählt = ofen(temperatur: 250, zeit: 1s) {
+salami gezählt = ofen(zeit: 1s) {
     salami pizzen = 0;
     solange (ja) {
         pizzen++;
@@ -39,15 +39,20 @@ probier {
     Bote.sage(("Verbrannt: " + a.typ()));
 }
 
-// 4) Zu heiß ist zu heiß
-margherita urteil = ofen(temperatur: 500, zeit: 10s) {
+// 4) Was im Ofen schiefgeht, fängt der verbrannt-Zweig
+salami grad = 500;
+margherita urteil = ofen(zeit: 10s) {
+    falls (grad > 485) {
+        wirf neu VerbranntAnanas("Zu heiß! Selbst Neapel hat Grenzen.");
+    }
     serviere (("perfekt"));
 } verbrannt (VerbranntAnanas a) {
     serviere (("Ofen sagt: " + a.nachricht()));
 };
 Bote.sage((urteil));
 
-margherita neapel = ofen(temperatur: 485, zeit: 10s) {
-    serviere (("485 Grad – neapolitanisch perfekt"));
+// 5) Kurzform: die Zeit geht auch ohne Namen
+margherita neapel = ofen(10s) {
+    serviere (("Zehn Sekunden reichen – neapolitanisch perfekt"));
 };
 Bote.sage((neapel));

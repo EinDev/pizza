@@ -55,17 +55,17 @@ klasse Basilikum erbt Schicht {
 Bote.sage(("=== Luigis Feinkost ==="));
 
 Pizza einfach = neu Margherita();
-Bote.sage(("Einfach: " + einfach.beschreibung() + ", " + einfach.preis().euro()));
+Bote.sage(("Einfach: " + einfach.beschreibung() + ", " + einfach.preis().währung("€")));
 
 Pizza edel = neu Trüffel(einfach);
-Bote.sage(("Edel: " + edel.beschreibung() + ", " + edel.preis().euro()));
+Bote.sage(("Edel: " + edel.beschreibung() + ", " + edel.preis().währung("€")));
 
 Pizza protzig = neu Blattgold(edel);
-Bote.sage(("Protzig: " + protzig.beschreibung() + ", " + protzig.preis().euro()));
+Bote.sage(("Protzig: " + protzig.beschreibung() + ", " + protzig.preis().währung("€")));
 
 // Die Reihenfolge der Schichten entscheidet über den Preis!
 Pizza basilikumOben = neu Basilikum(protzig);
 Pizza goldOben = neu Blattgold(neu Basilikum(edel));
-Bote.sage(("Basilikum oben: " + basilikumOben.preis().euro()));
-Bote.sage(("Blattgold oben: " + goldOben.preis().euro()));
+Bote.sage(("Basilikum oben: " + basilikumOben.preis().währung("€")));
+Bote.sage(("Blattgold oben: " + goldOben.preis().währung("€")));
 Bote.sage(("Luigi: Wer zuletzt vergoldet, verdient am meisten."));

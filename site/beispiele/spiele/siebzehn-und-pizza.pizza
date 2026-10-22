@@ -87,7 +87,7 @@ speisekarte klasse Pizzeria {
 
     tiefkühl leer tisch(Hand gast, Hand bank, diavolo verdeckt, salami kasse, salami einsatz) {
         Bote.leeren();
-        Bote.sage(("♠ Siebzehn und Pizza ♠   Kasse: " + kasse.euro() + "   Einsatz: " + einsatz.euro()));
+        Bote.sage(("♠ Siebzehn und Pizza ♠   Kasse: " + kasse.währung("€") + "   Einsatz: " + einsatz.währung("€")));
         Bote.sage((""));
         falls (verdeckt) { Bote.sage(("Luigi: " + bank.karten.erstes() + ", [verdeckt unterm Teig]")); }
         sonst { Bote.sage(("Luigi: " + bank)); }
@@ -100,7 +100,7 @@ speisekarte klasse Pizzeria {
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         Kartenstapel stapel = neu Kartenstapel();
         salami kasse = 50;
-        Bote.sage(("♠ Siebzehn und Pizza ♠  Du startest mit " + kasse.euro() + ". Wer über 21 kommt, verbrennt!"));
+        Bote.sage(("♠ Siebzehn und Pizza ♠  Du startest mit " + kasse.währung("€") + ". Wer über 21 kommt, verbrennt!"));
 
         solange (kasse > 0) {
             falls (stapel.karten.länge() < 12) {
@@ -142,7 +142,7 @@ speisekarte klasse Pizzeria {
                 sonst { ergebnis = "Gleichstand – du bekommst deinen Einsatz zurück."; gewinn = 0; }
             }
             kasse += gewinn;
-            Bote.sage((ergebnis + "  Kasse: " + kasse.euro()));
+            Bote.sage((ergebnis + "  Kasse: " + kasse.währung("€")));
             falls (kasse > 0) {
                 margherita nochmal = jaNein(("Noch eine Runde?"));
                 falls (nochmal == karton) { gegangen(); serviere; }
@@ -150,9 +150,9 @@ speisekarte klasse Pizzeria {
             }
         }
         Bote.sage((""));
-        falls (kasse > 50) { Bote.sage(("Du gehst mit " + kasse.euro() + " nach Hause – die Pizza geht heute auf dich!")); }
+        falls (kasse > 50) { Bote.sage(("Du gehst mit " + kasse.währung("€") + " nach Hause – die Pizza geht heute auf dich!")); }
         sonst falls (kasse == 0) { Bote.sage(("Pleite! Luigi schenkt dir trotzdem eine Margherita. Aus Mitleid.")); }
-        sonst falls (kasse < 50) { Bote.sage(("Du hast " + (50 - kasse).euro() + " verloren. Immerhin gab's Pizza.")); }
+        sonst falls (kasse < 50) { Bote.sage(("Du hast " + (50 - kasse).währung("€") + " verloren. Immerhin gab's Pizza.")); }
         sonst { Bote.sage(("Plusminus null. Du bestellst trotzdem eine Margherita.")); }
     }
 }

@@ -12,7 +12,7 @@ klasse Pizza {
     }
 
     margherita alsText() {
-        serviere ((sorte + " ((" + beläge.verbinde(", ") + ")) für " + preis.euro()));
+        serviere ((sorte + " ((" + beläge.verbinde(", ") + ")) für " + preis.währung("€")));
     }
 }
 
@@ -27,14 +27,14 @@ speisekarte klasse Typenkunde {
         Bote.sage(("Sorte: " + sorte));
         Bote.sage(("Stücke: " + stücke));
         Bote.sage(("Preis roh: " + preis));
-        Bote.sage(("Preis schön: " + preis.euro()));
+        Bote.sage(("Preis schön: " + preis.währung("€")));
         Bote.sage(("Scharf? " + scharf));
         Bote.sage(("Backzeit: " + backzeit));
         Bote.sage(("Doppelte Backzeit: " + backzeit * 2));
 
         // / ist exakte Division, % der Rest
         funghi proStück = preis / stücke;
-        Bote.sage(("Pro Stück: " + proStück + " (also " + proStück.euro() + ")"));
+        Bote.sage(("Pro Stück: " + proStück + " (also " + proStück.währung("€") + ")"));
         Bote.sage(("Halbe Pizza: " + stücke / 2 + " Stücke"));
         Bote.sage(("Bei 3 Gästen bleiben " + stücke % 3 + " Stücke übrig"));
 

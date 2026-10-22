@@ -12,8 +12,8 @@ speisekarte klasse Lieferdienst {
 
     tiefkühl margherita liefere(margherita kunde, Pizza bestellung) {
         kasse += bestellung.preis;
-        serviere ((kunde + " bekommt " + bestellung + " für " + bestellung.preis.euro()
-            + " (Kasse: " + kasse.euro() + ")"));
+        serviere ((kunde + " bekommt " + bestellung + " für " + bestellung.preis.währung("€")
+            + " (Kasse: " + kasse.währung("€") + ")"));
     }
 
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
@@ -25,12 +25,12 @@ speisekarte klasse Lieferdienst {
         ];
 
         // Alle Bestellungen in den Ofen – klar im Budget
-        funghi wert = ofen(temperatur: 400, zeit: 60s) {
+        funghi wert = ofen(zeit: 60s) {
             serviere ((bestellungen.belege(p -> p.preis).summe()));
         } roh (r) {
             serviere ((0));
         };
-        Bote.sage(("Aus dem Ofen: " + bestellungen.länge() + " Pizzen im Wert von " + wert.euro()));
+        Bote.sage(("Aus dem Ofen: " + bestellungen.länge() + " Pizzen im Wert von " + wert.währung("€")));
 
         // Die Personalpizza nimmt Luigi mit in die Pause – schieb() leert den Karton in der Küche
         Pizza personal = neu Pizza("Funghi", 8.50);
@@ -41,18 +41,18 @@ speisekarte klasse Lieferdienst {
             Bote.sage(("Luigi macht Pause mit der " + pause + ". " + a.nachricht()));
         }
 
-        // Herr Verdi wartet am Telefon – mit Trinkgeld geht's schneller
+        // Herr Verdi wartet am Telefon – er bekommt seine Pizza sofort
         Zustellung<margherita> verdi = bestelle(() -> (Lieferdienst.liefere("Herr Verdi", bestellungen.stück(2))))
-            .trinkgeld(3)
+            .priorität(3)
             .warte(max: 10min);
         Bote.sage((verdi.oderGratis(("Herr Verdi isst gratis."))));
 
-        // Der Rest fährt nach Küchenschluss – höchstes Trinkgeld zuerst
+        // Der Rest fährt nach Küchenschluss – höchste Priorität zuerst
         bestelle(() -> (Lieferdienst.liefere("Frau Bianchi", bestellungen.stück(1))))
-            .trinkgeld(1)
+            .priorität(1)
             .wennDa(text -> Bote.sage(("Fahrer meldet: " + text)));
         bestelle(() -> (Lieferdienst.liefere("Familie Rossi", bestellungen.stück(3))))
-            .trinkgeld(4)
+            .priorität(4)
             .wennDa(text -> Bote.sage(("Fahrer meldet: " + text)));
 
         Bote.sage(("=== Küche zu, die Fahrer starten ==="));

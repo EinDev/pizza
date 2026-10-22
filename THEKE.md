@@ -34,7 +34,7 @@ Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 320);
 Zettel verkauft = neu Zettel(0);
 Eingabe anzahl  = neu Eingabe(wert: "1", platzhalter: "Wie viele Pizzen?");
 Schild preis    = neu Schild();
-preis.binde("text", () -> ("Macht " + (anzahl.wert().alsZahl() * 8).euro()));   // folgt dem Tippen – ohne beiAenderung
+preis.binde("text", () -> ("Macht " + (anzahl.wert().alsZahl() * 8).währung("€")));   // folgt dem Tippen – ohne beiAenderung
 Schild kasse    = neu Schild();
 kasse.binde("text", () -> (verkauft.wert() + " Pizzen verkauft"));              // folgt dem Zettel
 Knopf backen    = neu Knopf("Backen!", () -> { verkauft.setze(verkauft.wert() + anzahl.wert().alsZahl()); });
@@ -66,7 +66,7 @@ theke.bediene();
 - Zustand lebt im Programm; jede **echte** Änderung (`setzeText` usw. auf einen anderen Wert, K-117) erzeugt eine **Änderungsnachricht**.
   Mehrere Änderungen während eines Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
 - **Reaktiv statt neu zeichnen (v5, K-116 … K-118, SPEC §16.8):** Statt in jedem Takt alle Zutaten zu setzen, bindet man Eigenschaften an
-  Ausdrücke: `kasse.binde("text", () -> geld.wert().euro())` mit `Zettel geld = neu Zettel(0)`; `geld.setze(geld.wert() + 8)` im
+  Ausdrücke: `kasse.binde("text", () -> geld.wert().währung("€"))` mit `Zettel geld = neu Zettel(0)`; `geld.setze(geld.wert() + 8)` im
   Klick-Rückruf genügt – die Laufzeit rechnet am Synchronisationspunkt nur die Bindungen neu, deren Quellen (Zettel oder Zutat-Getter wie
   `eingabe.wert()`) sich geändert haben, und sendet nur echte Änderungen. Der `Takt` bleibt für die Simulation, nicht fürs Zeichnen.
   v7 (K-125): `Zettel preis = Zettel.aus(() -> …)` – ein **abgeleiteter Zettel**, den mehrere Bindungen lesen; er rechnet wie eine Bindung

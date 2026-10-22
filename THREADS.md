@@ -68,7 +68,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 - `fn` wird wie bei `belege` mit genau einem Argument aufgerufen (Lambdas tolerant, §14.9); ist `fn` keine Funktion, entsteht
   derselbe Fehler wie bei `belege`.
 - Leeres Blech → `[]` ohne Anschnitt (keine Zufallsziehung, keine Kosten außer den Aufrufknoten).
-- Typischer Partner ist `schneide(n)` (Stückzahl = Programmentscheidung). `schneide(auto)` bleibt **8** – nie von der Hardware
+- Typischer Partner ist `schneide(n)` (Stückzahl = Programmentscheidung, `n` ist Pflicht – K-127). Die Stückzahl ist nie von der Hardware
   abhängig. Die Anzahl der Stücke ist beobachtbar, die Anzahl der Köche nie.
 - `brigade` ist kein Keyword (keine neuen reservierten Wörter, bestehende Bezeichner bleiben gültig); `BUILTINS` ändert sich nicht.
 - Schritte: der Aufruf kostet seine normalen Knoten (§14.1), jeder Rückruf zählt seine Anweisungen/Ausdrücke; Anschnitt und
@@ -85,7 +85,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 | Eigene Variablen (Parameter, lokale Variablen des Rückrufs und aller von ihm aufgerufenen Rümpfe), eigene Objekte | lesen und schreiben, wie immer |
 | Methoden/Funktionen aufrufen, `neu Klasse(…)`, Pizzen bauen, Rekursion, `probier`, `ofen`, `teig`, `bestelle` (eigene) | erlaubt |
 | `Bote.sage`, `Bote.schreibe`, `Bote.fehler`, `Bote.leeren` | erlaubt; Ereignisse werden gepuffert und in Stückreihenfolge ausgegeben (§3 D4) [F 3] |
-| Warnungen (S0007, T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (§3 D5) |
+| Warnungen (T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (§3 D5) |
 | `Uhr.jetzt()`, `Uhr.vorspulen(d)` | Küchenuhr (§3 D6) |
 | `Uhr.echt()` | erlaubt (Wanduhr; Test: `optionen.echtzeit`) |
 | `Zufall.*`, `neu Zufall()` | eigener Strom der Küche (§3 D9) |
@@ -117,7 +117,7 @@ Verändernde Operationen und ihr Text (`<n>` = Name der Variable bzw. des Felds)
 | `hinzu`, `entferne`, `setze` auf vorhandenem Blech | `KüchenAnanas: Dieses Blech gehört der Hauptküche – nimm eine kopie().` |
 | `lege`, `entferne` auf vorhandener Speisekarte | `KüchenAnanas: Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.` |
 | `gehenlassen()`, `backen()` (noch nicht gebacken) auf vorhandenem Teig | `KüchenAnanas: Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.` |
-| `trinkgeld`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
+| `priorität`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | Ziehen aus einem vorhandenen `Zufall`-Objekt | `KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().` |
 | `lege`, `entferne`, `leeren` auf vorhandener Vorratskammer | `KüchenAnanas: Die Vorratskammer 'x' gehört der Hauptküche – ein Koch darf nur nachsehen.` |
 | `aufklappen()` auf vorhandener Calzone | `KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.` |

@@ -17,16 +17,16 @@ funghi kosten() { serviere (Mathe.runden(30 * Mathe.potenz(1.15, schaber.wert())
 
 Schild geld = neu Schild("", id: "geld");
 geld.stil("schrift", "gross").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
-geld.binde("text", () -> kasse.wert().euro());
+geld.binde("text", () -> kasse.wert().währung("€"));
 Schild info = neu Schild("", id: "info");
 info.stil("schrift", "klein").stil("ausrichtung", "mitte");
-info.binde("text", () -> (proKlick.wert() + (proKlick.wert() == 1 ? " Pizza" : " Pizzen") + " pro Klick · " + preis.euro() + " pro Pizza"));
+info.binde("text", () -> (proKlick.wert() + (proKlick.wert() == 1 ? " Pizza" : " Pizzen") + " pro Klick · " + preis.währung("€") + " pro Pizza"));
 Knopf backen = neu Knopf("", id: "backen");
 backen.stil("schrift", "gross").stil("farbe", "tomate").stil("ausrichtung", "mitte");
 backen.binde("text", () -> ("🍕 Pizza backen! +" + proKlick.wert()));
 Knopf kaufen = neu Knopf("", id: "kaufen");
 kaufen.stil("ausrichtung", "mitte");
-kaufen.binde("text", () -> ("🥄 Teigschaber Nr. " + (schaber.wert() + 1) + " · " + kosten().euro()));
+kaufen.binde("text", () -> ("🥄 Teigschaber Nr. " + (schaber.wert() + 1) + " · " + kosten().währung("€")));
 kaufen.binde("aktiv", () -> kasse.wert() >= kosten());
 
 backen.beiKlick(() -> {
@@ -44,4 +44,4 @@ kaufen.beiKlick(() -> {
 
 theke.zeige(neu Stapel([geld, info, backen, kaufen]));
 theke.bediene();
-Bote.sage(("Feierabend mit " + kasse.wert().euro() + " in der Kasse."));
+Bote.sage(("Feierabend mit " + kasse.wert().währung("€") + " in der Kasse."));

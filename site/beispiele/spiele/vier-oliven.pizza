@@ -116,7 +116,7 @@ klasse Olivia {
     salami ziehe(Spielblech echt) {
         Spielblech b = echt.kopie();
         tiefe = 0;
-        serviere ((ofen(temperatur: 450, zeit: 75s) {
+        serviere ((ofen(zeit: 135s) {
             salami zug = 0;
             für (salami t : [1 .. 42 - b.steine]) {
                 zug = besterZug(b, t);

@@ -44,7 +44,7 @@ speisekarte klasse PizzaFabrik {
         für (margherita wunsch : wünsche) {
             probier {
                 Pizza p = backe((wunsch));
-                Bote.sage((wunsch + ": " + p + " – " + p.preis().euro()));
+                Bote.sage((wunsch + ": " + p + " – " + p.preis().währung("€")));
             } verbrannt (UnbekannteSorteAnanas a) {
                 Bote.sage(("Abgelehnt: " + a.nachricht()));
             }

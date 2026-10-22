@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
-  <title id="t">Lieferung: Bestellungen warten in einer Schlange nach Trinkgeld. Der Roller fährt erst bei warte los. 30 Minuten Zeit, sonst ist die Pizza gratis</title>
+  <title id="t">Lieferung: Bestellungen warten in einer Schlange nach Priorität. Der Roller fährt erst bei warte los. 30 Minuten Zeit, sonst ist die Pizza gratis</title>
   <defs>
     <marker id="pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0 L10 5 L0 10 z" fill="#2F2A26"/>
@@ -8,22 +8,22 @@
   <g fill="#2F2A26">
     <!-- Warteschlange -->
     <text x="110" y="34" font-size="15" font-weight="bold" text-anchor="middle">bestelle(…)</text>
-    <text x="110" y="54" font-size="14" text-anchor="middle">Trinkgeld = Vorrang</text>
+    <text x="110" y="54" font-size="14" text-anchor="middle">priorität(n) = Vorrang</text>
     <g font-size="15">
       <rect x="30" y="68" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
       <text x="44" y="93" font-weight="bold">1. Diavolo</text>
       <circle cx="166" cy="88" r="15" fill="#F2B33D"/>
-      <text x="166" y="93" font-size="14" font-weight="bold" text-anchor="middle">5 €</text>
+      <text x="166" y="93" font-size="14" font-weight="bold" text-anchor="middle">5</text>
       <rect x="30" y="116" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
       <text x="44" y="141">2. Margherita</text>
       <circle cx="166" cy="136" r="15" fill="#F2B33D"/>
-      <text x="166" y="141" font-size="14" font-weight="bold" text-anchor="middle">2 €</text>
+      <text x="166" y="141" font-size="14" font-weight="bold" text-anchor="middle">2</text>
       <rect x="30" y="164" width="160" height="40" rx="10" fill="#FFF6E0" stroke="#C8955A" stroke-width="2"/>
       <text x="44" y="189">3. Funghi</text>
       <circle cx="166" cy="184" r="15" fill="#F2B33D"/>
-      <text x="166" y="189" font-size="14" font-weight="bold" text-anchor="middle">2 €</text>
+      <text x="166" y="189" font-size="14" font-weight="bold" text-anchor="middle">2</text>
     </g>
-    <text x="110" y="228" font-size="14" text-anchor="middle">gleich viel Trinkgeld:</text>
+    <text x="110" y="228" font-size="14" text-anchor="middle">gleiche Priorität:</text>
     <text x="110" y="246" font-size="14" text-anchor="middle">wer zuerst bestellt</text>
 
     <!-- Roller -->
@@ -46,7 +46,7 @@
     <line x1="520" y1="102" x2="520" y2="62" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
     <line x1="520" y1="102" x2="552" y2="122" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
     <circle cx="520" cy="102" r="4" fill="#2F2A26"/>
-    <text x="520" y="174" font-size="14" text-anchor="middle">+10 % Zeit je € Trinkgeld</text>
+    <text x="520" y="174" font-size="14" text-anchor="middle">Budget = genau max</text>
 
     <!-- Ausgänge -->
     <rect x="410" y="194" width="220" height="40" rx="10" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>

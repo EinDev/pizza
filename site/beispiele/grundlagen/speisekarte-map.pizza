@@ -18,10 +18,10 @@ speisekarte klasse Bestellübersicht {
         für (margherita sorte : bestellung) {
             salami anzahl = bestellung.hole(sorte);
             funghi posten = anzahl * preise.hole(sorte);
-            Bote.sage((anzahl + "x " + sorte + " = " + posten.euro()));
+            Bote.sage((anzahl + "x " + sorte + " = " + posten.währung("€")));
             summe += posten;
         }
-        Bote.sage(("Gesamt: " + summe.euro()));
+        Bote.sage(("Gesamt: " + summe.währung("€")));
 
         // Was nicht auf der Karte steht, kommt als leerer Karton zurück
         Bote.sage(("Calzone bestellt? " + bestellung.hat("Calzone")));

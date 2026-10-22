@@ -30,7 +30,7 @@ rohling klasse Gericht erfüllt Backbar {
     }
 
     speisekarte margherita alsText() {
-        serviere ((name + " " + zutaten() + " für " + preis().euro()));
+        serviere ((name + " " + zutaten() + " für " + preis().währung("€")));
     }
 }
 
@@ -76,7 +76,7 @@ speisekarte klasse Pizzeria {
             Bote.sage((g.backe((450))));
         }
         funghi gesamt = karte.belege(g -> g.preis()).summe();
-        Bote.sage(("Alles zusammen: " + gesamt.euro()));
+        Bote.sage(("Alles zusammen: " + gesamt.währung("€")));
 
         probier {
             neu Gericht(("Luftpizza"));

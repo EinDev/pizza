@@ -68,7 +68,7 @@ const SNIPPETS = [
   snippetCompletion("klasse ${Name} {\n\t${}\n}", { label: "klasse", detail: "Klasse", type: "keyword", boost: 5 }),
   snippetCompletion("speisekarte klasse ${Pizzeria} {\n\tspeisekarte tiefkühl leer hauptgang(Blech<margherita> args) {\n\t\t${}\n\t}\n}",
     { label: "hauptgang", detail: "Einstiegspunkt", type: "keyword", boost: 5 }),
-  snippetCompletion("ofen(temperatur: ${1:250}, zeit: ${2:60s}) {\n\t${}\n\tserviere ((${karton}));\n} roh (r) {\n\tserviere ((r.teilergebnis()));\n};",
+  snippetCompletion("ofen(zeit: ${1:60s}) {\n\t${}\n\tserviere ((${karton}));\n} roh (r) {\n\tserviere ((r.teilergebnis()));\n};",
     { label: "ofen", detail: "Zeitbudget", type: "keyword", boost: 5 }),
   snippetCompletion("probier {\n\t${}\n} verbrannt (${LaufzeitAnanas} a) {\n\tBote.fehler((a.nachricht()));\n}",
     { label: "probier", detail: "try/catch", type: "keyword", boost: 5 }),

@@ -39,11 +39,11 @@ export const KONSTANTEN = new Set(["PI", "E"]);
 /** Methoden auf Werten/Objekten (nach „ausdruck.“) – Standardbibliothek, Vorratskammer, Theke-Zutaten und Zettel. */
 export const ALLE_METHODEN = [...new Set([
   // Zahl, Text, Blech, Speisekarte, Dauer, Lieferung/Teig/Ofen, Ananas (§11, §7)
-  "hat", "alsText", "name", "euro", "runden", "abs", "ganz", "tausender", "kompakt",
+  "hat", "alsText", "name", "währung", "runden", "abs", "ganz", "tausender", "kompakt",
   "länge", "groß", "klein", "enthält", "zerlege", "ersetze", "trimme", "zeichen", "wiederhole", "beginntMit", "endetMit", "alsZahl",
   "stück", "hinzu", "entferne", "setze", "kopie", "belege", "brigade", "filtere", "zusammenklappen", "summe", "erstes", "letztes", "umdrehen",
   "sortiere", "verbinde", "istLeer", "schneide", "lege", "hole", "schlüssel", "werte", "inMs", "inSekunden", "inMinuten",
-  "gehenlassen", "backen", "istAufgegangen", "trinkgeld", "warte", "wennDa", "pünktlich", "wert", "oderGratis", "istGeliefert",
+  "gehenlassen", "backen", "istAufgegangen", "priorität", "warte", "wennDa", "pünktlich", "wert", "oderGratis", "istGeliefert",
   "teilergebnis", "verbrauchteZeit", "mikrowelle", "frisch", "istMatschig",
   "aufklappen", "nachricht", "holeNachricht", "typ", "position",
   // Vorratskammer (§15.4, K-106)

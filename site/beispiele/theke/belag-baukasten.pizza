@@ -39,7 +39,7 @@ Schild meldung = neu Schild("", id: "meldung");
 
 leer zeigePizza() {
     bild.setzeText((pizza.alsText()));
-    preis.setzeText(("Preis: " + pizza.preis().euro() + " · " + pizza.anzahl() + (pizza.anzahl() == 1 ? " Belag" : " Beläge")));
+    preis.setzeText(("Preis: " + pizza.preis().währung("€") + " · " + pizza.anzahl() + (pizza.anzahl() == 1 ? " Belag" : " Beläge")));
 }
 
 // Text der Beanstandung, falls `b` jetzt oben drauf ein Auflauf wäre – sonst "".
@@ -97,5 +97,5 @@ zeigePizza();
 theke.zeige(neu Stapel([titel, neu Reihe([liste, neu Stapel([bild, preis, meldung, weg])])]));
 theke.bediene();
 
-Bote.sage(("Fertig belegt: " + pizza + " für " + pizza.preis().euro()));
+Bote.sage(("Fertig belegt: " + pizza + " für " + pizza.preis().währung("€")));
 Bote.sage(("Aufläufe verhindert: " + umgangen));

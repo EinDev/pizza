@@ -88,7 +88,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 ```js
 { typ: "ausgabe",       text }                                  // Bote.sage
 { typ: "fehlerausgabe", text }                                  // Bote.fehler
-{ typ: "warnung",       code, text, zeile, spalte }             // z. B. W0666, S0007, T0007
+{ typ: "warnung",       code, text, zeile, spalte }             // z. B. W0666, T0007, W0013
 { typ: "ausgabe",       text, umbruch: false }                  // Bote.schreibe (ohne Zeilenumbruch), SPEC §11.1
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)

@@ -81,7 +81,7 @@
               )
             },
             { art: "ausgabe", text: z("Gast@1", "Blech: [a, b]", "1min 30s 250ms", "0.30000000000000004") },
-            { art: "hinweis", ton: "pizza", md: "`0.30000000000000004` ist kein Rechenfehler von pizza, sondern ganz normales Kommazahl-Krümeln. Für Geld gibt es `euro()`." }
+            { art: "hinweis", ton: "pizza", md: "`0.30000000000000004` ist kein Rechenfehler von pizza, sondern ganz normales Kommazahl-Krümeln. Für Geld gibt es `währung(\"€\")` – zwei Stellen, Komma, Währungszeichen." }
           ]
         }
       ]
@@ -165,7 +165,7 @@
                 "solange (Bestellannahme.hatMehr()) {",
                 "    summe += Bestellannahme.liesZahl(ersatz: 0);",
                 "}",
-                "Bote.sage((\"Rechnung: \" + summe.euro()));"
+                "Bote.sage((\"Rechnung: \" + summe.währung(\"€\")));"
               )
             },
             { art: "ausgabe", text: "Rechnung: 19,00 €" },
@@ -467,14 +467,14 @@
       titel: "Werte-Methoden: Zahl, Text, Dauer",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "Zahlen, Texte und Zeitdauern bringen eigene Methoden mit. Du rufst sie mit einem Punkt auf: `preis.euro()`, `text.groß()`, `backzeit.inSekunden()`." },
+        { art: "kurz", md: "Zahlen, Texte und Zeitdauern bringen eigene Methoden mit. Du rufst sie mit einem Punkt auf: `preis.währung(\"€\")`, `text.groß()`, `backzeit.inSekunden()`." },
         {
           art: "code",
           ausfuehrbar: true,
           tier: 1,
           code: z(
             "funghi preis = 5 + 1 + 1.5 + 0.5;   // Teig, Tomate, Mozzarella, Basilikum",
-            "Bote.sage((preis.euro()));",
+            "Bote.sage((preis.währung(\"€\")));",
             "funghi pi = 3.14159;",
             "Bote.sage((pi.runden(2)));",
             "margherita bestellung = \"  Pizza Margherita  \";",
@@ -492,7 +492,7 @@
           titel: "Zahl-Methoden (salami, funghi)",
           inhalt: [
             tab([
-              ["`euro()`", "Als Eurobetrag: kaufmännisch auf zwei Stellen gerundet, Komma, ohne Tausenderpunkte; nie `-0,00 €`", "`8` → `\"8,00 €\"`, `0.015` → `\"0,02 €\"`"],
+              ["`währung(symbol)`", "Als Geldbetrag: kaufmännisch auf zwei Stellen gerundet, Komma, ohne Tausenderpunkte, nie `-0,00`; dahinter ein Leerzeichen und `symbol` (auch benannt: `symbol:`). Ohne Symbol (oder mit `karton`/leerem Text) nur der Betrag", "`8.währung(\"€\")` → `\"8,00 €\"`, `0.015.währung(\"€\")` → `\"0,02 €\"`, `2.5.währung(\"CHF\")` → `\"2,50 CHF\"`, `8.währung()` → `\"8,00\"`"],
               ["`runden()`", "Kaufmännisch auf Ganzzahl runden (.5 von der Null weg)", "`3.5` → `4`, `-2.5` → `-3`"],
               ["`runden(n)`", "Kaufmännisch auf `n` Nachkommastellen (auch benannt: `runden(stellen: 2)`)", "`3.14159.runden(2)` → `3.14`"],
               ["`abs()`", "Betrag (ohne Minus)", "`-7.9` → `7.9`"],
@@ -500,7 +500,7 @@
               ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"],
               ["`tausender()` / `tausender(n)`", "Als Text mit Tausenderpunkten und Dezimalkomma, kaufmännisch auf `n` Stellen (Standard 0)", "`1234567.tausender(2)` → `\"1.234.567,00\"`"],
               ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.` … bis `Dezd.`, darüber `1,5 × 10⁷⁰`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
-              ["`euro(kompakt: ja)`", "Eurobetrag in Kurzform", "`1234567.euro(kompakt: ja)` → `\"1,23 Mio. €\"`"]
+              ["`währung(symbol, kompakt: ja)`", "Geldbetrag in Kurzform wie `kompakt(2)`", "`1234567.währung(\"€\", kompakt: ja)` → `\"1,23 Mio. €\"`"]
             ]),
             {
               art: "code",
@@ -516,7 +516,7 @@
               )
             },
             { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") },
-            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; weiter geht es mit `Trd.`, `Quadr.`, `Quadrd.`, `Quint.` … bis `Dezd.` (10⁶³), darüber `1,5 × 10⁷⁰`. `tausender` und `euro()` wechseln ab 10²¹ in dieselbe Kurzform; Unendlich wird `∞`. Nur die rohe Textform (`Bote.sage((x))`) bleibt bei `2.5e+21`." },
+            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; weiter geht es mit `Trd.`, `Quadr.`, `Quadrd.`, `Quint.` … bis `Dezd.` (10⁶³), darüber `1,5 × 10⁷⁰`. `tausender` und `währung()` wechseln ab 10²¹ in dieselbe Kurzform; Unendlich wird `∞`. Nur die rohe Textform (`Bote.sage((x))`) bleibt bei `2.5e+21`." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -527,7 +527,7 @@
                 "Bote.sage((umsatz.tausender(2)));",
                 "Bote.sage((umsatz.kompakt() + \" / \" + umsatz.kompakt(1)));",
                 "Bote.sage((1500.kompakt() + \" / \" + 2000000.kompakt() + \" / \" + 12.345.kompakt()));",
-                "Bote.sage((umsatz.euro(kompakt: ja)));"
+                "Bote.sage((umsatz.währung(\"€\", kompakt: ja)));"
               )
             },
             { art: "ausgabe", text: z("1.234.567", "1.234.567,00", "1,23 Mio. / 1,2 Mio.", "1,5 Tsd. / 2 Mio. / 12,35", "1,23 Mio. €") },
@@ -672,7 +672,7 @@
               ["`sortiere()` / `sortiere((a, b) -> …)`", "neu", "Sortieren (stabil). Ohne Funktion nur Zahlen, Texte, Dauern oder Werte eines `quattrostagioni`. Die Funktion liefert eine Zahl: negativ = `a` zuerst.", "`b.sortiere((a, c) -> c - a)`"],
               ["`verbinde(trenner)`", "–", "Elemente zu einem Text verbinden; ohne Trenner direkt aneinander", "`b.verbinde(\", \")`"],
               ["`istLeer()`", "–", "Ist das Blech leer?", "`neu Blech<salami>().istLeer()` → `ja`"],
-              ["`schneide(n)`", "neu", "In `n` Teil-Bleche schneiden (siehe *Schneiden*), `schneide(auto)` = 8; mehr Stücke als Elemente → leere Teil-Bleche", "`[1 .. 8].schneide(4)`"]
+              ["`schneide(n)`", "neu", "In `n` Teil-Bleche schneiden (siehe *Schneiden*); `n` ist Pflicht (Ganzzahl ≥ 1); mehr Stücke als Elemente → leere Teil-Bleche", "`[1 .. 8].schneide(4)`"]
             ], ["Methode", "Blech", "Was sie tut", "Beispiel"]),
             {
               art: "code",
@@ -734,7 +734,7 @@
             "Bote.sage((karte.hole(\"Tonno\")));",
             "Bote.sage((karte.hat(\"Salami\") + \", \" + karte.länge()));",
             "für (margherita name : karte) {",
-            "    Bote.sage((name + \": \" + karte.hole(name).euro()));",
+            "    Bote.sage((name + \": \" + karte.hole(name).währung(\"€\")));",
             "}"
           )
         },
@@ -918,7 +918,7 @@
             "Eingabe anzahl = neu Eingabe(platzhalter: \"Wie viele Pizzen?\");",
             "Knopf backen = neu Knopf(\"Backen!\", () -> {",
             "    funghi n = anzahl.wert().alsZahl();",
-            "    preis.setzeText((\"Macht \" + (n * 8).euro()));",
+            "    preis.setzeText((\"Macht \" + (n * 8).währung(\"€\")));",
             "});",
             "theke.zeige(neu Stapel([preis, anzahl, backen]));",
             "theke.bediene();"
@@ -960,7 +960,7 @@
               code: z(
                 "Theke theke = neu Theke(\"Pizzeria\");",
                 "Fortschritt teig = neu Fortschritt(wert: 0.25, text: \"Teig geht …\");",
-                "Tabelle karte = neu Tabelle([\"Pizza\", \"Preis\"], [[\"Margherita\", 8.euro()], [\"Funghi\", 9.euro()]]);",
+                "Tabelle karte = neu Tabelle([\"Pizza\", \"Preis\"], [[\"Margherita\", 8.währung(\"€\")], [\"Funghi\", 9.währung(\"€\")]]);",
                 "Abschnitt preise = neu Abschnitt(\"Karte\", [karte]);",
                 "Knopf warten = neu Knopf(\"Warten\", () -> { teig.setzeWert(teig.wert() + 0.5); });",
                 "warten.hinweis(\"Lässt den Teig weiter gehen\");",
@@ -1026,7 +1026,7 @@
                 "Takt backofen = neu Takt(1s, id: \"backofen\");",
                 "leer zeichne() {",
                 "    lager.setzeText((\"Im Lager: \" + pizzen));",
-                "    kasse.setzeText(geld.euro());",
+                "    kasse.setzeText(geld.währung(\"€\"));",
                 "    verkaufen.aktiv(pizzen > 0);",
                 "}",
                 "backofen.beiTakt(anzahl -> { pizzen += anzahl; zeichne(); });",
@@ -1034,7 +1034,7 @@
                 "zeichne();",
                 "theke.zeige(neu Stapel([lager, kasse, verkaufen, backofen]));",
                 "theke.bediene();",
-                "Bote.sage((pizzen + \" Pizzen übrig, \" + geld.euro() + \" in der Kasse\"));"
+                "Bote.sage((pizzen + \" Pizzen übrig, \" + geld.währung(\"€\") + \" in der Kasse\"));"
               )
             },
             { art: "ausgabe", text: "1 Pizzen übrig, 16,00 € in der Kasse" },
@@ -1059,14 +1059,14 @@
                 "Schild lager = neu Schild(id: \"lager\");",
                 "lager.binde(\"text\", () -> (\"Im Lager: \" + pizzen.wert()));",
                 "Schild kasse = neu Schild(id: \"kasse\");",
-                "kasse.binde(\"text\", () -> geld.wert().euro());",
+                "kasse.binde(\"text\", () -> geld.wert().währung(\"€\"));",
                 "Knopf verkaufen = neu Knopf(\"Verkaufen\", id: \"verkaufen\");",
                 "verkaufen.binde(\"aktiv\", () -> pizzen.wert() > 0);",
                 "verkaufen.beiKlick(() -> { pizzen.setze(pizzen.wert() - 1); geld.setze(geld.wert() + 8); });",
                 "Takt backofen = neu Takt(1s, anzahl -> { pizzen.setze(pizzen.wert() + anzahl); }, id: \"backofen\");",
                 "theke.zeige(neu Stapel([lager, kasse, verkaufen, backofen]));",
                 "theke.bediene();",
-                "Bote.sage((pizzen.wert() + \" Pizzen übrig, \" + geld.wert().euro() + \" in der Kasse\"));"
+                "Bote.sage((pizzen.wert() + \" Pizzen übrig, \" + geld.wert().währung(\"€\") + \" in der Kasse\"));"
               )
             },
             { art: "ausgabe", text: "1 Pizzen übrig, 16,00 € in der Kasse" },
@@ -1105,7 +1105,7 @@
                 "Schild preis = neu Schild(id: \"preis\");",
                 "preis.binde(\"text\", () -> {",
                 "    salami stueck = familie.an() ? 12 : 8;",
-                "    serviere ((anzahl.wert().alsZahl() * stueck).euro());",
+                "    serviere ((anzahl.wert().alsZahl() * stueck).währung(\"€\"));",
                 "});",
                 "theke.zeige(neu Stapel([anzahl, familie, preis]));",
                 "theke.bediene();",
@@ -1166,9 +1166,9 @@
                 "Zettel stufe = neu Zettel(1);",
                 "Zettel preis = Zettel.aus(() -> 10 * stufe.wert() * stufe.wert());   // eine Rechnung für alle drei",
                 "Schild info = neu Schild(id: \"info\");",
-                "info.binde(\"text\", () -> (\"Ofen Stufe \" + stufe.wert() + \" – \" + geld.wert().euro() + \" in der Kasse\"));",
+                "info.binde(\"text\", () -> (\"Ofen Stufe \" + stufe.wert() + \" – \" + geld.wert().währung(\"€\") + \" in der Kasse\"));",
                 "Knopf kaufen = neu Knopf(\"\", id: \"kaufen\");",
-                "kaufen.binde(\"text\", () -> (\"Ausbauen für \" + preis.wert().euro()));",
+                "kaufen.binde(\"text\", () -> (\"Ausbauen für \" + preis.wert().währung(\"€\")));",
                 "kaufen.binde(\"aktiv\", () -> geld.wert() >= preis.wert());",
                 "kaufen.beiKlick(() -> { geld.setze(geld.wert() - preis.wert()); stufe.setze(stufe.wert() + 1); });",
                 "Fortschritt balken = neu Fortschritt(id: \"balken\");",
@@ -1176,7 +1176,7 @@
                 "Knopf backen = neu Knopf(\"Backen +8 €\", () -> { geld.setze(geld.wert() + 8); }, id: \"backen\");",
                 "theke.zeige(neu Stapel([info, kaufen, balken, backen]));",
                 "theke.bediene();",
-                "Bote.sage((\"Stufe \" + stufe.wert() + \", nächster Ausbau \" + preis.wert().euro()));"
+                "Bote.sage((\"Stufe \" + stufe.wert() + \", nächster Ausbau \" + preis.wert().währung(\"€\")));"
               )
             },
             { art: "ausgabe", text: "Stufe 2, nächster Ausbau 40,00 €" },
@@ -1573,7 +1573,7 @@
           ]
         },
         { art: "text", md: "Dazu kommen die Typen der Pizza-Funktionen (`Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Reste<T>`), die Theke-Zutaten und **deine eigenen Klassen** – jede Klasse ist auch ein Typ." },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`, `Auswahl`, `Tastatur`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`, `Auswahl`, `Tastatur`. `auto` ist ein ganz gewöhnlicher Name." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
@@ -1610,7 +1610,6 @@
             ["`W0013`", "`aufklappen()` auf einer Calzone", "„Garantie erloschen. Das ist jetzt eine ganz normale Pizza.“"],
             ["`W0032`", "Zwei Namen im selben Scope unterscheiden sich nur in Groß-/Kleinschreibung", "„Selbst der Pizzaiolo verwechselt die beiden.“"],
             ["`W0666`", "Typ `hawaii` im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
-            ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
             ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
             ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"],
@@ -1626,11 +1625,12 @@
           code: z(
             "salami PiZZa = 1;",
             "salami PizZa = 2;              // W0032",
-            "Blech<salami> stücke = [1 .. 8].schneide(7);   // S0007",
-            "Bote.sage((PiZZa + PizZa + \" / \" + stücke.länge()));"
+            "Teig<salami> t = teig(() -> (4));",
+            "salami flach = t.backen();     // T0007",
+            "Bote.sage((PiZZa + PizZa + \" / \" + flach));"
           )
         },
-        { art: "ausgabe", text: "3 / 7" },
+        { art: "ausgabe", text: "3 / 4" },
         {
           art: "details",
           titel: "Zum Nachkochen: zwei echte PizzaFehler",
@@ -1715,19 +1715,17 @@
             ["`pizzaiolo backe`", "javac", "Compiler: backt Quelltext zu ausführbarem Code"],
             ["`pizzaofen` + `ofen.xml`", "Maven + pom.xml", "Build-Tool mit Projektbeschreibung"],
             ["`.pkarton`", ".jar", "Archiv – die fertige Pizza zum Mitnehmen"],
-            ["`pizzabote`", "Paketmanager", "liefert Abhängigkeiten, z. B. `pizzabote hol extra-käse`"],
-            ["`--temperatur=485`", "-O", "Optimierung: heißer ist schneller. Mehr als 485 hält selbst Neapel nicht aus."]
+            ["`pizzabote`", "Paketmanager", "liefert Abhängigkeiten, z. B. `pizzabote hol extra-käse`"]
           ]
         },
-        { art: "text", md: "**Compiler** – einzelne Dateien backen, optional mit Optimierung:" },
+        { art: "text", md: "**Compiler** – einzelne Dateien backen:" },
         {
           art: "code",
           sprache: "shell",
           ausfuehrbar: false,
           tier: 3,
           code: z(
-            "$ pizzaiolo backe Pizzeria.pizza",
-            "$ pizzaiolo backe --temperatur=485 Pizzeria.pizza"
+            "$ pizzaiolo backe Pizzeria.pizza"
           )
         },
         {

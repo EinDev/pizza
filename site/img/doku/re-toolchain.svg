@@ -30,7 +30,6 @@
   <path d="M252,180 Q256,160 264,172 Q270,152 278,172 Q284,160 288,180 z" fill="#D9452B"/>
   <text x="270" y="110" text-anchor="middle" font-size="15" font-weight="700" fill="#FFF6E0">pizzaiolo backe</text>
   <text x="270" y="204" text-anchor="middle" font-size="14" fill="#2F2A26">Compiler · pizzaofen baut</text>
-  <text x="270" y="222" text-anchor="middle" font-size="14" fill="#D9452B">--temperatur=485</text>
 
   <line x1="364" y1="122" x2="396" y2="122" stroke="#2F2A26" stroke-width="3" marker-end="url(#pfeil)"/>
 

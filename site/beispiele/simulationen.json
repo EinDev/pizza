@@ -15,7 +15,7 @@
         "Zufall",
         "ofen",
         "bestelle",
-        "trinkgeld",
+        "warte",
         "Klasse",
         "Balkendiagramm",
         "Eingabe"
@@ -62,7 +62,7 @@
     {
       "id": "lieferroller-rallye",
       "titel": "Lieferroller-Rallye",
-      "beschreibung": "Du bist Disponent: Ein Express mit „30 Minuten oder gratis“ und eine Abendtour, deren Reihenfolge allein dein Trinkgeld bestimmt (wennDa). Schaffst du es, dass alle Kunden zufrieden sind?",
+      "beschreibung": "Du bist Disponent: Ein Express mit „30 Minuten oder gratis“ und eine Abendtour, deren Reihenfolge allein dein Trinkgeld bestimmt (als priorität für wennDa). Schaffst du es, dass alle Kunden zufrieden sind?",
       "datei": "simulationen/lieferroller-rallye.pizza",
       "erwartet": "simulationen/lieferroller-rallye.erwartet",
       "eingabe": "simulationen/lieferroller-rallye.eingabe",
@@ -71,7 +71,7 @@
       "schlagworte": [
         "Simulation",
         "bestelle",
-        "trinkgeld",
+        "priorität",
         "warte",
         "wennDa",
         "LieferAnanas",

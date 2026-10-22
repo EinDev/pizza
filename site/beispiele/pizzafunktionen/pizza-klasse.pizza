@@ -36,18 +36,18 @@ Bote.sage(("Margherita: " + klassiker));
 Bote.sage(("Beläge: " + klassiker.beläge.verbinde(", ")));
 Bote.sage(("Anzahl Beläge: " + klassiker.anzahlBeläge()));
 Bote.sage(("Preis roh: " + klassiker.preis()));          // 5.00 Teig + 1.00 + 1.50 + 0.50
-Bote.sage(("Preis schön: " + klassiker.preis().euro()));
+Bote.sage(("Preis schön: " + klassiker.preis().währung("€")));
 
 // mit() legt oben drauf – der Klassiker selbst bleibt, wie er ist
 Pizza diavola = klassiker.mit("Salami").mit("Chili");
-Bote.sage(("Diavola: " + diavola + " für " + diavola.preis().euro()));
+Bote.sage(("Diavola: " + diavola + " für " + diavola.preis().währung("€")));
 
 Pizza feurig = diavola.mit("Chili");
 Bote.sage(("Extra feurig: " + feurig));
 
 // ohne() nimmt alle Chilis wieder runter
 Pizza fürOma = feurig.ohne("Chili");
-Bote.sage(("Für Oma: " + fürOma + " für " + fürOma.preis().euro()));
+Bote.sage(("Für Oma: " + fürOma + " für " + fürOma.preis().währung("€")));
 Bote.sage(("Hat Salami? " + fürOma.hat("Salami")));
 Bote.sage(("Hat Chili? " + fürOma.hat("Chili")));
 
@@ -55,11 +55,11 @@ Bote.sage(("Hat Chili? " + fürOma.hat("Chili")));
 Bote.sage(("Klassiker immer noch: " + klassiker));
 
 // Die Preisliste ist tiefkühl (statisch) – sie gehört der Klasse, nicht der einzelnen Pizza
-Bote.sage(("Extra-Salami kostet " + Pizza.preisVon("Salami").euro()));
+Bote.sage(("Extra-Salami kostet " + Pizza.preisVon("Salami").währung("€")));
 
 // Die nackte Pizza: nur Teig
 Pizza nackt = neu Pizza([]);
-Bote.sage(("Nur Teig: " + nackt + " für " + nackt.preis().euro()));
+Bote.sage(("Nur Teig: " + nackt + " für " + nackt.preis().währung("€")));
 
 // == vergleicht Objekte nach Identität – für Wertgleichheit schreiben wir gleicht()
 Bote.sage(("Dieselbe Pizza? " + (fürOma == klassiker.mit("Salami"))));

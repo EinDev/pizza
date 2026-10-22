@@ -12,11 +12,11 @@ Blech<salami> teilsummen = stücke.belege(s -> s.summe());
 Bote.sage(("Teilsummen: " + teilsummen));
 Bote.sage(("Zusammengeklappt: " + teilsummen.zusammenklappen((a, b) -> a + b)));
 
-// Der große Abend: eine Million Bons, automatisch in 8 Stücke
+// Der große Abend: eine Million Bons, wieder in 8 Stücke
 Blech<salami> riesig = [1 .. 1_000_000];
-Blech<Blech<salami>> automatisch = riesig.schneide(auto);
-Bote.sage(("Stücke bei auto: " + automatisch.länge()));
-salami gesamt = automatisch
+Blech<Blech<salami>> nacht = riesig.schneide(8);
+Bote.sage(("Stücke in der Nacht: " + nacht.länge()));
+salami gesamt = nacht
     .belege(s -> s.summe())
     .zusammenklappen((a, b) -> a + b);
 Bote.sage(("Umsatz der Nacht: " + gesamt));

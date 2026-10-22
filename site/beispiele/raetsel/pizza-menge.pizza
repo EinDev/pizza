@@ -33,7 +33,7 @@ klasse PizzaMenge {
 
     // Backt das Bild im Ofen; reicht das Budget nicht, kommt das Teilbild zurück.
     tiefkühl Blech<margherita> backe(salami breite, salami höhe, Dauer zeit) {
-        serviere ((ofen(temperatur: 450, zeit: zeit) {
+        serviere ((ofen(zeit: zeit) {
             Blech<margherita> bild = [];
             für (salami z = 0; z < höhe; z++) {
                 bild.hinzu((zeile(z, breite, höhe)));
@@ -48,7 +48,7 @@ klasse PizzaMenge {
 }
 
 Bote.sage(("=== Probebacken im kleinen Ofen ==="));
-für (margherita z : PizzaMenge.backe(64, 22, 45s)) { Bote.sage((z)); }
+für (margherita z : PizzaMenge.backe(64, 22, 81s)) { Bote.sage((z)); }
 Bote.sage((""));
 Bote.sage(("=== Die ganze Pizza-Menge ==="));
-für (margherita z : PizzaMenge.backe(64, 22, 30min)) { Bote.sage((z)); }
+für (margherita z : PizzaMenge.backe(64, 22, 54min)) { Bote.sage((z)); }

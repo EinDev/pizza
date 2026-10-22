@@ -1,7 +1,8 @@
 // Lieferroller-Rallye: DU bist Disponent bei Luigi.
 // Es gibt nur einen Roller. Nach Küchenschluss fährt er die Lieferungen
 // in der Reihenfolge des Trinkgelds ab (höchstes zuerst, bei Gleichstand
-// in Bestellreihenfolge) – so funktioniert wennDa. Jeder Kunde hat nur
+// in Bestellreihenfolge) – das Trinkgeld wird zur priorität, nach der die
+// wennDa-Lieferungen losfahren. Jeder Kunde hat nur
 // begrenzt Geduld. Verteile 10 € Trinkgeld so, dass möglichst alle
 // rechtzeitig ihre Pizza bekommen.
 
@@ -53,7 +54,8 @@ Bote.sage(("Jeder Euro Trinkgeld gibt dem Fahrer 10 % mehr Zeit."));
 salami express = frage("Trinkgeld für den Express", 0, 5);
 diavolo gegangen = express < 0;
 falls (!gegangen) {
-    Zustellung<salami> z = bestelle(() -> (Tour.fahre(40))).trinkgeld(express).warte(max: 395ms);
+    // Das Budget rechnet Luigi selbst aus: 395 ms plus 10 % je Euro Trinkgeld
+    Zustellung<salami> z = bestelle(() -> (Tour.fahre(40))).warte(max: 395ms * (1 + express / 10));
     Bote.sage((z.pünktlich() ? "Herr Verdi: pünktlich! Er zahlt gern." : "Herr Verdi: zu spät – die Pizza geht aufs Haus."));
 } sonst {
     Bote.sage(("Du gehst heim. Der Fahrer macht alles ohne Trinkgeld."));
@@ -85,7 +87,7 @@ für (salami i = 1; i <= kunden.länge(); i++) {
     salami f = fahrten.stück(i);
     salami g = geduld.stück(i);
     bestelle(() -> (Tour.fahre(f)))
-        .trinkgeld(tipp)
+        .priorität(tipp)
         .wennDa(x -> Tour.angekommen(k, f, g, tipp));
 }
 

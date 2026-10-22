@@ -257,7 +257,7 @@
             "// (übertragen in die Schreibweise von pizza 3.0)\n" +
             "Blech<salami> bons = [1 .. 412];\n" +
             "\n" +
-            "salami fertig = ofen(temperatur: 485, zeit: 90s) {\n" +
+            "salami fertig = ofen(zeit: 90s) {\n" +
             "    salami summe = (0);\n" +
             "    für (Blech<salami> stapel : bons.schneide(8)) {\n" +
             "        summe += stapel.länge();\n" +
@@ -307,12 +307,12 @@
           art: "tabelle",
           kopf: ["Was geschah", "Was daraus wurde"],
           zeilen: [
-            ["Luigi schneidet den Bon in acht Streifen", "Parallelität mit `schneide(8)`; Warnung `S0007` bei sieben Stücken"],
+            ["Luigi schneidet den Bon in acht Streifen", "Parallelität mit `schneide(8)` – wie viele Stücke, sagt das Programm"],
             ["„Nichts bleibt länger als 90 Sekunden im Ofen“", "`ofen(…) { } roh (r) { }` mit Teilergebnis"],
-            ["Typenschild an Luigis Ofen: max. 485 °C", "`VerbranntAnanas`: „Zu heiß! Selbst Neapel hat Grenzen.“"],
+            ["Was zu lange drin bleibt, verbrennt", "`VerbranntAnanas`: „Zu lange im Ofen“, wenn kein `roh`-Zweig da ist"],
             ["Eine Margherita an Tisch 12 und Tisch 14", "Ownership: `schieb` – ein Wert, ein Tisch; der alte Karton bleibt leer (`LeererKartonAnanas`)"],
             ["„30 Minuten oder gratis“ (9.340 €)", "`warte(max: 30min)` und `oderGratis`"],
-            ["Die Fahrer und das Trinkgeld", "`trinkgeld(n)` als Priorität"],
+            ["Die Fahrer und das Trinkgeld", "`priorität(n)`: wer zuerst beliefert wird"],
             ["Nonnas Teig geht 24 Stunden", "Lazy Evaluation mit `teig`, Warnung `T0007`"],
             ["Speisekarte 11.000-mal pro Abend geladen", "`@Kühlschrank` und `mikrowelle`"],
             ["`teigRezept` im Montags-Log", "`calzone`, `aufklappen()`, Garantie erloschen"],
@@ -343,7 +343,11 @@
             "Nonna, 91, zählte die Ecken. „Sechs. Für Wuppertal geht das.“\n\n" +
             "Mit **pizza 3.1** hat Enzo noch einmal ausgemistet: Rezepte, Preise und Beläge gehören jetzt in eigene Klassen statt in die Sprache. " +
             "Dafür kochen mehrere Köche gleichzeitig ([Küchenbrigade](#pf-brigade)), und die [Theke](#std-theke) folgt Zetteln von selbst. " +
-            "Luigi fand, eine Sprache ohne eingebaute Margherita sei wie ein Ofen ohne Pizza. Dann backte er weiter."
+            "Luigi fand, eine Sprache ohne eingebaute Margherita sei wie ein Ofen ohne Pizza. Dann backte er weiter.\n\n" +
+            "Beim zweiten Ausmisten (K-127) flogen auch die letzten Pizzeria-Fachregeln aus der Sprache: Der Ofen kennt keine Temperatur mehr, nur seine `zeit`; " +
+            "aus dem Trinkgeld wurde eine schlichte `priorität(n)`, die nur die Reihenfolge der Rückrufe bestimmt; statt `euro()` formatiert `währung(\"€\")` Geld in jeder Währung; " +
+            "und `schneide` braucht immer eine Stückzahl – `schneide(auto)` und die Warnung bei sieben Stücken gibt es nicht mehr. " +
+            "Luigi schneidet trotzdem in acht. Aus Gewohnheit."
         }
       ]
     }
