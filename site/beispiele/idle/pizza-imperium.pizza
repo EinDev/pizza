@@ -202,6 +202,10 @@ klasse Spiel {
     salami sonderschichten = 0;
     salami perfekte = 0;
     salami kritikerBesuche = 0;
+    // Nur für die Oberfläche (Animationen), nicht im Spielstand:
+    salami großeEinnahmen = 0;       // Sonderschicht, Großbestellung, Minispiel-Sieg … → Puls an der Kasse
+    funghi letzterKlick = 0;         // so viele Pizzen hat der letzte Klick gebacken (Schwebetext)
+    salami glückstreffer = 0;        // perfekte Pizzen dieser Sitzung → Funkeln
     salami größterKauf = 0;          // meiste Stück auf einmal
     salami offlineBoni = 0;          // so oft hat der Betrieb ohne dich gebacken
     salami regentage = 0;
@@ -483,10 +487,12 @@ klasse Spiel {
         // Glückstreffer: jede fünfzigste Pizza wird perfekt – und zählt zehnfach.
         falls (Zufall.wahr(kennt("glückspilz") ? 0.03 : 0.02)) {
             perfekte++;
+            glückstreffer++;
             n = n * (kennt("seele") ? 25 : 10);
             nachricht = "✨ Perfekte Pizza! Der Rand ist ein Gedicht: " + pizzen(n) + " auf einmal.";
         }
         funghi erlös = backe(n);
+        letzterKlick = n;
         umsatzKlick += erlös;
         umsatzKlickAllzeit += erlös;
     }
@@ -549,14 +555,14 @@ klasse Spiel {
             melde(("🌧 Regentag! Niemand will raus, alle bestellen Lieferung: 45 Sekunden lang backt der Betrieb doppelt."));
         } sonst falls (welches == "geburtstag") {
             funghi bonus = portion() * 30;
-            backe(bonus);
+            backe(bonus); großeEinnahmen++;
             melde(("🎂 Nonna hat Geburtstag und lässt es sich nicht nehmen, selbst zu backen: " + pizzen(bonus) + ". Tanti auguri!"));
         } sonst falls (welches == "influencer") {
             effekt = "influencer"; effektRest = 60;
             melde(("📱 Eine Food-Influencerin postet deine Margherita (#pizzaporn – Nonna versteht es nicht): 60 Sekunden lang backt der Betrieb +50 %."));
         } sonst falls (welches == "schmuggler") {
             funghi bonus = portion() * 10;
-            backe(bonus);
+            backe(bonus); großeEinnahmen++;
             melde(("🍍 Ananas-Schmuggler erwischt! Nonna konfisziert zwölf Kisten und verkauft sie an die Konkurrenz: Gegenwert " + pizzen(bonus) + "."));
         } sonst falls (welches == "tenor") {
             effekt = "tenor"; effektRest = 20;
@@ -603,7 +609,7 @@ klasse Spiel {
         }
         hawaiiBekehrt++;
         funghi bonus = portion() * 5 * gästeFaktor() * (kennt("diplomatie") ? 3 : 1);
-        backe(bonus);
+        backe(bonus); großeEinnahmen++;
         melde(("🍍 Ein Gast bestellt Pizza Hawaii. Luigi lächelt, schweigt und serviert eine Margherita aufs Haus. "
             + "Der Gast ist bekehrt und bestellt " + pizzen(bonus) + "!"));
     }
@@ -622,7 +628,7 @@ klasse Spiel {
         falls (z.pünktlich() || kennt("mundpropaganda")) {
             pünktlich++;
             funghi bonus = bleche * portion() * gästeFaktor();
-            backe(bonus);
+            backe(bonus); großeEinnahmen++;
             margherita wie = kennt("mundpropaganda") ? "dank Mundpropaganda" : (tg == 0 ? "auch ohne Trinkgeld" : "dank " + tg + " € Trinkgeld");
             melde(("📦 Großbestellung über " + bleche + " Bleche – " + wie + " pünktlich geliefert: +"
                 + (bonus * preis()).euro(kompakt: ja) + "."));
@@ -635,7 +641,7 @@ klasse Spiel {
     // Minispiel gewonnen: so viele Pizzen, wie in `sek` Sekunden gebacken werden (bzw. ein Klick, wenn der mehr bringt).
     funghi minispielGewinn(salami sek) {
         funghi n = portion() * sek * (kennt("abo") ? 1.5 : 1);
-        funghi erlös = backe(n);
+        funghi erlös = backe(n); großeEinnahmen++;
         umsatzMini += erlös;
         umsatzMiniAllzeit += erlös;
         serviere (n);
@@ -707,7 +713,7 @@ klasse Spiel {
         sonderschichten++;
         ofenKühlt = kennt("ewigeglut") ? 20 : (kennt("lavastein") ? 45 : 120);
         funghi bonus = ladungen * portion();
-        backe(bonus);
+        backe(bonus); großeEinnahmen++;
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
     }
 
@@ -1038,7 +1044,7 @@ klasse Spiel {
         diavolo familie = kennt("familienbetrieb");
         funghi nachts = proSekunde() * gezählt * (familie ? 0.75 : 0.5);
         falls (gezählt >= 60 && nachts > 0) {
-            backe(nachts);
+            backe(nachts); großeEinnahmen++;
             offlineBoni++;
             melde(("🌙 Während du weg warst (" + (1min * Mathe.boden(weg / 60)) + (weg > gezählt ? " – gezählt werden höchstens 30min" : "")
                 + "), hat dein Betrieb mit " + (familie ? "drei Vierteln" : "halber") + " Kraft " + pizzen(nachts) + " gebacken: +" + (nachts * preis()).euro(kompakt: ja) + "."));
@@ -1439,7 +1445,7 @@ klasse UpgradeZeile {
         knopf = neu Knopf("", beiKauf, id: "kauf-" + u.schlüssel);
         knopf.stil("breite", 130).hinweis(u.beschreibung);
         reihe = neu Reihe([links, knopf], id: "zeile-" + u.schlüssel);
-        reihe.stil("abstand", 8);
+        reihe.stil("abstand", 8).uebergang(ja);
     }
 
     leer beschrifte(Spiel s) {
@@ -1613,7 +1619,15 @@ Schild modusInfo = neu Schild("", id: "modus-info");
 modusInfo.stil("schrift", "klein").stil("farbe", "kruste").stil("ausrichtung", "mitte");
 modusInfo.sichtbar(nein);
 
-Knopf backen = neu Knopf("", () -> { spiel.klick(); nachVerarbeitung(); }, id: "backen");
+Knopf backen = neu Knopf("", () -> {
+    salami klicksVorher = spiel.klicks;
+    spiel.klick();
+    nachVerarbeitung();
+    falls (spiel.klicks > klicksVorher) {          // Animationen (rein visuell, Theke v3)
+        backen.animiere("huepfen");
+        theke.schwebe("+" + spiel.letzterKlick.kompakt(1) + " 🍕", bei: backen, farbe: "basilikum");
+    }
+}, id: "backen");
 backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("breite", 440).stil("ausrichtung", "mitte");
 backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen. Später bringt jeder Klick zusätzlich einen kleinen Anteil der Sekundenproduktion – das große Geld macht der Betrieb.");
 
@@ -1657,7 +1671,7 @@ Schild lagerInfo = neu Schild("", id: "feinkost-lager");
 lagerInfo.stil("schrift", "klein").stil("farbe", "basilikum");
 Abschnitt feinkostTeil = neu Abschnitt("🧀 Feinkost-Händler", [lagerInfo], id: "feinkost");
 feinkostTeil.stil("abstand", 6);
-feinkostTeil.sichtbar(nein);
+feinkostTeil.sichtbar(nein).uebergang(ja);
 für (salami i : [1 .. 2]) {
     Schild info = neu Schild("", id: "feinkost-info-" + i);
     info.stil("schrift", "klein").stil("breite", 340).stil("hoehe", 34);
@@ -1711,7 +1725,7 @@ briefKopf.stil("schrift", "klein").stil("farbe", "basilikum");
 briefKopf.sichtbar(nein);
 Abschnitt briefTeil = neu Abschnitt("🎓 Meisterbriefe", [briefKopf], id: "meisterbriefe");
 briefTeil.stil("abstand", 6);
-briefTeil.sichtbar(nein);
+briefTeil.sichtbar(nein).uebergang(ja);
 für (salami i : [1 .. 3]) {
     Schild info = neu Schild("", id: "brief-info-" + i);
     info.stil("schrift", "klein").stil("breite", 340);
@@ -1739,7 +1753,7 @@ leer zeichneBriefe() {
         falls (!briefPlatz.enthält(b)) {
             salami frei = 0;
             für (salami i : [1 .. 3]) { falls (frei == 0 && briefPlatz.stück(i) == karton) { frei = i; } }
-            falls (frei > 0) { briefPlatz.setze(frei, b); }
+            falls (frei > 0) { briefPlatz.setze(frei, b); falls (thekeOffen && briefTeil.sichtbar()) { briefReihen.stück(frei).animiere("einblenden"); } }
         }
     }
     für (salami i : [1 .. 3]) {
@@ -1770,7 +1784,7 @@ Schild mengeSchild = neu Schild("Kaufmenge:", id: "kaufmenge-text");
 mengeSchild.stil("schrift", "klein");
 Reihe kaufmengeReihe = neu Reihe([mengeSchild], id: "kaufmenge");
 kaufmengeReihe.stil("abstand", 6).stil("ausrichtung", "mitte");
-kaufmengeReihe.sichtbar(nein);
+kaufmengeReihe.sichtbar(nein).uebergang(ja);
 für (salami m : MENGEN) {
     Knopf k = neu Knopf(m == 0 ? "Max" : m + "×", () -> {
         kaufMenge = m;
@@ -1795,7 +1809,7 @@ Knopf kleinKnopf = neu Knopf("▸ zeigen", () -> {
 kleinKnopf.stil("breite", 130).stil("farbe", "mozzarella").hinweis("Ältere Gebäude ein- oder ausklappen – sie backen natürlich weiter.");
 Reihe kleinReihe = neu Reihe([kleinInfo, kleinKnopf], id: "kleinbetriebe");
 kleinReihe.stil("abstand", 8);
-kleinReihe.sichtbar(nein);
+kleinReihe.sichtbar(nein).uebergang(ja);
 
 Stapel backstube = neu Stapel([
     rezeptTeil,
@@ -2022,12 +2036,14 @@ leer sortiereErfolge() {
     offeneErfolge = ERFOLGE.filtere((e) -> (!spiel.erfolge.enthält(e.name)));
 }
 
+diavolo erfolgNeu = nein;
 leer prüfeErfolge() {
     Blech<Erfolg> neue = offeneErfolge.filtere((e) -> (e.erreicht(spiel)));
     falls (neue.istLeer()) { serviere; }
     offeneErfolge = offeneErfolge.filtere((e) -> (!neue.enthält(e)));
     für (Erfolg e : neue) {
         spiel.erfolge.hinzu(e.name);
+        erfolgNeu = ja;
         Bote.sage(("🏆 Erfolg: " + e.name + " – " + e.text));
         spiel.nachricht = "🏆 Erfolg freigeschaltet: " + e.name + "!";
     }
@@ -2218,7 +2234,7 @@ leer zeichneGeheimnisse() {
     für (Geheimrezept r : welle) {
         falls (rezeptPlätze.filtere((z) -> (z.r == r)).istLeer()) {
             Blech<RezeptPlatz> frei = rezeptPlätze.filtere((z) -> (z.r == karton));
-            falls (!frei.istLeer()) { RezeptPlatz f = frei.erstes(); f.r = r; }
+            falls (!frei.istLeer()) { RezeptPlatz f = frei.erstes(); f.r = r; falls (thekeOffen) { f.reihe.animiere("einblenden"); } }
         }
     }
     für (RezeptPlatz z : rezeptPlätze) {
@@ -2335,7 +2351,19 @@ leer zeichneMinispiele() {
     }
 }
 
+salami gezeigteEinnahmen = 0;
+salami gezeigteTreffer = 0;
+diavolo thekeOffen = nein;     // erst nach theke.zeige animieren (sonst W0102)
+leer zeigeEffekte() {
+    falls (!thekeOffen) { gezeigteEinnahmen = spiel.großeEinnahmen; gezeigteTreffer = spiel.glückstreffer; erfolgNeu = nein; serviere; }
+    falls (spiel.großeEinnahmen != gezeigteEinnahmen) { gezeigteEinnahmen = spiel.großeEinnahmen; kasse.animiere("puls"); }
+    falls (spiel.glückstreffer != gezeigteTreffer) { gezeigteTreffer = spiel.glückstreffer; meldung.animiere("funkeln"); }
+    sonst falls (erfolgNeu) { meldung.animiere("aufpoppen"); }
+    erfolgNeu = nein;
+}
+
 leer zeichne() {
+    zeigeEffekte();
     diavolo voll = spiel.version != gezeigteVersion;
     falls (voll) { zeichneVoll(); }
     falls (spiel.erfolge.länge() != gezeigteErfolge) { zeichneErfolge(); }
@@ -2417,6 +2445,7 @@ zeichne();
 zeichneImperium();     // einmal vorab, damit die (verborgenen) Reiter schon stimmen
 zeichneGeheimnisse();
 theke.zeige(wurzel);
+thekeOffen = ja;
 theke.bediene();
 
 speichere();
