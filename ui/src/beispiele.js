@@ -80,7 +80,7 @@ export function erstelleBeispiele({ ladeCode }) {
     let anzahl = 0;
     for (const k of kategorien) {
       if (aktivKat && k.kategorie !== aktivKat) continue;
-      const treffer = k.beispiele.filter((b) => !q || [b.titel, b.beschreibung, b.id, b.interaktiv ? "interaktiv spiel" : "", ...(b.schlagworte || [])].join(" ").toLowerCase().includes(q));
+      const treffer = k.beispiele.filter((b) => !q || [b.titel, b.beschreibung, b.id, b.interaktiv ? "interaktiv spiel" : "", b.herd ? "herd spiel grafik 2d 3d" : "", ...(b.schlagworte || [])].join(" ").toLowerCase().includes(q));
       if (!treffer.length) continue;
       const sektion = el("section", "bsp-kategorie");
       sektion.dataset.testid = "beispiel-kategorie";
@@ -122,6 +122,13 @@ export function erstelleBeispiele({ ladeCode }) {
       ia.title = "Spiel: Du gibst während des Laufs Eingaben in der Konsole ein.";
       ia.dataset.testid = "beispiel-interaktiv";
       fuss.appendChild(ia);
+    }
+    if (b.herd) {
+      const hd = el("span", "bsp-interaktiv bsp-herd");
+      hd.innerHTML = iconSvg("monitor") + "<span>Herd</span>";
+      hd.title = "Herd-Spiel: läuft in einem eigenen Fenster mit 2D-/3D-Grafik; Steuerung mit Tastatur und Maus.";
+      hd.dataset.testid = "beispiel-herd";
+      fuss.appendChild(hd);
     }
     (b.schlagworte || []).slice(0, 4).forEach((s) => fuss.appendChild(el("span", "schlagwort", s)));
     const tb = tierBadge(b.tier, true);

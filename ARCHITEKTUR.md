@@ -201,7 +201,7 @@ Regeln für jeden Abschnitt:
 4. Alles Weitere (Tabellen, Randfälle, Fehlercodes, zweites Beispiel) kommt in `details` (standardmäßig zugeklappt).
 5. Kurze Sätze, aktive Sprache, Humor ja – aber Verständlichkeit zuerst.
 
-**Bilder** (`site/img/doku/*.svg`, Präfix je Doku-Datei: `ge-`, `sp-`, `pf-`, `re-`):
+**Bilder** (`site/img/doku/*.svg`, Präfix je Doku-Datei: `ge-`, `sp-`, `pf-`, `re-`, `he-`; Herd-Doku auch PNG-Render-Bilder):
 - Handgeschriebenes SVG, `viewBox="0 0 640 360"` (oder 640×240 für flache), keine externen Referenzen, keine Skripte, keine Webfonts; Schrift `font-family="system-ui, sans-serif"`, mind. 14px.
 - Werden per `<img>` auf einer **hellen Karte** gezeigt (auch im Dunkelmodus) → für hellen Hintergrund gestalten, Hintergrund transparent.
 - Palette: Teig/Rand `#E8C48A`/`#C8955A`, Tomate `#D9452B`, Mozzarella `#FFF6E0` (Kontur `#E6D3A8`), Basilikum `#3E8E41`, Ofen/Anthrazit `#2F2A26`, Text `#2F2A26`, Akzent Gelb `#F2B33D`, Ananas `#F5C518`.
@@ -215,7 +215,7 @@ Regeln für jeden Abschnitt:
 - `ordnung`-Bereiche: 0–99 Geschichte · 100–199 Einstieg · 200–299 Sprache · 300–399 Pizza-Funktionen · 400–499 Ananas/Hawaii · 500–599 Standardbibliothek · 600–699 Toolchain/Referenz.
 - Die UI lädt alle Doku-Dateien über eine feste Liste in `index.html` (`<script type="application/json" id="doku-dateien">`;
   `js/thema.js` lädt sie im Playground sofort nach, beim App-Link `#app=…` gar nicht). Dateinamen:
-  `00-geschichte.js`, `10-sprache.js`, `20-pizzafunktionen.js`, `30-referenz.js`.
+  `00-geschichte.js`, `10-sprache.js`, `20-pizzafunktionen.js`, `30-referenz.js`, `40-herd.js` (Herd, `ordnung` 591–598).
 
 ## 5. UI
 

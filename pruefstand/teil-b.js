@@ -121,9 +121,10 @@ const DOKU_BEREICHE = {
   "00-geschichte.js": [[0, 99]],
   "10-sprache.js": [[100, 299], [400, 499]],
   "20-pizzafunktionen.js": [[300, 399]],
-  "30-referenz.js": [[500, 699]],
+  "30-referenz.js": [[500, 590], [599, 699]],
+  "40-herd.js": [[591, 598]],
 };
-const BILD_PRAEFIX = { "00-geschichte.js": "ge-", "10-sprache.js": "sp-", "20-pizzafunktionen.js": "pf-", "30-referenz.js": "re-" };
+const BILD_PRAEFIX = { "00-geschichte.js": "ge-", "10-sprache.js": "sp-", "20-pizzafunktionen.js": "pf-", "30-referenz.js": "re-", "40-herd.js": "he-" };
 
 /** Lädt jede Doku-Datei in einem frischen VM-Kontext. → { dateien: [{datei, abschnitte, fehler}] } */
 function ladeDoku() {
