@@ -4,10 +4,11 @@ import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
-import { ausInterpreterErgaenzen } from "./woerter.js";
+import { ausInterpreterErgaenzen, herdSchemaErgaenzen } from "./woerter.js";
 import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
 import { erstelleVorschau } from "./vorschau.js";
+import { erstelleHerdAnzeige, herdLaufVorbereiten, nutztHerd, ladeHerdSchema } from "./herd.js";
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen, vorratEntfernen, vorratSchluessel } from "./vorrat.js";
 import { startApp } from "./app.js";
@@ -126,6 +127,9 @@ function start() {
     toast,
   });
   tabs.laden();
+  // Herd: Komponenten, Felder, Teil-Methoden, Grundformen und Palette aus site/js/herd/schema.json für Vervollständigung und
+  // Hervorhebung (HERD.md §3.3) – eine neue Komponente im Kern erscheint ohne Änderung an der UI
+  ladeHerdSchema().then((s) => { if (herdSchemaErgaenzen(s)) editor.neuHervorheben(); });
 
   function speichern() {
     const t = tabs.sichern();
@@ -145,14 +149,18 @@ function start() {
 
   // Theke-Vorschaufenster (UI-Ereignisse gehen über die Ausführung zurück ans Programm)
   const vorschau = erstelleVorschau({
-    beiEreignis: (ev) => ausfuehrung.uiEreignis(ev),
+    // Herd (H6): Schließen-Knopf → „geschlossen“ über den Herd-Puffer; sonst Theke-Ereignisse an das Programm
+    beiEreignis: (ev) => { if (herd.aktiv && ev && ev.typ === "geschlossen") herd.nutzerSchliesst(); else ausfuehrung.uiEreignis(ev); },
     beiZu: () => editor.view.focus(),
   });
+  const herd = erstelleHerdAnzeige({ vorschau, beiMeldung: (text) => konsole.system(text, "fehler") });
 
   const ausfuehrung = erstelleAusfuehrung({
     beiUi(n) { vorschau.nachricht(n); },
+    beiHerd(ev) { herd.ereignis(ev); },
     beiVorrat(name, eintraege) { vorratSpeichern(laufVorratPraefix, name, eintraege); },
     beiStart() {
+      herd.beenden();
       vorschau.beenden();
       konsole.leeren(false);
       konsole.setzeLauf({ laeuft: true, name: laufName });
@@ -166,6 +174,7 @@ function start() {
     beiEnde(info) {
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
+      herd.beenden();
       vorschau.beenden();
       knopfBacken.hidden = false;
       knopfAbbr.hidden = true;
@@ -606,7 +615,7 @@ function start() {
     const code = editor.text();
     // Interaktive Programme (Eingabe, Theke) brauchen SharedArrayBuffer/Atomics → Cross-Origin-Isolation.
     // Ohne sie gibt es keinen Ersatzmodus (Browser = nativ), sondern eine klare Fehlermeldung.
-    if (!interaktivMoeglich() && (/\bBestellannahme\s*\./.test(code) || /\bneu\s+Theke\s*\(/.test(code))) {
+    if (!interaktivMoeglich() && (/\bBestellannahme\s*\./.test(code) || /\bneu\s+Theke\s*\(/.test(code) || /\bneu\s+Herd\s*\(/.test(code))) {
       konsole.leeren(false);
       $("exit-badge").hidden = true;
       $("lauf-info").textContent = "";
@@ -623,6 +632,14 @@ function start() {
       try { await (pruefungLaeuft || pruefeFaehigkeiten()); } finally { backenWartet = false; }
       if (ausfuehrung.laeuft) return;
     }
+    // Herd (H6): kern.wasm (einmal je Seite kompiliert), Port zum Render-Worker und Takt-Puffer – nur für Herd-Programme
+    let herdLauf = null;
+    if (nutztHerd(code) && interaktivMoeglich()) {
+      if (backenWartet) return;
+      backenWartet = true;
+      try { herdLauf = await herdLaufVorbereiten(code); } finally { backenWartet = false; }
+      if (ausfuehrung.laeuft) return;
+    }
     laufTabId = t ? t.id : null;
     laufName = t ? t.name : "";
     const saat = neueSaat();
@@ -635,7 +652,9 @@ function start() {
       vorrat: vorratAktiv ? vorratLaden(laufVorratPraefix) : undefined,
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),
+      ...(herdLauf ? herdLauf.extra : {}),
     });
+    herd.lauf(herdLauf && herdLauf.kontext);
     konsole.saat(saat);
   }
   knopfBacken.addEventListener("click", backen);

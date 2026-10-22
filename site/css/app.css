@@ -1131,6 +1131,16 @@ button.k-meldung:hover { border-color: currentColor; }
 .vorschau-zu:hover { background: var(--fehler-weich); color: var(--fehler); }
 .vorschau-inhalt { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .vorschau-hinweis { margin: 0; padding: 16px; color: var(--text-2); font-size: 13px; }
+/* Herd (H6): Canvas füllt den Inhalt; die Glut passt das Spielfeld seitentreu ein (Ränder = Hintergrundfarbe der Welt) */
+.vorschau.herd .vorschau-inhalt { position: relative; overflow: hidden; background: #000; }
+.herd-canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; cursor: default; }
+.herd-canvas:focus-visible { outline: 2px solid var(--fokus); outline-offset: -2px; }
+.herd-status {
+  position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: 6px; pointer-events: none;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #fff; background: rgb(0 0 0 / .35); opacity: .75;
+}
+.herd-status:empty { display: none; }
+.vorschau.herd .vorschau-hinweis { color: #ddd; }
 @media (max-width: 599.98px) {
   .vorschau { inset: 0 !important; width: auto !important; height: auto !important; max-width: none; max-height: none; border-radius: 0; border: 0; resize: none; }
   .vorschau-kopf { cursor: default; height: 48px; }
@@ -1243,6 +1253,10 @@ button.k-meldung:hover { border-color: currentColor; }
 :root[data-app] .vorschau-kopf.app-zu > :not(.vorschau-zu):not(.app-bearbeiten) { display: none; }
 :root[data-app] .vorschau-zu { width: 30px; height: 30px; border-radius: 50%; color: var(--text-3); opacity: .8; }
 :root[data-app] .vorschau-zu svg { width: 14px; height: 14px; }
+/* Herd-App: Spielfeld bildschirmfüllend, das X schwebt dezent darüber */
+:root[data-app] .vorschau.herd .vorschau-kopf.app-zu { position: absolute; top: 0; right: 0; z-index: 2; background: transparent; }
+:root[data-app] .vorschau.herd .vorschau-zu { color: #fff; background: rgb(0 0 0 / .3); }
+:root[data-app] .herd-canvas:focus-visible { outline: none; }
 :root[data-app] .vorschau-zu:hover { opacity: 1; background: var(--flaeche-3); color: var(--text); }
 :root[data-app] .vorschau-zu:focus-visible { opacity: 1; outline: 2px solid var(--fokus); outline-offset: -2px; }
 

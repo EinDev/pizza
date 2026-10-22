@@ -51,7 +51,7 @@ export function reiheUiEreignisEin(schlange, ereignis) {
   return schlange;
 }
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat }) {
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat, beiHerd }) {
   let worker = null, laeuft = false, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
   let sab = null, wartet = false, wartezeit = 0, warteBeginn = 0;
@@ -107,6 +107,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
     }
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
     if (ev.typ === "ui") { beiUi && beiUi(ev.nachricht); return; }
+    if (ev.typ === "herd") { beiHerd && beiHerd(ev); return; }   // fenster/schliesse (Bilder gehen direkt an den Render-Worker)
     if (ev.typ === "vorrat-speichern") { beiVorrat && beiVorrat(ev.name, ev.eintraege); return; }
     if (ev.typ === "ui-warte") {
       if (!sab) return;
@@ -170,7 +171,8 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       if (!Array.isArray(extra.eingabe) && interaktivMoeglich()) {
         try { sab = new SharedArrayBuffer(8 + PUFFER_BYTES); nachricht.eingabePuffer = sab; } catch (e) { sab = null; }
       }
-      worker.postMessage(nachricht);
+      // Herd (H6): MessagePort zum Render-Worker übertragen (herdKern = WebAssembly.Module wird geklont)
+      worker.postMessage(nachricht, extra.herdPort ? [extra.herdPort] : []);
     },
     /** Köche-Einstellung geändert (K-104/14): einen ruhenden, warm gehaltenen Lauf-Worker samt Köche-Pool beenden –
      *  der nächste Lauf startet frisch mit der neuen Anzahl. Ein laufender Lauf bleibt unberührt. */

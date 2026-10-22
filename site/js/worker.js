@@ -13,6 +13,12 @@
  *   koeche (tatsächlich genutzt, 1 ohne Köche/Interpreter) und poolWarm: true, solange der Pool lebt (die Seite darf
  *   diesen Worker für den nächsten Lauf wiederverwenden).
  * Regel (WASM.md §4): motor "wasm" fällt NIE auf den Interpreter zurück – stattdessen Fehler (Exit-Code 2).
+ * Herd (HERD.md §7.2, Paket H6): "start" trägt bei Herd-Programmen herdKern (WebAssembly.Module von kern.wasm, einmal auf
+ *   der Seite kompiliert), herdPort (MessagePort zum Render-Worker, übertragen) und herdPuffer (SharedArrayBuffer, Takt-Weg).
+ *   Für Interpreter und Wasm-Motor gleich: optionen.herdKern, onHerd(art, daten), onUiWarte. Bildpakete gehen über den Port
+ *   (ArrayBuffer übertragen) direkt an den Render-Worker; an die Seite gehen nur die Ereignisse herd/fenster und
+ *   herd/schliesse (herd/bild nicht – das spart je Bild eine Nachricht an den Hauptthread). Takte wartet der Worker am
+ *   Herd-Puffer ab (Layout: js/herd/zeichner.js) – der Render-Worker schreibt sie selbst, ohne Umweg über die Seite.
  */
 "use strict";
 
@@ -114,6 +120,47 @@ function uiWarteRueckruf(sab) {
   };
 }
 
+/* ---------- Herd (HERD.md §7.2): Takt-Weg über den Herd-Puffer, Bildpakete über den Port ----------
+ * Puffer (Int32): [0] Folgenummer (Render-Worker zählt hoch), [1] geschlossen, [2] Länge, ab Byte 16 JSON-Takt. */
+function herdBruecke(d) {
+  var port = d.herdPort && typeof d.herdPort.postMessage === "function" ? d.herdPort : null;
+  var sab = (typeof SharedArrayBuffer !== "undefined" && d.herdPuffer instanceof SharedArrayBuffer) ? d.herdPuffer : null;
+  var ctrl = sab ? new Int32Array(sab, 0, 4) : null;
+  var daten = sab ? new Uint8Array(sab, 16) : null;
+  var dekoder = new TextDecoder();
+  var b = { aktiv: false, gelesen: ctrl ? Atomics.load(ctrl, 0) : 0 };
+  b.onHerd = port || ctrl ? function (art, info) {
+    if (art === "fenster") {
+      if (!b.aktiv && ctrl) Atomics.store(ctrl, 1, 0);   // (wieder) geöffnet: altes „geschlossen“ gilt nicht mehr
+      b.aktiv = true;
+    } else if (art === "schliesse") {
+      b.aktiv = false;
+    } else if (art === "bild" && port && info && info.bytes && info.bytes.buffer) {
+      var bytes = info.bytes;   // eigene Kopie (pizza.js: slice) → übertragen statt kopieren
+      if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) port.postMessage(bytes.buffer, [bytes.buffer]);
+      else { var k = bytes.slice(); port.postMessage(k.buffer, [k.buffer]); }
+    }
+  } : undefined;
+  /** Blockierend auf den nächsten Takt warten (null = kein Herd-Weg → Theke-Weg). */
+  b.warte = function () {
+    if (!ctrl || !b.aktiv) return undefined;
+    flush();
+    for (;;) {
+      if (Atomics.load(ctrl, 1) !== 0) { b.aktiv = false; return { typ: "geschlossen" }; }
+      var s = Atomics.load(ctrl, 0);
+      if (s !== b.gelesen) {
+        b.gelesen = s;
+        var n = Math.min(Atomics.load(ctrl, 2), daten.length);
+        var kopie = new Uint8Array(n);
+        kopie.set(daten.subarray(0, n));
+        try { return JSON.parse(dekoder.decode(kopie)); } catch (e) { continue; }
+      }
+      Atomics.wait(ctrl, 0, s);
+    }
+  };
+  return b;
+}
+
 /* ---------- Küchenbrigade: Gruppe kueche erkennen, Köche-Pool vor dem Lauf ---------- */
 /** Nutzt das Programm brigade? Wie der Compiler (frontend.js): Methodenaufruf/Zugriff namens brigade im AST. */
 function nutztBrigade(code) {
@@ -192,6 +239,13 @@ function starte(d, pool, brigade) {
   }
 
   var endeGesehen = false, motorGesehen = false, ergebnis = null, t0 = jetzt();
+  var herd = herdBruecke(d);
+  var thekeWarte = (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined;
+  var uiWarte = thekeWarte || herd.onHerd ? function () {
+    var t = herd.warte();
+    if (t !== undefined) return t;
+    return thekeWarte ? thekeWarte() : null;
+  } : undefined;
   var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" ? "wasm" : "interpreter"); };
   var opt = {
     args: Array.isArray(d.args) ? d.args : [],
@@ -203,9 +257,12 @@ function starte(d, pool, brigade) {
     onVorrat: d.vorratAktiv ? function (name, eintraege) { sende({ typ: "vorrat-speichern", name: name, eintraege: eintraege }); return true; } : undefined,
     onEingabe: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? eingabeRueckruf(d.eingabePuffer) : undefined,
     koeche: pool || undefined,
-    onUiWarte: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined,
+    onUiWarte: uiWarte,
+    herdKern: typeof WebAssembly !== "undefined" && d.herdKern instanceof WebAssembly.Module ? d.herdKern : undefined,
+    onHerd: herd.onHerd,
     onEvent: function (ev) {
       if (!ev) return;
+      if (ev.typ === "herd" && ev.art === "bild" && herd.onHerd) return;   // Bilder nur an den Render-Worker
       if (ev.typ === "motor") {
         motorGesehen = true;
         if (motor === "wasm" && ev.motor !== "wasm") { // Sicherheitsnetz gegen Fallback

@@ -87,6 +87,8 @@ export const ANIMATIONEN = ["puls", "huepfen", "wackeln", "funkeln", "einblenden
  * binde("…" → bindbare Eigenschaften, animiere("…" → Arten. Liefert {von, liste, art} oder null.
  */
 export function textArgumentVorschlaege(vorCursor) {
+  const herd = herdTextVorschlaege(vorCursor);
+  if (herd) return herd;
   const m = /\.(stil|bindeStil|binde|animiere)\(\(?"([\p{L}]*)$/u.exec(vorCursor);
   if (m) {
     const liste = m[1] === "binde" ? BINDBAR : m[1] === "animiere" ? ANIMATIONEN : STIL_SCHLUESSEL;
@@ -106,4 +108,57 @@ export function ausInterpreterErgaenzen(PL) {
     (PL.BUILTINS || []).forEach((w) => BUILTINS.add(w));
     (PL.ANANAS || []).forEach((w) => ANANAS.add(w));
   } catch (e) { /* Interpreter liefert unerwartete Daten – Basislisten genügen */ }
+}
+
+// ---------- Herd (SPEC §18, HERD.md §4) ----------
+// Feste Sprachteile (Herd-Methoden) stehen hier; Komponenten, ihre Felder, Teil-Methoden, Grundformen und die Palette kommen
+// aus site/js/herd/schema.json (herdSchemaErgaenzen) – eine neue Komponente erscheint so ohne Änderung an der UI.
+
+/** Methoden eines Herd-Objekts (`herd.…`). */
+export const HERD_METHODEN = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit",
+  "taste", "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick",
+  "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
+  "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum"];
+/** Generische Komponenten-Methoden (SPEC §18.4). */
+export const KOMPONENTEN_METHODEN = ["hole", "setze", "teil"];
+/** Tastennamen (K-110) für taste/gedrueckt/losgelassen("…"). */
+export const HERD_TASTEN = ["Links", "Rechts", "Hoch", "Runter", "Leertaste", "Enter", "Escape", "Tab", "Rücktaste", "Entfernen",
+  "Pos1", "Ende", "BildHoch", "BildRunter", "w", "a", "s", "d"];
+/** Palette (aus dem Schema; Rückfall v1) für farbe: "…". */
+export const HERD_FARBEN = ["weiss", "schwarz", "grau", "ofen", "tomate", "salami", "schinken", "basilikum", "oliven", "mozzarella",
+  "teig", "kruste", "ananas", "senf", "himmel", "wasser", "aubergine"];
+MITGLIEDER.Herd = ["farbe"];
+MITGLIEDER.Form = ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"];
+for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
+
+/** Ergänzt Typen, Methoden, Grundformen und Palette aus dem Herd-Schema (site/js/herd/schema.json). */
+export function herdSchemaErgaenzen(schema) {
+  if (!schema || !Array.isArray(schema.komponenten)) return false;
+  const neu = (m) => { if (typeof m === "string" && m && !ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m); };
+  for (const k of schema.komponenten) {
+    if (!k || typeof k.name !== "string") continue;
+    TYPEN.add(k.name);
+    neu(k.name[0].toLowerCase() + k.name.slice(1));                // teil.bewegung()
+    for (const f of k.felder || []) {
+      if (!f || typeof f.name !== "string") continue;
+      neu(f.name);                                                   // Getter
+      neu("setze" + f.name[0].toUpperCase() + f.name.slice(1));     // Setter
+    }
+  }
+  (schema.teil_methoden || []).forEach(neu);
+  if (Array.isArray(schema.grundformen) && schema.grundformen.length) MITGLIEDER.Form = schema.grundformen.slice();
+  if (Array.isArray(schema.palette) && schema.palette.length) {
+    HERD_FARBEN.length = 0;
+    for (const p of schema.palette) if (p && typeof p.name === "string") HERD_FARBEN.push(p.name);
+  }
+  return true;
+}
+
+/** Text-Argumente des Herds: farbe: "…" (Palette), taste/gedrueckt/losgelassen("…") (Tastennamen). */
+export function herdTextVorschlaege(vorCursor) {
+  const f = /\b(?:farbe|hintergrund|himmel|umgebung|nebel)(?::\s*|\()\(?"([\p{L}]*)$/u.exec(vorCursor) || /\bfarbe\s*,\s*"([\p{L}]*)$/u.exec(vorCursor);
+  if (f) return { von: vorCursor.length - f[1].length, liste: HERD_FARBEN, art: "constant" };
+  const t = /\.(?:taste|gedrueckt|losgelassen)\(\(?"([\p{L}\p{N}]*)$/u.exec(vorCursor);
+  if (t) return { von: vorCursor.length - t[1].length, liste: HERD_TASTEN, art: "constant" };
+  return null;
 }

@@ -9,6 +9,7 @@ import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
 import { leseKoeche, koecheFuerLauf } from "./koeche.js";
 import { erstelleVorschau, ladeRenderer } from "./vorschau.js";
+import { erstelleHerdAnzeige, herdLaufVorbereiten, ladeHerdKern, nutztHerd } from "./herd.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
 import { entpacke, appTitel } from "./teilen.js";
 
@@ -28,7 +29,7 @@ export function startApp(key) {
   konsoleEl.hidden = true;
   document.title = TITEL;
 
-  let code = null, titel = TITEL, istTheke = false, faehigkeiten = null, hatAusgabe = false, laeuft = false;
+  let code = null, titel = TITEL, istTheke = false, istHerd = false, faehigkeiten = null, hatAusgabe = false, laeuft = false;
 
   function fortschritt(anteil) {
     fuellung.style.setProperty("--anteil", String(anteil));
@@ -99,7 +100,12 @@ export function startApp(key) {
   });
 
   // Thema: wie im Playground (gemerkte Wahl, sonst OS – auch live)
-  const vorschau = erstelleVorschau({ beiEreignis: (ev) => ausfuehrung.uiEreignis(ev), beiZu: null, vollbild: true });
+  const vorschau = erstelleVorschau({
+    beiEreignis: (ev) => { if (herd.aktiv && ev && ev.typ === "geschlossen") herd.nutzerSchliesst(); else ausfuehrung.uiEreignis(ev); },
+    beiZu: null, vollbild: true,
+  });
+  // Herd (H6): Spielfeld bildschirmfüllend, seitentreu (die Glut passt ein); ohne Statuszeile
+  const herd = erstelleHerdAnzeige({ vorschau, vollbild: true, status: false, beiMeldung: (text) => { konsole.system(text, "fehler"); hatAusgabe = true; } });
   function setzeMeta() {
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", html.dataset.theme === "dark" ? "#16171a" : "#fbf7f0"));
   }
@@ -117,6 +123,7 @@ export function startApp(key) {
 
   const ausfuehrung = erstelleAusfuehrung({
     beiStart() {
+      herd.beenden();
       vorschau.beenden();
       konsole.leeren(false);
       hatAusgabe = false;
@@ -125,7 +132,13 @@ export function startApp(key) {
     beiMotor() {
       fortschritt(0.9);
       // Konsolenprogramm: ab jetzt läuft es – Konsole zeigen. Theke: warten, bis das Fenster kommt.
-      if (!istTheke) zeigeKonsole();
+      if (!istTheke && !istHerd) zeigeKonsole();
+    },
+    beiHerd(ev) {
+      if (ev && ev.art === "fenster" && ev.titel != null) document.title = String(ev.titel) || titel;
+      herd.ereignis(ev);
+      if (ev && ev.art === "schliesse") zeigeKonsole();
+      else requestAnimationFrame(zeige);
     },
     beiUi(n) {
       if (n && n.op === "fenster" && n.titel != null) document.title = String(n.titel) || "Theke";
@@ -155,8 +168,9 @@ export function startApp(key) {
       laeuft = false;
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
+      herd.beenden();
       vorschau.beenden();
-      konsoleEl.hidden = !(hatAusgabe || !istTheke);
+      konsoleEl.hidden = !(hatAusgabe || !(istTheke || istHerd));
       const c = info.exitCode;
       zeigeEnde(c === 0 ? "Programm beendet." : "Programm beendet (Exit-Code " + c + ").", { fehler: c !== 0 });
     },
@@ -170,7 +184,7 @@ export function startApp(key) {
     catch (e) { return Math.floor(Math.random() * 4294967296); }
   }
 
-  function starten() {
+  async function starten() {
     html.classList.remove("app-gestartet");
     fortschritt(0.7);
     konsoleEl.hidden = true;
@@ -178,6 +192,7 @@ export function startApp(key) {
     const saat = neueSaat();
     const vorratAktiv = vorratVerfuegbar();
     laeuft = true;
+    const herdLauf = istHerd ? await herdLaufVorbereiten(code) : null;
     ausfuehrung.starte(code, [], "auto", {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
@@ -185,7 +200,9 @@ export function startApp(key) {
       vorrat: vorratAktiv ? vorratLaden(VORRAT) : undefined,
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),   // dieselbe Einstellung wie im Playground (THREADS §4.8)
+      ...(herdLauf ? herdLauf.extra : {}),
     });
+    herd.lauf(herdLauf && herdLauf.kontext);
     // Kein „Saat: N“ wie im Playground/Terminal – in der App stört es nur
   }
   knopfNochmal.addEventListener("click", () => {
@@ -217,15 +234,16 @@ export function startApp(key) {
     titel = appTitel(titel) || TITEL;
     document.title = titel;
     istTheke = /\bneu\s+Theke\s*\(/.test(code);
+    istHerd = nutztHerd(code);
     // Wie im Playground: interaktive Programme brauchen Cross-Origin-Isolation (kein Ersatzmodus)
-    if (!interaktivMoeglich() && (istTheke || /\bBestellannahme\s*\./.test(code))) {
+    if (!interaktivMoeglich() && (istTheke || /\bneu\s+Herd\s*\(/.test(code) || /\bBestellannahme\s*\./.test(code))) {
       konsoleEl.hidden = false;
       konsole.leeren(false);
       konsole.system("Dieser Browser erlaubt keine interaktive Eingabe (Cross-Origin-Isolation fehlt). Das Programm wurde nicht gestartet.", "fehler");
       zeigeEnde("Programm nicht gestartet.", { fehler: true, nochmal: false });
       return;
     }
-    const [f] = await Promise.all([pruefeMotor(), istTheke ? ladeRenderer() : null]);
+    const [f] = await Promise.all([pruefeMotor(), istTheke ? ladeRenderer() : null, istHerd ? ladeHerdKern().catch(() => null) : null]);
     faehigkeiten = f;
     fortschritt(0.55);
     starten();

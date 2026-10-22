@@ -83,6 +83,9 @@ const SNIPPETS = [
   // Theke v5/v7 (SPEC §16.8, §16.10) und Vorratskammer mit Namensraum (§15.4, K-106)
   snippetCompletion("Zettel ${name} = neu Zettel(${0});", { label: "Zettel", detail: "beobachtbarer Wert (Theke v5)", type: "class", boost: 3 }),
   snippetCompletion("Zettel ${name} = Zettel.aus(() -> ${});", { label: "Zettel.aus", detail: "abgeleiteter Zettel (Theke v7)", type: "function", boost: 3 }),
+  // Herd (SPEC §18): Grundgerüst eines Spiels
+  snippetCompletion("Herd ${herd} = neu Herd(\"${Mein Spiel}\", breite: ${640}, hoehe: ${360});\n${}\n${herd}.backe(() -> {\n\t\n});",
+    { label: "Herd", detail: "Spiel-Engine: Fenster + Spielschleife", type: "class", boost: 3 }),
   snippetCompletion("Vorratskammer ${kammer} = neu Vorratskammer(\"${spielstand}\", namensraum: \"${mein-spiel}\");",
     { label: "Vorratskammer", detail: "persistenter Zustand (mit Namensraum)", type: "class", boost: 3 }),
 ];
@@ -156,6 +159,7 @@ const dunkelThema = EditorView.theme({}, { dark: true });
 
 export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
   const themaFach = new Compartment();
+  const spracheFach = new Compartment();   // Herd-Schema nachgeladen → Hervorhebung neu (neuHervorheben)
   const dunkel = () => document.documentElement.dataset.theme === "dark";
   const themaExt = () => (dunkel() ? dunkelThema : hellThema);
   const erweiterungen = [
@@ -169,7 +173,7 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
     }),
     rectangularSelection(), crosshairCursor(), highlightActiveLine(), highlightSelectionMatches(),
     EditorState.tabSize.of(4),
-    pizzaUnterstuetzung(),
+    spracheFach.of(pizzaUnterstuetzung()),
     linter(pizzaLinter, { delay: 350 }),
     sprungFeld, lintAttribute,
     placeholder("// Schreib hier deine Pizza …"),
@@ -210,6 +214,11 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
     },
     setzeThema() { view.dispatch({ effects: themaFach.reconfigure(themaExt()) }); },
     lintNeu() { forceLinting(view); },
+    /** Wortlisten haben sich geändert (z. B. Komponenten aus schema.json): Text neu einfärben. */
+    neuHervorheben() {
+      view.dispatch({ effects: spracheFach.reconfigure([]) });
+      view.dispatch({ effects: spracheFach.reconfigure(pizzaUnterstuetzung()) });
+    },
     suchen() { openSearchPanel(view); },
   };
 }

@@ -73,8 +73,8 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     wende();
   }
 
-  function fensterInfo(info) {
-    if (info.titel != null) titelEl.textContent = info.titel || "Theke";
+  function fensterInfo(info, standard = "Theke") {
+    if (info.titel != null) titelEl.textContent = info.titel || standard;
     // K-123: jeder Lauf nimmt breite/hoehe des Programms – einmal je Lauf (setzeTitel sendet fenster erneut) und nur, solange
     // der Nutzer das Fenster in diesem Lauf nicht selbst verschoben oder in der Größe geändert hat
     if (!vollbild && !groesseUebernommen && !nutzerGeaendert) {
@@ -91,6 +91,8 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     nutzerGeaendert = false;
     titelEl.textContent = "Theke";
     inhalt.textContent = "";
+    fenster.classList.remove("herd");
+    document.getElementById("vorschau-icon").innerHTML = iconSvg("monitor");
     if (vollbild) wende(); else if (!geo) zentriere(480, 360); else wende();
     fenster.hidden = false;
     fenster.focus({ preventScroll: true });
@@ -133,6 +135,7 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
     theke = null;
     warteschlange = [];
     inhalt.textContent = "";
+    fenster.classList.remove("herd");
     schliesseFenster();
   }
 
@@ -184,6 +187,23 @@ export function erstelleVorschau({ beiEreignis, beiZu, vollbild = false }) {
       if (theke) theke.empfange(n); else warteschlange.push(n);
     },
     setzeThema() { if (theke && theke.setzeThema) theke.setzeThema(themaJetzt()); },
+    /** Herd-Fenster (HERD.md §7.2): derselbe Rahmen ohne Theke-Renderer – Titel, Größe K-123 (Programmgröße bis Viewport),
+     *  verschiebbar, Schließen = {typ:"geschlossen"} über beiEreignis. Liefert den Inhaltsbereich für das Canvas. */
+    herd(info) {
+      if (!offen) {
+        laufNr++;
+        offen = true;
+        groesseUebernommen = false;
+        nutzerGeaendert = false;
+        inhalt.textContent = "";
+        fenster.classList.add("herd");
+        document.getElementById("vorschau-icon").innerHTML = iconSvg("play");
+        if (vollbild) wende(); else if (!geo) zentriere(info.breite, info.hoehe); else wende();
+        fenster.hidden = false;
+      }
+      fensterInfo(info, "Herd");
+      return inhalt;
+    },
     /** Neuer Lauf / Lauf beendet / abgebrochen → Fenster schließen und aufräumen. */
     beenden: aufraeumen,
     get offen() { return offen; },
