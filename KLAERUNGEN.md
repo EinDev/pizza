@@ -1781,82 +1781,93 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (frontend/backend-wasm), Wasm-Laufzeit (`laufzeit/src/{ops,pf,std_m,zahl,namen,wert}.rs`), Prüfstand a07/a08/a10/a14, `tests/faelle`,
   `tests/wasm`, Differenzkorpus, Fuzz-Generator, Beispiele (ohne Pizza-Imperium: eigener Agent), Doku, Editor-Wortlisten. **Status:** fest.
 
-### K-128 Herd: Spiel-Engine für 2D und 3D – ein Render-Kern, dünne GPU-Schichten (Nutzerwunsch)
+### K-128 Herd: Spiel-Engine für 2D und 3D in drei Schichten (Nutzerwünsche; ersetzt Fassung 1dbf259)
 - **Anlass (Nutzer, wörtlich):** „Kannst du eine simple Game-Engine hinzufügen? Die sollte auf Desktop nativ rendern, nicht mit HTML (wenn
-  möglich) und im Browser soweit möglich, sonst als Browser-Engine.“ Präzisierung: „Ziel ist, dass wir 3D- und 2D-Games programmieren
-  können. Fokus liegt auf Grafik.“
-- **Entscheidung:** Neue Engine **`Herd`** (eigenes Fenster mit Spielschleife, SPEC §18, `HERD.md`). Gerendert wird mit der **GPU**: ein
-  gemeinsamer **Herd-Kern** (Rust `no_std`, nativ als Bibliothek, im Browser als `kern.wasm` ohne wasm-bindgen – wie `laufzeit.wasm`
-  eingecheckt) zerlegt Befehle in Dreiecke, setzt Text, rechnet Matrizen und liefert eine Zeichenliste; darunter nur noch dünne Schichten:
-  **nativ wgpu** (DX12/Vulkan/GL) im **winit**-Fenster ohne HTML, **im Browser WebGL2**. Dieselben Shader (WGSL, GLSL-ES-Fassung per naga
-  erzeugt und eingecheckt).
-- **Verworfen:** Software-Rasterizer (3D mit Licht/Schatten bei 60 fps in HiDPI im Browser zu langsam), Canvas2D + nativer Vektor-Renderer
-  (zwei Renderer, nur 2D), wgpu auch im Browser (MB-große Wasm + wasm-bindgen-Werkzeugkette; der Kern liefert das Gemeinsame schon),
-  WebGPU-zuerst (zwei Browser-Backends, fehlt headless/auf Linux; später additiv), OpenGL nativ (Windows-Treiber, kein WARP-Rückfall).
-- **Betroffen:** `HERD.md`, SPEC §18, neue Verzeichnisse `herd/`, `site/js/herd/`; Interpreter, Laufzeit, Host, UI. **Status:** fest.
+  möglich) und im Browser soweit möglich, sonst als Browser-Engine.“ – „Ziel ist, dass wir 3D- und 2D-Games programmieren können. Fokus liegt
+  auf Grafik.“ – „Mache die Engine mit genug Abstraktion, sodass wir mehr High-Level-Elemente hinzufügen können.“ – „Ich brauche aber alle
+  Performance, die ich bekommen kann. Effizienz ist ein großes Thema.“ – „Ziel ist wirklich eine Game-Engine wie Unity zu haben. Natürlich
+  weniger Funktionen am Anfang, aber zunehmend mehr Funktionen.“
+- **Entscheidung:** Engine **`Herd`** (SPEC §18, `HERD.md`) in drei Schichten: **Glut** (Render-Backend, Rust + **wgpu** überall: nativ
+  DX12/Vulkan/GL im winit-Fenster ohne HTML, im Browser dieselbe Crate per wasm-bindgen auf WebGPU mit WebGL2-Rückfall; schmale
+  Schnittstelle `neu`/`bild`/`lies_pixel`) → **Kern** (Rust `no_std`, nativ Bibliothek, im Browser `kern.wasm` ohne Importe; Welt mit
+  Teilen, Lage-Hierarchie, Ressourcen, Systemen, Culling, Batching → Bildpaket) → **Komponenten-Registry** (je Komponente ein Rust-Modul
+  mit Schema, Speicher als Struktur von Arrays, System, Bildbeitrag; eine Registry-Zeile). Die Szene lebt **retained in der Engine**; pizza
+  hält Handles und ändert Deltas über numerische Direktaufrufe (kein JSON im Bildpfad).
+- **Ausnahme zu ARCHITEKTUR §1 („pizza.js ohne Abhängigkeiten“):** Herd-Programme brauchen im Interpreter `kern.wasm` (Node-Harnische laden
+  `site/js/herd/kern.wasm`, der Worker bekommt das Modul von der Seite). Fehlt es → `fehler` `art: "intern"`, `PizzaFehler HOST: Der
+  Herd-Kern fehlt (kern.wasm).`, Exit 2. Begründung: eine Simulation an einer Stelle statt zweier Nachbauten – bitgleich durch Konstruktion.
+- **Verworfen:** Immediate Mode mit Zeichenbefehlen je Takt (Fassung 1dbf259: jeder Ball jedes Bild über die Grenze – zu teuer bei
+  10 000 Objekten), Software-Rasterizer (3D/HiDPI zu langsam), Canvas2D + nativer Vektor-Renderer, eigene JS-WebGL-Schicht (zweites
+  Backend neben wgpu; nach der Performance-Vorgabe ist wgpu-Wasm im Browser die eine Codebasis), Theke-Zutat „Leinwand“ (HTML nativ).
+- **Betroffen:** `HERD.md`, SPEC §18, neue Verzeichnisse `herd/`, `site/js/herd/`; Interpreter, Laufzeit, Compiler, Host, UI. **Status:** fest.
 
-### K-129 Herd: Befehle bitgleich, Pixel visuell gleich (Lockerung von K-082, Nutzerpräzisierung)
-- **Befund:** Verschiedene GPUs/Treiber rastern Kanten, MSAA und Gleitkomma nicht bitgleich; „Fokus Grafik“ verlangt aber die GPU.
-- **Entscheidung (Nutzerpräzisierung über den Koordinator):** **Spiellogik, Zeichenbefehle und Zeichenliste des Kerns sind bitgleich**
-  (Interpreter = Wasm = Host, Kern nativ = `kern.wasm`; Tests per Hash), **Pixel sind „visuell gleich“**: gleiche Shader, gleiche
-  Geometrie, Vergleich gegen Referenzbilder mit Toleranz (mittlere Abweichung ≤ 1,5 %, ≥ 98 % der Pixel innerhalb 10/255). Das ist die
-  einzige Stelle, an der K-082 („das Gleiche angezeigt“) gelockert wird; Texte, Größen, Farben, Schrift und Layout bleiben gleich.
-- **Status:** fest.
+### K-129 Herd: Szene und Bildpaket bitgleich, Pixel visuell gleich (Lockerung von K-082; ersetzt Fassung 1dbf259)
+- **Entscheidung (Nutzerpräzisierung über den Koordinator):** Spiellogik, **Szenenzustand und Bildpaket** sind in Interpreter, Wasm und
+  nativem Host bitgleich (Hashes je Bild, vom Kern berechnet); Kern nativ = `kern.wasm` bitgleich. **Pixel** sind „visuell gleich“ (gleiche
+  Shader, gleiche Geometrie; Toleranz: mittlere Abweichung ≤ 1,5 %, ≥ 98 % der Pixel innerhalb 10/255). Einzige Lockerung von K-082.
+- **Determinismus-Regeln im Kern:** nur `libm`, `f64` für den Zustand (f32 erst im Bildpaket), keine `HashMap`/zufälligen Hashes, Reihenfolgen
+  nur nach stabilen Schlüsseln (Teil-ID, Registry), keine FMA-Kontraktion; Test „Hash nativ = Hash Wasm“ über alle Benchmark-Szenen blockiert.
+  **Status:** fest.
 
-### K-130 Herd nativ: winit statt tao, kein neuer Link-Zwang, Meldung statt W0104
-- **Entscheidung:** Fenster per **winit** (Linux: X11/Wayland per `dlopen`), wgpu lädt Vulkan bzw. EGL/GL ebenfalls zur Laufzeit → der
-  Herd braucht **keine neue Systembibliothek beim Linken** und wohnt im glibc-only **Linux-Starter** selbst (kein memfd-Umweg). tao wäre
-  gegen GTK gelinkt (dann bräuchte jedes Spiel GTK und den Theke-Teil). Backends: Windows DX12 (WARP als Software-Rückfall), Linux Vulkan,
-  sonst GL. PE-Subsystem WINDOWS für Programme mit Importgruppe `herd` (wie Theke).
-- **Kein Fenster möglich** (keine Anzeige, kein GPU-Adapter, Fenster lässt sich nicht öffnen) → wie K-096: Meldung, Exit 2, vor dem ersten
-  Wasm-Befehl; W0104 nur im JSON-/Testmodus (`--ereignisse-json`, `--ui-ereignisse`, `PIZZA_HERD=0`).
-- **Offscreen-Modus** `--herd-bilder=ordner` (PNG je Bild, ohne Fenster, Software-Adapter bevorzugt) für Tests und Sichtprüfung.
-- **Größe:** wird gemessen und in `host/README.md` festgehalten; Zielwert Windows-EXE ≤ 6 MB. **Status:** fest.
+### K-130 Herd nativ: winit + wgpu, kein neuer Link-Zwang, Meldung statt W0104 (ersetzt Fassung 1dbf259)
+- **Entscheidung:** Fenster per **winit** (Linux X11/Wayland per `dlopen`), wgpu lädt Vulkan/EGL/GL zur Laufzeit → keine neue
+  Systembibliothek beim Linken; der Herd wohnt im glibc-only **Linux-Starter** selbst (tao wäre gegen GTK gelinkt). Windows DX12 mit
+  WARP-Rückfall, Linux Vulkan, sonst GL. PE-Subsystem WINDOWS bei Importgruppe `herd`. Programm-Thread = wasmi + Kern, Hauptthread =
+  winit + Glut, Bildpaket über einen Kanal.
+- **Kein Fenster/keine GPU möglich** → wie K-096: Meldung, Exit 2 vor dem ersten Wasm-Befehl; W0104 nur im JSON-/Testmodus
+  (`--ereignisse-json`, `--ui-ereignisse`, `PIZZA_HERD=0`). Offscreen-Modus `--herd-bilder=ordner` (PNG, Software-Adapter bevorzugt),
+  Messung `--herd-messung`. Größe gemessen in `host/README.md`; Ziel Windows-EXE ≤ 6 MB. **Status:** fest.
 
-### K-131 Herd im Browser: WebGL2, Vorschaufenster, Takt über den Theke-Weg
-- **Entscheidung:** v1 nur **WebGL2** (überall vorhanden, headless mit SwiftShader testbar); WebGPU später als zusätzliche Datei.
-  Programm im Worker, `herd`-Nachrichten per `postMessage` (übertragen) an die Seite; Kern + WebGL2 zeichnen im `requestAnimationFrame`;
-  der nächste `takt` (mit Eingabezustand) geht über den bestehenden SAB/Atomics-Weg (`onUiWarte`) zurück → braucht Cross-Origin-Isolation
-  wie Theke/Eingabe. Anzeige im schwebenden Vorschaufenster (Größe K-123), im App-Link bildschirmfüllend seitentreu. CSP unverändert.
-  Kern + WebGL-Schicht nur bei Herd-Programmen laden. Kein WebGL2 → klare Meldung, Lauf endet mit `geschlossen`. **Status:** fest.
+### K-131 Herd im Browser und Leistung (ersetzt Fassung 1dbf259)
+- **Browser:** Programm-Worker = Interpreter bzw. Programm-Wasm **plus `kern.wasm`** (Importe des Programm-Wasm direkt an Kern-Exporte
+  gebunden, ohne JS dazwischen). Dieser Worker blockiert zwischen Takten (SAB/Atomics) und **rendert nie**. Render-Worker mit
+  `OffscreenCanvas` + Glut (wgpu-Wasm, WebGPU bevorzugt, sonst WebGL2); Bildpakete per `MessageChannel` (übertragen); der Render-Worker
+  zeichnet im `requestAnimationFrame` und fordert den nächsten Takt mit Eingabezustand an. Rückfall ohne OffscreenCanvas/Worker-rAF:
+  dieselbe Glut im Hauptthread. Glut-Wasm nur für Herd-Programme laden, komprimiert ausliefern; wasm-bindgen-Crate und -CLI gleiche Version.
+  CSP unverändert. Kein WebGPU/WebGL2 → Meldung, Lauf endet mit `geschlossen`.
+- **Leistungsziele** (HERD.md §6, gemessen im Wasm-Pfad in Chrome und in der EXE; Interpreter = Referenz, kein Leistungsziel): 10 000
+  Sprites mit Bewegung+Animation bei 60 fps (Kern ≤ 2 ms EXE / ≤ 4 ms Chrome, ≤ 4 Draw-Calls), 10 000 vom Programm bewegte Kreise bei
+  60 fps (Setter ≤ 150 ns wasmi / ≤ 80 ns Chrome), 1 000 Körper mit Schatten und 8 Lichtern bei 60 fps (≤ 30 Draw-Calls), 20 000 Partikel.
+  Vorher/nachher: erste Glut ohne Instancing/Atlas als Grundlinie, Ergebnisse in `bench/herd/ERGEBNISSE.md`. Setter-Batching nur, wenn B2
+  die Ziele verfehlt (ABI-additiv). **Status:** fest.
 
-### K-132 Herd: Programmiermodell – fester Takt, `backe`, Immediate Mode, Eingabe als Zustand
-- **Entscheidung:** `herd.backe(fn)` = Spielschleife, **60 Takte je simulierter Sekunde**, `fn` läuft je Takt; Zeichnen im Immediate Mode
-  (Bild je Takt neu beschrieben); der Renderer fordert Takte an (`{"typ":"takt","anzahl":n}`, n ≤ 4 zum Aufholen, nächster erst nach
-  Erhalt des Bilds) → mit gleicher Ereignisfolge bitgleiches Spiel, nie von der Wanduhr abhängig. Eingabe als **Zustand je Takt**
-  (`tasten`, `maus`, `knoepfe`; `gedrueckt`/`klick` aus dem Wechsel) statt Rückrufen – einfacher für Spiele, kompakt aufnehmbar.
-  P0002 je Takt neu (wie K-087). Ein Herd pro Programm. Ressourcen (`Form`, `Bildchen`) einmal erzeugt, per ID gezeichnet.
-- **Verworfen:** Ereignis-Rückrufe wie die Theke (Spiele fragen Zustände ab), Wanduhr-Delta (nicht deterministisch), Szenengraph-Objekte
-  (mehr Begriffe; Immediate Mode reicht für „simple“ und ist die Testgrundlage). **Status:** fest.
+### K-132 Herd: Programmiermodell – Teile + Komponenten (generisch), fester Takt, Eingabe als Zustand (ersetzt Fassung 1dbf259)
+- **Entscheidung:** Unity-Grundmodell: **`Teil`** (2D oder 3D, Lage, Hierarchie) + **Komponenten**. Die Sprache bildet jede Komponente
+  **generisch aus dem Schema** ab (`neu Name(feld: …)`, Getter `feld()`, Setter `setzeFeld(w)`, `hole`/`setze`, Zugriff `teil.name()`),
+  Fehlertexte nach Feldtyp vom Kern – eine neue Komponente braucht keine Änderung an Interpreter, Laufzeit, Compiler, ABI oder Host.
+  Fabriken (`herd.kreis(…)`) sind Abkürzungen. Kamera- und Sonnen-Teil existieren immer (IDs 1, 2).
+- **Schleife:** `herd.backe(fn = karton)`, 60 Takte je simulierter Sekunde; je Takt `fn` (Spiellogik), dann Systeme in Rust; ein Bild je
+  `takt`-Ereignis (`anzahl` ≤ 4 zum Aufholen, nächster Takt erst nach dem Zeichnen) → gleiche Ereignisse ⇒ bitgleiches Spiel. Eingabe als
+  **Zustand je Takt** (`tasten`, `maus`, `knoepfe`). P0002 je Takt (K-087). Ein Herd pro Programm.
+- **Verworfen:** Immediate Mode (Fassung 1dbf259), eigene Methoden je Komponente in jeder Laufzeit (jede Erweiterung wäre ein Umbau),
+  Ereignis-Rückrufe für Eingabe, Wanduhr-Delta. **Status:** fest.
 
 ### K-133 Herd und Theke getrennt; beides zugleich erst später (P0013)
 - **Entscheidung:** Der Herd ist **keine** Theke-Zutat (nativ läge das Spiel sonst in der WebView). Ein Programm mit `neu Herd` **und**
   `neu Theke` → `PizzaFehler P0013: Theke und Herd in einem Programm gibt es noch nicht.` vor dem Start: nativ laufen tao (Theke) und
-  winit (Herd) nicht in einer Ereignisschleife, und der Linux-Starter müsste den WebKitGTK-Teil auch für Spiele starten. HUD/Menüs im Spiel
-  zeichnet der Herd selbst (`text`, `rechteck`). Die Grenze ist absichtlich ein Startfehler, damit sie später ohne Bruch fallen kann.
-  **Status:** fest.
+  winit (Herd) nicht in einer Ereignisschleife, und der Linux-Starter müsste den WebKitGTK-Teil auch für Spiele starten. HUD und Menüs
+  zeichnet der Herd selbst (`Text`, `Rechteck`; später Herd-UI-Komponenten). Die Grenze ist ein Startfehler, damit sie ohne Bruch fallen
+  kann. **Status:** fest.
 
-### K-134 Herd-Tests: `.herd-erwartet` mit FNV-Hash, Pixel mit Toleranz
-- **Entscheidung:** `.ereignisse` wie bei der Theke (JSON-Lines, `takt`-Zeilen); neu `.herd-erwartet` = je `herd`-Nachricht eine
-  JSON-Zeile (`fenster` mit Titel/Größe, `bild` mit `bildnummer`/`befehle`/`bytes`/`fnv`, `form`/`bildchen` mit `id`/`fnv`, `schliesse`),
-  FNV-1a 64 Bit (16 Hex-Ziffern) über die Bytes; kanonisch verglichen von allen Harnischen (Interpreter, Wasm, Host, Differenz).
-  Kern: Zeichenlisten-Hash nativ = `kern.wasm`. Pixel: Referenz-PNGs (nativ offscreen), Toleranz nach K-129; keine sichtbaren Fenster.
-  Doku-Codeblöcke: `herdErwartet: object[]`. **Status:** fest.
+### K-134 Herd-Tests: `.herd-erwartet` mit Szenen- und Paket-Hash, Erweiterungsprobe, Pixel mit Toleranz (ersetzt Fassung 1dbf259)
+- **Entscheidung:** `.ereignisse` wie bei der Theke (JSON-Lines, `takt`-Zeilen); `.herd-erwartet` = je `herd`-Ereignis eine JSON-Zeile
+  (`fenster` mit Titel/Größe, `bild` mit `bildnummer`, `szene`, `paket` = FNV-1a 64, 16 Hex-Ziffern, vom Kern berechnet; `schliesse`),
+  kanonisch verglichen von allen Harnischen; Doku-Codeblöcke `herdErwartet`. Bytes der Bildpakete nie in der Ereignisliste (Speicher).
+  Kern: `herd/test-kern.js` (nativ = Wasm), Schema-Datei aktuell, Test-Komponente `Probe` beweist „eine Datei + eine Registry-Zeile“.
+  Pixel: Referenz-PNGs, Toleranz nach K-129; keine sichtbaren Fenster. **Status:** fest.
 
 ### K-135 Herd v1 ohne Ton
 - **Entscheidung:** Kein Ton in v1: Browser (WebAudio, Autoplay erst nach Geste) und nativ (Linux ALSA/PulseAudio/PipeWire = neue
   Systembibliotheken für Starter und Prüfung; Windows WASAPI) bräuchten zwei getrennte Wege, Ton ist nicht deterministisch prüfbar und
-  lenkt vom Grafik-Fokus ab. Später additiv als eigene Importgruppe (`klang`). **Status:** fest.
+  lenkt vom Grafik-Fokus ab. Später additiv als eigene Importgruppe (`klang`, Roadmap H-K14). **Status:** fest.
 
-### K-136 Herd-Protokoll binär; Palette, Bildchen, Formen
-- **Entscheidung:** Programm → Renderer **binär** (Little Endian, `f32` per round-to-nearest, RGBA-Bytes, Texte `u32`+UTF-8; Format
-  HERD.md §7) statt JSON – ein Bild hat hunderte Befehle, 60-mal pro Sekunde; der Hash macht die Bytes trotzdem prüfbar und
-  `tests/herd/zeige.js` lesbar. Renderer → Programm bleibt JSON (wenige, kleine Ereignisse). Farben: 17 Palettennamen (Pizzeria-Farben
-  der Doku-Bilder) oder Hex; die Auflösung passiert im Programm (Interpreter/Laufzeit), der Kern kennt nur RGBA. Pixel-Bildchen aus Text
-  (Zeichen → Palettenfarbe; eigene Zuordnung per Speisekarte) statt Bilddateien – Dateien hätten im Browser keinen Ort; pixelscharf.
-  Formen: Grundformen (Würfel, Kugel, Zylinder, Kegel, Ebene, Ring) erzeugt der Kern aus Parametern, eigene Formen aus Punkt-/Dreieck-Blechen.
-  Kein Material-Objekt in v1 (benannte Argumente `farbe`, `glanz`, `leuchten`, `bild`). **Status:** fest.
----
+### K-136 Herd: Ressourcen, Farben, Komponenten v1 (ersetzt Fassung 1dbf259)
+- **Entscheidung:** Farben als Text: 17 Palettennamen (Pizzeria-Farben der Doku-Bilder) oder Hex – aufgelöst im Kern. Pixel-**Bildchen** aus
+  Text (Zeichen → Palettenfarbe, eigene Zuordnung per Speisekarte) statt Bilddateien – Dateien hätten im Browser keinen Ort; im Kern zu
+  einem Atlas gepackt. **Formen:** Grundformen (Würfel, Kugel, Zylinder, Kegel, Ebene, Ring) aus Parametern, eigene aus Punkt-/Dreieck-
+  Blechen. **Komponenten v1:** `Rechteck`, `Kreis`, `Text`, `Bild`, `Koerper`, `Licht`, `Kamera`, `Bewegung`, `Animation`, `Partikel`
+  (SPEC §18.6) – genug für ein 2D- und ein 3D-Spiel; alles Weitere über die Roadmap (HERD.md §10). Umriss-Parameter heißt `umriss`, weil
+  `rand` ein reserviertes Wort ist. Kein Material-Objekt in v1 (Felder am `Koerper`; geteiltes `Material` = H-K2). **Status:** fest.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

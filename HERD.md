@@ -2,312 +2,273 @@
 
 > Auf dem Herd wird gebacken, was sich bewegt.
 
-Nutzerwunsch: „Kannst du eine simple Game-Engine hinzufügen? Die sollte auf Desktop nativ rendern, nicht mit HTML (wenn möglich)
-und im Browser soweit möglich, sonst als Browser-Engine.“ Präzisierung: „Ziel ist, dass wir **3D- und 2D-Games** programmieren können.
-**Fokus liegt auf Grafik.**“ Leitlinien: Browser = nativ (K-082), „keep it simple, but extendable“, nur allgemeine Konzepte, deterministisch
-und testbar wie die Theke.
+**Nutzerwünsche (wörtlich):**
+- „Kannst du eine simple Game-Engine hinzufügen? Die sollte auf Desktop nativ rendern, nicht mit HTML (wenn möglich) und im Browser
+  soweit möglich, sonst als Browser-Engine.“
+- „Ziel ist, dass wir 3D- und 2D-Games programmieren können. Fokus liegt auf Grafik.“
+- „Mache die Engine mit genug Abstraktion, sodass wir mehr High-Level-Elemente hinzufügen können.“
+- „Ich brauche aber alle Performance, die ich bekommen kann. Effizienz ist ein großes Thema.“
+- „Ziel ist wirklich eine Game-Engine wie Unity zu haben. Natürlich weniger Funktionen am Anfang, aber zunehmend mehr Funktionen.“
 
-**Verbindlich** sind Sprache, Verhalten und Protokoll in **`SPEC.md` §18** (Klärungen K-128 … K-136). Dieses Dokument begründet die
-Entscheidungen, beschreibt Rendering, Anbindung, Tests und den Paketplan. Bei Widersprüchen gilt SPEC §18.
+Leitlinien des Projekts: Browser = nativ (K-082), „keep it simple, but extendable“, allgemeine Konzepte statt Fachlogik, deterministisch
+und testbar. **Verbindlich** sind Sprache und Verhalten in **`SPEC.md` §18** (Klärungen K-128 … K-136); dieses Dokument begründet,
+beschreibt Schichten, Schnittstellen, Leistungsziele, Tests, Erweiterung und Roadmap.
 
 ## 1. Kurz
 
-- `Herd` ist ein **eigenes Fenster mit Spielschleife**: Das Programm übergibt `backe` einen Rückruf, der **60-mal pro simulierter
-  Sekunde** läuft, Zustand ändert, Eingaben liest und das Bild **jedes Mal neu beschreibt** (Immediate Mode) – 2D-Formen, Text,
-  Pixel-Bildchen und 3D-Körper mit Licht, Schatten und Nebel.
-- **Eine Render-Logik überall:** Der **Herd-Kern** (Rust, `no_std`) macht aus den Zeichenbefehlen fertige Dreieckslisten und Matrizen –
-  nativ als Bibliothek im Host, im Browser als `kern.wasm` (gleicher Quelltext, gleiche Zahlen, bitgleich). Darunter liegt nur noch eine
-  **dünne GPU-Schicht**: nativ **wgpu** (DirectX 12 / Vulkan / OpenGL) in einem **winit**-Fenster ohne HTML, im Browser **WebGL2** auf
-  einem `<canvas>`. Beide nutzen **dieselben Shader** (WGSL; die GLSL-Fassung für WebGL2 wird daraus erzeugt).
-- **Deterministisch:** Was das Programm zeichnet, ist eine Byte-Folge („Bild-Nachricht“), in Interpreter, Wasm-Laufzeit und nativem Host
-  **bitgleich** und in Tests per Hash verglichen (`.herd-erwartet`). Die **Pixel** sind „visuell gleich“ (gleiche Shader, verschiedene
-  GPUs) und werden mit Toleranz gegen Referenzbilder geprüft – die eine bewusste Lockerung von K-082 (K-129).
+- Herd ist eine **Szene aus Teilen mit Komponenten** – das tragende Modell wie bei Unity (GameObject + Components): Ein `Teil` hat
+  immer eine **Lage** (Transform, mit Eltern-Hierarchie) und beliebige **Komponenten** (`Kreis`, `Bild`, `Text`, `Koerper`, `Licht`,
+  `Kamera`, `Bewegung`, `Animation`, `Partikel`, …). Die Szene lebt **in der Engine** (Rust, ECS: Daten in kompakten Arrays); das
+  pizza-Programm hält nur **Handles** und ändert **Deltas** – es rechnet nie pro Pixel, Vertex oder (wenn es nicht will) pro Objekt.
+- **Spielschleife:** `herd.backe(fn)` – 60 Takte pro simulierter Sekunde; je Takt läuft `fn` (Spiellogik), dann die **Systeme** der
+  Komponenten in Rust (Bewegung, Animation, Partikel, …), danach baut der Kern ein **Bildpaket** für die GPU.
+- **Drei Schichten** (Abschnitt 3): **Glut** (Render-Backend, wgpu) → **Kern** (Welt, ECS, Systeme, Culling, Batching) →
+  **Komponenten-Registry** (High-Level-Bausteine). Neue Unity-artige Funktionen kommen als neue Komponente/neues System dazu,
+  **ohne** den Kern, die Sprache oder das ABI umzubauen (Abschnitt 9).
+- **Überall dieselbe Engine:** Kern und Glut sind Rust. Nativ als Bibliothek im Host (winit-Fenster, wgpu auf DX12/Vulkan/GL, **kein
+  HTML**); im Browser als Wasm (Kern im Programm-Worker, Glut per wgpu auf **WebGPU, Rückfall WebGL2** in einem Render-Worker).
+- **Deterministisch:** Szenenzustand und Bildpaket sind in Interpreter, Wasm-Programm und nativem Host **bitgleich** (Hash-Tests);
+  die **Pixel** sind „visuell gleich“ (gleiche Shader, verschiedene GPUs; Toleranzvergleich) – die eine Lockerung von K-082 (K-129).
 
 ## 2. Hallo Herd
 
 ```pizza
-// 2D: ein Ball, der über den Bildschirm rollt
+// 2D: ein Ball fliegt und prallt ab – die Engine bewegt ihn, das Programm entscheidet nur
 Herd herd = neu Herd("Hallo Herd", breite: 640, hoehe: 360);
-funghi x = 0;
+Teil ball = herd.kreis(320, 180, 12, farbe: "tomate");
+Bewegung flug = ball.mit(neu Bewegung(tempoX: 240, tempoY: 160));      // Pixel pro Sekunde
 herd.backe(() -> {
-    x = (x + 3) % 640;
-    herd.hintergrund("mozzarella");
-    herd.kreis(x, 180, 30, "tomate");
-    herd.text("Hallo Herd!", 20, 20, groesse: 24);
+    falls (ball.y() < 12 || ball.y() > 348) { flug.setzeTempoY(-flug.tempoY()); }
+    falls (ball.x() < 12 || ball.x() > 628) { flug.setzeTempoX(-flug.tempoX()); }
 });
 ```
 
 ```pizza
-// 3D: ein drehender Würfel im Sonnenlicht
-Herd herd = neu Herd("Würfel", breite: 640, hoehe: 360);
-Form wuerfel = Form.wuerfel();
-herd.backe(() -> {
-    herd.kamera(0, 2, 5);                                   // schaut zum Ursprung
-    herd.zeichne(wuerfel, drehung: herd.zeit() * 45, farbe: "tomate");
-});
+// 3D: ein drehender Würfel im Sonnenlicht – ganz ohne Rückruf
+Herd herd = neu Herd("Würfel");
+Teil wuerfel = herd.koerper(Form.wuerfel(), farbe: "tomate");
+wuerfel.mit(neu Bewegung(drehtempo: 45));                               // Grad pro Sekunde um die Hochachse
+herd.backe();
 ```
 
 ```pizza
-// Steuerung: Pfeiltasten und Maus
+// Steuerung und Text
+Teil schaufel = herd.rechteck(320, 330, 100, 16, farbe: "kruste", rundung: 8);
+Teil punkte = herd.text("0 Punkte", 16, 12, groesse: 24);
 herd.backe(() -> {
-    falls (herd.taste("Links"))  { x = x - 4; }
-    falls (herd.taste("Rechts")) { x = x + 4; }
-    falls (herd.klick()) { Bote.sage("Klick bei " + herd.mausX() + ", " + herd.mausY()); }
-    herd.rechteck(x, 300, 80, 16, "kruste", rundung: 8);
+    falls (herd.taste("Links"))  { schaufel.verschiebe(-6, 0); }
+    falls (herd.taste("Rechts")) { schaufel.verschiebe(6, 0); }
+    falls (ball.trifft(schaufel)) { zaehler = zaehler + 1; punkte.text().setzeInhalt(zaehler + " Punkte"); }
 });
 ```
 
-## 3. Sprache (Kurzfassung; verbindlich SPEC §18.1–§18.4)
-
-| Klasse | Konstruktor | Methoden |
-|---|---|---|
-| `Herd` | `(titel = "", breite: 640, hoehe: 360)` | Schleife: `backe(fn)`, `schliesse()`, `titel()`, `setzeTitel(t)`, `breite()`, `hoehe()`, `bildnummer()`, `zeit()` |
-| | | Eingabe: `taste(n)`, `gedrueckt(n)`, `losgelassen(n)`, `mausX()`, `mausY()`, `maus(knopf = 1)`, `klick(knopf = 1)` |
-| | | 2D: `hintergrund(f)`, `rechteck(x, y, b, h, f, rand: 0, rundung: 0)`, `kreis(x, y, r, f, rand: 0)`, `linie(x1, y1, x2, y2, f, dicke: 2)`, `vieleck(punkte, f, rand: 0)`, `text(t, x, y, farbe: "ofen", groesse: 16, ausrichtung: "links")`, `bild(bildchen, x, y, groesse: 1, farbe: "weiss")` |
-| | | 2D-Lage: `merke()`, `zurueck()`, `schiebe(dx, dy)`, `drehe(grad)`, `skaliere(sx, sy = sx)` |
-| | | 3D: `kamera(x, y, z, zielX: 0, zielY: 0, zielZ: 0, sicht: 60)`, `himmel(oben, unten = oben)`, `sonne(x, y, z, farbe: "weiss", staerke: 1, schatten: ja)`, `licht(x, y, z, farbe: "weiss", reichweite: 10)`, `umgebung(farbe, staerke: 0.35)`, `nebel(farbe, von, bis)`, `zeichne(form, x = 0, y = 0, z = 0, groesse: 1, drehung: 0, neigung: 0, rollen: 0, farbe: "weiss", glanz: 0.3, leuchten: 0, bild: karton)` |
-| | statisch | `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"`, `Herd.ueberlappt(ax, ay, ab, ah, bx, by, bb, bh)`, `Herd.beruehrt(ax, ay, ar, bx, by, br)` |
-| `Form` | `(punkte, dreiecke, glatt: nein)` | statisch: `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)`; `id()` |
-| `Bildchen` | `(zeilen, farben: karton)` | `breite()`, `hoehe()`, `id()` |
-
-- **Farben** sind Texte: ein Name der Herd-Palette (§3.1) oder `"#rgb"`, `"#rrggbb"`, `"#rrggbbaa"`. `Herd.farbe(…)` baut einen solchen Text.
-- **Formen** sind die 3D-Ressourcen (einmal erzeugen, oft zeichnen); `Form.ring` ist ein Torus (Pizzarand). Eigene Formen aus einem Blech von
-  Koordinaten `[x1, y1, z1, x2, …]` und einem Blech von Eckpunkt-Indizes (je drei = ein Dreieck, gegen den Uhrzeigersinn = Vorderseite).
-- **Bildchen** sind Pixel-Bilder aus Text – jede Zeile eine Pixelreihe, jedes Zeichen ein Pixel (`.` = durchsichtig); Standardzeichen
-  (§3.1) oder eigene Zuordnung `Speisekarte<margherita, margherita>` (Zeichen → Farbe). In 2D per `herd.bild`, in 3D als Textur
-  (`zeichne(…, bild: b)`), immer pixelscharf (kein Weichzeichnen) – das ist der Stil des Herds.
-- **Material** = `farbe` + `glanz` (0 … 1, Glanzlicht) + `leuchten` (0 … 1, Eigenleuchten, unbeleuchtet sichtbar) + optional `bild`.
-  Kein eigenes Material-Objekt in v1 (ein Blech von benannten Argumenten reicht; ein `Material` kann später ohne Bruch dazukommen).
-- Nur **ein** Herd pro Programm; **Theke und Herd zusammen** in einem Programm gibt es in v1 nicht (P0013, K-133).
-
-### 3.1 Palette und Bildchen-Zeichen
-
-| Name | Hex | Bildchen-Zeichen |
-|---|---|---|
-| `weiss` | `#FFFFFF` | `w` |
-| `schwarz` | `#000000` | `s` |
-| `grau` | `#8A8580` | `g` |
-| `ofen` | `#2F2A26` | `o` |
-| `tomate` | `#D9452B` | `t` |
-| `salami` | `#A83232` | `r` |
-| `schinken` | `#F2A0A0` | `p` |
-| `basilikum` | `#3E8E41` | `b` |
-| `oliven` | `#6B7A2A` | `l` |
-| `mozzarella` | `#FFF6E0` | `m` |
-| `teig` | `#E8C48A` | `e` |
-| `kruste` | `#C8955A` | `k` |
-| `ananas` | `#F5C518` | `a` |
-| `senf` | `#F2B33D` | `y` |
-| `himmel` | `#8EC9F0` | `h` |
-| `wasser` | `#2E6FD9` | `u` |
-| `aubergine` | `#5B2A6E` | `v` |
-
-`.` und Leerzeichen = durchsichtig. Die Farben der Doku-Bilder (ARCHITEKTUR §4) sind enthalten.
-
-## 4. Spielschleife und Determinismus (SPEC §18.2)
-
-- **Fester Takt:** 60 Takte pro simulierter Sekunde. `herd.bildnummer()` zählt die Takte (der erste Rückruf sieht 1), `herd.zeit()` =
-  `bildnummer / 60` (Sekunden, funghi). Die Spiellogik hängt **nie** von der Wanduhr ab.
-- **`backe(fn)`** öffnet beim ersten Aufruf das Fenster (Nachricht `fenster`), dann wartet es auf Fenster-Ereignisse:
-  `{"typ":"takt","anzahl":n, …Eingabe…}` → `fn()` läuft **n-mal** hintereinander, danach wird **ein** Bild gesendet (das des letzten Takts);
-  `{"typ":"geschlossen"}` oder `herd.schliesse()` beendet die Schleife. Der Renderer schickt den nächsten `takt` erst, wenn er das
-  vorige Bild hat (kein Stau); fällt er zurück (langsame GPU, 30-Hz-Bildschirm), fasst er verstrichene Takte zu `anzahl > 1` zusammen
-  (höchstens 4). So läuft das Spiel immer gleich schnell oder – wenn die Spiellogik selbst zu langsam ist – gleichmäßig langsamer, aber
-  **nie anders**: Mit denselben Ereignissen (`.ereignisse`) entsteht bitgleich dasselbe Spiel.
-- **Zeichnen = Immediate Mode:** Zu Beginn jedes Takts ist das Bild leer; alle Zeichenbefehle des Takts landen in der Bild-Nachricht.
-  Befehle außerhalb von `backe` sammeln sich für das nächste Bild.
-- **Schritte:** wie Theke-Rückrufe – jeder Aufruf kostet normale Schritte, Warten 0; das Schrittlimit P0002 gilt **je Takt** neu (wie
-  K-087). Ananas aus dem Rückruf verlassen `backe` (fangbar); erneutes `backe` macht weiter.
-- **Ohne Renderer** (CLI `bin/pizza.js`, Tests ohne `.ereignisse`): `W0104: Kein Herd verfügbar – Fenster wird nicht angezeigt.` und
-  `backe` kehrt sofort zurück (wie W0100). Nativ bricht ein Herd-Programm ohne mögliches Fenster mit Meldung und Exit 2 ab (wie K-096).
-
-## 5. Eingabe (SPEC §18.3)
-
-Eingabe kommt als **Zustand je Takt**, nicht als Rückruf: Der Renderer hängt an jedes `takt`-Ereignis den aktuellen Zustand
-(`tasten` = gehaltene Tasten, `maus` = `[x, y]` in Spielfeld-Koordinaten, `knoepfe` = Bitmaske 1 links · 2 rechts · 4 Mitte; fehlende Felder =
-unverändert). Daraus leitet der Herd ab:
-
-- `taste(n)` – gerade gehalten; `gedrueckt(n)` / `losgelassen(n)` – in **diesem** Takt neu gedrückt/losgelassen (nur im ersten der
-  `anzahl` Takte eines Ereignisses; danach gilt der Zustand als gehalten).
-- `mausX()`, `mausY()`, `maus(k)` (gehalten), `klick(k)` (in diesem Takt gedrückt). Touch zählt als linke Maustaste.
-- Tastennamen wie `Tastatur` (K-110): `e.key` für Zeichen (Buchstaben klein: `"a"`), deutsch für Sondertasten (`Leertaste`, `Links`,
-  `Rechts`, `Hoch`, `Runter`, `Eingabe`, `Escape`, `Tab`, `Rücktaste`, `Umschalt`, `Strg`, `Alt`, …). Verliert das Fenster den Fokus,
-  gelten alle Tasten als losgelassen.
-
-Warum Zustand statt Ereignis-Rückrufen? Spiele fragen „ist Links gedrückt?“ in ihrer Schleife – das ist einfacher als Rückrufe, passt
-zum festen Takt und macht Aufnahmen kompakt und reproduzierbar.
-
-## 6. Zeichenmodell
-
-### 6.1 2D
-- Spielfeld = logische Größe `breite × hoehe` (Pixel, Ursprung oben links, y nach unten). Das Fenster skaliert das Spielfeld
-  **seitentreu** (Ränder in der Hintergrundfarbe) auf jede Fenstergröße und rendert in voller Gerätepixel-Auflösung (scharf auf HiDPI).
-- Reihenfolge = Aufrufreihenfolge (Maler-Algorithmus), Alpha-Mischung, Kantenglättung (4× MSAA).
-- `rand > 0` zeichnet nur den Umriss in dieser Dicke; `rundung` rundet Rechteck-Ecken. `drehe(grad)` dreht im Uhrzeigersinn.
-- Text: eine eingebettete, freundliche Schrift (OFL-lizenziert, als SDF-Atlas im Kern – scharf in jeder Größe), `ausrichtung`
-  `links|mitte|rechts`, `y` = Oberkante. Zeichenvorrat: druckbares ASCII, `ÄÖÜäöüß€°·–—„“‚‘…×÷`; Unbekanntes wird `?`.
-
-### 6.2 3D
-- Rechtshändig, y nach oben, Einheiten frei („Meter“). `kamera` = Position + Ziel + vertikaler Sichtwinkel (Grad); ohne `kamera` im
-  Bild gilt `(0, 3, 8) → (0, 0, 0)`, 60°.
-- **Licht:** eine Sonne (Richtung zur Sonne hin; ohne `sonne` gilt `(0.5, 1, 0.3)`, weiß, Stärke 1, mit Schatten), bis zu **8
-  Punktlichter** je Bild (mehr → LaufzeitAnanas), Umgebungslicht (Halbkugel: Himmelsfarbe von oben, gedämpft von unten; Standard =
-  Himmelsfarbe, 0,35). Beleuchtung pro Pixel (Lambert + Blinn-Phong-Glanz), **Sonnenschatten** (Shadow-Map, weiche Kanten), linearer
-  Nebel, Farben gamma-korrekt (rechnen linear, Ausgabe sRGB).
-- **Himmel:** `himmel(oben, unten)` = senkrechter Verlauf hinter der 3D-Szene; ohne `himmel` gilt `hintergrund` bzw. Standard
-  `himmel → mozzarella`.
-- **Reihenfolge:** Erst die **3D-Szene** (mit Tiefenpuffer, Reihenfolge der `zeichne` egal; halbdurchsichtige Farben werden nach den
-  undurchsichtigen gezeichnet), **dann alle 2D-Befehle darüber** (HUD, Punkte, Menüs). Ein Bild ohne 3D-Befehle ist reines 2D.
-- **Lage eines Körpers:** `groesse` (Zahl oder Blech `[sx, sy, sz]`), Drehung in Grad – erst `rollen` (um z), dann `neigung` (um x), dann
-  `drehung` (um y), dann Verschieben nach `(x, y, z)`. Grundformen haben die Größe 1 und den Mittelpunkt im Ursprung (`ebene` liegt in
-  y = 0, `kugel` hat Durchmesser 1).
-
-## 7. Protokoll (verbindlich SPEC §18.5)
-
-Programm → Renderer: **binäre Nachrichten** (Little Endian), als Ereignis `{ typ: "herd", daten: Uint8Array }`. Binär statt JSON, weil
-ein Bild aus hunderten Befehlen 60-mal pro Sekunde entsteht; Zahlen als `f32` (aus dem f64-Wert per round-to-nearest, nicht endlich → 0),
-Farben als 4 Bytes RGBA, Texte als `u32`-Länge + UTF-8. Interpreter (`Math.fround`, `DataView`) und Wasm-Laufzeit (`as f32`) erzeugen
-dieselben Bytes.
-
-| Art (u8) | Nachricht | Inhalt |
-|---|---|---|
-| 1 | `fenster` | `u16 breite`, `u16 hoehe`, `str titel` |
-| 2 | `bild` | `u32 bildnummer`, `u32 anzahl`, dann `anzahl` Befehle |
-| 3 | `form` | `u32 id`, `u8 art` (0 eigene · 1 würfel · 2 kugel · 3 zylinder · 4 kegel · 5 ebene · 6 ring), `u32 teile`, `f32 dicke`, `u8 glatt`; nur bei art 0: `u32 n`, `n × 3 f32`, `u32 m`, `m × u32` |
-| 4 | `bildchen` | `u32 id`, `u16 breite`, `u16 hoehe`, `breite × hoehe × 4` Bytes RGBA |
-| 5 | `schliesse` | – |
-
-Befehle in `bild` (`u8 op`, dann die Felder; `f` = f32, `c` = 4 Bytes RGBA, `s` = str):
-
-| op | Befehl | Felder |
-|---|---|---|
-| 0x01 | hintergrund | `c` |
-| 0x02 | rechteck | `f x, f y, f b, f h, c, f rand, f rundung` |
-| 0x03 | kreis | `f x, f y, f r, c, f rand` |
-| 0x04 | linie | `f x1, f y1, f x2, f y2, f dicke, c` |
-| 0x05 | vieleck | `u32 n, n × (f x, f y), c, f rand` |
-| 0x06 | text | `f x, f y, f groesse, c, u8 ausrichtung (0 links · 1 mitte · 2 rechts), s` |
-| 0x07 | bild | `u32 id, f x, f y, f groesse, c` |
-| 0x08 / 0x09 | merke / zurueck | – |
-| 0x0A | schiebe | `f dx, f dy` |
-| 0x0B | drehe | `f grad` |
-| 0x0C | skaliere | `f sx, f sy` |
-| 0x20 | kamera | `f x, f y, f z, f zielX, f zielY, f zielZ, f sicht` |
-| 0x21 | himmel | `c oben, c unten` |
-| 0x22 | sonne | `f x, f y, f z, c, f staerke, u8 schatten` |
-| 0x23 | licht | `f x, f y, f z, c, f reichweite` |
-| 0x24 | umgebung | `c, f staerke` |
-| 0x25 | nebel | `c, f von, f bis` |
-| 0x26 | zeichne | `u32 form, f x, f y, f z, f sx, f sy, f sz, f drehung, f neigung, f rollen, c, f glanz, f leuchten, u32 bildchen (0 = keins)` |
-
-- Ressourcen (`form`, `bildchen`) werden **beim Erzeugen** gesendet (IDs 1, 2, … gemeinsam für Formen und Bildchen, in
-  Erzeugungsreihenfolge), auch vor `fenster`; der Renderer hebt sie auf. `fenster` beim ersten `backe` und erneut bei `setzeTitel`;
-  `schliesse` bei `schliesse()` und am Programmende bei offenem Fenster (wie K-061).
-- Renderer → Programm: JSON-Ereignisse über denselben Weg wie die Theke (`onUiWarte` / `uiEreignisse` / HOST-ABI `herd_warte`):
-  `{"typ":"takt","anzahl":1,"tasten":["Links"],"maus":[320,180],"knoepfe":1}`, `{"typ":"geschlossen"}`; Unbekanntes wird ignoriert.
-- **Erweiterbar:** neue Befehle = neue Opcodes, neue Ressourcen = neue Arten. Ein Renderer, der einen Opcode nicht kennt, kann den
-  Rest des Bildes nicht lesen – deshalb tragen Kern und Programm dieselbe Protokollversion (`fenster` könnte später ein Versionsfeld
-  bekommen; v1 braucht keins, weil Kern und Laufzeit immer zusammen ausgeliefert werden).
-
-## 8. Rendering – Entscheidung und Bewertung (K-128, K-129)
-
-### 8.1 Aufbau
+## 3. Schichten
 
 ```
-Programm (Interpreter | Wasm-Laufzeit)  ──Bild-Nachricht (Bytes, bitgleich)──►  Herd-Kern (Rust no_std)
-                                                                                 │  Dreiecke 2D/3D, Text-Quads, Matrizen,
-                                                                                 │  Schatten-Kamera, Zeichenliste (bitgleich)
-                                                     ┌───────────────────────────┴───────────────────────┐
-                                                     ▼                                                   ▼
-                                    nativ: wgpu (DX12 · Vulkan · GL)                       Browser: WebGL2 (JS, dünn)
-                                    winit-Fenster, kein HTML                               <canvas> im Vorschaufenster / App-Link
-                                                     └──────────── dieselben Shader (WGSL → GLSL ES 3.0) ────────┘
+ pizza-Programm (Interpreter │ Wasm-Programm)                 Handles, Deltas, Abfragen – numerische Aufrufe, kein JSON
+        │  Herd-ABI (generisch: teil_neu, komp_neu, setze_zahl(teil, typ, feld, wert), hole_zahl, …)
+        ▼
+ ┌──────────────── Schicht 2+3: Herd-Kern (Rust no_std; nativ = Bibliothek, Browser = kern.wasm im Programm-Worker) ───────────┐
+ │  Welt: Teile (IDs), Lage + Hierarchie, Ressourcen (Formen, Bildchen → Atlas), Welt-Einstellungen                            │
+ │  Komponenten-Registry (Schicht 3): Schema (Felder, Typen, Standardwerte) + Speicher (SoA, Sparse-Set) + System + Beitrag    │
+ │  zum Bild – Kreis, Rechteck, Text, Bild, Koerper, Licht, Kamera, Bewegung, Animation, Partikel …                              │
+ │  Takt: Systeme in fester Reihenfolge · Bild: Welt-Matrizen, Culling, Sortierung, Batching/Instancing → Bildpaket (bitgleich)  │
+ └──────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────────────┘
+                                                    │  Bildpaket (Bytes: Ressourcen-Deltas, Instanzen je Batch, Uniforms)
+                                                    ▼
+ ┌──────────────── Schicht 1: Glut (Render-Backend, Rust + wgpu; schmale Schnittstelle) ───────────────────────────────────────┐
+ │  nativ: wgpu DX12 · Vulkan · GL, winit-Fenster oder offscreen   │  Browser: wgpu → WebGPU (Rückfall WebGL2), Render-Worker     │
+ │  Pipeline-Cache, Instanzpuffer, Textur-Atlas, Shadow-Map, MSAA   │  mit OffscreenCanvas (Rückfall: Hauptthread)                 │
+ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Herd-Kern** (`herd/kern/`, Rust `no_std` + `libm`): liest Nachrichten, hält Ressourcen (Formen → Dreiecksnetze, Bildchen → Texturen),
-  zerlegt 2D-Formen in Dreiecke (Kreise, Rundungen, dicke Linien, Vielecke per Ear-Clipping, Umrisse), setzt Text aus dem eingebetteten
-  SDF-Atlas, rechnet Kamera-, Licht- und Schattenmatrizen und liefert eine **Zeichenliste**: Puffer (Vertex/Index), Texturen, Durchgänge
-  (Schatten → 3D undurchsichtig → 3D durchsichtig → 2D) mit ihren Uniforms. Gleicher Quelltext nativ (Bibliothek im Host) und im Browser
-  (`site/js/herd/kern.wasm`, `wasm32v1-none`, ohne wasm-bindgen, ohne JS-Importe – wie `laufzeit.wasm` eingecheckt, damit Docker kein
-  Rust für die Website braucht). Damit ist auch die Geometrie bitgleich und testbar (Hash der Zeichenliste nativ = Wasm).
-- **GPU-Schicht** (dünn, nur Hochladen und Zeichnen): nativ `herd/gpu/` (wgpu), im Browser `site/js/herd/webgl.js`. Keine Geometrie,
-  keine Mathematik, keine Spiellogik in den Backends.
-- **Shader:** eine Quelle `herd/kern/shader/*.wgsl` (2D, 3D beleuchtet, Schatten, Himmel); die GLSL-ES-3.0-Fassung für WebGL2 erzeugt
-  `naga` beim Bauen und wird eingecheckt (ein Test prüft, dass sie aktuell ist). Farben: Renderziel ohne sRGB-Format, die Shader
-  wandeln selbst um – identisch in beiden Welten.
+### 3.1 Schicht 1 – Glut (Render-Backend)
+- **Schnittstelle:** `Glut::neu(ziel) → Glut` (Ziel = Fenster-Surface, Offscreen-Textur oder Canvas), `glut.bild(&bildpaket)`
+  (lädt Ressourcen-Deltas, schreibt Instanzpuffer, führt die Durchgänge aus), `glut.groesse(b, h)`, `glut.lies_pixel()` (nur offscreen).
+  Mehr nicht: keine Szene, keine Spiellogik, keine Geometrie-Erzeugung. Ein weiteres Backend (z. B. Software für CI) implementiert
+  dieselben drei Funktionen.
+- **wgpu** überall (Rust). Nativ: Windows DX12 (WARP als Software-Rückfall), Linux Vulkan, sonst GL/EGL; Fenster per **winit**
+  (Linux: X11/Wayland per `dlopen` → keine neue Link-Abhängigkeit, K-130). Browser: dieselbe Crate nach `wasm32-unknown-unknown` mit
+  `wasm-bindgen` (Crate und `wasm-bindgen-cli` auf **dieselbe** Version gepinnt), Backend **WebGPU, Rückfall WebGL2** (wgpu wählt);
+  Ergebnis `site/js/herd/glut_bg.wasm` + Glue, eingecheckt (Docker braucht kein Rust), nur für Herd-Programme geladen, komprimiert
+  ausgeliefert.
+- **Shader:** WGSL, fest im Glut eingebaut (2D-Instanzen: Rechteck/Kreis als SDF-Quads mit Kantenglättung, Bild/Atlas pixelscharf,
+  SDF-Text; 3D: Lambert + Blinn-Phong, Eigenleuchten, Textur, bis 8 Punktlichter, Sonnenschatten mit PCF, Nebel, Himmelsverlauf;
+  linear rechnen, sRGB ausgeben). Eigene Shader: später (Roadmap).
+- **Leistung:** Instancing je (Form, Textur-Seite), alle Bildchen und Glyphen in einem Atlas, Pipelines einmal erzeugt (Cache),
+  Puffer wiederverwendet und nur gewachsen; Ziel: Draw-Calls wachsen mit der Zahl der **Arten**, nicht der Objekte.
 
-### 8.2 Bewertete Alternativen
+### 3.2 Schicht 2 – Kern (Welt)
+- Rust `no_std` + `alloc` + `libm`; gleicher Quelltext nativ (rlib im Host) und als `site/js/herd/kern.wasm` (`wasm32v1-none`, ohne
+  wasm-bindgen, ohne Importe – wie `laufzeit.wasm` eingecheckt).
+- **Teile:** IDs (u32, nie wiederverwendet), `raum` 2D oder 3D (bei der Erzeugung fest), Eltern/Kinder, Lage. Komponenten-Daten
+  liegen je Typ in einem Sparse-Set mit dichten Arrays (Struktur von Arrays) – Systeme laufen linear über dichte Daten.
+- **Determinismus-Regeln (verbindlich, K-129):** nur `libm` für Funktionen, `f64` für Szenenzustand (f32 erst im Bildpaket), keine
+  `HashMap`/zufällige Hashes, keine Zeiger-/Ankunftsreihenfolgen – Reihenfolgen nur nach stabilen Schlüsseln (Teil-ID, Registrierung),
+  keine FMA-Kontraktion. Der Test „Hash nativ = Hash `kern.wasm`“ über alle Benchmark-Szenen ist blockierend.
+- **Takt:** `takt()` lässt alle Systeme in Registry-Reihenfolge laufen (`dt = 1/60`). **Bild:** Welt-Matrizen (nur für geänderte
+  Teilbäume neu), Culling gegen das Kamera-Frustum (3D) bzw. das Spielfeld (2D), Sortierung (2D: `ebene`, dann ID; 3D durchsichtig:
+  Abstand, dann ID), Gruppierung zu Batches, Ressourcen-Deltas → **Bildpaket** (Format: `herd/README.md`, versioniert).
+- **Fehler** prüft der Kern selbst (Wertebereiche, Ressourcen, Raum-Passung) und liefert Fehlercode + Text; die Laufzeiten werfen
+  daraus die Ananas (Texte also an **einer** Stelle).
 
-| Ansatz | Bewertung |
+### 3.3 Schicht 3 – Komponenten (Bausteine)
+- Eine Komponente = **ein Rust-Modul** im Kern mit: Name, Raum (2D/3D/beide), **Schema** (Felder mit Name, Typ, Standard, Bereich),
+  Speicher, optional **System** (`takt`), optional **Bildbeitrag** (Instanzen für einen Batch-Typ) und optional **Abfragen**.
+  Registriert durch **eine Zeile** in `herd/kern/src/komponenten/mod.rs`.
+- Das Schema ist die **einzige Quelle**: Der Kern exportiert es (`schema_json`), ein Bauschritt schreibt `site/js/herd/schema.json`
+  (eingecheckt, ein Test vergleicht mit dem Kern). Interpreter, Compiler (Klassenauflösung zur Übersetzungszeit), Editor
+  (Vervollständigung) und Doku lesen es. Die Sprache bildet jede Komponente **generisch** ab (SPEC §18.4) – eine neue Komponente
+  braucht **keine** Änderung an `pizza.js`, `laufzeit/`, Compiler, HOST-ABI oder Host.
+- Typen der Felder: `zahl` (f64), `ganz`, `diavolo`, `text`, `farbe` (Text → RGBA im Kern), `teil`, `form`, `bildchen`,
+  `bildchen-liste`. Komponenten, die das Programm nur anlegt und konfiguriert, kosten pro Takt **keinen** Grenzübergang.
+
+## 4. Sprache (Kurzfassung; verbindlich SPEC §18)
+
+| Was | API |
 |---|---|
-| **Software-Rasterizer** (eigener oder tiny-skia) in Wasm und nativ, Anzeige per `putImageData` / softbuffer | Pixel bitgleich und trivial testbar, winzig – aber 3D mit Licht, Schatten und Kantenglättung bei 60 fps in voller HiDPI-Auflösung ist in Wasm im Browser zu langsam (≈ 2–8 Mio. Pixel × Shading je Bild); „Fokus Grafik“ verlangt die GPU. **Verworfen** als Anzeige, nicht nötig als Test-Ersatz (Software-GPU: WARP/lavapipe/SwiftShader). |
-| **Canvas2D im Browser + nativer Vektor-Renderer** | nur 2D, zwei verschiedene Renderer → sichtbar verschiedene Kanten/Schrift. **Verworfen.** |
-| **wgpu auch im Browser** (wasm-bindgen, WebGPU/WebGL) | eine Rust-Codebasis bis zur GPU, aber mehrere MB Wasm + JS-Glue, neue Werkzeugkette (wasm-bindgen-cli) und ein anderes Wasm-Ziel als der Rest; WebGL-Pfad über wgpu's GL-Emulation. **Verworfen** – der Kern liefert schon alles Gemeinsame; die Browser-GPU-Schicht ist ~400 Zeilen JS. |
-| **WebGPU im Browser zuerst, WebGL2 als Rückfall** | WGSL wäre direkt nutzbar, aber zwei Browser-Backends = doppelte Testfläche; WebGPU fehlt noch in Teilen (Linux-Chrome, ältere Safari) und in Headless-Tests. v1 nutzt **nur WebGL2** (überall vorhanden, auch Headless mit SwiftShader); ein WebGPU-Backend ist eine spätere, rein additive Datei (`site/js/herd/webgpu.js`), da Kern und Shader schon WGSL sind. |
-| **Theke-Zutat „Leinwand“** (Spiel im Theke-Fenster) | nativ läge das Spiel in der WebView – genau das HTML, das der Nutzer nicht will. **Verworfen** (K-133). |
-| **GPU nativ per OpenGL (glow/glutin)** | kleiner als wgpu, aber Windows-OpenGL-Treiber sind unzuverlässig, kein Software-Rückfall wie WARP. **Verworfen** zugunsten von wgpu (DX12 unter Windows inkl. WARP, Vulkan/GL unter Linux). |
+| Herd | `neu Herd(titel = "", breite: 640, hoehe: 360)`; `backe(fn = karton)`, `schliesse()`, `titel()`/`setzeTitel(t)`, `breite()`, `hoehe()`, `bildnummer()`, `zeit()` |
+| Eingabe | `taste(n)`, `gedrueckt(n)`, `losgelassen(n)`, `mausX()`, `mausY()`, `maus(k = 1)`, `klick(k = 1)` |
+| Welt | `hintergrund(f)`, `himmel(oben, unten = oben)`, `umgebung(f, staerke: 0.35)`, `nebel(f, von, bis)`, `kamera()` → Kamera-Teil, `sonne()` → Sonnen-Teil |
+| Teile 2D | `herd.rechteck(x, y, b, h, farbe:, rundung: 0, umriss: 0)`, `herd.kreis(x, y, r, farbe:, umriss: 0)`, `herd.text(t, x, y, groesse: 16, farbe: "ofen", ausrichtung: "links")`, `herd.bild(bildchen, x, y, groesse: 1)`, `herd.gruppe(x = 0, y = 0)` |
+| Teile 3D | `herd.koerper(form, x = 0, y = 0, z = 0, farbe: "weiss", glanz: 0.3, leuchten: 0, bild: karton)`, `herd.licht(x, y, z, farbe: "weiss", reichweite: 10)`, `herd.raum(x = 0, y = 0, z = 0)` (leeres 3D-Teil) |
+| Teil | `x()`, `y()`, `z()`, `setzeLage(x, y, z?)`, `verschiebe(dx, dy, dz?)`, `drehung()`/`setzeDrehung(g)`, `neigung`/`rollen` (3D), `groesse()`/`setzeGroesse(s)` bzw. `(sx, sy, sz?)`, `ebene(n)` (2D), `sichtbar(d)`, `haenge(an)`, `eltern()`, `entferne()`, `kopie()`, `trifft(anderes)`, `mit(komponente)` → Komponente, `<komponente>()` → Komponente oder `karton`, `id()` |
+| Komponente | `neu <Name>(feld: wert, …)`, Getter `feld()`, Setter `setzeFeld(w)` (verkettbar), generisch `hole("feld")`/`setze("feld", w)`, `teil()` |
+| Ressourcen | `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)`, `neu Form(punkte, dreiecke, glatt: nein)`; `neu Bildchen(zeilen, farben: karton)` |
+| Hilfen | `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"` |
 
-### 8.3 Nativ (K-130)
+**Komponenten v1:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
+`Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter). Die Fabriken
+(`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
-- **Fenster:** `winit` (nicht `tao`): Unter Linux lädt winit X11 bzw. Wayland **zur Laufzeit** (`dlopen`), tao dagegen ist gegen GTK
-  gelinkt. wgpu lädt Vulkan (`libvulkan.so.1`) bzw. EGL/GL ebenfalls zur Laufzeit. Damit braucht der Herd **keine neue
-  Link-Abhängigkeit** – er kann direkt im glibc-only **Linux-Starter** wohnen (kein memfd-Umweg wie beim Theke-Teil).
-- **Backends:** Windows: DX12 (Rückfall WARP, wenn keine GPU), Linux: Vulkan, sonst GL (EGL). Kein Metal-Build (macOS wird nicht gebaut).
-- **Kein Fenster/keine GPU möglich** → wie K-096: Meldung auf stderr (ohne Terminal als Meldungsfenster), **Exit 2**, vor dem ersten
-  Wasm-Befehl: „Dieses Programm braucht einen Bildschirm für sein Herd-Fenster …“ (keine Anzeige), „… braucht eine Grafikkarte mit Vulkan
-  oder OpenGL ES 3 …“ (kein Adapter). `PIZZA_HERD=0`, JSON-Modus und `--ui-ereignisse` bleiben fensterlos (W0104).
-- **Windows-Subsystem:** Herd-Programme starten wie Theke-Programme ohne Terminal (PE-Subsystem WINDOWS, Kriterium: Importgruppe `herd`).
-- **Offscreen-Modus für Tests und Sichtprüfung:** `pizza-host --herd-bilder=ordner [--herd-nur=n,m] --ui-ereignisse datei prog.pkarton`
-  rendert ohne Fenster in eine Textur und schreibt PNGs (Software-Adapter bevorzugt: WARP bzw. lavapipe → reproduzierbar).
-- **Größe:** wgpu (nur `wgsl`-Frontend, DX12 bzw. Vulkan+GL) + winit kosten geschätzt 2–4 MB; gemessen und in `host/README.md` und
-  im Abschlussbericht des Host-Pakets festgehalten. Zielwert: Windows-EXE ≤ 6 MB, Linux-Starter ≤ 7 MB.
+**Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
+`schinken #F2A0A0`, `basilikum #3E8E41`, `oliven #6B7A2A`, `mozzarella #FFF6E0`, `teig #E8C48A`, `kruste #C8955A`, `ananas #F5C518`,
+`senf #F2B33D`, `himmel #8EC9F0`, `wasser #2E6FD9`, `aubergine #5B2A6E` oder `#rgb`/`#rrggbb`/`#rrggbbaa`. **Bildchen-Zeichen**
+(Pixel-Bilder aus Text, `.`/Leerzeichen durchsichtig): `w s g o t r p b l m e k a y h u v` in Reihenfolge der Palette.
 
-### 8.4 Browser (K-131)
+## 5. Spielschleife, Eingabe, Determinismus
 
-- Das Programm läuft wie immer im Worker; jede `herd`-Nachricht geht (übertragen, nicht kopiert) an die Seite. Die Seite hat den
-  Kern (`kern.wasm`) und die WebGL2-Schicht, zeichnet im `requestAnimationFrame` und antwortet über den bestehenden SAB/Atomics-Weg der
-  Theke (`onUiWarte`) mit dem nächsten `takt`. Braucht also Cross-Origin-Isolation wie Theke und Eingabe (Meldung ohne – wie heute).
-- Anzeige im **Vorschaufenster** wie die Theke (schwebend, Titel, Schließen = `geschlossen`), Größe = Programmgröße (K-123-Regel),
-  im App-Link (`#app=…`) bildschirmfüllend seitentreu. Tastatur/Maus nur bei Fokus auf dem Canvas.
-- **CSP:** unverändert (`script-src 'self' 'wasm-unsafe-eval'` deckt `kern.wasm`; WebGL braucht nichts). Kein WebGL2 → Meldung
-  „Dieser Browser kann kein WebGL2 – der Herd braucht es.“ und Lauf endet wie ein fehlendes Fenster (`geschlossen` vor dem ersten Takt).
-- Kern + WebGL-Schicht werden **nur geladen, wenn ein Programm den Herd nutzt** (Gruppe `herd` bzw. `neu Herd` im Quelltext).
+- **Takt:** 60 Takte je simulierter Sekunde; `bildnummer()` zählt, `zeit()` = `bildnummer()/60`. Nie Wanduhr.
+- **`backe(fn)`:** öffnet beim ersten Aufruf das Fenster, wartet auf Fenster-Ereignisse (über denselben Weg wie die Theke:
+  `onUiWarte`/`uiEreignisse`, HOST-ABI `herd_warte`). `{"typ":"takt","anzahl":n,…}` → n-mal { Eingabe übernehmen (nur im ersten),
+  `fn()`, Systeme }, dann **ein** Bildpaket an die Glut. Der Renderer verlangt den nächsten Takt erst nach dem Zeichnen; fällt er zurück,
+  fasst er bis zu 4 Takte zusammen. Gleiche Ereignisse ⇒ bitgleich gleiches Spiel.
+- **Eingabe als Zustand** je Takt (`tasten`, `maus`, `knoepfe` im `takt`-Ereignis; fehlende Felder unverändert): `taste` gehalten,
+  `gedrueckt`/`losgelassen`/`klick` nur im ersten Takt eines Ereignisses. Tastennamen wie `Tastatur` (K-110).
+- **Schritte:** pizza-Aufrufe kosten normale Schritte, Engine-Arbeit (Systeme, Bild) kostet keine; P0002 je Takt neu (K-087).
+- **Theke und Herd** nicht im selben Programm (P0013, K-133). **Kein Ton** in v1 (K-135).
+- `herd`-Aufrufe in Küchen-Stücken (`brigade`) sind verboten (wie `ui_senden`: LaufzeitAnanas bzw. Trap im Klon).
 
-## 9. Tests (K-134)
+## 6. Leistung (K-131)
+
+**Ziele** (Entwicklungsrechner, 1280 × 720, gemessen im Wasm-Programm-Pfad – Chrome – und in der EXE; der Interpreter ist die
+Korrektheits-Referenz, kein Leistungsziel):
+
+| Benchmark | Ziel |
+|---|---|
+| B1 2D: 10 000 Sprites mit `Bewegung` + `Animation`, Programm tut pro Takt nichts | 60 fps; Kern-Takt + Bild ≤ 2 ms (EXE) / ≤ 4 ms (Chrome); ≤ 4 Draw-Calls |
+| B2 2D: 10 000 Kreise, das Programm setzt **jede** Lage pro Takt selbst | 60 fps in der EXE und in Chrome; Kosten je Setter-Aufruf ≤ 150 ns (wasmi) / ≤ 80 ns (Chrome) |
+| B3 3D: 1 000 Körper (6 Formen, 4 Farben, 1 Textur), Sonne mit Schatten, 8 Punktlichter, Nebel | 60 fps; ≤ 30 Draw-Calls (inkl. Schatten) |
+| B4 Partikel: 20 000 Teilchen aus 10 Emittern | 60 fps; Partikel-System ≤ 1,5 ms (EXE) |
+
+**Messung:** `bench/herd/*.pizza`; EXE mit `--herd-messung` (je Sekunde: Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen),
+Browser mit derselben Statistik in der Statusleiste und als E2E-Messlauf (echte GPU, unsichtbares Fenster). **Vorher/nachher:** Die erste
+lauffähige Glut zeichnet bewusst ohne Instancing/Atlas (ein Draw-Call je Objekt) = Grundlinie; danach Instancing, Atlas, Culling,
+Teilbaum-Matrizen – beide Messreihen in `bench/herd/ERGEBNISSE.md`.
+
+**Grenzübergang:** Numerische Direktaufrufe (Browser: Import des Programm-Wasm direkt an den Export von `kern.wasm` gebunden, ohne
+JS dazwischen; nativ: wasmi-Hostfunktion → Kern) sind der billigste Weg; Texte werden kopiert (selten). Batching der Setter kommt nur,
+wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`, ABI-additiv).
+
+## 7. Plattformen
+
+### 7.1 Nativ (K-130)
+- Programm-Thread: wasmi + Kern (Bibliothek); Hauptthread: winit-Ereignisschleife + Glut. Pro Bild wandert das Bildpaket über einen
+  Kanal; Takte werden im Hauptthread nach dem Präsentieren angefordert (vsync).
+- Fenster erst beim ersten `backe`; Größe = Spielfeld × Skalierung, frei veränderbar (seitentreu mit Rändern).
+- Kein Fenster/keine GPU möglich → Meldung + Exit 2 (wie K-096), ohne Terminal als Meldungsfenster. `PIZZA_HERD=0`, JSON-Modus und
+  `--ui-ereignisse` sind fensterlos (W0104). Offscreen: `--herd-bilder=ordner [--herd-nur=n,m]` (PNG, Software-Adapter bevorzugt).
+- PE-Subsystem WINDOWS bei Importgruppe `herd`. Linux: Herd im glibc-Starter selbst (wgpu/winit laden alles per `dlopen`; prüfen per
+  `readelf -d`). Größe messen; Ziel Windows-EXE ≤ 6 MB.
+
+### 7.2 Browser
+- **Programm-Worker** (wie heute): Interpreter oder Programm-Wasm **plus `kern.wasm`** (Instanz im selben Worker, direkte Aufrufe).
+  Der Worker blockiert zwischen Takten auf SAB/Atomics – **deshalb wird dort nie gerendert**.
+- **Render-Worker** mit `OffscreenCanvas` (vom Vorschaufenster-Canvas übertragen) und der Glut (wgpu-Wasm, WebGPU bevorzugt, sonst
+  WebGL2). Bildpakete gehen per `MessageChannel` (übertragene ArrayBuffer) direkt vom Programm- zum Render-Worker; der Render-Worker
+  zeichnet im `requestAnimationFrame` und schreibt den nächsten `takt` samt Eingabe in den SAB des Programm-Workers. Eingaben fängt die
+  Seite am Canvas und reicht den Zustand an den Render-Worker. **Rückfall:** ohne OffscreenCanvas/rAF im Worker läuft dieselbe Glut im
+  Hauptthread.
+- Kein WebGPU und kein WebGL2 → Meldung, Lauf endet mit `geschlossen`. CSP: `script-src 'self' 'wasm-unsafe-eval'` genügt.
+  Vorschaufenster wie die Theke (Größe K-123), App-Link bildschirmfüllend.
+
+## 8. Tests (K-134)
 
 | Ebene | Was | Vergleich |
 |---|---|---|
-| Programm | `tests/faelle/herd-*`, Beispiele: `.ereignisse` (JSON-Lines, `takt`-Zeilen) + `.herd-erwartet` (je Nachricht eine JSON-Zeile `{"art":"bild","bildnummer":12,"befehle":34,"bytes":1234,"fnv":"…"}`, `fenster` mit Titel/Größe, `form`/`bildchen` mit id + fnv, `schliesse`) | **bitgleich**: Interpreter, Wasm (`npm run test:wasm`), nativer Host (`node host/test.js`), Differenztests |
-| Prüfstand | `pruefstand/faelle/a18-herd.js` | Texte, Ananas, Schritte |
-| Kern | `cargo test` im Kern: Zerlegung, Text, Matrizen; Hash der Zeichenliste nativ = `kern.wasm` in Node | **bitgleich** |
-| Pixel | Referenz-PNGs (`tests/herd/bilder/`), erzeugt nativ offscreen; Browser (E2E, Headless-Chromium/SwiftShader) und nativ (WARP/lavapipe) vergleichen mit Toleranz | **visuell gleich** (mittlere Abweichung ≤ 1,5 %, ≥ 98 % der Pixel innerhalb 10/255) |
-| Doku | Codeblöcke mit `uiEreignisse` + `herdErwartet` | wie Programm |
+| Programm | `.ereignisse` (JSON-Lines, `takt`-Zeilen) + `.herd-erwartet` (je gesendetem Bild `{"art":"bild","bildnummer","szene","paket"}` mit FNV-1a-64-Hashes des Szenenzustands und des Bildpakets; `fenster`, `schliesse`) | **bitgleich**: Interpreter, Wasm, Host, Differenztests |
+| Kern | `cargo test`; `herd/test-kern.js`: Hash nativ = `kern.wasm` für alle Benchmark-Szenen; Schema-Datei aktuell | **bitgleich** |
+| Erweiterung | Test-Komponente `Probe` (nur unter `cfg(test)`/Testbau) – beweist: eine Rust-Datei + eine Registry-Zeile, ohne andere Änderungen in Sprache sichtbar | – |
+| Pixel | Referenz-PNGs (`tests/herd/bilder/`), nativ offscreen (WARP/lavapipe) und Browser (E2E headless) mit Toleranz | **visuell gleich** (mittlere Abweichung ≤ 1,5 %, ≥ 98 % Pixel innerhalb 10/255) |
+| Leistung | `bench/herd` | Ziele §6 (Bericht, kein harter CI-Test) |
 
-`fnv` = FNV-1a 64 Bit über die Nachrichtenbytes (16 Hex-Ziffern). `node tests/herd/zeige.js datei.pizza [--bild n]` gibt eine Bild-Nachricht
-lesbar aus (Fehlersuche). Keine sichtbaren Fenster in Tests: nativ offscreen, Browser headless.
+`node tests/herd/zeige.js prog.pizza [--bild n]` zeigt Szene und Bildpaket lesbar (Fehlersuche). Keine sichtbaren Fenster in Tests.
 
-## 10. Bewusst nicht in v1
+## 9. So fügt man eine neue Komponente hinzu
 
-- **Kein Ton** (K-135): Browser (WebAudio, Autoplay-Sperre bis zur ersten Geste) und nativ (Linux: ALSA/PulseAudio/PipeWire wären neue
-  Systembibliotheken für Starter und Prüfung, Windows: WASAPI) brauchen zwei völlig verschiedene Wege; Ton ist nicht deterministisch
-  testbar und lenkt vom Grafik-Fokus ab. Später additiv als eigene Importgruppe (`klang`) mit eingebetteten Klängen aus Zahlen.
-- Keine Physik-Engine, keine Szenengraph-Objekte, kein Laden von Dateien (Bilder/Modelle entstehen im Programm – eine Datei hätte im
-  Browser keinen Ort), keine eigenen Shader, kein Vollbild-Umschalten aus dem Programm, nur ein Fenster.
-- Theke + Herd zugleich (später möglich: der Herd ist ein eigenes Fenster, die Theke ein anderes).
+Beispiel: `Pendel` (lässt ein Teil hin- und herschwingen).
 
-## 11. Pakete (Phasenplan)
+1. **Rust-Datei** `herd/kern/src/komponenten/pendel.rs`: Struktur der Felder, `SCHEMA` (Name `Pendel`, Raum `beide`, Felder
+   `weite: zahl = 30`, `tempo: zahl = 1` mit Bereichen), `fn takt(welt, dichte_daten)` (System) – optional `fn bild(…)` für eigene
+   Instanzen eines vorhandenen Batch-Typs, optional Abfragen.
+2. **Eine Zeile** in `herd/kern/src/komponenten/mod.rs` (Registry; Position = Systemreihenfolge).
+3. `node herd/baue.js` → `kern.wasm` und `site/js/herd/schema.json` neu; Glut nur, wenn ein **neuer Batch-Typ/Shader** nötig ist.
+4. Tests: `cargo test` (System), ein Fall `tests/faelle/herd-pendel.*`, ein Doku-Absatz, eine Zeile in SPEC §18.6 (Komponententabelle).
+5. Fertig – in pizza sofort verfügbar: `Pendel p = teil.mit(neu Pendel(weite: 40)); p.setzeTempo(2); teil.pendel().weite();`
+
+**Nicht** anzufassen: `site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/` (Ausnahmen nur für neue
+Feld-**Typen**, neue Eingabearten oder neue Fenster-Fähigkeiten – das sind Kern-Erweiterungen, keine Komponenten).
+
+## 10. Roadmap (an Unity orientiert)
+
+| Unity-Konzept | Herd | Stufe | Schicht |
+|---|---|---|---|
+| Scene, GameObject | Welt, `Teil` | **v1** | Kern |
+| Components | Komponenten-Registry, generische Sprachabbildung | **v1** | Kern/Komponenten |
+| Transform + Hierarchie | `Lage`, `haenge`, Welt-Matrizen | **v1** | Kern |
+| Time / Update-Schleife | fester 60-Hz-Takt, `backe(fn)`, Systeme | **v1** | Kern |
+| Input | Tastatur, Maus, Touch als Zustand | **v1** | Laufzeit/Kern |
+| Camera | `Kamera` (3D perspektivisch), Spielfeld-2D | **v1** · 2D-Kamera (Scroll/Zoom), Folgekamera **H-K1** | Komponente |
+| Light | Sonne mit Schatten, 8 Punktlichter, Umgebung, Nebel | **v1** · Spot-Licht, mehrere Schatten **später** | Komponente + Glut |
+| MeshRenderer, Material | `Koerper` (Form + Farbe/Glanz/Leuchten/Bild) | **v1** · geteiltes `Material`-Objekt **H-K2** | Komponente |
+| Shader | feste Shader | eigene Shader (WGSL) **später** | Glut |
+| Sprites / 2D | `Rechteck`, `Kreis`, `Text`, `Bild`, Atlas | **v1** · Linie/Vieleck, 9-Slice **H-K3** | Komponente + Glut |
+| Animation | `Animation` (Bildchen-Folge) | **v1** · Tweens/Keyframes **H-K4** · Skelett **später** | Komponente |
+| Particle System | `Partikel` 2D | **v1** · 3D-Partikel **H-K5** | Komponente + Glut |
+| Collider / Trigger | `trifft` (Hüllen) | **v1** · `Kollider` + Ereignisse (betreten/verlassen) **H-K6** | Komponente |
+| Physics 2D / 3D | – | 2D-Physik (Rigidbody, Impulse) **H-K7** · 3D **später** | Komponente (System) |
+| Prefabs / Assets | `kopie()`, Formen/Bildchen | **v1** (kopie) · Vorlagen + größere Bilder **H-K8** | Kern |
+| Szenenwechsel | – | `Szene`-Objekte, laden/leeren **H-K9** | Kern |
+| Tilemap | – | `Kachelkarte` **H-K10** | Komponente |
+| Gelände / Skybox | Himmelsverlauf | Gelände aus Höhenkarte, Skybox **H-K11** | Komponente + Glut |
+| UI (uGUI) | Text, Rechteck | Herd-UI-Bausteine (Knopf, Leiste, Fenster) **H-K12** | Komponente |
+| Skript-Komponenten (MonoBehaviour) | Spiellogik in `backe` | eigene pizza-Klassen als Komponente (`takt()`) **H-K13** | Laufzeit + Kern |
+| Audio | – (K-135) | `klang` **H-K14** | eigene Importgruppe |
+| Post-Processing | – | Bloom, Vignette **später** | Glut |
+| Editor | – | Szenenansicht im Playground **später** | UI |
+
+## 11. Pakete v1
 
 | Paket | Inhalt | Dateien | hängt ab von |
 |---|---|---|---|
 | **H0 Konzept** | diese Datei, SPEC §18, K-128 … K-136 | `HERD.md`, `SPEC.md`, `KLAERUNGEN.md` | – |
-| **H1 Interpreter** | `Herd`, `Form`, `Bildchen`, Kodierung, `backe`, Eingabe, W0104/P0013, Testharness `.herd-erwartet`, Prüfstand a18 | `site/js/pizza.js`, `tests/faelle/herd-*`, `tests/run-tests.js`, `pruefstand/` | H0 |
-| **H2 Kern 2D+3D** | Kern-Crate, Shader WGSL/GLSL, Schrift-Atlas, `kern.wasm`; GPU-Schicht wgpu offscreen (`herd/gpu`) + Bild-Werkzeug (`herd-bild datei.bin → png`) | `herd/**`, `site/js/herd/kern.wasm` | H0 (parallel zu H1) |
-| **H3 Browser** | WebGL2-Schicht, Worker-Brücke, Vorschaufenster, App-Link, Editor-Vervollständigung | `site/js/herd/**`, `site/js/worker.js`, `ui/**` | H1, H2 |
-| **H4 Wasm** | Laufzeit `herd.rs`, Compiler, Importgruppe `herd`, HOST-ABI, Differenz | `laufzeit/**`, `site/js/pizzaiolo/**`, `HOST-ABI.md`, `tests/wasm`, `tests/differenz` | H1 |
-| **H5 Nativ** | winit+wgpu-Fenster, Offscreen-PNG, CLI, Starter, PE-Subsystem, Docker/`baue-ziele.sh`, Größenmessung | `host/**`, `Dockerfile` | H2, H4 |
-| **H6 Spiele & Doku** | Doku-Abschnitt mit Bildern, 2D-Spiel („Salami-Snake“ o. ä.), 3D-Spiel („Pizzaofen-Rallye“ o. ä.), E2E, CI | `site/beispiele/herd*`, `site/js/doku/`, `site/img/doku/he-*`, `e2e/` | H3, H5 |
+| **H1 Kern** | Welt, Registry, Schema, Komponenten v1, Systeme, Bildpaket-Format, Herd-ABI (C-artige Exporte), `kern.wasm`, `schema.json`, Determinismus-Test, Kern-Benchmarks | `herd/kern/**`, `herd/README.md`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json` | H0 |
+| **H2 Glut** | wgpu-Backend nativ (offscreen + Fenster-API) und Web (wasm-bindgen, WebGPU/WebGL2), Shader, Instancing, Atlas, Schatten, Grundlinie + Optimierung, Referenzbilder | `herd/glut/**`, `site/js/herd/glut*` | H1 (Bildpaket-Format) |
+| **H3 Interpreter** | `Herd`/`Teil`/Komponenten generisch aus `schema.json`, Aufrufe an `kern.wasm`, Spielschleife, Eingabe, Tests, Prüfstand | `site/js/pizza.js`, `tests/**`, `pruefstand/` | H1 |
+| **H4 Wasm** | Compiler/Laufzeit: Importgruppe `herd` (generische Importe), Differenztests | `laufzeit/**`, `site/js/pizzaiolo/**`, `HOST-ABI.md` | H1, H3 |
+| **H5 Nativ** | Host: Kern + Glut + winit, Offscreen, CLI, Starter, PE-Subsystem, Docker, Größe, `--herd-messung` | `host/**`, `Dockerfile` | H2, H4 |
+| **H6 Browser** | Programm-Worker + `kern.wasm`, Render-Worker + Glut, Vorschaufenster, App-Link, Editor-Vervollständigung | `site/js/herd/**`, `site/js/worker.js`, `ui/**` | H2, H3 (H4) |
+| **H7 Spiele, Doku, Messung** | 2D-Spiel, 3D-Spiel (Fokus schöne Grafik), Doku-Abschnitt mit Bildern, `bench/herd` + Ergebnisse, E2E, CI | `site/beispiele/herd*`, `site/js/doku/`, `bench/herd/`, `e2e/` | H5, H6 |
 
-## 12. Ausblick
-
-WebGPU-Backend im Browser; `Material`-Objekt; 3D-Gruppen/Lage-Stapel; Partikel; Ton (`klang`); Gamepad; Theke + Herd zugleich;
-Texturen aus größeren Bildern; Animationen für Formen (Skelett) – alles additiv (neue Opcodes, neue Gruppen).
+Nächste Stufen (einzeln vergebbar): **H-K1 … H-K14** aus der Roadmap; jede ist eine Komponente nach Abschnitt 9 (Ausnahmen markiert:
+H-K13 braucht Laufzeit-Unterstützung für Rückrufe aus Systemen, H-K14 eine eigene Importgruppe).
