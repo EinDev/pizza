@@ -34,6 +34,7 @@ pub const T_ZUFALL: &str = "Dieser Zufall gehört der Hauptküche – nimm Zufal
 pub const T_CALZONE: &str = "Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.";
 pub const T_EINGABE: &str = "Bestellannahme gibt es nur in der Hauptküche.";
 pub const T_THEKE: &str = "Die Theke gibt es nur in der Hauptküche.";
+pub const T_ZETTEL: &str = "Zettel gibt es nur in der Hauptküche.";
 pub const T_KAMMER_NEU: &str = "Neue Vorratskammern gibt es nur in der Hauptküche.";
 
 /// Wirft die KüchenAnanas, wenn `w` ein Objekt der Hauptküche ist (true = geworfen).
@@ -185,6 +186,7 @@ fn karton_art(w: W) -> Option<&'static str> {
         crate::vorrat::A_ZUFALL => Some("Ein Zufall"),
         crate::vorrat::A_KAMMER => Some("Eine Vorratskammer"),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => Some("Eine Theke-Zutat"),
+        crate::theke::A_ZETTEL => Some("Ein Zettel"),
         _ => None,
     }
 }

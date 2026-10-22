@@ -1,0 +1,108 @@
+// Theke v5 (K-116 … K-118) im Wasm == Interpreter: Zettel, binde/bindeStil, Quellen, nur echte Änderungen (K-117)
+Theke t = neu Theke("v5");
+Zettel geld = neu Zettel(0);
+Zettel ohne = neu Zettel();
+Bote.sage(("zettel: " + geld + " " + ohne + " " + geld.wert() + " " + ohne.wert()));
+geld.setze(8);
+Bote.sage(("setze: " + geld.wert() + " " + geld.setze(9) + " " + geld.setze()));
+Zettel z2 = geld;
+Bote.sage(("typ: " + (z2 == geld) + " " + (neu Zettel(1) == neu Zettel(1)) + " " + neu Zettel(wert: [1, 2])));
+probier { geld.hinzu(1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { Zettel falsch = 5; } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+
+// Bindung: sofort ausgewertet, danach liefert der Getter den gebundenen Wert
+Schild kasse = neu Schild("start", id: "kasse");
+geld.setze(5);
+kasse.binde("text", () -> geld.wert().euro());
+Bote.sage(("gebunden: " + kasse.text()));
+Knopf backen = neu Knopf("Backen", () -> { geld.setze(geld.wert() + 8); }, id: "backen");
+backen.binde("aktiv", () -> geld.wert() < 20);
+Eingabe anzahl = neu Eingabe(wert: "2", id: "anzahl");
+Schild preis = neu Schild(id: "preis");
+preis.binde("text", () -> anzahl.wert().alsZahl() * 8);
+Bote.sage(("preis: " + preis.text() + " aktiv: " + backen.aktiv()));
+
+// Ein Schreiber (K-116)
+probier { kasse.setzeText("x"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { backen.aktiv(nein); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+kasse.bindeStil("farbe", () -> geld.wert() < 10 ? "tomate" : "basilikum");
+probier { kasse.stil("farbe", "kruste"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.stil("farbe", karton); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+kasse.stil("schrift", "gross");
+// Fehler beim Binden
+probier { kasse.binde("farbe", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { backen.binde("wert", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { anzahl.binde(karton, () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { anzahl.binde("kinder", () -> []); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Stapel([]).binde("text", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.binde("text", 5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.bindeStil("rand", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.bindeStil("farbe", "tomate"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.bindeStil("breite", () -> -1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.bindeStil("farbe", () -> "lila"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { backen.binde("aktiv", () -> 1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+// die werfende Bindung ist registriert (sie bleibt sauber, bis sich eine Quelle ändert)
+probier { backen.aktiv(ja); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Bote.sage(("aktiv nach werfender Bindung: " + backen.aktiv()));
+kasse.bindeStil("farbe", () -> geld.wert() < 10 ? "tomate" : "basilikum");
+
+// karton löst; W0103 ohne Quelle (je Aufrufstelle)
+backen.binde("aktiv", karton);
+backen.aktiv(nein).aktiv(ja);
+Bote.sage(("gelöst: " + backen.aktiv()));
+Schild fest = neu Schild(id: "fest");
+für (salami i : [1 .. 2]) { fest.binde("text", () -> "immer gleich"); }
+fest.binde("hinweis", () -> "auch fest");
+Bote.sage(("fest: " + fest.text() + " / " + fest.hinweis()));
+fest.binde("text", karton);
+fest.binde("sichtbar", karton);
+fest.bindeStil("breite", karton);
+fest.setzeText("frei");
+
+// Zutat-Getter als Quellen; Auswertung erst am Synchronisationspunkt
+Haken h = neu Haken("Extra", an: ja, id: "h");
+Schild folgt = neu Schild(id: "folgt");
+folgt.binde("text", () -> h.an() ? "mit " + h.text() : "ohne");
+Bote.sage(("folgt: " + folgt.text()));
+h.setzeAn(nein);
+Bote.sage(("vor Sync: " + folgt.text()));
+
+Fortschritt f = neu Fortschritt(id: "f");
+f.binde("wert", () -> geld.wert() / 10);
+f.binde("text", () -> geld.wert() >= 10 ? "voll" : karton);
+Takt takt = neu Takt(1s, (n) -> { geld.setze(geld.wert() + n); }, id: "takt");
+takt.binde("intervall", () -> geld.wert() < 10 ? 500ms : 2s);
+takt.binde("aktiv", () -> geld.wert() < 30);
+Auswahl aw = neu Auswahl(["a", "b", "c"], id: "aw");
+aw.binde("gewaehlt", () -> geld.wert() < 10 ? 1 : 3);
+Tabelle tab = neu Tabelle(["k"], [], id: "tab");
+tab.binde("zeilen", () -> [[geld.wert()], [anzahl.wert()]]);
+tab.bindeStil("zeilen", () -> geld.wert() < 10 ? 1 : 2);
+tab.binde("spalten", () -> aw.gewaehlt() == 1 ? ["k"] : ["k", "v"]);
+Reiter rt = neu Reiter(["eins", "zwei"], [neu Schild("s1"), neu Schild("s2")], id: "rt");
+rt.binde("gewaehlt", () -> h.an() ? 1 : 2);
+rt.setzeTitel(2, "zwei");
+Schild rtitel = neu Schild(id: "rtitel");
+rtitel.binde("text", () -> rt.titel(2) + "|" + rt.titel(1));
+Abschnitt ab = neu Abschnitt("A", [kasse, backen, anzahl, preis, fest, h, folgt, f, takt, aw, tab, rt, rtitel], id: "ab");
+ab.binde("titel", () -> "Kasse " + geld.wert());
+ab.binde("zu", () -> geld.wert() > 100);
+ab.binde("sichtbar", () -> ja);
+ab.binde("hinweis", () -> geld.wert() == 0 ? karton : "Stand " + geld.wert());
+Bote.sage(("vor zeige: " + f.wert() + " " + f.text() + " " + takt.intervall() + " " + aw.gewaehlt() + " " + ab.titel() + " " + ab.hinweis() + " " + rt.gewaehlt()));
+t.zeige(ab);
+Bote.sage(("nach zeige: " + folgt.text() + " " + rt.gewaehlt() + " " + rtitel.text()));
+
+// K-117: gleiche Werte senden nichts; a → b → a sendet a
+h.setzeText("Extra");
+h.stil("breite", karton);
+kasse.stil("schrift", "gross");
+neu Stapel([], id: "leerer").leeren();
+kasse.stil("schrift", "klein").stil("schrift", "gross");
+h.setzeText("Extra!").setzeText("Extra");
+rt.setzeTitel(2, "zwei");
+rt.setzeTitel(1, "eins");
+ab.uebergang(nein);
+probier { tab.setzeSpalten(["k"]); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+t.bediene();
+Bote.sage(("ende: " + geld.wert() + " " + kasse.text() + " " + backen.aktiv() + " " + f.wert() + " " + takt.intervall() + " " + takt.aktiv() + " " + aw.gewaehlt() + " " + preis.text() + " " + rtitel.text()));

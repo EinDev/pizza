@@ -276,7 +276,8 @@ fn ende() -> i32 {
     unsafe {
         match s {
             SIG_PANIK => { crate::host_panik(BANNER.as_bytes()); 39 }
-            _ if { let s0 = z().sig; z().sig = 0; crate::theke::ui_ende(); z().sig = s0; false } => 0,
+            // K-116: ui_ende wertet Bindungen aus und kann selbst werfen – der ursprüngliche Fehler (Signal + Wurfobjekt) bleibt
+            _ if { let (s0, o0, p0) = (z().sig, WURF_OBJ, WURF_POS); z().sig = 0; crate::theke::ui_ende(); z().sig = s0; WURF_OBJ = o0; WURF_POS = p0; false } => 0,
             SIG_LIMIT => {
                 let (a, b) = pos_zs(z().pos);
                 crate::host_fehler(3, b"P0002", "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)".as_bytes(), a, b);

@@ -1,0 +1,13 @@
+{ "uiEreignisse": [
+  { "typ": "klick", "id": "backen" },
+  { "typ": "aenderung", "id": "anzahl", "wert": "3" },
+  { "typ": "aenderung", "id": "anzahl", "wert": "3" },
+  { "typ": "aenderung", "id": "h", "wert": true },
+  { "typ": "aenderung", "id": "aw", "wert": 2 },
+  { "typ": "aenderung", "id": "rt", "wert": 2 },
+  { "typ": "klick", "id": "backen" },
+  { "typ": "klick", "id": "backen" },
+  { "typ": "takt", "id": "takt", "anzahl": 10 },
+  { "typ": "takt", "id": "takt", "anzahl": 1 },
+  { "typ": "enter", "id": "anzahl", "wert": "10" }
+] }

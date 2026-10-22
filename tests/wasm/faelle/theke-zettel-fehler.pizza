@@ -1,0 +1,84 @@
+// Theke v5 (K-118) im Wasm == Interpreter: eine Bindung rechnet nur, Zyklen (100 Durchläufe), werfende Bindungen, Ananas im Rückruf
+Theke t = neu Theke("v5-fehler");
+Zettel z = neu Zettel(1);
+Schild a = neu Schild(id: "a");
+Schild b = neu Schild(id: "b");
+Knopf k = neu Knopf("k", id: "k");
+Stapel st = neu Stapel([a, b, k], id: "st");
+// verboten in einer Bindung (Methodenname wie gerufen)
+probier { a.binde("text", () -> { b.setzeText("x"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { k.aktiv(nein); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { b.hinweis("h"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { z.setze(2); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { st.hinzu(neu Schild("n")); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { b.binde("text", () -> 1); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { b.bindeStil("farbe", () -> "tomate"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { b.stil("farbe", "tomate"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { b.animiere("puls"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { t.setzeTitel("x"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { t.schliesse(); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { t.schwebe("+1"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { t.zeige(st); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { t.bediene(); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { st.leeren(); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.binde("text", () -> { k.setzeText("x"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+// werfender Ausdruck beim binde: fangbar, keine W0103
+probier { a.binde("text", () -> 1 / 0); } verbrannt (RechenAnanas e) { Bote.sage((e.nachricht())); }
+// erlaubt: Getter ohne Argument, Konstruktoren, Bote, Zettel.wert, Rückruf-Registrierung
+a.binde("text", () -> {
+    Schild tmp = neu Schild("tmp");
+    Zettel zz = neu Zettel(z.wert());
+    k.beiKlick(() -> { Bote.sage(("klick")); });
+    Bote.sage(("rechne " + k.aktiv() + " " + b.sichtbar() + " " + b.hinweis() + " " + b.uebergang() + " " + tmp.text() + " " + st.id() + " " + t.titel()));
+    serviere ("ok " + zz.wert());
+});
+Bote.sage(("a: " + a.text()));
+z.setze(7);
+Bote.sage(("a vor Sync: " + a.text()));
+
+// Zyklus mit wechselnden Werten: nach 100 Durchläufen LaufzeitAnanas (erste schmutzige Bindung in Registrierungsreihenfolge)
+Schild c1 = neu Schild("0", id: "c1");
+Schild c2 = neu Schild("0", id: "c2");
+c1.binde("text", () -> (c2.text().alsZahl() + 1));
+c2.binde("text", () -> (c1.text().alsZahl() + 1));
+Bote.sage(("vor Sync: " + c1.text() + " " + c2.text()));
+probier { t.zeige(neu Stapel([c1, c2], id: "wurzel")); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Bote.sage(("nach Zyklus: " + c1.text() + " " + c2.text() + " a: " + a.text()));
+c1.binde("text", karton);
+c2.binde("text", karton);
+// Stil-Bindung als erste schmutzige
+Schild d1 = neu Schild("0", id: "d1");
+Schild d2 = neu Schild("0", id: "d2");
+d1.bindeStil("farbe", () -> d2.text().alsZahl() % 2 == 0 ? "tomate" : "basilikum");
+d1.binde("text", () -> (d2.text().alsZahl() + 1));
+d2.binde("text", () -> (d1.text().alsZahl() + 1));
+probier { t.zeige(neu Stapel([d1, d2], id: "wurzel2")); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+d1.binde("text", karton);
+d2.binde("text", karton);
+// stabiler Kreis ist harmlos
+Schild s1 = neu Schild(id: "s1");
+Schild s2 = neu Schild(id: "s2");
+s1.binde("text", () -> s2.text().länge() > 3 ? "lang" : "kurz");
+s2.binde("text", () -> s1.text() + "!");
+
+// werfende Bindung in bediene (fangbar, Theke bleibt offen); Ananas im Rückruf mit schmutziger Bindung (Nachricht trotzdem)
+Zettel w = neu Zettel(1);
+Schild teiler = neu Schild(id: "teiler");
+teiler.binde("text", () -> 10 / w.wert());
+Knopf null_ = neu Knopf("null", () -> { w.setze(0); }, id: "null");
+Knopf eins = neu Knopf("eins", () -> { w.setze(1); }, id: "eins");
+Knopf werfer = neu Knopf("werfer", () -> { w.setze(5); wirf neu LaufzeitAnanas("aus dem Rückruf"); }, id: "werfer");
+Knopf werfer2 = neu Knopf("werfer2", () -> { w.setze(0); wirf neu LaufzeitAnanas("Rückruf, dann Bindung"); }, id: "werfer2");
+Stapel wurzel = neu Stapel([s1, s2, teiler, null_, eins, werfer, werfer2], id: "w3");
+t.zeige(wurzel);
+Bote.sage(("gezeigt: " + s1.text() + " " + s2.text() + " " + a.text()));
+probier { t.bediene(); } verbrannt (RechenAnanas e) { Bote.sage(("bediene 1: " + e.nachricht())); }
+Bote.sage(("teiler: " + teiler.text() + " w: " + w.wert()));
+probier { t.bediene(); } verbrannt (LaufzeitAnanas e) { Bote.sage(("bediene 2: " + e.nachricht() + " / " + e.typ())); }
+Bote.sage(("teiler: " + teiler.text()));
+probier { t.bediene(); } verbrannt (LaufzeitAnanas e) { Bote.sage(("bediene 3: " + e.nachricht() + " / " + e.typ())); }
+t.bediene();
+Bote.sage(("ende " + teiler.text() + " " + w.wert()));
+// Zyklus am Programmende (ui_ende): Ananas aus der Auswertung beendet das Programm
+d1.binde("text", () -> (d2.text().alsZahl() + 1));
+d2.binde("text", () -> (d1.text().alsZahl() + 1));

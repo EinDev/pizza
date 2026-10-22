@@ -137,6 +137,8 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
         N_G_BLECH => blech(if !pos.is_empty() && art(pos[0]) == A_BLECH { blech_v(pos[0]).clone() } else { Vec::new() }),
         N_G_SPEISEKARTE => crate::karte::neu_karte(),
         // Küchenbrigade S4 (neu Zutat() bleibt RohlingAnanas, K-101/3)
+        // Theke v5 (K-116): neu Zettel – eigene Küchen-Sperre („Zettel gibt es nur in der Hauptküche.“)
+        N_G_ZETTEL if klasse_eintrag(id).is_none() && crate::kueche::nur_hauptkueche(crate::kueche::T_ZETTEL) => KARTON,
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) && id != N_G_ZUTAT && crate::kueche::nur_hauptkueche(crate::kueche::T_THEKE) => KARTON,
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
         N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),

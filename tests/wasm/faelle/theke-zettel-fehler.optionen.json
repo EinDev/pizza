@@ -1,0 +1,8 @@
+{ "uiEreignisse": [
+  { "typ": "klick", "id": "null" },
+  { "typ": "klick", "id": "eins" },
+  { "typ": "klick", "id": "werfer" },
+  { "typ": "klick", "id": "werfer2" },
+  { "typ": "klick", "id": "eins" },
+  { "typ": "klick", "id": "k" }
+] }

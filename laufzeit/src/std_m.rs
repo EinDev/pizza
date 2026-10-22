@@ -89,7 +89,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_RESTE => matches!(id, N_WERT | N_ISTMATSCHIG | N_ALSTEXT),
         A_ROH => matches!(id, N_TEILERGEBNIS | N_VERBRAUCHTEZEIT | N_ALSTEXT),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => matches!(id, N_MIKROWELLE | N_FRISCH | N_RUFE | N_ALSTEXT),
-        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::tabelle_hat(o, id),
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT | crate::theke::A_ZETTEL => crate::theke::tabelle_hat(o, id),
         crate::vorrat::A_ZUFALL => crate::vorrat::hat_methode(id),
         crate::vorrat::A_KAMMER => crate::vorrat::tabelle_hat(id),
         _ => false,
@@ -360,7 +360,7 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         },
         A_MODUL => modul_methode(obj::<Ref>(o).id, id, pos, ben, knoten),
         A_TEIG | A_LIEF | A_ZUST | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
-        crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, ben, knoten),
+        crate::theke::A_THEKE | crate::theke::A_ZUTAT | crate::theke::A_ZETTEL => crate::theke::methode(o, id, pos, ben, knoten),
         crate::vorrat::A_ZUFALL => crate::vorrat::objekt_methode(o, id, pos),
         crate::vorrat::A_KAMMER => crate::vorrat::kammer_methode(o, id, pos, ben),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => match id {

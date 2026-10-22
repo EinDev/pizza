@@ -1,0 +1,22 @@
+// Theke v5 (K-116) im Wasm == Interpreter: Zettel in der Küchenbrigade (nur Hauptküche) und im Karton; ohne Theke eine Schachtel
+Zettel z = neu Zettel(3);
+Schild s = neu Schild("s");
+leer versuche(Rezept r) {
+    probier { Bote.sage((r())); } verbrannt (KüchenAnanas a) { Bote.sage((a)); }
+}
+versuche(() -> [1].brigade(i -> neu Zettel(i)));
+versuche(() -> [1].brigade(i -> z.wert()));
+versuche(() -> [1].brigade(i -> z.setze(i)));
+versuche(() -> [1].brigade(i -> s.binde("text", () -> i)));
+versuche(() -> [1].brigade(i -> s.bindeStil("farbe", () -> "tomate")));
+versuche(() -> [1].brigade(i -> s.text()));
+versuche(() -> [1].brigade(i -> [z]));
+versuche(() -> [1].brigade(i -> z + ""));
+Bote.sage((z.wert() + " " + z + " " + s.text()));
+// ohne Theke: Zettel und Bindung funktionieren, es gibt nichts zu senden
+Zettel stand = neu Zettel(0);
+Schild anzeige = neu Schild();
+anzeige.binde("text", () -> "Stand " + stand.wert());
+stand.setze(1);
+stand.setze(1);
+Bote.sage((anzeige.text()));

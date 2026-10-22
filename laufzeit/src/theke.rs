@@ -13,6 +13,43 @@ use alloc::vec::Vec;
 
 pub const A_THEKE: u32 = 20;
 pub const A_ZUTAT: u32 = 21;
+/// Theke v5 (K-116): Zettel – beobachtbarer Wert (22/23 sind A_ZUFALL/A_KAMMER in vorrat.rs)
+pub const A_ZETTEL: u32 = 24;
+
+/// Zettel (K-116): `neu Zettel(wert = karton)`, `wert()`, `setze(w)`; Textform `Zettel(<Textform>)`
+#[repr(C)]
+pub struct Zettel { pub art: u32, pub _r: u32, pub wert: W }
+
+/// Felder als Quellen/Bindungsziele (K-116): 0 = Zettel.wert, 1 … 15 Zutat-Eigenschaften (Name = Protokollfeld),
+/// Stile ab F_STIL + Stilindex (nur über `bindeStil`).
+const F_ZETTEL: u32 = 0;
+const F_TEXT: u32 = 1;
+const F_WERT: u32 = 2;
+const F_AN: u32 = 3;
+const F_AKTIV: u32 = 4;
+const F_SICHTBAR: u32 = 5;
+const F_HINWEIS: u32 = 6;
+const F_UEBERGANG: u32 = 7;
+const F_INTERVALL: u32 = 8;
+const F_TITEL: u32 = 9;
+const F_KLAPPBAR: u32 = 10;
+const F_ZU: u32 = 11;
+const F_GEWAEHLT: u32 = 12;
+const F_OPTIONEN: u32 = 13;
+const F_SPALTEN: u32 = 14;
+const F_ZEILEN: u32 = 15;
+const F_STIL: u32 = 32;
+const FELD_NAMEN: [&str; 16] = ["wert", "text", "wert", "an", "aktiv", "sichtbar", "hinweis", "uebergang", "intervall", "titel", "klappbar", "zu", "gewaehlt", "optionen", "spalten", "zeilen"];
+
+/// Bindung (K-116): Zutat + Feld ← Ausdruck; Quellen (Objekt, Feld) werden bei jeder Auswertung neu erfasst.
+struct Bindung { zutat: W, feld: u32, fnw: W, dirty: bool, quellen: Vec<(W, u32)>, knoten: i32 }
+/// alle Bindungen in Registrierungsreihenfolge (Ersetzen = alte entfernen, neue anhängen)
+static mut BINDUNGEN: Vec<Bindung> = Vec::new();
+/// Index der gerade rechnenden Bindung (-1 = keine): Getter registrieren Quellen, Setter werfen (K-118)
+static mut AKTIV: i32 = -1;
+/// Wiedereintrittsschutz der Auswertung an Synchronisationspunkten
+static mut AUSWERTUNG: bool = false;
+const DURCHLAEUFE_MAX: u32 = 100;
 
 /// zart: 0 schild, 1 knopf, 2 eingabe, 3 haken, 4 stapel, 5 reihe, 6 takt, 7 fortschritt, 8 abschnitt, 9 tabelle, 10 reiter,
 /// v4 (K-109/K-110): 11 auswahl, 12 tastatur
@@ -59,7 +96,326 @@ extern "C" {
 fn zutat(w: W) -> &'static mut UiZutat { obj::<UiZutat>(w) }
 pub fn ist_zutat(w: W) -> bool { art(w) == A_ZUTAT }
 pub fn ist_theke(w: W) -> bool { art(w) == A_THEKE }
+pub fn ist_zettel(w: W) -> bool { art(w) == A_ZETTEL }
 pub fn art_name(w: W) -> u32 { ART_NAMEN[zutat(w).zart as usize] }
+
+// ---------------------------------------------------------------- Bindungen (Theke v5, K-116 … K-118)
+/// bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); `sichtbar, hinweis` kommen für jede Zutat dazu
+fn bindbar(zart: u32) -> Vec<u32> {
+    let mut v: Vec<u32> = match zart {
+        0 => alloc::vec![F_TEXT], 1 => alloc::vec![F_TEXT, F_AKTIV], 2 => alloc::vec![F_WERT], 3 => alloc::vec![F_TEXT, F_AN],
+        6 => alloc::vec![F_AKTIV, F_INTERVALL], 7 => alloc::vec![F_WERT, F_TEXT], 8 => alloc::vec![F_TITEL, F_KLAPPBAR, F_ZU],
+        9 => alloc::vec![F_SPALTEN, F_ZEILEN], 10 => alloc::vec![F_GEWAEHLT], 11 => alloc::vec![F_OPTIONEN, F_GEWAEHLT, F_AKTIV],
+        12 => alloc::vec![F_AKTIV], _ => Vec::new(),
+    };
+    v.push(F_SICHTBAR); v.push(F_HINWEIS);
+    v
+}
+/// `'text'` bzw. `Stil 'farbe'` (Fehlertexte K-116/K-118)
+fn feld_in(feld: u32, tb: &mut Tb) {
+    if feld >= F_STIL { tb.s("Stil '").s(STIL_NAMEN[(feld - F_STIL) as usize]).s("'"); } else { tb.s("'").s(FELD_NAMEN[feld as usize]).s("'"); }
+}
+/// Ein Getter wurde gelesen: Quelle (Objekt, Feld) der gerade rechnenden Bindung (außerhalb einer Bindung nichts)
+fn quelle(o: W, feld: u32) {
+    unsafe {
+        if AKTIV < 0 { return; }
+        let b = &mut BINDUNGEN[AKTIV as usize];
+        if !b.quellen.iter().any(|&(x, f)| x == o && f == feld) { b.quellen.push((o, feld)); }
+    }
+}
+/// (Objekt, Feld) hat sich wirklich geändert: alle lesenden Bindungen werden schmutzig
+fn schmutzig(o: W, feld: u32) {
+    unsafe { for b in BINDUNGEN.iter_mut() { if b.quellen.iter().any(|&(x, f)| x == o && f == feld) { b.dirty = true; } } }
+}
+fn bindung_index(o: W, feld: u32) -> Option<usize> { unsafe { BINDUNGEN.iter().position(|b| b.zutat == o && b.feld == feld) } }
+/// K-116 „eine Eigenschaft hat einen Schreiber“: Setter auf eine gebundene Eigenschaft (true = geworfen)
+fn gebunden(o: W, feld: u32) -> bool {
+    if bindung_index(o, feld).is_none() { return false; }
+    let mut t = Tb::neu();
+    feld_in(feld, &mut t); t.s(" von "); text_in(o, &mut t); t.s(" ist gebunden – setze den Zettel, nicht die Zutat.");
+    wirf_tb(K_LAUFZEIT, &t);
+    true
+}
+/// K-118 „eine Bindung rechnet nur“: in einer Bindung sind Zustandsänderungen verboten (true = geworfen).
+/// Überladene Getter/Setter (aktiv, sichtbar, hinweis, uebergang, klappbar, zu) sind ohne Argument erlaubt.
+fn nur_rechnen(id: u32, pos: &[W]) -> bool {
+    if unsafe { AKTIV } < 0 { return false; }
+    let verboten = matches!(id, N_SETZETEXT | N_SETZEWERT | N_SETZEAN | N_SETZEINTERVALL | N_SETZETITEL | N_WAEHLE_ASCII | N_SETZEOPTIONEN
+        | N_SETZESPALTEN | N_SETZEZEILEN | N_HINZU | N_LEEREN | N_BINDE | N_BINDESTIL | N_ANIMIERE | N_STIL | N_SCHWEBE | N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZE)
+        || (matches!(id, N_AKTIV | N_SICHTBAR | N_HINWEIS | N_UEBERGANG | N_KLAPPBAR | N_ZU) && !pos.is_empty());
+    if !verboten { return false; }
+    let mut t = Tb::neu();
+    t.s("Eine Bindung rechnet nur – '").name(id).s("' ist darin nicht erlaubt.");
+    wirf_tb(K_LAUFZEIT, &t);
+    true
+}
+
+/// `binde(eigenschaft, fn)` / `bindeStil(schlüssel, fn)`: karton löst, sonst neue Registrierung mit sofortiger erster Auswertung
+fn binde(o: W, id: u32, pos: &[W], knoten: i32) -> W {
+    let stil = id == N_BINDESTIL;
+    let name = text(a(pos, 0)); if sig() { return KARTON; }
+    let feld = if stil {
+        match stil_index(name) { Some(ki) => F_STIL + ki, None => return KARTON }
+    } else {
+        let liste = bindbar(zutat(o).zart);
+        match liste.iter().find(|&&f| FELD_NAMEN[f as usize] == s(name)) {
+            Some(&f) => f,
+            None => {
+                let mut t = Tb::neu();
+                t.s("'").t(name).s("' lässt sich an "); text_in(o, &mut t); t.s(" nicht binden. Bindbar: ");
+                for (i, &f) in liste.iter().enumerate() { if i > 0 { t.s(", "); } t.s(FELD_NAMEN[f as usize]); }
+                t.s(".");
+                wirf_tb(K_LAUFZEIT, &t);
+                return KARTON;
+            }
+        }
+    };
+    let fnw = match ui_funktion(a(pos, 1), if stil { "bindeStil" } else { "binde" }) { Some(f) => f, None => return KARTON };
+    unsafe {
+        if let Some(i) = bindung_index(o, feld) { BINDUNGEN.remove(i); }
+        if fnw == KARTON { return o; }
+        BINDUNGEN.push(Bindung { zutat: o, feld, fnw, dirty: false, quellen: Vec::new(), knoten });
+        let i = BINDUNGEN.len() - 1;
+        let r = match rechne(i) { Some(r) => r, None => return KARTON };
+        // W0103 (K-118, je Aufrufstelle): ohne Quelle rechnet die Bindung nie wieder – geprüft nach dem Ausdruck,
+        // vor der Setter-Prüfung des Ergebnisses (wirft die, kommt die Warnung trotzdem – wie im Interpreter)
+        if BINDUNGEN[i].quellen.is_empty() {
+            let mut t = Tb::neu();
+            t.s("Die Bindung "); feld_in(feld, &mut t); t.s(" von "); text_in(o, &mut t); t.s(" liest weder Zettel noch Zutat – sie rechnet nur einmal.");
+            crate::start::warnung_w("W0103", t.fertig(), knoten);
+        }
+        if !setze_feld(o, feld, r, true) { return KARTON; }
+    }
+    o
+}
+
+/// Ausdruck einer Bindung rufen (0 Argumente): Quellen neu erfassen, währenddessen ist die Bindung AKTIV.
+/// None = der Ausdruck hat geworfen (die Bindung bleibt sauber, das Signal propagiert).
+fn rechne(i: usize) -> Option<W> {
+    let (fnw, knoten) = unsafe { let b = &mut BINDUNGEN[i]; b.quellen.clear(); (b.fnw, b.knoten) };
+    let vorher = unsafe { AKTIV };
+    unsafe { AKTIV = i as i32; }
+    let r = rufe(fnw, &[], &[], knoten);
+    unsafe { AKTIV = vorher; }
+    if sig() { None } else { Some(r) }
+}
+/// Eine Bindung auswerten: Ausdruck rufen, Ergebnis wie der gleichnamige Setter prüfen/umwandeln und setzen (K-117).
+fn auswerte(i: usize) {
+    let (o, feld) = unsafe { (BINDUNGEN[i].zutat, BINDUNGEN[i].feld) };
+    if let Some(r) = rechne(i) { setze_feld(o, feld, r, true); }
+}
+
+/// K-116: Auswertung am Synchronisationspunkt – höchstens 100 Durchläufe, je Durchlauf alle Bindungen in Registrierungsreihenfolge,
+/// jede schmutzige wird vor der Auswertung sauber markiert. Danach noch schmutzig → LaufzeitAnanas (erste schmutzige Bindung).
+fn bindungen_auswerten() {
+    unsafe {
+        if AUSWERTUNG || sig() || BINDUNGEN.is_empty() { return; }
+        AUSWERTUNG = true;
+        let mut durchlauf = 0;
+        while durchlauf < DURCHLAEUFE_MAX {
+            let mut etwas = false;
+            let mut i = 0;
+            while i < BINDUNGEN.len() {
+                if BINDUNGEN[i].dirty {
+                    BINDUNGEN[i].dirty = false;
+                    etwas = true;
+                    auswerte(i);
+                    if sig() { AUSWERTUNG = false; return; }
+                }
+                i += 1;
+            }
+            if !etwas { break; }
+            durchlauf += 1;
+        }
+        AUSWERTUNG = false;
+        if durchlauf >= DURCHLAEUFE_MAX {
+            if let Some(b) = BINDUNGEN.iter().find(|b| b.dirty) {
+                let mut t = Tb::neu();
+                t.s("Die Bindungen kommen nicht zur Ruhe – "); feld_in(b.feld, &mut t); t.s(" von "); text_in(b.zutat, &mut t); t.s(" hängt von sich selbst ab.");
+                wirf_tb(K_LAUFZEIT, &t);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- zentrale Schreibstelle (K-117: nur echte Änderungen)
+fn geaendert(o: W, feld: u32, nachricht: bool, json: String) {
+    schmutzig(o, feld);
+    if nachricht { aendere(o, FELD_NAMEN[feld as usize], json); }
+}
+fn liste_gleich(a: &[W], b: &[W]) -> bool { a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| bytes(*x) == bytes(*y)) }
+fn schreibe_text(o: W, feld: u32, t: W, nachricht: bool) {
+    let z = zutat(o);
+    let alt = match feld { F_TEXT => z.text, F_WERT => z.wert, F_HINWEIS => z.hinweis, _ => z.titel };
+    if bytes(alt) == bytes(t) { return; }
+    match feld { F_TEXT => z.text = t, F_WERT => z.wert = t, F_HINWEIS => z.hinweis = t, _ => z.titel = t }
+    geaendert(o, feld, nachricht, jtext(t));
+}
+fn schreibe_bool(o: W, feld: u32, b: bool, nachricht: bool) {
+    let z = zutat(o);
+    let alt = match feld { F_AN => z.an, F_AKTIV => z.aktiv, F_SICHTBAR => z.sichtbar, F_UEBERGANG => z.uebergang, F_KLAPPBAR => z.klappbar, _ => z.zu };
+    if alt == b { return; }
+    match feld { F_AN => z.an = b, F_AKTIV => z.aktiv = b, F_SICHTBAR => z.sichtbar = b, F_UEBERGANG => z.uebergang = b, F_KLAPPBAR => z.klappbar = b, _ => z.zu = b }
+    geaendert(o, feld, nachricht, jbool(b));
+}
+fn schreibe_zahl(o: W, feld: u32, x: f64, nachricht: bool) {
+    let z = zutat(o);
+    let alt = match feld { F_INTERVALL => z.intervall, F_WERT => z.fortschritt, _ => z.gewaehlt };
+    if alt == x { return; }
+    match feld { F_INTERVALL => z.intervall = x, F_WERT => z.fortschritt = x, _ => z.gewaehlt = x }
+    geaendert(o, feld, nachricht, jzahl(x));
+}
+/// spalten / optionen / Reiter-titel
+fn schreibe_liste(o: W, feld: u32, v: Vec<W>, nachricht: bool) {
+    let z = zutat(o);
+    let alt = match feld { F_SPALTEN => &z.spalten, F_OPTIONEN => &z.optionen, _ => &z.titel_liste };
+    if liste_gleich(alt, &v) { return; }
+    let j = jliste(&v);
+    match feld { F_SPALTEN => z.spalten = v, F_OPTIONEN => z.optionen = v, _ => z.titel_liste = v }
+    geaendert(o, feld, nachricht, j);
+}
+fn schreibe_zeilen(o: W, v: Vec<Vec<W>>, nachricht: bool) {
+    let z = zutat(o);
+    if z.zeilen.len() == v.len() && z.zeilen.iter().zip(v.iter()).all(|(a, b)| liste_gleich(a, b)) { return; }
+    let j = jzeilen(&v);
+    z.zeilen = v;
+    geaendert(o, F_ZEILEN, nachricht, j);
+}
+fn stil_wert_gleich(a: W, b: W) -> bool {
+    if ist_zahl(a) && ist_zahl(b) { return f(a) == f(b); }
+    if art(a) == A_TEXT && art(b) == A_TEXT { return bytes(a) == bytes(b); }
+    a == b
+}
+/// Stil setzen (Some) oder entfernen (None, K-075); K-117: Entfernen eines nicht gesetzten Schlüssels ändert nichts (kein `null`)
+fn schreibe_stil(o: W, ki: u32, w: Option<W>, nachricht: bool) {
+    let z = zutat(o);
+    let pos = z.stil.iter().position(|x| x.0 == ki);
+    match w {
+        None => {
+            match pos { Some(i) => { z.stil.remove(i); } None => return }
+            if !z.stil_null.contains(&ki) { z.stil_null.push(ki); }
+        }
+        Some(w) => {
+            match pos {
+                Some(i) => { if stil_wert_gleich(z.stil[i].1, w) { return; } z.stil[i].1 = w; }
+                None => z.stil.push((ki, w)),
+            }
+            if let Some(i) = z.stil_null.iter().position(|&x| x == ki) { z.stil_null.remove(i); }
+        }
+    }
+    schmutzig(o, F_STIL + ki);
+    if nachricht { let mut j = String::new(); stil_json(zutat(o), &mut j, true); aendere(o, "stil", j); }
+}
+
+/// Stilschlüssel → Index (K-068/K-113), sonst `Stil 'x' gibt es nicht. Erlaubt: …`
+fn stil_index(k: W) -> Option<u32> {
+    match STIL_NAMEN.iter().position(|&n| n == s(k)) {
+        Some(i) => Some(i as u32),
+        None => {
+            let mut t = Tb::neu(); t.s("Stil '").t(k).s("' gibt es nicht. Erlaubt: ").s(STIL_ERLAUBT).s(".");
+            wirf_tb(K_LAUFZEIT, &t); None
+        }
+    }
+}
+/// Stilwert prüfen: Zahlstile (breite, hoehe, abstand, mindestbreite) Zahl ≥ 0; zeilen ganze Zahl ≥ 1; sonst Vokabular (als Textform)
+fn stil_wert(ki: u32, k: W, w: W) -> Option<W> {
+    if STIL_ART[ki as usize] == 0 {
+        if !(ist_zahl(w) && f(w) >= 0.0 && f(w).is_finite()) {
+            let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine Zahl ≥ 0, nicht "); darstellung(w, &mut t); t.s(".");
+            wirf_tb(K_TYP, &t); return None;
+        }
+        return Some(w);
+    }
+    if STIL_ART[ki as usize] == 2 {
+        if !(ist_zahl(w) && zl::ist_ganz(f(w)) && f(w) >= 1.0) {
+            let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine ganze Zahl ≥ 1, nicht "); darstellung(w, &mut t); t.s(".");
+            wirf_tb(K_TYP, &t); return None;
+        }
+        return Some(w);
+    }
+    let w = text(w); if sig() { return None; }
+    let erlaubt: &[&str] = match ki { 3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono", "riesig"], _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"] };
+    if !erlaubt.contains(&s(w)) {
+        let mut t = Tb::neu(); t.s("Wert '").t(w).s("' ist für Stil '").t(k).s("' nicht erlaubt. Erlaubt: ");
+        for (i, e) in erlaubt.iter().enumerate() { if i > 0 { t.s(", "); } t.s(e); }
+        t.s(".");
+        wirf_tb(K_LAUFZEIT, &t); return None;
+    }
+    Some(w)
+}
+
+/// Setter-Argument bzw. Bindungsergebnis wie der gleichnamige Setter prüfen/umwandeln und über die zentrale Schreibstelle
+/// setzen (K-116/K-117). false = geworfen. Die Gebunden-Prüfung (K-116) macht der Setter vorher (`setter`).
+fn setze_feld(o: W, feld: u32, w: W, nachricht: bool) -> bool {
+    let zart = zutat(o).zart;
+    if feld >= F_STIL {
+        let ki = feld - F_STIL;
+        if w == KARTON || w == UNDEF { schreibe_stil(o, ki, None, nachricht); return true; }
+        return match stil_wert(ki, neu_str(STIL_NAMEN[ki as usize]), w) { Some(x) => { schreibe_stil(o, ki, Some(x), nachricht); true } None => false };
+    }
+    match feld {
+        // K-102: text des Fortschritts ist ein optionales Feld – karton/fehlend → ""; sonst Textform (karton → "karton")
+        F_TEXT => {
+            let t = if zart == 7 && (w == UNDEF || w == KARTON) { neu_str("") } else { let t = text(w); if sig() { return false; } t };
+            schreibe_text(o, F_TEXT, t, nachricht);
+        }
+        F_WERT if zart == 7 => match fortschritt_wert(w) { Some(x) => schreibe_zahl(o, F_WERT, x, nachricht), None => return false },
+        F_WERT | F_TITEL => { let t = text(w); if sig() { return false; } schreibe_text(o, feld, t, nachricht); }
+        F_HINWEIS => {
+            let t = if w == UNDEF || w == KARTON { neu_str("") } else { let t = text(w); if sig() { return false; } t };
+            schreibe_text(o, F_HINWEIS, t, nachricht);
+        }
+        F_AN | F_AKTIV | F_SICHTBAR | F_UEBERGANG | F_KLAPPBAR | F_ZU => { let b = bool_pruefen(w); if sig() { return false; } schreibe_bool(o, feld, b, nachricht); }
+        F_INTERVALL => match takt_intervall(w) { Some(x) => schreibe_zahl(o, F_INTERVALL, x, nachricht), None => return false },
+        F_GEWAEHLT if zart == 10 => match reiter_seite(w, zutat(o).kinder.len()) { Some(n) => schreibe_zahl(o, F_GEWAEHLT, n as f64, nachricht), None => return false },
+        F_GEWAEHLT => match auswahl_index(w, zutat(o).optionen.len()) { Some(n) => schreibe_zahl(o, F_GEWAEHLT, n, nachricht), None => return false },
+        F_OPTIONEN => match auswahl_optionen(w) { Some(v) => schreibe_liste(o, F_OPTIONEN, v, nachricht), None => return false },
+        F_SPALTEN => match tabellen_zeile(w, "setzeSpalten") { Some(v) => schreibe_liste(o, F_SPALTEN, v, nachricht), None => return false },
+        F_ZEILEN => match tabellen_zeilen(w) { Some(v) => schreibe_zeilen(o, v, nachricht), None => return false },
+        _ => {}
+    }
+    true
+}
+/// Zutat-Setter: Gebunden-Prüfung, dann prüfen/umwandeln/setzen; liefert die Zutat (verkettbar) oder KARTON nach Ananas
+fn setter(o: W, feld: u32, w: W) -> W {
+    if gebunden(o, feld) { return KARTON; }
+    if setze_feld(o, feld, w, true) { o } else { KARTON }
+}
+
+/// Nach einem Rückruf wird immer gesendet (K-057, auch bei Ananas) – wie `try/finally` im Interpreter: wirft die Auswertung
+/// einer Bindung selbst, ersetzt ihr Signal das des Rückrufs; sonst bleibt das ursprüngliche Signal samt Wurfobjekt.
+fn flush_nach_rueckruf() {
+    let s0 = crate::z().sig;
+    if s0 == 0 { ui_flush(); return; }
+    let (o0, p0) = unsafe { (WURF_OBJ, WURF_POS) };
+    crate::z().sig = 0;
+    ui_flush();
+    if crate::z().sig == 0 { crate::z().sig = s0; unsafe { WURF_OBJ = o0; WURF_POS = p0; } }
+}
+
+// ---------------------------------------------------------------- Zettel (K-116)
+fn neuer_zettel(pos: &[W], ben: &Ben) -> W {
+    let w = arg(pos, ben, 0, N_WERT);
+    neu_w(Zettel { art: A_ZETTEL, _r: 0, wert: if w == UNDEF { KARTON } else { w } })
+}
+fn zettel_methode(o: W, id: u32, pos: &[W]) -> W {
+    // Küchenbrigade S4: Zettel gibt es nur in der Hauptküche (auch Getter)
+    if crate::kueche::nur_hauptkueche(crate::kueche::T_ZETTEL) { return KARTON; }
+    match id {
+        N_WERT => { quelle(o, F_ZETTEL); obj::<Zettel>(o).wert }
+        N_SETZE => {
+            if nur_rechnen(id, pos) { return KARTON; }
+            let w = a(pos, 0);
+            let w = if w == UNDEF { KARTON } else { w };
+            let z = obj::<Zettel>(o);
+            // K-116/K-117: nur ein ungleicher Wert (Gleichheit wie ==) meldet die Änderung
+            if !gleich(z.wert, w) { z.wert = w; schmutzig(o, F_ZETTEL); }
+            o
+        }
+        N_ALSTEXT => text(o),
+        _ => crate::std_m::nicht_gefunden(o, id),
+    }
+}
 
 // ---------------------------------------------------------------- JSON
 fn json_text(s: &[u8], out: &mut String) {
@@ -167,6 +523,7 @@ fn fenster_nachricht(t: &UiTheke) {
 /// Programmende: letzte Änderungen senden, offenes Fenster schließen
 pub fn ui_ende() {
     ui_flush();
+    if sig() { return; }
     let t = unsafe { THEKE };
     if t == KARTON { return; }
     let th = obj::<UiTheke>(t);
@@ -178,6 +535,9 @@ pub fn ui_ende() {
 }
 
 pub fn ui_flush() {
+    // K-116: Bindungen zuerst – die Nachricht zeigt den Zustand am Synchronisationspunkt (K-115)
+    bindungen_auswerten();
+    if sig() { return; }
     unsafe {
         if OFFEN.is_empty() && ANIM.is_empty() { return; }
         for (id, felder) in OFFEN.iter() {
@@ -284,7 +644,7 @@ fn kind(c: W, k: W) -> bool {
     true
 }
 
-pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_AUSWAHL | N_G_TASTATUR | N_G_ZUTAT | N_G_THEKE) }
+pub fn neu_moeglich(id: u32) -> bool { matches!(id, N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_AUSWAHL | N_G_TASTATUR | N_G_ZUTAT | N_G_THEKE | N_G_ZETTEL) }
 
 /// `neu X(…)` für Theke-Klassen (nur wenn keine gleichnamige eigene Klasse existiert). None = keine Theke-Klasse.
 pub fn neu(id: u32, pos: &[W], ben: &Ben) -> Option<W> {
@@ -294,6 +654,7 @@ pub fn neu(id: u32, pos: &[W], ben: &Ben) -> Option<W> {
         N_G_AUSWAHL => 11, N_G_TASTATUR => 12,
         N_G_ZUTAT => { wirf_ananas(K_ROHLING, "Ein Rohling ist nicht essbar."); return Some(KARTON); }
         N_G_THEKE => return Some(neue_theke(pos, ben)),
+        N_G_ZETTEL => return Some(neuer_zettel(pos, ben)),
         _ => return None,
     };
     Some(neue_zutat(zart, pos, ben))
@@ -493,8 +854,9 @@ fn tabellen_zeilen(b: W) -> Option<Vec<Vec<W>>> {
 
 pub fn tabelle_hat(o: W, id: u32) -> bool {
     if ist_theke(o) { return matches!(id, N_ZEIGE | N_BEDIENE | N_SCHLIESSE | N_SETZETITEL | N_TITEL | N_ALSTEXT | N_SCHWEBE); }
+    if ist_zettel(o) { return matches!(id, N_WERT | N_SETZE | N_ALSTEXT); }
     let z = zutat(o);
-    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS | N_UEBERGANG | N_ANIMIERE) { return true; }
+    if matches!(id, N_ID | N_SICHTBAR | N_STIL | N_ALSTEXT | N_HINWEIS | N_UEBERGANG | N_ANIMIERE | N_BINDE | N_BINDESTIL) { return true; }
     match z.zart {
         0 => matches!(id, N_TEXT | N_SETZETEXT),
         1 => matches!(id, N_TEXT | N_SETZETEXT | N_BEIKLICK | N_AKTIV),
@@ -513,21 +875,24 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
 
 pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     if !tabelle_hat(o, id) { return crate::std_m::nicht_gefunden(o, id); }
+    if ist_zettel(o) { return zettel_methode(o, id, pos); }
     // Küchenbrigade S4: die Theke gibt es nur in der Hauptküche (auch Getter)
     if crate::kueche::nur_hauptkueche(crate::kueche::T_THEKE) { return KARTON; }
+    // K-118: eine Bindung rechnet nur – Zustandsänderungen und Senden sind in ihr verboten
+    if nur_rechnen(id, pos) { return KARTON; }
     if ist_theke(o) { return theke_methode(o, id, pos, ben, knoten); }
     let z = zutat(o);
     let zart = z.zart;
+    // Getter registrieren sich als Quelle der rechnenden Bindung (K-116); Setter laufen über `setter` (K-116/K-117)
     match (zart, id) {
+        (_, N_BINDE) | (_, N_BINDESTIL) => return binde(o, id, pos, knoten),
         (_, N_HINWEIS) => {
-            if pos.is_empty() { return z.hinweis; }
-            let h = if pos[0] == KARTON { neu_str("") } else { let t = text(pos[0]); if sig() { return KARTON; } t };
-            zutat(o).hinweis = h; aendere(o, "hinweis", jtext(h)); return o;
+            if pos.is_empty() { quelle(o, F_HINWEIS); return z.hinweis; }
+            return setter(o, F_HINWEIS, pos[0]);
         }
         (_, N_UEBERGANG) => {
-            if pos.is_empty() { return bool_w(z.uebergang); }
-            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
-            zutat(o).uebergang = b; aendere(o, "uebergang", jbool(b)); return o;
+            if pos.is_empty() { quelle(o, F_UEBERGANG); return bool_w(z.uebergang); }
+            return setter(o, F_UEBERGANG, pos[0]);
         }
         (_, N_ANIMIERE) => {
             let a_ = arg(pos, ben, 0, N_ART);
@@ -545,56 +910,50 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             anim_puffer(e);
             return o;
         }
-        (6, N_INTERVALL) => return dauer(z.intervall),
-        (6, N_SETZEINTERVALL) => { match takt_intervall(a(pos, 0)) { Some(x) => { zutat(o).intervall = x; aendere(o, "intervall", jzahl(x)); return o; } None => return KARTON } }
+        (6, N_INTERVALL) => { quelle(o, F_INTERVALL); return dauer(z.intervall); }
+        (6, N_SETZEINTERVALL) => return setter(o, F_INTERVALL, a(pos, 0)),
         (6, N_BEITAKT) => { match ui_funktion(a(pos, 0), "beiTakt") { Some(f) => { zutat(o).bei_takt = f; return o; } None => return KARTON } }
-        (7, N_WERT) => return zahl(z.fortschritt),
-        (7, N_SETZEWERT) => { match fortschritt_wert(a(pos, 0)) { Some(x) => { zutat(o).fortschritt = x; aendere(o, "wert", jzahl(x)); return o; } None => return KARTON } }
-        // K-102: text des Fortschritts ist ein optionales Feld (K-067) – karton/fehlend löscht den Text
-        (7, N_SETZETEXT) => { let x = a(pos, 0); let t = if x == UNDEF || x == KARTON { neu_str("") } else { let t = text(x); if sig() { return KARTON; } t }; zutat(o).text = t; aendere(o, "text", jtext(t)); return o; }
-        (8, N_TITEL) => return z.titel,
-        (8, N_SETZETITEL) => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).titel = t; aendere(o, "titel", jtext(t)); return o; }
+        (7, N_WERT) => { quelle(o, F_WERT); return zahl(z.fortschritt); }
+        (7, N_SETZEWERT) => return setter(o, F_WERT, a(pos, 0)),
+        // K-102: text des Fortschritts ist ein optionales Feld (K-067) – karton/fehlend löscht den Text (in setze_feld)
+        (7, N_SETZETEXT) => return setter(o, F_TEXT, a(pos, 0)),
+        (8, N_TITEL) => { quelle(o, F_TITEL); return z.titel; }
+        (8, N_SETZETITEL) => return setter(o, F_TITEL, a(pos, 0)),
         // K-108: klappbar(d)/klappbar(), zu(d)/zu() – Getter/Setter wie aktiv/sichtbar
         (8, N_KLAPPBAR) => {
-            if pos.is_empty() { return bool_w(z.klappbar); }
-            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
-            zutat(o).klappbar = b; aendere(o, "klappbar", jbool(b)); return o;
+            if pos.is_empty() { quelle(o, F_KLAPPBAR); return bool_w(z.klappbar); }
+            return setter(o, F_KLAPPBAR, pos[0]);
         }
         (8, N_ZU) => {
-            if pos.is_empty() { return bool_w(z.zu); }
-            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
-            zutat(o).zu = b; aendere(o, "zu", jbool(b)); return o;
+            if pos.is_empty() { quelle(o, F_ZU); return bool_w(z.zu); }
+            return setter(o, F_ZU, pos[0]);
         }
         // K-107: Reiter.setzeTitel(n, text) / titel(n) – Titelliste wird mit "" aufgefüllt, Nachricht als ganze Liste
         (10, N_SETZETITEL) => {
             let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n, None => return KARTON };
-            while zutat(o).titel_liste.len() < n { zutat(o).titel_liste.push(neu_str("")); }  // Reihenfolge wie Interpreter: erst auffüllen, dann Textform
+            let mut neu = z.titel_liste.clone();
+            while neu.len() < n { neu.push(neu_str("")); }
             let t = text(a(pos, 1)); if sig() { return KARTON; }
-            let z = zutat(o);
-            z.titel_liste[n - 1] = t;
-            let j = jliste(&z.titel_liste);
-            aendere(o, "titel", j); return o;
+            neu[n - 1] = t;
+            schreibe_liste(o, F_TITEL, neu, true);
+            return o;
         }
         (10, N_TITEL) => {
+            quelle(o, F_TITEL);
             let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n, None => return KARTON };
             return if n <= z.titel_liste.len() { z.titel_liste[n - 1] } else { neu_str("") };
         }
         // K-109: Auswahl
-        (11, N_OPTIONEN) => return blech(z.optionen.clone()),
-        (11, N_SETZEOPTIONEN) => { match auswahl_optionen(a(pos, 0)) { Some(x) => { let j = jliste(&x); zutat(o).optionen = x; aendere(o, "optionen", j); return o; } None => return KARTON } }
-        (11, N_WAEHLE_ASCII) => { match auswahl_index(a(pos, 0), z.optionen.len()) { Some(n) => { zutat(o).gewaehlt = n; aendere(o, "gewaehlt", jzahl(n)); return o; } None => return KARTON } }
-        (11, N_GEWAEHLT) => return zahl(z.gewaehlt),
+        (11, N_OPTIONEN) => { quelle(o, F_OPTIONEN); return blech(z.optionen.clone()); }
+        (11, N_SETZEOPTIONEN) => return setter(o, F_OPTIONEN, a(pos, 0)),
+        (10, N_WAEHLE_ASCII) | (11, N_WAEHLE_ASCII) => return setter(o, F_GEWAEHLT, a(pos, 0)),
+        (10, N_GEWAEHLT) | (11, N_GEWAEHLT) => { quelle(o, F_GEWAEHLT); return zahl(z.gewaehlt); }
         // K-110: Tastatur
         (12, N_BEITASTE) => { match ui_funktion(a(pos, 0), "beiTaste") { Some(f) => { zutat(o).bei_taste = f; return o; } None => return KARTON } }
-        (9, N_SPALTEN) => return blech(z.spalten.clone()),
-        (9, N_SETZESPALTEN) => { match tabellen_zeile(a(pos, 0), "setzeSpalten") { Some(x) => { let j = jliste(&x); zutat(o).spalten = x; aendere(o, "spalten", j); return o; } None => return KARTON } }
-        (9, N_ZEILEN) => return blech(z.zeilen.iter().map(|r| blech(r.clone())).collect()),
-        (9, N_SETZEZEILEN) => { match tabellen_zeilen(a(pos, 0)) { Some(x) => { let j = jzeilen(&x); zutat(o).zeilen = x; aendere(o, "zeilen", j); return o; } None => return KARTON } }
-        (10, N_WAEHLE_ASCII) => {
-            let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n as f64, None => return KARTON };
-            zutat(o).gewaehlt = n; aendere(o, "gewaehlt", jzahl(n)); return o;
-        }
-        (10, N_GEWAEHLT) => return zahl(z.gewaehlt),
+        (9, N_SPALTEN) => { quelle(o, F_SPALTEN); return blech(z.spalten.clone()); }
+        (9, N_SETZESPALTEN) => return setter(o, F_SPALTEN, a(pos, 0)),
+        (9, N_ZEILEN) => { quelle(o, F_ZEILEN); return blech(z.zeilen.iter().map(|r| blech(r.clone())).collect()); }
+        (9, N_SETZEZEILEN) => return setter(o, F_ZEILEN, a(pos, 0)),
         (10, N_BEIAENDERUNG) => { match ui_funktion(a(pos, 0), "beiAenderung") { Some(f) => { zutat(o).bei_aenderung = f; return o; } None => return KARTON } }
         _ => {}
     }
@@ -602,74 +961,32 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         N_ID => z.id,
         N_ALSTEXT => text(o),
         N_SICHTBAR => {
-            if pos.is_empty() { return bool_w(z.sichtbar); }
-            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
-            zutat(o).sichtbar = b; aendere(o, "sichtbar", jbool(b)); o
+            if pos.is_empty() { quelle(o, F_SICHTBAR); return bool_w(z.sichtbar); }
+            setter(o, F_SICHTBAR, pos[0])
         }
         N_STIL => {
             let k = text(a(pos, 0)); if sig() { return KARTON; }
-            let ks = s(k);
-            let ki = match STIL_NAMEN.iter().position(|&n| n == ks) {
-                Some(i) => i as u32,
-                None => {
-                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' gibt es nicht. Erlaubt: ").s(STIL_ERLAUBT).s(".");
-                    wirf_tb(K_LAUFZEIT, &t); return KARTON;
-                }
-            };
-            let mut w = a(pos, 1);
-            if w == KARTON || w == UNDEF {
-                let z = zutat(o);
-                if let Some(i) = z.stil.iter().position(|x| x.0 == ki) { z.stil.remove(i); }
-                if !z.stil_null.contains(&ki) { z.stil_null.push(ki); }
-                let mut j = String::new(); stil_json(z, &mut j, true);
-                aendere(o, "stil", j);
-                return o;
-            }
-            // K-068/K-113: Zahlstile (breite, hoehe, abstand, mindestbreite) Zahl ≥ 0; zeilen ganze Zahl ≥ 1; sonst Vokabular
-            if STIL_ART[ki as usize] == 0 {
-                if !(ist_zahl(w) && f(w) >= 0.0 && f(w).is_finite()) {
-                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine Zahl ≥ 0, nicht "); darstellung(w, &mut t); t.s(".");
-                    wirf_tb(K_TYP, &t); return KARTON;
-                }
-            } else if STIL_ART[ki as usize] == 2 {
-                if !(ist_zahl(w) && zl::ist_ganz(f(w)) && f(w) >= 1.0) {
-                    let mut t = Tb::neu(); t.s("Stil '").t(k).s("' braucht eine ganze Zahl ≥ 1, nicht "); darstellung(w, &mut t); t.s(".");
-                    wirf_tb(K_TYP, &t); return KARTON;
-                }
-            } else {
-                w = text(w); if sig() { return KARTON; }
-                let erlaubt: &[&str] = match ki { 3 => &["links", "mitte", "rechts"], 4 => &["klein", "normal", "gross", "mono", "riesig"], _ => &["tomate", "basilikum", "mozzarella", "kruste", "normal"] };
-                if !erlaubt.contains(&s(w)) {
-                    let mut t = Tb::neu(); t.s("Wert '").t(w).s("' ist für Stil '").t(k).s("' nicht erlaubt. Erlaubt: ");
-                    for (i, e) in erlaubt.iter().enumerate() { if i > 0 { t.s(", "); } t.s(e); }
-                    t.s(".");
-                    wirf_tb(K_LAUFZEIT, &t); return KARTON;
-                }
-            }
-            let z = zutat(o);
-            match z.stil.iter_mut().find(|x| x.0 == ki) { Some(x) => x.1 = w, None => z.stil.push((ki, w)) }
-            if let Some(i) = z.stil_null.iter().position(|&x| x == ki) { z.stil_null.remove(i); }
-            let mut j = String::new(); stil_json(z, &mut j, true);
-            aendere(o, "stil", j);
-            o
+            let ki = match stil_index(k) { Some(i) => i, None => return KARTON };
+            setter(o, F_STIL + ki, a(pos, 1))
         }
-        N_TEXT => z.text,
-        N_SETZETEXT => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).text = t; aendere(o, "text", jtext(t)); o }
+        N_TEXT => { quelle(o, F_TEXT); z.text }
+        N_SETZETEXT => setter(o, F_TEXT, a(pos, 0)),
         N_BEIKLICK => { match ui_funktion(a(pos, 0), "beiKlick") { Some(f) => { zutat(o).bei_klick = f; o } None => KARTON } }
         N_AKTIV => {
-            if pos.is_empty() { return bool_w(z.aktiv); }
-            let b = bool_pruefen(pos[0]); if sig() { return KARTON; }
-            zutat(o).aktiv = b; aendere(o, "aktiv", jbool(b)); o
+            if pos.is_empty() { quelle(o, F_AKTIV); return bool_w(z.aktiv); }
+            setter(o, F_AKTIV, pos[0])
         }
-        N_WERT => z.wert,
-        N_SETZEWERT => { let t = text(a(pos, 0)); if sig() { return KARTON; } zutat(o).wert = t; aendere(o, "wert", jtext(t)); o }
+        N_WERT => { quelle(o, F_WERT); z.wert }
+        N_SETZEWERT => setter(o, F_WERT, a(pos, 0)),
         N_BEIAENDERUNG => { match ui_funktion(a(pos, 0), "beiAenderung") { Some(f) => { zutat(o).bei_aenderung = f; o } None => KARTON } }
         N_BEIENTER => { match ui_funktion(a(pos, 0), "beiEnter") { Some(f) => { zutat(o).bei_enter = f; o } None => KARTON } }
-        N_AN => bool_w(z.an),
-        N_SETZEAN => { let b = bool_pruefen(a(pos, 0)); if sig() { return KARTON; } zutat(o).an = b; aendere(o, "an", jbool(b)); o }
+        N_AN => { quelle(o, F_AN); bool_w(z.an) }
+        N_SETZEAN => setter(o, F_AN, a(pos, 0)),
+        // K-117: hinzu ändert immer, leeren() eines leeren Behälters nicht
         N_HINZU => { if !kind(o, a(pos, 0)) { return KARTON; } aendere_kinder(o); o }
         N_LEEREN => {
             let n = zutat(o).kinder.len();
+            if n == 0 { return o; }
             for i in 0..n { let k = zutat(o).kinder[i]; zutat(k).eltern = KARTON; }
             zutat(o).kinder = Vec::new();
             aendere_kinder(o);
@@ -689,7 +1006,7 @@ fn theke_methode(t: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             let x = text(a(pos, 0)); if sig() { return KARTON; }
             let th = obj::<UiTheke>(t);
             th.titel = x;
-            if th.gezeigt != 0 && th.geschlossen == 0 { ui_flush(); fenster_nachricht(obj::<UiTheke>(t)); }
+            if th.gezeigt != 0 && th.geschlossen == 0 { ui_flush(); if sig() { return KARTON; } fenster_nachricht(obj::<UiTheke>(t)); }
             t
         }
         N_TITEL => obj::<UiTheke>(t).titel,
@@ -767,6 +1084,9 @@ fn zeige(t: W, z: W) {
         let mut x = Tb::neu(); x.s("Die Zutat '").t(zutat(z).id).s("' liegt schon in einem Behälter und kann nicht die Wurzel sein.");
         wirf_tb(K_LAUFZEIT, &x); return;
     }
+    // K-116: Bindungen vor dem baum auswerten (Nachricht = Zustand am Synchronisationspunkt)
+    bindungen_auswerten();
+    if sig() { return; }
     unsafe { OFFEN.clear(); ANIM.clear(); }
     let th = obj::<UiTheke>(t);
     th.wurzel = z;
@@ -784,6 +1104,7 @@ fn schliesse(t: W) {
     let th = obj::<UiTheke>(t);
     if th.gezeigt == 0 || th.geschlossen != 0 { th.geschlossen = 1; return; }
     ui_flush();
+    if sig() { return; }
     sende("{\"v\":1,\"op\":\"schliesse\"}");
     let th = obj::<UiTheke>(t);
     th.geschlossen = 1; th.gezeigt = 0;
@@ -807,11 +1128,13 @@ fn bediene(t: W, knoten: i32) {
     if obj::<UiTheke>(t).geschlossen != 0 { return; }
     if unsafe { ui_warte(core::ptr::null_mut(), -1) } <= 0 {
         ui_flush();
+        if sig() { return; }
         crate::start::warnung("W0100", "Keine Theke verfügbar – Fenster wird nicht angezeigt.", knoten);
         return;
     }
     loop {
         ui_flush();
+        if sig() { return; }
         if obj::<UiTheke>(t).geschlossen != 0 { return; }
         let ev = naechstes();
         let ev = match ev { Some(e) => e, None => b"{\"typ\":\"geschlossen\"}".to_vec() };
@@ -824,7 +1147,7 @@ fn bediene(t: W, knoten: i32) {
             return;
         }
         verteile(&felder, knoten);
-        if obj::<UiTheke>(t).geschlossen == 0 { ui_flush(); }
+        if obj::<UiTheke>(t).geschlossen == 0 { flush_nach_rueckruf(); }
         if sig() { return; }
     }
 }
@@ -959,7 +1282,8 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
         }
         "aenderung" => {
             if zz.zart == 2 {
-                zutat(z).wert = wert_als_text(ev).unwrap_or_else(|| neu_str(""));
+                // K-116/K-117: Renderer-Werte gehen über die zentrale Schreibstelle (Bindungen werden schmutzig, keine Nachricht)
+                schreibe_text(z, F_WERT, wert_als_text(ev).unwrap_or_else(|| neu_str("")), false);
                 let (f, w) = (zutat(z).bei_aenderung, zutat(z).wert);
                 if f != KARTON { rufe(f, &[w], &[], knoten); }
             } else if zz.zart == 10 {
@@ -967,7 +1291,7 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
                     if let Some(nt) = v.strip_prefix("n:") {
                         let n: f64 = nt.parse().unwrap_or(f64::NAN);
                         if zl::ist_ganz(n) && n >= 1.0 && n <= zutat(z).kinder.len() as f64 {
-                            zutat(z).gewaehlt = n;
+                            schreibe_zahl(z, F_GEWAEHLT, n, false);
                             let f_ = zutat(z).bei_aenderung;
                             if f_ != KARTON { rufe(f_, &[zahl(n)], &[], knoten); }
                         }
@@ -975,14 +1299,14 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
                 }
             } else if zz.zart == 3 {
                 let v = feld(ev, "wert");
-                zutat(z).an = v == Some("b:1") || v == Some("s:true");
+                schreibe_bool(z, F_AN, v == Some("b:1") || v == Some("s:true"), false);
                 let (f, w) = (zutat(z).bei_aenderung, bool_w(zutat(z).an));
                 if f != KARTON { rufe(f, &[w], &[], knoten); }
             } else if zz.zart == 8 {
                 // K-108: nur ein klappbarer Abschnitt nimmt das Ereignis an; wert = neuer zu-Zustand (wie Haken)
                 if zz.klappbar {
                     let v = feld(ev, "wert");
-                    zutat(z).zu = v == Some("b:1") || v == Some("s:true");
+                    schreibe_bool(z, F_ZU, v == Some("b:1") || v == Some("s:true"), false);
                     let (f, w) = (zutat(z).bei_aenderung, bool_w(zutat(z).zu));
                     if f != KARTON { rufe(f, &[w], &[], knoten); }
                 }
@@ -993,7 +1317,7 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
                         if let Some(nt) = v.strip_prefix("n:") {
                             let n: f64 = nt.parse().unwrap_or(f64::NAN);
                             if zl::ist_ganz(n) && n >= 1.0 && n <= zutat(z).optionen.len() as f64 {
-                                zutat(z).gewaehlt = n;
+                                schreibe_zahl(z, F_GEWAEHLT, n, false);
                                 let f_ = zutat(z).bei_aenderung;
                                 if f_ != KARTON { rufe(f_, &[zahl(n)], &[], knoten); }
                             }
@@ -1004,7 +1328,7 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
         }
         "enter" => {
             if zz.zart == 2 {
-                if let Some(w) = wert_als_text(ev) { zutat(z).wert = w; }
+                if let Some(w) = wert_als_text(ev) { schreibe_text(z, F_WERT, w, false); }
                 let (f, w) = (zutat(z).bei_enter, zutat(z).wert);
                 if f != KARTON { rufe(f, &[w], &[], knoten); }
             }
@@ -1016,16 +1340,18 @@ fn verteile(ev: &Option<Vec<(String, String)>>, knoten: i32) {
 /// Textform: Theke(titel) / Schild(z1)
 pub fn text_in(v: W, tb: &mut Tb) {
     if ist_theke(v) { tb.s("Theke(").t(obj::<UiTheke>(v).titel).s(")"); }
+    else if ist_zettel(v) { tb.s("Zettel("); text_in_ops(obj::<Zettel>(v).wert, tb); tb.s(")"); }
     else { tb.name(art_name(v)).s("(").t(zutat(v).id).s(")"); }
 }
 pub fn typ_name(v: W, tb: &mut Tb) {
-    if ist_theke(v) { tb.s("Theke"); } else { tb.name(art_name(v)); }
+    if ist_theke(v) { tb.s("Theke"); } else if ist_zettel(v) { tb.s("Zettel"); } else { tb.name(art_name(v)); }
 }
 /// pruefeTyp für die Theke-Typnamen ohne eigene Klasse
 pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
     match typ {
         N_G_THEKE => Some(ist_theke(v)),
         N_G_ZUTAT => Some(ist_zutat(v)),
+        N_G_ZETTEL => Some(ist_zettel(v)),
         N_G_SCHILD | N_G_KNOPF | N_G_EINGABE | N_G_HAKEN | N_G_STAPEL | N_G_REIHE | N_G_TAKT | N_G_FORTSCHRITT | N_G_ABSCHNITT | N_G_TABELLE | N_G_REITER | N_G_AUSWAHL | N_G_TASTATUR => Some(ist_zutat(v) && art_name(v) == typ),
         _ => None,
     }
