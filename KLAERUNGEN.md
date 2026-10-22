@@ -1129,6 +1129,31 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      der App-Modus (`#app=`) liest denselben Schlüssel. Ohne Cross-Origin-Isolation steht im Popover dezent „Ohne
      Cross-Origin-Isolation kocht hier nur ein Koch – gleiches Ergebnis, nur langsamer.“ CSP unverändert (`worker-src
      'self'`, Koch-Worker per URL).
+  14. **Harnische (P6, U-70)** – Entscheidungen des Harnisch-Agenten:
+     (a) **Fuzz** (`tests/fuzz/generator.js`, Option `brigade`, `run.js --brigade-anteil` Standard 0,3 bzw. `FUZZ_BRIGADE_ANTEIL`):
+     `quelle.brigade(k -> { … serviere ((…)); })` als Anweisung (oft in `probier`) und als Ausdruck, verschachtelt bis Tiefe 2,
+     Quellen auch `schneide(n)`/leer; Rümpfe mit Ausgaben, `Bote.fehler`, Würfen in Stück k, Uhr (`vorspulen`/`jetzt`),
+     Zufall (global, `saat`, `neu Zufall()`), `neu FuzzBon` (Klasse ohne statischen Zähler, Ergebnis als Kopie mit Nummer),
+     Endlosschleife in einem Stück (P0002), Kammer lesen/schreiben, Ofen/Teig/Lieferung in der Küche und Brigade im Ofen (D8).
+     Schreibzugriffe zielen in der Küche zu 90 % auf eigene Variablen, sonst bewusst auf Hauptküchen-Eigentum (Wache);
+     selten nicht kartonfähige Ergebnisse; mit Brigade zu 15 % ein kleines Schrittlimit (300–20 000, D7). Mutator kennt
+     `brigade`/`KüchenAnanas`. Abnahme: Seed 2026, 10⁴ gültige (2959 mit Brigade) + 10⁴ kaputte Programme, alle Motoren
+     und Varianten **ohne Abweichung** (≈ 17 min lokal).
+     (b) **Differenz:** neue Motoren `interpreter-chaos` (`koeche: 4`, `kuechenChaos` = Saat aus dem Quelltext-Hash, je
+     Programm verschieden) und `host-chaos` (`--koeche=4 --kuechen-chaos=N`, gleiche Saat); `host-koeche4` ohne Chaos.
+     `PIZZA_KUECHEN_CHAOS=N` fixiert die Saat. Das Feld `koeche` wird in **jedem** Ereignis ignoriert (Host-Metadatum).
+     (c) **Prüfstand:** Fälle dürfen `koeche`/`kuechenChaos` tragen (durchgereicht); jeder Fall mit `brigade` läuft
+     zusätzlich mit `{koeche: 4, kuechenChaos: 7}`, `{koeche: 1, kuechenChaos: 0}`, `{koeche: "auto"}` und muss dieselbe
+     Folge (ohne `koeche`), denselben Exit-Code und dieselben schritte/zeitMs liefern (Köche-Gegenprobe); neuer a14-Fall.
+     (d) **CI:** Job „Differenz & Fuzz“ 1000 gültige + 500 kaputte Programme (mit Brigade, Wasm-Köche-Varianten, lokal
+     ≈ 50 s); Job „host“ zusätzlich Köche-Differenz (`--filter kueche`, host/host-koeche4/host-chaos/interpreter-chaos)
+     und unter Linux 150 Brigade-Fuzzprogramme gegen den nativen Host.
+     (e) **Playground:** Wechsel der Köche-Einstellung (auch per `storage`-Ereignis) beendet einen ruhenden, warm
+     gehaltenen Lauf-Worker samt Köche-Pool sofort (`ausfuehrung.verwerfeWarm()`); der Lauf-Worker beendet bei `k = 1`
+     einen vorhandenen Pool (meldet danach kein `poolWarm`). Ersetzt den Halbsatz in 13 (a). E2E in `12-koeche`.
+     (f) Bereits abgedeckt und nicht doppelt gebaut: reiner Wasm-Modus mit `kuechenbrigade.pizza` (E2E 07 „alle Beispiele
+     in allen Modi“), Popover/Statusleiste/Abbrechen/ohne Isolation/App-Modus (E2E 12). Schnappschuss-Invarianz siehe
+     Punkt 8; Stress/Leistung (§5 Punkt 7/8) sind nicht Teil der P6-Abnahme.
 - **Festgehalten:** HOST-ABI §2/§3/§6 + Anhang A (Gruppe `kueche` endgültig, `abi_version` bleibt 1), IR.md §1/§6a/§7.
 - **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
   bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅), Playground Punkt 13 (U-69 ✅), Harnische Punkt 14 (U-70 ✅).
