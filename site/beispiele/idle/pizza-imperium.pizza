@@ -118,6 +118,22 @@ klasse Geheimrezept {
     }
 }
 
+// ─────────────────────────── Feinkost-Händler ───────────────────────────
+// Nimmt den Platz des ausgelesenen Rezeptbuchs ein: Einmal-Käufe gegen Euro, jede Zutat macht jede Pizza teurer.
+// Bei jeder Neueröffnung ist das Lager wieder leer.
+klasse Feinkost {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami prozent;
+    funghi preis;
+    margherita text;
+
+    Feinkost(margherita s, margherita sym, margherita n, salami p, funghi pr, margherita t) {
+        schlüssel = s; symbol = sym; name = n; prozent = p; preis = pr; text = t;
+    }
+}
+
 // ─────────────────────────────── Meisterbriefe ──────────────────────────
 // Einmal-Käufe gegen Euro: Hat man 10, 25, 50 bzw. 100 Stück eines Gebäudes, gibt es dafür einen
 // Meisterbrief – das Gebäude backt dann ×1,25 (je Brief). Bei jeder Neueröffnung verfallen sie.
@@ -280,6 +296,17 @@ klasse Spiel {
     Blech<Meisterbrief> ALLE_BRIEFE = [];
     Blech<margherita> briefe = [];   // gekaufte Meisterbriefe (Schlüssel) – verfallen bei jeder Neueröffnung
 
+    Blech<Feinkost> FEINKOST = [
+        neu Feinkost("sanmarzano", "🍅", "San-Marzano-Tomaten", 15, 300_000_000_000, "Am Vesuv gereift. Nonna erkennt sie am Duft."),
+        neu Feinkost("tipo00", "🌾", "Mehl Tipo 00", 15, 1_800_000_000_000, "So fein, dass es beim Öffnen der Tüte schwebt."),
+        neu Feinkost("büffel", "🐃", "Büffelmozzarella aus Kampanien", 20, 10_800_000_000_000, "Die Büffel heißen Gina, Bruno und Signora Rossi."),
+        neu Feinkost("olivenöl", "🫒", "Olivenöl extra vergine", 10, 64_800_000_000_000, "Kaltgepresst, warm empfohlen."),
+        neu Feinkost("genua", "🌿", "Basilikum aus Genua", 10, 388_800_000_000_000, "Mit Herkunftsnachweis und eigenem Fanclub."),
+        neu Feinkost("trapani", "🧂", "Meersalz aus Trapani", 5, 2_332_800_000_000_000, "Nonna sagt: Das schmeckt man. Luigi schmeckt es nicht."),
+        neu Feinkost("trüffel", "🍄", "Weißer Trüffel aus Alba", 50, 14_000_000_000_000_000, "Wird mit dem Hobel serviert und mit Leibwächter geliefert.")
+    ];
+    Blech<margherita> feinkost = [];   // im Lager (Schlüssel) – leer nach jeder Neueröffnung
+
     Spiel() {
         für (salami i : [1 .. betrieb.länge()]) {
             Upgrade u = betrieb.stück(i);
@@ -388,7 +415,7 @@ klasse Spiel {
         }
         klickWert = (fest * f + anteil / 100 * sekundeWert) * (effekt == "fussball" ? 5 : 1) * (effekt == "tenor" ? 3 : 1);
         preisWert = rezept.preis() * (kennt("sauerteig") ? 1.2 : 1) * (kennt("langteig") ? 1.3 : 1) * (kennt("mutterhefe") ? 1.5 : 1)
-            * (bestanden("hawaii") ? 1.25 : 1) * (effekt == "kritiker" ? 2 : 1);
+            * (bestanden("hawaii") ? 1.25 : 1) * (effekt == "kritiker" ? 2 : 1) * feinkostFaktor();
         version++;
     }
 
@@ -683,6 +710,29 @@ klasse Spiel {
         melde(("🔥 Sonderschicht bei " + grad + " °C: " + ladungen + " Ofenladungen, " + pizzen(bonus) + "."));
     }
 
+    // ── Feinkost ──
+    funghi feinkostFaktor() {
+        funghi f = 1;
+        für (Feinkost k : FEINKOST) { falls (feinkost.enthält(k.schlüssel)) { f = f * (1 + k.prozent / 100); } }
+        serviere (f);
+    }
+    diavolo feinkostOffen() { serviere (rezeptFertig() && !rezeptGesperrt()); }
+    // Welle: höchstens zwei Angebote, in der Reihenfolge der Liste
+    Blech<Feinkost> feinkostAngebot() {
+        Blech<Feinkost> welle = [];
+        für (Feinkost k : FEINKOST) { falls (welle.länge() < 2 && !feinkost.enthält(k.schlüssel)) { welle.hinzu(k); } }
+        serviere (welle);
+    }
+    diavolo kaufeFeinkost(Feinkost k) {
+        falls (k == karton || !feinkostOffen() || feinkost.enthält(k.schlüssel) || geld < k.preis) { serviere (nein); }
+        geld -= k.preis;
+        feinkost.hinzu(k.schlüssel);
+        neuBerechnen();
+        melde(("🧀 Frisch vom Feinkost-Händler: " + k.symbol + " " + k.name + " – jede Pizza bringt " + k.prozent + " % mehr. Eine Pizza kostet jetzt "
+            + preis().euro() + "."));
+        serviere (ja);
+    }
+
     // ── Meisterbriefe ──
     funghi briefFaktor(margherita gebäude) {
         funghi f = 1;
@@ -743,6 +793,7 @@ klasse Spiel {
     leer setzeRundeZurück() {
         geld = 0; pizzen = 0; umsatz = 0; umsatzKlick = 0; umsatzMini = 0;
         briefe = [];
+        feinkost = [];
         für (Upgrade u : handwerk) { u.setzeAnzahl(0); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(0); }
         falls (kennt("sparstrumpf")) {
@@ -935,6 +986,7 @@ klasse Spiel {
         s.lege("minispielPause", minispielPause).lege("minispieleGespielt", minispieleGespielt);
         s.lege("minispieleGewonnen", minispieleGewonnen).lege("minispielSiege", minispielSiege).lege("siegeJe", siegeJe);
         s.lege("umsatzMini", umsatzMini).lege("umsatzMiniAllzeit", umsatzMiniAllzeit);
+        s.lege("feinkost", feinkost);
         s.lege("briefe", briefe).lege("kritikerBesuche", kritikerBesuche).lege("regentage", regentage);
         s.lege("größterKauf", größterKauf).lege("offlineBoni", offlineBoni);
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
@@ -965,6 +1017,7 @@ klasse Spiel {
         siegeJe = s.hole("siegeJe", neu Speisekarte<margherita, salami>());
         umsatzMini = s.hole("umsatzMini", 0); umsatzMiniAllzeit = s.hole("umsatzMiniAllzeit", 0);
         briefe = s.hole("briefe", []);
+        feinkost = s.hole("feinkost", []);
         kritikerBesuche = s.hole("kritikerBesuche", 0); regentage = s.hole("regentage", 0);
         größterKauf = s.hole("größterKauf", 0); offlineBoni = s.hole("offlineBoni", 0);
         Speisekarte<margherita, salami> stück = s.hole("upgrades", neu Speisekarte<margherita, salami>());
@@ -1279,6 +1332,7 @@ Blech<Erfolg> ERFOLGE = [
         (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.siegeJe.hole(k, 0) >= 3)).länge() >= 1)),
     neu Erfolg("Stammspieler", "Spiele 25 Minispiele.", (s) -> (s.minispieleGespielt >= 25)),
     neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
+    neu Erfolg("Feinschmecker", "Kaufe alles, was der Feinkost-Händler hat – in einer Runde.", (s) -> (s.feinkost.länge() >= s.FEINKOST.länge())),
     neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
     neu Erfolg("Großeinkauf", "Kaufe 50 Stück auf einmal.", (s) -> (s.größterKauf >= 50)),
     neu Erfolg("Meisterhaft", "Häng 10 Meisterbriefe in einer Runde an die Wand.", (s) -> (s.briefe.länge() >= 10)),
@@ -1587,6 +1641,58 @@ Knopf rezeptKnopf = neu Knopf("", () -> {
 rezeptKnopf.hinweis("Jede Seite legt einen Belag auf – die Pizza wird teurer, und jede verkaufte bringt mehr.");
 Abschnitt rezeptTeil = neu Abschnitt("📖 Nonnas Rezeptbuch", [rezeptInfo, rezeptKnopf], id: "rezeptbuch");
 
+// ── Feinkost-Händler: zwei feste Plätze an der Stelle des ausgelesenen Rezeptbuchs ──
+Blech<Feinkost> feinkostPlatz = [karton, karton];
+Blech<Schild> feinkostInfos = [];
+Blech<Knopf> feinkostKnöpfe = [];
+Schild lagerInfo = neu Schild("", id: "feinkost-lager");
+lagerInfo.stil("schrift", "klein").stil("farbe", "basilikum");
+Abschnitt feinkostTeil = neu Abschnitt("🧀 Feinkost-Händler", [lagerInfo], id: "feinkost");
+feinkostTeil.stil("abstand", 6);
+feinkostTeil.sichtbar(nein);
+für (salami i : [1 .. 2]) {
+    Schild info = neu Schild("", id: "feinkost-info-" + i);
+    info.stil("schrift", "klein").stil("breite", 340).stil("hoehe", 34);
+    Knopf k = neu Knopf("", () -> {
+        falls (spiel.kaufeFeinkost(feinkostPlatz.stück(i))) { speichere(); nachVerarbeitung(); }
+    }, id: "feinkost-kauf-" + i);
+    k.stil("breite", 130).hinweis("Einmal kaufen – wirkt bis zur nächsten Neueröffnung.");
+    Reihe r = neu Reihe([info, k], id: "feinkost-" + i);
+    r.stil("abstand", 8);
+    feinkostInfos.hinzu(info);
+    feinkostKnöpfe.hinzu(k);
+    feinkostTeil.hinzu(r);
+}
+
+leer zeichneFeinkost() {
+    diavolo offen = spiel.feinkostOffen();
+    falls (feinkostTeil.sichtbar() != offen) { feinkostTeil.sichtbar(offen); }
+    falls (!offen) { serviere; }
+    Blech<Feinkost> welle = spiel.feinkostAngebot();
+    für (salami i : [1 .. 2]) {
+        Feinkost k = feinkostPlatz.stück(i);
+        falls (k != karton && !welle.enthält(k)) { feinkostPlatz.setze(i, karton); }
+    }
+    für (Feinkost k : welle) {
+        falls (!feinkostPlatz.enthält(k)) {
+            falls (feinkostPlatz.stück(1) == karton) { feinkostPlatz.setze(1, k); } sonst falls (feinkostPlatz.stück(2) == karton) { feinkostPlatz.setze(2, k); }
+        }
+    }
+    für (salami i : [1 .. 2]) {
+        Feinkost k = feinkostPlatz.stück(i);
+        falls (k != karton) {
+            setzeText(feinkostInfos.stück(i), k.symbol + " " + k.name + " – jede Pizza +" + k.prozent + " %. " + k.text);
+            setzeKnopf(feinkostKnöpfe.stück(i), k.preis.euro(kompakt: ja), spiel.geld >= k.preis);
+        } sonst {
+            setzeText(feinkostInfos.stück(i), "— Der Händler hat alles verkauft, was er hatte. Grazie!");
+            setzeKnopf(feinkostKnöpfe.stück(i), "—", nein);
+        }
+    }
+    Blech<Feinkost> lager = spiel.FEINKOST.filtere((k) -> (spiel.feinkost.enthält(k.schlüssel)));
+    setzeText(lagerInfo, lager.istLeer() ? "Nonnas Rezeptbuch ist ausgelesen – jetzt geht es um die Zutaten. Das Lager ist noch leer."
+        : "✅ Im Lager: " + lager.belege((k) -> (k.symbol + " " + k.name)).verbinde(" · "));
+}
+
 // ── Meisterbriefe: drei Plätze, die offenen Briefe rücken nach ──
 Blech<Meisterbrief> briefPlatz = [karton, karton, karton];
 Blech<Schild> briefInfos = [];
@@ -1685,6 +1791,7 @@ kleinReihe.sichtbar(nein);
 
 Stapel backstube = neu Stapel([
     rezeptTeil,
+    feinkostTeil,
     kaufmengeReihe,
     upgradeAbschnitt("🏭 Betrieb – Pizzen pro Sekunde", spiel.betrieb, "betrieb", [kleinReihe]),
     upgradeAbschnitt("🛠 Handwerk – mehr Pizzen pro Klick", spiel.handwerk, "handwerk", []),
@@ -1963,6 +2070,7 @@ leer zeichneVoll() {
 
     falls (!kaufmengeReihe.sichtbar() && kaufmengeLohnt()) { kaufmengeReihe.sichtbar(ja); }
     zeichneBriefe();
+    zeichneFeinkost();
 
     // Upgrades: in jeder Liste erscheint das nächste, sobald das vorige gekauft ist.
     Upgrade vorher = karton;
@@ -2242,6 +2350,13 @@ leer zeichne() {
     }
 
     für (UpgradeZeile z : zeilen) { z.zeichne(spiel.geld, kaufMenge); }
+    für (salami i : [1 .. 2]) {
+        Feinkost f = feinkostPlatz.stück(i);
+        falls (f != karton) {
+            Knopf k = feinkostKnöpfe.stück(i);
+            falls (k.aktiv() != (spiel.geld >= f.preis)) { k.aktiv(spiel.geld >= f.preis); }
+        }
+    }
     für (salami i : [1 .. 3]) {
         Meisterbrief b = briefPlatz.stück(i);
         falls (b != karton) {
