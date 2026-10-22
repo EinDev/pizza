@@ -25,12 +25,14 @@ Bote.sage(("preis: " + preis.text() + " aktiv: " + backen.aktiv()));
 // Ein Schreiber (K-116)
 probier { kasse.setzeText("x"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 probier { backen.aktiv(nein); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { backen.aktiv(1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
 kasse.bindeStil("farbe", () -> geld.wert() < 10 ? "tomate" : "basilikum");
 probier { kasse.stil("farbe", "kruste"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 probier { kasse.stil("farbe", karton); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 kasse.stil("schrift", "gross");
 // Fehler beim Binden
 probier { kasse.binde("farbe", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { kasse.binde("farbe", karton); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 probier { backen.binde("wert", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 probier { anzahl.binde(karton, () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
 probier { anzahl.binde("kinder", () -> []); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
@@ -92,6 +94,13 @@ ab.binde("hinweis", () -> geld.wert() == 0 ? karton : "Stand " + geld.wert());
 Bote.sage(("vor zeige: " + f.wert() + " " + f.text() + " " + takt.intervall() + " " + aw.gewaehlt() + " " + ab.titel() + " " + ab.hinweis() + " " + rt.gewaehlt()));
 t.zeige(ab);
 Bote.sage(("nach zeige: " + folgt.text() + " " + rt.gewaehlt() + " " + rtitel.text()));
+// Getter mit ungültigem Argument in einer Bindung; gleicher Titel an gezeigter Theke
+Schild rt99 = neu Schild(id: "rt99");
+probier { rt99.binde("text", () -> rt.titel(99)); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+rt.setzeTitel(1, "Eins");
+probier { t.setzeTitel("v5"); } verbrannt (KeinStückAnanas e) { Bote.sage(("beim Sync: " + e.nachricht())); }
+rt99.binde("text", karton);
+t.setzeTitel("v5");
 
 // K-117: gleiche Werte senden nichts; a → b → a sendet a
 h.setzeText("Extra");

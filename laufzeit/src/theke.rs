@@ -346,40 +346,54 @@ fn stil_wert(ki: u32, k: W, w: W) -> Option<W> {
 
 /// Setter-Argument bzw. Bindungsergebnis wie der gleichnamige Setter prüfen/umwandeln und über die zentrale Schreibstelle
 /// setzen (K-116/K-117). false = geworfen. Die Gebunden-Prüfung (K-116) macht der Setter vorher (`setter`).
-fn setze_feld(o: W, feld: u32, w: W, nachricht: bool) -> bool {
+/// geprüfter/umgewandelter Wert eines Felds (Ergebnis von `umwandeln`), bereit für die zentrale Schreibstelle
+enum Feldwert { T(W), B(bool), Z(f64), L(Vec<W>), ZZ(Vec<Vec<W>>), S(Option<W>) }
+/// Setter-Argument bzw. Bindungsergebnis wie der gleichnamige Setter prüfen und umwandeln (K-116). None = geworfen.
+fn umwandeln(o: W, feld: u32, w: W) -> Option<Feldwert> {
     let zart = zutat(o).zart;
     if feld >= F_STIL {
         let ki = feld - F_STIL;
-        if w == KARTON || w == UNDEF { schreibe_stil(o, ki, None, nachricht); return true; }
-        return match stil_wert(ki, neu_str(STIL_NAMEN[ki as usize]), w) { Some(x) => { schreibe_stil(o, ki, Some(x), nachricht); true } None => false };
+        if w == KARTON || w == UNDEF { return Some(Feldwert::S(None)); }
+        return stil_wert(ki, neu_str(STIL_NAMEN[ki as usize]), w).map(|x| Feldwert::S(Some(x)));
     }
-    match feld {
+    Some(match feld {
         // K-102: text des Fortschritts ist ein optionales Feld – karton/fehlend → ""; sonst Textform (karton → "karton")
-        F_TEXT => {
-            let t = if zart == 7 && (w == UNDEF || w == KARTON) { neu_str("") } else { let t = text(w); if sig() { return false; } t };
-            schreibe_text(o, F_TEXT, t, nachricht);
-        }
-        F_WERT if zart == 7 => match fortschritt_wert(w) { Some(x) => schreibe_zahl(o, F_WERT, x, nachricht), None => return false },
-        F_WERT | F_TITEL => { let t = text(w); if sig() { return false; } schreibe_text(o, feld, t, nachricht); }
-        F_HINWEIS => {
-            let t = if w == UNDEF || w == KARTON { neu_str("") } else { let t = text(w); if sig() { return false; } t };
-            schreibe_text(o, F_HINWEIS, t, nachricht);
-        }
-        F_AN | F_AKTIV | F_SICHTBAR | F_UEBERGANG | F_KLAPPBAR | F_ZU => { let b = bool_pruefen(w); if sig() { return false; } schreibe_bool(o, feld, b, nachricht); }
-        F_INTERVALL => match takt_intervall(w) { Some(x) => schreibe_zahl(o, F_INTERVALL, x, nachricht), None => return false },
-        F_GEWAEHLT if zart == 10 => match reiter_seite(w, zutat(o).kinder.len()) { Some(n) => schreibe_zahl(o, F_GEWAEHLT, n as f64, nachricht), None => return false },
-        F_GEWAEHLT => match auswahl_index(w, zutat(o).optionen.len()) { Some(n) => schreibe_zahl(o, F_GEWAEHLT, n, nachricht), None => return false },
-        F_OPTIONEN => match auswahl_optionen(w) { Some(v) => schreibe_liste(o, F_OPTIONEN, v, nachricht), None => return false },
-        F_SPALTEN => match tabellen_zeile(w, "setzeSpalten") { Some(v) => schreibe_liste(o, F_SPALTEN, v, nachricht), None => return false },
-        F_ZEILEN => match tabellen_zeilen(w) { Some(v) => schreibe_zeilen(o, v, nachricht), None => return false },
-        _ => {}
-    }
-    true
+        F_TEXT if zart == 7 && (w == UNDEF || w == KARTON) => Feldwert::T(neu_str("")),
+        F_HINWEIS if w == UNDEF || w == KARTON => Feldwert::T(neu_str("")),
+        F_TEXT | F_WERT | F_TITEL | F_HINWEIS if !(feld == F_WERT && zart == 7) => { let t = text(w); if sig() { return None; } Feldwert::T(t) }
+        F_WERT => Feldwert::Z(fortschritt_wert(w)?),
+        F_AN | F_AKTIV | F_SICHTBAR | F_UEBERGANG | F_KLAPPBAR | F_ZU => { let b = bool_pruefen(w); if sig() { return None; } Feldwert::B(b) }
+        F_INTERVALL => Feldwert::Z(takt_intervall(w)?),
+        F_GEWAEHLT if zart == 10 => Feldwert::Z(reiter_seite(w, zutat(o).kinder.len())? as f64),
+        F_GEWAEHLT => Feldwert::Z(auswahl_index(w, zutat(o).optionen.len())?),
+        F_OPTIONEN => Feldwert::L(auswahl_optionen(w)?),
+        F_SPALTEN => Feldwert::L(tabellen_zeile(w, "setzeSpalten")?),
+        F_ZEILEN => Feldwert::ZZ(tabellen_zeilen(w)?),
+        _ => return None,
+    })
 }
-/// Zutat-Setter: Gebunden-Prüfung, dann prüfen/umwandeln/setzen; liefert die Zutat (verkettbar) oder KARTON nach Ananas
+/// zentrale Schreibstelle (K-117): nur echte Änderungen – Bindungen schmutzig, Nachricht bei gezeigter Zutat
+fn schreibe(o: W, feld: u32, v: Feldwert, nachricht: bool) {
+    match v {
+        Feldwert::T(t) => schreibe_text(o, feld, t, nachricht),
+        Feldwert::B(b) => schreibe_bool(o, feld, b, nachricht),
+        Feldwert::Z(x) => schreibe_zahl(o, feld, x, nachricht),
+        Feldwert::L(l) => schreibe_liste(o, feld, l, nachricht),
+        Feldwert::ZZ(z) => schreibe_zeilen(o, z, nachricht),
+        Feldwert::S(st) => schreibe_stil(o, feld - F_STIL, st, nachricht),
+    }
+}
+/// Bindungsergebnis prüfen/umwandeln und setzen (ohne Gebunden-Prüfung). false = geworfen.
+fn setze_feld(o: W, feld: u32, w: W, nachricht: bool) -> bool {
+    match umwandeln(o, feld, w) { Some(v) => { schreibe(o, feld, v, nachricht); true } None => false }
+}
+/// Zutat-Setter: Argument prüfen/umwandeln, dann Gebunden-Prüfung (K-116, wie der Interpreter: erst TypAnanas, dann „ist gebunden“),
+/// dann setzen; liefert die Zutat (verkettbar) oder KARTON nach Ananas
 fn setter(o: W, feld: u32, w: W) -> W {
+    let v = match umwandeln(o, feld, w) { Some(v) => v, None => return KARTON };
     if gebunden(o, feld) { return KARTON; }
-    if setze_feld(o, feld, w, true) { o } else { KARTON }
+    schreibe(o, feld, v, true);
+    o
 }
 
 /// Nach einem Rückruf wird immer gesendet (K-057, auch bei Ananas) – wie `try/finally` im Interpreter: wirft die Auswertung
@@ -939,8 +953,8 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             return o;
         }
         (10, N_TITEL) => {
-            quelle(o, F_TITEL);
             let n = match reiter_seite(a(pos, 0), z.kinder.len()) { Some(n) => n, None => return KARTON };
+            quelle(o, F_TITEL);   // Quelle erst nach gültiger Seite (wie der Interpreter)
             return if n <= z.titel_liste.len() { z.titel_liste[n - 1] } else { neu_str("") };
         }
         // K-109: Auswahl
