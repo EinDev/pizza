@@ -75,7 +75,7 @@ pub fn rufe1(f: W, x: &[W], knoten: i32) -> Option<W> {
 
 // ---------------------------------------------------------------- Tabellen
 pub fn tabelle_hat(o: W, id: u32) -> bool {
-    if ist_zahl(o) { return matches!(id, N_WAEHRUNG | N_EURO /* ÜBERGANG (K-127) */ | N_RUNDEN | N_ABS | N_ALSTEXT | N_GANZ | N_TAUSENDER | N_KOMPAKT); }
+    if ist_zahl(o) { return matches!(id, N_WAEHRUNG | N_RUNDEN | N_ABS | N_ALSTEXT | N_GANZ | N_TAUSENDER | N_KOMPAKT); }
     if ist_bool(o) { return id == N_ALSTEXT; }
     match art(o) {
         A_TEXT => matches!(id, N_LAENGE | N_GROSS | N_KLEIN | N_ENTHAELT | N_ZERLEGE | N_ERSETZE | N_TRIMME | N_ZEICHEN | N_WIEDERHOLE | N_BEGINNTMIT | N_ENDETMIT | N_ALSZAHL | N_ALSTEXT | N_ISTLEER),
@@ -84,7 +84,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_KARTE => matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_WERTE | N_LAENGE | N_ISTLEER | N_ALSTEXT),
         A_ENUMW => matches!(id, N_NAME | N_POSITION | N_ALSTEXT),
         A_TEIG => matches!(id, N_GEHENLASSEN | N_BACKEN | N_ISTAUFGEGANGEN | N_ALSTEXT),
-        A_LIEF => matches!(id, N_PRIORITAET | N_TRINKGELD /* ÜBERGANG (K-127) */ | N_WARTE | N_WENNDA | N_ISTGELIEFERT | N_ALSTEXT),
+        A_LIEF => matches!(id, N_PRIORITAET | N_WARTE | N_WENNDA | N_ISTGELIEFERT | N_ALSTEXT),
         A_ZUST => matches!(id, N_PUENKTLICH | N_WERT | N_ODERGRATIS | N_ALSTEXT),
         A_RESTE => matches!(id, N_WERT | N_ISTMATSCHIG | N_ALSTEXT),
         A_ROH => matches!(id, N_TEILERGEBNIS | N_VERBRAUCHTEZEIT | N_ALSTEXT),
@@ -322,15 +322,6 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
                     if !bytes(st).is_empty() { v.push(b' '); v.extend_from_slice(bytes(st)); }
                 }
                 neu_text(&v)
-            }
-            // ÜBERGANG (K-127): euro() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
-            N_EURO => {
-                let k = arg(pos, ben, 0, N_KOMPAKT);
-                if k != UNDEF && k != KARTON {
-                    let b = bool_pruefen(k); if sig() { return KARTON; }
-                    if b { let mut v = Vec::new(); kompakt_text(x, 2, &mut v); v.extend_from_slice(" €".as_bytes()); return neu_text(&v); }
-                }
-                let mut b = Vec::new(); betrag_text(x, &mut b); b.extend_from_slice(" €".as_bytes()); neu_text(&b)
             }
             N_TAUSENDER | N_KOMPAKT => {
                 let wo = if id == N_TAUSENDER { "tausender" } else { "kompakt" };

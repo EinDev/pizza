@@ -1,0 +1,10 @@
+// K-127: euro(), trinkgeld() und ofen(temperatur:) gibt es nicht mehr
+probier { 8.euro(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { 8.euro(kompakt: ja); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { bestelle(() -> (1)).trinkgeld(1); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+// temperatur: ist ein unbekanntes benanntes Argument und wird ignoriert (K-028): Budget = zeit, keine 485-Grenze
+Bote.sage((ofen(temperatur: 500, zeit: 1ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); }));
+Bote.sage((ofen(temperatur: 1000) { serviere (("nicht zu heiß")); }));
+Bote.sage((ofen(temperatur: "x", zeit: 3ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); }));
+Lieferung<salami> l = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); });
+Bote.sage((l.priorität(100).warte(max: 50ms).pünktlich()));

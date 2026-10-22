@@ -438,8 +438,8 @@ pub const N_MARKE: u32 = 206;
 pub const N_AUS: u32 = 207;
 
 // K-127: `x.währung(symbol, kompakt:)` und `lieferung.priorität(n)`.
-// ÜBERGANG (K-127): die Einträge "auto", "euro", "trinkgeld", "temperatur" bleiben in der Tabelle (Positionen!),
-// auch wenn sie nach Phase B nicht mehr gebraucht werden.
+// K-127: die Einträge "auto", "euro", "trinkgeld", "temperatur" bleiben in der Tabelle (Positionen!),
+// auch wenn die Sprache sie nicht mehr kennt.
 pub const N_WAEHRUNG: u32 = 208;
 pub const N_PRIORITAET: u32 = 209;
 pub const N_SYMBOL: u32 = 210;

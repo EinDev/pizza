@@ -1605,9 +1605,7 @@
         if (e.args.ben) { for (let j = e.args.ben.length - 1; j >= 0; j--) if (e.args.ben[j].name === name) { c.get(tmps[e.args.pos.length + j]); return; } }
         c.i64(UNDEF);
       };
-      // ÜBERGANG (K-127): benanntes temperatur: wirkt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
-      // (Phase B: rt_ofen_vor ohne temp-Parameter, hier nur noch wahl(0, 'zeit'))
-      wahl(Infinity, 'temperatur'); wahl(0, 'zeit');
+      wahl(0, 'zeit');
       for (const l of tmps) this.frei_('W', l);
       this.effekt('rt_ofen_vor', e.tf);
       const id = this.temp('B');

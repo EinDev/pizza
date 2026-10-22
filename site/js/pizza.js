@@ -1179,7 +1179,7 @@
   class Modul { constructor(name, methoden, felder) { this.name = name; this.methoden = methoden; this.felder = felder; } }
   class Teig { constructor(fn) { this.fn = fn; this.fertig = false; this.wert = null; this.auf = false; } }
   class Lieferung {
-    constructor(fn, nr) { this.fn = fn; this.nr = nr; this.prio = 0; this.trinkgeld = 0; this.zustellung = null; this.rueckruf = null; }
+    constructor(fn, nr) { this.fn = fn; this.nr = nr; this.prio = 0; this.zustellung = null; this.rueckruf = null; }
   }
   class Zustellung { constructor(p, w, f) { this.puenktlich = p; this.wert = w; this.fehler = f; } }
   class Reste { constructor(w, m) { this.wert = w; this.matschig = m; } }
@@ -1423,12 +1423,6 @@
       const st = sym === undefined || sym === null ? '' : this.text(sym);
       return st === '' ? betrag : betrag + ' ' + st;
     },
-    // ÜBERGANG (K-127): euro() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
-    'euro': function (x, pos, ben) {
-      const k = arg(pos, ben, 0, 'kompakt');
-      if (k !== undefined && k !== null && this.bool(k)) return kompaktText(x, 2) + ' €';
-      return betragText(x) + ' €';
-    },
     'tausender': function (x, pos, ben) {
       const n = arg(pos, ben, 0, 'stellen');
       return tausenderText(x, n === undefined || n === null ? 0 : this.stellen(n, 'tausender'));
@@ -1622,20 +1616,12 @@
       l.prio = n;
       return l;
     },
-    // ÜBERGANG (K-127): trinkgeld() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
-    'trinkgeld': function (l, pos) {
-      if (this.kueche !== null) this.kuecheLieferung(l);
-      const n = pos[0];
-      if (typeof n !== 'number') throw this.ananas('TypAnanas', 'Trinkgeld muss eine Zahl sein, nicht ' + this.darstellung(n) + '.');
-      l.trinkgeld += n; l.prio += n;
-      return l;
-    },
     'warte': function (l, pos, ben, node) {
       if (l.zustellung !== null) return l.zustellung;
       if (this.kueche !== null) this.kuecheLieferung(l);
       const max = arg(pos, ben, 0, 'max');
       let budget = Infinity;
-      if (max !== undefined && max !== null) budget = Math.floor(this.dauerMs(max, 'warte(max: …)') * (1 + l.trinkgeld / 10));
+      if (max !== undefined && max !== null) budget = Math.floor(this.dauerMs(max, 'warte(max: …)'));
       const z = this.liefere(l, budget, node);
       if (l.rueckruf !== null && z.puenktlich && z.fehler === null) this.rufe(l.rueckruf, [z.wert], null, node);
       return z;
@@ -4061,17 +4047,12 @@
       let zeit = arg(pos, ben, 0, 'zeit');
       if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
       const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
-      // ÜBERGANG (K-127): benanntes temperatur: wirkt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
-      let temp = ben !== null && 'temperatur' in ben ? ben.temperatur : null;
-      if (temp === undefined || temp === null) temp = 250;
-      this.zahl(temp, 'ofen(temperatur: …)');
       const startUhr = this.schritte + this.offset;
       const z0 = this.z, s0 = this.s;
       let wert = null, roh = null;
       const st0 = this.st;
       try {
-        if (temp > 485) throw this.ananas('VerbranntAnanas', 'Zu heiß! Selbst Neapel hat Grenzen.');
-        const budget = Math.floor(zeitMs * temp / 250);
+        const budget = Math.floor(zeitMs);
         const frame = this.pushFrame('ofen', budget);
         try {
           wert = this.blockWert(n.block, sc);
