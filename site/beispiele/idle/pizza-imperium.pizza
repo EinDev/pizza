@@ -12,7 +12,8 @@
 //    🏅 Herausforderungen – Läufe unter Auflagen mit Belohnung für immer
 //    🏢 Franchise        – Kette gründen: Sterne werden zu Filialen
 //
-//  Der Spielstand liegt in der Vorratskammer: Beim nächsten Start geht es
+//  Der Spielstand liegt in der Vorratskammer (Namensraum „pizza-imperium“: ein Spielstand für Galerie,
+//  App-Link und EXE – jede Fassung des Spiels findet ihn wieder): Beim nächsten Start geht es
 //  weiter – und der Betrieb hat in der Zwischenzeit gebacken
 //  (mit halber Kraft, höchstens 30 Minuten lang).
 //
@@ -1373,7 +1374,14 @@ Blech<Erfolg> ERFOLGE = [
 ];
 
 // Vorratskammer: Spielstand laden (Playground: Browser-Speicher, EXE: Datei im Nutzerverzeichnis).
-Vorratskammer kammer = neu Vorratskammer("pizza-imperium");
+// Mit Namensraum (K-106): ein Spielstand für Galerie, App-Link jeder Fassung und EXE – egal, aus welchem Tab gestartet.
+Vorratskammer kammer = neu Vorratskammer("spielstand", namensraum: "pizza-imperium");
+// Alte Stände (vor K-106) lagen in der Kammer "pizza-imperium" ohne Namensraum – einmal übernehmen:
+Vorratskammer alt = neu Vorratskammer("pizza-imperium");
+falls (alt.hat("spielstand")) {
+    falls (!kammer.hat("spielstand")) { kammer.lege("spielstand", alt.hole("spielstand")); }
+    alt.leeren();
+}
 falls (kammer.hat("spielstand")) { spiel.ladeAus(kammer.hole("spielstand")); }
 salami gespeichertBei = 0;     // Spielsekunde des letzten Speicherns (alle 30 s wird gespeichert)
 
