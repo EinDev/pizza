@@ -1676,7 +1676,7 @@ nicht nötig; alle Beispiele, Doku-Blöcke und Tests laufen umgestellt. Protokol
   `marke` = keine Marke; gleicher Wert sendet nichts). Wasm: Name `marke` = 206, Feld 16.
 - **Renderer:** Tab = `span.theke-reiter-tab-text` + `span.theke-reiter-marke` (`aria-hidden`; der Tab bekommt `aria-label` „Titel (Marke)“);
   Farbe aus `farbe` des Reiters (Ton), hell/dunkel.
-- **Betroffen:** SPEC §16.1/§16.3/§16.8/§16.9, THEKE.md §2/§3/§8, Referenz `std-theke`. **Status:** fest.
+- **Betroffen:** SPEC §16.1/§16.3/§16.8/§16.9, THEKE.md §2/§8, Referenz `std-theke`. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

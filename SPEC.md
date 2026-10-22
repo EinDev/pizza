@@ -946,7 +946,7 @@ Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
 `{"v":1,"op":"schliesse"}` (durch `schliesse()` und am Programmende bei offenem Fenster, K-061).
 Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe` (v2: `takt|fortschritt|abschnitt|tabelle|reiter`, v4: `auswahl|tastatur`). **Zustandsfelder immer:** `schild`/`knopf`: `text`;
 `eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
-`platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt), `hinweis`/`marke` (v6, K-124; nicht leer). Zahlen als JSON-Zahlen, Texte als
+`platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt), `hinweis` (nicht leer), `marke` (v6, K-124; nicht leer). Zahlen als JSON-Zahlen, Texte als
 Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
 vollständig); ein vollständiger Knoten (mit `art`) ist dort der ganze Zustand – auch bei wiederverwendetem Element gelten fehlende
