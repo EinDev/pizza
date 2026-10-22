@@ -1,0 +1,18 @@
+// Ein drehender Ananas-Würfel auf einem Holzbrett – ganz ohne Rückruf: Die Engine dreht ihn (Bewegung),
+// die Sonne wirft seinen Schatten, ein Punktlicht färbt ihn warm, Himmel und Nebel machen den Hintergrund.
+
+Herd herd = neu Herd("Würfel", breite: 640, hoehe: 360);
+herd.himmel("#5b8fd6", "#ffe2b8");                                   // Himmelsverlauf: oben blau, am Horizont hell
+herd.nebel("#ffe2b8", 8, 30);                                         // Nebel in Horizontfarbe
+herd.umgebung("#bcd0ff", staerke: 0.4);
+herd.sonne().setzeLage(0.6, 1, 0.5);                                  // Richtung zur Sonne
+
+Teil boden = herd.koerper(Form.ebene(), 0, -0.6, 0, farbe: "#6b8f3a").setzeGroesse(60, 1, 60);
+Teil brett = herd.koerper(Form.zylinder(teile: 48), 0, -0.5, 0, farbe: "kruste", glanz: 0.15).setzeGroesse(4, 0.2, 4);
+Teil wuerfel = herd.koerper(Form.wuerfel(), 0, 0.2, 0, farbe: "ananas", glanz: 0.6);
+wuerfel.setzeGroesse(1.2).mit(neu Bewegung(drehtempo: 45));            // 45 Grad pro Sekunde um die Hochachse
+herd.licht(1.4, 0.9, 1.2, farbe: "tomate", reichweite: 3).licht().setzeStaerke(3);  // rötliches Punktlicht
+herd.kamera().setzeLage(0, 2.2, 4.5).schaueAuf(0, 0.2, 0);
+herd.text("Würfel", 16, 12, groesse: 24, farbe: "ofen");
+herd.backe();
+Bote.sage(("Gedreht um " + wuerfel.drehung().runden(1) + " Grad."));

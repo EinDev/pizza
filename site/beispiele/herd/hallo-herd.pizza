@@ -1,0 +1,20 @@
+// Hallo Herd! Eine Tomate hüpft durchs Bild und zieht einen Funkenschweif hinter sich her.
+// Die Engine bewegt die Tomate (Bewegung) und sprüht die Funken (Partikel) – das Programm
+// entscheidet nur, wann sie am Rand abprallt.
+
+Herd herd = neu Herd("Hallo Herd", breite: 640, hoehe: 360);
+herd.hintergrund("ofen");
+herd.text("Hallo Herd!", 320, 24, groesse: 40, farbe: "senf", ausrichtung: "mitte");
+
+Teil tomate = herd.kreis(120, 120, 22, farbe: "tomate");
+herd.kreis(-7, -8, 6, farbe: "#ffffff70").haenge(tomate);           // Glanzpunkt hängt an der Tomate
+Bewegung flug = tomate.mit(neu Bewegung(tempoX: 260, tempoY: 180));
+Teil schweif = herd.gruppe().haenge(tomate).setzeEbene(-1);       // Ebene -1: die Funken liegen hinter der Tomate
+schweif.mit(neu Partikel(rate: 120, lebensdauer: 0.7, tempo: 25, groesse: 14, groesseEnde: 0,
+    farbe: "senf", farbeEnde: "#d9452b00"));
+
+herd.backe(() -> {
+    falls ((tomate.y() < 22 && flug.tempoY() < 0) || (tomate.y() > 338 && flug.tempoY() > 0)) { flug.setzeTempoY(-flug.tempoY()); }
+    falls ((tomate.x() < 22 && flug.tempoX() < 0) || (tomate.x() > 618 && flug.tempoX() > 0)) { flug.setzeTempoX(-flug.tempoX()); }
+});
+Bote.sage(("Die Tomate ist " + herd.bildnummer() + " Takte lang gehüpft."));

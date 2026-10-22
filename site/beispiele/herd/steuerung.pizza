@@ -1,0 +1,38 @@
+// Steuerung: Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste,
+// und jeder Mausklick legt ein Basilikumblatt dorthin, wo du klickst.
+// Zeigt: taste (gehalten), gedrueckt (gerade gedrückt), klick, mausX/mausY, Bild spiegeln, Animation an/aus.
+
+Herd herd = neu Herd("Steuerung", breite: 640, hoehe: 360);
+herd.hintergrund("himmel");
+herd.rechteck(320, 340, 640, 40, farbe: "basilikum");                     // Wiese
+herd.rechteck(140, 70, 120, 34, farbe: "weiss", rundung: 17);              // zwei Wolken
+herd.rechteck(470, 110, 160, 40, farbe: "#ffffffd0", rundung: 20);
+
+Bildchen schritt1 = neu Bildchen(["..ttt...", ".ttttt..", "..eee...", "..eke...", ".wwwww..", "wwwwwww.", ".wwwww..", ".uu.uu..", ".uu..uu.", "oo...oo."]);
+Bildchen schritt2 = neu Bildchen(["..ttt...", ".ttttt..", "..eee...", "..eke...", ".wwwww..", "wwwwwww.", ".wwwww..", "..uuu...", "..uuu...", "..ooo..."]);
+Teil bote = herd.bild(schritt1, 320, 296, groesse: 5);
+Animation laufen = bote.mit(neu Animation(bilder: [schritt1, schritt2], proSekunde: 8, laeuft: nein));
+Bewegung sprung = bote.mit(neu Bewegung());
+
+Teil blatt = herd.bild(neu Bildchen(["..bb", ".bbb", "bbb.", "bl.."]), -50, -50, groesse: 6);   // Vorlage für kopie()
+Teil info = herd.text("Maus: –", 12, 10, groesse: 18, farbe: "ofen");
+salami blaetter = 0;
+
+herd.backe(() -> {
+    diavolo links = herd.taste("Links");
+    diavolo rechts = herd.taste("Rechts");
+    falls (links) { bote.verschiebe(-4, 0); bote.bild().setzeSpiegeln(ja); }
+    falls (rechts) { bote.verschiebe(4, 0); bote.bild().setzeSpiegeln(nein); }
+    falls ((links || rechts) != laufen.laeuft()) { laufen.setzeLaeuft(links || rechts); }
+
+    // Springen: Tempo nach oben, Schwerkraft zieht zurück; auf dem Boden anhalten
+    falls (herd.gedrueckt("Leertaste") && bote.y() >= 296) { sprung.setzeTempoY(-420).setzeBeschleunigungY(1400); }
+    falls (bote.y() > 296) { bote.setzeLage(bote.x(), 296); sprung.setzeTempoY(0).setzeBeschleunigungY(0); }
+
+    falls (herd.klick()) {
+        blatt.kopie().setzeLage(herd.mausX(), herd.mausY()).setzeDrehung(blaetter * 40);
+        blaetter++;
+        info.text().setzeInhalt(("Maus: " + herd.mausX() + ", " + herd.mausY() + " – " + blaetter + " Blätter"));
+    }
+});
+Bote.sage(("Der Bote steht bei x = " + bote.x() + ", " + blaetter + " Basilikumblätter liegen herum."));

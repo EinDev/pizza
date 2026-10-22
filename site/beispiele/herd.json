@@ -1,0 +1,70 @@
+{
+  "kategorie": "Herd (Spiele)",
+  "beispiele": [
+    {
+      "id": "hallo-herd",
+      "titel": "Hallo Herd",
+      "beschreibung": "Dein erstes Herd-Programm: Eine Tomate hüpft durchs Bild und zieht einen Funkenschweif hinter sich her – die Engine bewegt sie, das Programm lässt sie nur am Rand abprallen.",
+      "datei": "herd/hallo-herd.pizza",
+      "erwartet": "herd/hallo-herd.erwartet",
+      "ereignisse": "herd/hallo-herd.ereignisse",
+      "herdErwartet": "herd/hallo-herd.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Bewegung", "Partikel"],
+      "herd": true
+    },
+    {
+      "id": "wuerfel",
+      "titel": "Drehender Würfel (3D)",
+      "beschreibung": "Ein Ananas-Würfel dreht sich auf einem Holzbrett – mit Sonnenschatten, Punktlicht, Himmelsverlauf und Nebel, ganz ohne Rückruf.",
+      "datei": "herd/wuerfel.pizza",
+      "erwartet": "herd/wuerfel.erwartet",
+      "ereignisse": "herd/wuerfel.ereignisse",
+      "herdErwartet": "herd/wuerfel.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Licht", "Kamera"],
+      "herd": true
+    },
+    {
+      "id": "steuerung",
+      "titel": "Steuerung: Tasten und Maus",
+      "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste, und jeder Mausklick legt ein Basilikumblatt hin – taste, gedrueckt, klick und Animation zum Ausprobieren.",
+      "datei": "herd/steuerung.pizza",
+      "erwartet": "herd/steuerung.erwartet",
+      "ereignisse": "herd/steuerung.ereignisse",
+      "herdErwartet": "herd/steuerung.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "Eingabe", "Animation", "kopie()"],
+      "herd": true
+    },
+    {
+      "id": "teigfaenger",
+      "titel": "Teigfänger (2D-Spiel)",
+      "beschreibung": "Fang mit deiner Pizza die Beläge, die vor dem Steinofen herabregnen – aber bloß keine Ananas! Pixel-Bildchen mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand und ein HUD. Pfeiltasten, Leertaste für eine neue Runde.",
+      "datei": "herd/teigfaenger.pizza",
+      "erwartet": "herd/teigfaenger.erwartet",
+      "ereignisse": "herd/teigfaenger.ereignisse",
+      "herdErwartet": "herd/teigfaenger.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Spiel", "Bildchen", "Animation", "Partikel"],
+      "herd": true
+    },
+    {
+      "id": "teigball",
+      "titel": "Teigball (3D-Spiel)",
+      "beschreibung": "Rolle eine Teigkugel über die Riesenpizza und sammle alle acht Beläge ein, während die Ananas quer über den Teller rollt. Abendsonne mit langen Schatten, glühende Steinöfen, Laternen, Nebel, eine weich folgende Kamera und ein HUD darüber. Pfeiltasten, Leertaste für eine neue Runde.",
+      "datei": "herd/teigball.pizza",
+      "erwartet": "herd/teigball.erwartet",
+      "ereignisse": "herd/teigball.ereignisse",
+      "herdErwartet": "herd/teigball.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Spiel", "Schatten", "Form", "Kamera"],
+      "herd": true
+    }
+  ]
+}
