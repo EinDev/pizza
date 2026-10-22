@@ -1,9 +1,9 @@
 // exit: 0
 für (salami i = 0; i < 6; i++) {
     salami k = i;
-    bestelle(() -> (k * 10)).trinkgeld(i % 3).wennDa(x -> Bote.sage(("wennDa " + x + " bei " + Uhr.jetzt().inMs())));
+    bestelle(() -> (k * 10)).priorität(i % 3).wennDa(x -> Bote.sage(("wennDa " + x + " bei " + Uhr.jetzt().inMs())));
 }
-Lieferung<salami> l = bestelle(() -> { Bote.sage(("läuft")); serviere ((5)); }).trinkgeld(9);
+Lieferung<salami> l = bestelle(() -> { Bote.sage(("läuft")); serviere ((5)); }).priorität(9);
 l.wennDa(x -> Bote.sage(("gewartet, kein Rückruf mehr? " + x)));
 Bote.sage((l.warte(max: 1s).wert()));
 klasse Haupt { tiefkühl leer hauptgang(Blech<margherita> args) { Bote.sage(("hauptgang")); } }

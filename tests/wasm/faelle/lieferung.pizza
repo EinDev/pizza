@@ -1,7 +1,7 @@
 salami langsam(salami n) { salami s = 0; für (salami i = 0; i < n; i++) { s += i; } serviere (s); }
 Lieferung<salami> a = bestelle(() -> (langsam(100)));
 Lieferung<salami> b = bestelle(() -> (langsam(5)));
-a.trinkgeld(5);
+a.priorität(5);
 Zustellung<salami> za = a.warte(max: 50ms);
 Bote.sage((za.pünktlich()), (za.oderGratis((0))), (za));
 Zustellung<salami> zb = b.warte(max: 1s);
@@ -10,7 +10,10 @@ probier { Bote.sage((za.wert())); } verbrannt (LieferAnanas l) { Bote.sage((l.na
 Lieferung<salami> c = bestelle(() -> { Bote.sage(("c läuft")); serviere (3); });
 c.wennDa(x -> Bote.sage(("c da"), (x)));
 Lieferung<salami> d = bestelle(() -> 4);
-d.trinkgeld(2).wennDa(x -> Bote.sage(("d da"), (x)));
+d.priorität(9).priorität(2).wennDa(x -> Bote.sage(("d da"), (x)));
+Lieferung<salami> f = bestelle(() -> 6);
+f.priorität(-1).wennDa(x -> Bote.sage(("f da"), (x)));
+probier { f.priorität("hoch"); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
 Lieferung<salami> e = bestelle(() -> { wirf neu StreitAnanas("kaputt"); });
 Zustellung<salami> ze = e.warte();
 probier { ze.wert(); } verbrannt (StreitAnanas s) { Bote.sage((s.nachricht())); }

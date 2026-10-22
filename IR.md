@@ -77,7 +77,7 @@ Jeder Ausdruck: `{ k, p, tf, zus, … }`; `zus` = zusammengesetzt (zählt Stapel
 
 | `k` | Felder | Bedeutung |
 |---|---|---|
-| `konst` | `art: zahl\|text\|bool\|karton\|dauer\|auto`, `wert` | Literal (`auto` nur als Argument von `schneide`) |
+| `konst` | `art: zahl\|text\|bool\|karton\|dauer`, `wert` | Literal (seit K-127 kein `auto` mehr) |
 | `lies` | `ref`, `name` | Name lesen; `ref` siehe unten |
 | `bin` | `op` (0 + · 1 − · 2 * · 3 / · 4 % · 5 == · 6 != · 7 < · 8 <= · 9 > · 10 >=), `l`, `r` | |
 | `log` | `und`, `l`, `r` | `&&` / `\|\|` (kurzgeschlossen) |
@@ -163,5 +163,5 @@ Was das Frontend nicht exakt abbilden kann, meldet es als `nichtUnterstuetzt: [{
 der Interpreter. Derzeit: Variablendeklaration direkt als `wähle`-Arm, Lambda-Zugriff auf eine im umgebenden Scope erst
 später deklarierte Variable, erneute Deklaration einer gefangenen Variable bzw. mit anderem Typ, Zuweisung an eine
 gefangene gebackene Variable aus einer Lambda,
-`schieb` mit gleichnamiger Methode/Variable, `schneide(auto)` bei möglichem Feld `auto`. (`brigade`/`KüchenAnanas` und
+`schieb` mit gleichnamiger Methode/Variable. (`brigade`/`KüchenAnanas` und
 Zuweisungen an „Feld oder globale Variable“ fallen seit P2/U-66 nicht mehr zurück.)

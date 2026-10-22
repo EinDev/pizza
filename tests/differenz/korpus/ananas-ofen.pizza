@@ -12,8 +12,8 @@ probier {
 probier {
     ofen(zeit: 1s) { wirf neu StreitAnanas("x"); } verbrannt (StreitAnanas s) { wirf neu LieferAnanas("aus verbrannt"); };
 } verbrannt (LieferAnanas r) { Bote.sage(("neu geworfen: " + r.nachricht())); }
-salami b = ofen(temperatur: 486) { serviere ((1)); } verbrannt (VerbranntAnanas v) { serviere ((v.nachricht().länge())); };
+salami b = ofen(0ms) { serviere ((1)); } verbrannt (VerbranntAnanas v) { serviere ((v.nachricht().länge())); };
 Bote.sage((b));
-salami c = ofen(temperatur: 485, zeit: 2ms) { solange (ja) { } } roh (r) { wirf neu StreitAnanas("aus roh"); } verbrannt (StreitAnanas s) { serviere ((99)); };
+salami c = ofen(zeit: 2ms) { solange (ja) { } } roh (r) { wirf neu StreitAnanas("aus roh"); } verbrannt (StreitAnanas s) { serviere ((99)); };
 Bote.sage((c));
 ofen(zeit: 1s) { wirf neu StreitAnanas("ungefangen aus dem Ofen"); };

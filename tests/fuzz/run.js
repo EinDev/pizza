@@ -40,13 +40,13 @@ const f = (c, t) => farbig ? '\x1b[' + c + 'm' + t + '\x1b[0m' : t;
 const gruen = t => f('32', t), rot = t => f('31', t), gelb = t => f('33', t), grau = t => f('90', t), fett = t => f('1', t);
 
 // --selbsttest: künstlich fehlerhafter Motor, um Erkennung + Minimierung + Ablage zu prüfen
-// (weicht ab, sobald ein Programm .euro() aufruft: ein Schritt mehr).
+// (weicht ab, sobald ein Programm .währung(…) aufruft: ein Schritt mehr).
 if (argv.includes('--selbsttest')) {
   MOTOREN.push({
     name: 'kaputt', verfuegbar: true, grund: null,
     lauf(q, opt) {
       const r = M.interpreter.lauf(q, opt);
-      if (r.status === 'ok' && /\.euro\(\)/.test(q)) { r.schritte++; }
+      if (r.status === 'ok' && /\.währung\(/.test(q)) { r.schritte++; }
       return r;
     },
   });

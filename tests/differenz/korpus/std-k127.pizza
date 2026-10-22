@@ -1,0 +1,29 @@
+// exit: 0
+// K-127: währung(symbol, kompakt:), priorität(n), schneide(n) ohne auto/Standard, keine S0007-Warnung.
+Bote.sage((8.währung("€")), (8.währung()), (2.5.währung("CHF")), (1234567.währung("€", kompakt: ja)), (1234567.währung("€", ja)));
+Bote.sage((8.währung(symbol: "$")), (8.währung(kompakt: ja, symbol: "Fr.")), (8.währung(karton)), (8.währung("")), (8.währung(7)), (8.währung(ja)));
+Bote.sage(((-0.004).währung("€")), ((0 - 1.005).währung("€")), (1000000000000000000000.währung("€")), (Mathe.exp(1000).währung("€")), (Mathe.log(-1).währung()), ((0 - Mathe.exp(1000)).währung("€", kompakt: ja)));
+Bote.sage((999999.995.währung("€", kompakt: nein)), (999999.995.währung("€", kompakt: karton)), (0.5.währung([1, 2])));
+klasse Münze { margherita alsText() { serviere ("Taler"); } }
+Bote.sage((3.währung(neu Münze())));
+probier { 3.währung("€", kompakt: "ja"); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+Blech<salami> b = [1 .. 14];
+Bote.sage((b.schneide(7)), (b / 7), (b.schneide(20)));
+probier { b.schneide(); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { b.schneide(0); } verbrannt (StreitAnanas t) { Bote.sage((t.nachricht())); }
+probier { b.schneide(auto); } verbrannt (LaufzeitAnanas t) { Bote.sage((t.nachricht())); }
+leer mitAuto() { salami auto = 4; Bote.sage((b.schneide(auto))); }
+mitAuto();
+Lieferung<salami> l1 = bestelle(() -> (1));
+Lieferung<salami> l2 = bestelle(() -> (2));
+Lieferung<salami> l3 = bestelle(() -> (3));
+Lieferung<salami> l4 = bestelle(() -> (4));
+l1.priorität(1).wennDa(x -> Bote.sage(("wennDa " + x)));
+l2.priorität(5).priorität(-2).wennDa(x -> Bote.sage(("wennDa " + x)));
+l3.priorität(1).wennDa(x -> Bote.sage(("wennDa " + x)));
+l4.priorität(2.5).wennDa(x -> Bote.sage(("wennDa " + x)));
+probier { l1.priorität("hoch"); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { l1.priorität(); } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+Bote.sage(([1].brigade(i -> { probier { l1.priorität(9); } verbrannt (KüchenAnanas a) { serviere ((a.nachricht())); } serviere (("erlaubt")); })));
+probier { 3.euroo(); } verbrannt (LaufzeitAnanas t) { Bote.sage((t.nachricht())); }
+Bote.sage(("Ende"));

@@ -4,7 +4,7 @@
 // Wasm: Arena-Allokation 2·n > Limit + Reserve → unreachable-Trap → ebenfalls interner Fehler.
 // Jetzt beide: fangbare LaufzeitAnanas "Der Kühlschrank ist voll (Speicherlimit erreicht)."
 // optionen: {"schrittLimit":200000,"zufallsSaat":"x"}
-ofen(250,1ms){
+ofen(1ms){
 (());
 (())((karton?1:teilergebnis));}verbrannt(v){Bote.sage((v));};
 margherita v9=("Käse");
@@ -15,7 +15,7 @@ salami s11=0;
 für(salami i15=0;i15<6;){
 für(e16:[2]){
 v9+=v9;
-            salami o18 = ofen(temperatur: 300, zeit: 60s) {
+            salami o18 = ofen(zeit: 72s) {
                 serviere ((s19));
             } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit())); serviere ((r.teilergebnis() == karton ? -1 : r.teilergebnis())); } verbrannt (v) { Bote.sage((v.nachricht())); serviere ((-2)); };
         }

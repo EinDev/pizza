@@ -306,7 +306,7 @@ pub const OP_KLG: i32 = 8;
 pub const OP_GR: i32 = 9;
 pub const OP_GRG: i32 = 10;
 
-/// `binaer(op, a, b, n)`; knoten = Positions-ID des Operator-Knotens (für S0007)
+/// `binaer(op, a, b, n)`; knoten = Positions-ID des Operator-Knotens (derzeit ungenutzt, K-127: kein S0007 mehr)
 pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
     let zz = ist_zahl(a) && ist_zahl(b);
     match op {
@@ -363,7 +363,6 @@ pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
                     wirf_tb(K_STREIT, &t);
                     return KARTON;
                 }
-                if k == 7.0 { crate::start::warnung("S0007", "7 Stücke? Wer schneidet eine Pizza in 7 Stücke?", knoten); }
                 let len = blech_v(a).len();
                 if (len as f64) % k != 0.0 {
                     let mut t = Tb::neu(); t.n(len as f64).s(" Stücke lassen sich nicht fair durch ").n(k).s(" teilen.");
@@ -422,7 +421,7 @@ pub fn unaer(op: i32, v: W) -> W {
 pub extern "C" fn rt_text(w: W) -> W { crate::start_init(); text(w) }
 /// Methodenaufruf auf eingebautem Wert ohne Argumente/mit Argumenten (für Tests)
 #[no_mangle]
-pub extern "C" fn rt_test_euro(x: f64) -> W { let mut b = Vec::new(); zahl::euro_text(x, &mut b); crate::text::neu_text(&b) }
+pub extern "C" fn rt_test_betrag(x: f64) -> W { let mut b = Vec::new(); zahl::betrag_text(x, &mut b); crate::text::neu_text(&b) }
 #[no_mangle]
 pub extern "C" fn rt_test_dauer(x: f64) -> W { let mut b = Vec::new(); zahl::dauer_text(x, &mut b); crate::text::neu_text(&b) }
 #[no_mangle]

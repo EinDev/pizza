@@ -171,7 +171,7 @@ class Gen {
       [2, () => '(' + this.tA(d + 1) + ').' + z.wahl(['groß()', 'klein()', 'trimme()', 'alsText()'])],
       [1, () => '(' + this.tA(d + 1) + ').ersetze(' + this.tLit() + ', ' + this.tLit() + ')'],
       [1, () => '(' + this.tA(d + 1) + ').wiederhole(' + z.int(0, 3) + ')'],
-      [2, () => '(' + this.fA(d + 1) + ').euro()'],
+      [2, () => '(' + this.fA(d + 1) + ').währung(' + z.wahl(['"€"', '', '"CHF"', 'karton', '""', '"€", kompakt: ja', 'symbol: "$"']) + ')'],
       [2, () => '(' + this.fA(d + 1) + ').alsText()'],
       [1, () => '(' + this.bA(d + 1) + ').verbinde(' + this.tLit() + ')'],
       [1, () => '(' + this.pA(d + 1) + ').alsText()'],
@@ -453,12 +453,11 @@ class Gen {
   ofen() {
     const z = this.z;
     const name = this.neu('o');
-    const temp = z.chance(0.1) ? z.wahl([486, 500]) : z.wahl([100, 250, 300, 450, 485]);
-    const zeit = z.wahl(['1ms', '5ms', '20ms', '50ms', '200ms', '1s', '60s']);
+    const zeit = z.wahl(['0ms', '1ms', '5ms', '20ms', '50ms', '200ms', '1s', '60s']);
     const vorher = this.inOfen, vorherSchleife = this.schleife;
     this.inOfen = true;
     this.schleife = 0;   // abbrechen/weiter dürfen den Ofen nicht verlassen
-    this.zeile('salami ' + name + ' = ofen(temperatur: ' + temp + ', zeit: ' + zeit + ') {');
+    this.zeile('salami ' + name + ' = ofen(' + (z.chance(0.5) ? 'zeit: ' : '') + zeit + ') {');
     this.ind++; this.tiefe++; this.scopes.push([]);
     const s = this.neu('s');
     this.zeile('salami ' + s + ' = 0;');
@@ -487,10 +486,10 @@ class Gen {
       ? '() -> { wirf neu StreitAnanas("unterwegs"); }'
       : '() -> { salami c = 0; solange (c < ' + k + ') { c++; } serviere ((c)); }';
     if (!wirft && z.chance(0.25)) {
-      this.zeile('bestelle(' + koerper + ').trinkgeld(' + z.int(0, 5) + ').wennDa(x -> Bote.sage(("wennDa " + x)));');
+      this.zeile('bestelle(' + koerper + ').priorität(' + z.int(-2, 5) + ').wennDa(x -> Bote.sage(("wennDa " + x)));');
       return;
     }
-    this.zeile('Zustellung<salami> ' + name + ' = bestelle(' + koerper + ').trinkgeld(' + z.int(0, 10) + ').warte(max: ' + z.wahl(['5ms', '20ms', '50ms', '100ms', '1s']) + ');');
+    this.zeile('Zustellung<salami> ' + name + ' = bestelle(' + koerper + ')' + (z.chance(0.3) ? '.priorität(' + z.int(0, 10) + ')' : '') + '.warte(max: ' + z.wahl(['5ms', '20ms', '50ms', '100ms', '1s']) + ');');
     this.zeile('probier { Bote.sage((' + name + '.pünktlich() + " " + ' + name + '.oderGratis((-1)))); } verbrannt (StreitAnanas a) { Bote.sage((a)); }');
   }
 
@@ -589,7 +588,7 @@ class Gen {
     // Stücke: Zahlen eines Blechs oder Teilbleche aus schneide(n)
     const geschnitten = z.chance(0.3);
     const quelle = geschnitten
-      ? '(' + this.bA(2) + ').schneide(' + z.wahl(['1', '2', '3', '4', 'auto']) + ')'
+      ? '(' + this.bA(2) + ').schneide(' + z.wahl(['1', '2', '3', '4', '8']) + ')'
       : z.gewichtet([[3, () => '[' + z.int(-2, 2) + ' .. ' + z.int(0, 6) + ']'], [3, () => '(' + this.bA(1) + ')'], [1, () => 'neu Blech<salami>()']])();
     const art = z.gewichtet([[14, 'S'], [2, 'T'], [2, 'Bon'], [1, 'Funktion']]);
     const typ = { S: B, T: 'Blech<margherita>', Bon: 'Blech<FuzzBon>', Funktion: B }[art];

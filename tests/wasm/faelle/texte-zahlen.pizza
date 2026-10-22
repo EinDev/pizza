@@ -5,7 +5,7 @@ Bote.sage(("ab".wiederhole(3)), ("Pizza".beginntMit("Pi")), ("Pizza".endetMit("z
 Bote.sage((" 1_000,5 ".alsZahl()), ("-0".alsZahl()), ("12".alsZahl() + 1));
 probier { "0x10".alsZahl(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 Bote.sage((1 / 3), (2 / 3), (0.1 + 0.2), (1000000000000000000000 * 1), (123456789 * 1000000000000), (5 % 3), (-7.5 % 2), (2.675.runden(2)), ((-0.5).runden()));
-Bote.sage((8.euro()), (0.015.euro()), ((-0.001).euro()), (1234567.891.euro()));
+Bote.sage((8.währung("€")), (0.015.währung("€")), ((-0.001).währung("€")), (1234567.891.währung("€")), (8.währung()), (2.5.währung("CHF")), (1234567.währung("€", kompakt: ja)), (3.währung(karton)), (3.währung("")), (3.währung(symbol: 7)), (1234567.währung(kompakt: ja)));
 Dauer d = 1h + 30min + 5s;
 Bote.sage((d), (d * 2), (d / 3), (d.inSekunden()), (90s), (0ms), (3d + 4h), (-(90s)));
 Bote.sage(("x" < "y"), ("ä" < "z"), ("Z" < "a"), (10 < 9), ("10" + 9), (9 + "10"));

@@ -1,5 +1,5 @@
 'use strict';
-/* Laufzeit-Formatierung (Rust) gegen JS: String(x), euro(), runden(), Dauer-Text, alsZahl. */
+/* Laufzeit-Formatierung (Rust) gegen JS: String(x), Betrag (währung, K-127), runden(), Dauer-Text, alsZahl. */
 const fs = require('fs');
 const path = require('path');
 const datei = process.env.PIZZA_LAUFZEIT || path.join(__dirname, '..', '..', 'site', 'js', 'pizzaiolo', 'laufzeit.wasm');
@@ -55,11 +55,11 @@ function kompaktText(x, n) {
   for (const [f, name] of KOMPAKT_STUFEN) if (a >= f) return zahlMitKomma(rundeAuf(x / f, n)) + ' ' + name;
   return zahlMitKomma(rundeAuf(x, n));
 }
-function euroText(x) {
-  if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2) + ' €';
+function betragText(x) {
+  if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2);
   const r = Math.round(Math.abs(x) * 100 + 1e-9) / 100;
   const [g, k] = r.toFixed(2).split('.');
-  return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k + ' €';
+  return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k;
 }
 function dauerText(ms) {
   const neg = ms < 0;
@@ -89,10 +89,10 @@ function pruefe() {
   const gleich = (was, ist, soll) => { if (ist !== soll) fehler.push(was + ': ' + JSON.stringify(ist) + ' ≠ ' + JSON.stringify(soll)); };
   const zs = zahlen();
   for (const x of zs) gleich('String(' + x + ')', textVon(e.rt_text(zahlW(x))), zahlText(x));
-  const euros = [0, 0.005, 0.015, 0.025, 1.005, 1.015, 2.675, 8, 8.5, -0.004, -0.005, -1.235, 1234.565, 99.995, 0.1 + 0.2, 1e15 + 0.3, 1e20, 1e21, 123456789.125, -0,
+  const betraege = [0, 0.005, 0.015, 0.025, 1.005, 1.015, 2.675, 8, 8.5, -0.004, -0.005, -1.235, 1234.565, 99.995, 0.1 + 0.2, 1e15 + 0.3, 1e20, 1e21, 123456789.125, -0,
     2.0844997640411506e21, -1.5e22, 999.999e21, 1e63, 1e66, -9.999e70, 9.7e70, 1e300, 1.7976931348623157e308, Infinity, -Infinity, NaN];
-  for (let i = 0; i < 400; i++) euros.push(Math.round(Math.random() * 1e6) / 1000 + 0.005);
-  for (const x of euros.concat(zs)) gleich('euro(' + x + ')', textVon(e.rt_test_euro(x)), euroText(x));
+  for (let i = 0; i < 400; i++) betraege.push(Math.round(Math.random() * 1e6) / 1000 + 0.005);
+  for (const x of betraege.concat(zs)) gleich('betrag(' + x + ')', textVon(e.rt_test_betrag(x)), betragText(x));
   for (const x of zs.filter(isFinite).concat([2.5, -2.5, 0.49999999999999994, 1.005, 1.255])) for (const n of [0, 1, 2, 3]) {
     const ist = e.rt_test_runden(x, n), soll = rundeAuf(x, n);
     if (!Object.is(ist, soll) && !(Number.isNaN(ist) && Number.isNaN(soll))) fehler.push('runden(' + x + ',' + n + '): ' + ist + ' ≠ ' + soll);
@@ -132,7 +132,7 @@ function pruefe() {
     if (!(bits(ist) === bits(soll) || (Number.isNaN(ist) && Number.isNaN(soll)))) mathe.push(name + '(' + x + '): ' + ist + ' ≠ ' + soll);
   }
   for (const f of mathe) fehler.push(f);
-  return { anzahl: zs.length * 2 + euros.length + texte.length + mz.length * 4, fehler, mathe: mz.length * 4, matheFehler: mathe.length };
+  return { anzahl: zs.length * 2 + betraege.length + texte.length + mz.length * 4, fehler, mathe: mz.length * 4, matheFehler: mathe.length };
 }
 
 module.exports = { pruefe };

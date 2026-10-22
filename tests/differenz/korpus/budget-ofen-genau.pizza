@@ -1,0 +1,24 @@
+// exit: 0
+// Ofen-Budget exakt an der Grenze: kleinste fertige zeit = 190ms (am Interpreter gemessen).
+// Budget = floor(zeit_ms) (K-127), zeit benannt oder als Positionsargument 0. Geprüft: N-1 (roh), N (fertig), N+1 (fertig) – plus Uhr-Stände.
+Bote.sage(("zeit 189ms"));
+salami x189 = ofen(zeit: 189ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x189 + " " + Uhr.jetzt()));
+Bote.sage(("zeit 190ms"));
+salami x190 = ofen(zeit: 190ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x190 + " " + Uhr.jetzt()));
+Bote.sage(("zeit 191ms"));
+salami x191 = ofen(zeit: 191ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((x191 + " " + Uhr.jetzt()));
+Bote.sage(("positional 189ms / 190ms"));
+salami p189 = ofen(189ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((p189 + " " + Uhr.jetzt()));
+salami p190 = ofen(190, 5ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { Bote.sage(("roh " + r.verbrauchteZeit() + " " + r.teilergebnis())); serviere ((r.teilergebnis())); };
+Bote.sage((p190 + " " + Uhr.jetzt()));
+Bote.sage(("zeit 189.9 (Zahl in ms, abgerundet)"));
+salami z = ofen(189.9) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); } roh (r) { serviere ((-1)); };
+Bote.sage((z + " " + Uhr.jetzt()));
+probier { ofen(zeit: 189ms) { salami s = 0; für (salami i = 0; i < 20; i++) { s += i; zwischenstand((s)); } serviere ((s)); }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
+probier { ofen(0ms) { serviere ((1)); }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
+probier { ofen(-5ms) { serviere ((1)); }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
+probier { ofen("lang") { serviere ((1)); }; } verbrannt (TypAnanas v) { Bote.sage((v.nachricht())); }

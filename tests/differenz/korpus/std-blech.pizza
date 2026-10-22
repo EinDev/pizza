@@ -20,7 +20,7 @@ Bote.sage((b.verbinde(" | ")));
 Bote.sage((b.istLeer() + " " + neu Blech<salami>().istLeer()));
 Bote.sage((b.schneide(2)));
 Bote.sage(([1 .. 10].schneide(3)));
-Bote.sage(([1 .. 10].schneide(auto)));
+Bote.sage(([1 .. 10].schneide(5)));
 Bote.sage(([1 .. 3].schneide(5)));
 Bote.sage(([1, 2] == [1, 2]));
 Blech<salami> c = b;

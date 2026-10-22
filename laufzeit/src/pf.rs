@@ -93,10 +93,13 @@ pub fn zwischenstand(w: W) {
 }
 
 // ---------------------------------------------------------------- Ofen
+// ÜBERGANG (K-127): `temp` (benanntes temperatur:) entfällt in Phase B; dann Budget = floor(zeit_ms)
 struct OfenRec { temp: f64, zeit_ms: f64, start_uhr: f64, z0: i32, frame: u32, budget: f64 }
 static mut OEFEN: Vec<OfenRec> = Vec::new();
 
 /// Vor dem Ofen: Argumente prüfen (Würfe hier sind NICHT vom eigenen verbrannt fangbar). Liefert Ofen-ID.
+/// K-127: `zeit` = Positionsargument 0 bzw. `zeit:`. ÜBERGANG (K-127): `temp` = nur benanntes `temperatur:` (sonst UNDEF),
+/// wirkt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert.
 #[no_mangle]
 pub extern "C" fn rt_ofen_vor(temp: W, zeit: W) -> i32 {
     let temp = if temp == UNDEF || temp == KARTON { zahl(250.0) } else { temp };
@@ -112,6 +115,7 @@ pub extern "C" fn rt_ofen_vor(temp: W, zeit: W) -> i32 {
 #[no_mangle]
 pub extern "C" fn rt_ofen_an(id: i32) {
     let o = unsafe { &mut OEFEN[id as usize] };
+    // ÜBERGANG (K-127): 485-Grenze und Formel zeit × temp / 250 (ohne temperatur: genau floor(zeit_ms))
     if o.temp > 485.0 { wirf_ananas(K_VERBRANNT, "Zu heiß! Selbst Neapel hat Grenzen."); return; }
     o.budget = crate::zahl::floor(o.zeit_ms * o.temp / 250.0);
     o.frame = push_frame(true, o.budget);
@@ -155,7 +159,7 @@ pub static mut LIEFER_NR: u32 = 0;
 pub fn bestelle(f: W) -> W {
     unsafe {
         LIEFER_NR += 1;
-        let l = neu_w(Lief { art: A_LIEF, nr: LIEFER_NR, fnw: f, trinkgeld: 0.0, zust: KARTON, rueckruf: KARTON });
+        let l = neu_w(Lief { art: A_LIEF, nr: LIEFER_NR, fnw: f, prio: 0.0, trinkgeld: 0.0, zust: KARTON, rueckruf: KARTON });
         LIEFERUNGEN.push(l);
         l
     }
@@ -194,7 +198,8 @@ pub fn lieferungen_nach_ende() {
                     None => beste = Some(l),
                     Some(b) => {
                         let bi = obj::<Lief>(b);
-                        if li.trinkgeld > bi.trinkgeld || (li.trinkgeld == bi.trinkgeld && li.nr < bi.nr) { beste = Some(l); }
+                        // K-127: höchste Priorität zuerst, Gleichstand in Bestellreihenfolge
+                        if li.prio > bi.prio || (li.prio == bi.prio && li.nr < bi.nr) { beste = Some(l); }
                     }
                 }
             }
@@ -234,6 +239,18 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         A_LIEF => {
             let l = obj::<Lief>(o);
             match id {
+                // K-127: Priorität ordnet nur die wennDa-Phase; der letzte Wert gilt
+                N_PRIORITAET => {
+                    if crate::kueche::wache(o, crate::kueche::T_LIEF) { return KARTON; }
+                    let n = a(pos, 0);
+                    if !ist_zahl(n) {
+                        let mut t = Tb::neu(); t.s("Priorität muss eine Zahl sein, nicht "); darstellung(n, &mut t); t.s(".");
+                        wirf_tb(K_TYP, &t); return KARTON;
+                    }
+                    l.prio = f(n);
+                    o
+                }
+                // ÜBERGANG (K-127): trinkgeld() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
                 N_TRINKGELD => {
                     if crate::kueche::wache(o, crate::kueche::T_LIEF) { return KARTON; }
                     let n = a(pos, 0);
@@ -242,6 +259,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                         wirf_tb(K_TYP, &t); return KARTON;
                     }
                     l.trinkgeld += f(n);
+                    l.prio += f(n);
                     o
                 }
                 N_WARTE => {
@@ -250,6 +268,7 @@ pub fn pf_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                     let max = arg(pos, ben, 0, N_MAX);
                     let mut budget = f64::INFINITY;
                     if max != UNDEF && max != KARTON {
+                        // ÜBERGANG (K-127): Faktor (1 + trinkgeld/10) entfällt in Phase B → floor(ms)
                         match dauer_ms_pruefen(max, "warte(max: …)") { Some(ms) => budget = crate::zahl::floor(ms * (1.0 + l.trinkgeld / 10.0)), None => return KARTON }
                     }
                     let zs = liefere(o, budget, knoten);

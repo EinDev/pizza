@@ -17,7 +17,7 @@ Bote.sage((p.hat(Belag.Tomate) + " " + p.hat(Belag.Salami)));
 Pizza q = p.mit(Belag.Salami).mit(Belag.Salami);
 Bote.sage((q));
 Bote.sage((q.ohne(Belag.Salami)));
-Bote.sage((q.preis().euro()));
+Bote.sage((q.preis().währung("€")));
 Bote.sage((p.alsText()));
 Bote.sage((neu Pizza([])));
 Bote.sage((neu Pizza([]).preis()));

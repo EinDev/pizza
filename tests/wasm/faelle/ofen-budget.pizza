@@ -1,5 +1,5 @@
 salami summe = 0;
-salami r = ofen(temperatur: 250, zeit: 50ms) {
+salami r = ofen(zeit: 50ms) {
     für (salami i = 1; i < 1000; i++) {
         summe += i;
         zwischenstand((summe));
@@ -16,7 +16,7 @@ salami t = ofen(zeit: 30ms) {
     serviere ((a));
 } roh (y) { serviere ((2)); } verbrannt (VerbranntAnanas v) { serviere ((3)); };
 Bote.sage((t));
-salami u = ofen(temperatur: 500) { serviere (1); } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); serviere ((9)); };
+salami u = ofen(0ms) { serviere (1); } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); serviere ((9)); };
 Bote.sage((u));
 probier { ofen(zeit: 10ms) { solange (ja) { } }; } verbrannt (VerbranntAnanas v) { Bote.sage((v.nachricht())); }
-Bote.sage((ofen(400, 20ms) { Uhr.vorspulen(1s); serviere (1); } roh (z) { serviere ((z.verbrauchteZeit())); }));
+Bote.sage((ofen(20ms, 400) { Uhr.vorspulen(1s); serviere (1); } roh (z) { serviere ((z.verbrauchteZeit())); }));

@@ -304,7 +304,7 @@ ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 fra
 `bytes code`, `bytes text`. Die Hauptinstanz gibt sie beim Zusammenführen über die normalen Imports aus (D5-Filter dort).
 
 **`PKF1`** (Magie `PKF1`, dann ein Wert; Tiefensuche in Kartonreihenfolge, SPEC §17.5): `u8 tag` und Nutzlast –
-0 `karton` · 1 `nein` · 2 `ja` · 3 Zahl `f64` · 4 `auto` · 5 Text `bytes` · 6 Dauer `f64` · 7 **fest** `u64` (unveränderlicher
+0 `karton` · 1 `nein` · 2 `ja` · 3 Zahl `f64` · 4 `auto` (seit K-127 nicht mehr erzeugt, Tag bleibt reserviert) · 5 Text `bytes` · 6 Dauer `f64` · 7 **fest** `u64` (unveränderlicher
 Wert – Text, Dauer, Klasse, Rezeptur, quattrostagioni-Typ/-Wert, Modul –, der beim Anschnitt schon existierte: die
 Bits des Werts, gültig nur zwischen Instanzen mit demselben Schnappschuss) · 8 Modul `u32 id` · 9 Typ `u32 art`, `u32 id`
 (Klasse/quattrostagioni-Typ/Rezeptur) · 10 quattrostagioni-Wert `u32 typ`, `f64 position` · 12 weggeschoben ·

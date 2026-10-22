@@ -78,7 +78,8 @@ pub use crate::karte::Karte;
 #[repr(C)] pub struct Gebunden { pub art: u32, pub klasse: i32, pub obj: W, pub name: u32, pub global: u32 }
 #[repr(C)] pub struct Nativ { pub art: u32, pub was: u32, pub empf: W, pub name: u32, pub modul: u32 }
 #[repr(C)] pub struct Teig { pub art: u32, pub fertig: u32, pub auf: u32, pub _r: u32, pub fnw: W, pub wert: W }
-#[repr(C)] pub struct Lief { pub art: u32, pub nr: u32, pub fnw: W, pub trinkgeld: f64, pub zust: W, pub rueckruf: W }
+/// K-127: `prio` ordnet die wennDa-Phase. ÜBERGANG (K-127): `trinkgeld` (Summe, Budgetfaktor von warte) entfällt in Phase B.
+#[repr(C)] pub struct Lief { pub art: u32, pub nr: u32, pub fnw: W, pub prio: f64, pub trinkgeld: f64, pub zust: W, pub rueckruf: W }
 #[repr(C)] pub struct Zust { pub art: u32, pub puenktlich: u32, pub wert: W, pub fehler: W, pub fzeile: i32, pub fpos: i32 }
 #[repr(C)] pub struct Reste { pub art: u32, pub matschig: u32, pub wert: W }
 #[repr(C)] pub struct Roh { pub art: u32, pub _r: u32, pub teil: W, pub zeit: W }

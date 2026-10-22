@@ -2,9 +2,9 @@
 // Systematische Tabelle: i/1000 + 0.005 für i = 0 … 300.
 für (salami i = 0; i <= 300; i++) {
     funghi w = i / 1000 + 0.005;
-    Bote.sage((i + ": " + w.euro()));
+    Bote.sage((i + ": " + w.währung("€")));
 }
 für (salami i = 0; i <= 60; i++) {
     funghi w = i * 0.37 + 0.005;
-    Bote.sage((w.euro()));
+    Bote.sage((w.währung("€")));
 }

@@ -1,5 +1,5 @@
 // exit: 39
 // Panik erst nach Programmende in einem wennDa-Rückruf.
-bestelle(() -> (1)).trinkgeld(1).wennDa(x -> Bote.sage(("erst ich")));
-bestelle(() -> (1)).trinkgeld(0).wennDa(p -> { hawaii h = p; });
+bestelle(() -> (1)).priorität(1).wennDa(x -> Bote.sage(("erst ich")));
+bestelle(() -> (1)).priorität(0).wennDa(p -> { hawaii h = p; });
 Bote.sage(("Programmende"));

@@ -42,7 +42,7 @@ quelltext ──► Frontend (PizzaLang.parse → Semantik/Typisierung) ──�
   wird **eingecheckt**, damit Docker kein Rust braucht): Texte (UTF-8), Blech, Speisekarte,
   Ananas-Objekte, Teig/Ofen/Lieferung/Kühlschrank-Zustände, Zufall (mulberry32, Seed 42), simulierte Uhr,
   **JS-identische Zahlformatierung** (shortest round-trip wie `String(x)`: `1e+21`, `1e-7`, `-0`→`0`,
-  `0.30000000000000004`, Gleichstand → gerade Ziffer), `euro()`, Dauer-Textform, Allocator, V8-TimSort-Port
+  `0.30000000000000004`, Gleichstand → gerade Ziffer), Betrag von `währung()` (K-127), Dauer-Textform, Allocator, V8-TimSort-Port
   (gleiche Vergleichsfolge wie `Array.prototype.sort`), Texte in UTF-8 mit **UTF-16-Ordnung** für `<`/`sortiere` (K-040).
 - **Linken:** Der Compiler fügt Programm und Laufzeit zu **einem** Modul zusammen (`.pkarton`, HOST-ABI.md §1).
   Der JS-Host nutzt intern zusätzlich einen zweiteiligen Schnellpfad: Laufzeitmodul einmal kompiliert und gecacht,

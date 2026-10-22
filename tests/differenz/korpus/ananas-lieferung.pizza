@@ -8,7 +8,7 @@ Lieferung<salami> spät = bestelle(() -> { Uhr.vorspulen(2h); wirf neu StreitAna
 Zustellung<salami> z2 = spät.warte(max: 1h);
 probier { Bote.sage((z2.wert())); } verbrannt (a) { Bote.sage((a)); }
 probier { Bote.sage((z2.oderGratis((3)))); } verbrannt (a) { Bote.sage((a)); }
-bestelle(() -> (1)).trinkgeld(2).wennDa(x -> Bote.sage(("wennDa ok " + x)));
-bestelle(() -> (2)).trinkgeld(3).wennDa(x -> { wirf neu RechenAnanas("im Rückruf"); });
-bestelle(() -> (3)).trinkgeld(1).wennDa(x -> Bote.sage(("nie erreicht?")));
+bestelle(() -> (1)).priorität(2).wennDa(x -> Bote.sage(("wennDa ok " + x)));
+bestelle(() -> (2)).priorität(3).wennDa(x -> { wirf neu RechenAnanas("im Rückruf"); });
+bestelle(() -> (3)).priorität(1).wennDa(x -> Bote.sage(("nie erreicht?")));
 Bote.sage(("Programmende"));

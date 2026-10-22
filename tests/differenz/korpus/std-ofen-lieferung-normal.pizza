@@ -1,5 +1,5 @@
 // exit: 0
-salami s = ofen(temperatur: 300, zeit: 1s) {
+salami s = ofen(zeit: 1s) {
     salami summe = 0;
     für (salami i = 0; i < 50; i++) { summe += i; zwischenstand((summe)); }
     serviere ((summe));
@@ -14,5 +14,5 @@ salami teil = ofen(zeit: 30ms) {
 Bote.sage((teil));
 salami ohne = ofen(zeit: 3ms) { solange (ja) { } } roh (r) { serviere ((r.teilergebnis() == karton ? -1 : 1)); };
 Bote.sage((ohne));
-Zustellung<salami> z = bestelle(() -> { salami i = 0; solange (i < 100) { i++; } serviere ((i)); }).trinkgeld(3).warte(max: 200ms);
+Zustellung<salami> z = bestelle(() -> { salami i = 0; solange (i < 100) { i++; } serviere ((i)); }).priorität(3).warte(max: 200ms);
 Bote.sage((z.pünktlich() + " " + z.oderGratis((0))));

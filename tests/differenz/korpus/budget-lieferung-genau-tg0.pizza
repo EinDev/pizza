@@ -1,9 +1,0 @@
-// exit: 0
-// Lieferbudget exakt an der Grenze (trinkgeld 0): kleinstes pünktliches max = 108ms (am Interpreter gemessen).
-// Budget = max_ms × (1 + trinkgeld/10).
-Zustellung<salami> z107 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).trinkgeld(0).warte(max: 107ms);
-Bote.sage(("max 107ms: " + z107.pünktlich() + " " + z107.oderGratis((-1)) + " " + Uhr.jetzt()));
-Zustellung<salami> z108 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).trinkgeld(0).warte(max: 108ms);
-Bote.sage(("max 108ms: " + z108.pünktlich() + " " + z108.oderGratis((-1)) + " " + Uhr.jetzt()));
-Zustellung<salami> z109 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).trinkgeld(0).warte(max: 109ms);
-Bote.sage(("max 109ms: " + z109.pünktlich() + " " + z109.oderGratis((-1)) + " " + Uhr.jetzt()));

@@ -13,7 +13,7 @@ probier { Zettel falsch = 5; } verbrannt (TypAnanas e) { Bote.sage((e.nachricht(
 // Bindung: sofort ausgewertet, danach liefert der Getter den gebundenen Wert
 Schild kasse = neu Schild("start", id: "kasse");
 geld.setze(5);
-kasse.binde("text", () -> geld.wert().euro());
+kasse.binde("text", () -> geld.wert().währung("€"));
 Bote.sage(("gebunden: " + kasse.text()));
 Knopf backen = neu Knopf("Backen", () -> { geld.setze(geld.wert() + 8); }, id: "backen");
 backen.binde("aktiv", () -> geld.wert() < 20);

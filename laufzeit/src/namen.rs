@@ -1,7 +1,7 @@
 //! Eingebaute Namen (Intern-IDs). Reihenfolge = ID. Namen, die nicht hier stehen, bekommen zur Laufzeit
 //! fortlaufende IDs (text.rs::name_id); die Tabelle ist rein intern (kein JS-Spiegel, der Compiler übergibt Namen als Text).
 
-pub const NAMEN: [&str; 208] = [
+pub const NAMEN: [&str; 211] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -210,6 +210,9 @@ pub const NAMEN: [&str; 208] = [
     "bindeStil",
     "marke",
     "aus",
+    "währung",
+    "priorität",
+    "symbol",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -433,6 +436,13 @@ pub const N_MARKE: u32 = 206;
 
 // Theke v7 (K-125): abgeleiteter Zettel `Zettel.aus(fn)`
 pub const N_AUS: u32 = 207;
+
+// K-127: `x.währung(symbol, kompakt:)` und `lieferung.priorität(n)`.
+// ÜBERGANG (K-127): die Einträge "auto", "euro", "trinkgeld", "temperatur" bleiben in der Tabelle (Positionen!),
+// auch wenn sie nach Phase B nicht mehr gebraucht werden.
+pub const N_WAEHRUNG: u32 = 208;
+pub const N_PRIORITAET: u32 = 209;
+pub const N_SYMBOL: u32 = 210;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM, K-105: 16 Einträge = Indizes 0–15; eigene Klassen ab 16).
 pub const K_ANANAS: u32 = 0;

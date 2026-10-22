@@ -1,0 +1,17 @@
+// exit: 0
+// Lieferbudget exakt an der Grenze: kleinstes pünktliches max = 108ms (am Interpreter gemessen).
+// Budget = floor(max_ms) (K-127); priorität ändert das Budget nicht.
+Zustellung<salami> z107 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).warte(max: 107ms);
+Bote.sage(("max 107ms: " + z107.pünktlich() + " " + z107.oderGratis((-1)) + " " + Uhr.jetzt()));
+Zustellung<salami> z108 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).warte(max: 108ms);
+Bote.sage(("max 108ms: " + z108.pünktlich() + " " + z108.oderGratis((-1)) + " " + Uhr.jetzt()));
+Zustellung<salami> z109 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).warte(max: 109ms);
+Bote.sage(("max 109ms: " + z109.pünktlich() + " " + z109.oderGratis((-1)) + " " + Uhr.jetzt()));
+Zustellung<salami> p107 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).priorität(9).warte(max: 107ms);
+Bote.sage(("priorität 9, max 107ms: " + p107.pünktlich() + " " + p107.oderGratis((-1)) + " " + Uhr.jetzt()));
+Zustellung<salami> p108 = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); }).priorität(9).warte(max: 108ms);
+Bote.sage(("priorität 9, max 108ms: " + p108.pünktlich() + " " + p108.oderGratis((-1)) + " " + Uhr.jetzt()));
+Zustellung<salami> f0 = bestelle(() -> (1)).warte(max: 0ms);
+Bote.sage(("max 0ms: " + f0.pünktlich() + " " + Uhr.jetzt()));
+Zustellung<salami> fb = bestelle(() -> (1)).warte(max: 2.9);
+Bote.sage(("max 2.9: " + fb.pünktlich() + " " + fb.oderGratis((-1)) + " " + Uhr.jetzt()));

@@ -467,9 +467,10 @@ pub fn kompakt_text(x: f64, n: u32, out: &mut Vec<u8>) {
     zahl_mit_komma(runde_auf(x, n as f64), out);
 }
 
-/// `euroText(x)` (K-103: ab |x| ≥ 10²¹ sowie ∞/NaN wie `kompakt(2)` + " €")
-pub fn euro_text(x: f64, out: &mut Vec<u8>) {
-    if !x.is_finite() || x.abs() >= 1e21 { kompakt_text(x, 2, out); out.extend_from_slice(" €".as_bytes()); return; }
+/// `betragText(x)`: zwei Nachkommastellen, Komma, ohne Tausendertrennung (K-048, K-103, K-127);
+/// ab |x| ≥ 10²¹ sowie ∞/NaN wie `kompakt(2)`
+pub fn betrag_text(x: f64, out: &mut Vec<u8>) {
+    if !x.is_finite() || x.abs() >= 1e21 { kompakt_text(x, 2, out); return; }
     let r = js_round(x.abs() * 100.0 + 1e-9) / 100.0;
     let mut fix = Vec::new();
     if r != r { fix.extend_from_slice(b"NaN"); }
@@ -487,7 +488,6 @@ pub fn euro_text(x: f64, out: &mut Vec<u8>) {
         }
         None => { out.extend_from_slice(&fix); out.extend_from_slice(b",undefined"); }
     }
-    out.extend_from_slice(" €".as_bytes());
 }
 
 /// `dauerText(ms)`

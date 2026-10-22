@@ -14,7 +14,7 @@ margherita Mozzarella = "Mozzarella";
 Pizza p = neu Pizza("Margherita").mit(Tomate).mit(Mozzarella);
 Bote.sage((p));
 Bote.sage((p.anzahl()));
-Bote.sage((p.preis().euro()));
+Bote.sage((p.preis().währung("€")));
 Pizza q = p;
 Bote.sage((q == p));
 Bote.sage((neu Pizza("Leer") == neu Pizza("Leer")));

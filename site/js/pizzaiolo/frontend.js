@@ -471,8 +471,7 @@
         if (Array.isArray(x)) { for (const y of x) geh(y); return; }
         if (x.art === 'global' && typeof x.g === 'number' && typeof x.name === 'string' && kandidat(x.name)) {
           const deklaration = x.sicher === undefined;
-          if (deklaration || x.sicher) { const slot = slotVon(x.name); for (const k of Object.keys(x)) if (k !== 'name' && k !== 'autoFallback') delete x[k]; x.art = 'lokal'; x.slot = slot; }
-          else if (x.autoFallback) { /* bleibt global (Laufzeitprüfung) */ }
+          if (deklaration || x.sicher) { const slot = slotVon(x.name); for (const k of Object.keys(x)) if (k !== 'name') delete x[k]; x.art = 'lokal'; x.slot = slot; }
           else { for (const k of Object.keys(x)) if (k !== 'name') delete x[k]; x.art = 'gname'; }
           return;
         }
@@ -730,19 +729,6 @@
           if (n.obj.k === 'Unten') return { k: 'untenM', name: n.name, args: this.args(n.args, sc, fn, d) };
           {
             const obj = this.ausdr(n.obj, sc, fn, d);
-            const a0 = n.args.pos.length === 1 ? n.args.pos[0] : null;
-            if (n.name === 'schneide' && a0 && a0.k === 'Name' && a0.n === 'auto') {
-              const r = this.loese('auto', sc, fn, a0, 'lesen');
-              if (r.art === 'gname') {
-                const ben = n.args.ben ? n.args.ben.map(b => ({ name: b.name, e: this.ausdr(b.e, sc, fn, d) })) : null;
-                return { k: 'mcall', obj, name: n.name, args: { pos: [{ k: 'konst', art: 'auto', wert: null, p: this.pos(a0), tf: d, zus: false }], ben } };
-              }
-              if (r.art === 'global') {
-                const ben = n.args.ben ? n.args.ben.map(b => ({ name: b.name, e: this.ausdr(b.e, sc, fn, d) })) : null;
-                return { k: 'mcall', obj, name: n.name, args: { pos: [{ k: 'lies', ref: Object.assign({}, r, { autoFallback: true }), name: 'auto', p: this.pos(a0), tf: d, zus: false }], ben } };
-              }
-              if (r.art !== 'lokal' && r.art !== 'umg') this.nein('schneide(auto) mit möglicher Variable auto', a0);
-            }
             return { k: 'mcall', obj, name: n.name, args: this.args(n.args, sc, fn, d) };
           }
         case 'NCall': return this.ncall(n, sc, fn, d);

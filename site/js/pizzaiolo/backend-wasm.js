@@ -21,7 +21,6 @@
   const JA = W(0xFFFD000000000001n);
   const UNDEF = W(0xFFFF000000000000n);
   const WEG = W(0xFFFF000000000001n);
-  const AUTO = W(0xFFFF000000000002n);
   const MARKE = W(0xFFFC000000000000n);
   const NAN = W(0x7FF8000000000000n);
   const PTR = 0xFFFE0000n << 32n;
@@ -522,7 +521,6 @@
             case 'zahl': c.f64(e.wert); return 'F';
             case 'bool': c.i32(e.wert ? 1 : 0); return 'B';
             case 'karton': c.i64(KARTON); return 'W';
-            case 'auto': c.i64(AUTO); return 'W';
             case 'text': c.i64(this.be.textW(e.wert)); return 'W';
             case 'dauer': c.f64(e.wert); this.flush(); c.call(this.rt('rt_dauer')); return 'W';
           }
@@ -707,8 +705,7 @@
             const w = this.temp('W');
             c.tee(w).i64(UNDEF).op(OP.i64_eq);
             this.auf('if', T.i64);
-            if (ref.autoFallback) c.i64(AUTO);
-            else { c.i32(this.be.text(name)); this.effekt('rt_global_name'); }
+            c.i32(this.be.text(name)); this.effekt('rt_global_name');
             this.sonst();
             c.get(w);
             this.zu();
@@ -1600,7 +1597,7 @@
 
     ofen(e) {
       const c = this.c;
-      // Argumente (alle ausgewertet), dann temperatur/zeit wählen
+      // Argumente (alle ausgewertet), dann zeit (Pos. 0 / zeit:, K-127) wählen
       const alle = e.args.pos.concat(e.args.ben ? e.args.ben.map(b => b.e) : []);
       const tmps = alle.map(x => { const t = this.ausdr(x); this.konv(t, 'W'); const l = this.temp('W'); c.set(l); return l; });
       const wahl = (i, name) => {
@@ -1608,7 +1605,9 @@
         if (e.args.ben) { for (let j = e.args.ben.length - 1; j >= 0; j--) if (e.args.ben[j].name === name) { c.get(tmps[e.args.pos.length + j]); return; } }
         c.i64(UNDEF);
       };
-      wahl(0, 'temperatur'); wahl(1, 'zeit');
+      // ÜBERGANG (K-127): benanntes temperatur: wirkt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
+      // (Phase B: rt_ofen_vor ohne temp-Parameter, hier nur noch wahl(0, 'zeit'))
+      wahl(Infinity, 'temperatur'); wahl(0, 'zeit');
       for (const l of tmps) this.frei_('W', l);
       this.effekt('rt_ofen_vor', e.tf);
       const id = this.temp('B');
