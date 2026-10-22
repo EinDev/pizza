@@ -1217,7 +1217,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   | API `PizzaLang.BELAEGE`, `intern.BELAEGE`, `intern.GRUNDPREIS`; `TYPEN` ohne `Pizza`/`Stück`, `BUILTINS` ohne `teile`, `ANANAS` ohne `BesitzAnanas`/`UnbekannterBelagAnanas`, `KEYWORDS` ohne `belag`/`auf`; Editor-Highlighting und Autovervollständigung der Beläge | folgen der Sprache (ARCHITEKTUR §1, §5) |
   | §17.5 Kartonfähigkeit: Zeilen Pizza, Pizza-Sicht, Belag, Stück; „Ein Stück“ in der Aufzählung nicht kartonfähiger Arten; K-101/3 „Pizza-Sicht kartonfähig“ | gegenstandslos |
 
-  **BLEIBT (allgemeine Konzepte, lustig benannt):** Typen `salami`/`funghi`/`margherita`/`diavolo`/`Dauer`/`Blech`/`Speisekarte`;
+  **BLEIBT (allgemeine Konzepte, lustig benannt; *teilweise abgelöst durch K-127:* `trinkgeld` → `priorität`, `euro()` → `währung()`, `schneide(auto)` und die S0007-Floskel entfallen):** Typen `salami`/`funghi`/`margherita`/`diavolo`/`Dauer`/`Blech`/`Speisekarte`;
   Modifikatoren, `rezeptur`, `quattrostagioni` (Enum mit genau 4 Werten – merkwürdig, aber allgemein), `calzone`/`aufklappen` (Kapselung),
   Annotationen `@PizzaÜberschreibt`/`@PizzaVeraltet`/`@NieKarton`/`@Pizzaiolo`/`@Kühlschrank`; `Bote`, `Bestellannahme` (I/O), `Uhr`
   (simulierte Zeit), `Mathe` (inkl. `PI`), `Zufall`, `Spiegel` (Reflection), `Vorratskammer` (Persistenz); `teig`/`backen` (Lazy),
