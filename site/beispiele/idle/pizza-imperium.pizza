@@ -363,6 +363,135 @@ klasse Gast {
     margherita satz(salami n) { serviere (sätze.stück(n % sätze.länge() + 1)); }
 }
 
+// ── P5 Katze ── (Modell; Bereich #9, Hof)
+// 🐱 Nonnas Katze Mozzarella: Laune 0…5. Füttern +2 (kostet 10 s Pizza-Umsatz, danach 180 s satt), Streicheln +1 (danach
+// 60 s Pause). Nach jeder Hebung hält die Laune 600 s Spielzeit, dann sinkt sie um 1 (im Takt – ändert nur Zahlen und Texte,
+// R1). Wirkung über Spiel.katzePunkte(): KATZE_PUNKTE_JE_LAUNE Prozentpunkte je Laune im Alles-Bonus (wie Sterne). Die Katze
+// ist keine Runde: Laune, Pausen und Zähler überleben Neueröffnung, Herausforderung und Franchise (nur „Neu anfangen“ setzt
+// sie zurück); offline laufen Pausen und Laune-Uhr ab. Sie ist passiv und wirkt immer (auch in der Fastenzeit). Kein Zufall:
+// die Katzenweisheit wechselt reihum mit jedem Klick. Kennt keine Oberfläche; `version` zählt jede Änderung.
+klasse Katze {
+    salami HÖCHSTENS = 5;
+    salami LAUNE_DAUER = 600;          // Sekunden je Laune-Stufe
+    salami FUTTER_LAUNE = 2;
+    salami FUTTER_PAUSE = 180;
+    salami FUTTER_SEKUNDEN = 10;       // Preis = so viele Sekunden Pizza-Umsatz
+    salami FUTTER_MINDESTPREIS = 10_000;
+    salami STREICHEL_LAUNE = 1;
+    salami STREICHEL_PAUSE = 60;
+    Blech<margherita> LAUNEN = ["schmollt unter dem Ofen", "beäugt dich misstrauisch", "duldet dich", "ist zufrieden", "schnurrt", "thront schnurrend auf dem Mehlsack"];
+    Blech<margherita> WEISHEITEN = [
+        "Mozzarella ignoriert dich. Das ist ein gutes Zeichen.",
+        "Mozzarella sitzt im Brotkorb. Der Brotkorb gehört jetzt ihr.",
+        "Eine Katze auf dem Pizzaofen ist kein Hygienemangel, sondern Tradition. Sagt Nonna.",
+        "Mozzarella hat Luigi heute zweimal angesehen. Er arbeitet seitdem doppelt so schnell.",
+        "Mozzarella frisst keinen Mozzarella. Aus Prinzip.",
+        "Ein Schnurren am Morgen – drei Sterne am Abend.",
+        "Mozzarella schläft auf der Speisekarte. Heute gibt es, was sie freilässt.",
+        "Wer den Teig knetet, darf auch die Katze kneten. Kurz. Mit Abstand."
+    ];
+
+    salami laune = 0;
+    salami bisMürrisch = 0;            // Sekunden, bis die Laune um 1 sinkt (läuft nur bei Laune > 0)
+    salami futterPause = 0;
+    salami streichelPause = 0;
+    salami gefüttert = 0;              // Zähler (insgesamt)
+    salami gestreichelt = 0;
+    salami version = 0;                // zählt bei jeder Änderung hoch (Klick, Laune sinkt, Pause endet) – Quelle des Panels
+
+    margherita launeText() { serviere (LAUNEN.stück(laune + 1)); }
+    margherita weisheit() { serviere (WEISHEITEN.stück((gefüttert + gestreichelt) % WEISHEITEN.länge() + 1)); }
+    funghi futterPreis(Spiel s) { serviere (Mathe.max(FUTTER_MINDESTPREIS, Mathe.runden(s.proSekunde() * s.preis() * FUTTER_SEKUNDEN))); }
+    leer hebeLaune(salami plus) {
+        laune = Mathe.min(HÖCHSTENS, laune + plus);
+        bisMürrisch = LAUNE_DAUER;
+    }
+
+    // Nur aus Klick-Rückrufen.
+    diavolo füttere(Spiel s) {
+        funghi preis_ = futterPreis(s);
+        falls (!s.istFrei("katze") || futterPause > 0 || s.geld < preis_) { serviere (nein); }
+        s.geld -= preis_;
+        hebeLaune(FUTTER_LAUNE);
+        futterPause = FUTTER_PAUSE;
+        gefüttert++;
+        version++;
+        s.neuBerechnen();
+        s.melde(("🐟 Mozzarella frisst (" + preis_.währung("€", kompakt: ja) + ") und " + launeText() + " – Laune " + laune + "/" + HÖCHSTENS
+            + ", +" + s.katzePunkte() + " % auf alles. " + weisheit()));
+        serviere (ja);
+    }
+    diavolo streichle(Spiel s) {
+        falls (!s.istFrei("katze") || streichelPause > 0) { serviere (nein); }
+        hebeLaune(STREICHEL_LAUNE);
+        streichelPause = STREICHEL_PAUSE;
+        gestreichelt++;
+        version++;
+        s.neuBerechnen();
+        s.melde(("🫳 Mozzarella lässt sich streicheln und " + launeText() + " – Laune " + laune + "/" + HÖCHSTENS + ", +" + s.katzePunkte() + " % auf alles. " + weisheit()));
+        serviere (ja);
+    }
+
+    // Im Takt (ganze Sekunden): Pausen laufen ab, die Laune sinkt alle LAUNE_DAUER Sekunden um 1 – nur Zahlen und Texte.
+    leer takt(Spiel s, salami n) {
+        falls (futterPause > 0) {
+            futterPause = Mathe.max(0, futterPause - n);
+            falls (futterPause == 0) { version++; }
+        }
+        falls (streichelPause > 0) {
+            streichelPause = Mathe.max(0, streichelPause - n);
+            falls (streichelPause == 0) { version++; }
+        }
+        falls (laune <= 0) { serviere; }
+        bisMürrisch = bisMürrisch - n;
+        falls (bisMürrisch > 0) { serviere; }
+        laune--;
+        bisMürrisch = laune > 0 ? LAUNE_DAUER : 0;
+        version++;
+        s.neuBerechnen();
+        s.melde(("🐱 Mozzarella " + launeText() + " – Laune " + laune + "/" + HÖCHSTENS + (laune > 0 ? "." : ". Ein Fischlein wirkt Wunder.")));
+    }
+
+    // Offline: `weg` Sekunden sind vergangen (ohne Meldung)
+    leer offline(salami weg) {
+        futterPause = Mathe.max(0, futterPause - weg);
+        streichelPause = Mathe.max(0, streichelPause - weg);
+        salami rest = weg;
+        solange (laune > 0 && rest >= bisMürrisch) {
+            rest = rest - bisMürrisch;
+            laune--;
+            bisMürrisch = laune > 0 ? LAUNE_DAUER : 0;
+        }
+        falls (laune > 0) { bisMürrisch = bisMürrisch - rest; }
+        version++;
+    }
+
+    leer zurück() {
+        laune = 0; bisMürrisch = 0; futterPause = 0; streichelPause = 0; gefüttert = 0; gestreichelt = 0;
+        version++;
+    }
+
+    Speisekarte<margherita, Vorrat> alsSpeisekarte() {
+        Speisekarte<margherita, Vorrat> k = neu Speisekarte<margherita, Vorrat>();
+        k.lege("laune", laune).lege("bisMürrisch", bisMürrisch).lege("futterPause", futterPause).lege("streichelPause", streichelPause);
+        k.lege("gefüttert", gefüttert).lege("gestreichelt", gestreichelt);
+        serviere (k);
+    }
+    // Fehlende Felder = Vorgabe, alles geklemmt (ein Stand vor Paket 5 hat gar keine)
+    leer lade(Speisekarte<margherita, Vorrat> k) {
+        laune = Mathe.max(0, Mathe.min(HÖCHSTENS, k.hole("laune", 0)));
+        bisMürrisch = Mathe.max(0, Mathe.min(LAUNE_DAUER, k.hole("bisMürrisch", 0)));
+        falls (laune > 0 && bisMürrisch <= 0) { bisMürrisch = LAUNE_DAUER; }
+        falls (laune <= 0) { bisMürrisch = 0; }
+        futterPause = Mathe.max(0, Mathe.min(FUTTER_PAUSE, k.hole("futterPause", 0)));
+        streichelPause = Mathe.max(0, Mathe.min(STREICHEL_PAUSE, k.hole("streichelPause", 0)));
+        gefüttert = Mathe.max(0, k.hole("gefüttert", 0));
+        gestreichelt = Mathe.max(0, k.hole("gestreichelt", 0));
+        version++;
+    }
+}
+// ── Ende P5 Katze (Modell) ──
+
 // ─────────────────────────────── Das Spiel ──────────────────────────────
 // Kennt keine Oberfläche: rechnet nur und schreibt die letzte Neuigkeit in `nachricht`.
 // Zeit zählt in Sekunden (Takt-Schlägen).
@@ -694,7 +823,7 @@ klasse Spiel {
     // sind keine Käufe). Belohnung (Klick, R1): BELOHNUNG_PORTIONEN Portionen als Betrieb + ein Treueherz (dauerhaft; HERZ_PUNKTE
     // Punkte je Herz im Alles-Bonus wie Sterne und Viertel, höchstens HERZEN_HÖCHSTENS) – dann der nächste Wunsch.
     // Wunscharten: pizzen (300 Portionen zum Wunschbeginn) · gebäude (3) · sonderschicht (2) · minispiel (1 Sieg) · hawaii (1 Gast) ·
-    // großbestellung (1 pünktlich).
+    // großbestellung (1 angenommen – pünktlich oder nicht; Paket 5: „pünktlich“ hing nach einer Neueröffnung ohne Trinkgeld fest).
     Blech<Gast> GÄSTE = [
         neu Gast("rossi", "👩", "Signora Rossi", ["pizzen", "hawaii", "gebäude", "sonderschicht", "großbestellung", "minispiel"],
             ["Für die ganze Verwandtschaft – und die kommt zahlreich.", "Wer Ananas bestellt, kriegt von mir einen Vortrag.",
@@ -725,6 +854,7 @@ klasse Spiel {
     Speisekarte<margherita, funghi> gastZiel = neu Speisekarte<margherita, funghi>();     // Ziel des laufenden Wunschs
     salami herzen = 0;                        // Treueherzen – dauerhaft
     funghi gebäudeGekauft = 0;                // gekaufte Gebäude insgesamt (Allzeit-Zähler für den Gebäude-Wunsch)
+    funghi großbestellungen = 0;              // angenommene Großbestellungen insgesamt (Allzeit-Zähler für den Großbestellungs-Wunsch)
     salami versionStammgäste = 0;             // Belohnung abgeholt, Wünsche gestartet
     funghi umsatzGetränke = 0;       // Getränkeumsatz diese Runde (nur Kasse und Statistik – zählt nicht zu umsatz/umsatzKette)
     funghi umsatzGetränkeAllzeit = 0;
@@ -788,7 +918,7 @@ klasse Spiel {
     // Schlüssel → Stück; Marketing und Helfer haben eigene Listen (KAMPAGNEN, ALLE_HELFER) und eigene Kauf-Methoden.
     diavolo hatInhalt(margherita s) {
         serviere (s == "garten" || s == "weinkeller" || s == "personal" || s == "lieferzonen" || s == "marketing" || s == "helfer"
-            || s == "labor" || s == "stammgaeste");
+            || s == "labor" || s == "stammgaeste" || s == "katze");
     }
     Blech<Posten> postenVon(margherita s) {
         falls (s == "garten") { serviere (BEETE); }
@@ -1061,7 +1191,7 @@ klasse Spiel {
         falls (art == "sonderschicht") { serviere (sonderschichten); }
         falls (art == "minispiel") { serviere (minispieleGewonnen); }
         falls (art == "hawaii") { serviere (hawaiiBekehrt); }
-        serviere (pünktlich);
+        serviere (großbestellungen);
     }
     // Ziel eines neuen Wunschs (Pizzen: Portionen zum Zeitpunkt des Wunschs, mindestens 1 – nach einer Neueröffnung ist der Betrieb leer)
     funghi wunschZiel(margherita art) {
@@ -1076,7 +1206,7 @@ klasse Spiel {
         falls (art == "sonderschicht") { serviere (anz(ziel) + " Sonderschichten"); }
         falls (art == "minispiel") { serviere ("1 Minispiel gewinnen"); }
         falls (art == "hawaii") { serviere ("1 Hawaii-Gast bekehren"); }
-        serviere ("1 Großbestellung pünktlich");
+        serviere ("1 Großbestellung annehmen");
     }
     salami wunschNr(Gast g) { serviere (gastWunsch.hole(g.schlüssel, 0)); }
     margherita gastArt(Gast g) { serviere (g.wunschArt(wunschNr(g))); }
@@ -1123,6 +1253,14 @@ klasse Spiel {
         umsatzGetränkeAllzeit += erlös;
     }
 
+    // ── P5 Katze (Spiel) ── Mozzarella (klasse Katze) wirkt als Prozentpunkte im Alles-Bonus (bonusPunkte, wie Lieferzonen und
+    // Herzen) – kein eigener Faktor, der die Franchise-Kaskade zünden würde (Paket 3). Takt in ticke (vor dem Effekt-Abzweig),
+    // „Neu anfangen“ in allesZurück, Spielstand in alsSpeisekarte/ladeAus (offline laufen Pausen und Laune-Uhr ab).
+    Katze katze = neu Katze();
+    salami KATZE_PUNKTE_JE_LAUNE = 4;          // Laune 0…5 → höchstens +20 Punkte
+    salami katzePunkte() { serviere (istFrei("katze") ? KATZE_PUNKTE_JE_LAUNE * katze.laune : 0); }
+    // ── Ende P5 Katze (Spiel) ──
+
     // gelernt: Nonna hat es verraten. kennt: es wirkt (im Urlaub wirkt keins).
     diavolo gelernt(margherita talent) { serviere (talente.enthält(talent)); }
     diavolo kennt(margherita talent) { serviere (modus != "urlaub" && talente.enthält(talent)); }
@@ -1140,7 +1278,7 @@ klasse Spiel {
     }
     // Prozentpunkte der Bereiche auf den Alles-Bonus: Viertel (+5 je Viertel), laufende Kampagnen auf Betrieb/alles (Flyer +25,
     // Radio +50, TV +100) und Treueherzen (+0,5 je Herz, höchstens 100 Herzen)
-    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte()); }
+    funghi bonusPunkte() { serviere (viertelProzent() + marketingPunkte() + herzPunkte() + katzePunkte()); }
 
     leer neuBerechnen() {
         // Alles-Faktor; Fernsehspot (Marketing „alles“) wirkt wie der Freitagabend auf Betrieb und Klick, nicht auf den Preis
@@ -1267,6 +1405,7 @@ klasse Spiel {
         helferTakt();          // Pino zündet im selben Schlag, in dem der Ofen bereit wird; Carlo liest
         kampagnenTakt(n);      // Marketing läuft ab – vor dem Effekt-Abzweig, sonst stünde die Uhr während eines Fests
         forschungTakt(n);      // das Rezeptlabor forscht weiter (ebenfalls vor dem Abzweig)
+        falls (istFrei("katze")) { katze.takt(dies, n); }   // P5: Laune-Uhr und Pausen der Katze (ebenfalls vor dem Abzweig)
         falls (effekt != "") {
             effektRest = effektRest - n;
             falls (effektRest <= 0) { beendeEffekt(); }
@@ -1373,6 +1512,7 @@ klasse Spiel {
         });
         l.priorität(tg);   // K-127: Priorität statt Trinkgeld – ordnet nur die wennDa-Phase; das Zeitbudget rechnet das Spiel selbst
         Zustellung<salami> z = l.warte(max: 40ms * (1 + tg / 10));   // jeder Euro Trinkgeld +10 % Zeit (Spielregel, früher Sprachregel)
+        großbestellungen++;   // der Stammgast-Wunsch zählt jede angenommene Bestellung (auch ohne Trinkgeld erreichbar)
         falls (z.pünktlich() || kennt("mundpropaganda")) {
             pünktlich++;
             funghi bonus = bleche * portion() * gästeFaktor();
@@ -1743,7 +1883,8 @@ klasse Spiel {
         helfer = []; kampagneRest = neu Speisekarte<margherita, salami>(); kampagnePause = neu Speisekarte<margherita, salami>();
         kampagnenGestartet = 0; helferEinsätze = 0;
         forschung = []; forschungLäuft = ""; forschungRest = 0;
-        herzen = 0; gebäudeGekauft = 0;
+        herzen = 0; gebäudeGekauft = 0; großbestellungen = 0;
+        katze.zurück();
         gastWunsch = neu Speisekarte<margherita, salami>(); gastStart = neu Speisekarte<margherita, funghi>(); gastZiel = neu Speisekarte<margherita, funghi>();
         versionGeheim++; versionErfolge++; versionBereiche++; versionSpiele++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
         neuBerechnen();
@@ -1779,7 +1920,8 @@ klasse Spiel {
         s.lege("bereiche", bereiche);
         s.lege("helfer", helfer).lege("kampagnen", kampagnenGestartet).lege("helferEinsätze", helferEinsätze);
         s.lege("forschung", forschung).lege("forschungLäuft", forschungLäuft).lege("forschungRest", forschungRest);
-        s.lege("herzen", herzen).lege("gebäudeGekauft", gebäudeGekauft);
+        s.lege("herzen", herzen).lege("gebäudeGekauft", gebäudeGekauft).lege("großbestellungen", großbestellungen);
+        s.lege("katze", katze.alsSpeisekarte());
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -1861,6 +2003,8 @@ klasse Spiel {
         forschungRest = forschungLäuft == "" ? 0 : Mathe.max(1, s.hole("forschungRest", 0));
         // Stammgäste: Herzen geklemmt, Wünsche nur bekannter Gäste; ein Stand aus Paket 3 mit freiem Bereich bekommt die ersten Wünsche
         herzen = Mathe.max(0, Mathe.min(HERZEN_HÖCHSTENS, s.hole("herzen", 0))); gebäudeGekauft = s.hole("gebäudeGekauft", 0);
+        großbestellungen = Mathe.max(pünktlich, s.hole("großbestellungen", pünktlich));   // vor Paket 5 zählte der Wunsch pünktliche
+        katze.lade(s.hole("katze", neu Speisekarte<margherita, Vorrat>()));   // P5: fehlt im alten Stand → Vorgaben
         gastWunsch = ladeGäste(bereiche, "gastWunsch"); gastStart = ladeGäste(bereiche, "gastStart"); gastZiel = ladeGäste(bereiche, "gastZiel");
         falls (istFrei("stammgaeste")) { starteWünsche(); }
         versionGarten++; versionWeinkeller++; versionPersonal++; versionLieferzonen++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
@@ -1873,7 +2017,7 @@ klasse Spiel {
         solange (seite < ziel) { seite++; rezept.belegeMit(SEITEN.stück(seite)); }
         // Marketing-Uhren laufen offline ab (wie Nonnas Pause) – vor neuBerechnen, damit kein abgelaufener Bonus die Nacht verzinst
         salami weg = Mathe.boden((Uhr.echt().inMs() - s.hole("zeit", Uhr.echt().inMs())) / 1000);
-        falls (weg > 0) { kampagnenOffline(weg); }
+        falls (weg > 0) { kampagnenOffline(weg); katze.offline(weg); }   // P5: Katzen-Pausen und Laune-Uhr laufen offline ab
         Projekt fertig = weg > 0 ? forschungOffline(weg) : karton;   // die Forschung läuft offline mit (Deckel 30 min) – vor neuBerechnen, damit ihr Bonus die Nacht zählt
         margherita forschungGruß = fertig == karton ? "" : " 🧪 " + fertig.name + " ist fertig erforscht: " + fertig.wirkung + ".";
         neuBerechnen();
@@ -2896,6 +3040,95 @@ klasse BriefPanel {
     }
 }
 
+// ── P5 Katze ── (Oberfläche; Bereich #9, Hof)
+// Zwei Zeilen unter dem Kopf des Bereich-Panels: 1 „Mozzarella: Laune n/5 – Text“ + „🐟 Füttern · Preis“ / „😴 satt, n s“ ·
+// 2 Katzenweisheit + „🫳 Streicheln“ / „wieder in n s“. Den Kopf (bereich-katze-kopf) liefert kopfText – das BereichPanel
+// delegiert. Die Zeilen gehören von Anfang an zum Panel und sind sichtbar, sobald die Katze frei ist (Freischalt-Klick, R1/R3).
+// Quelle aller Texte: `stand` – ein abgeleiteter Zettel (K-125) aus dem Taktgeber und spiel.katze.version: rechnet je Rückruf
+// einmal, meldet aber nur echte Änderungen (K-117). Countdowns lesen zTakt nur, solange eine Pause läuft (Zehnersekunden).
+klasse KatzePanel {
+    Zettel stand;
+    Schild launeInfo;
+    Knopf füttern;
+    Schild weisheitInfo;
+    Knopf streicheln;
+    Blech<Zutat> zeilen = [];
+
+    KatzePanel() {
+        stand = Zettel.aus(() -> { zTakt.wert(); serviere (spiel.katze.version); });
+        launeInfo = kleinSchild("bereich-katze-info-1", 2, SCHILD_BREITE);
+        launeInfo.binde("text", () -> launeZeile());
+        füttern = zeilenKnopf("bereich-katze-knopf-1", KNOPF_BREITE);
+        füttern.binde("text", () -> futterText());
+        füttern.binde("aktiv", () -> futterAktiv());
+        füttern.beiKlick(() -> { falls (spiel.katze.füttere(spiel)) { speichere(); nachKauf(); } });
+        füttern.hinweis("Laune +2 (höchstens 5), danach 3 Minuten satt. Kostet 10 Sekunden Pizza-Umsatz.");
+        weisheitInfo = kleinSchild("bereich-katze-info-2", 2, SCHILD_BREITE);
+        weisheitInfo.binde("text", () -> { falls (!frei()) { serviere (""); } stand.wert(); serviere ("💭 " + spiel.katze.weisheit()); });
+        streicheln = zeilenKnopf("bereich-katze-knopf-2", KNOPF_BREITE);
+        streicheln.binde("text", () -> streichelText());
+        streicheln.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); serviere (spiel.katze.streichelPause <= 0); });
+        streicheln.beiKlick(() -> { falls (spiel.katze.streichle(spiel)) { speichere(); nachKauf(); } });
+        streicheln.hinweis("Laune +1 (höchstens 5), danach 1 Minute Pause. Kostet nichts – Mozzarella entscheidet selbst, ob es ihr gefällt.");
+        zeilen = [zeile("bereich-katze-1", [launeInfo, füttern], ZEILE_HOEHE), zeile("bereich-katze-2", [weisheitInfo, streicheln], ZEILE_HOEHE)];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("katze")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        serviere ("🐱 Mozzarella: +" + spiel.katzePunkte() + " % auf alles (+" + spiel.KATZE_PUNKTE_JE_LAUNE + " je Laune, zählt wie Sterne) · "
+            + k.gefüttert + "× gefüttert, " + k.gestreichelt + "× gestreichelt. Alle 10 min sinkt die Laune um 1.");
+    }
+
+    margherita launeZeile() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        margherita t = "Mozzarella: Laune " + k.laune + "/" + k.HÖCHSTENS + " – " + k.launeText();
+        falls (k.laune <= 0) { serviere (t); }
+        zTakt.wert();   // „hält noch n min“ in ganzen Minuten (K-117: gleicher Text sendet nichts)
+        serviere (t + " (hält noch " + Mathe.decke(k.bisMürrisch / 60) + " min)");
+    }
+
+    margherita futterText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.futterPause > 0) {
+            zTakt.wert();   // Countdown in Zehnersekunden
+            serviere ("😴 satt, " + (Mathe.decke(k.futterPause / 10) * 10) + " s");
+        }
+        zVersion.wert();    // der Preis folgt der Produktion
+        serviere ("🐟 Füttern · " + k.futterPreis(spiel).währung("€", kompakt: ja));
+    }
+
+    diavolo futterAktiv() {
+        falls (!frei()) { serviere (nein); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.futterPause > 0) { serviere (nein); }
+        zTakt.wert();
+        serviere (spiel.geld >= k.futterPreis(spiel));
+    }
+
+    margherita streichelText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.streichelPause > 0) {
+            zTakt.wert();
+            serviere ("🫳 wieder in " + (Mathe.decke(k.streichelPause / 10) * 10) + " s");
+        }
+        serviere ("🫳 Streicheln");
+    }
+}
+// ── Ende P5 Katze (Oberfläche) ──
+
 // ─────────────────────────────── Bereiche (Hof · Stadt · Labor) ─────────
 // Ein Panel je Bereich – unsichtbar, bis der Bereich angeboten ist (Vorgänger der Kette frei). Angeboten zeigt es EINE Zeile:
 // Teaser + Freischalt-Knopf frei-<schlüssel>. Der Freischalt-Klick lässt im selben Rückruf den Inhalt wachsen: Kopfzeile
@@ -2921,6 +3154,7 @@ klasse BereichPanel {
     Abschnitt teil;
     Blech<Posten> posten = [];
     Fortschritt laborBalken = karton;
+    KatzePanel katzePanel = karton;   // P5: nur bei der Katze
 
     salami zeilenZahl(margherita s) {
         falls (s == "garten" || s == "lieferzonen" || s == "labor") { serviere (3); }
@@ -2932,6 +3166,7 @@ klasse BereichPanel {
         b = bereich;
         margherita s = b.schlüssel;
         posten = spiel.postenVon(s);
+        falls (s == "katze") { katzePanel = neu KatzePanel(); }   // P5: vor der Kopf-Bindung (kopfText delegiert)
         teaser = kleinSchild("bereich-" + s + "-teaser", 3, SCHILD_BREITE);
         teaser.setzeText(b.teaser);
         freiKnopf = zeilenKnopf("frei-" + s, KNOPF_BREITE);
@@ -3012,6 +3247,8 @@ klasse BereichPanel {
             }
             kinder.hinzu(r);
         }
+        // P5: Katze, Wettbewerb, Sammelalbum und Banca bauen ihre Zeilen selbst (eigene Panel-Klassen) und liefern den Kopftext
+        falls (s == "katze") { für (Zutat z : katzePanel.zeilen) { kinder.hinzu(z); } }
         teil = panel(b.titel(), "bereich-" + s, kinder);
         teil.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) || spiel.freischaltbar(b.schlüssel)); });
     }
@@ -3028,6 +3265,7 @@ klasse BereichPanel {
 
     margherita kopfText() {
         margherita s = b.schlüssel;
+        falls (s == "katze") { serviere (katzePanel.kopfText()); }   // P5
         falls (inhaltOffen()) {
             falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet) – eine Pizza bringt " + spiel.preis().währung("€") + "."); }
             falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
