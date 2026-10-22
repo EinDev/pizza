@@ -7,7 +7,8 @@ Keep it simple, but extendable – wir werden in Zukunft mehr hinzufügen.“
 Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: WebView2, Linux: WebKitGTK).
 
 > **Status:** Sprache, Verhalten und Protokoll sind verbindlich in **`SPEC.md` §16** festgeschrieben (Klärungen K-056 … K-075 in
-> `KLAERUNGEN.md`, Stand Interpreter da07b46 / Renderer d9c9090). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
+> `KLAERUNGEN.md`, Stand Interpreter da07b46 / Renderer d9c9090; **v5 reaktives Modell** `Zettel`/`binde`/`bindeStil`, nur echte
+> Änderungen: SPEC §16.8, K-116 … K-119, Interpreter a07c1f1/ce98d85, Wasm 75b2b0e/67c446f/1b431e7). Dieses Dokument behält Motivation, Anbindung (§4), Tests (§5),
 > Tiers (§6) und Zuständigkeiten (§7); bei Widersprüchen gilt SPEC §16. Abschnitt 8 listet die Präzisierungen.
 
 ## 1. Grundidee
@@ -25,14 +26,15 @@ Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: W
 ```pizza
 Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 320);
 
-Schild preis   = neu Schild("Noch nichts bestellt.");
-Eingabe anzahl = neu Eingabe(platzhalter: "Wie viele Pizzen?");
-Knopf backen   = neu Knopf("Backen!", () -> {
-    salami n = anzahl.wert().alsZahl();
-    preis.setzeText(("Macht " + (n * 8).euro()));
-});
+Zettel verkauft = neu Zettel(0);
+Eingabe anzahl  = neu Eingabe(wert: "1", platzhalter: "Wie viele Pizzen?");
+Schild preis    = neu Schild();
+preis.binde("text", () -> ("Macht " + (anzahl.wert().alsZahl() * 8).euro()));   // folgt dem Tippen – ohne beiAenderung
+Schild kasse    = neu Schild();
+kasse.binde("text", () -> (verkauft.wert() + " Pizzen verkauft"));              // folgt dem Zettel
+Knopf backen    = neu Knopf("Backen!", () -> { verkauft.setze(verkauft.wert() + anzahl.wert().alsZahl()); });
 
-theke.zeige(neu Stapel([preis, anzahl, backen]));
+theke.zeige(neu Stapel([anzahl, preis, kasse, backen]));
 theke.bediene();
 ```
 

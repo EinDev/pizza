@@ -924,12 +924,12 @@
             "theke.bediene();"
           )
         },
-        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. Die Theke läuft in beiden Motoren gleich – im Interpreter und im Wasm-Motor (auch im heruntergeladenen Programm)." },
+        { art: "text", md: "Tippt der Gast `2` und klickt **Backen!**, steht auf dem Schild `Macht 16,00 €`. Das Programm endet, wenn der Gast das Fenster schließt. Die Theke läuft in beiden Motoren gleich – im Interpreter und im Wasm-Motor (auch im heruntergeladenen Programm). Soll das Schild der Eingabe schon beim Tippen folgen, ganz ohne Knopf, bindest du es: `preis.binde(\"text\", () -> …)` – siehe *Zettel & Bindungen*." },
         {
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten) sowie `binde(eigenschaft, fn)` und `bindeStil(schlüssel, fn)` – eine Eigenschaft oder ein Stil folgt dann einem Ausdruck (siehe *Zettel & Bindungen*). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
@@ -947,7 +947,8 @@
                 ["`Fortschritt`", "Fortschrittsbalken", "`neu Fortschritt(wert: 0, text: \"\")`", "`wert()`, `setzeWert(x)` (0 bis 1, wird begrenzt), `text()`, `setzeText(t)`"],
                 ["`Tabelle`", "Tabelle zum Anzeigen", "`neu Tabelle(spalten, zeilen)`", "`spalten()`, `setzeSpalten(b)`, `zeilen()`, `setzeZeilen(b)` – Zellen erscheinen als Text"],
                 ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"],
-                ["`Tastatur`", "unsichtbar wie der Takt: meldet Tastendrücke im Fenster", "`neu Tastatur(taste -> { … })`", "`beiTaste(fn)` (bekommt den Tastennamen als Text), `aktiv(ja/nein)` – muss im gezeigten Baum liegen (siehe *Tasten, Umschalter, Klappen*)"]
+                ["`Tastatur`", "unsichtbar wie der Takt: meldet Tastendrücke im Fenster", "`neu Tastatur(taste -> { … })`", "`beiTaste(fn)` (bekommt den Tastennamen als Text), `aktiv(ja/nein)` – muss im gezeigten Baum liegen (siehe *Tasten, Umschalter, Klappen*)"],
+                ["`Zettel`", "**keine Zutat**: ein beobachtbarer Wert, an den Zutaten ihre Eigenschaften binden", "`neu Zettel(wert)`", "`wert()`, `setze(w)` – siehe *Zettel & Bindungen*"]
               ]
             },
             { art: "text", md: "Stapel, Reihen, Abschnitte und Reiter lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Jede Zutat kann außerdem einen **Hinweis** tragen: `knopf.hinweis(\"Lässt den Teig gehen\")` zeigt den Text, wenn der Gast mit der Maus darüber fährt; `hinweis()` liest ihn." },
@@ -998,9 +999,160 @@
         },
         {
           art: "details",
+          titel: "Zettel & Bindungen – die Theke folgt dem Zustand",
+          inhalt: [
+            { art: "text", md: "Ein gutes Theke-Programm ändert seinen Zustand **nur in Rückrufen** – und was der Gast sieht, folgt diesem Zustand **von selbst**. Dafür gibt es den `Zettel` (ein Wert, der weiß, wer ihn liest) und `binde` (eine Eigenschaft, die einem Ausdruck folgt). Der `Takt` ist dann nur noch für die Simulation da – nicht fürs Zeichnen." },
+            { art: "text", md: "**Vorher – so sah es bis v4 aus:** Ein `zeichne()` setzt nach jedem Klick und jedem Takt alle Schilder und Knöpfe neu. Das funktioniert, aber jeder Rückruf muss daran denken, `zeichne()` zu rufen, und `zeichne()` muss alles kennen, was auf der Theke liegt." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "takt", id: "backofen", anzahl: 1 }, { typ: "klick", id: "verkaufen" }, { typ: "klick", id: "verkaufen" }, { typ: "takt", id: "backofen", anzahl: 2 }, { typ: "klick", id: "verkaufen" }],
+              uiErwartet: [
+                { v: 1, op: "fenster", titel: "Pizzeria", breite: 480, hoehe: 360 },
+                { v: 1, op: "baum", wurzel: { id: "z1", art: "stapel", kinder: [{ id: "lager", art: "schild", text: "Im Lager: 0" }, { id: "kasse", art: "schild", text: "0,00 €" }, { id: "verkaufen", art: "knopf", text: "Verkaufen", aktiv: false }, { id: "backofen", art: "takt", intervall: 1000 }] } },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 1" }, { id: "verkaufen", aktiv: true }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 0" }, { id: "kasse", text: "8,00 €" }, { id: "verkaufen", aktiv: false }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 2" }, { id: "verkaufen", aktiv: true }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 1" }, { id: "kasse", text: "16,00 €" }] }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "salami pizzen = 0;",
+                "salami geld = 0;",
+                "Schild lager = neu Schild(id: \"lager\");",
+                "Schild kasse = neu Schild(id: \"kasse\");",
+                "Knopf verkaufen = neu Knopf(\"Verkaufen\", id: \"verkaufen\");",
+                "Takt backofen = neu Takt(1s, id: \"backofen\");",
+                "leer zeichne() {",
+                "    lager.setzeText((\"Im Lager: \" + pizzen));",
+                "    kasse.setzeText(geld.euro());",
+                "    verkaufen.aktiv(pizzen > 0);",
+                "}",
+                "backofen.beiTakt(anzahl -> { pizzen += anzahl; zeichne(); });",
+                "verkaufen.beiKlick(() -> { pizzen--; geld += 8; zeichne(); });",
+                "zeichne();",
+                "theke.zeige(neu Stapel([lager, kasse, verkaufen, backofen]));",
+                "theke.bediene();",
+                "Bote.sage((pizzen + \" Pizzen übrig, \" + geld.euro() + \" in der Kasse\"));"
+              )
+            },
+            { art: "ausgabe", text: "1 Pizzen übrig, 16,00 € in der Kasse" },
+            { art: "text", md: "**Nachher – mit `Zettel` und `binde`:** Die beiden Zahlen liegen auf Zetteln. Jedes Schild und der Knopf **binden** ihre Eigenschaft einmal beim Aufbau an einen Ausdruck; die Rückrufe ändern nur noch die Zettel. Kein `zeichne()`, keine Merkvariable, kein Vergleich von Hand." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "takt", id: "backofen", anzahl: 1 }, { typ: "klick", id: "verkaufen" }, { typ: "klick", id: "verkaufen" }, { typ: "takt", id: "backofen", anzahl: 2 }, { typ: "klick", id: "verkaufen" }],
+              uiErwartet: [
+                { v: 1, op: "fenster", titel: "Pizzeria", breite: 480, hoehe: 360 },
+                { v: 1, op: "baum", wurzel: { id: "z1", art: "stapel", kinder: [{ id: "lager", art: "schild", text: "Im Lager: 0" }, { id: "kasse", art: "schild", text: "0,00 €" }, { id: "verkaufen", art: "knopf", text: "Verkaufen", aktiv: false }, { id: "backofen", art: "takt", intervall: 1000 }] } },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 1" }, { id: "verkaufen", aktiv: true }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 0" }, { id: "kasse", text: "8,00 €" }, { id: "verkaufen", aktiv: false }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 2" }, { id: "verkaufen", aktiv: true }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "lager", text: "Im Lager: 1" }, { id: "kasse", text: "16,00 €" }] }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "Zettel pizzen = neu Zettel(0);",
+                "Zettel geld = neu Zettel(0);",
+                "Schild lager = neu Schild(id: \"lager\");",
+                "lager.binde(\"text\", () -> (\"Im Lager: \" + pizzen.wert()));",
+                "Schild kasse = neu Schild(id: \"kasse\");",
+                "kasse.binde(\"text\", () -> geld.wert().euro());",
+                "Knopf verkaufen = neu Knopf(\"Verkaufen\", id: \"verkaufen\");",
+                "verkaufen.binde(\"aktiv\", () -> pizzen.wert() > 0);",
+                "verkaufen.beiKlick(() -> { pizzen.setze(pizzen.wert() - 1); geld.setze(geld.wert() + 8); });",
+                "Takt backofen = neu Takt(1s, anzahl -> { pizzen.setze(pizzen.wert() + anzahl); }, id: \"backofen\");",
+                "theke.zeige(neu Stapel([lager, kasse, verkaufen, backofen]));",
+                "theke.bediene();",
+                "Bote.sage((pizzen.wert() + \" Pizzen übrig, \" + geld.wert().euro() + \" in der Kasse\"));"
+              )
+            },
+            { art: "ausgabe", text: "1 Pizzen übrig, 16,00 € in der Kasse" },
+            { art: "text", md: "Der Ofen tickt einmal (1 Pizza, der Knopf wird aktiv), der Gast verkauft (0 Pizzen, 8 €, Knopf aus), klickt noch einmal ins Leere (ein Klick auf einen inaktiven Knopf wird ignoriert), der Ofen holt zwei Schläge nach, ein letzter Verkauf. Beide Fassungen schicken **genau dieselben Nachrichten** ans Fenster – die Theke sendet nur, was sich wirklich ändert. Der Unterschied steckt im Programm: Die zweite Fassung weiß an einer Stelle, *wie* etwas angezeigt wird, und an einer anderen, *wann* sich etwas ändert." },
+            { art: "text", md: "**Die Bausteine:**" },
+            {
+              art: "tabelle",
+              kopf: ["Baustein", "Was er tut"],
+              zeilen: [
+                ["`neu Zettel(wert)`", "ein beobachtbarer Wert – keine Zutat, wird nicht gezeigt. Ohne Argument steht `karton` drauf. Textform `Zettel(5)`."],
+                ["`zettel.wert()`", "liest den Wert. Innerhalb einer Bindung merkt sich die Theke: *Diese Bindung hängt an diesem Zettel.*"],
+                ["`zettel.setze(w)`", "schreibt den Wert. Ist er **ungleich** dem alten (wie `==`), werden alle Bindungen, die den Zettel gelesen haben, neu gerechnet. Gibt den Zettel zurück."],
+                ["`zutat.binde(eigenschaft, fn)`", "bindet eine Eigenschaft (`\"text\"`, `\"aktiv\"`, `\"wert\"`, `\"an\"`, `\"sichtbar\"`, `\"hinweis\"` …) an eine Funktion ohne Parameter. Wird sofort einmal ausgewertet; danach immer, wenn sich eine gelesene Quelle ändert. Gibt die Zutat zurück (verkettbar)."],
+                ["`zutat.bindeStil(schlüssel, fn)`", "dasselbe für einen Stil (`\"farbe\"`, `\"breite\"`, `\"zeilen\"` …). Liefert `fn` `karton`, wird der Stil entfernt."],
+                ["`binde(eigenschaft, karton)`, `bindeStil(schlüssel, karton)`", "löst die Bindung – danach darf die Eigenschaft wieder von Hand gesetzt werden. Ein erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung."]
+              ]
+            },
+            { art: "text", md: "**Bindbar sind:** `Schild` `text`; `Knopf` `text`, `aktiv`; `Eingabe` `wert`; `Haken` `text`, `an`; `Takt` `aktiv`, `intervall`; `Fortschritt` `wert`, `text`; `Abschnitt` `titel`, `klappbar`, `zu`; `Tabelle` `spalten`, `zeilen`; `Reiter` `gewaehlt`; `Auswahl` `optionen`, `gewaehlt`, `aktiv`; `Tastatur` `aktiv` – und bei **jeder** Zutat `sichtbar` und `hinweis`. Alle Stile gehen über `bindeStil`. Die Kinder eines Stapels sind nicht bindbar: Listen bleiben bei `hinzu` und `leeren`. Etwas anderes ergibt `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis.`; ohne Funktion `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.`" },
+            { art: "text", md: "**Quellen: Zettel *und* Zutaten.** Nicht nur `zettel.wert()` wird als Quelle gemerkt, sondern auch jeder **Getter einer Zutat**: `eingabe.wert()`, `haken.an()`, `knopf.aktiv()`, `reiter.gewaehlt()`, `abschnitt.zu()`, `schild.text()` … Tippt der Gast in eine Eingabe oder hakt er etwas an, rechnen alle Bindungen neu, die diesen Getter gelesen haben – ganz ohne `beiAenderung`. Der Pizzarechner braucht so keinen einzigen Rückruf mehr:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "aenderung", id: "anzahl", wert: "3" }, { typ: "aenderung", id: "familie", wert: true }, { typ: "aenderung", id: "anzahl", wert: "3" }],
+              uiErwartet: [
+                { v: 1, op: "fenster", titel: "Preis", breite: 480, hoehe: 360 },
+                { v: 1, op: "baum", wurzel: { id: "z1", art: "stapel", kinder: [{ id: "anzahl", art: "eingabe", wert: "1" }, { id: "familie", art: "haken", text: "Familienpizza (+4 €)", an: false }, { id: "preis", art: "schild", text: "8,00 €" }] } },
+                { v: 1, op: "aendere", aenderungen: [{ id: "preis", text: "24,00 €" }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "preis", text: "36,00 €" }] }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Preis\");",
+                "Eingabe anzahl = neu Eingabe(wert: \"1\", id: \"anzahl\");",
+                "Haken familie = neu Haken(\"Familienpizza (+4 €)\", id: \"familie\");",
+                "Schild preis = neu Schild(id: \"preis\");",
+                "preis.binde(\"text\", () -> {",
+                "    salami stueck = familie.an() ? 12 : 8;",
+                "    serviere ((anzahl.wert().alsZahl() * stueck).euro());",
+                "});",
+                "theke.zeige(neu Stapel([anzahl, familie, preis]));",
+                "theke.bediene();",
+                "Bote.sage((\"Zum Schluss: \" + preis.text()));"
+              )
+            },
+            { art: "ausgabe", text: "Zum Schluss: 36,00 €" },
+            { art: "text", md: "Der Gast tippt `3` (24 €), hakt die Familienpizza an (36 €) und tippt noch einmal `3` – derselbe Wert, also keine Nachricht. Die Quellen werden bei **jeder** Auswertung neu gesammelt: Liest ein Ausdruck eine Quelle nur in einem `falls`-Zweig, hängt die Bindung nur dann an ihr. Was außerhalb einer Bindung gelesen wird, merkt sich niemand." },
+            { art: "text", md: "**Die Regeln – kurz und in Nutzersprache:**\n\n- **Wann wird gerechnet?** Einmal **sofort beim `binde`** (danach liefert `schild.text()` schon den gebundenen Wert) – und sonst nur an den **Synchronisationspunkten**: nach jedem Rückruf, bevor `bediene()` wieder wartet, vor `zeige`, vor `schliesse` und am Programmende. Genau dann, wenn die Theke sowieso ihre Nachricht baut. Zwischenzustände in einem Rückruf sieht niemand; eine Bindung, die eine andere liest, folgt ihr am nächsten Synchronisationspunkt.\n- **Nur echte Änderungen.** Setzt eine Bindung oder ein Setter eine Eigenschaft auf **denselben** Wert, passiert nichts: keine Nachricht, keine Folgeberechnung. Das gilt seit v5 auch für `setzeText`, `aktiv(…)`, `stil(…)` & Co. – der frühere Satz „ein identischer Wert wird trotzdem gesendet“ gilt **nicht mehr**. Hand-Vergleiche wie `falls (neu != gezeigt)` kannst du streichen.\n- **Eine Bindung rechnet nur.** Im Ausdruck ist alles verboten, was Zustand ändert oder sendet: Setter wie `setzeText`, `hinzu`, `leeren`, `animiere`, `zeige`, `schliesse` und `zettel.setze` → `LaufzeitAnanas: Eine Bindung rechnet nur – 'setzeText' ist darin nicht erlaubt.` Getter, Rechnen, `Bote.sage`, eigene Methoden und `neu …` sind erlaubt. Wirft der Ausdruck, kommt die Ananas aus `binde()` bzw. aus `bediene()` wie bei einem Rückruf – fangbar mit `probier`, die Theke bleibt offen; was vorher schon berechnet war, geht noch ans Fenster.\n- **Eine Eigenschaft hat einen Schreiber.** Ist `text` gebunden, wirft `setzeText` → `LaufzeitAnanas: 'text' von Schild(z1) ist gebunden – setze den Zettel, nicht die Zutat.` Nur der **Gast** darf trotzdem schreiben: Tippt er in eine gebundene `Eingabe`, gilt sein Text, bis sich eine Quelle der Bindung ändert.\n- **Kreise.** Lesen zwei Bindungen einander und werden nie stabil, gibt die Theke nach 100 Durchläufen auf: `LaufzeitAnanas: Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(z1) hängt von sich selbst ab.` Danach gelten alle Bindungen als beruhigt; erst die nächste Quellenänderung rechnet wieder. Ketten (A liest B, B liest einen Zettel) sind harmlos – sie konvergieren, weil nur echte Änderungen weitergegeben werden.\n- **Blech oder Objekt auf einem Zettel.** `setze` vergleicht Zahlen, Texte, `ja`/`nein`, `karton` und Dauern nach Wert, alles andere nach **Identität**. Ein Blech, das du mit `hinzu` veränderst, ist dasselbe Blech – `liste.setze(liste.wert())` ändert nichts. Setze stattdessen eine Kopie: `liste.setze(liste.wert().kopie())` – oder nimm den Taktgeber-Trick unten." },
+            { art: "hinweis", ton: "info", md: "**W0103 – die Bindung, die nur einmal rechnet:** Liest ein Ausdruck bei seiner ersten Auswertung **weder Zettel noch Zutat-Getter** (etwa nur eine gewöhnliche Variable oder ein Blech), kann die Theke nie merken, dass sich etwas geändert hat – die Bindung wird nie wieder berechnet, und du bekommst `W0103: Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.` (bei Stilen: `Die Bindung Stil 'farbe' von …`). Typischer Fehler: `anzeige.binde(\"text\", () -> bestellungen.länge() + \" Bestellungen\")` mit einem gewöhnlichen `Blech` – Dein Rückruf ruft `hinzu`, das Schild bleibt bei 0. Ausweg für objektlastige Zustände: ein Zettel `stand` als **Taktgeber**." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "klick", id: "neue" }, { typ: "klick", id: "neue" }],
+              uiErwartet: [
+                { v: 1, op: "fenster", titel: "Bestellungen", breite: 480, hoehe: 360 },
+                { v: 1, op: "baum", wurzel: { id: "z1", art: "stapel", kinder: [{ id: "anzeige", art: "schild", text: "Bestellt (0): " }, { id: "neue", art: "knopf", text: "Salami bestellen" }] } },
+                { v: 1, op: "aendere", aenderungen: [{ id: "anzeige", text: "Bestellt (1): Salami" }] },
+                { v: 1, op: "aendere", aenderungen: [{ id: "anzeige", text: "Bestellt (2): Salami, Salami" }] }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Bestellungen\");",
+                "Blech<margherita> bestellungen = [];",
+                "Zettel stand = neu Zettel(0);",
+                "Schild anzeige = neu Schild(id: \"anzeige\");",
+                "anzeige.binde(\"text\", () -> {",
+                "    stand.wert();                                   // Taktgeber lesen – sonst W0103",
+                "    serviere ((\"Bestellt (\" + bestellungen.länge() + \"): \" + bestellungen.verbinde(\", \")));",
+                "});",
+                "Knopf neue = neu Knopf(\"Salami bestellen\", () -> {",
+                "    bestellungen.hinzu(\"Salami\");                   // das Blech ändert sich in sich – kein Zettel merkt es",
+                "    stand.setze(stand.wert() + 1);                  // darum: Taktgeber weiterdrehen",
+                "}, id: \"neue\");",
+                "theke.zeige(neu Stapel([anzeige, neue]));",
+                "theke.bediene();",
+                "Bote.sage((anzeige.text()));"
+              )
+            },
+            { art: "ausgabe", text: "Bestellt (2): Salami, Salami" },
+            { art: "text", md: "**So stellst du ein `zeichne()`-Programm um – in fünf Schritten:**\n\n1. Jede angezeigte Größe auf einen `Zettel` legen – oder sie direkt aus Zutat-Gettern ableiten (`anzahl.wert()`, `haken.an()`).\n2. Jeden `setzeText`-, `aktiv`- und `stil`-Aufruf in `zeichne()` durch ein `binde`/`bindeStil` beim Aufbau ersetzen – in derselben Reihenfolge.\n3. Rückrufe ändern nur noch Zettel und Zustand; der Aufruf `zeichne()` fliegt raus.\n4. „gezeigt“-Merkvariablen und Vergleiche von Hand streichen – die Theke sendet ohnehin nur echte Änderungen.\n5. Der `Takt` ruft nur noch die Simulation (`pizzen.setze(pizzen.wert() + anzahl)`), nie das Zeichnen.\n\nSo umgestellt sind in den Beispielen der **Ofen-Timer** (Zettel `timer`, Anzeige und Knöpfe gebunden) und der **Pizzarechner** (Text und Farbe des Preis-Schilds hängen direkt an der Eingabe und den Haken). Ein `Zettel` ohne Theke ist übrigens eine ganz gewöhnliche Schachtel – `wert()` und `setze()` funktionieren auch in einem Konsolenprogramm, nur beobachtet ihn dann niemand." }
+          ]
+        },
+        {
+          art: "details",
           titel: "Takt: die Theke tickt",
           inhalt: [
-            { art: "text", md: "Ein `Takt` ist eine unsichtbare Zutat, die regelmäßig ihren Rückruf aufruft – für Uhren, Animationen und Idle-Spiele. Er läuft nur, solange er im **gezeigten** Baum liegt und `aktiv` ist; leg ihn einfach mit in einen Stapel.\n\n- Das Intervall ist eine Dauer von **mindestens 100 ms** (sonst `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`).\n- Der Rückruf bekommt `anzahl`: wie viele Takte seit dem letzten Aufruf vergangen sind. Normal ist das 1; war der Rechner kurz beschäftigt, holt der Takt verpasste Schläge auf einmal nach. Rechne darum immer mit `anzahl`.\n- Der Takt misst **echte** Zeit, nicht die simulierte Uhr – `Uhr.vorspulen` beschleunigt ihn nicht.\n- `aktiv(nein)` hält ihn an, `setzeIntervall(d)` ändert das Tempo." },
+            { art: "text", md: "Ein `Takt` ist eine unsichtbare Zutat, die regelmäßig ihren Rückruf aufruft – für Uhren, Animationen und Idle-Spiele. Er läuft nur, solange er im **gezeigten** Baum liegt und `aktiv` ist; leg ihn einfach mit in einen Stapel. Der Takt treibt die **Simulation** an – was angezeigt wird, folgt dem Zustand über Bindungen (siehe *Zettel & Bindungen*).\n\n- Das Intervall ist eine Dauer von **mindestens 100 ms** (sonst `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`).\n- Der Rückruf bekommt `anzahl`: wie viele Takte seit dem letzten Aufruf vergangen sind. Normal ist das 1; war der Rechner kurz beschäftigt, holt der Takt verpasste Schläge auf einmal nach. Rechne darum immer mit `anzahl`.\n- Der Takt misst **echte** Zeit, nicht die simulierte Uhr – `Uhr.vorspulen` beschleunigt ihn nicht.\n- `aktiv(nein)` hält ihn an, `setzeIntervall(d)` ändert das Tempo." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1403,7 +1555,9 @@
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
             ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
-            ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"]
+            ["`W0101`", "`neu Vorratskammer(…)`, aber es gibt keinen Speicher (einmal pro Programm)", "„Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.“"],
+            ["`W0102`", "`animiere`/`schwebe`, aber die Theke ist nicht offen oder die Zutat liegt nicht auf ihr (je Aufrufstelle)", "„Animation entfällt – die Theke ist nicht offen.“"],
+            ["`W0103`", "`binde`/`bindeStil`, dessen Ausdruck bei der ersten Auswertung weder einen Zettel noch einen Zutat-Getter liest (je Aufrufstelle) – die Bindung rechnet nie wieder", "„Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.“"]
           ]
         },
         { art: "text", md: "Zwei Warnungen in Aktion – das Programm läuft trotzdem bis zum Ende:" },

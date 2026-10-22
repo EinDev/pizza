@@ -22,7 +22,7 @@
     {
       "id": "pizzarechner",
       "titel": "Pizzarechner",
-      "beschreibung": "Anzahl eintippen, Extras anhaken – der Preis rechnet sich bei jeder Änderung neu, mit euro() und freundlicher Meldung bei Tippfehlern.",
+      "beschreibung": "Anzahl eintippen, Extras anhaken – Text und Farbe des Preis-Schilds sind mit binde/bindeStil an Eingabe und Haken gebunden und folgen jeder Änderung von selbst, ohne beiAenderung; mit euro() und freundlicher Meldung bei Tippfehlern.",
       "datei": "theke/pizzarechner.pizza",
       "erwartet": "theke/pizzarechner.erwartet",
       "ereignisse": "theke/pizzarechner.ereignisse",
@@ -31,6 +31,8 @@
       "tier": 1,
       "schlagworte": [
         "Theke",
+        "binde",
+        "bindeStil",
         "Eingabe",
         "Haken",
         "Speisekarte",
@@ -80,7 +82,7 @@
     {
       "id": "ofen-timer",
       "titel": "Ofen-Timer",
-      "beschreibung": "Timer mit + und − einstellen, Holzofen anhaken, backen: Der Timer ist das Budget eines ofen-Ausdrucks – zu kurz, und die Pizza landet im roh-Zweig.",
+      "beschreibung": "Timer mit + und − einstellen, Holzofen anhaken, backen: Der Timer liegt auf einem Zettel, Anzeige und Knöpfe sind daran gebunden – und er ist das Budget eines ofen-Ausdrucks: zu kurz, und die Pizza landet im roh-Zweig.",
       "datei": "theke/ofen-timer.pizza",
       "erwartet": "theke/ofen-timer.erwartet",
       "ereignisse": "theke/ofen-timer.ereignisse",
@@ -89,6 +91,8 @@
       "tier": 2,
       "schlagworte": [
         "Theke",
+        "Zettel",
+        "binde",
         "ofen",
         "zwischenstand",
         "Uhr",

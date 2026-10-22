@@ -1,6 +1,9 @@
-// Pizzarechner: Anzahl eintippen, Extras anhaken – der Preis rechnet sich von selbst.
+// Pizzarechner: Anzahl eintippen, Extras anhaken – der Preis folgt von selbst.
 // Grundlage ist immer eine Margherita für 7,50 €; die Aufpreise der Extras stehen
 // auf einer Speisekarte (Map): Name → Preis.
+// Das Preis-Schild ist GEBUNDEN: binde("text", …) und bindeStil("farbe", …) lesen
+// anzahl.wert() und die Haken – die Theke merkt sich diese Quellen und rechnet Text
+// und Farbe neu, sobald der Gast tippt oder hakt. Kein beiAenderung, kein rechne().
 
 Theke theke = neu Theke("Pizzarechner", breite: 420, hoehe: 340);
 
@@ -16,7 +19,6 @@ titel.stil("schrift", "gross");
 Eingabe anzahl = neu Eingabe(wert: "1", platzhalter: "Wie viele Pizzen?", id: "anzahl");
 Schild preis = neu Schild("", id: "preis");
 preis.stil("schrift", "gross");
-preis.stil("farbe", "basilikum");
 
 // Die angehakten Extras, in der Reihenfolge des Angebots
 Blech<margherita> extras() {
@@ -32,39 +34,34 @@ funghi preisVon(Blech<margherita> gewählt) {
     serviere ((GRUNDPREIS + gewählt.belege(e -> aufpreis.hole(e)).summe()));
 }
 
-leer rechne() {
+// Beurteilt die Eingabe: [Meldung, Farbe] – rechnet nur, ändert nichts.
+Blech<margherita> beurteile() {
     margherita text = anzahl.wert().trimme();
     falls (text.istLeer()) {
-        preis.setzeText(("Wie viele Pizzen darf's sein?"));
-        preis.stil("farbe", "kruste");
-        serviere;
+        serviere ((["Wie viele Pizzen darf's sein?", "kruste"]));
     }
     probier {
         funghi n = text.alsZahl();
         falls (n < 1 || n != n.ganz()) {
-            preis.setzeText(("Nur ganze Pizzen, bitte – mindestens eine."));
-            preis.stil("farbe", "tomate");
-            serviere;
+            serviere ((["Nur ganze Pizzen, bitte – mindestens eine.", "tomate"]));
         }
         funghi einzel = preisVon(extras());
-        preis.setzeText(("" + n + " × " + einzel.euro() + " = " + (n * einzel).euro()));
-        preis.stil("farbe", "basilikum");
+        serviere (([("" + n + " × " + einzel.euro() + " = " + (n * einzel).euro()), "basilikum"]));
     } verbrannt (TypAnanas a) {
-        preis.setzeText(("'" + text + "' ist keine Zahl. Probier's mit Ziffern."));
-        preis.stil("farbe", "tomate");
+        serviere (([("'" + text + "' ist keine Zahl. Probier's mit Ziffern."), "tomate"]));
     }
 }
 
 für (margherita b : angebot) {
-    Haken h = neu Haken(b + " (+" + aufpreis.hole(b).euro() + ")", id: b.klein());
-    h.beiAenderung(an -> { rechne(); });
-    haken.hinzu(h);
+    haken.hinzu(neu Haken(b + " (+" + aufpreis.hole(b).euro() + ")", id: b.klein()));
 }
-anzahl.beiAenderung(t -> { rechne(); });
+
+// Die Bindungen: Text und Farbe des Schilds folgen Eingabe und Haken.
+preis.binde("text", () -> beurteile().stück(1));
+preis.bindeStil("farbe", () -> beurteile().stück(2));
 
 Stapel liste = neu Stapel(haken);
 theke.zeige(neu Stapel([titel, anzahl, liste, preis]));
-rechne();
 theke.bediene();
 
 Blech<margherita> gewählt = extras();

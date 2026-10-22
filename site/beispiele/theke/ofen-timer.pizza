@@ -3,28 +3,34 @@
 // Der Timer ist das Budget des ofen-Ausdrucks: Läuft er ab, landet die Pizza
 // im roh-Zweig – mit dem letzten Zwischenstand. Ein Holzofen (450°) ist heißer:
 // Sein Budget ist zeit × 450 / 250, er schafft also fast doppelt so viel pro Minute.
+// Der Timer liegt auf einem Zettel; Anzeige und Knöpfe sind daran GEBUNDEN
+// (binde): Die Rückrufe ändern nur den Zettel, die Theke folgt von selbst.
 
 Theke theke = neu Theke("Ofen-Timer", breite: 360, hoehe: 300);
 
 Dauer SCHRITT = 30s;
-Dauer timer = 1min;
+Zettel timer = neu Zettel(1min);
+Zettel meldung = neu Zettel("Der Ofen ist vorgeheizt.");
+Zettel gelungen = neu Zettel(karton);     // karton = noch nichts gebacken, sonst ja/nein
 salami fertig = 0;
 salami rohe = 0;
 
 Schild anzeige = neu Schild("", id: "anzeige");
 anzeige.stil("schrift", "gross");
+anzeige.binde("text", () -> ("⏲ " + timer.wert()));
 
 Knopf weniger = neu Knopf("− 30 s", id: "weniger");
+weniger.binde("aktiv", () -> timer.wert() > SCHRITT);
 Knopf mehr    = neu Knopf("+ 30 s", id: "mehr");
+mehr.binde("aktiv", () -> timer.wert() < 5min);
 Haken holzofen = neu Haken("Holzofen (450°)", id: "holzofen");
 Knopf start   = neu Knopf("Backen!", id: "start");
-Schild ergebnis = neu Schild("Der Ofen ist vorgeheizt.", id: "ergebnis");
-
-leer zeigeTimer() {
-    anzeige.setzeText(("⏲ " + timer));
-    weniger.aktiv(timer > SCHRITT);
-    mehr.aktiv(timer < 5min);
-}
+Schild ergebnis = neu Schild("", id: "ergebnis");
+ergebnis.binde("text", () -> meldung.wert());
+ergebnis.bindeStil("farbe", () -> {
+    falls (gelungen.wert() == karton) { serviere (karton); }
+    serviere ((gelungen.wert() ? "basilikum" : "tomate"));
+});
 
 // Backt eine Pizza; liefert die erreichte Bräune in Prozent.
 salami backe(Dauer zeit, salami grad) {
@@ -42,29 +48,26 @@ salami backe(Dauer zeit, salami grad) {
 }
 
 weniger.beiKlick(() -> {
-    falls (timer > SCHRITT) { timer = timer - SCHRITT; }
-    zeigeTimer();
+    falls (timer.wert() > SCHRITT) { timer.setze(timer.wert() - SCHRITT); }
 });
 mehr.beiKlick(() -> {
-    falls (timer < 5min) { timer = timer + SCHRITT; }
-    zeigeTimer();
+    falls (timer.wert() < 5min) { timer.setze(timer.wert() + SCHRITT); }
 });
 start.beiKlick(() -> {
     salami grad = holzofen.an() ? 450 : 250;
-    salami braeune = backe(timer, grad);
+    salami braeune = backe(timer.wert(), grad);
     falls (braeune >= 100) {
         fertig++;
-        ergebnis.setzeText(("Perfekt gebacken – " + timer + " bei " + grad + "° haben gereicht."));
-        ergebnis.stil("farbe", "basilikum");
+        meldung.setze(("Perfekt gebacken – " + timer.wert() + " bei " + grad + "° haben gereicht."));
+        gelungen.setze(ja);
     } sonst {
         rohe++;
-        ergebnis.setzeText(("Ding! Nach " + timer + " erst " + braeune + " % gebräunt. Noch roh!"));
-        ergebnis.stil("farbe", "tomate");
+        meldung.setze(("Ding! Nach " + timer.wert() + " erst " + braeune + " % gebräunt. Noch roh!"));
+        gelungen.setze(nein);
     }
-    Bote.sage(("Ofen " + grad + "°, Timer " + timer + ": " + braeune + " % Bräune"));
+    Bote.sage(("Ofen " + grad + "°, Timer " + timer.wert() + ": " + braeune + " % Bräune"));
 });
 
-zeigeTimer();
 theke.zeige(neu Stapel([
     anzeige,
     neu Reihe([weniger, mehr]),
