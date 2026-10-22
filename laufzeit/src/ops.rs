@@ -307,7 +307,7 @@ pub const OP_GR: i32 = 9;
 pub const OP_GRG: i32 = 10;
 
 /// `binaer(op, a, b, n)`; knoten = Positions-ID des Operator-Knotens (derzeit ungenutzt, K-127: kein S0007 mehr)
-pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
+pub fn binaer(op: i32, a: W, b: W, _knoten: i32) -> W {
     let zz = ist_zahl(a) && ist_zahl(b);
     match op {
         OP_PLUS => {
