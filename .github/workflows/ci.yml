@@ -259,7 +259,7 @@ jobs:
         if: steps.da.outputs.ja == 'true'
         working-directory: host
         run: cargo build --release
-      - name: Küchenbrigade-Smoke (--koeche=4, Chaos, --info „Köche: N“)
+      - name: "Küchenbrigade-Smoke (--koeche=4, Chaos, --info „Köche: N“)"
         if: steps.da.outputs.ja == 'true'
         run: node host/smoke-koeche.js
       # THREADS §5 Punkt 3/4 (P6): brigade-Fälle (tests/faelle/kueche-*, Prüfstand a14, Beispiel kuechenbrigade) gegen den
