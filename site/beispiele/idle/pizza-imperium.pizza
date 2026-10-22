@@ -196,7 +196,7 @@ klasse Spiel {
     salami sterneVergeben = 0;       // in dieser Kette verliehen, auch die ausgegebenen
     salami sterneAllzeit = 0;
     salami neueröffnungen = 0;
-    salami filialen = 0;             // Franchise: +100 % auf alles je Filiale
+    salami filialen = 0;             // Franchise: +200 % auf alles je Filiale (zusammen mit den Sternen, nicht mal)
     salami franchises = 0;
     Blech<margherita> talente = [];  // gelernte Geheimrezepte
     Blech<margherita> geschafft = [];// bestandene Herausforderungen
@@ -333,7 +333,7 @@ klasse Spiel {
             "Der ganze Betrieb backt für immer +50 %.").abKette(),
         neu Herausforderung("urlaub", "🏖", "Nonna im Urlaub", 5_000_000_000_000,
             "Nonna ist auf Ischia und hat ihre Geheimrezepte mitgenommen: Keins wirkt.",
-            "Geheimrezepte kosten für immer 1 ⭐ weniger (mindestens 1).").abKette()
+            "Geheimrezepte kosten für immer 10 % weniger.").abKette()
     ];
 
     // Nonnas Rezeptbuch: jede Seite legt einen Belag auf die Margherita.
@@ -363,9 +363,12 @@ klasse Spiel {
 
     salami prozentJeStern() { serviere (kennt("segen") ? 12 : 10); }
 
-    // Alles-Faktor: Sterne × Filialen × Freitagabend
+    // Alles-Faktor: (1 + Sterne-Bonus + Filialen-Bonus) × Freitagabend. Sterne und Filialen zählen ZUSAMMEN statt
+    // miteinander mal genommen – sonst schaukeln sie sich gegenseitig hoch (Schneeball: Millionen Sterne nach kurzer Zeit).
+    salami PROZENT_JE_FILIALE = 200;
+    salami FRANCHISE_AB = 100;       // Sterne in der laufenden Kette, ab denen man eine Kette gründen kann
     funghi faktor() {
-        serviere ((1 + sterne * prozentJeStern() / 100) * (1 + filialen) * (effekt == "freitag" ? 3 : 1));
+        serviere ((1 + sterne * prozentJeStern() / 100 + filialen * PROZENT_JE_FILIALE / 100) * (effekt == "freitag" ? 3 : 1));
     }
 
     leer neuBerechnen() {
@@ -702,9 +705,22 @@ klasse Spiel {
     }
 
     // ── Ebene 1: Neueröffnung (Michelin-Sterne) ──
-    salami sterneVerdient() { serviere (Mathe.boden(Mathe.wurzel(umsatzKette / 1_000_000))); }
+    // Bis 100 Sterne: ⌊√(Umsatz der Kette / 1 Mio. €)⌋ (1 Stern ab 1 Mio. €, 10 ab 100 Mio. €, 100 ab 10 Mrd. €).
+    // Darüber wird es steiler – ⌊100 · ⁴√(Umsatz / 10 Mrd. €)⌋: 200 Sterne ab 160 Mrd. €, 1.000 ab 100 Bio. €,
+    // 10.000 ab 1 Trio. € –, sonst schaukeln sich Sterne und Filialen gegenseitig hoch (Schneeball).
+    salami STEIL_AB = 100;
+    salami sterneFür(funghi umsatz) {
+        funghi x = umsatz / 1_000_000;
+        falls (x <= STEIL_AB * STEIL_AB) { serviere (Mathe.boden(Mathe.wurzel(x))); }
+        serviere (Mathe.boden(STEIL_AB * Mathe.wurzel(Mathe.wurzel(x / (STEIL_AB * STEIL_AB))) + 0.000001));
+    }
+    salami sterneVerdient() { serviere (sterneFür(umsatzKette)); }
     salami neueSterne() { serviere (Mathe.max(0, sterneVerdient() - sterneVergeben)); }
-    funghi sternSchwelle(salami n) { serviere (n * n * 1_000_000); }
+    funghi sternSchwelle(salami n) {
+        falls (n <= STEIL_AB) { serviere (n * n * 1_000_000); }
+        funghi q = n / STEIL_AB;
+        serviere (STEIL_AB * STEIL_AB * 1_000_000 * q * q * q * q);
+    }
     funghi nächsterStern() { serviere (sternSchwelle(sterneVerdient() + 1)); }
     // Anteil des Wegs vom letzten zum nächsten Stern (für den Balken)
     funghi sternFortschritt() {
@@ -756,8 +772,11 @@ klasse Spiel {
     diavolo lernbar(Geheimrezept r) {
         serviere (rezepteOffen() && sterne >= rezeptKosten(r) && offeneRezepte().enthält(r));
     }
+    // Jedes gelernte Rezept macht die nächsten 40 % teurer (Nonna wird anspruchsvoller): das 10. kostet ≈ 20-mal,
+    // das 22. ≈ 1.000-mal so viel wie sein Grundpreis. Nonna im Urlaub (geschafft): 10 % Rabatt.
     salami rezeptKosten(Geheimrezept r) {
-        serviere (Mathe.max(1, r.kosten - (bestanden("urlaub") ? 1 : 0)));
+        funghi k = r.kosten * Mathe.potenz(1.4, talente.länge()) * (bestanden("urlaub") ? 0.9 : 1);
+        serviere (Mathe.max(1, Mathe.runden(k)));
     }
     Geheimrezept rezeptNamens(margherita s) {
         für (Geheimrezept r : REZEPTE) { falls (r.schlüssel == s) { serviere (r); } }
@@ -854,12 +873,12 @@ klasse Spiel {
     }
 
     // ── Ebene 4: Franchise ──
-    // Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋: 25 Sterne → 3, 40 → 4, 63 → 5, 90 → 6 …
-    // Gründen geht erst ab 25 Sternen in der laufenden Kette und nur, wenn es mindestens eine neue Filiale gibt.
+    // Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋: 100 Sterne → 6, 160 → 8, 250 → 10, 1.000 → 20 …
+    // Gründen geht erst ab FRANCHISE_AB (100) Sternen in der laufenden Kette und nur, wenn es mindestens eine neue Filiale gibt.
     salami sterneKette() { serviere (sterneVergeben + neueSterne()); }
     salami filialenFür(salami s) { serviere (Mathe.boden(Mathe.wurzel(s / 2.5))); }
     salami neueFilialen() {
-        falls (sterneKette() < 25) { serviere (0); }
+        falls (sterneKette() < FRANCHISE_AB) { serviere (0); }
         serviere (Mathe.max(0, filialenFür(sterneAllzeit + neueSterne()) - filialen));
     }
     // Sterne insgesamt, ab denen es die nächste Filiale gibt
@@ -874,7 +893,7 @@ klasse Spiel {
         talente = [];
         setzeRundeZurück();
         neuBerechnen();
-        melde(("🏢 Die Kette ist gegründet! " + anz(n) + " neue Filialen – jetzt " + anz(filialen) + ", also +" + anz(filialen * 100)
+        melde(("🏢 Die Kette ist gegründet! " + anz(n) + " neue Filialen – jetzt " + anz(filialen) + ", also +" + anz(filialen * PROZENT_JE_FILIALE)
             + " % auf alles. Sterne und Geheimrezepte fangen von vorn an, die Franchise-Zentrale ist freigeschaltet."));
         serviere (ja);
     }
@@ -1660,7 +1679,7 @@ Knopf franchiseKnopf = neu Knopf("", () -> {
     nachVerarbeitung();
 }, id: "franchise");
 franchiseKnopf.stil("farbe", "mozzarella");
-franchiseKnopf.hinweis("Ab 25 Sternen in einer Kette. Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋ – 25 Sterne → 3, 40 → 4, 63 → 5, 90 → 6; jede Filiale +100 % auf alles, für immer. Sterne, Geheimrezepte und die Runde fangen von vorn an; Herausforderungen und Erfolge bleiben.");
+franchiseKnopf.hinweis("Ab 100 Sternen in einer Kette. Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋ – 100 Sterne → 6, 250 → 10, 1.000 → 20; jede Filiale +200 % auf alles, für immer (zusammen mit den Sternen). Sterne, Geheimrezepte und die Runde fangen von vorn an; Herausforderungen und Erfolge bleiben.");
 Abschnitt franchiseTeil = neu Abschnitt("🏢 Franchise – Kette gründen", [franchiseInfo, franchiseBalken, franchiseKnopf], id: "franchise-teil");
 
 Tabelle statistik = neu Tabelle(["Kennzahl", "Wert"], [], id: "statistik");
@@ -1939,7 +1958,9 @@ leer zeichneVoll() {
     falls (rezeptTeil.sichtbar() != buchZeigen) { rezeptTeil.sichtbar(buchZeigen); }
     falls (spiel.rezeptGesperrt()) {
         setzeKnopf(rezeptKnopf, "📖 Hawaii-Verbot: Nonna hat das Rezeptbuch weggeschlossen.", nein);
-    } sonst falls (!spiel.rezeptFertig()) {
+    } sonst falls (spiel.rezeptFertig()) {
+        setzeKnopf(rezeptKnopf, "📖 Nonnas Rezeptbuch ist ausgelesen. Grazie, Nonna!", nein);   // unsichtbar, aber sicher aus
+    } sonst {
         setzeKnopf(rezeptKnopf, "📖 Seite " + (spiel.seite + 1) + " lesen: + " + spiel.SEITEN.stück(spiel.seite + 1)
             + " · " + spiel.seitenKosten().euro(kompakt: ja), spiel.geld >= spiel.seitenKosten());
     }
@@ -1964,7 +1985,7 @@ diavolo kaufmengeLohnt() {
 leer zeichneImperium() {
     salami neu_ = spiel.neueSterne();
     salami ausgegeben = spiel.sterneVergeben - spiel.sterne;
-    funghi f = (1 + spiel.sterne * spiel.prozentJeStern() / 100) * (1 + spiel.filialen);
+    funghi f = 1 + spiel.sterne * spiel.prozentJeStern() / 100 + spiel.filialen * spiel.PROZENT_JE_FILIALE / 100;
     aufstieg.setzeZeilen(([
         ["⭐ Michelin-Sterne", Spiel.anz(spiel.sterne) + " aktiv" + (ausgegeben > 0 ? " · " + Spiel.anz(ausgegeben) + " ausgegeben" : ""),
             "+" + Spiel.anz(spiel.sterne * spiel.prozentJeStern()) + " % auf alles"],
@@ -1972,9 +1993,9 @@ leer zeichneImperium() {
             "gegen Sterne"],
         ["🏅 Herausforderungen", spiel.herausforderungenOffen() ? spiel.geschafft.länge() + " von " + spiel.HERAUSFORDERUNGEN.länge() : "🔒 ab 3 ⭐",
             "Boni für immer"],
-        ["🏢 Franchise", (spiel.filialen > 0 ? Spiel.anz(spiel.filialen) + (spiel.filialen == 1 ? " Filiale" : " Filialen") : (spiel.neueFilialen() > 0 ? "bereit" : "🔒 ab 25 ⭐ je Kette"))
-            + (spiel.neueFilialen() > 0 ? " (+" + Spiel.anz(spiel.neueFilialen()) + ")" : ""), "+" + Spiel.anz(spiel.filialen * 100) + " % auf alles"],
-        ["Zusammen", "×" + f.kompakt(2), "Sterne × Filialen"]
+        ["🏢 Franchise", (spiel.filialen > 0 ? Spiel.anz(spiel.filialen) + (spiel.filialen == 1 ? " Filiale" : " Filialen") : (spiel.neueFilialen() > 0 ? "bereit" : "🔒 ab 100 ⭐ je Kette"))
+            + (spiel.neueFilialen() > 0 ? " (+" + Spiel.anz(spiel.neueFilialen()) + ")" : ""), "+" + Spiel.anz(spiel.filialen * spiel.PROZENT_JE_FILIALE) + " % auf alles"],
+        ["Zusammen", "×" + f.kompakt(2), "Sterne + Filialen"]
     ]));
 
     falls (neu_ > 0) {
@@ -1994,14 +2015,14 @@ leer zeichneImperium() {
     margherita nächste = "Die " + Spiel.anz(ziel) + ". Filiale gibt es ab " + Spiel.anz(spiel.sterneFürFiliale(ziel)) + " Sternen insgesamt (bisher " + Spiel.anz(gesamt) + ").";
     falls (filialenNeu > 0) {
         setzeText(franchiseInfo, "Deine Sterne reichen für " + Spiel.anz(filialenNeu) + (filialenNeu == 1 ? " neue Filiale" : " neue Filialen") + " (+"
-            + Spiel.anz(filialenNeu * 100) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen dafür von vorn an. " + nächste);
-    } sonst falls (kette < 25) {
-        setzeText(franchiseInfo, "Eine Kette gründen kannst du ab 25 Sternen in der laufenden Kette (bisher " + Spiel.anz(kette) + "). " + nächste);
+            + Spiel.anz(filialenNeu * spiel.PROZENT_JE_FILIALE) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen dafür von vorn an. " + nächste);
+    } sonst falls (kette < spiel.FRANCHISE_AB) {
+        setzeText(franchiseInfo, "Eine Kette gründen kannst du ab 100 Sternen in der laufenden Kette (bisher " + Spiel.anz(kette) + "). " + nächste);
     } sonst {
         setzeText(franchiseInfo, "Für eine neue Filiale fehlen noch Sterne. " + nächste);
     }
     salami von = spiel.sterneFürFiliale(ziel - 1);
-    franchiseBalken.setzeWert((Mathe.min(kette / 25, (gesamt - von) / (spiel.sterneFürFiliale(ziel) - von))));
+    franchiseBalken.setzeWert((Mathe.min(kette / spiel.FRANCHISE_AB, (gesamt - von) / (spiel.sterneFürFiliale(ziel) - von))));
     setzeKnopf(franchiseKnopf, "🏢 Kette gründen" + (filialenNeu > 0 ? " (+" + Spiel.anz(filialenNeu) + (filialenNeu == 1 ? " Filiale)" : " Filialen)") : ""), filialenNeu > 0);
 
     statistik.setzeZeilen(([
