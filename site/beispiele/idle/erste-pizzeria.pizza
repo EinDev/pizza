@@ -5,8 +5,8 @@
 
 Theke theke = neu Theke("Erste Pizzeria", breite: 360, hoehe: 300);
 
-Pizza margherita = ((Tomate, Mozzarella, Basilikum));
-funghi preis = margherita.preis();     // 8 € – der echte Rezeptpreis
+// Margherita: 5 € Teig und Ofen + Tomate 1 € + Mozzarella 1,50 € + Basilikum 0,50 €
+funghi preis = 5 + 1 + 1.5 + 0.5;     // 8 € pro Pizza
 funghi kasse = 0;
 salami proKlick = 1;
 salami schaber = 0;
