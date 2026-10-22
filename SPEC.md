@@ -403,7 +403,7 @@ Exit-Code: 39
 |---|---|
 | `Bote` | `sage(x)` – Ausgabe + Zeilenumbruch · `fehler(x)` – Fehlerausgabe |
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
-| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI` |
+| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI`; ferner `potenz(a, b)`, `runden(x, n)`, `log(x)`, `log10(x)`, `log2(x)`, `exp(x)`, `E` (§14.11, K-111) |
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
 | `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
@@ -697,7 +697,9 @@ regelt `EINGABE.md`.
 - Speisekarte: zusätzlich `istLeer()`; `lege` liefert die Speisekarte; `entferne(k)` liefert den alten Wert oder
   `karton`. `hole(k, ersatz)` (auch `ersatz:`) liefert `ersatz` **nur**, wenn `hat(k)` `nein` ist – ein gespeicherter `karton` bleibt
   `karton`; `ersatz` kommt unverändert zurück (keine Kopie); positional vor benannt wie in §14.9 (K-095).
-- Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`.
+- Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`; **K-111:** `log(x)`
+  (natürlicher Logarithmus), `log10(x)`, `log2(x)`, `exp(x)` und die Konstante `E` – Verhalten und Bitmuster wie `Math.log/log10/log2/exp/E`
+  in JavaScript (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `exp(710)` → `Infinity`; Nicht-Zahl → TypAnanas wie `wurzel`); kein `log(x, basis)`.
 - Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
   `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Reste
   `Reste(<wert>)`; roh-Info `Roh(<teilergebnis>)`; Funktionen `<Funktion>`; Klassen, Module und quattrostagioni-Typen
@@ -856,7 +858,8 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 
 Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`.
 Jede Zutat nimmt `id: "…"` im Konstruktor. **Setter liefern die Zutat** (verkettbar); `aktiv()`/`sichtbar()` ohne Argument sind Getter.
-Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` sind eingebaute Klassen: `erbt Knopf` →
+Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` (v2: `Takt`, `Fortschritt`, `Abschnitt`, `Tabelle`,
+`Reiter`; v4: `Auswahl`, `Tastatur`) sind eingebaute Klassen: `erbt Knopf` →
 PizzaFehler P0010 (nicht erweiterbar); eine **eigene** Klasse gleichen Namens hat Vorrang. Die Programm-Schritte zählen wie bei
 jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit noch Ofen-/Lieferbudget.
 
@@ -917,8 +920,10 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   Merksatz: „Was immer angezeigt wird, nimmt jeden Wert als Text – auch karton. Was man weglassen kann, lässt karton weg.“
 - **Stile (K-068):** `breite`/`hoehe`/`abstand`: Zahl ≥ 0 in Pixeln (Kommazahlen erlaubt, Renderer rundet) –
   `LaufzeitAnanas: Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.` bzw. TypAnanas bei Nicht-Zahl; `ausrichtung` ∈ `links|mitte|rechts`;
-  `schrift` ∈ `klein|normal|gross|mono`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`. Unbekannter Schlüssel →
-  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.`; ungültiger Wert →
+  `schrift` ∈ `klein|normal|gross|mono|riesig`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`; **K-113:** `zeilen` ganze Zahl ≥ 1
+  (feste Zeilenzahl mit „…“, wirkt auf den Text von Schild/Knopf/Haken; `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`),
+  `mindestbreite` Zahl ≥ 0 in Pixeln (`min-width`, jede Zutat). Unbekannter Schlüssel →
+  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; ungültiger Wert →
   `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
   **K-075:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
 - **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard OS-Thema; der Umschalter wirkt auch auf
@@ -934,13 +939,14 @@ Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
 `{"v":1,"op":"fenster","titel":"…","breite":480,"hoehe":360}` (erstes `zeige`, erneut bei `setzeTitel` und Wiederöffnen) ·
 `{"v":1,"op":"baum","wurzel":{…}}` · `{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"…"},{"id":"z3","aktiv":false}]}` ·
 `{"v":1,"op":"schliesse"}` (durch `schliesse()` und am Programmende bei offenem Fenster, K-061).
-Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe`. **Zustandsfelder immer:** `schild`/`knopf`: `text`;
+Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe` (v2: `takt|fortschritt|abschnitt|tabelle|reiter`, v4: `auswahl|tastatur`). **Zustandsfelder immer:** `schild`/`knopf`: `text`;
 `eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
 `platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
 Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
 vollständig); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
-Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`.
+Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`
+(v2: `{"typ":"takt","id","anzahl"}`, v4: `{"typ":"taste","id","taste"}`).
 Unbekannte Felder/`art`/`op`/`typ` werden ignoriert bzw. als Platzhalter gerendert (Vorwärtskompatibilität); `v` steigt nur bei
 inkompatiblen Änderungen. Der Renderer kennt für `ausrichtung` zusätzliche Synonyme (`start|oben|zentriert|ende|unten|strecken`) –
 aus pizza sind nur `links|mitte|rechts` erreichbar.
@@ -961,9 +967,11 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 |---|---|---|---|
 | `Takt` (unsichtbar) | `(intervall, beiTakt?)` – Dauer ≥ 100 ms, ganze ms | `aktiv(d)`/`aktiv()`, `setzeIntervall(d)`, `intervall()`, `beiTakt(fn)` → `fn(anzahl)` | `{"art":"takt","intervall":1000}` (+ `aktiv:false`) · Ereignis `{"typ":"takt","id","anzahl"}` |
 | `Fortschritt` | `(wert: 0, text: "")` – wert 0…1 geklemmt, NaN → 0 | `wert()`, `setzeWert`, `text()`, `setzeText` | `{"art":"fortschritt","wert":0.25}` (+ `text`) |
-| `Abschnitt` | `(titel = "", Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel` | `{"art":"abschnitt","titel","kinder"}` |
+| `Abschnitt` | `(titel = "", Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel`; v4 (K-108): `klappbar(d)`/`klappbar()`, `zu(d)`/`zu()`, `beiAenderung(fn)` → `fn(zu)` | `{"art":"abschnitt","titel","kinder"}` (+ `klappbar:true`, `zu:true`) · Ereignis `{"typ":"aenderung","id","wert":true/false}` |
 | `Tabelle` | `(spalten, zeilen)` – Zellen als Textform | `spalten()`, `setzeSpalten`, `zeilen()`, `setzeZeilen` | `{"art":"tabelle","spalten":[…],"zeilen":[[…]]}` |
-| `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)` | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`; v4 (K-107): `setzeTitel(n, t)`, `titel(n)`; Seite mit `sichtbar(nein)` → Reiter weg | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Auswahl` (v4, K-109) | `(optionen, gewaehlt: 1)` – Optionen als Textform | `optionen()`, `setzeOptionen(b)`, `waehle(n)`, `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`, `aktiv(d)`/`aktiv()` | `{"art":"auswahl","optionen":[…],"gewaehlt":1}` (+ `aktiv:false`) · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Tastatur` (v4, K-110, unsichtbar) | `(beiTaste?)` | `beiTaste(fn)` → `fn(taste)`, `aktiv(d)`/`aktiv()` | `{"art":"tastatur"}` (+ `aktiv:false`) · Ereignis `{"typ":"taste","id","taste":"Leertaste"}` |
 | alle Zutaten | – | `hinweis(text)`, `hinweis()` | Feld `hinweis` (nur nicht leer) |
 | Stil | – | `schrift` zusätzlich `"riesig"` | – |
 
@@ -1037,6 +1045,41 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
   Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
   `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
+
+### 16.7 Theke v4: Reiter-Titel/-Seiten, klappbarer Abschnitt, `Auswahl`, `Tastatur`, Stile `zeilen`/`mindestbreite` (K-107 … K-113)
+
+Kein neues `op`, Protokoll v1 (neue `art` `auswahl`/`tastatur`, neue Felder `klappbar`/`zu`, neues Ereignis `taste`, neue Stil-Schlüssel);
+alte Renderer zeigen Platzhalter bzw. ignorieren. Alle Namen in Interpreter und Wasm-Laufzeit gleich (bitgleiche `ui`-Nachrichten).
+
+- **Reiter (K-107):** `setzeTitel(n, text)` → Reiter, `titel(n)` → Text; `n` ganze Zahl `1 … Seitenzahl`, sonst
+  `KeinStückAnanas: Seite 7 gibt es nicht – der Reiter hat 2 Seiten.` (wie `waehle`); `text` Zustandsfeld (K-102, `karton` → `"karton"`);
+  kürzere Titelliste wird mit `""` aufgefüllt, `titel(n)` eines fehlenden Titels → `""`; Nachricht `titel` als ganze Liste. **Seiten
+  ausblenden** über `seite.sichtbar(nein)`: Renderer versteckt Reiter und Seite (Tastaturnavigation überspringt); zeigt `gewaehlt` auf eine
+  unsichtbare Seite, zeigt der Renderer die nächste sichtbare danach (sonst die letzte davor) und sendet nichts; `gewaehlt()` bleibt;
+  `waehle(n)` auf eine unsichtbare Seite ist erlaubt.
+- **Abschnitt (K-108):** `klappbar(d)`/`klappbar()` (Gast darf klappen), `zu(d)`/`zu()` (Inhalt eingeklappt), `beiAenderung(fn)` → `fn(zu)`;
+  diavolo-Prüfung wie `sichtbar` (`TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`). Knoten: `klappbar:true`/`zu:true` nur bei Abweichung,
+  in `aendere` der neue Wert. Ereignis `{"typ":"aenderung","id","wert":true}` (`wert` = neuer `zu`-Zustand, `true`/`false`/`"true"`/`"false"`)
+  wird nur für einen klappbaren Abschnitt im gezeigten Baum angenommen; Zustand vor dem Rückruf aktualisiert, auch ohne Rückruf.
+  Renderer: Kopf als Knopf (`aria-expanded`, Pfeil ▸/▾), lokal sofort, Ereignis nur bei echtem Wechsel; `zu` versteckt den Inhalt (`hidden`
+  – Kinder gelten für Animationen als nicht gezeigt); mit `uebergang(ja)` weich.
+- **Auswahl (K-109):** `neu Auswahl(optionen, gewaehlt: 1)` (benannt `optionen:`/`gewaehlt:`/`id:`). `optionen` Blech → Textformen
+  (`karton` → `"karton"`; fehlend/`karton` → `[]`; kein Blech → `TypAnanas: Auswahl braucht ein Blech mit Optionen, nicht 5.`);
+  `gewaehlt` fehlend/`karton` → `1`, sonst ganze Zahl `1 … Anzahl` → `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4 Optionen.`
+  („1 Option“). Methoden `optionen()` (Kopie), `setzeOptionen(b)` (gewaehlt bleibt), `waehle(n)`, `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`,
+  `aktiv(d)`/`aktiv()`. Knoten `{"art":"auswahl","optionen":[…],"gewaehlt":1}` (+ `aktiv:false`); Ereignis `{"typ":"aenderung","id","wert":n}`
+  angenommen für eine aktive Auswahl im gezeigten Baum mit ganzem `wert` in `1 … Anzahl`; Zustand vor dem Rückruf. Textform `Auswahl(z3)`.
+  Renderer: Segment-Leiste (`role="radiogroup"`/`radio`), Pfeile mit Umlauf, Home/End, Ereignis nur bei echtem Wechsel, Klemmen wie Reiter.
+- **Tastatur (K-110):** unsichtbare Zutat `neu Tastatur(beiTaste?)` (benannt `beiTaste:`), `beiTaste(fn)` → `fn(taste)`, `aktiv(d)`/`aktiv()`;
+  läuft nur im gezeigten Baum (K-057). Knoten `{"art":"tastatur"}` (+ `aktiv:false`); Ereignis `{"typ":"taste","id","taste":"Leertaste"}` –
+  angenommen für eine aktive Tastatur mit Rückruf und nicht-leerem Text; mehrere aktive Tastaturen bekommen jede Taste (Baumreihenfolge);
+  Zustellung 0 Schritte. Tastennamen (Renderer): `e.key`, Sondertasten deutsch – `Leertaste`, `Links`/`Rechts`/`Hoch`/`Runter`, `Rücktaste`,
+  `Entfernen`, `Pos1`, `Ende`, `BildHoch`/`BildRunter`; unverändert `Enter`, `Escape`, `Tab`, `F1`…`F12`, Zeichen wie getippt. Nicht gesendet:
+  reine Modifikatoren, `Dead`/`Unidentified`, Komposition, Wiederholungen (`e.repeat`), Tasten in einer fokussierten `Eingabe`. Fokus: Theke-Wurzel
+  `tabindex="-1"`, Listener dort (Editor-Tasten erreichen die Theke nie), Fokus beim `baum`, wenn nichts fokussiert ist; Standardwirkung von
+  Leertaste/Pfeilen/Pos1/Ende/Bild wird nur unterdrückt, wenn kein Element im Fenster fokussiert ist. Textform `Tastatur(z1)`.
+- **Stile (K-113):** `zeilen` (ganze Zahl ≥ 1), `mindestbreite` (Zahl ≥ 0, px) – §16.2; Erlaubt-Liste endet auf `…, farbe, zeilen, mindestbreite`.
+- **Mathe (K-111):** §11/§14.11. **Meldung/Toast (K-112):** abgelehnt – Anwendungslogik (Schild + Blech + Takt).
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)

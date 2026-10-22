@@ -1142,6 +1142,145 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   Prüfstand a10, `tests/differenz`, `host/test.js`, E2E (zwei App-Links mit gleichem Namensraum teilen den Stand; Beispiel-Tab mit
   Namensraum schreibt nach `pizza.vorrat.`). Idle-Spiel (eigener Agent): `neu Vorratskammer("spielstand", namensraum: "pizza-imperium")`
   + Migration. **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, Host, CLI, UI, Doku; `test:differenz`, E2E grün).
+
+### Theke v4 – Wünsche W1 … W7 des Idle-Agenten (THEKE-ERWEITERUNGEN.md §11.5): K-107 … K-113
+
+Gemeinsame Leitlinie (Nutzer: „keep it simple, but extendable“; nur, was eine ordentliche High-Level-Sprache/UI-Bibliothek auch
+hätte – keine Fachlogik; Browser = nativ, K-082): **Protokoll bleibt v1** – neue `art`, neue Felder, neue Ereignis-`typ`; alte
+Renderer zeigen für neue Zutaten den Platzhalter und ignorieren neue Felder/Ereignisse (K-064/K-067). Alle neuen Namen gehen in
+beiden Laufzeiten gleich (bitgleiche `ui`-Nachrichten, `test:differenz`). Zustands-/Optional-Regel K-102 gilt unverändert.
+Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeben.
+
+### K-107 Theke v4: `Reiter` – Titel ändern, Seiten ausblenden (W1)
+- **Frage:** Reiter erst zeigen, wenn eine Spielebene offen ist; Kennzeichen „•“ für Neues im Reitertitel.
+- **Entscheidung – Titel:** `reiter.setzeTitel(n, text)` → Reiter (verkettbar) und `reiter.titel(n)` → Text. `n` ist eine ganze Zahl
+  `1 … Seitenzahl` (Zahl der Kinder, wie `waehle`), sonst dieselbe Ananas wie `waehle`:
+  `KeinStückAnanas: Seite 7 gibt es nicht – der Reiter hat 2 Seiten.` (Textform von `n`, „1 Seite“ im Singular). `text` ist ein
+  **Zustandsfeld** (K-102): Textform jedes Werts, `karton`/fehlend → `"karton"`. Ist die Titelliste kürzer als `n`, wird sie mit `""`
+  aufgefüllt (der Renderer zeigt dort weiter „Seite k“). `titel(n)` liefert `""` für einen fehlenden Titel. Nachricht: Feld `titel`
+  als **ganze Liste** (wie `kinder`, K-057; ein Eintrag je Zutat, letzter Wert gewinnt).
+- **Entscheidung – Seiten ausblenden:** **kein neues Feld, keine neue Methode.** Eine Reiter-Seite ist eine Zutat; `seite.sichtbar(nein)`
+  blendet beim Renderer **den Reiter und die Seite** aus (Tab verschwindet aus der Leiste; Pfeiltasten/Home/End überspringen ihn),
+  `sichtbar(ja)` bringt beide zurück. `gewaehlt` bleibt Programmzustand: zeigt es auf eine unsichtbare Seite, zeigt der Renderer die
+  **nächste sichtbare Seite danach**, sonst die letzte sichtbare davor, und sendet **nichts** (Setter lösen keine Rückrufe aus,
+  K-073; der nächste Klick sendet die echte Seitennummer). Alle Seiten unsichtbar → leere Leiste, leere Fläche. `waehle(n)` auf eine
+  unsichtbare Seite ist erlaubt (Zustand), der Renderer zeigt die Ersatzseite. Mit `uebergang(ja)` an der Seite blendet die Seite weich
+  aus; der Tab verschwindet sofort. Begründung: Ein Konzept (`sichtbar`) statt drei; kein bestehendes Programm versteckt heute eine
+  Reiter-Seite direkt (Idle-Spiel und Beispiele geprüft), die Änderung bricht nichts.
+- **Betroffen:** SPEC §16.5-Tabelle (Reiter) + §16.7; THEKE.md §8; Interpreter (`UI_TABELLEN.reiter`), Wasm (`theke.rs` zart 10);
+  Renderer (`zeichneReiter`, `gezeigt`), `tests/theke`, Prüfstand a13, `tests/faelle/theke-v4-*`, Differenzkorpus, Doku-Referenz.
+  **Status:** fest.
+
+### K-108 Theke v4: einklappbarer `Abschnitt` (W2)
+- **Frage:** „Erledigt“- und Kleinbetriebe-Zeilen sollen sich zu- und aufklappen lassen (bisher Knopf „▸ zeigen“ + `sichtbar`).
+- **Entscheidung:** Zwei Wahrheitswerte am `Abschnitt`, beide Getter/Setter-Überladungen wie `aktiv`/`sichtbar`:
+  - `klappbar(diavolo)` / `klappbar()` – der Gast darf den Abschnitt am Kopf zu- und aufklappen (Standard `nein`).
+  - `zu(diavolo)` / `zu()` – Inhalt eingeklappt (Standard `nein`). Auch ohne `klappbar` setzbar (Programm steuert allein).
+  - `beiAenderung(fn)` → `fn(zu)` (diavolo, `ja` = zugeklappt); wie bei Haken ist der Zustand **vor** dem Rückruf aktualisiert;
+    `karton` entfernt den Rückruf. Nicht-diavolo → `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.` (K-066).
+  - Konstruktor bleibt `(titel, kinder)`; Verkettung: `neu Abschnitt("Erledigt", zeilen).klappbar(ja).zu(ja)`.
+- **Protokoll:** Felder `klappbar:true` und `zu:true` nur bei Abweichung im `baum`, in `aendere` der neue Wert (`true`/`false`).
+  Ereignis Renderer → Programm: `{"typ":"aenderung","id":"z5","wert":true}` (`wert` = neuer `zu`-Zustand, `true`/`false`, auch
+  `"true"`/`"false"` wie beim Haken). Das Programm nimmt es nur an, wenn die Zutat ein Abschnitt mit `klappbar == ja` im gezeigten
+  Baum ist; sonst ignoriert (K-064). Auch ohne Rückruf wird `zu` übernommen.
+- **Renderer:** Mit `klappbar` wird der Kopf ein Knopf (`<button aria-expanded>`, Pfeil ▸/▾ vor dem Titel; leerer Titel → nur der
+  Pfeil), Klick/Enter/Leertaste schaltet **sofort lokal** um und sendet `aenderung` nur bei echtem Wechsel; `zu` vom Programm sendet
+  nie. `zu` versteckt den Inhalt (`hidden` am Inhaltsbereich – Kinder eines zugeklappten Abschnitts gelten für Animationen als nicht
+  gezeigt, K-090/K-092); mit `uebergang(ja)` am Abschnitt blendet der Inhalt weich ein/aus. Ohne `klappbar` und ohne `zu` sieht
+  der Abschnitt aus wie bisher. Alte Renderer: immer offen.
+- **Betroffen:** SPEC §16.5-Tabelle (Abschnitt) + §16.7; THEKE.md §8; Interpreter, Wasm (`theke.rs` zart 8, `verteile`), Renderer
+  (`abschnitt`, `gezeigt`), `tests/theke`, a13, `tests/faelle`, Differenzkorpus, Doku. **Status:** fest.
+
+### K-109 Theke v4: `Auswahl` – Umschalter / Segment-Auswahl (W3)
+- **Frage:** Kaufmenge 1× · 10× · 100× · Max als ein Steuerelement statt vier eingefärbter Knöpfe.
+- **Entscheidung:** Neue Zutat **`Auswahl`** – genau eine Option ist gewählt (ein Reiter ohne Seiten, Bedienung wie Radioknöpfe):
+  - `neu Auswahl(optionen, gewaehlt: 1)` (auch benannt `optionen:`, `gewaehlt:`; `id:` wie überall). `optionen` ist ein Blech, die
+    Einträge werden als **Textform** gespeichert (Zustandsfeld, K-066/K-102: `karton` → `"karton"`); fehlend/`karton` → `[]`;
+    kein Blech → `TypAnanas: Auswahl braucht ein Blech mit Optionen, nicht 5.` `gewaehlt` fehlend/`karton` → `1` (auch bei leerer
+    Liste – wie `Reiter`), sonst ganze Zahl `1 … Anzahl`, sonst `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4
+    Optionen.` („1 Option“ im Singular).
+  - Methoden: `optionen()` → Kopie des Blechs, `setzeOptionen(blech)` (gleiche Prüfung/Ananas wie der Konstruktor; `gewaehlt`
+    bleibt unverändert, der Renderer klemmt auf `1 … n`), `waehle(n)` (Prüfung wie oben, verkettbar), `gewaehlt()`,
+    `beiAenderung(fn)` → `fn(n)`, `aktiv(diavolo)` / `aktiv()`. Textform `Auswahl(z3)`, `erbt Auswahl` → P0010, Typname `Auswahl`.
+- **Protokoll:** `{"id":"z3","art":"auswahl","optionen":["1×","10×","100×","Max"],"gewaehlt":1}` (+ `aktiv:false` bei Abweichung);
+  in `aendere`: `optionen` als ganze Liste, `gewaehlt`, `aktiv`. Ereignis `{"typ":"aenderung","id":"z3","wert":2}` – angenommen
+  nur für eine aktive `Auswahl` im gezeigten Baum mit ganzem `wert` in `1 … Anzahl` (sonst ignoriert, K-064); Zustand vor dem
+  Rückruf aktualisiert (K-056), auch ohne Rückruf.
+- **Renderer:** Segment-Leiste (`role="radiogroup"`, Optionen als `<button role="radio" aria-checked>`), gewählte Option in der
+  Themenfarbe (`stil.farbe`), Pfeil links/rechts (mit Umlauf), Home/End; Klick/Taste schaltet sofort lokal um und sendet nur bei
+  echtem Wechsel; `gewaehlt` vom Programm sendet nie; ungültiges/zu großes `gewaehlt` wird wie beim Reiter auf `1 … n` geklemmt;
+  `aktiv:false` deaktiviert alle Knöpfe. Alte Renderer: Platzhalter.
+- **Betroffen:** SPEC §11-Typliste (Namen), §16.5-Tabelle + §16.7; THEKE.md §2/§8; Interpreter (`TYPEN`, `UI_KLASSEN`, `uiNeu`,
+  `uiBaum`, `uiVerteile`, `pruefeTyp`), Wasm (`namen.rs`: `Auswahl`, `optionen`, `setzeOptionen`; `theke.rs` zart 11), Compiler
+  (`frontend.js` THEKE/UNTERSTUETZTE_TYPEN), Renderer (`registriere("auswahl")`), `tests/theke`, a13, `tests/faelle`, Differenzkorpus,
+  Doku. **Status:** fest.
+
+### K-110 Theke v4: `Tastatur` – Tastenereignisse (W4)
+- **Frage:** Minispiele („Fangen!“) ohne Maus bedienen; Tasten müssen deterministisch testbar sein (`.ereignisse`).
+- **Entscheidung:** Tastatur ist – wie `Takt` – eine **unsichtbare Zutat**, keine Methode der `Theke`: `neu Tastatur(beiTaste?)`
+  (auch benannt `beiTaste:`; `id:`), `beiTaste(fn)` → `fn(taste)` (Text), `aktiv(diavolo)` / `aktiv()`. Sie muss im gezeigten Baum
+  liegen (K-057) und nutzt den vorhandenen Zustellungsweg über `id`; kein neues `op`, keine Theke-Methode, keine Änderung an Brücken/
+  Host. Mehrere aktive Tastaturen im Baum bekommen jede Taste (Baumreihenfolge). Textform `Tastatur(z1)`, `erbt Tastatur` → P0010.
+  `animiere` an einer Tastatur ist erlaubt und bleibt unsichtbar (wie Takt).
+- **Protokoll:** Knoten `{"id":"z1","art":"tastatur"}` (+ `aktiv:false`); Ereignis `{"typ":"taste","id":"z1","taste":"Leertaste"}`.
+  Das Programm nimmt es an für eine aktive `Tastatur` im gezeigten Baum mit Rückruf und nicht-leerem Text in `taste`; sonst ignoriert.
+  Zustellung kostet 0 Schritte, der Rückruf zählt (K-069). `.ereignisse` darf `taste`-Zeilen enthalten.
+- **Tastennamen (Renderer, verbindliches Vokabular):** `e.key` des Browsers, deutsch für die Sondertasten:
+  `" "` → `Leertaste`, `ArrowLeft/Right/Up/Down` → `Links`/`Rechts`/`Hoch`/`Runter`, `Backspace` → `Rücktaste`, `Delete` → `Entfernen`,
+  `Home` → `Pos1`, `End` → `Ende`, `PageUp`/`PageDown` → `BildHoch`/`BildRunter`; unverändert `Enter`, `Escape`, `Tab`, `F1` … `F12`;
+  Zeichen so, wie sie getippt werden (`a`, `A`, `1`, `+`, `ä`). **Nicht gesendet:** reine Modifikatoren (`Shift`, `Control`, `Alt`,
+  `AltGraph`, `Meta`, `CapsLock`, `NumLock`, `ScrollLock`, `Fn`), `Dead`/`Unidentified`, Eingaben während einer Komposition
+  (`isComposing`/keyCode 229), **Wiederholungen bei gedrückter Taste** (`e.repeat` – ein Druck = ein Ereignis) und Tasten in einer
+  fokussierten `Eingabe` (die gehören dem Feld). Tasten erreichen die Tastatur **zusätzlich** zu dem, was ein fokussierter Knopf/Reiter
+  damit tut (Leertaste klickt den fokussierten Knopf und kommt als `Leertaste` an).
+- **Fokus (Browser = nativ):** Das Theke-Wurzelelement ist fokussierbar (`tabindex="-1"`); der Tastatur-Listener hängt dort – Tasten
+  im Playground-Editor erreichen die Theke nie. Ein Klick ins Fenster gibt ihm den Fokus; beim `baum` fokussiert der Renderer die Wurzel,
+  wenn nichts anderes fokussiert ist (nativ: sofort; Playground: ohne Fokusdiebstahl). Liegt eine aktive Tastatur im Baum, unterdrückt der
+  Renderer die Standardwirkung (Scrollen) von Leertaste/Pfeilen/Pos1/Ende/Bild **nur**, wenn kein Element im Fenster fokussiert ist.
+- **Betroffen:** SPEC §11-Typliste, §16.5-Tabelle + §16.7; THEKE.md §2/§6 (Ausblick „Tastaturereignisse“ erledigt); Interpreter,
+  Wasm (`namen.rs`: `Tastatur`, `beiTaste`; `theke.rs` zart 12, `verteile` `"taste"`), Compiler-Listen, Renderer
+  (`registriere("tastatur")`, Wurzel-`tabindex`, Fokus bei `baum`), `fenster.html` unverändert, `tests/theke` (jsdom `KeyboardEvent`),
+  `visuell.mjs` (`page.keyboard.press`), a13, `tests/faelle`, Differenzkorpus, E2E 09 (Editor-Tippen bleibt Editor), Doku. **Status:** fest.
+
+### K-111 Standardbibliothek: `Mathe.log`, `log10`, `log2`, `exp`, `E` (W5)
+- **Frage:** Max-Kauf in geschlossener Form statt Schleife – `Mathe.log` fehlt.
+- **Entscheidung:** `Mathe.log(x)` (natürlicher Logarithmus), `Mathe.log10(x)`, `Mathe.log2(x)`, `Mathe.exp(x)` und die Konstante
+  `Mathe.E` (ohne Klammern, wie `PI`). Verhalten exakt wie `Math.log/log10/log2/exp/E` in JavaScript inklusive Sonderfälle
+  (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `log(Infinity)` → `Infinity`, `exp(-Infinity)` → `0`, `exp(710)` → `Infinity`, `NaN`
+  durchgereicht; K-005). Kein zweistelliges `log(x, basis)` – `log(1000)/log(10)` wäre `2.9999999999999996`, dafür gibt es `log10`/`log2`.
+  Nicht-Zahl → TypAnanas wie bei `wurzel`. Schritte: normaler Aufruf.
+- **Bitgleichheit (Pflicht):** Die Wasm-Laufzeit muss für jeden Eingabewert dasselbe Bitmuster liefern wie V8 (`Math.*`, fdlibm-Algorithmen
+  `e_log.c`, `e_exp.c`, `e_log10.c`/`e_log2.c` mit `k_log.h`). `libm` (musl) darf nur verwendet werden, wenn ein Stichprobentest
+  (`tests/wasm/laufzeit-zahlen.js`: die 5000 Pseudozufallswerte + Ränder 0, −0, subnormal, nahe 1, negativ, ±∞, NaN, 1e±300) **keine**
+  Abweichung zeigt; sonst Port der fdlibm-Routinen nach `laufzeit/src/zahl.rs` (nur Double-Operationen). Begründung: K-103 meidet
+  `log10`/`pow` wegen genau dieser Gefahr; `Mathe.log` ist aber ein erwartbarer Standardbaustein jeder Sprache.
+- **Betroffen:** SPEC §11-Tabelle (`Mathe`) + §14.11; Interpreter (`MATHE_M`, Modul-Konstante `E`), Wasm (`namen.rs`: `log`, `log10`,
+  `log2`, `exp`, `E`; `std_m.rs`, `klassen.rs` Konstante, `zahl.rs`), `tests/wasm/laufzeit-zahlen.js`, Prüfstand a10/a08, `tests/faelle`,
+  Differenzkorpus, Doku-Referenz (Mathe-Tabelle). **Status:** fest.
+
+### K-112 `Meldung`/Toast mit Warteschlange – **abgelehnt** (W6)
+- **Frage:** Mehrere Neuigkeiten kurz hintereinander anzeigen (Warteschlange statt „letzte gewinnt“).
+- **Entscheidung:** Keine Zutat. Wie lange eine Meldung steht, wie viele warten dürfen, ob Gleiches zusammengefasst wird – das ist
+  Anwendungslogik, und die Bausteine sind da: ein `Schild` (oder `Abschnitt`), ein `Blech` als Schlange, ein `Takt`, der alle 2 s die
+  nächste Zeile zeigt, dazu `animiere("einblenden")`/`schwebe` für Flüchtiges. Ein UI-Baukasten dieser Größe braucht keine Toast-Politik;
+  eine fertige `Meldung` müsste Dauer, Stapelung, Position und Verdrängung festlegen und würde doch nie allen Spielen passen. Die
+  Doku-Referenz bekommt das Muster als Beispiel („Meldungen der Reihe nach“); THEKE-ERWEITERUNGEN.md streicht die Idee.
+- **Status:** fest (abgelehnt).
+
+### K-113 Theke v4: Stile `zeilen` und `mindestbreite` – ruhiges Layout (W7)
+- **Frage:** Texte wachsen, Knöpfe sollen stehen bleiben: feste Zeilenzahl mit Auslassung für `Schild` bzw. Mindestbreite für Knöpfe.
+- **Entscheidung:** Zwei neue Schlüssel in der Stil-Whitelist (K-068), angehängt – die erlaubte Liste lautet jetzt
+  `breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite` (Fehlertexte entsprechend, in beiden Laufzeiten gleiche Reihenfolge):
+  - `zeilen`: ganze Zahl ≥ 1 – die Zutat ist **genau** so viele Textzeilen hoch (auch bei kürzerem Text), längerer Text wird mit „…“
+    abgeschnitten; sonst `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.` Wirkt beim Renderer auf den Text von `Schild`,
+    `Knopf` und `Haken`; andere Zutaten ignorieren ihn (Vorwärtskompatibilität, kein Fehler).
+  - `mindestbreite`: Zahl ≥ 0 in Pixeln (wie `breite`; Fehlertext `Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht -1.`) – die Zutat
+    wird nie schmaler, darf aber wachsen (`min-width`); für jede Zutat.
+  - `stil(k, karton)` entfernt den Stil (K-075, Nachricht `null`). Protokoll unverändert (`stil`-Objekt); alte Renderer warnen in der
+    Konsole und ignorieren die Schlüssel.
+- **Betroffen:** SPEC §16.2 (Stile), THEKE.md §2; Interpreter (`UI_STIL`), Wasm (`theke.rs` `STIL_NAMEN`, Zahl-Prüfung je Art statt
+  `ki <= 2`, hartkodierte Erlaubt-Liste), Renderer (`wendeStilAn`, CSS `--theke-zeilen`/`--theke-mindestbreite`), `tests/theke`,
+  `visuell.mjs`, a13 (zwei Erlaubt-Texte Z. 346/701), `tests/faelle/theke-fehlerfaelle.erwartet`, Doku. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)

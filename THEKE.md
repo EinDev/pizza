@@ -48,8 +48,11 @@ theke.bediene();
 | `Reihe` | Container horizontal | `(Blech<Zutat>)` | `hinzu(zutat)`, `leeren()` |
 
 - Gemeinsame Basisklasse **`Zutat`** (`neu Zutat()` → RohlingAnanas; `erbt Knopf` → P0010) mit `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`
-  (eine kleine Whitelist: `breite`, `hoehe`, `abstand`, `ausrichtung`, `schrift` = `"klein"|"normal"|"gross"|"mono"`, `farbe` = Themenfarben `"tomate"|"basilikum"|"mozzarella"|"kruste"|"normal"`).
+  (eine kleine Whitelist: `breite`, `hoehe`, `abstand`, `ausrichtung`, `schrift` = `"klein"|"normal"|"gross"|"mono"|"riesig"`, `farbe` = Themenfarben `"tomate"|"basilikum"|"mozzarella"|"kruste"|"normal"`,
+  v4: `zeilen` = feste Zeilenzahl mit „…“, `mindestbreite` in px – K-113).
   Keine freien CSS-Strings (Sicherheit + Portabilität).
+- **v2/v4-Zutaten** (SPEC §16.5/§16.7): `Takt`, `Fortschritt`, `Abschnitt` (v4: `klappbar`/`zu`/`beiAenderung`), `Tabelle`, `Reiter` (v4: `setzeTitel(n, t)`,
+  `titel(n)`, Seite ausblenden per `sichtbar`), `Auswahl` (Segment-Umschalter), `Tastatur` (unsichtbar, `beiTaste(fn)` → `fn(taste)`).
 - **IDs:** automatisch `z1, z2, …` in Erzeugungsreihenfolge unbenannter Zutaten (belegte Nummern werden übersprungen) oder benannt an jeder Zutat: `neu Knopf("OK", id: "ok")`; doppelt → `LaufzeitAnanas: Die ID 'ok' gibt es schon.`
 - Zustand lebt im Programm; jede Änderung (`setzeText` usw.) erzeugt eine **Änderungsnachricht**. Mehrere Änderungen während eines
   Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
@@ -75,6 +78,8 @@ Renderer → Programm (Ereignis):
 {"typ":"aenderung","id":"z2","wert":"2"}      // Eingabe (bei jeder Änderung) bzw. Haken (wert true/false)
 {"typ":"enter","id":"z2","wert":"2"}
 {"typ":"geschlossen"}
+{"typ":"takt","id":"t1","anzahl":1}            // v2 Takt
+{"typ":"taste","id":"z9","taste":"Leertaste"}  // v4 Tastatur (K-110)
 ```
 - Unbekannte Felder werden ignoriert (Vorwärtskompatibilität), unbekannte `art` → Platzhalter, unbekanntes `op`/`typ` → ignorieren + Konsolenwarnung.
 - Neue Zutaten/Eigenschaften = neue `art`/Felder; `v` steigt nur bei inkompatiblen Änderungen.
@@ -131,7 +136,8 @@ Imports Modul `pizza`: `ui_senden(ptr, len)` (UTF-8-JSON) und `ui_warte(puffer_p
 1. Renderer + Interpreter + Playground-Vorschau (Tier 1).
 2. Compiler/Laufzeit + HOST-ABI (`ui_senden`/`ui_warte`) – bis dahin meldet der Compiler `nichtUnterstuetzt` für Theke → Playground nutzt den Interpreter.
 3. Nativer Host mit Fenster.
-Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastaturereignisse, Timer, Dialoge, mehrere Fenster.
+Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Bilder, Dialoge, mehrere Fenster. Erledigt: Timer (`Takt`, v2), Auswahl und
+Tastaturereignisse (`Auswahl`, `Tastatur`, v4 – K-109/K-110).
 
 ## 7. Dateien & Zuständigkeit
 
@@ -165,3 +171,11 @@ Ausblick (nicht v1): Leinwand/Raster für Spiele, Liste, Auswahl, Bilder, Tastat
   (Aufrufreihenfolge, ≤ 32, nach `aenderungen` angewendet), Feld `uebergang`; kein neues `op`. Nicht gezeigte Zutat → `W0102` (keine
   Ananas); `prefers-reduced-motion` → keine Bewegung (Schwebetext bleibt lesbar). Renderer: `PizzaTheke.registriereAnimation`.
 - Erweiterungen v2 (Takt, Fortschritt, Abschnitt, Tabelle, Reiter, `hinweis`, `schrift: "riesig"`, Zahlformat, `Uhr.echt()`, Schrittlimit je Rückruf): SPEC §16.5 (K-084 … K-087), Vorschlag in `THEKE-ERWEITERUNGEN.md`.
+- **Theke v4 (K-107 … K-113, SPEC §16.7; Wünsche W1–W7 aus THEKE-ERWEITERUNGEN.md §11.5):** `Reiter.setzeTitel(n, t)`/`titel(n)`, Reiter-Seite
+  per `sichtbar(nein)` ausblenden (Renderer versteckt Tab + Seite, zeigt bei unsichtbarer gewählter Seite die nächste sichtbare, sendet nichts);
+  `Abschnitt.klappbar(d)`/`zu(d)`/`beiAenderung(fn)` → `fn(zu)` mit Ereignis `aenderung` (`wert` = zu); Zutat `Auswahl(optionen, gewaehlt: 1)`
+  (Segment-Umschalter, `role=radiogroup`, Ereignis `aenderung` mit `wert:n`); unsichtbare Zutat `Tastatur(beiTaste)` mit Ereignis
+  `{"typ":"taste","id","taste"}` (Tastennamen: `e.key`, Sondertasten deutsch – `Leertaste`, `Links`/`Rechts`/`Hoch`/`Runter`, `Rücktaste`,
+  `Entfernen`, `Pos1`, `Ende`, `BildHoch`/`BildRunter`; keine Modifikatoren, keine Wiederholungen, nicht aus einer fokussierten `Eingabe`;
+  Listener auf der fokussierbaren Theke-Wurzel, `tabindex="-1"`, Fokus beim `baum`, wenn nichts fokussiert ist); Stile `zeilen`/`mindestbreite`;
+  `Mathe.log/log10/log2/exp/E` (K-111, bitgleich zu V8); `Meldung`/Toast abgelehnt (K-112, Anwendungslogik). Protokoll bleibt v1.

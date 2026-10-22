@@ -25,7 +25,7 @@ ebenso (K-064) – deshalb dürfen `.ereignisse` schon heute `takt`-Zeilen entha
 | **P2** | `hinweis` (Tooltip) an jeder Zutat | allgemeines Feld | Upgrade-Beschreibung ohne Platz zu kosten | ✅ |
 | **P3** | `Reiter` (Tabs) | Zutat `reiter` | Backstube · Erfolge · Neueröffnung | ✅ |
 | **P3** | Stil `schrift: "riesig"` | Stil-Whitelist | großer Zähler / Pizza-Knopf | ✅ |
-| **P3** | `Meldung` (kurzer Hinweis, verschwindet) | Zutat `meldung` | „Erfolg freigeschaltet!“ | – (Idee) |
+| **P3** | `Meldung` (kurzer Hinweis, verschwindet) | Zutat `meldung` | „Erfolg freigeschaltet!“ | – **abgelehnt (K-112):** Anwendungslogik – Schild + Blech + Takt |
 
 ---
 
@@ -375,17 +375,17 @@ Reiter), `.ereignisse` aus echtem Lauf (Interpreter, Saat 42, Vorrat leer) mit d
 klein; **Deckelprüfung:** der Bot zählt je Takt die sichtbaren offenen Zeilen je Bereich und meldet Verstöße gegen §11.2),
 alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 
-### 11.5 Wünsche an Theke/Sprache (nicht selbst gebaut)
+### 11.5 Wünsche an Theke/Sprache – entschieden als Theke v4 (K-107 … K-113, SPEC §16.7)
 
-| Nr. | Wunsch | Wozu | Umweg heute |
-|---|---|---|---|
-| W1 | `Reiter`: Seiten ein-/ausblenden und Titel ändern (`setzeTitel(n, t)`, `seiteSichtbar(n, d)`) | Reiter erst zeigen, wenn die Ebene offen ist; Kennzeichen „•“ für Neues | gesperrte Reiter zeigen einen Schloss-Text |
-| W2 | Einklappbarer `Abschnitt` (`zu(d)`, Ereignis beim Auf-/Zuklappen) | „Erledigt“- und Kleinbetriebe-Zeilen | Knopf „▸ zeigen“ + `sichtbar` |
-| W3 | Umschalter/Segment-Auswahl (`Auswahl(["1×","10×","100×","Max"])`) | Kaufmenge | vier Knöpfe, gewählter eingefärbt |
-| W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks |
-| W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) |
-| W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt |
-| W7 | Feste Höhe ohne Umbruch-Sprung für `Schild` (z. B. `stil("zeilen", 2)` mit Auslassungszeichen) bzw. Mindestbreite für Knöpfe | ruhiges UI: Texte wachsen, Knöpfe bleiben stehen | `stil("hoehe", …)` – längerer Text läuft über |
+| Nr. | Wunsch | Wozu | Umweg bisher | Entscheidung |
+|---|---|---|---|---|
+| W1 | `Reiter`: Seiten ein-/ausblenden und Titel ändern (`setzeTitel(n, t)`, `seiteSichtbar(n, d)`) | Reiter erst zeigen, wenn die Ebene offen ist; Kennzeichen „•“ für Neues | gesperrte Reiter zeigen einen Schloss-Text | **K-107:** `setzeTitel(n, t)`, `titel(n)`; Seite ausblenden = `seite.sichtbar(nein)` (kein eigenes `seiteSichtbar`) |
+| W2 | Einklappbarer `Abschnitt` (`zu(d)`, Ereignis beim Auf-/Zuklappen) | „Erledigt“- und Kleinbetriebe-Zeilen | Knopf „▸ zeigen“ + `sichtbar` | **K-108:** `klappbar(d)`, `zu(d)`, `beiAenderung(fn)` → `fn(zu)` |
+| W3 | Umschalter/Segment-Auswahl (`Auswahl(["1×","10×","100×","Max"])`) | Kaufmenge | vier Knöpfe, gewählter eingefärbt | **K-109:** Zutat `Auswahl(optionen, gewaehlt: 1)` |
+| W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks | **K-110:** unsichtbare Zutat `Tastatur(beiTaste)` → `fn("Leertaste")`, Ereignis `taste` in `.ereignisse` |
+| W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) | **K-111:** `log`, `log10`, `log2`, `exp`, `E` |
+| W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt | **K-112: abgelehnt** – Schild + Blech als Schlange + Takt (Doku-Muster) |
+| W7 | Feste Höhe ohne Umbruch-Sprung für `Schild` (z. B. `stil("zeilen", 2)` mit Auslassungszeichen) bzw. Mindestbreite für Knöpfe | ruhiges UI: Texte wachsen, Knöpfe bleiben stehen | `stil("hoehe", …)` – längerer Text läuft über | **K-113:** Stile `zeilen` (ganze Zahl ≥ 1) und `mindestbreite` (px) |
 
 ### 11.6 Stand (umgesetzt, Spielstand `version` 5)
 
