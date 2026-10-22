@@ -422,3 +422,228 @@ Klick). Bot (5 Klicks/s, Minispiele an, Saaten 42/7/99):
 | erste Kette | 134 / 131 / 133 min | 138 / 131 / 126 min |
 
 CPU im Playground bei 10 Takten/s: ≈ 10 % eines Kerns. Extremstand (3·10⁷ Sterne, 9·10²¹ €, 150 Filialen): keine Ananas, Interpreter = Wasm.
+
+## 12. Struktur-Redesign – statisches Raster und Breite (Pizza-Imperium v6, Plan)
+
+Nutzer: „Schau dir an, wie die meisten Idle-Games strukturiert sind. Füge mehr Content hinzu – viel mehr, aber nicht in der Tiefe,
+sondern in der Breite. Das UI soll sich nicht ständig verändern: größtenteils statisch, man kauft Upgrades, mit denen man neue
+Spielbereiche freischaltet. Sonst bleibt die Struktur (Positionen der Knöpfe etc.) immer exakt gleich.“
+
+**Zwei verbindliche Regeln (Nutzer, wörtlich):**
+
+> R1 „Wenn man einen neuen Bereich freischaltet, dürfen alte verschwinden und sich damit das Layout ändern. Das darf aber nur
+> passieren, wenn der User einen Knopf klickt. Dann erwartet der User es.“
+> → Layoutänderungen (Bereich erscheint, alter Bereich verschwindet/wird ersetzt, Umordnung) **ausschließlich als direkte Folge
+> eines Nutzerklicks** (Freischalt-Upgrade kaufen, Aufstieg auslösen, Herausforderung starten/aufgeben, Neu anfangen). **Nie**
+> durch Takt, Zeit, Geld-Schwellen, Ereignisse oder Offline-Nachholen. Ein Bereich, der „bereit“ ist, zeigt das höchstens über
+> Text/Farbe/Zähler seines festen Platzhalters.
+
+> R2 „Ein Upgrade, was alte Funktionen abschaltet, darf nie zum Nachteil des Users sein. Es darf nur vorherige Schritte unnötig
+> machen oder automatisieren.“
+> → Blendet ein Freischalt-Upgrade etwas aus, wirkt alles, was es bot, weiter – automatisch oder überflüssig. Kein Verlust an
+> Produktion, Boni, Fortschritt oder nötigen Wahlmöglichkeiten. Je Ersetzung belegt der Bot: Ertrag **mit** Upgrade ≥ Ertrag
+> **ohne** (gleiche Saat, gleiche Dauer; „realistisch“ = Bot-Obergrenze, z. B. Minispiele immer gewonnen).
+
+Weitere Vorgaben: event-getriebene Oberfläche (Zustand ändert sich nur in Rückrufen – Klick, Auswahl, Taste, Takt für die
+Simulation; aktualisiert werden nur Zutaten, deren Daten sich geändert haben; kein `zeichne()`, das je Takt alles neu setzt –
+Anbindung an die kommende reaktive Theke-API, bis dahin gekapselt je Panel, §12.6). Rückwärtskompatibilität der Spielstände ist
+**nicht** nötig: ein Stand mit fremder `version` wird verworfen (Neustart, keine Ananas). Klickanteil < 10 %, Abwesenheit
+höchstens 30 min (50 %), Browser = EXE, 10 Takte/s.
+
+**§11.1 „Wellen“ ist damit abgelöst:** Erledigtes verschwindet nicht mehr und Neues taucht nicht mehr von selbst auf – **Slots
+bleiben, nur ihr Inhalt wechselt**, und auch das nur nach einem Klick (R1).
+
+### 12.1 Recherche – wie Idle-Games strukturiert sind
+
+Websuche (Oktober 2026); Fandom-Wikis waren nur über Suchausschnitte erreichbar, direkt gelesen: wiki.gg (Cookie Clicker,
+Antimatter Dimensions), Kittens-Game-Wiki und -Quellcode, Melvor-Wiki, Wikipedia, Steam, Game Developer (Pecorella), Entwickler-Blogs.
+
+| Spiel | Layout / Freischaltung | Breite · Prestige | Quelle |
+|---|---|---|---|
+| Cookie Clicker | Store rechts, 20 Gebäude in fester Preisreihenfolge; Gebäude sind anfangs versteckt und „erscheinen, sobald verfügbar“ (rein kosmetisch); 4 Minispiele (Garden, Pantheon, Grimoire, Stock Market) hängen als Panel am Gebäude („View …“), freigeschaltet über Gebäude-Level mit Sugar Lumps (ab 1 Mrd. Keksen) | 1 Prestige-Ebene (Ascension, Kubikwurzel aus Lifetime-Keksen, +1 % je Level), heavenly upgrades dauerhaft, „permanent upgrade slots“ | cookieclicker.wiki.gg/wiki/Ascension · …/Minigames |
+| AdVenture Capitalist | eine lineare Geschäftsliste; Manager automatisieren („run automatically … even offline“), gehen beim Reset verloren (Steam-Post 2015); parallele Welten Erde/Mond/Mars | 1 Ebene (Angel Investors, +2 % je Angel), Kostenwachstum 1,07 je Kauf | de.wikipedia AdVenture Capitalist · gamedeveloper.com „Math of Idle Games I/III“ |
+| Antimatter Dimensions | feste Tableiste, je Prestige-Schicht erscheint ein **neuer Tab mit Subtabs** (Infinity 3, Eternity, Reality – als Vorschau schon vor dem ersten Reset), alte Tabs bleiben; Autobuyer bei festen Schwellen (1e40 … 1e140), Challenges machen sie schneller (×0,6), Eternity-Milestones schalten Voll-Automatik frei | 3 Hauptschichten + Celestials; jede Schicht resettet alles darunter, behält Achievements/Statistik | antimatterdimensions.wiki.gg/wiki/Infinity · …/Autobuyers · …/Reality |
+| Kittens Game | feste Tableiste (~12 Tabs), jeder Tab an ein Gebäude/eine Tech gebunden (Code: hut → village, library → science, workshop, rocketry → space …); Gebäude werden sichtbar, sobald **30 % jedes Preises** vorrätig sind (`unlockRatio 0.3`) – sichtbar, bevor bezahlbar | 30+ Gebäude, 50+ Ressourcen, ~200 Techs, Religion/Metaphysik/Zeit/Handel als eigene Systeme; Reset ab 70 Kätzchen → Paragon/Karma, Chronospheres retten 1,5 % je Stück | github nuclear-unicorn/kittensgame buildings.js · wiki.kittensgame.com/en/game-tabs |
+| Realm Grinder | 12 Fraktionen, Trophäen je 100 Gebäude, Research später; Auto-Cast ab 60 000 Mana **halbiert** Mana/s – belegter Gegenfall zu „Automatik immer Vorteil“ | 3 Schichten (Abdication → Reincarnation → Ascension); Trophäen überleben alles | pcgamer.com/realm-grinder-guide · store.steampowered.com/app/610080 |
+| Idle Miner Tycoon | je Mine feste Säule Schächte/Aufzug/Lager, neue Schächte hinter „Barrieren“ (Zeit/Werbung/Super Cash); Manager automatisieren, erst dann Offline-Cash; Kontinente mit je 5 Minen | Prestige je Mine (kompletter Reset, dauerhafter Bonus), nur Super-Manager bleiben | idleminertycoon.fandom.com/wiki/Prestige · bluestacks.com IMT-Guide |
+| NGU Idle | Features schalten per **Boss-Nummer** frei (4 Inventar, 17 Augmentation, 30 Time Machine, 37 Blood Magic, 58 Challenges); fast jeder Titan droppt ein Feature-Unlock | 3 Schwierigkeiten als wiederholte Leiter; Rebirth | sayolove.github.io/ngu-guide · store.steampowered.com/app/1147690 |
+| Melvor Idle | feste Skill-Seitenleiste (29 Skills), alles über Skill-Level/Mastery; Township „progresses passively in the background“; Auto Eat (Shop) macht Kampf idle-fähig | **kein Prestige** – Breite statt Reset-Tiefe | wiki.melvoridle.com/w/Skills · Steam-Forum 1267910 |
+| Universal Paperclips | 3 Stages, die UI **wechselt** je Stage (Stage-1-Elemente werden nutzlos, Ende: nur noch ein Knopf); Projekte nach Ops-Schwellen; erster AutoClipper → „you can leave the game alone“ | kein Prestige, Neustart mit Bonus am Ende | en.wikipedia Universal Paperclips · revk.uk 2018 |
+| Trimps | Bereiche Resources/Structures/Jobs/Upgrades/Equipment/Combat/Maps; Jobs schalten per Zone frei; Automatik als **permanente Upgrades** (AutoStorage Z20+, AutoJobs Z140, AutoUpgrade Z250, AutoPrestige per Challenge) | Portal nach Z20 (alles weg außer Helium + Perks), Universe 2 ~Z700 | trimps.github.io/updates.html · trimps.fandom.com/wiki/Portal |
+
+**Synthese** (Design-Konsequenz für Pizza-Imperium in Klammern):
+1. Feste Tab-/Panel-Struktur, die **wächst, statt zu wandern** – neue Schichten hängen ganze Tabs an, alte bleiben (AD, Kittens,
+   Melvor); nur Paperclips tauscht die UI aus, und das ist ein Spiel mit Ende. (→ 8 feste Reiter, Panels als Platzhalter von Anfang an.)
+2. Neue Bereiche kommen als **ganze Panels/Tabs**, nicht als eingeschobene Zeilen (CC-Minispiele am Gebäude, AD-Subtabs gebündelt).
+3. Sichtbar-aber-gesperrt ist üblich: Kittens zeigt Gebäude ab 30 % des Preises, AD den Reality-Tab als Vorschau, IMT Barrieren;
+   ein explizites „???“ ist nirgends belegt. (→ Platzhalter mit Teaser, Preis erst nach dem Vorgänger der Kette.)
+4. Freischaltung meist **Schwelle oder Kauf/Tech**, selten Zeit (Kittens-Tabs per Gebäude, AD Reality-Study, Melvor Auto Eat, NGU
+   Boss-Nummern). (→ Kauf gegen €, R1: nur per Klick.)
+5. Typische Breite am Ende: **10–15 parallele Bereiche** (Kittens ~12 Tabs, AD 5 Gruppen × 3–8 Subtabs, CC 20 Gebäude + 4
+   Minispiele, Melvor 29 Skills). (→ 12 neue Bereiche + 6 bestehende.)
+6. Prestige: 1 Schicht früh, höchstens 3 Hauptschichten; jede resettet alles darunter, behält Statistik, Achievements, Meta-Währung;
+   Teil-Erhalt als eigenes Upgrade (CC-Slots, Chronospheres). (→ bleibt: Sterne → Geheimrezepte → Herausforderungen → Franchise.)
+7. Prestige-Währung aus Lifetime-Ertrag mit Wurzel-Dämpfung (CC Kubikwurzel, Realm Grinder ≈ 4× je Verdopplung). (→ √ bzw. ⁴√ wie heute.)
+8. Pacing (Praktikerregeln, keine Playtests): erstes Upgrade < 60 s, erste Automatik ≈ 3 min, Phasenwechsel alle 3–5 min, erster
+   Prestige 15–20 min; „show the next 2–3 upgrades, not all 20“; Browser-Idler sind deutlich langsamer (CC-Ascension Tage).
+   (→ Freischaltungen 4 / 10 / 18 / 30 / 45 / 65 / 100 / 150 / 180 / 210 / 240 / 270 min; Kette zeigt nur den nächsten Preis.)
+9. Erschlagen vermeiden durch **Gating an Bestehendes**: Neues kommt nach einem Meilenstein im vorhandenen System, nie parallel.
+10. **Automatisierung ist das Standard-Belohnungsmuster** („click, auto, multi-produce, then prestige“): permanent (Trimps, AD-
+    Milestones, Melvor Auto Eat) oder je Run neu (AdCap/IMT-Manager); sie bleibt Vorteil und wird verfeinert, nicht ersetzt; Ausnahme
+    mit Kosten: Realm-Grinder-Auto-Cast. (→ Helfer dauerhaft, R2: nie schlechter als Hand.)
+11. Offline-Fortschritt gehört zur Automatik (AdCap/IMT-Manager koppeln Offline-Cash daran). (→ bleibt 50 %, höchstens 30 min.)
+12. Breite ohne Tiefe braucht **Hintergrund-Systeme**, die von selbst laufen (Melvor Township, Kittens). (→ Weinkeller, Rezeptlabor,
+    Wettbewerb, Katze laufen im Takt mit.)
+
+Synthese-Quellen: gamedeveloper.com „The Math of Idle Games I–III“ (Pecorella) · dev.to „I built 7 idle games in 30 days“ ·
+dev.to „Designing the economy of Doomscroll 2077“ · funovus.com „Gold and Goblins“ · en.wikipedia „Incremental game“.
+Nicht belegt: „???“-Platzhalter in einem der Spiele, Stunden bis zur ersten AD-Infinity, Gesamtzahl der NGU-Menüs.
+
+### 12.2 Das Raster
+
+Fenster **860 × 800** (vorher 660 × 780): Die Reiterleiste scrollt bei Überbreite statt umzubrechen (`overflow-x: auto`,
+gemessen: 5 Reiter 611 px, 8 Reiter 793 px) – mit 860 px passen acht feste Reiter, und Panels stehen **zweispaltig**
+(Breite = Breite in Idle-Games: nebeneinander statt untereinander). Playground-Vorschau zentriert und begrenzt auf den Viewport,
+EXE übernimmt `breite`/`hoehe`.
+
+```
+┌ Kopf (fest, immer) ────────────────────────────────────────────────────────┐
+│ Kasse (riesig)                                                             │
+│ Kennzahlen (2 Zeilen) · Modus-/Hinweiszeile (1 Zeile, immer da, ggf. leer) │
+│ [ 🍕 Pizza backen! 400×64 ] [ 🔥 Sonderschicht 400×64 ]                    │
+│ Meldung (3 Zeilen)                                                         │
+├ Reiter (8, feste Titel ohne Zähler) ───────────────────────────────────────┤
+│ 🍕 Backstube · 🌱 Hof · 🏙 Stadt · 🔬 Labor · ⭐ Imperium · 📜 Nonna · 🎲 Spiele · 🏆 Erfolge
+├ Seite: 2 Spalten × 412 px, Panels (Abschnitte) mit fester Zeilenzahl ──────┤
+│ ┌ Panel A ───────────┐ ┌ Panel B ───────────┐                              │
+│ │ Zeile 1  [Knopf]   │ │ Zeile 1  [Knopf]   │   Zeile = Schild (breite 240,│
+│ │ Zeile 2  [Knopf]   │ │ Zeile 2  [Knopf]   │   zeilen 2) + Knopf (130)    │
+│ │ …                  │ │ …                  │                              │
+│ └────────────────────┘ └────────────────────┘                              │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Grundsätze:
+1. **Jede Zutat existiert von Anfang an** und behält ihre ID, Größe und Position. Kein `hinzu`/`leeren` zur Laufzeit, kein
+   `sichtbar(nein)` an Zeilen oder Panels. Was es (noch) nicht gibt, ist ein **Platzhalter gleicher Größe**: 🔒-Text und
+   ein inaktiver oder ein Freischalt-Knopf.
+2. **Feste Zeilenzahl je Panel** (`zeilen` an Schildern, `breite`/`mindestbreite` an Knöpfen, `hoehe` an Reihen): Texte wechseln,
+   Höhen nie. Tabellen haben eine feste Zeilenzahl (mit „—“ aufgefüllt).
+3. **Reiter-Titel fest** (ein Zähler ändert die Tab-Breite und schiebt die Nachbarn): Hinweise stehen im Panel-Kopf, in der
+   Kennzahlen-Zeile („⭐ 3 warten“) oder in der Meldung.
+4. **Knöpfe mit fester Breite überall** – auch Neueröffnung, Franchise, Aufgeben, Neu anfangen, Rezeptbuch (Rückfragetexte
+   „Wirklich? Nochmal klicken!“ laufen in der festen Breite um, `zeilen 1` mit „…“).
+5. **Spalten**: Zwei `Stapel` zu je 412 px in einer `Reihe` (abstand 12). Panels einer Seite sind gleich hoch (gleiche
+   Zeilenzahl), damit die Reihen bündig bleiben.
+6. **Freischaltung = Klick im Platzhalter**: Jedes neue Panel ist anfangs „🔒 Name – Freischalten · Preis“; der Klick auf den
+   Preis-Knopf kauft, und **im selben Rückruf** wechselt das Panel auf seinen Inhalt (R1). Gesperrte Panels zeigen den Preis erst,
+   wenn der Vorgänger der Kette frei ist („🔒 Noch verschlossen – zuerst: 🍷 Weinkeller“) – so wird niemand von zwölf Preisen
+   erschlagen. Platzhalter und Inhalt sind **dieselben** Zutaten (Schilder/Knöpfe der Zeilen), nur mit anderem Text/Zustand –
+   darum springt nichts, wenn der Inhalt kommt.
+7. **Kein Ereignis (Takt, Zufall, Offline) ändert das Layout.** Beispiele, die heute dagegen verstoßen und in Paket 1 auf feste
+   Slots kommen: `modusInfo.sichtbar` (Herausforderung endet im Takt), `laufend`/`geschafftTeil`/`gelerntTeil`/`probeTeil`,
+   die Herausforderungs-Welle (2 offen), der Tausch Rezeptbuch ↔ Feinkost (Hawaii-Ende), `spielfeld.sichtbar` (Ofen halten endet
+   im Takt), Meister-Variante ersetzt Grundspiel (Ofen-Sieg ist ein Takt), Erfolge-Tabelle mit 3…13 Zeilen, Betrieb-Zeilen
+   `zeigeWenn`, Kleinbetriebe-Umordnung, Kaufmenge-Reihe erscheint, `briefTeil`/`feinkostTeil` erscheinen.
+
+### 12.3 Bereiche (Breite) – Liste, Reihenfolge, Pacing
+
+Alle neuen Bereiche sind **flach**: eine kleine eigene Ressource oder ein eigener Faktor auf den Kern, 3–4 feste Zeilen, keine
+Ketten über Bereiche hinweg. Freischaltungen sind **dauerhaft** (überleben Neueröffnung und Franchise – sonst sortiert jedes
+Prestige das Layout neu). Käufe *innerhalb* eines Bereichs (Stückzahlen, Stufen) werden bei jeder Neueröffnung wie Upgrades
+zurückgesetzt, Sammlungen (Pokale, Sticker, Forschung, Treueherzen, Helfer) bleiben. Preise der Freischaltungen aus der
+Bot-Kurve (Saat 42, 5 Klicks/s, ohne Aufstieg; Umsatz insgesamt: 5 min 1,25 Mio · 10 min 6,8 Mio · 15 min 22 Mio · 30 min
+166 Mio · 45 min 393 Mio · 60 min 700 Mio · 90 min 1,75 Mrd · 120 min 3,5 Mrd · 180 min 8,3 Mrd · 240 min 16 Mrd; mit Aufstieg
+ab 150 min deutlich schneller: 180 min 213 Mrd · 240 min 9,3 Bio · 360 min 870 Bio) – Ziel: Freischaltung ≈ 10–15 % des
+kumulierten Umsatzes zum Zielzeitpunkt, also alle 10–40 Minuten ein neuer Bereich in den ersten vier Stunden.
+
+| # | Bereich (Reiter) | Preis | ≈ Zeit | Mechanik (flach) | Wirkung auf den Kern |
+|---|---|---|---|---|---|
+| 1 | 🍅 **Zutaten-Garten** (Hof) | 150 Tsd. € | 4 min | 3 Beete (Tomaten, Basilikum, Oregano) als Stückkäufe (×1,5 je Stück), 4. Zeile: Ernte-Übersicht | jedes Beet +1 % / +2 % / +3 % Preis je Pizza (Stück), höchstens 50 Stück je Beet |
+| 2 | 🍷 **Weinkeller** (Hof) | 1 Mio. € | 10 min | 4 Getränke (Acqua frizzante, Limonata, Chianti, Espresso) als Stückkäufe; eigene Ressource **Getränkeumsatz** in €/s, unabhängig von Pizzen | Nebeneinkommen: je Getränk €/s = 2 % · 6 % · 15 % · 25 % der Pizzaproduktion je 10 Stück (skaliert mit dem Betrieb, bleibt relevant) |
+| 3 | 👩‍🍳 **Personal** (Hof) | 6 Mio. € | 18 min | 4 Rollen mit Stufe 1…10 (Knopf „Befördern“): Kellner Luigi, Spülkraft Rosa, Buchhalter Enzo, Türsteher Bruno | Luigi: Trinkgeld +1 je Stufe (Großbestellungen pünktlicher) · Rosa: Ofen kühlt 5 % je Stufe schneller · Enzo: Upgrades 1 % je Stufe billiger · Bruno: Hawaii-Gäste-Bonus +20 % je Stufe |
+| 4 | 🛵 **Lieferzonen** (Stadt) | 25 Mio. € | 30 min | 6 Stadtviertel als Einmal-Käufe (Altstadt, Hafen, Uni-Viertel, Bahnhof, Villenviertel, Industriegebiet – „Dort bestellt man Pizza zum Frühstück“) | je Viertel Betrieb +8 % (Einmal, ×4 je Viertel teurer) |
+| 5 | 🤖 **Nonnas Helfer** (Labor) | 60 Mio. € | 45 min | 4 Einmal-Käufe (Automatisierung, R2): Ofenwächter Pino (zündet die Sonderschicht, sobald der Ofen bereit ist), Vorleser Carlo (liest die nächste Rezeptseite, sobald sie bezahlbar ist), Spielpartnerin Nonna (gewinnt jedes Minispiel selbst, 60 s nach Ende der Pause, falls niemand spielt – manuelles Spielen bleibt möglich und bringt dasselbe), Wettbewerbs-Scout (nimmt automatisch am Wettbewerb teil) | ersetzt Klicks, nie weniger Ertrag (Bot: mit/ohne); Preise 60 Mio · 300 Mio · 2 Mrd · 50 Mrd |
+| 6 | 📣 **Marketing** (Stadt) | 150 Mio. € | 65 min | 4 Kampagnen (Flyer, Lokalradio, Plakatwand, Fernsehspot) – Knopf startet einen **zeitlich begrenzten Bonus** mit Abkühlzeit (Text zählt herunter) | Flyer 2 min Betrieb ×1,25 (Pause 5 min) · Radio 3 min ×1,5 (10 min) · Plakat 5 min Preis ×1,3 (15 min) · TV 2 min alles ×2 (30 min); Preis = 60 s Produktion (relativ, bleibt bezahlbar) |
+| 7 | 🧪 **Rezeptlabor** (Labor) | 400 Mio. € | 100 min | **Forschung über Zeit**: 10 Projekte nacheinander, je 5–30 min Spielzeit (läuft auch offline mit, Deckel 30 min), eine Zeile „läuft: Name · Balken · Rest“, Knopf „Forschen · Preis“ | dauerhafte kleine Boni: Klick +10 %, Ofen 10 s weniger Abkühlung, Großbestellung +5 Bleche, Minispiel-Pause −15 s, perfekte Pizza +0,5 %, Ereignisse 10 % öfter, Meisterbriefe 10 % billiger, Feinkost 10 % billiger, Getränke +25 %, Garten +25 % |
+| 8 | 🧑‍🤝‍🧑 **Stammgäste** (Stadt) | 1,5 Mrd. € | 150 min | 4 feste Gäste (Signora Rossi, Student Timo, Kommissar Brunetti, Opa Gianni) mit je einem **Wunsch** (Pizzen backen, Gebäude kaufen, Sonderschicht, Minispiel, Hawaii-Gast …); erfüllt → Knopf „Belohnung“ (Klick holt den nächsten Wunsch = R1) | Belohnung sofort Portion × 20–60, dazu ein **Treueherz** (dauerhaft +0,5 % auf alles je Herz, höchstens 100) |
+| 9 | 🐱 **Nonnas Katze Mozzarella** (Hof) | 5 Mrd. € | 3 h | Füttern (Knopf, Abkühlung 3 min), Streicheln (Knopf, 1 min), Laune 0…5 fällt alle 10 min um 1 (nur Text) | ×(1 + 0,04 · Laune) auf alles; „Mozzarella ignoriert dich. Das ist ein gutes Zeichen.“ |
+| 10 | 🏆 **Pizza-Wettbewerb** (Stadt) | 20 Mrd. € | ≈ 3,5 h (mit Aufstieg) | alle 10 min ein Wettbewerb (Stadtmeisterschaft, Regionale, Italienische, Weltmeisterschaft – rotierend), Startgeld 30 s Produktion, Ergebnis per `Zufall` gewichtet mit Rezeptseiten, Feinkost, Sternen | 🥇/🥈/🥉 **Pokale** (dauerhaft): je Pokal +1 % auf alles, höchstens 100 |
+| 11 | 📒 **Sammelalbum** (Labor) | 100 Mrd. € | ≈ 4 h | 12 Sticker in festem 3×4-Raster („❔“ bis gefunden); Fundchance 15 % je Ereignis, Sonderschicht, Minispiel-Sieg, Wettbewerb | je volle Reihe +10 % auf alles, volles Album Erfolg „Alle Sticker“ |
+| 12 | 🏦 **Banca di Napoli** (Labor, optional) | 500 Mrd. € | ≈ 4,5 h | Sparbuch: „10 % der Kasse einzahlen“, „Alles abheben“, Zinsen 1 % je Minute (höchstens auf 30 min Produktion) | alternativer Geldparkplatz, kein Risiko |
+
+Reiter-Belegung (2 × 2 Panels je Seite, gleich hoch, 4 Zeilen je Panel):
+- 🌱 **Hof:** Garten · Weinkeller · Personal · Katze
+- 🏙 **Stadt:** Lieferzonen (6 Viertel in einem Panel: 2 Spalten à 3) · Marketing · Stammgäste · Wettbewerb
+- 🔬 **Labor:** Helfer · Rezeptlabor · Sammelalbum · Banca
+
+Bestehendes im Raster:
+- 🍕 **Backstube** (2 Spalten): links 📖 Rezeptbuch & Feinkost (3 feste Zeilen: Seite lesen · Feinkost 1 · Feinkost 2 – die Feinkost-
+  Zeilen sind bis zum ausgelesenen Buch 🔒; Hawaii-Verbot sperrt nur den Knopf), 🏭 Betrieb (6 feste Slots: die sechs jüngsten
+  offenen Gebäude; ältere im klappbaren Abschnitt 🧺 Kleinbetriebe, der **immer** da ist – leer: „noch keine“; Slots für noch nicht
+  erreichte Gebäude zeigen „🔒 Name – erst Vorgänger kaufen“); rechts Kaufmenge (immer), 🛠 Handwerk (6 feste Slots), 🎓 Meister-
+  briefe (3 feste Slots, immer). Umordnung der Betrieb-Slots nur im Kauf-Rückruf (R1).
+- ⭐ **Imperium:** Aufstieg-Tabelle (5 Zeilen fest) · Neueröffnung · Franchise · Statistik (feste Zeilen) · Neu anfangen – alles immer da.
+- 📜 **Nonna:** Geheimrezepte 3 feste Plätze + „✅ Gelernt“ (klappbar, immer da, ggf. „noch keins“) · Herausforderungen **2 feste
+  Plätze** + Zeile „läuft: Balken · Aufgeben“ (immer da, Aufgeben inaktiv ohne Modus) + „✅ Geschafft“ (klappbar, immer da). Vor dem
+  ersten Stern zeigen die Plätze „🔒 ab 1 ⭐“ / „🔒 ab 3 ⭐“.
+- 🎲 **Spiele:** Spielfeld als Abschnitt mit **fester Höhe** (immer sichtbar, leer: „Such dir ein Spiel aus“), darunter 4 feste
+  Spielzeilen – Meister-Variante wechselt nur den **Text** im selben Slot (gleiche Knopf-ID `mini-<grundspiel>`).
+- 🏆 **Erfolge:** Kopfzeile + Tabelle mit **12 festen Zeilen** (die letzten 8, die nächsten 3 Ziele, eine Summenzeile).
+
+### 12.4 Pacing und Balancing-Ziele
+
+- Erste vier Stunden: zwölf Freischaltungen + Aufstieg; nie zwei Bereiche „bereit“ zugleich, weil die Kette den Preis erst nach
+  dem Vorgänger zeigt. Jeder Bereich wirkt höchstens ×1,5–×2 auf den Kern – die Sternekurve (2 h ≈ 40, 3 h ≈ 440, 4 h ≈ 1.500)
+  darf sich um höchstens eine Verdopplung je Zeitpunkt verschieben; der Bot prüft Freischaltzeitpunkte, Klickanteil (< 10 %),
+  Sternekurve und (R2) Ersetzungen paarweise.
+- Automatisierter Ertrag (Helfer) zählt als Betrieb, nicht als Klick.
+
+### 12.5 Spielstand v6
+
+`version: 6`; fremde Version → Stand verwerfen, Meldung „Ein alter Spielstand passt nicht mehr zu dieser Fassung – frischer
+Teig!“. Neue Felder: `frei` (Blech der freigeschalteten Bereiche), `bereiche` (Speisekarte Bereich → Speisekarte mit Stück/
+Stufen/Abkühlungen), `pokale`, `sticker`, `herzen`, `forschung` (erledigt, laufend, Rest-Sekunden), `helfer`, `laune`, `sparbuch`.
+
+### 12.6 Pakete (seriell, je ein Commit) und Abnahme
+
+| Paket | Inhalt |
+|---|---|
+| 1 | **Raster + Bestand**: 860 × 800, Kopf, 8 feste Reiter, 2 Spalten, alle Bestandspanels auf feste Slots (§12.2/7), Platzhalter aller zwölf Bereiche mit Freischalt-Kette (ohne Inhalt: Freischalten setzt nur das Flag und zeigt „bald“), Spielstand v6, UI gekapselt je Panel (eine Klasse je Panel mit `aktualisiere()`, aufgerufen nur wenn die zugehörige Modell-Version sich geändert hat – vorbereitet für Bindungen) |
+| 2 | Hof: Garten, Weinkeller, Personal |
+| 3 | Stadt: Lieferzonen, Marketing; Labor: Helfer (R2-Belege) |
+| 4 | Labor: Rezeptlabor; Stadt: Stammgäste |
+| 5 | Hof: Katze; Stadt: Wettbewerb; Labor: Sammelalbum (· Banca, falls Zeit) |
+| 6 | Erfolge für die neuen Bereiche, Feinschliff, Balancing-Lauf |
+
+Abnahme je Paket: `npm test`, `node pruefstand/run.js`, `npm run test:differenz`, E2E 05/07 (auto + wasm), Testdateien aus echtem
+Interpreter-Lauf (Saat 42, Vorrat leer), **Positionsmessung** `positionen2.mjs` (inkrementell, alle Reiter, jede Verschiebung
+klassifiziert: erlaubt nur im Bild **direkt nach** einem Nutzerklick, der eine Freischaltung oder einen Aufstieg auslöst –
+Ziel **0 Verstöße**), Bot (Freischaltzeiten, Klickanteil, Sternekurve, R2-Paare), Sichtprüfung hell/dunkel.
+
+### 12.7 Detailspezifikation der Bereiche (für Paket 2–5)
+
+Gemeinsam: Panel `bereich-<schlüssel>` mit 4 Zeilen (`bereich-<s>-info-<n>`, `bereich-<s>-knopf-<n>`), Zeile 1 bis zur
+Freischaltung = Platzhalter/Freischalt-Knopf `frei-<s>`. Alle Preise fest in € (wie Upgrades), Stückkäufe gehen bei jeder
+Neueröffnung auf 0, Freischaltung und Sammlungen bleiben. Faktoren wirken in `neuBerechnen()` – jeder Bereich liefert **eine**
+Methode `faktorX()`; die Summe aller Bereichsfaktoren bleibt moderat (je Bereich ≤ ×2). Zufall nur über `Zufall` (Saat).
+
+| Bereich | Zeilen (fest) | Zahlen |
+|---|---|---|
+| 🍅 Garten | 1 Tomaten · 2 Basilikum · 3 Oregano (Stückkäufe, Knopf = Preis) · 4 „Ernte: +n % Preis“ (Knopf „—“) | Grundpreise 20 Tsd / 60 Tsd / 200 Tsd, ×1,5 je Stück, höchstens 20 je Beet; Preis je Pizza +1 % / +1,5 % / +2,5 % je Stück → höchstens +100 % |
+| 🍷 Weinkeller | 1 Acqua frizzante · 2 Limonata · 3 Chianti · 4 Espresso (Stückkäufe; Knopf = Preis, Info zeigt €/s) | Grundpreise 50 Tsd / 250 Tsd / 1,5 Mio / 8 Mio, ×1,3; je Stück €/s = 0,1 % / 0,25 % / 0,5 % / 1 % des Pizza-Umsatzes pro Sekunde (`sekundeWert · preis`), höchstens 25 je Getränk (→ +46 %); eigener Zähler `umsatzGetränke` (Statistik „Getränkeumsatz“); Einnahmen im Takt, zählen nicht als Klick |
+| 👩‍🍳 Personal | 1 Kellner Luigi · 2 Spülkraft Rosa · 3 Buchhalter Enzo · 4 Türsteher Bruno (Knopf „Befördern · Preis“, Info „Stufe n/10 – Wirkung“) | Preis = 2 Mio · 2^Stufe · (1 / 1,5 / 2 / 3); Luigi: Trinkgeld +1 je Stufe · Rosa: Abkühlzeit × (1 − 0,05·Stufe) · Enzo: `preisFaktor()` × (1 − 0,01·Stufe) · Bruno: Hawaii-Bonus × (1 + 0,2·Stufe) |
+| 🛵 Lieferzonen | 3 Zeilen × 2 Knöpfe: Altstadt, Hafen · Uni-Viertel, Bahnhof · Villenviertel, Industriegebiet; 4. Zeile „n/6 Viertel – Betrieb +m %“ | Einmal-Käufe 10 Mio · 40 Mio · 160 Mio · 640 Mio · 2,5 Mrd · 10 Mrd (Reihenfolge frei), je +8 % Betrieb (höchstens +48 %) |
+| 🤖 Helfer | 1 Ofenwächter Pino · 2 Vorleser Carlo · 3 Spielpartnerin Nonna · 4 Wettbewerbs-Scout (Einmal-Käufe, dauerhaft) | 60 Mio · 300 Mio · 2 Mrd · 50 Mrd. Pino: im Takt `sonderschicht()`, sobald `ofenBereit()` · Carlo: im Takt `blättere()`, sobald bezahlbar (nicht im Hawaii-Verbot) · Nonna: 60 s nach Ende der Pause, wenn kein Spiel läuft: Gewinn des sichtbaren Spiels (`minispielGewinn(belohnung)`, zählt als Sieg, startet die Pause) · Scout: nimmt am Wettbewerb teil, sobald er offen ist. R2-Beleg: Bot mit/ohne Helfer, Umsatz nach 60 min |
+| 📣 Marketing | 1 Flyer · 2 Lokalradio · 3 Plakatwand · 4 Fernsehspot (Knopf „Starten · Preis“ / „läuft noch n s“ / „Pause n s“) | Preis = 60 s Umsatz (`sekundeWert · preis · 60`, mindestens 10 Tsd); Flyer 120 s Betrieb ×1,25, Pause 300 s · Radio 180 s Betrieb ×1,5, Pause 600 s · Plakat 300 s Preis ×1,3, Pause 900 s · TV 120 s alles ×2, Pause 1800 s; mehrere gleichzeitig erlaubt; Rest-Sekunden im Spielstand |
+| 🧪 Rezeptlabor | 1 „läuft: Name · Rest“ + Fortschritt (Knopf „Forschen · Preis“ / „läuft“) · 2 „nächstes: Name – Wirkung“ · 3 „erforscht: n/10“ · 4 Liste der erforschten Symbole | Projekte (Dauer, Preis, Wirkung): Teigruhe 5 min 100 Mio Klick +10 % · Schamott-Wärme 8 min 300 Mio Abkühlung −10 s · Kartonfaltung 10 min 1 Mrd Großbestellung +5 Bleche · Pausenbrot 12 min 3 Mrd Minispiel-Pause −15 s · Goldener Rand 15 min 10 Mrd perfekte Pizza +0,5 % · Nachbarschaftsblatt 18 min 30 Mrd Ereignisse 10 % öfter · Meisterrabatt 20 min 100 Mrd Meisterbriefe −10 % · Einkaufsgemeinschaft 22 min 300 Mrd Feinkost −10 % · Sommelier 25 min 1 Bio Getränke +25 % · Gewächshaus 30 min 3 Bio Garten +25 %. Nur eins zugleich; läuft in Spielsekunden (offline mit, Deckel 30 min) |
+| 🧑‍🤝‍🧑 Stammgäste | 1 Signora Rossi · 2 Student Timo · 3 Kommissar Brunetti · 4 Opa Gianni (Info „Wunsch … (x/y)“, Knopf „🎁 Belohnung“ aktiv, wenn erfüllt) | Wunschtypen rotieren je Gast (Pizzen backen = 300 s Produktion · 3 Gebäude kaufen · 2 Sonderschichten · 1 Minispiel-Sieg · 1 Hawaii-Gast · 1 Großbestellung); Zähler ab Wunschbeginn; Belohnung `portion() · 30` + 1 Treueherz (dauerhaft, +0,5 % je Herz, höchstens 100); der Klick holt den nächsten Wunsch (R1) |
+| 🐱 Katze | 1 „Mozzarella: Laune n/5 – Text“ (Knopf „🐟 Füttern · Preis“ / „satt, n s“) · 2 Knopf „🫳 Streicheln“ (Pause 60 s) · 3 „Bonus ×1,xx“ · 4 Katzenweisheit | Füttern Preis = 10 s Umsatz, Laune +2, Pause 180 s · Streicheln Laune +1, Pause 60 s · Laune −1 je 600 s (nur Text) · Faktor 1 + 0,04·Laune auf alles |
+| 🏆 Wettbewerb | 1 „Nächster: Name in n s“ / „offen – noch n s“ (Knopf „Teilnehmen · Startgeld“) · 2 letztes Ergebnis · 3 „Pokale: 🥇a 🥈b 🥉c“ · 4 „Bonus +p %“ | alle 600 s, 120 s offen; Startgeld 30 s Umsatz; Namen rotieren (Stadtmeisterschaft, Regionale, Italienische Meisterschaft, Weltmeisterschaft); Punkte q = Rezeptseiten + Feinkost + min(Sterne, 10); Gold-Chance 10 % + 2 %·q (max 50 %), Silber 30 %, sonst Bronze; Pokalpunkte 3/2/1 → +1 % auf alles je Punkt, höchstens 100 |
+| 📒 Sammelalbum | 3 Zeilen × 4 Sticker als Schilder (❔ / Symbol) · 4. Zeile „n/12 – volle Reihen: m (+10 % je Reihe)“ | Fund 15 % je Ereignis, Sonderschicht, Minispiel-Sieg, Wettbewerb (zufälliger fehlender Sticker); Sticker: 🍕 🍅 🧀 🌿 / 🔥 🛵 🧑‍🍳 📦 / ⭐ 🏢 🌙 🍍 |
+| 🏦 Banca | 1 „Guthaben … · Zinsen 1 %/min“ (Knopf „10 % einzahlen“) · 2 Knopf „Alles abheben“ · 3 „verzinst bis … (30 min Umsatz)“ · 4 Spruch | Zinsen im Takt sekundengenau auf min(Guthaben, 1800 s Umsatz) |
+
+Neue Erfolge (Paket 6, je Bereich 1–2): „Grüner Daumen“ (alle Beete 20), „Sommelier“ (alle Getränke 25), „Vollbesetzt“ (alle vier
+Stufe 10), „Ganz Neapel liefert“ (6 Viertel), „Nonna macht Pause“ (alle Helfer), „Prime Time“ (TV-Spot), „Doktor der Pizzologie“
+(10 Forschungen), „Herzensangelegenheit“ (10 Herzen), „Schnurr“ (Laune 5), „Weltmeister“ (Gold bei der Weltmeisterschaft),
+„Alle Sticker“ (12/12), „Zinseszins“ (erste Zinsen).
