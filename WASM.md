@@ -39,7 +39,7 @@ quelltext ──► Frontend (PizzaLang.parse → Semantik/Typisierung) ──�
 - **Eigener Wasm-Kodierer** (LEB128, Sections, Instruktionen). `wabt` nur als devDependency für Tests.
 - **Laufzeit** (`laufzeit/`, Rust `no_std` → `wasm32v1-none` (nur Wasm-1.0-Features) plus
   `+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue`, Ergebnis `site/js/pizzaiolo/laufzeit.wasm`
-  wird **eingecheckt**, damit Docker kein Rust braucht): Texte (UTF-8), Blech, Speisekarte, Pizza/Beläge/Dispatch-Hilfen,
+  wird **eingecheckt**, damit Docker kein Rust braucht): Texte (UTF-8), Blech, Speisekarte,
   Ananas-Objekte, Teig/Ofen/Lieferung/Kühlschrank-Zustände, Zufall (mulberry32, Seed 42), simulierte Uhr,
   **JS-identische Zahlformatierung** (shortest round-trip wie `String(x)`: `1e+21`, `1e-7`, `-0`→`0`,
   `0.30000000000000004`, Gleichstand → gerade Ziffer), `euro()`, Dauer-Textform, Allocator, V8-TimSort-Port

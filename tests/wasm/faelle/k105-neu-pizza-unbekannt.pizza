@@ -1,0 +1,8 @@
+// K-105: ohne eigene Klasse ist Pizza unbekannt – gewöhnliche UnbekanntePizzaAnanas (Exit 1).
+Bote.sage(("bestelle"));
+probier {
+    Bote.sage((neu Pizza()));
+} verbrannt (UnbekanntePizzaAnanas e) {
+    Bote.sage((e.nachricht()));
+}
+neu Pizza();

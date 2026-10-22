@@ -28,7 +28,6 @@ extern "C" {
 // ---------------------------------------------------------------- Wachen (SPEC §17.3)
 pub const T_BLECH: &str = "Dieses Blech gehört der Hauptküche – nimm eine kopie().";
 pub const T_KARTE: &str = "Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.";
-pub const T_PIZZA: &str = "Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.";
 pub const T_TEIG: &str = "Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.";
 pub const T_LIEF: &str = "Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.";
 pub const T_ZUFALL: &str = "Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().";
@@ -130,13 +129,10 @@ const P_FEST: u8 = 7;
 const P_MODUL: u8 = 8;
 const P_TYP: u8 = 9;
 const P_ENUMW: u8 = 10;
-const P_BELAG: u8 = 11;
 const P_WEG: u8 = 12;
 const P_UNDEF: u8 = 13;
 const P_BLECH: u8 = 20;
 const P_KARTE: u8 = 21;
-const P_PIZZA: u8 = 22;
-const P_SICHT: u8 = 23;
 const P_OBJ: u8 = 24;
 const P_ROH: u8 = 25;
 const P_REF: u8 = 30;
@@ -185,7 +181,6 @@ fn karton_art(w: W) -> Option<&'static str> {
         A_TEIG => Some("Ein Teig"),
         A_LIEF => Some("Eine Lieferung"),
         A_ZUST => Some("Eine Zustellung"),
-        A_STUECK => Some("Ein Stück"),
         A_RESTE => Some("Reste"),
         crate::vorrat::A_ZUFALL => Some("Ein Zufall"),
         crate::vorrat::A_KAMMER => Some("Eine Vorratskammer"),
@@ -210,7 +205,7 @@ impl Schreiber {
         if !ist_ptr(w) { b.push(P_KARTON); return Ok(()); }
         let a = art(w);
         match a {
-            A_TEXT | A_DAUER | A_BELAG | A_KLASSE | A_ENUMT | A_ENUMW | A_REZEPTUR | A_MODUL => {
+            A_TEXT | A_DAUER | A_KLASSE | A_ENUMT | A_ENUMW | A_REZEPTUR | A_MODUL => {
                 if self.fest(w) { self.b.push(P_FEST); self.b.extend_from_slice(&w.to_le_bytes()); return Ok(()); }
                 let b = &mut self.b;
                 match a {
@@ -218,12 +213,11 @@ impl Schreiber {
                     A_DAUER => { b.push(P_DAUER); pf64(b, dauer_ms(w)); }
                     A_MODUL => { b.push(P_MODUL); pu32(b, obj::<Ref>(w).id); }
                     A_KLASSE | A_ENUMT | A_REZEPTUR => { b.push(P_TYP); pu32(b, a); pu32(b, obj::<Ref>(w).id); }
-                    A_ENUMW => { let e = obj::<EnumW>(w); b.push(P_ENUMW); pu32(b, e.e); pf64(b, e.pos); }
-                    _ => { b.push(P_BELAG); pu32(b, obj::<Belag>(w).id); }
+                    _ => { let e = obj::<EnumW>(w); b.push(P_ENUMW); pu32(b, e.e); pf64(b, e.pos); }
                 }
                 return Ok(());
             }
-            A_BLECH | A_KARTE | A_PIZZA | A_SICHT | A_OBJ | A_ROH => {}
+            A_BLECH | A_KARTE | A_OBJ | A_ROH => {}
             _ => {
                 return Err(match karton_art(w) { Some(t) => neu_str(t), None => typ_name_w(w) });
             }
@@ -247,19 +241,6 @@ impl Schreiber {
                     self.wert(k)?;
                     self.wert(v)?;
                 }
-            }
-            A_PIZZA => {
-                let pz = obj::<Pizza>(w);
-                self.b.push(P_PIZZA);
-                pi32(&mut self.b, pz.uebrig);
-                pu32(&mut self.b, pz.s.len() as u32);
-                for &x in pz.s.iter() { self.b.extend_from_slice(&x.to_le_bytes()); }
-            }
-            A_SICHT => {
-                let si = obj::<Sicht>(w);
-                self.b.push(P_SICHT);
-                pu32(&mut self.b, si.k);
-                self.wert(si.pizza)?;
             }
             A_ROH => {
                 let r = obj::<Roh>(w);
@@ -311,10 +292,6 @@ fn lies_wert(l: &mut Leser, memo: &mut Vec<W>) -> W {
             match a { A_KLASSE => kl(id).wert, A_ENUMT => enm(id).wert, _ => rez(id).wert }
         }
         P_ENUMW => { let e = l.u32(); let pos = l.f64(); enm(e).werte[pos as usize - 1] }
-        P_BELAG => {
-            let id = l.u32();
-            unsafe { crate::pf::BELAEGE.iter().find(|x| x.0 == id).map(|x| x.1).unwrap_or(KARTON) }
-        }
         P_REF => memo[l.u32() as usize],
         P_BLECH => {
             let n = l.u32() as usize;
@@ -333,23 +310,6 @@ fn lies_wert(l: &mut Leser, memo: &mut Vec<W>) -> W {
                 crate::karte::lege(crate::karte::karte(m), k, v);
             }
             m
-        }
-        P_PIZZA => {
-            let uebrig = l.i32();
-            let n = l.u32() as usize;
-            let mut s = Vec::with_capacity(n);
-            for _ in 0..n { s.push(l.u64()); }
-            let w = neu_w(Pizza { art: A_PIZZA, uebrig, s });
-            memo.push(w);
-            w
-        }
-        P_SICHT => {
-            let k = l.u32();
-            let w = neu_w(Sicht { art: A_SICHT, k, pizza: KARTON });
-            memo.push(w);
-            let pz = lies_wert(l, memo);
-            obj::<Sicht>(w).pizza = pz;
-            w
         }
         P_ROH => {
             let w = neu_w(Roh { art: A_ROH, _r: 0, teil: KARTON, zeit: KARTON });
@@ -456,7 +416,7 @@ fn wiederherstellen(a: &Auftrag) {
 const ST_OK: u32 = 0;
 const ST_ANANAS: u32 = 1;
 const ST_BUDGET: u32 = 2;
-const ST_PF: u32 = 3;
+// Status 3 (früher PizzaFehler aus einem Stück) ist seit K-105 frei – es gibt keinen PizzaFehler zur Laufzeit mehr.
 const ST_LIMIT: u32 = 4;
 const ST_PANIK: u32 = 5;
 const ST_WURF_KARTON: u32 = 6;
@@ -520,14 +480,6 @@ fn stueck(a: &Auftrag, i: usize) -> Vec<u8> {
     } else if s == SIG_BUDGET {
         status = ST_BUDGET;
         pu32(&mut nutz, unsafe { BUDGET_FRAME });
-    } else if s == SIG_PF {
-        status = ST_PF;
-        unsafe {
-            pi32(&mut nutz, PF_POS);
-            pbytes(&mut nutz, PF_CODE.as_bytes());
-            let t = PF_TEXT;
-            pbytes(&mut nutz, if art(t) == A_TEXT { bytes(t) } else { b"" });
-        }
     } else if s == SIG_LIMIT {
         status = ST_LIMIT;
         pi32(&mut nutz, z().pos);
@@ -782,13 +734,6 @@ fn zusammenfuehren(a: &Auftrag, berichte: &[(u32, u32)], memo: &mut Vec<W>, max_
                     BUDGET_FRAME = id;
                 }
                 setze_sig(SIG_BUDGET);
-            }
-            ST_PF => {
-                let pos = l.i32();
-                let code = l.bytes();
-                let text = l.bytes();
-                let cw = neu_text(code);
-                wirf_pf(s(cw), neu_text(text), pos);
             }
             ST_LIMIT => { setze_sig(SIG_LIMIT); }
             _ => { wirf_panik(); }

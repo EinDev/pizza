@@ -1,4 +1,21 @@
-// Die Grundzutaten jeder Variable – und die Pizza als eigener Datentyp.
+// Die Grundzutaten jeder Variable – und eine eigene Klasse als Datentyp.
+
+klasse Pizza {
+    margherita sorte;
+    Blech<margherita> beläge;
+    funghi preis;
+
+    Pizza(margherita sorte, Blech<margherita> beläge, funghi preis) {
+        dies.sorte = sorte;
+        dies.beläge = beläge;
+        dies.preis = preis;
+    }
+
+    margherita alsText() {
+        serviere ((sorte + " ((" + beläge.verbinde(", ") + ")) für " + preis.euro()));
+    }
+}
+
 speisekarte klasse Typenkunde {
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
         salami stücke = 8;              // Ganzzahl
@@ -28,17 +45,18 @@ speisekarte klasse Typenkunde {
             Bote.sage(("TypAnanas: 7.5 passt nicht in eine salami-Variable."));
         }
 
-        // Pizza-Literale: Beläge von unten nach oben
-        Pizza basis = ((Tomate, Mozzarella));
-        Pizza klassiker = basis + Basilikum;   // + erzeugt eine NEUE Pizza
-        Bote.sage(("Basis: " + basis));
-        Bote.sage(("Klassiker: " + klassiker + " für " + klassiker.preis().euro()));
-        Bote.sage(("Beläge: " + klassiker.beläge().verbinde(" + ")));
-        Bote.sage(("Anzahl Beläge: " + klassiker.anzahlBeläge()));
-        Bote.sage(("Mit Basilikum? " + klassiker.hat(Basilikum)));
+        // Eigene Klassen sind auch Typen: Luigis Pizza hat Sorte, Beläge und Preis.
+        Pizza klassiker = neu Pizza("Margherita", ["Tomate", "Mozzarella", "Basilikum"], 8.00);
+        Bote.sage(("Klassiker: " + klassiker));          // nutzt alsText()
+        Bote.sage(("Beläge: " + klassiker.beläge.verbinde(" + ")));
+        Bote.sage(("Anzahl Beläge: " + klassiker.beläge.länge()));
+        Bote.sage(("Mit Basilikum? " + klassiker.beläge.enthält("Basilikum")));
 
-        Pizza feurig = klassiker + Salami + Chili;
-        Bote.sage(("Feurig: " + feurig + " für " + feurig.preis().euro()));
-        Bote.sage(("Entschärft: " + (feurig - Chili)));
+        // Auch eine Pizza-Variable ist streng: Ein Text ist keine Pizza.
+        probier {
+            Pizza falsch = "Calzone";
+        } verbrannt (TypAnanas a) {
+            Bote.sage(("TypAnanas: " + a.nachricht()));
+        }
     }
 }

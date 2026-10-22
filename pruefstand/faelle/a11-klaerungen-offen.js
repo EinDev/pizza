@@ -6,7 +6,5 @@ const { P, F } = require("../lib/helfer");
 const O = "§15 Klärungen – Umsetzung offen";
 
 module.exports = [
-  // ── K-077/078 Zufall ─────────────────────────────────────────────────────
-
-  // ── K-085 Zahlformat ─────────────────────────────────────────────────────
+  // (derzeit keine offenen Klärungen – K-105 ist umgesetzt, die Fälle stehen in a10-klaerungen.js)
 ];

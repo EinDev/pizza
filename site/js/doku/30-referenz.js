@@ -26,13 +26,13 @@
           tier: 1,
           code: z(
             "Bote.sage((\"Bestellung Nr. \" + 42));",
-            "Pizza p = ((Tomate, Mozzarella));",
-            "Bote.sage((p));",
+            "Dauer backzeit = 90s;",
+            "Bote.sage((backzeit));",
             "Bote.sage(([1, 2, 3]));",
             "Bote.fehler((\"Kein Basilikum mehr!\"));"
           )
         },
-        { art: "ausgabe", text: z("Bestellung Nr. 42", "((Tomate, Mozzarella))", "[1, 2, 3]", "Kein Basilikum mehr!") },
+        { art: "ausgabe", text: z("Bestellung Nr. 42", "1min 30s", "[1, 2, 3]", "Kein Basilikum mehr!") },
         {
           art: "details",
           titel: "Alle Methoden des Boten",
@@ -62,8 +62,6 @@
                 ["Text", "roh, ohne Anführungszeichen"],
                 ["Blech", "`[1, 2, 3]` – Texte darin ohne Anführungszeichen"],
                 ["Speisekarte", "`{a: 1, b: 2}`"],
-                ["Pizza", "`((Tomate, Mozzarella))`, leer: `(())`"],
-                ["Belag", "sein Name, z. B. `Salami`"],
                 ["Dauer", "`1min 30s`, `90ms`, `2h`, `3d 4h`; größte Einheit zuerst, Nullteile fallen weg; `0ms`; negativ mit `-`"],
                 ["Objekt", "Ergebnis von `alsText()`, sonst `Klassenname@N` (N = laufende Nummer ab 1)"],
                 ["Ananas", "`Typ: Nachricht`"],
@@ -455,7 +453,7 @@
           ausfuehrbar: true,
           tier: 1,
           code: z(
-            "funghi preis = ((Tomate, Mozzarella, Basilikum)).preis();",
+            "funghi preis = 5 + 1 + 1.5 + 0.5;   // Teig, Tomate, Mozzarella, Basilikum",
             "Bote.sage((preis.euro()));",
             "funghi pi = 3.14159;",
             "Bote.sage((pi.runden(2)));",
@@ -481,7 +479,7 @@
               ["`ganz()`", "Nachkommastellen abschneiden (nicht runden!)", "`-7.9` → `-7`"],
               ["`alsText()`", "Als Text", "`7.5` → `\"7.5\"`"],
               ["`tausender()` / `tausender(n)`", "Als Text mit Tausenderpunkten und Dezimalkomma, kaufmännisch auf `n` Stellen (Standard 0)", "`1234567.tausender(2)` → `\"1.234.567,00\"`"],
-              ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
+              ["`kompakt()` / `kompakt(n)`", "Kurz mit Stufe (`Tsd.`, `Mio.`, `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.` … bis `Dezd.`, darüber `1,5 × 10⁷⁰`), höchstens `n` Nachkommastellen (Standard 2), ohne Nullen am Ende", "`1234567.kompakt()` → `\"1,23 Mio.\"`"],
               ["`euro(kompakt: ja)`", "Eurobetrag in Kurzform", "`1234567.euro(kompakt: ja)` → `\"1,23 Mio. €\"`"]
             ]),
             {
@@ -498,7 +496,7 @@
               )
             },
             { art: "ausgabe", text: z("3", "-7", "7.9", "3.14159!") },
-            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; ab 10²¹ bleibt es bei der Exponent-Schreibweise (`1,5e+22`)." },
+            { art: "text", md: "**Große Zahlen lesbar machen** – praktisch für Spielstände und Kassen: `tausender` setzt Punkte, `kompakt` kürzt ab. Unter 1000 gibt es keine Stufe, nur das Komma; weiter geht es mit `Trd.`, `Quadr.`, `Quadrd.`, `Quint.` … bis `Dezd.` (10⁶³), darüber `1,5 × 10⁷⁰`. `tausender` und `euro()` wechseln ab 10²¹ in dieselbe Kurzform; Unendlich wird `∞`. Nur die rohe Textform (`Bote.sage((x))`) bleibt bei `2.5e+21`." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -643,7 +641,7 @@
               ["`entferne(i)`", "**ändert**", "Entfernt das Element an Position `i` und gibt **das Element** zurück", "`b.entferne(1)` → `3`"],
               ["`setze(i, x)`", "**ändert**", "Ersetzt das Element an Position `i`, gibt das Blech zurück", "`b.setze(2, 7)`"],
               ["`kopie()`", "neu", "Unabhängige Kopie", "`Blech<salami> k = b.kopie();`"],
-              ["`enthält(x)`", "–", "Ist `x` drauf? (Pizzen werden nach Belägen verglichen)", "`b.enthält(4)` → `ja`"],
+              ["`enthält(x)`", "–", "Ist `x` drauf? Zahlen, Texte, Dauern nach Wert; Bleche und Objekte nach Identität", "`b.enthält(4)` → `ja`"],
               ["`belege(fn)`", "neu", "map: wendet `fn` auf jedes Element an", "`b.belege(x -> x * 2)`"],
               ["`brigade(fn)`", "neu", "wie `belege`, aber jedes Element in einer eigenen Küche – gleichzeitig, Hauptküche nur lesbar (siehe *Küchenbrigade*)", "`b.brigade(x -> x * 2)`"],
               ["`filtere(fn)`", "neu", "Behält nur Elemente, für die `fn` `ja` liefert", "`b.filtere(x -> x > 2)`"],
@@ -737,7 +735,7 @@
               ["`länge()`", "Anzahl Einträge", "`karte.länge()`"],
               ["`istLeer()`", "Gibt es gar keinen Eintrag?", "`karte.istLeer()`"]
             ]),
-            { art: "text", md: "**Was taugt als Schlüssel?** Zahlen, Texte, `ja`/`nein` und `karton` zählen nach ihrem **Wert** (`1` und `1.0` sind derselbe Schlüssel, `\"1\"` ein anderer). Beläge zählen nach ihrem Namen (`hole(Salami)` = `hole(\"Salami\")`), `quattrostagioni`-Werte als solche. Alles andere – Pizzen, Dauern, Bleche, Objekte – zählt nach **Identität**: nur genau dasselbe Ding findet den Eintrag wieder." },
+            { art: "text", md: "**Was taugt als Schlüssel?** Zahlen, Texte, `ja`/`nein` und `karton` zählen nach ihrem **Wert** (`1` und `1.0` sind derselbe Schlüssel, `\"1\"` ein anderer), `quattrostagioni`-Werte als solche. Alles andere – Dauern, Bleche, Objekte – zählt nach **Identität**: nur genau dasselbe Ding findet den Eintrag wieder." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -791,12 +789,12 @@
           )
         },
         { art: "ausgabe", text: "Besuch Nr. 1" },
-        { art: "text", md: "Beim nächsten Lauf steht dort `Besuch Nr. 2`, dann `3` … Die Doku führt Beispiele ohne Speicher aus – darum steht hier immer `1`, und die Konsole zeigt die Warnung **W0101** (siehe unten)." },
+        { art: "text", md: "Beim nächsten Lauf steht dort `Besuch Nr. 2`, dann `3` … Die Zahl oben (`1`) ist die Ausgabe beim allerersten Lauf. Backst du das Beispiel im Playground (Knopf „Backen“ an diesem Block), läuft es in einem eigenen Tab mit echtem Speicher: Jedes weitere Backen zählt hoch (`2`, `3` …). Dieser Beispiel-Stand ist vom Stand deiner eigenen Programme getrennt (siehe unten). Nur die automatischen Tests der Doku laufen ganz ohne Speicher." },
         {
           art: "details",
           titel: "Alle Methoden der Vorratskammer",
           inhalt: [
-            { art: "text", md: "`neu Vorratskammer(name)` öffnet die Kammer mit diesem Namen – gibt es sie noch nicht, ist sie leer. Der Name besteht aus Kleinbuchstaben `a–z`, Ziffern und `-` (1–40 Zeichen), z. B. `\"pizza-imperium\"`; sonst gibt es eine `LaufzeitAnanas`. Zweimal `neu` mit demselben Namen öffnet dieselbe Kammer." },
+            { art: "text", md: "`neu Vorratskammer(name)` öffnet die Kammer mit diesem Namen – gibt es sie noch nicht, ist sie leer. Der Name besteht aus Kleinbuchstaben `a–z`, Ziffern und `-` (1–40 Zeichen), z. B. `\"pizza-imperium\"`; sonst gibt es eine `LaufzeitAnanas`. Optional kommt ein **Namensraum** dazu – `neu Vorratskammer(\"spielstand\", namensraum: \"pizza-imperium\")` (auch ohne `namensraum:` als zweites Argument; `karton` heißt „ohne“). Für ihn gelten dieselben Zeichenregeln, sonst `LaufzeitAnanas: Ungültiger Namensraum '…' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` Die **Kennung** der Kammer ist dann `raum/name` (`pizza-imperium/spielstand`) – so erscheint sie in der Textform `Vorratskammer(pizza-imperium/spielstand)` und in Fehlertexten. Zweimal `neu` mit derselben Kennung öffnet dieselbe Kammer; `neu Vorratskammer(\"a\")` und `neu Vorratskammer(\"a\", namensraum: \"x\")` sind zwei verschiedene. Wozu der Namensraum gut ist, steht unten unter *Ein Spielstand für alle Fassungen deines Spiels*." },
             tab([
               ["`lege(schlüssel, wert)`", "Legt `wert` ab (überschreibt) und speichert **sofort**; gibt die Kammer zurück (verkettbar)", "`v.lege(\"punkte\", 120)`"],
               ["`hole(schlüssel)`", "Gespeicherter Wert; fehlt er → `karton`", "`v.hole(\"punkte\")`"],
@@ -806,7 +804,8 @@
               ["`schlüssel()`", "Blech aller Schlüssel, in der Reihenfolge des ersten Ablegens", "`v.schlüssel()`"],
               ["`länge()`", "Anzahl Einträge", "`v.länge()`"],
               ["`leeren()`", "Räumt die ganze Kammer leer (z. B. für „Neues Spiel“)", "`v.leeren();`"],
-              ["`name()`", "Name der Kammer", "`v.name()`"]
+              ["`name()`", "Name der Kammer (ohne Namensraum)", "`v.name()`"],
+              ["`namensraum()`", "Namensraum der Kammer als Text – ohne Namensraum `karton`", "`v.namensraum()`"]
             ]),
             {
               art: "code",
@@ -827,9 +826,35 @@
         },
         {
           art: "details",
+          titel: "Ein Spielstand für alle Fassungen deines Spiels (Namensraum)",
+          inhalt: [
+            { art: "text", md: "Ohne Namensraum gehört eine Kammer dem **Tab**, in dem das Programm läuft: Ein Beispiel aus der Galerie hat einen anderen Stand als derselbe Code in deinem eigenen Tab. Das ist beim Ausprobieren genau richtig – aber nicht für ein Spiel, das du über Jahre weiterbaust: Du teilst Fassung 2 per App-Link, Fassung 3 öffnest du im Editor, und überall soll derselbe Spielstand weitergehen.\n\nDafür gibst du der Kammer einen **Namensraum**: `neu Vorratskammer(\"spielstand\", namensraum: \"pizza-imperium\")`. Damit erklärst du: „Das ist **ein** Spielstand, wo immer dieses Programm läuft.“ Im Playground teilen sich eigene Tabs, Beispiele, geteilte Tabs und App-Links jeder Fassung den Eintrag `pizza.vorrat.pizza-imperium/spielstand` im Browser; heruntergeladenes Programm und Kommandozeile teilen sich die Datei `…/pizza/vorrat/pizza-imperium/spielstand.json`. Browser und Programm bleiben weiterhin getrennt. Mehrere Kammern desselben Spiels (`spielstand`, `erfolge`, `einstellungen`) bekommen einfach denselben Namensraum." },
+            { art: "text", md: "**Umzug eines alten Spielstands:** Hat dein Spiel bisher ohne Namensraum gespeichert, öffnest du beide Kammern, kopierst die Einträge einmalig in die neue und leerst die alte. Im Beispiel-Tab findet das Programm so den Beispiel-Stand, im App-Link den echten – beide landen im gemeinsamen Raum. Dieser Block hat bewusst keinen „Backen“-Knopf: Der Namensraum `spiel` würde sonst in deinem echten Vorrat (`pizza.vorrat.spiel/stand`) landen. Du kannst ihn mit „In neuem Editor-Tab öffnen“ ansehen und anpassen (eigener Namensraum!). Die Ausgabe unten stammt aus einem Lauf mit vorgefüllter alter Kammer (`punkte = 120`); ohne alten Stand gäbe es nichts umzuziehen und statt `120` stünde dort `karton`:" },
+            {
+              art: "code",
+              nurTest: true, // Doku-Test führt aus, aber kein „Backen“-Knopf (Namensraum würde den echten Vorrat berühren)
+              tier: 1,
+              vorrat: { spiel: [["punkte", 120]] },
+              vorratErwartet: [{ name: "spiel/stand", schluessel: "punkte", wert: 120 }, { name: "spiel", schluessel: null, wert: null }],
+              code: z(
+                "Vorratskammer alt = neu Vorratskammer(\"spiel\");                        // bisher",
+                "Vorratskammer stand = neu Vorratskammer(\"stand\", namensraum: \"spiel\"); // ab jetzt",
+                "falls (stand.länge() == 0 && alt.länge() > 0) {",
+                "  für (margherita k : alt.schlüssel()) { stand.lege(k, alt.hole(k)); }",
+                "  alt.leeren();",
+                "}",
+                "Bote.sage(stand, stand.namensraum(), stand.name(), stand.hole(\"punkte\"), alt.länge());"
+              )
+            },
+            { art: "ausgabe", text: "Vorratskammer(spiel/stand) spiel stand 120 0" },
+            { art: "text", md: "Beim zweiten Lauf ist die alte Kammer leer, die Bedingung greift nicht mehr – der Umzug passiert nur einmal. Die leere alte Kammer kannst du später mit **„Vorrat löschen“** ganz entfernen." }
+          ]
+        },
+        {
+          art: "details",
           titel: "Was passt hinein?",
           inhalt: [
-            { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Pizzen, Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
+            { art: "text", md: "- **Schlüssel** sind Texte.\n- **Werte:** Zahlen, Texte, `ja`/`nein`, `karton` sowie Bleche und Speisekarten daraus (auch verschachtelt, Speisekarten mit Text-Schlüsseln). Dauern, Objekte, Funktionen, `NaN` und `Infinity` lassen sich nicht einlagern → `TypAnanas: '…' lässt sich nicht einlagern (…).`\n- **Kopien:** `lege` und `hole` kopieren den Wert. Änderst du danach ein geholtes Blech, ändert sich die Kammer nicht – erst wieder mit `lege`.\n- **Platz:** höchstens 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms. Ist es voll, gibt es `LaufzeitAnanas: Die Vorratskammer '…' ist voll (Limit 1 MiB).` und die Änderung wird verworfen. Für Spielstände reicht das locker.\n- **Sofort gespeichert:** Jede Änderung (`lege`, `entferne`, `leeren`) wird sofort gesichert – auch wenn das Programm danach abstürzt oder abgebrochen wird." }
           ]
         },
         {
@@ -840,13 +865,14 @@
               art: "tabelle",
               kopf: ["Wo das Programm läuft", "Wo der Vorrat liegt"],
               zeilen: [
-                ["Playground", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser). Tabs, die du aus **Beispiele** oder dieser Doku öffnest, haben einen **eigenen** Spielstand – so verfälscht das Ausprobieren eines Beispiels nie den Stand deiner eigenen Programme."],
-                ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`"],
-                ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`)"]
+                ["Playground (ohne Namensraum)", "im Speicher deines Browsers (nur auf diesem Gerät, in diesem Browser). Die Kammer gehört dem **Tab**: Tabs, die du aus **Beispiele** oder dieser Doku öffnest, haben einen **eigenen** Spielstand – so verfälscht das Ausprobieren eines Beispiels nie den Stand deiner eigenen Programme."],
+                ["Playground (mit Namensraum)", "ebenfalls im Speicher deines Browsers, als `pizza.vorrat.<raum>/<name>` – die Kammer gehört dem **Programm**: eigene Tabs, Beispiele, geteilte Tabs und App-Links jeder Fassung teilen sich diesen Stand."],
+                ["Windows (`.exe`, Kommandozeile)", "als Datei `%APPDATA%\\pizza\\vorrat\\<name>.json`, mit Namensraum `%APPDATA%\\pizza\\vorrat\\<raum>\\<name>.json`"],
+                ["Linux (Programm, Kommandozeile)", "als Datei `~/.local/share/pizza/vorrat/<name>.json` (bzw. unter `$XDG_DATA_HOME`), mit Namensraum `…/vorrat/<raum>/<name>.json`"]
               ]
             },
-            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand: Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an. Heruntergeladenes Programm und Kommandozeile (`node bin/pizza.js`) nutzen dagegen **denselben** Ordner und damit denselben Stand." },
-            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` (eine Kammer) bzw. `--vorrat-loeschen-alle` (alle). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
+            { art: "text", md: "Playground und heruntergeladenes Programm verhalten sich gleich – nur der Speicherort ist ein anderer. Darum teilen sie sich auch **keinen** Spielstand (auch nicht mit Namensraum): Wer im Browser spielt und dann die `.exe` startet, fängt dort neu an. Heruntergeladenes Programm und Kommandozeile (`node bin/pizza.js`) nutzen dagegen **denselben** Ordner und damit denselben Stand." },
+            { art: "text", md: "**Vorrat löschen:** Im Programm selbst mit `v.leeren()` – etwa hinter einem Knopf „Neues Spiel“. Von außen gibt es dafür überall denselben Befehl **„Vorrat löschen“**: im Playground in der Befehlspalette (`F1` → „Vorrat löschen“; Kammern mit Namensraum stehen dort als `raum/name`), beim heruntergeladenen Programm und in der Kommandozeile als `--vorrat-loeschen <name>` bzw. `--vorrat-loeschen raum/name` (eine Kammer) oder `--vorrat-loeschen-alle` (alle – auch die Kammern in Namensraum-Ordnern). Die Rückmeldung lautet `Vorrat '<name>' gelöscht.`, `Vorrat '<name>' gibt es nicht.` bzw. `Alle Vorräte gelöscht.` – siehe *Kommandozeile & Programm-Optionen*. Einen Dialog zum Ansehen gibt es absichtlich nicht – der Vorrat gehört deinem Programm. In der Kommandozeile startet `--kein-vorrat` einen Lauf, der nichts liest und nichts speichert; `--vorrat=ordner` legt die Dateien in einen eigenen Ordner." },
             { art: "hinweis", ton: "info", md: "**W0101:** Kann nirgends gespeichert werden (z. B. in dieser Doku, in Tests oder mit `--kein-vorrat`), meldet pizza einmal `W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.` Die Kammer funktioniert dann trotzdem – nur eben bis zum Programmende." }
           ]
         }
@@ -1150,7 +1176,7 @@
       titel: "Keyword-Spickzettel",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "Alle 40 reservierten Wörter von pizza v3.0 auf einen Blick – mit dem passenden Java-Wort daneben." },
+        { art: "kurz", md: "Alle 38 reservierten Wörter von pizza v3.0 auf einen Blick – mit dem passenden Java-Wort daneben." },
         { art: "hinweis", ton: "info", md: "**Groß-/Kleinschreibung zählt:** `speisekarte` ist ein Keyword, `Speisekarte` ein Typ. Und `pizza` ist seit v3.0 **kein** Keyword mehr – `pizza`, `Pizza` und `PiZZa` sind ganz normale Namen." },
         {
           art: "tabelle",
@@ -1162,8 +1188,6 @@
             ["`rezeptur`", "interface", "Fehlende Methode → `R0001`"],
             ["`rohling`", "abstract", "nicht essbar → `RohlingAnanas`"],
             ["`calzone`", "– (versiegelte Kapselung)", "`Spiegel` kommt nicht rein, `aufklappen()` → `W0013`"],
-            ["`belag`", "– (Decorator)", "`belag Trüffel auf Pizza { … }`"],
-            ["`auf`", "–", "Ziel eines `belag`"],
             ["`quattrostagioni`", "enum", "genau 4 Werte, sonst `Q0004`"],
             ["`erbt`", "extends", ""],
             ["`erfüllt`", "implements", ""],
@@ -1175,7 +1199,7 @@
             ["`leer`", "void", ""],
             ["`neu`", "new", ""],
             ["`dies`", "this", ""],
-            ["`unten`", "super", "die Schicht darunter"],
+            ["`unten`", "super", "die Eltern-Klasse – die Basis liegt unten"],
             ["`serviere`", "return", "**Klammerpflicht**: `serviere (x);`, sonst `K0001`"],
             ["`falls`", "if", "Klammern Pflicht"],
             ["`sonst`", "else", "`sonst falls` = else if"],
@@ -1210,11 +1234,11 @@
             ["`Dauer`", "Duration", "Zeitdauer"],
             ["`Blech<T>`", "List<T>", "Liste"],
             ["`Speisekarte<K, V>`", "Map<K, V>", "Map"],
-            ["`Pizza`", "–", "Pizza mit Belägen"],
             ["`hawaii`", "–", "kompiliert. Mehr sagen wir dazu nicht."]
           ]
         },
-        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
+        { art: "text", md: "Dazu kommen die Typen der Pizza-Funktionen (`Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Reste<T>`), die Theke-Zutaten und **deine eigenen Klassen** – jede Klasse ist auch ein Typ." },
+        { art: "text", md: "**Eingebaute Funktionen und Objekte** – ebenfalls keine Keywords: `teig`, `bestelle`, `schieb`, `zwischenstand` sowie `Bote` (`sage`, `schreibe`, `fehler`, `leeren`), `Bestellannahme` (`lies`, `frage`, `liesZahl`, `frageZahl`, `hatMehr`), `Uhr`, `Mathe`, `Zufall` (auch `neu Zufall(saat)`), `Spiegel`, `Vorratskammer` – und für Fenster die Theke-Zutaten `Theke`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe`, `Abschnitt`, `Reiter`, `Fortschritt`, `Tabelle`, `Takt`. `auto` gibt es nur als Argument von `schneide(auto)`." },
         { art: "text", md: "**Einstieg `hauptgang`:** Es zählt nur der Name. Gestartet wird der `hauptgang` der ersten Klasse im Quelltext, gibt es keinen, eine Top-Level-Funktion `hauptgang`. Er darf ohne Parameter auskommen; hat er einen, bekommt der das `Blech<margherita>` der Programm-Argumente. Mehr als ein Parameter ist ein Fehler, ein Rückgabewert wird ignoriert." }
       ]
     },
@@ -1237,7 +1261,6 @@
             ["`P0011`", "Eine `gebacken`e (finale) Klasse soll mit `erbt` erweitert werden.", "2"],
             ["`P0012`", "`abbrechen` oder `weiter` steht außerhalb einer Schleife – zum Beispiel direkt in einer Methode.", "2"],
             ["`K0001`", "„Klammerpflicht!“ – `serviere x;` statt `serviere (x);`.", "2"],
-            ["`B0012`", "`@Nach`-Verstoß: ein Belag liegt unter dem, auf den er gehört. „Das ist keine Pizza, das ist ein Auflauf.“", "2"],
             ["`R0001`", "Eine Klasse `erfüllt` eine Rezeptur, aber eine Methode fehlt.", "2"],
             ["`Q0004`", "`quattrostagioni` hat nicht genau 4 Werte.", "2"],
             ["`A0001`", "`@PizzaÜberschreibt` an einer Methode, die es in Basisklasse/Rezeptur nicht gibt.", "2"]
@@ -1251,7 +1274,7 @@
             ["`W0003`", "Erster Aufruf einer `@PizzaVeraltet`-Methode (einmal pro Methode)", "Grund aus der Annotation"],
             ["`W0013`", "`aufklappen()` auf einer Calzone", "„Garantie erloschen. Das ist jetzt eine ganz normale Pizza.“"],
             ["`W0032`", "Zwei Namen im selben Scope unterscheiden sich nur in Groß-/Kleinschreibung", "„Selbst der Pizzaiolo verwechselt die beiden.“"],
-            ["`W0666`", "Typ `hawaii` oder Belag-Bezeichner für die Frucht, die man nicht nennt, im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
+            ["`W0666`", "Typ `hawaii` im Quelltext (genau einmal pro Programm)", "„Der Pizzaiolo sagt nichts. Er schaut nur.“"],
             ["`S0007`", "`schneide(7)`", "„7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“"],
             ["`T0007`", "`backen()` ohne vorheriges `gehenlassen()`", "„Das schmeckt flach.“"],
             ["`W0100`", "`theke.bediene()`, wo es nie ein Fenster gibt (Tests, Doku, `node bin/pizza.js`, `PIZZA_THEKE=0`) – ein heruntergeladenes Programm ohne möglichen Bildschirm bricht dagegen mit Exit 2 ab", "„Keine Theke verfügbar – Fenster wird nicht angezeigt.“"],
@@ -1290,13 +1313,13 @@
                 "Bote.sage((neu Kasse().summe()));"
               )
             },
-            { art: "text", md: "Und ein `B0012` – Käse gehört **auf** die Tomate, nicht darunter:" },
+            { art: "text", md: "Und ein `Q0004` – drei Jahreszeiten sind keine Quattro Stagioni:" },
             {
               art: "code",
               ausfuehrbar: true,
               exitCode: 2,
               tier: 1,
-              code: "Pizza auflauf = ((Käse, Tomate));"
+              code: "quattrostagioni Jahreszeit { FRÜHLING, SOMMER, WINTER }"
             }
           ]
         },
@@ -1318,7 +1341,7 @@
           zeilen: [
             ["`0`", "gegessen – alles gut"],
             ["`1`", "ungefangene Ananas"],
-            ["`2`", "PizzaFehler (Syntax, `B0012`, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
+            ["`2`", "PizzaFehler (Syntax, `R0001`, `Q0004`, `A0001`, `P0010`, `P0011`, `P0012`, `K0001` …) – das Programm startet gar nicht erst. Auch: ein `.pkarton`, das sich nicht laden lässt (`HOST`)."],
             ["`3`", "die Pizza ist noch im Ofen: Schrittlimit (`P0002`) erreicht"],
             ["`39`", "Hawaii. Der Pizzaiolo hat den Raum verlassen."]
           ]
@@ -1442,7 +1465,7 @@
                 ["Linux", "Erst ausführbar machen, dann starten: `chmod +x programm && ./programm`"]
               ]
             },
-            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground. Der **Spielstand** (Vorratskammer) liegt in `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`) – derselbe Ordner wie bei `node bin/pizza.js`, Programm und Kommandozeile teilen sich also den Stand." },
+            { art: "text", md: "Das Programm läuft im **Terminal**. `Bote.sage` schreibt dorthin, Fehler und – falls es so weit kommt – der Hawaii-Banner landen auf der Fehlerausgabe (*stderr*). Eingaben für die `Bestellannahme` tippst du direkt ein; **Strg+D** beendet die Eingabe (Windows: **Strg+Z**, dann Enter). Der Exit-Code des Programms ist derselbe wie im Playground. Der **Spielstand** (Vorratskammer) liegt in `%APPDATA%\pizza\vorrat` bzw. `$XDG_DATA_HOME/pizza/vorrat` (sonst `~/.local/share/pizza/vorrat`; Kammern mit Namensraum im Unterordner `<raum>/`) – derselbe Ordner wie bei `node bin/pizza.js`, Programm und Kommandozeile teilen sich also den Stand." },
             {
               art: "code",
               sprache: "shell",
@@ -1523,8 +1546,8 @@
             ["`--saat=N`", "Feste Zufalls-Saat. Ohne Option gibt es eine echte Saat, angezeigt als `Saat: N`"],
             ["`--vorrat=ordner`", "Vorratskammern in `ordner` statt im Standardordner ablegen"],
             ["`--kein-vorrat`", "Nichts lesen, nichts speichern – die Kammern leben nur im Speicher (Warnung `W0101`)"],
-            ["`--vorrat-loeschen <name>`", "Löscht die Kammer `<name>` und beendet sich (startet kein Programm)"],
-            ["`--vorrat-loeschen-alle`", "Löscht alle Kammern und beendet sich"],
+            ["`--vorrat-loeschen <kennung>`", "Löscht die Kammer `<name>` bzw. `raum/name` (mit Namensraum) und beendet sich (startet kein Programm)"],
+            ["`--vorrat-loeschen-alle`", "Löscht alle Kammern – auch die in Namensraum-Ordnern – und beendet sich"],
             ["`--info`", "Am Ende Exit-Code, Schritte und Uhr ausgeben"],
             ["`--debug`", "Bei internen Fehlern zusätzlich technische Details zeigen (sonst nie)"],
             ["`--ast`", "Nur den Syntaxbaum ausgeben, nichts ausführen – für Neugierige"],
@@ -1564,11 +1587,13 @@
                 "Vorrat 'pizza-imperium' gelöscht.",
                 "$ node bin/pizza.js --vorrat-loeschen pizza-imperium",
                 "Vorrat 'pizza-imperium' gibt es nicht.",
+                "$ node bin/pizza.js --vorrat-loeschen pizza-imperium/spielstand   # Kammer mit Namensraum",
+                "Vorrat 'pizza-imperium/spielstand' gelöscht.",
                 "$ node bin/pizza.js --vorrat-loeschen-alle",
                 "Alle Vorräte gelöscht."
               )
             },
-            { art: "text", md: "Ein ungültiger Name ergibt `Ungültiger Kammername '<name>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` mit Exit-Code 2. `--vorrat=ordner` lässt sich mit beiden Löschbefehlen kombinieren." }
+            { art: "text", md: "Eine ungültige Kennung ergibt `Ungültiger Kammername '<kennung>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` mit Exit-Code 2. `--vorrat=ordner` lässt sich mit beiden Löschbefehlen kombinieren." }
           ]
         },
         {
@@ -1605,7 +1630,7 @@
         },
         { art: "text", md: "Jeden Code-Block dieser Doku und jedes Beispiel übernimmst du mit **„Im Editor öffnen“**. Ein Lauf darf so lange dauern, wie er will – gestoppt wird nur durch das Schrittlimit (`P0002`, 5 000 000 Schritte, Exit-Code 3) oder durch dich: **Esc** bzw. **Abbrechen**." },
         { art: "text", md: "**Argumente:** Im Playground gibt es das Feld **„Argumente“**. Was du dort einträgst, bekommt `hauptgang(Blech<margherita> args)` als Blech von Texten – genau wie beim Aufruf in der Kommandozeile oder beim heruntergeladenen Programm (`./programm Luigi 3`). Ohne Eintrag ist das Blech leer." },
-        { art: "text", md: "**Zufall & Vorrat:** Oben in der Konsole steht bei jedem Lauf `Saat: N`; mit dem Häkchen **„feste Saat 42“** würfelt jeder Lauf gleich (siehe *Zufall*). Vorratskammern liegen im Speicher deines Browsers, Beispiel- und Doku-Tabs haben einen eigenen Spielstand. Aufräumen: Befehlspalette (`F1`) → **„Vorrat löschen“** (siehe *Vorratskammer*)." },
+        { art: "text", md: "**Zufall & Vorrat:** Oben in der Konsole steht bei jedem Lauf `Saat: N`; mit dem Häkchen **„feste Saat 42“** würfelt jeder Lauf gleich (siehe *Zufall*). Vorratskammern liegen im Speicher deines Browsers; Beispiel- und Doku-Tabs haben einen eigenen Spielstand – außer die Kammer trägt einen Namensraum, dann teilen alle Tabs denselben. Aufräumen: Befehlspalette (`F1`) → **„Vorrat löschen“** (siehe *Vorratskammer*)." },
         {
           art: "details",
           titel: "Code teilen",

@@ -129,7 +129,7 @@ console.log('▶ küchenbrigade (P2: Wasm inline + Klon-Vertrag)');
   for (const q of ['probier { wirf neu KüchenAnanas("x"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.typ() + a.nachricht())); }',
     'probier { Bote.sage(1); } verbrannt (KüchenAnanas a) { }', 'klasse K erbt KüchenAnanas { }\nBote.sage((neu K("k")));',
     'klasse KüchenAnanas erbt LaufzeitAnanas { }\nprobier { wirf neu KüchenAnanas("k"); } verbrannt (KüchenAnanas a) { Bote.sage((a.typ())); }']) {
-    pruefe('KüchenAnanas (Klasse 17) wie im Interpreter: ' + q.slice(0, 30), () => {
+    pruefe('KüchenAnanas (Klasse 15) wie im Interpreter: ' + q.slice(0, 30), () => {
       const r = vergleiche({ name: q, quelle: q, opt: {} });
       if (r.status !== 'gleich') throw new Error(r.status + ' ' + (r.grund || '') + (r.diffs || []).join(' '));
     });

@@ -4,7 +4,7 @@ salami x;
 funghi f;
 diavolo d;
 margherita m;
-Pizza p;
+Dauer p;
 Bote.sage((x + " " + f + " " + d + " " + m + " " + p));
 klasse K { salami s; funghi g; diavolo w; margherita t; Blech<salami> l; }
 K k = neu K();

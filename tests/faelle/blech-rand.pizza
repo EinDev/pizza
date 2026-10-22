@@ -32,7 +32,7 @@ Bote.sage((b));
 Bote.sage((b == c));
 Bote.sage((b.kopie() == b));
 Bote.sage(([karton, ja, "x", 1.5]));
-Bote.sage(([((Tomate)), Salami].enthält(((Tomate)))));
+Bote.sage(([1s, "a"].enthält(1s)));
 Bote.sage(([3, 1, 2].umdrehen()));
 Blech<salami> d = [5, 6];
 d.entferne(1);

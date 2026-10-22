@@ -172,10 +172,10 @@ K.f(1);
 K.f(-1);
 `, { out: ["negativ"] }),
 
-  F(S, "serviere ((Tomate, Mozzarella)); ist gültig (Kl. 16)", P`
-klasse K { tiefkühl Pizza f() { serviere ((Tomate, Mozzarella)); } }
+  F(S, "serviere ((x)); mit doppelten Klammern ist gültig (Kl. 16, K-105: kein Pizza-Literal)", P`
+klasse K { tiefkühl margherita f() { serviere (("Tomate, Mozzarella")); } }
 Bote.sage((K.f()));
-`, { out: ["((Tomate, Mozzarella))"] }),
+`, { out: ["Tomate, Mozzarella"] }),
 
   F(S, "probier / typisierte verbrannt-Zweige / rand", P`
 probier {

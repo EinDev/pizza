@@ -27,7 +27,7 @@ Blech<salami> c = b;
 c.hinzu(0);
 Bote.sage((b.länge()));
 Bote.sage(([[1, 2], [3]]));
-Bote.sage(([1, "a", ja, karton, 1.5, 2s, ((Tomate)), Tomate]));
+Bote.sage(([1, "a", ja, karton, 1.5, 2s, [2], "Tomate"]));
 Bote.sage(([].summe()));
 Bote.sage(([0.1, 0.2].summe()));
 Bote.sage(([3, 1, 2].sortiere((x, y) -> 0)));

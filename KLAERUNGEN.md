@@ -18,7 +18,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 
 ## Entscheidungen
 
-### K-001 Pizza-Literal und Aufrufklammern
+### K-001 Pizza-Literal und Aufrufklammern *(abgelöst durch K-105 – es gibt kein Pizza-Literal mehr)*
 - **Frage:** Zählt die Klammer eines Aufrufs zum Pizza-Literal? Ist `Bote.sage((Salami, Tomate))` gültig?
 - **Entscheidung:** Nein. Nur zwei Klammern in **Ausdrucksposition** bilden ein Literal. `Bote.sage((Salami))` übergibt
   den Belag-Wert `Salami`; `Bote.sage((Salami, Tomate))` ist ein Syntaxfehler P0001 (Argumentausdruck `(Salami, Tomate)`
@@ -152,7 +152,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Betroffen:** Interpreter-Parser (U-05, umgesetzt in 0d34810), `tests/differenz/korpus/kontrolle-ausserhalb-schleife.pizza` (U-15), Doku (U-07). Ergänzung für `wähle`-Ausdrücke: K-055.
 - **Status:** fest (Tests a10).
 
-### K-016 Besitzprüfung ist syntaktisch; `schieb` für alle Typen
+### K-016 Besitzprüfung ist syntaktisch; `schieb` für alle Typen *(Besitzprüfung abgelöst durch K-105; `schieb`-Teil gilt weiter)*
 - **Entscheidung:** BesitzAnanas nur, wenn die rechte Seite einer Deklaration/Zuweisung ein **Name oder Feldzugriff**
   ist (Klammern darum ändern nichts) und zu einer Pizza auswertet. `?:`, Blech-Literale, Methodenrückgaben
   (`m.hole(k)`, `s.pizza()`) lösen sie nicht aus. `schieb(x)` funktioniert für Variablen **jeden** Typs (danach
@@ -160,7 +160,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Begründung:** Laufzeit-Referenzzählung wäre teuer und schwer portabel; die syntaktische Regel ist stabil und lehrbar.
 - **Status:** fest.
 
-### K-017 Identität von Pizzen, Gleichheit und Schlüssel
+### K-017 Identität von Pizzen, Gleichheit und Schlüssel *(Pizza-/Belag-Teil abgelöst durch K-105; Schlüsselregeln gelten weiter)*
 - **Entscheidung:** Der `teile`-Zähler (`übrig`) hängt am Pizza-Objekt; `p + Belag`/`p - Belag` erzeugen eine neue
   Pizza mit `übrig() == 8`. `==` und `Blech.enthält` vergleichen Pizzen nach Belägen. **Speisekarten-Schlüssel**:
   Zahlen, Texte, Wahrheitswerte, `karton` nach Wert (`1` und `1.0` gleich), Beläge nach Name, quattrostagioni-Werte als
@@ -198,7 +198,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   §14.6), Dauern, Werte eines quattrostagioni; `diavolo`, Pizzen, Objekte → TypAnanas.
 - **Status:** fest.
 
-### K-023 Preisrundung und Sonderpreise
+### K-023 Preisrundung und Sonderpreise *(abgelöst durch K-105)*
 - **Entscheidung:** Für Standardbeläge wird je Schicht `runde2(preis_unten + Standardpreis)` gebildet (vermeidet
   `0.30000000000000004`); eigene `preis()`-Methoden liefern ungerundet. `Ananas.preis()` = 0; eigene Beläge ohne
   Tabellenpreis 1.00 (auch als `Belag.preis()`).
@@ -214,7 +214,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   `P0001: Unbekannte Escape-Sequenz '\x' im Text.`; Zeilenumbruch im Text → Syntaxfehler. §1 ergänzt um `\r`, `\'`.
 - **Status:** fest.
 
-### K-026 Hawaii-Auslöser präzisiert
+### K-026 Hawaii-Auslöser präzisiert *(Belag-Teil abgelöst durch K-105: nur noch Typ `hawaii` und `neu Hawaii(…)`)*
 - **Entscheidung:** Panik bei **jeder** Zuweisung an eine `hawaii`-Variable/-Feld/-Parameter – auch `karton`
   (`hawaii x = karton;`); Deklaration ohne Initialisierer → keine Panik. `Blech<hawaii>` → nur W0666. Der Belag-Wert
   `Ananas` allein (`Bote.sage((Ananas))`, `p.hat(Ananas)`, `p - Ananas`, `Ananas.preis()`) → keine Panik.
@@ -291,7 +291,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
 - **Begründung:** Kein Sentinel-Wert im Typsystem (Wasm-Laufzeit braucht keinen „Unbekanntes“-Typ).
 - **Betroffen:** Interpreter (U-21, umgesetzt in 0d34810). **Status:** fest (Test a10).
 
-### K-039 Pizza-Methoden mit Text
+### K-039 Pizza-Methoden mit Text *(abgelöst durch K-105)*
 - **Entscheidung:** `p.hat("Tomate")` akzeptiert einen Belagnamen als Text (gleich `p.hat(Tomate)`); `p + "x"` ist
   Textverkettung (§5: `+` mit Text). Beibehalten und dokumentieren (U-07).
 - **Status:** fest.
@@ -672,8 +672,8 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   `x.kompakt(n = 2)`: größte Stufe mit `|x| ≥ 10^k`: `Tsd.` 10³, `Mio.` 10⁶, `Mrd.` 10⁹, `Bio.` 10¹², `Brd.` 10¹⁵, `Trio.` 10¹⁸;
   Ergebnis = `runden(x / Stufe, n)` als Dezimaltext mit Komma **ohne** nachgestellte Nullen + Leerzeichen + Stufe
   (`1234567.kompakt()` → `1,23 Mio.`, `.kompakt(1)` → `1,2 Mio.`, `2000000.kompakt()` → `2 Mio.`, `1500.kompakt()` → `1,5 Tsd.`);
-  `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → JS-Textform mit
-  Komma (`1,5e+22`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
+  `|x| < 1000` → `runden(x, n)` mit Komma (`999.5.kompakt()` → `999,5`, `12.345.kompakt()` → `12,35`); `|x| ≥ 10²¹` → ~~JS-Textform mit
+  Komma (`1,5e+22`)~~ **ersetzt durch K-103** (weitere Stufen bis `Dezd.`, darüber `m × 10ⁿ`). `x.euro(kompakt: ja)` = `kompakt(2) + " €"`. Reine Textoperationen → identisch in allen Motoren.
 - **Betroffen:** Interpreter (U-48, umgesetzt in 4b7a2af), Compiler/Laufzeit (U-49), Doku (U-51). **Status:** fest (a10).
 
 ### K-086 Theke v2: `Fortschritt`, `Abschnitt`, `Tabelle`, `Reiter`, `hinweis`, `schrift: "riesig"`
@@ -937,7 +937,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   (`auto` = Standard, `1` = aus); `bin/pizza.js` akzeptiert `--koeche=N` ebenfalls (Interpreter: immer `Köche: 1`).
   (2) HOST-ABI: neue optionale Importgruppe `kueche` (`kueche_auftrag`, `kueche_bericht`) und Export `kueche_stueck` –
   **Entwurf**, abwärtskompatibel, `abi_version` bleibt 1; endgültig mit Paket P2. (3) IR: `KüchenAnanas` wird mit P2
-  Laufzeitklasse 17, eigene Klassen beginnen bei 18 (intern; jedes `.pkarton` bringt seine Laufzeit mit). Bis dahin meldet das
+  Laufzeitklasse 17, eigene Klassen beginnen bei 18 (seit K-105: Klasse 15, eigene ab 16; intern; jedes `.pkarton` bringt seine Laufzeit mit). Bis dahin meldet das
   Frontend `brigade`/`KüchenAnanas` als `nichtUnterstuetzt` (P1b, 37c88f2) → Playground „Auto“ nutzt den Interpreter.
 - **Begründung:** Die Anzahl der Köche ist eine Leistungsentscheidung des Hosts; die Sprache sieht sie nie.
 - **Festgehalten:** ARCHITEKTUR §1/§2/§6, IR.md §1, HOST-ABI §2/§3/§6/§7. **Status:** fest (Vertrag); Umsetzung U-64 … U-70.
@@ -945,7 +945,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 ### K-101 Küchenbrigade: Vertragslücken aus der Interpreter-Umsetzung (P1, 72cb857/f29baa7/8f922fd)
 - **Frage:** Der Interpreter-Agent meldete vier Stellen, an denen SPEC §17 schwieg oder sich widersprach. Entscheidung jeweils
   **wie umgesetzt** (die Umsetzung folgt an allen vier Stellen der sequentiellen Referenz, K-097/F8):
-  1. **Kartonfähigkeit von `Rohling<T>` (roh-Info) und Pizza-Sicht** (`unten` als Wert in einer Belag-Methode) – beide fehlten in
+  1. **Kartonfähigkeit von `Rohling<T>` (roh-Info) und Pizza-Sicht** (`unten` als Wert in einer Belag-Methode; Pizza-Sicht seit K-105 gegenstandslos) – beide fehlten in
      der Tabelle (THREADS §2.4 = SPEC §17.5). Entscheidung: **kartonfähig**, da beide auch aus `belege` als Werte zurückkommen
      (`roh (info) { serviere (info); }`, `serviere (unten)`) und keine Küchenmaschinerie tragen. Kopie: `Roh(…)` mit kopiertem
      Teilergebnis und gleicher `verbrauchteZeit()`; Sicht mit gleicher Schichtenzahl auf eine Pizza-Kopie. Die Tiefensuche
@@ -1001,6 +1001,33 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Betroffen:** SPEC §16.2 (Werte), §16.6 (`schwebe`); THEKE.md §1; Interpreter (`uiNeu`, Fortschritt-`setzeText`), Wasm-Laufzeit
   (`laufzeit/src/theke.rs`); Regressionsfall `tests/faelle/theke-texte-karton`, Prüfstand a13 (K-102); Doku-Referenz (Theke-Abschnitt,
   Agent site/js/doku). **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
+
+### K-103 Zahlformat für beliebig große Zahlen (Befund aus dem Pizza-Imperium: Kasse „2,0844997640411506e+21 €“)
+- **Frage:** `kompakt`, `euro()` und `tausender` fielen ab 10²¹ auf die JS-Exponentform (`1,5e+22`, `2,0844997640411506e+21 €`,
+  `2,08e+21`) zurück; ∞ ergab `Infinity,undefined €`. Idle-Spiele erreichen solche Zahlen in Minuten.
+- **Entscheidung (ersetzt die 10²¹-Regel aus K-085):**
+  - `x.kompakt(n)`: Stufen der deutschen langen Skala, größte mit `|x| ≥ 10^k`: `Tsd.` 10³, `Mio.` 10⁶, `Mrd.` 10⁹, `Bio.` 10¹²,
+    `Brd.` 10¹⁵, `Trio.` 10¹⁸, `Trd.` 10²¹, `Quadr.` 10²⁴, `Quadrd.` 10²⁷, `Quint.` 10³⁰, `Quintd.` 10³³, `Sext.` 10³⁶, `Sextd.` 10³⁹,
+    `Sept.` 10⁴², `Septd.` 10⁴⁵, `Okt.` 10⁴⁸, `Oktd.` 10⁵¹, `Non.` 10⁵⁴, `Nond.` 10⁵⁷, `Dez.` 10⁶⁰, `Dezd.` 10⁶³ (Regel wie K-085:
+    `runden(x / Stufe, n)`, Komma, ohne nachgestellte Nullen; Übertrag innerhalb der Stufe bleibt wie bisher: `999999.kompakt(0)` →
+    `1000 Tsd.`). Ab `|x| ≥ 10⁶⁶`: **`m × 10ᵉ`** mit hochgestelltem Exponenten (U+2070 ff., `×` U+00D7): Mantisse und Exponent aus
+    der kürzesten Ziffernfolge (= `x.toExponential()`, dieselben Ziffern wie die Textform), `m = runden(Mantisse, n)` mit Komma ohne
+    nachgestellte Nullen; ergibt die Rundung 10, wird daraus `1 × 10ᵉ⁺¹` (`9,999·10⁷⁰.kompakt()` → `1 × 10⁷¹`, `.kompakt(4)` →
+    `9,999 × 10⁷⁰`). Beispiele: `1,5 Trd.`, `15 Trd.` (1,5·10²²), `1,5 × 10⁶⁶`, `1 × 10³⁰⁰`, `-1 × 10³⁰⁰`.
+    Nie über `log10`/`pow` – nur Literal-Vergleiche, IEEE-Division und Ziffernfolge → bitgleich in allen Motoren.
+  - Unendlich/NaN in allen drei Formaten: `∞`, `-∞`, `NaN` (`euro`: `∞ €`).
+  - `x.tausender(n)` und `x.euro()` (ohne kompakt): unverändert bis `|x| < 10²¹`; ab `|x| ≥ 10²¹` sowie für ∞/NaN **wie
+    `kompakt(2)`** (`euro` mit ` €`): `2,08 Trd. €`, `2,08 Trd.`. Volle Ziffernreihen jenseits von 21 Stellen sind weder lesbar noch
+    exakt (nur 17 signifikante Stellen); die Grenze 10²¹ ist dieselbe, ab der JS selbst in die Exponentform wechselt.
+  - **Textform bleibt** (§14.11, K-005): `text(x)`, `"" + x`, `Bote.sage(x)`, `serviere` zeigen weiterhin `String(x)`
+    (`2.5e+21`, `Infinity`). Sie ist die rundreisefähige Rohform; lesbare Ausgabe ist Sache von `tausender`/`kompakt`/`euro`.
+- **Begründung:** Stufen bis Dezilliarde decken jedes realistische Spiel ab und lesen sich wie Zeitungssprache; darüber ist
+  `× 10ⁿ` kürzer und verständlicher als erfundene Kürzel. Textform zu ändern hätte hunderte Testausgaben und die Rundreise
+  `alsZahl(text(x))` berührt.
+- **Betroffen:** SPEC §14.11/Zahlformat, Interpreter (`kompaktText`/`tausenderText`/`euroText`), Wasm-Laufzeit (`laufzeit/src/zahl.rs`),
+  Regressionsfall `tests/faelle/k103-grosse-zahlen`, Prüfstand a10 (K-085 angepasst, K-103 neu), `tests/wasm/laufzeit-zahlen.js`,
+  Doku-Referenz. Idle-Beispiel: Wächter `summe < 10²¹ ? … : "unbezahlbar"` wird überflüssig; Sterne/Zähler mit `tausender()` formatieren.
+  **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, `test:differenz` grün).
 
 ### K-104 Küchenbrigade im Wasm: Umsetzungsentscheidungen und Vertragslücken aus P2 (U-66)
 - **Frage:** THREADS.md §4.3–§4.5 ließ beim Wasm-Motor einige Punkte offen bzw. als Entwurf. Entscheidung des Compiler-Agenten
@@ -1158,13 +1185,265 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 - **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
   bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅), Playground Punkt 13 (U-69 ✅), Harnische Punkt 14 (U-70 ✅).
 
+### K-105 Sprach-Bereinigung: das eingebaute Objekt `Pizza`, Beläge und alle Pizza-Fachlogik werden entfernt (Nutzerentscheidung)
+- **Anlass (Nutzer, wörtlich):** „Entferne Konstanten, sowas wie das Objekt ‚Pizza‘ – das ist Fachlogik und gehört auch nicht in eine
+  Spaß-Sprache wie die hier. Hier sollen nur Dinge, die in einer ordentlichen, sehr high-level Programmiersprache auch wären. Nur lustig
+  benannt und vielleicht ein paar merkwürdige Konzepte, das ist okay.“
+- **Leitlinie:** Ein eingebautes Ding **bleibt**, wenn es ein allgemeines Sprachkonzept ist, das eine gute High-Level-Sprache auch hätte
+  (nur pizza-lustig benannt), oder ein kleines, aber allgemeines „merkwürdiges Konzept“. Es geht **raus**, wenn es Domänendaten oder
+  Fachlogik einer Pizzeria ist (Rezepte, Preise, Zutatenkatalog, Schichtregeln, Stückzählung einer Pizza). Halb-Allgemeines wird
+  entfernt, wenn es nur über das Pizza-Objekt existiert – Beispiele definieren so etwas künftig selbst (eigene Klasse `Pizza`).
+- **Bestandsaufnahme (AST-gestützt, nicht per Textsuche):** 181 von 1071 Programmen/Codeblöcken nutzten Pizza-Fachlogik – 22 Beispiele
+  (davon 2 Idle), 54 `tests/faelle`, 14 Differenzkorpus, 1 `tests/wasm/faelle`, 22 Doku-Codeblöcke (und 3 ganze Doku-Abschnitte),
+  72 Prüfstand-Fälle (a06 komplett, dazu a03/a04/a05/a07/a08/a10/a13/a14). Alle eingebauten Objekte, Klassen, Konstanten und
+  Methoden wurden eingeordnet:
+
+  **RAUS (Fachlogik):**
+
+  | Was | Begründung |
+  |---|---|
+  | Typ `Pizza`, Pizza-Literal `((A, B))` / `(())`, `neu Pizza()` | das Domänenobjekt selbst (bisher SPEC §6) |
+  | Belag-Werte (großgeschriebener Name → Belag), die eingebaute **Zutatenliste** (24 Beläge mit Preisen und `@Nach`), **Grundpreis 5.00** | Katalogdaten einer Pizzeria |
+  | Pizza-Methoden `preis()`, `beläge()`, `hat()`, `anzahlBeläge()`, `übrig()`, `beschreibung()`; Belag-Methoden `name()`, `preis()`; `p + Belag`, `p - Belag`, `p += Belag`; `für (b : pizza)`; Beläge als Speisekarten-/Kühlschrank-Schlüssel; Pizza-Gleichheit nach Belägen | Rezept- und Preislogik |
+  | `belag X auf Pizza { … }` (Decorator-Dispatch mit `unten`-Sicht), Keywords `belag` und `auf` (nicht mehr reserviert), `@Nach(…)`, **PizzaFehler B0012** („Auflauf“) | Schichtregeln einer Pizza; damit gibt es keinen PizzaFehler mehr, der erst zur Laufzeit entsteht |
+  | `UnbekannterBelagAnanas` | nur für Beläge |
+  | `teile(p)`, Typ `Stück<T>`, `essen()`, `istGegessen()`, `pizza()`, `übrig()`, `BesitzAnanas`, Meldungen „Pizza ist alle.“ / „Dieses Stück ist schon gegessen.“ | Referenzzählung „8 Stücke je Pizza“ und die Besitzprüfung griffen ausschließlich auf Pizza-Werte (K-016/K-017). Abweichung von der Beispiel-Liste des Nutzers („Ownership schieb/teile“): `schieb` bleibt (unten); ein allgemeines `teile` für beliebige Objekte wäre ein neues Sprachkonzept (jede Zuweisung `Foo b = a;` würde zur BesitzAnanas) – falls gewünscht, als eigene Klärung neu entwerfen |
+  | Hawaii-Auslöser (b) „Pizza mit Belag `Ananas` entsteht“; W0666 für den bloßen Namen `Ananas` und für `Ananas` im Pizza-Literal | hingen am Belag; `Ananas` ist jetzt nur noch die Basisklasse der Ausnahmen (bloßer Name = Klassenwert, Textform `Ananas`, keine Warnung) |
+  | API `PizzaLang.BELAEGE`, `intern.BELAEGE`, `intern.GRUNDPREIS`; `TYPEN` ohne `Pizza`/`Stück`, `BUILTINS` ohne `teile`, `ANANAS` ohne `BesitzAnanas`/`UnbekannterBelagAnanas`, `KEYWORDS` ohne `belag`/`auf`; Editor-Highlighting und Autovervollständigung der Beläge | folgen der Sprache (ARCHITEKTUR §1, §5) |
+  | §17.5 Kartonfähigkeit: Zeilen Pizza, Pizza-Sicht, Belag, Stück; „Ein Stück“ in der Aufzählung nicht kartonfähiger Arten; K-101/3 „Pizza-Sicht kartonfähig“ | gegenstandslos |
+
+  **BLEIBT (allgemeine Konzepte, lustig benannt):** Typen `salami`/`funghi`/`margherita`/`diavolo`/`Dauer`/`Blech`/`Speisekarte`;
+  Modifikatoren, `rezeptur`, `quattrostagioni` (Enum mit genau 4 Werten – merkwürdig, aber allgemein), `calzone`/`aufklappen` (Kapselung),
+  Annotationen `@PizzaÜberschreibt`/`@PizzaVeraltet`/`@NieKarton`/`@Pizzaiolo`/`@Kühlschrank`; `Bote`, `Bestellannahme` (I/O), `Uhr`
+  (simulierte Zeit), `Mathe` (inkl. `PI`), `Zufall`, `Spiegel` (Reflection), `Vorratskammer` (Persistenz); `teig`/`backen` (Lazy),
+  `ofen`/`zwischenstand`/`roh` (Zeitbudget), `bestelle`/`Lieferung`/`trinkgeld`/`wennDa` (Async), `schneide`/`belege`/`zusammenklappen`/
+  `brigade` (Parallelität), `@Kühlschrank`/`mikrowelle`/`frisch` (Caching), **`schieb(x)`** (Move-Semantik für jede Variable, danach
+  `LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.`); alle Werte-Methoden inkl. `euro()`/`tausender()`/`kompakt()`
+  (Zahlformat); Ananas-Hierarchie samt `StreitAnanas` (faires Schneiden), `KeinStückAnanas` (Index), `UnbekanntePizzaAnanas` (= unbekannte
+  Klasse bei `neu`, Text „steht nicht auf der Speisekarte“ – genau die gewünschte „unbekannt“-Meldung); Hawaii-Easter-Egg mit Typ `hawaii`
+  (W0666, Panik bei Zuweisung) und `neu Hawaii(…)`; Theke mit Farbnamen `tomate|basilikum|…` (Themenfarben); alle Floskeln in Meldungen
+  („7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“, „Zu spät – die Pizza ist kalt.“, „Das ist jetzt eine ganz normale Pizza.“, „Zu viele
+  Pizzen übereinander“) – Humor, keine Fachlogik. Doppelte Klammern `Bote.sage(("Hallo"))` bleiben stilistisch erwünscht und bedeutungslos
+  (§5); der Parser braucht keine Literal-Heuristik mehr.
+- **Verhalten bei Nutzung entfernter Dinge** (wie bei jedem unbekannten Namen, keine Sonderbehandlung):
+  `Bote.sage((Tomate));` → `LaufzeitAnanas: 'Tomate' ist nicht definiert.` · `teile(x)` → `LaufzeitAnanas: 'teile' ist nicht definiert.` ·
+  `neu Pizza()` ohne eigene Klasse → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekarte.` · `((Tomate, Käse))`, `(())`,
+  `belag X auf Pizza { }` → Syntaxfehler P0001 · Typen `Pizza`, `Belag`, `Stück<…>` sind ungeprüfte unbekannte Typen (§14.6) · eine **eigene**
+  Klasse `Pizza` und eigene Variablen `Tomate` usw. funktionieren wie jede andere Klasse/Variable.
+- **Betroffen:** SPEC §1 (Keywords, Typen), §5 (Pizza-Literal, Textform), **§6 entfällt**, §7.5 (nur noch `schieb`), §8, §9, §11, §12, §14.5/§14.6/
+  §14.9/§14.11, §15.1/§15.2 (K-001, K-016, K-017, K-023, K-026, K-039 abgelöst), §17.3/§17.5; ARCHITEKTUR §1/§5; WASM.md §2; IR.md; README;
+  THEKE unverändert (nur Floskeln). Interpreter `site/js/pizza.js`, Compiler `site/js/pizzaiolo/{frontend,backend-wasm}.js`, Laufzeit
+  `laufzeit/src/{wert,namen,ops,pf,start,std_m,klassen}.rs` (Neubau `laufzeit.wasm`), UI `ui/src/{woerter,sprache,editor}.js` (Neubau
+  `app.bundle.js`), Host unverändert (die Laufzeit steckt im `.pkarton`). Beispiele, Doku, `tests/faelle`, Differenzkorpus, `tests/wasm/faelle`,
+  E2E `02-ausfuehrung` (Hawaii-Auslöser), Prüfstand (a06 ersetzt durch K-105-Fälle, Anpassungen in a03/a04/a05/a07/a08/a10/a13/a14).
+- **Idle (`site/beispiele/idle/**`, anderer Agent; Nutzerentscheidung: entfernt wird erst nach „Idle angepasst“):** zu ersetzen sind
+  `erste-pizzeria.pizza` Z. 8–9 (`Pizza margherita = ((Tomate, Mozzarella, Basilikum)); … margherita.preis()` → feste Zahl 8 oder eigene
+  Klasse) und `pizza-imperium.pizza` (Stand master 5e6bf55) Z. 372 (`Pizza rezept = ((…))`), Z. 374 (`Blech<Belag> SEITEN = [Salami, …]` →
+  `Blech<margherita>`), Z. 422 (`rezept.preis()`), Z. 447 (`rezept.beläge()`), Z. 684–685 (`Belag b = SEITEN.stück(seite); rezept = rezept + b;`),
+  Z. 815, 903, 1033 (`rezept = ((Tomate, Mozzarella, Basilikum))`), Z. 1036 (`rezept = rezept + SEITEN.stück(seite)`), Z. 2140 (Belag-Textform im
+  Knopf) – z. B. eigene Klasse `Rezept` mit `Blech<margherita>` Beläge und `Speisekarte` Preise (Grundpreis 5, Tomate 1, Mozzarella 1,5, Basilikum 0,5,
+  Salami 1,5, Pilze 1, Oliven 1, Parmesan 1,2, Rucola 1, Gorgonzola 1,5, Artischocken 1,5, Knoblauch 0,3 – dann bleiben alle Zahlen des Spiels gleich).
+- **Multithreading-Branch (`D:\Projekte\pizza-threads`, Merge-Hinweise – im Merge von master in `multithreading` erledigt: PKF1 ohne Tags 11/22/23, Stück-Status 3 frei, Name `brigade` = 190, Fuzz-Generator vereint):** `laufzeit/src/kueche.rs` kopiert `A_PIZZA`/`A_SICHT`/`A_STUECK`/
+  `A_BELAG` für PKF1 (Z. 188, 213, 226, 251–258, 342–348) – diese Zweige entfallen; `namen.rs` verliert `UnbekannterBelagAnanas`,
+  `BesitzAnanas` und die Belag-Namen (Indizes der Namen und der eingebauten Ananas verschieben sich – `frontend.js` „Klassenindex 18 + n“
+  und IR.md §1 werden zu „16 + n“); `laufzeit.wasm` ist ein Binärkonflikt (nach dem Merge neu bauen); `a14-kueche.js`, `kueche-*`-Fälle
+  und SPEC §17.5 verweisen auf Pizza-Sicht/Stück; Beispiel-/Test-/Doku-Dateien des Branches enthalten noch Pizza-Literale, falls dort
+  geändert (`besitz.pizza`, `schneiden.pizza`, `freitagabend-ansturm.pizza`, `hanoi.pizza`, Doku, `std-besitz.pizza` – auf diesem Branch zu `std-schieb.pizza` –, `teile-rand.pizza` – hier gelöscht –, `hawaii-pizza` – hier `hawaii-nicht-fangbar`).
+- **Status:** fest (Entscheidung). Umsetzung vollständig auf dem lokalen Branch `bereinigung-pizza-objekt` (Worktree `D:\Projekte\pizza-bereinigung`);
+  Merge nach master erst nach „Idle angepasst“. Prüfstand: K-105-Fälle in `a10-klaerungen.js` (vor dem Merge in `a11-klaerungen-offen.js`).
+### K-106 Vorratskammer: Namensraum – ein Spielstand für alle Fassungen eines Programms (Nutzerwunsch)
+- **Frage/Befund:** Nutzerwunsch „Namespaces im Savegame, sodass ein Spiel in mehreren Versionen dasselbe Storage verwendet.“
+  Befund im Code: Der Kammername ist **bereits** der geräteweite Schlüssel – im Playground teilen eigene Tabs, Datei-Tabs,
+  geteilte Tabs (`#h=`) und App-Links (`#app=`, jeder Teilen-Schlüssel) `localStorage["pizza.vorrat.<name>"]`, EXE und CLI
+  `<ordner>/<name>.json`. Getrennt ist nur der Beispiel-/Doku-Namensraum `pizza.vorrat-beispiel.<name>` (K-088 a) – und das
+  Idle-Spiel läuft als Beispiel: Galerie-Tab und App-Link haben verschiedene Stände. Zusätzlich fehlte eine Gruppierung mehrerer
+  Kammern eines Spiels und ein Weg, diese Zuordnung im Programm auszusprechen.
+- **Entscheidung – Sprache:** `neu Vorratskammer(name, namensraum)` – zweiter Parameter, positional oder benannt
+  (`neu Vorratskammer("spielstand", namensraum: "pizza-imperium")`, K-094/K-095). `namensraum` fehlend oder `karton` → **ohne**
+  Namensraum (alles wie bisher; typisierter Parameter nach K-102); sonst Textform des Werts, erlaubt `[a-z0-9-]{1,40}`, sonst
+  `LaufzeitAnanas: Ungültiger Namensraum 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).` (geprüft **nach** dem Kammernamen).
+  **Kennung** einer Kammer = `name` ohne bzw. `namensraum + "/" + name` mit Namensraum (`pizza-imperium/spielstand`). Die Kennung
+  ist der Schlüssel in `optionen.vorrat`, das erste Argument von `onVorrat(kennung, eintraege)`, das Feld `name` im Ereignis
+  `{ typ: "vorrat", name, schluessel, wert }` und in der Serialisierung (`{"v":1,"name":"<kennung>","eintraege":[…]}`), der Name
+  im HOST-ABI (`vorrat_lesen`/`vorrat_schreiben`, Signaturen unverändert), der Name in den Ananas-Texten (`Die Vorratskammer
+  'pizza-imperium/spielstand' ist voll (Limit 1 MiB).`, `… konnte nicht gespeichert werden.`, KüchenAnanas aus K-099) und die
+  Textform `Vorratskammer(pizza-imperium/spielstand)`. **Gleiche Kennung = gleiche Kammer** (ersetzt „gleicher Name“ aus K-079):
+  `neu Vorratskammer("a")` und `neu Vorratskammer("a", namensraum: "x")` sind zwei Kammern. Neue Methode `namensraum()` → Text
+  oder `karton`; `name()` bleibt der Kammername ohne Raum. Limits (1 MiB je Kammer, 2 MiB je Programm) unverändert. Bitgleich in
+  Interpreter und Wasm-Laufzeit.
+- **Entscheidung – Ablage (ergänzt K-088 a):** Ohne Namensraum gehört die Kammer dem **Tab**: Beispiel-/Doku-Tabs →
+  `pizza.vorrat-beispiel.<name>`, alle anderen → `pizza.vorrat.<name>` (K-088 bleibt). Mit Namensraum gehört die Kammer dem
+  **Programm**: im Browser immer `localStorage["pizza.vorrat.<raum>/<name>"]` – auch im Beispiel-/Doku-Tab, in geteilten Tabs und
+  App-Links jeder Fassung; nativ `<ordner>/<raum>/<name>.json` (EXE und `node bin/pizza.js` im selben Datenordner; `--vorrat=ordner`
+  und `--kein-vorrat` wirken wie bisher auf alle Kammern). Browser und native Ablage bleiben getrennt (verschiedene Speicher), das
+  Verhalten ist gleich. Begründung für die Beispiele: Der Namensraum ist die ausdrückliche Erklärung des Autors „dies ist **ein**
+  Spielstand, wo immer das Programm läuft“ – genau der Fall des Idle-Spiels; Lehrbeispiele ohne Namensraum bleiben isoliert und
+  können weiterhin nichts verfälschen. Tests fassen den echten Vorrat nie an: Prüfstand/run-tests/Doku-Blöcke arbeiten mit
+  `optionen.vorrat` im Speicher (bzw. W0101), `host/test.js` mit `--kein-vorrat`, E2E in frischen Browser-Kontexten.
+- **Verwaltung:** Playground „Vorrat löschen“ bietet die Kammern des aktiven Tab-Namensraums **und** alle Kammern mit Namensraum
+  (Anzeige mit Kennung `raum/name`); „Alle Vorräte löschen“ löscht genau diese Liste. CLI/EXE: `--vorrat-loeschen <kennung>`
+  (auch `raum/name`), `--vorrat-loeschen-alle` löscht zusätzlich alle `<raum>/<name>.json` gültiger Kennung (leer gewordene
+  Raum-Ordner werden entfernt); Texte `Vorrat 'raum/name' gelöscht.`, `Vorrat 'raum/name' gibt es nicht.`; ungültige Kennung →
+  Exit 2 `Ungültiger Kammername 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` (CLI und Host gleich).
+- **Sicherheit:** Host (Rust), CLI und Browser prüfen die Kennung **selbst** (höchstens ein `/`, beide Teile einzeln gegen
+  `[a-z0-9-]{1,40}`) und bauen Pfade nur aus den geprüften Teilen (`ordner.join(raum).join(name + ".json")`), nie aus dem Rohtext;
+  ungültige Kennung → `vorrat_lesen` liefert `-1`, `vorrat_schreiben` `-1` (Speicher-Ananas) – kein Pfad-Traversal, auch bei einem
+  manipulierten `.pkarton`.
+- **Kompatibilität:** Ohne Namensraum ändert sich nichts (Schlüssel, Dateien, Ereignisse, Texte, `.vorrat.json`). Die Migration
+  alter Stände ist Sache des Programms: alte Kammer (ohne Namensraum) öffnen, Einträge kopieren, alte Kammer leeren – im
+  Beispiel-Tab findet sie den Beispiel-Stand, im App-Link den echten, beide landen im gemeinsamen Raum.
+- **Betroffen:** SPEC §15.4 + Tabelle §15; Interpreter (`neueKammer`, Kammer-Identität, Textform, `namensraum()`); Wasm-Laufzeit
+  (`laufzeit/src/vorrat.rs`, Name `namensraum`); HOST-ABI (Kennungsform); Host (`laufen.rs` Validierung/Pfadbau, `main.rs` Löschen);
+  CLI (`bin/pizza.js`); UI (`ui/src/vorrat.js`, `main.js`, `app.js`); Doku-Referenz; Regressionsfälle `tests/faelle/k106-*`,
+  Prüfstand a10, `tests/differenz`, `host/test.js`, E2E (zwei App-Links mit gleichem Namensraum teilen den Stand; Beispiel-Tab mit
+  Namensraum schreibt nach `pizza.vorrat.`). Idle-Spiel (eigener Agent): `neu Vorratskammer("spielstand", namensraum: "pizza-imperium")`
+  + Migration. **Status:** fest, umgesetzt (Interpreter + Wasm bitgleich, Host, CLI, UI, Doku; `test:differenz`, E2E grün).
+
+### Theke v4 – Wünsche W1 … W7 des Idle-Agenten (THEKE-ERWEITERUNGEN.md §11.5): K-107 … K-113
+
+Gemeinsame Leitlinie (Nutzer: „keep it simple, but extendable“; nur, was eine ordentliche High-Level-Sprache/UI-Bibliothek auch
+hätte – keine Fachlogik; Browser = nativ, K-082): **Protokoll bleibt v1** – neue `art`, neue Felder, neue Ereignis-`typ`; alte
+Renderer zeigen für neue Zutaten den Platzhalter und ignorieren neue Felder/Ereignisse (K-064/K-067). Alle neuen Namen gehen in
+beiden Laufzeiten gleich (bitgleiche `ui`-Nachrichten, `test:differenz`). Zustands-/Optional-Regel K-102 gilt unverändert.
+Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeben.
+
+### K-107 Theke v4: `Reiter` – Titel ändern, Seiten ausblenden (W1)
+- **Frage:** Reiter erst zeigen, wenn eine Spielebene offen ist; Kennzeichen „•“ für Neues im Reitertitel.
+- **Entscheidung – Titel:** `reiter.setzeTitel(n, text)` → Reiter (verkettbar) und `reiter.titel(n)` → Text. `n` ist eine ganze Zahl
+  `1 … Seitenzahl` (Zahl der Kinder, wie `waehle`), sonst dieselbe Ananas wie `waehle`:
+  `KeinStückAnanas: Seite 7 gibt es nicht – der Reiter hat 2 Seiten.` (Textform von `n`, „1 Seite“ im Singular). `text` ist ein
+  **Zustandsfeld** (K-102): Textform jedes Werts, `karton`/fehlend → `"karton"`. Ist die Titelliste kürzer als `n`, wird sie mit `""`
+  aufgefüllt (der Renderer zeigt dort weiter „Seite k“). `titel(n)` liefert `""` für einen fehlenden Titel. Nachricht: Feld `titel`
+  als **ganze Liste** (wie `kinder`, K-057; ein Eintrag je Zutat, letzter Wert gewinnt).
+- **Entscheidung – Seiten ausblenden:** **kein neues Feld, keine neue Methode.** Eine Reiter-Seite ist eine Zutat; `seite.sichtbar(nein)`
+  blendet beim Renderer **den Reiter und die Seite** aus (Tab verschwindet aus der Leiste; Pfeiltasten/Home/End überspringen ihn),
+  `sichtbar(ja)` bringt beide zurück. `gewaehlt` bleibt Programmzustand: zeigt es auf eine unsichtbare Seite, zeigt der Renderer die
+  **nächste sichtbare Seite danach**, sonst die letzte sichtbare davor, und sendet **nichts** (Setter lösen keine Rückrufe aus,
+  K-073; der nächste Klick sendet die echte Seitennummer). Alle Seiten unsichtbar → leere Leiste, leere Fläche. `waehle(n)` auf eine
+  unsichtbare Seite ist erlaubt (Zustand), der Renderer zeigt die Ersatzseite. Mit `uebergang(ja)` an der Seite blendet die Seite weich
+  aus; der Tab verschwindet sofort. Begründung: Ein Konzept (`sichtbar`) statt drei; kein bestehendes Programm versteckt heute eine
+  Reiter-Seite direkt (Idle-Spiel und Beispiele geprüft), die Änderung bricht nichts.
+- **Betroffen:** SPEC §16.5-Tabelle (Reiter) + §16.7; THEKE.md §8; Interpreter (`UI_TABELLEN.reiter`), Wasm (`theke.rs` zart 10);
+  Renderer (`zeichneReiter`, `gezeigt`), `tests/theke`, Prüfstand a13, `tests/faelle/theke-v4-*`, Differenzkorpus, Doku-Referenz.
+  **Status:** fest.
+
+### K-108 Theke v4: einklappbarer `Abschnitt` (W2)
+- **Frage:** „Erledigt“- und Kleinbetriebe-Zeilen sollen sich zu- und aufklappen lassen (bisher Knopf „▸ zeigen“ + `sichtbar`).
+- **Entscheidung:** Zwei Wahrheitswerte am `Abschnitt`, beide Getter/Setter-Überladungen wie `aktiv`/`sichtbar`:
+  - `klappbar(diavolo)` / `klappbar()` – der Gast darf den Abschnitt am Kopf zu- und aufklappen (Standard `nein`).
+  - `zu(diavolo)` / `zu()` – Inhalt eingeklappt (Standard `nein`). Auch ohne `klappbar` setzbar (Programm steuert allein).
+  - `beiAenderung(fn)` → `fn(zu)` (diavolo, `ja` = zugeklappt); wie bei Haken ist der Zustand **vor** dem Rückruf aktualisiert;
+    `karton` entfernt den Rückruf. Nicht-diavolo → `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.` (K-066).
+  - Konstruktor bleibt `(titel, kinder)`; Verkettung: `neu Abschnitt("Erledigt", zeilen).klappbar(ja).zu(ja)`.
+- **Protokoll:** Felder `klappbar:true` und `zu:true` nur bei Abweichung im `baum`, in `aendere` der neue Wert (`true`/`false`).
+  Ereignis Renderer → Programm: `{"typ":"aenderung","id":"z5","wert":true}` (`wert` = neuer `zu`-Zustand, `true`/`false`, auch
+  `"true"`/`"false"` wie beim Haken). Das Programm nimmt es nur an, wenn die Zutat ein Abschnitt mit `klappbar == ja` im gezeigten
+  Baum ist; sonst ignoriert (K-064). Auch ohne Rückruf wird `zu` übernommen.
+- **Renderer:** Mit `klappbar` wird der Kopf ein Knopf (`<button aria-expanded>`, Pfeil ▸/▾ vor dem Titel; leerer Titel → nur der
+  Pfeil), Klick/Enter/Leertaste schaltet **sofort lokal** um und sendet `aenderung` nur bei echtem Wechsel; `zu` vom Programm sendet
+  nie. `zu` versteckt den Inhalt (`hidden` am Inhaltsbereich – Kinder eines zugeklappten Abschnitts gelten für Animationen als nicht
+  gezeigt, K-090/K-092); mit `uebergang(ja)` am Abschnitt blendet der Inhalt weich ein/aus. Ohne `klappbar` und ohne `zu` sieht
+  der Abschnitt aus wie bisher. Alte Renderer: immer offen.
+- **Betroffen:** SPEC §16.5-Tabelle (Abschnitt) + §16.7; THEKE.md §8; Interpreter, Wasm (`theke.rs` zart 8, `verteile`), Renderer
+  (`abschnitt`, `gezeigt`), `tests/theke`, a13, `tests/faelle`, Differenzkorpus, Doku. **Status:** fest.
+
+### K-109 Theke v4: `Auswahl` – Umschalter / Segment-Auswahl (W3)
+- **Frage:** Kaufmenge 1× · 10× · 100× · Max als ein Steuerelement statt vier eingefärbter Knöpfe.
+- **Entscheidung:** Neue Zutat **`Auswahl`** – genau eine Option ist gewählt (ein Reiter ohne Seiten, Bedienung wie Radioknöpfe):
+  - `neu Auswahl(optionen, gewaehlt: 1)` (auch benannt `optionen:`, `gewaehlt:`; `id:` wie überall). `optionen` ist ein Blech, die
+    Einträge werden als **Textform** gespeichert (Zustandsfeld, K-066/K-102: `karton` → `"karton"`); fehlend/`karton` → `[]`;
+    kein Blech → `TypAnanas: Auswahl braucht ein Blech mit Optionen, nicht 5.` `gewaehlt` fehlend/`karton` → `1` (auch bei leerer
+    Liste – wie `Reiter`), sonst ganze Zahl `1 … Anzahl`, sonst `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4
+    Optionen.` („1 Option“ im Singular).
+  - Methoden: `optionen()` → Kopie des Blechs, `setzeOptionen(blech)` (gleiche Prüfung/Ananas wie der Konstruktor; `gewaehlt`
+    bleibt unverändert, der Renderer klemmt auf `1 … n`), `waehle(n)` (Prüfung wie oben, verkettbar), `gewaehlt()`,
+    `beiAenderung(fn)` → `fn(n)`, `aktiv(diavolo)` / `aktiv()`. Textform `Auswahl(z3)`, `erbt Auswahl` → P0010, Typname `Auswahl`.
+- **Protokoll:** `{"id":"z3","art":"auswahl","optionen":["1×","10×","100×","Max"],"gewaehlt":1}` (+ `aktiv:false` bei Abweichung);
+  in `aendere`: `optionen` als ganze Liste, `gewaehlt`, `aktiv`. Ereignis `{"typ":"aenderung","id":"z3","wert":2}` – angenommen
+  nur für eine aktive `Auswahl` im gezeigten Baum mit ganzem `wert` in `1 … Anzahl` (sonst ignoriert, K-064); Zustand vor dem
+  Rückruf aktualisiert (K-056), auch ohne Rückruf.
+- **Renderer:** Segment-Leiste (`role="radiogroup"`, Optionen als `<button role="radio" aria-checked>`), gewählte Option in der
+  Themenfarbe (`stil.farbe`), Pfeil links/rechts (mit Umlauf), Home/End; Klick/Taste schaltet sofort lokal um und sendet nur bei
+  echtem Wechsel; `gewaehlt` vom Programm sendet nie; ungültiges/zu großes `gewaehlt` wird wie beim Reiter auf `1 … n` geklemmt;
+  `aktiv:false` deaktiviert alle Knöpfe. Alte Renderer: Platzhalter.
+- **Betroffen:** SPEC §11-Typliste (Namen), §16.5-Tabelle + §16.7; THEKE.md §2/§8; Interpreter (`TYPEN`, `UI_KLASSEN`, `uiNeu`,
+  `uiBaum`, `uiVerteile`, `pruefeTyp`), Wasm (`namen.rs`: `Auswahl`, `optionen`, `setzeOptionen`; `theke.rs` zart 11), Compiler
+  (`frontend.js` THEKE/UNTERSTUETZTE_TYPEN), Renderer (`registriere("auswahl")`), `tests/theke`, a13, `tests/faelle`, Differenzkorpus,
+  Doku. **Status:** fest.
+
+### K-110 Theke v4: `Tastatur` – Tastenereignisse (W4)
+- **Frage:** Minispiele („Fangen!“) ohne Maus bedienen; Tasten müssen deterministisch testbar sein (`.ereignisse`).
+- **Entscheidung:** Tastatur ist – wie `Takt` – eine **unsichtbare Zutat**, keine Methode der `Theke`: `neu Tastatur(beiTaste?)`
+  (auch benannt `beiTaste:`; `id:`), `beiTaste(fn)` → `fn(taste)` (Text), `aktiv(diavolo)` / `aktiv()`. Sie muss im gezeigten Baum
+  liegen (K-057) und nutzt den vorhandenen Zustellungsweg über `id`; kein neues `op`, keine Theke-Methode, keine Änderung an Brücken/
+  Host. Mehrere aktive Tastaturen im Baum bekommen jede Taste (Baumreihenfolge). Textform `Tastatur(z1)`, `erbt Tastatur` → P0010.
+  `animiere` an einer Tastatur ist erlaubt und bleibt unsichtbar (wie Takt).
+- **Protokoll:** Knoten `{"id":"z1","art":"tastatur"}` (+ `aktiv:false`); Ereignis `{"typ":"taste","id":"z1","taste":"Leertaste"}`.
+  Das Programm nimmt es an für eine aktive `Tastatur` im gezeigten Baum mit Rückruf und nicht-leerem Text in `taste`; sonst ignoriert.
+  Zustellung kostet 0 Schritte, der Rückruf zählt (K-069). `.ereignisse` darf `taste`-Zeilen enthalten.
+- **Tastennamen (Renderer, verbindliches Vokabular):** `e.key` des Browsers, deutsch für die Sondertasten:
+  `" "` → `Leertaste`, `ArrowLeft/Right/Up/Down` → `Links`/`Rechts`/`Hoch`/`Runter`, `Backspace` → `Rücktaste`, `Delete` → `Entfernen`,
+  `Home` → `Pos1`, `End` → `Ende`, `PageUp`/`PageDown` → `BildHoch`/`BildRunter`; unverändert `Enter`, `Escape`, `Tab`, `F1` … `F12`;
+  Zeichen so, wie sie getippt werden (`a`, `A`, `1`, `+`, `ä`). **Nicht gesendet:** reine Modifikatoren (`Shift`, `Control`, `Alt`,
+  `AltGraph`, `Meta`, `CapsLock`, `NumLock`, `ScrollLock`, `Fn`), `Dead`/`Unidentified`, Eingaben während einer Komposition
+  (`isComposing`/keyCode 229), **Wiederholungen bei gedrückter Taste** (`e.repeat` – ein Druck = ein Ereignis) und Tasten in einer
+  fokussierten `Eingabe` (die gehören dem Feld). Tasten erreichen die Tastatur **zusätzlich** zu dem, was ein fokussierter Knopf/Reiter
+  damit tut (Leertaste klickt den fokussierten Knopf und kommt als `Leertaste` an).
+- **Fokus (Browser = nativ):** Das Theke-Wurzelelement ist fokussierbar (`tabindex="-1"`); der Tastatur-Listener hängt dort – Tasten
+  im Playground-Editor erreichen die Theke nie. Ein Klick ins Fenster gibt ihm den Fokus; beim `baum` fokussiert der Renderer die Wurzel,
+  wenn nichts anderes fokussiert ist (nativ: sofort; Playground: ohne Fokusdiebstahl). Liegt eine aktive Tastatur im Baum, unterdrückt der
+  Renderer die Standardwirkung (Scrollen) von Leertaste/Pfeilen/Pos1/Ende/Bild **nur**, wenn kein Element im Fenster fokussiert ist.
+- **Betroffen:** SPEC §11-Typliste, §16.5-Tabelle + §16.7; THEKE.md §2/§6 (Ausblick „Tastaturereignisse“ erledigt); Interpreter,
+  Wasm (`namen.rs`: `Tastatur`, `beiTaste`; `theke.rs` zart 12, `verteile` `"taste"`), Compiler-Listen, Renderer
+  (`registriere("tastatur")`, Wurzel-`tabindex`, Fokus bei `baum`), `fenster.html` unverändert, `tests/theke` (jsdom `KeyboardEvent`),
+  `visuell.mjs` (`page.keyboard.press`), a13, `tests/faelle`, Differenzkorpus, E2E 09 (Editor-Tippen bleibt Editor), Doku. **Status:** fest.
+
+### K-111 Standardbibliothek: `Mathe.log`, `log10`, `log2`, `exp`, `E` (W5)
+- **Frage:** Max-Kauf in geschlossener Form statt Schleife – `Mathe.log` fehlt.
+- **Entscheidung:** `Mathe.log(x)` (natürlicher Logarithmus), `Mathe.log10(x)`, `Mathe.log2(x)`, `Mathe.exp(x)` und die Konstante
+  `Mathe.E` (ohne Klammern, wie `PI`). Verhalten exakt wie `Math.log/log10/log2/exp/E` in JavaScript inklusive Sonderfälle
+  (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `log(Infinity)` → `Infinity`, `exp(-Infinity)` → `0`, `exp(710)` → `Infinity`, `NaN`
+  durchgereicht; K-005). Kein zweistelliges `log(x, basis)` – `log(1000)/log(10)` wäre `2.9999999999999996`, dafür gibt es `log10`/`log2`.
+  Nicht-Zahl → TypAnanas wie bei `wurzel`. Schritte: normaler Aufruf.
+- **Bitgleichheit (Pflicht):** Die Wasm-Laufzeit muss für jeden Eingabewert dasselbe Bitmuster liefern wie V8 (`Math.*`, fdlibm-Algorithmen
+  `e_log.c`, `e_exp.c`, `e_log10.c`/`e_log2.c` mit `k_log.h`). `libm` (musl) darf nur verwendet werden, wenn ein Stichprobentest
+  (`tests/wasm/laufzeit-zahlen.js`: die 5000 Pseudozufallswerte + Ränder 0, −0, subnormal, nahe 1, negativ, ±∞, NaN, 1e±300) **keine**
+  Abweichung zeigt; sonst Port der fdlibm-Routinen nach `laufzeit/src/zahl.rs` (nur Double-Operationen). Begründung: K-103 meidet
+  `log10`/`pow` wegen genau dieser Gefahr; `Mathe.log` ist aber ein erwartbarer Standardbaustein jeder Sprache.
+- **Betroffen:** SPEC §11-Tabelle (`Mathe`) + §14.11; Interpreter (`MATHE_M`, Modul-Konstante `E`), Wasm (`namen.rs`: `log`, `log10`,
+  `log2`, `exp`, `E`; `std_m.rs`, `klassen.rs` Konstante, `zahl.rs`), `tests/wasm/laufzeit-zahlen.js`, Prüfstand a10/a08, `tests/faelle`,
+  Differenzkorpus, Doku-Referenz (Mathe-Tabelle). **Status:** fest.
+
+### K-112 `Meldung`/Toast mit Warteschlange – **abgelehnt** (W6)
+- **Frage:** Mehrere Neuigkeiten kurz hintereinander anzeigen (Warteschlange statt „letzte gewinnt“).
+- **Entscheidung:** Keine Zutat. Wie lange eine Meldung steht, wie viele warten dürfen, ob Gleiches zusammengefasst wird – das ist
+  Anwendungslogik, und die Bausteine sind da: ein `Schild` (oder `Abschnitt`), ein `Blech` als Schlange, ein `Takt`, der alle 2 s die
+  nächste Zeile zeigt, dazu `animiere("einblenden")`/`schwebe` für Flüchtiges. Ein UI-Baukasten dieser Größe braucht keine Toast-Politik;
+  eine fertige `Meldung` müsste Dauer, Stapelung, Position und Verdrängung festlegen und würde doch nie allen Spielen passen. Die
+  Doku-Referenz bekommt das Muster als Beispiel („Meldungen der Reihe nach“); THEKE-ERWEITERUNGEN.md streicht die Idee.
+- **Status:** fest (abgelehnt).
+
+### K-113 Theke v4: Stile `zeilen` und `mindestbreite` – ruhiges Layout (W7)
+- **Frage:** Texte wachsen, Knöpfe sollen stehen bleiben: feste Zeilenzahl mit Auslassung für `Schild` bzw. Mindestbreite für Knöpfe.
+- **Entscheidung:** Zwei neue Schlüssel in der Stil-Whitelist (K-068), angehängt – die erlaubte Liste lautet jetzt
+  `breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite` (Fehlertexte entsprechend, in beiden Laufzeiten gleiche Reihenfolge):
+  - `zeilen`: ganze Zahl ≥ 1 – die Zutat ist **genau** so viele Textzeilen hoch (auch bei kürzerem Text), längerer Text wird mit „…“
+    abgeschnitten; sonst `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.` Wirkt beim Renderer auf den Text von `Schild`,
+    `Knopf` und `Haken`; andere Zutaten ignorieren ihn (Vorwärtskompatibilität, kein Fehler).
+  - `mindestbreite`: Zahl ≥ 0 in Pixeln (wie `breite`; Fehlertext `Stil 'mindestbreite' braucht eine Zahl ≥ 0, nicht -1.`) – die Zutat
+    wird nie schmaler, darf aber wachsen (`min-width`); für jede Zutat.
+  - `stil(k, karton)` entfernt den Stil (K-075, Nachricht `null`). Protokoll unverändert (`stil`-Objekt); alte Renderer warnen in der
+    Konsole und ignorieren die Schlüssel.
+- **Betroffen:** SPEC §16.2 (Stile), THEKE.md §2; Interpreter (`UI_STIL`), Wasm (`theke.rs` `STIL_NAMEN`, Zahl-Prüfung je Art statt
+  `ki <= 2`, hartkodierte Erlaubt-Liste), Renderer (`wendeStilAn`, CSS `--theke-zeilen`/`--theke-mindestbreite`), `tests/theke`,
+  `visuell.mjs`, a13 (zwei Erlaubt-Texte Z. 346/701), `tests/faelle/theke-fehlerfaelle.erwartet`, Doku. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |
 |---|---|---|---|
-| U-01 (optional) | `site/js/pizza.js` (Parser) | Fehlertext bei `f((A, B))` ergänzen: „Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))“ | a10 K-001 (Code bleibt P0001) |
+| U-01 (gegenstandslos seit K-105) | `site/js/pizza.js` (Parser) | Fehlertext bei `f((A, B))` ergänzen: „Hinweis: Pizza-Literal im Aufruf braucht drei Klammern: f(((A, B)))“ – entfällt, es gibt kein Pizza-Literal mehr | a10 K-001 (Code bleibt P0001) |
 | U-02 | `site/js/pizza.js` (`alsZahl`, `alsEingabeZahl`) | K-007: gemeinsame Grammatik `[+-]?Ziffern[_Ziffern]*((.|,)Ziffern[_Ziffern]*)?` nach trim; Hex/Exponent/`.5`/`5.`/`Infinity` → TypAnanas; Fehlertexte unverändert | a11 K-007 (3 Fälle) |
 | U-03 | `site/js/pizza.js` (`Bestellannahme`) | K-008: `liesZahl(ersatz)`, `frageZahl(text, ersatz)`, auch benannt `ersatz:`; nur bei EOF; `onEingabe`-Anfrage unverändert | a11 K-008 (2 Fälle) |
 | U-04 | `site/js/pizza.js` (`behandleEnde`, `run`) | K-014: Text interner Fehler exakt `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (+ ` (Zeile N)`), Details in Feld `detail` | nicht automatisierbar (Code-Review) |
@@ -1245,8 +1524,8 @@ klingelt sofort, §14.3; `istGeliefert`, `warte()` ohne max, Trinkgeld kumuliert
 Dauern, `rufe`, benannte `start:`/`stellen:`; Rückgabewerte von `entferne`/`setze`/`hinzu`; Leer-Fälle; Mutation vs. Kopie
 kennzeichnen; Speisekarten-Reihenfolge und Schlüsseltypen K-017; Rundung „kaufmännisch“ K-048; `alsZahl`-Grammatik K-007;
 Textform-Tabelle aus SPEC §5 übernehmen – der Querverweis „Kapitel Ausdrücke“ ist tot; Tipp „Methoden lieber auf Variablen“
-streichen) · 20:stuecke-ownership (Prüfung syntaktisch K-016, `p + X` wieder 8 Stücke K-017) · 20:pf-ofen („über 485“, positional) ·
-20:pf-schneiden (`auto` K-038, `/ 0` RechenAnanas, n > Länge) · 20:pizza-literale (`hat("Text")` K-039) · 30:ref-codes (W0003 pro
+streichen) · 20:stuecke-ownership (heute `pf-schieb`; Besitz-/Stück-Teil mit K-105 entfallen) · 20:pf-ofen („über 485“, positional) ·
+20:pf-schneiden (`auto` K-038, `/ 0` RechenAnanas, n > Länge) · 20:pizza-literale (Abschnitt mit K-105 entfernt) · 30:ref-codes (W0003 pro
 Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleichen, K-044) · 10:kontrollfluss (Bereich rückwärts, K-021).
 
 ## Hinweise an den Koordinator

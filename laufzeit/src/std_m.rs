@@ -33,17 +33,6 @@ pub fn schneide(b: W, n: usize) -> W {
     blech(r)
 }
 
-fn gross(c: char) -> bool {
-    let mut l = c.to_lowercase();
-    let lo = l.next() == Some(c) && l.next().is_none();
-    let mut u = c.to_uppercase();
-    let up = u.next() == Some(c) && u.next().is_none();
-    !lo && up
-}
-pub fn ist_gross_name(id: u32) -> bool {
-    match name_s(id).chars().next() { Some(c) => gross(c), None => false }
-}
-
 fn js_upper(s: &str) -> W {
     let mut o = String::with_capacity(s.len());
     for c in s.chars() { for u in c.to_uppercase() { o.push(u); } }
@@ -93,12 +82,10 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_DAUER => matches!(id, N_INMS | N_INSEKUNDEN | N_INMINUTEN | N_ALSTEXT),
         A_BLECH => matches!(id, N_LAENGE | N_STUECK | N_HINZU | N_ENTFERNE | N_SETZE | N_ENTHAELT | N_BELEGE | N_FILTERE | N_ZUSAMMENKLAPPEN | N_SUMME | N_ERSTES | N_LETZTES | N_UMDREHEN | N_SORTIERE | N_VERBINDE | N_ISTLEER | N_SCHNEIDE | N_KOPIE | N_ALSTEXT | N_BRIGADE),
         A_KARTE => matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_WERTE | N_LAENGE | N_ISTLEER | N_ALSTEXT),
-        A_BELAG => matches!(id, N_NAME | N_PREIS | N_ALSTEXT),
         A_ENUMW => matches!(id, N_NAME | N_POSITION | N_ALSTEXT),
         A_TEIG => matches!(id, N_GEHENLASSEN | N_BACKEN | N_ISTAUFGEGANGEN | N_ALSTEXT),
         A_LIEF => matches!(id, N_TRINKGELD | N_WARTE | N_WENNDA | N_ISTGELIEFERT | N_ALSTEXT),
         A_ZUST => matches!(id, N_PUENKTLICH | N_WERT | N_ODERGRATIS | N_ALSTEXT),
-        A_STUECK => matches!(id, N_PIZZA | N_ESSEN | N_ISTGEGESSEN | N_ALSTEXT),
         A_RESTE => matches!(id, N_WERT | N_ISTMATSCHIG | N_ALSTEXT),
         A_ROH => matches!(id, N_TEILERGEBNIS | N_VERBRAUCHTEZEIT | N_ALSTEXT),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => matches!(id, N_MIKROWELLE | N_FRISCH | N_RUFE | N_ALSTEXT),
@@ -163,7 +150,6 @@ pub fn nativ_rufen(fw: W, pos: &[W], ben: &Ben, knoten: i32) -> W {
             let o = n.empf;
             match art(o) {
                 A_OBJ => obj_methode(o, n.name, pos, ben, knoten, n.modul as i32, true),
-                A_PIZZA | A_SICHT => rufe_methode(o, n.name, pos, ben, knoten, n.modul as i32, KARTON, true),
                 A_ENUMT => blech(enm(obj::<Ref>(o).id).werte.clone()),
                 _ => tabellen_methode(o, n.name, pos, ben, knoten, true),
             }
@@ -176,19 +162,6 @@ pub fn nativ_rufen(fw: W, pos: &[W], ben: &Ben, knoten: i32) -> W {
             Some(f) => crate::pf::bestelle(f),
             None => KARTON,
         },
-        N_TEILE => {
-            let pz = a(pos, 0);
-            if pz == KARTON || pz == UNDEF { wirf_leer(); return KARTON; }
-            if art(pz) != A_PIZZA {
-                let mut t = Tb::neu(); t.s("teile() braucht eine Pizza, nicht "); darstellung(pz, &mut t); t.s(".");
-                wirf_tb(K_TYP, &t); return KARTON;
-            }
-            if crate::kueche::wache(pz, crate::kueche::T_PIZZA) { return KARTON; }
-            let p = obj::<Pizza>(pz);
-            if p.uebrig <= 0 { wirf_ananas(K_STREIT, "Pizza ist alle."); return KARTON; }
-            p.uebrig -= 1;
-            neu_w(Stueck { art: A_STUECK, gegessen: 0, pizza: pz })
-        }
         N_ZWISCHENSTAND => { crate::pf::zwischenstand(nn(a(pos, 0))); KARTON }
         N_SCHIEB => { wirf_ananas(K_LAUFZEIT, "schieb braucht einen Variablennamen: schieb(p)."); KARTON }
         _ => KARTON,
@@ -201,7 +174,7 @@ pub fn globaler_wert(id: u32) -> Option<W> {
         for &(n, w) in CACHE.iter() { if n == id { return Some(w); } }
         let w = match id {
             N_G_BOTE | N_G_BESTELLANNAHME | N_G_UHR | N_G_MATHE | N_G_ZUFALL | N_G_SPIEGEL => neu_w(Ref { art: A_MODUL, id }),
-            N_TEIG | N_BESTELLE | N_TEILE | N_ZWISCHENSTAND | N_SCHIEB => neu_w(Nativ { art: A_NATIV, was: id, empf: KARTON, name: id, modul: 0 }),
+            N_TEIG | N_BESTELLE | N_ZWISCHENSTAND | N_SCHIEB => neu_w(Nativ { art: A_NATIV, was: id, empf: KARTON, name: id, modul: 0 }),
             _ => return None,
         };
         CACHE.push((id, w));
@@ -209,7 +182,8 @@ pub fn globaler_wert(id: u32) -> Option<W> {
     }
 }
 
-/// globalerName(name)
+/// globalerName(name): Module/eingebaute Funktionen, Klassen (auch die eingebauten Ananas), sonst „ist nicht definiert“
+/// (K-105: großgeschriebene Namen sind gewöhnliche Namen – keine Beläge, keine UnbekannterBelagAnanas mehr).
 #[no_mangle]
 pub extern "C" fn rt_global_name(name: u32) -> W {
     let id = name_id(ptr_w(name));
@@ -217,17 +191,10 @@ pub extern "C" fn rt_global_name(name: u32) -> W {
 }
 pub fn global_name(id: u32) -> W {
     if let Some(w) = globaler_wert(id) { return w; }
-    if id == N_G_ANANAS { return crate::pf::belag_nach_name(id).unwrap_or(KARTON); }
     if let Some(w) = klasse_wert(id) { return w; }
-    if let Some(b) = crate::pf::belag_nach_name(id) { return b; }
     let mut t = Tb::neu();
-    if ist_gross_name(id) {
-        t.s("'").name(id).s("' steht nicht auf der Zutatenliste.");
-        wirf_tb(K_UNBEKANNTERBELAG, &t);
-    } else {
-        t.s("'").name(id).s("' ist nicht definiert.");
-        wirf_tb(K_LAUFZEIT, &t);
-    }
+    t.s("'").name(id).s("' ist nicht definiert.");
+    wirf_tb(K_LAUFZEIT, &t);
     KARTON
 }
 
@@ -381,19 +348,13 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         }
         A_BLECH => blech_methode(o, id, pos, ben, knoten),
         A_KARTE => karte_methode(o, id, pos, ben),
-        A_BELAG => match id {
-            N_NAME => obj::<Belag>(o).name,
-            N_PREIS => zahl(crate::pf::standard_preis(o)),
-            N_ALSTEXT => obj::<Belag>(o).name,
-            _ => nicht_gefunden(o, id),
-        },
         A_ENUMW => match id {
             N_NAME | N_ALSTEXT => obj::<EnumW>(o).name,
             N_POSITION => zahl(obj::<EnumW>(o).pos),
             _ => nicht_gefunden(o, id),
         },
         A_MODUL => modul_methode(obj::<Ref>(o).id, id, pos, ben, knoten),
-        A_TEIG | A_LIEF | A_ZUST | A_STUECK | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
+        A_TEIG | A_LIEF | A_ZUST | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::methode(o, id, pos, ben, knoten),
         crate::vorrat::A_ZUFALL => crate::vorrat::objekt_methode(o, id, pos),
         crate::vorrat::A_KAMMER => crate::vorrat::kammer_methode(o, id, pos, ben),

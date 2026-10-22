@@ -2,11 +2,26 @@
 // Pro Pizza wählst du, wie viele Zufallsbeläge er greift (mehr = teurer,
 // aber riskanter). Greift er eine Ananas, musst du entscheiden:
 //   1 = Filter (nur 3 Ladungen), 2 = Pizza wegwerfen (kostet 3 €), 3 = durchwinken.
-// Achtung: Eine Pizza mit Ananas ist nicht fangbar – das endet mit Exit-Code 39.
+// Achtung: Eine Pizza mit Ananas ist keine Pizza mehr, sondern eine hawaii –
+// und eine hawaii-Variable mit Wert ist nicht fangbar: Exit-Code 39.
 // Und der Lieferant kippt nach jeder zweiten Pizza noch eine Ananas in die Kiste ...
 
-Blech<Belag> kiste = [Salami, Pilze, Oliven, Paprika, Schinken, Zwiebeln,
-    Chili, Thunfisch, Rucola, Artischocken, Ananas];
+klasse Pizza {
+    tiefkühl Speisekarte<margherita, funghi> PREISE = neu Speisekarte<margherita, funghi>()
+        .lege("Tomate", 1.00).lege("Mozzarella", 1.50).lege("Salami", 1.50).lege("Pilze", 1.00)
+        .lege("Oliven", 1.00).lege("Paprika", 0.80).lege("Schinken", 1.50).lege("Zwiebeln", 0.50)
+        .lege("Chili", 0.50).lege("Thunfisch", 2.00).lege("Rucola", 1.00).lege("Artischocken", 1.50);
+
+    Blech<margherita> beläge;
+    Pizza(Blech<margherita> beläge) { dies.beläge = beläge; }
+
+    Pizza mit(margherita zutat) { serviere ((neu Pizza(beläge.kopie().hinzu(zutat)))); }
+    funghi preis() { serviere ((5.00 + beläge.belege(b -> PREISE.hole(b)).summe())); }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+
+Blech<margherita> kiste = ["Salami", "Pilze", "Oliven", "Paprika", "Schinken", "Zwiebeln",
+    "Chili", "Thunfisch", "Rucola", "Artischocken", "Ananas"];
 salami filter = 3;
 funghi kasse = 0;
 salami ziel = 10;
@@ -28,15 +43,15 @@ Bote.sage(("=== HAWAII-ALARM – Robo-Luigi am Fließband ==="));
 salami nr = 1;
 solange (nr <= ziel) {
     Bote.sage(("Pizza " + nr + "/" + ziel + " | Kasse " + kasse.euro() + " | Filter " + "[#]".wiederhole(filter)
-        + " | Ananas in der Kiste: " + kiste.filtere(b -> b.name() == "Ananas").länge()));
+        + " | Ananas in der Kiste: " + kiste.filtere(b -> b == "Ananas").länge()));
     salami griffe = frage("Wie viele Beläge?", 1, 3);
     falls (griffe < 0) { Bote.sage(("Du schaltest Robo-Luigi ab. Feierabend nach " + (nr - 1) + " Pizzen.")); abbrechen; }
 
-    Pizza p = ((Tomate, Mozzarella));
+    Pizza p = neu Pizza(["Tomate", "Mozzarella"]);
     diavolo weggeworfen = nein;
     für (salami g = 1; g <= griffe; g++) {
-        Belag b = kiste.stück(Zufall.zahl(1, kiste.länge()));
-        falls (b.name() == "Ananas") {
+        margherita b = kiste.stück(Zufall.zahl(1, kiste.länge()));
+        falls (b == "Ananas") {
             Bote.sage(("  PIEP PIEP! Robo-Luigi hält eine ANANAS in der Hand!"));
             salami wahl = frage("  1 = Filter, 2 = Pizza wegwerfen, 3 = durchwinken", 1, 3);
             falls (wahl == 1 && filter == 0) {
@@ -46,9 +61,10 @@ solange (nr <= ziel) {
             falls (wahl == 1) { filter--; Bote.sage(("  Filter zischt. Ananas weg.")); weiter; }
             falls (wahl == 2 || wahl < 0) { weggeworfen = ja; abbrechen; }
             Bote.sage(("  Robo-Luigi zuckt mit den Schultern und legt sie drauf ..."));
+            hawaii verrat = p.mit(b);   // Wer hier eine Ananas durchwinkt, erlebt die Kernel Panic.
         }
-        p = p + b;   // Wer hier eine Ananas durchwinkt, erlebt die Kernel Panic.
-        Bote.sage(("  + " + b.name()));
+        p = p.mit(b);
+        Bote.sage(("  + " + b));
     }
     falls (weggeworfen) {
         kasse -= 3;
@@ -56,7 +72,7 @@ solange (nr <= ziel) {
     } sonst {
         kasse += p.preis();
         Bote.sage(("  Fertig: " + p + " für " + p.preis().euro()));
-        falls (nr % 2 == 0) { kiste.hinzu(Ananas); }   // der Lieferant meint es gut
+        falls (nr % 2 == 0) { kiste.hinzu("Ananas"); }   // der Lieferant meint es gut
         nr++;
     }
 }

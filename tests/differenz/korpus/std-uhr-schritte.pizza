@@ -19,7 +19,7 @@ Dauer t1 = Uhr.jetzt();
 margherita x = "a" + 1 + ja;
 Bote.sage((Uhr.jetzt() - t1));
 Dauer t2 = Uhr.jetzt();
-Pizza p = ((Tomate, Mozzarella)) + Basilikum;
+Blech<margherita> p = ["Tomate", "Mozzarella"].belege(x -> x + "!");
 Bote.sage((Uhr.jetzt() - t2));
 Dauer t3 = Uhr.jetzt();
 probier { wirf neu StreitAnanas("x"); } verbrannt (a) { } rand { }

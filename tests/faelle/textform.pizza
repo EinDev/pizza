@@ -11,10 +11,7 @@ k.lege("a", 1);
 k.lege("b", 2);
 k.lege("a", 3);
 Bote.sage((k));
-Bote.sage(((Tomate, Mozzarella)));
-Bote.sage(((())));
-Bote.sage((neu Pizza()));
-Bote.sage((Salami));
+Bote.sage((Belag.Salami));
 Bote.sage((90s));
 Bote.sage((90ms));
 Bote.sage((2h));
@@ -30,3 +27,11 @@ Bote.sage((neu StreitAnanas("x")));
 Bote.sage(("Text" + 5));
 Bote.sage(("Ananas: " + neu RechenAnanas("kaputt")));
 Bote.sage((1_000_000));
+quattrostagioni Belag { Tomate, Mozzarella, Salami, Käse }
+klasse Pizza {
+    Blech<Belag> beläge;
+    Pizza(Blech<Belag> b) { beläge = b; }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+Bote.sage((neu Pizza([Belag.Tomate, Belag.Mozzarella])));
+Bote.sage((neu Pizza([])));

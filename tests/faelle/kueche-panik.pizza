@@ -2,7 +2,7 @@
 Blech<margherita> sorten = ["Salami", "Pilze", "Ananas", "Oliven"];
 sorten.brigade(name -> {
     Bote.sage(("Koch belegt mit " + name));
-    falls (name == "Ananas") { serviere ((((Tomate, Ananas)))); }
+    falls (name == "Ananas") { hawaii h = name; }
     serviere ((name));
 });
 Bote.sage(("nie"));

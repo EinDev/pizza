@@ -1,17 +1,8 @@
-Tisch 1 bekommt: ((Tomate, Mozzarella, Salami))
-Tisch 2 hat jetzt: ((Tomate, Mozzarella, Salami))
+Tisch 1 bekommt: Salami (8 Stücke)
+Tisch 2 hat jetzt: Salami (8 Stücke)
 Tisch 1 schaut in den Karton: 'tisch1' wurde weggeschoben – der Karton ist leer.
-Tisch 3 wollte kopieren: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).
-Tisch 1 tröstet sich mit: ((Tomate, Pilze))
-Stücke an Tisch 2: 8
-Gast 1 isst. Gegessen? ja, übrig: 7
-Das Stück stammt von: ((Tomate, Mozzarella, Salami))
-Gast 1 will nochmal: Dieses Stück ist schon gegessen.
-Gast 2 isst, übrig: 6
-Gast 3 isst, übrig: 5
-Gast 4 isst, übrig: 4
-Gast 5 isst, übrig: 3
-Gast 6 isst, übrig: 2
-Gast 7 isst, übrig: 1
-Gast 8 isst, übrig: 0
-Gast 9 geht leer aus: Pizza ist alle.
+Tisch 1 tröstet sich mit: Funghi (8 Stücke)
+Tisch 3 isst zwei Stücke. Tisch 2 hat: Salami (6 Stücke)
+Dieselbe Pizza? ja
+'trinkgeld' wurde weggeschoben – der Karton ist leer.
+In der Kasse: 3 €

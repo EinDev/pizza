@@ -136,7 +136,6 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
     let r = match id {
         N_G_BLECH => blech(if !pos.is_empty() && art(pos[0]) == A_BLECH { blech_v(pos[0]).clone() } else { Vec::new() }),
         N_G_SPEISEKARTE => crate::karte::neu_karte(),
-        N_G_PIZZA => crate::pf::neue_pizza(Vec::new()),
         // Küchenbrigade S4 (neu Zutat() bleibt RohlingAnanas, K-101/3)
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) && id != N_G_ZUTAT && crate::kueche::nur_hauptkueche(crate::kueche::T_THEKE) => KARTON,
         _ if klasse_eintrag(id).is_none() && crate::theke::neu_moeglich(id) => crate::theke::neu(id, pos, &ben).unwrap_or(KARTON),
@@ -187,12 +186,12 @@ pub extern "C" fn rt_fang_passt(typ: u32) -> i32 {
 #[no_mangle]
 pub extern "C" fn rt_fang_obj() -> W { unsafe { crate::ZUSTAND.sig = 0; WURF_OBJ } }
 
-struct Gesichert { sig: i32, obj: W, pos: i32, frame: u32, pfc: &'static str, pft: W, pfp: i32 }
+struct Gesichert { sig: i32, obj: W, pos: i32, frame: u32 }
 static mut GESICHERT: Vec<Gesichert> = Vec::new();
 #[no_mangle]
 pub extern "C" fn rt_sig_sichern() -> i32 {
     unsafe {
-        GESICHERT.push(Gesichert { sig: crate::ZUSTAND.sig, obj: WURF_OBJ, pos: WURF_POS, frame: BUDGET_FRAME, pfc: PF_CODE, pft: PF_TEXT, pfp: PF_POS });
+        GESICHERT.push(Gesichert { sig: crate::ZUSTAND.sig, obj: WURF_OBJ, pos: WURF_POS, frame: BUDGET_FRAME });
         crate::ZUSTAND.sig = 0;
         (GESICHERT.len() - 1) as i32
     }
@@ -202,7 +201,7 @@ pub extern "C" fn rt_sig_wieder(h: i32) {
     unsafe {
         let g = &GESICHERT[h as usize];
         if crate::ZUSTAND.sig == 0 {
-            crate::ZUSTAND.sig = g.sig; WURF_OBJ = g.obj; WURF_POS = g.pos; BUDGET_FRAME = g.frame; PF_CODE = g.pfc; PF_TEXT = g.pft; PF_POS = g.pfp;
+            crate::ZUSTAND.sig = g.sig; WURF_OBJ = g.obj; WURF_POS = g.pos; BUDGET_FRAME = g.frame;
         }
         GESICHERT.truncate(h as usize);
     }
@@ -216,7 +215,6 @@ pub extern "C" fn rt_typ_pruefen(typ: u32, v: W, name: u32) -> i32 {
     if typ == 0 { return 1; }
     pruefe_typ(name_id(ptr_w(typ)), v, name_id(ptr_w(name))) as i32
 }
-#[no_mangle] pub extern "C" fn rt_besitz(v: W) { if art(v) == A_PIZZA { wirf_besitz(); } }
 #[no_mangle]
 pub extern "C" fn rt_gebacken(name: u32) {
     let mut t = Tb::neu();
@@ -241,7 +239,6 @@ pub extern "C" fn rt_fuer_liste(q: W) -> W {
         A_TEXT => blech(s(q).chars().map(|c| { let mut b = [0u8; 4]; neu_str(c.encode_utf8(&mut b)) }).collect()),
         A_KARTE => blech(crate::karte::schluessel(obj::<Karte>(q))),
         A_ENUMT => blech(enm(obj::<Ref>(q).id).werte.clone()),
-        A_PIZZA => blech(obj::<Pizza>(q).s.clone()),
         _ => {
             if q == KARTON || q == UNDEF { wirf_leer(); return KARTON; }
             let mut t = Tb::neu();

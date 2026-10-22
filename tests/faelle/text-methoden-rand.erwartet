@@ -22,7 +22,7 @@ ja
 ja
 xkarton
 Liste: [1, 2]
-P: ((Tomate))
+P: {a: 1}
 Methode 'gibtsNicht' gibt es auf margherita nicht.
 ja
 Wert: 1.5janein2s

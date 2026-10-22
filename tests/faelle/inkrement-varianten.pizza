@@ -22,9 +22,6 @@ Dauer d = 1s;
 d += 500ms;
 d *= 2;
 Bote.sage((d));
-Pizza p = ((Tomate));
-p += Käse;
-Bote.sage((p));
-probier { p++; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+probier { d++; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
 ++k.x;
 Bote.sage((k.x));

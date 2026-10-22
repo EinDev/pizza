@@ -57,16 +57,16 @@ Bote.sage((ja == ja));
 Bote.sage((60s == 1min));
 `, { out: ["ja", "ja", "ja", "ja", "ja"] }),
 
-  F(E, "== bei Pizzen: gleiche Beläge in gleicher Reihenfolge", P`
-diavolo a = ((Tomate, Käse)) == ((Tomate, Käse));
-diavolo b = ((Tomate, Käse)) == ((Tomate, Mozzarella));
-diavolo c = ((Tomate, Salami, Pilze)) == ((Tomate, Pilze, Salami));
-diavolo d = Salami == Salami;
-Bote.sage((a));
-Bote.sage((b));
-Bote.sage((c));
-Bote.sage((d));
-`, { out: ["ja", "nein", "nein", "ja"] }),
+  F(E, "== bei Objekten, Blechen und quattrostagioni-Werten: Identität (K-105, §14.6)", P`
+quattrostagioni Q { A, B, C, D }
+klasse K { }
+K k = neu K();
+Bote.sage((k == k));
+Bote.sage((neu K() == neu K()));
+Bote.sage(([1, 2] == [1, 2]));
+Bote.sage((Q.A == Q.A));
+Bote.sage((Q.A == Q.B));
+`, { out: ["ja", "nein", "nein", "ja", "nein"] }),
 
   F(E, "== bei Objekten: Identität", P`
 klasse K { salami x = 1; }
@@ -140,22 +140,13 @@ Bote.sage(([3 .. 3]));
 Bote.sage(([]));
 `, { out: ["[1, 2, 3]", "[1, 2, 3, 4]", "[3]", "[]"] }),
 
-  F(E, "Pizza-Literal: ((Belag, ...)) in Argumentposition", P`
+  F(E, "((a, b)) ist kein Pizza-Literal mehr – Syntaxfehler P0001 (K-105)", P`
 Bote.sage(((Tomate, Mozzarella)));
-`, { out: ["((Tomate, Mozzarella))"] }),
+`, { exit: 2, fehler: { code: "P0001", art: "syntax", zeile: 1 } }),
 
-  F(E, "Pizza-Literal mit einem Belag: ((Salami)) als Ausdruck", P`
-Pizza p = ((Salami));
-Bote.sage((p));
-Bote.sage(((Salami)));
-Bote.sage((p.anzahlBeläge()));
-`, { out: ["((Salami))", "((Salami))", "1"] }),
-
-  F(E, "Pizza-Literal leer (())", P`
-Pizza p = (());
-Bote.sage((p));
-Bote.sage((p.anzahlBeläge()));
-`, { out: ["(())", "0"] }),
+  F(E, "(()) ist kein Pizza-Literal mehr – Syntaxfehler P0001 (K-105)", P`
+Bote.sage(((())));
+`, { exit: 2, fehler: { code: "P0001", art: "syntax", zeile: 1 } }),
 
   F(E, "Doppelklammer ((x + 1)) ist normale Klammerung", P`
 salami x = 4;
@@ -175,15 +166,19 @@ salami v = ((a.b));
 Bote.sage((v));
 `, { out: ["7"] }),
 
-  F(E, "Doppelklammer ((x)) mit kleingeschriebenem Bezeichner ist keine Pizza", P`
+  F(E, "Doppelklammer ((x)) ist normale Klammerung – auch bei großgeschriebenem Namen (K-105)", P`
 salami x = 3;
 salami y = ((x));
 Bote.sage((y));
-`, { out: ["3"] }),
+salami MAX = 10;
+Bote.sage(((MAX)));
+Bote.sage((((MAX)) + 1));
+`, { out: ["3", "10", "11"] }),
 
-  F(E, "Methodenaufruf direkt auf Pizza-Literal", P`
-Bote.sage((((Tomate, Mozzarella, Basilikum)).preis()));
-`, { out: ["8"] }),
+  F(E, "Methodenaufruf direkt auf geklammertem Ausdruck", P`
+Bote.sage((((1.5 + 2)).runden()));
+Bote.sage(((("a" + "b")).länge()));
+`, { out: ["4", "2"] }),
 
   F(E, "Textform: Zahlen, ja/nein, karton", P`
 Bote.sage((8));
@@ -207,9 +202,10 @@ m.lege("b", 2);
 Bote.sage((m));
 `, { out: ["{a: 1, b: 2}"] }),
 
-  F(E, "Textform: Belag = Name", P`
-Bote.sage(Salami);
-Bote.sage(("Belag: " + Käse));
+  F(E, "Textform: quattrostagioni-Wert = Name", P`
+quattrostagioni Belag { Salami, Käse, Tomate, Pilze }
+Bote.sage(Belag.Salami);
+Bote.sage(("Belag: " + Belag.Käse));
 `, { out: ["Salami", "Belag: Käse"] }),
 
   F(E, "Textform: Dauer (größte Einheiten zuerst, Nullteile weg, 0ms)", P`

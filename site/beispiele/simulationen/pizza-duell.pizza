@@ -50,20 +50,21 @@ salami frage(margherita text, salami min, salami max) {
 
 Pizzaiolo du = neu Pizzaiolo("Du   ");
 Pizzaiolo mario = neu Pizzaiolo("Mario");
-Blech<Pizza> runden = [
-    ((Tomate, Mozzarella)),
-    ((Tomate, Mozzarella, Basilikum)),
-    ((Tomate, Käse, Salami, Pilze)),
-    ((Tomate, Mozzarella, Schinken, Pilze, Oliven)),
-    ((Tomate, Käse, Salami, Schinken, Paprika, Zwiebeln, Chili))
+// Jede Runde eine Pizza – je mehr Beläge, desto länger muss sie in den Ofen
+Blech<Blech<margherita>> runden = [
+    ["Tomate", "Mozzarella"],
+    ["Tomate", "Mozzarella", "Basilikum"],
+    ["Tomate", "Käse", "Salami", "Pilze"],
+    ["Tomate", "Mozzarella", "Schinken", "Pilze", "Oliven"],
+    ["Tomate", "Käse", "Salami", "Schinken", "Paprika", "Zwiebeln", "Chili"]
 ];
 
 Bote.sage(("=== PIZZA-DUELL: Du gegen Mario ==="));
 diavolo gegangen = nein;
 für (salami r = 1; r <= runden.länge(); r++) {
-    Pizza p = runden.stück(r);
-    salami bedarf = 250 * p.anzahlBeläge();
-    Bote.sage(("Runde " + r + ": " + p + " – braucht etwa " + bedarf + " Ofeneinheiten"));
+    Blech<margherita> p = runden.stück(r);
+    salami bedarf = 250 * p.länge();
+    Bote.sage(("Runde " + r + ": " + p.verbinde(", ") + " – braucht etwa " + bedarf + " Ofeneinheiten"));
     salami grad = frage("Deine Temperatur", 150, 500);
     salami zeit = grad < 0 ? -1 : frage("Deine Backzeit in ms", 100, 5000);
     falls (zeit < 0) { gegangen = ja; abbrechen; }
@@ -72,8 +73,8 @@ für (salami r = 1; r <= runden.länge(); r++) {
     salami mGrad = Zufall.zahl(36, 47) * 10;
     salami mZeit = (bedarf * 250 / mGrad * Zufall.zahl(110, 140) / 100).ganz();
 
-    salami d = du.backe(p.anzahlBeläge(), grad, zeit);
-    salami m = mario.backe(p.anzahlBeläge(), mGrad, mZeit);
+    salami d = du.backe(p.länge(), grad, zeit);
+    salami m = mario.backe(p.länge(), mGrad, mZeit);
     falls (d > 0) { du.punkte += 2; }
     falls (m > 0) { mario.punkte += 2; }
     falls (d > 0 && (m == 0 || d < m)) { du.punkte++; Bote.sage(("  Schneller: Du! +1")); }

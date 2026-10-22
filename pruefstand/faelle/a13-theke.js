@@ -226,7 +226,7 @@ t.bediene();
 
   F(T, "K-065: Panik im Rückruf → Exit 39 (kein schliesse)", P`
 Theke t = neu Theke("H");
-Knopf k = neu Knopf("h", () -> { Pizza p = ((Ananas)); });
+Knopf k = neu Knopf("h", () -> { hawaii p = 1; });
 t.zeige(k);
 t.bediene();
 `, {

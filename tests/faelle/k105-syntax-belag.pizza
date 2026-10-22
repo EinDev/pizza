@@ -1,0 +1,3 @@
+belag Trüffel auf Pizza {
+    speisekarte funghi preis() { serviere ((4.5)); }
+}

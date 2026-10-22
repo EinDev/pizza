@@ -1,15 +1,35 @@
 // Luigis neuer Lehrling Toni hat eigene Ideen zur Schichtreihenfolge.
-// Käse hat @Nach(Tomate): er darf nie UNTER der Tomate liegen.
-// Geprüft wird bei jeder Pizza-Erzeugung – auch bei p + Belag.
+// Luigis Regel: Käse darf nie UNTER der Tomate liegen – sonst ist es ein Auflauf.
+// Die Regel steht in der Klasse Pizza und wirft eine eigene Ananas. Niemand fängt sie:
+// Das Programm endet mit Exit-Code 1.
+
+klasse AuflaufAnanas erbt LaufzeitAnanas {
+    speisekarte AuflaufAnanas(margherita m) { unten((m)); }
+}
+
+klasse Pizza {
+    Blech<margherita> beläge = [];
+
+    // lege() prüft die Regel, legt den Belag oben drauf und liefert die Pizza zurück (Verkettung!)
+    speisekarte Pizza lege(margherita zutat) {
+        falls (zutat == "Tomate" && beläge.enthält("Käse")) {
+            wirf neu AuflaufAnanas("Tomate auf Käse? Das ist keine Pizza, das ist ein Auflauf.");
+        }
+        beläge.hinzu(zutat);
+        serviere ((dies));
+    }
+
+    speisekarte margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
 
 Bote.sage(("Toni legt zuerst den Käse auf den Teig."));
-Pizza versuch = ((Käse));
+Pizza versuch = neu Pizza().lege("Käse");
 Bote.sage(("Bisher: " + versuch + " – noch okay, es gibt ja keine Tomate."));
 
-Pizza richtig = ((Tomate, Käse));
+Pizza richtig = neu Pizza().lege("Tomate").lege("Käse");
 Bote.sage(("Luigi zeigt, wie es geht: " + richtig));
 
 Bote.sage(("Toni legt trotzdem die Tomate obendrauf ..."));
-Pizza auflauf = versuch + Tomate;     // PizzaFehler B0012 – fatal, Exit-Code 2
+versuch.lege("Tomate");     // AuflaufAnanas – ungefangen, Exit-Code 1
 
 Bote.sage(("Diese Zeile sieht niemand."));

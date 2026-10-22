@@ -23,7 +23,7 @@
     {
       "id": "idle-pizza-imperium",
       "titel": "Pizza-Imperium",
-      "beschreibung": "Das große Idle-Game: Pizzen backen, Handwerk und Betrieb kaufen (Takt: Lehrlinge, Öfen und die Filiale in Wuppertal backen jede Sekunde – auf Dauer zählt der Betrieb, nicht der Klick), in Nonnas Rezeptbuch blättern, Sonderschichten im Ofen, Großbestellungen mit Trinkgeld, Hawaii-Gäste höflich bekehren und Erfolge sammeln. Aufstieg in vier Ebenen: Michelin-Sterne durch Neueröffnung, Nonnas Geheimrezepte (Talentbaum gegen Sterne), Herausforderungen (Neapel-Modus, Hawaii-Verbot verschärft, Fastenzeit) und eine Franchise-Kette. In Nonnas Spielecke warten vier kurze Minispiele (Teig fangen, Bestellung merken, Ofen halten, Lieferroute) – ein Sieg bringt ein paar Sekunden Produktion, danach macht Nonna zwei Minuten Pause. Der Spielstand liegt in der Vorratskammer – beim Wiederkommen hat der Betrieb bis zu 30 Minuten weitergebacken.",
+      "beschreibung": "Das große Idle-Game: Pizzen backen, Betrieb und Handwerk kaufen (1×, 10×, 100× oder Max; die Backstube tickt zehnmal pro Sekunde), in Nonnas Rezeptbuch blättern und danach beim Feinkost-Händler einkaufen, Meisterbriefe an die Wand hängen, Sonderschichten im Ofen, Ereignisse vom Freitagabend-Ansturm bis zum Restaurantkritiker. Aufstieg in vier Ebenen: Michelin-Sterne durch Neueröffnung, 22 Geheimrezepte in fünf Ketten (gegen Sterne), Herausforderungen in zwei Staffeln und eine Franchise-Kette bis ins Pizza-Multiversum. Alles kommt in Wellen: Gelerntes und Gekauftes verschwindet, Neues taucht auf, die Knöpfe bleiben stehen. In Nonnas Spielecke warten vier Minispiele mit Meister-Varianten. Der Spielstand liegt in der Vorratskammer (Namensraum – ein Stand für Galerie, App-Link und EXE); beim Wiederkommen hat der Betrieb bis zu 30 Minuten weitergebacken.",
       "datei": "idle/pizza-imperium.pizza",
       "erwartet": "idle/pizza-imperium.erwartet",
       "ereignisse": "idle/pizza-imperium.ereignisse",
@@ -44,7 +44,9 @@
         "ofen",
         "bestelle",
         "@Kühlschrank",
-        "Minispiele"
+        "Minispiele",
+        "Animationen",
+        "Namensraum"
       ],
       "theke": true,
       "echtzeit": 1800000000000

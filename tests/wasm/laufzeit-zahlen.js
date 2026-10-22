@@ -36,7 +36,27 @@ function rundeAuf(x, n) {
   const r = Math.sign(x) * Math.round(Math.abs(x) * f + 1e-9) / f;
   return Object.is(r, -0) ? 0 : r;
 }
+function zahlMitKomma(x) { return zahlText(x).replace('.', ','); }
+const KOMPAKT_STUFEN = [[1e63, 'Dezd.'], [1e60, 'Dez.'], [1e57, 'Nond.'], [1e54, 'Non.'], [1e51, 'Oktd.'], [1e48, 'Okt.'],
+  [1e45, 'Septd.'], [1e42, 'Sept.'], [1e39, 'Sextd.'], [1e36, 'Sext.'], [1e33, 'Quintd.'], [1e30, 'Quint.'],
+  [1e27, 'Quadrd.'], [1e24, 'Quadr.'], [1e21, 'Trd.'], [1e18, 'Trio.'], [1e15, 'Brd.'], [1e12, 'Bio.'], [1e9, 'Mrd.'],
+  [1e6, 'Mio.'], [1e3, 'Tsd.']];
+function kompaktText(x, n) {
+  if (x !== x) return 'NaN';
+  if (!isFinite(x)) return x < 0 ? '-∞' : '∞';
+  const a = Math.abs(x);
+  if (a >= 1e66) {
+    const [ms, es] = a.toExponential().split('e');
+    let e = Number(es);
+    let m = rundeAuf(Number(ms), n);
+    if (m >= 10) { m = rundeAuf(m / 10, n); e += 1; }
+    return (x < 0 ? '-' : '') + zahlMitKomma(m) + ' × 10' + String(e).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
+  }
+  for (const [f, name] of KOMPAKT_STUFEN) if (a >= f) return zahlMitKomma(rundeAuf(x / f, n)) + ' ' + name;
+  return zahlMitKomma(rundeAuf(x, n));
+}
 function euroText(x) {
+  if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2) + ' €';
   const r = Math.round(Math.abs(x) * 100 + 1e-9) / 100;
   const [g, k] = r.toFixed(2).split('.');
   return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k + ' €';
@@ -69,9 +89,10 @@ function pruefe() {
   const gleich = (was, ist, soll) => { if (ist !== soll) fehler.push(was + ': ' + JSON.stringify(ist) + ' ≠ ' + JSON.stringify(soll)); };
   const zs = zahlen();
   for (const x of zs) gleich('String(' + x + ')', textVon(e.rt_text(zahlW(x))), zahlText(x));
-  const euros = [0, 0.005, 0.015, 0.025, 1.005, 1.015, 2.675, 8, 8.5, -0.004, -0.005, -1.235, 1234.565, 99.995, 0.1 + 0.2, 1e15 + 0.3, 1e20, 1e21, 123456789.125, -0];
+  const euros = [0, 0.005, 0.015, 0.025, 1.005, 1.015, 2.675, 8, 8.5, -0.004, -0.005, -1.235, 1234.565, 99.995, 0.1 + 0.2, 1e15 + 0.3, 1e20, 1e21, 123456789.125, -0,
+    2.0844997640411506e21, -1.5e22, 999.999e21, 1e63, 1e66, -9.999e70, 9.7e70, 1e300, 1.7976931348623157e308, Infinity, -Infinity, NaN];
   for (let i = 0; i < 400; i++) euros.push(Math.round(Math.random() * 1e6) / 1000 + 0.005);
-  for (const x of euros.concat(zs.filter(isFinite))) gleich('euro(' + x + ')', textVon(e.rt_test_euro(x)), euroText(x));
+  for (const x of euros.concat(zs)) gleich('euro(' + x + ')', textVon(e.rt_test_euro(x)), euroText(x));
   for (const x of zs.filter(isFinite).concat([2.5, -2.5, 0.49999999999999994, 1.005, 1.255])) for (const n of [0, 1, 2, 3]) {
     const ist = e.rt_test_runden(x, n), soll = rundeAuf(x, n);
     if (!Object.is(ist, soll) && !(Number.isNaN(ist) && Number.isNaN(soll))) fehler.push('runden(' + x + ',' + n + '): ' + ist + ' ≠ ' + soll);

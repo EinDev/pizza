@@ -3,7 +3,7 @@ probier {
     [1, 2, 3].brigade(x -> {
         Bote.sage(("Koch " + x));
         falls (x == 2) { wirf neu StreitAnanas("zuerst"); }
-        falls (x == 3) { serviere ((((Tomate, Ananas)))); }
+        falls (x == 3) { hawaii h = x; }
         serviere ((x));
     });
 } verbrannt (StreitAnanas a) { Bote.sage(("gefangen: " + a.nachricht())); }

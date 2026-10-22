@@ -2,14 +2,14 @@
 //!
 //! ```text
 //! pizza-host [optionen] programm.pkarton [args…]
-//! pizza-host [--vorrat=ordner] --vorrat-loeschen <name> | --vorrat-loeschen-alle
+//! pizza-host [--vorrat=ordner] --vorrat-loeschen <kennung> | --vorrat-loeschen-alle
 //! pizza-host exe programm.pkarton -o programm.exe
 //! ```
 //! Optionen, Texte und Exit-Codes wie `bin/pizza.js` (K-082/K-088); eine EXE (eingebettetes Programm) versteht
 //! dieselben Optionen direkt hinter dem Programmnamen, alles ab dem ersten Nicht-Options-Argument geht an `hauptgang`;
 //! `--` beendet die Optionen (z. B. `programm.exe -- --x`), alles danach geht unverändert an `hauptgang`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use pizzahost::ereignis::Senke;
@@ -19,8 +19,8 @@ const OPTIONEN: &str = "Optionen:
   --saat=N             feste Zufallssaat (ohne Option: echte Saat, Anzeige \"Saat: N\" auf stderr)
   --vorrat=ordner      Vorratskammern in diesem Ordner (Standard: %APPDATA%\\pizza\\vorrat bzw. $XDG_DATA_HOME/pizza/vorrat)
   --kein-vorrat        nichts lesen, nichts speichern (W0101)
-  --vorrat-loeschen <name>  Vorratskammer <name> löschen (ohne Programmlauf)
-  --vorrat-loeschen-alle    alle Vorratskammern löschen (ohne Programmlauf)
+  --vorrat-loeschen <kennung>  Vorratskammer löschen (ohne Programmlauf); Kennung name oder raum/name (K-106)
+  --vorrat-loeschen-alle    alle Vorratskammern löschen, auch die mit Namensraum (ohne Programmlauf)
   --eingabe datei      Eingabezeilen aus Datei statt stdin (danach EOF)
   --schritte=N         Schrittlimit (Standard: 5000000)
   --koeche=N           Köche der Küchenbrigade: auto (Standard, logische Kerne, höchstens 16) oder 1 … 64 (1 = aus)
@@ -215,19 +215,36 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
     Ok(a)
 }
 
-/// `--vorrat-loeschen <name>` / `--vorrat-loeschen-alle` (K-088): gleiche Texte und Exit-Codes wie bin/pizza.js.
+/// Löscht in `ordner` alle `<name>.json` mit gültigem Kammernamen (K-088); Fehler werden ignoriert.
+fn vorrat_kammern_loeschen(ordner: &Path) {
+    let Ok(eintraege) = std::fs::read_dir(ordner) else { return };
+    for e in eintraege.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if let Some(k) = name.strip_suffix(".json") {
+            if laufen::vorrat_teil_gueltig(k) {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+}
+
+/// `--vorrat-loeschen <kennung>` / `--vorrat-loeschen-alle` (K-088/K-106): gleiche Texte und Exit-Codes wie bin/pizza.js.
+/// Kennung `name` oder `raum/name` (geprüft über `laufen::vorrat_kennung`, Pfad nur aus den geprüften Teilen);
+/// `-alle` erfasst zusätzlich `<ordner>/<raum>/<name>.json` (eine Ebene tief) und entfernt leer gewordene Raum-Ordner.
 fn vorrat_loeschen(ordner: Option<PathBuf>, was: Loeschen) -> ExitCode {
-    let gueltig = |n: &str| (1..=40).contains(&n.len()) && n.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
     let ordner = ordner.unwrap_or_default();
     match was {
         Loeschen::Alle => {
+            vorrat_kammern_loeschen(&ordner);
             if let Ok(eintraege) = std::fs::read_dir(&ordner) {
                 for e in eintraege.flatten() {
-                    let name = e.file_name().to_string_lossy().into_owned();
-                    if let Some(k) = name.strip_suffix(".json") {
-                        if gueltig(k) {
-                            let _ = std::fs::remove_file(e.path());
-                        }
+                    let raum = e.file_name().to_string_lossy().into_owned();
+                    // Nur echte Ordner (keine Verknüpfungen) mit gültigem Raumnamen, nur eine Ebene tief.
+                    if laufen::vorrat_teil_gueltig(&raum) && e.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                        let raum_ordner = ordner.join(&raum);
+                        vorrat_kammern_loeschen(&raum_ordner);
+                        // Nur leer gewordene Raum-Ordner verschwinden (remove_dir scheitert sonst – ignoriert).
+                        let _ = std::fs::remove_dir(&raum_ordner);
                     }
                 }
             }
@@ -235,11 +252,10 @@ fn vorrat_loeschen(ordner: Option<PathBuf>, was: Loeschen) -> ExitCode {
             ExitCode::SUCCESS
         }
         Loeschen::Eine(n) => {
-            if !gueltig(&n) {
-                eprintln!("Ungültiger Kammername '{}' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).", n);
+            let Some(datei) = laufen::vorrat_pfad(&ordner, &n) else {
+                eprintln!("Ungültiger Kammername '{}' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').", n);
                 return beende(2);
-            }
-            let datei = ordner.join(format!("{}.json", n));
+            };
             if !datei.exists() {
                 println!("Vorrat '{}' gibt es nicht.", n);
                 return ExitCode::SUCCESS;

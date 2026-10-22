@@ -3,7 +3,7 @@ klasse K { }
 quattrostagioni J { A, B, C, D }
 zeig(() -> 1.5 + [1]);
 zeig(() -> neu Speisekarte<salami, salami>() * 2);
-zeig(() -> Salami * 2);
+zeig(() -> 1s * "x");
 zeig(() -> neu K() * 2);
 zeig(() -> J.A * 2);
 zeig(() -> K * 2);
@@ -13,7 +13,7 @@ zeig(() -> (x -> x) * 2);
 zeig(() -> teig(() -> (1)) * 2);
 zeig(() -> bestelle(() -> (1)) * 2);
 zeig(() -> bestelle(() -> (1)).warte() * 2);
-zeig(() -> teile(((Tomate))) * 2);
+zeig(() -> neu Zufall() * 2);
 zeig(() -> ofen(zeit: 1ms) { solange (ja) { } } roh (r) { serviere ((r * 2)); });
 zeig(() -> 1 * karton);
 zeig(() -> ja * 1);

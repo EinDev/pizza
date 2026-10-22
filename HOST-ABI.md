@@ -93,7 +93,11 @@ Fenster geschlossen; Länge `> puffer_kap` → nichts geschrieben, Ereignis blei
 Hosts ohne Theke implementieren `ui_senden` als No-Op (bzw. nur Ereignis) und `ui_warte` mit `-1` bzw. `0` für die Abfrage.
 Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts müssen sie bereitstellen.
 
-**`vorrat_lesen` / `vorrat_schreiben`** (K-079–K-081):
+**`vorrat_lesen` / `vorrat_schreiben`** (K-079–K-081, K-106):
+- `name` ist die **Kennung** der Kammer (K-106): `name` ohne bzw. `namensraum/name` mit Namensraum (`pizza-imperium/spielstand`),
+  beide Teile `[a-z0-9-]{1,40}`. Der Host **prüft die Kennung selbst** (höchstens ein `/`, Teile einzeln) und baut Pfade nur aus
+  den geprüften Teilen (`<ordner>/<raum>/<name>.json`); ungültige Kennung → `vorrat_lesen` `-1`, `vorrat_schreiben` `-1`
+  (kein Pfad-Traversal, auch bei manipuliertem Modul). JS-Host: Schlüssel von `optionen.vorrat`/`onVorrat` = Kennung.
 - `vorrat_lesen(name, puffer, -1)` ist eine **Abfrage**: `1` = Speicherung verfügbar (JS-Host: `optionen.vorrat` oder
   `optionen.onVorrat` gesetzt; nativ: Speicherort beschreibbar), `0` = nicht verfügbar → das Modul warnt beim ersten
   `neu Vorratskammer` einmal `W0101` und arbeitet nur im Speicher.
@@ -190,7 +194,7 @@ emit { typ: "ende", exitCode, schritte: inst.schritte(), zeitMs: inst.zeitMs() }
 |---|---|
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas (inkl. Speicherlimit: `LaufzeitAnanas: Der Kühlschrank ist voll (Speicherlimit erreicht).`) |
-| 2 | PizzaFehler (B0012, R0001, Q0004, A0001, P0010, P0011 …) |
+| 2 | PizzaFehler (R0001, Q0004, A0001, P0010, P0011 … – alle vor dem Start; zur Laufzeit entsteht seit K-105 keiner mehr) |
 | 3 | Schrittlimit (P0002) |
 | 39 | Hawaii-Panik |
 
@@ -293,8 +297,7 @@ Hosts reichen Berichte nur als Bytes weiter; das Format gehört der Laufzeit (`l
 **Bericht** eines Stücks: `u32 status` (0 ok · 1 Ananas · 2 Budget · 3 PizzaFehler · 4 Schrittlimit · 5 Panik ·
 6 geworfener Wert nicht kartonfähig) · `f64 sᵢ` (Schritte) · `f64 dᵢ` (Küchenuhr − T₀) · `f64 cᵢ` (`neu`) · `f64` Lieferungen ·
 `u32 k`, `k × f64` (Zähler der eingebauten Ananas-Klassen, D10) · `bytes` Ereignisse · Nutzlast:
-ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 frame_id` · PizzaFehler → `i32 pos`, `bytes code`,
-`bytes text` · Schrittlimit → `i32 pos` · sonst nichts. `pos` = Index in die Positionstabelle des Moduls.
+ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 frame_id` · (Status 3, früher PizzaFehler, seit K-105 frei) · Schrittlimit → `i32 pos` · sonst nichts. `pos` = Index in die Positionstabelle des Moduls.
 
 **Ereignisse** (in Auftretensreihenfolge, D4): `u8 art` · 1 `ausgabe` / 2 `schreibe` / 3 `fehlerausgabe`: `bytes text` ·
 4 `leeren` · 5 `warnung`: `i32 methode` (W0003: Methoden-ID für „einmal pro Methode“, sonst −1), `i32 zeile`, `i32 spalte`,
@@ -302,11 +305,10 @@ ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 fra
 
 **`PKF1`** (Magie `PKF1`, dann ein Wert; Tiefensuche in Kartonreihenfolge, SPEC §17.5): `u8 tag` und Nutzlast –
 0 `karton` · 1 `nein` · 2 `ja` · 3 Zahl `f64` · 4 `auto` · 5 Text `bytes` · 6 Dauer `f64` · 7 **fest** `u64` (unveränderlicher
-Wert – Text, Dauer, Belag, Klasse, Rezeptur, quattrostagioni-Typ/-Wert, Modul –, der beim Anschnitt schon existierte: die
+Wert – Text, Dauer, Klasse, Rezeptur, quattrostagioni-Typ/-Wert, Modul –, der beim Anschnitt schon existierte: die
 Bits des Werts, gültig nur zwischen Instanzen mit demselben Schnappschuss) · 8 Modul `u32 id` · 9 Typ `u32 art`, `u32 id`
-(Klasse/quattrostagioni-Typ/Rezeptur) · 10 quattrostagioni-Wert `u32 typ`, `f64 position` · 11 Belag `u32 id` · 12 weggeschoben ·
-13 unbelegt · 20 Blech `u32 n`, n Werte · 21 Speisekarte `u32 n`, n × (Schlüssel, Wert) · 22 Pizza `i32 übrig`, `u32 n`,
-n × `u64` Belag · 23 Pizza-Sicht `u32 schichten`, Wert · 24 Objekt `u32 klasse`, `f64 nummer`, `u32 zugeklappt`,
+(Klasse/quattrostagioni-Typ/Rezeptur) · 10 quattrostagioni-Wert `u32 typ`, `f64 position` · 12 weggeschoben ·
+13 unbelegt · 20 Blech `u32 n`, n Werte · 21 Speisekarte `u32 n`, n × (Schlüssel, Wert) · 24 Objekt `u32 klasse`, `f64 nummer`, `u32 zugeklappt`,
 Wert `nachricht`, `u32 n`, n × (`u32 feldinfo`, `u8 eigen`, Wert) · 25 Rohling Wert `teilergebnis`, Wert `verbrauchteZeit` ·
-30 Verweis `u32 i` (i-tes bereits geschriebenes Blech/Speisekarte/Pizza/Sicht/Objekt/Rohling – Teilung und Zyklen).
+30 Verweis `u32 i` (i-tes bereits geschriebenes Blech/Speisekarte/Objekt/Rohling – Teilung und Zyklen). Die Tags 11, 22 und 23 (Belag, Pizza, Pizza-Sicht) sind seit K-105 frei.
 Nicht kartonfähige Werte haben kein Tag (das Stück endet mit der KüchenAnanas bzw. Status 6).

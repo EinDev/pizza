@@ -5,4 +5,4 @@ für (funghi w : werte) { Bote.sage((w + " = " + w.euro())); }
 für (funghi w : werte) { Bote.sage(("-" + w + " = " + (0 - w).euro())); }
 Bote.sage((8.euro()));
 Bote.sage((1000000.euro()));
-Bote.sage((((Tomate, Mozzarella, Basilikum)).preis().euro()));
+Bote.sage(((5 + 1 + 1.5 + 0.5).euro()));

@@ -108,7 +108,6 @@ fn name_id_suchen(w: W) -> u32 {
     }
 }
 pub fn name_text(id: u32) -> W { unsafe { NAMENS_TEXT[id as usize] } }
-pub fn name_s(id: u32) -> &'static str { s(name_text(id)) }
 
 // ---------------------------------------------------------------- Bauen
 pub struct Tb(pub Vec<u8>);

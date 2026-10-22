@@ -25,7 +25,7 @@ ebenso (K-064) – deshalb dürfen `.ereignisse` schon heute `takt`-Zeilen entha
 | **P2** | `hinweis` (Tooltip) an jeder Zutat | allgemeines Feld | Upgrade-Beschreibung ohne Platz zu kosten | ✅ |
 | **P3** | `Reiter` (Tabs) | Zutat `reiter` | Backstube · Erfolge · Neueröffnung | ✅ |
 | **P3** | Stil `schrift: "riesig"` | Stil-Whitelist | großer Zähler / Pizza-Knopf | ✅ |
-| **P3** | `Meldung` (kurzer Hinweis, verschwindet) | Zutat `meldung` | „Erfolg freigeschaltet!“ | – (Idee) |
+| **P3** | `Meldung` (kurzer Hinweis, verschwindet) | Zutat `meldung` | „Erfolg freigeschaltet!“ | – **abgelehnt (K-112):** Anwendungslogik – Schild + Blech + Takt |
 
 ---
 
@@ -203,15 +203,15 @@ echten Lauf (Interpreter, Saat 42) mit Takt-Sprüngen bis zur ersten Franchise.
 
 | Ebene | Freischaltung | Mechanik |
 |---|---|---|
-| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋, +10 % auf alles je **aktivem** Stern |
+| ⭐ Neueröffnung | – | Sterne = ⌊√(Umsatz der Kette / 1 Mio. €)⌋ bis 100, darüber ⌊100 · ⁴√(Umsatz / 10 Mrd. €)⌋ (v5, §11.6), +10 % auf alles je **aktivem** Stern |
 | 📜 Geheimrezepte | 1. Stern | Talentbaum, kostet Sterne (ausgegebene Sterne verlieren ihre +10 %): Holzofen-Glut (1 ⭐, Betrieb +50 %), Sauerteig von 1890 (1 ⭐, Preis +20 %), Stammgäste (2 ⭐, Ereignisse doppelt so oft und doppelt so ergiebig), Nonnas Sparstrumpf (2 ⭐, nach Holzofen: Start mit 10 Lehrlingen + 5 Steinöfen), Nonnas Gedächtnis (3 ⭐, nach Sauerteig: Rezeptbuch bleibt), Lavastein-Ofen (4 ⭐, nach Holzofen: Sonderschicht doppelt so lang, 45 s Abkühlung) |
 | 🏅 Herausforderungen | 3 Sterne insgesamt | Neueröffnung unter Auflagen, Ziel = Umsatz der Runde, Belohnung für immer: Neapel-Modus (nur Lehrlinge/Steinöfen, 5 Mio. € → beide ×3), Hawaii-Verbot verschärft (kein Rezeptbuch, Hawaii-Gäste fliegen raus, 1 Mrd. € → Preis +25 %), Fastenzeit (kein Klicken, keine Sonderschicht, keine Ereignisse, 5 Mrd. € → Betrieb +25 %); „Aufgeben“ hebt die Auflagen auf |
-| 🏢 Franchise | 25 Sterne in der laufenden Kette | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale; setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
+| 🏢 Franchise | 25 Sterne in der laufenden Kette (v5: 100) | Filialen insgesamt = ⌊√(Sterne insgesamt / 2,5)⌋, +100 % auf alles je Filiale (v5: +200 %, **zusammen** mit den Sternen statt mal); setzt Sterne, Geheimrezepte und Runde zurück, schaltet die Franchise-Zentrale frei |
 
 Jeder Neustart (Neueröffnung, Herausforderung, Aufgeben, Franchise, Neu anfangen) fragt nach: erster Klick ändert den Knopftext,
 der zweite binnen 10 s bestätigt. **Klicken:** Klickwert = (1 + feste Handwerk-Pizzen) × Sterne × Filialen + Anteil (0,05 % je
-Kurier/Tarantella/Roboter/Vesuv) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der
-Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
+Kurier/Tarantella/Roboter/Vesuv, **höchstens 8 Stück je Upgrade**, Knopf dann „✅ ausgebaut“, ältere Stände werden beim Laden
+gekappt) der Sekundenproduktion; Handwerk wird je Stück 60 % (fest) bzw. 40 % (Anteil) teurer, der Betrieb 15 %. Balancing-Bot (Saaten 42/7/99, 5 Klicks/s, kauft immer das teuerste Leistbare): Klickanteil am Umsatz der jeweils
 letzten 5 Minuten nach 15 min 12–15 %, nach 30 min 9–14 %, nach 55 min 6–9 % (10 Klicks/s: 18–27 % / 13–15 % / 12–16 %);
 nach 60 min aktiv 274–393 Mio. €, nur automatisch 292–364 Mio. €.
 
@@ -375,13 +375,49 @@ Reiter), `.ereignisse` aus echtem Lauf (Interpreter, Saat 42, Vorrat leer) mit d
 klein; **Deckelprüfung:** der Bot zählt je Takt die sichtbaren offenen Zeilen je Bereich und meldet Verstöße gegen §11.2),
 alte Spielstände (v2–v4) laden, Sichtprüfung in Chrome hell/dunkel.
 
-### 11.5 Wünsche an Theke/Sprache (nicht selbst gebaut)
+### 11.5 Wünsche an Theke/Sprache – entschieden als Theke v4 (K-107 … K-113, SPEC §16.7)
 
-| Nr. | Wunsch | Wozu | Umweg heute |
-|---|---|---|---|
-| W1 | `Reiter`: Seiten ein-/ausblenden und Titel ändern (`setzeTitel(n, t)`, `seiteSichtbar(n, d)`) | Reiter erst zeigen, wenn die Ebene offen ist; Kennzeichen „•“ für Neues | gesperrte Reiter zeigen einen Schloss-Text |
-| W2 | Einklappbarer `Abschnitt` (`zu(d)`, Ereignis beim Auf-/Zuklappen) | „Erledigt“- und Kleinbetriebe-Zeilen | Knopf „▸ zeigen“ + `sichtbar` |
-| W3 | Umschalter/Segment-Auswahl (`Auswahl(["1×","10×","100×","Max"])`) | Kaufmenge | vier Knöpfe, gewählter eingefärbt |
-| W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks |
-| W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) |
-| W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt |
+| Nr. | Wunsch | Wozu | Umweg bisher | Entscheidung |
+|---|---|---|---|---|
+| W1 | `Reiter`: Seiten ein-/ausblenden und Titel ändern (`setzeTitel(n, t)`, `seiteSichtbar(n, d)`) | Reiter erst zeigen, wenn die Ebene offen ist; Kennzeichen „•“ für Neues | gesperrte Reiter zeigen einen Schloss-Text | **K-107:** `setzeTitel(n, t)`, `titel(n)`; Seite ausblenden = `seite.sichtbar(nein)` (kein eigenes `seiteSichtbar`) |
+| W2 | Einklappbarer `Abschnitt` (`zu(d)`, Ereignis beim Auf-/Zuklappen) | „Erledigt“- und Kleinbetriebe-Zeilen | Knopf „▸ zeigen“ + `sichtbar` | **K-108:** `klappbar(d)`, `zu(d)`, `beiAenderung(fn)` → `fn(zu)` |
+| W3 | Umschalter/Segment-Auswahl (`Auswahl(["1×","10×","100×","Max"])`) | Kaufmenge | vier Knöpfe, gewählter eingefärbt | **K-109:** Zutat `Auswahl(optionen, gewaehlt: 1)` |
+| W4 | Tastatur-Ereignisse (Leertaste, Ziffern) | Minispiele „Fangen!“ ohne Maus | nur Klicks | **K-110:** unsichtbare Zutat `Tastatur(beiTaste)` → `fn("Leertaste")`, Ereignis `taste` in `.ereignisse` |
+| W5 | `Mathe.log` | Max-Kauf in geschlossener Form statt Schleife | Schleife (≤ 1000) | **K-111:** `log`, `log10`, `log2`, `exp`, `E` |
+| W6 | `Meldung`/Toast mit Warteschlange (Idee aus der Übersicht) | mehrere Neuigkeiten kurz hintereinander | eine Meldungszeile, letzte gewinnt | **K-112: abgelehnt** – Schild + Blech als Schlange + Takt (Doku-Muster) |
+| W7 | Feste Höhe ohne Umbruch-Sprung für `Schild` (z. B. `stil("zeilen", 2)` mit Auslassungszeichen) bzw. Mindestbreite für Knöpfe | ruhiges UI: Texte wachsen, Knöpfe bleiben stehen | `stil("hoehe", …)` – längerer Text läuft über | **K-113:** Stile `zeilen` (ganze Zahl ≥ 1) und `mindestbreite` (px) |
+
+### 11.6 Stand (umgesetzt, Spielstand `version` 5)
+
+| Paket | Inhalt | Commit |
+|---|---|---|
+| 1 | Rezeptbuch verschwindet nach dem Lesen; Geheimrezepte als Welle (3 offen, „✅ Gelernt“) | 7bdb8cd |
+| 2 | Kaufmenge 1×/10×/100×/Max (Umschalter, Summe der gerundeten Einzelpreise) | 625a02f |
+| 3a–3h | 22 Geheimrezepte in 5 Ketten · 6 Gebäude (Foodtruck, Saturnring … Multiversum) + Kleinbetriebe-Welle · 56 Meisterbriefe · 6 Ereignisse mit Bedingung · ≈ 30 Erfolge als Welle · 2. Herausforderungs-Staffel (Inflation, Mini-Küche, Nonna im Urlaub) · Meister-Minispiele · Feinkost-Händler | e11da79 … 2f14048 |
+| Kurve | Sterne über 100 mit vierter Wurzel, Sterne + Filialen additiv, Kette ab 100 Sternen, Geheimrezepte je gelerntem +40 % | a760ede |
+| ruhiges UI | feste Höhen/Breiten, Betrieb über Handwerk, feste Plätze für Geheimrezepte/Meisterbriefe/Feinkost | 10c3906 |
+| 10 fps | Takt 100 ms, Produktion anteilig, Uhren in ganzen Sekunden, Speichern nach Spielzeit | 45791eb |
+| Namensraum | Kammer `pizza-imperium/spielstand` (K-106), alte Stände werden übernommen | e8dcf3e |
+| 4 | Animationen: hüpfen/schweben am Backen-Knopf, funkeln/aufpoppen an der Meldung, puls an der Kasse, einblenden für Neues | 43dd57b |
+
+Balancing-Bot (Saat 42, 5 Klicks/s, Aufstieg: Neueröffnung bei Verdopplung, Kette ab 5 neuen Filialen): Sterne insgesamt
+nach 2 h 40 · 3 h 441 · 4 h 1.500 · 5 h 3.600 · 6 h 8.600 · 8 h 20.000 · 11,5 h 47.000 (vorher: 10.000 nach 4,5 h, Millionen danach);
+erste Kette nach ≈ 2,5 h (vorher ≈ 1,3 h); Pizza-Multiversum in 12 h nicht erreicht. Klickanteil gesamt 6–8 % ohne, 11–13 % mit
+Aufstieg (12 h: 17–18 %) – siehe „Klick-Deckel“ unten. Ruhiges UI: von 66 Käufen aus dem Testlauf verschieben nur noch 7 Knöpfe (neue Gebäudeart/Kleinbetriebe), vorher 21 von 44.
+**Klick-Deckel** (Nutzer: Klicken soll weniger attraktiv sein als Automatik, Ziel < 10 % auch mit Aufstieg bei 5 Klicks/s):
+Ursache war der Anteil-Klick – die Anteil-Upgrades haben feste €-Preise (×1,4 je Stück), das Einkommen wächst mit Sternen und
+Filialen um viele Größenordnungen, also kaufte man spät 60–70 Stück (3–3,5 % der Sekundenproduktion je Klick, ×5 Klicks/s). Ein
+steilerer Preis verschiebt das nur (Stückzahl ~ log Einkommen), daher der Deckel: 8 Stück je Anteil-Upgrade (höchstens 1,6 % je
+Klick). Bot (5 Klicks/s, Minispiele an, Saaten 42/7/99):
+
+| Lauf | vorher | mit Deckel |
+|---|---|---|
+| ohne Aufstieg, 60 min: Klickanteil · Umsatz | 6,1 / 6,5 / 7,2 % · 753 / 645 / 648 Mio. € | 4,9 / 5,2 / 5,7 % · 751 / 656 / 717 Mio. € |
+| Aufstieg, 6 h: Klickanteil gesamt | 15,2 / 13,6 / 14,2 % | 3,4 / 3,7 / 3,6 % |
+| Aufstieg, 12 h: Klickanteil gesamt | 17,5 / 17,2 / 17,0 % | 3,5 / 3,6 / 3,7 % |
+| Aufstieg, 12 h: 5-min-Fenster ≥ 10 % (ab min 15) | 98 / 101 / 99 von 141 | 3 / 1 / 1 (Ereignisse kurz nach Neustarts) |
+| Sterne 3 h · 4 h · 6 h · 8 h (Saat 42) | 441 · 1.690 · 10.063 · 23.844 | 451 · 1.530 · 9.863 · 23.582 |
+| Sterne nach 12 h | 58.735 / 59.724 / 58.806 | 57.105 / 56.858 / 58.836 |
+| erste Kette | 134 / 131 / 133 min | 138 / 131 / 126 min |
+
+CPU im Playground bei 10 Takten/s: ≈ 10 % eines Kerns. Extremstand (3·10⁷ Sterne, 9·10²¹ €, 150 Filialen): keine Ananas, Interpreter = Wasm.

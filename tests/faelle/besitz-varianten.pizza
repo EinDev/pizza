@@ -1,8 +1,0 @@
-Pizza p = ((Tomate));
-Pizza q = ((Salami));
-probier { q = p; } verbrannt (BesitzAnanas a) { Bote.sage(("Zuweisung")); }
-klasse K { Pizza feld = ((Pilze)); }
-K k = neu K();
-probier { Pizza r = k.feld; } verbrannt (BesitzAnanas a) { Bote.sage(("Feldzugriff")); }
-Pizza r2 = ((p));
-Bote.sage(("Doppelklammer um Variable ist auch einfacher Bezeichner?"));

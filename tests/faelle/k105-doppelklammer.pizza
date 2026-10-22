@@ -1,0 +1,17 @@
+// K-105: Doppelklammern sind immer normale Klammern; großgeschriebene Namen, belag/auf und @Nach sind gewöhnlich
+salami MAX = 10;
+Bote.sage(((MAX)));
+Bote.sage((((MAX)) + 1));
+Bote.sage(((("Text"))));
+Bote.sage((((1 + 2))));
+margherita Tomate = "rot";
+salami Salami = 2;
+Bote.sage(((Tomate)), ((Salami)));
+salami belag = 3;
+margherita auf = "auf";
+Bote.sage((belag + " " + auf));
+quattrostagioni Belag { Tomate, Käse, Salami, Pilze }
+Bote.sage((Belag.Käse));
+@Nach(Tomate)
+klasse K { @Nach(Tomate) salami x = 1; }
+Bote.sage((neu K().x));

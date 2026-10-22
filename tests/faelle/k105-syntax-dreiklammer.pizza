@@ -1,0 +1,2 @@
+leer f(salami a) { }
+f(((1, 2)));

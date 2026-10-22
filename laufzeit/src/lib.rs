@@ -1,4 +1,4 @@
-//! pizzaiolo-Laufzeit: Werte, Texte, Standardbibliothek, Objektmodell, Pizza-Funktionen.
+//! pizzaiolo-Laufzeit: Werte, Texte, Standardbibliothek, Objektmodell, Ofen/Teig/Lieferung, Theke, Vorrat.
 //! Wird vom Compiler mit dem Programmcode zu EINEM Wasm-Modul gelinkt (HOST-ABI.md).
 #![no_std]
 #![allow(static_mut_refs, clippy::missing_safety_doc, dead_code)]
@@ -69,7 +69,7 @@ pub struct Zustand {
     pub grenze: f64,    // 8
     pub offset: f64,    // 16
     pub rueck: u64,     // 24
-    pub sig: i32,       // 32  0 keins, 1 Ananas, 2 Budget, 3 PizzaFehler, 4 Limit, 5 Panik
+    pub sig: i32,       // 32  0 keins, 1 Ananas, 2 Budget, 3 reserviert (ehemals PizzaFehler, K-105), 4 Limit, 5 Panik
     pub pos: i32,       // 36  aktuelle Position (Index in Positionstabelle)
     pub tiefe: i32,     // 40
     pub argtop: u32,    // 44  Argumentstapel-Spitze
@@ -272,4 +272,4 @@ pub extern "C" fn rt_info(i: i32) -> i32 {
     }
 }
 
-pub fn start_init() { text::namen_init(); klassen::eingebaute_klassen(); pf::belaege_init(); argstapel_init(); }
+pub fn start_init() { text::namen_init(); klassen::eingebaute_klassen(); argstapel_init(); }

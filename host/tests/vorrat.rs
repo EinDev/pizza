@@ -1,7 +1,7 @@
 //! Vorratskammer (K-079–K-081), Saat (K-077), Echtzeit (K-087) und Importprüfung (HOST-ABI §2) –
 //! mit handgeschriebenen Modulen (WAT) und als End-to-End-Test der EXE (Spielstand überlebt zwei Läufe).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use pizzahost::ereignis::{Ereignis, Senke};
@@ -208,7 +208,11 @@ fn spielstand_ueberlebt_zwei_exe_laeufe() {
 "));
     let (code, _, err) = lauf(&[&vorrat_opt, "--vorrat-loeschen=Spielstand"]);
     assert_eq!(code, Some(2));
-    assert_eq!(err, "Ungültiger Kammername 'Spielstand' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).
+    assert_eq!(err, "Ungültiger Kammername 'Spielstand' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').
+");
+    let (code, _, err) = lauf(&[&vorrat_opt, "--vorrat-loeschen", "../x"]);
+    assert_eq!(code, Some(2));
+    assert_eq!(err, "Ungültiger Kammername '../x' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').
 ");
     let (code, out, _) = lauf(&[&vorrat_opt, "--kein-vorrat", "--saat=1"]);
     assert_eq!((code, out.as_str()), (Some(0), "neu
@@ -217,9 +221,124 @@ fn spielstand_ueberlebt_zwei_exe_laeufe() {
     let (code, out, _) = lauf(&[&vorrat_opt, "--saat=1"]);
     assert_eq!((code, out.as_str()), (Some(0), "neu
 "));
+    // K-106: Kammern mit Namensraum liegen in `<ordner>/<raum>/<name>.json`; Löschen mit Kennung `raum/name`.
+    let raum = vorrat.join("spiel");
+    std::fs::create_dir_all(&raum).unwrap();
+    std::fs::write(raum.join("stand.json"), r#"{"v":1,"name":"spiel/stand","eintraege":[]}"#).unwrap();
+    std::fs::write(raum.join("zweiter.json"), r#"{"v":1,"name":"spiel/zweiter","eintraege":[]}"#).unwrap();
+    let (code, out, _) = lauf(&[&vorrat_opt, "--vorrat-loeschen", "spiel/stand"]);
+    assert_eq!((code, out.as_str()), (Some(0), "Vorrat 'spiel/stand' gelöscht.
+"));
+    assert!(!raum.join("stand.json").exists() && raum.join("zweiter.json").exists());
+    let (code, out, _) = lauf(&[&vorrat_opt, "--vorrat-loeschen=spiel/stand"]);
+    assert_eq!((code, out.as_str()), (Some(0), "Vorrat 'spiel/stand' gibt es nicht.
+"));
+    // -alle: auch Raum-Ordner (eine Ebene tief), leer gewordene Raum-Ordner verschwinden; Fremdes bleibt.
+    let fremd = vorrat.join("Fremd");
+    std::fs::create_dir_all(&fremd).unwrap();
+    std::fs::write(fremd.join("x.json"), "{}").unwrap();
+    std::fs::write(vorrat.join("notiz.txt"), "bleibt").unwrap();
     let (code, out, _) = lauf(&[&vorrat_opt, "--vorrat-loeschen-alle"]);
     assert_eq!((code, out.as_str()), (Some(0), "Alle Vorräte gelöscht.
 "));
     assert!(!vorrat.join("spielstand.json").exists());
+    assert!(!raum.exists(), "Raum-Ordner spiel/ sollte entfernt sein");
+    assert!(fremd.join("x.json").exists() && vorrat.join("notiz.txt").exists());
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// K-106: Kennung `name` / `raum/name`, beide Teile `[a-z0-9-]{1,40}` – alles andere ist ungültig (kein Pfad-Traversal).
+#[test]
+fn kennung_pruefen() {
+    use pizzahost::laufen::{vorrat_kennung, vorrat_pfad};
+    let lang = "a".repeat(40);
+    let zu_lang = "a".repeat(41);
+    assert_eq!(vorrat_kennung("a"), Some((None, "a")));
+    assert_eq!(vorrat_kennung("pizza-imperium/spielstand"), Some((Some("pizza-imperium"), "spielstand")));
+    assert_eq!(vorrat_kennung("a-1/b2"), Some((Some("a-1"), "b2")));
+    assert_eq!(vorrat_kennung(&lang), Some((None, lang.as_str())));
+    assert_eq!(vorrat_kennung(&format!("{lang}/{lang}")), Some((Some(lang.as_str()), lang.as_str())));
+    for k in [
+        "", "/", "../x", "a/../b", "a//b", "/a", "a/", "a/b/c", "A", "Spielstand", "a/B", "a.json", "a\\b", "a b", "ä",
+        "a/..", "..", ".", "a/.", zu_lang.as_str(), &format!("{zu_lang}/a"), &format!("a/{zu_lang}"),
+    ] {
+        assert_eq!(vorrat_kennung(k), None, "{:?} müsste ungültig sein", k);
+        assert_eq!(vorrat_pfad(Path::new("v"), k), None, "{:?} darf keinen Pfad ergeben", k);
+    }
+    assert_eq!(vorrat_pfad(Path::new("v"), "k"), Some(PathBuf::from("v").join("k.json")));
+    assert_eq!(vorrat_pfad(Path::new("v"), "spiel/stand"), Some(PathBuf::from("v").join("spiel").join("stand.json")));
+}
+
+/// Wie `VORRAT_WAT`, aber mit der Kennung an Offset 0 / Länge `$nn` (Daten ab 256), damit verschiedene Kennungen
+/// durchgespielt werden können.
+fn kennung_wat(kennung: &str) -> String {
+    let json = format!(r#"{{"v":1,"name":"{kennung}","eintraege":[["a",7]]}}"#);
+    let json_wat = json.replace('"', "\\\"");
+    format!(
+        r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (import "pizza" "vorrat_lesen" (func $lesen (param i32 i32 i32 i32) (result i32)))
+  (import "pizza" "vorrat_schreiben" (func $schreiben (param i32 i32 i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "{kennung}")
+  (data (i32.const 128) "-")
+  (data (i32.const 256) "{json_wat}")
+  (data (i32.const 1024) "{{\"schluessel\":\"a\",\"wert\":7}}")
+  (func (export "start") (result i32) (local $n i32)
+    (local.set $n (call $lesen (i32.const 0) (i32.const {nn}) (i32.const 2048) (i32.const 4096)))
+    (if (i32.lt_s (local.get $n) (i32.const 0))
+      (then (call $ausgabe (i32.const 128) (i32.const 1)))
+      (else (call $ausgabe (i32.const 2048) (local.get $n))))
+    (if (i32.ne (call $schreiben (i32.const 0) (i32.const {nn}) (i32.const 256) (i32.const {jn}) (i32.const 1024) (i32.const 27)) (i32.const 0))
+      (then (call $ausgabe (i32.const 128) (i32.const 1))))
+    i32.const 0))"#,
+        nn = kennung.len(),
+        jn = json.len(),
+    )
+}
+
+#[test]
+fn vorrat_mit_namensraum_liegt_im_raum_ordner() {
+    let ordner = tmp("vorrat-raum");
+    let wat = kennung_wat("spiel/stand");
+    let (code, e) = lauf(&wat, Optionen { vorrat: Some(ordner.clone()), ..Default::default() });
+    assert_eq!(code, 0);
+    assert_eq!(ausgaben(&e), vec!["-"]);
+    let json: Vec<String> = e.iter().map(|x| x.als_json()).collect();
+    assert!(json.contains(&r#"{"typ":"vorrat","name":"spiel/stand","schluessel":"a","wert":7}"#.to_string()), "{:?}", json);
+    let raum = ordner.join("spiel");
+    assert_eq!(std::fs::read_to_string(raum.join("stand.json")).unwrap(), r#"{"v":1,"name":"spiel/stand","eintraege":[["a",7]]}"#);
+    // Temp-Datei lag im Raum-Ordner und ist weg; im Wurzelordner nur der Raum-Ordner.
+    assert_eq!(std::fs::read_dir(&raum).unwrap().count(), 1);
+    assert_eq!(std::fs::read_dir(&ordner).unwrap().count(), 1);
+    // Zweiter Lauf liest den Stand zurück.
+    let (_, e) = lauf(&wat, Optionen { vorrat: Some(ordner.clone()), ..Default::default() });
+    assert_eq!(ausgaben(&e), vec![r#"[["a",7]]"#]);
+    // Gleicher Name ohne Namensraum ist eine andere Kammer (leer).
+    let (_, e) = lauf(&kennung_wat("stand"), Optionen { vorrat: Some(ordner.clone()), ..Default::default() });
+    assert_eq!(ausgaben(&e), vec!["-"]);
+    assert!(ordner.join("stand.json").exists());
+    let _ = std::fs::remove_dir_all(&ordner);
+}
+
+#[test]
+fn ungueltige_kennung_kein_traversal() {
+    let wurzel = tmp("vorrat-traversal");
+    let ordner = wurzel.join("vorrat");
+    std::fs::create_dir_all(&ordner).unwrap();
+    for k in ["../x", "a/../b", "a//b", "/a", "a/", "Stand", "a/b/c"] {
+        let (code, e) = lauf(&kennung_wat(k), Optionen { vorrat: Some(ordner.clone()), ..Default::default() });
+        assert_eq!(code, 0, "{k}");
+        // lesen -1 → "-", schreiben -1 → "-"; Ereignis `vorrat` wird trotzdem emittiert.
+        assert_eq!(ausgaben(&e), vec!["-", "-"], "{k}");
+        let json: Vec<String> = e.iter().map(|x| x.als_json()).collect();
+        assert!(json.iter().any(|z| z.starts_with(r#"{"typ":"vorrat","name":"#)), "{k}: {:?}", json);
+    }
+    // Nichts geschrieben – weder im Vorratsordner noch darüber.
+    assert_eq!(std::fs::read_dir(&ordner).unwrap().count(), 0);
+    assert_eq!(std::fs::read_dir(&wurzel).unwrap().count(), 1);
+    // Ohne Speicherort (--kein-vorrat) bleibt eine ungültige Kennung folgenlos: lesen -1, schreiben 0 (W0101-Verhalten).
+    let (_, e) = lauf(&kennung_wat("../x"), Optionen::default());
+    assert_eq!(ausgaben(&e), vec!["-"]);
+    let _ = std::fs::remove_dir_all(&wurzel);
 }

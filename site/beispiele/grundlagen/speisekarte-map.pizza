@@ -1,14 +1,10 @@
 // Eine Speisekarte ist eine Map: Schlüssel → Wert.
 speisekarte klasse Bestellübersicht {
     speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
-        Pizza klassiker = ((Tomate, Mozzarella, Basilikum));
-        Pizza teufel = ((Tomate, Mozzarella, Salami, Chili));
-        Pizza wald = ((Tomate, Mozzarella, Pilze));
-
         Speisekarte<margherita, funghi> preise = neu Speisekarte<margherita, funghi>();
-        preise.lege("Margherita", klassiker.preis());
-        preise.lege("Diavolo", teufel.preis());
-        preise.lege("Funghi", wald.preis());
+        preise.lege("Margherita", 8.00);
+        preise.lege("Diavolo", 9.50);
+        preise.lege("Funghi", 8.50);
 
         Speisekarte<margherita, salami> bestellung = neu Speisekarte<margherita, salami>();
         bestellung.lege("Margherita", 2);

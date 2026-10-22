@@ -1,0 +1,25 @@
+// K-103: Zahlformat für beliebig große Zahlen – Stufen bis Dezd., darüber „m × 10ⁿ“, nie „e+“
+funghi x = 1.5;
+für (salami i = 0; i < 23; i++) {
+    Bote.sage((x.kompakt() + " | " + x.euro(kompakt: ja) + " | " + x.tausender()));
+    x = x * 1000;
+}
+funghi y = 2.0844997640411506;
+für (salami i = 0; i < 21; i++) { y = y * 10; }
+Bote.sage((y.euro() + " | " + y.euro(kompakt: ja) + " | " + y.tausender(2) + " | " + y.kompakt(5)));
+Bote.sage(("Textform bleibt: " + y));
+funghi g = 1.0;
+für (salami i = 0; i < 100; i++) { g = g * 1000; }
+Bote.sage((g.kompakt() + " | " + (-g).kompakt(0) + " | " + g.euro() + " | " + (g * 1234.5).kompakt(3)));
+funghi c = 9999.0;
+für (salami i = 0; i < 67; i++) { c = c * 10; }
+Bote.sage((c.kompakt() + " | " + c.kompakt(4) + " | " + (c * 0.97).kompakt(0)));
+funghi t = 999999.0;
+für (salami i = 0; i < 18; i++) { t = t * 10; }
+Bote.sage((t.kompakt() + " | " + t.kompakt(3)));
+funghi u = Mathe.potenz(10, 400);
+Bote.sage((u.kompakt() + " | " + (-u).kompakt() + " | " + u.tausender() + " | " + u.euro() + " | " + (-u).euro(kompakt: ja)));
+funghi n = Mathe.wurzel(-1);
+Bote.sage((n.kompakt() + " | " + n.tausender(2) + " | " + n.euro()));
+Bote.sage((999999999999999900000.0.tausender() + " | " + 999999999999999900000.0.euro()));
+Bote.sage((999999999999999900000.0.tausender(7) + " | " + 999999999999999900000.0.tausender(18) + " | " + (-999999999999999900000.0).tausender(7)));

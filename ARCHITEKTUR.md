@@ -47,8 +47,7 @@ UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhäng
 PizzaLang.version            // "3.0.0"
 PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
-PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, teile, zwischenstand)
-PizzaLang.BELAEGE            // [{name, preis, nach: string[]}] – eingebaute Zutatenliste
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand)
 PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen (inkl. KüchenAnanas, SPEC §17 – am Ende angehängt)
 
 PizzaLang.parse(quelltext)
@@ -59,7 +58,7 @@ PizzaLang.run(quelltext, optionen)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
-  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(name, eintraege),  // SPEC §15.4 (K-077 … K-081)
+  //                       zufallsSaat?: number, vorrat?: object, onVorrat?(kennung, eintraege),  // SPEC §15.4 (K-077 … K-081, K-106: Kennung = name | namensraum/name)
   //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-100)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
@@ -77,13 +76,12 @@ zusätzlich ein Pool-Objekt aus `Pizzaiolo.kuechenPool(k)` als `koeche`). `BUILT
 PizzaLang.intern.analysiere(ast)   // → [{ code, text, zeile, spalte }] – Warnungen vor dem Start (W0666, W0032), sortiert wie im Lauf
 PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte } – Startprüfung (Q0004, P0010, P0011, R0001, A0001), Text wie fehler-Ereignis
 PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebaute Ananas-Hierarchie (SPEC §8)
-PizzaLang.intern.BELAEGE           // wie PizzaLang.BELAEGE (Kopie)
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
-PizzaLang.intern.GRUNDPREIS        // 5 – Pizza-Grundpreis
 PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
 ```
-Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück.
+Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück. `BELAEGE`, `intern.BELAEGE` und
+`intern.GRUNDPREIS` gibt es seit K-105 nicht mehr (kein eingebautes Pizza-Objekt).
 
 ### Ereignisse (Reihenfolge = Auftreten)
 
@@ -95,7 +93,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
 { typ: "ui",            nachricht }                             // Theke-Protokollnachricht Programm → Renderer (SPEC §16; nicht in .erwartet, sondern .ui-erwartet)
-{ typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; nicht in .erwartet)
+{ typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; name = Kennung `raum/name`, K-106; nicht in .erwartet)
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
@@ -103,9 +101,9 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "ende",          exitCode, schritte, zeitMs }              // optional koeche: tatsächlich genutzte Köche (SPEC §17.7; nicht in .erwartet, Differenztests ignorieren es)
 ```
 
-- `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"B0012"` …).
-- `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: Pizza ist alle. (Zeile 12)`.
-- `text` bei PizzaFehler: `PizzaFehler B0012: 'Käse' liegt unter 'Tomate'. Das ist keine Pizza, das ist ein Auflauf.`
+- `code` bei Ananas = Klassenname (z. B. `"StreitAnanas"`), sonst der PizzaFehler-Code (`"P0001"`, `"R0001"` …).
+- `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: 8 Stücke lassen sich nicht fair durch 3 teilen. (Zeile 12)`.
+- `text` bei PizzaFehler: `PizzaFehler R0001: Klasse 'X' erfüllt Rezeptur 'Y' nicht: Methode 'z' fehlt.`
 - `zeile`/`spalte` ab 1, `null` falls unbekannt.
 
 ## 2. Worker-Protokoll (`site/js/worker.js`)
@@ -118,7 +116,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
-- Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`).
+- Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`). Kammern **mit Namensraum** (K-106) liegen unabhängig vom Tab unter `pizza.vorrat.<raum>/<name>` (nativ `<ordner>/<raum>/<name>.json`) – ein Spielstand für Beispiel-Tab, geteilte Tabs und App-Links jeder Fassung.
 - **Köche (SPEC §17.7, K-100):** Lauf-Einstellungen-Popover **„Köche: auto | 1 | 2 | 4 | 8“** (localStorage, neben „feste Saat“;
   `auto` = `navigator.hardwareConcurrency`, höchstens 16). Enthält das kompilierte Programm die Importgruppe `kueche`, erzeugt der
   Lauf-Worker **vor** `run` einen Köche-Pool (Kinder-Worker; „Abbrechen“ = `worker.terminate()` beendet alle Köche). Ohne
@@ -164,14 +162,14 @@ Teil-Manifest, z. B. `grundlagen.json`:
 Jede Datei registriert Abschnitte:
 ```js
 (self.PIZZA_DOKU = self.PIZZA_DOKU || []).push({
-  id: "pizza-literale",
+  id: "pf-teig",
   gruppe: "Pizza-Funktionen",      // Gruppierung in der Navigation
   ordnung: 310,                    // Sortierung (aufsteigend) – Bereiche siehe unten
-  titel: "Pizza-Literale",
+  titel: "Teig (Lazy Evaluation)",
   tier: 1,                         // 1 | 2 | 3 → Badge
   inhalt: [
     { art: "text", md: "Absatz mit **fett**, *kursiv*, `code` und [Links](#)." },
-    { art: "code", code: "Pizza p = ((Tomate));\nBote.sage((p));", ausfuehrbar: true, tier: 1 },
+    { art: "code", code: "Teig<salami> t = teig(() -> (6 * 7));\nBote.sage((t.gehenlassen().backen()));", ausfuehrbar: true, tier: 1 },
     { art: "tabelle", kopf: ["pizza", "Java"], zeilen: [["`tiefkühl`", "static"]] },
     { art: "hinweis", ton: "info", md: "…" },          // ton: "info" | "warnung" | "pizza"
     { art: "ausgabe", text: "erwartete Ausgabe (optional)" }
@@ -211,7 +209,7 @@ Regeln für jeden Abschnitt:
 
 ## 5. UI
 
-- One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/BELAEGE).
+- One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/ANANAS).
 - Konsole unter dem Editor (ausgabe / fehlerausgabe / warnung / fehler farblich unterschieden, Exit-Code-Badge).
 - Einklappbares **Seitenpanel** rechts mit Tabs **Doku** · **Beispiele** (auf schmalen Bildschirmen als Overlay/Popup).
 - Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.
@@ -232,7 +230,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
 | `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
-| Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kammer>": [["schlüssel", wert], …] }` → `optionen.vorrat`; Tests laufen mit `zufallsSaat` 42 (Standard) |
+| Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kennung>": [["schlüssel", wert], …] }` → `optionen.vorrat` (Kennung `kammer` oder `raum/kammer`, K-106); Tests laufen mit `zufallsSaat` 42 (Standard) |
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |

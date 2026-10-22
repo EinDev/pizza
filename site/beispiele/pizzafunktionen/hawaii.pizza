@@ -1,13 +1,24 @@
 // Luigi hat eine Regel. Nur eine.
 
+klasse Pizza {
+    Blech<margherita> beläge;
+    Pizza(Blech<margherita> beläge) { dies.beläge = beläge; }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+
+// Eine Hawaii ist doch auch nur eine Pizza ... dachte Tisch 6.
+klasse Hawaii erbt Pizza {
+    Hawaii(Blech<margherita> beläge) { unten((beläge)); }
+}
+
 Bote.sage(("=== Freitagabend bei Luigi ==="));
-Pizza tisch5 = ((Tomate, Mozzarella, Schinken));
+Pizza tisch5 = neu Pizza(["Tomate", "Mozzarella", "Schinken"]);
 Bote.sage(("Tisch 5: " + tisch5 + " – sehr gerne!"));
 Bote.sage(("Tisch 6 möchte Tomate, Käse, Schinken und ... Ananas."));
 Bote.sage(("Luigi wird blass."));
 
 probier {
-    Pizza tisch6 = ((Tomate, Käse, Schinken, Ananas));
+    Pizza tisch6 = neu Hawaii(["Tomate", "Käse", "Schinken", "Ananas"]);   // neu Hawaii(...) → Kernel Panic
     Bote.sage(("Tisch 6: " + tisch6));
 } verbrannt (fehler) {
     Bote.sage(("Gerade noch abgefangen!"));   // Panik ist nicht fangbar ...

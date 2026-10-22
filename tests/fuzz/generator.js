@@ -7,8 +7,13 @@
  * - Schleifen nur mit Literal-Grenzen (≤ 6) bzw. Zähler; Rekursion nur mit fallendem Parameter (≤ 8).
  * - Pro Programm ein Schrittlimit als Sicherheitsnetz (P0002 wird dann ebenfalls verglichen).
  * - Funktionen/Lambdas/Closures, Klassen mit Feldern/Methoden/Vererbung/alsText, Bleche, Speisekarten,
- *   Texte (Unicode/Escapes), Pizza-Literale, Dauer, probier/verbrannt/rand, wirf, Ofen, Lieferung, Teig,
+ *   Texte (Unicode/Escapes), Dauer, probier/verbrannt/rand, wirf, Ofen, Lieferung, Teig,
  *   wähle (Anweisung und Ausdruck), optional Bestellannahme (EINGABE.md) und selten Hawaii.
+ * - Eine eigene Klasse `Pizza` steht in jedem Programmkopf (K-105: kein eingebautes Pizza-Objekt mehr): Blech-Feld,
+ *   statischer Zähler, verkettbare Methoden (`mit` liefert eine Kopie, `drauf`/`ohne` verändern `dies`), `hat`/`anzahl`/
+ *   `preis`/`beläge`, meist `alsText` – so bleiben Objekt-Erzeugung, Methodenaufruf, Textform und Identitätsvergleich
+ *   im Fuzz abgedeckt. Entfernte Dinge (`Tomate`, `teile`, `neu Belag()`) werden selten gefangen aufgerufen, damit
+ *   beide Motoren dieselbe „nicht definiert“-Meldung liefern müssen.
  * - Küchenbrigade (THREADS §5 Punkt 5, opt.brigade): `x.brigade(lambda)` als Anweisung und Ausdruck, verschachtelt (≤ 2),
  *   Rümpfe mit Ausgaben, Warnungen, Würfen (Abbruch in Stück k), Uhr/Zufall/`neu` in Stücken, Schrittlimit-Abbruch,
  *   gelegentlich Schreibzugriffen auf Hauptküchen-Eigentum (KüchenAnanas-Wachen) und nicht kartonfähigen Ergebnissen.
@@ -17,8 +22,8 @@ const { Zufall } = require('./zufall');
 
 const S = 'salami', F = 'funghi', T = 'margherita', D = 'diavolo', B = 'Blech<salami>', P = 'Pizza', K = 'Speisekarte<margherita, salami>', Z = 'Dauer', L = 'Rezept<salami>';
 
-const FREIE_BELAEGE = ['Salami', 'Schinken', 'Pilze', 'Oliven', 'Zwiebeln', 'Paprika', 'Chili', 'Peperoni', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais', 'Knoblauch', 'Kapern'];
-const NACH_TOMATE = ['Käse', 'Parmesan', 'Gorgonzola'];
+// Belag-Namen sind seit K-105 nur noch Texte für die eigene Klasse Pizza (als Literale "Salami" …).
+const BELAG_TEXTE = ['Salami', 'Schinken', 'Pilze', 'Oliven', 'Zwiebeln', 'Paprika', 'Chili', 'Peperoni', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais', 'Knoblauch', 'Kapern', 'Käse', 'Tomate', 'Mozzarella', 'Ananas', '', 'ß', '🍕'];
 const TEXTE = ['', 'a', 'Pizza', 'Käse', 'ß', 'Grüße', '🍕', 'x y', 'a\\nb', 'Tab\\tEnde', 'Zitat \\"q\\"', 'Back\\\\slash', 'ÄÖÜ', 'pizza', 'PiZZa', '0', '42', ' rand '];
 const S_LIT = [[30, () => null], [3, () => '2147483647'], [2, () => '46341'], [2, () => '1000000007'], [1, () => '2147483648'], [1, () => '1_000_000'], [1, () => '9007199254740993']];
 const F_LIT = ['0.1', '0.2', '0.5', '2.5', '1.005', '3.14159', '0.000001', '1234.5678', '0.3', '7.25', '99.995', '1.5', '0.125'];
@@ -117,7 +122,8 @@ class Gen {
       [2, () => '(' + this.tA(d + 1) + ').länge()'],
       [2, () => '(' + this.bA(d + 1) + ').länge()'],
       [1, () => '(' + this.bA(d + 1) + ').summe()'],
-      [1, () => '(' + this.pA(d + 1) + ').anzahlBeläge()'],
+      [1, () => '(' + this.pA(d + 1) + ').anzahl()'],
+      [1, () => 'Pizza.zähler'],
       [2, () => '(' + this.dA(d + 1) + ' ? ' + this.sA(d + 1) + ' : ' + this.sA(d + 1) + ')'],
       [1, () => 'Zufall.zahl(' + z.int(-5, 5) + ', ' + z.int(5, 20) + ')'],
       [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.zahl(' + this.sA(d + 1) + ', ' + this.sA(d + 1) + ')'],
@@ -195,8 +201,8 @@ class Gen {
       [1, () => '(' + this.bA(d + 1) + ').enthält(' + this.sA(d + 1) + ')'],
       [1, () => '(' + this.bA(d + 1) + ').istLeer()'],
       [this.zufall ? 2 : 0, () => this.zufallsQuelle() + '.wahr(' + z.wahl(['0', '0.5', '1', '-1', '2', '0.1', '(' + this.fA(d + 1) + ')']) + ')'],
-      [1, () => '(' + this.pA(d + 1) + ').hat(' + z.wahl(FREIE_BELAEGE.concat(['Tomate', 'Mozzarella'])) + ')'],
-      [1, () => '(' + this.pA(d + 1) + ' == ' + this.pA(d + 1) + ')'],
+      [1, () => '(' + this.pA(d + 1) + ').hat(' + this.belag() + ')'],
+      [1, () => '(' + this.pA(d + 1) + ' ' + z.wahl(['==', '!=']) + ' ' + this.pA(d + 1) + ')'],
       [1, () => '(' + this.zA(d + 1) + ' ' + z.wahl(['<', '>', '==']) + ' ' + this.zA(d + 1) + ')'],
       [1, () => { const k = this.vars(K); return k.length ? z.wahl(k).name + '.hat(' + this.tA(d + 1) + ')' : 'ja'; }],
     ])();
@@ -220,26 +226,25 @@ class Gen {
     ])();
   }
 
-  pizzaLit() {
+  /** Belag als Textliteral (meist) oder beliebiger Text-Ausdruck. */
+  belag(d = 3) { return this.z.chance(0.8) ? '"' + this.z.wahl(BELAG_TEXTE) + '"' : this.tA(d); }
+
+  /** `neu Pizza()` mit 0–3 verketteten `mit(…)` (eigene Klasse im Programmkopf). */
+  pizzaNeu() {
     const z = this.z;
-    const lagen = [];
-    if (z.chance(0.8)) lagen.push('Tomate');
-    if (lagen.length && z.chance(0.5)) lagen.push('Mozzarella');
-    if (lagen.includes('Mozzarella') && z.chance(0.3)) lagen.push(z.wahl(['Basilikum', 'Rucola']));
-    if (lagen.length && z.chance(0.3)) lagen.push(z.wahl(NACH_TOMATE));
+    let s = 'neu Pizza()';
     const n = z.int(0, 3);
-    for (let i = 0; i < n; i++) lagen.push(z.wahl(FREIE_BELAEGE));
-    return '((' + lagen.join(', ') + '))';
+    for (let i = 0; i < n; i++) s += '.mit(' + this.belag() + ')';
+    return s;
   }
 
   pA(d) {
     const z = this.z;
-    if (d > 3) return this.pizzaLit();
+    if (d > 3) return this.varOder(P, () => this.pizzaNeu());
     return z.gewichtet([
-      [4, () => this.pizzaLit()],
-      [3, () => { const v = this.vars(P); return v.length ? '(' + z.wahl(v).name + ' + ' + z.wahl(FREIE_BELAEGE) + ')' : this.pizzaLit(); }],
-      [2, () => '(' + this.pA(d + 1) + ' ' + z.wahl(['+', '-']) + ' ' + z.wahl(FREIE_BELAEGE) + ')'],
-      [1, () => 'neu Pizza()'],
+      [4, () => this.pizzaNeu()],
+      [3, () => { const v = this.kuechenFilter(this.vars(P)); return v.length ? z.wahl(v).name + '.' + z.wahl(['mit', 'mit', 'drauf', 'ohne']) + '(' + this.belag() + ')' : this.pizzaNeu(); }],
+      [2, () => this.pA(d + 1) + '.' + z.wahl(['mit', 'drauf', 'ohne']) + '(' + this.belag(d + 1) + ')'],
       [1, () => this.aufruf(P, d)],
     ])();
   }
@@ -320,6 +325,8 @@ class Gen {
       [this.hawaii && !this.hawaiiGesetzt ? 1 : 0, () => this.hawaiiAnweisung()],
       [this.brigadeAn && this.kueche < 2 && !tief ? (this.kueche ? 1 : 4) : 0, () => this.brigade()],
       [this.kueche ? 5 : 0, () => this.kuechenAnweisung()],
+      [0.5, () => this.entfernteDinge()],
+      [1, () => this.pizzaAnweisung()],
     ];
     z.gewichtet(o)();
   }
@@ -562,10 +569,12 @@ class Gen {
   hawaiiAnweisung() {
     this.hawaiiGesetzt = true;
     const z = this.z;
+    // K-105: Auslöser sind nur noch der Typ `hawaii` (Zuweisung → Panik) und `neu Hawaii(…)`.
     const variante = z.wahl([
-      'Pizza hw = ((Tomate)) + Ananas;',
       'hawaii hw = ' + this.sA(2) + ';',
-      'Pizza hw = ((Tomate, Ananas));',
+      'hawaii hw = ' + this.pA(2) + ';',
+      'Wert hw = neu Hawaii(' + (z.chance(0.5) ? this.tLit() : '') + ');',
+      'Bote.sage((neu Hawaii()));',
     ]);
     this.zeile('falls (' + this.dA(1) + ') { ' + variante + ' }');
   }
@@ -649,6 +658,38 @@ class Gen {
     ])();
   }
 
+  /** Entfernte Pizza-Fachlogik (K-105) muss in beiden Motoren dieselbe gewöhnliche Fehlermeldung liefern – gefangen. */
+  entfernteDinge() {
+    const z = this.z;
+    const [ausdruck, fang] = z.wahl([
+      ['Tomate', 'LaufzeitAnanas'],
+      ['Salami.preis()', 'LaufzeitAnanas'],
+      ['teile(' + this.pA(2) + ')', 'LaufzeitAnanas'],
+      ['neu Belag()', 'UnbekanntePizzaAnanas'],
+      ['neu Stück()', 'Ananas'],
+      ['(' + this.pA(2) + ').übrig()', 'Ananas'],
+      ['(' + this.pA(2) + ' + "Salami")', 'Ananas'],
+      ['Ananas', 'Ananas'],
+    ]);
+    this.zeile('probier { Bote.sage((' + ausdruck + ')); } verbrannt (' + fang + ' a) { Bote.sage(("entfernt: " + a)); }');
+  }
+
+  /** Anweisungen auf Variablen der eigenen Klasse Pizza. */
+  pizzaAnweisung() {
+    const v = this.kuechenFilter(this.vars(P));
+    if (!v.length) return this.deklaration();
+    const p = this.z.wahl(v).name;
+    this.zeile(this.z.wahl([
+      p + '.drauf(' + this.belag() + ');',
+      p + '.ohne(' + this.belag() + ');',
+      p + '.b.hinzu(' + this.belag() + ');',
+      'Bote.sage((' + p + ' + " " + ' + p + '.preis() + " " + ' + p + '.anzahl()));',
+      'für (margherita bl : ' + p + '.beläge()) { Bote.sage(("belag " + bl)); }',
+      'falls (' + p + '.hat(' + this.belag() + ')) { Bote.sage((' + p + '.beläge().länge())); }',
+      'Bote.sage((' + p + ' == ' + p + '.mit("x")));',
+    ]));
+  }
+
   // ------------------------------------------------------------- Deklarationen (oben)
   klassenErzeugen() {
     const z = this.z;
@@ -658,6 +699,7 @@ class Gen {
     this.zeile('klasse FuzzUnterAnanas erbt FuzzAnanas { FuzzUnterAnanas(margherita m) { unten("unter: " + m); } }');
     // Küchenbrigade: Klasse ohne statischen Zähler – darf in Stücken entstehen und die Küche als Kopie verlassen (D10)
     if (this.brigadeAn) this.zeile('klasse FuzzBon { salami w = 0; margherita notiz = "bon"; FuzzBon(salami x) { w = x; } salami doppelt() { serviere ((w * 2)); } }');
+    this.pizzaKlasse();
     for (let i = 0; i < anzahl; i++) {
       const name = 'Klasse' + i;
       const basis = i > 0 && z.chance(0.6) ? 'Klasse' + (i - 1) : null;
@@ -687,6 +729,27 @@ class Gen {
       this.scopes = alt;
       this.klassen.push({ name, basis });
     }
+  }
+
+  /** Eigene Klasse Pizza (K-105) – fester Aufbau, zufällig: Grundpreis, alsText vorhanden oder nicht, gebackenes Feld. */
+  pizzaKlasse() {
+    const z = this.z;
+    const mitText = z.chance(0.8);
+    this.block('klasse Pizza', () => {
+      this.zeile('Blech<margherita> b = ' + (z.chance(0.5) ? '[]' : 'neu Blech<margherita>()') + ';');
+      this.zeile((z.chance(0.3) ? 'gebacken ' : '') + 'funghi grund = ' + z.wahl(['5', '5.5', '0', '7.25', '4.99']) + ';');
+      this.zeile('tiefkühl salami zähler = 0;');
+      // Küchenbrigade: ohne statischen Zähler, damit `neu Pizza()` auch in Stücken geht (Wachen deckt Klasse0.anzahl ab)
+      this.zeile(this.brigadeAn ? 'Pizza() { }' : 'Pizza() { Pizza.zähler++; }');
+      this.zeile('Pizza mit(margherita x) { Pizza n = neu Pizza(); n.b = b.belege(y -> y); n.b.hinzu(x); serviere ((n)); }');
+      this.zeile('Pizza drauf(margherita x) { b.hinzu(x); serviere ((dies)); }');
+      this.zeile('Pizza ohne(margherita x) { b = b.filtere(y -> y != x); serviere ((dies)); }');
+      this.zeile('diavolo hat(margherita x) { serviere ((b.enthält(x))); }');
+      this.zeile('salami anzahl() { serviere ((b.länge())); }');
+      this.zeile('funghi preis() { serviere ((grund + b.länge() * ' + z.wahl(['1.5', '1', '0.8']) + ')); }');
+      this.zeile('Blech<margherita> beläge() { serviere ((b)); }');
+      if (mitText) this.zeile('margherita alsText() { serviere (("Pizza(" + b.verbinde(", ") + ")")); }');
+    });
   }
 
   funktionenErzeugen() {
@@ -754,7 +817,7 @@ class Gen {
       [1, () => this.zeile('Bote.sage((kv.schlüssel() + " " + kv.länge() + " " + kv.name()));')],
       [1, () => this.zeile('falls (' + this.dA(2) + ') { kv.leeren(); }')],
       [1, () => this.zeile('probier { kv.lege(' + z.wahl(['1', 'ja']) + ', 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }')],
-      [1, () => this.zeile('probier { kv.lege("p", ' + z.wahl(['((Tomate))', '1s', '(1 / 3) * 0', 'neu Zufall(1)']) + '); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }')],
+      [1, () => this.zeile('probier { kv.lege("p", ' + z.wahl(['neu Pizza()', '1s', '(1 / 3) * 0', 'neu Zufall(1)']) + '); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }')],
       [1, () => this.zeile('probier { Vorratskammer kx = neu Vorratskammer(' + z.wahl(['"Böse Name"', '""', '"fuzz"', '"' + 'x'.repeat(41) + '"', '"b-2"']) + '); Bote.sage((kx)); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }')],
       [1, () => { const b = this.neu('vb'); this.zeile('Blech<salami> ' + b + ' = [1, 2];'); this.zeile('kv.lege("blech", ' + b + ');'); this.zeile(b + '.hinzu(3);'); this.zeile('Bote.sage((kv.hole("blech") + " " + ' + b + '));'); }],
     ])();
@@ -820,7 +883,7 @@ class Gen {
     this.anweisungen(this.maxAnw);
     if (this.opt.theke) this.thekeTeil();
     // Endzustand beobachtbar machen
-    const alle = [].concat(...this.scopes).filter(v => [S, F, T, D, B, Z].includes(v.typ)).slice(-4);
+    const alle = [].concat(...this.scopes).filter(v => [S, F, T, D, B, Z, P].includes(v.typ)).slice(-4);
     for (const v of alle) this.zeile('Bote.sage(("' + v.name + ' = " + ' + v.name + '));');
     this.zeile('Bote.sage((Uhr.jetzt()));');
     if (this.z.chance(0.15)) {

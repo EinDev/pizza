@@ -10,9 +10,10 @@ Bote.sage((k.entferne("b") + " " + k));
 Speisekarte<salami, margherita> z = neu Speisekarte<salami, margherita>();
 z.lege(1, "eins").lege(2, "zwei");
 Bote.sage((z.hole(1) + z.hat(2) + z.hat(3)));
+quattrostagioni Belag { Salami, Tomate, Käse, Pilze }
 Speisekarte<Belag, salami> bel = neu Speisekarte<Belag, salami>();
-bel.lege(Salami, 3);
-Bote.sage((bel.hole(Salami) + " " + bel.hat("Salami")));
+bel.lege(Belag.Salami, 3);
+Bote.sage((bel.hole(Belag.Salami) + " " + bel.hat("Salami")));
 für (margherita s : k) { Bote.sage((s)); }
 Bote.sage((k.schlüssel().länge()));
 Bote.sage((k.alsText()));

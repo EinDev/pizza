@@ -1,18 +1,33 @@
 // Belag-Baukasten: Hake Beläge an – in der Reihenfolge, in der sie auf die Pizza kommen.
-// Manche Beläge haben eine Regel (@Nach): Mozzarella gehört auf die Tomate, nicht darunter.
-// Der Baukasten prüft das, BEVOR er belegt, und erklärt freundlich, was schiefging –
-// denn eine echte Verletzung wäre PizzaFehler B0012 und die Theke wäre zu.
+// Manche Beläge haben eine Regel: Mozzarella gehört auf die Tomate, nicht darunter.
+// Die Regeln stehen auf einer Speisekarte. Der Baukasten prüft sie, BEVOR er belegt,
+// und erklärt freundlich, was schiefging – denn Tomate auf Käse wäre ein Auflauf.
 
 Theke theke = neu Theke("Belag-Baukasten", breite: 440, hoehe: 400);
 
-Blech<Belag> angebot = [Tomate, Mozzarella, Basilikum, Rucola, Salami, Pilze, Parmesan];
+// Die Pizza auf dem Blech: Beläge von unten nach oben, Preis aus der Preisliste
+klasse Pizza {
+    tiefkühl Speisekarte<margherita, funghi> PREISE = neu Speisekarte<margherita, funghi>()
+        .lege("Tomate", 1.00).lege("Mozzarella", 1.50).lege("Basilikum", 0.50).lege("Rucola", 1.00)
+        .lege("Salami", 1.50).lege("Pilze", 1.00).lege("Parmesan", 1.20);
 
-// Die @Nach-Regeln der Zutatenliste für unser Angebot: Belag → muss über …
+    Blech<margherita> beläge = [];
+
+    leer drauf(margherita zutat) { beläge.hinzu(zutat); }
+    leer runter(margherita zutat) { beläge = beläge.filtere(b -> b != zutat); }
+    salami anzahl() { serviere ((beläge.länge())); }
+    funghi preis() { serviere ((5.00 + beläge.belege(b -> PREISE.hole(b)).summe())); }
+    margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
+}
+
+Blech<margherita> angebot = ["Tomate", "Mozzarella", "Basilikum", "Rucola", "Salami", "Pilze", "Parmesan"];
+
+// Die Regeln für unser Angebot: Belag → muss über …
 Speisekarte<margherita, margherita> nach = neu Speisekarte<margherita, margherita>();
 nach.lege("Mozzarella", "Tomate").lege("Basilikum", "Mozzarella")
     .lege("Rucola", "Mozzarella").lege("Parmesan", "Tomate");
 
-Pizza pizza = (());
+Pizza pizza = neu Pizza();
 salami umgangen = 0;
 
 Schild titel = neu Schild("Unten beginnen, oben aufhören.", id: "titel");
@@ -24,24 +39,24 @@ Schild meldung = neu Schild("", id: "meldung");
 
 leer zeigePizza() {
     bild.setzeText((pizza.alsText()));
-    preis.setzeText(("Preis: " + pizza.preis().euro() + " · " + pizza.anzahlBeläge() + (pizza.anzahlBeläge() == 1 ? " Belag" : " Beläge")));
+    preis.setzeText(("Preis: " + pizza.preis().euro() + " · " + pizza.anzahl() + (pizza.anzahl() == 1 ? " Belag" : " Beläge")));
 }
 
 // Text der Beanstandung, falls `b` jetzt oben drauf ein Auflauf wäre – sonst "".
-margherita auflaufGefahr(Belag b) {
-    für (margherita liegt : pizza.beläge()) {
-        falls (nach.hole(liegt) == b.name()) {
-            serviere ("'" + liegt + "' liegt schon – " + b.name()
+margherita auflaufGefahr(margherita b) {
+    für (margherita liegt : pizza.beläge) {
+        falls (nach.hole(liegt) == b) {
+            serviere ("'" + liegt + "' liegt schon – " + b
                 + " gehört darunter. Das wäre ein Auflauf!");
         }
     }
     serviere ("");
 }
 
-leer umschalten(Haken h, Belag b, diavolo an) {
+leer umschalten(Haken h, margherita b, diavolo an) {
     falls (!an) {
-        pizza = pizza - b;
-        meldung.setzeText(("" + b.name() + " wieder runter."));
+        pizza.runter(b);
+        meldung.setzeText((b + " wieder runter."));
         meldung.stil("farbe", "normal");
         zeigePizza();
         serviere;
@@ -54,16 +69,16 @@ leer umschalten(Haken h, Belag b, diavolo an) {
         meldung.stil("farbe", "tomate");
         serviere;
     }
-    pizza = pizza + b;
-    meldung.setzeText(("" + b.name() + " liegt oben."));
+    pizza.drauf(b);
+    meldung.setzeText((b + " liegt oben."));
     meldung.stil("farbe", "basilikum");
     zeigePizza();
 }
 
 Blech<Haken> alleHaken = [];
 Stapel liste = neu Stapel([], id: "liste");
-für (Belag b : angebot) {
-    Haken h = neu Haken(b.name(), id: b.name().klein());
+für (margherita b : angebot) {
+    Haken h = neu Haken(b, id: b.klein());
     h.beiAenderung(an -> { umschalten(h, b, an); });
     alleHaken.hinzu(h);
     liste.hinzu(h);
@@ -71,7 +86,7 @@ für (Belag b : angebot) {
 
 Knopf weg = neu Knopf("Alles runter", id: "leeren");
 weg.beiKlick(() -> {
-    pizza = (());
+    pizza = neu Pizza();
     für (Haken h : alleHaken) { h.setzeAn(nein); }
     meldung.setzeText(("Blech ist leer."));
     meldung.stil("farbe", "normal");
@@ -82,5 +97,5 @@ zeigePizza();
 theke.zeige(neu Stapel([titel, neu Reihe([liste, neu Stapel([bild, preis, meldung, weg])])]));
 theke.bediene();
 
-Bote.sage(("Fertig belegt: " + pizza.alsText() + " für " + pizza.preis().euro()));
+Bote.sage(("Fertig belegt: " + pizza + " für " + pizza.preis().euro()));
 Bote.sage(("Aufläufe verhindert: " + umgangen));

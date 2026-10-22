@@ -1,5 +1,3 @@
-Blech<margherita> namen = ["StreitAnanas", "RechenAnanas", "LeererKartonAnanas", "RohlingAnanas", "BesitzAnanas", "GebackenAnanas", "TypAnanas",
-  "KeinStückAnanas", "ZugriffsAnanas", "UnbekannterBelagAnanas", "ZugeklapptAnanas", "UnbekanntePizzaAnanas"];
 leer pruefe(Ananas a) {
     probier { wirf a; } verbrannt (GeprüfteAnanas g) { Bote.sage((a.typ() + " geprüft")); } verbrannt (LaufzeitAnanas l) { Bote.sage((a.typ() + " laufzeit")); }
 }
@@ -7,14 +5,13 @@ pruefe(neu StreitAnanas(""));
 pruefe(neu RechenAnanas(""));
 pruefe(neu LeererKartonAnanas(""));
 pruefe(neu RohlingAnanas(""));
-pruefe(neu BesitzAnanas(""));
 pruefe(neu GebackenAnanas(""));
 pruefe(neu TypAnanas(""));
 pruefe(neu KeinStückAnanas(""));
 pruefe(neu ZugriffsAnanas(""));
-pruefe(neu UnbekannterBelagAnanas(""));
 pruefe(neu ZugeklapptAnanas(""));
 pruefe(neu UnbekanntePizzaAnanas(""));
+pruefe(neu KüchenAnanas(""));
 pruefe(neu VerbranntAnanas(""));
 pruefe(neu LieferAnanas(""));
 probier { pruefe(neu Ananas("basis")); } verbrannt (Ananas x) { Bote.sage((x)); }

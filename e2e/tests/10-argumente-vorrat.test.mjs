@@ -144,7 +144,16 @@ function legeVorratAn(page, praefix, namen) {
     for (const name of n) localStorage.setItem(p + name, JSON.stringify({ v: 1, name, eintraege: [["stand", 7]] }));
   }, praefix, namen);
 }
-const vorratSchluessel = (page) => page.evaluate(() => Object.keys(localStorage).filter((k) => /^pizza\.vorrat(-beispiel)?\./.test(k)).sort());
+// Alle Vorrats-Schlüssel, auch Kammern mit Namensraum (pizza.vorrat.<raum>/<name>, K-106)
+const vorratSchluessel = (page) => page.evaluate(() => Object.keys(localStorage).filter((k) => /^pizza\.vorrat(-beispiel)?\.(?:[a-z0-9-]+\/)?[a-z0-9-]+$/.test(k)).sort());
+
+/** Beispiel aus der Galerie öffnen → aktiver Tab hat den Schlüssel bsp:… (Beispiel-Namensraum). */
+async function oeffneBeispielTab(page) {
+  await zeigePanelTab(page, "beispiele");
+  await page.waitForSelector(S.beispielKarte);
+  await page.$$eval(S.beispielKarte, (k) => k[0].click());
+  await page.waitForFunction((sel) => !/willkommen/.test(document.querySelector(sel).textContent), {}, S.tabAktiv);
+}
 
 async function paletteEintraege(page, suche) {
   await page.focus("#editor .cm-content");
@@ -208,10 +217,7 @@ e2e("Vorrat löschen im Beispiel-Tab: nur der Beispiel-Namensraum wird angeboten
   await legeVorratAn(page, "pizza.vorrat.", ["imperium"]);
   await legeVorratAn(page, "pizza.vorrat-beispiel.", ["imperium", "demo"]);
   // Beispiel öffnen → Tab mit Schlüssel bsp:… → Beispiel-Namensraum
-  await zeigePanelTab(page, "beispiele");
-  await page.waitForSelector(S.beispielKarte);
-  await page.$$eval(S.beispielKarte, (k) => k[0].click());
-  await page.waitForFunction((sel) => !/willkommen/.test(document.querySelector(sel).textContent), {}, S.tabAktiv);
+  await oeffneBeispielTab(page);
   const eintraege = await paletteEintraege(page, "Vorrat löschen");
   assert.ok(eintraege.some((t) => /Vorrat löschen: demo/.test(t)), "Beispiel-Kammer angeboten: " + eintraege.join(" | "));
   await paletteWaehle(page, "Alle Vorräte löschen");
@@ -220,4 +226,83 @@ e2e("Vorrat löschen im Beispiel-Tab: nur der Beispiel-Namensraum wird angeboten
   await page.$eval(S.dialogJa, (k) => k.click());
   await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent === "Alle Vorräte gelöscht."));
   assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat.imperium"], "eigener Vorrat bleibt, Beispiel-Vorräte weg");
+});
+
+// ---------------------------------------------------------------- Namensraum (K-106): Kammer gehört dem Programm, nicht dem Tab
+const NAMENSRAUM_CODE = [
+  'Vorratskammer a = neu Vorratskammer("stand", namensraum: "e2e-spiel");',
+  'Vorratskammer b = neu Vorratskammer("lokal");',
+  'a.lege("x", a.hole("x", 0) + 1);',
+  'b.lege("y", 2);',
+  'Bote.sage(("Raum: " + a.namensraum() + " Name: " + a.name() + " x=" + a.hole("x")));',
+].join("\n");
+
+e2e("Vorrat mit Namensraum im Beispiel-Tab: Kammer landet unter pizza.vorrat.<raum>/<name>, Kammer ohne Namensraum weiter unter pizza.vorrat-beispiel.", async ({ page, oeffne }) => {
+  await oeffne();
+  await oeffneBeispielTab(page);
+  await setzeCode(page, NAMENSRAUM_CODE); // Schlüssel bsp:… bleibt beim Bearbeiten erhalten
+  assert.equal(await backenUndAusgabe(page), "Raum: e2e-spiel Name: stand x=1\n");
+  assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat-beispiel.lokal", "pizza.vorrat.e2e-spiel/stand"]);
+  const kammer = await page.evaluate(() => JSON.parse(localStorage.getItem("pizza.vorrat.e2e-spiel/stand")));
+  assert.deepEqual(kammer, { v: 1, name: "e2e-spiel/stand", eintraege: [["x", 1]] }, "Serialisierung trägt die Kennung");
+  // Zweiter Lauf im selben Tab liest den Stand wieder ein (ohne ereignisseLeeren, das den Vorrat wegräumt)
+  await page.focus("#editor .cm-content");
+  await strg(page, "Enter");
+  await warteLaufEnde(page);
+  assert.equal(await konsolenAusgabe(page), "Raum: e2e-spiel Name: stand x=2\n");
+  // Eigener Tab (Willkommen) sieht dieselbe Kammer mit Namensraum, nicht aber die Beispiel-Kammer „lokal“
+  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "willkommen.pizza").querySelector(".etab-knopf").click());
+  await warteAufTabMuster(page, "willkommen.pizza");
+  await setzeCode(page, [
+    'Vorratskammer a = neu Vorratskammer("stand", namensraum: "e2e-spiel");',
+    'Vorratskammer b = neu Vorratskammer("lokal");',
+    'Bote.sage(("x=" + a.hole("x", 0) + " y=" + b.hole("y", 0)));',
+  ].join("\n"));
+  await page.focus("#editor .cm-content");
+  await strg(page, "Enter");
+  await warteLaufEnde(page);
+  assert.equal(await konsolenAusgabe(page), "x=2 y=0\n", "Namensraum-Kammer geteilt, Beispiel-Kammer getrennt");
+});
+
+e2e("Vorrat löschen mit Namensraum: Kennung raum/name in jedem Tab angeboten, Löschen trifft pizza.vorrat.<raum>/<name>; „Alle“ im Beispiel-Tab nimmt die Namensraum-Kammern mit", async ({ page, oeffne }) => {
+  await oeffne();
+  await legeVorratAn(page, "pizza.vorrat.", ["imperium", "e2e-raum/stand"]);
+  await legeVorratAn(page, "pizza.vorrat-beispiel.", ["demo"]);
+  // ungültige Kennungen (zwei „/“, „..“) werden nie angeboten
+  await page.evaluate(() => { localStorage.setItem("pizza.vorrat.a/b/c", "{}"); localStorage.setItem("pizza.vorrat.../x", "{}"); });
+  // Eigener Tab: eigene Kammer + Namensraum-Kammer
+  let eintraege = await paletteEintraege(page, "Vorrat löschen");
+  assert.ok(eintraege.some((t) => /Vorrat löschen: e2e-raum\/stand/.test(t)), "Namensraum-Kammer im eigenen Tab: " + eintraege.join(" | "));
+  assert.ok(eintraege.some((t) => /Vorrat löschen: imperium/.test(t)));
+  assert.ok(!eintraege.some((t) => /Vorrat löschen: demo/.test(t)), "Beispiel-Kammer nicht im eigenen Tab");
+  assert.ok(!eintraege.some((t) => /a\/b\/c|\.\.\//.test(t)), "ungültige Kennungen nicht angeboten");
+  await page.keyboard.press("Escape");
+  // Beispiel-Tab: Beispiel-Kammer + Namensraum-Kammer, nicht die eigene
+  await oeffneBeispielTab(page);
+  eintraege = await paletteEintraege(page, "Vorrat löschen");
+  assert.ok(eintraege.some((t) => /Vorrat löschen: e2e-raum\/stand/.test(t)), "Namensraum-Kammer im Beispiel-Tab: " + eintraege.join(" | "));
+  assert.ok(eintraege.some((t) => /Vorrat löschen: demo/.test(t)));
+  assert.ok(!eintraege.some((t) => /Vorrat löschen: imperium/.test(t)), "eigene Kammer nicht im Beispiel-Tab");
+  // Einzeln löschen aus dem Beispiel-Tab → pizza.vorrat.e2e-raum/stand weg, exakte Zeile mit Kennung
+  await paletteWaehle(page, "Vorrat löschen: e2e-raum/stand");
+  await page.waitForSelector("#dialog-frage[open]");
+  assert.match(await page.$eval("#dialog-text", (d) => d.textContent), /e2e-raum\/stand/);
+  await page.$eval(S.dialogJa, (k) => k.click());
+  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent.includes("gelöscht")));
+  assert.ok((await infoZeilen(page)).includes("Vorrat 'e2e-raum/stand' gelöscht."), (await infoZeilen(page)).join(" | "));
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat-beispiel.demo", "pizza.vorrat.imperium"]);
+  // „Alle“ im Beispiel-Tab: Beispiel-Kammern und alle Namensraum-Kammern, die eigene bleibt
+  await legeVorratAn(page, "pizza.vorrat.", ["e2e-raum/stand", "anderer-raum/x"]);
+  await paletteEintraege(page, "Alle Vorräte");
+  await paletteWaehle(page, "Alle Vorräte löschen");
+  await page.waitForSelector("#dialog-frage[open]");
+  const text = await page.$eval("#dialog-text", (d) => d.textContent);
+  assert.match(text, /Beispiele/, "Rückfrage nennt die Beispiele");
+  assert.match(text, /Namensraum/, "Rückfrage nennt die Namensraum-Kammern");
+  await page.$eval(S.dialogJa, (k) => k.click());
+  await page.waitForFunction(() => [...document.querySelectorAll("#konsole-inhalt .k-info")].some((z) => z.textContent === "Alle Vorräte gelöscht."));
+  assert.deepEqual(await vorratSchluessel(page), ["pizza.vorrat.imperium"], "eigener Vorrat bleibt; Beispiel- und Namensraum-Kammern weg");
+  // ungültige Schlüssel wurden nicht angefasst (sie gehören der UI nicht)
+  assert.equal(await page.evaluate(() => localStorage.getItem("pizza.vorrat.a/b/c")), "{}");
 });

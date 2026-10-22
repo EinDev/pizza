@@ -1,0 +1,17 @@
+// K-105: schieb bleibt – Move-Semantik für jede Variable (auch eigene Objekte), danach LeererKartonAnanas.
+klasse Karton {
+    salami inhalt;
+    Karton(salami i) { inhalt = i; }
+}
+Karton a = neu Karton(7);
+Karton b = schieb(a);
+Bote.sage((b.inhalt));
+probier {
+    Bote.sage((a.inhalt));
+} verbrannt (LeererKartonAnanas e) {
+    Bote.sage((e.nachricht()));
+}
+Blech<salami> liste = [1, 2, 3];
+Blech<salami> andere = schieb(liste);
+Bote.sage((andere.länge()));
+Bote.sage((liste.länge()));

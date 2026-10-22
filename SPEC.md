@@ -37,14 +37,15 @@ Alle Meldungen, Fehlertexte und Bezeichner der Sprache sind **deutsch**.
 ### Reservierte Keywords
 
 ```
-paket import klasse rezeptur rohling calzone belag auf quattrostagioni
+paket import klasse rezeptur rohling calzone quattrostagioni
 erbt erfüllt speisekarte familienrezept geheimrezept tiefkühl gebacken
 leer neu dies unten serviere falls sonst für solange wähle fall standard
 probier verbrannt rand wirf wirft abbrechen weiter ja nein karton ofen roh
 ```
 
 - `ja` / `nein` – Wahrheitswerte. `karton` – null („leerer Karton“).
-- Builtin-**Funktionen** (keine Keywords, aber global vordefiniert): `teig`, `bestelle`, `schieb`, `teile`, `zwischenstand`.
+- Builtin-**Funktionen** (keine Keywords, aber global vordefiniert): `teig`, `bestelle`, `schieb`, `zwischenstand`.
+- `belag` und `auf` sind seit K-105 **keine** reservierten Wörter mehr (gewöhnliche Bezeichner).
 
 ### Eingebaute Typnamen
 
@@ -55,10 +56,9 @@ probier verbrannt rand wirf wirft abbrechen weiter ja nein karton ofen roh
 | `margherita` | Text |
 | `diavolo` | Wahrheitswert |
 | `Dauer` | Zeitdauer |
-| `Pizza` | Pizza (siehe §6) |
 | `Blech<T>` | Liste |
 | `Speisekarte<K, V>` | Map |
-| `Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Stück<T>`, `Reste<T>`, `Rohling<T>` | Pizza-Funktionen (§7) |
+| `Teig<T>`, `Lieferung<T>`, `Zustellung<T>`, `Reste<T>`, `Rohling<T>` | Pizza-Funktionen (§7) |
 | `hawaii` | kompiliert. Siehe §9. |
 
 Generics werden geparst, aber **nicht geprüft** (Tier 3).
@@ -159,7 +159,8 @@ Syntax: `@Name`, `@Name(wert)`, `@Name(schlüssel: wert, ...)` (auch `schlüssel
 | `@NieKarton` (Parameter) | `karton` als Argument → `LeererKartonAnanas` |
 | `@Pizzaiolo(autor: "...")` | nur Metadaten |
 | `@Kühlschrank(haltbar: Dauer)` | Methoden-Cache, §7.6 |
-| `@Nach(Belag, ...)` | an `belag`-Deklaration, §6 |
+
+Unbekannte Annotationen (auch das frühere `@Nach`, K-105) werden geparst und ignoriert.
 
 ---
 
@@ -185,18 +186,17 @@ Syntax: `@Name`, `@Name(wert)`, `@Name(schlüssel: wert, ...)` (auch `schlüssel
 Präzedenz (niedrig → hoch): `?:` · `||` · `&&` · `== !=` · `< <= > >=` · `+ -` · `* / %` · unär `! -` · Postfix (Aufruf, Mitglied `.`) · Primär.
 
 Primär: Zahl, Dauer, Text, `ja`, `nein`, `karton`, Bezeichner, `dies`, `unten`, `(ausdruck)`,
-Pizza-Literal, Blech-Literal `[a, b, c]`, Bereich `[a .. b]` (inklusive), Lambda, `neu Typ<...>(args)`, `ofen`-Ausdruck.
+Blech-Literal `[a, b, c]`, Bereich `[a .. b]` (inklusive), Lambda, `neu Typ<...>(args)`, `ofen`-Ausdruck.
 
 - `+` mit mindestens einem Text → Textverkettung. `/` ist exakte Division; Division durch 0 → `RechenAnanas` („Durch null teilen? Das ergibt keine Stücke.“).
-- `==`/`!=`: Wertgleichheit für Zahlen, Texte, Wahrheitswerte, Dauer, Pizzen (gleiche Beläge in gleicher Reihenfolge), Beläge; sonst Identität.
+- `==`/`!=`: Wertgleichheit für Zahlen, Texte, Wahrheitswerte, Dauer; sonst Identität.
 - Lambdas: `(a, b) -> ausdruck`, `x -> ausdruck`, `() -> { block mit serviere (...); }`. Closures fangen den Scope ein.
   Funktionswerte werden mit `f(x)` aufgerufen.
 - Benannte Argumente: `name: ausdruck` in Argumentlisten (für Builtins und für eigene Methoden – dann nach Parametername).
 - Methodenreferenz: `obj.methode` / `Klasse.methode` ohne `()` → gebundener Funktionswert.
-- **Pizza-Literal** `((Belag, Belag, ...))` bzw. `(())`: Der Parser erkennt `(` `(` gefolgt von
-  ausschließlich großgeschriebenen einfachen Bezeichnern (kommagetrennt) und `)` `)` als Pizza-Literal.
-  Alles andere (`((x + 1))`, `(("Text"))`, `((a.b))`) ist eine normale doppelte Klammerung.
-- Doppelte Klammern um Ausdrücke sind stilistisch erwünscht (`Bote.sage(("Hallo"));`) und haben keine Bedeutung.
+- Doppelte Klammern um Ausdrücke sind stilistisch erwünscht (`Bote.sage(("Hallo"));`) und haben keine Bedeutung –
+  `((x))` ist immer eine normale Klammerung. Ein **Pizza-Literal** `((Tomate, Käse))` gibt es seit K-105 nicht mehr:
+  `((a, b))` und `(())` sind gewöhnliche Syntaxfehler P0001.
 
 ### Textform von Werten (`alsText`, Ausgabe)
 
@@ -208,81 +208,19 @@ Pizza-Literal, Blech-Literal `[a, b, c]`, Bereich `[a .. b]` (inklusive), Lambda
 | Text | roh (ohne Anführungszeichen) |
 | Blech | `[1, 2, 3]` |
 | Speisekarte | `{a: 1, b: 2}` |
-| Pizza | `((Tomate, Mozzarella))`, leer: `(())` |
-| Belag | Name, z. B. `Salami` |
 | Dauer | `1min 30s`, `90ms`, `2h`, `3d 4h`; 0 → `0ms` (größte Einheiten zuerst, Nullteile weglassen) |
 | Objekt | `alsText()` falls vorhanden, sonst `Klassenname@N` (N = laufende Instanznummer ab 1) |
 | Ananas | `Typ: Nachricht` |
 
 ---
 
-## 6. Pizzen & Beläge (Tier 1)
+## 6. Pizzen & Beläge – entfallen (K-105)
 
-- `Pizza p = ((Tomate, Mozzarella, Basilikum));` – Reihenfolge = von unten nach oben.
-- `p + Salami` → **neue** Pizza mit Salami oben; `p - Chili` → neue Pizza ohne (alle) Chili.
-- Großgeschriebener Bezeichner, der keine Variable/Klasse ist, aber ein bekannter Belag → Belag-Wert.
-  Unbekannt → `UnbekannterBelagAnanas: 'Xyz' steht nicht auf der Zutatenliste.`
-- Pizza-Methoden: `preis()`, `beläge()` (Blech der Belagnamen als Text), `hat(Belag)`, `anzahlBeläge()`, `alsText()`, `übrig()` (§7.5).
-- Belag-Methoden: `name()`, `preis()`.
-- **Grundpreis** Teig: `5.00`.
-
-### Eingebaute Zutatenliste
-
-| Belag | Preis | @Nach |
-|---|---|---|
-| Tomate | 1.00 | |
-| Mozzarella | 1.50 | Tomate |
-| Käse | 1.00 | Tomate |
-| Basilikum | 0.50 | Mozzarella |
-| Salami | 1.50 | |
-| Schinken | 1.50 | |
-| Pilze | 1.00 | |
-| Oliven | 1.00 | |
-| Zwiebeln | 0.50 | |
-| Paprika | 0.80 | |
-| Chili | 0.50 | |
-| Peperoni | 0.80 | |
-| Rucola | 1.00 | Mozzarella |
-| Parmesan | 1.20 | Tomate |
-| Gorgonzola | 1.50 | Tomate |
-| Thunfisch | 2.00 | |
-| Sardellen | 1.80 | |
-| Artischocken | 1.50 | |
-| Spinat | 1.00 | |
-| Ei | 0.80 | |
-| Mais | 0.50 | |
-| Knoblauch | 0.30 | |
-| Kapern | 0.70 | |
-| Ananas | – | löst §9 aus |
-
-`((Tomate, Mozzarella, Basilikum)).preis()` = 5.00 + 1.00 + 1.50 + 0.50 = `8`.
-
-### @Nach – Schichtreihenfolge
-
-Belag X mit `@Nach(Y)` darf **nicht unterhalb** von Y liegen (fehlt Y ganz, ist alles ok).
-Geprüft bei jeder Pizza-Erzeugung (Literal, `+`). Verstoß → fataler Fehler:
-`PizzaFehler B0012: 'Käse' liegt unter 'Tomate'. Das ist keine Pizza, das ist ein Auflauf.`
-
-### Eigene Beläge (Decorators)
-
-```pizza
-@Nach(Tomate)
-belag Trüffel auf Pizza {
-    speisekarte funghi preis() {
-        serviere ((unten.preis() + 4.50));
-    }
-    speisekarte margherita beschreibung() {
-        serviere (("edel: " + unten.beschreibung()));
-    }
-}
-```
-
-- Registriert `Trüffel` als Belag (darf auch eingebaute wie `Käse` neu definieren; Preis-Default dann aus der Tabelle).
-- **Dispatch** einer Methode `m` auf einer Pizza mit Schichten `[s1 .. sk]` (unten → oben):
-  `aufruf(k, m)`: ist `k == 0` → eingebaute Pizza-Methode (Grundpreis bei `preis`; `beschreibung()` → `"Teig"`).
-  Definiert Schicht `k` die Methode `m` → ausführen mit `dies` = ganze Pizza, `unten` = Sicht auf Schichten `1..k-1`.
-  Sonst: bei `m == preis` → `aufruf(k-1, preis) + Standardpreis(sk)` (Tabelle, unbekannt 1.00); bei anderen → `aufruf(k-1, m)`.
-- Eigene Methoden (wie `beschreibung`) sind so auf jeder Pizza aufrufbar, die den Belag trägt.
+Das eingebaute Objekt `Pizza` (Literal `((Tomate, Mozzarella))`, Zutatenliste mit Preisen, `@Nach`/B0012, `belag … auf Pizza`-Decorators,
+`preis()`/`beläge()`/`hat()`/`anzahlBeläge()`/`übrig()`, Belag-Werte) war Fachlogik einer Pizzeria und ist **kein Teil der Sprache mehr**
+(Nutzerentscheidung K-105). Wer eine Pizza braucht, schreibt eine eigene Klasse `Pizza` – Beispiele und Doku zeigen, wie.
+Großgeschriebene Namen sind gewöhnliche Namen (`Tomate` → `LaufzeitAnanas: 'Tomate' ist nicht definiert.`), `neu Pizza()` ohne eigene
+Klasse → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekarte.` Die Nummerierung der Abschnitte bleibt stabil.
 
 ---
 
@@ -339,16 +277,13 @@ salami s = ofen(temperatur: 450, zeit: 90s) {
 - **Echte Parallelität:** `.brigade(fn)` statt `.belege(fn)` verteilt die Stücke auf Köche (§17, Küchenbrigade); `schneide`,
   `belege` und `zusammenklappen` selbst bleiben sequentiell und unverändert.
 
-### 7.5 Stücke – Ownership & Referenzzählung (Tier 2: Laufzeitprüfung)
+### 7.5 Schieben – Ownership (Tier 1)
 
-- Eine Pizza hat genau einen Besitzer. Deklaration/Zuweisung, deren rechte Seite **ein einfacher Bezeichner
-  oder Feldzugriff** ist, der zu einer Pizza auswertet → `BesitzAnanas: Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p).`
-  (Übergabe als Argument und Rückgabe sind erlaubt.)
-- `schieb(x)` – `x` muss ein Bezeichner sein. Liefert den Wert; die Variable ist danach weggeschoben:
+- `schieb(x)` – `x` muss ein Bezeichner (Variable jeden Typs) sein. Liefert den Wert; die Variable ist danach **weggeschoben**:
   jeder Lesezugriff → `LeererKartonAnanas: 'p' wurde weggeschoben – der Karton ist leer.` (Neuzuweisung erlaubt.)
-- `teile(p)` → `Stück<Pizza>`. Jede Pizza hat 8 Stücke; `p.übrig()` startet bei 8 und sinkt pro `teile`.
-  Bei 0 → `StreitAnanas: Pizza ist alle.`
-- Stück-Methoden: `pizza()` (die geteilte Pizza), `essen()` (zweites `essen()` am selben Stück → `StreitAnanas: Dieses Stück ist schon gegessen.`), `istGegessen()`.
+  Felder lassen sich nicht schieben (`schieb(k.p)` → `LaufzeitAnanas`, K-016). Das Argument kostet keinen Schritt (§14.1).
+- Zuweisung und Deklaration per Name (`Pizza b = a;`) sind für **jeden** Typ erlaubt – die frühere Besitzprüfung
+  (`BesitzAnanas`) und die Stückzählung `teile(p)`/`Stück<Pizza>`/`übrig()` gehörten zum entfernten Pizza-Objekt (K-105).
 
 ### 7.6 Kühlschrank & Mikrowelle – Caching (Tier 2)
 
@@ -399,19 +334,24 @@ Ananas
 └── LaufzeitAnanas
     ├── StreitAnanas            ├── RechenAnanas
     ├── LeererKartonAnanas      ├── RohlingAnanas
-    ├── BesitzAnanas            ├── GebackenAnanas
-    ├── TypAnanas               ├── KeinStückAnanas
-    ├── ZugriffsAnanas          ├── UnbekannterBelagAnanas
-    └── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
-                                └── KüchenAnanas      (§17, K-098)
+    ├── GebackenAnanas          ├── TypAnanas
+    ├── KeinStückAnanas         ├── ZugriffsAnanas
+    ├── ZugeklapptAnanas        ├── UnbekanntePizzaAnanas
+    └── KüchenAnanas      (§17, K-098)
 ```
+Reihenfolge der eingebauten Ananas (verbindlich für `PizzaLang.ANANAS` und die Klassenindizes der Wasm-Laufzeit, K-105): Ananas,
+GeprüfteAnanas, VerbranntAnanas, LieferAnanas, LaufzeitAnanas, StreitAnanas, RechenAnanas, LeererKartonAnanas, RohlingAnanas,
+GebackenAnanas, TypAnanas, KeinStückAnanas, ZugriffsAnanas, ZugeklapptAnanas, UnbekanntePizzaAnanas, KüchenAnanas (16).
+`BesitzAnanas` und `UnbekannterBelagAnanas` gibt es nicht mehr (`neu BesitzAnanas(…)` → UnbekanntePizzaAnanas wie bei jeder unbekannten Klasse).
 - Erzeugen: `neu VerbranntAnanas("Nachricht")`. Methoden: `nachricht()`, `holeNachricht()` (Alias), `typ()` (Klassenname).
 - Eigene Ananas: `klasse MeineAnanas erbt LaufzeitAnanas { speisekarte MeineAnanas(margherita m) { unten(m); } }`.
 - Eigene Klassen und Ananas sind mit `verbrannt (Typ a)` fangbar (instanceof inkl. Vererbung).
 - Interne Fehler (z. B. Methode nicht gefunden, Variable unbekannt) sind `LaufzeitAnanas` mit passender Meldung,
-  etwa `LaufzeitAnanas: 'x' ist nicht definiert.` / `LaufzeitAnanas: Methode 'foo' gibt es auf Pizza nicht.`
+  etwa `LaufzeitAnanas: 'x' ist nicht definiert.` / `LaufzeitAnanas: Methode 'foo' gibt es auf Blech nicht.`
+  Auch die Nutzung entfernter Sprachteile (K-105) ist nur das: `Tomate` → `'Tomate' ist nicht definiert.`, `teile(x)` →
+  `'teile' ist nicht definiert.`, `neu Pizza()` → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekarte.`
 - `TypAnanas` bei Typverletzung an Deklarationen/Zuweisungen/Parametern für `salami` (muss ganzzahlig sein),
-  `funghi` (Zahl), `margherita` (Text), `diavolo` (Wahrheitswert), `Pizza`, `Dauer`, eigene Klassen (instanceof).
+  `funghi` (Zahl), `margherita` (Text), `diavolo` (Wahrheitswert), `Dauer`, eigene Klassen (instanceof).
   `karton` ist für alle Typen außer `salami`, `funghi`, `diavolo` erlaubt (also auch für `margherita`, §14.6/K-034). Andere/unbekannte Typen (z. B. `Blech<T>`) werden nicht geprüft.
   Meldung: `TypAnanas: 'x' ist salami, aber der Wert 3.5 ist keine Ganzzahl.` (sinngemäß, Inhalt frei)
 - Ungefangene Ananas → Programmende, Ausgabe als Fehler-Ereignis `Ungefangene Ananas – Typ: Nachricht (Zeile N)`, Exit-Code 1.
@@ -422,11 +362,12 @@ Ananas
 
 ## 9. Hawaii (Tier 1) – Easter Egg
 
-- `hawaii` ist ein gültiger Typ; `Ananas` ist auf der Zutatenliste. Der Parser akzeptiert alles.
-- Vor dem Start: enthält der Quelltext den Typ `hawaii` oder den Belag-Bezeichner `Ananas` (als Wert, nicht
-  die Exception-Klassen), gibt es **eine** Warnung `W0666: Typ 'hawaii' gefunden. Der Pizzaiolo sagt nichts. Er schaut nur.`
+- `hawaii` ist ein gültiger Typ. Der Parser akzeptiert alles.
+- Vor dem Start: enthält der Quelltext den Typ `hawaii`, gibt es **eine** Warnung
+  `W0666: Typ 'hawaii' gefunden. Der Pizzaiolo sagt nichts. Er schaut nur.` (Der Name `Ananas` ist nur noch die Basisklasse
+  der Ausnahmen, §8 – als bloßer Name der Klassenwert mit Textform `Ananas`, keine Warnung; K-105.)
 - **Panik-Auslöser** zur Laufzeit: (a) eine Variable/Feld/Parameter vom Typ `hawaii` erhält einen Wert,
-  (b) eine Pizza mit dem Belag `Ananas` entsteht (Literal oder `+ Ananas`), (c) `neu Hawaii(...)` (Klasse namens `Hawaii`, beliebige eigene Klasse).
+  (b) `neu Hawaii(...)` (Klasse namens `Hawaii`, beliebige eigene Klasse – auch ohne Deklaration).
 - Panik ist **nicht fangbar** (`probier`/`verbrannt`/`rand` werden übergangen), beendet sofort,
   Ereignis `panik` mit exakt diesem Text, Exit-Code **39**. Kanal (K-012, Nutzerentscheidung): CLI, nativer Host und EXE
   schreiben den Banner nach **stderr**; die Web-UI zeigt ihn als normale Fehlerausgabe (kein Crash-Overlay). In `.erwartet`
@@ -462,16 +403,16 @@ Exit-Code: 39
 |---|---|
 | `Bote` | `sage(x)` – Ausgabe + Zeilenumbruch · `fehler(x)` – Fehlerausgabe |
 | `Uhr` | `jetzt()`, `vorspulen(d)` |
-| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI` |
+| `Mathe` | `wurzel(x)`, `max(a, b)`, `min(a, b)`, `abs(x)`, `runden(x)`, `boden(x)`, `decke(x)`, `PI`; ferner `potenz(a, b)`, `runden(x, n)`, `log(x)`, `log10(x)`, `log2(x)`, `exp(x)`, `E` (§14.11, K-111) |
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
-| `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name)`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name` – §15.4 (K-079 … K-081, offen) |
+| `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
 | Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
 | Blech | `länge()`, `stück(i)` (**ab 1**, außerhalb → `KeinStückAnanas`), `hinzu(x)` (gibt Blech zurück), `entferne(i)`, `setze(i, x)`, `enthält(x)`, `belege(fn)` (map), `filtere(fn)`, `zusammenklappen(fn)` / `zusammenklappen(fn, start)` (reduce), `summe()`, `erstes()`, `letztes()`, `umdrehen()`, `sortiere()` / `sortiere((a, b) -> ...)`, `verbinde(trenner)`, `istLeer()`, `schneide(n)` |
 | Speisekarte | `lege(k, v)`, `hole(k[, ersatz])` (fehlt → `ersatz`, sonst `karton`; auch benannt `ersatz:`, K-095), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
 | Dauer | `+ -` mit Dauer, `* /` mit Zahl, Vergleiche, `inMs()`, `inSekunden()` |
-| `neu Blech<T>()`, `neu Speisekarte<K, V>()`, `neu Pizza()` (= `(())`) | |
+| `neu Blech<T>()`, `neu Speisekarte<K, V>()` | |
 
 `hauptgang`-Args: Blech von Texten.
 
@@ -527,7 +468,7 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 |---|---|
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas |
-| 2 | PizzaFehler (Syntax, B0012, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015] …; Host-Ladefehler `HOST` [K-043]) |
+| 2 | PizzaFehler (Syntax, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015] …; Host-Ladefehler `HOST` [K-043]) – alle entstehen vor dem Start; einen PizzaFehler zur Laufzeit (früher B0012) gibt es seit K-105 nicht mehr |
 | 3 | Schrittlimit (P0002) – ein Wand-Zeitlimit gibt es nicht (K-083/3) |
 | 39 | Hawaii |
 
@@ -556,7 +497,7 @@ regelt `EINGABE.md`.
   Fang-, `rand`-, Ofen- und `roh`-Blöcke sowie Block-Arme von `wähle` (deren Anweisungen zählen einzeln).
 - **Ausdrucksknoten (je 1 Schritt):** Literale (Zahl, Dauer, Text, `ja`/`nein`, `karton`), Name, Binär-, Logik-,
   Unär- und `?:`-Operator, jeder Aufruf (`f(x)`, `o.m(x)`, `unten(…)`, `f(x)(y)`), Mitgliedszugriff `o.f`, `dies`,
-  `unten` als Wert, `neu`, Pizza-Literal (als Ganzes, Belagnamen zählen nicht einzeln), Blech-Literal, Bereich,
+  `unten` als Wert, `neu`, Blech-Literal, Bereich,
   Lambda-Erzeugung, `ofen`-Ausdruck, `wähle`-Ausdruck. Jedes Argument (auch benannte) ist ein eigener Ausdruck.
 - **Nicht gezählt:** das Ziel einer Zuweisung oder von `++`/`--`, wenn es ein Name ist (bei `a.b = …` wird `a`
   ausgewertet und zählt); der Methoden- bzw. Funktionsname selbst; `unten` in `unten.m()`; das Argument von `schieb(x)`;
@@ -614,10 +555,10 @@ regelt `EINGABE.md`.
   - jedes zusammengesetzten Ausdrucks (alle Ausdrucksknoten außer Literalen, Namen, `dies`, `unten` als Wert und
     Lambda-Erzeugung),
   - jedes Aufrufs eines Rumpfs – gleich welcher Art: Methode, statische Methode, Top-Level-Funktion, Konstruktor
-    (je Klasse der Kette mit eigenem Konstruktor), Belag-Methode (Dispatch), Lambda, Methodenreferenz,
+    (je Klasse der Kette mit eigenem Konstruktor), Lambda, Methodenreferenz,
     Kühlschrank-Methode (`mikrowelle`/`frisch` eingeschlossen), `wennDa`-Rückruf, implizites `alsText`, Rückrufe aus
     der Bibliothek (`belege`, `filtere`, `sortiere`, `teig`, `bestelle` …),
-  - jedes Aufrufs eines Bibliotheks-Funktionswerts (`teig(…)`, `bestelle(…)`, `teile(…)`, `zwischenstand(…)`,
+  - jedes Aufrufs eines Bibliotheks-Funktionswerts (`teig(…)`, `bestelle(…)`, `zwischenstand(…)`,
     Methodenreferenzen wie `Bote.sage` oder `"abc".länge` als Wert aufgerufen). Direkte Aufrufe wie `Bote.sage(…)`
     oder `b.länge()` zählen nur über ihren Aufrufknoten.
 - Würde T **1500** überschreiten, entsteht an genau dieser Stelle die fangbare
@@ -632,11 +573,9 @@ regelt `EINGABE.md`.
 
 ### 14.5 Syntax-Präzisierungen und Erweiterungen
 
-- **Pizza-Literal:** zwei unmittelbar aufeinanderfolgende `(` in **Ausdrucksposition**. Syntaktische Klammern zählen
-  nicht mit – weder die eines Aufrufs noch die von `falls`/`solange`/`wähle`: `Bote.sage((Salami))` = Aufruf mit dem
-  Ausdruck `(Salami)` → Belag-Wert `Salami`; `Bote.sage(((Salami)))` → Pizza `((Salami))`.
-- `((X))` mit genau **einem** Namen, der kein bekannter Belag (und nicht `Ananas`) ist, wird als normale Klammer
-  gelesen (Variable, Klasse, …), z. B. `serviere ((MAX));`. Unbekannte großgeschriebene Namen → UnbekannterBelagAnanas.
+- **Doppelte Klammern** sind immer normale Klammern: `Bote.sage((x))`, `Bote.sage(((x)))`, `serviere ((MAX));` meinen den
+  Ausdruck `x` bzw. `MAX`. Ein Komma in einer Klammer (`((a, b))`) oder eine leere Klammer (`(())`) ist ein Syntaxfehler P0001;
+  großgeschriebene Namen werden wie alle Namen aufgelöst (Variable, Klasse, quattrostagioni, Modul – sonst `'X' ist nicht definiert.`).
 - Reservierte Wörter sind kleingeschrieben; andere Schreibweisen (`Ofen`, `Klasse`) sind normale Bezeichner. Ein
   reserviertes Wort als Name → `P0001: 'falls' ist ein reserviertes Wort und kann nicht als Name für die Variable verwendet werden`.
 - Fehlendes `;`: gemeldete Position = Ende des vorigen Tokens, wenn das gefundene Token in einer neuen Zeile steht.
@@ -653,7 +592,7 @@ regelt `EINGABE.md`.
 - **Überladung** nach Anzahl der Argumente (Positions- + benannte) für Methoden, Konstruktoren und Top-Level-Funktionen;
   passt keine Anzahl, gilt die erste Deklaration (→ Aritätsfehler).
 - **Mehrfachdeklaration** `salami a = 1, b, c = a + 2;` (Variablen und Felder); Kommas in `für`-Init und -Update.
-- Präfix `++x;`/`--x;`; `+=` usw. auch für Text, Dauer und Pizza (`p += Käse`); `x++` auf Nicht-Zahlen = `x + 1`.
+- Präfix `++x;`/`--x;`; `+=` usw. auch für Text und Dauer; `x++` auf Nicht-Zahlen = `x + 1`.
 - Generische Parameter `<T>` an Klassen/Methoden werden übersprungen; `Typ[]` ist erlaubt (ungeprüft);
   `für (x : liste)` ohne Typ erlaubt.
 - `paket`/`import` dürfen überall auf oberster Ebene stehen. Klassen/Rezepturen/quattrostagioni dürfen in Klassen
@@ -662,11 +601,11 @@ regelt `EINGABE.md`.
 
 ### 14.6 Typen und `karton`
 
-- `karton` ist erlaubt für alle Typen außer `salami`, `funghi`, `diavolo` (→ TypAnanas). `margherita`, `Pizza`,
+- `karton` ist erlaubt für alle Typen außer `salami`, `funghi`, `diavolo` (→ TypAnanas). `margherita`,
   `Dauer`, Klassen, Rezepturen und quattrostagioni dürfen `karton` halten. (Folge für Eingaben:
   `Bestellannahme.liesZahl()` liefert bei EOF `karton` – nicht direkt in `salami`/`funghi` speichern.)
 - Typnamen, die keine eingebaute oder eigene Klasse/Rezeptur/quattrostagioni sind (z. B. `Rezept`, `T`, `Blech<…>`,
-  `Belag`), sowie Typen mit `[]` werden nicht geprüft. quattrostagioni-Typen prüfen die Zugehörigkeit.
+  `Pizza` ohne eigene Klasse, `Stück<…>`), sowie Typen mit `[]` werden nicht geprüft. quattrostagioni-Typen prüfen die Zugehörigkeit.
 - Standardwerte ohne Initialisierer: `salami`/`funghi` → 0, `diavolo` → nein, sonst `karton`.
 - `gebacken`: lokale Variable ohne Initialisierer → genau eine spätere Zuweisung erlaubt; Felder: beliebig oft im
   Konstruktor (inkl. Feld-Initialisierern); Parameter mit `gebacken` sind unveränderlich.
@@ -682,9 +621,9 @@ regelt `EINGABE.md`.
   `Klasse 'K' erfüllt 'X' – diese Rezeptur gibt es nicht.` · `Rezeptur 'R' erbt von 'X' – diese Rezeptur gibt es nicht.` ·
   `Klasse 'A' erbt im Kreis – das ist ein Teigknoten.`
 - **A0001:** `Methode 'm' in 'K' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.`
-  (bei Belägen `… in Belag 'B' …`). Als vorhanden gelten Methoden der Basisklassenkette, aller erfüllten Rezepturen
+  Als vorhanden gelten Methoden der Basisklassenkette, aller erfüllten Rezepturen
   (inkl. geerbter Rezepturen und der Rezepturen der Basisklassen), `alsText` immer, bei Ananas-Klassen
-  `nachricht`/`holeNachricht`/`typ`, bei Belägen die Pizza-Methoden (`preis`, `beschreibung`, …).
+  `nachricht`/`holeNachricht`/`typ`.
 - **W0003:** `Methode 'm' ist veraltet.` bzw. `Methode 'm' ist veraltet. Grund: <grund>` – einmal pro Methode,
   Position = erster Aufruf.
 - Startprüfungen in dieser Reihenfolge: Q0004/P0010/P0011 in Quelltextreihenfolge, dann Vererbungszyklen, dann
@@ -723,7 +662,7 @@ regelt `EINGABE.md`.
   **eine** Variable für alle Durchläufe (Lambdas sehen den Endwert); `für (x : …)` und Variablen im Schleifenrumpf sind
   pro Durchlauf neu.
 - `für (x : …)` läuft über eine Kopie des Blechs (Änderungen während der Schleife wirken nicht), über Texte (Zeichen),
-  Speisekarten (Schlüssel), einen quattrostagioni-Typ (Werte) und Pizzen (Beläge).
+  Speisekarten (Schlüssel) und einen quattrostagioni-Typ (Werte).
 
 ### 14.10 Kühlschrank
 
@@ -740,7 +679,7 @@ regelt `EINGABE.md`.
   `Bote.sage()` gibt eine leere Zeile aus.
 - Zahlen: Textform wie JavaScript `String(x)` (`1e+21`, `1e-7`, `-0` → `0`, `0.30000000000000004`).
   `runden()`/`runden(n)`/`Mathe.runden` runden symmetrisch (−2.5 → −3, 2.675 → 2.68). `euro()`: zwei Nachkommastellen,
-  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`).
+  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`); ab `|x| ≥ 10²¹` sowie ∞/NaN wie `euro(kompakt: ja)` (K-103).
 - Dauer: zusätzlich `inMinuten()`; Textform rundet auf ganze ms, negative Dauer mit `-` (`-1min 30s`);
   `Dauer / Dauer` → Zahl; Zahl × Dauer → Dauer; Division durch 0 → RechenAnanas.
 - Text: zusätzlich `endetMit(s)`, `istLeer()`, `alsText()`. `länge()`/`zeichen(i)` zählen Unicode-Zeichen (Codepoints).
@@ -756,14 +695,15 @@ regelt `EINGABE.md`.
   `erstes`/`letztes` auf leerem Blech: `KeinStückAnanas: Das Blech ist leer – kein Stück da.`;
   Text: `Zeichen i gibt es nicht – der Text hat n Zeichen.`
 - Speisekarte: zusätzlich `istLeer()`; `lege` liefert die Speisekarte; `entferne(k)` liefert den alten Wert oder
-  `karton`; Beläge als Schlüssel werden über ihren Namen gespeichert (`hole(Salami)` = `hole("Salami")`).
-  `hole(k, ersatz)` (auch `ersatz:`) liefert `ersatz` **nur**, wenn `hat(k)` `nein` ist – ein gespeicherter `karton` bleibt
+  `karton`. `hole(k, ersatz)` (auch `ersatz:`) liefert `ersatz` **nur**, wenn `hat(k)` `nein` ist – ein gespeicherter `karton` bleibt
   `karton`; `ersatz` kommt unverändert zurück (keine Kopie); positional vor benannt wie in §14.9 (K-095).
-- Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`.
+- Mathe: `max`/`min` mit beliebig vielen Zahlen (keine → RechenAnanas), zusätzlich `potenz(a, b)`, `runden(x, n)`; **K-111:** `log(x)`
+  (natürlicher Logarithmus), `log10(x)`, `log2(x)`, `exp(x)` und die Konstante `E` – Verhalten und Bitmuster wie `Math.log/log10/log2/exp/E`
+  in JavaScript (`log(0)` → `-Infinity`, `log(-1)` → `NaN`, `exp(710)` → `Infinity`; Nicht-Zahl → TypAnanas wie `wurzel`); kein `log(x, basis)`.
 - Textformen weiterer Werte: Teig `Teig(roh)` / `Teig(<wert>)`; Lieferung `Lieferung #n`; Zustellung
-  `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Stück `Stück von <pizza>`; Reste
+  `Zustellung(<wert>)` / `Zustellung(zu spät)` / `Zustellung(Ananas)`; Reste
   `Reste(<wert>)`; roh-Info `Roh(<teilergebnis>)`; Funktionen `<Funktion>`; Klassen, Module und quattrostagioni-Typen
-  ihr Name. Zusätzlich `stück.essen()` → `karton`, `lieferung.istGeliefert()`, `funktion.rufe(…)`.
+  ihr Name. Zusätzlich `lieferung.istGeliefert()`, `funktion.rufe(…)`.
 - `Uhr.vorspulen` akzeptiert auch Zahlen (ms); negativ → `RechenAnanas: Die Uhr lässt sich nicht zurückdrehen.`
 - `Zufall.zahl(a, b)`: Ganzzahlen, a > b werden getauscht; Generator mulberry32 mit Seed 42, pro Lauf neu;
   Ergebnis `a + floor(r × (b − a + 1))`.
@@ -777,8 +717,8 @@ Jede Nummer verweist auf den Eintrag in `KLAERUNGEN.md` (Frage, Begründung, Sta
 Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Komponente wird nachgezogen (der Referenz-Interpreter entspricht allen Einträgen seit Commit 0d34810).
 
 ### 15.1 Syntax und Werte
-- **K-001** Pizza-Literal nur bei zwei Klammern in Ausdrucksposition: `f((A))` = Belag `A`, `f((A, B))` = Syntaxfehler P0001,
-  `f(((A, B)))` = Pizza. Bei `((X))` gewinnt ein bekannter Belagname gegen eine gleichnamige Variable.
+- **K-001** *(abgelöst durch K-105)* Es gibt kein Pizza-Literal mehr; `((X))` ist eine normale Klammer, `f((A, B))` bleibt
+  Syntaxfehler P0001, ebenso `f(((A, B)))` (§14.5).
 - **K-002** W0032: eine Warnung pro später deklariertem Namen (siehe §10, §14.8).
 - **K-003** Zahlliterale ohne Exponent und ohne führenden/abschließenden Punkt. `-` bindet schwächer als Postfix:
   `-2.5.runden()` = `-(2.5.runden())`; nur nacktes `-Zahl`/`-Dauer` wird zum negativen Literal.
@@ -798,11 +738,10 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-053** `schrittLimit` ≤ 0/NaN/fehlend → 5 000 000; nicht-ganzzahlig → Abbruch beim Schritt `floor(limit) + 1`.
 
 ### 15.2 Typen, Objekte, Standardbibliothek
-- **K-016** Besitzprüfung ist syntaktisch: nur rechte Seite = Name/Feldzugriff (auch geklammert) → BesitzAnanas; `?:`,
-  Blech-Literale, Methodenrückgaben nicht. `schieb(x)` für Variablen jeden Typs; nicht für Felder (LaufzeitAnanas).
-- **K-017** `übrig` hängt am Pizza-Objekt; `p + Belag`/`p - Belag` → neue Pizza mit 8 Stücken. `==`/`Blech.enthält`
-  vergleichen Pizzen nach Belägen. Speisekarten-Schlüssel: Zahl/Text/Wahrheitswert/`karton` nach Wert (`1` = `1.0`),
-  Beläge nach Name, quattrostagioni-Werte, sonst (Pizza, Dauer, Blech, Objekte) nach Identität.
+- **K-016** *(Besitzprüfung abgelöst durch K-105)* Keine BesitzAnanas mehr; `schieb(x)` für Variablen jeden Typs; nicht für
+  Felder (LaufzeitAnanas „schieb braucht genau einen Variablennamen“).
+- **K-017** *(Pizza-Teil abgelöst durch K-105)* Speisekarten-Schlüssel: Zahl/Text/Wahrheitswert/`karton` nach Wert (`1` = `1.0`),
+  quattrostagioni-Werte, sonst (Dauer, Blech, Objekte) nach Identität.
 - **K-018** Kühlschrank-Schlüssel = Textform der Argumente (Objekte eigener Klassen nach Identität); geworfene Ananas
   werden nicht gecacht; gecachte Werte kommen per Referenz zurück (§14.10).
 - **K-019** `wennDa` ersetzt den früheren Rückruf; `trinkgeld` nimmt jede Zahl (Faktor `1 + Summe/10` ≤ 0 → sofort zu
@@ -812,12 +751,11 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   mehr als 10 000 001 Elemente → `RechenAnanas: Der Bereich ist zu groß für ein Blech.`
 - **K-022** `sortiere` ist stabil; Vergleichsfunktion muss eine Zahl liefern (Vorzeichen zählt); ohne Funktion nur
   Zahlen, Texte (UTF-16-Codeeinheiten, K-040), Dauern, Werte eines quattrostagioni – sonst TypAnanas.
-- **K-023** Preis: je Standardbelag `runde2(unten + Standardpreis)`; eigene `preis()`-Methoden ungerundet;
-  `Ananas.preis()` = 0; eigene Beläge ohne Tabellenpreis 1.00.
+- **K-023** *(abgelöst durch K-105)* Es gibt keine eingebauten Preise mehr.
 - **K-026** Hawaii: Panik bei jeder Zuweisung (auch `karton`) an `hawaii`-Variable/-Feld/-Parameter, nicht bei
-  Deklaration ohne Initialisierer; `Blech<hawaii>` nur W0666; Belag-Wert `Ananas` allein (ausgeben, `hat`, `-`, `preis()`)
-  keine Panik; W0666 nur für Typ `hawaii`, bloßen Namen `Ananas` und `Ananas` im Pizza-Literal (nicht `Q.Ananas`,
-  `k.Ananas()`); Panik in allen Phasen; `neu Hawaii(…)` auch ohne Klasse.
+  Deklaration ohne Initialisierer; `Blech<hawaii>` nur W0666; W0666 nur für den Typ `hawaii` (der Belag-Teil – bloßer Name
+  `Ananas`, `Ananas` im Pizza-Literal, Panik durch eine Pizza mit Ananas – ist durch K-105 abgelöst; `Ananas` ist der
+  Klassenwert der Basis-Ananas); Panik in allen Phasen; `neu Hawaii(…)` auch ohne Klasse.
 - **K-029** `Spiegel.felder`: Instanzfelder (keine `tiefkühl`), Basisklassen zuerst; `karton` → LeererKartonAnanas,
   Nicht-Objekt → TypAnanas; Unterklassen einer Calzone sind zugeklappt; `aufklappen()` auf Nicht-Calzone → LaufzeitAnanas.
 - **K-033** `hauptgang`: Name entscheidet (erste Klasse, sonst Top-Level-Funktion); Signatur ungeprüft; erster Parameter
@@ -827,7 +765,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-036** Rückgabetyp ungeprüft: `serviere;` → `karton`, `serviere (x)` in `leer` liefert `x`, Rumpfende → `karton`.
 - **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
 - **K-038** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
-- **K-039** `p.hat("Tomate")` wie `p.hat(Tomate)`; `p + "x"` ist Textverkettung.
+- **K-039** *(abgelöst durch K-105)* Keine Pizza-Methoden mehr; `+` mit einem Text bleibt Textverkettung (§5).
 - **K-095** `Speisekarte.hole(k[, ersatz])` wie `Vorratskammer.hole` (K-079): `ersatz` (positional oder `ersatz:`) nur bei
   fehlendem Schlüssel (`hat(k)` = `nein`), gespeicherter `karton` bleibt `karton`, `ersatz` ohne Kopie; `hole(k)` unverändert.
 - **K-076** `ersetze("", x)` lässt den Text unverändert; alle Text-Methoden arbeiten auf Codepoints, nur `<`/`sortiere`
@@ -869,7 +807,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   tragen; `.eingabe`-Fallback neben der `.pizza`; `.erwartet` endet mit genau einem `\n` (Harnische normalisieren höchstens einen).
 - **K-054** `leeren` im Terminal: `\x1b[2J\x1b[3J\x1b[H` nur bei TTY.
 
-### 15.4 Zufall und Vorratskammer (K-077 … K-081; Interpreter ce303cb – Hosts/Compiler offen)
+### 15.4 Zufall und Vorratskammer (K-077 … K-081, K-106)
 
 - **Saat (K-077):** `optionen.zufallsSaat` (Ganzzahl, normalisiert `mod 2^32`; fehlt/ungültig → 42). Playground, CLI (`--saat=N`,
   sonst Infozeile `Saat: N`) und EXE nutzen standardmäßig eine echte Saat und zeigen **denselben Text** `Saat: N` an (Konsole bzw. Terminal, keine Ereignis-Ausgabe); Tests/Beispiele bleiben bei 42.
@@ -880,7 +818,15 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   (`mische`: n−1). Referenz Saat 7: `zahl(1, 6)` → 1 1 6 5 4 3, `mische([1 .. 5])` → `[4, 2, 3, 5, 1]`.
 - **Vorratskammer (K-079):** `neu Vorratskammer(name)` (`[a-z0-9-]{1,40}`), `lege(k, v)`, `hole(k[, ersatz])`, `hat(k)`, `entferne(k)`,
   `schlüssel()`, `länge()`, `leeren()`, `name()`; Werte: Zahlen (endlich), Texte, Wahrheitswerte, `karton`, Bleche/Speisekarten daraus;
-  tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<name>)`.
+  tiefe Kopie bei `lege`/`hole`; 1 MiB je Kammer und 2 MiB für alle Kammern eines Programms (passt in jeden localStorage); Schreiben sofort bei jeder Änderung; Textform `Vorratskammer(<kennung>)`.
+- **Namensraum (K-106):** `neu Vorratskammer(name, namensraum)` (zweiter Parameter, auch `namensraum:`; fehlend/`karton` = ohne;
+  `[a-z0-9-]{1,40}`, sonst `LaufzeitAnanas: Ungültiger Namensraum 'X' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).`). **Kennung** =
+  `name` bzw. `namensraum/name`; sie steht in `optionen.vorrat`, `onVorrat`, dem `vorrat`-Ereignis (`name`), der Serialisierung, im
+  HOST-ABI, in den Ananas-Texten und der Textform; gleiche Kennung = gleiche Kammer. `namensraum()` → Text oder `karton`, `name()`
+  ohne Raum. Ablage: ohne Namensraum gehört die Kammer dem Tab (K-088), mit Namensraum dem Programm – Browser immer
+  `pizza.vorrat.<raum>/<name>` (auch Beispiel-/Doku-Tabs, geteilte Tabs, App-Links jeder Fassung), nativ `<ordner>/<raum>/<name>.json`;
+  Host/CLI/Browser validieren die Kennung selbst (kein Pfad-Traversal). „Vorrat löschen“ bietet zusätzlich alle Kammern mit
+  Namensraum; `--vorrat-loeschen raum/name`, `--vorrat-loeschen-alle` erfasst auch Raum-Ordner.
 - **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)` (Doku-Blöcke: Felder `zufallsSaat`,
   `vorrat`, `vorratErwartet`, `echtzeit`, K-088), Ereignis
   `{ typ: "vorrat", name, schluessel, wert }` (nicht in `.erwartet`); ohne beides `W0101: Keine Vorratskammer verfügbar – Zustand wird
@@ -912,7 +858,8 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 
 Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`.
 Jede Zutat nimmt `id: "…"` im Konstruktor. **Setter liefern die Zutat** (verkettbar); `aktiv()`/`sichtbar()` ohne Argument sind Getter.
-Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` sind eingebaute Klassen: `erbt Knopf` →
+Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` (v2: `Takt`, `Fortschritt`, `Abschnitt`, `Tabelle`,
+`Reiter`; v4: `Auswahl`, `Tastatur`) sind eingebaute Klassen: `erbt Knopf` →
 PizzaFehler P0010 (nicht erweiterbar); eine **eigene** Klasse gleichen Namens hat Vorrang. Die Programm-Schritte zählen wie bei
 jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit noch Ofen-/Lieferbudget.
 
@@ -973,8 +920,10 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
   Merksatz: „Was immer angezeigt wird, nimmt jeden Wert als Text – auch karton. Was man weglassen kann, lässt karton weg.“
 - **Stile (K-068):** `breite`/`hoehe`/`abstand`: Zahl ≥ 0 in Pixeln (Kommazahlen erlaubt, Renderer rundet) –
   `LaufzeitAnanas: Stil 'breite' braucht eine Zahl ≥ 0, nicht -1.` bzw. TypAnanas bei Nicht-Zahl; `ausrichtung` ∈ `links|mitte|rechts`;
-  `schrift` ∈ `klein|normal|gross|mono`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`. Unbekannter Schlüssel →
-  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe.`; ungültiger Wert →
+  `schrift` ∈ `klein|normal|gross|mono|riesig`; `farbe` ∈ `tomate|basilikum|mozzarella|kruste|normal`; **K-113:** `zeilen` ganze Zahl ≥ 1
+  (feste Zeilenzahl mit „…“, wirkt auf den Text von Schild/Knopf/Haken; `TypAnanas: Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`),
+  `mindestbreite` Zahl ≥ 0 in Pixeln (`min-width`, jede Zutat). Unbekannter Schlüssel →
+  `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; ungültiger Wert →
   `LaufzeitAnanas: Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`. Keine freien CSS-Strings, keine Einheiten.
   **K-075:** `stil(schlüssel, karton)` entfernt den Stil; die Nachricht trägt `null` für entfernte Schlüssel.
 - **Thema (K-083/4):** Das Programmfenster folgt im Playground dem Seiten-Thema (Standard OS-Thema; der Umschalter wirkt auch auf
@@ -990,13 +939,14 @@ Programm → Renderer als Ereignis `{ typ: "ui", nachricht }`:
 `{"v":1,"op":"fenster","titel":"…","breite":480,"hoehe":360}` (erstes `zeige`, erneut bei `setzeTitel` und Wiederöffnen) ·
 `{"v":1,"op":"baum","wurzel":{…}}` · `{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"…"},{"id":"z3","aktiv":false}]}` ·
 `{"v":1,"op":"schliesse"}` (durch `schliesse()` und am Programmende bei offenem Fenster, K-061).
-Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe`. **Zustandsfelder immer:** `schild`/`knopf`: `text`;
+Knoten `{"id","art",…}` mit `art` ∈ `schild|knopf|eingabe|haken|stapel|reihe` (v2: `takt|fortschritt|abschnitt|tabelle|reiter`, v4: `auswahl|tastatur`). **Zustandsfelder immer:** `schild`/`knopf`: `text`;
 `eingabe`: `wert`; `haken`: `text`, `an`; `stapel`/`reihe`: `kinder` (ggf. `[]`). **Nur bei Abweichung vom Standard:**
 `platzhalter` (nicht leer), `aktiv: false`, `sichtbar: false`, `stil: {…}` (ganzes Objekt). Zahlen als JSON-Zahlen, Texte als
 Strings, Wahrheitswerte `true`/`false`. In `aendere` gelten dieselben Felder (v3: zusätzlich `uebergang` und die Liste `animationen` neben `aenderungen`, §16.6); `kinder` ist die vollständige Kinderliste – der
 Renderer akzeptiert dort auch `{"id":"z1"}` ohne `art` als Verweis auf einen bekannten Knoten (der Interpreter sendet Teilbäume
 vollständig); der Renderer behandelt `stil` als Teil-Update (`null` setzt zurück).
-Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`.
+Renderer → Programm: `{"typ":"klick","id"}`, `{"typ":"aenderung","id","wert"}`, `{"typ":"enter","id","wert"}`, `{"typ":"geschlossen"}`
+(v2: `{"typ":"takt","id","anzahl"}`, v4: `{"typ":"taste","id","taste"}`).
 Unbekannte Felder/`art`/`op`/`typ` werden ignoriert bzw. als Platzhalter gerendert (Vorwärtskompatibilität); `v` steigt nur bei
 inkompatiblen Änderungen. Der Renderer kennt für `ausrichtung` zusätzliche Synonyme (`start|oben|zentriert|ende|unten|strecken`) –
 aus pizza sind nur `links|mitte|rechts` erreichbar.
@@ -1017,9 +967,11 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 |---|---|---|---|
 | `Takt` (unsichtbar) | `(intervall, beiTakt?)` – Dauer ≥ 100 ms, ganze ms | `aktiv(d)`/`aktiv()`, `setzeIntervall(d)`, `intervall()`, `beiTakt(fn)` → `fn(anzahl)` | `{"art":"takt","intervall":1000}` (+ `aktiv:false`) · Ereignis `{"typ":"takt","id","anzahl"}` |
 | `Fortschritt` | `(wert: 0, text: "")` – wert 0…1 geklemmt, NaN → 0 | `wert()`, `setzeWert`, `text()`, `setzeText` | `{"art":"fortschritt","wert":0.25}` (+ `text`) |
-| `Abschnitt` | `(titel = "", Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel` | `{"art":"abschnitt","titel","kinder"}` |
+| `Abschnitt` | `(titel = "", Blech<Zutat>)` | wie Stapel + `titel()`, `setzeTitel`; v4 (K-108): `klappbar(d)`/`klappbar()`, `zu(d)`/`zu()`, `beiAenderung(fn)` → `fn(zu)` | `{"art":"abschnitt","titel","kinder"}` (+ `klappbar:true`, `zu:true`) · Ereignis `{"typ":"aenderung","id","wert":true/false}` |
 | `Tabelle` | `(spalten, zeilen)` – Zellen als Textform | `spalten()`, `setzeSpalten`, `zeilen()`, `setzeZeilen` | `{"art":"tabelle","spalten":[…],"zeilen":[[…]]}` |
-| `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)` | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Reiter` | `(titel, seiten)` | `waehle(n)` (1-basiert, sonst KeinStückAnanas), `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`; v4 (K-107): `setzeTitel(n, t)`, `titel(n)`; Seite mit `sichtbar(nein)` → Reiter weg | `{"art":"reiter","titel":[…],"gewaehlt":1,"kinder":[…]}` · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Auswahl` (v4, K-109) | `(optionen, gewaehlt: 1)` – Optionen als Textform | `optionen()`, `setzeOptionen(b)`, `waehle(n)`, `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`, `aktiv(d)`/`aktiv()` | `{"art":"auswahl","optionen":[…],"gewaehlt":1}` (+ `aktiv:false`) · Ereignis `{"typ":"aenderung","id","wert":n}` |
+| `Tastatur` (v4, K-110, unsichtbar) | `(beiTaste?)` | `beiTaste(fn)` → `fn(taste)`, `aktiv(d)`/`aktiv()` | `{"art":"tastatur"}` (+ `aktiv:false`) · Ereignis `{"typ":"taste","id","taste":"Leertaste"}` |
 | alle Zutaten | – | `hinweis(text)`, `hinweis()` | Feld `hinweis` (nur nicht leer) |
 | Stil | – | `schrift` zusätzlich `"riesig"` | – |
 
@@ -1028,8 +980,9 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   inaktive oder Nicht-Takt-Zutaten werden ignoriert; `anzahl` fehlt/ungültig → 1; `< 100ms` →
   `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`; Textform `Takt(t1)`; Warten kostet nichts, der Rückruf zählt.
 - **Zahlformat (K-085):** `x.tausender(n = 0)` → `1.234.567` / `1.234.567,00`; `x.kompakt(n = 2)` → `1,23 Mio.` (Stufen `Tsd.`, `Mio.`,
-  `Mrd.`, `Bio.`, `Brd.`, `Trio.`; ohne nachgestellte Nullen; `< 1000` → `runden(x, n)` mit Komma; `≥ 10²¹` → `1,5e+22`);
-  `euro(kompakt: ja)` → `1,23 Mio. €`.
+  `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.`, `Quadrd.`, `Quint.`, … bis `Dezd.` 10⁶³ – K-103; ohne nachgestellte Nullen;
+  `< 1000` → `runden(x, n)` mit Komma; `≥ 10⁶⁶` → `1,5 × 10⁷⁰`; ∞/NaN → `∞`/`-∞`/`NaN`); `euro(kompakt: ja)` → `1,23 Mio. €`;
+  `tausender`/`euro()` ab `|x| ≥ 10²¹` wie `kompakt(2)`. Die Textform (`text(x)`, `Bote.sage(x)`) bleibt `String(x)` (`2.5e+21`).
 - **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu**: die Zählbasis wird beim
   Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
@@ -1092,6 +1045,41 @@ Keine neue Protokollversion, kein neues `op` (neues Feld `animationen` in `aende
   `puls`, `huepfen`, `wackeln`, `aufpoppen`, `einblenden` und `uebergang` entfallen, `funkeln` leuchtet nur ruhig, `schwebe` zeigt den
   Text ruhig (ohne Steigen) für die Dauer, `Fortschritt` springt. WebView2 und WebKitGTK melden die OS-Einstellung als
   `prefers-reduced-motion` – dieselbe Engine und dasselbe CSS ergeben in Playground und EXE dasselbe Bild (K-082).
+
+### 16.7 Theke v4: Reiter-Titel/-Seiten, klappbarer Abschnitt, `Auswahl`, `Tastatur`, Stile `zeilen`/`mindestbreite` (K-107 … K-113)
+
+Kein neues `op`, Protokoll v1 (neue `art` `auswahl`/`tastatur`, neue Felder `klappbar`/`zu`, neues Ereignis `taste`, neue Stil-Schlüssel);
+alte Renderer zeigen Platzhalter bzw. ignorieren. Alle Namen in Interpreter und Wasm-Laufzeit gleich (bitgleiche `ui`-Nachrichten).
+
+- **Reiter (K-107):** `setzeTitel(n, text)` → Reiter, `titel(n)` → Text; `n` ganze Zahl `1 … Seitenzahl`, sonst
+  `KeinStückAnanas: Seite 7 gibt es nicht – der Reiter hat 2 Seiten.` (wie `waehle`); `text` Zustandsfeld (K-102, `karton` → `"karton"`);
+  kürzere Titelliste wird mit `""` aufgefüllt, `titel(n)` eines fehlenden Titels → `""`; Nachricht `titel` als ganze Liste. **Seiten
+  ausblenden** über `seite.sichtbar(nein)`: Renderer versteckt Reiter und Seite (Tastaturnavigation überspringt); zeigt `gewaehlt` auf eine
+  unsichtbare Seite, zeigt der Renderer die nächste sichtbare danach (sonst die letzte davor) und sendet nichts; `gewaehlt()` bleibt;
+  `waehle(n)` auf eine unsichtbare Seite ist erlaubt.
+- **Abschnitt (K-108):** `klappbar(d)`/`klappbar()` (Gast darf klappen), `zu(d)`/`zu()` (Inhalt eingeklappt), `beiAenderung(fn)` → `fn(zu)`;
+  diavolo-Prüfung wie `sichtbar` (`TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`). Knoten: `klappbar:true`/`zu:true` nur bei Abweichung,
+  in `aendere` der neue Wert. Ereignis `{"typ":"aenderung","id","wert":true}` (`wert` = neuer `zu`-Zustand, `true`/`false`/`"true"`/`"false"`)
+  wird nur für einen klappbaren Abschnitt im gezeigten Baum angenommen; Zustand vor dem Rückruf aktualisiert, auch ohne Rückruf.
+  Renderer: Kopf als Knopf (`aria-expanded`, Pfeil ▸/▾), lokal sofort, Ereignis nur bei echtem Wechsel; `zu` versteckt den Inhalt (`hidden`
+  – Kinder gelten für Animationen als nicht gezeigt); mit `uebergang(ja)` weich.
+- **Auswahl (K-109):** `neu Auswahl(optionen, gewaehlt: 1)` (benannt `optionen:`/`gewaehlt:`/`id:`). `optionen` Blech → Textformen
+  (`karton` → `"karton"`; fehlend/`karton` → `[]`; kein Blech → `TypAnanas: Auswahl braucht ein Blech mit Optionen, nicht 5.`);
+  `gewaehlt` fehlend/`karton` → `1`, sonst ganze Zahl `1 … Anzahl` → `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4 Optionen.`
+  („1 Option“). Methoden `optionen()` (Kopie), `setzeOptionen(b)` (gewaehlt bleibt), `waehle(n)`, `gewaehlt()`, `beiAenderung(fn)` → `fn(n)`,
+  `aktiv(d)`/`aktiv()`. Knoten `{"art":"auswahl","optionen":[…],"gewaehlt":1}` (+ `aktiv:false`); Ereignis `{"typ":"aenderung","id","wert":n}`
+  angenommen für eine aktive Auswahl im gezeigten Baum mit ganzem `wert` in `1 … Anzahl`; Zustand vor dem Rückruf. Textform `Auswahl(z3)`.
+  Renderer: Segment-Leiste (`role="radiogroup"`/`radio`), Pfeile mit Umlauf, Home/End, Ereignis nur bei echtem Wechsel, Klemmen wie Reiter.
+- **Tastatur (K-110):** unsichtbare Zutat `neu Tastatur(beiTaste?)` (benannt `beiTaste:`), `beiTaste(fn)` → `fn(taste)`, `aktiv(d)`/`aktiv()`;
+  läuft nur im gezeigten Baum (K-057). Knoten `{"art":"tastatur"}` (+ `aktiv:false`); Ereignis `{"typ":"taste","id","taste":"Leertaste"}` –
+  angenommen für eine aktive Tastatur mit Rückruf und nicht-leerem Text; mehrere aktive Tastaturen bekommen jede Taste (Baumreihenfolge);
+  Zustellung 0 Schritte. Tastennamen (Renderer): `e.key`, Sondertasten deutsch – `Leertaste`, `Links`/`Rechts`/`Hoch`/`Runter`, `Rücktaste`,
+  `Entfernen`, `Pos1`, `Ende`, `BildHoch`/`BildRunter`; unverändert `Enter`, `Escape`, `Tab`, `F1`…`F12`, Zeichen wie getippt. Nicht gesendet:
+  reine Modifikatoren, `Dead`/`Unidentified`, Komposition, Wiederholungen (`e.repeat`), Tasten in einer fokussierten `Eingabe`. Fokus: Theke-Wurzel
+  `tabindex="-1"`, Listener dort (Editor-Tasten erreichen die Theke nie), Fokus beim `baum`, wenn nichts fokussiert ist; Standardwirkung von
+  Leertaste/Pfeilen/Pos1/Ende/Bild wird nur unterdrückt, wenn kein Element im Fenster fokussiert ist. Textform `Tastatur(z1)`.
+- **Stile (K-113):** `zeilen` (ganze Zahl ≥ 1), `mindestbreite` (Zahl ≥ 0, px) – §16.2; Erlaubt-Liste endet auf `…, farbe, zeilen, mindestbreite`.
+- **Mathe (K-111):** §11/§14.11. **Meldung/Toast (K-112):** abgelehnt – Anwendungslogik (Schild + Blech + Takt).
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)
@@ -1158,7 +1146,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 
 **S1:** Alles, was beim Anschnitt existiert („gehört der Hauptküche“), ist in der Küche **nur lesbar**: Variablen der Hauptküche
 (globale, Top-Level, gefangene Zellen umgebender Funktionen/Lambdas), statische Felder, alle vorhandenen Objekte samt Feldern,
-Bleche, Speisekarten, Pizzen (`übrig`), Teige, Lieferungen, Zustellungen, Stücke (`Stück<Pizza>`), `Zufall`-Objekte,
+Bleche, Speisekarten, Teige, Lieferungen, Zustellungen, `Zufall`-Objekte,
 Vorratskammern, Calzones und alle Theke-Zutaten.
 
 **S2:** Was eine Küche selbst erzeugt (Variablen ihrer Rümpfe, mit `neu`/Literal/Bibliothek erzeugte Werte, `kopie()`), gehört ihr
@@ -1175,7 +1163,6 @@ keine Warnung wie T0007/W0013, kein zusätzlicher Schritt) – auch auf indirekt
 | Feldzuweisung `o.f = …` (auch unqualifiziert in einer Methode) an vorhandenem Objekt | `KüchenAnanas: '<f>' gehört der Hauptküche – ein Koch darf es nur lesen.` |
 | `hinzu`, `entferne`, `setze` auf vorhandenem Blech | `KüchenAnanas: Dieses Blech gehört der Hauptküche – nimm eine kopie().` |
 | `lege`, `entferne` auf vorhandener Speisekarte | `KüchenAnanas: Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.` |
-| `teile(p)` auf vorhandener Pizza, `essen()` auf vorhandenem Stück | `KüchenAnanas: Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | `gehenlassen()`, `backen()` (Wert noch nicht berechnet) auf vorhandenem Teig | `KüchenAnanas: Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.` |
 | `trinkgeld`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | Ziehen aus einem vorhandenen `Zufall`-Objekt (auch `saat(n)`) | `KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().` |
@@ -1183,8 +1170,8 @@ keine Warnung wie T0007/W0013, kein zusätzlicher Schritt) – auch auf indirekt
 | `aufklappen()` auf vorhandener Calzone | `KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.` |
 
 Bereits fertige Zustände bleiben lesbar: `backen()` eines Teigs, dessen Wert schon berechnet ist (durch `gehenlassen` oder
-`backen`), liefert den Wert; `warte()` einer gewarteten Lieferung liefert die gespeicherte Zustellung; `istGegessen()`, `übrig()`,
-`wert()`, `istAufgegangen()`, `saat()` eines Zufall-Objekts usw. sind Lesezugriffe. **Werfen** einer vorhandenen Ananas verändert
+`backen`), liefert den Wert; `warte()` einer gewarteten Lieferung liefert die gespeicherte Zustellung; `wert()`,
+`istAufgegangen()`, `saat()` eines Zufall-Objekts usw. sind Lesezugriffe. **Werfen** einer vorhandenen Ananas verändert
 nichts und ist erlaubt (sie verlässt die Küche als Kopie, §17.5).
 
 **Reihenfolge der Wache (K-101/4, verbindlich für alle Motoren).** Eine schreibende Operation läuft in der Küche in genau
@@ -1226,26 +1213,24 @@ Rückgabewerte der Stücke (und geworfene Werte, D3) werden beim Zusammenführen
 
 | Wert | kartonfähig? | Kopie |
 |---|---|---|
-| `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, Belag, quattrostagioni-Wert | ja | Wert |
+| `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, quattrostagioni-Wert | ja | Wert |
 | `Blech`, `Speisekarte` | ja, wenn alle Elemente/Schlüssel/Werte kartonfähig | neue Objekte; geteilte Teile und Zyklen **innerhalb** des Ergebnisses bleiben geteilt |
-| `Pizza` | ja | neue Pizza mit gleichen Belägen und gleichem `übrig()` |
-| Pizza-Sicht (`unten` als Wert in einer Belag-Methode, §6) | ja | neue Sicht mit gleicher Schichtenzahl auf eine Kopie der Pizza (Textform und `preis()` unverändert) |
 | `Rohling<T>` (roh-Info eines Ofens, §7.3) | ja, wenn `teilergebnis()` kartonfähig | neues `Roh(…)` mit kopiertem Teilergebnis und gleicher `verbrauchteZeit()` |
 | Objekt einer eigenen Klasse, eigene Ananas, eingebaute Ananas | ja, wenn alle Felder kartonfähig | neues Objekt, **gleiche Nummer** `Klasse@N` (D10), Calzone-Zustand bleibt; Ananas behalten Nachricht und Zeile |
 | Klasse, Rezeptur, quattrostagioni-Typ, Module (`Bote`, `Mathe` …) als Wert | ja | dieselbe (unveränderliche) Referenz |
-| Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Stück`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
+| Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
 
 - Nicht kartonfähig → `KüchenAnanas: <Art> passt in keinen Karton – nur Werte können die Küche verlassen.` mit `<Art>` ∈
-  `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Ein Stück`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
-  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-101/1). Maßgeblich ist der **erste** nicht
+  `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
+  `Eine Theke-Zutat` (Theke und Zutaten) – die Aufzählung ist abschließend (K-101/1, `Ein Stück` entfiel mit K-105). Maßgeblich ist der **erste** nicht
   kartonfähige Teilwert in Tiefensuche (Elemente in Reihenfolge, Speisekarten je Paar Schlüssel vor Wert, Felder in
-  Deklarationsreihenfolge, Basisklassen zuerst, Teilergebnis eines `Rohling`, Pizza einer Sicht). Die Ananas
+  Deklarationsreihenfolge, Basisklassen zuerst, Teilergebnis eines `Rohling`). Die Ananas
   entsteht **in der Küche** am Ende des Stücks (Position = Position des `brigade`-Aufrufs, Schritte unverändert) und gilt als
   Abbruch dieses Stücks (D3).
 - Ist ein **geworfener** Wert nicht kartonfähig, wird stattdessen
   `KüchenAnanas: Was der Koch geworfen hat, passt in keinen Karton.` (Position des `brigade`-Aufrufs) geworfen.
 - **Identität:** Ergebnisse sind immer Kopien, auch wenn ein Stück einen Wert der Hauptküche unverändert zurückgibt
-  (`b.brigade(x -> x)` liefert neue Bleche; `==` auf Blechen/Objekten ist daher `nein`, auf Pizzen/Zahlen/Texten Wertgleichheit).
+  (`b.brigade(x -> x)` liefert neue Bleche; `==` auf Blechen/Objekten ist daher `nein`, auf Zahlen/Texten Wertgleichheit).
   Die Kopien gehören der Hauptküche und sind dort frei veränderbar.
 - Die Prüfung der Kartonfähigkeit kostet 0 Schritte und ruft **kein** `alsText()` auf.
 
@@ -1261,7 +1246,7 @@ vorgespulte Zeit + Brigade-Ersparnis, §14.1), Limitbasis und Limit (K-087), akt
   sieht Wirkungen eines anderen.
 - **D2 – Stückreihenfolge.** Zusammengeführt wird immer in Stückreihenfolge 1 … n, unabhängig davon, wann welcher Koch fertig wird.
 - **D3 – Abbrüche: der erste in Stückreihenfolge gewinnt.** Ein Stück endet normal (Wert) oder bricht ab: ungefangene Ananas,
-  Budget-Überschreitung eines äußeren Ofens/einer äußeren Lieferung (D8), P0002 (D7), PizzaFehler (z. B. B0012), Hawaii-Panik
+  Budget-Überschreitung eines äußeren Ofens/einer äußeren Lieferung (D8), P0002 (D7), PizzaFehler (seit K-105 keiner mehr zur Laufzeit), Hawaii-Panik
   (D14), nicht kartonfähiges Ergebnis (§17.5). Sei `k` das **kleinste** abgebrochene Stück. Dann:
   - Die Ereignisse der Stücke 1 … k−1 und die Ereignisse von Stück k **bis zum Abbruch** werden ausgegeben (D4); Stücke > k
     gelten als **nie gelaufen** (keine Ereignisse, keine Schritte, keine Uhr, keine Zähler).

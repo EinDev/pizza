@@ -2,7 +2,7 @@
    über mehrere Zeilen */
 // Zeile
 salami /* mitten */ x = /* hier */ 5; // Ende
-Pizza p = ((Tomate /* unten */, Käse)); /**/
+margherita p = "((" + /* unten */ "Tomate, Käse" + "))"; /**/
 Bote.sage((x /* a */ + 1)); Bote.sage((p));
 Bote.sage(("// kein Kommentar /* auch nicht */"));
 klasse /* k */ K /* k */ { /* leer */ salami /* f */ f() /* x */ { serviere ((1)); } // ende

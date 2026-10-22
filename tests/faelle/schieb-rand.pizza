@@ -9,10 +9,14 @@ probier { x++; } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
 probier { x += 1; } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
 x = 7;
 Bote.sage((x));
-klasse Teller { Pizza p = ((Tomate)); Pizza nimm() { serviere ((schieb(p))); } }
+klasse Teller { margherita p = "Tomate"; margherita nimm() { serviere ((schieb(p))); } }
 Teller t = neu Teller();
 Bote.sage((t.nimm()));
 probier { t.nimm(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.nachricht())); }
 probier { Bote.sage((t.p)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
 Rezept s = schieb;
 probier { s(x); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+klasse Tisch { margherita belegt; Tisch(margherita b) { dies.belegt = schieb(b); } }
+margherita g = "Pilze";
+Tisch tisch = neu Tisch(g);
+Bote.sage((tisch.belegt + " " + g));

@@ -15,13 +15,13 @@ probier { solange (karton) { } } verbrannt (TypAnanas a) { Bote.sage((a.typ()));
 probier { Bote.sage((1 ? 2 : 3)); } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
 probier { Bote.sage((-"x")); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { Bote.sage((ja < nein)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
-probier { Bote.sage((((Tomate)) - 1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bote.sage(("x" - 1)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { Bote.sage(("a" * 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { Bote.sage(("a" % 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { Bote.sage(("a" / 2)); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
 probier { für (salami i = 0; 1; i++) { } } verbrannt (TypAnanas a) { Bote.sage((a.typ())); }
 Bote.sage((karton == karton));
 Bote.sage((karton != 0));
-Bote.sage((Salami != Käse));
+Bote.sage((1s != 2s));
 Bote.sage((1 == 1.0));
 Bote.sage(("1" == 1));

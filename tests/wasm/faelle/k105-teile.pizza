@@ -1,0 +1,13 @@
+// K-105: teile() und Beläge gibt es nicht mehr – gewöhnliche "ist nicht definiert"-Ananas (Exit 1).
+salami x = 8;
+probier {
+    Bote.sage((Tomate));
+} verbrannt (LaufzeitAnanas e) {
+    Bote.sage((e.nachricht()));
+}
+probier {
+    Bote.sage((x.preis()));
+} verbrannt (LaufzeitAnanas e) {
+    Bote.sage((e.nachricht()));
+}
+Bote.sage((teile(x)));

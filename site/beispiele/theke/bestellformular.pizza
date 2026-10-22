@@ -46,15 +46,15 @@ leer bestellen() {
         serviere;
     }
     bestellungen++;
-    Pizza p = scharf.an() ? ((Tomate, Mozzarella, Chili)) : ((Tomate, Mozzarella));
+    margherita p = scharf.an() ? "Margherita mit Chili" : "Margherita";
     hinweis.setzeText((""));
     formular.sichtbar(nein);
-    bestaetigung.setzeText(("Danke, " + name.wert().trimme() + "! Deine " + p.alsText()
+    bestaetigung.setzeText(("Danke, " + name.wert().trimme() + "! Deine " + p
         + " ist unterwegs nach " + strasse.wert().trimme() + ", " + plz.wert().trimme() + "."));
     bestaetigung.sichtbar(ja);
     kopf.setzeText(("Bestellung angenommen"));
     theke.setzeTitel(("Bestellung #" + bestellungen));
-    Bote.sage(("Bestellung #" + bestellungen + ": " + p.alsText() + " für " + name.wert().trimme()
+    Bote.sage(("Bestellung #" + bestellungen + ": " + p + " für " + name.wert().trimme()
         + ", " + strasse.wert().trimme() + ", " + plz.wert().trimme()));
 }
 

@@ -11,27 +11,25 @@
 })(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   'use strict';
 
+  // Eingebaute Ananas (SPEC §9, K-105): Reihenfolge = Laufzeit-Klassenindex 0–15 (laufzeit/src/namen.rs ANANAS_BAUM); eigene Klassen ab 16.
   const ANANAS_BAUM = [
     ['Ananas', null], ['GeprüfteAnanas', 'Ananas'], ['VerbranntAnanas', 'GeprüfteAnanas'], ['LieferAnanas', 'GeprüfteAnanas'],
     ['LaufzeitAnanas', 'Ananas'], ['StreitAnanas', 'LaufzeitAnanas'], ['RechenAnanas', 'LaufzeitAnanas'],
-    ['LeererKartonAnanas', 'LaufzeitAnanas'], ['RohlingAnanas', 'LaufzeitAnanas'], ['BesitzAnanas', 'LaufzeitAnanas'],
+    ['LeererKartonAnanas', 'LaufzeitAnanas'], ['RohlingAnanas', 'LaufzeitAnanas'],
     ['GebackenAnanas', 'LaufzeitAnanas'], ['TypAnanas', 'LaufzeitAnanas'], ['KeinStückAnanas', 'LaufzeitAnanas'],
-    ['ZugriffsAnanas', 'LaufzeitAnanas'], ['UnbekannterBelagAnanas', 'LaufzeitAnanas'], ['ZugeklapptAnanas', 'LaufzeitAnanas'],
+    ['ZugriffsAnanas', 'LaufzeitAnanas'], ['ZugeklapptAnanas', 'LaufzeitAnanas'],
     ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'], ['KüchenAnanas', 'LaufzeitAnanas']
   ];
+  const KLASSEN_BASIS = ANANAS_BAUM.length; // 16
   const ANANAS_M = new Set(['nachricht', 'holeNachricht', 'typ', 'alsText']);
-  const PIZZA_M = new Set(['beläge', 'hat', 'anzahlBeläge', 'alsText', 'übrig', 'beschreibung']);
-  const BELAG_NAMEN = ['Tomate', 'Mozzarella', 'Käse', 'Basilikum', 'Salami', 'Schinken', 'Pilze', 'Oliven', 'Zwiebeln', 'Paprika',
-    'Chili', 'Peperoni', 'Rucola', 'Parmesan', 'Gorgonzola', 'Thunfisch', 'Sardellen', 'Artischocken', 'Spinat', 'Ei', 'Mais',
-    'Knoblauch', 'Kapern', 'Ananas'];
   const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter']);
-  const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Pizza', 'Blech', 'Speisekarte',
-    'Teig', 'Lieferung', 'Zustellung', 'Stück', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
+  const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
+    'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
     'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
   const NOCH_NICHT_METHODEN = new Set();
-  const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Belag', 'Methode']);
+  const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
 
@@ -73,8 +71,6 @@
       if (Array.isArray(n)) { for (const x of n) geh(x); return; }
       switch (n.k) {
         case 'Typ': if (n.name === 'hawaii') merke(n.z, n.s); break;
-        case 'Name': if (n.n === 'Ananas') merke(n.z, n.s); break;
-        case 'PizzaLit': for (const b of n.belaege) if (b.n === 'Ananas') merke(b.z, b.s); break;
         case 'Programm': pruefe(declsVon(n.body, true)); break;
         case 'Block': if (!gemergt.has(n)) pruefe(declsVon(n.body, false)); break;
         case 'Methode': case 'Ktor': case 'Lambda':
@@ -127,14 +123,13 @@
       this.posMap = new Map();
       this.funktionen = [];
       this.nicht = [];
-      this.klassenIR = [];        // Laufzeit-Klassenindex = 18 + i (0–17 eingebaute Ananas, IR.md §1)
+      this.klassenIR = [];        // Laufzeit-Klassenindex = KLASSEN_BASIS + i
       this.registrierung = [];
       this.methodenListe = [];    // Laufzeit-Methoden-IDs in Registrierungsreihenfolge
       this.alleMethoden = [];     // Reihenfolge wie im Interpreter (für vorbereiten)
       this.globaleNamen = new Map(); // Name → globaler Slot
       this.schiebNamen = new Set();
       this.feldNamen = new Set();
-      this.belagNamen = new Set(BELAG_NAMEN);
       this.globalFnNamen = new Set();
       this.methodenNamen = new Set();
       this.zugewiesen = new Set();
@@ -161,12 +156,10 @@
         if (n.k === 'NCall' && n.name === 'schieb' && n.args && n.args.pos.length === 1 && n.args.pos[0].k === 'Name') { this.schiebNamen.add(n.args.pos[0].n); this.zugewiesen.add(n.args.pos[0].n); }
         if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
-        if (n.k === 'Belag') this.belagNamen.add(n.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'echt') this.nutztEcht = true;
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
-        if (n.k === 'Belag') for (const m of n.methoden) this.methodenNamen.add(m.name);
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
       };
       geh(this.ast);
@@ -192,7 +185,7 @@
       const reg = (d) => {
         switch (d.k) {
           case 'Klasse': {
-            const k = { art: 'klasse', name: d.name, decl: d, basis: null, erfuellt: [], methoden: new Map(), rohling: d.mods.includes('rohling'), gebacken: d.mods.includes('gebacken'), calzone: d.mods.includes('calzone'), idx: 18 + this.klassenIR.length };
+            const k = { art: 'klasse', name: d.name, decl: d, basis: null, erfuellt: [], methoden: new Map(), rohling: d.mods.includes('rohling'), gebacken: d.mods.includes('gebacken'), calzone: d.mods.includes('calzone'), idx: KLASSEN_BASIS + this.klassenIR.length };
             for (const md of d.methoden) { const l = k.methoden.get(md.name); if (l) l.push(md); else k.methoden.set(md.name, [md]); }
             klassen.set(d.name, k);
             liste.push(k);
@@ -209,7 +202,6 @@
             break;
           }
           case 'Enum': klassen.set(d.name, { art: 'enum', name: d.name }); this.registrierung.push({ art: 'enum', d }); break;
-          case 'Belag': this.registrierung.push({ art: 'belag', d }); break;
           case 'Methode': this.registrierung.push({ art: 'globalfn', d }); break;
         }
       };
@@ -287,11 +279,6 @@
               }
               if (!ok) pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
             }
-          } else if (d.k === 'Belag') {
-            for (const md of d.methoden) {
-              if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-              if (md.name !== 'preis' && !PIZZA_M.has(md.name)) pf('A0001', 'Methode \'' + md.name + '\' in Belag \'' + d.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
-            }
           }
         }
       } catch (e) {
@@ -304,10 +291,10 @@
     // ---------------------------------------------------------- Funktionen & Scopes
     neueFn(art, name, eltern, ctx) {
       const fn = {
-        id: this.funktionen.length, art, name, klasse: ctx.klasse, ktor: !!ctx.ktor, belag: !!ctx.belag,
-        plus1: art === 'methode' || art === 'ktor' || art === 'lambda' || art === 'belag',
+        id: this.funktionen.length, art, name, klasse: ctx.klasse, ktor: !!ctx.ktor,
+        plus1: art === 'methode' || art === 'ktor' || art === 'lambda',
         params: [], slots: [], fang: [], fangKeys: new Map(), eltern: eltern || null, body: null, ausdr: null,
-        hatDies: ctx.klasse !== null || !!ctx.belag, strikt: art !== 'lambda',
+        hatDies: ctx.klasse !== null, strikt: art !== 'lambda',
       };
       this.funktionen.push(fn);
       return fn;
@@ -389,14 +376,13 @@
       }
       this.globalScope = this.neuerScope(null, null, 'global');
       this.globalScope.deklariert = new Set();
-      // Klassen, Beläge, Top-Level-Methoden
+      // Klassen, Rezepturen, Enums, Top-Level-Methoden
       const reg = [];
       for (const r of this.registrierung) {
         switch (r.art) {
           case 'klasse': reg.push(this.klasse(r.ir)); break;
           case 'rezeptur': reg.push({ art: 'rezeptur', name: r.d.name, basen: r.d.basen.map(t => t.name) }); break;
           case 'enum': reg.push({ art: 'enum', name: r.d.name, werte: r.d.werte.map(w => w.n) }); break;
-          case 'belag': reg.push(this.belag(r.d)); break;
           case 'globalfn': {
             const d = r.d;
             const fn = this.methode(d, { klasse: null }, 'methode');
@@ -536,7 +522,7 @@
       if (inits.length) {
         const fn = this.neueFn('feldinit', d.name + '.<felder>', null, { klasse: ir.idx, ktor: true });
         const sc = this.neuerScope(this.globalScopeLazy(), fn, 'methode');
-        fn.body = inits.map(({ f, dd }) => ({ k: 'feldinit', name: dd.name, typ: this.typIR(f.typ), e: this.ausdr(dd.init, sc, fn, 0), besitz: dd.init.k === 'Name' || dd.init.k === 'Mem', p: this.pos(dd) }));
+        fn.body = inits.map(({ f, dd }) => ({ k: 'feldinit', name: dd.name, typ: this.typIR(f.typ), e: this.ausdr(dd.init, sc, fn, 0), p: this.pos(dd) }));
         k.feldInit = fn.id;
       }
       const sinits = [];
@@ -547,31 +533,13 @@
       if (sinits.length) {
         const fn = this.neueFn('statinit', d.name + '.<statisch>', null, { klasse: ir.idx });
         const sc = this.neuerScope(this.globalScopeLazy(), fn, 'methode');
-        fn.body = sinits.map(({ f, dd }) => ({ k: 'statinit', name: dd.name, typ: this.typIR(f.typ), e: this.ausdr(dd.init, sc, fn, 0), besitz: dd.init.k === 'Name' || dd.init.k === 'Mem', p: this.pos(dd) }));
+        fn.body = sinits.map(({ f, dd }) => ({ k: 'statinit', name: dd.name, typ: this.typIR(f.typ), e: this.ausdr(dd.init, sc, fn, 0), p: this.pos(dd) }));
         k.statInit = fn.id;
         (this._statInits = this._statInits || []).push(fn.id);
       }
       return k;
     }
     globalScopeLazy() { return this.globalScope; }
-
-    belag(d) {
-      const na = d.annos.find(a => a.name === 'Nach');
-      let nach = null;
-      if (na) {
-        nach = [];
-        if (na.args) for (const e of na.args.pos) { if (e.k === 'Name') nach.push(e.n); else if (e.k === 'Text') nach.push(e.v); }
-      }
-      const methoden = [];
-      for (const md of d.methoden) {
-        const fn = this.methode(md, { klasse: null, belag: true }, 'belag');
-        const m = { art: 'belagm', name: md.name, fn: fn.id, mid: this.methodenListe.length, decl: md };
-        this.methodenListe.push(m);
-        this.alleMethoden.push(m);
-        methoden.push(m);
-      }
-      return { art: 'belag', name: d.name, nach, methoden };
-    }
 
     methode(md, ctx, art) {
       const fn = this.neueFn(art, md.name, null, ctx);
@@ -635,14 +603,14 @@
               if (!init && n.gebacken) fn.slots[slot].unbelegt = true;
               ziel = { art: 'lokal', slot };
             }
-            decls.push({ name: dd.name, ziel, init, typ: this.typIR(n.typ), gebacken: !!n.gebacken, besitz: !!dd.init && (dd.init.k === 'Name' || dd.init.k === 'Mem'), std: standardWert(n.typ) });
+            decls.push({ name: dd.name, ziel, init, typ: this.typIR(n.typ), gebacken: !!n.gebacken, std: standardWert(n.typ) });
           }
           return { k: 'var', p, tf: d, decls };
         }
         case 'Zuw': {
           const ziel = this.ziel(n.ziel, sc, fn, d);
           const wert = this.ausdr(n.wert, sc, fn, d);
-          return { k: 'zuw', p, tf: d, op: n.op, ziel, wert, besitz: n.op === '=' && (n.wert.k === 'Name' || n.wert.k === 'Mem') };
+          return { k: 'zuw', p, tf: d, op: n.op, ziel, wert };
         }
         case 'Inc': return { k: 'inc', p, tf: d, ziel: this.ziel(n.ziel, sc, fn, d), d: n.d };
         case 'Block': return { k: 'block', p, tf: d, body: this.block(n, sc, fn, d) };
@@ -786,13 +754,6 @@
         case 'Neu':
           if (!UNTERSTUETZTE_TYPEN.has(n.typ.name) && TYPEN_REFERENZ.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
           return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
-        case 'PizzaLit': {
-          const bl = n.belaege;
-          if (bl.length === 1 && bl[0].n !== 'Ananas' && !this.belagNamen.has(bl[0].n)) {
-            return { k: 'lies', ref: this.loese(bl[0].n, sc, fn, bl[0], 'lesen'), name: bl[0].n, ohneSchritt: false };
-          }
-          return { k: 'pizza', belaege: bl.map(b => b.n) };
-        }
         case 'Blech': return { k: 'blech', elemente: n.elemente.map(e => this.ausdr(e, sc, fn, d)) };
         case 'Bereich': return { k: 'bereich', a: this.ausdr(n.a, sc, fn, d), b: this.ausdr(n.b, sc, fn, d) };
         case 'Lambda': return this.lambda(n, sc, fn);
@@ -826,7 +787,7 @@
       // 1. lokale Variablen bis zur Grenze
       const lok = this.loese(n.name, sc, fn, n, 'aufruf');
       if (lok && lok.art !== 'gname') return { k: 'ncall', name: n.name, ziel: { art: 'wert', ref: lok }, args: args() };
-      const kontext = fn.klasse !== null || fn.belag;
+      const kontext = fn.klasse !== null;
       // 3. schieb
       if (n.name === 'schieb' && !this.globaleNamen.has('schieb') && !this.feldNamen.has('schieb') && !(kontext && this.methodenNamen.has('schieb'))) {
         const a = n.args.pos[0];
@@ -845,7 +806,7 @@
     /** Top-Level-Funktion statisch auflösbar? (keine Neuzuweisung, keine Überladung/Annotationen, passende Argumente) */
     direktZiel(n, ref, kontext, fn) {
       if (ref.art !== 'global' || !this.globalFnNamen.has(n.name) || this.zugewiesen.has(n.name)) return null;
-      if (kontext && (this.methodenNamen.has(n.name) || (fn.belag && (PIZZA_M.has(n.name) || n.name === 'preis')))) return null;
+      if (kontext && this.methodenNamen.has(n.name)) return null;
       if (n.args.ben) return null;
       const liste = this.globalFnDecl.get(n.name) || [];
       if (!liste.length) return null;
@@ -858,7 +819,7 @@
     }
 
     lambda(n, sc, fn) {
-      const lf = this.neueFn('lambda', '<lambda>', fn, { klasse: fn.klasse, ktor: fn.ktor, belag: fn.belag });
+      const lf = this.neueFn('lambda', '<lambda>', fn, { klasse: fn.klasse, ktor: fn.ktor });
       lf.hatDies = fn.hatDies;
       const s = this.neuerScope(sc, lf, 'fn');
       for (const p of n.params) {

@@ -1,4 +1,0 @@
-@Nach(Salami)
-belag Käse auf Pizza { }
-Pizza p = ((Käse, Tomate));
-Bote.sage((p));

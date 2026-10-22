@@ -10,8 +10,8 @@ use crate::{sig, zahl as zl};
 use alloc::string::String;
 use alloc::vec::Vec;
 
-pub const A_ZUFALL: u32 = 26;
-pub const A_KAMMER: u32 = 27;
+pub const A_ZUFALL: u32 = 22;
+pub const A_KAMMER: u32 = 23;
 
 // ================================================================ Zufall
 #[repr(C)]
@@ -233,7 +233,9 @@ pub fn j_lies(b: &[u8]) -> Option<J> { let mut p = Parser { b, i: 0 }; p.wert() 
 
 // ================================================================ Vorratskammer
 #[repr(C)]
-pub struct Kammer { pub art: u32, pub _r: u32, pub name: W, pub daten: Vec<(String, J)> }
+/// K-106: `name` = Kammername, `raum` = Namensraum (Text) oder KARTON, `kennung` = `name` bzw. `raum/name`
+/// (Schlüssel im HOST-ABI, in der Serialisierung, in Ananas-Texten und der Textform).
+pub struct Kammer { pub art: u32, pub _r: u32, pub name: W, pub raum: W, pub kennung: W, pub daten: Vec<(String, J)> }
 
 static mut KAMMERN: Vec<W> = Vec::new();
 static mut W0101: bool = false;
@@ -323,7 +325,7 @@ pub fn auslagern(j: &J) -> W {
 
 fn serialisiere(k: &Kammer) -> String {
     let mut o = String::from("{\"v\":1,\"name\":");
-    j_text(s(k.name), &mut o);
+    j_text(s(k.kennung), &mut o);
     o.push_str(",\"eintraege\":[");
     for (i, (s_, w)) in k.daten.iter().enumerate() {
         if i > 0 { o.push(','); }
@@ -354,7 +356,7 @@ fn geaendert(kw: W, schl: Option<&str>, wert: Option<&J>, rueck: Option<&dyn Fn(
     if json.len() > 1048576 {
         if let Some(r) = rueck {
             r(kammer(kw));
-            let mut t = Tb::neu(); t.s("Die Vorratskammer '").t(k.name).s("' ist voll (Limit 1 MiB).");
+            let mut t = Tb::neu(); t.s("Die Vorratskammer '").t(k.kennung).s("' ist voll (Limit 1 MiB).");
             wirf_tb(K_LAUFZEIT, &t);
             return false;
         }
@@ -364,30 +366,46 @@ fn geaendert(kw: W, schl: Option<&str>, wert: Option<&J>, rueck: Option<&dyn Fn(
     e.push_str(",\"wert\":");
     match wert { Some(w) => j_schreibe(w, &mut e), None => e.push_str("null") }
     e.push('}');
-    let name = bytes(k.name);
+    let name = bytes(k.kennung);
     let r = unsafe { vorrat_schreiben(name.as_ptr(), name.len(), json.as_ptr(), json.len(), e.as_ptr(), e.len()) };
     if r < 0 {
-        let mut t = Tb::neu(); t.s("Die Vorratskammer '").t(kammer(kw).name).s("' konnte nicht gespeichert werden.");
+        let mut t = Tb::neu(); t.s("Die Vorratskammer '").t(kammer(kw).kennung).s("' konnte nicht gespeichert werden.");
         wirf_tb(K_LAUFZEIT, &t);
         return false;
     }
     true
 }
 
-/// `neu Vorratskammer(name)`
+/// `[a-z0-9-]{1,40}` (Kammername und Namensraum, K-079/K-106)
+fn kennung_teil_ok(b: &[u8]) -> bool {
+    !b.is_empty() && b.len() <= 40 && b.iter().all(|&c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+}
+
+/// `neu Vorratskammer(name[, namensraum])` (K-079, K-106)
 pub fn neue_kammer(pos: &[W], ben: &Ben, knoten: i32) -> W {
     let n = arg(pos, ben, 0, N_NAME);
     let name = if n == UNDEF || n == KARTON { neu_str("") } else { text(n) };
     if sig() { return KARTON; }
-    let nb = bytes(name);
-    let ok = !nb.is_empty() && nb.len() <= 40 && nb.iter().all(|&c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-');
-    if !ok {
+    if !kennung_teil_ok(bytes(name)) {
         let mut t = Tb::neu(); t.s("Ungültiger Kammername '").t(name).s("' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).");
         wirf_tb(K_LAUFZEIT, &t);
         return KARTON;
     }
+    // K-106: Namensraum (positional oder benannt) – geprüft nach dem Kammernamen; fehlend/karton = ohne.
+    let r = arg(pos, ben, 1, N_NAMENSRAUM);
+    let raum = if r == UNDEF || r == KARTON { KARTON } else { text(r) };
+    if sig() { return KARTON; }
+    let kennung = if raum == KARTON { name } else {
+        if !kennung_teil_ok(bytes(raum)) {
+            let mut t = Tb::neu(); t.s("Ungültiger Namensraum '").t(raum).s("' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen).");
+            wirf_tb(K_LAUFZEIT, &t);
+            return KARTON;
+        }
+        let mut t = Tb::neu(); t.t(raum).s("/").t(name); t.fertig()
+    };
+    let nb = bytes(kennung);
     unsafe {
-        for &k in KAMMERN.iter() { if bytes(kammer(k).name) == nb { return k; } }
+        for &k in KAMMERN.iter() { if bytes(kammer(k).kennung) == nb { return k; } }
     }
     let verfuegbar = unsafe { vorrat_lesen(nb.as_ptr(), nb.len(), core::ptr::null_mut(), -1) } > 0;
     if !verfuegbar && unsafe { !W0101 } {
@@ -415,12 +433,12 @@ pub fn neue_kammer(pos: &[W], ben: &Ben, knoten: i32) -> W {
             break;
         }
     }
-    let k = neu_w(Kammer { art: A_KAMMER, _r: 0, name, daten });
+    let k = neu_w(Kammer { art: A_KAMMER, _r: 0, name, raum, kennung, daten });
     unsafe { KAMMERN.push(k); }
     k
 }
 
-pub fn tabelle_hat(id: u32) -> bool { matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_LAENGE | N_LEEREN | N_NAME | N_ALSTEXT) }
+pub fn tabelle_hat(id: u32) -> bool { matches!(id, N_LEGE | N_HOLE | N_HAT | N_ENTFERNE | N_SCHLUESSEL | N_LAENGE | N_LEEREN | N_NAME | N_NAMENSRAUM | N_ALSTEXT) }
 
 pub fn kammer_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
     // Küchenbrigade S3: Kammern entstehen nur in der Hauptküche – jede gehört ihr
@@ -462,6 +480,7 @@ pub fn kammer_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
         N_LAENGE => zahl(kammer(o).daten.len() as f64),
         N_LEEREN => { kammer(o).daten.clear(); geaendert(o, None, None, None); o }
         N_NAME => kammer(o).name,
+        N_NAMENSRAUM => kammer(o).raum,
         N_ALSTEXT => text(o),
         _ => crate::std_m::nicht_gefunden(o, id),
     }
@@ -469,5 +488,5 @@ pub fn kammer_methode(o: W, id: u32, pos: &[W], ben: &Ben) -> W {
 
 pub fn text_in(v: W, tb: &mut Tb) {
     if ist_zufall(v) { tb.s("Zufall(").n(obj::<ZufallGen>(v).saat).s(")"); }
-    else { tb.s("Vorratskammer(").t(kammer(v).name).s(")"); }
+    else { tb.s("Vorratskammer(").t(kammer(v).kennung).s(")"); }
 }

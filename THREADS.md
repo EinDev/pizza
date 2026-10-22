@@ -98,7 +98,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 
 **Regel S1:** Alles, was beim Anschnitt existiert („gehört der Hauptküche“), ist in der Küche **nur lesbar**. Das sind:
 Variablen der Hauptküche (globale, Top-Level, gefangene Zellen umgebender Funktionen/Lambdas), statische Felder, alle vorhandenen
-Objekte samt Feldern, Bleche, Speisekarten, Pizzen (`übrig`), Teige, Lieferungen, Zustellungen, Stücke (`Stück<Pizza>`),
+Objekte samt Feldern, Bleche, Speisekarten, Teige, Lieferungen, Zustellungen,
 `Zufall`-Objekte, Vorratskammern, Calzones und alle Theke-Zutaten.
 
 **Regel S2:** Was eine Küche selbst erzeugt (Variablen ihrer Rümpfe, mit `neu`/Literal/Bibliothek erzeugte Werte), gehört ihr und
@@ -116,7 +116,6 @@ Verändernde Operationen und ihr Text (`<n>` = Name der Variable bzw. des Felds)
 | Feldzuweisung `o.f = …` an vorhandenem Objekt | `KüchenAnanas: '<f>' gehört der Hauptküche – ein Koch darf es nur lesen.` |
 | `hinzu`, `entferne`, `setze` auf vorhandenem Blech | `KüchenAnanas: Dieses Blech gehört der Hauptküche – nimm eine kopie().` |
 | `lege`, `entferne` auf vorhandener Speisekarte | `KüchenAnanas: Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.` |
-| `teile(p)` auf vorhandener Pizza, `essen()` auf vorhandenem Stück | `KüchenAnanas: Diese Pizza gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | `gehenlassen()`, `backen()` (noch nicht gebacken) auf vorhandenem Teig | `KüchenAnanas: Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.` |
 | `trinkgeld`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | Ziehen aus einem vorhandenen `Zufall`-Objekt | `KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().` |
@@ -124,7 +123,7 @@ Verändernde Operationen und ihr Text (`<n>` = Name der Variable bzw. des Felds)
 | `aufklappen()` auf vorhandener Calzone | `KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.` |
 
 Bereits fertige Zustände bleiben lesbar: `backen()` eines gebackenen Teigs liefert den Wert, `warte()` einer gewarteten Lieferung
-die gespeicherte Zustellung, `istGegessen()`, `übrig()`, `wert()` usw. sind Lesezugriffe.
+die gespeicherte Zustellung, `wert()` usw. sind Lesezugriffe.
 
 **Regel S4 – nur in der Hauptküche** (wirft beim Aufruf, auch bei reinen Abfragen):
 
@@ -147,19 +146,18 @@ Rückgabewerte der Stücke (und geworfene Werte, §3 D3) werden beim Zusammenfü
 
 | Wert | kartonfähig? | Kopie |
 |---|---|---|
-| `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, Belag, quattrostagioni-Wert | ja | Wert |
+| `salami`, `funghi` (auch NaN/Infinity), `margherita`, `diavolo`, `karton`, `Dauer`, quattrostagioni-Wert | ja | Wert |
 | `Blech`, `Speisekarte` | ja, wenn alle Elemente/Schlüssel/Werte kartonfähig | neue Objekte; geteilte Teile und Zyklen **innerhalb** des Ergebnisses bleiben geteilt |
-| `Pizza` | ja | neue Pizza mit gleichen Belägen und gleichem `übrig()` |
 | Objekt einer eigenen Klasse, eigene Ananas, eingebaute Ananas | ja, wenn alle Felder kartonfähig [F 10] | neues Objekt, **gleiche Nummer** `Klasse@N` (§3 D10), Calzone-Zustand bleibt |
 | Klasse, Rezeptur, quattrostagioni-Typ, Module (`Bote`, `Mathe` …) als Wert | ja | dieselbe (unveränderliche) Referenz |
-| Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Stück`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
+| Funktion, Lambda, Methodenreferenz, `Teig`, `Lieferung`, `Zustellung`, `Reste`, `Zufall`-Objekt, `Vorratskammer`, Theke/Zutat | **nein** | – |
 
 - Nicht kartonfähig → `KüchenAnanas: <Art> passt in keinen Karton – nur Werte können die Küche verlassen.` mit `<Art>` ∈
-  `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Ein Stück`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
+  `Eine Funktion`, `Ein Teig`, `Eine Lieferung`, `Eine Zustellung`, `Reste`, `Ein Zufall`, `Eine Vorratskammer`,
   `Eine Theke-Zutat`. Die Ananas entsteht **in der Küche** am Ende des Stücks (Position = Position des `brigade`-Aufrufs,
   Schritte unverändert) und gilt als Abbruch dieses Stücks (§3 D3).
 - **Identität:** Ergebnisse sind immer Kopien, auch wenn ein Stück einen Wert der Hauptküche unverändert zurückgibt
-  (`b.brigade(x -> x)` liefert neue Bleche; `==` auf Blechen/Objekten ist daher `nein`, auf Pizzen/Zahlen/Texten Wertgleichheit).
+  (`b.brigade(x -> x)` liefert neue Bleche; `==` auf Blechen/Objekten ist daher `nein`, auf Zahlen/Texten Wertgleichheit).
 - Die Prüfung der Kartonfähigkeit kostet 0 Schritte und ruft **kein** `alsText()` auf.
 
 ### 2.5 Gemeinsamer Zustand
@@ -200,7 +198,7 @@ Wirkungen eines anderen.
 **D2 – Stückreihenfolge.** Zusammengeführt wird immer in Stückreihenfolge 1 … n, unabhängig davon, wann welcher Koch fertig wird.
 
 **D3 – Abbrüche: der erste in Stückreihenfolge gewinnt.** Ein Stück endet normal (Wert) oder bricht ab: ungefangene Ananas,
-Budget-Überschreitung eines äußeren Ofens/einer äußeren Lieferung (D8), P0002 (D7), PizzaFehler (z. B. B0012), Hawaii-Panik,
+Budget-Überschreitung eines äußeren Ofens/einer äußeren Lieferung (D8), P0002 (D7), PizzaFehler (seit K-105 keiner mehr zur Laufzeit), Hawaii-Panik,
 nicht kartonfähiges Ergebnis (§2.4). Sei `k` das **kleinste** abgebrochene Stück. Dann:
 - Die Ereignisse der Stücke 1 … k−1 und die Ereignisse von Stück k **bis zum Abbruch** werden ausgegeben (D4); Stücke > k
   gelten als nie gelaufen (keine Ereignisse, keine Schritte, keine Uhr).
@@ -308,7 +306,7 @@ Die sequentielle Referenz ist `for i in 1..n: bericht[i] = stück(auftrag, i)` m
      Zufall-Objekte, Kammern, Funktionswerte (deren Scopes). Einmal pro Brigade aufgebaut (nicht pro Stück) – die Stücke können
      den Graphen nicht verändern. Kosten O(erreichbarer Zustand), 0 Schritte.
   3. **Wachen** an allen verändernden Stellen (Tabelle §2.3): `if (this.kueche !== null && this.kueche.gefroren.has(x)) throw …`
-     – Variablen-/Feldzuweisung, `schieb`, Blech-/Speisekarten-Mutatoren, `teile`/`essen`, Teig, Lieferung, Zufall-Objekt,
+     – Variablen-/Feldzuweisung, `schieb`, Blech-/Speisekarten-Mutatoren, Teig, Lieferung, Zufall-Objekt,
      Kammer, `aufklappen`; S4-Operationen prüfen nur `this.kueche !== null`. Außerhalb einer Brigade kostet die Wache einen
      Null-Vergleich.
   4. Rückruf ausführen; Ergebnis/Wurf nach §2.4 kopieren (Kopie mit Memo-Map für Teilung/Zyklen).
@@ -327,8 +325,8 @@ Die sequentielle Referenz ist `for i in 1..n: bericht[i] = stück(auftrag, i)` m
 ### 4.3 Kartonformat (PKF, für Ergebnisse, Würfe und Interpreter-Schnappschüsse)
 
 Binär, little-endian, versioniert (`PKF1`), von Interpreter (JS) und Laufzeit (Rust) identisch geschrieben/gelesen:
-Tags für `karton`, `ja`/`nein`, Zahl (f64), Text (UTF-8), Dauer (f64 ms), Belag (Name), quattrostagioni (Typname, Position),
-Pizza (Beläge, übrig), Blech, Speisekarte (Paarliste, Schlüsselart erhalten wie K-017), Objekt (Klassenname, Nummer, Flags,
+Tags für `karton`, `ja`/`nein`, Zahl (f64), Text (UTF-8), Dauer (f64 ms), quattrostagioni (Typname, Position),
+Blech, Speisekarte (Paarliste, Schlüsselart erhalten wie K-017), Objekt (Klassenname, Nummer, Flags,
 Felder in Deklarationsreihenfolge inkl. Basisklassen), Ananas (Klasse, Nachricht, Zeile/Spalte), Referenz auf bereits
 geschriebenes Objekt (Teilung/Zyklen), Klasse/Modul (Name). Unbekannter Tag → interner Fehler (K-014). Das Format ist intern
 (kein Nutzer-Dateiformat), wird aber in `IR.md`/`HOST-ABI.md` beschrieben, weil Host und Laufzeit es austauschen.
@@ -345,7 +343,7 @@ Mechanik:
    Tiefe, N₀, L₀, n Saaten, Kühlschrank-Verweis) und `frozen_top := HEAP_TOP` setzen. Danach importiert die Laufzeit
    `pizza.kueche_auftrag(auftrag, n)`.
 2. **Einfrieren per Adresse:** Der Bump-Allocator legt neue Objekte immer oberhalb von `frozen_top` an. Jede verändernde
-   Laufzeitfunktion (Blech/Speisekarte/Felder/Zellen/globale Zellen/Teig/Lieferung/Pizza/Zufall/Kammer/Calzone) prüft
+   Laufzeitfunktion (Blech/Speisekarte/Felder/Zellen/globale Zellen/Teig/Lieferung/Zufall/Kammer/Calzone) prüft
    `adresse < frozen_top` → KüchenAnanas (§2.3). Generierter Code, der Zellen/Globale direkt schreibt, bekommt denselben
    Vergleich (eine `i32`-Vergleichsinstruktion; außerhalb einer Brigade ist `frozen_top = 0`). Ungeboxte Wasm-Locals sind immer
    eigen. (Kommt in Phase 2 der Speicherverwaltung ein GC, wird `frozen_top` durch ein Kopf-Bit „Hauptküche“ ersetzt.)
@@ -583,4 +581,4 @@ Jede Frage mit Optionen; **Empfehlung fett**. Die Empfehlungen sind im Text oben
 **F 10 – Dürfen Objekte eigener Klassen die Küche verlassen?**
 - **(a) Ja, als tiefe Kopie mit gleicher Nummer (§2.4).**
 - (b) Nein, nur „einlagerbare“ Werte wie bei der Vorratskammer (Zahlen, Texte, Wahrheitswerte, `karton`, Bleche/Speisekarten
-  daraus) plus Pizza/Dauer/Belag – einfacher, aber OOP-Programme müssen Ergebnisse umpacken.
+  daraus) plus Dauer – einfacher, aber OOP-Programme müssen Ergebnisse umpacken.

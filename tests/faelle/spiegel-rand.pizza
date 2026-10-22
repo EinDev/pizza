@@ -2,6 +2,6 @@ probier { Spiegel.felder(5); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht(
 probier { Spiegel.felder(karton); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
 klasse Leer2 { }
 Bote.sage((Spiegel.felder(neu Leer2())));
-klasse P { Pizza p = ((Tomate)); salami n; }
+klasse P { Dauer p = 1s; salami n; }
 Bote.sage((Spiegel.felder(neu P())));
 Bote.sage((Spiegel.felder(neu P()).schlüssel()));

@@ -12,9 +12,9 @@ Bote.sage((ja != nein));
 Bote.sage((karton == karton));
 Bote.sage((1s < 2s));
 Bote.sage((1000ms == 1s));
-Bote.sage((((Tomate)) == ((Tomate))));
-Bote.sage((((Tomate, Käse)) == ((Tomate))));
-Bote.sage((Tomate == Tomate));
+Bote.sage(([1] == [1]));
+Bote.sage(("a" + "b" == "ab"));
+Bote.sage((karton == 0));
 Bote.sage((Mathe.wurzel(16)));
 probier { Bote.sage((Mathe.wurzel(0 - 1))); } verbrannt (a) { Bote.sage((a)); }
 probier { Bote.sage((1 < "a")); } verbrannt (a) { Bote.sage((a)); }

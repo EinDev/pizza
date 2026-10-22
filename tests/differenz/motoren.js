@@ -297,12 +297,14 @@ function hostHilfe() {
 const HOST_FLAG = { zufallsSaat: '--saat', vorrat: '--vorrat', echtzeit: '--echtzeit' };
 function hostKann(option) { return hostHilfe().includes(HOST_FLAG[option]); }
 
-/** Vorrat-Eingangszustand { name: eintraege | {v,name,eintraege} } → Dateien <name>.json (K-080-Serialisierung). */
+/** Vorrat-Eingangszustand { kennung: eintraege | {v,name,eintraege} } → Dateien <name>.json bzw. <raum>/<name>.json (K-080/K-106). */
 function schreibeVorrat(ordner, vorrat) {
   fs.mkdirSync(ordner, { recursive: true });
   for (const [name, wert] of Object.entries(vorrat || {})) {
     const eintraege = Array.isArray(wert) ? wert : (wert && wert.eintraege) || [];
-    fs.writeFileSync(path.join(ordner, name + '.json'), JSON.stringify({ v: 1, name, eintraege }));
+    const datei = path.join(ordner, name + '.json');
+    fs.mkdirSync(path.dirname(datei), { recursive: true });
+    fs.writeFileSync(datei, JSON.stringify({ v: 1, name, eintraege }));
   }
 }
 let tmpDir = null;

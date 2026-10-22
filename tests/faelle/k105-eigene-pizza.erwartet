@@ -1,0 +1,11 @@
+((Tomate, Mozzarella, Basilikum)) 9,50 € nein
+ja
+((Tomate, Mozzarella, Basilikum, Salami)) nein ((Tomate, Mozzarella, Basilikum))
+ja
+ja
+'q' wurde weggeschoben – der Karton ist leer.
+Tomate
+Mozzarella
+Basilikum
+Der Karton ist leer.
+'falsch' ist Pizza, aber der Wert 5 ist kein(e) Pizza.

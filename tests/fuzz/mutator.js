@@ -5,11 +5,11 @@
  */
 const { Zufall } = require('./zufall');
 
-const POOL = ['klasse', 'X', '{', '}', '(', ')', '((', '))', ';', 'serviere', '"', '"a"', '1.5s', '->', '@', '@Nach(', 'falls', 'sonst',
+const POOL = ['klasse', 'X', '{', '}', '(', ')', '((', '))', ';', 'serviere', '"', '"a"', '1.5s', '->', '@', '@Kühl(', 'falls', 'sonst',
   '[', ']', '..', ',', 'wähle', 'fall', 'standard', 'ofen', 'roh', 'verbrannt', 'probier', 'rand', '/*', '*/', '//', '\n', 'Tomate', 'Ananas',
   '=', '+', '-', '*', '/', '%', 'ä', '#', '\\', 'neu', '<', '>', 'karton', 'dies', 'unten', 'erbt', 'calzone', 'hawaii', 'salami', 'x',
   'Bote.sage((', 'wirf', 'neu StreitAnanas("x")', 'für', 'solange', 'abbrechen;', 'weiter;', 'zwischenstand((', 'teig', 'bestelle', 'schieb(',
-  'teile(', 'Bestellannahme.lies()', 'Bote.schreibe((', '9'.repeat(40), '0.', '1e5', '\u0000', '​', '🍕', '\t', '\r', 'quattrostagioni',
+  'neu Pizza().mit(', 'Bestellannahme.lies()', 'Bote.schreibe((', '9'.repeat(40), '0.', '1e5', '\u0000', '​', '🍕', '\t', '\r', 'quattrostagioni',
   'rezeptur', 'erfüllt', 'rohling', 'gebacken', 'tiefkühl', 'geheimrezept', '@Kühlschrank(haltbar: 1s)', 'Uhr.vorspulen(', 'Spiegel.felder(',
   '.brigade(', '.brigade(x -> ', 'brigade', 'KüchenAnanas', '.schneide(', 'serviere ((x -> x));'];
 

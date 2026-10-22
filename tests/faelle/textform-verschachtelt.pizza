@@ -1,9 +1,10 @@
-Speisekarte<margherita, Blech<Pizza>> m = neu Speisekarte<margherita, Blech<Pizza>>();
-m.lege("Tisch 1", [((Tomate)), (())]);
+quattrostagioni Belag { Salami, Tomate, Käse, Pilze }
+Speisekarte<margherita, Blech<Dauer>> m = neu Speisekarte<margherita, Blech<Dauer>>();
+m.lege("Tisch 1", [1s, 2min]);
 m.lege("Tisch 2", []);
 Bote.sage((m));
 Bote.sage(([[], [[]], [1, [2, [3]]]]));
-Bote.sage(([1s, 90s, karton, Salami]));
+Bote.sage(([1s, 90s, karton, Belag.Salami]));
 Speisekarte<margherita, Speisekarte<margherita, salami>> mm = neu Speisekarte<margherita, Speisekarte<margherita, salami>>();
 mm.lege("a", neu Speisekarte<margherita, salami>().lege("b", 1));
 Bote.sage((mm));

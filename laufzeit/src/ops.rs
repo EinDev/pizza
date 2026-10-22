@@ -10,15 +10,14 @@ use alloc::vec::Vec;
 // ---------------------------------------------------------------- Signale
 pub const SIG_ANANAS: i32 = 1;
 pub const SIG_BUDGET: i32 = 2;
-pub const SIG_PF: i32 = 3;
+/// 3 war der PizzaFehler zur Laufzeit (B0012); seit K-105 entsteht keiner mehr – Nummer bleibt reserviert, damit die
+/// Signalnummern des Backends (IR.md §6) stabil bleiben.
+pub const SIG_PF_RESERVIERT: i32 = 3;
 pub const SIG_LIMIT: i32 = 4;
 pub const SIG_PANIK: i32 = 5;
 
 pub static mut WURF_OBJ: W = KARTON;
 pub static mut WURF_POS: i32 = 0;
-pub static mut PF_CODE: &str = "";
-pub static mut PF_TEXT: W = KARTON;
-pub static mut PF_POS: i32 = 0;
 pub static mut BUDGET_FRAME: u32 = 0;
 
 pub fn setze_sig(s: i32) { unsafe { if crate::ZUSTAND.sig == 0 { crate::ZUSTAND.sig = s; } } }
@@ -49,20 +48,12 @@ pub fn wirf_ananas_w(knr: u32, t: W) {
 pub fn wirf_ananas(knr: u32, t: &str) { if crate::sig() { return; } wirf_ananas_w(knr, neu_str(t)); }
 pub fn wirf_tb(knr: u32, tb: &Tb) { if crate::sig() { return; } wirf_ananas_w(knr, tb.fertig()); }
 pub fn wirf_leer() { wirf_ananas(K_LEERERKARTON, "Der Karton ist leer."); }
-pub fn wirf_pf(code: &'static str, t: W, pos: i32) {
-    unsafe {
-        if crate::ZUSTAND.sig != 0 { return; }
-        PF_CODE = code; PF_TEXT = t; PF_POS = pos;
-        crate::ZUSTAND.sig = SIG_PF;
-    }
-}
 pub fn wirf_panik() { setze_sig(SIG_PANIK); }
 pub fn wirf_weg(name: u32) {
     let mut t = Tb::neu();
     t.s("'").name(name).s("' wurde weggeschoben – der Karton ist leer.");
     wirf_tb(K_LEERERKARTON, &t);
 }
-pub fn wirf_besitz() { wirf_ananas(K_BESITZ, "Eine Pizza kann nicht an zwei Tischen gleichzeitig sein. Nutze schieb(p) oder teile(p)."); }
 
 // ---------------------------------------------------------------- Typnamen & Text
 pub fn typ_name(v: W, tb: &mut Tb) {
@@ -75,8 +66,6 @@ pub fn typ_name(v: W, tb: &mut Tb) {
         A_BLECH => { tb.s("Blech"); }
         A_KARTE => { tb.s("Speisekarte"); }
         A_DAUER => { tb.s("Dauer"); }
-        A_PIZZA | A_SICHT => { tb.s("Pizza"); }
-        A_BELAG => { tb.s("Belag"); }
         A_OBJ => { tb.name(kl(obj::<Obj>(v).klasse).name); }
         A_ENUMW => { tb.name(enm(obj::<EnumW>(v).e).name); }
         A_KLASSE => { tb.s("Klasse ").name(kl(obj::<Ref>(v).id).name); }
@@ -87,7 +76,6 @@ pub fn typ_name(v: W, tb: &mut Tb) {
         A_TEIG => { tb.s("Teig"); }
         A_LIEF => { tb.s("Lieferung"); }
         A_ZUST => { tb.s("Zustellung"); }
-        A_STUECK => { tb.s("Stück"); }
         A_RESTE => { tb.s("Reste"); }
         A_ROH => { tb.s("Rohling"); }
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => crate::theke::typ_name(v, tb),
@@ -97,12 +85,6 @@ pub fn typ_name(v: W, tb: &mut Tb) {
     }
 }
 pub fn typ_name_w(v: W) -> W { let mut t = Tb::neu(); typ_name(v, &mut t); t.fertig() }
-
-pub fn pizza_text(s: &[W], k: usize, tb: &mut Tb) {
-    tb.s("((");
-    for i in 0..k { if i > 0 { tb.s(", "); } tb.t(obj::<Belag>(s[i]).name); }
-    tb.s("))");
-}
 
 /// `this.text(v)` – hängt an tb an. Kann Benutzercode (alsText) aufrufen → danach sig prüfen.
 pub fn text_in(v: W, tb: &mut Tb) {
@@ -143,9 +125,6 @@ pub fn text_in(v: W, tb: &mut Tb) {
             tb.s("}");
         }
         A_DAUER => { zahl::dauer_text(dauer_ms(v), &mut tb.0); }
-        A_PIZZA => { let pz = obj::<Pizza>(v); pizza_text(&pz.s, pz.s.len(), tb); }
-        A_SICHT => { let si = obj::<Sicht>(v); pizza_text(&obj::<Pizza>(si.pizza).s, si.k as usize, tb); }
-        A_BELAG => { tb.t(obj::<Belag>(v).name); }
         A_ENUMW => { tb.t(obj::<EnumW>(v).name); }
         A_OBJ => { let t = obj_text(v); if !crate::sig() { tb.t(t); } }
         A_KLASSE => { tb.name(kl(obj::<Ref>(v).id).name); }
@@ -166,7 +145,6 @@ pub fn text_in(v: W, tb: &mut Tb) {
                 tb.s(")");
             } else { tb.s("Zustellung(zu spät)"); }
         }
-        A_STUECK => { tb.s("Stück von "); text_in(obj::<Stueck>(v).pizza, tb); }
         A_RESTE => { tb.s("Reste("); text_in(obj::<Reste>(v).wert, tb); tb.s(")"); }
         A_ROH => { tb.s("Roh("); text_in(obj::<Roh>(v).teil, tb); tb.s(")"); }
         A_ZELLE => { text_in(obj::<Zelle>(v).w, tb); }
@@ -273,11 +251,7 @@ pub fn index_pruefen(len: usize, i: W) -> Option<usize> {
     wirf_tb(K_KEINSTUECK, &t);
     None
 }
-pub fn schluessel(k: W) -> W {
-    if art(k) == A_BELAG { return obj::<Belag>(k).name; }
-    if k == UNDEF { return KARTON; }
-    k
-}
+pub fn schluessel(k: W) -> W { if k == UNDEF { KARTON } else { k } }
 
 // ---------------------------------------------------------------- Gleichheit & Vergleich
 /// SameValueZero (Map-Schlüssel)
@@ -296,25 +270,11 @@ pub fn strikt_gleich(a: W, b: W) -> bool {
     false
 }
 
-fn pizza_schichten(v: W) -> Option<&'static [W]> {
-    match art(v) {
-        A_PIZZA => Some(&obj::<Pizza>(v).s[..]),
-        A_SICHT => { let si = obj::<Sicht>(v); Some(&obj::<Pizza>(si.pizza).s[..si.k as usize]) }
-        _ => None,
-    }
-}
-
 pub fn gleich(a: W, b: W) -> bool {
     if strikt_gleich(a, b) { return true; }
     if a == KARTON || b == KARTON { return false; }
     if !ist_ptr(a) || !ist_ptr(b) || art(a) == A_TEXT || art(b) == A_TEXT { return false; }
     if art(a) == A_DAUER && art(b) == A_DAUER { return dauer_ms(a) == dauer_ms(b); }
-    if let (Some(pa), Some(pb)) = (pizza_schichten(a), pizza_schichten(b)) {
-        if pa.len() != pb.len() { return false; }
-        for i in 0..pa.len() { if bytes(obj::<Belag>(pa[i]).name) != bytes(obj::<Belag>(pb[i]).name) { return false; } }
-        return true;
-    }
-    if art(a) == A_BELAG && art(b) == A_BELAG { return bytes(obj::<Belag>(a).name) == bytes(obj::<Belag>(b).name); }
     false
 }
 
@@ -346,8 +306,6 @@ pub const OP_KLG: i32 = 8;
 pub const OP_GR: i32 = 9;
 pub const OP_GRG: i32 = 10;
 
-pub fn ist_pizza(v: W) -> bool { matches!(art(v), A_PIZZA | A_SICHT) }
-
 /// `binaer(op, a, b, n)`; knoten = Positions-ID des Operator-Knotens (für S0007)
 pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
     let zz = ist_zahl(a) && ist_zahl(b);
@@ -362,11 +320,6 @@ pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
                 return crate::text::verkette(bytes(ta), bytes(tb2), ta);
             }
             if art(a) == A_DAUER && art(b) == A_DAUER { return dauer(dauer_ms(a) + dauer_ms(b)); }
-            if ist_pizza(a) && art(b) == A_BELAG {
-                let mut s: Vec<W> = pizza_schichten(a).unwrap().to_vec();
-                s.push(b);
-                return crate::pf::neue_pizza(s);
-            }
             let mut t = Tb::neu();
             typ_name(a, &mut t); t.s(" und "); typ_name(b, &mut t); t.s(" kann man nicht addieren.");
             wirf_tb(K_TYP, &t);
@@ -375,11 +328,6 @@ pub fn binaer(op: i32, a: W, b: W, knoten: i32) -> W {
         OP_MINUS => {
             if zz { return zahl(f(a) - f(b)); }
             if art(a) == A_DAUER && art(b) == A_DAUER { return dauer(dauer_ms(a) - dauer_ms(b)); }
-            if ist_pizza(a) && art(b) == A_BELAG {
-                let n = bytes(obj::<Belag>(b).name);
-                let s: Vec<W> = pizza_schichten(a).unwrap().iter().copied().filter(|&x| bytes(obj::<Belag>(x).name) != n).collect();
-                return crate::pf::neue_pizza(s);
-            }
             let mut t = Tb::neu();
             typ_name(b, &mut t); t.s(" kann man nicht von "); typ_name(a, &mut t); t.s(" abziehen.");
             wirf_tb(K_TYP, &t);
