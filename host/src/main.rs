@@ -29,7 +29,11 @@ const OPTIONEN: &str = "Optionen:
   --info               am Ende Exit-Code, Schritte und Uhr nach stderr (bei Küchenbrigade auch Köche: N)
   --debug              technische Details interner Fehler zeigen
   --ereignisse-json    alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende; ohne --saat feste Saat 42)
-  --ui-ereignisse d    Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
+  --ui-ereignisse d    Theke/Herd ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines, z. B. takt-Zeilen)
+  --herd-bilder=ordner Herd ohne Fenster: gesendete Bilder als PNG (bild-<nr>.png, Software-Adapter); ohne
+                       --ui-ereignisse Takte bis Bild 60 bzw. bis zur höchsten Nummer aus --herd-nur
+  --herd-nur=n,m       mit --herd-bilder: nur diese Bildnummern speichern
+  --herd-messung       Herd: je Sekunde Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen auf stderr
   --hilfe              diese Hilfe
   --version            Version anzeigen
   --                   Ende der Optionen: alles danach geht unverändert an hauptgang(args)
@@ -90,6 +94,12 @@ struct Aufruf {
     loeschen: Option<Loeschen>,
     datei: Option<String>,
     args: Vec<String>,
+    /// `--herd-bilder=ordner`: Offscreen-PNGs statt Fenster.
+    herd_bilder: Option<PathBuf>,
+    /// `--herd-nur=n,m`: nur diese Bildnummern speichern.
+    herd_nur: Option<Vec<u64>>,
+    /// `--herd-messung`.
+    herd_messung: bool,
 }
 
 /// Zahl wie JS `Number(text)` (für `--saat`/`--echtzeit`, wie bin/pizza.js): leer → 0, ungültig → NaN.
@@ -172,6 +182,20 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
                     }
                 }
                 "--ereignisse-json" => a.json = true,
+                "--herd-messung" => a.herd_messung = true,
+                s if s.starts_with("--herd-bilder=") => {
+                    if s.len() == 14 {
+                        return fehler("--herd-bilder braucht einen Ordner.");
+                    }
+                    a.herd_bilder = Some(PathBuf::from(&s[14..]));
+                }
+                s if s.starts_with("--herd-nur=") => {
+                    let nr: Result<Vec<u64>, _> = s[11..].split(',').map(|n| n.trim().parse::<u64>()).collect();
+                    match nr {
+                        Ok(v) if !v.is_empty() => a.herd_nur = Some(v),
+                        _ => return fehler("--herd-nur braucht Bildnummern, z. B. --herd-nur=1,60."),
+                    }
+                }
                 "--info" => a.info = true,
                 "--debug" => a.debug = true,
                 "--kein-vorrat" => a.kein_vorrat = true,
@@ -355,14 +379,69 @@ fn main() -> ExitCode {
             s => s,
         }
     };
-    beende(ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke))
+    let herd = HerdAufruf { bilder: a.herd_bilder.take(), nur: a.herd_nur.take(), messung: a.herd_messung };
+    beende(ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke, herd))
+}
+
+/// Herd-Optionen der Kommandozeile.
+struct HerdAufruf {
+    bilder: Option<PathBuf>,
+    nur: Option<Vec<u64>>,
+    messung: bool,
+}
+
+/// Programm mit Gruppe herd (SPEC §18, HERD.md §7.1, K-130):
+/// - `--herd-bilder=ordner`: fensterlos, Offscreen-PNGs (Takte aus `--ui-ereignisse`, sonst bis Bild 60 / höchstes `--herd-nur`);
+/// - Fensterbetrieb (Standard): Vorprüfung vor dem ersten Wasm-Befehl (Anzeige, Grafikadapter) → Meldung + Exit 2, sonst
+///   Programm-Thread + winit-Fenster im Hauptthread;
+/// - fensterlos mit W0104: JSON-Modus (außer `PIZZA_HERD=1`), `--ui-ereignisse`, `PIZZA_HERD=0`, Build ohne Feature `herd`.
+#[allow(unused_variables, unused_mut)]
+fn ausfuehren_herd(pkarton: Vec<u8>, debug: bool, args: Vec<String>, mut opt: laufen::Optionen, mut senke: Senke, herd: HerdAufruf) -> i32 {
+    let messung = herd.messung.then(|| std::sync::Arc::new(pizzahost::herd::Messung::default()));
+    opt.herd_messung = messung.clone();
+    #[cfg(feature = "herd")]
+    {
+        if let Some(ordner) = herd.bilder {
+            if opt.ui.is_none() {
+                let bis = herd.nur.as_ref().and_then(|n| n.iter().max().copied()).unwrap_or(60);
+                opt.ui = Some(laufen::Ui::Vorgabe(pizzahost::herd_fenster::offscreen_takte(bis)));
+            }
+            opt.herd = Some(pizzahost::herd_fenster::offscreen(ordner, herd.nur, messung));
+            return laufen::fuehre_aus(&pkarton, &args, opt, &mut senke);
+        }
+        let fenster_erlaubt = !matches!(senke, Senke::Json) || std::env::var("PIZZA_HERD").map(|v| v == "1").unwrap_or(false);
+        if opt.ui.is_none() && fenster_erlaubt && !pizzahost::anzeige::herd_abgeschaltet() {
+            let el = match pizzahost::herd_fenster::vorpruefung() {
+                Ok(el) => el,
+                Err((meldung, detail)) => return pizzahost::anzeige::abbruch(meldung, detail.as_deref(), debug),
+            };
+            return pizzahost::herd_fenster::starte(el, debug, messung, move |ui, anbindung| {
+                let mut opt = opt;
+                let mut senke = senke;
+                opt.ui = Some(ui);
+                opt.herd = Some(anbindung);
+                laufen::fuehre_aus(&pkarton, &args, opt, &mut senke)
+            });
+        }
+    }
+    #[cfg(not(feature = "herd"))]
+    if herd.bilder.is_some() {
+        eprintln!("Dieser pizza-host wurde ohne Herd-Fenster gebaut (Feature herd) – --herd-bilder geht damit nicht.");
+        return 2;
+    }
+    laufen::fuehre_aus(&pkarton, &args, opt, &mut senke)
 }
 
 /// Führt das Programm aus – mit Theke-Fenster (eigener Programm-Thread, Fenster im Hauptthread),
 /// sofern das Feature aktiv ist und keine vorgegebenen UI-Ereignisse genutzt werden.
 /// Linux-Starter (Feature `starter`): Programme mit Theke übernimmt der eingebettete Theke-Teil (src/starter.rs).
 #[allow(unused_variables)]
-fn ausfuehren(pkarton: Vec<u8>, ist_exe: bool, debug: bool, args: Vec<String>, opt: laufen::Optionen, senke: Senke) -> i32 {
+fn ausfuehren(pkarton: Vec<u8>, ist_exe: bool, debug: bool, args: Vec<String>, opt: laufen::Optionen, senke: Senke, herd: HerdAufruf) -> i32 {
+    // Herd zuerst: auch der Linux-Starter führt Herd-Programme selbst aus (winit/wgpu laden alles per dlopen, K-130),
+    // nie über den Theke-Teil. Theke + Herd in einem Programm ist P0013 (kommt nie bis hierher) – dann gilt der Herd.
+    if laufen::braucht_herd(&pkarton) {
+        return ausfuehren_herd(pkarton, debug, args, opt, senke, herd);
+    }
     // Maschinenlesbarer Modus (--ereignisse-json, Differenztests) öffnet kein Fenster, außer PIZZA_THEKE=1:
     // ohne --ui-ereignisse gilt dann „kein Renderer“ (W0100) – wie im Interpreter ohne uiEreignisse.
     // Ohne Feature `theke`/`starter` (Entwickler-Build `--no-default-features`) ebenfalls W0100.
@@ -434,7 +513,8 @@ fn exe_befehl(args: &[String]) -> ExitCode {
         eprintln!("Kein gültiges .pkarton: {}", e);
         return beende(2);
     }
-    match karton::schreibe_exe(&pkarton, laufen::braucht_theke(&pkarton), &ausgabe) {
+    // PE-Subsystem WINDOWS für Programme mit Fenster (Theke oder Herd).
+    match karton::schreibe_exe(&pkarton, laufen::braucht_fenster(&pkarton), &ausgabe) {
         Ok(()) => {
             eprintln!("EXE geschrieben: {}", ausgabe.display());
             ExitCode::SUCCESS

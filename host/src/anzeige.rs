@@ -17,6 +17,20 @@ Bitte „Microsoft Edge WebView2 Runtime“ installieren (kostenlos von Microsof
 pub const FENSTER_FEHLGESCHLAGEN: &str = "Das Theke-Fenster dieses Programms konnte nicht geöffnet werden \
 (die WebView WebKitGTK 4.1 ließ sich nicht starten).";
 
+/// Herd (K-130 wie K-096): Linux ohne `DISPLAY`/`WAYLAND_DISPLAY` bzw. keine Verbindung zur Anzeige.
+pub const HERD_KEINE_ANZEIGE: &str = "Dieses Programm braucht einen Bildschirm für sein Herd-Fenster. Es wurde keiner gefunden (weder DISPLAY noch WAYLAND_DISPLAY nutzbar, z. B. in einer SSH-Sitzung) – bitte in einer grafischen Sitzung starten.";
+
+/// Herd: kein Grafikadapter, auch kein Software-Adapter (Windows: DirectX 12/WARP, Linux: Vulkan oder OpenGL/EGL).
+pub const HERD_KEINE_GRAFIK: &str = "Dieses Programm braucht für sein Herd-Fenster einen Grafiktreiber (Windows: DirectX 12, Linux: Vulkan oder OpenGL). Es wurde keiner gefunden – bitte den Grafiktreiber installieren bzw. aktualisieren (Linux ohne Grafikkarte: Mesa, z. B. sudo apt install mesa-vulkan-drivers bzw. sudo dnf install mesa-vulkan-drivers).";
+
+/// Herd: Fenster ließ sich trotz bestandener Vorprüfung nicht erzeugen.
+pub const HERD_FENSTER_FEHLGESCHLAGEN: &str = "Das Herd-Fenster dieses Programms konnte nicht geöffnet werden.";
+
+/// `PIZZA_HERD=0`: Herd-Fenster abgeschaltet (Tests/CI) → fensterlos, W0104.
+pub fn herd_abgeschaltet() -> bool {
+    std::env::var("PIZZA_HERD").map(|v| v == "0").unwrap_or(false)
+}
+
 /// `PIZZA_THEKE=0`: Theke abgeschaltet (Tests/CI) → kein Fenster, W0100 wie bisher.
 pub fn theke_abgeschaltet() -> bool {
     std::env::var("PIZZA_THEKE").map(|v| v == "0").unwrap_or(false)

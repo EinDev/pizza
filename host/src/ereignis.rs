@@ -18,6 +18,9 @@ pub enum Ereignis {
     Panik { text: String },
     /// Änderung einer Vorratskammer (K-080): `aenderung` = rohes JSON `{"schluessel":…,"wert":…}` vom Modul.
     Vorrat { name: String, aenderung: String },
+    /// Herd-Fenster-Ereignis (SPEC §18.7, HOST-ABI §2 `herd_senden`): rohes JSON des Moduls **ohne** `typ`, `art` zuerst
+    /// (`{"art":"bild","bildnummer":…,"szene":…,"paket":…}`) → `{"typ":"herd","art":…,…}`; Bildpaket-Bytes nie im Ereignis.
+    Herd { daten: String },
     Ende { exit_code: i32, schritte: f64, zeit_ms: f64 },
 }
 
@@ -186,6 +189,11 @@ impl Ereignis {
                 let rest = if rest.starts_with('}') { rest.to_string() } else { format!(",{}", rest) };
                 format!("{{\"typ\":\"vorrat\",\"name\":{}{}", json_text(name), rest)
             }
+            Ereignis::Herd { daten } => {
+                let rest = daten.trim().strip_prefix('{').unwrap_or("}").trim_start();
+                let rest = if rest.starts_with('}') { rest.to_string() } else { format!(",{}", rest) };
+                format!("{{\"typ\":\"herd\"{}", rest)
+            }
             Ereignis::Ende { exit_code, schritte, zeit_ms } => format!(
                 "{{\"typ\":\"ende\",\"exitCode\":{},\"schritte\":{},\"zeitMs\":{}}}",
                 exit_code,
@@ -305,7 +313,8 @@ impl Senke {
                     }
                     // Kein Echo: das macht das Terminal. UI-Nachrichten gehen ans Fenster, nicht auf die Konsole.
                     // Vorrat: wird gespeichert, nicht angezeigt (wie bin/pizza.js).
-                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } | Ereignis::Vorrat { .. } => {}
+                    // Herd: Fenster-Ereignisse gehen an den Renderer.
+                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } | Ereignis::Vorrat { .. } | Ereignis::Herd { .. } => {}
                     Ereignis::Leeren => {
                         let mut out = io::stdout().lock();
                         if out.is_terminal() {

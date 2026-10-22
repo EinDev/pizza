@@ -15,6 +15,8 @@ const { spawnSync } = require('child_process');
 // Nie ein sichtbarer Dialog aus Testläufen (K-096-Meldungsfenster, Windows-Fehlerdialoge, Theke-Fenster): alle
 // gestarteten Hosts/EXEs erben PIZZA_KEIN_DIALOG=1 (host/src/konsole.rs).
 process.env.PIZZA_KEIN_DIALOG = '1';
+// Herd: nie die echte GPU (Software-Adapter), auch wenn ein Lauf die Glut erreicht.
+process.env.HERD_SOFTWARE = '1';
 const PizzaExe = require(path.join(__dirname, '..', 'site', 'js', 'exe.js'));
 
 let fehler = 0;
@@ -38,7 +40,7 @@ const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const ziele = [];
 const lokalBytes = fs.readFileSync(lokal);
 fs.copyFileSync(lokal, path.join(verz, 'lokal' + ext));
-ziele.push({ id: process.platform === 'win32' ? 'windows-lokal' : 'linux-lokal', name: 'lokal', datei: 'lokal' + ext, endung: ext, groesse: lokalBytes.length, sha256: sha(lokalBytes), _pfad: lokal, _laeuft: true });
+ziele.push({ id: process.platform === 'win32' ? 'windows-lokal' : 'linux-lokal', name: 'lokal', datei: 'lokal' + ext, endung: ext, groesse: lokalBytes.length, sha256: sha(lokalBytes), gruppen: ['theke', 'vorrat', 'echtzeit', 'kueche', 'herd'], _pfad: lokal, _laeuft: true });
 const zieleDir = path.join(__dirname, 'ziele');
 if (fs.existsSync(path.join(zieleDir, 'ziele.json'))) {
   for (const z of JSON.parse(fs.readFileSync(path.join(zieleDir, 'ziele.json'), 'utf8')).ziele) {
@@ -118,6 +120,42 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
         const k = spawnSync(ziel, ['--kein-vorrat'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000, env: Object.assign({}, env, { PIZZA_TEST_KEIN_STDERR: '1' }) });
         ok(k.status === 2 && /Meldungsfenster unterdrückt: PIZZA_KEIN_DIALOG/.test(k.stderr), z.id + ': Theke-EXE ohne stderr + PIZZA_KEIN_DIALOG → kein Meldungsfenster, Exit 2 (' + k.status + ')');
       }
+    }
+  }
+
+  // Herd (H5): Programm mit Gruppe herd (Beispiel `wuerfel`, mit Pizzaiolo kompiliert) → Subsystem WINDOWS wie die Theke;
+  // die EXE läuft fensterlos (JSON-Modus + --ui-ereignisse, Software-Adapter) und liefert die `herd`-Ereignisse bitgleich
+  // mit `.herd-erwartet`; ohne Grafik (simuliert) Meldung + Exit 2 vor dem ersten Wasm-Befehl.
+  const pizzaioloPfad = path.join(__dirname, '..', 'site', 'js', 'pizzaiolo.js');
+  if (!fs.existsSync(pizzaioloPfad)) console.log('  (site/js/pizzaiolo.js fehlt – Herd-EXE übersprungen)');
+  else {
+    global.PizzaLang = require(path.join(__dirname, '..', 'site', 'js', 'pizza.js'));
+    const Pizzaiolo = require(pizzaioloPfad);
+    const bsp = path.join(__dirname, '..', 'site', 'beispiele', 'herd');
+    const k = Pizzaiolo.kompiliere(fs.readFileSync(path.join(bsp, 'wuerfel.pizza'), 'utf8'));
+    ok(k.ok, 'Herd-Beispiel wuerfel kompiliert');
+    const herdKarton = Buffer.from(k.pkarton);
+    ok(await PizzaExe.brauchtTheke(herdKarton) === true, 'Fenster-Kriterium erkennt Importgruppe herd (Subsystem WINDOWS)');
+    const soll = fs.readFileSync(path.join(bsp, 'wuerfel.herd-erwartet'), 'utf8').split(/\r?\n/).filter((z) => z.trim());
+    for (const z of ziele) {
+      if (!(z.gruppen || []).includes('herd')) { console.log('  –  ' + z.id + ': Host ohne Gruppe herd (ältere ziele.json) – übersprungen'); continue; }
+      const mit = Buffer.from(await (await PizzaExe.baue(herdKarton, z.id, optionen)).arrayBuffer());
+      const istPe = PizzaExe.subsystem(fs.readFileSync(z._pfad)) !== null;
+      ok(PizzaExe.subsystem(mit) === (istPe ? 2 : null), z.id + ': Herd-EXE Subsystem ' + (istPe ? 'WINDOWS' : '– (ELF)'));
+      if (!z._laeuft) continue;
+      const kp = path.join(tmp, 'herd.pkarton');
+      fs.writeFileSync(kp, herdKarton);
+      const ziel = path.join(tmp, 'herd-' + z.id + ext);
+      const e = spawnSync(z._pfad, ['exe', kp, '-o', ziel], { windowsHide: true, encoding: 'utf8' });
+      ok(e.status === 0 && fs.readFileSync(ziel).equals(mit), z.id + ': Herd-EXE identisch mit `pizza-host exe`');
+      fs.chmodSync(ziel, 0o755);
+      const env = Object.assign({}, process.env, { PIZZA_EREIGNISSE_JSON: '1' });
+      delete env.PIZZA_HERD;
+      const l = spawnSync(ziel, ['--kein-vorrat', '--ui-ereignisse', path.join(bsp, 'wuerfel.ereignisse')], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env, timeout: 120000 });
+      const ist = String(l.stdout).split(/\r?\n/).filter((x) => x.startsWith('{"typ":"herd",')).map((x) => x.replace('{"typ":"herd",', '{'));
+      ok(l.status === 0 && JSON.stringify(ist) === JSON.stringify(soll), z.id + ': Herd-EXE fensterlos, herd-Ereignisse bitgleich (' + ist.length + ' Zeilen, Exit ' + l.status + ')');
+      const g = spawnSync(ziel, ['--kein-vorrat'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000, env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_GRAFIK: '1' }) });
+      ok(g.status === 2 && /Herd-Fenster einen Grafiktreiber/.test(g.stderr) && g.stdout === '', z.id + ': Herd-EXE ohne Grafik → Meldung, Exit 2 (' + g.status + ')');
     }
   }
 

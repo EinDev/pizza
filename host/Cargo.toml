@@ -12,8 +12,12 @@ test = false
 
 [features]
 # Theke (THEKE.md §4): eigenes Fenster über die System-WebView (wry + tao). Ohne Feature: W0100-Verhalten.
-default = ["theke"]
+default = ["theke", "herd"]
 theke = ["dep:wry", "dep:tao", "dep:serde_json"]
+# Herd (SPEC §18, HERD.md §7.1, K-130): eigenes Spielfenster (winit + Glut/wgpu), Offscreen-PNGs (`--herd-bilder`), Messung.
+# Unabhängig von `theke` (Linux-Starter: --no-default-features --features starter,herd). Der Kern (herd-kern) ist immer
+# dabei – ohne Feature laufen Herd-Programme fensterlos (W0104), Ereignisse und Hashes bleiben bitgleich.
+herd = ["dep:herd-glut", "dep:winit", "dep:png", "dep:pollster", "dep:serde_json"]
 # Linux-Starter (src/starter.rs): ohne wry/tao bauen (--no-default-features --features starter) und den Theke-Teil
 # (pizza-host mit Feature theke) aus PIZZA_THEKE_EXE einbetten – startet ohne WebKitGTK, meldet es bei Theke-Programmen.
 starter = []
@@ -22,7 +26,19 @@ starter = []
 wry = { version = "0.57.0", optional = true }
 tao = { version = "0.37.1", optional = true }
 serde_json = { version = "1", optional = true }
+herd-kern = { path = "../herd/kern" }
+herd-glut = { path = "../herd/glut", optional = true }
+png = { version = "0.18.1", optional = true }
+pollster = { version = "0.4", optional = true }
 wasmi = { version = "2.0.0", default-features = false, features = ["std", "stable", "validate", "auto-dispatch"] }
+
+# winit 0.30: Linux X11/Wayland nur per dlopen (keine neue NEEDED-Bibliothek, K-130); Wayland mit eigener Titelleiste
+# (csd-adwaita, sonst fehlt unter GNOME der Schließen-Knopf).
+[target.'cfg(target_os = "linux")'.dependencies]
+winit = { version = "0.30.13", optional = true, default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+winit = { version = "0.30.13", optional = true, default-features = false, features = ["rwh_06"] }
 
 [profile.release]
 opt-level = "z"
@@ -44,4 +60,7 @@ opt-level = 3
 [profile.release.package.wasmi_core]
 opt-level = 3
 [profile.release.package.wasmi_ir]
+opt-level = 3
+# Herd-Kern (Systeme, Bildpaket) ebenfalls schnell (HERD.md §6: Kern-Takt + Bild ≤ 2 ms in der EXE).
+[profile.release.package.herd-kern]
 opt-level = 3

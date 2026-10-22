@@ -33,6 +33,10 @@ pub struct Optionen {
     pub koeche: Option<usize>,
     /// Testoption `--kuechen-chaos=SAAT`: Stücke in zufälliger Reihenfolge, mit Verzögerungen und wechselnden Klonen.
     pub kuechen_chaos: Option<u64>,
+    /// Herd: wohin `herd_senden` Fenster-Ereignisse und Bildpakete gibt (Fenster, Offscreen-PNGs); `None` → nur Ereignis.
+    pub herd: Option<crate::herd::HerdAnbindung>,
+    /// `--herd-messung`: Zeiten je Sekunde (HERD.md §6).
+    pub herd_messung: Option<std::sync::Arc<crate::herd::Messung>>,
 }
 
 /// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit, kueche).
@@ -55,6 +59,15 @@ const IMPORTE: [&str; 16] = [
     "kueche_bericht",
 ];
 
+/// Ist `modul.name` ein bekannter Import (Basis, Gruppen; Gruppe `herd` mit Modul `herd`, HOST-ABI §2)?
+fn import_bekannt(m: &str, n: &str) -> bool {
+    match m {
+        "pizza" => IMPORTE.contains(&n) || crate::herd::IMPORTE_PIZZA.contains(&n),
+        "herd" => crate::herd::IMPORTE_HERD.contains(&n),
+        _ => false,
+    }
+}
+
 /// Gruppe einer unbekannten Import-Funktion, abgeleitet aus dem Namen (`ui_…` → theke, `vorrat_…` → vorrat,
 /// `xyz_…` → xyz); ohne Präfix `unbekannt`.
 fn gruppe_von(name: &str) -> String {
@@ -69,10 +82,14 @@ fn gruppe_von(name: &str) -> String {
 pub fn pruefe_importe(module: &Module) -> Result<(), String> {
     for i in module.imports() {
         let (m, n) = (i.module(), i.name());
-        if m == "pizza" && IMPORTE.contains(&n) {
+        if import_bekannt(m, n) {
             continue;
         }
-        let gruppe = if m == "pizza" { gruppe_von(n) } else { "unbekannt".to_string() };
+        let gruppe = match m {
+            "pizza" => gruppe_von(n),
+            "herd" => "herd".to_string(),
+            _ => "unbekannt".to_string(),
+        };
         return Err(format!(
             "Dieses Programm braucht die Funktion '{}.{}' (Gruppe {}), die dieser Host nicht kennt – bitte pizza-host aktualisieren.",
             m, n, gruppe
@@ -435,8 +452,8 @@ pub fn zeilen(inhalt: &str) -> Vec<String> {
     v
 }
 
-struct Zustand {
-    senke: Senke,
+pub(crate) struct Zustand {
+    pub(crate) senke: Senke,
     quelle: Quelle,
     /// Gelesene, aber noch nicht abgeholte Zeile (Puffer war zu klein, K-013).
     wartend: Option<String>,
@@ -451,6 +468,15 @@ struct Zustand {
     echtzeit: Option<f64>,
     /// Köche der Küchenbrigade (Gruppe `kueche`).
     kueche: crate::kueche::Kueche,
+    /// Herd (Gruppe `herd`): nativer Kern, nachgebildeter Kern-Speicher, Renderer-Anbindung.
+    pub(crate) herd: crate::herd::HerdZustand,
+}
+
+impl Zustand {
+    /// `herd_senden(fenster)` öffnet die Ereignisquelle nach einem `geschlossen` wieder (wie `ui_senden` mit `baum`/`fenster`).
+    pub(crate) fn theke_wieder_offen(&mut self) {
+        self.theke.zu = false;
+    }
 }
 
 /// Marker-Fehler, mit dem der Host nach `panik` den Lauf abbricht.
@@ -498,6 +524,40 @@ pub fn braucht_theke(pkarton: &[u8]) -> bool {
     Module::new(&engine(), pkarton)
         .map(|m| m.imports().any(|i| i.module() == "pizza" && i.name().starts_with("ui_")))
         .unwrap_or(false)
+}
+
+/// Importiert das Modul die Gruppe `herd` (Modul `herd` oder `pizza.herd_*`, HOST-ABI §2)?
+pub fn braucht_herd(pkarton: &[u8]) -> bool {
+    Module::new(&engine(), pkarton).map(|m| crate::herd::importiert_herd(&m)).unwrap_or(false)
+}
+
+/// Braucht das Programm ein Fenster (Theke oder Herd)? → PE-Subsystem WINDOWS (karton.rs, site/js/exe.js).
+pub fn braucht_fenster(pkarton: &[u8]) -> bool {
+    Module::new(&engine(), pkarton)
+        .map(|m| crate::herd::importiert_herd(&m) || m.imports().any(|i| i.module() == "pizza" && i.name().starts_with("ui_")))
+        .unwrap_or(false)
+}
+
+/// `ui_warte`/`herd_warte` (gleiche Quelle, HOST-ABI §2): Länge, -1 = kein Renderer/geschlossen, > kap = Retry (K-013),
+/// `kap = -1` = Abfrage „Renderer da?“. Liefert zusätzlich das zugestellte Ereignis.
+pub(crate) fn ui_warte(c: &mut Caller<'_, Zustand>, puffer: i32, kap: i32) -> Result<(i32, Option<String>), wasmi::Error> {
+    if kap == -1 {
+        let t = &c.data().theke;
+        return Ok(((t.ui.is_some() && !t.zu) as i32, None));
+    }
+    let Some(e) = c.data_mut().theke.naechstes() else {
+        return Ok((-1, None));
+    };
+    let n = e.len();
+    if n > kap.max(0) as usize {
+        c.data_mut().theke.wartend = Some(e);
+        return Ok((n as i32, None));
+    }
+    let Some(Extern::Memory(mem)) = c.get_export("memory") else {
+        return Err(wasmi::Error::new("Export 'memory' fehlt"));
+    };
+    mem.write(&mut *c, puffer as u32 as usize, e.as_bytes())?;
+    Ok((n as i32, Some(e)))
 }
 
 fn text(caller: &Caller<'_, Zustand>, ptr: i32, len: i32) -> String {
@@ -570,7 +630,8 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
     };
     let koeche = opt.koeche.unwrap_or_else(crate::kueche::auto);
     let kueche = crate::kueche::Kueche::neu(module.clone(), koeche, opt.kuechen_chaos, opt.echtzeit);
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit, kueche };
+    let herd = crate::herd::HerdZustand::neu(opt.herd.take(), opt.herd_messung.clone());
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit, kueche, herd };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -608,26 +669,8 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap(
             "pizza",
             "ui_warte",
-            |mut c: Caller<'_, Zustand>, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> {
-                // HOST-ABI: `ui_warte(_, -1)` = Abfrage ohne Warten: 1 = Renderer verfügbar, 0 = keiner (→ W0100).
-                if kap == -1 {
-                    let t = &c.data().theke;
-                    return Ok((t.ui.is_some() && !t.zu) as i32);
-                }
-                let Some(e) = c.data_mut().theke.naechstes() else {
-                    return Ok(-1);
-                };
-                let n = e.len();
-                if n > kap.max(0) as usize {
-                    c.data_mut().theke.wartend = Some(e);
-                    return Ok(n as i32);
-                }
-                let Some(Extern::Memory(mem)) = c.get_export("memory") else {
-                    return Err(wasmi::Error::new("Export 'memory' fehlt"));
-                };
-                mem.write(&mut c, puffer as u32 as usize, e.as_bytes())?;
-                Ok(n as i32)
-            },
+            // HOST-ABI: `ui_warte(_, -1)` = Abfrage ohne Warten: 1 = Renderer verfügbar, 0 = keiner (→ W0100).
+            |mut c: Caller<'_, Zustand>, puffer: i32, kap: i32| -> Result<i32, wasmi::Error> { ui_warte(&mut c, puffer, kap).map(|r| r.0) },
         )?;
         // Optional: ist überhaupt ein Renderer da? (1/0) – für W0100 vor dem ersten Warten.
         linker.func_wrap("pizza", "ui_verfuegbar", |c: Caller<'_, Zustand>| -> i32 {
@@ -792,6 +835,8 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
             // HOST-ABI §2: Host darf sofort abbrechen → Exit 39.
             Err(wasmi::Error::host(PanikAbbruch))
         })?;
+        // Gruppe herd (SPEC §18, HOST-ABI §2): Kern-Exporte als Modul `herd`, dazu `pizza.herd_*` (src/herd.rs).
+        crate::herd::binde(&mut linker)?;
         Ok(())
     })();
     if let Err(e) = r {

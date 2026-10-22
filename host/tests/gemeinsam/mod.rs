@@ -1,4 +1,4 @@
-//! Gemeinsame Hilfen für die Integrationstests: jeder gestartete Host/jede EXE läuft mit `PIZZA_KEIN_DIALOG=1`
+//! Gemeinsame Hilfen für die Integrationstests: jeder gestartete Host/jede EXE läuft mit `PIZZA_KEIN_DIALOG=1` und `HERD_SOFTWARE=1`
 //! (nie ein Meldungsfenster, nie ein sichtbares Theke-Fenster, keine Windows-Fehlerdialoge). Zusätzlich schaltet der
 //! Testprozess selbst die Windows-Fehlerdialoge ab – Kinder erben den Fehlermodus (auch für Ladefehler vor `main`).
 
@@ -9,6 +9,8 @@ pub fn befehl<S: AsRef<std::ffi::OsStr>>(programm: S) -> Command {
     fehlerdialoge_aus();
     let mut c = Command::new(programm);
     c.env("PIZZA_KEIN_DIALOG", "1");
+    // Herd: nie die echte GPU (Software-Adapter WARP/lavapipe), auch wenn ein Test die Glut erreicht.
+    c.env("HERD_SOFTWARE", "1");
     c
 }
 

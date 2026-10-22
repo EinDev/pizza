@@ -338,7 +338,7 @@ impl Klon {
     fn neu(modul: &Module, echtzeit: Option<f64>) -> Result<Klon, String> {
         let engine: &Engine = modul.engine();
         let mut store = Store::new(engine, KlonZustand { echtzeit });
-        let linker = klon_linker(engine).map_err(|e| e.to_string())?;
+        let linker = klon_linker(modul).map_err(|e| e.to_string())?;
         let inst = linker.instantiate_and_start(&mut store, modul).map_err(|e| e.to_string())?;
         let memory = inst.get_memory(&store, "memory").ok_or("Export 'memory' fehlt")?;
         let stueck = inst.get_typed_func::<(i32, i32), (i32, i32)>(&store, "kueche_stueck").map_err(|e| e.to_string())?;
@@ -377,10 +377,22 @@ impl Klon {
 }
 
 /// Imports der Klon-Instanzen (HOST-ABI §2 „Klon-Instanzen“).
-fn klon_linker(engine: &Engine) -> Result<Linker<KlonZustand>, wasmi::errors::LinkerError> {
+fn klon_linker(modul: &Module) -> Result<Linker<KlonZustand>, wasmi::errors::LinkerError> {
     type C<'a> = Caller<'a, KlonZustand>;
-    let mut l = <Linker<KlonZustand>>::new(engine);
+    let mut l = <Linker<KlonZustand>>::new(modul.engine());
     l.allow_shadowing(true);
+    // Gruppe herd (HOST-ABI §2): in Klonen ist jeder Import Trap (`herd.*` und `pizza.herd_*`) – das Modul ruft sie dort
+    // nie (KüchenAnanas vorher). Signatur aus der Importliste des Moduls.
+    for i in modul.imports() {
+        let (m, n) = (i.module().to_string(), i.name().to_string());
+        if m != "herd" && !(m == "pizza" && n.starts_with("herd_")) {
+            continue;
+        }
+        if let wasmi::ExternType::Func(ty) = i.ty() {
+            let text = format!("Klon rief {}.{}", m, n);
+            l.func_new(&m, &n, ty.clone(), move |_c, _p, _e| Err(wasmi::Error::new(text.clone())))?;
+        }
+    }
     for name in ["ausgabe", "schreibe", "fehlerausgabe", "panik", "ui_senden"] {
         l.func_wrap("pizza", name, move |_c: C, _p: i32, _n: i32| -> Result<(), wasmi::Error> { Err(verboten(name)) })?;
     }
