@@ -74,7 +74,7 @@
     try {
       var p = alsBytes(pkarton);
       return WebAssembly.compile(p).then(function (m) {
-        return WebAssembly.Module.imports(m).some(function (i) { return i.module === 'pizza' && /^ui_/.test(i.name); });
+        return WebAssembly.Module.imports(m).some(function (i) { return (i.module === 'pizza' && /^(ui_|herd_)/.test(i.name)) || i.module === 'herd'; });
       });
     } catch (e) { return Promise.reject(e); }
   }

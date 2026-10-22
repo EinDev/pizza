@@ -4,11 +4,13 @@
 #   sh host/baue-ziele.sh <ausgabeverzeichnis>     (Standard: $AUSGABE_DIR, sonst host/ziele)
 #
 # Läuft unter Linux (Docker-Stage "exe", siehe Dockerfile). Ziele (Auswahl über PIZZA_ZIELE):
-#   windows-x64  x86_64-pc-windows-msvc    xwin + rust-lld   mit Theke-Fenster (WebView2), CRT statisch, keine Zusatz-DLL
-#   linux-x64    x86_64-unknown-linux-gnu  gcc + webkit2gtk  mit Theke-Fenster (glibc ≥ 2.34; WebKitGTK 4.1 nur für Theke-Programme)
-#                Zwei Schritte (src/starter.rs): pizza-host mit Theke (gegen WebKitGTK gelinkt) = „Theke-Teil“, dann der
-#                Starter (--no-default-features --features starter, nur glibc), der den Theke-Teil einbettet. Ausgeliefert
+#   windows-x64  x86_64-pc-windows-msvc    xwin + rust-lld   mit Theke-Fenster (WebView2) und Herd (winit + wgpu/DX12), CRT statisch, keine Zusatz-DLL
+#   linux-x64    x86_64-unknown-linux-gnu  gcc + webkit2gtk  mit Theke-Fenster (glibc ≥ 2.34; WebKitGTK 4.1 nur für Theke-Programme) und Herd
+#                Zwei Schritte (src/starter.rs): pizza-host nur mit Theke (gegen WebKitGTK gelinkt) = „Theke-Teil“, dann der
+#                Starter (--no-default-features --features starter,herd, nur glibc), der den Theke-Teil einbettet. Ausgeliefert
 #                wird der Starter: läuft ohne WebKitGTK, Theke-Programme melden dann verständlich, was fehlt (Exit 2).
+#                Herd-Programme führt der Starter selbst aus (winit/wgpu laden X11/Wayland/Vulkan/GL per dlopen, K-130) –
+#                geprüft per readelf: keine neue NEEDED-Bibliothek.
 # Nur Varianten mit Theke-Fenster (Browser und nativ verhalten sich gleich); ohne Fenster wird nichts angeboten.
 # Beide Builds brauchen site/js/theke/ (wird per build.rs eingebettet). Scheitert linux-x64, wird es übersprungen
 # (außer STRICT_BUILD=1); windows-x64 muss gelingen.
@@ -18,7 +20,8 @@
 #
 # Ausgabe (direkt in <ausgabeverzeichnis>):
 #   pizza-host-<ziel>-<sha12>[.exe]   (Dateiname enthält Inhalts-Hash → nginx darf "immutable" cachen)
-#   ziele.json  { version, format, trailer, ziele: [{ id, name, triple, datei, endung, groesse, sha256, theke, voraussetzung }] }
+#   ziele.json  { version, format, trailer, ziele: [{ id, name, triple, datei, endung, groesse, sha256, theke, gruppen, voraussetzung }] }
+#               gruppen = optionale Importgruppen, die dieser Host kennt (site/js/exe.js prüft sie vor dem Einbetten).
 set -eu
 
 HIER=$(cd "$(dirname "$0")" && pwd)
@@ -47,9 +50,9 @@ anzeigename() {
 }
 voraussetzung() {
   case "$1" in
-    windows-x64) echo "Windows 10/11 (x64). Theke-Fenster über die Microsoft-Edge-WebView2-Runtime (ab Windows 10/11 meist vorinstalliert)." ;;
+    windows-x64) echo "Windows 10/11 (x64). Theke-Fenster über die Microsoft-Edge-WebView2-Runtime (ab Windows 10/11 meist vorinstalliert), Herd-Spiele über DirectX 12." ;;
     # Installationsbefehle wortgleich mit WEBKIT_FEHLT in src/starter.rs (Meldung beim Start ohne WebKitGTK).
-    linux-x64) echo "Linux x64 mit glibc ab 2.34 (z. B. Ubuntu 22.04+, Debian 12+, Fedora 36+). Programme mit Theke-Fenster brauchen WebKitGTK 4.1 (Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0, Fedora: sudo dnf install webkit2gtk4.1) – fehlt es, sagt das Programm das beim Start. Programme ohne Theke laufen auch ohne." ;;
+    linux-x64) echo "Linux x64 mit glibc ab 2.34 (z. B. Ubuntu 22.04+, Debian 12+, Fedora 36+). Programme mit Theke-Fenster brauchen WebKitGTK 4.1 (Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0, Fedora: sudo dnf install webkit2gtk4.1) – fehlt es, sagt das Programm das beim Start. Herd-Spiele brauchen einen Vulkan- oder OpenGL-Treiber (Mesa). Programme ohne Theke laufen auch ohne." ;;
   esac
 }
 endung() { case "$1" in windows-*) echo ".exe" ;; *) echo "" ;; esac; }
@@ -78,15 +81,19 @@ baue() {
       x=$(xwin_splat) || return 1
       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld       CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-C target-feature=+crt-static -Lnative=$x/crt/lib/x86_64 -Lnative=$x/sdk/lib/um/x86_64 -Lnative=$x/sdk/lib/ucrt/x86_64"         cargo "$@" ;;
     x86_64-unknown-linux-gnu)
-      # 1) Theke-Teil (Standard-Features, gegen WebKitGTK gelinkt) beiseitelegen, 2) Starter mit eingebettetem Theke-Teil.
-      cargo "$@" || return 1
+      # 1) Theke-Teil (nur Theke, gegen WebKitGTK gelinkt) beiseitelegen, 2) Starter (mit Herd) mit eingebettetem Theke-Teil.
+      cargo "$@" --no-default-features --features theke || return 1
       teil="$ZIELDIR/$t/theke-teil/pizza-host"
       mkdir -p "$(dirname "$teil")"
       cp "$ZIELDIR/$t/release/pizza-host" "$teil"
-      PIZZA_THEKE_EXE="$teil" cargo "$@" --no-default-features --features starter || return 1
-      # Der Starter darf keine GTK-/WebKitGTK-Bibliothek direkt brauchen (sonst startet er ohne sie nicht).
-      if command -v readelf >/dev/null 2>&1 && readelf -d "$ZIELDIR/$t/release/pizza-host" | grep -Eq 'NEEDED.*(webkit|gtk|soup|javascriptcore)'; then
-        echo ">> FEHLER: Starter hängt direkt von WebKitGTK/GTK ab" >&2; return 1
+      PIZZA_THEKE_EXE="$teil" cargo "$@" --no-default-features --features starter,herd || return 1
+      # Der Starter darf keine GTK-/WebKitGTK-Bibliothek direkt brauchen (sonst startet er ohne sie nicht), und Herd
+      # (winit/wgpu) keine Fenster-/Grafikbibliothek (K-130: X11, Wayland, xkbcommon, Vulkan, GL/EGL nur per dlopen).
+      if command -v readelf >/dev/null 2>&1; then
+        echo ">> Starter NEEDED: $(readelf -d "$ZIELDIR/$t/release/pizza-host" | grep NEEDED | sed 's/.*\[\(.*\)\]/\1/' | tr '\n' ' ')"
+        if readelf -d "$ZIELDIR/$t/release/pizza-host" | grep -Eiq 'NEEDED.*(webkit|gtk|soup|javascriptcore|x11|xcb|wayland|xkbcommon|vulkan|libgl|egl)'; then
+          echo ">> FEHLER: Starter hängt direkt von WebKitGTK/GTK oder einer Fenster-/Grafikbibliothek ab" >&2; return 1
+        fi
       fi ;;
     *) cargo "$@" ;;
   esac
@@ -123,7 +130,7 @@ for z in $ZIELE; do
   cp "$quelle" "$AUS/$datei"
   chmod 755 "$AUS/$datei"
   groesse=$(wc -c < "$AUS/$datei" | tr -d ' ')
-  eintrag=$(printf '    { "id": "%s", "name": "%s", "triple": "%s", "datei": "%s", "endung": "%s", "groesse": %s, "sha256": "%s", "theke": true, "voraussetzung": "%s" }' \
+  eintrag=$(printf '    { "id": "%s", "name": "%s", "triple": "%s", "datei": "%s", "endung": "%s", "groesse": %s, "sha256": "%s", "theke": true, "gruppen": ["theke", "vorrat", "echtzeit", "kueche", "herd"], "voraussetzung": "%s" }' \
     "$z" "$(anzeigename "$z")" "$t" "$datei" "$e" "$groesse" "$sha" "$(voraussetzung "$z")")
   if [ -z "$eintraege" ]; then eintraege="$eintrag"; else eintraege="$eintraege,
 $eintrag"; fi

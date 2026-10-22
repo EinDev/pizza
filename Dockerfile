@@ -54,7 +54,8 @@ FROM tests-${SKIP_TESTS} AS tests
 # ---------------------------------------------------------------------------
 # Nativer Host – Cross-Builds der pizza-host-Binaries für den EXE-Download im
 # Browser – nur Varianten mit Theke-Fenster: Windows x64 (MSVC per xwin, WebView2)
-# und Linux x64 (glibc/bookworm, WebKitGTK 4.1).
+# und Linux x64 (glibc/bookworm, WebKitGTK 4.1); beide mit Herd (winit + wgpu, unter
+# Linux im Starter selbst, Fenster-/Grafikbibliotheken nur per dlopen).
 # Vertrag: host/baue-ziele.sh <ausgabeverzeichnis> legt die Binaries und
 # ziele.json dort ab. Abschalten: --build-arg SKIP_EXE=1 (Stage wird nicht gebaut,
 # /usr/share/nginx/html/bin/ bleibt leer). Schlägt das Skript fehl, wird
@@ -82,9 +83,16 @@ RUN xwin --accept-license --cache-dir /tmp/xwin-dl splat --output "$XWIN_DIR/spl
 FROM exe-werkzeug AS exe-0
 WORKDIR /app
 ENV AUSGABE_DIR=/out \
-    CARGO_TARGET_DIR=/app/host/target
+    CARGO_TARGET_DIR=/app/host/target \
+    CARGO_BUILD_JOBS=2
 
 # Crates laden (nur Cargo.toml/Cargo.lock) – Layer bleibt, solange sich die Abhängigkeiten nicht ändern.
+# Herd (H5): Kern und Glut sind Pfad-Abhängigkeiten des Hosts (Workspace-Wurzel herd/Cargo.toml für die
+# geerbten Felder; die übrigen Herd-Crates braucht der Host nicht). CARGO_BUILD_JOBS=2: wgpu/naga mit LTO
+# brauchen viel Speicher – gedrosselt.
+COPY herd/Cargo.toml herd/
+COPY herd/kern/ herd/kern/
+COPY herd/glut/ herd/glut/
 COPY host/Cargo.toml host/Cargo.lock host/
 RUN mkdir -p host/src && echo 'fn main() {}' > host/src/main.rs && : > host/src/lib.rs && \
     cargo fetch --locked --manifest-path host/Cargo.toml
