@@ -855,8 +855,10 @@ aus `KLAERUNGEN.md` K-056 … K-075 (Stand Referenz-Interpreter da07b46, Rendere
 | `Eingabe` | Textfeld | `(wert: "", platzhalter: "")` | `wert()`, `setzeWert(t)`, `beiAenderung(fn)`, `beiEnter(fn)` |
 | `Haken` | Checkbox | `(text = "", an: nein)` | `an()`, `setzeAn(diavolo)`, `beiAenderung(fn)` |
 | `Stapel` / `Reihe` | Container vertikal / horizontal | `(Blech<Zutat>)` | `hinzu(zutat)` → Container, `leeren()` |
+| `Zettel` (v5, §16.8) | beobachtbarer Wert (keine Zutat) | `(wert = karton)` | `wert()`, `setze(w)` → Zettel |
 
-Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`.
+Basisklasse `Zutat` (`neu Zutat()` → RohlingAnanas): `id()`, `sichtbar(diavolo)` / `sichtbar()`, `stil(schlüssel, wert)`,
+v5: `binde(eigenschaft, fn)`, `bindeStil(schlüssel, fn)` (§16.8).
 Jede Zutat nimmt `id: "…"` im Konstruktor. **Setter liefern die Zutat** (verkettbar); `aktiv()`/`sichtbar()` ohne Argument sind Getter.
 Die Namen `Theke`, `Zutat`, `Schild`, `Knopf`, `Eingabe`, `Haken`, `Stapel`, `Reihe` (v2: `Takt`, `Fortschritt`, `Abschnitt`, `Tabelle`,
 `Reiter`; v4: `Auswahl`, `Tastatur`) sind eingebaute Klassen: `erbt Knopf` →
@@ -868,8 +870,9 @@ jedem Aufruf (§14.1); **Warten** in `bediene()` kostet weder Schritte noch Zeit
 - **Rückrufe (K-056):** `beiKlick(fn)` → `fn()`; `beiAenderung(fn)` → `fn(wert)` (Eingabe: Text, Haken: diavolo);
   `beiEnter(fn)` → `fn(text)`. Lambdas sind tolerant (§14.9). Erneute Registrierung ersetzt den Rückruf, `karton` entfernt ihn.
   Vor dem Rückruf ist der neue Wert gesetzt (`wert()`/`an()` liefern im Rückruf den geänderten Wert).
-- **Setter (K-073):** `setzeText`/`setzeWert`/`setzeAn`/`aktiv`/`sichtbar`/`stil` lösen **keine** Rückrufe aus; ein Setzen auf den
-  identischen Wert zählt trotzdem als Änderung (Nachricht wird gesendet).
+- **Setter (K-073, K-117):** `setzeText`/`setzeWert`/`setzeAn`/`aktiv`/`sichtbar`/`stil` lösen **keine** Rückrufe aus; ein Setzen auf den
+  **gleichen** Wert ändert nichts – keine Nachricht (K-117, §16.8; bis Theke v4 galt das Gegenteil). Der Setter einer **gebundenen**
+  Eigenschaft wirft (K-116).
 - **Ereignisschleife (K-057):** `bediene()` sendet gepufferte Änderungen, wartet auf ein Ereignis, führt den Rückruf aus,
   sendet dessen Änderungen als **eine** `aendere`-Nachricht (auch wenn der Rückruf eine Ananas wirft – dann vor dem Verlassen)
   und wartet erneut. Ende: Ereignis `geschlossen` (kein Rückruf) oder `schliesse()` (Rückruf läuft zu Ende, danach Rückkehr;
@@ -1085,6 +1088,81 @@ alte Renderer zeigen Platzhalter bzw. ignorieren. Alle Namen in Interpreter und 
   Leertaste/Pfeilen/Pos1/Ende/Bild wird nur unterdrückt, wenn kein Element im Fenster fokussiert ist. Textform `Tastatur(z1)`.
 - **Stile (K-113):** `zeilen` (ganze Zahl ≥ 1), `mindestbreite` (Zahl ≥ 0, px) – §16.2; Erlaubt-Liste endet auf `…, farbe, zeilen, mindestbreite`.
 - **Mathe (K-111):** §11/§14.11. **Meldung/Toast (K-112):** abgelehnt – Anwendungslogik (Schild + Blech + Takt).
+
+### 16.8 Theke v5: reaktives Modell – `Zettel`, `binde`, nur echte Änderungen (K-116 … K-118)
+
+Nutzerwunsch: ereignisgetriebene Oberfläche statt „neu zeichnen bei jedem Takt“. Zustandsänderungen passieren nur in Rückrufen; was der
+Gast sieht, **folgt** dem Zustand über Bindungen; der `Takt` bleibt der Simulation vorbehalten. Protokoll bleibt v1, der Renderer ist
+unverändert – Bindungen werden in der Laufzeit aufgelöst, Interpreter und Wasm-Laufzeit erzeugen bitgleiche `ui`-Nachrichten.
+
+```pizza
+Zettel geld = neu Zettel(0);
+Schild kasse = neu Schild();
+kasse.binde("text", () -> geld.wert().euro());                 // folgt dem Zettel
+Knopf backen = neu Knopf("Backen", () -> { geld.setze(geld.wert() + 8); });
+backen.binde("aktiv", () -> geld.wert() < 100);
+Eingabe anzahl = neu Eingabe(wert: "1");
+Schild preis = neu Schild();
+preis.binde("text", () -> anzahl.wert().alsZahl() * 8);        // folgt dem Tippen – ohne beiAenderung
+```
+
+- **`Zettel` (K-116):** beobachtbarer Wert, keine Zutat. `neu Zettel(wert = karton)`; `wert()` liest; `setze(w)` → Zettel schreibt und meldet
+  die Änderung an alle Bindungen, die den Zettel gelesen haben – **nur wenn** der neue Wert ungleich dem alten ist (Gleichheit wie `==`,
+  K-017: Zahl/Text/diavolo/karton nach Wert, `Dauer` nach ms, Blech/Speisekarte/Objekte nach Identität – ein verändertes Blech also neu
+  setzen, z. B. `liste.setze(liste.wert().kopie())`). Typname `Zettel` (eingebaut wie `Zutat`: eigene Klasse hat Vorrang, `erbt Zettel` →
+  P0010), Textform `Zettel(<Textform des Werts>)`. Ohne Theke eine gewöhnliche Schachtel. Küchenbrigade: nur Hauptküche
+  (`KüchenAnanas: Zettel gibt es nur in der Hauptküche.`), nicht kartonfähig („Ein Zettel“).
+- **Bindung (K-116):** `zutat.binde(eigenschaft, fn)` → Zutat und `zutat.bindeStil(schlüssel, fn)` → Zutat binden eine Eigenschaft bzw. einen
+  Stil an einen Ausdruck `fn` (Funktion ohne Parameter; Lambdas tolerant, §14.9). `binde(eigenschaft, karton)` / `bindeStil(schlüssel, karton)`
+  löst die Bindung (kein Fehler, wenn keine besteht); erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung (neue Registrierung).
+  Eigenschaftsname/Schlüssel als Textform. **Bindbar** (Reihenfolge = Fehlertext): Schild `text`; Knopf `text, aktiv`; Eingabe `wert`; Haken
+  `text, an`; Takt `aktiv, intervall`; Fortschritt `wert, text`; Abschnitt `titel, klappbar, zu`; Tabelle `spalten, zeilen`; Reiter `gewaehlt`;
+  Auswahl `optionen, gewaehlt, aktiv`; Tastatur `aktiv`; jede Zutat zusätzlich `sichtbar, hinweis`; Stile nur über `bindeStil` (alle Schlüssel
+  von K-068/K-113). Sonst `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1) nicht binden. Bindbar: text, sichtbar, hinweis.`; keine Funktion →
+  `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.` (bzw. `bindeStil()`); unbekannter Stil → `Stil 'x' gibt es nicht. Erlaubt: …`.
+  `kinder` sind nicht bindbar (Listen bleiben `hinzu`/`leeren`).
+- **Quellen (K-116):** Während `fn` läuft, erfasst die Laufzeit jeden gelesenen Zettel (`wert()`) und jeden gelesenen **Zutat-Getter** –
+  `text()`, `wert()`, `an()`, `aktiv()`, `sichtbar()`, `hinweis()`, `uebergang()`, `intervall()`, `titel()`/`titel(n)`, `klappbar()`, `zu()`,
+  `gewaehlt()`, `optionen()`, `spalten()`, `zeilen()` – als Quelle `(Objekt, Feld)`; die Quellen werden bei jeder Auswertung neu erfasst
+  (bedingte Lesezugriffe). Ändert sich eine Quelle (Zettel-`setze` mit anderem Wert, Zutat-Setter, Renderer-Ereignis `aenderung`/`enter`, das
+  `wert`/`an`/`gewaehlt`/`zu` setzt, oder eine andere Bindung), wird jede lesende Bindung **schmutzig**. Lesen außerhalb einer Bindung erfasst nichts.
+- **Auswertung (K-116):** einmal **sofort beim `binde`** (danach liefert der Getter den gebundenen Wert) und sonst nur an den
+  Synchronisationspunkten von K-057 – vor jedem Warten in `bediene()`, nach jedem Rückruf (auch bei Ananas), vor `schliesse`, vor dem erneuten
+  `fenster` bei `setzeTitel`, vor dem `baum` bei `zeige`, am Programmende – jeweils **vor** dem Bau der Nachricht (Nachricht = Zustand am
+  Synchronisationspunkt, K-115). Algorithmus: höchstens **100 Durchläufe**; je Durchlauf alle Bindungen in Registrierungsreihenfolge, jede
+  schmutzige wird vor der Auswertung sauber markiert und ausgewertet; das Ergebnis wird **wie der gleichnamige Setter** geprüft und umgewandelt
+  (Textform mit `karton` → `"karton"` für Zustandsfelder, `karton` → `""` für `hinweis` und Fortschritt-`text`; diavolo-Pflicht
+  `TypAnanas: Erwartet diavolo (ja/nein), bekam 1.`; Fortschritt-Klemmen; `taktIntervall`; Listen wie `setzeSpalten`/`setzeZeilen`/
+  `setzeOptionen`; `gewaehlt` mit Bereichsprüfung wie `waehle`; Stil-Whitelist, `karton` entfernt den Stil) und **nur bei echter Änderung**
+  gesetzt (K-117) – was wiederum lesende Bindungen schmutzig macht. Bindungen werden an allen Zutaten ausgewertet, auch an nicht gezeigten
+  (Nachrichten entstehen nur für gezeigte, K-057). Nach 100 Durchläufen noch schmutzig →
+  `LaufzeitAnanas: Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(z1) hängt von sich selbst ab.` (erste schmutzige Bindung in
+  Registrierungsreihenfolge; Stil-Bindung: `Stil 'farbe' von Schild(z1)`). Eine werfende Bindung bleibt sauber, bis sich eine Quelle ändert;
+  die Ananas verlässt `binde()` bzw. `bediene()` wie die eines Rückrufs (fangbar), die Theke bleibt offen.
+- **Ein Schreiber (K-116):** Der Setter einer gebundenen Eigenschaft (`setzeText`, `aktiv(d)`, `waehle`, `setzeOptionen`, `stil(k, …)` bei
+  gebundenem Stil, …) → `LaufzeitAnanas: 'text' von Schild(z1) ist gebunden – setze den Zettel, nicht die Zutat.` (Stil:
+  `Stil 'farbe' von Schild(z1) ist gebunden – …`). Renderer-Ereignisse dürfen gebundene Eigenschaften setzen (der Gast tippt in eine
+  gebundene `Eingabe`): der Zustand folgt dem Gast, bis sich eine Quelle der Bindung ändert.
+- **Eine Bindung rechnet nur (K-118):** In `fn` sind alle Methoden verboten, die Zustand ändern oder senden – Zutat-Setter (`setzeText`,
+  `setzeWert`, `setzeAn`, `aktiv(d)`, `sichtbar(d)`, `hinweis(t)`, `uebergang(d)`, `stil(k, w)`, `setzeIntervall`, `setzeTitel`, `klappbar(d)`,
+  `zu(d)`, `waehle`, `setzeOptionen`, `setzeSpalten`, `setzeZeilen`), `hinzu`, `leeren`, `binde`, `bindeStil`, `animiere`, `Theke.schwebe`/
+  `zeige`/`bediene`/`schliesse`/`setzeTitel`, `Zettel.setze` → `LaufzeitAnanas: Eine Bindung rechnet nur – 'setzeText' ist darin nicht erlaubt.`
+  (Methodenname wie gerufen; überladene Getter ohne Argument sind erlaubt). Getter, Konstruktoren, `Bote`, eigene Methoden sind erlaubt.
+- **W0103 (K-118, je Aufrufstelle):** Liest eine Bindung bei der ersten Auswertung weder Zettel noch Zutat-Getter, wird sie nie neu berechnet:
+  `W0103: Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.` (Stil: `Die Bindung Stil 'farbe' von …`).
+  Ausweg für objektlastige Zustände: ein Zettel `stand` als Taktgeber (`stand.setze(stand.wert() + 1)` im Rückruf, `stand.wert();` im Ausdruck).
+- **Nur echte Änderungen (K-117, gilt für Setter und Bindungen):** Setzen auf den gleichen Wert ändert nichts – keine Nachricht, keine
+  schmutzige Bindung. Gleichheit je Feld: Texte zeichengleich (`text`, Eingabe-`wert`, `titel`, `hinweis`); diavolo (`aktiv`, `sichtbar`, `an`,
+  `klappbar`, `zu`, `uebergang`); Zahlen nach Wert (`wert` des Fortschritts nach dem Klemmen, `intervall` nach Rundung, `gewaehlt`); Listen
+  elementweise zeichengleich (`spalten`, `optionen`, Reiter-`titel`), `zeilen` zeilen- und elementweise; `stil` als ganzes Objekt
+  (`stil(k, karton)` für einen nicht gesetzten Schlüssel ändert nichts und sendet kein `null`); `hinzu` ändert immer, `leeren()` eines leeren
+  Behälters nicht. Ein Renderer-Ereignis mit unverändertem Wert ändert nichts (der Rückruf läuft trotzdem). Eintragsposition in `aendere` =
+  erste echte Änderung; „a → b → a“ in einem Rückruf sendet `a` (Vergleich gegen den aktuellen Zustand).
+- **Schritte (K-069/K-087):** `neu Zettel`, `wert()`, `setze()`, `binde()` kosten normale Aufrufknoten; die Auswertung einer Bindung zählt die
+  Schritte ihres Ausdrucks – beim `binde` sofort, sonst am Synchronisationspunkt innerhalb des laufenden Rückruf-Budgets (K-087). Warten 0.
+- **Umstellung eines `zeichne()`-Programms:** (1) jede angezeigte Größe auf einen `Zettel` legen (oder sie aus Zutat-Gettern ableiten);
+  (2) jeden `setzeText`/`aktiv`/`stil`-Aufruf in `zeichne()` durch eine Bindung beim Aufbau ersetzen; (3) Rückrufe ändern nur Zettel/Zustand und
+  rufen kein `zeichne()` mehr; (4) „gezeigt“-Merkvariablen und Hand-Vergleiche streichen (K-117); (5) der `Takt` ruft nur die Simulation.
 ---
 
 ## 17. Küchenbrigade – echte Parallelität (Tier 1; K-097 … K-100)

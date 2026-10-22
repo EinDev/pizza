@@ -54,8 +54,12 @@ theke.bediene();
 - **v2/v4-Zutaten** (SPEC §16.5/§16.7): `Takt`, `Fortschritt`, `Abschnitt` (v4: `klappbar`/`zu`/`beiAenderung`), `Tabelle`, `Reiter` (v4: `setzeTitel(n, t)`,
   `titel(n)`, Seite ausblenden per `sichtbar`), `Auswahl` (Segment-Umschalter), `Tastatur` (unsichtbar, `beiTaste(fn)` → `fn(taste)`).
 - **IDs:** automatisch `z1, z2, …` in Erzeugungsreihenfolge unbenannter Zutaten (belegte Nummern werden übersprungen) oder benannt an jeder Zutat: `neu Knopf("OK", id: "ok")`; doppelt → `LaufzeitAnanas: Die ID 'ok' gibt es schon.`
-- Zustand lebt im Programm; jede Änderung (`setzeText` usw.) erzeugt eine **Änderungsnachricht**. Mehrere Änderungen während eines
-  Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
+- Zustand lebt im Programm; jede **echte** Änderung (`setzeText` usw. auf einen anderen Wert, K-117) erzeugt eine **Änderungsnachricht**.
+  Mehrere Änderungen während eines Rückrufs werden gebündelt und beim Zurückkehren in `bediene()` gesendet (ein Frame).
+- **Reaktiv statt neu zeichnen (v5, K-116 … K-118, SPEC §16.8):** Statt in jedem Takt alle Zutaten zu setzen, bindet man Eigenschaften an
+  Ausdrücke: `kasse.binde("text", () -> geld.wert().euro())` mit `Zettel geld = neu Zettel(0)`; `geld.setze(geld.wert() + 8)` im
+  Klick-Rückruf genügt – die Laufzeit rechnet am Synchronisationspunkt nur die Bindungen neu, deren Quellen (Zettel oder Zutat-Getter wie
+  `eingabe.wert()`) sich geändert haben, und sendet nur echte Änderungen. Der `Takt` bleibt für die Simulation, nicht fürs Zeichnen.
 - `bediene()` ohne vorheriges `zeige` → `LaufzeitAnanas: Die Theke ist leer.` Zweites `bediene()` nach Schließen kehrt sofort zurück; `zeige` danach öffnet wieder. Nur eine Theke pro Programm (`LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`). Textformen `Knopf(z3)`, `Theke(Titel)`.
 - Text-Argumente fehlend oder `karton` (K-102): Zustandsfelder (`text`, `wert`, `titel`, Zellen, Schwebetext) nehmen die Textform – `karton` → „karton“, fehlend im Konstruktor → `""`, fehlend in Methoden = `karton`; optionale Felder (`platzhalter`, `hinweis`, Fortschritt-`text`) lassen `karton` weg → `""`.
 - Ananas in Rückrufen laufen wie gewohnt aus `bediene()` heraus (fangbar mit `probier` um `bediene()`).
@@ -179,3 +183,9 @@ Tastaturereignisse (`Auswahl`, `Tastatur`, v4 – K-109/K-110).
   `Entfernen`, `Pos1`, `Ende`, `BildHoch`/`BildRunter`; keine Modifikatoren, keine Wiederholungen, nicht aus einer fokussierten `Eingabe`;
   Listener auf der fokussierbaren Theke-Wurzel, `tabindex="-1"`, Fokus beim `baum`, wenn nichts fokussiert ist); Stile `zeilen`/`mindestbreite`;
   `Mathe.log/log10/log2/exp/E` (K-111, bitgleich zu V8); `Meldung`/Toast abgelehnt (K-112, Anwendungslogik). Protokoll bleibt v1.
+- **Theke v5 (K-116 … K-118, SPEC §16.8; Nutzerwunsch „event-driven UI, kein Repaint je Frame“):** `Zettel` (beobachtbarer Wert: `wert()`,
+  `setze(w)`), `zutat.binde(eigenschaft, () -> …)` / `bindeStil(schlüssel, () -> …)` (lösen mit `karton`); Abhängigkeiten (Zettel **und**
+  Zutat-Getter) werden beim Rechnen automatisch erfasst; Auswertung nur an den Synchronisationspunkten von K-057 (und einmal sofort beim
+  `binde`), Registrierungsreihenfolge, höchstens 100 Durchläufe (sonst LaufzeitAnanas „kommen nicht zur Ruhe“); eine Bindung rechnet nur
+  (Setter/`setze` darin → LaufzeitAnanas), Setter einer gebundenen Eigenschaft → LaufzeitAnanas; `W0103`, wenn eine Bindung keine Quelle liest.
+  **Nur echte Änderungen werden gesendet** (K-117, ersetzt K-073 Satz 2) – auch für Setter. Protokoll v1, Renderer unverändert.

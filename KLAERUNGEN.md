@@ -1489,6 +1489,105 @@ Nicht übernommen wird nur W6 (K-112). K-104 ist im Multithreading-Branch vergeb
 - **Betroffen:** SPEC §16.2 (Bündelung), §16.3; THEKE.md; Interpreter (`uiAendere`/`uiFlush`), Wasm (`theke.rs` `aendere_kinder`/
   `ui_flush`), Renderer (`baueIntern`, `mitStandard`), Host neu gebaut (Renderer eingebettet). Tests: `tests/faelle/k115-kinder-schnappschuss`,
   a13 (K-115), `tests/theke` (zwei Fälle). **Status:** fest.
+
+### Theke v5 – ereignisgetriebenes, reaktives Programmiermodell (Nutzerwunsch): K-116 … K-118
+Nutzer: „Mach bitte ein Redesign vom UI, ich will event-driven UI, nicht sowas mit repaint bei jedem Frame.“ Präzisierung: Rückwärts-
+kompatibilität ist nicht gefordert, die Beispiele müssen laufen. **Befund:** Theke-Programme (Pizza-Imperium, Ofen-Timer) schreiben eine
+`zeichne()`-Funktion, die in jedem Takt (10/s) und nach jedem Klick **alle** Zutaten neu setzt – mit Hand-Vergleichen (`falls (k.text() != t)`)
+gegen K-073, weil jeder Setter sonst eine Nachricht erzeugt. Der Zustand liegt doppelt vor (Spiel und „gezeigt“-Variablen), und die Takt-Schleife
+ist zugleich Simulation und Neuzeichnen. **Ziel:** Zustandsänderungen nur in Rückrufen; was der Gast sieht, folgt dem Zustand von selbst;
+der Takt bleibt nur für die Simulation. Protokoll bleibt v1, der Renderer bleibt unverändert – Bindungen werden in der Laufzeit aufgelöst.
+
+### K-116 Theke v5: `Zettel` (beobachtbarer Wert) und `binde` (Bindung einer Eigenschaft an einen Ausdruck)
+- **Modell (verbindlich, SPEC §16.8):** Ein **`Zettel`** ist ein beobachtbarer Wert („der Zettel an der Theke – die Küche schreibt, die Theke
+  liest“): `neu Zettel(wert = karton)`, `wert()`, `setze(w)` → Zettel. Jede Zutat **bindet** eine Eigenschaft an einen Ausdruck:
+  `zutat.binde(eigenschaft, () -> …)` → Zutat, `zutat.bindeStil(schlüssel, () -> …)` → Zutat; `binde(eigenschaft, karton)` /
+  `bindeStil(schlüssel, karton)` löst die Bindung (wie `stil(k, karton)`, K-075). Der Ausdruck ist eine Funktion ohne Parameter.
+- **Abhängigkeiten werden automatisch erfasst:** Während der Ausdruck einer Bindung läuft, merkt sich die Laufzeit jeden gelesenen `Zettel`
+  (`wert()`) **und jeden gelesenen Zutat-Getter** (`text()`, `wert()`, `an()`, `aktiv()`, `sichtbar()`, `hinweis()`, `uebergang()`,
+  `intervall()`, `titel()` (Abschnitt; `titel(n)` des Reiters zählt als `titel`), `klappbar()`, `zu()`, `gewaehlt()`, `optionen()`, `spalten()`,
+  `zeilen()`) als Quelle `(Objekt, Feld)`. Die Quellen werden bei **jeder** Auswertung neu erfasst (bedingte Lesezugriffe). Ändert sich eine
+  Quelle – `Zettel.setze` mit **ungleichem** Wert (Gleichheit wie `==`, K-017: Zahl/Text/diavolo/karton nach Wert, `Dauer` nach ms, sonst
+  Identität), ein Zutat-Setter, ein Renderer-Ereignis (`aenderung`/`enter` setzt `wert`/`an`/`gewaehlt`/`zu`) oder eine andere Bindung –, wird
+  jede Bindung, die diese Quelle gelesen hat, **schmutzig**. Zutat-Getter sind damit selbst beobachtbar: `preis.binde("text", () -> …
+  anzahl.wert() …)` folgt dem Tippen des Gastes ohne `beiAenderung`.
+- **Auswertung nur an Synchronisationspunkten (K-057):** vor jedem Warten in `bediene()`, nach jedem Rückruf, vor `schliesse`, vor dem
+  erneuten `fenster` bei `setzeTitel`, vor dem `baum` bei `zeige` und am Programmende (`uiEnde`) – **vor** dem Bau der `aendere`-Nachricht
+  bzw. des `baum`s, so dass Nachricht und Programmzustand übereinstimmen (K-115). Dazu einmal **sofort beim `binde`** (die Eigenschaft steht
+  danach schon; `z.text()` liefert den gebundenen Wert). Algorithmus (beide Laufzeiten gleich): höchstens 100 Durchläufe; je Durchlauf alle
+  Bindungen in **Registrierungsreihenfolge** (ein erneutes `binde` derselben Eigenschaft ersetzt die alte Bindung und zählt als neue
+  Registrierung), jede schmutzige wird **vor** ihrer Auswertung sauber markiert (eine werfende Bindung läuft erst wieder, wenn sich eine Quelle
+  ändert) und ausgewertet; ihr Ergebnis wird wie der gleichnamige Setter geprüft/umgewandelt (Textform, diavolo-Pflicht, Fortschritt-Klemmen,
+  Takt-Intervall, Listen, Bereichsprüfung von `gewaehlt`, Stil-Whitelist; `karton` bei `bindeStil` entfernt den Stil) und **nur bei echter
+  Änderung** (K-117) gesetzt – das macht wieder Bindungen schmutzig, die diese Eigenschaft lesen. Sind nach 100 Durchläufen noch Bindungen
+  schmutzig → `LaufzeitAnanas: Die Bindungen kommen nicht zur Ruhe – 'text' von Schild(z1) hängt von sich selbst ab.` (genannt wird die
+  erste schmutzige Bindung in Registrierungsreihenfolge; Stil-Bindung: `Stil 'farbe' von Schild(z1)`). Bindungen werden an **allen**
+  Zutaten ausgewertet, auch an nicht gezeigten (ihr Zustand stimmt dann beim `hinzu`/`zeige`); Nachrichten entstehen wie immer nur für gezeigte.
+- **Bindbare Eigenschaften** (Name = Protokollfeld; Reihenfolge = Text „Bindbar: …“): Schild `text`; Knopf `text, aktiv`; Eingabe `wert`;
+  Haken `text, an`; Takt `aktiv, intervall`; Fortschritt `wert, text`; Abschnitt `titel, klappbar, zu`; Tabelle `spalten, zeilen`; Reiter
+  `gewaehlt`; Auswahl `optionen, gewaehlt, aktiv`; Tastatur `aktiv`; **jede** Zutat zusätzlich `sichtbar, hinweis` (am Ende der Liste); Stile
+  nur über `bindeStil` (die Tabelle hat `zeilen` als Eigenschaft **und** als Stil). Sonst `LaufzeitAnanas: 'farbe' lässt sich an Schild(z1)
+  nicht binden. Bindbar: text, sichtbar, hinweis.` Kein Blech-/`kinder`-Binden (Listen bleiben imperativ: `hinzu`/`leeren`; Ausblick).
+  `binde()`/`bindeStil()` ohne Funktion → `TypAnanas: binde() braucht eine Funktion, z. B. () -> { … }.` (bzw. `bindeStil()`); unbekannter
+  Stil wie `stil` (`Stil 'x' gibt es nicht. Erlaubt: …`). Eigenschaftsname und Stilschlüssel als Textform (K-066).
+- **Eine Eigenschaft hat einen Schreiber:** Der Setter einer gebundenen Eigenschaft (`setzeText`, `aktiv(d)`, `stil(k, …)` bei gebundenem
+  Stil, `waehle`, `setzeOptionen`, …) → `LaufzeitAnanas: 'text' von Schild(z1) ist gebunden – setze den Zettel, nicht die Zutat.` (Stil:
+  `Stil 'farbe' von Schild(z1) ist gebunden – …`). Renderer-Ereignisse dürfen eine gebundene Eigenschaft setzen (der Gast tippt in eine
+  gebundene `Eingabe`, wählt in einer gebundenen `Auswahl`): der Zustand folgt dem Gast, bis sich eine Quelle der Bindung ändert.
+- **Steps (K-069/K-087):** `neu Zettel`, `wert()`, `setze()`, `binde()` kosten die normalen Aufrufknoten; die Auswertung einer Bindung zählt
+  die Schritte ihres Ausdrucks (wie ein Rückruf) – an Synchronisationspunkten innerhalb des gerade laufenden Rückruf-Budgets (K-087), beim
+  `binde` sofort. Warten kostet weiterhin 0. Ein `Zettel` ohne Theke ist eine gewöhnliche Schachtel (keine Nachricht, keine Warnung).
+- **Küchenbrigade (S4):** `Zettel`, `binde`, `bindeStil` gibt es nur in der Hauptküche: `neu Zettel` und jede Zettel-Methode in einer Küche →
+  `KüchenAnanas: Zettel gibt es nur in der Hauptküche.`; `binde`/`bindeStil` werfen wie alle Zutat-Methoden `Die Theke gibt es nur in der Hauptküche.`
+  Ein Zettel ist nicht kartonfähig („Ein Zettel“ in der Kartonfehler-Meldung wie „Eine Theke-Zutat“).
+- **Typ, Textform, Namen:** `Zettel` ist eingebauter Typname (wie `Zutat`; eigene Klasse `Zettel` hat Vorrang, `erbt Zettel` → P0010);
+  Textform `Zettel(<Textform des Werts>)` (`Zettel(5)`, `Zettel(karton)`); Typname in Fehlertexten `Zettel`. `Zettel` zählt zur Importgruppe
+  `theke` des Compilers (kein eigener Import). Keine abgeleiteten Zettel in v5 (`Zettel.aus(fn)` – Ausblick; jede Bindung **ist** bereits ein
+  abgeleiteter Ausdruck).
+- **Begründung:** Signale mit automatischer Abhängigkeitserfassung sind das Modell moderner UI-Bibliotheken (Solid, Vue, Svelte 5), passen zur
+  synchronen Sprache (keine Zeitpunkte außer K-057) und brauchen weder Protokoll- noch Renderer-Änderung. Zutat-Getter als Quellen ersparen
+  die meisten `beiAenderung`-Rückrufe. Die Auswertung an Synchronisationspunkten (statt sofort beim `setze`) bündelt wie bisher und macht
+  Zwischenzustände unsichtbar. Verworfen: Dirty-Checking aller Bindungen je Synchronisationspunkt (das wäre wieder „neu zeichnen je Takt“,
+  nur versteckt), typisierte `bindeText`/`bindeAktiv`-Methoden (mehr API, nicht erweiterbar), Setter-Vorrang statt Ananas (zwei Schreiber).
+- **Betroffen:** SPEC §16.1 (Zettel-Zeile), §16.2 (Setter), §16.8 (neu); THEKE.md §2/§8; Interpreter `site/js/pizza.js`; Wasm `laufzeit/src/theke.rs`,
+  `namen.rs`, `klassen.rs`, Compiler `frontend.js` (Typ `Zettel`); Doku `30-referenz.js` (Abschnitt „Zettel & Bindungen“, vorher/nachher);
+  Beispiele `site/beispiele/theke/` (Umstellung); Prüfstand `a15-theke-zettel.js`; `tests/faelle/theke-zettel-*`; `tests/wasm/faelle`.
+  Renderer und Host unverändert. **Status:** fest (Umsetzung in diesem Block).
+
+### K-117 Theke v5: nur echte Änderungen werden gesendet (ersetzt den zweiten Satz von K-073)
+- **Entscheidung:** Ein Setter (oder eine Bindung), der eine Eigenschaft auf den **gleichen** Wert setzt, ändert nichts: keine Nachricht, keine
+  schmutzige Bindung. Gleichheit je Feld: Texte (`text`, `wert` der Eingabe, `titel`, `hinweis`, `platzhalter`) zeichengleich; `aktiv`,
+  `sichtbar`, `an`, `klappbar`, `zu`, `uebergang` als diavolo; Zahlen (`wert` des Fortschritts **nach** dem Klemmen, `intervall` nach der Rundung,
+  `gewaehlt`) nach Wert; Listen (`spalten`, `optionen`, `titel` des Reiters) elementweise zeichengleich, `zeilen` zeilen- und elementweise;
+  `stil` als ganzes Objekt (Schlüsselmenge und Werte; `stil(k, karton)` für einen nicht gesetzten Schlüssel ändert nichts und sendet kein `null`);
+  `kinder`: `hinzu` ändert immer, `leeren()` eines leeren Behälters nicht. Ein Renderer-Ereignis mit unverändertem Wert (gleicher Text,
+  gleiche Seite) ändert ebenfalls nichts (Rückruf läuft trotzdem, K-056). Die Position eines Eintrags in `aendere` ist weiterhin die **erste
+  echte** Änderung der Zutat (K-057); „a → b → a“ innerhalb eines Rückrufs sendet `a` (Vergleich gegen den aktuellen Zustand, nicht gegen den
+  zuletzt gesendeten – einfacher und in beiden Laufzeiten gleich).
+- **Begründung:** Mit Bindungen ist „nur echte Änderungen“ Voraussetzung (sonst würde jede Auswertung senden); dieselbe Regel für Setter macht
+  die Hand-Vergleiche des Pizza-Imperiums überflüssig und das Modell einheitlich: *Die Theke sendet, was sich ändert.* Protokoll bleibt v1
+  (gleiche Felder), es entfallen nur Einträge. Testdateien (`.ui-erwartet`), die identische Setzvorgänge enthielten, wurden neu erzeugt; a13-Fälle
+  zu K-073 umgeschrieben.
+- **Betroffen:** SPEC §16.2 (Setter, Bündelung), THEKE.md §2/§8; Interpreter + Wasm (`uiSetze`/`setze` als zentrale Schreibstelle); Beispiele
+  und Fälle mit `.ui-erwartet`. **Status:** fest.
+
+### K-118 Theke v5: Eine Bindung rechnet nur – Verbote, Zyklen, Warnung W0103
+- **Nur Rechnen:** Innerhalb eines Bindungs-Ausdrucks ist jede Methode, die Zustand ändert oder sendet, verboten: alle Setter von Zutaten
+  (`setzeText`, `setzeWert`, `setzeAn`, `aktiv(d)`, `sichtbar(d)`, `hinweis(t)`, `uebergang(d)`, `stil(k, w)`, `setzeIntervall`,
+  `setzeTitel`, `klappbar(d)`, `zu(d)`, `waehle`, `setzeOptionen`, `setzeSpalten`, `setzeZeilen`), `hinzu`, `leeren`, `binde`, `bindeStil`,
+  `animiere`, `Theke.schwebe`/`zeige`/`bediene`/`schliesse`/`setzeTitel` und `Zettel.setze` →
+  `LaufzeitAnanas: Eine Bindung rechnet nur – 'setzeText' ist darin nicht erlaubt.` (Methodenname wie gerufen; überladene Getter/Setter
+  `aktiv()`, `sichtbar()`, `hinweis()`, `uebergang()`, `klappbar()`, `zu()` sind **ohne** Argument erlaubt). Getter, Konstruktoren
+  (`neu Schild(…)`, `neu Zettel(…)`), `Bote.sage`, Rechnen, eigene Methoden sind erlaubt. Ein werfender Ausdruck lässt die Bindung sauber
+  (K-116) und wirft aus `binde()` bzw. aus `bediene()` wie ein Rückruf (fangbar mit `probier`); die Theke bleibt offen.
+- **Zyklen:** Durch das Schreibverbot können nur Bindungen untereinander kreisen (A liest B, B liest A mit wechselnden Werten) – erkannt durch
+  die 100-Durchläufe-Grenze (K-116). Ketten (A liest B, B liest einen Zettel) konvergieren in ≤ Kettenlänge Durchläufen, weil nur echte
+  Änderungen weitergeben (K-117); Kreise mit stabilen Werten sind harmlos.
+- **W0103 (je Aufrufstelle, §10):** Liest eine Bindung bei ihrer **ersten** Auswertung (beim `binde`) weder Zettel noch Zutat-Getter, wird sie nie
+  wieder berechnet: `W0103: Die Bindung 'text' von Schild(z1) liest weder Zettel noch Zutat – sie rechnet nur einmal.` (Stil: `Die Bindung
+  Stil 'farbe' von …`). Typischer Fehler: ein gewöhnliches Feld statt eines Zettels lesen. Ausweg für objektlastige Zustände: ein Zettel
+  `stand` als Taktgeber (`stand.setze(stand.wert() + 1)` im Rückruf, `stand.wert();` am Anfang des Ausdrucks).
+- **Betroffen:** SPEC §16.8, THEKE.md §8, Doku-Referenz (Fehlertexte-Tabelle W0103), Interpreter, Wasm. **Status:** fest.
 ---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
