@@ -409,7 +409,15 @@
     if (n <= 1 || !moeglich()) return Promise.resolve(null);
     let a;
     try { a = anlegen(n, Object.assign({}, opt, { asynchron: true })); } catch (e) { return Promise.resolve(null); }
-    return a.bereit.then((ok) => { if (ok) return a.pool; a.pool.beenden(); return null; });
+    // Ein Koch, der nie „bereit“ meldet (Ladefehler, CSP …), darf den Lauf nicht verhindern: nach 10 s ohne Pool weiter
+    let uhr = null;
+    const frist = new Promise((ok) => { uhr = setTimeout(() => ok(false), (opt && opt.frist) || 10000); });
+    return Promise.race([a.bereit, frist]).then((ok) => {
+      clearTimeout(uhr);
+      if (ok) return a.pool;
+      a.pool.beenden();
+      return null;
+    });
   }
 
   /** nur Node (Harnische/Bench): wie kuechenPool, aber synchron – Node-Worker starten auch, während dieser Thread wartet. */
