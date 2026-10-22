@@ -789,7 +789,7 @@
           )
         },
         { art: "ausgabe", text: "Besuch Nr. 1" },
-        { art: "text", md: "Beim nächsten Lauf steht dort `Besuch Nr. 2`, dann `3` … Die Doku führt Beispiele ohne Speicher aus – darum steht hier immer `1`, und die Konsole zeigt die Warnung **W0101** (siehe unten)." },
+        { art: "text", md: "Beim nächsten Lauf steht dort `Besuch Nr. 2`, dann `3` … Die Zahl oben (`1`) ist die Ausgabe beim allerersten Lauf. Backst du das Beispiel im Playground (Knopf „Backen“ an diesem Block), läuft es in einem eigenen Tab mit echtem Speicher: Jedes weitere Backen zählt hoch (`2`, `3` …). Dieser Beispiel-Stand ist vom Stand deiner eigenen Programme getrennt (siehe unten). Nur die automatischen Tests der Doku laufen ganz ohne Speicher." },
         {
           art: "details",
           titel: "Alle Methoden der Vorratskammer",
@@ -829,10 +829,10 @@
           titel: "Ein Spielstand für alle Fassungen deines Spiels (Namensraum)",
           inhalt: [
             { art: "text", md: "Ohne Namensraum gehört eine Kammer dem **Tab**, in dem das Programm läuft: Ein Beispiel aus der Galerie hat einen anderen Stand als derselbe Code in deinem eigenen Tab. Das ist beim Ausprobieren genau richtig – aber nicht für ein Spiel, das du über Jahre weiterbaust: Du teilst Fassung 2 per App-Link, Fassung 3 öffnest du im Editor, und überall soll derselbe Spielstand weitergehen.\n\nDafür gibst du der Kammer einen **Namensraum**: `neu Vorratskammer(\"spielstand\", namensraum: \"pizza-imperium\")`. Damit erklärst du: „Das ist **ein** Spielstand, wo immer dieses Programm läuft.“ Im Playground teilen sich eigene Tabs, Beispiele, geteilte Tabs und App-Links jeder Fassung den Eintrag `pizza.vorrat.pizza-imperium/spielstand` im Browser; heruntergeladenes Programm und Kommandozeile teilen sich die Datei `…/pizza/vorrat/pizza-imperium/spielstand.json`. Browser und Programm bleiben weiterhin getrennt. Mehrere Kammern desselben Spiels (`spielstand`, `erfolge`, `einstellungen`) bekommen einfach denselben Namensraum." },
-            { art: "text", md: "**Umzug eines alten Spielstands:** Hat dein Spiel bisher ohne Namensraum gespeichert, öffnest du beide Kammern, kopierst die Einträge einmalig in die neue und leerst die alte. Im Beispiel-Tab findet das Programm so den Beispiel-Stand, im App-Link den echten – beide landen im gemeinsamen Raum. Für die Ausgabe unten ist die alte Kammer mit `punkte = 120` vorgefüllt; backst du den Block selbst, ist sie leer, es gibt nichts umzuziehen und statt `120` steht dort `karton`:" },
+            { art: "text", md: "**Umzug eines alten Spielstands:** Hat dein Spiel bisher ohne Namensraum gespeichert, öffnest du beide Kammern, kopierst die Einträge einmalig in die neue und leerst die alte. Im Beispiel-Tab findet das Programm so den Beispiel-Stand, im App-Link den echten – beide landen im gemeinsamen Raum. Dieser Block hat bewusst keinen „Backen“-Knopf: Der Namensraum `spiel` würde sonst in deinem echten Vorrat (`pizza.vorrat.spiel/stand`) landen. Du kannst ihn mit „In neuem Editor-Tab öffnen“ ansehen und anpassen (eigener Namensraum!). Die Ausgabe unten stammt aus einem Lauf mit vorgefüllter alter Kammer (`punkte = 120`); ohne alten Stand gäbe es nichts umzuziehen und statt `120` stünde dort `karton`:" },
             {
               art: "code",
-              ausfuehrbar: true,
+              nurTest: true, // Doku-Test führt aus, aber kein „Backen“-Knopf (Namensraum würde den echten Vorrat berühren)
               tier: 1,
               vorrat: { spiel: [["punkte", 120]] },
               vorratErwartet: [{ name: "spiel/stand", schluessel: "punkte", wert: 120 }, { name: "spiel", schluessel: null, wert: null }],

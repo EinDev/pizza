@@ -672,7 +672,7 @@ function doku() {
       if (item.art !== 'code' || !passt(name)) return;
       if (item.sprache === 'xml' || item.sprache === 'shell') { gruppe('doku').skip++; return; }
       const code = String(item.code || '');
-      if (item.ausfuehrbar) {
+      if (item.ausfuehrbar || item.nurTest) {
         const opt = {};
         if (Array.isArray(item.eingabe)) opt.eingabe = item.eingabe;
         if (Array.isArray(item.uiEreignisse)) opt.uiEreignisse = item.uiEreignisse;
