@@ -31,6 +31,7 @@ const OPTIONEN: &str = "Optionen:
   --ereignisse-json    alle Ereignisse als JSON-Zeilen auf stdout (inkl. ende; ohne --saat feste Saat 42)
   --ui-ereignisse d    Theke ohne Fenster: Renderer-Ereignisse aus Datei d (JSON-Lines)
   --hilfe              diese Hilfe
+  --version            Version anzeigen
   --                   Ende der Optionen: alles danach geht unverändert an hauptgang(args)
                        (nur das erste -- zählt, ein späteres bleibt Argument)";
 
@@ -50,6 +51,20 @@ fn hilfe(eingebettet: bool) -> String {
             "pizza-host – führt kompilierte pizza-Programme (.pkarton) aus\n\nAufruf:\n  pizza-host [--info] [--schritte=N] [--saat=N] [--koeche=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] programm.pkarton [--] [args…]\n  pizza-host [--vorrat=ordner] --vorrat-loeschen <name>\n  pizza-host [--vorrat=ordner] --vorrat-loeschen-alle\n  pizza-host exe programm.pkarton -o programm.exe\n\n{}",
             OPTIONEN
         )
+    }
+}
+
+/// `--version`: Sprach-/Host-Version (= Paketversion, gleich `PizzaLang.version`).
+fn version(eingebettet: bool) -> String {
+    let v = env!("CARGO_PKG_VERSION");
+    if eingebettet {
+        let name = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .unwrap_or_else(|| "programm".into());
+        format!("{} – pizza-Programm (pizza {})", name, v)
+    } else {
+        format!("pizza-host {} (pizza {})", v, v)
     }
 }
 
@@ -200,6 +215,10 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
                 },
                 "--hilfe" | "--help" => {
                     println!("{}", hilfe(eingebettet));
+                    return Err(ExitCode::SUCCESS);
+                }
+                "--version" => {
+                    println!("{}", version(eingebettet));
                     return Err(ExitCode::SUCCESS);
                 }
                 _ => return fehler(&format!("Unbekannte Option: {}\n\n{}", x, hilfe(eingebettet))),

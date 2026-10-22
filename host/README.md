@@ -22,7 +22,7 @@ pizza-host [--vorrat=ordner] --vorrat-loeschen <kennung>
 pizza-host [--vorrat=ordner] --vorrat-loeschen-alle
 ```
 
-Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der Differenz-Runner erkennt daran die Host-Fähigkeiten).
+Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der Differenz-Runner erkennt daran die Host-Fähigkeiten). `--version` zeigt `pizza-host 3.1.0 (pizza 3.1.0)` – die Paketversion aus `Cargo.toml` ist die Sprachversion.
 
 | Ereignis | Ausgabe (Konsole) |
 |---|---|

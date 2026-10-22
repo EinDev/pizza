@@ -28,7 +28,7 @@ function api(p, name, fn) {
 }
 
 module.exports = [
-  api(A, "version === \"3.0.0\"", (L) => (L.version === "3.0.0" ? undefined : "version = " + JSON.stringify(L.version))),
+  api(A, "version === \"3.1.0\"", (L) => (L.version === "3.1.0" ? undefined : "version = " + JSON.stringify(L.version))),
   api(A, "KEYWORDS enthält alle Keywords aus SPEC §1", (L) => fehlt(L.KEYWORDS, KEYWORDS)),
   api(A, "KEYWORDS enthält nicht 'pizza' (§1: kein Keyword mehr)", (L) =>
     Array.isArray(L.KEYWORDS) && !L.KEYWORDS.includes("pizza") ? undefined : "'pizza' ist in KEYWORDS"),

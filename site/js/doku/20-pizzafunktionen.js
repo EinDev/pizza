@@ -1,4 +1,4 @@
-/* pizza v3.0 – Doku: Pizza-Funktionen (ordnung 300–399) – Doku v2: kurz, Bild, ein Beispiel, Rest in details */
+/* pizza v3.1 – Doku: Pizza-Funktionen (ordnung 300–399) – Doku v2: kurz, Bild, ein Beispiel, Rest in details */
 (function () {
   "use strict";
   const ziel = typeof self !== "undefined" ? self : globalThis;

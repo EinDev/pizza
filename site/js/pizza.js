@@ -1,5 +1,5 @@
 /*
- * pizza v3.0 – Interpreter
+ * pizza v3.1 – Interpreter
  * Lexer · Parser · Tree-Walking-Laufzeit · Standardbibliothek
  * UMD ohne Abhängigkeiten: Browser/Worker → self.PizzaLang, Node → module.exports
  */
@@ -15,7 +15,7 @@
   // Konstanten
   // =====================================================================
 
-  const VERSION = '3.0.0';
+  const VERSION = '3.1.0';
 
   const KEYWORDS = [
     'paket', 'import', 'klasse', 'rezeptur', 'rohling', 'calzone', 'quattrostagioni',

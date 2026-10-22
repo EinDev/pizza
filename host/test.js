@@ -151,6 +151,18 @@ for (const [i, [name, quelle, opts, progArgs]] of konsolenFaelle.entries()) {
   if (diff) { anders++; console.log('  ✗  ' + name + '\n      ' + diff); }
   else { kGleich++; console.log('  ✓  ' + name); }
 }
+// --version: Host und CLI nennen dieselbe Sprachversion (PizzaLang.version = Paketversion des Hosts).
+if (!filter || 'version'.includes(filter)) {
+  kGesamt++;
+  const hv = spawnSync(exe, ['--version'], { encoding: 'utf8', env: umgebung });
+  const cv = spawnSync(process.execPath, [path.join(WURZEL, 'bin', 'pizza.js'), '--version'], { encoding: 'utf8', env: umgebung });
+  const erwartetH = 'pizza-host ' + PizzaLang.version + ' (pizza ' + PizzaLang.version + ')\n';
+  const erwartetC = 'pizza ' + PizzaLang.version + '\n';
+  const n = (t) => t.replace(/\r\n/g, '\n');
+  if (hv.status !== 0 || n(hv.stdout) !== erwartetH || cv.status !== 0 || n(cv.stdout) !== erwartetC) {
+    anders++; console.log('  ✗  --version\n      Host ' + JSON.stringify(hv.stdout) + ' (' + hv.status + '), CLI ' + JSON.stringify(cv.stdout) + ' (' + cv.status + ')');
+  } else { kGleich++; console.log('  ✓  --version (' + PizzaLang.version + ')'); }
+}
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('\n' + gleich + '/' + liste.length + ' Beispiele identisch, ' + kGleich + '/' + kGesamt + ' Konsolenfälle zeichengleich' + (anders ? ', ' + anders + ' abweichend' : '') + (nicht ? ', ' + nicht + ' nicht kompilierbar' : '') +
   ' (Host gesamt ' + hostMs + ' ms, alles ' + (Date.now() - t0) + ' ms)');

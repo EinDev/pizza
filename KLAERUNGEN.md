@@ -1,4 +1,9 @@
-# Klärungsprotokoll pizza v3.0 (K-001 …)
+# Klärungsprotokoll pizza v3.1 (K-001 …)
+
+> **Versionen:** Die Sprache heißt **pizza 3.1** – mit K-090 ff. kamen inkompatible Änderungen, allen voran K-105 (Release-Notizen:
+> `CHANGELOG.md`; Klärungen bis K-089 entstanden unter 3.0). „Theke v3 … v7“ in den Überschriften sind **Ausbaustufen der Theke**, keine Sprachversionen – sie bleiben als
+> Querverweis (Commits, Tests, Prüfstand) stehen. Ebenfalls unabhängig: HOST-ABI v1, Theke-Protokoll `v: 1`, `pkarton/1`,
+> Vorrats-Format `{"v":1,…}`, Spielstand-Fassungen von Beispielen.
 
 Entscheidungsprotokoll des Klärungs-Agenten. Jede Klärung ist verbindlich und in `SPEC.md` §15 (bzw. §11.1)
 als Vertragstext eingearbeitet; Regressionstests liegen in `pruefstand/faelle/a10-klaerungen.js` (grün) und

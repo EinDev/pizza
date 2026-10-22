@@ -1,7 +1,7 @@
 {
   "name": "pizza",
-  "version": "3.0.0",
-  "description": "pizza v3.0 – die Programmiersprache mit Klammerpflicht. Interpreter, Tests und CLI.",
+  "version": "3.1.0",
+  "description": "pizza v3.1 – die Programmiersprache mit Klammerpflicht. Interpreter, Tests und CLI.",
   "private": true,
   "license": "MIT",
   "bin": {

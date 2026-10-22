@@ -124,8 +124,8 @@ FROM exe-${SKIP_EXE} AS exe
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.title="pizza-playground" \
-      org.opencontainers.image.description="Playground für die Programmiersprache pizza v3.0" \
-      org.opencontainers.image.version="3.0.0"
+      org.opencontainers.image.description="Playground für die Programmiersprache pizza v3.1" \
+      org.opencontainers.image.version="3.1.0"
 
 # Standard-Willkommensseite des Basis-Images entfernen (sonst würde sie ohne
 # site/index.html ausgeliefert)

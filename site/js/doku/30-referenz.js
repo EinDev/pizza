@@ -1,4 +1,4 @@
-/* pizza v3.0 – Doku: Standardbibliothek (500–599) & Referenz/Toolchain (600–699) – Doku v2 */
+/* pizza v3.1 – Doku: Standardbibliothek (500–599) & Referenz/Toolchain (600–699) – Doku v2 */
 (function () {
   "use strict";
   const ziel = typeof self !== "undefined" ? self : globalThis;
@@ -1511,7 +1511,7 @@
       titel: "Keyword-Spickzettel",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "Alle 38 reservierten Wörter von pizza v3.0 auf einen Blick – mit dem passenden Java-Wort daneben." },
+        { art: "kurz", md: "Alle 38 reservierten Wörter von pizza v3.1 auf einen Blick – mit dem passenden Java-Wort daneben." },
         { art: "hinweis", ton: "info", md: "**Groß-/Kleinschreibung zählt:** `speisekarte` ist ein Keyword, `Speisekarte` ein Typ. Und `pizza` ist seit v3.0 **kein** Keyword mehr – `pizza`, `Pizza` und `PiZZa` sind ganz normale Namen." },
         {
           art: "tabelle",
@@ -1889,6 +1889,7 @@
             ["`--debug`", "Bei internen Fehlern zusätzlich technische Details zeigen (sonst nie)"],
             ["`--ast`", "Nur den Syntaxbaum ausgeben, nichts ausführen – für Neugierige"],
             ["`--hilfe`", "Kurze Übersicht aller Optionen"],
+            ["`--version`", "Zeigt die Sprachversion (`pizza 3.1.0`; die EXE nennt sie hinter ihrem Namen)"],
             ["`--`", "Ende der Optionen: alles danach geht unverändert an `hauptgang(args)`"]
           ]
         },

@@ -1,4 +1,4 @@
-# pizza v3.0 – Sprachspezifikation (verbindlich)
+# pizza v3.1 – Sprachspezifikation (verbindlich)
 
 > **Grundsatz (Nutzerentscheidung, K-082): Browser = nativ.** Alles funktioniert im Playground (Browser) und nativ (EXE/Linux)
 > **gleich** – Sprache, Standardbibliothek, Eingabe, Zufall, Vorratskammer, Theke – und es wird auch **das Gleiche angezeigt**:
@@ -26,7 +26,7 @@ Alle Meldungen, Fehlertexte und Bezeichner der Sprache sind **deutsch**.
 - Kommentare: `// bis Zeilenende` und `/* mehrzeilig */`.
 - Bezeichner: Unicode-Buchstaben (inkl. `äöüÄÖÜß`), Ziffern, `_`; nicht mit Ziffer beginnend.
   **Groß-/Kleinschreibung ist signifikant.** `pizza`, `Pizza`, `PiZZa`, `piZZA` sind vier
-  verschiedene, gültige Bezeichner. (`pizza` ist in v3.0 **kein** Keyword mehr.)
+  verschiedene, gültige Bezeichner. (`pizza` ist seit v3.0 **kein** Keyword mehr.)
 - Zahlen: `42`, `1_000_000`, `7.50`. Unterstriche werden ignoriert.
 - Dauer-Literale: Zahl **direkt** gefolgt von Einheit `ms`, `s`, `min`, `h`, `d` → Wert vom Typ `Dauer`
   (intern Millisekunden). Beispiele: `90s`, `30min`, `1h`, `3d`, `500ms`, `1.5s`.

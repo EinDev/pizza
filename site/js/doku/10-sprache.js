@@ -1,4 +1,4 @@
-/* pizza v3.0 – Doku: Einstieg, Sprache, Ananas & Hawaii (ordnung 100–299, 400–499) – Doku v2 */
+/* pizza v3.1 – Doku: Einstieg, Sprache, Ananas & Hawaii (ordnung 100–299, 400–499) – Doku v2 */
 (function () {
   "use strict";
   const ziel = typeof self !== "undefined" ? self : globalThis;

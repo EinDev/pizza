@@ -1,4 +1,4 @@
-# pizza v3.0 – Playground
+# pizza v3.1 – Playground
 
 [![CI](https://github.com/EinDev/pizza/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/EinDev/pizza/actions/workflows/ci.yml)
 
@@ -6,6 +6,8 @@
 Klassen heißen `klasse`, Exceptions heißen `Ananas`, Listen sind Bleche, Maps Speisekarten, und wer eine
 Endlosschleife baut, hört: „Die Pizza ist noch im Ofen.“ Der Playground ist eine statische Web-App mit Editor – der Interpreter
 läuft komplett im Browser (Web Worker), der Server liefert nur Teig, äh, Dateien aus.
+
+Was sich seit pizza 3.0 geändert hat (und wie man umsteigt): [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Schnellstart
 

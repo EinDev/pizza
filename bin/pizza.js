@@ -9,7 +9,8 @@
  *   Optionen: --eingabe datei (vorgegebene Eingabezeilen), --schritte=N (Schrittlimit),
  *             --saat=N (Zufallssaat; ohne Option: echte Saat, Anzeige "Saat: N" auf stderr),
  *             --vorrat=ordner (Ablage der Vorratskammern), --kein-vorrat (nur im Speicher, W0101),
- *             --info (Schritte/Uhr am Ende), --debug (zeigt technische Details interner Fehler), --hilfe
+ *             --info (Schritte/Uhr am Ende), --debug (zeigt technische Details interner Fehler), --hilfe,
+ *             --version (zeigt "pizza 3.1.0")
  *   Warnungen/Fehler erscheinen einheitlich als <text> (Zeile Z, Spalte S) (K-083); das Feld detail nur mit --debug.
  *   Ohne --eingabe liest Bestellannahme interaktiv (synchron) von stdin.
  *   Vorratskammern (K-081): <ordner>/<name>.json, Standard %APPDATA%\pizza\vorrat bzw.
@@ -60,6 +61,7 @@ for (let i = 0; i < roh.length; i++) {
     }
     else if (a === '--debug') optionen.debug = true;
     else if (a === '--hilfe' || a === '--help') { hilfe(); process.exit(0); }
+    else if (a === '--version') { console.log('pizza ' + P.version); process.exit(0); }
     else { console.error('Unbekannte Option: ' + a); hilfe(); process.exit(2); }
   } else if (datei === null) datei = a;
   else { optionenZu = true; progArgs.push(a); }

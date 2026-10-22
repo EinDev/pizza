@@ -1,4 +1,4 @@
-/* pizza v3.0 – Theke: Render-Engine des UI-Frameworks (THEKE.md, Protokoll v1).
+/* pizza v3.1 – Theke: Render-Engine des UI-Frameworks (THEKE.md, Protokoll v1).
  *
  *   var t = PizzaTheke.erzeuge(container, { sende: function (ereignis) {}, thema: "auto", fenster: function (info) {} });
  *   t.empfange(nachricht);   // Objekt oder JSON-String (Programm → Renderer)

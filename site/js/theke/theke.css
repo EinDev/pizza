@@ -1,4 +1,4 @@
-/* pizza v3.0 – Theke: Stile der Render-Engine (THEKE.md).
+/* pizza v3.1 – Theke: Stile der Render-Engine (THEKE.md).
  * Alles ist unter .theke gekapselt (Präfix .theke-…); keine globalen Regeln.
  * Thema: data-theme="light"|"dark" an .theke (Option thema), sonst das data-theme eines Vorfahren
  * (z. B. <html data-theme="dark"> im Playground), sonst prefers-color-scheme.

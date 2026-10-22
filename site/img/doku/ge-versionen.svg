@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif">
-  <title>Zeitstrahl der Sprache: pizza 1.0 (2008) mit Pizzadichte-Regel, pizza 2.0 Enterprise (2013) mit ofen.xml und Komitee, pizza 3.0 (2026), in der pizza frei ist.</title>
+  <title>Zeitstrahl der Sprache: pizza 1.0 (2008) mit Pizzadichte-Regel, pizza 2.0 Enterprise (2013) mit ofen.xml und Komitee, pizza 3.0 und 3.1 (2026), in denen pizza frei ist.</title>
   <line x1="30" y1="96" x2="604" y2="96" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
   <polygon points="602,88 618,96 602,104" fill="#2F2A26"/>
   <g>
@@ -27,7 +27,7 @@
   <g>
     <text x="530" y="72" text-anchor="middle" font-size="18" font-weight="800" fill="#2F2A26">2026</text>
     <circle cx="530" cy="96" r="12" fill="#3E8E41" stroke="#2F2A26" stroke-width="3"/>
-    <text x="530" y="132" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">pizza 3.0</text>
+    <text x="530" y="132" text-anchor="middle" font-size="16" font-weight="700" fill="#2F2A26">pizza 3.0 / 3.1</text>
     <rect x="430" y="146" width="200" height="116" rx="10" fill="#FFF6E0" stroke="#3E8E41" stroke-width="3"/>
     <text x="444" y="178" font-size="14" font-family="ui-monospace, Consolas, monospace" fill="#2F2A26" xml:space="preserve">salami PiZZa = 1;</text>
     <text x="444" y="206" font-size="14" font-family="ui-monospace, Consolas, monospace" fill="#2F2A26" xml:space="preserve">serviere ((PiZZa));</text>

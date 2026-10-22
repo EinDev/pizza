@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Fuzzing für pizza v3.0 – deterministisch per Seed.
+ * Fuzzing für pizza v3.1 – deterministisch per Seed.
  *
  *   node tests/fuzz/run.js [--anzahl 2000] [--seed 1] [--robust N] [--nur gueltig|robust] [--eingabe-anteil 0.25]
  *                          [--theke-anteil 0.1] [--vorrat-anteil 0.15] [--saat-anteil 0.3] [--brigade-anteil 0.3] [--keine-minimierung] [--ablage tests/fuzz/funde] [-v]

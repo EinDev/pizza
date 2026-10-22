@@ -57,8 +57,8 @@ e2e("Seite lädt: Titel, Editor, Logo, Favicon, Version, Sicherheits-Header", as
     anzeige: document.getElementById("version").textContent,
     title: document.getElementById("version").title,
   }));
-  assert.match(version, /^3\.0/);
-  assert.equal(anzeige, "v3.0");
+  assert.match(version, /^3\.1/);
+  assert.equal(anzeige, "v3.1");
   assert.equal(title, "Interpreter " + version);
 
   // Leere Konsole mit Hinweis, kein Exit-Badge

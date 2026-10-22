@@ -1,4 +1,4 @@
-/* pizza v3.0 – Ausführungs-Worker. Protokoll: ARCHITEKTUR.md §2, erweitert für WASM.md §4.
+/* pizza v3.1 – Ausführungs-Worker. Protokoll: ARCHITEKTUR.md §2, erweitert für WASM.md §4.
  * UI → Worker:
  *   { typ: "start", code, args?, motor?: "auto"|"wasm"|"interpreter", pizzaiolo?: boolean }
  *       pizzaiolo: Ergebnis des einmaligen Fähigkeiten-Checks der Seite. Nur bei true wird

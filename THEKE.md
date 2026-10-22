@@ -2,6 +2,9 @@
 
 > Die Theke ist da, wo der Gast die Pizza sieht.
 
+> **Ausbaustufen, keine Sprachversionen:** „Theke v2 … v7“ zählt die Ausbaustufen dieses UI-Frameworks (alle Teil von
+> **pizza 3.1**, siehe `CHANGELOG.md`); das Protokoll bleibt `v: 1`, der Vertrag v1 wächst nur abwärtsverträglich.
+
 Nutzer: „Ich will ein UI-Framework. Es soll im Browser sowie in der fertigen EXE/Linux funktionieren.
 Keep it simple, but extendable – wir werden in Zukunft mehr hinzufügen.“
 Entscheidung: nativ als **eigenes Fenster über die System-WebView** (Windows: WebView2, Linux: WebKitGTK).

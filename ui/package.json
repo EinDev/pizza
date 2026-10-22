@@ -1,8 +1,8 @@
 {
   "name": "pizza-playground-ui",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "Web-UI (Editor, Konsole, Seitenpanel) für den pizza-v3.0-Playground",
+  "description": "Web-UI (Editor, Konsole, Seitenpanel) für den pizza-v3.1-Playground",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

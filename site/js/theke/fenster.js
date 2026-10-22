@@ -1,4 +1,4 @@
-/* pizza v3.0 – Theke-Hülle für den nativen Host (wry/WebView2/WebKitGTK). Siehe README.md in diesem Ordner.
+/* pizza v3.1 – Theke-Hülle für den nativen Host (wry/WebView2/WebKitGTK). Siehe README.md in diesem Ordner.
  *   Host → Seite:  pizzaThekeEmpfange("<Protokoll-JSON als String>")   (per evaluate_script)
  *   Seite → Host:  window.ipc.postMessage("<Ereignis-JSON>")            (wry-IPC)
  * Beim Start schickt die Seite einmal {"typ":"bereit"} – das ist KEIN Programm-Ereignis; der Host

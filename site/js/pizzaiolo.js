@@ -33,7 +33,7 @@
   else root.Pizzaiolo = api;
 })(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function (teile, PizzaLang) {
   'use strict';
-  const VERSION = '0.1.0';
+  const VERSION = '3.1.0';
   const jetzt = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
   let laufzeitBytes = null;

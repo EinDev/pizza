@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-// Unabhängiger Prüfstand für pizza v3.0.
+// Unabhängiger Prüfstand für pizza v3.1.
 //   node pruefstand/run.js [A|B] [filter] [-v]
 // Teil A: Black-Box-Konformitätstests gegen site/js/pizza.js (nur öffentliche API).
 // Teil B: Interpreter-freie Prüfungen (Manifeste, Doku, SVGs, index.html, CDN).

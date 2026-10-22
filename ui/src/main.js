@@ -1,4 +1,4 @@
-// pizza v3.0 Playground – Einstieg.
+// pizza v3.1 Playground – Einstieg.
 import { erstelleEditor } from "./editor.js";
 import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Differenztests pizza v3.0: Interpreter (Referenz) vs. Wasm (pizzaiolo) vs. nativer Host.
+ * Differenztests pizza v3.1: Interpreter (Referenz) vs. Wasm (pizzaiolo) vs. nativer Host.
  *
  *   node tests/differenz/run.js                 alles
  *   node tests/differenz/run.js korpus doku     nur diese Quellen (korpus|beispiele|doku|faelle|pruefstand)

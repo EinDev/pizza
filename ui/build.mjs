@@ -18,7 +18,7 @@ const optionen = {
   charset: "utf8",
   legalComments: "none",
   logLevel: "info",
-  banner: { js: "/* pizza v3.0 Playground – generiert aus ui/src (npm run build). Nicht von Hand bearbeiten. */" },
+  banner: { js: "/* pizza v3.1 Playground – generiert aus ui/src (npm run build). Nicht von Hand bearbeiten. */" },
 };
 
 if (watch) {

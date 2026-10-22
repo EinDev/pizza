@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 64" width="160" height="64" role="img" aria-labelledby="bk-titel">
-  <title id="bk-titel">pizza v3.0 – die Pizza-DVD backt im Laufwerk</title>
+  <title id="bk-titel">pizza v3.1 – die Pizza-DVD backt im Laufwerk</title>
   <style>
     .bk-dreh { transform-box: fill-box; transform-origin: 50% 50%; animation: bk-dreh 1.6s linear infinite; }
     .bk-led { animation: bk-puls 1.1s ease-in-out infinite alternate; }

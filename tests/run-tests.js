@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Test-Harness für pizza v3.0 – ohne Abhängigkeiten.
+ * Test-Harness für pizza v3.1 – ohne Abhängigkeiten.
  *   node tests/run-tests.js              alle Gruppen
  *   node tests/run-tests.js beispiele    nur eine Gruppe (faelle | api | beispiele | doku)
  *   node tests/run-tests.js <text>       nur Tests, deren Name <text> enthält
@@ -207,7 +207,7 @@ function api() {
   const ja = (b, was) => { if (!b) throw new Error(was || 'Bedingung nicht erfüllt'); };
 
   test('Konstanten der API', () => {
-    gleich(P.version, '3.0.0', 'version');
+    gleich(P.version, '3.1.0', 'version');
     for (const k of ['klasse', 'serviere', 'calzone', 'quattrostagioni', 'ofen', 'roh', 'karton', 'wähle', 'für']) ja(P.KEYWORDS.includes(k), 'KEYWORDS fehlt ' + k);
     ja(!P.KEYWORDS.includes('pizza'), "'pizza' darf kein Keyword sein");
     for (const t of ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte', 'hawaii']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
@@ -762,6 +762,8 @@ function cli() {
     gleich(lauf(['--kein-vorrat', '--saat=1', p, 'a', '--', 'b']).out, '[a]\n[--]\n[b]\n', '-- nach Programmargument bleibt');
     gleich(lauf(['--kein-vorrat', '--saat=1', '--', p, '--', '--info']).out, '[--]\n[--info]\n', '-- vor der Datei');
     gleich(lauf(['--kein-vorrat', '--saat=1', p, '--info']).out, '[--info]\n', 'nach der Datei keine Optionen');
+    const v = lauf(['--version']);
+    gleich([v.code, v.out], [0, 'pizza ' + P.version + '\n'], '--version');
     const h = lauf(['--hilfe']);
     if (!/datei\.pizza \[--\] \[args…\]/.test(h.out) || !/\n {2}-- {3}Ende der Optionen/.test(h.out)) throw new Error('--hilfe dokumentiert -- nicht: ' + h.out);
   });

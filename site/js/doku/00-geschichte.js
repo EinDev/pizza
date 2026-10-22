@@ -192,19 +192,19 @@
       inhalt: [
         {
           art: "kurz",
-          md: "pizza gab es in drei Versionen: zuerst zu viel „pizza“, dann zu viel Bürokratie, jetzt endlich einfach."
+          md: "pizza gab es in drei Anläufen: zuerst zu viel „pizza“, dann zu viel Bürokratie, jetzt endlich einfach (seit 3.0, aufgeräumt in 3.1)."
         },
         {
           art: "bild",
           src: "img/doku/ge-versionen.svg",
-          alt: "Zeitstrahl: 2008 pizza 1.0 mit pizzateig und pizzarand, 2013 pizza 2.0 Enterprise mit ofen.xml und Komitee, 2026 pizza 3.0, in der PiZZa ein normaler Name ist.",
+          alt: "Zeitstrahl: 2008 pizza 1.0 mit pizzateig und pizzarand, 2013 pizza 2.0 Enterprise mit ofen.xml und Komitee, 2026 pizza 3.0 und 3.1, in denen PiZZa ein normaler Name ist.",
           unterschrift: "Drei Versionen, drei Code-Schnipsel: von der Pizzadichte-Regel zur freien Pizza."
         },
         {
           art: "text",
           md:
             "**pizza 1.0** (2008) setzte Nonnas erste Bedingung wörtlich um: die *Pizzadichte-Regel*. Jedes achte Token (also jedes achte Wort im Code) musste das Wort „pizza“ enthalten.\n\n" +
-            "Programme begannen mit `pizzateig` und endeten mit `pizzarand`. Ein überliefertes Fragment (läuft in v3.0 nicht mehr):"
+            "Programme begannen mit `pizzateig` und endeten mit `pizzarand`. Ein überliefertes Fragment (läuft heute nicht mehr):"
         },
         {
           art: "code",
@@ -295,7 +295,8 @@
             ["2008", "pizza 1.0 mit Pizzadichte-Regel, `pizzateig` und `pizzarand`"],
             ["2013", "pizza 2.0 Enterprise: 600 Seiten Spezifikation, `ofen.xml`, Komitee"],
             ["2023", "Freitag, 13. Oktober: 47 Minuten Compilerlauf, wieder acht Streifen"],
-            ["2026", "pizza 3.0: `pizza` ist frei, `PiZZa` auch"]
+            ["2026", "pizza 3.0: `pizza` ist frei, `PiZZa` auch"],
+            ["2026", "pizza 3.1: die eingebaute Pizza zieht aus, dafür kommen [Küchenbrigade](#pf-brigade) und eine [Theke](#std-theke) mit Zetteln und Bindungen"]
           ]
         },
         {
@@ -332,14 +333,17 @@
       inhalt: [
         {
           art: "kurz",
-          md: "Wie Luigi und Nonna auf pizza 3.0 reagiert haben."
+          md: "Wie Luigi und Nonna auf pizza 3.0 reagiert haben – und was pizza 3.1 aufgeräumt hat."
         },
         {
           art: "text",
           md:
             "Bei der Vorstellung von pizza 3.0 legte Enzo Luigi das Programm vom Pizzakarton vor, in heutiger Schreibweise. Luigi las es zweimal.\n\n" +
             "Er sagte nichts. Er schaute nur. Dann nickte er und ging zurück an den Ofen. Für diesen Fall gibt es in der Spezifikation keine Warnung.\n\n" +
-            "Nonna, 91, zählte die Ecken. „Sechs. Für Wuppertal geht das.“"
+            "Nonna, 91, zählte die Ecken. „Sechs. Für Wuppertal geht das.“\n\n" +
+            "Mit **pizza 3.1** hat Enzo noch einmal ausgemistet: Rezepte, Preise und Beläge gehören jetzt in eigene Klassen statt in die Sprache. " +
+            "Dafür kochen mehrere Köche gleichzeitig ([Küchenbrigade](#pf-brigade)), und die [Theke](#std-theke) folgt Zetteln von selbst. " +
+            "Luigi fand, eine Sprache ohne eingebaute Margherita sei wie ein Ofen ohne Pizza. Dann backte er weiter."
         }
       ]
     }

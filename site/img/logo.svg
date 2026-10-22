@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 64" width="160" height="64" role="img" aria-labelledby="lg-titel">
-  <title id="lg-titel">pizza v3.0 – eine Pizza als DVD, bereit zum Backen im DVD-Laufwerk</title>
+  <title id="lg-titel">pizza v3.1 – eine Pizza als DVD, bereit zum Backen im DVD-Laufwerk</title>
   <defs>
     <!-- Kruste: hell innen, gebraeunt am Rand -->
     <radialGradient id="lg-kruste" cx="0.5" cy="0.5" r="0.5">
