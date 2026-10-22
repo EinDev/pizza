@@ -1021,7 +1021,107 @@
               )
             },
             { art: "ausgabe", text: "Fertig nach 3 s" },
-            { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." }
+            { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." },
+            { art: "text", md: "**Meldungen der Reihe nach:** Eine eingebaute „Meldung“ mit Warteschlange gibt es absichtlich nicht – wie lange eine Nachricht steht und wie viele warten dürfen, entscheidet dein Spiel. Die Bausteine hast du schon: ein `Schild` als Anzeige, ein `Blech` als Schlange, ein `Takt`, der alle zwei Sekunden die nächste Zeile holt, und `animiere(\"einblenden\")` für den Auftritt." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "takt", id: "melder", anzahl: 1 }, { typ: "takt", id: "melder", anzahl: 1 }, { typ: "klick", id: "stern" }, { typ: "takt", id: "melder", anzahl: 1 }, { typ: "takt", id: "melder", anzahl: 1 }],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "Blech<margherita> schlange = [\"Neuer Ofen!\", \"Luigi ist da.\"];",
+                "salami gezeigt = 0;",
+                "Schild meldung = neu Schild(\"\", id: \"meldung\");",
+                "Knopf stern = neu Knopf(\"Stern verdienen\", id: \"stern\").beiKlick(() -> { schlange.hinzu(\"+1 Stern\"); });",
+                "Takt melder = neu Takt(2s, id: \"melder\").beiTakt(anzahl -> {",
+                "    falls (schlange.istLeer()) { theke.schliesse(); }   // im Spiel eher: meldung.setzeText(\"\")",
+                "    sonst {",
+                "        meldung.setzeText(schlange.erstes()).animiere(\"einblenden\");",
+                "        schlange.entferne(1);",
+                "        gezeigt++;",
+                "    }",
+                "});",
+                "theke.zeige(neu Stapel([meldung, stern, melder]));",
+                "theke.bediene();",
+                "Bote.sage((gezeigt + \" Meldungen gezeigt, \" + schlange.länge() + \" übrig\"));"
+              )
+            },
+            { art: "ausgabe", text: "3 Meldungen gezeigt, 0 übrig" },
+            { art: "text", md: "Zwei Schläge zeigen die beiden vorbereiteten Meldungen, dann klickt der Gast auf **Stern verdienen**, der dritte Schlag zeigt „+1 Stern“, der vierte findet die Schlange leer. Willst du Gleiches zusammenfassen („+3 Sterne“) oder nur die letzten fünf behalten, ist das eine Zeile mehr in deinem Rückruf – genau darum ist es keine fertige Zutat." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Tasten, Umschalter, Klappen",
+          inhalt: [
+            { art: "text", md: "Drei Zutaten für Spiele, die mehr sind als ein Knopf: Die **`Auswahl`** ist ein Umschalter, bei dem genau eine Option gewählt ist (`1× · 10× · 100×` statt drei Knöpfe); ein **klappbarer `Abschnitt`** räumt Erledigtes aus dem Blick; die **`Tastatur`** hört auf Tastendrücke im Fenster. Sie ist – wie der `Takt` – unsichtbar und muss trotzdem im gezeigten Baum liegen, also mit in den Stapel." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [
+                { typ: "taste", id: "tasten", taste: "Leertaste" },
+                { typ: "aenderung", id: "menge", wert: 2 },
+                { typ: "taste", id: "tasten", taste: "Leertaste" },
+                { typ: "taste", id: "tasten", taste: "a" },
+                { typ: "aenderung", id: "hilfe", wert: true },
+                { typ: "taste", id: "tasten", taste: "Enter" }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzabäcker\");",
+                "Blech<salami> schritte = [1, 10, 100];",
+                "salami pizzen = 0;",
+                "salami schritt = 1;",
+                "Schild anzeige = neu Schild(\"0 Pizzen\", id: \"anzeige\").stil(\"schrift\", \"riesig\").stil(\"zeilen\", 1);",
+                "Auswahl menge = neu Auswahl([\"1×\", \"10×\", \"100×\"], id: \"menge\");",
+                "menge.beiAenderung(n -> { schritt = schritte.stück(n); });",
+                "Abschnitt hilfe = neu Abschnitt(\"Hilfe\", [neu Schild(\"Leertaste backt, Enter macht Feierabend.\")], id: \"hilfe\").klappbar(ja);",
+                "hilfe.beiAenderung(zu -> { Bote.sage((\"Hilfe zugeklappt: \" + zu)); });",
+                "Tastatur tasten = neu Tastatur(id: \"tasten\");",
+                "tasten.beiTaste(taste -> {",
+                "    falls (taste == \"Leertaste\") { pizzen += schritt; anzeige.setzeText((pizzen + \" Pizzen\")); }",
+                "    sonst falls (taste == \"Enter\") { theke.schliesse(); }",
+                "});",
+                "theke.zeige(neu Stapel([anzeige, menge, hilfe, tasten]));",
+                "theke.bediene();",
+                "Bote.sage((pizzen + \" Pizzen, Schritt \" + schritt + \", Option \" + menge.gewaehlt() + \", Hilfe zu: \" + hilfe.zu()));"
+              )
+            },
+            { art: "ausgabe", text: z("Hilfe zugeklappt: ja", "11 Pizzen, Schritt 10, Option 2, Hilfe zu: ja") },
+            { art: "text", md: "Der Gast drückt die Leertaste (1 Pizza), schaltet auf **10×**, drückt wieder Leertaste (11 Pizzen), tippt ein `a` (interessiert den Rückruf nicht), klappt die Hilfe zu und beendet mit **Enter**. In den Testereignissen sieht das so aus: `{\"typ\":\"taste\",\"id\":\"tasten\",\"taste\":\"Leertaste\"}`, `{\"typ\":\"aenderung\",\"id\":\"menge\",\"wert\":2}` und `{\"typ\":\"aenderung\",\"id\":\"hilfe\",\"wert\":true}` – beim Abschnitt ist `wert` der neue `zu`-Zustand." },
+            { art: "text", md: "**Auswahl:** `neu Auswahl(optionen, gewaehlt: 1)` – die Optionen sind ein Blech, jeder Eintrag wird als Text gezeigt. `waehle(n)` und `gewaehlt()` zählen ab 1 wie beim Reiter; eine Nummer außerhalb ergibt `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4 Optionen.` `setzeOptionen(b)` tauscht die Liste aus, die gewählte Nummer bleibt. Mit `aktiv(nein)` ist der Umschalter ausgegraut und Ereignisse werden ignoriert. Wie beim Haken ist der Zustand schon umgeschaltet, wenn dein Rückruf läuft – `menge.gewaehlt()` liefert darin bereits die neue Nummer." },
+            { art: "text", md: "**Klappbarer Abschnitt:** `klappbar(ja)` macht den Kopf zum Knopf (Pfeil ▸/▾); `zu(ja)` klappt den Inhalt zu, auch ohne `klappbar` – dann steuert nur dein Programm. Klappt der Gast, kommt `beiAenderung(fn)` mit `ja` (zu) oder `nein` (offen); setzt dein Programm `zu(…)`, kommt nichts. Die Kinder eines zugeklappten Abschnitts gelten für Animationen als nicht gezeigt – ein `animiere` dort fällt mit `W0102` aus. Mit `uebergang(ja)` am Abschnitt gleitet der Inhalt weich auf und zu." },
+            { art: "text", md: "**Reiter:** `setzeTitel(n, text)` ändert die Beschriftung einer Seite (`reiter.setzeTitel(2, \"Karte •\")` für „hier gibt es Neues“), `titel(n)` liest sie. Eine Seite verschwindet samt Reiter mit `seite.sichtbar(nein)` – kein eigenes Kommando, dasselbe `sichtbar` wie überall. `gewaehlt()` bleibt dabei Programmzustand: Versteckst du die gewählte Seite, zeigt der Gast-Bildschirm ersatzweise die nächste sichtbare Seite dahinter (sonst die letzte davor), ohne dass ein Ereignis kommt – erst der nächste Klick auf einen Reiter meldet wieder eine echte Seitennummer." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Stapel lager = neu Stapel([neu Schild(\"Noch zu.\")]);",
+                "Reiter reiter = neu Reiter([\"Ofen\", \"Karte\", \"Lager\"], [neu Schild(\"Heiß!\"), neu Schild(\"Margherita 8 €\"), lager]);",
+                "lager.sichtbar(nein);            // der Reiter „Lager“ verschwindet aus der Leiste",
+                "reiter.waehle(3);                // erlaubt – der Gast sieht ersatzweise „Karte“",
+                "reiter.setzeTitel(3, \"Lager • neu\");",
+                "Bote.sage((reiter.titel(3) + \" / gewählt: \" + reiter.gewaehlt()));"
+              )
+            },
+            { art: "ausgabe", text: "Lager • neu / gewählt: 3" },
+            { art: "text", md: "**Tastatur:** `neu Tastatur(taste -> { … })` oder `beiTaste(fn)` – der Rückruf bekommt den Namen der Taste als Text. Ein Druck ist ein Ereignis: Hält der Gast die Taste gedrückt, kommt **keine** Wiederholung. Mehrere aktive Tastaturen im Baum bekommen jede Taste. Tasten, die der Gast in eine fokussierte `Eingabe` tippt, gehören dem Feld und erreichen die Tastatur nicht; ein fokussierter Knopf wird von der Leertaste weiterhin geklickt – die Tastatur bekommt sie zusätzlich. Im Playground gehen Tasten an die Theke, sobald der Gast einmal ins Vorschaufenster geklickt hat; was du im Editor tippst, bleibt im Editor." },
+            {
+              art: "tabelle",
+              kopf: ["Taste", "Name im Rückruf"],
+              zeilen: [
+                ["Leertaste", "`\"Leertaste\"`"],
+                ["Pfeiltasten", "`\"Links\"`, `\"Rechts\"`, `\"Hoch\"`, `\"Runter\"`"],
+                ["Rücktaste, Entf", "`\"Rücktaste\"`, `\"Entfernen\"`"],
+                ["Pos1, Ende, Bild ↑/↓", "`\"Pos1\"`, `\"Ende\"`, `\"BildHoch\"`, `\"BildRunter\"`"],
+                ["Enter, Escape, Tab", "`\"Enter\"`, `\"Escape\"`, `\"Tab\"`"],
+                ["Funktionstasten", "`\"F1\"` … `\"F12\"`"],
+                ["Zeichen", "so, wie sie getippt werden: `\"a\"`, `\"A\"`, `\"1\"`, `\"+\"`, `\"ä\"` – Umschalt + a kommt also als `\"A\"`"],
+                ["Umschalt, Strg, Alt, AltGr, Windows-Taste, Feststelltaste …", "kommen **nicht** allein an (nur ihre Wirkung auf Zeichen)"]
+              ]
+            }
           ]
         },
         {
@@ -1108,7 +1208,7 @@
           art: "details",
           titel: "Die Ereignisschleife: bediene()",
           inhalt: [
-            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`).\n- Das **Schrittlimit** (5 000 000, `P0002`) gilt für das Programm bis zum `bediene()` und danach **für jeden Rückruf neu**. Ein Spiel darf also stundenlang laufen und Tausende Klicks oder Takte verarbeiten – nur ein einzelner Rückruf, der sich in einer Endlosschleife verfängt, wird gestoppt. `Uhr.jetzt()` zählt dabei einfach weiter." },
+            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`, `beiTakt`, `beiTaste`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`).\n- Das **Schrittlimit** (5 000 000, `P0002`) gilt für das Programm bis zum `bediene()` und danach **für jeden Rückruf neu**. Ein Spiel darf also stundenlang laufen und Tausende Klicks oder Takte verarbeiten – nur ein einzelner Rückruf, der sich in einer Endlosschleife verfängt, wird gestoppt. `Uhr.jetzt()` zählt dabei einfach weiter." },
             {
               art: "code",
               ausfuehrbar: true,
