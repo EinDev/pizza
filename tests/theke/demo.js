@@ -177,3 +177,49 @@
     window.__theken4[p[0]] = t;
   });
 })();
+
+/* Demo der v6-Stile (K-120 … K-124): zwei Spalten oben bündig bzw. gestreckt (senkrecht), Marke am Reiter-Tab,
+ * zeilen an Abschnitt-Titel und Tabellenzellen, feste Innenbreite (Rollbalken-Rinne) – hell6/dunkel6 rollen, hell6k nicht. */
+(function () {
+  "use strict";
+  var LANG = "Ein sehr langer Titel, der nicht in eine Zeile passt und mit Auslassungspunkten enden muss";
+  function spalte(id, n, farbe) {
+    var kinder = [];
+    for (var i = 1; i <= n; i++) kinder.push({ id: id + "-" + i, art: "schild", text: "Zeile " + i });
+    return { id: id, art: "abschnitt", titel: id === "links" ? LANG : "Rechts", stil: { zeilen: 1, breite: 186, farbe: farbe }, kinder: kinder };
+  }
+  function baum(kurz) {
+    var seite = [
+      { id: "oben", art: "reihe", stil: { senkrecht: "oben" }, kinder: [spalte("links", 3, "kruste"), spalte("rechts", 1, "basilikum")] }
+    ];
+    if (!kurz) {
+      seite.push(
+        { id: "gestreckt", art: "reihe", stil: { senkrecht: "strecken" }, kinder: [
+          { id: "s1", art: "stapel", stil: { breite: 186, farbe: "mozzarella" }, kinder: [{ id: "s1a", art: "schild", text: "kurz" }] },
+          { id: "s2", art: "stapel", stil: { breite: 186, farbe: "mozzarella" }, kinder: [
+            { id: "s2a", art: "schild", text: "zwei" }, { id: "s2b", art: "schild", text: "Zeilen" }] }] },
+        { id: "einzeln", art: "reihe", kinder: [
+          { id: "e-oben", art: "knopf", text: "oben", stil: { senkrecht: "oben" } },
+          { id: "e-hoch", art: "schild", text: "drei\nZeilen\nhoch", stil: { zeilen: 3 } },
+          { id: "e-unten", art: "knopf", text: "unten", stil: { senkrecht: "unten" } }] },
+        { id: "tab", art: "tabelle", spalten: ["Erfolg", "Wann"], stil: { zeilen: 1, schrift: "klein" },
+          zeilen: [["Erste Pizza – ein sehr langer Erfolgsname, der abgeschnitten wird", "0:12"], ["Steinofen", "3:40"], ["—", "—"]] });
+    }
+    return {
+      v: 1, op: "baum",
+      wurzel: { id: "wurzel", art: "stapel", kinder: [
+        { id: "reiter", art: "reiter", titel: ["🍕 Backstube", "⭐ Imperium", "🏆 Erfolge"], gewaehlt: 1, kinder: [
+          { id: "p1", art: "stapel", kinder: seite },
+          { id: "p2", art: "schild", text: "Imperium", marke: "⭐ 3" },
+          { id: "p3", art: "schild", text: "Erfolge", marke: "12" }] }
+      ] }
+    };
+  }
+  window.__theken6 = {};
+  [["hell6", "hell", false], ["dunkel6", "dunkel", false], ["hell6k", "hell", true]].forEach(function (p) {
+    var t = PizzaTheke.erzeuge(document.getElementById(p[0]), { thema: p[1], sende: function () {} });
+    t.empfange({ v: 1, op: "fenster", titel: "Theke v6", breite: 440, hoehe: 520 });
+    t.empfange(baum(p[2]));
+    window.__theken6[p[0]] = t;
+  });
+})();

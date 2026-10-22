@@ -110,7 +110,11 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  overflow: auto;
+  /* v6 (K-122): feste Innenbreite – der senkrechte Rollbalken hat immer seinen Platz (8 px, gestaltet), egal ob gerollt
+   * werden kann; der Inhalt hat rechts 12 px + 8 px Rinne = 20 px Rand wie links. Innenbreite = breite − 40 px. */
+  overflow-x: auto;
+  overflow-y: scroll;
+  scrollbar-color: auto;   /* geerbtes scrollbar-color der Seite würde die ::-webkit-scrollbar-Gestaltung abschalten */
   background: var(--theke-grund);
   color: var(--theke-text);
   font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
@@ -120,8 +124,20 @@
 }
 .theke *, .theke *::before, .theke *::after { box-sizing: border-box; }
 .theke [hidden] { display: none !important; }
+.theke::-webkit-scrollbar { width: 8px; height: 8px; }
+.theke::-webkit-scrollbar-track,
+.theke::-webkit-scrollbar-corner { background: transparent; }
+.theke::-webkit-scrollbar-thumb { background: var(--theke-rand-stark) padding-box; border: 1px solid transparent; border-radius: 4px; }
+.theke::-webkit-scrollbar-thumb:hover { background-color: var(--theke-text-3); }
+/* Engines ohne ::-webkit-scrollbar (Firefox): schmaler Standard-Rollbalken, Rinne immer reserviert */
+@supports not selector(::-webkit-scrollbar) {
+  .theke { overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--theke-rand-stark) transparent; }
+}
 .theke:focus { outline: none; }   /* v4 (K-110): die Wurzel ist fokussierbar (tabindex=-1), aber ohne Rahmen */
-.theke-inhalt { position: relative; padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
+.theke-inhalt { position: relative; padding: 20px 12px 20px 20px; min-height: 100%; display: flex; flex-direction: column; }
+/* v6 (K-122): was eine Animation (puls, aufpoppen …) seitlich über den Rand schiebt, wird abgeschnitten statt einen
+ * waagrechten Rollbalken aufblitzen zu lassen – die Innenbreite bleibt fest. */
+.theke-inhalt { overflow-x: clip; }
 .theke-inhalt > .theke-zutat { flex: none; }
 
 .theke-leer {
@@ -147,6 +163,11 @@
 .theke-reihe.theke-ausrichtung-ende      { justify-content: flex-end; }
 .theke-reihe.theke-ausrichtung-strecken  { align-items: stretch; }
 .theke-reihe.theke-ausrichtung-strecken > .theke-zutat { flex: 1 1 0; }
+/* v6 (K-120): senkrecht – an der Reihe die Lage aller Kinder (Standard mitte), an einem Kind der Reihe seine eigene */
+.theke-reihe.theke-senkrecht-oben     { align-items: flex-start; }
+.theke-reihe.theke-senkrecht-mitte    { align-items: center; }
+.theke-reihe.theke-senkrecht-unten    { align-items: flex-end; }
+.theke-reihe.theke-senkrecht-strecken { align-items: stretch; }
 
 /* Behälter mit Farbe = ruhige, getönte Karte */
 .theke-behaelter[class*="theke-farbe-"] {
@@ -304,6 +325,11 @@
 .theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-ende     { align-self: flex-end; text-align: right; }
 .theke .theke-zutat:not(.theke-behaelter).theke-ausrichtung-strecken { align-self: stretch; }
 .theke .theke-schild.theke-ausrichtung-strecken { text-align: justify; }
+/* v6 (K-120): senkrecht an einem Kind einer Reihe schlägt die Lage aus ausrichtung und die Standards der Zutat */
+.theke .theke-reihe > .theke-zutat.theke-senkrecht-oben     { align-self: flex-start; }
+.theke .theke-reihe > .theke-zutat.theke-senkrecht-mitte    { align-self: center; }
+.theke .theke-reihe > .theke-zutat.theke-senkrecht-unten    { align-self: flex-end; }
+.theke .theke-reihe > .theke-zutat.theke-senkrecht-strecken { align-self: stretch; }
 
 /* ------------------------------------------------------------------ Platzhalter für unbekannte Zutaten */
 .theke-platzhalter {
@@ -500,6 +526,7 @@
 .theke-reiter-leiste {
   display: flex;
   gap: 2px;
+  padding-top: 7px;   /* v6 (K-124): Platz für Marken über den Tabs – immer, damit eine Marke nichts verschiebt */
   overflow-x: auto;
   box-shadow: inset 0 -1px 0 var(--theke-rand);   /* Linie unter der Leiste; der gewählte Reiter malt darüber */
   scrollbar-width: thin;
@@ -521,6 +548,31 @@
   white-space: nowrap;
   cursor: pointer;
   transition: color .12s ease, background-color .12s ease, border-color .12s ease;
+}
+.theke-reiter-tab { position: relative; }
+/* v6 (K-124): Marke als Badge über der rechten oberen Ecke des Tabs (im Rand über der Leiste) – absolut, verschiebt
+ * weder Tab noch Nachbarn; lange Marken enden mit „…“ (höchstens Tab-Breite). */
+.theke-reiter-marke {
+  position: absolute;
+  top: -7px;
+  right: 2px;
+  max-width: calc(100% - 2px);
+  min-width: 16px;
+  height: 15px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--theke-ton);
+  color: var(--theke-ton-text);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--theke-grund);
 }
 .theke-reiter-tab:hover { color: var(--theke-text); background: var(--theke-flaeche-2); }
 .theke-reiter-tab.theke-reiter-tab-an { color: var(--theke-text); border-bottom-color: var(--theke-ton); }
@@ -593,12 +645,35 @@
   min-width: 0;
 }
 .theke .theke-knopf.theke-hat-zeilen > .theke-knopf-text { flex: 1 1 auto; }
+/* v6 (K-121): Abschnitt-Titel (Kopf bzw. Text im Klapp-Knopf) und jede Tabellenzelle (auch Kopfzeile) genau n Zeilen;
+ * die Tabelle bekommt feste Spaltenbreiten (table-layout: fixed), damit wechselnde Texte keine Spalte verschieben. */
+.theke .theke-abschnitt.theke-hat-zeilen > .theke-abschnitt-titel:not(.theke-abschnitt-titel-klappbar),
+.theke .theke-abschnitt.theke-hat-zeilen > .theke-abschnitt-titel > .theke-abschnitt-knopf > .theke-abschnitt-knopf-text,
+.theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--theke-zeilen);
+  line-clamp: var(--theke-zeilen);
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: content-box;
+  height: calc(var(--theke-zeilen) * 1lh);
+  min-width: 0;
+}
+.theke .theke-abschnitt-knopf-text { flex: 1 1 auto; min-width: 0; }
+.theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab { table-layout: fixed; }
+.theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab th,
+.theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-tab td { white-space: normal; vertical-align: top; }
 @supports not (height: 1lh) {
   .theke .theke-schild.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.5em); }
   .theke .theke-schild.theke-schrift-gross.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.3em); }
   .theke .theke-schild.theke-schrift-riesig.theke-hat-zeilen { height: calc(var(--theke-zeilen) * 1.15em); }
   .theke .theke-knopf.theke-hat-zeilen > .theke-knopf-text { height: calc(var(--theke-zeilen) * 1.25em); }
   .theke .theke-haken.theke-hat-zeilen > .theke-haken-text { height: calc(var(--theke-zeilen) * 1.5em); }
+  .theke .theke-abschnitt.theke-hat-zeilen > .theke-abschnitt-titel:not(.theke-abschnitt-titel-klappbar),
+  .theke .theke-abschnitt.theke-hat-zeilen > .theke-abschnitt-titel > .theke-abschnitt-knopf > .theke-abschnitt-knopf-text { height: calc(var(--theke-zeilen) * 1.3em); }
+  .theke .theke-tabelle.theke-hat-zeilen .theke-tabelle-text { height: calc(var(--theke-zeilen) * 1.4em); }
 }
 
 /* ================================================================== v3: Animationen (K-090 … K-092, SPEC §16.6)

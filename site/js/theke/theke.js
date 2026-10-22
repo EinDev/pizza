@@ -8,7 +8,7 @@
  *   PizzaTheke.registriere(art, { erzeuge: function (knoten, ctx) { return element; },
  *                                 aktualisiere: function (element, felder, ctx) {},
  *                                 felder?: ["text", …],      // bekannte Felder (sonst einmalige Warnung)
- *                                 kindSichtbar?: function (element, kindEl, ctx) {},   // v4: ein Kind hat sichtbar gewechselt
+ *                                 kindSichtbar?: function (element, kindEl, ctx) {},   // v4: ein Kind hat sichtbar (v6: oder marke) gewechselt
  *                                 taste?: function (element, taste, ctx, e) { return aktiv; } });   // v4: Tastendruck (K-110)
  *
  * Reines DOM, keine Abhängigkeiten, kein Netzwerk, kein eval, keine Inline-Handler (strikte CSP).
@@ -38,7 +38,9 @@
     schrift: ["klein", "normal", "gross", "riesig", "mono"],
     farbe: ["tomate", "basilikum", "mozzarella", "kruste", "normal"],
     ausrichtung: { start: "start", links: "start", oben: "start", mitte: "mitte", zentriert: "mitte",
-                   ende: "ende", rechts: "ende", unten: "ende", strecken: "strecken" }
+                   ende: "ende", rechts: "ende", unten: "ende", strecken: "strecken" },
+    // v6 (K-120): Lage quer zur Reihe – an einer Reihe für ihre Kinder, an einer Zutat direkt in einer Reihe für sich selbst
+    senkrecht: ["oben", "mitte", "unten", "strecken"]
   };
 
   /** Länge: Zahl (px) oder "voll"/"auto". Liefert CSS-Wert oder null. */
@@ -76,12 +78,17 @@
         if (weg || w === "normal") { setzeKlasse(el, "theke-" + k + "-", null); continue; }
         if (STIL[k].indexOf(w) < 0) { warne("Ungültiger Wert für stil." + k + ":", w); continue; }
         setzeKlasse(el, "theke-" + k + "-", w);
+      } else if (k === "senkrecht") {
+        if (weg) { setzeKlasse(el, "theke-senkrecht-", null); continue; }
+        if (STIL.senkrecht.indexOf(w) < 0) { warne("Ungültiger Wert für stil.senkrecht:", w); continue; }
+        setzeKlasse(el, "theke-senkrecht-", w);
       } else if (k === "ausrichtung") {
         if (weg) { setzeKlasse(el, "theke-ausrichtung-", null); continue; }
         if (!hat.call(STIL.ausrichtung, w)) { warne("Ungültiger Wert für stil.ausrichtung:", w); continue; }
         setzeKlasse(el, "theke-ausrichtung-", STIL.ausrichtung[w]);
       } else if (k === "zeilen") {
-        // v4 (K-113): genau n Textzeilen hoch, längerer Text mit „…“ – wirkt per CSS auf schild/knopf/haken, sonst still.
+        // v4 (K-113): genau n Textzeilen hoch, längerer Text mit „…“ – wirkt per CSS auf schild/knopf/haken,
+        // v6 (K-121) auch auf den Abschnitt-Titel und jede Tabellenzelle; sonst still.
         if (weg) { el.style.removeProperty("--theke-zeilen"); el.classList.remove("theke-hat-zeilen"); continue; }
         if (typeof w !== "number" || !isFinite(w) || w < 1 || Math.floor(w) !== w) { warne("Ungültiger Wert für stil.zeilen:", w); continue; }
         el.style.setProperty("--theke-zeilen", String(w));
@@ -100,17 +107,17 @@
 
   // ------------------------------------------------------------------ Zutaten-Registry
   var registry = Object.create(null);
-  var ALLGEMEINE_FELDER = ["id", "art", "stil", "sichtbar", "hinweis", "uebergang"];
+  var ALLGEMEINE_FELDER = ["id", "art", "stil", "sichtbar", "hinweis", "uebergang", "marke"];
 
   // K-115: Ein vollständiger Knoten (mit art) in einer kinder-Liste ist der ganze Zustand der Zutat. Felder, die das Programm nur
   // bei Abweichung vom Standard sendet, gelten dort als Standard – auch wenn das Element wiederverwendet wird (Zutat wandert).
-  var STIL_SCHLUESSEL = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite"];
+  var STIL_SCHLUESSEL = ["breite", "hoehe", "abstand", "ausrichtung", "schrift", "farbe", "zeilen", "mindestbreite", "senkrecht"];
   var STANDARD_FELDER = {
     knopf: { aktiv: true }, takt: { aktiv: true }, auswahl: { aktiv: true }, tastatur: { aktiv: true },
     eingabe: { platzhalter: "" }, fortschritt: { text: "" }, abschnitt: { klappbar: false, zu: false }
   };
   function mitStandard(k) {
-    var f = { sichtbar: true, hinweis: "", uebergang: false }, x;
+    var f = { sichtbar: true, hinweis: "", uebergang: false, marke: "" }, x;
     var art = hat.call(STANDARD_FELDER, k.art) ? STANDARD_FELDER[k.art] : {};
     for (x in art) f[x] = art[x];
     for (x in k) if (hat.call(k, x)) f[x] = k[x];
@@ -340,7 +347,9 @@
       el.appendChild(kopf); el.appendChild(inhalt);
       // Der Klapp-Knopf (Pfeil ▸/▾ per CSS vor dem Titel) sitzt nur bei klappbar im Kopf.
       var knopf = d.createElement("button"); knopf.type = "button"; knopf.className = "theke-abschnitt-knopf";
-      var z = { ctx: ctx, titel: "", klappbar: false, zu: false, kopf: kopf, inhalt: inhalt, knopf: knopf };
+      // Titeltext in einem span: so klemmt stil.zeilen (K-121) den Text, nicht den Pfeil davor
+      var knopfText = d.createElement("span"); knopfText.className = "theke-abschnitt-knopf-text"; knopf.appendChild(knopfText);
+      var z = { ctx: ctx, titel: "", klappbar: false, zu: false, kopf: kopf, inhalt: inhalt, knopf: knopf, knopfText: knopfText };
       abschnittZustand.set(el, z);
       ctx.bei("click", function () {
         if (!z.klappbar) return;
@@ -362,9 +371,10 @@
   });
   function zeichneAbschnitt(z) {
     var kopf = z.kopf, knopf = z.knopf;
+    kopf.classList.toggle("theke-abschnitt-titel-klappbar", z.klappbar);
     if (z.klappbar) {
       if (knopf.parentNode !== kopf) { kopf.textContent = ""; kopf.appendChild(knopf); }
-      knopf.textContent = z.titel;
+      z.knopfText.textContent = z.titel;
       knopf.setAttribute("aria-expanded", z.zu ? "false" : "true");
       kopf.hidden = false;                 // leerer Titel → nur der Pfeil
     } else {
@@ -409,6 +419,11 @@
       if (hat.call(f, "spalten") || hat.call(f, "zeilen")) zeichneTabelle(el, z, ctx.dokument);
     }
   });
+  /** Zelltext in einem span: so klemmt stil.zeilen (K-121) jede Zelle auf genau n Zeilen (td selbst kann das nicht). */
+  function zellText(zelle, text, d) {
+    var sp = d.createElement("span"); sp.className = "theke-tabelle-text"; sp.textContent = text;
+    zelle.appendChild(sp);
+  }
   function zeichneTabelle(el, z, d) {
     var tab = el.firstChild, kopf = tab.tHead, rumpf = tab.tBodies[0];
     var n = z.spalten.length, s, r;
@@ -430,7 +445,7 @@
       for (s = 0; s < n; s++) {
         var th = d.createElement("th");
         th.setAttribute("scope", "col");
-        th.textContent = s < z.spalten.length ? z.spalten[s] : "";
+        zellText(th, s < z.spalten.length ? z.spalten[s] : "", d);
         if (zahl[s]) th.className = "theke-tabelle-zahl";
         kz.appendChild(th);
       }
@@ -449,7 +464,7 @@
       var tr = d.createElement("tr");
       for (s = 0; s < n; s++) {
         var td = d.createElement("td");
-        td.textContent = s < z.zeilen[r].length ? z.zeilen[r][s] : "";
+        zellText(td, s < z.zeilen[r].length ? z.zeilen[r][s] : "", d);
         if (zahl[s]) td.className = "theke-tabelle-zahl";
         tr.appendChild(td);
       }
@@ -550,12 +565,20 @@
       b.type = "button";
       b.className = "theke-reiter-tab";
       b.setAttribute("role", "tab");
+      // Titel im span; die Marke (v6, K-124) liegt als Badge über der rechten oberen Ecke – sie verschiebt keinen Tab
+      var bt = d.createElement("span"); bt.className = "theke-reiter-tab-text"; b.appendChild(bt);
+      var bm = d.createElement("span"); bm.className = "theke-reiter-marke"; bm.hidden = true; bm.setAttribute("aria-hidden", "true");
+      b.appendChild(bm);
       z.leiste.appendChild(b);
     }
     for (i = 0; i < n; i++) {
       var tab = z.leiste.children[i], an = i + 1 === g;
       var t = i < z.titel.length && z.titel[i] !== "" ? z.titel[i] : "Seite " + (i + 1);
-      if (tab.textContent !== t) tab.textContent = t;
+      if (tab.firstChild.textContent !== t) tab.firstChild.textContent = t;
+      var m = i < seiten.length ? seiten[i].getAttribute("data-theke-marke") || "" : "";
+      if (tab.lastChild.textContent !== m) tab.lastChild.textContent = m;
+      tab.lastChild.hidden = m === "";
+      if (m) tab.setAttribute("aria-label", t + " (" + m + ")"); else tab.removeAttribute("aria-label");
       tab.setAttribute("data-theke-nr", String(i + 1));
       tab.setAttribute("aria-selected", an ? "true" : "false");
       tab.tabIndex = an ? 0 : -1;
@@ -563,7 +586,7 @@
       tab.hidden = i < seiten.length && versteckt(seiten[i]);   // versteckte Seite → kein Tab (K-107)
     }
     for (i = 0; i < seiten.length; i++) seiten[i].classList.toggle("theke-reiter-aus", i + 1 !== g);
-    if (g) z.seiten.setAttribute("aria-label", z.leiste.children[g - 1].textContent); else z.seiten.removeAttribute("aria-label");
+    if (g) z.seiten.setAttribute("aria-label", z.leiste.children[g - 1].firstChild.textContent); else z.seiten.removeAttribute("aria-label");
   }
   /** Nutzer wählt Seite nr: sofort lokal umschalten, dann (nur bei echter Änderung der gezeigten Seite) aenderung senden. */
   function waehleReiter(z, nr, fokus) {
@@ -1264,6 +1287,14 @@
       if (hat.call(felder, "hinweis")) {
         var h = alsText(felder.hinweis);
         if (h) e.el.setAttribute("title", h); else e.el.removeAttribute("title");
+      }
+      if (hat.call(felder, "marke")) {
+        // v6 (K-124): die Marke zeigt der Reiter am Tab dieser Seite; sonst wird sie nur gemerkt
+        var m = alsText(felder.marke);
+        if (m !== (e.el.getAttribute("data-theke-marke") || "")) {
+          if (m) e.el.setAttribute("data-theke-marke", m); else e.el.removeAttribute("data-theke-marke");
+          if (e.gebaut) meldeKindSichtbar(e.el);
+        }
       }
       var def = e.def;
       if (def.felder) {

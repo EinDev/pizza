@@ -1494,3 +1494,72 @@ test("K-115: Abschnitt als vollständiger Knoten ohne klappbar/zu → aufgeklapp
   assert.equal(a.querySelector(".theke-abschnitt-knopf"), null, "nicht mehr klappbar");
   assert.equal($("s").parentNode.hidden, false, "aufgeklappt");
 }));
+
+// ------------------------------------------------------------------ Theke v6 (K-120 … K-124)
+test("v6 K-120 Stil senkrecht: Klasse theke-senkrecht-*, null entfernt, ungültig ignoriert", mitUmgebung(({ t, $, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "r", art: "reihe", stil: { senkrecht: "oben" }, kinder: [
+    { id: "a", art: "stapel", stil: { senkrecht: "strecken" }, kinder: [] }, { id: "b", art: "knopf", text: "b" }] } });
+  assert.ok($("r").classList.contains("theke-senkrecht-oben"));
+  assert.ok($("a").classList.contains("theke-senkrecht-strecken"));
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "r", stil: { senkrecht: "unten" } }, { id: "a", stil: { senkrecht: null } }] });
+  assert.ok($("r").classList.contains("theke-senkrecht-unten") && !$("r").classList.contains("theke-senkrecht-oben"));
+  assert.equal([...$("a").classList].some((k) => k.startsWith("theke-senkrecht-")), false);
+  assert.deepEqual(warnungen, []);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "r", stil: { senkrecht: "links" } }] });
+  assert.ok(warnungen.some((w) => /stil\.senkrecht/.test(w)));
+  assert.ok($("r").classList.contains("theke-senkrecht-unten"), "alter Wert bleibt");
+  // K-115: ganzer Knoten ohne stil → senkrecht zurückgesetzt
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "r", kinder: [{ id: "a", art: "stapel", kinder: [] }, { id: "b" }] }] });
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "r", art: "reihe", kinder: [] } });
+  assert.equal([...$("r").classList].some((k) => k.startsWith("theke-senkrecht-")), false);
+}));
+
+test("v6 K-121 zeilen: Abschnitt-Titel (auch klappbar) und Tabellenzellen tragen den Text in einem span", mitUmgebung(({ t, $ }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "a", art: "abschnitt", titel: "Titel A", stil: { zeilen: 1 }, kinder: [] },
+    { id: "k", art: "abschnitt", titel: "Klapp", klappbar: true, stil: { zeilen: 2 }, kinder: [] },
+    { id: "tb", art: "tabelle", spalten: ["Name", "€"], zeilen: [["Margherita", "8,00 €"], ["x"]], stil: { zeilen: 1 } }] } });
+  assert.ok($("a").classList.contains("theke-hat-zeilen"));
+  assert.equal($("a").querySelector(".theke-abschnitt-titel").textContent, "Titel A");
+  assert.equal($("a").querySelector(".theke-abschnitt-titel").classList.contains("theke-abschnitt-titel-klappbar"), false);
+  const kt = $("k").querySelector(".theke-abschnitt-titel");
+  assert.ok(kt.classList.contains("theke-abschnitt-titel-klappbar"));
+  assert.equal(kt.querySelector(".theke-abschnitt-knopf > .theke-abschnitt-knopf-text").textContent, "Klapp");
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", titel: "Neu", klappbar: false }] });
+  assert.equal(kt.textContent, "Neu");
+  assert.equal(kt.classList.contains("theke-abschnitt-titel-klappbar"), false);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "k", klappbar: true }] });
+  assert.equal(kt.querySelector(".theke-abschnitt-knopf-text").textContent, "Neu");
+  const zellen = [...$("tb").querySelectorAll("th, td")];
+  assert.deepEqual(zellen.map((z) => z.textContent), ["Name", "€", "Margherita", "8,00 €", "x", ""]);
+  assert.ok(zellen.every((z) => z.children.length === 1 && z.firstChild.className === "theke-tabelle-text"));
+  assert.ok($("tb").classList.contains("theke-hat-zeilen"));
+}));
+
+test("v6 K-124 marke: Badge am Tab der Seite, folgt aendere der Seite, leer = kein Badge, außerhalb eines Reiters nur gemerkt", mitUmgebung(({ t, $, warnungen }) => {
+  t.empfange({ v: 1, op: "baum", wurzel: { id: "w", art: "stapel", kinder: [
+    { id: "r", art: "reiter", titel: ["Backstube", "Imperium"], gewaehlt: 1, kinder: [
+      { id: "p1", art: "stapel", marke: "neu", kinder: [] }, { id: "p2", art: "stapel", kinder: [] }] },
+    { id: "k", art: "knopf", text: "k", marke: "!" }] } });
+  const tabs = [...$("r").querySelectorAll(".theke-reiter-tab")];
+  const marke = (i) => tabs[i].querySelector(".theke-reiter-marke");
+  assert.equal(tabs[0].querySelector(".theke-reiter-tab-text").textContent, "Backstube");
+  assert.equal(marke(0).textContent, "neu");
+  assert.equal(marke(0).hidden, false);
+  assert.equal(tabs[0].getAttribute("aria-label"), "Backstube (neu)");
+  assert.equal(marke(1).hidden, true);
+  assert.equal(tabs[1].getAttribute("aria-label"), null);
+  assert.equal($("r").querySelector(".theke-reiter-seiten").getAttribute("aria-label"), "Backstube");
+  assert.equal($("k").getAttribute("data-theke-marke"), "!", "außerhalb eines Reiters nur gemerkt");
+  assert.equal($("k").querySelector(".theke-reiter-marke"), null);
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p2", marke: "⭐ 3" }, { id: "p1", marke: "" }] });
+  assert.equal(marke(1).textContent, "⭐ 3");
+  assert.equal(marke(1).hidden, false);
+  assert.equal(marke(0).hidden, true);
+  assert.equal(tabs[1].getAttribute("aria-label"), "Imperium (⭐ 3)");
+  // Seite wandert hinaus → Tab ohne Marke; ganze Knoten ohne marke (K-115) → keine Marke
+  t.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "r", kinder: [{ id: "p1", art: "stapel", kinder: [] }, { id: "p2", art: "stapel", kinder: [] }] }] });
+  const tabs2 = [...$("r").querySelectorAll(".theke-reiter-tab")];
+  assert.ok(tabs2.every((x) => x.querySelector(".theke-reiter-marke").hidden));
+  assert.deepEqual(warnungen, []);
+}));

@@ -46,7 +46,8 @@ theke.zerstoere();             // Listener + DOM weg, danach ist alles wirkungsl
 
 Gemeinsam für alle Zutaten (in `baum`-Knoten **und** `aendere`-Einträgen, gleicher Codepfad):
 `id`, `art`, `sichtbar` (bool), `stil` (Objekt, Teil-Updates; `null` setzt einen Schlüssel zurück),
-`hinweis` (Text → Tooltip/`title`-Attribut; leer/`null` entfernt ihn), `uebergang` (bool, v3 – s. u.).
+`hinweis` (Text → Tooltip/`title`-Attribut; leer/`null` entfernt ihn), `uebergang` (bool, v3 – s. u.),
+`marke` (Text, v6 – Badge am Reiter-Tab dieser Seite, s. u.; außerhalb eines Reiters nur als `data-theke-marke` gemerkt).
 
 | art | Felder | Ereignisse |
 |---|---|---|
@@ -98,8 +99,21 @@ v2-Zutaten (`THEKE-ERWEITERUNGEN.md`, Abschnitt „v2-Zutaten“ in `theke.js`):
 | `ausrichtung` | `start`/`links`/`oben`, `mitte`/`zentriert`, `ende`/`rechts`/`unten`, `strecken` | Stapel: Querachse; Reihe: Hauptachse; Einzel-Zutat: Lage im Behälter + Textausrichtung |
 | `schrift` | `klein`, `normal`, `gross`, `riesig`, `mono` | Klasse `theke-schrift-…` (`riesig`: großer Zähler/Knopf) |
 | `farbe` | `tomate`, `basilikum`, `mozzarella`, `kruste`, `normal` | Schild: Textfarbe; Knopf: Füllung; Eingabe/Haken: Akzent; Behälter: getönte Karte; Auswahl: gewählte Option |
-| `zeilen` (v4) | ganze Zahl ≥ 1 | `--theke-zeilen` + Klasse `theke-hat-zeilen`: der Text von `schild`, `knopf` (innerer `span.theke-knopf-text`) und `haken` ist **genau** n Zeilen hoch (`n × 1lh`, auch bei kurzem Text), längerer Text endet mit „…“ (`line-clamp`); andere Zutaten tragen die Property, das CSS ignoriert sie |
+| `zeilen` (v4) | ganze Zahl ≥ 1 | `--theke-zeilen` + Klasse `theke-hat-zeilen`: der Text von `schild`, `knopf` (innerer `span.theke-knopf-text`) und `haken` ist **genau** n Zeilen hoch (`n × 1lh`, auch bei kurzem Text), längerer Text endet mit „…“ (`line-clamp`); v6 (K-121) ebenso der `abschnitt`-Titel (Kopf bzw. `span.theke-abschnitt-knopf-text` im Klapp-Knopf) und jede `tabelle`-Zelle inkl. Kopfzeile (`span.theke-tabelle-text`; die Tabelle bekommt `table-layout: fixed` – Spalten gleich breit, Text bricht um); andere Zutaten tragen die Property, das CSS ignoriert sie |
 | `mindestbreite` (v4) | wie `breite` (Zahl px 0–4000, `"voll"`, `"auto"`) | `--theke-mindestbreite` + Klasse `theke-hat-mindestbreite` → `min-width` (nie schmaler, darf wachsen); für jede Zutat |
+| `senkrecht` (v6, K-120) | `oben`, `mitte`, `unten`, `strecken` | Klasse `theke-senkrecht-…`: an einer `reihe` die Lage aller Kinder quer zur Reihe (`align-items`; Standard bleibt mitte), an einem direkten Kind einer `reihe` seine eigene Lage (`align-self`, schlägt `ausrichtung`); sonst ohne Wirkung |
+
+## v6: ruhiges Raster (K-120 … K-124, SPEC §16.9)
+
+- **Feste Innenbreite (K-122):** `.theke` rollt senkrecht immer mit `overflow-y: scroll` und einem gestalteten 8-px-Rollbalken
+  (`::-webkit-scrollbar`, Spur durchsichtig – ohne Überlauf unsichtbar), `.theke-inhalt` hat rechts 12 px statt 20 px Innenabstand: der Inhalt
+  ist **immer** `breite − 40` px breit, mit und ohne Rollbalken (Chromium/Edge, WebView2, WebKitGTK). Firefox (kein `::-webkit-scrollbar`):
+  `scrollbar-gutter: stable` + `scrollbar-width: thin`. `.theke-inhalt` schneidet waagrecht ab (`overflow-x: clip`) – ein `puls` am
+  Rand lässt keinen waagrechten Rollbalken aufblitzen.
+- **Marke (K-124):** jeder Tab hat `span.theke-reiter-tab-text` und `span.theke-reiter-marke` (`aria-hidden`; der Tab bekommt dann
+  `aria-label` „Titel (Marke)“). Die Marke ist absolut über der rechten oberen Tab-Ecke, im 7-px-Rand, den die Leiste immer oben hat
+  – Tabs und Nachbarn verschieben sich nie; lang → „…“. Mechanik: `marke` landet als `data-theke-marke` an der Seite, ein echter
+  Wechsel ruft den Hook `kindSichtbar` des Reiters (wie ein sichtbar-Wechsel).
 
 ## v4: Reiter-Seiten, klappbarer Abschnitt, Auswahl, Tastatur (K-107 … K-110, SPEC §16.7)
 
@@ -153,7 +167,7 @@ PizzaTheke.registriere("leinwand", {
     return el;
   },
   aktualisiere(el, felder, ctx) { /* nur vorhandene Felder anwenden */ },
-  kindSichtbar(el, kindEl, ctx) {},                   // optional (v4): ein Kind (auch in einem inneren Bereich) hat sichtbar gewechselt
+  kindSichtbar(el, kindEl, ctx) {},                   // optional (v4): ein Kind (auch in einem inneren Bereich) hat sichtbar (v6: oder marke) gewechselt
   taste(el, name, ctx, e) { return false; },          // optional (v4): Tastendruck auf der Theke; true = aktiv angenommen (→ preventDefault-Regel)
 });
 ```

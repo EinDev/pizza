@@ -33,7 +33,8 @@ const chrome = [process.env.CHROME_PFAD, "C:/Program Files/Google/Chrome/Applica
 if (!chrome) { console.log("Kein Chrome gefunden – visueller Check übersprungen."); server.close(); process.exit(0); }
 
 fs.mkdirSync(ARTEFAKTE, { recursive: true });
-const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox"] });
+// Echte Rollbalken (Puppeteer blendet sie sonst aus): die feste Innenbreite (K-122) hängt an der Rinne des Rollbalkens.
+const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox"], ignoreDefaultArgs: ["--hide-scrollbars"] });
 const fehler = [];
 let ok = true;
 try {
@@ -124,7 +125,7 @@ try {
     if (JSON.stringify(v4a) !== JSON.stringify(v4aErw)) { ok = false; console.log("v4 (Start) falsch:", JSON.stringify(v4a)); }
     await page.screenshot({ path: path.join(ARTEFAKTE, `v4-hell4-${schema}.png`), clip: await (await page.$("#hell4")).boundingBox() });
     await page.screenshot({ path: path.join(ARTEFAKTE, `v4-dunkel4-${schema}.png`), clip: await (await page.$("#dunkel4")).boundingBox() });
-    // Interaktion: Auswahl-Klick, Abschnitt klappen (Klick + Enter – Enter erreicht zusätzlich die Tastatur, K-110),
+    // Interaktion: Auswahl-Klick, Abschnitt klappen (Klick + Enter – Enter gehört dem Klapp-Knopf, K-114),
     // Reiter-Klick auf die erste Seite, Tasten auf der fokussierten Wurzel (Shift: Modifikator → nichts), Tippen in einer anderen Theke/Eingabe → nichts
     await page.click("#hell4 [data-theke-id=menge] [role=radio]:nth-child(4)");
     await page.click("#hell4 [data-theke-id=menge] [role=radio]:nth-child(4)");          // gleiche Option: nichts
@@ -160,13 +161,49 @@ try {
       };
     });
     const v4bErw = { ereignisse: [
-      { typ: "aenderung", id: "menge", wert: 4 }, { typ: "aenderung", id: "erledigt", wert: true }, { typ: "taste", id: "tasten", taste: "Enter" },
+      // K-114: Enter auf dem fokussierten Klapp-Knopf gehört dem Knopf – die Tastatur bekommt es nicht (eine Taste, ein Empfänger)
+      { typ: "aenderung", id: "menge", wert: 4 }, { typ: "aenderung", id: "erledigt", wert: true },
       { typ: "aenderung", id: "klein", wert: false }, { typ: "aenderung", id: "reiter", wert: 1 },
       { typ: "taste", id: "tasten", taste: "Leertaste" }, { typ: "taste", id: "tasten", taste: "Links" }],
       erledigtZu: true, kleinOffen: true, pfeilOffen: '"▾"', backstubeDa: true, tasteSchild: "Taste: Links", mengeAn: "Max",
       schildGleich: true, schildZeilen: 2, knopfGleich: true, knopfZweiHoeher: true, knopfMindestbreite: true, hakenEineZeile: true };
     if (JSON.stringify(v4b) !== JSON.stringify(v4bErw)) { ok = false; console.log("v4 (Interaktion/Layout) falsch:", JSON.stringify(v4b)); }
     await page.screenshot({ path: path.join(ARTEFAKTE, `v4-hell4-geklickt-${schema}.png`), clip: await (await page.$("#hell4")).boundingBox() });
+
+    // v6 (K-120 … K-124): senkrecht, Marke ohne Verschieben, zeilen an Abschnitt/Tabelle, feste Innenbreite mit/ohne Rollbalken
+    const v6 = await page.evaluate(() => {
+      const q = (s) => document.querySelector(s);
+      const r = (s) => q(s).getBoundingClientRect();
+      const innen = (id) => { const el = q(`#${id} .theke-inhalt`), cs = getComputedStyle(el); return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); };
+      const tabs = () => [...document.querySelectorAll("#hell6 [data-theke-id=reiter] [role=tab]")].map((b) => { const x = b.getBoundingClientRect(); return [Math.round(x.left * 10) / 10, Math.round(x.width * 10) / 10]; });
+      const vorher = tabs();
+      const marken = [...document.querySelectorAll("#hell6 .theke-reiter-marke")].map((m) => (m.hidden ? "" : m.textContent));
+      window.__theken6.hell6.empfange({ v: 1, op: "aendere", aenderungen: [{ id: "p1", marke: "neu" }, { id: "p2", marke: "" }, { id: "p3", marke: "1.234" }] });
+      const nachher = tabs();
+      const zeilenH = [...document.querySelectorAll("#hell6 [data-theke-id=tab] tbody .theke-tabelle-text")].map((z) => Math.round(z.getBoundingClientRect().height * 10) / 10);
+      const titel = q("#hell6 [data-theke-id=links] .theke-abschnitt-titel");
+      const theke = q("#hell6 .theke");
+      return {
+        innenRollt: innen("hell6"), innenOhne: innen("hell6k"), rollt: theke.scrollHeight > theke.clientHeight,
+        rolltNicht: q("#hell6k .theke").scrollHeight <= q("#hell6k .theke").clientHeight,
+        obenBuendig: Math.abs(r("#hell6 [data-theke-id=links]").top - r("#hell6 [data-theke-id=rechts]").top) < 0.5,
+        obenUngleich: r("#hell6 [data-theke-id=links]").height > r("#hell6 [data-theke-id=rechts]").height + 20,
+        gestreckt: Math.abs(r("#hell6 [data-theke-id=s1]").height - r("#hell6 [data-theke-id=s2]").height) < 0.5,
+        einzelnOben: Math.abs(r("#hell6 [data-theke-id=e-oben]").top - r("#hell6 [data-theke-id=einzeln]").top) < 0.5,
+        einzelnUnten: Math.abs(r("#hell6 [data-theke-id=e-unten]").bottom - r("#hell6 [data-theke-id=einzeln]").bottom) < 0.5,
+        titelEineZeile: Math.round(titel.getBoundingClientRect().height) === Math.round(parseFloat(getComputedStyle(titel).lineHeight)),
+        zeilenGleich: zeilenH.every((h) => h === zeilenH[0]) || zeilenH.join("/"),
+        tabelleOhneUeberlauf: q("#hell6 [data-theke-id=tab]").scrollWidth <= q("#hell6 [data-theke-id=tab]").clientWidth,
+        marken, tabsFest: JSON.stringify(vorher) === JSON.stringify(nachher),
+      };
+    });
+    const v6Erw = { innenRollt: 400, innenOhne: 400, rollt: true, rolltNicht: true, obenBuendig: true, obenUngleich: true, gestreckt: true,
+      einzelnOben: true, einzelnUnten: true, titelEineZeile: true, zeilenGleich: true, tabelleOhneUeberlauf: true,
+      marken: ["", "⭐ 3", "12"], tabsFest: true };
+    if (JSON.stringify(v6) !== JSON.stringify(v6Erw)) { ok = false; console.log("v6 falsch:", JSON.stringify(v6)); }
+    for (const id of ["hell6", "dunkel6", "hell6k"]) {
+      await page.screenshot({ path: path.join(ARTEFAKTE, `v6-${id}-${schema}.png`), clip: await (await page.$("#" + id)).boundingBox() });
+    }
 
     // Fokusring per Tastatur zeigen (dunkles Fenster)
     await page.focus("#dunkel [data-theke-id=anzahl]");
