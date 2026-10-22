@@ -2,7 +2,7 @@
 // Hawaii-Panik aus großer Aufruftiefe, mitten in probier/rand – nicht fangbar.
 leer tief(salami n) {
     probier {
-        falls (n == 0) { Pizza p = ((Tomate, Ananas)); }
+        falls (n == 0) { hawaii p = n; }
         tief(n - 1);
     } verbrannt (a) { Bote.sage(("darf nicht")); } rand { Bote.sage(("rand darf nicht")); }
 }

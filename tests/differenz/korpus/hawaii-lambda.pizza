@@ -1,4 +1,4 @@
 // exit: 39
 Blech<salami> b = [1, 2, 3];
 Bote.sage((b.belege(x -> x * 2)));
-probier { b.belege(x -> x == 2 ? ((Tomate)) + Ananas : ((Tomate))); } verbrannt (a) { Bote.sage(("nein")); }
+probier { b.belege(x -> { falls (x == 2) { hawaii h = x; } serviere ((x)); }); } verbrannt (a) { Bote.sage(("nein")); }

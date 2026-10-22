@@ -1,7 +1,0 @@
-// exit: 2
-Bote.sage(("vorher"));
-Pizza p = ((Tomate));
-Pizza q = p + Mozzarella;
-Bote.sage((q));
-Pizza r = ((Käse, Tomate));
-Bote.sage(("nie"));

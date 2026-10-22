@@ -1,0 +1,35 @@
+// exit: 0
+// schieb(x) bleibt (K-105); Zuweisung per Name ist für jeden Typ erlaubt.
+klasse Pizza { margherita name; Pizza(margherita n) { name = n; } margherita alsText() { serviere ((name)); } }
+Pizza p = neu Pizza("Tomate");
+Pizza q = schieb(p);
+probier { Bote.sage((p)); } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }
+p = neu Pizza("Pilze");
+Bote.sage((p));
+Pizza r = q;
+Bote.sage((r == q));
+Bote.sage((q));
+klasse Tisch { Pizza belegt; }
+Tisch t = neu Tisch();
+t.belegt = q;
+Pizza x = t.belegt;
+Bote.sage((x == t.belegt));
+probier { schieb(t.belegt); } verbrannt (LaufzeitAnanas a) { Bote.sage((a)); }
+Pizza gib(Pizza z) { serviere ((z)); }
+Bote.sage((gib(neu Pizza("Mais"))));
+salami n = 5;
+salami m = schieb(n);
+Bote.sage((m));
+probier { n++; } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }
+probier { schieb(n); } verbrannt (LeererKartonAnanas a) { Bote.sage((a.typ())); }
+n = 7;
+Bote.sage((n));
+klasse Teller { margherita inhalt = "Rest"; margherita nimm() { serviere ((schieb(inhalt))); } }
+Teller te = neu Teller();
+Bote.sage((te.nimm()));
+probier { te.nimm(); } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }
+Blech<salami> b = [1, 2];
+Blech<salami> c = schieb(b);
+c.hinzu(3);
+Bote.sage((c));
+probier { b.hinzu(4); } verbrannt (LeererKartonAnanas a) { Bote.sage((a)); }

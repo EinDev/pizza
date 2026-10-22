@@ -1,13 +1,20 @@
 // exit: 0
-Pizza p = ((Tomate));
+klasse Pizza {
+    Blech<margherita> beläge;
+    Pizza(Blech<margherita> b) { beläge = b; }
+    funghi preis() { serviere ((5 + beläge.länge() * 1.5)); }
+    Pizza mit(margherita b) { Blech<margherita> n = beläge.kopie(); n.hinzu(b); serviere ((neu Pizza(n))); }
+    Pizza ohne(margherita b) { serviere ((neu Pizza(beläge.filtere(x -> x != b)))); }
+}
+Pizza p = neu Pizza(["Tomate"]);
 funghi summe = 0;
 für (salami i = 0; i < 20000; i++) {
-    Pizza q = p + Salami;
+    Pizza q = p.mit("Salami");
     summe += q.preis();
 }
 Bote.sage((summe));
-Pizza gross = ((Tomate));
-für (salami i = 0; i < 500; i++) { gross = gross + Pilze; }
-Bote.sage((gross.anzahlBeläge()));
+Pizza gross = neu Pizza(["Tomate"]);
+für (salami i = 0; i < 500; i++) { gross = gross.mit("Pilze"); }
+Bote.sage((gross.beläge.länge()));
 Bote.sage((gross.preis()));
-Bote.sage(((gross - Pilze).anzahlBeläge()));
+Bote.sage((gross.ohne("Pilze").beläge.länge()));
