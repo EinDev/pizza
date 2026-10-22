@@ -1,51 +1,47 @@
 // Stufe 1 eines Idle-Games: die Kernschleife in 50 Zeilen.
 // Klicken → Pizza verkaufen → Teigschaber kaufen → mehr Pizzen pro Klick.
 // Jeder weitere Teigschaber kostet 15 % mehr – das ist das Geheimnis aller Klicker.
+// Kasse, Pizzen pro Klick und Teigschaber liegen auf Zetteln; die Anzeige ist daran
+// GEBUNDEN (binde): Die Klicks ändern nur die Zettel, die Theke folgt von selbst.
 // Das ganze Spiel mit Rezeptbuch, Ereignissen und Sternen: „Pizza-Imperium“.
 
 Theke theke = neu Theke("Erste Pizzeria", breite: 360, hoehe: 300);
 
 // Margherita: 5 € Teig und Ofen + Tomate 1 € + Mozzarella 1,50 € + Basilikum 0,50 €
 funghi preis = 5 + 1 + 1.5 + 0.5;     // 8 € pro Pizza
-funghi kasse = 0;
-salami proKlick = 1;
-salami schaber = 0;
+Zettel kasse = neu Zettel(0);
+Zettel proKlick = neu Zettel(1);
+Zettel schaber = neu Zettel(0);
 
-funghi kosten() { serviere (Mathe.runden(30 * Mathe.potenz(1.15, schaber))); }
+funghi kosten() { serviere (Mathe.runden(30 * Mathe.potenz(1.15, schaber.wert()))); }
 
 Schild geld = neu Schild("", id: "geld");
 geld.stil("schrift", "gross").stil("farbe", "basilikum").stil("ausrichtung", "mitte");
+geld.binde("text", () -> kasse.wert().euro());
 Schild info = neu Schild("", id: "info");
 info.stil("schrift", "klein").stil("ausrichtung", "mitte");
+info.binde("text", () -> (proKlick.wert() + (proKlick.wert() == 1 ? " Pizza" : " Pizzen") + " pro Klick · " + preis.euro() + " pro Pizza"));
 Knopf backen = neu Knopf("", id: "backen");
 backen.stil("schrift", "gross").stil("farbe", "tomate").stil("ausrichtung", "mitte");
+backen.binde("text", () -> ("🍕 Pizza backen! +" + proKlick.wert()));
 Knopf kaufen = neu Knopf("", id: "kaufen");
 kaufen.stil("ausrichtung", "mitte");
-
-leer zeige() {
-    geld.setzeText((kasse.euro()));
-    info.setzeText((proKlick + (proKlick == 1 ? " Pizza" : " Pizzen") + " pro Klick · " + preis.euro() + " pro Pizza"));
-    backen.setzeText(("🍕 Pizza backen! +" + proKlick));
-    kaufen.setzeText(("🥄 Teigschaber Nr. " + (schaber + 1) + " · " + kosten().euro()));
-    kaufen.aktiv(kasse >= kosten());
-}
+kaufen.binde("text", () -> ("🥄 Teigschaber Nr. " + (schaber.wert() + 1) + " · " + kosten().euro()));
+kaufen.binde("aktiv", () -> kasse.wert() >= kosten());
 
 backen.beiKlick(() -> {
-    kasse += proKlick * preis;
-    zeige();
+    kasse.setze(kasse.wert() + proKlick.wert() * preis);
 });
 
 kaufen.beiKlick(() -> {
-    falls (kasse >= kosten()) {
-        kasse -= kosten();
-        schaber++;
-        proKlick++;
-        Bote.sage(("Teigschaber Nr. " + schaber + " gekauft – jetzt " + proKlick + " Pizzen pro Klick."));
+    falls (kasse.wert() >= kosten()) {
+        kasse.setze(kasse.wert() - kosten());
+        schaber.setze(schaber.wert() + 1);
+        proKlick.setze(proKlick.wert() + 1);
+        Bote.sage(("Teigschaber Nr. " + schaber.wert() + " gekauft – jetzt " + proKlick.wert() + " Pizzen pro Klick."));
     }
-    zeige();
 });
 
-zeige();
 theke.zeige(neu Stapel([geld, info, backen, kaufen]));
 theke.bediene();
-Bote.sage(("Feierabend mit " + kasse.euro() + " in der Kasse."));
+Bote.sage(("Feierabend mit " + kasse.wert().euro() + " in der Kasse."));
