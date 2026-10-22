@@ -2349,7 +2349,7 @@ klasse BereichPanel {
     leer aktualisiereInhalt() {
         margherita s = b.schlüssel;
         salami v = spiel.versionInhalt(s);
-        diavolo neu_ = gezeigtInhalt != v || gezeigt != spiel.versionBereiche || (s == "weinkeller" && gezeigteVersion != spiel.version);
+        diavolo neu_ = gezeigtInhalt != v || gezeigt != spiel.versionBereiche || ((s == "weinkeller" || s == "garten") && gezeigteVersion != spiel.version);   // €/s bzw. Pizzapreis hängen an der Produktion
         falls (neu_) {
             gezeigtInhalt = v; gezeigt = spiel.versionBereiche; gezeigteVersion = spiel.version;
             setzeKnopf(freiKnopf, "✅", nein);
