@@ -1179,7 +1179,7 @@
   class Modul { constructor(name, methoden, felder) { this.name = name; this.methoden = methoden; this.felder = felder; } }
   class Teig { constructor(fn) { this.fn = fn; this.fertig = false; this.wert = null; this.auf = false; } }
   class Lieferung {
-    constructor(fn, nr) { this.fn = fn; this.nr = nr; this.trinkgeld = 0; this.zustellung = null; this.rueckruf = null; }
+    constructor(fn, nr) { this.fn = fn; this.nr = nr; this.prio = 0; this.trinkgeld = 0; this.zustellung = null; this.rueckruf = null; }
   }
   class Zustellung { constructor(p, w, f) { this.puenktlich = p; this.wert = w; this.fehler = f; } }
   class Reste { constructor(w, m) { this.wert = w; this.matschig = m; } }
@@ -1349,11 +1349,12 @@
     return zahlMitKomma(rundeAuf(x, n));
   }
 
-  function euroText(x) {
-    if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2) + ' €';
+  // Betrag mit zwei Nachkommastellen und Komma, ohne Tausendertrennung (K-048, K-103, K-127)
+  function betragText(x) {
+    if (!isFinite(x) || Math.abs(x) >= 1e21) return kompaktText(x, 2);
     const r = Math.round(Math.abs(x) * 100 + 1e-9) / 100;
     const [g, k] = r.toFixed(2).split('.');
-    return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k + ' €';
+    return (x < 0 && r !== 0 ? '-' : '') + g + ',' + k;
   }
 
   // mulberry32 als Objekt: eigener Strom mit Saat (K-078)
@@ -1414,10 +1415,19 @@
   }
 
   const ZAHL_M = tabelle({
+    // K-127: Geldformat mit frei wählbarem Symbol (vormals euro())
+    'währung': function (x, pos, ben) {
+      const sym = arg(pos, ben, 0, 'symbol');
+      const k = arg(pos, ben, 1, 'kompakt');
+      const betrag = k !== undefined && k !== null && this.bool(k) ? kompaktText(x, 2) : betragText(x);
+      const st = sym === undefined || sym === null ? '' : this.text(sym);
+      return st === '' ? betrag : betrag + ' ' + st;
+    },
+    // ÜBERGANG (K-127): euro() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
     'euro': function (x, pos, ben) {
       const k = arg(pos, ben, 0, 'kompakt');
       if (k !== undefined && k !== null && this.bool(k)) return kompaktText(x, 2) + ' €';
-      return euroText(x);
+      return betragText(x) + ' €';
     },
     'tausender': function (x, pos, ben) {
       const n = arg(pos, ben, 0, 'stellen');
@@ -1534,12 +1544,10 @@
       return b.map(x => this.text(x)).join(t);
     },
     'istLeer': function (b) { return b.length === 0; },
-    'schneide': function (b, pos, ben, node) {
-      let n = pos[0];
-      if (n === AUTO || n === undefined) n = 8;
-      n = this.ganzzahl(n, 'schneide');
+    'schneide': function (b, pos) {
+      // K-127: n ist Pflicht (kein `auto`, kein Standard 8), keine Warnung bei 7
+      const n = this.ganzzahl(pos[0] === undefined ? null : pos[0], 'schneide');
       if (n < 1) throw this.ananas('StreitAnanas', 'In ' + n + ' Stücke schneiden? Das geht nicht.');
-      if (n === 7) this.warnung('S0007', '7 Stücke? Wer schneidet eine Pizza in 7 Stücke?', node);
       return this.schneide(b, n);
     },
     'kopie': function (b) { return b.slice(); },
@@ -1606,11 +1614,20 @@
   });
 
   const LIEF_M = tabelle({
+    // K-127: Priorität ordnet nur die wennDa-Phase; der letzte Wert gilt
+    'priorität': function (l, pos) {
+      if (this.kueche !== null) this.kuecheLieferung(l);
+      const n = pos[0];
+      if (typeof n !== 'number') throw this.ananas('TypAnanas', 'Priorität muss eine Zahl sein, nicht ' + this.darstellung(n) + '.');
+      l.prio = n;
+      return l;
+    },
+    // ÜBERGANG (K-127): trinkgeld() bleibt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
     'trinkgeld': function (l, pos) {
       if (this.kueche !== null) this.kuecheLieferung(l);
       const n = pos[0];
       if (typeof n !== 'number') throw this.ananas('TypAnanas', 'Trinkgeld muss eine Zahl sein, nicht ' + this.darstellung(n) + '.');
-      l.trinkgeld += n;
+      l.trinkgeld += n; l.prio += n;
       return l;
     },
     'warte': function (l, pos, ben, node) {
@@ -3082,7 +3099,7 @@
       for (;;) {
         const offen = this.lieferungen.filter(l => l.rueckruf !== null && l.zustellung === null);
         if (!offen.length) break;
-        offen.sort((a, b) => b.trinkgeld - a.trinkgeld || a.nr - b.nr);
+        offen.sort((a, b) => b.prio - a.prio || a.nr - b.nr);
         const l = offen[0];
         const v = this.rufe(l.fn, [], null, null);
         l.zustellung = new Zustellung(true, v, null);
@@ -3444,7 +3461,6 @@
             if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
             const k = this.ganzzahl(b, 'Blech / n');
             if (k < 0) throw this.ananas('StreitAnanas', 'In ' + k + ' Stücke teilen? Das geht nicht.');
-            if (k === 7) this.warnung('S0007', '7 Stücke? Wer schneidet eine Pizza in 7 Stücke?', n);
             if (a.length % k !== 0) throw this.ananas('StreitAnanas', a.length + ' Stücke lassen sich nicht fair durch ' + k + ' teilen.');
             return this.schneide(a, k);
           }
@@ -4041,11 +4057,13 @@
 
     ofen(n, sc) {
       const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      let temp = arg(pos, ben, 0, 'temperatur');
-      let zeit = arg(pos, ben, 1, 'zeit');
-      if (temp === undefined || temp === null) temp = 250;
+      // K-127: nur noch ein Zeitbudget (Positionsargument 0 = zeit)
+      let zeit = arg(pos, ben, 0, 'zeit');
       if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
       const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
+      // ÜBERGANG (K-127): benanntes temperatur: wirkt nur, bis das Pizza-Imperium umgestellt ist – nicht dokumentiert
+      let temp = ben !== null && 'temperatur' in ben ? ben.temperatur : null;
+      if (temp === undefined || temp === null) temp = 250;
       this.zahl(temp, 'ofen(temperatur: …)');
       const startUhr = this.schritte + this.offset;
       const z0 = this.z, s0 = this.s;
@@ -4152,13 +4170,7 @@
     aMCall(n, sc) {
       if (n.obj.k === 'Unten') return this.untenAufruf(n, sc);
       const o = this.ausw(n.obj, sc);
-      let pos;
-      const a0 = n.args.pos.length === 1 ? n.args.pos[0] : null;
-      if (n.name === 'schneide' && a0 !== null && a0.k === 'Name' && a0.n === 'auto' && this.finde(sc, 'auto') === null) {
-        // K-038: `auto` ist nur hier gültig; der Namensknoten kostet wie üblich einen Schritt
-        if (++this.schritte > this.grenze) this.grenzeErreicht();
-        pos = [AUTO];
-      } else pos = this.posArgs(n.args, sc);
+      const pos = this.posArgs(n.args, sc);
       const ben = n.args.ben === null ? null : this.benArgs(n.args, sc);
       return this.rufeMethode(o, n.name, pos, ben, n, sc);
     }

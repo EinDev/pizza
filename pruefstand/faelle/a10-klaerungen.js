@@ -46,11 +46,11 @@ Bote.sage((-2.5.runden()));
 Bote.sage(((-2.5).runden()));
 Bote.sage((-1));
 Bote.sage((-(1)));
-Bote.sage(((-5).euro()));
+Bote.sage(((-5).währung("€")));
 `, { out: ["-3", "-3", "-1", "-1", "-5,00 €"] }),
 
-  F(K, "K-003: -x.euro() ist -(x.euro()) → TypAnanas (Text negieren)", P`
-Bote.sage((-0.5.euro()));
+  F(K, "K-003: -x.währung(s) ist -(x.währung(s)) → TypAnanas (Text negieren)", P`
+Bote.sage((-0.5.währung("€")));
 `, { exit: 1, fehler: { code: "TypAnanas", art: "ananas" } }),
 
   // ── K-004 salami-Wertebereich ───────────────────────────────────────────
@@ -223,24 +223,24 @@ l.wennDa(x -> Bote.sage(("a " + x)));
 l.wennDa(x -> Bote.sage(("b " + x)));
 `, { out: ["laufe", "b 1"] }),
 
-  F(K, "K-019: negatives/gebrochenes Trinkgeld erlaubt; Faktor ≤ 0 → sofort zu spät; zu spät ist endgültig", P`
+  F(K, "K-019/K-127: negative/gebrochene Priorität erlaubt, ohne Einfluss aufs Budget; zu spät ist endgültig", P`
 Lieferung<salami> l = bestelle(() -> 1);
-l.trinkgeld(2.5);
+l.priorität(2.5);
 Bote.sage((l.warte(max: 1ms).wert()));
-Lieferung<salami> m = bestelle(() -> 1);
-m.trinkgeld(-10);
+Lieferung<salami> m = bestelle(() -> { Uhr.vorspulen(2h); serviere (1); });
+m.priorität(-10);
 Bote.sage((m.warte(max: 1h).pünktlich()));
-m.trinkgeld(100);
-Bote.sage((m.warte(max: 1h).pünktlich()));
+m.priorität(100);
+Bote.sage((m.warte(max: 3h).pünktlich()));
 `, { out: ["1", "nein", "nein"] }),
 
   // ── K-020 Ofen-Randwerte ────────────────────────────────────────────────
-  F(K, "K-020: temperatur 0 / zeit 0 → Budget 0 → roh; 485 ist erlaubt, 485.5 nicht", P`
-Bote.sage((ofen(zeit: 1h, temperatur: 0) { serviere (1); } roh (r) { serviere (0); }));
+  F(K, "K-020/K-127: zeit 0 oder negativ → Budget ≤ 0 → roh; zeit als Zahl (ms) und positional", P`
 Bote.sage((ofen(zeit: 0ms) { serviere (1); } roh (r) { serviere (0); }));
-Bote.sage((ofen(temperatur: 485) { serviere (1); }));
-Bote.sage((ofen(temperatur: 485.5) { serviere (1); } verbrannt (VerbranntAnanas a) { serviere (-1); }));
-`, { out: ["0", "0", "1", "-1"] }),
+Bote.sage((ofen(-1s) { serviere (1); } roh (r) { serviere (0); }));
+Bote.sage((ofen(1) { serviere (1); } roh (r) { serviere (0); }));
+Bote.sage((ofen(2) { serviere (1); } roh (r) { serviere (0); }));
+`, { out: ["0", "0", "0", "1"] }),
 
   // ── K-021 Bereich ───────────────────────────────────────────────────────
   F(K, "K-021: Bereich mit Kommazahlen, absteigend, Obergrenze 10 000 001 Elemente", P`
@@ -403,7 +403,7 @@ Bote.sage(("Pizza: " + p));
 `, { out: ["((Tomate))!", "Pizza: ((Tomate))"] }),
 
   // ── K-048 Rundungsformel ────────────────────────────────────────────────
-  F(K, "K-048: Rundung half-away-from-zero, Epsilon nur bei runden(n>0) und euro()", P`
+  F(K, "K-048: Rundung half-away-from-zero, Epsilon nur bei runden(n>0) und währung() (vormals euro(), K-127)", P`
 Bote.sage((2.675.runden(2)));
 Bote.sage((1.005.runden(2)));
 Bote.sage((0.125.runden(2)));
@@ -412,9 +412,9 @@ Bote.sage((0.5.runden()));
 Bote.sage((1.5.runden()));
 Bote.sage(((-0.5).runden()));
 Bote.sage((Mathe.runden(-2.5)));
-Bote.sage((0.015.euro()));
-Bote.sage(((-0.001).euro()));
-Bote.sage(((-2.5).euro()));
+Bote.sage((0.015.währung("€")));
+Bote.sage(((-0.001).währung("€")));
+Bote.sage(((-2.5).währung("€")));
 `, { out: ["2.68", "1.01", "0.13", "2.68", "1", "2", "-1", "-3", "0,02 €", "0,00 €", "-2,50 €"] }),
 
   // ── K-049 Zufall ────────────────────────────────────────────────────────
@@ -536,12 +536,34 @@ salami r = wähle (1) { fall 1 -> { serviere (5); } standard -> 0; };
 Bote.sage((r));
 `, { out: ["5"] }),
 
-  // ── K-038 auto nur in schneide ────────────────────────────────────────────
-  F(K, "K-038: auto außerhalb von schneide(auto) → LaufzeitAnanas 'auto' ist nicht definiert.", P`
+  // ── K-038 (abgelöst durch K-127): auto ist ein gewöhnlicher Name ──────────
+  F(K, "K-038/K-127: auto ist überall ein gewöhnlicher Name, auch in schneide(auto)", P`
+Bote.sage(([1, 2].schneide(2).länge()));
 Bote.sage(([1, 2].schneide(auto).länge()));
-Bote.sage((auto));
-`, { exit: 1, out: ["8"], fehler: { code: "LaufzeitAnanas", art: "ananas", zeile: 2,
+`, { exit: 1, out: ["2"], fehler: { code: "LaufzeitAnanas", art: "ananas", zeile: 2,
       text: "Ungefangene Ananas – LaufzeitAnanas: 'auto' ist nicht definiert. (Zeile 2)" } }),
+
+  F(K, "K-127: eigene Variable auto funktioniert in schneide(auto)", P`
+salami auto = 3;
+Bote.sage(([1, 2, 3].schneide(auto)));
+`, { out: ["[[1], [2], [3]]"] }),
+
+  F(K, "K-127: währung(symbol, kompakt:) – Symbol frei, karton/leer/fehlend ohne Symbol", P`
+Bote.sage((8.währung("€")));
+Bote.sage((8.währung()));
+Bote.sage((2.5.währung(symbol: "CHF")));
+Bote.sage((1234567.währung("€", kompakt: ja)));
+Bote.sage((1234567.währung("$", ja)));
+Bote.sage((3.währung(karton)));
+Bote.sage((3.währung("")));
+`, { out: ["8,00 €", "8,00", "2,50 CHF", "1,23 Mio. €", "1,23 Mio. $", "3,00", "3,00"] }),
+
+  F(K, "K-127: priorität – nicht-Zahl → TypAnanas; ordnet nur die wennDa-Phase, letzter Wert gilt", P`
+probier { bestelle(() -> 1).priorität("hoch"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+bestelle(() -> "a").priorität(1).wennDa(x -> Bote.sage((x)));
+bestelle(() -> "b").priorität(5).priorität(0).wennDa(x -> Bote.sage((x)));
+bestelle(() -> "c").priorität(2).wennDa(x -> Bote.sage((x)));
+`, { out: ['Priorität muss eine Zahl sein, nicht "hoch".', "c", "a", "b"] }),
 
   // ── K-042 EOF ist endgültig ───────────────────────────────────────────────
   F(K, "K-042: nach EOF (null-Eintrag) liefert jeder weitere Leseversuch karton, hatMehr nein", P`
@@ -744,26 +766,26 @@ Bote.sage((12.345.kompakt()));
 Bote.sage((0.kompakt()));
 Bote.sage((1234567890.kompakt()));
 Bote.sage((15000000000000000000000.0.kompakt()));
-Bote.sage((1234567.89.euro(kompakt: ja)));
+Bote.sage((1234567.89.währung("€", kompakt: ja)));
 `, { out: ["1,23 Mio.", "1,2 Mio.", "999,5", "1,5 Tsd.", "2 Mio.", "-1,23 Mio.", "12,35", "0", "1,23 Mrd.", "15 Trd.", "1,23 Mio. €"] }),
 
   // ── K-103 Zahlformat für beliebig große Zahlen ──────────────────────────
-  F(K, "K-103: kompakt/euro(kompakt)/tausender/euro – Stufen bis Dezd. (1e63), darüber m × 10ⁿ hochgestellt, ∞/NaN, nie e+; Textform bleibt String(x)", P`
+  F(K, "K-103: kompakt/währung(kompakt)/tausender/währung – Stufen bis Dezd. (1e63), darüber m × 10ⁿ hochgestellt, ∞/NaN, nie e+; Textform bleibt String(x)", P`
 funghi x = 1.0;
 für (salami i = 0; i < 21; i++) { x = x * 1000; }
 Bote.sage((x.kompakt()));
 funghi y = 2.5;
 für (salami i = 0; i < 21; i++) { y = y * 10; }
-Bote.sage((y.kompakt() + " | " + y.euro(kompakt: ja) + " | " + y.euro() + " | " + y.tausender(2)));
+Bote.sage((y.kompakt() + " | " + y.währung("€", kompakt: ja) + " | " + y.währung("€") + " | " + y.tausender(2)));
 Bote.sage((y));
 funghi z = 1.0;
 für (salami i = 0; i < 100; i++) { z = z * 1000; }
-Bote.sage((z.kompakt() + " | " + (z * 4.567).kompakt(1) + " | " + (-z).euro()));
+Bote.sage((z.kompakt() + " | " + (z * 4.567).kompakt(1) + " | " + (-z).währung("€")));
 funghi c = 9999.0;
 für (salami i = 0; i < 67; i++) { c = c * 10; }
 Bote.sage((c.kompakt() + " | " + c.kompakt(4)));
 funghi u = Mathe.potenz(10, 400);
-Bote.sage((u.kompakt() + " | " + (-u).tausender() + " | " + u.euro() + " | " + Mathe.wurzel(-1).kompakt()));
+Bote.sage((u.kompakt() + " | " + (-u).tausender() + " | " + u.währung("€") + " | " + Mathe.wurzel(-1).kompakt()));
 `, { out: ["1 Dezd.", "2,5 Trd. | 2,5 Trd. € | 2,5 Trd. € | 2,5 Trd.", "2.5e+21", "1 × 10³⁰⁰ | 4,6 × 10³⁰⁰ | -1 × 10³⁰⁰ €",
            "1 × 10⁷¹ | 9,999 × 10⁷⁰", "∞ | -∞ | ∞ € | NaN"] }),
 
@@ -871,7 +893,7 @@ klasse Pizza {
 }
 Pizza p = neu Pizza(["Tomate", "Mozzarella"]);
 Pizza q = p;
-Bote.sage((p), (p.preis().euro()), (q == p));
+Bote.sage((p), (p.preis().währung("€")), (q == p));
 `, { out: ["((Tomate, Mozzarella)) 8,00 € ja"] }),
 
   F(K, "K-105 eigene Variablen mit Belagnamen gewinnen immer (kein Belag-Vorrang mehr, ersetzt K-001)", P`

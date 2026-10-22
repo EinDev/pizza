@@ -8,7 +8,7 @@ Zettel preis = Zettel.aus(() -> { rechnungen = rechnungen + 1; serviere (stufe.w
 Zettel kaufbar = Zettel.aus(() -> (geld.wert() >= preis.wert()));
 Bote.sage((preis.wert() + " " + kaufbar.wert() + " " + preis + " " + rechnungen));
 Schild info = neu Schild(id: "info");
-info.binde("text", () -> ("Stufe " + stufe.wert() + " – " + preis.wert().euro()));
+info.binde("text", () -> ("Stufe " + stufe.wert() + " – " + preis.wert().währung("€")));
 Knopf kauf = neu Knopf("", () -> {
     geld.setze((geld.wert() - preis.wert()));
     stufe.setze((stufe.wert() + 1));

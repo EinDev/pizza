@@ -1,0 +1,11 @@
+// K-127: priorität ordnet nur die wennDa-Phase (letzter Wert gilt), das Budget bleibt genau max
+Lieferung<salami> l = bestelle(() -> { salami i = 0; solange (i < 25) { i++; } serviere ((i)); });
+Bote.sage((l.priorität(100).warte(max: 50ms).pünktlich()));
+Bote.sage((l.priorität(3) == l));
+bestelle(() -> ("leise")).priorität(-2).wennDa(x -> Bote.sage((x)));
+bestelle(() -> ("zweimal gesetzt")).priorität(10).priorität(1).wennDa(x -> Bote.sage((x)));
+bestelle(() -> ("ohne")).wennDa(x -> Bote.sage((x)));
+bestelle(() -> ("laut")).priorität(2.5).wennDa(x -> Bote.sage((x)));
+bestelle(() -> ("auch eins")).priorität(1).wennDa(x -> Bote.sage((x)));
+probier { bestelle(() -> (1)).priorität(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(("Programmende"));

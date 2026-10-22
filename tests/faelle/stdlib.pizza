@@ -9,8 +9,8 @@ Bote.sage(("ab".wiederhole(3)));
 Bote.sage(("Pizza".beginntMit("Pi")));
 Bote.sage(("42".alsZahl() + 1));
 probier { "Hallo".zeichen(9); } verbrannt (KeinStückAnanas a) { Bote.sage((a.typ())); }
-Bote.sage((8.euro()));
-Bote.sage((1234.5.euro()));
+Bote.sage((8.währung("€")));
+Bote.sage((1234.5.währung("€")));
 Bote.sage((3.14159.runden(2)));
 Bote.sage((2.5.runden()));
 Bote.sage(((-7.9).ganz()));

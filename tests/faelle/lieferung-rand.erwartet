@@ -5,9 +5,9 @@ Lieferung #1
 Zustellung(1)
 Zustellung(zu spät)
 nein
-ja
+nein
 bestelle() braucht eine Funktion, z. B. () -> (42).
-Trinkgeld muss eine Zahl sein, nicht "viel".
+Priorität muss eine Zahl sein, nicht "viel".
 warte(max: …) braucht eine Dauer, nicht "bald".
 sofort 7
 vor warte

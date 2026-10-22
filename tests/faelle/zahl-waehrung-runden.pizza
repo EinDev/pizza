@@ -1,7 +1,7 @@
-Bote.sage(((-3).euro()));
-Bote.sage((0.005.euro()));
-Bote.sage((1234567.891.euro()));
-Bote.sage((0.euro()));
+Bote.sage(((-3).währung("€")));
+Bote.sage((0.005.währung("€")));
+Bote.sage((1234567.891.währung("€")));
+Bote.sage((0.währung("€")));
 Bote.sage((2.675.runden(2)));
 Bote.sage(((-2.5).runden()));
 Bote.sage((Mathe.runden(-2.5)));

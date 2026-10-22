@@ -1,6 +1,6 @@
 Blech<salami> b = [1 .. 8];
 Bote.sage((b.schneide(3)));
-Bote.sage((b.schneide(auto).länge()));
+Bote.sage((b.schneide(8).länge()));
 Bote.sage((b / 4));
 Bote.sage(((b / 4).belege(s -> s.summe())));
 Bote.sage(((b / 4).belege(s -> s.summe()).zusammenklappen((a, c) -> a + c)));

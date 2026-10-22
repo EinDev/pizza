@@ -78,7 +78,7 @@ Bote.sage((t.gehenlassen().backen()));
 
   // ───────── §7.3 ─────────
   F(O, "ofen-Ausdruck liefert serviere-Wert", P`
-salami s = ofen(temperatur: 450, zeit: 90s) {
+salami s = ofen(zeit: 90s) {
     salami summe = 0;
     für (salami i = 1; i <= 4; i++) { summe += i; }
     serviere ((summe));
@@ -121,27 +121,27 @@ salami s = ofen(zeit: 100ms) {
 Bote.sage((s));
 `, { out: ["karton", "0"] }),
 
-  F(O, "Budget überschritten ohne roh → VerbranntAnanas mit N = zeit×temp/250", P`
-salami s = ofen(temperatur: 250, zeit: 100ms) {
+  F(O, "Budget überschritten ohne roh → VerbranntAnanas mit N = zeit_ms (K-127)", P`
+salami s = ofen(zeit: 100ms) {
     solange (ja) { }
     serviere ((1));
 };
 `, { exit: 1, fehler: { code: "VerbranntAnanas", textEnthält: "VerbranntAnanas: Zu lange im Ofen: Budget von 100 Schritten überschritten." } }),
 
-  F(O, "Budget skaliert mit Temperatur (500ms × 50/250 = 100)", P`
-salami s = ofen(temperatur: 50, zeit: 500ms) {
+  F(O, "zeit auch positional: ofen(250ms) → Budget 250 (K-127)", P`
+salami s = ofen(250ms) {
     solange (ja) { }
     serviere ((1));
 };
-`, { exit: 1, fehler: { code: "VerbranntAnanas", textEnthält: "Budget von 100 Schritten überschritten." } }),
+`, { exit: 1, fehler: { code: "VerbranntAnanas", textEnthält: "Budget von 250 Schritten überschritten." } }),
 
-  F(O, "Heißer Ofen = mehr Budget: gleiche Arbeit passt bei 450 Grad", P`
-salami a = ofen(temperatur: 25, zeit: 100ms) {
+  F(O, "Mehr Zeit = mehr Budget: gleiche Arbeit passt erst mit 10s", P`
+salami a = ofen(zeit: 100ms) {
     salami s = 0;
     für (salami i = 0; i < 200; i++) { s += i; }
     serviere ((s));
 } roh (r) { serviere ((-1)); };
-salami b = ofen(temperatur: 450, zeit: 10s) {
+salami b = ofen(zeit: 10s) {
     salami s = 0;
     für (salami i = 0; i < 200; i++) { s += i; }
     serviere ((s));
@@ -151,32 +151,13 @@ Bote.sage((b));
 `, { out: ["-1", "19900"] }),
 
   F(O, "Standard-Zeit 60s reicht für kleine Arbeit", P`
-salami s = ofen(temperatur: 250) {
+salami s = ofen {
     salami x = 0;
     für (salami i = 0; i < 1000; i++) { x += 1; }
     serviere ((x));
 };
 Bote.sage((s));
 `, { out: ["1000"] }),
-
-  F(O, "temperatur > 485 → VerbranntAnanas (Text wörtlich), im verbrannt-Zweig fangbar", P`
-salami s = ofen(temperatur: 486, zeit: 1s) {
-    serviere ((1));
-} verbrannt (VerbranntAnanas a) {
-    Bote.sage((a.nachricht()));
-    serviere ((-1));
-};
-Bote.sage((s));
-`, { out: ["Zu heiß! Selbst Neapel hat Grenzen.", "-1"] }),
-
-  F(O, "temperatur 485 ist noch erlaubt", P`
-salami s = ofen(temperatur: 485, zeit: 1s) { serviere ((1)); };
-Bote.sage((s));
-`, { out: ["1"] }),
-
-  F(O, "temperatur > 485 ungefangen → Exit 1", P`
-salami s = ofen(temperatur: 500) { serviere ((1)); };
-`, { exit: 1, fehler: { code: "VerbranntAnanas", textEnthält: "Zu heiß! Selbst Neapel hat Grenzen." } }),
 
   F(O, "verbrannt-Zweig fängt Ananas aus dem Block", P`
 margherita s = ofen(zeit: 1s) {
@@ -219,15 +200,18 @@ Bote.sage(([1 .. 8].schneide(3)));
 Bote.sage(([1 .. 5].schneide(2)));
 `, { out: ["[[1, 2, 3], [4, 5, 6], [7, 8]]", "[[1, 2, 3], [4, 5]]"] }),
 
-  F(S, "schneide(auto) → 8 Stücke", P`
+  F(S, "schneide(auto) gibt es nicht mehr: auto ist ein gewöhnlicher Name (K-127)", P`
 Blech<Blech<salami>> st = [1 .. 16].schneide(auto);
-Bote.sage((st.länge()));
-Bote.sage((st.erstes()));
-`, { out: ["8", "[1, 2]"] }),
+`, { exit: 1, fehler: { code: "LaufzeitAnanas", textEnthält: "'auto' ist nicht definiert." } }),
 
-  F(S, "schneide(7) → Warnung S0007", P`
+  F(S, "schneide() ohne Stückzahl → TypAnanas (K-127)", P`
+probier { [1 .. 16].schneide(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+`, { out: ["schneide braucht eine Ganzzahl, nicht karton."] }),
+
+  F(S, "schneide(7) und blech / 7 → keine Warnung (K-127)", P`
 Bote.sage(([1 .. 14].schneide(7).länge()));
-`, { out: ["7"], warn: ["S0007"], warnText: { S0007: "7 Stücke? Wer schneidet eine Pizza in 7 Stücke?" } }),
+Bote.sage((([1 .. 14] / 7).länge()));
+`, { out: ["7", "7"], noWarn: ["S0007"] }),
 
   F(S, "blech / n fair", P`
 Bote.sage(([1 .. 8] / 4));
@@ -388,7 +372,7 @@ Zustellung<salami> z = l.warte(max: 10ms);
 Bote.sage((z.wert()));
 `, { exit: 1, fehler: { code: "LieferAnanas", textEnthält: "LieferAnanas: Zu spät – die Pizza ist kalt." } }),
 
-  F(L, "trinkgeld erhöht Budget (+10 % je Euro) und gibt Lieferung zurück", P`
+  F(L, "priorität ändert das Budget nicht und gibt die Lieferung zurück (K-127)", P`
 Funktion arbeit = () -> {
     salami s = 0;
     für (salami i = 0; i < 20; i++) { s += i; }
@@ -397,9 +381,10 @@ Funktion arbeit = () -> {
 Lieferung<salami> ohne = bestelle(arbeit);
 Lieferung<salami> mit = bestelle(arbeit);
 Bote.sage((ohne.warte(max: 10ms).pünktlich()));
-Bote.sage((mit.trinkgeld(1000).warte(max: 10ms).pünktlich()));
-Bote.sage((mit.warte(max: 10ms).wert()));
-`, { out: ["nein", "ja", "190"] }),
+Bote.sage((mit.priorität(1000) == mit));
+Bote.sage((mit.warte(max: 10ms).pünktlich()));
+Bote.sage((bestelle(arbeit).priorität(1).warte(max: 1s).wert()));
+`, { out: ["nein", "ja", "nein", "190"] }),
 
   F(L, "Ananas aus fn wird bei wert() weitergeworfen", P`
 Lieferung<salami> l = bestelle(() -> { wirf neu StreitAnanas("Pilze fehlen"); });
@@ -418,13 +403,13 @@ Bote.sage((a == b));
 Bote.sage((n));
 `, { out: ["ja", "1"] }),
 
-  F(L, "wennDa: nach Programmende, Trinkgeld absteigend, Gleichstand Bestellreihenfolge (Kl. 1)", P`
+  F(L, "wennDa: nach Programmende, Priorität absteigend (letzter Wert gilt), Gleichstand Bestellreihenfolge (Kl. 1, K-127)", P`
 Lieferung<salami> a = bestelle(() -> (1));
 Lieferung<salami> b = bestelle(() -> (2));
 Lieferung<salami> c = bestelle(() -> (3));
-a.trinkgeld(1);
-b.trinkgeld(5);
-c.trinkgeld(1);
+a.priorität(1);
+b.priorität(5);
+c.priorität(9).priorität(1);
 a.wennDa(w -> Bote.sage(("a" + w)));
 b.wennDa(w -> Bote.sage(("b" + w)));
 c.wennDa(w -> Bote.sage(("c" + w)));

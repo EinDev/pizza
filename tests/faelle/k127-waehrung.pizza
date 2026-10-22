@@ -1,0 +1,17 @@
+// K-127: Geldformat mit frei wählbarem Symbol (vormals euro())
+Bote.sage((8.währung("€")));
+Bote.sage((8.währung()));
+Bote.sage((2.5.währung("CHF")));
+Bote.sage((2.5.währung(symbol: "$")));
+Bote.sage((1234567.währung("€", kompakt: ja)));
+Bote.sage((1234567.währung("€", ja)));
+Bote.sage((1234567.währung(kompakt: ja)));
+Bote.sage((1234567.891.währung("€", kompakt: nein)));
+Bote.sage(((-0.004).währung("€")));
+Bote.sage((3.währung(karton)));
+Bote.sage((3.währung("")));
+Bote.sage((3.währung(7)));
+Bote.sage(((3 * 1_000_000_000_000_000_000_000).währung("€")));
+Bote.sage((Mathe.exp(710).währung("€")));
+Bote.sage((Mathe.wurzel(-1).währung("€")));
+probier { 1.währung("€", kompakt: 1); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

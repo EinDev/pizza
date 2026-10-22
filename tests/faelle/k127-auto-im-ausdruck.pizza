@@ -1,0 +1,5 @@
+// K-127: `auto` ist überall ein gewöhnlicher Name – auch als Argument von schneide
+probier { [1, 2] / auto; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2].schneide(auto); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2].schneide(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1, 2].schneide("8"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

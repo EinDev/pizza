@@ -279,12 +279,12 @@ function api() {
 
   test('Ereignisse: onEvent, Form, Ende', () => {
     const gesehen = [];
-    const r = P.run('Bote.sage((1)); Bote.fehler(("x")); Blech<salami> b = [1,2,3,4,5,6,7].schneide(7);', { onEvent: e => gesehen.push(e) });
+    const r = P.run('Bote.sage((1)); Bote.fehler(("x")); salami t = teig(() -> (1)).backen();', { onEvent: e => gesehen.push(e) });
     gleich(gesehen, r.ereignisse, 'onEvent = ereignisse');
     gleich(r.ereignisse[0], { typ: 'ausgabe', text: '1' });
     gleich(r.ereignisse[1], { typ: 'fehlerausgabe', text: 'x' });
     const w = r.ereignisse[2];
-    gleich([w.typ, w.code, w.text, w.zeile], ['warnung', 'S0007', 'S0007: 7 Stücke? Wer schneidet eine Pizza in 7 Stücke?', 1]);
+    gleich([w.typ, w.code, w.text, w.zeile], ['warnung', 'T0007', 'T0007: Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.', 1]);
     const e = r.ereignisse[3];
     gleich([e.typ, e.exitCode], ['ende', 0]);
     gleich(e.schritte, r.schritte); gleich(e.zeitMs, r.zeitMs);

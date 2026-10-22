@@ -9,7 +9,7 @@ klasse Pizza {
     margherita alsText() { serviere (("((" + beläge.verbinde(", ") + "))")); }
 }
 Pizza p = neu Pizza([Belag.Tomate, Belag.Mozzarella, Belag.Basilikum]);
-Bote.sage((p), (p.preis().euro()), (p.hat(Belag.Salami)));
+Bote.sage((p), (p.preis().währung("€")), (p.hat(Belag.Salami)));
 Pizza q = p;
 Bote.sage((q == p));
 Pizza r = p.mit(Belag.Salami);

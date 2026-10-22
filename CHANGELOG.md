@@ -43,7 +43,7 @@ Seit 3.0 gab es einige inkompatible Änderungen – vor allem den Auszug der ein
 
 ### Geändert
 
-- **Zahlformat für große Zahlen (K-103):** `kompakt()`, `tausender()` und `euro()` liefern statt `2,08e+21 €` jetzt `2,08 Trd. €`.
+- **Zahlformat für große Zahlen (K-103):** `kompakt()`, `tausender()` und `währung("€")` (vormals `euro()`) liefern statt `2,08e+21 €` jetzt `2,08 Trd. €`.
   Die Stufen reichen bis Dezilliarde, danach folgt `1,5 × 10⁶⁶`. ∞ und NaN erscheinen als `∞`/`NaN`. Die Textform (`text(x)`) bleibt
   unverändert.
 - **Theke sendet nur echte Änderungen (K-117):** Ein Setter auf den gleichen Wert erzeugt keine Nachricht mehr. Das ersetzt K-073.
@@ -66,7 +66,22 @@ Rezepte, Preise und Beläge sind Fachlogik und gehören ins Programm, nicht in d
 - der Hawaii-Auslöser „Pizza mit Belag Ananas“. `hawaii` als Typ und `neu Hawaii(…)` gibt es weiterhin.
 
 Weiterhin da sind alle allgemeinen Konzepte mit Pizza-Namen: `schieb`, `teig`, `ofen`, `schneide`, `bestelle`, `calzone`,
-`@Kühlschrank`, `quattrostagioni` und `euro()`.
+`@Kühlschrank` und `quattrostagioni`.
+
+### Entfernt und verallgemeinert (K-127)
+
+Eine zweite Durchsicht hat die Pizza-Regeln entfernt, die noch in der Semantik steckten. Pizza-Namen und Floskeln bleiben.
+Eingebaute Enums, Listen oder Fachkonstanten gibt es keine mehr (nur `Mathe.PI` und `Mathe.E`).
+
+- **Ofen nur mit Zeitbudget:** `ofen(zeit: 90s)` oder kurz `ofen(90s)`. Das Budget ist genau die Zeit. Die Ofentemperatur ist weg,
+  ebenso ihre Grenze von 485 °C (`„Zu heiß! Selbst Neapel hat Grenzen.“`) und die Regel „heißer = mehr Schritte“.
+- **`priorität` statt `trinkgeld`:** `lieferung.priorität(n)` legt fest, in welcher Reihenfolge die `wennDa`-Rückrufe nach
+  Programmende laufen (höchste zuerst). Der letzte Aufruf gilt. Aufs Budget wirkt die Priorität nicht mehr: `warte(max: 30min)`
+  bedeutet genau 30 Minuten.
+- **`währung(symbol)` statt `euro()`:** `8.währung("€")` → `8,00 €`, `2.5.währung("CHF")` → `2,50 CHF`, `x.währung("€", kompakt: ja)`
+  → `1,23 Mio. €`. Ohne Symbol bleibt nur der Betrag (`8,00`). Gerundet wird wie bisher.
+- **`schneide(n)` braucht immer eine Stückzahl:** `schneide(auto)` (= 8 Stücke) und `schneide()` gibt es nicht mehr. `auto` ist ein
+  gewöhnlicher Name. Die Warnung `S0007` bei 7 Stücken ist ebenfalls weg.
 
 ### Umstieg von 3.0
 
@@ -87,7 +102,7 @@ Weiterhin da sind alle allgemeinen Konzepte mit Pizza-Namen: `schieb`, `teig`, `
    anschließen, und in den Rückrufen nur noch `setze` aufrufen:
    ```pizza
    Zettel kasse = neu Zettel(0);
-   Schild anzeige = neu Schild("").binde("text", () -> "Kasse: " + kasse.wert().euro());
+   Schild anzeige = neu Schild("").binde("text", () -> "Kasse: " + kasse.wert().währung("€"));
    Knopf backen = neu Knopf("Backen", () -> kasse.setze(kasse.wert() + 8));
    ```
    Werte, die sich aus anderen Werten berechnen, werden mit `Zettel.aus(() -> …)` zum abgeleiteten Zettel. Ein vollständiges Beispiel
@@ -97,3 +112,10 @@ Weiterhin da sind alle allgemeinen Konzepte mit Pizza-Namen: `schieb`, `teig`, `
 5. **Große Zahlen:** Wächter wie `summe < 1e21 ? summe.euro() : "unbezahlbar"` werden überflüssig. Sie schaden aber auch nicht.
 6. **Native Theke-Programme in CI/SSH:** wer bisher still fensterlos lief, setzt `PIZZA_THEKE=0` oder nutzt `--ereignisse-json`,
    sonst endet das Programm mit Exit 2.
+7. **Pizza-Regeln aus K-127 ersetzen:**
+   - `x.euro()` → `x.währung("€")`, `x.euro(kompakt: ja)` → `x.währung("€", kompakt: ja)`.
+   - `ofen(temperatur: t, zeit: z)` → `ofen(zeit: z * t / 250)` ergibt dasselbe Budget, `ofen(t, z)` → `ofen(z * t / 250)`.
+     Die 485-Grenze baut man bei Bedarf selbst nach: `falls (t > 485) { wirf neu VerbranntAnanas("Zu heiß!"); }`.
+   - `l.trinkgeld(n)` → `l.priorität(summe)` für die Reihenfolge. Wer das alte Zusatzbudget braucht, rechnet es aus:
+     `l.warte(max: d * (1 + summe / 10))`.
+   - `schneide(auto)` → `schneide(8)`. Wer die Warnung bei 7 Stücken vermisst, schreibt sich einen eigenen Hinweis.

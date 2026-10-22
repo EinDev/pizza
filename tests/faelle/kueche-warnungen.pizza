@@ -9,7 +9,7 @@ Blech<salami> a = [1, 2, 3].brigade(x -> Alt.alt(x));
 Blech<salami> b = [1, 2].brigade(x -> Alt.alt(x) + Alt.alt(x));
 Bote.sage((a + " " + b));
 Bote.sage((Alt.alt(5)));
-Blech<Blech<Blech<salami>>> c = [1, 2, 3].brigade(x -> [1, 2, 3, 4, 5, 6, 7].schneide(7));
+Blech<salami> c = [1, 2, 3].brigade(x -> teig(() -> (x)).backen());
 Bote.sage((c.länge()));
 [1, 2].brigade(x -> {
     falls (x == 2) { Bote.sage(("Stück 2 vor der Warnung")); Alt.uralt(); }

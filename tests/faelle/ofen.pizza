@@ -1,4 +1,4 @@
-salami a = ofen(temperatur: 250, zeit: 1s) {
+salami a = ofen(zeit: 1s) {
     salami s = 0;
     für (salami i = 1; i <= 10; i++) { s += i; }
     serviere ((s));
@@ -13,8 +13,8 @@ salami b = ofen(zeit: 10ms) {
     serviere ((r.teilergebnis()));
 };
 Bote.sage((b > 0));
-salami c = ofen(temperatur: 500) {
-    serviere ((1));
+salami c = ofen(zeit: 1s) {
+    wirf neu VerbranntAnanas("Selbst geworfen.");
 } verbrannt (VerbranntAnanas x) {
     Bote.sage((x.nachricht()));
     serviere ((-1));
@@ -35,7 +35,7 @@ salami e = ofen(zeit: 5ms) {
     serviere ((-2));
 };
 Bote.sage((e));
-Bote.sage((ofen(temperatur: 375, zeit: 10ms) { solange (ja) { } } verbrannt (x) { serviere ((x.nachricht())); }));
+Bote.sage((ofen(15ms) { solange (ja) { } } verbrannt (x) { serviere ((x.nachricht())); }));
 salami m() {
     salami x = ofen { serviere ((1)); };
     Bote.sage(("nach dem Ofen"));

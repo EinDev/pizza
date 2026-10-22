@@ -1,4 +1,4 @@
-Bote.sage(([1, 2].schneide(auto).länge()));
+// K-127: eine eigene Variable auto ist ein gewöhnlicher Name
 salami auto = 3;
 Bote.sage(([1, 2, 3].schneide(auto).länge()));
 Bote.sage((auto));

@@ -1,0 +1,3 @@
+// K-127: kein Sonderbezeichner auto mehr – undeklariert ist er auch in schneide(auto) unbekannt
+Bote.sage(([1].schneide(auto).länge()));
+Bote.sage((auto));

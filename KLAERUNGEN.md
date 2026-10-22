@@ -179,13 +179,13 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   gecacht (nächster Aufruf rechnet erneut). Gecachte Werte werden **per Referenz** zurückgegeben (dieselbe Pizza, dasselbe Blech).
 - **Status:** fest.
 
-### K-019 Lieferung: Rückruf, Trinkgeld, Endgültigkeit
+### K-019 Lieferung: Rückruf, Trinkgeld, Endgültigkeit *(Trinkgeld-Teil abgelöst durch K-127: `priorität(n)`, letzter Wert gilt, kein Budgetfaktor)*
 - **Entscheidung:** `wennDa` **ersetzt** einen früheren Rückruf. `trinkgeld(n)` akzeptiert jede Zahl (auch negativ oder
   gebrochen), Faktor `1 + Summe/10` kann ≤ 0 werden → sofort zu spät. Eine Zustellung ist endgültig: weiteres `warte`
   oder `trinkgeld` ändert sie nicht.
 - **Status:** fest.
 
-### K-020 Ofen-Randwerte
+### K-020 Ofen-Randwerte *(Temperatur-Teil abgelöst durch K-127: kein `temperatur` mehr; `zeit = 0` → Budget 0 gilt weiter)*
 - **Entscheidung:** `temperatur ≤ 0` oder `zeit = 0` → Budget 0 → der erste Schritt überschreitet (roh-Zweig bzw.
   VerbranntAnanas). `temperatur` muss eine Zahl sein (nicht notwendig ganzzahlig); Grenze exakt `> 485` (485 erlaubt,
   485.5 Verbrannt). Positionsargumente `ofen(250, 1s)` erlaubt (§14.2).
@@ -289,7 +289,7 @@ Status: **fest** = Interpreter entspricht, Test grün (a10) · **offen** = Inter
   (kein stilles Überspringen). Klassen ohne eigenen Konstruktor reichen Argumente an die Basis durch (§14.9). §3 präzisiert.
 - **Status:** fest.
 
-### K-038 `auto` außerhalb von `schneide`
+### K-038 `auto` außerhalb von `schneide` *(abgelöst durch K-127: `auto` ist überall ein gewöhnlicher Name)*
 - **Frage:** `Bote.sage((auto))` gibt `auto` aus (globaler Sentinel), `blech / auto` → TypAnanas „Unbekanntes“.
 - **Entscheidung:** `auto` ist nur als Argument von `schneide(auto)` gültig; jede andere Verwendung des undeklarierten
   Namens → `LaufzeitAnanas: 'auto' ist nicht definiert.` Eine eigene Variable `auto` ist erlaubt und gewinnt.
@@ -1723,7 +1723,63 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   und unveränderte Spalten bei wechselndem Text.
 - **Betroffen:** SPEC §16.2/§16.10, THEKE.md §2/§8, Referenz „IDs und Stil“, `site/js/theke/**`, `tests/theke`, Prüfstand a13/a15/a16
   (Erlaubt-Text), a17. **Status:** fest.
----
+
+### K-127 Zweite Sprach-Bereinigung: Fachregeln in der Semantik raus, allgemeine Form bleibt (Nutzerfrage)
+- **Anlass (Nutzer, wörtlich):** „Hast du alle unnötigen Aspekte von Pizza entfernt? Also alles, was in einer regulären Programmiersprache
+  keine Relevanz hätte, wie Pizza-Enums oder so.“ Leitlinie weiter wie K-105 („nur Dinge, die in einer ordentlichen, sehr high-level
+  Programmiersprache auch wären – lustig benannt, ein paar merkwürdige Konzepte sind okay“).
+- **Entscheidungsregel (schärft K-105):** Steckt eine **Pizza-Tatsache** (feste Zahl, Einheit, Währung, Fachregel) **in der Semantik**, geht sie
+  raus oder wird auf die allgemeine Form zurückgeführt. Steckt sie **nur im Namen oder im Wortlaut einer Meldung**, bleibt sie (Humor).
+- **Audit (SPEC §1–§17, Interpreter, Wasm-Laufzeit, Compiler):**
+
+  | Was | Urteil | Begründung |
+  |---|---|---|
+  | „Pizza-Enums“: vordefinierte `quattrostagioni`, Konstanten, Listen | – | gibt es nicht (seit K-105): weder im Interpreter noch in der Wasm-Laufzeit existiert ein eingebautes `quattrostagioni`, eine Zutaten-/Preisliste oder eine Fach-Konstante; einzige Konstanten sind `Mathe.PI`/`Mathe.E` |
+  | `ofen(temperatur: …)`: Standard 250, Grenze `> 485` → `VerbranntAnanas("Zu heiß! Selbst Neapel hat Grenzen.")`, Budget `zeit × temperatur / 250` („heißer = schneller“) | **raus** | Ofenphysik ist Fachregel mit Magie-Zahlen; ein allgemeines Zeitbudget (Timeout mit Teilergebnis) braucht nur die Zeit |
+  | `ofen(zeit: …)` mit `zwischenstand`/`roh`/`verbrannt` | bleibt | Timeout mit Teilergebnis – allgemein |
+  | `lieferung.trinkgeld(n)`: Euro, summiert, Budget `max × (1 + Summe/10)`, Reihenfolge der `wennDa`-Phase | **umgebaut** zu `priorität(n)` | eine Priorität für Aufgaben ist allgemein; „jeder Euro +10 % Zeit“ ist Fachregel. `priorität` ordnet nur noch die `wennDa`-Phase, das Budget ist genau `max` |
+  | `x.euro()` / `x.euro(kompakt: ja)` | **umgebaut** zu `x.währung(symbol, kompakt: …)` | Geldformat ist allgemein, eine fest verdrahtete Währung nicht |
+  | `schneide(auto)` = 8 Stücke, Sonderbezeichner `auto` nur als Argument von `schneide`, `schneide()` = 8 | **raus** | feste Pizza-Zahl („eine Pizza hat 8 Stücke“) plus Sonderregel im Namensraum; `schneide(n)` reicht |
+  | Warnung `S0007` („7 Stücke? Wer schneidet eine Pizza in 7 Stücke?“) bei `schneide(7)` / `blech / 7` | **raus** | Warnauslöser ist eine Pizza-Tatsache (Zahl 7), kein allgemeiner Hinweis |
+  | `blech.schneide(n)`, `blech / n` mit `StreitAnanas` (nicht fair teilbar), `belege`, `zusammenklappen`, `brigade` | bleibt | Chunking, strikte Teilung, map/reduce, Parallelität |
+  | `teig`/`gehenlassen`/`backen` und Warnung `T0007` | bleibt | Lazy-Wert; T0007 ist ein allgemeiner Lint („erzwungen, ohne vorher angestoßen zu sein“), nur pizza-formuliert |
+  | `bestelle`/`warte(max:)`/`Zustellung`/`oderGratis`/`wennDa`, `LieferAnanas` | bleibt | Future mit Timeout, getOrElse, Callback |
+  | `@Kühlschrank`/`mikrowelle`/`frisch`/`Reste.istMatschig` | bleibt | Memoisierung, stale-while-revalidate |
+  | `calzone`/`aufklappen`/`Spiegel.felder`, `W0013` | bleibt | Kapselung, Reflection, Warnung beim Aufbrechen |
+  | `schieb(x)` | bleibt | Move-Semantik |
+  | Typnamen, Modifikatoren, `quattrostagioni` (genau 4 Werte), Annotationen inkl. `@Pizzaiolo(autor:)` (Metadaten) | bleibt | allgemeine Konzepte, lustig benannt; die 4 ist ein „merkwürdiges Konzept“ ohne Fachbezug |
+  | Ananas-Hierarchie (alle 16, Reihenfolge unverändert), `UnbekanntePizzaAnanas`, `KeinStückAnanas`, `VerbranntAnanas` (jetzt nur „Zu lange im Ofen“) | bleibt | allgemeine Fehlerarten |
+  | `W0032`, Hawaii (`hawaii`, `W0666`, Panik, Exit 39) | bleibt | Lint bzw. ausdrücklich gewünschtes Easter Egg |
+  | Bibliothek `Bote`, `Bestellannahme`, `Uhr`, `Mathe`, `Zufall`, `Vorratskammer`, Zahlformate `tausender`/`kompakt` | bleibt | allgemein |
+  | Theke samt Farbnamen `tomate|basilikum|mozzarella|kruste|normal`, Animationsarten, Zettel | bleibt | Themenfarben bzw. UI-Konzepte, nur benannt |
+  | Floskeln in Meldungen („Zu spät – die Pizza ist kalt.“, „Zu viele Pizzen übereinander“, Panik-Banner …) | bleibt | Humor ohne Semantik |
+  | Tier 3 (§13): Flag `--temperatur=485` | **raus** | hing an der Ofentemperatur; entfällt ersatzlos (Tier 3 bleibt sonst unverändert) |
+
+- **Neuer Vertrag:**
+  1. **Ofen:** `ofen(zeit: d) { … }` bzw. `ofen(d)` (Positionsargument 0 = `zeit`); Standard 60 s; `zeit` ist Dauer oder Zahl (ms), sonst
+     `TypAnanas: ofen(zeit: …) braucht eine Dauer, nicht "x".`; Budget N = `floor(zeit_ms)` (`zeit ≤ 0` → Budget ≤ 0 → der erste Schritt
+     überschreitet). Ein benanntes `temperatur:` ist ein unbekanntes benanntes Argument und wird ignoriert (K-028); weitere
+     Positionsargumente werden ausgewertet (Schritte, §14.1) und ignoriert. Der Text „Zu heiß! …“ entfällt.
+  2. **Lieferung:** `l.priorität(n)` setzt die Priorität (jede Zahl, Standard 0; **der letzte Aufruf gilt**, keine Summe) und liefert die
+     Lieferung; Nicht-Zahl → `TypAnanas: Priorität muss eine Zahl sein, nicht <Darstellung>.`; in einer Küche wie bisher `trinkgeld`
+     (Schreiben auf eine Lieferung der Hauptküche → KüchenAnanas). Wirkung **nur** auf die `wennDa`-Phase nach Programmende: höchste
+     Priorität zuerst, Gleichstand in Bestellreihenfolge (§14.3). `warte(max: d)` hat das Budget `floor(d_ms)`.
+  3. **Zahlformat:** `x.währung(symbol, kompakt: diavolo)` – `symbol` Positionsargument 0 oder `symbol:`, `kompakt` Positionsargument 1 oder
+     `kompakt:`. Betrag wie bisher `euro()` (K-048: zwei Nachkommastellen, Komma, ohne Tausendertrennung, nie `-0,00`; ab `|x| ≥ 10²¹`, ∞,
+     NaN wie `kompakt(2)`, K-103); mit `kompakt: ja` → `kompakt(2)`. Danach `" " + Textform(symbol)`, wenn `symbol` angegeben, nicht
+     `karton` und seine Textform nicht leer ist (K-102: „was man weglassen kann, lässt karton weg“). `8.währung("€")` → `8,00 €`,
+     `8.währung()` → `8,00`, `1234567.währung("€", kompakt: ja)` → `1,23 Mio. €`, `2.5.währung("CHF")` → `2,50 CHF`.
+  4. **Schneiden:** `schneide(n)` braucht eine Ganzzahl ≥ 1 (`schneide()` → `TypAnanas: schneide braucht eine Ganzzahl, nicht karton.`);
+     `auto` ist überall ein gewöhnlicher Name (`schneide(auto)` → `LaufzeitAnanas: 'auto' ist nicht definiert.`, eine eigene Variable
+     `auto` funktioniert). Keine Warnung S0007 mehr.
+- **Entfernt (ohne Ersatz):** `ofen(temperatur:)`, `trinkgeld`, `euro`, `schneide(auto)`, `schneide()` ohne Argument, `S0007`. Aufrufe
+  entfernter Methoden ergeben wie jede unbekannte Methode `LaufzeitAnanas: Methode 'euro' gibt es auf Zahl nicht.` usw.
+- **Abgelöst:** K-019 (Trinkgeld-Teil → Priorität), K-020 (Temperatur-Teil; `zeit = 0` → Budget 0 bleibt), K-038 (kein Sonderbezeichner
+  `auto` mehr), K-048 und K-085/K-103 (`euro()` → `währung()`, gleiche Rundung), K-105-Tabelle „BLEIBT“ (`trinkgeld`, `euro()`, S0007-Floskel).
+- **Betroffen:** SPEC §1, §7.3/§7.4/§7.7, §11, §13, §14.1/§14.2/§14.3/§14.11, §15, §16.5, §17; KLAERUNGEN K-019/K-020/K-038; THREADS.md;
+  THEKE.md/THEKE-ERWEITERUNGEN.md (`euro`); ARCHITEKTUR (Warnungsliste); IR.md; CHANGELOG 3.1. Interpreter, Compiler `pizzaiolo`
+  (frontend/backend-wasm), Wasm-Laufzeit (`laufzeit/src/{ops,pf,std_m,zahl,namen,wert}.rs`), Prüfstand a07/a08/a10/a14, `tests/faelle`,
+  `tests/wasm`, Differenzkorpus, Fuzz-Generator, Beispiele (ohne Pizza-Imperium: eigener Agent), Doku, Editor-Wortlisten. **Status:** fest.
 
 ### K-128 Herd: Spiel-Engine für 2D und 3D – ein Render-Kern, dünne GPU-Schichten (Nutzerwunsch)
 - **Anlass (Nutzer, wörtlich):** „Kannst du eine simple Game-Engine hinzufügen? Die sollte auf Desktop nativ rendern, nicht mit HTML (wenn
@@ -1800,6 +1856,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (Zeichen → Palettenfarbe; eigene Zuordnung per Speisekarte) statt Bilddateien – Dateien hätten im Browser keinen Ort; pixelscharf.
   Formen: Grundformen (Würfel, Kugel, Zylinder, Kegel, Ebene, Ring) erzeugt der Kern aus Parametern, eigene Formen aus Punkt-/Dreieck-Blechen.
   Kein Material-Objekt in v1 (benannte Argumente `farbe`, `glanz`, `leuchten`, `bild`). **Status:** fest.
+---
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

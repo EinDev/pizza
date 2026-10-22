@@ -32,7 +32,7 @@ Blech<margherita> meldungen = [1].brigade(x -> [
     versuch(() -> { karte.entferne("a"); }),
     versuch(() -> { t.gehenlassen(); }),
     versuch(() -> { t.backen(); }),
-    versuch(() -> { l.trinkgeld(1); }),
+    versuch(() -> { l.priorität(1); }),
     versuch(() -> { l.warte(); }),
     versuch(() -> { l.wennDa(w -> Bote.sage((w))); }),
     versuch(() -> { z.zahl(1, 6); }),

@@ -16,7 +16,7 @@ Blech<Koch> koeche = ["Mario", "Luigi", "Peach", "Toad", "Yoshi"].brigade(n -> {
     k.kochen(Zufall.zahl(1, 10));
     Uhr.vorspulen(Zufall.zahl(1, 60) * 1s);
     Bote.sage((n + " fertig um " + Uhr.jetzt()));
-    falls (n == "Toad") { [1, 2, 3, 4, 5, 6, 7].schneide(7); }
+    falls (n == "Toad") { teig(() -> (7)).backen(); }
     serviere ((k));
 });
 für (Koch k : koeche) { Bote.sage((k + " " + k.name + " " + k.gerichte)); }

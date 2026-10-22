@@ -270,11 +270,11 @@ für (salami i = 0; i < 200; i++) {
 Bote.sage((ok));
 `, { out: ["ja"] }),
 
-  F(S, "Zahl: euro() (Kl. 7), runden, abs, alsText, ganz", P`
+  F(S, "Zahl: währung(symbol) (Kl. 7, K-127), runden, abs, alsText, ganz", P`
 funghi p = 8;
-Bote.sage((p.euro()));
+Bote.sage((p.währung("€")));
 funghi q = 7.5;
-Bote.sage((q.euro()));
+Bote.sage((q.währung("€")));
 funghi x = 3.14159;
 Bote.sage((x.runden(2)));
 Bote.sage((x.runden()));
@@ -282,7 +282,7 @@ funghi m = -3.7;
 Bote.sage((m.abs()));
 Bote.sage((m.ganz()));
 Bote.sage((x.alsText() + "!"));
-Bote.sage(((5 + 1.5 + 1 + 0.5).euro()));
+Bote.sage(((5 + 1.5 + 1 + 0.5).währung("€")));
 `, { out: ["8,00 €", "7,50 €", "3.14", "3", "3.7", "-3", "3.14159!", "8,00 €"] }),
 
   F(S, "Text-Methoden", P`

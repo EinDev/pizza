@@ -1,11 +1,11 @@
 Dauer d = ofen(zeit: 5ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); };
 Bote.sage((d));
-salami e = ofen(temperatur: 485) { serviere ((1)); };
+salami e = ofen(zeit: 0ms) { serviere ((1)); } roh (r) { serviere ((0)); };
 Bote.sage((e));
 Bote.sage((ofen { }));
-Bote.sage((ofen(450, 2ms) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); }));
+Bote.sage((ofen(2ms, 450) { solange (ja) { } } roh (r) { serviere ((r.verbrauchteZeit())); }));
 probier { ofen(zeit: "x") { }; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
-probier { ofen(temperatur: "heiß") { }; } verbrannt (TypAnanas t) { Bote.sage((t.nachricht())); }
+Bote.sage((ofen(-5ms) { serviere ((1)); } roh (r) { serviere (("negativ: roh")); }));
 Bote.sage((ofen(zeit: 100) { serviere (("Zahl als ms")); }));
 salami aussen = ofen(zeit: 1s) {
     salami innen = ofen(zeit: 3ms) { zwischenstand((5)); solange (ja) { } } roh (r) { serviere ((r.teilergebnis())); };

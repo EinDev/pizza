@@ -1,5 +1,5 @@
 W0003: Methode 'alt' ist veraltet. Grund: bitte neu()
-S0007: 7 Stücke? Wer schneidet eine Pizza in 7 Stücke?
+T0007: Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.
 W0003: Methode 'uralt' ist veraltet.
 T0007: Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.
 T0007: Teig wird gebacken, ohne gehen gelassen worden zu sein. Das schmeckt flach.

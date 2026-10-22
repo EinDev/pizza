@@ -161,9 +161,9 @@ Bote.sage(([3].brigade(x -> teig(() -> (x * 2)).gehenlassen().backen())));
 `, { out: ["Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.",
     "Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.", "42", "[43, 44]", "[6]"], noWarn: ["T0007"] }),
 
-  F(K, "§17.3 S3: Lieferung der Hauptküche – trinkgeld/warte (nicht gewartet) werfen; gewartete ist lesbar", P`
+  F(K, "§17.3 S3: Lieferung der Hauptküche – priorität/warte (nicht gewartet) werfen; gewartete ist lesbar", P`
 Lieferung<salami> l = bestelle(() -> (5));
-${fang("[1].brigade(x -> l.trinkgeld(1))")}
+${fang("[1].brigade(x -> l.priorität(1))")}
 ${fang("[1].brigade(x -> l.warte())")}
 Zustellung<salami> z = l.warte();
 Bote.sage(([1].brigade(x -> l.warte().wert() + x)));
@@ -422,9 +422,9 @@ Bote.sage((Alt.m(4)));
     },
   }),
 
-  F(K, "D5: S0007 an derselben Stelle in zwei Stücken → einmal", P`
-Bote.sage(([1, 2].brigade(x -> [1 .. 14].schneide(7).länge())));
-`, { out: ["[7, 7]"], warnAnzahl: { S0007: 1 } }),
+  F(K, "D5: T0007 an derselben Stelle in zwei Stücken → einmal (vormals S0007, K-127)", P`
+Bote.sage(([1, 2].brigade(x -> teig(() -> (x * 7)).backen())));
+`, { out: ["[7, 14]"], warnAnzahl: { T0007: 1 } }),
 
   F(K, "D6 Referenz: [1, 2, 3, 4].brigade(x -> x * x) → schritte 20, zeitMs 11", P`
 Blech<salami> r = [1, 2, 3, 4].brigade(x -> x * x);

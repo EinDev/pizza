@@ -246,7 +246,7 @@ salami x = t.backen();    // liefert den Wert (berechnet höchstens einmal)
 ### 7.3 Ofen – Zeitbudget mit Teilergebnis (Tier 2)
 
 ```pizza
-salami s = ofen(temperatur: 450, zeit: 90s) {
+salami s = ofen(zeit: 90s) {
     ...
     zwischenstand((summe));     // merkt Teilergebnis
     ...
@@ -257,20 +257,18 @@ salami s = ofen(temperatur: 450, zeit: 90s) {
     serviere ((-1));
 };
 ```
-- Benannte Argumente `temperatur` (Standard 250) und `zeit` (Standard 60s).
-- `temperatur > 485` → wirft `VerbranntAnanas("Zu heiß! Selbst Neapel hat Grenzen.")`.
-- Budget in Schritten = `zeit_ms × temperatur / 250`. (Heißer Ofen = schneller.)
+- Argument `zeit` (Standard 60s), benannt oder positional (`ofen(90s)`). Budget in Schritten = `zeit_ms` (K-127: eine
+  Ofentemperatur gibt es nicht mehr).
 - Budget überschritten → `roh (r)`-Zweig (falls vorhanden) mit `r.teilergebnis()` (letzter `zwischenstand` oder `karton`)
   und `r.verbrauchteZeit()` (Dauer). Ohne `roh`-Zweig → wirft `VerbranntAnanas("Zu lange im Ofen: Budget von N Schritten überschritten.")`.
-- `verbrannt`-Zweige fangen Ananas, die im Block (oder durch zu hohe Temperatur) geworfen werden; Syntax wie bei `probier`. Nicht gefangene laufen weiter nach außen.
+- `verbrannt`-Zweige fangen Ananas, die im Block geworfen werden; Syntax wie bei `probier`. Nicht gefangene laufen weiter nach außen.
 - `roh` und `verbrannt` sind beide optional, Reihenfolge: erst `roh`, dann `verbrannt`.
 - Das gesamte `ofen(...) {...} ...` ist ein **Ausdruck**; als Anweisung mit `;` abschließen.
 
 ### 7.4 Schneiden – Parallelität (Tier 2: sequentiell simuliert)
 
-- `blech.schneide(n)` → Blech aus `n` Teil-Blechen (so gleichmäßig wie möglich, vordere Stücke ggf. größer).
-  `schneide(auto)` → 8 Stücke. `auto` ist hier ein Sonderbezeichner (nur als Argument von `schneide`).
-- `n == 7` → Warnung `S0007: 7 Stücke? Wer schneidet eine Pizza in 7 Stücke?`
+- `blech.schneide(n)` → Blech aus `n` Teil-Blechen (so gleichmäßig wie möglich, vordere Stücke ggf. größer); `n` ist eine
+  Ganzzahl ≥ 1 und Pflicht (K-127: kein `schneide(auto)`, keine Warnung bei 7 Stücken mehr).
 - Operator `blech / n` → wie `schneide(n)`, aber **fair**: geht es nicht auf →
   `StreitAnanas: 8 Stücke lassen sich nicht fair durch 3 teilen.`
 - Danach typisch `.belege(fn)` (map) und `.zusammenklappen(fn)` (reduce) – das sind normale Blech-Methoden.
@@ -298,21 +296,21 @@ speisekarte margherita holeKarte() { ... }
   - Cache abgelaufen → alter Wert sofort, `istMatschig() == ja`, und der Cache wird direkt danach neu befüllt.
 - Methodenreferenz `.frisch(args)` → erzwingt Neuberechnung.
 
-### 7.7 Lieferung – Async mit Trinkgeld (Tier 2)
+### 7.7 Lieferung – Async mit Priorität (Tier 2)
 
 ```pizza
 Lieferung<salami> l = bestelle(() -> (rechne()));
-l.trinkgeld(5);                                  // gibt die Lieferung zurück
+l.priorität(5);                                  // gibt die Lieferung zurück
 Zustellung<salami> z = l.warte(max: 30min);
 salami wert = z.oderGratis((0));
 ```
 - `bestelle(fn)` → `Lieferung`, Funktion läuft noch nicht.
-- `trinkgeld(n)` → Priorität; jeder Euro erhöht das Budget um 10 %.
-- `warte(max: d)` → führt jetzt aus mit Budget `d_ms × (1 + trinkgeld/10)` Schritten → `Zustellung` mit
+- `priorität(n)` → setzt die Priorität (jede Zahl, Standard 0, der letzte Aufruf gilt); sie ordnet nur die `wennDa`-Phase (K-127).
+- `warte(max: d)` → führt jetzt aus mit Budget `d_ms` Schritten → `Zustellung` mit
   `pünktlich()`, `wert()` (zu spät → wirft `LieferAnanas: Zu spät – die Pizza ist kalt.`), `oderGratis(v)` (zu spät → `v`).
   Ananas aus `fn` werden bei `wert()`/`oderGratis()` weitergeworfen. Mehrfaches `warte` liefert dieselbe Zustellung.
 - `wennDa(fn)` → registriert Rückruf; alle noch nicht gewarteten Lieferungen mit Rückruf laufen **nach Programmende**
-  (nach `hauptgang`), sortiert nach Trinkgeld absteigend, bei Gleichstand in Bestellreihenfolge. Budget dort: unbegrenzt.
+  (nach `hauptgang`), sortiert nach Priorität absteigend, bei Gleichstand in Bestellreihenfolge. Budget dort: unbegrenzt.
 
 ### 7.8 Calzone – echte Kapselung (Tier 1)
 
@@ -407,7 +405,7 @@ Exit-Code: 39
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
 | `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
-| Zahl | `euro()` → `"8,00 €"`, `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
+| Zahl | `währung(symbol)` → `8.währung("€")` = `"8,00 €"` (K-127), `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
 | Blech | `länge()`, `stück(i)` (**ab 1**, außerhalb → `KeinStückAnanas`), `hinzu(x)` (gibt Blech zurück), `entferne(i)`, `setze(i, x)`, `enthält(x)`, `belege(fn)` (map), `filtere(fn)`, `zusammenklappen(fn)` / `zusammenklappen(fn, start)` (reduce), `summe()`, `erstes()`, `letztes()`, `umdrehen()`, `sortiere()` / `sortiere((a, b) -> ...)`, `verbinde(trenner)`, `istLeer()`, `schneide(n)` |
 | Speisekarte | `lege(k, v)`, `hole(k[, ersatz])` (fehlt → `ersatz`, sonst `karton`; auch benannt `ersatz:`, K-095), `hat(k)`, `entferne(k)`, `schlüssel()`, `werte()`, `länge()` |
@@ -474,7 +472,7 @@ gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
 ## 13. Tier 3 – nur Spezifikation
 
-- Toolchain: Compiler `pizzaiolo backe`, Build-Tool `pizzaofen` mit `ofen.xml`, Archive `.pkarton`, Paketmanager `pizzabote`, Flag `--temperatur=485` (Optimierung).
+- Toolchain: Compiler `pizzaiolo backe`, Build-Tool `pizzaofen` mit `ofen.xml`, Archive `.pkarton`, Paketmanager `pizzabote`.
 - Statische Prüfung von Generics und `wirft`.
 - Echte Hintergrund-Threads bei `teig` und `bestelle` bzw. ein eigenes Konstrukt „Hintergrund-Köche“ (§17.8, K-097/F9).
   (Echte Parallelität ist mit `brigade` Tier 1 geworden, §17; `schneide`/`belege` bleiben sequentiell.)
@@ -525,18 +523,18 @@ regelt `EINGABE.md`.
 - Budgets messen die **simulierte Uhr** (Schritte + `Uhr.vorspulen`). Ein Budget von N erlaubt N Uhr-Millisekunden ab
   Beginn; überschritten ist es, sobald die Uhr > Start + N ist (beim N+1-ten Schritt oder direkt nach einem
   `vorspulen`, das darüber hinausführt).
-- **Ofen:** Start nach Auswertung der Argumente; N = `floor(zeit_ms × temperatur / 250)`; Argumente auch positional
-  (`ofen(450, 90s)`), `zeit` darf eine Zahl (ms) sein, nicht-numerische Argumente → TypAnanas
+- **Ofen:** Start nach Auswertung der Argumente; N = `floor(zeit_ms)`; `zeit` auch positional (`ofen(90s)`, weitere
+  Positionsargumente werden ausgewertet und ignoriert), `zeit` darf eine Zahl (ms) sein, sonst TypAnanas
   (`ofen(zeit: …) braucht eine Dauer, nicht "x".`). `verbrauchteZeit()` = Uhr beim Abbruch − Start
   (Beispiel: `ofen(zeit: 5ms) { solange (ja) { } }` → `6ms`).
 - Mehrere verschachtelte Budgets gleichzeitig überschritten → das **äußerste** greift; innere Öfen/Lieferungen werden
   ohne ihren `roh`-Zweig verlassen.
-- Die `verbrannt`-Zweige eines Ofens fangen Ananas aus dem Block, die Temperatur-Ananas und die
+- Die `verbrannt`-Zweige eines Ofens fangen Ananas aus dem Block, und die
   „Zu lange im Ofen“-Ananas (wenn kein `roh` existiert) – nicht aber Ananas aus dem `roh`- oder einem `verbrannt`-Block.
 - Ohne `serviere` ist der Wert eines Ofens `karton`. `abbrechen`/`weiter` direkt im Ofen-Block sind ein Parse-Fehler P0012 (K-015).
 - `rand` läuft auch bei einem Budget-Abbruch, aber nie bei Panik, P0002 oder PizzaFehlern.
-- **Lieferung:** `warte()` ohne `max` = unbegrenzt; `warte(30min)` positional erlaubt; `trinkgeld` summiert sich;
-  Budget = `max × (1 + Summe/10)`. `zwischenstand` außerhalb eines Ofens wird ignoriert.
+- **Lieferung:** `warte()` ohne `max` = unbegrenzt; `warte(30min)` positional erlaubt; Budget = `floor(max_ms)`;
+  `priorität` ändert das Budget nicht (K-127). `zwischenstand` außerhalb eines Ofens wird ignoriert.
 
 ### 14.3 `wennDa`-Zeitpunkte
 
@@ -544,7 +542,7 @@ regelt `EINGABE.md`.
 - `wennDa` vor `warte` registriert → `fn(wert)` direkt nach einem pünktlichen, fehlerfreien `warte`.
   Zu spät oder mit Ananas → kein Rückruf.
 - Nach Programmende (nach `hauptgang`, nur bei normalem Ende) laufen alle nie gewarteten Lieferungen mit Rückruf –
-  immer die offene mit dem höchsten Trinkgeld zuerst, bei Gleichstand die früher bestellte; während dieser Phase neu
+  immer die offene mit der höchsten Priorität zuerst, bei Gleichstand die früher bestellte; während dieser Phase neu
   registrierte werden mit einsortiert. Kein Budget. Ananas dort → ungefangen (Exit 1). Lieferungen ohne `wennDa`
   laufen nie.
 
@@ -678,8 +676,10 @@ regelt `EINGABE.md`.
 - `Bote.sage(a, b, …)`, `Bote.fehler(…)`, `Bote.schreibe(…)`: mehrere Argumente werden mit Leerzeichen verbunden;
   `Bote.sage()` gibt eine leere Zeile aus.
 - Zahlen: Textform wie JavaScript `String(x)` (`1e+21`, `1e-7`, `-0` → `0`, `0.30000000000000004`).
-  `runden()`/`runden(n)`/`Mathe.runden` runden symmetrisch (−2.5 → −3, 2.675 → 2.68). `euro()`: zwei Nachkommastellen,
-  Komma, ohne Tausendertrennung (`1234567,89 €`, `-3,00 €`); ab `|x| ≥ 10²¹` sowie ∞/NaN wie `euro(kompakt: ja)` (K-103).
+  `runden()`/`runden(n)`/`Mathe.runden` runden symmetrisch (−2.5 → −3, 2.675 → 2.68). `währung(symbol, kompakt: nein)` (K-127,
+  vormals `euro()`): zwei Nachkommastellen, Komma, ohne Tausendertrennung, dann ` ` + Textform von `symbol`, falls angegeben, nicht `karton`
+  und nicht leer (`1234567.89.währung("€")` → `1234567,89 €`, `(-3).währung("€")` → `-3,00 €`, `8.währung()` → `8,00`); `kompakt: ja` sowie ab
+  `|x| ≥ 10²¹` und bei ∞/NaN wie `kompakt(2)` (K-103).
 - Dauer: zusätzlich `inMinuten()`; Textform rundet auf ganze ms, negative Dauer mit `-` (`-1min 30s`);
   `Dauer / Dauer` → Zahl; Zahl × Dauer → Dauer; Division durch 0 → RechenAnanas.
 - Text: zusätzlich `endetMit(s)`, `istLeer()`, `alsText()`. `länge()`/`zeichen(i)` zählen Unicode-Zeichen (Codepoints).
@@ -690,7 +690,7 @@ regelt `EINGABE.md`.
   `verbinde()` ohne Trenner = `""`; `zusammenklappen` auf leerem Blech ohne Startwert → `karton`; `summe()` leer → 0
   (Bleche aus Dauern → Dauer); `schneide(n)` mit n > Länge → leere Teilbleche; `schneide(n < 1)` →
   `StreitAnanas: In n Stücke schneiden? Das geht nicht.`; `blech / 0` → RechenAnanas;
-  `blech / n` mit n < 0 → `StreitAnanas: In n Stücke teilen? Das geht nicht.`; S0007 auch bei `blech / 7`.
+  `blech / n` mit n < 0 → `StreitAnanas: In n Stücke teilen? Das geht nicht.`.
 - Indexfehler: `KeinStückAnanas: Stück i gibt es nicht – das Blech hat n Stück(e).` (Einzahl „Stück“);
   `erstes`/`letztes` auf leerem Blech: `KeinStückAnanas: Das Blech ist leer – kein Stück da.`;
   Text: `Zeichen i gibt es nicht – der Text hat n Zeichen.`
@@ -731,9 +731,9 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-025** Text-Escapes genau `\n \t \r \" \\ \'` (§1).
 - **K-027** Texte in Blech/Speisekarte erscheinen ohne Anführungszeichen (`[""]` → `[]`) – bewusst.
 - **K-028** Eingebaute Funktionen kennen nur ihre dokumentierten benannten Argumente (`stellen`, `start`, `max`,
-  `temperatur`, `zeit`, `haltbar`, `grund`, `ersatz`); unbekannte benannte Argumente werden ignoriert.
+  `zeit`, `symbol`, `kompakt`, `haltbar`, `grund`, `ersatz`); unbekannte benannte Argumente werden ignoriert.
 - **K-048** Rundung: `runden()` = `sign(x)·round(|x|)`; `runden(n>0)` = `sign(x)·round(|x|·10^n + 1e-9)/10^n`;
-  `euro()` = `round(|x|·100 + 1e-9)/100` mit Vorzeichen, Komma, zwei Stellen, nie `-0,00 €`.
+  `währung()` (vormals `euro()`, K-127) = `round(|x|·100 + 1e-9)/100` mit Vorzeichen, Komma, zwei Stellen, nie `-0,00`.
 - **K-049** `Zufall.zahl`: mulberry32, Seed 42 (§11); erste Werte von `zahl(1, 6)`: 4, 3, 6, 5, 2, 4, 2, 4, 6, 3.
 - **K-053** `schrittLimit` ≤ 0/NaN/fehlend → 5 000 000; nicht-ganzzahlig → Abbruch beim Schritt `floor(limit) + 1`.
 
@@ -744,9 +744,9 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   quattrostagioni-Werte, sonst (Dauer, Blech, Objekte) nach Identität.
 - **K-018** Kühlschrank-Schlüssel = Textform der Argumente (Objekte eigener Klassen nach Identität); geworfene Ananas
   werden nicht gecacht; gecachte Werte kommen per Referenz zurück (§14.10).
-- **K-019** `wennDa` ersetzt den früheren Rückruf; `trinkgeld` nimmt jede Zahl (Faktor `1 + Summe/10` ≤ 0 → sofort zu
-  spät); eine Zustellung ist endgültig.
-- **K-020** Ofen: `temperatur ≤ 0` oder `zeit = 0` → Budget 0 (erster Schritt überschreitet); Grenze exakt `> 485`.
+- **K-019** *(Trinkgeld abgelöst durch K-127)* `wennDa` ersetzt den früheren Rückruf; `priorität` nimmt jede Zahl (der letzte
+  Wert gilt, kein Einfluss auf das Budget); eine Zustellung ist endgültig.
+- **K-020** *(Temperatur abgelöst durch K-127)* Ofen: `zeit ≤ 0` → Budget ≤ 0 (erster Schritt überschreitet).
 - **K-021** Bereich `[a .. b]`: beliebige Zahlen, Schritt 1 ab `a`, inklusive, absteigend bei `a > b`;
   mehr als 10 000 001 Elemente → `RechenAnanas: Der Bereich ist zu groß für ein Blech.`
 - **K-022** `sortiere` ist stabil; Vergleichsfunktion muss eine Zahl liefern (Vorzeichen zählt); ohne Funktion nur
@@ -764,14 +764,16 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
 - **K-035** `Teig.istAufgegangen()` → `ja` nur nach `gehenlassen()`.
 - **K-036** Rückgabetyp ungeprüft: `serviere;` → `karton`, `serviere (x)` in `leer` liefert `x`, Rumpfende → `karton`.
 - **K-037** Basiskonstruktor ohne `unten(…)`: parameterloser Aufruf oder Aritätsfehler (§3).
-- **K-038** `auto` nur als Argument von `schneide`; sonst `LaufzeitAnanas: 'auto' ist nicht definiert.`
+- **K-038** *(abgelöst durch K-127)* `auto` ist überall ein gewöhnlicher Name; undeklariert → `LaufzeitAnanas: 'auto' ist nicht definiert.`, auch in `schneide(auto)`.
+- **K-127** Zweite Bereinigung: kein `ofen(temperatur:)`, `trinkgeld` → `priorität` (nur Reihenfolge), `euro()` → `währung(symbol)`,
+  kein `schneide(auto)`/`schneide()`, keine Warnung S0007 (§7.3, §7.4, §7.7, §14.2, §14.11).
 - **K-039** *(abgelöst durch K-105)* Keine Pizza-Methoden mehr; `+` mit einem Text bleibt Textverkettung (§5).
 - **K-095** `Speisekarte.hole(k[, ersatz])` wie `Vorratskammer.hole` (K-079): `ersatz` (positional oder `ersatz:`) nur bei
   fehlendem Schlüssel (`hat(k)` = `nein`), gespeicherter `karton` bleibt `karton`, `ersatz` ohne Kopie; `hole(k)` unverändert.
 - **K-076** `ersetze("", x)` lässt den Text unverändert; alle Text-Methoden arbeiten auf Codepoints, nur `<`/`sortiere`
   nach UTF-16-Codeeinheiten (K-040).
 - **K-047** Die simulierte Uhr zählt ganze Millisekunden: `Uhr.vorspulen(d)` rundet kaufmännisch auf ms,
-  `schritte`/`zeitMs` sind Ganzzahlen, Budgets `floor(...)` (Lieferung: `floor(max_ms × Faktor)`).
+  `schritte`/`zeitMs` sind Ganzzahlen, Budgets `floor(...)` (Ofen `floor(zeit_ms)`, Lieferung `floor(max_ms)`).
 
 ### 15.3 Ein-/Ausgabe, Motoren, Hosts (siehe §11.1)
 - **K-007** Einheitliche Zahltext-Grammatik für `alsZahl`, `liesZahl`, `frageZahl` (§11.1).
@@ -988,8 +990,8 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
   `LaufzeitAnanas: Ein Takt braucht mindestens 100ms, nicht 50ms.`; Textform `Takt(t1)`; Warten kostet nichts, der Rückruf zählt.
 - **Zahlformat (K-085):** `x.tausender(n = 0)` → `1.234.567` / `1.234.567,00`; `x.kompakt(n = 2)` → `1,23 Mio.` (Stufen `Tsd.`, `Mio.`,
   `Mrd.`, `Bio.`, `Brd.`, `Trio.`, `Trd.`, `Quadr.`, `Quadrd.`, `Quint.`, … bis `Dezd.` 10⁶³ – K-103; ohne nachgestellte Nullen;
-  `< 1000` → `runden(x, n)` mit Komma; `≥ 10⁶⁶` → `1,5 × 10⁷⁰`; ∞/NaN → `∞`/`-∞`/`NaN`); `euro(kompakt: ja)` → `1,23 Mio. €`;
-  `tausender`/`euro()` ab `|x| ≥ 10²¹` wie `kompakt(2)`. Die Textform (`text(x)`, `Bote.sage(x)`) bleibt `String(x)` (`2.5e+21`).
+  `< 1000` → `runden(x, n)` mit Komma; `≥ 10⁶⁶` → `1,5 × 10⁷⁰`; ∞/NaN → `∞`/`-∞`/`NaN`); `währung("€", kompakt: ja)` → `1,23 Mio. €`;
+  `tausender`/`währung()` ab `|x| ≥ 10²¹` wie `kompakt(2)`. Die Textform (`text(x)`, `Bote.sage(x)`) bleibt `String(x)` (`2.5e+21`).
 - **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu**: die Zählbasis wird beim
   Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
@@ -1100,7 +1102,7 @@ unverändert – Bindungen werden in der Laufzeit aufgelöst, Interpreter und Wa
 ```pizza
 Zettel geld = neu Zettel(0);
 Schild kasse = neu Schild();
-kasse.binde("text", () -> geld.wert().euro());                 // folgt dem Zettel
+kasse.binde("text", () -> geld.wert().währung("€"));                 // folgt dem Zettel
 Knopf backen = neu Knopf("Backen", () -> { geld.setze(geld.wert() + 8); });
 backen.binde("aktiv", () -> geld.wert() < 100);
 Eingabe anzahl = neu Eingabe(wert: "1");
@@ -1212,7 +1214,7 @@ festen Spalten. Protokoll v1 (neuer Stil-Schlüssel mit Listenwert); Interpreter
 Zettel geld = neu Zettel(0);
 Zettel stufe = neu Zettel(1);
 Zettel preis = Zettel.aus(() -> 10 * stufe.wert() * stufe.wert());   // rechnet nur, wenn sich stufe ändert
-kaufen.binde("text", () -> ("Ausbauen für " + preis.wert().euro()));
+kaufen.binde("text", () -> ("Ausbauen für " + preis.wert().währung("€")));
 kaufen.binde("aktiv", () -> geld.wert() >= preis.wert());
 balken.binde("wert", () -> geld.wert() / preis.wert());             // drei Leser, eine Rechnung
 Tabelle erfolge = neu Tabelle(["", "Erfolg", "Ziel"], []).stil("spalten", [1, 6, 3]);   // 10 % · 60 % · 30 %, fest
@@ -1283,7 +1285,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
   derselbe Fehler wie bei `belege` (`TypAnanas: 3 ist keine Funktion – das kann man nicht aufrufen.`).
 - Leeres Blech → `[]` **ohne Anschnitt** (keine Zufallsziehung, keine Kosten außer den Aufrufknoten).
 - Typischer Partner ist `schneide(n)`: die Anzahl der Stücke ist Programmentscheidung und beobachtbar, die Anzahl der Köche nie.
-  `schneide(auto)` bleibt **8** – nie von der Hardware abhängig.
+  Die Stückzahl hängt nie von der Hardware ab.
 - `brigade` ist **kein Keyword** (keine neuen reservierten Wörter, bestehende Bezeichner bleiben gültig); `BUILTINS` ändert sich
   nicht. Bestehende Konstrukte (`belege`, `zusammenklappen`, `teig`, `bestelle`) bleiben exakt wie in §7/§14.
 - **Schritte:** der Aufruf kostet seine normalen Knoten (§14.1), jeder Rückruf zählt seine Anweisungen/Ausdrücke; Anschnitt,
@@ -1302,7 +1304,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 | eigene Variablen (Parameter und lokale Variablen des Rückrufs und aller von ihm aufgerufenen Rümpfe), eigene Objekte | lesen und schreiben wie immer |
 | Methoden/Funktionen aufrufen, `neu Klasse(…)`, Pizzen bauen, Rekursion, `probier`, `ofen`, eigene `teig`/`bestelle` | erlaubt |
 | `Bote.sage`, `Bote.schreibe`, `Bote.fehler`, `Bote.leeren` | erlaubt; Ereignisse werden gepuffert und in Stückreihenfolge ausgegeben (D4) |
-| Warnungen (S0007, T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (D5) |
+| Warnungen (T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (D5) |
 | `Uhr.jetzt()`, `Uhr.vorspulen(d)` | Küchenuhr (D6) |
 | `Uhr.echt()` | erlaubt (Wanduhr; Test: `optionen.echtzeit`) |
 | `Zufall.*`, `neu Zufall()` | eigener Strom der Küche (D9) |
@@ -1333,7 +1335,7 @@ keine Warnung wie T0007/W0013, kein zusätzlicher Schritt) – auch auf indirekt
 | `hinzu`, `entferne`, `setze` auf vorhandenem Blech | `KüchenAnanas: Dieses Blech gehört der Hauptküche – nimm eine kopie().` |
 | `lege`, `entferne` auf vorhandener Speisekarte | `KüchenAnanas: Diese Speisekarte gehört der Hauptküche – ein Koch darf sie nur lesen.` |
 | `gehenlassen()`, `backen()` (Wert noch nicht berechnet) auf vorhandenem Teig | `KüchenAnanas: Dieser Teig gehört der Hauptküche – ein Koch darf ihn nur ansehen.` |
-| `trinkgeld`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
+| `priorität`, `warte` (noch nicht gewartet), `wennDa` auf vorhandener Lieferung | `KüchenAnanas: Diese Lieferung gehört der Hauptküche – ein Koch darf sie nur ansehen.` |
 | Ziehen aus einem vorhandenen `Zufall`-Objekt (auch `saat(n)`) | `KüchenAnanas: Dieser Zufall gehört der Hauptküche – nimm Zufall direkt oder neu Zufall().` |
 | `lege`, `entferne`, `leeren` auf vorhandener Vorratskammer `x` | `KüchenAnanas: Die Vorratskammer 'x' gehört der Hauptküche – ein Koch darf nur nachsehen.` |
 | `aufklappen()` auf vorhandener Calzone | `KüchenAnanas: Diese Calzone gehört der Hauptküche – ein Koch darf sie nicht aufklappen.` |
