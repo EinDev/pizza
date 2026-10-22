@@ -12,6 +12,7 @@ import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen } from "./vorrat.js";
 import { startApp } from "./app.js";
 import { verpacke, entpacke } from "./teilen.js";
+import { leseKoeche, speichereKoeche, koecheFuerLauf, koecheMoeglich, KOECHE_SCHLUESSEL } from "./koeche.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
 // Strg+Enter (oder „Backen“) schiebt dein Programm in den Ofen.
@@ -174,7 +175,7 @@ function start() {
         $("exit-badge").className = "exit-badge abgebrochen";
         $("exit-badge").textContent = "abgebrochen";
       } else {
-        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, laufMs: info.laufMs, zusatz: info.zusatz, name: laufName });
+        konsole.setzeExit(info.exitCode, { schritte: info.schritte, zeitMs: info.zeitMs, wandMs: info.wandMs, laufMs: info.laufMs, zusatz: info.zusatz, name: laufName, koeche: info.koeche });
       }
       if (document.activeElement === knopfAbbr) knopfBacken.focus();
     },
@@ -512,9 +513,10 @@ function start() {
   { const h = ARGUMENTE_HILFE.replace(/^Argumente für hauptgang\(args\) – /, ""); $("args-hilfe").textContent = h.charAt(0).toUpperCase() + h.slice(1); }
   argsFeld.value = (tabs.aktiv() && tabs.aktiv().args) || "";
   function laufPunkt() {
-    const args = argsFeld.value.trim(), fest = $("feste-saat").checked;
-    $("lauf-punkt").hidden = !args && !fest;
-    laufKnopf.title = "Lauf-Einstellungen" + (args ? " · Argumente: " + args : "") + (fest ? " · feste Saat 42" : "");
+    const args = argsFeld.value.trim(), fest = $("feste-saat").checked, koeche = leseKoeche();
+    $("lauf-punkt").hidden = !args && !fest && koeche === "auto";
+    laufKnopf.title = "Lauf-Einstellungen" + (args ? " · Argumente: " + args : "") + (fest ? " · feste Saat 42" : "") +
+      (koeche !== "auto" ? " · Köche: " + koeche : "");
   }
   function laufOptionenOeffnen(fokusArgs = true) {
     konsoleOeffnen();
@@ -539,6 +541,20 @@ function start() {
   festeSaatBox.checked = speicher.hole("pizza.festeSaat") === "1";
   festeSaatBox.addEventListener("change", () => { speicher.setze("pizza.festeSaat", festeSaatBox.checked ? "1" : "0"); laufPunkt(); });
   argsFeld.addEventListener("lauf-punkt", laufPunkt);
+
+  // ---------- Köche für die Küchenbrigade (SPEC §17.7, THREADS §4.8): auto | 1 | 2 | 4 | 8, pro Browser ----------
+  const koecheFeld = $("koeche-wahl");
+  function koecheZeigen() {
+    const w = leseKoeche();
+    for (const r of koecheFeld.querySelectorAll('input[name="koeche"]')) r.checked = r.value === w;
+  }
+  koecheZeigen();
+  koecheFeld.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "koeche") { speichereKoeche(e.target.value); laufPunkt(); }
+  });
+  // Ohne Cross-Origin-Isolation gibt es keine echten Köche – gleiches Ergebnis wie „Köche: 1“, nur ein dezenter Hinweis
+  $("koeche-hinweis").hidden = koecheMoeglich();
+  window.addEventListener("storage", (e) => { if (e.key === KOECHE_SCHLUESSEL) { koecheZeigen(); laufPunkt(); } });
   laufPunkt();
   function neueSaat() {
     if (festeSaatBox.checked) return 42;
@@ -609,6 +625,7 @@ function start() {
       zufallsSaat: saat,
       vorrat: vorratAktiv ? vorratLaden(laufVorratPraefix) : undefined,
       vorratAktiv,
+      koeche: koecheFuerLauf(leseKoeche()),
     });
     konsole.saat(saat);
   }

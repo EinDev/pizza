@@ -7,6 +7,11 @@
  *   { typ: "pruefe" }             → { typ: "faehigkeiten", interpreter, wasm, version?, grund? }   (lädt pizzaiolo.js genau einmal)
  * Worker → UI: Ereignisse einzeln oder gebündelt als { typ: "batch", ereignisse: [...] }.
  *   Zusätzlich: { typ: "motor", motor, grund?, kompilierMs? }; "ende" trägt laufMs und motor.
+ * Küchenbrigade (THREADS §4.8, K-104 Punkt 12): "start" trägt koeche: "auto" | 1 | 2 | 4 | 8. Nutzt das Programm
+ *   brigade (Gruppe kueche), legt der Worker VOR dem Lauf einen Köche-Pool an (Kinder-Worker, Pizzaiolo.kuechenPool) und
+ *   behält ihn für weitere Läufe mit derselben Anzahl; „Abbrechen“ = terminate() beendet ihn mit. "ende" trägt dann
+ *   koeche (tatsächlich genutzt, 1 ohne Köche/Interpreter) und poolWarm: true, solange der Pool lebt (die Seite darf
+ *   diesen Worker für den nächsten Lauf wiederverwenden).
  * Regel (WASM.md §4): motor "wasm" fällt NIE auf den Interpreter zurück – stattdessen Fehler (Exit-Code 2).
  */
 "use strict";
@@ -109,13 +114,58 @@ function uiWarteRueckruf(sab) {
   };
 }
 
+/* ---------- Küchenbrigade: Gruppe kueche erkennen, Köche-Pool vor dem Lauf ---------- */
+/** Nutzt das Programm brigade? Wie der Compiler (frontend.js): Methodenaufruf/Zugriff namens brigade im AST. */
+function nutztBrigade(code) {
+  if (!/\bbrigade\b/.test(code)) return false;
+  var p;
+  try { p = PL && typeof PL.parse === "function" ? PL.parse(code) : null; } catch (e) { p = null; }
+  if (!p || !p.ok || !p.ast) return /\.\s*brigade\b/.test(code);
+  var stapel = [p.ast], gesehen = 0;
+  while (stapel.length) {
+    var n = stapel.pop();
+    if (!n || typeof n !== "object") continue;
+    if (++gesehen > 2000000) return true;
+    if ((n.k === "MCall" || n.k === "Mem") && n.name === "brigade") return true;
+    if (Array.isArray(n)) { for (var i = 0; i < n.length; i++) if (n[i] && typeof n[i] === "object") stapel.push(n[i]); }
+    else for (var key in n) { var v = n[key]; if (v && typeof v === "object") stapel.push(v); }
+  }
+  return false;
+}
+
+function koecheWahl(k) {
+  if (k === "auto" || k === undefined || k === null || k === "") return "auto";
+  var z = Math.floor(Number(k));
+  return isFinite(z) && z >= 1 ? Math.min(z, 64) : "auto";
+}
+
+// Pool dieses Lauf-Workers: { k, pool } – auch ein null-Ergebnis wird gemerkt (keine Isolation, Köche laden nicht),
+// damit nicht jeder Lauf erneut bis zur Frist von kuechenPool wartet.
+var kuechenStand = null;
+function holePool(k) {
+  if (!PZ || typeof PZ.kuechenPool !== "function" || k === 1) return Promise.resolve(null);
+  if (kuechenStand && kuechenStand.k === k) {
+    if (!kuechenStand.pool || !kuechenStand.pool._beendet) return kuechenStand.versprechen;
+  }
+  if (kuechenStand && kuechenStand.pool) { try { kuechenStand.pool.beenden(); } catch (e) { /* egal */ } }
+  var stand = { k: k, pool: null, versprechen: null };
+  var url;
+  try { url = new URL("pizzaiolo/koch.js", self.location.href).href; } catch (e) { url = undefined; }
+  stand.versprechen = Promise.resolve()
+    .then(function () { return PZ.kuechenPool(k, url ? { url: url } : undefined); })
+    .then(function (p) { stand.pool = p || null; return stand.pool; }, function () { return null; });
+  kuechenStand = stand;
+  return stand.versprechen;
+}
+function poolLebt() { return !!(kuechenStand && kuechenStand.pool && !kuechenStand.pool._beendet); }
+
 function wasmFehler(text, zeile, spalte) {
   sende({ typ: "motor", motor: "wasm", grund: text });
   sende({ typ: "fehler", code: "W-WASM", art: "wasm", text: text, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte });
   sende({ typ: "ende", exitCode: 2, schritte: 0, zeitMs: 0, laufMs: 0, motor: "wasm" });
 }
 
-function starte(d) {
+function starte(d, pool, brigade) {
   if (!PL || typeof PL.run !== "function") {
     sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Der Interpreter (js/pizza.js) konnte nicht geladen werden. Der Ofen ist kalt.", zeile: null, spalte: null });
     sende({ typ: "ende", exitCode: 2, schritte: 0, zeitMs: 0 });
@@ -152,6 +202,7 @@ function starte(d) {
     vorrat: d.vorrat && typeof d.vorrat === "object" ? d.vorrat : undefined,
     onVorrat: d.vorratAktiv ? function (name, eintraege) { sende({ typ: "vorrat-speichern", name: name, eintraege: eintraege }); return true; } : undefined,
     onEingabe: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? eingabeRueckruf(d.eingabePuffer) : undefined,
+    koeche: pool || undefined,
     onUiWarte: (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined,
     onEvent: function (ev) {
       if (!ev) return;
@@ -167,6 +218,7 @@ function starte(d) {
         var m = ev.motor || (motor === "wasm" ? "wasm" : genutzterMotor());
         if (!motorGesehen) { motorGesehen = true; sende({ typ: "motor", motor: m, kompilierMs: ev.kompilierMs }); }
         ev = Object.assign({}, ev, { laufMs: jetzt() - t0, motor: m });
+        ev = mitKoechen(ev, brigade);
       }
       sende(ev);
     },
@@ -185,14 +237,14 @@ function starte(d) {
       sende({ typ: "motor", motor: ergebnis.motor, kompilierMs: ergebnis.kompilierMs });
     }
     if (!endeGesehen) {
-      sende({
+      sende(mitKoechen({
         typ: "ende",
         exitCode: ergebnis && typeof ergebnis.exitCode === "number" ? ergebnis.exitCode : 0,
         schritte: ergebnis ? ergebnis.schritte : null,
         zeitMs: ergebnis ? ergebnis.zeitMs : null,
         laufMs: jetzt() - t0,
         motor: genutzterMotor(),
-      });
+      }, brigade));
     }
   } catch (e) {
     if (meldung(e) === "__pizza_wasm_abbruch__") { flush(); return; }
@@ -200,6 +252,17 @@ function starte(d) {
     if (!endeGesehen) sende({ typ: "ende", exitCode: 2, schritte: null, zeitMs: null, laufMs: jetzt() - t0 });
   }
   flush();
+}
+
+/** Hüllen-Anzeige „Köche: N“ (SPEC §17.7): nur bei Programmen mit brigade; 1, wenn keine Köche gekocht haben. */
+function mitKoechen(ev, brigade) {
+  var zusatz = {};
+  if (brigade) zusatz.koeche = typeof ev.koeche === "number" && ev.koeche > 0 ? ev.koeche : 1;
+  else if ("koeche" in ev) zusatz.koeche = undefined;
+  if (poolLebt()) zusatz.poolWarm = true;
+  var r = Object.assign({}, ev, zusatz);
+  if (r.koeche === undefined) delete r.koeche;
+  return r;
 }
 
 function kompiliere(d) {
@@ -226,7 +289,13 @@ self.onmessage = function (msg) {
     // Compiler nur laden, wenn die Seite ihn als vorhanden gemeldet hat
     var p = d.pizzaiolo === true ? ladePizzaiolo() : Promise.resolve(null);
     if (d.pizzaiolo !== true && !pzGeladen) pzFehler = d.pizzaioloGrund || pzFehler;
-    p.then(function () { starte(d); });
+    p.then(function () {
+      var code = String(d.code || "");
+      var brigade = nutztBrigade(code);
+      // Pool nur, wenn Wasm laufen kann (der Interpreter kocht sequentiell) – und VOR dem Lauf (THREADS §4.6)
+      if (!brigade || !PZ || d.motor === "interpreter") return starte(d, null, brigade);
+      return holePool(koecheWahl(d.koeche)).then(function (pool) { starte(d, pool, brigade); });
+    });
   } else if (d.typ === "kompiliere") {
     ladePizzaiolo().then(function () { kompiliere(d); });
   } else if (d.typ === "pruefe") {

@@ -270,7 +270,7 @@ export function erstelleKonsole({ springe }) {
         info.textContent = name ? name + " ist im Ofen …" : "";
       }
     },
-    setzeExit(code, { schritte, zeitMs, wandMs, laufMs, zusatz, name } = {}) {
+    setzeExit(code, { schritte, zeitMs, wandMs, laufMs, zusatz, name, koeche } = {}) {
       const d = EXIT[code] || { text: "Exit " + code, klasse: "fehler", titel: "Exit-Code " + code };
       badge.hidden = false;
       badge.className = "exit-badge " + d.klasse;
@@ -285,6 +285,8 @@ export function erstelleKonsole({ springe }) {
       if (laufMs != null) { kurz.push(formatMs(laufMs)); lang.push("Lauf: " + formatMs(laufMs)); }
       else if (wandMs != null) kurz.push(formatMs(wandMs));
       if (schritte != null) { kurz.push(zahl(schritte) + " Schritte"); lang.push("Schritte: " + zahl(schritte)); }
+      // Küchenbrigade (SPEC §17.7): nur bei Programmen mit brigade – gleicher Text wie --info (K-082)
+      if (typeof koeche === "number" && koeche >= 1) { kurz.push("Köche: " + koeche); lang.push("Köche: " + koeche); }
       if (wandMs != null) lang.push("Gesamt (mit Start): " + formatMs(wandMs));
       if (zeitMs != null) lang.push("Ofenzeit (simuliert): " + formatMs(zeitMs));
       info.textContent = kurz.join(" · ");

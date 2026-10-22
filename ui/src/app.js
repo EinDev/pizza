@@ -7,6 +7,7 @@
 // Vorrat: dieselben Kammern wie geteilte Tabs im Playground (localStorage „pizza.vorrat.<name>“, siehe vorrat.js).
 import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
+import { leseKoeche, koecheFuerLauf } from "./koeche.js";
 import { erstelleVorschau, ladeRenderer } from "./vorschau.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
 import { entpacke, appTitel } from "./teilen.js";
@@ -183,6 +184,7 @@ export function startApp(key) {
       zufallsSaat: saat,
       vorrat: vorratAktiv ? vorratLaden(VORRAT) : undefined,
       vorratAktiv,
+      koeche: koecheFuerLauf(leseKoeche()),   // dieselbe Einstellung wie im Playground (THREADS §4.8)
     });
     // Kein „Saat: N“ wie im Playground/Terminal – in der App stört es nur
   }

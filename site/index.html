@@ -96,7 +96,7 @@
           <span class="flex-luecke"></span>
           <div class="lauf-optionen" id="lauf-optionen">
             <button type="button" class="knopf knopf-mini knopf-lauf" id="knopf-lauf-optionen" data-testid="lauf-optionen"
-                    aria-haspopup="dialog" aria-expanded="false" aria-controls="lauf-popover" title="Lauf-Einstellungen: Argumente, feste Saat">
+                    aria-haspopup="dialog" aria-expanded="false" aria-controls="lauf-popover" title="Lauf-Einstellungen: Argumente, feste Saat, Köche">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
               <span class="knopf-text">Lauf</span>
               <span class="lauf-punkt" id="lauf-punkt" aria-hidden="true" hidden></span>
@@ -114,6 +114,17 @@
                 <input type="checkbox" id="feste-saat" data-testid="feste-saat">
                 <span>Feste Saat 42 <small>– sonst bekommt jeder Lauf eine echte Zufallssaat</small></span>
               </label>
+              <div class="koeche-option" id="koeche-wahl" data-testid="koeche">
+                <span class="koeche-titel" id="koeche-titel">Köche <small>für <code>brigade</code></small></span>
+                <div class="koeche-knoepfe" role="radiogroup" aria-labelledby="koeche-titel" title="Wie viele Köche eine Küchenbrigade bekommt – ändert nur das Tempo, nie das Ergebnis">
+                  <label><input type="radio" name="koeche" value="auto" data-testid="koeche-auto" checked><span>auto</span></label>
+                  <label><input type="radio" name="koeche" value="1" data-testid="koeche-1"><span>1</span></label>
+                  <label><input type="radio" name="koeche" value="2" data-testid="koeche-2"><span>2</span></label>
+                  <label><input type="radio" name="koeche" value="4" data-testid="koeche-4"><span>4</span></label>
+                  <label><input type="radio" name="koeche" value="8" data-testid="koeche-8"><span>8</span></label>
+                </div>
+                <p class="lp-hilfe" id="koeche-hinweis" data-testid="koeche-hinweis" hidden>Ohne Cross-Origin-Isolation kocht hier nur ein Koch – gleiches Ergebnis, nur langsamer.</p>
+              </div>
             </div>
           </div>
           <button type="button" class="knopf knopf-mini" id="konsole-leeren" data-testid="konsole-leeren" title="Konsole leeren">Leeren</button>

@@ -1,5 +1,8 @@
 // Startet pro Lauf einen frischen Worker. Kein Wand-Zeitlimit (Browser = nativ): es gilt nur das Schrittlimit des
 // Interpreters/Compilers, dazu „Abbrechen“. Hawaii (panik) ist ein normales Ereignis; das Ende kommt mit „ende“.
+// Ausnahme Küchenbrigade (THREADS §4.8, K-104 Punkt 12): Meldet „ende“ poolWarm, hält der Worker einen Köche-Pool
+// (seine Kinder-Worker) – er bleibt dann für den nächsten Lauf liegen, damit die Köche warm bleiben. „Abbrechen“ und
+// Worker-Fehler beenden ihn (und damit alle Köche); der nächste Lauf legt einen neuen an.
 
 
 /** Einmaliger Auftrag an einen eigenen Worker (Kompilieren, Fähigkeiten prüfen). */
@@ -49,16 +52,25 @@ export function reiheUiEreignisEin(schlange, ereignis) {
 }
 
 export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat }) {
-  let worker = null, start = 0, laufId = 0;
+  let worker = null, laeuft = false, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
   let sab = null, wartet = false, wartezeit = 0, warteBeginn = 0;
   const kodierer = new TextEncoder();
 
-  function aufraeumen() {
+  function aufraeumen(behalten = false) {
     if ((wartet || uiWartet) && sab) signal(3);
     wartet = false; uiWartet = false; uiSchlange = [];
-    if (worker) { try { worker.terminate(); } catch (e) { /* egal */ } worker = null; }
+    laeuft = false;
+    if (worker && behalten) {
+      // warm halten: Nachrichten des ruhenden Workers ignorieren, bis der nächste Lauf ihn übernimmt
+      worker.onmessage = null;
+      worker.onerror = (e) => { e.preventDefault && e.preventDefault(); verwerfe(); };
+    } else verwerfe();
     sab = null;
+  }
+
+  function verwerfe() {
+    if (worker) { try { worker.terminate(); } catch (e) { /* egal */ } worker = null; }
   }
 
   function signal(status, bytes) {
@@ -78,7 +90,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
     laufId++;
     const wandMs = performance.now() - start;
     const warteteNoch = wartet;
-    aufraeumen();
+    aufraeumen(info.poolWarm === true && !info.abgebrochen);
     if (warteteNoch) beiEingabeEnde && beiEingabeEnde();
     beiEnde({ ...info, wandMs, wartezeitMs: wartezeit });
   }
@@ -90,7 +102,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       return;
     }
     if (ev.typ === "ende") {
-      beende(id, { exitCode: ev.exitCode, schritte: ev.schritte, zeitMs: ev.zeitMs, laufMs: ev.laufMs, motor: ev.motor });
+      beende(id, { exitCode: ev.exitCode, schritte: ev.schritte, zeitMs: ev.zeitMs, laufMs: ev.laufMs, motor: ev.motor, koeche: ev.koeche, poolWarm: ev.poolWarm === true });
       return;
     }
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
@@ -114,11 +126,11 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
   }
 
   return {
-    get laeuft() { return worker !== null; },
+    get laeuft() { return laeuft; },
     get wartetAufEingabe() { return wartet; },
     /** UI-Ereignis aus der Theke an das Programm (wird gepuffert, falls es gerade nicht wartet). */
     uiEreignis(ereignis) {
-      if (!worker || !sab) return;
+      if (!laeuft || !sab) return;
       if (uiWartet) {
         uiWartet = false;
         wartezeit += performance.now() - warteBeginn;
@@ -135,13 +147,14 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       return true;
     },
     starte(code, args = [], motor = "auto", extra = {}) {
-      aufraeumen();
+      if (laeuft) aufraeumen();
       const id = ++laufId;
       start = performance.now();
       wartezeit = 0;
       beiStart();
+      laeuft = true;
       try {
-        worker = new Worker("js/worker.js");
+        if (!worker) worker = new Worker("js/worker.js");   // sonst: warmer Worker mit Köche-Pool vom letzten Lauf
       } catch (e) {
         beiEreignis({ typ: "fehler", art: "intern", code: "INTERN", text: "Der Ofen (Web Worker) ließ sich nicht starten: " + e.message, zeile: null, spalte: null });
         beende(id, { exitCode: 2 });
@@ -160,7 +173,7 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       worker.postMessage(nachricht);
     },
     abbrechen() {
-      if (!worker) return;
+      if (!laeuft) return;
       const id = laufId;
       beiEreignis({ typ: "system", text: "Lauf abgebrochen – die Pizza wurde aus dem Ofen genommen." });
       beende(id, { exitCode: null, abgebrochen: true });

@@ -1095,9 +1095,29 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
      Hauptinstanz inline 7,13 → 3,13 MiB, mit 4 Köchen 132,13 → 3,13 MiB und 49,5 → 3,1 s; inline 20 000 Brigaden 44,13 → 6,13 MiB.
      Unbeobachtbar (Differenz inkl. `wasm-koeche4`/`wasm-chaos`/`wasm-rueck`/`host-koeche4` ohne Abweichung). Die
      Lohnt-sich-Schätzung des nativen Hosts (11 d) bleibt; ihr Anlass „Speicher wächst je Brigade“ ist damit entfallen.
+  13. **Playground (P5, U-69)** – Entscheidungen des UI-Agenten (`site/js/worker.js`, `ui/src/ausfuehrung.js`, `koeche.js`):
+     (a) Der Lauf-Worker erkennt die Gruppe `kueche` wie der Compiler am AST (`MCall`/`Mem` namens `brigade`, nach
+     `PizzaLang.parse`; ein Wort `brigade` im Kommentar zählt nicht) und legt nur dann – und nur, wenn Wasm laufen kann
+     (nicht bei Motor „Interpreter“) – **vor** `run` per `Pizzaiolo.kuechenPool(k, { url: js/pizzaiolo/koch.js })` einen
+     Pool an (Kinder-Worker des Lauf-Workers). Der Pool wird je Anzahl gemerkt, auch ein `null`-Ergebnis (keine Isolation,
+     Köche laden nicht) – so wartet nicht jeder Lauf erneut auf die Frist von `kuechenPool`. Andere Anzahl → alter Pool
+     `beenden()`, neuer Pool; `Köche: 1` → kein Pool (ein vorhandener bleibt für einen späteren Wechsel liegen).
+     (b) **Wiederverwendung zwischen Läufen:** Solange ein Pool lebt, meldet `ende` (Worker → Seite) zusätzlich
+     `poolWarm: true`; die Seite beendet diesen Lauf-Worker dann nicht, sondern nimmt ihn für den nächsten Lauf (auch
+     ohne `brigade`). „Abbrechen“ und Worker-Fehler beenden ihn per `terminate()` – damit alle Köche (Kinder-Worker);
+     der nächste Lauf startet einen neuen Lauf-Worker und legt einen neuen Pool an. Ohne Pool bleibt es beim frischen
+     Worker je Lauf.
+     (c) `ende` (Worker → Seite) trägt `koeche` nur bei Programmen mit `brigade`: die tatsächlich genutzte Anzahl aus dem
+     JS-Host (Punkt 10 e), sonst 1 (Interpreter, Rückfall, keine Isolation, `Köche: 1`). Die Statusleiste hängt dann
+     ` · Köche: N` an (Text wie `--info`, K-082; auch im Tooltip), sonst nichts.
+     (d) Einstellung „Köche: auto | 1 | 2 | 4 | 8“ als Segmentwahl im Lauf-Popover unter „Feste Saat 42“, gespeichert in
+     `localStorage` `pizza.koeche` (Standard `auto`; Abweichung zeigt wie Argumente/Saat den Punkt am Knopf „Lauf“);
+     der App-Modus (`#app=`) liest denselben Schlüssel. Ohne Cross-Origin-Isolation steht im Popover dezent „Ohne
+     Cross-Origin-Isolation kocht hier nur ein Koch – gleiches Ergebnis, nur langsamer.“ CSP unverändert (`worker-src
+     'self'`, Koch-Worker per URL).
 - **Festgehalten:** HOST-ABI §2/§3/§6 + Anhang A (Gruppe `kueche` endgültig, `abi_version` bleibt 1), IR.md §1/§6a/§7.
 - **Betroffen:** P3 (U-67, JS-Köche) und P4 (U-68, nativ) setzen auf Punkt 1–3/5 auf; der native Host beantwortet die Gruppe
-  bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅).
+  bis P4 mit `-1`/`-2` (minimal in `host/src/laufen.rs`); P4 siehe Punkt 11 (U-68 ✅). **Status:** fest; Compiler/Laufzeit entspricht (U-66 ✅), JS-Köche Punkt 10 (U-67 ✅), Playground Punkt 13 (U-69 ✅).
 
 ---
 
@@ -1173,7 +1193,7 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
 | U-66 ✅ (70f05a8 ff.) | `laufzeit/**`, `site/js/pizzaiolo/**`, `IR.md`, `HOST-ABI.md` (Compiler-Agent, P2) | K-098 … K-101: `rt_brigade`, `frozen_top`-Wachen, Küchenbericht/PKF, Inline-Pfad (Import `kueche_auftrag` → `-1`), Klassenindex 18 + n; HOST-ABI-Entwurf `kueche` endgültig machen – Umsetzungsentscheidungen in K-104 | tests/differenz `kueche-*`, tests/wasm (Klon-Host) |
 | U-67 ✅ | `site/js/pizzaiolo/host-js.js`, `pizzaiolo.js`, `koch.js` (Compiler-Agent, P3) | K-100: `kuechenPool`, Klon-Instanzen, SAB-Protokoll, Option `koeche`, `kuechenChaos` | Differenz `wasm` vs. `wasm-koeche4` |
 | U-68 ✅ | `host/**` (Native-Host-Agent, P4) | K-100: Gruppe `kueche`, `--koeche=N`, `--info` `Köche: N`, Koch-Stapel wie Hauptthread | Differenz `host-koeche4`, CI-Smoke |
-| U-69 | `site/js/worker.js`, `ui/**` (UI-Agent, P5) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
+| U-69 ✅ | `site/js/worker.js`, `ui/**` (UI-Agent, P5; Entscheidungen K-104 Punkt 13) | K-100: Pool vor dem Lauf, Popover „Köche: auto \| 1 \| 2 \| 4 \| 8“, Statusleiste `Köche: N`, Abbrechen beendet alle Köche | e2e |
 | U-70 | `tests/differenz/**`, `tests/fuzz/**`, `e2e/**`, `pruefstand/run.js` (Harnisch-Agents, P6) | K-099/K-100: Köche-Varianten, Chaos-Planung, Fuzz-Produktionen `brigade`, Feld `koeche` ignorieren; Prüfstand optional Feld `koeche` durchreichen | – |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):

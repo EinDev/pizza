@@ -130,8 +130,8 @@ e2e("Lauf-Einstellungen: Hinweis-Punkt bei Argumenten/fester Saat; Palettenbefeh
   assert.ok(ok, "Palettenbefehl vorhanden");
   await page.waitForSelector(`${LAUF_POPOVER}:not([hidden])`, { visible: true });
   await page.waitForFunction(() => document.activeElement && document.activeElement.dataset.testid === "argumente");
-  // Klick daneben schließt
-  await page.click("#editor .cm-content");
+  // Klick daneben schließt (erste Editorzeile – die Mitte des Editors kann das Popover mit der Köche-Wahl verdecken)
+  await page.click("#editor .cm-line");
   assert.equal(await popoverOffen(page), false, "Klick daneben schließt");
 });
 

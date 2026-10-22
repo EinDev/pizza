@@ -1173,6 +1173,19 @@ button.k-meldung:hover { border-color: currentColor; }
 .saat-option { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; padding-top: 8px; border-top: 1px solid var(--rand); }
 .saat-option input { accent-color: var(--akzent); margin: 2px 0 0; }
 .saat-option small { color: var(--text-3); font-size: 11.5px; }
+.koeche-option { padding-top: 8px; border-top: 1px solid var(--rand); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.koeche-titel { flex: none; font-size: 13px; color: var(--text); }
+.koeche-titel small { display: block; color: var(--text-3); font-size: 11.5px; }
+.koeche-titel code { font: 11px var(--mono); }
+.koeche-knoepfe { flex: 1 1 180px; display: flex; border: 1px solid var(--rand-stark); border-radius: 8px; overflow: hidden; background: var(--flaeche-2); }
+.koeche-knoepfe label { flex: 1 1 0; position: relative; cursor: pointer; }
+.koeche-knoepfe label + label { border-left: 1px solid var(--rand); }
+.koeche-knoepfe input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.koeche-knoepfe span { display: block; text-align: center; padding: 4px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.koeche-knoepfe label:hover span { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.koeche-knoepfe input:checked + span { background: var(--akzent-weich); color: var(--akzent); font-weight: 650; box-shadow: inset 0 0 0 1px var(--akzent); }
+.koeche-knoepfe input:focus-visible + span { outline: 2px solid var(--akzent); outline-offset: -3px; }
+.koeche-option .lp-hilfe { flex: 1 0 100%; margin: 0; }
 .k-saat { color: var(--text-3); }
 @media (max-width: 899.98px) {
   .lauf-info { display: none; }
