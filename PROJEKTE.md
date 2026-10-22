@@ -656,13 +656,12 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
 
 ## 10. Offene Fragen an den Nutzer (gesammelt, je mit Empfehlung)
 
+Benennungen (Modul-Anweisung `bestellt`, `pizza.json`, `hauptgang.pizza`, Pfade nur in ASCII-Kleinbuchstaben) entscheidet der Koordinator – der Nutzer hat sie freigegeben („Naming ist mir egal“); sie gelten wie in §0 beschrieben.
+
 | # | Frage | Empfehlung |
 |---|---|---|
-| F1 | Wort für die Modul-Anweisung: `bestellt "…"` oder das vorhandene `import "…"`? (`bestellt` ähnelt der Funktion `bestelle` für Lieferungen) | **`bestellt`** – lustig, kontextuell, kein Bruch; Doku stellt den Unterschied zu `bestelle(…)` klar |
-| F2 | Name der Projektdatei und der Standard-Hauptdatei | **`pizza.json`** und **`hauptgang.pizza`** |
 | F3 | Strenge Sichtbarkeit (direkt bestellen, sonst P0019) oder projektweit alles sichtbar? | **streng** – `bestellt` dokumentiert Abhängigkeiten; Fehlertext nennt die fehlende Zeile |
 | F4 | Snack-Anweisungen nur in der Hauptdatei (Nebendateien: Deklarationen + Variablen)? | **ja** |
-| F5 | Pfade nur ASCII-Kleinbuchstaben (`welt/belaege.pizza` statt `welt/Beläge.pizza`)? | **ja** (Windows, ZIP, URLs) |
 | F6 | Alte Hastebin-Links: verfallen lassen oder einmalig übernehmen (Skript liest Redis und legt Links an)? | **verfallen lassen** mit klarer Meldung – keine Rückwärtskompatibilität gefordert, Übernahme bräuchte die alte Redis-Instanz |
 | F7 | Aufbewahrung: 90 Tage ab letzter Version? | **ja**, per `TEILEN_ABLAUF_TAGE` änderbar |
 | F8 | Grenzen: 100 Dateien, 2 MB je Datei, 8 MB je Projekt, Bilder ≤ 1024 × 1024, nur PNG | **ja** für v1 (JPEG/größere Bilder später, wenn ein Spiel es braucht) |
