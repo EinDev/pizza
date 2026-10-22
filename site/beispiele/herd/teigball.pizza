@@ -70,7 +70,7 @@ laterne(-7.5, -8.5);
 laterne(7.5, -8.5);
 
 // Eine Flasche Olivenöl und ein Wasserglas auf dem Tisch – halb durchsichtig (Alpha in der Farbe)
-Teil flasche = herd.raum(12, -4, 2);
+Teil flasche = herd.raum(14, -4, -3);
 herd.koerper(Form.zylinder(teile: 32), 0, 2.2, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 4.4, 1.6).haenge(flasche);
 herd.koerper(Form.kugel(teile: 32), 0, 4.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 1.2, 1.6).haenge(flasche);
 herd.koerper(Form.zylinder(), 0, 5.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(0.5, 1.6, 0.5).haenge(flasche);

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Ein Teil ist wie ein Pizzaboden: Er hat immer eine Lage (wo, wie gedreht, wie groß) und darauf beliebig viele Komponenten als Belag – zum Beispiel Kreis zum Zeichnen, Bewegung zum Fliegen und Partikel für einen Funkenschweif. Das Programm hält nur einen Griff auf das Teil; leben tut es in der Engine.</title>
+
+  <!-- Programm-Seite -->
+  <rect x="20" y="40" width="168" height="140" rx="12" fill="#2F2A26"/>
+  <text x="104" y="68" text-anchor="middle" font-size="15" font-weight="700" fill="#F2B33D">dein Programm</text>
+  <text x="38" y="98" font-size="14" fill="#FFF6E0">Teil ball =</text>
+  <text x="38" y="118" font-size="14" fill="#FFF6E0">  herd.kreis(…);</text>
+  <text x="38" y="146" font-size="14" fill="#FFF6E0">ball.mit(neu</text>
+  <text x="38" y="166" font-size="14" fill="#FFF6E0">  Bewegung(…));</text>
+
+  <!-- Griff-Pfeil -->
+  <path d="M190,110 C222,110 232,150 262,150" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 6"/>
+  <path d="M256,142 L268,150 L256,158" fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="104" y="210" text-anchor="middle" font-size="14" fill="#2F2A26">hält nur einen Griff –</text>
+  <text x="104" y="230" text-anchor="middle" font-size="14" fill="#2F2A26">das Teil lebt in der Engine</text>
+
+  <!-- Teil als Pizza -->
+  <ellipse cx="440" cy="190" rx="168" ry="132" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <ellipse cx="440" cy="190" rx="148" ry="114" fill="#D9452B" stroke="#C8955A" stroke-width="2"/>
+  <text x="440" y="46" text-anchor="middle" font-size="18" font-weight="700" fill="#2F2A26">ein Teil</text>
+
+  <!-- Lage (immer da) -->
+  <rect x="330" y="104" width="220" height="44" rx="10" fill="#FFF6E0" stroke="#2F2A26" stroke-width="2"/>
+  <text x="440" y="124" text-anchor="middle" font-size="15" font-weight="700" fill="#2F2A26">Lage (immer da)</text>
+  <text x="440" y="141" text-anchor="middle" font-size="13" fill="#2F2A26">x, y, z · drehung · groesse · Eltern</text>
+
+  <!-- Komponenten als Belag -->
+  <g font-size="15" font-weight="700" fill="#2F2A26">
+    <circle cx="350" cy="196" r="36" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="3"/>
+    <text x="350" y="201" text-anchor="middle">Kreis</text>
+    <circle cx="440" cy="222" r="42" fill="#3E8E41" stroke="#2F2A26" stroke-width="2"/>
+    <text x="440" y="227" text-anchor="middle" fill="#FFF6E0">Bewegung</text>
+    <circle cx="530" cy="196" r="38" fill="#F5C518" stroke="#2F2A26" stroke-width="2"/>
+    <text x="530" y="201" text-anchor="middle">Partikel</text>
+  </g>
+  <text x="440" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#FFF6E0">Komponenten = Belag</text>
+  <text x="440" y="291" text-anchor="middle" font-size="13" fill="#FFF6E0">beliebig viele, je Art eine</text>
+
+  <!-- Legende unten -->
+  <text x="20" y="300" font-size="14" fill="#2F2A26">zeichnen: Kreis, Rechteck, Text, Bild, Koerper</text>
+  <text x="20" y="322" font-size="14" fill="#2F2A26">tun von selbst: Bewegung, Animation, Partikel</text>
+  <text x="20" y="344" font-size="14" fill="#2F2A26">Welt: Licht, Kamera</text>
+</svg>

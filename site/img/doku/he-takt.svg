@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, sans-serif" role="img">
+  <title>Ein Takt, 60-mal pro Sekunde: Das Fenster meldet „takt“ mit den gedrückten Tasten. Dann läuft dein Rückruf aus backe (Spiellogik, nur Änderungen), danach die Systeme der Engine (Bewegung, Animation, Partikel), dann baut die Engine ein Bildpaket und die Glut zeichnet es. Teure Arbeit gehört in die Engine, nicht in den Rückruf.</title>
+
+  <!-- Uhr / 60 pro Sekunde -->
+  <circle cx="64" cy="70" r="40" fill="#FFF6E0" stroke="#2F2A26" stroke-width="3"/>
+  <path d="M64,70 L64,44 M64,70 L84,80" stroke="#2F2A26" stroke-width="3" stroke-linecap="round"/>
+  <text x="64" y="134" text-anchor="middle" font-size="15" font-weight="700" fill="#2F2A26">60 Takte</text>
+  <text x="64" y="152" text-anchor="middle" font-size="14" fill="#2F2A26">pro Sekunde</text>
+
+  <!-- Kette der Schritte -->
+  <g font-size="15" font-weight="700">
+    <rect x="130" y="40" width="140" height="62" rx="12" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+    <text x="200" y="66" text-anchor="middle" fill="#2F2A26">1 Eingabe</text>
+    <text x="200" y="88" text-anchor="middle" font-size="13" font-weight="400" fill="#2F2A26">Tasten, Maus</text>
+
+    <rect x="300" y="40" width="150" height="62" rx="12" fill="#D9452B" stroke="#2F2A26" stroke-width="3"/>
+    <text x="375" y="66" text-anchor="middle" fill="#FFF6E0">2 dein Rückruf</text>
+    <text x="375" y="88" text-anchor="middle" font-size="13" font-weight="400" fill="#FFF6E0">backe(() -> { … })</text>
+
+    <rect x="480" y="40" width="140" height="62" rx="12" fill="#3E8E41" stroke="#2F2A26" stroke-width="3"/>
+    <text x="550" y="66" text-anchor="middle" fill="#FFF6E0">3 Systeme</text>
+    <text x="550" y="88" text-anchor="middle" font-size="13" font-weight="400" fill="#FFF6E0">Bewegung, Partikel …</text>
+
+    <rect x="480" y="150" width="140" height="62" rx="12" fill="#F5C518" stroke="#2F2A26" stroke-width="3"/>
+    <text x="550" y="176" text-anchor="middle" fill="#2F2A26">4 Bildpaket</text>
+    <text x="550" y="198" text-anchor="middle" font-size="13" font-weight="400" fill="#2F2A26">nur was sichtbar ist</text>
+
+    <rect x="300" y="150" width="150" height="62" rx="12" fill="#2F2A26"/>
+    <text x="375" y="176" text-anchor="middle" fill="#F2B33D">5 Glut zeichnet</text>
+    <text x="375" y="198" text-anchor="middle" font-size="13" font-weight="400" fill="#FFF6E0">auf der Grafikkarte</text>
+  </g>
+  <g fill="none" stroke="#2F2A26" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M272,71 L294,71"/><path d="M288,64 L296,71 L288,78"/>
+    <path d="M452,71 L474,71"/><path d="M468,64 L476,71 L468,78"/>
+    <path d="M550,104 L550,144"/><path d="M543,138 L550,146 L557,138"/>
+    <path d="M478,181 L456,181"/><path d="M462,174 L454,181 L462,188"/>
+    <path d="M298,181 C200,181 200,108 196,108"/><path d="M189,114 L196,104 L203,114"/>
+  </g>
+  <text x="222" y="200" text-anchor="middle" font-size="14" fill="#2F2A26">nächster Takt</text>
+
+  <!-- Wer arbeitet wie viel -->
+  <rect x="20" y="246" width="600" height="96" rx="12" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="40" y="274" font-size="15" font-weight="700" fill="#2F2A26">Faustregel</text>
+  <rect x="40" y="288" width="60" height="18" rx="4" fill="#D9452B"/>
+  <text x="112" y="302" font-size="14" fill="#2F2A26">Rückruf: Spielregeln, nur was sich ändert (Tasten, Treffer, Punkte)</text>
+  <rect x="40" y="314" width="200" height="18" rx="4" fill="#3E8E41"/>
+  <text x="252" y="328" font-size="14" fill="#2F2A26">Engine: alles Fließende – fliegen, drehen, sprühen</text>
+</svg>

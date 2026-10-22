@@ -129,8 +129,7 @@ struct Kern {
 static mut KERN: Option<Kern> = None;
 /// 0 = noch nicht versucht, 1 = geladen, 2 = fehlt
 static mut ZUSTAND_K: u8 = 0;
-/// 0 = Programm ohne Gruppe herd, 1 = Gruppe herd, 2 = Kern vor dem Start Pflicht
-static mut NOETIG: i32 = 0;
+static mut NOETIG: bool = false;
 
 /// Welt-Zustand der Sprache (eine Welt je Programm)
 struct Welt {
@@ -201,14 +200,11 @@ fn lade(pflicht: bool) -> bool {
     }
 }
 
-/// vom Programm gesetzt, wenn es die Gruppe herd importiert: pflicht = 1, wenn es `neu Herd/Form/Bildchen` oder
-/// `Form.…`/`Herd.…` enthält (Startprüfung K-128), sonst 0
+/// Startprüfung (vom Programm gesetzt, wenn es `neu Herd/Form/Bildchen` oder `Form.…`/`Herd.…` enthält)
 #[no_mangle]
-pub extern "C" fn rt_herd_noetig(pflicht: i32) { unsafe { NOETIG = if pflicht == 1 { 2 } else { 1 }; } }
-/// vor `vorbereiten`: false = Kern fehlt (Host hat gemeldet) → Exit 2. Mit Gruppe herd wird das Schema immer schon hier
-/// geladen (reine Lese-Aufrufe, ändert keinen Hash): Komponentennamen sind dann – wie im Interpreter – von Anfang an bekannt,
-/// auch für Typprüfungen und für Küchen-Klone (die den Kern nie rufen dürfen).
-pub fn start() -> bool { match unsafe { NOETIG } { 2 => lade(true), 1 => { lade(false); true } _ => true } }
+pub extern "C" fn rt_herd_noetig() { unsafe { NOETIG = true; } }
+/// vor `vorbereiten`: false = Kern fehlt (Host hat gemeldet) → Exit 2
+pub fn start() -> bool { if unsafe { NOETIG } { lade(true) } else { true } }
 
 /// für Ressourcen/Komponenten zur Laufzeit: Kern muss da sein
 fn kern_noetig() -> bool {
