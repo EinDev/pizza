@@ -12,7 +12,7 @@ const PUFFER_BYTES = 16 + 8192;
 const HERD_KLASSEN = ["Herd", "Teil", "Form", "Bildchen"];
 const V1_KOMPONENTEN = ["Rechteck", "Kreis", "Text", "Bild", "Koerper", "Licht", "Kamera", "Bewegung", "Animation", "Partikel"];
 
-let kernVersprechen = null, schemaVersprechen = null, skriptVersprechen = null;
+let kernVersprechen = null, schemaVersprechen = null, skriptVersprechen = null, schemaGeladen = null;
 
 /** site/js/herd/schema.json (einmal; null, wenn nicht ladbar). Quelle für Editor und Herd-Erkennung (HERD.md §3.3). */
 export function ladeHerdSchema() {
@@ -20,15 +20,39 @@ export function ladeHerdSchema() {
     schemaVersprechen = fetch("js/herd/schema.json")
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null)
-      .then((s) => { if (!s) schemaVersprechen = null; return s; });
+      .then((s) => { if (!s) schemaVersprechen = null; else schemaGeladen = s; return s; });
   }
   return schemaVersprechen;
 }
 
-/** Nutzt das Programm den Herd? Großzügig (ein Fehlalarm kostet nur das Laden von kern.wasm). */
-export function nutztHerd(code, schema = null) {
-  const namen = HERD_KLASSEN.concat(schema && Array.isArray(schema.komponenten) ? schema.komponenten.map((k) => k.name) : V1_KOMPONENTEN);
-  return new RegExp("\\b(?:" + namen.join("|") + ")\\b").test(String(code || ""));
+/** Nutzt das Programm den Herd? Wie der Interpreter (pruefeHerd): `neu Herd/Form/Bildchen/<Komponente>(…)` oder ein statischer
+ *  Zugriff `Form.…`/`Herd.…` – per AST, damit Wörter in Texten/Kommentaren (z. B. „Text“) nicht zählen. Ohne Interpreter:
+ *  ein strenger regulärer Ausdruck. Ein Fehlalarm kostet nur das Laden von kern.wasm (und einen asynchronen Start). */
+export function nutztHerd(code, schema = schemaGeladen) {
+  const src = String(code || "");
+  const namen = new Set(HERD_KLASSEN.concat(schema && Array.isArray(schema.komponenten) ? schema.komponenten.map((k) => k.name) : V1_KOMPONENTEN));
+  if (!/\b(?:Herd|Form)\s*\.|\bneu\s+[A-ZÄÖÜ]/.test(src)) return false;
+  const PL = typeof window !== "undefined" ? window.PizzaLang : null;
+  if (PL && typeof PL.parse === "function") {
+    let p = null;
+    try { p = PL.parse(src); } catch (e) { p = null; }
+    if (p && !p.ok) return false;                    // Syntaxfehler: der Lauf endet vor dem ersten Herd-Aufruf
+    if (p && p.ast) {
+      const stapel = [p.ast];
+      let n = 0;
+      while (stapel.length) {
+        const x = stapel.pop();
+        if (!x || typeof x !== "object") continue;
+        if (++n > 2000000) return true;
+        if (Array.isArray(x)) { for (const y of x) if (y && typeof y === "object") stapel.push(y); continue; }
+        if (x.k === "Neu" && x.typ && namen.has(x.typ.name)) return true;
+        if ((x.k === "MCall" || x.k === "Mem") && x.obj && x.obj.k === "Name" && (x.obj.n === "Form" || x.obj.n === "Herd")) return true;
+        for (const k in x) { const v = x[k]; if (v && typeof v === "object") stapel.push(v); }
+      }
+      return false;
+    }
+  }
+  return new RegExp("\\bneu\\s+(?:" + [...namen].join("|") + ")\\s*\\(|\\b(?:Form|Herd)\\s*\\.").test(src);
 }
 
 /** kern.wasm einmal je Seite kompilieren (WebAssembly.Module geht an jeden Lauf-Worker). */

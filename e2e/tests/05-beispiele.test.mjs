@@ -5,7 +5,7 @@ import {
   e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
-  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, beispielZeitlimit, sammelZeitlimit,
+  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, VORSCHAU_ZU, warteAufTabMuster, beispielZeitlimit, sammelZeitlimit,
 } from "../hilfen.mjs";
 
 const { liste: BEISPIELE, fehlend, teile } = beispieleAusManifesten();
@@ -80,6 +80,19 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
         const zeilen = eingabeZeilen(b) || [];
         const theke = thekeEreignisse(b);
         let gesendet = 0;
+        if (/\bneu\s+Herd\s*\(/.test(quellen[b.datei])) {
+          // Herd (H6): Takte kommen im Browser in Echtzeit vom Render-Worker – die Ausgabe hängt an der Bildrate und wird
+          // hier nicht mit .erwartet verglichen (das tun Interpreter-/Wasm-Tests mit .ereignisse). Geprüft wird: Fenster mit
+          // Canvas, es werden Bilder gezeichnet, Schließen beendet den Lauf mit dem erwarteten Exit-Code.
+          await page.focus("#editor .cm-content");
+          await strg(page, "Enter");
+          await page.waitForSelector('#vorschau:not([hidden]) [data-testid="herd-canvas"][data-bereit="1"]', { timeout: 30_000 });
+          await page.waitForFunction(() => Number(document.querySelector('[data-testid="herd-canvas"]').dataset.bild || 0) > 2, { timeout: 30_000 });
+          await page.click(VORSCHAU_ZU);
+          await warteLaufEnde(page, 30_000);
+          await pruefeExit(page, b.exitCode);
+          return;
+        }
         if (theke) {
           // Theke: Ereignisse im Vorschaufenster nachspielen (Klick/Tippen/Enter/Haken, „geschlossen“ = Schließen-Knopf)
           await backenTheke(page, theke, { timeout: 30_000 });
