@@ -427,5 +427,8 @@ pub extern "C" fn rt_test_euro(x: f64) -> W { let mut b = Vec::new(); zahl::euro
 pub extern "C" fn rt_test_dauer(x: f64) -> W { let mut b = Vec::new(); zahl::dauer_text(x, &mut b); crate::text::neu_text(&b) }
 #[no_mangle]
 pub extern "C" fn rt_test_runden(x: f64, n: f64) -> f64 { zahl::runde_auf(x, n) }
+/// K-111: Mathe-Funktionen für den Bitgleichheitstest (op 0 = log, 1 = log10, 2 = log2, 3 = exp)
+#[no_mangle]
+pub extern "C" fn rt_test_mathe(op: i32, x: f64) -> f64 { match op { 0 => zahl::log(x), 1 => zahl::log10(x), 2 => zahl::log2(x), _ => zahl::exp(x) } }
 #[no_mangle]
 pub extern "C" fn rt_test_alszahl(t: W) -> W { let r = crate::std_m::tabellen_methode(t, N_ALSZAHL, &[], &[], 0, false); if crate::sig() { crate::z().sig = 0; return KARTON; } r }

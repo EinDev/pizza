@@ -101,7 +101,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_BOTE => matches!(id, N_SCHREIBE | N_LEEREN | N_SAGE | N_FEHLER),
         N_G_BESTELLANNAHME => matches!(id, N_LIES | N_FRAGE | N_LIESZAHL | N_FRAGEZAHL | N_HATMEHR),
         N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN | N_ECHT),
-        N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ),
+        N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ | N_LOG | N_LOG10 | N_LOG2 | N_EXP),
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
         _ => false,
@@ -243,6 +243,11 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
             KARTON
         }
         (N_G_MATHE, N_WURZEL) => match zahl_pruefen(a(pos, 0), "wurzel") { Some(x) => zahl(sqrt(x)), None => KARTON },
+        // K-111: wie Math.log/log10/log2/exp (bitgleich, zahl.rs)
+        (N_G_MATHE, N_LOG) => match zahl_pruefen(a(pos, 0), "log") { Some(x) => zahl(log(x)), None => KARTON },
+        (N_G_MATHE, N_LOG10) => match zahl_pruefen(a(pos, 0), "log10") { Some(x) => zahl(log10(x)), None => KARTON },
+        (N_G_MATHE, N_LOG2) => match zahl_pruefen(a(pos, 0), "log2") { Some(x) => zahl(log2(x)), None => KARTON },
+        (N_G_MATHE, N_EXP) => match zahl_pruefen(a(pos, 0), "exp") { Some(x) => zahl(exp(x)), None => KARTON },
         (N_G_MATHE, N_MAX) => mathe_extrem(pos, true, "max"),
         (N_G_MATHE, N_MIN) => mathe_extrem(pos, false, "min"),
         (N_G_MATHE, N_ABS) => match zahl_pruefen(a(pos, 0), "abs") { Some(x) => zahl(x.abs()), None => KARTON },

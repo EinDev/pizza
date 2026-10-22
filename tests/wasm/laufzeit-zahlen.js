@@ -108,7 +108,31 @@ function pruefe() {
     const ist = (BigInt.asUintN(64, w) >> 48n) === 0xFFFCn ? 'FEHLER' : textVon(e.rt_text(w));
     gleich('alsZahl(' + JSON.stringify(t) + ')', ist, soll);
   }
-  return { anzahl: zs.length * 2 + euros.length + texte.length, fehler };
+  // K-111: Mathe.log/log10/log2/exp bitgleich zu V8 (Vergleich per Bitmuster; NaN zählt als NaN – Vorzeichen/Payload
+  // einer NaN sind in pizza nicht beobachtbar, ±0 dagegen schon)
+  const mathe = [];
+  const bits = (x) => { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, x, true); return b.getBigUint64(0, true); };
+  const mz = zs.slice();
+  for (const x of zs) if (isFinite(x)) { mz.push(Math.abs(x)); mz.push((x % 1500) || 0); }  // Logs: positive Werte; exp: Bereich um [-745, 710]
+  let m = 777;
+  for (let i = 0; i < 2000; i++) { m = (m * 1103515245 + 12345) % 2147483648; mz.push((m / 2147483648 - 0.5) * 1500); mz.push(m / 2147483648 * 2 - 1); mz.push(1 + (m / 2147483648 - 0.5) * 1e-6); }
+  // exp im subnormalen Ergebnisbereich (-745 … -708) und zufällige Bitmuster (endliche Doubles, jede Größenordnung)
+  const bm = new DataView(new ArrayBuffer(8));
+  for (let i = 0; i < 1000; i++) {
+    m = (m * 1103515245 + 12345) % 2147483648; mz.push(-708 - m / 2147483648 * 37.2);
+    m = (m * 1103515245 + 12345) % 2147483648; const hi = m; m = (m * 1103515245 + 12345) % 2147483648;
+    bm.setUint32(0, hi >>> 0, true); bm.setUint32(4, (m >>> 0) & 0x7fefffff, true);
+    const x = bm.getFloat64(0, true); if (isFinite(x)) { mz.push(x); mz.push(-x); }
+  }
+  mz.push(0, -0, 5e-324, -5e-324, 2.2250738585072014e-308, 1 - 1e-16, 1 + 1e-16, 1 - 2 ** -53, 1 + 2 ** -52, 0.5, 2, 10, 1000, 1024, 2 ** -1022, -1, -1e-300, Infinity, -Infinity, NaN,
+    1e300, 1e-300, 709.78, 709.782712893384, 709.7827128933841, 710, -708.3964185322641, -745, -745.1332191019411, -745.1332191019412, -746, 1e-10, 2 ** 1023, 2 ** -1074);
+  const fns = [[0, 'log', Math.log], [1, 'log10', Math.log10], [2, 'log2', Math.log2], [3, 'exp', Math.exp]];
+  for (const x of mz) for (const [op, name, fn] of fns) {
+    const ist = e.rt_test_mathe(op, x), soll = fn(x);
+    if (!(bits(ist) === bits(soll) || (Number.isNaN(ist) && Number.isNaN(soll)))) mathe.push(name + '(' + x + '): ' + ist + ' ≠ ' + soll);
+  }
+  for (const f of mathe) fehler.push(f);
+  return { anzahl: zs.length * 2 + euros.length + texte.length + mz.length * 4, fehler, mathe: mz.length * 4, matheFehler: mathe.length };
 }
 
 module.exports = { pruefe };
@@ -116,5 +140,6 @@ if (require.main === module) {
   const r = pruefe();
   for (const f of r.fehler.slice(0, 40)) console.log('  ✗ ' + f);
   console.log(r.fehler.length ? r.fehler.length + ' Abweichungen' : 'Laufzeit-Formatierung: alles gleich (' + r.anzahl + ' Fälle)');
+  console.log('Mathe log/log10/log2/exp (K-111): ' + r.mathe + ' Werte geprüft, ' + r.matheFehler + ' Abweichungen');
   process.exitCode = r.fehler.length ? 1 : 0;
 }

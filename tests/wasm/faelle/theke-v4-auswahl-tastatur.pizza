@@ -1,0 +1,41 @@
+// Theke v4 (K-109/K-110) im Wasm == Interpreter: Auswahl und Tastatur
+Theke t = neu Theke("v4");
+Auswahl menge = neu Auswahl(["1×", "10×", "100×", "Max"], gewaehlt: 2);
+Bote.sage(("menge: " + menge + " " + menge.gewaehlt() + " " + menge.optionen()));
+Auswahl nix = neu Auswahl();
+Bote.sage(("nix: " + nix.gewaehlt() + " " + nix.optionen() + " " + nix.aktiv()));
+Auswahl gemischt = neu Auswahl(optionen: [1, ja, karton, 2.5], id: "mix");
+Bote.sage(("gemischt: " + gemischt.optionen() + " " + gemischt.id()));
+probier { neu Auswahl(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Auswahl(["a", "b"], 3); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Auswahl(["a"], gewaehlt: 0); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Auswahl([], 1); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.waehle(2.5); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.waehle(); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.setzeOptionen("x"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.aktiv(0); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.beiAenderung(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { menge.hinzu(nix); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+Blech<margherita> kopie = menge.optionen();
+kopie.hinzu("fremd");
+Bote.sage(("Kopie: " + menge.optionen().länge()));
+menge.beiAenderung((n) -> { Bote.sage(("gewählt: " + n + " / " + menge.gewaehlt())); });
+
+Tastatur tasten = neu Tastatur((k) -> { Bote.sage(("Taste: " + k)); });
+Tastatur stumm = neu Tastatur();
+Tastatur aus = neu Tastatur(beiTaste: (k) -> { Bote.sage(("aus (darf nicht): " + k)); }).aktiv(nein);
+Bote.sage(("tasten: " + tasten + " " + tasten.aktiv() + " " + aus.aktiv()));
+probier { neu Tastatur(1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { tasten.beiTaste("x"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Zutat z = tasten;
+Bote.sage(("Zutat: " + z.id() + " " + z.sichtbar()));
+Tastatur draussen = neu Tastatur((k) -> { Bote.sage(("draußen (darf nicht): " + k)); });
+
+Stapel wurzel = neu Stapel([menge, nix, gemischt, tasten, stumm, aus]);
+t.zeige(wurzel);
+menge.setzeOptionen(["1×", "10×", "100×"]).waehle(3);
+menge.aktiv(nein).aktiv(ja);
+nix.setzeOptionen(karton);
+tasten.animiere("puls");
+t.bediene();
+Bote.sage(("ende: " + menge.gewaehlt() + " " + gemischt.gewaehlt()));

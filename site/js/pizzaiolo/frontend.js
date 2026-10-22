@@ -22,10 +22,10 @@
   ];
   const KLASSEN_BASIS = ANANAS_BAUM.length; // 16
   const ANANAS_M = new Set(['nachricht', 'holeNachricht', 'typ', 'alsText']);
-  const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter']);
+  const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur']);
   const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
-    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Zufall', 'Vorratskammer']);
+    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zufall', 'Vorratskammer']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
   const NOCH_NICHT_METHODEN = new Set();
