@@ -1,0 +1,17 @@
+// K-116: Zettel und Bindungen ohne Theke bzw. an nicht gezeigten Zutaten – ausgewertet wird an jedem Synchronisationspunkt,
+// Nachrichten entstehen nur für gezeigte Zutaten; beim hinzu stimmt der Zustand des Kindes (K-115).
+Zettel z = neu Zettel(1);
+Schild s = neu Schild(id: "s");
+s.binde("text", () -> ("z=" + z.wert()));
+z.setze(2);
+Bote.sage((s.text() + " " + z));
+Theke t = neu Theke("Später");
+Stapel st = neu Stapel(id: "st");
+Knopf k = neu Knopf("k", () -> { z.setze((z.wert() + 1)); }, id: "k");
+Knopf zeig = neu Knopf("zeig", () -> { st.hinzu(s); }, id: "zeig");
+st.hinzu(k);
+st.hinzu(zeig);
+t.zeige(st);
+Bote.sage(s.text());
+t.bediene();
+Bote.sage(s.text());

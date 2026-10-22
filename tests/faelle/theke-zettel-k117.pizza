@@ -1,0 +1,27 @@
+// K-117: nur echte Änderungen werden gesendet – gleiche Setter (Texte, diavolo, Zahlen, Listen, stil, leeren eines
+// leeren Behälters) erzeugen keinen Eintrag; „a → b → a“ in einem Rückruf sendet a; die Eintragsposition ist die erste
+// echte Änderung; Renderer-Ereignisse mit gleichem Wert ändern nichts, der Rückruf läuft trotzdem.
+Theke t = neu Theke("K-117");
+Schild s = neu Schild("hallo", id: "s");
+Knopf k = neu Knopf("k", id: "k");
+Haken h = neu Haken("h", an: ja, id: "h");
+h.beiAenderung(a -> Bote.sage(("haken " + a)));
+Fortschritt f = neu Fortschritt(1, id: "f");
+Takt u = neu Takt(1s, id: "u");
+Tabelle tb = neu Tabelle(["a", "b"], [[1, 2]], id: "tb");
+Auswahl w = neu Auswahl(["x", "y"], id: "w");
+Stapel ohne = neu Stapel(id: "ohne");
+Reihe voll = neu Reihe([neu Schild("kind", id: "kind")], id: "voll");
+s.stil("farbe", "tomate");
+Knopf gleich = neu Knopf("gleich", () -> {
+    s.setzeText("hallo"); k.aktiv(ja); h.setzeAn(ja); f.setzeWert(1.5); f.setzeWert(1); u.setzeIntervall(1000ms);
+    tb.setzeSpalten(["a", "b"]); tb.setzeZeilen([[1, 2]]); w.waehle(1); w.setzeOptionen(["x", "y"]);
+    s.stil("farbe", "tomate"); s.stil("breite", karton); s.sichtbar(ja); s.hinweis(karton); ohne.leeren();
+    Bote.sage("alles gleich");
+}, id: "gleich");
+Knopf hin = neu Knopf("hin", () -> {
+    k.setzeText("k"); s.setzeText("anders"); s.setzeText("hallo"); f.setzeWert(0.2); f.setzeWert(1);
+    s.stil("farbe", "kruste"); s.stil("farbe", "tomate"); voll.leeren(); ohne.hinzu(neu Schild("neu", id: "neu"));
+}, id: "hin");
+t.zeige(neu Stapel([s, k, h, f, u, tb, w, ohne, voll, gleich, hin]));
+t.bediene();

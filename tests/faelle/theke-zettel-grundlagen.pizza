@@ -1,0 +1,12 @@
+// K-116: Zettel + binde("text"/"aktiv") – nur echte Änderungen senden (K-117), Setter/Klicks ohne Wirkung schweigen.
+Theke t = neu Theke("Zettel");
+Zettel geld = neu Zettel(0);
+Schild kasse = neu Schild(id: "kasse");
+kasse.binde("text", () -> ("Geld: " + geld.wert()));
+Knopf backen = neu Knopf("Backen", () -> { geld.setze((geld.wert() + 8)); }, id: "backen");
+backen.binde("aktiv", () -> (geld.wert() < 16));
+Knopf nix = neu Knopf("Nichts", () -> { geld.setze(geld.wert()); Bote.sage(("nix: " + geld)); }, id: "nix");
+Bote.sage((kasse.text() + " / " + backen.aktiv()));
+t.zeige(neu Stapel([kasse, backen, nix]));
+t.bediene();
+Bote.sage((kasse.text() + " / " + backen.aktiv() + " / " + geld));

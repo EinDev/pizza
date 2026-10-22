@@ -1,5 +1,5 @@
 {"v":1,"op":"fenster","titel":"karton","breite":480,"hoehe":360}
 {"v":1,"op":"baum","wurzel":{"id":"z11","art":"stapel","kinder":[{"id":"z7","art":"abschnitt","titel":"karton","kinder":[{"id":"z1","art":"schild","text":""}]},{"id":"z3","art":"haken","text":"karton","an":false},{"id":"z4","art":"eingabe","wert":"karton"},{"id":"z5","art":"eingabe","wert":""},{"id":"z6","art":"fortschritt","wert":0.5},{"id":"z8","art":"tabelle","spalten":["a","karton"],"zeilen":[["1","karton"],["ja","2.5"]]},{"id":"z10","art":"reiter","titel":["karton","7"],"gewaehlt":1,"kinder":[{"id":"z2","art":"knopf","text":"karton"},{"id":"z9","art":"schild","text":"karton"}]}]}}
-{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"karton"},{"id":"z2","text":"karton"},{"id":"z3","text":"5"},{"id":"z4","wert":"karton"},{"id":"z5","wert":"karton","hinweis":""},{"id":"z6","text":""},{"id":"z7","titel":"karton"},{"id":"z8","spalten":["karton"]}],"animationen":[{"art":"schwebe","text":"karton"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","text":"karton"},{"id":"z3","text":"5"},{"id":"z5","wert":"karton","hinweis":""},{"id":"z6","text":""},{"id":"z8","spalten":["karton"]}],"animationen":[{"art":"schwebe","text":"karton"}]}
 {"v":1,"op":"fenster","titel":"karton","breite":480,"hoehe":360}
 {"v":1,"op":"schliesse"}

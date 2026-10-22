@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"Rechnen","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"s","art":"schild","text":"z=1 aktiv=ja sichtbar=ja tmp"},{"id":"k","art":"knopf","text":"k"},{"id":"w","art":"schild","text":"w1"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"z=2 aktiv=ja sichtbar=ja tmp"},{"id":"w","text":"w2"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"z=3 aktiv=ja sichtbar=ja tmp"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"z=4 aktiv=ja sichtbar=ja tmp"},{"id":"w","text":"w4"}]}

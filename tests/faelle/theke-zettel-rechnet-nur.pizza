@@ -1,0 +1,26 @@
+// K-118: Eine Bindung rechnet nur – Setter, Zettel.setze, hinzu, binde, Theke-Methoden werfen im Ausdruck
+// (Methodenname wie gerufen); überladene Getter ohne Argument sind erlaubt. Die Ananas verlässt binde()
+// bzw. bediene() wie die eines Rückrufs; die werfende Bindung bleibt sauber, bis sich eine Quelle ändert.
+Theke t = neu Theke("Rechnen");
+Zettel z = neu Zettel(1);
+Schild s = neu Schild(id: "s");
+Knopf k = neu Knopf("k", () -> { z.setze((z.wert() + 1)); }, id: "k");
+Stapel st = neu Stapel([s, k]);
+probier { s.binde("text", () -> { s.setzeText("x"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.binde("text", () -> { k.aktiv(nein); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.binde("text", () -> { st.hinzu(neu Schild("n")); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.binde("text", () -> { k.binde("aktiv", () -> ja); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.binde("text", () -> { t.setzeTitel("neu"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.binde("text", () -> { k.animiere("puls"); serviere ("y"); }); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+// erlaubt: Getter (auch überladene ohne Argument), Konstruktoren, Bote
+s.binde("text", () -> { Schild tmp = neu Schild("tmp"); Bote.sage(("rechne " + z.wert())); serviere ("z=" + z.wert() + " aktiv=" + k.aktiv() + " sichtbar=" + s.sichtbar() + " " + tmp.text()); });
+Bote.sage(s.text());
+// wirft genau bei z == 3 – aus bediene() heraus; die Theke bleibt offen, die Bindung bleibt sauber, bis z sich wieder ändert
+Schild w = neu Schild(id: "w");
+w.binde("text", () -> { falls (z.wert() == 3) { z.setze(0); } serviere ("w" + z.wert()); });
+st.hinzu(w);
+t.zeige(st);
+probier { t.bediene(); } verbrannt (LaufzeitAnanas e) { Bote.sage(("bediene: " + e.nachricht())); }
+Bote.sage((s.text() + " | " + w.text()));
+t.bediene();
+Bote.sage((s.text() + " | " + w.text()));

@@ -1,0 +1,11 @@
+Zettel(5) Zettel(karton) Zettel(x) Zettel([1, 2])
+7 7
+'falsch' ist Zettel, aber der Wert 5 ist kein(e) Zettel.
+Methode 'länge' gibt es auf salami nicht.
+Methode 'gibtEsNicht' gibt es auf Zettel nicht.
+Läufe: 1
+Läufe: 1
+Läufe: 2 [1, 2, 3] 2s
+Zettel gibt es nur in der Hauptküche.
+Zettel gibt es nur in der Hauptküche.
+Die Theke gibt es nur in der Hauptküche.

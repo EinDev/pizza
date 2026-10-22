@@ -1,0 +1,19 @@
+// K-116/K-117: bindeStil – karton entfernt den Stil (null in der Nachricht), gleicher Stilwert sendet nichts,
+// stil() auf anderen Schlüsseln bleibt erlaubt; unbekannter Stil und falscher Wert werfen wie stil().
+Theke t = neu Theke("Stil");
+Zettel warm = neu Zettel(nein);
+Zettel breite = neu Zettel(100);
+Schild s = neu Schild("s", id: "s");
+s.bindeStil("farbe", () -> { falls (warm.wert()) { serviere ("tomate"); } serviere (karton); });
+s.bindeStil("breite", () -> breite.wert());
+s.stil("schrift", "gross");
+Knopf an = neu Knopf("an", () -> { warm.setze(ja); }, id: "an");
+Knopf aus = neu Knopf("aus", () -> { warm.setze(nein); }, id: "aus");
+Knopf breiter = neu Knopf("breiter", () -> { breite.setze((breite.wert() + 0)); }, id: "breiter");
+Knopf schmal = neu Knopf("schmal", () -> { breite.setze(50); }, id: "schmal");
+probier { s.bindeStil("rand", () -> 1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.bindeStil("ausrichtung", () -> "oben"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.bindeStil("hoehe", () -> -1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.bindeStil("hoehe", 5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+t.zeige(neu Stapel([s, an, aus, breiter, schmal]));
+t.bediene();

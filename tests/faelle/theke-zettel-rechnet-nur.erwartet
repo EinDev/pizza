@@ -1,0 +1,14 @@
+Eine Bindung rechnet nur – 'setzeText' ist darin nicht erlaubt.
+Eine Bindung rechnet nur – 'aktiv' ist darin nicht erlaubt.
+Eine Bindung rechnet nur – 'hinzu' ist darin nicht erlaubt.
+Eine Bindung rechnet nur – 'binde' ist darin nicht erlaubt.
+Eine Bindung rechnet nur – 'setzeTitel' ist darin nicht erlaubt.
+Eine Bindung rechnet nur – 'animiere' ist darin nicht erlaubt.
+rechne 1
+z=1 aktiv=ja sichtbar=ja tmp
+rechne 2
+rechne 3
+bediene: Eine Bindung rechnet nur – 'setze' ist darin nicht erlaubt.
+z=3 aktiv=ja sichtbar=ja tmp | w2
+rechne 4
+z=4 aktiv=ja sichtbar=ja tmp | w4

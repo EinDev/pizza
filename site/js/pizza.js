@@ -28,7 +28,7 @@
   const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii',
     'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
-    'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zufall', 'Vorratskammer'];
+    'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer'];
 
   const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'];
 
@@ -1210,6 +1210,17 @@
   // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
   const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
   const UI_ANIM_MAX = 32;  // höchstens 32 Einträge je aendere-Nachricht, weitere entfallen still
+  // Theke v5 (K-116): höchstens 100 Durchläufe je Synchronisationspunkt, dann LaufzeitAnanas (Zyklus)
+  const UI_BINDUNG_DURCHLAEUFE = 100;
+  // K-117: Gleichheit je Feld – Listen elementweise (zeilen verschachtelt), sonst nach Wert
+  function uiGleich(a, b) {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!uiGleich(a[i], b[i])) return false;
+      return true;
+    }
+    return a === b;
+  }
   class UiTheke {
     constructor(titel, breite, hoehe) {
       this.titel = titel; this.breite = breite; this.hoehe = hoehe;
@@ -1230,6 +1241,18 @@
       this.optionen = null;                                  // Auswahl (K-109)
       this.beiTaste = null;                                  // Tastatur (K-110)
       this.spalten = null; this.zeilen = null;               // Tabelle
+      this.abh = null;        // Theke v5 (K-116): Protokollfeld → Set<UiBindung>, die dieses Feld gelesen haben
+      this.bindungen = null;  // Theke v5: Feld bzw. 's:'+Stilschlüssel → UiBindung
+    }
+  }
+  // Theke v5 (K-116): Zettel – beobachtbarer Wert (keine Zutat); abh wie bei UiZutat (Feld 'wert')
+  class Zettel { constructor(w) { this.w = w; this.abh = null; } }
+  // Theke v5 (K-116): eine Bindung – Zutat z, Eigenschaft/Stilschlüssel feld, Ausdruck fn, Aufrufstelle node (W0103);
+  // quellen = flache Liste [objekt, feld, objekt, feld, …] der zuletzt gelesenen Quellen
+  class UiBindung {
+    constructor(z, feld, stil, fn, node) {
+      this.z = z; this.feld = feld; this.stil = stil; this.fn = fn; this.node = node;
+      this.dirty = true; this.quellen = []; this.erst = true;
     }
   }
 
@@ -1802,15 +1825,13 @@
   const ZUTAT_M = {
     'id': function (z) { return z.id; },
     'hinweis': function (z, pos) {
-      if (!pos.length) return z.hinweis;
-      z.hinweis = pos[0] === null ? '' : this.text(pos[0]);
-      this.uiAendere(z, 'hinweis', z.hinweis);
+      if (!pos.length) { this.uiLies(z, 'hinweis'); return z.hinweis; }
+      this.uiSetze(z, 'hinweis', this.uiWandle(z, 'hinweis', pos[0]), 'setter');
       return z;
     },
     'uebergang': function (z, pos) {
-      if (!pos.length) return z.uebergang;
-      z.uebergang = this.bool(pos[0]);
-      this.uiAendere(z, 'uebergang', z.uebergang);
+      if (!pos.length) { this.uiLies(z, 'uebergang'); return z.uebergang; }
+      this.uiSetze(z, 'uebergang', this.uiWandle(z, 'uebergang', pos[0]), 'setter');
       return z;
     },
     'animiere': function (z, pos, ben, node) {
@@ -1825,162 +1846,118 @@
       return z;
     },
     'sichtbar': function (z, pos) {
-      if (!pos.length) return z.sichtbar;
-      z.sichtbar = this.bool(pos[0]);
-      this.uiAendere(z, 'sichtbar', z.sichtbar);
+      if (!pos.length) { this.uiLies(z, 'sichtbar'); return z.sichtbar; }
+      this.uiSetze(z, 'sichtbar', this.uiWandle(z, 'sichtbar', pos[0]), 'setter');
       return z;
     },
     'stil': function (z, pos) {
       const k = this.text(pos[0]);
-      const art = UI_STIL[k];
-      if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Stil \'' + k + '\' gibt es nicht. Erlaubt: ' + Object.keys(UI_STIL).join(', ') + '.');
-      let w = pos[1];
-      if (w === null || w === undefined) {
-        if (z.stil !== null && k in z.stil) {
-          delete z.stil[k];
-          if (Object.keys(z.stil).length === 0) z.stil = null;
-        }
-        if (z.stilNull === null) z.stilNull = new Set();
-        z.stilNull.add(k);
-        this.uiAendere(z, 'stil', this.uiStilNachricht(z));
-        return z;
-      }
-      if (art === 'zahl') {
-        if (typeof w !== 'number' || !(w >= 0) || !isFinite(w)) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine Zahl ≥ 0, nicht ' + this.darstellung(w) + '.');
-      } else if (art === 'ganzzahl') {
-        // K-113: zeilen – ganze Zahl ≥ 1
-        if (typeof w !== 'number' || !Number.isInteger(w) || w < 1) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine ganze Zahl ≥ 1, nicht ' + this.darstellung(w) + '.');
-      } else {
-        w = this.text(w);
-        if (art.indexOf(w) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + w + '\' ist für Stil \'' + k + '\' nicht erlaubt. Erlaubt: ' + art.join(', ') + '.');
-      }
-      if (z.stil === null) z.stil = {};
-      z.stil[k] = w;
-      if (z.stilNull !== null) z.stilNull.delete(k);
-      this.uiAendere(z, 'stil', this.uiStilNachricht(z));
+      if (UI_STIL[k] === undefined) throw this.ananas('LaufzeitAnanas', 'Stil \'' + k + '\' gibt es nicht. Erlaubt: ' + Object.keys(UI_STIL).join(', ') + '.');
+      this.uiSetzeStil(z, k, this.uiStilWert(k, pos[1]), 'setter');
       return z;
     },
+    // Theke v5 (K-116): Eigenschaft bzw. Stil an einen Ausdruck binden; karton löst die Bindung
+    'binde': function (z, pos, ben, node) { this.uiBinde(z, pos, node, false); return z; },
+    'bindeStil': function (z, pos, ben, node) { this.uiBinde(z, pos, node, true); return z; },
     'alsText': function (z) { return this.text(z); }
   };
   function uiTabelle(eigen) { return tabelle(Object.assign({}, ZUTAT_M, eigen)); }
+  // Setter: Argument prüfen/umwandeln (wie die Bindung desselben Namens), dann über die zentrale Schreibstelle uiSetze (K-116/K-117)
+  function uiSetter(feld) {
+    return function (z, pos) { this.uiSetze(z, feld, this.uiWandle(z, feld, pos[0]), 'setter'); return z; };
+  }
+  // Getter/Setter-Überladung (aktiv, sichtbar, hinweis, uebergang, klappbar, zu): ohne Argument Getter (Quelle einer Bindung)
+  function uiUeberladen(feld) {
+    return function (z, pos) {
+      if (!pos.length) { this.uiLies(z, feld); return z[feld]; }
+      this.uiSetze(z, feld, this.uiWandle(z, feld, pos[0]), 'setter');
+      return z;
+    };
+  }
   const UI_TEXT_M = {
-    'text': function (z) { return z.text; },
-    'setzeText': function (z, pos) { z.text = this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
+    'text': function (z) { this.uiLies(z, 'text'); return z.text; },
+    'setzeText': uiSetter('text')
   };
   const UI_CONTAINER_M = {
     'hinzu': function (z, pos) { this.uiKind(z, pos[0]); this.uiAendere(z, 'kinder', null); return z; },
     'leeren': function (z) {
+      if (z.kinder.length === 0) return z;  // K-117: leeren eines leeren Behälters ändert nichts
       for (const k of z.kinder) k.eltern = null;
       z.kinder = [];
       this.uiAendere(z, 'kinder', null);
       return z;
     }
   };
-  const UI_AKTIV_M = {
-    'aktiv': function (z, pos) {
-      if (!pos.length) return z.aktiv;
-      z.aktiv = this.bool(pos[0]);
-      this.uiAendere(z, 'aktiv', z.aktiv);
-      return z;
-    }
-  };
+  const UI_AKTIV_M = { 'aktiv': uiUeberladen('aktiv') };
   const UI_TABELLEN = {
     schild: uiTabelle(UI_TEXT_M),
-    knopf: uiTabelle(Object.assign({}, UI_TEXT_M, {
-      'beiKlick': function (z, pos) { z.beiKlick = this.uiFunktion(pos[0], 'beiKlick'); return z; },
-      'aktiv': function (z, pos) {
-        if (!pos.length) return z.aktiv;
-        z.aktiv = this.bool(pos[0]);
-        this.uiAendere(z, 'aktiv', z.aktiv);
-        return z;
-      }
+    knopf: uiTabelle(Object.assign({}, UI_TEXT_M, UI_AKTIV_M, {
+      'beiKlick': function (z, pos) { z.beiKlick = this.uiFunktion(pos[0], 'beiKlick'); return z; }
     })),
     eingabe: uiTabelle({
-      'wert': function (z) { return z.wert; },
-      'setzeWert': function (z, pos) { z.wert = this.text(pos[0]); this.uiAendere(z, 'wert', z.wert); return z; },
+      'wert': function (z) { this.uiLies(z, 'wert'); return z.wert; },
+      'setzeWert': uiSetter('wert'),
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; },
       'beiEnter': function (z, pos) { z.beiEnter = this.uiFunktion(pos[0], 'beiEnter'); return z; }
     }),
     haken: uiTabelle(Object.assign({}, UI_TEXT_M, {
-      'an': function (z) { return z.an; },
-      'setzeAn': function (z, pos) { z.an = this.bool(pos[0]); this.uiAendere(z, 'an', z.an); return z; },
+      'an': function (z) { this.uiLies(z, 'an'); return z.an; },
+      'setzeAn': uiSetter('an'),
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
     })),
     stapel: uiTabelle(UI_CONTAINER_M),
     reihe: uiTabelle(UI_CONTAINER_M),
     takt: uiTabelle(Object.assign({}, UI_AKTIV_M, {
-      'intervall': function (z) { return new Dauer(z.intervall); },
-      'setzeIntervall': function (z, pos) { z.intervall = this.taktIntervall(pos[0]); this.uiAendere(z, 'intervall', z.intervall); return z; },
+      'intervall': function (z) { this.uiLies(z, 'intervall'); return new Dauer(z.intervall); },
+      'setzeIntervall': uiSetter('intervall'),
       'beiTakt': function (z, pos) { z.beiTakt = this.uiFunktion(pos[0], 'beiTakt'); return z; }
     })),
     fortschritt: uiTabelle({
-      'wert': function (z) { return z.fortschritt; },
-      'setzeWert': function (z, pos) { z.fortschritt = this.fortschrittWert(pos[0]); this.uiAendere(z, 'wert', z.fortschritt); return z; },
-      'text': function (z) { return z.text; },
-      // K-102: text ist ein optionales Feld (K-067) – karton/fehlend löscht den Text
-      'setzeText': function (z, pos) { z.text = pos[0] === undefined || pos[0] === null ? '' : this.text(pos[0]); this.uiAendere(z, 'text', z.text); return z; }
+      'wert': function (z) { this.uiLies(z, 'wert'); return z.fortschritt; },
+      'setzeWert': uiSetter('wert'),
+      'text': function (z) { this.uiLies(z, 'text'); return z.text; },
+      // K-102: text ist ein optionales Feld (K-067) – karton/fehlend löscht den Text (uiWandle)
+      'setzeText': uiSetter('text')
     }),
     abschnitt: uiTabelle(Object.assign({}, UI_CONTAINER_M, {
-      'titel': function (z) { return z.titel; },
-      'setzeTitel': function (z, pos) { z.titel = this.text(pos[0]); this.uiAendere(z, 'titel', z.titel); return z; },
+      'titel': function (z) { this.uiLies(z, 'titel'); return z.titel; },
+      'setzeTitel': uiSetter('titel'),
       // K-108: klappbar/zu – Getter/Setter-Überladung wie sichtbar; beiAenderung(fn) → fn(zu)
-      'klappbar': function (z, pos) {
-        if (!pos.length) return z.klappbar;
-        z.klappbar = this.bool(pos[0]);
-        this.uiAendere(z, 'klappbar', z.klappbar);
-        return z;
-      },
-      'zu': function (z, pos) {
-        if (!pos.length) return z.zu;
-        z.zu = this.bool(pos[0]);
-        this.uiAendere(z, 'zu', z.zu);
-        return z;
-      },
+      'klappbar': uiUeberladen('klappbar'),
+      'zu': uiUeberladen('zu'),
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
     })),
     tabelle: uiTabelle({
-      'spalten': function (z) { return z.spalten.slice(); },
-      'setzeSpalten': function (z, pos) { z.spalten = this.tabellenZeile(pos[0], 'setzeSpalten'); this.uiAendere(z, 'spalten', z.spalten.slice()); return z; },
-      'zeilen': function (z) { return z.zeilen.map(x => x.slice()); },
-      'setzeZeilen': function (z, pos) { z.zeilen = this.tabellenZeilen(pos[0]); this.uiAendere(z, 'zeilen', z.zeilen.map(x => x.slice())); return z; }
+      'spalten': function (z) { this.uiLies(z, 'spalten'); return z.spalten.slice(); },
+      'setzeSpalten': uiSetter('spalten'),
+      'zeilen': function (z) { this.uiLies(z, 'zeilen'); return z.zeilen.map(x => x.slice()); },
+      'setzeZeilen': uiSetter('zeilen')
     }),
     reiter: uiTabelle({
-      'waehle': function (z, pos) {
-        const n = this.reiterSeite(z, pos[0]);
-        z.gewaehlt = n;
-        this.uiAendere(z, 'gewaehlt', n);
-        return z;
-      },
-      'gewaehlt': function (z) { return z.gewaehlt; },
+      'waehle': uiSetter('gewaehlt'),
+      'gewaehlt': function (z) { this.uiLies(z, 'gewaehlt'); return z.gewaehlt; },
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; },
       // K-107: Titel einer Seite lesen/setzen; Titelliste wird mit "" aufgefüllt, Nachricht als ganze Liste
       'titel': function (z, pos) {
         const n = this.reiterSeite(z, pos[0]);
+        this.uiLies(z, 'titel');
         return n <= z.titelListe.length ? z.titelListe[n - 1] : '';
       },
       'setzeTitel': function (z, pos) {
         const n = this.reiterSeite(z, pos[0]);
-        while (z.titelListe.length < n) z.titelListe.push('');
-        z.titelListe[n - 1] = this.text(pos[1]);  // K-102: karton → "karton" (Zustandsfeld)
-        this.uiAendere(z, 'titel', z.titelListe.slice());
+        const liste = z.titelListe.slice();
+        while (liste.length < n) liste.push('');
+        liste[n - 1] = this.text(pos[1]);  // K-102: karton → "karton" (Zustandsfeld)
+        this.uiSetze(z, 'titel', liste, 'setter');
         return z;
       }
     }),
     // K-109: Auswahl – genau eine Option gewählt
     auswahl: uiTabelle(Object.assign({}, UI_AKTIV_M, {
-      'optionen': function (z) { return z.optionen.slice(); },
-      'setzeOptionen': function (z, pos) {
-        z.optionen = this.auswahlOptionen(pos[0]);
-        this.uiAendere(z, 'optionen', z.optionen.slice());
-        return z;
-      },
-      'waehle': function (z, pos) {
-        const n = this.auswahlOption(z, pos[0]);
-        z.gewaehlt = n;
-        this.uiAendere(z, 'gewaehlt', n);
-        return z;
-      },
-      'gewaehlt': function (z) { return z.gewaehlt; },
+      'optionen': function (z) { this.uiLies(z, 'optionen'); return z.optionen.slice(); },
+      'setzeOptionen': uiSetter('optionen'),
+      'waehle': uiSetter('gewaehlt'),
+      'gewaehlt': function (z) { this.uiLies(z, 'gewaehlt'); return z.gewaehlt; },
       'beiAenderung': function (z, pos) { z.beiAenderung = this.uiFunktion(pos[0], 'beiAenderung'); return z; }
     })),
     // K-110: Tastatur – unsichtbare Zutat wie Takt
@@ -1988,6 +1965,15 @@
       'beiTaste': function (z, pos) { z.beiTaste = this.uiFunktion(pos[0], 'beiTaste'); return z; }
     }))
   };
+  // Theke v5 (K-116): bindbare Eigenschaften je Art (Reihenfolge = Fehlertext „Bindbar: …“); sichtbar, hinweis für jede Zutat
+  const UI_BINDBAR = {
+    schild: ['text'], knopf: ['text', 'aktiv'], eingabe: ['wert'], haken: ['text', 'an'], stapel: [], reihe: [],
+    takt: ['aktiv', 'intervall'], fortschritt: ['wert', 'text'], abschnitt: ['titel', 'klappbar', 'zu'], tabelle: ['spalten', 'zeilen'],
+    reiter: ['gewaehlt'], auswahl: ['optionen', 'gewaehlt', 'aktiv'], tastatur: ['aktiv']
+  };
+  const UI_BINDBAR_ALLE = ['sichtbar', 'hinweis'];
+  // Protokollfeld → internes Feld der UiZutat, wo die Namen abweichen
+  const UI_FELD_INTERN = { 'fortschritt.wert': 'fortschritt', 'reiter.titel': 'titelListe' };
   const THEKE_M = tabelle({
     'zeige': function (t, pos) { this.uiZeige(t, pos[0]); return t; },
     'bediene': function (t, pos, ben, node) { this.uiBediene(t, node); return null; },
@@ -2021,12 +2007,42 @@
     },
     'alsText': function (t) { return this.text(t); }
   });
+  // Theke v5 (K-116): Zettel – beobachtbarer Wert. setze meldet nur bei ungleichem Wert (Gleichheit wie ==, K-017).
+  const ZETTEL_M = tabelle({
+    'wert': function (z) { this.uiLies(z, 'wert'); return z.w; },
+    'setze': function (z, pos) {
+      const w = pos.length && pos[0] !== undefined ? pos[0] : null;
+      if (!this.gleich(z.w, w)) { z.w = w; this.uiSchmutzig(z, 'wert'); }
+      return z;
+    },
+    'alsText': function (z) { return this.text(z); }
+  });
 
   const TABELLEN = new Map([
     [Dauer, DAUER_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
     [Zustellung, ZUST_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
-    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
+    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [Zettel, ZETTEL_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
   ]);
+
+  // K-118: Eine Bindung rechnet nur – in ihrem Ausdruck werfen alle Methoden außer den Gettern (Methodenname wie gerufen);
+  // Getter/Setter-Überladungen (aktiv, sichtbar, …) nur mit Argument. Rückruf-Registrierungen (bei…) stehen nicht auf der
+  // Verbotsliste von K-118 und bleiben erlaubt.
+  const UI_REIN = new Set(['id', 'alsText', 'text', 'wert', 'an', 'intervall', 'titel', 'gewaehlt', 'optionen', 'spalten', 'zeilen',
+    'beiKlick', 'beiAenderung', 'beiEnter', 'beiTakt', 'beiTaste']);
+  const UI_UEBERLADEN = new Set(['aktiv', 'sichtbar', 'hinweis', 'uebergang', 'klappbar', 'zu']);
+  function nurRechnen(tab) {
+    for (const k of Object.keys(tab)) {
+      if (UI_REIN.has(k)) continue;
+      const f = tab[k], ueber = UI_UEBERLADEN.has(k);
+      tab[k] = function (o, pos) {
+        if (this.uiBindungLauf !== null && !(ueber && pos.length === 0)) {
+          throw this.ananas('LaufzeitAnanas', 'Eine Bindung rechnet nur – \'' + k + '\' ist darin nicht erlaubt.');
+        }
+        return f.apply(this, arguments);
+      };
+    }
+  }
+  for (const t of new Set([THEKE_M, ZETTEL_M].concat(Object.values(UI_TABELLEN)))) nurRechnen(t);
 
   // Regel S4 (THREADS.md §2.3): Eingabe und Theke gibt es nur in der Hauptküche – jede Methode wirft in einer Küche.
   function nurHauptkueche(tab, text) {
@@ -2040,6 +2056,7 @@
   }
   nurHauptkueche(EINGABE_M, 'Bestellannahme gibt es nur in der Hauptküche.');
   for (const t of new Set([THEKE_M].concat(Object.values(UI_TABELLEN)))) nurHauptkueche(t, 'Die Theke gibt es nur in der Hauptküche.');
+  nurHauptkueche(ZETTEL_M, 'Zettel gibt es nur in der Hauptküche.');
 
   // =====================================================================
   // LAUFZEIT – Interpreter
@@ -2064,6 +2081,9 @@
       this.uiIdZaehler = 0;
       this.uiOffen = new Map();
       this.uiAnim = [];  // gepufferte Animationen (K-090), Aufrufreihenfolge
+      this.uiBindungen = [];      // Theke v5 (K-116): alle Bindungen in Registrierungsreihenfolge
+      this.uiBindungLauf = null;  // die gerade ausgewertete Bindung (Quellenerfassung, K-118-Verbote)
+      this.uiDirty = false;       // mindestens eine Bindung ist schmutzig
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -2188,6 +2208,7 @@
       if (v instanceof OfenRoh) return 'Rohling';
       if (v instanceof UiTheke) return 'Theke';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art];
+      if (v instanceof Zettel) return 'Zettel';
       if (v instanceof ZufallGen) return 'Zufall';
       if (v instanceof Kammer) return 'Vorratskammer';
       return 'Unbekanntes';
@@ -2433,11 +2454,15 @@
     // Programmende: letzte Änderungen senden, offenes Fenster schließen (Nutzerentscheidung, überschreibt K-061)
     uiEnde() {
       const t = this.uiTheke;
-      this.uiFlush();
-      if (t !== null && t.gezeigt && !t.geschlossen) {
-        this.uiSende({ v: 1, op: 'schliesse' });
-        t.geschlossen = true;
-        t.gezeigt = false;
+      try {
+        this.uiFlush();
+      } finally {
+        // auch wenn eine Bindung am Programmende wirft: schliesse geht vor dem fehler-Ereignis hinaus (K-061)
+        if (t !== null && t.gezeigt && !t.geschlossen) {
+          this.uiSende({ v: 1, op: 'schliesse' });
+          t.geschlossen = true;
+          t.gezeigt = false;
+        }
       }
     }
 
@@ -2652,7 +2677,182 @@
       e[feld] = feld === 'kinder' ? null : wert;
     }
 
+    // ---------- Theke v5: Zettel & Bindungen (K-116 … K-118) ----------
+    // Setter-Argument prüfen und umwandeln – gleiche Regeln für Setter und Bindung (K-102, K-066, Fortschritt-Klemmen, Takt, Listen)
+    uiWandle(z, feld, v) {
+      switch (feld) {
+        case 'text': return z.art === 'fortschritt' && (v === undefined || v === null) ? '' : this.text(v);
+        case 'wert': return z.art === 'fortschritt' ? this.fortschrittWert(v) : this.text(v);
+        case 'hinweis': return v === undefined || v === null ? '' : this.text(v);
+        case 'titel': return this.text(v);
+        case 'an': case 'aktiv': case 'sichtbar': case 'uebergang': case 'klappbar': case 'zu': return this.bool(v);
+        case 'intervall': return this.taktIntervall(v);
+        case 'spalten': return this.tabellenZeile(v, 'setzeSpalten');
+        case 'zeilen': return this.tabellenZeilen(v);
+        case 'optionen': return this.auswahlOptionen(v);
+        case 'gewaehlt': return z.art === 'reiter' ? this.reiterSeite(z, v) : this.auswahlOption(z, v);
+      }
+      return v;
+    }
+
+    // Stil-Wert prüfen (K-068, K-113); karton/fehlend → null (entfernt den Stil, K-075)
+    uiStilWert(k, w) {
+      if (w === null || w === undefined) return null;
+      const art = UI_STIL[k];
+      if (art === 'zahl') {
+        if (typeof w !== 'number' || !(w >= 0) || !isFinite(w)) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine Zahl ≥ 0, nicht ' + this.darstellung(w) + '.');
+        return w;
+      }
+      if (art === 'ganzzahl') {
+        // K-113: zeilen – ganze Zahl ≥ 1
+        if (typeof w !== 'number' || !Number.isInteger(w) || w < 1) throw this.ananas('TypAnanas', 'Stil \'' + k + '\' braucht eine ganze Zahl ≥ 1, nicht ' + this.darstellung(w) + '.');
+        return w;
+      }
+      const t = this.text(w);
+      if (art.indexOf(t) < 0) throw this.ananas('LaufzeitAnanas', 'Wert \'' + t + '\' ist für Stil \'' + k + '\' nicht erlaubt. Erlaubt: ' + art.join(', ') + '.');
+      return t;
+    }
+
+    // Zentrale Schreibstelle (K-116/K-117). modus: 'setter' (prüft, ob die Eigenschaft gebunden ist; sendet),
+    // 'bindung' (Ergebnis einer Bindung; sendet), 'ereignis' (vom Renderer gemeldeter Wert; wird nicht zurückgesendet, K-057).
+    // Gleicher Wert → nichts (keine Nachricht, keine schmutzige Bindung).
+    uiSetze(z, feld, wert, modus) {
+      if (modus === 'setter' && z.bindungen !== null && z.bindungen.has(feld)) {
+        throw this.ananas('LaufzeitAnanas', '\'' + feld + '\' von ' + this.text(z) + ' ist gebunden – setze den Zettel, nicht die Zutat.');
+      }
+      const intern = UI_FELD_INTERN[z.art + '.' + feld] || feld;
+      if (uiGleich(z[intern], wert)) return;
+      z[intern] = wert;
+      this.uiSchmutzig(z, feld);
+      if (modus !== 'ereignis') this.uiAendere(z, feld, Array.isArray(wert) ? wert.map(x => Array.isArray(x) ? x.slice() : x) : wert);
+    }
+
+    // Stil setzen/entfernen (w === null entfernt); Vergleich mit dem aktuellen Stil-Objekt (K-117)
+    uiSetzeStil(z, k, w, modus) {
+      if (modus === 'setter' && z.bindungen !== null && z.bindungen.has('s:' + k)) {
+        throw this.ananas('LaufzeitAnanas', 'Stil \'' + k + '\' von ' + this.text(z) + ' ist gebunden – setze den Zettel, nicht die Zutat.');
+      }
+      if (w === null) {
+        if (z.stil === null || !(k in z.stil)) return;  // nicht gesetzt → nichts, kein null in der Nachricht
+        delete z.stil[k];
+        if (Object.keys(z.stil).length === 0) z.stil = null;
+        if (z.stilNull === null) z.stilNull = new Set();
+        z.stilNull.add(k);
+      } else {
+        if (z.stil !== null && z.stil[k] === w) return;
+        if (z.stil === null) z.stil = {};
+        z.stil[k] = w;
+        if (z.stilNull !== null) z.stilNull.delete(k);
+      }
+      this.uiAendere(z, 'stil', this.uiStilNachricht(z));
+    }
+
+    // Quelle (Objekt, Feld) für die gerade laufende Bindung erfassen; außerhalb einer Bindung nichts
+    uiLies(o, feld) {
+      const b = this.uiBindungLauf;
+      if (b === null) return;
+      if (o.abh === null) o.abh = new Map();
+      let s = o.abh.get(feld);
+      if (s === undefined) { s = new Set(); o.abh.set(feld, s); }
+      if (s.has(b)) return;
+      s.add(b);
+      b.quellen.push(o, feld);
+    }
+
+    // Quelle hat sich geändert: alle lesenden Bindungen schmutzig
+    uiSchmutzig(o, feld) {
+      if (o.abh === null) return;
+      const s = o.abh.get(feld);
+      if (s === undefined || s.size === 0) return;
+      for (const b of s) b.dirty = true;
+      this.uiDirty = true;
+    }
+
+    uiBindungName(b) { return (b.stil ? 'Stil ' : '') + '\'' + b.feld + '\' von ' + this.text(b.z); }
+
+    uiBindungQuellenLoesen(b) {
+      const q = b.quellen;
+      for (let i = 0; i < q.length; i += 2) {
+        const s = q[i].abh.get(q[i + 1]);
+        if (s !== undefined) s.delete(b);
+      }
+      b.quellen = [];
+    }
+
+    uiBindungLoesen(z, key) {
+      if (z.bindungen === null) return;
+      const b = z.bindungen.get(key);
+      if (b === undefined) return;
+      z.bindungen.delete(key);
+      if (z.bindungen.size === 0) z.bindungen = null;
+      const i = this.uiBindungen.indexOf(b);
+      if (i >= 0) this.uiBindungen.splice(i, 1);
+      this.uiBindungQuellenLoesen(b);
+    }
+
+    // binde(eigenschaft, fn) / bindeStil(schlüssel, fn): Name prüfen, karton löst, sonst neue Registrierung und sofortige Auswertung
+    uiBinde(z, pos, node, stil) {
+      const name = this.text(pos[0]);
+      if (stil) {
+        if (UI_STIL[name] === undefined) throw this.ananas('LaufzeitAnanas', 'Stil \'' + name + '\' gibt es nicht. Erlaubt: ' + Object.keys(UI_STIL).join(', ') + '.');
+      } else {
+        const liste = UI_BINDBAR[z.art].concat(UI_BINDBAR_ALLE);
+        if (liste.indexOf(name) < 0) throw this.ananas('LaufzeitAnanas', '\'' + name + '\' lässt sich an ' + this.text(z) + ' nicht binden. Bindbar: ' + liste.join(', ') + '.');
+      }
+      const key = (stil ? 's:' : '') + name;
+      const f = pos[1];
+      if (f === null || f === undefined) { this.uiBindungLoesen(z, key); return; }
+      if (!(f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn)) {
+        throw this.ananas('TypAnanas', (stil ? 'bindeStil' : 'binde') + '() braucht eine Funktion, z. B. () -> { … }.');
+      }
+      this.uiBindungLoesen(z, key);
+      const b = new UiBindung(z, name, stil, f, node);
+      if (z.bindungen === null) z.bindungen = new Map();
+      z.bindungen.set(key, b);
+      this.uiBindungen.push(b);
+      this.uiBindungAuswerten(b);
+    }
+
+    // Eine Bindung auswerten: vorher sauber markieren und Quellen lösen (werfender Ausdruck bleibt sauber), Quellen neu erfassen,
+    // Ergebnis wie der gleichnamige Setter umwandeln und über uiSetze setzen (nur bei echter Änderung, K-117)
+    uiBindungAuswerten(b) {
+      b.dirty = false;
+      this.uiBindungQuellenLoesen(b);
+      const vorher = this.uiBindungLauf;
+      this.uiBindungLauf = b;
+      let v;
+      try { v = this.rufe(b.fn, [], null, b.node); } finally { this.uiBindungLauf = vorher; }
+      if (b.erst) {
+        b.erst = false;
+        if (b.quellen.length === 0) {
+          this.warnung('W0103', 'Die Bindung ' + this.uiBindungName(b) + ' liest weder Zettel noch Zutat – sie rechnet nur einmal.', b.node);
+        }
+      }
+      if (b.stil) this.uiSetzeStil(b.z, b.feld, this.uiStilWert(b.feld, v), 'bindung');
+      else this.uiSetze(b.z, b.feld, this.uiWandle(b.z, b.feld, v), 'bindung');
+    }
+
+    // Synchronisationspunkt (K-057/K-116): höchstens 100 Durchläufe in Registrierungsreihenfolge, bis keine Bindung mehr schmutzig ist
+    uiBindungenAuswerten() {
+      if (!this.uiDirty) return;
+      const liste = this.uiBindungen;
+      for (let d = 0; d < UI_BINDUNG_DURCHLAEUFE; d++) {
+        let offen = false;
+        for (let i = 0; i < liste.length; i++) {
+          const b = liste[i];
+          if (b.dirty) { offen = true; this.uiBindungAuswerten(b); }
+        }
+        if (!offen) { this.uiDirty = false; return; }
+      }
+      for (const b of liste) {
+        if (b.dirty) throw this.ananas('LaufzeitAnanas', 'Die Bindungen kommen nicht zur Ruhe – ' + this.uiBindungName(b) + ' hängt von sich selbst ab.');
+      }
+      this.uiDirty = false;
+    }
+
     uiFlush() {
+      // K-116: Bindungen zuerst – die Nachricht zeigt den Zustand am Synchronisationspunkt (K-115)
+      this.uiBindungenAuswerten();
       if (this.uiOffen.size === 0 && this.uiAnim.length === 0) return;
       const aenderungen = Array.from(this.uiOffen.values());
       this.uiOffen.clear();
@@ -2698,6 +2898,7 @@
     uiZeige(t, z) {
       if (!(z instanceof UiZutat)) throw this.ananas('TypAnanas', 'zeige() braucht eine Zutat, nicht ' + this.darstellung(z) + '.');
       if (z.eltern !== null) throw this.ananas('LaufzeitAnanas', 'Die Zutat \'' + z.id + '\' liegt schon in einem Behälter und kann nicht die Wurzel sein.');
+      this.uiBindungenAuswerten();  // K-116: vor dem Bau des Baums
       this.uiOffen.clear();
       this.uiAnim = [];
       t.wurzel = z;
@@ -2774,28 +2975,30 @@
           if (z.art === 'knopf' && z.aktiv && z.beiKlick !== null) this.rufe(z.beiKlick, [], null, node);
           break;
         case 'aenderung':
+          // Renderer-Werte gehen durch die zentrale Schreibstelle (schmutzige Bindungen, K-117-Gleichheit), werden aber
+          // nicht zurückgesendet (K-057) und dürfen gebundene Eigenschaften setzen (K-116); der Rückruf läuft immer.
           if (z.art === 'eingabe') {
-            z.wert = ev.wert === undefined || ev.wert === null ? '' : String(ev.wert);
+            this.uiSetze(z, 'wert', ev.wert === undefined || ev.wert === null ? '' : String(ev.wert), 'ereignis');
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.wert], null, node);
           } else if (z.art === 'haken') {
-            z.an = ev.wert === true || ev.wert === 'true';
+            this.uiSetze(z, 'an', ev.wert === true || ev.wert === 'true', 'ereignis');
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.an], null, node);
           } else if (z.art === 'reiter') {
             const n = ev.wert;
             if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.kinder.length) break;
-            z.gewaehlt = n;
+            this.uiSetze(z, 'gewaehlt', n, 'ereignis');
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [n], null, node);
           } else if (z.art === 'abschnitt') {
             // K-108: nur ein klappbarer Abschnitt nimmt den Zustand an; wert wie beim Haken
             if (!z.klappbar) break;
-            z.zu = ev.wert === true || ev.wert === 'true';
+            this.uiSetze(z, 'zu', ev.wert === true || ev.wert === 'true', 'ereignis');
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [z.zu], null, node);
           } else if (z.art === 'auswahl') {
             // K-109: nur aktiv, ganze Zahl 1 … Anzahl
             if (!z.aktiv) break;
             const n = ev.wert;
             if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > z.optionen.length) break;
-            z.gewaehlt = n;
+            this.uiSetze(z, 'gewaehlt', n, 'ereignis');
             if (z.beiAenderung !== null) this.rufe(z.beiAenderung, [n], null, node);
           }
           break;
@@ -2807,7 +3010,7 @@
           break;
         case 'enter':
           if (z.art === 'eingabe') {
-            if (ev.wert !== undefined && ev.wert !== null) z.wert = String(ev.wert);
+            if (ev.wert !== undefined && ev.wert !== null) this.uiSetze(z, 'wert', String(ev.wert), 'ereignis');
             if (z.beiEnter !== null) this.rufe(z.beiEnter, [z.wert], null, node);
           }
           break;
@@ -3050,6 +3253,18 @@
           was = 'kein(e) ' + typ.name;
           break;
         }
+        case 'Zettel': {
+          // Theke v5 (K-116): eingebauter Typname wie Zutat; eigene Klasse Zettel hat Vorrang
+          if (this.klassen.has('Zettel') || v === null) {
+            const k = this.klassen.get('Zettel');
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (v instanceof Zettel) return;
+          was = 'kein(e) Zettel';
+          break;
+        }
         default: {
           const k = this.klassen.get(typ.name);
           if (k === undefined || v === null || this.instanzVon(v, k)) return;
@@ -3102,6 +3317,7 @@
       if (v instanceof ZufallGen) return 'Zufall(' + v.saat + ')';
       if (v instanceof Kammer) return 'Vorratskammer(' + v.kennung + ')';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
+      if (v instanceof Zettel) return 'Zettel(' + this.text(v.w) + ')';
       if (v === AUTO) return 'auto';
       return String(v);
     }
@@ -3932,9 +4148,15 @@
       if (!this.klassen.has(tn)) {
         if (this.kueche !== null) {
           if (UI_KLASSEN[tn] !== undefined || tn === 'Theke') throw this.ananas('KüchenAnanas', 'Die Theke gibt es nur in der Hauptküche.');
+          if (tn === 'Zettel') throw this.ananas('KüchenAnanas', 'Zettel gibt es nur in der Hauptküche.');
           if (tn === 'Vorratskammer') throw this.ananas('KüchenAnanas', 'Neue Vorratskammern gibt es nur in der Hauptküche.');
         }
         if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
+        if (tn === 'Zettel') {
+          // Theke v5 (K-116): neu Zettel(wert = karton) – ohne Theke eine gewöhnliche Schachtel
+          const w = arg(pos, ben, 0, 'wert');
+          return new Zettel(w === undefined ? null : w);
+        }
         if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
         if (tn === 'Zufall') {
           const sa = arg(pos, ben, 0, 'saat');
@@ -4310,6 +4532,7 @@
       if (v instanceof ZufallGen) return 'Ein Zufall';
       if (v instanceof Kammer) return 'Eine Vorratskammer';
       if (v instanceof UiTheke || v instanceof UiZutat) return 'Eine Theke-Zutat';
+      if (v instanceof Zettel) return 'Ein Zettel';
       return null;
     }
     // Tiefe Kopie in den Karton (Teilung/Zyklen über memo); wirft KartonFehler. Ruft nie alsText(), 0 Schritte.

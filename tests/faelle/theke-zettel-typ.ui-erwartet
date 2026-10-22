@@ -1,0 +1,6 @@
+{"v":1,"op":"fenster","titel":"Gleich","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"s","art":"schild","text":"[1, 2] 1s"}}
+{"v":1,"op":"fenster","titel":"Sync 1","breite":480,"hoehe":360}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"[1, 2, 3] 2s"}]}
+{"v":1,"op":"fenster","titel":"Sync 2","breite":480,"hoehe":360}
+{"v":1,"op":"schliesse"}

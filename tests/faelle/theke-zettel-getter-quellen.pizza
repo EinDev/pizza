@@ -1,0 +1,17 @@
+// K-116: Zutat-Getter als Quellen – Eingabe.wert() und Haken.an() treiben Schild.text ohne beiAenderung.
+// Renderer-Werte werden nicht zurückgesendet; gleiche Werte (Ereignis oder Bindung) ändern nichts (K-117).
+Theke t = neu Theke("Quellen");
+Eingabe anzahl = neu Eingabe(wert: "1", id: "anzahl");
+Haken doppelt = neu Haken("doppelt", id: "doppelt");
+Schild preis = neu Schild(id: "preis");
+preis.binde("text", () -> {
+    salami n = anzahl.wert().alsZahl();
+    falls (doppelt.an()) { n = n * 2; }
+    serviere ((n * 8) + " €");
+});
+Eingabe spiegel = neu Eingabe(id: "spiegel");
+spiegel.binde("wert", () -> anzahl.wert());
+Bote.sage((preis.text() + " | " + spiegel.wert()));
+t.zeige(neu Stapel([anzahl, doppelt, preis, spiegel]));
+t.bediene();
+Bote.sage((preis.text() + " | " + spiegel.wert()));

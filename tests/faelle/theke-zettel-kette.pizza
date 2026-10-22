@@ -1,0 +1,15 @@
+// K-116: Kette – a liest b.text(), b liest einen Zettel; a ist zuerst registriert. Pro Synchronisationspunkt
+// konvergiert die Kette in zwei Durchläufen zu einer Nachricht (b vor a: Reihenfolge der ersten echten Änderung).
+// binde wertet nur die neue Bindung sofort aus; abhängige Bindungen folgen am nächsten Synchronisationspunkt (zeige).
+Theke t = neu Theke("Kette");
+Zettel z = neu Zettel(1);
+Schild b = neu Schild(id: "b");
+Schild a = neu Schild(id: "a");
+a.binde("text", () -> ("A sieht [" + b.text() + "]"));
+b.binde("text", () -> ("B=" + z.wert()));
+Bote.sage(a.text());
+Knopf k = neu Knopf("+", () -> { z.setze((z.wert() + 1)); }, id: "k");
+t.zeige(neu Stapel([a, b, k]));
+Bote.sage(a.text());
+t.bediene();
+Bote.sage(a.text());

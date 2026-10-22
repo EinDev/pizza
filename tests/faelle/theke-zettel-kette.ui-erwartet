@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"Kette","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"a","art":"schild","text":"A sieht [B=1]"},{"id":"b","art":"schild","text":"B=1"},{"id":"k","art":"knopf","text":"+"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"b","text":"B=2"},{"id":"a","text":"A sieht [B=2]"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"b","text":"B=3"},{"id":"a","text":"A sieht [B=3]"}]}

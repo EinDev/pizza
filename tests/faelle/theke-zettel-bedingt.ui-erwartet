@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"Bedingt","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"s","art":"schild","text":"A"},{"id":"ka","art":"knopf","text":"a"},{"id":"kb","art":"knopf","text":"b"},{"id":"km","art":"knopf","text":"m"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"A+"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"B+"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"B++"}]}

@@ -1,0 +1,5 @@
+{"v":1,"op":"fenster","titel":"Stil","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"s","art":"schild","text":"s","stil":{"breite":100,"schrift":"gross"}},{"id":"an","art":"knopf","text":"an"},{"id":"aus","art":"knopf","text":"aus"},{"id":"breiter","art":"knopf","text":"breiter"},{"id":"schmal","art":"knopf","text":"schmal"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","stil":{"breite":100,"schrift":"gross","farbe":"tomate"}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","stil":{"breite":100,"schrift":"gross","farbe":null}}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","stil":{"breite":50,"schrift":"gross"}}]}

@@ -1,0 +1,15 @@
+// K-116/K-118: Zyklus – a = b + 1 und b = a + 1 kommen nie zur Ruhe → LaufzeitAnanas nach 100 Durchläufen,
+// genannt wird die erste schmutzige Bindung in Registrierungsreihenfolge. Löst man eine Bindung, läuft die Theke weiter.
+Theke t = neu Theke("Zyklus");
+Schild a = neu Schild("0", id: "a");
+Schild b = neu Schild("0", id: "b");
+a.binde("text", () -> ("" + (b.text().alsZahl() + 1)));
+b.binde("text", () -> ("" + (a.text().alsZahl() + 1)));
+Bote.sage((a.text() + " " + b.text()));
+Stapel st = neu Stapel([a, b]);
+probier { t.zeige(st); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); b.binde("text", karton); }
+t.zeige(st);
+Bote.sage((a.text() + " " + b.text()));
+b.setzeText("10");
+t.bediene();
+Bote.sage((a.text() + " " + b.text()));

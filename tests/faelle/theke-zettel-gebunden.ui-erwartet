@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"Gebunden","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"s","art":"schild","text":"wieder frei","hinweis":"frei","stil":{"farbe":"tomate","schrift":"gross"}},{"id":"k","art":"knopf","text":"frei"},{"id":"w","art":"auswahl","optionen":["a","b"],"gewaehlt":2}]}}
+{"v":1,"op":"schliesse"}

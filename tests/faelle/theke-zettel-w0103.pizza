@@ -1,0 +1,14 @@
+// K-118: W0103 je Aufrufstelle – eine Bindung, die weder Zettel noch Zutat-Getter liest, rechnet nur einmal.
+// Ausweg: ein Zettel als Taktgeber (takt.wert() im Ausdruck).
+Theke t = neu Theke("W0103");
+salami zaehler = 0;
+Schild s = neu Schild(id: "s");
+für (salami i : [1, 2]) { s.binde("text", () -> ("Stand " + zaehler)); }
+s.bindeStil("farbe", () -> "tomate");
+Zettel takt = neu Zettel(0);
+Schild ok = neu Schild(id: "ok");
+ok.binde("text", () -> { takt.wert(); serviere ("Stand " + zaehler); });
+Knopf k = neu Knopf("k", () -> { zaehler += 1; takt.setze((takt.wert() + 1)); }, id: "k");
+t.zeige(neu Stapel([s, ok, k]));
+t.bediene();
+Bote.sage((s.text() + " / " + ok.text()));

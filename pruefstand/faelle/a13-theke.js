@@ -81,16 +81,17 @@ t.bediene();
     ],
   }),
 
-  F(T, "K-057/073: Änderungen vor bediene() werden beim Eintritt gesendet; identischer Wert zählt als Änderung", P`
+  F(T, "K-057/K-117: Änderungen vor bediene() werden beim Eintritt gesendet; ein Setter mit identischem Wert ändert nichts (keine Nachricht)", P`
 Theke t = neu Theke("V");
 Schild s = neu Schild("alt");
-t.zeige(s);
+Knopf k = neu Knopf("k", () -> { s.setzeText(("neu")); k.aktiv(ja); Bote.sage(("klick")); });
+t.zeige(neu Stapel([s, k]));
 s.setzeText(("neu"));
-Knopf k = neu Knopf("k", () -> { s.setzeText(("neu")); k.aktiv(ja); });
 t.bediene();
 `, {
-    uiEreignisse: [],
-    ui: [fenster("V"), baum({ id: "z1", art: "schild", text: "alt" }), aendere({ id: "z1", text: "neu" })],
+    uiEreignisse: [{ typ: "klick", id: "z2" }],
+    out: ["klick"],
+    ui: [fenster("V"), baum({ id: "z3", art: "stapel", kinder: [{ id: "z1", art: "schild", text: "alt" }, { id: "z2", art: "knopf", text: "k" }] }), aendere({ id: "z1", text: "neu" })],
   }),
 
   F(T, "K-058: zeige() erneut → neuer baum, offene Änderungen verfallen, IDs bleiben; zeige liefert die Theke; setzeTitel sendet fenster erneut", P`
@@ -412,7 +413,9 @@ Bote.sage(("[" + s.text() + "] [" + k.text() + "] [" + f.text() + "] [" + k.hinw
     out: ["Theke(karton) [] [karton] [karton] [] [karton]", "[karton] [karton] [] []"],
     ui: [fenster("karton"),
       baum({ id: "z5", art: "abschnitt", titel: "karton", kinder: [{ id: "z1", art: "schild", text: "" }, { id: "z2", art: "knopf", text: "karton" }, { id: "z3", art: "eingabe", wert: "karton" }, { id: "z4", art: "fortschritt", wert: 0.5 }] }),
-      aendere({ id: "z1", text: "karton" }, { id: "z2", text: "karton", hinweis: "" }, { id: "z4", text: "" }, { id: "z5", titel: "5" }),
+      // K-117: k.setzeText(karton) setzt den Konstruktorwert "karton" erneut – keine Änderung, kein Eintrag; der Eintrag von z2
+      // rückt an die Stelle seiner ersten echten Änderung (hinweis). hinweis "Tipp" → "" sendet "" (Vergleich gegen den Zustand).
+      aendere({ id: "z1", text: "karton" }, { id: "z4", text: "" }, { id: "z2", hinweis: "" }, { id: "z5", titel: "5" }),
       schliesse()],
   }),
 

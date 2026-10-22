@@ -1,0 +1,14 @@
+// K-116: bedingter Lesezugriff – die Quellen werden bei jeder Auswertung neu erfasst.
+// Je nach modus liest das Schild a oder b; Änderungen der nicht gelesenen Quelle lösen nichts aus.
+Theke t = neu Theke("Bedingt");
+Zettel modus = neu Zettel(ja);
+Zettel a = neu Zettel("A");
+Zettel b = neu Zettel("B");
+Schild s = neu Schild(id: "s");
+s.binde("text", () -> { falls (modus.wert()) { serviere (a.wert()); } serviere (b.wert()); });
+Knopf ka = neu Knopf("a", () -> { a.setze((a.wert() + "+")); }, id: "ka");
+Knopf kb = neu Knopf("b", () -> { b.setze((b.wert() + "+")); }, id: "kb");
+Knopf km = neu Knopf("m", () -> { modus.setze(!modus.wert()); }, id: "km");
+t.zeige(neu Stapel([s, ka, kb, km]));
+t.bediene();
+Bote.sage((s.text() + " " + a + " " + b));

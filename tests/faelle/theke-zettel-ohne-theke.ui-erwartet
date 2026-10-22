@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"Später","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"st","art":"stapel","kinder":[{"id":"k","art":"knopf","text":"k"},{"id":"zeig","art":"knopf","text":"zeig"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"st","kinder":[{"id":"k","art":"knopf","text":"k"},{"id":"zeig","art":"knopf","text":"zeig"},{"id":"s","art":"schild","text":"z=3"}]}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"s","text":"z=4"}]}

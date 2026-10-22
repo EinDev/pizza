@@ -1,0 +1,32 @@
+// K-116: Zettel – Textform Zettel(<Wert>), Typname, Typprüfung, gleich-Regel von setze (Zahl/Text/diavolo/karton nach Wert,
+// Dauer nach ms, Blech nach Identität), Küchenbrigade (nur Hauptküche), Zettel ohne Theke.
+Zettel a = neu Zettel(5);
+Zettel nichts = neu Zettel();
+Bote.sage((a + " " + nichts + " " + neu Zettel("x") + " " + neu Zettel([1, 2])));
+Bote.sage((a.setze(7).wert() + " " + a.wert()));
+probier { Zettel falsch = 5; } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.wert().länge(); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.gibtEsNicht(); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+// Gleichheit von setze: beobachtbar über eine Bindung
+Theke t = neu Theke("Gleich");
+Zettel b = neu Zettel([1, 2]);
+Zettel d = neu Zettel(1s);
+salami laeufe = 0;
+Schild s = neu Schild(id: "s");
+s.binde("text", () -> { laeufe += 1; serviere (b.wert() + " " + d.wert()); });
+Blech<salami> liste = b.wert();
+b.setze(liste);              // gleiches Blech → nichts
+d.setze(1000ms);             // gleiche ms → nichts
+t.zeige(s);
+Bote.sage(("Läufe: " + laeufe));
+liste.hinzu(3);
+b.setze(liste);              // immer noch dasselbe Blech → nichts, obwohl verändert
+t.setzeTitel("Sync 1");     // Synchronisationspunkt (vor dem erneuten fenster)
+Bote.sage(("Läufe: " + laeufe));
+b.setze(liste.kopie());      // neues Blech → neu gerechnet
+d.setze(2s);
+t.setzeTitel("Sync 2");
+Bote.sage(("Läufe: " + laeufe + " " + s.text()));
+probier { [1].brigade(x -> { Zettel q = neu Zettel(x); serviere (x); }); } verbrannt (KüchenAnanas e) { Bote.sage((e.nachricht())); }
+probier { [1].brigade(x -> { serviere (a.wert()); }); } verbrannt (KüchenAnanas e) { Bote.sage((e.nachricht())); }
+probier { [1].brigade(x -> { s.binde("text", () -> "x"); serviere (x); }); } verbrannt (KüchenAnanas e) { Bote.sage((e.nachricht())); }

@@ -1,0 +1,23 @@
+// K-116: Eine Eigenschaft hat einen Schreiber – Setter auf gebundene Eigenschaft/gebundenen Stil werfen;
+// andere Eigenschaften derselben Zutat bleiben setzbar; nach dem Lösen (karton) ist der Setter wieder erlaubt.
+Theke t = neu Theke("Gebunden");
+Zettel z = neu Zettel("x");
+Schild s = neu Schild(id: "s");
+s.binde("text", () -> z.wert());
+s.bindeStil("farbe", () -> "tomate");
+Knopf k = neu Knopf("k", id: "k");
+k.binde("aktiv", () -> (z.wert() == "x"));
+Auswahl w = neu Auswahl(["a", "b"], id: "w");
+w.binde("gewaehlt", () -> 2);
+probier { s.setzeText("neu"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { s.stil("farbe", "kruste"); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { k.aktiv(nein); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle(1); } verbrannt (LaufzeitAnanas e) { Bote.sage((e.nachricht())); }
+s.stil("schrift", "gross");
+s.hinweis("frei");
+k.setzeText("frei");
+Bote.sage((k.aktiv() + " " + w.gewaehlt() + " " + s.text()));
+s.binde("text", karton);
+s.setzeText("wieder frei");
+Bote.sage(s.text());
+t.zeige(neu Stapel([s, k, w]));

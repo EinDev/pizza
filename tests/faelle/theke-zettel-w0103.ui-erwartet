@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"W0103","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"s","art":"schild","text":"Stand 0","stil":{"farbe":"tomate"}},{"id":"ok","art":"schild","text":"Stand 0"},{"id":"k","art":"knopf","text":"k"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ok","text":"Stand 1"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"ok","text":"Stand 2"}]}

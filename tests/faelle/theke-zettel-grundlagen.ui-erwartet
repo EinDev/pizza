@@ -1,0 +1,4 @@
+{"v":1,"op":"fenster","titel":"Zettel","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z1","art":"stapel","kinder":[{"id":"kasse","art":"schild","text":"Geld: 0"},{"id":"backen","art":"knopf","text":"Backen"},{"id":"nix","art":"knopf","text":"Nichts"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"kasse","text":"Geld: 8"}]}
+{"v":1,"op":"aendere","aenderungen":[{"id":"kasse","text":"Geld: 16"},{"id":"backen","aktiv":false}]}
