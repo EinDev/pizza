@@ -79,7 +79,21 @@ export async function herdLaufVorbereiten(code) {
   if (!kern) return { extra: {}, kontext: null };
   const kanal = new MessageChannel();
   const puffer = new SharedArrayBuffer(PUFFER_BYTES);
-  return { extra: { herdKern: kern, herdPort: kanal.port1, herdPuffer: puffer }, kontext: { port: kanal.port2, puffer } };
+  // E2E (window.__herdManuell): Takte kommen aus .ereignisse statt vom Zeichner, herd/bild-Ereignisse gehen an die Seite (Hashes)
+  const manuell = typeof window !== "undefined" && window.__herdManuell === true;
+  const extra = { herdKern: kern, herdPort: kanal.port1, herdPuffer: puffer };
+  if (manuell) extra.herdBilderMelden = true;
+  return { extra, kontext: { port: kanal.port2, puffer, manuell } };
+}
+
+/** Schreibt einen Takt in den Herd-Puffer (nur E2E im Modus __herdManuell; sonst ist der Zeichner der einzige Schreiber). */
+function schreibeTakt(puffer, ereignis) {
+  const c = new Int32Array(puffer, 0, 4);
+  const bytes = new TextEncoder().encode(JSON.stringify(ereignis));
+  new Uint8Array(puffer, 16).set(bytes);
+  Atomics.store(c, 2, bytes.length);
+  Atomics.add(c, 0, 1);
+  Atomics.notify(c, 0);
 }
 
 function setzeGeschlossen(puffer) {
@@ -294,14 +308,14 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
         w.onerror = (e) => { e.preventDefault && e.preventDefault(); melde(rr, { typ: "fehler", art: "zeichnen", text: "Der Herd ist ausgefallen: " + (e.message || "Fehler im Render-Worker") }); };
         const off = canvas.transferControlToOffscreen();
         portDa = null;
-        w.postMessage({ typ: "start", canvas: off, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h) }, [off, port]);
+        w.postMessage({ typ: "start", canvas: off, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), manuell: !!kontext.manuell }, [off, port]);
         return;
       }
     }
     try { await ladeZeichnerSkripte(); } catch (e) { melde(rr, { typ: "fehler", art: "kein-kontext", text: e.message }); return; }
     if (rr.aus) return;
     rr.zeichner = await window.HerdZeichner.starte({
-      canvas, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), wasmUrl: "js/herd/glut_bg.wasm",
+      canvas, puffer: kontext.puffer, port, breite: Math.max(1, b), hoehe: Math.max(1, h), wasmUrl: "js/herd/glut_bg.wasm", manuell: !!kontext.manuell,
       melde: (n) => melde(rr, n),
     });
     if (rr.aus) rr.zeichner.stopp();
@@ -326,6 +340,7 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
       this.beenden();
       kontext = k;
       if (k) holePort(k.port);
+      if (k && k.manuell) window.__herdTakt = (ev) => { if (kontext === k) schreibeTakt(k.puffer, ev); };
     },
     /** Ereignis typ "herd" vom Programm-Worker (fenster | schliesse). */
     ereignis(ev) {

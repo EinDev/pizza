@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
   ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
-  beispielZeitlimit, sammelZeitlimit,
+  beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
@@ -30,9 +30,10 @@ async function setzeMotor(page, m) {
 }
 
 /** Backt und liefert Ausgabe, Exit-Text, gemeldeten Motor. */
-async function lauf(page, zeilen = [], theke = null) {
+async function lauf(page, zeilen = [], theke = null, herd = false) {
   await ereignisseLeeren(page);
-  if (theke) await backenTheke(page, theke, { timeout: 30_000 });
+  if (herd) await backenHerd(page, theke || [], { timeout: 30_000 });
+  else if (theke) await backenTheke(page, theke, { timeout: 30_000 });
   else await backenInteraktiv(page, zeilen, { timeout: 30_000 });
   const r = {
     ausgabe: await ausgabeAusEreignissen(page),
@@ -101,8 +102,10 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
     for (const m of modi) {
       await t.test(`${b.datei} (${m})`, { timeout: beispielZeitlimit(b) }, async () => {
         await setzeMotor(page, m);
-        const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b));
+        const herd = herdErwartet(b);
+        const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b), !!herd);
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
+        if (herd) assert.deepEqual(await herdEreignisse(page), herdKanonisch(herd), `${m}: herd-Ereignisse (Hashes) == .herd-erwartet`);
         if (m === "wasm") assert.equal(r.motor, "wasm");
       });
     }

@@ -187,3 +187,29 @@ e2e("Herd: dieselbe Anbindung mit dem Interpreter (Motor „Interpreter“)", { 
   assert.equal(motor, "interpreter");
   assert.match(await konsolenAusgabe(page), /Ende\n$/);
 });
+
+e2e("Herd: Render-Worker scheitert beim Anlegen → Port zurück, dieselbe Glut im Hauptthread", { timeout: 90_000 }, async ({ page, oeffne }) => {
+  // Stub-Worker meldet „kein-raf“ und gibt den Port zurück (wie ein Browser ohne requestAnimationFrame im Worker)
+  await page.setRequestInterception(true);
+  page.on("request", (r) => {
+    if (/\/js\/herd\/render-worker\.js$/.test(r.url())) {
+      r.respond({ status: 200, contentType: "text/javascript",
+        headers: { "Cross-Origin-Embedder-Policy": "require-corp", "Cross-Origin-Resource-Policy": "same-origin" },   // Worker unter COEP
+        body: 'self.onmessage=(m)=>{if(m.data.typ==="start"){self.postMessage({typ:"fehler",art:"kein-raf",text:"stub",port:m.data.port},[m.data.port]);self.close();}};' });
+    } else r.continue();
+  });
+  await oeffne();
+  await setzeCode(page, PROG);
+  await strg(page, "Enter");
+  await warteBereit(page);
+  assert.equal(await page.$eval(CANVAS, (c) => c.dataset.schnittstelle), "WebGL2");
+  assert.equal(await page.evaluate(() => typeof window.HerdZeichner), "object", "Zeichner im Hauptthread");
+  await page.focus(CANVAS);
+  await page.keyboard.down("ArrowRight");
+  await warteAusgabe(page, /druck/);
+  await page.keyboard.up("ArrowRight");
+  await warteAusgabe(page, /los x=\d+/);
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+  assert.match(await konsolenAusgabe(page), /Ende\n$/);
+});

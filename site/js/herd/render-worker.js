@@ -35,7 +35,7 @@ self.onmessage = function (m) {
       return;
     }
     self.HerdZeichner.starte({
-      canvas: d.canvas, puffer: d.puffer, port: port, breite: d.breite, hoehe: d.hoehe, wasmUrl: "glut_bg.wasm",
+      canvas: d.canvas, puffer: d.puffer, port: port, breite: d.breite, hoehe: d.hoehe, wasmUrl: "glut_bg.wasm", manuell: d.manuell === true,
       melde: function (n) {
         if (n.typ === "fehler" && !bereit) { n.port = port; self.postMessage(n, [port]); self.close(); return; }
         if (n.typ === "bereit") bereit = true;

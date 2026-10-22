@@ -6,6 +6,7 @@
  *     puffer   SharedArrayBuffer des Herd-Takt-Wegs (Layout unten) – der Zeichner ist der EINZIGE Schreiber von Takten
  *     port     MessagePort: Bildpakete (ArrayBuffer, übertragen) direkt vom Programm-Worker
  *     breite/hoehe  Gerätepixel
+ *     manuell  (nur E2E) keine Takte anfordern – die Seite schreibt sie selbst (window.__herdTakt), z. B. aus .ereignisse
  *     melde(n) Rückmeldung an die Seite: {typ:"bereit", schnittstelle, adapter} · {typ:"fehler", art, text} ·
  *              {typ:"statistik", fps, bild, drawCalls, instanzen, schnittstelle}
  *   Zeichner: eingabe(ereignis) · groesse(b, h) · stopp()
@@ -104,7 +105,7 @@
         letzteBildnr = p.length >= 12 ? new DataView(p.buffer, p.byteOffset, p.byteLength).getUint32(8, true) : letzteBildnr;
         statBilder++;
       }
-      if (!ausstehend && Atomics.load(ctrl, 1) === 0) taktAnfordern();
+      if (!o.manuell && !ausstehend && Atomics.load(ctrl, 1) === 0) taktAnfordern();
       var t = jetzt();
       if (t - statT >= 1000) {
         var s = g.statistik();
@@ -118,7 +119,7 @@
     function plane() {
       if (aus || rafId || !g) return;
       // weiter schlagen, solange ein Bild zu zeichnen ist oder ein Takt angefordert werden kann
-      if (paket || !ausstehend) rafId = raf(schlag);
+      if (paket || (!ausstehend && !o.manuell)) rafId = raf(schlag);
     }
 
     function empfange(m) {

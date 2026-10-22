@@ -833,3 +833,73 @@ export async function taktIntervall(page, id) {
   if (intervall == null) throw new Error("Takt '" + id + "' nicht in den ui-Nachrichten gefunden");
   return Math.max(100, intervall); // Renderer hebt < 100 ms auf 100 ms an
 }
+
+// ---------------------------------------------------------------- Herd (H6)
+/** .herd-erwartet eines Beispiels (JSON-Lines der herd-Ereignisse ohne typ) oder null. */
+export function herdErwartet(b) {
+  const p = path.join(SITE, "beispiele", b.datei.replace(/\.pizza$/, ".herd-erwartet"));
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+}
+
+/** Kanonisches JSON (Schlüssel sortiert) – wie tests/run-tests.js herdVergleich. */
+function kanonisch(x) {
+  if (Array.isArray(x)) return "[" + x.map(kanonisch).join(",") + "]";
+  if (x && typeof x === "object") return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + kanonisch(x[k])).join(",") + "}";
+  return JSON.stringify(x);
+}
+/** Alle herd-Ereignisse des Laufs (ohne typ), kanonisch – zum Vergleich mit herdErwartet(b). */
+export async function herdEreignisse(page) {
+  const ist = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "herd").map((e) => { const o = { ...e }; delete o.typ; return o; }));
+  return ist.map(kanonisch);
+}
+export const herdKanonisch = (liste) => liste.map(kanonisch);
+
+/**
+ * Herd-Programm backen und .ereignisse deterministisch nachspielen (wie die Theke): Im Modus window.__herdManuell schreibt
+ * nicht der Zeichner die Takte, sondern der Test (window.__herdTakt) – je Takt wird gewartet, bis das Programm ein Bild
+ * (oder schliesse/ende) gemeldet hat. „geschlossen“ = Schließen-Knopf. Die herd/bild-Ereignisse (Hashes) gehen dabei an die
+ * Seite. Der Renderer (Render-Worker, WebGL2/SwiftShader) zeichnet nebenher.
+ */
+export async function backenHerd(page, ereignisse, { timeout = 30_000 } = {}) {
+  await ereignisseLeeren(page);
+  await page.evaluate(() => { window.__herdManuell = true; window.__herdTakt = null; });
+  try {
+    await page.focus("#editor .cm-content");
+    await strg(page, "Enter");
+    const stand = () => page.evaluate(() => ({
+      herd: (window.__ereignisse || []).filter((e) => e.typ === "herd").length,
+      fenster: (window.__ereignisse || []).some((e) => e.typ === "herd" && e.art === "fenster"),
+      vorbei: (window.__ereignisse || []).some((e) => e.typ === "ende"),
+      bereit: typeof window.__herdTakt === "function",
+    }));
+    await page.waitForFunction(() => (window.__ereignisse || []).some((e) => (e.typ === "herd" && e.art === "fenster") || e.typ === "ende")
+      && typeof window.__herdTakt === "function" || (window.__ereignisse || []).some((e) => e.typ === "ende"), { timeout: 15_000, polling: 10 });
+    let nr = 0;
+    for (const ev of ereignisse) {
+      const s = await stand();
+      if (s.vorbei) break;
+      try {
+        if (ev.typ === "geschlossen") { await page.click(VORSCHAU_ZU); break; }
+        await page.evaluate((e) => window.__herdTakt(e), ev);
+        await page.waitForFunction((n) => {
+          const l = window.__ereignisse || [];
+          return l.filter((e) => e.typ === "herd").length > n || l.some((e) => e.typ === "ende");
+        }, { timeout: 10_000, polling: 5 }, s.herd);
+      } catch (e) {
+        e.message = `Ereignis #${nr} (Zeile ${nr + 1} der .ereignisse): ` + e.message;
+        throw e;
+      }
+      nr++;
+    }
+    if (!(await laufVorbei(page)) && !(await stand()).vorbei) {
+      if (await page.$eval(VORSCHAU, (v) => !v.hidden)) await page.click(VORSCHAU_ZU);
+    }
+    await warteLaufEnde(page, timeout);
+  } catch (e) {
+    try { if (!(await laufVorbei(page))) await page.click('[data-testid="knopf-abbrechen"], #knopf-abbrechen'); await warteLaufEnde(page, 5000); } catch { /* Originalfehler zählt */ }
+    throw e;
+  } finally {
+    await page.evaluate(() => { window.__herdManuell = false; }).catch(() => {});
+  }
+}

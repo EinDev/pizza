@@ -262,7 +262,7 @@ function starte(d, pool, brigade) {
     onHerd: herd.onHerd,
     onEvent: function (ev) {
       if (!ev) return;
-      if (ev.typ === "herd" && ev.art === "bild" && herd.onHerd) return;   // Bilder nur an den Render-Worker
+      if (ev.typ === "herd" && ev.art === "bild" && herd.onHerd && d.herdBilderMelden !== true) return;   // Bilder nur an den Render-Worker (E2E: herdBilderMelden)
       if (ev.typ === "motor") {
         motorGesehen = true;
         if (motor === "wasm" && ev.motor !== "wasm") { // Sicherheitsnetz gegen Fallback
