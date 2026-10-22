@@ -235,6 +235,24 @@ ${fang('[1].brigade(x -> t.schwebe("+1"))')}
 Bote.sage((s.text()));
 `, { out: ["Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "Die Theke gibt es nur in der Hauptküche.", "hallo"] }),
 
+  F(K, "§17.3 S4: Theke v4 (§16.7) – Auswahl, Tastatur, Abschnitt.klappbar/zu, Reiter.setzeTitel/titel werfen in der Küche", P`
+Auswahl a = neu Auswahl(["1×", "10×"]);
+Abschnitt ab = neu Abschnitt("K", []);
+Reiter r = neu Reiter(["A", "B"], [neu Schild("a"), neu Schild("b")]);
+Tastatur ta = neu Tastatur(t -> { Bote.sage((t)); });
+${fang('[1].brigade(x -> neu Auswahl(["x"]))')}
+${fang("[1].brigade(x -> neu Tastatur(t -> { }))")}
+${fang("[1].brigade(x -> a.waehle(2))")}
+${fang("[1].brigade(x -> a.gewaehlt())")}
+${fang('[1].brigade(x -> a.setzeOptionen(["y"]))')}
+${fang("[1].brigade(x -> ta.aktiv(nein))")}
+${fang("[1].brigade(x -> ab.klappbar(ja))")}
+${fang("[1].brigade(x -> ab.zu())")}
+${fang('[1].brigade(x -> r.setzeTitel(1, "Z"))')}
+${fang("[1].brigade(x -> r.titel(1))")}
+Bote.sage((a.gewaehlt() + " " + r.titel(1) + " " + ab.zu()));
+`, { out: Array(10).fill("Die Theke gibt es nur in der Hauptküche.").concat(["1 A nein"]) }),
+
   F(K, "§17.3 S4 (K-101/3): neu Zutat() wirft auch in der Küche die RohlingAnanas (abstrakt überall), nicht den S4-Text", P`
 probier { [1].brigade(x -> neu Zutat()); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
 probier { neu Zutat(); } verbrannt (RohlingAnanas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
