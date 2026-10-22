@@ -1,0 +1,12 @@
+// Herd §18 / HERD.md §2: ein drehender Würfel im Sonnenlicht – ganz ohne Rückruf; Welt-Einstellungen
+Herd herd = neu Herd("Würfel");
+herd.himmel("himmel", "mozzarella");
+herd.umgebung("weiss", staerke: 0.5);
+herd.nebel("grau", 10, 40);
+Teil wuerfel = herd.koerper(Form.wuerfel(), farbe: "tomate");
+wuerfel.mit(neu Bewegung(drehtempo: 45));
+herd.licht(2, 3, 2, farbe: "senf", reichweite: 8);
+herd.kamera().setzeLage(0, 2, 6).schaueAuf(0, 0, 0);
+Bote.sage((herd + " " + herd.kamera() + " " + herd.kamera().kamera() + " " + herd.sonne().licht().art() + " " + herd.breite() + "x" + herd.hoehe()));
+herd.backe();
+Bote.sage(("Drehung nach " + herd.zeit() + " s: " + wuerfel.drehung().runden(3)));

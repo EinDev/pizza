@@ -1,0 +1,11 @@
+// Herd §18.2: schliesse() im Rückruf – Rückruf läuft zu Ende, Systeme und Bild entfallen; backe öffnet erneut
+Herd herd = neu Herd("Zu", breite: 64, hoehe: 64);
+Teil t = herd.rechteck(10, 10, 4, 4);
+t.mit(neu Bewegung(tempoY: 60));
+herd.backe(() -> { falls (herd.bildnummer() == 2) { herd.schliesse(); Bote.sage(("nach schliesse")); } });
+Bote.sage(("zu bei " + herd.bildnummer() + ", y = " + t.y()));
+herd.setzeTitel("Wieder auf");
+herd.backe(() -> { falls (herd.bildnummer() == 5) { herd.schliesse(); } });
+herd.schliesse();
+Bote.sage((herd.titel() + " " + herd.bildnummer() + " " + t.y()));
+herd.backe();

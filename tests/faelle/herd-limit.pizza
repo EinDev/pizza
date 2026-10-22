@@ -1,0 +1,7 @@
+// Herd §18.2: P0002 je Takt (K-087) – jeder Takt hat ein frisches Schrittbudget; Schluss mit schliesse vor dem Fehler
+Herd herd = neu Herd("Limit", breite: 64, hoehe: 64);
+salami n = 0;
+herd.backe(() -> {
+    für (salami i : [1 .. 60]) { n = n + 1; }
+    falls (herd.bildnummer() == 4) { solange (ja) { n = n + 1; } }
+});

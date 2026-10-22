@@ -1,0 +1,3 @@
+// Herd §18.2: ungefangene Ananas – das offene Fenster wird vor dem fehler-Ereignis geschlossen (wie K-061)
+Herd herd = neu Herd("Ende");
+herd.backe(() -> { falls (herd.bildnummer() == 2) { Teil x = herd.kreis(1, 2, -3); } });

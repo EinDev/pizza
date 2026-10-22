@@ -1,0 +1,11 @@
+// Herd §18 / HERD.md §2: Ball mit Bewegung prallt ab – die Engine bewegt ihn, das Programm entscheidet nur
+Herd herd = neu Herd("Hallo Herd", breite: 640, hoehe: 360);
+Teil ball = herd.kreis(320, 180, 12, farbe: "tomate");
+Bewegung flug = ball.mit(neu Bewegung(tempoX: 2400, tempoY: 1600));
+salami abpraller = 0;
+herd.backe(() -> {
+    falls (ball.y() < 12 || ball.y() > 348) { flug.setzeTempoY(-flug.tempoY()); abpraller = abpraller + 1; }
+    falls (ball.x() < 12 || ball.x() > 628) { flug.setzeTempoX(-flug.tempoX()); abpraller = abpraller + 1; }
+});
+Bote.sage((herd.bildnummer() + " Takte, " + abpraller + " Abpraller"));
+Bote.sage(("Ball bei " + ball.x().runden(2) + ", " + ball.y().runden(2) + " mit Tempo " + flug.tempoX() + "/" + flug.tempoY()));

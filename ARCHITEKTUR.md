@@ -59,7 +59,9 @@ PizzaLang.run(quelltext, optionen)
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
   //                       zufallsSaat?: number, vorrat?: object, onVorrat?(kennung, eintraege),  // SPEC §15.4 (K-077 … K-081, K-106: Kennung = name | namensraum/name)
-  //                       koeche?: number | "auto", kuechenChaos?: number }      // Küchenbrigade: SPEC §17 (K-100)
+  //                       koeche?: number | "auto", kuechenChaos?: number,       // Küchenbrigade: SPEC §17 (K-100)
+  //                       herdKern?: WebAssembly.Module | ArrayBuffer | Uint8Array,  // Herd: SPEC §18, K-128 – Node ohne Option: site/js/herd/kern.wasm
+  //                       onHerd?(art, daten), herdSpion?(kernExporte) }            // Herd-Renderer (Bildpaket-Bytes nur hier); herdSpion nur Werkzeuge
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
@@ -79,6 +81,7 @@ PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebau
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
 PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
+PizzaLang.intern.HERD_TYPEN        // Herd-Klassen + Komponentennamen (SPEC §18; Compiler-Fallback „Herd: …“ bis Paket H4)
 ```
 Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück. `BELAEGE`, `intern.BELAEGE` und
 `intern.GRUNDPREIS` gibt es seit K-105 nicht mehr (kein eingebautes Pizza-Objekt).
@@ -94,6 +97,9 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
 { typ: "ui",            nachricht }                             // Theke-Protokollnachricht Programm → Renderer (SPEC §16; nicht in .erwartet, sondern .ui-erwartet)
 { typ: "vorrat",        name, schluessel, wert }                // Vorratskammer-Änderung (SPEC §15.4, K-080; name = Kennung `raum/name`, K-106; nicht in .erwartet)
+{ typ: "herd",          art: "fenster", titel, breite, hoehe }  // Herd (SPEC §18.7; nicht in .erwartet, sondern .herd-erwartet ohne typ); onHerd("fenster", {titel, breite, hoehe})
+{ typ: "herd",          art: "bild", bildnummer, szene, paket } // szene/paket = FNV-1a-64-Hex vom Kern; onHerd("bild", {bildnummer, szene, paket, bytes: Uint8Array}) – Bytes nie im Ereignis
+{ typ: "herd",          art: "schliesse" }                      // onHerd("schliesse", {}); Kern fehlt → fehler { code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." }, Exit 2
 { typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)

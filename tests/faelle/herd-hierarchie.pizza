@@ -1,0 +1,19 @@
+// Herd §18.4: Hierarchie – Kinder liegen relativ zu ihren Eltern; Zyklus und Raum werden geprüft
+Herd herd = neu Herd("Baum", breite: 200, hoehe: 200);
+Teil wurzel = herd.gruppe(100, 100);
+Teil arm = herd.rechteck(20, 0, 30, 6, farbe: "kruste");
+Teil hand = herd.kreis(15, 0, 4);
+arm.haenge(wurzel);
+hand.haenge(arm);
+Bote.sage((wurzel.kinder() + " " + arm.kinder() + " " + hand.eltern() + " " + (wurzel.eltern() == karton)));
+wurzel.mit(neu Bewegung(drehtempo: 90));
+herd.backe(() -> { falls (herd.bildnummer() == 3) { arm.setzeGroesse(2); } });
+Bote.sage((arm.x() + " " + arm.groesse() + " " + arm.groesseY() + " " + wurzel.drehung().runden(3)));
+probier { wurzel.haenge(hand); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Teil r3 = herd.raum(1, 2, 3);
+probier { hand.haenge(r3); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+hand.haenge(karton);
+Bote.sage((hand.eltern() + " " + arm.kinder() + " " + r3.raum() + " " + hand.raum() + " " + r3.z()));
+arm.setzeEbene(2).sichtbar(nein);
+Bote.sage((arm.ebene() + " " + arm.sichtbar() + " " + hand.sichtbar()));
+herd.backe();

@@ -1,0 +1,6 @@
+[Teil(4)] [Teil(5)] Teil(4) ja
+20 2 2 6
+Teil 3 kann nicht an seinem eigenen Kind hängen.
+Ein 2D-Teil kann nicht an einem 3D-Teil hängen.
+karton [] 3D 2D 3
+2 nein ja

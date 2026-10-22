@@ -1,0 +1,5 @@
+// Herd §18.2: ohne Renderer – fenster/schliesse, W0104 je Aufrufstelle, der Rückruf läuft nie
+Herd herd = neu Herd("Leer");
+für (salami i : [1 .. 3]) { herd.backe(() -> { Bote.sage(("nie")); }); }
+herd.backe(() -> { Bote.sage(("nie")); });
+Bote.sage(("fertig " + herd.bildnummer()));

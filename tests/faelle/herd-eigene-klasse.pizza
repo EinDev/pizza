@@ -1,0 +1,15 @@
+// SPEC §18.1: eine eigene Klasse gleichen Namens hat Vorrang (hier Kreis und Form); der Herd läuft daneben
+klasse Kreis {
+    salami r;
+    Kreis(salami r) { dies.r = r; }
+    salami flaeche() { serviere ((3 * r * r)); }
+}
+klasse Form {
+    tiefkühl margherita wuerfel() { serviere ("eigener Würfel"); }
+}
+Kreis k = neu Kreis(2);
+Bote.sage((k.flaeche() + " " + Form.wuerfel()));
+Herd herd = neu Herd("Daneben", breite: 64, hoehe: 64);
+Teil t = herd.kreis(5, 5, 3);
+Bote.sage((t.kreis() + " " + t.kreis().radius()));
+herd.backe();

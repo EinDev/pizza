@@ -2106,6 +2106,14 @@
       this.uiBindungen = [];      // Theke v5 (K-116): alle Bindungen in Registrierungsreihenfolge
       this.uiBindungLauf = null;  // die gerade ausgewertete Bindung (Quellenerfassung, K-118-Verbote)
       this.uiDirty = false;       // mindestens eine Bindung ist schmutzig
+      // Herd (SPEC §18): Kern-Modul (optionen.herdKern), Renderer-Rückruf onHerd(art, daten), Kern-Instanz und Welt (lazy)
+      this.herdOpt = opt.herdKern;
+      this.onHerd = typeof opt.onHerd === 'function' ? opt.onHerd : null;
+      this.herdSpion = typeof opt.herdSpion === 'function' ? opt.herdSpion : null;   // nur Werkzeuge (tests/herd/zeige.js)
+      this.hk = null;
+      this.hkFehlt = false;
+      this.herd = null;
+      this.herdNoetig = false;
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -2154,6 +2162,8 @@
         ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
         ['Spiegel', new Modul('Spiegel', SPIEGEL_M, null)],
         ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
+        ['Herd', new Modul('Herd', HERD_MOD_M, null)],
+        ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
         ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
         ['bestelle', new NativFn('bestelle', function (pos) {
           const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
@@ -2232,6 +2242,7 @@
       if (v instanceof UiTheke) return 'Theke';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art];
       if (v instanceof Zettel) return 'Zettel';
+      if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
       if (v instanceof ZufallGen) return 'Zufall';
       if (v instanceof Kammer) return 'Vorratskammer';
       return 'Unbekanntes';
@@ -2362,6 +2373,7 @@
       const body = this.ast.body;
       for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
       this.pruefe();
+      if (this.herdNoetig) this.herdKern(true);
       this.vorbereiten();
       for (const st of body) {
         if (DEKL.has(st.k)) continue;
@@ -2486,6 +2498,7 @@
           t.geschlossen = true;
           t.gezeigt = false;
         }
+        this.herdEnde();
       }
     }
 
@@ -3218,6 +3231,7 @@
           }
         }
       }
+      this.pruefeHerd();
     }
 
     rezepturMethoden(r, gesehen) {
@@ -3317,6 +3331,17 @@
           was = 'kein(e) ' + typ.name;
           break;
         }
+        case 'Herd': case 'Teil': case 'Form': case 'Bildchen': {
+          if (this.klassen.has(typ.name) || v === null) {
+            const k = this.klassen.get(typ.name);
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (herdKlasseVon(v) === typ.name && !(v instanceof HerdKomp)) return;
+          was = 'kein(e) ' + typ.name;
+          break;
+        }
         case 'Zettel': {
           // Theke v5 (K-116): eingebauter Typname wie Zutat; eigene Klasse Zettel hat Vorrang
           if (this.klassen.has('Zettel') || v === null) {
@@ -3331,7 +3356,14 @@
         }
         default: {
           const k = this.klassen.get(typ.name);
-          if (k === undefined || v === null || this.instanzVon(v, k)) return;
+          if (k === undefined) {
+            // Herd-Komponente (Schema): nur Komponenten dieser Art passen
+            if (v === null || !(HERD_KOMP_NAMEN.has(typ.name) || (this.hk !== null && this.hk.schema.nachName.has(typ.name)))) return;
+            if (v instanceof HerdKomp && v.art.name === typ.name) return;
+            was = 'kein(e) ' + typ.name;
+            break;
+          }
+          if (v === null || this.instanzVon(v, k)) return;
           was = 'kein(e) ' + k.name;
         }
       }
@@ -3382,6 +3414,17 @@
       if (v instanceof Kammer) return 'Vorratskammer(' + v.kennung + ')';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
       if (v instanceof Zettel) return 'Zettel(' + this.text(v.w) + ')';
+      if (v instanceof HerdTeil) return 'Teil(' + v.id + ')';
+      if (v instanceof HerdKomp) {
+        // lose: <Name>(); zerstört: das Teil, an dem sie zuletzt hing
+        const e = this.hk.e;
+        let t = v.teil;
+        if (e.komp_info(v.h, 3) !== 1) { t = e.komp_info(v.h, 2); if (t < 0) { e.fehler_neu(); t = v.teil; } }
+        return v.art.name + '(' + (t > 0 ? t : '') + ')';
+      }
+      if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
+      if (v instanceof HerdForm) return 'Form(' + v.id + ')';
+      if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
       if (v === AUTO) return 'auto';
       return String(v);
     }
@@ -3521,7 +3564,7 @@
     globalerName(name) {
       const g = this.globals.get(name);
       // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
-      if (g !== undefined && !(name === 'Zettel' && this.klassen.has(name))) return g;
+      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form') && this.klassen.has(name))) return g;
       const k = this.klassen.get(name);
       if (k !== undefined) return k;
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
@@ -3627,6 +3670,7 @@
       if (Array.isArray(o)) return BLECH_M;
       if (o instanceof Map) return KARTE_M;
       if (o instanceof UiZutat) return UI_TABELLEN[o.art];
+      if (o instanceof HerdTeil || o instanceof HerdKomp) return o.tab;
       return TABELLEN.get(o.constructor) || null;
     }
 
@@ -3665,6 +3709,7 @@
             throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
           } else if (o instanceof Rezeptur) throw this.ananas('LaufzeitAnanas', 'Eine Rezeptur kann man nicht aufrufen – sie ist nur ein Rezept.');
           else if (o instanceof UiZutat) tab = UI_TABELLEN[o.art];
+          else if (o instanceof HerdTeil || o instanceof HerdKomp) tab = o.tab;
           else tab = TABELLEN.get(o.constructor);
       }
       if (tab !== undefined) {
@@ -4229,6 +4274,9 @@
           this.uiTheke = t;
           return t;
         }
+        // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten des Schemas
+        const hn = this.herdNeu(tn, pos, ben);
+        if (hn !== undefined) return hn;
       }
       switch (tn) {
         case 'Blech': return pos.length && Array.isArray(pos[0]) ? pos[0].slice() : [];
@@ -4588,6 +4636,11 @@
       if (v instanceof Kammer) return 'Eine Vorratskammer';
       if (v instanceof UiTheke || v instanceof UiZutat) return 'Eine Theke-Zutat';
       if (v instanceof Zettel) return 'Ein Zettel';
+      if (v instanceof HerdWelt) return 'Ein Herd';
+      if (v instanceof HerdTeil) return 'Ein Teil';
+      if (v instanceof HerdKomp) return 'Eine Komponente';
+      if (v instanceof HerdForm) return 'Eine Form';
+      if (v instanceof HerdBildchen) return 'Ein Bildchen';
       return null;
     }
     // Tiefe Kopie in den Karton (Teilung/Zyklen über memo); wirft KartonFehler. Ruft nie alsText(), 0 Schritte.
@@ -4792,6 +4845,10 @@
         this.emit({ typ: 'panik', text: PANIK_BANNER });
         return 39;
       }
+      if (e instanceof HerdKernFehlt) {
+        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+        return 2;
+      }
       try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
       if (e instanceof PizzaFehlerSig) {
         this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
@@ -4824,6 +4881,855 @@
       return 1;
     }
   }
+
+  // =====================================================================
+  // HERD – Spiel-Engine (SPEC §18, HERD.md, herd/README.md §3)
+  // Dünne Anbindung an kern.wasm: Szene, Systeme, Prüfungen und Fehlertexte leben im Kern; hier stehen nur
+  // Sprachtypen, Objektidentität (Handle → Objekt), Textformen, Spielschleife, Eingabe und Fenster-Ereignisse.
+  // Komponenten kommen generisch aus dem Schema des geladenen Kerns (schema_json) – eine neue Komponente im Kern
+  // braucht hier keine Änderung (HERD.md §9).
+  // =====================================================================
+  const HERD_KLASSEN = ['Herd', 'Teil', 'Form', 'Bildchen'];
+  const HERD_KUECHE = 'Den Herd gibt es nur in der Hauptküche.';
+  const HERD_W0104 = 'Kein Herd verfügbar – Fenster wird nicht angezeigt.';
+  const HERD_KERN_FEHLT = 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).';
+  // Node: kern.wasm und schema.json liegen neben pizza.js in herd/ (site/js/herd/); Browser/Worker: optionen.herdKern
+  // HERD-NODE-ANFANG – einzige Node-Abhängigkeit (K-128), im Worker-Kontext übersprungen
+  const HERD_NODE = typeof require === 'function' && typeof __dirname === 'string';
+  function herdDatei(name) {
+    if (!HERD_NODE) return null;
+    try { return require('fs').readFileSync(require('path').join(__dirname, 'herd', name)); } catch (e) { return null; }
+  }
+  // HERD-NODE-ENDE
+  // Namen der Komponenten für TYPEN/Editor/Compiler-Fallback (zur Ladezeit; Node liest schema.json, sonst die v1-Liste).
+  // Das Verhalten zur Laufzeit kommt immer aus dem Schema des geladenen Kerns.
+  const HERD_KOMPONENTEN = (function () {
+    const b = herdDatei('schema.json');
+    if (b !== null) { try { return JSON.parse(String(b)).komponenten.map(k => k.name); } catch (e) { /* Rückfall */ } }
+    return ['Rechteck', 'Kreis', 'Text', 'Bild', 'Koerper', 'Licht', 'Kamera', 'Bewegung', 'Animation', 'Partikel'];
+  })();
+  const HERD_KOMP_NAMEN = new Set(HERD_KOMPONENTEN);
+  for (const n of HERD_KLASSEN.concat(HERD_KOMPONENTEN)) if (TYPEN.indexOf(n) < 0) TYPEN.push(n);
+
+  // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
+  const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,
+    HF_BILDCHEN = 9, HF_LISTE = 10;
+  const HF_NACH_NAME = { 'zahl': HF_ZAHL, 'ganz': HF_GANZ, 'diavolo': HF_DIAVOLO, 'text': HF_TEXT, 'wahl': HF_WAHL, 'farbe': HF_FARBE,
+    'teil': HF_TEIL, 'form': HF_FORM, 'bildchen': HF_BILDCHEN, 'bildchen-liste': HF_LISTE };
+
+  const HERD_ENC = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+  const HERD_DEC = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
+
+  // ---------- Kern laden ----------
+  let herdStandardModul;                     // undefined: noch nicht versucht · null: nicht vorhanden · WebAssembly.Module
+  const herdModulCache = new WeakMap();      // Bytes (ArrayBuffer/Uint8Array) → Module
+  const herdSchemaCache = new WeakMap();     // Module → Schema-Struktur (Tabellen einmal je Modul)
+  function herdModul(k) {
+    if (typeof WebAssembly === 'undefined') return null;
+    if (k !== undefined && k !== null) {
+      if (k instanceof WebAssembly.Module) return k;
+      if (typeof k !== 'object') return null;
+      let m = herdModulCache.get(k);
+      if (m === undefined) {
+        try { m = new WebAssembly.Module(k); } catch (e) { m = null; }
+        herdModulCache.set(k, m);
+      }
+      return m;
+    }
+    if (herdStandardModul === undefined) {
+      herdStandardModul = null;
+      const b = herdDatei('kern.wasm');
+      if (b !== null) { try { herdStandardModul = new WebAssembly.Module(b); } catch (e) { /* bleibt null */ } }
+    }
+    return herdStandardModul;
+  }
+
+  // Eine Kern-Instanz je Lauf (die Welt ist global im Kern). Austauschpuffer und Speicheransichten werden wiederverwendet.
+  class HerdKern {
+    constructor(modul) {
+      this.e = new WebAssembly.Instance(modul, {}).exports;
+      if (typeof this.e.abi_version !== 'function' || this.e.abi_version() !== 1) throw new Error('Herd-ABI ' + (this.e.abi_version && this.e.abi_version()));
+      this.puf = null; this.u8 = null; this.dv = null; this.len = 0;
+      this.schema = herdSchema(modul, this);
+      this.teile = new Map();      // Teil-ID → HerdTeil (Identität)
+      this.komps = new Map();      // Handle → HerdKomp (Identität)
+      this.res = new Map();        // Ressourcen-ID → HerdForm | HerdBildchen
+    }
+    mem() {
+      const b = this.e.memory.buffer;
+      if (b !== this.puf) { this.puf = b; this.u8 = new Uint8Array(b); this.dv = new DataView(b); }
+      return this.u8;
+    }
+    // Text (UTF-8) in den Austauschpuffer; → Zeiger, Länge in this.len
+    text(s) {
+      const max = s.length * 3 || 1;
+      const p = this.e.puffer(max);
+      this.len = HERD_ENC.encodeInto(s, this.mem().subarray(p, p + max)).written;
+      return p;
+    }
+    // (ptr, kap) → len mit Längen-Retry (K-013); → Text oder null bei Fehler
+    liesText(f) {
+      let kap = 64;
+      for (;;) {
+        const p = this.e.puffer(kap);
+        const n = f(p, kap);
+        if (n < 0) return null;
+        if (n <= kap) return HERD_DEC.decode(this.mem().subarray(p, p + n));
+        kap = n;
+      }
+    }
+    // (ptr, kap) → n (u32 LE) mit Retry; → Zahlen oder null bei Fehler
+    liesListe(f) {
+      let kap = 16;
+      for (;;) {
+        const p = this.e.puffer(kap * 4);
+        const n = f(p, kap);
+        if (n < 0) return null;
+        if (n <= kap) {
+          this.mem();
+          const r = new Array(n);
+          for (let i = 0; i < n; i++) r[i] = this.dv.getUint32(p + i * 4, true);
+          return r;
+        }
+        kap = n;
+      }
+    }
+    hash(f) {
+      const p = this.e.puffer(16);
+      f(p);
+      const u = this.mem();
+      let s = '';
+      for (let i = 0; i < 16; i++) s += String.fromCharCode(u[p + i]);
+      return s;
+    }
+  }
+
+  function herdSchema(modul, kern) {
+    let s = herdSchemaCache.get(modul);
+    if (s !== undefined) return s;
+    const roh = JSON.parse(kern.liesText((p, kap) => kern.e.schema_json(p, kap)));
+    s = { arten: [], nachName: new Map(), teilTab: null };
+    const zugriff = Object.create(null);
+    for (const k of roh.komponenten) {
+      const art = { name: k.name, nummer: k.nummer, felder: [], feldNachName: new Map(), tab: null };
+      for (const f of k.felder) {
+        const feld = { name: f.name, nummer: f.nummer, t: HF_NACH_NAME[f.typ] || 0, typ: f.typ };
+        art.felder.push(feld);
+        art.feldNachName.set(f.name, feld);
+      }
+      art.tab = herdKompTabelle(art);
+      s.arten[art.nummer] = art;
+      s.nachName.set(art.name, art);
+      zugriff[art.name.charAt(0).toLowerCase() + art.name.slice(1)] = art;
+    }
+    s.teilTab = herdTeilTabelle(zugriff);
+    herdSchemaCache.set(modul, s);
+    return s;
+  }
+
+  // ---------- Objekte (Handles) ----------
+  class HerdWelt {
+    constructor(titel, breite, hoehe) {
+      this.titel = titel; this.breite = breite; this.hoehe = hoehe;
+      this.offen = false; this.bildnummer = 0; this.schliessen = false; this.imRueckruf = false;
+      // Eingabe als Zustand (SPEC §18.3); vor* = Zustand vor dem letzten takt-Ereignis, erster = erster Takt des Ereignisses
+      this.tasten = new Set(); this.vorTasten = this.tasten;
+      this.mausX = 0; this.mausY = 0; this.knoepfe = 0; this.vorKnoepfe = 0; this.erster = false;
+    }
+  }
+  class HerdTeil { constructor(id, tab) { this.id = id; this.tab = tab; } }
+  class HerdKomp { constructor(h, art, teil) { this.h = h; this.art = art; this.tab = art.tab; this.teil = teil; } }
+  class HerdForm { constructor(id) { this.id = id; } }
+  class HerdBildchen { constructor(id, b, h) { this.id = id; this.breite = b; this.hoehe = h; } }
+  class HerdKernFehlt { }
+
+  function herdKlasseVon(v) {
+    if (v instanceof HerdWelt) return 'Herd';
+    if (v instanceof HerdTeil) return 'Teil';
+    if (v instanceof HerdForm) return 'Form';
+    if (v instanceof HerdBildchen) return 'Bildchen';
+    if (v instanceof HerdKomp) return v.art.name;
+    return null;
+  }
+
+  // ---------- Methodentabellen ----------
+  function herdTab(o) { const t = tabelle(o); nurHauptkueche(t, HERD_KUECHE); return t; }
+
+  // Komponenten generisch: Getter <feld>(), Setter setze<Feld>(w) (verkettbar), hole/setze, teil(), alsText()
+  function herdKompTabelle(art) {
+    const t = {};
+    for (const f of art.felder) {
+      t[f.name] = function (k) { return this.herdHole(k.h, art, f); };
+      t['setze' + f.name.charAt(0).toUpperCase() + f.name.slice(1)] = function (k, pos) {
+        this.herdSetze(k.h, art, f, pos.length ? pos[0] : null);
+        return k;
+      };
+    }
+    t.hole = function (k, pos, ben) { return this.herdHole(k.h, art, this.herdFeld(art, arg(pos, ben, 0, 'feld'))); };
+    t.setze = function (k, pos, ben) {
+      const f = this.herdFeld(art, arg(pos, ben, 0, 'feld'));
+      const w = arg(pos, ben, 1, 'wert');
+      this.herdSetze(k.h, art, f, w === undefined ? null : w);
+      return k;
+    };
+    t.teil = function (k) {
+      const e = this.hk.e;
+      if (e.komp_info(k.h, 3) === 1) this.herdI(e.komp_info(k.h, 2));   // zerstört → Kern-Text „Teil 7 ist schon entfernt.“
+      const id = this.herdI(e.komp_info(k.h, 2));
+      k.teil = id;
+      return id === 0 ? null : this.herdTeilObj(id);
+    };
+    t.alsText = function (k) { return this.text(k); };
+    return herdTab(t);
+  }
+
+  const HERD_TEIL_M = {
+    'x': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 1)); },
+    'y': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 2)); },
+    'z': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 3)); },
+    'setzeLage': function (t, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'setzeLage', 'x');
+      const y = this.herdZahl(arg(pos, ben, 1, 'y'), 'setzeLage', 'y');
+      const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'setzeLage', 'z', 0);
+      this.herdI(this.hk.e.teil_lage(t.id, x, y, z));
+      return t;
+    },
+    'verschiebe': function (t, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'dx'), 'verschiebe', 'dx');
+      const y = this.herdZahl(arg(pos, ben, 1, 'dy'), 'verschiebe', 'dy');
+      const z = this.herdZahl(arg(pos, ben, 2, 'dz'), 'verschiebe', 'dz', 0);
+      this.herdI(this.hk.e.teil_verschiebe(t.id, x, y, z));
+      return t;
+    },
+    'drehung': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 4)); },
+    'setzeDrehung': function (t, pos, ben) { this.herdI(this.hk.e.teil_setze(t.id, 4, this.herdZahl(arg(pos, ben, 0, 'g'), 'setzeDrehung', 'g'))); return t; },
+    'neigung': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 5)); },
+    'setzeNeigung': function (t, pos, ben) { this.herdI(this.hk.e.teil_setze(t.id, 5, this.herdZahl(arg(pos, ben, 0, 'g'), 'setzeNeigung', 'g'))); return t; },
+    'rollen': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 6)); },
+    'setzeRollen': function (t, pos, ben) { this.herdI(this.hk.e.teil_setze(t.id, 6, this.herdZahl(arg(pos, ben, 0, 'g'), 'setzeRollen', 'g'))); return t; },
+    'schaueAuf': function (t, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'schaueAuf', 'x');
+      const y = this.herdZahl(arg(pos, ben, 1, 'y'), 'schaueAuf', 'y');
+      const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'schaueAuf', 'z');
+      this.herdI(this.hk.e.teil_schaue(t.id, x, y, z));
+      return t;
+    },
+    'groesse': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 7)); },
+    'groesseX': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 7)); },
+    'groesseY': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 8)); },
+    'groesseZ': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 9)); },
+    'setzeGroesse': function (t, pos, ben) {
+      const sx = this.herdZahl(arg(pos, ben, 0, 'sx'), 'setzeGroesse', 'sx');
+      const sy = this.herdZahl(arg(pos, ben, 1, 'sy'), 'setzeGroesse', 'sy', sx);
+      const sz = this.herdZahl(arg(pos, ben, 2, 'sz'), 'setzeGroesse', 'sz', sx);
+      this.herdI(this.hk.e.teil_groesse(t.id, sx, sy, sz));
+      return t;
+    },
+    'ebene': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 10)); },
+    'setzeEbene': function (t, pos, ben) { this.herdI(this.hk.e.teil_setze(t.id, 10, this.herdZahl(arg(pos, ben, 0, 'n'), 'setzeEbene', 'n'))); return t; },
+    // Getter/Setter-Überladung wie bei der Theke: ohne Argument lesen, mit diavolo setzen (K-066)
+    'sichtbar': function (t, pos, ben) {
+      const d = arg(pos, ben, 0, 'd');
+      if (d === undefined) return this.herdF(this.hk.e.teil_hole(t.id, 11)) !== 0;
+      this.herdI(this.hk.e.teil_setze(t.id, 11, this.bool(d) ? 1 : 0));
+      return t;
+    },
+    'haenge': function (t, pos, ben) {
+      const an = arg(pos, ben, 0, 'an');
+      this.herdI(this.hk.e.teil_haenge(t.id, this.herdTeilId(an, 'haenge', 'an')));
+      return t;
+    },
+    'eltern': function (t) {
+      const id = this.herdF(this.hk.e.teil_hole(t.id, 13));
+      return id === 0 ? null : this.herdTeilObj(id);
+    },
+    'kinder': function (t) {
+      const e = this.hk.e;
+      const ids = this.hk.liesListe((p, kap) => e.teil_kinder(t.id, p, kap));
+      if (ids === null) throw this.herdFehler();
+      return ids.map(id => this.herdTeilObj(id));
+    },
+    'entferne': function (t) { this.herdI(this.hk.e.teil_entferne(t.id)); return null; },
+    'entfernt': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 14)) !== 0; },
+    'kopie': function (t) { return this.herdTeilObj(this.herdI(this.hk.e.teil_kopie(t.id))); },
+    'trifft': function (t, pos, ben) {
+      const b = arg(pos, ben, 0, 'anderes');
+      if (!(b instanceof HerdTeil)) throw this.ananas('TypAnanas', 'trifft() braucht ein Teil für \'anderes\', nicht ' + this.darstellung(b === undefined ? null : b) + '.');
+      return this.herdI(this.hk.e.teil_trifft(t.id, b.id)) === 1;
+    },
+    'mit': function (t, pos, ben) {
+      const k = arg(pos, ben, 0, 'komponente');
+      if (!(k instanceof HerdKomp)) throw this.ananas('TypAnanas', 'mit() braucht eine Komponente für \'komponente\', nicht ' + this.darstellung(k === undefined ? null : k) + '.');
+      this.herdI(this.hk.e.komp_haenge(k.h, t.id));
+      k.teil = t.id;
+      return k;
+    },
+    'ohne': function (t, pos, ben) {
+      const n = arg(pos, ben, 0, 'name');
+      let art;
+      if (n instanceof HerdKomp) art = n.art;
+      else {
+        const name = this.text(n === undefined ? null : n);
+        art = this.hk.schema.nachName.get(name);
+        if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Eine Komponente \'' + name + '\' gibt es nicht.');
+      }
+      const e = this.hk.e;
+      const h = this.herdI(e.komp_von(t.id, art.nummer));
+      if (h === 0) return null;
+      const k = this.herdKompObj(h, art);
+      this.herdI(e.komp_loese(h));
+      k.teil = 0;
+      return k;
+    },
+    'raum': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 12)) === 3 ? '3D' : '2D'; },
+    'id': function (t) { this.herdF(this.hk.e.teil_hole(t.id, 12)); return t.id; },   // entfernt → Kern-Text
+    'alsText': function (t) { return this.text(t); }
+  };
+  function herdTeilTabelle(zugriff) {
+    const t = Object.assign({}, HERD_TEIL_M);
+    // teil.<komponente>() → die Komponente dieser Art oder karton
+    for (const name of Object.keys(zugriff)) {
+      const art = zugriff[name];
+      t[name] = function (teil) { return this.herdKompVon(teil, art); };
+    }
+    return herdTab(t);
+  }
+
+  const HERD_M = herdTab({
+    'backe': function (h, pos, ben, node) { const f = arg(pos, ben, 0, 'fn'); this.herdBacke(h, f === undefined ? null : f, node); return null; },
+    'schliesse': function (h) {
+      if (h.imRueckruf) h.schliessen = true;     // §18.2: Rückruf läuft zu Ende, dann schliesse
+      else this.herdSchliesseFenster(h);
+      return null;
+    },
+    'titel': function (h) { return h.titel; },
+    'setzeTitel': function (h, pos, ben) {
+      const t = arg(pos, ben, 0, 't');
+      const titel = this.text(t === undefined ? null : t);
+      const k = this.hk;
+      this.herdI(k.e.welt_titel(k.text(titel), k.len));
+      h.titel = titel;
+      if (h.offen) this.herdSende('fenster', { titel: h.titel, breite: h.breite, hoehe: h.hoehe });
+      return h;
+    },
+    'breite': function (h) { return h.breite; },
+    'hoehe': function (h) { return h.hoehe; },
+    'bildnummer': function (h) { return h.bildnummer; },
+    'zeit': function (h) { return h.bildnummer / 60; },
+    // Eingabe (SPEC §18.3)
+    'taste': function (h, pos, ben) { return h.tasten.has(this.herdTaste(arg(pos, ben, 0, 'n'))); },
+    'gedrueckt': function (h, pos, ben) {
+      const n = this.herdTaste(arg(pos, ben, 0, 'n'));
+      return h.erster && h.tasten.has(n) && !h.vorTasten.has(n);
+    },
+    'losgelassen': function (h, pos, ben) {
+      const n = this.herdTaste(arg(pos, ben, 0, 'n'));
+      return h.erster && !h.tasten.has(n) && h.vorTasten.has(n);
+    },
+    'mausX': function (h) { return h.mausX; },
+    'mausY': function (h) { return h.mausY; },
+    'maus': function (h, pos, ben) { return (h.knoepfe & this.herdMausBit(arg(pos, ben, 0, 'k'), 'maus')) !== 0; },
+    'klick': function (h, pos, ben) {
+      const b = this.herdMausBit(arg(pos, ben, 0, 'k'), 'klick');
+      return h.erster && (h.knoepfe & b) !== 0 && (h.vorKnoepfe & b) === 0;
+    },
+    // Welt (SPEC §18.5)
+    'hintergrund': function (h, pos, ben) {
+      const k = this.hk, f = this.herdFarbText(arg(pos, ben, 0, 'f'));
+      this.herdI(k.e.welt_hintergrund(k.text(f), k.len));
+      return h;
+    },
+    'himmel': function (h, pos, ben) {
+      const k = this.hk;
+      const o = this.herdFarbText(arg(pos, ben, 0, 'oben'));
+      const uw = arg(pos, ben, 1, 'unten');
+      const u = uw === undefined || uw === null ? '' : this.herdFarbText(uw);
+      // beide Texte in einen Austauschpuffer (gültig bis zum nächsten puffer)
+      const max = (o.length + u.length) * 3 || 1;
+      const p = k.e.puffer(max), m = k.mem();
+      const lo = HERD_ENC.encodeInto(o, m.subarray(p, p + o.length * 3)).written;
+      const lu = HERD_ENC.encodeInto(u, m.subarray(p + lo, p + max)).written;
+      this.herdI(k.e.welt_himmel(p, lo, p + lo, lu));
+      return h;
+    },
+    'umgebung': function (h, pos, ben) {
+      const f = this.herdFarbText(arg(pos, ben, 0, 'f'));
+      const s = this.herdZahl(arg(pos, ben, 1, 'staerke'), 'umgebung', 'staerke', 0.35);
+      const k = this.hk;
+      this.herdI(k.e.welt_umgebung(k.text(f), k.len, s));
+      return h;
+    },
+    'nebel': function (h, pos, ben) {
+      const f = this.herdFarbText(arg(pos, ben, 0, 'f'));
+      const von = this.herdZahl(arg(pos, ben, 1, 'von'), 'nebel', 'von');
+      const bis = this.herdZahl(arg(pos, ben, 2, 'bis'), 'nebel', 'bis');
+      const k = this.hk;
+      this.herdI(k.e.welt_nebel(k.text(f), k.len, von, bis));
+      return h;
+    },
+    'kamera': function () { return this.herdTeilObj(1); },
+    'sonne': function () { return this.herdTeilObj(2); },
+    // Fabriken (Teil anlegen + Komponente anhängen; Reihenfolge der Kern-Aufrufe ist Vertrag für alle Motoren, s. herdFabrik)
+    'rechteck': function (h, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'rechteck', 'x'), y = this.herdZahl(arg(pos, ben, 1, 'y'), 'rechteck', 'y');
+      const b = this.herdZahl(arg(pos, ben, 2, 'b'), 'rechteck', 'b'), ho = this.herdZahl(arg(pos, ben, 3, 'h'), 'rechteck', 'h');
+      const ru = this.herdZahl(arg(pos, ben, 5, 'rundung'), 'rechteck', 'rundung', null);
+      const um = this.herdZahl(arg(pos, ben, 6, 'umriss'), 'rechteck', 'umriss', null);
+      return this.herdFabrik(2, x, y, 0, 'Rechteck', ['breite', b, 'hoehe', ho, 'farbe', arg(pos, ben, 4, 'farbe'), 'rundung', ru, 'umriss', um]);
+    },
+    'kreis': function (h, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'kreis', 'x'), y = this.herdZahl(arg(pos, ben, 1, 'y'), 'kreis', 'y');
+      const r = this.herdZahl(arg(pos, ben, 2, 'r'), 'kreis', 'r');
+      const um = this.herdZahl(arg(pos, ben, 4, 'umriss'), 'kreis', 'umriss', null);
+      return this.herdFabrik(2, x, y, 0, 'Kreis', ['radius', r, 'farbe', arg(pos, ben, 3, 'farbe'), 'umriss', um]);
+    },
+    'text': function (h, pos, ben) {
+      const tw = arg(pos, ben, 0, 't');
+      const x = this.herdZahl(arg(pos, ben, 1, 'x'), 'text', 'x'), y = this.herdZahl(arg(pos, ben, 2, 'y'), 'text', 'y');
+      const g = this.herdZahl(arg(pos, ben, 3, 'groesse'), 'text', 'groesse', null);
+      return this.herdFabrik(2, x, y, 0, 'Text', ['inhalt', tw === undefined ? null : this.text(tw), 'groesse', g,
+        'farbe', arg(pos, ben, 4, 'farbe'), 'ausrichtung', arg(pos, ben, 5, 'ausrichtung')]);
+    },
+    'bild': function (h, pos, ben) {
+      const b = arg(pos, ben, 0, 'b');
+      const x = this.herdZahl(arg(pos, ben, 1, 'x'), 'bild', 'x'), y = this.herdZahl(arg(pos, ben, 2, 'y'), 'bild', 'y');
+      const g = this.herdZahl(arg(pos, ben, 3, 'groesse'), 'bild', 'groesse', null);
+      return this.herdFabrik(2, x, y, 0, 'Bild', ['bildchen', b, 'groesse', g]);
+    },
+    'gruppe': function (h, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'gruppe', 'x', 0), y = this.herdZahl(arg(pos, ben, 1, 'y'), 'gruppe', 'y', 0);
+      return this.herdFabrik(2, x, y, 0, null, null);
+    },
+    'koerper': function (h, pos, ben) {
+      const form = arg(pos, ben, 0, 'form');
+      const x = this.herdZahl(arg(pos, ben, 1, 'x'), 'koerper', 'x', 0), y = this.herdZahl(arg(pos, ben, 2, 'y'), 'koerper', 'y', 0);
+      const z = this.herdZahl(arg(pos, ben, 3, 'z'), 'koerper', 'z', 0);
+      const gl = this.herdZahl(arg(pos, ben, 5, 'glanz'), 'koerper', 'glanz', null);
+      const le = this.herdZahl(arg(pos, ben, 6, 'leuchten'), 'koerper', 'leuchten', null);
+      return this.herdFabrik(3, x, y, z, 'Koerper', ['form', form, 'farbe', arg(pos, ben, 4, 'farbe'), 'glanz', gl, 'leuchten', le,
+        'bild', arg(pos, ben, 7, 'bild')]);
+    },
+    'licht': function (h, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'licht', 'x'), y = this.herdZahl(arg(pos, ben, 1, 'y'), 'licht', 'y');
+      const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'licht', 'z');
+      const rw = this.herdZahl(arg(pos, ben, 4, 'reichweite'), 'licht', 'reichweite', null);
+      return this.herdFabrik(3, x, y, z, 'Licht', ['farbe', arg(pos, ben, 3, 'farbe'), 'reichweite', rw]);
+    },
+    'raum': function (h, pos, ben) {
+      const x = this.herdZahl(arg(pos, ben, 0, 'x'), 'raum', 'x', 0), y = this.herdZahl(arg(pos, ben, 1, 'y'), 'raum', 'y', 0);
+      const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'raum', 'z', 0);
+      return this.herdFabrik(3, x, y, z, null, null);
+    },
+    'alsText': function (h) { return this.text(h); }
+  });
+
+  // statisch: Herd.farbe(r, g, b, a = 1) → "#rrggbbaa" (SPEC §18.1; reine Hilfe, kein Kern-Aufruf)
+  const HERD_MOD_M = herdTab({
+    'farbe': function (m, pos, ben) {
+      const hex = (v) => { const s = v.toString(16); return s.length < 2 ? '0' + s : s; };
+      const kanal = (v, n) => hex(Math.min(255, Math.max(0, Math.round(this.herdZahl(v, 'farbe', n)))));
+      const r = kanal(arg(pos, ben, 0, 'r'), 'r'), g = kanal(arg(pos, ben, 1, 'g'), 'g'), b = kanal(arg(pos, ben, 2, 'b'), 'b');
+      const a = this.herdZahl(arg(pos, ben, 3, 'a'), 'farbe', 'a', 1);
+      return '#' + r + g + b + hex(Math.round(Math.min(1, Math.max(0, a)) * 255));
+    }
+  });
+
+  // statisch: Grundformen (form_grund: 1 Würfel, 2 Kugel, 3 Zylinder, 4 Kegel, 5 Ebene, 6 Ring)
+  const HERD_FORM_MOD_M = herdTab({
+    'wuerfel': function () { return this.herdForm(this.hk_().e.form_grund(1, 0, 0)); },
+    'kugel': function (m, pos, ben) { const n = this.herdZahl(arg(pos, ben, 0, 'teile'), 'kugel', 'teile', 24); return this.herdForm(this.hk_().e.form_grund(2, n, 0)); },
+    'zylinder': function (m, pos, ben) { const n = this.herdZahl(arg(pos, ben, 0, 'teile'), 'zylinder', 'teile', 32); return this.herdForm(this.hk_().e.form_grund(3, n, 0)); },
+    'kegel': function (m, pos, ben) { const n = this.herdZahl(arg(pos, ben, 0, 'teile'), 'kegel', 'teile', 32); return this.herdForm(this.hk_().e.form_grund(4, n, 0)); },
+    'ebene': function () { return this.herdForm(this.hk_().e.form_grund(5, 0, 0)); },
+    'ring': function (m, pos, ben) {
+      const d = this.herdZahl(arg(pos, ben, 0, 'dicke'), 'ring', 'dicke', 0.3);
+      const n = this.herdZahl(arg(pos, ben, 1, 'teile'), 'ring', 'teile', 32);
+      return this.herdForm(this.hk_().e.form_grund(6, n, d));
+    }
+  });
+  const HERD_FORM_M = herdTab({
+    'id': function (f) { return f.id; },
+    'alsText': function (f) { return this.text(f); }
+  });
+  const HERD_BILDCHEN_M = herdTab({
+    'breite': function (b) { return b.breite; },
+    'hoehe': function (b) { return b.hoehe; },
+    'id': function (b) { return b.id; },
+    'alsText': function (b) { return this.text(b); }
+  });
+  TABELLEN.set(HerdWelt, HERD_M);
+  TABELLEN.set(HerdForm, HERD_FORM_M);
+  TABELLEN.set(HerdBildchen, HERD_BILDCHEN_M);
+
+  // P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…) des Programms, nach Position sortiert
+  function herdSammle(ast) {
+    const out = [], gesehen = new Set();
+    const geh = (x) => {
+      if (x === null || typeof x !== 'object' || gesehen.has(x)) return;
+      gesehen.add(x);
+      if (Array.isArray(x)) { for (const y of x) geh(y); return; }
+      if (x.k === 'Neu' && x.typ) out.push(x);
+      else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd')) out.push(x);
+      for (const k in x) { const v = x[k]; if (v !== null && typeof v === 'object') geh(v); }
+    };
+    geh(ast);
+    return out.sort((a, b) => (a.z - b.z) || (a.s - b.s));
+  }
+
+  // ---------- Laufzeit-Methoden (this = Laufzeit) ----------
+  const HERD_LAUFZEIT = {
+    // P0013 (K-133) und „braucht den Kern“ – Startprüfung, ohne den Kern zu laden
+    pruefeHerd() {
+      let herd = false, theke = false, noetig = false;
+      for (const n of herdSammle(this.ast.body)) {
+        const name = n.k === 'Neu' ? n.typ.name : n.obj.n;
+        if (this.klassen.has(name)) continue;          // eigene Klasse hat Vorrang
+        if (n.k !== 'Neu') { noetig = true; continue; }
+        if (name === 'Theke') theke = true;
+        else if (name === 'Herd' || name === 'Form' || name === 'Bildchen') { noetig = true; if (name === 'Herd') herd = true; }
+        else continue;
+        if (herd && theke) throw this.pf('P0013', 'Theke und Herd in einem Programm gibt es noch nicht.', n);
+      }
+      this.herdNoetig = noetig;
+    },
+    // Kern holen (lazy). pflicht: fehlt er, endet der Lauf mit HOST-Fehler (nur vor dem Start); sonst null.
+    herdKern(pflicht) {
+      if (this.hk !== null) return this.hk;
+      if (this.hkFehlt) { if (pflicht) throw new HerdKernFehlt(); return null; }
+      const m = herdModul(this.herdOpt);
+      try { if (m !== null && HERD_ENC !== null) this.hk = new HerdKern(m); } catch (e) { this.hk = null; }
+      if (this.hk === null) {
+        this.hkFehlt = true;
+        if (pflicht) throw new HerdKernFehlt();
+        return null;
+      }
+      if (this.herdSpion !== null) { try { this.herdSpion(this.hk.e); } catch (x) { /* Werkzeugfehler ignorieren */ } }
+      return this.hk;
+    },
+    // für Ressourcen/Komponenten zur Laufzeit: Kern muss da sein (Herd-Programme prüfen das vor dem Start)
+    hk_() {
+      const k = this.herdKern(false);
+      if (k === null) throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: der Herd-Kern fehlt (kern.wasm).');
+      return k;
+    },
+    // Kern-Fehler → Ananas (Art 1 TypAnanas, 2 LaufzeitAnanas, 3 intern); setzt das NaN-Fehlerflag zurück
+    herdFehler() {
+      const k = this.hk, e = k.e;
+      const art = e.fehler_art();
+      const text = k.liesText((p, kap) => e.fehler_text(p, kap)) || '';
+      e.fehler_neu();
+      if (art === 1) return this.ananas('TypAnanas', text);
+      if (art === 2) return this.ananas('LaufzeitAnanas', text);
+      return this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: ' + text);
+    },
+    herdI(r) { if (r < 0) throw this.herdFehler(); return r; },
+    herdF(r) { if (r !== r && this.hk.e.fehler_neu() === 1) throw this.herdFehler(); return r; },
+    herdZahl(v, wo, param, std) {
+      if (v === undefined || v === null) { if (std !== undefined) return std; }
+      else if (typeof v === 'number') return v;
+      throw this.ananas('TypAnanas', wo + '() braucht eine Zahl für \'' + param + '\', nicht ' + this.darstellung(v === undefined ? null : v) + '.');
+    },
+    herdTaste(n) { return this.text(n === undefined ? null : n); },
+    herdMausBit(k, wo) {
+      const n = this.herdZahl(k, wo, 'k', 1);
+      if (n === 1) return 1;
+      if (n === 2) return 2;
+      if (n === 3) return 4;
+      throw this.ananas('LaufzeitAnanas', 'Maustaste ' + zahlText(n) + ' gibt es nicht (1 links, 2 rechts, 3 Mitte).');
+    },
+    // Farbe als Text: Text unverändert, sonst die Textform (der Kern prüft und meldet)
+    herdFarbText(v) { return typeof v === 'string' ? v : this.text(v === undefined ? null : v); },
+    herdTeilId(v, wo, param) {
+      if (v === undefined || v === null) return 0;
+      if (v instanceof HerdTeil) return v.id;
+      throw this.ananas('TypAnanas', wo + '() braucht ein Teil für \'' + param + '\', nicht ' + this.darstellung(v) + '.');
+    },
+    herdTeilObj(id) {
+      const k = this.hk;
+      let t = k.teile.get(id);
+      if (t === undefined) { t = new HerdTeil(id, k.schema.teilTab); k.teile.set(id, t); }
+      return t;
+    },
+    herdKompObj(h, art) {
+      const k = this.hk;
+      let o = k.komps.get(h);
+      if (o === undefined) { o = new HerdKomp(h, art, 0); k.komps.set(h, o); }
+      return o;
+    },
+    herdKompVon(teil, art) {
+      const h = this.herdI(this.hk.e.komp_von(teil.id, art.nummer));
+      if (h === 0) return null;
+      const o = this.herdKompObj(h, art);
+      o.teil = teil.id;
+      return o;
+    },
+    herdForm(id) {
+      this.herdI(id);
+      const k = this.hk;
+      let f = k.res.get(id);
+      if (f === undefined) { f = new HerdForm(id); k.res.set(id, f); }
+      return f;
+    },
+    // Feld nach Name (hole/setze); unbekannt → Kern-Text „<Name> hat kein Feld 'x'.“
+    herdFeld(art, n) {
+      const name = this.text(n === undefined ? null : n);
+      const f = art.feldNachName.get(name);
+      if (f !== undefined) return f;
+      const k = this.hk, p = k.text(name);
+      this.herdI(k.e.feld_nummer(art.nummer, p, k.len));
+      throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Feld \'' + name + '\' fehlt im Schema.');
+    },
+    herdTypfehler(art, f, v) {
+      const k = this.hk, p = k.text(this.darstellung(v));
+      k.e.melde_typfehler(art.nummer, f.nummer, p, k.len);
+      return this.herdFehler();
+    },
+    // Wert setzen nach Feldtyp (schneller Weg: Zahl → setze_zahl, ohne Objekt-Allokation)
+    herdSetze(h, art, f, v) {
+      const e = this.hk.e;
+      let r;
+      switch (f.t) {
+        case HF_ZAHL: case HF_GANZ:
+          if (typeof v !== 'number') throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v);
+          break;
+        case HF_DIAVOLO:
+          if (v !== true && v !== false) throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v ? 1 : 0);
+          break;
+        case HF_TEXT: case HF_WAHL: case HF_FARBE: {
+          if (f.t !== HF_TEXT && typeof v !== 'string') throw this.herdTypfehler(art, f, v);
+          const k = this.hk, p = k.text(f.t === HF_TEXT ? this.text(v) : v);
+          r = e.setze_text(h, f.nummer, p, k.len);
+          break;
+        }
+        case HF_TEIL:
+          if (v !== null && !(v instanceof HerdTeil)) throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
+          break;
+        case HF_FORM:
+          if (v !== null && !(v instanceof HerdForm)) throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
+          break;
+        case HF_BILDCHEN:
+          if (v !== null && !(v instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
+          break;
+        case HF_LISTE: {
+          if (!Array.isArray(v) || !v.every(x => x instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
+          const k = this.hk, p = e.puffer(v.length * 4 || 4);
+          k.mem();
+          for (let i = 0; i < v.length; i++) k.dv.setUint32(p + i * 4, v[i].id, true);
+          r = e.setze_liste(h, f.nummer, p, v.length);
+          break;
+        }
+        default:
+          throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Feldtyp \'' + f.typ + '\' kennt diese Sprache noch nicht.');
+      }
+      if (r < 0) throw this.herdFehler();
+    },
+    herdHole(h, art, f) {
+      const k = this.hk, e = k.e;
+      switch (f.t) {
+        case HF_ZAHL: case HF_GANZ: return this.herdF(e.hole_zahl(h, f.nummer));
+        case HF_DIAVOLO: return this.herdF(e.hole_zahl(h, f.nummer)) !== 0;
+        case HF_TEXT: case HF_WAHL: case HF_FARBE: {
+          const s = k.liesText((p, kap) => e.hole_text(h, f.nummer, p, kap));
+          if (s === null) throw this.herdFehler();
+          return s;
+        }
+        case HF_TEIL: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : this.herdTeilObj(id); }
+        case HF_FORM: case HF_BILDCHEN: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : (k.res.get(id) || null); }
+        case HF_LISTE: {
+          const ids = k.liesListe((p, kap) => e.hole_liste(h, f.nummer, p, kap));
+          if (ids === null) throw this.herdFehler();
+          return ids.map(id => k.res.get(id) || null);
+        }
+        default:
+          throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Feldtyp \'' + f.typ + '\' kennt diese Sprache noch nicht.');
+      }
+    },
+    // Fabrik (README §3, Vertrag für alle Motoren): teil_neu → teil_lage → komp_neu → Setter in der übergebenen
+    // (= Schema-)Reihenfolge, fehlende/karton-Werte ohne Aufruf → komp_haenge. felder: [name, wert, name, wert, …]
+    herdFabrik(raum, x, y, z, artName, felder) {
+      const k = this.hk_(), e = k.e;
+      const id = this.herdI(e.teil_neu(raum));
+      this.herdI(e.teil_lage(id, x, y, z));
+      if (artName !== null) {
+        const art = k.schema.nachName.get(artName);
+        if (art === undefined) throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Komponente ' + artName + ' fehlt im Schema.');
+        const h = this.herdI(e.komp_neu(art.nummer));
+        for (let i = 0; i < felder.length; i += 2) {
+          const w = felder[i + 1];
+          if (w === undefined || w === null) continue;
+          this.herdSetze(h, art, art.feldNachName.get(felder[i]), w);
+        }
+        this.herdI(e.komp_haenge(h, id));
+      }
+      return this.herdTeilObj(id);
+    },
+    // neu <Herd-Klasse>(…) – undefined, wenn tn keine Herd-Klasse ist
+    herdNeu(tn, pos, ben) {
+      const fest = HERD_KLASSEN.indexOf(tn) >= 0;
+      let art;
+      if (!fest) {
+        if (!HERD_KOMP_NAMEN.has(tn) && this.hk === null) return undefined;   // fremder Name: Kern nicht unnötig laden
+        const k = this.herdKern(false);
+        if (k === null || (art = k.schema.nachName.get(tn)) === undefined) return undefined;
+      }
+      if (this.kueche !== null) throw this.ananas('KüchenAnanas', HERD_KUECHE);
+      if (tn === 'Teil') throw this.ananas('RohlingAnanas', '\'Teil\' kann man nicht mit neu backen.');
+      const k = this.hk_(), e = k.e;
+      if (tn === 'Herd') {
+        const tw = arg(pos, ben, 0, 'titel');
+        const titel = tw === undefined ? '' : this.text(tw);   // K-102: karton → "karton"
+        let b = arg(pos, ben, 1, 'breite'), ho = arg(pos, ben, 2, 'hoehe');
+        b = b === undefined || b === null ? 640 : (typeof b === 'number' ? b : this.ganzzahl(b, 'Herd(breite: …)'));
+        ho = ho === undefined || ho === null ? 360 : (typeof ho === 'number' ? ho : this.ganzzahl(ho, 'Herd(hoehe: …)'));
+        this.herdI(e.welt_neu(b, ho, k.text(titel), k.len));
+        this.herd = new HerdWelt(titel, b, ho);
+        return this.herd;
+      }
+      if (tn === 'Form') return this.herdFormNeu(pos, ben);
+      if (tn === 'Bildchen') return this.herdBildchenNeu(pos, ben);
+      // Komponente: unbekannte benannte Argumente zuerst (Kern-Text), dann komp_neu und Felder in Schema-Reihenfolge
+      if (ben !== null) for (const n in ben) if (!art.feldNachName.has(n)) this.herdFeld(art, n);
+      const h = this.herdI(e.komp_neu(art.nummer));
+      const o = this.herdKompObj(h, art);
+      for (let i = 0; i < art.felder.length; i++) {
+        const f = art.felder[i], w = arg(pos, ben, i, f.name);
+        if (w !== undefined && w !== null) this.herdSetze(h, art, f, w);
+      }
+      return o;
+    },
+    // neu Form(punkte, dreiecke, glatt: nein) – beide Bleche als f64 in einem Austauschpuffer; falscher Typ → Kern-Text
+    herdFormNeu(pos, ben) {
+      const k = this.hk_(), e = k.e;
+      const pu = arg(pos, ben, 0, 'punkte'), dr = arg(pos, ben, 1, 'dreiecke'), gl = arg(pos, ben, 2, 'glatt');
+      const glatt = gl === undefined || gl === null ? false : this.bool(gl);
+      const zahlen = (b) => Array.isArray(b) && b.every(x => typeof x === 'number');
+      // kein Zahlen-Blech → eine Länge, die nicht durch 3 teilbar ist: der Kern meldet seinen Text (Code 42/43)
+      const np = zahlen(pu) ? pu.length : 1, nd = zahlen(dr) ? dr.length : 1;
+      const p = e.puffer((np + nd) * 8 || 8);
+      k.mem();
+      const f64 = new Float64Array(k.puf, p, np + nd);
+      for (let i = 0; i < np; i++) f64[i] = zahlen(pu) ? pu[i] : 0;
+      for (let i = 0; i < nd; i++) f64[np + i] = zahlen(dr) ? dr[i] : 0;
+      return this.herdForm(e.form_eigene(p, np, p + np * 8, nd, glatt ? 1 : 0));
+    },
+    // neu Bildchen(zeilen, farben: karton) – Zeilen: u32 Länge + UTF-8; Farben: Paare (Zeichen, Farbtext)
+    herdBildchenNeu(pos, ben) {
+      const k = this.hk_(), e = k.e;
+      const zw = arg(pos, ben, 0, 'zeilen'), fw = arg(pos, ben, 1, 'farben');
+      // kein Blech aus Texten → keine Zeilen: der Kern meldet „braucht Zeilen als nicht leeres Blech aus Texten“
+      const zeilen = Array.isArray(zw) && zw.every(x => typeof x === 'string') ? zw : [];
+      let farben = [];
+      if (fw !== undefined && fw !== null) {
+        if (!(fw instanceof Map)) throw this.ananas('TypAnanas', 'Bildchen() braucht eine Speisekarte für \'farben\', nicht ' + this.darstellung(fw) + '.');
+        for (const [z, f] of fw) farben.push(this.text(z), this.herdFarbText(f));
+      }
+      const teile = zeilen.concat(farben).map(s => HERD_ENC.encode(s));
+      let n = 0;
+      for (const t of teile) n += 4 + t.length;
+      const p = e.puffer(n || 4), m = k.mem();
+      let o = p;
+      for (const t of teile) { k.dv.setUint32(o, t.length, true); m.set(t, o + 4); o += 4 + t.length; }
+      let zl = 0;
+      for (let i = 0; i < zeilen.length; i++) zl += 4 + teile[i].length;
+      const id = this.herdI(e.bildchen_neu(p, zl, p + zl, n - zl));
+      const b = new HerdBildchen(id, this.herdF(e.ressource_hole(id, 2)), this.herdF(e.ressource_hole(id, 3)));
+      k.res.set(id, b);
+      return b;
+    },
+    // ---------- Spielschleife (SPEC §18.2) ----------
+    herdSende(art, daten) {
+      const ev = { typ: 'herd', art };
+      for (const s in daten) if (s !== 'bytes') ev[s] = daten[s];
+      this.emit(ev);
+      if (this.onHerd !== null) { try { this.onHerd(art, daten); } catch (x) { /* Renderer-Fehler ignorieren */ } }
+    },
+    herdOeffne(h) {
+      h.offen = true;
+      this.hk.e.paket_voll();     // neues Fenster: das nächste Paket enthält wieder alle Ressourcen
+      this.herdSende('fenster', { titel: h.titel, breite: h.breite, hoehe: h.hoehe });
+    },
+    herdSchliesseFenster(h) {
+      if (!h.offen) return;
+      h.offen = false;
+      this.herdSende('schliesse', {});
+    },
+    herdBild(h) {
+      const k = this.hk, e = k.e;
+      const len = this.herdI(e.bild(h.bildnummer));
+      const szene = k.hash(p => e.hash_szene(p));
+      const paket = k.hash(p => e.hash_paket(p));
+      const daten = { bildnummer: h.bildnummer, szene, paket };
+      if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
+        const z = e.bild_zeiger();
+        daten.bytes = k.mem().slice(z, z + len);
+      }
+      this.herdSende('bild', daten);
+    },
+    herdEingabe(h, ev) {
+      h.vorTasten = h.tasten;
+      h.vorKnoepfe = h.knoepfe;
+      const t = ev.tasten;
+      if (Array.isArray(t) && t.every(x => typeof x === 'string')) h.tasten = new Set(t);
+      const m = ev.maus;
+      if (Array.isArray(m) && m.length === 2 && typeof m[0] === 'number' && typeof m[1] === 'number' && isFinite(m[0]) && isFinite(m[1])) {
+        h.mausX = m[0]; h.mausY = m[1];
+      }
+      const kn = ev.knoepfe;
+      if (typeof kn === 'number' && Number.isInteger(kn) && kn >= 0 && kn <= 7) h.knoepfe = kn;
+    },
+    herdBacke(h, fn, node) {
+      if (fn !== null && !(fn instanceof Funktion || fn instanceof Gebunden || fn instanceof NativFn)) {
+        throw this.ananas('TypAnanas', 'backe() braucht eine Funktion, z. B. () -> { … }.');
+      }
+      if (!h.offen) this.herdOeffne(h);
+      if (this.uiWarte === null && this.uiListe === null) {   // ohne Renderer (wie K-063)
+        this.warnung('W0104', HERD_W0104, node);
+        this.herdSchliesseFenster(h);
+        return;
+      }
+      const e = this.hk.e;
+      for (;;) {
+        const ev = this.uiNaechstesEreignis();
+        if (ev.typ === 'geschlossen') { h.offen = false; return; }
+        if (ev.typ !== 'takt') continue;
+        this.herdEingabe(h, ev);
+        const a = ev.anzahl;
+        const n = typeof a === 'number' && Number.isInteger(a) && a >= 1 ? Math.min(a, 4) : 1;
+        for (let i = 0; i < n; i++) {
+          h.bildnummer++;
+          h.erster = i === 0;
+          // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt)
+          this.limitBasis = this.schritte;
+          this.neuGrenze();
+          if (fn !== null) {
+            h.imRueckruf = true;
+            try {
+              this.rufe(fn, [], null, node);
+            } finally {
+              h.imRueckruf = false;
+              h.erster = false;
+              if (h.schliessen) { h.schliessen = false; this.herdSchliesseFenster(h); }
+            }
+            if (!h.offen) return;   // schliesse() im Rückruf: Systeme und Bild entfallen
+          }
+          h.erster = false;
+          this.herdI(e.takt());
+        }
+        this.herdBild(h);
+      }
+    },
+    // Programmende (wie K-061): offenes Fenster schließen
+    herdEnde() {
+      const h = this.herd;
+      if (h !== null && h.offen) this.herdSchliesseFenster(h);
+    }
+  };
+  Object.assign(Laufzeit.prototype, HERD_LAUFZEIT);
 
   // =====================================================================
   // API
@@ -4902,7 +5808,8 @@
       ANANAS_BAUM: ANANAS_BAUM.map(a => [a[0], a[1]]),
       MAX_STAPEL,
       STANDARD_LIMIT,
-      UI_STIL: JSON.parse(JSON.stringify(UI_STIL))
+      UI_STIL: JSON.parse(JSON.stringify(UI_STIL)),
+      HERD_TYPEN: HERD_KLASSEN.concat(HERD_KOMPONENTEN)
     }
   };
 });

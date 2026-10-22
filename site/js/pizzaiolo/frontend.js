@@ -28,6 +28,8 @@
     'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
+  // Herd (SPEC §18): kennt der Compiler noch nicht (Paket H4) → ehrlicher Fallback mit Grund „Herd: …“
+  const HERD_TYPEN = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').intern.HERD_TYPEN || []; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.intern && self.PizzaLang.intern.HERD_TYPEN) || [])));
   const NOCH_NICHT_METHODEN = new Set();
   const DEKL = new Set(['Klasse', 'Rezeptur', 'Enum', 'Methode']);
   const EINFACH = new Set(['Zahl', 'Text', 'Bool', 'Name', 'Dauer', 'Karton', 'Dies', 'Unten', 'Lambda']);
@@ -719,7 +721,12 @@
         case 'Text': return { k: 'konst', art: 'text', wert: n.v };
         case 'Bool': return { k: 'konst', art: 'bool', wert: n.v };
         case 'Karton': return { k: 'konst', art: 'karton', wert: null };
-        case 'Name': return { k: 'lies', ref: this.loese(n.n, sc, fn, n, 'lesen'), name: n.n };
+        case 'Name': {
+          const ref = this.loese(n.n, sc, fn, n, 'lesen');
+          // statisch Form.…/Herd.… (eingebaute Herd-Module) → Fallback statt rt_global_name (Paket H4)
+          if (ref.art === 'gname' && (n.n === 'Form' || n.n === 'Herd') && !this.klassenNamen.has(n.n)) this.nein('Herd: ' + n.n + ' wird vom Compiler noch nicht unterstützt', n);
+          return { k: 'lies', ref, name: n.n };
+        }
         case 'Bin': return { k: 'bin', op: BIN_OPS[n.op], l: this.ausdr(n.l, sc, fn, d), r: this.ausdr(n.r, sc, fn, d) };
         case 'Log': return { k: 'log', und: n.op === '&&', l: this.ausdr(n.l, sc, fn, d), r: this.ausdr(n.r, sc, fn, d) };
         case 'Un': return { k: 'un', op: n.op === '!' ? 0 : 1, e: this.ausdr(n.e, sc, fn, d) };
@@ -738,6 +745,7 @@
         case 'Unten': return { k: 'unten' };
         case 'UntenCall': return { k: 'untenCall', args: this.args(n.args, sc, fn, d) };
         case 'Neu':
+          if (HERD_TYPEN.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Herd: Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
           if (!UNTERSTUETZTE_TYPEN.has(n.typ.name) && TYPEN_REFERENZ.has(n.typ.name) && !this.klassenNamen.has(n.typ.name)) this.nein('Typ ' + n.typ.name + ' wird vom Compiler noch nicht unterstützt', n);
           return { k: 'neu', typ: n.typ.name, args: this.args(n.args, sc, fn, d) };
         case 'Blech': return { k: 'blech', elemente: n.elemente.map(e => this.ausdr(e, sc, fn, d)) };

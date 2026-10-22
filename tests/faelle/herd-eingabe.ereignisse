@@ -1,0 +1,7 @@
+{"typ":"takt","anzahl":2,"tasten":["Links"]}
+{"typ":"takt","anzahl":3,"tasten":["Links","Leertaste"],"maus":[10.5,20],"knoepfe":1}
+{"typ":"klick","id":"x"}
+{"typ":"takt","anzahl":2}
+{"typ":"takt","tasten":["Rechts"],"knoepfe":3,"maus":"kaputt"}
+{"typ":"takt","anzahl":9,"tasten":"kaputt","knoepfe":0}
+{"typ":"takt","anzahl":0,"tasten":[]}

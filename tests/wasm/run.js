@@ -356,11 +356,11 @@ for (const f of faelle) {
   const r = vergleiche(f);
   if (r.status === 'gleich') { stat.gleich++; ok++; continue; }
   if (r.status === 'syntax') { stat.syntax++; continue; }
-  if (r.status === 'fallback' && /Theke/.test(r.grund)) { stat.fallback++; continue; }
+  if (r.status === 'fallback' && /Theke|Herd/.test(r.grund)) { stat.fallback++; continue; }   // Herd: Compiler ab Paket H4
   fehl++;
   console.log('  ✗ ' + f.name + ' [' + r.status + '] ' + (r.grund || '') + (r.diffs ? '\n    ' + r.diffs.join('\n    ') : '') + (r.fehler ? '\n' + r.fehler : ''));
 }
-console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
+console.log('  e2e: ' + stat.gleich + ' identisch, ' + stat.fallback + ' Theke-/Herd-Fallback, ' + stat.syntax + ' Syntaxfehler (Interpreter)');
 
 console.log('\n' + (fehl ? '✗ ' + fehl + ' fehlgeschlagen, ' : '✓ ') + ok + ' bestanden');
 process.exitCode = fehl ? 1 : 0;

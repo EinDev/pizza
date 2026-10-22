@@ -75,6 +75,10 @@ function kanon(x) {
   if (x && typeof x === "object") return "{" + Object.keys(x).sort().map((k) => JSON.stringify(k) + ":" + kanon(x[k])).join(",") + "}";
   return JSON.stringify(x);
 }
+// Herd (SPEC §18.7, K-134): herd-Ereignisse ohne typ, kanonisch verglichen wie ui-Nachrichten
+function herdEreignisse(res) {
+  return (res.ereignisse || []).filter((e) => e.typ === "herd").map((e) => { const o = Object.assign({}, e); delete o.typ; return o; });
+}
 function uiNachrichten(res) {
   return (res.ereignisse || []).filter((e) => e.typ === "ui").map((e) => e.nachricht);
 }
@@ -150,6 +154,10 @@ function bewerte(f, res) {
     const ist = uiNachrichten(res);
     if (kanon(ist) !== kanon(f.ui)) err.push(`ui-Nachrichten weichen ab:\n--- ist ---\n${ist.map(kanon).join("\n")}\n--- soll ---\n${f.ui.map(kanon).join("\n")}`);
   }
+  if (f.herd !== undefined) {
+    const ist = herdEreignisse(res);
+    if (kanon(ist) !== kanon(f.herd)) err.push("herd-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.herd.map(kanon).join("\n"));
+  }
   if (f.vorratEreignisse !== undefined) {
     const ist = (res.ereignisse || []).filter((e) => e.typ === "vorrat").map((e) => ({ name: e.name, schluessel: e.schluessel, wert: e.wert }));
     if (kanon(ist) !== kanon(f.vorratEreignisse)) err.push("vorrat-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.vorratEreignisse.map(kanon).join("\n"));
@@ -208,6 +216,8 @@ function beispielFälle() {
     const ev = b.datei.replace(/\.pizza$/, ".ereignisse"), ue = b.datei.replace(/\.pizza$/, ".ui-erwartet");
     if (fs.existsSync(ev)) f.uiEreignisse = jsonZeilen(fs.readFileSync(ev, "utf8"));
     if (fs.existsSync(ue)) f.ui = jsonZeilen(fs.readFileSync(ue, "utf8"));
+    const he = b.datei.replace(/\.pizza$/, ".herd-erwartet");   // SPEC §18.7 / K-134
+    if (fs.existsSync(he)) f.herd = jsonZeilen(fs.readFileSync(he, "utf8"));
     return f;
   });
 }
@@ -247,6 +257,7 @@ function dokuFälle() {
             // SPEC §16.4 / K-074: Theke-Blöcke dürfen uiEreignisse (Ereignisobjekte) und uiErwartet (ui-Nachrichten) tragen
             if (Array.isArray(b.uiEreignisse)) f.uiEreignisse = b.uiEreignisse;
             if (Array.isArray(b.uiErwartet)) f.ui = b.uiErwartet;
+            if (Array.isArray(b.herdErwartet)) f.herd = b.herdErwartet;   // SPEC §18.7 / K-134
             // SPEC §15.4 / K-077, K-080, K-087: feste Saat, Vorrat-Eingangszustand, feste Wanduhr für Doku-Blöcke
             if (typeof b.zufallsSaat === "number") f.zufallsSaat = b.zufallsSaat;
             if (b.vorrat && typeof b.vorrat === "object") f.vorrat = b.vorrat;

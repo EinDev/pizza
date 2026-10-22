@@ -1,0 +1,17 @@
+// Herd §18.3: Eingabe als Zustand je Takt; gedrueckt/losgelassen/klick nur im ersten Takt eines Ereignisses
+Herd herd = neu Herd("Steuerung", breite: 200, hoehe: 100);
+Teil schaufel = herd.rechteck(100, 90, 40, 8, farbe: "kruste", rundung: 4);
+herd.backe(() -> {
+    margherita z = "Takt " + herd.bildnummer() + ":";
+    falls (herd.taste("Links")) { schaufel.verschiebe(-5, 0); z = z + " links"; }
+    falls (herd.taste("Rechts")) { schaufel.verschiebe(5, 0); z = z + " rechts"; }
+    falls (herd.gedrueckt("Leertaste")) { z = z + " sprung"; }
+    falls (herd.losgelassen("Links")) { z = z + " links-los"; }
+    falls (herd.maus()) { z = z + " maus@" + herd.mausX() + "," + herd.mausY(); }
+    falls (herd.klick()) { z = z + " klick"; }
+    falls (herd.maus(2)) { z = z + " rechte"; }
+    Bote.sage((z));
+});
+Bote.sage(("aussen: " + herd.taste("Rechts") + " " + herd.gedrueckt("Rechts") + " " + herd.klick(1) + " " + herd.mausX() + " " + schaufel.x()));
+probier { herd.maus(4); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { herd.klick("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

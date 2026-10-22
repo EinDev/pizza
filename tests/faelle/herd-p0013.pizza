@@ -1,0 +1,4 @@
+// K-133: Theke und Herd in einem Programm → P0013 vor dem Start, an der Stelle des späteren neu
+Bote.sage(("nie"));
+Herd herd = neu Herd("Spiel");
+Theke t = neu Theke("Menü");

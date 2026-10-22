@@ -1,0 +1,22 @@
+// Herd §18.4: kopie (Vorlage), entferne samt Kindern, trifft
+Herd herd = neu Herd("Kopien", breite: 300, hoehe: 200);
+Teil vorlage = herd.kreis(50, 50, 10, farbe: "basilikum");
+vorlage.mit(neu Bewegung(tempoX: 60));
+Teil kind = herd.rechteck(0, 15, 4, 4);
+kind.haenge(vorlage);
+Teil kopie = vorlage.kopie();
+Bote.sage((vorlage + " → " + kopie + " " + kopie.kreis().farbe() + " " + kopie.bewegung().tempoX() + " " + kopie.kinder()));
+kopie.verschiebe(0, 100);
+Teil wand = herd.rechteck(80, 150, 10, 100);
+herd.backe(() -> {
+    falls (kopie.trifft(wand) && kopie.bewegung().tempoX() > 0) { Bote.sage(("Treffer in Takt " + herd.bildnummer())); kopie.bewegung().setzeTempoX(0); }
+});
+Bote.sage((vorlage.trifft(kopie) + " " + vorlage.trifft(vorlage) + " " + kopie.x()));
+salami k = kopie.kinder().erstes().id();
+Teil kindKopie = kopie.kinder().erstes();
+kopie.entferne();
+Bote.sage((kopie.entfernt() + " " + kopie + " " + vorlage.entfernt() + " " + kindKopie.entfernt()));
+probier { kopie.x(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { kopie.id(); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage(("Kind " + k + " ist mit entfernt"));
+herd.backe();

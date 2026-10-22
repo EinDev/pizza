@@ -10,7 +10,10 @@ export const TYPEN = new Set(["salami", "funghi", "margherita", "diavolo", "Daue
   "Speisekarte", "Teig", "Lieferung", "Zustellung", "Reste", "Rohling", "hawaii",
   // Theke (SPEC §16.1, §16.5, §16.7, §16.8) – eingebaute Klassen; Zufall/Vorratskammer (§15.4)
   "Theke", "Zutat", "Schild", "Knopf", "Eingabe", "Haken", "Stapel", "Reihe",
-  "Takt", "Fortschritt", "Abschnitt", "Tabelle", "Reiter", "Auswahl", "Tastatur", "Zettel", "Zufall", "Vorratskammer"]);
+  "Takt", "Fortschritt", "Abschnitt", "Tabelle", "Reiter", "Auswahl", "Tastatur", "Zettel", "Zufall", "Vorratskammer",
+  // Herd (SPEC §18.1, §18.6) – Klassen und Komponenten v1 (weitere Komponenten ergänzt window.PizzaLang.TYPEN aus dem Schema)
+  "Herd", "Teil", "Form", "Bildchen",
+  "Rechteck", "Kreis", "Text", "Bild", "Koerper", "Licht", "Kamera", "Bewegung", "Animation", "Partikel"]);
 
 export const BUILTINS = new Set(["Bote", "Bestellannahme", "Uhr", "Mathe", "Zufall", "Spiegel", "teig", "bestelle", "schieb", "zwischenstand"]);
 

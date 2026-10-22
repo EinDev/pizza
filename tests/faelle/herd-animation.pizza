@@ -1,0 +1,12 @@
+// Herd §18.5/§18.6: Bildchen aus Text, Bild und Animation (braucht Bild)
+Herd herd = neu Herd("Laufen", breite: 128, hoehe: 96);
+Bildchen a = neu Bildchen([".tt.", "tttt", ".kk."]);
+Speisekarte<margherita, margherita> gruen = neu Speisekarte<margherita, margherita>();
+gruen.lege("x", "#00ff00");
+Bildchen b = neu Bildchen(["....", "tttt", "kxxk"], farben: gruen);
+Bildchen c = neu Bildchen(["w", "", "s"]);
+Bote.sage((a + " " + b + " " + c + " " + a.breite() + "x" + a.hoehe() + " " + (a.id() < b.id())));
+Teil figur = herd.bild(a, 64, 48, groesse: 4);
+Animation lauf = figur.mit(neu Animation(bilder: [a, b, c], proSekunde: 20));
+herd.backe(() -> { falls (herd.bildnummer() == 9) { lauf.setzeSchleife(nein); } });
+Bote.sage((lauf.nummer() + " " + lauf.laeuft() + " " + (figur.bild().bildchen() == c) + " " + lauf.bilder()));

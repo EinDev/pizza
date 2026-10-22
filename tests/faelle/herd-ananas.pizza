@@ -1,0 +1,9 @@
+// Herd §18.2: Ananas aus dem Rückruf verlassen backe (fangbar); Systeme/Bild dieses Takts entfallen; erneutes backe macht weiter
+Herd herd = neu Herd("Ananas", breite: 100, hoehe: 100);
+Teil t = herd.kreis(10, 10, 5);
+t.mit(neu Bewegung(tempoX: 60));
+probier {
+    herd.backe(() -> { falls (herd.bildnummer() == 3) { wirf neu StreitAnanas("Takt drei"); } });
+} verbrannt (StreitAnanas a) { Bote.sage((a.nachricht() + " bei x = " + t.x())); }
+Bote.sage(("weiter bei " + herd.bildnummer()));
+herd.backe(() -> { Bote.sage(("Takt " + herd.bildnummer() + " x = " + t.x())); });

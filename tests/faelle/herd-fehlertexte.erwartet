@@ -1,0 +1,65 @@
+LaufzeitAnanas: Erst braucht es einen Herd (neu Herd(…)).
+LaufzeitAnanas: Erst braucht es einen Herd (neu Herd(…)).
+TypAnanas: Herd(breite: …) braucht eine Ganzzahl, nicht 2.5.
+TypAnanas: Herd(hoehe: …) braucht eine Ganzzahl, nicht "hoch".
+LaufzeitAnanas: Herd(breite: …) muss zwischen 64 und 4096 liegen, nicht 10.
+LaufzeitAnanas: Es gibt nur einen Herd pro Programm.
+TypAnanas: Kreis.radius braucht eine Zahl, nicht "groß".
+LaufzeitAnanas: Kreis.radius muss mindestens 0 sein, nicht -1.
+LaufzeitAnanas: Kamera.sicht muss zwischen 1 und 170 liegen, nicht 200.
+TypAnanas: Animation.nummer braucht eine Ganzzahl, nicht 1.5.
+LaufzeitAnanas: Text.ausrichtung kennt 'oben' nicht. Erlaubt: links, mitte, rechts.
+TypAnanas: Text.ausrichtung braucht einen Text, nicht 3.
+LaufzeitAnanas: Farbe 'lila' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.
+TypAnanas: Kreis.farbe braucht eine Farbe, nicht 5.
+TypAnanas: Bild.spiegeln braucht ja/nein, nicht 1.
+TypAnanas: Bild.bildchen braucht ein Bildchen, nicht "x".
+TypAnanas: Animation.bilder braucht ein Blech aus Bildchen, nicht [1].
+TypAnanas: Koerper.form braucht eine Form, nicht 3.
+LaufzeitAnanas: Kreis hat kein Feld 'dicke'.
+LaufzeitAnanas: Kreis hat kein Feld 'dicke'.
+TypAnanas: Kreis.radius braucht eine Zahl, nicht ja.
+LaufzeitAnanas: Kreis gibt es nur für 2D-Teile.
+LaufzeitAnanas: Koerper gibt es nur für 3D-Teile.
+LaufzeitAnanas: Diese Bewegung hängt schon an Teil 3.
+LaufzeitAnanas: Teil 3 hat schon eine Bewegung.
+LaufzeitAnanas: Animation braucht ein Bild am selben Teil.
+LaufzeitAnanas: Bild wird von Animation am selben Teil gebraucht.
+LaufzeitAnanas: Eine Komponente 'Pendel' gibt es nicht.
+LaufzeitAnanas: Teil 3 ist ein 2D-Teil – neigung gibt es nur für 3D-Teile.
+LaufzeitAnanas: Teil 4 ist ein 3D-Teil – ebene gibt es nur für 2D-Teile.
+TypAnanas: ebene braucht eine Ganzzahl, nicht 1.5.
+LaufzeitAnanas: Teil 3 ist ein 2D-Teil – z gibt es nur für 3D-Teile.
+TypAnanas: setzeLage() braucht eine Zahl für 'x', nicht "a".
+TypAnanas: verschiebe() braucht eine Zahl für 'dy', nicht karton.
+TypAnanas: haenge() braucht ein Teil für 'an', nicht 5.
+TypAnanas: trifft() braucht ein Teil für 'anderes', nicht karton.
+TypAnanas: mit() braucht eine Komponente für 'komponente', nicht 5.
+TypAnanas: Erwartet diavolo (ja/nein), bekam 1.
+TypAnanas: kreis() braucht eine Zahl für 'r', nicht "r".
+TypAnanas: rechteck() braucht eine Zahl für 'umriss', nicht "dick".
+LaufzeitAnanas: Farbe 'lila' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.
+LaufzeitAnanas: Farbe '#12' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.
+LaufzeitAnanas: Text.ausrichtung kennt 'quer' nicht. Erlaubt: links, mitte, rechts.
+LaufzeitAnanas: teile muss zwischen 3 und 128 liegen, nicht 2.
+LaufzeitAnanas: dicke muss zwischen 0.05 und 0.9 liegen, nicht 1.
+TypAnanas: kegel() braucht eine Zahl für 'teile', nicht "viele".
+LaufzeitAnanas: Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).
+LaufzeitAnanas: Form braucht Punkte als Blech [x1, y1, z1, …] (Länge durch 3 teilbar).
+LaufzeitAnanas: Form braucht Dreiecke als Blech von Punkt-Nummern (Länge durch 3 teilbar).
+LaufzeitAnanas: Punkt 7 gibt es nicht – die Form hat 3 Punkte.
+LaufzeitAnanas: Ein Bildchen braucht Zeilen als nicht leeres Blech aus Texten.
+LaufzeitAnanas: Ein Bildchen braucht Zeilen als nicht leeres Blech aus Texten.
+LaufzeitAnanas: Das Zeichen 'q' hat im Bildchen keine Farbe.
+LaufzeitAnanas: Bildchen-Farben brauchen einzelne Zeichen als Schlüssel, nicht 'xy'.
+TypAnanas: Bildchen() braucht eine Speisekarte für 'farben', nicht 5.
+LaufzeitAnanas: Ein Bildchen darf höchstens 256 × 256 Pixel haben.
+RohlingAnanas: 'Teil' kann man nicht mit neu backen.
+TypAnanas: backe() braucht eine Funktion, z. B. () -> { … }.
+TypAnanas: farbe() braucht eine Zahl für 'r', nicht "rot".
+LaufzeitAnanas: Teil 7 ist schon entfernt.
+LaufzeitAnanas: Teil 7 ist schon entfernt.
+LaufzeitAnanas: Teil 7 ist schon entfernt.
+LaufzeitAnanas: Teil 7 ist schon entfernt.
+LaufzeitAnanas: Teil 7 ist schon entfernt.
+Kreis(7) Teil(7) ja

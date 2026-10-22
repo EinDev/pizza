@@ -1,0 +1,15 @@
+Kreis() 7 #ABC 0 karton
+9 1.5 salami
+Hallo 20 wasser mitte
+42 42
+karton karton
+ja Kreis(3) ja ja
+28.6452 0.6477 51.9432
+Bewegung() ja karton karton 28.6452
+Kreis() karton
+Bewegung(4) 0.5
+Koerper() Form(1) 1 nein karton
+sonne 1 #ff8000ff #0102ff80
+Form(2) Form(3) Form(4) Form(5) 6
+Form(7) 7
+Kamera(1) 75 ja

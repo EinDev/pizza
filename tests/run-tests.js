@@ -56,6 +56,14 @@ function kanonisch(v) {
   return JSON.stringify(v);
 }
 
+// Herd (SPEC §18.7, K-134): herd-Ereignisse ohne typ, kanonisch wie ui-Nachrichten
+function herdVergleich(soll, ereignisse) {
+  const ist = ereignisse.filter(e => e.typ === 'herd').map(e => { const o = Object.assign({}, e); delete o.typ; return o; });
+  const a = soll.map(kanonisch).join('\n'), b = ist.map(kanonisch).join('\n');
+  if (a === b) return null;
+  return 'herd-Ereignisse weichen ab:\n' + diff(soll.map(x => JSON.stringify(x)).join('\n'), ist.map(x => JSON.stringify(x)).join('\n'));
+}
+
 function uiVergleich(soll, ereignisse) {
   const ist = ereignisse.filter(e => e.typ === 'ui').map(e => e.nachricht);
   const a = soll.map(kanonisch).join('\n'), b = ist.map(kanonisch).join('\n');
@@ -154,6 +162,7 @@ function faelle() {
     const ereignisDatei = lies('.ereignisse');
     if (ereignisDatei !== null) opt.uiEreignisse = jsonZeilen(ereignisDatei, basis + '.ereignisse');
     const uiErwartet = lies('.ui-erwartet');
+    const herdErwartet = lies('.herd-erwartet');
     // Vorratskammer (K-080): Eingangszustand .vorrat.json = { name: eintraege }, erwartete vorrat-Ereignisse als JSON-Lines
     const vorratDatei = lies('.vorrat.json');
     if (vorratDatei !== null) opt.vorrat = JSON.parse(vorratDatei);
@@ -181,6 +190,10 @@ function faelle() {
     }
     if (uiErwartet !== null) {
       const u = uiVergleich(jsonZeilen(uiErwartet, basis + '.ui-erwartet'), r.ereignisse);
+      if (u) probleme.push(u);
+    }
+    if (herdErwartet !== null) {
+      const u = herdVergleich(jsonZeilen(herdErwartet, basis + '.herd-erwartet'), r.ereignisse);
       if (u) probleme.push(u);
     }
     if (fehlerDatei !== null) {
@@ -377,6 +390,40 @@ function api() {
     }
   });
 
+  test('Herd: TYPEN, onHerd mit Bytes, Ereignisse ohne Bytes, onUiWarte, herdKern als Modul/Bytes', () => {
+    for (const t of ['Herd', 'Teil', 'Form', 'Bildchen', 'Kreis', 'Bewegung', 'Partikel']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
+    ja(P.intern.HERD_TYPEN.includes('Koerper'), 'intern.HERD_TYPEN');
+    const q = 'Herd h = neu Herd("T", breite: 64, hoehe: 64);\nTeil k = h.kreis(10, 10, 5);\nh.backe(() -> { k.verschiebe(1, 0); });\nBote.sage((k.x()));';
+    const an = [];
+    const evs = [{ typ: 'takt' }, { typ: 'takt', anzahl: 2 }, null];
+    const r = P.run(q, { onHerd: (art, d) => an.push([art, d]), onUiWarte: () => evs.shift() });
+    gleich(ausgabeText(r.ereignisse), '13\n');
+    gleich(an.map(x => x[0]), ['fenster', 'bild', 'bild'], 'onHerd-Arten');
+    ja(an[1][1].bytes instanceof Uint8Array && an[1][1].bytes.length > 32, 'Bytes des Bildpakets');
+    gleich(String.fromCharCode(...an[1][1].bytes.slice(0, 4)), 'HZP1', 'Paketkopf');
+    gleich(an[2][1].bildnummer, 3, 'bildnummer');
+    const herd = r.ereignisse.filter(e => e.typ === 'herd');
+    gleich(herd.map(e => Object.keys(e).sort().join(',')), ['art,breite,hoehe,titel,typ', 'art,bildnummer,paket,szene,typ', 'art,bildnummer,paket,szene,typ'], 'Felder');
+    gleich(herd[2].paket, an[2][1].paket, 'paket = onHerd');
+    ja(/^[0-9a-f]{16}$/.test(herd[2].szene), 'szene-Hash');
+    const fs2 = require('fs');
+    const bytes = fs2.readFileSync(path.join(ROOT, 'site', 'js', 'herd', 'kern.wasm'));
+    const opt = () => ({ uiEreignisse: [{ typ: 'takt' }, { typ: 'takt', anzahl: 2 }] });
+    const a = P.run(q, opt());
+    const b = P.run(q, Object.assign(opt(), { herdKern: new WebAssembly.Module(bytes) }));
+    const c = P.run(q, Object.assign(opt(), { herdKern: new Uint8Array(bytes) }));
+    gleich(b.ereignisse, a.ereignisse, 'herdKern als Modul');
+    gleich(c.ereignisse, a.ereignisse, 'herdKern als Bytes');
+  });
+
+  test('Herd: Kern fehlt → fehler HOST (intern), Exit 2, vor dem Start', () => {
+    const r = P.run('Bote.sage(("vorher"));\nHerd h = neu Herd();', { herdKern: new Uint8Array([0, 1, 2]) });
+    gleich(r.exitCode, 2);
+    gleich(r.ereignisse.filter(e => e.typ !== 'ende'), [{ typ: 'fehler', code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).', zeile: null, spalte: null }]);
+    const ohne = P.run('Bote.sage(("ok"));', { herdKern: new Uint8Array([0, 1, 2]) });
+    gleich(ohne.exitCode, 0, 'Programme ohne Herd brauchen den Kern nicht');
+  });
+
   test('Theke: onUi/onUiWarte, Ereignis ui, null = geschlossen, Vorrang vor uiEreignisse', () => {
     const q = 'Theke t = neu Theke("T");\nKnopf k = neu Knopf("x", () -> { k.setzeText("y"); });\nt.zeige(k);\nt.bediene();\nBote.sage(("zu"));';
     const gesendet = [];
@@ -465,7 +512,10 @@ function api() {
     gleich(r.ereignisse[0].text, '55');
     gleich(r.exitCode, 1, 'Stapelüberlauf im Worker-Kontext');
     ja(/Stapelüberlauf/.test(r.ereignisse.find(e => e.typ === 'fehler').text), 'Stapelüberlauf-Meldung');
-    ja(!/\bprocess\b|\brequire\(/.test(code.replace(/typeof module[^;]*module\.exports/g, '')), 'pizza.js referenziert process/require');
+    // K-128: einzige Ausnahme ist der Node-Lader für kern.wasm/schema.json (HERD-NODE-ANFANG … HERD-NODE-ENDE, per typeof geschützt)
+    const ohneAusnahmen = code.replace(/typeof module[^;]*module\.exports/g, '').replace(/HERD-NODE-ANFANG[\s\S]*?HERD-NODE-ENDE/g, '');
+    ja(!/\bprocess\b|\brequire\(/.test(ohneAusnahmen), 'pizza.js referenziert process/require');
+    ja(L.TYPEN.includes('Herd') && L.TYPEN.includes('Kreis'), 'Herd-Typen auch ohne Node (v1-Liste)');
   });
 
   test('Determinismus: Zufall mit festem Seed', () => {
@@ -611,6 +661,8 @@ function beispiele() {
       };
       const evText = nebenan('ereignisse', '.ereignisse');
       const uiText = nebenan('uiErwartet', '.ui-erwartet');
+      const herdText = nebenan('herdErwartet', '.herd-erwartet');
+      if (herdText === undefined) { uebersprungen('beispiele', name, 'Herd-Datei aus dem Manifest fehlt'); continue; }
       if (evText === undefined || uiText === undefined) { uebersprungen('beispiele', name, 'Theke-Datei aus dem Manifest fehlt'); continue; }
       if (evText !== null) opt.uiEreignisse = jsonZeilen(evText, name + '.ereignisse');
       const vorratText = nebenan('vorrat', '.vorrat.json');
@@ -621,6 +673,7 @@ function beispiele() {
       const exitSoll = typeof b.exitCode === 'number' ? b.exitCode : 0;
       if (r.exitCode !== exitSoll) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + exitSoll + fehlerZusammenfassung(r));
       if (uiText !== null) { const u = uiVergleich(jsonZeilen(uiText, name + '.ui-erwartet'), r.ereignisse); if (u) probleme.push(u); }
+      if (herdText !== null) { const u = herdVergleich(jsonZeilen(herdText, name + '.herd-erwartet'), r.ereignisse); if (u) probleme.push(u); }
       const ep = b.erwartet && path.join(dir, b.erwartet);
       if (ep && fs.existsSync(ep)) {
         const soll = fs.readFileSync(ep, 'utf8');
@@ -682,6 +735,7 @@ function doku() {
         let fehler = null;
         if (r.exitCode !== soll) fehler = 'Exit-Code ' + r.exitCode + ', erwartet ' + soll + fehlerZusammenfassung(r) + '\n' + grau(code.split('\n').map(z => '| ' + z).join('\n'));
         if (!fehler && Array.isArray(item.uiErwartet)) fehler = uiVergleich(item.uiErwartet, r.ereignisse);
+        if (!fehler && Array.isArray(item.herdErwartet)) fehler = herdVergleich(item.herdErwartet, r.ereignisse);
         const naechstes = liste[i + 1];
         if (!fehler && naechstes && naechstes.art === 'ausgabe' && typeof naechstes.text === 'string') {
           if (norm(naechstes.text) !== norm(ausgabeText(r.ereignisse))) gruppe('doku').notiz.push(name + ': folgender ausgabe-Block weicht von der echten Ausgabe ab (nur Hinweis)');
