@@ -256,7 +256,7 @@
       titel: "Mathe",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "`Mathe` rechnet für dich: Wurzel, Potenz, Runden, Kreiszahl – Pizzen sind rund. Fürs Würfeln gibt es `Zufall` (eigener Abschnitt)." },
+        { art: "kurz", md: "`Mathe` rechnet für dich: Wurzel, Potenz, Logarithmus, Runden, Kreiszahl – Pizzen sind rund. Fürs Würfeln gibt es `Zufall` (eigener Abschnitt)." },
         {
           art: "code",
           ausfuehrbar: true,
@@ -286,7 +286,12 @@
               ["`runden(x, n)`", "Kaufmännisch auf `n` Nachkommastellen", "`Mathe.runden(2.675, 2)` → `2.68`"],
               ["`boden(x)`", "Abrunden", "`Mathe.boden(7.9)` → `7`"],
               ["`decke(x)`", "Aufrunden", "`Mathe.decke(7.1)` → `8`"],
-              ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"]
+              ["`log(x)`", "Natürlicher Logarithmus (Basis `E`)", "`Mathe.log(Mathe.E)` → `1`"],
+              ["`log10(x)`", "Zehnerlogarithmus – wie viele Nullen?", "`Mathe.log10(1000)` → `3`"],
+              ["`log2(x)`", "Zweierlogarithmus – wie oft verdoppelt?", "`Mathe.log2(8)` → `3`"],
+              ["`exp(x)`", "`E` hoch `x` (Umkehrung von `log`)", "`Mathe.exp(0)` → `1`"],
+              ["`PI`", "Die Kreiszahl (Konstante, ohne `()`)", "`Mathe.PI`"],
+              ["`E`", "Die Eulersche Zahl 2,718… (Konstante, ohne `()`)", "`Mathe.E`"]
             ]),
             {
               art: "code",
@@ -302,7 +307,22 @@
             },
             { art: "ausgabe", text: z("7 / 8", "12", "1024", "9", "2.68") },
             { art: "text", md: "**Kaufmännisch runden** heißt: Bei genau .5 geht es von der Null weg (`2.5` → `3`, `-0.5` → `-1`). Bei Nachkommastellen gleicht pizza das Kommazahl-Krümeln aus, deshalb wird `1.005` auf zwei Stellen zu `1.01` und `0.125` zu `0.13` – so wie man es auf dem Kassenbon erwartet." },
-            { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." }
+            { art: "text", md: "**Unmögliches und Riesiges:** `Mathe.wurzel(-1)` liefert `NaN` (*keine Zahl*), `Mathe.potenz(10, 400)` liefert `Infinity`. Beides sind gültige `funghi`-Werte; `NaN == NaN` ist allerdings `nein`. In ein `salami` passen sie nicht (`TypAnanas`). Teilen durch 0 bleibt eine `RechenAnanas`." },
+            { art: "text", md: "**Logarithmen** beantworten „`E`/10/2 hoch was ergibt `x`?“ – praktisch, wenn ein Idle-Spiel ausrechnen soll, wie viele Öfen man sich auf einmal leisten kann, ohne eine Schleife zu drehen. Die Umkehrung ist `exp`: `Mathe.exp(Mathe.log(x))` ist (bis aufs Krümeln) wieder `x`." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Bote.sage((Mathe.log10(1000) + \" / \" + Mathe.log2(8)));",
+                "Bote.sage((Mathe.log(Mathe.E) + \" / \" + Mathe.exp(0)));",
+                "salami preis = 50;",
+                "salami kasse = 5000;",
+                "Bote.sage((\"Zehnerpotenzen im Budget: \" + Mathe.boden(Mathe.log10(kasse / preis))));"
+              )
+            },
+            { art: "ausgabe", text: z("3 / 3", "1 / 1", "Zehnerpotenzen im Budget: 2") },
+            { art: "text", md: "**Sonderfälle** wie in jeder Sprache: `Mathe.log(0)` ist `-Infinity`, `Mathe.log(-1)` ist `NaN`, `Mathe.exp(710)` ist `Infinity`; `NaN` wird durchgereicht. Ein `log(x, basis)` mit zwei Argumenten gibt es absichtlich **nicht**: `Mathe.log(1000) / Mathe.log(10)` ergibt `2.9999999999999996` – Kommazahl-Krümel. Nimm für Zehner- und Zweierpotenzen immer `log10` und `log2`, die liefern glatte `3`." }
           ]
         }
       ]
@@ -909,7 +929,7 @@
           art: "details",
           titel: "Alle Zutaten",
           inhalt: [
-            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung` **ersetzt** den alten Rückruf." },
+            { art: "text", md: "Jedes Bauteil heißt **Zutat**. Alle Zutaten können `id()`, `sichtbar(ja/nein)`, `stil(schlüssel, wert)`, `animiere(art)` und `uebergang(ja/nein)` (siehe *Animationen* unten). Die verändernden Methoden (`setzeText`, `aktiv`, `stil`, `sichtbar`, `beiKlick` …) geben die Zutat selbst zurück – du kannst sie also **verketten**: `neu Knopf(\"OK\").aktiv(nein).stil(\"farbe\", \"basilikum\")`. Ein erneutes `beiKlick`/`beiAenderung`/`beiTaste` **ersetzt** den alten Rückruf, `karton` entfernt ihn." },
             {
               art: "tabelle",
               kopf: ["Zutat", "Wozu", "Erzeugen", "Methoden"],
@@ -921,11 +941,13 @@
                 ["`Haken`", "Ankreuzfeld", "`neu Haken(text, an: nein)`", "`an()`, `setzeAn(ja/nein)`, `beiAenderung(fn)` (bekommt `ja`/`nein`)"],
                 ["`Stapel`", "Zutaten untereinander", "`neu Stapel([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
                 ["`Reihe`", "Zutaten nebeneinander", "`neu Reihe([a, b, c])`", "`hinzu(zutat)`, `leeren()`"],
-                ["`Abschnitt`", "Stapel mit Überschrift", "`neu Abschnitt(\"Karte\", [a, b])`", "wie `Stapel`, dazu `titel()`, `setzeTitel(t)`"],
-                ["`Reiter`", "mehrere Seiten mit Reitern oben, eine ist sichtbar", "`neu Reiter([\"Ofen\", \"Karte\"], [seite1, seite2])`", "`waehle(n)` (ab 1), `gewaehlt()`, `beiAenderung(fn)` (bekommt die Seitennummer)"],
+                ["`Abschnitt`", "Stapel mit Überschrift, auf Wunsch zuklappbar", "`neu Abschnitt(\"Karte\", [a, b])`", "wie `Stapel`, dazu `titel()`, `setzeTitel(t)`, `klappbar(ja)` (der Gast darf am Kopf zu- und aufklappen), `zu(ja)`/`zu()` (Inhalt eingeklappt – geht auch ohne `klappbar`), `beiAenderung(fn)` (bekommt `ja`, wenn zugeklappt wurde)"],
+                ["`Reiter`", "mehrere Seiten mit Reitern oben, eine ist sichtbar", "`neu Reiter([\"Ofen\", \"Karte\"], [seite1, seite2])`", "`waehle(n)` (ab 1), `gewaehlt()`, `beiAenderung(fn)` (bekommt die Seitennummer), `setzeTitel(n, t)`, `titel(n)`. Eine Seite mit `sichtbar(nein)` verliert ihren Reiter"],
+                ["`Auswahl`", "Umschalter: genau eine Option ist gewählt", "`neu Auswahl([\"1×\", \"10×\", \"100×\", \"Max\"], gewaehlt: 1)`", "`waehle(n)` (ab 1), `gewaehlt()`, `optionen()`, `setzeOptionen(b)`, `beiAenderung(fn)` (bekommt die Nummer), `aktiv(ja/nein)`"],
                 ["`Fortschritt`", "Fortschrittsbalken", "`neu Fortschritt(wert: 0, text: \"\")`", "`wert()`, `setzeWert(x)` (0 bis 1, wird begrenzt), `text()`, `setzeText(t)`"],
                 ["`Tabelle`", "Tabelle zum Anzeigen", "`neu Tabelle(spalten, zeilen)`", "`spalten()`, `setzeSpalten(b)`, `zeilen()`, `setzeZeilen(b)` – Zellen erscheinen als Text"],
-                ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"]
+                ["`Takt`", "unsichtbarer Zeitgeber", "`neu Takt(1s, anzahl -> { … })`", "`aktiv(ja/nein)`, `intervall()`, `setzeIntervall(d)`, `beiTakt(fn)`"],
+                ["`Tastatur`", "unsichtbar wie der Takt: meldet Tastendrücke im Fenster", "`neu Tastatur(taste -> { … })`", "`beiTaste(fn)` (bekommt den Tastennamen als Text), `aktiv(ja/nein)` – muss im gezeigten Baum liegen (siehe *Tasten, Umschalter, Klappen*)"]
               ]
             },
             { art: "text", md: "Stapel, Reihen, Abschnitte und Reiter lassen sich ineinander schachteln – so baust du jedes Layout aus Kästen. Jede Zutat kann außerdem einen **Hinweis** tragen: `knopf.hinweis(\"Lässt den Teig gehen\")` zeigt den Text, wenn der Gast mit der Maus darüber fährt; `hinweis()` liest ihn." },
@@ -999,7 +1021,107 @@
               )
             },
             { art: "ausgabe", text: "Fertig nach 3 s" },
-            { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." }
+            { art: "text", md: "Hier kamen ein Schlag mit `anzahl` 1 und einer mit 2 – zusammen 3 Sekunden. `schrift: \"riesig\"` macht die Anzeige extra groß." },
+            { art: "text", md: "**Meldungen der Reihe nach:** Eine eingebaute „Meldung“ mit Warteschlange gibt es absichtlich nicht – wie lange eine Nachricht steht und wie viele warten dürfen, entscheidet dein Spiel. Die Bausteine hast du schon: ein `Schild` als Anzeige, ein `Blech` als Schlange, ein `Takt`, der alle zwei Sekunden die nächste Zeile holt, und `animiere(\"einblenden\")` für den Auftritt." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{ typ: "takt", id: "melder", anzahl: 1 }, { typ: "takt", id: "melder", anzahl: 1 }, { typ: "klick", id: "stern" }, { typ: "takt", id: "melder", anzahl: 1 }, { typ: "takt", id: "melder", anzahl: 1 }],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzeria\");",
+                "Blech<margherita> schlange = [\"Neuer Ofen!\", \"Luigi ist da.\"];",
+                "salami gezeigt = 0;",
+                "Schild meldung = neu Schild(\"\", id: \"meldung\");",
+                "Knopf stern = neu Knopf(\"Stern verdienen\", id: \"stern\").beiKlick(() -> { schlange.hinzu(\"+1 Stern\"); });",
+                "Takt melder = neu Takt(2s, id: \"melder\").beiTakt(anzahl -> {",
+                "    falls (schlange.istLeer()) { theke.schliesse(); }   // im Spiel eher: meldung.setzeText(\"\")",
+                "    sonst {",
+                "        meldung.setzeText(schlange.erstes()).animiere(\"einblenden\");",
+                "        schlange.entferne(1);",
+                "        gezeigt++;",
+                "    }",
+                "});",
+                "theke.zeige(neu Stapel([meldung, stern, melder]));",
+                "theke.bediene();",
+                "Bote.sage((gezeigt + \" Meldungen gezeigt, \" + schlange.länge() + \" übrig\"));"
+              )
+            },
+            { art: "ausgabe", text: "3 Meldungen gezeigt, 0 übrig" },
+            { art: "text", md: "Zwei Schläge zeigen die beiden vorbereiteten Meldungen, dann klickt der Gast auf **Stern verdienen**, der dritte Schlag zeigt „+1 Stern“, der vierte findet die Schlange leer. Willst du Gleiches zusammenfassen („+3 Sterne“) oder nur die letzten fünf behalten, ist das eine Zeile mehr in deinem Rückruf – genau darum ist es keine fertige Zutat." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Tasten, Umschalter, Klappen",
+          inhalt: [
+            { art: "text", md: "Drei Zutaten für Spiele, die mehr sind als ein Knopf: Die **`Auswahl`** ist ein Umschalter, bei dem genau eine Option gewählt ist (`1× · 10× · 100×` statt drei Knöpfe); ein **klappbarer `Abschnitt`** räumt Erledigtes aus dem Blick; die **`Tastatur`** hört auf Tastendrücke im Fenster. Sie ist – wie der `Takt` – unsichtbar und muss trotzdem im gezeigten Baum liegen, also mit in den Stapel." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [
+                { typ: "taste", id: "tasten", taste: "Leertaste" },
+                { typ: "aenderung", id: "menge", wert: 2 },
+                { typ: "taste", id: "tasten", taste: "Leertaste" },
+                { typ: "taste", id: "tasten", taste: "a" },
+                { typ: "aenderung", id: "hilfe", wert: true },
+                { typ: "taste", id: "tasten", taste: "Enter" }
+              ],
+              code: z(
+                "Theke theke = neu Theke(\"Pizzabäcker\");",
+                "Blech<salami> schritte = [1, 10, 100];",
+                "salami pizzen = 0;",
+                "salami schritt = 1;",
+                "Schild anzeige = neu Schild(\"0 Pizzen\", id: \"anzeige\").stil(\"schrift\", \"riesig\").stil(\"zeilen\", 1);",
+                "Auswahl menge = neu Auswahl([\"1×\", \"10×\", \"100×\"], id: \"menge\");",
+                "menge.beiAenderung(n -> { schritt = schritte.stück(n); });",
+                "Abschnitt hilfe = neu Abschnitt(\"Hilfe\", [neu Schild(\"Leertaste backt, Enter macht Feierabend.\")], id: \"hilfe\").klappbar(ja);",
+                "hilfe.beiAenderung(zu -> { Bote.sage((\"Hilfe zugeklappt: \" + zu)); });",
+                "Tastatur tasten = neu Tastatur(id: \"tasten\");",
+                "tasten.beiTaste(taste -> {",
+                "    falls (taste == \"Leertaste\") { pizzen += schritt; anzeige.setzeText((pizzen + \" Pizzen\")); }",
+                "    sonst falls (taste == \"Enter\") { theke.schliesse(); }",
+                "});",
+                "theke.zeige(neu Stapel([anzeige, menge, hilfe, tasten]));",
+                "theke.bediene();",
+                "Bote.sage((pizzen + \" Pizzen, Schritt \" + schritt + \", Option \" + menge.gewaehlt() + \", Hilfe zu: \" + hilfe.zu()));"
+              )
+            },
+            { art: "ausgabe", text: z("Hilfe zugeklappt: ja", "11 Pizzen, Schritt 10, Option 2, Hilfe zu: ja") },
+            { art: "text", md: "Der Gast drückt die Leertaste (1 Pizza), schaltet auf **10×**, drückt wieder Leertaste (11 Pizzen), tippt ein `a` (interessiert den Rückruf nicht), klappt die Hilfe zu und beendet mit **Enter**. In den Testereignissen sieht das so aus: `{\"typ\":\"taste\",\"id\":\"tasten\",\"taste\":\"Leertaste\"}`, `{\"typ\":\"aenderung\",\"id\":\"menge\",\"wert\":2}` und `{\"typ\":\"aenderung\",\"id\":\"hilfe\",\"wert\":true}` – beim Abschnitt ist `wert` der neue `zu`-Zustand." },
+            { art: "text", md: "**Auswahl:** `neu Auswahl(optionen, gewaehlt: 1)` – die Optionen sind ein Blech, jeder Eintrag wird als Text gezeigt. `waehle(n)` und `gewaehlt()` zählen ab 1 wie beim Reiter; eine Nummer außerhalb ergibt `KeinStückAnanas: Option 7 gibt es nicht – die Auswahl hat 4 Optionen.` `setzeOptionen(b)` tauscht die Liste aus, die gewählte Nummer bleibt. Mit `aktiv(nein)` ist der Umschalter ausgegraut und Ereignisse werden ignoriert. Wie beim Haken ist der Zustand schon umgeschaltet, wenn dein Rückruf läuft – `menge.gewaehlt()` liefert darin bereits die neue Nummer." },
+            { art: "text", md: "**Klappbarer Abschnitt:** `klappbar(ja)` macht den Kopf zum Knopf (Pfeil ▸/▾); `zu(ja)` klappt den Inhalt zu, auch ohne `klappbar` – dann steuert nur dein Programm. Klappt der Gast, kommt `beiAenderung(fn)` mit `ja` (zu) oder `nein` (offen); setzt dein Programm `zu(…)`, kommt nichts. Die Kinder eines zugeklappten Abschnitts gelten für Animationen als nicht gezeigt – ein `animiere` dort fällt mit `W0102` aus. Mit `uebergang(ja)` am Abschnitt gleitet der Inhalt weich auf und zu." },
+            { art: "text", md: "**Reiter:** `setzeTitel(n, text)` ändert die Beschriftung einer Seite (`reiter.setzeTitel(2, \"Karte •\")` für „hier gibt es Neues“), `titel(n)` liest sie. Eine Seite verschwindet samt Reiter mit `seite.sichtbar(nein)` – kein eigenes Kommando, dasselbe `sichtbar` wie überall. `gewaehlt()` bleibt dabei Programmzustand: Versteckst du die gewählte Seite, zeigt der Gast-Bildschirm ersatzweise die nächste sichtbare Seite dahinter (sonst die letzte davor), ohne dass ein Ereignis kommt – erst der nächste Klick auf einen Reiter meldet wieder eine echte Seitennummer." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Stapel lager = neu Stapel([neu Schild(\"Noch zu.\")]);",
+                "Reiter reiter = neu Reiter([\"Ofen\", \"Karte\", \"Lager\"], [neu Schild(\"Heiß!\"), neu Schild(\"Margherita 8 €\"), lager]);",
+                "lager.sichtbar(nein);            // der Reiter „Lager“ verschwindet aus der Leiste",
+                "reiter.waehle(3);                // erlaubt – der Gast sieht ersatzweise „Karte“",
+                "reiter.setzeTitel(3, \"Lager • neu\");",
+                "Bote.sage((reiter.titel(3) + \" / gewählt: \" + reiter.gewaehlt()));"
+              )
+            },
+            { art: "ausgabe", text: "Lager • neu / gewählt: 3" },
+            { art: "text", md: "**Tastatur:** `neu Tastatur(taste -> { … })` oder `beiTaste(fn)` – der Rückruf bekommt den Namen der Taste als Text. Ein Druck ist ein Ereignis: Hält der Gast die Taste gedrückt, kommt **keine** Wiederholung. Mehrere aktive Tastaturen im Baum bekommen jede Taste. Tasten, die der Gast in eine fokussierte `Eingabe` tippt, gehören dem Feld und erreichen die Tastatur nicht; ein fokussierter Knopf wird von der Leertaste weiterhin geklickt – die Tastatur bekommt sie zusätzlich. Im Playground gehen Tasten an die Theke, sobald der Gast einmal ins Vorschaufenster geklickt hat; was du im Editor tippst, bleibt im Editor." },
+            {
+              art: "tabelle",
+              kopf: ["Taste", "Name im Rückruf"],
+              zeilen: [
+                ["Leertaste", "`\"Leertaste\"`"],
+                ["Pfeiltasten", "`\"Links\"`, `\"Rechts\"`, `\"Hoch\"`, `\"Runter\"`"],
+                ["Rücktaste, Entf", "`\"Rücktaste\"`, `\"Entfernen\"`"],
+                ["Pos1, Ende, Bild ↑/↓", "`\"Pos1\"`, `\"Ende\"`, `\"BildHoch\"`, `\"BildRunter\"`"],
+                ["Enter, Escape, Tab", "`\"Enter\"`, `\"Escape\"`, `\"Tab\"`"],
+                ["Funktionstasten", "`\"F1\"` … `\"F12\"`"],
+                ["Zeichen", "so, wie sie getippt werden: `\"a\"`, `\"A\"`, `\"1\"`, `\"+\"`, `\"ä\"` – Umschalt + a kommt also als `\"A\"`"],
+                ["Umschalt, Strg, Alt, AltGr, Windows-Taste, Feststelltaste …", "kommen **nicht** allein an (nur ihre Wirkung auf Zeichen)"]
+              ]
+            }
           ]
         },
         {
@@ -1086,7 +1208,7 @@
           art: "details",
           titel: "Die Ereignisschleife: bediene()",
           inhalt: [
-            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`).\n- Das **Schrittlimit** (5 000 000, `P0002`) gilt für das Programm bis zum `bediene()` und danach **für jeden Rückruf neu**. Ein Spiel darf also stundenlang laufen und Tausende Klicks oder Takte verarbeiten – nur ein einzelner Rückruf, der sich in einer Endlosschleife verfängt, wird gestoppt. `Uhr.jetzt()` zählt dabei einfach weiter." },
+            { art: "text", md: "`theke.bediene()` ist der Pizzaiolo hinter der Theke: Er **wartet**, bis der Gast etwas tut, ruft den passenden Rückruf auf (`beiKlick`, `beiAenderung`, `beiEnter`, `beiTakt`, `beiTaste`) und wartet weiter. Erst wenn das Fenster geschlossen wird oder dein Code `theke.schliesse()` ruft, geht es nach `bediene()` weiter.\n\n- Vorher muss etwas gezeigt werden: `bediene()` ohne `zeige(…)` → `LaufzeitAnanas: Die Theke ist leer.`\n- Ein zweites `bediene()` nach dem Schließen kehrt sofort zurück.\n- Pro Programm gibt es **eine** Theke: ein zweites `neu Theke(…)` → `LaufzeitAnanas: Es gibt nur eine Theke pro Programm.`\n- Ein Klick auf einen Knopf mit `aktiv(nein)` wird einfach ignoriert – kein Rückruf, kein Fehler. Dasselbe gilt für Ereignisse, für die kein Rückruf eingetragen ist.\n- Ändert ein Rückruf mehrere Zutaten, sieht der Gast alles auf einmal, sobald der Rückruf fertig ist.\n- Wirft ein Rückruf eine Ananas, fliegt sie aus `bediene()` heraus – fang sie mit `probier` um `bediene()`.\n- Warten auf den Gast kostet keine Schritte und keine Zeit auf der simulierten Uhr (wie bei der `Bestellannahme`).\n- Das **Schrittlimit** (5 000 000, `P0002`) gilt für das Programm bis zum `bediene()` und danach **für jeden Rückruf neu**. Ein Spiel darf also stundenlang laufen und Tausende Klicks oder Takte verarbeiten – nur ein einzelner Rückruf, der sich in einer Endlosschleife verfängt, wird gestoppt. `Uhr.jetzt()` zählt dabei einfach weiter." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1124,9 +1246,12 @@
                 ["`abstand`", "Luft um die Zutat in Pixeln (Ganzzahl ≥ 0)"],
                 ["`ausrichtung`", "`\"links\"`, `\"mitte\"`, `\"rechts\"`"],
                 ["`schrift`", "`\"klein\"`, `\"normal\"`, `\"gross\"`, `\"riesig\"`, `\"mono\"`"],
-                ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"]
+                ["`farbe`", "`\"tomate\"`, `\"basilikum\"`, `\"mozzarella\"`, `\"kruste\"`, `\"normal\"`"],
+                ["`zeilen`", "ganze Zahl ≥ 1: die Zutat ist **genau** so viele Textzeilen hoch – auch bei kürzerem Text; längerer Text wird mit „…“ abgeschnitten. Wirkt auf den Text von `Schild`, `Knopf` und `Haken`; andere Zutaten ignorieren den Schlüssel."],
+                ["`mindestbreite`", "Pixel (Zahl ≥ 0): die Zutat wird nie schmaler als das, darf aber wachsen – damit Knöpfe stehen bleiben, wenn ihr Text sich ändert"]
               ]
             },
+            { art: "text", md: "`zeilen` und `mindestbreite` sorgen für ein **ruhiges Layout**: Ein `Schild` mit `stil(\"zeilen\", 2)` wackelt nicht, wenn die Meldung mal eine Zeile länger ist, und ein Kaufknopf mit `stil(\"mindestbreite\", 120)` springt nicht, wenn aus `9 €` plötzlich `1.250 €` wird. `stil(schlüssel, karton)` entfernt einen Stil wieder." },
             {
               art: "code",
               ausfuehrbar: true,
@@ -1140,7 +1265,7 @@
               )
             },
             { art: "ausgabe", text: "titel: Pizzeria Luigi" },
-            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Unbekannter Stil 'x'.`, unpassende Werte eine `TypAnanas`." }
+            { art: "text", md: "Unbekannte Schlüssel ergeben `LaufzeitAnanas: Stil 'x' gibt es nicht. Erlaubt: breite, hoehe, abstand, ausrichtung, schrift, farbe, zeilen, mindestbreite.`; unpassende Werte eine `LaufzeitAnanas` mit der Liste der erlaubten Werte (`Wert 'lila' ist für Stil 'farbe' nicht erlaubt. Erlaubt: …`) bzw. eine `TypAnanas` (`Stil 'zeilen' braucht eine ganze Zahl ≥ 1, nicht 0.`)." }
           ]
         },
         {

@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"R","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z8","art":"stapel","kinder":[{"id":"z4","art":"reiter","titel":["Eins","","Drei"],"gewaehlt":1,"kinder":[{"id":"z1","art":"schild","text":"A"},{"id":"z2","art":"schild","text":"B"},{"id":"z3","art":"schild","text":"C"}]},{"id":"z7","art":"knopf","text":"neu"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z4","titel":["karton","Zwei •","Drei"],"gewaehlt":2},{"id":"z2","sichtbar":false}]}

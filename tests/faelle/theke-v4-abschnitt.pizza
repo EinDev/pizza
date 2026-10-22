@@ -1,0 +1,16 @@
+Theke t = neu Theke("A");
+Schild s = neu Schild("Inhalt");
+Abschnitt a = neu Abschnitt("Erledigt", [s]);
+Bote.sage((a.klappbar() + " " + a.zu()));
+a.klappbar(ja).zu(ja);
+Bote.sage((a.klappbar() + " " + a.zu()));
+a.beiAenderung(z -> Bote.sage(("zu: " + z + " " + a.zu())));
+probier { a.klappbar(1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.zu("ja"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { a.beiAenderung(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Abschnitt fest = neu Abschnitt("Fest", [neu Schild("f")]).zu(ja);
+Abschnitt ohne = neu Abschnitt("Ohne", []).klappbar(ja);
+Knopf k = neu Knopf("auf", () -> { a.zu(nein); fest.klappbar(ja); });
+t.zeige(neu Stapel([a, fest, ohne, k]));
+t.bediene();
+Bote.sage((a.zu() + " " + fest.zu() + " " + ohne.zu()));

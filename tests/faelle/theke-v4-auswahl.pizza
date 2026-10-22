@@ -1,0 +1,24 @@
+Theke t = neu Theke("W");
+Auswahl w = neu Auswahl(["1×", "10×", "100×", "Max"]);
+Bote.sage((w.gewaehlt() + " " + w.optionen() + " " + w.aktiv() + " " + w));
+Auswahl v = neu Auswahl(optionen: [1, karton, ja], gewaehlt: 3, id: "v");
+Bote.sage((v.optionen() + " " + v.gewaehlt()));
+Auswahl ohne = neu Auswahl();
+Bote.sage((ohne.optionen() + " " + ohne.gewaehlt()));
+probier { neu Auswahl(5); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { neu Auswahl(["a"], 2); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle(7); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle(0); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.waehle("2"); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { ohne.waehle(1); } verbrannt (KeinStückAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.setzeOptionen("x"); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+probier { w.aktiv(1); } verbrannt (TypAnanas e) { Bote.sage((e.nachricht())); }
+Blech<margherita> kopie = w.optionen();
+kopie.hinzu("Extra");
+Bote.sage((w.optionen().länge()));
+w.beiAenderung(n -> Bote.sage(("gewählt " + n + " " + w.gewaehlt())));
+v.beiAenderung(n -> Bote.sage(("v " + n)));
+Knopf k = neu Knopf("k", () -> { w.setzeOptionen(["A", "B"]).waehle(2); v.aktiv(nein); });
+t.zeige(neu Stapel([w, v, k]));
+t.bediene();
+Bote.sage((w.gewaehlt() + " " + v.gewaehlt() + " " + v.aktiv()));

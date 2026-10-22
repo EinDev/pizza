@@ -1,0 +1,16 @@
+Bote.sage((Mathe.log(1) + " " + Mathe.log(Mathe.E) + " " + Mathe.log(0) + " " + Mathe.log(-1) + " " + Mathe.log(Mathe.potenz(10, 400))));
+Bote.sage((Mathe.log10(1000) + " " + Mathe.log10(0.001) + " " + Mathe.log2(8) + " " + Mathe.log2(0.5) + " " + Mathe.log10(0)));
+Bote.sage((Mathe.exp(0) + " " + Mathe.exp(1) + " " + Mathe.exp(710) + " " + Mathe.exp(-Mathe.potenz(10, 400)) + " " + Mathe.exp(Mathe.wurzel(-1))));
+Bote.sage((Mathe.E + " " + (Mathe.E > 2.7) + " " + Mathe.PI));
+Bote.sage((Mathe.log(1000) / Mathe.log(10)));
+Bote.sage((Mathe.log(2.5) + " " + Mathe.exp(2.5) + " " + Mathe.log10(7) + " " + Mathe.log2(10)));
+funghi f = Mathe.log(0);
+Bote.sage((f));
+probier { salami s = Mathe.log(0); } verbrannt (TypAnanas a) { Bote.sage(("salami")); }
+probier { Mathe.log("x"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.exp(karton); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.log10(ja); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.log2(); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { Mathe.e; } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Rezept l = Mathe.log;
+Bote.sage((l(Mathe.E * Mathe.E)));

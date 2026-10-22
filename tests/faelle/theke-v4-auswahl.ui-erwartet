@@ -1,0 +1,3 @@
+{"v":1,"op":"fenster","titel":"W","breite":480,"hoehe":360}
+{"v":1,"op":"baum","wurzel":{"id":"z6","art":"stapel","kinder":[{"id":"z1","art":"auswahl","optionen":["1×","10×","100×","Max"],"gewaehlt":1},{"id":"v","art":"auswahl","optionen":["1","karton","ja"],"gewaehlt":3},{"id":"z5","art":"knopf","text":"k"}]}}
+{"v":1,"op":"aendere","aenderungen":[{"id":"z1","optionen":["A","B"],"gewaehlt":2},{"id":"v","aktiv":false}]}
