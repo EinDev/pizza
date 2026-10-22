@@ -73,6 +73,10 @@ h.backe();
 h.backe();
 h.setzeTitel("B");
 Bote.sage((h.titel() + " " + h.bildnummer()));`, {}],
+  ['Gruppe herd ohne neu Herd: Komponentennamen von Anfang an bekannt (Typprüfung, Küche)', `Blech<salami> b = [1];
+probier { b.brigade((x) -> neu Kreis()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { Kreis k = 5; } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { Kreis k = neu Kreis(radius: 3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }`, {}],
   ['Küche: Herd-Objekte im Karton, Herd in einem Stück', `Herd h = neu Herd();
 Teil t = h.kreis(1, 1, 1);
 Blech<salami> b = [1, 2];

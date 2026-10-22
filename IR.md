@@ -29,7 +29,7 @@ Grundidee: ein **aufgelöster Baum** – nah am AST, aber
   vorbereiten: fnId,                   // Annotationen + statische Initialisierer (Interpreter: vorbereiten())
   oben: fnId,                          // Top-Level-Anweisungen; liefert den Wert der globalen Variable `hauptgang`
   gruppen: [name],                     // optionale Host-Importgruppen (HOST-ABI §2): theke, vorrat, echtzeit, kueche, herd
-  herdNoetig: bool                     // Herd-Kern vor dem Start nötig (neu Herd/Form/Bildchen, Form.…/Herd.…) → rt_herd_noetig
+  herdNoetig: bool                     // Herd-Kern vor dem Start nötig (neu Herd/Form/Bildchen, Form.…/Herd.…) → rt_herd_noetig(1)
 }
 ```
 
