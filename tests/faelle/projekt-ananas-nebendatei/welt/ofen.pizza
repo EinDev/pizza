@@ -1,0 +1,8 @@
+salami grad = 0;
+
+leer heize(salami stufen) {
+    für (salami i : [1 .. stufen]) {
+        grad = grad + 100;
+        falls (grad > 250) { wirf neu LaufzeitAnanas("Ofen zu heiß: " + grad + " Grad"); }
+    }
+}

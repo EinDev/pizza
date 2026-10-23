@@ -44,7 +44,7 @@ class LaufzeitAuswertung {
     if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
     const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
     const startUhr = this.schritte + this.offset;
-    const z0 = this.z, s0 = this.s;
+    const z0 = this.z, s0 = this.s, d0 = this.d;
     let wert = null, roh = null;
     const st0 = this.st;
     try {
@@ -55,7 +55,7 @@ class LaufzeitAuswertung {
       } catch (e) {
         this.st = st0;
         if (e instanceof BudgetSig && e.frame === frame) {
-          this.z = z0; this.s = s0;
+          this.z = z0; this.s = s0; this.d = d0;
           if (n.roh) roh = new OfenRoh(frame.zwischen, new Dauer(this.schritte + this.offset - startUhr));
           else throw this.ananas('VerbranntAnanas', 'Zu lange im Ofen: Budget von ' + budget + ' Schritten überschritten.');
         } else throw e;
@@ -308,7 +308,7 @@ class LaufzeitAuswertung {
 
   fuehre(n, sc) {
     if (++this.schritte > this.grenze) this.grenzeErreicht();
-    this.z = n.z; this.s = n.s;
+    this.z = n.z; this.s = n.s; this.d = n.di;
     if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
     let r;
     switch (n.k) {
@@ -446,7 +446,7 @@ class LaufzeitAuswertung {
   }
   sWirf(n, sc) {
     const v = this.ausw(n.e, sc);
-    if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s);
+    if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s, n.di);
     if (v === null || v === undefined) return this.leer();
     return this.ananas('TypAnanas', 'Werfen kann man nur Ananas (Objekte), nicht ' + this.darstellung(v) + '.');
   }

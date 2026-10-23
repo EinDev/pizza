@@ -1,0 +1,5 @@
+// Ordner-Fall: W0004 (doppelt bestellt) vor den Analyse-Warnungen; W0032 je Datei an gleicher Zeile/Spalte (beide gemeldet)
+bestellt "a.pizza";
+bestellt "b.pizza";
+bestellt "a.pizza";
+Bote.sage((fa() + fb()));

@@ -208,13 +208,13 @@ function poolLebt() { return !!(kuechenStand && kuechenStand.pool); }
 
 function wasmFehler(text, zeile, spalte) {
   sende({ typ: "motor", motor: "wasm", grund: text });
-  sende({ typ: "fehler", code: "W-WASM", art: "wasm", text: text, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte });
+  sende({ typ: "fehler", code: "W-WASM", art: "wasm", text: text, datei: null, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte });
   sende({ typ: "ende", exitCode: 2, schritte: 0, zeitMs: 0, laufMs: 0, motor: "wasm" });
 }
 
 function starte(d, pool, brigade) {
   if (!PL || typeof PL.run !== "function") {
-    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Der Interpreter (js/pizza.js) konnte nicht geladen werden. Der Ofen ist kalt.", zeile: null, spalte: null });
+    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Der Interpreter (js/pizza.js) konnte nicht geladen werden. Der Ofen ist kalt.", datei: null, zeile: null, spalte: null });
     sende({ typ: "ende", exitCode: 2, schritte: 0, zeitMs: 0 });
     return;
   }
@@ -308,7 +308,7 @@ function starte(d, pool, brigade) {
     }
   } catch (e) {
     if (meldung(e) === "__pizza_wasm_abbruch__") { flush(); return; }
-    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Interner Fehler im Ofen: " + meldung(e), zeile: null, spalte: null });
+    sende({ typ: "fehler", code: "INTERN", art: "intern", text: "Interner Fehler im Ofen: " + meldung(e), datei: null, zeile: null, spalte: null });
     if (!endeGesehen) sende({ typ: "ende", exitCode: 2, schritte: null, zeitMs: null, laufMs: jetzt() - t0 });
   }
   flush();

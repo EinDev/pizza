@@ -57,8 +57,13 @@
   }
 
   /** interner Schnellpfad: Programm als kleines Zusatzmodul zur gecachten Laufzeit */
+  // Projekte { dateien } (SPEC §2) kompiliert erst PROJEKTE PA2 – bis dahin klar ablehnen (run fällt auf den Interpreter zurück)
+  const PROJEKT_NOCH_NICHT = [{ zeile: null, spalte: null, grund: 'Projekte (Dateisammlungen) kann der Wasm-Motor noch nicht (PROJEKTE PA2)' }];
+  const istProjekt = (q) => q !== null && typeof q === 'object';
+
   function kompiliereTeil(quelltext) {
     const t0 = jetzt();
+    if (istProjekt(quelltext)) return { ok: false, nichtUnterstuetzt: PROJEKT_NOCH_NICHT.slice() };
     const p = PizzaLang.parse(quelltext);
     if (!p.ok) return { ok: false, fehler: p.fehler };
     let ir = null;
@@ -89,6 +94,7 @@
   function kompiliere(quelltext, optionen) {
     optionen = optionen || {};
     const t0 = jetzt();
+    if (istProjekt(quelltext)) return { ok: false, nichtUnterstuetzt: PROJEKT_NOCH_NICHT.slice() };
     const p = PizzaLang.parse(quelltext);
     if (!p.ok) return { ok: false, fehler: p.fehler };
     let ir = null;

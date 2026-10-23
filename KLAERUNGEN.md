@@ -1915,8 +1915,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (lokal Lauffähiges ist auch teil- und exportierbar): 100 Dateien, 2 MiB je Datei, `.pizza` 512 KiB, 8 MiB gesamt → P0020. Ein Text
   ist ein Ein-Datei-Projekt (`hauptgang.pizza`); Einzeldatei-Programme bleiben überall gültig.
 - **Verworfen:** `rezept.json` (Kollision mit Typ `Rezept`), Pflicht-Projektdatei, Unicode-/Großbuchstaben-Pfade, Grenzen nur beim Teilen.
-- **Betroffen:** SPEC §2.1, §14.7; ARCHITEKTUR §1, §6; Interpreter (`projekt.*`), CLI, Playground, Durchreiche. **Status:** offen
-  (PROJEKTE.md PA1, U-73; Fälle `a19-projekte-offen.js`).
+- **Betroffen:** SPEC §2.1, §14.7; ARCHITEKTUR §1, §6; Interpreter (`projekt.*`), CLI, Playground, Durchreiche. **Status:** fest;
+  Interpreter und CLI umgesetzt (PROJEKTE.md PA1, U-73 ✅; Fälle `a19-projekte.js`); offen Playground (PB1) und Durchreiche (PC1).
 
 ### K-139 `bestellt`: Syntax, erreichbare Dateien, Ladereihenfolge, Kreise, Nebendateien, Reihenfolge der Ladeprüfungen
 - **Entscheidung (Nutzer F1, F4; PROJEKTE.md §2.1–§2.3):** `bestellt "<pfad>";` – kontextuelles Schlüsselwort nur auf oberster Ebene
@@ -1930,8 +1930,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   dort wäre es doppelt). Reihenfolge SPEC §2.5; der erste Fehler bricht ab, ohne vorherige Warnungen.
 - **Verworfen:** `import "…"` umwidmen, reserviertes Wort, Pfade relativ zur Datei, alphabetische Reihenfolge, Zyklen erlauben,
   Anweisungen in jeder Datei.
-- **Betroffen:** SPEC §2.2, §2.3, §2.5, §14.5, §14.7; Interpreter (Parser `Bestellt`, Lader), Compiler-Frontend. **Status:** offen
-  (PA1/PA2, U-73/U-75).
+- **Betroffen:** SPEC §2.2, §2.3, §2.5, §14.5, §14.7; Interpreter (Parser `Bestellt`, Lader), Compiler-Frontend. **Status:** fest;
+  Interpreter umgesetzt (PA1, U-73 ✅); offen Compiler auf den Lader (PA2, U-75 – bis dahin `nichtUnterstuetzt`).
 
 ### K-140 Ein Projekt-Namensraum, Sichtbarkeit, `geheimrezept` auf oberster Ebene, konservative Ladeprüfung
 - **Entscheidung (Nutzer F3; PROJEKTE.md §2.4–§2.5):** Alle obersten Namen (auch verschachtelte Klassen) in **einem** Namensraum –
@@ -1943,7 +1943,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Doppelmeldungs-Sperre aller Warnungen bekommt die Datei in den Schlüssel (`code:datei:zeile:spalte`), in Interpreter, Compiler-Port
   und Laufzeit.
 - **Verworfen:** Namensraum je Datei mit qualifizierten Namen (`als` später additiv möglich), transitive Sichtbarkeit, gar keine Prüfung.
-- **Betroffen:** SPEC §2.4, §14.8; Interpreter, Compiler-Port von `analysiere`, Laufzeit (`warnSet`). **Status:** offen (PA1/PA2).
+- **Betroffen:** SPEC §2.4, §14.8; Interpreter, Compiler-Port von `analysiere`, Laufzeit (`warnSet`). **Status:** fest; Interpreter
+  umgesetzt (PA1); offen Compiler-Port und Wasm-Laufzeit (PA2).
 
 ### K-141 Fehlerorte mit Datei, Host-ABI v2 (inkl. Küchenbericht), Standard-Argumente im Modul
 - **Entscheidung (PROJEKTE.md §2.6, §2.8):** `fehler`/`warnung` tragen **immer** `datei` (direkt vor `zeile`), `null` bei Programmen aus
@@ -1954,7 +1955,9 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   pkarton bleibt **ein** Modul (Dateitabelle und Kiste im Datensegment). Standard-Argumente aus `pizza.json` bettet der Compiler ein;
   die Laufzeit nimmt sie bei 0 Host-Argumenten (sonst wüsste die EXE sie nicht – Browser = nativ).
 - **Verworfen:** Datei immer im Text (alle Testdateien neu), Dateiindex + Tabelle in einer Custom Section (jeder Host bräuchte einen Leser).
-- **Betroffen:** SPEC §2.6; ARCHITEKTUR §1; HOST-ABI §1–§4, §7–§9, Anhang A; WASM §4; alle Hosts. **Status:** offen (PA1/PA2, U-73/U-75).
+- **Betroffen:** SPEC §2.6; ARCHITEKTUR §1; HOST-ABI §1–§4, §7–§9, Anhang A; WASM §4; alle Hosts. **Status:** fest; Feld `datei`,
+  Ananas-Ortstext und Hüllen-Regel in Interpreter und CLI umgesetzt (PA1, U-73 ✅; Datei-Index am Knoten heißt `di`); offen HOST-ABI v2,
+  Küchenbericht und Standard-Argumente im Modul (PA2, U-75).
 
 ### K-142 Playground-Projekte: IndexedDB, ein Projekt je Fenster, Migration der Tabs, ZIP
 - **Entscheidung (Nutzer F11, F12; PROJEKTE.md §3):** Projekte (Dateien inkl. Binärdaten, Teigling-Cache) in **IndexedDB** `pizza`;
@@ -1981,7 +1984,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Ordner sein (`tests/faelle/<name>/` + `pruefung/`), neu optional `pruefung/orte` (JSON-Lines `{code, datei, zeile, spalte}`); bestehende
   Ein-Datei-Fälle bleiben. Prüfstand: `code` darf ein Projekt sein. Pizza-Imperium zieht erst nach „Idle frei“ um (bis dahin liest die
   Galerie `datei` **oder** `ordner`).
-- **Betroffen:** ARCHITEKTUR §3, §6; Harnische; `scripts/beispiele.js` (neu). **Status:** offen (PA1/PB3/PB5, U-73/U-79).
+- **Betroffen:** ARCHITEKTUR §3, §6; Harnische; `scripts/beispiele.js` (neu). **Status:** fest; Ordner-Fälle in `tests/run-tests.js`
+  und Projekt-Fälle im Prüfstand umgesetzt (PA1, U-73 ✅); offen Beispiele als Ordner (PB3/PB5, U-79).
 
 ### K-145 Bilddateien: `Bildchen.laden`, PNG/JPEG nur als Eingabe, Vorbacken beim Packen, Caching, Datensegment (ergänzt K-136)
 - **Entscheidung (Nutzer F15; PROJEKTE.md §5):** `Bildchen.laden("bilder/x.png")` lädt PNG/JPEG aus der Kiste als eigene Textur mit
@@ -2170,7 +2174,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-70 ✅ | `tests/differenz/**`, `tests/fuzz/**`, `e2e/**`, `pruefstand/run.js` (Harnisch-Agents, P6) | K-099/K-100: Köche-Varianten, Chaos-Planung, Fuzz-Produktionen `brigade`, Feld `koeche` ignorieren; Prüfstand optional Feld `koeche` durchreichen – erledigt, Entscheidungen K-104 Punkt 14 | tests/fuzz, tests/differenz, e2e |
 | U-71 ✅ | `site/beispiele/idle/erste-pizzeria.ui-erwartet` (Idle-Agent) | erledigt: Beispiel auf `Zettel`/`binde` umgestellt (Kasse, Pizzen pro Klick, Teigschaber als Zettel; Texte und `kaufen:aktiv` gebunden; Rückrufe setzen nur Zettel, kein `zeige()` mehr); `.ui-erwartet` aus echtem Lauf neu erzeugt (18/18 Nachrichten, `fenster`/`baum` gleich, in `aendere` entfallen nur Einträge mit unverändertem Wert), `.erwartet`/`.ereignisse` unverändert | Prüfstand Beispiele, E2E „Alle Beispiele“ |
 | U-72 ✅ | `site/js/pizza.js` (`MATHE_M`), `tests/wasm/laufzeit-zahlen.js` | K-137 Folge für K-111: `log`/`log10`/`log2`/`exp` im Interpreter von `Math.*` auf einen fdlibm-Port wie `WINKEL` umstellen (Vorlage `laufzeit/src/zahl.rs`), weil Chrome 156 andere Bits liefert als Node 22 und die Wasm-Laufzeit – erledigt: Port `LOGEXP` in `pizza.js` (`intern.LOGEXP`), `laufzeit-zahlen.js` 264 664 Bitvergleiche Wasm == Port == `Math.*` (Node 22), 0 Abweichungen; Gegenprobe headless Chrome 155 vs. Node 22 über 100 022 Eingaben × 4: Port 0 Abweichungen (`Math.*` dort: log 207, log10 5086, log2 13, exp 4071) | `laufzeit-zahlen.js`: Wasm == Port == `Math.*` (Node 22) |
-| U-73 | `site/js/pizza.js`, `bin/pizza.js`, `tests/run-tests.js`, `tests/faelle/*/` (PROJEKTE.md **PA1**) | K-138 … K-141, K-144: `projekt.lade/ausDateien/pruefePfad`, `bestellt`, Ladereihenfolge, P0014 … P0019, P0020 (Grenzen), W0004, Textnormalisierung, Feld `datei`, `warnSet` mit Datei, Ananas-Ortstext, CLI mit Ordnern, Ordner-Fälle; danach die grünen Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` **verschieben** (Kiste/Bild-Fälle bleiben bis PD2 offen) | a19 (Lader-Fälle) |
+| U-73 ✅ | `site/js/pizza.js`, `bin/pizza.js`, `tests/run-tests.js`, `tests/faelle/*/` (PROJEKTE.md **PA1**; erledigt, Präzisierungen PROJEKTE §11) | K-138 … K-141, K-144: `projekt.lade/ausDateien/pruefePfad`, `bestellt`, Ladereihenfolge, P0014 … P0019, P0020 (Grenzen), W0004, Textnormalisierung, Feld `datei`, `warnSet` mit Datei, Ananas-Ortstext, CLI mit Ordnern, Ordner-Fälle; danach die grünen Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` **verschieben** (Kiste/Bild-Fälle bleiben bis PD2 offen) | a19 (Lader-Fälle) |
 | U-74 | `durchreiche/**`, compose, nginx, Dockerfile, README (PROJEKTE.md **PC1**) | K-143: Dienst, Unit-Tests in `npm test`, hastebin/redis entfernen | `node --test durchreiche/test` |
 | U-75 | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
 | U-76 | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll | `npm --prefix ui test`, e2e |

@@ -141,19 +141,43 @@ function fehlerZusammenfassung(r) {
 }
 
 // ---------------------------------------------------------------------
-// 1. Eigene Fälle: tests/faelle/*.pizza
+// 1. Eigene Fälle: tests/faelle/*.pizza und Ordner-Fälle tests/faelle/<name>/ (Projekt + pruefung/, ARCHITEKTUR §6, K-144)
 // ---------------------------------------------------------------------
+const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
+// Projektordner → Dateisammlung (wie bin/pizza.js: alles außer pruefung/, Texte streng UTF-8 mit \n, sonst Bytes)
+function projektAusOrdner(wurzel) {
+  const dateien = {};
+  (function geh(abs, rel) {
+    for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if (r !== 'pruefung') geh(path.join(abs, e.name), r); continue; }
+      const b = fs.readFileSync(path.join(abs, e.name));
+      dateien[r] = TEXT_ENDUNG.test(r) ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(b).replace(/\r\n/g, '\n') : new Uint8Array(b);
+    }
+  })(wurzel, '');
+  return { dateien };
+}
+
 function faelle() {
   const dir = path.join(__dirname, 'faelle');
   console.log(fett('\n▶ Eigene Fälle (tests/faelle)'));
   gruppe('faelle');
   if (!fs.existsSync(dir)) { console.log(gelb('  Ordner fehlt.')); return; }
-  const dateien = fs.readdirSync(dir).filter(x => x.endsWith('.pizza')).sort();
+  const eintraege = fs.readdirSync(dir, { withFileTypes: true });
+  const dateien = eintraege.filter(x => x.isFile() && x.name.endsWith('.pizza')).map(x => x.name)
+    .concat(eintraege.filter(x => x.isDirectory()).map(x => x.name + '/')).sort();
   for (const d of dateien) {
-    const basis = d.slice(0, -6);
+    const ordner = d.endsWith('/');
+    const basis = ordner ? d.slice(0, -1) : d.slice(0, -6);
     if (!passt(basis)) continue;
-    const lies = (endung) => { const p = path.join(dir, basis + endung); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
-    const quelle = lies('.pizza');
+    // Begleitdateien: <name>.erwartet … bzw. im Ordner-Fall <name>/pruefung/erwartet …
+    const lies = (endung) => {
+      const p = ordner ? path.join(dir, basis, 'pruefung', endung.slice(1)) : path.join(dir, basis + endung);
+      return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+    };
+    let quelle;
+    try { quelle = ordner ? projektAusOrdner(path.join(dir, basis)) : lies('.pizza'); }
+    catch (e) { ergebnis('faelle', basis, 'Ordner nicht lesbar: ' + (e && e.message)); continue; }
     const erwartet = lies('.erwartet');
     const exitDatei = lies('.exitcode');
     const warnDatei = lies('.warnungen');
@@ -201,6 +225,16 @@ function faelle() {
       const ist = r.ereignisse.filter(e => e.typ === 'fehler').map(e => e.text).join('\n');
       if (norm(fehlerDatei) !== norm(ist)) probleme.push('Fehler-Ereignis weicht ab:\n' + diff(fehlerDatei, ist));
     }
+    // pruefung/orte (K-144): je fehler/warnung { code, datei, zeile, spalte } als JSON-Lines, in Reihenfolge
+    const orteDatei = ordner ? lies('.orte') : null;
+    if (orteDatei !== null) {
+      const soll = jsonZeilen(orteDatei, basis + '/pruefung/orte').map(o => JSON.stringify({ code: o.code, datei: o.datei, zeile: o.zeile, spalte: o.spalte }));
+      const ist = r.ereignisse.filter(e => e.typ === 'fehler' || e.typ === 'warnung').map(e => JSON.stringify({ code: e.code, datei: e.datei, zeile: e.zeile, spalte: e.spalte }));
+      if (soll.join('\n') !== ist.join('\n')) probleme.push('Orte weichen ab:\n' + diff(soll.join('\n'), ist.join('\n')));
+    }
+    if (r.ereignisse.some(e => (e.typ === 'fehler' || e.typ === 'warnung') && Object.keys(e).indexOf('datei') !== Object.keys(e).indexOf('zeile') - 1)) {
+      probleme.push('Feld datei fehlt oder steht nicht direkt vor zeile (SPEC §2.6).');
+    }
     const ende = r.ereignisse[r.ereignisse.length - 1];
     if (!ende || ende.typ !== 'ende' || ende.exitCode !== r.exitCode) probleme.push('Letztes Ereignis ist nicht "ende" mit passendem Exit-Code.');
     ergebnis('faelle', basis + grau(' (' + (Date.now() - t0) + ' ms)'), probleme.join('\n') || null);
@@ -219,6 +253,55 @@ function api() {
     if (JSON.stringify(ist) !== JSON.stringify(soll)) throw new Error((was || 'Wert') + ': erwartet ' + JSON.stringify(soll) + ', bekam ' + JSON.stringify(ist));
   };
   const ja = (b, was) => { if (!b) throw new Error(was || 'Bedingung nicht erfüllt'); };
+
+  test('Projekte (PA1): projekt.lade/ausDateien/pruefePfad, Datei-Index di, Ein-Datei-Projekt = Text', () => {
+    const q = 'salami pizza = 1;\nsalami Pizza = 2;\nwirf neu LaufzeitAnanas("aus");\n';
+    gleich(P.run({ dateien: { 'hauptgang.pizza': q } }).ereignisse, P.run(q).ereignisse, 'Ein-Datei-Projekt wie Text (datei null)');
+    gleich(P.run({ dateien: { 'spiel.pizza': q, 'pizza.json': '{"pizza":1}', 'daten/a.txt': 'x' } }).ereignisse, P.run(q).ereignisse, 'einzige .pizza ist Hauptdatei');
+    const r = P.projekt.lade({ dateien: { 'hauptgang.pizza': 'bestellt "a.pizza";\nBote.sage((x));\n', 'a.pizza': 'salami x = 1;\n', 'pruefung/erwartet': '1\n' } });
+    ja(r.ok, 'lade ok');
+    gleich([r.ladeliste, r.dateien, Object.keys(r.kiste)], [['a.pizza', 'hauptgang.pizza'], ['hauptgang.pizza', 'a.pizza'], ['a.pizza', 'hauptgang.pizza']]);
+    gleich(r.ast.body.map(n => [n.k, n.di]), [['Var', 1], ['AusdrAnw', 0]], 'Verkettung in Ladereihenfolge, ohne Bestellt, di je Datei');
+    gleich(r.ast.body[0].decls[0].di, 1, 'auch Unterknoten tragen di');
+    gleich(P.parse('salami x = 1;', { datei: 3 }).ast.body[0].di, 3, 'parse(q, { datei })');
+    gleich([P.parse('x++;').ast.body[0].d, P.parse('{ salami a = 1; }').ast.body[0].d], [1, true], 'Felder d von Inc/Block bleiben unberührt');
+    // Texte: CRLF → LF, Bytes für Textdateien streng als UTF-8; Grenzen in KB/MB aufgerundet
+    gleich(P.projekt.lade({ dateien: { 'hauptgang.pizza': 'Bote.sage(("x"));\r\n', 'a.txt': 'a\r\nb\rc' } }).kiste['a.txt'], 'a\nb\rc', 'CRLF → LF');
+    gleich(P.projekt.lade({ dateien: { 'hauptgang.pizza': new Uint8Array([0xEF, 0xBB, 0xBF, 0x78, 0x3B, 0x0D, 0x0A]) } }).kiste['hauptgang.pizza'], '﻿x;\n', 'Bytes → Text, BOM bleibt');
+    gleich(P.projekt.lade({ dateien: { 'hauptgang.pizza': 'x', 'a.txt': new Uint8Array([0xC3, 0x28]) } }).fehler.text, 'PizzaFehler P0015: a.txt ist kein gültiger UTF-8-Text.');
+    const gross = (n) => 'x'.repeat(n);
+    gleich(P.projekt.lade({ dateien: { 'hauptgang.pizza': 'x;', 'a.txt': gross(2.5 * 1048576) } }).fehler.text, 'PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (a.txt hat 2,5 MB, höchstens 2 MB).');
+    const viel = { 'hauptgang.pizza': 'x;' };
+    for (let i = 0; i < 5; i++) viel['d' + i + '.txt'] = gross(1.75 * 1048576);
+    gleich(P.projekt.lade({ dateien: viel }).fehler.text, 'PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (zusammen 8,8 MB, höchstens 8 MB).');
+    gleich(P.projekt.lade({ dateien: { 'hauptgang.pizza': '// ' + 'ä'.repeat(300 * 1024) } }).fehler.text, 'PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (hauptgang.pizza hat 601 KB, höchstens 512 KB).', 'UTF-8-Bytes zählen');
+    // ausDateien: Hauptdatei-Regel, Name, args; Begleitfeld hauptdatei (CLI-Datei, PROJEKTE §1.5) hat Vorrang
+    gleich(P.projekt.ausDateien({ 'welt/spiel.pizza': '' }).name, 'spiel');
+    gleich(P.projekt.lade({ dateien: { 'pizza.json': '{"pizza":1,"hauptdatei":"a.pizza"}', 'a.pizza': 'Bote.sage(("a"));', 'b.pizza': 'Bote.sage(("b"));' }, hauptdatei: 'b.pizza' }).hauptdatei, 'b.pizza');
+    gleich(P.projekt.ausDateien({ 'pizza.json': '{"pizza":1,"args":"x"}' }).fehler.text, 'PizzaFehler P0015: pizza.json ist ungültig: "args" muss ein Blech aus Texten sein.');
+    gleich(P.projekt.ausDateien({ 'pizza.json': '{"pizza":1.5}' }).fehler.text, 'PizzaFehler P0015: pizza.json ist ungültig: "pizza" muss eine Ganzzahl sein.');
+    gleich(P.projekt.ausDateien({ 'pizza.json': '{"pizza":1,"name":"' + 'n'.repeat(81) + '"}' }).fehler.text, 'PizzaFehler P0015: pizza.json ist ungültig: "name" ist zu lang.');
+    gleich([P.projekt.pruefePfad('a/b.pizza'), typeof P.projekt.pruefePfad('A.pizza'), typeof P.projekt.pruefePfad(5)], [null, 'string', 'string']);
+    // Fehler im Text-Programm ohne Datei, im Mehrdatei-Programm mit Datei; Warnungen einmal je Code + Datei + Zeile + Spalte
+    const t = P.run('salami x = 1\n').ereignisse[0];
+    gleich([t.art, t.datei, t.zeile], ['syntax', null, 1]);
+    const m = P.run({ dateien: { 'hauptgang.pizza': 'bestellt "a.pizza";\nsalami y = 1\n', 'a.pizza': 'salami x = 1;' } }).ereignisse[0];
+    gleich([m.art, m.datei, m.zeile], ['syntax', 'hauptgang.pizza', 2]);
+    const pfad = P.run({ dateien: { 'hauptgang.pizza': 'bestellt "A.pizza";\n' } }).ereignisse[0];
+    gleich([pfad.code, pfad.art, pfad.datei], ['P0015', 'syntax', 'hauptgang.pizza'], 'ungültiger Pfad im bestellt: schon beim Parsen');
+  });
+
+  test('Projekte (PA1): Wasm-Motor lehnt Projekte und bestellt klar ab, Pizzaiolo.run fällt auf den Interpreter zurück', () => {
+    let Z;
+    try { Z = require(path.join(ROOT, 'site', 'js', 'pizzaiolo.js')); } catch (e) { return; }
+    const proj = { dateien: { 'hauptgang.pizza': 'bestellt "a.pizza";\nBote.sage((x));\n', 'a.pizza': 'salami x = 7;\n' } };
+    const k = Z.kompiliere(proj);
+    ja(!k.ok && k.nichtUnterstuetzt && /PA2/.test(k.nichtUnterstuetzt[0].grund), 'kompiliere(Projekt) → nichtUnterstuetzt');
+    const kb = Z.kompiliere('bestellt "a.pizza";\nBote.sage(("x"));\n');
+    ja(!kb.ok && kb.nichtUnterstuetzt && /bestellt/.test(kb.nichtUnterstuetzt[0].grund), 'kompiliere(Text mit bestellt) → nichtUnterstuetzt');
+    const r = Z.run(proj, {});
+    gleich([r.motor, r.exitCode, r.ereignisse.filter(e => e.typ === 'ausgabe').map(e => e.text)], ['interpreter', 0, ['7']]);
+  });
 
   test('Konstanten der API', () => {
     gleich(P.version, '3.1.0', 'version');
@@ -421,7 +504,7 @@ function api() {
   test('Herd: Kern fehlt → fehler HOST (intern), Exit 2, vor dem Start', () => {
     const r = P.run('Bote.sage(("vorher"));\nHerd h = neu Herd();', { herdKern: new Uint8Array([0, 1, 2]) });
     gleich(r.exitCode, 2);
-    gleich(r.ereignisse.filter(e => e.typ !== 'ende'), [{ typ: 'fehler', code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).', zeile: null, spalte: null }]);
+    gleich(r.ereignisse.filter(e => e.typ !== 'ende'), [{ typ: 'fehler', code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).', datei: null, zeile: null, spalte: null }]);
     const ohne = P.run('Bote.sage(("ok"));', { herdKern: new Uint8Array([0, 1, 2]) });
     gleich(ohne.exitCode, 0, 'Programme ohne Herd brauchen den Kern nicht');
   });
@@ -894,6 +977,39 @@ function cli() {
     gleich(fs.readdirSync(ordner).sort(), ['Fremd', 'spiel'], 'leerer Raum-Ordner entfernt, fremder Ordner und nicht leerer Raum bleiben');
     gleich(fs.readdirSync(path.join(ordner, 'spiel')), ['notiz.txt']);
     gleich(fs.readdirSync(path.join(ordner, 'Fremd')), ['a.json'], 'ungültiger Raumname wird nicht angefasst');
+  });
+
+  test('Projekte (PA1): Ordner, pizza.json, Datei mit bestellt; Orte mit Datei (SPEC §2.6)', () => {
+    const wurzel = path.join(tmp, 'teigball');
+    const schreibe = (rel, text) => { const p = path.join(wurzel, ...rel.split('/')); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); return p; };
+    schreibe('pizza.json', '{ "pizza": 1, "args": ["Gina"] }');
+    const haupt = schreibe('hauptgang.pizza', 'bestellt "welt/ofen.pizza";\r\nspeisekarte klasse S {\r\n  speisekarte tiefkühl leer hauptgang(Blech<margherita> args) { Bote.sage(("Hallo " + args.verbinde(","))); heize(); }\r\n}\r\n');
+    schreibe('welt/ofen.pizza', 'leer heize() {\n  salami q = 1; salami Q = 2;\n  wirf neu LaufzeitAnanas("heiß");\n}\n');
+    schreibe('pruefung/erwartet', 'gehört nicht zum Programm');
+    schreibe('notiz.docx', 'fremde Dateiart');
+    schreibe('README.md', 'Großbuchstaben: kein Projektpfad');
+    schreibe('.vscode/settings.json', '{}');
+    const r = lauf(['--kein-vorrat', '--saat=1', wurzel]);
+    gleich([r.code, r.out], [1, 'Hallo Gina\n']);
+    gleich(r.err, 'Hinweis: README.md wird ignoriert (kein gültiger Projektpfad: nur a–z, 0–9, -, _, . und /).\n' +
+      'Hinweis: notiz.docx wird ignoriert (Projektdateien: .pizza, .png, .jpg, .txt, .json, .csv, .md).\n' +
+      "W0032: 'q' und 'Q' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden. (welt/ofen.pizza, Zeile 2, Spalte 24)\n" +
+      'Ungefangene Ananas – LaufzeitAnanas: heiß (welt/ofen.pizza, Zeile 3, Spalte 3)\n');
+    gleich(lauf(['--kein-vorrat', '--saat=1', path.join(wurzel, 'pizza.json'), 'Toni']).out, 'Hallo Toni\n', 'pizza.json als Ziel, übergebene Argumente haben Vorrang');
+    gleich(lauf(['--kein-vorrat', '--saat=1', haupt]).out, 'Hallo Gina\n', 'Datei im Projekt → Wurzel mit pizza.json');
+    const a = lauf(['--ast', wurzel]);
+    gleich([a.code, JSON.parse(a.out).ladeliste], [0, ['welt/ofen.pizza', 'hauptgang.pizza']], '--ast mit Ladeliste');
+    // ohne pizza.json: nur die Datei und die per bestellt erreichten Dateien
+    const lose = path.join(tmp, 'lose');
+    fs.mkdirSync(path.join(lose, 'teile'), { recursive: true });
+    fs.writeFileSync(path.join(lose, 'start.pizza'), 'bestellt "teile/zahl.pizza";\nBote.sage((ZAHL));\nwirf neu LaufzeitAnanas("Ende");\n');
+    fs.writeFileSync(path.join(lose, 'teile', 'zahl.pizza'), 'salami ZAHL = 42;\n');
+    fs.writeFileSync(path.join(lose, 'kaputt.pizza'), 'das ist { kein Programm');
+    const l = lauf(['--kein-vorrat', '--saat=1', path.join(lose, 'start.pizza')]);
+    gleich([l.code, l.out, l.err], [1, '42\n', 'Ungefangene Ananas – LaufzeitAnanas: Ende (start.pizza, Zeile 3, Spalte 1)\n']);
+    fs.writeFileSync(path.join(lose, 'pizza.json'), '{ pizza: 1');
+    const j = lauf(['--kein-vorrat', '--saat=1', lose]);
+    gleich([j.code, j.err], [2, 'PizzaFehler P0015: pizza.json ist ungültig: kein gültiges JSON. (pizza.json)\n']);
   });
 
   for (const [name, fn] of tests) {

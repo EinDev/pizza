@@ -23,6 +23,7 @@ const ABSCHNITTE = [
   'lexer.js',
   'parser.js',
   'analyse.js',             // Warnungen vor dem Start (W0666, W0032)
+  'projekt.js',             // Projekte: Pfade, pizza.json, gemeinsamer Lader (SPEC §2)
   'laufzeit/werte.js',      // Werteklassen, Signale, Scopes, Textformen
   'laufzeit/kern.js',       // class Laufzeit (Konstruktor, Hilfen, Start, Ende) + laufzeitTeil
   'laufzeit/pruefung.js',   // registriere, Startprüfungen

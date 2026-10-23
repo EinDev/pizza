@@ -1,0 +1,5 @@
+// Ordner-Fall: Ananas in einer Nebendatei – Text und Feld datei nennen die Nebendatei (SPEC §2.6)
+bestellt "welt/ofen.pizza";
+
+Bote.sage(("vorher"));
+heize(3);

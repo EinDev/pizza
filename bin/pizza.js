@@ -2,6 +2,10 @@
 /*
  * pizza CLI
  *   node bin/pizza.js datei.pizza [args…]
+ *   node bin/pizza.js ordner/ [args…]  bzw.  node bin/pizza.js ordner/pizza.json [args…]   (Projekt, PROJEKTE §1.5, §2.9)
+ *     Ordner/pizza.json → alle Dateien unter der Wurzel außer pruefung/; Datei → Wurzel = nächster Ordner aufwärts mit
+ *     pizza.json (höchstens 8 Ebenen), die Datei ist die Hauptdatei; ohne pizza.json nur die Datei und die per bestellt
+ *     erreichten .pizza-Dateien (kein ungefragtes Durchsuchen des Ordners). Textdateien: UTF-8 (streng), CRLF → LF.
  *   node bin/pizza.js [optionen] [--] datei.pizza [--] [args…]   (`--` = Ende der Optionen, Rest unverändert an hauptgang)
  *   node bin/pizza.js --ast datei.pizza
  *   node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <kennung> (eine Kammer, ohne Programm; auch raum/name)
@@ -69,6 +73,7 @@ for (let i = 0; i < roh.length; i++) {
 
 function hilfe() {
   console.log('pizza ' + P.version + '\n\nAufruf:\n  node bin/pizza.js [--ast] [--info] [--schritte=N] [--saat=N] [--vorrat=ordner | --kein-vorrat] [--eingabe datei] datei.pizza [--] [args…]' +
+    '\n  node bin/pizza.js [optionen] ordner/ | ordner/pizza.json [--] [args…]   (Projekt aus mehreren Dateien)' +
     '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen <kennung>   (Kennung: name oder raum/name)' +
     '\n  node bin/pizza.js [--vorrat=ordner] --vorrat-loeschen-alle' +
     '\n\n  --   Ende der Optionen: alles danach geht unverändert an hauptgang(args),' +
@@ -136,19 +141,95 @@ function vorratStandardOrdner() {
   return path.join(basis, 'pizza', 'vorrat');
 }
 
-let quelle;
-try { quelle = fs.readFileSync(datei, 'utf8'); }
-catch (e) { console.error('Datei nicht lesbar: ' + datei + ' (' + e.message + ')'); process.exit(2); }
+// ---------- Programm laden: Datei, Ordner oder pizza.json (PROJEKTE §1.5, §2.9; SPEC §2.1) ----------
+const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
+const PROJEKT_ENDUNG = /\.(pizza|png|jpe?g|txt|json|csv|md)$/;
+const abbruch = (text) => { console.error(text); process.exit(2); };
+// Textdateien an der Projektgrenze: streng UTF-8 (BOM bleibt), \r\n → \n; alles andere als Bytes
+function liesProjektDatei(abs, rel) {
+  let b;
+  try { b = fs.readFileSync(abs); } catch (e) { abbruch('Datei nicht lesbar: ' + abs + ' (' + e.message + ')'); }
+  if (!TEXT_ENDUNG.test(rel)) return new Uint8Array(b.buffer, b.byteOffset, b.length);
+  let t;
+  try { t = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(b); } catch (e) { abbruch(rel + ' ist kein gültiger UTF-8-Text.'); }
+  return t.replace(/\r\n/g, '\n');
+}
+// alle Dateien unter der Wurzel außer pruefung/ (rekursiv, höchstens 8 Ebenen); fremde Dateiarten mit Hinweis übergehen
+function sammleOrdner(wurzel) {
+  const dateien = {};
+  const geh = (abs, rel, tiefe) => {
+    let eintraege;
+    try { eintraege = fs.readdirSync(abs, { withFileTypes: true }); } catch (e) { abbruch('Ordner nicht lesbar: ' + abs + ' (' + e.message + ')'); }
+    eintraege.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    for (const e of eintraege) {
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.name.startsWith('.')) continue;   // versteckt (.git, .vscode, .DS_Store) – nie ein gültiger Projektpfad
+      // Nicht-.pizza-Dateien mit ungültigem Namen (README.md, Bilder/…) übergehen; eine .pizza-Datei meldet der Lader (P0015)
+      if (e.isFile() && !e.name.endsWith('.pizza') && P.projekt.pruefePfad(r) !== null) { process.stderr.write('Hinweis: ' + r + ' wird ignoriert (kein gültiger Projektpfad: nur a–z, 0–9, -, _, . und /).\n'); continue; }
+      if (e.isDirectory()) {
+        if (!rel && e.name === 'pruefung') continue;
+        if (tiefe >= 7) { process.stderr.write('Hinweis: ' + r + '/ wird ignoriert (höchstens 8 Ebenen).\n'); continue; }
+        geh(path.join(abs, e.name), r, tiefe + 1);
+      } else if (e.isFile()) {
+        if (!PROJEKT_ENDUNG.test(e.name)) { process.stderr.write('Hinweis: ' + r + ' wird ignoriert (Projektdateien: .pizza, .png, .jpg, .txt, .json, .csv, .md).\n'); continue; }
+        dateien[r] = liesProjektDatei(path.join(abs, e.name), r);
+      }
+    }
+  };
+  geh(wurzel, '', 0);
+  return dateien;
+}
+// → Text (Ein-Datei-Programm ohne bestellt: Ausgabe wie bisher) oder Projekt { dateien, hauptdatei? }
+function ladeQuelle(ziel) {
+  const abs = path.resolve(ziel);
+  let st;
+  try { st = fs.statSync(abs); } catch (e) { abbruch('Datei nicht lesbar: ' + ziel + ' (' + e.message + ')'); }
+  if (st.isDirectory()) return { dateien: sammleOrdner(abs) };
+  if (path.basename(abs) === 'pizza.json') return { dateien: sammleOrdner(path.dirname(abs)) };
+  // Datei: nächster Ordner aufwärts mit pizza.json (höchstens 8 Ebenen) ist die Wurzel, die Datei die Hauptdatei
+  let d = path.dirname(abs);
+  for (let i = 0; i <= 8; i++) {
+    if (fs.existsSync(path.join(d, 'pizza.json'))) {
+      return { dateien: sammleOrdner(d), hauptdatei: path.relative(d, abs).split(path.sep).join('/') };
+    }
+    const hoch = path.dirname(d);
+    if (hoch === d) break;
+    d = hoch;
+  }
+  const name = path.basename(abs);
+  const text = liesProjektDatei(abs, name.endsWith('.pizza') ? name : name + '.pizza');
+  const bestellungen = (t) => { const r = P.parse(t); return r.ok ? r.ast.body.filter(x => x.k === 'Bestellt').map(x => x.pfad) : []; };
+  let offen = bestellungen(text);
+  if (!offen.length) return text;
+  // ohne pizza.json: Datei + die per bestellt erreichten .pizza-Dateien (bei Bedarf gelesen), Wurzel = Ordner der Datei
+  const wurzel = path.dirname(abs), dateien = { [name]: text };
+  while (offen.length) {
+    const p = offen.shift();
+    if (Object.prototype.hasOwnProperty.call(dateien, p) || P.projekt.pruefePfad(p) !== null || !p.endsWith('.pizza')) continue;
+    const pa = path.join(wurzel, ...p.split('/'));
+    if (!fs.existsSync(pa) || !fs.statSync(pa).isFile()) continue;   // fehlt → P0015 vom Lader
+    dateien[p] = liesProjektDatei(pa, p);
+    offen = offen.concat(bestellungen(dateien[p]));
+  }
+  return { dateien, hauptdatei: name };
+}
+const quelle = ladeQuelle(datei);
 
 const tty = process.stderr.isTTY && !process.env.NO_COLOR;
 const farbe = (code, t) => tty ? '\x1b[' + code + 'm' + t + '\x1b[0m' : t;
-const pos = (e) => e.zeile != null ? ' (Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : '') + ')' : '';
-// K-083: <text> (Zeile Z, Spalte S) – steht die Zeile schon im Text (ungefangene Ananas: „… (Zeile N)“), wird sie nicht doppelt angehängt
+// K-083/SPEC §2.6: (Zeile Z, Spalte S) bzw. (<datei>, Zeile Z, Spalte S), sobald datei ≠ null; Datei ohne Zeile: (<datei>)
+const pos = (e) => {
+  const ort = [];
+  if (e.datei != null) ort.push(e.datei);
+  if (e.zeile != null) ort.push('Zeile ' + e.zeile + (e.spalte != null ? ', Spalte ' + e.spalte : ''));
+  return ort.length ? ' (' + ort.join(', ') + ')' : '';
+};
+// steht der Ort schon im Text (ungefangene Ananas: „… (Zeile N)“ bzw. „… (<pfad>, Zeile N)“), wird er nicht doppelt angehängt
 const meldungText = (e) => {
   const t = String(e.text == null ? '' : e.text);
-  if (e.zeile == null) return t;
-  const m = /\s\(Zeile (\d+)\)$/.exec(t);
-  if (m && Number(m[1]) === e.zeile) return t.slice(0, m.index) + pos(e);
+  if (e.zeile == null && e.datei == null) return t;
+  const m = /\s\((?:([^()]*), )?Zeile (\d+)\)$/.exec(t);
+  if (m && Number(m[2]) === e.zeile) return t.slice(0, m.index) + pos(e);
   return t + pos(e);
 };
 
@@ -176,9 +257,13 @@ function liesStdinZeile() {
 }
 
 if (optionen.ast) {
-  const r = P.parse(quelle);
-  if (r.ok) { process.stdout.write(JSON.stringify(r.ast, null, 2) + '\n'); process.exitCode = 0; }
-  else { console.error(farbe('1;31', r.fehler.text) + pos(r.fehler)); process.exitCode = 2; }
+  // Text: AST wie bisher; Projekt: Ladeliste, Dateien (Index = Feld di der Knoten) und das zusammengesetzte Programm
+  const r = typeof quelle === 'string' ? P.parse(quelle) : P.projekt.lade(quelle);
+  if (r.ok) {
+    const aus = typeof quelle === 'string' ? r.ast : { ladeliste: r.ladeliste, dateien: r.dateien, ast: r.ast };
+    process.stdout.write(JSON.stringify(aus, null, 2) + '\n');
+    process.exitCode = 0;
+  } else { console.error(farbe('1;31', r.fehler.text) + pos(r.fehler)); process.exitCode = 2; }
 } else {
   const runOpt = {
     args: progArgs,

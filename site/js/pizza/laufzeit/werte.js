@@ -63,8 +63,10 @@ class Scope {
   }
 }
 
-class AnanasWurf { constructor(obj, z, s) { this.obj = obj; this.zeile = z; this.spalte = s; } }
-class PizzaFehlerSig { constructor(code, text, z, s) { this.code = code; this.text = text; this.zeile = z; this.spalte = s; } }
+class AnanasWurf { constructor(obj, z, s, d) { this.obj = obj; this.zeile = z; this.spalte = s; this.d = d || 0; } }
+class PizzaFehlerSig { constructor(code, text, z, s, d) { this.code = code; this.text = text; this.zeile = z; this.spalte = s; this.d = d || 0; } }
+// Doppelmeldungs-Sperre der Warnungen: einmal je Code + Datei + Zeile + Spalte (SPEC §2.6, K-140)
+function warnSchluessel(code, d, z, s) { return code + ':' + (d || 0) + ':' + z + ':' + s; }
 class LimitSig { }
 class PanikSig { }
 class BudgetSig { constructor(frame) { this.frame = frame; } }

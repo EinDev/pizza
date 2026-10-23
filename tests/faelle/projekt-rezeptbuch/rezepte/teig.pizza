@@ -1,0 +1,12 @@
+// Nebendatei: nur Rezepte (Klassen, Funktionen, Variablen) – SPEC §2.3
+gebacken salami GRAMM = 250;
+
+klasse Teig {
+    salami gramm;
+    Teig(salami g) { gramm = g; }
+    margherita alsText() { serviere (gramm + " g Teig"); }
+}
+
+geheimrezept funghi salzAnteil() { serviere (0.02); }   // nur in dieser Datei sichtbar
+
+funghi salz(Teig t) { serviere (t.gramm * salzAnteil()); }

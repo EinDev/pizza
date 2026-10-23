@@ -1,0 +1,12 @@
+// Ordner-Fall (ARCHITEKTUR §6): Hauptdatei bestellt zwei Nebendateien; der Belag bestellt selbst den Teig.
+bestellt "rezepte/teig.pizza";
+bestellt "rezepte/belag.pizza";
+
+speisekarte klasse Pizzeria {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Teig t = neu Teig(GRAMM);
+        Bote.sage(("Für " + args.stück(1) + ": " + t + " mit " + Belag.haus()));
+        Bote.sage(("Salz: " + salz(t)));
+        Bote.sage(("Bestellungen: " + Belag.zaehler));
+    }
+}

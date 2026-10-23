@@ -225,14 +225,14 @@ class LaufzeitKueche {
         for (let j = i < 0 ? fr.length : i; j < fr.length; j++) fr[j].tot = true;
         this.neuGrenze();
       } else if (sig === 'wurfKarton') {
-        this.z = node.z; this.s = node.s;
+        this.z = node.z; this.s = node.s; this.d = node.di;
         throw this.ananas('KüchenAnanas', 'Was der Koch geworfen hat, passt in keinen Karton.');
       }
       throw sig;
     }
     // D7: Summe aller Stücke über dem Limit → P0002 am brigade-Aufruf
     if (this.schritte > this.limitBasis + this.limit) {
-      this.z = node.z; this.s = node.s;
+      this.z = node.z; this.s = node.s; this.d = node.di;
       throw new LimitSig();
     }
     return r;
@@ -241,7 +241,7 @@ class LaufzeitKueche {
   // Ein Stück i (0-basiert) in eigener Küche ausführen → Bericht; der Zustand der Hauptküche bleibt unverändert
   stueck(a, i) {
     const k = { auftrag: a, eltern: this.kueche, puffer: [], warn: new Set(), methoden: new Set(), kuehl: new Map() };
-    const emit0 = this.emit, zufall0 = this.zufallGlobal, z0 = this.z, s0 = this.s, rueck0 = this.rueck;
+    const emit0 = this.emit, zufall0 = this.zufallGlobal, z0 = this.z, s0 = this.s, d0 = this.d, rueck0 = this.rueck;
     const lief0 = this.lieferungen.length, fr = this.frames;
     this.kueche = k;
     this.emit = (ev) => { k.puffer.push({ ev, key: null, m: null }); };
@@ -261,7 +261,7 @@ class LaufzeitKueche {
         const e = this.normalisiere(e0);
         bericht.status = 'abbruch';
         if (e instanceof AnanasWurf) {
-          try { bericht.sig = new AnanasWurf(this.kartoniere(e.obj, new Map()), e.zeile, e.spalte); }
+          try { bericht.sig = new AnanasWurf(this.kartoniere(e.obj, new Map()), e.zeile, e.spalte, e.d); }
           catch (x) { if (x instanceof KartonFehler) bericht.sig = 'wurfKarton'; else throw x; }
         } else bericht.sig = e;
       }
@@ -270,10 +270,10 @@ class LaufzeitKueche {
         catch (x) {
           if (!(x instanceof KartonFehler)) throw x;
           // die Ananas entsteht in der Küche, an der Position des brigade-Aufrufs, ohne Schritte
-          this.z = a.node.z; this.s = a.node.s;
+          this.z = a.node.z; this.s = a.node.s; this.d = a.node.di;
           const w = this.ananas('KüchenAnanas', x.art + ' passt in keinen Karton – nur Werte können die Küche verlassen.');
           bericht.status = 'abbruch';
-          bericht.sig = new AnanasWurf(this.kartoniere(w.obj, new Map()), w.zeile, w.spalte);
+          bericht.sig = new AnanasWurf(this.kartoniere(w.obj, new Map()), w.zeile, w.spalte, w.d);
         }
       }
     } catch (x) {
@@ -295,7 +295,7 @@ class LaufzeitKueche {
       this.emit = emit0;
       this.zufallGlobal = zufall0;
       this.st = a.st0;
-      this.z = z0; this.s = s0;
+      this.z = z0; this.s = s0; this.d = d0;
       this.rueck = rueck0;
       this.schritte = a.S0; this.offset = a.off0;
       this.instanzen = a.N0; this.lieferNr = a.L0;

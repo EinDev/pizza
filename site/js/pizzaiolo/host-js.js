@@ -121,8 +121,9 @@
       schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
       fehlerausgabe: (p, n) => emit({ typ: 'fehlerausgabe', text: t(p, n) }),
       leeren: () => emit({ typ: 'leeren' }),
-      warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
-      fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a] || 'ananas', text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
+      // ABI v1 kennt keine Datei → datei: null (Ein-Datei-Programme; Projekte kompiliert erst PROJEKTE PA2 mit ABI v2, SPEC §2.6)
+      warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
+      fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a] || 'ananas', text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
       panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
       eingabe: (art, pp, pn, bp, kap) => {
         if (art === 2) {
@@ -213,7 +214,7 @@
       // Gruppe herd (HOST-ABI §2): Kern da? (pflicht = 1 und fehlt → HOST-Fehler wie im Interpreter, K-128)
       herd_kern: (pflicht) => {
         if (kern !== null) return 1;
-        if (pflicht === 1) emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+        if (pflicht === 1) emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
         return 0;
       },
       // Kopierweg (selten: Texte, Listen, Hashes): Programm-Speicher ↔ Kern-Speicher
@@ -266,7 +267,7 @@
       if (![0, 1, 2, 3, 39].includes(exitCode)) throw new Error('unerwarteter Exit-Code ' + exitCode);
     } catch (x) {
       if (typeof process !== 'undefined' && process.env && process.env.PIZZAIOLO_DEBUG) console.error(x && x.stack);
-      emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(x && x.message) });
+      emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: String(x && x.message) });
       exitCode = 1;
     }
     const schritte = e.schritte();

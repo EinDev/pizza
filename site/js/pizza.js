@@ -197,6 +197,7 @@
     constructor(q, toks) {
       this.q = q; this.t = toks; this.p = 0; this.keinLambda = false;
       this.ks = { schleife: false, waehle: false };
+      this.generika = new Set();   // Namen aus Typparameter-Listen (<T>) – für die Sichtbarkeitsprüfung des Laders (SPEC §2.4)
     }
     get c() { return this.t[this.p]; }
     sieh(o) { const i = this.p + o; return this.t[i < this.t.length ? i : this.t.length - 1]; }
@@ -249,6 +250,14 @@
           const w = this.nimm().v;
           while (!this.istOp(';') && this.c.t !== 'eof') this.p++;
           this.erwarteSemi('nach \'' + w + '\'');
+          continue;
+        }
+        // SPEC §2.2: `bestellt "<pfad>";` – kontextuell (Bezeichner + Textliteral ist sonst nie gültig), nur auf oberster Ebene
+        if (this.c.t === 'name' && this.c.v === 'bestellt' && this.sieh(1).t === 'text') {
+          const tok = this.nimm(), pt = this.nimm();
+          if (pruefePfad(pt.v) !== null) throw new SyntaxFehler(pfadFehlerText(pt.v), tok.z, tok.s, 'P0015');
+          this.erwarteSemi('nach \'bestellt\'');
+          body.push({ k: 'Bestellt', pfad: pt.v, z: tok.z, s: tok.s });
           continue;
         }
         body.push(this.oberstes());
@@ -327,6 +336,7 @@
         if (k.t === 'eof') this.fehler('Typparameter-Liste wird nicht geschlossen', k);
         if (k.t === 'op' && k.v === '<') tiefe++;
         else if (k.t === 'op' && k.v === '>') tiefe--;
+        else if (k.t === 'name') this.generika.add(k.v);
       } while (tiefe > 0);
     }
 
@@ -535,7 +545,7 @@
         methoden.push(this.methode(an, md, mt));
       }
       this.p++;
-      return { k: 'Rezeptur', z: tok.z, s: tok.s, name: name.v, basen, methoden, mods, annos };
+      return { k: 'Rezeptur', z: tok.z, s: tok.s, name: name.v, nz: name.z, ns: name.s, basen, methoden, mods, annos };
     }
 
     quattro(annos, mods, tok) {
@@ -551,7 +561,7 @@
       }
       if (this.istOp(';')) this.p++;
       this.erwarteOp('}', 'am Ende von quattrostagioni');
-      return { k: 'Enum', z: tok.z, s: tok.s, name: name.v, werte, mods, annos };
+      return { k: 'Enum', z: tok.z, s: tok.s, name: name.v, nz: name.z, ns: name.s, werte, mods, annos };
     }
 
     // ---------- Anweisungen ----------
@@ -1059,24 +1069,37 @@
     }
   }
 
-  function parseIntern(q) {
-    const toks = lexe(q);
-    const p = new Parser(q, toks);
-    return p.programm();
+  // Datei-Index d an jeden Knoten (jedes Objekt mit Position z) schreiben – SPEC §2.6, ARCHITEKTUR §1 (iterativ: tiefe ASTs).
+  function setzeDatei(wurzel, d) {
+    const stapel = [wurzel];
+    while (stapel.length) {
+      const n = stapel.pop();
+      if (Array.isArray(n)) { for (let i = 0; i < n.length; i++) { const x = n[i]; if (x !== null && typeof x === 'object') stapel.push(x); } continue; }
+      if (typeof n.z === 'number' || n.k === 'Programm') n.di = d;
+      for (const key in n) { const x = n[key]; if (x !== null && typeof x === 'object') stapel.push(x); }
+    }
+    return wurzel;
   }
 
-  function parse(quelltext) {
+  // Eine Datei parsen → { ast, toks, generika } (wirft SyntaxFehler/RangeError); der Lader braucht Tokens und Typparameter.
+  function parseIntern(q, d) {
+    const toks = lexe(q);
+    const p = new Parser(q, toks);
+    const ast = setzeDatei(p.programm(), d || 0);
+    return { ast, toks, generika: p.generika };
+  }
+  function syntaxFehlerAus(e) {
+    if (e instanceof SyntaxFehler) return { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte };
+    if (e instanceof RangeError) return { code: 'P0001', text: 'PizzaFehler P0001: Der Quelltext ist zu tief verschachtelt.', zeile: null, spalte: null };
+    return { code: 'P0001', text: 'PizzaFehler P0001: Interner Parserfehler: ' + (e && e.message), zeile: null, spalte: null };
+  }
+  function parse(quelltext, optionen) {
     const q = quelltext == null ? '' : String(quelltext);
+    const d = optionen && Number.isInteger(optionen.datei) && optionen.datei >= 0 ? optionen.datei : 0;
     try {
-      return { ok: true, ast: parseIntern(q) };
+      return { ok: true, ast: parseIntern(q, d).ast };
     } catch (e) {
-      if (e instanceof SyntaxFehler) {
-        return { ok: false, fehler: { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte } };
-      }
-      if (e instanceof RangeError) {
-        return { ok: false, fehler: { code: 'P0001', text: 'PizzaFehler P0001: Der Quelltext ist zu tief verschachtelt.', zeile: null, spalte: null } };
-      }
-      return { ok: false, fehler: { code: 'P0001', text: 'PizzaFehler P0001: Interner Parserfehler: ' + (e && e.message), zeile: null, spalte: null } };
+      return { ok: false, fehler: syntaxFehlerAus(e) };
     }
   }
 
@@ -1088,10 +1111,13 @@
   // STATISCHE ANALYSE (Warnungen vor dem Start: W0666, W0032)
   // =====================================================================
 
-  function analysiere(ast) {
+  // rang: Datei-Index → Position in der Ladeliste (Projekte, SPEC §14.8); ohne rang zählt nur die Position (eine Datei).
+  function analysiere(ast, rang) {
     const warn = [];
     let hawaii = null;
-    const merke = (z, s) => { if (!hawaii || z < hawaii.z || (z === hawaii.z && s < hawaii.s)) hawaii = { z, s }; };
+    const r = (d) => (rang ? rang[d || 0] : 0);
+    const frueher = (a, b) => r(a.d) - r(b.d) || a.z - b.z || a.s - b.s;
+    const merke = (n) => { const o = { z: n.z, s: n.s, d: n.di || 0 }; if (!hawaii || frueher(o, hawaii) < 0) hawaii = o; };
     const gemergt = new Set();
     const pruefe = (namen) => {
       const gesehen = new Set();
@@ -1102,7 +1128,7 @@
             const key = a.name + '\u0000' + b.name;
             if (gesehen.has(key)) continue;
             gesehen.add(key);
-            warn.push({ code: 'W0032', text: 'W0032: \'' + a.name + '\' und \'' + b.name + '\' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.', zeile: b.z, spalte: b.s });
+            warn.push({ code: 'W0032', text: 'W0032: \'' + a.name + '\' und \'' + b.name + '\' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.', zeile: b.z, spalte: b.s, d: b.d || 0 });
           }
         }
       }
@@ -1110,8 +1136,8 @@
     const declsVon = (stmts, oben) => {
       const r = [];
       for (const st of stmts) {
-        if (st.k === 'Var') for (const d of st.decls) r.push({ name: d.name, z: d.z, s: d.s });
-        else if (oben && st.k === 'Methode') r.push({ name: st.name, z: st.nz, s: st.ns });
+        if (st.k === 'Var') for (const d of st.decls) r.push({ name: d.name, z: d.z, s: d.s, d: d.di });
+        else if (oben && st.k === 'Methode') r.push({ name: st.name, z: st.nz, s: st.ns, d: st.di });
       }
       return r;
     };
@@ -1120,31 +1146,31 @@
       if (!n || typeof n !== 'object') return;
       if (Array.isArray(n)) { for (const x of n) geh(x); return; }
       switch (n.k) {
-        case 'Typ': if (n.name === 'hawaii') merke(n.z, n.s); break;
+        case 'Typ': if (n.name === 'hawaii') merke(n); break;
         case 'Programm': pruefe(declsVon(n.body, true)); break;
         case 'Block': if (!gemergt.has(n)) pruefe(declsVon(n.body, false)); break;
         case 'Methode': case 'Ktor': case 'Lambda':
-          pruefe(n.params.map(p => ({ name: p.name, z: p.z, s: p.s })).concat(blockNamen(n.body)));
+          pruefe(n.params.map(p => ({ name: p.name, z: p.z, s: p.s, d: p.di })).concat(blockNamen(n.body)));
           break;
-        case 'FuerJedes': pruefe([{ name: n.name, z: n.nz, s: n.ns }].concat(blockNamen(n.body))); break;
+        case 'FuerJedes': pruefe([{ name: n.name, z: n.nz, s: n.ns, d: n.di }].concat(blockNamen(n.body))); break;
         case 'Fuer': {
-          const ns = n.init && n.init.k === 'Var' ? n.init.decls.map(d => ({ name: d.name, z: d.z, s: d.s })) : [];
+          const ns = n.init && n.init.k === 'Var' ? n.init.decls.map(d => ({ name: d.name, z: d.z, s: d.s, d: d.di })) : [];
           pruefe(ns.concat(blockNamen(n.body)));
           break;
         }
         case 'Klasse': {
           const ns = [];
-          for (const f of n.felder) for (const d of f.decls) ns.push({ name: d.name, z: d.z, s: d.s });
-          for (const m of n.methoden) ns.push({ name: m.name, z: m.nz, s: m.ns });
+          for (const f of n.felder) for (const d of f.decls) ns.push({ name: d.name, z: d.z, s: d.s, d: d.di });
+          for (const m of n.methoden) ns.push({ name: m.name, z: m.nz, s: m.ns, d: m.di });
           pruefe(ns);
           break;
         }
         case 'Probier':
-          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns }].concat(blockNamen(f.block)));
+          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns, d: f.di }].concat(blockNamen(f.block)));
           break;
         case 'Ofen':
-          if (n.roh) pruefe([{ name: n.roh.name, z: n.roh.nz, s: n.roh.ns }].concat(blockNamen(n.roh.block)));
-          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns }].concat(blockNamen(f.block)));
+          if (n.roh) pruefe([{ name: n.roh.name, z: n.roh.nz, s: n.roh.ns, d: n.roh.di }].concat(blockNamen(n.roh.block)));
+          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns, d: f.di }].concat(blockNamen(f.block)));
           break;
       }
       for (const key in n) {
@@ -1153,9 +1179,366 @@
       }
     };
     geh(ast);
-    warn.sort((a, b) => a.zeile - b.zeile || a.spalte - b.spalte);
-    if (hawaii) warn.unshift({ code: 'W0666', text: 'W0666: Typ \'hawaii\' gefunden. Der Pizzaiolo sagt nichts. Er schaut nur.', zeile: hawaii.z, spalte: hawaii.s });
+    warn.sort((a, b) => r(a.d) - r(b.d) || a.zeile - b.zeile || a.spalte - b.spalte);
+    if (hawaii) warn.unshift({ code: 'W0666', text: 'W0666: Typ \'hawaii\' gefunden. Der Pizzaiolo sagt nichts. Er schaut nur.', zeile: hawaii.z, spalte: hawaii.s, d: hawaii.d });
     return warn;
+  }
+
+  // ══════════ site/js/pizza/projekt.js ══════════
+  // pizza-Interpreter · Projekte: Dateisammlung, Pfade, pizza.json, gemeinsamer Lader (SPEC §2.1 … §2.6, K-138 … K-141)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+  //
+  // PizzaLang.projekt.lade ist DER Lader für alle Motoren (Interpreter jetzt, Compiler ab PROJEKTE PA2): pizza.json,
+  // Pfade, Textnormalisierung, Tiefensuche über `bestellt`, Grenzen und die konservativen Projektprüfungen
+  // P0014 … P0020 und W0004 in der Reihenfolge von SPEC §2.5. Ergebnis ist EIN Programm (Verkettung in Ladereihenfolge),
+  // jeder Knoten mit Datei-Index d (dateien[0] = Hauptdatei).
+
+  // =====================================================================
+  // PROJEKTE
+  // =====================================================================
+
+  const PROJEKT_GRENZEN = { dateien: 100, datei: 2 * 1048576, pizza: 512 * 1024, gesamt: 8 * 1048576 };
+  const PFAD_STUECK = /^[a-z0-9_-][a-z0-9_.-]*$/;
+  const TEXT_ENDUNGEN = ['.pizza', '.txt', '.json', '.csv', '.md'];
+  const PRUEFUNG = 'pruefung/';
+  // in Nebendateien erlaubte oberste Knoten (SPEC §2.3; paket/import verwirft schon der Parser, Leer = einzelnes ';')
+  const NEBEN_ERLAUBT = new Set(['Bestellt', 'Klasse', 'Rezeptur', 'Enum', 'Methode', 'Var', 'Leer']);
+
+  // SPEC §2.1: null = gültig, sonst ein kurzer Grund (Text). Dieselbe Regel prüft die Durchreiche unabhängig.
+  function pruefePfad(pfad) {
+    if (typeof pfad !== 'string') return 'Ein Dateipfad ist ein Text.';
+    if (pfad.length === 0) return 'Der Dateipfad ist leer.';
+    if (pfad.length > 120) return 'Der Dateipfad ist länger als 120 Zeichen.';
+    const teile = pfad.split('/');
+    if (teile.length > 8) return 'Der Dateipfad hat mehr als 8 Ebenen.';
+    for (const t of teile) {
+      if (t === '') return 'Der Dateipfad hat ein leeres Stück (/ am Anfang, am Ende oder doppelt).';
+      if (!PFAD_STUECK.test(t)) return 'Erlaubt sind nur a–z, 0–9, -, _, . und / (kein Stück beginnt mit .).';
+    }
+    return null;
+  }
+  function pfadFehlerText(pfad) { return '"' + pfad + '" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).'; }
+  function istPizzaPfad(pfad) { return pfad.length > 6 && pfad.slice(-6) === '.pizza'; }
+  function istTextPfad(pfad) {
+    for (const e of TEXT_ENDUNGEN) if (pfad.length > e.length && pfad.slice(-e.length) === e) return true;
+    return false;
+  }
+  // SPEC §2.1: \r\n → \n (einzelnes \r und ein BOM bleiben); idempotent
+  function normText(t) { return t.indexOf('\r\n') < 0 ? t : t.replace(/\r\n/g, '\n'); }
+
+  // UTF-8-Länge eines Texts (wie TextEncoder: einzelne Surrogate zählen als U+FFFD = 3 Bytes) – ohne TextEncoder,
+  // damit der Lader auch im Worker-Kontext ohne Web-APIs läuft.
+  function utf8Laenge(t) {
+    let n = 0;
+    for (let i = 0; i < t.length; i++) {
+      const c = t.charCodeAt(i);
+      if (c < 0x80) n += 1;
+      else if (c < 0x800) n += 2;
+      else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < t.length && (t.charCodeAt(i + 1) & 0xFC00) === 0xDC00) { n += 4; i++; }
+      else n += 3;
+    }
+    return n;
+  }
+  // Strenges UTF-8 (wie TextDecoder fatal, ignoreBOM): ungültig → null; ein BOM bleibt als U+FEFF erhalten.
+  function utf8Text(b) {
+    let aus = '';
+    const teile = [];
+    for (let i = 0; i < b.length;) {
+      const x = b[i];
+      let cp, n;
+      if (x < 0x80) { cp = x; n = 1; }
+      else if (x >= 0xC2 && x <= 0xDF) { cp = x & 0x1F; n = 2; }
+      else if (x >= 0xE0 && x <= 0xEF) { cp = x & 0x0F; n = 3; }
+      else if (x >= 0xF0 && x <= 0xF4) { cp = x & 0x07; n = 4; }
+      else return null;
+      if (i + n > b.length) return null;
+      for (let k = 1; k < n; k++) {
+        const y = b[i + k];
+        if ((y & 0xC0) !== 0x80) return null;
+        cp = (cp << 6) | (y & 0x3F);
+      }
+      if ((n === 3 && (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF))) || (n === 4 && (cp < 0x10000 || cp > 0x10FFFF))) return null;
+      aus += String.fromCodePoint(cp);
+      if (aus.length > 8192) { teile.push(aus); aus = ''; }
+      i += n;
+    }
+    teile.push(aus);
+    return teile.join('');
+  }
+  // Größen für P0020 (SPEC §2.1): KB ganzzahlig, MB mit einer Nachkommastelle, je aufgerundet, Dezimalkomma
+  function kbText(bytes) { return Math.ceil(bytes / 1024) + ' KB'; }
+  function mbText(bytes) { const z = Math.ceil(bytes * 10 / 1048576); return Math.floor(z / 10) + ',' + (z % 10) + ' MB'; }
+
+  function ladeFehler(code, text, datei, zeile, spalte, art) {
+    return { ok: false, fehler: { code, art: art || 'pizzafehler', text: 'PizzaFehler ' + code + ': ' + text, datei: datei === undefined ? null : datei, zeile: zeile == null ? null : zeile, spalte: spalte == null ? null : spalte } };
+  }
+  function istBytes(v) { return v instanceof Uint8Array || (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(v) && !(v instanceof DataView)); }
+
+  // pizza.json auswerten (SPEC §2.1) – liefert { name, hauptdatei, args, dateien } bzw. { fehler } (P0015/HOST, Ort pizza.json).
+  // dateien: normalisierte Sammlung ohne pruefung/ (Texte als String mit \n, Bytes als Uint8Array).
+  // vorschlag: Begleitfelder der Hülle { name?, hauptdatei? } – ein ausdrücklich übergebenes hauptdatei hat Vorrang (CLI §1.5).
+  function ausDateien(dateien, vorschlag) {
+    const f = (code, text, datei) => ladeFehler(code, text, datei).fehler;
+    if (dateien === null || typeof dateien !== 'object') return { fehler: f('HOST', 'Ein Projekt braucht Dateien ({ pfad: Inhalt }).', null) };
+    vorschlag = vorschlag || {};
+    const sammlung = {};
+    for (const pfad of Object.keys(dateien).sort()) {
+      if (pfad.slice(0, PRUEFUNG.length) === PRUEFUNG) continue;
+      let v = dateien[pfad];
+      if (typeof v === 'string') { if (istTextPfad(pfad)) v = normText(v); }
+      else if (istBytes(v)) {
+        const b = v instanceof Uint8Array ? v : new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+        if (istTextPfad(pfad)) {
+          const t = utf8Text(b);
+          if (t === null) return { fehler: f('P0015', pfad + ' ist kein gültiger UTF-8-Text.', pruefePfad(pfad) === null ? pfad : null) };
+          v = normText(t);
+        } else v = b;
+      } else return { fehler: f('P0015', 'Die Datei "' + pfad + '" hat keinen Inhalt (Text oder Bytes).', null) };
+      sammlung[pfad] = v;
+    }
+    // 1. pizza.json
+    let pj = null;
+    if (Object.prototype.hasOwnProperty.call(sammlung, 'pizza.json')) {
+      const ungueltig = (grund) => ({ fehler: f('P0015', 'pizza.json ist ungültig: ' + grund + '.', 'pizza.json') });
+      const roh = sammlung['pizza.json'];
+      try { pj = JSON.parse(typeof roh === 'string' ? roh : ''); } catch (e) { return ungueltig('kein gültiges JSON'); }
+      if (pj === null || typeof pj !== 'object' || Array.isArray(pj)) return ungueltig('kein Objekt');
+      if (!Object.prototype.hasOwnProperty.call(pj, 'pizza')) return ungueltig('"pizza" fehlt');
+      if (typeof pj.pizza !== 'number' || !Number.isInteger(pj.pizza) || pj.pizza < 1) return ungueltig('"pizza" muss eine Ganzzahl sein');
+      if (pj.pizza > 1) return { fehler: f('HOST', 'Diese Projektdatei braucht eine neuere pizza-Version.', 'pizza.json') };
+      for (const [feld, max] of [['name', 80], ['hauptdatei', 120], ['beschreibung', 500]]) {
+        if (pj[feld] === undefined) continue;
+        if (typeof pj[feld] !== 'string') return ungueltig('"' + feld + '" muss ein Text sein');
+        if (feld !== 'hauptdatei' && pj[feld].length > max) return ungueltig('"' + feld + '" ist zu lang');
+      }
+      if (pj.hauptdatei !== undefined && pruefePfad(pj.hauptdatei) !== null) return { fehler: f('P0015', pfadFehlerText(pj.hauptdatei), 'pizza.json') };
+      if (pj.args !== undefined) {
+        if (!Array.isArray(pj.args) || pj.args.some(a => typeof a !== 'string')) return ungueltig('"args" muss ein Blech aus Texten sein');
+        if (pj.args.length > 32 || pj.args.some(a => a.length > 200)) return ungueltig('"args" ist zu lang');
+      }
+    }
+    // 2. Pfade der Sammlung (Bytefolge), 3. Hauptdatei
+    for (const pfad of Object.keys(sammlung)) if (pruefePfad(pfad) !== null) return { fehler: f('P0015', pfadFehlerText(pfad), null) };
+    let haupt = typeof vorschlag.hauptdatei === 'string' ? vorschlag.hauptdatei : (pj && pj.hauptdatei !== undefined ? pj.hauptdatei : null);
+    if (haupt === null) {
+      const pizzas = Object.keys(sammlung).filter(istPizzaPfad);
+      haupt = Object.prototype.hasOwnProperty.call(sammlung, 'hauptgang.pizza') || pizzas.length !== 1 ? 'hauptgang.pizza' : pizzas[0];
+    }
+    if (pruefePfad(haupt) !== null) return { fehler: f('P0015', pfadFehlerText(haupt), null) };
+    if (!Object.prototype.hasOwnProperty.call(sammlung, haupt)) return { fehler: f('P0015', 'Die Datei "' + haupt + '" gibt es im Projekt nicht.', null) };
+    if (!istPizzaPfad(haupt)) return { fehler: f('P0015', '"' + haupt + '" ist keine .pizza-Datei – bestellen kann man nur Rezepte.', null) };
+    const saeubere = (t) => t.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').slice(0, 80);
+    let name = pj && pj.name !== undefined ? pj.name : (typeof vorschlag.name === 'string' ? vorschlag.name : null);
+    if (name === null || saeubere(name) === '') name = haupt.slice(haupt.lastIndexOf('/') + 1, -6);
+    return { name: saeubere(name), hauptdatei: haupt, args: pj && pj.args ? pj.args.slice() : [], dateien: sammlung };
+  }
+
+  // Oberste Namen einer Datei (SPEC §2.4): Klassen/Rezepturen/quattrostagioni (auch verschachtelte), Funktionen, Variablen
+  function obersteNamen(body) {
+    const r = [];
+    const typ = (n, geheim) => {
+      r.push({ name: n.name, z: n.nz, s: n.ns, geheim });
+      if (n.k === 'Klasse') for (const i of n.innere) typ(i, false);
+    };
+    for (const st of body) {
+      const geheim = !!(st.mods && st.mods.indexOf('geheimrezept') >= 0);
+      if (st.k === 'Klasse' || st.k === 'Rezeptur' || st.k === 'Enum') typ(st, geheim);
+      else if (st.k === 'Methode') r.push({ name: st.name, z: st.nz, s: st.ns, geheim });
+      else if (st.k === 'Var') for (const d of st.decls) r.push({ name: d.name, z: d.z, s: d.s, geheim });
+    }
+    r.sort((a, b) => a.z - b.z || a.s - b.s);
+    return r;
+  }
+  // In einer Datei lokal gebundene Namen (Variablen in Blöcken, Parameter, Lambda-, für-, Fang-, roh-Variablen) – §2.4 (d)
+  function lokaleNamen(ast, ziel) {
+    const stapel = [ast];
+    while (stapel.length) {
+      const n = stapel.pop();
+      if (Array.isArray(n)) { for (const x of n) if (x !== null && typeof x === 'object') stapel.push(x); continue; }
+      if (n.k === 'Var') for (const d of n.decls) ziel.add(d.name);
+      else if (n.k === 'FuerJedes') ziel.add(n.name);
+      if (Array.isArray(n.params)) for (const p of n.params) ziel.add(p.name);
+      if (Array.isArray(n.faenge)) for (const fa of n.faenge) ziel.add(fa.name);
+      if (n.k === 'Ofen' && n.roh) ziel.add(n.roh.name);
+      for (const key in n) { const x = n[key]; if (x !== null && typeof x === 'object') stapel.push(x); }
+    }
+  }
+  // Mitgliedsnamen aller Klassen/Rezepturen und Wertnamen aller quattrostagioni (§2.4 (d), projektweit)
+  function mitgliedsNamen(body, ziel) {
+    const typ = (n) => {
+      if (n.k === 'Klasse') {
+        for (const f of n.felder) for (const d of f.decls) ziel.add(d.name);
+        for (const m of n.methoden) ziel.add(m.name);
+        for (const i of n.innere) typ(i);
+      } else if (n.k === 'Rezeptur') for (const m of n.methoden) ziel.add(m.name);
+      else if (n.k === 'Enum') for (const w of n.werte) ziel.add(w.n);
+    };
+    for (const st of body) typ(st);
+  }
+  // erste hauptgang-Methode/-Funktion einer Datei (auch in verschachtelten Klassen) – für P0017
+  function hauptgangIn(body) {
+    let best = null;
+    const nimm = (m) => { if (m.name === 'hauptgang' && (!best || m.nz < best.nz || (m.nz === best.nz && m.ns < best.ns))) best = m; };
+    const klasse = (k) => { for (const m of k.methoden) nimm(m); for (const i of k.innere) if (i.k === 'Klasse') klasse(i); };
+    for (const st of body) {
+      if (st.k === 'Methode') nimm(st);
+      else if (st.k === 'Klasse') klasse(st);
+    }
+    return best;
+  }
+
+  // Der gemeinsame Lader (ARCHITEKTUR §1). quelle: Text (Ein-Datei-Programm ohne Sammlung) oder Projekt { dateien, hauptdatei?, name? }.
+  // → { ok: true, ladeliste, dateien, ast, warnungen, args, kiste, name, hauptdatei } | { ok: false, fehler: { code, art, text, datei, zeile, spalte } }
+  function ladeProjekt(quelle) {
+    const einzeln = quelle === null || quelle === undefined || typeof quelle !== 'object';
+    const projekt = einzeln ? { dateien: { 'hauptgang.pizza': quelle == null ? '' : String(quelle) } } : quelle;
+    // Stufe 1: pizza.json, Pfade, Hauptdatei (SPEC §2.5)
+    const aus = ausDateien(projekt.dateien, einzeln ? null : { name: projekt.name, hauptdatei: projekt.hauptdatei });
+    if (aus.fehler) return { ok: false, fehler: aus.fehler };
+    const sammlung = aus.dateien, haupt = aus.hauptdatei;
+    // Ort eines Ladefehlers (SPEC §2.6): Text-Programme nennen nie eine Datei; in Sammlungen nennt ihn jeder Fehler an einem
+    // `bestellt` und – sobald die Sammlung mehr als eine .pizza-Datei hat – jeder andere Fehler mit Ort.
+    const mehrPizza = Object.keys(sammlung).filter(istPizzaPfad).length > 1;
+    const ort = (pfad, ausBestellt) => (einzeln || !(ausBestellt || mehrPizza) ? null : pfad);
+
+    // Stufe 2: Tiefensuche (Syntaxfehler, P0014, P0015 in Besuchsreihenfolge)
+    const info = new Map();     // pfad → { d, ast, toks, generika, bestellt: Set }
+    const dateien = [];         // Datei-Index → Pfad (Besuchsreihenfolge, [0] = Hauptdatei)
+    const ladeliste = [];
+    const aktiv = [];
+    const w0004 = [];
+    let fehler = null;
+    const besuche = (pfad) => {
+      const d = dateien.length;
+      dateien.push(pfad);
+      aktiv.push(pfad);
+      let p;
+      try { p = parseIntern(sammlung[pfad], d); }
+      catch (e) {
+        const sf = syntaxFehlerAus(e);
+        fehler = { ok: false, fehler: { code: sf.code, art: 'syntax', text: sf.text, datei: ort(pfad, sf.code === 'P0015'), zeile: sf.zeile, spalte: sf.spalte } };
+        return;
+      }
+      const eintrag = { d, ast: p.ast, toks: p.toks, generika: p.generika, bestellt: new Set() };
+      info.set(pfad, eintrag);
+      for (const b of p.ast.body) {
+        if (b.k !== 'Bestellt') continue;
+        const q = b.pfad;
+        if (!istPizzaPfad(q)) { fehler = ladeFehler('P0015', '"' + q + '" ist keine .pizza-Datei – bestellen kann man nur Rezepte.', ort(pfad, true), b.z, b.s); return; }
+        if (eintrag.bestellt.has(q)) { w0004.push({ code: 'W0004', text: 'W0004: "' + q + '" ist schon bestellt.', pfad, z: b.z, s: b.s }); continue; }
+        eintrag.bestellt.add(q);
+        if (aktiv.indexOf(q) >= 0) { fehler = ladeFehler('P0014', 'Kreisbestellung: ' + aktiv.concat([q]).join(' → ') + '.', ort(pfad, true), b.z, b.s); return; }
+        if (info.has(q)) continue;
+        if (!Object.prototype.hasOwnProperty.call(sammlung, q)) { fehler = ladeFehler('P0015', 'Die Datei "' + q + '" gibt es im Projekt nicht.', ort(pfad, true), b.z, b.s); return; }
+        besuche(q);
+        if (fehler) return;
+      }
+      aktiv.pop();
+      ladeliste.push(pfad);
+    };
+    besuche(haupt);
+    if (fehler) return fehler;
+
+    // Stufe 3: Grenzen der Sammlung (ohne pruefung/)
+    const pfade = Object.keys(sammlung);
+    if (pfade.length > PROJEKT_GRENZEN.dateien) return ladeFehler('P0020', 'Das Projekt ist zu groß für den Ofen (' + pfade.length + ' Dateien, höchstens ' + PROJEKT_GRENZEN.dateien + ').');
+    let gesamt = 0;
+    for (const pfad of pfade) {
+      const v = sammlung[pfad];
+      const n = typeof v === 'string' ? utf8Laenge(v) : v.length;
+      gesamt += n;
+      if (istPizzaPfad(pfad) && n > PROJEKT_GRENZEN.pizza) return ladeFehler('P0020', 'Das Projekt ist zu groß für den Ofen (' + pfad + ' hat ' + kbText(n) + ', höchstens 512 KB).');
+      if (n > PROJEKT_GRENZEN.datei) return ladeFehler('P0020', 'Das Projekt ist zu groß für den Ofen (' + pfad + ' hat ' + mbText(n) + ', höchstens 2 MB).');
+    }
+    if (gesamt > PROJEKT_GRENZEN.gesamt) return ladeFehler('P0020', 'Das Projekt ist zu groß für den Ofen (zusammen ' + mbText(gesamt) + ', höchstens 8 MB).');
+
+    const rang = new Array(dateien.length);
+    ladeliste.forEach((pfad, i) => { rang[info.get(pfad).d] = i; });
+    const mehr = ladeliste.length > 1;
+    if (mehr) {
+      // Stufe 4a: P0017 – Nebendateien nur mit Rezepten, hauptgang nur in der Hauptdatei
+      for (const pfad of ladeliste) {
+        if (pfad === haupt) continue;
+        const body = info.get(pfad).ast.body;
+        let st = null;
+        for (const x of body) if (!NEBEN_ERLAUBT.has(x.k)) { st = x; break; }
+        const hg = hauptgangIn(body);
+        if (hg && (!st || hg.nz < st.z || (hg.nz === st.z && hg.ns < st.s))) {
+          return ladeFehler('P0017', 'hauptgang gehört in die Hauptdatei ' + haupt + ', nicht nach ' + pfad + '.', pfad, hg.nz, hg.ns);
+        }
+        if (st) return ladeFehler('P0017', 'In ' + pfad + ' dürfen nur Rezepte stehen (Klassen, Funktionen, Variablen) – Anweisungen gehören in die Hauptdatei ' + haupt + '.', pfad, st.z, st.s);
+      }
+      // Stufe 4b: P0016 – ein Projekt-Namensraum
+      const besitzer = new Map();   // name → { pfad, z, geheim }
+      for (const pfad of ladeliste) {
+        for (const n of obersteNamen(info.get(pfad).ast.body)) {
+          const b = besitzer.get(n.name);
+          if (!b) { besitzer.set(n.name, { pfad, z: n.z, geheim: n.geheim }); continue; }
+          if (b.pfad === pfad) { if (n.geheim) b.geheim = true; continue; }
+          return ladeFehler('P0016', '\'' + n.name + '\' gibt es zweimal – in ' + b.pfad + ' (Zeile ' + b.z + ') und in ' + pfad + ' (Zeile ' + n.z + ').', pfad, n.z, n.s);
+        }
+      }
+      // Stufe 4c: P0018/P0019 – Sichtbarkeit (konservativ, auf den Tokens jeder Datei)
+      const mitglieder = new Set();
+      for (const pfad of ladeliste) mitgliedsNamen(info.get(pfad).ast.body, mitglieder);
+      for (const pfad of ladeliste) {
+        const e = info.get(pfad);
+        const lokal = new Set(e.generika);
+        lokaleNamen(e.ast.body, lokal);
+        const t = e.toks;
+        let anno = 0;   // Klammertiefe in Annotations-Argumenten (dort ist auch `name = wert` ein benanntes Argument)
+        for (let i = 0; i < t.length; i++) {
+          const k = t[i];
+          if (k.t === 'kw' && (k.v === 'paket' || k.v === 'import')) { while (i + 1 < t.length && !(t[i + 1].t === 'op' && t[i + 1].v === ';') && t[i + 1].t !== 'eof') i++; continue; }
+          if (k.t === 'op') {
+            if (anno > 0) { if (k.v === '(') anno++; else if (k.v === ')') anno--; }
+            else if (k.v === '(' && i >= 2 && t[i - 1].t === 'name' && (t[i - 2].t === 'op' && (t[i - 2].v === '@' || t[i - 2].v === '.'))) {
+              // Annotation @a(…) bzw. @a.b(…): Rückwärts bis zum '@' prüfen
+              let j = i - 1;
+              while (j >= 2 && t[j - 1].t === 'op' && t[j - 1].v === '.' && t[j - 2].t === 'name') j -= 2;
+              if (j >= 1 && t[j - 1].t === 'op' && t[j - 1].v === '@') anno = 1;
+            }
+            continue;
+          }
+          if (k.t !== 'name') continue;
+          if (k.v === 'bestellt' && t[i + 1].t === 'text') { i++; continue; }
+          const vor = i > 0 ? t[i - 1] : null, nach = t[i + 1];
+          if (vor && vor.t === 'op' && (vor.v === '.' || vor.v === '@')) continue;
+          if (nach.t === 'op' && (nach.v === ':' || (anno > 0 && nach.v === '='))) continue;
+          const b = besitzer.get(k.v);
+          if (!b || b.pfad === pfad || lokal.has(k.v) || mitglieder.has(k.v)) continue;
+          if (b.geheim) return ladeFehler('P0018', '\'' + k.v + '\' ist ein Geheimrezept von ' + b.pfad + '.', pfad, k.z, k.s);
+          if (!e.bestellt.has(b.pfad)) return ladeFehler('P0019', '\'' + k.v + '\' kommt aus ' + b.pfad + ' – bestelle die Datei hier: bestellt "' + b.pfad + '";', pfad, k.z, k.s);
+        }
+      }
+    }
+
+    // EIN Programm: Rümpfe in Ladereihenfolge (ohne Bestellt-Knoten), Hoisting/Snack-Modus wie SPEC §2
+    let ast;
+    if (!mehr) {
+      ast = info.get(haupt).ast;
+      if (ast.body.some(x => x.k === 'Bestellt')) ast.body = ast.body.filter(x => x.k !== 'Bestellt');
+    } else {
+      const body = [];
+      for (const pfad of ladeliste) for (const x of info.get(pfad).ast.body) if (x.k !== 'Bestellt') body.push(x);
+      ast = { k: 'Programm', z: 1, s: 1, di: 0, body };
+    }
+    ast.dateiPfade = mehr ? dateien.slice() : null;   // null = Ein-Datei-Programm (Feld datei der Ereignisse bleibt null)
+    ast.ladeRang = rang;                               // Datei-Index → Position in der Ladeliste (Reihenfolge der Warnungen)
+    w0004.sort((a, b) => rang[info.get(a.pfad).d] - rang[info.get(b.pfad).d] || a.z - b.z || a.s - b.s);
+    const warnungen = w0004.map(w => ({ code: w.code, text: w.text, datei: mehr ? w.pfad : null, zeile: w.z, spalte: w.s, d: info.get(w.pfad).d }));
+    return { ok: true, ladeliste, dateien, ast, warnungen, args: aus.args, kiste: sammlung, name: aus.name, hauptdatei: haupt };
+  }
+
+  // Öffentliche Sicht von projekt.lade: ohne interne Felder (d an Warnungen bleibt am AST)
+  function projektLade(quelle) {
+    const r = ladeProjekt(quelle);
+    if (!r.ok) return r;
+    return {
+      ok: true, ladeliste: r.ladeliste.slice(), dateien: r.dateien.slice(), ast: r.ast,
+      warnungen: r.warnungen.map(w => ({ code: w.code, text: w.text, datei: w.datei, zeile: w.zeile, spalte: w.spalte })),
+      args: r.args.slice(), kiste: r.kiste, name: r.name, hauptdatei: r.hauptdatei
+    };
   }
 
   // ══════════ site/js/pizza/laufzeit/werte.js ══════════
@@ -1224,8 +1607,10 @@
     }
   }
 
-  class AnanasWurf { constructor(obj, z, s) { this.obj = obj; this.zeile = z; this.spalte = s; } }
-  class PizzaFehlerSig { constructor(code, text, z, s) { this.code = code; this.text = text; this.zeile = z; this.spalte = s; } }
+  class AnanasWurf { constructor(obj, z, s, d) { this.obj = obj; this.zeile = z; this.spalte = s; this.d = d || 0; } }
+  class PizzaFehlerSig { constructor(code, text, z, s, d) { this.code = code; this.text = text; this.zeile = z; this.spalte = s; this.d = d || 0; } }
+  // Doppelmeldungs-Sperre der Warnungen: einmal je Code + Datei + Zeile + Spalte (SPEC §2.6, K-140)
+  function warnSchluessel(code, d, z, s) { return code + ':' + (d || 0) + ':' + z + ':' + s; }
   class LimitSig { }
   class PanikSig { }
   class BudgetSig { constructor(frame) { this.frame = frame; } }
@@ -1404,6 +1789,8 @@
       this.rueck = null;
       this.z = null;
       this.s = null;
+      this.d = 0;   // Datei-Index der aktuellen Position (SPEC §2.6); dateiPfade = null bei Ein-Datei-Programmen
+      this.dateiPfade = ast && Array.isArray(ast.dateiPfade) ? ast.dateiPfade : null;
       this.st = 0;
       this.instanzen = 0;
       const saat = opt.zufallsSaat;
@@ -1461,9 +1848,9 @@
 
     // ---------- Hilfen ----------
     warnung(code, text, node, schluessel, methode) {
-      const z = node ? node.z : this.z, s = node ? node.s : this.s;
-      const key = schluessel || (code + ':' + z + ':' + s);
-      const ev = { typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s };
+      const z = node ? node.z : this.z, s = node ? node.s : this.s, d = node ? node.di : this.d;
+      const key = schluessel || warnSchluessel(code, d, z, s);
+      const ev = { typ: 'warnung', code, text: code + ': ' + text, datei: this.dateiPfad(d), zeile: z == null ? null : z, spalte: s == null ? null : s };
       if (this.kueche !== null) { this.gibWeiter({ ev, key, m: methode || null }); return; }
       if (this.warnSet.has(key)) return;
       this.warnSet.add(key);
@@ -1474,7 +1861,15 @@
       const k = this.klassen.get(typ);
       const o = new Obj(k, ++k.zaehler);
       o.nachricht = text;
-      return new AnanasWurf(o, this.z, this.s);
+      return new AnanasWurf(o, this.z, this.s, this.d);
+    }
+
+    // Projektpfad zum Datei-Index (SPEC §2.6): null, solange das Programm aus genau einer Datei besteht
+    dateiPfad(d) { return this.dateiPfade === null ? null : (this.dateiPfade[d || 0] || null); }
+    // Ort im Text der ungefangenen Ananas: „ (Zeile N)“ in der Hauptdatei, „ (pfad, Zeile N)“ in Nebendateien
+    ortText(z, d) {
+      if (z == null) return '';
+      return ' (' + (this.dateiPfade !== null && d ? this.dateiPfad(d) + ', ' : '') + 'Zeile ' + z + ')';
     }
     leer() { return this.ananas('LeererKartonAnanas', 'Der Karton ist leer.'); }
     weggeschoben(name) { return this.ananas('LeererKartonAnanas', '\'' + name + '\' wurde weggeschoben – der Karton ist leer.'); }
@@ -1665,7 +2060,7 @@
         if (v && v.w instanceof Gebunden) haupt = v.w.liste[0];
       }
       if (haupt) {
-        this.z = haupt.decl.z; this.s = haupt.decl.s;
+        this.z = haupt.decl.z; this.s = haupt.decl.s; this.d = haupt.decl.di;
         const pos = haupt.params.length ? [this.args.slice()] : [];
         const dies = haupt.statisch || haupt.klasse === null ? null : this.instanziiere(haupt.klasse, [], null, null);
         this.rufeDecl(haupt, dies, pos, null, null, 'normal');
@@ -1694,16 +2089,16 @@
         return 39;
       }
       if (e instanceof HerdKernFehlt) {
-        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
         return 2;
       }
       try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
       if (e instanceof PizzaFehlerSig) {
-        this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
+        this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, datei: e.zeile == null ? null : this.dateiPfad(e.d), zeile: e.zeile, spalte: e.spalte });
         return 2;
       }
       if (e instanceof LimitSig) {
-        this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', zeile: this.z, spalte: this.s });
+        this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', datei: this.z == null ? null : this.dateiPfad(this.d), zeile: this.z, spalte: this.s });
         return 3;
       }
       if (e instanceof AnanasWurf) {
@@ -1715,16 +2110,16 @@
         }
         this.emit({
           typ: 'fehler', code: o.klasse.name, art: 'ananas',
-          text: 'Ungefangene Ananas – ' + beschr + (e.zeile != null ? ' (Zeile ' + e.zeile + ')' : ''),
-          zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
+          text: 'Ungefangene Ananas – ' + beschr + this.ortText(e.zeile, e.d),
+          datei: e.zeile == null ? null : this.dateiPfad(e.d), zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
         });
         return 1;
       }
       const msg = e && e.message ? e.message : String(e);
       this.emit({
         typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
-        zeile: this.z, spalte: this.s, detail: msg
+        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + this.ortText(this.z, this.d),
+        datei: this.z == null ? null : this.dateiPfad(this.d), zeile: this.z, spalte: this.s, detail: msg
       });
       return 1;
     }
@@ -1806,7 +2201,7 @@
       }
     }
 
-    pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null); }
+    pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null, n ? n.di : 0); }
 
     pruefe() {
       const dekls = [];
@@ -1908,7 +2303,7 @@
             }
             if (e === null) m.haltbar = Infinity;
             else {
-              this.z = a.z; this.s = a.s;
+              this.z = a.z; this.s = a.s; this.d = a.di;
               m.haltbar = this.dauerMs(this.ausw(e, this.global), '@Kühlschrank(haltbar: …)');
             }
           } else if (a.name === 'PizzaVeraltet') {
@@ -1916,7 +2311,7 @@
             if (a.args) {
               const b = a.args.ben.find(x => x.name === 'grund');
               const e = b ? b.e : (a.args.pos[0] || null);
-              if (e) { this.z = a.z; this.s = a.s; grund = this.text(this.ausw(e, this.global)); }
+              if (e) { this.z = a.z; this.s = a.s; this.d = a.di; grund = this.text(this.ausw(e, this.global)); }
             }
             m.veraltet = grund;
           }
@@ -1927,7 +2322,7 @@
         for (const f of k.statischeFelder) {
           for (const d of f.decls) {
             if (d.init === null) continue;
-            this.z = d.z; this.s = d.s;
+            this.z = d.z; this.s = d.s; this.d = d.di;
             const sc = new Scope(this.global, ctx, true);
             const v = this.ausw(d.init, sc);
             this.pruefeTyp(f.typ, v, d.name);
@@ -2553,7 +2948,7 @@
       const sc = new Scope(this.global, ctx, true);
       this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
       if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
+      const z = this.z, s = this.s, d = this.d;
       try {
         const body = m.body.body;
         for (let i = 0; i < body.length; i++) {
@@ -2566,7 +2961,7 @@
         return null;
       } finally {
         this.st--;
-        this.z = z; this.s = s;
+        this.z = z; this.s = s; this.d = d;
       }
     }
 
@@ -2575,7 +2970,7 @@
       const sc = new Scope(f.scope, null, false);
       this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
       if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
+      const z = this.z, s = this.s, d = this.d;
       try {
         if (n.ausdr) return this.ausw(n.body, sc);
         const body = n.body.body;
@@ -2589,7 +2984,7 @@
         return null;
       } finally {
         this.st--;
-        this.z = z; this.s = s;
+        this.z = z; this.s = s; this.d = d;
       }
     }
 
@@ -2691,7 +3086,7 @@
         this.feldInit(k, o);
       }
       if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
+      const z = this.z, s = this.s, d = this.d;
       try {
         const body = m.body.body;
         for (let i = 0; i < body.length; i++) {
@@ -2700,7 +3095,7 @@
         }
       } finally {
         this.st--;
-        this.z = z; this.s = s;
+        this.z = z; this.s = s; this.d = d;
       }
     }
 
@@ -2766,7 +3161,7 @@
       if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
       const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
       const startUhr = this.schritte + this.offset;
-      const z0 = this.z, s0 = this.s;
+      const z0 = this.z, s0 = this.s, d0 = this.d;
       let wert = null, roh = null;
       const st0 = this.st;
       try {
@@ -2777,7 +3172,7 @@
         } catch (e) {
           this.st = st0;
           if (e instanceof BudgetSig && e.frame === frame) {
-            this.z = z0; this.s = s0;
+            this.z = z0; this.s = s0; this.d = d0;
             if (n.roh) roh = new OfenRoh(frame.zwischen, new Dauer(this.schritte + this.offset - startUhr));
             else throw this.ananas('VerbranntAnanas', 'Zu lange im Ofen: Budget von ' + budget + ' Schritten überschritten.');
           } else throw e;
@@ -3030,7 +3425,7 @@
 
     fuehre(n, sc) {
       if (++this.schritte > this.grenze) this.grenzeErreicht();
-      this.z = n.z; this.s = n.s;
+      this.z = n.z; this.s = n.s; this.d = n.di;
       if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
       let r;
       switch (n.k) {
@@ -3168,7 +3563,7 @@
     }
     sWirf(n, sc) {
       const v = this.ausw(n.e, sc);
-      if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s);
+      if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s, n.di);
       if (v === null || v === undefined) return this.leer();
       return this.ananas('TypAnanas', 'Werfen kann man nur Ananas (Objekte), nicht ' + this.darstellung(v) + '.');
     }
@@ -5458,14 +5853,14 @@
           for (let j = i < 0 ? fr.length : i; j < fr.length; j++) fr[j].tot = true;
           this.neuGrenze();
         } else if (sig === 'wurfKarton') {
-          this.z = node.z; this.s = node.s;
+          this.z = node.z; this.s = node.s; this.d = node.di;
           throw this.ananas('KüchenAnanas', 'Was der Koch geworfen hat, passt in keinen Karton.');
         }
         throw sig;
       }
       // D7: Summe aller Stücke über dem Limit → P0002 am brigade-Aufruf
       if (this.schritte > this.limitBasis + this.limit) {
-        this.z = node.z; this.s = node.s;
+        this.z = node.z; this.s = node.s; this.d = node.di;
         throw new LimitSig();
       }
       return r;
@@ -5474,7 +5869,7 @@
     // Ein Stück i (0-basiert) in eigener Küche ausführen → Bericht; der Zustand der Hauptküche bleibt unverändert
     stueck(a, i) {
       const k = { auftrag: a, eltern: this.kueche, puffer: [], warn: new Set(), methoden: new Set(), kuehl: new Map() };
-      const emit0 = this.emit, zufall0 = this.zufallGlobal, z0 = this.z, s0 = this.s, rueck0 = this.rueck;
+      const emit0 = this.emit, zufall0 = this.zufallGlobal, z0 = this.z, s0 = this.s, d0 = this.d, rueck0 = this.rueck;
       const lief0 = this.lieferungen.length, fr = this.frames;
       this.kueche = k;
       this.emit = (ev) => { k.puffer.push({ ev, key: null, m: null }); };
@@ -5494,7 +5889,7 @@
           const e = this.normalisiere(e0);
           bericht.status = 'abbruch';
           if (e instanceof AnanasWurf) {
-            try { bericht.sig = new AnanasWurf(this.kartoniere(e.obj, new Map()), e.zeile, e.spalte); }
+            try { bericht.sig = new AnanasWurf(this.kartoniere(e.obj, new Map()), e.zeile, e.spalte, e.d); }
             catch (x) { if (x instanceof KartonFehler) bericht.sig = 'wurfKarton'; else throw x; }
           } else bericht.sig = e;
         }
@@ -5503,10 +5898,10 @@
           catch (x) {
             if (!(x instanceof KartonFehler)) throw x;
             // die Ananas entsteht in der Küche, an der Position des brigade-Aufrufs, ohne Schritte
-            this.z = a.node.z; this.s = a.node.s;
+            this.z = a.node.z; this.s = a.node.s; this.d = a.node.di;
             const w = this.ananas('KüchenAnanas', x.art + ' passt in keinen Karton – nur Werte können die Küche verlassen.');
             bericht.status = 'abbruch';
-            bericht.sig = new AnanasWurf(this.kartoniere(w.obj, new Map()), w.zeile, w.spalte);
+            bericht.sig = new AnanasWurf(this.kartoniere(w.obj, new Map()), w.zeile, w.spalte, w.d);
           }
         }
       } catch (x) {
@@ -5528,7 +5923,7 @@
         this.emit = emit0;
         this.zufallGlobal = zufall0;
         this.st = a.st0;
-        this.z = z0; this.s = s0;
+        this.z = z0; this.s = s0; this.d = d0;
         this.rueck = rueck0;
         this.schritte = a.S0; this.offset = a.off0;
         this.instanzen = a.N0; this.lieferNr = a.L0;
@@ -6460,7 +6855,8 @@
   // API
   // =====================================================================
 
-  function run(quelltext, optionen) {
+  // quelle: Text (Ein-Datei-Programm) oder Projekt { dateien, hauptdatei?, name? } (SPEC §2, ARCHITEKTUR §1)
+  function run(quelle, optionen) {
     optionen = optionen || {};
     const ereignisse = [];
     const onEvent = typeof optionen.onEvent === 'function' ? optionen.onEvent : null;
@@ -6469,29 +6865,38 @@
       if (onEvent !== null) { try { onEvent(e); } catch (x) { /* Beobachterfehler ignorieren */ } }
     };
     let L = null, exitCode = 0;
-    const p = parse(quelltext);
+    let p;
+    try { p = ladeProjekt(quelle); }
+    catch (e) { p = { ok: false, fehler: { code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: String(e && e.message) } }; }
     if (!p.ok) {
-      emit({ typ: 'fehler', code: p.fehler.code, art: 'syntax', text: p.fehler.text, zeile: p.fehler.zeile, spalte: p.fehler.spalte });
-      exitCode = 2;
+      // Ladefehler (SPEC §2.5): Exit 2, 0 Schritte, keine Warnungen davor
+      const f = p.fehler;
+      const ev = { typ: 'fehler', code: f.code, art: f.art, text: f.text, datei: f.datei, zeile: f.zeile, spalte: f.spalte };
+      if (f.detail !== undefined) { ev.detail = f.detail; exitCode = 1; } else exitCode = 2;
+      emit(ev);
     } else {
       try {
-        L = new Laufzeit(p.ast, optionen, emit);
-        for (const w of analysiere(p.ast)) {
-          const key = w.code + ':' + w.zeile + ':' + w.spalte;
+        // Standard-Argumente aus pizza.json gelten, wenn keine Argumente übergeben werden (SPEC §2.1)
+        const opt = p.args.length && !(Array.isArray(optionen.args) && optionen.args.length) ? Object.assign({}, optionen, { args: p.args }) : optionen;
+        L = new Laufzeit(p.ast, opt, emit);
+        const rang = p.ast.ladeRang;
+        // zuerst W0004 des Laders, dann die statische Analyse (SPEC §2.5); einmal je Code + Datei + Zeile + Spalte
+        for (const w of p.warnungen.concat(analysiere(p.ast, rang))) {
+          const key = warnSchluessel(w.code, w.d, w.zeile, w.spalte);
           if (L.warnSet.has(key)) continue;
           L.warnSet.add(key);
-          emit({ typ: 'warnung', code: w.code, text: w.text, zeile: w.zeile, spalte: w.spalte });
+          emit({ typ: 'warnung', code: w.code, text: w.text, datei: L.dateiPfad(w.d), zeile: w.zeile, spalte: w.spalte });
         }
         L.start();
       } catch (e) {
         if (L) {
           try { exitCode = L.behandleEnde(e); }
           catch (e2) {
-            emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(e2 && e2.message) });
+            emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: String(e2 && e2.message) });
             exitCode = 1;
           }
         } else {
-          emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(e && e.message) });
+          emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: String(e && e.message) });
           exitCode = 1;
         }
       }
@@ -6526,9 +6931,15 @@
     PANIK_TEXT: PANIK_BANNER,
     parse,
     run,
+    // Projekte (SPEC §2, ARCHITEKTUR §1): gemeinsamer Lader, pizza.json, Pfadregel
+    projekt: {
+      lade: projektLade,
+      ausDateien: (dateien) => { const r = ausDateien(dateien); return r.fehler ? { fehler: r.fehler } : r; },
+      pruefePfad
+    },
     // Für Compiler-Frontends (pizzaiolo), keine stabile Endnutzer-API; Beschreibung in ARCHITEKTUR §1.
     intern: {
-      analysiere: (ast) => analysiere(ast).map(w => Object.assign({}, w)),
+      analysiere: (ast) => analysiere(ast, ast && ast.ladeRang).map(w => ({ code: w.code, text: w.text, zeile: w.zeile, spalte: w.spalte })),
       pruefe: pruefeStart,
       ANANAS_BAUM: ANANAS_BAUM.map(a => [a[0], a[1]]),
       MAX_STAPEL,

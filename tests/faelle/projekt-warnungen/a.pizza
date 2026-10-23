@@ -1,0 +1,1 @@
+salami fa() { salami q = 1; salami Q = 2; serviere (q + Q); }

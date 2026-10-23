@@ -60,8 +60,8 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
     schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
     fehlerausgabe: (p, n) => emit({ typ: 'fehlerausgabe', text: t(p, n) }),
     leeren: () => emit({ typ: 'leeren' }),
-    warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
-    fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a], text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
+    warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
+    fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a], text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
     panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
     eingabe: (art, pp, pn, bp, kap) => {
       if (art === 2) return !eof && eingabe.some(x => x !== null) ? 1 : 0;
@@ -132,7 +132,7 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
   }
   let exitCode;
   try { exitCode = e.start(); } catch (x) {
-    emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: String(x && x.message) });
+    emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas', text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: String(x && x.message) });
     exitCode = 1;
   }
   emit({ typ: 'ende', exitCode, schritte: e.schritte(), zeitMs: e.zeitMs() });

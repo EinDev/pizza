@@ -4,8 +4,8 @@
 > (§10), Prüfbefunde eingearbeitet (§13). Die **Verträge** stehen jetzt in `SPEC.md` (§2.1 … §2.6, §11.2, §14.5, §14.7, §14.8, §18.5),
 > `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte-offen.js` (76 Fälle, offen).
-> **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. Code ist noch nicht umgesetzt (nächste Welle W1:
-> PA1 · PC1 · PD1, §11); `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
+> **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
+> Commit „PROJEKTE PA1: …“, Präzisierungen in §11); übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -283,7 +283,7 @@ PizzaLang.projekt.lade(projekt)           // → { ok: true, ladeliste: [pfad], 
 PizzaLang.projekt.ausDateien(dateien)     // pizza.json auswerten → { name, hauptdatei, args, dateien } | { fehler } (P0015)
 PizzaLang.projekt.pruefePfad(pfad)        // → null | Fehlertext
 ```
-Jeder AST-Knoten kennt seine Datei (Feld `d` = Index in `dateien`; `dateien[0]` ist die Hauptdatei); der Lader liefert **ein**
+Jeder AST-Knoten kennt seine Datei (Feld `di` = Index in `dateien`, seit PA1 – `d` war an Knoten schon belegt; `dateien[0]` ist die Hauptdatei); der Lader liefert **ein**
 zusammengesetztes Programm in Ladereihenfolge (`ast.body` = Verkettung). Der Wasm-Compiler (`site/js/pizzaiolo.js` →
 `frontend.js`) ruft `projekt.lade` statt `PizzaLang.parse` und nimmt dieses Programm statt eines einzelnen ASTs → identische
 Hoisting-/Initialisierungsreihenfolge; seine Positionstabelle (`this.pos`) speichert den Datei-Index mit. Wichtig: Der Compiler hat
@@ -947,7 +947,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | Paket | Inhalt | Dateien (Schwerpunkt) | hängt ab von | parallel zu | Stand |
 |---|---|---|---|---|---|
 | **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, HERD.md §12.1 Regel 3, Prüfstand-Fälle als `*-offen` (`herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – | **umgesetzt** (Commit „PROJEKTE P0: …“, 2026-10-23; Präzisierungen unten) |
-| **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | offen |
+| **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | **umgesetzt** (Commit „PROJEKTE PA1: …“; Präzisierungen unten) |
 | **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | offen |
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
@@ -980,6 +980,35 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   bei H-K8 – sonst könnten H-K-Stufen sie vor PD1 vergeben.
 - Prüfstand: Projekt-Fälle bauen ihre PNG-Dateien im Fall-Skript (zlib + CRC, keine Binärdateien im Repo); die Differenztests
   überspringen Projekt-Fälle, bis PA2 Projekte kompiliert.
+
+**Präzisierungen aus PA1** (umgesetzt; PA2, PD2, PB1 richten sich danach):
+- Datei-Index am Knoten heißt **`di`** (nicht `d`: `Inc.d` = ±1 und `Block.d` = „hat Deklarationen“ gab es schon). `parse(q, { datei })`
+  setzt `di` an jedes Objekt mit Position; `projekt.lade` liefert am Programm zusätzlich `ast.dateiPfade` (null = Ein-Datei-Programm)
+  und `ast.ladeRang` (`di` → Position in der Ladeliste; danach sortieren `analysiere` und W0666). Laufzeitorte: `this.d` neben
+  `this.z/this.s`, `AnanasWurf`/`PizzaFehlerSig` tragen `d`; Doppelmeldungs-Sperre `warnSchluessel(code, di, zeile, spalte)`.
+- **`art`:** was schon `parse()` meldet (Syntax, ungültiger Pfad im `bestellt`), ist `"syntax"` (SPEC §2.5) – sonst widerspräche
+  `parse()` dem Lauf (Selbstprüfung der Differenztests).
+- **`datei` bei Ladefehlern** (SPEC §2.6): Text-Programm nie; in Sammlungen Fehler an einem `bestellt` immer, sonst sobald die Sammlung
+  mehr als eine `.pizza`-Datei hat (Syntaxfehler im Ein-Datei-Projekt bleibt ohne Datei).
+- **Hauptdatei:** ausdrücklich übergebenes `projekt.hauptdatei` > `pizza.json` > `hauptgang.pizza` > einzige `.pizza` – nötig für den
+  CLI-Aufruf mit einer Datei in einem Projekt (§1.5). Hüllen, die nur weiterreichen (PB1/PB2), lassen das Begleitfeld weg.
+- **Sichtbarkeitsprüfung** (§2.5): Generik-Namen sammelt der Parser in `generikaUeberspringen`; übersprungen werden außerdem
+  `paket`/`import`-Zeilen, das Wort `bestellt` vor einem Text und in Annotations-Argumenten auch `name = wert`. Name einer Datei, die
+  nur die Hauptdatei kennt, in einer Nebendatei → P0019 mit dem (unerfüllbaren) Vorschlag `bestellt "hauptgang.pizza";` – Text wie Vertrag.
+- **Nebendateien** dürfen auch ein einzelnes `;` enthalten (leere Anweisung, keine Wirkung). P0016-Position = Name der späteren
+  Deklaration (Klassen/Rezepturen/quattrostagioni haben dafür jetzt `nz/ns`); P0017 für `hauptgang` an seinem Namen.
+- **Text-Programme** (`run(string)`) laufen durch denselben Lader – also auch Grenzen (P0020 ab 512 KiB) und `\r\n` → `\n`.
+- **CLI:** Ordner bzw. `pizza.json` → alle Dateien außer `pruefung/` (versteckte Einträge `.…` still übergangen; fremde Endungen und
+  Nicht-`.pizza`-Dateien mit ungültigem Pfad wie `README.md` mit `Hinweis: … wird ignoriert` auf stderr; höchstens 8 Ebenen); Datei → Wurzel mit `pizza.json` aufwärts (≤ 8 Ebenen) oder – ohne – Datei + per `bestellt` erreichte Dateien;
+  eine Datei **ohne** `bestellt` läuft weiter als Text (Ausgabe unverändert). `--ast` gibt bei Projekten `{ ladeliste, dateien, ast }` aus.
+- **Wasm bis PA2:** `Pizzaiolo.kompiliere/run` lehnen Projekte (Objekt-Quelle) und `bestellt` mit `nichtUnterstuetzt` ab (Grund nennt
+  PA2) – `run` fällt auf den Interpreter zurück; der JS-Host liefert `datei: null`; `tests/differenz/motoren.js` und `host/test.js`
+  ergänzen beim nativen Host das fehlende `datei` als `null`. PA2 entfernt diese Brücken.
+- **Prüfstand:** `a19-projekte.js` (57 Fälle, grün), `a19-projekte-offen.js` (19 Kiste-/Bild-Fälle für PD2), Hilfen in
+  `pruefstand/lib/projekt-helfer.js`. Befund: Der Fall „Ladereihenfolge = Tiefensuche“ benutzte `xc` aus `c.pizza`, das die
+  Hauptdatei nur transitiv bestellt (nach §2.5 P0019) – er bestellt `c.pizza` jetzt selbst (Ladeliste unverändert).
+- **Ordner-Fälle:** `tests/faelle/<name>/` mit `pruefung/` (alle Begleitdateien ohne Punkt-Präfix, dazu `orte`); `tests/run-tests.js`
+  prüft bei allen Fällen zusätzlich, dass `datei` direkt vor `zeile` steht.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

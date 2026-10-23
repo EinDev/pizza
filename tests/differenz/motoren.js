@@ -41,6 +41,14 @@ function normalisiere(ereignisse) {
       if (s === 'umbruch' && e[s] === true) continue;
       k[s] = e[s];
     }
+    // SPEC §2.6: fehler/warnung tragen datei direkt vor zeile; der native Host (ABI v1) liefert das Feld bis PROJEKTE PA2 noch
+    // nicht – dort ist es bei Ein-Datei-Programmen immer null, also ergänzen (nur wenn es fehlt)
+    if ((k.typ === 'fehler' || k.typ === 'warnung') && !('datei' in k) && 'zeile' in k) {
+      const m = {};
+      for (const s of Object.keys(k)) { if (s === 'zeile') m.datei = null; m[s] = k[s]; }
+      aus.push(m);
+      continue;
+    }
     // K-080: vorrat-Ereignisse kanonisch (JSON-Werte, -0 → 0, Feldreihenfolge fest)
     if (k.typ === 'vorrat') {
       aus.push({ typ: 'vorrat', name: k.name, schluessel: k.schluessel === undefined ? null : k.schluessel, wert: kanonisch(k.wert) });

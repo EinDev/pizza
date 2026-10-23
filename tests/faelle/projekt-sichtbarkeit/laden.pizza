@@ -1,0 +1,2 @@
+bestellt "kasse.pizza";
+Kasse ladenKasse = neu Kasse();

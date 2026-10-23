@@ -1,0 +1,9 @@
+bestellt "rezepte/teig.pizza";
+
+klasse Belag {
+    speisekarte tiefkühl salami zaehler = 0;
+    speisekarte tiefkühl margherita haus() {
+        zaehler++;
+        serviere ("Tomate auf " + neu Teig(GRAMM / 10));
+    }
+}

@@ -51,6 +51,8 @@ class Laufzeit {
     this.rueck = null;
     this.z = null;
     this.s = null;
+    this.d = 0;   // Datei-Index der aktuellen Position (SPEC §2.6); dateiPfade = null bei Ein-Datei-Programmen
+    this.dateiPfade = ast && Array.isArray(ast.dateiPfade) ? ast.dateiPfade : null;
     this.st = 0;
     this.instanzen = 0;
     const saat = opt.zufallsSaat;
@@ -108,9 +110,9 @@ class Laufzeit {
 
   // ---------- Hilfen ----------
   warnung(code, text, node, schluessel, methode) {
-    const z = node ? node.z : this.z, s = node ? node.s : this.s;
-    const key = schluessel || (code + ':' + z + ':' + s);
-    const ev = { typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s };
+    const z = node ? node.z : this.z, s = node ? node.s : this.s, d = node ? node.di : this.d;
+    const key = schluessel || warnSchluessel(code, d, z, s);
+    const ev = { typ: 'warnung', code, text: code + ': ' + text, datei: this.dateiPfad(d), zeile: z == null ? null : z, spalte: s == null ? null : s };
     if (this.kueche !== null) { this.gibWeiter({ ev, key, m: methode || null }); return; }
     if (this.warnSet.has(key)) return;
     this.warnSet.add(key);
@@ -121,7 +123,15 @@ class Laufzeit {
     const k = this.klassen.get(typ);
     const o = new Obj(k, ++k.zaehler);
     o.nachricht = text;
-    return new AnanasWurf(o, this.z, this.s);
+    return new AnanasWurf(o, this.z, this.s, this.d);
+  }
+
+  // Projektpfad zum Datei-Index (SPEC §2.6): null, solange das Programm aus genau einer Datei besteht
+  dateiPfad(d) { return this.dateiPfade === null ? null : (this.dateiPfade[d || 0] || null); }
+  // Ort im Text der ungefangenen Ananas: „ (Zeile N)“ in der Hauptdatei, „ (pfad, Zeile N)“ in Nebendateien
+  ortText(z, d) {
+    if (z == null) return '';
+    return ' (' + (this.dateiPfade !== null && d ? this.dateiPfad(d) + ', ' : '') + 'Zeile ' + z + ')';
   }
   leer() { return this.ananas('LeererKartonAnanas', 'Der Karton ist leer.'); }
   weggeschoben(name) { return this.ananas('LeererKartonAnanas', '\'' + name + '\' wurde weggeschoben – der Karton ist leer.'); }
@@ -312,7 +322,7 @@ class Laufzeit {
       if (v && v.w instanceof Gebunden) haupt = v.w.liste[0];
     }
     if (haupt) {
-      this.z = haupt.decl.z; this.s = haupt.decl.s;
+      this.z = haupt.decl.z; this.s = haupt.decl.s; this.d = haupt.decl.di;
       const pos = haupt.params.length ? [this.args.slice()] : [];
       const dies = haupt.statisch || haupt.klasse === null ? null : this.instanziiere(haupt.klasse, [], null, null);
       this.rufeDecl(haupt, dies, pos, null, null, 'normal');
@@ -341,16 +351,16 @@ class Laufzeit {
       return 39;
     }
     if (e instanceof HerdKernFehlt) {
-      this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+      this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
       return 2;
     }
     try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
     if (e instanceof PizzaFehlerSig) {
-      this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
+      this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, datei: e.zeile == null ? null : this.dateiPfad(e.d), zeile: e.zeile, spalte: e.spalte });
       return 2;
     }
     if (e instanceof LimitSig) {
-      this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', zeile: this.z, spalte: this.s });
+      this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', datei: this.z == null ? null : this.dateiPfad(this.d), zeile: this.z, spalte: this.s });
       return 3;
     }
     if (e instanceof AnanasWurf) {
@@ -362,16 +372,16 @@ class Laufzeit {
       }
       this.emit({
         typ: 'fehler', code: o.klasse.name, art: 'ananas',
-        text: 'Ungefangene Ananas – ' + beschr + (e.zeile != null ? ' (Zeile ' + e.zeile + ')' : ''),
-        zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
+        text: 'Ungefangene Ananas – ' + beschr + this.ortText(e.zeile, e.d),
+        datei: e.zeile == null ? null : this.dateiPfad(e.d), zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
       });
       return 1;
     }
     const msg = e && e.message ? e.message : String(e);
     this.emit({
       typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
-      zeile: this.z, spalte: this.s, detail: msg
+      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + this.ortText(this.z, this.d),
+      datei: this.z == null ? null : this.dateiPfad(this.d), zeile: this.z, spalte: this.s, detail: msg
     });
     return 1;
   }

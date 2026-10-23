@@ -15,6 +15,7 @@ class Parser {
   constructor(q, toks) {
     this.q = q; this.t = toks; this.p = 0; this.keinLambda = false;
     this.ks = { schleife: false, waehle: false };
+    this.generika = new Set();   // Namen aus Typparameter-Listen (<T>) – für die Sichtbarkeitsprüfung des Laders (SPEC §2.4)
   }
   get c() { return this.t[this.p]; }
   sieh(o) { const i = this.p + o; return this.t[i < this.t.length ? i : this.t.length - 1]; }
@@ -67,6 +68,14 @@ class Parser {
         const w = this.nimm().v;
         while (!this.istOp(';') && this.c.t !== 'eof') this.p++;
         this.erwarteSemi('nach \'' + w + '\'');
+        continue;
+      }
+      // SPEC §2.2: `bestellt "<pfad>";` – kontextuell (Bezeichner + Textliteral ist sonst nie gültig), nur auf oberster Ebene
+      if (this.c.t === 'name' && this.c.v === 'bestellt' && this.sieh(1).t === 'text') {
+        const tok = this.nimm(), pt = this.nimm();
+        if (pruefePfad(pt.v) !== null) throw new SyntaxFehler(pfadFehlerText(pt.v), tok.z, tok.s, 'P0015');
+        this.erwarteSemi('nach \'bestellt\'');
+        body.push({ k: 'Bestellt', pfad: pt.v, z: tok.z, s: tok.s });
         continue;
       }
       body.push(this.oberstes());
@@ -145,6 +154,7 @@ class Parser {
       if (k.t === 'eof') this.fehler('Typparameter-Liste wird nicht geschlossen', k);
       if (k.t === 'op' && k.v === '<') tiefe++;
       else if (k.t === 'op' && k.v === '>') tiefe--;
+      else if (k.t === 'name') this.generika.add(k.v);
     } while (tiefe > 0);
   }
 
@@ -353,7 +363,7 @@ class Parser {
       methoden.push(this.methode(an, md, mt));
     }
     this.p++;
-    return { k: 'Rezeptur', z: tok.z, s: tok.s, name: name.v, basen, methoden, mods, annos };
+    return { k: 'Rezeptur', z: tok.z, s: tok.s, name: name.v, nz: name.z, ns: name.s, basen, methoden, mods, annos };
   }
 
   quattro(annos, mods, tok) {
@@ -369,7 +379,7 @@ class Parser {
     }
     if (this.istOp(';')) this.p++;
     this.erwarteOp('}', 'am Ende von quattrostagioni');
-    return { k: 'Enum', z: tok.z, s: tok.s, name: name.v, werte, mods, annos };
+    return { k: 'Enum', z: tok.z, s: tok.s, name: name.v, nz: name.z, ns: name.s, werte, mods, annos };
   }
 
   // ---------- Anweisungen ----------
@@ -877,23 +887,36 @@ class Parser {
   }
 }
 
-function parseIntern(q) {
-  const toks = lexe(q);
-  const p = new Parser(q, toks);
-  return p.programm();
+// Datei-Index d an jeden Knoten (jedes Objekt mit Position z) schreiben – SPEC §2.6, ARCHITEKTUR §1 (iterativ: tiefe ASTs).
+function setzeDatei(wurzel, d) {
+  const stapel = [wurzel];
+  while (stapel.length) {
+    const n = stapel.pop();
+    if (Array.isArray(n)) { for (let i = 0; i < n.length; i++) { const x = n[i]; if (x !== null && typeof x === 'object') stapel.push(x); } continue; }
+    if (typeof n.z === 'number' || n.k === 'Programm') n.di = d;
+    for (const key in n) { const x = n[key]; if (x !== null && typeof x === 'object') stapel.push(x); }
+  }
+  return wurzel;
 }
 
-function parse(quelltext) {
+// Eine Datei parsen → { ast, toks, generika } (wirft SyntaxFehler/RangeError); der Lader braucht Tokens und Typparameter.
+function parseIntern(q, d) {
+  const toks = lexe(q);
+  const p = new Parser(q, toks);
+  const ast = setzeDatei(p.programm(), d || 0);
+  return { ast, toks, generika: p.generika };
+}
+function syntaxFehlerAus(e) {
+  if (e instanceof SyntaxFehler) return { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte };
+  if (e instanceof RangeError) return { code: 'P0001', text: 'PizzaFehler P0001: Der Quelltext ist zu tief verschachtelt.', zeile: null, spalte: null };
+  return { code: 'P0001', text: 'PizzaFehler P0001: Interner Parserfehler: ' + (e && e.message), zeile: null, spalte: null };
+}
+function parse(quelltext, optionen) {
   const q = quelltext == null ? '' : String(quelltext);
+  const d = optionen && Number.isInteger(optionen.datei) && optionen.datei >= 0 ? optionen.datei : 0;
   try {
-    return { ok: true, ast: parseIntern(q) };
+    return { ok: true, ast: parseIntern(q, d).ast };
   } catch (e) {
-    if (e instanceof SyntaxFehler) {
-      return { ok: false, fehler: { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte } };
-    }
-    if (e instanceof RangeError) {
-      return { ok: false, fehler: { code: 'P0001', text: 'PizzaFehler P0001: Der Quelltext ist zu tief verschachtelt.', zeile: null, spalte: null } };
-    }
-    return { ok: false, fehler: { code: 'P0001', text: 'PizzaFehler P0001: Interner Parserfehler: ' + (e && e.message), zeile: null, spalte: null } };
+    return { ok: false, fehler: syntaxFehlerAus(e) };
   }
 }

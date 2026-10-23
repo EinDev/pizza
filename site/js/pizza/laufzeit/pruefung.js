@@ -62,7 +62,7 @@ class LaufzeitPruefung {
     }
   }
 
-  pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null); }
+  pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null, n ? n.di : 0); }
 
   pruefe() {
     const dekls = [];
@@ -164,7 +164,7 @@ class LaufzeitPruefung {
           }
           if (e === null) m.haltbar = Infinity;
           else {
-            this.z = a.z; this.s = a.s;
+            this.z = a.z; this.s = a.s; this.d = a.di;
             m.haltbar = this.dauerMs(this.ausw(e, this.global), '@Kühlschrank(haltbar: …)');
           }
         } else if (a.name === 'PizzaVeraltet') {
@@ -172,7 +172,7 @@ class LaufzeitPruefung {
           if (a.args) {
             const b = a.args.ben.find(x => x.name === 'grund');
             const e = b ? b.e : (a.args.pos[0] || null);
-            if (e) { this.z = a.z; this.s = a.s; grund = this.text(this.ausw(e, this.global)); }
+            if (e) { this.z = a.z; this.s = a.s; this.d = a.di; grund = this.text(this.ausw(e, this.global)); }
           }
           m.veraltet = grund;
         }
@@ -183,7 +183,7 @@ class LaufzeitPruefung {
       for (const f of k.statischeFelder) {
         for (const d of f.decls) {
           if (d.init === null) continue;
-          this.z = d.z; this.s = d.s;
+          this.z = d.z; this.s = d.s; this.d = d.di;
           const sc = new Scope(this.global, ctx, true);
           const v = this.ausw(d.init, sc);
           this.pruefeTyp(f.typ, v, d.name);

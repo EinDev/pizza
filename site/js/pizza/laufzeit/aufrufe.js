@@ -217,7 +217,7 @@ class LaufzeitAufrufe {
     const sc = new Scope(this.global, ctx, true);
     this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
     if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-    const z = this.z, s = this.s;
+    const z = this.z, s = this.s, d = this.d;
     try {
       const body = m.body.body;
       for (let i = 0; i < body.length; i++) {
@@ -230,7 +230,7 @@ class LaufzeitAufrufe {
       return null;
     } finally {
       this.st--;
-      this.z = z; this.s = s;
+      this.z = z; this.s = s; this.d = d;
     }
   }
 
@@ -239,7 +239,7 @@ class LaufzeitAufrufe {
     const sc = new Scope(f.scope, null, false);
     this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
     if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-    const z = this.z, s = this.s;
+    const z = this.z, s = this.s, d = this.d;
     try {
       if (n.ausdr) return this.ausw(n.body, sc);
       const body = n.body.body;
@@ -253,7 +253,7 @@ class LaufzeitAufrufe {
       return null;
     } finally {
       this.st--;
-      this.z = z; this.s = s;
+      this.z = z; this.s = s; this.d = d;
     }
   }
 
@@ -355,7 +355,7 @@ class LaufzeitAufrufe {
       this.feldInit(k, o);
     }
     if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-    const z = this.z, s = this.s;
+    const z = this.z, s = this.s, d = this.d;
     try {
       const body = m.body.body;
       for (let i = 0; i < body.length; i++) {
@@ -364,7 +364,7 @@ class LaufzeitAufrufe {
       }
     } finally {
       this.st--;
-      this.z = z; this.s = s;
+      this.z = z; this.s = s; this.d = d;
     }
   }
 

@@ -869,6 +869,9 @@
 
   /** AST → { ok:true, ir } | { ok:false, nichtUnterstuetzt:[…] } */
   function frontend(ast) {
+    // Mehrdatei-Programme (SPEC §2.2) kompiliert erst PROJEKTE PA2 (Compiler auf PizzaLang.projekt.lade) – bis dahin klar ablehnen
+    const best = ast.body.find(x => x.k === 'Bestellt');
+    if (best) return { ok: false, nichtUnterstuetzt: [{ zeile: best.z, spalte: best.s, grund: 'bestellt (Mehrdatei-Projekte) kann der Wasm-Motor noch nicht (PROJEKTE PA2)' }] };
     const f = new Frontend(ast);
     try {
       // statische Initialisierer: Klassen-IR-Reihenfolge = klassenListe

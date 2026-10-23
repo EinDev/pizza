@@ -1,0 +1,5 @@
+// Ordner-Fall: Name aus einer nur transitiv bestellten Datei → P0019 mit Vorschlag (SPEC §2.4), vor jeder Ausgabe
+bestellt "laden.pizza";
+
+Bote.sage(("nie"));
+Kasse k = neu Kasse();

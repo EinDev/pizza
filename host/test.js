@@ -71,6 +71,8 @@ function norm(e) {
     if (k === 'detail') continue; // K-014: motorspezifisch, nicht vergleichen
     o[k] = e[k] === undefined ? null : e[k];
   }
+  // SPEC §2.6: fehler/warnung tragen datei; der Host (ABI v1) liefert es erst mit PROJEKTE PA2 – bei Ein-Datei-Programmen null
+  if ((o.typ === 'fehler' || o.typ === 'warnung') && !('datei' in o)) return norm(Object.assign({ datei: null }, e));
   return o;
 }
 

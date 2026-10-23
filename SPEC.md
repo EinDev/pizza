@@ -91,8 +91,10 @@ Bote.sage(("Hallo!"));
 ```
 
 Ein Programm darf aus **mehreren Dateien** eines Projekts bestehen (§2.1 … §2.6, K-138 … K-141; Konzept und Begründungen:
-`PROJEKTE.md`). Für Programme aus genau einer `.pizza`-Datei ändert sich nichts. *Umsetzung offen (PROJEKTE.md PA1/PA2; Fälle
-`pruefstand/faelle/a19-projekte-offen.js`).*
+`PROJEKTE.md`). Für Programme aus genau einer `.pizza`-Datei ändert sich nichts. *Umgesetzt im Interpreter und in der CLI
+(PROJEKTE.md PA1; Fälle `pruefstand/faelle/a19-projekte.js`, Ordner-Fälle `tests/faelle/projekt-*/`). Der Wasm-Motor lehnt Projekte
+und `bestellt` bis PA2 als „nicht unterstützt“ ab (`Pizzaiolo.run` und der Playground fallen dann auf den Interpreter zurück);
+`Kiste` und `Bildchen.laden` folgen mit PD2 (`a19-projekte-offen.js`).*
 
 ### 2.1 Projekt, Projektdatei, Pfade (K-138)
 
@@ -106,14 +108,17 @@ Ein Programm darf aus **mehreren Dateien** eines Projekts bestehen (§2.1 … §
   `beschreibung` ≤ 500 Zeichen, `args` ≤ 32 Texte à ≤ 200 Zeichen = **Standard-Argumente** für `hauptgang`, wenn keine Argumente
   übergeben werden (CLI, App-Link, EXE, Playground-Startwert). Unbekannte Felder werden ignoriert. Ungültig →
   `PizzaFehler P0015: pizza.json ist ungültig: <Grund>.` mit `<Grund>` ∈ `kein gültiges JSON` · `kein Objekt` · `"pizza" fehlt` ·
-  `"<feld>" muss ein Text sein` · `"pizza" muss eine Ganzzahl sein` · `"args" muss ein Blech aus Texten sein` · `"<feld>" ist zu lang`.
+  `"<feld>" muss ein Text sein` · `"pizza" muss eine Ganzzahl sein` (auch für Werte unter 1) · `"args" muss ein Blech aus Texten sein` ·
+  `"<feld>" ist zu lang` (`args`: mehr als 32 Einträge oder einer über 200 Zeichen); ein ungültiger Pfad in `hauptdatei` →
+  `PizzaFehler P0015: "<pfad>" ist kein gültiger Dateipfad …` (Ort `pizza.json`).
 - **Pfade** (eine Regel überall, `PizzaLang.projekt.pruefePfad`): relativ zur Projektwurzel, Trenner `/`, Segmente
   `[a-z0-9_-][a-z0-9_.-]*` (nicht mit `.` beginnend), keine leeren Segmente, kein `.`/`..`, höchstens 120 Zeichen und 8 Ebenen.
   Der Ordner `pruefung/` an der Wurzel gehört **nicht** zum Programm (Testdateien, ARCHITEKTUR §6). Dateiarten: `.pizza`, `.png`,
   `.jpg`/`.jpeg`, Text (`.txt`, `.json`, `.csv`, `.md`). Ein ungültiger Pfad in der Sammlung →
   `PizzaFehler P0015: "<pfad>" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).`
 - **Textdateien** sind UTF-8; der Lader ersetzt `\r\n` durch `\n` (einzelnes `\r` und ein BOM bleiben) – in jedem Motor, damit
-  `Kiste`, Hashes und Teilen unter Windows dieselben Bytes sehen wie im Browser.
+  `Kiste`, Hashes und Teilen unter Windows dieselben Bytes sehen wie im Browser. Kommt eine Textdatei (nach Endung) als Bytes, wird
+  sie streng dekodiert; ungültig → `PizzaFehler P0015: <pfad> ist kein gültiger UTF-8-Text.`
 - **Grenzen des Laders** (ohne `pruefung/`): ≤ 100 Dateien, je Datei ≤ 2 MiB, `.pizza` ≤ 512 KiB, zusammen ≤ 8 MiB →
   `PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (<Grund>).` mit `<Grund>` ∈ `101 Dateien, höchstens 100` ·
   `<pfad> hat 2,5 MB, höchstens 2 MB` · `<pfad> hat 601 KB, höchstens 512 KB` · `zusammen 8,4 MB, höchstens 8 MB`
@@ -187,7 +192,8 @@ Der erste Fehler bricht ab – Exit 2, `schritte` 0, **ohne** vorherige Warnunge
 4. P0017 → P0016 → P0018/P0019 (je Datei in Ladereihenfolge, darin nach Position).
 
 Danach wie bisher: Warnungen (zuerst W0004 des Laders in Ladereihenfolge, dann W0666, W0032 …), Startprüfungen (§14.7), zuletzt die
-Teigmenge (P0020, §18.5). Ereignis-`art` der Ladeprüfungen `"pizzafehler"`, bei Syntaxfehlern `"syntax"`.
+Teigmenge (P0020, §18.5). Ereignis-`art` der Ladeprüfungen `"pizzafehler"`; was schon der Parser meldet (Syntaxfehler und der
+ungültige Pfad im `bestellt`, P0015), hat `"syntax"` – so meldet `parse()` genau dann einen Fehler, wenn der Lauf mit `"syntax"` endet.
 
 ### 2.6 Fehlerorte (K-141)
 
@@ -195,7 +201,10 @@ Teigmenge (P0020, §18.5). Ereignis-`art` der Ladeprüfungen `"pizzafehler"`, be
   dieser Datei. **`datei` ist `null`**, solange das Programm aus genau einer `.pizza`-Datei besteht (Text, CLI-Datei oder
   Ein-Datei-Projekt) – dann sieht alles aus wie bisher. Fehler der Projektdatei: `datei: "pizza.json"`, ohne Zeile; Fehler der Sammlung
   ohne Ort (Grenzen, ungültiger Pfad, fehlende Hauptdatei, Teigmenge): `datei`, `zeile`, `spalte` = `null`.
-- Ladeprüfungen und Syntaxfehler tragen die Datei, in der die Ursache steht.
+- Ladeprüfungen und Syntaxfehler tragen die Datei, in der die Ursache steht. Genauer für Ladefehler (das Programm steht da noch nicht
+  fest): Ein Text-Programm (ohne Sammlung) nennt nie eine Datei; in einer Sammlung nennt jeder Fehler an einem `bestellt` (P0014,
+  P0015) seine Datei und jeder andere Fehler mit Ort (Syntax, P0016 … P0019), sobald die Sammlung mehr als eine `.pizza`-Datei hat –
+  ein Syntaxfehler in einem Ein-Datei-Projekt sieht also aus wie bisher.
 - **Texte:** Nur die ungefangene Ananas trägt einen Ort im `text` – in der Hauptdatei wie bisher `… (Zeile 12)`, in Nebendateien
   `… (rezepte/teig.pizza, Zeile 12)`. Alle anderen Orte bauen die Hüllen (CLI, nativer Host, Playground-Konsole) aus den Feldern: Sie
   nennen den Pfad, **sobald `datei ≠ null`** (also in Mehrdatei-Programmen auch für die Hauptdatei): `<text> (Zeile Z, Spalte S)` bzw.
@@ -574,7 +583,7 @@ steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `ei
 Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
 gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
-### 11.2 `Kiste` – Projektdateien lesen (K-146; Umsetzung offen, PROJEKTE.md PA1/PD2/PA2)
+### 11.2 `Kiste` – Projektdateien lesen (K-146; Umsetzung offen, PROJEKTE.md PD2/PA2 – die Sammlung liefert `projekt.lade` seit PA1 als `kiste`)
 
 Die **Kiste** sind alle Dateien der Sammlung (§2.1) außer `pruefung/` – auch `.pizza`-Dateien, `pizza.json` und Bilder, auch nicht
 erreichbare Dateien. Nur lesend; Schreiben bleibt Sache der Vorratskammer (§15.4). Eingebautes Modul wie `Bote` (eine eigene Klasse
