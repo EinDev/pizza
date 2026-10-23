@@ -1,8 +1,9 @@
 # Projekte, Mehrdatei-Programme, Bilder und Teilen mit Versionen (Konzept)
 
-> **Status: Konzept (Phase 1), alle Fragen vom Nutzer entschieden (§10).** Nichts hiervon ist umgesetzt. `SPEC.md`, `KLAERUNGEN.md`,
-> `ARCHITEKTUR.md`, `HOST-ABI.md`, `WASM.md` und `HERD.md` werden erst in Paket P0 (§11) angepasst, nach der unabhängigen Prüfung dieses
-> Konzepts. Die vorgeschlagenen K-Einträge (§12) stehen bis dahin nur hier.
+> **Status: geprüft (Datum 2026-10-23), bereit für P0.** Alle Fragen vom Nutzer entschieden (§10); die unabhängige Prüfung gegen Code
+> und Verträge ist eingearbeitet (Befunde §13). Nichts hiervon ist umgesetzt. `SPEC.md`, `KLAERUNGEN.md`, `ARCHITEKTUR.md`,
+> `HOST-ABI.md`, `WASM.md` und `herd/README.md` werden erst in Paket P0 (§11) angepasst; `HERD.md` verweist bereits auf dieses Konzept
+> (§10 Roadmap, §12.1 Regel 3/7) und wird von P0 nicht geändert. Die vorgeschlagenen K-Einträge (§12) stehen bis dahin nur hier.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -15,7 +16,7 @@ Dateien zur Strukturierung von Code zu verwenden.“
 
 Inhalt: §0 Kurzfassung · §1 Projektformat · §2 Teil A Modulsystem · §3 Teil B Projekte als Ordner · §4 Teil C Teilen-Dienst ·
 §5 Teil D Bilder und Dateien (Assets) · §6 Auswirkungen je Komponente · §7 Migrationsplan Beispiele · §8 Sicherheit und Datenschutz ·
-§9 Verworfene Alternativen · §10 Entscheidungen des Nutzers · §11 Paketplan · §12 Vorgeschlagene K-Einträge
+§9 Verworfene Alternativen · §10 Entscheidungen des Nutzers · §11 Paketplan · §12 Vorgeschlagene K-Einträge · §13 Prüfbefunde
 
 ---
 
@@ -29,11 +30,11 @@ Inhalt: §0 Kurzfassung · §1 Projektformat · §2 Teil A Modulsystem · §3 Te
 | E4 | Modul-Anweisung **`bestellt "rezepte/teig.pizza";`** – kontextuelles Schlüsselwort (nicht reserviert), nur auf oberster Ebene | lustig, eindeutig parsebar (Bezeichner + Textliteral ist sonst nie gültig), bricht keinen Bezeichner | `import "…"` umwidmen (unlustig, `import x.y.*;` hat schon andere, ignorierte Bedeutung); reserviertes Wort |
 | E5 | **Ein Projekt-Namensraum** für oberste Deklarationen; gleicher Name in zwei Dateien → Startfehler | einfachste Regel, keine qualifizierten Namen nötig, Texte (`alsText`, Fehlermeldungen) bleiben unverändert | Namensraum je Datei mit `teig.Teig` (Umbau der Namensauflösung in zwei Motoren, Textformen ändern sich) |
 | E6 | **Sichtbarkeit:** eine Datei sieht ihre eigenen Deklarationen und die der Dateien, die sie **direkt** bestellt; `geheimrezept` auf oberster Ebene = nur in der eigenen Datei | `bestellt` hat Bedeutung, Abhängigkeiten sind ablesbar; vorhandener Modifikator | transitive Sichtbarkeit (versteckte Abhängigkeiten), gar keine Prüfung (`bestellt` wäre Deko) |
-| E7 | Prüfung von E5/E6 als **Startprüfung** im gemeinsamen Code (`PizzaLang.intern.pruefe`) – konservativ, nie falsch-positiv | Compiler und Interpreter nutzen dieselbe Funktion → bitgleich ohne doppelte Umsetzung | Laufzeitprüfung in beiden Motoren |
+| E7 | Prüfung von E5/E6 als **Ladeprüfung** im gemeinsamen Lader (`PizzaLang.projekt.lade`, §2.7) – konservativ, nie falsch-positiv | Compiler und Interpreter rufen denselben Lader → bitgleich ohne doppelte Umsetzung (die Startprüfung `intern.pruefe` ist im Compiler ein eigener Port und daher **nicht** der Ort) | Laufzeitprüfung in beiden Motoren |
 | E8 | **Nebendateien** enthalten nur Deklarationen (Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen), Top-Level-**Variablen** und `bestellt`; sonstige Anweisungen und `hauptgang` nur in der Hauptdatei | Ablauf bleibt in einer Datei lesbar; Ladereihenfolge betrifft nur Initialisierungen | Snack-Code überall (unübersichtliche Reihenfolge) |
 | E9 | **Ladereihenfolge:** Tiefensuche ab Hauptdatei, `bestellt` in Textreihenfolge, Abhängigkeiten zuerst, jede Datei einmal, Hauptdatei zuletzt; nicht erreichbare Dateien gehören nicht zum Programm; **Zyklus = Fehler** | deterministisch, ohne Sortierregeln; entspricht dem Lesen von oben nach unten | alphabetisch (überraschend), Zyklen erlauben (Initialisierungsreihenfolge unklar) |
-| E10 | Fehlerorte: Ereignisse bekommen Feld **`datei`**; Texte nennen die Datei **nur außerhalb der Hauptdatei** („(rezepte/teig.pizza, Zeile 12)“); `datei` ist `null`, solange das Programm aus genau einer `.pizza`-Datei besteht | alle bestehenden `.erwartet`/`.fehler`/Doku-Texte bleiben gültig | Datei immer im Text (alle Testdateien neu) |
-| E11 | **Host-ABI v2:** `warnung`/`fehler` bekommen `datei_ptr, datei_len`; `abi_version()` = 2; pkarton bleibt **ein** Wasm-Modul | Host muss nichts über Projekte wissen; keine Abschnitts-Parser im Host | Dateiindex + Tabelle in Custom Section (jeder Host bräuchte einen Abschnittsleser) |
+| E10 | Fehlerorte: Ereignisse bekommen Feld **`datei`**; das `text`-Feld (nur Ananas-Texte tragen dort einen Ort) nennt die Datei **nur außerhalb der Hauptdatei** („(rezepte/teig.pizza, Zeile 12)“); Hüllen (CLI, Host, Konsole) nennen den Pfad, sobald `datei ≠ null` (§2.6); `datei` ist `null`, solange das Programm aus genau einer `.pizza`-Datei besteht | alle bestehenden `.erwartet`/`.fehler`/Doku-Texte bleiben gültig | Datei immer im Text (alle Testdateien neu) |
+| E11 | **Host-ABI v2:** `warnung`/`fehler` bekommen `datei_ptr, datei_len` (auch im Küchenbericht, §2.8); `abi_version()` = 2; pkarton bleibt **ein** Wasm-Modul | Host muss nichts über Projekte wissen; keine Abschnitts-Parser im Host | Dateiindex + Tabelle in Custom Section (jeder Host bräuchte einen Abschnittsleser) |
 | E12 | **Assets** (Bilder, Textdateien) liegen im Projektordner; ins pkarton kommen sie als **Datensegment** (Bilder als vorgebackene Teiglinge, §5); EXE-Format (`PKARTON1`-Anhang) unverändert | „ein Modul, kein Container“ (HOST-ABI §1) bleibt wahr, Host liest nichts nach | zweiter Anhang/Container, Host-Import `datei_lesen` |
 | E13 | **PNG und JPEG nur als Eingabe** (Nutzerentscheidung): ein eigener Rust-Decoder (`herd/teigling`, no_std, als `teigling.wasm` überall derselbe Code) **backt** sie beim Packen (Playground-Erstladen, EXE-Export, Teilen) einmalig zu einem **Teigling** vor – GPU-taugliches RGBA8 + vorberechnete Mipmaps, per Hash gecacht; GPU-Kompression später ohne Sprachänderung | bitgleich per Konstruktion; Ladezeit, VRAM/Bandbreite, Download-Größe, Mipmaps gegen Moiré | Browser `createImageBitmap`/Canvas (nicht bitgleich), Dekodieren bei jedem Lauf im Kern (Ladezeit, keine Mipmaps), sofort KTX2/Basis (Encoder-Determinismus und Aufwand offen) |
 | E14 | Sprach-API: **`Bildchen.laden("bilder/teig.png")`** (Herd) und **`Kiste`** für Projektdateien (`Kiste.text`, `Kiste.zeilen`, `Kiste.gibts`, `Kiste.liste`) – nur lesend | kleine Fläche, passt zu bestehendem `Bildchen`; „Kiste“ = Lieferkiste des Projekts | Dateisystem-API (nativ-only, widerspricht K-082) |
@@ -63,7 +64,8 @@ teigball/                         ← Projektwurzel (Ordnername = Standard-Proje
 ├── bilder/tischdecke.png         ← Assets (§5)
 ├── daten/level-1.txt
 └── pruefung/                     ← Testdateien (nur Repo/Harnische, gehören NICHT zum Programm)
-    ├── erwartet, ereignisse, herd-erwartet, ui-erwartet, eingabe, exitcode, warnungen, fehler, optionen.json, vorrat.json
+    ├── erwartet, ereignisse, herd-erwartet, ui-erwartet, eingabe, exitcode, warnungen, fehler, optionen.json, vorrat.json,
+        vorrat-erwartet, orte (§6.1)
 ```
 
 ### 1.2 `pizza.json`
@@ -84,7 +86,11 @@ teigball/                         ← Projektwurzel (Ordnername = Standard-Proje
 | `name` | nein | Anzeigename (Titel des App-Links, Projektliste, EXE-Dateiname); Standard: Ordnername bzw. Name der Hauptdatei ohne `.pizza`; ≤ 80 Zeichen, Steuerzeichen entfernt (wie heute `saeubereName`) |
 | `hauptdatei` | nein | Pfad der Hauptdatei; Standard `hauptgang.pizza`, sonst – falls es genau **eine** `.pizza`-Datei gibt – diese |
 | `beschreibung` | nein | ≤ 500 Zeichen, nur Anzeige (Galerie, Teilen-Vorschau) |
-| `args` | nein | Standard-Argumente für `hauptgang` (Playground-Feld „Argumente“, CLI ohne Argumente) |
+| `args` | nein | Standard-Argumente für `hauptgang` (Blech aus Texten, ≤ 32 Einträge à ≤ 200 Zeichen): gelten überall, wo **keine** Argumente übergeben werden – CLI, App-Link, EXE (die Laufzeit nimmt die im Modul eingebetteten Standard-Argumente, wenn der Host 0 Argumente liefert) und Startwert des Playground-Felds „Argumente“ |
+
+Ungültige `pizza.json` (kein JSON, `pizza` fehlt, Feld mit falschem Typ) → Ladefehler `PizzaFehler P0015: pizza.json ist ungültig: <Grund>.`
+(Grund z. B. `"hauptdatei" muss ein Text sein`). Das Playground-Feld „Argumente“ ist **lokal** (IndexedDB `args`, Startwert aus
+`pizza.json`); geteilt und exportiert wird nur `pizza.json` – es gibt keine zweite Quelle.
 
 Unbekannte Felder werden ignoriert (erweiterbar: z. B. später `koeche`, `symbol`). **Bewusst nicht** in `pizza.json`: Fenstergröße,
 Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), sonst gäbe es zwei Quellen.
@@ -97,6 +103,15 @@ Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), so
   Der Dienst prüft **unabhängig** noch einmal (eigene Kopie der Regel, durch gemeinsame Testfälle abgesichert).
 - Erlaubte Dateiarten v1: `.pizza`, `.png`, `.jpg`/`.jpeg`, `.txt`, `.json`, `.csv`, `.md` (Beschreibung/Notizen; nur Anzeige). Andere Endungen →
   im Playground nicht anlegbar, beim ZIP-Import übersprungen (mit Meldung), CLI ignoriert sie mit Warnung auf stderr.
+- **Textdateien an der Projektgrenze** (CLI-Lader, ZIP-Import, Datei hinzufügen, Teilen-Download, Durchreiche): Inhalt muss gültiges
+  UTF-8 sein (sonst abgelehnt: „<pfad> ist kein gültiger UTF-8-Text.“; JS `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })`,
+  Rust `str::from_utf8`), ein BOM bleibt erhalten, **`\r\n` → `\n`** (einzelnes `\r` bleibt). Grund: `core.autocrlf=true` ohne
+  `.gitattributes` checkt Textdateien unter Windows mit CRLF aus – ohne Normalisierung lieferten `Kiste.text`, Hashes und Teilen-Dedup
+  unter Windows andere Bytes als im Browser bzw. im Docker-Bau. Zusätzlich legt PD1 eine `.gitattributes` an, die nur Binärdateien
+  festlegt (`*.png *.jpg *.jpeg *.teigling *.wasm binary`) – Textdateien regelt die Normalisierung, nicht Git.
+- **Grenzen des Laders** (alle Motoren gleich, damit lokal Lauffähiges auch teil- und exportierbar ist): ≤ 100 Dateien, je Datei
+  ≤ 2 MiB, `.pizza` ≤ 512 KiB, gesamt ≤ 8 MiB (ohne `pruefung/`) → `PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (<Grund>).`
+  (z. B. `130 Dateien, höchstens 100`); Teigmenge §5.3.
 
 ### 1.4 Die Dateisammlung (E2) – überall dieselbe Form
 
@@ -104,8 +119,11 @@ Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), so
 { hauptdatei: "hauptgang.pizza", name: "Teigball",
   dateien: { "hauptgang.pizza": "…Text…", "welt/tisch.pizza": "…", "bilder/tischdecke.png": Uint8Array, "pizza.json": "…" } }
 ```
-Texte (`.pizza .txt .json .csv .md`) als String (UTF-8), alles andere als `Uint8Array`. `pizza.json` darf fehlen; ist sie da, werden
-`name`, `hauptdatei` und `args` der Sammlung **aus ihr abgeleitet** (`PizzaLang.projekt.ausDateien`) – es gibt keine zweite Quelle.
+Texte (`.pizza .txt .json .csv .md`) als String (UTF-8, normalisiert nach §1.3), alles andere als `Uint8Array`. `pizza.json` darf
+fehlen; ist sie da, werden `name`, `hauptdatei` und `args` der Sammlung **aus ihr abgeleitet** (`PizzaLang.projekt.ausDateien`) – es gibt
+keine zweite Quelle. **Beim Teilen, ZIP- und EXE-Export erzeugt der Playground eine fehlende `pizza.json`** (aus Projektname und
+Hauptdatei); Umbenennen eines Projekts mit `pizza.json` ändert deren `name`. Empfänger (Code-/App-Link, ZIP-Import) leiten alles mit
+`ausDateien` ab, nie aus Begleitfeldern.
 
 ### 1.5 Ein-Datei-Programme (E24)
 
@@ -114,7 +132,10 @@ Eingabeformen:** Besteht das Programm (die erreichbaren Dateien, §2.2) aus gena
 `null` und kein Text nennt eine Datei – egal ob als String, CLI-Datei oder Ein-Datei-Projekt geladen. So vergleichen Differenztests nie
 `null` mit einem Pfad, und keine bestehende Testdatei ändert sich. `bestellt` in einem Ein-Datei-Programm ohne
 Sammlung → `PizzaFehler P0015` (Datei fehlt). CLI: `node bin/pizza.js spiel/hauptgang.pizza` → Projektwurzel = nächster Ordner aufwärts
-mit `pizza.json`, sonst der Ordner der Datei; die angegebene Datei ist die Hauptdatei.
+(höchstens 8 Ebenen) mit `pizza.json`; die angegebene Datei ist die Hauptdatei und muss unter der Wurzel liegen. **Ohne** `pizza.json`
+ist die Wurzel der Ordner der Datei, aber die Sammlung besteht nur aus der Datei und den per `bestellt` erreichten `.pizza`-Dateien
+(bei Bedarf gelesen) – die CLI durchsucht nie ungefragt einen Ordner (z. B. `tests/faelle/` mit über 1000 Dateien). Assets (`Kiste`,
+`Bildchen.laden`) brauchen also ein Projekt: `pizza.json` oder Aufruf mit dem Ordner (`node bin/pizza.js spiel/`).
 
 ---
 
@@ -146,10 +167,18 @@ geheimrezept funghi salzAnteil() { serviere 0.02; }   // nur in dieser Datei
 
 - `bestellt "<pfad>";` – nur auf oberster Ebene, vor oder zwischen Deklarationen (Position egal, wie `paket`/`import`). Das Argument ist
   ein **Textliteral** (keine Ausdrücke, keine Escapes außer den üblichen). Pfad **relativ zur Projektwurzel** (nicht zur Datei), Regeln §1.3,
-  Endung `.pizza` Pflicht. Kontextuelles Schlüsselwort: `bestellt` bleibt als Bezeichner gültig (Prüfung: im Korpus kommt `bestellt` nur
-  in Texten/Ausgaben vor, nie als Bezeichner).
-- Doppelte Bestellung derselben Datei in einer Datei → Warnung `W0105: "rezepte/teig.pizza" ist schon bestellt.` (harmlos).
-- Eine Datei darf sich nicht selbst bestellen → Zyklus (P0014).
+  Endung `.pizza` Pflicht. Kontextuelles Schlüsselwort: `bestellt` bleibt als Bezeichner gültig (geprüft 2026-10-23: im Repo kommt
+  `bestellt` nur in Texten/Kommentaren vor, nie als Bezeichner).
+- **Parser** (`programm()` in `site/js/pizza.js`): auf oberster Ebene, wenn das Token ein `name` mit Wert `bestellt` ist **und** das
+  nächste ein `text`-Token, entsteht ein Knoten `{ k: 'Bestellt', pfad, z, s }` (anders als `paket`/`import`, die der Parser verwirft).
+  Gilt der Wert des Literals nach Escape-Auflösung nicht nach §1.3 → P0015 (ungültiger Pfad). `bestellt` ohne folgendes `;` → P0001 wie
+  bei `paket`. Alles andere (`bestellt = 3;`, `bestellt(x)`) bleibt ein normaler Bezeichner.
+- Doppelte Bestellung derselben Datei in einer Datei → Warnung `W0004: "rezepte/teig.pizza" ist schon bestellt.` (harmlos; Position = das
+  zweite `bestellt`). Nummer W0004 statt W01xx, weil W00xx die statischen Warnungen sind (W0003, W0013, W0032) und W01xx die der
+  Laufzeitumgebung (W0100 … W0104).
+- Eine Datei darf sich nicht selbst bestellen → Zyklus (P0014). Ebenso kann **niemand die Hauptdatei bestellen** (sie ist die Wurzel der
+  Tiefensuche, jede Bestellung wäre ein Kreis): Nebendateien sehen daher nie Namen der Hauptdatei. Gemeinsamer Zustand (Spielobjekt,
+  Zettel, Konstanten), den Nebendateien brauchen, gehört in eine Nebendatei (z. B. `zustand.pizza`), die alle bestellen.
 - `paket …;` und `import x.y.*;` bleiben erlaubt und **ignoriert** (SPEC §2).
 
 ### 2.2 Programm = erreichbare Dateien, Ladereihenfolge (E9)
@@ -161,21 +190,31 @@ geheimrezept funghi salzAnteil() { serviere 0.02; }   // nur in dieser Datei
 3. Fehlende Datei → `PizzaFehler P0015: Die Datei "rezepte/tieg.pizza" gibt es im Projekt nicht.`; ungültiger Pfad →
    `PizzaFehler P0015: "Rezepte/Teig.pizza" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).`
 4. `.pizza`-Dateien, die nicht erreichbar sind, gehören nicht zum Programm (keine Warnung – im Playground grau markiert).
-5. **Syntaxfehler** werden in Ladereihenfolge gemeldet; der erste beendet den Start (wie heute: ein Syntaxfehler, Exit 2).
+5. **Syntaxfehler** werden in Besuchsreihenfolge gemeldet (eine Datei wird beim ersten Besuch geparst); der erste beendet den Start
+   (wie heute: ein Syntaxfehler, Exit 2).
+6. **Reihenfolge der Ladeprüfungen** (der erste Fehler bricht ab, alle mit Exit 2, 0 Schritten und **ohne** vorherige Warnungen – wie ein
+   Syntaxfehler heute): `pizza.json` (P0015) → Tiefensuche mit Syntaxfehlern, P0014, P0015 in Besuchsreihenfolge → Grenzen (P0020 Dateien/
+   Größe) → P0017 → P0016 → P0018/P0019 (je Datei in Ladereihenfolge, darin nach Position). Erst danach folgen wie heute die Warnungen
+   (zuerst W0004 aus dem Lader in Ladereihenfolge, dann `analysiere`: W0666, W0032 …) und die bestehenden Startprüfungen (Q0004, P0010,
+   P0011, R0001, A0001, P0013), zuletzt P0020 (Teigmenge, §5.3). Ereignis-`art` der Ladeprüfungen: `"pizzafehler"`, Syntax: `"syntax"`.
 
-**Ablauf (erweitert SPEC §2 „Snack-Modus“):** (1) alle Deklarationen **aller** geladenen Dateien registrieren (Hoisting, Ladereihenfolge),
-(2) Top-Level-Variablen der Nebendateien in Ladereihenfolge initialisieren, (3) Top-Level-Anweisungen der Hauptdatei, (4) `hauptgang`.
-Statische Initialisierungen, Annotationen (`@Kühlschrank` …) und W0666/W0032-Analyse laufen in Ladereihenfolge, innerhalb einer Datei wie
-heute. Laden und Bestellen kosten **keine Schritte** – Schrittzahlen eines Programms ändern sich nicht, wenn man es auf Dateien aufteilt
+**Ablauf (erweitert SPEC §2 „Snack-Modus“):** Das Programm ist die **Verkettung der Dateirümpfe in Ladereihenfolge** (Hauptdatei zuletzt);
+darauf gilt SPEC §2 unverändert: (1) alle Deklarationen registrieren (Hoisting), (2) Top-Level-Anweisungen in Reihenfolge – das sind
+zuerst die Variablen-Initialisierungen der Nebendateien, dann die Anweisungen der Hauptdatei –, (3) `hauptgang`. Statische
+Initialisierungen, Annotationen (`@Kühlschrank` …) und die Analyse laufen auf diesem einen Programm: Der **Programm-Scope von W0032 umfasst
+alle Dateien**, W0666 kommt einmal je Programm (erste Fundstelle in Ladereihenfolge), W0003 einmal je Methode. Die Doppelmeldungs-Sperre
+für Warnungen (`warnSet`, heute Schlüssel `code:zeile:spalte`) bekommt die Datei in den Schlüssel (`code:datei:zeile:spalte`) – sonst
+verschluckte sie Warnungen an gleicher Zeile/Spalte in zwei Dateien; dasselbe im Compiler-Port von `analysiere` und in der Laufzeit. Laden und Bestellen kosten **keine Schritte** – Schrittzahlen eines Programms ändern sich nicht, wenn man es auf Dateien aufteilt
 (Prüfstand-Fall: dasselbe Programm als eine und als drei Dateien → identische Ereignisse inkl. `schritte`/`zeitMs`, nur `datei`-Felder
 verschieden).
 
 ### 2.3 Nebendateien (E8)
 
 Erlaubt: `bestellt`, `paket`, `import`, Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen, Top-Level-Variablen (auch `gebacken`,
-mit beliebigem Initialisierer). Jede andere Anweisung →
+mit beliebigem Initialisierer, auch Mehrfachdeklaration `salami a = 1, b;`). Jede andere Anweisung (Position: ihr erstes Token) →
 `PizzaFehler P0017: In rezepte/teig.pizza dürfen nur Rezepte stehen (Klassen, Funktionen, Variablen) – Anweisungen gehören in die Hauptdatei hauptgang.pizza.`
-**`hauptgang` gehört in die Hauptdatei:** eine Methode oder Top-Level-Funktion `hauptgang` in einer Nebendatei →
+**`hauptgang` gehört in die Hauptdatei:** eine Methode (auch in einer verschachtelten Klasse) oder Top-Level-Funktion `hauptgang` in
+einer Nebendatei →
 `PizzaFehler P0017: hauptgang gehört in die Hauptdatei hauptgang.pizza, nicht nach rezepte/teig.pizza.` In der Hauptdatei wird er wie heute
 gesucht (K-033: erste Klasse mit `hauptgang`, sonst Top-Level-Funktion). Damit ist der Einstieg immer eindeutig, unabhängig von der
 Ladereihenfolge.
@@ -183,7 +222,8 @@ Ladereihenfolge.
 ### 2.4 Namen und Konflikte (E5)
 
 - Alle obersten Namen (Klassen, Rezepturen, quattrostagioni, Top-Level-Funktionen, Top-Level-Variablen) liegen in **einem**
-  Projekt-Namensraum. Derselbe Name in zwei Dateien →
+  Projekt-Namensraum. **Verschachtelte** Klassen/Rezepturen/quattrostagioni zählen mit (sie werden heute schon global registriert,
+  SPEC §14.5) und gehören zur Datei ihrer äußeren Klasse. Derselbe Name in zwei Dateien →
   `PizzaFehler P0016: 'Teig' gibt es zweimal – in rezepte/teig.pizza (Zeile 3) und in hauptgang.pizza (Zeile 10).` (Position: das
   spätere in Ladereihenfolge). Das gilt auch für `geheimrezept`-Namen (Namen bleiben projektweit eindeutig – einfache Regel, kein Verstecken).
 - Überladung von Top-Level-Funktionen (gleicher Name, andere Arität) **über Dateigrenzen hinweg** → ebenfalls P0016 (Überladungen gehören
@@ -195,10 +235,12 @@ Ladereihenfolge.
 
 - Eine Datei **sieht**: ihre eigenen obersten Namen + die nicht-`geheimrezept` obersten Namen der Dateien, die sie **direkt** bestellt.
   Die Standardbibliothek und eingebaute Klassen sind immer sichtbar.
-- **Prüfung (Startprüfung, Teil von `PizzaLang.intern.pruefe`, deterministisch, Reihenfolge = Ladereihenfolge, dann Position):**
-  Für jede Datei F und jedes Bezeichner-Token t in F, das (a) nicht direkt hinter `.` steht, (b) kein benanntes Argument `t:` ist,
-  (c) gleich einem obersten Namen N einer anderen Datei G ist und (d) **nicht** in F als lokale Variable, Parameter, Lambda-Parameter oder
-  Mitglied deklariert ist und **kein** Mitgliedsname irgendeiner Klasse des Projekts ist:
+- **Prüfung (Ladeprüfung in `PizzaLang.projekt.lade`, auf den Tokens jeder Datei – der Lexer liegt in `pizza.js`, der Compiler ruft
+  denselben Lader; deterministisch, Reihenfolge = Ladereihenfolge, dann Position):**
+  Für jede Datei F und jedes Bezeichner-Token t in F, das (a) nicht direkt hinter `.` oder `@` steht, (b) kein benanntes Argument `t:`
+  (auch in Annotationen) ist, (c) gleich einem obersten Namen N einer anderen Datei G ist und (d) **nicht** irgendwo in F als lokale
+  Variable, Parameter, Lambda-Parameter, `für`-/Fang-/`roh`-Variable, Generik-Parameter (`<T>`) oder Mitglied deklariert ist und **kein**
+  Mitgliedsname irgendeiner Klasse und **kein** Wertname irgendeines quattrostagioni des Projekts ist (`fall WINTER ->`):
   - N ist `geheimrezept` → `PizzaFehler P0018: 'salzAnteil' ist ein Geheimrezept von rezepte/teig.pizza.`
   - G wird von F nicht direkt bestellt → `PizzaFehler P0019: 'Teig' kommt aus rezepte/teig.pizza – bestelle die Datei hier: bestellt "rezepte/teig.pizza";`
 - Die Regel ist **konservativ**: Sie meldet nie etwas, das gültig wäre (wegen (d) überspringt sie mehrdeutige Fälle). In diesen seltenen
@@ -212,22 +254,40 @@ Ladereihenfolge.
 - Ereignisse `fehler` und `warnung` erhalten das Feld **`datei`** (Projektpfad; `null` bei Programmen aus genau einer Datei, §1.5).
   `zeile`/`spalte` beziehen sich auf diese Datei.
 - Texte: In der Hauptdatei unverändert („Ungefangene Ananas – … (Zeile 12)“). In anderen Dateien „(rezepte/teig.pizza, Zeile 12)“ – dasselbe Muster wie in der CLI.
-  CLI (K-083): `<text> (Zeile Z, Spalte S)` bzw. `<text> (rezepte/teig.pizza, Zeile Z, Spalte S)`.
-- Die Startprüfungen P0014–P0019 und Syntaxfehler tragen die Datei, in der die Ursache steht.
+  CLI (K-083): `<text> (Zeile Z, Spalte S)` bzw. `<text> (rezepte/teig.pizza, Zeile Z, Spalte S)`. **Regel für alle Hüllen** (CLI,
+  nativer Host, Playground-Konsole): Pfad nennen, sobald `datei ≠ null` – also in Mehrdatei-Programmen auch für die Hauptdatei
+  (`(hauptgang.pizza, Zeile 3, Spalte 1)`). So braucht kein Host zu wissen, welche Datei die Hauptdatei ist; Ein-Datei-Programme
+  (`datei = null`) sehen aus wie heute.
+- Die Ladeprüfungen P0014–P0019 und Syntaxfehler tragen die Datei, in der die Ursache steht.
+- **Was sich an Texten wirklich ändert:** Das `text`-Feld enthält einen Ort nur bei der ungefangenen Ananas (`… (Zeile 12)`, heute in
+  `pizza.js` und `laufzeit/src/start.rs` angehängt) – dort wird es in Nebendateien `… (rezepte/teig.pizza, Zeile 12)`. Alle anderen Orte
+  (Warnungen, PizzaFehler) stehen nur in den Feldern; die Ortsangabe davor/dahinter bauen die Hüllen (CLI `bin/pizza.js` `pos`/
+  `meldungText` – dessen Regex `\s\(Zeile (\d+)\)$` muss auch `(<pfad>, Zeile N)` erkennen –, Playground-Konsole, nativer Host
+  HOST-ABI §7) aus `datei`/`zeile`/`spalte`.
+- **Ereignisform:** `{ typ: "fehler", code, art, text, datei, zeile, spalte }` bzw. `{ typ: "warnung", code, text, datei, zeile, spalte }`
+  – `datei` steht **immer** im Ereignis (auch als `null`) direkt vor `zeile`. Tests, die ganze Ereignisse vergleichen
+  (z. B. `tests/run-tests.js` „Herd-Kern fehlt“), bekommen `datei: null` ergänzt; Testdateien (`.erwartet`, `.fehler`, `.warnungen`) bleiben.
 - **Stapel:** Bei ungefangener Ananas zählt der Ort, an dem sie entsteht (wie heute) – keine Aufrufkette (unverändert).
 
 ### 2.7 API (Interpreter, `site/js/pizza.js`)
 
 ```js
 PizzaLang.run(quelle, optionen)           // quelle: string (Ein-Datei) | Projekt { dateien, hauptdatei?, name? } (§1.4)
-                                          // neu in optionen: teiglinge?: { pfad → Uint8Array } (vorgebackene Bilder, §5.4)
-PizzaLang.parse(quelltext)                // unverändert (eine Datei, Live-Diagnose)
-PizzaLang.projekt.lade(projekt)           // → { ok, ladeliste: [pfad], ast, dateien: [pfad…], fehler? } – gemeinsamer Lader (Interpreter + Compiler)
-PizzaLang.projekt.ausDateien(dateien)     // pizza.json auswerten → { name, hauptdatei, args, dateien }
+                                          // neu in optionen: teiglinge?: { pfad → Uint8Array } (vorgebackene Bilder, §5.4),
+                                          //   vorbacker?: WebAssembly.Module von teigling.wasm (wie herdKern; Node: site/js/herd/teigling.wasm)
+PizzaLang.parse(quelltext, { datei }?)    // eine Datei (Live-Diagnose); kennt jetzt den Knoten 'Bestellt'; datei = Index für die Knoten (Standard 0)
+PizzaLang.projekt.lade(projekt)           // → { ok: true, ladeliste: [pfad], ast, dateien: [pfad…], warnungen: [W0004…] }
+                                          //   | { ok: false, fehler: { code, art, text, datei, zeile, spalte } } – gemeinsamer Lader (Interpreter + Compiler)
+PizzaLang.projekt.ausDateien(dateien)     // pizza.json auswerten → { name, hauptdatei, args, dateien } | { fehler } (P0015)
 PizzaLang.projekt.pruefePfad(pfad)        // → null | Fehlertext
 ```
-Jeder AST-Knoten kennt seine Datei (Index in `dateien`); der Lader liefert **ein** zusammengesetztes Programm in Ladereihenfolge. Der
-Wasm-Compiler (`frontend.js`) nimmt dieses Programm statt eines einzelnen ASTs → identische Hoisting-/Initialisierungsreihenfolge.
+Jeder AST-Knoten kennt seine Datei (Feld `d` = Index in `dateien`; `dateien[0]` ist die Hauptdatei); der Lader liefert **ein**
+zusammengesetztes Programm in Ladereihenfolge (`ast.body` = Verkettung). Der Wasm-Compiler (`site/js/pizzaiolo.js` →
+`frontend.js`) ruft `projekt.lade` statt `PizzaLang.parse` und nimmt dieses Programm statt eines einzelnen ASTs → identische
+Hoisting-/Initialisierungsreihenfolge; seine Positionstabelle (`this.pos`) speichert den Datei-Index mit. Wichtig: Der Compiler hat
+**eigene Ports** von `analysiere` und der Startprüfung (`frontend.js`, nicht `PizzaLang.intern.pruefe`) – alles Projektbezogene liegt
+deshalb im Lader, die Ports bekommen nur Datei-Index und Doppelmeldungs-Schlüssel (§2.2) nachgezogen. `PizzaLang.run(string)` bleibt
+die Ein-Datei-Abkürzung (`projekt.lade({ dateien: { "hauptgang.pizza": quelle } })`).
 
 ### 2.8 Wasm, pkarton, Host (E11, E12)
 
@@ -235,14 +295,25 @@ Wasm-Compiler (`frontend.js`) nimmt dieses Programm statt eines einzelnen ASTs �
   erreichbaren Dateien landen in **einem** Modul; Assets als Datensegment (§5.6).
 - **HOST-ABI v2:** `warnung(code, text, datei_ptr, datei_len, zeile, spalte)`, `fehler(art, code, text, datei_ptr, datei_len, zeile, spalte)`;
   `datei_len` 0 = `null`. `abi_version()` → 2. Hosts lehnen 1 mit Ladefehler ab (keine Rückwärtskompatibilität nötig; alle `.pkarton`
-  entstehen ohnehin neu). Custom Section `pizzaiolo`: zusätzlich `"projekt": { "name", "dateien": n }` (informativ).
-- Nativer Host (`pizza-host`, EXE): nur die neue Signatur; sonst keine Änderung – er kennt weiter nur ein `.pkarton`.
+  entstehen ohnehin neu). Custom Section `pizzaiolo`: `"abi": 2`, zusätzlich `"projekt": { "name", "dateien": n }` (informativ).
+  Die Laufzeit hält eine Tabelle Datei-Index → Pfad im Datensegment; die **Positionstabelle** des Moduls (Ananas-`pos`, Schrittlimit)
+  bekommt den Datei-Index dazu.
+- **Küchenbericht** (HOST-ABI Anhang A): Ereignis 5 `warnung` bekommt `bytes datei` (leer = `null`) vor `bytes code`; `pos` zeigt in die
+  erweiterte Positionstabelle. Format gehört der Laufzeit, Hosts reichen es nur weiter – betroffen sind trotzdem die Zusammenführung in
+  `host/src/kueche.rs` und `site/js/pizzaiolo/koch.js`.
+- **Alle ABI-Nutzer** (nicht nur `host-js.js`): `site/js/pizzaiolo/host-js.js`, `host/src/laufen.rs`, `host/src/kueche.rs`,
+  `host/tests/abi.rs`, `tests/wasm/klon-host.js`, `tests/wasm/herd.js`, `tests/herd/bild.js`, `tests/herd/zeige.js` (vor PA2 per
+  `git grep -n "warnung\|fehler:" -- host tests site/js/pizzaiolo` erneut vollständig ermitteln).
+- Nativer Host (`pizza-host`, EXE): neue Signatur und Ortsausgabe nach §2.6 (HOST-ABI §7: `⚠ <text> (<pfad>, Zeile z, Spalte s)`, Pfad nur
+  wenn `datei ≠ null`, §2.6); sonst keine Änderung – er kennt weiter nur ein `.pkarton`.
+- **Standard-Argumente** aus `pizza.json` (§1.2) bettet der Compiler ein; die Laufzeit nimmt sie, wenn der Host 0 Argumente übergibt.
 - Differenztests: Ereignisse inklusive `datei` werden in allen drei Motoren verglichen.
 
 ### 2.9 CLI
 
-`node bin/pizza.js <ordner | ordner/pizza.json | datei.pizza> [args…]` – Ordner/Projektdatei → Projekt; Datei → §1.5. `--ast` gibt die
-Ladeliste und die ASTs aus. Der Kompilier-Weg zur EXE (überall, wo heute `.pizza` → `.pkarton`) nimmt ebenfalls Ordner. Fehlerausgabe
+`node bin/pizza.js <ordner | ordner/pizza.json | datei.pizza> [args…]` – Ordner/Projektdatei → Projekt (alle Dateien unter der Wurzel
+außer `pruefung/`, rekursiv, Grenzen §1.3); Datei → §1.5. Unterscheidung über `fs.statSync` (Ordner) bzw. Dateiname `pizza.json`.
+`--ast` gibt die Ladeliste und die ASTs aus. Der Kompilier-Weg zur EXE (überall, wo heute `.pizza` → `.pkarton`) nimmt ebenfalls Ordner. Fehlerausgabe
 nach §2.6.
 
 ---
@@ -284,20 +355,27 @@ nach §2.6.
 
 - IndexedDB-Datenbank `pizza`, Version 1:
   - `projekte` (Schlüssel `id`): `{ id, name, hauptdatei, args, erstellt, geaendert, offen: [pfad…], aktiv: pfad, angeheftet: [pfad…],
-    quelle: null | "beispiel:<id>" | "teilen:<id>@<n>", teilen: null | { id, version, schluessel? } }`
+    quelle: null | "beispiel:<id>" | "doku:<id>" | "teilen:<id>@<n>", teilen: null | { id, version, schluessel? } }`
   - `dateien` (Schlüssel `[projektId, pfad]`): `{ inhalt: string | Uint8Array, basis }` (`basis` = Stand für „geändert“-Punkt).
-  - `teiglinge` (Schlüssel = SHA-256 der Quelle + `teigling/1`): vorgebackene Bilder, LRU bis 128 MiB (§5.4).
+  - `teiglinge` (Schlüssel = SHA-256 der Quelle + `teigling/1`): `{ bytes, groesse, zuletzt }` – vorgebackene Bilder, LRU über
+    `zuletzt` bis 128 MiB (§5.4).
+- **Ohne IndexedDB** (blockiert, Fehler beim Öffnen): Projekte leben nur im Speicher, Seitenbanner „Projekte werden nicht gespeichert –
+  sichere sie als ZIP.“ (kein Browser-Popup); der Playground bleibt voll nutzbar.
 - Undo-Historie, Cursor, Scroll bleiben im Speicher (wie heute). Speichern mit Verzögerung (wie heute), außerdem bei `pagehide`.
 - Mehrere Playground-Fenster: `BroadcastChannel("pizza-projekte")` meldet Änderungen; das andere Fenster lädt die betroffene Datei neu,
   falls sie dort nicht ungespeichert geändert ist (sonst Hinweis „in einem anderen Fenster geändert“ – zuletzt gespeichert gewinnt).
 - Kein `navigator.storage.persist()` (kann in Firefox eine Browser-Abfrage zeigen); Hinweis in „Über“: Browser dürfen Daten bei
   Speichermangel löschen – ZIP-Export sichert.
 - Kleine Einstellungen (Thema, Köche, Doku-Seite, feste Saat) bleiben in `localStorage`.
-- **Vorratskammer:** Präfix je Projekt = Projektname (wie heute der Tab-Name), App-Link nutzt denselben Präfix → wie heute teilen sich
-  Playground-Projekt und App-Link gleichen Namens ihre Kammern; Namensraum-Kammern (`raum/name`, K-106) unverändert global.
+- **Vorratskammer** (Korrektur nach Prüfung – heute gibt es **keinen** Präfix je Tab-Name): Regel K-088 bleibt, nur die Unterscheidung
+  wandert vom Tab-Schlüssel (`bsp:`/`doku:`) an `projekt.quelle`: Projekte mit `quelle` `beispiel:…`/`doku:…` nutzen
+  `pizza.vorrat-beispiel.<kennung>`, alle übrigen Projekte und der App-Link `pizza.vorrat.<kennung>`; Kammern mit Namensraum
+  (`raum/name`, K-106) unverändert immer `pizza.vorrat.<raum>/<name>` (`vorratPraefix` in `ui/src/vorrat.js` bekommt das Projekt statt
+  des Tabs). Kammern bleiben in `localStorage`.
 - **Migration** (einmalig beim ersten Start): jeder Tab aus `pizza.tabs` wird ein Ein-Datei-Projekt (Name = Tab-Name ohne `.pizza`,
-  Datei `hauptgang.pizza`, `args` übernommen); `pizza.tabs` wird danach entfernt. Geschlossene Tabs („Wiederherstellen“) → Projekte im
-  Papierkorb (Liste „Zuletzt gelöscht“, 10 Einträge, wie `MAX_GESCHLOSSEN`).
+  Datei `hauptgang.pizza`, `args` übernommen; Tab-Schlüssel `bsp:<id>` → `quelle: "beispiel:<id>"`, `doku:<id>` → `"doku:<id>"`,
+  `geteilt:…`/`datei:…`/`willkommen` → `null`); `pizza.tabs` wird erst nach erfolgreichem Schreiben in IndexedDB entfernt. Geschlossene
+  Tabs („Wiederherstellen“) → Projekte im Papierkorb (Liste „Zuletzt gelöscht“, 10 Einträge, wie `MAX_GESCHLOSSEN`).
 
 ### 3.3 Beispiele im Playground
 
@@ -309,10 +387,13 @@ unverändert ist, sonst Wahl „Zu meiner Kopie“ / „Frische Kopie“. Die Da
 
 - **Export:** Ordner `<projektname>/…` mit allen Dateien inkl. erzeugter `pizza.json` (falls nicht vorhanden), Methode „stored“, CRC-32,
   UTF-8-Namensflag. Kleiner eigener Schreiber (~80 Zeilen) in `ui/src/zip.js`.
-- **Import:** „stored“ und „deflate“ (`DecompressionStream("deflate-raw")`); haben alle Einträge einen gemeinsamen Wurzelordner, wird er
-  entfernt; Pfade nach §1.3 geprüft (ungültig → übersprungen und gemeldet; nie außerhalb des Projekts = kein Zip-Slip); Grenzen wie §4.6
-  (Dateizahl, Einzel-/Gesamtgröße, **entpackt** gemessen, Abbruch beim Überschreiten während des Entpackens = keine ZIP-Bombe);
-  Verschlüsselung/ZIP64 → Meldung „Diese ZIP-Datei kann der Playground nicht lesen.“
+- **Import:** „stored“ und „deflate“ (`DecompressionStream("deflate-raw")`); Größen und Namen aus dem **zentralen Verzeichnis** (nicht
+  aus den lokalen Köpfen – so gehen auch Archive mit Datendeskriptor, Bit 3, wie sie Windows/macOS erzeugen); CRC-32 jedes Eintrags wird
+  geprüft. Haben alle Einträge einen gemeinsamen Wurzelordner, wird er entfernt; `__MACOSX/`, Einträge mit Segmenten ab `.` und Ordner-
+  einträge werden still übersprungen; ASCII-Großbuchstaben werden zu Kleinbuchstaben, wenn das Ergebnis gültig und eindeutig ist
+  (Meldung „umbenannt“); übrige Pfade nach §1.3 geprüft (ungültig → übersprungen und gemeldet; nie außerhalb des Projekts = kein
+  Zip-Slip); Grenzen wie §4.6 (Dateizahl, Einzel-/Gesamtgröße, **entpackt** gemessen, Abbruch beim Überschreiten während des Entpackens
+  = keine ZIP-Bombe); Verschlüsselung/ZIP64/andere Methoden → Meldung „Diese ZIP-Datei kann der Playground nicht lesen.“
 - CLI braucht kein ZIP (Ordner sind dort nativ).
 
 ### 3.5 EXE-Export und App-Link
@@ -326,8 +407,11 @@ unverändert ist, sonst Wahl „Zu meiner Kopie“ / „Frische Kopie“. Die Da
 
 ### 3.6 Worker-Protokoll (ARCHITEKTUR §2)
 
-`{ typ: "start", projekt: { dateien, hauptdatei, name }, args? }` – Binärdateien als `ArrayBuffer`-Transfer. `code` als Ein-Datei-Abkürzung
-bleibt erlaubt.
+`{ typ: "start", projekt: { dateien, hauptdatei, name }, args?, teiglinge?, vorbacker? }` – Binärdateien und Teiglinge als
+`ArrayBuffer`-Transfer, `vorbacker` = `WebAssembly.Module` von `teigling.wasm` (einmal je Seite kompiliert, wie `herdKern`). Ebenso
+`{ typ: "kompiliere", projekt, teiglinge?, vorbacker? }` (EXE-Export). `code` als Ein-Datei-Abkürzung bleibt erlaubt. Der Wasm-Motor
+bekommt dieselben Felder (`Pizzaiolo.kompiliere/run(quelle, { teiglinge, vorbacker })`, `faehigkeiten.laufOptionen` ergänzt); der
+Rückfall auf den Interpreter (`nichtUnterstuetzt`, Motor `auto`) reicht das Projekt unverändert weiter.
 
 ---
 
@@ -350,21 +434,33 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
   `{ "format": "pizza-projekt/1", "name", "hauptdatei", "beschreibung"?, "args"?, "dateien": [ { "pfad", "sha256", "groesse" } ] }`
   (Dateien nach Pfad sortiert). Für die spätere GPU-Kompression (§5.7) ist je Bild ein Feld `teigling` (SHA-256 des vorgebackenen Blobs)
   vorgesehen; in v1 gibt es es nicht – Empfänger backen aus der Quelle vor (Cache-Schlüssel = Quell-Hash).
+  - **Kanonisch** heißt: UTF-8, ohne Leerraum, Schlüssel in genau der obigen Reihenfolge (fehlende optionale weggelassen), `sha256` als
+    64 Kleinbuchstaben-Hex. Der **Dienst serialisiert neu** (er speichert nie die Client-Bytes); der Manifest-Hash ist der SHA-256 dieser
+    Bytes – damit ist „gleiches Manifest“ (§4.3) ein Hash-Vergleich.
+  - **Prüfung beim Posten** (sonst `422 { "fehler" }`): `format` genau `"pizza-projekt/1"`; unbekannte Felder → 422 (das Format wächst
+    über eine neue `format`-Version); `pfad` nach §1.3 (eigene Kopie der Regel), keine doppelten Pfade, kein `pruefung/`; `hauptdatei`
+    steht in `dateien` und endet auf `.pizza`; `pizza.json` vorhanden; `name` ≤ 80, `beschreibung` ≤ 500 Zeichen ohne Steuerzeichen;
+    `args` wie §1.2; `groesse` = echte Blobgröße; **Typregel je Endung gegen die Blob-Bytes**: `.png` beginnt mit der PNG-Signatur, `.jpg`/
+    `.jpeg` mit `FF D8 FF`, Textendungen sind gültiges UTF-8 ohne `\r\n` (§1.3) und `.pizza` ≤ 512 KiB. Erst hier kann der Dienst Typen
+    prüfen – beim `PUT` kennt er nur den Hash.
+  - `name`, `hauptdatei`, `beschreibung`, `args` im Manifest sind **Kopien aus `pizza.json`** für die Anzeige ohne Blob-Download (Teilen-
+    Vorschau, App-Titel vor dem Laden); maßgeblich ist beim Empfänger `projekt.ausDateien` (§1.4).
 - **Link:** `{ id, schluesselHash, erstellt, geaendert, versionen: [ { n, manifest: sha256, zeit } ] }` – `n` ab 1, lückenlos.
-- Zeitangaben auf ganze Tage gerundet (UTC-Datum), damit möglichst wenig Nutzungsdaten entstehen.
+- Zeitangaben auf ganze Tage gerundet (UTC-Datum `JJJJ-MM-TT`), damit möglichst wenig Nutzungsdaten entstehen. Ausnahme, nie ausgeliefert:
+  die Datei-Änderungszeit (`mtime`) der Blobs, die die Müllabfuhr (§4.5) braucht.
 
 ### 4.3 HTTP-Schnittstelle (über nginx unter `/api/`)
 
 | Methode + Pfad | Zweck | Antwort |
 |---|---|---|
-| `GET /api/konfig` | Fähigkeiten für die UI | `{ "teilen": true, "aufbewahrungTage": 90, "aufbewahrungAb": "letzteVersion", "grenzen": { "dateien": 100, "dateiBytes": 2097152, "projektBytes": 8388608 } }`; Dienst nicht erreichbar → nginx liefert `{"teilen":false}` |
-| `POST /api/blob/fehlend` | Body `{ "sha256": [ … ] }` (≤ 101 Einträge) | `{ "fehlend": [ … ] }` |
-| `PUT /api/blob/<sha256>` | Body = Rohbytes (≤ `dateiBytes`) | `201` neu / `200` vorhanden; Hash wird geprüft (`422` bei Abweichung) |
-| `GET /api/blob/<sha256>` | Inhalt | `application/octet-stream`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment` |
+| `GET /api/konfig` | Fähigkeiten für die UI | `{ "teilen": true, "aufbewahrungTage": 90, "aufbewahrungAb": "letzte-version", "grenzen": { "dateien": 100, "dateiBytes": 2097152, "projektBytes": 8388608, "pizzaBytes": 524288, "manifestBytes": 65536 } }` (`aufbewahrungTage: null` = unbegrenzt; Schreibweise mit Bindestrich wie die heutigen Werte `erstellung`/`letzter-abruf`); `TEILEN_URL` leer **oder** Dienst nicht erreichbar → nginx liefert `{"teilen":false}` |
+| `POST /api/blob/fehlend` | Body `{ "sha256": [ … ] }` (≤ `grenzen.dateien` Einträge, 64 Kleinbuchstaben-Hex) | `{ "fehlend": [ … ] }`; als vorhanden gemeldete Blobs bekommen eine frische `mtime` (sonst könnte die Müllabfuhr sie zwischen Antwort und Manifest löschen) |
+| `PUT /api/blob/<sha256>` | Body = Rohbytes (≤ `dateiBytes`) | `201` neu / `200` vorhanden; Hash wird beim Schreiben in `tmp/` mitgerechnet und vor dem `rename` geprüft (`422` bei Abweichung) |
+| `GET /api/blob/<sha256>` | Inhalt | `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment` |
 | `POST /api/teilen` | Body = Manifest | neuer Link: `201 { "id", "version": 1, "schluessel" }`; fehlende Blobs → `409 { "fehlend": [ … ] }` |
 | `POST /api/teilen/<id>` | Body = Manifest, Kopf `Authorization: Bearer <schluessel>` | neue Version: `201 { "id", "version": n }`; falscher Schlüssel `403`; unbekannt/abgelaufen `404` |
-| `GET /api/teilen/<id>` | neueste Version | `{ "id", "version", "versionen", "geaendert", "ablauf", "projekt": <Manifest> }`, `Cache-Control: no-cache` |
-| `GET /api/teilen/<id>@<n>` | feste Version | wie oben, `Cache-Control: public, max-age=31536000, immutable` (Ablauf trotzdem nach §4.5) |
+| `GET /api/teilen/<id>` | neueste Version | `{ "id", "version", "versionen", "geaendert", "ablauf", "projekt": <Manifest> }` (`versionen` = Anzahl, `geaendert`/`ablauf` = UTC-Datum, `ablauf: null` = unbegrenzt), `Cache-Control: no-store` |
+| `GET /api/teilen/<id>@<n>` | feste Version | wie oben, `Cache-Control: private, max-age=31536000, immutable` (Ablauf trotzdem nach §4.5; `private`, damit gelöschte Links in keinem geteilten Cache weiterleben) |
 | `DELETE /api/teilen/<id>` | Link samt allen Versionen löschen (mit Schlüssel) | `204` |
 | `GET /healthz` | nur intern (Healthcheck) | `200 ok` |
 
@@ -372,11 +468,24 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
   posten (bei `409` einmal wiederholen). Eine **neue Version** mit unveränderten Bildern lädt nur die geänderten Textdateien hoch.
 - Gleiches Manifest wie die neueste Version → keine neue Version, Antwort `200 { "id", "version": <alt>, "unveraendert": true }`.
 - Fehlertexte als JSON `{ "fehler": "<deutscher Satz>" }`, ohne Interna.
+- **Cache-Control setzt nginx**, nicht der Dienst: `nginx-proxy.conf` versteckt und ignoriert Upstream-`Cache-Control`
+  (`proxy_hide_header`/`proxy_ignore_headers`), der Wert kommt aus der Map `$pizza_cache_control` (heute `~^/api/ → no-store`). PC1
+  ergänzt dort **vor** der `/api/`-Zeile: `~^/api/blob/[0-9a-f]{64}$` und `~^/api/teilen/[0-9A-Za-z]{12}@[0-9]+$` →
+  `private, max-age=31536000, immutable` (Map-Regexe werden in Reihenfolge geprüft); nur für Status 200 (`$pizza_cache_header`).
+- **Anfragen mit Body** (`POST`, `PUT`) verlangen `Content-Type: application/json` (bzw. `application/octet-stream` beim Blob-PUT),
+  sonst `415` – ein fremdes HTML-Formular kann so keine Links im Namen eines Besuchers anlegen (Formulare senden nur
+  `text/plain`/`form`-Typen ohne CORS-Vorabfrage). CORS-Header gibt es nicht.
 
 ### 4.4 Versionen, Schlüssel, Links
 
-- Beim Erstellen erzeugt der Dienst `id` (12 Zeichen Base62 aus `crypto.randomBytes`) und `schluessel` (32 Byte, Base64url), speichert
-  nur `sha256(schluessel)` und vergleicht mit `crypto.timingSafeEqual`. Der Schlüssel wird **nur einmal** ausgeliefert.
+- Beim Erstellen erzeugt der Dienst `id` (12 Zeichen Base62 aus `crypto.randomBytes`, je Zeichen **Verwerfungsverfahren** – Byte ≥ 248
+  verwerfen, dann `% 62` –, damit keine Zeichen bevorzugt werden) und `schluessel` (32 Byte, Base64url = 43 Zeichen), speichert nur
+  `sha256(schluessel)` und vergleicht mit `crypto.timingSafeEqual`. Der Schlüssel wird **nur einmal** ausgeliefert. Eine neue Linkdatei
+  wird nur angelegt, wenn es die ID noch nicht gibt (Prüfung unter der globalen Sperre, §4.5) – eine (praktisch unmögliche) Kollision
+  führt zu einer neuen ID statt zum Überschreiben. `Authorization` wird vor dem Hashen geprüft (`^Bearer [A-Za-z0-9_-]{43}$`, sonst `403`).
+- Ein eingegebener Schlüssel („Schlüssel eingeben“) wird nicht vorab geprüft; passt er nicht, meldet die nächste „Neue Version“ `403` →
+  „Der Schlüssel passt nicht zu diesem Link.“ Liefert der Server für einen eigenen Link `404`, entfernt der Playground `projekte.teilen`
+  (mit Hinweis „Der Link ist abgelaufen oder gelöscht.“).
 - Der Playground legt den Schlüssel im Projekt ab (`projekte.teilen.schluessel`, IndexedDB). Im Teilen-Dialog: „Bearbeitungsschlüssel
   kopieren“ / „Schlüssel eingeben“ (für ein anderes Gerät) – ohne Konten.
 - **Dialog „Teilen“** (ein Seiten-Dialog, keine Browser-Popups):
@@ -393,11 +502,19 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 
 ### 4.5 Aufbewahrung und Aufräumen
 
-- `TEILEN_ABLAUF_TAGE` (Standard 90; 0 = unbegrenzt). Ablauf = `geaendert` + Tage (also ab der **letzten Version**); abgelaufene Links
-  liefern sofort `404`, der Aufräumlauf (stündlich) löscht sie.
-- **Blob-Müllabfuhr** (täglich): Markieren (alle Manifeste lebender Links + deren Blobs), Löschen aller übrigen Blobs, die älter als
-  24 h sind (frisch hochgeladene, noch nicht gepostete Blobs bleiben).
-- **Speicherdeckel** `TEILEN_SPEICHER_MAX_MB` (Standard 2048): darüber `507 { "fehler": "Der Teilen-Speicher ist gerade voll …" }`.
+- `TEILEN_ABLAUF_TAGE` (Standard 90; 0 = unbegrenzt). Ablauf = `geaendert` + Tage (also ab der **letzten Version**); der Link gilt bis
+  einschließlich dieses UTC-Datums (`ablauf` im GET, Datum im Dialog), ab dem Folgetag liefert er sofort `404`, der Aufräumlauf
+  (stündlich) löscht ihn.
+- **Blob-Müllabfuhr** (stündlich, mit dem Aufräumlauf): Markieren (alle Manifeste lebender Links + deren Blobs), Löschen aller übrigen
+  Blobs, deren `mtime` älter als **1 h** ist (frisch hochgeladene, noch nicht gepostete Blobs bleiben; ein Teilen dauert Sekunden).
+  Müllabfuhr und `POST /api/teilen…` laufen unter **einer** globalen Sperre im Prozess (das Posten prüft die Existenz aller Blobs unter
+  dieser Sperre) – sonst könnte ein Link auf einen gerade gelöschten Blob zeigen.
+- **Lose Blobs** (hochgeladen, noch von keinem Manifest benutzt) sind die billigste Missbrauchsfläche (PUT braucht keinen Schlüssel):
+  je IP höchstens **32 MiB** lose Blobs in der letzten Stunde (Zähler nur im Speicher), insgesamt höchstens **10 %** des Speicherdeckels
+  lose – darüber `429` bzw. `507`. Neue Bytes in Links je IP höchstens **64 MiB/h** (gleitendes Fenster, im Speicher).
+- **Speicherdeckel** `TEILEN_SPEICHER_MAX_MB` (Standard 2048, Summe im Speicher geführt, beim Start durch Durchlauf ermittelt): darüber
+  `507 { "fehler": "Der Teilen-Speicher ist gerade voll …" }`. Bekanntes Restrisiko: Viele IPs zugleich können den Deckel füllen – dann
+  scheitert nur das **Teilen** (Lesen läuft weiter); lose Blobs verschwinden nach 1 h von selbst.
 
 ### 4.6 Grenzen (alle per Umgebungsvariable einstellbar, `/api/konfig` meldet sie)
 
@@ -408,7 +525,7 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 | Projekt gesamt | 8 MiB | Dienst (Summe `groesse` der Manifest-Einträge, gegen echte Blobgrößen geprüft) |
 | Manifest | 64 KiB | nginx + Dienst |
 | `.pizza`-Datei | 512 KiB | Dienst (Typregel) |
-| Anfragen | Erstellen/Version/Löschen: 10/min je IP (Burst 3); Manifest lesen (`GET /api/teilen/…`): 60/min (Burst 20); Blob-PUT und `fehlend`: 600/min (Burst 200); Blob-GET: **kein** Zähler im Dienst, nginx 1200/min (Burst 300) | nginx `limit_req` (erste Linie) + Dienst (gleitendes Fenster je `X-Real-IP`, nur im Speicher). Begründung: ein Projekt sind bis zu 101 Anfragen (Manifest + Blobs); Blobs sind unveränderlich und `immutable` gecacht, wiederholtes Öffnen kostet den Server kaum etwas, und Missbrauch begrenzen Größen-, Speicher- und Erstell-Grenzen |
+| Anfragen | Erstellen/Version/Löschen: 10/min je IP (Burst 3); Manifest lesen (`GET /api/teilen/…`): 60/min (Burst 20); `fehlend`: 60/min (Burst 20); Blob-PUT: 240/min (Burst 120) plus Byte-Grenzen §4.5; Blob-GET: **kein** Zähler im Dienst, nginx 1200/min (Burst 300) | nginx `limit_req` (erste Linie; je Klasse eine eigene `limit_req_zone`, Schlüssel `$binary_remote_addr` nach `real_ip`) + Dienst (gleitendes Fenster je `X-Real-IP`, das nginx in `nginx-proxy.conf` aus `$remote_addr` **überschreibt** – der Client kann es nicht fälschen; nur im Speicher). Begründung: ein Projekt sind bis zu 101 Anfragen (Manifest + Blobs); Blobs sind unveränderlich und gecacht, wiederholtes Öffnen kostet den Server kaum etwas, und Missbrauch begrenzen Größen-, Byte-, Speicher- und Erstell-Grenzen |
 | Versionen je Link | 200 | Dienst |
 | Bilder | PNG/JPEG ≤ 2048 × 2048; Teigmenge ≤ 32 MiB je Projekt (§5.3) | Playground und Teilen vorab (Vorbacker); der Dienst prüft nur Signatur und Größe, er dekodiert nichts |
 
@@ -419,7 +536,10 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 /daten/links/Xy/Xy12345678ab.json
 /daten/tmp/…                       (Schreiben: tmp → fsync → rename, dadurch atomar)
 ```
-Ein Prozess, je Link eine Sperre im Speicher; kein Datenbankserver. Beim Start: `tmp/` leeren, Index der Links (ID → geaendert) aufbauen.
+Ein Prozess, je Link eine Sperre im Speicher plus die globale Sperre für Posten/Müllabfuhr (§4.5); kein Datenbankserver. Beim Start:
+`tmp/` leeren, Index der Links (ID → geaendert) und Speichersumme aufbauen. **Pfade im Volume entstehen nur aus geprüften Werten**: ID
+gegen `^[0-9A-Za-z]{12}$`, Hash gegen `^[0-9a-f]{64}$` **vor** jedem Dateizugriff; Nutzerpfade (`pfad` im Manifest) werden nie zu
+Dateinamen.
 
 ### 4.8 Container, nginx, Coolify
 
@@ -431,8 +551,15 @@ Ein Prozess, je Link eine Sperre im Speicher; kein Datenbankserver. Beim Start: 
   `nginx-teilen.conf.template`), `HASTEBIN_ABLAUF_SEKUNDEN` → `TEILEN_ABLAUF_TAGE` (nur noch bei `durchreiche`), `TEILEN_AUFBEWAHRUNG_TAGE`
   entfällt (der Dienst beantwortet `/api/konfig`).
 - `nginx.conf`: `location ^~ /api/` proxyt an `$teilen_upstream` (Variable + Resolver wie heute, damit nginx ohne den Dienst startet);
-  `access_log off` für `/api/` (IDs sind Zugriffsrechte); `client_max_body_size` 2m (Blob) bzw. 64k (sonst); `limit_req` wie §4.6;
-  `/api/konfig` mit Rückfall `{"teilen":false}` bei 502/503/504. CSP und alle Sicherheitsheader **unverändert** (`connect-src 'self'` reicht).
+  `access_log off` für `/api/` (IDs sind Zugriffsrechte) **und** `error_log /dev/stderr crit;` in `/api/` – sonst schreiben
+  `limit_req` (heute `limit_req_log_level warn`) und Upstream-Fehler die Anfragezeile samt ID ins Fehlerprotokoll; `client_max_body_size`
+  2m (Blob) bzw. 64k (sonst); `limit_req` wie §4.6; Methoden je Location (`PUT` nur Blob, `DELETE` nur Link); `/api/konfig` mit
+  Rückfall `{"teilen":false}` bei 502/503/504. CSP und alle Sicherheitsheader **unverändert** (`connect-src 'self'` reicht).
+- `nginx-proxy.conf` (heute `proxy_pass_request_headers off`, reicht nur ausgewählte Köpfe weiter): zusätzlich
+  `proxy_set_header Content-Type $content_type;` und – nur in der Location für `POST`/`DELETE /api/teilen/<id>` –
+  `proxy_set_header Authorization $http_authorization;`. Ohne diese Zeilen käme der Schlüssel nie beim Dienst an.
+- Abhängigkeiten: `durchreiche/Dockerfile` nutzt dasselbe gepinnte Image wie der Haupt-Dockerfile (`ARG NODE_IMAGE=node:24.22.1-alpine3.24`);
+  `.github/dependabot.yml` ersetzt `/hastebin` durch `/durchreiche` (Docker).
 - Coolify: weiterhin **eine** Domain nur für `pizza` (`SERVICE_URL_PIZZA_8080`), `durchreiche` ohne Domain. `compose.lokal.yaml`
   unverändert (nur `pizza` auf `127.0.0.1`). Hinweis im Betriebsabschnitt der README: altes Volume `hastebin-daten` nach dem Umzug von Hand
   löschen.
@@ -442,7 +569,10 @@ Ein Prozess, je Link eine Sperre im Speicher; kein Datenbankserver. Beim Start: 
 - Unit (`node --test durchreiche/test`): Pfad-/Grenzregeln (gemeinsame Fallliste mit dem Playground), Hash-Prüfung, Schlüssel (falsch,
   fehlt, Zeitvergleich), Versionen (1 … n, `@n`, unverändert, 200er-Grenze), Ablauf (Uhr injizierbar), Müllabfuhr, atomares Schreiben
   (abgebrochenes tmp), Speicherdeckel, Rate-Limit, kein Inhalt im Log (Log-Senke abfangen).
-- E2E (neu `18-teilen-versionen.test.mjs`, mit lokalem Dienst aus `e2e/server.mjs` gestartet, `windowsHide`): Teilen → Link öffnen →
+- `node --test durchreiche/test` wird Teil von `npm test` (bzw. `scripts/test-alles.js`) und der Docker-Test-Stufe.
+- E2E: `e2e/server.mjs` ersetzt seine Hastebin-Attrappe (`/api/teilen`) durch einen Proxy auf einen echten Durchreiche-Prozess
+  (Kindprozess `node durchreiche/server.mjs`, `windowsHide: true`, Datenordner unter `e2e/tmp/`, beim Ende gelöscht); bestehender Test
+  `06-teilen-thema-mobil` wird auf das neue Format umgestellt. Neu `18-teilen-versionen.test.mjs`: Teilen → Link öffnen →
   ändern → „Neue Version“ → alter Link zeigt v2 → `@1` zeigt v1 → App-Link startet v2 → „Neuer Link“ → Löschen → 404-Meldung; Projekt mit
   PNG (Dedup: zweite Version lädt das Bild nicht erneut hoch – gezählte PUTs); Projekt mit 100 Dateien zweimal hintereinander öffnen ohne 429.
 - Docker: `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest gegen `/api/konfig`.
@@ -474,11 +604,20 @@ margherita level = Kiste.text("daten/level-1.txt");
 
 | API | Ergebnis | Fehler |
 |---|---|---|
-| `Bildchen.laden(pfad)` (statisch) | `Bildchen` (eigene ID im Kern; `breite()`/`hoehe()` = Originalgröße) | Pfad ungültig/fehlt → `LaufzeitAnanas: Die Datei "bilder/x.png" liegt nicht in der Kiste.`; keine Bilddatei/beschädigt → `LaufzeitAnanas: bilder/x.png ist kein lesbares Bild (PNG oder JPEG).`; zu groß → `LaufzeitAnanas: bilder/x.png ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel.`; vor `neu Herd` → Text aus §18.1 |
-| `Kiste.text(pfad)` | `margherita` (UTF-8, Zeilenenden unverändert) | fehlt wie oben; kein gültiges UTF-8 (auch Bilddateien) → `LaufzeitAnanas: daten/x.txt ist kein Text (UTF-8).` |
-| `Kiste.zeilen(pfad)` | `Blech<margherita>` (Trenner `\n`, `\r\n` → `\n`, letzte leere Zeile entfällt) | wie `text` |
-| `Kiste.gibts(pfad)` | `diavolo` | nie (ungültiger Pfad → `nein`) |
-| `Kiste.liste(ordner = "")` | `Blech<margherita>` aller Dateipfade unter `ordner`, sortiert (Bytefolge) | – |
+| `Bildchen.laden(pfad)` (statisch) | `Bildchen` (eigene ID im Kern; `breite()`/`hoehe()` = Originalgröße) | Pfad ungültig/fehlt → `LaufzeitAnanas: Die Datei "bilder/x.png" liegt nicht in der Kiste.`; keine Bilddatei/beschädigt → `LaufzeitAnanas: bilder/x.png ist kein lesbares Bild (PNG oder JPEG).`; zu groß → `LaufzeitAnanas: bilder/x.png ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel.`; vor `neu Herd` → Text aus SPEC §18.1 (`Erst braucht es einen Herd …`) |
+| `Kiste.text(pfad)` | `margherita` (Inhalt wie in der Sammlung, also UTF-8 mit `\n`-Zeilenenden, §1.3) | fehlt wie oben; Datei ohne Textendung (Bilder) → `LaufzeitAnanas: bilder/x.png ist kein Text.` – entschieden nach **Endung**, nicht nach Bytes (Textdateien sind an der Projektgrenze schon geprüft) |
+| `Kiste.zeilen(pfad)` | `Blech<margherita>` (Trenner `\n`, letzte leere Zeile entfällt) | wie `text` |
+| `Kiste.gibts(pfad)` | `diavolo` – `ja` nur für Dateien (nicht für Ordner) | nie (ungültiger Pfad → `nein`) |
+| `Kiste.liste(ordner = "")` | `Blech<margherita>` aller Dateipfade unter `ordner` (rekursiv; `""` = alle, sonst Präfix `ordner + "/"`, `ordner` ohne Schluss-`/`), sortiert (Bytefolge) | ungültiger oder unbekannter Ordner → leeres Blech |
+
+- **Prüfreihenfolge** (alle Motoren): Argument kein Text → `TypAnanas: Bildchen.laden() braucht einen Text für 'pfad', nicht 5.` (ebenso
+  `Kiste.text()` usw.) → vor `neu Herd` (nur `Bildchen.laden`) → Pfad ungültig/fehlt → Fehler-Teigling.
+- **Gleicher Pfad, gleiches Bild:** `Bildchen.laden` mit einem schon geladenen Pfad liefert **dasselbe** `Bildchen`-Objekt (keine neue
+  Ressource, kein zweites `TEXTUR`-Delta); die Zuordnung Pfad → Bildchen lebt im Laufzeitzustand, gleich in Interpreter und Laufzeit.
+- **Herd-Erkennung vor dem Start** (Importgruppe `herd`, `herd_kern(pflicht)`, Interpreter `herdNoetig`, `frontend.js`
+  „braucht den Herd-Kern“): `Bildchen.laden` zählt wie `neu Bildchen` – HOST-ABI §2 und beide Motoren ergänzen `Bildchen.…`.
+- **Küche:** `Kiste.*` ist in `brigade`-Stücken erlaubt (nur lesend, deterministisch); `Bildchen.laden` ist eine Herd-Methode und wirft dort
+  wie alle Herd-Methoden (SPEC §18.1 „Küche“).
 
 - Das Programm spricht Bilder immer über den **Quellpfad** an (`bilder/x.png`); dass intern ein Teigling benutzt wird, ist unsichtbar.
   Ein vorbereiteter Teigling und eine Umwandlung „im letzten Moment“ liefern dieselben Bytes – das Ergebnis eines Laufs hängt nie davon ab,
@@ -486,23 +625,31 @@ margherita level = Kiste.text("daten/level-1.txt");
 - Die Fehler (kein Bild, zu groß) stellt der Vorbacker fest. Im Playground/beim Export erscheinen sie sofort am Dateibaum; zur Laufzeit wirft
   `Bildchen.laden` die Ananas erst, wenn das Programm das Bild wirklich lädt (gleich in allen Motoren: der Kiste-Eintrag trägt dann einen
   Fehler-Teigling, §5.3).
-- **Kiste** = alle Projektdateien außer `pruefung/` (auch `.pizza`), nur lesen; Schreiben bleibt Aufgabe der Vorratskammer (§15.4).
+- **Kiste** = alle Projektdateien außer `pruefung/` (auch `.pizza`), nur lesen; Schreiben bleibt Aufgabe der Vorratskammer (SPEC §15.4).
+  Folge für den EXE-Export: Die Quelltexte liegen damit lesbar im `.pkarton` (Hinweis im EXE-Dialog und in der Doku).
 - Schritte: jeder Aufruf ein normaler Aufruf (keine größenabhängigen Kosten).
-- `Bildchen.laden` gehört zu Herd (Ressource im Kern, §18.5, Importgruppe `herd`); `Kiste` gehört zur Basis.
+- `Bildchen.laden` gehört zu Herd (Ressource im Kern, SPEC §18.5, Importgruppe `herd`; ID aus dem gemeinsamen Ressourcen-Zähler für
+  Formen und Bildchen); `Kiste` gehört zur Basis (eingebautes Modul wie `Bote`; eine eigene Klasse `Kiste` hat wie üblich Vorrang).
 - Text-Bildchen (`neu Bildchen(zeilen, …)`) bleiben unverändert (≤ 256 × 256, Atlas, pixelscharf).
 
 ### 5.3 Der Vorbacker und das Format „Teigling“ (E13)
 
 **Vorbacker** = Rust-Crate `herd/teigling` (`no_std` + `alloc`, einzige Abhängigkeit `miniz_oxide` für Inflate, ebenfalls `no_std`),
 übersetzt nach `site/js/herd/teigling.wasm` (Browser-Worker, Node-CLI, Interpreter, Harnische). Eine Funktion:
-`vorbacken(quellbytes) → teigling` (bei Fehlern ein Fehler-Teigling). Derselbe Code überall ⇒ **bitgleich per Konstruktion**. Der native
-Host braucht ihn **nicht** (er bekommt fertige Teiglinge im pkarton).
+`vorbacken(quellbytes) → teigling` (bei Fehlern ein Fehler-Teigling), dazu `sha256(bytes)` (für die Cache-Prüfung §5.4 – synchrones
+SHA-256 gibt es im Browser sonst nicht). Derselbe Code überall ⇒ **bitgleich per Konstruktion**; zusätzlich rechnet der Vorbacker **nur
+mit Ganzzahlen** (keine `f32`/`f64`), damit auch die nativen Tests ohne Sonderfälle gleich sind. Bau wie `kern-wasm` (Ziel
+`wasm32v1-none`, eigener Allokator, über `node herd/baue.js`); Crate im Workspace `herd/Cargo.toml`, `miniz_oxide` in der dort schon
+gesperrten Version (Cargo.lock). Der native Host braucht ihn **nicht** (er bekommt fertige Teiglinge im pkarton).
 
 **Decoder (deterministisch, keine Farbverwaltung):**
-- **PNG:** Farbtypen Grau, Grau+Alpha, RGB, RGBA, Palette (+`tRNS`); Bittiefen 1/2/4/8, 16 bit → obere 8 Bit. Nicht unterstützt:
+- **PNG:** Farbtypen Grau, Grau+Alpha, RGB, RGBA, Palette (+`tRNS`; bei Grau/RGB als Farbschlüssel, verglichen in der **Original**-
+  Bittiefe vor dem Kürzen); alle fünf Zeilenfilter; dekomprimierte Länge muss **genau** `Höhe × (1 + Zeilenbytes)` sein (sonst Fehler);
+  Bittiefen 1/2/4/8, 16 bit → obere 8 Bit, Grau < 8 bit hochskaliert per `v × 255 / (2^b − 1)`. Nicht unterstützt:
   Interlacing (Adam7), APNG (Animationen über mehrere Dateien + `Animation`), fehlerhafte CRC. `gAMA`/`cHRM`/`sRGB`/`iCCP` werden ignoriert
   (Rohwerte).
-- **JPEG:** Baseline und progressiv, Huffman, 8 bit, 1 Komponente (Grau) oder 3 (YCbCr/JFIF), Abtastungen 4:4:4, 4:2:2, 4:2:0, 4:4:0.
+- **JPEG:** Baseline und progressiv, Huffman, 8 bit, 1 Komponente (Grau) oder 3 (YCbCr/JFIF), Abtastfaktoren 1 … 4 mit ganzzahligem
+  Verhältnis zur Luma (4:4:4, 4:2:2, 4:2:0, 4:4:0, 4:1:1), Restart-Marker (`DRI`/`RSTn`, in Kamerabildern üblich).
   **Festgelegte Rechenwege:** ganzzahlige IDCT nach libjpeg „islow“ (`jidctint`), Chroma-Hochrechnung durch **Wiederholen** (kein „fancy
   upsampling“), YCbCr → RGB mit den 16-bit-Festkomma-Tabellen von libjpeg (`jdcolor`), Rundung/Klemmung wie dort. Nicht unterstützt:
   arithmetische Kodierung, 12 bit, CMYK/Adobe-Transform, verlustfrei/hierarchisch. **EXIF-Drehung wird ignoriert** (gespeicherte
@@ -527,20 +674,25 @@ neue Formatversion).
 20 32  SHA-256 der Quelldatei
 52  …  n × (u32 Länge, Bytes der Stufe, Zeilen von oben)
 ```
-Fehler-Teigling: Pixelformat 255, Stufen 0, danach `u16` Fehlercode (1 kein lesbares Bild, 2 zu groß – Breite/Höhe im Kopf).
+Fehler-Teigling: Pixelformat 255, Stufen 0, Breite/Höhe im Kopf 0, ab Byte 52 `u16` Fehlercode (1 kein lesbares Bild, 2 zu groß),
+`u16 0`, `u32 Breite`, `u32 Höhe` (für den Text „zu groß (2400 × 800)“ – PNG-/JPEG-Größen passen nicht immer in `u16`). Länge eines
+Fehler-Teiglings: 64 Bytes; er zählt nicht zur Teigmenge.
 
 **Grenzen:** Quelldatei ≤ 2 MiB, ≤ 2048 × 2048 Pixel (vor dem Dekodieren aus `IHDR`/`SOF` geprüft; Ausgabepuffer hart begrenzt → keine
 Dekompressionsbombe). Größe eines Teiglings ≈ Breite × Höhe × 4 × 4/3 (2048² ≈ 21,3 MiB, 1024² ≈ 5,3 MiB, 256² ≈ 0,34 MiB). **Teigmenge**
 je Projekt (Summe aller Teiglinge) ≤ 32 MiB – begrenzt EXE-Größe, Wasm-Speicher und VRAM; Überschreitung beim Vorbacken/Kompilieren →
 `PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (41,2 MB vorgebacken, höchstens 32 MB).` (Interpreter und Compiler
-prüfen gleich, vor dem Start.)
+prüfen gleich, vor dem Start.) **Genau:** Teigmenge = Summe der Längen aller Teiglinge **verschiedener Quell-Hashes** (gleiche Bilder unter
+zwei Pfaden zählen und liegen einmal, §5.6), Grenze 33 554 432 Bytes; Text: Bytes / 1 048 576, auf eine Nachkommastelle **aufgerundet**,
+Dezimalkomma (so steht nie „32,0 MB … höchstens 32 MB“). Weil P0020 alle Größen kennen muss, sind vor dem Start **alle** Bilder des
+Projekts vorgebacken (aus dem Cache oder neu) – in jedem Motor.
 
 ### 5.4 Wann wird vorgebacken, wo liegt das Ergebnis (Caching)
 
 | Anlass | Was passiert |
 |---|---|
 | **Playground: Bild hinzufügen, erstes Laden eines Projekts** | sofort vorbacken (Worker, `teigling.wasm`), Fehler am Dateibaum, Vorschau aus Stufe 0; Ergebnis im IndexedDB-Speicher `teiglinge` (Schlüssel = SHA-256 der Quelle + `teigling/1`), LRU bis 128 MiB |
-| **Ausführen** (Playground, App-Link, CLI) | der Lauf bekommt `optionen.teiglinge: { pfad → bytes }` aus dem Cache; fehlt einer, backt der Lader ihn vor (gleiches Ergebnis) |
+| **Ausführen** (Playground, App-Link, CLI) | der Lauf bekommt `optionen.teiglinge: { pfad → bytes }` aus dem Cache; der Lader **prüft jeden** (Magie, Version, SHA-256 im Kopf = SHA-256 der Quelldatei über `vorbacker.sha256`) und backt fehlende oder unpassende selbst vor (`optionen.vorbacker`, Node: `site/js/herd/teigling.wasm`) – ein veralteter Cache kann das Ergebnis also nie ändern. Fehlt der Vorbacker bei einem Projekt mit Bildern → `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).", datei: null, zeile: null, spalte: null }`, Exit 2 (wie „Herd-Kern fehlt“) |
 | **EXE-Export / Kompilieren** | alle Bilder vorbacken (Cache), Teiglinge statt Quellbilder ins pkarton (§5.6) |
 | **Teilen** | vor dem Hochladen vorbacken = Prüfung (ungültige oder zu große Bilder werden nicht geteilt). Hochgeladen werden in v1 nur die **Quellbilder** (PNG/JPEG sind viel kleiner als unkomprimierte Teiglinge → kleinerer Download); Empfänger bedienen sich aus ihrem Cache (Schlüssel = Quell-Hash) oder backen einmal vor. Ab GPU-Kompression (§5.7) legt der Dienst die Teiglinge zusätzlich als Blobs ab (Manifest-Feld `teigling`, Dedup), dann entfällt das Vorbacken beim Empfänger |
 | **Node-CLI / Harnische** | Vorbacken im Prozess (Speicher-Cache je Lauf); kein Plattencache in v1 |
@@ -549,10 +701,19 @@ Der Cache-Schlüssel enthält die Formatversion: ein neuer Vorbacker erzeugt neu
 
 ### 5.5 Herd-Kern und Glut
 
-- Neue Kern-Funktion `bildchen_teigling(ptr, len) → id | Fehlercode` (Kern-ABI, `herd/README.md`) neben `bildchen_rgba`; der Kern prüft
-  nur den Kopf (Magie, Version, Größen, Längen) und übernimmt die Bytes – er dekodiert nichts. Fehler-Teigling → Fehlercode → Ananas-Text §5.2.
-- Geladene Bilder sind **eigene Texturen** mit Mip-Kette (nicht im Bildchen-Atlas). Neuer Ressourcen-Delta-Typ im Bildpaket `TEXTUR`
-  (`u32 id, u8 format, u8 stufen, u16 b, u16 h`, dann die Stufen) – einmal je Bild, nicht je Verwendung.
+- Neue Kern-Funktion `bildchen_teigling(ptr, len) → id | Fehlercode` (Kern-ABI, `herd/README.md` §3) neben `bildchen_rgba`; der Kern prüft
+  nur den Kopf (Magie, Version, Größen, Längen) und übernimmt die Bytes – er dekodiert nichts. Fehler-Teigling → Fehlercode → Ananas-Text
+  §5.2. Kern-Fehlercodes **61** (kein lesbares Bild) und **62** (zu groß); höchster belegter Code ist heute 60 (`herd/README.md` §3) –
+  HERD-Stufen vergeben neue Codes danach, vor dem Schreiben erneut prüfen. Wie alle Importe des Moduls `herd` zeigt `ptr` in den
+  **Kern**-Speicher: Die Laufzeit kopiert den Teigling aus ihrem passiven Datensegment (`memory.init`) in den eigenen Speicher und von
+  dort mit `herd_schreibe` in den Kern (zwei Kopien je Bild, einmal je Pfad); im Interpreter schreibt die Anbindung direkt in den
+  Kern-Speicher.
+- Geladene Bilder sind **eigene Texturen** mit Mip-Kette (nicht im Bildchen-Atlas). **Bildpaket nur additiv** (HERD.md §12.1 Regel 3,
+  `VERSION` bleibt 1, Pakete ohne geladene Bilder bleiben byte-gleich): neuer Ressourcen-Delta-Abschnitt **`TEXTUR = 5`** (die Deltas
+  sind heute 1–4, HERD-Stufen belegen 14/15) mit `u32 id, u8 format, u8 stufen, u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes –
+  einmal je Bild, nicht je Verwendung. Verweis aus den Instanzen ohne Formatänderung: **2D** neue `flach_art` **`TEXTURBILD = 6`**
+  (5 = `DREIECK` ist von H-K3b belegt) mit `seite` = Textur-ID, `u0 v0 u1 v1` = `0 0 b h`; **3D** in `INST3D.textur` Bit 17 = „eigene
+  Textur“, Bits 0–15 = Textur-ID (Bit 16 = hat Textur wie heute). Die Glut lädt Texturen als `Rgba8Unorm` wie den Atlas.
 - Abtastung: **Vergrößerung nächster Nachbar** (pixelscharf wie bisher), **Verkleinerung trilinear über die Mipmaps** (kein Moiré bei
   kleinen Sprites und Texturen in der Ferne); Text-Bildchen bleiben im Atlas ohne Mipmaps.
 - `szene`/`paket`-Hashes (K-134) decken die Teigling-Bytes ab → bitgleich; Pixel wie bisher mit Toleranz (K-129).
@@ -560,8 +721,9 @@ Der Cache-Schlüssel enthält die Formatversion: ein neuer Vorbacker erzeugt neu
 
 ### 5.6 Einbettung in pkarton/EXE (E12)
 
-- Der Compiler legt **Teiglinge** (statt der Quellbilder) und alle übrigen Kiste-Dateien in ein **passives Datensegment** samt Tabelle
-  (Pfad → Offset, Länge, Art). `Bildchen.laden` reicht den Teigling über einen neuen generischen Importaufruf `bildchen_teigling` der Gruppe
+- Der Compiler legt **Teiglinge** (statt der Quellbilder, je Quell-Hash einmal) und alle übrigen Kiste-Dateien in ein **passives
+  Datensegment** samt Tabelle (Pfad → Offset, Länge, Art; Pfade sortiert nach Bytefolge, damit `Kiste.liste` ohne Sortieren auskommt und
+  das Modul für dieselbe Sammlung byte-gleich ist). `Bildchen.laden` reicht den Teigling über einen neuen generischen Importaufruf `bildchen_teigling` der Gruppe
   `herd` an den Kern; `Kiste.*` liest Textdateien. Quellbilder sind in der Kiste als Pfad sichtbar (`Kiste.gibts`/`liste`), ihre Bytes
   werden nicht zusätzlich eingebettet (`Kiste.text` auf ein Bild → „kein Text“, wie bei der Quelle).
 - Der Host liest weiter nur ein `.pkarton`; EXE-Anhang `PKARTON1` und `PizzaExe.verbinde` bleiben unverändert.
@@ -588,8 +750,9 @@ Projekts steht in der Projektleiste.
 ### 5.9 Folgen für K-136
 
 K-136 begründete Text-Bildchen mit „Dateien hätten im Browser keinen Ort“. Mit Projekten haben sie einen. K-136 bleibt für Text-Bildchen
-gültig; K-145 und K-147 ergänzen Bilddateien und das Teigling-Format und heben die Begründung auf. HERD.md-Roadmap H-K8 („größere
-Bilder“) gilt damit als erledigt.
+gültig; K-145 und K-147 ergänzen Bilddateien und das Teigling-Format und heben die Begründung auf. In HERD.md ist der Teil „größere
+Bilder/Texturen“ der Roadmap bereits als „abgelöst durch PROJEKTE.md (PD1/PD3)“ vermerkt; die Stufe **H-K8 selbst (`Vorlage`) bleibt**
+bestehen und ist nicht Teil dieses Konzepts.
 
 ---
 
@@ -597,26 +760,27 @@ Bilder“) gilt damit als erledigt.
 
 | Komponente | Änderung |
 |---|---|
-| `site/js/pizza.js` (Interpreter) | Projekt-Lader (`projekt.lade`, gemeinsam mit Compiler), `bestellt` (kontextuell) im Parser, Datei-Index an AST-Knoten, Ladereihenfolge, P0014–P0020/W0105 in `intern.pruefe`, Feld `datei` an `fehler`/`warnung`, Ortstexte §2.6, `Kiste`, `Bildchen.laden` (Teigling aus `optionen.teiglinge` bzw. `teigling.wasm`, dann `kern.wasm`), P0020 |
-| `site/js/pizzaiolo/*` (Compiler) | Eingabe = geladenes Programm; Dateinamen-Tabelle; ABI v2 (`datei_ptr/len`); Datensegment + Tabelle für Kiste; `Kiste`-Aufrufe in der Laufzeit; `faehigkeiten.abi = 2` |
+| `site/js/pizza.js` (Interpreter) | Projekt-Lader (`projekt.lade`, gemeinsam mit Compiler) mit P0014–P0019, P0020 (Grenzen) und W0004, `bestellt` (kontextuell) im Parser, Datei-Index `d` an AST-Knoten, Ladereihenfolge, `warnSet`-Schlüssel mit Datei, Feld `datei` an `fehler`/`warnung`, Ortstext der Ananas §2.6, `Kiste`, `Bildchen.laden` (Teigling aus `optionen.teiglinge`, geprüft/ergänzt über `optionen.vorbacker`, dann `kern.wasm`), P0020 (Teigmenge), Herd-Erkennung um `Bildchen.…` |
+| `site/js/pizzaiolo.js`, `site/js/pizzaiolo/*` (Compiler) | `kompiliere`/`run` rufen `projekt.lade`; Ports von `analysiere`/Startprüfung mit Datei-Index; Positionstabelle mit Datei; Dateinamen-Tabelle; ABI v2 (`datei_ptr/len`); Datensegment + Tabelle für Kiste und Standard-Argumente; `Kiste`-Aufrufe in der Laufzeit; Küchenbericht (`koch.js`); `faehigkeiten.abi = 2`, `laufOptionen` + `teiglinge`/`vorbacker` |
 | `laufzeit/` (Rust no_std) | Fehler-/Warnungsimporte mit Datei; Kiste-Tabelle lesen; `Kiste.*`; `Bildchen.laden` → Import `bildchen_teigling` |
 | `herd/teigling` (neu, Rust no_std) | Vorbacker: PNG- und JPEG-Decoder, Mipmaps, Teigling-Format; `site/js/herd/teigling.wasm` + kleine JS-Hülle; Tests nativ = Wasm, goldene Teiglinge (SHA-256) für alle Decoder-Fälle; `teigling.wasm` wird wie `kern.wasm` eingecheckt und im Docker-Bau nicht neu erzeugt |
-| `herd/kern` | Kern-Export `bildchen_teigling` (nur Kopfprüfung), Fehlercodes 61 ff. (kein Bild, zu groß), Bildpaket-Delta `TEXTUR`; `kern.wasm` neu erzeugen; `herd/test-kern.js` mit Teigling-Fällen |
+| `herd/kern` | Kern-Export `bildchen_teigling` (nur Kopfprüfung), Fehlercodes 61/62 (kein Bild, zu groß), Bildpaket-Abschnitt `TEXTUR = 5`, `flach_art::TEXTURBILD = 6`, `INST3D.textur` Bit 17 (§5.5); `kern.wasm` + `schema.json` mit `node herd/baue.js` neu erzeugen; `herd/test-kern.js` mit Teigling-Szene |
 | `herd/glut`, `herd/glut-web` | eigene Texturen mit Mip-Kette, Abtastung (vergrößern nächster Nachbar, verkleinern trilinear), Referenzbilder neu |
-| `host/` (Rust) | ABI v2 (`warnung`/`fehler`), Importgruppe `herd` + `bildchen_teigling`, sonst unverändert (`karton.rs` unverändert; kein Decoder nativ nötig) |
-| `site/js/pizzaiolo/host-js.js`, `site/js/exe.js` | ABI v2; `exe.js` unverändert bis auf Dateinamen aus `name` |
-| `bin/pizza.js` | Ordner/`pizza.json`/Datei, Projektwurzel-Suche, Ausgabe §2.6, `--ast` mit Ladeliste |
-| `site/js/worker.js` | Startnachricht mit Projekt (§3.6) |
-| `ui/src/*` | neu: `projekte.js` (IndexedDB, Migration), `dateibaum.js`, `zip.js`, `bildvorschau.js`; Umbau: `tabs.js` (Dateien statt Skripte), `main.js` (Projektmenü, Ausführen = Projekt, Fehler-Sprung), `teilen.js` (Manifest/Blobs/Schlüssel), `app.js` (Manifest laden), `beispiele.js` (Ordner), `vorrat.js` (Präfix Projektname), `sprache.js`/`editor.js` (Vervollständigung, Diagnose je Datei) |
+| `host/` (Rust) | ABI v2 (`warnung`/`fehler` in `laufen.rs`, Küchenbericht in `kueche.rs`, `tests/abi.rs`), Ortsausgabe §2.6, Importgruppe `herd` + `bildchen_teigling`, sonst unverändert (`karton.rs` unverändert; kein Decoder nativ nötig) |
+| `site/js/pizzaiolo/host-js.js`, `site/js/exe.js`, Test-Hosts | ABI v2 (auch `tests/wasm/klon-host.js`, `tests/wasm/herd.js`, `tests/herd/bild.js`, `tests/herd/zeige.js`); `exe.js` unverändert bis auf Dateinamen aus `name` |
+| `bin/pizza.js` | Ordner/`pizza.json`/Datei, Projektwurzel-Suche (§1.5), Textnormalisierung §1.3, Ausgabe §2.6 (`meldungText`-Regex), `--ast` mit Ladeliste |
+| `site/js/worker.js` | `start`/`kompiliere` mit Projekt, Teiglingen und Vorbacker (§3.6) |
+| `ui/src/*` | neu: `projekte.js` (IndexedDB, Migration), `dateibaum.js`, `zip.js`, `bildvorschau.js`; Umbau: `tabs.js` (Dateien statt Skripte), `main.js` (Projektmenü, Ausführen = Projekt, Fehler-Sprung, Teilen-Abschnitt), `teilen.js` (Manifest/Blobs/Schlüssel), `app.js` (Manifest laden), `beispiele.js` (Ordner), `doku.js` („Im Playground öffnen“ → Projekt), `vorrat.js` (Präfix nach `projekt.quelle`, §3.2), `argumente.js` (Startwert aus `pizza.json`), `sprache.js`/`editor.js` (Vervollständigung, Diagnose je Datei); bestehende Tests `ui/test/teilen.mjs`, `ui/test/vorrat.mjs`, `ui/test/argumente.mjs` umstellen |
 | `site/js/doku/*` | neues Kapitel „Projekte und Dateien“ (bestellt, Sichtbarkeit, Kiste, Bilder); Doku-Codeblöcke mit Feld `dateien: { pfad: text }` (+ optional `hauptdatei`) für Mehrdatei-Beispiele, „Im Playground öffnen“ legt ein Projekt an |
 | nginx, Dockerfile, envsh, Template, compose | §4.8; Dockerfile: `site/beispiele/**` Ordner werden wie bisher kopiert; Test-Stufe ruft die umgestellten Harnische |
 | Harnische (`tests/run-tests.js`, `pruefstand`, `tests/differenz`, `tests/wasm`, `tests/herd`, `tests/theke`, E2E) | Ordner-Fälle §6.1, Manifest-Format §7.2 |
-| Doku-Dateien | SPEC §2 (Projekte, `bestellt`, Ladereihenfolge, Sichtbarkeit), §11 (`Kiste`), §14.7 (P0014–P0020, W0105), §18.5 (`Bildchen.laden`), ARCHITEKTUR §1–§3, §6, HOST-ABI v2 (§2, §9), WASM §4, HERD.md (Kern-ABI, H-K8), README (Betrieb), CHANGELOG |
+| Doku-Dateien | SPEC §2 (Projekte, `bestellt`, Ladereihenfolge, Sichtbarkeit), §11 (`Kiste`), §14.7 (P0014–P0020, W0004), §14.8 (W0032-Programm-Scope über alle Dateien), §18.1/§18.5 (`Bildchen.laden`), ARCHITEKTUR §1–§3, §6, HOST-ABI v2 (§1 Custom Section, §2, §7, §9, Anhang A), WASM §4, `herd/README.md` (Kern-ABI §3, Bildpaket §4 – in PD1), README (Betrieb), CHANGELOG; HERD.md **nicht** (schon abgestimmt) |
+| Repo-Pflege | `.gitattributes` (Binärdateien, §1.3), `.github/dependabot.yml` (`/durchreiche` statt `/hastebin`) |
 
 ### 6.1 Testformate (ARCHITEKTUR §6, erweitert)
 
 - **Ordner-Fall:** `tests/faelle/<name>/` = Projekt (§1.1) mit `pruefung/` (`erwartet`, `exitcode`, `warnungen`, `fehler`, `optionen.json`,
-  `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`). Bestehende Ein-Datei-Fälle (`<name>.pizza` + Begleitdateien)
+  `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet`, `orte`). Bestehende Ein-Datei-Fälle (`<name>.pizza` + Begleitdateien)
   **bleiben** – keine Massenumstellung der Testfälle.
 - `.warnungen`/`.fehler` vergleichen weiter Texte; neu optional `pruefung/orte` (JSON-Lines `{ "code", "datei", "zeile", "spalte" }`), um
   Dateiorte zu prüfen.
@@ -624,7 +788,11 @@ Bilder“) gilt damit als erledigt.
 - **Prüfstand:** `F(gruppe, name, code, erwartung)` – `code` darf ein Projekt-Objekt `{ dateien, hauptdatei }` sein; neue Datei
   `a19-projekte.js` (Ladereihenfolge, Zyklen, Konflikte, Sichtbarkeit, Nebendatei-Regel, Fehlerorte, gleiches Programm 1 vs. n Dateien,
   Kiste, Bildchen.laden mit Test-PNGs, Grenzen).
-- Neue Pflichtfälle: Mehrdatei (3 Motoren), Zyklus, fehlende Datei, Konflikt, Geheimrezept, Unbestellt, Fehler in Nebendatei (Text + Ort),
+- Neue Pflichtfälle: Mehrdatei (3 Motoren), Zyklus (auch „Nebendatei bestellt die Hauptdatei“), fehlende Datei, ungültige `pizza.json`,
+  Konflikt (auch verschachtelte Klasse, Überladung über Dateien), Geheimrezept, Unbestellt, Nicht-Treffer der Sichtbarkeitsprüfung
+  (Parameter, Lambda, `fall WERT`, `<T>`, Mitgliedsname, benanntes Argument gleich einem fremden obersten Namen → **kein** Fehler),
+  Reihenfolge der Ladeprüfungen (§2.2 Nr. 6), W0004, gleiche Warnung an gleicher Zeile/Spalte in zwei Dateien (beide gemeldet),
+  CRLF-Textdatei (`Kiste.text` liefert `\n`), Grenzen (101 Dateien → P0020), Fehler in Nebendatei (Text + Ort),
   PNG-Varianten (Palette+tRNS, Grau 1 bit, 16 bit, RGBA, interlaced → Fehler, beschädigte CRC → Fehler, zu groß → Fehler), JPEG-Varianten
   (Baseline/progressiv, 4:4:4/4:2:2/4:2:0, Grau, CMYK → Fehler, abgeschnitten → Fehler), Mipmaps mit Durchsichtigem und ungeraden Größen,
   Teigmenge (P0020); jeweils als goldene SHA-256 des Teiglings, identisch nativ und Wasm.
@@ -651,15 +819,21 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
   "dateien": ["pizza.json", "hauptgang.pizza", "welt/tisch.pizza", "bilder/tischdecke.png"],
   "tier": 1, "schlagworte": ["Herd", "3D"], "herd": true, "interaktiv": false }
 ```
-`datei`, `erwartet`, `eingabe`, `ereignisse`, `herdErwartet`, `exitCode` entfallen (liegen in `pruefung/`). `dateien` ohne `pruefung/`.
-`node scripts/beispiele.js --pruefe` (Teil von `npm test`) vergleicht Manifest und Platte; `--schreibe` aktualisiert die Dateilisten.
+`datei`, `erwartet`, `eingabe`, `ereignisse`, `herdErwartet`, `uiErwartet`, `exitCode` entfallen (liegen in `pruefung/`); `tier`,
+`schlagworte`, `herd`, `theke`, `echtzeit`, `interaktiv` bleiben. `dateien` ohne `pruefung/`. Das Werkzeug `scripts/beispiele.js` ist
+**neu** (PB3): `--pruefe` (Teil von `npm test`) vergleicht Manifest und Platte, `--schreibe` aktualisiert die Dateilisten, `--umziehen`
+siehe §7.3.
 
 ### 7.3 Schritte
 
 1. **Werkzeug** `scripts/beispiele.js --umziehen`: jede `x.pizza` + Begleitdateien → `x/hauptgang.pizza`, `x/pizza.json` (Name = Titel),
    `x/pruefung/*`; Manifeste umschreiben. Ein-Datei-Projekte, rein mechanisch, Ausgaben unverändert (Harnische vorher/nachher gleich).
 2. Harnische, Galerie, Doku-Verweise, E2E (`05-beispiele`, `09-theke`, `14-herd-playground`, `11-app-link`) auf Ordner umstellen.
-3. **Aufteilen** (inhaltlich; `pruefung/erwartet`/`herd-erwartet` bleiben **gleich**, außer wo Bilddateien bewusst Text-Bildchen ersetzen):
+3. **Aufteilen** (inhaltlich; `pruefung/erwartet`/`herd-erwartet` bleiben **gleich**, außer wo Bilddateien bewusst Text-Bildchen ersetzen).
+   Muster aus der Prüfung: Teigball/Teigfänger bauen ihre Szene heute mit **Anweisungen auf oberster Ebene** (`für`-Schleifen,
+   `herd.koerper(…)`) und der obersten Variable `herd`. Nebendateien dürfen keine Anweisungen und sehen die Hauptdatei nicht – also
+   `Herd herd = neu Herd(…)` (und was alle brauchen) nach `welt/herd.pizza`, Szenenteile als Funktionen (`leer baueTisch() { … }`), die
+   die Hauptdatei in der bisherigen Reihenfolge aufruft. Nur so bleiben Ressourcen-IDs, Teil-IDs und damit `herd-erwartet` gleich.
    - `herd/teigball` (286 Zeilen): `hauptgang.pizza` (Spielzustand, Schleife) · `welt/tisch.pizza` (Himmel, Tisch, Öfen, Laternen als
      Funktionen) · `welt/belaege.pizza` (Basilikum-Form, Beläge) · `hud.pizza`; **Tischdecke als PNG** (`bilder/tischdecke.png`) –
      neues `herd-erwartet` (bewusst; mit Mipmaps ohne Moiré in der Ferne).
@@ -671,7 +845,8 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
 4. **Pizza-Imperium – erst nach „Idle frei“** (anderer Lead arbeitet an Paket 5/6). Bis dahin bleibt `site/beispiele/idle/pizza-imperium.*`
    als Einzeldatei unverändert lauffähig (Übergang: das Umzugswerkzeug überspringt es, Manifest-Eintrag im alten Format wird von Galerie und
    Harnischen weiter gelesen – die Lesefunktion akzeptiert `datei` **oder** `ordner` bis Schritt 4 erledigt ist, danach wird `datei`
-   entfernt). Vorgeschlagene Aufteilung (4223 Zeilen, Stand afac084; endgültig nach Paket 5/6 neu zählen):
+   entfernt). Vorgeschlagene Aufteilung (4223 Zeilen, Stand afac084; am 2026-10-23 schon **4808** Zeilen / 287 KiB mit Wettbewerb,
+   Album, Banca – die Zeilenangaben unten sind daher nur noch grob; endgültig nach Paket 5/6 neu zählen):
 
    | Datei | Inhalt (heute Zeilen) |
    |---|---|
@@ -683,6 +858,13 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
    | `minispiele.pizza` | `Minispiel`, `Spielecke` (2048–2595) |
    | `theke/kopf.pizza`, `theke/betrieb.pizza`, `theke/rezepte.pizza`, `theke/imperium.pizza`, `theke/nonna.pizza`, `theke/spiele.pizza`, `theke/erfolge.pizza` | Panels (2596–4223) |
 
+   **Wichtig (Prüfbefund):** Die Theke-Panels lesen heute oberste Variablen der Datei (`spiel`, `ecke`, `kammer`, die Zettel `z…`,
+   Breiten-Konstanten, `MENGEN`, Hilfsfunktionen wie `panel()`/`zeile()`). Weil niemand die Hauptdatei bestellen kann (§2.1), müssen
+   diese in eine Nebendatei **`zustand.pizza`** (Spielobjekt, Zettel, Konstanten, Hilfsfunktionen), die alle `theke/*.pizza` bestellen.
+   Die Anweisungen (`falls (kammer.hat(…)) spiel.ladeAus(…)`, `neu Theke`, Panel-Aufbau, `theke.zeige…`) bleiben in `hauptgang.pizza`.
+   Dadurch laufen die Variablen-Initialisierungen der Nebendateien **vor** dem Laden des Spielstands (heute stehen Zettel und Panels
+   teils danach) – vor dem Umbau prüfen, dass kein Initialisierer vom geladenen Zustand abhängt (sonst die betroffene Variable in der
+   Hauptdatei initialisieren).
    Bedingung: `pruefung/erwartet`, `ereignisse`, `ui-erwartet` byte-gleich; Schritte gleich (§2.2). Hinweis: Klassenname `Geheimrezept`
    kollidiert nicht mit dem Modifikator `geheimrezept` (Groß/klein signifikant). Klasse `Projekt` bleibt erlaubt (kein reserviertes Wort).
 
@@ -692,8 +874,10 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
 
 - **Nur intern erreichbar:** kein Port, keine Domain; nur nginx spricht mit dem Dienst. Kein CORS (alles same-origin). CSP/Header unverändert.
 - **Was gespeichert wird:** Dateiinhalte, Manifeste, Erstellungs-/Änderungsdatum (Tagesgenauigkeit), Hash des Schlüssels. **Nicht**:
-  IP-Adressen, User-Agent, Zugriffszeiten. IPs leben nur im Arbeitsspeicher des Rate-Limiters (gleitendes Fenster, ≤ 10 min).
-- **Kein Logging von Inhalten**, IDs oder Schlüsseln: Dienst loggt nur Start, Aufräumzahlen, Fehlerarten; nginx `access_log off` für `/api/`.
+  IP-Adressen, User-Agent, Zugriffszeiten. IPs leben nur im Arbeitsspeicher des Rate-Limiters und der Byte-Zähler (gleitende Fenster,
+  ≤ 60 min, §4.5).
+- **Kein Logging von Inhalten**, IDs oder Schlüsseln: Dienst loggt nur Start, Aufräumzahlen, Fehlerarten; nginx `access_log off` und
+  `error_log … crit` für `/api/` (§4.8).
   Ein Test fängt die Log-Ausgabe ab und prüft, dass weder Inhalt noch ID darin vorkommt.
 - **IDs als Zugriffsrecht:** ≥ 71 bit Zufall → nicht aufzählbar; es gibt **keine** Liste aller Links. Alte Versionen sind für jeden mit dem
   Link abrufbar (im Dialog gesagt); Löschen entfernt alle Versionen.
@@ -703,7 +887,10 @@ site/beispiele/herd/teigball/{pizza.json, hauptgang.pizza, welt/*.pizza, bilder/
   Pfade, keine Steuerzeichen), Hash jedes Blobs geprüft, Dateien im Volume heißen nur nach Hash/ID (nie nach Nutzerpfaden).
 - **Ausgabe:** Blobs immer `application/octet-stream` + `nosniff` + `attachment` → nie als HTML/SVG im Origin interpretiert (kein SVG in v1).
   Die UI liest Blobs nur per `fetch`.
-- **Verfügbarkeit:** Rate-Limits doppelt (nginx + Dienst), Speicherdeckel, Versionsgrenze, Timeouts (nginx), atomares Schreiben.
+- **Verfügbarkeit:** Rate-Limits doppelt (nginx + Dienst), Byte-Grenzen je IP und für lose Blobs, Speicherdeckel, Versionsgrenze,
+  Timeouts (nginx), atomares Schreiben.
+- **Fremde Seiten:** keine Cookies, kein CORS; Schreiben mit Schlüssel nur per `Authorization`-Kopf, Bodies nur mit JSON-/Binär-Typ
+  (`415` sonst, §4.3) → kein CSRF.
 - **Container:** `USER node`, `read_only`, `no-new-privileges`, keine Abhängigkeiten (`npm ci` entfällt), gepinntes Basis-Image.
 - **Datei-Inhalte im Client:** Bilder dekodiert nur der Vorbacker (Rust, im Browser in der Wasm-Sandbox, Grenzen vor dem Entpacken), ZIP-Import mit Pfadprüfung und Entpack-Grenze,
   Bildvorschau via `data:`/Canvas.
@@ -757,36 +944,94 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 
 | Paket | Inhalt | Dateien (Schwerpunkt) | hängt ab von | parallel zu |
 |---|---|---|---|---|
-| **P0 Vertrag** | SPEC §2/§11/§14.7/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2, WASM §4, HERD.md, Prüfstand-Fälle als `*-offen` | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts | – |
-| **PA1 Lader + Interpreter + CLI** | `projekt.*`, `bestellt`, Ladereihenfolge, Prüfungen, `datei`-Feld, Texte, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` grün | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js` | P0 | PC1, PD1 |
-| **PC1 Durchreiche** | Dienst, Unit-Tests, Dockerfile, compose/nginx/envsh/Template, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 |
-| **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Bildpaket-Delta `TEXTUR` | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm` | P0 | PA1, PC1 |
-| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbilder, Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `tests/herd/bilder/` | PD1 | PB2, PB3 |
-| **PA2 Wasm + Host** | Compiler auf Lader, ABI v2, Kiste-Datensegment, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**` | PA1, PD1 | PB1 |
-| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll | `ui/src/**`, `site/js/worker.js`, `site/index.html`, `site/css/**` | PA1 (API; vorher mit Ein-Datei-Stub) | PA2 |
-| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge`, sonst `teigling.wasm`), P0020, Prüfstand | `site/js/pizza.js` | PA1, PD1 | PA2, PB1 |
-| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 |
-| **PB3 Beispiele umziehen** | Werkzeug, Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke, E2E 05/09/11/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, Harnische | PA1, PB1 | PB2 |
-| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – |
-| **PB5 Imperium** | Aufteilen nach §7.3, Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – |
-| **PZ Abnahme** | `npm test`, `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt), CHANGELOG | – | alle | – |
+| **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.1/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, Prüfstand-Fälle als `*-offen` (HERD.md bleibt unverändert, `herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – |
+| **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` grün (Datei danach in `a19-projekte.js` umbenennen, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 |
+| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 |
+| **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 |
+| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 |
+| **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 |
+| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 |
+| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza.js`, `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 |
+| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 |
+| **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 |
+| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – |
+| **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – |
+| **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – |
 
-Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PA2 · PB1 · PD2 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
-(PB5 sobald frei) → PZ. Jedes Paket endet mit grünen Tests seines Bereichs und einem lokalen Commit; gepusht wird gebündelt.
+Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
+(PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`
+nach dem Rebase auf PD2 (vorher gibt es im Interpreter nichts zu vergleichen). Jedes Paket endet mit grünen Tests seines Bereichs und
+einem lokalen Commit; gepusht wird gebündelt.
+
+**Abstimmung mit dem Herd-Stufenplan (HERD.md §12):** Beide Pläne ändern dieselben Engstellen. Regeln:
+1. **PD1** zählt in seiner Zeit als die eine Bildpaket-Stufe (`herd/kern/src/paket.rs`) und **PD3** als die eine Glut-Stufe einer
+   H-K-Welle (HERD.md §12.1 Regel 3/8) – nicht gleichzeitig mit H-K1, H-K3b, H-K5, H-K11b (Glut/`paket.rs`).
+2. **PA1, PA2, PD2** berühren die §9-Ausnahmen der HERD-Planung (`site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`,
+   `host/`) und laufen **nicht** parallel zu H-K0, H-K12, H-K13 oder H-K14; wer später merged, rebased und erzeugt Erzeugtes neu
+   (`kern.wasm`/`schema.json` mit `node herd/baue.js`, `laufzeit.wasm` mit `npm run baue:laufzeit` – nie von Hand mergen).
+3. **PB3** (Umzug aller Beispiele) läuft, wenn keine H-K-Stufe mit neuem Beispiel offen ist; danach legen H-K-Stufen Beispiele als
+   Ordner an (HERD.md §12.1 Regel 7). Neue Kern-Fehlercodes und Bildpaket-Nummern (§5.5) vor dem Schreiben gegen `herd/README.md` prüfen.
+4. Empfehlung: PROJEKTE W1 (PA1 · PC1 · PD1) **vor** H-K-W1 (H-K0 · H-K3a · H-K5) oder direkt danach – PD1 und H-K5 dürfen nicht in
+   dieselbe Welle.
 
 ---
 
-## 12. Vorgeschlagene K-Einträge (erst in Paket P0 in `KLAERUNGEN.md`; nächste freie Nummer K-138, vor dem Schreiben erneut prüfen)
+## 12. Vorgeschlagene K-Einträge (erst in Paket P0 in `KLAERUNGEN.md`)
+
+Geprüft 2026-10-23: höchster Eintrag in `KLAERUNGEN.md` (Arbeitsbaum, `master` und alle Worktrees) ist **K-137**; K-138 … K-147
+sind frei und bereits von HERD.md §12.5 als durch PROJEKTE.md belegt vermerkt (HERD.md nutzt K-148 … K-153). Die Nummern also **nicht**
+verschieben; vor dem Schreiben trotzdem erneut prüfen.
 
 | Nr. | Titel | Kern |
 |---|---|---|
-| K-138 | Projekte: Ordner, `pizza.json`, Hauptdatei, Pfadregeln, Dateisammlung | E1–E3, E24, §1 |
-| K-139 | `bestellt`: Syntax, erreichbare Dateien, Ladereihenfolge, Zyklen, Nebendateien, `hauptgang` nur in der Hauptdatei | E4, E8, E9, §2.1–§2.3 (P0014, P0015, P0017, W0105) |
-| K-140 | Ein Projekt-Namensraum, Sichtbarkeit, `geheimrezept` auf oberster Ebene, konservative Startprüfung | E5–E7, §2.4–§2.5 (P0016, P0018, P0019) |
-| K-141 | Fehlerorte mit Datei; Host-ABI v2 | E10, E11, §2.6, §2.8 |
+| K-138 | Projekte: Ordner, `pizza.json`, Hauptdatei, Pfadregeln, Textnormalisierung, Lader-Grenzen (P0020), Dateisammlung | E1–E3, E24, §1 |
+| K-139 | `bestellt`: Syntax, erreichbare Dateien, Ladereihenfolge, Zyklen, Nebendateien, `hauptgang` nur in der Hauptdatei | E4, E8, E9, §2.1–§2.3 (P0014, P0015, P0017, W0004; Ladeprüfungen im gemeinsamen Lader, Reihenfolge §2.2) |
+| K-140 | Ein Projekt-Namensraum, Sichtbarkeit, `geheimrezept` auf oberster Ebene, konservative Ladeprüfung im gemeinsamen Lader | E5–E7, §2.4–§2.5 (P0016, P0018, P0019; W0032-Programm-Scope über alle Dateien) |
+| K-141 | Fehlerorte mit Datei (Ereignisform, Hüllen-Regel), Host-ABI v2 inkl. Küchenbericht, Standard-Argumente im Modul | E10, E11, §2.6, §2.8 |
 | K-142 | Playground-Projekte: IndexedDB, ein Projekt je Fenster, Migration der Tabs, ZIP | E15–E17, §3 |
 | K-143 | Teilen-Dienst Durchreiche: Blobs + Manifeste, Versionen, Schlüssel, Links `@n`, Ablauf ab letzter Version, Grenzen, Datenschutz | E18–E22, §4, §8 |
 | K-144 | Beispiele als Ordner, Manifest mit Dateiliste, `pruefung/`, Testformate für Ordner-Fälle | E23, §6.1, §7 |
 | K-145 | Bilddateien: `Bildchen.laden`, PNG/JPEG nur als Eingabe, Vorbacken beim Packen, Caching, Einbettung als Datensegment, Grenzen (ergänzt K-136) | E12, E13, §5.2, §5.4, §5.6 (P0020) |
 | K-146 | `Kiste`: lesender Zugriff auf Projektdateien | E14, §5.2 |
 | K-147 | Teigling-Format v1: Decoder-Rechenwege (PNG, JPEG islow/Festkomma, keine Farbverwaltung, EXIF ignoriert), alpha-gewichtete Ganzzahl-Mipmaps, Kopf, Abtastung in Glut; GPU-Kompression als spätere Formatversion | E13, §5.3, §5.5, §5.7 |
+
+---
+
+## 13. Prüfbefunde (unabhängige Prüfung 2026-10-23)
+
+Geprüft gegen den Stand `d4e2ebd` (Code, SPEC, KLAERUNGEN, ARCHITEKTUR, HOST-ABI, WASM, HERD, Hosts, nginx/compose/Dockerfile, Harnische,
+E2E). Alle Befunde sind oben eingearbeitet; keine Nutzerentscheidung aus §10 wurde geändert.
+
+| Befund | Schwere | Änderung |
+|---|---|---|
+| Die Startprüfung `PizzaLang.intern.pruefe` wird vom Compiler **nicht** benutzt (`frontend.js` hat eigene Ports von Startprüfung und `analysiere`) – „gleiche Funktion in beiden Motoren“ stimmte so nicht | hoch | E7, §2.5, §2.7: Projektprüfungen und W0004 im gemeinsamen Lader `projekt.lade`, den der Compiler statt `PizzaLang.parse` ruft |
+| Niemand kann die Hauptdatei bestellen (immer Kreis) → Nebendateien sehen keine Namen der Hauptdatei; Imperium-Panels (`spiel`, Zettel, Hilfsfunktionen) und Teigball (`herd`, Szene als Top-Level-Anweisungen) wären so nicht aufteilbar | hoch | §2.1 Regel ausdrücklich, §7.3 Muster (`zustand.pizza`, `welt/herd.pizza`, Szene als Funktionen), Hinweis auf geänderte Initialisierungsreihenfolge |
+| Doppelmeldungs-Sperre `warnSet` (Schlüssel `code:zeile:spalte`) hätte Warnungen gleicher Position in zwei Dateien verschluckt | hoch (Bitgleichheit) | §2.2: Schlüssel mit Datei, in Interpreter, Compiler-Port und Laufzeit |
+| Textdateien: `core.autocrlf=true` ohne `.gitattributes` → CRLF unter Windows, LF im Browser/Docker; `TextDecoder` entfernt BOM und ersetzt ungültige Bytes → `Kiste.text`, Hashes, Dedup wären nicht bitgleich | hoch (Bitgleichheit) | §1.3 Normalisierung an der Projektgrenze (UTF-8 fatal, BOM bleibt, `\r\n` → `\n`), `Kiste.text` „kein Text“ nach Endung, `.gitattributes` für Binärdateien |
+| Veralteter Teigling-Cache konnte das Laufergebnis ändern (Schlüssel nur Pfad in `optionen.teiglinge`) | mittel | §5.4: Lader prüft Kopf-SHA-256 gegen Quelle (`vorbacker.sha256`), backt sonst neu; `optionen.vorbacker` wie `herdKern`; HOST-Fehler „Vorbacker fehlt“ |
+| nginx reicht `Authorization` und `Content-Type` nicht weiter (`proxy_pass_request_headers off`) – Versionen/Löschen wären unmöglich | hoch | §4.8 `proxy_set_header Authorization/Content-Type` |
+| `Cache-Control` des Dienstes wird von nginx versteckt, die Map setzt für `/api/` immer `no-store` → `immutable` wäre wirkungslos; `public` hätte gelöschte Links in geteilten Caches gehalten | mittel | §4.3: Map-Einträge für Blob/`@n` mit `private, …, immutable` |
+| `limit_req_log_level warn` und Upstream-Fehler schreiben die Anfragezeile (= ID) ins Fehlerprotokoll | mittel (Datenschutz) | §4.8, §8: `error_log … crit` in `/api/` |
+| Lose Blobs (PUT ohne Schlüssel, 600/min × 2 MiB, 24 h Aufbewahrung) konnten den Speicherdeckel in Minuten füllen | hoch (Verfügbarkeit) | §4.5 Byte-Grenzen je IP, Anteil loser Blobs, Müllabfuhr nach 1 h; §4.6 PUT-Rate gesenkt |
+| Rennen Müllabfuhr ↔ Posten (Blob als vorhanden gemeldet, dann gelöscht) | mittel | §4.3 `fehlend` frischt `mtime` auf, §4.5 globale Sperre |
+| Manifest: kanonische Form, Typprüfung (beim PUT unbekannt), doppelte Pfade, `name/hauptdatei` als zweite Quelle neben `pizza.json` | mittel | §4.2 Kanonik + Prüfliste, Begleitfelder nur Anzeige, §1.4 `pizza.json` wird beim Teilen/Export erzeugt |
+| CSRF über fremde Formulare (Link-Erstellung ohne Schlüssel) | niedrig | §4.3 `415` ohne JSON-/Binärtyp, §8 |
+| Base62-ID mit Modulo-Verzerrung, Schlüssel-Format ungeprüft | niedrig | §4.4 Verwerfungsverfahren, Format-Regex vor dem Hashen |
+| Vorratskammer: Konzept nahm einen Präfix je Tab-Namen an – den gibt es nicht (K-088: nur `pizza.vorrat.` vs. `pizza.vorrat-beispiel.`) | mittel | §3.2 Regel an `projekt.quelle`, Quelle `doku:` ergänzt, Migration der Tab-Schlüssel |
+| W0105 passte nicht zum Nummernkreis (W01xx = Laufzeitumgebung W0100–W0104, W00xx = statisch) | niedrig | → **W0004** (frei); P0014–P0020 sind frei (belegt: P0001–P0003, P0010–P0013) |
+| K-Nummern: höchster Eintrag K-137 (Arbeitsbaum, master, Worktrees); HERD.md hat K-138 … K-147 schon als PROJEKTE-Nummern vermerkt und nutzt K-148 … K-153 | Info | §12: Nummern bleiben |
+| Küchenbericht (`warnung`-Ereignis, Positionstabelle) und weitere ABI-Nutzer (`host/src/kueche.rs`, `host/tests/abi.rs`, `tests/wasm/klon-host.js`, …) fehlten; nativer Host muss auch die Ortsausgabe ändern | mittel | §2.8 vollständige Liste, Hüllen-Regel §2.6 (Pfad sobald `datei ≠ null`, Host muss die Hauptdatei nicht kennen) |
+| Reihenfolge der Ladeprüfungen und ihr Verhältnis zu Warnungen/bestehenden Startprüfungen offen | mittel | §2.2 Nr. 6 |
+| Sichtbarkeitsprüfung: Falsch-Positive bei `fall WERT`, Generik-Parametern, `für`/Fang/`roh`, Annotationsnamen; verschachtelte Klassen fehlten im Namensraum | mittel | §2.4, §2.5 |
+| Bildpaket: Abschnitts-/Art-Nummern und Verweis aus den Instanzen offen; HERD belegt `flach_art` 5 und Abschnitte 14/15 | mittel | §5.5 `TEXTUR = 5`, `TEXTURBILD = 6`, `INST3D.textur` Bit 17, additiv nach HERD §12.1 Regel 3; Kern-Fehler 61/62 |
+| Fehler-Teigling konnte Größen > 65 535 (PNG) für den „zu groß“-Text nicht tragen; P0020-Rechnung und Rundung offen | niedrig | §5.3 Layout mit `u32`, Teigmenge je Quell-Hash, Aufrunden |
+| `Bildchen.laden` fehlte in der Herd-Erkennung vor dem Start (HOST-ABI §2, `herdNoetig`, `frontend.js`); doppeltes Laden, Prüfreihenfolge, `TypAnanas` offen | mittel | §5.2 |
+| CLI ohne `pizza.json` hätte den ganzen Ordner der Datei (z. B. `tests/faelle/`, > 1000 Dateien) als Projekt gelesen | mittel | §1.5: ohne `pizza.json` nur Datei + bestellte Dateien |
+| Projektgrenzen (100 Dateien, 8 MiB) galten nur beim Teilen – lokal Lauffähiges wäre nicht teilbar gewesen; ungültige `pizza.json` ohne Fehlercode | niedrig | §1.2, §1.3: P0015/P0020 im Lader |
+| `args`: EXE ohne Argumente hätte die Standard-Argumente nicht gekannt (Browser ≠ nativ) | niedrig | §1.2, §2.8: im Modul eingebettet |
+| Worker: `kompiliere` (EXE) und Wasm-Motor ohne Projekt/Teiglinge; Rückfall auf Interpreter | niedrig | §3.6 |
+| ZIP-Import aus Windows/macOS (Datendeskriptor, `__MACOSX`, Großbuchstaben) | niedrig | §3.4 |
+| Paketplan: PA2-Differenzfälle hängen an PD2 (gleiche Welle); PB2/PB3 hätten beide E2E 11 geändert; E2E 06 (Teilen) fehlte; `durchreiche`-Tests nicht in `npm test`; dependabot/README fehlten; Koordination mit HERD §12 (gleiche Dateien: `paket.rs`, Glut, Interpreter/Laufzeit/Host) fehlte | mittel | §11: Merge-Reihenfolge W2, Dateilisten, PZ-Befehle, Abschnitt „Abstimmung mit dem Herd-Stufenplan“ |
+| Imperium ist auf 4808 Zeilen gewachsen (Stand afac084: 4223) | Info | §7.3 Hinweis, Feinschnitt bleibt nach Paket 5/6 |
+| HERD.md H-K8 ist heute `Vorlage`; abgelöst ist nur „größere Bilder/Texturen“ | niedrig | §5.9; P0 ändert HERD.md nicht |
+| `.pizza`-Dateien liegen über die Kiste lesbar im EXE | Info | §5.2 Hinweis im EXE-Dialog/Doku (Folge der Entscheidung „Kiste enthält auch `.pizza`“) |
