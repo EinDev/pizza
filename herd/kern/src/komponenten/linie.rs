@@ -24,10 +24,9 @@ pub static ART: Art = Art {
             Feld::diavolo("rund", false),
         ],
     },
-    nur_test: false,
-    takt: None,
     bild: Some(bild),
     huelle: Some(huelle),
+    ..Art::LEER
 };
 
 /// Lokale Box der Strecke: Matrix (Welt · Drehung zur Strecke), Mitte, halbe Ausdehnung, Rundung.

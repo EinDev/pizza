@@ -25,10 +25,8 @@ pub static ART: Art = Art {
             Feld::intern("zeit", 0.0),
         ],
     },
-    nur_test: false,
     takt: Some(takt),
-    bild: None,
-    huelle: None,
+    ..Art::LEER
 };
 
 fn takt(w: &mut Welt, s: &mut Speicher) {

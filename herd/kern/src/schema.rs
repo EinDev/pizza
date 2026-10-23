@@ -19,15 +19,34 @@ pub enum Typ {
     Form,
     Bildchen,
     BildchenListe,
+    /// Blech aus Teilen (IDs, Einfügereihenfolge; entfernte Teile fallen beim Lesen heraus) – H-K0
+    TeilListe,
+    /// Blech aus Zahlen (f64, Einfügereihenfolge) – H-K0
+    ZahlListe,
     /// verborgene Zahl (Systemzustand)
     Intern,
     /// verborgener Zahlenpuffer je Komponente (z. B. Teilchen)
     Puffer,
 }
 
-/// Alle öffentlichen Feldtypen in Schema-Reihenfolge.
-pub const FELDTYPEN: [Typ; 10] =
-    [Typ::Zahl, Typ::Ganz, Typ::Diavolo, Typ::Text, Typ::Wahl, Typ::Farbe, Typ::Teil, Typ::Form, Typ::Bildchen, Typ::BildchenListe];
+/// Alle öffentlichen Feldtypen in Schema-Reihenfolge (Nummer = Position + 1; neue Typen nur hinten anhängen).
+pub const FELDTYPEN: [Typ; 12] = [
+    Typ::Zahl,
+    Typ::Ganz,
+    Typ::Diavolo,
+    Typ::Text,
+    Typ::Wahl,
+    Typ::Farbe,
+    Typ::Teil,
+    Typ::Form,
+    Typ::Bildchen,
+    Typ::BildchenListe,
+    Typ::TeilListe,
+    Typ::ZahlListe,
+];
+
+/// Höchstzahl der Einträge einer `teil-liste`/`zahl-liste`.
+pub const MAX_LISTE: usize = 65536;
 
 impl Typ {
     pub fn name(self) -> &'static str {
@@ -42,6 +61,8 @@ impl Typ {
             Typ::Form => "form",
             Typ::Bildchen => "bildchen",
             Typ::BildchenListe => "bildchen-liste",
+            Typ::TeilListe => "teil-liste",
+            Typ::ZahlListe => "zahl-liste",
             Typ::Intern => "intern",
             Typ::Puffer => "puffer",
         }
@@ -58,6 +79,8 @@ impl Typ {
             Typ::Form => "eine Form",
             Typ::Bildchen => "ein Bildchen",
             Typ::BildchenListe => "ein Blech aus Bildchen",
+            Typ::TeilListe => "ein Blech aus Teilen",
+            Typ::ZahlListe => "ein Blech aus Zahlen",
             Typ::Intern | Typ::Puffer => "nichts",
         }
     }
@@ -110,11 +133,17 @@ pub struct Feld {
     pub min: Option<f64>,
     pub max: Option<f64>,
     pub wahl: &'static [&'static str],
+    /// Lesefeld (H-K0): Getter wie immer; Setter, `setze(…)` und Konstruktor-Argument → `<Name>.<feld> kann man nur lesen.`
+    /// Nur Systeme des Kerns schreiben es.
+    pub lesen: bool,
+    /// Nachtragsfeld (H-K0): nachträglich an eine bestehende Komponente angehängt; der Szenen-Hash überspringt es, solange
+    /// sein Wert bitgleich dem Standard ist (Hashes bestehender Programme bleiben gleich).
+    pub nachtrag: bool,
 }
 
 impl Feld {
     const fn neu(name: &'static str, typ: Typ) -> Feld {
-        Feld { name, typ, zahl: 0.0, text: "", min: None, max: None, wahl: &[] }
+        Feld { name, typ, zahl: 0.0, text: "", min: None, max: None, wahl: &[], lesen: false, nachtrag: false }
     }
     pub const fn zahl(name: &'static str, standard: f64) -> Feld {
         Feld { zahl: standard, ..Feld::neu(name, Typ::Zahl) }
@@ -147,6 +176,14 @@ impl Feld {
     pub const fn bildchen_liste(name: &'static str) -> Feld {
         Feld::neu(name, Typ::BildchenListe)
     }
+    /// Blech aus Teilen (Standard: leer).
+    pub const fn teil_liste(name: &'static str) -> Feld {
+        Feld::neu(name, Typ::TeilListe)
+    }
+    /// Blech aus Zahlen (Standard: leer; `min`/`max` gelten je Eintrag).
+    pub const fn zahl_liste(name: &'static str) -> Feld {
+        Feld::neu(name, Typ::ZahlListe)
+    }
     pub const fn intern(name: &'static str, standard: f64) -> Feld {
         Feld { zahl: standard, ..Feld::neu(name, Typ::Intern) }
     }
@@ -158,6 +195,14 @@ impl Feld {
     }
     pub const fn bereich(self, a: f64, b: f64) -> Feld {
         Feld { min: Some(a), max: Some(b), ..self }
+    }
+    /// macht das Feld zum Lesefeld (nur Systeme schreiben es)
+    pub const fn lesen(self) -> Feld {
+        Feld { lesen: true, ..self }
+    }
+    /// macht das Feld zum Nachtragsfeld (Hash nur, wenn vom Standard abweichend)
+    pub const fn nachtrag(self) -> Feld {
+        Feld { nachtrag: true, ..self }
     }
 }
 
@@ -207,6 +252,9 @@ pub struct Schema {
 }
 
 impl Schema {
+    /// Leeres Schema (Grundlage für `Art::LEER`).
+    pub const LEER: Schema = Schema { name: "", genus: Genus::N, raum: Raum::Beide, braucht: &[], felder: &[] };
+
     pub fn oeffentliche(&self) -> usize {
         self.felder.iter().take_while(|f| f.typ.oeffentlich()).count()
     }
@@ -237,6 +285,19 @@ pub struct Speicher {
     pub spalten: Vec<Spalte>,
 }
 
+impl Spalte {
+    /// Wert in Zeile `z` bitgleich dem Standard des Felds (Nachtragsfelder im Szenen-Hash).
+    pub fn ist_standard(&self, f: &Feld, z: usize) -> bool {
+        match self {
+            Spalte::Zahl(v) => v[z].to_bits() == f.zahl.to_bits(),
+            Spalte::Text(v) => v[z] == f.text,
+            Spalte::Farbe(v, t) => v[z] == farbe::lies(f.text).unwrap_or(farbe::WEISS) && t[z] == f.text,
+            Spalte::Liste(v) => v[z].is_empty(),
+            Spalte::Puffer(v) => v[z].is_empty(),
+        }
+    }
+}
+
 impl Speicher {
     pub fn neu(s: &Schema) -> Speicher {
         let spalten = s
@@ -245,8 +306,8 @@ impl Speicher {
             .map(|f| match f.typ {
                 Typ::Text => Spalte::Text(Vec::new()),
                 Typ::Farbe => Spalte::Farbe(Vec::new(), Vec::new()),
-                Typ::BildchenListe => Spalte::Liste(Vec::new()),
-                Typ::Puffer => Spalte::Puffer(Vec::new()),
+                Typ::BildchenListe | Typ::TeilListe => Spalte::Liste(Vec::new()),
+                Typ::Puffer | Typ::ZahlListe => Spalte::Puffer(Vec::new()),
                 _ => Spalte::Zahl(Vec::new()),
             })
             .collect();

@@ -46,6 +46,9 @@ assert.ok(!toks("belag X auf Pizza { }").some(([, b]) => b === "keyword"));   //
   const { createRequire } = await import("node:module");
   const PL = createRequire(import.meta.url)("../../site/js/pizza.js");
   const W = await import("../src/woerter.js");
+  // Komponenten nach v1 kommen wie in der App (main.js) aus dem Herd-Schema – keine UI-Änderung je Komponente (HERD.md §9)
+  const fs = await import("node:fs");
+  assert.ok(W.herdSchemaErgaenzen(JSON.parse(fs.readFileSync(new URL("../../site/js/herd/schema.json", import.meta.url), "utf8"))));
   for (const t of PL.TYPEN) assert.ok(W.TYPEN.has(t), "Typ fehlt in woerter.js: " + t);
   for (const b of PL.BUILTINS) assert.ok(W.BUILTINS.has(b), "Builtin fehlt in woerter.js: " + b);
   assert.deepEqual(W.STIL_SCHLUESSEL, Object.keys(PL.intern.UI_STIL), "Stil-Schlüssel wie im Interpreter");
@@ -66,5 +69,11 @@ assert.ok(!toks("belag X auf Pizza { }").some(([, b]) => b === "keyword"));   //
   // Highlighting: Theke-/v7-Namen sind eingebaute Typen (ohne geladenen Interpreter)
   assert.equal(Object.fromEntries(toks("Zettel z = Zettel.aus(() -> 1); Auswahl a; Tastatur t;"))["Auswahl"], "typ");
   assert.equal(toks("Zettel.aus")[0][1], "typ");
+  // Herd-Schema (H-K0): Lesefelder bekommen Getter, aber keinen Setter in der Vervollständigung
+  assert.ok(W.herdSchemaErgaenzen({ komponenten: [{ name: "Fuehltest", felder: [
+    { name: "kontaktZahlH0", typ: "zahl", lesen: true }, { name: "grenzeH0", typ: "zahl-liste" }] }] }));
+  assert.ok(W.TYPEN.has("Fuehltest") && W.ALLE_METHODEN.includes("fuehltest"));
+  assert.ok(W.ALLE_METHODEN.includes("kontaktZahlH0") && !W.ALLE_METHODEN.includes("setzeKontaktZahlH0"));
+  assert.ok(W.ALLE_METHODEN.includes("grenzeH0") && W.ALLE_METHODEN.includes("setzeGrenzeH0"));
 }
 console.log("alle Tests ok");

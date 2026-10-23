@@ -27,10 +27,9 @@ pub static ART: Art = Art {
             Feld::farbe("farbe", "weiss"),
         ],
     },
-    nur_test: false,
-    takt: None,
     bild: Some(bild),
     huelle: Some(huelle),
+    ..Art::LEER
 };
 
 #[inline]

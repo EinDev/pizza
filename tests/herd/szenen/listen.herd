@@ -1,0 +1,49 @@
+# H-K0: die neuen ABI-Aufrufe setze_zahlen/hole_zahlen und die Listen-Wege nativ = kern.wasm.
+# kern.wasm hat (noch) keine Komponente mit teil-liste/zahl-liste/Lesefeld (Probe fehlt dort) – hier laufen daher die
+# Fehlerpfade und Rückgaben; die Felder selbst prüft herd/skript/tests/probe.herd im Testbau (cargo test).
+vorgabe TAKTE 2
+welt_neu 320 200 "Listen"
+schema_json
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Bild" -> T_B
+typ_nummer "Animation" -> T_A
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_A "bilder" -> A_BILDER
+komp_neu T_R -> r
+# Zahlenliste an ein Zahlenfeld → TypAnanas (Code 28)
+setze_zahlen r R_B [1, 2.5, -0]
+fehler_art
+fehler_code
+fehler_text
+hole_zahl r R_B
+# Zahlenliste lesen von einem Zahlenfeld → intern
+hole_zahlen r R_B
+fehler_art
+fehler_text
+# bildchen-liste ist keine zahl-liste (und umgekehrt)
+komp_neu T_A -> a
+setze_zahlen a A_BILDER [1]
+fehler_text
+hole_zahlen a A_BILDER
+fehler_text
+hole_liste a A_BILDER
+setze_liste r R_B [1]
+fehler_text
+# leere Listen, unbekannte Komponente/Feldnummer
+setze_zahlen a A_BILDER []
+fehler_text
+setze_zahlen 999 1 [0.5]
+fehler_text
+hole_zahlen 999 1
+fehler_text
+setze_zahlen r 99 [0.5]
+fehler_text
+hole_zahlen r 0
+fehler_text
+# Typfehler-Texte der neuen Feldtypen kommen über melde_typfehler an bestehende Felder unverändert
+melde_typfehler T_R R_B "[1, 2]"
+fehler_text
+teil_neu 2 -> t
+teil_lage t 100 80 0
+komp_haenge r t
+takte TAKTE

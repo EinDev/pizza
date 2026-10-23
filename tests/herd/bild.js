@@ -74,6 +74,7 @@ const AUFZEICHNEN = {
   setze_zahl: (a) => [I(a[0]), I(a[1]), F(a[2])],
   setze_text: (a) => [I(a[0]), I(a[1]), textAn(a[2], a[3])],
   setze_liste: (a) => [I(a[0]), I(a[1]), '[' + u32s(a[2], a[3]).join(', ') + ']'],
+  setze_zahlen: (a) => [I(a[0]), I(a[1]), '[' + f64s(a[2], a[3]).join(', ') + ']'],
   form_grund: (a) => [I(a[0]), F(a[1]), F(a[2])],
   form_eigene: (a) => ['[' + f64s(a[0], a[1]).join(', ') + ']', '[' + f64s(a[2], a[3]).join(', ') + ']', I(a[4])],
   bildchen_neu: (a) => {

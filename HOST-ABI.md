@@ -187,6 +187,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `setze_zahl` | `(komp i32, feld i32, wert f64) -> i32` | **generisch**: Feldnummer aus dem Schema |
 | `hole_zahl` | `(komp i32, feld i32) -> f64` | |
 | `setze_text`, `hole_text`, `setze_liste`, `hole_liste` | `(komp i32, feld i32, ptr i32, len/kap i32) -> i32` | Texte/Listen im Kern-Speicher |
+| `setze_zahlen`, `hole_zahlen` | `(komp i32, feld i32, ptr i32, n/kap i32) -> i32` | Feldtyp `zahl-liste` (H-K0, K-149): f64 LE im Kern-Speicher, `hole_zahlen` mit Retry (kap in Elementen); `teil-liste` geht über `setze_liste`/`hole_liste` |
 | `form_grund` | `(art i32, teile f64, dicke f64) -> i32` | |
 | `form_eigene` | `(pp i32, pn i32, dp i32, dn i32, glatt i32) -> i32` | |
 | `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |

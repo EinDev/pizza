@@ -500,10 +500,18 @@ impl Welt {
 
     // ------------------------------------------------------------------ Takt und Hüllen
 
-    /// Läuft alle Systeme in Registry-Reihenfolge (dt = 1/60).
+    /// Läuft alle Takt-Systeme, danach alle Nachlauf-Systeme, jeweils in Registry-Reihenfolge (dt = 1/60).
     pub fn takt(&mut self) {
         for a in 0..self.arten.len() {
             if let Some(f) = self.arten[a].takt {
+                let mut s = core::mem::take(&mut self.speicher[a]);
+                f(self, &mut s);
+                self.speicher[a] = s;
+            }
+        }
+        // Nachlauf (H-K0): nach allen Takt-Systemen, wieder in Typnummer-Reihenfolge
+        for a in 0..self.arten.len() {
+            if let Some(f) = self.arten[a].nachlauf {
                 let mut s = core::mem::take(&mut self.speicher[a]);
                 f(self, &mut s);
                 self.speicher[a] = s;

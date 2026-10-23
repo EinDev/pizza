@@ -15,7 +15,7 @@ use crate::hash::Fnv;
 use crate::komponenten::{Huelle, ARTEN};
 use crate::paket::{self, Bildbau, Gesendet};
 use crate::ressourcen::{Ressource, MAX_BILDCHEN};
-use crate::schema::{Spalte, Typ, FELDTYPEN};
+use crate::schema::{Spalte, Typ, FELDTYPEN, MAX_LISTE};
 use crate::welt::{lage, Welt};
 use crate::zahl::zahl_text;
 
@@ -155,12 +155,16 @@ impl Kern {
         n as i32
     }
     /// TypAnanas für ein Feld mit einem Wert, den nur die Anbindung kennt (`darstellung` = Textform des Werts).
-    /// Liefert immer −1 (TypAnanas) bzw. einen anderen Fehler bei ungültiger Typ-/Feldnummer.
+    /// Liefert immer −1 (TypAnanas) bzw. einen anderen Fehler bei ungültiger Typ-/Feldnummer; an einem Lesefeld −2 mit
+    /// `<Name>.<feld> kann man nur lesen.` (der Lesefeld-Fehler geht in allen Motoren dem Typfehler vor).
     pub fn melde_typfehler(&mut self, typ: i32, feld: i32, darstellung: &[u8]) -> i32 {
         let e = (|| {
             let a = art_idx(typ)?;
             let s = &ARTEN[a].schema;
             let f = feld_idx(s, feld)?;
+            if s.felder[f].lesen {
+                return Err(fehler::feld_lesen(s.name, s.felder[f].name));
+            }
             let d = String::from_utf8_lossy(darstellung);
             Err::<i32, _>(fehler::feld_typ(s.name, s.felder[f].name, s.felder[f].typ.erwartet(), &d))
         })();
@@ -558,6 +562,9 @@ impl Kern {
             let f = feld_idx(s, feld)?;
             let fd = &s.felder[f];
             let (name, fname) = (s.name, fd.name);
+            if fd.lesen {
+                return Err(fehler::feld_lesen(name, fname));
+            }
             let typfehler = |d: &str| Err(fehler::feld_typ(name, fname, fd.typ.erwartet(), d));
             match fd.typ {
                 Typ::Zahl => {
@@ -634,7 +641,9 @@ impl Kern {
             match &w.speicher[a].spalten[f] {
                 Spalte::Zahl(v) => Ok(v[z]),
                 Spalte::Farbe(v, _) => Ok(v[z] as f64),
+                Spalte::Liste(v) if s.felder[f].typ == Typ::TeilListe => Ok(v[z].iter().filter(|t| w.zeile_opt(**t).is_some()).count() as f64),
                 Spalte::Liste(v) => Ok(v[z].len() as f64),
+                Spalte::Puffer(v) => Ok(v[z].len() as f64),
                 _ => Err(fehler::intern(alloc::format!("{}.{} ist keine Zahl.", s.name, s.felder[f].name))),
             }
         })();
@@ -650,6 +659,9 @@ impl Kern {
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
             let fd = &s.felder[f];
+            if fd.lesen {
+                return Err(fehler::feld_lesen(s.name, fd.name));
+            }
             match fd.typ {
                 Typ::Text => {
                     if let Spalte::Text(v) = &mut w.speicher[a].spalten[f] {
@@ -700,7 +712,7 @@ impl Kern {
         self.ri(e)
     }
 
-    /// Bildchen-Liste aus IDs.
+    /// `bildchen-liste` (Bildchen-IDs) bzw. `teil-liste` (Teil-IDs, jedes Teil muss leben) aus IDs.
     pub fn setze_liste(&mut self, komp: i32, feld: i32, ids: &[u32]) -> i32 {
         let e = (|| {
             let w = self.w()?;
@@ -708,14 +720,27 @@ impl Kern {
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
             let fd = &s.felder[f];
-            if fd.typ != Typ::BildchenListe {
-                return Err(fehler::feld_typ(s.name, fd.name, fd.typ.erwartet(), "ein Blech"));
+            if fd.lesen {
+                return Err(fehler::feld_lesen(s.name, fd.name));
             }
-            for id in ids {
-                if w.ressourcen.bildchen(*id).is_none() {
-                    let d = res_text(w, *id);
-                    return Err(fehler::feld_typ(s.name, fd.name, fd.typ.erwartet(), &alloc::format!("ein Blech mit {}", d)));
+            match fd.typ {
+                Typ::BildchenListe => {
+                    for id in ids {
+                        if w.ressourcen.bildchen(*id).is_none() {
+                            let d = res_text(w, *id);
+                            return Err(fehler::feld_typ(s.name, fd.name, fd.typ.erwartet(), &alloc::format!("ein Blech mit {}", d)));
+                        }
+                    }
                 }
+                Typ::TeilListe => {
+                    if ids.len() > MAX_LISTE {
+                        return Err(fehler::liste_laenge(s.name, fd.name, MAX_LISTE, ids.len()));
+                    }
+                    for id in ids {
+                        w.zeile(*id)?;
+                    }
+                }
+                _ => return Err(fehler::feld_typ(s.name, fd.name, fd.typ.erwartet(), "ein Blech")),
             }
             if let Spalte::Liste(v) = &mut w.speicher[a].spalten[f] {
                 v[z] = ids.to_vec();
@@ -724,7 +749,8 @@ impl Kern {
         })();
         self.ri(e)
     }
-    /// Liste lesen; Rückgabe = Anzahl, nichts geschrieben, wenn größer als `aus.len()`.
+    /// Liste lesen; Rückgabe = Anzahl, nichts geschrieben, wenn größer als `aus.len()`. `teil-liste`: entfernte Teile fallen
+    /// heraus (nur in der Ausgabe – der gespeicherte Zustand und damit der Szenen-Hash ändern sich beim Lesen nicht).
     pub fn hole_liste(&mut self, komp: i32, feld: i32, aus: &mut [u32]) -> i32 {
         let e = (|| {
             let w = self.w()?;
@@ -732,6 +758,16 @@ impl Kern {
             let s = &w.arten[a].schema;
             let f = feld_idx(s, feld)?;
             match &w.speicher[a].spalten[f] {
+                Spalte::Liste(v) if s.felder[f].typ == Typ::TeilListe => {
+                    let l = &v[z];
+                    let n = l.iter().filter(|t| w.zeile_opt(**t).is_some()).count();
+                    if n <= aus.len() {
+                        for (o, t) in aus.iter_mut().zip(l.iter().filter(|t| w.zeile_opt(**t).is_some())) {
+                            *o = *t;
+                        }
+                    }
+                    Ok(n as i32)
+                }
                 Spalte::Liste(v) => {
                     let l = &v[z];
                     if l.len() <= aus.len() {
@@ -740,6 +776,58 @@ impl Kern {
                     Ok(l.len() as i32)
                 }
                 _ => Err(fehler::intern(alloc::format!("{}.{} ist keine Liste.", s.name, s.felder[f].name))),
+            }
+        })();
+        self.ri(e)
+    }
+
+    /// `zahl-liste` aus Zahlen (f64; NaN erlaubt, im Hash kanonisch; `min`/`max` des Felds gelten je Eintrag).
+    pub fn setze_zahlen(&mut self, komp: i32, feld: i32, zahlen: &[f64]) -> i32 {
+        let e = (|| {
+            let w = self.w()?;
+            let (a, z) = w.komp(komp as u32)?;
+            let s = &w.arten[a].schema;
+            let f = feld_idx(s, feld)?;
+            let fd = &s.felder[f];
+            if fd.lesen {
+                return Err(fehler::feld_lesen(s.name, fd.name));
+            }
+            if fd.typ != Typ::ZahlListe {
+                return Err(fehler::feld_typ(s.name, fd.name, fd.typ.erwartet(), "ein Blech"));
+            }
+            if zahlen.len() > MAX_LISTE {
+                return Err(fehler::liste_laenge(s.name, fd.name, MAX_LISTE, zahlen.len()));
+            }
+            if fd.min.is_some() || fd.max.is_some() {
+                for x in zahlen {
+                    if !bereich_ok(fd.min, fd.max, *x) {
+                        return Err(fehler::feld_bereich(s.name, fd.name, fd.min, fd.max, *x));
+                    }
+                }
+            }
+            if let Spalte::Puffer(v) = &mut w.speicher[a].spalten[f] {
+                v[z] = zahlen.to_vec();
+            }
+            Ok(0)
+        })();
+        self.ri(e)
+    }
+    /// `zahl-liste` lesen; Rückgabe = Anzahl, nichts geschrieben, wenn größer als `aus.len()` (K-013, kap in Elementen).
+    pub fn hole_zahlen(&mut self, komp: i32, feld: i32, aus: &mut [f64]) -> i32 {
+        let e = (|| {
+            let w = self.w()?;
+            let (a, z) = w.komp(komp as u32)?;
+            let s = &w.arten[a].schema;
+            let f = feld_idx(s, feld)?;
+            match &w.speicher[a].spalten[f] {
+                Spalte::Puffer(v) if s.felder[f].typ == Typ::ZahlListe => {
+                    let l = &v[z];
+                    if l.len() <= aus.len() {
+                        aus[..l.len()].copy_from_slice(l);
+                    }
+                    Ok(l.len() as i32)
+                }
+                _ => Err(fehler::intern(alloc::format!("{}.{} ist keine Zahlenliste.", s.name, s.felder[f].name))),
             }
         })();
         self.ri(e)
@@ -1024,9 +1112,18 @@ pub fn szenen_hash(w: &mut Welt) -> u64 {
             return;
         }
         let s = &w.speicher[o.art as usize - 1];
+        let felder = w.arten[o.art as usize - 1].schema.felder;
         let z = o.zeile as usize;
         h.u32(s.teil[z]);
-        for sp in &s.spalten {
+        for (sp, fd) in s.spalten.iter().zip(felder) {
+            // Nachtragsfeld (H-K0): nur gehasht, wenn vom Standard abweichend – dann mit Marke und Feldname
+            if fd.nachtrag {
+                if sp.ist_standard(fd, z) {
+                    continue;
+                }
+                h.u8(0xA5);
+                h.text(fd.name);
+            }
             match sp {
                 Spalte::Zahl(v) => h.f64(v[z]),
                 Spalte::Text(v) => h.text(&v[z]),
@@ -1129,7 +1226,7 @@ pub fn schema_json(mit_test: bool) -> String {
             }
             json_text(&mut s, b);
         }
-        s.push_str(&alloc::format!("], \"system\": {}, \"felder\": [", a.takt.is_some()));
+        s.push_str(&alloc::format!("], \"system\": {}, \"felder\": [", a.takt.is_some() || a.nachlauf.is_some()));
         for (k, f) in sc.felder.iter().take(sc.oeffentliche()).enumerate() {
             if k > 0 {
                 s.push(',');
@@ -1140,7 +1237,7 @@ pub fn schema_json(mit_test: bool) -> String {
                 Typ::Wahl => json_text(&mut s, f.wahl[f.zahl as usize]),
                 Typ::Diavolo => s.push_str(if f.zahl != 0.0 { "true" } else { "false" }),
                 Typ::Teil | Typ::Form | Typ::Bildchen => s.push_str("null"),
-                Typ::BildchenListe => s.push_str("[]"),
+                Typ::BildchenListe | Typ::TeilListe | Typ::ZahlListe => s.push_str("[]"),
                 _ => s.push_str(&zahl_text(f.zahl)),
             }
             let opt = |x: Option<f64>| x.map(zahl_text).unwrap_or_else(|| String::from("null"));
@@ -1154,6 +1251,13 @@ pub fn schema_json(mit_test: bool) -> String {
                     json_text(&mut s, x);
                 }
                 s.push(']');
+            }
+            // H-K0: nur wenn gesetzt (bestehende Felder bleiben im Schema unverändert)
+            if f.lesen {
+                s.push_str(", \"lesen\": true");
+            }
+            if f.nachtrag {
+                s.push_str(", \"nachtrag\": true");
             }
             s.push('}');
         }

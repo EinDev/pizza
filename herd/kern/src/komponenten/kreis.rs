@@ -15,10 +15,9 @@ pub static ART: Art = Art {
         braucht: &[],
         felder: &[Feld::zahl("radius", 10.0).min(0.0), Feld::farbe("farbe", "weiss"), Feld::zahl("umriss", 0.0).min(0.0)],
     },
-    nur_test: false,
-    takt: None,
     bild: Some(bild),
     huelle: Some(huelle),
+    ..Art::LEER
 };
 
 fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {

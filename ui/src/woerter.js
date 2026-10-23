@@ -142,7 +142,7 @@ export function herdSchemaErgaenzen(schema) {
     for (const f of k.felder || []) {
       if (!f || typeof f.name !== "string") continue;
       neu(f.name);                                                   // Getter
-      neu("setze" + f.name[0].toUpperCase() + f.name.slice(1));     // Setter
+      if (!f.lesen) neu("setze" + f.name[0].toUpperCase() + f.name.slice(1));   // Setter (nicht für Lesefelder, H-K0)
     }
   }
   (schema.teil_methoden || []).forEach(neu);

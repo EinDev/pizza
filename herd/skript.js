@@ -16,7 +16,7 @@ const SIGNATUREN = {
   teil_groesse: ['ifff', 'I'], teil_schaue: ['ifff', 'I'], teil_trifft: ['ii', 'I'], komp_neu: ['i', 'I'],
   komp_haenge: ['ii', 'I'], komp_loese: ['i', 'I'], komp_von: ['ii', 'I'], komp_info: ['ii', 'I'], typ_nummer: ['t', 'I'],
   feld_nummer: ['it', 'I'], setze_zahl: ['iif', 'I'], hole_zahl: ['ii', 'F'], setze_text: ['iit', 'I'], hole_text: ['ii', 'T'],
-  setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
+  setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], setze_zahlen: ['iid', 'I'], hole_zahlen: ['ii', 'D'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
   bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
 };
@@ -215,6 +215,15 @@ function wertText(w) {
       return o + '"';
     }
     case 'U': return '[' + Array.from(w.x).join(',') + ']';
+    case 'D': {   // f64-Liste aus den Bytes (Bits unverändert), NaN kanonisch wie in Rust
+      const dv = new DataView(w.x.buffer, w.x.byteOffset, w.x.byteLength), aus = [];
+      for (let i = 0; i + 8 <= w.x.byteLength; i += 8) {
+        let b = dv.getBigUint64(i, true);
+        if ((b & 0x7FF0000000000000n) === 0x7FF0000000000000n && (b & 0x000FFFFFFFFFFFFFn) !== 0n) b = 0x7FF8000000000000n;
+        aus.push('f' + b.toString(16).padStart(16, '0'));
+      }
+      return '[' + aus.join(',') + ']';
+    }
     default: return w.x;
   }
 }
@@ -373,6 +382,12 @@ class Spieler {
         return I(k.setze_liste(a, b, p[0][0], ids.length));
       }
       case 'hole_liste': { const a = ii(0), b = ii(1); return this.aus((q, kap) => k.hole_liste(a, b, q, kap), 4, 'U'); }
+      case 'setze_zahlen': {
+        const a = ii(0), b = ii(1), z = zahlen(2);
+        p = this.puffer([f64s(z)]);
+        return I(k.setze_zahlen(a, b, p[0][0], z.length));
+      }
+      case 'hole_zahlen': { const a = ii(0), b = ii(1); return this.aus((q, kap) => k.hole_zahlen(a, b, q, kap), 8, 'D'); }
       case 'form_grund': return I(k.form_grund(ii(0), zahl(1), zahl(2)));
       case 'form_eigene': {
         const pk = zahlen(0), dr = zahlen(1), gl = ii(2);

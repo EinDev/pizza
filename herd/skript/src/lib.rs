@@ -23,7 +23,7 @@ use herd_kern::Kern;
 // ------------------------------------------------------------------------------------------------ Signaturen
 
 /// Argumentarten: `i` i32, `f` f64, `t` Text, `u` Liste u32, `d` Liste f64, `z` Bildchen-Zeilen, `p` Farbpaare,
-/// `b` Bytes. Rückgabe: `I` i32, `F` f64, `T` Text (Retry), `U` u32-Liste (Retry), `H` Hash-Text.
+/// `b` Bytes. Rückgabe: `I` i32, `F` f64, `T` Text (Retry), `U` u32-Liste (Retry), `D` f64-Liste (Retry), `H` Hash-Text.
 pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("abi_version", "", 'I'),
     ("fehler_art", "", 'I'),
@@ -63,6 +63,8 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("hole_text", "ii", 'T'),
     ("setze_liste", "iiu", 'I'),
     ("hole_liste", "ii", 'U'),
+    ("setze_zahlen", "iid", 'I'),
+    ("hole_zahlen", "ii", 'D'),
     ("form_grund", "iff", 'I'),
     ("form_eigene", "ddi", 'I'),
     ("bildchen_neu", "zp", 'I'),
@@ -452,6 +454,7 @@ pub enum Wert {
     F(f64),
     T(Vec<u8>),
     U(Vec<u32>),
+    D(Vec<f64>),
     H(String),
 }
 
@@ -477,6 +480,11 @@ impl Wert {
                 o
             }
             Wert::U(v) => format!("[{}]", v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")),
+            // f64-Liste: je Eintrag wie `F`, NaN kanonisch (JS kann NaN-Bits beim Lesen verändern)
+            Wert::D(v) => format!(
+                "[{}]",
+                v.iter().map(|x| format!("f{:016x}", if x.is_nan() { 0x7FF8_0000_0000_0000u64 } else { x.to_bits() })).collect::<Vec<_>>().join(",")
+            ),
             Wert::H(h) => h.clone(),
         }
     }
@@ -738,6 +746,26 @@ impl Spieler {
                     if n as usize <= kap {
                         buf.truncate(n as usize);
                         break Wert::U(buf);
+                    }
+                    kap = n as usize;
+                }
+            }
+            "setze_zahlen" => {
+                let z = zahlen(2)?;
+                Wert::I(k.setze_zahlen(i(0)?, i(1)?, &z))
+            }
+            "hole_zahlen" => {
+                let (a, b) = (i(0)?, i(1)?);
+                let mut kap = 16usize;
+                loop {
+                    let mut buf = vec![0f64; kap];
+                    let n = k.hole_zahlen(a, b, &mut buf);
+                    if n < 0 {
+                        break Wert::I(n);
+                    }
+                    if n as usize <= kap {
+                        buf.truncate(n as usize);
+                        break Wert::D(buf);
                     }
                     kap = n as usize;
                 }

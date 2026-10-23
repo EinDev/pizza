@@ -2017,6 +2017,36 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** neues `herd/teigling`, `herd/kern`, `herd/glut*`, HERD.md §12.1 (Nummern reserviert), `herd/README.md` (PD1).
   **Status:** offen (PD1/PD3, U-77).
 
+### K-148 Herd-Ausbau: Stufenplan und Verträglichkeit (HERD.md §12)
+- **Frage:** Wie wachsen Kern und Komponenten über v1 hinaus (H-K0 … H-K14), ohne bestehende Programme, Tests und Bilder zu brechen?
+- **Entscheidung:** Registry nur hinten anhängen (vor der Testzeile `Probe`), feste Typnummern nach HERD.md §12.2 (Position = Typnummer =
+  Systemreihenfolge, für immer); der Szenen-Hash enthält die Zahl der Arten nicht. Neue Felder an bestehenden Komponenten nur als
+  **Nachtragsfeld** (K-149). Bildpaket nur additiv (`VERSION` bleibt 1, neue Abschnitte/Arten nur, wenn die neue Komponente benutzt wird).
+  Eine geänderte `.herd-erwartet`, ein geänderter `herdErwartet`-Block oder ein geändertes Referenzbild eines bestehenden Falls ist eine
+  Regression. Komponenten-Literale schreiben `..Art::LEER`, damit neue Eigenschaften von `Art` keine Komponenten-Datei ändern.
+  **Status:** fest (eingeführt mit H-K0).
+
+### K-149 Herd: Feldtypen `teil-liste`/`zahl-liste`, Lesefelder, Nachtragsfelder, Nachlauf (H-K0)
+- **Frage:** Kollider-Ereignisse, Keyframes, Vielecke, Kachelkarten und UI brauchen Listen von Teilen bzw. Zahlen, Felder, die nur das
+  System schreibt, und Systeme, die nach Physik und Folgekamera laufen – ohne für jede Komponente die Sprache anzufassen.
+- **Entscheidung:** Zwei Feldtypen hinten an `FELDTYPEN`: `teil-liste` (Nummer 11, Blech aus Teilen, `TypAnanas: <Name>.<feld> braucht ein Blech
+  aus Teilen, nicht …`) und `zahl-liste` (12, Blech aus Zahlen, `… braucht ein Blech aus Zahlen, nicht …`); Standard leer, Einfügereihenfolge,
+  höchstens 65 536 Einträge (`LaufzeitAnanas: <Name>.<feld> darf höchstens 65536 Einträge haben, nicht <n>.`, Code 33). `teil-liste`: jedes
+  Teil muss beim Setzen leben (sonst `Teil 7 ist schon entfernt.` bzw. `Teil 7 gibt es nicht.`), Doppelte erlaubt; **entfernte Teile fallen
+  beim Lesen heraus** (nur in der Ausgabe – der gespeicherte Zustand und der Szenen-Hash ändern sich beim Lesen nicht; die Anzahl über
+  `hole_zahl` zählt nur lebende). `zahl-liste`: f64, NaN erlaubt (im Hash kanonisch), `min`/`max` des Felds gelten je Eintrag. ABI:
+  `teil-liste` über `setze_liste`/`hole_liste`, neu `setze_zahlen(komp, feld, ptr, n)` und `hole_zahlen(komp, feld, ptr, kap)` (f64 LE,
+  Retry K-013). **Lesefeld** (Schema `"lesen": true`): Getter wie immer; Setter `setze<Feld>`, `setze("feld", …)` und Konstruktor-Argument →
+  `LaufzeitAnanas: <Name>.<feld> kann man nur lesen.` (Code 32, Text im Kern) – auch vor einem Typfehler (`melde_typfehler` meldet an einem
+  Lesefeld diesen Fehler), damit alle Motoren gleich melden; die Editor-Vervollständigung bietet keinen Setter an. **Nachtragsfeld**
+  (`"nachtrag": true`): für die Sprache ein normales Feld; der Szenen-Hash überspringt es, solange sein Wert **bitgleich** dem Standard ist
+  (Zahl: Bits, also −0 ≠ 0; Text; Farbe: RGBA und Text wie gesetzt; Listen: leer), sonst Marke + Feldname + Wert. **Nachlauf**
+  (`Art.nachlauf`, wie Unity `LateUpdate`): je Takt nach **allen** Takt-Systemen, in Typnummer-Reihenfolge; `system` im Schema ist wahr bei
+  Takt oder Nachlauf. Die Schlüssel `lesen`/`nachtrag` stehen im Schema nur, wenn gesetzt (v1-Felder unverändert).
+- **Nachweis:** `cargo test` (Kern: `tests::hk0`, Skript: `tests/probe.herd` mit Feature `probe`), `tests/herd/szenen/listen.herd` in
+  `node herd/test-kern.js` (nativ = `kern.wasm`); Sprachtests folgen mit den ersten Nutzern (`herd-zahl-liste.*` in H-K4, `herd-teil-liste.*`
+  und Lesefeld-Fehler in H-K6), weil `Probe` nicht in `kern.wasm` steckt. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

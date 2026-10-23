@@ -53,10 +53,9 @@ pub static ART: Art = Art {
             Feld::puffer("teilchen"),
         ],
     },
-    nur_test: false,
     takt: Some(takt),
     bild: Some(bild),
-    huelle: None,
+    ..Art::LEER
 };
 
 /// mulberry32: Zustand → (neuer Zustand, Zahl in [0, 1)).

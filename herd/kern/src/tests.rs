@@ -355,7 +355,7 @@ fn erweiterungsprobe_eine_datei_eine_zeile() {
     k.takt();
     k.takt();
     // verborgenes Feld ist nicht erreichbar
-    assert!(k.hole_zahl(c, 7).is_nan());
+    assert!(k.hole_zahl(c, 11).is_nan());
     let s1 = k.hash_szene();
     k.takt();
     assert_ne!(s1, k.hash_szene());
@@ -537,4 +537,330 @@ fn rahmen_neun_stuecke() {
     assert_eq!(k.teil_trifft(t, b), 1);
     k.teil_lage(b, 145.0, 100.0, 0.0);
     assert_eq!(k.teil_trifft(t, b), 0);
+}
+
+// ------------------------------------------------------------------ H-K0: Listen, Lesefelder, Nachtragsfelder, Nachlauf
+
+mod hk0 {
+    use super::*;
+    use crate::abi::szenen_hash;
+    use crate::fehler::code;
+    use crate::komponenten::Art;
+    use crate::schema::{Feld, Genus, Raum, Schema, Spalte, Speicher, Typ, FELDTYPEN};
+    use crate::welt::Welt;
+
+    fn probe(k: &mut Kern) -> (i32, i32, i32) {
+        let p = typ(k, "Probe");
+        let t = k.teil_neu(2);
+        let c = k.komp_neu(p);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (p, t, c)
+    }
+    fn liste(k: &mut Kern, c: i32, f: i32) -> Vec<u32> {
+        let mut b = vec![0u32; 70000];
+        let n = k.hole_liste(c, f, &mut b);
+        assert!(n >= 0, "{}", k.fehler_text());
+        b.truncate(n as usize);
+        b
+    }
+    fn zahlen(k: &mut Kern, c: i32, f: i32) -> Vec<f64> {
+        let mut b = vec![0f64; 70000];
+        let n = k.hole_zahlen(c, f, &mut b);
+        assert!(n >= 0, "{}", k.fehler_text());
+        b.truncate(n as usize);
+        b
+    }
+
+    #[test]
+    fn feldtypen_nummern_und_schema() {
+        assert_eq!(Typ::TeilListe.nummer(), 11);
+        assert_eq!(Typ::ZahlListe.nummer(), 12);
+        assert_eq!(FELDTYPEN.len(), 12);
+        let j = crate::abi::schema_json(true);
+        assert!(j.contains("{\"nummer\": 11, \"name\": \"teil-liste\", \"erwartet\": \"ein Blech aus Teilen\"}"));
+        assert!(j.contains("{\"nummer\": 12, \"name\": \"zahl-liste\", \"erwartet\": \"ein Blech aus Zahlen\"}"));
+        assert!(j.contains("\"name\": \"ziele\", \"typ\": \"teil-liste\", \"standard\": [], \"min\": null, \"max\": null}"));
+        assert!(j.contains("\"name\": \"werte\", \"typ\": \"zahl-liste\", \"standard\": [], \"min\": -100, \"max\": 100}"));
+        assert!(j.contains("\"name\": \"stand\", \"typ\": \"zahl\", \"standard\": 0, \"min\": null, \"max\": null, \"lesen\": true}"));
+        assert!(j.contains("\"name\": \"extra\", \"typ\": \"zahl\", \"standard\": 0, \"min\": null, \"max\": null, \"nachtrag\": true}"));
+        // v1-Komponenten tragen keine neuen Schlüssel
+        let ohne = crate::abi::schema_json(false);
+        assert!(!ohne.contains("\"lesen\"") && !ohne.contains("\"nachtrag\""));
+    }
+
+    #[test]
+    fn teil_liste_setzen_lesen_entfernte_fallen_heraus() {
+        let mut k = welt();
+        let (p, _t, c) = probe(&mut k);
+        let ziele = feld(&mut k, p, "ziele");
+        assert_eq!(k.hole_zahl(c, ziele), 0.0);
+        assert_eq!(liste(&mut k, c, ziele), Vec::<u32>::new());
+        let (a, b, d) = (k.teil_neu(2) as u32, k.teil_neu(3) as u32, k.teil_neu(2) as u32);
+        assert_eq!(k.setze_liste(c, ziele, &[b, a, b, d]), 0);
+        assert_eq!(liste(&mut k, c, ziele), vec![b, a, b, d]);
+        assert_eq!(k.hole_zahl(c, ziele), 4.0);
+        // Retry (K-013): zu kleiner Puffer → Länge, nichts geschrieben
+        let mut klein = [7u32; 2];
+        assert_eq!(k.hole_liste(c, ziele, &mut klein), 4);
+        assert_eq!(klein, [7, 7]);
+        // entferntes Teil fällt beim Lesen heraus; Lesen ändert den Szenen-Hash nicht
+        assert_eq!(k.teil_entferne(b as i32), 0);
+        let h = k.hash_szene();
+        assert_eq!(liste(&mut k, c, ziele), vec![a, d]);
+        assert_eq!(k.hole_zahl(c, ziele), 2.0);
+        assert_eq!(k.hash_szene(), h);
+        // nur lebende Teile setzbar
+        assert_eq!(k.setze_liste(c, ziele, &[a, b]), -2);
+        assert_eq!(k.fehler_text(), format!("Teil {} ist schon entfernt.", b));
+        assert_eq!(k.setze_liste(c, ziele, &[999]), -2);
+        assert_eq!(k.fehler_text(), "Teil 999 gibt es nicht.");
+        assert_eq!(k.setze_liste(c, ziele, &[0]), -2);
+        assert_eq!(liste(&mut k, c, ziele), vec![a, d], "fehlgeschlagenes Setzen ändert nichts");
+        // Grenze 65 536
+        let voll = vec![a; 65536];
+        assert_eq!(k.setze_liste(c, ziele, &voll), 0);
+        assert_eq!(k.hole_zahl(c, ziele), 65536.0);
+        let zu_viel = vec![a; 65537];
+        assert_eq!(k.setze_liste(c, ziele, &zu_viel), -2);
+        assert_eq!(k.fehler_text(), "Probe.ziele darf höchstens 65536 Einträge haben, nicht 65537.");
+        assert_eq!(k.fehler_code(), code::LISTE_LAENGE);
+        // Typfehler
+        assert_eq!(k.setze_zahl(c, ziele, 3.0), -1);
+        assert_eq!(k.fehler_text(), "Probe.ziele braucht ein Blech aus Teilen, nicht 3.");
+        assert_eq!(k.melde_typfehler(p, ziele, b"[1, 2]"), -1);
+        assert_eq!(k.fehler_text(), "Probe.ziele braucht ein Blech aus Teilen, nicht [1, 2].");
+        assert_eq!(k.hole_zahlen(c, ziele, &mut [0.0; 4]), -3);
+        // Kopie übernimmt die Liste
+        assert_eq!(k.setze_liste(c, ziele, &[d, a]), 0);
+        let t2 = k.komp_info(c, 2);
+        let kopie = k.teil_kopie(t2);
+        let c2 = k.komp_von(kopie, p);
+        assert_eq!(liste(&mut k, c2, ziele), vec![d, a]);
+    }
+
+    #[test]
+    fn zahl_liste_setzen_lesen_grenzen() {
+        let mut k = welt();
+        let (p, _t, c) = probe(&mut k);
+        let werte = feld(&mut k, p, "werte");
+        assert_eq!(zahlen(&mut k, c, werte), Vec::<f64>::new());
+        assert_eq!(k.setze_zahlen(c, werte, &[1.5, -0.0, 100.0, -100.0]), 0);
+        let z = zahlen(&mut k, c, werte);
+        assert_eq!(z.iter().map(|x| x.to_bits()).collect::<Vec<_>>(), [1.5f64, -0.0, 100.0, -100.0].iter().map(|x| x.to_bits()).collect::<Vec<_>>());
+        assert_eq!(k.hole_zahl(c, werte), 4.0);
+        let mut klein = [9.0f64; 3];
+        assert_eq!(k.hole_zahlen(c, werte, &mut klein), 4);
+        assert_eq!(klein, [9.0; 3]);
+        // Bereich je Eintrag
+        assert_eq!(k.setze_zahlen(c, werte, &[1.0, 101.0]), -2);
+        assert_eq!(k.fehler_text(), "Probe.werte muss zwischen -100 und 100 liegen, nicht 101.");
+        assert_eq!(zahlen(&mut k, c, werte).len(), 4);
+        // Grenze 65 536
+        assert_eq!(k.setze_zahlen(c, werte, &vec![0.5; 65536]), 0);
+        assert_eq!(k.setze_zahlen(c, werte, &vec![0.5; 65537]), -2);
+        assert_eq!(k.fehler_text(), "Probe.werte darf höchstens 65536 Einträge haben, nicht 65537.");
+        // Typfehler in beide Richtungen
+        let wert = feld(&mut k, p, "wert");
+        assert_eq!(k.setze_zahlen(c, wert, &[1.0]), -1);
+        assert_eq!(k.fehler_text(), "Probe.wert braucht eine Zahl, nicht ein Blech.");
+        assert_eq!(k.setze_liste(c, werte, &[1]), -1);
+        assert_eq!(k.fehler_text(), "Probe.werte braucht ein Blech aus Zahlen, nicht ein Blech.");
+        assert_eq!(k.setze_text(c, werte, b"x"), -1);
+        assert_eq!(k.fehler_text(), "Probe.werte braucht ein Blech aus Zahlen, nicht x.");
+        assert_eq!(k.hole_liste(c, werte, &mut [0; 4]), -3);
+        assert_eq!(k.hole_zahlen(c, wert, &mut [0.0; 4]), -3);
+        // der Hash sieht die Liste
+        let h0 = k.hash_szene();
+        assert_eq!(k.setze_zahlen(c, werte, &[2.0]), 0);
+        assert_ne!(k.hash_szene(), h0);
+    }
+
+    #[test]
+    fn lesefeld_nur_systeme_schreiben() {
+        let mut k = welt();
+        let (p, _t, c) = probe(&mut k);
+        let (stand, wert) = (feld(&mut k, p, "stand"), feld(&mut k, p, "wert"));
+        assert_eq!(k.setze_zahl(c, stand, 1.0), -2);
+        assert_eq!(k.fehler_text(), "Probe.stand kann man nur lesen.");
+        assert_eq!(k.fehler_code(), code::FELD_LESEN);
+        assert_eq!(k.fehler_art(), crate::fehler::art::LAUFZEIT);
+        // auch mit falschem Typ: Lesefeld-Fehler zuerst (Anbindungen melden über melde_typfehler)
+        assert_eq!(k.melde_typfehler(p, stand, b"\"x\""), -2);
+        assert_eq!(k.fehler_text(), "Probe.stand kann man nur lesen.");
+        assert_eq!(k.setze_text(c, stand, b"x"), -2);
+        assert_eq!(k.setze_liste(c, stand, &[]), -2);
+        assert_eq!(k.setze_zahlen(c, stand, &[]), -2);
+        assert_eq!(k.fehler_text(), "Probe.stand kann man nur lesen.");
+        assert_eq!(k.hole_zahl(c, stand), 0.0);
+        // der Nachlauf schreibt es
+        assert_eq!(k.setze_zahl(c, wert, 2.5), 0);
+        k.takt();
+        k.takt();
+        assert_eq!(k.hole_zahl(c, stand), 5.0);
+    }
+
+    #[test]
+    fn nachtragsfeld_standard_aendert_hash_nicht() {
+        let mut k = welt();
+        let (p, _t, c) = probe(&mut k);
+        let extra = feld(&mut k, p, "extra");
+        let h0 = k.hash_szene();
+        assert_eq!(k.setze_zahl(c, extra, 3.0), 0);
+        assert_ne!(k.hash_szene(), h0);
+        assert_eq!(k.setze_zahl(c, extra, -0.0), 0);
+        assert_ne!(k.hash_szene(), h0, "Vergleich auf Bits: −0 ≠ 0");
+        assert_eq!(k.setze_zahl(c, extra, 0.0), 0);
+        assert_eq!(k.hash_szene(), h0);
+    }
+
+    // Eigene Registrys: „alte“ Komponente gegen dieselbe mit Nachtragsfeldern aller Spaltenarten.
+    fn nichts(_: &mut Welt, _: &mut Speicher) {}
+    static ALT: Art = Art {
+        schema: Schema { name: "Pendel", genus: Genus::N, raum: Raum::Beide, braucht: &[], felder: &[Feld::zahl("weite", 30.0), Feld::intern("zeit", 0.0)] },
+        takt: Some(nichts),
+        ..Art::LEER
+    };
+    static NEU: Art = Art {
+        schema: Schema {
+            name: "Pendel",
+            genus: Genus::N,
+            raum: Raum::Beide,
+            braucht: &[],
+            felder: &[
+                Feld::zahl("weite", 30.0),
+                Feld::zahl("tempo", 1.0).nachtrag(),
+                Feld::text("name", "p").nachtrag(),
+                Feld::farbe("farbe", "tomate").nachtrag(),
+                Feld::teil_liste("ziele").nachtrag(),
+                Feld::zahl_liste("punkte").nachtrag(),
+                Feld::intern("zeit", 0.0),
+            ],
+        },
+        takt: Some(nichts),
+        ..Art::LEER
+    };
+    static R_ALT: [&Art; 1] = [&ALT];
+    static R_NEU: [&Art; 1] = [&NEU];
+
+    fn pendelwelt(r: &'static [&'static Art]) -> (Welt, u32) {
+        let mut w = Welt::neu(640, 360, String::from("N"), r);
+        let t = w.teil_neu(false);
+        let h = w.komp_neu(0);
+        w.komp_haenge(h, t).unwrap();
+        w.lage_setzen(t, 3.0, 4.0, 0.0);
+        w.takt();
+        (w, t)
+    }
+
+    fn text_setzen(s: &mut Speicher, f: usize, t: &str) {
+        if let Spalte::Text(v) = &mut s.spalten[f] {
+            v[0] = String::from(t);
+        }
+    }
+    fn farbtext_setzen(s: &mut Speicher, f: usize, t: &str) {
+        if let Spalte::Farbe(_, v) = &mut s.spalten[f] {
+            v[0] = String::from(t);
+        }
+    }
+    fn ids_setzen(s: &mut Speicher, f: usize, ids: Vec<u32>) {
+        if let Spalte::Liste(v) = &mut s.spalten[f] {
+            v[0] = ids;
+        }
+    }
+
+    #[test]
+    fn nachtragsfelder_aller_arten_hash_wie_ohne() {
+        let (mut alt, _) = pendelwelt(&R_ALT);
+        let (mut neu, t) = pendelwelt(&R_NEU);
+        let h_alt = szenen_hash(&mut alt);
+        assert_eq!(szenen_hash(&mut neu), h_alt, "Nachtragsfelder mit Standard ändern den Hash nicht");
+        // je Spaltenart: abweichend → anderer Hash, zurück auf Standard → wieder gleich
+        neu.speicher[0].zahl_mut(1)[0] = 2.0;
+        assert_ne!(szenen_hash(&mut neu), h_alt);
+        neu.speicher[0].zahl_mut(1)[0] = 1.0;
+        assert_eq!(szenen_hash(&mut neu), h_alt);
+        text_setzen(&mut neu.speicher[0], 2, "q");
+        assert_ne!(szenen_hash(&mut neu), h_alt);
+        text_setzen(&mut neu.speicher[0], 2, "p");
+        assert_eq!(szenen_hash(&mut neu), h_alt);
+        farbtext_setzen(&mut neu.speicher[0], 3, "#d9452b");
+        assert_ne!(szenen_hash(&mut neu), h_alt, "Farbe: Text wie gesetzt gehört dazu");
+        farbtext_setzen(&mut neu.speicher[0], 3, "tomate");
+        assert_eq!(szenen_hash(&mut neu), h_alt);
+        ids_setzen(&mut neu.speicher[0], 4, vec![t]);
+        assert_ne!(szenen_hash(&mut neu), h_alt);
+        ids_setzen(&mut neu.speicher[0], 4, Vec::new());
+        assert_eq!(szenen_hash(&mut neu), h_alt);
+        neu.speicher[0].puffer_mut(5)[0] = vec![f64::from_bits(0x7FF8_0000_0000_0001)];
+        let a = szenen_hash(&mut neu);
+        assert_ne!(a, h_alt);
+        // NaN kanonisch: Nutzlast und Vorzeichen egal
+        neu.speicher[0].puffer_mut(5)[0] = vec![f64::from_bits(0xFFF8_0000_0000_0000)];
+        assert_eq!(szenen_hash(&mut neu), a);
+        neu.speicher[0].puffer_mut(5)[0].clear();
+        assert_eq!(szenen_hash(&mut neu), h_alt);
+    }
+
+    // Nachlauf läuft nach **allen** Takt-Systemen, auch denen späterer Arten.
+    fn lage_x(w: &Welt, teil: u32) -> f64 {
+        w.zeile_opt(teil).map(|z| w.teile.lage[z][0]).unwrap_or(-1.0)
+    }
+    fn frueh_takt(w: &mut Welt, s: &mut Speicher) {
+        for i in 0..s.len() {
+            let x = lage_x(w, s.teil[i]);
+            s.zahl_mut(1)[i] = x;
+        }
+    }
+    fn frueh_nachlauf(w: &mut Welt, s: &mut Speicher) {
+        for i in 0..s.len() {
+            let x = lage_x(w, s.teil[i]);
+            s.zahl_mut(0)[i] = x;
+        }
+    }
+    fn spaet_takt(w: &mut Welt, s: &mut Speicher) {
+        for i in 0..s.len() {
+            if let Some(z) = w.zeile_opt(s.teil[i]) {
+                w.teile.lage[z][0] += 1.0;
+            }
+        }
+    }
+    static FRUEH: Art = Art {
+        schema: Schema { name: "Frueh", genus: Genus::N, raum: Raum::Beide, braucht: &[], felder: &[Feld::zahl("nach", 0.0), Feld::zahl("vor", 0.0)] },
+        takt: Some(frueh_takt),
+        nachlauf: Some(frueh_nachlauf),
+        ..Art::LEER
+    };
+    static SPAET: Art = Art {
+        schema: Schema { name: "Spaet", genus: Genus::N, raum: Raum::Beide, braucht: &[], felder: &[] },
+        takt: Some(spaet_takt),
+        ..Art::LEER
+    };
+    static R_FS: [&Art; 2] = [&FRUEH, &SPAET];
+
+    #[test]
+    fn nachlauf_nach_allen_takten() {
+        let mut w = Welt::neu(640, 360, String::from("N"), &R_FS);
+        let t = w.teil_neu(false);
+        for a in 0..2 {
+            let h = w.komp_neu(a);
+            w.komp_haenge(h, t).unwrap();
+        }
+        w.takt();
+        assert_eq!(w.speicher[0].zahl(1)[0], 0.0, "Takt der frühen Art vor dem späten");
+        assert_eq!(w.speicher[0].zahl(0)[0], 1.0, "Nachlauf nach dem späten Takt");
+        w.takt();
+        assert_eq!((w.speicher[0].zahl(1)[0], w.speicher[0].zahl(0)[0]), (1.0, 2.0));
+        assert_eq!(w.takte, 2);
+    }
+
+    #[test]
+    fn v1_arten_ohne_neue_eigenschaften() {
+        for a in ARTEN.iter().filter(|a| !a.nur_test) {
+            assert!(a.nachlauf.is_none(), "{}", a.schema.name);
+            for f in a.schema.felder {
+                assert!(!f.lesen && !f.nachtrag, "{}.{}", a.schema.name, f.name);
+                assert!(!matches!(f.typ, Typ::TeilListe | Typ::ZahlListe));
+            }
+        }
+    }
 }

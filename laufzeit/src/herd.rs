@@ -73,6 +73,8 @@ extern "C" {
     #[link_name = "hole_text"] fn k_hole_text(k: i32, feld: i32, p: i32, kap: i32) -> i32;
     #[link_name = "setze_liste"] fn k_setze_liste(k: i32, feld: i32, p: i32, n: i32) -> i32;
     #[link_name = "hole_liste"] fn k_hole_liste(k: i32, feld: i32, p: i32, kap: i32) -> i32;
+    #[link_name = "setze_zahlen"] fn k_setze_zahlen(k: i32, feld: i32, p: i32, n: i32) -> i32;
+    #[link_name = "hole_zahlen"] fn k_hole_zahlen(k: i32, feld: i32, p: i32, kap: i32) -> i32;
     #[link_name = "form_grund"] fn k_form_grund(art: i32, teile: f64, dicke: f64) -> i32;
     #[link_name = "form_eigene"] fn k_form_eigene(pp: i32, pn: i32, dp: i32, dn: i32, glatt: i32) -> i32;
     #[link_name = "bildchen_neu"] fn k_bildchen_neu(zp: i32, zn: i32, fp: i32, fn_: i32) -> i32;
@@ -110,6 +112,8 @@ const HF_TEIL: u8 = 7;
 const HF_FORM: u8 = 8;
 const HF_BILDCHEN: u8 = 9;
 const HF_LISTE: u8 = 10;
+const HF_TEIL_LISTE: u8 = 11;
+const HF_ZAHL_LISTE: u8 = 12;
 
 struct HFeld { name: W, nummer: u32, t: u8, typ: W, get_id: u32, set_id: u32 }
 struct HArt { name: W, nummer: u32, name_id: u32, felder: Vec<HFeld> }
@@ -182,7 +186,8 @@ fn lade(pflicht: bool) -> bool {
                         let typ = fj.text("typ").unwrap_or_default();
                         let t = match typ.as_str() {
                             "zahl" => HF_ZAHL, "ganz" => HF_GANZ, "diavolo" => HF_DIAVOLO, "text" => HF_TEXT, "wahl" => HF_WAHL,
-                            "farbe" => HF_FARBE, "teil" => HF_TEIL, "form" => HF_FORM, "bildchen" => HF_BILDCHEN, "bildchen-liste" => HF_LISTE, _ => 0,
+                            "farbe" => HF_FARBE, "teil" => HF_TEIL, "form" => HF_FORM, "bildchen" => HF_BILDCHEN, "bildchen-liste" => HF_LISTE,
+                            "teil-liste" => HF_TEIL_LISTE, "zahl-liste" => HF_ZAHL_LISTE, _ => 0,
                         };
                         let mut setter = String::from("setze");
                         setter.push_str(&erster_gross(&fname));
@@ -249,6 +254,20 @@ fn lies_liste(f: impl Fn(i32, i32) -> i32) -> Option<Vec<u32>> {
             let mut b = alloc::vec![0u8; n as usize * 4];
             if n > 0 { unsafe { herd_lies(b.as_mut_ptr(), p, n * 4); } }
             return Some(b.chunks(4).map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect());
+        }
+        kap = n;
+    }
+}
+fn lies_zahlen(f: impl Fn(i32, i32) -> i32) -> Option<Vec<f64>> {
+    let mut kap: i32 = 16;
+    loop {
+        let p = kp(kap as usize * 8);
+        let n = f(p, kap);
+        if n < 0 { return None; }
+        if n <= kap {
+            let mut b = alloc::vec![0u8; n as usize * 8];
+            if n > 0 { unsafe { herd_lies(b.as_mut_ptr(), p, n * 8); } }
+            return Some(b.chunks(8).map(|c| f64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]])).collect());
         }
         kap = n;
     }
@@ -603,6 +622,22 @@ fn setze(h: u32, ar: &HArt, fd: &HFeld, v: W) -> bool {
                 if !b.is_empty() { herd_schreibe(p, b.as_ptr(), b.len() as i32); }
                 k_setze_liste(hh, fn_, p, blech_v(v).len() as i32)
             }
+            HF_TEIL_LISTE => {
+                if art(v) != A_BLECH || !blech_v(v).iter().all(|&x| art(x) == A_TEIL) { typfehler(ar, fd, v); return false; }
+                let mut b: Vec<u8> = Vec::new();
+                for &x in blech_v(v).iter() { b.extend_from_slice(&obj::<HTeil>(x).id.to_le_bytes()); }
+                let p = kp(b.len().max(4));
+                if !b.is_empty() { herd_schreibe(p, b.as_ptr(), b.len() as i32); }
+                k_setze_liste(hh, fn_, p, blech_v(v).len() as i32)
+            }
+            HF_ZAHL_LISTE => {
+                if art(v) != A_BLECH || !blech_v(v).iter().all(|&x| ist_zahl(x)) { typfehler(ar, fd, v); return false; }
+                let mut b: Vec<u8> = Vec::new();
+                for &x in blech_v(v).iter() { b.extend_from_slice(&f(x).to_le_bytes()); }
+                let p = kp(b.len().max(8));
+                if !b.is_empty() { herd_schreibe(p, b.as_ptr(), b.len() as i32); }
+                k_setze_zahlen(hh, fn_, p, blech_v(v).len() as i32)
+            }
             _ => {
                 let mut t = Tb::neu();
                 t.s("Interner Fehler im Herd: Feldtyp '").t(fd.typ).s("' kennt diese Sprache noch nicht.");
@@ -624,6 +659,14 @@ fn hole(h: u32, fd: &HFeld) -> W {
             HF_FORM | HF_BILDCHEN => match hf(k_hole_zahl(hh, fn_)) { Some(x) => if x == 0.0 { KARTON } else { res_hole(x as u32) }, None => KARTON },
             HF_LISTE => match lies_liste(|p, kap| k_hole_liste(hh, fn_, p, kap)) {
                 Some(ids) => blech(ids.iter().map(|&i| res_hole(i)).collect()),
+                None => { fehler(); KARTON }
+            },
+            HF_TEIL_LISTE => match lies_liste(|p, kap| k_hole_liste(hh, fn_, p, kap)) {
+                Some(ids) => blech(ids.iter().map(|&i| teil_obj(i)).collect()),
+                None => { fehler(); KARTON }
+            },
+            HF_ZAHL_LISTE => match lies_zahlen(|p, kap| k_hole_zahlen(hh, fn_, p, kap)) {
+                Some(xs) => blech(xs.iter().map(|&x| zahl(x)).collect()),
                 None => { fehler(); KARTON }
             },
             _ => {

@@ -5438,9 +5438,10 @@
 
   // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
   const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,
-    HF_BILDCHEN = 9, HF_LISTE = 10;
+    HF_BILDCHEN = 9, HF_LISTE = 10, HF_TEIL_LISTE = 11, HF_ZAHL_LISTE = 12;
   const HF_NACH_NAME = { 'zahl': HF_ZAHL, 'ganz': HF_GANZ, 'diavolo': HF_DIAVOLO, 'text': HF_TEXT, 'wahl': HF_WAHL, 'farbe': HF_FARBE,
-    'teil': HF_TEIL, 'form': HF_FORM, 'bildchen': HF_BILDCHEN, 'bildchen-liste': HF_LISTE };
+    'teil': HF_TEIL, 'form': HF_FORM, 'bildchen': HF_BILDCHEN, 'bildchen-liste': HF_LISTE,
+    'teil-liste': HF_TEIL_LISTE, 'zahl-liste': HF_ZAHL_LISTE };
 
   const HERD_ENC = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
   const HERD_DEC = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
@@ -5514,6 +5515,22 @@
           this.mem();
           const r = new Array(n);
           for (let i = 0; i < n; i++) r[i] = this.dv.getUint32(p + i * 4, true);
+          return r;
+        }
+        kap = n;
+      }
+    }
+    // (ptr, kap) → n (f64 LE) mit Retry; → Zahlen oder null bei Fehler
+    liesZahlen(f) {
+      let kap = 16;
+      for (;;) {
+        const p = this.e.puffer(kap * 8);
+        const n = f(p, kap);
+        if (n < 0) return null;
+        if (n <= kap) {
+          this.mem();
+          const r = new Array(n);
+          for (let i = 0; i < n; i++) r[i] = this.dv.getFloat64(p + i * 8, true);
           return r;
         }
         kap = n;
@@ -6053,6 +6070,22 @@
           r = e.setze_liste(h, f.nummer, p, v.length);
           break;
         }
+        case HF_TEIL_LISTE: {
+          if (!Array.isArray(v) || !v.every(x => x instanceof HerdTeil)) throw this.herdTypfehler(art, f, v);
+          const k = this.hk, p = e.puffer(v.length * 4 || 4);
+          k.mem();
+          for (let i = 0; i < v.length; i++) k.dv.setUint32(p + i * 4, v[i].id, true);
+          r = e.setze_liste(h, f.nummer, p, v.length);
+          break;
+        }
+        case HF_ZAHL_LISTE: {
+          if (!Array.isArray(v) || !v.every(x => typeof x === 'number')) throw this.herdTypfehler(art, f, v);
+          const k = this.hk, p = e.puffer(v.length * 8 || 8);
+          k.mem();
+          for (let i = 0; i < v.length; i++) k.dv.setFloat64(p + i * 8, v[i], true);
+          r = e.setze_zahlen(h, f.nummer, p, v.length);
+          break;
+        }
         default:
           throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Feldtyp \'' + f.typ + '\' kennt diese Sprache noch nicht.');
       }
@@ -6074,6 +6107,16 @@
           const ids = k.liesListe((p, kap) => e.hole_liste(h, f.nummer, p, kap));
           if (ids === null) throw this.herdFehler();
           return ids.map(id => k.res.get(id) || null);
+        }
+        case HF_TEIL_LISTE: {
+          const ids = k.liesListe((p, kap) => e.hole_liste(h, f.nummer, p, kap));
+          if (ids === null) throw this.herdFehler();
+          return ids.map(id => this.herdTeilObj(id));
+        }
+        case HF_ZAHL_LISTE: {
+          const z = k.liesZahlen((p, kap) => e.hole_zahlen(h, f.nummer, p, kap));
+          if (z === null) throw this.herdFehler();
+          return z;
         }
         default:
           throw this.ananas('LaufzeitAnanas', 'Interner Fehler im Herd: Feldtyp \'' + f.typ + '\' kennt diese Sprache noch nicht.');

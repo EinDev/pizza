@@ -24,10 +24,8 @@ pub static ART: Art = Art {
             Feld::diavolo("schatten", true),
         ],
     },
-    nur_test: false,
-    takt: None,
     bild: Some(bild),
-    huelle: None,
+    ..Art::LEER
 };
 
 fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {

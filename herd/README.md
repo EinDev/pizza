@@ -49,25 +49,33 @@ pub static ARTEN: &[&Art] = &[
 ];
 ```
 
-Position = **Typnummer** (1 …) = Systemreihenfolge. Eine Komponente ist ein Modul mit
+Position = **Typnummer** (1 …) = Systemreihenfolge; neue Zeilen nur hinten, vor `&probe::ART` (HERD.md §12.1, K-148). Eine
+Komponente ist ein Modul mit
 
 ```rust
 pub static ART: Art = Art {
-    schema: Schema { name: "Bewegung", raum: Raum::Beide, braucht: &[], felder: &[
+    schema: Schema { name: "Bewegung", genus: Genus::F, raum: Raum::Beide, braucht: &[], felder: &[
         Feld::zahl("tempoX", 0.0), …, Feld::zahl("daempfung", 0.0).bereich(0.0, 1.0),
         Feld::intern("zeit", 0.0),        // verborgene Felder stehen am Ende
     ]},
-    nur_test: false,
     takt: Some(takt),      // System: fn(&mut Welt, &mut Speicher) – läuft je Takt über die dichten Zeilen
-    bild: None,            // Bildbeitrag: fn(&Welt, &Speicher, &mut Bildbau) – Instanzen/Lichter/Kameras
-    huelle: None,          // für trifft: fn(&Welt, &Speicher, komp_zeile, teil_zeile) -> Option<Huelle>
+    ..Art::LEER            // alles Übrige leer: nur_test, nachlauf, bild, huelle (neue Art-Felder ändern keine Komponente)
 };
 ```
 
-Feldtypen: `zahl` (f64, Bereich), `ganz`, `diavolo` (0/1), `text`, `wahl` (Index in fester Liste), `farbe` (RGBA8 + Text, wie
-gesetzt), `teil`, `form`, `bildchen` (IDs, 0 = karton), `bildchen-liste`; verborgen: `intern` (f64), `puffer` (f64-Liste je
-Komponente, z. B. Teilchen). Feldnummer = Position + 1 (nur öffentliche Felder). Anleitung für neue Komponenten: §8 und
-HERD.md §9.
+Weitere Einträge von `Art`: `nachlauf: Some(f)` (H-K0: gleiche Signatur wie `takt`, läuft je Takt nach **allen** Takt-Systemen, wie
+Unity `LateUpdate`), `bild: Some(f)` (Bildbeitrag: `fn(&Welt, &Speicher, &mut Bildbau)` – Instanzen/Lichter/Kameras), `huelle: Some(f)`
+(für `trifft`: `fn(&Welt, &Speicher, komp_zeile, teil_zeile) -> Option<Huelle>`), `nur_test: true` (nur Testbau, fehlt im Schema).
+
+Feldtypen (Nummer im Schema): 1 `zahl` (f64, Bereich), 2 `ganz`, 3 `diavolo` (0/1), 4 `text`, 5 `wahl` (Index in fester Liste),
+6 `farbe` (RGBA8 + Text, wie gesetzt), 7 `teil`, 8 `form`, 9 `bildchen` (IDs, 0 = karton), 10 `bildchen-liste`, 11 `teil-liste`
+(`Feld::teil_liste`, Spalte wie `bildchen-liste`), 12 `zahl-liste` (`Feld::zahl_liste`, f64-Liste, Bereich je Eintrag) – beide
+höchstens 65 536 Einträge (K-149); verborgen: `intern` (f64), `puffer` (f64-Liste je Komponente, z. B. Teilchen). Feldnummer =
+Position + 1 (nur öffentliche Felder). Merkmale: `.lesen()` (**Lesefeld**: jeder Setz-Aufruf des ABI → `<Name>.<feld> kann man nur
+lesen.`, Code 32; nur Systeme schreiben über den Speicher) und `.nachtrag()` (**Nachtragsfeld**: der Szenen-Hash überspringt es,
+solange der Wert bitgleich dem Standard ist – so bekommt eine bestehende Komponente neue Felder, ohne dass sich Hashes bestehender
+Programme ändern; öffentliche Nachtragsfelder stehen vor den verborgenen, Konstanten für verborgene Spalten also mitziehen).
+Anleitung für neue Komponenten: §8 und HERD.md §9.
 
 ## 3. Herd-ABI
 
@@ -77,7 +85,7 @@ Typen nur `i32`/`f64`. Alle Zeiger zeigen in den Speicher **des Kerns**: Die Anb
 Austauschpuffer, schreibt Texte (UTF-8)/Zahlen hinein und übergibt den Zeiger. Achtung: Nach jedem Aufruf kann der
 Speicher gewachsen sein – JS-Ansichten (`Uint8Array` auf `memory.buffer`) danach neu anlegen.
 
-**Direkt bindbar** (rein numerisch, kein fremder Speicher): ein Programm-Wasm kann diese Importe im Browser unmittelbar an
+**Direkt bindbar** (rein numerisch, kein fremder Speicher; `setze_zahlen`/`hole_zahlen` gehen wie Listen über den Austauschpuffer): ein Programm-Wasm kann diese Importe im Browser unmittelbar an
 die Exporte von `kern.wasm` binden (`imports.herd = kern.exports`): `teil_*` (außer `teil_kinder`), `komp_*`, `setze_zahl`,
 `hole_zahl`, `form_grund`, `ressource_hole`, `takt`, `bild`, `paket_voll`, `fehler_art`, `fehler_code`, `fehler_neu`,
 `welt_hole`. Alles mit Texten/Listen geht über eine kleine Hülle, die zwischen den Speichern kopiert (selten).
@@ -124,18 +132,20 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `komp_info` | `(komp, was) → i32` | 1 Typnummer, 2 Teil (0 = lose **oder zerstört**, wirft dann nicht), 3 zerstört (0/1, wirft nie) |
 | `typ_nummer` | `(ptr, len) → typ` | nach Name; unbekannt → −2, `Eine Komponente 'Pendel' gibt es nicht.` (Code 19; bis H1b: 0 ohne Fehler) |
 | `feld_nummer` | `(typ, ptr, len) → feld` | nach Name; unbekannt → `<Name> hat kein Feld 'x'.` |
-| `setze_zahl` | `(komp, feld, wert f64) → 0` | zahl/ganz (Bereich), diavolo (0/1), wahl (Index), teil/form/bildchen (ID, 0 = karton), farbe (0xRRGGBBAA; Text wird `#rrggbbaa`) |
-| `hole_zahl` | `(komp, feld) → f64` | wie oben; farbe → 0xRRGGBBAA; bildchen-liste → Länge |
+| `setze_zahl` | `(komp, feld, wert f64) → 0` | zahl/ganz (Bereich), diavolo (0/1), wahl (Index), teil/form/bildchen (ID, 0 = karton), farbe (0xRRGGBBAA; Text wird `#rrggbbaa`). Lesefeld → Code 32 (gilt für alle `setze_*`) |
+| `hole_zahl` | `(komp, feld) → f64` | wie oben; farbe → 0xRRGGBBAA; bildchen-liste/zahl-liste → Länge; teil-liste → Anzahl **lebender** Teile |
 | `setze_text` | `(komp, feld, ptr, len) → 0` | text, wahl (Name), farbe (Palette/Hex) |
 | `hole_text` | `(komp, feld, ptr, kap) → len` | text, wahl (Name), farbe (**wie gesetzt**), Retry |
-| `setze_liste` | `(komp, feld, ptr, n) → 0` | bildchen-liste: n × u32 LE (IDs) |
-| `hole_liste` | `(komp, feld, ptr, kap) → n` | Retry (kap in Elementen) |
+| `setze_liste` | `(komp, feld, ptr, n) → 0` | bildchen-liste bzw. teil-liste: n × u32 LE (IDs); teil-liste: jedes Teil muss leben, höchstens 65 536 |
+| `hole_liste` | `(komp, feld, ptr, kap) → n` | Retry (kap in Elementen); teil-liste: entfernte Teile fallen heraus (gespeicherter Zustand bleibt) |
+| `setze_zahlen` | `(komp, feld, ptr, n) → 0` | zahl-liste (H-K0): n × f64 LE, Bereich je Eintrag, höchstens 65 536 |
+| `hole_zahlen` | `(komp, feld, ptr, kap) → n` | zahl-liste: n × f64 LE, Retry (kap in Elementen) |
 | `form_grund` | `(art, teile f64, dicke f64) → id` | 1 Würfel, 2 Kugel, 3 Zylinder, 4 Kegel, 5 Ebene, 6 Ring; `teile` 3 … 128 (Kugel/Zylinder/Kegel/Ring), `dicke` 0.05 … 0.9 (Ring) |
 | `form_eigene` | `(punkte_ptr, n_zahlen, dreiecke_ptr, n_zahlen, glatt) → id` | beide als f64 LE (Dreiecke als Zahlen, damit der Kern Ganzzahl/Bereich prüft) |
 | `bildchen_neu` | `(zeilen_ptr, zeilen_len, farben_ptr, farben_len) → id` | Zeilen: Folge `u32 Länge + UTF-8`; Farben: Folge von Paaren `u32 Länge + Zeichen`, `u32 Länge + Farbtext` (leer = keine). **Zeichen werden im Kern aufgelöst** (Palette `w s g o t r p b l m e k a y h u v`, `.`/Leerzeichen durchsichtig, Zuordnung hat Vorrang) |
 | `bildchen_rgba` | `(breite, hoehe, ptr) → id` | breite × hoehe × 4 Bytes RGBA8 |
 | `ressource_hole` | `(id, was) → f64` | 1 Art (1 Form, 2 Bildchen), 2 Breite, 3 Höhe, 4 Ecken, 5 Dreiecke |
-| `takt` | `() → 0` | alle Systeme, dt = 1/60 |
+| `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60 |
 | `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
 | `bild_zeiger` | `() → ptr` | |
 | `paket_voll` | `() → 0` | nächstes Paket enthält wieder alle Ressourcen (neue Glut, Fenster neu geöffnet) |
@@ -152,7 +162,7 @@ für 2D-Teile.`).
 10 Teil entfernt · 11 Teil unbekannt · 12 Hängen: Zyklus · 13 Hängen: Raum · 14 nur 3D · 15 nur 2D · 16 Lage-Feld unbekannt
 (intern) · 17 Raum unbekannt (intern) · 18 Lage-Bereich (ebene) · 20 Typnummer unbekannt (intern) · 21 Komponente hängt schon
 · 22 Komponente falscher Raum · 23 Art schon am Teil · 24 Voraussetzung fehlt · 25 wird gebraucht · 26 Handle unbekannt
-(intern) · 27 Feld unbekannt · 28 Feld falscher Typ · 29 Feld Bereich · 30 Wahl unbekannt · 31 Farbe unbekannt ·
+(intern) · 27 Feld unbekannt · 28 Feld falscher Typ · 29 Feld Bereich · 30 Wahl unbekannt · 31 Farbe unbekannt · 32 Lesefeld gesetzt (`<Name>.<feld> kann man nur lesen.`; auch `melde_typfehler` an einem Lesefeld) · 33 Liste zu lang ·
 19 Komponentenname unbekannt · 40 teile (Bereich) · 51 teile keine Ganzzahl (TypAnanas `Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.`) · 41 dicke · 42 Punkte · 43 Dreiecke · 44 Punkt-Index · 45 Bildchen zu groß · 46 Bildchen-Zeichen · 47 Bildchen
 ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern).
 
@@ -233,7 +243,8 @@ nach der **Blickrichtung** (Horizont `himmel_unten`, Zenit `himmel_oben`, darunt
 
 Erzeugt von `node herd/baue.js` aus `schema_json`; ein Test vergleicht Datei und Kern. Inhalt: `format`, `feldtypen`
 (Nummer, Name, `erwartet`-Text), `komponenten` (Name, Nummer = Typnummer, `genus` `m|f|n` für Fehlertexte wie „Dieser Kreis …“, Raum `2D|3D|beide`, `braucht`, `system`, `felder`
-mit Nummer, Name, Typ, Standard, min, max, `wahl`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (für die
+mit Nummer, Name, Typ, Standard (Listen `[]`), min, max, `wahl`, ab H-K0 `"lesen": true` bzw. `"nachtrag": true` – nur wenn
+gesetzt; `system` ist wahr bei `takt` oder `nachlauf`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (für die
 Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf darunter sein), `palette` (Name, Hex, Zeichen),
 `grundformen`. Test-Komponenten (`Probe`) fehlen.
 
@@ -257,8 +268,10 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   `site/js/herd/kern.wasm` (`herd/skript.js`) und gegen den nativen Kern (`herd-skript`, baut mit `cargo build -j 2`)
   und vergleicht **jede Ausgabezeile** – jeden Rückgabewert und Szenen-/Paket-Hash je Bild. Läufe: B1–B4 klein (viele Takte)
   und in voller Größe (HERD.md §6, wenige Takte) sowie `hierarchie.herd` (Hierarchie mit Drehung, Kopie, Entfernen,
-  Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`,
-  `Rahmen`). Bei Abweichung: erste abweichende Zeile mit Kontext.
+  Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
+  Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
+  `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
 
 ### 7.1 Szenen-Skripte (`*.herd`)
@@ -276,13 +289,14 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
 
 **Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`.
-Je nach Signatur: `setze_liste` Liste von IDs; `form_eigene` zwei Zahlenlisten; `bildchen_neu` Liste der Zeilen und Liste
+Je nach Signatur: `setze_liste` Liste von IDs; `setze_zahlen` Liste von Zahlen; `form_eigene` zwei Zahlenlisten; `bildchen_neu` Liste der Zeilen und Liste
 von Paaren `[["x", "#fff"]]`; `bildchen_rgba b h [bytes]`. **Ausdrücke:** f64 mit `+ - * / %` (wie JS), Klammern,
 Vorzeichen, `boden(x)`, `zufall(x)` (Hash von `ToUint32(x)` → [0, 1), in beiden Sprachen bitgleich); i32-Argumente
 wie JS `ToInt32`. Keine Winkelfunktionen (JS-`Math` ≠ libm).
 
 **Ausgabe** (beide Spieler, Zeile für Zeile verglichen): `<skriptzeile> <aufruf> <wert>` – i32 dezimal, f64 als `f` + 16
-Hex-Ziffern der Bits (zeigt −0 und NaN-Bits), Texte als JSON, Listen `[1,2]`, Hashes als Hex – und nach jedem Bild
+Hex-Ziffern der Bits (zeigt −0 und NaN-Bits), Texte als JSON, Listen `[1,2]`, Zahlenlisten (`hole_zahlen`) `[f…,f…]` je Eintrag
+wie f64 (NaN kanonisch), Hashes als Hex – und nach jedem Bild
 `B <nr> <szene> <paket>`. `herd-skript datei.herd N=10000 --nur-bilder` zeigt nur die Bildzeilen,
 `--mess` misst Kern-Zeit je Takt und Bild (Release-Bau für Messungen, §10).
 

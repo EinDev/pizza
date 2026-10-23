@@ -47,6 +47,15 @@ function liste(f) {
     kap = n;
   }
 }
+function zahlen(f) {
+  let kap = 16;
+  for (;;) {
+    const p = kern.puffer(kap * 8), n = f(p, kap);
+    if (n < 0) { kern.fehler_neu(); return []; }
+    if (n <= kap) { const dv = new DataView(kern.memory.buffer); return Array.from({ length: n }, (_, i) => dv.getFloat64(p + i * 8, true)); }
+    kap = n;
+  }
+}
 const z = (v) => typeof v === 'number' ? String(Math.round(v * 1e4) / 1e4) : String(v);
 function szene() {
   const schema = JSON.parse(text((p, k) => kern.schema_json(p, k)));
@@ -71,7 +80,8 @@ function szene() {
       const felder = art.felder.map(f => {
         let v;
         if (['text', 'wahl', 'farbe'].includes(f.typ)) v = JSON.stringify(text((p, kap) => kern.hole_text(k, f.nummer, p, kap)));
-        else if (f.typ === 'bildchen-liste') v = '[' + liste((p, kap) => kern.hole_liste(k, f.nummer, p, kap)).join(',') + ']';
+        else if (f.typ === 'bildchen-liste' || f.typ === 'teil-liste') v = '[' + liste((p, kap) => kern.hole_liste(k, f.nummer, p, kap)).join(',') + ']';
+        else if (f.typ === 'zahl-liste') v = '[' + zahlen((p, kap) => kern.hole_zahlen(k, f.nummer, p, kap)).map(z).join(',') + ']';
         else if (f.typ === 'diavolo') v = kern.hole_zahl(k, f.nummer) ? 'ja' : 'nein';
         else v = z(kern.hole_zahl(k, f.nummer));
         return f.name + ' ' + v;

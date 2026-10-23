@@ -148,6 +148,13 @@ mod wasm {
         }
     }
 
+    fn zahlen_aus(v: &[f64], p: i32) {
+        let ziel = bm(p, v.len() as i32 * 8);
+        for (i, x) in v.iter().enumerate() {
+            ziel[i * 8..i * 8 + 8].copy_from_slice(&x.to_le_bytes());
+        }
+    }
+
     macro_rules! export {
         ($(fn $name:ident($($a:ident: $t:ty),*) -> $r:ty $body:block)*) => {
             $(
@@ -217,6 +224,14 @@ mod wasm {
             let mut v = alloc::vec![0u32; kap.max(0) as usize];
             let n = k().hole_liste(komp, feld, &mut v);
             if n >= 0 && n <= kap { ids_aus(&v[..n as usize], p); }
+            n
+        }
+
+        fn setze_zahlen(komp: i32, feld: i32, p: i32, n: i32) -> i32 { k().setze_zahlen(komp, feld, &zahlen(p, n)) }
+        fn hole_zahlen(komp: i32, feld: i32, p: i32, kap: i32) -> i32 {
+            let mut v = alloc::vec![0f64; kap.max(0) as usize];
+            let n = k().hole_zahlen(komp, feld, &mut v);
+            if n >= 0 && n <= kap { zahlen_aus(&v[..n as usize], p); }
             n
         }
 

@@ -53,6 +53,10 @@ pub mod code {
     pub const FELD_BEREICH: i32 = 29;
     pub const FELD_WAHL: i32 = 30;
     pub const FARBE: i32 = 31;
+    /// Lesefeld gesetzt (H-K0)
+    pub const FELD_LESEN: i32 = 32;
+    /// teil-liste/zahl-liste zu lang (H-K0)
+    pub const LISTE_LAENGE: i32 = 33;
     pub const KOMP_NAME: i32 = 19;
     pub const FORM_TEILE: i32 = 40;
     pub const FORM_TEILE_GANZ: i32 = 51;
@@ -180,6 +184,14 @@ pub fn feld_nummer(name: &str, feld: i32) -> Fehler {
 /// `TypAnanas: <Name>.<feld> braucht <erwartet>, nicht <darstellung>.`
 pub fn feld_typ(name: &str, feld: &str, erwartet: &str, darstellung: &str) -> Fehler {
     typ(code::FELD_TYP, format!("{}.{} braucht {}, nicht {}.", name, feld, erwartet, darstellung))
+}
+/// `LaufzeitAnanas: <Name>.<feld> kann man nur lesen.` (Lesefeld, H-K0)
+pub fn feld_lesen(name: &str, feld: &str) -> Fehler {
+    laufzeit(code::FELD_LESEN, format!("{}.{} kann man nur lesen.", name, feld))
+}
+/// `LaufzeitAnanas: <Name>.<feld> darf höchstens 65536 Einträge haben, nicht <n>.` (H-K0)
+pub fn liste_laenge(name: &str, feld: &str, max: usize, n: usize) -> Fehler {
+    laufzeit(code::LISTE_LAENGE, format!("{}.{} darf höchstens {} Einträge haben, nicht {}.", name, feld, max, n))
 }
 pub fn feld_bereich(name: &str, feld: &str, min: Option<f64>, max: Option<f64>, w: f64) -> Fehler {
     let t = match (min, max) {

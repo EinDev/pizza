@@ -22,10 +22,9 @@ pub static ART: Art = Art {
             Feld::wahl("ausrichtung", &["links", "mitte", "rechts"], 0),
         ],
     },
-    nur_test: false,
-    takt: None,
     bild: Some(bild),
     huelle: Some(huelle),
+    ..Art::LEER
 };
 
 fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {

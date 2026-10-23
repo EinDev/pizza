@@ -1,0 +1,56 @@
+# H-K0 im Testbau (Feature `probe`): teil-liste, zahl-liste, Lesefeld, Nachtragsfeld, Nachlauf über das Skript-ABI.
+# Liegt absichtlich nicht in tests/herd/szenen (kern.wasm kennt Probe nicht); läuft in herd/skript/tests/probe.rs.
+welt_neu 320 200 "Probe"
+typ_nummer "Probe" -> P
+feld_nummer P "wert" -> WERT
+feld_nummer P "ziele" -> ZIELE
+feld_nummer P "werte" -> WERTE
+feld_nummer P "stand" -> STAND
+feld_nummer P "extra" -> EXTRA
+teil_neu 2 -> t
+komp_neu P -> c
+komp_haenge c t
+teil_neu 2 -> a
+teil_neu 3 -> b
+teil_neu 2 -> d
+# teil-liste: Einfügereihenfolge, Doppelte erlaubt, entfernte fallen beim Lesen heraus
+setze_liste c ZIELE [b, a, b, d]
+hole_liste c ZIELE
+hole_zahl c ZIELE
+hash_szene
+teil_entferne b
+hash_szene
+hole_liste c ZIELE
+hash_szene
+setze_liste c ZIELE [a, b]
+fehler_text
+setze_liste c ZIELE [0]
+fehler_text
+setze_zahl c ZIELE 3
+fehler_text
+# zahl-liste
+setze_zahlen c WERTE [1.5, -0, 100, -100]
+hole_zahlen c WERTE
+hole_zahl c WERTE
+setze_zahlen c WERTE [1, 101]
+fehler_text
+hole_zahlen c WERTE
+setze_zahlen c WERT [1]
+fehler_text
+# Lesefeld
+setze_zahl c STAND 1
+fehler_art
+fehler_code
+fehler_text
+melde_typfehler P STAND "\"x\""
+fehler_text
+# Nachtragsfeld
+hash_szene
+setze_zahl c EXTRA 3
+hash_szene
+setze_zahl c EXTRA 0
+hash_szene
+# Nachlauf: stand = Zähler nach allen Takt-Systemen
+setze_zahl c WERT 2.5
+takte 2
+hole_zahl c STAND

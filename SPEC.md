@@ -1656,7 +1656,7 @@ der Ausführungsreihenfolge der Stücke identisch (Testoption `kuechenChaos`, AR
   `a.abholen()`); `teig`/`bestelle` behalten ihre Semantik (§13).
 - Ein deterministischer gemeinsamer „Bestellblock“ (nur anhängen, Zusammenführung in Stückreihenfolge) kann später ergänzt werden.
 
-## 18. Herd – Spiel-Engine für 2D und 3D (Tier 1 im Interpreter; K-128 … K-136)
+## 18. Herd – Spiel-Engine für 2D und 3D (Tier 1 im Interpreter; K-128 … K-136, Ausbau K-148/K-149)
 
 Konzept, Schichten, Leistungsziele, Erweiterung und Roadmap: `HERD.md`. Hier steht der verbindliche Vertrag für Sprache und Verhalten.
 Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit sind dünne Anbindungen daran. Prüfstand: `a18-herd.js`.
@@ -1696,7 +1696,8 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
   1. Beim ersten `backe` (und nach `schliesse()`/`geschlossen` erneut) wird das Fenster geöffnet (Ereignis `herd`/`fenster`, §18.7).
   2. Es wartet auf ein Fenster-Ereignis (kostet weder Schritte noch Zeit noch Budget). `{"typ":"takt","anzahl":n,…}`: Eingabezustand
      übernehmen (§18.3), dann `n`-mal: `bildnummer` + 1, Schrittlimit-Basis setzen (P0002 je Takt, wie K-087), `fn()` aufrufen (falls
-     gesetzt), dann die **Systeme** der Komponenten (Registry-Reihenfolge, `dt = 1/60`). Danach **ein** Bild senden (§18.7). `anzahl`
+     gesetzt), dann die **Systeme** der Komponenten (Registry-Reihenfolge, `dt = 1/60`), danach ihre **Nachlauf**-Systeme (wieder
+     Registry-Reihenfolge; sehen die Lage nach allen Systemen dieses Takts, K-149). Danach **ein** Bild senden (§18.7). `anzahl`
      fehlt/ungültig → 1, größer als 4 → 4. `{"typ":"geschlossen"}` → Schleife endet. Andere Ereignisse werden ignoriert.
   3. `herd.schliesse()` im Rückruf: Der Rückruf läuft zu Ende, Systeme und Bild entfallen, `schliesse` wird gesendet, `backe` kehrt zurück.
 - Ananas aus `fn` verlassen `backe` (fangbar); die Systeme dieses Takts laufen nicht, es wird kein Bild gesendet, das Fenster bleibt
@@ -1749,10 +1750,18 @@ Schema und ist eine eingebaute Klasse:
   Voraussetzungen erfüllt (`LaufzeitAnanas: Animation braucht ein Bild am selben Teil.`). Vor dem Anhängen hält die Komponente ihre
   Werte selbst, danach lebt sie in der Engine (Getter zeigen, was die Systeme verändert haben).
 - **Feldtypen und Texte:** `zahl` (salami/funghi), `ganz` (Ganzzahl), `diavolo`, `text` (Textform), `wahl` (Text aus fester Liste), `farbe`
-  (§18.5), `teil`, `form`, `bildchen`, `bildchen-liste` (Blech). Falscher Typ → `TypAnanas: <Name>.<feld> braucht <eine Zahl | eine
-  Ganzzahl | ja/nein | eine Farbe | ein Teil | eine Form | ein Bildchen | ein Blech aus Bildchen>, nicht <Darstellung>.`; außerhalb des
-  Bereichs → `LaufzeitAnanas: <Name>.<feld> muss zwischen <min> und <max> liegen, nicht <w>.` (bzw. `mindestens <min>`); `wahl` →
+  (§18.5), `teil`, `form`, `bildchen`, `bildchen-liste` (Blech), `teil-liste` (Blech aus Teilen), `zahl-liste` (Blech aus Zahlen).
+  Falscher Typ → `TypAnanas: <Name>.<feld> braucht <eine Zahl | eine Ganzzahl | ja/nein | eine Farbe | ein Teil | eine Form | ein Bildchen
+  | ein Blech aus Bildchen | ein Blech aus Teilen | ein Blech aus Zahlen>, nicht <Darstellung>.`; außerhalb des Bereichs →
+  `LaufzeitAnanas: <Name>.<feld> muss zwischen <min> und <max> liegen, nicht <w>.` (bzw. `mindestens <min>`); `wahl` →
   `LaufzeitAnanas: <Name>.<feld> kennt 'x' nicht. Erlaubt: a, b, c.` Die Texte erzeugt der Kern (eine Quelle für alle Motoren).
+- **Listenfelder (K-149):** `teil-liste` und `zahl-liste` behalten die Einfügereihenfolge (Doppelte erlaubt), Standard `[]`, höchstens
+  65 536 Einträge (`LaufzeitAnanas: <Name>.<feld> darf höchstens 65536 Einträge haben, nicht <n>.`). Der Getter liefert ein neues Blech
+  (Ändern daran ändert die Komponente nicht). `teil-liste`: nur lebende Teile (`LaufzeitAnanas: Teil 7 ist schon entfernt.`); später
+  entfernte Teile **fallen beim Lesen heraus**. `zahl-liste`: ein Bereich des Felds gilt für jeden Eintrag.
+- **Lesefelder (K-149):** Felder, die nur das System der Komponente schreibt (im Schema `lesen`). Getter wie immer; Setter `setze<Feld>(w)`,
+  `setze("feld", w)` und das Konstruktor-Argument (auch mit falschem Typ) → `LaufzeitAnanas: <Name>.<feld> kann man nur lesen.`; `karton`
+  bzw. ein fehlendes Konstruktor-Argument setzen nichts und sind erlaubt.
 
 ### 18.5 Herd: Welt, Fabriken, Farben, Ressourcen (K-136)
 

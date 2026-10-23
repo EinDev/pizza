@@ -11,7 +11,7 @@
 - „Ziel ist wirklich eine Game-Engine wie Unity zu haben. Natürlich weniger Funktionen am Anfang, aber zunehmend mehr Funktionen.“
 
 Leitlinien des Projekts: Browser = nativ (K-082), „keep it simple, but extendable“, allgemeine Konzepte statt Fachlogik, deterministisch
-und testbar. **Verbindlich** sind Sprache und Verhalten in **`SPEC.md` §18** (Klärungen K-128 … K-136); dieses Dokument begründet,
+und testbar. **Verbindlich** sind Sprache und Verhalten in **`SPEC.md` §18** (Klärungen K-128 … K-136, Ausbau K-148 ff.); dieses Dokument begründet,
 beschreibt Schichten, Schnittstellen, Leistungsziele, Tests, Erweiterung und Roadmap.
 
 ## 1. Kurz
@@ -108,7 +108,7 @@ herd.backe(() -> {
 - **Determinismus-Regeln (verbindlich, K-129):** nur `libm` für Funktionen, `f64` für Szenenzustand (f32 erst im Bildpaket), keine
   `HashMap`/zufällige Hashes, keine Zeiger-/Ankunftsreihenfolgen – Reihenfolgen nur nach stabilen Schlüsseln (Teil-ID, Registrierung),
   keine FMA-Kontraktion. Der Test „Hash nativ = Hash `kern.wasm`“ über alle Benchmark-Szenen ist blockierend.
-- **Takt:** `takt()` lässt alle Systeme in Registry-Reihenfolge laufen (`dt = 1/60`). **Bild:** Welt-Matrizen (nur für geänderte
+- **Takt:** `takt()` lässt alle Systeme in Registry-Reihenfolge laufen (`dt = 1/60`), danach alle **Nachlauf**-Systeme (ab H-K0, K-149). **Bild:** Welt-Matrizen (nur für geänderte
   Teilbäume neu), Culling gegen das Kamera-Frustum (3D) bzw. das Spielfeld (2D), Sortierung (2D: `ebene`, dann ID; 3D durchsichtig:
   Abstand, dann ID), Gruppierung zu Batches, Ressourcen-Deltas → **Bildpaket** (Format: `herd/README.md`, versioniert).
 - **Fehler** prüft der Kern selbst (Wertebereiche, Ressourcen, Raum-Passung) und liefert Fehlercode + Text; die Laufzeiten werfen
@@ -122,8 +122,10 @@ herd.backe(() -> {
   (eingecheckt, ein Test vergleicht mit dem Kern). Interpreter, Compiler (Klassenauflösung zur Übersetzungszeit), Editor
   (Vervollständigung) und Doku lesen es. Die Sprache bildet jede Komponente **generisch** ab (SPEC §18.4) – eine neue Komponente
   braucht **keine** Änderung an `pizza.js`, `laufzeit/`, Compiler, HOST-ABI oder Host.
-- Typen der Felder: `zahl` (f64), `ganz`, `diavolo`, `text`, `farbe` (Text → RGBA im Kern), `teil`, `form`, `bildchen`,
-  `bildchen-liste`. Komponenten, die das Programm nur anlegt und konfiguriert, kosten pro Takt **keinen** Grenzübergang.
+- Typen der Felder: `zahl` (f64), `ganz`, `diavolo`, `text`, `wahl`, `farbe` (Text → RGBA im Kern), `teil`, `form`, `bildchen`,
+  `bildchen-liste`, ab H-K0 `teil-liste` und `zahl-liste` (K-149). Ein Feld kann **Lesefeld** sein (nur das System schreibt es) oder
+  **Nachtragsfeld** (später an eine bestehende Komponente angehängt, im Szenen-Hash nur, wenn vom Standard abweichend). Komponenten, die das
+  Programm nur anlegt und konfiguriert, kosten pro Takt **keinen** Grenzübergang.
 
 ## 4. Sprache (Kurzfassung; verbindlich SPEC §18)
 
@@ -320,7 +322,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H5** Nativ | Host mit Kern + Glut + winit, Offscreen-PNGs, PE-Subsystem, Linux-Starter, Gruppenprüfung EXE-Export | `574d5c5`, `66ccd26`, `cdc1e74`, `e80a544`, `c711005`, `56569c9` | Differenztests mit nativem Host; Windows-EXE 4,2 MiB (Ziel ≤ 6 MB) |
 | **H6** Browser | Render-Worker + OffscreenCanvas, Takt-Weg per SAB, Vorschaufenster, App-Link, Editor aus `schema.json`, E2E-Nachspielen | `832de3d`, `1e56e86`, `7e873b5`, `24316da` | E2E 13/14/15 (headless), Browser-Messlauf SwiftShader (indikativ) |
 | **H7** Spiele, Doku, Messung | Teigfänger 2D, Teigball 3D, drei Lernbeispiele, `tests/herd/bild.js`, Doku `40-herd.js` mit Bildern | `950e338` (H7a), `3b08e51`, `5b1a123`, `c2d24e6`, `43122a3` | 5 Beispiele mit `.herd-erwartet` in allen Modi; `bench/herd/ERGEBNISSE.md` |
-| **H-K0** Grundlagen | offen | – | – |
+| **H-K0** Grundlagen | Feldtypen `teil-liste` (11)/`zahl-liste` (12), Lesefelder, Nachtragsfelder, Nachlauf-Systeme, `Art::LEER` (auch Linie/Rahmen umgestellt), ABI `setze_zahlen`/`hole_zahlen` in Kern, `kern.wasm`, Skript, Interpreter, Laufzeit, Host, Editor; K-148, K-149; kein Beispiel (unsichtbar) | (dieser) | `cargo test -j 2` (Kern 34/34 inkl. 8 neue `tests::hk0`, Skript 3 + `tests/probe.herd`, Werkzeug 4); `node herd/test-kern.js` 11 Läufe bitgleich (neu `listen.herd`); `erwartet.js` 30 ✓ unverändert; `npm test` (310 Fälle), Prüfstand 713/713, `test:wasm` 1461, `test:differenz` 1113 ohne Abweichung; Host `cargo test` + `host/test.js` 61/61; UI-Tests; E2E 286/287 (1 übersprungen); Rauchtest mit Probe-Kern (nicht eingecheckt): Interpreter = Wasm = Host bitgleich |
 | **H-K3a** Linie, Rahmen | `Linie` (11, ein `RECHTECK` längs der Strecke, runde Enden über die Rundung), `Rahmen` (12, bis zu 9 `BILD`-Instanzen, 9-Slice), Szene `linien.herd`, Fälle `herd-linie`/`herd-rahmen`, Beispiel `uhr.pizza`, Doku-Abschnitt `herd-ausbau`; kein Bildpaket-/Glut-Umbau | (dieser) | `cargo test -j 2` (Kern 26/26 inkl. 2 neue); `node herd/test-kern.js` 10 Läufe bitgleich nativ = Wasm (neu `linien.herd`); `node tests/herd/erwartet.js` 30 ✓; `npm test` (310 Fälle), Prüfstand 713/713, `test:wasm` 1461, `test:differenz` 1113 ohne Abweichung |
 | **H-K5** Funken | offen | – | – |
 | **H-K1** Blick, Leine | offen | – | – |

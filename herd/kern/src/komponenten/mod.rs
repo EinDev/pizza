@@ -41,14 +41,23 @@ pub type BildFn = fn(&Welt, &Speicher, &mut Bildbau);
 /// Hülle der Komponente in Zeile `kz` am Teil in Zeile `tz` (Welt-Matrix aktuell).
 pub type HuelleFn = fn(&Welt, &Speicher, usize, usize) -> Option<Huelle>;
 
-/// Beschreibung einer Komponentenart.
+/// Beschreibung einer Komponentenart. Literale schreiben `Art { schema: …, takt: …, ..Art::LEER }` (HERD.md §12.1 Regel 9),
+/// damit neue Felder von `Art` keine Komponenten-Datei ändern.
 pub struct Art {
     pub schema: Schema,
     /// Nur im Testbau (fehlt in `schema.json` und `kern.wasm`).
     pub nur_test: bool,
+    /// System: je Takt nach `fn()`, Arten in Typnummer-Reihenfolge.
     pub takt: Option<TaktFn>,
+    /// Nachlauf-System (H-K0, wie Unity `LateUpdate`): je Takt nach **allen** `takt`-Systemen, in Typnummer-Reihenfolge.
+    pub nachlauf: Option<TaktFn>,
     pub bild: Option<BildFn>,
     pub huelle: Option<HuelleFn>,
+}
+
+impl Art {
+    /// Leere Art: Grundlage für `..Art::LEER` in den Komponenten-Literalen.
+    pub const LEER: Art = Art { schema: Schema::LEER, nur_test: false, takt: None, nachlauf: None, bild: None, huelle: None };
 }
 
 /// Zeitschritt eines Takts (Sekunden).

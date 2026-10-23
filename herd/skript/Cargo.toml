@@ -11,3 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 herd-kern = { path = "../kern" }
+
+# Testbau: Probe-Komponente (H-K0-Feldtypen) für tests/probe.herd – nur `cargo test`, nicht herd-skript/kern.wasm.
+[dev-dependencies]
+herd-kern = { path = "../kern", features = ["probe"] }

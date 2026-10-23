@@ -28,15 +28,15 @@ const PUFFER_BASIS: usize = 8;
 pub const PAKET_BASIS: usize = 0x4000_0000;
 
 /// Namen aller Kern-Exporte (`kern.wasm`, herd/README.md §3) = bekannte Importe des Moduls `herd`.
-/// Die Laufzeit importiert davon 46 (HOST-ABI §2); die übrigen (`abi_version`, `fehler_code`, `welt_hole`,
+/// Die Laufzeit importiert davon 48 (HOST-ABI §2); die übrigen (`abi_version`, `fehler_code`, `welt_hole`,
 /// `bildchen_rgba`, `bild_zeiger`) stellt der Host ebenfalls bereit – ein Programm darf jeden Export binden.
-pub const IMPORTE_HERD: [&str; 51] = [
+pub const IMPORTE_HERD: [&str; 53] = [
     "abi_version", "puffer", "fehler_art", "fehler_code", "fehler_text", "fehler_neu", "melde_typfehler",
     "welt_neu", "welt_titel", "welt_hintergrund", "welt_himmel", "welt_umgebung", "welt_nebel", "welt_hole",
     "teil_neu", "teil_entferne", "teil_kopie", "teil_haenge", "teil_kinder", "teil_setze", "teil_hole", "teil_lage",
     "teil_verschiebe", "teil_groesse", "teil_schaue", "teil_trifft",
     "komp_neu", "komp_haenge", "komp_loese", "komp_von", "komp_info", "typ_nummer", "feld_nummer",
-    "setze_zahl", "hole_zahl", "setze_text", "hole_text", "setze_liste", "hole_liste",
+    "setze_zahl", "hole_zahl", "setze_text", "hole_text", "setze_liste", "hole_liste", "setze_zahlen", "hole_zahlen",
     "form_grund", "form_eigene", "bildchen_neu", "bildchen_rgba", "ressource_hole",
     "takt", "bild", "bild_zeiger", "paket_voll", "hash_szene", "hash_paket", "schema_json",
 ];
@@ -231,6 +231,14 @@ impl HerdZustand {
             self.bereich(p, t.len() as i32)?.copy_from_slice(t);
         }
         Ok(t.len() as i32)
+    }
+
+    fn zahlen_aus(&mut self, v: &[f64], p: i32) -> Result<(), wasmi::Error> {
+        let ziel = self.bereich(p, v.len() as i32 * 8)?;
+        for (i, x) in v.iter().enumerate() {
+            ziel[i * 8..i * 8 + 8].copy_from_slice(&x.to_le_bytes());
+        }
+        Ok(())
     }
 
     fn ids_aus(&mut self, v: &[u32], p: i32) -> Result<(), wasmi::Error> {
@@ -433,6 +441,21 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
         let n = h.kern().hole_liste(k, f, &mut v);
         if n >= 0 && n <= kap {
             h.ids_aus(&v[..n as usize], p)?;
+        }
+        Ok(n)
+    })?;
+
+    l.func_wrap("herd", "setze_zahlen", |mut c: C, k: i32, f: i32, p: i32, n: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let z = h.zahlen(p, n)?;
+        Ok(h.kern().setze_zahlen(k, f, &z))
+    })?;
+    l.func_wrap("herd", "hole_zahlen", |mut c: C, k: i32, f: i32, p: i32, kap: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let mut v = vec![0f64; kap.max(0) as usize];
+        let n = h.kern().hole_zahlen(k, f, &mut v);
+        if n >= 0 && n <= kap {
+            h.zahlen_aus(&v[..n as usize], p)?;
         }
         Ok(n)
     })?;
