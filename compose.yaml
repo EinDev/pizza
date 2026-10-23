@@ -1,17 +1,14 @@
-# pizza-Playground + interner Teilen-Service (haste-server + Redis).
+# pizza-Playground + interner Teilen-Dienst „Durchreiche“ (PROJEKTE.md §4).
 #
 # Coolify (Build-Pack "Docker Compose"): nur EINE Domain, für den Service pizza:
 #   pizza -> https://pizza.example.com:8080
 # (Port-Suffix = interner Container-Port, öffentlich bleibt es 443.)
-# hastebin und redis bekommen keine Domain und sind nur im internen Netz erreichbar.
+# durchreiche bekommt keine Domain und ist nur im internen Netz erreichbar.
 #
 # Lokal: docker compose -f compose.yaml -f compose.lokal.yaml up --build
 #   -> http://localhost:8080
 #
 # Keine ports und kein container_name hier – das bricht Coolifys Proxy-Routing.
-
-# Aufbewahrung geteilter Codes: EINE Variable HASTEBIN_ABLAUF_SEKUNDEN (Standard
-# 7776000 = 90 Tage), unten bei pizza und hastebin identisch eingetragen.
 
 services:
   pizza:
@@ -27,10 +24,8 @@ services:
     environment:
       # Domain dieses Service (wird von Coolify aus der UI-Domain verwaltet)
       SERVICE_URL_PIZZA_8080: /
-      # Interner Upstream für /api/teilen (leer = Teilen deaktiviert)
-      HASTEBIN_URL: ${HASTEBIN_URL:-http://hastebin:8290}
-      # Aufbewahrung geteilter Codes (gleiche Quelle wie im hastebin-Service)
-      HASTEBIN_ABLAUF_SEKUNDEN: ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
+      # Interner Upstream für /api/ (leer = Teilen aus, /api/konfig meldet {"teilen":false})
+      TEILEN_URL: ${TEILEN_URL:-http://durchreiche:8291}
     read_only: true
     tmpfs:
       - /tmp
@@ -43,67 +38,41 @@ services:
       start_period: 5s
       retries: 3
 
-  hastebin:
+  durchreiche:
     build:
-      context: ./hastebin
-    image: pizza-hastebin:77d0a86
+      context: ./durchreiche
+    image: pizza-durchreiche:1
     expose:
-      - "8290"
+      - "8291"
     restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
     environment:
-      HOST: 0.0.0.0
-      PORT: 8290
-      KEY_LENGTH: 10
-      # max. Dokumentgröße 256 KB (wie client_max_body_size im pizza-nginx)
-      MAX_LENGTH: 262144
-      # Anfragen pro Minute und IP (wertet X-Real-IP aus)
-      RATE_LIMIT_MAX: ${HASTEBIN_RATE_LIMIT:-60}
-      RATE_LIMIT_TIME_WINDOW: 60000
-      STORAGE_TYPE: redis
-      STORAGE_HOST: redis
-      STORAGE_PORT: 6379
-      STORAGE_DB: 0
-      STORAGE_PASSWORD: ${SERVICE_PASSWORD_REDIS:-pizza-lokal}
-      # Ablaufzeit der Dokumente ab Erstellung (Standard 90 Tage, 0 = nie)
-      STORAGE_EXPIRE_SECONDS: ${HASTEBIN_ABLAUF_SEKUNDEN:-7776000}
+      PORT: 8291
+      TEILEN_DATEN: /daten
+      # Aufbewahrung in Tagen ab der letzten Version (0 = unbegrenzt); /api/konfig meldet den Wert
+      TEILEN_ABLAUF_TAGE: ${TEILEN_ABLAUF_TAGE:-90}
+      # Speicherdeckel für alle geteilten Dateien zusammen
+      TEILEN_SPEICHER_MAX_MB: ${TEILEN_SPEICHER_MAX_MB:-2048}
+      # Projektgrenzen (Dateien, Bytes je Datei/Projekt/.pizza/Manifest). nginx begrenzt zusätzlich fest auf
+      # 2 MiB je Datei und 64 KiB je Manifest – höhere Werte hier wirken erst mit angepasster nginx.conf.
+      TEILEN_MAX_DATEIEN: ${TEILEN_MAX_DATEIEN:-100}
+      TEILEN_MAX_DATEI_BYTES: ${TEILEN_MAX_DATEI_BYTES:-2097152}
+      TEILEN_MAX_PROJEKT_BYTES: ${TEILEN_MAX_PROJEKT_BYTES:-8388608}
+      TEILEN_MAX_PIZZA_BYTES: ${TEILEN_MAX_PIZZA_BYTES:-524288}
+      TEILEN_MAX_MANIFEST_BYTES: ${TEILEN_MAX_MANIFEST_BYTES:-65536}
+      TEILEN_MAX_VERSIONEN: ${TEILEN_MAX_VERSIONEN:-200}
+    volumes:
+      - durchreiche-daten:/daten
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8290/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8291/healthz"]
       interval: 30s
-      timeout: 5s
-      start_period: 15s
-      retries: 3
-
-  redis:
-    image: redis:8.10.2-alpine3.23
-    restart: unless-stopped
-    command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --save
-      - "3600 1 300 100"
-      - --requirepass
-      - ${SERVICE_PASSWORD_REDIS:-pizza-lokal}
-    volumes:
-      - hastebin-daten:/data
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
-      interval: 10s
       timeout: 3s
       start_period: 5s
-      retries: 5
-    environment:
-      REDIS_PASSWORD: ${SERVICE_PASSWORD_REDIS:-pizza-lokal}
+      retries: 3
 
 volumes:
-  hastebin-daten:
+  durchreiche-daten:

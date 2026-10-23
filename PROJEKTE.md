@@ -949,7 +949,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 |---|---|---|---|---|---|
 | **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, HERD.md §12.1 Regel 3, Prüfstand-Fälle als `*-offen` (`herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – | **umgesetzt** (Commit „PROJEKTE P0: …“, 2026-10-23; Präzisierungen unten) |
 | **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | **umgesetzt** (Commit „PROJEKTE PA1: …“; Präzisierungen unten) |
-| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | offen |
+| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | **umgesetzt** (Commit „PROJEKTE PC1: …“, 2026-10-23; Präzisierungen unten) |
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | **umgesetzt** (Commit „PROJEKTE PD3: …“, 2026-10-24; Präzisierungen unten) |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | **umgesetzt** (Commit „PROJEKTE PA2: …“; Präzisierungen unten) |
@@ -1121,6 +1121,32 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   JS nachgebaut, über `teigling.herd` in `node herd/test-kern.js` bitgleich geprüft); Referenzbilder `2d-textur`, `2d-rahmen-textur`,
   `3d-textur` (bestehende PNGs byte-gleich; `herd-bild referenz --nur=…` schreibt nur die genannten). Browser-Pixeltest: E2E 13
   (WebGL2/SwiftShader); WebGPU hat headless ohne echte GPU keinen Software-Adapter und läuft nur über dieselben WGSL-Shader.
+
+**Präzisierungen aus PC1** (Durchreiche umgesetzt; PB2 richtet sich danach):
+- Dateien: `durchreiche/regeln.mjs` (Grenzen aus der Umgebung, Pfadregel-Kopie, IDs/Schlüssel, Manifest-Prüfung + Kanonik),
+  `lager.mjs` (Volume, Sperre, Zähler, Müllabfuhr), `server.mjs` (HTTP; als Modul `starte({ konfig, jetzt, log, host, port })` → `{ port,
+  lager, aufraeumen(), schliesse() }` – so kann `e2e/server.mjs` den echten Dienst im Prozess oder als Kindprozess
+  `node durchreiche/server.mjs` mit `PORT=0`, `TEILEN_DATEN=<ordner>` starten; die Startzeile nennt den Port). Tests:
+  `durchreiche/test/*.test.mjs`, in `npm test` als Gruppe `durchreiche` (`node tests/run-tests.js durchreiche`); gemeinsame
+  Pfad-Fallliste `durchreiche/test/pfade.json` (der Test vergleicht mit `PizzaLang.projekt.pruefePfad` aus PA1 – seit dem Rebase auf PA1 ohne Überspringen).
+- Manifest: `name` 1–80 Zeichen (leer → 422), Zeichen = Unicode-Codepunkte, ungepaarte Surrogate → 422; `args`-Einträge ohne
+  Steuerzeichen-Prüfung (wie §1.2). Kein gültiges JSON → `422` (nicht 400). Datei ohne erlaubte Endung (§1.3) → 422.
+- Ein gleiches Manifest (`unveraendert`) verlängert den Link **nicht** (`geaendert` bleibt).
+- Eine globale Sperre für alle ändernden Schritte (Posten, Löschen, Blob-Abschluss, `fehlend`, Müllabfuhr) statt zusätzlicher
+  Link-Sperren – vereinfacht, gleiche Garantie. Löschen entfernt lose gewordene Blobs mit `mtime` > 1 h sofort.
+- „Lose Blobs je IP“ zählt nur hochgeladene, noch keinem Link zugeordnete Bytes der letzten Stunde; „neue Bytes in Links“ = bisher
+  lose Blobs + neues Manifest beim Posten. Weitere Umgebungsvariablen: `TEILEN_MAX_*`, `TEILEN_LOSE_JE_IP_MB`,
+  `TEILEN_LOSE_ANTEIL_PROZENT`, `TEILEN_NEU_JE_IP_MB`, `TEILEN_RATE_*` (README „Teilen (Betrieb)“).
+- Rate-Grenzen im Dienst = nginx-Rate + Burst je Minute (13/80/80/360), damit nginx die erste Linie bleibt; nginx-Grenzen fest
+  in `nginx.conf` (2 MiB Blob, 64 KiB sonst). Achtung PB2: Erstellen/Version/Löschen 10/min mit Burst 3 – mehr als vier
+  schreibende Anfragen in wenigen Sekunden ergeben `429` (E2E über nginx entsprechend takten).
+- F6 an der Kante: nginx beantwortet `GET /api/teilen/<10 Kleinbuchstaben>` mit `404 {"fehler":"Dieser Link stammt vom alten
+  Teilen-Dienst und ist nicht mehr verfügbar.","alt":true}`; die UI kann den Text direkt zeigen (PB2 prüft das Format
+  trotzdem selbst, §4.4). `@n` darf URL-kodiert (`%40`) ankommen.
+- Übergang bis PB2: `ui/src/teilen.js`/`main.js`/`app.js` und `e2e/server.mjs` (Hastebin-Attrappe, alte `/api/konfig`-Form)
+  sind unverändert; E2E läuft gegen die Attrappe weiter grün. Gegen den echten Dienst sendet die alte UI Rohtext → `415`
+  (allgemeine Fehlermeldung), alte Links → „gibt es nicht (mehr)“, `aufbewahrungAb: "letzte-version"` zeigt sie wie
+  „erstellung“. Deshalb PC1 erst zusammen mit PB2 deployen (gebündelter Push).
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

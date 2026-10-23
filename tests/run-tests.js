@@ -2,7 +2,7 @@
 /*
  * Test-Harness für pizza v3.1 – ohne Abhängigkeiten.
  *   node tests/run-tests.js              alle Gruppen
- *   node tests/run-tests.js beispiele    nur eine Gruppe (faelle | api | beispiele | doku)
+ *   node tests/run-tests.js beispiele    nur eine Gruppe (faelle | api | beispiele | doku | cli | durchreiche)
  *   node tests/run-tests.js <text>       nur Tests, deren Name <text> enthält
  *   -v                                   auch bestandene Tests einzeln zeigen
  */
@@ -17,7 +17,7 @@ const P = require(path.join(ROOT, 'site', 'js', 'pizza.js'));
 const argv = process.argv.slice(2);
 const ausfuehrlich = argv.includes('-v');
 const filter = argv.filter(a => a !== '-v')[0] || null;
-const GRUPPEN = ['faelle', 'api', 'beispiele', 'doku', 'cli'];
+const GRUPPEN = ['faelle', 'api', 'beispiele', 'doku', 'cli', 'durchreiche'];
 const nurGruppe = filter && GRUPPEN.includes(filter) ? filter : null;
 const namensFilter = filter && !nurGruppe ? filter : null;
 
@@ -1041,6 +1041,7 @@ if (!nurGruppe || nurGruppe === 'api') api();
 if (!nurGruppe || nurGruppe === 'beispiele') beispiele();
 if (!nurGruppe || nurGruppe === 'doku') doku();
 if (!nurGruppe || nurGruppe === 'cli') cli();
+if (!nurGruppe || nurGruppe === 'durchreiche') durchreiche();
 
 console.log(fett('\n═══ Zusammenfassung ═══'));
 for (const [g, s] of Object.entries(stat)) {
@@ -1051,3 +1052,36 @@ for (const [g, s] of Object.entries(stat)) {
 console.log(grau('  Dauer: ' + (Date.now() - t0) + ' ms'));
 if (gesamtFehl) { console.log(rot(fett('\n✗ ' + gesamtFehl + ' Test(s) fehlgeschlagen.'))); process.exitCode = 1; }
 else console.log(gruen(fett('\n✓ Alles gegessen.')));
+
+// ---------------------------------------------------------------------
+// Teilen-Dienst Durchreiche (PROJEKTE.md §4.9): `node --test durchreiche/test/*.test.mjs` als eigene Gruppe.
+function durchreiche() {
+  const g = 'durchreiche';
+  gruppe(g);
+  const ordner = path.join(ROOT, 'durchreiche', 'test');
+  if (!fs.existsSync(ordner)) return;
+  if (Number(process.versions.node.split('.')[0]) < 22) {
+    gruppe(g).skip++;
+    gruppe(g).notiz.push('Node ' + process.versions.node + ' < 22 – Durchreiche-Tests übersprungen');
+    return;
+  }
+  const dateien = fs.readdirSync(ordner).filter(f => f.endsWith('.test.mjs')).sort().map(f => path.join(ordner, f));
+  const args = ['--test', '--test-reporter=tap'];
+  if (namensFilter) args.push('--test-name-pattern=' + namensFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const { spawnSync } = require('child_process');
+  const r = spawnSync(process.execPath, [...args, ...dateien], { cwd: ROOT, encoding: 'utf8', windowsHide: true, timeout: 300000, maxBuffer: 64 * 1024 * 1024 });
+  const zeilen = String(r.stdout || '').split(/\r?\n/);
+  let gefunden = 0;
+  for (let i = 0; i < zeilen.length; i++) {
+    const m = /^(not ok|ok) \d+ - (.*?)(?: # (SKIP|TODO)\b(.*))?$/.exec(zeilen[i]);
+    if (!m) continue;
+    gefunden++;
+    const name = m[2].replace(/\\#/g, '#');
+    if (m[3]) { if (!namensFilter) uebersprungen(g, name, (m[4] || '').trim() || m[3]); continue; }
+    if (m[1] === 'ok') { ergebnis(g, name, null); continue; }
+    const block = [];
+    for (let j = i + 1; j < zeilen.length && /^\s/.test(zeilen[j]); j++) block.push(zeilen[j].trim());
+    ergebnis(g, name, block.filter(z => /^(error|expected|actual|message|location)|Error/.test(z)).slice(0, 20).join('\n') || 'fehlgeschlagen');
+  }
+  if (r.status !== 0 && !stat[g].fehl) ergebnis(g, 'node --test durchreiche/test', ((r.error && r.error.message) || '') + String(r.stderr || '').slice(-2000) + (gefunden ? '' : String(r.stdout || '').slice(-2000)));
+}

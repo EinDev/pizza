@@ -5,23 +5,12 @@
 # leere Standardwerte setzt /docker-entrypoint.d/05-pizza-env.envsh.
 
 # DNS-Resolver des Containers (proxy_pass mit Variable -> nginx startet auch,
-# wenn der interne Teilen-Service noch nicht läuft)
+# wenn der interne Teilen-Dienst noch nicht läuft)
 resolver ${NGINX_LOCAL_RESOLVERS} valid=30s ipv6=off;
 resolver_timeout 5s;
 
-# Interner Teilen-Service (haste-server) ohne abschließenden Slash,
-# Standard aus compose.yaml: http://hastebin:8290 (leer = Teilen deaktiviert -> 503)
-map $host $hastebin_upstream {
-    default "${HASTEBIN_URL}";
-}
-
-map $hastebin_upstream $teilen_aktiv {
-    ""      "false";
-    default "true";
-}
-
-# Aufbewahrung geteilter Codes in Tagen (aus HASTEBIN_ABLAUF_SEKUNDEN, JSON-Zahl
-# oder null = unbegrenzt) für /api/konfig
-map $host $teilen_aufbewahrung_tage {
-    default "${TEILEN_AUFBEWAHRUNG_TAGE}";
+# Interner Teilen-Dienst Durchreiche ohne abschließenden Slash,
+# Standard aus compose.yaml: http://durchreiche:8291 (leer = Teilen aus)
+map $host $teilen_upstream {
+    default "${TEILEN_URL}";
 }

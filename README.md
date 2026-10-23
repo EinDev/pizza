@@ -16,8 +16,8 @@ docker compose -f compose.yaml -f compose.lokal.yaml up --build
 ```
 
 Dann im Browser öffnen: <http://localhost:8080>. Stoppen mit
-`docker compose -f compose.yaml -f compose.lokal.yaml down` (geteilte Codes bleiben im Volume
-`hastebin-daten`; `down -v` löscht sie).
+`docker compose -f compose.yaml -f compose.lokal.yaml down` (geteilte Projekte bleiben im Volume
+`durchreiche-daten`; `down -v` löscht sie).
 
 `compose.yaml` selbst veröffentlicht **keine** Ports (und setzt keinen `container_name`), weil das
 Coolifys Proxy-Routing bricht. `compose.lokal.yaml` ergänzt für lokal nur den Playground-Port
@@ -41,46 +41,60 @@ einen Healthcheck unter `/healthz`. Die Seite ist cross-origin-isoliert (COOP/CO
 
 ## Teilen (Betrieb)
 
-Beim Teilen werden Code und Tab-Name serverseitig gespeichert (ein Dokument mit kleiner JSON-Hülle
-`{"pizza":"teilen","v":1,"name":…,"code":…}`; ältere Dokumente mit rohem Code funktionieren weiter); der Dialog zeigt
-danach zwei Links zum selben Schlüssel und kopiert den App-Link gleich in die Zwischenablage:
-`https://<pizza-domain>/#h=<key>` (**Code öffnen** – Playground mit Editor) und
-`https://<pizza-domain>/#app=<key>` (**App starten** – nur Ladebalken, dann läuft das Programm im Vollbild; übersetzt wird zur
-Laufzeit im Browser mit dem Motor „Auto“, es wird kein Kompilat gespeichert). Beide Formen stehen im Hash und erreichen den
-Server nur als `GET /api/teilen/<key>`; nginx braucht dafür nichts Zusätzliches. Der App-Link nutzt dieselben Vorratskammern
-(`localStorage` `pizza.vorrat.<name>`) wie geteilte Tabs im Playground. Der Browser spricht nur mit dem pizza-nginx
-(`connect-src 'self'`). Dahinter läuft ein **interner** Speicherdienst, der von außen nicht
-erreichbar ist (keine Domain, kein Port):
+Geteilt wird über den eigenen, **internen** Dienst **Durchreiche** (`durchreiche/`, Node ohne Abhängigkeiten; Konzept
+[`PROJEKTE.md`](PROJEKTE.md) §4, Vertrag K-143). Der Browser spricht nur mit dem pizza-nginx (`connect-src 'self'`); nginx reicht
+`/api/…` unverändert an den Dienst weiter, der weder Domain noch Port hat. Ein geteilter Link enthält ein ganzes Projekt
+(Dateien inhaltsadressiert per SHA-256, je Version ein Manifest) und kann **neue Versionen** bekommen: `#h=<id>`/`#app=<id>` zeigen
+immer die neueste, `#h=<id>@<n>`/`#app=<id>@<n>` eine feste Version (`<id>` = 12 Zeichen Base62). Wer den Link erstellt, bekommt
+einmalig einen **Bearbeitungsschlüssel** (256 bit; gespeichert wird nur sein Hash) für neue Versionen und zum Löschen. Alte
+Hastebin-Links (`#h=` mit 10 Kleinbuchstaben) verfallen: `GET /api/teilen/<alt>` → `404` mit Hinweis auf den alten Dienst.
 
-| Endpunkt (pizza-nginx) | intern / Antwort |
+> Stand: Der Dienst ist fertig (Paket PC1); die Playground-Oberfläche (`ui/src/teilen.js`, App-Link) stellt Paket PB2 auf das
+> neue Format um. Bis dahin scheitert Teilen im Playground mit einer allgemeinen Fehlermeldung (die alte UI sendet Rohtext).
+
+| Endpunkt (pizza-nginx → Dienst) | Zweck / Antwort |
 |---|---|
-| `POST /api/teilen` (Body = Rohtext, max. 256 KB) | `$HASTEBIN_URL/documents` → `201 {"key":"…"}` |
-| `GET /api/teilen/<key>` (`[A-Za-z0-9]{1,64}`) | `$HASTEBIN_URL/raw/<key>` → Rohtext; unbekannt/abgelaufen → `404 {"fehler":…}` |
-| `GET /api/konfig` | `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"erstellung"}` |
+| `GET /api/konfig` | `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"letzte-version","grenzen":{…}}`; Dienst aus oder `TEILEN_URL` leer → `{"teilen":false}` |
+| `POST /api/blob/fehlend` (`{"sha256":[…]}`) | `{"fehlend":[…]}` – welche Dateien noch hochgeladen werden müssen |
+| `PUT /api/blob/<sha256>` (Rohbytes, ≤ 2 MiB) | `201` neu / `200` vorhanden; Hash wird geprüft (`422`) |
+| `GET /api/blob/<sha256>` | Inhalt als `application/octet-stream`, `attachment`, `private, max-age=31536000, immutable` |
+| `POST /api/teilen` (Manifest, ≤ 64 KiB) | `201 {"id","version":1,"schluessel"}`; fehlende Dateien → `409 {"fehlend":[…]}` |
+| `POST /api/teilen/<id>` + `Authorization: Bearer <schluessel>` | `201 {"id","version":n}`; gleiches Manifest → `200 {…,"unveraendert":true}` |
+| `GET /api/teilen/<id>` / `GET /api/teilen/<id>@<n>` | `{"id","version","versionen","geaendert","ablauf","projekt"}` (neueste `no-store`, feste Version `immutable`) |
+| `DELETE /api/teilen/<id>` + Schlüssel | `204` – Link samt allen Versionen gelöscht |
 
-Fehler kommen immer als JSON `{"fehler":"…"}`: 405 (falsche Methode), 413 (zu groß), 429
-(Rate-Limit: 10 Uploads und 60 Abrufe pro Minute und IP), 502 (Dienst nicht erreichbar),
-503 (Teilen nicht eingerichtet).
+Fehler kommen als JSON `{"fehler":"…"}`: 403 (Schlüssel passt nicht), 404 (unbekannt/abgelaufen), 405, 409 (Dateien fehlen,
+200 Versionen erreicht), 413 (zu groß), 415 (Body ohne `application/json` bzw. `application/octet-stream` – kein Teilen über fremde
+Formulare), 422 (Manifest/Inhalt ungültig), 429 (Rate-Limit), 502 (Dienst nicht erreichbar), 503 (Teilen nicht eingerichtet),
+507 (Speicher voll). **Rate-Limits** (nginx, je IP; der Dienst zählt dahinter noch einmal): Erstellen/Version/Löschen 10/min
+(Burst 3), Manifest lesen und `fehlend` 60/min (Burst 20), Blob-PUT 240/min (Burst 120), Blob-GET 1200/min (Burst 300).
 
-**Technik:** Service `hastebin` = [skyra-project/haste-server](https://github.com/skyra-project/haste-server)
-(MIT, gepflegter Nachfolger des ursprünglichen haste-server), gebaut aus einem gepinnten Commit
-(`hastebin/Dockerfile`, `HASTE_COMMIT`); Service `redis` speichert mit AOF im Volume `hastebin-daten`.
+**Ablage:** Volume `durchreiche-daten` (`/daten`): `blobs/<ab>/<sha256>`, `links/<Xy>/<id>.json`, `tmp/` (Schreiben über
+tmp → fsync → rename). Ein stündlicher Aufräumlauf löscht abgelaufene Links und Dateien, die kein Link mehr nutzt (frisch
+hochgeladene erst nach 1 h). Kein Datenbankserver.
 
-| Variable | Standard | Bedeutung |
-|---|---|---|
-| `HASTEBIN_URL` (pizza) | `http://hastebin:8290` | interner Upstream; leer = Teilen aus (503, `"teilen":false`) |
-| `HASTEBIN_ABLAUF_SEKUNDEN` | `7776000` (90 Tage) | **eine** Variable (in `compose.yaml` bei `pizza` und `hastebin` eingetragen): Ablaufzeit im haste-server und `aufbewahrungTage` in `/api/konfig`; `0` = nie (`null`) |
-| `HASTEBIN_RATE_LIMIT` (hastebin) | `60` | Anfragen pro Minute und IP am internen Dienst |
-| `SERVICE_PASSWORD_REDIS` | Coolify generiert; lokal `pizza-lokal` | Redis-Passwort (nur intern erreichbar) |
+| Variable | Dienst | Standard | Bedeutung |
+|---|---|---|---|
+| `TEILEN_URL` | pizza | `http://durchreiche:8291` | interner Upstream; leer = Teilen aus (`{"teilen":false}`, sonst 503) |
+| `TEILEN_ABLAUF_TAGE` | durchreiche | `90` | Aufbewahrung **ab der letzten Version** (jede neue Version verlängert); `0` = unbegrenzt (`null`) |
+| `TEILEN_SPEICHER_MAX_MB` | durchreiche | `2048` | Speicherdeckel; darüber `507` (Lesen geht weiter) |
+| `TEILEN_MAX_DATEIEN` | durchreiche | `100` | Dateien je Projekt |
+| `TEILEN_MAX_DATEI_BYTES` | durchreiche | `2097152` | Bytes je Datei (nginx deckelt fest auf 2 MiB) |
+| `TEILEN_MAX_PROJEKT_BYTES` | durchreiche | `8388608` | Bytes je Projekt |
+| `TEILEN_MAX_PIZZA_BYTES` | durchreiche | `524288` | Bytes je `.pizza`-Datei |
+| `TEILEN_MAX_MANIFEST_BYTES` | durchreiche | `65536` | Bytes je Manifest (nginx deckelt fest auf 64 KiB) |
+| `TEILEN_MAX_VERSIONEN` | durchreiche | `200` | Versionen je Link |
+| `TEILEN_LOSE_JE_IP_MB`, `TEILEN_LOSE_ANTEIL_PROZENT`, `TEILEN_NEU_JE_IP_MB` | durchreiche | `32`, `10`, `64` | noch keinem Link zugeordnete Uploads je IP und Stunde · Anteil solcher Uploads am Speicherdeckel · neue Bytes in Links je IP und Stunde |
+| `TEILEN_RATE_SCHREIBEN`, `TEILEN_RATE_LESEN`, `TEILEN_RATE_FEHLEND`, `TEILEN_RATE_BLOB` | durchreiche | `13`, `80`, `80`, `360` | Anfragen je Minute und IP im Dienst (= nginx-Rate + Burst; `0` = aus) |
 
-**Aufbewahrung:** Die Frist läuft **fest ab Erstellung** (`"aufbewahrungAb":"erstellung"`): der
-haste-server speichert mit Redis `SETEX`, Abrufe sind ein einfaches `GET` und verlängern nichts.
-Max. Dokumentgröße: 256 KB (`MAX_LENGTH` = `client_max_body_size` im pizza-nginx).
+Die letzten drei Zeilen stehen nicht in `compose.yaml`; wer sie ändern will, ergänzt sie dort beim Dienst `durchreiche`.
 
-**Datenschutz:** Geteilter Code bleibt auf dem eigenen Server, ist aber für **jeden mit dem Link**
-abrufbar und wird nach Ablauf der Frist gelöscht. Die UI weist vor dem Teilen darauf hin. Der Proxy
-reicht keine Cookies, keinen Referer und keinen User-Agent weiter; die Client-IP geht als
-`X-Real-IP` an den internen Dienst (für dessen Rate-Limit).
+**Datenschutz:** Gespeichert werden nur Dateiinhalte, Manifeste, Erstellungs-/Änderungsdatum (tagesgenau) und der Hash des
+Schlüssels – keine IP-Adressen, kein User-Agent, keine Zugriffszeiten (IPs leben nur im Arbeitsspeicher der Zähler, ≤ 1 h).
+Geteilte Projekte sind für **jeden mit dem Link** abrufbar, ältere Versionen auch. nginx schreibt für `/api/` kein Zugriffsprotokoll
+und nur kritische Fehler (IDs sind Zugriffsrechte); der Dienst protokolliert weder Inhalte noch IDs oder Schlüssel. Der Proxy reicht
+keine Cookies, keinen Referer und keinen User-Agent weiter; die Client-IP geht als `X-Real-IP` (von nginx gesetzt, nicht fälschbar)
+an den Dienst, `Authorization` nur bei `POST`/`DELETE /api/teilen/<id>`.
 
 ## Deployment in Coolify
 
@@ -89,20 +103,23 @@ Eine Domain, z. B. `pizza.example.com` (die echte Domain steht nur in Coolify, n
 1. **Ressource anlegen:** *New Resource* → Git-Repository → **Build Pack: Docker Compose**,
    Compose-Datei `compose.yaml` (Base Directory `/`). `compose.lokal.yaml` **nicht** angeben.
 2. **Domain** (Abschnitt *Domains*/*Services* der Ressource): nur beim Service
-   `pizza` → `https://pizza.example.com:8080`. `hastebin` und `redis` bekommen **keine** Domain.
+   `pizza` → `https://pizza.example.com:8080`. `durchreiche` bekommt **keine** Domain.
 
    Der Port-Suffix ist der **interne** Container-Port (Coolify routet darauf); öffentlich bleibt es
    443. Ohne Suffix landet der Proxy auf Port 80 → „No Available Server“/503.
 3. **Umgebungsvariablen** (*Environment Variables*): `SERVICE_URL_PIZZA_8080` füllt Coolify aus der
-   Domain, `SERVICE_PASSWORD_REDIS` wird generiert. Optional: `HASTEBIN_ABLAUF_SEKUNDEN`,
-   `HASTEBIN_RATE_LIMIT`.
-4. **Persistent Storage:** Das Volume `hastebin-daten` (Redis `/data`) legt Coolify aus der
+   Domain. Optional: `TEILEN_ABLAUF_TAGE`, `TEILEN_SPEICHER_MAX_MB` und die übrigen `TEILEN_MAX_*` (Tabelle oben).
+4. **Persistent Storage:** Das Volume `durchreiche-daten` (`/daten` im Dienst `durchreiche`) legt Coolify aus der
    Compose-Datei an – nichts weiter zu tun; es übersteht Redeploys.
 5. **Deploy** und prüfen:
-   - alle drei Services *healthy*;
+   - beide Services *healthy*;
    - `https://pizza.example.com/healthz` → `ok`;
-   - `https://pizza.example.com/api/konfig` → `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"erstellung"}`;
-   - im Playground teilen → Links `https://pizza.example.com/#h=<key>` (Code) und `…/#app=<key>` (App im Vollbild) in einem anderen Browser öffnen.
+   - `https://pizza.example.com/api/konfig` → `{"teilen":true,"aufbewahrungTage":90,"aufbewahrungAb":"letzte-version",…}`;
+   - im Playground teilen → Links `https://pizza.example.com/#h=<id>` (Code) und `…/#app=<id>` (App im Vollbild) in einem anderen Browser öffnen.
+
+**Umzug von hastebin (einmalig):** Die Variablen `HASTEBIN_URL`, `HASTEBIN_ABLAUF_SEKUNDEN`, `HASTEBIN_RATE_LIMIT` und
+`SERVICE_PASSWORD_REDIS` in Coolify löschen; nach dem ersten erfolgreichen Deploy die alten Container `hastebin`/`redis` (falls
+Coolify sie nicht selbst entfernt) und das alte Volume `hastebin-daten` von Hand löschen. Alte Links werden nicht übernommen.
 
 ### Build-Cache
 
@@ -144,7 +161,7 @@ und werden automatisch aktiv, sobald Skript bzw. Ordner existieren.
 
 | Job | Was | lokal |
 |---|---|---|
-| Interpreter | Interpreter, Beispiele, Doku-Codeblöcke | `npm test` |
+| Interpreter | Interpreter, Beispiele, Doku-Codeblöcke, CLI, Teilen-Dienst Durchreiche (`node --test`) | `npm test` |
 | Coverage | Zeilen-/Zweig-Coverage von `site/js/pizza.js` (+ `pizzaiolo*`), Bericht als Artefakt `coverage` und im Job-Summary | `npm run coverage` |
 | Prüfstand | unabhängige Konformitätsprüfung gegen `SPEC.md` | `npm run test:pruefstand` |
 | Compiler | pizza → Wasm | `npm run test:wasm` |
@@ -180,7 +197,7 @@ pizza/
 ├── Dockerfile, compose.yaml, nginx.conf
 ├── compose.lokal.yaml   lokale Ports (nicht für Coolify)
 ├── nginx-proxy.conf, nginx-teilen.conf.template, docker-entrypoint-pizza.envsh   Teilen-Proxy
-├── hastebin/Dockerfile  interner Teilen-Dienst (haste-server, gepinnter Upstream-Commit)
+├── durchreiche/        interner Teilen-Dienst (Node ohne Abhängigkeiten, Tests in durchreiche/test)
 └── README.md
 ```
 

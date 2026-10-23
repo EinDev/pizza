@@ -1,0 +1,14 @@
+{
+  "_hinweis": "Gemeinsame Fallliste für die Pfadregel (SPEC.md §2.1, PROJEKTE.md §1.3): Durchreiche (regeln.mjs pruefePfad) und PizzaLang.projekt.pruefePfad müssen gleich entscheiden.",
+  "gut": [
+    "hauptgang.pizza", "rezepte/teig.pizza", "bilder/bote-1.png", "a_b-c.d.e", "a/b/c/d/e/f/g/h.txt",
+    "pruefung/erwartet", "pizza.json", "-a.txt", "_/x.md", "a..b.txt", "a.", "0/1/2.csv"
+  ],
+  "gut_lang": { "anfang": "x", "wiederholt": 116, "ende": ".txt" },
+  "schlecht": [
+    "", "/a.pizza", "a/", "a//b.pizza", "../a.pizza", "a/../b.pizza", "./a.pizza", ".versteckt/a.pizza", "a/.b.pizza",
+    "A.pizza", "welt/beläge.pizza", "a b.pizza", "a\\b.pizza", "C:/a.pizza", "a/b/c/d/e/f/g/h/i.txt", "a\n.pizza",
+    ".", "..", "a/./b.txt", "a\u0000.txt", "ä", "a:b.txt", "a%2fb.txt", "a?b.txt"
+  ],
+  "schlecht_lang": { "anfang": "x", "wiederholt": 117, "ende": ".txt" }
+}

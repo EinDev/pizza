@@ -37,7 +37,7 @@ updates:
     commit-message: { prefix: "deps(ci)" }
 
   - package-ecosystem: "docker"
-    directories: ["/", "/hastebin"]
+    directories: ["/", "/durchreiche"]
     schedule: { interval: "weekly", day: "monday" }
     ignore:
       # Node: nur LTS-Linien. Ungerade Majors werden nie LTS; 26.x ist bis zur
