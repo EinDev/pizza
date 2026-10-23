@@ -8,6 +8,7 @@
     "pizza": "bin/pizza.js"
   },
   "scripts": {
+    "pretest": "node scripts/baue-pizza.js --pruefe",
     "test": "node tests/run-tests.js",
     "test:pruefstand": "node pruefstand/run.js",
     "test:alles": "node scripts/test-alles.js",
@@ -18,7 +19,8 @@
     "test:e2e:installieren": "npm ci --prefix e2e",
     "test:wasm": "node tests/wasm/run.js",
     "bench": "node bench/run.js",
-    "baue:laufzeit": "node laufzeit/baue.js"
+    "baue:laufzeit": "node laufzeit/baue.js",
+    "baue:pizza": "node scripts/baue-pizza.js"
   },
   "engines": {
     "node": ">=18"

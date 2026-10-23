@@ -171,7 +171,7 @@ geheimrezept funghi salzAnteil() { serviere 0.02; }   // nur in dieser Datei
   ein **Textliteral** (keine Ausdrücke, keine Escapes außer den üblichen). Pfad **relativ zur Projektwurzel** (nicht zur Datei), Regeln §1.3,
   Endung `.pizza` Pflicht. Kontextuelles Schlüsselwort: `bestellt` bleibt als Bezeichner gültig (geprüft 2026-10-23: im Repo kommt
   `bestellt` nur in Texten/Kommentaren vor, nie als Bezeichner).
-- **Parser** (`programm()` in `site/js/pizza.js`): auf oberster Ebene, wenn das Token ein `name` mit Wert `bestellt` ist **und** das
+- **Parser** (`programm()` in `site/js/pizza/parser.js`): auf oberster Ebene, wenn das Token ein `name` mit Wert `bestellt` ist **und** das
   nächste ein `text`-Token, entsteht ein Knoten `{ k: 'Bestellt', pfad, z, s }` (anders als `paket`/`import`, die der Parser verwirft).
   Gilt der Wert des Literals nach Escape-Auflösung nicht nach §1.3 → P0015 (ungültiger Pfad). `bestellt` ohne folgendes `;` → P0001 wie
   bei `paket`. Alles andere (`bestellt = 3;`, `bestellt(x)`) bleibt ein normaler Bezeichner.
@@ -237,7 +237,7 @@ Ladereihenfolge.
 
 - Eine Datei **sieht**: ihre eigenen obersten Namen + die nicht-`geheimrezept` obersten Namen der Dateien, die sie **direkt** bestellt.
   Die Standardbibliothek und eingebaute Klassen sind immer sichtbar.
-- **Prüfung (Ladeprüfung in `PizzaLang.projekt.lade`, auf den Tokens jeder Datei – der Lexer liegt in `pizza.js`, der Compiler ruft
+- **Prüfung (Ladeprüfung in `PizzaLang.projekt.lade`, auf den Tokens jeder Datei – der Lexer liegt in `site/js/pizza/lexer.js`, der Compiler ruft
   denselben Lader; deterministisch, Reihenfolge = Ladereihenfolge, dann Position):**
   Für jede Datei F und jedes Bezeichner-Token t in F, das (a) nicht direkt hinter `.` oder `@` steht, (b) kein benanntes Argument `t:`
   (auch in Annotationen) ist, (c) gleich einem obersten Namen N einer anderen Datei G ist und (d) **nicht** irgendwo in F als lokale
@@ -262,7 +262,7 @@ Ladereihenfolge.
   (`datei = null`) sehen aus wie heute.
 - Die Ladeprüfungen P0014–P0019 und Syntaxfehler tragen die Datei, in der die Ursache steht.
 - **Was sich an Texten wirklich ändert:** Das `text`-Feld enthält einen Ort nur bei der ungefangenen Ananas (`… (Zeile 12)`, heute in
-  `pizza.js` und `laufzeit/src/start.rs` angehängt) – dort wird es in Nebendateien `… (rezepte/teig.pizza, Zeile 12)`. Alle anderen Orte
+  `site/js/pizza/laufzeit/kern.js` und `laufzeit/src/start.rs` angehängt) – dort wird es in Nebendateien `… (rezepte/teig.pizza, Zeile 12)`. Alle anderen Orte
   (Warnungen, PizzaFehler) stehen nur in den Feldern; die Ortsangabe davor/dahinter bauen die Hüllen (CLI `bin/pizza.js` `pos`/
   `meldungText` – dessen Regex `\s\(Zeile (\d+)\)$` muss auch `(<pfad>, Zeile N)` erkennen –, Playground-Konsole, nativer Host
   HOST-ABI §7) aus `datei`/`zeile`/`spalte`.
@@ -271,7 +271,7 @@ Ladereihenfolge.
   (z. B. `tests/run-tests.js` „Herd-Kern fehlt“), bekommen `datei: null` ergänzt; Testdateien (`.erwartet`, `.fehler`, `.warnungen`) bleiben.
 - **Stapel:** Bei ungefangener Ananas zählt der Ort, an dem sie entsteht (wie heute) – keine Aufrufkette (unverändert).
 
-### 2.7 API (Interpreter, `site/js/pizza.js`)
+### 2.7 API (Interpreter, `site/js/pizza.js`; Quellen `site/js/pizza/`, ARCHITEKTUR §1)
 
 ```js
 PizzaLang.run(quelle, optionen)           // quelle: string (Ein-Datei) | Projekt { dateien, hauptdatei?, name? } (§1.4)
@@ -762,7 +762,7 @@ bestehen und ist nicht Teil dieses Konzepts.
 
 | Komponente | Änderung |
 |---|---|
-| `site/js/pizza.js` (Interpreter) | Projekt-Lader (`projekt.lade`, gemeinsam mit Compiler) mit P0014–P0019, P0020 (Grenzen) und W0004, `bestellt` (kontextuell) im Parser, Datei-Index `d` an AST-Knoten, Ladereihenfolge, `warnSet`-Schlüssel mit Datei, Feld `datei` an `fehler`/`warnung`, Ortstext der Ananas §2.6, `Kiste`, `Bildchen.laden` (Teigling aus `optionen.teiglinge`, geprüft/ergänzt über `optionen.vorbacker`, dann `kern.wasm`), P0020 (Teigmenge), Herd-Erkennung um `Bildchen.…` |
+| `site/js/pizza/` (Interpreter, gebaut zu `site/js/pizza.js`; Lader als neuer Abschnitt `projekt.js`, `bestellt` in `parser.js`) | Projekt-Lader (`projekt.lade`, gemeinsam mit Compiler) mit P0014–P0019, P0020 (Grenzen) und W0004, `bestellt` (kontextuell) im Parser, Datei-Index `d` an AST-Knoten, Ladereihenfolge, `warnSet`-Schlüssel mit Datei, Feld `datei` an `fehler`/`warnung`, Ortstext der Ananas §2.6, `Kiste`, `Bildchen.laden` (Teigling aus `optionen.teiglinge`, geprüft/ergänzt über `optionen.vorbacker`, dann `kern.wasm`), P0020 (Teigmenge), Herd-Erkennung um `Bildchen.…` |
 | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/*` (Compiler) | `kompiliere`/`run` rufen `projekt.lade`; Ports von `analysiere`/Startprüfung mit Datei-Index; Positionstabelle mit Datei; Dateinamen-Tabelle; ABI v2 (`datei_ptr/len`); Datensegment + Tabelle für Kiste und Standard-Argumente; `Kiste`-Aufrufe in der Laufzeit; Küchenbericht (`koch.js`); `faehigkeiten.abi = 2`, `laufOptionen` + `teiglinge`/`vorbacker` |
 | `laufzeit/` (Rust no_std) | Fehler-/Warnungsimporte mit Datei; Kiste-Tabelle lesen; `Kiste.*`; `Bildchen.laden` → Import `bildchen_teigling` |
 | `herd/teigling` (neu, Rust no_std) | Vorbacker: PNG- und JPEG-Decoder, Mipmaps, Teigling-Format; `site/js/herd/teigling.wasm` + kleine JS-Hülle; Tests nativ = Wasm, goldene Teiglinge (SHA-256) für alle Decoder-Fälle; `teigling.wasm` wird wie `kern.wasm` eingecheckt und im Docker-Bau nicht neu erzeugt |
@@ -953,7 +953,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | offen |
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | offen |
-| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza.js`, `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | offen |
+| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | offen |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
@@ -989,7 +989,7 @@ einem lokalen Commit; gepusht wird gebündelt.
 **Abstimmung mit dem Herd-Stufenplan (HERD.md §12):** Beide Pläne ändern dieselben Engstellen. Regeln:
 1. **PD1** zählt in seiner Zeit als die eine Bildpaket-Stufe (`herd/kern/src/paket.rs`) und **PD3** als die eine Glut-Stufe einer
    H-K-Welle (HERD.md §12.1 Regel 3/8) – nicht gleichzeitig mit H-K1, H-K3b, H-K5, H-K11b (Glut/`paket.rs`).
-2. **PA1, PA2, PD2** berühren die §9-Ausnahmen der HERD-Planung (`site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`,
+2. **PA1, PA2, PD2** berühren die §9-Ausnahmen der HERD-Planung (`site/js/pizza/`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`,
    `host/`) und laufen **nicht** parallel zu H-K0, H-K12, H-K13 oder H-K14; wer später merged, rebased und erzeugt Erzeugtes neu
    (`kern.wasm`/`schema.json` mit `node herd/baue.js`, `laufzeit.wasm` mit `npm run baue:laufzeit` – nie von Hand mergen).
 3. **PB3** (Umzug aller Beispiele) läuft, wenn keine H-K-Stufe mit neuem Beispiel offen ist; danach legen H-K-Stufen Beispiele als

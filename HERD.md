@@ -121,7 +121,7 @@ herd.backe(() -> {
 - Das Schema ist die **einzige Quelle**: Der Kern exportiert es (`schema_json`), ein Bauschritt schreibt `site/js/herd/schema.json`
   (eingecheckt, ein Test vergleicht mit dem Kern). Interpreter, Compiler (Klassenauflösung zur Übersetzungszeit), Editor
   (Vervollständigung) und Doku lesen es. Die Sprache bildet jede Komponente **generisch** ab (SPEC §18.4) – eine neue Komponente
-  braucht **keine** Änderung an `pizza.js`, `laufzeit/`, Compiler, HOST-ABI oder Host.
+  braucht **keine** Änderung an `site/js/pizza/`, `laufzeit/`, Compiler, HOST-ABI oder Host.
 - Typen der Felder: `zahl` (f64), `ganz`, `diavolo`, `text`, `wahl`, `farbe` (Text → RGBA im Kern), `teil`, `form`, `bildchen`,
   `bildchen-liste`, ab H-K0 `teil-liste` und `zahl-liste` (K-149). Ein Feld kann **Lesefeld** sein (nur das System schreibt es) oder
   **Nachtragsfeld** (später an eine bestehende Komponente angehängt, im Szenen-Hash nur, wenn vom Standard abweichend). Komponenten, die das
@@ -258,7 +258,7 @@ Beispiel: `Pendel` (lässt ein Teil hin- und herschwingen).
 4. Tests: `cargo test` (System), ein Fall `tests/faelle/herd-pendel.*`, ein Doku-Absatz, eine Zeile in SPEC §18.6 (Komponententabelle).
 5. Fertig – in pizza sofort verfügbar: `Pendel p = teil.mit(neu Pendel(weite: 40)); p.setzeTempo(2); teil.pendel().weite();`
 
-**Nicht** anzufassen: `site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/` (Ausnahmen nur für neue
+**Nicht** anzufassen: `site/js/pizza/` (Interpreter-Quellen; daraus gebaut `site/js/pizza.js`), `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/` (Ausnahmen nur für neue
 Feld-**Typen**, neue Eingabearten oder neue Fenster-Fähigkeiten – das sind Kern-Erweiterungen, keine Komponenten).
 
 ## 10. Roadmap (an Unity orientiert)
@@ -299,7 +299,7 @@ Verbindlich für die Stufen H-K0 … H-K14 (Inhalt, Reihenfolge, Wellen, Abnahme
 | **H0 Konzept** | diese Datei, SPEC §18, K-128 … K-136 | `HERD.md`, `SPEC.md`, `KLAERUNGEN.md` | – |
 | **H1 Kern** | Welt, Registry, Schema, Komponenten v1, Systeme, Bildpaket-Format, Herd-ABI (C-artige Exporte), `kern.wasm`, `schema.json`, Determinismus-Test, Kern-Benchmarks | `herd/kern/**`, `herd/README.md`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json` | H0 |
 | **H2 Glut** | wgpu-Backend nativ (offscreen + Fenster-API) und Web (wasm-bindgen, WebGPU/WebGL2), Shader, Instancing, Atlas, Schatten, Grundlinie + Optimierung, Referenzbilder | `herd/glut/**`, `site/js/herd/glut*` | H1 (Bildpaket-Format) |
-| **H3 Interpreter** | `Herd`/`Teil`/Komponenten generisch aus `schema.json`, Aufrufe an `kern.wasm`, Spielschleife, Eingabe, Tests, Prüfstand | `site/js/pizza.js`, `tests/**`, `pruefstand/` | H1 |
+| **H3 Interpreter** | `Herd`/`Teil`/Komponenten generisch aus `schema.json`, Aufrufe an `kern.wasm`, Spielschleife, Eingabe, Tests, Prüfstand | `site/js/pizza/herd/`, `tests/**`, `pruefstand/` | H1 |
 | **H4 Wasm** | Compiler/Laufzeit: Importgruppe `herd` (generische Importe), Differenztests | `laufzeit/**`, `site/js/pizzaiolo/**`, `HOST-ABI.md` | H1, H3 |
 | **H5 Nativ** | Host: Kern + Glut + winit, Offscreen, CLI, Starter, PE-Subsystem, Docker, Größe, `--herd-messung` | `host/**`, `Dockerfile` | H2, H4 |
 | **H6 Browser** | Programm-Worker + `kern.wasm`, Render-Worker + Glut, Vorschaufenster, App-Link, Editor-Vervollständigung | `site/js/herd/**`, `site/js/worker.js`, `ui/**` | H2, H3 (H4) |
@@ -390,7 +390,7 @@ und Feldnamen stehen hier fest; Produktentscheidungen, die der Plan trifft, sind
    Tabelle „Alle Komponenten …“ von `ordnung: 595`, ein `details`-Block je Stufe im neuen Abschnitt `herd-ausbau`, `ordnung: 599`, Titel
    „Ausbau: neue Komponenten“, angelegt von der ersten gemergten Stufe), `site/beispiele/herd.json`, §11.1. Ist PROJEKTE.md PB3 gelandet,
    Beispiele als Ordner nach K-144.
-8. **§9-Ausnahmen** (Interpreter `site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/`) haben nur **H-K0, H-K12,
+8. **§9-Ausnahmen** (Interpreter `site/js/pizza/`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/`) haben nur **H-K0, H-K12,
    H-K13, H-K14** – höchstens eine davon je Welle. Je Welle höchstens **eine** Stufe, die `herd/kern/src/paket.rs` oder die Glut ändert.
 9. **Art-Literale:** Ab H-K0 schreiben neue Komponenten `pub static ART: Art = Art { schema: …, takt: …, ..Art::LEER };` – dann ändern
    spätere Felder von `Art` keine Komponenten-Datei mehr. Parallel zu H-K0 entstandene Stufen passen ihr Literal beim Rebase an.
@@ -487,7 +487,7 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   `hole_zahlen(komp, feld, ptr, kap)` mit Retry wie `hole_liste`; `teil-liste` über `setze_liste`/`hole_liste` mit Teil-Prüfung;
   Hash-Regel; `schema_json` mit `lesen`/`nachtrag`), `welt.rs` (Nachlauf), `komponenten/mod.rs` (`Art`-Feld, `Art::LEER`, alle v1-Literale
   auf `..Art::LEER`), `fehler.rs`, `kern-wasm/`, `komponenten/probe.rs` (ein Feld je neuem Typ, ein Lese-, ein Nachtragsfeld, ein
-  Nachlauf); `herd/skript/src/lib.rs` + `herd/skript.js` (neue Aufrufe); **§9-Ausnahme:** `site/js/pizza.js` (Feldtyp-Tabelle bei
+  Nachlauf); `herd/skript/src/lib.rs` + `herd/skript.js` (neue Aufrufe); **§9-Ausnahme:** `site/js/pizza/herd/kern.js` (Feldtyp-Tabelle bei
   `HF_LISTE`, Blech ↔ Liste), `laufzeit/src/herd.rs` (Typabbildung, Kopierweg f64-Liste), `site/js/pizzaiolo/` (nur falls die
   Klassenauflösung Feldtypen kennt), `host/src/herd.rs` (zwei Hostfunktionen), `HOST-ABI.md` (Tabelle Modul `herd`), Editor-Vervoll-
   ständigung in `ui/src/` (keine Setter für Lesefelder). Kein `paket.rs`, keine Glut.
@@ -696,7 +696,7 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   `ebene`, dann höchste ID); HUD-Ebene ab `festAb` in Spielfeld-, sonst in Weltkoordinaten.
 - **Schichten/Dateien:** neu `komponenten/knopf.rs`, `leiste.rs`, `regler.rs`, `tafel.rs`; `blick.rs`; Kern `abi.rs` (neuer Export
   `eingabe(maus_x f64, maus_y f64, knoepfe i32)`), `welt.rs` (Eingabezustand; nicht im Szenen-Hash, wirkt nur über Lesefelder → v1-Hashes
-  bleiben), `kern-wasm`, `herd/skript*`; **§9-Ausnahme:** `site/js/pizza.js` und `laufzeit/src/herd.rs` (je Takt vor `fn()` mit dem
+  bleiben), `kern-wasm`, `herd/skript*`; **§9-Ausnahme:** `site/js/pizza/herd/laufzeit.js` und `laufzeit/src/herd.rs` (je Takt vor `fn()` mit dem
   Eingabezustand §18.3 aufrufen), `host/src/herd.rs` (Hostfunktion), `HOST-ABI.md`, SPEC §18.3. Bildbeiträge aus vorhandenen Arten
   (Rechteck, Glyphen) – keine Glut.
 - **Determinismus:** Treffer mit f64-Vergleichen, Reihenfolge nach Ebene/ID; Eingabe nur aus dem `takt`-Ereignis.
@@ -715,7 +715,7 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   `fn`. `kopie()` kopiert **keine** Kniffe (**Entscheidung**; Muster: Fabrikfunktion). In `brigade`-Stücken verboten.
 - **Schichten/Dateien:** Kern nur `abi.rs` (`teil_methoden` um `kniffe` ergänzen, Kollisionsprüfung); Ereignisse liest die
   Laufzeit über die Lesefelder aus H-K6/H-K12; **§9-Ausnahme:**
-  `site/js/pizza.js`, `laufzeit/src/herd.rs` + `klassen.rs`, `site/js/pizzaiolo/` (Basisklasse, Dispatch überschriebener Methoden),
+  `site/js/pizza/` (`herd/`, `laufzeit/aufrufe.js`), `laufzeit/src/herd.rs` + `klassen.rs`, `site/js/pizzaiolo/` (Basisklasse, Dispatch überschriebener Methoden),
   Prüfstand `a18-herd.js`, Editor-Wörter in `ui/src/`, SPEC §18.1/§18.2/§18.4.
 - **Determinismus:** feste Reihenfolge, bitgleich Interpreter = Wasm (Differenztests); keine Wanduhr.
 - **Tests:** `herd-kniff.*`, `herd-kniff-ereignisse.*` (Fühler + Knopf), `herd-kniff-ananas.*`, Prüfstand, Differenz. **Beispiel:**
@@ -729,7 +729,7 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   lautstaerke: 1, schleife: nein)` → `Spur` mit `stoppe()`, `laeuft()` (aus simulierter Zeit berechnet, nie vom Gerät). Bilddateien-artig
   `Klang.laden("klaenge/x.wav")` erst mit PROJEKTE.md (Kiste) – **später** (**Entscheidung**).
 - **Schichten/Dateien:** neue Crate `herd/klang` (`no_std` + `libm`, Synthese zu PCM 48 kHz, bitgleich nativ = Wasm, eingecheckt als
-  `site/js/herd/klang.wasm`); **§9-Ausnahme:** `site/js/pizza.js`, `laufzeit/`, `site/js/pizzaiolo/` (Importgruppe `klang`), `HOST-ABI.md`,
+  `site/js/herd/klang.wasm`); **§9-Ausnahme:** `site/js/pizza/herd/`, `laufzeit/`, `site/js/pizzaiolo/` (Importgruppe `klang`), `HOST-ABI.md`,
   `host/` (Windows WASAPI; Linux ALSA `libasound.so.2` per `dlopen`, kein Link-Zwang K-130; fehlt Ton → stumm, eine Meldung, kein
   Abbruch), EXE-Export-Gruppenprüfung, `site/js/worker.js` + `ui/src/` (WebAudio, startet erst nach der ersten Geste – vorher Gespieltes
   entfällt still; Stummschalter). Mit Herd startet ein Klang mit dem Bild seines Takts, ohne Herd sofort.

@@ -172,7 +172,7 @@ pizza/
 ├── ui/                  Editor-Quellen (CodeMirror 6, esbuild)
 ├── site/                Web-Root (von nginx ausgeliefert)
 │   ├── index.html, css/, favicon.svg
-│   ├── js/pizza.js      Interpreter (UMD, Browser + Node)
+│   ├── js/pizza.js      Interpreter (UMD, Browser + Node), generiert aus js/pizza/ (npm run baue:pizza)
 │   ├── js/worker.js     Web Worker für Programmläufe
 │   ├── js/app.bundle.js gebaute UI
 │   ├── js/doku/         Doku-Inhalte

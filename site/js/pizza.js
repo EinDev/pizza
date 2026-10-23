@@ -2,6 +2,8 @@
  * pizza v3.1 – Interpreter
  * Lexer · Parser · Tree-Walking-Laufzeit · Standardbibliothek
  * UMD ohne Abhängigkeiten: Browser/Worker → self.PizzaLang, Node → module.exports
+ *
+ * GENERIERT aus site/js/pizza/ mit `node scripts/baue-pizza.js` – nicht von Hand bearbeiten.
  */
 (function (root, fabrik) {
   'use strict';
@@ -10,6 +12,10 @@
   else if (root) root.PizzaLang = api;
 })(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   'use strict';
+
+  // ══════════ site/js/pizza/kopf.js ══════════
+  // pizza-Interpreter · Konstanten (Version, Schlüsselwörter, Typen, Ananas-Baum, Grenzen)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // =====================================================================
   // Konstanten
@@ -70,6 +76,10 @@
 
   const STANDARD_LIMIT = 5000000;
   const MAX_STAPEL = 1500;
+
+  // ══════════ site/js/pizza/lexer.js ══════════
+  // pizza-Interpreter · Lexer
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // =====================================================================
   // LEXER
@@ -168,6 +178,10 @@
     toks.push({ t: 'eof', v: '', z, s: i - zs + 1, o: i, oe: i });
     return toks;
   }
+
+  // ══════════ site/js/pizza/parser.js ══════════
+  // pizza-Interpreter · Parser (AST, parse)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // =====================================================================
   // PARSER
@@ -1066,6 +1080,10 @@
     }
   }
 
+  // ══════════ site/js/pizza/analyse.js ══════════
+  // pizza-Interpreter · Statische Analyse (Warnungen vor dem Start)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   // =====================================================================
   // STATISCHE ANALYSE (Warnungen vor dem Start: W0666, W0032)
   // =====================================================================
@@ -1140,6 +1158,10 @@
     return warn;
   }
 
+  // ══════════ site/js/pizza/laufzeit/werte.js ══════════
+  // pizza-Interpreter · Laufzeit-Werte, Signale, Scopes, Textformen, Zufallsgenerator
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   // =====================================================================
   // LAUFZEIT – Werte, Signale, Scopes
   // =====================================================================
@@ -1185,82 +1207,6 @@
   class Reste { constructor(w, m) { this.wert = w; this.matschig = m; } }
   class OfenRoh { constructor(t, d) { this.teil = t; this.zeit = d; } }
   const AUTO = { auto: true };
-
-  // ---------- Theke (UI-Framework, THEKE.md) ----------
-  const UI_KLASSEN = {
-    Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe',
-    Takt: 'takt', Fortschritt: 'fortschritt', Abschnitt: 'abschnitt', Tabelle: 'tabelle', Reiter: 'reiter',
-    Auswahl: 'auswahl', Tastatur: 'tastatur'
-  };
-  const UI_ART_NAME = {
-    schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe',
-    takt: 'Takt', fortschritt: 'Fortschritt', abschnitt: 'Abschnitt', tabelle: 'Tabelle', reiter: 'Reiter',
-    auswahl: 'Auswahl', tastatur: 'Tastatur'
-  };
-  const UI_BEHAELTER = { stapel: true, reihe: true, abschnitt: true, reiter: true };
-  // Stil-Whitelist (K-068, K-113, K-120): Reihenfolge der Schlüssel ist der Erlaubt-Text der Fehlermeldung (beide Laufzeiten gleich).
-  // 'zahl' = Zahl ≥ 0, 'ganzzahl' = ganze Zahl ≥ 1, Liste = Vokabular.
-  const UI_STIL = {
-    breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
-    ausrichtung: ['links', 'mitte', 'rechts'],
-    schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
-    farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal'],
-    zeilen: 'ganzzahl', mindestbreite: 'zahl',
-    // Theke v6 (K-120): senkrechte Lage – an einer Reihe für ihre Kinder, an einer Zutat direkt in einer Reihe für sich selbst
-    senkrecht: ['oben', 'mitte', 'unten', 'strecken'],
-    // Theke v7 (K-126): Spaltengewichte einer Tabelle – Blech aus Zahlen > 0
-    spalten: 'gewichte'
-  };
-  // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
-  const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
-  const UI_ANIM_MAX = 32;  // höchstens 32 Einträge je aendere-Nachricht, weitere entfallen still
-  // Theke v5 (K-116): höchstens 100 Durchläufe je Synchronisationspunkt, dann LaufzeitAnanas (Zyklus)
-  const UI_BINDUNG_DURCHLAEUFE = 100;
-  // K-117: Gleichheit je Feld – Listen elementweise (zeilen verschachtelt), sonst nach Wert
-  function uiGleich(a, b) {
-    if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false;
-      for (let i = 0; i < a.length; i++) if (!uiGleich(a[i], b[i])) return false;
-      return true;
-    }
-    return a === b;
-  }
-  class UiTheke {
-    constructor(titel, breite, hoehe) {
-      this.titel = titel; this.breite = breite; this.hoehe = hoehe;
-      this.wurzel = null; this.gezeigt = false; this.geschlossen = false;
-    }
-  }
-  class UiZutat {
-    constructor(art, id) {
-      this.art = art; this.id = id; this.eltern = null; this.sichtbar = true; this.stil = null;
-      this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
-      this.kinder = UI_BEHAELTER[art] === true ? [] : null;
-      this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
-      this.stilNull = null; this.hinweis = ''; this.uebergang = false;
-      this.marke = '';                                       // Theke v6 (K-124): Marke am Reiter-Tab dieser Seite
-      this.intervall = 1000; this.beiTakt = null;            // Takt
-      this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
-      this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter / Auswahl
-      this.klappbar = false; this.zu = false;                // Abschnitt (K-108)
-      this.optionen = null;                                  // Auswahl (K-109)
-      this.beiTaste = null;                                  // Tastatur (K-110)
-      this.spalten = null; this.zeilen = null;               // Tabelle
-      this.abh = null;        // Theke v5 (K-116): Protokollfeld → Set<UiBindung>, die dieses Feld gelesen haben
-      this.bindungen = null;  // Theke v5: Feld bzw. 's:'+Stilschlüssel → UiBindung
-    }
-  }
-  // Theke v5 (K-116): Zettel – beobachtbarer Wert (keine Zutat); abh wie bei UiZutat (Feld 'wert')
-  // Theke v7 (K-125): abl = UiBindung eines abgeleiteten Zettels (Zettel.aus(fn)), sonst null
-  class Zettel { constructor(w) { this.w = w; this.abh = null; this.abl = null; } }
-  // Theke v5 (K-116): eine Bindung – Zutat z, Eigenschaft/Stilschlüssel feld, Ausdruck fn, Aufrufstelle node (W0103);
-  // quellen = flache Liste [objekt, feld, objekt, feld, …] der zuletzt gelesenen Quellen
-  class UiBindung {
-    constructor(z, feld, stil, fn, node) {
-      this.z = z; this.feld = feld; this.stil = stil; this.fn = fn; this.node = node;
-      this.dirty = true; this.quellen = []; this.erst = true;
-    }
-  }
 
   class Var {
     constructor(w, t, g) {
@@ -1403,6 +1349,1871 @@
       default: return null;
     }
   }
+
+  // ══════════ site/js/pizza/laufzeit/kern.js ══════════
+  // pizza-Interpreter · Laufzeit-Kern (Konstruktor, Hilfen, Eingabe, Budgets, Start, Ende) und laufzeitTeil
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // =====================================================================
+  // LAUFZEIT – Interpreter
+  // =====================================================================
+
+  class Laufzeit {
+    constructor(ast, opt, emit) {
+      this.ast = ast;
+      this.emit = emit;
+      this.limit = typeof opt.schrittLimit === 'number' && opt.schrittLimit > 0 ? opt.schrittLimit : STANDARD_LIMIT;
+      this.args = Array.isArray(opt.args) ? opt.args.map(String) : [];
+      this.onEingabe = typeof opt.onEingabe === 'function' ? opt.onEingabe : null;
+      this.eingabe = Array.isArray(opt.eingabe) ? opt.eingabe.map(x => x == null ? null : String(x)) : null;
+      this.eingabePos = 0;
+      this.eingabeEof = false;
+      this.onUi = typeof opt.onUi === 'function' ? opt.onUi : null;
+      this.uiWarte = typeof opt.onUiWarte === 'function' ? opt.onUiWarte : null;
+      this.uiListe = Array.isArray(opt.uiEreignisse) ? opt.uiEreignisse.slice() : null;
+      this.uiPos = 0;
+      this.uiTheke = null;
+      this.uiZutaten = new Map();
+      this.uiIdZaehler = 0;
+      this.uiOffen = new Map();
+      this.uiAnim = [];  // gepufferte Animationen (K-090), Aufrufreihenfolge
+      this.uiBindungen = [];      // Theke v5 (K-116): alle Bindungen in Registrierungsreihenfolge
+      this.uiBindungLauf = null;  // die gerade ausgewertete Bindung (Quellenerfassung, K-118-Verbote)
+      this.uiDirty = false;       // mindestens eine Bindung ist schmutzig
+      // Herd (SPEC §18): Kern-Modul (optionen.herdKern), Renderer-Rückruf onHerd(art, daten), Kern-Instanz und Welt (lazy)
+      this.herdOpt = opt.herdKern;
+      this.onHerd = typeof opt.onHerd === 'function' ? opt.onHerd : null;
+      this.herdSpion = typeof opt.herdSpion === 'function' ? opt.herdSpion : null;   // nur Werkzeuge (tests/herd/zeige.js)
+      this.hk = null;
+      this.hkFehlt = false;
+      this.herd = null;
+      this.herdNoetig = false;
+      this.schritte = 0;
+      this.offset = 0;
+      this.frames = [];
+      this.grenze = this.limit;
+      this.limitBasis = 0;   // K-087: P0002 bezieht sich auf schritte − limitBasis (neu gesetzt bei jedem Theke-Rückruf)
+      this.echtzeit = typeof opt.echtzeit === 'number' && isFinite(opt.echtzeit) ? Math.round(opt.echtzeit) : null;
+      this.zone = typeof opt.zone === 'number' && isFinite(opt.zone) ? Math.round(opt.zone) : null;   // K-154
+      this.klassen = new Map();
+      this.klassenListe = [];
+      this.alleMethoden = [];
+      this.warnSet = new Set();
+      this.lieferungen = [];
+      this.lieferNr = 0;
+      this.rueck = null;
+      this.z = null;
+      this.s = null;
+      this.st = 0;
+      this.instanzen = 0;
+      const saat = opt.zufallsSaat;
+      this.zufallGlobal = new ZufallGen(typeof saat === 'number' && Number.isInteger(saat) ? saat : 42);
+      this.vorratOpt = opt.vorrat !== null && typeof opt.vorrat === 'object' ? opt.vorrat : null;
+      this.onVorrat = typeof opt.onVorrat === 'function' ? opt.onVorrat : null;
+      this.kammern = new Map();
+      this.w0101 = false;
+      // Küchenbrigade: aktuelle Küche (null = Hauptküche); kuechenChaos (nur Tests) permutiert die Stück-Reihenfolge
+      this.kueche = null;
+      this.chaos = typeof opt.kuechenChaos === 'number' && Number.isInteger(opt.kuechenChaos) ? new ZufallGen(opt.kuechenChaos) : null;
+      this.globalCtx = { dies: null, klasse: null, ktor: false };
+      this.global = new Scope(null, this.globalCtx, true);
+      this.globalCache = { cache: null };
+      for (const [name, basis] of ANANAS_BAUM) {
+        const k = new Klasse(name, null);
+        k.basis = basis ? this.klassen.get(basis) : null;
+        k.eingebaut = true;
+        this.klassen.set(name, k);
+      }
+      this.klassen.get('Ananas').nativKtor = (o, pos) => {
+        o.nachricht = pos.length && pos[0] !== null && pos[0] !== undefined ? this.text(pos[0]) : '';
+      };
+      this.ananasWurzel = this.klassen.get('Ananas');
+      const L = this;
+      this.globals = new Map([
+        ['Bote', new Modul('Bote', BOTE_M, null)],
+        ['Bestellannahme', new Modul('Bestellannahme', EINGABE_M, null)],
+        ['Uhr', new Modul('Uhr', UHR_M, null)],
+        ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI, E: Math.E })],
+        ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
+        ['Spiegel', new Modul('Spiegel', SPIEGEL_M, null)],
+        ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
+        ['Herd', new Modul('Herd', HERD_MOD_M, null)],
+        ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
+        ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
+        ['bestelle', new NativFn('bestelle', function (pos) {
+          const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
+          L.lieferungen.push(l);
+          return l;
+        })],
+        ['zwischenstand', new NativFn('zwischenstand', function (pos) {
+          // in einer Küche zählen nur Öfen, die in der Küche geöffnet wurden (THREADS.md §2.2)
+          const basis = L.kueche !== null ? L.kueche.auftrag.frameBasis : 0;
+          for (let i = L.frames.length - 1; i >= basis; i--) {
+            if (L.frames[i].art === 'ofen') { L.frames[i].zwischen = pos.length ? pos[0] : null; break; }
+          }
+          return null;
+        })],
+        ['schieb', new NativFn('schieb', function () {
+          throw L.ananas('LaufzeitAnanas', 'schieb braucht einen Variablennamen: schieb(p).');
+        })]
+      ]);
+    }
+
+    // ---------- Hilfen ----------
+    warnung(code, text, node, schluessel, methode) {
+      const z = node ? node.z : this.z, s = node ? node.s : this.s;
+      const key = schluessel || (code + ':' + z + ':' + s);
+      const ev = { typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s };
+      if (this.kueche !== null) { this.gibWeiter({ ev, key, m: methode || null }); return; }
+      if (this.warnSet.has(key)) return;
+      this.warnSet.add(key);
+      this.emit(ev);
+    }
+
+    ananas(typ, text) {
+      const k = this.klassen.get(typ);
+      const o = new Obj(k, ++k.zaehler);
+      o.nachricht = text;
+      return new AnanasWurf(o, this.z, this.s);
+    }
+    leer() { return this.ananas('LeererKartonAnanas', 'Der Karton ist leer.'); }
+    weggeschoben(name) { return this.ananas('LeererKartonAnanas', '\'' + name + '\' wurde weggeschoben – der Karton ist leer.'); }
+    stapel() { return this.ananas('LaufzeitAnanas', 'Zu viele Pizzen übereinander (Stapelüberlauf).'); }
+    panik() { return new PanikSig(); }
+
+    normalisiere(e) {
+      if (e instanceof RangeError && /call stack|too much recursion|stack/i.test(e.message)) {
+        const w = this.stapel();
+        return w;
+      }
+      // Grenze der JS-Engine (Text/Blech zu groß, z. B. `t += t` in einer Schleife): wie der Wasm-Motor als fangbare
+      // Kühlschrank-Ananas melden, nicht als interner Fehler (K-014 ist für echte Motorfehler).
+      if (e instanceof RangeError && /Invalid (string|array|typed array) length|allocation failed|out of memory/i.test(e.message)) {
+        return this.ananas('LaufzeitAnanas', 'Der Kühlschrank ist voll (Speicherlimit erreicht).');
+      }
+      return e;
+    }
+
+    typName(v) {
+      if (v === null || v === undefined) return 'karton';
+      switch (typeof v) {
+        case 'number': return Number.isInteger(v) ? 'salami' : 'funghi';
+        case 'string': return 'margherita';
+        case 'boolean': return 'diavolo';
+      }
+      if (Array.isArray(v)) return 'Blech';
+      if (v instanceof Map) return 'Speisekarte';
+      if (v instanceof Dauer) return 'Dauer';
+      if (v instanceof Obj) return v.klasse.name;
+      if (v instanceof EnumWert) return v.typ.name;
+      if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur) return 'Klasse ' + v.name;
+      if (v instanceof Modul) return v.name;
+      if (v instanceof Funktion || v instanceof Gebunden || v instanceof NativFn) return 'Funktion';
+      if (v instanceof Teig) return 'Teig';
+      if (v instanceof Lieferung) return 'Lieferung';
+      if (v instanceof Zustellung) return 'Zustellung';
+      if (v instanceof Reste) return 'Reste';
+      if (v instanceof OfenRoh) return 'Rohling';
+      if (v instanceof UiTheke) return 'Theke';
+      if (v instanceof UiZutat) return UI_ART_NAME[v.art];
+      if (v instanceof Zettel) return 'Zettel';
+      if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
+      if (v instanceof ZufallGen) return 'Zufall';
+      if (v instanceof Kammer) return 'Vorratskammer';
+      return 'Unbekanntes';
+    }
+
+    darstellung(v) {
+      if (typeof v === 'string') return '"' + v + '"';
+      const st0 = this.st;
+      try { return this.text(v); } catch (e) { this.st = st0; return this.typName(v); }
+    }
+
+    zahl(v, wo) {
+      if (typeof v !== 'number') throw this.ananas('TypAnanas', wo + ' braucht eine Zahl, nicht ' + this.darstellung(v) + '.');
+      return v;
+    }
+    ganzzahl(v, wo) {
+      if (typeof v !== 'number' || !Number.isInteger(v)) throw this.ananas('TypAnanas', wo + ' braucht eine Ganzzahl, nicht ' + this.darstellung(v) + '.');
+      return v;
+    }
+    dauerMs(v, wo) {
+      if (v instanceof Dauer) return v.ms;
+      if (typeof v === 'number') return v;
+      throw this.ananas('TypAnanas', wo + ' braucht eine Dauer, nicht ' + this.darstellung(v) + '.');
+    }
+    bool(v) {
+      if (v === true || v === false) return v;
+      throw this.ananas('TypAnanas', 'Erwartet diavolo (ja/nein), bekam ' + this.darstellung(v) + '.');
+    }
+    funktionArg(f, wo) {
+      if (f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn) return f;
+      throw this.ananas('TypAnanas', wo + '() braucht eine Funktion, z. B. () -> (42).');
+    }
+    index(b, i) {
+      if (typeof i !== 'number' || !Number.isInteger(i) || i < 1 || i > b.length) {
+        throw this.ananas('KeinStückAnanas', 'Stück ' + this.text(i) + ' gibt es nicht – das Blech hat ' + b.length + ' Stück' + (b.length === 1 ? '' : 'e') + '.');
+      }
+      return i;
+    }
+    schluessel(k) { return k === undefined ? null : k; }
+    anzahl(pos, ben) {
+      if (ben === null) return pos.length;
+      let n = pos.length;
+      for (const k in ben) n++;
+      return n;
+    }
+    schneide(b, n) {
+      const len = b.length, basis = Math.floor(len / n), extra = len % n;
+      const r = [];
+      let i = 0;
+      for (let j = 0; j < n; j++) {
+        const g = basis + (j < extra ? 1 : 0);
+        r.push(b.slice(i, i + g));
+        i += g;
+      }
+      return r;
+    }
+    istCalzone(k) {
+      for (let c = k; c; c = c.basis) if (c.calzone) return true;
+      return false;
+    }
+    istAnanasKlasse(k) {
+      for (let c = k; c; c = c.basis) if (c === this.ananasWurzel) return true;
+      return false;
+    }
+
+    // ---------- Eingabe ----------
+    liesZeile(prompt, art) {
+      if (prompt !== null) this.emit({ typ: 'ausgabe', text: prompt, umbruch: false });
+      let zeile = null;
+      if (this.eingabeEof) { /* EOF ist endgültig (K-042) */ }
+      else if (this.onEingabe !== null) {
+        try { zeile = this.onEingabe({ prompt, art }); } catch (e) { zeile = null; }
+        if (zeile === undefined) zeile = null;
+      } else if (this.eingabe !== null && this.eingabePos < this.eingabe.length) {
+        zeile = this.eingabe[this.eingabePos++];
+      }
+      if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
+      else this.eingabeEof = true;
+      this.emit({ typ: 'eingabe', text: zeile });
+      return zeile;
+    }
+
+    alsEingabeZahl(zeile, ersatz) {
+      if (zeile === null) return ersatz === undefined ? null : ersatz;
+      const v = zahlAusText(zeile);
+      if (v === null) throw this.ananas('TypAnanas', '\'' + zeile + '\' ist keine Zahl.');
+      return v;
+    }
+
+    // ---------- Schritte & Budgets ----------
+    neuGrenze() {
+      let g = this.limitBasis + this.limit;
+      const fr = this.frames;
+      for (let i = 0; i < fr.length; i++) {
+        const f = fr[i];
+        if (!f.tot) { const x = f.ende - this.offset; if (x < g) g = x; }
+      }
+      this.grenze = g;
+    }
+    grenzeErreicht() {
+      if (this.schritte > this.limitBasis + this.limit) throw new LimitSig();
+      const uhr = this.schritte + this.offset;
+      const fr = this.frames;
+      for (let i = 0; i < fr.length; i++) {
+        const f = fr[i];
+        if (!f.tot && uhr > f.ende) {
+          for (let j = i; j < fr.length; j++) fr[j].tot = true;
+          this.neuGrenze();
+          throw new BudgetSig(f);
+        }
+      }
+      this.neuGrenze();
+    }
+    pushFrame(art, budget) {
+      const f = { art, ende: this.schritte + this.offset + budget, zwischen: null, tot: false };
+      this.frames.push(f);
+      this.neuGrenze();
+      return f;
+    }
+    popFrame(f) {
+      const i = this.frames.lastIndexOf(f);
+      if (i >= 0) this.frames.splice(i, 1);
+      this.neuGrenze();
+    }
+
+    // ---------- Programmstart ----------
+    start() {
+      const body = this.ast.body;
+      for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
+      this.pruefe();
+      if (this.herdNoetig) this.herdKern(true);
+      this.vorbereiten();
+      for (const st of body) {
+        if (DEKL.has(st.k)) continue;
+        const r = this.fuehre(st, this.global);
+        if (r === RET) break;
+      }
+      let haupt = null;
+      for (const k of this.klassenListe) {
+        const l = k.methoden.get('hauptgang');
+        if (l) { haupt = l[0]; break; }
+      }
+      if (!haupt) {
+        const v = this.global.vars.get('hauptgang');
+        if (v && v.w instanceof Gebunden) haupt = v.w.liste[0];
+      }
+      if (haupt) {
+        this.z = haupt.decl.z; this.s = haupt.decl.s;
+        const pos = haupt.params.length ? [this.args.slice()] : [];
+        const dies = haupt.statisch || haupt.klasse === null ? null : this.instanziiere(haupt.klasse, [], null, null);
+        this.rufeDecl(haupt, dies, pos, null, null, 'normal');
+      }
+      this.lieferungenNachEnde();
+      this.uiEnde();
+    }
+
+    lieferungenNachEnde() {
+      for (;;) {
+        const offen = this.lieferungen.filter(l => l.rueckruf !== null && l.zustellung === null);
+        if (!offen.length) break;
+        offen.sort((a, b) => b.prio - a.prio || a.nr - b.nr);
+        const l = offen[0];
+        const v = this.rufe(l.fn, [], null, null);
+        l.zustellung = new Zustellung(true, v, null);
+        this.rufe(l.rueckruf, [v], null, null);
+      }
+    }
+
+    // ---------- Programmende ----------
+    behandleEnde(e0) {
+      const e = this.normalisiere(e0);
+      if (e instanceof PanikSig) {
+        this.emit({ typ: 'panik', text: PANIK_BANNER });
+        return 39;
+      }
+      if (e instanceof HerdKernFehlt) {
+        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
+        return 2;
+      }
+      try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
+      if (e instanceof PizzaFehlerSig) {
+        this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
+        return 2;
+      }
+      if (e instanceof LimitSig) {
+        this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', zeile: this.z, spalte: this.s });
+        return 3;
+      }
+      if (e instanceof AnanasWurf) {
+        const o = e.obj;
+        let beschr;
+        if (this.istAnanasKlasse(o.klasse)) beschr = o.klasse.name + ': ' + o.nachricht;
+        else {
+          try { beschr = this.objText(o); } catch (x) { beschr = o.klasse.name + '@' + o.nr; }
+        }
+        this.emit({
+          typ: 'fehler', code: o.klasse.name, art: 'ananas',
+          text: 'Ungefangene Ananas – ' + beschr + (e.zeile != null ? ' (Zeile ' + e.zeile + ')' : ''),
+          zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
+        });
+        return 1;
+      }
+      const msg = e && e.message ? e.message : String(e);
+      this.emit({
+        typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
+        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
+        zeile: this.z, spalte: this.s, detail: msg
+      });
+      return 1;
+    }
+  }
+
+  // Weitere Laufzeit-Methoden stehen in eigenen Abschnitten als Klassen, deren Methoden hier auf Laufzeit.prototype
+  // übertragen werden (gleiche Eigenschaften wie Klassenmethoden; doppelte Namen sind ein Baufehler).
+  function laufzeitTeil(teil) {
+    const ziel = Laufzeit.prototype, quelle = teil.prototype;
+    for (const name of Object.getOwnPropertyNames(quelle)) {
+      if (name === 'constructor') continue;
+      if (Object.prototype.hasOwnProperty.call(ziel, name)) throw new Error('Laufzeit.' + name + ' ist doppelt definiert.');
+      Object.defineProperty(ziel, name, Object.getOwnPropertyDescriptor(quelle, name));
+    }
+  }
+
+  // ══════════ site/js/pizza/laufzeit/pruefung.js ══════════
+  // pizza-Interpreter · Deklarationen registrieren und Startprüfungen (SPEC §14.7)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // Laufzeit: Deklarationen und Startprüfung
+  class LaufzeitPruefung {
+    registriere(d) {
+      switch (d.k) {
+        case 'Klasse': {
+          const k = new Klasse(d.name, d);
+          k.rohling = d.mods.indexOf('rohling') >= 0;
+          k.gebacken = d.mods.indexOf('gebacken') >= 0;
+          k.calzone = d.mods.indexOf('calzone') >= 0;
+          for (const f of d.felder) {
+            const info = { typ: f.typ, decls: f.decls, gebacken: f.mods.indexOf('gebacken') >= 0, sicht: sichtbarkeit(f.mods) };
+            if (f.mods.indexOf('tiefkühl') >= 0) {
+              k.statischeFelder.push(info);
+              for (const dd of f.decls) {
+                const v = new Var(standardWert(f.typ), f.typ, info.gebacken);
+                v.mod = info.sicht; v.klasse = k;
+                k.statisch.set(dd.name, v);
+              }
+            } else k.felder.push(info);
+          }
+          for (const md of d.methoden) {
+            const m = new Methode(md, k);
+            this.alleMethoden.push(m);
+            const l = k.methoden.get(m.name);
+            if (l) l.push(m); else k.methoden.set(m.name, [m]);
+          }
+          for (const kd of d.ktoren) {
+            const m = new Methode(kd, k);
+            m.statisch = false;
+            m.hatUnten = kd.body.body.some(st => st.k === 'AusdrAnw' && st.e.k === 'UntenCall');
+            k.ktoren.push(m);
+          }
+          this.klassen.set(d.name, k);
+          this.klassenListe.push(k);
+          for (const inn of d.innere) this.registriere(inn);
+          break;
+        }
+        case 'Rezeptur': {
+          const r = new Rezeptur(d.name, d);
+          r.methoden = d.methoden.map(m => m.name);
+          this.klassen.set(d.name, r);
+          break;
+        }
+        case 'Enum': {
+          const e = new EnumTyp(d.name);
+          d.werte.forEach((w, i) => { const ew = new EnumWert(e, w.n, i + 1); e.werte.push(ew); e.nachName.set(w.n, ew); });
+          this.klassen.set(d.name, e);
+          break;
+        }
+        case 'Methode': {
+          const m = new Methode(d, null);
+          m.statisch = true;
+          this.alleMethoden.push(m);
+          const v = this.global.vars.get(d.name);
+          if (v && v.w instanceof Gebunden) v.w.liste.push(m);
+          else this.global.vars.set(d.name, new Var(new Gebunden(null, [m], d.name), null, false));
+          break;
+        }
+      }
+    }
+
+    pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null); }
+
+    pruefe() {
+      const dekls = [];
+      const sammle = (d) => { dekls.push(d); if (d.k === 'Klasse') for (const i of d.innere) sammle(i); };
+      for (const d of this.ast.body) if (DEKL.has(d.k)) sammle(d);
+      // Durchgang 1: Q0004, Basisklassen, P0011
+      for (const d of dekls) {
+        if (d.k === 'Enum') {
+          if (d.werte.length !== 4) throw this.pf('Q0004', 'quattrostagioni braucht genau 4 Werte, nicht ' + d.werte.length + '.', d);
+        } else if (d.k === 'Klasse') {
+          const k = this.klassen.get(d.name);
+          if (d.basis) {
+            const b = this.klassen.get(d.basis.name);
+            if (!(b instanceof Klasse)) throw this.pf('P0010', 'Klasse \'' + d.name + '\' erbt von \'' + d.basis.name + '\' – diese Klasse gibt es nicht.', d.basis);
+            if (b.gebacken) throw this.pf('P0011', 'Klasse \'' + d.name + '\' kann nicht von \'' + b.name + '\' erben – \'' + b.name + '\' ist gebacken.', d.basis);
+            k.basis = b;
+          }
+          for (const t of d.erfuellt) {
+            const r = this.klassen.get(t.name);
+            if (!(r instanceof Rezeptur)) throw this.pf('P0010', 'Klasse \'' + d.name + '\' erfüllt \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
+            k.erfuellt.push(r);
+          }
+        } else if (d.k === 'Rezeptur') {
+          const r = this.klassen.get(d.name);
+          for (const t of d.basen) {
+            const b = this.klassen.get(t.name);
+            if (!(b instanceof Rezeptur)) throw this.pf('P0010', 'Rezeptur \'' + d.name + '\' erbt von \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
+            r.basen.push(b);
+          }
+        }
+      }
+      // Zyklen
+      for (const k of this.klassenListe) {
+        const gesehen = new Set();
+        for (let c = k; c; c = c.basis) {
+          if (gesehen.has(c)) throw this.pf('P0010', 'Klasse \'' + k.name + '\' erbt im Kreis – das ist ein Teigknoten.', k.decl);
+          gesehen.add(c);
+        }
+      }
+      // Durchgang 2: R0001, A0001
+      for (const d of dekls) {
+        if (d.k === 'Klasse') {
+          const k = this.klassen.get(d.name);
+          if (!k.rohling) {
+            for (let c = k; c; c = c.basis) {
+              for (const r of c.erfuellt) {
+                for (const mn of this.rezepturMethoden(r, new Set())) {
+                  if (!this.hatImplementierung(k, mn)) throw this.pf('R0001', 'Klasse \'' + k.name + '\' erfüllt Rezeptur \'' + r.name + '\' nicht: Methode \'' + mn + '\' fehlt.', d);
+                }
+              }
+            }
+          }
+          for (const md of d.methoden) {
+            if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
+            let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M);
+            if (!ok && k.basis && this.findeMethodeListe(k.basis, md.name)) ok = true;
+            if (!ok) {
+              for (let c = k; c && !ok; c = c.basis) {
+                for (const r of c.erfuellt) if (this.rezepturMethoden(r, new Set()).indexOf(md.name) >= 0) ok = true;
+              }
+            }
+            if (!ok) throw this.pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
+          }
+        }
+      }
+      this.pruefeHerd();
+    }
+
+    rezepturMethoden(r, gesehen) {
+      if (gesehen.has(r)) return [];
+      gesehen.add(r);
+      let l = r.methoden.slice();
+      for (const b of r.basen) l = l.concat(this.rezepturMethoden(b, gesehen));
+      return l;
+    }
+
+    hatImplementierung(k, name) {
+      for (let c = k; c; c = c.basis) {
+        const l = c.methoden.get(name);
+        if (l && l.some(m => m.body !== null)) return true;
+      }
+      return false;
+    }
+
+    rezepturErbt(r, ziel) {
+      if (r === ziel) return true;
+      for (const b of r.basen) if (this.rezepturErbt(b, ziel)) return true;
+      return false;
+    }
+
+    vorbereiten() {
+      for (const m of this.alleMethoden) {
+        for (const a of m.decl.annos) {
+          if (a.name === 'Kühlschrank') {
+            let e = null;
+            if (a.args) {
+              const b = a.args.ben.find(x => x.name === 'haltbar');
+              e = b ? b.e : (a.args.pos[0] || null);
+            }
+            if (e === null) m.haltbar = Infinity;
+            else {
+              this.z = a.z; this.s = a.s;
+              m.haltbar = this.dauerMs(this.ausw(e, this.global), '@Kühlschrank(haltbar: …)');
+            }
+          } else if (a.name === 'PizzaVeraltet') {
+            let grund = '';
+            if (a.args) {
+              const b = a.args.ben.find(x => x.name === 'grund');
+              const e = b ? b.e : (a.args.pos[0] || null);
+              if (e) { this.z = a.z; this.s = a.s; grund = this.text(this.ausw(e, this.global)); }
+            }
+            m.veraltet = grund;
+          }
+        }
+      }
+      for (const k of this.klassenListe) {
+        const ctx = { dies: null, klasse: k, ktor: false };
+        for (const f of k.statischeFelder) {
+          for (const d of f.decls) {
+            if (d.init === null) continue;
+            this.z = d.z; this.s = d.s;
+            const sc = new Scope(this.global, ctx, true);
+            const v = this.ausw(d.init, sc);
+            this.pruefeTyp(f.typ, v, d.name);
+            k.statisch.get(d.name).w = v;
+          }
+        }
+      }
+    }
+  }
+  laufzeitTeil(LaufzeitPruefung);
+
+  // ══════════ site/js/pizza/laufzeit/typen.js ══════════
+  // pizza-Interpreter · Typprüfung, Textform, Vergleiche und Operatoren
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // Laufzeit: Typprüfung, Textform, Vergleiche & Operatoren
+  class LaufzeitTypen {
+    // ---------- Typprüfung ----------
+    pruefeTyp(typ, v, name) {
+      if (typ === null || typ.feld) return;
+      let was;
+      switch (typ.name) {
+        case 'salami':
+          if (typeof v === 'number' && Number.isInteger(v)) return;
+          was = typeof v === 'number' ? 'keine Ganzzahl' : 'keine Zahl';
+          break;
+        case 'funghi': if (typeof v === 'number') return; was = 'keine Zahl'; break;
+        case 'margherita': if (typeof v === 'string' || v === null) return; was = 'kein Text'; break;
+        case 'diavolo': if (typeof v === 'boolean') return; was = 'kein Wahrheitswert'; break;
+        case 'hawaii': throw this.panik();
+        case 'Dauer': if (v === null || v instanceof Dauer) return; was = 'keine Dauer'; break;
+        case 'Vorratskammer':
+          if (this.klassen.has(typ.name)) { const k = this.klassen.get(typ.name); if (v === null || this.instanzVon(v, k)) return; was = 'kein(e) ' + k.name; break; }
+          if (v === null || v instanceof Kammer) return;
+          was = 'keine Vorratskammer';
+          break;
+        case 'Zufall':
+          if (v === null || v instanceof ZufallGen || this.klassen.has('Zufall')) return;
+          was = 'kein Zufall';
+          break;
+        case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe':
+        case 'Takt': case 'Fortschritt': case 'Abschnitt': case 'Tabelle': case 'Reiter': case 'Auswahl': case 'Tastatur': {
+          if (this.klassen.has(typ.name) || v === null) {
+            const k = this.klassen.get(typ.name);
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (typ.name === 'Theke' ? v instanceof UiTheke : (v instanceof UiZutat && (typ.name === 'Zutat' || UI_ART_NAME[v.art] === typ.name))) return;
+          was = 'kein(e) ' + typ.name;
+          break;
+        }
+        case 'Herd': case 'Teil': case 'Form': case 'Bildchen': {
+          if (this.klassen.has(typ.name) || v === null) {
+            const k = this.klassen.get(typ.name);
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (herdKlasseVon(v) === typ.name && !(v instanceof HerdKomp)) return;
+          was = 'kein(e) ' + typ.name;
+          break;
+        }
+        case 'Zettel': {
+          // Theke v5 (K-116): eingebauter Typname wie Zutat; eigene Klasse Zettel hat Vorrang
+          if (this.klassen.has('Zettel') || v === null) {
+            const k = this.klassen.get('Zettel');
+            if (k === undefined || v === null || this.instanzVon(v, k)) return;
+            was = 'kein(e) ' + k.name;
+            break;
+          }
+          if (v instanceof Zettel) return;
+          was = 'kein(e) Zettel';
+          break;
+        }
+        default: {
+          const k = this.klassen.get(typ.name);
+          if (k === undefined) {
+            // Herd-Komponente (Schema): nur Komponenten dieser Art passen
+            if (v === null || !(HERD_KOMP_NAMEN.has(typ.name) || (this.hk !== null && this.hk.schema.nachName.has(typ.name)))) return;
+            if (v instanceof HerdKomp && v.art.name === typ.name) return;
+            was = 'kein(e) ' + typ.name;
+            break;
+          }
+          if (v === null || this.instanzVon(v, k)) return;
+          was = 'kein(e) ' + k.name;
+        }
+      }
+      throw this.ananas('TypAnanas', '\'' + name + '\' ist ' + typ.name + ', aber der Wert ' + this.darstellung(v) + ' ist ' + was + '.');
+    }
+
+    instanzVon(v, k) {
+      if (k instanceof Klasse) {
+        if (!(v instanceof Obj)) return false;
+        for (let c = v.klasse; c; c = c.basis) if (c === k) return true;
+        return false;
+      }
+      if (k instanceof EnumTyp) return v instanceof EnumWert && v.typ === k;
+      if (k instanceof Rezeptur) {
+        if (!(v instanceof Obj)) return false;
+        for (let c = v.klasse; c; c = c.basis) for (const r of c.erfuellt) if (this.rezepturErbt(r, k)) return true;
+        return false;
+      }
+      return false;
+    }
+
+    // ---------- Textform ----------
+    text(v) {
+      if (v === null || v === undefined) return 'karton';
+      switch (typeof v) {
+        case 'string': return v;
+        case 'number': return zahlText(v);
+        case 'boolean': return v ? 'ja' : 'nein';
+      }
+      if (Array.isArray(v)) return '[' + v.map(x => this.text(x)).join(', ') + ']';
+      if (v instanceof Map) {
+        const t = [];
+        for (const [k, w] of v) t.push(this.text(k) + ': ' + this.text(w));
+        return '{' + t.join(', ') + '}';
+      }
+      if (v instanceof Dauer) return dauerText(v.ms);
+      if (v instanceof EnumWert) return v.name;
+      if (v instanceof Obj) return this.objText(v);
+      if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur || v instanceof Modul) return v.name;
+      if (v instanceof Funktion || v instanceof Gebunden || v instanceof NativFn) return '<Funktion>';
+      if (v instanceof Teig) return v.fertig ? 'Teig(' + this.text(v.wert) + ')' : 'Teig(roh)';
+      if (v instanceof Lieferung) return 'Lieferung #' + v.nr;
+      if (v instanceof Zustellung) return v.puenktlich ? 'Zustellung(' + (v.fehler ? 'Ananas' : this.text(v.wert)) + ')' : 'Zustellung(zu spät)';
+      if (v instanceof Reste) return 'Reste(' + this.text(v.wert) + ')';
+      if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
+      if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
+      if (v instanceof ZufallGen) return 'Zufall(' + v.saat + ')';
+      if (v instanceof Kammer) return 'Vorratskammer(' + v.kennung + ')';
+      if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
+      if (v instanceof Zettel) return 'Zettel(' + this.text(v.w) + ')';
+      if (v instanceof HerdTeil) return 'Teil(' + v.id + ')';
+      if (v instanceof HerdKomp) {
+        // lose: <Name>(); zerstört: das Teil, an dem sie zuletzt hing
+        const e = this.hk.e;
+        let t = v.teil;
+        if (e.komp_info(v.h, 3) !== 1) t = e.komp_info(v.h, 2);
+        return v.art.name + '(' + (t > 0 ? t : '') + ')';
+      }
+      if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
+      if (v instanceof HerdForm) return 'Form(' + v.id + ')';
+      if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
+      if (v === AUTO) return 'auto';
+      return String(v);
+    }
+
+    objText(o) {
+      const l = this.findeMethodeListe(o.klasse, 'alsText');
+      if (l) {
+        const m = this.waehle(l, 0);
+        if (m.body !== null && m.params.length === 0) return this.text(this.rufeDecl(m, o, [], null, null, 'normal'));
+      }
+      if (this.istAnanasKlasse(o.klasse)) return o.klasse.name + ': ' + o.nachricht;
+      return o.klasse.name + '@' + o.nr;
+    }
+
+    // ---------- Vergleiche & Operatoren ----------
+    gleich(a, b) {
+      if (a === b) return true;
+      if (a === null || b === null || a === undefined || b === undefined) return false;
+      if (typeof a !== 'object' || typeof b !== 'object') return false;
+      if (a instanceof Dauer && b instanceof Dauer) return a.ms === b.ms;
+      return false;
+    }
+
+    vergleiche(a, b) {
+      if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : a > b ? 1 : 0;
+      if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0;
+      if (a instanceof Dauer && b instanceof Dauer) return a.ms < b.ms ? -1 : a.ms > b.ms ? 1 : 0;
+      if (a instanceof EnumWert && b instanceof EnumWert && a.typ === b.typ) return a.pos - b.pos;
+      throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht vergleichen.');
+    }
+
+    binaer(op, a, b, n) {
+      const zz = typeof a === 'number' && typeof b === 'number';
+      switch (op) {
+        case '+':
+          if (zz) return a + b;
+          if (typeof a === 'string' || typeof b === 'string') return this.text(a) + this.text(b);
+          if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms + b.ms);
+          throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht addieren.');
+        case '-':
+          if (zz) return a - b;
+          if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms - b.ms);
+          throw this.ananas('TypAnanas', this.typName(b) + ' kann man nicht von ' + this.typName(a) + ' abziehen.');
+        case '*':
+          if (zz) return a * b;
+          if (a instanceof Dauer && typeof b === 'number') return new Dauer(a.ms * b);
+          if (typeof a === 'number' && b instanceof Dauer) return new Dauer(a * b.ms);
+          throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht multiplizieren.');
+        case '/':
+          if (zz) {
+            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
+            return a / b;
+          }
+          if (a instanceof Dauer && typeof b === 'number') {
+            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
+            return new Dauer(a.ms / b);
+          }
+          if (a instanceof Dauer && b instanceof Dauer) {
+            if (b.ms === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
+            return a.ms / b.ms;
+          }
+          if (Array.isArray(a) && typeof b === 'number') {
+            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
+            const k = this.ganzzahl(b, 'Blech / n');
+            if (k < 0) throw this.ananas('StreitAnanas', 'In ' + k + ' Stücke teilen? Das geht nicht.');
+            if (a.length % k !== 0) throw this.ananas('StreitAnanas', a.length + ' Stücke lassen sich nicht fair durch ' + k + ' teilen.');
+            return this.schneide(a, k);
+          }
+          throw this.ananas('TypAnanas', this.typName(a) + ' kann man nicht durch ' + this.typName(b) + ' teilen.');
+        case '%':
+          if (zz) {
+            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
+            return a % b;
+          }
+          throw this.ananas('TypAnanas', '% geht nur mit Zahlen.');
+        case '==': return zz ? a === b : this.gleich(a, b);
+        case '!=': return zz ? a !== b : !this.gleich(a, b);
+        case '<': return zz ? a < b : this.vergleiche(a, b) < 0;
+        case '<=': return zz ? a <= b : this.vergleiche(a, b) <= 0;
+        case '>': return zz ? a > b : this.vergleiche(a, b) > 0;
+        case '>=': return zz ? a >= b : this.vergleiche(a, b) >= 0;
+      }
+      throw this.ananas('LaufzeitAnanas', 'Unbekannter Operator \'' + op + '\'.');
+    }
+  }
+  laufzeitTeil(LaufzeitTypen);
+
+  // ══════════ site/js/pizza/laufzeit/namen.js ══════════
+  // pizza-Interpreter · Namen und Felder
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // Laufzeit: Namen & Felder
+  class LaufzeitNamen {
+    // ---------- Namen & Felder ----------
+    feldImKontext(ctx, name) {
+      const d = ctx.dies;
+      if (d instanceof Obj) {
+        const f = d.felder.get(name);
+        if (f !== undefined) {
+          if (f.mod === 'geheimrezept' && f.klasse !== ctx.klasse) this.pruefeZugriff(f, d, ctx, name);
+          return f;
+        }
+      }
+      for (let k = ctx.klasse; k; k = k.basis) {
+        const f = k.statisch.get(name);
+        if (f !== undefined) {
+          if (f.mod === 'geheimrezept' && f.klasse !== ctx.klasse) this.pruefeZugriff(f, null, ctx, name);
+          return f;
+        }
+      }
+      return null;
+    }
+
+    finde(sc, name) {
+      for (let s = sc; s !== null; s = s.parent) {
+        const v = s.vars.get(name);
+        if (v !== undefined) return v;
+        if (s.grenze && s.ctx.dies !== null || s.grenze && s.ctx.klasse !== null) {
+          const f = this.feldImKontext(s.ctx, name);
+          if (f !== null) return f;
+        }
+      }
+      return null;
+    }
+
+    leseName(n, sc) {
+      const name = n.n;
+      for (let s = sc; s !== null; s = s.parent) {
+        const v = s.vars.get(name);
+        if (v !== undefined) {
+          if (v.weg) throw this.weggeschoben(name);
+          return v.w;
+        }
+        if (s.grenze && (s.ctx.dies !== null || s.ctx.klasse !== null)) {
+          const f = this.feldImKontext(s.ctx, name);
+          if (f !== null) {
+            if (f.weg) throw this.weggeschoben(name);
+            return f.w;
+          }
+        }
+      }
+      return this.globalerName(name);
+    }
+
+    globalerName(name) {
+      const g = this.globals.get(name);
+      // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
+      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form') && this.klassen.has(name))) return g;
+      const k = this.klassen.get(name);
+      if (k !== undefined) return k;
+      throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
+    }
+
+    pruefeZugriff(v, o, ctx, name) {
+      if (v.mod === null) return;
+      const ck = ctx.klasse;
+      if (v.mod === 'geheimrezept') {
+        if (ck === v.klasse) return;
+        if (o instanceof Obj && !o.zugeklappt && this.istCalzone(o.klasse)) return;
+        throw this.ananas('ZugriffsAnanas', '\'' + name + '\' ist geheimrezept in \'' + v.klasse.name + '\' – Zugriff verweigert.');
+      }
+      if (v.mod === 'familienrezept') {
+        for (let k = ck; k; k = k.basis) if (k === v.klasse) return;
+        if (o instanceof Obj && !o.zugeklappt && this.istCalzone(o.klasse)) return;
+        throw this.ananas('ZugriffsAnanas', '\'' + name + '\' ist familienrezept in \'' + v.klasse.name + '\' – nur für die Familie.');
+      }
+    }
+
+    pruefeMethodenZugriff(m, ctx) {
+      if (m.sicht === null || m.klasse === null) return;
+      const ck = ctx.klasse;
+      if (m.sicht === 'geheimrezept') {
+        if (ck === m.klasse) return;
+        throw this.ananas('ZugriffsAnanas', 'Methode \'' + m.name + '\' ist geheimrezept in \'' + m.klasse.name + '\' – Zugriff verweigert.');
+      }
+      for (let k = ck; k; k = k.basis) if (k === m.klasse) return;
+      throw this.ananas('ZugriffsAnanas', 'Methode \'' + m.name + '\' ist familienrezept in \'' + m.klasse.name + '\' – nur für die Familie.');
+    }
+
+    statischesFeld(k, name) {
+      for (let c = k; c; c = c.basis) {
+        const f = c.statisch.get(name);
+        if (f !== undefined) return f;
+      }
+      return null;
+    }
+
+    findeMethodeListe(k, name) {
+      for (let c = k; c; c = c.basis) {
+        const l = c.methoden.get(name);
+        if (l !== undefined) return l;
+      }
+      return null;
+    }
+
+    waehle(liste, n) {
+      if (liste.length === 1) return liste[0];
+      for (const m of liste) if (m.params.length === n) return m;
+      return liste[0];
+    }
+
+    mitglied(o, name, n, sc) {
+      if (o === null || o === undefined) throw this.leer();
+      if (o instanceof Obj) {
+        const f = o.felder.get(name);
+        if (f !== undefined) {
+          if (f.mod !== null) this.pruefeZugriff(f, o, sc.ctx, name);
+          if (f.weg) throw this.weggeschoben(name);
+          return f.w;
+        }
+        const st = this.statischesFeld(o.klasse, name);
+        if (st !== null) { if (st.mod !== null) this.pruefeZugriff(st, null, sc.ctx, name); return st.w; }
+        const l = this.findeMethodeListe(o.klasse, name);
+        if (l !== null) return new Gebunden(o, l, name);
+        if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || OBJ_M[name]) {
+          return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
+        }
+        throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
+      }
+      if (o instanceof Klasse) {
+        const f = this.statischesFeld(o, name);
+        if (f !== null) { if (f.mod !== null) this.pruefeZugriff(f, null, sc.ctx, name); return f.w; }
+        const l = this.findeMethodeListe(o, name);
+        if (l !== null) return new Gebunden(null, l, name);
+        throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es in Klasse ' + o.name + ' nicht.');
+      }
+      if (o instanceof EnumTyp) {
+        const w = o.nachName.get(name);
+        if (w !== undefined) return w;
+        if (name === 'werte') return new NativFn('werte', () => o.werte.slice());
+        throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es in ' + o.name + ' nicht.');
+      }
+      if (o instanceof Modul) {
+        if (o.felder !== null && Object.prototype.hasOwnProperty.call(o.felder, name)) return o.felder[name];
+        if (o.methoden[name]) return new NativFn(o.name + '.' + name, (pos, ben, node) => o.methoden[name].call(this, o, pos, ben, node));
+        throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es bei ' + o.name + ' nicht.');
+      }
+      const tab = this.tabelleVon(o);
+      if (tab !== null && tab[name] !== undefined) {
+        return new NativFn(name, (pos, ben, node) => tab[name].call(this, o, pos, ben, node), o);
+      }
+      throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + this.typName(o) + ' nicht.');
+    }
+
+    tabelleVon(o) {
+      switch (typeof o) {
+        case 'string': return TEXT_M;
+        case 'number': return ZAHL_M;
+        case 'boolean': return BOOL_M;
+      }
+      if (Array.isArray(o)) return BLECH_M;
+      if (o instanceof Map) return KARTE_M;
+      if (o instanceof UiZutat) return UI_TABELLEN[o.art];
+      if (o instanceof HerdTeil || o instanceof HerdKomp) return o.tab;
+      return TABELLEN.get(o.constructor) || null;
+    }
+  }
+  laufzeitTeil(LaufzeitNamen);
+
+  // ══════════ site/js/pizza/laufzeit/aufrufe.js ══════════
+  // pizza-Interpreter · Aufrufe und Objekte
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // Laufzeit: Aufrufe & Objekte
+  class LaufzeitAufrufe {
+    // ---------- Aufrufe ----------
+    posArgs(a, sc) {
+      const p = a.pos;
+      const r = new Array(p.length);
+      for (let i = 0; i < p.length; i++) r[i] = this.ausw(p[i], sc);
+      return r;
+    }
+    benArgs(a, sc) {
+      if (a.ben === null) return null;
+      const r = Object.create(null);
+      for (const b of a.ben) r[b.name] = this.ausw(b.e, sc);
+      return r;
+    }
+
+    rufeMethode(o, name, pos, ben, node, sc) {
+      if (o === null || o === undefined) throw this.leer();
+      let tab;
+      switch (typeof o) {
+        case 'string': tab = TEXT_M; break;
+        case 'number': tab = ZAHL_M; break;
+        case 'boolean': tab = BOOL_M; break;
+        default:
+          if (o instanceof Obj) return this.objMethode(o, name, pos, ben, node, sc);
+          if (Array.isArray(o)) tab = BLECH_M;
+          else if (o instanceof Map) tab = KARTE_M;
+          else if (o instanceof Modul) {
+            const f = o.methoden[name];
+            if (f === undefined) throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
+            return f.call(this, o, pos, ben, node);
+          } else if (o instanceof Klasse) return this.statischerAufruf(o, name, pos, ben, node, sc);
+          else if (o instanceof EnumTyp) {
+            if (name === 'werte') return o.werte.slice();
+            throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
+          } else if (o instanceof Rezeptur) throw this.ananas('LaufzeitAnanas', 'Eine Rezeptur kann man nicht aufrufen – sie ist nur ein Rezept.');
+          else if (o instanceof UiZutat) tab = UI_TABELLEN[o.art];
+          else if (o instanceof HerdTeil || o instanceof HerdKomp) tab = o.tab;
+          else tab = TABELLEN.get(o.constructor);
+      }
+      if (tab !== undefined) {
+        const f = tab[name];
+        if (f !== undefined) return f.call(this, o, pos, ben, node);
+      }
+      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + this.typName(o) + ' nicht.');
+    }
+
+    objMethode(o, name, pos, ben, node, sc) {
+      const l = this.findeMethodeListe(o.klasse, name);
+      if (l !== null) {
+        const m = this.waehle(l, this.anzahl(pos, ben));
+        if (m.sicht !== null && sc) this.pruefeMethodenZugriff(m, sc.ctx);
+        return this.rufeDecl(m, o, pos, ben, node, 'normal');
+      }
+      const f = o.felder.get(name);
+      if (f !== undefined && (f.w instanceof Funktion || f.w instanceof Gebunden || f.w instanceof NativFn)) return this.rufe(f.w, pos, ben, node);
+      if (this.istAnanasKlasse(o.klasse)) {
+        const a = ANANAS_M[name];
+        if (a !== undefined) return a.call(this, o, pos, ben, node);
+      }
+      const g = OBJ_M[name];
+      if (g !== undefined) return g.call(this, o, pos, ben, node);
+      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
+    }
+
+    statischerAufruf(k, name, pos, ben, node, sc) {
+      const l = this.findeMethodeListe(k, name);
+      if (l !== null) {
+        const m = this.waehle(l, this.anzahl(pos, ben));
+        if (m.sicht !== null && sc) this.pruefeMethodenZugriff(m, sc.ctx);
+        let dies = null;
+        if (!m.statisch && sc && sc.ctx.dies instanceof Obj && this.instanzVon(sc.ctx.dies, m.klasse)) dies = sc.ctx.dies;
+        return this.rufeDecl(m, dies, pos, ben, node, 'normal');
+      }
+      const f = this.statischesFeld(k, name);
+      if (f !== null && (f.w instanceof Funktion || f.w instanceof Gebunden || f.w instanceof NativFn)) return this.rufe(f.w, pos, ben, node);
+      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es in Klasse ' + k.name + ' nicht.');
+    }
+
+    rufe(f, pos, ben, node) {
+      if (f instanceof Funktion) return this.rufeLambda(f, pos, ben);
+      if (f instanceof Gebunden) return this.rufeDecl(this.waehle(f.liste, this.anzahl(pos, ben)), f.obj, pos, ben, node, 'normal');
+      if (f instanceof NativFn) {
+        if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+        const v = f.fn.call(this, pos, ben, node);
+        this.st--;
+        return v;
+      }
+      if (f === null || f === undefined) throw this.leer();
+      throw this.ananas('TypAnanas', this.darstellung(f) + ' ist keine Funktion – das kann man nicht aufrufen.');
+    }
+
+    rufeDecl(m, dies, pos, ben, node, modus) {
+      if (m.veraltet !== null && !m.gewarnt) {
+        const text = 'Methode \'' + m.name + '\' ist veraltet.' + (m.veraltet ? ' Grund: ' + m.veraltet : '');
+        if (this.kueche === null) {
+          m.gewarnt = true;
+          this.warnung('W0003', text, node);
+        } else if (!this.methodeGewarnt(m)) this.warnung('W0003', text, node, undefined, m);
+      }
+      if (m.body === null) throw this.ananas('RohlingAnanas', 'Methode \'' + m.name + '\' ist ein Rohling – sie hat keinen Rumpf.');
+      if (m.haltbar >= 0 || modus !== 'normal') return this.kuehlschrank(m, dies, pos, ben, node, modus);
+      if (!m.statisch && dies === null && m.klasse !== null) {
+        throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
+      }
+      return this.fuehreAus(m, { dies: m.statisch ? null : dies, klasse: m.klasse, ktor: false }, pos, ben, node);
+    }
+
+    cacheSchluessel(pos, ben) {
+      const teile = [];
+      const k = (v) => {
+        if (v === null || v === undefined) return 'k';
+        switch (typeof v) {
+          case 'string': return 't' + v;
+          case 'number': return 'z' + v;
+          case 'boolean': return v ? 'j' : 'n';
+        }
+        if (v instanceof Obj) return 'o' + v.klasse.name + '@' + v.nr;
+        const st0 = this.st;
+        try { return 'x' + this.text(v); } catch (e) { this.st = st0; return 'x?'; }
+      };
+      for (const v of pos) teile.push(k(v));
+      if (ben !== null) for (const n in ben) teile.push(n + '=' + k(ben[n]));
+      return teile.join('\u0001');
+    }
+
+    kuehlschrank(m, dies, pos, ben, node, modus) {
+      const rechne = () => {
+        if (!m.statisch && dies === null && m.klasse !== null) {
+          throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
+        }
+        return this.fuehreAus(m, { dies, klasse: m.klasse, ktor: false }, pos, ben, node);
+      };
+      if (m.haltbar < 0) {
+        const v = rechne();
+        return modus === 'mikrowelle' ? new Reste(v, false) : v;
+      }
+      const halter = dies !== null && typeof dies === 'object' ? dies : (m.klasse || this.globalCache);
+      let key;
+      if (ben === null) key = this.cacheSchluessel(pos, null);
+      else {
+        const geordnet = [];
+        for (let i = 0; i < m.params.length; i++) geordnet.push(i < pos.length ? pos[i] : (m.params[i].name in ben ? ben[m.params[i].name] : null));
+        key = this.cacheSchluessel(geordnet, null);
+      }
+      const e = this.cacheHole(halter, m, key);
+      if (modus === 'frisch' || e === undefined) {
+        const v = rechne();
+        this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
+        return modus === 'mikrowelle' ? new Reste(v, false) : v;
+      }
+      const frisch = (this.schritte + this.offset) - e.t <= m.haltbar;
+      if (frisch) return modus === 'mikrowelle' ? new Reste(e.w, false) : e.w;
+      const alt = e.w;
+      const v = rechne();
+      this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
+      return modus === 'mikrowelle' ? new Reste(alt, true) : v;
+    }
+
+    // Kühlschrank-Tabelle eines Halters (Objekt, Klasse oder globaler Cache). In einer Küche wird aus einer
+    // Küchen-Überlagerung und dann aus dem Schnappschuss gelesen, geschrieben nur in die Überlagerung (D12).
+    cacheHole(halter, m, key) {
+      for (let k = this.kueche; k !== null; k = k.eltern) {
+        const h = k.kuehl.get(halter);
+        const tab = h !== undefined ? h.get(m) : undefined;
+        const e = tab !== undefined ? tab.get(key) : undefined;
+        if (e !== undefined) return e;
+      }
+      if (halter.cache === null || halter.cache === undefined) return undefined;
+      const tab = halter.cache.get(m);
+      return tab === undefined ? undefined : tab.get(key);
+    }
+    cacheSetze(halter, m, key, e) {
+      if (this.kueche !== null) {
+        const ueber = this.kueche.kuehl;
+        let h = ueber.get(halter);
+        if (h === undefined) { h = new Map(); ueber.set(halter, h); }
+        let tab = h.get(m);
+        if (tab === undefined) { tab = new Map(); h.set(m, tab); }
+        tab.set(key, e);
+        return;
+      }
+      if (halter.cache === null || halter.cache === undefined) halter.cache = new Map();
+      let tab = halter.cache.get(m);
+      if (tab === undefined) { tab = new Map(); halter.cache.set(m, tab); }
+      tab.set(key, e);
+    }
+
+    bindeParameter(ps, sc, pos, ben, name, strikt) {
+      if (ben !== null) {
+        for (const k in ben) {
+          let ok = false;
+          for (const p of ps) if (p.name === k) { ok = true; break; }
+          if (!ok) throw this.ananas('LaufzeitAnanas', name + ' hat keinen Parameter \'' + k + '\'.');
+        }
+      }
+      if (strikt && pos.length > ps.length) {
+        throw this.ananas('LaufzeitAnanas', name + ' erwartet ' + ps.length + ' Argument' + (ps.length === 1 ? '' : 'e') + ', bekam ' + this.anzahl(pos, ben) + '.');
+      }
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i];
+        let v;
+        if (i < pos.length) v = pos[i];
+        else if (ben !== null && p.name in ben) v = ben[p.name];
+        else if (strikt) throw this.ananas('LaufzeitAnanas', name + ' erwartet ' + ps.length + ' Argument' + (ps.length === 1 ? '' : 'e') + ', bekam ' + this.anzahl(pos, ben) + '.');
+        else v = null;
+        if (p.nieKarton && v === null) throw this.ananas('LeererKartonAnanas', 'Parameter \'' + p.name + '\' ist @NieKarton – aber es kam ein leerer Karton.');
+        if (p.typ !== null) this.pruefeTyp(p.typ, v, p.name);
+        sc.vars.set(p.name, new Var(v, p.typ, p.gebacken));
+      }
+    }
+
+    fuehreAus(m, ctx, pos, ben, node) {
+      const sc = new Scope(this.global, ctx, true);
+      this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      const z = this.z, s = this.s;
+      try {
+        const body = m.body.body;
+        for (let i = 0; i < body.length; i++) {
+          const r = this.fuehre(body[i], sc);
+          if (r !== undefined) {
+            if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
+            break;
+          }
+        }
+        return null;
+      } finally {
+        this.st--;
+        this.z = z; this.s = s;
+      }
+    }
+
+    rufeLambda(f, pos, ben) {
+      const n = f.n;
+      const sc = new Scope(f.scope, null, false);
+      this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      const z = this.z, s = this.s;
+      try {
+        if (n.ausdr) return this.ausw(n.body, sc);
+        const body = n.body.body;
+        for (let i = 0; i < body.length; i++) {
+          const r = this.fuehre(body[i], sc);
+          if (r !== undefined) {
+            if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
+            break;
+          }
+        }
+        return null;
+      } finally {
+        this.st--;
+        this.z = z; this.s = s;
+      }
+    }
+
+    namenAufruf(n, sc) {
+      const f = this.aufrufZiel(n.name, sc);
+      if (f === AUTO) return this.schieb(n, sc);
+      if (f instanceof Gebunden && f.liste[0].sicht !== null) {
+        const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+        const m = this.waehle(f.liste, this.anzahl(pos, ben));
+        this.pruefeMethodenZugriff(m, sc.ctx);
+        return this.rufeDecl(m, f.obj, pos, ben, n, 'normal');
+      }
+      return this.rufe(f, this.posArgs(n.args, sc), this.benArgs(n.args, sc), n);
+    }
+
+    aufrufZiel(name, sc) {
+      for (let s = sc; s !== null; s = s.parent) {
+        const v = s.vars.get(name);
+        if (v !== undefined) {
+          if (v.weg) throw this.weggeschoben(name);
+          return v.w;
+        }
+        if (s.grenze) break;
+      }
+      const ctx = sc.ctx;
+      if (ctx.klasse !== null) {
+        const d = ctx.dies instanceof Obj ? ctx.dies : null;
+        const l = this.findeMethodeListe(d !== null ? d.klasse : ctx.klasse, name) || (d !== null ? this.findeMethodeListe(ctx.klasse, name) : null);
+        if (l !== null) return new Gebunden(d, l, name);
+      }
+      if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
+      return this.leseName({ n: name }, sc);
+    }
+
+    schieb(n, sc) {
+      const a = n.args.pos[0];
+      if (!a || a.k !== 'Name' || n.args.pos.length !== 1) throw this.ananas('LaufzeitAnanas', 'schieb braucht genau einen Variablennamen: schieb(p).');
+      const v = this.finde(sc, a.n);
+      if (v === null) throw this.ananas('LaufzeitAnanas', '\'' + a.n + '\' ist nicht definiert.');
+      if (v.weg) throw this.weggeschoben(a.n);
+      if (this.kueche !== null) this.kuecheVar(v, a.n);
+      const w = v.w;
+      v.weg = true;
+      v.w = null;
+      return w;
+    }
+
+    untenAufruf(n, sc) {
+      const ctx = sc.ctx;
+      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+      if (ctx.klasse === null || ctx.klasse.basis === null) throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht – keine Basisklasse.');
+      const l = this.findeMethodeListe(ctx.klasse.basis, n.name);
+      if (l !== null) {
+        const m = this.waehle(l, this.anzahl(pos, ben));
+        return this.rufeDecl(m, m.statisch ? null : ctx.dies, pos, ben, n, 'normal');
+      }
+      if (ctx.dies instanceof Obj) {
+        if (this.istAnanasKlasse(ctx.klasse.basis) && ANANAS_M[n.name]) return ANANAS_M[n.name].call(this, ctx.dies, pos, ben, n);
+        if (OBJ_M[n.name]) return OBJ_M[n.name].call(this, ctx.dies, pos, ben, n);
+      }
+      throw this.ananas('LaufzeitAnanas', 'Methode \'' + n.name + '\' gibt es in der Basisklasse \'' + ctx.klasse.basis.name + '\' nicht.');
+    }
+
+    // ---------- Objekte ----------
+    instanziiere(k, pos, ben, node) {
+      if (k.rohling) throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
+      const o = new Obj(k, ++this.instanzen);
+      o.zugeklappt = this.istCalzone(k);
+      const kette = [];
+      for (let c = k; c; c = c.basis) kette.push(c);
+      for (let i = kette.length - 1; i >= 0; i--) {
+        const c = kette[i];
+        for (const f of c.felder) {
+          for (const d of f.decls) {
+            const v = new Var(standardWert(f.typ), f.typ, f.gebacken);
+            v.mod = f.sicht; v.klasse = c; v.besitzer = o;
+            o.felder.set(d.name, v);
+          }
+        }
+      }
+      this.konstruiere(k, o, pos, ben, node);
+      return o;
+    }
+
+    konstruiere(k, o, pos, ben, node) {
+      if (k.nativKtor !== null) { k.nativKtor(o, pos); return; }
+      if (k.ktoren.length === 0) {
+        if (k.basis !== null) this.konstruiere(k.basis, o, pos, ben, node);
+        else if (pos.length || ben !== null) throw this.ananas('LaufzeitAnanas', 'Klasse \'' + k.name + '\' hat keinen Konstruktor, bekam aber Argumente.');
+        this.feldInit(k, o);
+        return;
+      }
+      const m = this.waehle(k.ktoren, this.anzahl(pos, ben));
+      const ctx = { dies: o, klasse: k, ktor: true };
+      const sc = new Scope(this.global, ctx, true);
+      this.bindeParameter(m.params, sc, pos, ben, 'Konstruktor von \'' + k.name + '\'', true);
+      if (!m.hatUnten) {
+        if (k.basis !== null) this.konstruiere(k.basis, o, [], null, node);
+        this.feldInit(k, o);
+      }
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      const z = this.z, s = this.s;
+      try {
+        const body = m.body.body;
+        for (let i = 0; i < body.length; i++) {
+          const r = this.fuehre(body[i], sc);
+          if (r !== undefined) { this.rueck = null; break; }
+        }
+      } finally {
+        this.st--;
+        this.z = z; this.s = s;
+      }
+    }
+
+    feldInit(k, o) {
+      const ctx = { dies: o, klasse: k, ktor: true };
+      for (const f of k.felder) {
+        for (const d of f.decls) {
+          if (d.init === null) continue;
+          const sc = new Scope(this.global, ctx, true);
+          const v = this.ausw(d.init, sc);
+          this.pruefeTyp(f.typ, v, d.name);
+          o.felder.get(d.name).w = v;
+        }
+      }
+    }
+  }
+  laufzeitTeil(LaufzeitAufrufe);
+
+  // ══════════ site/js/pizza/laufzeit/auswertung.js ══════════
+  // pizza-Interpreter · Lieferung & Ofen, Ausdrücke, Anweisungen
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // Laufzeit: Lieferung & Ofen, Ausdrücke, Anweisungen
+  class LaufzeitAuswertung {
+    // ---------- Lieferung & Ofen ----------
+    liefere(l, budget, node) {
+      let z;
+      const st0 = this.st;
+      const frame = this.pushFrame('lieferung', budget);
+      try {
+        const v = this.rufe(l.fn, [], null, node);
+        z = new Zustellung(true, v, null);
+      } catch (e0) {
+        this.st = st0;
+        const e = this.normalisiere(e0);
+        if (e instanceof BudgetSig && e.frame === frame) z = new Zustellung(false, null, null);
+        else if (e instanceof AnanasWurf) z = new Zustellung(true, null, e);
+        else throw e;
+      } finally {
+        this.popFrame(frame);
+      }
+      l.zustellung = z;
+      return z;
+    }
+
+    blockWert(b, sc) {
+      const s = new Scope(sc, null, false);
+      const body = b.body;
+      for (let i = 0; i < body.length; i++) {
+        const r = this.fuehre(body[i], s);
+        if (r !== undefined) {
+          if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
+          return null;
+        }
+      }
+      return null;
+    }
+
+    ofen(n, sc) {
+      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+      // K-127: nur noch ein Zeitbudget (Positionsargument 0 = zeit)
+      let zeit = arg(pos, ben, 0, 'zeit');
+      if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
+      const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
+      const startUhr = this.schritte + this.offset;
+      const z0 = this.z, s0 = this.s;
+      let wert = null, roh = null;
+      const st0 = this.st;
+      try {
+        const budget = Math.floor(zeitMs);
+        const frame = this.pushFrame('ofen', budget);
+        try {
+          wert = this.blockWert(n.block, sc);
+        } catch (e) {
+          this.st = st0;
+          if (e instanceof BudgetSig && e.frame === frame) {
+            this.z = z0; this.s = s0;
+            if (n.roh) roh = new OfenRoh(frame.zwischen, new Dauer(this.schritte + this.offset - startUhr));
+            else throw this.ananas('VerbranntAnanas', 'Zu lange im Ofen: Budget von ' + budget + ' Schritten überschritten.');
+          } else throw e;
+        } finally {
+          this.popFrame(frame);
+        }
+      } catch (e0) {
+        this.st = st0;
+        const e = this.normalisiere(e0);
+        if (e instanceof AnanasWurf && n.faenge.length) {
+          const f = this.findeFang(n.faenge, e.obj);
+          if (f !== null) {
+            const s2 = new Scope(sc, null, false);
+            s2.vars.set(f.name, new Var(e.obj, null, false));
+            return this.blockWert(f.block, s2);
+          }
+        }
+        throw e;
+      }
+      if (roh !== null) {
+        const s2 = new Scope(sc, null, false);
+        s2.vars.set(n.roh.name, new Var(roh, null, false));
+        return this.blockWert(n.roh.block, s2);
+      }
+      return wert;
+    }
+
+    findeFang(faenge, obj) {
+      for (const f of faenge) {
+        if (f.typ === null) return f;
+        const k = this.klassen.get(f.typ.name);
+        if (k !== undefined && this.instanzVon(obj, k)) return f;
+      }
+      return null;
+    }
+
+    waehleFall(n, v, sc) {
+      let std = null;
+      for (const c of n.faelle) {
+        if (c.labels === null) { std = c; continue; }
+        for (const lab of c.labels) {
+          if (lab.k === 'Name' && v instanceof EnumWert) {
+            if (lab.n === v.name) return c;
+            continue;
+          }
+          if (this.gleich(v, this.ausw(lab, sc))) return c;
+        }
+      }
+      return std;
+    }
+
+    // ---------- Ausdrücke ----------
+    // Kleine Fallmethoden halten den JS-Stackframe von ausw()/fuehre() klein (tiefe Rekursion).
+    ausw(n, sc) {
+      if (++this.schritte > this.grenze) this.grenzeErreicht();
+      switch (n.k) {
+        case 'Zahl': case 'Text': case 'Bool': return n.v;
+        case 'Name': return this.leseName(n, sc);
+        case 'Dauer': return new Dauer(n.v);
+        case 'Karton': return null;
+        case 'Dies': return this.aDies(sc);
+        case 'Unten': return this.aUnten(sc);
+        case 'Lambda': return new Funktion(n, sc);
+      }
+      // Zusammengesetzte Ausdrücke zählen in die Stapeltiefe (deterministisches Limit, SPEC §14.4)
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      let r;
+      switch (n.k) {
+        case 'Bin': r = this.binaer(n.op, this.ausw(n.l, sc), this.ausw(n.r, sc), n); break;
+        case 'MCall': r = this.aMCall(n, sc); break;
+        case 'NCall': r = this.namenAufruf(n, sc); break;
+        case 'Mem': r = this.mitglied(this.ausw(n.obj, sc), n.name, n, sc); break;
+        case 'Log': r = this.aLog(n, sc); break;
+        case 'Un': r = this.aUn(n, sc); break;
+        case 'Tern': r = this.aTern(n, sc); break;
+        case 'Call': r = this.rufe(this.ausw(n.callee, sc), this.posArgs(n.args, sc), this.benArgs(n.args, sc), n); break;
+        case 'UntenCall': r = this.aUntenCall(n, sc); break;
+        case 'Neu': r = this.aNeu(n, sc); break;
+        case 'Blech': r = this.aBlech(n, sc); break;
+        case 'Bereich': r = this.aBereich(n, sc); break;
+        case 'Ofen': r = this.ofen(n, sc); break;
+        case 'WaehleA': r = this.aWaehle(n, sc); break;
+        default: throw this.ananas('LaufzeitAnanas', 'Unbekannter Ausdruck \'' + n.k + '\'.');
+      }
+      this.st--;
+      return r;
+    }
+
+    aMCall(n, sc) {
+      if (n.obj.k === 'Unten') return this.untenAufruf(n, sc);
+      const o = this.ausw(n.obj, sc);
+      const pos = this.posArgs(n.args, sc);
+      const ben = n.args.ben === null ? null : this.benArgs(n.args, sc);
+      return this.rufeMethode(o, n.name, pos, ben, n, sc);
+    }
+    aLog(n, sc) {
+      const l = this.ausw(n.l, sc);
+      if (l !== true && l !== false) this.bool(l);
+      if (n.op === '&&') { if (!l) return false; }
+      else if (l) return true;
+      const r = this.ausw(n.r, sc);
+      if (r !== true && r !== false) this.bool(r);
+      return r;
+    }
+    aUn(n, sc) {
+      const v = this.ausw(n.e, sc);
+      if (n.op === '!') { if (v !== true && v !== false) this.bool(v); return !v; }
+      if (typeof v === 'number') return -v;
+      if (v instanceof Dauer) return new Dauer(-v.ms);
+      throw this.ananas('TypAnanas', this.typName(v) + ' kann man nicht negieren.');
+    }
+    aTern(n, sc) {
+      const c = this.ausw(n.c, sc);
+      if (c !== true && c !== false) this.bool(c);
+      return c ? this.ausw(n.a, sc) : this.ausw(n.b, sc);
+    }
+    aDies(sc) {
+      const d = sc.ctx.dies;
+      if (d === null) throw this.ananas('LaufzeitAnanas', '\'dies\' gibt es hier nicht – wir sind in keiner Instanz.');
+      return d;
+    }
+    aUnten(sc) {
+      const ctx = sc.ctx;
+      if (ctx.dies !== null) return ctx.dies;
+      throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht.');
+    }
+    aUntenCall(n, sc) {
+      const ctx = sc.ctx;
+      if (!ctx.ktor || ctx.klasse === null || !(ctx.dies instanceof Obj)) throw this.ananas('LaufzeitAnanas', 'unten(…) geht nur im Konstruktor.');
+      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+      const k = ctx.klasse;
+      if (k.basis !== null) this.konstruiere(k.basis, ctx.dies, pos, ben, n);
+      else if (pos.length) throw this.ananas('LaufzeitAnanas', 'Klasse \'' + k.name + '\' hat keine Basisklasse für unten(…).');
+      this.feldInit(k, ctx.dies);
+      return null;
+    }
+    aNeu(n, sc) {
+      const tn = n.typ.name;
+      if (tn === 'Hawaii') throw this.panik();
+      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
+      if (!this.klassen.has(tn)) {
+        if (this.kueche !== null) {
+          if (UI_KLASSEN[tn] !== undefined || tn === 'Theke') throw this.ananas('KüchenAnanas', 'Die Theke gibt es nur in der Hauptküche.');
+          if (tn === 'Zettel') throw this.ananas('KüchenAnanas', 'Zettel gibt es nur in der Hauptküche.');
+          if (tn === 'Vorratskammer') throw this.ananas('KüchenAnanas', 'Neue Vorratskammern gibt es nur in der Hauptküche.');
+        }
+        if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
+        if (tn === 'Zettel') {
+          // Theke v5 (K-116): neu Zettel(wert = karton) – ohne Theke eine gewöhnliche Schachtel
+          const w = arg(pos, ben, 0, 'wert');
+          return new Zettel(w === undefined ? null : w);
+        }
+        if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
+        if (tn === 'Zufall') {
+          const sa = arg(pos, ben, 0, 'saat');
+          if (sa === undefined || sa === null) return new ZufallGen(Math.floor(this.zufallGlobal.r() * 4294967296));
+          return new ZufallGen(this.ganzzahl(sa, 'Zufall'));
+        }
+        if (tn === 'Vorratskammer') return this.neueKammer(pos, ben, n);
+        if (tn === 'Theke') {
+          if (this.uiTheke !== null) throw this.ananas('LaufzeitAnanas', 'Es gibt nur eine Theke pro Programm.');
+          const titel = arg(pos, ben, 0, 'titel');
+          const br = arg(pos, ben, 1, 'breite'), ho = arg(pos, ben, 2, 'hoehe');
+          const t = new UiTheke(titel === undefined ? '' : this.text(titel),  // K-102: karton → "karton" (Zustandsfeld)
+            br === undefined || br === null ? 480 : this.ganzzahl(br, 'Theke(breite: …)'),
+            ho === undefined || ho === null ? 360 : this.ganzzahl(ho, 'Theke(hoehe: …)'));
+          this.uiTheke = t;
+          return t;
+        }
+        // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten des Schemas
+        const hn = this.herdNeu(tn, pos, ben);
+        if (hn !== undefined) return hn;
+      }
+      switch (tn) {
+        case 'Blech': return pos.length && Array.isArray(pos[0]) ? pos[0].slice() : [];
+        case 'Speisekarte': return new Map();
+      }
+      const k = this.klassen.get(tn);
+      if (k === undefined) throw this.ananas('UnbekanntePizzaAnanas', 'Klasse \'' + tn + '\' steht nicht auf der Speisekarte.');
+      if (!(k instanceof Klasse)) throw this.ananas('RohlingAnanas', '\'' + tn + '\' kann man nicht mit neu backen.');
+      return this.instanziiere(k, pos, ben, n);
+    }
+    aBlech(n, sc) {
+      const e = n.elemente;
+      const r = new Array(e.length);
+      for (let i = 0; i < e.length; i++) r[i] = this.ausw(e[i], sc);
+      return r;
+    }
+    aBereich(n, sc) {
+      const a = this.zahl(this.ausw(n.a, sc), 'Bereich [a .. b]');
+      const b = this.zahl(this.ausw(n.b, sc), 'Bereich [a .. b]');
+      if (Math.abs(b - a) > 10000000) throw this.ananas('RechenAnanas', 'Der Bereich ist zu groß für ein Blech.');
+      const r = [];
+      if (a <= b) for (let x = a; x <= b; x++) r.push(x);
+      else for (let x = a; x >= b; x--) r.push(x);
+      return r;
+    }
+    aWaehle(n, sc) {
+      const v = this.ausw(n.subj, sc);
+      const c = this.waehleFall(n, v, sc);
+      if (c === null) return null;
+      return c.body.k === 'Block' ? this.blockWert(c.body, sc) : this.ausw(c.body, sc);
+    }
+
+    // ---------- Anweisungen ----------
+    block(n, sc) {
+      const s = n.d ? new Scope(sc, null, false) : sc;
+      const b = n.body;
+      for (let i = 0; i < b.length; i++) {
+        const r = this.fuehre(b[i], s);
+        if (r !== undefined) return r;
+      }
+      return undefined;
+    }
+
+    schreibeVar(v, w, sc, name) {
+      if (this.kueche !== null) this.kuecheVar(v, name);
+      if (v.g) {
+        if (v.unbelegt) v.unbelegt = false;
+        else if (!(v.besitzer !== null && sc.ctx.ktor && sc.ctx.dies === v.besitzer)) {
+          throw this.ananas('GebackenAnanas', '\'' + name + '\' ist gebacken und kann nicht mehr verändert werden.');
+        }
+      }
+      if (v.t !== null) this.pruefeTyp(v.t, w, name);
+      v.w = w;
+      v.weg = false;
+    }
+
+    zielVar(ziel, sc) {
+      if (ziel.k === 'Name') {
+        const v = this.finde(sc, ziel.n);
+        if (v === null) throw this.ananas('LaufzeitAnanas', '\'' + ziel.n + '\' ist nicht definiert.');
+        return v;
+      }
+      const o = this.ausw(ziel.obj, sc);
+      if (o === null || o === undefined) throw this.leer();
+      let v = null;
+      if (o instanceof Obj) {
+        v = o.felder.get(ziel.name);
+        if (v === undefined) v = this.statischesFeld(o.klasse, ziel.name);
+        if (v === null) throw this.ananas('LaufzeitAnanas', 'Feld \'' + ziel.name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
+        if (v.mod !== null) this.pruefeZugriff(v, o, sc.ctx, ziel.name);
+      } else if (o instanceof Klasse) {
+        v = this.statischesFeld(o, ziel.name);
+        if (v === null) throw this.ananas('LaufzeitAnanas', 'Feld \'' + ziel.name + '\' gibt es in Klasse ' + o.name + ' nicht.');
+        if (v.mod !== null) this.pruefeZugriff(v, null, sc.ctx, ziel.name);
+      } else throw this.ananas('TypAnanas', 'Auf ' + this.typName(o) + ' kann man keine Felder setzen.');
+      return v;
+    }
+
+    fuehre(n, sc) {
+      if (++this.schritte > this.grenze) this.grenzeErreicht();
+      this.z = n.z; this.s = n.s;
+      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
+      let r;
+      switch (n.k) {
+        case 'AusdrAnw': this.ausw(n.e, sc); break;
+        case 'Zuw': this.sZuw(n, sc); break;
+        case 'Var': this.sVar(n, sc); break;
+        case 'Inc': this.sInc(n, sc); break;
+        case 'Block': r = this.block(n, sc); break;
+        case 'Falls': r = this.sFalls(n, sc); break;
+        case 'Solange': r = this.sSolange(n, sc); break;
+        case 'Fuer': r = this.sFuer(n, sc); break;
+        case 'FuerJedes': r = this.sFuerJedes(n, sc); break;
+        case 'Waehle': r = this.sWaehle(n, sc); break;
+        case 'Serviere':
+          this.rueck = n.e === null ? null : this.ausw(n.e, sc);
+          r = RET;
+          break;
+        case 'Wirf': throw this.sWirf(n, sc);
+        case 'Probier': r = this.probier(n, sc); break;
+        case 'Abbrechen': r = BRK; break;
+        case 'Weiter': r = CNT; break;
+        case 'Leer': break;
+        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Methode': break;
+        default: throw this.ananas('LaufzeitAnanas', 'Unbekannte Anweisung \'' + n.k + '\'.');
+      }
+      this.st--;
+      return r;
+    }
+
+    sZuw(n, sc) {
+      const ziel = n.ziel;
+      const name = ziel.k === 'Name' ? ziel.n : ziel.name;
+      const v = this.zielVar(ziel, sc);
+      let w;
+      if (n.op === '=') {
+        w = this.ausw(n.wert, sc);
+      } else {
+        if (v.weg) throw this.weggeschoben(name);
+        w = this.binaer(n.op[0], v.w, this.ausw(n.wert, sc), n);
+      }
+      this.schreibeVar(v, w, sc, name);
+    }
+    sVar(n, sc) {
+      const typ = n.typ;
+      const ds = n.decls;
+      for (let i = 0; i < ds.length; i++) {
+        const d = ds[i];
+        if (d.init !== null) {
+          const v = this.ausw(d.init, sc);
+          this.pruefeTyp(typ, v, d.name);
+          sc.vars.set(d.name, new Var(v, typ, n.gebacken));
+        } else {
+          const x = new Var(standardWert(typ), typ, n.gebacken);
+          x.unbelegt = true;
+          sc.vars.set(d.name, x);
+        }
+      }
+    }
+    sInc(n, sc) {
+      const ziel = n.ziel;
+      const name = ziel.k === 'Name' ? ziel.n : ziel.name;
+      const v = this.zielVar(ziel, sc);
+      if (v.weg) throw this.weggeschoben(name);
+      const alt = v.w;
+      const w = typeof alt === 'number' ? alt + n.d : this.binaer('+', alt, n.d, n);
+      this.schreibeVar(v, w, sc, name);
+    }
+    sFalls(n, sc) {
+      const c = this.ausw(n.c, sc);
+      if (c === true) return this.block(n.dann, sc);
+      if (c !== false) this.bool(c);
+      if (n.sonst !== null) return n.sonst.k === 'Block' ? this.block(n.sonst, sc) : this.fuehre(n.sonst, sc);
+      return undefined;
+    }
+    sSolange(n, sc) {
+      for (;;) {
+        const c = this.ausw(n.c, sc);
+        if (c !== true) { if (c === false) break; this.bool(c); }
+        const r = this.block(n.body, sc);
+        if (r !== undefined) {
+          if (r === BRK) break;
+          if (r === CNT) continue;
+          return r;
+        }
+      }
+      return undefined;
+    }
+    sFuer(n, sc) {
+      const s = new Scope(sc, null, false);
+      if (n.init !== null) this.fuehre(n.init, s);
+      const upd = n.upd;
+      for (;;) {
+        if (n.c !== null) {
+          const c = this.ausw(n.c, s);
+          if (c !== true) { if (c === false) break; this.bool(c); }
+        }
+        const r = this.block(n.body, s);
+        if (r !== undefined) {
+          if (r === BRK) break;
+          if (r !== CNT) return r;
+        }
+        for (let i = 0; i < upd.length; i++) this.fuehre(upd[i], s);
+      }
+      return undefined;
+    }
+    sFuerJedes(n, sc) {
+      const q = this.ausw(n.quelle, sc);
+      let liste;
+      if (Array.isArray(q)) liste = q.slice();
+      else if (typeof q === 'string') liste = Array.from(q);
+      else if (q instanceof Map) liste = Array.from(q.keys());
+      else if (q instanceof EnumTyp) liste = q.werte.slice();
+      else if (q === null) throw this.leer();
+      else throw this.ananas('TypAnanas', 'Über ' + this.typName(q) + ' kann man nicht laufen.');
+      for (let i = 0; i < liste.length; i++) {
+        const s = new Scope(sc, null, false);
+        const v = liste[i];
+        if (n.typ !== null) this.pruefeTyp(n.typ, v, n.name);
+        s.vars.set(n.name, new Var(v, n.typ, false));
+        const r = this.block(n.body, s);
+        if (r !== undefined) {
+          if (r === BRK) break;
+          if (r !== CNT) return r;
+        }
+      }
+      return undefined;
+    }
+    sWaehle(n, sc) {
+      const v = this.ausw(n.subj, sc);
+      const c = this.waehleFall(n, v, sc);
+      if (c === null) return undefined;
+      const r = c.body.k === 'Block' ? this.block(c.body, sc) : this.fuehre(c.body, sc);
+      if (r === BRK) return undefined;
+      return r;
+    }
+    sWirf(n, sc) {
+      const v = this.ausw(n.e, sc);
+      if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s);
+      if (v === null || v === undefined) return this.leer();
+      return this.ananas('TypAnanas', 'Werfen kann man nur Ananas (Objekte), nicht ' + this.darstellung(v) + '.');
+    }
+
+    randErlaubt(e) {
+      return e instanceof AnanasWurf || e instanceof BudgetSig;
+    }
+
+    probier(n, sc) {
+      let r;
+      const st0 = this.st;
+      try {
+        try {
+          r = this.block(n.block, sc);
+        } catch (e0) {
+          this.st = st0;
+          const e = this.normalisiere(e0);
+          if (!(e instanceof AnanasWurf)) throw e;
+          const f = this.findeFang(n.faenge, e.obj);
+          if (f === null) throw e;
+          const s2 = new Scope(sc, null, false);
+          s2.vars.set(f.name, new Var(e.obj, null, false));
+          r = this.block(f.block, s2);
+        }
+      } catch (e0) {
+        this.st = st0;
+        const e = this.normalisiere(e0);
+        if (n.rand !== null && this.randErlaubt(e)) {
+          const rr = this.block(n.rand, sc);
+          if (rr !== undefined) return rr;
+        }
+        throw e;
+      }
+      if (n.rand !== null) {
+        const rr = this.block(n.rand, sc);
+        if (rr !== undefined) return rr;
+      }
+      return r;
+    }
+  }
+  laufzeitTeil(LaufzeitAuswertung);
+
+  // ══════════ site/js/pizza/std/basis.js ══════════
+  // pizza-Interpreter · Standardbibliothek: Methodentabellen der Grundtypen, Bote, Bestellannahme, Uhr
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // =====================================================================
   // STANDARDBIBLIOTHEK – Methodentabellen (this = Laufzeit)
@@ -1718,6 +3529,10 @@
       return null;
     }
   });
+
+  // ══════════ site/js/pizza/std/mathe.js ══════════
+  // pizza-Interpreter · Standardbibliothek: Mathe (fdlibm-Ports WINKEL und LOGEXP)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // ---------------------------------------------------------------- K-137: Winkelfunktionen (fdlibm, wie V8 12.x)
   // Nicht Math.sin & Co.: JS-Motoren rechnen dort verschieden (Node 22/V8 12.4 = fdlibm, Chrome 156 weicht in jeder
@@ -2260,6 +4075,10 @@
     'grad': function (m, pos) { return WINKEL.grad(this.zahl(pos[0], 'grad')); }
   });
 
+  // ══════════ site/js/pizza/std/zufall.js ══════════
+  // pizza-Interpreter · Standardbibliothek: Zufall
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   // Methoden eines Zufallsstroms; `g` ist der ZufallGen (global oder eigener aus `neu Zufall`)
   const ZUFALL_GEN_M = {
     'zahl': function (g, pos) {
@@ -2317,6 +4136,10 @@
     }
   }));
 
+  // ══════════ site/js/pizza/std/vorrat.js ══════════
+  // pizza-Interpreter · Vorratskammer (Methodentabelle und Laufzeit)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   // ---------------------------------------------------------------- Vorratskammer (K-079/K-080)
   const KAMMER_M = tabelle({
     'lege': function (k, pos) {
@@ -2352,6 +4175,99 @@
     'alsText': function (k) { return this.text(k); }
   });
 
+  // Laufzeit: Vorratskammer
+  class LaufzeitVorrat {
+    kammerSchluessel(k) {
+      if (typeof k !== 'string') throw this.ananas('TypAnanas', 'Schlüssel einer Vorratskammer müssen Texte sein, nicht ' + this.darstellung(k) + '.');
+      return k;
+    }
+
+    // Pizza-Wert → JSON-Wert (K-080); wirft TypAnanas für nicht einlagerbare Werte
+    einlagern(v) {
+      const nein = () => this.ananas('TypAnanas', '\'' + this.textSicher(v) + '\' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).');
+      if (v === null || v === undefined) return null;
+      switch (typeof v) {
+        case 'number': if (!isFinite(v)) throw nein(); return Object.is(v, -0) ? 0 : v;
+        case 'string': case 'boolean': return v;
+      }
+      if (Array.isArray(v)) return v.map(x => this.einlagern(x));
+      if (v instanceof Map) {
+        const paare = [];
+        for (const [k, w] of v) {
+          if (typeof k !== 'string') throw nein();
+          paare.push([k, this.einlagern(w)]);
+        }
+        return { speisekarte: paare };
+      }
+      throw nein();
+    }
+
+    textSicher(v) { try { return this.text(v); } catch (e) { return this.typName(v); } }
+
+    // JSON-Wert → neuer Pizza-Wert (tiefe Kopie)
+    auslagern(j) {
+      if (j === null || typeof j !== 'object') return j === undefined ? null : j;
+      if (Array.isArray(j)) return j.map(x => this.auslagern(x));
+      if (Array.isArray(j.speisekarte)) {
+        const m = new Map();
+        for (const p of j.speisekarte) if (Array.isArray(p) && typeof p[0] === 'string') m.set(p[0], this.auslagern(p[1]));
+        return m;
+      }
+      return null;
+    }
+
+    kammerEintraege(k) {
+      return Array.from(k.daten, ([s, w]) => [s, JSON.parse(JSON.stringify(w))]);
+    }
+
+    kammerGeaendert(k, schluessel, wert, rueckgaengig) {
+      const groesse = new TextEncoder().encode(JSON.stringify({ v: 1, name: k.kennung, eintraege: Array.from(k.daten) })).length;
+      if (groesse > 1048576 && rueckgaengig !== null) {
+        rueckgaengig();
+        throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' ist voll (Limit 1 MiB).');
+      }
+      this.emit({ typ: 'vorrat', name: k.kennung, schluessel, wert: wert === null ? null : JSON.parse(JSON.stringify(wert)) });
+      if (this.onVorrat !== null) {
+        let ok = true;
+        try { ok = this.onVorrat(k.kennung, this.kammerEintraege(k)) !== false; } catch (e) { ok = false; }
+        if (!ok) throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' konnte nicht gespeichert werden.');
+      }
+    }
+
+    // K-106: neu Vorratskammer(name[, namensraum]) – Kennung = name bzw. namensraum/name; gleiche Kennung = gleiche Kammer
+    neueKammer(pos, ben, node) {
+      const n = arg(pos, ben, 0, 'name');
+      const name = n === undefined || n === null ? '' : this.text(n);
+      if (!/^[a-z0-9-]{1,40}$/.test(name)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Kammername \'' + name + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
+      const r = arg(pos, ben, 1, 'namensraum');
+      const raum = r === undefined || r === null ? null : this.text(r);
+      if (raum !== null && !/^[a-z0-9-]{1,40}$/.test(raum)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Namensraum \'' + raum + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
+      const kennung = raum === null ? name : raum + '/' + name;
+      const da = this.kammern.get(kennung);
+      if (da !== undefined) return da;
+      if (this.vorratOpt === null && this.onVorrat === null && !this.w0101) {
+        this.w0101 = true;
+        this.warnung('W0101', 'Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.', node);
+      }
+      const k = new Kammer(name, raum);
+      let eintraege = null;
+      if (this.vorratOpt !== null) { try { eintraege = this.vorratOpt[kennung]; } catch (e) { eintraege = null; } }
+      if (eintraege && !Array.isArray(eintraege) && Array.isArray(eintraege.eintraege)) eintraege = eintraege.eintraege;
+      if (Array.isArray(eintraege)) {
+        for (const p of eintraege) {
+          if (Array.isArray(p) && typeof p[0] === 'string') k.daten.set(p[0], JSON.parse(JSON.stringify(p[1] === undefined ? null : p[1])));
+        }
+      }
+      this.kammern.set(kennung, k);
+      return k;
+    }
+  }
+  laufzeitTeil(LaufzeitVorrat);
+
+  // ══════════ site/js/pizza/std/spiegel.js ══════════
+  // pizza-Interpreter · Standardbibliothek: Spiegel
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   const SPIEGEL_M = tabelle({
     'felder': function (m, pos) {
       const o = pos[0];
@@ -2363,6 +4279,86 @@
       return r;
     }
   });
+
+  // ══════════ site/js/pizza/theke/tabellen.js ══════════
+  // pizza-Interpreter · Theke: Zutaten-Klassen, Stil, Methodentabellen (THEKE.md)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
+  // ---------- Theke (UI-Framework, THEKE.md) ----------
+  const UI_KLASSEN = {
+    Schild: 'schild', Knopf: 'knopf', Eingabe: 'eingabe', Haken: 'haken', Stapel: 'stapel', Reihe: 'reihe',
+    Takt: 'takt', Fortschritt: 'fortschritt', Abschnitt: 'abschnitt', Tabelle: 'tabelle', Reiter: 'reiter',
+    Auswahl: 'auswahl', Tastatur: 'tastatur'
+  };
+  const UI_ART_NAME = {
+    schild: 'Schild', knopf: 'Knopf', eingabe: 'Eingabe', haken: 'Haken', stapel: 'Stapel', reihe: 'Reihe',
+    takt: 'Takt', fortschritt: 'Fortschritt', abschnitt: 'Abschnitt', tabelle: 'Tabelle', reiter: 'Reiter',
+    auswahl: 'Auswahl', tastatur: 'Tastatur'
+  };
+  const UI_BEHAELTER = { stapel: true, reihe: true, abschnitt: true, reiter: true };
+  // Stil-Whitelist (K-068, K-113, K-120): Reihenfolge der Schlüssel ist der Erlaubt-Text der Fehlermeldung (beide Laufzeiten gleich).
+  // 'zahl' = Zahl ≥ 0, 'ganzzahl' = ganze Zahl ≥ 1, Liste = Vokabular.
+  const UI_STIL = {
+    breite: 'zahl', hoehe: 'zahl', abstand: 'zahl',
+    ausrichtung: ['links', 'mitte', 'rechts'],
+    schrift: ['klein', 'normal', 'gross', 'mono', 'riesig'],
+    farbe: ['tomate', 'basilikum', 'mozzarella', 'kruste', 'normal'],
+    zeilen: 'ganzzahl', mindestbreite: 'zahl',
+    // Theke v6 (K-120): senkrechte Lage – an einer Reihe für ihre Kinder, an einer Zutat direkt in einer Reihe für sich selbst
+    senkrecht: ['oben', 'mitte', 'unten', 'strecken'],
+    // Theke v7 (K-126): Spaltengewichte einer Tabelle – Blech aus Zahlen > 0
+    spalten: 'gewichte'
+  };
+  // Theke v3 (K-090): Animationsarten (Laufzeit-Liste; Renderer-Registry kennt dieselben Namen)
+  const UI_ANIMATIONEN = ['puls', 'huepfen', 'wackeln', 'funkeln', 'einblenden', 'aufpoppen'];
+  const UI_ANIM_MAX = 32;  // höchstens 32 Einträge je aendere-Nachricht, weitere entfallen still
+  // Theke v5 (K-116): höchstens 100 Durchläufe je Synchronisationspunkt, dann LaufzeitAnanas (Zyklus)
+  const UI_BINDUNG_DURCHLAEUFE = 100;
+  // K-117: Gleichheit je Feld – Listen elementweise (zeilen verschachtelt), sonst nach Wert
+  function uiGleich(a, b) {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!uiGleich(a[i], b[i])) return false;
+      return true;
+    }
+    return a === b;
+  }
+  class UiTheke {
+    constructor(titel, breite, hoehe) {
+      this.titel = titel; this.breite = breite; this.hoehe = hoehe;
+      this.wurzel = null; this.gezeigt = false; this.geschlossen = false;
+    }
+  }
+  class UiZutat {
+    constructor(art, id) {
+      this.art = art; this.id = id; this.eltern = null; this.sichtbar = true; this.stil = null;
+      this.text = ''; this.wert = ''; this.platzhalter = ''; this.an = false; this.aktiv = true;
+      this.kinder = UI_BEHAELTER[art] === true ? [] : null;
+      this.beiKlick = null; this.beiAenderung = null; this.beiEnter = null;
+      this.stilNull = null; this.hinweis = ''; this.uebergang = false;
+      this.marke = '';                                       // Theke v6 (K-124): Marke am Reiter-Tab dieser Seite
+      this.intervall = 1000; this.beiTakt = null;            // Takt
+      this.fortschritt = 0;                                  // Fortschritt (wert 0…1)
+      this.titel = ''; this.titelListe = null; this.gewaehlt = 1;  // Abschnitt / Reiter / Auswahl
+      this.klappbar = false; this.zu = false;                // Abschnitt (K-108)
+      this.optionen = null;                                  // Auswahl (K-109)
+      this.beiTaste = null;                                  // Tastatur (K-110)
+      this.spalten = null; this.zeilen = null;               // Tabelle
+      this.abh = null;        // Theke v5 (K-116): Protokollfeld → Set<UiBindung>, die dieses Feld gelesen haben
+      this.bindungen = null;  // Theke v5: Feld bzw. 's:'+Stilschlüssel → UiBindung
+    }
+  }
+  // Theke v5 (K-116): Zettel – beobachtbarer Wert (keine Zutat); abh wie bei UiZutat (Feld 'wert')
+  // Theke v7 (K-125): abl = UiBindung eines abgeleiteten Zettels (Zettel.aus(fn)), sonst null
+  class Zettel { constructor(w) { this.w = w; this.abh = null; this.abl = null; } }
+  // Theke v5 (K-116): eine Bindung – Zutat z, Eigenschaft/Stilschlüssel feld, Ausdruck fn, Aufrufstelle node (W0103);
+  // quellen = flache Liste [objekt, feld, objekt, feld, …] der zuletzt gelesenen Quellen
+  class UiBindung {
+    constructor(z, feld, stil, fn, node) {
+      this.z = z; this.feld = feld; this.stil = stil; this.fn = fn; this.node = node;
+      this.dirty = true; this.quellen = []; this.erst = true;
+    }
+  }
 
   const ZUTAT_M = {
     'id': function (z) { return z.id; },
@@ -2572,453 +4568,12 @@
     'aus': function (m, pos, ben, node) { return this.uiZettelAus(pos, node); }
   });
 
-  const TABELLEN = new Map([
-    [Dauer, DAUER_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
-    [Zustellung, ZUST_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
-    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [Zettel, ZETTEL_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
-  ]);
+  // ══════════ site/js/pizza/theke/laufzeit.js ══════════
+  // pizza-Interpreter · Theke: Laufzeit (Fenster, Zettel, Bindungen, Ereignisse)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
-  // K-118: Eine Bindung rechnet nur – in ihrem Ausdruck werfen alle Methoden außer den Gettern (Methodenname wie gerufen);
-  // Getter/Setter-Überladungen (aktiv, sichtbar, …) nur mit Argument. Rückruf-Registrierungen (bei…) stehen nicht auf der
-  // Verbotsliste von K-118 und bleiben erlaubt.
-  const UI_REIN = new Set(['id', 'alsText', 'text', 'wert', 'an', 'intervall', 'titel', 'gewaehlt', 'optionen', 'spalten', 'zeilen',
-    'beiKlick', 'beiAenderung', 'beiEnter', 'beiTakt', 'beiTaste']);
-  const UI_UEBERLADEN = new Set(['aktiv', 'sichtbar', 'hinweis', 'marke', 'uebergang', 'klappbar', 'zu']);
-  function nurRechnen(tab) {
-    for (const k of Object.keys(tab)) {
-      if (UI_REIN.has(k)) continue;
-      const f = tab[k], ueber = UI_UEBERLADEN.has(k);
-      tab[k] = function (o, pos) {
-        if (this.uiBindungLauf !== null && !(ueber && pos.length === 0)) {
-          throw this.ananas('LaufzeitAnanas', 'Eine Bindung rechnet nur – \'' + k + '\' ist darin nicht erlaubt.');
-        }
-        return f.apply(this, arguments);
-      };
-    }
-  }
-  for (const t of new Set([THEKE_M, ZETTEL_M, ZETTEL_MOD_M].concat(Object.values(UI_TABELLEN)))) nurRechnen(t);
-
-  // Regel S4 (THREADS.md §2.3): Eingabe und Theke gibt es nur in der Hauptküche – jede Methode wirft in einer Küche.
-  function nurHauptkueche(tab, text) {
-    for (const k of Object.keys(tab)) {
-      const f = tab[k];
-      tab[k] = function () {
-        if (this.kueche !== null) throw this.ananas('KüchenAnanas', text);
-        return f.apply(this, arguments);
-      };
-    }
-  }
-  nurHauptkueche(EINGABE_M, 'Bestellannahme gibt es nur in der Hauptküche.');
-  for (const t of new Set([THEKE_M].concat(Object.values(UI_TABELLEN)))) nurHauptkueche(t, 'Die Theke gibt es nur in der Hauptküche.');
-  nurHauptkueche(ZETTEL_M, 'Zettel gibt es nur in der Hauptküche.');
-  nurHauptkueche(ZETTEL_MOD_M, 'Zettel gibt es nur in der Hauptküche.');
-
-  // =====================================================================
-  // LAUFZEIT – Interpreter
-  // =====================================================================
-
-  class Laufzeit {
-    constructor(ast, opt, emit) {
-      this.ast = ast;
-      this.emit = emit;
-      this.limit = typeof opt.schrittLimit === 'number' && opt.schrittLimit > 0 ? opt.schrittLimit : STANDARD_LIMIT;
-      this.args = Array.isArray(opt.args) ? opt.args.map(String) : [];
-      this.onEingabe = typeof opt.onEingabe === 'function' ? opt.onEingabe : null;
-      this.eingabe = Array.isArray(opt.eingabe) ? opt.eingabe.map(x => x == null ? null : String(x)) : null;
-      this.eingabePos = 0;
-      this.eingabeEof = false;
-      this.onUi = typeof opt.onUi === 'function' ? opt.onUi : null;
-      this.uiWarte = typeof opt.onUiWarte === 'function' ? opt.onUiWarte : null;
-      this.uiListe = Array.isArray(opt.uiEreignisse) ? opt.uiEreignisse.slice() : null;
-      this.uiPos = 0;
-      this.uiTheke = null;
-      this.uiZutaten = new Map();
-      this.uiIdZaehler = 0;
-      this.uiOffen = new Map();
-      this.uiAnim = [];  // gepufferte Animationen (K-090), Aufrufreihenfolge
-      this.uiBindungen = [];      // Theke v5 (K-116): alle Bindungen in Registrierungsreihenfolge
-      this.uiBindungLauf = null;  // die gerade ausgewertete Bindung (Quellenerfassung, K-118-Verbote)
-      this.uiDirty = false;       // mindestens eine Bindung ist schmutzig
-      // Herd (SPEC §18): Kern-Modul (optionen.herdKern), Renderer-Rückruf onHerd(art, daten), Kern-Instanz und Welt (lazy)
-      this.herdOpt = opt.herdKern;
-      this.onHerd = typeof opt.onHerd === 'function' ? opt.onHerd : null;
-      this.herdSpion = typeof opt.herdSpion === 'function' ? opt.herdSpion : null;   // nur Werkzeuge (tests/herd/zeige.js)
-      this.hk = null;
-      this.hkFehlt = false;
-      this.herd = null;
-      this.herdNoetig = false;
-      this.schritte = 0;
-      this.offset = 0;
-      this.frames = [];
-      this.grenze = this.limit;
-      this.limitBasis = 0;   // K-087: P0002 bezieht sich auf schritte − limitBasis (neu gesetzt bei jedem Theke-Rückruf)
-      this.echtzeit = typeof opt.echtzeit === 'number' && isFinite(opt.echtzeit) ? Math.round(opt.echtzeit) : null;
-      this.zone = typeof opt.zone === 'number' && isFinite(opt.zone) ? Math.round(opt.zone) : null;   // K-154
-      this.klassen = new Map();
-      this.klassenListe = [];
-      this.alleMethoden = [];
-      this.warnSet = new Set();
-      this.lieferungen = [];
-      this.lieferNr = 0;
-      this.rueck = null;
-      this.z = null;
-      this.s = null;
-      this.st = 0;
-      this.instanzen = 0;
-      const saat = opt.zufallsSaat;
-      this.zufallGlobal = new ZufallGen(typeof saat === 'number' && Number.isInteger(saat) ? saat : 42);
-      this.vorratOpt = opt.vorrat !== null && typeof opt.vorrat === 'object' ? opt.vorrat : null;
-      this.onVorrat = typeof opt.onVorrat === 'function' ? opt.onVorrat : null;
-      this.kammern = new Map();
-      this.w0101 = false;
-      // Küchenbrigade: aktuelle Küche (null = Hauptküche); kuechenChaos (nur Tests) permutiert die Stück-Reihenfolge
-      this.kueche = null;
-      this.chaos = typeof opt.kuechenChaos === 'number' && Number.isInteger(opt.kuechenChaos) ? new ZufallGen(opt.kuechenChaos) : null;
-      this.globalCtx = { dies: null, klasse: null, ktor: false };
-      this.global = new Scope(null, this.globalCtx, true);
-      this.globalCache = { cache: null };
-      for (const [name, basis] of ANANAS_BAUM) {
-        const k = new Klasse(name, null);
-        k.basis = basis ? this.klassen.get(basis) : null;
-        k.eingebaut = true;
-        this.klassen.set(name, k);
-      }
-      this.klassen.get('Ananas').nativKtor = (o, pos) => {
-        o.nachricht = pos.length && pos[0] !== null && pos[0] !== undefined ? this.text(pos[0]) : '';
-      };
-      this.ananasWurzel = this.klassen.get('Ananas');
-      const L = this;
-      this.globals = new Map([
-        ['Bote', new Modul('Bote', BOTE_M, null)],
-        ['Bestellannahme', new Modul('Bestellannahme', EINGABE_M, null)],
-        ['Uhr', new Modul('Uhr', UHR_M, null)],
-        ['Mathe', new Modul('Mathe', MATHE_M, { PI: Math.PI, E: Math.E })],
-        ['Zufall', new Modul('Zufall', ZUFALL_M, null)],
-        ['Spiegel', new Modul('Spiegel', SPIEGEL_M, null)],
-        ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
-        ['Herd', new Modul('Herd', HERD_MOD_M, null)],
-        ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
-        ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
-        ['bestelle', new NativFn('bestelle', function (pos) {
-          const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
-          L.lieferungen.push(l);
-          return l;
-        })],
-        ['zwischenstand', new NativFn('zwischenstand', function (pos) {
-          // in einer Küche zählen nur Öfen, die in der Küche geöffnet wurden (THREADS.md §2.2)
-          const basis = L.kueche !== null ? L.kueche.auftrag.frameBasis : 0;
-          for (let i = L.frames.length - 1; i >= basis; i--) {
-            if (L.frames[i].art === 'ofen') { L.frames[i].zwischen = pos.length ? pos[0] : null; break; }
-          }
-          return null;
-        })],
-        ['schieb', new NativFn('schieb', function () {
-          throw L.ananas('LaufzeitAnanas', 'schieb braucht einen Variablennamen: schieb(p).');
-        })]
-      ]);
-    }
-
-    // ---------- Hilfen ----------
-    warnung(code, text, node, schluessel, methode) {
-      const z = node ? node.z : this.z, s = node ? node.s : this.s;
-      const key = schluessel || (code + ':' + z + ':' + s);
-      const ev = { typ: 'warnung', code, text: code + ': ' + text, zeile: z == null ? null : z, spalte: s == null ? null : s };
-      if (this.kueche !== null) { this.gibWeiter({ ev, key, m: methode || null }); return; }
-      if (this.warnSet.has(key)) return;
-      this.warnSet.add(key);
-      this.emit(ev);
-    }
-
-    ananas(typ, text) {
-      const k = this.klassen.get(typ);
-      const o = new Obj(k, ++k.zaehler);
-      o.nachricht = text;
-      return new AnanasWurf(o, this.z, this.s);
-    }
-    leer() { return this.ananas('LeererKartonAnanas', 'Der Karton ist leer.'); }
-    weggeschoben(name) { return this.ananas('LeererKartonAnanas', '\'' + name + '\' wurde weggeschoben – der Karton ist leer.'); }
-    stapel() { return this.ananas('LaufzeitAnanas', 'Zu viele Pizzen übereinander (Stapelüberlauf).'); }
-    panik() { return new PanikSig(); }
-
-    normalisiere(e) {
-      if (e instanceof RangeError && /call stack|too much recursion|stack/i.test(e.message)) {
-        const w = this.stapel();
-        return w;
-      }
-      // Grenze der JS-Engine (Text/Blech zu groß, z. B. `t += t` in einer Schleife): wie der Wasm-Motor als fangbare
-      // Kühlschrank-Ananas melden, nicht als interner Fehler (K-014 ist für echte Motorfehler).
-      if (e instanceof RangeError && /Invalid (string|array|typed array) length|allocation failed|out of memory/i.test(e.message)) {
-        return this.ananas('LaufzeitAnanas', 'Der Kühlschrank ist voll (Speicherlimit erreicht).');
-      }
-      return e;
-    }
-
-    typName(v) {
-      if (v === null || v === undefined) return 'karton';
-      switch (typeof v) {
-        case 'number': return Number.isInteger(v) ? 'salami' : 'funghi';
-        case 'string': return 'margherita';
-        case 'boolean': return 'diavolo';
-      }
-      if (Array.isArray(v)) return 'Blech';
-      if (v instanceof Map) return 'Speisekarte';
-      if (v instanceof Dauer) return 'Dauer';
-      if (v instanceof Obj) return v.klasse.name;
-      if (v instanceof EnumWert) return v.typ.name;
-      if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur) return 'Klasse ' + v.name;
-      if (v instanceof Modul) return v.name;
-      if (v instanceof Funktion || v instanceof Gebunden || v instanceof NativFn) return 'Funktion';
-      if (v instanceof Teig) return 'Teig';
-      if (v instanceof Lieferung) return 'Lieferung';
-      if (v instanceof Zustellung) return 'Zustellung';
-      if (v instanceof Reste) return 'Reste';
-      if (v instanceof OfenRoh) return 'Rohling';
-      if (v instanceof UiTheke) return 'Theke';
-      if (v instanceof UiZutat) return UI_ART_NAME[v.art];
-      if (v instanceof Zettel) return 'Zettel';
-      if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
-      if (v instanceof ZufallGen) return 'Zufall';
-      if (v instanceof Kammer) return 'Vorratskammer';
-      return 'Unbekanntes';
-    }
-
-    darstellung(v) {
-      if (typeof v === 'string') return '"' + v + '"';
-      const st0 = this.st;
-      try { return this.text(v); } catch (e) { this.st = st0; return this.typName(v); }
-    }
-
-    zahl(v, wo) {
-      if (typeof v !== 'number') throw this.ananas('TypAnanas', wo + ' braucht eine Zahl, nicht ' + this.darstellung(v) + '.');
-      return v;
-    }
-    ganzzahl(v, wo) {
-      if (typeof v !== 'number' || !Number.isInteger(v)) throw this.ananas('TypAnanas', wo + ' braucht eine Ganzzahl, nicht ' + this.darstellung(v) + '.');
-      return v;
-    }
-    dauerMs(v, wo) {
-      if (v instanceof Dauer) return v.ms;
-      if (typeof v === 'number') return v;
-      throw this.ananas('TypAnanas', wo + ' braucht eine Dauer, nicht ' + this.darstellung(v) + '.');
-    }
-    bool(v) {
-      if (v === true || v === false) return v;
-      throw this.ananas('TypAnanas', 'Erwartet diavolo (ja/nein), bekam ' + this.darstellung(v) + '.');
-    }
-    funktionArg(f, wo) {
-      if (f instanceof Funktion || f instanceof Gebunden || f instanceof NativFn) return f;
-      throw this.ananas('TypAnanas', wo + '() braucht eine Funktion, z. B. () -> (42).');
-    }
-    index(b, i) {
-      if (typeof i !== 'number' || !Number.isInteger(i) || i < 1 || i > b.length) {
-        throw this.ananas('KeinStückAnanas', 'Stück ' + this.text(i) + ' gibt es nicht – das Blech hat ' + b.length + ' Stück' + (b.length === 1 ? '' : 'e') + '.');
-      }
-      return i;
-    }
-    schluessel(k) { return k === undefined ? null : k; }
-    anzahl(pos, ben) {
-      if (ben === null) return pos.length;
-      let n = pos.length;
-      for (const k in ben) n++;
-      return n;
-    }
-    schneide(b, n) {
-      const len = b.length, basis = Math.floor(len / n), extra = len % n;
-      const r = [];
-      let i = 0;
-      for (let j = 0; j < n; j++) {
-        const g = basis + (j < extra ? 1 : 0);
-        r.push(b.slice(i, i + g));
-        i += g;
-      }
-      return r;
-    }
-    istCalzone(k) {
-      for (let c = k; c; c = c.basis) if (c.calzone) return true;
-      return false;
-    }
-    istAnanasKlasse(k) {
-      for (let c = k; c; c = c.basis) if (c === this.ananasWurzel) return true;
-      return false;
-    }
-
-    // ---------- Eingabe ----------
-    liesZeile(prompt, art) {
-      if (prompt !== null) this.emit({ typ: 'ausgabe', text: prompt, umbruch: false });
-      let zeile = null;
-      if (this.eingabeEof) { /* EOF ist endgültig (K-042) */ }
-      else if (this.onEingabe !== null) {
-        try { zeile = this.onEingabe({ prompt, art }); } catch (e) { zeile = null; }
-        if (zeile === undefined) zeile = null;
-      } else if (this.eingabe !== null && this.eingabePos < this.eingabe.length) {
-        zeile = this.eingabe[this.eingabePos++];
-      }
-      if (zeile !== null) zeile = String(zeile).replace(/\r?\n$/, '');
-      else this.eingabeEof = true;
-      this.emit({ typ: 'eingabe', text: zeile });
-      return zeile;
-    }
-
-    alsEingabeZahl(zeile, ersatz) {
-      if (zeile === null) return ersatz === undefined ? null : ersatz;
-      const v = zahlAusText(zeile);
-      if (v === null) throw this.ananas('TypAnanas', '\'' + zeile + '\' ist keine Zahl.');
-      return v;
-    }
-
-    // ---------- Schritte & Budgets ----------
-    neuGrenze() {
-      let g = this.limitBasis + this.limit;
-      const fr = this.frames;
-      for (let i = 0; i < fr.length; i++) {
-        const f = fr[i];
-        if (!f.tot) { const x = f.ende - this.offset; if (x < g) g = x; }
-      }
-      this.grenze = g;
-    }
-    grenzeErreicht() {
-      if (this.schritte > this.limitBasis + this.limit) throw new LimitSig();
-      const uhr = this.schritte + this.offset;
-      const fr = this.frames;
-      for (let i = 0; i < fr.length; i++) {
-        const f = fr[i];
-        if (!f.tot && uhr > f.ende) {
-          for (let j = i; j < fr.length; j++) fr[j].tot = true;
-          this.neuGrenze();
-          throw new BudgetSig(f);
-        }
-      }
-      this.neuGrenze();
-    }
-    pushFrame(art, budget) {
-      const f = { art, ende: this.schritte + this.offset + budget, zwischen: null, tot: false };
-      this.frames.push(f);
-      this.neuGrenze();
-      return f;
-    }
-    popFrame(f) {
-      const i = this.frames.lastIndexOf(f);
-      if (i >= 0) this.frames.splice(i, 1);
-      this.neuGrenze();
-    }
-
-    // ---------- Programmstart ----------
-    start() {
-      const body = this.ast.body;
-      for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
-      this.pruefe();
-      if (this.herdNoetig) this.herdKern(true);
-      this.vorbereiten();
-      for (const st of body) {
-        if (DEKL.has(st.k)) continue;
-        const r = this.fuehre(st, this.global);
-        if (r === RET) break;
-      }
-      let haupt = null;
-      for (const k of this.klassenListe) {
-        const l = k.methoden.get('hauptgang');
-        if (l) { haupt = l[0]; break; }
-      }
-      if (!haupt) {
-        const v = this.global.vars.get('hauptgang');
-        if (v && v.w instanceof Gebunden) haupt = v.w.liste[0];
-      }
-      if (haupt) {
-        this.z = haupt.decl.z; this.s = haupt.decl.s;
-        const pos = haupt.params.length ? [this.args.slice()] : [];
-        const dies = haupt.statisch || haupt.klasse === null ? null : this.instanziiere(haupt.klasse, [], null, null);
-        this.rufeDecl(haupt, dies, pos, null, null, 'normal');
-      }
-      this.lieferungenNachEnde();
-      this.uiEnde();
-    }
-
-    // ---------- Vorratskammer ----------
-    kammerSchluessel(k) {
-      if (typeof k !== 'string') throw this.ananas('TypAnanas', 'Schlüssel einer Vorratskammer müssen Texte sein, nicht ' + this.darstellung(k) + '.');
-      return k;
-    }
-
-    // Pizza-Wert → JSON-Wert (K-080); wirft TypAnanas für nicht einlagerbare Werte
-    einlagern(v) {
-      const nein = () => this.ananas('TypAnanas', '\'' + this.textSicher(v) + '\' lässt sich nicht einlagern (erlaubt: Zahlen, Texte, Wahrheitswerte, karton, Bleche und Speisekarten daraus).');
-      if (v === null || v === undefined) return null;
-      switch (typeof v) {
-        case 'number': if (!isFinite(v)) throw nein(); return Object.is(v, -0) ? 0 : v;
-        case 'string': case 'boolean': return v;
-      }
-      if (Array.isArray(v)) return v.map(x => this.einlagern(x));
-      if (v instanceof Map) {
-        const paare = [];
-        for (const [k, w] of v) {
-          if (typeof k !== 'string') throw nein();
-          paare.push([k, this.einlagern(w)]);
-        }
-        return { speisekarte: paare };
-      }
-      throw nein();
-    }
-
-    textSicher(v) { try { return this.text(v); } catch (e) { return this.typName(v); } }
-
-    // JSON-Wert → neuer Pizza-Wert (tiefe Kopie)
-    auslagern(j) {
-      if (j === null || typeof j !== 'object') return j === undefined ? null : j;
-      if (Array.isArray(j)) return j.map(x => this.auslagern(x));
-      if (Array.isArray(j.speisekarte)) {
-        const m = new Map();
-        for (const p of j.speisekarte) if (Array.isArray(p) && typeof p[0] === 'string') m.set(p[0], this.auslagern(p[1]));
-        return m;
-      }
-      return null;
-    }
-
-    kammerEintraege(k) {
-      return Array.from(k.daten, ([s, w]) => [s, JSON.parse(JSON.stringify(w))]);
-    }
-
-    kammerGeaendert(k, schluessel, wert, rueckgaengig) {
-      const groesse = new TextEncoder().encode(JSON.stringify({ v: 1, name: k.kennung, eintraege: Array.from(k.daten) })).length;
-      if (groesse > 1048576 && rueckgaengig !== null) {
-        rueckgaengig();
-        throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' ist voll (Limit 1 MiB).');
-      }
-      this.emit({ typ: 'vorrat', name: k.kennung, schluessel, wert: wert === null ? null : JSON.parse(JSON.stringify(wert)) });
-      if (this.onVorrat !== null) {
-        let ok = true;
-        try { ok = this.onVorrat(k.kennung, this.kammerEintraege(k)) !== false; } catch (e) { ok = false; }
-        if (!ok) throw this.ananas('LaufzeitAnanas', 'Die Vorratskammer \'' + k.kennung + '\' konnte nicht gespeichert werden.');
-      }
-    }
-
-    // K-106: neu Vorratskammer(name[, namensraum]) – Kennung = name bzw. namensraum/name; gleiche Kennung = gleiche Kammer
-    neueKammer(pos, ben, node) {
-      const n = arg(pos, ben, 0, 'name');
-      const name = n === undefined || n === null ? '' : this.text(n);
-      if (!/^[a-z0-9-]{1,40}$/.test(name)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Kammername \'' + name + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
-      const r = arg(pos, ben, 1, 'namensraum');
-      const raum = r === undefined || r === null ? null : this.text(r);
-      if (raum !== null && !/^[a-z0-9-]{1,40}$/.test(raum)) throw this.ananas('LaufzeitAnanas', 'Ungültiger Namensraum \'' + raum + '\' (erlaubt: a–z, 0–9, \'-\', 1–40 Zeichen).');
-      const kennung = raum === null ? name : raum + '/' + name;
-      const da = this.kammern.get(kennung);
-      if (da !== undefined) return da;
-      if (this.vorratOpt === null && this.onVorrat === null && !this.w0101) {
-        this.w0101 = true;
-        this.warnung('W0101', 'Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.', node);
-      }
-      const k = new Kammer(name, raum);
-      let eintraege = null;
-      if (this.vorratOpt !== null) { try { eintraege = this.vorratOpt[kennung]; } catch (e) { eintraege = null; } }
-      if (eintraege && !Array.isArray(eintraege) && Array.isArray(eintraege.eintraege)) eintraege = eintraege.eintraege;
-      if (Array.isArray(eintraege)) {
-        for (const p of eintraege) {
-          if (Array.isArray(p) && typeof p[0] === 'string') k.daten.set(p[0], JSON.parse(JSON.stringify(p[1] === undefined ? null : p[1])));
-        }
-      }
-      this.kammern.set(kennung, k);
-      return k;
-    }
-
+  // Laufzeit: Theke, Zettel & Bindungen
+  class LaufzeitTheke {
     // ---------- Theke ----------
     // Programmende: letzte Änderungen senden, offenes Fenster schließen (Nutzerentscheidung, überschreibt K-061)
     uiEnde() {
@@ -3627,1449 +5182,60 @@
           break;
       }
     }
+  }
+  laufzeitTeil(LaufzeitTheke);
 
-    lieferungenNachEnde() {
-      for (;;) {
-        const offen = this.lieferungen.filter(l => l.rueckruf !== null && l.zustellung === null);
-        if (!offen.length) break;
-        offen.sort((a, b) => b.prio - a.prio || a.nr - b.nr);
-        const l = offen[0];
-        const v = this.rufe(l.fn, [], null, null);
-        l.zustellung = new Zustellung(true, v, null);
-        this.rufe(l.rueckruf, [v], null, null);
-      }
-    }
+  // ══════════ site/js/pizza/std/register.js ══════════
+  // pizza-Interpreter · Tabellen-Register, Bindungs- und Hauptküchen-Sperren
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
-    registriere(d) {
-      switch (d.k) {
-        case 'Klasse': {
-          const k = new Klasse(d.name, d);
-          k.rohling = d.mods.indexOf('rohling') >= 0;
-          k.gebacken = d.mods.indexOf('gebacken') >= 0;
-          k.calzone = d.mods.indexOf('calzone') >= 0;
-          for (const f of d.felder) {
-            const info = { typ: f.typ, decls: f.decls, gebacken: f.mods.indexOf('gebacken') >= 0, sicht: sichtbarkeit(f.mods) };
-            if (f.mods.indexOf('tiefkühl') >= 0) {
-              k.statischeFelder.push(info);
-              for (const dd of f.decls) {
-                const v = new Var(standardWert(f.typ), f.typ, info.gebacken);
-                v.mod = info.sicht; v.klasse = k;
-                k.statisch.set(dd.name, v);
-              }
-            } else k.felder.push(info);
-          }
-          for (const md of d.methoden) {
-            const m = new Methode(md, k);
-            this.alleMethoden.push(m);
-            const l = k.methoden.get(m.name);
-            if (l) l.push(m); else k.methoden.set(m.name, [m]);
-          }
-          for (const kd of d.ktoren) {
-            const m = new Methode(kd, k);
-            m.statisch = false;
-            m.hatUnten = kd.body.body.some(st => st.k === 'AusdrAnw' && st.e.k === 'UntenCall');
-            k.ktoren.push(m);
-          }
-          this.klassen.set(d.name, k);
-          this.klassenListe.push(k);
-          for (const inn of d.innere) this.registriere(inn);
-          break;
+  const TABELLEN = new Map([
+    [Dauer, DAUER_M], [EnumWert, ENUM_M], [Teig, TEIG_M], [Lieferung, LIEF_M],
+    [Zustellung, ZUST_M], [Reste, RESTE_M], [OfenRoh, ROH_M],
+    [Funktion, FN_M], [Gebunden, FN_M], [NativFn, FN_M], [UiTheke, THEKE_M], [Zettel, ZETTEL_M], [ZufallGen, ZUFALL_OBJ_M], [Kammer, KAMMER_M]
+  ]);
+
+  // K-118: Eine Bindung rechnet nur – in ihrem Ausdruck werfen alle Methoden außer den Gettern (Methodenname wie gerufen);
+  // Getter/Setter-Überladungen (aktiv, sichtbar, …) nur mit Argument. Rückruf-Registrierungen (bei…) stehen nicht auf der
+  // Verbotsliste von K-118 und bleiben erlaubt.
+  const UI_REIN = new Set(['id', 'alsText', 'text', 'wert', 'an', 'intervall', 'titel', 'gewaehlt', 'optionen', 'spalten', 'zeilen',
+    'beiKlick', 'beiAenderung', 'beiEnter', 'beiTakt', 'beiTaste']);
+  const UI_UEBERLADEN = new Set(['aktiv', 'sichtbar', 'hinweis', 'marke', 'uebergang', 'klappbar', 'zu']);
+  function nurRechnen(tab) {
+    for (const k of Object.keys(tab)) {
+      if (UI_REIN.has(k)) continue;
+      const f = tab[k], ueber = UI_UEBERLADEN.has(k);
+      tab[k] = function (o, pos) {
+        if (this.uiBindungLauf !== null && !(ueber && pos.length === 0)) {
+          throw this.ananas('LaufzeitAnanas', 'Eine Bindung rechnet nur – \'' + k + '\' ist darin nicht erlaubt.');
         }
-        case 'Rezeptur': {
-          const r = new Rezeptur(d.name, d);
-          r.methoden = d.methoden.map(m => m.name);
-          this.klassen.set(d.name, r);
-          break;
-        }
-        case 'Enum': {
-          const e = new EnumTyp(d.name);
-          d.werte.forEach((w, i) => { const ew = new EnumWert(e, w.n, i + 1); e.werte.push(ew); e.nachName.set(w.n, ew); });
-          this.klassen.set(d.name, e);
-          break;
-        }
-        case 'Methode': {
-          const m = new Methode(d, null);
-          m.statisch = true;
-          this.alleMethoden.push(m);
-          const v = this.global.vars.get(d.name);
-          if (v && v.w instanceof Gebunden) v.w.liste.push(m);
-          else this.global.vars.set(d.name, new Var(new Gebunden(null, [m], d.name), null, false));
-          break;
-        }
-      }
-    }
-
-    pf(code, text, n) { return new PizzaFehlerSig(code, text, n ? n.z : null, n ? n.s : null); }
-
-    pruefe() {
-      const dekls = [];
-      const sammle = (d) => { dekls.push(d); if (d.k === 'Klasse') for (const i of d.innere) sammle(i); };
-      for (const d of this.ast.body) if (DEKL.has(d.k)) sammle(d);
-      // Durchgang 1: Q0004, Basisklassen, P0011
-      for (const d of dekls) {
-        if (d.k === 'Enum') {
-          if (d.werte.length !== 4) throw this.pf('Q0004', 'quattrostagioni braucht genau 4 Werte, nicht ' + d.werte.length + '.', d);
-        } else if (d.k === 'Klasse') {
-          const k = this.klassen.get(d.name);
-          if (d.basis) {
-            const b = this.klassen.get(d.basis.name);
-            if (!(b instanceof Klasse)) throw this.pf('P0010', 'Klasse \'' + d.name + '\' erbt von \'' + d.basis.name + '\' – diese Klasse gibt es nicht.', d.basis);
-            if (b.gebacken) throw this.pf('P0011', 'Klasse \'' + d.name + '\' kann nicht von \'' + b.name + '\' erben – \'' + b.name + '\' ist gebacken.', d.basis);
-            k.basis = b;
-          }
-          for (const t of d.erfuellt) {
-            const r = this.klassen.get(t.name);
-            if (!(r instanceof Rezeptur)) throw this.pf('P0010', 'Klasse \'' + d.name + '\' erfüllt \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
-            k.erfuellt.push(r);
-          }
-        } else if (d.k === 'Rezeptur') {
-          const r = this.klassen.get(d.name);
-          for (const t of d.basen) {
-            const b = this.klassen.get(t.name);
-            if (!(b instanceof Rezeptur)) throw this.pf('P0010', 'Rezeptur \'' + d.name + '\' erbt von \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
-            r.basen.push(b);
-          }
-        }
-      }
-      // Zyklen
-      for (const k of this.klassenListe) {
-        const gesehen = new Set();
-        for (let c = k; c; c = c.basis) {
-          if (gesehen.has(c)) throw this.pf('P0010', 'Klasse \'' + k.name + '\' erbt im Kreis – das ist ein Teigknoten.', k.decl);
-          gesehen.add(c);
-        }
-      }
-      // Durchgang 2: R0001, A0001
-      for (const d of dekls) {
-        if (d.k === 'Klasse') {
-          const k = this.klassen.get(d.name);
-          if (!k.rohling) {
-            for (let c = k; c; c = c.basis) {
-              for (const r of c.erfuellt) {
-                for (const mn of this.rezepturMethoden(r, new Set())) {
-                  if (!this.hatImplementierung(k, mn)) throw this.pf('R0001', 'Klasse \'' + k.name + '\' erfüllt Rezeptur \'' + r.name + '\' nicht: Methode \'' + mn + '\' fehlt.', d);
-                }
-              }
-            }
-          }
-          for (const md of d.methoden) {
-            if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-            let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M);
-            if (!ok && k.basis && this.findeMethodeListe(k.basis, md.name)) ok = true;
-            if (!ok) {
-              for (let c = k; c && !ok; c = c.basis) {
-                for (const r of c.erfuellt) if (this.rezepturMethoden(r, new Set()).indexOf(md.name) >= 0) ok = true;
-              }
-            }
-            if (!ok) throw this.pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
-          }
-        }
-      }
-      this.pruefeHerd();
-    }
-
-    rezepturMethoden(r, gesehen) {
-      if (gesehen.has(r)) return [];
-      gesehen.add(r);
-      let l = r.methoden.slice();
-      for (const b of r.basen) l = l.concat(this.rezepturMethoden(b, gesehen));
-      return l;
-    }
-
-    hatImplementierung(k, name) {
-      for (let c = k; c; c = c.basis) {
-        const l = c.methoden.get(name);
-        if (l && l.some(m => m.body !== null)) return true;
-      }
-      return false;
-    }
-
-    rezepturErbt(r, ziel) {
-      if (r === ziel) return true;
-      for (const b of r.basen) if (this.rezepturErbt(b, ziel)) return true;
-      return false;
-    }
-
-    vorbereiten() {
-      for (const m of this.alleMethoden) {
-        for (const a of m.decl.annos) {
-          if (a.name === 'Kühlschrank') {
-            let e = null;
-            if (a.args) {
-              const b = a.args.ben.find(x => x.name === 'haltbar');
-              e = b ? b.e : (a.args.pos[0] || null);
-            }
-            if (e === null) m.haltbar = Infinity;
-            else {
-              this.z = a.z; this.s = a.s;
-              m.haltbar = this.dauerMs(this.ausw(e, this.global), '@Kühlschrank(haltbar: …)');
-            }
-          } else if (a.name === 'PizzaVeraltet') {
-            let grund = '';
-            if (a.args) {
-              const b = a.args.ben.find(x => x.name === 'grund');
-              const e = b ? b.e : (a.args.pos[0] || null);
-              if (e) { this.z = a.z; this.s = a.s; grund = this.text(this.ausw(e, this.global)); }
-            }
-            m.veraltet = grund;
-          }
-        }
-      }
-      for (const k of this.klassenListe) {
-        const ctx = { dies: null, klasse: k, ktor: false };
-        for (const f of k.statischeFelder) {
-          for (const d of f.decls) {
-            if (d.init === null) continue;
-            this.z = d.z; this.s = d.s;
-            const sc = new Scope(this.global, ctx, true);
-            const v = this.ausw(d.init, sc);
-            this.pruefeTyp(f.typ, v, d.name);
-            k.statisch.get(d.name).w = v;
-          }
-        }
-      }
-    }
-
-    // ---------- Typprüfung ----------
-    pruefeTyp(typ, v, name) {
-      if (typ === null || typ.feld) return;
-      let was;
-      switch (typ.name) {
-        case 'salami':
-          if (typeof v === 'number' && Number.isInteger(v)) return;
-          was = typeof v === 'number' ? 'keine Ganzzahl' : 'keine Zahl';
-          break;
-        case 'funghi': if (typeof v === 'number') return; was = 'keine Zahl'; break;
-        case 'margherita': if (typeof v === 'string' || v === null) return; was = 'kein Text'; break;
-        case 'diavolo': if (typeof v === 'boolean') return; was = 'kein Wahrheitswert'; break;
-        case 'hawaii': throw this.panik();
-        case 'Dauer': if (v === null || v instanceof Dauer) return; was = 'keine Dauer'; break;
-        case 'Vorratskammer':
-          if (this.klassen.has(typ.name)) { const k = this.klassen.get(typ.name); if (v === null || this.instanzVon(v, k)) return; was = 'kein(e) ' + k.name; break; }
-          if (v === null || v instanceof Kammer) return;
-          was = 'keine Vorratskammer';
-          break;
-        case 'Zufall':
-          if (v === null || v instanceof ZufallGen || this.klassen.has('Zufall')) return;
-          was = 'kein Zufall';
-          break;
-        case 'Theke': case 'Zutat': case 'Schild': case 'Knopf': case 'Eingabe': case 'Haken': case 'Stapel': case 'Reihe':
-        case 'Takt': case 'Fortschritt': case 'Abschnitt': case 'Tabelle': case 'Reiter': case 'Auswahl': case 'Tastatur': {
-          if (this.klassen.has(typ.name) || v === null) {
-            const k = this.klassen.get(typ.name);
-            if (k === undefined || v === null || this.instanzVon(v, k)) return;
-            was = 'kein(e) ' + k.name;
-            break;
-          }
-          if (typ.name === 'Theke' ? v instanceof UiTheke : (v instanceof UiZutat && (typ.name === 'Zutat' || UI_ART_NAME[v.art] === typ.name))) return;
-          was = 'kein(e) ' + typ.name;
-          break;
-        }
-        case 'Herd': case 'Teil': case 'Form': case 'Bildchen': {
-          if (this.klassen.has(typ.name) || v === null) {
-            const k = this.klassen.get(typ.name);
-            if (k === undefined || v === null || this.instanzVon(v, k)) return;
-            was = 'kein(e) ' + k.name;
-            break;
-          }
-          if (herdKlasseVon(v) === typ.name && !(v instanceof HerdKomp)) return;
-          was = 'kein(e) ' + typ.name;
-          break;
-        }
-        case 'Zettel': {
-          // Theke v5 (K-116): eingebauter Typname wie Zutat; eigene Klasse Zettel hat Vorrang
-          if (this.klassen.has('Zettel') || v === null) {
-            const k = this.klassen.get('Zettel');
-            if (k === undefined || v === null || this.instanzVon(v, k)) return;
-            was = 'kein(e) ' + k.name;
-            break;
-          }
-          if (v instanceof Zettel) return;
-          was = 'kein(e) Zettel';
-          break;
-        }
-        default: {
-          const k = this.klassen.get(typ.name);
-          if (k === undefined) {
-            // Herd-Komponente (Schema): nur Komponenten dieser Art passen
-            if (v === null || !(HERD_KOMP_NAMEN.has(typ.name) || (this.hk !== null && this.hk.schema.nachName.has(typ.name)))) return;
-            if (v instanceof HerdKomp && v.art.name === typ.name) return;
-            was = 'kein(e) ' + typ.name;
-            break;
-          }
-          if (v === null || this.instanzVon(v, k)) return;
-          was = 'kein(e) ' + k.name;
-        }
-      }
-      throw this.ananas('TypAnanas', '\'' + name + '\' ist ' + typ.name + ', aber der Wert ' + this.darstellung(v) + ' ist ' + was + '.');
-    }
-
-    instanzVon(v, k) {
-      if (k instanceof Klasse) {
-        if (!(v instanceof Obj)) return false;
-        for (let c = v.klasse; c; c = c.basis) if (c === k) return true;
-        return false;
-      }
-      if (k instanceof EnumTyp) return v instanceof EnumWert && v.typ === k;
-      if (k instanceof Rezeptur) {
-        if (!(v instanceof Obj)) return false;
-        for (let c = v.klasse; c; c = c.basis) for (const r of c.erfuellt) if (this.rezepturErbt(r, k)) return true;
-        return false;
-      }
-      return false;
-    }
-
-    // ---------- Textform ----------
-    text(v) {
-      if (v === null || v === undefined) return 'karton';
-      switch (typeof v) {
-        case 'string': return v;
-        case 'number': return zahlText(v);
-        case 'boolean': return v ? 'ja' : 'nein';
-      }
-      if (Array.isArray(v)) return '[' + v.map(x => this.text(x)).join(', ') + ']';
-      if (v instanceof Map) {
-        const t = [];
-        for (const [k, w] of v) t.push(this.text(k) + ': ' + this.text(w));
-        return '{' + t.join(', ') + '}';
-      }
-      if (v instanceof Dauer) return dauerText(v.ms);
-      if (v instanceof EnumWert) return v.name;
-      if (v instanceof Obj) return this.objText(v);
-      if (v instanceof Klasse || v instanceof EnumTyp || v instanceof Rezeptur || v instanceof Modul) return v.name;
-      if (v instanceof Funktion || v instanceof Gebunden || v instanceof NativFn) return '<Funktion>';
-      if (v instanceof Teig) return v.fertig ? 'Teig(' + this.text(v.wert) + ')' : 'Teig(roh)';
-      if (v instanceof Lieferung) return 'Lieferung #' + v.nr;
-      if (v instanceof Zustellung) return v.puenktlich ? 'Zustellung(' + (v.fehler ? 'Ananas' : this.text(v.wert)) + ')' : 'Zustellung(zu spät)';
-      if (v instanceof Reste) return 'Reste(' + this.text(v.wert) + ')';
-      if (v instanceof OfenRoh) return 'Roh(' + this.text(v.teil) + ')';
-      if (v instanceof UiTheke) return 'Theke(' + v.titel + ')';
-      if (v instanceof ZufallGen) return 'Zufall(' + v.saat + ')';
-      if (v instanceof Kammer) return 'Vorratskammer(' + v.kennung + ')';
-      if (v instanceof UiZutat) return UI_ART_NAME[v.art] + '(' + v.id + ')';
-      if (v instanceof Zettel) return 'Zettel(' + this.text(v.w) + ')';
-      if (v instanceof HerdTeil) return 'Teil(' + v.id + ')';
-      if (v instanceof HerdKomp) {
-        // lose: <Name>(); zerstört: das Teil, an dem sie zuletzt hing
-        const e = this.hk.e;
-        let t = v.teil;
-        if (e.komp_info(v.h, 3) !== 1) t = e.komp_info(v.h, 2);
-        return v.art.name + '(' + (t > 0 ? t : '') + ')';
-      }
-      if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
-      if (v instanceof HerdForm) return 'Form(' + v.id + ')';
-      if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
-      if (v === AUTO) return 'auto';
-      return String(v);
-    }
-
-    objText(o) {
-      const l = this.findeMethodeListe(o.klasse, 'alsText');
-      if (l) {
-        const m = this.waehle(l, 0);
-        if (m.body !== null && m.params.length === 0) return this.text(this.rufeDecl(m, o, [], null, null, 'normal'));
-      }
-      if (this.istAnanasKlasse(o.klasse)) return o.klasse.name + ': ' + o.nachricht;
-      return o.klasse.name + '@' + o.nr;
-    }
-
-    // ---------- Vergleiche & Operatoren ----------
-    gleich(a, b) {
-      if (a === b) return true;
-      if (a === null || b === null || a === undefined || b === undefined) return false;
-      if (typeof a !== 'object' || typeof b !== 'object') return false;
-      if (a instanceof Dauer && b instanceof Dauer) return a.ms === b.ms;
-      return false;
-    }
-
-    vergleiche(a, b) {
-      if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : a > b ? 1 : 0;
-      if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0;
-      if (a instanceof Dauer && b instanceof Dauer) return a.ms < b.ms ? -1 : a.ms > b.ms ? 1 : 0;
-      if (a instanceof EnumWert && b instanceof EnumWert && a.typ === b.typ) return a.pos - b.pos;
-      throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht vergleichen.');
-    }
-
-    binaer(op, a, b, n) {
-      const zz = typeof a === 'number' && typeof b === 'number';
-      switch (op) {
-        case '+':
-          if (zz) return a + b;
-          if (typeof a === 'string' || typeof b === 'string') return this.text(a) + this.text(b);
-          if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms + b.ms);
-          throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht addieren.');
-        case '-':
-          if (zz) return a - b;
-          if (a instanceof Dauer && b instanceof Dauer) return new Dauer(a.ms - b.ms);
-          throw this.ananas('TypAnanas', this.typName(b) + ' kann man nicht von ' + this.typName(a) + ' abziehen.');
-        case '*':
-          if (zz) return a * b;
-          if (a instanceof Dauer && typeof b === 'number') return new Dauer(a.ms * b);
-          if (typeof a === 'number' && b instanceof Dauer) return new Dauer(a * b.ms);
-          throw this.ananas('TypAnanas', this.typName(a) + ' und ' + this.typName(b) + ' kann man nicht multiplizieren.');
-        case '/':
-          if (zz) {
-            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
-            return a / b;
-          }
-          if (a instanceof Dauer && typeof b === 'number') {
-            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
-            return new Dauer(a.ms / b);
-          }
-          if (a instanceof Dauer && b instanceof Dauer) {
-            if (b.ms === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
-            return a.ms / b.ms;
-          }
-          if (Array.isArray(a) && typeof b === 'number') {
-            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
-            const k = this.ganzzahl(b, 'Blech / n');
-            if (k < 0) throw this.ananas('StreitAnanas', 'In ' + k + ' Stücke teilen? Das geht nicht.');
-            if (a.length % k !== 0) throw this.ananas('StreitAnanas', a.length + ' Stücke lassen sich nicht fair durch ' + k + ' teilen.');
-            return this.schneide(a, k);
-          }
-          throw this.ananas('TypAnanas', this.typName(a) + ' kann man nicht durch ' + this.typName(b) + ' teilen.');
-        case '%':
-          if (zz) {
-            if (b === 0) throw this.ananas('RechenAnanas', 'Durch null teilen? Das ergibt keine Stücke.');
-            return a % b;
-          }
-          throw this.ananas('TypAnanas', '% geht nur mit Zahlen.');
-        case '==': return zz ? a === b : this.gleich(a, b);
-        case '!=': return zz ? a !== b : !this.gleich(a, b);
-        case '<': return zz ? a < b : this.vergleiche(a, b) < 0;
-        case '<=': return zz ? a <= b : this.vergleiche(a, b) <= 0;
-        case '>': return zz ? a > b : this.vergleiche(a, b) > 0;
-        case '>=': return zz ? a >= b : this.vergleiche(a, b) >= 0;
-      }
-      throw this.ananas('LaufzeitAnanas', 'Unbekannter Operator \'' + op + '\'.');
-    }
-
-    // ---------- Namen & Felder ----------
-    feldImKontext(ctx, name) {
-      const d = ctx.dies;
-      if (d instanceof Obj) {
-        const f = d.felder.get(name);
-        if (f !== undefined) {
-          if (f.mod === 'geheimrezept' && f.klasse !== ctx.klasse) this.pruefeZugriff(f, d, ctx, name);
-          return f;
-        }
-      }
-      for (let k = ctx.klasse; k; k = k.basis) {
-        const f = k.statisch.get(name);
-        if (f !== undefined) {
-          if (f.mod === 'geheimrezept' && f.klasse !== ctx.klasse) this.pruefeZugriff(f, null, ctx, name);
-          return f;
-        }
-      }
-      return null;
-    }
-
-    finde(sc, name) {
-      for (let s = sc; s !== null; s = s.parent) {
-        const v = s.vars.get(name);
-        if (v !== undefined) return v;
-        if (s.grenze && s.ctx.dies !== null || s.grenze && s.ctx.klasse !== null) {
-          const f = this.feldImKontext(s.ctx, name);
-          if (f !== null) return f;
-        }
-      }
-      return null;
-    }
-
-    leseName(n, sc) {
-      const name = n.n;
-      for (let s = sc; s !== null; s = s.parent) {
-        const v = s.vars.get(name);
-        if (v !== undefined) {
-          if (v.weg) throw this.weggeschoben(name);
-          return v.w;
-        }
-        if (s.grenze && (s.ctx.dies !== null || s.ctx.klasse !== null)) {
-          const f = this.feldImKontext(s.ctx, name);
-          if (f !== null) {
-            if (f.weg) throw this.weggeschoben(name);
-            return f.w;
-          }
-        }
-      }
-      return this.globalerName(name);
-    }
-
-    globalerName(name) {
-      const g = this.globals.get(name);
-      // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
-      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form') && this.klassen.has(name))) return g;
-      const k = this.klassen.get(name);
-      if (k !== undefined) return k;
-      throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
-    }
-
-    pruefeZugriff(v, o, ctx, name) {
-      if (v.mod === null) return;
-      const ck = ctx.klasse;
-      if (v.mod === 'geheimrezept') {
-        if (ck === v.klasse) return;
-        if (o instanceof Obj && !o.zugeklappt && this.istCalzone(o.klasse)) return;
-        throw this.ananas('ZugriffsAnanas', '\'' + name + '\' ist geheimrezept in \'' + v.klasse.name + '\' – Zugriff verweigert.');
-      }
-      if (v.mod === 'familienrezept') {
-        for (let k = ck; k; k = k.basis) if (k === v.klasse) return;
-        if (o instanceof Obj && !o.zugeklappt && this.istCalzone(o.klasse)) return;
-        throw this.ananas('ZugriffsAnanas', '\'' + name + '\' ist familienrezept in \'' + v.klasse.name + '\' – nur für die Familie.');
-      }
-    }
-
-    pruefeMethodenZugriff(m, ctx) {
-      if (m.sicht === null || m.klasse === null) return;
-      const ck = ctx.klasse;
-      if (m.sicht === 'geheimrezept') {
-        if (ck === m.klasse) return;
-        throw this.ananas('ZugriffsAnanas', 'Methode \'' + m.name + '\' ist geheimrezept in \'' + m.klasse.name + '\' – Zugriff verweigert.');
-      }
-      for (let k = ck; k; k = k.basis) if (k === m.klasse) return;
-      throw this.ananas('ZugriffsAnanas', 'Methode \'' + m.name + '\' ist familienrezept in \'' + m.klasse.name + '\' – nur für die Familie.');
-    }
-
-    statischesFeld(k, name) {
-      for (let c = k; c; c = c.basis) {
-        const f = c.statisch.get(name);
-        if (f !== undefined) return f;
-      }
-      return null;
-    }
-
-    findeMethodeListe(k, name) {
-      for (let c = k; c; c = c.basis) {
-        const l = c.methoden.get(name);
-        if (l !== undefined) return l;
-      }
-      return null;
-    }
-
-    waehle(liste, n) {
-      if (liste.length === 1) return liste[0];
-      for (const m of liste) if (m.params.length === n) return m;
-      return liste[0];
-    }
-
-    mitglied(o, name, n, sc) {
-      if (o === null || o === undefined) throw this.leer();
-      if (o instanceof Obj) {
-        const f = o.felder.get(name);
-        if (f !== undefined) {
-          if (f.mod !== null) this.pruefeZugriff(f, o, sc.ctx, name);
-          if (f.weg) throw this.weggeschoben(name);
-          return f.w;
-        }
-        const st = this.statischesFeld(o.klasse, name);
-        if (st !== null) { if (st.mod !== null) this.pruefeZugriff(st, null, sc.ctx, name); return st.w; }
-        const l = this.findeMethodeListe(o.klasse, name);
-        if (l !== null) return new Gebunden(o, l, name);
-        if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || OBJ_M[name]) {
-          return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
-        }
-        throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
-      }
-      if (o instanceof Klasse) {
-        const f = this.statischesFeld(o, name);
-        if (f !== null) { if (f.mod !== null) this.pruefeZugriff(f, null, sc.ctx, name); return f.w; }
-        const l = this.findeMethodeListe(o, name);
-        if (l !== null) return new Gebunden(null, l, name);
-        throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es in Klasse ' + o.name + ' nicht.');
-      }
-      if (o instanceof EnumTyp) {
-        const w = o.nachName.get(name);
-        if (w !== undefined) return w;
-        if (name === 'werte') return new NativFn('werte', () => o.werte.slice());
-        throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es in ' + o.name + ' nicht.');
-      }
-      if (o instanceof Modul) {
-        if (o.felder !== null && Object.prototype.hasOwnProperty.call(o.felder, name)) return o.felder[name];
-        if (o.methoden[name]) return new NativFn(o.name + '.' + name, (pos, ben, node) => o.methoden[name].call(this, o, pos, ben, node));
-        throw this.ananas('LaufzeitAnanas', '\'' + name + '\' gibt es bei ' + o.name + ' nicht.');
-      }
-      const tab = this.tabelleVon(o);
-      if (tab !== null && tab[name] !== undefined) {
-        return new NativFn(name, (pos, ben, node) => tab[name].call(this, o, pos, ben, node), o);
-      }
-      throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + this.typName(o) + ' nicht.');
-    }
-
-    tabelleVon(o) {
-      switch (typeof o) {
-        case 'string': return TEXT_M;
-        case 'number': return ZAHL_M;
-        case 'boolean': return BOOL_M;
-      }
-      if (Array.isArray(o)) return BLECH_M;
-      if (o instanceof Map) return KARTE_M;
-      if (o instanceof UiZutat) return UI_TABELLEN[o.art];
-      if (o instanceof HerdTeil || o instanceof HerdKomp) return o.tab;
-      return TABELLEN.get(o.constructor) || null;
-    }
-
-    // ---------- Aufrufe ----------
-    posArgs(a, sc) {
-      const p = a.pos;
-      const r = new Array(p.length);
-      for (let i = 0; i < p.length; i++) r[i] = this.ausw(p[i], sc);
-      return r;
-    }
-    benArgs(a, sc) {
-      if (a.ben === null) return null;
-      const r = Object.create(null);
-      for (const b of a.ben) r[b.name] = this.ausw(b.e, sc);
-      return r;
-    }
-
-    rufeMethode(o, name, pos, ben, node, sc) {
-      if (o === null || o === undefined) throw this.leer();
-      let tab;
-      switch (typeof o) {
-        case 'string': tab = TEXT_M; break;
-        case 'number': tab = ZAHL_M; break;
-        case 'boolean': tab = BOOL_M; break;
-        default:
-          if (o instanceof Obj) return this.objMethode(o, name, pos, ben, node, sc);
-          if (Array.isArray(o)) tab = BLECH_M;
-          else if (o instanceof Map) tab = KARTE_M;
-          else if (o instanceof Modul) {
-            const f = o.methoden[name];
-            if (f === undefined) throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
-            return f.call(this, o, pos, ben, node);
-          } else if (o instanceof Klasse) return this.statischerAufruf(o, name, pos, ben, node, sc);
-          else if (o instanceof EnumTyp) {
-            if (name === 'werte') return o.werte.slice();
-            throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es bei ' + o.name + ' nicht.');
-          } else if (o instanceof Rezeptur) throw this.ananas('LaufzeitAnanas', 'Eine Rezeptur kann man nicht aufrufen – sie ist nur ein Rezept.');
-          else if (o instanceof UiZutat) tab = UI_TABELLEN[o.art];
-          else if (o instanceof HerdTeil || o instanceof HerdKomp) tab = o.tab;
-          else tab = TABELLEN.get(o.constructor);
-      }
-      if (tab !== undefined) {
-        const f = tab[name];
-        if (f !== undefined) return f.call(this, o, pos, ben, node);
-      }
-      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + this.typName(o) + ' nicht.');
-    }
-
-    objMethode(o, name, pos, ben, node, sc) {
-      const l = this.findeMethodeListe(o.klasse, name);
-      if (l !== null) {
-        const m = this.waehle(l, this.anzahl(pos, ben));
-        if (m.sicht !== null && sc) this.pruefeMethodenZugriff(m, sc.ctx);
-        return this.rufeDecl(m, o, pos, ben, node, 'normal');
-      }
-      const f = o.felder.get(name);
-      if (f !== undefined && (f.w instanceof Funktion || f.w instanceof Gebunden || f.w instanceof NativFn)) return this.rufe(f.w, pos, ben, node);
-      if (this.istAnanasKlasse(o.klasse)) {
-        const a = ANANAS_M[name];
-        if (a !== undefined) return a.call(this, o, pos, ben, node);
-      }
-      const g = OBJ_M[name];
-      if (g !== undefined) return g.call(this, o, pos, ben, node);
-      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
-    }
-
-    statischerAufruf(k, name, pos, ben, node, sc) {
-      const l = this.findeMethodeListe(k, name);
-      if (l !== null) {
-        const m = this.waehle(l, this.anzahl(pos, ben));
-        if (m.sicht !== null && sc) this.pruefeMethodenZugriff(m, sc.ctx);
-        let dies = null;
-        if (!m.statisch && sc && sc.ctx.dies instanceof Obj && this.instanzVon(sc.ctx.dies, m.klasse)) dies = sc.ctx.dies;
-        return this.rufeDecl(m, dies, pos, ben, node, 'normal');
-      }
-      const f = this.statischesFeld(k, name);
-      if (f !== null && (f.w instanceof Funktion || f.w instanceof Gebunden || f.w instanceof NativFn)) return this.rufe(f.w, pos, ben, node);
-      throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es in Klasse ' + k.name + ' nicht.');
-    }
-
-    rufe(f, pos, ben, node) {
-      if (f instanceof Funktion) return this.rufeLambda(f, pos, ben);
-      if (f instanceof Gebunden) return this.rufeDecl(this.waehle(f.liste, this.anzahl(pos, ben)), f.obj, pos, ben, node, 'normal');
-      if (f instanceof NativFn) {
-        if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-        const v = f.fn.call(this, pos, ben, node);
-        this.st--;
-        return v;
-      }
-      if (f === null || f === undefined) throw this.leer();
-      throw this.ananas('TypAnanas', this.darstellung(f) + ' ist keine Funktion – das kann man nicht aufrufen.');
-    }
-
-    rufeDecl(m, dies, pos, ben, node, modus) {
-      if (m.veraltet !== null && !m.gewarnt) {
-        const text = 'Methode \'' + m.name + '\' ist veraltet.' + (m.veraltet ? ' Grund: ' + m.veraltet : '');
-        if (this.kueche === null) {
-          m.gewarnt = true;
-          this.warnung('W0003', text, node);
-        } else if (!this.methodeGewarnt(m)) this.warnung('W0003', text, node, undefined, m);
-      }
-      if (m.body === null) throw this.ananas('RohlingAnanas', 'Methode \'' + m.name + '\' ist ein Rohling – sie hat keinen Rumpf.');
-      if (m.haltbar >= 0 || modus !== 'normal') return this.kuehlschrank(m, dies, pos, ben, node, modus);
-      if (!m.statisch && dies === null && m.klasse !== null) {
-        throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
-      }
-      return this.fuehreAus(m, { dies: m.statisch ? null : dies, klasse: m.klasse, ktor: false }, pos, ben, node);
-    }
-
-    cacheSchluessel(pos, ben) {
-      const teile = [];
-      const k = (v) => {
-        if (v === null || v === undefined) return 'k';
-        switch (typeof v) {
-          case 'string': return 't' + v;
-          case 'number': return 'z' + v;
-          case 'boolean': return v ? 'j' : 'n';
-        }
-        if (v instanceof Obj) return 'o' + v.klasse.name + '@' + v.nr;
-        const st0 = this.st;
-        try { return 'x' + this.text(v); } catch (e) { this.st = st0; return 'x?'; }
+        return f.apply(this, arguments);
       };
-      for (const v of pos) teile.push(k(v));
-      if (ben !== null) for (const n in ben) teile.push(n + '=' + k(ben[n]));
-      return teile.join('\u0001');
     }
+  }
+  for (const t of new Set([THEKE_M, ZETTEL_M, ZETTEL_MOD_M].concat(Object.values(UI_TABELLEN)))) nurRechnen(t);
 
-    kuehlschrank(m, dies, pos, ben, node, modus) {
-      const rechne = () => {
-        if (!m.statisch && dies === null && m.klasse !== null) {
-          throw this.ananas('LaufzeitAnanas', 'Methode \'' + m.name + '\' braucht eine Pizza-Instanz (dies) – sie ist nicht tiefkühl.');
-        }
-        return this.fuehreAus(m, { dies, klasse: m.klasse, ktor: false }, pos, ben, node);
+  // Regel S4 (THREADS.md §2.3): Eingabe und Theke gibt es nur in der Hauptküche – jede Methode wirft in einer Küche.
+  function nurHauptkueche(tab, text) {
+    for (const k of Object.keys(tab)) {
+      const f = tab[k];
+      tab[k] = function () {
+        if (this.kueche !== null) throw this.ananas('KüchenAnanas', text);
+        return f.apply(this, arguments);
       };
-      if (m.haltbar < 0) {
-        const v = rechne();
-        return modus === 'mikrowelle' ? new Reste(v, false) : v;
-      }
-      const halter = dies !== null && typeof dies === 'object' ? dies : (m.klasse || this.globalCache);
-      let key;
-      if (ben === null) key = this.cacheSchluessel(pos, null);
-      else {
-        const geordnet = [];
-        for (let i = 0; i < m.params.length; i++) geordnet.push(i < pos.length ? pos[i] : (m.params[i].name in ben ? ben[m.params[i].name] : null));
-        key = this.cacheSchluessel(geordnet, null);
-      }
-      const e = this.cacheHole(halter, m, key);
-      if (modus === 'frisch' || e === undefined) {
-        const v = rechne();
-        this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
-        return modus === 'mikrowelle' ? new Reste(v, false) : v;
-      }
-      const frisch = (this.schritte + this.offset) - e.t <= m.haltbar;
-      if (frisch) return modus === 'mikrowelle' ? new Reste(e.w, false) : e.w;
-      const alt = e.w;
-      const v = rechne();
-      this.cacheSetze(halter, m, key, { w: v, t: this.schritte + this.offset });
-      return modus === 'mikrowelle' ? new Reste(alt, true) : v;
     }
+  }
+  nurHauptkueche(EINGABE_M, 'Bestellannahme gibt es nur in der Hauptküche.');
+  for (const t of new Set([THEKE_M].concat(Object.values(UI_TABELLEN)))) nurHauptkueche(t, 'Die Theke gibt es nur in der Hauptküche.');
+  nurHauptkueche(ZETTEL_M, 'Zettel gibt es nur in der Hauptküche.');
+  nurHauptkueche(ZETTEL_MOD_M, 'Zettel gibt es nur in der Hauptküche.');
 
-    // Kühlschrank-Tabelle eines Halters (Objekt, Klasse oder globaler Cache). In einer Küche wird aus einer
-    // Küchen-Überlagerung und dann aus dem Schnappschuss gelesen, geschrieben nur in die Überlagerung (D12).
-    cacheHole(halter, m, key) {
-      for (let k = this.kueche; k !== null; k = k.eltern) {
-        const h = k.kuehl.get(halter);
-        const tab = h !== undefined ? h.get(m) : undefined;
-        const e = tab !== undefined ? tab.get(key) : undefined;
-        if (e !== undefined) return e;
-      }
-      if (halter.cache === null || halter.cache === undefined) return undefined;
-      const tab = halter.cache.get(m);
-      return tab === undefined ? undefined : tab.get(key);
-    }
-    cacheSetze(halter, m, key, e) {
-      if (this.kueche !== null) {
-        const ueber = this.kueche.kuehl;
-        let h = ueber.get(halter);
-        if (h === undefined) { h = new Map(); ueber.set(halter, h); }
-        let tab = h.get(m);
-        if (tab === undefined) { tab = new Map(); h.set(m, tab); }
-        tab.set(key, e);
-        return;
-      }
-      if (halter.cache === null || halter.cache === undefined) halter.cache = new Map();
-      let tab = halter.cache.get(m);
-      if (tab === undefined) { tab = new Map(); halter.cache.set(m, tab); }
-      tab.set(key, e);
-    }
+  // ══════════ site/js/pizza/kueche.js ══════════
+  // pizza-Interpreter · Küchenbrigade (THREADS.md)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
-    bindeParameter(ps, sc, pos, ben, name, strikt) {
-      if (ben !== null) {
-        for (const k in ben) {
-          let ok = false;
-          for (const p of ps) if (p.name === k) { ok = true; break; }
-          if (!ok) throw this.ananas('LaufzeitAnanas', name + ' hat keinen Parameter \'' + k + '\'.');
-        }
-      }
-      if (strikt && pos.length > ps.length) {
-        throw this.ananas('LaufzeitAnanas', name + ' erwartet ' + ps.length + ' Argument' + (ps.length === 1 ? '' : 'e') + ', bekam ' + this.anzahl(pos, ben) + '.');
-      }
-      for (let i = 0; i < ps.length; i++) {
-        const p = ps[i];
-        let v;
-        if (i < pos.length) v = pos[i];
-        else if (ben !== null && p.name in ben) v = ben[p.name];
-        else if (strikt) throw this.ananas('LaufzeitAnanas', name + ' erwartet ' + ps.length + ' Argument' + (ps.length === 1 ? '' : 'e') + ', bekam ' + this.anzahl(pos, ben) + '.');
-        else v = null;
-        if (p.nieKarton && v === null) throw this.ananas('LeererKartonAnanas', 'Parameter \'' + p.name + '\' ist @NieKarton – aber es kam ein leerer Karton.');
-        if (p.typ !== null) this.pruefeTyp(p.typ, v, p.name);
-        sc.vars.set(p.name, new Var(v, p.typ, p.gebacken));
-      }
-    }
-
-    fuehreAus(m, ctx, pos, ben, node) {
-      const sc = new Scope(this.global, ctx, true);
-      this.bindeParameter(m.params, sc, pos, ben, 'Methode \'' + m.name + '\'', true);
-      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
-      try {
-        const body = m.body.body;
-        for (let i = 0; i < body.length; i++) {
-          const r = this.fuehre(body[i], sc);
-          if (r !== undefined) {
-            if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
-            break;
-          }
-        }
-        return null;
-      } finally {
-        this.st--;
-        this.z = z; this.s = s;
-      }
-    }
-
-    rufeLambda(f, pos, ben) {
-      const n = f.n;
-      const sc = new Scope(f.scope, null, false);
-      this.bindeParameter(n.params, sc, pos, ben, 'Die Funktion', false);
-      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
-      try {
-        if (n.ausdr) return this.ausw(n.body, sc);
-        const body = n.body.body;
-        for (let i = 0; i < body.length; i++) {
-          const r = this.fuehre(body[i], sc);
-          if (r !== undefined) {
-            if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
-            break;
-          }
-        }
-        return null;
-      } finally {
-        this.st--;
-        this.z = z; this.s = s;
-      }
-    }
-
-    namenAufruf(n, sc) {
-      const f = this.aufrufZiel(n.name, sc);
-      if (f === AUTO) return this.schieb(n, sc);
-      if (f instanceof Gebunden && f.liste[0].sicht !== null) {
-        const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-        const m = this.waehle(f.liste, this.anzahl(pos, ben));
-        this.pruefeMethodenZugriff(m, sc.ctx);
-        return this.rufeDecl(m, f.obj, pos, ben, n, 'normal');
-      }
-      return this.rufe(f, this.posArgs(n.args, sc), this.benArgs(n.args, sc), n);
-    }
-
-    aufrufZiel(name, sc) {
-      for (let s = sc; s !== null; s = s.parent) {
-        const v = s.vars.get(name);
-        if (v !== undefined) {
-          if (v.weg) throw this.weggeschoben(name);
-          return v.w;
-        }
-        if (s.grenze) break;
-      }
-      const ctx = sc.ctx;
-      if (ctx.klasse !== null) {
-        const d = ctx.dies instanceof Obj ? ctx.dies : null;
-        const l = this.findeMethodeListe(d !== null ? d.klasse : ctx.klasse, name) || (d !== null ? this.findeMethodeListe(ctx.klasse, name) : null);
-        if (l !== null) return new Gebunden(d, l, name);
-      }
-      if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
-      return this.leseName({ n: name }, sc);
-    }
-
-    schieb(n, sc) {
-      const a = n.args.pos[0];
-      if (!a || a.k !== 'Name' || n.args.pos.length !== 1) throw this.ananas('LaufzeitAnanas', 'schieb braucht genau einen Variablennamen: schieb(p).');
-      const v = this.finde(sc, a.n);
-      if (v === null) throw this.ananas('LaufzeitAnanas', '\'' + a.n + '\' ist nicht definiert.');
-      if (v.weg) throw this.weggeschoben(a.n);
-      if (this.kueche !== null) this.kuecheVar(v, a.n);
-      const w = v.w;
-      v.weg = true;
-      v.w = null;
-      return w;
-    }
-
-    untenAufruf(n, sc) {
-      const ctx = sc.ctx;
-      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      if (ctx.klasse === null || ctx.klasse.basis === null) throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht – keine Basisklasse.');
-      const l = this.findeMethodeListe(ctx.klasse.basis, n.name);
-      if (l !== null) {
-        const m = this.waehle(l, this.anzahl(pos, ben));
-        return this.rufeDecl(m, m.statisch ? null : ctx.dies, pos, ben, n, 'normal');
-      }
-      if (ctx.dies instanceof Obj) {
-        if (this.istAnanasKlasse(ctx.klasse.basis) && ANANAS_M[n.name]) return ANANAS_M[n.name].call(this, ctx.dies, pos, ben, n);
-        if (OBJ_M[n.name]) return OBJ_M[n.name].call(this, ctx.dies, pos, ben, n);
-      }
-      throw this.ananas('LaufzeitAnanas', 'Methode \'' + n.name + '\' gibt es in der Basisklasse \'' + ctx.klasse.basis.name + '\' nicht.');
-    }
-
-    // ---------- Objekte ----------
-    instanziiere(k, pos, ben, node) {
-      if (k.rohling) throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
-      const o = new Obj(k, ++this.instanzen);
-      o.zugeklappt = this.istCalzone(k);
-      const kette = [];
-      for (let c = k; c; c = c.basis) kette.push(c);
-      for (let i = kette.length - 1; i >= 0; i--) {
-        const c = kette[i];
-        for (const f of c.felder) {
-          for (const d of f.decls) {
-            const v = new Var(standardWert(f.typ), f.typ, f.gebacken);
-            v.mod = f.sicht; v.klasse = c; v.besitzer = o;
-            o.felder.set(d.name, v);
-          }
-        }
-      }
-      this.konstruiere(k, o, pos, ben, node);
-      return o;
-    }
-
-    konstruiere(k, o, pos, ben, node) {
-      if (k.nativKtor !== null) { k.nativKtor(o, pos); return; }
-      if (k.ktoren.length === 0) {
-        if (k.basis !== null) this.konstruiere(k.basis, o, pos, ben, node);
-        else if (pos.length || ben !== null) throw this.ananas('LaufzeitAnanas', 'Klasse \'' + k.name + '\' hat keinen Konstruktor, bekam aber Argumente.');
-        this.feldInit(k, o);
-        return;
-      }
-      const m = this.waehle(k.ktoren, this.anzahl(pos, ben));
-      const ctx = { dies: o, klasse: k, ktor: true };
-      const sc = new Scope(this.global, ctx, true);
-      this.bindeParameter(m.params, sc, pos, ben, 'Konstruktor von \'' + k.name + '\'', true);
-      if (!m.hatUnten) {
-        if (k.basis !== null) this.konstruiere(k.basis, o, [], null, node);
-        this.feldInit(k, o);
-      }
-      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      const z = this.z, s = this.s;
-      try {
-        const body = m.body.body;
-        for (let i = 0; i < body.length; i++) {
-          const r = this.fuehre(body[i], sc);
-          if (r !== undefined) { this.rueck = null; break; }
-        }
-      } finally {
-        this.st--;
-        this.z = z; this.s = s;
-      }
-    }
-
-    feldInit(k, o) {
-      const ctx = { dies: o, klasse: k, ktor: true };
-      for (const f of k.felder) {
-        for (const d of f.decls) {
-          if (d.init === null) continue;
-          const sc = new Scope(this.global, ctx, true);
-          const v = this.ausw(d.init, sc);
-          this.pruefeTyp(f.typ, v, d.name);
-          o.felder.get(d.name).w = v;
-        }
-      }
-    }
-
-    // ---------- Lieferung & Ofen ----------
-    liefere(l, budget, node) {
-      let z;
-      const st0 = this.st;
-      const frame = this.pushFrame('lieferung', budget);
-      try {
-        const v = this.rufe(l.fn, [], null, node);
-        z = new Zustellung(true, v, null);
-      } catch (e0) {
-        this.st = st0;
-        const e = this.normalisiere(e0);
-        if (e instanceof BudgetSig && e.frame === frame) z = new Zustellung(false, null, null);
-        else if (e instanceof AnanasWurf) z = new Zustellung(true, null, e);
-        else throw e;
-      } finally {
-        this.popFrame(frame);
-      }
-      l.zustellung = z;
-      return z;
-    }
-
-    blockWert(b, sc) {
-      const s = new Scope(sc, null, false);
-      const body = b.body;
-      for (let i = 0; i < body.length; i++) {
-        const r = this.fuehre(body[i], s);
-        if (r !== undefined) {
-          if (r === RET) { const v = this.rueck; this.rueck = null; return v; }
-          return null;
-        }
-      }
-      return null;
-    }
-
-    ofen(n, sc) {
-      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      // K-127: nur noch ein Zeitbudget (Positionsargument 0 = zeit)
-      let zeit = arg(pos, ben, 0, 'zeit');
-      if (zeit === undefined || zeit === null) zeit = new Dauer(60000);
-      const zeitMs = this.dauerMs(zeit, 'ofen(zeit: …)');
-      const startUhr = this.schritte + this.offset;
-      const z0 = this.z, s0 = this.s;
-      let wert = null, roh = null;
-      const st0 = this.st;
-      try {
-        const budget = Math.floor(zeitMs);
-        const frame = this.pushFrame('ofen', budget);
-        try {
-          wert = this.blockWert(n.block, sc);
-        } catch (e) {
-          this.st = st0;
-          if (e instanceof BudgetSig && e.frame === frame) {
-            this.z = z0; this.s = s0;
-            if (n.roh) roh = new OfenRoh(frame.zwischen, new Dauer(this.schritte + this.offset - startUhr));
-            else throw this.ananas('VerbranntAnanas', 'Zu lange im Ofen: Budget von ' + budget + ' Schritten überschritten.');
-          } else throw e;
-        } finally {
-          this.popFrame(frame);
-        }
-      } catch (e0) {
-        this.st = st0;
-        const e = this.normalisiere(e0);
-        if (e instanceof AnanasWurf && n.faenge.length) {
-          const f = this.findeFang(n.faenge, e.obj);
-          if (f !== null) {
-            const s2 = new Scope(sc, null, false);
-            s2.vars.set(f.name, new Var(e.obj, null, false));
-            return this.blockWert(f.block, s2);
-          }
-        }
-        throw e;
-      }
-      if (roh !== null) {
-        const s2 = new Scope(sc, null, false);
-        s2.vars.set(n.roh.name, new Var(roh, null, false));
-        return this.blockWert(n.roh.block, s2);
-      }
-      return wert;
-    }
-
-    findeFang(faenge, obj) {
-      for (const f of faenge) {
-        if (f.typ === null) return f;
-        const k = this.klassen.get(f.typ.name);
-        if (k !== undefined && this.instanzVon(obj, k)) return f;
-      }
-      return null;
-    }
-
-    waehleFall(n, v, sc) {
-      let std = null;
-      for (const c of n.faelle) {
-        if (c.labels === null) { std = c; continue; }
-        for (const lab of c.labels) {
-          if (lab.k === 'Name' && v instanceof EnumWert) {
-            if (lab.n === v.name) return c;
-            continue;
-          }
-          if (this.gleich(v, this.ausw(lab, sc))) return c;
-        }
-      }
-      return std;
-    }
-
-    // ---------- Ausdrücke ----------
-    // Kleine Fallmethoden halten den JS-Stackframe von ausw()/fuehre() klein (tiefe Rekursion).
-    ausw(n, sc) {
-      if (++this.schritte > this.grenze) this.grenzeErreicht();
-      switch (n.k) {
-        case 'Zahl': case 'Text': case 'Bool': return n.v;
-        case 'Name': return this.leseName(n, sc);
-        case 'Dauer': return new Dauer(n.v);
-        case 'Karton': return null;
-        case 'Dies': return this.aDies(sc);
-        case 'Unten': return this.aUnten(sc);
-        case 'Lambda': return new Funktion(n, sc);
-      }
-      // Zusammengesetzte Ausdrücke zählen in die Stapeltiefe (deterministisches Limit, SPEC §14.4)
-      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      let r;
-      switch (n.k) {
-        case 'Bin': r = this.binaer(n.op, this.ausw(n.l, sc), this.ausw(n.r, sc), n); break;
-        case 'MCall': r = this.aMCall(n, sc); break;
-        case 'NCall': r = this.namenAufruf(n, sc); break;
-        case 'Mem': r = this.mitglied(this.ausw(n.obj, sc), n.name, n, sc); break;
-        case 'Log': r = this.aLog(n, sc); break;
-        case 'Un': r = this.aUn(n, sc); break;
-        case 'Tern': r = this.aTern(n, sc); break;
-        case 'Call': r = this.rufe(this.ausw(n.callee, sc), this.posArgs(n.args, sc), this.benArgs(n.args, sc), n); break;
-        case 'UntenCall': r = this.aUntenCall(n, sc); break;
-        case 'Neu': r = this.aNeu(n, sc); break;
-        case 'Blech': r = this.aBlech(n, sc); break;
-        case 'Bereich': r = this.aBereich(n, sc); break;
-        case 'Ofen': r = this.ofen(n, sc); break;
-        case 'WaehleA': r = this.aWaehle(n, sc); break;
-        default: throw this.ananas('LaufzeitAnanas', 'Unbekannter Ausdruck \'' + n.k + '\'.');
-      }
-      this.st--;
-      return r;
-    }
-
-    aMCall(n, sc) {
-      if (n.obj.k === 'Unten') return this.untenAufruf(n, sc);
-      const o = this.ausw(n.obj, sc);
-      const pos = this.posArgs(n.args, sc);
-      const ben = n.args.ben === null ? null : this.benArgs(n.args, sc);
-      return this.rufeMethode(o, n.name, pos, ben, n, sc);
-    }
-    aLog(n, sc) {
-      const l = this.ausw(n.l, sc);
-      if (l !== true && l !== false) this.bool(l);
-      if (n.op === '&&') { if (!l) return false; }
-      else if (l) return true;
-      const r = this.ausw(n.r, sc);
-      if (r !== true && r !== false) this.bool(r);
-      return r;
-    }
-    aUn(n, sc) {
-      const v = this.ausw(n.e, sc);
-      if (n.op === '!') { if (v !== true && v !== false) this.bool(v); return !v; }
-      if (typeof v === 'number') return -v;
-      if (v instanceof Dauer) return new Dauer(-v.ms);
-      throw this.ananas('TypAnanas', this.typName(v) + ' kann man nicht negieren.');
-    }
-    aTern(n, sc) {
-      const c = this.ausw(n.c, sc);
-      if (c !== true && c !== false) this.bool(c);
-      return c ? this.ausw(n.a, sc) : this.ausw(n.b, sc);
-    }
-    aDies(sc) {
-      const d = sc.ctx.dies;
-      if (d === null) throw this.ananas('LaufzeitAnanas', '\'dies\' gibt es hier nicht – wir sind in keiner Instanz.');
-      return d;
-    }
-    aUnten(sc) {
-      const ctx = sc.ctx;
-      if (ctx.dies !== null) return ctx.dies;
-      throw this.ananas('LaufzeitAnanas', '\'unten\' gibt es hier nicht.');
-    }
-    aUntenCall(n, sc) {
-      const ctx = sc.ctx;
-      if (!ctx.ktor || ctx.klasse === null || !(ctx.dies instanceof Obj)) throw this.ananas('LaufzeitAnanas', 'unten(…) geht nur im Konstruktor.');
-      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      const k = ctx.klasse;
-      if (k.basis !== null) this.konstruiere(k.basis, ctx.dies, pos, ben, n);
-      else if (pos.length) throw this.ananas('LaufzeitAnanas', 'Klasse \'' + k.name + '\' hat keine Basisklasse für unten(…).');
-      this.feldInit(k, ctx.dies);
-      return null;
-    }
-    aNeu(n, sc) {
-      const tn = n.typ.name;
-      if (tn === 'Hawaii') throw this.panik();
-      const pos = this.posArgs(n.args, sc), ben = this.benArgs(n.args, sc);
-      if (!this.klassen.has(tn)) {
-        if (this.kueche !== null) {
-          if (UI_KLASSEN[tn] !== undefined || tn === 'Theke') throw this.ananas('KüchenAnanas', 'Die Theke gibt es nur in der Hauptküche.');
-          if (tn === 'Zettel') throw this.ananas('KüchenAnanas', 'Zettel gibt es nur in der Hauptküche.');
-          if (tn === 'Vorratskammer') throw this.ananas('KüchenAnanas', 'Neue Vorratskammern gibt es nur in der Hauptküche.');
-        }
-        if (UI_KLASSEN[tn] !== undefined) return this.uiNeu(tn, pos, ben);
-        if (tn === 'Zettel') {
-          // Theke v5 (K-116): neu Zettel(wert = karton) – ohne Theke eine gewöhnliche Schachtel
-          const w = arg(pos, ben, 0, 'wert');
-          return new Zettel(w === undefined ? null : w);
-        }
-        if (tn === 'Zutat') throw this.ananas('RohlingAnanas', 'Ein Rohling ist nicht essbar.');
-        if (tn === 'Zufall') {
-          const sa = arg(pos, ben, 0, 'saat');
-          if (sa === undefined || sa === null) return new ZufallGen(Math.floor(this.zufallGlobal.r() * 4294967296));
-          return new ZufallGen(this.ganzzahl(sa, 'Zufall'));
-        }
-        if (tn === 'Vorratskammer') return this.neueKammer(pos, ben, n);
-        if (tn === 'Theke') {
-          if (this.uiTheke !== null) throw this.ananas('LaufzeitAnanas', 'Es gibt nur eine Theke pro Programm.');
-          const titel = arg(pos, ben, 0, 'titel');
-          const br = arg(pos, ben, 1, 'breite'), ho = arg(pos, ben, 2, 'hoehe');
-          const t = new UiTheke(titel === undefined ? '' : this.text(titel),  // K-102: karton → "karton" (Zustandsfeld)
-            br === undefined || br === null ? 480 : this.ganzzahl(br, 'Theke(breite: …)'),
-            ho === undefined || ho === null ? 360 : this.ganzzahl(ho, 'Theke(hoehe: …)'));
-          this.uiTheke = t;
-          return t;
-        }
-        // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten des Schemas
-        const hn = this.herdNeu(tn, pos, ben);
-        if (hn !== undefined) return hn;
-      }
-      switch (tn) {
-        case 'Blech': return pos.length && Array.isArray(pos[0]) ? pos[0].slice() : [];
-        case 'Speisekarte': return new Map();
-      }
-      const k = this.klassen.get(tn);
-      if (k === undefined) throw this.ananas('UnbekanntePizzaAnanas', 'Klasse \'' + tn + '\' steht nicht auf der Speisekarte.');
-      if (!(k instanceof Klasse)) throw this.ananas('RohlingAnanas', '\'' + tn + '\' kann man nicht mit neu backen.');
-      return this.instanziiere(k, pos, ben, n);
-    }
-    aBlech(n, sc) {
-      const e = n.elemente;
-      const r = new Array(e.length);
-      for (let i = 0; i < e.length; i++) r[i] = this.ausw(e[i], sc);
-      return r;
-    }
-    aBereich(n, sc) {
-      const a = this.zahl(this.ausw(n.a, sc), 'Bereich [a .. b]');
-      const b = this.zahl(this.ausw(n.b, sc), 'Bereich [a .. b]');
-      if (Math.abs(b - a) > 10000000) throw this.ananas('RechenAnanas', 'Der Bereich ist zu groß für ein Blech.');
-      const r = [];
-      if (a <= b) for (let x = a; x <= b; x++) r.push(x);
-      else for (let x = a; x >= b; x--) r.push(x);
-      return r;
-    }
-    aWaehle(n, sc) {
-      const v = this.ausw(n.subj, sc);
-      const c = this.waehleFall(n, v, sc);
-      if (c === null) return null;
-      return c.body.k === 'Block' ? this.blockWert(c.body, sc) : this.ausw(c.body, sc);
-    }
-
-    // ---------- Anweisungen ----------
-    block(n, sc) {
-      const s = n.d ? new Scope(sc, null, false) : sc;
-      const b = n.body;
-      for (let i = 0; i < b.length; i++) {
-        const r = this.fuehre(b[i], s);
-        if (r !== undefined) return r;
-      }
-      return undefined;
-    }
-
-    schreibeVar(v, w, sc, name) {
-      if (this.kueche !== null) this.kuecheVar(v, name);
-      if (v.g) {
-        if (v.unbelegt) v.unbelegt = false;
-        else if (!(v.besitzer !== null && sc.ctx.ktor && sc.ctx.dies === v.besitzer)) {
-          throw this.ananas('GebackenAnanas', '\'' + name + '\' ist gebacken und kann nicht mehr verändert werden.');
-        }
-      }
-      if (v.t !== null) this.pruefeTyp(v.t, w, name);
-      v.w = w;
-      v.weg = false;
-    }
-
-    zielVar(ziel, sc) {
-      if (ziel.k === 'Name') {
-        const v = this.finde(sc, ziel.n);
-        if (v === null) throw this.ananas('LaufzeitAnanas', '\'' + ziel.n + '\' ist nicht definiert.');
-        return v;
-      }
-      const o = this.ausw(ziel.obj, sc);
-      if (o === null || o === undefined) throw this.leer();
-      let v = null;
-      if (o instanceof Obj) {
-        v = o.felder.get(ziel.name);
-        if (v === undefined) v = this.statischesFeld(o.klasse, ziel.name);
-        if (v === null) throw this.ananas('LaufzeitAnanas', 'Feld \'' + ziel.name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
-        if (v.mod !== null) this.pruefeZugriff(v, o, sc.ctx, ziel.name);
-      } else if (o instanceof Klasse) {
-        v = this.statischesFeld(o, ziel.name);
-        if (v === null) throw this.ananas('LaufzeitAnanas', 'Feld \'' + ziel.name + '\' gibt es in Klasse ' + o.name + ' nicht.');
-        if (v.mod !== null) this.pruefeZugriff(v, null, sc.ctx, ziel.name);
-      } else throw this.ananas('TypAnanas', 'Auf ' + this.typName(o) + ' kann man keine Felder setzen.');
-      return v;
-    }
-
-    fuehre(n, sc) {
-      if (++this.schritte > this.grenze) this.grenzeErreicht();
-      this.z = n.z; this.s = n.s;
-      if (++this.st > MAX_STAPEL) { this.st--; throw this.stapel(); }
-      let r;
-      switch (n.k) {
-        case 'AusdrAnw': this.ausw(n.e, sc); break;
-        case 'Zuw': this.sZuw(n, sc); break;
-        case 'Var': this.sVar(n, sc); break;
-        case 'Inc': this.sInc(n, sc); break;
-        case 'Block': r = this.block(n, sc); break;
-        case 'Falls': r = this.sFalls(n, sc); break;
-        case 'Solange': r = this.sSolange(n, sc); break;
-        case 'Fuer': r = this.sFuer(n, sc); break;
-        case 'FuerJedes': r = this.sFuerJedes(n, sc); break;
-        case 'Waehle': r = this.sWaehle(n, sc); break;
-        case 'Serviere':
-          this.rueck = n.e === null ? null : this.ausw(n.e, sc);
-          r = RET;
-          break;
-        case 'Wirf': throw this.sWirf(n, sc);
-        case 'Probier': r = this.probier(n, sc); break;
-        case 'Abbrechen': r = BRK; break;
-        case 'Weiter': r = CNT; break;
-        case 'Leer': break;
-        case 'Klasse': case 'Rezeptur': case 'Enum': case 'Methode': break;
-        default: throw this.ananas('LaufzeitAnanas', 'Unbekannte Anweisung \'' + n.k + '\'.');
-      }
-      this.st--;
-      return r;
-    }
-
-    sZuw(n, sc) {
-      const ziel = n.ziel;
-      const name = ziel.k === 'Name' ? ziel.n : ziel.name;
-      const v = this.zielVar(ziel, sc);
-      let w;
-      if (n.op === '=') {
-        w = this.ausw(n.wert, sc);
-      } else {
-        if (v.weg) throw this.weggeschoben(name);
-        w = this.binaer(n.op[0], v.w, this.ausw(n.wert, sc), n);
-      }
-      this.schreibeVar(v, w, sc, name);
-    }
-    sVar(n, sc) {
-      const typ = n.typ;
-      const ds = n.decls;
-      for (let i = 0; i < ds.length; i++) {
-        const d = ds[i];
-        if (d.init !== null) {
-          const v = this.ausw(d.init, sc);
-          this.pruefeTyp(typ, v, d.name);
-          sc.vars.set(d.name, new Var(v, typ, n.gebacken));
-        } else {
-          const x = new Var(standardWert(typ), typ, n.gebacken);
-          x.unbelegt = true;
-          sc.vars.set(d.name, x);
-        }
-      }
-    }
-    sInc(n, sc) {
-      const ziel = n.ziel;
-      const name = ziel.k === 'Name' ? ziel.n : ziel.name;
-      const v = this.zielVar(ziel, sc);
-      if (v.weg) throw this.weggeschoben(name);
-      const alt = v.w;
-      const w = typeof alt === 'number' ? alt + n.d : this.binaer('+', alt, n.d, n);
-      this.schreibeVar(v, w, sc, name);
-    }
-    sFalls(n, sc) {
-      const c = this.ausw(n.c, sc);
-      if (c === true) return this.block(n.dann, sc);
-      if (c !== false) this.bool(c);
-      if (n.sonst !== null) return n.sonst.k === 'Block' ? this.block(n.sonst, sc) : this.fuehre(n.sonst, sc);
-      return undefined;
-    }
-    sSolange(n, sc) {
-      for (;;) {
-        const c = this.ausw(n.c, sc);
-        if (c !== true) { if (c === false) break; this.bool(c); }
-        const r = this.block(n.body, sc);
-        if (r !== undefined) {
-          if (r === BRK) break;
-          if (r === CNT) continue;
-          return r;
-        }
-      }
-      return undefined;
-    }
-    sFuer(n, sc) {
-      const s = new Scope(sc, null, false);
-      if (n.init !== null) this.fuehre(n.init, s);
-      const upd = n.upd;
-      for (;;) {
-        if (n.c !== null) {
-          const c = this.ausw(n.c, s);
-          if (c !== true) { if (c === false) break; this.bool(c); }
-        }
-        const r = this.block(n.body, s);
-        if (r !== undefined) {
-          if (r === BRK) break;
-          if (r !== CNT) return r;
-        }
-        for (let i = 0; i < upd.length; i++) this.fuehre(upd[i], s);
-      }
-      return undefined;
-    }
-    sFuerJedes(n, sc) {
-      const q = this.ausw(n.quelle, sc);
-      let liste;
-      if (Array.isArray(q)) liste = q.slice();
-      else if (typeof q === 'string') liste = Array.from(q);
-      else if (q instanceof Map) liste = Array.from(q.keys());
-      else if (q instanceof EnumTyp) liste = q.werte.slice();
-      else if (q === null) throw this.leer();
-      else throw this.ananas('TypAnanas', 'Über ' + this.typName(q) + ' kann man nicht laufen.');
-      for (let i = 0; i < liste.length; i++) {
-        const s = new Scope(sc, null, false);
-        const v = liste[i];
-        if (n.typ !== null) this.pruefeTyp(n.typ, v, n.name);
-        s.vars.set(n.name, new Var(v, n.typ, false));
-        const r = this.block(n.body, s);
-        if (r !== undefined) {
-          if (r === BRK) break;
-          if (r !== CNT) return r;
-        }
-      }
-      return undefined;
-    }
-    sWaehle(n, sc) {
-      const v = this.ausw(n.subj, sc);
-      const c = this.waehleFall(n, v, sc);
-      if (c === null) return undefined;
-      const r = c.body.k === 'Block' ? this.block(c.body, sc) : this.fuehre(c.body, sc);
-      if (r === BRK) return undefined;
-      return r;
-    }
-    sWirf(n, sc) {
-      const v = this.ausw(n.e, sc);
-      if (v instanceof Obj) return new AnanasWurf(v, n.z, n.s);
-      if (v === null || v === undefined) return this.leer();
-      return this.ananas('TypAnanas', 'Werfen kann man nur Ananas (Objekte), nicht ' + this.darstellung(v) + '.');
-    }
-
-    randErlaubt(e) {
-      return e instanceof AnanasWurf || e instanceof BudgetSig;
-    }
-
-    probier(n, sc) {
-      let r;
-      const st0 = this.st;
-      try {
-        try {
-          r = this.block(n.block, sc);
-        } catch (e0) {
-          this.st = st0;
-          const e = this.normalisiere(e0);
-          if (!(e instanceof AnanasWurf)) throw e;
-          const f = this.findeFang(n.faenge, e.obj);
-          if (f === null) throw e;
-          const s2 = new Scope(sc, null, false);
-          s2.vars.set(f.name, new Var(e.obj, null, false));
-          r = this.block(f.block, s2);
-        }
-      } catch (e0) {
-        this.st = st0;
-        const e = this.normalisiere(e0);
-        if (n.rand !== null && this.randErlaubt(e)) {
-          const rr = this.block(n.rand, sc);
-          if (rr !== undefined) return rr;
-        }
-        throw e;
-      }
-      if (n.rand !== null) {
-        const rr = this.block(n.rand, sc);
-        if (rr !== undefined) return rr;
-      }
-      return r;
-    }
-
+  // Laufzeit: Küchenbrigade
+  class LaufzeitKueche {
     // ---------- Küchenbrigade (THREADS.md §2–§4.2) – sequentielle Referenz ----------
     // Eine Küche ist der Kontext eines Stücks: { auftrag, eltern, puffer, warn, methoden, kuehl }.
     // auftrag.gefroren enthält alles, was beim Anschnitt der (jeweiligen) Hauptküche gehörte; verschachtelte
@@ -5371,50 +5537,12 @@
       }
       return bericht;
     }
-
-    // ---------- Programmende ----------
-    behandleEnde(e0) {
-      const e = this.normalisiere(e0);
-      if (e instanceof PanikSig) {
-        this.emit({ typ: 'panik', text: PANIK_BANNER });
-        return 39;
-      }
-      if (e instanceof HerdKernFehlt) {
-        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, zeile: null, spalte: null });
-        return 2;
-      }
-      try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
-      if (e instanceof PizzaFehlerSig) {
-        this.emit({ typ: 'fehler', code: e.code, art: 'pizzafehler', text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte });
-        return 2;
-      }
-      if (e instanceof LimitSig) {
-        this.emit({ typ: 'fehler', code: 'P0002', art: 'limit', text: 'PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)', zeile: this.z, spalte: this.s });
-        return 3;
-      }
-      if (e instanceof AnanasWurf) {
-        const o = e.obj;
-        let beschr;
-        if (this.istAnanasKlasse(o.klasse)) beschr = o.klasse.name + ': ' + o.nachricht;
-        else {
-          try { beschr = this.objText(o); } catch (x) { beschr = o.klasse.name + '@' + o.nr; }
-        }
-        this.emit({
-          typ: 'fehler', code: o.klasse.name, art: 'ananas',
-          text: 'Ungefangene Ananas – ' + beschr + (e.zeile != null ? ' (Zeile ' + e.zeile + ')' : ''),
-          zeile: e.zeile == null ? null : e.zeile, spalte: e.spalte == null ? null : e.spalte
-        });
-        return 1;
-      }
-      const msg = e && e.message ? e.message : String(e);
-      this.emit({
-        typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-        text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.' + (this.z != null ? ' (Zeile ' + this.z + ')' : ''),
-        zeile: this.z, spalte: this.s, detail: msg
-      });
-      return 1;
-    }
   }
+  laufzeitTeil(LaufzeitKueche);
+
+  // ══════════ site/js/pizza/herd/kern.js ══════════
+  // pizza-Interpreter · Herd: Typen, Kern laden, Schema, Objekte
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // =====================================================================
   // HERD – Spiel-Engine (SPEC §18, HERD.md, herd/README.md §3)
@@ -5602,6 +5730,10 @@
     if (v instanceof HerdKomp) return v.art.name;
     return null;
   }
+
+  // ══════════ site/js/pizza/herd/tabellen.js ══════════
+  // pizza-Interpreter · Herd: Methodentabellen
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // ---------- Methodentabellen ----------
   function herdTab(o) { const t = tabelle(o); nurHauptkueche(t, HERD_KUECHE); return t; }
@@ -5931,6 +6063,10 @@
     geh(ast);
     return out.sort((a, b) => (a.z - b.z) || (a.s - b.s));
   }
+
+  // ══════════ site/js/pizza/herd/laufzeit.js ══════════
+  // pizza-Interpreter · Herd: Laufzeit-Methoden und Spielschleife
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
 
   // ---------- Laufzeit-Methoden (this = Laufzeit) ----------
   const HERD_LAUFZEIT = {
@@ -6316,6 +6452,10 @@
   };
   Object.assign(Laufzeit.prototype, HERD_LAUFZEIT);
 
+  // ══════════ site/js/pizza/api.js ══════════
+  // pizza-Interpreter · API (run, intern, öffentliches Objekt)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+
   // =====================================================================
   // API
   // =====================================================================
@@ -6399,4 +6539,5 @@
       LOGEXP: Object.assign({}, LOGEXP)   // U-72: log/log10/log2/exp (ebenso)
     }
   };
+
 });

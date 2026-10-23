@@ -26,7 +26,8 @@ pizza/
 │   ├── css/                     [UI-Agent]
 │   ├── js/app.bundle.js         Build-Ergebnis von ui/ (generiert, nicht von Hand)  [UI-Agent]
 │   ├── js/worker.js             [UI-Agent]
-│   ├── js/pizza.js              Interpreter (UMD, Browser + Node)   [Interpreter-Agent]
+│   ├── js/pizza.js              Interpreter (UMD, Browser + Node) – generiert aus js/pizza/ (scripts/baue-pizza.js)
+│   ├── js/pizza/**.js           Interpreter-Quellen (Abschnitte, Tabelle in §1)   [Interpreter-Agent]
 │   ├── js/doku/*.js             Doku-Inhalte als Daten        [Doku-Agents, Geschichte-Agent]
 │   └── beispiele/               Beispielprogramme             [Beispiel-Agents]
 │       ├── index.json           Liste der Teil-Manifeste (vom Koordinator)
@@ -42,6 +43,41 @@ pizza/
 ## 1. Interpreter-API (`site/js/pizza.js`)
 
 UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhängigkeiten.
+
+**Quellen und Bau.** Ausgeliefert und geladen wird immer die eine Datei `site/js/pizza.js` (Browser `<script>`, Worker
+`importScripts("pizza.js")`, Node `require`, Compiler `site/js/pizzaiolo*`, Worker-Kontext-Test per `vm`). Sie ist **generiert**:
+`node scripts/baue-pizza.js` (`npm run baue:pizza`) hängt die Abschnitte unter `site/js/pizza/` unverändert (um 2 Leerzeichen
+eingerückt) in den Rumpf der UMD-Fabrik – kein Bundler, keine Umbenennung, eingecheckt wie `app.bundle.js`. **Geändert wird nur in
+`site/js/pizza/`**, danach neu bauen; `npm test` prüft vorab (`pretest`: `baue-pizza.js --pruefe`), dass `pizza.js` zum Stand
+der Abschnitte passt. Alle Abschnitte teilen **einen** Gültigkeitsbereich (keine Importe); Reihenfolge = Liste `ABSCHNITTE` in
+`scripts/baue-pizza.js` (zählt nur für Code, der beim Laden läuft). Eine neue Datei ist ein Eintrag in dieser Liste. Methoden der
+Klasse `Laufzeit` außerhalb von `laufzeit/kern.js` stehen in Klassen `LaufzeitX`, die `laufzeitTeil(LaufzeitX)` auf
+`Laufzeit.prototype` überträgt (doppelte Namen → Fehler beim Laden); der Herd nutzt weiter `Object.assign(Laufzeit.prototype, HERD_LAUFZEIT)`.
+Keine Zeichenketten über Zeilengrenzen (der Bau prüft das).
+
+| Abschnitt (`site/js/pizza/…`) | Inhalt |
+|---|---|
+| `kopf.js` | Konstanten: Version, Schlüsselwörter, Typen, Ananas-Baum, Grenzen |
+| `lexer.js` | `lexe` |
+| `parser.js` | `Parser`, `parse` (AST) |
+| `analyse.js` | statische Analyse (Warnungen vor dem Start) |
+| `laufzeit/werte.js` | Werteklassen, Signale, `Scope`, Textformen, `ZufallGen`, `Kammer` |
+| `laufzeit/kern.js` | `class Laufzeit`: Konstruktor, Hilfen, Eingabe, Budgets, `start`, `behandleEnde`; `laufzeitTeil` |
+| `laufzeit/pruefung.js` | `registriere`, Startprüfungen (`pruefe`, `vorbereiten`) |
+| `laufzeit/typen.js` | Typprüfung, Textform, Vergleiche, Operatoren |
+| `laufzeit/namen.js` | Namen und Felder |
+| `laufzeit/aufrufe.js` | Aufrufe, Kühlschrank, Objekte |
+| `laufzeit/auswertung.js` | Lieferung & Ofen, Ausdrücke, Anweisungen |
+| `std/basis.js` · `std/mathe.js` · `std/zufall.js` · `std/vorrat.js` · `std/spiegel.js` | Standardbibliothek (Methodentabellen; Vorratskammer mit Laufzeit-Teil) |
+| `theke/tabellen.js` · `theke/laufzeit.js` | Theke: Klassen, Stil, Tabellen · Fenster, Zettel, Bindungen |
+| `std/register.js` | `TABELLEN`, Sperren `nurRechnen`/`nurHauptkueche` (nach allen Tabellen) |
+| `kueche.js` | Küchenbrigade |
+| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` | Herd: Kern laden, Schema · Methodentabellen · Laufzeit, Spielschleife |
+| `api.js` | `run`, `pruefeStart`, öffentliches Objekt (`intern`) |
+
+Orte für die geplanten Pakete: PA1 neuer Abschnitt `projekt.js` (Lader `projekt.lade`), `bestellt` in `parser.js`, Feld
+`datei`/API in `api.js` und `laufzeit/kern.js`; PD2 `Kiste` in `std/`, `Bildchen.laden` in `herd/tabellen.js`/`herd/laufzeit.js`;
+H-K12–H-K14 in `herd/` (Kniff-Dispatch in `laufzeit/aufrufe.js`, Importgruppe `klang` als neuer Abschnitt `herd/klang.js`).
 
 ```js
 PizzaLang.version            // "3.1.0"
