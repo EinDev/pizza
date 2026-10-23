@@ -69,22 +69,22 @@ Keine Zeichenketten über Zeilengrenzen (der Bau prüft das).
 | `laufzeit/namen.js` | Namen und Felder |
 | `laufzeit/aufrufe.js` | Aufrufe, Kühlschrank, Objekte |
 | `laufzeit/auswertung.js` | Lieferung & Ofen, Ausdrücke, Anweisungen |
-| `std/basis.js` · `std/mathe.js` · `std/zufall.js` · `std/vorrat.js` · `std/spiegel.js` | Standardbibliothek (Methodentabellen; Vorratskammer mit Laufzeit-Teil) |
+| `std/basis.js` · `std/mathe.js` · `std/zufall.js` · `std/vorrat.js` · `std/spiegel.js` · `std/kiste.js` | Standardbibliothek (Methodentabellen; Vorratskammer und Kiste mit Laufzeit-Teil) |
 | `theke/tabellen.js` · `theke/laufzeit.js` | Theke: Klassen, Stil, Tabellen · Fenster, Zettel, Bindungen |
 | `std/register.js` | `TABELLEN`, Sperren `nurRechnen`/`nurHauptkueche` (nach allen Tabellen) |
 | `kueche.js` | Küchenbrigade |
-| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` | Herd: Kern laden, Schema · Methodentabellen · Laufzeit, Spielschleife |
+| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-Kopf · Methodentabellen · Laufzeit, Vorbacken, `Bildchen.laden`, Spielschleife |
 | `api.js` | `run`, `pruefeStart`, öffentliches Objekt (`intern`) |
 
 Orte der Projekt-Pakete: PA1 (umgesetzt) Abschnitt `projekt.js` (Lader), `bestellt` und Datei-Index `di` in `parser.js`, Feld
-`datei`/API in `api.js` und `laufzeit/kern.js` (`dateiPfad`, `ortText`, `this.d`); PD2 `Kiste` in `std/`, `Bildchen.laden` in `herd/tabellen.js`/`herd/laufzeit.js`;
+`datei`/API in `api.js` und `laufzeit/kern.js` (`dateiPfad`, `ortText`, `this.d`); PD2 (umgesetzt) `Kiste` in `std/kiste.js`, Vorbacker/Teigling-Kopf in `herd/kern.js`, `Bildchen.laden` und Vorbacken (`vorbacke`) in `herd/tabellen.js`/`herd/laufzeit.js`;
 H-K12–H-K14 in `herd/` (Kniff-Dispatch in `laufzeit/aufrufe.js`, Importgruppe `klang` als neuer Abschnitt `herd/klang.js`).
 
 ```js
 PizzaLang.version            // "3.1.0"
 PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
-PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand; ab PD2 Kiste, SPEC §11.2)
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand, Kiste – SPEC §11.2)
 PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen (inkl. KüchenAnanas, SPEC §17 – am Ende angehängt)
 
 PizzaLang.parse(quelltext, { datei }?)
@@ -102,8 +102,8 @@ PizzaLang.run(quelle, optionen)
   //                       koeche?: number | "auto", kuechenChaos?: number,       // Küchenbrigade: SPEC §17 (K-100)
   //                       herdKern?: WebAssembly.Module | ArrayBuffer | Uint8Array,  // Herd: SPEC §18, K-128 – Node ohne Option: site/js/herd/kern.wasm
   //                       onHerd?(art, daten), herdSpion?(kernExporte),            // Herd-Renderer (Bildpaket-Bytes nur hier); herdSpion nur Werkzeuge
-  //                       teiglinge?: { pfad → Uint8Array },                       // vorgebackene Bilder (SPEC §18.5, K-145) – geprüft, fehlende backt der Lader
-  //                       vorbacker?: WebAssembly.Module | ArrayBuffer | Uint8Array } // teigling.wasm wie herdKern; Node ohne Option: site/js/herd/teigling.wasm
+  //                       teiglinge?: { pfad → Uint8Array },                       // vorgebackene Bilder (SPEC §18.5, K-145) – geprüft (Kopf + SHA-256 der Quelle), fehlende/unpassende backt der Lauf
+  //                       vorbacker?: WebAssembly.Module | ArrayBuffer | Uint8Array | { vorbacken, sha256 } } // teigling.wasm wie herdKern (oder PizzaVorbacker-Objekt); Node ohne Option: site/js/herd/teigling.wasm
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
@@ -328,7 +328,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | Herd (SPEC §18) | `<name>.herd-erwartet` | alle `herd`-Ereignisse als JSON-Lines ohne `typ` (`fenster` mit Titel/Größe, `bild` mit `bildnummer`/`szene`/`paket` = FNV-1a-64-Hashes des Kerns, `schliesse`), kanonisch verglichen; Renderer-Ereignisse (`takt`, `geschlossen`) in `.ereignisse` wie bei der Theke; Doku-Codeblöcke `herdErwartet: object[]` (K-134); `node tests/herd/erwartet.js --schreibe` erneuert die Dateien nach einer Kern-Änderung |
 | Projekte (SPEC §2, K-144; seit PA1, z. B. `tests/faelle/projekt-*/`) | `tests/faelle/<name>/` | **Ordner-Fall** = Projekt (`pizza.json` optional, `hauptgang.pizza`, Nebendateien, Assets) mit Testordner `pruefung/`: `erwartet`, `exitcode`, `warnungen`, `fehler`, `optionen.json`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet` (Inhalt wie die gleichnamigen Dateien oben) und neu `orte` (JSON-Lines `{ "code", "datei", "zeile", "spalte" }` je `fehler`/`warnung`). `pruefung/` gehört nicht zum Programm; Ein-Datei-Fälle bleiben, wie sie sind. Beispiele ebenso (`site/beispiele/<kategorie>/<projekt>/pruefung/`) |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code); ab PA2 auch Ordner `<name>/` als Projekt, Kopfzeilen in der Hauptdatei |
-| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (Differenztests nehmen nur Texte, bis PA2); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit `a19-projekte-offen.js` mit den Kiste-/Bild-Fällen K-145 … K-147 bis PD2; die Lader-Fälle stehen seit PA1 in `a19-projekte.js`, gemeinsame Hilfen in `pruefstand/lib/projekt-helfer.js`) |
+| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (Differenztests nehmen nur Texte, bis PA2); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit keine; die Projekt-Fälle – Lader seit PA1, Kiste/Bilder seit PD2 – stehen in `a19-projekte.js`, gemeinsame Hilfen in `pruefstand/lib/projekt-helfer.js`) |
 | Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number`, `zone: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit`/`zone` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088, K-154) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).

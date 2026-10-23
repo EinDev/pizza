@@ -321,6 +321,11 @@ if (optionen.ast) {
       } catch (e) { return false; }
     };
   }
+  // Bilder (SPEC §18.5, PROJEKTE §5.4): Vorbacken im Prozess mit site/js/herd/teigling.wasm (Speicher-Cache je Lauf, kein
+  // Plattencache). Nur bei Projekten mit Bildern geladen; fehlt teigling.wasm, meldet der Interpreter „Der Vorbacker fehlt“.
+  if (typeof quelle === 'object' && Object.keys(quelle.dateien).some(p => /\.(png|jpe?g)$/.test(p))) {
+    try { runOpt.vorbacker = require(path.join(__dirname, '..', 'site', 'js', 'herd', 'teigling.js')).node(); } catch (e) { /* → HOST-Fehler */ }
+  }
   const r = P.run(quelle, runOpt);
   process.exitCode = r.exitCode;
 }

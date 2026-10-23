@@ -179,6 +179,93 @@ class HerdForm { constructor(id) { this.id = id; } }
 class HerdBildchen { constructor(id, b, h) { this.id = id; this.breite = b; this.hoehe = h; } }
 class HerdKernFehlt { }
 
+// ---------- Vorbacker (SPEC §18.5, PROJEKTE §5.3/§5.4, K-145/K-147) ----------
+// teigling.wasm backt PNG/JPEG der Kiste vor dem Start zu Teiglingen (derselbe Rust-Code wie site/js/herd/teigling.js
+// und nativ – bitgleich). optionen.vorbacker: WebAssembly.Module | ArrayBuffer | Uint8Array | ein Vorbacker-Objekt mit
+// vorbacken(bytes)/sha256(bytes) (z. B. PizzaVorbacker.node()); Node ohne Option: site/js/herd/teigling.wasm.
+const VORBACKER_FEHLT = 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).';
+class VorbackerFehlt { }
+const TEIGLING_KOPF = 52, TEIGLING_FEHLER_LAENGE = 64, TEIGLING_MAX_KANTE = 2048, TEIGMENGE_MAX = 33554432;
+const TEIGLING_MAGIE = [84, 69, 73, 71, 76, 73, 78, 71];   // "TEIGLING"
+const TEIGLING_LEER = new Uint8Array(0);                     // keine Bild-Endung: der Kern meldet „kein lesbares Bild“ (61)
+function istBildPfad(pfad) { return /\.(png|jpg|jpeg)$/.test(pfad); }
+function teiglingHex(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += (u8[i] < 16 ? '0' : '') + u8[i].toString(16);
+  return s;
+}
+// Kopf vollständig prüfen (wie lies_kopf in herd/teigling, bildchen_teigling im Kern und PizzaVorbacker.kopf)
+// → null (ungültig) | { fehler: diavolo, sha256: hex }
+function teiglingKopf(t) {
+  if (!(t instanceof Uint8Array) || t.length < TEIGLING_KOPF) return null;
+  for (let i = 0; i < 8; i++) if (t[i] !== TEIGLING_MAGIE[i]) return null;
+  const u16 = (i) => t[i] | (t[i + 1] << 8);
+  const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+  if (u16(8) !== 1) return null;
+  const format = t[10], stufen = t[11], b = u16(12), h = u16(14);
+  const sha256 = teiglingHex(t.subarray(20, 52));
+  if (format === 255) {
+    const code = t.length === TEIGLING_FEHLER_LAENGE ? u16(52) : 0;
+    if (stufen !== 0 || b !== 0 || h !== 0 || (code !== 1 && code !== 2)) return null;
+    return { fehler: true, sha256 };
+  }
+  let n = 0;
+  for (let m = Math.max(b, h); m > 0; m = Math.floor(m / 2)) n++;
+  if (format !== 0 || b < 1 || h < 1 || b > TEIGLING_MAX_KANTE || h > TEIGLING_MAX_KANTE || stufen !== n) return null;
+  let p = TEIGLING_KOPF, w = b, hh = h;
+  for (let s = 0; s < stufen; s++) {
+    if (p + 4 > t.length || u32(p) !== w * hh * 4) return null;
+    p += 4 + w * hh * 4;
+    w = Math.max(1, Math.floor(w / 2));
+    hh = Math.max(1, Math.floor(hh / 2));
+  }
+  return p === t.length ? { fehler: false, sha256 } : null;
+}
+// Dünne Hülle um teigling.wasm (ABI wie site/js/herd/teigling.js)
+class HerdVorbacker {
+  constructor(modul) {
+    const e = new WebAssembly.Instance(modul, {}).exports;
+    if (typeof e.abi_version !== 'function' || e.abi_version() !== 1 || e.teigling_version() !== 1) throw new Error('teigling.wasm: unbekannte Version');
+    this.e = e;
+  }
+  rein(b) {
+    const p = this.e.puffer(b.length);
+    new Uint8Array(this.e.memory.buffer, p, b.length).set(b);
+    return p;
+  }
+  vorbacken(q) {
+    const n = this.e.vorbacken(this.rein(q), q.length);
+    const aus = new Uint8Array(n);
+    aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), n));
+    this.e.freigeben();
+    return aus;
+  }
+  sha256(b) {
+    this.e.sha256(this.rein(b), b.length);
+    const aus = new Uint8Array(32);
+    aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), 32));
+    return aus;
+  }
+}
+let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
+const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)
+function herdVorbacker(v) {
+  if (v !== undefined && v !== null && typeof v === 'object' && typeof v.vorbacken === 'function' && typeof v.sha256 === 'function') return v;
+  if (typeof WebAssembly === 'undefined') return null;
+  const baue = (m) => { try { return new HerdVorbacker(m instanceof WebAssembly.Module ? m : new WebAssembly.Module(m)); } catch (e) { return null; } };
+  if (v !== undefined && v !== null) {
+    if (typeof v !== 'object') return null;
+    let vb = vorbackerCache.get(v);
+    if (vb === undefined) { vb = baue(v); vorbackerCache.set(v, vb); }
+    return vb;
+  }
+  if (vorbackerStandard === undefined) {
+    const b = herdDatei('teigling.wasm');
+    vorbackerStandard = b === null ? null : baue(b);
+  }
+  return vorbackerStandard;
+}
+
 function herdKlasseVon(v) {
   if (v instanceof HerdWelt) return 'Herd';
   if (v instanceof HerdTeil) return 'Teil';

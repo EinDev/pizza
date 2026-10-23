@@ -292,6 +292,59 @@ const HERD_LAUFZEIT = {
     k.res.set(id, b);
     return b;
   },
+  // ---------- Bilddateien (SPEC §18.5, K-145; PROJEKTE §5.2 … §5.5) ----------
+  // Vor dem Start: jedes Bild der Kiste (Endung .png/.jpg/.jpeg) → Teigling, je Quell-Hash einmal; ein Teigling aus
+  // optionen.teiglinge gilt nur, wenn sein Kopf gültig ist und die SHA-256 der Quelle trägt (ein veralteter Cache ändert nie
+  // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 32 MiB → P0020 ohne Ort.
+  vorbacke() {
+    const bilder = Object.keys(this.kiste).filter(istBildPfad).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (!bilder.length) return;
+    const vb = herdVorbacker(this.vorbackerOpt);
+    if (vb === null) throw new VorbackerFehlt();
+    const jeHash = new Map();
+    let menge = 0;
+    for (const pfad of bilder) {
+      let q = this.kiste[pfad];
+      if (typeof q === 'string') q = HERD_ENC !== null ? HERD_ENC.encode(q) : TEIGLING_LEER;
+      const sha = teiglingHex(vb.sha256(q));
+      let t = jeHash.get(sha);
+      if (t === undefined) {
+        const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+        const k = teiglingKopf(c);
+        t = k !== null && k.sha256 === sha ? c : vb.vorbacken(q);
+        jeHash.set(sha, t);
+        const kt = teiglingKopf(t);
+        if (kt !== null && !kt.fehler) menge += t.length;
+      }
+      this.teiglinge.set(pfad, t);
+    }
+    if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 32 MB).', null);
+  },
+  // Bildchen.laden(pfad): Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Bildchen) → in der Kiste? →
+  // Teigling an den Kern (bildchen_teigling prüft nur den Kopf; 61/62 → „<pfad> <Kern-Text>“)
+  herdBildchenLaden(pw) {
+    if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Bildchen.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+    const k = this.hk_(), e = k.e;
+    if (this.herd === null) this.herdI(e.bildchen_teigling(e.puffer(1), 0));   // noch keine Welt → Kern Code 3
+    const alt = this.bildPfade.get(pw);
+    if (alt !== undefined) return alt;
+    if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+    const t = this.teiglinge.get(pw) || TEIGLING_LEER;   // keine Bild-Endung → kein Teigling → Kern Code 61
+    const p = e.puffer(t.length || 1);
+    k.mem().set(t, p);
+    const id = e.bildchen_teigling(p, t.length);
+    if (id < 0) {
+      const code = e.fehler_code();
+      if (code !== 61 && code !== 62) throw this.herdFehler();
+      const text = k.liesText((q, kap) => e.fehler_text(q, kap)) || '';
+      e.fehler_neu();
+      throw this.ananas('LaufzeitAnanas', pw + ' ' + text);
+    }
+    const b = new HerdBildchen(id, this.herdF(e.ressource_hole(id, 2)), this.herdF(e.ressource_hole(id, 3)));
+    k.res.set(id, b);
+    this.bildPfade.set(pw, b);
+    return b;
+  },
   // ---------- Spielschleife (SPEC §18.2) ----------
   herdSende(art, daten) {
     const ev = { typ: 'herd', art };

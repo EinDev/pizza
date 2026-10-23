@@ -1,0 +1,9 @@
+// Ordner-Fall (PD2): Kiste – Projektdateien lesen (Level als Text, Liste, gibts); die Ananas kommt aus einer Nebendatei
+bestellt "welt/level.pizza";
+
+Blech<margherita> karte = lade("daten/level-1.txt");
+Bote.sage((karte.länge() + " Zeilen, Breite " + karte.stück(1).länge()));
+Bote.sage((Kiste.text("daten/level-1.txt") == "#..#\n.##.\n#..#\n"));
+Bote.sage((Kiste.liste("daten")));
+Bote.sage((Kiste.gibts("daten/level-2.txt") + " " + Kiste.gibts("daten") + " " + Kiste.gibts("pizza.json")));
+lade("daten/level-2.txt");

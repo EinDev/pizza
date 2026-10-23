@@ -35,6 +35,13 @@ class Laufzeit {
     this.hkFehlt = false;
     this.herd = null;
     this.herdNoetig = false;
+    // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
+    // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
+    this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
+    this.teiglingeOpt = opt.teiglinge !== null && typeof opt.teiglinge === 'object' ? opt.teiglinge : null;
+    this.vorbackerOpt = opt.vorbacker;
+    this.teiglinge = new Map();
+    this.bildPfade = new Map();
     this.schritte = 0;
     this.offset = 0;
     this.frames = [];
@@ -88,6 +95,8 @@ class Laufzeit {
       ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
       ['Herd', new Modul('Herd', HERD_MOD_M, null)],
       ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
+      ['Bildchen', new Modul('Bildchen', HERD_BILDCHEN_MOD_M, null)],
+      ['Kiste', new Modul('Kiste', KISTE_M, null)],
       ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
       ['bestelle', new NativFn('bestelle', function (pos) {
         const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
@@ -306,6 +315,7 @@ class Laufzeit {
     for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
     this.pruefe();
     if (this.herdNoetig) this.herdKern(true);
+    this.vorbacke();     // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
     this.vorbereiten();
     for (const st of body) {
       if (DEKL.has(st.k)) continue;
@@ -352,6 +362,10 @@ class Laufzeit {
     }
     if (e instanceof HerdKernFehlt) {
       this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
+      return 2;
+    }
+    if (e instanceof VorbackerFehlt) {
+      this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: VORBACKER_FEHLT, datei: null, zeile: null, spalte: null });
       return 2;
     }
     try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }

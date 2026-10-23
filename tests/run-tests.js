@@ -311,7 +311,7 @@ function api() {
     for (const k of ['belag', 'auf']) ja(!P.KEYWORDS.includes(k), "'" + k + "' ist kein Keyword mehr (K-105)");
     // K-105: kein eingebauter Pizza-/Stück-/Belag-Typ mehr; `Belag` gibt es seit Herd H-K2 nur als Herd-Komponente (aus schema.json)
     for (const t of ['Pizza', 'Stück', 'Belag']) ja(!P.TYPEN.includes(t) || (t === 'Belag' && P.intern.HERD_TYPEN.includes(t)), 'TYPEN ohne ' + t + ' (K-105)');
-    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'].sort(), 'BUILTINS');
+    gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand', 'Kiste'].sort(), 'BUILTINS');
     ja(P.BELAEGE === undefined, 'BELAEGE entfällt (K-105)');
     // Reihenfolge verbindlich (SPEC §8, K-105) – die Wasm-Laufzeit spiegelt die Klassenindizes
     gleich(P.ANANAS, ['Ananas', 'GeprüfteAnanas', 'VerbranntAnanas', 'LieferAnanas', 'LaufzeitAnanas', 'StreitAnanas', 'RechenAnanas',
@@ -1010,6 +1010,20 @@ function cli() {
     fs.writeFileSync(path.join(lose, 'pizza.json'), '{ pizza: 1');
     const j = lauf(['--kein-vorrat', '--saat=1', lose]);
     gleich([j.code, j.err], [2, 'PizzaFehler P0015: pizza.json ist ungültig: kein gültiges JSON. (pizza.json)\n']);
+  });
+
+  test('Projekte (PD2): Ordner mit Bildern – Vorbacker im Prozess, Bildchen.laden und Kiste, Bildfehler mit Pfad', () => {
+    const wurzel = path.join(tmp, 'bilder');
+    fs.mkdirSync(path.join(wurzel, 'bilder'), { recursive: true });
+    fs.mkdirSync(path.join(wurzel, 'daten'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'tests', 'faelle', 'projekt-bilder', 'bilder', 'kachel.png'), path.join(wurzel, 'bilder', 'a.png'));
+    fs.writeFileSync(path.join(wurzel, 'bilder', 'kaputt.png'), 'kein Bild');
+    fs.writeFileSync(path.join(wurzel, 'daten', 'gruss.txt'), 'Hallo\r\nWelt\r\n');
+    fs.writeFileSync(path.join(wurzel, 'hauptgang.pizza'), 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png") + " " + Kiste.liste()));\n' +
+      'Bote.sage((Kiste.zeilen("daten/gruss.txt")));\nBildchen.laden("bilder/kaputt.png");\n');
+    const r = lauf(['--kein-vorrat', '--saat=1', wurzel]);
+    gleich([r.code, r.out, r.err], [1, 'Bildchen(5×3) [bilder/a.png, bilder/kaputt.png, daten/gruss.txt, hauptgang.pizza]\n[Hallo, Welt]\n',
+      'Ungefangene Ananas – LaufzeitAnanas: bilder/kaputt.png ist kein lesbares Bild (PNG oder JPEG). (Zeile 4, Spalte 1)\n']);
   });
 
   for (const [name, fn] of tests) {

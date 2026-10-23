@@ -311,11 +311,15 @@ const HERD_BILDCHEN_M = herdTab({
   'id': function (b) { return b.id; },
   'alsText': function (b) { return this.text(b); }
 });
+// statisch: Bildchen.laden(pfad) – PNG/JPEG aus der Kiste als eigene Textur (SPEC §18.5, K-145)
+const HERD_BILDCHEN_MOD_M = herdTab({
+  'laden': function (m, pos, ben) { return this.herdBildchenLaden(arg(pos, ben, 0, 'pfad')); }
+});
 TABELLEN.set(HerdWelt, HERD_M);
 TABELLEN.set(HerdForm, HERD_FORM_M);
 TABELLEN.set(HerdBildchen, HERD_BILDCHEN_M);
 
-// P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…) des Programms, nach Position sortiert
+// P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…) des Programms, nach Position sortiert
 function herdSammle(ast) {
   const out = [], gesehen = new Set();
   const geh = (x) => {
@@ -323,7 +327,7 @@ function herdSammle(ast) {
     gesehen.add(x);
     if (Array.isArray(x)) { for (const y of x) geh(y); return; }
     if (x.k === 'Neu' && x.typ) out.push(x);
-    else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd')) out.push(x);
+    else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen')) out.push(x);
     for (const k in x) { const v = x[k]; if (v !== null && typeof v === 'object') geh(v); }
   };
   geh(ast);

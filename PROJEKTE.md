@@ -3,9 +3,9 @@
 > **Status: geprüft (2026-10-23); P0 umgesetzt (Commit „PROJEKTE P0: Verträge …“, 2026-10-23).** Alle Fragen vom Nutzer entschieden
 > (§10), Prüfbefunde eingearbeitet (§13). Die **Verträge** stehen jetzt in `SPEC.md` (§2.1 … §2.6, §11.2, §14.5, §14.7, §14.8, §18.5),
 > `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
-> und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte-offen.js` (76 Fälle, offen).
+> und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
 > **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
-> Commit „PROJEKTE PA1: …“, Präzisierungen in §11); übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
+> Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker) und **PD2** (Kiste/Bildchen.laden im Interpreter) ebenso; übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -953,7 +953,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | offen |
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | offen |
-| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | offen |
+| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
@@ -1004,11 +1004,41 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 - **Wasm bis PA2:** `Pizzaiolo.kompiliere/run` lehnen Projekte (Objekt-Quelle) und `bestellt` mit `nichtUnterstuetzt` ab (Grund nennt
   PA2) – `run` fällt auf den Interpreter zurück; der JS-Host liefert `datei: null`; `tests/differenz/motoren.js` und `host/test.js`
   ergänzen beim nativen Host das fehlende `datei` als `null`. PA2 entfernt diese Brücken.
-- **Prüfstand:** `a19-projekte.js` (57 Fälle, grün), `a19-projekte-offen.js` (19 Kiste-/Bild-Fälle für PD2), Hilfen in
+- **Prüfstand:** `a19-projekte.js` (57 Fälle, grün), `a19-projekte-offen.js` (19 Kiste-/Bild-Fälle für PD2 – mit PD2 verschoben), Hilfen in
   `pruefstand/lib/projekt-helfer.js`. Befund: Der Fall „Ladereihenfolge = Tiefensuche“ benutzte `xc` aus `c.pizza`, das die
   Hauptdatei nur transitiv bestellt (nach §2.5 P0019) – er bestellt `c.pizza` jetzt selbst (Ladeliste unverändert).
 - **Ordner-Fälle:** `tests/faelle/<name>/` mit `pruefung/` (alle Begleitdateien ohne Punkt-Präfix, dazu `orte`); `tests/run-tests.js`
   prüft bei allen Fällen zusätzlich, dass `datei` direkt vor `zeile` steht.
+
+**Präzisierungen aus PD2** (umgesetzt im Interpreter; PA2 bildet dasselbe in Laufzeit und Host nach):
+- **Bild = Endung** `.png`/`.jpg`/`.jpeg` (wie „Text“ nach Endung). Vor dem Start (nach den Startprüfungen und dem Herd-Kern, vor
+  `@Kühlschrank`-Ausdrücken) werden **alle** Bilder der Kiste vorgebacken – auch in Programmen ohne Herd, weil P0020 alle Größen
+  braucht; Projekte ohne Bilder laden den Vorbacker nie. Reihenfolge der HOST-Fehler: Herd-Kern fehlt → Vorbacker fehlt → P0020.
+  Ein Bild, das als Text übergeben wird, gilt als seine UTF-8-Bytes.
+- **Cache-Prüfung:** je Pfad wird die SHA-256 der Quelle gerechnet (`vorbacker.sha256`); ein Teigling aus `optionen.teiglinge` gilt nur
+  mit vollständig gültigem Kopf (Magie, Version, Format, Stufen, Längen – wie `PizzaVorbacker.kopf`) **und** passendem Hash, sonst
+  wird neu vorgebacken. Je Quell-Hash wird höchstens einmal vorgebacken (gleiche Bytes unter zwei Pfaden = ein Teigling); die
+  Teigmenge zählt jeden Hash einmal, Fehler-Teiglinge nicht.
+- **`optionen.vorbacker`:** `WebAssembly.Module`, Bytes oder ein Objekt mit `vorbacken(bytes)`/`sha256(bytes)` (z. B.
+  `PizzaVorbacker.node()`); ungültig oder nicht ladbar → „Der Vorbacker fehlt“. Der Interpreter hat dafür eine eigene kleine Hülle
+  (`herd/kern.js`), weil `pizza.js` ohne Abhängigkeiten auch per `importScripts` lädt. Die CLI übergibt `teigling.js`’ `node()`, sobald
+  das Projekt Bilder hat.
+- **`Bildchen.laden`** (Reihenfolge wie §5.2): Text? → `this.herd === null` → `bildchen_teigling(ptr, 0)` liefert den Kern-Text von
+  Code 3 („Erst braucht es einen Herd …“, kein eigener Text in der Anbindung) → Pfad schon geladen → **dasselbe** Objekt ohne
+  Kern-Aufruf (Zuordnung Pfad → Bildchen je Lauf) → Pfad nicht in der Kiste → Teigling an den Kern; eine Datei ohne Bild-Endung
+  schickt **0 Bytes** (Kern: ungültiger Kopf → Code 61 „kein lesbares Bild“). Bei Code 61/62 liest die Anbindung `fehler_code`
+  vor `fehler_neu` und wirft `LaufzeitAnanas: <pfad> <fehler_text>`; andere Codes wie üblich. Ein fehlgeschlagenes Laden wird
+  nicht gemerkt (nächster Aufruf versucht es erneut) und verbraucht keine ID. In der `brigade` wirft es die Herd-Küchen-Ananas
+  vor der Typprüfung (wie alle Herd-Methoden).
+- **`Kiste`:** Prüfung „liegt nicht in der Kiste“ vor „kein Text“; `Kiste.liste()` ohne Argument und `Kiste.liste("")` = alle;
+  `Kiste.zeilen("")`-Inhalt `""` → `[]`. Eigene Klassen `Kiste` und `Bildchen` haben Vorrang vor den eingebauten Modulen (wie
+  `Zettel`/`Herd`/`Form`). `PizzaLang.BUILTINS` enthält `Kiste`; `Bildchen` bleibt ein Typ (`TYPEN`).
+- **Tests:** Prüfstand `a19-projekte.js` (+31 Fälle: die 19 aus `a19-projekte-offen.js`, dazu Bild ohne Bild-Endung, wiederholtes
+  Fehlladen, eigene Klasse `Bildchen`, Kiste in der `brigade`, `zeilen`-Randfälle, TypAnanas `liste`/`gibts`, Text-Programm,
+  `optionen.teiglinge` (Cache übernommen/veraltet/kaputt, Ergebnis gleich), Vorbacker fehlt, Vorbacker-Formen, Herd-Erkennung) –
+  Kiste/Bild-Fälle mit Text-Quelle stehen als API-Fälle, damit die Differenztests sie bis PA2 nicht gegen Wasm laufen lassen;
+  Ordner-Fälle `tests/faelle/projekt-kiste/` und `projekt-bilder/` (5 × 3-PNG mit Durchsichtigem und ein minimales 8 × 8-Baseline-JPEG,
+  `herd-erwartet` mit dem `TEXTUR`-Paket); CLI-Fall mit Bildordner in `tests/run-tests.js`.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

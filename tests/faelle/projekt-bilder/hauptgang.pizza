@@ -1,0 +1,11 @@
+// Ordner-Fall (PD2): Bilddateien aus der Kiste – PNG (mit Durchsichtigem, ungerade Größe) und JPEG als Sprite und Textur,
+// gleicher Pfad = dasselbe Bildchen; das Bildpaket trägt die Teiglinge als Abschnitt TEXTUR (Hash in herd-erwartet)
+Herd herd = neu Herd("Bilder", breite: 96, hoehe: 64);
+Bildchen kachel = Bildchen.laden("bilder/kachel.png");
+Bildchen grau = Bildchen.laden("bilder/grau.jpg");
+Bote.sage((kachel + " " + grau + " " + (Bildchen.laden("bilder/kachel.png") == kachel)));
+Bote.sage((Kiste.liste("bilder")));
+herd.bild(kachel, 16, 16, groesse: 2);
+herd.koerper(Form.wuerfel(), bild: grau);
+herd.backe(() -> { });
+Bote.sage(("fertig"));

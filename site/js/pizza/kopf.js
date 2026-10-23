@@ -20,7 +20,7 @@ const TYPEN = ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'S
   'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
   'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer'];
 
-const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'];
+const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand', 'Kiste'];
 
 // Reihenfolge verbindlich (SPEC §8, K-105): PizzaLang.ANANAS und die Klassenindizes der Wasm-Laufzeit spiegeln sie.
 const ANANAS_BAUM = [

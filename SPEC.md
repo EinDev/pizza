@@ -94,7 +94,8 @@ Ein Programm darf aus **mehreren Dateien** eines Projekts bestehen (§2.1 … §
 `PROJEKTE.md`). Für Programme aus genau einer `.pizza`-Datei ändert sich nichts. *Umgesetzt im Interpreter und in der CLI
 (PROJEKTE.md PA1; Fälle `pruefstand/faelle/a19-projekte.js`, Ordner-Fälle `tests/faelle/projekt-*/`). Der Wasm-Motor lehnt Projekte
 und `bestellt` bis PA2 als „nicht unterstützt“ ab (`Pizzaiolo.run` und der Playground fallen dann auf den Interpreter zurück);
-`Kiste` und `Bildchen.laden` folgen mit PD2 (`a19-projekte-offen.js`).*
+`Kiste` und `Bildchen.laden` (§11.2, §18.5) sind seit PD2 im Interpreter umgesetzt (Fälle ebenfalls in `a19-projekte.js`,
+Ordner-Fälle `tests/faelle/projekt-kiste/`, `projekt-bilder/`); Laufzeit und Host folgen mit PA2.*
 
 ### 2.1 Projekt, Projektdatei, Pfade (K-138)
 
@@ -583,7 +584,7 @@ steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `ei
 Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
 gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
-### 11.2 `Kiste` – Projektdateien lesen (K-146; Umsetzung offen, PROJEKTE.md PD2/PA2 – die Sammlung liefert `projekt.lade` seit PA1 als `kiste`)
+### 11.2 `Kiste` – Projektdateien lesen (K-146; im Interpreter umgesetzt mit PROJEKTE.md PD2, Wasm/Host mit PA2 – die Sammlung liefert `projekt.lade` als `kiste`)
 
 Die **Kiste** sind alle Dateien der Sammlung (§2.1) außer `pruefung/` – auch `.pizza`-Dateien, `pizza.json` und Bilder, auch nicht
 erreichbare Dateien. Nur lesend; Schreiben bleibt Sache der Vorratskammer (§15.4). Eingebautes Modul wie `Bote` (eine eigene Klasse
@@ -1804,13 +1805,15 @@ Schema und ist eine eingebaute Klasse:
   `w s g o t r p b l m e k a y h u v` = Palette in obiger Reihenfolge, `farben` (Speisekarte Zeichen → Farbe) hat Vorrang; unbekannt →
   `LaufzeitAnanas: Das Zeichen 'x' hat im Bildchen keine Farbe.`
 - Ressourcen werden beim Erzeugen kopiert und an die Engine übergeben (IDs ab 1, gemeinsam für Formen und Bildchen).
-- **Bilddateien (K-145, K-147; Umsetzung offen, PROJEKTE.md PD1/PD2/PA2/PD3):** statisch `Bildchen.laden(pfad)` lädt ein PNG oder JPEG
+- **Bilddateien (K-145, K-147; Vorbacker PD1 und Interpreter PD2 umgesetzt, offen PA2 Laufzeit/Host, PD3 Glut):** statisch `Bildchen.laden(pfad)` lädt ein PNG oder JPEG
   aus der Kiste (§11.2) als `Bildchen` (`breite()`/`hoehe()` = Originalgröße, Textform `Bildchen(<b>×<h>)`, ID aus demselben Zähler) –
   überall verwendbar, wo ein Bildchen steht (`Bild`, `Animation`, `Rahmen`, `Koerper.bild`). Gleicher Pfad → **dasselbe** Bildchen
   (keine neue Ressource). Prüfreihenfolge: Argument kein Text → `TypAnanas: Bildchen.laden() braucht einen Text für 'pfad', nicht 5.` →
   vor `neu Herd` → `Erst braucht es einen Herd …` (§18.1) → `LaufzeitAnanas: Die Datei "<pfad>" liegt nicht in der Kiste.` →
   `LaufzeitAnanas: <pfad> ist kein lesbares Bild (PNG oder JPEG).` bzw. `LaufzeitAnanas: <pfad> ist zu groß (2400 × 800) – höchstens
-  2048 × 2048 Pixel.` Die Bildfehler kommen erst beim Laden (ein nie geladenes kaputtes Bild stört nicht). In Stücken einer `brigade`
+  2048 × 2048 Pixel.` Die Bildfehler kommen erst beim Laden (ein nie geladenes kaputtes Bild stört nicht); eine Datei ohne
+  Bild-Endung (`.png`/`.jpg`/`.jpeg`) hat keinen Teigling und ist ebenso „kein lesbares Bild“. Ein fehlgeschlagenes Laden verbraucht
+  keine ID und wird beim nächsten Aufruf wiederholt. In Stücken einer `brigade`
   wirft es wie alle Herd-Methoden; für die Herd-Erkennung vor dem Start zählt `Bildchen.…` wie `neu Bildchen`.
 - **Vorbacken:** PNG/JPEG sind nur Eingabe. Vor dem Start wird **jedes** Bild der Kiste zu einem **Teigling** vorgebacken (RGBA8 nicht
   vormultipliziert + Mipmaps, festes Format und Rechenwege, K-147) – mit demselben Vorbacker `teigling.wasm` in allen Motoren, daher

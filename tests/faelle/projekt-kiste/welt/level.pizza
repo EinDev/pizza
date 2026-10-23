@@ -1,0 +1,4 @@
+// Level aus der Kiste lesen (eine Zeile je Reihe)
+Blech<margherita> lade(margherita pfad) {
+    serviere (Kiste.zeilen(pfad));
+}

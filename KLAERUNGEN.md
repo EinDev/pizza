@@ -8,7 +8,7 @@
 Entscheidungsprotokoll des Klärungs-Agenten. Jede Klärung ist verbindlich und in `SPEC.md` §15 (bzw. §11.1)
 als Vertragstext eingearbeitet; Regressionstests liegen in `pruefstand/faelle/a10-klaerungen.js` (grün) und
 `pruefstand/faelle/a11-klaerungen-offen.js` (Fälle mit ausstehender Umsetzung; zählen nicht als Fehlschlag, derzeit leer) bzw. den
-themenbezogenen `*-offen.js` (derzeit `a19-projekte-offen.js` für K-138 … K-147).
+themenbezogenen `*-offen.js` (derzeit keine; die Projekt-Fälle K-138 … K-147 stehen seit PA1/PD2 in `a19-projekte.js`).
 
 Leitlinien (in dieser Reihenfolge): (a) bestehendes, sinnvolles Interpreter-Verhalten bevorzugen, (b) Konsistenz
 mit Java-artigen Erwartungen und der Pizzeria-Metapher, (c) Portabilität für den Wasm-/EXE-Pfad, (d) Einfachheit.
@@ -2001,8 +2001,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Regression im Sinne von HERD.md §12.1 Regel 2.
 - **Betroffen:** SPEC §18.5, §14.7; HOST-ABI §2 (Gruppe `herd`); HERD.md §12.1; `herd/README.md` §3/§4 (PD1). **Status:** teilweise
   umgesetzt – PD1 ✅ (Vorbacker `herd/teigling` + `teigling.wasm` + JS-Hülle `site/js/herd/teigling.js` mit Cache-Prüfung `passt`/
-  `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`); offen: PD2 (Interpreter: `Bildchen.laden`, P0020),
-  PA2 (Laufzeit/Host, Datensegment), PD3 (Glut), U-77.
+  `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`), PD2 ✅ (Interpreter: `Bildchen.laden`, Vorbacken vor dem
+  Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80); offen: PA2 (Laufzeit/Host, Datensegment), PD3 (Glut), U-77.
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –
@@ -2010,7 +2010,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   in der Sammlung (normalisiert), „kein Text“ nach Endung, `liste` nach Bytefolge sortiert. In der `brigade` erlaubt. Im pkarton als
   Datensegment – ein EXE enthält damit die Quelltexte lesbar (Hinweis im EXE-Dialog und in der Doku).
 - **Verworfen:** Dateisystem-API (nativ-only, widerspricht K-082).
-- **Betroffen:** SPEC §11, §11.2; `PizzaLang.BUILTINS` + `Kiste`; Interpreter, Laufzeit, Editor-Wörter, Doku. **Status:** offen (PD2/PA2).
+- **Betroffen:** SPEC §11, §11.2; `PizzaLang.BUILTINS` + `Kiste`; Interpreter, Laufzeit, Editor-Wörter, Doku. **Status:** teilweise
+  umgesetzt – Interpreter PD2 ✅ (`std/kiste.js`, a19, Ordner-Fall `projekt-kiste`; U-80); offen: PA2 (Laufzeit/Host), Doku (PB3).
 
 ### K-147 Teigling-Format v1: Decoder-Rechenwege, Ganzzahl-Mipmaps, Kopf, Bildpaket-Nummern, Abtastung
 - **Entscheidung (PROJEKTE.md §5.3, §5.5):** Format „Teigling“ v1 (Magie `TEIGLING`, Version 1, Pixelformat 0 = RGBA8 unkomprimiert,
@@ -2202,6 +2203,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-77 (PD1 ✅, PD3 offen) | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); offen: Glut-Texturen mit Mip-Kette (PD3) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js` |
 | U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
 | U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3**, **PB4**, **PB5**) | K-144, K-145: Beispiele als Ordner, Doku-Kapitel „Projekte und Dateien“, Herd-Beispiele mit Bilddateien, Imperium nach „Idle frei“ | Prüfstand Beispiele/Doku |
+| U-80 ✅ | `site/js/pizza/` (`std/kiste.js`, `herd/`), `bin/pizza.js`, `tests/faelle/projekt-{kiste,bilder}/`, `pruefstand/faelle/a19-*` (PROJEKTE.md **PD2**; erledigt, Präzisierungen PROJEKTE §11) | K-145, K-146: `Kiste.text/zeilen/gibts/liste`, `Bildchen.laden` (gleicher Pfad = dasselbe Bildchen, Kern-Codes 3/61/62), Vorbacken aller Bilder vor dem Start mit Cache-Prüfung (`optionen.teiglinge`/`vorbacker`), P0020 Teigmenge, HOST „Vorbacker fehlt“, Herd-Erkennung `Bildchen.…`, CLI; die 19 Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` verschoben (Datei entfällt) | a19, tests/faelle `projekt-kiste`/`projekt-bilder`, CLI |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):
 10:typen (karton in margherita, K-034) · 20:pf-teig (`istAufgegangen`, K-035) · 20:pf-lieferung (`wennDa` + `warte`
@@ -2220,7 +2222,7 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 ## Hinweise an den Koordinator
 - Projekte (PROJEKTE.md, Paket P0 „Vertrag“): K-138 … K-147 festgehalten (Status offen), Vertragstext in SPEC §2.1 … §2.6, §11.2,
   §14.5, §14.7, §14.8, §18.5, ARCHITEKTUR §1–§3/§6, HOST-ABI v2, WASM §4, HERD.md §12.1 (Bildpaket-Nummern und Kern-Codes reserviert);
-  76 Fälle in `a19-projekte-offen.js` (rot bis PA1/PD2). Aufträge U-73 … U-79 = Pakete PA1 … PB5. HOST-ABI v2 ist **Vertrag**;
+  76 Fälle in `a19-projekte-offen.js` (rot bis PA1/PD2; seit PA1/PD2 alle grün in `a19-projekte.js`). Aufträge U-73 … U-79 = Pakete PA1 … PB5, U-80 = PD2. HOST-ABI v2 ist **Vertrag**;
   Compiler und Hosts liefern bis PA2 weiter v1.
 - Theke v7 (Wünsche des Idle-Redesigns): K-125 (`Zettel.aus(fn)`, abgeleiteter Zettel = Bindung ohne Zutat) und K-126 (Stil `spalten`,
   Spaltengewichte der Tabelle) festgehalten, SPEC §16.10; umgesetzt in Interpreter + Wasm (bitgleich), Renderer (`colgroup`), Host neu gebaut.

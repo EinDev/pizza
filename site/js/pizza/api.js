@@ -27,7 +27,8 @@ function run(quelle, optionen) {
   } else {
     try {
       // Standard-Argumente aus pizza.json gelten, wenn keine Argumente übergeben werden (SPEC §2.1)
-      const opt = p.args.length && !(Array.isArray(optionen.args) && optionen.args.length) ? Object.assign({}, optionen, { args: p.args }) : optionen;
+      const opt = Object.assign({}, optionen, { kiste: p.kiste });
+      if (p.args.length && !(Array.isArray(optionen.args) && optionen.args.length)) opt.args = p.args;
       L = new Laufzeit(p.ast, opt, emit);
       const rang = p.ast.ladeRang;
       // zuerst W0004 des Laders, dann die statische Analyse (SPEC §2.5); einmal je Code + Datei + Zeile + Spalte

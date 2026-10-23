@@ -1,5 +1,5 @@
 "use strict";
-// Gemeinsame Hilfen der Projekt-Fälle (a19-projekte.js, a19-projekte-offen.js): Projekt-Objekt, Ortsprüfung von
+// Gemeinsame Hilfen der Projekt-Fälle (a19-projekte.js): Projekt-Objekt, Ortsprüfung von
 // Ereignissen (SPEC §2.6: datei steht immer direkt vor zeile), kleine PNG-Dateien (zlib + CRC, keine Binärdateien im Repo).
 const zlib = require("zlib");
 

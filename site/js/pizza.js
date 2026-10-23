@@ -36,7 +36,7 @@
     'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe',
     'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer'];
 
-  const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'];
+  const BUILTINS = ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand', 'Kiste'];
 
   // Reihenfolge verbindlich (SPEC §8, K-105): PizzaLang.ANANAS und die Klassenindizes der Wasm-Laufzeit spiegeln sie.
   const ANANAS_BAUM = [
@@ -1773,6 +1773,13 @@
       this.hkFehlt = false;
       this.herd = null;
       this.herdNoetig = false;
+      // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
+      // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
+      this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
+      this.teiglingeOpt = opt.teiglinge !== null && typeof opt.teiglinge === 'object' ? opt.teiglinge : null;
+      this.vorbackerOpt = opt.vorbacker;
+      this.teiglinge = new Map();
+      this.bildPfade = new Map();
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -1826,6 +1833,8 @@
         ['Zettel', new Modul('Zettel', ZETTEL_MOD_M, null)],
         ['Herd', new Modul('Herd', HERD_MOD_M, null)],
         ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
+        ['Bildchen', new Modul('Bildchen', HERD_BILDCHEN_MOD_M, null)],
+        ['Kiste', new Modul('Kiste', KISTE_M, null)],
         ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
         ['bestelle', new NativFn('bestelle', function (pos) {
           const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
@@ -2044,6 +2053,7 @@
       for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
       this.pruefe();
       if (this.herdNoetig) this.herdKern(true);
+      this.vorbacke();     // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
       this.vorbereiten();
       for (const st of body) {
         if (DEKL.has(st.k)) continue;
@@ -2090,6 +2100,10 @@
       }
       if (e instanceof HerdKernFehlt) {
         this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
+        return 2;
+      }
+      if (e instanceof VorbackerFehlt) {
+        this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: VORBACKER_FEHLT, datei: null, zeile: null, spalte: null });
         return 2;
       }
       try { this.uiEnde(); } catch (x) { /* Aufräumen darf das Programmende nicht verhindern */ }
@@ -2616,7 +2630,7 @@
     globalerName(name) {
       const g = this.globals.get(name);
       // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
-      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form') && this.klassen.has(name))) return g;
+      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Kiste') && this.klassen.has(name))) return g;
       const k = this.klassen.get(name);
       if (k !== undefined) return k;
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
@@ -4675,6 +4689,55 @@
     }
   });
 
+  // ══════════ site/js/pizza/std/kiste.js ══════════
+  // pizza-Interpreter · Standardbibliothek: Kiste (Projektdateien lesen, SPEC §11.2, K-146)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+  //
+  // Die Kiste ist die Sammlung des Laders ohne pruefung/ (this.kiste = ladeProjekt(…).kiste: Texte normalisiert, sonst
+  // Uint8Array). Nur lesend, in Stücken einer brigade erlaubt (keine Hauptküchen-Sperre). „Text“ entscheidet die Endung
+  // (istTextPfad, projekt.js), nie der Inhalt.
+
+  function kisteHat(kiste, pfad) { return Object.prototype.hasOwnProperty.call(kiste, pfad); }
+
+  const KISTE_M = tabelle({
+    'text': function (m, pos, ben) { return this.kisteText(arg(pos, ben, 0, 'pfad'), 'text'); },
+    'zeilen': function (m, pos, ben) {
+      const t = this.kisteText(arg(pos, ben, 0, 'pfad'), 'zeilen');
+      const z = t.split('\n');
+      if (z[z.length - 1] === '') z.pop();
+      return z;
+    },
+    'gibts': function (m, pos, ben) {
+      const p = this.kistePfad(arg(pos, ben, 0, 'pfad'), 'gibts', 'pfad');
+      return kisteHat(this.kiste, p);   // nur Dateien; ein ungültiger Pfad steht nie in der Kiste
+    },
+    'liste': function (m, pos, ben) {
+      const o = arg(pos, ben, 0, 'ordner');
+      const ordner = o === undefined ? '' : this.kistePfad(o, 'liste', 'ordner');
+      const alle = Object.keys(this.kiste).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));   // Pfade sind ASCII: = Bytefolge
+      if (ordner === '') return alle;
+      if (pruefePfad(ordner) !== null) return [];
+      const vor = ordner + '/';
+      return alle.filter(p => p.slice(0, vor.length) === vor);
+    }
+  });
+
+  class KisteLaufzeit {
+    // Argument muss ein Text sein (SPEC §11.2) – TypAnanas mit Methoden- und Parametername
+    kistePfad(v, wo, param) {
+      if (typeof v === 'string') return v;
+      throw this.ananas('TypAnanas', 'Kiste.' + wo + '() braucht einen Text für \'' + param + '\', nicht ' + this.darstellung(v === undefined ? null : v) + '.');
+    }
+    kisteText(v, wo) {
+      const p = this.kistePfad(v, wo, 'pfad');
+      if (!kisteHat(this.kiste, p)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + p + '" liegt nicht in der Kiste.');
+      const t = this.kiste[p];
+      if (!istTextPfad(p) || typeof t !== 'string') throw this.ananas('LaufzeitAnanas', p + ' ist kein Text.');
+      return t;
+    }
+  }
+  laufzeitTeil(KisteLaufzeit);
+
   // ══════════ site/js/pizza/theke/tabellen.js ══════════
   // pizza-Interpreter · Theke: Zutaten-Klassen, Stil, Methodentabellen (THEKE.md)
   // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
@@ -6117,6 +6180,93 @@
   class HerdBildchen { constructor(id, b, h) { this.id = id; this.breite = b; this.hoehe = h; } }
   class HerdKernFehlt { }
 
+  // ---------- Vorbacker (SPEC §18.5, PROJEKTE §5.3/§5.4, K-145/K-147) ----------
+  // teigling.wasm backt PNG/JPEG der Kiste vor dem Start zu Teiglingen (derselbe Rust-Code wie site/js/herd/teigling.js
+  // und nativ – bitgleich). optionen.vorbacker: WebAssembly.Module | ArrayBuffer | Uint8Array | ein Vorbacker-Objekt mit
+  // vorbacken(bytes)/sha256(bytes) (z. B. PizzaVorbacker.node()); Node ohne Option: site/js/herd/teigling.wasm.
+  const VORBACKER_FEHLT = 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).';
+  class VorbackerFehlt { }
+  const TEIGLING_KOPF = 52, TEIGLING_FEHLER_LAENGE = 64, TEIGLING_MAX_KANTE = 2048, TEIGMENGE_MAX = 33554432;
+  const TEIGLING_MAGIE = [84, 69, 73, 71, 76, 73, 78, 71];   // "TEIGLING"
+  const TEIGLING_LEER = new Uint8Array(0);                     // keine Bild-Endung: der Kern meldet „kein lesbares Bild“ (61)
+  function istBildPfad(pfad) { return /\.(png|jpg|jpeg)$/.test(pfad); }
+  function teiglingHex(u8) {
+    let s = '';
+    for (let i = 0; i < u8.length; i++) s += (u8[i] < 16 ? '0' : '') + u8[i].toString(16);
+    return s;
+  }
+  // Kopf vollständig prüfen (wie lies_kopf in herd/teigling, bildchen_teigling im Kern und PizzaVorbacker.kopf)
+  // → null (ungültig) | { fehler: diavolo, sha256: hex }
+  function teiglingKopf(t) {
+    if (!(t instanceof Uint8Array) || t.length < TEIGLING_KOPF) return null;
+    for (let i = 0; i < 8; i++) if (t[i] !== TEIGLING_MAGIE[i]) return null;
+    const u16 = (i) => t[i] | (t[i + 1] << 8);
+    const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+    if (u16(8) !== 1) return null;
+    const format = t[10], stufen = t[11], b = u16(12), h = u16(14);
+    const sha256 = teiglingHex(t.subarray(20, 52));
+    if (format === 255) {
+      const code = t.length === TEIGLING_FEHLER_LAENGE ? u16(52) : 0;
+      if (stufen !== 0 || b !== 0 || h !== 0 || (code !== 1 && code !== 2)) return null;
+      return { fehler: true, sha256 };
+    }
+    let n = 0;
+    for (let m = Math.max(b, h); m > 0; m = Math.floor(m / 2)) n++;
+    if (format !== 0 || b < 1 || h < 1 || b > TEIGLING_MAX_KANTE || h > TEIGLING_MAX_KANTE || stufen !== n) return null;
+    let p = TEIGLING_KOPF, w = b, hh = h;
+    for (let s = 0; s < stufen; s++) {
+      if (p + 4 > t.length || u32(p) !== w * hh * 4) return null;
+      p += 4 + w * hh * 4;
+      w = Math.max(1, Math.floor(w / 2));
+      hh = Math.max(1, Math.floor(hh / 2));
+    }
+    return p === t.length ? { fehler: false, sha256 } : null;
+  }
+  // Dünne Hülle um teigling.wasm (ABI wie site/js/herd/teigling.js)
+  class HerdVorbacker {
+    constructor(modul) {
+      const e = new WebAssembly.Instance(modul, {}).exports;
+      if (typeof e.abi_version !== 'function' || e.abi_version() !== 1 || e.teigling_version() !== 1) throw new Error('teigling.wasm: unbekannte Version');
+      this.e = e;
+    }
+    rein(b) {
+      const p = this.e.puffer(b.length);
+      new Uint8Array(this.e.memory.buffer, p, b.length).set(b);
+      return p;
+    }
+    vorbacken(q) {
+      const n = this.e.vorbacken(this.rein(q), q.length);
+      const aus = new Uint8Array(n);
+      aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), n));
+      this.e.freigeben();
+      return aus;
+    }
+    sha256(b) {
+      this.e.sha256(this.rein(b), b.length);
+      const aus = new Uint8Array(32);
+      aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), 32));
+      return aus;
+    }
+  }
+  let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
+  const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)
+  function herdVorbacker(v) {
+    if (v !== undefined && v !== null && typeof v === 'object' && typeof v.vorbacken === 'function' && typeof v.sha256 === 'function') return v;
+    if (typeof WebAssembly === 'undefined') return null;
+    const baue = (m) => { try { return new HerdVorbacker(m instanceof WebAssembly.Module ? m : new WebAssembly.Module(m)); } catch (e) { return null; } };
+    if (v !== undefined && v !== null) {
+      if (typeof v !== 'object') return null;
+      let vb = vorbackerCache.get(v);
+      if (vb === undefined) { vb = baue(v); vorbackerCache.set(v, vb); }
+      return vb;
+    }
+    if (vorbackerStandard === undefined) {
+      const b = herdDatei('teigling.wasm');
+      vorbackerStandard = b === null ? null : baue(b);
+    }
+    return vorbackerStandard;
+  }
+
   function herdKlasseVon(v) {
     if (v instanceof HerdWelt) return 'Herd';
     if (v instanceof HerdTeil) return 'Teil';
@@ -6440,11 +6590,15 @@
     'id': function (b) { return b.id; },
     'alsText': function (b) { return this.text(b); }
   });
+  // statisch: Bildchen.laden(pfad) – PNG/JPEG aus der Kiste als eigene Textur (SPEC §18.5, K-145)
+  const HERD_BILDCHEN_MOD_M = herdTab({
+    'laden': function (m, pos, ben) { return this.herdBildchenLaden(arg(pos, ben, 0, 'pfad')); }
+  });
   TABELLEN.set(HerdWelt, HERD_M);
   TABELLEN.set(HerdForm, HERD_FORM_M);
   TABELLEN.set(HerdBildchen, HERD_BILDCHEN_M);
 
-  // P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…) des Programms, nach Position sortiert
+  // P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…) des Programms, nach Position sortiert
   function herdSammle(ast) {
     const out = [], gesehen = new Set();
     const geh = (x) => {
@@ -6452,7 +6606,7 @@
       gesehen.add(x);
       if (Array.isArray(x)) { for (const y of x) geh(y); return; }
       if (x.k === 'Neu' && x.typ) out.push(x);
-      else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd')) out.push(x);
+      else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen')) out.push(x);
       for (const k in x) { const v = x[k]; if (v !== null && typeof v === 'object') geh(v); }
     };
     geh(ast);
@@ -6754,6 +6908,59 @@
       k.res.set(id, b);
       return b;
     },
+    // ---------- Bilddateien (SPEC §18.5, K-145; PROJEKTE §5.2 … §5.5) ----------
+    // Vor dem Start: jedes Bild der Kiste (Endung .png/.jpg/.jpeg) → Teigling, je Quell-Hash einmal; ein Teigling aus
+    // optionen.teiglinge gilt nur, wenn sein Kopf gültig ist und die SHA-256 der Quelle trägt (ein veralteter Cache ändert nie
+    // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 32 MiB → P0020 ohne Ort.
+    vorbacke() {
+      const bilder = Object.keys(this.kiste).filter(istBildPfad).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      if (!bilder.length) return;
+      const vb = herdVorbacker(this.vorbackerOpt);
+      if (vb === null) throw new VorbackerFehlt();
+      const jeHash = new Map();
+      let menge = 0;
+      for (const pfad of bilder) {
+        let q = this.kiste[pfad];
+        if (typeof q === 'string') q = HERD_ENC !== null ? HERD_ENC.encode(q) : TEIGLING_LEER;
+        const sha = teiglingHex(vb.sha256(q));
+        let t = jeHash.get(sha);
+        if (t === undefined) {
+          const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+          const k = teiglingKopf(c);
+          t = k !== null && k.sha256 === sha ? c : vb.vorbacken(q);
+          jeHash.set(sha, t);
+          const kt = teiglingKopf(t);
+          if (kt !== null && !kt.fehler) menge += t.length;
+        }
+        this.teiglinge.set(pfad, t);
+      }
+      if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 32 MB).', null);
+    },
+    // Bildchen.laden(pfad): Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Bildchen) → in der Kiste? →
+    // Teigling an den Kern (bildchen_teigling prüft nur den Kopf; 61/62 → „<pfad> <Kern-Text>“)
+    herdBildchenLaden(pw) {
+      if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Bildchen.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+      const k = this.hk_(), e = k.e;
+      if (this.herd === null) this.herdI(e.bildchen_teigling(e.puffer(1), 0));   // noch keine Welt → Kern Code 3
+      const alt = this.bildPfade.get(pw);
+      if (alt !== undefined) return alt;
+      if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+      const t = this.teiglinge.get(pw) || TEIGLING_LEER;   // keine Bild-Endung → kein Teigling → Kern Code 61
+      const p = e.puffer(t.length || 1);
+      k.mem().set(t, p);
+      const id = e.bildchen_teigling(p, t.length);
+      if (id < 0) {
+        const code = e.fehler_code();
+        if (code !== 61 && code !== 62) throw this.herdFehler();
+        const text = k.liesText((q, kap) => e.fehler_text(q, kap)) || '';
+        e.fehler_neu();
+        throw this.ananas('LaufzeitAnanas', pw + ' ' + text);
+      }
+      const b = new HerdBildchen(id, this.herdF(e.ressource_hole(id, 2)), this.herdF(e.ressource_hole(id, 3)));
+      k.res.set(id, b);
+      this.bildPfade.set(pw, b);
+      return b;
+    },
     // ---------- Spielschleife (SPEC §18.2) ----------
     herdSende(art, daten) {
       const ev = { typ: 'herd', art };
@@ -6877,7 +7084,8 @@
     } else {
       try {
         // Standard-Argumente aus pizza.json gelten, wenn keine Argumente übergeben werden (SPEC §2.1)
-        const opt = p.args.length && !(Array.isArray(optionen.args) && optionen.args.length) ? Object.assign({}, optionen, { args: p.args }) : optionen;
+        const opt = Object.assign({}, optionen, { kiste: p.kiste });
+        if (p.args.length && !(Array.isArray(optionen.args) && optionen.args.length)) opt.args = p.args;
         L = new Laufzeit(p.ast, opt, emit);
         const rang = p.ast.ladeRang;
         // zuerst W0004 des Laders, dann die statische Analyse (SPEC §2.5); einmal je Code + Datei + Zeile + Spalte

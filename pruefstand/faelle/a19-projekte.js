@@ -1,13 +1,15 @@
 "use strict";
 // Projekte und Mehrdatei-Programme – Lader (SPEC §2.1–§2.6, §14.7, §14.8; KLAERUNGEN K-138 … K-141, K-144; Konzept PROJEKTE.md).
-// Umgesetzt in PROJEKTE PA1 (Interpreter-Lader PizzaLang.projekt.*); aus a19-projekte-offen.js verschoben. Die Kiste- und
-// Bildchen.laden-Fälle bleiben dort offen bis PD2.
+// Umgesetzt in PROJEKTE PA1 (Interpreter-Lader PizzaLang.projekt.*); aus a19-projekte-offen.js verschoben. Kiste und
+// Bildchen.laden (SPEC §11.2, §18.5; K-145 … K-147) umgesetzt in PROJEKTE PD2 – ebenfalls aus a19-projekte-offen.js verschoben
+// (die Datei ist damit leer und entfällt), dazu Fälle zu optionen.teiglinge/vorbacker.
 //
 // `code` ist meist ein Projekt { dateien: { pfad → Inhalt }, hauptdatei? } (ARCHITEKTUR §1, §6); Textdateien als String,
 // Bilder als Uint8Array. Die Differenztests überspringen Projekt-Fälle (dort nur Strings), bis PA2 sie unterstützt.
 const { P, F } = require("../lib/helfer");
-const { projekt, ereignisse, fehlerEv, j, fehlerOrt, warnOrte, keineWarnung, nullSchritte, alle, KLEIN, MAIN } = require("../lib/projekt-helfer");
+const { projekt, ereignisse, fehlerEv, j, fehlerOrt, warnOrte, keineWarnung, nullSchritte, alle, png, pngKopf, KLEIN, gross, KAPUTT, MAIN } = require("../lib/projekt-helfer");
 const T = "§2 Projekte und Mehrdatei-Programme (K-138 … K-141)";
+const TK = "§2 Projekte: Kiste, Bilddateien (K-145 … K-147)";
 const api = (name, fn) => ({ p: T, name, api: fn });
 
 module.exports = [
@@ -487,4 +489,228 @@ klasse T { }
     "hauptgang.pizza": 'bestellt "eigen.pizza";\nBote.sage((Kiste.text("x")));\n',
     "eigen.pizza": 'klasse Kiste {\n    speisekarte tiefkühl margherita text(margherita p) { serviere ("eigen " + p); }\n}\n',
   }), { out: ["eigen x"] }),
+
+  // ═════════════════════════ PD2: Kiste und Bildchen.laden (aus a19-projekte-offen.js) ═════════════════════════
+  // ───────────────────────── §2.1/§1.2 Hauptdatei, pizza.json ─────────────────────────
+  F(TK, "K-138 §1.2: ohne pizza.json und ohne hauptgang.pizza ist die einzige .pizza-Datei die Hauptdatei", projekt({
+    "spiel.pizza": 'Bote.sage((Kiste.liste().länge()));\n',
+    "daten/a.txt": "a",
+  }), { out: ["2"] }),
+
+  // ───────────────────────── §1.3 Pfade und Grenzen ─────────────────────────
+  F(TK, "K-138 §1.3: genau 100 Dateien sind erlaubt (pruefung/ zählt nicht)", (() => {
+    const d = { "hauptgang.pizza": 'Bote.sage((Kiste.liste().länge()));\n', "pruefung/erwartet": "100\n" };
+    for (let i = 1; i <= 99; i++) d[`daten/level-${i}.txt`] = String(i);
+    return projekt(d);
+  })(), { out: ["100"] }),
+
+  // ───────────────────────── §11.2 Kiste ─────────────────────────
+  F(TK, "K-146 §11.2: Kiste.text, zeilen, gibts, liste (sortiert, ohne pruefung/, auch .pizza und pizza.json)", projekt({
+    "pizza.json": '{ "pizza": 1 }',
+    "hauptgang.pizza": P`
+Bote.sage((Kiste.text("daten/level-1.txt")));
+Bote.sage((Kiste.zeilen("daten/level-1.txt").länge()));
+Bote.sage((Kiste.gibts("daten/level-1.txt") + " " + Kiste.gibts("daten") + " " + Kiste.gibts("Daten/X.txt") + " " + Kiste.gibts("pruefung/erwartet")));
+Bote.sage((Kiste.liste()));
+Bote.sage((Kiste.liste("daten")));
+Bote.sage((Kiste.liste("daten/") + " " + Kiste.liste("leer") + " " + Kiste.liste("../")));
+`,
+    "daten/level-1.txt": "#.#\n.#.\n",
+    "daten/level-10.txt": "x",
+    "daten-alt.txt": "y",
+    "bilder/a.png": KLEIN,
+    "pruefung/erwartet": "egal\n",
+  }), { out: ["#.#\n.#.\n", "2", "ja nein nein nein", "[bilder/a.png, daten-alt.txt, daten/level-1.txt, daten/level-10.txt, hauptgang.pizza, pizza.json]", "[daten/level-1.txt, daten/level-10.txt]", "[] [] []"] }),
+
+  F(TK, "K-138/K-146 §1.3: CRLF in Textdateien wird beim Laden zu LF (Kiste.text liefert \\n, einzelnes \\r bleibt)", projekt({
+    "hauptgang.pizza": 'Bote.sage((Kiste.text("daten/a.txt") == "a\\nb\\rc\\n"));\r\nBote.sage((Kiste.zeilen("daten/a.txt").länge()));\r\n',
+    "daten/a.txt": "a\r\nb\rc\r\n",
+  }), { out: ["ja", "2"] }),
+
+  F(TK, "K-146 §11.2: Kiste.text auf eine fehlende Datei → LaufzeitAnanas", projekt({
+    "hauptgang.pizza": 'Bote.sage((Kiste.text("daten/fehlt.txt")));\n',
+  }), { exit: 1, fehler: { code: "LaufzeitAnanas", text: 'Ungefangene Ananas – LaufzeitAnanas: Die Datei "daten/fehlt.txt" liegt nicht in der Kiste. (Zeile 1)' } }),
+
+  F(TK, "K-146 §11.2: Kiste.text auf ein Bild → „kein Text“ (nach Endung)", projekt({
+    "hauptgang.pizza": 'Bote.sage((Kiste.text("bilder/a.png")));\n',
+    "bilder/a.png": KLEIN,
+  }), { exit: 1, fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: bilder/a.png ist kein Text. (Zeile 1)" } }),
+
+  F(TK, "K-146 §11.2: Kiste.zeilen mit Nicht-Text-Argument → TypAnanas", projekt({
+    "hauptgang.pizza": "Bote.sage((Kiste.zeilen(5)));\n",
+  }), { exit: 1, fehler: { code: "TypAnanas", text: "Ungefangene Ananas – TypAnanas: Kiste.zeilen() braucht einen Text für 'pfad', nicht 5. (Zeile 1)" } }),
+
+  F(TK, "K-146 §11.2: Kiste.liste in einem Ein-Datei-Projekt", projekt({ "hauptgang.pizza": "Bote.sage((Kiste.liste()));\n" }), { out: ["[hauptgang.pizza]"] }),
+
+  // ───────────────────────── §18.5 Bildchen.laden ─────────────────────────
+  F(TK, "K-145 §18.5: Bildchen.laden – Größe aus der Datei, Textform, gleicher Pfad = dasselbe Bildchen", projekt({
+    "hauptgang.pizza": P`
+Herd herd = neu Herd("Bild");
+Bildchen a = Bildchen.laden("bilder/klein.png");
+Bildchen b = Bildchen.laden("bilder/klein.png");
+Bote.sage((a + " " + a.breite() + " " + a.hoehe() + " " + (a == b) + " " + (a.id() == b.id())));
+Bildchen t = neu Bildchen(["ww"]);
+Bote.sage((t.id() > a.id()));
+`,
+    "bilder/klein.png": KLEIN,
+  }), { out: ["Bildchen(2×3) 2 3 ja ja", "ja"] }),
+
+  F(TK, "K-145 §18.5: Bildchen.laden als Textur und Sprite (Bild, Koerper.bild) – Herd-Ereignisse wie üblich", projekt({
+    "hauptgang.pizza": P`
+Herd herd = neu Herd("Bild", breite: 64, hoehe: 64);
+Bildchen b = Bildchen.laden("bilder/klein.png");
+herd.bild(b, 32, 32, groesse: 4);
+herd.koerper(Form.wuerfel(), bild: b);
+herd.backe(() -> { });
+Bote.sage(("fertig"));
+`,
+    "bilder/klein.png": KLEIN,
+  }), {
+    uiEreignisse: [{ typ: "takt" }],
+    out: ["fertig"],
+    check: (res) => (j(ereignisse(res, "herd").map((e) => e.art)) === j(["fenster", "bild"]) ? undefined : "herd-Folge " + j(ereignisse(res, "herd"))),
+  }),
+
+  F(TK, "K-145 §18.5: Prüfreihenfolge – Nicht-Text vor „Erst braucht es einen Herd“", projekt({
+    "hauptgang.pizza": "Bildchen b = Bildchen.laden(5);\n",
+  }), { exit: 1, fehler: { code: "TypAnanas", text: "Ungefangene Ananas – TypAnanas: Bildchen.laden() braucht einen Text für 'pfad', nicht 5. (Zeile 1)" } }),
+
+  F(TK, "K-145 §18.5: Bildchen.laden vor neu Herd → LaufzeitAnanas aus §18.1", projekt({
+    "hauptgang.pizza": 'Bildchen b = Bildchen.laden("bilder/klein.png");\n',
+    "bilder/klein.png": KLEIN,
+  }), { exit: 1, fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: Erst braucht es einen Herd (neu Herd(…)). (Zeile 1)" } }),
+
+  F(TK, "K-145 §18.5: fehlende Datei → „liegt nicht in der Kiste“", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBildchen b = Bildchen.laden("bilder/fehlt.png");\n',
+  }), { exit: 1, fehler: { code: "LaufzeitAnanas", text: 'Ungefangene Ananas – LaufzeitAnanas: Die Datei "bilder/fehlt.png" liegt nicht in der Kiste. (Zeile 2)' } }),
+
+  F(TK, "K-145 §18.5: kein lesbares Bild – die Ananas kommt erst beim Laden (vorher läuft das Programm)", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage(("vorher"));\nBildchen b = Bildchen.laden("bilder/kaputt.png");\n',
+    "bilder/kaputt.png": KAPUTT,
+  }), { exit: 1, out: ["vorher"], fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: bilder/kaputt.png ist kein lesbares Bild (PNG oder JPEG). (Zeile 3)" } }),
+
+  F(TK, "K-145 §18.5: ein kaputtes Bild, das nie geladen wird, stört nicht", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/gut.png").breite()));\n',
+    "bilder/gut.png": KLEIN,
+    "bilder/kaputt.png": KAPUTT,
+  }), { out: ["2"] }),
+
+  F(TK, "K-145/K-147 §18.5: zu großes Bild (laut Kopf 2400 × 800) → LaufzeitAnanas mit Größe", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBildchen b = Bildchen.laden("bilder/riesig.png");\n',
+    "bilder/riesig.png": pngKopf(2400, 800),
+  }), { exit: 1, fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: bilder/riesig.png ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel. (Zeile 2)" } }),
+
+  F(TK, "K-145 §18.5: Bildchen.laden in einem Stück der brigade → wie alle Herd-Methoden", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBlech<salami> b = [1].brigade((x) -> Bildchen.laden("bilder/klein.png").breite());\n',
+    "bilder/klein.png": KLEIN,
+  }), { exit: 1, fehler: { code: "KüchenAnanas" } }),
+
+  F(TK, "K-145 §14.7: Teigmenge über 32 MiB → P0020 vor dem Start (gleiche Bilder unter zwei Pfaden zählen einmal)", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage(("nie"));\n',
+    "bilder/rot.png": gross([217, 69, 43, 255]),
+    "bilder/gruen.png": gross([62, 142, 65, 255]),
+    "bilder/gruen-kopie.png": gross([62, 142, 65, 255]),
+  }), {
+    exit: 2,
+    fehler: { code: "P0020", art: "pizzafehler", text: "PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (42,7 MB vorgebacken, höchstens 32 MB)." },
+    check: alle(fehlerOrt({ datei: null, zeile: null }), nullSchritte),
+  }),
+
+  F(TK, "K-145 §14.7: ein 2048²-Bild unter zwei Pfaden (21,3 MB vorgebacken) passt", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png").breite() + Bildchen.laden("bilder/b.png").hoehe()));\n',
+    "bilder/a.png": gross([245, 197, 24, 255]),
+    "bilder/b.png": gross([245, 197, 24, 255]),
+  }), { out: ["4096"] }),
+
+  // ───────────────────────── PD2: weitere Fälle (Prüfreihenfolge, Küche, Vorrang, Optionen) ─────────────────────────
+  F(TK, "K-145 §18.5: Bildchen.laden auf eine Datei ohne Bild-Endung → „kein lesbares Bild“", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBildchen b = Bildchen.laden("daten/a.txt");\n',
+    "daten/a.txt": "kein Bild",
+  }), { exit: 1, fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: daten/a.txt ist kein lesbares Bild (PNG oder JPEG). (Zeile 2)" } }),
+
+  F(TK, "K-145 §18.5: ein fehlgeschlagenes Laden ist fangbar und wiederholbar und verbraucht keine ID", projekt({
+    "hauptgang.pizza": P`
+Herd herd = neu Herd();
+probier { Bildchen.laden("bilder/kaputt.png"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+probier { Bildchen.laden("bilder/kaputt.png"); } verbrannt (LaufzeitAnanas a) { Bote.sage(("wieder")); }
+Bildchen g = Bildchen.laden("bilder/gut.png");
+Bote.sage((g.id() + " " + g));
+`,
+    "bilder/gut.png": KLEIN,
+    "bilder/kaputt.png": KAPUTT,
+  }), { out: ["bilder/kaputt.png ist kein lesbares Bild (PNG oder JPEG).", "wieder", "1 Bildchen(2×3)"] }),
+
+  F(TK, "K-145 §18.5: eine eigene Klasse Bildchen hat Vorrang vor Bildchen.laden (dann braucht es keinen Herd)", projekt({
+    "hauptgang.pizza": 'klasse Bildchen {\n    speisekarte tiefkühl margherita laden(margherita p) { serviere ("eigen " + p); }\n}\nBote.sage((Bildchen.laden("x")));\n',
+  }), { out: ["eigen x"] }),
+
+  F(TK, "K-146 §11.2: Kiste ist in Stücken einer brigade erlaubt (nur lesend)", projekt({
+    "hauptgang.pizza": 'Blech<salami> n = [1, 2].brigade((x) -> Kiste.zeilen("daten/a.txt").länge() + x);\nBote.sage((n));\n',
+    "daten/a.txt": "a\nb\n",
+  }), { out: ["[3, 4]"] }),
+
+  F(TK, "K-146 §11.2: Kiste.zeilen – leere Datei → [], ohne Schluss-\\n bleibt die letzte Zeile, leere Zeilen in der Mitte bleiben", projekt({
+    "hauptgang.pizza": 'Bote.sage((Kiste.zeilen("daten/leer.txt").länge() + " " + Kiste.zeilen("daten/b.txt")));\n',
+    "daten/leer.txt": "",
+    "daten/b.txt": "a\n\nb",
+  }), { out: ["0 [a, , b]"] }),
+
+  F(TK, "K-146 §11.2: Kiste.liste mit Nicht-Text → TypAnanas mit 'ordner'", projekt({
+    "hauptgang.pizza": "Bote.sage((Kiste.liste(5)));\n",
+  }), { exit: 1, fehler: { code: "TypAnanas", text: "Ungefangene Ananas – TypAnanas: Kiste.liste() braucht einen Text für 'ordner', nicht 5. (Zeile 1)" } }),
+
+  F(TK, "K-146 §11.2: Kiste.gibts mit Nicht-Text → TypAnanas (ein ungültiger Pfad dagegen ist nur nein)", projekt({
+    "hauptgang.pizza": 'Bote.sage((Kiste.gibts("../x") + " " + Kiste.gibts("")));\nBote.sage((Kiste.gibts(ja)));\n',
+  }), { exit: 1, out: ["nein nein"], fehler: { code: "TypAnanas", text: "Ungefangene Ananas – TypAnanas: Kiste.gibts() braucht einen Text für 'pfad', nicht ja. (Zeile 2)" } }),
+
+  // als API-Fall: Text-Fälle laufen auch in den Differenztests, der Wasm-Motor kennt Kiste erst mit PA2
+  { p: TK, name: "K-146 §11.2: Text-Programm – die Kiste enthält nur hauptgang.pizza mit dem eigenen Quelltext", api: (lang) => {
+    const q = 'Bote.sage((Kiste.liste() + " " + Kiste.text("hauptgang.pizza").länge()));\n';
+    const r = lang.run(q, {});
+    const aus = ereignisse(r, "ausgabe").map((e) => e.text);
+    if (r.exitCode !== 0 || j(aus) !== j(["[hauptgang.pizza] " + q.length])) return j(r.ereignisse);
+  } },
+
+  { p: TK, name: "K-145 §5.4: optionen.teiglinge – ein passender Teigling wird übernommen, ein veralteter oder kaputter neu vorgebacken (Ergebnis gleich)", api: (lang) => {
+    const V = require("../../site/js/herd/teigling.js").node();
+    const zaehler = { n: 0, vorbacken(q) { this.n++; return V.vorbacken(q); }, sha256: (b) => V.sha256(b) };
+    const b = png(3, 1, [9, 9, 9, 255]), c = png(1, 5, [0, 0, 0, 0]);
+    const code = projekt({
+      "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png") + " " + Bildchen.laden("bilder/b.png") + " " + Bildchen.laden("bilder/c.png")));\n',
+      "bilder/a.png": KLEIN, "bilder/b.png": b, "bilder/c.png": c,
+    });
+    const teiglinge = { "bilder/a.png": V.vorbacken(KLEIN), "bilder/b.png": V.vorbacken(png(4, 4, [1, 2, 3, 255])), "bilder/c.png": V.vorbacken(c).slice(0, 60) };
+    const r = lang.run(code, { teiglinge, vorbacker: zaehler });
+    const ohne = lang.run(code, {});
+    const aus = ereignisse(r, "ausgabe").map((e) => e.text);
+    if (j(aus) !== j(["Bildchen(2×3) Bildchen(3×1) Bildchen(1×5)"])) return "Ausgabe " + j(aus) + " " + j(ereignisse(r, "fehler"));
+    if (zaehler.n !== 2) return "vorbacken " + zaehler.n + "-mal gerufen, erwartet 2 (b veraltet, c kaputt)";
+    if (j(r.ereignisse) !== j(ohne.ereignisse) || r.schritte !== ohne.schritte) return "Ergebnis hängt vom Cache ab";
+  } },
+
+  { p: TK, name: "K-145 §5.4: Vorbacker fehlt (ungültiges optionen.vorbacker) bei Bildern → HOST, Exit 2, 0 Schritte; ohne Bilder wird er nicht gebraucht", api: (lang) => {
+    const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\n', "bilder/a.png": KLEIN }), { vorbacker: new Uint8Array([0, 1, 2]) });
+    const f = ereignisse(r, "fehler");
+    const soll = { typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).", datei: null, zeile: null, spalte: null };
+    if (r.exitCode !== 2 || r.schritte !== 0 || f.length !== 1 || j(f[0]) !== j(soll) || ereignisse(r, "ausgabe").length) return "mit Bild: " + j(r);
+    const r2 = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("ja"));\n', "daten/a.txt": "x" }), { vorbacker: new Uint8Array([0]) });
+    if (r2.exitCode !== 0 || j(ereignisse(r2, "ausgabe").map((e) => e.text)) !== j(["ja"])) return "ohne Bild: " + j(r2);
+  } },
+
+  { p: TK, name: "K-145 §18.5: optionen.vorbacker als Bytes, WebAssembly.Module oder Vorbacker-Objekt – gleiches Ergebnis", api: (lang) => {
+    const fs = require("fs"), path = require("path");
+    const bytes = new Uint8Array(fs.readFileSync(path.join(__dirname, "..", "..", "site", "js", "herd", "teigling.wasm")));
+    const code = projekt({ "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png").hoehe()));\n', "bilder/a.png": KLEIN });
+    const soll = j(lang.run(code, {}).ereignisse);
+    for (const [name, v] of [["Bytes", bytes], ["Module", new WebAssembly.Module(bytes)], ["Objekt", require("../../site/js/herd/teigling.js").ausBytes(bytes)]]) {
+      const r = lang.run(code, { vorbacker: v });
+      if (j(r.ereignisse) !== soll || r.exitCode !== 0) return name + ": " + j(r.ereignisse);
+    }
+  } },
+
+  { p: TK, name: "K-145 §18.5: Herd-Erkennung – Bildchen.laden zählt wie neu Bildchen (ohne Herd-Kern HOST vor dem Start)", api: (lang) => {
+    const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\nBildchen b = Bildchen.laden("bilder/a.png");\n', "bilder/a.png": KLEIN }), { herdKern: new Uint8Array([0]) });
+    const f = ereignisse(r, "fehler");
+    if (r.exitCode !== 2 || f.length !== 1 || f[0].text !== "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." || ereignisse(r, "ausgabe").length) return j(r);
+  } },
 ];

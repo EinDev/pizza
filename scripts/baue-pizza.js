@@ -36,6 +36,7 @@ const ABSCHNITTE = [
   'std/zufall.js',
   'std/vorrat.js',
   'std/spiegel.js',
+  'std/kiste.js',           // Kiste: Projektdateien lesen (SPEC §11.2)
   'theke/tabellen.js',
   'theke/laufzeit.js',
   'std/register.js',        // TABELLEN; Sperren (nurRechnen, nurHauptkueche) – nach allen Tabellen, vor dem Herd
