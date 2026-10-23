@@ -453,9 +453,11 @@ Lage nach Physik und Folgekamera desselben Takts; das Programm liest sie im näc
 5. `npm test` · `node pruefstand/run.js` · `npm run test:wasm` · `npm run test:differenz`
 6. `git status` gegen Regel 2 (keine geänderte `.herd-erwartet`/`herdErwartet`/PNG bestehender Fälle)
 
-**A-Glut** = A-Kern + `node herd/baue-web.js` (wasm-bindgen 0.2.129) + neues Referenzbild über
-`cargo run -j 2 -p herd-werkzeug --bin herd-bild -- referenz` (nur das neue PNG darf entstehen) + `npm run test:e2e` (headless; mindestens
-`13-herd-glut` und `14-herd-playground` grün).
+**A-Glut** = A-Kern + `node herd/baue-web.js` (wasm-bindgen 0.2.129) + neues Referenzbild: nur das neue Skript rendern
+(`cargo run -j 2 -p herd-werkzeug --bin herd-bild -- bild tests/herd/bilder/<name>.herd <scratch-ordner>`, PNG als
+`tests/herd/bilder/<name>.png` übernehmen) – `referenz` schreibt **alle** PNGs neu, und WARP/lavapipe sind nicht über Rechner bitgleich;
+wer es doch nutzt, setzt die übrigen mit `git checkout -- tests/herd/bilder` zurück. Maßgeblich ist der Pixeltest in `cargo test -j 2`
+(Toleranz K-129) + `npm run test:e2e` (headless; mindestens `13-herd-glut` und `14-herd-playground` grün).
 
 **A-Lauf** = A-Kern + `npm run baue:laufzeit` + `cargo test -j 2` in `host/` + `node host/test.js` (setzt `PIZZA_KEIN_DIALOG=1`) +
 `npm --prefix ui test` (wenn `ui/` berührt) + `npm run test:e2e` (headless).
