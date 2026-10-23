@@ -1,0 +1,18 @@
+// Herd §18.6 / HERD.md §12.4 H-K3a: Rahmen – Bildchen als 9-Slice-Tafel (Ecken fest, Kanten und Mitte gestreckt)
+Herd herd = neu Herd("Tafeln", breite: 320, hoehe: 180);
+Bildchen karte = neu Bildchen(["kkkkkk", "kttttk", "ktwwtk", "ktwwtk", "kttttk", "kkkkkk"]);
+Teil tafel = herd.gruppe(160, 60);
+Rahmen r = tafel.mit(neu Rahmen(bildchen: karte, kante: 2, breite: 200, hoehe: 60, groesse: 3));
+Bote.sage((r + " " + r.bildchen() + " " + r.kante() + " " + r.breite() + "x" + r.hoehe() + " " + r.groesse() + " " + r.farbe()));
+Rahmen vorgabe = herd.gruppe(60, 140).mit(neu Rahmen(bildchen: karte));
+Bote.sage((vorgabe.kante() + " " + vorgabe.breite() + "x" + vorgabe.hoehe() + " " + vorgabe.groesse() + " " + vorgabe.farbe()));
+Teil knopf = herd.gruppe(240, 140);
+knopf.mit(neu Rahmen(bildchen: karte, breite: 100, hoehe: 40, groesse: 4, farbe: "senf"));
+Teil maus = herd.kreis(255, 60, 3);
+Bote.sage(("trifft: " + tafel.trifft(maus) + " " + knopf.trifft(maus)));
+herd.backe(() -> {
+    falls (herd.bildnummer() == 3) { r.setzeBreite(120).setzeHoehe(100); }
+    falls (herd.bildnummer() == 5) { tafel.setzeGroesse(0.5); }
+});
+Bote.sage(("nach " + herd.bildnummer() + " Takten: " + r.breite() + "x" + r.hoehe() + ", trifft " + tafel.trifft(maus)));
+probier { r.setzeKante(1.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

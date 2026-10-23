@@ -1,0 +1,42 @@
+// Pizza-Uhr: Die Zeiger sind Linien, das Zifferblatt ist eine Rahmen-Tafel (9-Slice).
+// Der Sekundenzeiger dreht sich von selbst (Bewegung, 6 Grad je Sekunde) –
+// Minuten- und Stundenzeiger stellt das Programm einmal je Takt nach.
+
+Herd herd = neu Herd("Pizza-Uhr", breite: 480, hoehe: 360);
+herd.hintergrund("ofen");
+
+// Brett mit Krustenrand: 9 × 9 Pixel. Die äußeren 3 Pixel (kante) bleiben scharf, der Rest wird gestreckt.
+Bildchen brett = neu Bildchen([".kkkkkkk.", "kkkkkkkkk", "kkeeeeekk", "kkemmmekk", "kkemmmekk",
+                               "kkemmmekk", "kkeeeeekk", "kkkkkkkkk", ".kkkkkkk."]);
+Teil mitte = herd.gruppe(240, 180);
+mitte.mit(neu Rahmen(bildchen: brett, kante: 3, breite: 300, hoehe: 300, groesse: 6));
+herd.text("Pizzeria Napoli", 0, 50, groesse: 18, farbe: "kruste", ausrichtung: "mitte").haenge(mitte);
+
+// zwölf Striche: je ein gedrehter Arm, an seinem Ende eine kurze Linie nach innen
+für (salami i = 0; i < 12; i++) {
+    Teil arm = herd.gruppe().haenge(mitte).setzeDrehung(i * 30);
+    salami laenge = 10;
+    falls (i % 3 == 0) { laenge = 20; }
+    herd.gruppe(0, -125).haenge(arm).mit(neu Linie(zuX: 0, zuY: laenge, dicke: 4, farbe: "kruste", rund: ja));
+}
+
+// Zeiger: Linien vom Mittelpunkt nach oben (zuY negativ), gedreht wird das Teil
+Teil stunde = herd.gruppe().haenge(mitte);
+stunde.mit(neu Linie(zuX: 0, zuY: -70, dicke: 10, farbe: "ofen", rund: ja));
+Teil minute = herd.gruppe().haenge(mitte);
+minute.mit(neu Linie(zuX: 0, zuY: -105, dicke: 6, farbe: "ofen", rund: ja));
+Teil sekunde = herd.gruppe().haenge(mitte);
+sekunde.mit(neu Linie(zuX: 0, zuY: -115, dicke: 2, farbe: "tomate"));
+herd.gruppe().haenge(sekunde).mit(neu Linie(zuX: 0, zuY: 25, dicke: 5, farbe: "tomate", rund: ja));
+herd.kreis(0, 0, 7, farbe: "tomate").haenge(sekunde);
+sekunde.mit(neu Bewegung(drehtempo: 6));
+
+salami start = 10 * 3600 + 8 * 60 + 30;                          // 10:08:30
+sekunde.setzeDrehung(start % 60 * 6);
+herd.backe(() -> {
+    funghi s = start + herd.bildnummer() / 60.0;
+    minute.setzeDrehung((s % 3600) / 10);                         // 360 Grad je Stunde
+    stunde.setzeDrehung((s % 43200) / 120);                       // 360 Grad je 12 Stunden
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: Sekundenzeiger " + sekunde.drehung().runden(1)
+    + " Grad, Minutenzeiger " + minute.drehung().runden(2) + " Grad."));

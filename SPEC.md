@@ -1529,7 +1529,7 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
 | `Teil` | – (nur über Fabriken, `kopie()`) | §18.4 |
 | `Form` | `(punkte, dreiecke, glatt: nein)` | `id()`; statisch `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)` |
 | `Bildchen` | `(zeilen, farben: karton)` | `breite()`, `hoehe()`, `id()` |
-| Komponenten | `(feld: wert, …)` | generisch aus dem Schema (§18.4), v1-Liste §18.6 |
+| Komponenten | `(feld: wert, …)` | generisch aus dem Schema (§18.4), Liste §18.6 |
 
 - Alle sind eingebaute Klassen wie die Theke-Zutaten: `erbt Herd` → P0010; eine eigene Klasse gleichen Namens hat Vorrang. Statisch
   an `Herd`: `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"` (r, g, b gerundet und auf 0 … 255 geklemmt, a auf 0 … 1 geklemmt, × 255 gerundet,
@@ -1642,7 +1642,7 @@ Schema und ist eine eingebaute Klasse:
   `LaufzeitAnanas: Das Zeichen 'x' hat im Bildchen keine Farbe.`
 - Ressourcen werden beim Erzeugen kopiert und an die Engine übergeben (IDs ab 1, gemeinsam für Formen und Bildchen).
 
-### 18.6 Komponenten v1
+### 18.6 Komponenten (v1 und Ausbau)
 
 | Name (Raum) | Felder (Standard) | System / Wirkung |
 |---|---|---|
@@ -1656,6 +1656,8 @@ Schema und ist eine eingebaute Klasse:
 | `Bewegung` (beide) | `tempoX`/`tempoY`/`tempoZ` 0 (Einheiten/s), `beschleunigungX`/`Y`/`Z` 0 (Einheiten/s²), `drehtempo` 0 (Grad/s, um die Hochachse bzw. in 2D um die Bildmitte), `daempfung` 0 (0 … 1, Anteil Tempoverlust je Sekunde) | je Takt: Tempo += Beschleunigung·dt, Tempo ·= (1 − daempfung)^dt, Lage += Tempo·dt |
 | `Animation` (2D, braucht `Bild`) | `bilder` [] (Blech aus Bildchen), `proSekunde` 8, `schleife` ja, `laeuft` ja, `nummer` 1 | setzt `Bild.bildchen` auf `bilder[nummer]`; am Ende ohne Schleife `laeuft` → nein |
 | `Partikel` (2D) | `rate` 30 (je s), `lebensdauer` 1 (s), `tempo` 80, `richtung` 270 (Grad, 0 = rechts, im Uhrzeigersinn), `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0 (0 = Teil-ID) | Teilchen leben im Kern (eigener Zufall, deterministisch), höchstens 10 000 je Emitter |
+| `Linie` (2D) | `zuX` 100, `zuY` 0 (Endpunkt relativ zum Teil), `dicke` 2 (≥ 0), `farbe` ofen, `rund` nein (runde Enden) | Strecke von der Lage des Teils zum Endpunkt; `rund` verlängert sie je Ende um `dicke`/2 (Halbkreis um den Endpunkt); Länge 0 oder `dicke` 0 zeichnet nichts; Hülle für `trifft`: das gedrehte Rechteck der Strecke (in Weltlage achsenparallel umschlossen) |
+| `Rahmen` (2D) | `bildchen` karton, `kante` 4 (Ganzzahl, Bildchen-Pixel der Ecken), `breite` 64, `hoehe` 32 (Größe im Spielfeld, Mitte = Lage), `groesse` 1 (Bildschirmpixel je Bildchen-Pixel der Ecken), `farbe` weiss (Tönung) | 9-Slice: Ecken fest und pixelscharf, Kanten und Mitte gestreckt; `kante` wird auf (Bildchen-Seite − 1)/2 begrenzt (eine Mitte bleibt), Ecken höchstens halb so groß wie die Tafel (dann gestaucht); Hülle für `trifft`: Rechteck `breite` × `hoehe` |
 
 ### 18.7 Schnittstellen und Tests (K-134)
 

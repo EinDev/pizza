@@ -1,0 +1,13 @@
+// Herd §18.6 / HERD.md §12.4 H-K3a: Linie – Strecke vom Teil zum Endpunkt, runde Enden, Hülle für trifft
+Herd herd = neu Herd("Linien", breite: 320, hoehe: 180);
+Teil zeiger = herd.gruppe(160, 90);
+Linie l = zeiger.mit(neu Linie(zuX: 60, zuY: -30, dicke: 6, farbe: "tomate", rund: ja));
+Bote.sage((l + " " + l.zuX() + " " + l.zuY() + " " + l.dicke() + " " + l.farbe() + " " + l.rund()));
+Linie vorgabe = herd.gruppe(20, 20).mit(neu Linie());
+Bote.sage((vorgabe.zuX() + " " + vorgabe.zuY() + " " + vorgabe.dicke() + " " + vorgabe.farbe() + " " + vorgabe.rund()));
+Teil spitze = herd.kreis(220, 60, 4, farbe: "basilikum");
+Bote.sage(("trifft die Spitze: " + zeiger.trifft(spitze)));
+zeiger.mit(neu Bewegung(drehtempo: 90));
+herd.backe(() -> { falls (herd.bildnummer() == 6) { l.setzeRund(nein).setzeDicke(2); } });
+Bote.sage(("nach " + herd.bildnummer() + " Takten: Drehung " + zeiger.drehung().runden(2) + ", rund " + l.rund() + ", trifft " + zeiger.trifft(spitze)));
+probier { l.setzeDicke(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

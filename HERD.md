@@ -139,8 +139,9 @@ herd.backe(() -> {
 | Ressourcen | `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)`, `neu Form(punkte, dreiecke, glatt: nein)`; `neu Bildchen(zeilen, farben: karton)` |
 | Hilfen | `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"` |
 
-**Komponenten v1:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
-`Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter). Die Fabriken
+**Komponenten:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
+`Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
+`Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -320,7 +321,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H6** Browser | Render-Worker + OffscreenCanvas, Takt-Weg per SAB, Vorschaufenster, App-Link, Editor aus `schema.json`, E2E-Nachspielen | `832de3d`, `1e56e86`, `7e873b5`, `24316da` | E2E 13/14/15 (headless), Browser-Messlauf SwiftShader (indikativ) |
 | **H7** Spiele, Doku, Messung | Teigfänger 2D, Teigball 3D, drei Lernbeispiele, `tests/herd/bild.js`, Doku `40-herd.js` mit Bildern | `950e338` (H7a), `3b08e51`, `5b1a123`, `c2d24e6`, `43122a3` | 5 Beispiele mit `.herd-erwartet` in allen Modi; `bench/herd/ERGEBNISSE.md` |
 | **H-K0** Grundlagen | offen | – | – |
-| **H-K3a** Linie, Rahmen | offen | – | – |
+| **H-K3a** Linie, Rahmen | `Linie` (11, ein `RECHTECK` längs der Strecke, runde Enden über die Rundung), `Rahmen` (12, bis zu 9 `BILD`-Instanzen, 9-Slice), Szene `linien.herd`, Fälle `herd-linie`/`herd-rahmen`, Beispiel `uhr.pizza`, Doku-Abschnitt `herd-ausbau`; kein Bildpaket-/Glut-Umbau | (dieser) | `cargo test -j 2` (Kern 26/26 inkl. 2 neue); `node herd/test-kern.js` 10 Läufe bitgleich nativ = Wasm (neu `linien.herd`); `node tests/herd/erwartet.js` 30 ✓; `npm test` (310 Fälle), Prüfstand 713/713, `test:wasm` 1461, `test:differenz` 1113 ohne Abweichung |
 | **H-K5** Funken | offen | – | – |
 | **H-K1** Blick, Leine | offen | – | – |
 | **H-K2** Belag | offen | – | – |

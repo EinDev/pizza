@@ -1,0 +1,5 @@
+Rahmen(3) Bildchen(6×6) 2 200x60 3 weiss
+4 64x32 1 weiss
+trifft: ja nein
+nach 6 Takten: 120x100, trifft nein
+TypAnanas: Rahmen.kante braucht eine Ganzzahl, nicht 1.5.

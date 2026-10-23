@@ -1,0 +1,52 @@
+# H-K3a (HERD.md §12.4): Linie (eckig und rund, gedreht, verschachtelt) und Rahmen (9-Slice, gestreckt, gestaucht, getönt).
+vorgabe TAKTE 30
+welt_neu 640 360 "Linien"
+welt_hintergrund "mozzarella"
+typ_nummer "Linie" -> T_L
+typ_nummer "Rahmen" -> T_RA
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_L "zuX" -> L_X
+feld_nummer T_L "zuY" -> L_Y
+feld_nummer T_L "dicke" -> L_D
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "rund" -> L_R
+feld_nummer T_RA "bildchen" -> RA_B
+feld_nummer T_RA "kante" -> RA_K
+feld_nummer T_RA "breite" -> RA_BR
+feld_nummer T_RA "hoehe" -> RA_H
+feld_nummer T_RA "groesse" -> RA_G
+feld_nummer T_RA "farbe" -> RA_F
+feld_nummer T_BEW "drehtempo" -> BEW_D
+bildchen_neu ["kkkkkkkk", "kttttttk", "ktwwwwtk", "ktwwwwtk", "ktwwwwtk", "ktwwwwtk", "kttttttk", "kkkkkkkk"] [] -> TAFEL
+# drei Rahmen: Standard, gestreckt mit Tönung, Ecken größer als die Tafel
+wiederhole 3 i
+  teil_neu 2 -> r
+  teil_lage r (120 + i * 200) 90 0
+  komp_neu T_RA -> ra
+  setze_zahl ra RA_B TAFEL
+  setze_zahl ra RA_K (2 + i)
+  setze_zahl ra RA_BR (80 + i * 40)
+  setze_zahl ra RA_H (40 + i * 20)
+  setze_zahl ra RA_G (2 + i * 3)
+  setze_text ra RA_F "weiss"
+  komp_haenge ra r
+ende
+# Fächer aus Linien an einem drehenden Teil, abwechselnd rund
+teil_neu 2 -> nabe
+teil_lage nabe 320 250 0
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_D 45
+komp_haenge bw nabe
+wiederhole 12 i
+  teil_neu 2 -> arm
+  teil_haenge arm nabe
+  teil_setze arm 4 (i * 30)
+  komp_neu T_L -> l
+  setze_zahl l L_X (40 + i * 5)
+  setze_zahl l L_Y (i * 2)
+  setze_zahl l L_D (1 + i % 4 * 2)
+  setze_zahl l L_R (i % 2)
+  setze_text l L_F "tomate"
+  komp_haenge l arm
+ende
+takte TAKTE

@@ -1,0 +1,5 @@
+Linie(3) 60 -30 6 tomate ja
+100 0 2 ofen nein
+trifft die Spitze: ja
+nach 8 Takten: Drehung 12, rund nein, trifft nein
+LaufzeitAnanas: Linie.dicke muss mindestens 0 sein, nicht -1.

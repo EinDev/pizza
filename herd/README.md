@@ -43,6 +43,7 @@ Sortierungen haben eindeutige Schlüssel bzw. sind stabil.
 pub static ARTEN: &[&Art] = &[
     &rechteck::ART, &kreis::ART, &text::ART, &bild::ART, &koerper::ART, &licht::ART, &kamera::ART,
     &bewegung::ART, &animation::ART, &partikel::ART,
+    &linie::ART, &rahmen::ART,                         // Ausbau (HERD.md §12.2): feste Typnummern 11, 12, …
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -256,7 +257,8 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   `site/js/herd/kern.wasm` (`herd/skript.js`) und gegen den nativen Kern (`herd-skript`, baut mit `cargo build -j 2`)
   und vergleicht **jede Ausgabezeile** – jeden Rückgabewert und Szenen-/Paket-Hash je Bild. Läufe: B1–B4 klein (viele Takte)
   und in voller Größe (HERD.md §6, wenige Takte) sowie `hierarchie.herd` (Hierarchie mit Drehung, Kopie, Entfernen,
-  Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`). Bei Abweichung: erste abweichende Zeile mit Kontext.
+  Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`,
+  `Rahmen`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
 
 ### 7.1 Szenen-Skripte (`*.herd`)

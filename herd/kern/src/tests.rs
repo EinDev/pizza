@@ -417,3 +417,124 @@ fn befunde_h3_genus_typname_info_fehlermarke() {
     assert!(k.teil_hole(t4, 1).is_nan());
     assert_eq!(k.fehler_neu(), 1);
 }
+
+/// 2D-Instanzen des letzten Bildpakets: (Matrix m00 m10 m01 m11, Mitte, halbe Ausdehnung, Rundung, Art, Atlas-Rechteck).
+#[allow(clippy::type_complexity)]
+fn instanzen_2d(k: &Kern) -> Vec<([f32; 4], [f32; 2], [f32; 2], f32, u32, [u16; 4])> {
+    let l = Leser::neu(k.paket()).unwrap();
+    let Some((_, d)) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D) else { return vec![] };
+    let f = |c: &[u8], o: usize| f32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]);
+    let u = |c: &[u8], o: usize| u16::from_le_bytes([c[o], c[o + 1]]);
+    d.chunks_exact(INST2D_BYTES)
+        .map(|c| {
+            (
+                [f(c, 0), f(c, 4), f(c, 8), f(c, 12)],
+                [f(c, 16), f(c, 20)],
+                [f(c, 24), f(c, 28)],
+                f(c, 32),
+                u32::from_le_bytes([c[44], c[45], c[46], c[47]]) & 0xFF,
+                [u(c, 48), u(c, 50), u(c, 52), u(c, 54)],
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn linie_ein_rechteck_laengs_der_strecke() {
+    use crate::paket::flach_art;
+    let mut k = welt();
+    let li = typ(&mut k, "Linie");
+    assert_eq!(li as usize, 11); // feste Typnummer (HERD.md §12.2)
+    let (zx, zy, di, ru) = (feld(&mut k, li, "zuX"), feld(&mut k, li, "zuY"), feld(&mut k, li, "dicke"), feld(&mut k, li, "rund"));
+    let fa = feld(&mut k, li, "farbe");
+    let t = k.teil_neu(2);
+    k.teil_lage(t, 100.0, 100.0, 0.0);
+    let c = k.komp_neu(li);
+    assert_eq!(text(&mut k, c, fa), "ofen");
+    assert_eq!(k.hole_zahl(c, zx), 100.0);
+    k.komp_haenge(c, t);
+    k.setze_zahl(c, zx, 30.0);
+    k.setze_zahl(c, zy, 40.0);
+    k.bild(1);
+    let i = instanzen_2d(&k);
+    assert_eq!(i.len(), 1);
+    assert_eq!(i[0].4, flach_art::RECHTECK);
+    assert_eq!(i[0].0, [0.6, 0.8, -0.8, 0.6]);
+    assert_eq!(i[0].1, [115.0, 120.0]);
+    assert_eq!(i[0].2, [25.0, 1.0]);
+    assert_eq!(i[0].3, 0.0);
+    // runde Enden: je Seite um dicke/2 länger, Rundung dicke/2
+    k.setze_zahl(c, ru, 1.0);
+    k.setze_zahl(c, di, 6.0);
+    k.bild(2);
+    let i = instanzen_2d(&k);
+    assert_eq!((i[0].2, i[0].3), ([28.0, 3.0], 3.0));
+    // Hülle längs der Strecke
+    let kreis = typ(&mut k, "Kreis");
+    let b = k.teil_neu(2);
+    let kb = k.komp_neu(kreis);
+    k.komp_haenge(kb, b);
+    k.teil_lage(b, 132.0, 142.0, 0.0);
+    assert_eq!(k.teil_trifft(t, b), 1);
+    k.teil_lage(b, 200.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(t, b), 0);
+    // Dicke 0 zeichnet nichts (nur noch der Kreis), negative Dicke ist ein Fehler
+    k.setze_zahl(c, di, 0.0);
+    k.bild(3);
+    assert!(instanzen_2d(&k).iter().all(|x| x.4 != flach_art::RECHTECK));
+    assert_eq!(k.setze_zahl(c, di, -1.0), -2);
+    assert_eq!(k.fehler_text(), "Linie.dicke muss mindestens 0 sein, nicht -1.");
+}
+
+#[test]
+fn rahmen_neun_stuecke() {
+    use crate::paket::flach_art;
+    let mut k = welt();
+    let ra = typ(&mut k, "Rahmen");
+    assert_eq!(ra as usize, 12); // feste Typnummer (HERD.md §12.2)
+    let (bc, ka, gr) = (feld(&mut k, ra, "bildchen"), feld(&mut k, ra, "kante"), feld(&mut k, ra, "groesse"));
+    let zeilen = ["kkkkkkkkk"; 9];
+    let z: Vec<u8> = zeilen.iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z.as_bytes()].concat()).collect();
+    let id = k.bildchen_neu(&z, &[]);
+    assert!(id > 0);
+    let t = k.teil_neu(2);
+    k.teil_lage(t, 100.0, 100.0, 0.0);
+    let c = k.komp_neu(ra);
+    k.komp_haenge(c, t);
+    // karton: nichts
+    k.bild(1);
+    assert!(instanzen_2d(&k).is_empty());
+    k.setze_zahl(c, bc, id as f64);
+    k.bild(2);
+    let i = instanzen_2d(&k);
+    assert_eq!(i.len(), 9);
+    assert!(i.iter().all(|x| x.4 == flach_art::BILD));
+    let (u, v) = (i[0].5[0], i[0].5[1]);
+    // Ecke oben links: 4 × 4 Bildchen-Pixel, fest; Mitte: 1 Pixel, auf 56 × 24 gestreckt
+    assert_eq!((i[0].1, i[0].2, i[0].5), ([70.0, 86.0], [2.0, 2.0], [u, v, u + 4, v + 4]));
+    assert_eq!((i[4].1, i[4].2, i[4].5), ([100.0, 100.0], [28.0, 12.0], [u + 4, v + 4, u + 5, v + 5]));
+    assert_eq!((i[8].1, i[8].2, i[8].5), ([130.0, 114.0], [2.0, 2.0], [u + 5, v + 5, u + 9, v + 9]));
+    // Ecken größer als die halbe Höhe: Ecken gestaucht, die mittlere Zeile fällt weg
+    k.setze_zahl(c, gr, 5.0);
+    k.bild(3);
+    let i = instanzen_2d(&k);
+    assert_eq!(i.len(), 6);
+    assert_eq!((i[0].1, i[0].2), ([78.0, 92.0], [10.0, 8.0]));
+    assert_eq!((i[1].1, i[1].2), ([100.0, 92.0], [12.0, 8.0]));
+    // kante 0: ein gestrecktes Bild
+    k.setze_zahl(c, ka, 0.0);
+    k.bild(4);
+    let i = instanzen_2d(&k);
+    assert_eq!((i.len(), i[0].2, i[0].5), (1, [32.0, 16.0], [u, v, u + 9, v + 9]));
+    assert_eq!(k.setze_zahl(c, ka, 1.5), -1);
+    assert_eq!(k.fehler_text(), "Rahmen.kante braucht eine Ganzzahl, nicht 1.5.");
+    // Hülle = Tafel
+    let kreis = typ(&mut k, "Kreis");
+    let b = k.teil_neu(2);
+    let kb = k.komp_neu(kreis);
+    k.komp_haenge(kb, b);
+    k.teil_lage(b, 140.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(t, b), 1);
+    k.teil_lage(b, 145.0, 100.0, 0.0);
+    assert_eq!(k.teil_trifft(t, b), 0);
+}

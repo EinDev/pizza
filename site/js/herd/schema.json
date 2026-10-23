@@ -67,7 +67,20 @@
       {"nummer": 9, "name": "farbe", "typ": "farbe", "standard": "senf", "min": null, "max": null},
       {"nummer": 10, "name": "farbeEnde", "typ": "farbe", "standard": "tomate", "min": null, "max": null},
       {"nummer": 11, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null},
-      {"nummer": 12, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]}
+      {"nummer": 12, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]},
+    {"name": "Linie", "nummer": 11, "genus": "f", "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "zuX", "typ": "zahl", "standard": 100, "min": null, "max": null},
+      {"nummer": 2, "name": "zuY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 3, "name": "dicke", "typ": "zahl", "standard": 2, "min": 0, "max": null},
+      {"nummer": 4, "name": "farbe", "typ": "farbe", "standard": "ofen", "min": null, "max": null},
+      {"nummer": 5, "name": "rund", "typ": "diavolo", "standard": false, "min": null, "max": null}]},
+    {"name": "Rahmen", "nummer": 12, "genus": "m", "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "bildchen", "typ": "bildchen", "standard": null, "min": null, "max": null},
+      {"nummer": 2, "name": "kante", "typ": "ganz", "standard": 4, "min": 0, "max": null},
+      {"nummer": 3, "name": "breite", "typ": "zahl", "standard": 64, "min": 0, "max": null},
+      {"nummer": 4, "name": "hoehe", "typ": "zahl", "standard": 32, "min": 0, "max": null},
+      {"nummer": 5, "name": "groesse", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 6, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],

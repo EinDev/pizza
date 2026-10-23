@@ -31,6 +31,7 @@ const LAEUFE = [
   ['b4-partikel.herd', {}],
   ['b4-partikel.herd', { RATE: 1000, TAKTE: 5 }],
   ['hierarchie.herd', {}],
+  ['linien.herd', {}],
 ];
 
 const args = process.argv.slice(2);

@@ -283,7 +283,9 @@
                 ["`Kamera`","3D","`sicht` 60, `nah` 0.1, `fern` 500, `aktiv` ja","Blickwinkel `sicht` in Grad; es zeichnet die aktive Kamera mit der kleinsten ID"],
                 ["`Bewegung`","2D + 3D","`tempoX` 0, `tempoY` 0, `tempoZ` 0, `beschleunigungX` 0, `beschleunigungY` 0, `beschleunigungZ` 0, `drehtempo` 0, `daempfung` 0","je Takt: Tempo += Beschleunigung·dt, Dämpfung, Lage += Tempo·dt; `drehtempo` in Grad/s"],
                 ["`Animation`","2D","`bilder` [], `proSekunde` 8, `schleife` ja, `laeuft` ja, `nummer` 1 – braucht Bild","blättert durch `bilder` (braucht ein `Bild` am selben Teil); ohne `schleife` stoppt sie am Ende"],
-                ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"]
+                ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"],
+                ["`Linie`","2D","`zuX` 100, `zuY` 0, `dicke` 2, `farbe` ofen, `rund` nein","Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) relativ zum Teil; `rund` = runde Enden"],
+                ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -465,6 +467,46 @@
           titel: "Was als Nächstes kommt",
           inhalt: [
             { art: "text", md: "Die Roadmap in `HERD.md` §10 orientiert sich an Unity: 2D-Kamera und Folgekamera, Material, Linien und Vielecke, Tweens, 3D-Partikel, Kollider mit Ereignissen, 2D-Physik, Vorlagen, Szenenwechsel, Kachelkarten, Gelände und Skybox, UI-Bausteine, eigene pizza-Klassen als Komponente und Ton – jeweils als eigene Komponente nach diesem Muster." }
+          ]
+        }
+      ]
+    },
+    {
+      id: "herd-ausbau",
+      gruppe: HERD,
+      ordnung: 599,
+      titel: "Ausbau: neue Komponenten",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Nach den Komponenten der ersten Fassung kommen nach und nach neue Bausteine dazu – jeder ist eine eingebaute Klasse wie alle anderen (`neu …`, `teil.mit(…)`, Getter und Setter). Hier steht je Ausbaustufe, was sie kann." },
+        {
+          art: "details",
+          titel: "Linie und Rahmen",
+          inhalt: [
+            { art: "text", md: "**`Linie`** zeichnet eine Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) – relativ zum Teil, also dreht und skaliert sie mit ihm. `dicke` ist die Strichbreite, `rund: ja` gibt runde Enden. **`Rahmen`** macht aus einem kleinen Bildchen eine Tafel beliebiger Größe (9-Slice): die vier Ecken (`kante` Bildchen-Pixel breit) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt; `groesse` = Bildschirmpixel je Bildchen-Pixel der Ecken, `farbe` tönt. Beide treffen mit `trifft` als Rechteck." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Linien und Rahmen","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"4979bea0edd79fed","paket":"697051380670f5ea"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Linien und Rahmen\", breite: 320, hoehe: 180);",
+                "Bildchen karte = neu Bildchen([\"kkkkkk\", \"kttttk\", \"ktmmtk\", \"ktmmtk\", \"kttttk\", \"kkkkkk\"]);",
+                "Teil tafel = herd.gruppe(160, 90);",
+                "tafel.mit(neu Rahmen(bildchen: karte, kante: 2, breite: 240, hoehe: 120, groesse: 4));   // Ecken 8 × 8 Pixel, Rest gestreckt",
+                "Teil zeiger = herd.gruppe(160, 90);",
+                "Linie l = zeiger.mit(neu Linie(zuX: 80, zuY: -30, dicke: 6, farbe: \"ofen\", rund: ja));",
+                "zeiger.mit(neu Bewegung(drehtempo: 90));                                                // das Teil dreht, die Linie dreht mit",
+                "herd.backe();",
+                "Bote.sage((l + \" \" + l.zuX() + \" \" + l.dicke() + \" \" + zeiger.drehung().runden(1) + \" \" + tafel.rahmen().breite()));"
+              )
+            },
+            { art: "ausgabe", text: z("Linie(4) 80 6 6 240") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Pizza-Uhr** unter *Beispiele → Herd*: Zeiger als Linien auf einer Rahmen-Tafel, der Sekundenzeiger dreht mit `Bewegung(drehtempo: 6)`." }
           ]
         }
       ]

@@ -15,7 +15,9 @@ pub mod kamera;
 pub mod koerper;
 pub mod kreis;
 pub mod licht;
+pub mod linie;
 pub mod partikel;
+pub mod rahmen;
 pub mod rechteck;
 pub mod text;
 #[cfg(any(test, feature = "probe"))]
@@ -64,6 +66,8 @@ pub static ARTEN: &[&Art] = &[
     &bewegung::ART,
     &animation::ART,
     &partikel::ART,
+    &linie::ART,
+    &rahmen::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
