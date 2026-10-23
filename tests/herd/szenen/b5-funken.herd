@@ -1,0 +1,54 @@
+# B5 (HERD.md §12.4 H-K5): 3D – 10 Funken-Emitter, je RATE × LEBEN Teilchen (voll: RATE=1000, LEBEN=2 → 20 000 Teilchen).
+# Klein: RATE=100 (Vorgabe). Abwechselnd leuchtend/deckend, weltlage ja/nein, gedrehte und wandernde Emitter, Nebel.
+vorgabe RATE 100
+vorgabe LEBEN 2
+vorgabe TAKTE 60
+welt_neu 1280 720 "B5"
+welt_himmel "#1b2140" "#6b4a5e"
+welt_nebel "#6b4a5e" 20 60
+typ_nummer "Funken" -> T_F
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungX" -> F_RX
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "groesseEnde" -> F_GRE
+feld_nummer T_F "farbe" -> F_FARBE
+feld_nummer T_F "farbeEnde" -> F_FARBE_E
+feld_nummer T_F "mischung" -> F_MISCH
+feld_nummer T_F "weltlage" -> F_WELT
+feld_nummer T_F "saat" -> F_SAAT
+feld_nummer T_BEW "tempoX" -> F_TX
+feld_nummer T_BEW "drehtempo" -> F_DREH
+teil_lage 1 0 4 16
+teil_schaue 1 0 2 0
+wiederhole 10 e
+  teil_neu 3 -> t
+  teil_lage t ((e - 4.5) * 2.4) 0 ((e % 3) * -2)
+  teil_setze t 5 ((e % 4) * 15)
+  komp_neu T_F -> f
+  setze_zahl f F_RATE RATE
+  setze_zahl f F_LEBEN LEBEN
+  setze_zahl f F_TEMPO (3 + e * 0.4)
+  setze_zahl f F_RX ((e % 2 - 0.5) * 0.4)
+  setze_zahl f F_RY 1
+  setze_zahl f F_STREU (10 + e * 12)
+  setze_zahl f F_SCHWER (e * 0.5)
+  setze_zahl f F_GR (0.1 + (e % 3) * 0.05)
+  setze_zahl f F_GRE 0.02
+  setze_text f F_FARBE "#ffd27a"
+  setze_text f F_FARBE_E "#d9452b00"
+  setze_zahl f F_MISCH (e % 2)
+  setze_zahl f F_WELT (1 - boden(e / 5))
+  setze_zahl f F_SAAT (e * 7)
+  komp_haenge f t
+  komp_neu T_BEW -> bw
+  setze_zahl bw F_TX ((e % 2 - 0.5) * 2)
+  setze_zahl bw F_DREH (e * 9)
+  komp_haenge bw t
+ende
+takte TAKTE

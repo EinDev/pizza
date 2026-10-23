@@ -19,6 +19,8 @@ pub const INST2D_BYTES: usize = 56;
 pub const INST3D_BYTES: usize = 72;
 pub const ZUG_BYTES: usize = 16;
 pub const ECKE_BYTES: usize = 32;
+/// Ein Teilchen im Abschnitt `TEILCHEN3D` (Funken): `f32 x, y, z, halbe Größe`, `u8 r, g, b, a`.
+pub const TEILCHEN3D_BYTES: usize = 20;
 /// Kantenlänge der Shadow-Map (Texel), mit der der Kern die Lichtkamera einrastet.
 pub const SCHATTEN_GROESSE: u32 = 2048;
 pub const MAX_LICHTER: usize = 8;
@@ -34,6 +36,8 @@ pub mod abschnitt {
     pub const INST3D: u32 = 11;
     pub const ZUEGE3D: u32 = 12;
     pub const INST2D: u32 = 13;
+    /// 3D-Teilchen (`Funken`), nur wenn welche sichtbar sind
+    pub const TEILCHEN3D: u32 = 14;
 }
 
 pub mod flag {
@@ -88,6 +92,16 @@ pub struct LichtB {
     pub schatten: bool,
 }
 
+/// Ein 3D-Teilchen im Bildbau (`Funken`): Weltlage, halbe Größe, Farbe, Mischart.
+#[derive(Clone, Copy, Debug)]
+pub struct Teilchen3 {
+    pub pos: [f64; 3],
+    pub r: f64,
+    pub farbe: u32,
+    /// `false` = leuchtend (additiv), `true` = deckend (gemischt, von hinten nach vorn)
+    pub deckend: bool,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct KameraB {
     pub teil: u32,
@@ -108,10 +122,12 @@ pub struct Bildbau {
     pub koerper: Vec<Koerper3>,
     pub lichter: Vec<LichtB>,
     pub kameras: Vec<KameraB>,
+    pub teilchen3d: Vec<Teilchen3>,
     // Arbeitslisten
     sicht: Vec<bool>,
     fest: Vec<(u64, u32)>,
     durch: Vec<(u64, u32, u32)>,
+    teilchen_ordnung: Vec<(u64, u32)>,
 }
 
 /// f64 → f32 fürs Paket: nicht endlich → 0, −0 → +0.
@@ -156,6 +172,7 @@ impl Bildbau {
         self.koerper.clear();
         self.lichter.clear();
         self.kameras.clear();
+        self.teilchen3d.clear();
         if self.schrift.is_none() {
             self.schrift = Schrift::eingebettet();
         }
@@ -712,7 +729,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         }
         zuege.push([zug::DURCH, netz, basis + start, j as u32 - start]);
     }
-    if zuege.iter().any(|z| z[0] != zug::SCHATTEN) {
+    if zuege.iter().any(|z| z[0] != zug::SCHATTEN) || !bau.teilchen3d.is_empty() {
         flags |= flag::DREI_D;
     }
     if zuege.iter().any(|z| z[0] == zug::SCHATTEN) {
@@ -802,10 +819,68 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         abschnitte += 1;
     }
 
+    // ---------------- 3D-Teilchen (Funken): leuchtende in Ausstoßreihenfolge, dann deckende von hinten nach vorn ----------------
+    if !bau.teilchen3d.is_empty() {
+        abschnitte += teilchen_abschnitt(aus, bau, &sk, auge, vorn);
+    }
+
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());
     aus[20..24].copy_from_slice(&abschnitte.to_le_bytes());
     aus[24..28].copy_from_slice(&len.to_le_bytes());
+}
+
+/// Abschnitt `TEILCHEN3D`: `u32 leuchtend, u32 deckend`, dann die Teilchen (je `TEILCHEN3D_BYTES`). Teilchen außerhalb des
+/// Sichtkörpers (Kugel mit der halben Größe) entfallen. Liefert die Zahl der geschriebenen Abschnitte (0 oder 1).
+fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], auge: [f64; 3], vorn: [f64; 3]) -> u32 {
+    let mut laengen = [0.0; 6];
+    for (l, p) in laengen.iter_mut().zip(sk.iter()) {
+        *l = libm::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+    }
+    let sichtbar = |t: &Teilchen3| {
+        if !(t.pos[0].is_finite() && t.pos[1].is_finite() && t.pos[2].is_finite()) {
+            return false;
+        }
+        for (p, l) in sk.iter().zip(laengen.iter()) {
+            if p[0] * t.pos[0] + p[1] * t.pos[1] + p[2] * t.pos[2] + p[3] < -t.r * l {
+                return false;
+            }
+        }
+        true
+    };
+    bau.teilchen_ordnung.clear();
+    let mut leuchtend = 0u32;
+    for (i, t) in bau.teilchen3d.iter().enumerate() {
+        if !t.deckend && sichtbar(t) {
+            bau.teilchen_ordnung.push((0, i as u32));
+            leuchtend += 1;
+        }
+    }
+    for (i, t) in bau.teilchen3d.iter().enumerate() {
+        if t.deckend && sichtbar(t) {
+            let d = punkt([t.pos[0] - auge[0], t.pos[1] - auge[1], t.pos[2] - auge[2]], vorn);
+            bau.teilchen_ordnung.push((!ordnungs_bits(d), i as u32));
+        }
+    }
+    let deckend = bau.teilchen_ordnung.len() as u32 - leuchtend;
+    if leuchtend + deckend == 0 {
+        return 0;
+    }
+    bau.teilchen_ordnung[leuchtend as usize..].sort_unstable_by_key(|x| (x.0, x.1));
+    let st = abschnitt_beginn(aus, abschnitt::TEILCHEN3D);
+    put_u32(aus, leuchtend);
+    put_u32(aus, deckend);
+    aus.reserve(bau.teilchen_ordnung.len() * TEILCHEN3D_BYTES);
+    for (_, i) in &bau.teilchen_ordnung {
+        let t = &bau.teilchen3d[*i as usize];
+        put_f32(aus, t.pos[0]);
+        put_f32(aus, t.pos[1]);
+        put_f32(aus, t.pos[2]);
+        put_f32(aus, t.r);
+        aus.extend_from_slice(&t.farbe.to_be_bytes());
+    }
+    abschnitt_ende(aus, st);
+    1
 }
 
 /// Lesehilfe für ein Bildpaket (Glut, Werkzeuge, Tests).

@@ -1,0 +1,177 @@
+#! bild 180 groesse 960x540
+# Referenzbild H-K5 (HERD.md §12.4): Funken – ein Steinofen bei Nacht. Glutfunken aus dem Ofenmaul und aus dem Schlot
+# (leuchtend, additiv, steigen und fallen zurück), Rauch aus dem Schlot (deckend, von hinten nach vorn sortiert, wächst und
+# verblasst), Nebel, schräge Kamera (Teilchen bleiben kamerazugewandt). Spielfeld 960 × 540.
+vorgabe TAKTE 180
+welt_neu 960 540 "Funken"
+welt_himmel "#121833" "#5b3b4c"
+welt_nebel "#5b3b4c" 14 40
+welt_umgebung "#7584c0" 0.28
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Funken" -> T_F
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LEUCHT
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_K "bild" -> K_BILD
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungX" -> F_RX
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "richtungZ" -> F_RZ
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "groesseEnde" -> F_GRE
+feld_nummer T_F "farbe" -> F_FARBE
+feld_nummer T_F "farbeEnde" -> F_FARBE_E
+feld_nummer T_F "mischung" -> F_MISCH
+
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 40 0 -> KUGEL
+form_grund 3 40 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+bildchen_neu ["ggggggggggggggge", "geeeeeeeeeeeeeee", "geeeeeeeeeeeeeee", "geeeeeeeeeeeeeee", "ggggggggggggggge", "eeeeeeegeeeeeeee", "eeeeeeegeeeeeeee", "eeeeeeegeeeeeeee"] [["g", "#4a3d36"], ["e", "#6b5a4e"]] -> PFLASTER
+
+# Kamera schräg von rechts vorn, Mondlicht als schwache, kühle Sonne
+teil_lage 1 5.4 3.3 10.4
+teil_schaue 1 -0.3 2.5 0
+teil_lage 2 -0.5 0.9 0.4
+komp_von 2 T_L -> SONNE
+setze_text SONNE L_F "#a8b8ff"
+setze_zahl SONNE L_ST 0.35
+
+# Pflasterboden
+teil_neu 3 -> boden
+teil_groesse boden 80 1 80
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#ffffff"
+setze_zahl k K_BILD PFLASTER
+setze_zahl k K_GLANZ 0.15
+komp_haenge k boden
+
+# Ofen: Sockel, Kuppel, glühendes Maul, Schlot
+teil_neu 3 -> sockel
+teil_lage sockel 0 0.6 0
+teil_groesse sockel 5.4 1.2 5.4
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "#8c7f74"
+setze_zahl k K_GLANZ 0.1
+komp_haenge k sockel
+teil_neu 3 -> kuppel
+teil_lage kuppel 0 1.2 0
+teil_groesse kuppel 4.6 4.4 4.6
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#b5603a"
+setze_zahl k K_GLANZ 0.12
+komp_haenge k kuppel
+teil_neu 3 -> bogen
+teil_lage bogen 0 1.75 2.05
+teil_groesse bogen 2.2 1.9 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#7a3a24"
+komp_haenge k bogen
+teil_neu 3 -> maul
+teil_lage maul 0 1.65 2.26
+teil_groesse maul 1.7 1.5 0.32
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#ffad42"
+setze_zahl k K_LEUCHT 1
+setze_zahl k K_SCH 0
+komp_haenge k maul
+teil_neu 3 -> schlot
+teil_lage schlot 0.9 3.5 -0.8
+teil_groesse schlot 0.7 1.8 0.7
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "#7d3b25"
+komp_haenge k schlot
+teil_neu 3 -> rand
+teil_lage rand 0.9 4.45 -0.8
+teil_groesse rand 0.9 0.2 0.9
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "#5e2c1c"
+komp_haenge k rand
+
+# Glut im Ofen: warmes Punktlicht vor dem Maul
+teil_neu 3 -> glut
+teil_lage glut 0 1.5 3.4
+komp_neu T_L -> li
+setze_text li L_F "#ff8a36"
+setze_zahl li L_ST 2.6
+setze_zahl li L_RW 9
+komp_haenge li glut
+
+# Holzstapel rechts neben dem Ofen
+wiederhole 5 i
+  teil_neu 3 -> holz
+  teil_lage holz (3.3 + (i % 3) * 0.42 + boden(i / 3) * 0.21) (0.2 + boden(i / 3) * 0.36) 1.0
+  teil_groesse holz 0.4 1.6 0.4
+  teil_setze holz 5 90
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "#6b4423"
+  setze_zahl k K_GLANZ 0.05
+  komp_haenge k holz
+ende
+
+# Funken aus dem Maul: nach vorn und oben, steigen in der warmen Luft
+teil_neu 3 -> f1
+teil_lage f1 0 1.4 2.5
+komp_neu T_F -> f
+setze_zahl f F_RATE 80
+setze_zahl f F_LEBEN 1.6
+setze_zahl f F_TEMPO 2.0
+setze_zahl f F_RY 0.9
+setze_zahl f F_RZ 1
+setze_zahl f F_STREU 35
+setze_zahl f F_SCHWER -0.8
+setze_zahl f F_GR 0.18
+setze_zahl f F_GRE 0.02
+setze_text f F_FARBE "#ffe08a"
+setze_text f F_FARBE_E "#ff4a1a00"
+komp_haenge f f1
+# Funken aus dem Schlot: hoch hinaus, fallen im Bogen zurück
+teil_neu 3 -> f2
+teil_lage f2 0.9 4.6 -0.8
+komp_neu T_F -> f
+setze_zahl f F_RATE 110
+setze_zahl f F_LEBEN 2.2
+setze_zahl f F_TEMPO 2.8
+setze_zahl f F_RX 0.25
+setze_zahl f F_STREU 22
+setze_zahl f F_SCHWER 1.6
+setze_zahl f F_GR 0.2
+setze_zahl f F_GRE 0.03
+setze_text f F_FARBE "#fff2b8"
+setze_text f F_FARBE_E "#ff5a1a00"
+komp_haenge f f2
+# Rauch aus dem Schlot: deckend, wächst und verblasst
+teil_neu 3 -> rauch
+teil_lage rauch 0.9 4.7 -0.8
+komp_neu T_F -> f
+setze_zahl f F_RATE 12
+setze_zahl f F_LEBEN 3.5
+setze_zahl f F_TEMPO 0.9
+setze_zahl f F_RX 0.35
+setze_zahl f F_STREU 12
+setze_zahl f F_SCHWER -0.12
+setze_zahl f F_GR 0.5
+setze_zahl f F_GRE 1.9
+setze_text f F_FARBE "#6d646a90"
+setze_text f F_FARBE_E "#3c364400"
+setze_zahl f F_MISCH 1
+komp_haenge f rauch
+takte TAKTE

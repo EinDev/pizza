@@ -143,7 +143,7 @@ herd.backe(() -> {
 
 **Komponenten:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
 `Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
-`Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel). Die Fabriken
+`Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -324,7 +324,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H7** Spiele, Doku, Messung | Teigfänger 2D, Teigball 3D, drei Lernbeispiele, `tests/herd/bild.js`, Doku `40-herd.js` mit Bildern | `950e338` (H7a), `3b08e51`, `5b1a123`, `c2d24e6`, `43122a3` | 5 Beispiele mit `.herd-erwartet` in allen Modi; `bench/herd/ERGEBNISSE.md` |
 | **H-K0** Grundlagen | Feldtypen `teil-liste` (11)/`zahl-liste` (12), Lesefelder, Nachtragsfelder, Nachlauf-Systeme, `Art::LEER` (auch Linie/Rahmen umgestellt), ABI `setze_zahlen`/`hole_zahlen` in Kern, `kern.wasm`, Skript, Interpreter, Laufzeit, Host, Editor; K-148, K-149; kein Beispiel (unsichtbar) | (dieser) | `cargo test -j 2` (Kern 34/34 inkl. 8 neue `tests::hk0`, Skript 3 + `tests/probe.herd`, Werkzeug 4); `node herd/test-kern.js` 11 Läufe bitgleich (neu `listen.herd`); `erwartet.js` 30 ✓ unverändert; `npm test` (310 Fälle), Prüfstand 713/713, `test:wasm` 1461, `test:differenz` 1113 ohne Abweichung; Host `cargo test` + `host/test.js` 61/61; UI-Tests; E2E 286/287 (1 übersprungen); Rauchtest mit Probe-Kern (nicht eingecheckt): Interpreter = Wasm = Host bitgleich |
 | **H-K3a** Linie, Rahmen | `Linie` (11, ein `RECHTECK` längs der Strecke, runde Enden über die Rundung), `Rahmen` (12, bis zu 9 `BILD`-Instanzen, 9-Slice), Szene `linien.herd`, Fälle `herd-linie`/`herd-rahmen`, Beispiel `uhr.pizza`, Doku-Abschnitt `herd-ausbau`; kein Bildpaket-/Glut-Umbau | (dieser) | `cargo test -j 2` (Kern 26/26 inkl. 2 neue); `node herd/test-kern.js` 10 Läufe bitgleich nativ = Wasm (neu `linien.herd`); `node tests/herd/erwartet.js` 30 ✓; `npm test` (310 Fälle), Prüfstand 713/713, `test:wasm` 1461, `test:differenz` 1113 ohne Abweichung |
-| **H-K5** Funken | offen | – | – |
+| **H-K5** Funken | `Funken` (13, 3D-Teilchen im Kern, Kegel um die Richtung in den Achsen des Teils, `weltlage`), Bildpaket-Abschnitt `TEILCHEN3D` (14, nur bei Nutzung, `VERSION` 1), Glut-Shader `funken.wgsl` (kamerazugewandt, leuchtend additiv / deckend sortiert, je Mischart ein Draw-Call), Szene `b5-funken.herd`, Referenzbild `3d-funken`, Fall `herd-funken`, Beispiel `ofenfunken.pizza`, Doku in `herd-ausbau` | (dieser) | `cargo test -j 2` (Kern 36/36 inkl. 2 neue, Pixeltest 5 Referenzbilder); `node herd/test-kern.js` 13 Läufe bitgleich nativ = Wasm (neu B5 klein + voll 20 000 Teilchen); `erwartet.js` 33 ✓ (keine bestehende geändert); `npm test` (311 Fälle), Prüfstand 715/715, `test:wasm` 1468, `test:differenz` 1118 ohne Abweichung; E2E headless 289/290 (1 übersprungen), `3d-funken` WebGL2 0,007 %; B5 voll Kern je Bild 0,35 ms nativ / 0,50 ms Wasm (Funken-Takt 0,028 ms, Bildbau 0,33 ms; Ziel ≤ 1,5 ms); WARP 3 Draw-Calls |
 | **H-K1** Blick, Leine | offen | – | – |
 | **H-K2** Belag | offen | – | – |
 | **H-K4** Gleiten, Ablauf | offen | – | – |

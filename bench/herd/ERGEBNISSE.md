@@ -54,6 +54,13 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B2: 10 000 Kreise, Lage je Takt vom Programm, 60 Takte | 0,001 ms | 0,258 ms | 0,26 (0,25) ms | 0,004 ms | 0,312 ms | 0,32 (0,30) ms | – |
 | B3: 1 000 Körper, Sonne + Schatten, 8 Lichter, Nebel, 120 Takte | 0,004 ms | 0,074 ms | 0,08 (0,07) ms | 0,006 ms | 0,220 ms | 0,23 (0,21) ms | – |
 | B4: 10 Emitter, 20 000 Teilchen (RATE 1000, 3 s), 180 Takte | 0,020 ms | 0,329 ms | 0,35 (0,40) ms | 0,030 ms | 0,458 ms | 0,49 (0,56) ms | Partikel ≤ 1,5 ms (EXE) |
+| B5 (H-K5, 2026-10-23): 10 `Funken`-Emitter 3D, 20 000 Teilchen (RATE 1000), 180 Takte | 0,028 ms | 0,326 ms | 0,35 (0,40) ms | 0,040 ms | 0,463 ms | 0,50 (0,56) ms | Funken ≤ 1,5 ms (EXE) |
+| B5 mit RATE 500 (10 000 Teilchen), nur nativ | 0,014 ms | 0,158 ms | 0,17 (0,20) ms | – | – | – | – |
+
+B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
+Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
+bei ~19 000 sichtbaren Teilchen. Glut auf WARP (640 × 360, MSAA 4×, `herd-bild bench … RATE=1000 TAKTE=180`): **3 Draw-Calls**
+(Himmel + je Mischart einer), 19 131 Teilchen, 25,9 ms je Bild (Median, CPU-Rasterizer).
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

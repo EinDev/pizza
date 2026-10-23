@@ -78,6 +78,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Linie", "Rahmen", "Hierarchie"],
       "herd": true
+    },
+    {
+      "id": "ofenfunken",
+      "titel": "Ofenfunken: 3D-Teilchen",
+      "beschreibung": "Ein Steinofen bei Nacht: Aus Maul und Schlot fliegen leuchtende Glutfunken, Rauch steigt deckend auf – alles Funken-Emitter, deren Teilchen in der Engine leben. Mit der Leertaste legst du Holz nach, und das Feuer faucht auf.",
+      "datei": "herd/ofenfunken.pizza",
+      "erwartet": "herd/ofenfunken.erwartet",
+      "ereignisse": "herd/ofenfunken.ereignisse",
+      "herdErwartet": "herd/ofenfunken.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Funken", "Teilchen", "Licht", "Nebel"],
+      "herd": true
     }
   ]
 }

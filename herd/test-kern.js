@@ -33,6 +33,8 @@ const LAEUFE = [
   ['hierarchie.herd', {}],
   ['linien.herd', {}],
   ['listen.herd', {}],
+  ['b5-funken.herd', {}],
+  ['b5-funken.herd', { RATE: 1000, TAKTE: 125 }],
 ];
 
 const args = process.argv.slice(2);

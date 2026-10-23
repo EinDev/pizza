@@ -24,7 +24,7 @@ use std::sync::Arc;
 pub use herd_kern;
 pub use wgpu;
 
-use herd_kern::paket::{abschnitt, flag, zug, Leser, ECKE_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, ZUG_BYTES};
+use herd_kern::paket::{abschnitt, flag, zug, Leser, ECKE_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
 use wgpu::util::DeviceExt as _;
 
 /// Mehrfachabtastung (Kantenglättung), wenn der Adapter sie kann.
@@ -37,6 +37,7 @@ const FLACH: &str = include_str!("../shader/flach.wgsl");
 const HIMMEL: &str = include_str!("../shader/himmel.wgsl");
 const LICHT: &str = include_str!("../shader/licht.wgsl");
 const SCHATTEN: &str = include_str!("../shader/schatten.wgsl");
+const FUNKEN: &str = include_str!("../shader/funken.wgsl");
 
 /// Welcher Grafikadapter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -118,6 +119,7 @@ pub struct Statistik {
     pub draw_calls: u32,
     pub schatten_draw_calls: u32,
     pub instanzen_2d: u32,
+    /// 3D-Instanzen inkl. 3D-Teilchen (`TEILCHEN3D`)
     pub instanzen_3d: u32,
     /// gezeichnete Dreiecke (Haupt- und Schattendurchgang)
     pub dreiecke: u64,
@@ -165,6 +167,8 @@ struct Pipelines {
     fest: wgpu::RenderPipeline,
     durch_hinten: wgpu::RenderPipeline,
     durch_vorn: wgpu::RenderPipeline,
+    funken_leuchtend: wgpu::RenderPipeline,
+    funken_deckend: wgpu::RenderPipeline,
 }
 
 enum ZielArt {
@@ -186,6 +190,7 @@ pub struct Glut {
     mod_flach: wgpu::ShaderModule,
     mod_himmel: wgpu::ShaderModule,
     mod_licht: wgpu::ShaderModule,
+    mod_funken: wgpu::ShaderModule,
     schatten_pipeline: wgpu::RenderPipeline,
     pipelines: Vec<Pipelines>,
     s_linear: wgpu::Sampler,
@@ -201,6 +206,7 @@ pub struct Glut {
     netze: Vec<Option<Netz>>,
     inst2d: Wachspuffer,
     inst3d: Wachspuffer,
+    teilchen: Wachspuffer,
     bg_haupt: Option<wgpu::BindGroup>,
     bg_schatten: Option<wgpu::BindGroup>,
     ziel: ZielArt,
@@ -288,6 +294,7 @@ const INST3D_ATTR: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
 const INST2D_ATTR: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
     0 => Float32x4, 1 => Float32x2, 2 => Float32x2, 3 => Float32x2, 4 => Unorm8x4, 5 => Uint32, 6 => Uint16x4
 ];
+const TEILCHEN3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Unorm8x4];
 
 fn netz_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 2] {
     [
@@ -299,6 +306,11 @@ fn netz_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 2] {
 const MISCHEN: wgpu::BlendState = wgpu::BlendState {
     color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::SrcAlpha, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
     alpha: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha, operation: wgpu::BlendOperation::Add },
+};
+/// Leuchtende Teilchen: vormultiplizierte Farbe addieren, Deckkraft des Ziels behalten.
+const ADDIEREN: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
+    alpha: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::Zero, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
 };
 /// Farbe ersetzen, Deckkraft des Ziels behalten (das Bild bleibt undurchsichtig).
 const ERSETZEN: wgpu::BlendState = wgpu::BlendState {
@@ -486,6 +498,7 @@ impl Glut {
         let mod_himmel = modul("herd himmel", HIMMEL);
         let mod_licht = modul("herd licht", LICHT);
         let mod_schatten = modul("herd schatten", SCHATTEN);
+        let mod_funken = modul("herd funken", FUNKEN);
 
         let layouts = netz_layouts();
         let schatten_pipeline = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -529,6 +542,7 @@ impl Glut {
         let schrift = Glut::schrift_textur(dev, 1, 1);
         let inst2d = Wachspuffer::neu(dev, "herd inst2d", wgpu::BufferUsages::VERTEX);
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
+        let teilchen = Wachspuffer::neu(dev, "herd teilchen3d", wgpu::BufferUsages::VERTEX);
         let (mehrfach, tiefe) = Glut::mehrfach_ziele(dev, breite, hoehe, format, msaa);
         Ok(Glut {
             instance,
@@ -543,6 +557,7 @@ impl Glut {
             mod_flach,
             mod_himmel,
             mod_licht,
+            mod_funken,
             schatten_pipeline,
             pipelines: Vec::new(),
             s_linear,
@@ -556,6 +571,7 @@ impl Glut {
             netze: Vec::new(),
             inst2d,
             inst3d,
+            teilchen,
             bg_haupt: None,
             bg_schatten: None,
             ziel,
@@ -739,7 +755,24 @@ impl Glut {
         let fest = licht("herd fest", None, true, &z_ersetz);
         let durch_hinten = licht("herd durch hinten", Some(wgpu::Face::Front), false, &z_misch);
         let durch_vorn = licht("herd durch vorn", Some(wgpu::Face::Back), false, &z_misch);
-        self.pipelines.push(Pipelines { format, flach, himmel, fest, durch_hinten, durch_vorn });
+        let z_addier = ziel(ADDIEREN);
+        let funken_layout = [Some(wgpu::VertexBufferLayout { array_stride: TEILCHEN3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &TEILCHEN3D_ATTR })];
+        let funken = |name: &str, fs: &str, ziele: &[Option<wgpu::ColorTargetState>]| {
+            dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(name),
+                layout: Some(&self.pl_haupt),
+                vertex: wgpu::VertexState { module: &self.mod_funken, entry_point: Some("vs_funke"), compilation_options: Default::default(), buffers: &funken_layout },
+                primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+                depth_stencil: tiefe(false, wgpu::CompareFunction::Less),
+                multisample: ms,
+                fragment: Some(wgpu::FragmentState { module: &self.mod_funken, entry_point: Some(fs), compilation_options: Default::default(), targets: ziele }),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let funken_leuchtend = funken("herd funken leuchtend", "fs_leuchtend", &z_addier);
+        let funken_deckend = funken("herd funken deckend", "fs_deckend", &z_misch);
+        self.pipelines.push(Pipelines { format, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend });
         self.pipelines.len() - 1
     }
 
@@ -879,6 +912,8 @@ impl Glut {
         let mut stat = Statistik::default();
         let mut inst2d: &[u8] = &[];
         let mut inst3d: &[u8] = &[];
+        let mut teilchen: &[u8] = &[];
+        let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
         let mut klar = wgpu::Color::BLACK;
@@ -897,6 +932,15 @@ impl Glut {
                 }
                 abschnitt::INST3D => inst3d = d,
                 abschnitt::INST2D => inst2d = d,
+                abschnitt::TEILCHEN3D => {
+                    if d.len() < 8 {
+                        return Err(Fehler::Paket("TEILCHEN3D zu kurz".into()));
+                    }
+                    let (l, k) = (u32_at(d, 0), u32_at(d, 4));
+                    let n = l as usize + k as usize;
+                    teilchen = d.get(8..8 + n * TEILCHEN3D_BYTES).ok_or_else(|| Fehler::Paket("TEILCHEN3D zu kurz".into()))?;
+                    n_leuchtend = l;
+                }
                 abschnitt::ZUEGE3D => {
                     for z in d.chunks_exact(ZUG_BYTES) {
                         self.zuege.push([u32_at(z, 0), u32_at(z, 4), u32_at(z, 8), u32_at(z, 12)]);
@@ -912,7 +956,9 @@ impl Glut {
         let n3 = (inst3d.len() / INST3D_BYTES) as u32;
         self.inst2d.schreibe(&self.device, &self.queue, inst2d);
         self.inst3d.schreibe(&self.device, &self.queue, inst3d);
-        stat.hochgeladen += (inst2d.len() + inst3d.len()) as u64;
+        let nt = (teilchen.len() / TEILCHEN3D_BYTES) as u32;
+        self.teilchen.schreibe(&self.device, &self.queue, teilchen);
+        stat.hochgeladen += (inst2d.len() + inst3d.len() + teilchen.len()) as u64;
         stat.instanzen_2d = n2;
         stat.instanzen_3d = n3;
 
@@ -1021,6 +1067,27 @@ impl Glut {
                     stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, n.anzahl, z[2], z[3], instancing);
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
                 }
+            }
+            // 3D-Teilchen: erst leuchtende (additiv), dann deckende (von hinten nach vorn) – je ein instanzierter Draw-Call
+            for (pipe, erste, anzahl) in [(&pl.funken_leuchtend, 0, n_leuchtend.min(nt)), (&pl.funken_deckend, n_leuchtend.min(nt), nt - n_leuchtend.min(nt))] {
+                if anzahl == 0 {
+                    continue;
+                }
+                p.set_pipeline(pipe);
+                let b = TEILCHEN3D_BYTES as u64;
+                if instancing {
+                    p.set_vertex_buffer(0, self.teilchen.puffer.slice(erste as u64 * b..(erste + anzahl) as u64 * b));
+                    p.draw(0..6, 0..anzahl);
+                    stat.draw_calls += 1;
+                } else {
+                    for i in erste..erste + anzahl {
+                        p.set_vertex_buffer(0, self.teilchen.puffer.slice(i as u64 * b..(i + 1) as u64 * b));
+                        p.draw(0..6, 0..1);
+                    }
+                    stat.draw_calls += anzahl;
+                }
+                stat.instanzen_3d += anzahl;
+                stat.dreiecke += 2 * anzahl as u64;
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);

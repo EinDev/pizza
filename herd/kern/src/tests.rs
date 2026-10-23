@@ -864,3 +864,128 @@ mod hk0 {
         }
     }
 }
+
+/// Abschnitt TEILCHEN3D des letzten Bildpakets: (leuchtend, deckend, je Teilchen [x, y, z, halbe Größe], Farben).
+#[allow(clippy::type_complexity)]
+fn teilchen_3d(k: &Kern) -> Option<(u32, u32, Vec<[f32; 4]>, Vec<u32>)> {
+    use crate::paket::TEILCHEN3D_BYTES;
+    let l = Leser::neu(k.paket()).unwrap();
+    let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::TEILCHEN3D)?;
+    let u = |o: usize| u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]]);
+    let f = |c: &[u8], o: usize| f32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]);
+    let rest = &d[8..];
+    assert_eq!(rest.len() % TEILCHEN3D_BYTES, 0);
+    let lagen = rest.chunks_exact(TEILCHEN3D_BYTES).map(|c| [f(c, 0), f(c, 4), f(c, 8), f(c, 12)]).collect();
+    let farben = rest.chunks_exact(TEILCHEN3D_BYTES).map(|c| u32::from_be_bytes([c[16], c[17], c[18], c[19]])).collect();
+    Some((u(0), u(4), lagen, farben))
+}
+
+#[test]
+fn funken_teilchen_im_raum() {
+    use crate::paket::flag;
+    let mut k = welt();
+    let fu = typ(&mut k, "Funken");
+    assert_eq!(fu as usize, 13); // feste Typnummer (HERD.md §12.2)
+    let f = |k: &mut Kern, n: &str| feld(k, fu, n);
+    let (rate, leben, tempo, streu, misch) = (f(&mut k, "rate"), f(&mut k, "lebensdauer"), f(&mut k, "tempo"), f(&mut k, "streuung"), f(&mut k, "mischung"));
+    let (welt_f, aktiv, gr, gre) = (f(&mut k, "weltlage"), f(&mut k, "aktiv"), f(&mut k, "groesse"), f(&mut k, "groesseEnde"));
+    k.teil_lage(1, 0.0, 2.0, 10.0);
+    k.teil_schaue(1, 0.0, 1.0, 0.0);
+    let t = k.teil_neu(3);
+    let c = k.komp_neu(fu);
+    assert_eq!(k.hole_zahl(c, rate), 30.0);
+    assert_eq!(k.hole_zahl(c, tempo), 2.0);
+    assert_eq!(text(&mut k, c, misch), "leuchtend");
+    assert_eq!(k.setze_zahl(c, streu, 200.0), -2);
+    assert_eq!(k.fehler_text(), "Funken.streuung muss zwischen 0 und 180 liegen, nicht 200.");
+    // ohne Teilchen: kein Abschnitt, Paket wie ohne Funken (zweites Bild: ohne Ressourcen-Deltas)
+    k.bild(1);
+    k.bild(1);
+    let ohne = k.paket().to_vec();
+    k.komp_haenge(c, t);
+    k.bild(1);
+    assert_eq!(k.paket(), &ohne[..]);
+    assert!(teilchen_3d(&k).is_none());
+    // gerader Strahl nach oben: 2 je Takt, alle auf der y-Achse, Größe wird kleiner
+    k.setze_zahl(c, rate, 120.0);
+    k.setze_zahl(c, leben, 10.0);
+    k.setze_zahl(c, streu, 0.0);
+    k.setze_zahl(c, gre, 0.0);
+    for _ in 0..30 {
+        k.takt();
+    }
+    k.bild(2);
+    assert!(Leser::neu(k.paket()).unwrap().flags() & flag::DREI_D != 0);
+    let (l, d, lagen, farben) = teilchen_3d(&k).unwrap();
+    assert_eq!((l, d, lagen.len()), (60, 0, 60));
+    assert!(lagen.iter().all(|p| p[0] == 0.0 && p[2] == 0.0 && p[1] > 0.0 && p[1] < 2.0 && p[3] > 0.0 && p[3] <= 0.1));
+    assert!(lagen[0][1] > lagen[59][1], "ältestes Teilchen ist am höchsten");
+    assert!(farben.iter().all(|x| x & 0xFF == 0xFF));
+    // deckend: von hinten nach vorn sortiert (Kamera bei z = 10)
+    k.setze_text(c, misch, b"deckend");
+    k.setze_zahl(c, streu, 180.0);
+    for _ in 0..30 {
+        k.takt();
+    }
+    k.bild(3);
+    let (l, d, lagen, _) = teilchen_3d(&k).unwrap();
+    assert_eq!((l, d), (0, 120));
+    let tiefe = |p: &[f32; 4]| -((p[1] as f64 - 2.0) * -1.0 + (p[2] as f64 - 10.0) * -10.0) / libm::sqrt(101.0);
+    assert!(lagen.windows(2).all(|w| tiefe(&w[0]) <= tiefe(&w[1]) + 1e-5), "deckende von hinten nach vorn");
+    // weltlage nein: Teilchen wandern mit dem Teil; weltlage ja: sie bleiben
+    let vorher = lagen.clone();
+    k.setze_zahl(c, aktiv, 0.0);
+    k.setze_zahl(c, gr, 0.2);
+    k.setze_zahl(c, welt_f, 0.0);
+    k.teil_lage(t, 0.5, 0.0, 0.0);
+    k.bild(4);
+    let (_, _, nein, _) = teilchen_3d(&k).unwrap();
+    k.setze_zahl(c, welt_f, 1.0);
+    k.bild(5);
+    let (_, _, ja, _) = teilchen_3d(&k).unwrap();
+    let lage = |v: &[[f32; 4]]| v.iter().map(|p| [p[0], p[1], p[2]]).collect::<Vec<_>>();
+    assert_eq!(lage(&ja), lage(&vorher));
+    let mut a: Vec<f32> = nein.iter().map(|p| p[0]).collect();
+    let mut b: Vec<f32> = ja.iter().map(|p| p[0] + 0.5).collect();
+    a.sort_by(|x, y| x.partial_cmp(y).unwrap());
+    b.sort_by(|x, y| x.partial_cmp(y).unwrap());
+    assert!(a.iter().zip(b.iter()).all(|(x, y)| (x - y).abs() < 1e-4));
+    // aus: nach der Lebensdauer kein Abschnitt mehr
+    for _ in 0..600 {
+        k.takt();
+    }
+    k.bild(6);
+    assert!(teilchen_3d(&k).is_none());
+    // höchstens 10 000 je Emitter
+    k.setze_zahl(c, aktiv, 1.0);
+    k.setze_zahl(c, rate, 100_000.0);
+    k.setze_zahl(c, gr, 0.0001);
+    k.teil_lage(1, 0.0, 2.0, 40.0);
+    for _ in 0..10 {
+        k.takt();
+    }
+    k.bild(7);
+    let (l, d, _, _) = teilchen_3d(&k).unwrap();
+    assert_eq!(l + d, 10_000);
+}
+
+#[test]
+fn funken_bitgleich_und_eigene_saat() {
+    // gleiche Szene zweimal → gleiches Paket; andere Saat → andere Teilchen
+    let lauf = |saat: f64| {
+        let mut k = welt();
+        let fu = typ(&mut k, "Funken");
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(fu);
+        let s = feld(&mut k, fu, "saat");
+        k.setze_zahl(c, s, saat);
+        k.komp_haenge(c, t);
+        for _ in 0..20 {
+            k.takt();
+        }
+        k.bild(1);
+        teilchen_3d(&k).unwrap().2
+    };
+    assert_eq!(lauf(5.0), lauf(5.0));
+    assert_ne!(lauf(5.0), lauf(6.0));
+}

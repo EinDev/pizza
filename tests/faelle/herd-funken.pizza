@@ -1,0 +1,13 @@
+// Herd §18.6 / HERD.md §12.4 H-K5: Funken – 3D-Teilchen (leuchtend/deckend, Kegel, Schwerkraft, weltlage), Bereichsfehler
+Herd herd = neu Herd("Funken", breite: 320, hoehe: 180);
+Teil esse = herd.raum(0, 0, 0);
+Funken f = esse.mit(neu Funken(rate: 120, tempo: 3, streuung: 20, schwerkraft: 2, farbe: "#ffe08a", farbeEnde: "#ff4a1a00"));
+Bote.sage((f + " " + f.rate() + " " + f.tempo() + " " + f.streuung() + " " + f.mischung() + " " + f.weltlage()));
+Funken vorgabe = herd.raum(2, 0, 0).mit(neu Funken());
+Bote.sage((vorgabe.rate() + " " + vorgabe.lebensdauer() + " " + vorgabe.richtungY() + " " + vorgabe.groesse() + " " + vorgabe.farbe() + " " + vorgabe.farbeEnde() + " " + vorgabe.aktiv() + " " + vorgabe.saat()));
+Funken rauch = herd.raum(-2, 0, 0).mit(neu Funken(mischung: "deckend", groesse: 0.4, groesseEnde: 1.2, farbe: "#6d646a90", weltlage: nein));
+esse.mit(neu Bewegung(tempoX: 1));
+herd.backe(() -> { falls (herd.bildnummer() == 6) { f.setzeAktiv(nein); rauch.setzeRichtungX(0.5); } });
+Bote.sage(("nach " + herd.bildnummer() + " Takten: aktiv " + f.aktiv() + ", Rauch " + rauch.mischung() + " " + rauch.richtungX() + ", Esse bei x = " + esse.x().runden(2)));
+probier { f.setzeStreuung(200); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeMischung("glitzernd"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

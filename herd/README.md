@@ -43,7 +43,7 @@ Sortierungen haben eindeutige Schlüssel bzw. sind stabil.
 pub static ARTEN: &[&Art] = &[
     &rechteck::ART, &kreis::ART, &text::ART, &bild::ART, &koerper::ART, &licht::ART, &kamera::ART,
     &bewegung::ART, &animation::ART, &partikel::ART,
-    &linie::ART, &rahmen::ART,                         // Ausbau (HERD.md §12.2): feste Typnummern 11, 12, …
+    &linie::ART, &rahmen::ART, &funken::ART,           // Ausbau (HERD.md §12.2): feste Typnummern 11, 12, 13, …
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -177,10 +177,11 @@ Little Endian, feldweise geschrieben. Hängt **nicht** von Fenster- oder Geräte
 `breite × hoehe`); Kantenglättung und Pixeldichte macht die Glut (SDF, MSAA).
 
 **Kopf (32 Bytes):** `"HZP1"` · `u32 version = 1` · `u32 bildnummer` · `u16 breite` · `u16 hoehe` · `u32 flags`
-(1 = 3D-Züge vorhanden, 2 = Schattendurchgang, 4 = Himmelsverlauf zeichnen) · `u32 anzahl_abschnitte` · `u32 länge_gesamt` ·
+(1 = 3D-Züge oder 3D-Teilchen vorhanden, 2 = Schattendurchgang, 4 = Himmelsverlauf zeichnen) · `u32 anzahl_abschnitte` · `u32 länge_gesamt` ·
 `u32 0`.
 **Abschnitte** folgen: `u32 art` · `u32 länge` · Daten · Auffüllung auf 4 Bytes. Reihenfolge: Ressourcen-Deltas (1–4), dann 10,
-11, 12, 13. Unbekannte Arten überspringen.
+11, 12, 13, 14. Unbekannte Arten überspringen. Abschnitte des Ausbaus (HERD.md §12, ab 14) stehen nur im Paket, wenn die
+Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleibt 1.
 
 | Art | Name | Inhalt |
 |---|---|---|
@@ -192,6 +193,7 @@ Little Endian, feldweise geschrieben. Hängt **nicht** von Fenster- oder Geräte
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
 | 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH) |
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
+| 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -217,6 +219,13 @@ die sichtbaren (Tiefe schreiben), `SCHATTEN` die werfenden in die Shadow-Map (Ti
 mit Deckkraft < 1) von hinten nach vorn (Abstand entlang der Blickrichtung, dann Teil-ID), aufeinanderfolgende gleiche Netze
 zusammengefasst; je Zug erst Rückseiten, dann Vorderseiten, Tiefe testen, nicht schreiben. Frustum-Culling ist erledigt.
 
+**TEILCHEN3D (20 Bytes je Teilchen):** `f32 x, y, z` (Weltlage) · `f32 r` (halbe Größe, Welt-Einheiten) · `u8 r, g, b, a` (sRGB,
+nicht vormultipliziert). Erst die **leuchtenden** (additiv) in Ausstoßreihenfolge (Komponentenzeile, dann Teilchen), dann die
+**deckenden** (gemischt) von hinten nach vorn (Abstand entlang der Blickrichtung, dann Ausstoßreihenfolge; Schlüssel
+`ordnungs_bits`). Teilchen außerhalb des Sichtkörpers (Kugel mit Radius `r`) sind entfernt. Die Glut zeichnet sie als
+kamerazugewandte Vierecke nach `DURCH` und vor INST2D: Tiefe testen, nicht schreiben, Nebel, keine Schatten, je Mischart ein
+instanzierter Draw-Call.
+
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
 (Mitte, Spielfeld-Pixel, y nach unten) · `f32 hx, hy` (halbe Ausdehnung lokal) · `f32 p0, p1` · `u8 r, g, b, a` (sRGB) ·
 `u32 art | seite << 8` · `u16 u0, v0, u1, v1` (Atlas-Pixel). Eckpunkt `c ∈ {−1, 1}²`: `lokal = c · (h + rand)` mit `rand` = Saum für
@@ -235,7 +244,7 @@ Glyphen-/Teilchenreihenfolge) → ein instanzierter Draw-Call (6 Ecken × k), ü
 „source over“ in sRGB. Spielfeld-Culling ist erledigt.
 
 **Zeichenfolge der Glut:** Ziel mit `hintergrund` füllen (Spielfeld seitentreu einpassen, Ränder ebenfalls Hintergrund) →
-falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → INST2D. Der Himmel ist ein Verlauf
+falls Flag 4: Himmelsverlauf → `SCHATTEN`-Züge in die Shadow-Map → `FEST` → `DURCH` → TEILCHEN3D (leuchtend, deckend) → INST2D. Der Himmel ist ein Verlauf
 nach der **Blickrichtung** (Horizont `himmel_unten`, Zenit `himmel_oben`, darunter `himmel_unten`), damit ein Boden im Nebel
 (Nebelfarbe = `himmel_unten`) nahtlos in den Himmel übergeht.
 
@@ -269,7 +278,8 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   und vergleicht **jede Ausgabezeile** – jeden Rückgabewert und Szenen-/Paket-Hash je Bild. Läufe: B1–B4 klein (viele Takte)
   und in voller Größe (HERD.md §6, wenige Takte) sowie `hierarchie.herd` (Hierarchie mit Drehung, Kopie, Entfernen,
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
-  Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
+  mit 20 000 Teilchen). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
@@ -342,20 +352,24 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   ATLAS_STUECK → `write_texture` in die Schicht; NETZ → Ecken-/Indexpuffer je ID. Shadow-Map (Depth32Float 2048²) erst beim ersten
   Schattenbild. Instanzpuffer wachsen nur (Zweierpotenzen), Pipelines einmal je Zielformat (Cache).
 - **Durchgänge:** Schatten (nur Tiefe, `licht_proj`, Steigungs-Bias) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
-  `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 2D (**ein** instanzierter Draw-Call, 6 Ecken aus
-  `vertex_index`). Das Ziel speichert sRGB-kodierte Werte (Format ohne sRGB-Umwandlung); 3D rechnet linear.
+  `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 3D-Teilchen (`TEILCHEN3D`, je Mischart ein
+  instanzierter Draw-Call, Tiefe testen, nicht schreiben; leuchtend One/One, deckend „source over“), 2D (**ein** instanzierter
+  Draw-Call, 6 Ecken aus `vertex_index`). Das Ziel speichert sRGB-kodierte Werte (Format ohne sRGB-Umwandlung); 3D rechnet linear.
 
 **Vertex-Layouts:** Netz-Ecke 32 B (`pos` @0, `normale` @12, `uv` @24). INST3D 72 B als Instanzpuffer: Zeilen der Welt-Matrix
 @0/@16/@32 (`Float32x4`), Farbe @48 (`Unorm8x4`), `glanz, leuchten` @52 (`Float32x2`), Atlas-Rechteck @60 (`Uint16x4`),
 `textur` @68 (`Uint32`). INST2D 56 B: `m` @0 (`Float32x4`), `t` @16, `h` @24, `p` @32 (je `Float32x2`), Farbe @40 (`Unorm8x4`),
-`art|seite<<8` @44 (`Uint32`), Atlas-Rechteck @48 (`Uint16x4`). Die Bytes kommen unverändert aus dem Paket.
+`art|seite<<8` @44 (`Uint32`), Atlas-Rechteck @48 (`Uint16x4`). TEILCHEN3D 20 B: `pos` @0 (`Float32x3`), `r` @12 (`Float32`),
+Farbe @16 (`Unorm8x4`). Die Bytes kommen unverändert aus dem Paket. Statistik: Teilchen zählen zu `instanzen_3d` und `dreiecke`.
 
 **Shader** (`glut/shader/`, WGSL; jedes Programm = `gemeinsam.wgsl` + Datei): `gemeinsam` (Uniform-Block SZENE 592 B, Glut-Block
 `Ansicht`: Gerätepixel je Spielfeldpixel, Schriftgröße; sRGB-Umrechnung, Rauschen gegen Farbstufen) · `flach` (2D-Uber-Shader:
 SDF-Rechteck mit Rundung/Umriss, SDF-Kreis/Partikel, Kantenglättung über `fwidth` des Abstands, Atlas-Bild per `textureLoad`
 pixelscharf, SDF-Glyphe) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur,
 Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
-(Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`). Ableitungen nur in gleichförmigem Kontrollfluss, Texturen per
+(Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`) · `funken` (3D-Teilchen: Viereck aus `vertex_index`, Kamera-rechts/
+-oben aus den Zeilen 0/1 von `ansicht_proj` – kein neues Uniform; leuchtend = Schein (1 − r²)² mit heißem Kern, im Nebel
+ausgeblendet; deckend = Scheibe mit weichem Rand, zur Nebelfarbe gemischt). Ableitungen nur in gleichförmigem Kontrollfluss, Texturen per
 `textureLoad`/`…Level` (naga-/WebGL2-tauglich).
 
 **Sonnenschatten (H2a repariert):** Ursache der „schwachen Flecken“ war ein veralteter Uniform-Block im Shader (560 statt 592 Bytes,
@@ -380,7 +394,8 @@ Alle Läufe **offscreen** und standardmäßig auf dem **Software-Adapter**; die 
 **Referenzbilder** (`tests/herd/bilder/`, Skript + PNG, Kopfzeile `#! bild 40 groesse 1280x720`): `2d-alles` (alle 2D-Komponenten,
 Umriss/Rundung, Text in mehreren Größen, Bildchen gespiegelt/getönt, Animation, Partikel, Ebenen, Hierarchie mit Drehung,
 Durchsichtiges), `3d-alles` (alle Grundformen + eigene Form, Sonne mit Schatten, 2 Punktlichter, Nebel, Himmel, Textur,
-Durchsichtiges, 2D-HUD), `3d-viele` (nach B3: 240 Körper, 8 Lichter), `2d-partikel` (nach B4). **Pixeltest** in `cargo test`
+Durchsichtiges, 2D-HUD), `3d-viele` (nach B3: 240 Körper, 8 Lichter), `2d-partikel` (nach B4), `3d-funken` (H-K5: Steinofen bei Nacht, leuchtende
+Funken aus Maul und Schlot, deckender Rauch, Nebel, schräge Kamera). **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht
 (nur die Zahl der Draw-Calls), kaputtes Paket → `Fehler::Paket`, Fenster-API kompiliert (`herd-glut`, ohne Fenster).

@@ -285,7 +285,8 @@
                 ["`Animation`","2D","`bilder` [], `proSekunde` 8, `schleife` ja, `laeuft` ja, `nummer` 1 – braucht Bild","blättert durch `bilder` (braucht ein `Bild` am selben Teil); ohne `schleife` stoppt sie am Ende"],
                 ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"],
                 ["`Linie`","2D","`zuX` 100, `zuY` 0, `dicke` 2, `farbe` ofen, `rund` nein","Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) relativ zum Teil; `rund` = runde Enden"],
-                ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"]
+                ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"],
+                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -507,6 +508,35 @@
             },
             { art: "ausgabe", text: z("Linie(4) 80 6 6 240") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Pizza-Uhr** unter *Beispiele → Herd*: Zeiger als Linien auf einer Rahmen-Tafel, der Sekundenzeiger dreht mit `Bewegung(drehtempo: 6)`." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Funken: Teilchen im Raum",
+          inhalt: [
+            { art: "text", md: "**`Funken`** ist der Teilchen-Sprüher für 3D (zu `Partikel` in 2D): Je Sekunde entstehen `rate` Teilchen am Teil und fliegen mit `tempo` Einheiten je Sekunde in einem Kegel um die Richtung (`richtungX`, `richtungY`, `richtungZ`, in den Achsen des Teils) – `streuung` ist der halbe Öffnungswinkel in Grad (0 = gerader Strahl, 180 = in alle Richtungen). `schwerkraft` zieht nach unten (negativ: sie steigen wie in warmer Luft), Größe und Farbe laufen über die `lebensdauer` von `groesse`/`farbe` zu `groesseEnde`/`farbeEnde`. Die Teilchen schauen immer zur Kamera. `mischung: \"leuchtend\"` addiert das Licht (Glut, Funken, Magie – wo sie sich überlagern, wird es heller), `\"deckend\"` mischt normal (Rauch, Staub; die Engine zeichnet von hinten nach vorn). Mit `weltlage: nein` wandern die Teilchen mit dem Teil mit. Höchstens 10 000 Teilchen je Sprüher." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Funken","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"f9b9e9657f3f07d7","paket":"81f5fd5067834b47"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Funken\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#121833\", \"#5b3b4c\");",
+                "Teil esse = herd.raum(0, 0, 0);",
+                "Funken f = esse.mit(neu Funken(rate: 60, tempo: 3, streuung: 25, schwerkraft: 1.5, farbe: \"#fff2b8\", farbeEnde: \"#ff5a1a00\"));",
+                "herd.raum(0, 0.5, 0).mit(neu Funken(mischung: \"deckend\", rate: 8, lebensdauer: 2, tempo: 0.8, groesse: 0.4, groesseEnde: 1.2, farbe: \"#6d646a90\", farbeEnde: \"#3c364400\"));",
+                "herd.kamera().setzeLage(0, 2, 8).schaueAuf(0, 1.5, 0);",
+                "herd.backe();",
+                "Bote.sage((f + \" \" + f.rate() + \" \" + f.mischung() + \" \" + f.streuung() + \" \" + esse.funken().weltlage()));"
+              )
+            },
+            { art: "ausgabe", text: z("Funken(3) 60 leuchtend 25 ja") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Ofenfunken** unter *Beispiele → Herd*: ein Steinofen bei Nacht mit Glutfunken aus Maul und Schlot und deckendem Rauch; die Leertaste legt Holz nach." }
           ]
         }
       ]

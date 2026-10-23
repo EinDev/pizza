@@ -11,6 +11,7 @@ use crate::welt::Welt;
 pub mod animation;
 pub mod bewegung;
 pub mod bild;
+pub mod funken;
 pub mod kamera;
 pub mod koerper;
 pub mod kreis;
@@ -77,6 +78,7 @@ pub static ARTEN: &[&Art] = &[
     &partikel::ART,
     &linie::ART,
     &rahmen::ART,
+    &funken::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

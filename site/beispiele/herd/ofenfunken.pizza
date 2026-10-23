@@ -1,0 +1,73 @@
+// Ofenfunken – ein Steinofen bei Nacht. Aus dem Maul und aus dem Schlot fliegen Glutfunken, Rauch steigt auf.
+// Leertaste: Holz nachlegen – das Feuer faucht auf, es sprüht doppelt so viele Funken und die Glut leuchtet heller.
+//
+// So arbeitet die Engine für dich: Jeder Funken-Emitter (Funken = 3D-Teilchen) lebt in der Engine – Ausstoß im Kegel,
+// Schwerkraft, Farb- und Größenverlauf, alles deterministisch. Leuchtende Funken werden addiert (sie glühen, wo sie
+// sich überlagern), der Rauch ist deckend und wird von hinten nach vorn gezeichnet. Das Programm stellt nur die Raten um.
+
+Herd herd = neu Herd("Ofenfunken", breite: 960, hoehe: 540);
+herd.himmel("#121833", "#5b3b4c");                  // Nachtblau, am Horizont ein Rest Abendrot
+herd.nebel("#5b3b4c", 14, 40);
+herd.umgebung("#7584c0", staerke: 0.28);
+herd.sonne().setzeLage(-0.5, 0.9, 0.4);              // der Mond: schwaches, kühles Licht
+herd.sonne().licht().setzeFarbe("#a8b8ff").setzeStaerke(0.35);
+
+// Pflaster als Textur
+Speisekarte<margherita, margherita> stein = neu Speisekarte<margherita, margherita>();
+stein.lege("g", "#4a3d36").lege("e", "#6b5a4e");
+Bildchen pflaster = neu Bildchen(["ggggggggggggggge", "geeeeeeeeeeeeeee", "geeeeeeeeeeeeeee", "geeeeeeeeeeeeeee",
+                                  "ggggggggggggggge", "eeeeeeegeeeeeeee", "eeeeeeegeeeeeeee", "eeeeeeegeeeeeeee"], farben: stein);
+herd.koerper(Form.ebene(), 0, 0, 0, farbe: "weiss", glanz: 0.15, bild: pflaster).setzeGroesse(80, 1, 80);
+
+// ---------- Der Ofen: Sockel, Kuppel, Bogen, glühendes Maul, Schlot ----------
+herd.koerper(Form.zylinder(teile: 48), 0, 0.6, 0, farbe: "#8c7f74", glanz: 0.1).setzeGroesse(5.4, 1.2, 5.4);
+herd.koerper(Form.kugel(teile: 40), 0, 1.2, 0, farbe: "#b5603a", glanz: 0.12).setzeGroesse(4.6, 4.4, 4.6);
+herd.koerper(Form.kugel(), 0, 1.75, 2.05, farbe: "#7a3a24").setzeGroesse(2.2, 1.9, 0.5);
+Teil maul = herd.koerper(Form.kugel(), 0, 1.65, 2.26, farbe: "#ffad42", leuchten: 1, schatten: nein);
+maul.setzeGroesse(1.7, 1.5, 0.32);
+herd.koerper(Form.zylinder(), 0.9, 3.5, -0.8, farbe: "#7d3b25").setzeGroesse(0.7, 1.8, 0.7);
+herd.koerper(Form.zylinder(), 0.9, 4.45, -0.8, farbe: "#5e2c1c").setzeGroesse(0.9, 0.2, 0.9);
+Licht glut = herd.licht(0, 1.5, 3.4, farbe: "#ff8a36", reichweite: 9).licht();
+glut.setzeStaerke(2.6);
+
+// Holzstapel neben dem Ofen: fünf liegende Scheite
+für (salami i = 0; i < 5; i++) {
+    funghi x = 3.3 + (i % 3) * 0.42 + (i / 3).ganz() * 0.21;
+    funghi y = 0.2 + (i / 3).ganz() * 0.36;
+    herd.koerper(Form.zylinder(), x, y, 1.0, farbe: "#6b4423", glanz: 0.05).setzeGroesse(0.4, 1.6, 0.4).setzeNeigung(90);
+}
+
+// ---------- Funken ----------
+// aus dem Maul: nach vorn und oben, die warme Luft trägt sie (negative Schwerkraft)
+Funken maulFunken = herd.raum(0, 1.4, 2.5).mit(neu Funken(rate: 80, lebensdauer: 1.6, tempo: 2, richtungY: 0.9, richtungZ: 1,
+    streuung: 35, schwerkraft: -0.8, groesse: 0.18, groesseEnde: 0.02, farbe: "#ffe08a", farbeEnde: "#ff4a1a00"));
+// aus dem Schlot: hoch hinaus, im Bogen zurück
+Funken schlotFunken = herd.raum(0.9, 4.6, -0.8).mit(neu Funken(rate: 110, lebensdauer: 2.2, tempo: 2.8, richtungX: 0.25,
+    streuung: 22, schwerkraft: 1.6, groesse: 0.2, groesseEnde: 0.03, farbe: "#fff2b8", farbeEnde: "#ff5a1a00"));
+// Rauch: deckend, wächst und verblasst
+herd.raum(0.9, 4.7, -0.8).mit(neu Funken(rate: 12, lebensdauer: 3.5, tempo: 0.9, richtungX: 0.35, streuung: 12,
+    schwerkraft: -0.12, groesse: 0.5, groesseEnde: 1.9, farbe: "#6d646a90", farbeEnde: "#3c364400", mischung: "deckend"));
+
+herd.kamera().setzeLage(5.4, 3.3, 10.4).schaueAuf(-0.3, 2.5, 0);
+herd.text("Leertaste: Holz nachlegen", 480, 510, groesse: 16, farbe: "#fff6e0c0", ausrichtung: "mitte");
+
+salami scheite = 0;
+salami fauchen = 0;                                  // Takte, die das Feuer noch faucht
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) {
+        scheite++;
+        fauchen = 90;
+        maulFunken.setzeRate(240).setzeTempo(3.2);
+        schlotFunken.setzeRate(260);
+        glut.setzeStaerke(4);
+    }
+    falls (fauchen > 0) {
+        fauchen--;
+        falls (fauchen == 0) {
+            maulFunken.setzeRate(80).setzeTempo(2);
+            schlotFunken.setzeRate(110);
+            glut.setzeStaerke(2.6);
+        }
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: Scheite nachgelegt " + scheite + ", Funken aus dem Maul: " + maulFunken.rate() + " je Sekunde."));

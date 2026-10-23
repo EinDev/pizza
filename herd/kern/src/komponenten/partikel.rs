@@ -59,7 +59,7 @@ pub static ART: Art = Art {
 };
 
 /// mulberry32: Zustand → (neuer Zustand, Zahl in [0, 1)).
-fn zufall(z: &mut u32) -> f64 {
+pub(crate) fn zufall(z: &mut u32) -> f64 {
     *z = z.wrapping_add(0x6D2B79F5);
     let mut t = *z;
     t = (t ^ (t >> 15)).wrapping_mul(t | 1);
@@ -126,7 +126,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     s.spalten[TEILCHEN] = puffer;
 }
 
-fn mische(a: u32, b: u32, t: f64) -> u32 {
+pub(crate) fn mische(a: u32, b: u32, t: f64) -> u32 {
     let (x, y) = (a.to_be_bytes(), b.to_be_bytes());
     let mut r = [0u8; 4];
     for i in 0..4 {

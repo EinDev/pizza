@@ -1,0 +1,5 @@
+Funken(3) 120 3 20 leuchtend ja
+30 1 1 0.2 senf tomate ja 0
+nach 8 Takten: aktiv nein, Rauch deckend 0.5, Esse bei x = 0.13
+LaufzeitAnanas: Funken.streuung muss zwischen 0 und 180 liegen, nicht 200.
+LaufzeitAnanas: Funken.mischung kennt 'glitzernd' nicht. Erlaubt: leuchtend, deckend.
