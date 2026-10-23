@@ -1,0 +1,11 @@
+Fuehler(3) [] 0 0
+2 ja ja 2 2
+2 2 ja nein
+1 2 [4]
+LaufzeitAnanas: Fuehler.beruehrt kann man nur lesen.
+LaufzeitAnanas: Fuehler.betreten kann man nur lesen.
+LaufzeitAnanas: Fuehler.anzahl kann man nur lesen.
+LaufzeitAnanas: Fuehler.verlassen kann man nur lesen.
+LaufzeitAnanas: Fuehler.anzahl kann man nur lesen.
+2 [] karton
+TypAnanas: Fuehler.gruppe braucht eine Ganzzahl, nicht "zwei".

@@ -585,7 +585,9 @@ mod hk0 {
         assert!(j.contains("\"name\": \"extra\", \"typ\": \"zahl\", \"standard\": 0, \"min\": null, \"max\": null, \"nachtrag\": true}"));
         // v1-Komponenten tragen keine neuen Schlüssel (außer den bewusst ergänzten Nachtragsfeldern)
         let ohne = crate::abi::schema_json(false);
-        assert!(!ohne.contains("\"lesen\""));
+        // (Lesefelder hat ab H-K6 der Fuehler; geprüft wird alles vor ihm)
+        let v1 = ohne.split("\"name\": \"Fuehler\"").next().unwrap();
+        assert!(!v1.contains("\"lesen\""));
         assert_eq!(ohne.matches("\"nachtrag\"").count(), NACHTRAEGE.len());
         assert!(ohne.contains("\"name\": \"belag\", \"typ\": \"teil\", \"standard\": null, \"min\": null, \"max\": null, \"nachtrag\": true}"));
     }
@@ -1361,3 +1363,364 @@ fn belag_geteiltes_material() {
     k.bild(8);
     assert_eq!(material_3d(&k).iter().filter(|m| **m == (0xFFFFFFFF, 0.3, 0.0, 0)).count(), 2);
 }
+/// H-K6: `Fuehler` – Kollider mit Ereignissen als Zustand je Takt (Nachlauf), gemeinsame Kollisionssuche für `Wucht`.
+mod hk6 {
+    use super::*;
+    use crate::komponenten::fuehler::{self, Kandidat};
+    use crate::komponenten::{trifft, Huelle};
+
+    struct F {
+        t: i32,
+        f: i32,
+    }
+    /// Typ und Feldnummern des Fühlers
+    struct N {
+        t: i32,
+        form: i32,
+        breite: i32,
+        hoehe: i32,
+        tiefe: i32,
+        radius: i32,
+        vx: i32,
+        vy: i32,
+        gruppe: i32,
+        maske: i32,
+        beruehrt: i32,
+        betreten: i32,
+        verlassen: i32,
+        anzahl: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let t = typ(k, "Fuehler");
+        N {
+            t,
+            form: feld(k, t, "form"),
+            breite: feld(k, t, "breite"),
+            hoehe: feld(k, t, "hoehe"),
+            tiefe: feld(k, t, "tiefe"),
+            radius: feld(k, t, "radius"),
+            vx: feld(k, t, "versatzX"),
+            vy: feld(k, t, "versatzY"),
+            gruppe: feld(k, t, "gruppe"),
+            maske: feld(k, t, "maske"),
+            beruehrt: feld(k, t, "beruehrt"),
+            betreten: feld(k, t, "betreten"),
+            verlassen: feld(k, t, "verlassen"),
+            anzahl: feld(k, t, "anzahl"),
+        }
+    }
+    fn liste(k: &mut Kern, c: i32, f: i32) -> Vec<u32> {
+        let mut b = vec![0u32; 20000];
+        let n = k.hole_liste(c, f, &mut b);
+        assert!(n >= 0, "{}", k.fehler_text());
+        b.truncate(n as usize);
+        b
+    }
+    /// 2D-Teil mit Rechteck b × h bei (x, y) und Fühler (auto)
+    fn kiste(k: &mut Kern, n: &N, x: f64, y: f64, b: f64, h: f64) -> F {
+        let rt = typ(k, "Rechteck");
+        let (fb, fh) = (feld(k, rt, "breite"), feld(k, rt, "hoehe"));
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let r = k.komp_neu(rt);
+        k.setze_zahl(r, fb, b);
+        k.setze_zahl(r, fh, h);
+        assert_eq!(k.komp_haenge(r, t), 0);
+        let f = k.komp_neu(n.t);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        F { t, f }
+    }
+    fn ids(v: &[&F]) -> Vec<u32> {
+        v.iter().map(|x| x.t as u32).collect()
+    }
+    const LEER: Vec<u32> = Vec::new();
+
+    #[test]
+    fn schema_lesefelder_nachlauf() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let art = ARTEN.iter().find(|a| a.schema.name == "Fuehler").unwrap();
+        assert!(art.nachlauf.is_some() && art.takt.is_none() && art.huelle.is_none() && art.bild.is_none());
+        let j = crate::abi::schema_json(false);
+        assert!(j.contains("\"name\": \"beruehrt\", \"typ\": \"teil-liste\", \"standard\": [], \"min\": null, \"max\": null, \"lesen\": true}"), "{}", j);
+        assert!(j.contains("\"name\": \"anzahl\", \"typ\": \"ganz\", \"standard\": 0, \"min\": null, \"max\": null, \"lesen\": true}"));
+        assert!(j.contains("\"name\": \"maske\", \"typ\": \"ganz\", \"standard\": 4294967295, \"min\": 0, \"max\": 4294967295}"));
+        let f = k.komp_neu(n.t);
+        assert_eq!(text(&mut k, f, n.form), "auto");
+        assert_eq!(k.hole_zahl(f, n.gruppe), 1.0);
+        for (feld, name) in [(n.beruehrt, "beruehrt"), (n.betreten, "betreten"), (n.verlassen, "verlassen")] {
+            assert_eq!(k.setze_liste(f, feld, &[]), -2);
+            assert_eq!(k.fehler_text(), format!("Fuehler.{} kann man nur lesen.", name));
+        }
+        assert_eq!(k.setze_zahl(f, n.anzahl, 1.0), -2);
+        assert_eq!(k.fehler_text(), "Fuehler.anzahl kann man nur lesen.");
+        assert_eq!(k.setze_zahl(f, n.gruppe, 33.0), -2);
+        assert_eq!(k.fehler_text(), "Fuehler.gruppe muss zwischen 1 und 32 liegen, nicht 33.");
+        assert_eq!(k.setze_text(f, n.form, b"dreieck"), -2);
+        assert_eq!(k.fehler_text(), "Fuehler.form kennt 'dreieck' nicht. Erlaubt: auto, kreis, rechteck, kasten, kugel.");
+    }
+
+    #[test]
+    fn betreten_verlassen_ueber_drei_takte() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let a = kiste(&mut k, &n, 100.0, 100.0, 20.0, 20.0);
+        let b = kiste(&mut k, &n, 200.0, 100.0, 20.0, 20.0);
+        let c = kiste(&mut k, &n, 105.0, 100.0, 20.0, 20.0);
+        // vor dem ersten Takt: alles leer
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), LEER);
+        // Takt 1: a und c überlappen
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), ids(&[&c]));
+        assert_eq!(liste(&mut k, a.f, n.betreten), ids(&[&c]));
+        assert_eq!(liste(&mut k, c.f, n.betreten), ids(&[&a]));
+        assert_eq!(liste(&mut k, b.f, n.beruehrt), LEER);
+        assert_eq!(k.hole_zahl(a.f, n.anzahl), 1.0);
+        // Takt 2: b rückt an a (Rand berührt zählt: a bis 110, b ab 110), nichts verlassen
+        k.teil_lage(b.t, 120.0, 100.0, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), ids(&[&b, &c]));
+        assert_eq!(liste(&mut k, a.f, n.betreten), ids(&[&b]));
+        assert_eq!(liste(&mut k, a.f, n.verlassen), LEER);
+        assert_eq!(liste(&mut k, b.f, n.beruehrt), ids(&[&a, &c]), "c reicht bis 115, b ab 110");
+        assert_eq!(k.hole_zahl(a.f, n.anzahl), 2.0);
+        // Takt 3: c geht weg → verlassen; betreten leer
+        k.teil_lage(c.t, 400.0, 300.0, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), ids(&[&b]));
+        assert_eq!(liste(&mut k, a.f, n.betreten), LEER);
+        assert_eq!(liste(&mut k, a.f, n.verlassen), ids(&[&c]));
+        assert_eq!(liste(&mut k, c.f, n.verlassen), ids(&[&a, &b]));
+        // Takt 4: nichts ändert sich → beide Ereignislisten leer
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.verlassen), LEER);
+        assert_eq!(liste(&mut k, a.f, n.betreten), LEER);
+        // Der Nachlauf sieht die Lage nach der Bewegung desselben Takts
+        let bew = typ(&mut k, "Bewegung");
+        let tx = feld(&mut k, bew, "tempoX");
+        let m = k.komp_neu(bew);
+        k.setze_zahl(m, tx, -60.0 * 280.0);
+        assert_eq!(k.komp_haenge(m, c.t), 0);
+        k.teil_lage(c.t, 400.0, 100.0, 0.0);
+        k.takt();
+        assert_eq!(k.teil_hole(c.t, tf::X), 120.0);
+        assert_eq!(liste(&mut k, c.f, n.betreten), ids(&[&a, &b]));
+    }
+
+    #[test]
+    fn masken_raum_unsichtbar_entfernt_kopie() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let a = kiste(&mut k, &n, 100.0, 100.0, 20.0, 20.0);
+        let b = kiste(&mut k, &n, 105.0, 100.0, 20.0, 20.0);
+        // b in Gruppe 3; a spürt Gruppe 3 nicht → kein Paar (beidseitig)
+        k.setze_zahl(b.f, n.gruppe, 3.0);
+        k.setze_zahl(a.f, n.maske, (u32::MAX & !(1 << 2)) as f64);
+        k.takt();
+        assert_eq!(liste(&mut k, b.f, n.beruehrt), LEER);
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), LEER);
+        // a spürt nur Gruppe 3, b nur Gruppe 1 → passt beidseitig
+        k.setze_zahl(a.f, n.maske, 4.0);
+        k.setze_zahl(b.f, n.maske, 1.0);
+        k.takt();
+        assert_eq!(liste(&mut k, b.f, n.beruehrt), ids(&[&a]));
+        // b spürt nichts mehr → auch a nicht
+        k.setze_zahl(b.f, n.maske, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.verlassen), ids(&[&b]));
+        k.setze_zahl(b.f, n.maske, 1.0);
+        k.takt();
+        // unsichtbar → verlassen, wieder sichtbar → betreten
+        k.teil_setze(a.t, tf::SICHTBAR, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, b.f, n.verlassen), ids(&[&a]));
+        k.teil_setze(a.t, tf::SICHTBAR, 1.0);
+        k.takt();
+        assert_eq!(liste(&mut k, b.f, n.betreten), ids(&[&a]));
+        // Rechteck ohne Fühler zählt nicht
+        let rt = typ(&mut k, "Rechteck");
+        let nackt = k.teil_neu(2);
+        k.teil_lage(nackt, 100.0, 100.0, 0.0);
+        let r = k.komp_neu(rt);
+        assert_eq!(k.komp_haenge(r, nackt), 0);
+        // 3D-Teil an derselben Stelle (anderer Raum) zählt nicht
+        let d = k.teil_neu(3);
+        k.teil_lage(d, 100.0, 100.0, 0.0);
+        let fd = k.komp_neu(n.t);
+        k.setze_text(fd, n.form, b"kugel");
+        k.setze_zahl(fd, n.radius, 50.0);
+        assert_eq!(k.komp_haenge(fd, d), 0);
+        // Kopie von b: übernimmt die Listen bis zum Takt, danach gilt ihr Vortakt als leer → betreten
+        let kb = k.teil_kopie(b.t);
+        let kf = k.komp_von(kb, n.t);
+        assert_eq!(liste(&mut k, kf, n.beruehrt), ids(&[&a]));
+        k.takt();
+        assert_eq!(liste(&mut k, kf, n.betreten), ids(&[&a]));
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), vec![b.t as u32, kb as u32]);
+        assert_eq!(liste(&mut k, a.f, n.betreten), vec![kb as u32]);
+        assert_eq!(liste(&mut k, fd, n.beruehrt), LEER);
+        // entfernt: fällt heraus und erscheint nicht in verlassen
+        assert_eq!(k.teil_entferne(b.t), 0);
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), vec![kb as u32]);
+        assert_eq!(liste(&mut k, a.f, n.verlassen), LEER);
+        // gelöster Fühler: Listen leer, die anderen melden verlassen
+        assert_eq!(k.komp_loese(a.f), 0);
+        k.takt();
+        assert_eq!(liste(&mut k, a.f, n.beruehrt), LEER);
+        assert_eq!(liste(&mut k, a.f, n.verlassen), LEER);
+        assert_eq!(liste(&mut k, kf, n.verlassen), ids(&[&a]));
+    }
+
+    #[test]
+    fn formen_und_versatz_2d() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        // Kreis-Fühler ohne Zeichen-Komponente, radius 10 bei Größe 2 → 20
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 100.0, 100.0, 0.0);
+        k.teil_groesse(t, 2.0, 2.0, 1.0);
+        let f = k.komp_neu(n.t);
+        k.setze_text(f, n.form, b"kreis");
+        k.setze_zahl(f, n.radius, 10.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        // Rechteck 2 × 2 bei (121, 100) berührt den Kreis am Rand (120), bei (122, 100) nicht
+        let p = kiste(&mut k, &n, 121.0, 100.0, 2.0, 2.0);
+        k.takt();
+        assert_eq!(liste(&mut k, f, n.beruehrt), vec![p.t as u32]);
+        k.teil_lage(p.t, 122.0, 100.0, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, f, n.beruehrt), LEER);
+        // Versatz skaliert mit: versatzX 1 bei Größe 2 → Mitte 102
+        k.setze_zahl(f, n.vx, 1.0);
+        k.takt();
+        assert_eq!(liste(&mut k, f, n.beruehrt), vec![p.t as u32]);
+        // Kreis ohne Radius und ohne Hülle → keine Form
+        k.setze_zahl(f, n.radius, 0.0);
+        k.takt();
+        assert_eq!(liste(&mut k, f, n.beruehrt), LEER);
+        // rechteck mit eigener breite 100, hoehe 0 aus der Hülle (Rechteck 20 × 4 → y 298 … 302)
+        let q = kiste(&mut k, &n, 300.0, 300.0, 20.0, 4.0);
+        k.setze_text(q.f, n.form, b"rechteck");
+        k.setze_zahl(q.f, n.breite, 100.0);
+        let links = kiste(&mut k, &n, 255.0, 300.0, 2.0, 2.0);
+        let oben = kiste(&mut k, &n, 300.0, 294.0, 2.0, 2.0);
+        k.takt();
+        assert_eq!(liste(&mut k, q.f, n.beruehrt), ids(&[&links]));
+        // hoehe 10, versatzY −1 → y 294 … 304
+        k.setze_zahl(q.f, n.hoehe, 10.0);
+        k.setze_zahl(q.f, n.vy, -1.0);
+        k.takt();
+        assert_eq!(liste(&mut k, q.f, n.beruehrt), ids(&[&links, &oben]));
+        // auto mit Versatz verschiebt die Hülle
+        k.setze_text(q.f, n.form, b"auto");
+        k.setze_zahl(q.f, n.vy, 0.0);
+        k.setze_zahl(q.f, n.vx, -40.0);
+        k.takt();
+        assert_eq!(liste(&mut k, q.f, n.beruehrt), ids(&[&links]), "x 250 … 270");
+        // kasten an einem 2D-Teil ist ein Rechteck
+        k.setze_text(q.f, n.form, b"kasten");
+        k.setze_zahl(q.f, n.vx, 0.0);
+        k.setze_zahl(q.f, n.tiefe, 5.0);
+        k.takt();
+        assert_eq!(liste(&mut k, q.f, n.beruehrt), ids(&[&links, &oben]));
+    }
+
+    #[test]
+    fn formen_3d_kasten_kugel() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let fuehler3 = |k: &mut Kern, x: f64, form: &[u8], gr: f64| {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, x, 0.0, 0.0);
+            let f = k.komp_neu(n.t);
+            k.setze_text(f, n.form, form);
+            if form == b"kugel" {
+                k.setze_zahl(f, n.radius, gr);
+            } else {
+                k.setze_zahl(f, n.breite, gr);
+                k.setze_zahl(f, n.hoehe, gr);
+                k.setze_zahl(f, n.tiefe, gr);
+            }
+            assert_eq!(k.komp_haenge(f, t), 0);
+            (t as u32, f)
+        };
+        let (k1, f1) = fuehler3(&mut k, 0.0, b"kugel", 1.0);
+        let (k2, f2) = fuehler3(&mut k, 1.9, b"kugel", 1.0);
+        let (_q, fq) = fuehler3(&mut k, 3.5, b"kasten", 1.0);
+        let (e, fe) = fuehler3(&mut k, 1.3, b"kasten", 0.2);
+        k.takt();
+        // Kasten 1.2 … 1.4: Kugel um 0 (r 1) erreicht ihn nicht, Kugel um 1.9 schon; Kasten 3 … 4 nicht (2.9)
+        assert_eq!(liste(&mut k, f1, n.beruehrt), vec![k2]);
+        assert_eq!(liste(&mut k, f2, n.beruehrt), vec![k1, e]);
+        assert_eq!(liste(&mut k, fe, n.beruehrt), vec![k2]);
+        assert_eq!(liste(&mut k, fq, n.beruehrt), LEER);
+        // Körper als Hülle (auto): Würfel Kante 1 bei x = 3.5 → mit Kasten 3 … 4 und gedreht umschlossen
+        let kt = typ(&mut k, "Koerper");
+        let ff = feld(&mut k, kt, "form");
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        assert!(wuerfel > 0);
+        let t = k.teil_neu(3);
+        k.teil_lage(t, 2.5, 0.0, 0.0);
+        let kc = k.komp_neu(kt);
+        k.setze_zahl(kc, ff, wuerfel as f64);
+        k.komp_haenge(kc, t);
+        let fa = k.komp_neu(n.t);
+        k.komp_haenge(fa, t);
+        k.takt();
+        assert_eq!(liste(&mut k, fa, n.beruehrt), vec![k2, _q], "x 2 … 3 berührt Kugel (bis 2.9) und Kasten (ab 3)");
+    }
+
+    fn kasten(h: &Huelle) -> ([f64; 3], [f64; 3]) {
+        match *h {
+            Huelle::Kreis(m, r) => ([m[0] - r, m[1] - r, 0.0], [m[0] + r, m[1] + r, 0.0]),
+            Huelle::Rechteck(lo, hi) => ([lo[0], lo[1], 0.0], [hi[0], hi[1], 0.0]),
+            Huelle::Kasten(lo, hi) => (lo, hi),
+            Huelle::Kugel(m, r) => ([m[0] - r, m[1] - r, m[2] - r], [m[0] + r, m[1] + r, m[2] + r]),
+        }
+    }
+
+    /// Zufällige Szene: Breitphase + Engphase = alle Paare mit `trifft` (Brute Force), sortiert.
+    #[test]
+    fn breitphase_gleich_brute_force() {
+        let mut zustand = 12345u32;
+        let mut zufall = || {
+            zustand ^= zustand << 13;
+            zustand ^= zustand >> 17;
+            zustand ^= zustand << 5;
+            (zustand % 1000) as f64
+        };
+        let mut k = Vec::new();
+        for i in 0..400u32 {
+            let (x, y, r) = (zufall(), zufall(), zufall() / 40.0);
+            let huelle = if i % 3 == 0 { Huelle::Kreis([x, y], r) } else { Huelle::Rechteck([x - r, y - r * 0.5], [x + r, y + r * 0.5]) };
+            k.push(Kandidat { teil: 1000 - i * 2, drei_d: false, gruppe: 1 << (i % 4), maske: if i % 5 == 0 { !2 } else { u32::MAX }, ausloeser: true, huelle });
+        }
+        // dazu 3D-Kandidaten (Kugeln, Kästen) und große Kästen über viele Streifen, ein NaN, eine Unendlichkeit
+        for i in 0..300u32 {
+            let (x, y, z, r) = (zufall() / 5.0, zufall(), zufall() / 5.0, zufall() / 30.0);
+            let huelle = if i % 2 == 0 { Huelle::Kugel([x, y, z], r) } else { Huelle::Kasten([x - r, y - r * 3.0, z - r], [x + r, y + r * 3.0, z + r]) };
+            k.push(Kandidat { teil: 2001 + i, drei_d: true, gruppe: 1, maske: u32::MAX, ausloeser: false, huelle });
+        }
+        k.push(Kandidat { teil: 5000, drei_d: false, gruppe: 1, maske: u32::MAX, ausloeser: true, huelle: Huelle::Rechteck([f64::NAN, 0.0], [10.0, f64::NAN]) });
+        k.push(Kandidat { teil: 5001, drei_d: false, gruppe: 1, maske: u32::MAX, ausloeser: true, huelle: Huelle::Rechteck([0.0, 400.0], [f64::INFINITY, 420.0]) });
+        let mut erwartet = Vec::new();
+        for i in 0..k.len() {
+            for j in 0..k.len() {
+                // Definition: umschließende Kästen überlappen (NaN nie) und Engphase `trifft`
+                let (a, b) = (kasten(&k[i].huelle), kasten(&k[j].huelle));
+                let kaesten = (0..3).all(|d| a.0[d] <= b.1[d] && b.0[d] <= a.1[d]);
+                if k[i].teil < k[j].teil && k[i].spuert(&k[j]) && kaesten && trifft(k[i].huelle, k[j].huelle) {
+                    erwartet.push((k[i].teil, k[j].teil));
+                }
+            }
+        }
+        erwartet.sort_unstable();
+        let ist: Vec<(u32, u32)> = fuehler::paare(&k).iter().map(|&(i, j)| (k[i].teil, k[j].teil)).collect();
+        assert!(ist.len() > 50, "{}", ist.len());
+        assert!(ist == erwartet, "{} Paare statt {}", ist.len(), erwartet.len());
+        assert!(ist.iter().any(|p| p.1 == 5001) && !ist.iter().any(|p| p.1 == 5000), "unendlich ja, NaN nie");
+        assert!(fuehler::breitphase(&k).len() >= ist.len());
+    }
+}
+

@@ -1,0 +1,61 @@
+// Münzen: Der Pizzabote läuft mit den Pfeiltasten über die Wiese und sammelt Münzen ein. Eine Olive kullert hin und her –
+// wer sie berührt, verliert drei Münzen.
+// Zeigt: Fuehler mit Gruppen und Masken, betreten/verlassen als Zustand je Takt (kein Rückruf), Münzen entfernen.
+
+Herd herd = neu Herd("Münzen", breite: 640, hoehe: 360);
+herd.hintergrund("basilikum");
+herd.rechteck(320, 30, 640, 60, farbe: "#2f6f33");                         // Leiste oben
+
+// Gruppen: 1 = Bote, 2 = Münzen, 3 = Gefahr. Der Bote spürt Münzen und Gefahr (Maske 2 + 4), Münzen und Olive nur den Boten.
+Teil bote = herd.kreis(40, 200, 16, farbe: "tomate");
+herd.kreis(0, -6, 7, farbe: "mozzarella").haenge(bote);                    // Mütze
+Fuehler sinn = bote.mit(neu Fuehler(gruppe: 1, maske: 6));
+
+Blech<Teil> muenzen = [];
+für (salami reihe = 0; reihe < 2; reihe++) {
+    für (salami i = 0; i < 8; i++) {
+        Teil m = herd.kreis(100 + i * 64, 140 + reihe * 120, 9, farbe: "senf", umriss: 0);
+        herd.kreis(0, 0, 4, farbe: "ananas").haenge(m);
+        m.mit(neu Fuehler(gruppe: 2, maske: 1));
+        muenzen.hinzu(m);
+    }
+}
+
+Teil olive = herd.kreis(320, 200, 14, farbe: "oliven");
+olive.mit(neu Fuehler(form: "kreis", radius: 12, gruppe: 3, maske: 1));
+Bewegung kullern = olive.mit(neu Bewegung(tempoX: 90));
+
+Teil anzeige = herd.text("Münzen: 0", 16, 16, groesse: 24, farbe: "mozzarella");
+Teil hinweis = herd.text("", 624, 22, groesse: 16, farbe: "mozzarella", ausrichtung: "rechts");
+salami punkte = 0;
+salami pech = 0;
+
+herd.backe(() -> {
+    falls (herd.taste("Links")) { bote.verschiebe(-4, 0); }
+    falls (herd.taste("Rechts")) { bote.verschiebe(4, 0); }
+    falls (herd.taste("Hoch")) { bote.verschiebe(0, -4); }
+    falls (herd.taste("Runter")) { bote.verschiebe(0, 4); }
+
+    // Die Olive kehrt an den Rändern um
+    falls (olive.x() < 120 || olive.x() > 520) { kullern.setzeTempoX(-kullern.tempoX()); }
+
+    // Was der Fühler im letzten Takt neu berührt hat
+    für (Teil t : sinn.betreten()) {
+        falls (t == olive) {
+            pech++;
+            punkte = Mathe.max(0, punkte - 3);
+            hinweis.text().setzeInhalt("Autsch!");
+            bote.kreis().setzeFarbe("schinken");
+        } sonst {
+            t.entferne();
+            punkte++;
+        }
+    }
+    falls (sinn.verlassen().enthält(olive)) {
+        hinweis.text().setzeInhalt("");
+        bote.kreis().setzeFarbe("tomate");
+    }
+    anzeige.text().setzeInhalt(("Münzen: " + punkte));
+});
+salami uebrig = muenzen.filtere((m) -> !m.entfernt()).länge();
+Bote.sage(("Der Bote hat " + punkte + " Münzen, " + uebrig + " liegen noch, " + pech + "-mal die Olive erwischt."));

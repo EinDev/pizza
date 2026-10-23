@@ -38,6 +38,9 @@ const LAEUFE = [
   ['b5-funken.herd', {}],
   ['b5-funken.herd', { RATE: 1000, TAKTE: 125 }],
   ['belag.herd', {}],
+  ['fuehler.herd', {}],
+  ['fuehler.herd', { N: 1000, TAKTE: 20 }],
+  ['fuehler.herd', { N: 10000, TAKTE: 3 }],
 ];
 
 const args = process.argv.slice(2);

@@ -289,7 +289,8 @@
                 ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"],
                 ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
                 ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
-                ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"]
+                ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
+                ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -597,6 +598,43 @@
             },
             { art: "ausgabe", text: z("Belag(3) basilikum 0.7") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Beläge** unter *Beispiele → Herd*: 60 Würfel, drei Beläge; die Leertaste wechselt die Sorte des Tomaten-Belags, und alle seine Würfel ändern sich." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Fühler: wer berührt wen?",
+          inhalt: [
+            { art: "text", md: "Ein **`Fuehler`** macht ein Teil zum Kollider. Nach jedem Takt (nach allen Bewegungen) prüft die Engine alle Fühler gegeneinander und schreibt drei **Lesefelder**: `beruehrt()` – alle Teile, deren Fühler sich gerade mit diesem überlappen (Blech aus Teilen, nach ID), `betreten()` – die seit dem letzten Takt neu dazugekommen sind, `verlassen()` – die nicht mehr berührt werden; `anzahl()` zählt `beruehrt`. Es gibt keinen Rückruf: Du fragst im nächsten Takt nach, genau wie bei `herd.taste(…)`. Setzen lassen sich die Lesefelder nicht (`Fuehler.betreten kann man nur lesen.`), ein entferntes Teil fällt aus den Listen heraus." },
+            { art: "text", md: "Die Form: `form: \"auto\"` nimmt die Hülle wie `trifft` (Kreis bleibt Kreis, sonst Rechteck bzw. Kasten in Weltlage). `\"kreis\"`/`\"kugel\"` mit `radius`, `\"rechteck\"`/`\"kasten\"` mit `breite`, `hoehe`, `tiefe` – jede 0 nimmt die Größe aus der Hülle; `versatzX/Y/Z` verschiebt die Form (dreht und wächst mit dem Teil). Gedrehte Rechtecke werden achsenparallel umschlossen. **Gruppen und Masken:** `gruppe` ist eine Zahl 1 … 32, `maske` die Summe der Gruppen-Bits, die der Fühler spürt (Gruppe 1 = 1, Gruppe 2 = 2, Gruppe 3 = 4, …; Standard: alle). Ein Paar zählt nur, wenn **beide** einander spüren, beide sichtbar sind und im gleichen Raum liegen. `ausloeser: nein` macht den Fühler später für die Physik fest." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Fühler","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"e353b0124331e7cd","paket":"62948a0ad27a5ae8"},
+                {"art":"bild","bildnummer":8,"szene":"0cd44765a40e4ce3","paket":"ffe267a9baf3e2e0"},
+                {"art":"bild","bildnummer":12,"szene":"5ccfa19ba08fa6d7","paket":"075fea178a1b718c"},
+                {"art":"bild","bildnummer":16,"szene":"4db4e06c6d49975b","paket":"7518abc4a750ac5d"},
+                {"art":"bild","bildnummer":20,"szene":"f3c79a5206b48ed7","paket":"220370fddea974a1"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Fühler\", breite: 320, hoehe: 180);",
+                "Teil bote = herd.kreis(40, 90, 14, farbe: \"tomate\");",
+                "Fuehler sinn = bote.mit(neu Fuehler(gruppe: 1, maske: 2));",
+                "bote.mit(neu Bewegung(tempoX: 240));",
+                "Teil muenze = herd.kreis(120, 90, 8, farbe: \"senf\");",
+                "muenze.mit(neu Fuehler(gruppe: 2, maske: 1));",
+                "salami punkte = 0;",
+                "herd.backe(() -> {",
+                "  für (Teil t : sinn.betreten()) { t.entferne(); punkte++; }",
+                "});",
+                "Bote.sage((sinn + \" \" + punkte + \" \" + muenze.entfernt() + \" \" + sinn.anzahl() + \" \" + sinn.form()));"
+              )
+            },
+            { art: "ausgabe", text: z("Fuehler(3) 1 ja 0 auto") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Münzen** unter *Beispiele → Herd*: Der Bote sammelt mit den Pfeiltasten Münzen ein, eine Olive kullert hin und her und kostet drei Münzen." }
           ]
         }
       ]

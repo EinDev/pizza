@@ -144,7 +144,7 @@ herd.backe(() -> {
 **Komponenten:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
 `Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
 `Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter), `Gleiten` (beide: Tween), `Ablauf` (beide:
-Keyframes). Die Fabriken
+Keyframes), `Fuehler` (beide: Kollider, Ereignisse als Zustand je Takt). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -329,7 +329,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K1** Blick, Leine | offen | – | – |
 | **H-K2** Belag | `Belag` (16, 3D, geteiltes Material, kein System/Bildbeitrag), `Koerper.belag` (Teil, Nachtragsfeld; Belag-Werte statt eigener, sonst eigene ohne Fehler; Belag-Teil darf unsichtbar sein), Szene `belag.herd`, Fall `herd-belag`, Beispiel `belaege.pizza`, Doku in `herd-ausbau`; kein `paket.rs`, keine Glut | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 40/40 inkl. 1 neuer, 2 Schutztests um die Nachtragsliste ergänzt; Skript 3 + 1); `node herd/test-kern.js` 16 Läufe bitgleich nativ = Wasm (neu `belag.herd`); `erwartet.js` 41 ✓ (keine bestehende geändert); `npm test` (317 Fälle), Prüfstand 722/722 + 6/6, `test:wasm` 1503, `test:differenz` 1132 ohne Abweichung; Sichtprüfung und Glut-Pixeltest (`cargo test` herd-werkzeug) stehen aus (Render-Pause) |
 | **H-K4** Gleiten, Ablauf | `Gleiten` (14, Tween einer Lage-Größe, 6 Kurven, einmal/wiederholen/pendeln, Neustart bei neuem `nach`/`was`), `Ablauf` (15, Keyframes aus `zahl-liste`n, linear/sanft, Schleife/Halt/rückwärts, `zeit` springt auch angehalten); erster Nutzer von `zahl-liste` (Sprachtest `herd-zahl-liste`); Kern-Helfer `Speicher::zahlen_puffer_mut`; Szene `gleiten.herd`, Fälle `herd-gleiten`/`herd-ablauf`/`herd-zahl-liste`, Beispiel `speisekarte.pizza`, Doku in `herd-ausbau`; kein Bildpaket-/Glut-Umbau | (dieser) | `cargo test -j 2` Kern 39/39 (inkl. 3 neue), Skript 3+1; `node herd/test-kern.js` 15 Läufe bitgleich nativ = Wasm (neu `gleiten.herd` klein + voll 9 000 Gleiter); `erwartet.js` 38 ✓ (keine bestehende geändert); `npm test` (316 Fälle, 63 Beispiele, 144 Doku), Prüfstand 720/720 + 6/6, `test:wasm` 1496, `test:differenz` 1129 ohne Abweichung |
-| **H-K6** Fühler | offen | – | – |
+| **H-K6** Fühler | `Fuehler` (17, Typnummer in Merge-Reihenfolge, Nachlauf; Formen auto/kreis/rechteck/kasten/kugel mit Versatz, Gruppen/Masken 32 Bit beidseitig, Lesefelder `beruehrt`/`betreten`/`verlassen` (teil-liste, nach ID)/`anzahl`), gemeinsame Kollisionssuche für H-K7 (`fuehler::{Kandidat, form, sammle, breitphase, paare}`, Sweep-and-Prune nach `ordnungs_bits(min x)` + ID in bis zu 64 waagerechten Streifen), Engphase `komponenten::trifft` (aus `abi.rs` verschoben, neu `Huelle::Kugel`), Szene `fuehler.herd`, Fälle `herd-fuehler`/`herd-teil-liste` (Sprachtest H-K0), Beispiel `muenzen.pizza`, Doku in `herd-ausbau`, K-150 | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 46/46 inkl. 6 neue `tests::hk6`, Skript 3 + 1); `node herd/test-kern.js` 19 Läufe bitgleich nativ = Wasm (neu `fuehler.herd` klein, N = 1 000, N = 10 000); `erwartet.js` 45 ✓ (keine bestehende geändert); `npm test` (319 Fälle), Prüfstand 724/724 + 6/6, `test:wasm` 1511, `test:differenz` 1136 ohne Abweichung; Sichtprüfung und Glut-Pixeltest stehen aus (Render-Pause); B6: 1 000 Fühler Takt 0,20 ms nativ / 0,31 ms Wasm (Ziel Nachlauf ≤ 0,5 ms), 10 000 Fühler (dichte Szene) 7,0 / 9,7 ms (`bench/herd/ERGEBNISSE.md`) |
 | **H-K3b** Vieleck | offen | – | – |
 | **H-K8** Vorlage | offen | – | – |
 | **H-K7** Wucht | offen | – | – |
@@ -427,7 +427,7 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 **Typnummern** (v1: 1 `Rechteck` · 2 `Kreis` · 3 `Text` · 4 `Bild` · 5 `Koerper` · 6 `Licht` · 7 `Kamera` · 8 `Bewegung` ·
 9 `Animation` · 10 `Partikel`). Die Spalte „Nr“ ist ab Nr. 14 nur ein **Vorschlag** in Planreihenfolge: vergeben wird in
 Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Bisher vergeben: 11 `Linie`, 12 `Rahmen`, 13 `Funken`, **14 `Gleiten`,
-15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt).
+15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6).
 
 | Nr (Vorschlag; vergeben: §11.1) | Komponente | Stufe | Raum | läuft in |
 |---|---|---|---|---|
@@ -588,7 +588,8 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   (ganz). Ein Paar zählt, wenn beide einen Fühler haben, gleicher Raum, beide sichtbar, und die Masken beidseitig passen.
   `falls (muenze.fuehler().betreten().länge() > 0) { … }`.
 - **Schichten/Dateien:** neu `komponenten/fuehler.rs` (Nachlauf; Breitphase Sweep-and-Prune nach Hüllen-min-x, Schlüssel `ordnungs_bits`
-  + ID, als `pub fn` für H-K7 bereitgestellt; Vortakt-Paare als Puffer-Spalte). Nutzt `Welt::huelle`; kein `welt.rs`, kein `paket.rs`.
+  + ID, als `pub fn` für H-K7 bereitgestellt; umgesetzt in bis zu 64 waagerechten Streifen; Vortakt = die gespeicherte `beruehrt`-Liste
+  selbst, verborgenes `fuer` gegen Kopie/Umhängen – kein eigener Puffer, K-150). Nutzt `Welt::huelle`; kein `welt.rs`, kein `paket.rs`.
   Gedrehte 2D-Rechtecke als achsenparallele Weltlage-Hülle wie `trifft` (v1-Grenze, **Entscheidung**).
 - **Determinismus:** Vergleiche in f64, Kreis-Abstand ohne Wurzel (Quadrate), Listen nach ID.
 - **Tests:** `cargo test` (betreten/verlassen über drei Takte, Masken, Raum, unsichtbar), `herd-fuehler.*`, **`herd-teil-liste.*`**

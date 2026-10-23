@@ -2048,6 +2048,24 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Nachweis:** `cargo test` (Kern: `tests::hk0`, Skript: `tests/probe.herd` mit Feature `probe`), `tests/herd/szenen/listen.herd` in
   `node herd/test-kern.js` (nativ = `kern.wasm`); Sprachtests folgen mit den ersten Nutzern (`herd-zahl-liste.*` in H-K4, `herd-teil-liste.*`
   und Lesefeld-Fehler in H-K6), weil `Probe` nicht in `kern.wasm` steckt. **Status:** fest.
+### K-150 Herd: `Fuehler` – Kollider mit Ereignissen als Zustand je Takt (H-K6; Nachtrag `Wucht` mit H-K7)
+- **Frage:** Wie meldet Herd Berührungen (Unity `OnTriggerEnter/Exit`), ohne Rückrufe aus Systemen in die Laufzeit (die kommen erst mit
+  H-K13) und bitgleich in allen Motoren?
+- **Entscheidung:** Komponente `Fuehler` (beide Räume), System im **Nachlauf** (K-149): nach allen Takt-Systemen des Takts schreibt sie die
+  Lesefelder `beruehrt` (alle überlappenden Fühler-Teile, nach ID), `betreten` (neu gegenüber dem Vortakt), `verlassen` (weggefallen),
+  `anzahl`; das Programm liest sie im nächsten Takt wie die Eingabe. Paar = beide Teile mit angehängtem Fühler, gleicher Raum, sichtbar,
+  mit Form, Masken **beidseitig** (`maske` 32 Bit, `gruppe` 1 … 32 = Bit `gruppe − 1`). Vortakt = die gespeicherte `beruehrt`-Liste selbst
+  (kein eigener Puffer); entfernte Teile fallen daraus heraus und erscheinen daher nicht in `verlassen`; eine verborgene Zahl `fuer` merkt das
+  Teil der Listen – nach `kopie()` oder Umhängen gilt der Vortakt als leer (alles Berührte ist `betreten`). Formen `auto` (Hülle wie
+  `trifft`), `kreis`/`kugel`, `rechteck`/`kasten`, Maße 0 = aus der Hülle, Versatz im Raum des Teils; **v1-Grenze:** alles in Weltlage
+  achsenparallel (gedrehte Rechtecke/Kästen umschlossen), Ränder zählen. Der Fühler selbst hat keine Hülle für `trifft` (dessen Ergebnis
+  bleibt für alle Programme gleich). Gemeinsame Kollisionssuche (für `Wucht`): Kandidaten, Breitphase Sweep-and-Prune nach
+  `ordnungs_bits(min x)` + Teil-ID (in bis zu 64 waagerechten Streifen, je Paar genau einmal im Streifen des größeren min-y; NaN-Kästen nie), Engphase `komponenten::trifft` (aus `abi.rs` dorthin verschoben, neu `Huelle::Kugel`); nur
+  f64-Vergleiche, Abstände ohne Wurzel, Ausgabe nach (kleinere ID, größere ID). `ausloeser: nein` = fest für H-K7, in H-K6 ohne Wirkung.
+  Typnummer: nächste freie Registry-Position beim Merge (Koordinator-Entscheidung statt der Tabelle HERD.md §12.2).
+- **Nachweis:** `cargo test` (`tests::hk6`: drei Takte betreten/verlassen, Masken, Raum, unsichtbar, entfernt, Kopie, Formen 2D/3D, Breitphase
+  = Brute Force), `tests/herd/szenen/fuehler.herd` in `node herd/test-kern.js` (N = 200/1 000/10 000, nativ = `kern.wasm`), Fälle
+  `herd-fuehler.*`, `herd-teil-liste.*` (Sprachtest für `teil-liste` und Lesefelder aus K-149), Beispiel `muenzen.pizza`. **Status:** fest.
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
   samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen

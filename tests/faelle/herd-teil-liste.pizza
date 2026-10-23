@@ -1,0 +1,32 @@
+// Herd §18.4 (K-149), Sprachtest teil-liste und Lesefelder mit dem ersten Nutzer Fuehler (HERD.md §12.4 H-K0/H-K6):
+// Getter liefert ein neues Blech<Teil> nach ID, entfernte Teile fallen heraus, Lesefelder lassen sich nicht setzen
+Herd herd = neu Herd("Liste", breite: 200, hoehe: 120);
+Teil mitte = herd.rechteck(100, 60, 40, 40);
+Teil links = herd.rechteck(80, 60, 20, 20);
+Teil rechts = herd.kreis(120, 60, 10);
+Teil fern = herd.rechteck(10, 10, 4, 4);
+Fuehler f = mitte.mit(neu Fuehler());
+links.mit(neu Fuehler());
+rechts.mit(neu Fuehler());
+fern.mit(neu Fuehler());
+Bote.sage((f + " " + f.beruehrt() + " " + f.beruehrt().länge() + " " + f.anzahl()));
+herd.backe();
+Blech<Teil> b = f.beruehrt();
+Bote.sage((b.länge() + " " + (b.stück(1) == links) + " " + (b.stück(2) == rechts) + " " + f.anzahl() + " " + f.betreten().länge()));
+// das Blech ist eine Kopie: Ändern daran ändert den Fühler nicht
+b.hinzu(fern);
+b.entferne(1);
+Bote.sage((b.länge() + " " + f.beruehrt().länge() + " " + f.hole("beruehrt").enthält(links) + " " + mitte.fuehler().beruehrt().enthält(fern)));
+// entferntes Teil fällt beim Lesen heraus (vor dem nächsten Takt)
+rechts.entferne();
+Bote.sage((f.beruehrt().länge() + " " + f.anzahl() + " " + f.beruehrt().belege((t) -> t.id())));
+// Lesefelder: Setter, setze(…) und Konstruktor-Argument (auch mit falschem Typ) → kann man nur lesen; karton ist erlaubt
+probier { f.setzeBeruehrt([links]); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setze("betreten", []); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeAnzahl(3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { neu Fuehler(verlassen: [mitte]); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { neu Fuehler(anzahl: "viele"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+Fuehler g = neu Fuehler(beruehrt: karton, gruppe: 2);
+Bote.sage((g.gruppe() + " " + g.beruehrt() + " " + g.teil()));
+// ein schreibbares Feld neben den Lesefeldern prüft weiter Typen
+probier { f.setzeGruppe("zwei"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

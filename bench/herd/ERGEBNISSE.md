@@ -56,11 +56,21 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B4: 10 Emitter, 20 000 Teilchen (RATE 1000, 3 s), 180 Takte | 0,020 ms | 0,329 ms | 0,35 (0,40) ms | 0,030 ms | 0,458 ms | 0,49 (0,56) ms | Partikel ≤ 1,5 ms (EXE) |
 | B5 (H-K5, 2026-10-23): 10 `Funken`-Emitter 3D, 20 000 Teilchen (RATE 1000), 180 Takte | 0,028 ms | 0,326 ms | 0,35 (0,40) ms | 0,040 ms | 0,463 ms | 0,50 (0,56) ms | Funken ≤ 1,5 ms (EXE) |
 | B5 mit RATE 500 (10 000 Teilchen), nur nativ | 0,014 ms | 0,158 ms | 0,17 (0,20) ms | – | – | – | – |
+| B6 (H-K6, 2026-10-23): 1 000 wandernde `Fuehler` 2D (+ 13 weitere 2D/3D), Bewegung, 120 Takte | 0,202 ms | 0,027 ms | 0,23 (0,22) ms | 0,314 ms | 0,051 ms | 0,36 (0,34) ms | Fühler-Nachlauf ≤ 0,5 ms (nativ) |
+| B6 mit N = 10 000, 60 Takte | 6,959 ms | 0,319 ms | 7,25 (7,06) ms | 9,700 ms | 0,469 ms | 10,16 (10,10) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
 bei ~19 000 sichtbaren Teilchen. Glut auf WARP (640 × 360, MSAA 4×, `herd-bild bench … RATE=1000 TAKTE=180`): **3 Draw-Calls**
 (Himmel + je Mischart einer), 19 131 Teilchen, 25,9 ms je Bild (Median, CPU-Rasterizer).
+
+B6 (`tests/herd/szenen/fuehler.herd`, Vorgabe `N`): Takt = Bewegung (N Teile) + **Fühler-Nachlauf** (Formen aus Hülle/Maßen,
+Breitphase Sweep-and-Prune entlang x in bis zu 64 waagerechten Streifen, Engphase `trifft`, Listen `beruehrt`/`betreten`/
+`verlassen` nach ID); die Bewegung allein kostet bei 10 000 Teilen ≈ 0,1 ms (B1), der Rest ist der Nachlauf. Die Szene ist
+absichtlich dicht (N Rechtecke 8–24 × 6–16 px, halb mit 30 px breiten Fühlern, auf 1280 × 720 – bei N = 10 000 berührt jeder Fühler
+im Mittel mehrere andere). Ohne Streifen (reines 1D-Sweep) kostete N = 10 000 rund 73 ms je Takt (1,26 Mio. x-Überlappungen gegen
+34 561 echte Paare im Kern-Test); mit Streifen und wiederverwendeten Listen 7 ms. Ziel (HERD.md §12.4 H-K6): 1 000 Fühler ≤ 0,5 ms
+nativ – erreicht (0,20 ms inkl. Bewegung).
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

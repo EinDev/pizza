@@ -119,6 +119,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Belag", "Material", "Koerper"],
       "herd": true
+    },
+    {
+      "id": "muenzen",
+      "titel": "Münzen: Fühler sammeln ein",
+      "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten über die Wiese und sammelt Münzen ein, eine Olive kullert hin und her. Wer was berührt, sagt der Fühler je Takt – mit Gruppen, Masken und betreten/verlassen statt Rückrufen.",
+      "datei": "herd/muenzen.pizza",
+      "erwartet": "herd/muenzen.erwartet",
+      "ereignisse": "herd/muenzen.ereignisse",
+      "herdErwartet": "herd/muenzen.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Fuehler", "Kollision", "Spiel"],
+      "herd": true
     }
   ]
 }

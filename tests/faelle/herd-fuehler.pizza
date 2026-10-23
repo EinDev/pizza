@@ -1,0 +1,23 @@
+// Herd §18.6 / HERD.md §12.4 H-K6: Fuehler – betreten/verlassen als Zustand je Takt, Gruppen und Masken, Formen, Bereichsfehler
+Herd herd = neu Herd("Fuehler", breite: 320, hoehe: 180);
+Teil bote = herd.kreis(40, 90, 12, farbe: "tomate");
+Fuehler f = bote.mit(neu Fuehler(gruppe: 1, maske: 2));
+bote.mit(neu Bewegung(tempoX: 600));
+Teil muenze = herd.kreis(100, 90, 6, farbe: "senf");
+muenze.mit(neu Fuehler(gruppe: 2, maske: 1));
+Teil geist = herd.rechteck(100, 90, 30, 30, farbe: "#ffffff60");
+geist.mit(neu Fuehler(gruppe: 3));
+Teil wand = herd.gruppe(200, 90);
+wand.mit(neu Fuehler(form: "rechteck", breite: 10, hoehe: 180, gruppe: 2, maske: 1));
+Bote.sage((f + " " + f.form() + " " + f.gruppe() + " " + f.maske() + " " + f.ausloeser() + " " + wand.fuehler().breite()));
+Blech<margherita> protokoll = [];
+herd.backe(() -> {
+  für (Teil t : f.betreten()) { protokoll.hinzu("rein " + herd.bildnummer() + ":" + t.id()); }
+  für (Teil t : f.verlassen()) { protokoll.hinzu("raus " + herd.bildnummer() + ":" + t.id()); }
+  falls (f.betreten().enthält(wand)) { bote.bewegung().setzeTempoX(0); }
+});
+Bote.sage((protokoll.verbinde(", ") + " | " + muenze.id() + " " + wand.id()));
+Bote.sage(("Bild " + herd.bildnummer() + " bei x = " + bote.x() + ", anzahl " + f.anzahl() + ", Geist spürt " + geist.fuehler().anzahl() + " mit Maske " + geist.fuehler().maske() + ", Bote " + f.setzeMaske(4294967295).maske()));
+probier { f.setzeGruppe(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeForm("dreieck"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeMaske(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

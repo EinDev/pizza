@@ -46,6 +46,7 @@ pub static ARTEN: &[&Art] = &[
     &linie::ART, &rahmen::ART, &funken::ART,           // Ausbau (HERD.md §12.2): Typnummern 11, 12, 13, …
     &gleiten::ART, &ablauf::ART,                       // 14, 15 (H-K4); vergeben in Merge-Reihenfolge (HERD.md §12.1)
     &belag::ART,                                       // 16 (H-K2)
+    &fuehler::ART,                                     // 17 (H-K6, Nachlauf)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -286,7 +287,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
   Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
-  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.

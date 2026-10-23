@@ -23,6 +23,8 @@ const LAEUFE = [
   ['B3', 'b3-koerper.herd', { N: 1000, TAKTE: 120 }],
   ['B4', 'b4-partikel.herd', { RATE: 1000, TAKTE: 180 }],
   ['B5', 'b5-funken.herd', { RATE: 1000, TAKTE: 180 }],
+  ['B6', 'fuehler.herd', { N: 1000, TAKTE: 120 }],
+  ['B6', 'fuehler.herd', { N: 10000, TAKTE: 60 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

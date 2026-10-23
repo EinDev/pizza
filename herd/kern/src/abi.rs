@@ -12,7 +12,7 @@ use crate::farbe;
 use crate::fehler::{self, Erg, Fehler};
 use crate::formen::{self, FormDaten};
 use crate::hash::Fnv;
-use crate::komponenten::{Huelle, ARTEN};
+use crate::komponenten::{trifft, ARTEN};
 use crate::paket::{self, Bildbau, Gesendet};
 use crate::ressourcen::{Ressource, MAX_BILDCHEN};
 use crate::schema::{Spalte, Typ, FELDTYPEN, MAX_LISTE};
@@ -1044,25 +1044,6 @@ fn texte(b: &[u8]) -> Erg<Vec<&str>> {
         i += n;
     }
     Ok(v)
-}
-
-fn trifft(a: Huelle, b: Huelle) -> bool {
-    fn kreis_rechteck(m: [f64; 2], r: f64, lo: [f64; 2], hi: [f64; 2]) -> bool {
-        let qx = if m[0] < lo[0] { lo[0] } else if m[0] > hi[0] { hi[0] } else { m[0] };
-        let qy = if m[1] < lo[1] { lo[1] } else if m[1] > hi[1] { hi[1] } else { m[1] };
-        let (dx, dy) = (m[0] - qx, m[1] - qy);
-        dx * dx + dy * dy <= r * r
-    }
-    match (a, b) {
-        (Huelle::Kreis(m1, r1), Huelle::Kreis(m2, r2)) => {
-            let (dx, dy) = (m1[0] - m2[0], m1[1] - m2[1]);
-            dx * dx + dy * dy <= (r1 + r2) * (r1 + r2)
-        }
-        (Huelle::Kreis(m, r), Huelle::Rechteck(lo, hi)) | (Huelle::Rechteck(lo, hi), Huelle::Kreis(m, r)) => kreis_rechteck(m, r, lo, hi),
-        (Huelle::Rechteck(a0, a1), Huelle::Rechteck(b0, b1)) => a0[0] <= b1[0] && b0[0] <= a1[0] && a0[1] <= b1[1] && b0[1] <= a1[1],
-        (Huelle::Kasten(a0, a1), Huelle::Kasten(b0, b1)) => (0..3).all(|i| a0[i] <= b1[i] && b0[i] <= a1[i]),
-        _ => false,
-    }
 }
 
 /// Kanonischer Szenenzustand → FNV-1a 64.

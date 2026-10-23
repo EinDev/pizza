@@ -1,0 +1,113 @@
+# H-K6 (HERD.md §12.4): N wandernde Fühler (voll: N=1000 bzw. 10000) – auto/kreis/rechteck, Gruppen und Masken, Versatz,
+# gedrehte Teile, ein unsichtbarer, Kopie und Entfernen; dazu 3D-Fühler (Kugel, Kasten, Körper-Hülle). Der Szenen-Hash je Bild
+# enthält die Lesefelder beruehrt/betreten/verlassen/anzahl, also vergleicht test-kern.js den Nachlauf nativ gegen Wasm.
+vorgabe N 200
+vorgabe TAKTE 40
+welt_neu 1280 720 "Fuehler"
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Koerper" -> T_KO
+feld_nummer T_F "form" -> F_FORM
+feld_nummer T_F "breite" -> F_B
+feld_nummer T_F "hoehe" -> F_H
+feld_nummer T_F "tiefe" -> F_T
+feld_nummer T_F "radius" -> F_RAD
+feld_nummer T_F "versatzX" -> F_VX
+feld_nummer T_F "gruppe" -> F_GR
+feld_nummer T_F "maske" -> F_MA
+feld_nummer T_F "beruehrt" -> F_BER
+feld_nummer T_F "betreten" -> F_BET
+feld_nummer T_F "verlassen" -> F_VER
+feld_nummer T_F "anzahl" -> F_ANZ
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "tempoY" -> BEW_Y
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_KO "form" -> KO_F
+# Lesefelder: Setzen wird abgewiesen
+komp_neu T_F -> probe
+setze_liste probe F_BER []
+fehler_text
+setze_zahl probe F_ANZ 1
+fehler_text
+wiederhole N e
+  teil_neu 2 -> t
+  teil_lage t ((e * 37) % 1280) ((e * 53) % 720) 0
+  teil_setze t 4 ((e % 7) * 13)
+  komp_neu T_F -> f
+  setze_zahl f F_GR (e % 4 + 1)
+  setze_zahl f F_MA (15 - (e % 3) * 4)
+  setze_zahl f F_FORM ((e % 5) % 3)
+  setze_zahl f F_RAD ((e % 5) * 3)
+  setze_zahl f F_B ((e % 2) * 30)
+  setze_zahl f F_VX ((e % 3) - 1)
+  komp_haenge f t
+  komp_neu T_R -> r
+  setze_zahl r R_B (8 + e % 17)
+  setze_zahl r R_H (6 + e % 11)
+  komp_haenge r t
+  komp_neu T_BEW -> bw
+  setze_zahl bw BEW_X ((e % 9 - 4) * 25)
+  setze_zahl bw BEW_Y ((e % 7 - 3) * 25)
+  setze_zahl bw BEW_D (e % 5 * 20)
+  komp_haenge bw t
+ende
+# ein Kreis-Teil mit Fühler (auto = Kreis-Hülle), unsichtbares Teil, Kopie und Entfernen
+teil_neu 2 -> kt
+teil_lage kt 640 360 0
+komp_neu T_K -> kk
+setze_zahl kk K_R 120
+komp_haenge kk kt
+komp_neu T_F -> kf
+komp_haenge kf kt
+teil_neu 2 -> weg
+teil_lage weg 640 360 0
+komp_neu T_F -> wf
+setze_zahl wf F_FORM 2
+setze_zahl wf F_B 200
+setze_zahl wf F_H 200
+komp_haenge wf weg
+takte 5
+hole_liste kf F_BER
+hole_liste wf F_BET
+hole_zahl kf F_ANZ
+teil_kopie kt -> kopie
+komp_von kopie T_F -> kopie_f
+teil_setze weg 11 0
+takte 1
+hole_liste kf F_VER
+hole_liste kopie_f F_BET
+teil_entferne kopie
+takte 1
+hole_liste kf F_VER
+hole_liste kf F_BER
+# 3D: Kugel, Kasten, Körper-Hülle (auto) mit Bewegung
+wiederhole 12 d
+  teil_neu 3 -> t3
+  teil_lage t3 ((d % 4) * 1.5 - 2) ((d % 3) * 0.7) 0
+  komp_neu T_F -> f3
+  setze_zahl f3 F_FORM (4 - (d % 2))
+  setze_zahl f3 F_RAD 0.8
+  setze_zahl f3 F_B 1
+  setze_zahl f3 F_H 1
+  setze_zahl f3 F_T (0.5 + (d % 3) * 0.5)
+  komp_haenge f3 t3
+  komp_neu T_BEW -> b3
+  setze_zahl b3 BEW_X ((d % 5 - 2) * 0.6)
+  komp_haenge b3 t3
+ende
+form_grund 1 0 0 -> WUERFEL
+teil_neu 3 -> kw
+komp_neu T_KO -> ko
+setze_zahl ko KO_F WUERFEL
+komp_haenge ko kw
+komp_neu T_F -> kwf
+komp_haenge kwf kw
+takte TAKTE
+hole_liste kwf F_BER
+hole_liste kf F_BER
+hole_zahl kf F_ANZ
