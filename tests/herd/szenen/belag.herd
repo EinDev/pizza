@@ -1,0 +1,66 @@
+# H-K2 (HERD.md §12.4): Belag – geteiltes Material. 60 Würfel auf drei Belägen, einige auf einem Teil ohne Belag,
+# Belag umfärben (alle Körper ändern sich), Belag-Teil unsichtbar (gilt weiter), Belag lösen und Belag-Teil entfernen
+# (eigene Werte, kein Fehler), Nachtragsfeld zurück auf karton.
+vorgabe N 60
+vorgabe TAKTE 10
+welt_neu 640 360 "Belag"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_FARBE
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_FARBE
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_B "leuchten" -> B_LEUCHTEN
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_BEW "drehtempo" -> BEW_D
+form_grund 1 0 0 -> WUERFEL
+bildchen_neu ["kkee", "kkee", "eekk", "eekk"] [] -> TEX
+teil_lage 1 0 6 12
+teil_schaue 1 0 0 0
+# drei Beläge an eigenen Teilen, dazu ein leeres Teil ohne Belag
+wiederhole 3 j
+  teil_neu 3 -> r
+  komp_neu T_B -> b
+  setze_zahl b B_GLANZ (0.2 + j * 0.3)
+  setze_zahl b B_LEUCHTEN (j * 0.2)
+  komp_haenge b r
+ende
+setze B1 = r - 2
+setze B3 = r
+setze_text (b - 2) B_FARBE "tomate"
+setze_text (b - 1) B_FARBE "basilikum"
+setze_text b B_FARBE "senf"
+setze_zahl b B_BILD TEX
+teil_neu 3 -> leer
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t ((i % 10 - 4.5) * 1.2) 0.5 ((boden(i / 10) - 2.5) * 1.2)
+  teil_groesse t 0.8 0.8 0.8
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_FARBE "ofen"
+  # jeder siebte zeigt auf das leere Teil, sonst reihum auf die drei Beläge
+  setze_zahl k K_BELAG (leer * boden(1 / (1 + i % 7)) + (B1 + i % 3) * (1 - boden(1 / (1 + i % 7))))
+  komp_haenge k t
+  komp_neu T_BEW -> bw
+  setze_zahl bw BEW_D ((i % 2) * 30)
+  komp_haenge bw t
+ende
+takte TAKTE
+# Tomaten-Belag umfärben: alle seine Würfel ändern sich
+setze_text (b - 2) B_FARBE "aubergine"
+setze_zahl (b - 2) B_GLANZ 0.9
+takte 2
+# Belag-Teil unsichtbar: gilt weiter
+teil_setze B1 11 0
+takte 2
+# Basilikum-Belag lösen, Senf-Belag-Teil entfernen: diese Würfel zeichnen mit ihren eigenen Werten
+komp_loese (b - 1)
+teil_entferne B3
+takte 2
+# Nachtragsfeld des letzten Körpers zurück auf karton
+setze_zahl k K_BELAG 0
+takte 2

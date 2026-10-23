@@ -226,7 +226,8 @@ function api() {
     ja(!P.KEYWORDS.includes('pizza'), "'pizza' darf kein Keyword sein");
     for (const t of ['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte', 'hawaii']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
     for (const k of ['belag', 'auf']) ja(!P.KEYWORDS.includes(k), "'" + k + "' ist kein Keyword mehr (K-105)");
-    for (const t of ['Pizza', 'Stück', 'Belag']) ja(!P.TYPEN.includes(t), 'TYPEN ohne ' + t + ' (K-105)');
+    // K-105: kein eingebauter Pizza-/Stück-/Belag-Typ mehr; `Belag` gibt es seit Herd H-K2 nur als Herd-Komponente (aus schema.json)
+    for (const t of ['Pizza', 'Stück', 'Belag']) ja(!P.TYPEN.includes(t) || (t === 'Belag' && P.intern.HERD_TYPEN.includes(t)), 'TYPEN ohne ' + t + ' (K-105)');
     gleich(P.BUILTINS.slice().sort(), ['Bote', 'Bestellannahme', 'Uhr', 'Mathe', 'Zufall', 'Spiegel', 'teig', 'bestelle', 'schieb', 'zwischenstand'].sort(), 'BUILTINS');
     ja(P.BELAEGE === undefined, 'BELAEGE entfällt (K-105)');
     // Reihenfolge verbindlich (SPEC §8, K-105) – die Wasm-Laufzeit spiegelt die Klassenindizes

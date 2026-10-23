@@ -583,9 +583,11 @@ mod hk0 {
         assert!(j.contains("\"name\": \"werte\", \"typ\": \"zahl-liste\", \"standard\": [], \"min\": -100, \"max\": 100}"));
         assert!(j.contains("\"name\": \"stand\", \"typ\": \"zahl\", \"standard\": 0, \"min\": null, \"max\": null, \"lesen\": true}"));
         assert!(j.contains("\"name\": \"extra\", \"typ\": \"zahl\", \"standard\": 0, \"min\": null, \"max\": null, \"nachtrag\": true}"));
-        // v1-Komponenten tragen keine neuen Schlüssel
+        // v1-Komponenten tragen keine neuen Schlüssel (außer den bewusst ergänzten Nachtragsfeldern)
         let ohne = crate::abi::schema_json(false);
-        assert!(!ohne.contains("\"lesen\"") && !ohne.contains("\"nachtrag\""));
+        assert!(!ohne.contains("\"lesen\""));
+        assert_eq!(ohne.matches("\"nachtrag\"").count(), NACHTRAEGE.len());
+        assert!(ohne.contains("\"name\": \"belag\", \"typ\": \"teil\", \"standard\": null, \"min\": null, \"max\": null, \"nachtrag\": true}"));
     }
 
     #[test]
@@ -853,13 +855,17 @@ mod hk0 {
         assert_eq!(w.takte, 2);
     }
 
+    /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag")];
+
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
         // nur die Arten bis Funken (13, Welle W1); ab W2 nutzen Ausbau-Arten die neuen Eigenschaften (H-K4: zahl-liste)
         for a in ARTEN.iter().take(13).filter(|a| !a.nur_test) {
             assert!(a.nachlauf.is_none(), "{}", a.schema.name);
             for f in a.schema.felder {
-                assert!(!f.lesen && !f.nachtrag, "{}.{}", a.schema.name, f.name);
+                assert!(!f.lesen, "{}.{}", a.schema.name, f.name);
+                assert_eq!(f.nachtrag, NACHTRAEGE.contains(&(a.schema.name, f.name)), "{}.{}", a.schema.name, f.name);
                 assert!(!matches!(f.typ, Typ::TeilListe | Typ::ZahlListe));
             }
         }
@@ -1235,4 +1241,123 @@ fn ablauf_schluessel_schleife_und_halt() {
     k.setze_zahlen(c, zw, &[5.0]);
     k.takt();
     assert_eq!(k.teil_hole(t, tf::Z), 0.0);
+}
+
+/// 3D-Instanzen des letzten Bildpakets: (Farbe RGBA, Glanz, Leuchten, Textur-Wort).
+fn material_3d(k: &Kern) -> Vec<(u32, f32, f32, u32)> {
+    let l = Leser::neu(k.paket()).unwrap();
+    let Some((_, d)) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST3D) else { return vec![] };
+    let f = |c: &[u8], o: usize| f32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]);
+    d.chunks_exact(INST3D_BYTES)
+        .map(|c| (u32::from_be_bytes([c[48], c[49], c[50], c[51]]), f(c, 52), f(c, 56), u32::from_le_bytes([c[68], c[69], c[70], c[71]])))
+        .collect()
+}
+
+#[test]
+fn belag_geteiltes_material() {
+    let mut k = welt();
+    let ko = typ(&mut k, "Koerper");
+    let be = typ(&mut k, "Belag");
+    assert_eq!(be, 16); // Typnummer in Merge-Reihenfolge (HERD.md §12.1, §11.1): nach Gleiten 14, Ablauf 15
+    let (k_farbe, k_glanz, k_belag) = (feld(&mut k, ko, "farbe"), feld(&mut k, ko, "glanz"), feld(&mut k, ko, "belag"));
+    let (b_farbe, b_glanz, b_leuchten, b_bild) = (feld(&mut k, be, "farbe"), feld(&mut k, be, "glanz"), feld(&mut k, be, "leuchten"), feld(&mut k, be, "bild"));
+    let wuerfel = k.form_grund(1, 0.0, 0.0);
+    let mut koerper = vec![];
+    for i in 0..3 {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, i as f64 - 1.0, 0.5, 0.0);
+        let c = k.komp_neu(ko);
+        k.setze_zahl(c, 1, wuerfel as f64);
+        assert_eq!(k.setze_text(c, k_farbe, b"tomate"), 0);
+        k.setze_zahl(c, k_glanz, 0.9);
+        k.komp_haenge(c, t);
+        koerper.push(c);
+    }
+    let h0 = k.hash_szene();
+    // Standard karton; setzen und zurücksetzen lässt den Szenen-Hash wie ohne Feld (Nachtragsfeld)
+    assert_eq!(k.hole_zahl(koerper[0], k_belag), 0.0);
+    let leer = k.teil_neu(3);
+    assert_eq!(k.setze_zahl(koerper[0], k_belag, leer as f64), 0);
+    assert_ne!(k.hash_szene(), h0);
+    assert_eq!(k.setze_zahl(koerper[0], k_belag, 0.0), 0);
+    let ohne = {
+        let mut k2 = welt();
+        let w2 = k2.form_grund(1, 0.0, 0.0);
+        for i in 0..3 {
+            let t = k2.teil_neu(3);
+            k2.teil_lage(t, i as f64 - 1.0, 0.5, 0.0);
+            let c = k2.komp_neu(ko);
+            k2.setze_zahl(c, 1, w2 as f64);
+            k2.setze_text(c, k_farbe, b"tomate");
+            k2.setze_zahl(c, k_glanz, 0.9);
+            k2.komp_haenge(c, t);
+        }
+        k2.teil_neu(3);
+        k2.hash_szene()
+    };
+    assert_eq!(k.hash_szene(), ohne);
+    k.bild(1);
+    let eigen = material_3d(&k);
+    assert_eq!(eigen.len(), 3);
+    assert!(eigen.iter().all(|m| *m == (0xD9452BFF, 0.9, 0.0, 0)));
+    // Belag an einem eigenen Teil; zwei Körper zeigen darauf, der dritte auf ein Teil ohne Belag (→ eigene Werte, kein Fehler)
+    let raum = k.teil_neu(3);
+    let b = k.komp_neu(be);
+    assert_eq!(text(&mut k, b, b_farbe), "weiss");
+    assert_eq!((k.hole_zahl(b, b_glanz), k.hole_zahl(b, b_leuchten), k.hole_zahl(b, b_bild)), (0.3, 0.0, 0.0));
+    k.setze_text(b, b_farbe, b"senf");
+    k.setze_zahl(b, b_glanz, 0.1);
+    k.setze_zahl(b, b_leuchten, 0.5);
+    assert_eq!(k.komp_haenge(b, raum), 0);
+    k.setze_zahl(koerper[0], k_belag, raum as f64);
+    k.setze_zahl(koerper[1], k_belag, raum as f64);
+    k.setze_zahl(koerper[2], k_belag, leer as f64);
+    assert_eq!(k.hole_zahl(koerper[1], k_belag), raum as f64);
+    k.bild(2);
+    let m = material_3d(&k);
+    assert_eq!(m.iter().filter(|m| **m == (0xF2B33DFF, 0.1, 0.5, 0)).count(), 2);
+    assert_eq!(m.iter().filter(|m| **m == (0xD9452BFF, 0.9, 0.0, 0)).count(), 1);
+    // ein Wert am Belag ändert alle Körper; auch das Bildchen (Textur) kommt vom Belag
+    let zeilen = ["kk", "kk"];
+    let z: Vec<u8> = zeilen.iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z.as_bytes()].concat()).collect();
+    let tex = k.bildchen_neu(&z, &[]);
+    k.setze_text(b, b_farbe, b"wasser");
+    k.setze_zahl(b, b_bild, tex as f64);
+    k.bild(3);
+    let m = material_3d(&k);
+    assert_eq!(m.iter().filter(|m| m.0 == 0x2E6FD9FF && m.3 & 1 << 16 != 0).count(), 2);
+    // durchsichtige Belag-Farbe blendet die Körper aus wie eine eigene
+    k.setze_text(b, b_farbe, b"#ffffff00");
+    k.bild(4);
+    assert_eq!(material_3d(&k).len(), 1);
+    // Belag-Teil unsichtbar: gilt trotzdem
+    k.setze_text(b, b_farbe, b"senf");
+    k.teil_setze(raum, crate::abi::teilfeld::SICHTBAR, 0.0);
+    k.bild(5);
+    assert_eq!(material_3d(&k).iter().filter(|m| m.0 == 0xF2B33DFF).count(), 2);
+    // Belag gelöst bzw. Belag-Teil entfernt: wieder die eigenen Werte, kein Fehler; ein entferntes Teil setzen ist ein Fehler
+    k.komp_loese(b);
+    k.bild(6);
+    assert!(material_3d(&k).iter().all(|m| m.0 == 0xD9452BFF));
+    k.komp_haenge(b, raum);
+    k.teil_entferne(raum);
+    assert_eq!(k.fehler_neu(), 0);
+    k.bild(7);
+    assert!(material_3d(&k).iter().all(|m| m.0 == 0xD9452BFF));
+    assert!(k.setze_zahl(koerper[2], k_belag, raum as f64) < 0);
+    assert_eq!(k.fehler_text(), alloc::format!("Teil {} ist schon entfernt.", raum));
+    // nur für 3D-Teile
+    let flach = k.teil_neu(2);
+    let b2 = k.komp_neu(be);
+    assert!(k.komp_haenge(b2, flach) < 0);
+    assert_eq!(k.fehler_text(), "Belag gibt es nur für 3D-Teile.");
+    // Kopie eines Körpers teilt den Belag (gleiches Teil im Feld)
+    let r2 = k.teil_neu(3);
+    k.komp_haenge(b2, r2);
+    k.setze_zahl(koerper[0], k_belag, r2 as f64);
+    let t0 = k.komp_info(koerper[0], 2);
+    let kopie = k.teil_kopie(t0);
+    assert!(kopie > 0);
+    k.bild(8);
+    assert_eq!(material_3d(&k).iter().filter(|m| **m == (0xFFFFFFFF, 0.3, 0.0, 0)).count(), 2);
 }

@@ -10,6 +10,7 @@ use crate::welt::Welt;
 
 pub mod ablauf;
 pub mod animation;
+pub mod belag;
 pub mod bewegung;
 pub mod bild;
 pub mod funken;
@@ -83,6 +84,7 @@ pub static ARTEN: &[&Art] = &[
     &funken::ART,
     &gleiten::ART,
     &ablauf::ART,
+    &belag::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

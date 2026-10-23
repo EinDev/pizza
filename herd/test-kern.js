@@ -37,6 +37,7 @@ const LAEUFE = [
   ['gleiten.herd', { N: 500, TAKTE: 6 }],
   ['b5-funken.herd', {}],
   ['b5-funken.herd', { RATE: 1000, TAKTE: 125 }],
+  ['belag.herd', {}],
 ];
 
 const args = process.argv.slice(2);

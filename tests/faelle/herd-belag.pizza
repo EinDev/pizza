@@ -1,0 +1,23 @@
+// Herd §18.6 / HERD.md §12.4 H-K2: Belag – geteiltes Material; Koerper.belag als Nachtragsfeld, Rückfall auf eigene Werte, Fehler
+Herd herd = neu Herd("Belag", breite: 320, hoehe: 180);
+Belag rot = herd.raum().mit(neu Belag(farbe: "tomate", glanz: 0.8));
+Belag vorgabe = herd.raum(0, 5, 0).mit(neu Belag());
+Bote.sage((vorgabe.farbe() + " " + vorgabe.glanz() + " " + vorgabe.leuchten() + " " + vorgabe.bild()));
+Teil a = herd.koerper(Form.wuerfel(), -1, 0.5, 0, farbe: "ofen");
+Teil b = herd.koerper(Form.kugel(), 1, 0.5, 0, farbe: "teig");
+Bote.sage(("ohne Belag: " + a.koerper().belag()));
+a.koerper().setzeBelag(rot.teil());
+b.koerper().setze("belag", rot.teil());
+Bote.sage(("Belag am selben Teil: " + (a.koerper().belag() == rot.teil()) + " " + (b.koerper().belag() == rot.teil()) + ", eigene Farbe bleibt " + a.koerper().farbe()));
+Teil kahl = herd.raum(0, 0, 3);
+Teil c = herd.koerper(Form.wuerfel(), 0, 0.5, 2, farbe: "basilikum");
+c.koerper().setzeBelag(kahl);
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { rot.setzeFarbe("wasser").setzeLeuchten(0.4); }
+  falls (herd.bildnummer() == 4) { rot.teil().ohne("Belag"); }
+  falls (herd.bildnummer() == 5) { a.koerper().setzeBelag(karton); }
+});
+Bote.sage(("nach " + herd.bildnummer() + " Takten: " + rot.farbe() + " " + rot.leuchten() + " " + rot.teil() + ", a ohne Belag: " + (a.koerper().belag() == karton)));
+probier { herd.gruppe().mit(neu Belag()); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { rot.setzeGlanz(2); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { a.koerper().setzeBelag(42); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }

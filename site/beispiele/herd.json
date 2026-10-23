@@ -106,6 +106,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Gleiten", "Ablauf", "Tween", "Keyframes"],
       "herd": true
+    },
+    {
+      "id": "belaege",
+      "titel": "Beläge: geteiltes Material",
+      "beschreibung": "60 Würfel, drei Materialien: Jeder Würfel zeigt mit Koerper.belag auf einen geteilten Belag – Tomate, Basilikum mit Blattmuster, Mozzarella. Mit der Leertaste wechselt der Tomaten-Belag die Sorte, und alle seine 20 Würfel ändern sich auf einmal.",
+      "datei": "herd/belaege.pizza",
+      "erwartet": "herd/belaege.erwartet",
+      "ereignisse": "herd/belaege.ereignisse",
+      "herdErwartet": "herd/belaege.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Belag", "Material", "Koerper"],
+      "herd": true
     }
   ]
 }

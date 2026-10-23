@@ -278,7 +278,7 @@
                 ["`Kreis`","2D","`radius` 10, `farbe` weiss, `umriss` 0","Kreis, `umriss` > 0 = Ring"],
                 ["`Text`","2D","`inhalt` \"\", `groesse` 16, `farbe` ofen, `ausrichtung` links (links|mitte|rechts)","Text in der eingebauten Schrift; `ausrichtung` bezieht sich auf x, y ist die Oberkante"],
                 ["`Bild`","2D","`bildchen` karton, `groesse` 1, `farbe` weiss, `spiegeln` nein","ein Bildchen, pixelscharf; `groesse` = Bildschirmpixel je Bildchen-Pixel, `farbe` tönt"],
-                ["`Koerper`","3D","`form` karton, `farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton, `schatten` ja","3D-Körper aus einer Form; `glanz` 0 … 1, `leuchten` 0 … 1, `bild` = Textur, `schatten` = wirft Schatten"],
+                ["`Koerper`","3D","`form` karton, `farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton, `schatten` ja, `belag` karton","3D-Körper aus einer Form; `glanz` 0 … 1, `leuchten` 0 … 1, `bild` = Textur, `schatten` = wirft Schatten, `belag` = Teil mit geteiltem Material (`Belag`)"],
                 ["`Licht`","3D","`art` punkt (punkt|sonne), `farbe` weiss, `staerke` 1, `reichweite` 10, `schatten` ja","Punktlicht oder Sonne (`art`); höchstens 8 Punktlichter wirken (die nächsten zur Kamera)"],
                 ["`Kamera`","3D","`sicht` 60, `nah` 0.1, `fern` 500, `aktiv` ja","Blickwinkel `sicht` in Grad; es zeichnet die aktive Kamera mit der kleinsten ID"],
                 ["`Bewegung`","2D + 3D","`tempoX` 0, `tempoY` 0, `tempoZ` 0, `beschleunigungX` 0, `beschleunigungY` 0, `beschleunigungZ` 0, `drehtempo` 0, `daempfung` 0","je Takt: Tempo += Beschleunigung·dt, Dämpfung, Lage += Tempo·dt; `drehtempo` in Grad/s"],
@@ -288,7 +288,8 @@
                 ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"],
                 ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"],
                 ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
-                ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"]
+                ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
+                ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -568,6 +569,34 @@
             },
             { art: "ausgabe", text: z("Gleiten(3) federnd ja [0, 1, 2] 23.6") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Speisekarte** unter *Beispiele → Herd*: Die Menütafel gleitet federnd herein, die Zeilen folgen nacheinander, Lampen pendeln, und der Bote läuft seinen Ablauf-Pfad; die Leertaste schiebt die Karte weg und wieder her." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Belag: ein Material für viele Körper",
+          inhalt: [
+            { art: "text", md: "**`Belag`** ist ein geteiltes Material: `farbe`, `glanz`, `leuchten` und `bild` wie beim `Koerper` – aber an einem eigenen Teil, meist einem leeren `herd.raum()`. Jeder Körper, dessen Feld **`belag`** auf dieses Teil zeigt (`koerper().setzeBelag(b.teil())`), zeichnet mit den Werten des Belags statt mit seinen eigenen. Änderst du einen Wert am Belag, ändern sich alle diese Körper auf einmal. Die eigenen Werte des Körpers bleiben erhalten: Mit `setzeBelag(karton)`, `ohne(\"Belag\")` am Belag-Teil oder wenn es entfernt wird, zeigt er sie wieder – ohne Fehler." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Beläge","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"e3e71933dc02b517","paket":"f41f26b1ed3f8f18"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Beläge\", breite: 320, hoehe: 180);",
+                "Belag tomate = herd.raum().mit(neu Belag(farbe: \"tomate\", glanz: 0.7));",
+                "für (salami i = 0; i < 5; i++) {",
+                "    herd.koerper(Form.wuerfel(), i * 1.5 - 3, 0.5, 0).koerper().setzeBelag(tomate.teil());",
+                "}",
+                "herd.backe(() -> { falls (herd.bildnummer() == 2) { tomate.setzeFarbe(\"basilikum\"); } });   // alle fünf werden grün",
+                "Bote.sage((tomate + \" \" + tomate.farbe() + \" \" + tomate.glanz()));"
+              )
+            },
+            { art: "ausgabe", text: z("Belag(3) basilikum 0.7") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Beläge** unter *Beispiele → Herd*: 60 Würfel, drei Beläge; die Leertaste wechselt die Sorte des Tomaten-Belags, und alle seine Würfel ändern sich." }
           ]
         }
       ]

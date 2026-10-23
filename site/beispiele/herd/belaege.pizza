@@ -1,0 +1,44 @@
+// Beläge – 60 Würfel, aber nur drei Materialien. Jeder Würfel zeigt mit Koerper.belag auf einen geteilten Belag
+// (Unity: Material). Leertaste: Der Tomaten-Belag wechselt die Sorte – und alle 20 Tomaten-Würfel ändern sich auf einmal.
+//
+// So arbeitet die Engine für dich: Ein Belag hängt an einem eigenen, unsichtbaren Teil (herd.raum()). Beim Zeichnen nimmt
+// jeder Körper Farbe, Glanz, Leuchten und Bildchen seines Belags statt der eigenen – das Programm ändert einen Wert, nicht 20.
+
+Herd herd = neu Herd("Beläge", breite: 960, hoehe: 540);
+herd.himmel("#8ec9f0", "#fff6e0");
+herd.umgebung("#fff6e0", staerke: 0.4);
+herd.koerper(Form.ebene(), 0, 0, 0, farbe: "#e8c48a", glanz: 0.05).setzeGroesse(40, 1, 40);
+
+// Basilikum bekommt ein Blattmuster als Bildchen
+Speisekarte<margherita, margherita> blatt = neu Speisekarte<margherita, margherita>();
+blatt.lege("g", "#3e8e41").lege("h", "#5fb35f");
+Bildchen adern = neu Bildchen(["gggghggg", "ggghgggg", "gghggggh", "ghgggghg", "hgggghgg", "ggghhggg", "gghgghgg", "ghggggh."], farben: blatt);
+
+// ---------- drei geteilte Beläge ----------
+Belag tomate = herd.raum().mit(neu Belag(farbe: "tomate", glanz: 0.7));
+Belag basilikum = herd.raum().mit(neu Belag(farbe: "weiss", glanz: 0.2, bild: adern));
+Belag kaese = herd.raum().mit(neu Belag(farbe: "mozzarella", glanz: 0.4, leuchten: 0.15));
+Blech<Belag> belaege = [tomate, basilikum, kaese];
+
+// ---------- 60 Würfel auf einem Gitter, reihum belegt ----------
+für (salami i = 0; i < 60; i++) {
+    funghi x = (i % 10 - 4.5) * 1.5;
+    funghi z = ((i / 10).ganz() - 2.5) * 1.5;
+    Teil w = herd.koerper(Form.wuerfel(), x, 0.6, z, farbe: "grau");   // eigene Farbe: gilt nur ohne Belag
+    w.setzeGroesse(0.9).setzeDrehung(i * 17);
+    w.koerper().setzeBelag(belaege.stück(i % 3 + 1).teil());
+    falls (i % 2 == 0) { w.mit(neu Bewegung(drehtempo: 25)); }
+}
+
+herd.kamera().setzeLage(0, 9, 13).schaueAuf(0, 0, 0);
+herd.text("Leertaste: Tomaten-Belag wechseln", 480, 510, groesse: 16, farbe: "#2f2a26", ausrichtung: "mitte");
+
+Blech<margherita> sorten = ["tomate", "aubergine", "senf", "salami"];
+salami sorte = 0;
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) {
+        sorte = (sorte + 1) % sorten.länge();
+        tomate.setzeFarbe(sorten.stück(sorte + 1)).setzeGlanz(0.3 + sorte * 0.2);
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: Tomaten-Belag ist " + tomate.farbe() + " (Glanz " + tomate.glanz() + ")."));

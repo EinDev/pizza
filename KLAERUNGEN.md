@@ -1235,7 +1235,9 @@ Verstöße mit Nutzerwirkung – **Entscheidung des Nutzers nötig** (an den Koo
   `Bote.sage((Tomate));` → `LaufzeitAnanas: 'Tomate' ist nicht definiert.` · `teile(x)` → `LaufzeitAnanas: 'teile' ist nicht definiert.` ·
   `neu Pizza()` ohne eigene Klasse → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekarte.` · `((Tomate, Käse))`, `(())`,
   `belag X auf Pizza { }` → Syntaxfehler P0001 · Typen `Pizza`, `Belag`, `Stück<…>` sind ungeprüfte unbekannte Typen (§14.6) · eine **eigene**
-  Klasse `Pizza` und eigene Variablen `Tomate` usw. funktionieren wie jede andere Klasse/Variable.
+  Klasse `Pizza` und eigene Variablen `Tomate` usw. funktionieren wie jede andere Klasse/Variable. *Nachtrag Herd H-K2:* `Belag` ist
+  seither wieder ein bekannter Typ – als Herd-Komponente (geteiltes Material, SPEC §18.6), nicht als Pizza-Belag; eine eigene Klasse
+  `Belag` schattet sie wie jede Herd-Komponente.
 - **Betroffen:** SPEC §1 (Keywords, Typen), §5 (Pizza-Literal, Textform), **§6 entfällt**, §7.5 (nur noch `schieb`), §8, §9, §11, §12, §14.5/§14.6/
   §14.9/§14.11, §15.1/§15.2 (K-001, K-016, K-017, K-023, K-026, K-039 abgelöst), §17.3/§17.5; ARCHITEKTUR §1/§5; WASM.md §2; IR.md; README;
   THEKE unverändert (nur Floskeln). Interpreter `site/js/pizza.js`, Compiler `site/js/pizzaiolo/{frontend,backend-wasm}.js`, Laufzeit

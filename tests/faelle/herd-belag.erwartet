@@ -1,0 +1,7 @@
+weiss 0.3 0 karton
+ohne Belag: karton
+Belag am selben Teil: ja ja, eigene Farbe bleibt ofen
+nach 6 Takten: wasser 0.4 karton, a ohne Belag: ja
+LaufzeitAnanas: Belag gibt es nur für 3D-Teile.
+LaufzeitAnanas: Belag.glanz muss zwischen 0 und 1 liegen, nicht 2.
+TypAnanas: Koerper.belag braucht ein Teil, nicht 42.
