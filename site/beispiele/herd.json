@@ -93,6 +93,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Funken", "Teilchen", "Licht", "Nebel"],
       "herd": true
+    },
+    {
+      "id": "speisekarte",
+      "titel": "Speisekarte: Gleiten und Ablauf",
+      "beschreibung": "In der Pizzeria gleitet die Menütafel federnd herein, die Zeilen folgen nacheinander, die Lampen pendeln und der Bote läuft seine Runde als Keyframe-Pfad. Mit der Leertaste schiebst du die Karte weg und wieder her.",
+      "datei": "herd/speisekarte.pizza",
+      "erwartet": "herd/speisekarte.erwartet",
+      "ereignisse": "herd/speisekarte.ereignisse",
+      "herdErwartet": "herd/speisekarte.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Gleiten", "Ablauf", "Tween", "Keyframes"],
+      "herd": true
     }
   ]
 }

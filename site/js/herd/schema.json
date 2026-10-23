@@ -97,7 +97,26 @@
       {"nummer": 13, "name": "mischung", "typ": "wahl", "standard": "leuchtend", "min": null, "max": null, "wahl": ["leuchtend", "deckend"]},
       {"nummer": 14, "name": "weltlage", "typ": "diavolo", "standard": true, "min": null, "max": null},
       {"nummer": 15, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null},
-      {"nummer": 16, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]}
+      {"nummer": 16, "name": "saat", "typ": "ganz", "standard": 0, "min": 0, "max": 4294967295}]},
+    {"name": "Gleiten", "nummer": 14, "genus": "n", "raum": "beide", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "was", "typ": "wahl", "standard": "x", "min": null, "max": null, "wahl": ["x", "y", "z", "drehung", "neigung", "rollen", "groesse"]},
+      {"nummer": 2, "name": "nach", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 3, "name": "dauer", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 4, "name": "kurve", "typ": "wahl", "standard": "sanft", "min": null, "max": null, "wahl": ["linear", "sanft", "rein", "raus", "federnd", "huepfend"]},
+      {"nummer": 5, "name": "schleife", "typ": "wahl", "standard": "einmal", "min": null, "max": null, "wahl": ["einmal", "wiederholen", "pendeln"]},
+      {"nummer": 6, "name": "laeuft", "typ": "diavolo", "standard": true, "min": null, "max": null}]},
+    {"name": "Ablauf", "nummer": 15, "genus": "m", "raum": "beide", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "zeiten", "typ": "zahl-liste", "standard": [], "min": 0, "max": null},
+      {"nummer": 2, "name": "xWerte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 3, "name": "yWerte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 4, "name": "zWerte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 5, "name": "drehWerte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 6, "name": "groesseWerte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 7, "name": "kurve", "typ": "wahl", "standard": "linear", "min": null, "max": null, "wahl": ["linear", "sanft"]},
+      {"nummer": 8, "name": "schleife", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 9, "name": "tempo", "typ": "zahl", "standard": 1, "min": null, "max": null},
+      {"nummer": 10, "name": "zeit", "typ": "zahl", "standard": 0, "min": 0, "max": null},
+      {"nummer": 11, "name": "laeuft", "typ": "diavolo", "standard": true, "min": null, "max": null}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],

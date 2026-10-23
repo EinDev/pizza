@@ -1,0 +1,24 @@
+// Herd §18.6 / HERD.md §12.4 H-K4: Ablauf – Keyframes auf der Lage (zeiten + Wertelisten, sanft, Schleife, Halt am Ende,
+// rückwärts, springen per zeit, kürzere Werteliste), Fehlertexte
+Herd herd = neu Herd("Ablauf", breite: 320, hoehe: 180);
+Teil bote = herd.kreis(40, 140, 8, farbe: "tomate");
+Ablauf weg = bote.mit(neu Ablauf(zeiten: [0, 0.05, 0.1, 0.15], xWerte: [40, 280, 280, 40], yWerte: [140, 140, 40],
+    drehWerte: [0, 90, 180, 360], kurve: "sanft"));
+Bote.sage((weg + " " + weg.zeiten() + " " + weg.xWerte() + " " + weg.yWerte() + " " + weg.zWerte() + " " + weg.kurve() + " "
+    + weg.schleife() + " " + weg.tempo() + " " + weg.zeit() + " " + weg.laeuft()));
+Ablauf vorgabe = herd.gruppe().mit(neu Ablauf());
+Bote.sage((vorgabe.zeiten() + " " + vorgabe.groesseWerte() + " " + vorgabe.kurve() + " " + vorgabe.schleife() + " " + vorgabe.tempo() + " " + vorgabe.laeuft()));
+Teil fahne = herd.rechteck(160, 20, 20, 10, farbe: "basilikum");
+Ablauf wachsen = fahne.mit(neu Ablauf(zeiten: [0, 0.1], groesseWerte: [1, 3], schleife: nein, tempo: 2));
+Teil rueck = herd.kreis(300, 90, 5);
+Ablauf zurueck = rueck.mit(neu Ablauf(zeiten: [0, 1], xWerte: [0, 300], schleife: nein, tempo: -3, zeit: 1));
+herd.backe(() -> {
+    falls (herd.bildnummer() == 6) { Bote.sage(("Takt 6: Bote bei " + bote.x().runden(2) + ", " + bote.y().runden(2) + ", Fahne " + fahne.groesse() + " " + wachsen.laeuft())); }
+    falls (herd.bildnummer() == 9) { weg.setzeLaeuft(nein).setzeZeit(0.1); }
+});
+Bote.sage(("nach " + herd.bildnummer() + " Takten: Bote bei " + bote.x() + ", " + bote.y() + ", Drehung " + bote.drehung() + ", zeit " + weg.zeit()
+    + ", läuft " + weg.laeuft() + "; Fahne " + fahne.groesse() + " " + wachsen.laeuft() + "; zurück bei x = " + rueck.x().runden(2) + ", zeit " + zurueck.zeit().runden(4)));
+probier { weg.setzeZeiten([0, -1]); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { weg.setzeKurve("federnd"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { weg.setzeZeit(-2); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { bote.mit(neu Ablauf()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

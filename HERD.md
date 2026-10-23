@@ -143,7 +143,8 @@ herd.backe(() -> {
 
 **Komponenten:** `Lage` (immer da; per Teil-Methoden), `Rechteck`, `Kreis`, `Text`, `Bild` (2D) · `Koerper`, `Licht`, `Kamera` (3D) ·
 `Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
-`Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter). Die Fabriken
+`Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter), `Gleiten` (beide: Tween), `Ablauf` (beide:
+Keyframes). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -327,7 +328,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K5** Funken | `Funken` (13, 3D-Teilchen im Kern, Kegel um die Richtung in den Achsen des Teils, `weltlage`), Bildpaket-Abschnitt `TEILCHEN3D` (14, nur bei Nutzung, `VERSION` 1), Glut-Shader `funken.wgsl` (kamerazugewandt, leuchtend additiv / deckend sortiert, je Mischart ein Draw-Call), Szene `b5-funken.herd`, Referenzbild `3d-funken`, Fall `herd-funken`, Beispiel `ofenfunken.pizza`, Doku in `herd-ausbau` | (dieser) | `cargo test -j 2` (Kern 36/36 inkl. 2 neue, Pixeltest 5 Referenzbilder); `node herd/test-kern.js` 13 Läufe bitgleich nativ = Wasm (neu B5 klein + voll 20 000 Teilchen); `erwartet.js` 33 ✓ (keine bestehende geändert); `npm test` (311 Fälle), Prüfstand 715/715, `test:wasm` 1468, `test:differenz` 1118 ohne Abweichung; E2E headless 289/290 (1 übersprungen), `3d-funken` WebGL2 0,007 %; B5 voll Kern je Bild 0,35 ms nativ / 0,50 ms Wasm (Funken-Takt 0,028 ms, Bildbau 0,33 ms; Ziel ≤ 1,5 ms); WARP 3 Draw-Calls |
 | **H-K1** Blick, Leine | offen | – | – |
 | **H-K2** Belag | offen | – | – |
-| **H-K4** Gleiten, Ablauf | offen | – | – |
+| **H-K4** Gleiten, Ablauf | `Gleiten` (14, Tween einer Lage-Größe, 6 Kurven, einmal/wiederholen/pendeln, Neustart bei neuem `nach`/`was`), `Ablauf` (15, Keyframes aus `zahl-liste`n, linear/sanft, Schleife/Halt/rückwärts, `zeit` springt auch angehalten); erster Nutzer von `zahl-liste` (Sprachtest `herd-zahl-liste`); Kern-Helfer `Speicher::zahlen_puffer_mut`; Szene `gleiten.herd`, Fälle `herd-gleiten`/`herd-ablauf`/`herd-zahl-liste`, Beispiel `speisekarte.pizza`, Doku in `herd-ausbau`; kein Bildpaket-/Glut-Umbau | (dieser) | `cargo test -j 2` Kern 39/39 (inkl. 3 neue), Skript 3+1; `node herd/test-kern.js` 15 Läufe bitgleich nativ = Wasm (neu `gleiten.herd` klein + voll 9 000 Gleiter); `erwartet.js` 38 ✓ (keine bestehende geändert); `npm test` (316 Fälle, 63 Beispiele, 144 Doku), Prüfstand 720/720 + 6/6, `test:wasm` 1496, `test:differenz` 1129 ohne Abweichung |
 | **H-K6** Fühler | offen | – | – |
 | **H-K3b** Vieleck | offen | – | – |
 | **H-K8** Vorlage | offen | – | – |
@@ -350,8 +351,11 @@ und Feldnamen stehen hier fest; Produktentscheidungen, die der Plan trifft, sind
 
 1. **Registry nur hinten anhängen.** Neue Zeilen kommen in `ARTEN` (`herd/kern/src/komponenten/mod.rs`) nach der letzten
    Produktivzeile und **vor** die `cfg(test)`-Zeile `&probe::ART` (Probe bleibt letzte; sie fehlt in `schema.json`/`kern.wasm`, ihre
-   Nummer im Testbau ist egal). Position = Typnummer = Systemreihenfolge, **für immer**: Die Nummern stehen fest in §12.2, gemergt wird
-   in Planreihenfolge. Bestehende Arten werden nie umsortiert, umbenannt oder entfernt.
+   Nummer im Testbau ist egal). Position = Typnummer = Systemreihenfolge, **für immer**. Die Nummer wird in **Merge-Reihenfolge**
+   vergeben (nächste freie Registry-Position beim Rebase auf `master`, Entscheidung ab H-K4); die Tabelle in §12.2 ist nur ein
+   Reihenfolge-Vorschlag, die tatsächlich vergebenen Nummern stehen in §11.1. Wer nach dem Rebase eine andere Nummer bekommt als zuvor,
+   erzeugt die Hashes der **eigenen** neuen Fälle/Beispiele/Doku-Blöcke neu (Regel 6). Bestehende Arten werden nie umsortiert,
+   umbenannt oder entfernt.
 2. **Hashes bestehender Programme bleiben gleich.** Der Szenen-Hash (`abi.rs` `szenen_hash`) enthält je Komponente Handle, Typnummer und
    alle Spalten, aber **nicht** die Zahl der Arten – angehängte Arten ändern also nichts. Neue Felder an einer **bestehenden** Komponente
    nur als **Nachtragsfeld** (H-K0: gehasht nur, wenn vom Standard abweichend). Eine geänderte `.herd-erwartet` bzw. ein geänderter
@@ -421,9 +425,11 @@ H-K9 ← H-K8 · H-K11a ← H-K0 · H-K10 ← H-K1, H-K7 · H-K12 ← H-K0, H-K1
 Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 
 **Typnummern** (v1: 1 `Rechteck` · 2 `Kreis` · 3 `Text` · 4 `Bild` · 5 `Koerper` · 6 `Licht` · 7 `Kamera` · 8 `Bewegung` ·
-9 `Animation` · 10 `Partikel`):
+9 `Animation` · 10 `Partikel`). Die Spalte „Nr“ ist ab Nr. 14 nur ein **Vorschlag** in Planreihenfolge: vergeben wird in
+Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Bisher vergeben: 11 `Linie`, 12 `Rahmen`, 13 `Funken`, **14 `Gleiten`,
+15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt).
 
-| Nr | Komponente | Stufe | Raum | läuft in |
+| Nr (Vorschlag; vergeben: §11.1) | Komponente | Stufe | Raum | läuft in |
 |---|---|---|---|---|
 | 11 | `Linie` | H-K3a | 2D | – (Bildbeitrag) |
 | 12 | `Rahmen` | H-K3a | 2D | – |
@@ -431,8 +437,8 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 | 14 | `Blick` | H-K1 | 2D | – (Bildbau) |
 | 15 | `Leine` | H-K1 | beide | Nachlauf |
 | 16 | `Belag` | H-K2 | 3D | – |
-| 17 | `Gleiten` | H-K4 | beide | Takt |
-| 18 | `Ablauf` | H-K4 | beide | Takt |
+| 17 → vergeben **14** | `Gleiten` | H-K4 | beide | Takt |
+| 18 → vergeben **15** | `Ablauf` | H-K4 | beide | Takt |
 | 19 | `Fuehler` | H-K6 | beide | Nachlauf |
 | 20 | `Vieleck` | H-K3b | 2D | – |
 | 21 | `Vorlage` | H-K8 | beide | – |
@@ -446,8 +452,8 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 | 29 | `Regler` | H-K12 | 2D | Nachlauf |
 | 30 | `Tafel` | H-K12 | 2D | Nachlauf |
 
-**Ablauf eines Takts ab H-K0:** `fn()` → Takt-Systeme in Typnummer-Reihenfolge (Bewegung 8 vor Gleiten 17 vor Wucht 22) →
-**Nachlauf**-Systeme in Typnummer-Reihenfolge (Leine 15 vor Fühler 19 vor Knopf 27) → ab H-K13 Kniffe → Bild. Fühler sehen also die
+**Ablauf eines Takts ab H-K0:** `fn()` → Takt-Systeme in Typnummer-Reihenfolge (z. B. Bewegung 8 vor Gleiten 14 vor einer später gemergten Wucht) →
+**Nachlauf**-Systeme in Typnummer-Reihenfolge (in Merge-Reihenfolge, z. B. Leine vor Fühler vor Knopf, wenn so gemergt) → ab H-K13 Kniffe → Bild. Fühler sehen also die
 Lage nach Physik und Folgekamera desselben Takts; das Programm liest sie im nächsten Takt (wie Eingabe, §5).
 
 ### 12.3 Abnahme-Befehle
@@ -747,7 +753,7 @@ nächste freie Nummer daher **K-148** (vor dem Schreiben erneut prüfen und ggf.
 
 | Nr | Titel | Inhalt | mit |
 |---|---|---|---|
-| K-148 | Herd-Ausbau: Stufenplan und Verträglichkeit | Registry nur anhängen, feste Typnummern (§12.2), Hash-Stabilität (Nachtragsfelder), Bildpaket nur additiv (VERSION 1), bestehende `.herd-erwartet` = Regression | erste Stufe (H-K0) |
+| K-148 | Herd-Ausbau: Stufenplan und Verträglichkeit | Registry nur anhängen, Typnummern in Merge-Reihenfolge (§12.1), Hash-Stabilität (Nachtragsfelder), Bildpaket nur additiv (VERSION 1), bestehende `.herd-erwartet` = Regression | erste Stufe (H-K0) |
 | K-149 | Feldtypen `teil-liste`/`zahl-liste`, Lesefelder, Nachtragsfelder, Nachlauf | §12.4 H-K0, Texte, entfernte Teile fallen beim Lesen heraus | H-K0 |
 | K-150 | Fühler und Wucht: Ereignisse als Zustand je Takt, Formen, Masken, feste Iterationen | §12.4 H-K6/H-K7, v1-Grenzen (keine Drehdynamik, achsenparallele Hüllen) | H-K6 (Nachtrag H-K7) |
 | K-151 | Maus im Kern und Herd-UI-Bausteine | Export `eingabe`, nicht im Hash, Trefferregel, Welt-Maus am Blick | H-K12 |

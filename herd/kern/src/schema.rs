@@ -459,4 +459,38 @@ impl Speicher {
         });
         (&self.teil, sp)
     }
+
+    /// Wie [`Speicher::zahlen_mut`], dazu lesend mehrere Puffer-Spalten (`zahl-liste`/`puffer`) – für Systeme, die Listenfelder
+    /// lesen und zugleich Zahlenfelder schreiben (H-K4 `Ablauf`; später Fühler, Fliesen, Gelände). Alle Indizes paarweise verschieden.
+    pub fn zahlen_puffer_mut<const N: usize, const M: usize>(
+        &mut self,
+        felder: [usize; N],
+        puffer: [usize; M],
+    ) -> (&[u32], [&mut [f64]; N], [&[Vec<f64>]; M]) {
+        let anzahl = self.spalten.len();
+        for i in 0..N + M {
+            let a = if i < N { felder[i] } else { puffer[i - N] };
+            assert!(a < anzahl, "Spalte fehlt");
+            for j in 0..i {
+                let b = if j < N { felder[j] } else { puffer[j - N] };
+                assert!(a != b, "Spalte doppelt");
+            }
+        }
+        let basis = self.spalten.as_mut_ptr();
+        let sp = felder.map(|f| {
+            // Sicherheit: Indizes sind verschieden und gültig → disjunkte Borrows.
+            match unsafe { &mut *basis.add(f) } {
+                Spalte::Zahl(v) => v.as_mut_slice(),
+                _ => &mut [],
+            }
+        });
+        let pu = puffer.map(|f| {
+            // Sicherheit: wie oben; nur gelesen, von den Zahlenspalten verschieden.
+            match unsafe { &*basis.add(f) } {
+                Spalte::Puffer(v) => v.as_slice(),
+                _ => &[],
+            }
+        });
+        (&self.teil, sp, pu)
+    }
 }

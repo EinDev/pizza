@@ -1,0 +1,96 @@
+// Speisekarte – in der Pizzeria gleitet die Menütafel federnd herein, die Zeilen folgen eine nach der anderen,
+// und der Bote läuft seine Runde von der Tür an den Tischen vorbei zum Ofen und zurück.
+// Leertaste: Karte weg- bzw. wieder hereinschieben.
+//
+// So arbeitet die Engine für dich: Gleiten (Tween) bewegt eine Größe der Lage – x, y, Drehung, Größe … – mit einer Kurve
+// zu einem Ziel (einmal, wiederholen oder pendeln); Ablauf spielt Keyframes ab: zu den Zeiten in `zeiten` stehen die
+// Werte aus `xWerte`, `yWerte` …, dazwischen wird weich übergeblendet. Das Programm setzt nur Ziele und Listen.
+
+Herd herd = neu Herd("Speisekarte", breite: 640, hoehe: 360);
+herd.hintergrund("#3b2a22");
+
+// ---------- Raum: Wand mit Leiste, Fliesenboden, Ofen, Tür ----------
+herd.rechteck(320, 300, 640, 120, farbe: "#c8955a");
+für (salami i = 0; i < 16; i++) {
+    für (salami j = 0; j < 3; j++) {
+        falls ((i + j) % 2 == 0) { herd.rechteck(20 + i * 40, 260 + j * 40, 40, 40, farbe: "#b5824c"); }
+    }
+}
+herd.rechteck(320, 240, 640, 8, farbe: "#2a1d17");
+herd.rechteck(612, 190, 50, 100, farbe: "#5e3a26", rundung: 6);
+herd.kreis(596, 196, 3, farbe: "senf");
+herd.rechteck(70, 205, 110, 70, farbe: "#8c7f74", rundung: 10);
+herd.rechteck(70, 168, 90, 40, farbe: "#b5603a", rundung: 20);
+herd.rechteck(70, 210, 50, 30, farbe: "#ffad42", rundung: 14);
+
+// ---------- Hängelampen: pendeln sanft hin und her (Gleiten mit was: "drehung") ----------
+für (salami i = 0; i < 2; i++) {
+    Teil lampe = herd.gruppe(170 + i * 130, 0).setzeDrehung(-6);
+    herd.gruppe().haenge(lampe).mit(neu Linie(zuX: 0, zuY: 70, dicke: 2, farbe: "#1e1612"));
+    herd.kreis(0, 78, 12, farbe: "#f2b33d").haenge(lampe);
+    herd.rechteck(0, 70, 30, 10, farbe: "#2a1d17", rundung: 5).haenge(lampe);
+    lampe.mit(neu Gleiten(was: "drehung", nach: 6, dauer: 1.6 + i * 0.2, schleife: "pendeln"));
+}
+
+// ---------- Tische ----------
+für (salami i = 0; i < 3; i++) {
+    herd.rechteck(170 + i * 130, 262, 8, 40, farbe: "#5e3a26");
+    herd.rechteck(170 + i * 130, 240, 90, 12, farbe: "weiss", rundung: 4);
+    herd.rechteck(170 + i * 130, 236, 90, 4, farbe: "tomate");
+}
+
+// ---------- Der Bote: ein Bildchen, das einen Ablauf-Pfad läuft und bei jedem Schritt hüpft ----------
+Speisekarte<margherita, margherita> farben = neu Speisekarte<margherita, margherita>();
+farben.lege("h", "#f2c9a0").lege("j", "#2e6fd9").lege("x", "#c8955a");
+Bildchen figur = neu Bildchen(["..ttt...", ".ttttt..", "..hhh...", "..hhh.xx", ".jjjjjxx", ".jjjj.xx", "..oo....", "..o.o..."], farben: farben);
+Teil bote = herd.gruppe(600, 218);
+Teil koerper = herd.bild(figur, 0, 0, groesse: 4).haenge(bote);
+koerper.mit(neu Gleiten(was: "y", nach: -4, dauer: 0.16, kurve: "raus", schleife: "pendeln"));
+bote.mit(neu Ablauf(
+    zeiten:  [0,   1.4, 2.2, 3.4, 4.2, 5.4, 6.2, 7.4, 8.6, 11.2],
+    xWerte:  [600, 430, 430, 300, 300, 170, 170, 130, 130, 600],
+    yWerte:  [218, 218, 214, 218, 214, 218, 214, 218, 218, 218],
+    kurve: "sanft"));
+
+// ---------- Die Menütafel: ein Rahmen (9-Slice), gleitet federnd von rechts herein ----------
+Bildchen brett = neu Bildchen([".kkkkkkk.", "kkkkkkkkk", "kkoooookk", "kkoooookk", "kkoooookk",
+                               "kkoooookk", "kkoooookk", "kkkkkkkkk", ".kkkkkkk."]);
+Teil tafel = herd.gruppe(820, 120).setzeEbene(10);
+tafel.mit(neu Rahmen(bildchen: brett, kante: 3, breite: 250, hoehe: 200, groesse: 4));
+Gleiten herein = tafel.mit(neu Gleiten(nach: 460, dauer: 1.4, kurve: "federnd"));
+herd.text("Speisekarte", 0, -84, groesse: 22, farbe: "mozzarella", ausrichtung: "mitte").haenge(tafel).setzeEbene(11);
+herd.gruppe(-90, -54).haenge(tafel).setzeEbene(11).mit(neu Linie(zuX: 180, zuY: 0, dicke: 2, farbe: "kruste", rund: ja));
+
+Blech<margherita> namen = ["Margherita", "Funghi", "Diavolo", "Quattro Formaggi", "Hawaii (nur heute)"];
+Blech<margherita> preise = ["7,50 €", "8,90 €", "9,50 €", "10,90 €", "6,66 €"];
+für (salami i = 0; i < 5; i++) {
+    // jede Zeile ist ein Kind der Tafel und gleitet zusätzlich in sich: später und kürzer – so folgen sie nacheinander
+    Teil zeile = herd.gruppe(300, -38 + i * 26).haenge(tafel).setzeEbene(11);
+    herd.text(namen.stück(i + 1), -100, 0, groesse: 14, farbe: "mozzarella").haenge(zeile).setzeEbene(11);
+    herd.text(preise.stück(i + 1), 100, 0, groesse: 14, farbe: "senf", ausrichtung: "rechts").haenge(zeile).setzeEbene(11);
+    zeile.mit(neu Gleiten(nach: 0, dauer: 1.2 + i * 0.25, kurve: "raus"));
+}
+// Stempel „neu“: pulsiert (Größe pendelt)
+Teil stempel = herd.gruppe(112, -86).haenge(tafel).setzeEbene(12).setzeDrehung(14);
+herd.kreis(0, 0, 18, farbe: "tomate").haenge(stempel).setzeEbene(12);
+herd.text("neu", 0, -7, groesse: 13, farbe: "weiss", ausrichtung: "mitte").haenge(stempel).setzeEbene(13);
+stempel.mit(neu Gleiten(was: "groesse", nach: 1.18, dauer: 0.5, schleife: "pendeln"));
+
+herd.text("Leertaste: Karte weg / her", 320, 338, groesse: 14, farbe: "#fff6e0c0", ausrichtung: "mitte").setzeEbene(20);
+
+// ---------- Spielschleife: Blickrichtung des Boten, Karte auf Knopfdruck ----------
+diavolo offen = ja;
+funghi altX = bote.x();
+herd.backe(() -> {
+    falls (bote.x() < altX) { koerper.bild().setzeSpiegeln(ja); }
+    falls (bote.x() > altX) { koerper.bild().setzeSpiegeln(nein); }
+    altX = bote.x();
+    falls (herd.gedrueckt("Leertaste")) {
+        offen = !offen;
+        falls (offen) { herein.setzeKurve("federnd").setzeNach(460); }
+        sonst { herein.setzeKurve("rein").setzeNach(820); }
+        herein.setzeDauer(0.9).setzeLaeuft(ja);
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: Karte " + (offen ? "offen" : "weggeschoben") + " bei x = " + tafel.x().runden(1)
+    + ", Bote bei x = " + bote.x().runden(1) + "."));

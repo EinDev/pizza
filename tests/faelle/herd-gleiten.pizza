@@ -1,0 +1,25 @@
+// Herd §18.6 / HERD.md §12.4 H-K4: Gleiten – Tween einer Lage-Größe (Startwert im ersten Takt, Endwert exakt, neu starten,
+// pendeln, wiederholen, Kurven), Fehlertexte
+Herd herd = neu Herd("Gleiten", breite: 320, hoehe: 180);
+Teil tafel = herd.rechteck(-80, 90, 120, 60, farbe: "teig", rundung: 8);
+Gleiten g = tafel.mit(neu Gleiten(nach: 160, dauer: 0.1, kurve: "federnd"));
+Bote.sage((g + " " + g.was() + " " + g.nach() + " " + g.dauer() + " " + g.kurve() + " " + g.schleife() + " " + g.laeuft()));
+Gleiten vorgabe = herd.gruppe().mit(neu Gleiten());
+Bote.sage((vorgabe.was() + " " + vorgabe.nach() + " " + vorgabe.dauer() + " " + vorgabe.kurve() + " " + vorgabe.schleife() + " " + vorgabe.laeuft()));
+Teil stern = herd.kreis(160, 40, 10, farbe: "senf");
+stern.mit(neu Gleiten(was: "groesse", nach: 2, dauer: 0.05, kurve: "linear", schleife: "pendeln"));
+Teil rad = herd.rechteck(260, 140, 30, 6, farbe: "tomate");
+rad.mit(neu Gleiten(was: "drehung", nach: 90, dauer: 0.1, kurve: "huepfend", schleife: "wiederholen"));
+Teil ball = herd.kreis(40, 20, 6, farbe: "basilikum");
+Gleiten wurf = ball.mit(neu Gleiten(was: "y", nach: 160, dauer: 0.15, kurve: "rein"));
+salami fertig = 0;
+herd.backe(() -> {
+    falls (herd.bildnummer() == 7) { Bote.sage(("Takt 7: Tafel bei x = " + tafel.x() + ", läuft " + g.laeuft())); g.setzeNach(200).setzeLaeuft(ja); }
+    falls (fertig == 0 && !wurf.laeuft()) { fertig = herd.bildnummer(); }
+});
+Bote.sage(("nach " + herd.bildnummer() + " Takten: Tafel bei x = " + tafel.x() + ", läuft " + g.laeuft() + ", Stern " + stern.groesse().runden(3)
+    + ", Rad " + rad.drehung().runden(2) + ", Ball bei y = " + ball.y() + " (fertig vor Takt " + fertig + ")"));
+probier { g.setzeDauer(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeKurve("zappelig"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeWas("farbe"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { tafel.mit(neu Gleiten(was: "y")); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

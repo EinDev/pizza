@@ -1,0 +1,8 @@
+Gleiten(3) x 160 0.1 federnd einmal ja
+x 0 1 sanft einmal ja
+Takt 7: Tafel bei x = 160, läuft nein
+nach 12 Takten: Tafel bei x = 200, läuft nein, Stern 1, Rad 90, Ball bei y = 160 (fertig vor Takt 10)
+LaufzeitAnanas: Gleiten.dauer muss mindestens 0 sein, nicht -1.
+LaufzeitAnanas: Gleiten.kurve kennt 'zappelig' nicht. Erlaubt: linear, sanft, rein, raus, federnd, huepfend.
+LaufzeitAnanas: Gleiten.was kennt 'farbe' nicht. Erlaubt: x, y, z, drehung, neigung, rollen, groesse.
+LaufzeitAnanas: Teil 3 hat schon ein Gleiten.

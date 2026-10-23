@@ -43,7 +43,8 @@ Sortierungen haben eindeutige Schlüssel bzw. sind stabil.
 pub static ARTEN: &[&Art] = &[
     &rechteck::ART, &kreis::ART, &text::ART, &bild::ART, &koerper::ART, &licht::ART, &kamera::ART,
     &bewegung::ART, &animation::ART, &partikel::ART,
-    &linie::ART, &rahmen::ART, &funken::ART,           // Ausbau (HERD.md §12.2): feste Typnummern 11, 12, 13, …
+    &linie::ART, &rahmen::ART, &funken::ART,           // Ausbau (HERD.md §12.2): Typnummern 11, 12, 13, …
+    &gleiten::ART, &ablauf::ART,                       // 14, 15 (H-K4); vergeben in Merge-Reihenfolge (HERD.md §12.1)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -75,6 +76,8 @@ Position + 1 (nur öffentliche Felder). Merkmale: `.lesen()` (**Lesefeld**: jede
 lesen.`, Code 32; nur Systeme schreiben über den Speicher) und `.nachtrag()` (**Nachtragsfeld**: der Szenen-Hash überspringt es,
 solange der Wert bitgleich dem Standard ist – so bekommt eine bestehende Komponente neue Felder, ohne dass sich Hashes bestehender
 Programme ändern; öffentliche Nachtragsfelder stehen vor den verborgenen, Konstanten für verborgene Spalten also mitziehen).
+Systeme, die Listenfelder lesen und zugleich Zahlenfelder schreiben, holen beides auf einmal mit
+`Speicher::zahlen_puffer_mut([zahl-felder], [listen-felder])` (H-K4 `Ablauf`; disjunkte Spalten wie `zahlen_mut`).
 Anleitung für neue Komponenten: §8 und HERD.md §9.
 
 ## 3. Herd-ABI
@@ -279,7 +282,8 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   und in voller Größe (HERD.md §6, wenige Takte) sowie `hierarchie.herd` (Hierarchie mit Drehung, Kopie, Entfernen,
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
   Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
-  mit 20 000 Teilchen). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
+  Springen, klein und voll mit 9 000 Gleitern). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.

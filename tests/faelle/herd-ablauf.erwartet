@@ -1,0 +1,8 @@
+Ablauf(3) [0, 0.05, 0.1, 0.15] [40, 280, 280, 40] [140, 140, 40] [] sanft ja 1 0 ja
+[] [] linear ja 1 ja
+Takt 6: Bote bei 280, 65.93, Fahne 3 nein
+nach 12 Takten: Bote bei 280, 40, Drehung 180, zeit 0.1, läuft nein; Fahne 3 nein; zurück bei x = 120, zeit 0.4
+LaufzeitAnanas: Ablauf.zeiten muss mindestens 0 sein, nicht -1.
+LaufzeitAnanas: Ablauf.kurve kennt 'federnd' nicht. Erlaubt: linear, sanft.
+LaufzeitAnanas: Ablauf.zeit muss mindestens 0 sein, nicht -2.
+LaufzeitAnanas: Teil 3 hat schon einen Ablauf.

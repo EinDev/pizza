@@ -1,0 +1,12 @@
+vor dem Anhängen: [0, 0.5, 1.25] [10, -20.5, 30] [] leer ja
+angehängt: [0, 0.5, 1.25] Länge 3, zweites Stück 0.5, Original [7, 0.5, 1.25, 9]
+Kopie [-1, -20.5, 30, 99], Komponente [10, -20.5, 30]
+ja [1, 2.5, -0.125] [45] 1.75
+geleert: [] 0
+nach 2 Takten: y = 1.1, Drehung 45, x bleibt 50
+LaufzeitAnanas: Ablauf.zeiten muss mindestens 0 sein, nicht -1.
+TypAnanas: Ablauf.xWerte braucht ein Blech aus Zahlen, nicht 5.
+TypAnanas: Ablauf.yWerte braucht ein Blech aus Zahlen, nicht "1, 2".
+TypAnanas: Ablauf.zWerte braucht ein Blech aus Zahlen, nicht [1, zwei].
+LaufzeitAnanas: Ablauf.groesseWerte darf höchstens 65536 Einträge haben, nicht 65537.
+65536 Einträge: 65536, letzter 65536, Zeiten unverändert [0, 0.5, 1.25]

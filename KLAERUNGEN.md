@@ -2019,8 +2019,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 
 ### K-148 Herd-Ausbau: Stufenplan und Verträglichkeit (HERD.md §12)
 - **Frage:** Wie wachsen Kern und Komponenten über v1 hinaus (H-K0 … H-K14), ohne bestehende Programme, Tests und Bilder zu brechen?
-- **Entscheidung:** Registry nur hinten anhängen (vor der Testzeile `Probe`), feste Typnummern nach HERD.md §12.2 (Position = Typnummer =
-  Systemreihenfolge, für immer); der Szenen-Hash enthält die Zahl der Arten nicht. Neue Felder an bestehenden Komponenten nur als
+- **Entscheidung:** Registry nur hinten anhängen (vor der Testzeile `Probe`), Typnummern in Merge-Reihenfolge (nächste freie Position
+  beim Rebase; HERD.md §12.2 nur Reihenfolge-Vorschlag, vergebene Nummern in §11.1; Position = Typnummer = Systemreihenfolge, für immer); der Szenen-Hash enthält die Zahl der Arten nicht. Neue Felder an bestehenden Komponenten nur als
   **Nachtragsfeld** (K-149). Bildpaket nur additiv (`VERSION` bleibt 1, neue Abschnitte/Arten nur, wenn die neue Komponente benutzt wird).
   Eine geänderte `.herd-erwartet`, ein geänderter `herdErwartet`-Block oder ein geändertes Referenzbild eines bestehenden Falls ist eine
   Regression. Komponenten-Literale schreiben `..Art::LEER`, damit neue Eigenschaften von `Art` keine Komponenten-Datei ändern.

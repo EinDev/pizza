@@ -1,0 +1,35 @@
+// Herd §18.4 (K-149) / HERD.md §12.4 H-K0+H-K4: Feldtyp zahl-liste (Blech aus Zahlen) am ersten Nutzer Ablauf –
+// Konstruktor, Getter/Setter, generisch hole/setze, Kopie in beide Richtungen, Bereich je Eintrag, Typfehler, Längengrenze
+Herd herd = neu Herd("Zahlenlisten", breite: 320, hoehe: 180);
+Blech<funghi> zeiten = [0, 0.5, 1.25];
+Ablauf a = neu Ablauf(zeiten: zeiten, xWerte: [10, -20.5, 30]);
+Bote.sage(("vor dem Anhängen: " + a.zeiten() + " " + a.xWerte() + " " + a.yWerte() + " leer " + a.yWerte().istLeer()));
+// das übergebene Blech später ändern ändert die Komponente nicht
+zeiten.hinzu(9);
+zeiten.setze(1, 7);
+Teil t = herd.gruppe(50, 50);
+t.mit(a);
+Bote.sage(("angehängt: " + t.ablauf().zeiten() + " Länge " + a.zeiten().länge() + ", zweites Stück " + a.zeiten().stück(2) + ", Original " + zeiten));
+// der Getter liefert ein neues Blech: Ändern daran ändert die Komponente nicht
+Blech<funghi> kopie = a.xWerte();
+kopie.hinzu(99).setze(1, -1);
+Bote.sage(("Kopie " + kopie + ", Komponente " + a.xWerte()));
+// Setter (liefert die Komponente), generisch setze/hole, leeres Blech, ganze und gebrochene Zahlen gemischt
+Ablauf b = a.setzeYWerte([1, 2.5, -0.125]).setze("drehWerte", [45]);
+Bote.sage(((b == a) + " " + a.yWerte() + " " + a.hole("drehWerte") + " " + a.hole("zeiten").summe()));
+a.setzeXWerte([]);
+Bote.sage(("geleert: " + a.xWerte() + " " + a.xWerte().länge()));
+// das System liest die Listen: y gleitet von 1 nach 2.5, drehWerte (ein Wert) gilt durchgehend, xWerte leer = x frei
+herd.backe();
+Bote.sage(("nach " + herd.bildnummer() + " Takten: y = " + t.y().runden(4) + ", Drehung " + t.drehung() + ", x bleibt " + t.x()));
+// Fehler: Bereich je Eintrag, falscher Typ (Zahl, Text, Blech mit Text), Längengrenze 65536
+probier { a.setzeZeiten([0, 1, -1]); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
+probier { a.setzeXWerte(5); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
+probier { a.setze("yWerte", "1, 2"); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
+probier { neu Ablauf(zWerte: [1, "zwei"]); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
+Blech<funghi> lang = [];
+für (salami i = 0; i < 65537; i++) { lang.hinzu(i); }
+probier { a.setzeGroesseWerte(lang); } verbrannt (Ananas e) { Bote.sage((e.typ() + ": " + e.nachricht())); }
+lang.entferne(1);
+a.setzeGroesseWerte(lang);
+Bote.sage(("65536 Einträge: " + a.groesseWerte().länge() + ", letzter " + a.groesseWerte().letztes() + ", Zeiten unverändert " + a.zeiten()));

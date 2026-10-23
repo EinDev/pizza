@@ -855,7 +855,8 @@ mod hk0 {
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
-        for a in ARTEN.iter().filter(|a| !a.nur_test) {
+        // nur die Arten bis Funken (13, Welle W1); ab W2 nutzen Ausbau-Arten die neuen Eigenschaften (H-K4: zahl-liste)
+        for a in ARTEN.iter().take(13).filter(|a| !a.nur_test) {
             assert!(a.nachlauf.is_none(), "{}", a.schema.name);
             for f in a.schema.felder {
                 assert!(!f.lesen && !f.nachtrag, "{}.{}", a.schema.name, f.name);
@@ -988,4 +989,250 @@ fn funken_bitgleich_und_eigene_saat() {
     };
     assert_eq!(lauf(5.0), lauf(5.0));
     assert_ne!(lauf(5.0), lauf(6.0));
+}
+
+/// H-K4: Typnummern in Merge-Reihenfolge (HERD.md §12.1 Regel 1, §11.1): Gleiten 14, Ablauf 15.
+fn hk4_typen(k: &mut Kern) -> (i32, i32) {
+    let (gl, ab) = (typ(k, "Gleiten"), typ(k, "Ablauf"));
+    assert_eq!((gl, ab), (14, 15));
+    (gl, ab)
+}
+
+#[test]
+fn gleiten_endwert_exakt_pendeln_wiederholen() {
+    let mut k = welt();
+    let (gl, _) = hk4_typen(&mut k);
+    let (was, nach, dauer, kurve, schleife, laeuft) = (
+        feld(&mut k, gl, "was"),
+        feld(&mut k, gl, "nach"),
+        feld(&mut k, gl, "dauer"),
+        feld(&mut k, gl, "kurve"),
+        feld(&mut k, gl, "schleife"),
+        feld(&mut k, gl, "laeuft"),
+    );
+    // Standard: x, nach 0, dauer 1, sanft, einmal, läuft
+    let t = k.teil_neu(2);
+    k.teil_lage(t, 100.0, 50.0, 0.0);
+    let c = k.komp_neu(gl);
+    assert_eq!(text(&mut k, c, was), "x");
+    assert_eq!(text(&mut k, c, kurve), "sanft");
+    assert_eq!(text(&mut k, c, schleife), "einmal");
+    assert_eq!((k.hole_zahl(c, dauer), k.hole_zahl(c, laeuft)), (1.0, 1.0));
+    k.setze_zahl(c, nach, 400.0);
+    // Startwert erst im ersten laufenden Takt: Lage vor dem Anhängen geändert → gilt
+    k.teil_lage(t, 200.0, 50.0, 0.0);
+    k.komp_haenge(c, t);
+    k.takt();
+    let x1 = k.teil_hole(t, tf::X);
+    assert!(x1 > 200.0 && x1 < 201.0, "{}", x1);
+    // Mitte (30 Takte) bei sanft: genau die Hälfte bis auf Rundung
+    for _ in 1..30 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t, tf::X) - 300.0).abs() < 1e-9);
+    // dauer 1 endet nach genau 60 Takten exakt auf nach, laeuft → nein
+    for _ in 30..59 {
+        k.takt();
+    }
+    assert_eq!(k.hole_zahl(c, laeuft), 1.0);
+    assert!(k.teil_hole(t, tf::X) < 400.0);
+    k.takt();
+    assert_eq!(k.teil_hole(t, tf::X), 400.0);
+    assert_eq!(k.hole_zahl(c, laeuft), 0.0);
+    k.takt();
+    assert_eq!(k.teil_hole(t, tf::X), 400.0);
+    // wieder einschalten: neuer Start vom aktuellen Wert
+    k.setze_zahl(c, nach, 100.0);
+    k.setze_zahl(c, laeuft, 1.0);
+    k.setze_text(c, kurve, b"linear");
+    k.setze_zahl(c, dauer, 0.5);
+    for _ in 0..15 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t, tf::X) - 250.0).abs() < 1e-9);
+    // nach während des Laufs geändert: neuer Start vom aktuellen Wert (250 → 350 in 0,5 s)
+    k.setze_zahl(c, nach, 350.0);
+    for _ in 0..15 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t, tf::X) - 300.0).abs() < 1e-9);
+    for _ in 0..15 {
+        k.takt();
+    }
+    assert_eq!((k.teil_hole(t, tf::X), k.hole_zahl(c, laeuft)), (350.0, 0.0));
+
+    // pendeln (linear, Größe): hin in 1 s, zurück in 1 s, läuft weiter
+    let t2 = k.teil_neu(3);
+    let c2 = k.komp_neu(gl);
+    k.setze_text(c2, was, b"groesse");
+    k.setze_zahl(c2, nach, 3.0);
+    k.setze_text(c2, kurve, b"linear");
+    k.setze_text(c2, schleife, b"pendeln");
+    k.komp_haenge(c2, t2);
+    for _ in 0..60 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t2, tf::GROESSE_X) - 3.0).abs() < 1e-9);
+    assert_eq!(k.teil_hole(t2, tf::GROESSE_Y), k.teil_hole(t2, tf::GROESSE_X));
+    assert_eq!(k.teil_hole(t2, tf::GROESSE_Z), k.teil_hole(t2, tf::GROESSE_X));
+    for _ in 0..30 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t2, tf::GROESSE_X) - 2.0).abs() < 1e-9);
+    for _ in 0..30 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t2, tf::GROESSE_X) - 1.0).abs() < 1e-9);
+    assert_eq!(k.hole_zahl(c2, laeuft), 1.0);
+
+    // wiederholen (drehung, rein): nach jeder Runde von vorn
+    let t3 = k.teil_neu(2);
+    let c3 = k.komp_neu(gl);
+    k.setze_text(c3, was, b"drehung");
+    k.setze_zahl(c3, nach, 90.0);
+    k.setze_text(c3, kurve, b"rein");
+    k.setze_text(c3, schleife, b"wiederholen");
+    k.komp_haenge(c3, t3);
+    for _ in 0..30 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t3, tf::DREHUNG) - 22.5).abs() < 1e-9);
+    for _ in 0..60 {
+        k.takt();
+    }
+    assert!((k.teil_hole(t3, tf::DREHUNG) - 22.5).abs() < 1e-9);
+
+    // 2D: z/neigung/rollen wirken nicht (kein Fehler), dauer 0 springt sofort, Fehler im Bereich
+    let c4 = k.komp_neu(gl);
+    let t4 = k.teil_neu(2);
+    k.setze_text(c4, was, b"neigung");
+    k.setze_zahl(c4, nach, 45.0);
+    k.komp_haenge(c4, t4);
+    k.takt();
+    assert_eq!(k.teil_hole(t4, tf::DREHUNG), 0.0);
+    k.setze_text(c4, was, b"y");
+    k.setze_zahl(c4, dauer, 0.0);
+    k.takt();
+    assert_eq!((k.teil_hole(t4, tf::Y), k.hole_zahl(c4, laeuft)), (45.0, 0.0));
+    assert_eq!(k.setze_zahl(c4, dauer, -1.0), -2);
+    assert_eq!(k.fehler_text(), "Gleiten.dauer muss mindestens 0 sein, nicht -1.");
+    assert_eq!(k.setze_text(c4, kurve, b"zappelig"), -2);
+    assert_eq!(k.fehler_text(), "Gleiten.kurve kennt 'zappelig' nicht. Erlaubt: linear, sanft, rein, raus, federnd, huepfend.");
+    // zweites Gleiten am selben Teil
+    let c5 = k.komp_neu(gl);
+    assert_eq!(k.komp_haenge(c5, t4), -2);
+    assert_eq!(k.fehler_text(), format!("Teil {} hat schon ein Gleiten.", t4));
+}
+
+#[test]
+fn gleiten_kurven_ende_und_bitgleich() {
+    use crate::komponenten::gleiten::{kurve_wert, KURVEN};
+    for k in 0..KURVEN.len() as u32 {
+        assert_eq!(kurve_wert(k, 0.0), 0.0);
+        assert_eq!(kurve_wert(k, 1.0), 1.0);
+        assert_eq!(kurve_wert(k, -0.5), 0.0);
+        assert_eq!(kurve_wert(k, f64::NAN), 0.0);
+    }
+    assert_eq!(kurve_wert(1, 0.5), 0.5);
+    assert_eq!(kurve_wert(2, 0.5), 0.25);
+    assert_eq!(kurve_wert(3, 0.5), 0.75);
+    // federnd schwingt über 1 hinaus, huepfend prallt (Stelle 1/2.75 berührt 1)
+    assert!((0..100).map(|i| kurve_wert(4, i as f64 / 100.0)).any(|v| v > 1.0));
+    assert!((kurve_wert(5, 1.0 / 2.75) - 1.0).abs() < 1e-12);
+    assert!(kurve_wert(5, 0.5) < 1.0);
+    // nur libm, keine FMA: dieselben Bits wie die Formel (nativ = Wasm prüft test-kern.js an der Szene gleiten.herd)
+    let c4 = 2.0 * core::f64::consts::PI / 3.0;
+    assert_eq!(kurve_wert(4, 0.3).to_bits(), (libm::pow(2.0, -3.0) * libm::sin((0.3 * 10.0 - 0.75) * c4) + 1.0).to_bits());
+}
+
+#[test]
+fn ablauf_schluessel_schleife_und_halt() {
+    let mut k = welt();
+    let (_, ab) = hk4_typen(&mut k);
+    let f = |k: &mut Kern, n: &str| feld(k, ab, n);
+    let (zeiten, xw, yw, gw, dw) = (f(&mut k, "zeiten"), f(&mut k, "xWerte"), f(&mut k, "yWerte"), f(&mut k, "groesseWerte"), f(&mut k, "drehWerte"));
+    let (kurve, schleife, tempo, zeit, laeuft) = (f(&mut k, "kurve"), f(&mut k, "schleife"), f(&mut k, "tempo"), f(&mut k, "zeit"), f(&mut k, "laeuft"));
+    let t = k.teil_neu(2);
+    k.teil_lage(t, 7.0, 8.0, 0.0);
+    let c = k.komp_neu(ab);
+    assert_eq!(text(&mut k, c, kurve), "linear");
+    assert_eq!((k.hole_zahl(c, schleife), k.hole_zahl(c, tempo), k.hole_zahl(c, zeit), k.hole_zahl(c, laeuft)), (1.0, 1.0, 0.0, 1.0));
+    k.komp_haenge(c, t);
+    // leer: nichts animiert
+    k.takt();
+    assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y)), (7.0, 8.0));
+    // Pfad: 0 s → (0, 0), 1 s → (100, 0), 2 s → (100, 50); groesseWerte kürzer → letzter gilt weiter; drehWerte leer
+    assert_eq!(k.setze_zahlen(c, zeiten, &[0.0, 1.0, 2.0]), 0);
+    assert_eq!(k.setze_zahlen(c, xw, &[0.0, 100.0, 100.0]), 0);
+    assert_eq!(k.setze_zahlen(c, yw, &[0.0, 0.0, 50.0]), 0);
+    assert_eq!(k.setze_zahlen(c, gw, &[2.0]), 0);
+    k.setze_zahl(c, laeuft, 0.0);
+    assert_eq!(k.setze_zahl(c, zeit, 0.5), 0);
+    // angehalten, aber zeit gesetzt → springt einmal dorthin
+    k.takt();
+    assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y), k.teil_hole(t, tf::GROESSE_X)), (50.0, 0.0, 2.0));
+    assert_eq!(k.teil_hole(t, tf::DREHUNG), 0.0);
+    k.teil_lage(t, 1.0, 1.0, 0.0);
+    k.takt();
+    assert_eq!(k.teil_hole(t, tf::X), 1.0); // angehalten: keine Wirkung
+    k.setze_zahl(c, laeuft, 1.0);
+    k.setze_zahl(c, zeit, 1.0);
+    for _ in 0..30 {
+        k.takt();
+    }
+    assert!((k.hole_zahl(c, zeit) - 1.5).abs() < 1e-12);
+    assert!((k.teil_hole(t, tf::Y) - 25.0).abs() < 1e-9);
+    assert!((k.teil_hole(t, tf::X) - 100.0).abs() < 1e-12);
+    // Schleife: über 2 s hinaus von vorn
+    for _ in 0..45 {
+        k.takt();
+    }
+    assert!((k.hole_zahl(c, zeit) - 0.25).abs() < 1e-9);
+    assert!((k.teil_hole(t, tf::X) - 25.0).abs() < 1e-6);
+    // ohne Schleife: Halt am Ende, laeuft → nein, Endwerte exakt
+    k.setze_zahl(c, schleife, 0.0);
+    k.setze_text(c, kurve, b"sanft");
+    k.setze_zahl(c, tempo, 2.0);
+    for _ in 0..60 {
+        k.takt();
+    }
+    assert_eq!((k.hole_zahl(c, zeit), k.hole_zahl(c, laeuft)), (2.0, 0.0));
+    assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y)), (100.0, 50.0));
+    // rückwärts bis 0
+    k.setze_zahl(c, tempo, -4.0);
+    k.setze_zahl(c, laeuft, 1.0);
+    for _ in 0..40 {
+        k.takt();
+    }
+    assert_eq!((k.hole_zahl(c, zeit), k.hole_zahl(c, laeuft)), (0.0, 0.0));
+    assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y)), (0.0, 0.0));
+    // sanft zwischen zwei Schlüsseln: Viertel = 0.15625 des Wegs
+    k.setze_zahl(c, zeit, 0.25);
+    k.takt();
+    assert!((k.teil_hole(t, tf::X) - 15.625).abs() < 1e-9);
+    // gleiche Zeiten = Sprung; Bereichsfehler je Eintrag
+    assert_eq!(k.setze_zahlen(c, zeiten, &[0.0, 1.0, 1.0]), 0);
+    k.setze_zahl(c, zeit, 1.0);
+    k.takt();
+    assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y)), (100.0, 50.0));
+    assert_eq!(k.setze_zahlen(c, zeiten, &[0.0, -1.0]), -2);
+    assert_eq!(k.fehler_text(), "Ablauf.zeiten muss mindestens 0 sein, nicht -1.");
+    assert_eq!(k.setze_zahlen(c, dw, &[f64::NAN, 1.0]), 0);
+    // 3D: zWerte und Größe auf allen Achsen
+    let zw = f(&mut k, "zWerte");
+    let t3 = k.teil_neu(3);
+    let c3 = k.komp_neu(ab);
+    k.setze_zahlen(c3, zeiten, &[0.0, 1.0]);
+    k.setze_zahlen(c3, zw, &[-2.0, 2.0]);
+    k.setze_zahlen(c3, gw, &[1.0, 3.0]);
+    k.komp_haenge(c3, t3);
+    for _ in 0..30 {
+        k.takt();
+    }
+    assert!(k.teil_hole(t3, tf::Z).abs() < 1e-9);
+    assert!((k.teil_hole(t3, tf::GROESSE_Z) - 2.0).abs() < 1e-9);
+    // 2D: zWerte wirken nicht
+    k.setze_zahlen(c, zw, &[5.0]);
+    k.takt();
+    assert_eq!(k.teil_hole(t, tf::Z), 0.0);
 }

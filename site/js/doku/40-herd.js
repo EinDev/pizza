@@ -286,7 +286,9 @@
                 ["`Partikel`","2D","`rate` 30, `lebensdauer` 1, `tempo` 80, `richtung` 270, `streuung` 360, `schwerkraft` 0, `groesse` 6, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `aktiv` ja, `saat` 0","Teilchen-Sprüher, die Teilchen leben in der Engine; `richtung` 0 = rechts, 90 = unten"],
                 ["`Linie`","2D","`zuX` 100, `zuY` 0, `dicke` 2, `farbe` ofen, `rund` nein","Strecke von der Lage des Teils zum Endpunkt (`zuX`, `zuY`) relativ zum Teil; `rund` = runde Enden"],
                 ["`Rahmen`","2D","`bildchen` karton, `kante` 4, `breite` 64, `hoehe` 32, `groesse` 1, `farbe` weiss","9-Slice-Tafel: Ecken (`kante` Bildchen-Pixel) bleiben scharf, Kanten und Mitte werden auf `breite` × `hoehe` gestreckt"],
-                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"]
+                ["`Funken`","3D","`rate` 30, `lebensdauer` 1, `tempo` 2, `richtungX` 0, `richtungY` 1, `richtungZ` 0, `streuung` 30, `schwerkraft` 0, `groesse` 0.2, `groesseEnde` 0, `farbe` senf, `farbeEnde` tomate, `mischung` leuchtend, `weltlage` ja, `aktiv` ja, `saat` 0","3D-Teilchen, die zur Kamera schauen: Ausstoß im Kegel um die Richtung (`streuung` = halber Öffnungswinkel in Grad), `leuchtend` addiert sich zu Glut, `deckend` mischt (Rauch)"],
+                ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
+                ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -537,6 +539,35 @@
             },
             { art: "ausgabe", text: z("Funken(3) 60 leuchtend 25 ja") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Ofenfunken** unter *Beispiele → Herd*: ein Steinofen bei Nacht mit Glutfunken aus Maul und Schlot und deckendem Rauch; die Leertaste legt Holz nach." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Gleiten und Ablauf: Tweens und Keyframes",
+          inhalt: [
+            { art: "text", md: "**`Gleiten`** bewegt **eine** Größe der Lage – `was`: `x`, `y`, `z`, `drehung`, `neigung`, `rollen` oder `groesse` (alle Achsen) – in `dauer` Sekunden vom Wert, den sie im ersten Takt hat, nach `nach`. Die `kurve` bestimmt das Gefühl: `linear` gleichmäßig, `sanft` weich an beiden Enden, `rein` langsam los, `raus` sanft ankommen, `federnd` schwingt über das Ziel hinaus und federt zurück, `huepfend` prallt am Ziel ab. `schleife: \"einmal\"` endet exakt auf `nach` und setzt `laeuft` auf nein – `setzeNach(…)` und `setzeLaeuft(ja)` starten einen neuen Lauf vom aktuellen Wert; `wiederholen` beginnt jede Runde von vorn, `pendeln` läuft hin und zurück. Je Teil gibt es ein Gleiten; für mehrere Größen zugleich nimm Kind-Teile oder einen Ablauf." },
+            { art: "text", md: "**`Ablauf`** spielt **Keyframes**: `zeiten` ist ein Blech aus Zahlen (Sekunden, aufsteigend), dazu je Größe eine Werteliste – `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte`. Zur Zeit `zeiten[i]` gilt der i-te Wert, dazwischen wird `linear` oder `sanft` übergeblendet; eine leere Liste lässt die Größe in Ruhe, eine kürzere hält ihren letzten Wert. `tempo` (negativ = rückwärts) und `schleife` steuern den Lauf, ohne Schleife hält er am Ende an; `setzeZeit(t)` springt an jede Stelle." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Gleiten","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"057555b4939bb88b","paket":"0565a070c4322ac2"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Gleiten\", breite: 320, hoehe: 180);",
+                "Teil tafel = herd.rechteck(-60, 60, 100, 50, farbe: \"teig\", rundung: 8);",
+                "Gleiten g = tafel.mit(neu Gleiten(nach: 160, dauer: 0.8, kurve: \"federnd\"));",
+                "Teil bote = herd.kreis(20, 150, 8, farbe: \"tomate\");",
+                "bote.mit(neu Ablauf(zeiten: [0, 1, 2], xWerte: [20, 300, 20], yWerte: [150, 120, 150], kurve: \"sanft\"));",
+                "herd.backe();",
+                "Bote.sage((g + \" \" + g.kurve() + \" \" + g.laeuft() + \" \" + bote.ablauf().zeiten() + \" \" + bote.x().runden(1)));"
+              )
+            },
+            { art: "ausgabe", text: z("Gleiten(3) federnd ja [0, 1, 2] 23.6") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Speisekarte** unter *Beispiele → Herd*: Die Menütafel gleitet federnd herein, die Zeilen folgen nacheinander, Lampen pendeln, und der Bote läuft seinen Ablauf-Pfad; die Leertaste schiebt die Karte weg und wieder her." }
           ]
         }
       ]

@@ -1,0 +1,117 @@
+# H-K4 (HERD.md §12.4): Gleiten (alle Kurven × einmal/wiederholen/pendeln, 2D und 3D, alle Größen) und Ablauf (Keyframes,
+# linear/sanft, Schleife, Halt, rückwärts, springen, Werte kürzer als zeiten). Nativ = kern.wasm bitgleich (libm::pow/sin).
+vorgabe TAKTE 150
+vorgabe N 1
+welt_neu 640 360 "Gleiten"
+typ_nummer "Gleiten" -> T_G
+typ_nummer "Ablauf" -> T_A
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Koerper" -> T_K
+feld_nummer T_G "was" -> G_WAS
+feld_nummer T_G "nach" -> G_NACH
+feld_nummer T_G "dauer" -> G_DAUER
+feld_nummer T_G "kurve" -> G_KURVE
+feld_nummer T_G "schleife" -> G_SCHLEIFE
+feld_nummer T_G "laeuft" -> G_LAEUFT
+feld_nummer T_A "zeiten" -> A_ZEITEN
+feld_nummer T_A "xWerte" -> A_X
+feld_nummer T_A "yWerte" -> A_Y
+feld_nummer T_A "zWerte" -> A_Z
+feld_nummer T_A "drehWerte" -> A_D
+feld_nummer T_A "groesseWerte" -> A_G
+feld_nummer T_A "kurve" -> A_KURVE
+feld_nummer T_A "schleife" -> A_SCHLEIFE
+feld_nummer T_A "tempo" -> A_TEMPO
+feld_nummer T_A "zeit" -> A_ZEIT
+feld_nummer T_A "laeuft" -> A_LAEUFT
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+form_grund 1 0 0 -> WUERFEL
+feld_nummer T_K "form" -> K_FORM
+# 2D: 6 Kurven × 3 Schleifen, je N Rechtecke; was läuft durch alle 7 Größen (z/neigung/rollen wirken in 2D nicht)
+wiederhole (18 * N) i
+  teil_neu 2 -> t
+  teil_lage t (20 + i % 18 * 34) (30 + (i - i % 18) / 18 % 9 * 36) 0
+  komp_neu T_R -> r
+  setze_zahl r R_B 20
+  setze_zahl r R_H 12
+  komp_haenge r t
+  komp_neu T_G -> g
+  setze_zahl g G_WAS (i % 7)
+  setze_zahl g G_NACH (40 + i % 7 * 45)
+  setze_zahl g G_DAUER (0.5 + i % 5 * 0.4)
+  setze_zahl g G_KURVE (i % 6)
+  setze_zahl g G_SCHLEIFE ((i - i % 6) / 6 % 3)
+  komp_haenge g t
+ende
+# 3D: z, neigung, rollen, groesse mit federnd/huepfend; einer mit dauer 0
+wiederhole 8 i
+  teil_neu 3 -> k
+  teil_lage k (i - 4) 0 0
+  komp_neu T_K -> kk
+  setze_zahl kk K_FORM WUERFEL
+  komp_haenge kk k
+  komp_neu T_G -> g
+  setze_zahl g G_WAS (2 + i % 5)
+  setze_zahl g G_NACH (i % 5 * 20 - 3)
+  setze_zahl g G_DAUER (i % 4 * 0.6)
+  setze_zahl g G_KURVE (4 + i % 2)
+  setze_zahl g G_SCHLEIFE (i % 3)
+  komp_haenge g k
+ende
+# Ablauf 2D: Pfad mit 4 Schlüsseln, sanft, Schleife; zweiter ohne Schleife, schneller; dritter rückwärts
+teil_neu 2 -> bote
+komp_neu T_R -> rb
+komp_haenge rb bote
+komp_neu T_A -> a1
+setze_zahlen a1 A_ZEITEN [0, 0.6, 1.1, 1.9]
+setze_zahlen a1 A_X [40, 600, 600, 40]
+setze_zahlen a1 A_Y [40, 40, 320]
+setze_zahlen a1 A_D [0, 90, 180, 360]
+setze_zahlen a1 A_G [1, 1.5]
+setze_zahl a1 A_KURVE 1
+komp_haenge a1 bote
+teil_neu 2 -> b2
+komp_neu T_A -> a2
+setze_zahlen a2 A_ZEITEN [0, 0.5, 0.5, 2]
+setze_zahlen a2 A_X [0, 100, 300, 50]
+setze_zahl a2 A_SCHLEIFE 0
+setze_zahl a2 A_TEMPO 1.75
+komp_haenge a2 b2
+teil_neu 2 -> b3
+komp_neu T_A -> a3
+setze_zahlen a3 A_ZEITEN [0, 1, 2]
+setze_zahlen a3 A_Y [10, 50, 30]
+setze_zahl a3 A_SCHLEIFE 0
+setze_zahl a3 A_TEMPO -1.3
+setze_zahl a3 A_ZEIT 1.7
+komp_haenge a3 b3
+# Ablauf 3D mit zWerte; angehalten, aber gesprungen
+teil_neu 3 -> b4
+komp_neu T_A -> a4
+setze_zahlen a4 A_ZEITEN [0, 1, 3]
+setze_zahlen a4 A_Z [0, -2, 4]
+setze_zahlen a4 A_G [1, 2, 0.5]
+setze_zahl a4 A_LAEUFT 0
+setze_zahl a4 A_ZEIT 2.2
+komp_haenge a4 b4
+takte (TAKTE / 2)
+teil_hole bote 1
+teil_hole bote 2
+teil_hole bote 4
+teil_hole b2 1
+teil_hole b3 2
+teil_hole b4 3
+teil_hole b4 9
+hole_zahl a2 A_LAEUFT
+hole_zahl a3 A_ZEIT
+# mitten im Lauf: Ziel ändern (Neustart vom aktuellen Wert), springen, Kurve wechseln
+setze_zahl 3 G_NACH 10
+setze_zahl a1 A_ZEIT 0.3
+setze_zahl a1 A_KURVE 0
+setze_zahl a4 A_ZEIT 0.5
+takte (TAKTE / 2)
+teil_hole bote 1
+teil_hole bote 2
+teil_hole b4 3
+hole_zahl a1 A_ZEIT
