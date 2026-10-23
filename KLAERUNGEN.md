@@ -2080,6 +2080,27 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Nachweis:** `cargo test` (`tests::hk6`: drei Takte betreten/verlassen, Masken, Raum, unsichtbar, entfernt, Kopie, Formen 2D/3D, Breitphase
   = Brute Force), `tests/herd/szenen/fuehler.herd` in `node herd/test-kern.js` (N = 200/1 000/10 000, nativ = `kern.wasm`), Fälle
   `herd-fuehler.*`, `herd-teil-liste.*` (Sprachtest für `teil-liste` und Lesefelder aus K-149), Beispiel `muenzen.pizza`. **Status:** fest.
+- **Nachtrag H-K7 (`Wucht`, 2D-Physik):** Typnummer 20 (nach `Blick`/`Leine` aus H-K1), Takt-System (vor dem Fühler-Nachlauf: Fühler sehen die Lage nach
+  der Physik), `braucht: Fuehler`. Felder `art` dynamisch|kinematisch|fest, `masse` 1 (≥ 0.001 – „> 0“ ist mit dem inklusiven Schema-`min`
+  so ausgedrückt), `tempoX`/`tempoY`, `schwerkraft` **0** (Standard wie `Partikel`; Doku empfiehlt 1200), `daempfung` 0, `abprall` 0,
+  `reibung` 0.2, Einmal-Stoß `stossX`/`stossY` (Δtempo = stoss / masse im nächsten Takt, danach 0; ohne Wirkung bei kinematisch/fest),
+  Lesefeld `amBoden` (Kontakt im letzten Takt, dessen Normale den Körper nach oben drückt: y-Anteil < −0,5, y zeigt nach unten).
+  Kontakte nur zwischen Fühlern mit `ausloeser: nein`; ein solcher Fühler **ohne** Wucht ist ein fester Körper (abprall 0, reibung 0.2);
+  Auslöser-Fühler stoßen nicht (melden aber weiter). Formen: Kreis und achsenparalleles Rechteck aus dem Fühler (gedrehte umschlossen),
+  **keine Drehdynamik**, kein Schlafen, **kein Durchtunnel-Schutz** (Doku: Tempo je Takt < halbe Ausdehnung, Wände dick).
+  Ablauf je Takt: Kräfte (semi-implizites Euler) → Kontakte an der Lage zu Beginn des Takts (`fuehler::sammle_wenn` + `breitphase`,
+  Engphase `wucht::kontakt` mit Normale und Tiefe) → Warmstart mit den Impulsen desselben Paars aus dem Vortakt (verborgene
+  Puffer-Spalte `kontakte` beim dynamischen Körper mit der kleineren ID) → **feste 4 Iterationen Impuls** (aufsummiert, ≥ 0; Abprall
+  = größerer Wert beider, erst ab 40 Pixel/s Annäherung; Reibung Coulomb mit √(reibung_a · reibung_b)) → Weg = tempo · dt → **feste 4
+  Iterationen Positionskorrektur** (50 % der Überlappung über 0,05 px je Iteration, nach 1 / masse; die Korrektur bremst je Achse höchstens
+  das Tempo, gegen das sie schiebt, bis 0 – beschleunigt nie, so ruhen Haufen und tiefe Überlappungen schleudern nicht). Beide
+  Durchgänge laufen abwechselnd vorwärts und rückwärts durch die nach (kleinere ID, größere ID) sortierte Liste (Druck wandert in beide
+  Richtungen, egal in welcher Reihenfolge die Teile entstanden sind). Lage über die Eltern-Matrix zurückgerechnet (Kinder dürfen
+  Wucht haben). Nur f64, `libm::sqrt`/`libm::pow`, keine HashMap. Erprobte Alternativen (verworfen): Impulse ohne Positionskorrektur
+  sacken im Stapel durch; rein positionsbasiert (tempo = Weg / dt) brodelt ein großer Haufen.
+  **Nachweis:** `tests::hk7` (8: Schema/Fehler, Fallhöhe = geschlossene Form, Stapel aus 10 Kisten ruht, Abprall/Reibung, Stoß,
+  Auslöser/fest/kinematisch, 500 Kugeln in einer Schüssel kommen zur Ruhe, Normalen), `tests/herd/szenen/wucht.herd` in
+  `node herd/test-kern.js` (N = 120/500/2 000, nativ = `kern.wasm`), Fall `herd-wucht.*`, Beispiel `teigkugeln.pizza`.
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
   samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen

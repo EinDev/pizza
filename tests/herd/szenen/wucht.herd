@@ -1,0 +1,185 @@
+# H-K7 (HERD.md §12.4): N Kugeln und Kisten purzeln in eine Schüssel aus festen Fühlern (voll: N=500 bzw. 2000) – Schwerkraft,
+# Abprall, Reibung, Massen, Stöße, ein kinematischer Schieber, eine feste Wucht, ein Auslöser (fällt durch), ein Kind-Teil unter
+# einer verschobenen Gruppe, Entfernen mitten im Lauf; dazu 3D-Fühler, die nicht mitspielen. Der Szenen-Hash je Bild enthält Lage,
+# tempo und amBoden, also vergleicht test-kern.js die Physik nativ gegen Wasm.
+vorgabe N 120
+vorgabe TAKTE 90
+welt_neu 1280 720 "Wucht"
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Wucht" -> T_W
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+feld_nummer T_F "form" -> F_FORM
+feld_nummer T_F "breite" -> F_B
+feld_nummer T_F "hoehe" -> F_H
+feld_nummer T_F "radius" -> F_RAD
+feld_nummer T_F "gruppe" -> F_GR
+feld_nummer T_F "maske" -> F_MA
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_F "beruehrt" -> F_BER
+feld_nummer T_W "art" -> W_ART
+feld_nummer T_W "masse" -> W_M
+feld_nummer T_W "tempoX" -> W_TX
+feld_nummer T_W "tempoY" -> W_TY
+feld_nummer T_W "schwerkraft" -> W_G
+feld_nummer T_W "daempfung" -> W_D
+feld_nummer T_W "abprall" -> W_AB
+feld_nummer T_W "reibung" -> W_RE
+feld_nummer T_W "stossX" -> W_SX
+feld_nummer T_W "stossY" -> W_SY
+feld_nummer T_W "amBoden" -> W_BODEN
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_K "radius" -> K_R
+# Fehler: ohne Fühler, Lesefeld, Masse 0
+teil_neu 2 -> los
+komp_neu T_W -> w_los
+komp_haenge w_los los
+fehler_text
+setze_zahl w_los W_BODEN 1
+fehler_text
+setze_zahl w_los W_M 0
+fehler_text
+# Schüssel: Boden, zwei Wände, zwei Stufen (feste Fühler ohne Wucht)
+teil_neu 2 -> boden
+teil_lage boden 640 700 0
+komp_neu T_F -> fb
+setze_zahl fb F_FORM 2
+setze_zahl fb F_B 1200
+setze_zahl fb F_H 40
+setze_zahl fb F_AUS 0
+komp_haenge fb boden
+wiederhole 2 s
+  teil_neu 2 -> wand
+  teil_lage wand (40 + s * 1200) 400 0
+  komp_neu T_F -> fw
+  setze_zahl fw F_FORM 2
+  setze_zahl fw F_B 40
+  setze_zahl fw F_H 640
+  setze_zahl fw F_AUS 0
+  komp_haenge fw wand
+  teil_neu 2 -> stufe
+  teil_lage stufe (110 + s * 1060) 650 0
+  komp_neu T_R -> rs
+  setze_zahl rs R_B 100
+  setze_zahl rs R_H 60
+  komp_haenge rs stufe
+  komp_neu T_F -> fs
+  setze_zahl fs F_AUS 0
+  komp_haenge fs stufe
+ende
+# N Kugeln im Raster über der Schüssel (Fühler auto aus dem Kreis), dazu N/4 Kisten darüber
+wiederhole N e
+  teil_neu 2 -> t
+  teil_lage t (90 + (e % 70) * 15 + (e % 3)) (100 + ((e - e % 70) / 70) * 15) 0
+  komp_neu T_K -> k
+  setze_zahl k K_R (4 + e % 4)
+  komp_haenge k t
+  komp_neu T_F -> f
+  setze_zahl f F_AUS 0
+  setze_zahl f F_GR (1 + e % 2)
+  komp_haenge f t
+  komp_neu T_W -> w
+  setze_zahl w W_G 1200
+  setze_zahl w W_M (1 + e % 5)
+  setze_zahl w W_AB ((e % 6) * 0.15)
+  setze_zahl w W_RE ((e % 3) * 0.4)
+  setze_zahl w W_D ((e % 7) * 0.05)
+  setze_zahl w W_TX ((e % 9 - 4) * 30)
+  setze_zahl w W_SY ((e % 11) * -20)
+  komp_haenge w t
+ende
+wiederhole (N / 4) e
+  teil_neu 2 -> kt
+  teil_lage kt (95 + (e % 60) * 17) (80 - ((e - e % 60) / 60) * 14) 0
+  komp_neu T_R -> r
+  setze_zahl r R_B 11
+  setze_zahl r R_H 9
+  komp_haenge r kt
+  komp_neu T_F -> kf
+  setze_zahl kf F_AUS 0
+  setze_zahl kf F_MA (2 + e % 2)
+  komp_haenge kf kt
+  komp_neu T_W -> kw
+  setze_zahl kw W_G 1200
+  setze_zahl kw W_RE ((e % 4) * 0.3)
+  komp_haenge kw kt
+ende
+# kinematischer Schieber (fährt über den Boden), feste Wucht (Hindernis), Auslöser (fällt durch)
+teil_neu 2 -> schieber
+teil_lage schieber 200 660 0
+komp_neu T_F -> fsch
+setze_zahl fsch F_FORM 2
+setze_zahl fsch F_B 30
+setze_zahl fsch F_H 40
+setze_zahl fsch F_AUS 0
+komp_haenge fsch schieber
+komp_neu T_W -> wsch
+setze_zahl wsch W_ART 1
+setze_zahl wsch W_TX 120
+komp_haenge wsch schieber
+teil_neu 2 -> pfahl
+teil_lage pfahl 640 600 0
+komp_neu T_F -> fpf
+setze_zahl fpf F_FORM 1
+setze_zahl fpf F_RAD 25
+setze_zahl fpf F_AUS 0
+komp_haenge fpf pfahl
+komp_neu T_W -> wpf
+setze_zahl wpf W_ART 2
+setze_zahl wpf W_TX 500
+komp_haenge wpf pfahl
+teil_neu 2 -> geist
+teil_lage geist 600 20 0
+komp_neu T_F -> fg
+setze_zahl fg F_FORM 1
+setze_zahl fg F_RAD 10
+komp_haenge fg geist
+komp_neu T_W -> wg
+setze_zahl wg W_G 1200
+komp_haenge wg geist
+# Kind-Teil unter einer verschobenen Gruppe; ein Körper, der nur Gruppe 2 spürt
+teil_neu 2 -> gruppe
+teil_lage gruppe 300 100 0
+teil_neu 2 -> kind
+teil_haenge kind gruppe
+teil_lage kind 20 -60 0
+komp_neu T_F -> fk
+setze_zahl fk F_FORM 1
+setze_zahl fk F_RAD 9
+setze_zahl fk F_AUS 0
+komp_haenge fk kind
+komp_neu T_W -> wk
+setze_zahl wk W_G 1200
+setze_zahl wk W_AB 0.9
+komp_haenge wk kind
+# 3D-Fühler (fest) spielen nicht mit
+wiederhole 6 d
+  teil_neu 3 -> t3
+  teil_lage t3 (d * 0.5) 0 0
+  komp_neu T_F -> f3
+  setze_zahl f3 F_FORM 4
+  setze_zahl f3 F_RAD 1
+  setze_zahl f3 F_AUS 0
+  komp_haenge f3 t3
+ende
+takte 30
+hole_zahl wk W_TY
+teil_hole kind 2
+teil_hole geist 2
+teil_hole schieber 1
+teil_hole pfahl 1
+hole_zahl wsch W_TX
+# Stoß von der Seite, Entfernen eines Körpers mitten im Lauf
+setze_zahl wk W_SX 400
+teil_entferne t
+takte TAKTE
+hole_zahl wk W_BODEN
+hole_zahl wk W_TX
+teil_hole kind 1
+teil_hole kind 2
+teil_hole kind 16
+hole_zahl kw W_BODEN
+teil_hole kt 2
+hole_liste fb F_BER
+hole_zahl wg W_TY

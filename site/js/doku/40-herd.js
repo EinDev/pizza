@@ -292,7 +292,8 @@
                 ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
                 ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"],
                 ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt"],
-                ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"]
+                ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"],
+                ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -671,6 +672,50 @@
             },
             { art: "ausgabe", text: z("Blick(24) 1.5 1000 68 118.6") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Weite Welt** unter *Beispiele → Herd*: Der Lieferroller fährt durch eine Stadt, die dreimal so breit und doppelt so hoch ist wie das Fenster, die Kamera hängt an seiner Leine, und die Lieferungen oben stehen fest; die Leertaste zoomt heraus." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wucht: Physik in 2D",
+          inhalt: [
+            { art: "text", md: "Eine **`Wucht`** macht ein 2D-Teil zum Körper mit Masse: Er fällt (`schwerkraft`, Pixel/s² nach unten – **1200** fühlt sich nach Spiel an, Standard ist 0), prallt ab (`abprall` 0 … 1), reibt (`reibung` 0 … 1) und wird gebremst (`daempfung`). Die Form kommt vom **`Fuehler`** am selben Teil, und gestoßen wird nur, wenn der Fühler `ausloeser: nein` hat. Ein solcher Fühler **ohne** Wucht ist fest – so baut man Boden und Wände. `stossX`/`stossY` ist ein Einmal-Stoß (im nächsten Takt ändert sich das Tempo um Stoß / `masse`, danach steht wieder 0), `amBoden()` sagt, ob der Körper im letzten Takt von unten gestützt wurde – gut fürs Springen." },
+            { art: "text", md: "`art: \"kinematisch\"` fährt mit seinem Tempo, schiebt andere und lässt sich selbst nicht schieben (eine Plattform), `\"fest\"` bewegt sich nie. Formen sind Kreise und achsenparallele Rechtecke, gedreht wird nichts: Kugeln **gleiten** statt zu rollen. **Tipp:** Was schneller als seine halbe Größe je Takt fliegt, kann durch dünne Wände tunneln – Wände dick machen. Mit `Bewegung` am selben Teil wirken beide; besser nur eines." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Wucht","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"6765c177d8e93b91","paket":"b78bea7ca99c6b54"},
+                {"art":"bild","bildnummer":8,"szene":"6f91da7b6edff464","paket":"1a7543049f445687"},
+                {"art":"bild","bildnummer":12,"szene":"2b7e5a98b172b0ea","paket":"eae67d2e4024895b"},
+                {"art":"bild","bildnummer":16,"szene":"6973060357d7bc79","paket":"4fc193d46308ad58"},
+                {"art":"bild","bildnummer":20,"szene":"9074292961b99b0c","paket":"3b9e82321be0c10b"},
+                {"art":"bild","bildnummer":24,"szene":"55edac847e005b7d","paket":"a34a05a96b1b7c7e"},
+                {"art":"bild","bildnummer":28,"szene":"7dfa8c27774a2dc2","paket":"36bb2dc9c6193f06"},
+                {"art":"bild","bildnummer":32,"szene":"10adb15260dce52d","paket":"cb7d249e637d8efc"},
+                {"art":"bild","bildnummer":36,"szene":"49dcffcc6257b813","paket":"c55693f77287cf14"},
+                {"art":"bild","bildnummer":40,"szene":"cc494e8a5b2b3aff","paket":"4e1305fcb4265c03"},
+                {"art":"bild","bildnummer":44,"szene":"4c0d5e40b9a496bb","paket":"1b089cb05db196a2"},
+                {"art":"bild","bildnummer":48,"szene":"63ea82fdf9a93576","paket":"544dfdc9e381a0ca"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Wucht\", breite: 320, hoehe: 180);",
+                "Teil boden = herd.rechteck(160, 170, 320, 20, farbe: \"basilikum\");",
+                "boden.mit(neu Fuehler(ausloeser: nein));",
+                "Teil ball = herd.kreis(80, 30, 10, farbe: \"teig\");",
+                "ball.mit(neu Fuehler(ausloeser: nein));",
+                "Wucht w = ball.mit(neu Wucht(schwerkraft: 1200, abprall: 0.5, tempoX: 60));",
+                "salami sprung = 0;",
+                "herd.backe(() -> {",
+                "  falls (w.amBoden() && sprung == 0) { w.setzeStossY(-300); sprung = herd.bildnummer(); }",
+                "});",
+                "Bote.sage((w + \" \" + w.art() + \" \" + w.amBoden() + \" \" + (sprung > 0) + \" \" + (ball.x() > 80)));"
+              )
+            },
+            { art: "ausgabe", text: z("Wucht(4) dynamisch nein ja ja") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Teigkugeln** unter *Beispiele → Herd*: Ein Klick wirft eine Teigkugel in die Pizzaschachtel, ein Nudelholz fährt darüber, die Leertaste rüttelt." }
           ]
         }
       ]

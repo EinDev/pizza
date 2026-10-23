@@ -154,7 +154,19 @@
       {"nummer": 4, "name": "abstandZ", "typ": "zahl", "standard": 0, "min": null, "max": null},
       {"nummer": 5, "name": "weich", "typ": "zahl", "standard": 0, "min": 0, "max": 0.999},
       {"nummer": 6, "name": "totzone", "typ": "zahl", "standard": 0, "min": 0, "max": null},
-      {"nummer": 7, "name": "schaue", "typ": "diavolo", "standard": false, "min": null, "max": null}]}
+      {"nummer": 7, "name": "schaue", "typ": "diavolo", "standard": false, "min": null, "max": null}]},
+    {"name": "Wucht", "nummer": 20, "genus": "f", "raum": "2D", "braucht": ["Fuehler"], "system": true, "felder": [
+      {"nummer": 1, "name": "art", "typ": "wahl", "standard": "dynamisch", "min": null, "max": null, "wahl": ["dynamisch", "kinematisch", "fest"]},
+      {"nummer": 2, "name": "masse", "typ": "zahl", "standard": 1, "min": 0.001, "max": null},
+      {"nummer": 3, "name": "tempoX", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 4, "name": "tempoY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 5, "name": "schwerkraft", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 6, "name": "daempfung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 7, "name": "abprall", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 8, "name": "reibung", "typ": "zahl", "standard": 0.2, "min": 0, "max": 1},
+      {"nummer": 9, "name": "stossX", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 10, "name": "stossY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 11, "name": "amBoden", "typ": "diavolo", "standard": false, "min": null, "max": null, "lesen": true}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],

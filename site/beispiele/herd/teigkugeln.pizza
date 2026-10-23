@@ -1,0 +1,53 @@
+// Teigkugeln: Ein Klick wirft eine Teigkugel – sie fällt, prallt ab und purzelt in die Pizzaschachtel. Von allein kommt
+// jede Sekunde eine weitere dazu. Leertaste: die Schachtel rütteln (alle Kugeln bekommen einen Stoß nach oben).
+// Zeigt: Wucht (Schwerkraft, Abprall, Reibung, Stoß, amBoden) auf Fühlern mit ausloeser: nein; die Schachtel sind feste
+// Fühler ohne Wucht, das Nudelholz ist kinematisch.
+
+Herd herd = neu Herd("Teigkugeln", breite: 640, hoehe: 360);
+herd.hintergrund("himmel");
+herd.rechteck(320, 345, 640, 30, farbe: "basilikum");                       // Tisch
+
+// Pizzaschachtel: Boden und zwei Seiten, dick genug, dass nichts durchrutscht
+Blech<Teil> schachtel = [
+    herd.rechteck(320, 318, 360, 24, farbe: "kruste"),
+    herd.rechteck(152, 262, 24, 136, farbe: "kruste"),
+    herd.rechteck(488, 262, 24, 136, farbe: "kruste")
+];
+für (Teil s : schachtel) { s.mit(neu Fuehler(ausloeser: nein)); }
+herd.text("PIZZA", 320, 318, groesse: 16, farbe: "mozzarella", ausrichtung: "mitte");
+
+// Ein Nudelholz fährt über der Schachtel hin und her (kinematisch: schiebt, lässt sich aber nicht schieben)
+Teil holz = herd.rechteck(320, 120, 90, 12, farbe: "teig");
+holz.mit(neu Fuehler(ausloeser: nein));
+Wucht rollen = holz.mit(neu Wucht(art: "kinematisch", tempoX: 80));
+
+Blech<Teil> kugeln = [];
+Teil anzeige = herd.text("", 16, 16, groesse: 18, farbe: "ofen");
+herd.text("Klick: Teigkugel werfen · Leertaste: rütteln", 624, 16, groesse: 14, farbe: "ofen", ausrichtung: "rechts");
+
+// Eine Teigkugel: Kreis mit Fühler (Form aus dem Kreis) und Wucht
+leer kugelWerfen(funghi x, funghi y, funghi tempoX) {
+    Teil k = herd.kreis(x, y, 14, farbe: "teig");
+    herd.kreis(-4, -4, 4, farbe: "mozzarella").haenge(k);                   // Glanzpunkt
+    k.mit(neu Fuehler(ausloeser: nein));
+    k.mit(neu Wucht(schwerkraft: 1200, abprall: 0.4, reibung: 0.6, tempoX: tempoX));
+    kugeln.hinzu(k);
+}
+
+herd.backe(() -> {
+    falls (herd.klick() && kugeln.länge() < 40) { kugelWerfen(herd.mausX(), herd.mausY(), 0); }
+    falls (herd.bildnummer() % 60 == 1 && kugeln.länge() < 40) {
+        kugelWerfen(200 + (herd.bildnummer() * 37) % 240, 40, (herd.bildnummer() % 5 - 2) * 40);
+    }
+    falls (herd.gedrueckt("Leertaste")) {
+        für (Teil k : kugeln) { k.wucht().setzeStossY(-500); }
+    }
+    // Nudelholz wendet an den Rändern der Schachtel
+    falls (holz.x() < 220) { rollen.setzeTempoX(80); }
+    falls (holz.x() > 420) { rollen.setzeTempoX(-80); }
+
+    salami liegen = kugeln.filtere((k) -> k.wucht().amBoden()).länge();
+    anzeige.text().setzeInhalt(("Kugeln: " + kugeln.länge() + " · liegen: " + liegen));
+});
+salami drin = kugeln.filtere((k) -> k.x() > 164 && k.x() < 476 && k.y() < 306).länge();
+Bote.sage((kugeln.länge() + " Teigkugeln geworfen, " + drin + " davon in der Schachtel."));

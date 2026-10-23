@@ -58,6 +58,8 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B5 mit RATE 500 (10 000 Teilchen), nur nativ | 0,014 ms | 0,158 ms | 0,17 (0,20) ms | – | – | – | – |
 | B6 (H-K6, 2026-10-23): 1 000 wandernde `Fuehler` 2D (+ 13 weitere 2D/3D), Bewegung, 120 Takte | 0,202 ms | 0,027 ms | 0,23 (0,22) ms | 0,314 ms | 0,051 ms | 0,36 (0,34) ms | Fühler-Nachlauf ≤ 0,5 ms (nativ) |
 | B6 mit N = 10 000, 60 Takte | 6,959 ms | 0,319 ms | 7,25 (7,06) ms | 9,700 ms | 0,469 ms | 10,16 (10,10) ms | – (nur gemessen) |
+| B7 (H-K7, 2026-10-23): 500 Kugeln + 125 Kisten mit `Wucht` in einer Schüssel (+ Schieber, Pfahl, Auslöser, 6 3D-Fühler), 240 Takte | 0,415 ms | 0,016 ms | 0,43 (0,46) ms | 0,593 ms | 0,030 ms | 0,62 (0,70) ms | Takt ≤ 1 ms bei 500 Kugeln (nativ) |
+| B7 mit N = 2 000 (+ 500 Kisten), 240 Takte | 2,079 ms | 0,074 ms | 2,16 (2,20) ms | 2,844 ms | 0,108 ms | 2,96 (3,10) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -71,6 +73,13 @@ absichtlich dicht (N Rechtecke 8–24 × 6–16 px, halb mit 30 px breiten Fühl
 im Mittel mehrere andere). Ohne Streifen (reines 1D-Sweep) kostete N = 10 000 rund 73 ms je Takt (1,26 Mio. x-Überlappungen gegen
 34 561 echte Paare im Kern-Test); mit Streifen und wiederverwendeten Listen 7 ms. Ziel (HERD.md §12.4 H-K6): 1 000 Fühler ≤ 0,5 ms
 nativ – erreicht (0,20 ms inkl. Bewegung).
+
+B7 (`tests/herd/szenen/wucht.herd`, Vorgabe `N`): Takt = **Wucht** (Kräfte, feste Fühler sammeln, Breitphase `fuehler::breitphase`,
+Engphase `wucht::kontakt`, Warmstart, je 4 Iterationen Impuls und Positionskorrektur, Lage zurückschreiben) + **Fühler-Nachlauf**
+(alle Körper sind auch Fühler). Die Körper fallen aus einem Raster in eine Schüssel aus dicken festen Fühlern und liegen nach
+≈ 1 s als Haufen (viele Kontakte je Körper) – gemessen ist also überwiegend der dichte Fall. Ziel (HERD.md §12.4 H-K7): Takt ≤ 1 ms
+nativ bei 500 Kugeln – erreicht (0,42 ms inkl. Fühler-Nachlauf; Wasm 0,59 ms). Gemessen nach dem Rebase auf H-K1/PD1, CPU-only,
+Rechner nebenbei belastet (Werte daher eher zu hoch).
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

@@ -25,6 +25,8 @@ const LAEUFE = [
   ['B5', 'b5-funken.herd', { RATE: 1000, TAKTE: 180 }],
   ['B6', 'fuehler.herd', { N: 1000, TAKTE: 120 }],
   ['B6', 'fuehler.herd', { N: 10000, TAKTE: 60 }],
+  ['B7', 'wucht.herd', { N: 500, TAKTE: 240 }],
+  ['B7', 'wucht.herd', { N: 2000, TAKTE: 240 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

@@ -145,6 +145,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Blick", "Leine", "Kamera", "Spiel"],
       "herd": true
+    },
+    {
+      "id": "teigkugeln",
+      "titel": "Teigkugeln: Physik mit Wucht",
+      "beschreibung": "Ein Klick wirft eine Teigkugel – sie fällt, prallt ab und purzelt in die Pizzaschachtel, ein Nudelholz fährt darüber. Die Leertaste rüttelt die Schachtel. Schwerkraft, Abprall, Reibung und Stöße kommen von der Wucht, die Formen von den Fühlern.",
+      "datei": "herd/teigkugeln.pizza",
+      "erwartet": "herd/teigkugeln.erwartet",
+      "ereignisse": "herd/teigkugeln.ereignisse",
+      "herdErwartet": "herd/teigkugeln.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Wucht", "Physik", "Fuehler"],
+      "herd": true
     }
   ]
 }

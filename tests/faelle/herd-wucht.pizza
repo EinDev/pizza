@@ -1,0 +1,29 @@
+// Herd §18.6 / HERD.md §12.4 H-K7: Wucht – Schwerkraft, Boden (fester Fühler ohne Wucht), amBoden, Stoß, Abprall, Auslöser, Fehler
+Herd herd = neu Herd("Wucht", breite: 320, hoehe: 180);
+Teil boden = herd.rechteck(160, 170, 320, 20, farbe: "basilikum");
+boden.mit(neu Fuehler(ausloeser: nein));
+Teil kiste = herd.rechteck(60, 40, 20, 20, farbe: "senf");
+kiste.mit(neu Fuehler(ausloeser: nein));
+Wucht w = kiste.mit(neu Wucht(schwerkraft: 1200));
+Teil ball = herd.kreis(160, 20, 8, farbe: "tomate");
+ball.mit(neu Fuehler(ausloeser: nein));
+Wucht hops = ball.mit(neu Wucht(schwerkraft: 1200, abprall: 0.8, reibung: 0));
+Teil geist = herd.kreis(260, 20, 8, farbe: "#ffffff80");
+geist.mit(neu Fuehler());
+Wucht g = geist.mit(neu Wucht(schwerkraft: 1200));
+Bote.sage((w + " " + w.art() + " " + w.masse() + " " + w.reibung() + " " + w.amBoden() + " " + hops.abprall()));
+salami gelandet = 0;
+funghi hoechster = 999;
+salami aufgeprallt = 0;
+herd.backe(() -> {
+  falls (gelandet == 0 && w.amBoden()) { gelandet = herd.bildnummer(); w.setzeStossX(300); }
+  falls (hops.tempoY() < 0) { aufgeprallt = 1; }
+  falls (aufgeprallt == 1 && ball.y() < hoechster) { hoechster = ball.y(); }
+});
+Bote.sage(("gelandet in Bild " + gelandet + ", Kiste bei y = " + Mathe.runden(kiste.y()) + ", amBoden " + w.amBoden() + ", Stoß danach " + w.stossX()));
+Bote.sage(("Kiste rutscht nach rechts: " + (kiste.x() > 60) + ", Ball prallt zurück bis y = " + Mathe.runden(hoechster) + ", Geist fällt durch: " + (geist.y() > 180)));
+probier { w.setzeAmBoden(ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { w.setzeMasse(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { w.setzeArt("fliegend"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.gruppe(0, 0).mit(neu Wucht()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { kiste.ohne("Fuehler"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

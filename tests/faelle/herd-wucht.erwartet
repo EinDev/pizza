@@ -1,0 +1,8 @@
+Wucht(4) dynamisch 1 0.2 nein 0.8
+gelandet in Bild 28, Kiste bei y = 150, amBoden ja, Stoß danach 0
+Kiste rutscht nach rechts: ja, Ball prallt zurück bis y = 62, Geist fällt durch: ja
+LaufzeitAnanas: Wucht.amBoden kann man nur lesen.
+LaufzeitAnanas: Wucht.masse muss mindestens 0.001 sein, nicht 0.
+LaufzeitAnanas: Wucht.art kennt 'fliegend' nicht. Erlaubt: dynamisch, kinematisch, fest.
+LaufzeitAnanas: Wucht braucht einen Fuehler am selben Teil.
+LaufzeitAnanas: Fuehler wird von Wucht am selben Teil gebraucht.

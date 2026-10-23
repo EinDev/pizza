@@ -8,7 +8,7 @@
 //! achsenparallel wie `trifft` (gedrehte Rechtecke/Kästen werden umschlossen – v1-Grenze, K-150).
 //!
 //! Gemeinsame Kollisionssuche für `Wucht` (H-K7): [`Kandidat`], [`form`], [`sammle`], [`breitphase`] (Sweep-and-Prune nach
-//! Hüllen-min-x in waagerechten Streifen, Schlüssel `ordnungs_bits` + Teil-ID) und [`paare`] (Breitphase + Engphase [`trifft`]). Alles f64, keine
+//! Hüllen-min-x in waagerechten Streifen, Schlüssel `ordnungs_bits` + Teil-ID), [`sammle_wenn`] und [`paare`] (Breitphase + Engphase [`trifft`]). Alles f64, keine
 //! Wurzel, Reihenfolgen nur nach Teil-ID.
 
 use alloc::vec;
@@ -131,7 +131,8 @@ fn umschliesse(h: &Huelle) -> ([f64; 3], [f64; 3]) {
     }
 }
 
-fn verschoben(h: Huelle, d: [f64; 3]) -> Huelle {
+/// Hülle um `d` verschoben (2D: nur x, y).
+pub fn verschoben(h: Huelle, d: [f64; 3]) -> Huelle {
     match h {
         Huelle::Kreis(m, r) => Huelle::Kreis([m[0] + d[0], m[1] + d[1]], r),
         Huelle::Rechteck(lo, hi) => Huelle::Rechteck([lo[0] + d[0], lo[1] + d[1]], [hi[0] + d[0], hi[1] + d[1]]),
@@ -244,9 +245,17 @@ pub fn form(w: &mut Welt, s: &Speicher, z: usize) -> Option<Huelle> {
 /// Alle Fühler mit Form als Kandidaten (in Speicher-Reihenfolge) samt ihrer Speicherzeile. `s` ist der Speicher der Art
 /// `Fuehler` (im Nachlauf bekommt das System ihn; `Wucht` nimmt ihn mit `core::mem::take` aus `w.speicher`).
 pub fn sammle(w: &mut Welt, s: &Speicher) -> Vec<(usize, Kandidat)> {
+    sammle_wenn(w, s, |_| true)
+}
+
+/// Wie [`sammle`], aber nur die Speicherzeilen, für die `wahl(z)` gilt (vor dem Formbau; `Wucht` nimmt so nur feste Fühler).
+pub fn sammle_wenn(w: &mut Welt, s: &Speicher, wahl: impl Fn(usize) -> bool) -> Vec<(usize, Kandidat)> {
     let mut v = Vec::with_capacity(s.len());
     let (gr, ma, au) = (s.zahl(GRUPPE), s.zahl(MASKE), s.zahl(AUSLOESER));
     for z in 0..s.len() {
+        if !wahl(z) {
+            continue;
+        }
         let Some(huelle) = form(w, s, z) else { continue };
         let tz = w.zeile_opt(s.teil[z]).expect("form → Teil lebt");
         let g = gr[z] as u32;

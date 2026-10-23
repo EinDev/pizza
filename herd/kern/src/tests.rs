@@ -2047,3 +2047,330 @@ mod hk1 {
     }
 }
 
+/// H-K7: `Wucht` – 2D-Physik auf den festen Fühlern (Schwerkraft, Stöße, Abprall, Reibung, Stapeln).
+mod hk7 {
+    use super::*;
+    use crate::komponenten::{wucht, Huelle, DT};
+
+    /// Typ- und Feldnummern
+    struct N {
+        f: i32,
+        f_form: i32,
+        f_aus: i32,
+        f_radius: i32,
+        w: i32,
+        art: i32,
+        masse: i32,
+        tx: i32,
+        ty: i32,
+        g: i32,
+        abprall: i32,
+        reibung: i32,
+        sx: i32,
+        sy: i32,
+        boden: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let (f, w) = (typ(k, "Fuehler"), typ(k, "Wucht"));
+        N {
+            f,
+            f_form: feld(k, f, "form"),
+            f_aus: feld(k, f, "ausloeser"),
+            f_radius: feld(k, f, "radius"),
+            w,
+            art: feld(k, w, "art"),
+            masse: feld(k, w, "masse"),
+            tx: feld(k, w, "tempoX"),
+            ty: feld(k, w, "tempoY"),
+            g: feld(k, w, "schwerkraft"),
+            abprall: feld(k, w, "abprall"),
+            reibung: feld(k, w, "reibung"),
+            sx: feld(k, w, "stossX"),
+            sy: feld(k, w, "stossY"),
+            boden: feld(k, w, "amBoden"),
+        }
+    }
+    /// 2D-Teil mit Rechteck b × h bei (x, y) und festem Fühler (auto); gibt (Teil, Fühler)
+    fn kiste(k: &mut Kern, n: &N, x: f64, y: f64, b: f64, h: f64) -> (i32, i32) {
+        let rt = typ(k, "Rechteck");
+        let (fb, fh) = (feld(k, rt, "breite"), feld(k, rt, "hoehe"));
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let r = k.komp_neu(rt);
+        k.setze_zahl(r, fb, b);
+        k.setze_zahl(r, fh, h);
+        assert_eq!(k.komp_haenge(r, t), 0);
+        let f = k.komp_neu(n.f);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+    /// 2D-Kreis-Teil mit festem Fühler
+    fn kugel(k: &mut Kern, n: &N, x: f64, y: f64, r: f64) -> (i32, i32) {
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"kreis");
+        k.setze_zahl(f, n.f_radius, r);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+    /// Wucht (dynamisch) mit Schwerkraft g an Teil t
+    fn wucht(k: &mut Kern, n: &N, t: i32, g: f64) -> i32 {
+        let w = k.komp_neu(n.w);
+        k.setze_zahl(w, n.g, g);
+        assert_eq!(k.komp_haenge(w, t), 0, "{}", k.fehler_text());
+        w
+    }
+
+    #[test]
+    fn schema_typnummer_braucht_lesefeld() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!(n.w, 20, "Typnummer in Merge-Reihenfolge nach Blick (18) und Leine (19)");
+        let art = ARTEN.iter().find(|a| a.schema.name == "Wucht").unwrap();
+        assert!(art.takt.is_some() && art.nachlauf.is_none() && art.bild.is_none() && art.huelle.is_none());
+        // ohne Fühler nicht anhängbar, Fühler nicht lösbar, solange Wucht hängt
+        let t = k.teil_neu(2);
+        let w = k.komp_neu(n.w);
+        assert!(k.komp_haenge(w, t) < 0);
+        assert_eq!(k.fehler_text(), "Wucht braucht einen Fuehler am selben Teil.");
+        let f = k.komp_neu(n.f);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        assert_eq!(k.komp_haenge(w, t), 0);
+        assert!(k.komp_loese(f) < 0);
+        assert_eq!(k.fehler_text(), "Fuehler wird von Wucht am selben Teil gebraucht.");
+        // nur 2D
+        let t3 = k.teil_neu(3);
+        let f3 = k.komp_neu(n.f);
+        assert_eq!(k.komp_haenge(f3, t3), 0);
+        let w3 = k.komp_neu(n.w);
+        assert!(k.komp_haenge(w3, t3) < 0);
+        // Lesefeld, Bereiche
+        assert!(k.setze_zahl(w, n.boden, 1.0) < 0);
+        assert_eq!(k.fehler_text(), "Wucht.amBoden kann man nur lesen.");
+        assert!(k.setze_zahl(w, n.masse, 0.0) < 0);
+        assert_eq!(k.fehler_text(), "Wucht.masse muss mindestens 0.001 sein, nicht 0.");
+        assert!(k.setze_zahl(w, n.abprall, 1.5) < 0);
+        assert!(k.setze_text(w, n.art, b"fliegend") < 0);
+        assert_eq!(k.fehler_text(), "Wucht.art kennt 'fliegend' nicht. Erlaubt: dynamisch, kinematisch, fest.");
+        assert_eq!(k.hole_zahl(w, n.reibung), 0.2);
+    }
+
+    #[test]
+    fn fallhoehe_nach_n_takten() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (t, _) = kugel(&mut k, &n, 100.0, 10.0, 5.0);
+        let w = wucht(&mut k, &n, t, 1200.0);
+        // semi-implizites Euler: v_i = g·dt·i, y_n = y0 + Σ v_i·dt (genau so nachgerechnet, dazu die geschlossene Form)
+        let (mut y, mut v) = (10.0f64, 0.0f64);
+        for i in 1..=30 {
+            k.takt();
+            v += 1200.0 * DT;
+            y += v * DT;
+            assert_eq!(k.teil_hole(t, tf::Y), y, "Takt {}", i);
+        }
+        let geschlossen = 10.0 + 1200.0 * DT * DT * 30.0 * 31.0 / 2.0;
+        assert!((y - geschlossen).abs() < 1e-9, "{} gegen {}", y, geschlossen);
+        assert_eq!(k.hole_zahl(w, n.ty), v);
+        assert_eq!(k.hole_zahl(w, n.boden), 0.0);
+        assert_eq!(k.teil_hole(t, tf::X), 100.0);
+    }
+
+    #[test]
+    fn stapel_aus_10_kisten_ruht() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (boden, _) = kiste(&mut k, &n, 320.0, 340.0, 600.0, 20.0); // Oberkante 330
+        let mut kisten = Vec::new();
+        for i in 0..10 {
+            let (t, _) = kiste(&mut k, &n, 300.0 + (i % 2) as f64 * 3.0, 320.0 - 20.0 * i as f64, 20.0, 20.0);
+            let w = wucht(&mut k, &n, t, 1200.0);
+            kisten.push((t, w, k.teil_hole(t, tf::Y)));
+        }
+        for _ in 0..300 {
+            k.takt();
+        }
+        let vorher: Vec<f64> = kisten.iter().map(|&(t, _, _)| k.teil_hole(t, tf::Y)).collect();
+        for _ in 0..300 {
+            k.takt();
+        }
+        for (i, &(t, w, y0)) in kisten.iter().enumerate() {
+            let y = k.teil_hole(t, tf::Y);
+            // 4 Iterationen lösen einen hohen Stapel nicht ganz: je Fuge sackt er etwas ein, aber er ruht
+            assert!(y - y0 >= 0.0 && y - y0 < 0.8 * (i + 1) as f64, "Kiste {} sackt: {} statt {}", i, y, y0);
+            assert!((y - vorher[i]).abs() < 0.01, "Kiste {} ruht nicht: {} → {}", i, vorher[i], y);
+            assert!(k.hole_zahl(w, n.ty).abs() < 25.0, "Kiste {} tempo {}", i, k.hole_zahl(w, n.ty));
+            assert_eq!(k.hole_zahl(w, n.boden), 1.0, "Kiste {} amBoden", i);
+            let x = k.teil_hole(t, tf::X);
+            assert!((x - (300.0 + (i % 2) as f64 * 3.0)).abs() < 1e-6, "Kiste {} rutscht: {}", i, x);
+        }
+        assert_eq!(k.teil_hole(boden, tf::Y), 340.0, "Fühler ohne Wucht = fest");
+    }
+
+    #[test]
+    fn abprall_und_reibung() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        kiste(&mut k, &n, 320.0, 350.0, 640.0, 20.0); // Oberkante 340
+        let (hoch, _) = kugel(&mut k, &n, 100.0, 100.0, 10.0);
+        let wh = wucht(&mut k, &n, hoch, 1200.0);
+        k.setze_zahl(wh, n.abprall, 1.0);
+        let (tot, _) = kugel(&mut k, &n, 300.0, 100.0, 10.0);
+        let wt = wucht(&mut k, &n, tot, 1200.0);
+        // höchster Punkt nach dem ersten Aufprall: fast wieder die Starthöhe
+        let mut min_y = f64::INFINITY;
+        let mut aufgeprallt = false;
+        for _ in 0..90 {
+            k.takt();
+            let y = k.teil_hole(hoch, tf::Y);
+            if k.hole_zahl(wh, n.ty) < 0.0 {
+                aufgeprallt = true;
+            }
+            if aufgeprallt && y < min_y {
+                min_y = y;
+            }
+        }
+        assert!(aufgeprallt);
+        assert!(min_y < 115.0, "Abprall 1: steigt wieder bis {}", min_y);
+        // Abprall 0: bleibt liegen
+        let y = k.teil_hole(tot, tf::Y);
+        assert!((y - 330.0).abs() < 1.0, "liegt auf 330: {}", y);
+        assert_eq!(k.hole_zahl(wt, n.boden), 1.0);
+        // Reibung: eine geschobene Kiste bremst (reibung 1), eine ohne Reibung rutscht weiter
+        let (rau, _) = kiste(&mut k, &n, 100.0, 330.0, 20.0, 20.0);
+        let wr = wucht(&mut k, &n, rau, 1200.0);
+        k.setze_zahl(wr, n.reibung, 1.0);
+        k.setze_zahl(wr, n.tx, 200.0);
+        let (glatt, _) = kiste(&mut k, &n, 500.0, 330.0, 20.0, 20.0);
+        let wg = wucht(&mut k, &n, glatt, 1200.0);
+        k.setze_zahl(wg, n.reibung, 0.0);
+        k.setze_zahl(wg, n.tx, 50.0);
+        for _ in 0..30 {
+            k.takt();
+        }
+        assert!(k.hole_zahl(wr, n.tx).abs() < 1e-9, "rau steht: {}", k.hole_zahl(wr, n.tx));
+        assert_eq!(k.hole_zahl(wg, n.tx), 50.0, "glatt gleitet");
+    }
+
+    #[test]
+    fn stoss_einmal_masse() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (t, _) = kugel(&mut k, &n, 100.0, 100.0, 5.0);
+        let w = wucht(&mut k, &n, t, 0.0);
+        k.setze_zahl(w, n.masse, 2.0);
+        k.setze_zahl(w, n.sx, 120.0);
+        k.setze_zahl(w, n.sy, -60.0);
+        k.takt();
+        assert_eq!((k.hole_zahl(w, n.tx), k.hole_zahl(w, n.ty)), (60.0, -30.0));
+        assert_eq!((k.hole_zahl(w, n.sx), k.hole_zahl(w, n.sy)), (0.0, 0.0), "danach 0");
+        k.takt();
+        assert_eq!(k.hole_zahl(w, n.tx), 60.0);
+        assert_eq!(k.teil_hole(t, tf::X), 100.0 + 60.0 * DT + 60.0 * DT);
+    }
+
+    #[test]
+    fn ausloeser_fest_kinematisch() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        kiste(&mut k, &n, 320.0, 200.0, 640.0, 20.0);
+        // Auslöser-Fühler stößt nicht: fällt durch
+        let (geist, gf) = kugel(&mut k, &n, 100.0, 150.0, 10.0);
+        k.setze_zahl(gf, n.f_aus, 1.0);
+        wucht(&mut k, &n, geist, 1200.0);
+        // fest: bewegt sich nie, auch mit tempo
+        let (stein, _) = kiste(&mut k, &n, 300.0, 100.0, 20.0, 20.0);
+        let ws = wucht(&mut k, &n, stein, 1200.0);
+        k.setze_text(ws, n.art, b"fest");
+        k.setze_zahl(ws, n.tx, 100.0);
+        // kinematisch: fährt mit tempo, schiebt eine Kugel, wird selbst nicht geschoben; stoss wirkt nicht
+        let (schieber, _) = kiste(&mut k, &n, 400.0, 170.0, 20.0, 20.0);
+        let wk = wucht(&mut k, &n, schieber, 1200.0);
+        k.setze_text(wk, n.art, b"kinematisch");
+        k.setze_zahl(wk, n.tx, 60.0);
+        k.setze_zahl(wk, n.sx, 1000.0);
+        let (ball, _) = kugel(&mut k, &n, 425.0, 170.0, 5.0);
+        let wb = wucht(&mut k, &n, ball, 0.0);
+        k.setze_zahl(wb, n.reibung, 0.0);
+        for _ in 0..60 {
+            k.takt();
+        }
+        assert!(k.teil_hole(geist, tf::Y) > 400.0, "Auslöser fällt durch: {}", k.teil_hole(geist, tf::Y));
+        assert_eq!((k.teil_hole(stein, tf::X), k.teil_hole(stein, tf::Y)), (300.0, 100.0));
+        let x = k.teil_hole(schieber, tf::X);
+        assert!((x - 460.0).abs() < 1e-9 && k.teil_hole(schieber, tf::Y) == 170.0, "kinematisch: {}", x);
+        assert_eq!(k.hole_zahl(wk, n.tx), 60.0);
+        assert!(k.teil_hole(ball, tf::X) >= x + 10.0 + 5.0 - 0.5, "Ball vor dem Schieber: {}", k.teil_hole(ball, tf::X));
+    }
+
+    #[test]
+    fn schuessel_mit_500_kugeln_kommt_zur_ruhe() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        // dicke Wände (kein Schutz gegen Durchtunneln: Doku-Tipp)
+        kiste(&mut k, &n, 320.0, 440.0, 1000.0, 200.0); // Boden, Oberkante 340
+        kiste(&mut k, &n, -80.0, 180.0, 200.0, 600.0); // Wände innen 20 … 620
+        kiste(&mut k, &n, 720.0, 180.0, 200.0, 600.0);
+        let mut kugeln = Vec::new();
+        for e in 0..500 {
+            let (t, _) = kugel(&mut k, &n, 30.0 + (e % 40) as f64 * 14.5, 20.0 + (e / 40) as f64 * 13.0, 4.0 + (e % 3) as f64);
+            let w = wucht(&mut k, &n, t, 1200.0);
+            k.setze_zahl(w, n.abprall, (e % 4) as f64 * 0.2);
+            k.setze_zahl(w, n.masse, 1.0 + (e % 5) as f64);
+            k.setze_zahl(w, n.tx, (e % 9) as f64 * 20.0 - 80.0);
+            kugeln.push((t, w));
+        }
+        let lagen = |k: &mut Kern| -> Vec<(f64, f64)> { kugeln.iter().map(|&(t, _)| (k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y))).collect() };
+        for _ in 0..420 {
+            k.takt();
+        }
+        let vorher = lagen(&mut k);
+        for _ in 0..60 {
+            k.takt();
+        }
+        // kein Schlafen: ein großer Haufen zittert ein wenig, wandert aber kaum noch
+        let jetzt = lagen(&mut k);
+        let wege: Vec<f64> = vorher.iter().zip(&jetzt).map(|(a, b)| (a.0 - b.0).abs() + (a.1 - b.1).abs()).collect();
+        let mittel = wege.iter().sum::<f64>() / wege.len() as f64;
+        assert!(mittel < 1.0, "Haufen wandert: {} px in 60 Takten", mittel);
+        let (mut boden, mut tiefst, mut ein) = (0, 0.0f64, 0.0f64);
+        for (e, &(t, w)) in kugeln.iter().enumerate() {
+            let (x, y) = jetzt[e];
+            assert!(x > 20.0 && x < 620.0 && y < 340.0, "Kugel {} entwischt: {} {}", t, x, y);
+            tiefst = tiefst.max(y);
+            ein = ein.max(y + 4.0 + (e % 3) as f64 - 340.0);
+            if k.hole_zahl(w, n.boden) == 1.0 {
+                boden += 1;
+            }
+        }
+        assert!(boden > 450, "amBoden nur {} von 500", boden);
+        assert!(ein < 1.5, "Kugeln stecken {} px im Boden", ein);
+        assert!(tiefst > 330.0, "unterste Kugeln liegen auf dem Boden: {}", tiefst);
+    }
+
+    #[test]
+    fn kontakt_normalen() {
+        let k = |a: Huelle, b: Huelle| wucht::kontakt(&a, &b);
+        // Kreis auf Rechteck: Normale vom Kreis (a) zum Rechteck (b) zeigt nach unten (y wächst nach unten)
+        let (n, t) = k(Huelle::Kreis([0.0, -9.0], 10.0), Huelle::Rechteck([-50.0, 0.0], [50.0, 10.0])).unwrap();
+        assert_eq!(n, [0.0, 1.0]);
+        assert!((t - 1.0).abs() < 1e-12);
+        let (n, _) = k(Huelle::Rechteck([-50.0, 0.0], [50.0, 10.0]), Huelle::Kreis([0.0, -9.0], 10.0)).unwrap();
+        assert_eq!(n, [0.0, -1.0]);
+        // Mitte im Rechteck: zur nächsten Kante
+        let (n, t) = k(Huelle::Rechteck([0.0, 0.0], [100.0, 100.0]), Huelle::Kreis([98.0, 50.0], 1.0)).unwrap();
+        assert_eq!((n, t), ([1.0, 0.0], 3.0));
+        // Rechtecke: kleinere Überlappung
+        let (n, t) = k(Huelle::Rechteck([0.0, 0.0], [10.0, 10.0]), Huelle::Rechteck([8.0, 1.0], [18.0, 11.0])).unwrap();
+        assert_eq!((n, t), ([1.0, 0.0], 2.0));
+        // Ränder zählen, Abstand nicht
+        assert_eq!(k(Huelle::Kreis([0.0, 0.0], 1.0), Huelle::Kreis([2.0, 0.0], 1.0)), Some(([1.0, 0.0], 0.0)));
+        assert_eq!(k(Huelle::Kreis([0.0, 0.0], 1.0), Huelle::Kreis([2.5, 0.0], 1.0)), None);
+        assert_eq!(k(Huelle::Kreis([0.0, 0.0], 1.0), Huelle::Kreis([0.0, 0.0], 1.0)), Some(([0.0, -1.0], 2.0)));
+        assert_eq!(k(Huelle::Kugel([0.0; 3], 1.0), Huelle::Kugel([0.0; 3], 1.0)), None);
+    }
+}
+

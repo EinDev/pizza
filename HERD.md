@@ -145,7 +145,7 @@ herd.backe(() -> {
 `Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
 `Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter), `Gleiten` (beide: Tween), `Ablauf` (beide:
 Keyframes), `Fuehler` (beide: Kollider, Ereignisse als Zustand je Takt), `Blick` (2D: Kamera mit Scrollen, Zoom, Drehung, HUD ab
-`festAb`), `Leine` (beide: Folgekamera). Die Fabriken
+`festAb`), `Leine` (beide: Folgekamera), `Wucht` (2D: Physik). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -333,7 +333,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K6** Fühler | `Fuehler` (17, Typnummer in Merge-Reihenfolge, Nachlauf; Formen auto/kreis/rechteck/kasten/kugel mit Versatz, Gruppen/Masken 32 Bit beidseitig, Lesefelder `beruehrt`/`betreten`/`verlassen` (teil-liste, nach ID)/`anzahl`), gemeinsame Kollisionssuche für H-K7 (`fuehler::{Kandidat, form, sammle, breitphase, paare}`, Sweep-and-Prune nach `ordnungs_bits(min x)` + ID in bis zu 64 waagerechten Streifen), Engphase `komponenten::trifft` (aus `abi.rs` verschoben, neu `Huelle::Kugel`), Szene `fuehler.herd`, Fälle `herd-fuehler`/`herd-teil-liste` (Sprachtest H-K0), Beispiel `muenzen.pizza`, Doku in `herd-ausbau`, K-150 | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 46/46 inkl. 6 neue `tests::hk6`, Skript 3 + 1); `node herd/test-kern.js` 19 Läufe bitgleich nativ = Wasm (neu `fuehler.herd` klein, N = 1 000, N = 10 000); `erwartet.js` 45 ✓ (keine bestehende geändert); `npm test` (319 Fälle), Prüfstand 724/724 + 6/6, `test:wasm` 1511, `test:differenz` 1136 ohne Abweichung; Sichtprüfung und Glut-Pixeltest stehen aus (Render-Pause); B6: 1 000 Fühler Takt 0,20 ms nativ / 0,31 ms Wasm (Ziel Nachlauf ≤ 0,5 ms), 10 000 Fühler (dichte Szene) 7,0 / 9,7 ms (`bench/herd/ERGEBNISSE.md`) |
 | **H-K3b** Vieleck | offen | – | – |
 | **H-K8** Vorlage | offen | – | – |
-| **H-K7** Wucht | offen | – | – |
+| **H-K7** Wucht | `Wucht` (20, 2D, braucht `Fuehler`, Takt-System nach Ablauf; `art` dynamisch/kinematisch/fest, `masse`, `tempoX/Y`, `schwerkraft` 0, `daempfung`, `abprall`, `reibung` 0.2, Einmal-Stoß `stossX/Y`, Lesefeld `amBoden`; Kreise und achsenparallele Rechtecke, keine Drehung; fester Fühler ohne Wucht = fester Körper), Löser in `wucht.rs`: Breitphase `fuehler::breitphase` auf den Fühlern mit `ausloeser: nein` (neu `fuehler::sammle_wenn`), Engphase `wucht::kontakt`, Warmstart aus verborgener Spalte `kontakte`, je 4 Iterationen Impuls + Positionskorrektur (vorwärts/rückwärts), `wucht::{Koerper, Kontakt, loese}` öffentlich für H-K10 (feste Kacheln als Körper), Szene `wucht.herd`, Fall `herd-wucht`, Beispiel `teigkugeln.pizza`, Doku in `herd-ausbau`, K-150 (Nachtrag) | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 65/65 inkl. 8 neue `tests::hk7`, Skript 3 + 1); `node herd/test-kern.js` 25 Läufe bitgleich nativ = Wasm (neu `wucht.herd` klein, N = 500, N = 2 000); `erwartet.js` 52 ✓ (keine bestehende geändert); `npm test` (327 Fälle), Prüfstand 785/785 + 6/6, `test:wasm` 1526, `test:differenz` 1143 ohne Abweichung; Sichtprüfung und Glut-Pixeltest stehen aus (Render-Pause); B7: 500 Kugeln Takt 0,42 ms nativ / 0,59 ms Wasm (Ziel ≤ 1 ms), 2 000 Kugeln 2,1 / 2,8 ms (`bench/herd/ERGEBNISSE.md`) |
 | **H-K9** Kulisse | offen | – | – |
 | **H-K11a** Gelände | offen | – | – |
 | **H-K10** Fliesen | offen | – | – |
@@ -428,7 +428,7 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 **Typnummern** (v1: 1 `Rechteck` · 2 `Kreis` · 3 `Text` · 4 `Bild` · 5 `Koerper` · 6 `Licht` · 7 `Kamera` · 8 `Bewegung` ·
 9 `Animation` · 10 `Partikel`). Die Spalte „Nr“ ist ab Nr. 14 nur ein **Vorschlag** in Planreihenfolge: vergeben wird in
 Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Bisher vergeben: 11 `Linie`, 12 `Rahmen`, 13 `Funken`, **14 `Gleiten`,
-15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1).
+15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1), **20 `Wucht`** (H-K7).
 
 | Nr (Vorschlag; vergeben: §11.1) | Komponente | Stufe | Raum | läuft in |
 |---|---|---|---|---|
@@ -638,7 +638,10 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   und achsenparalleles Rechteck, keine Drehdynamik in v1 (**Entscheidung**), kein Schlafen, kein Durchtunnel-Schutz (Doku-Tipp: Tempo je
   Takt kleiner als die halbe Ausdehnung). Mit `Bewegung` am selben Teil wirken beide (Bewegung zuerst) – Doku rät ab.
 - **Determinismus:** semi-implizites Euler, **feste 4 Iterationen** (Positionskorrektur + Impuls), Kontakte nach (kleinere ID, größere ID)
-  sortiert und sequenziell gelöst, nur `libm::sqrt`.
+  sortiert und sequenziell gelöst, nur `libm::sqrt`. **Umgesetzt** (K-150 Nachtrag): Kontakte an der Lage zu Beginn des Takts, Warmstart mit den
+  Impulsen des Vortakts (verborgene Spalte `kontakte`), 4 Impuls-Iterationen, Weg = tempo · dt, 4 Iterationen Positionskorrektur (nur Lage,
+  bremst das Tempo höchstens bis 0), beide abwechselnd vorwärts/rückwärts durch die sortierte Liste; ein Fühler mit `ausloeser: nein` ohne
+  Wucht ist fest. Messung B7 statt „Takt ≤ 1 ms bei 500“ siehe `bench/herd/ERGEBNISSE.md`.
 - **Tests:** `cargo test` (Fallhöhe nach n Takten, Stapel aus 10 Kisten ruht, Abprall), `herd-wucht.*`, Szenen-Skript `wucht.herd`
   (500 Kugeln in einer Schüssel; Takt ≤ 1 ms nativ, Messung). **Beispiel:** `teigkugeln.pizza` (Klick wirft Teigkugeln in eine Schüssel).
 - **Abnahme:** A-Kern. **Abhängig von:** H-K6. **K-Vorschlag:** K-150.
