@@ -239,6 +239,7 @@ mod wasm {
         fn form_eigene(pp: i32, pn: i32, dp: i32, dn: i32, glatt: i32) -> i32 { k().form_eigene(&zahlen(pp, pn), &zahlen(dp, dn), glatt) }
         fn bildchen_neu(zp: i32, zl: i32, fp: i32, fl: i32) -> i32 { k().bildchen_neu(b(zp, zl), b(fp, fl)) }
         fn bildchen_rgba(breite: i32, hoehe: i32, p: i32) -> i32 { k().bildchen_rgba(breite, hoehe, b(p, breite.max(0).saturating_mul(hoehe.max(0)).saturating_mul(4))) }
+        fn bildchen_teigling(p: i32, l: i32) -> i32 { k().bildchen_teigling(b(p, l)) }
         fn ressource_hole(id: i32, was: i32) -> f64 { k().ressource_hole(id, was) }
 
         fn takt() -> i32 { k().takt() }

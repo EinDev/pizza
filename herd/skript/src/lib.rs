@@ -69,6 +69,7 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("form_eigene", "ddi", 'I'),
     ("bildchen_neu", "zp", 'I'),
     ("bildchen_rgba", "iib", 'I'),
+    ("bildchen_teigling", "b", 'I'),
     ("ressource_hole", "ii", 'F'),
     ("takt", "", 'I'),
     ("paket_voll", "", 'I'),
@@ -782,6 +783,10 @@ impl Spieler {
             "bildchen_rgba" => {
                 let b: Vec<u8> = zahlen(2)?.into_iter().map(|x| zu_i32(x) as u8).collect();
                 Wert::I(k.bildchen_rgba(i(0)?, i(1)?, &b))
+            }
+            "bildchen_teigling" => {
+                let b: Vec<u8> = zahlen(0)?.into_iter().map(|x| zu_i32(x) as u8).collect();
+                Wert::I(k.bildchen_teigling(&b))
             }
             "ressource_hole" => Wert::F(k.ressource_hole(i(0)?, i(1)?)),
             "takt" => Wert::I(k.takt()),

@@ -14,6 +14,9 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
 | `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
 | `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
+| `teigling/` (`herd-teigling`, `no_std` + `alloc`, nur `miniz_oxide`) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), nur Ganzzahlen; Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
+| `teigling/wasm/` (`herd-teigling-wasm`) | Wasm-Hülle `site/js/herd/teigling.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
+| `test-teigling.js` | Bitgleich-Test Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4) |
 
 Dateien im Kern (`kern/src`): `welt.rs` (Teile, Lage, Welt-Matrizen, Komponenten-Verwaltung), `komponenten/` (Registry +
 eine Datei je Komponente), `schema.rs` (Feldtypen, Schema, Spalten-Speicher), `abi.rs` (`Kern` = Herd-ABI, Szenen-Hash,
@@ -151,6 +154,7 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `form_eigene` | `(punkte_ptr, n_zahlen, dreiecke_ptr, n_zahlen, glatt) → id` | beide als f64 LE (Dreiecke als Zahlen, damit der Kern Ganzzahl/Bereich prüft) |
 | `bildchen_neu` | `(zeilen_ptr, zeilen_len, farben_ptr, farben_len) → id` | Zeilen: Folge `u32 Länge + UTF-8`; Farben: Folge von Paaren `u32 Länge + Zeichen`, `u32 Länge + Farbtext` (leer = keine). **Zeichen werden im Kern aufgelöst** (Palette `w s g o t r p b l m e k a y h u v`, `.`/Leerzeichen durchsichtig, Zuordnung hat Vorrang) |
 | `bildchen_rgba` | `(breite, hoehe, ptr) → id` | breite × hoehe × 4 Bytes RGBA8 |
+| `bildchen_teigling` | `(ptr, len) → id` | `len` Bytes eines **Teiglings** (§11.2, `Bildchen.laden`, PROJEKTE PD1): prüft **nur den Kopf** (Magie, Version 1, Pixelformat 0, Größe 1 … 2048, Stufenzahl bis 1 × 1, jede Stufenlänge, Gesamtlänge) und übernimmt die Bytes als **eigene Textur** mit Mip-Kette (nicht im Atlas; `ressource_hole` Art 2 = Bildchen, Breite/Höhe = Stufe 0). Fehler-Teigling Code 1 bzw. ungültiger Kopf → Code 61, Code 2 → Code 62 (`LaufzeitAnanas`). Vor `welt_neu` → Code 3 |
 | `ressource_hole` | `(id, was) → f64` | 1 Art (1 Form, 2 Bildchen), 2 Breite, 3 Höhe, 4 Ecken, 5 Dreiecke |
 | `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60 |
 | `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
@@ -171,7 +175,10 @@ für 2D-Teile.`).
 · 22 Komponente falscher Raum · 23 Art schon am Teil · 24 Voraussetzung fehlt · 25 wird gebraucht · 26 Handle unbekannt
 (intern) · 27 Feld unbekannt · 28 Feld falscher Typ · 29 Feld Bereich · 30 Wahl unbekannt · 31 Farbe unbekannt · 32 Lesefeld gesetzt (`<Name>.<feld> kann man nur lesen.`; auch `melde_typfehler` an einem Lesefeld) · 33 Liste zu lang ·
 19 Komponentenname unbekannt · 40 teile (Bereich) · 51 teile keine Ganzzahl (TypAnanas `Form.kugel(teile: …) braucht eine Ganzzahl, nicht 24.5.`) · 41 dicke · 42 Punkte · 43 Dreiecke · 44 Punkt-Index · 45 Bildchen zu groß · 46 Bildchen-Zeichen · 47 Bildchen
-ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern).
+ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern) ·
+61 Teigling: kein lesbares Bild (`ist kein lesbares Bild (PNG oder JPEG).`) · 62 Teigling: zu groß (`ist zu groß (2400 × 800) –
+höchstens 2048 × 2048 Pixel.`). Bei 61/62 kennt der Kern den Pfad nicht: die Anbindung meldet `LaufzeitAnanas: <pfad> <fehler_text>`
+(SPEC §18.5). Neue Codes der HERD-Stufen ab 63.
 
 **Was die Anbindung selbst tut:** Sprachtypen prüfen (Zahl/Text/Blech …, bei falschem Typ `melde_typfehler`), Fabriken
 zusammensetzen (`herd.kreis(x, y, r, farbe:)` = `teil_neu(2)` + `teil_lage` + `komp_neu(Kreis)` + Felder + `komp_haenge`),
@@ -186,7 +193,7 @@ Little Endian, feldweise geschrieben. Hängt **nicht** von Fenster- oder Geräte
 **Kopf (32 Bytes):** `"HZP1"` · `u32 version = 1` · `u32 bildnummer` · `u16 breite` · `u16 hoehe` · `u32 flags`
 (1 = 3D-Züge oder 3D-Teilchen vorhanden, 2 = Schattendurchgang, 4 = Himmelsverlauf zeichnen) · `u32 anzahl_abschnitte` · `u32 länge_gesamt` ·
 `u32 0`.
-**Abschnitte** folgen: `u32 art` · `u32 länge` · Daten · Auffüllung auf 4 Bytes. Reihenfolge: Ressourcen-Deltas (1–4), dann 10,
+**Abschnitte** folgen: `u32 art` · `u32 länge` · Daten · Auffüllung auf 4 Bytes. Reihenfolge: Ressourcen-Deltas (1–5), dann 10,
 11, 12, 13, 14. Unbekannte Arten überspringen. Abschnitte des Ausbaus (HERD.md §12, ab 14) stehen nur im Paket, wenn die
 Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleibt 1.
 
@@ -196,6 +203,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 2 | ATLAS_SEITE | `u32 seite, u16 breite, u16 hoehe` – neue Bildchen-Atlasseite (RGBA8, 2048 × 2048, anfangs durchsichtig; Seiten sind die Schichten eines Textur-Arrays) |
 | 3 | ATLAS_STUECK | `u32 seite, u16 x, u16 y, u16 b, u16 h`, dann `b × h × 4` Bytes RGBA8 (Zeilen von oben) |
 | 4 | NETZ | `u32 id, u32 ecken, u32 indizes, f32 min[3], f32 max[3]`, dann `ecken × 32` Bytes (`f32 pos[3], normale[3], uv[2]`), dann `indizes × u32` (Dreiecke, Vorderseite gegen den Uhrzeigersinn) |
+| 5 | TEXTUR | eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): `u32 id` (Ressourcen-ID = Textur-ID), `u8 format` (0 = RGBA8, nicht vormultipliziert), `u8 stufen`, `u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes (Stufe 0 = b × h, jede weitere halbiert, abgerundet, mindestens 1, bis 1 × 1; Zeilen von oben). Einmal je Bild (nicht je Verwendung), nur wenn Teiglinge geladen sind |
 | 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
 | 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH) |
@@ -217,7 +225,8 @@ Tiefen-Bias, Texelgröße Welt) · `feld vec4` (breite, hoehe, 1/breite, 1/hoehe
 **INST3D (72 Bytes):** `f32 zeile0[4], zeile1[4], zeile2[4]` (Welt-Matrix 3 × 4 zeilenweise: Rotation·Skalierung | Verschiebung;
 Normalenmatrix = Kofaktoren der 3 × 3, im Shader) · `u8 r, g, b, a` (sRGB, nicht vormultipliziert) · `f32 glanz` (0 … 1) ·
 `f32 leuchten` (0 … 1) · `u16 u0, v0, u1, v1` (Atlas-Pixel der Textur) · `u32 textur` (Bits 0–15 Atlasseite, Bit 16 = hat
-Textur). Texturkoordinate: `atlas = (u0, v0) + clamp(uv · (u1 − u0, v1 − v0), 0.5, Größe − 0.5)`, nächster Nachbar;
+Textur; **Bit 17 = eigene Textur** (PD1): dann sind Bits 0–15 die Textur-ID aus TEXTUR und `u0 v0 u1 v1` = `0 0 b h` Pixel der
+Textur – Textur-IDs ab 65 536 sind in 3D nicht darstellbar). Texturkoordinate: `atlas = (u0, v0) + clamp(uv · (u1 − u0, v1 − v0), 0.5, Größe − 0.5)`, nächster Nachbar;
 Texel mit Deckkraft < ½ werden verworfen (auch im Schatten).
 
 **Züge:** In Listenreihenfolge. Für jedes Netz (aufsteigende ID) folgen die undurchsichtigen Instanzen in drei Gruppen:
@@ -245,6 +254,8 @@ die Kantenglättung bei Rechteck/Kreis (ein Gerätepixel, mindestens ein Spielfe
 | 2 Kreis | Radius `hx`, Umriss `p1`; auch Partikel |
 | 3 Bild | Atlasseite `seite`, Texel nächster Nachbar (pixelscharf, auf das Rechteck geklemmt), × Farbe (Tönung) |
 | 4 Glyphe | SCHRIFT-Textur (linear), Kante bei 0.5, × Farbe |
+| 5 Dreieck | reserviert für H-K3b |
+| 6 Texturbild | wie 3, aber aus der **eigenen Textur** `seite` (= Textur-ID aus TEXTUR, 24 Bit); `u0 v0 u1 v1` in Pixeln der Stufe 0 (`Bild`: `0 0 b h`, `Rahmen`: die Neuntel). Abtastung (PD3): vergrößern nächster Nachbar, verkleinern trilinear über die Mipmaps |
 
 Alle 2D-Instanzen sind **eine** Liste in Zeichenreihenfolge (`ebene`, dann Teil-ID, dann Registry-Reihenfolge, dann
 Glyphen-/Teilchenreihenfolge) → ein instanzierter Draw-Call (6 Ecken × k), über der 3D-Szene, ohne Tiefe, Mischen
@@ -268,7 +279,9 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
 
 - `node herd/baue.js` → `cargo build --release -p herd-kern-wasm --target wasm32v1-none` (Features wie die Laufzeit:
   `+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue`, `herd/.cargo/config.toml`), schreibt
-  `site/js/herd/kern.wasm` (keine Importe, kein wasm-bindgen) und `site/js/herd/schema.json`. `--pruefe` vergleicht nur.
+  `site/js/herd/kern.wasm` (keine Importe, kein wasm-bindgen) und `site/js/herd/schema.json`; im selben Lauf
+  `-p herd-teigling-wasm` → `site/js/herd/teigling.wasm` (§11). `--pruefe` vergleicht nur (schema.json ↔ kern.wasm,
+  teigling.wasm: keine Importe, alle Exporte, SHA-256-Probe).
 - Nativ: `cargo build` im Ordner `herd/` (Kern ist eine rlib ohne Abhängigkeiten außer `libm`).
 - Browser-Glut: `node herd/baue-web.js` → `cargo build -j 2 --profile klein -p herd-glut-web --target wasm32-unknown-unknown`,
   dann `wasm-bindgen --target no-modules` → `site/js/herd/glut.js` + `glut_bg.wasm` (eingecheckt). wasm-bindgen ist im Crate auf
@@ -291,6 +304,9 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
+  `teigling.herd` (PD1): `bildchen_teigling` mit echten Teiglingen aus `teigling.wasm`, Fehlercodes 61/62, Bild/Rahmen/Koerper
+  mit eigener Textur, `paket_voll`.
+- `node herd/test-teigling.js` (**blockierend**, PD1): Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4).
 
 ### 7.1 Szenen-Skripte (`*.herd`)
 
@@ -411,3 +427,69 @@ Funken aus Maul und Schlot, deckender Rauch, Nebel, schräge Kamera). **Pixeltes
 **Messungen:** `node bench/herd/mess-kern.js` (Kern nativ/Wasm), `herd-bild bench` (Glut auf WARP), Größe mit Profil `klein` –
 Ergebnisse und die Kommandos für die echte GPU in `bench/herd/ERGEBNISSE.md`. Profile: `messung` (Release ohne LTO, schont
 Speicher) und `klein` (opt-level "z", LTO, strip).
+
+## 11. Vorbacker `herd/teigling` (PROJEKTE.md §5.3, K-147)
+
+PNG und JPEG sind nur **Eingabe**: der Vorbacker backt sie einmal zu einem **Teigling** (RGBA8 nicht vormultipliziert +
+Mipmaps bis 1 × 1). Derselbe Rust-Code läuft nativ und als `site/js/herd/teigling.wasm` (Browser-Worker, Node-CLI,
+Interpreter, Harnische) und rechnet **nur mit Ganzzahlen** → bitgleich per Konstruktion. Einzige Abhängigkeit:
+`miniz_oxide` 0.8.9 (Inflate, `no_std`, in `Cargo.lock` gesperrt); PNG- und JPEG-Decoder sind eigener Code. Der native Host
+braucht den Vorbacker nicht (er bekommt fertige Teiglinge im pkarton, PA2).
+
+### 11.1 Decoder
+
+- **PNG** (`png.rs`): Farbtypen Grau, Grau+Alpha, RGB, RGBA, Palette; Bittiefen 1/2/4/8/16; alle fünf Filter; `tRNS` (Palette:
+  Alpha je Eintrag, fehlende = 255; Grau/RGB: Farbschlüssel, verglichen in der **Original**-Bittiefe vor dem Kürzen); 16 bit →
+  obere 8 Bit, Grau < 8 bit → `v × 255 / (2^b − 1)` (abgerundet). CRC **jedes** Abschnitts wird geprüft, IDAT dürfen geteilt sein,
+  `IEND` ist Pflicht, die dekomprimierte Länge muss **genau** `Höhe × (1 + Zeilenbytes)` sein (Inflate mit hartem Limit).
+  Kein lesbares Bild: Adam7 (Interlace-Byte ≠ 0), APNG (`acTL`/`fcTL`/`fdAT`), unbekannter kritischer Abschnitt, Paletten-
+  index außerhalb der Palette, fehlendes `PLTE` bei Farbtyp 3, Filtertyp > 4. Ignoriert: `gAMA`, `cHRM`, `sRGB`, `iCCP`,
+  Text und alle anderen Zusatzabschnitte (Rohwerte, keine Farbverwaltung).
+- **JPEG** (`jpeg.rs`): SOF0/SOF1 (Baseline/erweitert, Huffman) und SOF2 (progressiv: Spektralauswahl, schrittweise
+  Näherung, EOB-Läufe), 8 bit, 1 Komponente (Grau) oder 3 (YCbCr), Abtastfaktoren 1 … 4 mit ganzzahligem Verhältnis zum
+  größten Faktor (4:4:4, 4:2:2, 4:2:0, 4:4:0, 4:1:1 …), verschachtelte und einzelne Scans, `DRI`/`RSTn`. Ergebnis gleich
+  libjpeg-turbo mit `JDCT_ISLOW` und `do_fancy_upsampling = FALSE` (`djpeg -dct int -nosmooth`): Koeffizienten als `i16`,
+  IDCT `jpeg_idct_islow` mit Bereichstabelle (`& 1023`), Chroma durch Wiederholen, YCbCr → RGB mit den Festkomma-Tabellen von
+  `jdcolor.c`, Quantisierungstabellen beim ersten Scan einer Komponente übernommen, Huffman-Tabellen beim Scan gebaut (DC-Werte
+  > 15 → Fehler); beschädigte Daten wie libjpeg (fehlende Bits = 0, ungültiger Code = 0; eine abgeschnittene Datei wird mit Null-Bits zu Ende dekodiert).
+  Farbraum wie `default_decompress_parms`: JFIF → YCbCr, sonst Adobe-Transform 0 bzw. Kennungen `R G B` → RGB-JPEG.
+  Kein lesbares Bild: arithmetisch (SOF9 …, `DAC`), 12 bit, verlustfrei/hierarchisch, CMYK/4 Komponenten, RGB-JPEG,
+  `DNL` (Höhe 0), nicht ganzzahliges Abtastverhältnis, kein Scan. EXIF-Drehung und alle `APPn`/`COM` werden ignoriert.
+- **Grenzen**: Quelle ≤ 2 MiB (sonst Code 1; der Lader meldet vorher P0020), Breite/Höhe ≤ 2048 – geprüft aus `IHDR`/`SOF`
+  **vor** dem Dekodieren (Code 2 mit der Größe als `u32`), Breite oder Höhe 0 → Code 1.
+- Gegenprobe (2026-10-23, Pillow 10.3 / libjpeg-turbo, nur lokal): alle 4:4:4- und Grau-JPEGs (eigene und von Pillow
+  kodierte, Baseline, progressiv, mit Restart-Markern) **bitgleich**; Unterabtastung weicht nur durch Pillows „fancy
+  upsampling“ ab. PNG aller Farbtypen bitgleich (außer 16-bit-Grau, das Pillow anders nach 8 bit bringt).
+
+### 11.2 Format „Teigling“ v1 und Mipmaps
+
+Little Endian: `"TEIGLING"` · `u16 version = 1` · `u8 format` (0 = RGBA8, 255 = Fehler) · `u8 stufen` (1 … 12) · `u16 b, u16 h` ·
+`u32 flags` (Bit 0 hat Durchsichtiges, Bit 1 Quelle JPEG) · 32 Bytes SHA-256 der Quelle · je Stufe `u32 länge` + Bytes.
+Fehler-Teigling (64 Bytes): Format 255, Stufen 0, b = h = 0, Flags 0, SHA-256, `u16 code` (1 kein lesbares Bild, 2 zu groß),
+`u16 0`, `u32 b`, `u32 h` (nur Code 2). Länge eines Teiglings = 52 + Σ (4 + bᵢ · hᵢ · 4) ≈ b · h · 4 · 4/3 (1024² → 5 592 500 Bytes).
+**Mipmaps:** Stufe i + 1 = (max(bᵢ/2, 1), max(hᵢ/2, 1)), jedes Zielpixel aus dem 2 × 2-Block ab (2x, 2y) der Vorstufe (fehlt die
+zweite Spalte/Zeile, wird die letzte wiederholt; bei ungerader Größe entfällt die letzte), alpha-gewichtet:
+`a = (Σa + 2) >> 2`, `c = Σa > 0 ? (Σ c·a + Σa/2) / Σa : 0`, in sRGB-Werten. Flag-Bit 0 wird aus Stufe 0 bestimmt.
+
+### 11.3 `teigling.wasm` und JS-Hülle `site/js/herd/teigling.js`
+
+Exporte (keine Importe): `memory`, `abi_version() → 1`, `teigling_version() → 1`, `puffer(len) → ptr`, `vorbacken(ptr, len) → len`,
+`sha256(ptr, len) → 32`, `ergebnis() → ptr`, `freigeben()`. Die Hülle (klassisches Skript, `PizzaVorbacker` bzw. `require`) bietet
+`ausBytes`/`ausModul`/`lade(url)`/`node()`, je Vorbacker `vorbacken`, `sha256`, `passt(teigling, quelle)` (Kopf gültig und
+SHA-256 im Kopf = SHA-256 der Quelle) und `besorge(teigling | null, quelle)` (Cache-Prüfung §5.4: passt er nicht, wird neu
+vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiedene Quell-Hashes, ohne Fehler-Teiglinge),
+`megabyte` (aufgerundet, Dezimalkomma), `teigmengeFehler` (Text von P0020) und `cacheSchluessel` (`<sha>/teigling/1`).
+
+### 11.4 Tests
+
+- `cargo test -j 2 -p herd-teigling`: SHA-256-Testvektoren, Mipmaps, Kopf/Fehler-Teigling, **PNG exakt** gegen die erzeugten
+  Proben (15 Farbtyp/Bittiefe-Paare × 4 Größen × 6 Filterwahlen, mit `tRNS`), Grau-Hochskalierung, alle Fehlerfälle,
+  JPEG gegen das Muster (Näherung), **progressiv = Baseline = je Komponente** (gleiche Koeffizienten → gleiche Pixel) und die
+  **goldenen Teiglinge** `teigling/golden.txt` (80 Fälle: Name, SHA-256 und Länge des Teiglings). Die Quellbilder erzeugt
+  `testbild.rs` (eigener PNG-Kodierer und JPEG-Kodierer mit optimierten Huffman-Tabellen, Baseline/progressiv, Restart-Marker,
+  alle Abtastungen) – keine Binärdateien im Repo. Neu schreiben nur bei gewollter Formatänderung:
+  `TEIGLING_SCHREIBE=1 cargo test -p herd-teigling` (neue Formatversion, Cache-Schlüssel ändert sich).
+- `node herd/test-teigling.js` (**blockierend**): baut `herd-teigling` (`--features testbilder`, `-j 2`), schreibt die Fälle nach
+  `herd/target/teigling-faelle/`, backt jeden mit `teigling.wasm` über die Hülle vor und vergleicht mit nativ und `golden.txt`;
+  dazu Hülle (`sha256` = `node:crypto`, `kopf`, `passt`/`besorge`, `teigmenge`, `megabyte`, P0020-Text).
+- Messung: `node bench/herd/mess-teigling.js` (1024²-PNG/-JPEG nativ und Wasm, `bench/herd/ERGEBNISSE.md`).

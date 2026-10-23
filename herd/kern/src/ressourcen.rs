@@ -20,7 +20,22 @@ pub struct Bildchen {
     pub y: u32,
     /// Hat durchsichtige oder halbdurchsichtige Pixel.
     pub durchsichtig: bool,
+    /// Eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): nicht im Atlas, `seite` = `TEXTUR_MARKE | id`,
+    /// `x = y = 0`, `rgba` = Stufe 0. `None` = Atlas-Bildchen.
+    pub textur: Option<Textur>,
 }
+
+/// Mip-Kette einer eigenen Textur (ab Stufe 1; Stufe 0 steht in `Bildchen::rgba`).
+#[derive(Clone, Debug)]
+pub struct Textur {
+    /// Pixelformat aus dem Teigling (0 = RGBA8)
+    pub format: u8,
+    pub weitere: Vec<Vec<u8>>,
+}
+
+/// Markiert in `Bildchen::seite` eine eigene Textur (Bits 0–23 = Textur-ID = Ressourcen-ID). Die Komponenten reichen `seite`
+/// unverändert weiter; das Bildpaket macht daraus `flach_art::TEXTURBILD` (2D) bzw. `INST3D.textur` Bit 17 (3D).
+pub const TEXTUR_MARKE: u32 = 1 << 31;
 
 #[derive(Clone, Debug)]
 pub enum Ressource {
@@ -107,7 +122,26 @@ impl Ressourcen {
         self.hash.u32(breite);
         self.hash.u32(hoehe);
         self.hash.bytes(&rgba);
-        self.liste.push(Ressource::Bildchen(Bildchen { breite, hoehe, rgba, seite, x, y, durchsichtig }));
+        self.liste.push(Ressource::Bildchen(Bildchen { breite, hoehe, rgba, seite, x, y, durchsichtig, textur: None }));
         self.liste.len() as u32
+    }
+
+    /// Bildchen aus einem geprüften Teigling: eigene Textur mit Mip-Kette (nicht im Atlas). Der Hash deckt alle Stufen ab.
+    pub fn teigling_neu(&mut self, t: crate::teigling::Geprueft) -> u32 {
+        let id = self.liste.len() as u32 + 1;
+        self.hash.u8(3);
+        self.hash.u32(t.breite);
+        self.hash.u32(t.hoehe);
+        self.hash.u8(t.format);
+        self.hash.u32(t.stufen.len() as u32);
+        for s in &t.stufen {
+            self.hash.bytes(s);
+        }
+        let mut stufen = t.stufen.into_iter();
+        let rgba = stufen.next().unwrap_or_default();
+        let durchsichtig = t.flags & crate::teigling::FLAG_DURCHSICHTIG != 0;
+        let textur = Some(Textur { format: t.format, weitere: stufen.collect() });
+        self.liste.push(Ressource::Bildchen(Bildchen { breite: t.breite, hoehe: t.hoehe, rgba, seite: TEXTUR_MARKE | id, x: 0, y: 0, durchsichtig, textur }));
+        id
     }
 }

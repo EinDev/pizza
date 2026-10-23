@@ -71,6 +71,10 @@ pub mod code {
     pub const FORM_ART: i32 = 49;
     pub const BILDCHEN_SCHLUESSEL: i32 = 50;
     pub const PUFFER: i32 = 60;
+    /// Teigling: kein lesbares Bild (PROJEKTE PD1, K-147; auch ein ungültiger Teigling-Kopf)
+    pub const TEIGLING_KEIN_BILD: i32 = 61;
+    /// Teigling: Bild zu groß (> 2048 × 2048)
+    pub const TEIGLING_ZU_GROSS: i32 = 62;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -247,6 +251,14 @@ pub fn bildchen_schluessel(k: &str) -> Fehler {
 }
 pub fn ressource(was: &str, id: u32) -> Fehler {
     laufzeit(code::RESSOURCE, format!("{} {} gibt es nicht.", was, id))
+}
+/// Code 61. Der Kern kennt den Pfad nicht: die Anbindung setzt `<pfad> ` vor den Text (SPEC §18.5).
+pub fn teigling_kein_bild() -> Fehler {
+    laufzeit(code::TEIGLING_KEIN_BILD, String::from("ist kein lesbares Bild (PNG oder JPEG)."))
+}
+/// Code 62 (Größe aus dem Fehler-Teigling, `u32`). Pfad wie bei Code 61.
+pub fn teigling_zu_gross(b: u32, h: u32) -> Fehler {
+    laufzeit(code::TEIGLING_ZU_GROSS, format!("ist zu groß ({} × {}) – höchstens 2048 × 2048 Pixel.", b, h))
 }
 pub fn puffer(was: &str) -> Fehler {
     intern(format!("Puffer ungültig: {}.", was))

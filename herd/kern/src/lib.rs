@@ -18,6 +18,7 @@ pub mod paket;
 pub mod ressourcen;
 pub mod schema;
 pub mod schrift;
+pub mod teigling;
 pub mod welt;
 pub mod zahl;
 

@@ -947,6 +947,18 @@ impl Kern {
         self.ri(e)
     }
 
+    /// Bildchen aus einem Teigling (PROJEKTE PD1, `Bildchen.laden`): nur Kopfprüfung, eigene Textur mit Mip-Kette.
+    /// Fehler-Teigling → Code 61/62 (Text ohne Pfad, die Anbindung setzt `<pfad> ` davor).
+    pub fn bildchen_teigling(&mut self, t: &[u8]) -> i32 {
+        let e = (|| {
+            self.w()?;
+            let g = crate::teigling::pruefe(t)?;
+            let w = self.w()?;
+            Ok(w.ressourcen.teigling_neu(g) as i32)
+        })();
+        self.ri(e)
+    }
+
     /// 1 = Art (1 Form, 2 Bildchen), 2 = Breite, 3 = Höhe (Bildchen), 4 = Anzahl Ecken, 5 = Anzahl Dreiecke (Form).
     pub fn ressource_hole(&mut self, id: i32, was: i32) -> f64 {
         let e = (|| {

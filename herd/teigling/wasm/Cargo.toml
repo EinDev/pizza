@@ -1,0 +1,13 @@
+[package]
+name = "herd-teigling-wasm"
+description = "Wasm-Hülle des Vorbackers (teigling.wasm: Exporte vorbacken/sha256, ohne Importe)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+herd-teigling = { path = ".." }

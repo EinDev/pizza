@@ -1,0 +1,58 @@
+# PROJEKTE PD1: Teiglinge im Kern (bildchen_teigling, K-147) nativ = kern.wasm. Die Teiglinge stammen aus teigling.wasm
+# (4 × 2 RGBA mit einem durchsichtigen Pixel, 3 × 3 deckend, Fehler-Teiglinge „zu groß“ 2400 × 800 und „kein Bild“).
+# Geprüft: Kopfprüfung, Fehlercodes 61/62 (Texte ohne Pfad), Ressourcen-Delta TEXTUR = 5 (einmal je Bild), 2D flach_art
+# TEXTURBILD = 6 (Bild, Rahmen), 3D INST3D.textur Bit 17 (Koerper). Ohne Teiglinge bleibt jedes Paket wie vorher (B1–B5).
+vorgabe TAKTE 2
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 0, 2, 3, 0, 3, 0, 0, 0, 0, 0, 214, 58, 26, 114, 28, 2, 162, 49, 58, 75, 243, 148, 216, 48, 140, 66, 140, 160, 41, 91, 198, 70, 197, 213, 138, 226, 39, 37, 238, 47, 255, 248, 36, 0, 0, 0, 200, 0, 50, 255, 200, 25, 50, 255, 200, 50, 50, 255, 200, 75, 50, 255, 200, 100, 50, 255, 200, 125, 50, 255, 200, 150, 50, 255, 200, 175, 50, 255, 200, 200, 50, 255, 4, 0, 0, 0, 200, 50, 50, 255]
+fehler_code
+welt_neu 320 200 "Teiglinge"
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 0, 3, 4, 0, 2, 0, 1, 0, 0, 0, 90, 32, 69, 225, 57, 219, 179, 33, 215, 125, 74, 35, 25, 115, 84, 188, 104, 242, 155, 192, 61, 31, 229, 250, 89, 111, 152, 227, 163, 186, 173, 151, 32, 0, 0, 0, 0, 255, 100, 255, 30, 225, 100, 255, 60, 195, 100, 255, 90, 165, 100, 255, 120, 135, 100, 255, 150, 105, 100, 0, 180, 75, 100, 255, 210, 45, 100, 255, 8, 0, 0, 0, 50, 205, 100, 191, 135, 120, 100, 255, 4, 0, 0, 0, 99, 156, 100, 223] -> T1
+ressource_hole T1 1
+ressource_hole T1 2
+ressource_hole T1 3
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 0, 2, 3, 0, 3, 0, 0, 0, 0, 0, 214, 58, 26, 114, 28, 2, 162, 49, 58, 75, 243, 148, 216, 48, 140, 66, 140, 160, 41, 91, 198, 70, 197, 213, 138, 226, 39, 37, 238, 47, 255, 248, 36, 0, 0, 0, 200, 0, 50, 255, 200, 25, 50, 255, 200, 50, 50, 255, 200, 75, 50, 255, 200, 100, 50, 255, 200, 125, 50, 255, 200, 150, 50, 255, 200, 175, 50, 255, 200, 200, 50, 255, 4, 0, 0, 0, 200, 50, 50, 255] -> T2
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 118, 215, 116, 219, 151, 92, 185, 240, 227, 106, 7, 51, 53, 143, 230, 155, 174, 106, 41, 83, 28, 155, 109, 11, 218, 72, 138, 5, 226, 220, 239, 2, 0, 0, 0, 96, 9, 0, 0, 32, 3, 0, 0]
+fehler_art
+fehler_code
+fehler_text
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 251, 203, 40, 29, 40, 197, 244, 190, 187, 153, 233, 88, 204, 52, 195, 151, 65, 41, 173, 9, 229, 133, 5, 98, 70, 45, 250, 101, 207, 240, 194, 56, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+fehler_code
+fehler_text
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 0, 3, 4, 0, 2, 0, 1, 0, 0, 0, 90, 32, 69, 225, 57, 219, 179, 33, 215, 125, 74, 35, 25, 115, 84, 188, 104, 242, 155, 192, 61, 31, 229, 250, 89, 111, 152, 227, 163, 186, 173, 151, 32, 0, 0, 0, 0, 255, 100, 255, 30, 225, 100, 255, 60, 195, 100, 255, 90, 165, 100, 255, 120, 135, 100, 255, 150, 105, 100, 0, 180, 75, 100, 255, 210, 45, 100, 255, 8, 0, 0, 0, 50, 205, 100, 191, 135, 120, 100, 255, 4, 0, 0, 0, 99, 156, 100]
+fehler_code
+bildchen_teigling [84, 69, 73, 71, 76, 73, 78, 71, 1, 0, 0, 5, 4, 0, 2, 0, 1, 0, 0, 0, 90, 32, 69, 225, 57, 219, 179, 33, 215, 125, 74, 35, 25, 115, 84, 188, 104, 242, 155, 192, 61, 31, 229, 250, 89, 111, 152, 227, 163, 186, 173, 151, 32, 0, 0, 0, 0, 255, 100, 255, 30, 225, 100, 255, 60, 195, 100, 255, 90, 165, 100, 255, 120, 135, 100, 255, 150, 105, 100, 0, 180, 75, 100, 255, 210, 45, 100, 255, 8, 0, 0, 0, 50, 205, 100, 191, 135, 120, 100, 255, 4, 0, 0, 0, 99, 156, 100, 223]
+fehler_code
+bildchen_teigling []
+fehler_code
+welt_hole 6
+typ_nummer "Bild" -> T_B
+typ_nummer "Rahmen" -> T_R
+typ_nummer "Koerper" -> T_K
+feld_nummer T_B "bildchen" -> B_BILD
+feld_nummer T_B "groesse" -> B_GR
+feld_nummer T_R "bildchen" -> R_BILD
+feld_nummer T_R "kante" -> R_KANTE
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "bild" -> K_BILD
+teil_neu 2 -> a
+teil_lage a 60 50 0
+komp_neu T_B -> b
+setze_zahl b B_BILD T1
+setze_zahl b B_GR 8
+komp_haenge b a
+teil_neu 2 -> r
+teil_lage r 200 120 0
+komp_neu T_R -> rr
+setze_zahl rr R_BILD T2
+setze_zahl rr R_KANTE 1
+komp_haenge rr r
+form_grund 1 0 0 -> W
+teil_neu 3 -> k
+komp_neu T_K -> kk
+setze_zahl kk K_FORM W
+setze_zahl kk K_BILD T1
+komp_haenge kk k
+bild
+takte TAKTE
+paket_voll
+bild

@@ -334,6 +334,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "herd-teigling"
+version = "3.1.0"
+dependencies = [
+ "miniz_oxide 0.8.9",
+]
+
+[[package]]
+name = "herd-teigling-wasm"
+version = "3.1.0"
+dependencies = [
+ "herd-teigling",
+]
+
+[[package]]
 name = "herd-werkzeug"
 version = "3.1.0"
 dependencies = [

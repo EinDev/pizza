@@ -1995,8 +1995,10 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Mipmaps), sofort KTX2/Basis (Encoder-Determinismus offen), Host-Import `datei_lesen`.
 - **Folge:** Beispiele, die bewusst Text-Bildchen durch Bilddateien ersetzen (PB4), bekommen neue `.herd-erwartet` – gewollt, keine
   Regression im Sinne von HERD.md §12.1 Regel 2.
-- **Betroffen:** SPEC §18.5, §14.7; HOST-ABI §2 (Gruppe `herd`); HERD.md §12.1; `herd/README.md` §3/§4 (PD1). **Status:** offen
-  (PD1/PD2/PA2/PD3, U-77).
+- **Betroffen:** SPEC §18.5, §14.7; HOST-ABI §2 (Gruppe `herd`); HERD.md §12.1; `herd/README.md` §3/§4 (PD1). **Status:** teilweise
+  umgesetzt – PD1 ✅ (Vorbacker `herd/teigling` + `teigling.wasm` + JS-Hülle `site/js/herd/teigling.js` mit Cache-Prüfung `passt`/
+  `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`); offen: PD2 (Interpreter: `Bildchen.laden`, P0020),
+  PA2 (Laufzeit/Host, Datensegment), PD3 (Glut), U-77.
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –
@@ -2017,7 +2019,15 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (Bits 0–15 = Textur-ID). Glut: vergrößern nächster Nachbar, verkleinern trilinear. GPU-Kompression (BC7/ASTC/ETC2) später als neues
   Pixelformat, ohne Sprachänderung.
 - **Betroffen:** neues `herd/teigling`, `herd/kern`, `herd/glut*`, HERD.md §12.1 (Nummern reserviert), `herd/README.md` (PD1).
-  **Status:** offen (PD1/PD3, U-77).
+  **Status:** teilweise umgesetzt – PD1 ✅ (Decoder, Mipmaps, Format, goldene Teiglinge nativ = Wasm, Kern-Export mit Kopfprüfung,
+  Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17; Rechenwege und Festlegungen in `herd/README.md` §11); offen: PD3 (Glut-Abtastung).
+- **Festlegungen der Umsetzung (PD1, wo das Konzept offen war):** JPEG-Ergebnis = libjpeg-turbo `JDCT_ISLOW` +
+  `do_fancy_upsampling = FALSE` (gegen Pillow/libjpeg-turbo geprüft: 4:4:4 und Grau bitgleich); beschädigte JPEG-Daten wie libjpeg
+  (fehlende Bits = 0, abgeschnittene Datei wird zu Ende dekodiert); Farbraum wie `default_decompress_parms` (ohne JFIF: Adobe-
+  Transform 0 oder Kennungen `R G B` = RGB-JPEG → nicht unterstützt); PNG: `IEND` Pflicht, unbekannter kritischer Abschnitt,
+  Palettenindex außerhalb und APNG (`acTL`) → kein lesbares Bild; Quelle > 2 MiB → Code 1; ungültiger Teigling-Kopf im Kern →
+  Code 61; Kern-Fehlertexte 61/62 ohne Pfad (die Anbindung setzt `<pfad> ` davor); Mipmaps bei ungerader Größe ohne die letzte
+  Spalte/Zeile, bei Größe 1 wiederholt; `TEXTURBILD` gilt auch für `Rahmen` (Neuntel in Pixeln der Textur).
 
 ### K-148 Herd-Ausbau: Stufenplan und Verträglichkeit (HERD.md §12)
 - **Frage:** Wie wachsen Kern und Komponenten über v1 hinaus (H-K0 … H-K14), ohne bestehende Programme, Tests und Bilder zu brechen?
@@ -2164,7 +2174,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-74 | `durchreiche/**`, compose, nginx, Dockerfile, README (PROJEKTE.md **PC1**) | K-143: Dienst, Unit-Tests in `npm test`, hastebin/redis entfernen | `node --test durchreiche/test` |
 | U-75 | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
 | U-76 | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll | `npm --prefix ui test`, e2e |
-| U-77 | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17; Glut-Texturen mit Mip-Kette | `cargo test` (herd), `node herd/test-kern.js` |
+| U-77 (PD1 ✅, PD3 offen) | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); offen: Glut-Texturen mit Mip-Kette (PD3) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js` |
 | U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
 | U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3**, **PB4**, **PB5**) | K-144, K-145: Beispiele als Ordner, Doku-Kapitel „Projekte und Dateien“, Herd-Beispiele mit Bilddateien, Imperium nach „Idle frei“ | Prüfstand Beispiele/Doku |
 

@@ -41,6 +41,7 @@ const LAEUFE = [
   ['fuehler.herd', {}],
   ['fuehler.herd', { N: 1000, TAKTE: 20 }],
   ['fuehler.herd', { N: 10000, TAKTE: 3 }],
+  ['teigling.herd', {}],
 ];
 
 const args = process.argv.slice(2);

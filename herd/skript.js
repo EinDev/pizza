@@ -17,7 +17,7 @@ const SIGNATUREN = {
   komp_haenge: ['ii', 'I'], komp_loese: ['i', 'I'], komp_von: ['ii', 'I'], komp_info: ['ii', 'I'], typ_nummer: ['t', 'I'],
   feld_nummer: ['it', 'I'], setze_zahl: ['iif', 'I'], hole_zahl: ['ii', 'F'], setze_text: ['iit', 'I'], hole_text: ['ii', 'T'],
   setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], setze_zahlen: ['iid', 'I'], hole_zahlen: ['ii', 'D'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
-  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
+  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
 };
 
@@ -399,6 +399,11 @@ class Spieler {
         const b = ii(0), h = ii(1), bytes = Uint8Array.from(zahlen(2).map((x) => (x | 0) & 255));
         p = this.puffer([bytes]);
         return I(k.bildchen_rgba(b, h, p[0][0]));
+      }
+      case 'bildchen_teigling': {
+        const bytes = Uint8Array.from(zahlen(0).map((x) => (x | 0) & 255));
+        p = this.puffer([bytes]);
+        return I(k.bildchen_teigling(p[0][0], bytes.length));
       }
       case 'ressource_hole': return F(k.ressource_hole(ii(0), ii(1)));
       case 'takt': return I(k.takt());

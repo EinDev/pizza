@@ -1,0 +1,22 @@
+[package]
+name = "herd-teigling"
+description = "Vorbacker: PNG/JPEG → Teigling (RGBA8 + Mipmaps), no_std, nur Ganzzahlen, bitgleich nativ = teigling.wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Testbild-Erzeuger (PNG-/JPEG-Kodierer für goldene Teiglinge und Messungen); nur Tests und das Werkzeug `herd-teigling`.
+testbilder = []
+
+[dependencies]
+# Einzige Abhängigkeit (PROJEKTE.md §5.3): Inflate für PNG, no_std, Version wie in Cargo.lock gesperrt.
+miniz_oxide = { version = "=0.8.9", default-features = false, features = ["with-alloc"] }
+
+[[bin]]
+name = "herd-teigling"
+path = "src/bin/herd-teigling.rs"
+required-features = ["testbilder"]

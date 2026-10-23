@@ -102,6 +102,25 @@ Pipelines werden je Zielformat einmal erzeugt (Cache), Instanzpuffer nur vergrö
 panic abort; `herd/glut/examples/groesse.rs` = Kern + Glut, ein Bild offscreen): **2 530 304 Bytes (2,4 MiB)**, Windows x64,
 wgpu 30 nur mit DX12-Backend und WGSL. Ziel der Windows-EXE (HERD.md §7.1): ≤ 6 MB inkl. Host, wasmi, Laufzeit und winit (H5).
 
+## Vorbacker (PROJEKTE PD1)
+
+`node bench/herd/mess-teigling.js` – Vorbacken (Dekodieren + Mipmaps + Teigling schreiben, inkl. SHA-256 der Quelle) je Bild,
+Bestwert aus 5 Läufen; nativ = `herd-teigling messe` (Release), Wasm = `site/js/herd/teigling.wasm` über die JS-Hülle in Node
+(V8). Messbilder aus `testbild::messbilder()` (1024 × 1024, Verläufe + Kanten + Rauschen; PNG RGBA mit Alpha, Filter Paeth;
+JPEG 4:2:0 Qualität 85 mit optimierten Huffman-Tabellen). Beide Wege liefern byte-gleiche Teiglinge. Node v22.15.1,
+i7-13700KF, 2026-10-23:
+
+| Bild | Quelle | Teigling | nativ | Wasm (Node) |
+|---|---|---|---|---|
+| 1024² PNG RGBA | 1 106 KiB | 5,33 MiB (5 592 500 Bytes, 11 Stufen) | 29 ms | 45 ms |
+| 1024² JPEG 4:2:0 Baseline | 191 KiB | 5,33 MiB (11 Stufen) | 17 ms | 24 ms |
+| 1024² JPEG 4:2:0 progressiv | 187 KiB | 5,33 MiB (11 Stufen) | 21 ms | 29 ms |
+
+Bewertung: Vorbacken eines 1024²-Bildes kostet im Browser-Worker Größenordnung 25 … 50 ms – einmal je Bild und Quell-Hash
+(Cache, PROJEKTE.md §5.4), also kein Thema für Ladezeiten; ein 2048²-Bild ≈ das Vierfache. Der Teigling ist ≈ 5 × (PNG) bis
+29 × (JPEG) größer als die Quelle – deshalb teilt v1 die Quellbilder und backt beim Empfänger (§5.4). `teigling.wasm`: 75 564
+Bytes, 27 954 Bytes gzip (Stufe 6).
+
 ## Vom Nutzer auszuführen (echte GPU)
 
 Diese Messungen brauchen die **echte GPU** und werden deshalb von keinem Agenten ausgeführt. Bitte nur starten, wenn kein Spiel

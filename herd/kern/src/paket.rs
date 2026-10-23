@@ -7,7 +7,7 @@
 use alloc::vec::Vec;
 
 use crate::farbe;
-use crate::ressourcen::{Ressource, Ressourcen};
+use crate::ressourcen::{Ressource, Ressourcen, TEXTUR_MARKE};
 use crate::schrift::Schrift;
 use crate::welt::Welt;
 
@@ -32,6 +32,8 @@ pub mod abschnitt {
     pub const ATLAS_SEITE: u32 = 2;
     pub const ATLAS_STUECK: u32 = 3;
     pub const NETZ: u32 = 4;
+    /// Eigene Textur aus einem Teigling (PROJEKTE PD1): einmal je Bild, nur wenn `bildchen_teigling` benutzt wurde
+    pub const TEXTUR: u32 = 5;
     pub const SZENE: u32 = 10;
     pub const INST3D: u32 = 11;
     pub const ZUEGE3D: u32 = 12;
@@ -55,6 +57,9 @@ pub mod flach_art {
     pub const KREIS: u32 = 2;
     pub const BILD: u32 = 3;
     pub const GLYPHE: u32 = 4;
+    // 5 = DREIECK ist für H-K3b reserviert (HERD.md §12.1 Regel 3)
+    /// Bild aus einer eigenen Textur (PROJEKTE PD1): `seite` = Textur-ID, `u0 v0 u1 v1` in Pixeln der Textur (Stufe 0)
+    pub const TEXTURBILD: u32 = 6;
 }
 
 /// Art eines 3D-Zugs.
@@ -211,7 +216,11 @@ impl Bildbau {
         put_f32(b, p[0]);
         put_f32(b, p[1]);
         b.extend_from_slice(&farbe.to_be_bytes());
-        put_u32(b, art | (seite & 0xFF) << 8);
+        if art == flach_art::BILD && seite & TEXTUR_MARKE != 0 {
+            put_u32(b, flach_art::TEXTURBILD | (seite & 0xFF_FFFF) << 8);
+        } else {
+            put_u32(b, art | (seite & 0xFF) << 8);
+        }
         for x in uv {
             put_u16(b, x);
         }
@@ -405,6 +414,20 @@ fn ressourcen_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &
                 }
                 b.extend_from_slice(&netz.ecken);
                 b.extend_from_slice(&netz.indizes);
+                abschnitt_ende(b, st);
+            }
+            Ressource::Bildchen(bi) if bi.textur.is_some() => {
+                let t = bi.textur.as_ref().unwrap();
+                let st = abschnitt_beginn(b, abschnitt::TEXTUR);
+                put_u32(b, id);
+                b.push(t.format);
+                b.push(1 + t.weitere.len() as u8);
+                put_u16(b, bi.breite as u16);
+                put_u16(b, bi.hoehe as u16);
+                for s in core::iter::once(&bi.rgba).chain(t.weitere.iter()) {
+                    put_u32(b, s.len() as u32);
+                    b.extend_from_slice(s);
+                }
                 abschnitt_ende(b, st);
             }
             Ressource::Bildchen(bi) => {
@@ -691,7 +714,14 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         for x in k.uv {
             put_u16(b, x);
         }
-        put_u32(b, if k.seite >= 0 { (k.seite as u32 & 0xFFFF) | 1 << 16 } else { 0 });
+        // Bits 0–15 Atlasseite bzw. Textur-ID, Bit 16 = hat Textur, Bit 17 = eigene Textur (PROJEKTE PD1)
+        put_u32(b, if k.seite < 0 {
+            0
+        } else if k.seite as u32 & TEXTUR_MARKE != 0 {
+            (k.seite as u32 & 0xFFFF) | 1 << 16 | 1 << 17
+        } else {
+            (k.seite as u32 & 0xFFFF) | 1 << 16
+        });
     };
     let mut i = 0;
     while i < bau.fest.len() {
