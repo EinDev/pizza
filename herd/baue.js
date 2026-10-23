@@ -35,7 +35,7 @@ if (!pruefe && !process.argv.includes('--ohne-cargo')) {
 }
 if (pruefe) {
   const soll = schemaAus(fs.readFileSync(path.join(ZIEL, 'kern.wasm')));
-  const ist = fs.readFileSync(path.join(ZIEL, 'schema.json'), 'utf8');
+  const ist = fs.readFileSync(path.join(ZIEL, 'schema.json'), 'utf8').replace(/\r\n/g, '\n');   // Checkout mit core.autocrlf liefert CRLF
   if (soll !== ist) { console.error('site/js/herd/schema.json ist nicht aktuell (node herd/baue.js)'); process.exit(1); }
   console.log('schema.json aktuell');
   process.exit(0);
