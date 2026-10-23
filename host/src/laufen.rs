@@ -27,6 +27,8 @@ pub struct Optionen {
     pub saat_zeigen: bool,
     /// Fester Wert für `echtzeit_ms` (`--echtzeit=N`, gerundet, wächst nicht); `None` → Systemzeit (K-087).
     pub echtzeit: Option<f64>,
+    /// Fester Wert für `zone_ms` (`--zone=N`, ms, gerundet); `None` → bei fester Wanduhr 0, sonst Zeitzone des Systems (K-154).
+    pub zone: Option<f64>,
     /// Ordner der Vorratskammern (K-081); `None` → keine Speicherung (`--kein-vorrat`, W0101-Verhalten).
     pub vorrat: Option<PathBuf>,
     /// Köche der Küchenbrigade (`--koeche=N`, SPEC §17.7); `None` → `auto` (logische Kerne, höchstens 16), `1` = keine.
@@ -40,7 +42,7 @@ pub struct Optionen {
 }
 
 /// Bekannte Importe `pizza.*` (HOST-ABI §2: Basis + Gruppen theke, vorrat, echtzeit, kueche).
-const IMPORTE: [&str; 16] = [
+const IMPORTE: [&str; 17] = [
     "ausgabe",
     "schreibe",
     "fehlerausgabe",
@@ -55,6 +57,7 @@ const IMPORTE: [&str; 16] = [
     "vorrat_lesen",
     "vorrat_schreiben",
     "echtzeit_ms",
+    "zone_ms",
     "kueche_auftrag",
     "kueche_bericht",
 ];
@@ -244,22 +247,6 @@ pub fn vorrat_datei_schreiben(ordner: &Path, name: &str, json: &[u8]) -> std::io
         return Err(e);
     }
     Ok(())
-}
-
-/// Wert von `echtzeit_ms` (K-087): fester Wert (gerundet wie Math.round) oder Systemzeit.
-pub fn echtzeit_wert(fest: Option<f64>) -> f64 {
-    match fest {
-        Some(x) if x.is_finite() => (x + 0.5).floor(),
-        _ => systemzeit_ms(),
-    }
-}
-
-/// Ganze Millisekunden seit 1970-01-01 (Systemzeit, K-087).
-fn systemzeit_ms() -> f64 {
-    match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-        Ok(d) => d.as_millis() as f64,
-        Err(_) => 0.0,
-    }
 }
 
 /// Woher `ui_warte` Ereignisse bekommt und wohin `ui_senden` geht (THEKE.md §4).
@@ -464,8 +451,8 @@ pub(crate) struct Zustand {
     vorrat: Option<PathBuf>,
     /// Gelesene Kammer, die nicht in den Puffer passte (Retry wie K-013).
     vorrat_wartend: Option<Vec<u8>>,
-    /// Fester Wert für `echtzeit_ms`.
-    echtzeit: Option<f64>,
+    /// Feste Werte für `echtzeit_ms`/`zone_ms` (K-087, K-154).
+    uhr: crate::ortszeit::Wanduhr,
     /// Köche der Küchenbrigade (Gruppe `kueche`).
     kueche: crate::kueche::Kueche,
     /// Herd (Gruppe `herd`): nativer Kern, nachgebildeter Kern-Speicher, Renderer-Anbindung.
@@ -629,9 +616,10 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
         None => Quelle::Stdin { eof: false },
     };
     let koeche = opt.koeche.unwrap_or_else(crate::kueche::auto);
-    let kueche = crate::kueche::Kueche::neu(module.clone(), koeche, opt.kuechen_chaos, opt.echtzeit);
+    let uhr = crate::ortszeit::Wanduhr { echtzeit: opt.echtzeit, zone: opt.zone };
+    let kueche = crate::kueche::Kueche::neu(module.clone(), koeche, opt.kuechen_chaos, uhr);
     let herd = crate::herd::HerdZustand::neu(opt.herd.take(), opt.herd_messung.clone());
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, echtzeit: opt.echtzeit, kueche, herd };
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, uhr, kueche, herd };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -713,7 +701,9 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
             },
         )?;
         // Wanduhr für `Uhr.echt()` (K-087): ganze ms seit 1970; `--echtzeit=N` → fester Wert (gerundet, wie Math.round).
-        linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 { echtzeit_wert(c.data().echtzeit) })?;
+        linker.func_wrap("pizza", "echtzeit_ms", |c: Caller<'_, Zustand>| -> f64 { c.data().uhr.echtzeit_ms() })?;
+        // Ortszeit-Versatz für `Uhr.zone()` (K-154): `--zone=N` fest; mit `--echtzeit=N` ohne `--zone` 0; sonst Systemzeitzone.
+        linker.func_wrap("pizza", "zone_ms", |c: Caller<'_, Zustand>| -> f64 { c.data().uhr.zone_ms() })?;
         // Vorratskammer (K-079–K-081): kap -1 = Abfrage; sonst Einträge als JSON-Array, -1 = keine Kammer,
         // Länge > kap → nichts schreiben, Daten behalten, erneuter Aufruf mit größerem Puffer (wie K-013).
         linker.func_wrap(

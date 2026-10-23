@@ -1,0 +1,10 @@
+// exit: 0
+// optionen: {"echtzeit": 1782893310250, "zone": -9000000}
+// K-154: Uhr.zone() westlich von UTC (Neufundland im Sommer, −2:30) – in der Hauptküche und in den Klonen der Küchenbrigade
+Dauer z = Uhr.zone();
+Bote.sage((z));
+Bote.sage((z.inMinuten()));
+funghi s = ((Uhr.echt() + z).inMs() % 86400000) / 1000.0;
+Bote.sage(("Ortszeit " + Mathe.boden(s / 3600) + ":" + Mathe.boden(s % 3600 / 60) + ":" + (s % 60)));
+Bote.sage(([1 .. 8].brigade(i -> (Uhr.echt() + Uhr.zone()).inMs() % 86400000 + i)));
+Bote.sage((Uhr.zone() < 0ms));

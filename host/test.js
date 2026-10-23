@@ -89,6 +89,7 @@ for (const b of liste) {
   const lauf = {};
   if (b.zufallsSaat !== undefined) lauf.zufallsSaat = b.zufallsSaat;
   if (b.echtzeit !== undefined) lauf.echtzeit = b.echtzeit;
+  if (b.zone !== undefined) lauf.zone = b.zone;
   if (b.schrittLimit !== undefined) lauf.schrittLimit = b.schrittLimit;
   const ref = PizzaLang.run(quelle, Object.assign({ args, eingabe, uiEreignisse }, lauf));
   const k = Pizzaiolo.kompiliere(quelle);
@@ -106,6 +107,7 @@ for (const b of liste) {
   if (b.eingabe) hArgs.push('--eingabe', path.join(BEISPIELE, b.eingabe));
   if (Number.isInteger(lauf.zufallsSaat)) hArgs.push('--saat=' + lauf.zufallsSaat);
   if (lauf.echtzeit !== undefined) hArgs.push('--echtzeit=' + lauf.echtzeit);
+  if (lauf.zone !== undefined) hArgs.push('--zone=' + lauf.zone);
   if (lauf.schrittLimit !== undefined) hArgs.push('--schritte=' + lauf.schrittLimit);
   if (uiDatei) hArgs.push('--ui-ereignisse', uiDatei);
   hArgs.push(datei, ...args);

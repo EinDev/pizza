@@ -74,6 +74,7 @@ console.log('▶ beispiele');
       const ep = b.ereignisse ? path.join(dir, b.ereignisse) : basis + '.ereignisse';
       if (!b.herd && !b.herdErwartet && !fs.existsSync(hp)) continue;
       const opt = { args: b.args || [] };
+      for (const k of ['zufallsSaat', 'echtzeit', 'zone', 'schrittLimit']) if (b[k] !== undefined) opt[k] = b[k];   // Manifestfelder (K-087, K-154)
       if (fs.existsSync(ep)) opt.uiEreignisse = zeilen(fs.readFileSync(ep, 'utf8'));
       const ist = herdVon(P.run(fs.readFileSync(dp, 'utf8'), opt));
       const soll = fs.existsSync(hp) ? zeilen(fs.readFileSync(hp, 'utf8')) : null;
@@ -83,7 +84,11 @@ console.log('▶ beispiele');
         fehler++; console.log('    ! ' + name + ': Manifest nennt andere Dateinamen als <prog>.herd-erwartet/.erwartet – bitte von Hand');
         continue;
       }
-      try { bild([dp, '--schreibe', '--still'].concat(fs.existsSync(ep) ? ['--ereignisse', ep] : [])); } catch (e) { fehler++; console.log('    ! ' + e.message); }
+      const uhr = [].concat(b.echtzeit !== undefined ? ['--echtzeit', String(b.echtzeit)] : [], b.zone !== undefined ? ['--zone', String(b.zone)] : []);
+      if (b.zufallsSaat !== undefined || b.schrittLimit !== undefined || (b.args && b.args.length)) {
+        fehler++; console.log('    ! ' + name + ': bild.js kennt zufallsSaat/schrittLimit/args nicht – bitte von Hand'); continue;
+      }
+      try { bild([dp, '--schreibe', '--still'].concat(fs.existsSync(ep) ? ['--ereignisse', ep] : [], uhr)); } catch (e) { fehler++; console.log('    ! ' + e.message); }
     }
   }
 }
@@ -113,7 +118,7 @@ console.log('▶ doku');
     if (!name.includes(filter)) continue;
     const opt = {};
     if (Array.isArray(item.uiEreignisse)) opt.uiEreignisse = item.uiEreignisse;
-    for (const k of ['zufallsSaat', 'echtzeit', 'schrittLimit']) if (item[k] !== undefined) opt[k] = item[k];
+    for (const k of ['zufallsSaat', 'echtzeit', 'zone', 'schrittLimit']) if (item[k] !== undefined) opt[k] = item[k];
     const code = String(item.code || '');
     const ist = herdVon(P.run(code, opt));
     if (melde(name, ist, item.herdErwartet) || !schreibe) continue;

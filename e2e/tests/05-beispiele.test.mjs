@@ -6,6 +6,7 @@ import {
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
   thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, beispielZeitlimit, sammelZeitlimit,
+  setzeLaufUhr,
 } from "../hilfen.mjs";
 
 const { liste: BEISPIELE, fehlend, teile } = beispieleAusManifesten();
@@ -81,6 +82,7 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
         const theke = thekeEreignisse(b);
         let gesendet = 0;
         const herd = herdErwartet(b);
+        await setzeLaufUhr(page, b);   // feste Wanduhr/Zeitzone wie beim Erzeugen der .erwartet (K-087/K-154)
         if (herd) {
           // Herd (H6): .ereignisse deterministisch nachspielen (Takte samt Eingaben; der Renderer zeichnet nebenher),
           // Ausgabe wie unten mit .erwartet, herd-Ereignisse (Szenen-/Paket-Hashes) mit .herd-erwartet

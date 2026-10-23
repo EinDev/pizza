@@ -92,8 +92,16 @@
 
   // ---- Klon-Instanzen (in Kochen und im Hauptthread identisch)
 
+  /** K-154: Wert von `zone_ms` – optionen.zone fest (gerundet); feste Wanduhr ohne zone → 0; sonst Ortszeit − UTC (ganze Minuten). */
+  function zoneMs(zone, echtzeit) {
+    if (typeof zone === 'number' && isFinite(zone)) return Math.round(zone);
+    if (typeof echtzeit === 'number' && isFinite(echtzeit)) return 0;
+    const m = Math.round(-new Date(Date.now()).getTimezoneOffset());
+    return m === 0 ? 0 : m * 60000;
+  }
+
   /** Importe eines Klons (HOST-ABI §2 „Klon-Instanzen“): Ausgabe-/Ende-Imports → Trap, nie Lauf-Abbruch. */
-  function klonImporte(modul, echtzeit) {
+  function klonImporte(modul, echtzeit, zone) {
     const pizza = {}, herd = {};
     const verboten = (m, n) => () => { throw new Error('Klon rief ' + m + '.' + n); };
     // Gruppe herd (Modul „herd“ und pizza.herd_*): in Klonen immer Trap – die Laufzeit ruft sie dort nie (KüchenAnanas)
@@ -104,18 +112,19 @@
     pizza.eingabe = () => -1;
     pizza.ui_warte = (p, kap) => (kap < 0 ? 0 : -1);
     pizza.echtzeit_ms = () => (typeof echtzeit === 'number' && isFinite(echtzeit) ? Math.round(echtzeit) : Date.now());
+    pizza.zone_ms = () => zoneMs(zone, echtzeit);
     pizza.kueche_auftrag = () => -1;   // innere Brigaden laufen im Klon sequentiell
     pizza.kueche_bericht = () => -2;
     return { pizza, herd };
   }
 
   /** desc: WebAssembly.Module (.pkarton) oder { laufzeit, programm, tabellenZuwachs, speicherSeiten } (Schnellpfad). */
-  function neuerKlon(desc, echtzeit) {
+  function neuerKlon(desc, echtzeit, zone) {
     if (desc instanceof WebAssembly.Module) {
-      const inst = new WebAssembly.Instance(desc, klonImporte(desc, echtzeit));
+      const inst = new WebAssembly.Instance(desc, klonImporte(desc, echtzeit, zone));
       return { memory: inst.exports.memory, ks: inst.exports.kueche_stueck, brigade: -1 };
     }
-    const lz = new WebAssembly.Instance(desc.laufzeit, klonImporte(desc.laufzeit, echtzeit));
+    const lz = new WebAssembly.Instance(desc.laufzeit, klonImporte(desc.laufzeit, echtzeit, zone));
     const e = lz.exports;
     const tab = e.__indirect_function_table;
     if (desc.tabellenZuwachs) tab.grow(desc.tabellenZuwachs);
@@ -169,7 +178,7 @@
 
   /**
    * Zieht Stücke aus der Warteschlange der Brigade b, bis sie leer ist. b: Brigade-Nachricht (steuer, schnapp, laenge,
-   * reihe, n, auftrag, nr, chaos, echtzeit). liefere(i, art, bytes) übergibt das Ergebnis (bytes: Bericht oder Trap-Meldung,
+   * reihe, n, auftrag, nr, chaos, echtzeit, zone). liefere(i, art, bytes) übergibt das Ergebnis (bytes: Bericht oder Trap-Meldung,
    * gültig nur während des Aufrufs). zustand: { klon, modulId } – Klon wird über Stücke und Brigaden wiederverwendet.
    */
   function arbeite(zustand, desc, modulId, b, kochNr, liefere, fach) {
@@ -189,7 +198,7 @@
     if (b.chaos !== null && b.chaos !== undefined) chaosPause(b.chaos, kochNr, i, b.n);
     let art = ART_BERICHT, bytes;
     try {
-      if (zustand.klon === null || zustand.modulId !== modulId) { zustand.klon = null; zustand.klon = neuerKlon(desc, b.echtzeit); zustand.modulId = modulId; }
+      if (zustand.klon === null || zustand.modulId !== modulId) { zustand.klon = null; zustand.klon = neuerKlon(desc, b.echtzeit, b.zone); zustand.modulId = modulId; }
       const k = zustand.klon;
       if (k.brigade !== b.nr) { bespiele(k, new Uint8Array(b.schnapp, 0, b.laenge)); k.brigade = b.nr; }
       const [p, n] = k.ks(b.auftrag, i);
@@ -300,7 +309,7 @@
       const chaos = typeof opt.chaos === 'number' && isFinite(opt.chaos) ? Math.floor(opt.chaos) : null;
       const reihe = chaos !== null ? chaosReihe(n, chaos) : null;
       const auftragNachricht = { typ: 'brigade', nr, modulId: id, steuer: steuerSab, schnapp: schnappSab, laenge: L, auftrag, n,
-        reihe, chaos, echtzeit: opt.echtzeit };
+        reihe, chaos, echtzeit: opt.echtzeit, zone: opt.zone };
       const genutzt = frei.slice(0, w);
       for (const k of genutzt) {
         if (k.modulId !== id) { k.worker.postMessage({ typ: 'modul', id, modul: desc }); k.modulId = id; }

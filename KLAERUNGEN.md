@@ -2046,6 +2046,23 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Nachweis:** `cargo test` (Kern: `tests::hk0`, Skript: `tests/probe.herd` mit Feature `probe`), `tests/herd/szenen/listen.herd` in
   `node herd/test-kern.js` (nativ = `kern.wasm`); Sprachtests folgen mit den ersten Nutzern (`herd-zahl-liste.*` in H-K4, `herd-teil-liste.*`
   und Lesefeld-Fehler in H-K6), weil `Probe` nicht in `kern.wasm` steckt. **Status:** fest.
+### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
+- **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
+  samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen
+  reserviert.)
+- **Entscheidung:** `Uhr.zone()` → `Dauer` = Ortszeit − UTC zum aktuellen Zeitpunkt (`Uhr.echt()`), positiv östlich von Greenwich,
+  negativ westlich (SPEC §14.11: Dauer darf negativ sein, Textform `-5h`) – keine Zahl in Minuten, damit `Uhr.echt() + Uhr.zone()`
+  direkt die Ortszeit ist. Auflösung **ganze Minuten** (alle heutigen Zeitzonen; nativ liefert Windows Minuten, Linux Sekunden → gerundet).
+  Werte: `optionen.zone` gesetzt → dieser Wert (ms, gerundet wie `echtzeit`) · sonst `optionen.echtzeit` gesetzt → `0ms` (alle
+  bestehenden Testläufe mit fester Wanduhr bleiben deterministisch) · sonst die Zeitzone des Systems.
+- **Motoren (Browser = nativ):** Interpreter `UHR_M.zone` (`-new Date(t).getTimezoneOffset()`); Wasm: Name `zone` = 220, Import
+  `zone_ms() -> f64` in Gruppe `echtzeit` (Compiler fordert die Gruppe bei `echt` **oder** `zone` an); JS-Host und Klone (koch.js)
+  `zoneMs(zone, echtzeit)`; nativer Host `src/ortszeit.rs` (Windows `GetSystemTime` + `SystemTimeToTzSpecificLocalTime` über kernel32,
+  Unix `localtime_r` → `tm_gmtoff`, keine Crates), Testoption `--zone=N`. Klon-Instanzen der Küchenbrigade wie die Hauptinstanz.
+- **Tests/Werkzeuge:** Manifest-/Doku-/Prüfstand-Feld `zone` neben `echtzeit` (run-tests `laufFelder`, Differenz-Korpus, `host/test.js`,
+  `tests/herd/erwartet.js` → `tests/herd/bild.js --echtzeit/--zone`); E2E 05/07 reichen `echtzeit`/`zone` über `window.__laufUhr` an den
+  Worker. Fälle `tests/faelle/k154-uhr-zone*`, Prüfstand a13, Doku-Block (Referenz Uhr). Pizza-Uhr: Manifest `echtzeit`
+  1782893310250 (2026-07-01 08:08:30.250 UTC) + `zone` 7200000 → 10:08:30 Ortszeit wie zuvor. **Status:** fest.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

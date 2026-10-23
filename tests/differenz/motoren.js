@@ -77,18 +77,20 @@ function laufOptionen(opt) {
   if (opt && opt.zufallsSaat !== undefined) o.zufallsSaat = opt.zufallsSaat;
   if (opt && opt.vorrat) o.vorrat = JSON.parse(JSON.stringify(opt.vorrat));
   if (opt && opt.echtzeit !== undefined) o.echtzeit = opt.echtzeit;
+  if (opt && opt.zone !== undefined) o.zone = opt.zone;
   return o;
 }
 
 /**
  * Lauf-Optionen, die ein Motor erst können muss (U-43). Fehlt die Unterstützung, zählt der Fall als Fallback.
- *   zufallsSaat (K-077) · vorrat (K-080/081) · echtzeit (K-087)
+ *   zufallsSaat (K-077) · vorrat (K-080/081) · echtzeit (K-087) · zone (K-154)
  */
 function benoetigteOptionen(opt) {
   const f = [];
   if (opt && opt.zufallsSaat !== undefined) f.push('zufallsSaat');
   if (opt && opt.vorrat) f.push('vorrat');
   if (opt && opt.echtzeit !== undefined) f.push('echtzeit');
+  if (opt && opt.zone !== undefined) f.push('zone');
   return f;
 }
 
@@ -297,7 +299,7 @@ function hostHilfe() {
   }
   return _hostHilfe;
 }
-const HOST_FLAG = { zufallsSaat: '--saat', vorrat: '--vorrat', echtzeit: '--echtzeit' };
+const HOST_FLAG = { zufallsSaat: '--saat', vorrat: '--vorrat', echtzeit: '--echtzeit', zone: '--zone' };
 function hostKann(option) { return hostHilfe().includes(HOST_FLAG[option]); }
 
 /** Vorrat-Eingangszustand { kennung: eintraege | {v,name,eintraege} } → Dateien <name>.json bzw. <raum>/<name>.json (K-080/K-106). */
@@ -360,6 +362,7 @@ const host = {
     // K-077: keine Ganzzahl → wie fehlende Saat (42); --saat lehnt das (wie bin/pizza.js) ab, der JSON-Modus nutzt ohne --saat 42.
     if (opt && Number.isInteger(opt.zufallsSaat)) argv.push('--saat=' + opt.zufallsSaat);
     if (opt && opt.echtzeit !== undefined) argv.push('--echtzeit=' + opt.echtzeit);
+    if (opt && opt.zone !== undefined) argv.push('--zone=' + opt.zone);
     if (opt && opt.vorrat) {
       vorratOrdner = path.join(tmpDir, 'vorrat' + (tmpZaehler++));
       schreibeVorrat(vorratOrdner, opt.vorrat);

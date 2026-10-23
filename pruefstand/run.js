@@ -218,6 +218,9 @@ function beispielFälle() {
     if (fs.existsSync(ue)) f.ui = jsonZeilen(fs.readFileSync(ue, "utf8"));
     const he = b.datei.replace(/\.pizza$/, ".herd-erwartet");   // SPEC §18.7 / K-134
     if (fs.existsSync(he)) f.herd = jsonZeilen(fs.readFileSync(he, "utf8"));
+    // Manifestfelder feste Wanduhr/Zeitzone (K-087/K-154) wie tests/run-tests.js
+    if (typeof b.echtzeit === "number") f.echtzeit = b.echtzeit;
+    if (typeof b.zone === "number") f.zone = b.zone;
     return f;
   });
 }
@@ -263,6 +266,7 @@ function dokuFälle() {
             if (b.vorrat && typeof b.vorrat === "object") f.vorrat = b.vorrat;
             if (Array.isArray(b.vorratErwartet)) f.vorratEreignisse = b.vorratErwartet;
             if (typeof b.echtzeit === "number") f.echtzeit = b.echtzeit;
+            if (typeof b.zone === "number") f.zone = b.zone;
             const next = inhalt[i + 1];
             // Doku-"ausgabe" darf den Panik-Banner weglassen (ARCHITEKTUR §4, K-030) → Banner beidseitig entfernt
             if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.bannerOptional = true; }
@@ -326,6 +330,7 @@ async function teilA() {
         if (f.zufallsSaat !== undefined) optionen.zufallsSaat = f.zufallsSaat;   // K-077
         if (f.vorrat !== undefined) optionen.vorrat = f.vorrat;                 // K-080
         if (f.echtzeit !== undefined) optionen.echtzeit = f.echtzeit;           // K-087
+        if (f.zone !== undefined) optionen.zone = f.zone;                       // K-154
         if (f.koeche !== undefined) optionen.koeche = f.koeche;                 // K-100: Host-Einstellung, nie beobachtbar
         if (f.kuechenChaos !== undefined) optionen.kuechenChaos = f.kuechenChaos;
         const m = await aus.run(f.code, optionen);

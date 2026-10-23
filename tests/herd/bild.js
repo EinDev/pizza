@@ -5,13 +5,15 @@
  * Software-Adapter (WARP/lavapipe, HERD_SOFTWARE=1 – nie die echte GPU, kein Fenster) zu PNGs.
  *
  *   node tests/herd/bild.js prog.pizza [--ereignisse datei] [--bild n[,m…]] [--png ordner] [--groesse BxH]
- *                                      [--skript datei.herd] [--schreibe] [--json] [--still]
+ *                                      [--skript datei.herd] [--echtzeit ms] [--zone ms] [--schreibe] [--json] [--still]
  *
  * --ereignisse  Renderer-Ereignisse (JSON-Lines; Standard: <prog>.ereignisse neben dem Programm, sonst ein {"typ":"takt"})
  * --bild        Bildnummern (bildnummer des Herds), z. B. 1,60,120; „letztes“ = das letzte gesendete Bild (Standard)
  * --png         Ordner für die PNGs (<prog>-<n>.png); ohne --png wird nur aufgezeichnet und geprüft
  * --groesse     Zielgröße in Pixeln (Standard: Spielfeldgröße des Herds)
  * --skript      das aufgezeichnete Szenen-Skript zusätzlich hier speichern
+ * --echtzeit    feste Wanduhr für Uhr.echt() (ms seit 1970, K-087), --zone fester Versatz für Uhr.zone() (ms, K-154) –
+ *               wie die Manifestfelder echtzeit/zone (tests/herd/erwartet.js reicht sie durch)
  * --schreibe    <prog>.herd-erwartet (herd-Ereignisse ohne typ) und <prog>.erwartet (Ausgabe) neben dem Programm schreiben
  * --json        die herd-Ereignisse (ohne typ) als JSON-Array ausgeben – für Doku-Blöcke (herdErwartet); dazu den
  *               Code des Blocks als .pizza und seine uiEreignisse als .ereignisse speichern (nach Kern-Änderungen neu erzeugen)
@@ -28,7 +30,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..', '..');
 const argv = process.argv.slice(2);
-const MIT_WERT = ['--ereignisse', '--bild', '--png', '--groesse', '--skript'];
+const MIT_WERT = ['--ereignisse', '--bild', '--png', '--groesse', '--skript', '--echtzeit', '--zone'];
 const wert = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const datei = argv.find((a, i) => !a.startsWith('--') && !MIT_WERT.includes(argv[i - 1]));
 if (!datei) {
@@ -121,7 +123,10 @@ const ereignisse = evDatei !== null
   : [{ typ: 'takt' }];
 const quelle = fs.readFileSync(datei, 'utf8');
 const t0 = process.hrtime.bigint();
-const r = P.run(quelle, { uiEreignisse: ereignisse });
+const laufOpt = { uiEreignisse: ereignisse };
+if (wert('--echtzeit') !== null) laufOpt.echtzeit = Number(wert('--echtzeit'));
+if (wert('--zone') !== null) laufOpt.zone = Number(wert('--zone'));
+const r = P.run(quelle, laufOpt);
 const ms = Number(process.hrtime.bigint() - t0) / 1e6;
 WebAssembly.Instance = EchteInstanz;
 

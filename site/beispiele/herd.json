@@ -69,15 +69,17 @@
     {
       "id": "uhr",
       "titel": "Pizza-Uhr: Linien und Rahmen",
-      "beschreibung": "Eine Wanduhr für die Pizzeria: Die Zeiger sind Linien mit runden Enden, das Zifferblatt ist ein winziges Bildchen, das als Rahmen (9-Slice) auf 300 × 300 Pixel gestreckt wird – die Ecken bleiben scharf. Der Sekundenzeiger dreht sich mit Bewegung von selbst.",
+      "beschreibung": "Eine Wanduhr für die Pizzeria: Die Zeiger sind Linien mit runden Enden, das Zifferblatt ist ein winziges Bildchen, das als Rahmen (9-Slice) auf 300 × 300 Pixel gestreckt wird – die Ecken bleiben scharf. Sie geht richtig: Uhr.echt() und Uhr.zone() stellen in jedem Takt alle drei Zeiger auf deine Ortszeit.",
       "datei": "herd/uhr.pizza",
       "erwartet": "herd/uhr.erwartet",
       "ereignisse": "herd/uhr.ereignisse",
       "herdErwartet": "herd/uhr.herd-erwartet",
       "exitCode": 0,
       "tier": 1,
-      "schlagworte": ["Herd", "2D", "Linie", "Rahmen", "Hierarchie"],
-      "herd": true
+      "schlagworte": ["Herd", "2D", "Linie", "Rahmen", "Hierarchie", "Uhr.echt", "Uhr.zone"],
+      "herd": true,
+      "echtzeit": 1782893310250,
+      "zone": 7200000
     },
     {
       "id": "ofenfunken",

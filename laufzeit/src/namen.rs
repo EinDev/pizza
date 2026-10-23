@@ -1,7 +1,7 @@
 //! Eingebaute Namen (Intern-IDs). Reihenfolge = ID. Namen, die nicht hier stehen, bekommen zur Laufzeit
 //! fortlaufende IDs (text.rs::name_id); die Tabelle ist rein intern (kein JS-Spiegel, der Compiler übergibt Namen als Text).
 
-pub const NAMEN: [&str; 220] = [
+pub const NAMEN: [&str; 221] = [
     "",
     "Bote",
     "Bestellannahme",
@@ -222,6 +222,7 @@ pub const NAMEN: [&str; 220] = [
     "atan2",
     "bogen",
     "grad",
+    "zone",
 ];
 
 pub const N_G_BOTE: u32 = 1;
@@ -463,6 +464,9 @@ pub const N_ATAN: u32 = 216;
 pub const N_ATAN2: u32 = 217;
 pub const N_BOGEN: u32 = 218;
 pub const N_GRAD: u32 = 219;
+
+// K-154: `Uhr.zone()` (Versatz Ortszeit − UTC)
+pub const N_ZONE: u32 = 220;
 
 /// Klassen-Index der eingebauten Ananas (Reihenfolge wie ANANAS_BAUM, K-105: 16 Einträge = Indizes 0–15; eigene Klassen ab 16).
 pub const K_ANANAS: u32 = 0;

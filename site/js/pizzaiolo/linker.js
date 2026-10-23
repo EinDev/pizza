@@ -15,7 +15,7 @@
 
   const ABI_EXPORTE = ['memory', 'abi_version', 'limit_setzen', 'speicher_limit_setzen', 'saat_setzen', 'arg_puffer', 'arg_fertig', 'schritte', 'zeitMs'];
   /** optionale Importe → Gruppe (HOST-ABI §2: ein .pkarton importiert nur, was das Programm braucht) */
-  const OPTIONAL = { ui_senden: 'theke', ui_warte: 'theke', vorrat_lesen: 'vorrat', vorrat_schreiben: 'vorrat', echtzeit_ms: 'echtzeit', kueche_auftrag: 'kueche', kueche_bericht: 'kueche',
+  const OPTIONAL = { ui_senden: 'theke', ui_warte: 'theke', vorrat_lesen: 'vorrat', vorrat_schreiben: 'vorrat', echtzeit_ms: 'echtzeit', zone_ms: 'echtzeit', kueche_auftrag: 'kueche', kueche_bericht: 'kueche',
     herd_kern: 'herd', herd_schreibe: 'herd', herd_lies: 'herd', herd_warte: 'herd', herd_senden: 'herd' };
   /** Gruppe eines Laufzeit-Imports (Modul „herd“ = Exporte des Herd-Kerns, alle in Gruppe herd) */
   const gruppeVon = (im) => (im.modul === 'herd' ? 'herd' : OPTIONAL[im.name]);

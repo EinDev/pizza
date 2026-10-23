@@ -44,7 +44,7 @@ pub struct Kueche {
     /// Testoption `--kuechen-chaos=SAAT`: zufällige Reihenfolge, Verzögerungen, frische/wiederverwendete Klone.
     chaos: Option<u64>,
     modul: Module,
-    echtzeit: Option<f64>,
+    uhr: crate::ortszeit::Wanduhr,
     /// Klone aus früheren Brigaden dieses Laufs (wiederverwendbar).
     klone: Vec<Klon>,
     /// Berichte der letzten Brigade (Index i − 1); `None` = Stück nicht ausgeführt.
@@ -63,7 +63,7 @@ struct Klon {
 }
 
 struct KlonZustand {
-    echtzeit: Option<f64>,
+    uhr: crate::ortszeit::Wanduhr,
 }
 
 /// Was ein Koch zurückgibt: Berichte, seinen Klon (zur Wiederverwendung) und die Zeit in `kueche_stueck`.
@@ -97,8 +97,8 @@ enum Ausgang {
 }
 
 impl Kueche {
-    pub fn neu(modul: Module, koeche: usize, chaos: Option<u64>, echtzeit: Option<f64>) -> Self {
-        Kueche { koeche: koeche.max(1), chaos, modul, echtzeit, klone: Vec::new(), berichte: Vec::new(), schaetzungen: HashMap::new(), genutzt: 1 }
+    pub fn neu(modul: Module, koeche: usize, chaos: Option<u64>, uhr: crate::ortszeit::Wanduhr) -> Self {
+        Kueche { koeche: koeche.max(1), chaos, modul, uhr, klone: Vec::new(), berichte: Vec::new(), schaetzungen: HashMap::new(), genutzt: 1 }
     }
 
     /// `kueche_bericht(i, …)`: Bericht von Stück i (1 … n) oder `None` (nicht ausgeführt → -2).
@@ -142,7 +142,7 @@ impl Kueche {
         let mut alte: Vec<Option<Klon>> = std::mem::take(&mut self.klone).into_iter().map(Some).collect();
         alte.resize_with(k, || None);
         let modul = &self.modul;
-        let echtzeit = self.echtzeit;
+        let uhr = self.uhr;
         let (reihe, naechstes, kleinster_abbruch) = (&reihe, &naechstes, &kleinster_abbruch);
         let ergebnisse: Vec<KochErgebnis> = std::thread::scope(|s| {
             let griffe: Vec<_> = alte
@@ -154,7 +154,7 @@ impl Kueche {
                         .name(format!("pizza-koch-{}", nr + 1))
                         .stack_size(KOCH_STAPEL)
                         .spawn_scoped(s, move || {
-                            koch(nr, klon, modul, echtzeit, chaos, schnapp, auftrag, reihe, naechstes, kleinster_abbruch)
+                            koch(nr, klon, modul, uhr, chaos, schnapp, auftrag, reihe, naechstes, kleinster_abbruch)
                         })
                 })
                 .collect();
@@ -234,7 +234,7 @@ impl Kueche {
     fn nachkochen(&mut self, schnapp: &[u8], auftrag: i32, i: usize) -> Option<Ausgang> {
         let mut klon = match self.klone.pop() {
             Some(k) => k,
-            None => Klon::neu(&self.modul, self.echtzeit).ok()?,
+            None => Klon::neu(&self.modul, self.uhr).ok()?,
         };
         klon.lade(schnapp).ok()?;
         let (a, brauchbar) = klon.stueck_kochen(auftrag, i);
@@ -256,7 +256,7 @@ fn koch(
     nr: usize,
     mut klon: Option<Klon>,
     modul: &Module,
-    echtzeit: Option<f64>,
+    uhr: crate::ortszeit::Wanduhr,
     chaos: Option<u64>,
     schnapp: &[u8],
     auftrag: i32,
@@ -286,7 +286,7 @@ fn koch(
         // Klon anlegen/bespielen scheitert nur an Ressourcen des Hosts (kein Trap des Programms): der Koch fällt aus, sein
         // Stück bleibt offen → der aufrufende Thread kocht es nach bzw. das Modul arbeitet selbst (siehe `auftrag`).
         if klon.is_none() {
-            match Klon::neu(modul, echtzeit) {
+            match Klon::neu(modul, uhr) {
                 Ok(k) => klon = Some(k),
                 Err(_) => return KochErgebnis { stuecke: aus, klon: None, arbeit, ausgefallen: true },
             }
@@ -335,9 +335,9 @@ fn verboten(name: &str) -> wasmi::Error {
 }
 
 impl Klon {
-    fn neu(modul: &Module, echtzeit: Option<f64>) -> Result<Klon, String> {
+    fn neu(modul: &Module, uhr: crate::ortszeit::Wanduhr) -> Result<Klon, String> {
         let engine: &Engine = modul.engine();
-        let mut store = Store::new(engine, KlonZustand { echtzeit });
+        let mut store = Store::new(engine, KlonZustand { uhr });
         let linker = klon_linker(modul).map_err(|e| e.to_string())?;
         let inst = linker.instantiate_and_start(&mut store, modul).map_err(|e| e.to_string())?;
         let memory = inst.get_memory(&store, "memory").ok_or("Export 'memory' fehlt")?;
@@ -417,7 +417,8 @@ fn klon_linker(modul: &Module) -> Result<Linker<KlonZustand>, wasmi::errors::Lin
     l.func_wrap("pizza", "ui_warte", |_c: C, _p: i32, kap: i32| -> i32 { if kap < 0 { 0 } else { -1 } })?;
     l.func_wrap("pizza", "ui_verfuegbar", |_c: C| -> i32 { 0 })?;
     l.func_wrap("pizza", "kueche_auftrag", |_c: C, _: i32, _: i32| -> i32 { -1 })?;
-    l.func_wrap("pizza", "echtzeit_ms", |c: C| -> f64 { crate::laufen::echtzeit_wert(c.data().echtzeit) })?;
+    l.func_wrap("pizza", "echtzeit_ms", |c: C| -> f64 { c.data().uhr.echtzeit_ms() })?;
+    l.func_wrap("pizza", "zone_ms", |c: C| -> f64 { c.data().uhr.zone_ms() })?;
     Ok(l)
 }
 

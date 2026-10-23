@@ -15,6 +15,14 @@
 
   class PanikAbbruch extends Error {}
 
+  /** K-154: Wert von `zone_ms` – optionen.zone fest (gerundet); feste Wanduhr ohne zone → 0; sonst Ortszeit − UTC (ganze Minuten). */
+  function zoneMs(zone, echtzeit) {
+    if (typeof zone === 'number' && isFinite(zone)) return Math.round(zone);
+    if (typeof echtzeit === 'number' && isFinite(echtzeit)) return 0;
+    const m = Math.round(-new Date(Date.now()).getTimezoneOffset());
+    return m === 0 ? 0 : m * 60000;
+  }
+
   // ---------- Herd (HOST-ABI §2, Gruppe herd): Kern-Modul laden ----------
   const HERD_KERN_FEHLT = 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).';
   let herdStandard;                          // undefined: noch nicht versucht · null: nicht vorhanden · Module
@@ -151,6 +159,7 @@
         if (typeof optionen.onUi === 'function') { try { optionen.onUi(nachricht); } catch (e) { /* ignorieren */ } }
       },
       echtzeit_ms: () => (typeof optionen.echtzeit === 'number' && isFinite(optionen.echtzeit) ? Math.round(optionen.echtzeit) : Date.now()),
+      zone_ms: () => zoneMs(optionen.zone, optionen.echtzeit),   // K-154
       vorrat_lesen: (np, nn, bp, kap) => {
         const vorratOpt = optionen.vorrat !== null && typeof optionen.vorrat === 'object' ? optionen.vorrat : null;
         if (kap < 0) return (vorratOpt !== null || typeof optionen.onVorrat === 'function') ? 1 : 0;
@@ -185,7 +194,7 @@
       kueche_auftrag: (auftrag, n) => {
         berichte = null;
         if (pool === null) return -1;
-        const r = pool.brigade(modul, mem(), auftrag, n, { chaos: optionen.kuechenChaos, echtzeit: optionen.echtzeit });
+        const r = pool.brigade(modul, mem(), auftrag, n, { chaos: optionen.kuechenChaos, echtzeit: optionen.echtzeit, zone: optionen.zone });
         if (r === null) return -1;
         berichte = r.berichte;
         if (r.koeche > koecheGenutzt) koecheGenutzt = r.koeche;

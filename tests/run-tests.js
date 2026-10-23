@@ -72,11 +72,12 @@ function uiVergleich(soll, ereignisse) {
 }
 
 // Laufoptionen aus Doku-Blöcken / Manifest-Einträgen (wie tests/differenz/korpus.js, U-43):
-// zufallsSaat, echtzeit, schrittLimit, vorrat (Objekt { name: eintraege })
+// zufallsSaat, echtzeit, zone, schrittLimit, vorrat (Objekt { name: eintraege })
 function laufFelder(x) {
   const o = {};
   if (x.zufallsSaat !== undefined) o.zufallsSaat = x.zufallsSaat;
   if (x.echtzeit !== undefined) o.echtzeit = x.echtzeit;
+  if (x.zone !== undefined) o.zone = x.zone;   // K-154
   if (x.schrittLimit !== undefined) o.schrittLimit = x.schrittLimit;
   if (x.vorrat && typeof x.vorrat === 'object') o.vorrat = x.vorrat;
   return o;
@@ -643,7 +644,7 @@ function beispiele() {
       if (!dp || !fs.existsSync(dp)) { uebersprungen('beispiele', name, 'Datei fehlt: ' + b.datei); continue; }
       const quelle = fs.readFileSync(dp, 'utf8');
       const t0 = Date.now();
-      const opt = Object.assign({ args: b.args || [] }, laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit, schrittLimit: b.schrittLimit }));
+      const opt = Object.assign({ args: b.args || [] }, laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit, zone: b.zone, schrittLimit: b.schrittLimit }));
       if (b.eingabe) {
         const ep = path.join(dir, b.eingabe);
         if (!fs.existsSync(ep)) { uebersprungen('beispiele', name, 'Eingabedatei fehlt: ' + b.eingabe); continue; }

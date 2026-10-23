@@ -41,8 +41,10 @@ extern "C" {
 }
 
 #[link(wasm_import_module = "pizza")]
-extern "C" { fn echtzeit_ms() -> f64; }
+extern "C" { fn echtzeit_ms() -> f64; fn zone_ms() -> f64; }
 pub fn host_echtzeit() -> f64 { unsafe { echtzeit_ms() } }
+/// K-154: Versatz Ortszeit − UTC in ms (Host: optionen.zone, bei fester Wanduhr 0, sonst System).
+pub fn host_zone() -> f64 { unsafe { zone_ms() } }
 // In einer Küche (Küchenbrigade, SPEC §17.6 D4) gehen Ereignisse in den Küchenpuffer statt an den Host.
 pub fn host_ausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_AUSGABE, b); return; } unsafe { ausgabe(b.as_ptr(), b.len()) } }
 pub fn host_fehlerausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_FEHLERAUSGABE, b); return; } unsafe { fehlerausgabe(b.as_ptr(), b.len()) } }

@@ -20,6 +20,7 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
   const eingabe = Array.isArray(optionen.eingabe) ? optionen.eingabe.slice() : [];
   let eof = false, ausstehend = null;
   const echtzeit = typeof optionen.echtzeit === 'number' ? Math.round(optionen.echtzeit) : 1700000000000;
+  const zone = typeof optionen.zone === 'number' ? Math.round(optionen.zone) : 0;   // feste Wanduhr → 0 (K-154)
   let berichte = null;
   const stats = { auftraege: 0, stuecke: 0, klone: 0 };
 
@@ -30,6 +31,7 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
     pizza.eingabe = () => -1;
     pizza.ui_warte = (p, kap) => (kap < 0 ? 0 : -1);
     pizza.echtzeit_ms = () => echtzeit;
+    pizza.zone_ms = () => zone;
     pizza.kueche_auftrag = () => -1;
     // Gruppe herd: in Klonen immer Trap (HOST-ABI §2) – die Laufzeit wirft dort vorher die KüchenAnanas
     const herd = {};
@@ -82,6 +84,7 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
     vorrat_lesen: (np, nn, bp, kap) => (kap < 0 ? 0 : -1),
     vorrat_schreiben: (np, nn, jp, jn, ep, en) => { const ev = JSON.parse(t(ep, en)); emit({ typ: 'vorrat', name: t(np, nn), schluessel: ev.schluessel, wert: ev.wert }); return 0; },
     echtzeit_ms: () => echtzeit,
+    zone_ms: () => zone,
     kueche_auftrag: (auftrag, n) => {
       stats.auftraege++;
       const schnapp = mem().slice();

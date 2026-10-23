@@ -10,7 +10,7 @@ function laden() {
   const herd = {};   // Gruppe herd (Kern-Exporte): hier nie gerufen
   for (const im of WebAssembly.Module.imports(modul)) if (im.module === 'herd') herd[im.name] = () => -1;
   const inst = new WebAssembly.Instance(modul, {
-    pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0, kueche_auftrag: () => -1, kueche_bericht: () => -2,
+    pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0, zone_ms: () => 0, kueche_auftrag: () => -1, kueche_bericht: () => -2,
       herd_kern: () => 0, herd_schreibe: leer, herd_lies: leer, herd_warte: () => -1, herd_senden: leer },
     herd,
   });

@@ -834,6 +834,17 @@ export async function taktIntervall(page, id) {
   return Math.max(100, intervall); // Renderer hebt < 100 ms auf 100 ms an
 }
 
+/**
+ * Feste Wanduhr/Zeitzone eines Beispiels (Manifestfelder echtzeit/zone, K-087/K-154) für die folgenden Läufe setzen – die Seite
+ * reicht window.__laufUhr an den Worker (wie tests/run-tests.js laufFelder). Ohne Felder: Systemzeit (null).
+ */
+export function setzeLaufUhr(page, b) {
+  const u = {};
+  if (b && typeof b.echtzeit === "number") u.echtzeit = b.echtzeit;
+  if (b && typeof b.zone === "number") u.zone = b.zone;
+  return page.evaluate((x) => { window.__laufUhr = Object.keys(x).length ? x : null; }, u);
+}
+
 // ---------------------------------------------------------------- Herd (H6)
 /** .herd-erwartet eines Beispiels (JSON-Lines der herd-Ereignisse ohne typ) oder null. */
 export function herdErwartet(b) {

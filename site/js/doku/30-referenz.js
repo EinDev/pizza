@@ -226,7 +226,8 @@
             tab([
               ["`jetzt()`", "Dauer seit Programmstart.", "`Dauer t = Uhr.jetzt();`"],
               ["`vorspulen(d)`", "Die Uhr springt um die Dauer `d` vor (eine Zahl gilt als Millisekunden) – praktisch, um Haltbarkeiten (`@Kühlschrank`) zu testen. Rückwärts geht nicht: `RechenAnanas`.", "`Uhr.vorspulen((3d));`"],
-              ["`echt()`", "Die **echte** Uhrzeit: Dauer seit dem 1. Januar 1970 (ganze ms). Ändert sich von Lauf zu Lauf – gut für Idle-Spiele („Wie lange war der Spieler weg?“), schlecht für Tests.", "`Dauer jetzt = Uhr.echt();`"]
+              ["`echt()`", "Die **echte** Uhrzeit: Dauer seit dem 1. Januar 1970 (ganze ms). Ändert sich von Lauf zu Lauf – gut für Idle-Spiele („Wie lange war der Spieler weg?“), schlecht für Tests.", "`Dauer jetzt = Uhr.echt();`"],
+              ["`zone()`", "Der **Versatz deiner Zeitzone** zur Weltzeit (UTC) als Dauer – mit Sommerzeit, also z. B. `2h` im deutschen Sommer, `1h` im Winter, `-5h` in New York. `Uhr.echt()` ist Weltzeit; erst `Uhr.echt() + Uhr.zone()` ist die Uhrzeit, die bei dir an der Wand hängt.", "`Dauer ort = Uhr.echt() + Uhr.zone();`"]
             ]),
             { art: "text", md: "`Uhr.jetzt()` und `Uhr.echt()` sind zwei verschiedene Uhren: `jetzt()` zählt Programmschritte und ist bei jedem Lauf gleich, `echt()` ist die Wanduhr deines Computers. Zusammen mit der *Vorratskammer* misst du so die Zeit zwischen zwei Spielrunden:" },
             {
@@ -243,6 +244,21 @@
               )
             },
             { art: "ausgabe", text: "Weg gewesen: mindestens 0 Sekunden? ja" },
+            { art: "text", md: "Für eine Uhr, die richtig geht, rechnest du die Weltzeit in deine **Ortszeit** um und nimmst nur den Teil seit Mitternacht (ein Tag hat 86 400 000 ms) – so stellt auch die *Pizza-Uhr* unter den Herd-Beispielen ihre Zeiger:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              echtzeit: 1767270600000,   // feste Wanduhr (2026-01-01, 12:30 UTC) …
+              zone: 3600000,             // … und feste Zeitzone (Winterzeit Mitteleuropa, +1 h) für Tests (K-154)
+              code: z(
+                "Dauer ort = Uhr.echt() + Uhr.zone();",
+                "salami tag = ort.inMs() % 86400000;",
+                "Bote.sage((\"Es ist \" + Mathe.boden(tag / 3600000) + \" Uhr \" + Mathe.boden(tag % 3600000 / 60000) + \".\"));"
+              )
+            },
+            { art: "ausgabe", text: "Es ist 13 Uhr 30." },
+            { art: "text", md: "In Tests steht die Wanduhr still (`echtzeit`), und `Uhr.zone()` ist dort `0ms`, solange keine feste Zone (`zone`) angegeben ist – so liefert jeder Testlauf überall dasselbe." },
             { art: "text", md: "Die Uhr zählt **ganze Millisekunden**: `Uhr.vorspulen(0.5ms)` wird kaufmännisch auf 1 ms gerundet, `0.4ms` auf 0 ms. Dauer-Werte selbst dürfen Kommazahlen sein (`10s / 3`)." },
             { art: "hinweis", ton: "pizza", md: "Der genaue Wert von `Uhr.jetzt()` hängt von der Schrittzahl ab. Vergleiche lieber mit `<` oder `>=` statt mit `==` – auch ein Pizzaiolo misst die Backzeit nicht auf die Millisekunde." }
           ]

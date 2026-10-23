@@ -101,7 +101,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
     match m {
         N_G_BOTE => matches!(id, N_SCHREIBE | N_LEEREN | N_SAGE | N_FEHLER),
         N_G_BESTELLANNAHME => matches!(id, N_LIES | N_FRAGE | N_LIESZAHL | N_FRAGEZAHL | N_HATMEHR),
-        N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN | N_ECHT),
+        N_G_UHR => matches!(id, N_JETZT | N_VORSPULEN | N_ECHT | N_ZONE),
         N_G_MATHE => matches!(id, N_WURZEL | N_MAX | N_MIN | N_ABS | N_RUNDEN | N_BODEN | N_DECKE | N_POTENZ | N_LOG | N_LOG10 | N_LOG2 | N_EXP
             | N_SIN | N_COS | N_TAN | N_ASIN | N_ACOS | N_ATAN | N_ATAN2 | N_BOGEN | N_GRAD),
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
@@ -244,6 +244,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
         (N_G_BESTELLANNAHME, N_HATMEHR) => bool_w(crate::pf::hat_mehr()),
         (N_G_UHR, N_JETZT) => dauer(z().schritte + z().offset),
         (N_G_UHR, N_ECHT) => dauer(crate::host_echtzeit()),
+        (N_G_UHR, N_ZONE) => dauer(crate::host_zone()),   // K-154
         (N_G_UHR, N_VORSPULEN) => {
             let ms = match dauer_ms_pruefen(a(pos, 0), "Uhr.vorspulen") { Some(x) => js_round(x), None => return KARTON };
             if ms < 0.0 { wirf_ananas(K_RECHEN, "Die Uhr lässt sich nicht zurückdrehen."); return KARTON; }

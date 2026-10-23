@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
   ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
-  beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch,
+  beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, setzeLaufUhr,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
@@ -103,6 +103,7 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
       await t.test(`${b.datei} (${m})`, { timeout: beispielZeitlimit(b) }, async () => {
         await setzeMotor(page, m);
         const herd = herdErwartet(b);
+        await setzeLaufUhr(page, b);   // feste Wanduhr/Zeitzone wie beim Erzeugen der .erwartet (K-087/K-154)
         const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b), !!herd);
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
         if (herd) assert.deepEqual(await herdEreignisse(page), herdKanonisch(herd), `${m}: herd-Ereignisse (Hashes) == .herd-erwartet`);

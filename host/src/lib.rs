@@ -7,6 +7,7 @@ pub mod karton;
 pub mod konsole;
 pub mod kueche;
 pub mod laufen;
+pub mod ortszeit;
 #[cfg(feature = "theke")]
 pub mod theke;
 #[cfg(all(feature = "starter", target_os = "linux"))]

@@ -87,7 +87,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 | `Bote.sage`, `Bote.schreibe`, `Bote.fehler`, `Bote.leeren` | erlaubt; Ereignisse werden gepuffert und in Stückreihenfolge ausgegeben (§3 D4) [F 3] |
 | Warnungen (T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (§3 D5) |
 | `Uhr.jetzt()`, `Uhr.vorspulen(d)` | Küchenuhr (§3 D6) |
-| `Uhr.echt()` | erlaubt (Wanduhr; Test: `optionen.echtzeit`) |
+| `Uhr.echt()`, `Uhr.zone()` | erlaubt (Wanduhr/Zeitzone; Test: `optionen.echtzeit`, `optionen.zone`) |
 | `Zufall.*`, `neu Zufall()` | eigener Strom der Küche (§3 D9) |
 | `@Kühlschrank`, `mikrowelle`, `frisch` | lesen aus dem Schnappschuss-Cache, Schreiben in einen Küchen-Cache, der am Stückende verfällt (§3 D12) |
 | Vorratskammer: `hole`, `hat`, `schlüssel`, `länge`, `name` auf einer **vorhandenen** Kammer | erlaubt (Schnappschuss) |
@@ -397,7 +397,7 @@ Schnappschuss (Globale, statische Felder, Closure-Umgebung) als PKF – die Spei
 - **Imports der Klon-Instanzen:** `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler` und `panik` werden in
   Klonen nie aufgerufen (§4.4 Punkt 5; Host: Trap → K-014, nie Lauf-Abbruch); `eingabe` → `-1`,
   `ui_warte` → `-1`/`0`, `ui_senden` → Trap, `vorrat_*` → Trap (S4 verhindert Aufrufe), `echtzeit_ms` → Wanduhr bzw.
-  `optionen.echtzeit`, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
+  `optionen.echtzeit`, `zone_ms` → Zeitzone bzw. `optionen.zone` (K-154), `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
 - Trap in einem Klon (Bug, Speicher des Hosts erschöpft) → Stück gilt als Abbruch „interner Fehler“: Die Hauptinstanz meldet nach
   D3 `Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.` (K-014; Text fest, `detail` = Trap-Meldung).
 - Speicherbudget des Hosts: Der Host wählt k ≤ `koeche` so, dass k × Speichergröße ≤ Hostbudget (Browser 2 GiB gesamt, nativ

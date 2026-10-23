@@ -1,0 +1,3 @@
+// K-154: feste Wanduhr ohne optionen.zone → Uhr.zone() ist 0ms (Testläufe bleiben deterministisch)
+Bote.sage((Uhr.zone()));
+Bote.sage(((Uhr.echt() + Uhr.zone()).inMs()));

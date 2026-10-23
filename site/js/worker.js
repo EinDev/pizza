@@ -252,6 +252,9 @@ function starte(d, pool, brigade) {
     eingabe: Array.isArray(d.eingabe) ? d.eingabe.map(String) : undefined,
     // K-077: Saat kommt von der Seite (echte Saat oder „feste Saat 42“)
     zufallsSaat: typeof d.zufallsSaat === "number" ? d.zufallsSaat : undefined,
+    // K-087/K-154: feste Wanduhr/Zeitzone nur für Tests (E2E: window.__laufUhr); sonst Systemzeit und -zeitzone
+    echtzeit: typeof d.echtzeit === "number" ? d.echtzeit : undefined,
+    zone: typeof d.zone === "number" ? d.zone : undefined,
     // K-080/K-081: Vorrat aus localStorage (von der Seite gelesen) und Rückschreiben über eine Nachricht
     vorrat: d.vorrat && typeof d.vorrat === "object" ? d.vorrat : undefined,
     onVorrat: d.vorratAktiv ? function (name, eintraege) { sende({ typ: "vorrat-speichern", name: name, eintraege: eintraege }); return true; } : undefined,

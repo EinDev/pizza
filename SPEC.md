@@ -342,6 +342,7 @@ Klasse → `UnbekanntePizzaAnanas: Klasse 'Pizza' steht nicht auf der Speisekart
 
 - Jeder ausgewertete Ausdruck/jede Anweisung ist ein **Schritt**. Die simulierte Uhr läuft **1 ms pro Schritt**.
 - `Uhr.jetzt()` → Dauer seit Programmstart. `Uhr.vorspulen(d)` → Uhr springt um `d` weiter.
+- Wanduhr (nicht simuliert, §16.5): `Uhr.echt()` → Dauer seit 1970 (UTC), `Uhr.zone()` → Versatz der Ortszeit zu UTC (K-154).
 - Globales Limit: **5 000 000 Schritte** (konfigurierbar) → `PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)`, Exit-Code 3.
 
 ### 7.2 Teig – Lazy Evaluation (Tier 2)
@@ -978,7 +979,7 @@ Einträge mit **[offen …]** beschreiben das Sollverhalten; die genannte Kompon
   Host/CLI/Browser validieren die Kennung selbst (kein Pfad-Traversal). „Vorrat löschen“ bietet zusätzlich alle Kammern mit
   Namensraum; `--vorrat-loeschen raum/name`, `--vorrat-loeschen-alle` erfasst auch Raum-Ordner.
 - **API/Format (K-080):** `optionen.vorrat` (`{ name: [[k, v], …] }`), `optionen.onVorrat(name, eintraege)` (Doku-Blöcke: Felder `zufallsSaat`,
-  `vorrat`, `vorratErwartet`, `echtzeit`, K-088), Ereignis
+  `vorrat`, `vorratErwartet`, `echtzeit`, `zone`, K-088/K-154), Ereignis
   `{ typ: "vorrat", name, schluessel, wert }` (nicht in `.erwartet`); ohne beides `W0101: Keine Vorratskammer verfügbar – Zustand wird
   nicht gespeichert.` (einmal pro Programm). Serialisierung `{"v":1,"name":"x","eintraege":[["k",wert],…]}`, Speisekarte als
   `{"speisekarte":[["k",v],…]}`, `karton` → `null`, `ja`/`nein` → `true`/`false`.
@@ -1143,6 +1144,10 @@ kanonisch – Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); Doku-C
 - **Laufzeit (K-087):** Schrittlimit P0002 gilt für die Top-Level-Ausführung und **je Theke-Rückruf neu**: die Zählbasis wird beim
   Zustellen eines Ereignisses gesetzt und sonst nie zurückgesetzt (nach `bediene()` gilt die Basis des letzten Rückrufs weiter);
   `schritte`/`Uhr.jetzt()` zählen unverändert; `Uhr.echt()` → Dauer seit 1970 (ganze ms; Test: `optionen.echtzeit` fester Startwert; HOST-ABI `echtzeit_ms`).
+  `Uhr.zone()` (K-154) → Dauer = Ortszeit − UTC zum Zeitpunkt von `Uhr.echt()` (ganze Minuten, Sommerzeit berücksichtigt, westlich von UTC
+  negativ, z. B. `2h` in Mitteleuropa im Sommer, `-5h` in New York im Winter); Ortszeit = `Uhr.echt() + Uhr.zone()`. Test: `optionen.zone`
+  (fester Versatz in ms, gerundet); ist `optionen.echtzeit` gesetzt und `zone` nicht, liefert `zone()` `0ms` (Testläufe deterministisch).
+  HOST-ABI `zone_ms` (Gruppe `echtzeit`); Browser: `-getTimezoneOffset()`, nativ: Zeitzone des Systems (Windows/Linux) – gleiche Regel.
 - Ereignis-Kompatibilität: `.ereignisse` darf schon heute `takt`-Zeilen enthalten (unbekannte `typ` werden ignoriert, K-064).
 
 ### 16.6 Theke v3: Animationen (K-090 … K-094; umgesetzt: Interpreter U-56, Renderer U-58, Compiler U-57)
@@ -1454,7 +1459,7 @@ salami gesamt = teilsummen.zusammenklappen((a, b) -> a + b);                    
 | `Bote.sage`, `Bote.schreibe`, `Bote.fehler`, `Bote.leeren` | erlaubt; Ereignisse werden gepuffert und in Stückreihenfolge ausgegeben (D4) |
 | Warnungen (T0007, W0003, W0013 …) | erlaubt; Ausgabe in Stückreihenfolge, „einmal pro Code + Stelle“ über alle Stücke und die Hauptküche (D5) |
 | `Uhr.jetzt()`, `Uhr.vorspulen(d)` | Küchenuhr (D6) |
-| `Uhr.echt()` | erlaubt (Wanduhr; Test: `optionen.echtzeit`) |
+| `Uhr.echt()`, `Uhr.zone()` | erlaubt (Wanduhr/Zeitzone; Test: `optionen.echtzeit`, `optionen.zone`) |
 | `Zufall.*`, `neu Zufall()` | eigener Strom der Küche (D9) |
 | `@Kühlschrank`, `mikrowelle`, `frisch` | Lesen aus dem Schnappschuss-Cache, Schreiben in einen Küchen-Cache, der am Stückende verfällt (D12) |
 | Vorratskammer: `hole`, `hat`, `schlüssel`, `länge`, `name` auf einer **vorhandenen** Kammer | erlaubt (Schnappschuss) |

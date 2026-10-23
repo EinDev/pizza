@@ -507,6 +507,17 @@ Uhr.vorspulen(1h);
 Bote.sage((Uhr.echt().inMs()));
 `, { echtzeit: 1700000000000, out: ["1700000000000", "1700000000000"] }),
 
+  F(T, "K-154: Uhr.zone() = Versatz Ortszeit − UTC (Dauer, auch negativ); im Test fest über optionen.zone", P`
+Dauer z = Uhr.zone();
+Bote.sage((z));
+salami tag = (Uhr.echt() + z).inMs() % 86400000;
+Bote.sage((Mathe.boden(tag / 3600000)));
+`, { echtzeit: 1700000000000, zone: 19800000, out: ["5h 30min", "3"] }),
+
+  F(T, "K-154: feste Wanduhr ohne optionen.zone → Uhr.zone() ist 0ms", P`
+Bote.sage((Uhr.zone()));
+`, { echtzeit: 1700000000000, out: ["0ms"] }),
+
   // ── §16.6 Theke v3 – Animationen (aus a12 übernommen, U-56) ──
   F(T6, "K-090: animiere/schwebe im Rückruf – Feld animationen in derselben aendere-Nachricht, Aufrufreihenfolge, nichts zusammengefasst, optionale Felder nur wenn angegeben, animiere liefert die Zutat", P`
 Theke t = neu Theke("A");

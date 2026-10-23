@@ -509,7 +509,7 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   Kein `paket.rs`, keine Glut.
 - **Determinismus:** Länge `libm::sqrt`, Winkel `libm::atan2`, Matrix wie `lokal_2d`.
 - **Tests:** `cargo test`, `herd-linie.*`, `herd-rahmen.*`, Szenen-Skript `linien.herd`. **Beispiel:** `uhr.pizza` (Zeiger als Linien auf
-  einer Rahmen-Tafel, Sekundenzeiger per `Bewegung(drehtempo: 6)`).
+  einer Rahmen-Tafel, alle drei Zeiger je Takt nach `Uhr.echt() + Uhr.zone()` gestellt, K-154).
 - **Abnahme:** A-Kern. **Abhängig von:** – (Literal nach Rebase auf H-K0 auf `..Art::LEER`).
 
 #### H-K5 `Funken` – 3D-Partikel (W1, Kern + Glut)

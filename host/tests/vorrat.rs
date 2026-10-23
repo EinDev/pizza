@@ -123,6 +123,33 @@ fn saat_und_echtzeit() {
     assert!(ausgaben(&e).is_empty());
 }
 
+const ZONE_WAT: &str = r#"(module
+  (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
+  (import "pizza" "zone_ms" (func $zone (result f64)))
+  (memory (export "memory") 1)
+  (data (i32.const 0) "fest" "null" "minuten")
+  (func (export "start") (result i32)
+    (if (f64.eq (call $zone) (f64.const -18000000)) (then (call $ausgabe (i32.const 0) (i32.const 4))))
+    (if (f64.eq (call $zone) (f64.const 0)) (then (call $ausgabe (i32.const 4) (i32.const 4))))
+    ;; ganze Minuten (auch bei der Systemzeitzone)
+    (if (f64.eq (f64.nearest (f64.div (call $zone) (f64.const 60000))) (f64.div (call $zone) (f64.const 60000)))
+      (then (call $ausgabe (i32.const 8) (i32.const 7))))
+    i32.const 0))"#;
+
+#[test]
+fn zone_fest_null_und_system() {
+    // K-154: --zone fest (gerundet) · feste Wanduhr ohne --zone → 0 · sonst Systemzeitzone (ganze Minuten)
+    let (code, e) = lauf(ZONE_WAT, Optionen { zone: Some(-18000000.4), echtzeit: Some(1.0), ..Default::default() });
+    assert_eq!(code, 0);
+    assert_eq!(ausgaben(&e), vec!["fest", "minuten"]);
+    let (_, e) = lauf(ZONE_WAT, Optionen { echtzeit: Some(1.0), ..Default::default() });
+    assert_eq!(ausgaben(&e), vec!["null", "minuten"]);
+    let (_, e) = lauf(ZONE_WAT, Optionen::default());
+    assert!(ausgaben(&e).contains(&"minuten".to_string()));
+    let m = pizzahost::ortszeit::ortsversatz_minuten();
+    assert!((-14 * 60..=14 * 60).contains(&m), "Versatz {m} min außerhalb von ±14 h");
+}
+
 #[test]
 fn unbekannter_import_ist_ladefehler() {
     let wat = r#"(module

@@ -29,7 +29,7 @@ export const ANNOTATIONEN = ["PizzaÜberschreibt", "PizzaVeraltet", "NieKarton",
 export const MITGLIEDER = {
   Bote: ["sage", "fehler", "schreibe", "leeren"],
   Bestellannahme: ["lies", "liesZahl", "frage", "hatMehr"],
-  Uhr: ["jetzt", "vorspulen", "echt"],
+  Uhr: ["jetzt", "vorspulen", "echt", "zone"],
   Mathe: ["wurzel", "max", "min", "abs", "runden", "boden", "decke", "potenz", "log", "log10", "log2", "exp", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "bogen", "grad", "PI", "E"],
   Zufall: ["zahl", "saat", "kommazahl", "wahr", "wähle", "mische"],
   Spiegel: ["felder"],

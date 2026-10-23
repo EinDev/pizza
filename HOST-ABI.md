@@ -46,6 +46,7 @@ so bei allen Programmen aus genau einer `.pizza`-Datei (SPEC §2.6). Der Host se
 | `ui_senden` | `(ptr i32, len i32) -> ()` | Theke (THEKE.md §3): UTF-8-JSON an den Renderer; Ereignis `{ typ: "ui", nachricht }` |
 | `ui_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | Theke: nächstes Renderer-Ereignis (UTF-8-JSON), siehe unten |
 | `echtzeit_ms` | `() -> f64` | Wanduhr: ms seit 1970-01-01 (ganze ms) für `Uhr.echt()` (K-087) |
+| `zone_ms` | `() -> f64` | Ortszeit − UTC in ms (ganze Minuten, Sommerzeit) für `Uhr.zone()` (K-154) |
 | `vorrat_lesen` | `(name_ptr i32, name_len i32, puffer_ptr i32, puffer_kap i32) -> i32` | Vorratskammer: gespeicherten Inhalt lesen (K-081), siehe unten |
 | `vorrat_schreiben` | `(name_ptr i32, name_len i32, json_ptr i32, json_len i32, ereignis_ptr i32, ereignis_len i32) -> i32` | Vorratskammer: Änderung melden + speichern; Ereignis `{ typ: "vorrat", name, schluessel, wert }` |
 
@@ -55,8 +56,11 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Basis (immer):** `ausgabe`, `schreibe`, `fehlerausgabe`, `leeren`, `warnung`, `fehler`, `panik`, `eingabe`.
 - **Gruppe `theke`:** `ui_senden`, `ui_warte` – nur wenn das Programm die Theke benutzt (`neu Theke/Schild/…`).
 - **Gruppe `vorrat`:** `vorrat_lesen`, `vorrat_schreiben` – nur wenn das Programm `neu Vorratskammer(…)` enthält.
-- **Gruppe `echtzeit`:** `echtzeit_ms` – nur wenn das Programm `Uhr.echt` verwendet. JS-Host: `optionen.echtzeit`
+- **Gruppe `echtzeit`:** `echtzeit_ms`, `zone_ms` – nur wenn das Programm `Uhr.echt` oder `Uhr.zone` verwendet. JS-Host: `optionen.echtzeit`
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
+  `zone_ms` (K-154): `optionen.zone` (fest, gerundet; nativ `--zone=N`) · sonst bei fester Wanduhr `0` · sonst Versatz der Ortszeit zu UTC
+  jetzt in ganzen Minuten × 60 000 (JS `-new Date().getTimezoneOffset()`, Windows `SystemTimeToTzSpecificLocalTime`, Unix
+  `localtime_r` → `tm_gmtoff`).
 - **Gruppe `herd` (SPEC §18, Paket H4):** Modul `herd` (Exporte von `kern.wasm`, siehe unten) und `herd_kern`, `herd_schreibe`,
   `herd_lies`, `herd_warte`, `herd_senden` – nur wenn das Programm Herd-Klassen benutzt (`neu Herd/Form/Bildchen/<Komponente>`,
   `Form.…`, `Herd.…`, `Bildchen.…` – Letzteres für `Bildchen.laden`, K-145). Siehe unten „Herd“.
@@ -148,7 +152,7 @@ Warten kostet keine Schritte. Die Laufzeit importiert beide Funktionen; Hosts m�
   Modul schreibt Ereignisse und Abbruchstatus in den Bericht; die Hauptinstanz gibt sie beim Zusammenführen über die normalen
   Imports aus). Hosts behandeln solche Aufrufe in Klonen als Trap (K-014), **nie** als Lauf-Abbruch – auch `panik` nicht.
   In Klonen gilt: `eingabe` → `-1`, `ui_warte` → `-1`/`0`, `ui_senden` und `vorrat_*` → Trap (S4 verhindert Aufrufe),
-  `echtzeit_ms` wie sonst, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
+  `echtzeit_ms` und `zone_ms` wie sonst, `kueche_auftrag` → `-1` (innere Brigaden laufen im Klon sequentiell).
 - Trap in einem Klon → das Stück gilt als Abbruch „interner Fehler“ (Text K-014, `detail` = Trap-Meldung), Zusammenführen nach D3.
 - Die Anzahl der Köche (`koeche`, §7) wählt der Host; sie darf nie ein Ereignis, einen Exit-Code, `schritte` oder `zeitMs` ändern.
 

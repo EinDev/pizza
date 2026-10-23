@@ -507,7 +507,7 @@
               )
             },
             { art: "ausgabe", text: z("Linie(4) 80 6 6 240") },
-            { art: "text", md: "Ein ganzes Beispiel ist die **Pizza-Uhr** unter *Beispiele → Herd*: Zeiger als Linien auf einer Rahmen-Tafel, der Sekundenzeiger dreht mit `Bewegung(drehtempo: 6)`." }
+            { art: "text", md: "Ein ganzes Beispiel ist die **Pizza-Uhr** unter *Beispiele → Herd*: Zeiger als Linien auf einer Rahmen-Tafel; in jedem Takt stellt das Programm alle drei Zeiger nach `Uhr.echt() + Uhr.zone()` – die Uhr geht also richtig, in deiner Zeitzone." }
           ]
         },
         {

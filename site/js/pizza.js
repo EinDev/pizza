@@ -1698,9 +1698,17 @@
     }
   });
 
+  /** K-154: Ortszeit − UTC zum Zeitpunkt t (ms seit 1970) in ms, auf ganze Minuten gerundet (wie die nativen Hosts). */
+  function ortsVersatzMs(t) {
+    const m = Math.round(-new Date(t).getTimezoneOffset());
+    return m === 0 ? 0 : m * 60000;
+  }
+
   const UHR_M = tabelle({
     'jetzt': function () { return new Dauer(this.schritte + this.offset); },
     'echt': function () { return new Dauer(this.echtzeit !== null ? this.echtzeit : Date.now()); },
+    // K-154: Versatz Ortszeit − UTC (ganze Minuten, Sommerzeit). optionen.zone fest; feste Wanduhr ohne zone → 0ms
+    'zone': function () { return new Dauer(this.zone !== null ? this.zone : this.echtzeit !== null ? 0 : ortsVersatzMs(Date.now())); },
     'vorspulen': function (m, pos) {
       const ms = Math.round(this.dauerMs(pos[0], 'Uhr.vorspulen'));
       if (ms < 0) throw this.ananas('RechenAnanas', 'Die Uhr lässt sich nicht zurückdrehen.');
@@ -2645,6 +2653,7 @@
       this.grenze = this.limit;
       this.limitBasis = 0;   // K-087: P0002 bezieht sich auf schritte − limitBasis (neu gesetzt bei jedem Theke-Rückruf)
       this.echtzeit = typeof opt.echtzeit === 'number' && isFinite(opt.echtzeit) ? Math.round(opt.echtzeit) : null;
+      this.zone = typeof opt.zone === 'number' && isFinite(opt.zone) ? Math.round(opt.zone) : null;   // K-154
       this.klassen = new Map();
       this.klassenListe = [];
       this.alleMethoden = [];

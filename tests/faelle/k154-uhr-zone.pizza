@@ -1,0 +1,10 @@
+// K-154: Uhr.zone() = Versatz Ortszeit − UTC; im Test fest über optionen.zone (hier New York im Winter, −5 h)
+Dauer z = Uhr.zone();
+Bote.sage((z));
+Bote.sage((z.inMinuten()));
+Dauer ort = Uhr.echt() + Uhr.zone();
+salami tag = ort.inMs() % 86400000;
+Bote.sage(("Ortszeit " + Mathe.boden(tag / 3600000) + ":" + Mathe.boden(tag % 3600000 / 60000)));
+Uhr.vorspulen(1h);
+Bote.sage((Uhr.zone() == z));
+Bote.sage(([1, 2].brigade(x -> Uhr.zone().inMs())));

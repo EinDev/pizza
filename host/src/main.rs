@@ -25,6 +25,7 @@ const OPTIONEN: &str = "Optionen:
   --schritte=N         Schrittlimit (Standard: 5000000)
   --koeche=N           Köche der Küchenbrigade: auto (Standard, logische Kerne, höchstens 16) oder 1 … 64 (1 = aus)
   --echtzeit=N         Test: Uhr.echt() liefert fest N ms (sonst Systemzeit)
+  --zone=N             Test: Uhr.zone() liefert fest N ms (sonst Zeitzone des Systems; mit --echtzeit 0)
   --kuechen-chaos=N    Test: Stücke der Küchenbrigade in zufälliger Reihenfolge (Saat N) – Ergebnis muss gleich sein
   --info               am Ende Exit-Code, Schritte und Uhr nach stderr (bei Küchenbrigade auch Köche: N)
   --debug              technische Details interner Fehler zeigen
@@ -221,6 +222,13 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
                         return fehler("--echtzeit braucht eine Zahl (ms seit 1970).");
                     }
                     a.opt.echtzeit = Some(n);
+                }
+                s if s.starts_with("--zone=") => {
+                    let n = js_number(&s[7..]);
+                    if !n.is_finite() {
+                        return fehler("--zone braucht eine Zahl (ms Versatz zu UTC).");
+                    }
+                    a.opt.zone = Some(n);
                 }
                 s if s.starts_with("--koeche=") => match &s[9..] {
                     "auto" => a.opt.koeche = None,

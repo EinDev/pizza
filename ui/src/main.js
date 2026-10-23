@@ -660,9 +660,18 @@ function start() {
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),
       ...(herdLauf ? herdLauf.extra : {}),
+      ...festeUhr(),
     });
     herd.lauf(herdLauf && herdLauf.kontext);
     konsole.saat(saat);
+  }
+  /** E2E (window.__laufUhr): feste Wanduhr/Zeitzone aus dem Beispiel-Manifest (echtzeit/zone, K-087/K-154) wie in den Node-Tests. */
+  function festeUhr() {
+    const u = window.__laufUhr, o = {};
+    if (!u || typeof u !== "object") return o;
+    if (typeof u.echtzeit === "number") o.echtzeit = u.echtzeit;
+    if (typeof u.zone === "number") o.zone = u.zone;
+    return o;
   }
   knopfBacken.addEventListener("click", backen);
   knopfAbbr.addEventListener("click", () => ausfuehrung.abbrechen());

@@ -64,6 +64,8 @@ Optionen und Texte wie `bin/pizza.js` (K-082/K-088); `--hilfe` listet alle (der 
   `Ungültiger Kammername '<kennung>' (erlaubt: a–z, 0–9, '-', 1–40 Zeichen, mit Namensraum 'raum/name').` (Exit 2);
   `--vorrat-loeschen-alle` → `Alle Vorräte gelöscht.` (auch `<raum>/<name>.json` gültiger Kennung, leer gewordene Raum-Ordner werden entfernt).
 - **Wanduhr (K-087):** Import `echtzeit_ms` = Systemzeit in ganzen ms; Testoption `--echtzeit=N` (fest, gerundet, wächst nicht).
+- **Zeitzone (K-154, `src/ortszeit.rs`):** Import `zone_ms` = Ortszeit − UTC (ganze Minuten, Sommerzeit; Windows
+  `SystemTimeToTzSpecificLocalTime`, Linux `localtime_r`/`tm_gmtoff`); Testoption `--zone=N` (ms, fest); mit `--echtzeit` ohne `--zone` 0.
 - **Küchenbrigade (SPEC §17, HOST-ABI §2 Gruppe `kueche`, `src/kueche.rs`):** `kueche_auftrag` kopiert den Speicher der
   Hauptinstanz und verteilt die Stücke auf Koch-Threads (`std::thread::scope`, Stapel 16 MiB wie der Programm-Thread); jeder
   Koch hat eine eigene Klon-Instanz (eigener `Store`, gleiches `Module`), die innerhalb eines Laufs wiederverwendet wird, und

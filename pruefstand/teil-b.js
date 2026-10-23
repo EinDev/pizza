@@ -88,7 +88,8 @@ function ladeManifeste() {
       } else if (dp && istDatei(dp.replace(/\.pizza$/, ".eingabe"))) eingabe = dp.replace(/\.pizza$/, ".eingabe");
       if ("interaktiv" in b && typeof b.interaktiv !== "boolean") fehler.push(`${wo}: 'interaktiv' ist kein Boolean`);
       if (b.interaktiv === true && !eingabe) fehler.push(`${wo}: interaktiv ohne Eingabedatei (eingabe-Feld oder .eingabe neben der .pizza, SPEC §11.1)`);
-      if (dp && istDatei(dp) && ep && istDatei(ep)) beispiele.push({ teil, id: b.id, titel: b.titel, datei: dp, erwartet: ep, exitCode: b.exitCode, tier: b.tier, eingabe, interaktiv: b.interaktiv === true });
+      if (dp && istDatei(dp) && ep && istDatei(ep)) beispiele.push({ teil, id: b.id, titel: b.titel, datei: dp, erwartet: ep, exitCode: b.exitCode, tier: b.tier, eingabe, interaktiv: b.interaktiv === true,
+        echtzeit: b.echtzeit, zone: b.zone });   // feste Wanduhr/Zeitzone (K-087/K-154)
     });
   }
   return { fehler, hinweise, beispiele };

@@ -1,6 +1,6 @@
 // Pizza-Uhr: Die Zeiger sind Linien, das Zifferblatt ist eine Rahmen-Tafel (9-Slice).
-// Der Sekundenzeiger dreht sich von selbst (Bewegung, 6 Grad je Sekunde) –
-// Minuten- und Stundenzeiger stellt das Programm einmal je Takt nach.
+// Die Uhr geht richtig: In jedem Takt stellt das Programm alle drei Zeiger nach der echten Uhrzeit –
+// Uhr.echt() ist die Weltzeit (UTC), Uhr.zone() der Versatz deiner Zeitzone (Sommerzeit inklusive).
 
 Herd herd = neu Herd("Pizza-Uhr", breite: 480, hoehe: 360);
 herd.hintergrund("ofen");
@@ -29,14 +29,16 @@ Teil sekunde = herd.gruppe().haenge(mitte);
 sekunde.mit(neu Linie(zuX: 0, zuY: -115, dicke: 2, farbe: "tomate"));
 herd.gruppe().haenge(sekunde).mit(neu Linie(zuX: 0, zuY: 25, dicke: 5, farbe: "tomate", rund: ja));
 herd.kreis(0, 0, 7, farbe: "tomate").haenge(sekunde);
-sekunde.mit(neu Bewegung(drehtempo: 6));
 
-salami start = 10 * 3600 + 8 * 60 + 30;                          // 10:08:30
-sekunde.setzeDrehung(start % 60 * 6);
-herd.backe(() -> {
-    funghi s = start + herd.bildnummer() / 60.0;
-    minute.setzeDrehung((s % 3600) / 10);                         // 360 Grad je Stunde
-    stunde.setzeDrehung((s % 43200) / 120);                       // 360 Grad je 12 Stunden
-});
+// Ortszeit = Weltzeit + Zeitzone; davon zählen nur die Sekunden seit Mitternacht (mit Millisekunden-Anteil,
+// damit der Sekundenzeiger nicht springt, sondern gleitet).
+leer stelle() {
+    funghi s = ((Uhr.echt() + Uhr.zone()).inMs() % 86400000) / 1000.0;
+    sekunde.setzeDrehung((s % 60) * 6);                            // 6 Grad je Sekunde
+    minute.setzeDrehung((s % 3600) / 10);                          // 360 Grad je Stunde
+    stunde.setzeDrehung((s % 43200) / 120);                        // 360 Grad je 12 Stunden
+}
+stelle();
+herd.backe(() -> { stelle(); });
 Bote.sage(("Nach " + herd.bildnummer() + " Takten: Sekundenzeiger " + sekunde.drehung().runden(1)
     + " Grad, Minutenzeiger " + minute.drehung().runden(2) + " Grad."));

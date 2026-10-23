@@ -162,7 +162,7 @@
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd')) this.herdStatisch.add(n.obj.n);
-        if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'echt') this.nutztEcht = true;
+        if ((n.k === 'MCall' || n.k === 'Mem') && (n.name === 'echt' || n.name === 'zone')) this.nutztEcht = true;   // K-154: zone_ms in Gruppe echtzeit
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
         for (const key in n) { const v = n[key]; if (v && typeof v === 'object') geh(v); }
