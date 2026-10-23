@@ -1,9 +1,11 @@
 # Projekte, Mehrdatei-Programme, Bilder und Teilen mit Versionen (Konzept)
 
-> **Status: geprüft (Datum 2026-10-23), bereit für P0.** Alle Fragen vom Nutzer entschieden (§10); die unabhängige Prüfung gegen Code
-> und Verträge ist eingearbeitet (Befunde §13). Nichts hiervon ist umgesetzt. `SPEC.md`, `KLAERUNGEN.md`, `ARCHITEKTUR.md`,
-> `HOST-ABI.md`, `WASM.md` und `herd/README.md` werden erst in Paket P0 (§11) angepasst; `HERD.md` verweist bereits auf dieses Konzept
-> (§10 Roadmap, §12.1 Regel 3/7) und wird von P0 nicht geändert. Die vorgeschlagenen K-Einträge (§12) stehen bis dahin nur hier.
+> **Status: geprüft (2026-10-23); P0 umgesetzt (Commit „PROJEKTE P0: Verträge …“, 2026-10-23).** Alle Fragen vom Nutzer entschieden
+> (§10), Prüfbefunde eingearbeitet (§13). Die **Verträge** stehen jetzt in `SPEC.md` (§2.1 … §2.6, §11.2, §14.5, §14.7, §14.8, §18.5),
+> `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
+> und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte-offen.js` (76 Fälle, offen).
+> **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. Code ist noch nicht umgesetzt (nächste Welle W1:
+> PA1 · PC1 · PD1, §11); `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -750,7 +752,7 @@ Projekts steht in der Projektleiste.
 ### 5.9 Folgen für K-136
 
 K-136 begründete Text-Bildchen mit „Dateien hätten im Browser keinen Ort“. Mit Projekten haben sie einen. K-136 bleibt für Text-Bildchen
-gültig; K-145 und K-147 ergänzen Bilddateien und das Teigling-Format und heben die Begründung auf. In HERD.md ist der Teil „größere
+gültig; K-145 und K-147 ergänzen Bilddateien und das Teigling-Format und heben die Begründung auf (beide seit P0 in `KLAERUNGEN.md`). In HERD.md ist der Teil „größere
 Bilder/Texturen“ der Roadmap bereits als „abgelöst durch PROJEKTE.md (PD1/PD3)“ vermerkt; die Stufe **H-K8 selbst (`Vorlage`) bleibt**
 bestehen und ist nicht Teil dieses Konzepts.
 
@@ -774,7 +776,7 @@ bestehen und ist nicht Teil dieses Konzepts.
 | `site/js/doku/*` | neues Kapitel „Projekte und Dateien“ (bestellt, Sichtbarkeit, Kiste, Bilder); Doku-Codeblöcke mit Feld `dateien: { pfad: text }` (+ optional `hauptdatei`) für Mehrdatei-Beispiele, „Im Playground öffnen“ legt ein Projekt an |
 | nginx, Dockerfile, envsh, Template, compose | §4.8; Dockerfile: `site/beispiele/**` Ordner werden wie bisher kopiert; Test-Stufe ruft die umgestellten Harnische |
 | Harnische (`tests/run-tests.js`, `pruefstand`, `tests/differenz`, `tests/wasm`, `tests/herd`, `tests/theke`, E2E) | Ordner-Fälle §6.1, Manifest-Format §7.2 |
-| Doku-Dateien | SPEC §2 (Projekte, `bestellt`, Ladereihenfolge, Sichtbarkeit), §11 (`Kiste`), §14.7 (P0014–P0020, W0004), §14.8 (W0032-Programm-Scope über alle Dateien), §18.1/§18.5 (`Bildchen.laden`), ARCHITEKTUR §1–§3, §6, HOST-ABI v2 (§1 Custom Section, §2, §7, §9, Anhang A), WASM §4, `herd/README.md` (Kern-ABI §3, Bildpaket §4 – in PD1), README (Betrieb), CHANGELOG; HERD.md **nicht** (schon abgestimmt) |
+| Doku-Dateien | SPEC §2 (Projekte, `bestellt`, Ladereihenfolge, Sichtbarkeit), §11 (`Kiste`), §14.7 (P0014–P0020, W0004), §14.8 (W0032-Programm-Scope über alle Dateien), §18.1/§18.5 (`Bildchen.laden`), ARCHITEKTUR §1–§3, §6, HOST-ABI v2 (§1 Custom Section, §2, §7, §9, Anhang A), WASM §4, `herd/README.md` (Kern-ABI §3, Bildpaket §4 – in PD1), README (Betrieb), CHANGELOG; HERD.md nur §12.1 Regel 3 (reservierte Nummern, P0) |
 | Repo-Pflege | `.gitattributes` (Binärdateien, §1.3), `.github/dependabot.yml` (`/durchreiche` statt `/hastebin`) |
 
 ### 6.1 Testformate (ARCHITEKTUR §6, erweitert)
@@ -942,21 +944,42 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 
 ## 11. Paketplan (spätere Umsetzung)
 
-| Paket | Inhalt | Dateien (Schwerpunkt) | hängt ab von | parallel zu |
-|---|---|---|---|---|
-| **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.1/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, Prüfstand-Fälle als `*-offen` (HERD.md bleibt unverändert, `herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – |
-| **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` grün (Datei danach in `a19-projekte.js` umbenennen, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 |
-| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 |
-| **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 |
-| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 |
-| **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 |
-| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 |
-| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza.js`, `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 |
-| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 |
-| **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 |
-| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – |
-| **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – |
-| **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – |
+| Paket | Inhalt | Dateien (Schwerpunkt) | hängt ab von | parallel zu | Stand |
+|---|---|---|---|---|---|
+| **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, HERD.md §12.1 Regel 3, Prüfstand-Fälle als `*-offen` (`herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – | **umgesetzt** (Commit „PROJEKTE P0: …“, 2026-10-23; Präzisierungen unten) |
+| **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | offen |
+| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | offen |
+| **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | offen |
+| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
+| **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | offen |
+| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | offen |
+| **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza.js`, `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | offen |
+| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
+| **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
+| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
+| **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | offen |
+| **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | offen |
+
+**Präzisierungen aus P0** (im Vertrag festgelegt, wo das Konzept offen war – spätere Pakete richten sich danach):
+- `bestellt` auf eine Nicht-`.pizza`-Datei → `PizzaFehler P0015: "<pfad>" ist keine .pizza-Datei – bestellen kann man nur Rezepte.`;
+  ungültige Pfade in der Sammlung selbst und eine fehlende Hauptdatei sind ebenfalls P0015 (SPEC §2.1).
+- `pizza.json`-Gründe fest (`kein gültiges JSON`, `kein Objekt`, `"pizza" fehlt`, `"<feld>" muss ein Text sein` …), Ort `datei:
+  "pizza.json"` ohne Zeile; Fehler der Sammlung ohne Ort (Grenzen, Pfade, Hauptdatei, Teigmenge) mit `datei/zeile/spalte = null`.
+- P0020-Gründe: `101 Dateien, höchstens 100` · `<pfad> hat 2,5 MB, höchstens 2 MB` · `<pfad> hat 601 KB, höchstens 512 KB` ·
+  `zusammen 8,4 MB, höchstens 8 MB` (KB/MB aufgerundet, Dezimalkomma wie bei der Teigmenge).
+- Die `\r\n`-Normalisierung macht **auch der Lader** (`projekt.lade`, idempotent) – so liefern API, Worker und CLI dieselben Bytes,
+  egal wer die Sammlung gebaut hat.
+- Ladeprüfungs-Stufe 1 = `pizza.json` + Pfade der Sammlung + Hauptdatei (SPEC §2.5); „Quelltextreihenfolge“ der Startprüfungen und
+  Reihenfolge der Warnungen = Dateien in Ladereihenfolge, darin nach Position.
+- `projekt.lade` liefert zusätzlich `args` und `kiste` (ARCHITEKTUR §1). `Kiste.liste("ordner/")` (Schluss-`/`) → leeres Blech;
+  `TypAnanas`-Parametername `'pfad'` bzw. `'ordner'`.
+- `Bildchen.laden` steht nur in SPEC §18.5 (nicht §18.1), damit der Rebase mit den Herd-Stufen klein bleibt; HOST-ABI v2 ist als
+  Vertrag markiert („umgesetzt ist noch v1“), v2-Ladefehler-Text für andere Versionen in HOST-ABI §4; CLI-Ort mit Datei ohne Zeile:
+  `(<datei>)`.
+- HERD.md bekommt (abweichend von der ersten Planung) nur die **Reservierung** der Nummern aus §5.5 in §12.1 Regel 3 und einen Verweis
+  bei H-K8 – sonst könnten H-K-Stufen sie vor PD1 vergeben.
+- Prüfstand: Projekt-Fälle bauen ihre PNG-Dateien im Fall-Skript (zlib + CRC, keine Binärdateien im Repo); die Differenztests
+  überspringen Projekt-Fälle, bis PA2 Projekte kompiliert.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`
@@ -976,7 +999,7 @@ einem lokalen Commit; gepusht wird gebündelt.
 
 ---
 
-## 12. Vorgeschlagene K-Einträge (erst in Paket P0 in `KLAERUNGEN.md`)
+## 12. K-Einträge (seit P0 in `KLAERUNGEN.md`, Status offen)
 
 Geprüft 2026-10-23: höchster Eintrag in `KLAERUNGEN.md` (Arbeitsbaum, `master` und alle Worktrees) ist **K-137**; K-138 … K-147
 sind frei und bereits von HERD.md §12.5 als durch PROJEKTE.md belegt vermerkt (HERD.md nutzt K-148 … K-153). Die Nummern also **nicht**
@@ -1033,5 +1056,5 @@ E2E). Alle Befunde sind oben eingearbeitet; keine Nutzerentscheidung aus §10 wu
 | ZIP-Import aus Windows/macOS (Datendeskriptor, `__MACOSX`, Großbuchstaben) | niedrig | §3.4 |
 | Paketplan: PA2-Differenzfälle hängen an PD2 (gleiche Welle); PB2/PB3 hätten beide E2E 11 geändert; E2E 06 (Teilen) fehlte; `durchreiche`-Tests nicht in `npm test`; dependabot/README fehlten; Koordination mit HERD §12 (gleiche Dateien: `paket.rs`, Glut, Interpreter/Laufzeit/Host) fehlte | mittel | §11: Merge-Reihenfolge W2, Dateilisten, PZ-Befehle, Abschnitt „Abstimmung mit dem Herd-Stufenplan“ |
 | Imperium ist auf 4808 Zeilen gewachsen (Stand afac084: 4223) | Info | §7.3 Hinweis, Feinschnitt bleibt nach Paket 5/6 |
-| HERD.md H-K8 ist heute `Vorlage`; abgelöst ist nur „größere Bilder/Texturen“ | niedrig | §5.9; P0 ändert HERD.md nicht |
+| HERD.md H-K8 ist heute `Vorlage`; abgelöst ist nur „größere Bilder/Texturen“ | niedrig | §5.9; P0 ergänzt in HERD.md nur Verweis und Nummern-Reservierung (§11 Präzisierungen) |
 | `.pizza`-Dateien liegen über die Kiste lesbar im EXE | Info | §5.2 Hinweis im EXE-Dialog/Doku (Folge der Entscheidung „Kiste enthält auch `.pizza`“) |

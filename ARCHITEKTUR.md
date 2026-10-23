@@ -47,23 +47,48 @@ UMD: im Browser/Worker `self.PizzaLang`, in Node `module.exports`. Keine Abhäng
 PizzaLang.version            // "3.1.0"
 PizzaLang.KEYWORDS           // string[] – reservierte Keywords (SPEC §1)
 PizzaLang.TYPEN              // string[] – eingebaute Typnamen (salami, funghi, …, hawaii)
-PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand)
+PizzaLang.BUILTINS           // string[] – globale Objekte/Funktionen (Bote, Bestellannahme, Uhr, Mathe, Zufall, Spiegel, teig, bestelle, schieb, zwischenstand; ab PD2 Kiste, SPEC §11.2)
 PizzaLang.ANANAS             // string[] – eingebaute Ananas-Klassennamen (inkl. KüchenAnanas, SPEC §17 – am Ende angehängt)
 
-PizzaLang.parse(quelltext)
+PizzaLang.parse(quelltext, { datei }?)
   // → { ok: true, ast } | { ok: false, fehler: { code, text, zeile, spalte } }
-  // Nur Syntax (für Live-Diagnose im Editor). Schnell, wirft nie.
+  // Nur Syntax einer Datei (für Live-Diagnose im Editor). Schnell, wirft nie. Kennt den Knoten { k: 'Bestellt', pfad, z, s }
+  // (SPEC §2.2; ungültiger Pfad → P0015); datei = Datei-Index für das Feld d der Knoten (Standard 0).
 
-PizzaLang.run(quelltext, optionen)
+PizzaLang.run(quelle, optionen)
+  // quelle: string (Ein-Datei-Programm = { dateien: { "hauptgang.pizza": quelle } }) | Projekt (unten, SPEC §2.1)
   // synchron; optionen: { onEvent?(ereignis), schrittLimit? = 5_000_000, args?: string[],
   //                       eingabe?: string[], onEingabe?(anfrage),      // Ein-/Ausgabe: SPEC §11.1 (aus EINGABE.md)
   //                       onUi?(nachricht), onUiWarte?(), uiEreignisse?: object[],    // Theke: SPEC §16 (aus THEKE.md)
   //                       zufallsSaat?: number, vorrat?: object, onVorrat?(kennung, eintraege),  // SPEC §15.4 (K-077 … K-081, K-106: Kennung = name | namensraum/name)
   //                       koeche?: number | "auto", kuechenChaos?: number,       // Küchenbrigade: SPEC §17 (K-100)
   //                       herdKern?: WebAssembly.Module | ArrayBuffer | Uint8Array,  // Herd: SPEC §18, K-128 – Node ohne Option: site/js/herd/kern.wasm
-  //                       onHerd?(art, daten), herdSpion?(kernExporte) }            // Herd-Renderer (Bildpaket-Bytes nur hier); herdSpion nur Werkzeuge
+  //                       onHerd?(art, daten), herdSpion?(kernExporte),            // Herd-Renderer (Bildpaket-Bytes nur hier); herdSpion nur Werkzeuge
+  //                       teiglinge?: { pfad → Uint8Array },                       // vorgebackene Bilder (SPEC §18.5, K-145) – geprüft, fehlende backt der Lader
+  //                       vorbacker?: WebAssembly.Module | ArrayBuffer | Uint8Array } // teigling.wasm wie herdKern; Node ohne Option: site/js/herd/teigling.wasm
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
+
+**Projekte (SPEC §2, K-138 … K-141; Umsetzung offen, PROJEKTE.md PA1):**
+
+```js
+// Projekt = Dateisammlung, überall dieselbe Form (Worker, CLI, ZIP, Teilen, Compiler):
+{ hauptdatei?: "hauptgang.pizza", name?: "Teigball",
+  dateien: { "hauptgang.pizza": "…", "welt/tisch.pizza": "…", "daten/level-1.txt": "…", "bilder/tisch.png": Uint8Array, "pizza.json": "…" } }
+// Texte (.pizza .txt .json .csv .md) als String, alles andere als Uint8Array; pruefung/ wird ignoriert.
+// Ist pizza.json da, gelten name/hauptdatei/args aus ihr (Begleitfelder sind dann nur Vorschläge der Hülle).
+
+PizzaLang.projekt.lade(projekt)        // gemeinsamer Lader (Interpreter UND Compiler): pizza.json, Pfade, Textnormalisierung, Tiefensuche,
+                                       // P0014 … P0020 (Grenzen), Sichtbarkeit, W0004 – Reihenfolge SPEC §2.5
+  // → { ok: true, ladeliste: [pfad…], dateien: [pfad…], ast, warnungen: [{ code, text, datei, zeile, spalte }], args, kiste }
+  //   ladeliste = Ladereihenfolge (Hauptdatei zuletzt); dateien[i] = Pfad zum Datei-Index i (dateien[0] = Hauptdatei);
+  //   ast = EIN Programm (body = Verkettung in Ladereihenfolge), jeder Knoten mit d = Datei-Index; kiste = Sammlung ohne pruefung/
+  // | { ok: false, fehler: { code, art, text, datei, zeile, spalte } }
+PizzaLang.projekt.ausDateien(dateien)  // pizza.json auswerten → { name, hauptdatei, args, dateien } | { fehler } (P0015/HOST)
+PizzaLang.projekt.pruefePfad(pfad)     // → null | Fehlertext (SPEC §2.1; dieselbe Regel in CLI, Playground, Durchreiche)
+```
+`run(string)` bleibt die Ein-Datei-Abkürzung. Der Wasm-Compiler ruft `projekt.lade` statt `parse` (eigene Ports von `analysiere`/
+Startprüfung bekommen nur Datei-Index und Doppelmeldungs-Schlüssel `code:datei:zeile:spalte`).
 
 **Küchenbrigade (SPEC §17, K-100):** `koeche` = gewünschte Anzahl Köche (Host-Einstellung, nie beobachtbar); der Interpreter
 akzeptiert und **ignoriert** sie (sequentielle Referenz). `kuechenChaos` (nur Tests, Saat) führt die Stücke jeder Brigade in einer
@@ -91,7 +116,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 ```js
 { typ: "ausgabe",       text }                                  // Bote.sage
 { typ: "fehlerausgabe", text }                                  // Bote.fehler
-{ typ: "warnung",       code, text, zeile, spalte }             // z. B. W0666, T0007, W0013
+{ typ: "warnung",       code, text, datei, zeile, spalte }      // z. B. W0666, T0007, W0013; datei siehe unten
 { typ: "ausgabe",       text, umbruch: false }                  // Bote.schreibe (ohne Zeilenumbruch), SPEC §11.1
 { typ: "leeren" }                                               // Bote.leeren
 { typ: "eingabe",       text }                                  // nach jedem Leseversuch; text = null bei EOF (nicht in .erwartet)
@@ -100,7 +125,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 { typ: "herd",          art: "fenster", titel, breite, hoehe }  // Herd (SPEC §18.7; nicht in .erwartet, sondern .herd-erwartet ohne typ); onHerd("fenster", {titel, breite, hoehe})
 { typ: "herd",          art: "bild", bildnummer, szene, paket } // szene/paket = FNV-1a-64-Hex vom Kern; onHerd("bild", {bildnummer, szene, paket, bytes: Uint8Array}) – Bytes nie im Ereignis
 { typ: "herd",          art: "schliesse" }                      // onHerd("schliesse", {}); Kern fehlt → fehler { code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." }, Exit 2
-{ typ: "fehler",        code, art, text, zeile, spalte }        // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
+{ typ: "fehler",        code, art, text, datei, zeile, spalte } // art: "syntax" | "pizzafehler" | "ananas" | "limit" | "intern"
                                                                 // "intern" = Host-/Worker-Fehler vor Programmstart (KLAERUNGEN K-043, K-044); interne Fehler
                                                                 // eines laufenden Motors bleiben art "ananas" mit optionalem Feld detail (K-014)
 { typ: "panik",         text }                                  // Hawaii-Banner (SPEC §9), danach sofort "ende"
@@ -111,15 +136,23 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - `text` bei ungefangener Ananas: `Ungefangene Ananas – StreitAnanas: 8 Stücke lassen sich nicht fair durch 3 teilen. (Zeile 12)`.
 - `text` bei PizzaFehler: `PizzaFehler R0001: Klasse 'X' erfüllt Rezeptur 'Y' nicht: Methode 'z' fehlt.`
 - `zeile`/`spalte` ab 1, `null` falls unbekannt.
+- `datei` (SPEC §2.6, K-141; offen bis PA1): Projektpfad der Datei, zu der `zeile`/`spalte` gehören – steht **immer** im Ereignis direkt
+  vor `zeile` und ist `null`, solange das Programm aus genau einer `.pizza`-Datei besteht (alle heutigen Programme). Fehler ohne Ort
+  (Host, Grenzen) haben `datei: null`. Harnische, die ganze Ereignisse vergleichen, ergänzen `datei: null`; Testdateien bleiben.
 
 ## 2. Worker-Protokoll (`site/js/worker.js`)
 
 ```js
 // UI → Worker
-{ typ: "start", code: string, args?: string[] }
+{ typ: "start", code: string, args?: string[] }                         // Ein-Datei-Abkürzung
+{ typ: "start", projekt: { dateien, hauptdatei, name }, args?, teiglinge?, vorbacker? }   // Projekt (SPEC §2, PROJEKTE.md PB1)
+{ typ: "kompiliere", projekt, teiglinge?, vorbacker? }                  // EXE-Export: pkarton aus dem Projekt
 // Worker → UI: jedes Ereignis aus onEvent 1:1 per postMessage (ggf. gebündelt als { typ: "batch", ereignisse: [...] })
 ```
 - Worker lädt `importScripts("pizza.js")` (relativ zu `js/`).
+- **Projekte:** Binärdateien und Teiglinge als `ArrayBuffer`-Transfer, `vorbacker` = `WebAssembly.Module` von `teigling.wasm` (einmal
+  je Seite kompiliert, wie `herdKern`). Der Worker reicht alles unverändert an Interpreter **und** Wasm-Motor (`Pizzaiolo.run(projekt,
+  { teiglinge, vorbacker })`); der Rückfall auf den Interpreter nimmt dasselbe Projekt. Ohne Argumente gelten die `args` aus `pizza.json`.
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
 - Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`). Kammern **mit Namensraum** (K-106) liegen unabhängig vom Tab unter `pizza.vorrat.<raum>/<name>` (nativ `<ordner>/<raum>/<name>.json`) – ein Spielstand für Beispiel-Tab, geteilte Tabs und App-Links jeder Fassung.
@@ -162,6 +195,11 @@ Teil-Manifest, z. B. `grundlagen.json`:
 }
 ```
 - Pfade relativ zu `site/beispiele/`.
+- **Projekte als Beispiele (K-144; Umzug PROJEKTE.md PB3):** Ein Eintrag nennt statt `datei`/`erwartet`/`eingabe`/`exitCode` den
+  Projektordner und seine Dateiliste (statisches Hosting kann keine Ordner auflisten; ohne `pruefung/`):
+  `{ "id": "teigball", "titel": "Teigball", "beschreibung": "…", "ordner": "herd/teigball", "dateien": ["pizza.json", "hauptgang.pizza",
+  "welt/tisch.pizza", "bilder/tischdecke.png"], "tier": 1, "schlagworte": ["Herd", "3D"], "herd": true }` – Erwartungen liegen in
+  `<ordner>/pruefung/` (§6). Bis zum Umzug des Pizza-Imperiums (PB5) lesen Galerie und Harnische `datei` **oder** `ordner`.
 - Optionale Felder `"eingabe": "spiele/x.eingabe"` (eine Zeile pro Eingabe, Tests laufen damit nicht-interaktiv; Fallback: gleichnamige `.eingabe` neben der `.pizza`) und `"interaktiv": true` – siehe SPEC §11.1.
 - `.erwartet` = alle `ausgabe`-, `fehlerausgabe`- und `panik`-Texte in Reihenfolge, je Ereignis eine Zeile
   (`ausgabe` mit `umbruch: false` ohne Zeilenumbruch, `leeren` als Zeile `«leeren»`, `eingabe` nie – SPEC §11.1)
@@ -244,8 +282,9 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | Herd (SPEC §18) | `<name>.herd-erwartet` | alle `herd`-Ereignisse als JSON-Lines ohne `typ` (`fenster` mit Titel/Größe, `bild` mit `bildnummer`/`szene`/`paket` = FNV-1a-64-Hashes des Kerns, `schliesse`), kanonisch verglichen; Renderer-Ereignisse (`takt`, `geschlossen`) in `.ereignisse` wie bei der Theke; Doku-Codeblöcke `herdErwartet: object[]` (K-134); `node tests/herd/erwartet.js --schreibe` erneuert die Dateien nach einer Kern-Änderung |
-| `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code) |
-| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ |
+| Projekte (SPEC §2, K-144; ab PA1) | `tests/faelle/<name>/` | **Ordner-Fall** = Projekt (`pizza.json` optional, `hauptgang.pizza`, Nebendateien, Assets) mit Testordner `pruefung/`: `erwartet`, `exitcode`, `warnungen`, `fehler`, `optionen.json`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet` (Inhalt wie die gleichnamigen Dateien oben) und neu `orte` (JSON-Lines `{ "code", "datei", "zeile", "spalte" }` je `fehler`/`warnung`). `pruefung/` gehört nicht zum Programm; Ein-Datei-Fälle bleiben, wie sie sind. Beispiele ebenso (`site/beispiele/<kategorie>/<projekt>/pruefung/`) |
+| `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code); ab PA2 auch Ordner `<name>/` als Projekt, Kopfzeilen in der Hauptdatei |
+| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (Differenztests nehmen nur Texte, bis PA2); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit `a19-projekte-offen.js`, K-138 … K-147; PA1 verschiebt die grünen Lader-Fälle nach `a19-projekte.js`, PD2 die Kiste-/Bild-Fälle) |
 | Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).

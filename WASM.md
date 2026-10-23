@@ -73,11 +73,12 @@ Ein Host ist in ~50 Zeilen JS oder Rust implementierbar. Args für `hauptgang` �
 ```js
 Pizzaiolo.version
 Pizzaiolo.unterstuetzt()                       // Wasm verfügbar?
-Pizzaiolo.kompiliere(quelltext, optionen?)     // synchron
+Pizzaiolo.kompiliere(quelle, optionen?)        // synchron; quelle wie PizzaLang.run: Text oder Projekt { dateien, hauptdatei?, name? }
   // → { ok: true,  pkarton: Uint8Array, kompilierMs, statistik }      // pkarton = programm.wasm (+ Laufzeit gebündelt, siehe HOST-ABI.md)
-  // → { ok: false, fehler: {code, text, zeile, spalte} }               // Syntaxfehler
-  // → { ok: false, nichtUnterstuetzt: [{ zeile, spalte, grund }] }     // → Fallback
-Pizzaiolo.run(quelltext, optionen?)            // synchron; Optionen & Rückgabe wie PizzaLang.run
+  // → { ok: false, fehler: {code, art, text, datei, zeile, spalte} }   // Syntaxfehler und Ladeprüfungen (SPEC §2.5)
+  // → { ok: false, nichtUnterstuetzt: [{ datei, zeile, spalte, grund }] }   // → Fallback
+  // optionen (Projekte, ab PA2): teiglinge?: { pfad → Uint8Array }, vorbacker?: WebAssembly.Module | Bytes (wie PizzaLang.run)
+Pizzaiolo.run(quelle, optionen?)               // synchron; Optionen & Rückgabe wie PizzaLang.run
   // + rückgabe.motor = "wasm"|"interpreter", rückgabe.kompilierMs
   // optionen.motor: "auto" (Standard) | "wasm" | "interpreter"
   // Bei "auto" zuerst genau ein Ereignis { typ: "motor", motor, grund?, kompilierMs? }
@@ -86,6 +87,15 @@ Pizzaiolo.faehigkeiten                         // eingefroren (importgruppen ink
                                                //   features: [...], ereignisse: [...], motoren: [...] }
 ```
 Synchrones Instanziieren (`new WebAssembly.Module/Instance`) ist im Worker und in Node erlaubt.
+**Projekte** (SPEC §2, K-138 … K-141, K-145, K-146; Umsetzung PROJEKTE.md PA2): `kompiliere`/`run` rufen den gemeinsamen Lader
+`PizzaLang.projekt.lade` statt `PizzaLang.parse` und übersetzen dessen **eine** zusammengesetzte Programm-AST (Ladereihenfolge, Knoten mit
+Datei-Index `d`) – Hoisting, Initialisierungsreihenfolge, Ladeprüfungen und W0004 sind damit dieselben wie im Interpreter. Die Ports von
+`analysiere` und der Startprüfung in `frontend.js` bekommen nur Datei-Index und den Doppelmeldungs-Schlüssel `code:datei:zeile:spalte`;
+die Positionstabelle (`this.pos`) speichert den Datei-Index mit. **Alle** erreichbaren Dateien landen in **einem** Modul; Dateinamen,
+Kiste (Textdateien + vorgebackene Teiglinge, Bilder vorher mit `vorbacker` geprüft/ergänzt wie im Interpreter, P0020 Teigmenge gleich)
+und Standard-Argumente liegen im passiven Datensegment (HOST-ABI §1). Der JS-Host spricht **ABI v2** (`warnung`/`fehler` mit Datei,
+`abi_version` 2) – `faehigkeiten.abi` = 2, `laufOptionen` + `teiglinge`, `vorbacker`. Der Rückfall auf den Interpreter (`motor: "auto"`,
+`nichtUnterstuetzt`) reicht das Projekt unverändert weiter.
 **Herd** (SPEC §18, Paket H4): Herd-Programme werden kompiliert; die Laufzeit (`laufzeit/src/herd.rs`) bildet `Herd`, `Teil`, `Form`,
 `Bildchen` und **alle Komponenten generisch aus `schema_json` des geladenen Kerns** ab (wie der Interpreter) und spricht den Kern über
 die Importgruppe `herd` an (HOST-ABI §2). Der JS-Host bindet sie direkt an die Exporte einer `kern.wasm`-Instanz (`optionen.herdKern`,

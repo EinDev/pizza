@@ -1,7 +1,11 @@
-# pizzaiolo – Host-ABI v1 (verbindlich)
+# pizzaiolo – Host-ABI v2 (verbindlich)
 
 Diese Datei beschreibt, wie ein **Host** (JS: Browser/Node · Rust/wasmi: nativ/EXE) ein kompiliertes
 pizza-Programm (`.pkarton`) ausführt. Ein Host braucht nur das hier – keine Kenntnis von IR oder Laufzeit-Interna.
+
+> **Stand:** v2 ist der Vertrag (Projekte, K-141, PROJEKTE.md). **Umgesetzt ist noch v1** – Compiler, Laufzeit und Hosts liefern bzw.
+> erwarten `abi_version() = 1` und `warnung`/`fehler` **ohne** `datei_ptr, datei_len`, bis Paket PA2 alle zusammen umstellt (§9).
+> Alles andere in dieser Datei gilt für v1 und v2 gleich; die v2-Änderungen sind mit **v2** markiert.
 
 ## 1. Das `.pkarton`
 
@@ -12,7 +16,13 @@ pizza-Programm (`.pkarton`) ausführt. Ein Host braucht nur das hier – keine K
   Kein GC, kein Exception Handling, kein `externref`, keine SIMD, keine Threads.
   (Läuft daher in Browsern, Node, wasmi, wasmtime und über `wasm2c`.)
 - Custom Section `pizzaiolo` (UTF-8-JSON, nur informativ, Host darf sie ignorieren):
-  `{ "format": "pkarton/1", "abi": 1, "compiler": "<version>", "laufzeit": "<hash>" }`.
+  `{ "format": "pkarton/1", "abi": 2, "compiler": "<version>", "laufzeit": "<hash>", "projekt": { "name": "<name>", "dateien": n } }`
+  (**v2**: `abi` 2, `projekt` informativ – Name aus `pizza.json`, Zahl der Programmdateien).
+- **v2 – Projekte im Modul** (SPEC §2, §11.2, §18.5): Alle erreichbaren `.pizza`-Dateien sind in **ein** Modul kompiliert. Ein **passives
+  Datensegment** des Moduls trägt die Dateinamen-Tabelle (Datei-Index → Pfad, für `datei` in Ereignissen), die **Kiste** (Tabelle Pfad →
+  Offset, Länge, Art, nach Bytefolge sortiert; Textdateien, Teiglinge statt Quellbilder, je Quell-Hash einmal) und die
+  Standard-Argumente aus `pizza.json`. Das Segment gehört der Laufzeit (Format darf sich mit ihr ändern) – **der Host liest nichts
+  davon** und braucht keinen Abschnitts-Leser; der EXE-Anhang `PKARTON1` bleibt unverändert.
 - Dateiendung `.pkarton`; MIME `application/wasm`.
 
 ## 2. Imports (Modulname `pizza`)
@@ -20,13 +30,15 @@ pizza-Programm (`.pkarton`) ausführt. Ein Host braucht nur das hier – keine K
 Alle Texte sind **UTF-8**, übergeben als `(ptr: i32, len: i32)` in den exportierten `memory`.
 Der Host muss die Bytes **während des Aufrufs** kopieren/dekodieren (Speicher kann später wachsen/sich ändern).
 `zeile`/`spalte` sind ab 1; **0 bedeutet „unbekannt“** (→ `null` im Ereignis).
+**v2:** `datei_ptr, datei_len` = Projektpfad der Datei, zu der `zeile`/`spalte` gehören (UTF-8); **`datei_len = 0` bedeutet `null`** –
+so bei allen Programmen aus genau einer `.pizza`-Datei (SPEC §2.6). Der Host setzt `datei` **immer** ins Ereignis, direkt vor `zeile`.
 
 | Import | Signatur | Ereignis (ARCHITEKTUR §1) |
 |---|---|---|
 | `ausgabe` | `(ptr i32, len i32) -> ()` | `{ typ: "ausgabe", text }` |
 | `fehlerausgabe` | `(ptr i32, len i32) -> ()` | `{ typ: "fehlerausgabe", text }` |
-| `warnung` | `(code_ptr i32, code_len i32, text_ptr i32, text_len i32, zeile i32, spalte i32) -> ()` | `{ typ: "warnung", code, text, zeile, spalte }` |
-| `fehler` | `(art i32, code_ptr i32, code_len i32, text_ptr i32, text_len i32, zeile i32, spalte i32) -> ()` | `{ typ: "fehler", code, art, text, zeile, spalte }` |
+| `warnung` | **v2:** `(code_ptr i32, code_len i32, text_ptr i32, text_len i32, datei_ptr i32, datei_len i32, zeile i32, spalte i32) -> ()` (v1 ohne `datei_*`) | `{ typ: "warnung", code, text, datei, zeile, spalte }` |
+| `fehler` | **v2:** `(art i32, code_ptr i32, code_len i32, text_ptr i32, text_len i32, datei_ptr i32, datei_len i32, zeile i32, spalte i32) -> ()` (v1 ohne `datei_*`) | `{ typ: "fehler", code, art, text, datei, zeile, spalte }` |
 | `panik` | `(ptr i32, len i32) -> ()` | `{ typ: "panik", text }` |
 | `schreibe` | `(ptr i32, len i32) -> ()` | `{ typ: "ausgabe", text, umbruch: false }` (`Bote.schreibe`) |
 | `leeren` | `() -> ()` | `{ typ: "leeren" }` (`Bote.leeren`) |
@@ -47,10 +59,11 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
   (fester Startwert in ms, gerundet, wächst nicht) bzw. `Date.now()`; nativ: Systemzeit. Liefert ganze Millisekunden.
 - **Gruppe `herd` (SPEC §18, Paket H4):** Modul `herd` (Exporte von `kern.wasm`, siehe unten) und `herd_kern`, `herd_schreibe`,
   `herd_lies`, `herd_warte`, `herd_senden` – nur wenn das Programm Herd-Klassen benutzt (`neu Herd/Form/Bildchen/<Komponente>`,
-  `Form.…`, `Herd.…`). Siehe unten „Herd“.
+  `Form.…`, `Herd.…`, `Bildchen.…` – Letzteres für `Bildchen.laden`, K-145). Siehe unten „Herd“.
 - **Gruppe `kueche` (SPEC §17, K-100, K-104):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
   (Methodenaufruf oder Methodenreferenz `….brigade`); dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
-- Künftige Gruppen werden genauso ergänzt (additiv; `abi_version` bleibt 1, solange nichts Bestehendes bricht).
+- Künftige Gruppen und neue Importe in bestehenden Gruppen werden genauso ergänzt (additiv; sie ändern `abi_version` nicht). Die
+  Version steigt nur, wenn Bestehendes bricht – zuletzt **v2** durch `datei` an `warnung`/`fehler` (§9).
 
 Die Custom Section `pizzaiolo` nennt die benötigten Gruppen: `"gruppen": ["theke", "vorrat"]`.
 **Hosts prüfen vor dem Instanziieren** die Importliste des Moduls (JS: `WebAssembly.Module.imports`, wasmi:
@@ -177,6 +190,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `form_grund` | `(art i32, teile f64, dicke f64) -> i32` | |
 | `form_eigene` | `(pp i32, pn i32, dp i32, dn i32, glatt i32) -> i32` | |
 | `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |
+| `bildchen_teigling` | `(ptr i32, len i32) -> i32` | `Bildchen.laden` (K-145, K-147; ab PD1/PA2): `len` Bytes eines Teiglings im Kern-Speicher → Bildchen-ID; der Kern prüft nur den Kopf. Die Laufzeit holt den Teigling aus ihrem Datensegment (`memory.init`) und kopiert ihn mit `herd_schreibe` in den Kern – einmal je Pfad |
 | `ressource_hole` | `(id i32, was i32) -> f64` | |
 | `takt`, `paket_voll` | `() -> i32` | |
 | `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |
@@ -185,7 +199,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 
 | Import (Modul `pizza`) | Signatur | Bedeutung |
 |---|---|---|
-| `herd_kern` | `(pflicht i32) -> i32` | `1` = Kern da. `0` = fehlt; bei `pflicht = 1` (Startprüfung, Programm enthält `neu Herd/Form/Bildchen` oder `Form.…`/`Herd.…`) sendet der Host vorher `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).", zeile: null, spalte: null }` und das Modul endet mit Exit 2, 0 Schritten (wie der Interpreter, K-128) |
+| `herd_kern` | `(pflicht i32) -> i32` | `1` = Kern da. `0` = fehlt; bei `pflicht = 1` (Startprüfung, Programm enthält `neu Herd/Form/Bildchen` oder `Form.…`/`Herd.…`/`Bildchen.…`) sendet der Host vorher `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).", zeile: null, spalte: null }` und das Modul endet mit Exit 2, 0 Schritten (wie der Interpreter, K-128) |
 | `herd_schreibe` | `(kern_ptr i32, ptr i32, len i32) -> ()` | Kopierweg Programm → Kern: `len` Bytes ab `ptr` (Programm-Speicher) nach `kern_ptr` (Kern-Speicher) |
 | `herd_lies` | `(ptr i32, kern_ptr i32, len i32) -> ()` | Kopierweg Kern → Programm |
 | `herd_warte` | `(puffer_ptr i32, puffer_kap i32) -> i32` | nächstes Fenster-Ereignis (UTF-8-JSON, z. B. `{"typ":"takt","anzahl":2,"tasten":[…],"maus":[x,y],"knoepfe":1}`, `{"typ":"geschlossen"}`); genau wie `ui_warte`: `-1` = kein Renderer/geschlossen, Länge `> kap` → nichts geschrieben, Retry (K-013), **`kap = -1`** = Abfrage „Renderer da?“ (`1`/`0`; `0` → `backe` öffnet und schließt das Fenster und warnt W0104). JS-Host: dieselbe Quelle wie `ui_warte` (`onUiWarte` bzw. `uiEreignisse`) |
@@ -212,7 +226,7 @@ die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone
 | Export | Signatur | Bedeutung |
 |---|---|---|
 | `memory` | Memory | linearer Speicher (wächst ggf. während des Laufs) |
-| `abi_version` | `() -> i32` | liefert `1` |
+| `abi_version` | `() -> i32` | liefert `2` (**v2**; bis PA2 noch `1`) |
 | `limit_setzen` | `(schritte f64) -> ()` | Schrittlimit (`optionen.schrittLimit`); Werte ≤ 0 oder NaN → Standard 5 000 000. Optional, vor `start`. |
 | `speicher_limit_setzen` | `(mib i32) -> ()` | Heap-Obergrenze in MiB (Standard 1024, max. 3072). Optional, vor `start`. |
 | `arg_puffer` | `(len i32) -> i32` | liefert Zeiger auf `len` beschreibbare Bytes für das nächste Argument |
@@ -234,7 +248,8 @@ p = arg_puffer(bytes.length)        // darf 0 Bytes sein
 memory[p .. p+len) = bytes          // Speicher-Ansicht NACH dem Aufruf neu holen (memory kann gewachsen sein)
 arg_fertig(bytes.length)
 ```
-Ohne Aufrufe ist `args` ein leeres Blech.
+Ohne Aufrufe ist `args` ein leeres Blech – **v2:** bzw. die im Modul eingebetteten Standard-Argumente aus `pizza.json` (`args`,
+SPEC §2.1); der Host muss sie nicht kennen.
 
 ## 4. Ablauf eines Laufs
 
@@ -250,7 +265,9 @@ emit { typ: "ende", exitCode, schritte: inst.schritte(), zeitMs: inst.zeitMs() }
   (fester Text; Details nur im optionalen Feld `detail`), Exit-Code **1**, danach `ende` mit `schritte()`/`zeitMs()`
   (nach einem Trap weiter aufrufbar). Ausnahme: der Host hat selbst in `panik` abgebrochen → Exit-Code 39 ohne Fehlerereignis.
 - Liefert `start` einen Exit-Code außerhalb {0, 1, 2, 3, 39}, behandelt der Host das wie einen Trap (K-046).
-- **Ladefehler** (kein gültiges Modul, falsche `abi_version`, fehlende Exporte) (K-043/K-044): Der Host sendet
+- **Ladefehler** (kein gültiges Modul, falsche `abi_version`, fehlende Exporte) (K-043/K-044): Ein v2-Host lehnt jede andere
+  Version als 2 ab (Grund `Dieses Programm wurde für eine andere pizza-Version gebaut (ABI 1, dieser Host kennt 2).`; es gibt keine
+  Rückwärtskompatibilität – `.pkarton` entstehen ohnehin neu). Der Host sendet
   `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: <Grund>", zeile: null, spalte: null }` und
   `ende` mit Exit-Code **2**, `schritte: 0`, `zeitMs: 0`.
 - Das Schrittlimit, Ofen-/Lieferbudgets, Ananas, Hawaii-Panik usw. behandelt **das Modul selbst** – der Host
@@ -290,8 +307,8 @@ Syntaxfehler (`art: "syntax"`) entstehen nie zur Laufzeit – ein Programm mit S
 |---|---|
 | `ausgabe` | stdout: `text + "\n"` |
 | `fehlerausgabe` | stderr: `text + "\n"` |
-| `warnung` | stderr: `"⚠ " + text + " (Zeile z, Spalte s)"` (Positionsteil nur, wenn bekannt) |
-| `fehler` | stderr: `text` (+ Position bei `pizzafehler`) |
+| `warnung` | stderr: `"⚠ " + text + " (Zeile z, Spalte s)"` (Positionsteil nur, wenn bekannt); **v2:** bei `datei ≠ null` `" (<datei>, Zeile z, Spalte s)"` bzw. `" (<datei>)"` ohne Zeile |
+| `fehler` | stderr: `text` (+ Position bei `pizzafehler`, Form wie bei `warnung`, mit Datei sobald `datei ≠ null` – SPEC §2.6) |
 | `schreibe` | stdout: `text` (ohne Umbruch, flushen) |
 | `leeren` | stdout: ESC-Sequenz `[2J`, `[3J`, `[H` (K-054), nur wenn stdout ein Terminal ist |
 | `eingabe` | Zeile von stdin lesen (`
@@ -317,8 +334,8 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
   const pizza = {
     ausgabe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n) }),
     fehlerausgabe: (p, n) => emit({ typ: 'fehlerausgabe', text: t(p, n) }),
-    warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
-    fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a], text: t(tp, tn), zeile: pos(z), spalte: pos(s) }),
+    warnung: (cp, cn, tp, tn, dp, dn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), datei: dn ? t(dp, dn) : null, zeile: pos(z), spalte: pos(s) }),
+    fehler: (a, cp, cn, tp, tn, dp, dn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a], text: t(tp, tn), datei: dn ? t(dp, dn) : null, zeile: pos(z), spalte: pos(s) }),
     panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
     schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
     leeren: () => emit({ typ: 'leeren' }),
@@ -333,6 +350,7 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
     kueche_bericht: () => -2,
   };
   inst = new WebAssembly.Instance(new WebAssembly.Module(pkarton), { pizza });
+  if (inst.exports.abi_version() !== 2) throw new Error('falsche ABI-Version');   // Ladefehler (§4)
   for (const a of args) {
     const b = new TextEncoder().encode(a);
     const p = inst.exports.arg_puffer(b.length);
@@ -343,7 +361,7 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
   try { exitCode = inst.exports.start(); }
   catch (e) {
     emit({ typ: 'fehler', code: 'LaufzeitAnanas', art: 'ananas',
-      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', zeile: null, spalte: null, detail: e.message });
+      text: 'Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen.', datei: null, zeile: null, spalte: null, detail: e.message });
     exitCode = 1;
   }
   emit({ typ: 'ende', exitCode, schritte: inst.exports.schritte(), zeitMs: inst.exports.zeitMs() });
@@ -354,7 +372,12 @@ function fuehreAus(pkarton, args = [], emit = console.log) {
 ## 9. Versionierung
 
 Änderungen, die Hosts brechen, erhöhen `abi_version` und `"abi"` in der Custom Section. Hosts sollen bei
-unbekannter Version mit einer klaren Meldung abbrechen.
+unbekannter Version mit einer klaren Meldung abbrechen (§4).
+
+| Version | Änderung gegenüber der vorigen |
+|---|---|
+| 1 | Grundfassung (Basis-Importe, Gruppen `theke`, `vorrat`, `echtzeit`, `kueche`, `herd` – Gruppen und neue Importe sind additiv) |
+| **2** (K-141; Vertrag, Umsetzung PA2) | `warnung` und `fehler` bekommen `datei_ptr, datei_len` vor `zeile` (§2), Ereignisse das Feld `datei`; `abi_version()` = 2, Hosts lehnen 1 ab; Küchenbericht-Ereignis `warnung` mit `bytes datei` (Anhang A); Custom Section `abi: 2` + `projekt`; Standard-Argumente im Modul (§3); additiv in derselben Fassung: `herd.bildchen_teigling`, Herd-Erkennung `Bildchen.…` |
 
 ## Anhang A: Küchenbericht und Kartonformat `PKF1` (informativ, K-104)
 
@@ -369,7 +392,7 @@ ok → `PKF1`-Wert · Ananas → `i32 pos`, `PKF1`-Objekt · Budget → `u32 fra
 
 **Ereignisse** (in Auftretensreihenfolge, D4): `u8 art` · 1 `ausgabe` / 2 `schreibe` / 3 `fehlerausgabe`: `bytes text` ·
 4 `leeren` · 5 `warnung`: `i32 methode` (W0003: Methoden-ID für „einmal pro Methode“, sonst −1), `i32 zeile`, `i32 spalte`,
-`bytes code`, `bytes text`. Die Hauptinstanz gibt sie beim Zusammenführen über die normalen Imports aus (D5-Filter dort).
+**v2:** `bytes datei` (leer = `null`), `bytes code`, `bytes text`. `pos` zeigt ab v2 in die um den Datei-Index erweiterte Positionstabelle. Die Hauptinstanz gibt sie beim Zusammenführen über die normalen Imports aus (D5-Filter dort).
 
 **`PKF1`** (Magie `PKF1`, dann ein Wert; Tiefensuche in Kartonreihenfolge, SPEC §17.5): `u8 tag` und Nutzlast –
 0 `karton` · 1 `nein` · 2 `ja` · 3 Zahl `f64` · 4 `auto` (seit K-127 nicht mehr erzeugt, Tag bleibt reserviert) · 5 Text `bytes` · 6 Dauer `f64` · 7 **fest** `u64` (unveränderlicher

@@ -90,6 +90,118 @@ in Reihenfolge, (3) existiert `hauptgang`, wird er danach aufgerufen. So sind ku
 Bote.sage(("Hallo!"));
 ```
 
+Ein Programm darf aus **mehreren Dateien** eines Projekts bestehen (§2.1 … §2.6, K-138 … K-141; Konzept und Begründungen:
+`PROJEKTE.md`). Für Programme aus genau einer `.pizza`-Datei ändert sich nichts. *Umsetzung offen (PROJEKTE.md PA1/PA2; Fälle
+`pruefstand/faelle/a19-projekte-offen.js`).*
+
+### 2.1 Projekt, Projektdatei, Pfade (K-138)
+
+- Ein **Projekt** ist ein Ordner; das Programm sieht ihn als **Dateisammlung** `{ pfad → Inhalt }` (dieselbe Form in API, Worker,
+  CLI, ZIP, Teilen und pkarton; ARCHITEKTUR §1). Ein Text als Programm ist die Sammlung `{ "hauptgang.pizza": text }`.
+- **Hauptdatei:** Feld `hauptdatei` der Projektdatei; sonst `hauptgang.pizza`; sonst – falls es genau **eine** `.pizza`-Datei gibt – diese.
+  Gibt es keine → `PizzaFehler P0015: Die Datei "hauptgang.pizza" gibt es im Projekt nicht.`
+- **Projektdatei `pizza.json`** (optional, an der Wurzel): `{ "pizza": 1, "name"?, "hauptdatei"?, "beschreibung"?, "args"? }`.
+  `pizza` = Formatversion (Pflicht, Ganzzahl; > 1 → `PizzaFehler HOST: Diese Projektdatei braucht eine neuere pizza-Version.`);
+  `name` ≤ 80 Zeichen (Anzeige, Standard: Ordnername bzw. Hauptdatei ohne `.pizza`), `hauptdatei` ein Pfad (Regeln unten),
+  `beschreibung` ≤ 500 Zeichen, `args` ≤ 32 Texte à ≤ 200 Zeichen = **Standard-Argumente** für `hauptgang`, wenn keine Argumente
+  übergeben werden (CLI, App-Link, EXE, Playground-Startwert). Unbekannte Felder werden ignoriert. Ungültig →
+  `PizzaFehler P0015: pizza.json ist ungültig: <Grund>.` mit `<Grund>` ∈ `kein gültiges JSON` · `kein Objekt` · `"pizza" fehlt` ·
+  `"<feld>" muss ein Text sein` · `"pizza" muss eine Ganzzahl sein` · `"args" muss ein Blech aus Texten sein` · `"<feld>" ist zu lang`.
+- **Pfade** (eine Regel überall, `PizzaLang.projekt.pruefePfad`): relativ zur Projektwurzel, Trenner `/`, Segmente
+  `[a-z0-9_-][a-z0-9_.-]*` (nicht mit `.` beginnend), keine leeren Segmente, kein `.`/`..`, höchstens 120 Zeichen und 8 Ebenen.
+  Der Ordner `pruefung/` an der Wurzel gehört **nicht** zum Programm (Testdateien, ARCHITEKTUR §6). Dateiarten: `.pizza`, `.png`,
+  `.jpg`/`.jpeg`, Text (`.txt`, `.json`, `.csv`, `.md`). Ein ungültiger Pfad in der Sammlung →
+  `PizzaFehler P0015: "<pfad>" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).`
+- **Textdateien** sind UTF-8; der Lader ersetzt `\r\n` durch `\n` (einzelnes `\r` und ein BOM bleiben) – in jedem Motor, damit
+  `Kiste`, Hashes und Teilen unter Windows dieselben Bytes sehen wie im Browser.
+- **Grenzen des Laders** (ohne `pruefung/`): ≤ 100 Dateien, je Datei ≤ 2 MiB, `.pizza` ≤ 512 KiB, zusammen ≤ 8 MiB →
+  `PizzaFehler P0020: Das Projekt ist zu groß für den Ofen (<Grund>).` mit `<Grund>` ∈ `101 Dateien, höchstens 100` ·
+  `<pfad> hat 2,5 MB, höchstens 2 MB` · `<pfad> hat 601 KB, höchstens 512 KB` · `zusammen 8,4 MB, höchstens 8 MB`
+  (KB = Bytes / 1024, MB = Bytes / 1 048 576, je **aufgerundet** auf eine ganze Zahl bzw. eine Nachkommastelle, Dezimalkomma).
+  Bilder: §18.5.
+
+### 2.2 `bestellt` und Ladereihenfolge (K-139)
+
+```pizza
+// hauptgang.pizza
+bestellt "rezepte/teig.pizza";
+
+Teig t = neu Teig(250);
+Bote.sage((t));
+```
+
+- `bestellt "<pfad>";` holt eine andere `.pizza`-Datei ins Programm – nur auf oberster Ebene, an beliebiger Stelle (wie `paket`/
+  `import`). Argument: ein **Textliteral** (Pfad relativ zur **Projektwurzel**, nicht zur Datei; Regeln §2.1). `bestellt` ist ein
+  **kontextuelles** Schlüsselwort: nur `bestellt` + Textliteral auf oberster Ebene ist eine Bestellung; sonst bleibt `bestellt` ein
+  normaler Bezeichner (`KEYWORDS` unverändert). Fehlt das `;` → P0001 wie bei `paket`.
+- Ungültiger Pfad → `PizzaFehler P0015: "<pfad>" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).` (schon beim Parsen);
+  keine `.pizza`-Endung → `PizzaFehler P0015: "<pfad>" ist keine .pizza-Datei – bestellen kann man nur Rezepte.`; Datei fehlt →
+  `PizzaFehler P0015: Die Datei "<pfad>" gibt es im Projekt nicht.` (auch für `bestellt` in einem Text-Programm).
+- **Ladereihenfolge:** Tiefensuche ab der Hauptdatei; jede Datei wird beim ersten Besuch geparst, ihre `bestellt` in
+  **Textreihenfolge** besucht, danach kommt sie selbst in die Ladeliste (Abhängigkeiten zuerst, jede Datei einmal, Hauptdatei
+  zuletzt). Nicht erreichbare `.pizza`-Dateien gehören nicht zum Programm (keine Warnung).
+- **Kreis** (eine gerade besuchte Datei wird erneut erreicht, auch die Hauptdatei oder die Datei selbst) →
+  `PizzaFehler P0014: Kreisbestellung: hauptgang.pizza → a.pizza → b.pizza → a.pizza.` (Position: das `bestellt`, das den Kreis
+  schließt). Die Hauptdatei kann also niemand bestellen – gemeinsamer Zustand gehört in eine Nebendatei, die alle bestellen.
+- Dieselbe Datei zweimal in **einer** Datei bestellt → `W0004: "<pfad>" ist schon bestellt.` (Position: das zweite `bestellt`).
+- **Ablauf:** Das Programm ist die Verkettung der Dateirümpfe in Ladereihenfolge; darauf gilt der Snack-Modus oben unverändert
+  (Hoisting aller Deklarationen, dann Top-Level-Anweisungen – also zuerst die Variablen-Initialisierungen der Nebendateien, dann die
+  Anweisungen der Hauptdatei –, dann `hauptgang`). Statische Initialisierung, Annotationen und Analyse laufen auf diesem einen Programm.
+  Laden und Bestellen kosten **keine Schritte**: Ein Programm hat in einer oder in mehreren Dateien dieselben Ereignisse, `schritte`
+  und `zeitMs` (nur `datei` und die Ortsangaben unterscheiden sich).
+
+### 2.3 Hauptdatei und Nebendateien (K-139)
+
+- **Nebendateien** (alle außer der Hauptdatei) enthalten nur `bestellt`, `paket`, `import`, Klassen, Rezepturen, quattrostagioni,
+  Top-Level-Funktionen und Top-Level-Variablen (auch `gebacken`, beliebiger Initialisierer, Mehrfachdeklaration). Jede andere
+  Anweisung (Position: ihr erstes Token) → `PizzaFehler P0017: In <datei> dürfen nur Rezepte stehen (Klassen, Funktionen, Variablen) –
+  Anweisungen gehören in die Hauptdatei <hauptdatei>.`
+- `hauptgang` (Methode, auch in verschachtelter Klasse, oder Top-Level-Funktion) steht nur in der Hauptdatei; sonst →
+  `PizzaFehler P0017: hauptgang gehört in die Hauptdatei <hauptdatei>, nicht nach <datei>.` In der Hauptdatei gilt der Einstieg wie oben.
+
+### 2.4 Ein Namensraum, Sichtbarkeit (K-140)
+
+- Alle obersten Namen (Klassen, Rezepturen, quattrostagioni – auch **verschachtelte**, die ohnehin global registriert werden, §14.5 –,
+  Top-Level-Funktionen und -Variablen) liegen in **einem** Projekt-Namensraum. Derselbe Name in zwei Dateien (auch `geheimrezept`-Namen
+  und Überladungen einer Top-Level-Funktion über Dateigrenzen) → `PizzaFehler P0016: 'Teig' gibt es zweimal – in rezepte/teig.pizza
+  (Zeile 3) und in hauptgang.pizza (Zeile 10).` (Position: das spätere in Ladereihenfolge). Innerhalb einer Datei gilt alles wie bisher;
+  eine eigene Klasse gleichen Namens wie eine eingebaute hat projektweit Vorrang.
+- **Sichtbar** in einer Datei sind ihre eigenen obersten Namen und die nicht-`geheimrezept` obersten Namen der Dateien, die sie **direkt**
+  bestellt (nicht transitiv); Standardbibliothek und eingebaute Klassen immer. `geheimrezept` auf oberster Ebene = nur in der eigenen
+  Datei. Mitglieder von Klassen (`speisekarte`/`familienrezept`/`geheimrezept`) bleiben unverändert (Klassengrenzen, nicht Dateigrenzen).
+- **Ladeprüfung** (im gemeinsamen Lader, gleich für Interpreter und Compiler; je Datei in Ladereihenfolge, darin nach Position): Ein
+  Bezeichner-Token t in Datei F, das nicht direkt hinter `.` oder `@` steht, kein benanntes Argument `t:` ist und gleich einem obersten
+  Namen N einer **anderen** Datei G ist, wird geprüft – außer t ist irgendwo in F als lokale Variable, Parameter, Lambda-Parameter,
+  `für`-/Fang-/`roh`-Variable, Generik-Parameter oder Mitglied deklariert, oder t ist ein Mitgliedsname irgendeiner Klasse bzw. ein
+  Wertname irgendeines quattrostagioni des Projekts. Dann: N ist `geheimrezept` → `PizzaFehler P0018: 'salzAnteil' ist ein Geheimrezept
+  von rezepte/teig.pizza.`; G wird von F nicht direkt bestellt → `PizzaFehler P0019: 'Teig' kommt aus rezepte/teig.pizza – bestelle die
+  Datei hier: bestellt "rezepte/teig.pizza";` (Position: t). Die Prüfung ist bewusst **konservativ** (meldet nie Gültiges; Zweifelsfälle
+  laufen einfach, der Namensraum ist ja projektweit).
+
+### 2.5 Reihenfolge der Ladeprüfungen (K-139)
+
+Der erste Fehler bricht ab – Exit 2, `schritte` 0, **ohne** vorherige Warnungen (wie ein Syntaxfehler):
+1. `pizza.json` (P0015, HOST) und Pfade der Sammlung (P0015), Hauptdatei vorhanden (P0015);
+2. Tiefensuche: Syntaxfehler (P0001/K0001), P0014, P0015 in Besuchsreihenfolge;
+3. Grenzen der Sammlung (P0020, §2.1);
+4. P0017 → P0016 → P0018/P0019 (je Datei in Ladereihenfolge, darin nach Position).
+
+Danach wie bisher: Warnungen (zuerst W0004 des Laders in Ladereihenfolge, dann W0666, W0032 …), Startprüfungen (§14.7), zuletzt die
+Teigmenge (P0020, §18.5). Ereignis-`art` der Ladeprüfungen `"pizzafehler"`, bei Syntaxfehlern `"syntax"`.
+
+### 2.6 Fehlerorte (K-141)
+
+- `fehler`- und `warnung`-Ereignisse tragen das Feld **`datei`** (Projektpfad) **immer**, direkt vor `zeile`; `zeile`/`spalte` zählen in
+  dieser Datei. **`datei` ist `null`**, solange das Programm aus genau einer `.pizza`-Datei besteht (Text, CLI-Datei oder
+  Ein-Datei-Projekt) – dann sieht alles aus wie bisher. Fehler der Projektdatei: `datei: "pizza.json"`, ohne Zeile; Fehler der Sammlung
+  ohne Ort (Grenzen, ungültiger Pfad, fehlende Hauptdatei, Teigmenge): `datei`, `zeile`, `spalte` = `null`.
+- Ladeprüfungen und Syntaxfehler tragen die Datei, in der die Ursache steht.
+- **Texte:** Nur die ungefangene Ananas trägt einen Ort im `text` – in der Hauptdatei wie bisher `… (Zeile 12)`, in Nebendateien
+  `… (rezepte/teig.pizza, Zeile 12)`. Alle anderen Orte bauen die Hüllen (CLI, nativer Host, Playground-Konsole) aus den Feldern: Sie
+  nennen den Pfad, **sobald `datei ≠ null`** (also in Mehrdatei-Programmen auch für die Hauptdatei): `<text> (Zeile Z, Spalte S)` bzw.
+  `<text> (rezepte/teig.pizza, Zeile Z, Spalte S)` (K-083, HOST-ABI §7).
+- Warnungen gelten einmal je Code + **Datei** + Zeile + Spalte (§10, §14.8).
+
 ---
 
 ## 3. Deklarationen (Tier 1, sofern nicht anders markiert)
@@ -391,7 +503,7 @@ Exit-Code: 39
 - `W0032: 'PiZZa' und 'PizZa' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.`
   – wenn in einem Scope (Block/Parameterliste/Klassenmitglieder) zwei Namen sich nur in Groß-/Kleinschreibung unterscheiden.
   Einmal pro **später deklariertem** Namen, gepaart mit der frühesten kollidierenden Schreibweise (n Schreibweisen → n−1 Warnungen; §14.8, K-002).
-- Warnungen werden einmal pro Code+Stelle ausgegeben und beeinflussen den Exit-Code nicht.
+- Warnungen werden einmal pro Code+Stelle (Datei, Zeile, Spalte – §2.6) ausgegeben und beeinflussen den Exit-Code nicht.
 
 ---
 
@@ -405,6 +517,7 @@ Exit-Code: 39
 | `Zufall` | `zahl(a, b)` – ganzzahlig, inklusive, **deterministisch**: mulberry32 mit Saat 42 (`optionen.zufallsSaat`), `a + floor(r · (b − a + 1))` (K-049); ferner `saat([n])`, `kommazahl([a, b])`, `wahr(p)`, `wähle(blech)`, `mische(blech)`, `neu Zufall([saat])` – §15.4 (K-077/K-078, offen) |
 | `Vorratskammer` | persistenter Zustand über Läufe: `neu Vorratskammer(name[, namensraum])`, `lege`, `hole`, `hat`, `entferne`, `schlüssel`, `länge`, `leeren`, `name`, `namensraum` – §15.4 (K-079 … K-081, K-106) |
 | `Spiegel` | `felder(obj)` (§7.8) |
+| `Kiste` | Projektdateien lesen: `text(pfad)`, `zeilen(pfad)`, `gibts(pfad)`, `liste(ordner = "")` – §11.2 (K-146, offen) |
 | Zahl | `währung(symbol)` → `8.währung("€")` = `"8,00 €"` (K-127), `runden()` / `runden(n)`, `abs()`, `alsText()`, `ganz()` (abschneiden) |
 | Text | `länge()`, `groß()`, `klein()`, `enthält(s)`, `zerlege(trenner)` → Blech, `ersetze(a, b)`, `trimme()`, `zeichen(i)` (ab 1), `wiederhole(n)`, `beginntMit(s)`, `alsZahl()` |
 | Blech | `länge()`, `stück(i)` (**ab 1**, außerhalb → `KeinStückAnanas`), `hinzu(x)` (gibt Blech zurück), `entferne(i)`, `setze(i, x)`, `enthält(x)`, `belege(fn)` (map), `filtere(fn)`, `zusammenklappen(fn)` / `zusammenklappen(fn, start)` (reduce), `summe()`, `erstes()`, `letztes()`, `umdrehen()`, `sortiere()` / `sortiere((a, b) -> ...)`, `verbinde(trenner)`, `istLeer()`, `schneide(n)` |
@@ -460,13 +573,30 @@ steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `ei
 Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
 gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
+### 11.2 `Kiste` – Projektdateien lesen (K-146; Umsetzung offen, PROJEKTE.md PA1/PD2/PA2)
+
+Die **Kiste** sind alle Dateien der Sammlung (§2.1) außer `pruefung/` – auch `.pizza`-Dateien, `pizza.json` und Bilder, auch nicht
+erreichbare Dateien. Nur lesend; Schreiben bleibt Sache der Vorratskammer (§15.4). Eingebautes Modul wie `Bote` (eine eigene Klasse
+`Kiste` hat Vorrang); in Stücken einer `brigade` erlaubt (lesend, deterministisch).
+
+| Aufruf | Ergebnis | Fehler |
+|---|---|---|
+| `Kiste.text(pfad)` | `margherita` – Inhalt wie in der Sammlung (UTF-8, `\n`-Zeilenenden, §2.1) | fehlt oder ungültiger Pfad → `LaufzeitAnanas: Die Datei "<pfad>" liegt nicht in der Kiste.`; keine Text-Endung (`.txt .json .csv .md .pizza`) → `LaufzeitAnanas: <pfad> ist kein Text.` (nach **Endung**, nicht nach Bytes) |
+| `Kiste.zeilen(pfad)` | `Blech<margherita>` – `text` an `\n` getrennt, eine leere letzte Zeile entfällt | wie `text` |
+| `Kiste.gibts(pfad)` | `diavolo` – `ja` nur für Dateien (nicht für Ordner) | nie (ungültiger Pfad → `nein`) |
+| `Kiste.liste(ordner = "")` | `Blech<margherita>` aller Dateipfade unter `ordner` (rekursiv; `""` = alle, sonst Präfix `ordner + "/"`), nach Bytefolge sortiert | ungültiger oder unbekannter Ordner (auch mit Schluss-`/`) → leeres Blech |
+
+- Argument kein Text → `TypAnanas: Kiste.text() braucht einen Text für 'pfad', nicht 5.` (ebenso `zeilen`, `gibts`, `liste` mit `'ordner'`).
+- Jeder Aufruf ist ein normaler Aufruf (keine größenabhängigen Schritte). Im `.pkarton` liegt die Kiste als Datensegment (HOST-ABI §1);
+  ein EXE enthält damit auch die Quelltexte lesbar.
+
 ## 12. Exit-Codes
 
 | Code | Bedeutung |
 |---|---|
 | 0 | gegessen (alles gut) |
 | 1 | ungefangene Ananas |
-| 2 | PizzaFehler (Syntax, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015] …; Host-Ladefehler `HOST` [K-043]) – alle entstehen vor dem Start; einen PizzaFehler zur Laufzeit (früher B0012) gibt es seit K-105 nicht mehr |
+| 2 | PizzaFehler (Syntax, R0001, Q0004, A0001, P0010, P0011, K0001, P0012 [K-015], Ladeprüfungen P0014 … P0020 [§2.5] …; Host-Ladefehler `HOST` [K-043]) – alle entstehen vor dem Start; einen PizzaFehler zur Laufzeit (früher B0012) gibt es seit K-105 nicht mehr |
 | 3 | Schrittlimit (P0002) – ein Wand-Zeitlimit gibt es nicht (K-083/3) |
 | 39 | Hawaii |
 
@@ -593,6 +723,8 @@ regelt `EINGABE.md`.
 - Präfix `++x;`/`--x;`; `+=` usw. auch für Text und Dauer; `x++` auf Nicht-Zahlen = `x + 1`.
 - Generische Parameter `<T>` an Klassen/Methoden werden übersprungen; `Typ[]` ist erlaubt (ungeprüft);
   `für (x : liste)` ohne Typ erlaubt.
+- `bestellt "<pfad>";` (§2.2) ist ein **kontextuelles** Schlüsselwort: nur auf oberster Ebene und nur vor einem Textliteral; sonst ein
+  normaler Bezeichner. Parser-Knoten `{ k: 'Bestellt', pfad, z, s }` (anders als `paket`/`import`, die verworfen werden).
 - `paket`/`import` dürfen überall auf oberster Ebene stehen. Klassen/Rezepturen/quattrostagioni dürfen in Klassen
   verschachtelt sein und werden global registriert.
 - `serviere` auf oberster Ebene beendet die Top-Level-Anweisungen; `hauptgang` läuft trotzdem.
@@ -624,8 +756,13 @@ regelt `EINGABE.md`.
   `nachricht`/`holeNachricht`/`typ`.
 - **W0003:** `Methode 'm' ist veraltet.` bzw. `Methode 'm' ist veraltet. Grund: <grund>` – einmal pro Methode,
   Position = erster Aufruf.
+- **Ladeprüfungen** (Projekte, §2.5) kommen vor allem anderen: P0014 Kreisbestellung · P0015 Datei/Pfad/`pizza.json` ·
+  P0016 Name zweimal · P0017 Anweisung bzw. `hauptgang` in einer Nebendatei · P0018 Geheimrezept einer anderen Datei · P0019 nicht
+  bestellt · P0020 zu groß (Sammlung §2.1; Teigmenge §18.5, diese erst nach den Startprüfungen). Texte wörtlich in §2.1 … §2.4, §18.5.
+  Warnung **W0004** `"<pfad>" ist schon bestellt.` (W00xx = statische Warnungen, W01xx = Laufzeitumgebung).
 - Startprüfungen in dieser Reihenfolge: Q0004/P0010/P0011 in Quelltextreihenfolge, dann Vererbungszyklen, dann
-  R0001/A0001 in Quelltextreihenfolge. Der erste Fehler bricht ab.
+  R0001/A0001 in Quelltextreihenfolge. Der erste Fehler bricht ab. „Quelltextreihenfolge“ heißt in Projekten: Dateien in
+  Ladereihenfolge, darin nach Position.
 - Ungefangene Ananas: Zeile = Anweisung, in der geworfen bzw. der Fehler ausgelöst wurde. Geworfene Nicht-Ananas-Objekte:
   `Ungefangene Ananas – <Textform> (Zeile N)`, `code` = Klassenname.
 
@@ -638,8 +775,11 @@ regelt `EINGABE.md`.
 - Gemeldet an der späteren Deklaration als `'<frühere>' und '<spätere>'`. **Einmal pro neuer Deklaration:** jede
   Deklaration wird mit der ersten früheren gleichlautenden Schreibweise gepaart. Bei `pizza`, `PiZZa`, `piZZA` im selben
   Scope entstehen also **2** Warnungen (`'pizza' und 'PiZZa'`, `'pizza' und 'piZZA'`).
-- Allgemein werden Warnungen einmal pro Code + Zeile + Spalte ausgegeben (W0003 einmal pro Methode, W0666 genau einmal
+- Allgemein werden Warnungen einmal pro Code + Datei + Zeile + Spalte ausgegeben (W0003 einmal pro Methode, W0666 genau einmal
   an der ersten Fundstelle).
+- **Projekte (§2, K-140):** Der Programm-Scope umfasst die obersten Variablen und Funktionen **aller** Dateien (gemeldet an der späteren
+  in Ladereihenfolge); W0666 kommt einmal je Programm (erste Fundstelle in Ladereihenfolge). Warnungen erscheinen nach Dateien in
+  Ladereihenfolge, darin nach Position.
 
 ### 14.9 Objekte, Klassen, Aufrufe
 
@@ -1641,6 +1781,23 @@ Schema und ist eine eingebaute Klasse:
   `w s g o t r p b l m e k a y h u v` = Palette in obiger Reihenfolge, `farben` (Speisekarte Zeichen → Farbe) hat Vorrang; unbekannt →
   `LaufzeitAnanas: Das Zeichen 'x' hat im Bildchen keine Farbe.`
 - Ressourcen werden beim Erzeugen kopiert und an die Engine übergeben (IDs ab 1, gemeinsam für Formen und Bildchen).
+- **Bilddateien (K-145, K-147; Umsetzung offen, PROJEKTE.md PD1/PD2/PA2/PD3):** statisch `Bildchen.laden(pfad)` lädt ein PNG oder JPEG
+  aus der Kiste (§11.2) als `Bildchen` (`breite()`/`hoehe()` = Originalgröße, Textform `Bildchen(<b>×<h>)`, ID aus demselben Zähler) –
+  überall verwendbar, wo ein Bildchen steht (`Bild`, `Animation`, `Rahmen`, `Koerper.bild`). Gleicher Pfad → **dasselbe** Bildchen
+  (keine neue Ressource). Prüfreihenfolge: Argument kein Text → `TypAnanas: Bildchen.laden() braucht einen Text für 'pfad', nicht 5.` →
+  vor `neu Herd` → `Erst braucht es einen Herd …` (§18.1) → `LaufzeitAnanas: Die Datei "<pfad>" liegt nicht in der Kiste.` →
+  `LaufzeitAnanas: <pfad> ist kein lesbares Bild (PNG oder JPEG).` bzw. `LaufzeitAnanas: <pfad> ist zu groß (2400 × 800) – höchstens
+  2048 × 2048 Pixel.` Die Bildfehler kommen erst beim Laden (ein nie geladenes kaputtes Bild stört nicht). In Stücken einer `brigade`
+  wirft es wie alle Herd-Methoden; für die Herd-Erkennung vor dem Start zählt `Bildchen.…` wie `neu Bildchen`.
+- **Vorbacken:** PNG/JPEG sind nur Eingabe. Vor dem Start wird **jedes** Bild der Kiste zu einem **Teigling** vorgebacken (RGBA8 nicht
+  vormultipliziert + Mipmaps, festes Format und Rechenwege, K-147) – mit demselben Vorbacker `teigling.wasm` in allen Motoren, daher
+  bitgleich; ob aus einem Cache oder neu, ändert nie das Ergebnis. Text-Bildchen bleiben unverändert (Atlas, ≤ 256 × 256).
+  **Teigmenge** = Summe der Teigling-Längen verschiedener Quelldateien (gleiche Bytes unter zwei Pfaden zählen einmal, Fehler-Teiglinge
+  nicht) ≤ 33 554 432 Bytes, sonst vor dem Start `PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (41,2 MB vorgebacken,
+  höchstens 32 MB).` (MB = Bytes / 1 048 576, eine Nachkommastelle aufgerundet, Dezimalkomma). Fehlt der Vorbacker bei einem Projekt mit
+  Bildern → `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).", datei: null,
+  zeile: null, spalte: null }`, Exit 2 (wie der fehlende Herd-Kern). Darstellung: Vergrößern pixelscharf (nächster Nachbar),
+  Verkleinern trilinear über die Mipmaps; Pixel wie immer mit Toleranz (K-129).
 
 ### 18.6 Komponenten (v1 und Ausbau)
 

@@ -362,7 +362,11 @@ und Feldnamen stehen hier fest; Produktentscheidungen, die der Plan trifft, sind
    (56), `INST3D_BYTES` (72), `ECKE_BYTES` (32) oder an Feldreihenfolgen wären ein **Format-Bruch** (`VERSION` 2, alle Hashes per
    `node tests/herd/erwartet.js --schreibe` und alle Referenzbilder per `herd-bild referenz` neu, im Plan zu vermerken) – nicht
    vorgesehen. PROJEKTE.md PD1 (`TEXTUR`-Abschnitt, Kern-Export `bildchen_teigling`) und PD3 (Glut-Texturen) folgen derselben Regel und
-   zählen in ihrer Welle als Bildpaket-/Glut-Stufe.
+   zählen in ihrer Welle als Bildpaket-/Glut-Stufe. **Für PROJEKTE reserviert** (K-145, K-147; nicht anderweitig vergeben): Kern-Export
+   `bildchen_teigling(ptr, len) → id` (Kern-ABI neben `bildchen_rgba`, nur Kopfprüfung, HOST-ABI §2), Kern-Fehlercodes **61** (kein
+   lesbares Bild) und **62** (zu groß), Bildpaket-Abschnitt **`TEXTUR = 5`** (`u32 id, u8 format, u8 stufen, u16 b, u16 h`, je Stufe
+   `u32 länge` + Bytes; einmal je Bild), `flach_art` **`TEXTURBILD = 6`** (`seite` = Textur-ID, `u0 v0 u1 v1` = `0 0 b h`) und
+   `INST3D.textur` **Bit 17** = eigene Textur (Bits 0–15 = Textur-ID). Stufen dieses Plans nehmen danach die nächsten freien Nummern.
 4. **Browser = nativ.** Jede Glut-Änderung in `herd/glut` (Shader `herd/glut/shader/*.wgsl` gelten für beide) **und** `herd/glut-web`
    (`node herd/baue-web.js` → `site/js/herd/glut.js`, `glut_bg.wasm`); WebGPU **und** WebGL2-Rückfall (`textureLoad`, Ableitungen nur in
    gleichförmigem Kontrollfluss, keine Cube-Maps/Storage-Puffer, die WebGL2 nicht kann). Jede Glut-Stufe bringt ein Referenzbild mit
@@ -600,7 +604,8 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
 
 #### H-K8 `Vorlage` – Prefabs (W3, Kern-only)
 - **Ziel:** Unity Prefab: ein ruhendes Muster, aus dem `Instantiate` wache Kopien macht. **Größere Bilder/Texturen gehören nicht mehr zu
-  H-K8** – abgelöst durch PROJEKTE.md (E13, K-145, K-147, Pakete PD1/PD3: `Bildchen.laden`, Teigling, Glut-Texturen).
+  H-K8** – abgelöst durch PROJEKTE.md (E13, K-145, K-147, Pakete PD1/PD3: `Bildchen.laden`, Teigling, Glut-Texturen; Vertrag SPEC
+  §18.5, reservierte Nummern §12.1 Regel 3).
 - **Sprachfläche:** `Vorlage` (beide): `name` "" (nur Anzeige). Ein Teil mit `Vorlage` **ruht** samt Kindern: keine Systeme (Bewegung,
   Animation, Partikel, Funken, Gleiten, Ablauf, Leine, Fühler …), nicht gezeichnet, `trifft` → nein. `kopie()` einer Vorlage liefert ein
   waches Teil **ohne** `Vorlage` (sonst wie v1); `ohne("Vorlage")` weckt das Original.
