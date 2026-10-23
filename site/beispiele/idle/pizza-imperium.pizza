@@ -248,9 +248,12 @@ klasse Erfolg {
     margherita name;
     margherita text;
     Funktion bedingung;     // (Spiel s) -> diavolo
+    margherita bereich = "";   // Erfolg eines Bereichs (Paket 6): als Ziel erst sichtbar, wenn der Bereich frei ist (R3)
 
     Erfolg(margherita n, margherita t, Funktion b) { name = n; text = t; bedingung = b; }
     diavolo erreicht(Spiel s) { serviere (bedingung.rufe(s)); }
+    Erfolg imBereich(margherita b) { bereich = b; serviere (dies); }
+    diavolo alsZielSichtbar(Spiel s) { serviere (bereich == "" || s.istFrei(bereich)); }
 }
 
 // ─────────────────────────────── Bereiche ───────────────────────────────
@@ -525,6 +528,7 @@ klasse Wettbewerb {
     salami bronze = 0;
     salami teilnahmen = 0;
     salami scoutTeilnahmen = 0;
+    salami weltmeister = 0;          // so oft Gold bei der Weltmeisterschaft (Erfolg „Weltmeister“, Paket 6)
     margherita letztes = "";         // Ergebnis der letzten Teilnahme ("" = noch keine)
     salami version = 0;
 
@@ -553,7 +557,10 @@ klasse Wettbewerb {
         salami g = goldProzent(s);
         salami wurf = Zufall.zahl(1, 100);
         margherita medaille = "";
-        falls (wurf <= g) { gold++; medaille = "🥇 Gold"; }
+        falls (wurf <= g) {
+            gold++; medaille = "🥇 Gold";
+            falls (nummer % NAMEN.länge() == NAMEN.länge() - 1) { weltmeister++; }   // die vierte im Kreis ist die Weltmeisterschaft
+        }
         sonst falls (wurf <= g + SILBER_PROZENT) { silber++; medaille = "🥈 Silber"; }
         sonst { bronze++; medaille = "🥉 Bronze"; }
         letztes = "Zuletzt: " + medaille + " bei der " + nameDativ() + " (Qualität " + q + ", Gold-Chance " + g + " %).";
@@ -594,7 +601,7 @@ klasse Wettbewerb {
     // „Neu anfangen“: alles auf Anfang (auch die Pokale); version zählt weiter, damit die Oberfläche es merkt.
     leer allesZurück() {
         bis = ERSTER; offenRest = 0; nummer = 0; dabei = nein;
-        gold = 0; silber = 0; bronze = 0; teilnahmen = 0; scoutTeilnahmen = 0; letztes = "";
+        gold = 0; silber = 0; bronze = 0; teilnahmen = 0; scoutTeilnahmen = 0; weltmeister = 0; letztes = "";
         version++;
     }
 
@@ -602,7 +609,7 @@ klasse Wettbewerb {
         Speisekarte<margherita, Vorrat> k = neu Speisekarte<margherita, Vorrat>();
         k.lege("bis", bis).lege("offenRest", offenRest).lege("nummer", nummer).lege("dabei", dabei);
         k.lege("gold", gold).lege("silber", silber).lege("bronze", bronze);
-        k.lege("teilnahmen", teilnahmen).lege("scout", scoutTeilnahmen).lege("letztes", letztes);
+        k.lege("teilnahmen", teilnahmen).lege("scout", scoutTeilnahmen).lege("weltmeister", weltmeister).lege("letztes", letztes);
         serviere (k);
     }
     // Fehlende Felder (älterer Stand derselben Fassung) = Anfangswerte; Uhren geklemmt.
@@ -614,6 +621,7 @@ klasse Wettbewerb {
         dabei = offenRest > 0 && k.hole("dabei", nein) == ja;
         gold = Mathe.max(0, k.hole("gold", 0)); silber = Mathe.max(0, k.hole("silber", 0)); bronze = Mathe.max(0, k.hole("bronze", 0));
         teilnahmen = Mathe.max(0, k.hole("teilnahmen", 0)); scoutTeilnahmen = Mathe.max(0, k.hole("scout", 0));
+        weltmeister = Mathe.max(0, Mathe.min(gold, k.hole("weltmeister", 0)));
         letztes = k.hole("letztes", "");
         version++;
     }
@@ -1303,6 +1311,13 @@ klasse Spiel {
         serviere (n);
     }
     salami viertelProzent() { serviere (VIERTEL_PROZENT * viertelAnzahl()); }
+    // Erfolge der Bereiche (Paket 6): jeder Posten eines Bereichs auf seinem Höchststand – in dieser Runde (Garten 20, Getränke 25,
+    // Personal Stufe 10, alle Viertel). Nur lesend, ändert nichts.
+    diavolo bereichVoll(margherita s) {
+        falls (!istFrei(s)) { serviere (nein); }
+        für (Posten p : postenVon(s)) { falls (!postenVoll(s, p)) { serviere (nein); } }
+        serviere (ja);
+    }
 
     // 📣 Marketing: Kampagnen starten, Faktoren je Art, Countdown im Takt
     Kampagne kampagne(margherita k) {
@@ -2740,7 +2755,21 @@ Blech<Erfolg> ERFOLGE = [
     neu Erfolg("Pizzaxie", "Gründe die Galaktische Pizzakette.", (s) -> (s.anzahl("galaxie") >= 1)),
     neu Erfolg("Zurück in die Pizzeria", "Bau Nonnas Zeitmaschine.", (s) -> (s.anzahl("zeitmaschine") >= 1)),
     neu Erfolg("Pizza-Universum", "Backe 1 Billion Pizzen.", (s) -> (s.pizzenAllzeit >= 1_000_000_000_000)),
-    neu Erfolg("Alle Pizzen, überall, gleichzeitig", "Öffne das Pizza-Multiversum.", (s) -> (s.anzahl("multiversum") >= 1))
+    neu Erfolg("Alle Pizzen, überall, gleichzeitig", "Öffne das Pizza-Multiversum.", (s) -> (s.anzahl("multiversum") >= 1)),
+    // Paket 6: je Bereich ein Erfolg, in der Reihenfolge der Freischalt-Kette. Hinten angehängt, damit die Ziele der frühen
+    // Runden gleich bleiben; als „???“-Ziel erscheinen sie erst, wenn ihr Bereich frei ist (imBereich, R3).
+    neu Erfolg("Grüner Daumen", "Zieh alle drei Beete im Garten auf 20 Stück.", (s) -> (s.bereichVoll("garten"))).imBereich("garten"),
+    neu Erfolg("Sommelier", "Leg von jedem Getränk 25 Stück in den Weinkeller.", (s) -> (s.bereichVoll("weinkeller"))).imBereich("weinkeller"),
+    neu Erfolg("Vollbesetzt", "Befördere Luigi, Rosa, Enzo und Bruno auf Stufe 10.", (s) -> (s.bereichVoll("personal"))).imBereich("personal"),
+    neu Erfolg("Ganz Neapel liefert", "Beliefere alle sechs Stadtviertel.", (s) -> (s.bereichVoll("lieferzonen"))).imBereich("lieferzonen"),
+    neu Erfolg("Nonna macht Pause", "Stell alle vier Helfer an.", (s) -> (s.istFrei("helfer") && s.helfer.länge() >= s.ALLE_HELFER.länge())).imBereich("helfer"),
+    neu Erfolg("Prime Time", "Schalte einen Fernsehspot.", (s) -> (s.kampagneLäuft("tv"))).imBereich("marketing"),
+    neu Erfolg("Doktor der Pizzologie", "Erforsche alle zehn Projekte im Rezeptlabor.", (s) -> (s.forschung.länge() >= s.PROJEKTE.länge())).imBereich("labor"),
+    neu Erfolg("Herzensangelegenheit", "Sammle zehn Treueherzen.", (s) -> (s.herzen >= 10)).imBereich("stammgaeste"),
+    neu Erfolg("Schnurr", "Bring Mozzarella auf Laune 5.", (s) -> (s.istFrei("katze") && s.katze.laune >= s.katze.HÖCHSTENS)).imBereich("katze"),
+    neu Erfolg("Weltmeister", "Hol Gold bei der Weltmeisterschaft.", (s) -> (s.wettbewerb.weltmeister >= 1)).imBereich("wettbewerb"),
+    neu Erfolg("Alle Sticker", "Füll das Sammelalbum – alle zwölf Sticker.", (s) -> (s.albumVoll())).imBereich("album"),
+    neu Erfolg("Zinseszins", "Lass dir bei der Banca di Napoli die ersten Zinsen gutschreiben.", (s) -> (s.sparbuch.zinsenAllzeit > 0)).imBereich("banca")
 ];
 
 // Vorratskammer: Spielstand laden (Playground: Browser-Speicher, EXE: Datei im Nutzerverzeichnis).
@@ -4557,9 +4586,9 @@ klasse ErfolgePanel {
     ErfolgePanel() {
         kopf = kleinSchild("erfolge-kopf", 1, VOLL);
         kopf.binde("text", () -> {
-            zErfolge.wert();
+            zErfolge.wert(); zBereiche.wert();
             salami n = spiel.erfolge.länge();
-            salami rest = Mathe.max(0, offeneErfolge.länge() - 3);
+            salami rest = offeneErfolge.länge() - zieleJetzt().länge();
             falls (n == 0) { serviere ("Noch kein Erfolg – fang einfach an zu backen! Die nächsten drei Ziele stehen unten, " + rest + " weitere tauchen auf, wenn es so weit ist."); }
             falls (offeneErfolge.istLeer()) { serviere ("Alle " + n + " Erfolge freigeschaltet – Nonna ist sprachlos. Zum ersten Mal."); }
             serviere ("Freigeschaltet: " + n + " von " + ERFOLGE.länge() + " · die nächsten Ziele oben, " + rest + " weitere tauchen auf, wenn es so weit ist.");
@@ -4572,12 +4601,9 @@ klasse ErfolgePanel {
     }
 
     Blech<Blech<margherita>> erfolgZeilen() {
-        zErfolge.wert();
+        zErfolge.wert(); zBereiche.wert();
         Blech<Blech<margherita>> zeilen_ = [];
-        salami gezeigt = 0;
-        für (Erfolg e : offeneErfolge) {
-            falls (gezeigt < 3) { zeilen_.hinzu(["🎯", "???", e.text]); gezeigt++; }
-        }
+        für (Erfolg e : zieleJetzt()) { zeilen_.hinzu(["🎯", "???", e.text]); }
         für (margherita name : spiel.erfolge) {
             Blech<Erfolg> treffer = ERFOLGE.filtere((x) -> (x.name == name));
             falls (!treffer.istLeer()) { zeilen_.hinzu(["🏆", name, treffer.erstes().text]); }
@@ -4592,6 +4618,13 @@ Theke theke = neu Theke("Pizza-Imperium", breite: 860, hoehe: 640);
 Blech<Erfolg> offeneErfolge = [];
 leer sortiereErfolge() {
     offeneErfolge = ERFOLGE.filtere((e) -> (!spiel.erfolge.enthält(e.name)));
+}
+// Die nächsten (höchstens drei) Ziele: offene Erfolge in Listenreihenfolge, Erfolge eines Bereichs erst, wenn er frei ist –
+// das ändert sich nur mit einem Freischalt-Klick oder einem erreichten Erfolg (dann nur Text in denselben Zeilen).
+Blech<Erfolg> zieleJetzt() {
+    Blech<Erfolg> z = [];
+    für (Erfolg e : offeneErfolge) { falls (z.länge() < 3 && e.alsZielSichtbar(spiel)) { z.hinzu(e); } }
+    serviere (z);
 }
 
 KopfPanel kopf = neu KopfPanel();
