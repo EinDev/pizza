@@ -1,0 +1,25 @@
+// Herd §18.6 / HERD.md §12.4 H-K1: Leine – Folgekamera im Nachlauf (starr, weich, Totzone, 3D mit schaue), Bereichsfehler
+Herd herd = neu Herd("Leine", breite: 320, hoehe: 180);
+Teil bote = herd.kreis(40, 90, 8, farbe: "tomate");
+bote.mit(neu Bewegung(tempoX: 120));
+Teil kam = herd.gruppe(0, 0);
+kam.mit(neu Blick());
+Leine l = kam.mit(neu Leine(ziel: bote, abstandX: 60));
+Teil schatten = herd.kreis(0, 0, 4, farbe: "ofen");
+Leine weich = schatten.mit(neu Leine(ziel: bote, abstandY: 20, weich: 0.01, totzone: 5));
+Bote.sage((l + " " + (l.ziel() == bote) + " " + l.abstandX() + " " + l.weich() + " " + l.totzone() + " " + l.schaue()));
+Teil wuerfel = herd.koerper(Form.wuerfel(), 0, 0.5, 0);
+wuerfel.mit(neu Bewegung(tempoX: 1.2));
+herd.kamera().mit(neu Leine(ziel: wuerfel, abstandY: 3, abstandZ: 8, weich: 0.05, schaue: ja));
+Blech<margherita> protokoll = [];
+herd.backe(() -> {
+  // Die Leine läuft nach der Bewegung desselben Takts: der Blick steht genau beim Boten + Abstand
+  protokoll.hinzu(("" + herd.bildnummer() + ":" + (kam.x() - bote.x())));
+});
+Bote.sage(protokoll.verbinde(" "));
+Bote.sage(("Schatten " + schatten.x().runden(2) + "/" + schatten.y().runden(2) + ", Kamera " + herd.kamera().x().runden(3) + "/" + herd.kamera().y().runden(3) + "/" + herd.kamera().z().runden(3) + ", Neigung " + herd.kamera().neigung().runden(2)));
+bote.entferne();
+herd.backe();
+Bote.sage(("ohne Ziel bleibt der Blick bei " + kam.x() + ", ziel entfernt: " + l.ziel().entfernt()));
+probier { weich.setzeWeich(1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { weich.setzeTotzone(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

@@ -1,0 +1,6 @@
+Blick(5) 2 ja 1000 0 0
+nach 6 Bildern: zoom 0.5, festAb 2000, aktiv nein, Mitte 160/90
+LaufzeitAnanas: Blick.zoom muss zwischen 0.05 und 20 liegen, nicht 0.
+LaufzeitAnanas: Blick.zoom muss zwischen 0.05 und 20 liegen, nicht 25.
+TypAnanas: Blick.festAb braucht eine Ganzzahl, nicht 1.5.
+LaufzeitAnanas: Blick gibt es nur für 2D-Teile.

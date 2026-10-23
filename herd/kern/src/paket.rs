@@ -7,9 +7,10 @@
 use alloc::vec::Vec;
 
 use crate::farbe;
+use crate::komponenten::blick::{self, Sicht};
 use crate::ressourcen::{Ressource, Ressourcen, TEXTUR_MARKE};
 use crate::schrift::Schrift;
-use crate::welt::Welt;
+use crate::welt::{mal_2d, Welt};
 
 pub const MAGIE: [u8; 4] = *b"HZP1";
 pub const VERSION: u32 = 1;
@@ -128,6 +129,8 @@ pub struct Bildbau {
     pub lichter: Vec<LichtB>,
     pub kameras: Vec<KameraB>,
     pub teilchen3d: Vec<Teilchen3>,
+    /// Sicht des aktiven `Blick` (H-K1), vor den Bildbeiträgen bestimmt; `None` = Spielfeld wie v1
+    pub blick: Option<Sicht>,
     // Arbeitslisten
     sicht: Vec<bool>,
     fest: Vec<(u64, u32)>,
@@ -178,6 +181,7 @@ impl Bildbau {
         self.lichter.clear();
         self.kameras.clear();
         self.teilchen3d.clear();
+        self.blick = None;
         if self.schrift.is_none() {
             self.schrift = Schrift::eingebettet();
         }
@@ -186,10 +190,19 @@ impl Bildbau {
     /// Eine 2D-Instanz: lokale Box (Mitte `c`, halbe Ausdehnung `h`) unter der 2D-Welt-Matrix `m`.
     /// `p` = Rundung/Umriss (Rechteck, Kreis), `uv` = Atlas-Rechteck (Pixel) für Bild/Glyphe.
     #[allow(clippy::too_many_arguments)]
+    /// Mit aktivem `Blick` und `ebene < festAb` gilt `m` in Weltlage und wird zuerst mit der Sicht-Matrix multipliziert.
     pub fn flach(&mut self, ebene: i32, teil: u32, m: &[f64; 12], c: [f64; 2], h: [f64; 2], art: u32, farbe: u32, p: [f64; 2], uv: [u16; 4], seite: u32) {
         if farbe & 0xFF == 0 {
             return;
         }
+        let gesehen;
+        let m = match &self.blick {
+            Some(b) if (ebene as f64) < b.fest_ab => {
+                gesehen = mal_2d(&b.m, m);
+                &gesehen
+            }
+            _ => m,
+        };
         let tx = m[0] * c[0] + m[2] * c[1] + m[4];
         let ty = m[1] * c[0] + m[3] * c[1] + m[5];
         if !(tx.is_finite() && ty.is_finite()) {
@@ -223,6 +236,17 @@ impl Bildbau {
         }
         for x in uv {
             put_u16(b, x);
+        }
+    }
+}
+
+impl Bildbau {
+    /// Sichtbares Weltrechteck (min, max) des 2D-Spielfelds: mit aktivem `Blick` die (gedrehte, achsenparallel umschlossene,
+    /// geklemmte) Sicht, sonst das Spielfeld selbst. Gilt nach dem Bestimmen der Sicht in `baue` (für Bildbeiträge, H-K10).
+    pub fn sicht_welt(&self) -> ([f64; 2], [f64; 2]) {
+        match &self.blick {
+            Some(b) => (b.welt_min, b.welt_max),
+            None => ([0.0, 0.0], [self.breite, self.hoehe]),
         }
     }
 }
@@ -451,6 +475,7 @@ fn ressourcen_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &
 pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>, bildnummer: u32) {
     w.aktualisiere_alle();
     bau.leeren(w.breite, w.hoehe);
+    bau.blick = blick::aktive_sicht(w, bau.breite, bau.hoehe);
     let arten = w.arten;
     for (a, art) in arten.iter().enumerate() {
         if let Some(f) = art.bild {

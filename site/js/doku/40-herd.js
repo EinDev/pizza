@@ -290,7 +290,9 @@
                 ["`Gleiten`","beide","`was` x, `nach` 0, `dauer` 1, `kurve` sanft, `schleife` einmal, `laeuft` ja","Tween: eine Größe der Lage (`x`, `y`, `z`, `drehung`, `neigung`, `rollen`, `groesse`) gleitet vom aktuellen Wert nach `nach`; Kurven `linear`, `sanft`, `rein`, `raus`, `federnd`, `huepfend`; `einmal`, `wiederholen`, `pendeln`"],
                 ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
                 ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
-                ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"]
+                ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"],
+                ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt"],
+                ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -635,6 +637,40 @@
             },
             { art: "ausgabe", text: z("Fuehler(3) 1 ja 0 auto") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Münzen** unter *Beispiele → Herd*: Der Bote sammelt mit den Pfeiltasten Münzen ein, eine Olive kullert hin und her und kostet drei Münzen." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Blick und Leine: Kamera für große Welten",
+          inhalt: [
+            { art: "text", md: "Ohne Kamera ist das Spielfeld die ganze 2D-Welt. Ein **`Blick`** macht ein Teil zur 2D-Kamera: Seine Lage ist ab dann die **Mitte der Sicht** – liegt der Blick bei (1000, 500), steht dieser Weltpunkt in der Fenstermitte, und die Welt darf beliebig groß sein. `zoom` vergrößert (2 = doppelt so groß, 0.5 = Übersicht), die Drehung des Teils dreht die Sicht. Alles mit **`ebene` ≥ `festAb`** (Standard 1000) bleibt fest im Fenster stehen – so baust du Punkteanzeige, Leisten und Knöpfe (jedes HUD-Teil braucht seine eigene Ebene, sie vererbt sich nicht). Mit den Grenzen `grenzeLinks`, `grenzeOben`, `grenzeRechts`, `grenzeUnten` (nicht alle 0) bleibt die Sicht in der Welt: Am Rand hält das Bild an, auch wenn das Teil weiterläuft. Es gilt der aktive Blick mit der kleinsten ID." },
+            { art: "text", md: "Eine **`Leine`** lässt ein Teil einem `ziel` folgen – nach jedem Takt, nachdem sich alles bewegt hat. `abstandX/Y/Z` legt fest, wo es relativ zum Ziel steht; `weich: 0` folgt starr, größere Werte ziehen weich nach (`weich` ist der Anteil des Wegs, der nach einer Sekunde noch übrig ist, also 0.05 = schnell, 0.5 = gemächlich). Mit `totzone` darf sich das Ziel ein Stück bewegen, ohne dass die Kamera ruckelt. In 3D hängt man die Leine an `herd.kamera()`, `schaue: ja` richtet die Kamera dabei aufs Ziel: `herd.kamera().mit(neu Leine(ziel: auto, abstandY: 3, abstandZ: 8, weich: 0.05, schaue: ja));`" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Blick","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"86445d99e7e30012","paket":"e74176645fbb66a5"},
+                {"art":"bild","bildnummer":8,"szene":"ae5369bd8bad66c4","paket":"92d4323bbf357de0"},
+                {"art":"bild","bildnummer":12,"szene":"946f1e7f002e3849","paket":"4179e1abb1620928"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Blick\", breite: 320, hoehe: 180);",
+                "für (salami i = 0; i < 20; i++) { herd.rechteck(i * 100, 60 + (i % 3) * 30, 60, 40, farbe: \"teig\"); }   // Stadt, 2000 breit",
+                "Teil roller = herd.kreis(20, 90, 10, farbe: \"tomate\");",
+                "roller.mit(neu Bewegung(tempoX: 240));",
+                "Teil kamera = herd.gruppe(160, 90);",
+                "Blick b = kamera.mit(neu Blick(zoom: 1.5, grenzeRechts: 2000, grenzeUnten: 180));",
+                "kamera.mit(neu Leine(ziel: roller, weich: 0.1));",
+                "herd.text(\"Punkte: 7\", 8, 6, farbe: \"ofen\").setzeEbene(1000);                                // HUD bleibt stehen",
+                "herd.backe();",
+                "Bote.sage((b + \" \" + b.zoom() + \" \" + b.festAb() + \" \" + roller.x() + \" \" + kamera.x().runden(1)));   // die Kamera zieht weich nach"
+              )
+            },
+            { art: "ausgabe", text: z("Blick(24) 1.5 1000 68 118.6") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Weite Welt** unter *Beispiele → Herd*: Der Lieferroller fährt durch eine Stadt, die dreimal so breit und doppelt so hoch ist wie das Fenster, die Kamera hängt an seiner Leine, und die Lieferungen oben stehen fest; die Leertaste zoomt heraus." }
           ]
         }
       ]

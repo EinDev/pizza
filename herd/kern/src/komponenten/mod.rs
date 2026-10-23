@@ -13,12 +13,14 @@ pub mod animation;
 pub mod belag;
 pub mod bewegung;
 pub mod bild;
+pub mod blick;
 pub mod fuehler;
 pub mod funken;
 pub mod gleiten;
 pub mod kamera;
 pub mod koerper;
 pub mod kreis;
+pub mod leine;
 pub mod licht;
 pub mod linie;
 pub mod partikel;
@@ -123,6 +125,8 @@ pub static ARTEN: &[&Art] = &[
     &ablauf::ART,
     &belag::ART,
     &fuehler::ART,
+    &blick::ART,
+    &leine::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

@@ -1724,3 +1724,326 @@ mod hk6 {
     }
 }
 
+/// H-K1: `Blick` (2D-Kamera im Bildbau) und `Leine` (Folgekamera im Nachlauf).
+mod hk1 {
+    use super::*;
+    use crate::komponenten::blick;
+
+    /// 2D-Instanzen des letzten Pakets: m00 m10 m01 m11 tx ty
+    fn inst(k: &Kern) -> Vec<[f32; 6]> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let Some((_, d)) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D) else { return Vec::new() };
+        d.chunks_exact(INST2D_BYTES).map(|c| core::array::from_fn(|i| f32::from_le_bytes([c[i * 4], c[i * 4 + 1], c[i * 4 + 2], c[i * 4 + 3]]))).collect()
+    }
+    fn rechteck(k: &mut Kern, x: f64, y: f64, ebene: f64) -> i32 {
+        let r = typ(k, "Rechteck");
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        k.teil_setze(t, tf::EBENE, ebene);
+        let c = k.komp_neu(r);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        t
+    }
+    fn blick_an(k: &mut Kern, x: f64, y: f64) -> (i32, i32) {
+        let b = typ(k, "Blick");
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let c = k.komp_neu(b);
+        assert_eq!(k.komp_haenge(c, t), 0, "{}", k.fehler_text());
+        (t, c)
+    }
+    fn lagen(k: &Kern) -> Vec<(f32, f32)> {
+        inst(k).iter().map(|i| (i[4], i[5])).collect()
+    }
+
+    #[test]
+    fn schema_und_raum() {
+        let mut k = welt();
+        let b = typ(&mut k, "Blick");
+        let l = typ(&mut k, "Leine");
+        let art_b = ARTEN.iter().find(|a| a.schema.name == "Blick").unwrap();
+        let art_l = ARTEN.iter().find(|a| a.schema.name == "Leine").unwrap();
+        assert!(art_b.takt.is_none() && art_b.nachlauf.is_none() && art_b.bild.is_none() && art_b.huelle.is_none());
+        assert!(art_l.nachlauf.is_some() && art_l.takt.is_none() && art_l.bild.is_none() && art_l.huelle.is_none());
+        let c = k.komp_neu(b);
+        let (fz, ff) = (feld(&mut k, b, "zoom"), feld(&mut k, b, "festAb"));
+        assert_eq!(k.hole_zahl(c, fz), 1.0);
+        assert_eq!(k.hole_zahl(c, ff), 1000.0);
+        assert_eq!(k.setze_zahl(c, fz, 0.0), -2);
+        assert_eq!(k.fehler_text(), "Blick.zoom muss zwischen 0.05 und 20 liegen, nicht 0.");
+        let t3 = k.teil_neu(3);
+        assert_eq!(k.komp_haenge(c, t3), -2);
+        assert_eq!(k.fehler_text(), "Blick gibt es nur für 2D-Teile.");
+        let cl = k.komp_neu(l);
+        let fw = feld(&mut k, l, "weich");
+        assert_eq!(k.setze_zahl(cl, fw, 1.0), -2);
+        assert_eq!(k.fehler_text(), "Leine.weich muss zwischen 0 und 0.999 liegen, nicht 1.");
+        assert_eq!(k.komp_haenge(cl, t3), 0);
+    }
+
+    #[test]
+    fn ohne_blick_byte_gleich() {
+        // gleiche Szene: ohne Blick, mit inaktivem Blick, mit Blick an einem entfernten Teil → byte-gleiches Paket
+        let bau = |modus: u32| {
+            let mut k = welt();
+            rechteck(&mut k, 100.0, 50.0, 0.0);
+            rechteck(&mut k, 600.0, 300.0, 1000.0);
+            let kr = typ(&mut k, "Kreis");
+            let t = k.teil_neu(2);
+            k.teil_lage(t, 320.0, 180.0, 0.0);
+            k.teil_setze(t, tf::DREHUNG, 30.0);
+            let c = k.komp_neu(kr);
+            k.komp_haenge(c, t);
+            if modus == 1 {
+                let (_, c) = blick_an(&mut k, 900.0, 900.0);
+                let b = typ(&mut k, "Blick");
+                let fa = feld(&mut k, b, "aktiv");
+                k.setze_zahl(c, fa, 0.0);
+            } else if modus == 2 {
+                let (t, _) = blick_an(&mut k, 900.0, 900.0);
+                k.teil_entferne(t);
+            }
+            k.takt();
+            k.bild(1);
+            (k.paket().to_vec(), k.hash_paket())
+        };
+        let (p0, h0) = bau(0);
+        assert!(p0.len() > 200);
+        assert_eq!(bau(1), (p0.clone(), h0));
+        assert_eq!(bau(2), (p0, h0));
+        // ohne Blick: sichtbares Weltrechteck = Spielfeld
+        let mut b = crate::paket::Bildbau::default();
+        b.breite = 640.0;
+        b.hoehe = 360.0;
+        assert_eq!(b.sicht_welt(), ([0.0, 0.0], [640.0, 360.0]));
+    }
+
+    #[test]
+    fn scrollen_hud_und_culling() {
+        let mut k = welt();
+        rechteck(&mut k, 1000.0, 500.0, 0.0); // Welt
+        rechteck(&mut k, 20.0, 20.0, 1000.0); // HUD
+        rechteck(&mut k, 20.0, 20.0, 999.0); // knapp unter festAb: scrollt mit
+        k.bild(1);
+        // ohne Blick: das Welt-Rechteck liegt außerhalb des Spielfelds
+        assert_eq!(lagen(&k), vec![(20.0, 20.0), (20.0, 20.0)]);
+        let (bt, c) = blick_an(&mut k, 1000.0, 500.0);
+        k.bild(2);
+        // Blick bei (1000, 500): Welt-Rechteck in der Mitte, Ebene 999 links oben draußen (Culling nach der Sicht), HUD fest
+        assert_eq!(lagen(&k), vec![(320.0, 180.0), (20.0, 20.0)]);
+        k.teil_lage(bt, 340.0, 200.0, 0.0);
+        k.bild(3);
+        // Mitte (340, 200): Welt (1000, 500) bei (980, 480) → draußen; Ebene 999 bei (0, 0) → drin (Rand)
+        assert_eq!(lagen(&k), vec![(0.0, 0.0), (20.0, 20.0)]);
+        // festAb 999: auch Ebene 999 bleibt fest
+        let b = typ(&mut k, "Blick");
+        let ff = feld(&mut k, b, "festAb");
+        k.setze_zahl(c, ff, 999.0);
+        k.bild(4);
+        assert_eq!(lagen(&k), vec![(20.0, 20.0), (20.0, 20.0)]);
+    }
+
+    #[test]
+    fn zoom_und_drehung() {
+        let mut k = welt();
+        rechteck(&mut k, 110.0, 50.0, 0.0);
+        let (bt, c) = blick_an(&mut k, 100.0, 50.0);
+        let b = typ(&mut k, "Blick");
+        let fz = feld(&mut k, b, "zoom");
+        k.setze_zahl(c, fz, 2.0);
+        k.bild(1);
+        let i = inst(&k);
+        assert_eq!(i.len(), 1);
+        // 10 Einheiten rechts der Mitte, Zoom 2 → 20 Pixel rechts; Matrix doppelt
+        assert_eq!(i[0], [2.0, 0.0, 0.0, 2.0, 340.0, 180.0]);
+        // Blick um 90° gedreht: was rechts der Mitte liegt, erscheint darüber (y nach unten, Drehung im Uhrzeigersinn)
+        k.teil_setze(bt, tf::DREHUNG, 90.0);
+        k.bild(2);
+        let i = inst(&k)[0];
+        assert!((i[4] - 320.0).abs() < 1e-4 && (i[5] - 160.0).abs() < 1e-4, "{:?}", i);
+        assert!(i[0].abs() < 1e-6 && (i[1] + 2.0).abs() < 1e-6 && (i[2] - 2.0).abs() < 1e-6 && i[3].abs() < 1e-6, "{:?}", i);
+        // Drehung der Eltern zählt mit: Blick (0°) an einem um 90° gedrehten Eltern-Teil
+        k.teil_setze(bt, tf::DREHUNG, 0.0);
+        let e = k.teil_neu(2);
+        k.teil_lage(e, 100.0, 50.0, 0.0);
+        k.teil_setze(e, tf::DREHUNG, 90.0);
+        k.teil_lage(bt, 0.0, 0.0, 0.0);
+        assert_eq!(k.teil_haenge(bt, e), 0);
+        k.bild(3);
+        let j = inst(&k)[0];
+        assert!((j[4] - 320.0).abs() < 1e-4 && (j[5] - 160.0).abs() < 1e-4, "{:?}", j);
+    }
+
+    #[test]
+    fn grenzen_klemmen_und_kleinste_id() {
+        let mut k = welt();
+        rechteck(&mut k, 320.0, 180.0, 0.0);
+        let (bt, c) = blick_an(&mut k, 0.0, 0.0);
+        let b = typ(&mut k, "Blick");
+        let g: Vec<i32> = ["grenzeLinks", "grenzeOben", "grenzeRechts", "grenzeUnten"].iter().map(|n| feld(&mut k, b, n)).collect();
+        for (f, v) in g.iter().zip([0.0, 0.0, 2000.0, 1000.0]) {
+            k.setze_zahl(c, *f, v);
+        }
+        k.bild(1);
+        // Mitte (0, 0) wird auf (320, 180) geklemmt: Welt-Punkt (320, 180) steht in der Mitte
+        assert_eq!(lagen(&k), vec![(320.0, 180.0)]);
+        // rechts unten geklemmt auf (1680, 820): das Rechteck ist weit draußen
+        k.teil_lage(bt, 5000.0, 5000.0, 0.0);
+        k.bild(2);
+        assert!(inst(&k).is_empty());
+        // Welt kleiner als die Sicht (Zoom 0.5 → Sicht 1280 × 720 Welteinheiten): Mitte der Welt (500, 200)
+        k.setze_zahl(c, g[2], 1000.0);
+        k.setze_zahl(c, g[3], 400.0);
+        let fz = feld(&mut k, b, "zoom");
+        k.setze_zahl(c, fz, 0.5);
+        k.bild(3);
+        assert_eq!(lagen(&k), vec![(230.0, 170.0)]);
+        // ein zweiter aktiver Blick mit größerer ID ändert nichts; ist der erste inaktiv, gilt der zweite
+        blick_an(&mut k, 320.0, 180.0);
+        k.bild(4);
+        assert_eq!(lagen(&k), vec![(230.0, 170.0)]);
+        let fa = feld(&mut k, b, "aktiv");
+        k.setze_zahl(c, fa, 0.0);
+        k.bild(5);
+        assert_eq!(lagen(&k), vec![(320.0, 180.0)]);
+        // nur eine Achse begrenzt (Seitenscroller: grenzeRechts, oben/unten 0): y bleibt frei
+        k.setze_zahl(c, fa, 1.0);
+        k.setze_zahl(c, fz, 1.0);
+        k.setze_zahl(c, g[2], 3000.0);
+        k.setze_zahl(c, g[3], 0.0);
+        k.teil_lage(bt, -50.0, 200.0, 0.0);
+        k.bild(6);
+        assert_eq!(lagen(&k), vec![(320.0, 160.0)]);
+    }
+
+    #[test]
+    fn sicht_welt_rechteck() {
+        let mut k = welt();
+        let (bt, c) = blick_an(&mut k, 1000.0, 1000.0);
+        let b = typ(&mut k, "Blick");
+        let fz = feld(&mut k, b, "zoom");
+        k.setze_zahl(c, fz, 2.0);
+        k.bild(1);
+        let s = blick::aktive_sicht(k.welt.as_ref().unwrap(), 640.0, 360.0).unwrap();
+        assert_eq!(s.teil, bt as u32);
+        assert_eq!((s.welt_min, s.welt_max), ([840.0, 910.0], [1160.0, 1090.0]));
+    }
+
+    struct L {
+        t: i32,
+        ziel: i32,
+        ax: i32,
+        ay: i32,
+        az: i32,
+        weich: i32,
+        totzone: i32,
+        schaue: i32,
+    }
+    fn leine(k: &mut Kern) -> L {
+        let t = typ(k, "Leine");
+        L {
+            t,
+            ziel: feld(k, t, "ziel"),
+            ax: feld(k, t, "abstandX"),
+            ay: feld(k, t, "abstandY"),
+            az: feld(k, t, "abstandZ"),
+            weich: feld(k, t, "weich"),
+            totzone: feld(k, t, "totzone"),
+            schaue: feld(k, t, "schaue"),
+        }
+    }
+
+    #[test]
+    fn leine_starr_sieht_bewegung_desselben_takts() {
+        let mut k = welt();
+        let n = leine(&mut k);
+        let bew = typ(&mut k, "Bewegung");
+        let ziel = rechteck(&mut k, 100.0, 100.0, 0.0);
+        let bc = k.komp_neu(bew);
+        let tx = feld(&mut k, bew, "tempoX");
+        k.setze_zahl(bc, tx, 60.0);
+        k.komp_haenge(bc, ziel);
+        let (bt, _) = blick_an(&mut k, 0.0, 0.0);
+        let l = k.komp_neu(n.t);
+        k.setze_zahl(l, n.ziel, ziel as f64);
+        k.setze_zahl(l, n.ax, 0.5);
+        k.setze_zahl(l, n.ay, -20.0);
+        k.komp_haenge(l, bt);
+        k.takt();
+        // nach dem ersten Takt steht das Ziel bei x = 101, der Blick genau dort + Abstand
+        assert_eq!(k.teil_hole(ziel, tf::X), 101.0);
+        assert_eq!((k.teil_hole(bt, tf::X), k.teil_hole(bt, tf::Y)), (101.5, 80.0));
+        k.bild(1);
+        assert_eq!(lagen(&k), vec![(319.5, 200.0)]);
+        // Ziel entfernt, Ziel = eigenes Teil, Ziel karton: keine Wirkung, kein Fehler
+        k.teil_entferne(ziel);
+        assert_eq!(k.takt(), 0);
+        k.setze_zahl(l, n.ziel, bt as f64);
+        assert_eq!(k.takt(), 0);
+        k.setze_zahl(l, n.ziel, 0.0);
+        assert_eq!(k.takt(), 0);
+        assert_eq!((k.teil_hole(bt, tf::X), k.teil_hole(bt, tf::Y)), (101.5, 80.0));
+    }
+
+    #[test]
+    fn leine_daempfung_und_totzone() {
+        let mut k = welt();
+        let n = leine(&mut k);
+        let ziel = rechteck(&mut k, 100.0, 0.0, 0.0);
+        let t = k.teil_neu(2);
+        let l = k.komp_neu(n.t);
+        k.setze_zahl(l, n.ziel, ziel as f64);
+        k.setze_zahl(l, n.weich, 0.25);
+        k.komp_haenge(l, t);
+        for _ in 0..60 {
+            k.takt();
+        }
+        // nach einer Sekunde ist ein Viertel des Rests übrig
+        let x = k.teil_hole(t, tf::X);
+        assert!((x - 75.0).abs() < 1e-9, "{}", x);
+        // Totzone 10, starr: Ziel 25 weg → zieht bis auf 10 heran
+        k.setze_zahl(l, n.weich, 0.0);
+        k.setze_zahl(l, n.totzone, 10.0);
+        k.takt();
+        assert!((k.teil_hole(t, tf::X) - 90.0).abs() < 1e-9);
+        // innerhalb der Totzone: steht
+        k.teil_lage(ziel, 95.0, 0.0, 0.0);
+        k.takt();
+        assert!((k.teil_hole(t, tf::X) - 90.0).abs() < 1e-9);
+        // schräg (30, 40) weg, Länge 50: bleibt 10 entlang der Richtung zurück
+        k.teil_lage(ziel, 120.0, 40.0, 0.0);
+        k.takt();
+        let (x, y) = (k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y));
+        assert!((x - 114.0).abs() < 1e-9 && (y - 32.0).abs() < 1e-9, "{} {}", x, y);
+    }
+
+    #[test]
+    fn leine_3d_mit_schaue_und_raumwechsel() {
+        let mut k = welt();
+        let n = leine(&mut k);
+        // Teil 1 = Standardkamera
+        let ziel = k.teil_neu(3);
+        k.teil_lage(ziel, 4.0, 0.0, -2.0);
+        let l = k.komp_neu(n.t);
+        k.setze_zahl(l, n.ziel, ziel as f64);
+        k.setze_zahl(l, n.ay, 3.0);
+        k.setze_zahl(l, n.az, 8.0);
+        k.setze_zahl(l, n.schaue, 1.0);
+        assert_eq!(k.komp_haenge(l, 1), 0);
+        k.takt();
+        assert_eq!([k.teil_hole(1, tf::X), k.teil_hole(1, tf::Y), k.teil_hole(1, tf::Z)], [4.0, 3.0, 6.0]);
+        // schaut aufs Ziel wie schaueAuf
+        let (d, ng) = (k.teil_hole(1, tf::DREHUNG), k.teil_hole(1, tf::NEIGUNG));
+        assert!(ng < 0.0);
+        k.teil_schaue(1, 4.0, 0.0, -2.0);
+        assert_eq!((k.teil_hole(1, tf::DREHUNG), k.teil_hole(1, tf::NEIGUNG)), (d, ng));
+        // 2D-Ziel für ein 3D-Teil: keine Wirkung
+        let z2 = rechteck(&mut k, 50.0, 50.0, 0.0);
+        k.setze_zahl(l, n.ziel, z2 as f64);
+        k.setze_zahl(l, n.az, 0.0);
+        k.takt();
+        assert_eq!(k.teil_hole(1, tf::Z), 6.0);
+        let _ = n.totzone;
+    }
+}
+

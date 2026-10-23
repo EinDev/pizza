@@ -1,0 +1,150 @@
+# H-K1 (HERD.md §12.4): Blick und Leine. N Sprites in einer Welt von 4 × 3 Spielfeldern, ein Bote mit Bewegung, der Blick
+# an der Leine (weich, Totzone), Grenzen, HUD-Ebene, Zoom und Drehung wechseln; ein zweiter (inaktiver) Blick, Blick entfernt
+# (Paket wieder wie ohne Blick); dazu eine 3D-Leine an der Kamera mit schaue. Der Paket-Hash je Bild enthält die Sicht-Matrix
+# (libm::sin/cos) und die Leine (libm::pow/sqrt), test-kern.js vergleicht also beides nativ gegen Wasm.
+vorgabe N 300
+vorgabe TAKTE 30
+welt_neu 640 360 "Blick"
+typ_nummer "Blick" -> T_B
+typ_nummer "Leine" -> T_L
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Koerper" -> T_KO
+feld_nummer T_B "zoom" -> B_ZOOM
+feld_nummer T_B "aktiv" -> B_AKTIV
+feld_nummer T_B "festAb" -> B_FEST
+feld_nummer T_B "grenzeLinks" -> B_GL
+feld_nummer T_B "grenzeOben" -> B_GO
+feld_nummer T_B "grenzeRechts" -> B_GR
+feld_nummer T_B "grenzeUnten" -> B_GU
+feld_nummer T_L "ziel" -> L_ZIEL
+feld_nummer T_L "abstandX" -> L_AX
+feld_nummer T_L "abstandY" -> L_AY
+feld_nummer T_L "abstandZ" -> L_AZ
+feld_nummer T_L "weich" -> L_WEICH
+feld_nummer T_L "totzone" -> L_TOT
+feld_nummer T_L "schaue" -> L_SCHAUE
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "tempoY" -> BEW_Y
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_KO "form" -> KO_F
+# Bereichsfehler
+komp_neu T_B -> probe
+setze_zahl probe B_ZOOM 0
+fehler_text
+komp_neu T_L -> probe_l
+setze_zahl probe_l L_WEICH 1
+fehler_text
+# Welt: N Häuser in 2560 × 1080, einige gedreht
+wiederhole N i
+  teil_neu 2 -> t
+  teil_lage t (zufall(i) * 2560) (zufall(i + N) * 1080) 0
+  teil_setze t 4 ((i % 5) * 17)
+  teil_setze t 10 (i % 3)
+  komp_neu T_R -> r
+  setze_zahl r R_B (20 + i % 40)
+  setze_zahl r R_H (16 + i % 30)
+  komp_haenge r t
+ende
+# HUD: Leiste auf Ebene 1000 (bleibt), Marke auf Ebene 999 (scrollt)
+teil_neu 2 -> hud
+teil_lage hud 320 12 0
+teil_setze hud 10 1000
+komp_neu T_R -> hr
+setze_zahl hr R_B 640
+setze_zahl hr R_H 24
+komp_haenge hr hud
+teil_neu 2 -> marke
+teil_lage marke 40 40 0
+teil_setze marke 10 999
+komp_neu T_K -> mk
+komp_haenge mk marke
+# Bote
+teil_neu 2 -> bote
+teil_lage bote 100 540 0
+komp_neu T_K -> bk
+setze_zahl bk K_R 12
+komp_haenge bk bote
+komp_neu T_BEW -> bb
+setze_zahl bb BEW_X 300
+setze_zahl bb BEW_Y -40
+komp_haenge bb bote
+# Blick an der Leine
+teil_neu 2 -> kam
+teil_lage kam 320 540 0
+komp_neu T_B -> blick
+komp_haenge blick kam
+komp_neu T_L -> leine
+setze_zahl leine L_ZIEL bote
+setze_zahl leine L_AX 80
+setze_zahl leine L_WEICH 0.02
+setze_zahl leine L_TOT 6
+komp_haenge leine kam
+takte TAKTE
+teil_hole kam 1
+teil_hole kam 2
+# Grenzen der Welt
+setze_zahl blick B_GL 0
+setze_zahl blick B_GO 0
+setze_zahl blick B_GR 2560
+setze_zahl blick B_GU 1080
+takte 5
+# Zoom und Drehung (die Sicht dreht mit den Eltern)
+setze_zahl blick B_ZOOM 1.75
+teil_setze kam 4 12.5
+takte 5
+teil_neu 2 -> halter
+teil_setze halter 4 -33
+teil_haenge kam halter
+setze_zahl blick B_ZOOM 0.4
+takte 5
+# festAb kleiner: auch die Marke bleibt fest
+setze_zahl blick B_FEST 999
+takte 2
+# zweiter Blick mit größerer ID: ändert nichts; erster inaktiv → der zweite gilt
+teil_neu 2 -> kam2
+teil_lage kam2 2000 800 0
+komp_neu T_B -> blick2
+setze_zahl blick2 B_ZOOM 3
+komp_haenge blick2 kam2
+takte 2
+setze_zahl blick B_AKTIV 0
+takte 2
+# beide weg: Paket wie ohne Blick
+teil_entferne kam2
+takte 2
+hash_paket
+# starre Leine: Abstand genau, Ziel entfernt → keine Wirkung
+setze_zahl blick B_AKTIV 1
+setze_zahl leine L_WEICH 0
+setze_zahl leine L_TOT 0
+takte 2
+teil_hole kam 1
+teil_entferne bote
+takte 2
+teil_hole kam 1
+# 3D: Kamera (Teil 1) an der Leine eines Würfels, schaut aufs Ziel
+form_grund 1 0 0 -> WUERFEL
+teil_neu 3 -> w3
+komp_neu T_KO -> ko
+setze_zahl ko KO_F WUERFEL
+komp_haenge ko w3
+komp_neu T_BEW -> b3
+setze_zahl b3 BEW_X 1.5
+setze_zahl b3 BEW_D 40
+komp_haenge b3 w3
+komp_neu T_L -> l3
+setze_zahl l3 L_ZIEL w3
+setze_zahl l3 L_AY 3
+setze_zahl l3 L_AZ 8
+setze_zahl l3 L_WEICH 0.1
+setze_zahl l3 L_SCHAUE 1
+komp_haenge l3 1
+takte TAKTE
+teil_hole 1 1
+teil_hole 1 4
+teil_hole 1 5

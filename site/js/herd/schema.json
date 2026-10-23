@@ -138,7 +138,23 @@
       {"nummer": 12, "name": "beruehrt", "typ": "teil-liste", "standard": [], "min": null, "max": null, "lesen": true},
       {"nummer": 13, "name": "betreten", "typ": "teil-liste", "standard": [], "min": null, "max": null, "lesen": true},
       {"nummer": 14, "name": "verlassen", "typ": "teil-liste", "standard": [], "min": null, "max": null, "lesen": true},
-      {"nummer": 15, "name": "anzahl", "typ": "ganz", "standard": 0, "min": null, "max": null, "lesen": true}]}
+      {"nummer": 15, "name": "anzahl", "typ": "ganz", "standard": 0, "min": null, "max": null, "lesen": true}]},
+    {"name": "Blick", "nummer": 18, "genus": "m", "raum": "2D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "zoom", "typ": "zahl", "standard": 1, "min": 0.05, "max": 20},
+      {"nummer": 2, "name": "aktiv", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 3, "name": "festAb", "typ": "ganz", "standard": 1000, "min": null, "max": null},
+      {"nummer": 4, "name": "grenzeLinks", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 5, "name": "grenzeOben", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 6, "name": "grenzeRechts", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 7, "name": "grenzeUnten", "typ": "zahl", "standard": 0, "min": null, "max": null}]},
+    {"name": "Leine", "nummer": 19, "genus": "f", "raum": "beide", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "ziel", "typ": "teil", "standard": null, "min": null, "max": null},
+      {"nummer": 2, "name": "abstandX", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 3, "name": "abstandY", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 4, "name": "abstandZ", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 5, "name": "weich", "typ": "zahl", "standard": 0, "min": 0, "max": 0.999},
+      {"nummer": 6, "name": "totzone", "typ": "zahl", "standard": 0, "min": 0, "max": null},
+      {"nummer": 7, "name": "schaue", "typ": "diavolo", "standard": false, "min": null, "max": null}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],

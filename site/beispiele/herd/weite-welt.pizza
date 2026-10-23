@@ -1,0 +1,95 @@
+// Weite Welt – der Lieferroller fährt mit den Pfeiltasten durch eine Stadt, die dreimal so breit und doppelt so hoch ist
+// wie das Fenster. Die Kamera hängt an der Leine des Rollers, die Punkte-Leiste oben bleibt stehen.
+// Leertaste: Übersicht (herauszoomen) an und aus.
+//
+// So arbeitet die Engine für dich: Blick ist die 2D-Kamera – die Lage seines Teils ist die Mitte der Sicht, zoom vergrößert,
+// die Grenzen halten die Sicht in der Stadt. Leine lässt das Kamerateil nach jeder Bewegung weich hinter dem Roller
+// herziehen. Alles mit ebene ≥ festAb (1000) ist HUD und bleibt fest im Fenster.
+
+Herd herd = neu Herd("Weite Welt", breite: 640, hoehe: 360);
+herd.hintergrund("#7fa650");
+salami BREITE = 1920;
+salami HOEHE = 720;
+
+// ---------- Stadt: Straßen, Häuser, Türen (mit Fühler) ----------
+herd.rechteck(BREITE / 2, 360, BREITE, 90, farbe: "#55524e");                  // Hauptstraße
+für (salami i = 0; i < 6; i++) {
+    herd.rechteck(140 + i * 330, HOEHE / 2, 70, HOEHE, farbe: "#55524e");      // Querstraßen
+}
+für (salami i = 0; i < 24; i++) {
+    herd.rechteck(80 + i * 80, 360, 30, 4, farbe: "mozzarella");                  // Mittelstreifen
+}
+Blech<margherita> daecher = ["tomate", "salami", "#b5603a", "aubergine", "#3d6f9e"];
+Blech<Teil> tueren = [];
+für (salami i = 0; i < 5; i++) {
+    für (salami reihe = 0; reihe < 2; reihe++) {
+        // oben: Tür unten zur Hauptstraße; unten: Tür oben, Dach auf der Rückseite
+        salami x = 305 + i * 330;
+        salami y = 160 + reihe * 400;
+        salami seite = 1 - reihe * 2;
+        herd.rechteck(x, y, 110, 90, farbe: "teig", rundung: 4);
+        margherita dach = daecher.stück((i + reihe * 2) % 5 + 1);
+        herd.rechteck(x, y - 50 * seite, 124, 22, farbe: dach, rundung: 6);
+        herd.rechteck(x - 28, y - 10 * seite, 22, 18, farbe: "#9fd0e6");
+        herd.rechteck(x + 28, y - 10 * seite, 22, 18, farbe: "#9fd0e6");
+        Teil tuer = herd.rechteck(x, y + 31 * seite, 22, 28, farbe: "#6b4a2b");
+        tuer.mit(neu Fuehler(gruppe: 2, maske: 1));
+        tueren.hinzu(tuer);
+    }
+}
+// Bestellungen: jede dritte Tür wartet auf eine Pizza (gelbe Marke)
+Blech<Teil> marken = [];
+für (salami i = 0; i < tueren.länge(); i++) {
+    falls (i % 3 == 1) {
+        Teil t = tueren.stück(i + 1);
+        marken.hinzu(herd.kreis(t.x() + 20, t.y(), 7, farbe: "senf"));
+    } sonst {
+        marken.hinzu(karton);
+    }
+}
+
+// ---------- Lieferroller ----------
+Teil roller = herd.rechteck(140, 360, 34, 16, farbe: "tomate", rundung: 6);
+herd.kreis(-12, 9, 6, farbe: "ofen").haenge(roller);
+herd.kreis(12, 9, 6, farbe: "ofen").haenge(roller);
+herd.rechteck(-6, -12, 14, 12, farbe: "#f0d9a8", rundung: 2).haenge(roller);   // Pizzakarton
+roller.mit(neu Fuehler(gruppe: 1, maske: 2));
+
+// ---------- Kamera: Blick an der Leine ----------
+Teil kamera = herd.gruppe(320, 360);
+Blick blick = kamera.mit(neu Blick(grenzeRechts: BREITE, grenzeUnten: HOEHE));
+kamera.mit(neu Leine(ziel: roller, weich: 0.03, totzone: 24));
+
+// ---------- HUD (ebene 1000): bleibt stehen ----------
+herd.rechteck(320, 16, 640, 32, farbe: "#2f2a26c0").setzeEbene(1000);
+Teil anzeige = herd.text("Lieferungen: 0", 12, 6, groesse: 20, farbe: "mozzarella").setzeEbene(1000);
+Teil hinweis = herd.text("Pfeiltasten fahren, Leertaste: Übersicht", 628, 8, groesse: 14, farbe: "mozzarella", ausrichtung: "rechts").setzeEbene(1000);
+salami geliefert = 0;
+salami offen = marken.filtere((m) -> m != karton).länge();
+
+herd.backe(() -> {
+    salami v = 5;
+    falls (herd.taste("Links")) { roller.verschiebe(-v, 0); }
+    falls (herd.taste("Rechts")) { roller.verschiebe(v, 0); }
+    falls (herd.taste("Hoch")) { roller.verschiebe(0, -v); }
+    falls (herd.taste("Runter")) { roller.verschiebe(0, v); }
+    roller.setzeLage(Mathe.max(20, Mathe.min(BREITE - 20, roller.x())), Mathe.max(20, Mathe.min(HOEHE - 20, roller.y())));
+
+    falls (herd.gedrueckt("Leertaste")) {
+        falls (blick.zoom() == 1) { blick.setzeZoom(0.5); } sonst { blick.setzeZoom(1); }
+    }
+
+    // An einer Tür mit Marke: Pizza abgeben
+    für (Teil t : roller.fuehler().betreten()) {
+        für (salami i = 0; i < tueren.länge(); i++) {
+            falls (tueren.stück(i + 1) == t && marken.stück(i + 1) != karton) {
+                marken.stück(i + 1).kreis().setzeFarbe("basilikum");
+                marken.setze(i + 1, karton);
+                geliefert++;
+            }
+        }
+    }
+    anzeige.text().setzeInhalt(("Lieferungen: " + geliefert + " / " + offen));
+    falls (geliefert == offen) { hinweis.text().setzeInhalt("Alle satt – danke!"); }
+});
+Bote.sage(("Geliefert: " + geliefert + " von " + offen + ", Roller bei " + roller.x() + "/" + roller.y() + ", Zoom " + blick.zoom()));

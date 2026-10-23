@@ -1,0 +1,19 @@
+// Herd §18.6 / HERD.md §12.4 H-K1: Blick – 2D-Kamera (Scrollen, Zoom, Drehung, Grenzen, HUD ab festAb), Bereichsfehler
+Herd herd = neu Herd("Blick", breite: 320, hoehe: 180);
+Teil haus = herd.rechteck(900, 400, 60, 40, farbe: "salami");
+Teil punkte = herd.text("Punkte: 0", 8, 8, groesse: 16, farbe: "ofen").setzeEbene(1000);
+Teil kam = herd.gruppe(900, 400);
+Blick b = kam.mit(neu Blick(zoom: 2));
+Bote.sage((b + " " + b.zoom() + " " + b.aktiv() + " " + b.festAb() + " " + b.grenzeLinks() + " " + b.grenzeRechts()));
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { kam.setzeLage(160, 90); b.setzeGrenzeRechts(2000).setzeGrenzeUnten(1000); }
+  falls (herd.bildnummer() == 3) { b.setzeZoom(0.5).setzeGrenzeRechts(0).setzeGrenzeUnten(0); kam.setzeDrehung(20); }
+  falls (herd.bildnummer() == 4) { b.setzeFestAb(2000); }
+  falls (herd.bildnummer() == 5) { b.setzeAktiv(nein); }
+  punkte.text().setzeInhalt(("Punkte: " + herd.bildnummer()));
+});
+Bote.sage(("nach " + herd.bildnummer() + " Bildern: zoom " + b.zoom() + ", festAb " + b.festAb() + ", aktiv " + b.aktiv() + ", Mitte " + kam.x() + "/" + kam.y()));
+probier { b.setzeZoom(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { b.setzeZoom(25); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { b.setzeFestAb(1.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum().mit(neu Blick()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

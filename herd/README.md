@@ -50,6 +50,7 @@ pub static ARTEN: &[&Art] = &[
     &gleiten::ART, &ablauf::ART,                       // 14, 15 (H-K4); vergeben in Merge-Reihenfolge (HERD.md §12.1)
     &belag::ART,                                       // 16 (H-K2)
     &fuehler::ART,                                     // 17 (H-K6, Nachlauf)
+    &blick::ART, &leine::ART,                          // 18, 19 (H-K1; Blick im Bildbau, Leine im Nachlauf)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -243,7 +244,8 @@ kamerazugewandte Vierecke nach `DURCH` und vor INST2D: Tiefe testen, nicht schre
 instanzierter Draw-Call.
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
-(Mitte, Spielfeld-Pixel, y nach unten) · `f32 hx, hy` (halbe Ausdehnung lokal) · `f32 p0, p1` · `u8 r, g, b, a` (sRGB) ·
+(Mitte, Spielfeld-Pixel, y nach unten; mit aktivem `Blick` (H-K1) hat der Kern die Sicht-Matrix schon eingerechnet – außer für
+Teile mit `ebene ≥ festAb` –, das Format bleibt gleich) · `f32 hx, hy` (halbe Ausdehnung lokal) · `f32 p0, p1` · `u8 r, g, b, a` (sRGB) ·
 `u32 art | seite << 8` · `u16 u0, v0, u1, v1` (Atlas-Pixel). Eckpunkt `c ∈ {−1, 1}²`: `lokal = c · (h + rand)` mit `rand` = Saum für
 die Kantenglättung bei Rechteck/Kreis (ein Gerätepixel, mindestens ein Spielfeldpixel, in lokalen Einheiten), sonst 0; `pos = M · lokal + t`; Texturkoordinate (Bild/Glyphe)
 `uv = mix((u0, v0), (u1, v1), (c + 1) / 2)` (c.y = −1 oben).
@@ -300,7 +302,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
   Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
-  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.

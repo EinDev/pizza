@@ -132,6 +132,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Fuehler", "Kollision", "Spiel"],
       "herd": true
+    },
+    {
+      "id": "weite-welt",
+      "titel": "Weite Welt: Kamera an der Leine",
+      "beschreibung": "Der Lieferroller fährt mit den Pfeiltasten durch eine Stadt, die viel größer ist als das Fenster, und bringt Pizza an die markierten Türen. Die 2D-Kamera (Blick) hängt an der Leine des Rollers und bleibt in der Stadt, die Punkte-Leiste oben steht fest; die Leertaste zoomt heraus.",
+      "datei": "herd/weite-welt.pizza",
+      "erwartet": "herd/weite-welt.erwartet",
+      "ereignisse": "herd/weite-welt.ereignisse",
+      "herdErwartet": "herd/weite-welt.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Blick", "Leine", "Kamera", "Spiel"],
+      "herd": true
     }
   ]
 }
