@@ -689,6 +689,96 @@ klasse Album {
 }
 // ── Ende P5 Album (Modell) ──
 
+// ── P5 Banca ── (Modell; Bereich #12, Labor)
+// 🏦 Banca di Napoli (Labor, #12, §12.7): Modell `Sparbuch` (gehört dem Spiel: spiel.sparbuch) und Panel `BancaPanel`.
+// „10 % einzahlen“ legt ein Zehntel der Kasse aufs Sparbuch, „Alles abheben“ holt das ganze Guthaben zurück – beides kostet
+// nie etwas (genau derselbe Betrag wandert hin und her). Zinsen 1 % je Minute, sekundengenau im Takt, aber höchstens auf
+// 30 Minuten Pizza-Umsatz (min(Guthaben, 1800 s Umsatz)). Zinsen landen im Guthaben und in umsatzAllzeit (Statistik
+// „Umsatz insgesamt“) – nie in umsatz/umsatzKette: keine Sterne, kein Herausforderungsziel (wie die Getränke).
+// Neueröffnung, Herausforderung und Franchise lösen das Sparbuch auf wie die Kasse (Spiel.setzeRundeZurück) – sonst würde man die
+// Kasse über jedes Prestige hinweg parken. Offline gibt es keine Zinsen („nachts hat die Banca zu“).
+klasse Sparbuch {
+    funghi ZINS_PROZENT = 1;           // je Minute
+    salami DECKEL_SEKUNDEN = 1800;     // verzinst wird höchstens so viel, wie in 30 min Pizza-Umsatz zusammenkommt
+    funghi EINZAHL_ANTEIL = 0.1;
+    salami MINDESTKASSE = 10;          // darunter lohnt das Einzahlen nicht (ein Zehntel < 1 €)
+    Blech<margherita> SPRÜCHE = [
+        "Don Peppino, der Filialleiter, zählt jeden Schein zweimal. Den zweiten Durchgang macht er mit geschlossenen Augen.",
+        "Zinsen sind wie Hefe: Man muss nur warten. Und nicht ständig nachsehen.",
+        "Die Banca di Napoli gibt es seit 1539. Nonnas Sparstrumpf ist älter.",
+        "Der Tresor riecht nach Basilikum. Niemand weiß, warum. Niemand fragt.",
+        "Am Schalter gibt es Espresso statt Kugelschreiber. Unterschrieben wird mit Olivenöl."
+    ];
+
+    funghi guthaben = 0;
+    funghi zinsenAllzeit = 0;
+    salami einzahlungen = 0;
+    salami abhebungen = 0;
+    salami version = 0;                // zählt bei jeder Änderung hoch (Klick, Zinsen je Sekunde) – Quelle des Panels
+
+    funghi deckel(Spiel s) { serviere (s.proSekunde() * s.preis() * DECKEL_SEKUNDEN); }
+    funghi zinsJeSekunde(Spiel s) { serviere (Mathe.min(guthaben, deckel(s)) * ZINS_PROZENT / 100 / 60); }
+    margherita spruch() { serviere (SPRÜCHE.stück((einzahlungen + abhebungen) % SPRÜCHE.länge() + 1)); }
+    diavolo einzahlbar(Spiel s) { serviere (s.istFrei("banca") && s.geld >= MINDESTKASSE); }
+
+    // Nur aus Klick-Rückrufen.
+    diavolo zahleEin(Spiel s) {
+        falls (!einzahlbar(s)) { serviere (nein); }
+        funghi betrag = s.geld * EINZAHL_ANTEIL;
+        s.geld -= betrag;
+        guthaben += betrag;
+        einzahlungen++;
+        version++;
+        s.melde(("🏦 " + betrag.währung("€", kompakt: ja) + " eingezahlt – Guthaben " + guthaben.währung("€", kompakt: ja) + ". " + spruch()));
+        serviere (ja);
+    }
+    diavolo hebeAb(Spiel s) {
+        falls (!s.istFrei("banca") || guthaben <= 0) { serviere (nein); }
+        funghi betrag = guthaben;
+        s.geld += betrag;
+        guthaben = 0;
+        abhebungen++;
+        version++;
+        s.melde(("🏧 " + betrag.währung("€", kompakt: ja) + " abgehoben – Don Peppino zählt es dir auf den Tresen. " + spruch()));
+        serviere (ja);
+    }
+
+    // Im Takt (ganze Sekunden): Zinsen aufs Guthaben (nur Zahlen und Texte)
+    leer takt(Spiel s, salami n) {
+        falls (guthaben <= 0) { serviere; }
+        funghi z = zinsJeSekunde(s) * n;
+        falls (z <= 0) { serviere; }
+        guthaben += z;
+        zinsenAllzeit += z;
+        s.umsatzAllzeit += z;
+        version++;
+    }
+
+    leer löseAuf() {
+        falls (guthaben <= 0) { serviere; }
+        guthaben = 0;
+        version++;
+    }
+    leer zurück() {
+        guthaben = 0; zinsenAllzeit = 0; einzahlungen = 0; abhebungen = 0;
+        version++;
+    }
+
+    Speisekarte<margherita, Vorrat> alsSpeisekarte() {
+        Speisekarte<margherita, Vorrat> k = neu Speisekarte<margherita, Vorrat>();
+        k.lege("guthaben", guthaben).lege("zinsen", zinsenAllzeit).lege("einzahlungen", einzahlungen).lege("abhebungen", abhebungen);
+        serviere (k);
+    }
+    leer lade(Speisekarte<margherita, Vorrat> k) {
+        guthaben = Mathe.max(0, k.hole("guthaben", 0));
+        zinsenAllzeit = Mathe.max(0, k.hole("zinsen", 0));
+        einzahlungen = Mathe.max(0, k.hole("einzahlungen", 0));
+        abhebungen = Mathe.max(0, k.hole("abhebungen", 0));
+        version++;
+    }
+}
+// ── Ende P5 Banca (Modell) ──
+
 // ─────────────────────────────── Das Spiel ──────────────────────────────
 // Kennt keine Oberfläche: rechnet nur und schreibt die letzte Neuigkeit in `nachricht`.
 // Zeit zählt in Sekunden (Takt-Schlägen).
@@ -1115,7 +1205,7 @@ klasse Spiel {
     // Schlüssel → Stück; Marketing und Helfer haben eigene Listen (KAMPAGNEN, ALLE_HELFER) und eigene Kauf-Methoden.
     diavolo hatInhalt(margherita s) {
         serviere (s == "garten" || s == "weinkeller" || s == "personal" || s == "lieferzonen" || s == "marketing" || s == "helfer"
-            || s == "labor" || s == "stammgaeste" || s == "katze" || s == "wettbewerb" || s == "album");
+            || s == "labor" || s == "stammgaeste" || s == "katze" || s == "wettbewerb" || s == "album" || s == "banca");
     }
     Blech<Posten> postenVon(margherita s) {
         falls (s == "garten") { serviere (BEETE); }
@@ -1501,6 +1591,12 @@ klasse Spiel {
     }
     // ── Ende P5 Album (Spiel) ──
 
+    // ── P5 Banca (Spiel) ── Das Sparbuch (klasse Sparbuch): Zinsen im Takt (ticke, vor dem Effekt-Abzweig) nur ins Guthaben und
+    // in umsatzAllzeit – nie in umsatz/umsatzKette (keine Sterne, kein Herausforderungsziel). Neueröffnung, Herausforderung und
+    // Franchise lösen es wie die Kasse auf (setzeRundeZurück); offline gibt es keine Zinsen.
+    Sparbuch sparbuch = neu Sparbuch();
+    // ── Ende P5 Banca (Spiel) ──
+
     // gelernt: Nonna hat es verraten. kennt: es wirkt (im Urlaub wirkt keins).
     diavolo gelernt(margherita talent) { serviere (talente.enthält(talent)); }
     diavolo kennt(margherita talent) { serviere (modus != "urlaub" && talente.enthält(talent)); }
@@ -1647,6 +1743,7 @@ klasse Spiel {
         kampagnenTakt(n);      // Marketing läuft ab – vor dem Effekt-Abzweig, sonst stünde die Uhr während eines Fests
         forschungTakt(n);      // das Rezeptlabor forscht weiter (ebenfalls vor dem Abzweig)
         falls (istFrei("katze")) { katze.takt(dies, n); }   // P5: Laune-Uhr und Pausen der Katze (ebenfalls vor dem Abzweig)
+        falls (istFrei("banca")) { sparbuch.takt(dies, n); }   // P5: Zinsen aufs Sparbuch (ebenfalls vor dem Abzweig)
         falls (effekt != "") {
             effektRest = effektRest - n;
             falls (effektRest <= 0) { beendeEffekt(); }
@@ -1945,6 +2042,7 @@ klasse Spiel {
         garten = neu Speisekarte<margherita, salami>(); weinkeller = neu Speisekarte<margherita, salami>(); personal = neu Speisekarte<margherita, salami>();
         lieferzonen = neu Speisekarte<margherita, salami>();
         versionGarten++; versionWeinkeller++; versionPersonal++; versionLieferzonen++;
+        sparbuch.löseAuf();    // P5: das Sparbuch wird wie die Kasse aufgelöst (sonst parkt man die Kasse über jedes Prestige hinweg)
         für (Upgrade u : handwerk) { u.setzeAnzahl(0); }
         für (Upgrade u : betrieb) { u.setzeAnzahl(0); }
         falls (kennt("sparstrumpf")) {
@@ -2127,7 +2225,7 @@ klasse Spiel {
         kampagnenGestartet = 0; helferEinsätze = 0;
         forschung = []; forschungLäuft = ""; forschungRest = 0;
         herzen = 0; gebäudeGekauft = 0; großbestellungen = 0;
-        katze.zurück(); wettbewerb.allesZurück(); album.leere();
+        katze.zurück(); wettbewerb.allesZurück(); album.leere(); sparbuch.zurück();
         gastWunsch = neu Speisekarte<margherita, salami>(); gastStart = neu Speisekarte<margherita, funghi>(); gastZiel = neu Speisekarte<margherita, funghi>();
         versionGeheim++; versionErfolge++; versionBereiche++; versionSpiele++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
         neuBerechnen();
@@ -2166,6 +2264,7 @@ klasse Spiel {
         s.lege("herzen", herzen).lege("gebäudeGekauft", gebäudeGekauft).lege("großbestellungen", großbestellungen);
         s.lege("katze", katze.alsSpeisekarte()).lege("wettbewerb", wettbewerb.alsSpeisekarte());
         s.lege("sticker", album.alsSpeisekarte());   // 📒 P5
+        s.lege("sparbuch", sparbuch.alsSpeisekarte());
         Speisekarte<margherita, salami> stück = neu Speisekarte<margherita, salami>();
         für (Upgrade u : handwerk) { stück.lege(u.schlüssel, u.anzahl); }
         für (Upgrade u : betrieb) { stück.lege(u.schlüssel, u.anzahl); }
@@ -2251,6 +2350,7 @@ klasse Spiel {
         katze.lade(s.hole("katze", neu Speisekarte<margherita, Vorrat>()));   // P5: fehlt im alten Stand → Vorgaben
         wettbewerb.ladeAus(s.hole("wettbewerb", neu Speisekarte<margherita, Vorrat>()));
         album.lade(s.hole("sticker", neu Speisekarte<margherita, Vorrat>()));   // 📒 P5: fehlt im alten Stand → leer
+        sparbuch.lade(s.hole("sparbuch", neu Speisekarte<margherita, Vorrat>()));   // P5: offline keine Zinsen
         gastWunsch = ladeGäste(bereiche, "gastWunsch"); gastStart = ladeGäste(bereiche, "gastStart"); gastZiel = ladeGäste(bereiche, "gastZiel");
         falls (istFrei("stammgaeste")) { starteWünsche(); }
         versionGarten++; versionWeinkeller++; versionPersonal++; versionLieferzonen++; versionMarketing++; versionHelfer++; versionLabor++; versionStammgäste++;
@@ -3552,6 +3652,59 @@ klasse AlbumPanel {
 }
 // ── Ende P5 Album (Oberfläche) ──
 
+// ── P5 Banca ── (Oberfläche; Bereich #12, Labor)
+// Zwei Zeilen unter dem Kopf: 1 „Guthaben … · Zinsen 1 %/min“ + „10 % einzahlen“ · 2 Spruch + „Alles abheben“. Der Kopf
+// (bereich-banca-kopf, BereichPanel delegiert) zeigt den Deckel („verzinst bis … (30 min Umsatz)“) und die Zinsen bisher.
+// Die Zeilen gehören von Anfang an zum Panel und sind sichtbar, sobald die Banca frei ist (Freischalt-Klick, R1/R3).
+// Quelle: `stand` wie bei der Katze (spiel.sparbuch.version, ändert sich mit den Zinsen jede Sekunde); „einzahlen“ hängt an
+// der Kasse (zTakt). Zinsen ändern nur Text (R1).
+klasse BancaPanel {
+    Zettel stand;
+    Schild guthabenInfo;
+    Knopf einzahlen;
+    Schild spruchInfo;
+    Knopf abheben;
+    Blech<Zutat> zeilen = [];
+
+    BancaPanel() {
+        stand = Zettel.aus(() -> { zTakt.wert(); serviere (spiel.sparbuch.version); });
+        guthabenInfo = kleinSchild("bereich-banca-info-1", 2, SCHILD_BREITE);
+        guthabenInfo.binde("text", () -> {
+            falls (!frei()) { serviere (""); }
+            stand.wert(); zVersion.wert();
+            Sparbuch b = spiel.sparbuch;
+            serviere ("💰 Guthaben " + b.guthaben.währung("€", kompakt: ja) + " · Zinsen " + b.ZINS_PROZENT.kompakt(0) + " %/min"
+                + (b.guthaben > 0 ? " (+" + b.zinsJeSekunde(spiel).währung("€", kompakt: ja) + "/s)" : ""));
+        });
+        einzahlen = zeilenKnopf("bereich-banca-knopf-1", KNOPF_BREITE);
+        einzahlen.setzeText("💶 10 % einzahlen");
+        einzahlen.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); zTakt.wert(); serviere (spiel.sparbuch.einzahlbar(spiel)); });
+        einzahlen.beiKlick(() -> { falls (spiel.sparbuch.zahleEin(spiel)) { speichere(); nachKauf(); } });
+        einzahlen.hinweis("Ein Zehntel der Kasse aufs Sparbuch. Kostet nichts – Abheben holt jeden Cent zurück, samt Zinsen.");
+        spruchInfo = kleinSchild("bereich-banca-info-2", 2, SCHILD_BREITE);
+        spruchInfo.binde("text", () -> { falls (!frei()) { serviere (""); } stand.wert(); serviere ("💬 " + spiel.sparbuch.spruch()); });
+        abheben = zeilenKnopf("bereich-banca-knopf-2", KNOPF_BREITE);
+        abheben.setzeText("🏧 Alles abheben");
+        abheben.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); serviere (spiel.sparbuch.guthaben > 0); });
+        abheben.beiKlick(() -> { falls (spiel.sparbuch.hebeAb(spiel)) { speichere(); nachKauf(); } });
+        abheben.hinweis("Das ganze Guthaben zurück in die Kasse. Vor einer Neueröffnung abheben – sonst löst Nonna das Sparbuch mit der Kasse auf.");
+        zeilen = [zeile("bereich-banca-1", [guthabenInfo, einzahlen], ZEILE_HOEHE), zeile("bereich-banca-2", [spruchInfo, abheben], ZEILE_HOEHE)];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("banca")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert(); zVersion.wert();
+        Sparbuch b = spiel.sparbuch;
+        serviere ("🏦 Sparbuch: verzinst bis " + b.deckel(spiel).währung("€", kompakt: ja) + " (30 min Umsatz) · Zinsen bisher "
+            + b.zinsenAllzeit.währung("€", kompakt: ja) + ". Zählt nicht für Sterne; die Neueröffnung löst das Sparbuch auf.");
+    }
+}
+// ── Ende P5 Banca (Oberfläche) ──
+
 // ─────────────────────────────── Bereiche (Hof · Stadt · Labor) ─────────
 // Ein Panel je Bereich – unsichtbar, bis der Bereich angeboten ist (Vorgänger der Kette frei). Angeboten zeigt es EINE Zeile:
 // Teaser + Freischalt-Knopf frei-<schlüssel>. Der Freischalt-Klick lässt im selben Rückruf den Inhalt wachsen: Kopfzeile
@@ -3579,6 +3732,7 @@ klasse BereichPanel {
     Fortschritt laborBalken = karton;
     KatzePanel katzePanel = karton;   // P5: nur bei der Katze
     AlbumPanel albumPanel = karton;   // 📒 P5: nur beim Sammelalbum
+    BancaPanel bancaPanel = karton;   // P5: nur bei der Banca
 
     salami zeilenZahl(margherita s) {
         falls (s == "garten" || s == "lieferzonen" || s == "labor") { serviere (3); }
@@ -3591,6 +3745,7 @@ klasse BereichPanel {
         margherita s = b.schlüssel;
         posten = spiel.postenVon(s);
         falls (s == "katze") { katzePanel = neu KatzePanel(); }   // P5: vor der Kopf-Bindung (kopfText delegiert)
+        falls (s == "banca") { bancaPanel = neu BancaPanel(); }
         teaser = kleinSchild("bereich-" + s + "-teaser", 3, SCHILD_BREITE);
         teaser.setzeText(b.teaser);
         freiKnopf = zeilenKnopf("frei-" + s, KNOPF_BREITE);
@@ -3675,6 +3830,7 @@ klasse BereichPanel {
         falls (s == "katze") { für (Zutat z : katzePanel.zeilen) { kinder.hinzu(z); } }
         falls (s == "wettbewerb") { für (Zutat z : wettbewerbPanel.zeilen) { kinder.hinzu(z); } }
         falls (s == "album") { albumPanel = neu AlbumPanel(); für (Zutat z : albumPanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "banca") { für (Zutat z : bancaPanel.zeilen) { kinder.hinzu(z); } }
         teil = panel(b.titel(), "bereich-" + s, kinder);
         teil.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) || spiel.freischaltbar(b.schlüssel)); });
     }
@@ -3694,6 +3850,7 @@ klasse BereichPanel {
         falls (s == "katze") { serviere (katzePanel.kopfText()); }   // P5
         falls (s == "wettbewerb") { serviere (wettbewerbPanel.kopfText()); }
         falls (s == "album") { serviere (albumKopfText()); }   // 📒 P5
+        falls (s == "banca") { serviere (bancaPanel.kopfText()); }   // P5
         falls (inhaltOffen()) {
             falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet) – eine Pizza bringt " + spiel.preis().währung("€") + "."); }
             falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
