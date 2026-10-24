@@ -246,6 +246,42 @@ fn uv_kasten(p: V3, n: V3) -> (f32, f32) {
     }
 }
 
+/// Glatte Normalen: je Punkt die Summe der (flächengewichteten) Dreiecksnormalen, in Dreiecksreihenfolge addiert, dann normiert
+/// (Nullvektor → nach oben). Gemeinsam für eigene Formen (`glatt: ja`) und [`netz_glatt`].
+fn glatte_normalen(punkte: &[f32], dreiecke: &[u32]) -> Vec<V3> {
+    let pk = |i: u32| {
+        let k = i as usize * 3;
+        V3::neu(punkte[k], punkte[k + 1], punkte[k + 2])
+    };
+    let oben = V3::neu(0.0, 1.0, 0.0);
+    let mut nor = alloc::vec![V3::default(); punkte.len() / 3];
+    for t in dreiecke.chunks_exact(3) {
+        let (a, bb, c) = (pk(t[0]), pk(t[1]), pk(t[2]));
+        let f = bb.minus(a).kreuz(c.minus(a));
+        for &k in t {
+            nor[k as usize] = nor[k as usize].plus(f);
+        }
+    }
+    for nn in nor.iter_mut() {
+        *nn = nn.norm_oder(oben);
+    }
+    nor
+}
+
+/// Öffentliches Netz aus Punkten (x, y, z, …), UV (u, v je Punkt) und Dreiecken (Punkt-Nummern, gegen den Uhrzeigersinn) mit
+/// glatten Normalen – für Komponenten, die ihr Netz im Kern bauen (H-K11a `Gelaende`). Anders als `form_eigene` mit eigener UV
+/// statt Würfel-Projektion. Indizes müssen gültig sein, `uv` hat zwei Werte je Punkt.
+pub fn netz_glatt(punkte: &[f32], uv: &[f32], dreiecke: &[u32]) -> Netz {
+    let mut b = Bau::neu();
+    b.e.reserve(punkte.len() / 3);
+    for (k, nn) in glatte_normalen(punkte, dreiecke).into_iter().enumerate() {
+        let p = V3::neu(punkte[k * 3], punkte[k * 3 + 1], punkte[k * 3 + 2]);
+        b.ecke(p, nn, uv[k * 2], uv[k * 2 + 1]);
+    }
+    b.i.extend_from_slice(dreiecke);
+    b.fertig()
+}
+
 fn eigene(punkte: &[f32], dreiecke: &[u32], glatt: bool) -> Netz {
     let pk = |i: u32| {
         let k = i as usize * 3;
@@ -254,18 +290,8 @@ fn eigene(punkte: &[f32], dreiecke: &[u32], glatt: bool) -> Netz {
     let mut b = Bau::neu();
     let oben = V3::neu(0.0, 1.0, 0.0);
     if glatt {
-        let n = punkte.len() / 3;
-        let mut nor = alloc::vec![V3::default(); n];
-        for t in dreiecke.chunks_exact(3) {
-            let (a, bb, c) = (pk(t[0]), pk(t[1]), pk(t[2]));
-            let f = bb.minus(a).kreuz(c.minus(a));
-            for &k in t {
-                nor[k as usize] = nor[k as usize].plus(f);
-            }
-        }
-        for (k, nn) in nor.iter().enumerate() {
+        for (k, nn) in glatte_normalen(punkte, dreiecke).into_iter().enumerate() {
             let p = pk(k as u32);
-            let nn = nn.norm_oder(oben);
             let (u, v) = uv_kasten(p, nn);
             b.ecke(p, nn, u, v);
         }
@@ -363,5 +389,37 @@ mod tests {
         let glatt = eigene(&p, &d, true);
         assert_eq!(glatt.ecken_anzahl, 4);
         assert_eq!(glatt.index_anzahl, 12);
+    }
+    /// H-K11a: Gelände-Netz – Anzahlen, Ausdehnung um den Ursprung, UV-Ecken, Windung nach oben, fehlende/ungültige Höhen = 0,
+    /// glatte Normalen (eben → oben, Hang → gekippt), `netz_glatt` = `eigene(glatt)` bis auf die UV.
+    #[test]
+    fn gelaende_netz() {
+        use crate::komponenten::gelaende::netz;
+        let n = netz(&[], 4, 3, 2.0);
+        assert_eq!((n.ecken_anzahl, n.index_anzahl), (12, 3 * 2 * 6));
+        assert_eq!((n.min.x, n.max.x, n.min.z, n.max.z, n.min.y, n.max.y), (-3.0, 3.0, -2.0, 2.0, 0.0, 0.0));
+        let (e, _) = lies(&n);
+        for x in &e {
+            assert_eq!((x[3], x[4], x[5]), (0.0, 1.0, 0.0));
+        }
+        assert_eq!((e[0][0], e[0][2], e[0][6], e[0][7]), (-3.0, -2.0, 0.0, 0.0));
+        assert_eq!((e[11][0], e[11][2], e[11][6], e[11][7]), (3.0, 2.0, 1.0, 1.0));
+        pruefe_windung(&n);
+        // Hang y = x (45°), dazu NaN/∞ → 0 und überzählige Werte ohne Wirkung
+        let h: Vec<f64> = (0..9).map(|k| (k % 3) as f64 - 1.0).chain([f64::NAN, 5.0]).collect();
+        let n = netz(&h, 3, 3, 1.0);
+        let (e, i) = lies(&n);
+        let s = 1.0 / wurzel(2.0);
+        assert!(betrag(e[4][3] + s) < 1e-6 && betrag(e[4][4] - s) < 1e-6 && e[4][5] == 0.0, "{:?}", e[4]);
+        pruefe_windung(&n);
+        let n = netz(&[f64::NAN, f64::INFINITY, 1e300], 2, 2, 1.0);
+        let (e2, _) = lies(&n);
+        assert!(e2.iter().all(|x| x[1] == 0.0));
+        // gleiche Normalen wie eine eigene glatte Form aus denselben Punkten
+        let p: Vec<f32> = e.iter().flat_map(|x| [x[0], x[1], x[2]]).collect();
+        let (eg, _) = lies(&eigene(&p, &i, true));
+        for (a, b) in e.iter().zip(&eg) {
+            assert_eq!(&a[..6], &b[..6]);
+        }
     }
 }

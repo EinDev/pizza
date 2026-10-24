@@ -294,7 +294,8 @@
                 ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt"],
                 ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"],
                 ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"],
-                ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"]
+                ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"],
+                ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -752,6 +753,41 @@
             },
             { art: "ausgabe", text: z("Vieleck(3) 8 Punkte, Drehung 4") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Pizzastücke** unter *Beispiele → Herd*: Eine Pizza aus acht Vieleck-Stücken mit Kruste, Käse und Belag dreht sich auf dem Brett; ein Klick zieht ein Stück heraus." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Gelaende: Hügel aus einer Höhenkarte",
+          inhalt: [
+            { art: "text", md: "Ein **`Gelaende`** an einem 3D-Teil ist eine Landschaft aus einer **Höhenkarte**: `hoehen` ist ein Blech aus Zahlen, Zeile für Zeile `spalten` Werte (je 2 … 256, also höchstens 65 536 Punkte; fehlende Werte zählen als 0). Die Punkte liegen `weite` auseinander, mittig um das Teil: Spalte 1 links (−x), Zeile 1 hinten (−z), die Höhe ist y. Daraus baut die Engine selbst ein Netz mit glatten Normalen und zeichnet es wie einen `Koerper` – mit `farbe`, `glanz`, Schatten (`schatten`) und einem Bildchen als Textur, das **einmal über die ganze Fläche** gespannt wird (auch ein `Bildchen.laden`-Bild)." },
+            { art: "text", md: "Das Netz entsteht im **Takt** – vor dem ersten Takt gibt es noch keins (auch keine Hülle für `trifft`). Neu gebaut wird nur, wenn sich `hoehen`, `spalten`, `zeilen` oder `weite` wirklich ändern; dieselben Werte noch einmal zu setzen kostet fast nichts. Jedes neue Netz ist eine neue Ressource, die die Engine behält – also **nicht in jedem Takt umformen**, sondern bei Ereignissen. Für `trifft` zählt der Kasten um das ganze Gelände; wo genau der Boden liegt, rechnet das Programm mit derselben Formel aus, mit der es die Höhen gebaut hat. Einen Farbverlauf nach Höhe gibt es (noch) nicht – dafür eine Textur." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Gelaende","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"3d25ee536d7a25b4","paket":"e04437cc433971bc"},
+                {"art":"bild","bildnummer":4,"szene":"3d25ee536d7a25b4","paket":"f72af465eef202a8"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Gelaende\", breite: 320, hoehe: 180);",
+                "herd.kamera().setzeLage(0, 6, 9).schaueAuf(0, 0, 0);",
+                "Blech<funghi> h = [];",
+                "für (salami j = 0; j < 12; j++) {",
+                "  für (salami i = 0; i < 12; i++) { h.hinzu(Mathe.sin(i * 0.6) * Mathe.cos(j * 0.5)); }",
+                "}",
+                "Teil land = herd.raum(0, 0, 0);",
+                "Gelaende g = land.mit(neu Gelaende(hoehen: h, spalten: 12, zeilen: 12, weite: 0.8));",
+                "Teil ball = herd.koerper(Form.kugel(), 0, 1.2, 0, farbe: \"tomate\").setzeGroesse(0.5);",
+                "Bote.sage((\"vor dem Takt: \" + ball.trifft(land)));",
+                "herd.backe();",
+                "Bote.sage((g + \" \" + g.spalten() + \"×\" + g.zeilen() + \", \" + g.hoehen().länge() + \" Höhen, trifft \" + ball.trifft(land)));"
+              )
+            },
+            { art: "ausgabe", text: z("vor dem Takt: nein", "Gelaende(3) 12×12, 144 Höhen, trifft ja") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Hügel** unter *Beispiele → Herd*: eine Tomatenplantage im Hügelland, die Kamera kreist um den Hof, und die Leertaste lässt die Hügel wachsen – die Tomatenstöcke wandern mit." }
           ]
         }
       ]

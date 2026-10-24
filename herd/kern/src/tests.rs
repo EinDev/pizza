@@ -2632,3 +2632,166 @@ mod hk3b {
         assert!(dreiecke(&k).is_empty());
     }
 }
+/// H-K11a (HERD.md §12.4): `Gelaende` – Netz aus einer Höhenkarte im Kern.
+mod hk11a {
+    use super::*;
+
+    struct N {
+        g: i32,
+        hoehen: i32,
+        spalten: i32,
+        zeilen: i32,
+        weite: i32,
+        farbe: i32,
+        bild: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let g = typ(k, "Gelaende");
+        N {
+            g,
+            hoehen: feld(k, g, "hoehen"),
+            spalten: feld(k, g, "spalten"),
+            zeilen: feld(k, g, "zeilen"),
+            weite: feld(k, g, "weite"),
+            farbe: feld(k, g, "farbe"),
+            bild: feld(k, g, "bild"),
+        }
+    }
+    fn ressourcen(k: &mut Kern) -> f64 {
+        k.welt_hole(6)
+    }
+    fn gelaende(k: &mut Kern, n: &N) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(n.g);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (t, c)
+    }
+
+    #[test]
+    fn schema_raum_grenzen() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!(n.g, 22); // Typnummer in Merge-Reihenfolge (HERD.md §12.1, §11.1): nach Vieleck 21
+        let t2 = k.teil_neu(2);
+        let c = k.komp_neu(n.g);
+        assert!(k.komp_haenge(c, t2) < 0);
+        assert_eq!(k.fehler_text(), "Gelaende gibt es nur für 3D-Teile.");
+        assert_eq!(k.hole_zahl(c, n.spalten), 32.0);
+        assert_eq!(k.hole_zahl(c, n.weite), 1.0);
+        assert_eq!(text(&mut k, c, n.farbe), "basilikum");
+        assert!(k.setze_zahl(c, n.spalten, 1.0) < 0);
+        assert!(k.setze_zahl(c, n.zeilen, 257.0) < 0);
+        assert!(k.setze_zahl(c, n.spalten, 2.5) < 0);
+        assert!(k.setze_zahl(c, n.weite, 0.0) < 0);
+        assert_eq!(k.setze_zahl(c, n.zeilen, 256.0), 0);
+        assert_eq!(ARTEN[n.g as usize - 1].schema.oeffentliche(), 8);
+    }
+
+    #[test]
+    fn netz_nur_bei_aenderung() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (t, c) = gelaende(&mut k, &n);
+        k.setze_zahl(c, n.spalten, 3.0);
+        k.setze_zahl(c, n.zeilen, 3.0);
+        assert_eq!(k.setze_zahlen(c, n.hoehen, &[0.0, 1.0, 0.0, 1.0, 2.0, 1.0]), 0);
+        // vor dem ersten Takt kein Netz, keine Hülle
+        let w = k.form_grund(1, 0.0, 0.0);
+        let r0 = ressourcen(&mut k);
+        let kt = k.teil_neu(3);
+        let ko = typ(&mut k, "Koerper");
+        let kc = k.komp_neu(ko);
+        k.setze_zahl(kc, 1, w as f64);
+        k.komp_haenge(kc, kt);
+        k.teil_lage(kt, 0.0, 1.5, 0.0);
+        assert_eq!(k.teil_trifft(t, kt), 0);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r0 + 1.0);
+        assert_eq!(k.teil_trifft(t, kt), 1); // Hülle reicht bis y = 2
+        k.teil_lage(kt, 0.0, 2.6, 0.0);
+        assert_eq!(k.teil_trifft(t, kt), 0);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r0 + 1.0);
+        // gleiche Werte erneut: kein Neubau
+        k.setze_zahlen(c, n.hoehen, &[0.0, 1.0, 0.0, 1.0, 2.0, 1.0]);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r0 + 1.0);
+        // eine Höhe, die Seiten, die Weite: je ein Neubau
+        k.setze_zahlen(c, n.hoehen, &[0.0, 1.0, 0.0, 1.0, 2.5, 1.0]);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r0 + 2.0);
+        k.setze_zahl(c, n.spalten, 4.0);
+        k.takt();
+        k.setze_zahl(c, n.weite, 2.0);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r0 + 4.0);
+        // NaN mit anderer Nutzlast ist keine Änderung (kanonisch), -0 statt 0 schon (Bits)
+        k.setze_zahlen(c, n.hoehen, &[f64::NAN]);
+        k.takt();
+        let r = ressourcen(&mut k);
+        k.setze_zahlen(c, n.hoehen, &[f64::from_bits(0x7FF8_0000_0000_0001)]);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r);
+        k.setze_zahlen(c, n.hoehen, &[0.0]);
+        k.takt();
+        k.setze_zahlen(c, n.hoehen, &[-0.0]);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r + 2.0);
+        let r = r + 2.0;
+        // Kopie teilt das Netz; ein loses Gelände baut nichts
+        let t2 = k.teil_kopie(t);
+        assert!(t2 > 0);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r);
+        k.komp_neu(n.g);
+        k.takt();
+        assert_eq!(ressourcen(&mut k), r);
+    }
+
+    #[test]
+    fn bild_wie_koerper_mit_textur() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (_, c) = gelaende(&mut k, &n);
+        let tex = k.bildchen_neu(&[4, 0, 0, 0, b'e', b'k', b'e', b'k'], &[]);
+        assert!(tex > 0, "{}", k.fehler_text());
+        k.setze_zahl(c, n.bild, tex as f64);
+        k.setze_text(c, n.farbe, b"#ffffff");
+        k.takt();
+        k.bild(1);
+        let m = material_3d(&k);
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].0, 0xFFFF_FFFF);
+        assert!((m[0].1 - 0.1).abs() < 1e-6);
+        assert_eq!(m[0].2, 0.0);
+        // NETZ-Abschnitt: 32 × 32 Punkte, 31 × 31 × 6 Indizes
+        let l = Leser::neu(k.paket()).unwrap();
+        let netz = l.abschnitte().filter(|(a, _)| *a == abschnitt::NETZ).any(|(_, d)| {
+            let u = |o: usize| u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]]);
+            d.len() > 12 && u(4) == 1024 && u(8) == 31 * 31 * 6
+        });
+        assert!(netz);
+        // durchsichtige Farbe: nichts
+        k.setze_text(c, n.farbe, b"#ffffff00");
+        k.bild(2);
+        assert!(material_3d(&k).is_empty());
+    }
+
+    #[test]
+    fn bitgleich_256() {
+        let bau = || {
+            let mut k = welt();
+            let n = nummern(&mut k);
+            let (_, c) = gelaende(&mut k, &n);
+            k.setze_zahl(c, n.spalten, 256.0);
+            k.setze_zahl(c, n.zeilen, 256.0);
+            k.setze_zahl(c, n.weite, 0.25);
+            let h: Vec<f64> = (0..65536).map(|i| libm::sin((i % 256) as f64 * 0.05) * libm::cos((i / 256) as f64 * 0.07) * 3.0).collect();
+            k.setze_zahlen(c, n.hoehen, &h);
+            k.takt();
+            k.hash_szene()
+        };
+        assert_eq!(bau(), bau());
+    }
+}
+

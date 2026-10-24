@@ -145,7 +145,7 @@ herd.backe(() -> {
 `Bewegung` (beide: Tempo, Drehtempo, Beschleunigung), `Animation` (2D: Bildchen-Folge), `Partikel` (2D: Emitter); Ausbau (§12):
 `Linie`, `Rahmen` (2D: Strecke, 9-Slice-Tafel), `Funken` (3D: Teilchen-Emitter), `Gleiten` (beide: Tween), `Ablauf` (beide:
 Keyframes), `Fuehler` (beide: Kollider, Ereignisse als Zustand je Takt), `Blick` (2D: Kamera mit Scrollen, Zoom, Drehung, HUD ab
-`festAb`), `Leine` (beide: Folgekamera), `Wucht` (2D: Physik). Die Fabriken
+`festAb`), `Leine` (beide: Folgekamera), `Wucht` (2D: Physik), `Gelaende` (3D: Höhenkarte). Die Fabriken
 (`herd.kreis` …) sind nur Abkürzungen für „Teil anlegen + Komponente anhängen“.
 
 **Farben** (Text): Palette `weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
@@ -335,7 +335,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K8** Vorlage | offen | – | – |
 | **H-K7** Wucht | `Wucht` (20, 2D, braucht `Fuehler`, Takt-System nach Ablauf; `art` dynamisch/kinematisch/fest, `masse`, `tempoX/Y`, `schwerkraft` 0, `daempfung`, `abprall`, `reibung` 0.2, Einmal-Stoß `stossX/Y`, Lesefeld `amBoden`; Kreise und achsenparallele Rechtecke, keine Drehung; fester Fühler ohne Wucht = fester Körper), Löser in `wucht.rs`: Breitphase `fuehler::breitphase` auf den Fühlern mit `ausloeser: nein` (neu `fuehler::sammle_wenn`), Engphase `wucht::kontakt`, Warmstart aus verborgener Spalte `kontakte`, je 4 Iterationen Impuls + Positionskorrektur (vorwärts/rückwärts), `wucht::{Koerper, Kontakt, loese}` öffentlich für H-K10 (feste Kacheln als Körper), Szene `wucht.herd`, Fall `herd-wucht`, Beispiel `teigkugeln.pizza`, Doku in `herd-ausbau`, K-150 (Nachtrag) | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 65/65 inkl. 8 neue `tests::hk7`, Skript 3 + 1); `node herd/test-kern.js` 25 Läufe bitgleich nativ = Wasm (neu `wucht.herd` klein, N = 500, N = 2 000); `erwartet.js` 52 ✓ (keine bestehende geändert); `npm test` (327 Fälle), Prüfstand 785/785 + 6/6, `test:wasm` 1526, `test:differenz` 1143 ohne Abweichung; Sichtprüfung und Glut-Pixeltest stehen aus (Render-Pause); B7: 500 Kugeln Takt 0,42 ms nativ / 0,59 ms Wasm (Ziel ≤ 1 ms), 2 000 Kugeln 2,1 / 2,8 ms (`bench/herd/ERGEBNISSE.md`) |
 | **H-K9** Kulisse | offen | – | – |
-| **H-K11a** Gelände | offen | – | – |
+| **H-K11a** Gelände | `Gelaende` (22, 3D, Takt-System nach Wucht; `hoehen` (zahl-liste, zeilenweise), `spalten`/`zeilen` 32 (2 … 256), `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` (Textur über die ganze Fläche, auch Teigling-Texturen), `schatten` ja), Netz im Takt nur bei geänderten Netz-Feldern (Prüfwert FNV-1a je 64-Bit-Wort in verborgenen Spalten `pruefLo`/`pruefHi`, Ressourcen-ID in `netz`), Zeichnen und Hülle wie `Koerper`; `formen::netz_glatt` (öffentlich: Punkte + UV + Dreiecke, glatte Normalen gemeinsam mit `Form.eigene(glatt)`), `ressourcen.rs` unverändert (`Ressourcen::form` genügt); kein Bildpaket-/Glut-Umbau (NETZ-Abschnitt, u32-Indizes, FEST-/SCHATTEN-Zug wie bisher); Szene `gelaende.herd`, Fall `herd-gelaende`, Beispiel `huegel.pizza` (Tomatenplantage, Orbit-Kamera), Doku in `herd-ausbau` | (dieser) | `cargo test -j 2` in `herd/` (Kern 74/74 inkl. 4 neue `tests::hk11a` + 1 in `formen`, Skript 3 + 1, Teigling 13, Glut 1, Werkzeug-Pixeltest 4); `node herd/test-kern.js` 30 Läufe bitgleich nativ = Wasm (neu `gelaende.herd` klein, 256 × 256, 256 × 256 mit Neubau je Takt); `erwartet.js` 58 ✓ (keine bestehende geändert); `npm test` (331 Fälle, 69 Beispiele, 150 Doku), Prüfstand 820/820 + 6/6, `test:wasm` 1540, `test:differenz` 1149 ohne Abweichung; Sichtprüfung `huegel.pizza` offscreen (WARP) in Ordnung; B8: Netzbau 256 × 256 je Umbau ≈ 7,8 ms nativ / 9,8 ms Wasm, ohne Änderung Prüfwert über 65 536 Höhen ≈ 0,07 ms je Takt (`bench/herd/ERGEBNISSE.md`) |
 | **H-K10** Fliesen | offen | – | – |
 | **H-K11b** Himmelszelt | offen | – | – |
 | **H-K12** UI + Maus im Kern | offen | – | – |
@@ -428,7 +428,7 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 **Typnummern** (v1: 1 `Rechteck` · 2 `Kreis` · 3 `Text` · 4 `Bild` · 5 `Koerper` · 6 `Licht` · 7 `Kamera` · 8 `Bewegung` ·
 9 `Animation` · 10 `Partikel`). Die Spalte „Nr“ ist ab Nr. 14 nur ein **Vorschlag** in Planreihenfolge: vergeben wird in
 Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Bisher vergeben: 11 `Linie`, 12 `Rahmen`, 13 `Funken`, **14 `Gleiten`,
-15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1), **20 `Wucht`** (H-K7), **21 `Vieleck`** (H-K3b).
+15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1), **20 `Wucht`** (H-K7), **21 `Vieleck`** (H-K3b), **22 `Gelaende`** (H-K11a).
 
 | Nr (Vorschlag; vergeben: §11.1) | Komponente | Stufe | Raum | läuft in |
 |---|---|---|---|---|
@@ -667,7 +667,10 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
   wie `Koerper`: FEST-Zug, Schatten); `ressourcen.rs`/`formen.rs` (öffentliches „Netz aus Punkten/Dreiecken“ für Komponenten, bisher nur
   per ABI `form_eigene`). Jeder Umbau legt eine neue Ressource an (Ressourcen werden in v1 nie freigegeben) – Doku: nicht je Takt umformen.
   Kein `paket.rs`, keine Glut.
-- **Determinismus:** Normalen wie `formen.rs` (f32-Hilfen aus `mathe.rs`), `libm::sqrt`.
+- **Determinismus:** Normalen wie `formen.rs` (f32-Hilfen aus `mathe.rs`), `libm::sqrt`. **Umgesetzt:** Typnummer 22 (nach Vieleck 21); Netz-Bau in
+  `gelaende::netz` → `formen::netz_glatt` (dieselbe Normalen-Summe wie `Form.eigene(glatt)`), Änderung = anderer Prüfwert (kein
+  Dirty-Flag im generischen ABI), daher erscheint das Netz erst im ersten Takt; `ressourcen.rs` brauchte nichts; Beispiel `huegel.pizza`
+  als Tomatenplantage mit Orbit-Kamera statt rollendem Würfel (Gleiten folgt dem Boden nicht). Messung B8.
 - **Tests:** `cargo test`, `herd-gelaende.*`, Szenen-Skript `gelaende.herd`. **Beispiel:** `huegel.pizza` (Hügel aus `Mathe.sin`, K-137, ein
   Würfel rollt per Gleiten darüber).
 - **Abnahme:** A-Kern. **Abhängig von:** H-K0 (`zahl-liste`).

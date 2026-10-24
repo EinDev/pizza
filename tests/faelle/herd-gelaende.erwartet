@@ -1,0 +1,11 @@
+Gelaende() 32×32 weite 1 basilikum 0.1 karton ja []
+vor dem ersten Takt: trifft nein, Höhen 64, Teil ja
+nach 2 Takten: trifft ja
+darüber: trifft nein
+Spitze 3 hoch: trifft ja, 4×3 [3]
+Kopie: 4×3 oliven [3]
+LaufzeitAnanas: Gelaende gibt es nur für 3D-Teile.
+LaufzeitAnanas: Gelaende.spalten muss zwischen 2 und 256 liegen, nicht 300.
+TypAnanas: Gelaende.zeilen braucht eine Ganzzahl, nicht 2.5.
+LaufzeitAnanas: Gelaende.weite muss mindestens 0.001 sein, nicht 0.
+TypAnanas: Gelaende.hoehen braucht ein Blech aus Zahlen, nicht 1.

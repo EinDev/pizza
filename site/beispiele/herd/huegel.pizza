@@ -1,0 +1,93 @@
+// Hügel – eine Tomatenplantage im Hügelland. Die Kamera kreist langsam um die Felder.
+// Leertaste: Die Hügel wachsen (oder werden wieder flach) – das Gelände formt sich um, die Tomatenstöcke wandern mit.
+//
+// So arbeitet die Engine für dich: Ein Gelaende bekommt nur eine Höhenkarte (ein Blech aus Zahlen, Zeile für Zeile). Daraus
+// baut die Engine selbst ein Netz mit glatten Normalen, zeichnet es mit Schatten und legt die Ackertextur über die ganze Fläche.
+// Neu gebaut wird nur, wenn sich die Höhen ändern – deshalb formt das Programm nur auf Tastendruck um, nicht in jedem Takt.
+
+Herd herd = neu Herd("Hügel", breite: 960, hoehe: 540);
+herd.himmel("#7fb8e8", "#fdf1d6");
+herd.nebel("#fdf1d6", 30, 70);
+herd.umgebung("#fff6e0", staerke: 0.4);
+herd.sonne().setzeLage(0.6, 1, 0.2);
+
+salami SEITE = 40;           // 40 × 40 Höhenpunkte
+funghi WEITE = 1;            // Abstand der Punkte: das Gelände ist 39 × 39 Einheiten groß
+
+// Höhe an der Stelle (x, z) – sanfte Wellen aus Mathe.sin/cos, in der Mitte eine flache Senke für den Hof
+Rezept hoehe = (funghi x, funghi z, funghi wucht) -> {
+    funghi welle = Mathe.sin(x * 0.28) * Mathe.cos(z * 0.22) * 1.6 + Mathe.sin((x + z) * 0.11) * 1.2;
+    funghi mitte = (x * x + z * z) / 60;
+    falls (mitte > 1) { mitte = 1; }
+    serviere ((welle * wucht * mitte));
+};
+
+Rezept karte = (funghi wucht) -> {
+    Blech<funghi> h = [];
+    für (salami j = 0; j < SEITE; j++) {
+        für (salami i = 0; i < SEITE; i++) {
+            h.hinzu(hoehe((i - (SEITE - 1) / 2) * WEITE, (j - (SEITE - 1) / 2) * WEITE, wucht));
+        }
+    }
+    serviere ((h));
+};
+
+// Ackerboden: 96 × 96 Pixel Furchen in zwei Grüntönen und Erde – das Bildchen liegt einmal über dem ganzen Gelände
+Speisekarte<margherita, margherita> acker = neu Speisekarte<margherita, margherita>();
+acker.lege("g", "#5f9e3c").lege("h", "#4c8a33").lege("e", "#8a6a3e");
+Blech<margherita> muster = ["g", "g", "g", "h", "h", "h", "g", "g", "e", "e", "g", "g"];
+Blech<margherita> zeilen = [];
+für (salami r = 0; r < 96; r++) {
+    margherita zeile = "";
+    für (salami c = 0; c < 96; c++) { zeile = zeile + muster.stück((c + (r / 3).ganz()) % 12 + 1); }
+    zeilen.hinzu(zeile);
+}
+Bildchen furchen = neu Bildchen(zeilen, farben: acker);
+
+funghi wucht = 1;
+Teil land = herd.raum(0, 0, 0);
+Gelaende gelaende = land.mit(neu Gelaende(hoehen: karte(wucht), spalten: SEITE, zeilen: SEITE, weite: WEITE,
+                                          farbe: "weiss", glanz: 0.05, bild: furchen));
+
+// Hof in der Senke: Haus mit Dach
+herd.koerper(Form.wuerfel(), 0, 0.9, 0, farbe: "#f2e3c6", glanz: 0.1).setzeGroesse(3, 1.8, 2.4);
+herd.koerper(Form.kegel(teile: 4), 0, 2.4, 0, farbe: "#b5603a", glanz: 0.1).setzeGroesse(4.2, 1.3, 3.4).setzeDrehung(45);
+
+// Tomatenstöcke in Reihen: grüner Stiel, rote Früchte – sie stehen jeweils auf der Geländehöhe
+Blech<Teil> stoecke = [];
+Blech<funghi> orte = [];
+für (salami r = 0; r < 6; r++) {
+    für (salami s = 0; s < 10; s++) {
+        funghi x = -15 + s * 3.3;
+        funghi z = -14 + r * 5.5;
+        falls (x * x + z * z > 30) {
+            Teil stock = herd.raum(x, hoehe(x, z, wucht), z);
+            herd.koerper(Form.zylinder(), 0, 0.6, 0, farbe: "basilikum", glanz: 0.1).setzeGroesse(0.15, 1.2, 0.15).haenge(stock);
+            herd.koerper(Form.kugel(teile: 24), 0, 0.9, 0, farbe: "#3e8e41", glanz: 0.1).setzeGroesse(0.8).haenge(stock);
+            herd.koerper(Form.kugel(teile: 16), 0.25, 0.8, 0.2, farbe: "tomate", glanz: 0.7).setzeGroesse(0.3).haenge(stock);
+            herd.koerper(Form.kugel(teile: 16), -0.2, 1.05, 0.15, farbe: "tomate", glanz: 0.7).setzeGroesse(0.26).haenge(stock);
+            stoecke.hinzu(stock);
+            orte.hinzu(x).hinzu(z);
+        }
+    }
+}
+
+herd.text("Leertaste: Hügel wachsen lassen", 480, 510, groesse: 16, farbe: "#2f2a26", ausrichtung: "mitte");
+
+salami umgeformt = 0;
+herd.backe(() -> {
+    // Orbit-Kamera: kreist in 40 Sekunden einmal um den Hof
+    funghi winkel = herd.bildnummer() / 60 * 9;
+    herd.kamera().setzeLage(Mathe.sin(Mathe.bogen(winkel)) * 26, 13, Mathe.cos(Mathe.bogen(winkel)) * 26).schaueAuf(0, 0, 0);
+    falls (herd.gedrueckt("Leertaste")) {
+        wucht = wucht > 2 ? 0 : wucht + 1;
+        gelaende.setzeHoehen(karte(wucht));
+        für (salami i = 1; i <= stoecke.länge(); i++) {
+            funghi x = orte.stück(2 * i - 1);
+            funghi z = orte.stück(2 * i);
+            stoecke.stück(i).setzeLage(x, hoehe(x, z, wucht), z);
+        }
+        umgeformt++;
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: " + umgeformt + "-mal umgeformt, " + stoecke.länge() + " Tomatenstöcke, Hügelstärke " + wucht + "."));

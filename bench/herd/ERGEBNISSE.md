@@ -60,6 +60,8 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B6 mit N = 10 000, 60 Takte | 6,959 ms | 0,319 ms | 7,25 (7,06) ms | 9,700 ms | 0,469 ms | 10,16 (10,10) ms | – (nur gemessen) |
 | B7 (H-K7, 2026-10-23): 500 Kugeln + 125 Kisten mit `Wucht` in einer Schüssel (+ Schieber, Pfahl, Auslöser, 6 3D-Fühler), 240 Takte | 0,415 ms | 0,016 ms | 0,43 (0,46) ms | 0,593 ms | 0,030 ms | 0,62 (0,70) ms | Takt ≤ 1 ms bei 500 Kugeln (nativ) |
 | B7 mit N = 2 000 (+ 500 Kisten), 240 Takte | 2,079 ms | 0,074 ms | 2,16 (2,20) ms | 2,844 ms | 0,108 ms | 2,96 (3,10) ms | – (nur gemessen) |
+| B8 (H-K11a, 2026-10-24): `Gelaende` 256 × 256 (65 536 Punkte, 130 050 Dreiecke) + kleines Gelände mit Textur, 120 Takte, Netz einmal gebaut | 0,111 ms | 0,015 ms | 0,13 (0,002) ms | 0,187 ms | 0,020 ms | 0,21 (0,003) ms | – (nur gemessen) |
+| B8 mit Neubau je Takt (`UMBAU` 1), 60 Takte | 7,805 ms | 0,485 ms | 8,29 (8,88) ms | 9,831 ms | 0,458 ms | 10,29 (10,71) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -80,6 +82,13 @@ Engphase `wucht::kontakt`, Warmstart, je 4 Iterationen Impuls und Positionskorre
 ≈ 1 s als Haufen (viele Kontakte je Körper) – gemessen ist also überwiegend der dichte Fall. Ziel (HERD.md §12.4 H-K7): Takt ≤ 1 ms
 nativ bei 500 Kugeln – erreicht (0,42 ms inkl. Fühler-Nachlauf; Wasm 0,59 ms). Gemessen nach dem Rebase auf H-K1/PD1, CPU-only,
 Rechner nebenbei belastet (Werte daher eher zu hoch).
+
+B8 (`tests/herd/szenen/gelaende.herd`, Vorgaben `N`, `UMBAU`): Takt = **Gelaende** (Prüfwert der Netz-Felder, bei Änderung Netzbau:
+Punkte/UV in f64 → f32, 130 050 Dreiecke, glatte Normalen, Netz-Bytes 3,6 MB schreiben und in den Ressourcen-Hash nehmen). Mit Neubau in
+jedem Takt kostet ein Bau ≈ 7,8 ms nativ / 9,8 ms Wasm (dazu Bild ≈ 0,5 ms für das Ressourcen-Delta von 3,6 MB) – daher die Doku-Regel
+„nicht je Takt umformen“. Ohne Änderung kostet der Takt nur den Prüfwert: die Szene hat eine kurze Höhenliste (fehlende = 0), mit voller
+Liste (65 536 Höhen, eigener Lauf mit `herd-skript --mess`) ≈ 0,07 ms je Bild nativ (Median). Rechner beim Lauf belastet (B7 lag
+doppelt so hoch wie in der eigenen Messung oben), Werte daher eher zu hoch.
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

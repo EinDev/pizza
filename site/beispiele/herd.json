@@ -171,6 +171,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Vieleck", "Gleiten", "Maus", "Hierarchie"],
       "herd": true
+    },
+    {
+      "id": "huegel",
+      "titel": "Hügel: Gelände aus einer Höhenkarte",
+      "beschreibung": "Eine Tomatenplantage im Hügelland, die Kamera kreist um den Hof. Das Gelände entsteht aus einem Blech von Höhen – die Engine baut daraus Netz, Schatten und Ackertextur. Die Leertaste lässt die Hügel wachsen, die Tomatenstöcke wandern mit.",
+      "datei": "herd/huegel.pizza",
+      "erwartet": "herd/huegel.erwartet",
+      "ereignisse": "herd/huegel.ereignisse",
+      "herdErwartet": "herd/huegel.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Gelaende", "Textur", "Kamera"],
+      "herd": true
     }
   ]
 }

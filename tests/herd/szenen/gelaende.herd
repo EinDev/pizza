@@ -1,0 +1,97 @@
+# H-K11a (HERD.md §12.4): Gelaende – Netz aus einer Höhenkarte, im Takt gebaut, wenn sich hoehen/spalten/zeilen/weite ändern.
+# Ein Gelände N × N (voll: N = 256, also 65 536 Punkte; die Liste ist kürzer, fehlende Höhen = 0), dazu ein kleines mit Textur.
+# Geprüft: Fehler (2D-Teil, Grenzen), kein Netz vor dem ersten Takt, Ressourcen-Zahl (welt_hole 6) je Umbau, gleiche Werte bauen
+# nicht neu, Hülle per teil_trifft, Kopie teilt das Netz, unsichtbar, Entfernen. Szenen-Hash = Ressourcen-Hash über die Netz-Bytes,
+# also vergleicht test-kern.js die Normalen nativ gegen Wasm. UMBAU 1 ändert je Takt eine Höhe (Messung: Netzbau je Takt).
+vorgabe N 24
+vorgabe TAKTE 6
+vorgabe UMBAU 0
+welt_neu 640 360 "Gelaende"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Gelaende" -> T_G
+typ_nummer "Koerper" -> T_K
+feld_nummer T_G "hoehen" -> G_H
+feld_nummer T_G "spalten" -> G_SP
+feld_nummer T_G "zeilen" -> G_ZE
+feld_nummer T_G "weite" -> G_W
+feld_nummer T_G "farbe" -> G_F
+feld_nummer T_G "glanz" -> G_GL
+feld_nummer T_G "bild" -> G_B
+feld_nummer T_G "schatten" -> G_S
+feld_nummer T_K "form" -> K_FORM
+teil_lage 1 0 8 14
+teil_schaue 1 0 0 0
+# Fehler: 2D-Teil, Grenzen
+teil_neu 2 -> flach
+komp_neu T_G -> gf
+komp_haenge gf flach
+fehler_text
+setze_zahl gf G_SP 1
+fehler_text
+setze_zahl gf G_ZE 300
+fehler_text
+setze_zahl gf G_W 0
+fehler_text
+setze_zahl gf G_SP 7.5
+fehler_text
+# das große Gelände
+teil_neu 3 -> g
+komp_neu T_G -> c
+setze_zahl c G_SP N
+setze_zahl c G_ZE N
+setze_zahl c G_W (12 / N)
+setze_zahlen c G_H [0, 0.4, 0.9, 1.3, 1.6, 1.8, 1.9, 1.8, 1.6, 1.3, 0.9, 0.4, 0, -0.3, -0.5, -0.6, 0.2, 0.7, 1.1, 1.5, 1.7, 1.6, 1.4, 1.1, 0.8, 0.5, 0.3, 0.1, 0, 0, 0.2, 0.6, 1.2, 2.1, 2.8, 3.1, 2.8, 2.1, 1.2, 0.6, 0.2, 0, (zufall(1) * 2), (zufall(2) * 2), (zufall(3) * 2), (zufall(4) * 2), (zufall(5) * 2), (zufall(6) * 2)]
+komp_haenge c g
+welt_hole 6
+# vor dem ersten Takt: kein Netz, keine Hülle
+form_grund 1 0 0 -> W
+teil_neu 3 -> wuerfel
+komp_neu T_K -> kw
+setze_zahl kw K_FORM W
+komp_haenge kw wuerfel
+teil_lage wuerfel 0 1 0
+teil_trifft g wuerfel
+bild
+takte 1
+welt_hole 6
+teil_trifft g wuerfel
+teil_lage wuerfel 0 5 0
+teil_trifft g wuerfel
+# das kleine mit Textur, gedreht und skaliert
+bildchen_neu ["kkee", "kkee", "eekk", "eekk"] [] -> TEX
+teil_neu 3 -> klein
+teil_lage klein 4 0.5 -3
+teil_groesse klein 1 2 1
+teil_setze klein 4 30
+komp_neu T_G -> ck
+setze_zahl ck G_SP 5
+setze_zahl ck G_ZE 4
+setze_zahl ck G_W 0.5
+setze_zahlen ck G_H [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 2]
+setze_text ck G_F "#ffffff"
+setze_zahl ck G_GL 0.6
+setze_zahl ck G_B TEX
+setze_zahl ck G_S 0
+komp_haenge ck klein
+# Takte: UMBAU 0 → kein Neubau (gleiche Werte werden jedes Mal neu gesetzt), UMBAU 1 → ein Neubau je Takt
+wiederhole TAKTE i
+  setze_zahlen c G_H [((i % 2) * UMBAU), 0.4, 0.9, 1.3, 1.6, 1.8, 1.9, 1.8, 1.6, 1.3, 0.9, 0.4, 0, -0.3, -0.5, -0.6, 0.2, 0.7, 1.1, 1.5, 1.7, 1.6, 1.4, 1.1, 0.8, 0.5, 0.3, 0.1, 0, 0, 0.2, 0.6, 1.2, 2.1, 2.8, 3.1, 2.8, 2.1, 1.2, 0.6, 0.2, 0, (zufall(1) * 2), (zufall(2) * 2), (zufall(3) * 2), (zufall(4) * 2), (zufall(5) * 2), (zufall(6) * 2)]
+  takte 1
+ende
+welt_hole 6
+# Umbauen: eine Höhe des kleinen, die Weite des großen
+setze_zahlen ck G_H [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 3]
+setze_zahl c G_W (14 / N)
+takte 1
+welt_hole 6
+# Kopie teilt das Netz, unsichtbar zeichnet nichts, Entfernen
+teil_kopie klein -> kopie
+teil_lage kopie -4 0.5 -3
+takte 1
+welt_hole 6
+teil_setze g 11 0
+takte 1
+teil_setze g 11 1
+teil_entferne klein
+takte 2
+welt_hole 6

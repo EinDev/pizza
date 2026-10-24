@@ -170,7 +170,16 @@
     {"name": "Vieleck", "nummer": 21, "genus": "n", "raum": "2D", "braucht": [], "system": true, "felder": [
       {"nummer": 1, "name": "punkte", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
       {"nummer": 2, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
-      {"nummer": 3, "name": "umriss", "typ": "zahl", "standard": 0, "min": 0, "max": null}]}
+      {"nummer": 3, "name": "umriss", "typ": "zahl", "standard": 0, "min": 0, "max": null}]},
+    {"name": "Gelaende", "nummer": 22, "genus": "n", "raum": "3D", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "hoehen", "typ": "zahl-liste", "standard": [], "min": null, "max": null},
+      {"nummer": 2, "name": "spalten", "typ": "ganz", "standard": 32, "min": 2, "max": 256},
+      {"nummer": 3, "name": "zeilen", "typ": "ganz", "standard": 32, "min": 2, "max": 256},
+      {"nummer": 4, "name": "weite", "typ": "zahl", "standard": 1, "min": 0.001, "max": null},
+      {"nummer": 5, "name": "farbe", "typ": "farbe", "standard": "basilikum", "min": null, "max": null},
+      {"nummer": 6, "name": "glanz", "typ": "zahl", "standard": 0.1, "min": 0, "max": 1},
+      {"nummer": 7, "name": "bild", "typ": "bildchen", "standard": null, "min": null, "max": null},
+      {"nummer": 8, "name": "schatten", "typ": "diavolo", "standard": true, "min": null, "max": null}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id"],

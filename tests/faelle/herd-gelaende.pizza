@@ -1,0 +1,27 @@
+// Herd §18.6 / HERD.md §12.4 H-K11a: Gelaende – Netz aus einer Höhenkarte (im Takt gebaut), Standardwerte, Hülle, Umbau, Textur, Fehler
+Herd herd = neu Herd("Gelaende", breite: 320, hoehe: 180);
+Gelaende vorgabe = neu Gelaende();
+Bote.sage((vorgabe + " " + vorgabe.spalten() + "×" + vorgabe.zeilen() + " weite " + vorgabe.weite() + " " + vorgabe.farbe() + " " + vorgabe.glanz() + " " + vorgabe.bild() + " " + vorgabe.schatten() + " " + vorgabe.hoehen()));
+Blech<funghi> h = [];
+für (salami j = 0; j < 8; j++) {
+  für (salami i = 0; i < 8; i++) { h.hinzu(Mathe.sin(i * 0.8) * Mathe.cos(j * 0.6) * 1.5); }
+}
+Teil boden = herd.raum(0, 0, 0);
+Gelaende g = boden.mit(neu Gelaende(hoehen: h, spalten: 8, zeilen: 8, weite: 0.5, farbe: "oliven"));
+Speisekarte<margherita, margherita> karte = neu Speisekarte<margherita, margherita>();
+karte.lege("g", "#3e8e41").lege("h", "#6b7a2a");
+g.setzeBild(neu Bildchen(["gh", "hg"], farben: karte)).setzeGlanz(0.05);
+Teil wuerfel = herd.koerper(Form.wuerfel(), 0.6, 1.2, 0, farbe: "tomate").setzeGroesse(0.3);
+Bote.sage(("vor dem ersten Takt: trifft " + wuerfel.trifft(boden) + ", Höhen " + g.hoehen().länge() + ", Teil " + (g.teil() == boden)));
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { Bote.sage(("nach 2 Takten: trifft " + wuerfel.trifft(boden))); wuerfel.setzeLage(0.6, 2.5, 0); }
+  falls (herd.bildnummer() == 3) { Bote.sage(("darüber: trifft " + wuerfel.trifft(boden))); g.setzeHoehen([3]).setzeSpalten(4).setzeZeilen(3); }
+  falls (herd.bildnummer() == 5) { Bote.sage(("Spitze 3 hoch: trifft " + wuerfel.trifft(boden) + ", " + g.spalten() + "×" + g.zeilen() + " " + g.hoehen())); }
+});
+Teil zwilling = boden.kopie().setzeLage(5, 0, 0);
+Bote.sage(("Kopie: " + zwilling.gelaende().spalten() + "×" + zwilling.gelaende().zeilen() + " " + zwilling.gelaende().farbe() + " " + zwilling.gelaende().hoehen()));
+probier { herd.gruppe(0, 0).mit(neu Gelaende()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeSpalten(300); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeZeilen(2.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeWeite(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { g.setzeHoehen(1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

@@ -27,6 +27,8 @@ const LAEUFE = [
   ['B6', 'fuehler.herd', { N: 10000, TAKTE: 60 }],
   ['B7', 'wucht.herd', { N: 500, TAKTE: 240 }],
   ['B7', 'wucht.herd', { N: 2000, TAKTE: 240 }],
+  ['B8', 'gelaende.herd', { N: 256, TAKTE: 120 }],
+  ['B8', 'gelaende.herd', { N: 256, TAKTE: 60, UMBAU: 1 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {
