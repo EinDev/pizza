@@ -17,7 +17,7 @@ const SIGNATUREN = {
   komp_haenge: ['ii', 'I'], komp_loese: ['i', 'I'], komp_von: ['ii', 'I'], komp_info: ['ii', 'I'], typ_nummer: ['t', 'I'],
   feld_nummer: ['it', 'I'], setze_zahl: ['iif', 'I'], hole_zahl: ['ii', 'F'], setze_text: ['iit', 'I'], hole_text: ['ii', 'T'],
   setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], setze_zahlen: ['iid', 'I'], hole_zahlen: ['ii', 'D'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
-  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
+  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], eingabe: ['ffi', 'I'], takt: ['', 'I'], paket_voll: ['', 'I'],
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
   // Hilfsaufruf der Spieler (kein ABI-Export, PD3): Teigling aus festem Muster → bildchen_teigling
   teigling_muster: ['iii', 'I'],
@@ -531,6 +531,7 @@ class Spieler {
         return I(k.bildchen_teigling(p[0][0], bytes.length));
       }
       case 'ressource_hole': return F(k.ressource_hole(ii(0), ii(1)));
+      case 'eingabe': return I(k.eingabe(zahl(0), zahl(1), ii(2)));
       case 'takt': return I(k.takt());
       case 'paket_voll': return I(k.paket_voll());
       case 'hash_szene': return { art: 'H', x: this.hex((q) => k.hash_szene(q)) };

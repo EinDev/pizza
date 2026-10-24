@@ -82,6 +82,46 @@ e2e("Herd: Programm öffnet das Vorschaufenster, Taste bewegt, Klick in Spielfel
   console.log("  Motor (Auto): " + motor);
 });
 
+// H-K12 (K-151): Maus aus dem Vorschaufenster (Pointer-Ereignisse → Render-Worker → takt-Ereignis) erreicht den Herd-Kern
+// (`eingabe` je Takt) – ein Taster wird geklickt, ein Regler gezogen, wie im nativen Fenster.
+const UI_PROG = [
+  'Herd herd = neu Herd("E2E-UI", breite: 320, hoehe: 180);',
+  'herd.hintergrund("ofen");',
+  'Taster t = herd.gruppe(160, 60).mit(neu Taster(inhalt: "Klick"));',
+  'Regler r = herd.gruppe(160, 130).mit(neu Regler(breite: 200));',
+  'herd.backe(() -> {',
+  '    falls (t.geklickt()) { Bote.sage(("geklickt")); }',
+  '    falls (r.geaendert() && r.wert() == 1) { Bote.sage(("regler voll")); }',
+  '});',
+  'Bote.sage(("Ende " + r.wert()));',
+].join("\n");
+
+e2e("Herd-UI: Taster und Regler mit der Maus im Vorschaufenster (Render-Worker → Kern)", { timeout: 90_000 }, async ({ page, oeffne }) => {
+  await oeffne();
+  await setzeCode(page, UI_PROG);
+  await strg(page, "Enter");
+  await warteBereit(page);
+  await page.waitForFunction((sel) => Number(document.querySelector(sel).dataset.bild || 0) > 5, { timeout: 15_000 }, CANVAS);
+  // Spielfeld-Punkt → Seitenkoordinaten (Canvas = Spielfeld 320 × 180)
+  const r = await page.$eval(CANVAS, (c) => { const b = c.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+  const punkt = (x, y) => [r.x + (x / 320) * r.w, r.y + (y / 180) * r.h];
+  await page.mouse.move(...punkt(160, 60));
+  await schlafe(100);
+  await page.mouse.down();
+  await schlafe(100);
+  await page.mouse.up();
+  await warteAusgabe(page, /geklickt/);
+  // Regler: auf den Knauf drücken, über das rechte Ende hinaus ziehen (geklemmt auf 1), loslassen
+  await page.mouse.move(...punkt(160, 130));
+  await page.mouse.down();
+  for (const x of [200, 240, 300]) { await page.mouse.move(...punkt(x, 132)); await schlafe(60); }
+  await page.mouse.up();
+  await warteAusgabe(page, /regler voll/);
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+  assert.match(await konsolenAusgabe(page), /geklickt\n(.*\n)*regler voll\n(.*\n)*Ende 1\n$/);
+});
+
 e2e("Herd: App-Link füllt den Bildschirm mit dem Spielfeld, X beendet", { timeout: 90_000 }, async ({ page, basis, server }) => {
   const { id } = await server.teilen.lege({ name: "herd.pizza", code: PROG });
   await page.goto(basis + "#app=" + id, { waitUntil: "load" });

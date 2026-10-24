@@ -1,0 +1,23 @@
+// H-K12 (K-151): Maus im Kern über alle Motoren – mehrere Takte je Ereignis (Kante nur im ersten), ungültige Felder bleiben
+// stehen, ziehbare Tafel unter einem gedrehten, gezoomten Blick (Welt-Maus), HUD-Taster, Regler, schliesse() nach dem Klick
+Herd herd = neu Herd("UI-Maus", breite: 400, hoehe: 240);
+Teil kam = herd.gruppe(200, 120);
+kam.setzeDrehung(15);
+Blick blick = kam.mit(neu Blick(zoom: 1.5));
+Teil tt = herd.gruppe(180, 110);
+Tafel tafel = tt.mit(neu Tafel(breite: 160, hoehe: 100, titel: "Ofen", ziehbar: ja));
+Teil rt = herd.gruppe(0, 20);
+rt.haenge(tt);
+Regler hitze = rt.mit(neu Regler(von: 150, bis: 300, wert: 220, breite: 120));
+Teil hud = herd.gruppe(340, 210).setzeEbene(1000);
+Taster los = hud.mit(neu Taster(inhalt: "Backen", breite: 100));
+Teil lt = herd.gruppe(200, 20).setzeEbene(1000);
+Leiste leiste = lt.mit(neu Leiste(wert: 0, breite: 300));
+salami klicks = 0;
+herd.backe(() -> {
+  falls (hitze.geaendert()) { leiste.setzeWert(((hitze.wert() - 150) / 150)); }
+  falls (los.geklickt()) { klicks = klicks + 1; }
+  Bote.sage(("#" + herd.bildnummer() + " " + Mathe.runden(blick.mausX(), 3) + "/" + Mathe.runden(blick.mausY(), 3) + " tafel " + Mathe.runden(tt.x(), 3) + "/" + Mathe.runden(tt.y(), 3) + " hitze " + Mathe.runden(hitze.wert(), 3) + " leiste " + Mathe.runden(leiste.wert(), 3) + " los " + los.drueber() + los.gedrueckt() + los.geklickt() + " klicks " + klicks));
+  falls (klicks == 2) { herd.schliesse(); }
+});
+Bote.sage(("Ende nach " + herd.bildnummer() + " Bildern, " + klicks + " Klicks"));

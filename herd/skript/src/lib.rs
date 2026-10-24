@@ -75,6 +75,7 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     // Hilfsaufruf der Spieler (kein ABI-Export): Teigling aus einem festen Muster (`muster_teigling`) → bildchen_teigling
     ("teigling_muster", "iii", 'I'),
     ("ressource_hole", "ii", 'F'),
+    ("eingabe", "ffi", 'I'),
     ("takt", "", 'I'),
     ("paket_voll", "", 'I'),
     ("hash_szene", "", 'H'),
@@ -946,6 +947,7 @@ impl Spieler {
                 Wert::I(k.bildchen_teigling(&muster_teigling(m as u32, b as u32, h as u32)))
             }
             "ressource_hole" => Wert::F(k.ressource_hole(i(0)?, i(1)?)),
+            "eingabe" => Wert::I(k.eingabe(zahl(0)?, zahl(1)?, i(2)?)),
             "takt" => Wert::I(k.takt()),
             "paket_voll" => Wert::I(k.paket_voll()),
             "hash_szene" => Wert::H(String::from_utf8(herd_kern::hash::hex(k.hash_szene()).to_vec()).unwrap()),

@@ -1,0 +1,29 @@
+// Herd §18.6 / HERD.md §12.4 H-K12: Regler (Maus zieht wert, auch außerhalb der Schiene geklemmt; geaendert), Leiste (Anzeige,
+// wert 0 … 1), Tafel (Kinder = Inhalt, verdeckt, was unter ihr liegt; ziehbar), Lesefelder und Bereichsfehler
+Herd herd = neu Herd("Regler", breite: 320, hoehe: 180);
+Teil boden = herd.gruppe(160, 140);
+Taster hinten = boden.mit(neu Taster(inhalt: "hinten"));
+Teil t = herd.gruppe(160, 120);
+Tafel tafel = t.mit(neu Tafel(titel: "Deine Pizza", ziehbar: ja));
+Teil r = herd.gruppe(0, 0);
+r.haenge(t);
+Regler groesse = r.mit(neu Regler(von: 20, bis: 40, wert: 30));
+Teil l = herd.gruppe(0, 40);
+l.haenge(t);
+Leiste leiste = l.mit(neu Leiste(wert: 0.25, breite: 200));
+Bote.sage((tafel + " " + tafel.breite() + "×" + tafel.hoehe() + " " + tafel.farbe() + " " + tafel.titel() + " " + tafel.rundung() + " " + tafel.ziehbar()));
+Bote.sage((groesse + " " + groesse.wert() + " " + groesse.von() + "…" + groesse.bis() + " " + groesse.breite() + " " + groesse.farbe() + " " + groesse.knauf() + " " + groesse.geaendert()));
+Bote.sage((leiste + " " + leiste.wert() + " " + leiste.breite() + "×" + leiste.hoehe() + " " + leiste.farbe() + " " + leiste.farbeLeer() + " " + leiste.rundung()));
+herd.backe(() -> {
+  margherita s = "#" + herd.bildnummer() + " wert " + groesse.wert();
+  falls (groesse.geaendert()) { s = s + " geaendert"; leiste.setzeWert((groesse.wert() / 40)); }
+  s = s + " tafel " + t.x() + "/" + t.y() + " leiste " + leiste.wert();
+  falls (hinten.drueber()) { s = s + " hinten-drueber"; }
+  Bote.sage((s));
+  falls (herd.bildnummer() == 10) { t.setzeEbene(-1); }
+  falls (herd.bildnummer() == 12) { groesse.setzeVon(10).setzeBis(0); }
+});
+probier { leiste.setzeWert(1.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { groesse.setzeGeaendert(ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { tafel.setzeBreite(-3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum().mit(neu Leiste()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

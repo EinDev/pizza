@@ -1,0 +1,23 @@
+Taster(4) Spielen 120×36 kruste senf tomate weiss 18 8 ja
+#1 maus 60/90 knopf nein
+#2 maus 60/90 knopf ja spielen: drueber
+#3 maus 60/90 knopf ja spielen: drueber gedrueckt
+#4 maus 60/90 knopf nein spielen: drueber gedrueckt
+#5 maus 125/90 knopf nein spielen: drueber geklickt
+#6 maus 125/90 knopf ja klein: drueber
+#7 maus 240/90 knopf ja klein: drueber gedrueckt
+#8 maus 240/90 knopf nein klein: gedrueckt
+#9 maus 240/90 knopf ja ende: drueber
+#10 maus 240/90 knopf nein
+#11 maus 30/90 knopf nein
+#12 maus 30/90 knopf ja oben: drueber
+#13 maus 30/90 knopf ja spielen: drueber gedrueckt
+blick maus 95/90
+#14 maus 30/90 knopf nein spielen: drueber gedrueckt
+#15 maus 30/90 knopf nein spielen: drueber geklickt
+aussen ja 95/90
+LaufzeitAnanas: Taster.drueber kann man nur lesen.
+LaufzeitAnanas: Taster.geklickt kann man nur lesen.
+LaufzeitAnanas: Blick.mausX kann man nur lesen.
+LaufzeitAnanas: Taster gibt es nur für 2D-Teile.
+LaufzeitAnanas: Taster.breite muss mindestens 0 sein, nicht -1.

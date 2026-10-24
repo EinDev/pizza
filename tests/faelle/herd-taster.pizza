@@ -1,0 +1,37 @@
+// Herd §18.6 / HERD.md §12.4 H-K12: Taster – drueber, gedrueckt (gefangen), geklickt (über demselben Taster losgelassen),
+// oberstes Element gewinnt (Ebene, dann ID), aktiv: nein, Lesefelder, Blick.mausX/mausY in Weltkoordinaten
+Herd herd = neu Herd("Taster", breite: 320, hoehe: 180);
+Teil d = herd.gruppe(30, 90).setzeEbene(5);
+Taster oben = d.mit(neu Taster(inhalt: "O", breite: 30, hoehe: 30));
+Teil a = herd.gruppe(80, 90);
+Taster spielen = a.mit(neu Taster(inhalt: "Spielen"));
+Teil b = herd.gruppe(240, 90);
+Taster ende = b.mit(neu Taster(inhalt: "Ende", breite: 80, farbe: "salami"));
+Teil c = herd.gruppe(130, 90);
+Taster klein = c.mit(neu Taster(inhalt: "C", breite: 40, hoehe: 40));
+Teil kam = herd.gruppe(160, 90);
+Blick blick = kam.mit(neu Blick(zoom: 2));
+Bote.sage((spielen + " " + spielen.inhalt() + " " + spielen.breite() + "×" + spielen.hoehe() + " " + spielen.farbe() + " " + spielen.farbeDrueber() + " " + spielen.farbeGedrueckt() + " " + spielen.textFarbe() + " " + spielen.groesse() + " " + spielen.rundung() + " " + spielen.aktiv()));
+blick.setzeAktiv(nein);
+margherita z(Taster t, margherita n) {
+  margherita s = "";
+  falls (t.drueber()) { s = s + " drueber"; }
+  falls (t.gedrueckt()) { s = s + " gedrueckt"; }
+  falls (t.geklickt()) { s = s + " geklickt"; }
+  falls (s == "") { serviere (""); }
+  serviere (" " + n + ":" + s);
+}
+herd.backe(() -> {
+  margherita s = "#" + herd.bildnummer() + " maus " + herd.mausX() + "/" + herd.mausY() + " knopf " + herd.maus();
+  s = s + z(spielen, "spielen") + z(ende, "ende") + z(klein, "klein") + z(oben, "oben");
+  Bote.sage((s));
+  falls (herd.bildnummer() == 9) { ende.setzeAktiv(nein); }
+  falls (herd.bildnummer() == 12) { ende.setzeAktiv(ja); blick.setzeAktiv(ja); }
+  falls (herd.bildnummer() == 13) { Bote.sage(("blick maus " + blick.mausX() + "/" + blick.mausY())); }
+});
+Bote.sage(("aussen " + spielen.drueber() + " " + blick.mausX() + "/" + blick.mausY()));
+probier { spielen.setzeDrueber(ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { neu Taster(geklickt: ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { blick.setze("mausX", 3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum().mit(neu Taster()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { spielen.setzeBreite(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

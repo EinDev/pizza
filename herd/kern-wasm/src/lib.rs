@@ -242,6 +242,7 @@ mod wasm {
         fn bildchen_teigling(p: i32, l: i32) -> i32 { k().bildchen_teigling(b(p, l)) }
         fn ressource_hole(id: i32, was: i32) -> f64 { k().ressource_hole(id, was) }
 
+        fn eingabe(maus_x: f64, maus_y: f64, knoepfe: i32) -> i32 { k().eingabe(maus_x, maus_y, knoepfe) }
         fn takt() -> i32 { k().takt() }
         fn bild(bildnummer: i32) -> i32 { k().bild(bildnummer) }
         fn bild_zeiger() -> i32 { k().paket().as_ptr() as usize as i32 }

@@ -197,6 +197,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |
 | `bildchen_teigling` | `(ptr i32, len i32) -> i32` | `Bildchen.laden` (K-145, K-147; ab PD1/PA2): `len` Bytes eines Teiglings im Kern-Speicher → Bildchen-ID; der Kern prüft nur den Kopf. Die Laufzeit holt den Teigling aus ihrem Datensegment (`memory.init`, in Stücken von 64 KiB) und kopiert ihn mit `herd_schreibe` in den Kern – einmal je Pfad. Der native Host bindet ihn wie alle Kern-Exporte (`host/src/herd.rs`) |
 | `ressource_hole` | `(id i32, was i32) -> f64` | |
+| `eingabe` | `(maus_x f64, maus_y f64, knoepfe i32) -> i32` | Eingabezustand an den Kern (H-K12, K-151): Maus in Spielfeld-Koordinaten, Knöpfe als Bitmaske (1 links, 2 rechts, 4 Mitte); je Takt **vor** dem Rückruf. Nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 bleiben stehen; nicht im Szenen-Hash, wirkt nur über Lesefelder (`Taster`, `Regler`, `Tafel`, `Blick.mausX`). Additiv in v2 |
 | `takt`, `paket_voll` | `() -> i32` | |
 | `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |
 | `hash_szene`, `hash_paket` | `(ptr i32) -> i32` | 16 Hex-Ziffern in den Kern-Puffer |
@@ -211,7 +212,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `herd_senden` | `(ptr i32, len i32, paket_len i32) -> ()` | Fenster-Ereignis als JSON **ohne** `typ`: `{"art":"fenster","titel","breite","hoehe"}`, `{"art":"bild","bildnummer","szene","paket"}`, `{"art":"schliesse"}`. Der Host meldet `{ typ: "herd", … }` (Schlüsselreihenfolge wie im JSON) und gibt es an den Renderer. `paket_len ≥ 0` (nur `bild`): das Bildpaket liegt im Kern ab `bild_zeiger()` (`paket_len` Bytes, gültig bis zum nächsten `bild`) – der Host liest es dort für den Renderer (JS: `optionen.onHerd(art, daten)` mit `daten.bytes`); die Bytes stehen **nie** im Ereignis |
 
 - **Ablauf je Bild** (Vertrag für bitgleiche Hashes, wie der Interpreter): Fenster öffnen = `paket_voll` + `herd_senden(fenster)`; je
-  `takt`-Ereignis Eingabe übernehmen, `n` × (Rückruf, `takt`), dann `bild(n)` → `hash_szene` → `hash_paket` → `herd_senden(bild)`.
+  `takt`-Ereignis Eingabe übernehmen, `n` × (`eingabe(maus_x, maus_y, knoepfe)`, Rückruf, `takt`), dann `bild(n)` → `hash_szene` → `hash_paket` → `herd_senden(bild)`.
   Spielschleife, Eingabezustand, Schrittbudget je Takt (K-087), Fehlertexte und W0104 erledigt das Modul; der Host kennt keine
   Komponente, kein Feld und keinen Feldtyp – eine neue Komponente im Kern ändert dieses ABI nicht.
 - **Ohne Fenster/Renderer**: `herd_warte(…, -1)` → `0`; der Host stellt alle Importe trotzdem bereit (Programm läuft mit W0104).

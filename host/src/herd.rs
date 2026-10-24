@@ -28,9 +28,9 @@ const PUFFER_BASIS: usize = 8;
 pub const PAKET_BASIS: usize = 0x4000_0000;
 
 /// Namen aller Kern-Exporte (`kern.wasm`, herd/README.md §3) = bekannte Importe des Moduls `herd`.
-/// Die Laufzeit importiert davon 49 (HOST-ABI §2, inkl. `bildchen_teigling` für `Bildchen.laden`); die übrigen (`abi_version`,
+/// Die Laufzeit importiert davon 50 (HOST-ABI §2, inkl. `bildchen_teigling` für `Bildchen.laden` und `eingabe`, H-K12); die übrigen (`abi_version`,
 /// `fehler_code`, `welt_hole`, `bildchen_rgba`, `bild_zeiger`) stellt der Host ebenfalls bereit – ein Programm darf jeden Export binden.
-pub const IMPORTE_HERD: [&str; 54] = [
+pub const IMPORTE_HERD: [&str; 55] = [
     "abi_version", "puffer", "fehler_art", "fehler_code", "fehler_text", "fehler_neu", "melde_typfehler",
     "welt_neu", "welt_titel", "welt_hintergrund", "welt_himmel", "welt_umgebung", "welt_nebel", "welt_hole",
     "teil_neu", "teil_entferne", "teil_kopie", "teil_haenge", "teil_kinder", "teil_setze", "teil_hole", "teil_lage",
@@ -38,7 +38,7 @@ pub const IMPORTE_HERD: [&str; 54] = [
     "komp_neu", "komp_haenge", "komp_loese", "komp_von", "komp_info", "typ_nummer", "feld_nummer",
     "setze_zahl", "hole_zahl", "setze_text", "hole_text", "setze_liste", "hole_liste", "setze_zahlen", "hole_zahlen",
     "form_grund", "form_eigene", "bildchen_neu", "bildchen_rgba", "bildchen_teigling", "ressource_hole",
-    "takt", "bild", "bild_zeiger", "paket_voll", "hash_szene", "hash_paket", "schema_json",
+    "eingabe", "takt", "bild", "bild_zeiger", "paket_voll", "hash_szene", "hash_paket", "schema_json",
 ];
 
 /// Bekannte Importe `pizza.herd_*` (HOST-ABI §2).
@@ -486,6 +486,8 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
     })?;
     l.func_wrap("herd", "ressource_hole", |mut c: C, id: i32, was: i32| -> Result<f64, wasmi::Error> { Ok(hz(&mut c)?.kern().ressource_hole(id, was)) })?;
 
+    // H-K12 (K-151): Eingabezustand je Takt vor fn() – Maus in Spielfeld-Koordinaten, Knöpfe als Bitmaske
+    l.func_wrap("herd", "eingabe", |mut c: C, x: f64, y: f64, k: i32| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.kern().eingabe(x, y, k)) })?;
     l.func_wrap("herd", "takt", |mut c: C| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.gemessen(|k| k.takt())) })?;
     l.func_wrap("herd", "bild", |mut c: C, n: i32| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.gemessen(|k| k.bild(n))) })?;
     l.func_wrap("herd", "bild_zeiger", |mut c: C| -> Result<i32, wasmi::Error> { hz(&mut c).map(|_| PAKET_BASIS as i32) })?;

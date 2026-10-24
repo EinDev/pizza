@@ -85,7 +85,7 @@ const AUFZEICHNEN = {
     return ['[' + z.map(t => JSON.stringify(t)).join(', ') + ']', '[' + paare.join(', ') + ']'];
   },
   bildchen_rgba: (a) => [I(a[0]), I(a[1]), '[' + Array.from(u8().slice(a[2], a[2] + a[0] * a[1] * 4)).join(',') + ']'],
-  takt: () => [], paket_voll: () => [],
+  eingabe: (a) => [F(a[0]), F(a[1]), I(a[2])], takt: () => [], paket_voll: () => [],
   bild: (a) => [I(a[0])],
 };
 let istKern = false;

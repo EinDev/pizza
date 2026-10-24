@@ -407,6 +407,8 @@ const HERD_LAUFZEIT = {
       for (let i = 0; i < n; i++) {
         h.bildnummer++;
         h.erster = i === 0;
+        // H-K12 (K-151): Eingabezustand an den Kern – je Takt vor fn() (UI-Bausteine, Blick.mausX)
+        this.herdI(e.eingabe(h.mausX, h.mausY, h.knoepfe));
         // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt)
         this.limitBasis = this.schritte;
         this.neuGrenze();

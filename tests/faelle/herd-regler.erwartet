@@ -1,0 +1,23 @@
+Tafel(4) 240×160 #2f2a26e0 Deine Pizza 10 ja
+Regler(5) 30 20…40 160 kruste senf nein
+Leiste(6) 0.25 200×14 basilikum grau 7
+#1 wert 30 tafel 160/120 leiste 0.25
+#2 wert 30 tafel 160/120 leiste 0.25
+#3 wert 30 tafel 160/120 leiste 0.25
+#4 wert 35 geaendert tafel 160/120 leiste 0.875
+#5 wert 40 geaendert tafel 160/120 leiste 1
+#6 wert 40 tafel 160/120 leiste 1
+#7 wert 40 tafel 160/120 leiste 1
+#8 wert 40 tafel 180/110 leiste 1
+#9 wert 40 tafel 180/110 leiste 1
+#10 wert 40 tafel 180/110 leiste 1
+#11 wert 40 tafel 180/110 leiste 1 hinten-drueber
+#12 wert 40 tafel 180/110 leiste 1 hinten-drueber
+#13 wert 40 tafel 180/110 leiste 1 hinten-drueber
+#14 wert 5 geaendert tafel 180/110 leiste 0.125
+#15 wert 10 geaendert tafel 180/110 leiste 0.25
+#16 wert 10 tafel 180/110 leiste 0.25
+LaufzeitAnanas: Leiste.wert muss zwischen 0 und 1 liegen, nicht 1.5.
+LaufzeitAnanas: Regler.geaendert kann man nur lesen.
+LaufzeitAnanas: Tafel.breite muss mindestens 0 sein, nicht -3.
+LaufzeitAnanas: Leiste gibt es nur für 2D-Teile.

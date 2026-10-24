@@ -291,7 +291,7 @@
                 ["`Ablauf`","beide","`zeiten` [], `xWerte`, `yWerte`, `zWerte`, `drehWerte`, `groesseWerte` [], `kurve` linear, `schleife` ja, `tempo` 1, `zeit` 0, `laeuft` ja","Keyframes: zu den `zeiten` gelten die Werte aus den Wertelisten (Blech aus Zahlen), dazwischen `linear` oder `sanft`; `zeit` setzen springt"],
                 ["`Belag`","3D","`farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton","geteiltes Material: jeder `Koerper` mit `belag` = dieses Teil zeichnet mit diesen Werten statt den eigenen; zeichnet selbst nichts"],
                 ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"],
-                ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt"],
+                ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0; nur lesen: `mausX`, `mausY`","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt; `mausX`/`mausY` = die Maus in Weltkoordinaten"],
                 ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"],
                 ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"],
                 ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"],
@@ -299,7 +299,11 @@
                 ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
                 ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
-                ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"]
+                ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"],
+                ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
+                ["`Leiste`","2D","`wert` 0.5, `breite` 160, `hoehe` 14, `farbe` basilikum, `farbeLeer` grau, `rundung` 7","Füllbalken (Leben, Fortschritt): von links ist der Anteil `wert` (0 … 1) gefüllt"],
+                ["`Regler`","2D","`wert` 0.5, `von` 0, `bis` 1, `breite` 160, `farbe` kruste, `knauf` senf; nur lesen: `geaendert`","Schieberegler: mit gedrückter Maus ziehen setzt `wert` zwischen `von` und `bis`"],
+                ["`Tafel`","2D","`breite` 240, `hoehe` 160, `farbe` #2f2a26e0, `titel` \"\", `rundung` 10, `ziehbar` nein","Fläche für Bedienelemente: ihr Inhalt sind ihre Kinder; verdeckt, was darunter liegt, `ziehbar` = mit der Maus verschieben"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -964,6 +968,47 @@
             },
             { art: "ausgabe", text: z("Himmelszelt(3) #22306a 4 1") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Sternennacht** unter *Beispiele → Herd*: Über dem Hügelland sinkt die Sonne, der Himmel färbt sich vom Abendrot zum Nachtblau, die Sterne gehen auf, und im Hof wird Licht gemacht." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Taster, Leiste, Regler, Tafel: Bedienelemente mit der Maus",
+          inhalt: [
+            { art: "text", md: "Vier 2D-Bausteine für Menüs und Anzeigen. Ein **`Taster`** ist eine Schaltfläche mit Text (`Knopf` heißt in pizza schon das Element der Theke): `drueber` = die Maus ist über ihm, `gedrueckt` = auf ihm gedrückt und noch gehalten, `geklickt` = über ihm losgelassen – genau einen Takt lang. `aktiv: nein` macht ihn blass und taub. Eine **`Leiste`** zeigt einen Anteil `wert` von 0 bis 1 als Balken (Leben, Fortschritt). Ein **`Regler`** stellt `wert` zwischen `von` und `bis` ein: auf ihn drücken und ziehen, `geaendert` meldet jede Änderung. Eine **`Tafel`** ist die Fläche darunter – ihr Inhalt sind ihre **Kinder** (`haenge`), mit `ziehbar: ja` schiebt man sie samt Inhalt mit der Maus herum." },
+            { art: "text", md: "Wie bei `Fuehler` sind das **Zustände je Takt**, keine Rückrufe: Die Engine wertet die Maus nach jedem Takt aus, das Programm liest das Ergebnis im nächsten. Treffer hat immer nur das **oberste** Element unter der Maus (höhere `ebene`, bei Gleichstand das später erzeugte) – eine Tafel verdeckt also, was unter ihr liegt, ihre Kinder liegen über ihr. Wer auf etwas drückt, „hält“ es fest, bis er loslässt: Ein Regler zieht weiter, auch wenn die Maus ihn verlässt, und ein Taster zählt nur, wenn auf ihm gedrückt **und** losgelassen wurde. Mit einem `Blick` liegen Bedienelemente in der Welt; mit `ebene` ≥ `festAb` stehen sie fest im Bild (HUD). `blick.mausX()`/`mausY()` liefern die Maus in Weltkoordinaten." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":1,"maus":[110,90]},{"typ":"takt","anzahl":1,"maus":[110,90],"knoepfe":1},{"typ":"takt","anzahl":1,"maus":[110,90],"knoepfe":0},{"typ":"takt","anzahl":1,"maus":[110,90],"knoepfe":1},{"typ":"takt","anzahl":1,"maus":[110,90],"knoepfe":0},{"typ":"takt","anzahl":1,"maus":[160,135],"knoepfe":1},{"typ":"takt","anzahl":1,"maus":[200,135],"knoepfe":1},{"typ":"takt","anzahl":1,"maus":[200,135],"knoepfe":0}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Knöpfe","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":1,"szene":"b9ffec8f0736228d","paket":"b514fd844f16b1c4"},
+                {"art":"bild","bildnummer":2,"szene":"acbb99c5a7516d7e","paket":"78f1a928f007cc6b"},
+                {"art":"bild","bildnummer":3,"szene":"cae4bbc033492f9e","paket":"3aa6caaf95aa4a39"},
+                {"art":"bild","bildnummer":4,"szene":"af324436e0ecc41b","paket":"0a41cb89c8b3c9a3"},
+                {"art":"bild","bildnummer":5,"szene":"6fdcc7688388e8fb","paket":"4ae535de2d971a65"},
+                {"art":"bild","bildnummer":6,"szene":"b136f525a99fd753","paket":"9b443f6e50f039e4"},
+                {"art":"bild","bildnummer":7,"szene":"995df5f402c61377","paket":"914bba275ae97b21"},
+                {"art":"bild","bildnummer":8,"szene":"984dfaf401dee8c6","paket":"5dcf42b4d661696a"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Knöpfe\", breite: 320, hoehe: 180);",
+                "Teil tafel = herd.gruppe(160, 90);",
+                "tafel.mit(neu Tafel(breite: 220, hoehe: 140, titel: \"Ofen\", ziehbar: ja));",
+                "Taster mehr = herd.gruppe(-50, 0).haenge(tafel).mit(neu Taster(inhalt: \"Mehr\", breite: 90));",
+                "Leiste leiste = herd.gruppe(50, 0).haenge(tafel).mit(neu Leiste(wert: 0, breite: 80));",
+                "Regler hitze = herd.gruppe(0, 45).haenge(tafel).mit(neu Regler(von: 150, bis: 300, wert: 200));",
+                "salami klicks = 0;",
+                "herd.backe(() -> {",
+                "  falls (mehr.geklickt()) { klicks++; leiste.setzeWert((klicks / 4)); }",
+                "  falls (hitze.geaendert()) { Bote.sage((\"Hitze \" + hitze.wert())); }",
+                "});",
+                "Bote.sage((\"Klicks: \" + klicks + \", Leiste \" + leiste.wert()));"
+              )
+            },
+            { art: "ausgabe", text: z("Hitze 225", "Hitze 262.5", "Klicks: 2, Leiste 0.5") },
+            { art: "text", md: "Ein ganzes Beispiel ist der **Pizza-Konfigurator** unter *Beispiele → Herd*: Regler für Größe und Käse, Taster für den Belag, eine Ofenleiste – alles auf einer Tafel, die sich verschieben lässt." }
           ]
         }
       ]

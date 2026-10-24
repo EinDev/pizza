@@ -25,11 +25,16 @@ pub mod koerper;
 pub mod kreis;
 pub mod leine;
 pub mod licht;
+pub mod leiste;
 pub mod linie;
 pub mod partikel;
 pub mod rahmen;
 pub mod rechteck;
+pub mod regler;
+pub mod tafel;
+pub mod taster;
 pub mod text;
+pub mod ui;
 pub mod wucht;
 pub mod vieleck;
 pub mod vorlage;
@@ -92,6 +97,9 @@ pub type BildFn = fn(&Welt, &Speicher, &mut Bildbau);
 pub type HuelleFn = fn(&Welt, &Speicher, usize, usize) -> Option<Huelle>;
 /// Ruhe-Regel (H-K8): lässt die Komponente in Speicherzeile `kz` ihr Teil samt Kindern ruhen?
 pub type RuheFn = fn(&Speicher, usize) -> bool;
+/// Lesefeld, das beim Lesen berechnet statt gespeichert wird (H-K12, `Blick.mausX`): (Art-Index, Speicherzeile, Feld-Index) →
+/// Wert, `None` = Spalte lesen. Die Spalte bleibt unverändert – und damit der Szenen-Hash.
+pub type LiesFn = fn(&mut Welt, usize, usize, usize) -> Option<f64>;
 
 /// Beschreibung einer Komponentenart. Literale schreiben `Art { schema: …, takt: …, ..Art::LEER }` (HERD.md §12.1 Regel 9),
 /// damit neue Felder von `Art` keine Komponenten-Datei ändern.
@@ -110,6 +118,8 @@ pub struct Art {
     pub ruhe: Option<RuheFn>,
     /// `kopie()` lässt diese Komponente an der kopierten Wurzel weg (H-K8 `Vorlage`; Kinder behalten ihre).
     pub kopie_ohne: bool,
+    /// berechnete Lesefelder (H-K12), siehe [`LiesFn`]
+    pub lies: Option<LiesFn>,
 }
 
 impl Art {
@@ -123,6 +133,7 @@ impl Art {
         huelle: None,
         ruhe: None,
         kopie_ohne: false,
+        lies: None,
     };
 }
 
@@ -157,6 +168,10 @@ pub static ARTEN: &[&Art] = &[
     &fliesen::ART,
     &kulisse::ART,
     &himmelszelt::ART,
+    &taster::ART,
+    &leiste::ART,
+    &regler::ART,
+    &tafel::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

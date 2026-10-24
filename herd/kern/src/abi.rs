@@ -642,8 +642,15 @@ impl Kern {
         let e = (|| {
             let w = self.w()?;
             let (a, z) = w.komp(komp as u32)?;
-            let s = &w.arten[a].schema;
+            let art: &'static crate::komponenten::Art = w.arten[a];
+            let s = &art.schema;
             let f = feld_idx(s, feld)?;
+            // H-K12: beim Lesen berechnete Lesefelder (Blick.mausX/mausY)
+            if let Some(l) = art.lies {
+                if let Some(v) = l(w, a, z, f) {
+                    return Ok(v);
+                }
+            }
             match &w.speicher[a].spalten[f] {
                 Spalte::Zahl(v) => Ok(v[z]),
                 Spalte::Farbe(v, _) => Ok(v[z] as f64),
@@ -981,6 +988,25 @@ impl Kern {
             }
         })();
         self.rf(e)
+    }
+
+    // ================================================================ Eingabe (H-K12)
+
+    /// Eingabezustand für die folgenden Takte (vor `fn()` jedes Takts, SPEC §18.3): Maus in Spielfeld-Koordinaten, Knöpfe als
+    /// Bitmaske (1 links, 2 rechts, 4 Mitte). Nicht endliche Mauswerte lassen die Maus, Knöpfe außerhalb 0 … 7 die Knöpfe
+    /// unverändert (wie die Motoren ungültige Ereignisfelder ignorieren). Nicht im Szenen-Hash; wirkt nur über Lesefelder.
+    pub fn eingabe(&mut self, maus_x: f64, maus_y: f64, knoepfe: i32) -> i32 {
+        let e = (|| {
+            let w = self.w()?;
+            if maus_x.is_finite() && maus_y.is_finite() {
+                w.eingabe.maus = [maus_x, maus_y];
+            }
+            if (0..=7).contains(&knoepfe) {
+                w.eingabe.knoepfe = knoepfe as u32;
+            }
+            Ok(0)
+        })();
+        self.ri(e)
     }
 
     // ================================================================ Takt, Bild, Hashes

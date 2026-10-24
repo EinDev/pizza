@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -3908,5 +3908,384 @@ mod hk11b {
         k.teil_lage(tb, 5.0, 5.0, 5.0);
         k.bild(4);
         assert_eq!(abschnitt_zelt(&k).unwrap(), d);
+    }
+}
+
+/// H-K12: Maus im Kern (`eingabe`), UI-Bausteine `Taster`, `Leiste`, `Regler`, `Tafel`, `Blick.mausX`/`mausY`.
+mod hk12 {
+    use super::*;
+    use crate::paket::flach_art;
+
+    /// 2D-Instanzen des letzten Pakets: (m00 m10 m01 m11 tx ty hx hy, Farbe, Art) in Zeichenreihenfolge
+    fn inst(k: &Kern) -> Vec<([f32; 8], u32, u32)> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let Some((_, d)) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D) else { return Vec::new() };
+        d.chunks_exact(INST2D_BYTES)
+            .map(|c| {
+                let f: [f32; 8] = core::array::from_fn(|i| f32::from_le_bytes([c[i * 4], c[i * 4 + 1], c[i * 4 + 2], c[i * 4 + 3]]));
+                let farbe = u32::from_be_bytes([c[40], c[41], c[42], c[43]]);
+                let art = u32::from_le_bytes([c[44], c[45], c[46], c[47]]) & 0xFF;
+                (f, farbe, art)
+            })
+            .collect()
+    }
+    fn teil(k: &mut Kern, x: f64, y: f64) -> i32 {
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        t
+    }
+    fn an(k: &mut Kern, name: &str, t: i32) -> i32 {
+        let ty = typ(k, name);
+        let c = k.komp_neu(ty);
+        assert_eq!(k.komp_haenge(c, t), 0, "{}", k.fehler_text());
+        c
+    }
+    fn setze(k: &mut Kern, c: i32, name: &str, feld_name: &str, w: f64) {
+        let ty = typ(k, name);
+        let f = feld(k, ty, feld_name);
+        assert_eq!(k.setze_zahl(c, f, w), 0, "{}", k.fehler_text());
+    }
+    fn hole(k: &mut Kern, c: i32, name: &str, feld_name: &str) -> f64 {
+        let ty = typ(k, name);
+        let f = feld(k, ty, feld_name);
+        k.hole_zahl(c, f)
+    }
+    /// Lesefelder eines Tasters: (drueber, gedrueckt, geklickt)
+    fn zustand(k: &mut Kern, c: i32) -> (bool, bool, bool) {
+        (hole(k, c, "Taster", "drueber") != 0.0, hole(k, c, "Taster", "gedrueckt") != 0.0, hole(k, c, "Taster", "geklickt") != 0.0)
+    }
+    fn schritt(k: &mut Kern, x: f64, y: f64, kn: i32) {
+        assert_eq!(k.eingabe(x, y, kn), 0);
+        assert_eq!(k.takt(), 0);
+    }
+
+    #[test]
+    fn schema_typnummern_lesefelder() {
+        let mut k = welt();
+        // Typnummern in Merge-Reihenfolge (HERD.md §12.1, §11.1): nach Himmelszelt 26
+        assert_eq!([typ(&mut k, "Taster"), typ(&mut k, "Leiste"), typ(&mut k, "Regler"), typ(&mut k, "Tafel")], [27, 28, 29, 30]);
+        let art = |n: &str| ARTEN.iter().find(|a| a.schema.name == n).unwrap();
+        assert!(art("Taster").nachlauf.is_some() && art("Regler").nachlauf.is_some() && art("Tafel").nachlauf.is_some());
+        assert!(art("Leiste").nachlauf.is_none() && art("Leiste").takt.is_none());
+        for n in ["Taster", "Leiste", "Regler", "Tafel"] {
+            assert!(art(n).takt.is_none() && art(n).bild.is_some() && art(n).huelle.is_some(), "{}", n);
+            assert!(!TEIL_METHODEN.contains(&(n[..1].to_lowercase() + &n[1..]).as_str()));
+        }
+        let lese = |n: &str| art(n).schema.felder.iter().filter(|f| f.lesen).map(|f| f.name).collect::<Vec<_>>();
+        assert_eq!(lese("Taster"), ["drueber", "gedrueckt", "geklickt"]);
+        assert_eq!(lese("Regler"), ["geaendert"]);
+        let b = art("Blick").schema.felder;
+        assert!(b[7].name == "mausX" && b[7].lesen && b[7].nachtrag && b[8].name == "mausY" && b[8].lesen && b[8].nachtrag);
+        let t = teil(&mut k, 0.0, 0.0);
+        let c = an(&mut k, "Taster", t);
+        let fd = feld(&mut k, 27, "drueber");
+        assert_eq!(k.setze_zahl(c, fd, 1.0), -2);
+        assert_eq!(k.fehler_text(), "Taster.drueber kann man nur lesen.");
+        let l = k.komp_neu(28);
+        let fw = feld(&mut k, 28, "wert");
+        assert_eq!(k.setze_zahl(l, fw, 1.5), -2);
+        assert_eq!(k.fehler_text(), "Leiste.wert muss zwischen 0 und 1 liegen, nicht 1.5.");
+        let t3 = k.teil_neu(3);
+        assert!(k.komp_haenge(l, t3) < 0);
+        assert_eq!(k.fehler_text(), "Leiste gibt es nur für 2D-Teile.");
+        let ff = feld(&mut k, 30, "farbe");
+        let tf_ = k.komp_neu(30);
+        assert_eq!(text(&mut k, tf_, ff), "#2f2a26e0");
+        assert_eq!(k.hole_zahl(tf_, ff), 0x2f2a26e0u32 as f64);
+        // eingabe ohne Welt → Fehler; ungültige Werte ändern nichts
+        let mut leer = Kern::neu();
+        assert!(leer.eingabe(1.0, 2.0, 1) < 0);
+        assert_eq!(k.eingabe(f64::NAN, 5.0, 9), 0);
+        assert_eq!(k.welt.as_ref().unwrap().eingabe.maus, [0.0, 0.0]);
+        assert_eq!(k.welt.as_ref().unwrap().eingabe.knoepfe, 0);
+    }
+
+    #[test]
+    fn maus_nicht_im_szenen_hash() {
+        // eine Szene mit Blick (v1-Komponenten + Blick): Eingabe und mausX/mausY lesen ändern Szenen- und Paket-Hash nicht
+        let bau = |maus: Option<(f64, f64, i32)>| {
+            let mut k = welt();
+            let t = teil(&mut k, 300.0, 200.0);
+            an(&mut k, "Rechteck", t);
+            let b = teil(&mut k, 320.0, 180.0);
+            k.teil_setze(b, tf::DREHUNG, 30.0);
+            let c = an(&mut k, "Blick", b);
+            setze(&mut k, c, "Blick", "zoom", 2.0);
+            let mut hashes = Vec::new();
+            for i in 0..3 {
+                if let Some((x, y, kn)) = maus {
+                    k.eingabe(x + i as f64, y, kn);
+                    let mx = hole(&mut k, c, "Blick", "mausX");
+                    assert!(mx.is_finite());
+                }
+                k.takt();
+                k.bild(i + 1);
+                hashes.push((k.hash_szene(), k.hash_paket()));
+            }
+            hashes
+        };
+        let ohne = bau(None);
+        assert_eq!(bau(Some((10.0, 20.0, 1))), ohne);
+        assert_eq!(bau(Some((600.0, 5.0, 0))), ohne);
+    }
+
+    #[test]
+    fn blick_maus_in_weltkoordinaten() {
+        let mut k = welt();
+        let b = teil(&mut k, 1000.0, 500.0);
+        let c = an(&mut k, "Blick", b);
+        // ohne Eingabe: Spielfeld (0, 0) → Welt (1000 − 320, 500 − 180)
+        assert_eq!((hole(&mut k, c, "Blick", "mausX"), hole(&mut k, c, "Blick", "mausY")), (680.0, 320.0));
+        k.eingabe(320.0, 180.0, 0);
+        assert_eq!((hole(&mut k, c, "Blick", "mausX"), hole(&mut k, c, "Blick", "mausY")), (1000.0, 500.0));
+        setze(&mut k, c, "Blick", "zoom", 2.0);
+        k.eingabe(420.0, 180.0, 0);
+        assert_eq!(hole(&mut k, c, "Blick", "mausX"), 1050.0);
+        // Drehung 90°: 100 Pixel nach rechts im Spielfeld = 50 Welt-Einheiten nach oben (Sicht dreht um −90°)
+        k.teil_setze(b, tf::DREHUNG, 90.0);
+        let (x, y) = (hole(&mut k, c, "Blick", "mausX"), hole(&mut k, c, "Blick", "mausY"));
+        assert!((x - 1000.0).abs() < 1e-9 && (y - 550.0).abs() < 1e-9, "{} {}", x, y);
+        // inaktiver Blick rechnet weiter mit seiner eigenen Sicht; loser Blick → Spielfeld
+        setze(&mut k, c, "Blick", "aktiv", 0.0);
+        assert!((hole(&mut k, c, "Blick", "mausY") - 550.0).abs() < 1e-9);
+        let tb = typ(&mut k, "Blick");
+        let lose = k.komp_neu(tb);
+        assert_eq!(hole(&mut k, lose, "Blick", "mausX"), 420.0);
+        // Spalte bleibt Standard (0) – mausX bleibt im Hash unsichtbar
+        let a = typ(&mut k, "Blick") as usize - 1;
+        let w = k.welt.as_ref().unwrap();
+        assert!(w.speicher[a].zahl(crate::komponenten::blick::MAUS_X).iter().all(|v| *v == 0.0));
+    }
+
+    #[test]
+    fn taster_drueber_gedrueckt_geklickt() {
+        let mut k = welt();
+        let t = teil(&mut k, 100.0, 100.0);
+        let c = an(&mut k, "Taster", t);
+        // Lesefelder gelten ab dem Takt nach der Eingabe (Nachlauf)
+        k.eingabe(100.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (false, false, false));
+        k.takt();
+        assert_eq!(zustand(&mut k, c), (true, false, false));
+        schritt(&mut k, 100.0, 100.0, 1);
+        assert_eq!(zustand(&mut k, c), (true, true, false));
+        schritt(&mut k, 150.0, 110.0, 1); // Rand (Ränder zählen): 100 + 60, 100 + 18
+        assert_eq!(zustand(&mut k, c), (true, true, false));
+        schritt(&mut k, 160.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (true, false, true));
+        k.takt(); // geklickt nur in einem Takt
+        assert_eq!(zustand(&mut k, c), (true, false, false));
+        // drücken, wegziehen, loslassen → kein Klick; gedrueckt bleibt, solange gehalten
+        schritt(&mut k, 100.0, 100.0, 1);
+        schritt(&mut k, 300.0, 100.0, 1);
+        assert_eq!(zustand(&mut k, c), (false, true, false));
+        schritt(&mut k, 300.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (false, false, false));
+        // außen drücken, hineinziehen, loslassen → kein Klick und solange gehalten nicht drueber
+        schritt(&mut k, 300.0, 100.0, 1);
+        schritt(&mut k, 100.0, 100.0, 1);
+        assert_eq!(zustand(&mut k, c), (true, false, false), "nichts gefangen → drueber");
+        schritt(&mut k, 100.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (true, false, false));
+        // rechte Taste zählt nicht
+        schritt(&mut k, 100.0, 100.0, 2);
+        schritt(&mut k, 100.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (true, false, false));
+        // gleiches Ereignis in zwei Takten: Kante nur im ersten
+        schritt(&mut k, 100.0, 100.0, 1);
+        schritt(&mut k, 100.0, 100.0, 1);
+        assert_eq!(zustand(&mut k, c), (true, true, false));
+        // inaktiv: alles nein, kein Ziel; unsichtbar: kein Ziel
+        setze(&mut k, c, "Taster", "aktiv", 0.0);
+        schritt(&mut k, 100.0, 100.0, 0);
+        assert_eq!(zustand(&mut k, c), (false, false, false));
+        setze(&mut k, c, "Taster", "aktiv", 1.0);
+        k.teil_setze(t, tf::SICHTBAR, 0.0);
+        k.takt();
+        assert_eq!(zustand(&mut k, c), (false, false, false));
+    }
+
+    #[test]
+    fn oberstes_element_gewinnt() {
+        let mut k = welt();
+        let a = teil(&mut k, 100.0, 100.0);
+        let ca = an(&mut k, "Taster", a);
+        let b = teil(&mut k, 120.0, 100.0);
+        let cb = an(&mut k, "Taster", b);
+        schritt(&mut k, 110.0, 100.0, 0);
+        // gleiche Ebene → höhere ID
+        assert_eq!((zustand(&mut k, ca).0, zustand(&mut k, cb).0), (false, true));
+        // höhere Ebene schlägt höhere ID
+        k.teil_setze(a, tf::EBENE, 1.0);
+        k.takt();
+        assert_eq!((zustand(&mut k, ca).0, zustand(&mut k, cb).0), (true, false));
+        // eine Tafel darüber verdeckt beide; ein Kind der Tafel (höhere ID) liegt wieder darüber
+        let f = teil(&mut k, 110.0, 100.0);
+        k.teil_setze(f, tf::EBENE, 1.0);
+        an(&mut k, "Tafel", f);
+        k.takt();
+        assert_eq!((zustand(&mut k, ca).0, zustand(&mut k, cb).0), (false, false));
+        let kind = teil(&mut k, 0.0, 0.0);
+        k.teil_setze(kind, tf::EBENE, 1.0);
+        k.teil_haenge(kind, f);
+        let ck = an(&mut k, "Taster", kind);
+        k.takt();
+        assert!(zustand(&mut k, ck).0);
+        // eine Leiste ist kein Ziel
+        let l = teil(&mut k, 110.0, 100.0);
+        k.teil_setze(l, tf::EBENE, 9.0);
+        an(&mut k, "Leiste", l);
+        k.takt();
+        assert!(zustand(&mut k, ck).0);
+        assert_eq!(k.welt.as_ref().unwrap().eingabe.treffer, kind as u32);
+    }
+
+    #[test]
+    fn gedreht_skaliert_hud_und_welt() {
+        let mut k = welt();
+        // 90° gedreht, 100 × 20: senkrecht 100 hoch
+        let t = teil(&mut k, 200.0, 200.0);
+        k.teil_setze(t, tf::DREHUNG, 90.0);
+        let c = an(&mut k, "Taster", t);
+        setze(&mut k, c, "Taster", "breite", 100.0);
+        setze(&mut k, c, "Taster", "hoehe", 20.0);
+        schritt(&mut k, 200.0, 245.0, 0);
+        assert!(zustand(&mut k, c).0);
+        schritt(&mut k, 245.0, 200.0, 0);
+        assert!(!zustand(&mut k, c).0);
+        // Größe 2: doppelt so breit; Größe 0 → kein Treffer
+        k.teil_setze(t, tf::DREHUNG, 0.0);
+        k.teil_groesse(t, 2.0, 2.0, 1.0);
+        schritt(&mut k, 295.0, 200.0, 0);
+        assert!(zustand(&mut k, c).0);
+        k.teil_groesse(t, 0.0, 0.0, 1.0);
+        k.takt();
+        assert!(!zustand(&mut k, c).0);
+        k.teil_groesse(t, 1.0, 1.0, 1.0);
+        // Blick bei (1200, 200), zoom 2: Welt-Taster bei (1200, 200) liegt in der Spielfeldmitte; HUD-Taster in Spielfeld-Koordinaten
+        k.teil_lage(t, 1200.0, 200.0, 0.0);
+        let b = teil(&mut k, 1200.0, 200.0);
+        let cb = an(&mut k, "Blick", b);
+        setze(&mut k, cb, "Blick", "zoom", 2.0);
+        let h = teil(&mut k, 320.0, 180.0);
+        k.teil_setze(h, tf::EBENE, 1000.0);
+        let ch = an(&mut k, "Taster", h);
+        setze(&mut k, ch, "Taster", "breite", 20.0);
+        setze(&mut k, ch, "Taster", "hoehe", 20.0);
+        schritt(&mut k, 320.0, 180.0, 0);
+        assert!(zustand(&mut k, ch).0, "HUD liegt oben (Ebene 1000)");
+        schritt(&mut k, 320.0, 196.0, 0); // Welt (1200, 208): im Taster (100 × 20, bis 210), außerhalb des HUD-Tasters (bis 190)
+        assert!(zustand(&mut k, c).0 && !zustand(&mut k, ch).0);
+        schritt(&mut k, 320.0, 224.0, 0); // Welt (1200, 222): außerhalb
+        assert!(!zustand(&mut k, c).0);
+        // festAb 2000: der HUD-Taster liegt jetzt in der Welt (bei Welt (320, 180), weit weg)
+        setze(&mut k, cb, "Blick", "festAb", 2000.0);
+        schritt(&mut k, 320.0, 180.0, 0);
+        assert!(!zustand(&mut k, ch).0 && zustand(&mut k, c).0);
+    }
+
+    #[test]
+    fn regler_ziehen_klemmen_geaendert() {
+        let mut k = welt();
+        let t = teil(&mut k, 200.0, 100.0);
+        let c = an(&mut k, "Regler", t);
+        setze(&mut k, c, "Regler", "von", 10.0);
+        setze(&mut k, c, "Regler", "bis", 30.0);
+        assert_eq!(hole(&mut k, c, "Regler", "wert"), 0.5);
+        // Knauf überragt die Schiene: Trefferfläche bis 80 + 10 links/rechts, ±10 senkrecht
+        schritt(&mut k, 110.0, 108.0, 1); // links außerhalb der Schiene → Anteil 0
+        assert_eq!((hole(&mut k, c, "Regler", "wert"), hole(&mut k, c, "Regler", "geaendert")), (10.0, 1.0));
+        schritt(&mut k, 240.0, 300.0, 1); // weit weg, noch gehalten: Anteil 0.75
+        assert_eq!((hole(&mut k, c, "Regler", "wert"), hole(&mut k, c, "Regler", "geaendert")), (25.0, 1.0));
+        schritt(&mut k, 240.0, 300.0, 1);
+        assert_eq!(hole(&mut k, c, "Regler", "geaendert"), 0.0);
+        schritt(&mut k, 400.0, 300.0, 0); // losgelassen: keine Änderung mehr
+        assert_eq!(hole(&mut k, c, "Regler", "wert"), 25.0);
+        // rückwärts (bis < von) und Größe 2
+        setze(&mut k, c, "Regler", "von", 1.0);
+        setze(&mut k, c, "Regler", "bis", 0.0);
+        k.teil_groesse(t, 2.0, 2.0, 1.0);
+        schritt(&mut k, 360.0, 100.0, 1); // lokal x = 80 → Anteil 1 → wert 0
+        assert_eq!(hole(&mut k, c, "Regler", "wert"), 0.0);
+        schritt(&mut k, 200.0, 100.0, 1);
+        assert_eq!(hole(&mut k, c, "Regler", "wert"), 0.5);
+        schritt(&mut k, 200.0, 100.0, 0);
+        // Bild: Schiene + Knauf; vom Programm gesetzter Wert außerhalb → Knauf am Rand
+        setze(&mut k, c, "Regler", "wert", 7.0);
+        k.bild(1);
+        let i = inst(&k);
+        assert_eq!(i.len(), 2);
+        assert_eq!((i[0].2, i[1].2), (flach_art::RECHTECK, flach_art::KREIS));
+        assert_eq!((i[1].0[4], i[1].0[5]), (40.0, 100.0)); // Anteil 0 bei von 1, bis 0 und wert 7 → links (200 − 2 · 80)
+    }
+
+    #[test]
+    fn tafel_ziehen_mit_kindern_und_eltern() {
+        let mut k = welt();
+        let e = teil(&mut k, 100.0, 100.0);
+        k.teil_groesse(e, 2.0, 2.0, 1.0);
+        let f = teil(&mut k, 50.0, 50.0); // Welt (200, 200), 480 × 320
+        k.teil_haenge(f, e);
+        let cf = an(&mut k, "Tafel", f);
+        let kind = teil(&mut k, 0.0, 40.0);
+        k.teil_haenge(kind, f);
+        an(&mut k, "Leiste", kind);
+        // nicht ziehbar: bleibt
+        schritt(&mut k, 200.0, 200.0, 1);
+        schritt(&mut k, 260.0, 220.0, 1);
+        schritt(&mut k, 260.0, 220.0, 0);
+        assert_eq!((k.teil_hole(f, tf::X), k.teil_hole(f, tf::Y)), (50.0, 50.0));
+        setze(&mut k, cf, "Tafel", "ziehbar", 1.0);
+        schritt(&mut k, 200.0, 200.0, 1);
+        schritt(&mut k, 260.0, 220.0, 1);
+        schritt(&mut k, 300.0, 180.0, 1);
+        schritt(&mut k, 500.0, 500.0, 0); // losgelassen: zieht nicht mehr
+        // Welt-Verschiebung (100, −20) → im Raum der Eltern (Größe 2) die Hälfte
+        assert_eq!((k.teil_hole(f, tf::X), k.teil_hole(f, tf::Y)), (100.0, 40.0));
+        assert_eq!((k.teil_hole(kind, tf::WELT_X), k.teil_hole(kind, tf::WELT_Y)), (300.0, 260.0));
+    }
+
+    #[test]
+    fn bildbeitraege() {
+        let mut k = welt();
+        let t = teil(&mut k, 100.0, 50.0);
+        let c = an(&mut k, "Taster", t);
+        let ti = feld(&mut k, 27, "inhalt");
+        assert_eq!(k.setze_text(c, ti, "Go".as_bytes()), 0);
+        let l = teil(&mut k, 320.0, 300.0);
+        let cl = an(&mut k, "Leiste", l);
+        setze(&mut k, cl, "Leiste", "wert", 0.25);
+        k.bild(1);
+        let i = inst(&k);
+        // Taster: Rechteck in kruste, 2 Glyphen in weiß, senkrecht um die Mitte; Leiste: Grund (grau) + Füllung (basilikum) links
+        assert_eq!(i.len(), 5);
+        assert_eq!((i[0].1, i[0].2), (crate::farbe::lies("kruste").unwrap(), flach_art::RECHTECK));
+        assert_eq!((i[0].0[6], i[0].0[7]), (60.0, 18.0));
+        assert!(i[1].2 == flach_art::GLYPHE && i[2].2 == flach_art::GLYPHE && i[1].1 == crate::farbe::WEISS);
+        let (oben, unten) = (i[1].0[5] - i[1].0[7], i[1].0[5] + i[1].0[7]);
+        assert!(oben > 50.0 - 18.0 && unten < 50.0 + 18.0 && (oben + unten) * 0.5 > 40.0 && (oben + unten) * 0.5 < 60.0, "{} {}", oben, unten);
+        assert_eq!((i[3].1, i[3].0[4], i[3].0[6]), (crate::farbe::lies("grau").unwrap(), 320.0, 80.0));
+        assert_eq!((i[4].1, i[4].0[4], i[4].0[6]), (crate::farbe::lies("basilikum").unwrap(), 260.0, 20.0));
+        // drueber → farbeDrueber, gedrueckt → farbeGedrueckt, inaktiv → halbe Deckkraft
+        schritt(&mut k, 100.0, 50.0, 0);
+        k.bild(2);
+        assert_eq!(inst(&k)[0].1, crate::farbe::lies("senf").unwrap());
+        schritt(&mut k, 100.0, 50.0, 1);
+        k.bild(3);
+        assert_eq!(inst(&k)[0].1, crate::farbe::lies("tomate").unwrap());
+        setze(&mut k, c, "Taster", "aktiv", 0.0);
+        k.bild(4);
+        assert_eq!(inst(&k)[0].1, crate::farbe::lies("kruste").unwrap() & !0xFF | 0x7F);
+        // Leiste leer → nur der Grund; Tafel mit Titel → Fläche + Glyphen
+        setze(&mut k, cl, "Leiste", "wert", 0.0);
+        let f = teil(&mut k, 320.0, 180.0);
+        let cf = an(&mut k, "Tafel", f);
+        let ft = feld(&mut k, 30, "titel");
+        k.setze_text(cf, ft, "Ab".as_bytes());
+        k.bild(5);
+        let i = inst(&k);
+        assert_eq!(i.len(), 3 + 1 + 3);
+        assert_eq!((i[4].1, i[4].0[6], i[4].0[7]), (0x2f2a26e0, 120.0, 80.0));
+        assert!(i[5].0[4] < 320.0 - 100.0 && i[5].0[5] < 180.0 - 50.0, "Titel oben links");
     }
 }

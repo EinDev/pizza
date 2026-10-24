@@ -5,6 +5,9 @@
 //! Kein System, kein Bildbeitrag: `paket::baue` holt vor den Bildbeiträgen [`aktive_sicht`] und `Bildbau::flach` wendet die
 //! Sicht-Matrix auf `m` an (Culling danach). Ohne aktiven Blick wird nichts multipliziert – Bildpakete bleiben byte-gleich.
 //! Mit Grenzen (nicht alle 0) wird nur die **Mitte der Sicht** geklemmt, die Lage des Teils bleibt unverändert.
+//!
+//! H-K12: Lesefelder `mausX`/`mausY` (Nachtragsfelder) = Maus in Weltkoordinaten dieses Blicks. Sie werden **beim Lesen** aus
+//! dem Eingabezustand und der Sicht berechnet ([`lies`]) und nie in die Spalte geschrieben – der Szenen-Hash bleibt gleich.
 
 use super::*;
 use crate::schema::{Feld, Genus, Raum, Schema};
@@ -17,6 +20,9 @@ pub const GRENZE_LINKS: usize = 3;
 pub const GRENZE_OBEN: usize = 4;
 pub const GRENZE_RECHTS: usize = 5;
 pub const GRENZE_UNTEN: usize = 6;
+/// Lesefeld (H-K12): Maus in Weltkoordinaten, berechnet beim Lesen
+pub const MAUS_X: usize = 7;
+pub const MAUS_Y: usize = 8;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -32,8 +38,11 @@ pub static ART: Art = Art {
             Feld::zahl("grenzeOben", 0.0),
             Feld::zahl("grenzeRechts", 0.0),
             Feld::zahl("grenzeUnten", 0.0),
+            Feld::zahl("mausX", 0.0).lesen().nachtrag(),
+            Feld::zahl("mausY", 0.0).lesen().nachtrag(),
         ],
     },
+    lies: Some(lies),
     ..Art::LEER
 };
 
@@ -98,6 +107,42 @@ pub fn aktive_sicht(w: &Welt, breite: f64, hoehe: f64) -> Option<Sicht> {
         }
     }
     let (teil, z, tz) = best?;
+    Some(sicht(w, s, teil, z, tz, breite, hoehe))
+}
+
+/// Spielfeld-Punkt → Welt unter der Sicht-Matrix `m` (Umkehrung der affinen 2D-Abbildung, nur f64-Grundrechenarten);
+/// eine entartete Sicht (Determinante 0) lässt den Punkt unverändert.
+pub fn welt_punkt(m: &[f64; 12], p: [f64; 2]) -> [f64; 2] {
+    let det = m[0] * m[3] - m[2] * m[1];
+    if !(det != 0.0 && det.is_finite()) {
+        return p;
+    }
+    let (dx, dy) = (p[0] - m[4], p[1] - m[5]);
+    [(m[3] * dx - m[2] * dy) / det, (m[0] * dy - m[1] * dx) / det]
+}
+
+/// `mausX`/`mausY` beim Lesen: Maus des Eingabezustands unter der Sicht **dieses** Blicks (aktiv oder nicht); loser Blick
+/// oder entferntes Teil → Spielfeld-Koordinaten.
+fn lies(w: &mut Welt, a: usize, z: usize, feld: usize) -> Option<f64> {
+    if feld != MAUS_X && feld != MAUS_Y {
+        return None;
+    }
+    let maus = w.eingabe.maus;
+    let teil = w.speicher[a].teil[z];
+    let p = match w.zeile_opt(teil).filter(|_| teil != 0) {
+        Some(tz) => {
+            w.aktualisiere(tz);
+            let (b, h) = (w.breite as f64, w.hoehe as f64);
+            let si = sicht(w, &w.speicher[a], teil, z, tz, b, h);
+            welt_punkt(&si.m, maus)
+        }
+        None => maus,
+    };
+    Some(if feld == MAUS_X { p[0] } else { p[1] })
+}
+
+/// Sicht des Blicks in Speicherzeile `z` am Teil `teil` (Zeile `tz`, Welt-Matrix aktuell).
+fn sicht(w: &Welt, s: &Speicher, teil: u32, z: usize, tz: usize, breite: f64, hoehe: f64) -> Sicht {
     let zoom = s.zahl(ZOOM)[z];
     let dreh = drehung_welt(w, tz);
     let wm = &w.teile.welt[tz];
@@ -114,5 +159,5 @@ pub fn aktive_sicht(w: &Welt, breite: f64, hoehe: f64) -> Option<Sicht> {
         cy = klemme(cy, ey, go, gu);
     }
     let m = mal_2d(&v, &[1.0, 0.0, 0.0, 1.0, -cx, -cy, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    Some(Sicht { teil, m, fest_ab: s.zahl(FEST_AB)[z], welt_min: [cx - ex, cy - ey], welt_max: [cx + ex, cy + ey] })
+    Sicht { teil, m, fest_ab: s.zahl(FEST_AB)[z], welt_min: [cx - ex, cy - ey], welt_max: [cx + ex, cy + ey] }
 }

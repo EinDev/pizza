@@ -1,0 +1,82 @@
+// Pizza-Konfigurator: links die Pizza, rechts eine ziehbare Tafel mit Reglern und Tastern (Herd-UI, H-K12).
+// Regler stellen Größe und Käse ein, Taster legen Salami und Basilikum auf oder räumen ab, „Backen!“ füllt die Leiste.
+// Die Tafel lässt sich an jeder freien Stelle mit der Maus verschieben – ihr Inhalt sind ihre Kinder und wandert mit.
+
+Herd herd = neu Herd("Pizza-Konfigurator", breite: 480, hoehe: 360);
+herd.hintergrund("#5e3b22");                                       // Holztisch
+herd.text("Bau dir deine Pizza!", 130, 14, groesse: 22, farbe: "mozzarella", ausrichtung: "mitte");
+
+// --- die Pizza: Teig, Rand, Käse und ein Belag-Teil, das mit der Größe mitwächst ---
+Teil pizza = herd.gruppe(130, 200);
+Teil teig = herd.kreis(0, 0, 90, farbe: "teig").haenge(pizza);
+herd.kreis(0, 0, 90, farbe: "kruste", umriss: 9).haenge(pizza);
+Teil kaese = herd.kreis(0, 0, 60, farbe: "mozzarella").haenge(pizza);
+Teil belag = herd.gruppe().haenge(pizza);
+
+// --- die Tafel mit den Bedienelementen (Lage der Kinder relativ zur Mitte der Tafel) ---
+Teil tafel = herd.gruppe(355, 190);
+tafel.mit(neu Tafel(breite: 220, hoehe: 300, titel: "Deine Pizza", ziehbar: ja));
+herd.text("Größe", -96, -112, groesse: 15, farbe: "mozzarella").haenge(tafel);
+Regler groesse = herd.gruppe(0, -82).haenge(tafel).mit(neu Regler(von: 60, bis: 120, wert: 90, breite: 170));
+herd.text("Käse", -96, -62, groesse: 15, farbe: "mozzarella").haenge(tafel);
+Regler kaesemenge = herd.gruppe(0, -32).haenge(tafel).mit(neu Regler(wert: 0.7, breite: 170, knauf: "mozzarella"));
+Taster salami = herd.gruppe(-52, 8).haenge(tafel).mit(neu Taster(inhalt: "Salami", breite: 96, hoehe: 32, farbe: "salami"));
+Taster basilikum = herd.gruppe(52, 8).haenge(tafel).mit(neu Taster(inhalt: "Basilikum", breite: 96, hoehe: 32, farbe: "basilikum", groesse: 16));
+Taster leeren = herd.gruppe(-52, 48).haenge(tafel).mit(neu Taster(inhalt: "Leeren", breite: 96, hoehe: 32, farbe: "grau"));
+Taster backen = herd.gruppe(52, 48).haenge(tafel).mit(neu Taster(inhalt: "Backen!", breite: 96, hoehe: 32, farbe: "tomate", farbeGedrueckt: "salami"));
+Leiste backofen = herd.gruppe(0, 94).haenge(tafel).mit(neu Leiste(wert: 0, breite: 190, farbe: "ananas"));
+Teil status = herd.text("Bereit für den Ofen", 0, 112, groesse: 15, farbe: "mozzarella", ausrichtung: "mitte").haenge(tafel);
+
+salami stuecke = 0;
+diavolo imOfen = nein;
+
+// Belag an der nächsten Stelle einer Spirale (Goldener Winkel), damit sich nichts stapelt
+Teil lege(margherita art) {
+    funghi w = Mathe.bogen(stuecke * 137.5);
+    funghi r = 18 + (stuecke * 11) % 52;
+    Teil t = herd.gruppe(Mathe.cos(w) * r, Mathe.sin(w) * r).haenge(belag);
+    falls (art == "salami") {
+        herd.kreis(0, 0, 9, farbe: "salami").haenge(t);
+        herd.kreis(-2, -2, 3, farbe: "schinken").haenge(t);
+    } sonst {
+        t.setzeDrehung(stuecke * 40);
+        t.mit(neu Vieleck(punkte: [0, -8, 5, 0, 0, 8, -5, 0], farbe: "basilikum"));
+    }
+    stuecke++;
+    serviere (t);
+}
+
+herd.backe(() -> {
+    // Regler wirken sofort: Größe skaliert die ganze Pizza, der Käse wächst mit seiner Menge
+    falls (groesse.geaendert()) { pizza.setzeGroesse((groesse.wert() / 90)); }
+    falls (kaesemenge.geaendert()) {
+        kaese.kreis().setzeRadius((15 + kaesemenge.wert() * 64));
+        kaese.sichtbar((kaesemenge.wert() > 0.02));
+    }
+    falls (!imOfen) {
+        falls (salami.geklickt()) { lege("salami"); }
+        falls (basilikum.geklickt()) { lege("basilikum"); }
+        falls (leeren.geklickt()) {
+            für (Teil t : belag.kinder()) { t.entferne(); }
+            stuecke = 0;
+            backofen.setzeWert(0);
+            teig.kreis().setzeFarbe("teig");
+            status.text().setzeInhalt("Bereit für den Ofen");
+        }
+        falls (backen.geklickt() && backofen.wert() < 1) {
+            imOfen = ja;
+            für (Taster k : [salami, basilikum, leeren, backen]) { k.setzeAktiv(nein); }
+            status.text().setzeInhalt("Im Ofen …");
+        }
+    } sonst {
+        backofen.setzeWert(Mathe.min(1, backofen.wert() + 1 / 90));
+        falls (backofen.wert() >= 1) {
+            imOfen = nein;
+            für (Taster k : [salami, basilikum, leeren, backen]) { k.setzeAktiv(ja); }
+            teig.kreis().setzeFarbe("#e0a860");
+            status.text().setzeInhalt(("Fertig: " + stuecke + " Beläge, " + groesse.wert().runden(0) + " mm"));
+        }
+    }
+});
+Bote.sage(("Pizza mit " + stuecke + " Belägen, Größe " + groesse.wert().runden(1) + ", Käse " + kaesemenge.wert().runden(2)
+    + ", Ofen " + backofen.wert().runden(2) + ", Tafel bei " + tafel.x() + "/" + tafel.y()));

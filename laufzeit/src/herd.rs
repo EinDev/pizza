@@ -80,6 +80,7 @@ extern "C" {
     #[link_name = "bildchen_neu"] fn k_bildchen_neu(zp: i32, zn: i32, fp: i32, fn_: i32) -> i32;
     #[link_name = "bildchen_teigling"] fn k_bildchen_teigling(p: i32, n: i32) -> i32;
     #[link_name = "ressource_hole"] fn k_ressource_hole(id: i32, was: i32) -> f64;
+    #[link_name = "eingabe"] fn k_eingabe(maus_x: f64, maus_y: f64, knoepfe: i32) -> i32;
     #[link_name = "takt"] fn k_takt() -> i32;
     #[link_name = "bild"] fn k_bild(n: i32) -> i32;
     #[link_name = "paket_voll"] fn k_paket_voll() -> i32;
@@ -1155,6 +1156,9 @@ fn backe(fw: W, knoten: i32) {
             let h = welt();
             h.bildnummer += 1.0;
             h.erster = i == 0;
+            // H-K12 (K-151): Eingabezustand an den Kern – je Takt vor fn() (UI-Bausteine, Blick.mausX)
+            if hi(unsafe { k_eingabe(h.maus_x, h.maus_y, h.knoepfe as i32) }).is_none() { return; }
+            let h = welt();
             // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt)
             unsafe { crate::pf::LIMIT_BASIS = z().schritte; }
             crate::pf::neu_grenze();

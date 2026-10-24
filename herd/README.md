@@ -58,6 +58,7 @@ pub static ARTEN: &[&Art] = &[
     &fliesen::ART,                                     // 24 (H-K10; Bildbeitrag nur im Sichtfenster, feste Kacheln in wucht.rs)
     &kulisse::ART,                                     // 25 (H-K9, Ruhe bei aktiv: nein)
     &himmelszelt::ART,                                 // 26 (H-K11b, Bildbeitrag: Abschnitt HIMMELSZELT)
+    &taster::ART, &leiste::ART, &regler::ART, &tafel::ART, // 27–30 (H-K12, UI; Taster macht im Nachlauf den Maus-Durchgang)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -89,6 +90,8 @@ ist abgeleitet und nicht im Szenen-Hash. `welt_sichtbar` enthält ihn (`aktualis
 keine Hülle (`trifft` → nein) und keine Fühler-Form. **Jedes Takt-/Nachlauf-System prüft `komponenten::wach(w, teil)`** (Zeile
 nur, wenn das Teil lebt und wach ist) bzw. `komponenten::ruht(w, teil)`, bevor es Zustand ändert; Kameras und Blicke zählen nur wach.
 Ausnahme: reine Caches der eigenen Felder ohne Wirkung auf die Welt (`Vieleck`-Zerlegung, `Gelaende`-Netz) laufen weiter – Kopien erben sie.
+`lies: Some(f)` (H-K12: **berechnetes Lesefeld** `fn(&mut Welt, art, zeile, feld) -> Option<f64>` – `hole_zahl` fragt zuerst hier, `None`
+= Spalte lesen; die Spalte bleibt unverändert, also auch der Szenen-Hash. Erster Nutzer: `Blick.mausX`/`mausY`).
 
 Feldtypen (Nummer im Schema): 1 `zahl` (f64, Bereich), 2 `ganz`, 3 `diavolo` (0/1), 4 `text`, 5 `wahl` (Index in fester Liste),
 6 `farbe` (RGBA8 + Text, wie gesetzt), 7 `teil`, 8 `form`, 9 `bildchen` (IDs, 0 = karton), 10 `bildchen-liste`, 11 `teil-liste`
@@ -99,7 +102,14 @@ lesen.`, Code 32; nur Systeme schreiben über den Speicher) und `.nachtrag()` (*
 solange der Wert bitgleich dem Standard ist – so bekommt eine bestehende Komponente neue Felder, ohne dass sich Hashes bestehender
 Programme ändern; öffentliche Nachtragsfelder stehen vor den verborgenen, Konstanten für verborgene Spalten also mitziehen).
 Erstes Nachtragsfeld einer v1-Komponente: `Koerper.belag` (H-K2, Typ `teil`, Standard karton → Material des `Belag` an diesem
-Teil; `Koerper` hat keine verborgenen Spalten).
+Teil; `Koerper` hat keine verborgenen Spalten). `Blick.mausX`/`mausY` (H-K12) sind Nachtrags- **und** Lesefelder, berechnet über `lies`.
+
+**Eingabezustand und UI (H-K12, K-151):** `Welt::eingabe` hält Maus (Spielfeld), Knöpfe, Knöpfe des Vortakts (am Ende von `takt`
+übernommen), das oberste Ziel unter der Maus, das gefangene und das losgelassene Ziel und den Griff einer gezogenen Tafel – nicht im
+Szenen-Hash. `komponenten/ui.rs` enthält das Gemeinsame: `mauslage` (Maus in Welt bzw. Spielfeld je nach `festAb` des aktiven Blicks,
+Umkehrung der Sicht über `blick::welt_punkt`), `lokal`/`im_rechteck` (Umkehrung der Welt-Matrix), `treffer` (höchste Ebene, dann
+höchste ID; Ziele `Taster` aktiv, `Regler`, `Tafel`), `durchgang` (Treffer, Fangen beim Drücken der linken Taste, Freigeben beim
+Loslassen; läuft im Nachlauf von `Taster`, der kleinsten Typnummer der vier), `text_mittig` (Glyphen senkrecht mittig nach Auf-/Abstieg).
 Systeme, die Listenfelder lesen und zugleich Zahlenfelder schreiben, holen beides auf einmal mit
 `Speicher::zahlen_puffer_mut([zahl-felder], [listen-felder])` (H-K4 `Ablauf`; disjunkte Spalten wie `zahlen_mut`).
 Anleitung für neue Komponenten: §8 und HERD.md §9.
@@ -114,7 +124,7 @@ Speicher gewachsen sein – JS-Ansichten (`Uint8Array` auf `memory.buffer`) dana
 
 **Direkt bindbar** (rein numerisch, kein fremder Speicher; `setze_zahlen`/`hole_zahlen` gehen wie Listen über den Austauschpuffer): ein Programm-Wasm kann diese Importe im Browser unmittelbar an
 die Exporte von `kern.wasm` binden (`imports.herd = kern.exports`): `teil_*` (außer `teil_kinder`), `komp_*`, `setze_zahl`,
-`hole_zahl`, `form_grund`, `ressource_hole`, `takt`, `bild`, `paket_voll`, `fehler_art`, `fehler_code`, `fehler_neu`,
+`hole_zahl`, `form_grund`, `ressource_hole`, `eingabe`, `takt`, `bild`, `paket_voll`, `fehler_art`, `fehler_code`, `fehler_neu`,
 `welt_hole`. Alles mit Texten/Listen geht über eine kleine Hülle, die zwischen den Speichern kopiert (selten).
 
 **Fehlerprotokoll.** i32-Rückgaben: ≥ 0 Erfolg (ID, Länge, 0), **< 0 = −Fehlerart**. f64-Rückgaben: **NaN** bei Fehler
@@ -173,7 +183,8 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `bildchen_rgba` | `(breite, hoehe, ptr) → id` | breite × hoehe × 4 Bytes RGBA8 |
 | `bildchen_teigling` | `(ptr, len) → id` | `len` Bytes eines **Teiglings** (§11.2, `Bildchen.laden`, PROJEKTE PD1): prüft **nur den Kopf** (Magie, Version 1, Pixelformat 0, Größe 1 … 2048, Stufenzahl bis 1 × 1, jede Stufenlänge, Gesamtlänge) und übernimmt die Bytes als **eigene Textur** mit Mip-Kette (nicht im Atlas; `ressource_hole` Art 2 = Bildchen, Breite/Höhe = Stufe 0). Fehler-Teigling Code 1 bzw. ungültiger Kopf → Code 61, Code 2 → Code 62 (`LaufzeitAnanas`). Vor `welt_neu` → Code 3 |
 | `ressource_hole` | `(id, was) → f64` | 1 Art (1 Form, 2 Bildchen), 2 Breite, 3 Höhe, 4 Ecken, 5 Dreiecke |
-| `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60 |
+| `eingabe` | `(maus_x f64, maus_y f64, knoepfe) → 0` | Eingabezustand für die folgenden Takte (H-K12, K-151): Maus in Spielfeld-Koordinaten, Knöpfe 1 links · 2 rechts · 4 Mitte. Die Anbindung ruft es **je Takt vor `fn()`**; nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 bleiben stehen. Nicht im Szenen-Hash, wirkt nur über Lesefelder (`Taster`, `Regler`, `Tafel`, `Blick.mausX`). Vor `welt_neu` → Code 3 |
+| `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60; danach gilt der Knopfstand als Vortakt |
 | `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
 | `bild_zeiger` | `() → ptr` | |
 | `paket_voll` | `() → 0` | nächstes Paket enthält wieder alle Ressourcen (neue Glut, Fenster neu geöffnet) |
@@ -332,6 +343,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
   1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.

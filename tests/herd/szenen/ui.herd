@@ -1,0 +1,135 @@
+# H-K12 (HERD.md §12.4): UI-Bausteine und Maus im Kern. N Taster, Regler und Leisten in Weltlage (teils gedreht/skaliert), eine
+# ziehbare Tafel mit Kindern als HUD (ebene ≥ festAb), ein aktiver Blick mit Zoom und Drehung (Welt-Maus über die Umkehrung der
+# Sicht, libm::sin/cos), Maus und Knöpfe per `eingabe` je Takt. Ausgegeben werden Lesefelder, Werte, Lage der Tafel, Blick.mausX/Y
+# und je Takt die Hashes – test-kern.js vergleicht Trefferregel, Fangen/Loslassen, Ziehen und Bildbeiträge nativ gegen Wasm.
+vorgabe N 40
+vorgabe TAKTE 40
+welt_neu 640 360 "UI"
+typ_nummer "Taster" -> T_T
+typ_nummer "Leiste" -> T_L
+typ_nummer "Regler" -> T_R
+typ_nummer "Tafel" -> T_F
+typ_nummer "Blick" -> T_B
+feld_nummer T_T "inhalt" -> T_INHALT
+feld_nummer T_T "breite" -> T_BREITE
+feld_nummer T_T "aktiv" -> T_AKTIV
+feld_nummer T_T "drueber" -> T_DRUEBER
+feld_nummer T_T "gedrueckt" -> T_GEDRUECKT
+feld_nummer T_T "geklickt" -> T_GEKLICKT
+feld_nummer T_L "wert" -> L_WERT
+feld_nummer T_R "wert" -> R_WERT
+feld_nummer T_R "von" -> R_VON
+feld_nummer T_R "bis" -> R_BIS
+feld_nummer T_R "geaendert" -> R_GEAENDERT
+feld_nummer T_F "titel" -> F_TITEL
+feld_nummer T_F "ziehbar" -> F_ZIEHBAR
+feld_nummer T_B "zoom" -> B_ZOOM
+feld_nummer T_B "mausX" -> B_MX
+feld_nummer T_B "mausY" -> B_MY
+# Lesefelder und Bereiche
+komp_neu T_T -> probe
+setze_zahl probe T_DRUEBER 1
+fehler_text
+komp_neu T_L -> probe_l
+setze_zahl probe_l L_WERT 2
+fehler_text
+# Blick: Mitte (320, 180), zoom 1.25, um 10° gedreht
+teil_neu 2 -> kam
+teil_lage kam 320 180 0
+teil_setze kam 4 10
+komp_neu T_B -> blick
+setze_zahl blick B_ZOOM 1.25
+komp_haenge blick kam
+# Welt: Raster aus Tastern (jeder vierte inaktiv, jeder dritte gedreht), Reglern und Leisten
+wiederhole N i
+  teil_neu 2 -> t
+  teil_lage t (40 + (i % 8) * 80) (30 + boden(i / 8) * 60) 0
+  teil_setze t 4 ((i % 3) * 15)
+  teil_setze t 10 (i % 2)
+  komp_neu T_T -> k
+  setze_text k T_INHALT "Los"
+  setze_zahl k T_BREITE (50 + i % 30)
+  setze_zahl k T_AKTIV (1 - boden((i % 4) / 3))
+  komp_haenge k t
+  teil_neu 2 -> r
+  teil_lage r (40 + (i % 8) * 80) (52 + boden(i / 8) * 60) 0
+  teil_setze r 7 (0.5 + (i % 3) * 0.25)
+  komp_neu T_R -> rk
+  setze_zahl rk R_VON (i % 5)
+  setze_zahl rk R_BIS (10 - i % 7)
+  komp_haenge rk r
+  teil_neu 2 -> l
+  teil_lage l (40 + (i % 8) * 80) (12 + boden(i / 8) * 60) 0
+  komp_neu T_L -> lk
+  setze_zahl lk L_WERT (zufall(i))
+  komp_haenge lk l
+ende
+# HUD: ziehbare Tafel (Ebene 1000) mit einem Taster und einem Regler als Kinder
+teil_neu 2 -> tafel
+teil_lage tafel 520 280 0
+teil_setze tafel 10 1000
+komp_neu T_F -> tf
+setze_text tf F_TITEL "Zutaten"
+setze_zahl tf F_ZIEHBAR 1
+komp_haenge tf tafel
+teil_neu 2 -> hk
+teil_lage hk 0 20 0
+teil_setze hk 10 1000
+teil_haenge hk tafel
+komp_neu T_T -> hkt
+setze_text hkt T_INHALT "Backen"
+komp_haenge hkt hk
+teil_neu 2 -> hr
+teil_lage hr 0 60 0
+teil_setze hr 10 1000
+teil_haenge hr tafel
+komp_neu T_R -> hrk
+komp_haenge hrk hr
+# Mausfahrten: zufällige Punkte, Knopf in Phasen gedrückt
+wiederhole TAKTE j
+  eingabe (zufall(j * 3) * 640) (zufall(j * 3 + 1) * 360) (boden(j / 3) % 2)
+  takt
+  bild
+  hole_zahl blick B_MX
+  hole_zahl blick B_MY
+  hole_zahl k T_DRUEBER
+  hole_zahl rk R_WERT
+  hole_zahl rk R_GEAENDERT
+ende
+# gezielt: Taster der Tafel klicken (HUD, Spielfeld-Koordinaten), Regler der Tafel ziehen, Tafel ziehen
+eingabe 520 300 0
+takt
+eingabe 520 300 1
+takt
+hole_zahl hkt T_GEDRUECKT
+eingabe 520 300 0
+takt
+hole_zahl hkt T_GEKLICKT
+hole_zahl hkt T_DRUEBER
+takt
+hole_zahl hkt T_GEKLICKT
+eingabe 520 340 1
+takt
+eingabe 600 340 1
+takt
+hole_zahl hrk R_WERT
+hole_zahl hrk R_GEAENDERT
+eingabe 600 340 0
+takt
+eingabe 450 215 1
+takt
+eingabe 400 200 1
+takt
+eingabe 350 190 1
+takt
+eingabe 350 190 0
+takt
+teil_hole tafel 1
+teil_hole tafel 2
+hole_zahl blick B_MX
+hole_zahl blick B_MY
+bild
+# ungültige Eingaben ändern nichts
+eingabe (0 / 0) 5 9
+hole_zahl blick B_MX
+takte 2

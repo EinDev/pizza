@@ -63,6 +63,37 @@ pub struct KompOrt {
     pub weg_teil: u32,
 }
 
+/// Eingabezustand im Kern (H-K12, K-151): Maus in Spielfeld-Koordinaten und Knöpfe aus dem `takt`-Ereignis (Export `eingabe`),
+/// dazu der Zustand der UI-Bausteine (`Taster`, `Regler`, `Tafel`). **Nicht im Szenen-Hash** – er wirkt nur über Lesefelder.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Eingabe {
+    /// Maus in Spielfeld-Koordinaten (Anfang 0, 0)
+    pub maus: [f64; 2],
+    /// Knöpfe: Bit 0 links, 1 rechts, 2 Mitte (Touch = links)
+    pub knoepfe: u32,
+    /// Knöpfe im vorigen Takt (am Ende von `Welt::takt` übernommen): Drücken/Loslassen = Wechsel gegenüber diesem Stand
+    pub vor_knoepfe: u32,
+    /// oberstes UI-Element unter der Maus in diesem Takt (Teil-ID, 0 = keines)
+    pub treffer: u32,
+    /// UI-Element, auf dem die linke Taste gedrückt wurde und die noch gehalten wird (0 = keines)
+    pub gefangen: u32,
+    /// in diesem Takt losgelassen: das bis eben gefangene Element (0 = keines)
+    pub los: u32,
+    /// Maus beim letzten Zug des gefangenen Elements (in dessen Raum: Welt oder Spielfeld), für `Tafel.ziehbar`
+    pub griff: [f64; 2],
+}
+
+impl Eingabe {
+    /// Linke Taste in diesem Takt neu gedrückt.
+    pub fn gedrueckt(&self) -> bool {
+        self.knoepfe & 1 != 0 && self.vor_knoepfe & 1 == 0
+    }
+    /// Linke Taste in diesem Takt losgelassen.
+    pub fn losgelassen(&self) -> bool {
+        self.knoepfe & 1 == 0 && self.vor_knoepfe & 1 != 0
+    }
+}
+
 #[derive(Clone)]
 pub struct Welt {
     pub breite: u32,
@@ -82,6 +113,8 @@ pub struct Welt {
     pub ressourcen: Ressourcen,
     /// Anzahl gelaufener Takte (Systeme)
     pub takte: u64,
+    /// Eingabezustand (H-K12; nicht im Szenen-Hash)
+    pub eingabe: Eingabe,
 }
 
 fn rot2(g: f64) -> (f64, f64) {
@@ -110,6 +143,7 @@ impl Welt {
             komp_ort: vec![KompOrt::default()],
             ressourcen: Ressourcen::default(),
             takte: 0,
+            eingabe: Eingabe::default(),
         };
         // Teil 1: Kamera (0, 3, 8) → schaut auf (0, 0, 0); Teil 2: Sonne, Lage = Richtung zur Sonne.
         let kamera = w.teil_neu(true);
@@ -573,6 +607,8 @@ impl Welt {
             }
         }
         self.takte += 1;
+        // H-K12: Drücken/Loslassen gilt nur in dem Takt, in dem es geschah
+        self.eingabe.vor_knoepfe = self.eingabe.knoepfe;
     }
 
     /// Hülle eines Teils (erste Komponente mit Hülle in Registry-Reihenfolge).

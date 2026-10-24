@@ -2125,6 +2125,36 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `Fuehler.beruehrt`. Ohne feste Kacheln bleibt der Löser bitgleich. **Nachweis:** `tests::hk10` (Gleiten über Fugen mit tempoY = 0
   und amBoden in jedem Takt, Fall an einer Kachelwand ohne Haken, Stapel ruht, Maske ohne Gruppe 1, ohne feste Kacheln bitgleich),
   `fliesen.herd` in `node herd/test-kern.js`, Fall `herd-fliesen.*`, Beispiel `huepfwelt.pizza`.
+
+### K-151 Herd: Maus im Kern und UI-Bausteine `Taster`, `Leiste`, `Regler`, `Tafel` (H-K12)
+- **Frage:** Wie kommen Schaltflächen, Füllbalken, Schieberegler und Tafeln (Unity uGUI mit EventSystem) in den Herd, bitgleich in
+  Interpreter, Wasm und nativem Host und gleich im Playground-Vorschaufenster wie im nativen Fenster – ohne bestehende Hashes zu ändern?
+- **Entscheidung:** Neuer Kern-Export **`eingabe(maus_x f64, maus_y f64, knoepfe i32) → i32`** (HOST-ABI §2, additiv in v2; keine Welt →
+  Fehler Code 3; nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 lassen den alten Wert stehen). Alle drei Motoren rufen ihn in **jedem** Takt
+  vor `fn()` mit dem Eingabezustand aus §18.3 (dieselbe Quelle wie `herd.mausX()`); die Fenster (winit, Render-Worker/`zeichner.js`)
+  liefern Maus und Knöpfe schon gleich (inkl. kurzer Klicks innerhalb eines Bilds) – keine Fenster- oder UI-Änderung. Der Kern hält den
+  Eingabezustand in `Welt::eingabe` (Maus, Knöpfe, Knöpfe des Vortakts – übernommen am Ende von `Welt::takt`, damit mehrere Takte
+  eines Ereignisses nur im ersten eine Kante sehen –, oberstes Ziel, gefangenes Ziel, losgelassenes Ziel, Griff); er ist **nicht im
+  Szenen-Hash** und wirkt nur über Lesefelder. **Trefferregel:** oberstes Ziel = höchste `ebene`, dann höchste Teil-ID (wie gezeichnet);
+  Ziele: sichtbare `Taster` (nur `aktiv`), `Regler`, `Tafel` (die `Leiste` ist nur Anzeige); `ebene ≥ festAb` des aktiven Blicks prüft in
+  Spielfeld-, sonst in Weltkoordinaten (Umkehrung der Sicht-Matrix); geprüft im lokalen Rechteck (Umkehrung der Welt-Matrix, also
+  gedreht/skaliert), Ränder zählen, nur f64-Grundrechenarten. **Fangen:** Drücken der linken Taste fängt das getroffene Ziel, Loslassen
+  gibt es frei (rechte/mittlere Taste zählen nicht). Ablauf im **Nachlauf** (K-149): `Taster` (kleinste Typnummer der vier) macht den
+  gemeinsamen Durchgang (Treffer, Fangen, Freigeben) und schreibt `drueber` (oberstes Ziel, kein anderes gefangen), `gedrueckt`
+  (gefangen, gehalten – auch außerhalb), `geklickt` (über dem gefangenen Taster losgelassen, ein Takt); `Regler` setzt, solange gefangen,
+  `wert` aus der waagerechten Mauslage (Anteil geklemmt, `bis < von` rückwärts) und `geaendert`; `Tafel` mit `ziehbar` folgt der Maus
+  (Verschiebung im Raum der Eltern), ihr Inhalt sind die Kinder. `Blick` bekommt die Lesefelder `mausX`/`mausY` (Nachtragsfelder) = Maus
+  unter **seiner** Sicht; sie werden **beim Lesen** berechnet (neuer `Art`-Haken `lies`) und nie in die Spalte geschrieben – sonst wären
+  sie ab dem ersten Takt ungleich dem Standard und änderten die Hashes bestehender Blick-Programme. Bildbeiträge nur aus vorhandenen
+  2D-Arten (`RECHTECK`, `KREIS`, `GLYPHE`): kein Bildpaket-, keine Glut-Änderung. **Name `Taster` statt `Knopf`** (Plan §12.4): `Knopf`
+  ist eine Theke-Klasse (THEKE.md); beide Namen in einem Sprachraum hätten Typprüfung, `neu`, Importgruppen und Editor je nach Programm
+  umdeuten müssen. Typnummern in Merge-Reihenfolge: 27 `Taster`, 28 `Leiste`, 29 `Regler`, 30 `Tafel` (nach Himmelszelt 26).
+- **Nachweis:** `cargo test` (`tests::hk12`: Schema/Typnummern/Lesefelder, Maus nicht im Hash, Blick-Maus in Weltkoordinaten,
+  Klick-Ablauf mit Wegziehen und rechter Taste, Trefferregel Ebene/ID/Tafel/Leiste, gedreht/skaliert/HUD, Regler, Tafel mit skalierten
+  Eltern, Bildbeiträge), `tests/herd/szenen/ui.herd` in `node herd/test-kern.js` (klein und N = 2 000, nativ = `kern.wasm`), Fälle
+  `herd-taster.*`, `herd-regler.*` (Maus aus `.ereignisse`), Differenz-Korpus `herd-ui-maus` (Interpreter = Wasm = Host), Beispiel
+  `konfigurator.pizza`, E2E `14-herd-playground` (Klick im Vorschaufenster über den Render-Worker). **Status:** fest.
+
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
   samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen
