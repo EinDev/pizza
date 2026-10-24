@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Eine eigene Klasse Pizza",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Luigis Speisekarte als Klasse: Beläge in einem Blech, Preise aus einer tiefkühl-Speisekarte, mit() und ohne() liefern neue Pizzen, alsText() bestimmt die Ausgabe – und gleicht() vergleicht Werte statt Identität."
+}

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Türme von Hanoi mit Pizzakartons",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Trag die Kartons selbst (z. B. „13“) – oder tippe „löse“, und Luigi löst rekursiv aus jeder Stellung. Falsche Züge werfen eine StreitAnanas."
+}

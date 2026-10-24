@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Auflauf: ungefangene Ananas (Exit 1)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Lehrling Toni legt die Tomate auf den Käse – Luigis Regel in der Klasse Pizza wirft eine eigene AuflaufAnanas, die niemand fängt: Das Programm endet mit Exit-Code 1."
+}

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" font-family="system-ui, sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Ein Projekt ist ein Ordner: hauptgang.pizza bestellt rezepte/teig.pizza, Kiste liest daten/zutaten.txt, pruefung/ gehört nicht zum Programm</title>
+  <!-- Projektordner -->
+  <rect x="20" y="30" width="330" height="310" rx="14" fill="#E8C48A" stroke="#C8955A" stroke-width="3"/>
+  <text x="40" y="62" font-size="17" font-weight="bold" fill="#2F2A26">pizzeria/</text>
+  <!-- pizza.json -->
+  <rect x="45" y="78" width="280" height="36" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="60" y="102" font-size="15" fill="#2F2A26">pizza.json  (Name, Hauptdatei)</text>
+  <!-- hauptgang.pizza -->
+  <rect x="45" y="124" width="280" height="36" rx="8" fill="#F2B33D" stroke="#C8955A" stroke-width="2"/>
+  <text x="60" y="148" font-size="15" font-weight="bold" fill="#2F2A26">★ hauptgang.pizza</text>
+  <!-- rezepte/teig.pizza -->
+  <rect x="45" y="170" width="280" height="36" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="60" y="194" font-size="15" fill="#2F2A26">rezepte/teig.pizza</text>
+  <!-- daten/zutaten.txt -->
+  <rect x="45" y="216" width="280" height="36" rx="8" fill="#FFF6E0" stroke="#E6D3A8" stroke-width="2"/>
+  <text x="60" y="240" font-size="15" fill="#2F2A26">daten/zutaten.txt</text>
+  <!-- pruefung/ -->
+  <rect x="45" y="282" width="280" height="36" rx="8" fill="none" stroke="#C8955A" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="60" y="306" font-size="15" fill="#2F2A26">pruefung/  (nur für Tests)</text>
+  <!-- Pfeile -->
+  <g stroke="#3E8E41" stroke-width="3" fill="none">
+    <path d="M325 142 C 352 150, 352 180, 325 188"/>
+    <path d="M325 146 C 372 165, 372 215, 325 234"/>
+  </g>
+  <g fill="#3E8E41">
+    <path d="M325 188 l 10 -8 l 2 12 z"/>
+    <path d="M325 234 l 10 -8 l 2 12 z"/>
+  </g>
+  <!-- Erklärungen -->
+  <g fill="#2F2A26">
+    <text x="390" y="100" font-size="16" font-weight="bold">Hauptdatei</text>
+    <text x="390" y="120" font-size="14">hier läuft das Programm los</text>
+    <text x="390" y="170" font-size="16" font-weight="bold" fill="#3E8E41">bestellt "rezepte/teig.pizza";</text>
+    <text x="390" y="190" font-size="14">holt Klassen und Funktionen</text>
+    <text x="390" y="235" font-size="16" font-weight="bold" fill="#3E8E41">Kiste.text("daten/…")</text>
+    <text x="390" y="255" font-size="14">liest Dateien des Projekts</text>
+    <text x="390" y="300" font-size="16" font-weight="bold">pruefung/</text>
+    <text x="390" y="320" font-size="14">gehört nicht zum Programm</text>
+  </g>
+</svg>

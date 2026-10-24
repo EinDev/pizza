@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Speisekarte (Map)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine Bestellübersicht mit zwei Speisekarten: lege, hole, hat, entferne und Iteration über die Schlüssel."
+}

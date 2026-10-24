@@ -15,7 +15,7 @@ function backe(code) {
 }
 
 const hallo = backe('Bote.sage(("Hallo"));');
-const herd = backe(fs.readFileSync(new URL("../../site/beispiele/herd/wuerfel.pizza", import.meta.url), "utf8"));
+const herd = backe(fs.readFileSync(new URL("../../site/beispiele/herd/wuerfel/hauptgang.pizza", import.meta.url), "utf8"));
 
 // Gruppen aus der Custom Section (ohne WebAssembly.compile)
 assert.deepEqual(PizzaExe.gruppen(hallo), []);

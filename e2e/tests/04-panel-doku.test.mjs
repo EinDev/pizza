@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, strg, zeigePanelTab, setzePanel, panelOffen, warteLaufEnde, konsolenAusgabe, exitBadge, EXIT_TEXT, editorTabs, schlafe, bereit,
+  baumDateien,
 } from "../hilfen.mjs";
 
 const P = "#doku-panel";
@@ -237,6 +238,22 @@ e2e("Doku: „Im Editor öffnen“ und „Öffnen & backen“ aus dem Panel", as
   await warteLaufEnde(page);
   assert.equal((await editorTabs(page)).filter((t) => t.name === tab.name).length, 1, "kein doppelter Tab");
   assert.equal((await konsolenAusgabe(page)).trimEnd(), ziel.ausgabe.trimEnd());
+});
+
+// PB3: Doku-Block mit `dateien` (ARCHITEKTUR §4) – zeigt jede Datei mit Kopfzeile, „Öffnen & backen“ legt ein Mehrdatei-Projekt an
+e2e("Doku: Mehrdatei-Block (dateien) öffnet ein Projekt und backt die Hauptdatei", async ({ page, oeffne }) => {
+  await oeffne();
+  await zeigePanelTab(page, "doku");
+  await dokuBereit(page);
+  const fig = `${P} .doku-abschnitt[data-id="projekte"] > .doku-code-projekt`;
+  await page.waitForSelector(fig);
+  assert.deepEqual(await page.$eval(fig, (f) => [...f.querySelectorAll('[data-testid="doku-code-datei"]')].map((d) => d.textContent)),
+    ["★ hauptgang.pizza", "rezepte/teig.pizza"], "je Datei eine Kopfzeile, Hauptdatei mit ★");
+  await page.$eval(fig + " .icon-knopf.primaer", (k) => { k.scrollIntoView({ block: "center" }); k.click(); });
+  await warteLaufEnde(page);
+  assert.equal((await konsolenAusgabe(page)).trimEnd(), "250 g Teig, bereit für den Ofen\nOfen: 450 Grad");
+  assert.equal((await editorTabs(page)).find((t) => t.aktiv).name, "hauptgang.pizza", "Hauptdatei offen");
+  assert.deepEqual((await baumDateien(page)).sort(), ["hauptgang.pizza", "rezepte/teig.pizza"], "beide Dateien im Projekt");
 });
 
 e2e("Doku-Layout: im schmalen Panel steht das Inhaltsverzeichnis oben, der Artikel nutzt die volle Breite", async ({ page, oeffne }) => {

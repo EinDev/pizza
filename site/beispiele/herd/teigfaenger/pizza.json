@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Teigfänger (2D-Spiel)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Fang mit deiner Pizza die Beläge, die vor dem Steinofen herabregnen – aber bloß keine Ananas! Pixel-Bildchen mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand und ein HUD. Pfeiltasten, Leertaste für eine neue Runde."
+}

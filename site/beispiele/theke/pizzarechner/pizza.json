@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizzarechner",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Anzahl eintippen, Extras anhaken – Text und Farbe des Preis-Schilds sind mit binde/bindeStil an Eingabe und Haken gebunden und folgen jeder Änderung von selbst, ohne beiAenderung; mit währung(\"€\") und freundlicher Meldung bei Tippfehlern."
+}

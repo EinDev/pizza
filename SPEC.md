@@ -580,8 +580,8 @@ ausgegeben werden. Nach **jedem** Leseversuch folgt `{ typ: "eingabe", text }` (
 
 **`.erwartet` (ARCHITEKTUR §3):** `ausgabe` mit `umbruch: false` wird ohne Zeilenumbruch angehängt (der nächste Text
 steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `eingabe`-Ereignisse erscheinen **nicht**.
-Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
-gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
+Beispiele (Projektordner, K-144): die Eingabe liegt in `<ordner>/pruefung/eingabe` (eine Zeile pro Eingabe), das Manifest markiert
+Spiele mit `"interaktiv": true` (ARCHITEKTUR §3/§6).
 
 ### 11.2 `Kiste` – Projektdateien lesen (K-146; umgesetzt im Interpreter mit PROJEKTE.md PD2, in Wasm/Host mit PA2 – die Sammlung liefert `projekt.lade` als `kiste`)
 

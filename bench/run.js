@@ -86,7 +86,7 @@ function main() {
   // Beispielprogramme inkl. Kompilierzeit
   let sumI = 0, sumW = 0, sumK = 0, anzahl = 0;
   for (const f of korpus.beispiele()) {
-    const p = { name: f.name, quelle: f.quelle, opt: f.opt, ziel: 1 };
+    const p = { name: f.name, quelle: typeof f.quelle === 'string' ? f.quelle : f.text, opt: f.opt, ziel: 1 };   // Mehrdatei → Hauptdatei (nur Zeitmessung)
     const r = vergleich(p);
     if (r.fehler) continue;
     sumI += r.interpreterMs; sumW += r.wasmMs; sumK += r.kompilierMs; anzahl++;

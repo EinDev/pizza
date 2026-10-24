@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Was passt in den Lieferroller?",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Das Rucksackproblem: Welche Bestellungen bringen in 20 Litern das meiste Trinkgeld? @Kühlschrank merkt sich Teilergebnisse – dynamische Programmierung."
+}

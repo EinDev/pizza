@@ -830,6 +830,126 @@ klasse Pizzabrot erbt Brot {
         ] }
       ]
     },
+    {
+      id: "projekte",
+      gruppe: "Sprache",
+      ordnung: 295,
+      titel: "Projekte und Dateien",
+      tier: 1,
+      inhalt: [
+        { art: "kurz", md: "Wird ein Programm groß, verteilst du es auf mehrere Dateien in einem **Projekt** (einem Ordner). Mit `bestellt \"rezepte/teig.pizza\";` holt sich eine Datei die Klassen und Funktionen einer anderen." },
+        bild("sp-projekt.svg", "Ein Projektordner pizzeria/ mit pizza.json, der Hauptdatei hauptgang.pizza, rezepte/teig.pizza und daten/zutaten.txt. Pfeile: hauptgang.pizza bestellt rezepte/teig.pizza, Kiste liest daten/zutaten.txt. Der Ordner pruefung/ ist gestrichelt – er gehört nicht zum Programm.", "Ein Ordner, mehrere Dateien – eine davon ist die Hauptdatei."),
+        { art: "code", dateien: {
+          "hauptgang.pizza": code`
+bestellt "rezepte/teig.pizza";
+
+Teig teig = neu Teig(250);
+Bote.sage(teig);
+Bote.sage(("Ofen: " + OFEN_GRAD + " Grad"));
+`,
+          "rezepte/teig.pizza": code`
+salami OFEN_GRAD = 450;
+
+klasse Teig {
+    salami gramm = 0;
+    Teig(salami gramm) { dies.gramm = gramm; }
+    margherita alsText() {
+        serviere ((gramm + " g Teig, bereit für den Ofen"));
+    }
+}
+`,
+        }, ausfuehrbar: true, tier: 1 },
+        { art: "ausgabe", text: "250 g Teig, bereit für den Ofen\nOfen: 450 Grad" },
+        { art: "hinweis", ton: "pizza", md: "Im Playground öffnet **„Im Editor öffnen“** beide Dateien als ein Projekt: links der Dateibaum, oben ein Tab je Datei. **Backen** startet immer die Hauptdatei (★) – egal, welcher Tab gerade vorn ist." },
+        { art: "details", titel: "Die Regeln: Hauptdatei, Nebendateien, Reihenfolge", inhalt: [
+          { art: "tabelle", kopf: ["Regel", "Bedeutung"], zeilen: [
+            ["**Hauptdatei**", "`hauptdatei` aus der `pizza.json`, sonst `hauptgang.pizza`, sonst die einzige `.pizza`-Datei. Nur hier stehen Anweisungen und `hauptgang`."],
+            ["**Nebendateien**", "nur Rezepte: Klassen, Rezepturen, quattrostagioni, Funktionen, Variablen und `bestellt`. Ein `Bote.sage(…)` dort ist `P0017`."],
+            ["**`bestellt`**", "Pfad relativ zur **Projektwurzel**, nur ganz oben in der Datei. Dieselbe Datei zweimal bestellt: Warnung `W0004`."],
+            ["**Reihenfolge**", "Bestellte Dateien laden zuerst (in der Reihenfolge der `bestellt`-Zeilen), die Hauptdatei zuletzt. Ihre Variablen sind also schon gesetzt, wenn die Hauptdatei loslegt."],
+            ["**Kreis**", "Bestellt eine Datei (über Umwege) sich selbst oder die Hauptdatei: `P0014`. Was alle brauchen, gehört in eine eigene Nebendatei."],
+            ["**Ein Namensraum**", "Jeder Name gibt es im ganzen Projekt nur einmal – `Teig` in zwei Dateien ist `P0016`."]
+          ] },
+          { art: "text", md: "**Pfade** bestehen nur aus `a–z`, `0–9`, `-`, `_`, `.` und `/` – also `rezepte/belaege.pizza`, nicht `Rezepte/Beläge.pizza`. Erlaubt sind `.pizza`, Bilder (`.png`, `.jpg`) und Texte (`.txt`, `.json`, `.csv`, `.md`); höchstens 100 Dateien und 8 MB (`P0020`)." },
+          { art: "text", md: "Fehler zeigen jetzt auch die Datei: `Ungefangene Ananas – RechenAnanas: … (rezepte/ofen.pizza, Zeile 2)`. Ein Klick auf die Meldung in der Konsole öffnet die Datei an der richtigen Stelle." }
+        ] },
+        { art: "details", titel: "Sichtbarkeit: direkt bestellt und Geheimrezept", inhalt: [
+          { art: "text", md: "Eine Datei sieht nur, was sie **selbst** bestellt – nicht, was ihre Bestellungen wiederum bestellen. Hier benutzt `rezepte/pizza.pizza` den `Teig`, bestellt ihn aber nicht. Das findet der Ofen schon vor dem Start (`P0019`, Exit-Code 2) und sagt gleich, welche Zeile fehlt:" },
+          { art: "code", dateien: {
+            "hauptgang.pizza": code`
+bestellt "rezepte/teig.pizza";
+bestellt "rezepte/pizza.pizza";
+
+Bote.sage((neu Margherita()));
+`,
+            "rezepte/pizza.pizza": code`
+klasse Margherita {
+    margherita alsText() { serviere (("Margherita auf " + neu Teig())); }
+}
+`,
+            "rezepte/teig.pizza": code`
+klasse Teig {
+    margherita alsText() { serviere (("Hefeteig")); }
+}
+`,
+          }, ausfuehrbar: true, exitCode: 2, tier: 1 },
+          { art: "hinweis", ton: "warnung", md: "In der Konsole steht dann: `PizzaFehler P0019: 'Teig' kommt aus rezepte/teig.pizza – bestelle die Datei hier: bestellt \"rezepte/teig.pizza\";` mit Datei und Zeile – ein Klick springt hin." },
+          { art: "text", md: "Mit `geheimrezept` vor einem obersten Namen bleibt er in seiner Datei – praktisch für Hilfsfunktionen und Zutaten, die niemand von außen anfassen soll. Zugriff von außen: `P0018`." },
+          { art: "code", dateien: {
+            "hauptgang.pizza": code`
+bestellt "rezepte/sosse.pizza";
+
+Bote.sage((tomatensosse()));
+`,
+            "rezepte/sosse.pizza": code`
+geheimrezept salami salz = 3;
+
+margherita tomatensosse() {
+    serviere (("Tomatensoße mit " + salz + " Prisen Salz"));
+}
+`,
+          }, ausfuehrbar: true, tier: 1 },
+          { art: "ausgabe", text: "Tomatensoße mit 3 Prisen Salz" }
+        ] },
+        { art: "details", titel: "Die Kiste: Dateien des Projekts lesen", inhalt: [
+          { art: "text", md: "**`Kiste`** ist die Lieferkiste deines Projekts: Sie liest jede Datei (außer `pruefung/`) – zum Beispiel ein Level, eine Speisekarte oder Texte. Schreiben kann sie nicht; dafür gibt es die Vorratskammer." },
+          { art: "code", dateien: {
+            "hauptgang.pizza": code`
+für (margherita zutat : Kiste.zeilen("daten/zutaten.txt")) {
+    Bote.sage(("Auf die Pizza: " + zutat));
+}
+Bote.sage((Kiste.liste()));
+`,
+            "daten/zutaten.txt": code`
+Tomate
+Mozzarella
+Basilikum
+`,
+          }, ausfuehrbar: true, tier: 1 },
+          { art: "ausgabe", text: "Auf die Pizza: Tomate\nAuf die Pizza: Mozzarella\nAuf die Pizza: Basilikum\n[daten/zutaten.txt, hauptgang.pizza]" },
+          { art: "tabelle", kopf: ["Aufruf", "Ergebnis"], zeilen: [
+            ["`Kiste.text(pfad)`", "Inhalt einer Textdatei (`.txt .json .csv .md .pizza`)"],
+            ["`Kiste.zeilen(pfad)`", "dieselbe Datei als Blech aus Zeilen"],
+            ["`Kiste.gibts(pfad)`", "`ja`, wenn es die Datei gibt"],
+            ["`Kiste.liste(ordner)`", "alle Dateipfade (unter `ordner`), sortiert"]
+          ] },
+          { art: "hinweis", ton: "info", md: "Bilder (`.png`, `.jpg`) lädt der Herd mit `Bildchen.laden(\"bilder/teig.png\")` – siehe *Herd*. Eine fehlende Datei ist eine `LaufzeitAnanas`; in einer EXE liegen alle Projektdateien mit drin, auch die `.pizza`-Quelltexte." }
+        ] },
+        { art: "details", titel: "pizza.json, Beispiele und Kommandozeile", inhalt: [
+          { art: "text", md: "Die Projektdatei **`pizza.json`** ist freiwillig. Sie nennt Name, Hauptdatei, eine Beschreibung und Standard-Argumente für `hauptgang`:" },
+          { art: "code", sprache: "json", code: code`
+{
+  "pizza": 1,
+  "name": "Teigball",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Rolle eine Teigkugel über die Riesenpizza.",
+  "args": []
+}
+` },
+          { art: "text", md: "Jedes Beispiel unter **Beispiele** ist so ein Projektordner (`site/beispiele/<kategorie>/<projekt>/`); Öffnen legt eine eigene Kopie an. Auf der Kommandozeile startest du ein Projekt mit seinem Ordner: `node bin/pizza.js pizzeria/`. Als ZIP, Link oder EXE wandert immer das ganze Projekt mit." }
+        ] }
+      ]
+    },
 
     // ───────────────────────────── ANANAS & HAWAII ─────────────────────────────
     {

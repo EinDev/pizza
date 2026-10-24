@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Groß- & Kleinschreibung",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "PiZZa() und piZZA() wohnen friedlich in derselben Klasse – Groß-/Kleinschreibung ist signifikant (mit Warnung W0032)."
+}

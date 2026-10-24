@@ -204,34 +204,29 @@ function ladeFälle() {
   return fälle;
 }
 
+// Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner = Projekt (Manifest-Dateiliste) mit
+// pruefung/{erwartet, eingabe, ereignisse, ui-erwartet, herd-erwartet, exitcode}; altes Format (Imperium bis PB5) als Text.
 function beispielFälle() {
   const p = "Beispiele (ARCHITEKTUR §3)";
-  return teilB.ladeManifeste().beispiele.map((b) => {
+  return teilB.beispiele().filter((b) => b.erwartet !== null).map((b) => {
     const f = {
-      p, name: `${b.teil} ${b.id}`, code: fs.readFileSync(b.datei, "utf8"), exit: b.exitCode,
-      erwartetDatei: fs.readFileSync(b.erwartet, "utf8"), panikErlaubt: true,
-      eingabe: eingabeZeilen(b),
+      p, name: `${b.teil} ${b.id}`, code: b.programm, exit: b.exitCode,
+      erwartetDatei: b.erwartet, panikErlaubt: true,
+      eingabe: b.eingabe || undefined,
     };
-    // THEKE.md §5 / SPEC §16: .ereignisse (JSON-Lines → uiEreignisse) und .ui-erwartet (JSON-Lines aller ui-Nachrichten)
-    const ev = b.datei.replace(/\.pizza$/, ".ereignisse"), ue = b.datei.replace(/\.pizza$/, ".ui-erwartet");
-    if (fs.existsSync(ev)) f.uiEreignisse = jsonZeilen(fs.readFileSync(ev, "utf8"));
-    if (fs.existsSync(ue)) f.ui = jsonZeilen(fs.readFileSync(ue, "utf8"));
-    const he = b.datei.replace(/\.pizza$/, ".herd-erwartet");   // SPEC §18.7 / K-134
-    if (fs.existsSync(he)) f.herd = jsonZeilen(fs.readFileSync(he, "utf8"));
+    // THEKE.md §5 / SPEC §16: ereignisse (JSON-Lines → uiEreignisse) und ui-erwartet (JSON-Lines aller ui-Nachrichten)
+    const ev = b.ereignisse, ue = b.uiErwartet, he = b.herdErwartet;   // herd-erwartet: SPEC §18.7 / K-134
+    if (ev) f.uiEreignisse = ev;
+    if (ue) f.ui = ue;
+    if (he) f.herd = he;
     // Manifestfelder feste Wanduhr/Zeitzone (K-087/K-154) wie tests/run-tests.js
-    if (typeof b.echtzeit === "number") f.echtzeit = b.echtzeit;
-    if (typeof b.zone === "number") f.zone = b.zone;
+    if (typeof b.optionen.echtzeit === "number") f.echtzeit = b.optionen.echtzeit;
+    if (typeof b.optionen.zone === "number") f.zone = b.optionen.zone;
     return f;
   });
 }
 
-// SPEC §11.1 / ARCHITEKTUR §3: vorgegebene Eingabe aus dem Manifest-Feld "eingabe", sonst aus der gleichnamigen
-// .eingabe-Datei neben der .pizza (Fallback, K-051). Eine Zeile pro Eingabe, letzter Zeilenumbruch zählt nicht.
-function eingabeZeilen(b) {
-  const datei = b.eingabe || b.datei.replace(/\.pizza$/, ".eingabe");
-  if (!fs.existsSync(datei)) return undefined;
-  return eingabeAusText(fs.readFileSync(datei, "utf8"));
-}
+// SPEC §11.1: eine Zeile pro Eingabe, letzter Zeilenumbruch zählt nicht.
 function eingabeAusText(t) {
   const zeilen = norm(t).split("\n");
   if (zeilen.length && zeilen[zeilen.length - 1] === "") zeilen.pop();
@@ -249,11 +244,12 @@ function dokuFälle() {
         inhalt.forEach((b, i) => {
           if (!b) return;
           if (b.art === "details" && Array.isArray(b.inhalt)) besuche(b.inhalt, `${pfad}${i}.`);
-          if (b.art !== "code" || typeof b.code !== "string") return;
-          if (b.sprache === "xml" || b.sprache === "shell") return;
+          if (b.art !== "code" || (typeof b.code !== "string" && !(b.dateien && typeof b.dateien === "object"))) return;
+          if (teilB.FREMDE_SPRACHEN.has(b.sprache)) return;
           const name = `${d.datei}:${a.id} #${pfad}${i}`;
+          const code = teilB.dokuProgramm(b);   // Text oder Projekt { dateien, hauptdatei? } (ARCHITEKTUR §4)
           if (b.ausfuehrbar === true) {
-            const f = { p, name, code: b.code, exit: typeof b.exitCode === "number" ? b.exitCode : 0, panikErlaubt: true };
+            const f = { p, name, code, exit: typeof b.exitCode === "number" ? b.exitCode : 0, panikErlaubt: true };
             // ARCHITEKTUR §4 / K-050: Codeblöcke dürfen vorgegebene Eingabe tragen (string[] oder Text mit Zeilen)
             if (Array.isArray(b.eingabe)) f.eingabe = b.eingabe.map(String);
             else if (typeof b.eingabe === "string") f.eingabe = eingabeAusText(b.eingabe);
@@ -272,7 +268,8 @@ function dokuFälle() {
             if (next && next.art === "ausgabe" && typeof next.text === "string") { f.erwartetDatei = next.text; f.bannerOptional = true; }
             out.push(f);
           } else if (b.ausfuehrbar === false) {
-            out.push({ p, name: name + " (nur parsen)", parseOnly: b.code });
+            if (typeof code === "string") out.push({ p, name: name + " (nur parsen)", parseOnly: code });
+            else for (const [dp, t] of Object.entries(code.dateien)) if (/\.pizza$/.test(dp)) out.push({ p, name: name + " " + dp + " (nur parsen)", parseOnly: t });
           }
         });
       };

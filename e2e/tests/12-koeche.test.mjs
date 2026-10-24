@@ -11,8 +11,8 @@ import {
 
 const SITE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "site");
 const lies = (p) => fs.readFileSync(path.join(SITE, "beispiele", p), "utf8").replace(/\r\n?/g, "\n");
-const BRIGADE = lies("pizzafunktionen/kuechenbrigade.pizza");
-const BRIGADE_ERWARTET = lies("pizzafunktionen/kuechenbrigade.erwartet");
+const BRIGADE = lies("pizzafunktionen/kuechenbrigade/hauptgang.pizza");
+const BRIGADE_ERWARTET = lies("pizzafunktionen/kuechenbrigade/pruefung/erwartet");
 
 // Zählt die Lauf-Worker (js/worker.js) der Seite – Prüfung, dass der Worker mit warmem Pool wiederverwendet wird.
 const workerZaehler = () => {

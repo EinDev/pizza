@@ -3,8 +3,8 @@
  * Differenztest nativer Host ↔ Interpreter.
  *   node host/test.js [--debug] [--filter=name]
  *
- * Für jedes Beispiel aus site/beispiele/index.json:
- *   1. Pizzaiolo.kompiliere(quelltext) → .pkarton (temporäre Datei)
+ * Für jedes Beispiel aus site/beispiele/index.json (gemeinsamer Leser scripts/beispiele.js; Ordner = Projekt):
+ *   1. Pizzaiolo.kompiliere(projekt bzw. quelltext) → .pkarton (temporäre Datei)
  *   2. pizza-host --ereignisse-json [--eingabe datei] programm.pkarton  (stdin geschlossen)
  *   3. Vergleich aller Ereignisse (inkl. ende mit schritte/zeitMs) und Exit-Code mit PizzaLang.run
  * Fehlt site/js/pizzaiolo.js, wird der Test übersprungen (Exit 0, Hinweis).
@@ -19,7 +19,6 @@ const { spawnSync } = require('child_process');
 process.env.PIZZA_KEIN_DIALOG = '1';
 
 const WURZEL = path.join(__dirname, '..');
-const BEISPIELE = path.join(WURZEL, 'site', 'beispiele');
 const argv = process.argv.slice(2);
 const profil = argv.includes('--debug') ? 'debug' : 'release';
 const filter = (argv.find((a) => a.startsWith('--filter=')) || '').slice(9);
@@ -40,19 +39,8 @@ const exe = path.join(__dirname, 'target', profil, 'pizza-host' + (process.platf
   if (r.status !== 0 || !fs.existsSync(exe)) { console.error('cargo build fehlgeschlagen'); process.exit(2); }
 }
 
-function beispiele() {
-  const index = JSON.parse(fs.readFileSync(path.join(BEISPIELE, 'index.json'), 'utf8'));
-  const liste = [];
-  for (const teil of index.teile) {
-    const p = path.join(BEISPIELE, teil);
-    if (!fs.existsSync(p)) continue;
-    const m = JSON.parse(fs.readFileSync(p, 'utf8'));
-    for (const b of m.beispiele) liste.push(b);
-  }
-  return liste;
-}
-
-const zeilen = (t) => { const z = t.split(/\r?\n/); if (z.length && z[z.length - 1] === '') z.pop(); return z; };
+// Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner + pruefung/, Imperium bis PB5 im alten Format
+const beispiele = () => require(path.join(WURZEL, 'scripts', 'beispiele.js')).leseBeispiele();
 
 function vergleiche(a, b) {
   const n = Math.max(a.length, b.length);
@@ -80,17 +68,14 @@ const liste = beispiele().filter((b) => !filter || b.id.includes(filter));
 const t0 = Date.now();
 let hostMs = 0;
 for (const b of liste) {
-  const quelle = fs.readFileSync(path.join(BEISPIELE, b.datei), 'utf8');
-  const eingabe = b.eingabe ? zeilen(fs.readFileSync(path.join(BEISPIELE, b.eingabe), 'utf8')) : undefined;
-  const args = b.args || [];
-  const uiDatei = b.ereignisse ? path.join(BEISPIELE, b.ereignisse) : null;
-  const uiEreignisse = uiDatei ? zeilen(fs.readFileSync(uiDatei, "utf8")).filter((z) => z.trim()).map((z) => JSON.parse(z)) : undefined;
-  // Manifest-Felder wie tests/run-tests.js (K-077/K-087): feste Saat, feste Wanduhr, Schrittlimit.
-  const lauf = {};
-  if (b.zufallsSaat !== undefined) lauf.zufallsSaat = b.zufallsSaat;
-  if (b.echtzeit !== undefined) lauf.echtzeit = b.echtzeit;
-  if (b.zone !== undefined) lauf.zone = b.zone;
-  if (b.schrittLimit !== undefined) lauf.schrittLimit = b.schrittLimit;
+  // Ordner: das Projekt (Manifest-Dateiliste) kompilieren; altes Format (Imperium bis PB5): der Text
+  const quelle = b.programm;
+  const eingabe = b.eingabe || undefined;
+  const lauf = Object.assign({}, b.optionen);   // Manifest-Felder wie tests/run-tests.js (K-077/K-087): feste Saat, Wanduhr, Schrittlimit
+  const args = lauf.args || [];
+  delete lauf.args;
+  const uiDatei = b.pruefPfad('ereignisse');
+  const uiEreignisse = b.ereignisse || undefined;
   const ref = PizzaLang.run(quelle, Object.assign({ args, eingabe, uiEreignisse }, lauf));
   const k = Pizzaiolo.kompiliere(quelle);
   if (!k.ok) {
@@ -104,7 +89,7 @@ for (const b of liste) {
   // Wie PizzaLang.run ohne vorrat/zufallsSaat: nur im Speicher (W0101) – nie den echten Vorrat des Nutzers anfassen;
   // im JSON-Modus gilt ohne --saat die feste Saat 42.
   const hArgs = ['--ereignisse-json', '--kein-vorrat'];
-  if (b.eingabe) hArgs.push('--eingabe', path.join(BEISPIELE, b.eingabe));
+  if (b.pruefPfad('eingabe')) hArgs.push('--eingabe', b.pruefPfad('eingabe'));
   if (Number.isInteger(lauf.zufallsSaat)) hArgs.push('--saat=' + lauf.zufallsSaat);
   if (lauf.echtzeit !== undefined) hArgs.push('--echtzeit=' + lauf.echtzeit);
   if (lauf.zone !== undefined) hArgs.push('--zone=' + lauf.zone);

@@ -1,31 +1,21 @@
 'use strict';
-/* Sammelt alle Beispiele (site/beispiele/**) und Doku-Codeblöcke (site/js/doku, rekursiv inkl. details).
- * Renderer-Ereignisse (Theke/Herd) laufen mit: Manifestfeld "ereignisse" bzw. gleichnamige .ereignisse (JSON-Lines),
+/* Sammelt alle Beispiele (site/beispiele/**, gemeinsamer Leser scripts/beispiele.js) und Doku-Codeblöcke (site/js/doku, rekursiv
+ * inkl. details). Renderer-Ereignisse (Theke/Herd) laufen mit: pruefung/ereignisse (JSON-Lines),
  * Doku-Feld uiEreignisse – sonst liefen Theke- und Herd-Programme hier nur ohne Renderer. */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const ROOT = path.join(__dirname, '..', '..');
+const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
 
+// Beispiele über den gemeinsamen Leser (scripts/beispiele.js): Ein-Datei-Projekte als Text der Hauptdatei (gleiches Programm,
+// PROJEKTE §1.5 – so laufen auch die IR-Prüfungen), Mehrdatei-Projekte als Sammlung; text = Hauptdatei (bench/run.js).
 function beispiele() {
-  const dir = path.join(ROOT, 'site', 'beispiele');
-  const index = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8'));
-  const r = [];
-  for (const teil of index.teile || []) {
-    const mp = path.join(dir, teil);
-    if (!fs.existsSync(mp)) continue;
-    const man = JSON.parse(fs.readFileSync(mp, 'utf8'));
-    for (const b of man.beispiele || []) {
-      const dp = b.datei && path.join(dir, b.datei);
-      if (!dp || !fs.existsSync(dp)) continue;
-      const opt = { args: b.args || [] };
-      if (b.eingabe && fs.existsSync(path.join(dir, b.eingabe))) opt.eingabe = fs.readFileSync(path.join(dir, b.eingabe), 'utf8').replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
-      const ep = b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse');
-      if (ep !== dp && fs.existsSync(ep)) opt.uiEreignisse = fs.readFileSync(ep, 'utf8').split(/\r?\n/).filter(z => z.trim()).map(z => JSON.parse(z));
-      r.push({ name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei), quelle: fs.readFileSync(dp, 'utf8'), opt });
-    }
-  }
-  return r;
+  return BSP.leseBeispiele().filter((b) => fs.existsSync(b.hauptdateiPfad)).map((b) => {
+    const opt = b.laufOptionen();
+    for (const k of ['echtzeit', 'zone']) if (b.optionen[k] !== undefined) opt[k] = b.optionen[k];
+    return { name: b.name, quelle: b.einDatei ? b.quelle : b.programm, text: b.quelle, opt };
+  });
 }
 
 function doku() {
@@ -38,7 +28,7 @@ function doku() {
   const geh = (a, liste, pfad) => liste.forEach((item, i) => {
     if (!item || typeof item !== 'object') return;
     if (item.art === 'details' && Array.isArray(item.inhalt)) return geh(a, item.inhalt, pfad + i + '.');
-    if (item.art === 'code' && item.ausfuehrbar && item.sprache !== 'xml' && item.sprache !== 'shell') r.push({ name: 'doku:' + a.id + '#' + pfad + i, quelle: String(item.code || ''), opt: Array.isArray(item.uiEreignisse) ? { uiEreignisse: item.uiEreignisse } : {} });
+    if (item.art === 'code' && item.ausfuehrbar && !BSP.FREMDE_SPRACHEN.has(item.sprache)) r.push({ name: 'doku:' + a.id + '#' + pfad + i, quelle: BSP.dokuProgramm(item), text: BSP.dokuText(item), opt: Array.isArray(item.uiEreignisse) ? { uiEreignisse: item.uiEreignisse } : {} });
   });
   for (const a of sandbox.PIZZA_DOKU || []) geh(a, a.inhalt || [], '');
   return r;

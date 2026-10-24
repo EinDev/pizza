@@ -7,7 +7,6 @@ const { wohlgeformt } = require("./lib/xml");
 
 const ROOT = path.resolve(__dirname, "..");
 const SITE = path.join(ROOT, "site");
-const BSP = path.join(SITE, "beispiele");
 
 const rel = (p) => path.relative(ROOT, p).split(path.sep).join("/");
 const istDatei = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
@@ -34,83 +33,25 @@ function leseJson(p, fehler) {
 }
 
 // ───────────────────────── Manifeste ─────────────────────────
-const EXITCODES = [0, 1, 2, 3, 39];
+// Gemeinsamer Leser (scripts/beispiele.js, PROJEKTE §7, K-144): Ordner + Dateiliste, pizza.json, pruefung/, Waisen, ids, Übergang
+// `datei` nur für das Imperium (PB5) – dieselbe Prüfung wie `node scripts/beispiele.js --pruefe` in `npm test`.
+const BSP_LESER = require(path.join(ROOT, "scripts", "beispiele.js"));
+const EXITCODES = BSP_LESER.EXITCODES;
+
+/** Alle Beispiele in gleicher Form (Ordner und altes Format), siehe scripts/beispiele.js. */
+function beispiele() { return BSP_LESER.leseBeispiele(); }
 
 function ladeManifeste() {
-  const fehler = [];
-  const hinweise = [];
-  const beispiele = [];
-  const idx = path.join(BSP, "index.json");
-  if (!istDatei(idx)) return { fehler: ["site/beispiele/index.json fehlt"], hinweise, beispiele };
-  const index = leseJson(idx, fehler);
-  if (!index) return { fehler, hinweise, beispiele };
-  if (!Array.isArray(index.teile) || index.teile.length === 0) {
-    fehler.push("index.json: 'teile' fehlt oder leer");
-    return { fehler, hinweise, beispiele };
-  }
-  const ids = new Map();
-  for (const teil of index.teile) {
-    if (typeof teil !== "string") { fehler.push("index.json: Teil ist kein String: " + JSON.stringify(teil)); continue; }
-    const tp = path.join(BSP, teil);
-    if (!istDatei(tp)) { fehler.push(`index.json verweist auf fehlende Datei ${teil}`); continue; }
-    const m = leseJson(tp, fehler);
-    if (!m) continue;
-    if (typeof m.kategorie !== "string" || !m.kategorie) fehler.push(`${teil}: 'kategorie' fehlt`);
-    if (!Array.isArray(m.beispiele)) { fehler.push(`${teil}: 'beispiele' ist kein Array`); continue; }
-    m.beispiele.forEach((b, i) => {
-      const wo = `${teil}#${i}${b && b.id ? " (" + b.id + ")" : ""}`;
-      if (!b || typeof b !== "object") { fehler.push(`${wo}: kein Objekt`); return; }
-      for (const k of ["id", "titel", "beschreibung", "datei", "erwartet"]) {
-        if (typeof b[k] !== "string" || !b[k].trim()) fehler.push(`${wo}: Pflichtfeld '${k}' fehlt/leer`);
-      }
-      if (!EXITCODES.includes(b.exitCode)) fehler.push(`${wo}: exitCode ${JSON.stringify(b.exitCode)} ∉ {${EXITCODES}}`);
-      if (![1, 2, 3].includes(b.tier)) fehler.push(`${wo}: tier ${JSON.stringify(b.tier)} ∉ {1,2,3}`);
-      if (!Array.isArray(b.schlagworte) || b.schlagworte.some((s) => typeof s !== "string")) fehler.push(`${wo}: 'schlagworte' ist kein Text-Array`);
-      if (typeof b.id === "string") {
-        if (ids.has(b.id)) fehler.push(`${wo}: id '${b.id}' doppelt (auch in ${ids.get(b.id)})`);
-        else ids.set(b.id, teil);
-      }
-      const dp = typeof b.datei === "string" ? path.join(BSP, b.datei) : null;
-      const ep = typeof b.erwartet === "string" ? path.join(BSP, b.erwartet) : null;
-      if (dp && !istDatei(dp)) fehler.push(`${wo}: datei ${b.datei} fehlt`);
-      if (ep && !istDatei(ep)) fehler.push(`${wo}: erwartet ${b.erwartet} fehlt`);
-      if (dp && !/\.pizza$/.test(b.datei)) fehler.push(`${wo}: datei endet nicht auf .pizza`);
-      if (ep && istDatei(ep)) {
-        const t = fs.readFileSync(ep, "utf8");
-        if (t.length && !t.endsWith("\n")) fehler.push(`${wo}: ${b.erwartet} ohne abschließenden Zeilenumbruch (ARCHITEKTUR §3)`);
-      }
-      // SPEC §11.1 / K-051: optionales Feld eingabe (Datei muss existieren), Fallback gleichnamige .eingabe;
-      // interaktiv: true verlangt eine Eingabedatei
-      let eingabe = null;
-      if ("eingabe" in b) {
-        if (typeof b.eingabe !== "string" || !b.eingabe.trim()) fehler.push(`${wo}: 'eingabe' ist kein Dateipfad`);
-        else { eingabe = path.join(BSP, b.eingabe); if (!istDatei(eingabe)) { fehler.push(`${wo}: eingabe ${b.eingabe} fehlt`); eingabe = null; } }
-      } else if (dp && istDatei(dp.replace(/\.pizza$/, ".eingabe"))) eingabe = dp.replace(/\.pizza$/, ".eingabe");
-      if ("interaktiv" in b && typeof b.interaktiv !== "boolean") fehler.push(`${wo}: 'interaktiv' ist kein Boolean`);
-      if (b.interaktiv === true && !eingabe) fehler.push(`${wo}: interaktiv ohne Eingabedatei (eingabe-Feld oder .eingabe neben der .pizza, SPEC §11.1)`);
-      if (dp && istDatei(dp) && ep && istDatei(ep)) beispiele.push({ teil, id: b.id, titel: b.titel, datei: dp, erwartet: ep, exitCode: b.exitCode, tier: b.tier, eingabe, interaktiv: b.interaktiv === true,
-        echtzeit: b.echtzeit, zone: b.zone });   // feste Wanduhr/Zeitzone (K-087/K-154)
-    });
-  }
-  return { fehler, hinweise, beispiele };
+  const fehler = BSP_LESER.pruefe();
+  return { fehler, hinweise: [`${beispiele().length} Beispiele`] };
 }
 
+/** Ausführbar: jede Hauptdatei existiert und hat ein pruefung/erwartet (bzw. .erwartet im Übergang). */
 function pruefeBeispielDateien() {
   const fehler = [];
-  const { beispiele } = ladeManifeste();
-  const referenziert = new Set(beispiele.map((b) => path.resolve(b.datei)));
-  for (const p of alleDateien(BSP, (f) => f.endsWith(".pizza"))) {
-    const erw = p.replace(/\.pizza$/, ".erwartet");
-    if (!istDatei(erw)) fehler.push(`${rel(p)} hat keine .erwartet-Datei`);
-    if (!referenziert.has(path.resolve(p))) fehler.push(`${rel(p)} wird in keinem Manifest referenziert`);
-  }
-  for (const p of alleDateien(BSP, (f) => f.endsWith(".erwartet"))) {
-    if (!istDatei(p.replace(/\.erwartet$/, ".pizza"))) fehler.push(`${rel(p)} ohne zugehörige .pizza`);
-  }
-  // K-051: jede .eingabe-Datei gehört zu einem referenzierten Beispiel (per Manifestfeld oder als gleichnamiger Fallback)
-  const eingaben = new Set(beispiele.filter((b) => b.eingabe).map((b) => path.resolve(b.eingabe)));
-  for (const p of alleDateien(BSP, (f) => f.endsWith(".eingabe"))) {
-    if (!eingaben.has(path.resolve(p))) fehler.push(`${rel(p)} wird von keinem Beispiel genutzt (weder eingabe-Feld noch gleichnamige .pizza im Manifest)`);
+  for (const b of beispiele()) {
+    if (!istDatei(b.hauptdateiPfad)) fehler.push(`${b.name}: Hauptdatei ${b.hauptdateiUrl} fehlt`);
+    if (b.erwartet === null) fehler.push(`${b.name}: keine erwartete Ausgabe (${b.format === "ordner" ? "pruefung/erwartet" : ".erwartet"})`);
   }
   return { fehler };
 }
@@ -197,7 +138,16 @@ function pruefeDoku() {
             break;
           case "ausgabe": text("text"); break;
           case "code":
-            text("code");
+            // `code` (Text) oder `dateien` (Projekt { pfad → Text }, optional `hauptdatei`; nur Textdateien, ARCHITEKTUR §4)
+            if (b.dateien !== undefined) {
+              if ("code" in b) fehler.push(`${w}: code und dateien zugleich`);
+              if (!b.dateien || typeof b.dateien !== "object" || Array.isArray(b.dateien) || !Object.keys(b.dateien).length) fehler.push(`${w}: dateien ist kein Objekt { pfad → Text }`);
+              else for (const [p, t] of Object.entries(b.dateien)) {
+                if (typeof t !== "string") fehler.push(`${w}: dateien["${p}"] ist kein Text`);
+                if (!/\.(pizza|txt|json|csv|md)$/.test(p) || !/^[a-z0-9_-][a-z0-9_.-]*(\/[a-z0-9_-][a-z0-9_.-]*)*$/.test(p)) fehler.push(`${w}: dateien: ungültiger Pfad/keine Textdatei "${p}"`);
+              }
+              if ("hauptdatei" in b && (typeof b.hauptdatei !== "string" || !b.dateien || !(b.hauptdatei in b.dateien))) fehler.push(`${w}: hauptdatei nicht in dateien`);
+            } else text("code");
             if ("ausfuehrbar" in b && typeof b.ausfuehrbar !== "boolean") fehler.push(`${w}: ausfuehrbar ist kein Boolean`);
             if ("tier" in b && ![1, 2, 3].includes(b.tier)) fehler.push(`${w}: code.tier ${JSON.stringify(b.tier)} ∉ {1,2,3}`);
             if ("exitCode" in b && !EXITCODES.includes(b.exitCode)) fehler.push(`${w}: exitCode ${JSON.stringify(b.exitCode)} ungültig`);
@@ -351,8 +301,8 @@ function pruefeCdn() {
 /** Liste der Teil-B-Prüfungen. */
 function pruefungen() {
   return [
-    { p: "B1 Beispiel-Manifeste (ARCHITEKTUR §3)", name: "index.json + Teil-Manifeste gültig, Dateien existieren", fn: () => { const r = ladeManifeste(); return { fehler: r.fehler, hinweise: [`${r.beispiele.length} Beispiele`] }; } },
-    { p: "B1 Beispiel-Manifeste (ARCHITEKTUR §3)", name: "jede .pizza hat .erwartet und ist referenziert", fn: pruefeBeispielDateien },
+    { p: "B1 Beispiel-Manifeste (ARCHITEKTUR §3)", name: "Manifeste ↔ Projektordner (ordner + dateien, pizza.json, pruefung/, keine Waisen)", fn: ladeManifeste },
+    { p: "B1 Beispiel-Manifeste (ARCHITEKTUR §3)", name: "jede Hauptdatei existiert und hat eine erwartete Ausgabe", fn: pruefeBeispielDateien },
     { p: "B2 Doku-Daten (ARCHITEKTUR §4)", name: "Doku-Dateien laden, Schema, ids eindeutig, Bilder existieren", fn: pruefeDoku },
     { p: "B3 SVGs", name: "wohlgeformt, ohne <script>, ohne externe href", fn: () => { const r = pruefeSvgs(); return { fehler: r.fehler, hinweise: [`${r.anzahl} SVGs geprüft`, ...r.hinweise] }; } },
     { p: "B4 index.html", name: "referenziert nur existierende lokale Dateien", fn: pruefeIndexHtml },
@@ -360,4 +310,4 @@ function pruefungen() {
   ];
 }
 
-module.exports = { pruefungen, ladeManifeste, ladeDoku, sammleBloecke, ROOT, SITE };
+module.exports = { pruefungen, ladeManifeste, beispiele, dokuProgramm: BSP_LESER.dokuProgramm, FREMDE_SPRACHEN: BSP_LESER.FREMDE_SPRACHEN, ladeDoku, sammleBloecke, ROOT, SITE };

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizza-Uhr: Linien und Rahmen",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine Wanduhr für die Pizzeria: Die Zeiger sind Linien mit runden Enden, das Zifferblatt ist ein winziges Bildchen, das als Rahmen (9-Slice) auf 300 × 300 Pixel gestreckt wird – die Ecken bleiben scharf. Sie geht richtig: Uhr.echt() und Uhr.zone() stellen in jedem Takt alle drei Zeiger auf deine Ortszeit."
+}

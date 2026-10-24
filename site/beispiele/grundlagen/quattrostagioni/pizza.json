@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "quattrostagioni",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine Saisonkarte mit einem Enum aus genau vier Jahreszeiten: werte(), name() und position()."
+}

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Hauptgang & Klassenaufbau",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "paket, import und eine speisekarte-Klasse mit hauptgang als Einstiegspunkt – plus statische Felder und Methoden."
+}

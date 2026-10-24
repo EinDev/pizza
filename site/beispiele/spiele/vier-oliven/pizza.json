@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Vier Oliven (Vier gewinnt)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Du gegen Olivia: Sie denkt mit Negamax und iterativer Vertiefung – nur so lange, wie ihr der Ofen Bedenkzeit gibt (zwischenstand + roh)."
+}

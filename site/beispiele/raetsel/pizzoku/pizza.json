@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizzoku (Sudoku-Löser)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Luigis Sudoku: Backtracking mit drei Merkzetteln für Zeilen, Spalten und 3×3-Bleche – Bestellzettel und Lösung als ASCII-Gitter."
+}

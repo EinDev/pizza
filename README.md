@@ -149,7 +149,7 @@ cd ui && npm install && npm run build
 npm test
 
 # pizza-Programm auf der Kommandozeile ausführen
-node bin/pizza.js site/beispiele/grundlagen/hallo-welt.pizza
+node bin/pizza.js site/beispiele/grundlagen/hallo-welt
 ```
 
 `site/` ist der Web-Root und kann auch mit jedem anderen statischen Server ausgeliefert werden

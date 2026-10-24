@@ -39,7 +39,7 @@ bei Widersprüchen gilt SPEC §11.1.
   - `{ typ: "leeren" }` für `Bote.leeren()`.
   - `{ typ: "eingabe", text }` – wird **nach** jeder erfolgreich gelesenen Zeile emittiert (für Protokolle/UI-Echo; `null` bei EOF).
 - `.erwartet`-Format (ARCHITEKTUR §3): `ausgabe` mit `umbruch:false` wird ohne Zeilenumbruch angehängt; `leeren` erscheint als Zeile `«leeren»`; `eingabe`-Ereignisse erscheinen **nicht**.
-- Beispiel-Manifeste: optionales Feld `"eingabe": "spiele/tictactoe.eingabe"` (Datei mit einer Zeile pro Eingabe) – Tests laufen damit nicht-interaktiv. Feld `"interaktiv": true` markiert Spiele in der UI.
+- Beispiele (Projektordner, K-144): `pruefung/eingabe` im Ordner (z. B. `spiele/tictactoe/pruefung/eingabe`, eine Zeile pro Eingabe) – Tests laufen damit nicht-interaktiv. Manifestfeld `"interaktiv": true` markiert Spiele in der UI.
 
 ## 3. Browser (Worker, blockierend)
 
@@ -57,4 +57,4 @@ bei Widersprüchen gilt SPEC §11.1.
 
 ## 5. Spiele
 
-Alle Spiele unter `site/beispiele/spiele/` sind **interaktiv** (der Mensch spielt), jeweils mit `.eingabe`-Datei für die Tests und `"interaktiv": true` im Manifest. Simulationen ohne Spielcharakter dürfen nicht-interaktiv bleiben; spielartige Simulationen (z. B. Tycoon, Duell) bekommen Entscheidungen per Eingabe.
+Alle Spiele unter `site/beispiele/spiele/` sind **interaktiv** (der Mensch spielt), jeweils mit `pruefung/eingabe` für die Tests und `"interaktiv": true` im Manifest. Simulationen ohne Spielcharakter dürfen nicht-interaktiv bleiben; spielartige Simulationen (z. B. Tycoon, Duell) bekommen Entscheidungen per Eingabe.

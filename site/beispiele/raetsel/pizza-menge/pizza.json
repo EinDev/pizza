@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Die Pizza-Menge (Mandelbrot)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Die Mandelbrot-Menge als ASCII-Kunst, gebacken im Ofen: jede fertige Zeile wird per zwischenstand gesichert, ein zu kleiner Ofen liefert das Teilbild."
+}

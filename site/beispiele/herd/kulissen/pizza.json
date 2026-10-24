@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Kulissen: Titel, Spiel, Pause, Ende",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein kleines Spiel mit vier Kulissen: Das Titelbild wartet auf die Leertaste, im Spiel fängt der Pizzaschieber fallende Zutaten, die Leertaste schaltet auf die Pause und zurück, nach zehn Sekunden kommt die Ende-Kulisse. Ausgeschaltete Kulissen ruhen samt allen Teilen – nichts fällt, nichts wird gezeichnet."
+}

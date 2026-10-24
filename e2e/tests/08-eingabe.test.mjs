@@ -136,13 +136,13 @@ e2e("Spiel komplett durchspielen: Eingaben aus .eingabe tippen → Ausgabe == .e
   const spiele = beispieleAusManifesten().liste.filter((b) => (b.interaktiv || eingabeZeilen(b)) && b.exitCode === 0);
   assert.ok(spiele.length, "mindestens ein interaktives Spiel");
   // bevorzugt Zahlenraten (kurz), sonst das erste
-  const b = spiele.find((x) => /zahlenraten/.test(x.datei)) || spiele[0];
+  const b = spiele.find((x) => /zahlenraten/.test(x.id)) || spiele[0];
   const zeilen = eingabeZeilen(b);
-  assert.ok(zeilen && zeilen.length, "Eingabedatei für " + b.datei);
+  assert.ok(zeilen && zeilen.length, "Eingabedatei für " + b.id);
   await zeigePanelTab(page, "beispiele");
   await page.waitForSelector(S.beispielKarte);
   await page.$$eval(S.beispielKarte, (k, titel) => k.find((x) => x.querySelector(".bsp-titel").textContent === titel).click(), b.titel);
-  await warteAufTab(page, b.datei.split("/").pop());
+  await warteAufTab(page, b.hauptdatei);
   const { gesendet } = await backenInteraktiv(page, zeilen, { tippen: true, timeout: 45_000 });
   assert.equal(gesendet, zeilen.length);
   assert.equal(await ausgabeAusEreignissen(page), b.erwartetText);

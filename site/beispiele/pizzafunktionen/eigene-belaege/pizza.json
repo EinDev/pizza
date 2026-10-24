@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Eigene Beläge (Decorator-Muster)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Trüffel und Blattgold als Schichten: Jede Klasse umwickelt die Pizza darunter, überschreibt preis() und beschreibung() und fragt mit unten nach – die Reihenfolge der Schichten entscheidet über den Preis."
+}

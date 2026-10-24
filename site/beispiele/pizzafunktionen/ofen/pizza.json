@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Der Ofen: Zeitbudget",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Berechnungen mit Zeitbudget: zwischenstand, roh-Zweig mit Teilergebnis, verbrannt bei Überschreitung oder eigener Ananas im Ofen; Kurzform ofen(10s)."
+}

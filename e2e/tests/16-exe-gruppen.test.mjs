@@ -50,7 +50,7 @@ async function exportiere(page) {
 e2e("EXE-Dialog: Herd-Spiel → freundliche Meldung, kein Host-Download, keine EXE", { timeout: 60_000, vorLaden: downloadsZaehlen }, async ({ page, oeffne }) => {
   const geholt = await binAbfangen(page);
   await oeffne();
-  await setzeCode(page, fs.readFileSync(path.join(SITE, "beispiele", "herd", "wuerfel.pizza"), "utf8").replace(/\r\n/g, "\n"));
+  await setzeCode(page, fs.readFileSync(path.join(SITE, "beispiele", "herd", "wuerfel", "hauptgang.pizza"), "utf8").replace(/\r\n/g, "\n"));
   const r = await exportiere(page);
   assert.equal(r.fehler, "Herd-Spiele lassen sich noch nicht als EXE exportieren – im Playground und per App-Link laufen sie schon.");
   assert.deepEqual(r.downloads, [], "kein Download");
@@ -73,7 +73,7 @@ e2e("EXE-Dialog: Herd-Spiel mit Host, der `herd` kennt (ziele.json `gruppen`), w
   const mitHerd = { ...ZIELE, ziele: [{ ...ZIELE.ziele[0], gruppen: ["theke", "vorrat", "echtzeit", "kueche", "herd"] }] };
   const geholt = await binAbfangen(page, mitHerd);
   await oeffne();
-  await setzeCode(page, fs.readFileSync(path.join(SITE, "beispiele", "herd", "wuerfel.pizza"), "utf8").replace(/\r\n/g, "\n"));
+  await setzeCode(page, fs.readFileSync(path.join(SITE, "beispiele", "herd", "wuerfel", "hauptgang.pizza"), "utf8").replace(/\r\n/g, "\n"));
   const r = await exportiere(page);
   assert.equal(r.fehler, null);
   assert.equal(r.downloads.length, 1);

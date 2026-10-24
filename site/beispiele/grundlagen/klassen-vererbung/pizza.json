@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Klassen & Vererbung",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine Pizzeria mit rohling-Basisklasse, rezeptur, erbt, unten und @PizzaÜberschreibt."
+}

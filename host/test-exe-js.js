@@ -125,18 +125,18 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
 
   // Herd (H5): Programm mit Gruppe herd (Beispiel `wuerfel`, mit Pizzaiolo kompiliert) → Subsystem WINDOWS wie die Theke;
   // die EXE läuft fensterlos (JSON-Modus + --ui-ereignisse, Software-Adapter) und liefert die `herd`-Ereignisse bitgleich
-  // mit `.herd-erwartet`; ohne Grafik (simuliert) Meldung + Exit 2 vor dem ersten Wasm-Befehl.
+  // mit `pruefung/herd-erwartet`; ohne Grafik (simuliert) Meldung + Exit 2 vor dem ersten Wasm-Befehl.
   const pizzaioloPfad = path.join(__dirname, '..', 'site', 'js', 'pizzaiolo.js');
   if (!fs.existsSync(pizzaioloPfad)) console.log('  (site/js/pizzaiolo.js fehlt – Herd-EXE übersprungen)');
   else {
     global.PizzaLang = require(path.join(__dirname, '..', 'site', 'js', 'pizza.js'));
     const Pizzaiolo = require(pizzaioloPfad);
     const bsp = path.join(__dirname, '..', 'site', 'beispiele', 'herd');
-    const k = Pizzaiolo.kompiliere(fs.readFileSync(path.join(bsp, 'wuerfel.pizza'), 'utf8'));
+    const k = Pizzaiolo.kompiliere(fs.readFileSync(path.join(bsp, 'wuerfel', 'hauptgang.pizza'), 'utf8'));
     ok(k.ok, 'Herd-Beispiel wuerfel kompiliert');
     const herdKarton = Buffer.from(k.pkarton);
     ok(await PizzaExe.brauchtTheke(herdKarton) === true, 'Fenster-Kriterium erkennt Importgruppe herd (Subsystem WINDOWS)');
-    const soll = fs.readFileSync(path.join(bsp, 'wuerfel.herd-erwartet'), 'utf8').split(/\r?\n/).filter((z) => z.trim());
+    const soll = fs.readFileSync(path.join(bsp, 'wuerfel', 'pruefung', 'herd-erwartet'), 'utf8').split(/\r?\n/).filter((z) => z.trim());
     for (const z of ziele) {
       if (!(z.gruppen || []).includes('herd')) { console.log('  –  ' + z.id + ': Host ohne Gruppe herd (ältere ziele.json) – übersprungen'); continue; }
       const mit = Buffer.from(await (await PizzaExe.baue(herdKarton, z.id, optionen)).arrayBuffer());
@@ -151,7 +151,7 @@ const optionen = { basis: 'bin', fetch: dateiFetch };
       fs.chmodSync(ziel, 0o755);
       const env = Object.assign({}, process.env, { PIZZA_EREIGNISSE_JSON: '1' });
       delete env.PIZZA_HERD;
-      const l = spawnSync(ziel, ['--kein-vorrat', '--ui-ereignisse', path.join(bsp, 'wuerfel.ereignisse')], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env, timeout: 120000 });
+      const l = spawnSync(ziel, ['--kein-vorrat', '--ui-ereignisse', path.join(bsp, 'wuerfel', 'pruefung', 'ereignisse')], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env, timeout: 120000 });
       const ist = String(l.stdout).split(/\r?\n/).filter((x) => x.startsWith('{"typ":"herd",')).map((x) => x.replace('{"typ":"herd",', '{'));
       ok(l.status === 0 && JSON.stringify(ist) === JSON.stringify(soll), z.id + ': Herd-EXE fensterlos, herd-Ereignisse bitgleich (' + ist.length + ' Zeilen, Exit ' + l.status + ')');
       const g = spawnSync(ziel, ['--kein-vorrat'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000, env: Object.assign({}, process.env, { PIZZA_TEST_OHNE_GRAFIK: '1' }) });

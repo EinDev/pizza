@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Lieferweg durch die Altstadt",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein zufälliges Gassen-Labyrinth (Tiefensuche, Seed 42) und der kürzeste Weg von der Pizzeria zum Kunden per Breitensuche – der Pfad wird eingezeichnet."
+}

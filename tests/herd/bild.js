@@ -4,17 +4,20 @@
  * des Herd-ABI als Szenen-Skript (herd/README.md §7.1) auf und rendert gewünschte Bilder mit `herd-bild` offscreen auf dem
  * Software-Adapter (WARP/lavapipe, HERD_SOFTWARE=1 – nie die echte GPU, kein Fenster) zu PNGs.
  *
- *   node tests/herd/bild.js prog.pizza [--ereignisse datei] [--bild n[,m…]] [--png ordner] [--groesse BxH]
+ *   node tests/herd/bild.js prog.pizza|projektordner [--ereignisse datei] [--bild n[,m…]] [--png ordner] [--groesse BxH]
  *                                      [--skript datei.herd] [--echtzeit ms] [--zone ms] [--schreibe] [--json] [--still]
  *
- * --ereignisse  Renderer-Ereignisse (JSON-Lines; Standard: <prog>.ereignisse neben dem Programm, sonst ein {"typ":"takt"})
+ * Projekt (PROJEKTE §1.5, §7): ein Ordner mit pizza.json bzw. eine .pizza darin läuft als Projekt (alle Dateien außer pruefung/);
+ *               die Testdateien liegen dann in <ordner>/pruefung/ (ereignisse, herd-erwartet, erwartet) statt neben dem Programm.
+ * --ereignisse  Renderer-Ereignisse (JSON-Lines; Standard: <prog>.ereignisse bzw. pruefung/ereignisse, sonst ein {"typ":"takt"})
  * --bild        Bildnummern (bildnummer des Herds), z. B. 1,60,120; „letztes“ = das letzte gesendete Bild (Standard)
  * --png         Ordner für die PNGs (<prog>-<n>.png); ohne --png wird nur aufgezeichnet und geprüft
  * --groesse     Zielgröße in Pixeln (Standard: Spielfeldgröße des Herds)
  * --skript      das aufgezeichnete Szenen-Skript zusätzlich hier speichern
  * --echtzeit    feste Wanduhr für Uhr.echt() (ms seit 1970, K-087), --zone fester Versatz für Uhr.zone() (ms, K-154) –
  *               wie die Manifestfelder echtzeit/zone (tests/herd/erwartet.js reicht sie durch)
- * --schreibe    <prog>.herd-erwartet (herd-Ereignisse ohne typ) und <prog>.erwartet (Ausgabe) neben dem Programm schreiben
+ * --schreibe    <prog>.herd-erwartet (herd-Ereignisse ohne typ) und <prog>.erwartet (Ausgabe) neben dem Programm schreiben –
+ *               bei Projekten pruefung/herd-erwartet und pruefung/erwartet
  * --json        die herd-Ereignisse (ohne typ) als JSON-Array ausgeben – für Doku-Blöcke (herdErwartet); dazu den
  *               Code des Blocks als .pizza und seine uiEreignisse als .ereignisse speichern (nach Kern-Änderungen neu erzeugen)
  * --still       keine Ausgabe des Programms anzeigen
@@ -37,7 +40,15 @@ if (!datei) {
   console.error('Aufruf: node tests/herd/bild.js prog.pizza [--ereignisse datei] [--bild n,m] [--png ordner] [--groesse BxH] [--skript datei.herd] [--schreibe]');
   process.exit(2);
 }
-const name = path.basename(datei).replace(/\.pizza$/, '');
+// Projekt: Ordner mit pizza.json (bzw. .pizza darin) – gemeinsamer Leser scripts/beispiele.js
+const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+const projektWurzel = BSP.findeProjekt(datei);
+const hauptdatei = projektWurzel ? (fs.statSync(datei).isDirectory()
+  ? (BSP.leseProjektdatei(path.join(projektWurzel, BSP.PROJEKTDATEI)).hauptdatei || BSP.HAUPTDATEI)
+  : path.relative(projektWurzel, path.resolve(datei)).split(path.sep).join('/')) : null;
+/** Testdatei des Programms: pruefung/<art> im Projekt, sonst <prog><endung> daneben. */
+const testDatei = (art, endung) => projektWurzel ? path.join(projektWurzel, BSP.PRUEFUNG, art) : datei.replace(/\.pizza$/, endung);
+const name = projektWurzel ? path.basename(projektWurzel) : path.basename(datei).replace(/\.pizza$/, '');
 
 // ---------- Aufzeichnung: WebAssembly.Instance für kern.wasm umhüllen (die echten Exporte sind eingefroren) ----------
 const ZEILEN = [];
@@ -117,11 +128,11 @@ const P = require(path.join(ROOT, 'site', 'js', 'pizza.js'));
 
 // ---------- Lauf ----------
 let evDatei = wert('--ereignisse');
-if (evDatei === null && fs.existsSync(datei.replace(/\.pizza$/, '.ereignisse'))) evDatei = datei.replace(/\.pizza$/, '.ereignisse');
+if (evDatei === null && fs.existsSync(testDatei('ereignisse', '.ereignisse'))) evDatei = testDatei('ereignisse', '.ereignisse');
 const ereignisse = evDatei !== null
   ? fs.readFileSync(evDatei, 'utf8').split(/\r?\n/).filter(z => z.trim()).map(z => JSON.parse(z))
   : [{ typ: 'takt' }];
-const quelle = fs.readFileSync(datei, 'utf8');
+const quelle = projektWurzel ? { dateien: BSP.leseOrdner(projektWurzel), hauptdatei } : fs.readFileSync(datei, 'utf8');
 const t0 = process.hrtime.bigint();
 const laufOpt = { uiEreignisse: ereignisse };
 if (wert('--echtzeit') !== null) laufOpt.echtzeit = Number(wert('--echtzeit'));
@@ -153,15 +164,16 @@ if (argv.includes('--json')) {
   console.log('[\n' + herd.map(e => '  ' + JSON.stringify(e)).join(',\n') + '\n]');
 }
 if (argv.includes('--schreibe')) {
-  const basis = datei.replace(/\.pizza$/, '');
-  fs.writeFileSync(basis + '.herd-erwartet', herd.map(e => JSON.stringify(e) + '\n').join(''));
-  fs.writeFileSync(basis + '.erwartet', ausgabe.join(''));
-  console.log('geschrieben: ' + basis + '.herd-erwartet, ' + basis + '.erwartet');
+  const he = testDatei('herd-erwartet', '.herd-erwartet'), er = testDatei('erwartet', '.erwartet');
+  fs.mkdirSync(path.dirname(he), { recursive: true });
+  fs.writeFileSync(he, herd.map(e => JSON.stringify(e) + '\n').join(''));
+  fs.writeFileSync(er, ausgabe.join(''));
+  console.log('geschrieben: ' + he + ', ' + er);
 }
 
 // ---------- Skript ----------
 const breite = fenster ? fenster.breite : 640, hoehe = fenster ? fenster.hoehe : 360;
-const skriptText = '# aufgezeichnet von tests/herd/bild.js aus ' + path.basename(datei) + '\n' + ZEILEN.join('\n') + '\n';
+const skriptText = '# aufgezeichnet von tests/herd/bild.js aus ' + (projektWurzel ? name + '/' + hauptdatei : path.basename(datei)) + '\n' + ZEILEN.join('\n') + '\n';
 if (wert('--skript')) fs.writeFileSync(wert('--skript'), skriptText);
 
 // Selbstprüfung: Nachspielen gegen kern.wasm, Hashes je Bild vergleichen

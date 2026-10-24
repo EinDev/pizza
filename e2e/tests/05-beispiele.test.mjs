@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
-  beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, S,
+  beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, PJ, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
   thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, beispielZeitlimit, sammelZeitlimit,
   setzeLaufUhr,
@@ -67,15 +67,20 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
     const o = {};
     for (const d of dateien) o[d] = await (await fetch("beispiele/" + d)).text();
     return o;
-  }, BEISPIELE.map((b) => b.datei));
+  }, BEISPIELE.map((b) => b.hauptdateiUrl));
 
   for (const b of BEISPIELE) {
-    await t.test(`${b.kategorie}: ${b.titel} (${b.datei}, Exit ${b.exitCode})`, { timeout: beispielZeitlimit(b) }, async () => {
+    await t.test(`${b.kategorie}: ${b.titel} (${b.ordner || b.hauptdateiUrl}, Exit ${b.exitCode})`, { timeout: beispielZeitlimit(b) }, async () => {
       try {
-        const name = b.datei.split("/").pop();
+        const name = b.hauptdatei;   // Tab der Galerie-Kopie: die Hauptdatei des Projekts (hauptgang.pizza)
         await karteKlicken(page, b);
         await warteAufTabMuster(page, name);
-        assert.equal(await editorText(page), quellen[b.datei].replace(/\r\n?/g, "\n"), "Editor zeigt den Beispielcode");
+        // Jede Galerie-Kopie hat den Tab hauptgang.pizza – erst der Projektname (= Titel, bei gleichem Titel mit „-2“) zeigt, dass
+        // die neue Kopie aktiv ist
+        const projekt = b.ordner ? b.titel : name.replace(/\.pizza$/, "");
+        await page.waitForFunction((sel, n) => { const e = document.querySelector(sel); return e && (e.textContent === n || e.textContent.startsWith(n + "-")); },
+          { timeout: 10_000 }, PJ.name, projekt);
+        assert.equal(await editorText(page), quellen[b.hauptdateiUrl].replace(/\r\n?/g, "\n"), "Editor zeigt den Beispielcode");
         // per Tastatur backen (Strg+Enter): unabhängig davon, ob etwas den Backen-Knopf überdeckt.
         // Interaktive Programme: jede Eingabe-Anfrage mit der nächsten Zeile aus .eingabe beantworten, danach EOF.
         const zeilen = eingabeZeilen(b) || [];

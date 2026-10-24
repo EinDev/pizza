@@ -1,8 +1,8 @@
-// Beispiele-Tab: lädt beispiele/index.json → Teil-Manifeste → Karten nach Kategorie.
+// Beispiele-Tab: lädt beispiele/index.json → Teil-Manifeste → Karten nach Kategorie. Ein Beispiel ist ein Projektordner
+// (Manifest: ordner + dateien, PROJEKTE §7.2); Öffnen lädt seine Dateien (ohne pruefung/) als Projektkopie (§3.3).
 import { tierBadge } from "./doku.js";
 import { iconSvg } from "./icons.js";
-
-const BASIS = "beispiele/";
+import { BASIS, beispielQuelle, istGalerieEintrag, ladeBeispielDateien } from "./beispiel-laden.js";
 
 function el(tag, klasse, text) {
   const e = document.createElement(tag);
@@ -38,7 +38,7 @@ export function erstelleBeispiele({ ladeCode }) {
       const ergebnisse = await Promise.allSettled(teile.map((t) => json(BASIS + t)));
       kategorien = ergebnisse
         .filter((e) => e.status === "fulfilled" && e.value && Array.isArray(e.value.beispiele))
-        .map((e) => ({ kategorie: String(e.value.kategorie || "Weitere"), beispiele: e.value.beispiele.filter((b) => b && b.datei) }))
+        .map((e) => ({ kategorie: String(e.value.kategorie || "Weitere"), beispiele: e.value.beispiele.filter(istGalerieEintrag) }))
         .filter((k) => k.beispiele.length);
       geladen = true;
     } catch (e) {
@@ -147,14 +147,10 @@ export function erstelleBeispiele({ ladeCode }) {
   });
 
   async function oeffneBeispiel(b) {
-    try {
-      const r = await fetch(BASIS + b.datei, { cache: "no-cache" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const code = await r.text();
-      await ladeCode(code, (b.datei.split("/").pop() || "beispiel.pizza"), null, "bsp:" + b.datei);
-    } catch (e) {
-      ladeCode(null, null, "Beispiel „" + (b.titel || b.id) + "“ konnte nicht geladen werden (" + e.message + ").");
-    }
+    let geladen;
+    try { geladen = await ladeBeispielDateien(b); }
+    catch (e) { return ladeCode(null, "Beispiel „" + (b.titel || b.id) + "“ konnte nicht geladen werden (" + e.message + ")."); }
+    await ladeCode(geladen, null, beispielQuelle(b));
   }
 
   return {

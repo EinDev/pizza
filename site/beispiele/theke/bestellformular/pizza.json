@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Bestellformular",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Name, Straße und Postleitzahl eintragen: Das Formular prüft die Angaben, zeigt Hinweise und wechselt nach dem Abschicken zur Bestätigung (Enter schickt auch ab)."
+}

@@ -399,15 +399,18 @@ und Feldnamen stehen hier fest; Produktentscheidungen, die der Plan trifft, sind
    in `mod.rs`, Registry-Ausschnitt `herd/README.md` §2, SPEC §18.6 (je Komponente eine Zeile; Überschrift wird mit der ersten Stufe zu
    „Komponenten (v1 und Ausbau)“), der Satz „Komponenten v1“ in §4 (wird „Komponenten“), Doku `site/js/doku/40-herd.js` (Zeile in der
    Tabelle „Alle Komponenten …“ von `ordnung: 595`, ein `details`-Block je Stufe im neuen Abschnitt `herd-ausbau`, `ordnung: 599`, Titel
-   „Ausbau: neue Komponenten“, angelegt von der ersten gemergten Stufe), `site/beispiele/herd.json`, §11.1. Ist PROJEKTE.md PB3 gelandet,
-   Beispiele als Ordner nach K-144.
+   „Ausbau: neue Komponenten“, angelegt von der ersten gemergten Stufe), `site/beispiele/herd.json`, §11.1. Seit PROJEKTE.md PB3 sind
+   Beispiele Ordner nach K-144 (Regel 10).
 8. **§9-Ausnahmen** (Interpreter `site/js/pizza/`, `laufzeit/`, `site/js/pizzaiolo/`, `HOST-ABI.md`, `host/`) haben nur **H-K0, H-K12,
    H-K13, H-K14** – höchstens eine davon je Welle. Je Welle höchstens **eine** Stufe, die `herd/kern/src/paket.rs` oder die Glut ändert.
 9. **Art-Literale:** Ab H-K0 schreiben neue Komponenten `pub static ART: Art = Art { schema: …, takt: …, ..Art::LEER };` – dann ändern
    spätere Felder von `Art` keine Komponenten-Datei mehr. Parallel zu H-K0 entstandene Stufen passen ihr Literal beim Rebase an.
-10. **Sichtbar heißt Beispiel:** Jede Stufe mit sichtbarer Wirkung bringt ein kleines Beispiel `site/beispiele/herd/<name>.pizza` mit
-    `.ereignisse`, `.erwartet`, `.herd-erwartet` und Eintrag in `site/beispiele/herd.json`; Sichtprüfung offscreen mit
-    `node tests/herd/bild.js site/beispiele/herd/<name>.pizza --png <scratch-ordner>` (Software-Adapter, kein Fenster).
+10. **Sichtbar heißt Beispiel:** Jede Stufe mit sichtbarer Wirkung bringt ein kleines Beispiel als Projektordner (PROJEKTE.md §7, K-144)
+    `site/beispiele/herd/<name>/` mit `pizza.json` (`name` = Titel), `hauptgang.pizza` und `pruefung/{ereignisse, erwartet,
+    herd-erwartet}` sowie einem Eintrag mit `ordner` in `site/beispiele/herd.json` (`dateien` schreibt `node scripts/beispiele.js
+    --schreibe`, `--pruefe` läuft in `npm test`); ein noch im alten Format angelegtes Beispiel zieht `node scripts/beispiele.js
+    --umziehen` um. Sichtprüfung offscreen mit `node tests/herd/bild.js site/beispiele/herd/<name> --png <scratch-ordner>`
+    (Software-Adapter, kein Fenster).
 11. **Doku je Stufe:** SPEC §18.6-Zeile(n) (bei neuer Sprache auch §18.2–§18.5), Absatz + Tabellenzeile in `40-herd.js`, `herd/README.md`
     (§2; §3 bei ABI, §4 bei Bildpaket, §9 bei Glut), Zeile in §11.1, Hinweis in `CHANGELOG.md` beim Bündel-Push.
 12. **Keine sichtbaren Fenster**, Cargo immer mit `-j 2`; E2E nur headless (nie `E2E_SICHTBAR`), Glut nur auf dem Software-Adapter.
@@ -482,8 +485,9 @@ wer es doch nutzt, setzt die übrigen mit `git checkout -- tests/herd/bilder` zu
 **A-Lauf** = A-Kern + `npm run baue:laufzeit` + `cargo test -j 2` in `host/` + `node host/test.js` (setzt `PIZZA_KEIN_DIALOG=1`) +
 `npm --prefix ui test` (wenn `ui/` berührt) + `npm run test:e2e` (headless).
 
-Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name>.pizza --png <scratch-ordner>` (Sichtprüfung) und
-`node tests/herd/bild.js site/beispiele/herd/<name>.pizza --schreibe` für das eigene neue Beispiel.
+Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name> --png <scratch-ordner>` (Sichtprüfung) und
+`node tests/herd/bild.js site/beispiele/herd/<name> --schreibe` (schreibt `pruefung/herd-erwartet` und `pruefung/erwartet`) für das
+eigene neue Beispiel.
 
 ### 12.4 Die Stufen
 

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Komplett: Luigis Lieferdienst",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein ganzer Abend mit hauptgang: eigene Pizza-Klasse, Bestellungen in den Ofen, Personalpizza per schieb() in die Pause, Lieferungen mit Priorität und wennDa."
+}

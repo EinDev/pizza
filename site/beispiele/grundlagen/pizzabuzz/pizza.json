@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "PizzaBuzz",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Das Einstellungsgespräch in Neapel: 3 → Pizza, 5 → Pizza!, 15 → PIZZAPIZZA, über den Bereich [1 .. 30]."
+}

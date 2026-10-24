@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Dijkstra auf der Lieferkarte",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Schnellste Lieferwege von der Pizzeria in alle Stadtteile – Kantengewichte sind echte Dauer-Werte, die Route wird rekonstruiert."
+}

@@ -211,7 +211,7 @@ e2e("Schmaler Viewport 390×844: Panel als Sheet, keine horizontale Scrollbar", 
   await keineHorizontaleScrollbar(page, "Beispiele-Sheet offen", befunde);
   await page.$$eval(S.beispielKarte, (k) => k[0].click());
   await page.waitForFunction(() => document.getElementById("knopf-panel").getAttribute("aria-expanded") === "false", { timeout: 5000 });
-  assert.equal(await aktiverTabName(page), "hallo-welt.pizza");
+  assert.equal(await aktiverTabName(page), "hauptgang.pizza");
   // Schleier-Klick schließt
   await page.click("#knopf-panel");
   await page.waitForSelector("#panel-schleier:not([hidden])");

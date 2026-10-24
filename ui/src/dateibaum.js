@@ -115,7 +115,8 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
     if (schmal.matches) return wurzel.classList.contains("schublade-offen");
     if (g === "1") return true;
     if (g === "0") return false;
-    return projekte.pfade().length > 1 || projekte.ordner().length > 0;
+    // Ein-Datei-Projekt (eine Datei, daneben höchstens pizza.json – z. B. jedes Beispiel aus der Galerie): Baum anfangs zu
+    return projekte.pfade().filter((p) => p !== "pizza.json").length > 1 || projekte.ordner().length > 0;
   }
   function wendeAn() {
     const an = sichtbar();

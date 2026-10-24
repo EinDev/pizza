@@ -250,7 +250,7 @@ if(!k.ok){console.error(JSON.stringify(k.fehler||k.nichtUnterstuetzt));process.e
     let r = std::process::Command::new("node")
         .args(["-e", skript])
         .arg(&w)
-        .arg(w.join(format!("site/beispiele/herd/{}.pizza", beispiel)))
+        .arg(w.join(format!("site/beispiele/herd/{}/hauptgang.pizza", beispiel)))
         .arg(&ziel)
         .output();
     match r {
@@ -274,7 +274,7 @@ fn beispiele_json_bitgleich_mit_herd_erwartet() {
         let w = wurzel().join("site/beispiele/herd");
         let out = befehl(env!("CARGO_BIN_EXE_pizza-host"))
             .args(["--ereignisse-json", "--kein-vorrat", "--ui-ereignisse"])
-            .arg(w.join(format!("{}.ereignisse", b)))
+            .arg(w.join(format!("{}/pruefung/ereignisse", b)))
             .arg(&karton)
             .stdin(Stdio::null())
             .output()
@@ -285,7 +285,7 @@ fn beispiele_json_bitgleich_mit_herd_erwartet() {
             .filter(|z| z.starts_with(r#"{"typ":"herd","#))
             .map(|z| z.replacen(r#"{"typ":"herd","#, "{", 1))
             .collect();
-        let soll: Vec<String> = std::fs::read_to_string(w.join(format!("{}.herd-erwartet", b))).unwrap().lines().filter(|z| !z.trim().is_empty()).map(kanonisch).collect();
+        let soll: Vec<String> = std::fs::read_to_string(w.join(format!("{}/pruefung/herd-erwartet", b))).unwrap().lines().filter(|z| !z.trim().is_empty()).map(kanonisch).collect();
         assert_eq!(ist, soll, "{}", b);
     }
 }

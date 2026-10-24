@@ -143,20 +143,10 @@ function fehlerZusammenfassung(r) {
 // ---------------------------------------------------------------------
 // 1. Eigene Fälle: tests/faelle/*.pizza und Ordner-Fälle tests/faelle/<name>/ (Projekt + pruefung/, ARCHITEKTUR §6, K-144)
 // ---------------------------------------------------------------------
-const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-// Projektordner → Dateisammlung (wie bin/pizza.js: alles außer pruefung/, Texte streng UTF-8 mit \n, sonst Bytes)
-function projektAusOrdner(wurzel) {
-  const dateien = {};
-  (function geh(abs, rel) {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
-      const r = rel ? rel + '/' + e.name : e.name;
-      if (e.isDirectory()) { if (r !== 'pruefung') geh(path.join(abs, e.name), r); continue; }
-      const b = fs.readFileSync(path.join(abs, e.name));
-      dateien[r] = TEXT_ENDUNG.test(r) ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(b).replace(/\r\n/g, '\n') : new Uint8Array(b);
-    }
-  })(wurzel, '');
-  return { dateien };
-}
+// Projektordner → Dateisammlung (gemeinsamer Leser scripts/beispiele.js, wie bin/pizza.js: alles außer pruefung/, Texte streng
+// UTF-8 mit \n, sonst Bytes)
+const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+function projektAusOrdner(wurzel) { return { dateien: BSP.leseOrdner(wurzel) }; }
 
 function faelle() {
   const dir = path.join(__dirname, 'faelle');
@@ -705,68 +695,94 @@ function api() {
 // ---------------------------------------------------------------------
 // 3. Beispiele aus site/beispiele
 // ---------------------------------------------------------------------
+/**
+ * scripts/beispiele.js an einem Mini-Baum (PROJEKTE §7.3): ein Eintrag im alten Format (wie ein später gemergtes neues Beispiel)
+ * zieht byte-gleich um, ein zweiter Lauf ändert nichts, das Imperium bleibt (PB5), --pruefe meldet Waisen/Dateiliste/Titel.
+ */
+function werkzeugTest() {
+  const os = require('os');
+  const basis = fs.mkdtempSync(path.join(os.tmpdir(), 'pizza-beispiele-'));
+  const schreib = (rel, inhalt) => { const p = path.join(basis, ...rel.split('/')); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, inhalt); };
+  const gleich = (ist, soll, was) => { if (JSON.stringify(ist) !== JSON.stringify(soll)) throw new Error(was + ': ' + JSON.stringify(ist) + ' ≠ ' + JSON.stringify(soll)); };
+  try {
+    schreib('index.json', JSON.stringify({ teile: ['herd.json', 'idle.json'] }));
+    schreib('herd.json', JSON.stringify({ kategorie: 'Herd', beispiele: [
+      { id: 'neu', titel: 'Neu', beschreibung: 'b', datei: 'herd/neu.pizza', erwartet: 'herd/neu.erwartet', ereignisse: 'herd/neu.ereignisse', herdErwartet: 'herd/neu.herd-erwartet', exitCode: 1, tier: 1, schlagworte: ['Herd'], herd: true, echtzeit: 5 },
+    ] }));
+    schreib('idle.json', JSON.stringify({ kategorie: 'Idle', beispiele: [
+      { id: 'idle-pizza-imperium', titel: 'Imperium', beschreibung: 'b', datei: 'idle/pizza-imperium.pizza', erwartet: 'idle/pizza-imperium.erwartet', exitCode: 0, tier: 2, schlagworte: [] },
+    ] }));
+    schreib('herd/neu.pizza', 'Bote.sage(("a"));\r\n');
+    schreib('herd/neu.erwartet', 'a\n');
+    schreib('herd/neu.ereignisse', '{"typ":"takt"}\n');
+    schreib('herd/neu.herd-erwartet', '{"art":"schliesse"}\n');
+    schreib('idle/pizza-imperium.pizza', 'Bote.sage(("i"));\n');
+    schreib('idle/pizza-imperium.erwartet', 'i\n');
+    const vorher = BSP.pruefe({ basis });
+    if (!vorher.some((z) => /altes Format/.test(z))) throw new Error('altes Format nicht gemeldet');
+    const r = BSP.umziehen({ basis });
+    BSP.schreibe({ basis });
+    gleich(r, { umgezogen: ['neu'], uebersprungen: ['idle-pizza-imperium'] }, 'umziehen');
+    gleich(BSP.pruefe({ basis }), [], 'pruefe nach dem Umzug');
+    const lies = (rel) => fs.readFileSync(path.join(basis, ...rel.split('/')), 'utf8');
+    gleich(lies('herd/neu/hauptgang.pizza'), 'Bote.sage(("a"));\r\n', 'Hauptdatei byte-gleich');
+    gleich(lies('herd/neu/pruefung/herd-erwartet'), '{"art":"schliesse"}\n', 'herd-erwartet byte-gleich');
+    gleich(lies('herd/neu/pruefung/exitcode'), '1\n', 'exitcode');
+    gleich(JSON.parse(lies('herd/neu/pizza.json')), { pizza: 1, name: 'Neu', hauptdatei: 'hauptgang.pizza', beschreibung: 'b' }, 'pizza.json');
+    const e = JSON.parse(lies('herd.json')).beispiele[0];
+    gleich(Object.keys(e), ['id', 'titel', 'beschreibung', 'ordner', 'dateien', 'exitCode', 'tier', 'schlagworte', 'herd', 'echtzeit'], 'Manifest-Felder');
+    gleich(e.dateien, ['pizza.json', 'hauptgang.pizza'], 'dateien');
+    const manifest = lies('herd.json');
+    gleich(BSP.umziehen({ basis }), { umgezogen: [], uebersprungen: ['idle-pizza-imperium'] }, 'zweiter Lauf');
+    BSP.schreibe({ basis });
+    gleich(lies('herd.json'), manifest, 'zweiter Lauf ändert nichts');
+    const b = BSP.leseBeispiele({ basis }).find((x) => x.id === 'neu');
+    gleich([b.exitCode, b.eingabe, b.ereignisse, b.optionen], [1, null, [{ typ: 'takt' }], { echtzeit: 5 }], 'Leser');
+    gleich(P.run(b.programm).ereignisse.filter((x) => x.typ === 'ausgabe').map((x) => x.text), ['a'], 'Lauf als Projekt');
+    // Abweichungen
+    schreib('herd/neu/notiz.txt', 'x');
+    schreib('herd/streuner.pizza', 'x');
+    const f = BSP.pruefe({ basis }).join('\n');
+    for (const re of [/nicht genannt: notiz\.txt/, /herd\/streuner\.pizza gehört zu keinem Beispiel/]) if (!re.test(f)) throw new Error('pruefe meldet nicht ' + re + ':\n' + f);
+  } finally { fs.rmSync(basis, { recursive: true, force: true }); }
+}
+
 function beispiele() {
   console.log(fett('\n▶ Beispiele (site/beispiele)'));
   gruppe('beispiele');
-  const dir = path.join(ROOT, 'site', 'beispiele');
-  const indexPfad = path.join(dir, 'index.json');
-  if (!fs.existsSync(indexPfad)) { uebersprungen('beispiele', 'index.json', 'Datei fehlt'); return; }
-  let index;
-  try { index = JSON.parse(fs.readFileSync(indexPfad, 'utf8')); }
-  catch (e) { ergebnis('beispiele', 'index.json', 'ungültiges JSON: ' + e.message); return; }
-  for (const teil of index.teile || []) {
-    const mp = path.join(dir, teil);
-    if (!fs.existsSync(mp)) { uebersprungen('beispiele', teil, 'Manifest fehlt'); continue; }
-    let man;
-    try { man = JSON.parse(fs.readFileSync(mp, 'utf8')); }
-    catch (e) { ergebnis('beispiele', teil, 'ungültiges JSON: ' + e.message); continue; }
-    console.log(grau('  ' + teil + ' – ' + (man.kategorie || '?') + ' (' + (man.beispiele || []).length + ')'));
-    for (const b of man.beispiele || []) {
-      const name = teil.replace(/\.json$/, '') + '/' + (b.id || b.datei);
-      if (!passt(name)) continue;
-      const dp = b.datei && path.join(dir, b.datei);
-      if (!dp || !fs.existsSync(dp)) { uebersprungen('beispiele', name, 'Datei fehlt: ' + b.datei); continue; }
-      const quelle = fs.readFileSync(dp, 'utf8');
-      const t0 = Date.now();
-      const opt = Object.assign({ args: b.args || [] }, laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit, zone: b.zone, schrittLimit: b.schrittLimit }));
-      if (b.eingabe) {
-        const ep = path.join(dir, b.eingabe);
-        if (!fs.existsSync(ep)) { uebersprungen('beispiele', name, 'Eingabedatei fehlt: ' + b.eingabe); continue; }
-        opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
-      } else {
-        // Fallback: gleichnamige .eingabe-Datei neben der .pizza-Datei
-        const ep = dp.replace(/\.pizza$/, '.eingabe');
-        if (ep !== dp && fs.existsSync(ep)) opt.eingabe = eingabeZeilen(fs.readFileSync(ep, 'utf8'));
-      }
-      // Theke: Manifestfelder ereignisse/uiErwartet, sonst gleichnamige Dateien neben der .pizza
-      const nebenan = (feld, endung) => {
-        if (b[feld]) { const fp = path.join(dir, b[feld]); return fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : undefined; }
-        const fp = dp.replace(/\.pizza$/, endung);
-        return fp !== dp && fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : null;
-      };
-      const evText = nebenan('ereignisse', '.ereignisse');
-      const uiText = nebenan('uiErwartet', '.ui-erwartet');
-      const herdText = nebenan('herdErwartet', '.herd-erwartet');
-      if (herdText === undefined) { uebersprungen('beispiele', name, 'Herd-Datei aus dem Manifest fehlt'); continue; }
-      if (evText === undefined || uiText === undefined) { uebersprungen('beispiele', name, 'Theke-Datei aus dem Manifest fehlt'); continue; }
-      if (evText !== null) opt.uiEreignisse = jsonZeilen(evText, name + '.ereignisse');
-      const vorratText = nebenan('vorrat', '.vorrat.json');
-      if (vorratText === undefined) { uebersprungen('beispiele', name, 'Vorrat-Datei aus dem Manifest fehlt'); continue; }
-      if (vorratText !== null) opt.vorrat = JSON.parse(vorratText);
-      const r = P.run(quelle, opt);
-      const probleme = [];
-      const exitSoll = typeof b.exitCode === 'number' ? b.exitCode : 0;
-      if (r.exitCode !== exitSoll) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + exitSoll + fehlerZusammenfassung(r));
-      if (uiText !== null) { const u = uiVergleich(jsonZeilen(uiText, name + '.ui-erwartet'), r.ereignisse); if (u) probleme.push(u); }
-      if (herdText !== null) { const u = herdVergleich(jsonZeilen(herdText, name + '.herd-erwartet'), r.ereignisse); if (u) probleme.push(u); }
-      const ep = b.erwartet && path.join(dir, b.erwartet);
-      if (ep && fs.existsSync(ep)) {
-        const soll = fs.readFileSync(ep, 'utf8');
-        const ist = ausgabeText(r.ereignisse);
-        if (norm(soll) !== norm(ist)) probleme.push('Ausgabe weicht ab:\n' + diff(soll, ist));
-      } else if (b.erwartet) gruppe('beispiele').notiz.push(name + ': .erwartet fehlt (' + b.erwartet + ')');
-      ergebnis('beispiele', name + grau(' (' + (Date.now() - t0) + ' ms)'), probleme.join('\n') || null);
-    }
+  // Manifeste ↔ Platte (scripts/beispiele.js --pruefe, PROJEKTE §7.2): Ordner, Dateiliste, pizza.json, pruefung/, Waisen
+  if (passt('beispiele/manifeste')) {
+    const f = BSP.pruefe();
+    ergebnis('beispiele', 'beispiele/manifeste (scripts/beispiele.js --pruefe)', f.length ? f.join('\n') : null);
+  }
+  if (passt('beispiele/werkzeug')) {
+    let f = null;
+    try { werkzeugTest(); } catch (e) { f = e.message; }
+    ergebnis('beispiele', 'beispiele/werkzeug (--umziehen idempotent, --pruefe findet Abweichungen)', f);
+  }
+  const { teile } = BSP.leseManifeste();
+  for (const t of teile) console.log(grau('  ' + t.teil + ' – ' + (t.manifest.kategorie || '?') + ' (' + (t.manifest.beispiele || []).length + ')'));
+  for (const b of BSP.leseBeispiele()) {
+    const name = b.name;
+    if (!passt(name)) continue;
+    if (!fs.existsSync(b.hauptdateiPfad)) { uebersprungen('beispiele', name, 'Hauptdatei fehlt: ' + b.hauptdateiUrl); continue; }
+    const t0 = Date.now();
+    let r;
+    try {
+      // Ordner: das Projekt (genau die Manifest-Dateiliste, wie die Galerie); altes Format (Imperium bis PB5): der Text
+      r = P.run(b.programm, Object.assign(b.laufOptionen(), laufFelder(b.optionen)));
+    } catch (e) { ergebnis('beispiele', name, 'Testdateien/Lauf: ' + e.message); continue; }
+    const probleme = [];
+    if (r.exitCode !== b.exitCode) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + b.exitCode + fehlerZusammenfassung(r));
+    const ui = b.uiErwartet, herd = b.herdErwartet;
+    if (ui !== null) { const u = uiVergleich(ui, r.ereignisse); if (u) probleme.push(u); }
+    if (herd !== null) { const u = herdVergleich(herd, r.ereignisse); if (u) probleme.push(u); }
+    const soll = b.erwartet;
+    if (soll !== null) {
+      const ist = ausgabeText(r.ereignisse);
+      if (norm(soll) !== norm(ist)) probleme.push('Ausgabe weicht ab:\n' + diff(soll, ist));
+    } else gruppe('beispiele').notiz.push(name + ': erwartet fehlt');
+    ergebnis('beispiele', name + grau(' (' + (Date.now() - t0) + ' ms)'), probleme.join('\n') || null);
   }
 }
 
@@ -808,14 +824,16 @@ function doku() {
         return;
       }
       if (item.art !== 'code' || !passt(name)) return;
-      if (item.sprache === 'xml' || item.sprache === 'shell') { gruppe('doku').skip++; return; }
-      const code = String(item.code || '');
+      if (BSP.FREMDE_SPRACHEN.has(item.sprache)) { gruppe('doku').skip++; return; }
+      // `code` = Text, `dateien` = Projekt (ARCHITEKTUR §4) – gemeinsamer Leser scripts/beispiele.js
+      const programm = BSP.dokuProgramm(item), code = BSP.dokuText(item);
+      if (item.dateien && item.code !== undefined) { ergebnis('doku', name, 'code und dateien zugleich'); return; }
       if (item.ausfuehrbar || item.nurTest) {
         const opt = {};
         if (Array.isArray(item.eingabe)) opt.eingabe = item.eingabe;
         if (Array.isArray(item.uiEreignisse)) opt.uiEreignisse = item.uiEreignisse;
         Object.assign(opt, laufFelder(item));
-        const r = P.run(code, opt);
+        const r = P.run(programm, opt);
         const soll = typeof item.exitCode === 'number' ? item.exitCode : 0;
         let fehler = null;
         if (r.exitCode !== soll) fehler = 'Exit-Code ' + r.exitCode + ', erwartet ' + soll + fehlerZusammenfassung(r) + '\n' + grau(code.split('\n').map(z => '| ' + z).join('\n'));
@@ -827,8 +845,14 @@ function doku() {
         }
         ergebnis('doku', name, fehler);
       } else {
-        const r = P.parse(code);
-        ergebnis('doku', name + grau(' (nur parse)'), r.ok ? null : r.fehler.text + ' (Zeile ' + r.fehler.zeile + ', Spalte ' + r.fehler.spalte + ')\n' + grau(code.split('\n').map(z => '| ' + z).join('\n')));
+        // nur parsen – bei `dateien` jede .pizza-Datei für sich
+        const texte = typeof programm === 'string' ? [['', programm]] : Object.entries(programm.dateien).filter(([p]) => /\.pizza$/.test(p));
+        let fehler = null;
+        for (const [p, t] of texte) {
+          const r = P.parse(t);
+          if (!r.ok) { fehler = (p ? p + ': ' : '') + r.fehler.text + ' (Zeile ' + r.fehler.zeile + ', Spalte ' + r.fehler.spalte + ')\n' + grau(t.split('\n').map(z => '| ' + z).join('\n')); break; }
+        }
+        ergebnis('doku', name + grau(' (nur parse)'), fehler);
       }
     });
   };

@@ -5,19 +5,10 @@
       "id": "idle-erste-pizzeria",
       "titel": "Erste Pizzeria (Klicker in 50 Zeilen)",
       "beschreibung": "Die Kernschleife jedes Idle-Games: klicken, Pizza zum echten Rezeptpreis verkaufen, Teigschaber kaufen – und jeder weitere kostet 15 % mehr.",
-      "datei": "idle/erste-pizzeria.pizza",
-      "erwartet": "idle/erste-pizzeria.erwartet",
-      "ereignisse": "idle/erste-pizzeria.ereignisse",
-      "uiErwartet": "idle/erste-pizzeria.ui-erwartet",
-      "exitCode": 0,
+      "ordner": "idle/erste-pizzeria",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 1,
-      "schlagworte": [
-        "Theke",
-        "Idle-Game",
-        "Klicker",
-        "Pizza",
-        "Mathe.potenz"
-      ],
+      "schlagworte": ["Theke", "Idle-Game", "Klicker", "Pizza", "Mathe.potenz"],
       "theke": true
     },
     {
@@ -30,27 +21,7 @@
       "uiErwartet": "idle/pizza-imperium.ui-erwartet",
       "exitCode": 0,
       "tier": 2,
-      "schlagworte": [
-        "Theke",
-        "Idle-Game",
-        "Takt",
-        "Reiter",
-        "Tabelle",
-        "Fortschritt",
-        "Vorratskammer",
-        "Uhr.echt",
-        "Zufall",
-        "kompakt",
-        "ofen",
-        "bestelle",
-        "@Kühlschrank",
-        "Minispiele",
-        "Animationen",
-        "Namensraum",
-        "Zettel",
-        "binde",
-        "marke"
-      ],
+      "schlagworte": ["Theke", "Idle-Game", "Takt", "Reiter", "Tabelle", "Fortschritt", "Vorratskammer", "Uhr.echt", "Zufall", "kompakt", "ofen", "bestelle", "@Kühlschrank", "Minispiele", "Animationen", "Namensraum", "Zettel", "binde", "marke"],
       "theke": true,
       "echtzeit": 1800000000000
     }

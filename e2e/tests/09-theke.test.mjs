@@ -9,7 +9,7 @@ import {
 } from "../hilfen.mjs";
 
 const FENSTER = "#vorschau";
-const HALLO = fs.readFileSync(path.join(SITE, "beispiele", "theke", "hallo-theke.pizza"), "utf8").replace(/\r\n?/g, "\n");
+const HALLO = fs.readFileSync(path.join(SITE, "beispiele", "theke", "hallo-theke", "hauptgang.pizza"), "utf8").replace(/\r\n?/g, "\n");
 
 async function starteTheke(page, code) {
   await setzeCode(page, code);

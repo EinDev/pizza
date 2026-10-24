@@ -4,7 +4,7 @@
  * Die Hashes (szene/paket) berechnet kern.wasm – ändert sich der Kern (Bildpaket-Format, Systeme), ändern sie sich mit.
  * Drei Quellen:
  *   faelle     tests/faelle/herd-*.pizza          → .herd-erwartet (direkt geschrieben)
- *   beispiele  site/beispiele/** mit Herd         → .herd-erwartet und .erwartet über tests/herd/bild.js --schreibe
+ *   beispiele  site/beispiele/<kategorie>/<projekt>/ mit Herd → pruefung/herd-erwartet und pruefung/erwartet über tests/herd/bild.js --schreibe
  *   doku       Doku-Codeblöcke mit herdErwartet   → Feld herdErwartet in site/js/doku/*.js über tests/herd/bild.js --json
  *
  *   node tests/herd/erwartet.js [filter]               zeigt je Fall, ob die herd-Ereignisse passen (Exit 1 bei Abweichung)
@@ -58,38 +58,28 @@ for (const d of fs.readdirSync(DIR).filter(x => x.startsWith('herd-') && x.inclu
   if (!melde(b, ist, soll) && schreibe) fs.writeFileSync(p('.herd-erwartet'), ist.map(e => JSON.stringify(e) + '\n').join(''));
 }
 
-// ---------- site/beispiele (Manifestfelder ereignisse/herdErwartet, sonst gleichnamige Dateien) ----------
+// ---------- site/beispiele (gemeinsamer Leser scripts/beispiele.js: Ordner mit pruefung/, Imperium bis PB5 im alten Format) ----------
 console.log('▶ beispiele');
 {
-  const dir = path.join(ROOT, 'site', 'beispiele');
-  for (const teil of JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).teile || []) {
-    const mp = path.join(dir, teil);
-    if (!fs.existsSync(mp)) continue;
-    for (const b of JSON.parse(fs.readFileSync(mp, 'utf8')).beispiele || []) {
-      if (!b.datei) continue;
-      const name = teil.replace(/\.json$/, '') + '/' + (b.id || b.datei);
-      if (!name.includes(filter)) continue;
-      const dp = path.join(dir, b.datei), basis = dp.replace(/\.pizza$/, '');
-      const hp = b.herdErwartet ? path.join(dir, b.herdErwartet) : basis + '.herd-erwartet';
-      const ep = b.ereignisse ? path.join(dir, b.ereignisse) : basis + '.ereignisse';
-      if (!b.herd && !b.herdErwartet && !fs.existsSync(hp)) continue;
-      const opt = { args: b.args || [] };
-      for (const k of ['zufallsSaat', 'echtzeit', 'zone', 'schrittLimit']) if (b[k] !== undefined) opt[k] = b[k];   // Manifestfelder (K-087, K-154)
-      if (fs.existsSync(ep)) opt.uiEreignisse = zeilen(fs.readFileSync(ep, 'utf8'));
-      const ist = herdVon(P.run(fs.readFileSync(dp, 'utf8'), opt));
-      const soll = fs.existsSync(hp) ? zeilen(fs.readFileSync(hp, 'utf8')) : null;
-      if (melde(name, ist, soll) || !schreibe) continue;
-      // bild.js --schreibe legt <prog>.herd-erwartet und <prog>.erwartet neben das Programm (nach Selbstprüfung gegen kern.wasm)
-      if (path.resolve(hp) !== path.resolve(basis + '.herd-erwartet') || (b.erwartet && path.resolve(dir, b.erwartet) !== path.resolve(basis + '.erwartet'))) {
-        fehler++; console.log('    ! ' + name + ': Manifest nennt andere Dateinamen als <prog>.herd-erwartet/.erwartet – bitte von Hand');
-        continue;
-      }
-      const uhr = [].concat(b.echtzeit !== undefined ? ['--echtzeit', String(b.echtzeit)] : [], b.zone !== undefined ? ['--zone', String(b.zone)] : []);
-      if (b.zufallsSaat !== undefined || b.schrittLimit !== undefined || (b.args && b.args.length)) {
-        fehler++; console.log('    ! ' + name + ': bild.js kennt zufallsSaat/schrittLimit/args nicht – bitte von Hand'); continue;
-      }
-      try { bild([dp, '--schreibe', '--still'].concat(fs.existsSync(ep) ? ['--ereignisse', ep] : [], uhr)); } catch (e) { fehler++; console.log('    ! ' + e.message); }
+  const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+  for (const b of BSP.leseBeispiele()) {
+    const name = b.name;
+    if (!name.includes(filter)) continue;
+    const hp = b.pruefPfad('herd-erwartet');
+    if (!b.eintrag.herd && !hp) continue;
+    const opt = Object.assign({ args: [] }, b.optionen);   // Manifestfelder (K-087, K-154)
+    const ev = b.ereignisse;
+    if (ev) opt.uiEreignisse = ev;
+    const ist = herdVon(P.run(b.programm, opt));
+    const soll = b.herdErwartet;
+    if (melde(name, ist, soll) || !schreibe) continue;
+    // bild.js --schreibe legt pruefung/herd-erwartet und pruefung/erwartet ins Projekt (nach Selbstprüfung gegen kern.wasm)
+    if (b.format !== 'ordner') { fehler++; console.log('    ! ' + name + ': altes Format (datei) – bitte von Hand'); continue; }
+    const uhr = [].concat(b.optionen.echtzeit !== undefined ? ['--echtzeit', String(b.optionen.echtzeit)] : [], b.optionen.zone !== undefined ? ['--zone', String(b.optionen.zone)] : []);
+    if (b.optionen.zufallsSaat !== undefined || b.optionen.schrittLimit !== undefined || (b.optionen.args && b.optionen.args.length)) {
+      fehler++; console.log('    ! ' + name + ': bild.js kennt zufallsSaat/schrittLimit/args nicht – bitte von Hand'); continue;
     }
+    try { bild([b.ordnerPfad, '--schreibe', '--still'].concat(uhr)); } catch (e) { fehler++; console.log('    ! ' + e.message); }
   }
 }
 
@@ -119,13 +109,20 @@ console.log('▶ doku');
     const opt = {};
     if (Array.isArray(item.uiEreignisse)) opt.uiEreignisse = item.uiEreignisse;
     for (const k of ['zufallsSaat', 'echtzeit', 'zone', 'schrittLimit']) if (item[k] !== undefined) opt[k] = item[k];
-    const code = String(item.code || '');
+    const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+    const code = BSP.dokuProgramm(item);   // Text oder Projekt { dateien, hauptdatei? } (ARCHITEKTUR §4)
     const ist = herdVon(P.run(code, opt));
     if (melde(name, ist, item.herdErwartet) || !schreibe) continue;
     try {
-      // bild.js --json: Block als .pizza und uiEreignisse als .ereignisse ablegen, herd-Ereignisse als JSON-Array lesen
-      const pz = path.join(tmp, 'block.pizza');
-      fs.writeFileSync(pz, code);
+      // bild.js --json: Block als .pizza (bzw. `dateien` als Projektordner) und uiEreignisse als .ereignisse ablegen,
+      // herd-Ereignisse als JSON-Array lesen
+      let pz = path.join(tmp, 'block.pizza');
+      if (typeof code === 'string') fs.writeFileSync(pz, code);
+      else {
+        pz = fs.mkdtempSync(path.join(tmp, 'projekt-'));
+        for (const [p, t] of Object.entries(code.dateien)) { fs.mkdirSync(path.dirname(path.join(pz, p)), { recursive: true }); fs.writeFileSync(path.join(pz, p), t); }
+        if (code.hauptdatei && !code.dateien['pizza.json']) fs.writeFileSync(path.join(pz, 'pizza.json'), JSON.stringify({ pizza: 1, hauptdatei: code.hauptdatei }) + '\n');
+      }
       const args = [pz, '--json'];
       if (opt.uiEreignisse) { fs.writeFileSync(path.join(tmp, 'block.ereignisse'), opt.uiEreignisse.map(e => JSON.stringify(e) + '\n').join('')); args.push('--ereignisse', path.join(tmp, 'block.ereignisse')); }
       const aus = bild(args).replace(/\r\n/g, '\n').split('\n');

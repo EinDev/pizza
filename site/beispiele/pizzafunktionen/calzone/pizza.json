@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Calzone: echte Kapselung",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Omas Rezept in einer Calzone: Spiegel.felder kommt nicht hinein – bis jemand aufklappen() ruft."
+}

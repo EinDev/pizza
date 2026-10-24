@@ -6,7 +6,8 @@
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
 > **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
 > Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker), **PD2** (Kiste/Bildchen.laden im Interpreter), **PA2** (Wasm + Host,
-> HOST-ABI v2), **PB1** (Playground-Projekte), **PC1** (Durchreiche) und **PB2** (Teilen-UI, App-Link) ebenso; übrige Pakete siehe §11;
+> HOST-ABI v2), **PB1** (Playground-Projekte), **PC1** (Durchreiche), **PB2** (Teilen-UI, App-Link) und **PB3** (Beispiele als Ordner, Doku „Projekte und
+> Dateien“) ebenso; übrige Pakete siehe §11;
 > `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
@@ -957,7 +958,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | **umgesetzt** (Commit „PROJEKTE PB1: …“, 2026-10-24) auf Lader (PA1), Vorbacker (PD1) und Kiste/Bildchen.laden (PD2); Wasm-Projekte folgen mit PA2; Präzisierungen unten |
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | **umgesetzt** (Commit „PROJEKTE PB2: …“, 2026-10-24) mit PC1 im selben Stand, auf PA2 (EXE aus Mehrdatei-Projekten über `Pizzaiolo.projekte`); Präzisierungen unten |
-| **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
+| **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | **umgesetzt** (Commit „PROJEKTE PB3: …“, 2026-10-25; Präzisierungen unten) |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
 | **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | offen |
 | **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | offen |
@@ -1194,6 +1195,55 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   Projekt + Banner, neuer Link, Löschen → 404, Mehrdatei mit PNG ohne erneuten Upload, 100 Dateien zweimal ohne 429, F6, EXE aus
   einem geteilten Mehrdatei-Projekt).
 - **Offen (nicht PB2):** Teilen-Vorschau mit `beschreibung`, Schlüssel eines eigenen Links nachträglich (ohne neues Teilen) kopieren.
+
+**Präzisierungen aus PB3** (Beispiele als Ordner, Doku; PB4/PB5 richten sich danach):
+- **Umzug** (`node scripts/beispiele.js --umziehen`, rein mechanisch, idempotent): 73 Beispiele (davon `sternennacht` und `konfigurator` aus H-K11b/H-K12 nach dem Rebase), Ordner = `<kategorie>/<alter Dateiname>`
+  (die `id` darf abweichen, z. B. `theke-tictactoe` → `theke/tictactoe`); `x.pizza` → `x/hauptgang.pizza`, Begleitdateien →
+  `x/pruefung/<art>` (`erwartet`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet`), ein
+  Manifest-`exitCode` ≠ 0 → `pruefung/exitcode`. Alle Testdateien und Programme sind **byte-gleich nur verschoben** (Git: 100 % Umbenennungen);
+  Einträge mit `ordner` fasst das Werkzeug nicht an, das Imperium (`UEBERGANG` in `scripts/beispiele.js`) überspringt es. Neue Beispiele im
+  alten Format (z. B. parallel entstandene H-K-Stufen) zieht ein zweiter Lauf nach dem Rebase um.
+- **`pizza.json`** je Beispiel: `{ "pizza": 1, "name": <titel>, "hauptdatei": "hauptgang.pizza", "beschreibung": <beschreibung> }`. Sie ist
+  die Quelle für Titel und Beschreibung (`--schreibe` kopiert sie ins Manifest, `--pruefe` verlangt Gleichheit) – so trägt ein geteiltes
+  oder exportiertes Beispiel seinen Namen und seine Beschreibung mit.
+- **Manifest:** `id, titel, beschreibung, ordner, dateien, [exitCode], tier, schlagworte, …`; `dateien` in fester Reihenfolge (`pizza.json`,
+  Hauptdatei, Rest nach Bytefolge). `exitCode` bleibt nur als **Anzeige-Kopie** von `pruefung/exitcode`, wenn ≠ 0 (Galerie-Plakette
+  „Ananas“/„Hawaii“; Abweichung zu §7.2, sonst hätte die Galerie jede `pruefung/` laden müssen). Die Testoptionen `echtzeit`/`zone`
+  (auch `zufallsSaat`, `schrittLimit`, `args`) bleiben im Manifest (§7.2). `--pruefe` (in `npm test` als Fall `beispiele/manifeste` und
+  im Prüfstand B1) prüft Ordner, Dateiliste = Platte, Pfade und Dateiarten (§1.3), `pizza.json`, nur bekannte Testdateien in `pruefung/`,
+  `erwartet` vorhanden, `exitCode`-Kopie, ids eindeutig, keine Waisen unter `site/beispiele/` und `datei` nur für das Imperium.
+- **Gemeinsamer Leser** `scripts/beispiele.js` (CommonJS; aus ESM per `createRequire`): `leseBeispiele()` liefert für `ordner` und `datei`
+  dieselbe Form (`programm` = Projekt aus der Manifest-Dateiliste bzw. Text, `exitCode`, `erwartet`, `eingabe`, `ereignisse`, `uiErwartet`,
+  `herdErwartet`, `vorrat`, `optionen`, `laufOptionen()`, `pruefPfad(art)`), dazu `leseOrdner` (ersetzt die drei Kopien von
+  `projektAusOrdner`), `findeProjekt`, `dokuProgramm`/`dokuText`. Ihn benutzen `tests/run-tests.js` (Beispiele, Ordner-Fälle, Doku),
+  Prüfstand (Teil A Beispiele/Doku, Teil B B1), `tests/differenz/korpus.js`, `tests/wasm/korpus.js` (+ `bench/run.js`),
+  `tests/herd/erwartet.js`, `tests/herd/bild.js`, `host/test.js` und `e2e/hilfen.mjs`. Die Harnische lassen Beispiele **als Projekt** laufen
+  (Interpreter, Differenz, nativer Host); nur der Wasm-Korpus nimmt Ein-Datei-Projekte als Text der Hauptdatei (gleiches Programm, §1.5 –
+  so laufen dort auch die IR-Prüfungen).
+- **`tests/herd/bild.js`** nimmt einen Projektordner (oder eine `.pizza` darin): läuft als Projekt, liest `pruefung/ereignisse` und
+  schreibt mit `--schreibe` `pruefung/herd-erwartet` + `pruefung/erwartet`; `node tests/herd/erwartet.js --schreibe` ruft es mit dem Ordner.
+  Ein Ordner ist immer die Projektwurzel (auch ohne `pizza.json`, für Doku-Blöcke mit `dateien`).
+- **Galerie** (`ui/src/beispiel-laden.js`, Test `ui/test/beispiele.mjs` gegen alle echten Manifeste): lädt genau `dateien` (nie `pruefung/`),
+  Texte streng UTF-8 mit `\n`, alles andere als `Uint8Array` (für PB4-Bilder schon fertig); Projektname = Titel, Hauptdatei aus `pizza.json`,
+  Quelle **`beispiel:<id>`** (statt `beispiel:<datei>`; alte Kopien werden nicht mehr wiedererkannt – gewollt, keine Rückwärtskompatibilität).
+  Der Tab heißt jetzt `hauptgang.pizza`. Der Dateibaum zählt `pizza.json` nicht mit: ein Beispiel (eine `.pizza` + `pizza.json`) öffnet wie
+  bisher mit eingeklapptem Baum.
+- **Doku:** neues Kapitel „Projekte und Dateien“ (`10-sprache.js`, `ordnung` 295, Bild `sp-projekt.svg`): `bestellt`, Regeln
+  (Hauptdatei/Nebendateien/Reihenfolge/Kreis/Namensraum, Pfade, Fehlerorte), Sichtbarkeit (P0019, `geheimrezept`), `Kiste` (K-146), `pizza.json`
+  und Beispiel-Ordner. Mehrdatei-Codeblöcke `{ art: "code", dateien: { pfad → text }, hauptdatei? }` (ARCHITEKTUR §4): Anzeige je Datei mit
+  Kopfzeile (★ Hauptdatei), Kopieren mit `// ── pfad`-Köpfen, „Öffnen“/„Backen“ legt ein Mehrdatei-Projekt an (Quelle `doku:<abschnitt>:<n>`);
+  alle Harnische lassen sie als Projekt laufen. `sprache: "json"` ist wie `xml`/`shell` ungeprüft (`FREMDE_SPRACHEN`).
+- **Nicht in PB3:** `grundlagen/rezeptbuch` und `grundlagen/kiste` bleiben bei PB4 (§11-Tabelle); Mehrdatei und `Kiste` sind über die
+  Doku-Blöcke in allen Harnischen und im E2E (04) abgedeckt, das Laden mehrerer Dateien samt Bild in `ui/test/beispiele.mjs`.
+- **E2E:** 05/07/08 über den Leser (`hauptdateiUrl`, `hauptdatei`, `leser`), 03/06 erwarten Tab `hauptgang.pizza` und Projekt „Hallo Welt“,
+  09/12/16 lesen die Ordner, 05 wartet zusätzlich auf den Projektnamen (alle Kopien haben den Tab `hauptgang.pizza`; gleicher Titel →
+  „-2“), 04 neu „Mehrdatei-Block öffnet ein Projekt“. `oeffneProjektmenue` wartet auf den Fokus im Menü (vorher ging ein
+  schnelles Escape an den Knopf – zeigte sich mit den Projektordnern zuverlässig in 03).
+- **Für PB4:** Bilder einfach in den Ordner legen und `node scripts/beispiele.js --schreibe` (Dateiliste), Erwartungen mit
+  `node tests/herd/bild.js site/beispiele/herd/<name> --schreibe`; Interpreter/Wasm in Node backen über `teigling.wasm` selbst vor. Neue
+  Beispiele nur noch als Ordner (HERD.md §12.1 Regel 10). **Für PB5:** Imperium mit `--umziehen` (vorher `UEBERGANG` leeren) oder von Hand
+  aufteilen, dann den `datei`-Zweig entfernen: `UEBERGANG`/`pruefeAltenEintrag`/`beispiel()` in `scripts/beispiele.js`, der `datei`-Zweig in
+  `ui/src/beispiel-laden.js` (`istGalerieEintrag`, `ladeBeispielDateien`), `erwartet`-Feld in `e2e/hilfen.mjs`, ARCHITEKTUR §3 „Übergang“.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

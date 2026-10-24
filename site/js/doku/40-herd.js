@@ -1,4 +1,4 @@
-/* pizza v3.1 – Doku: Herd (Spiele) (591–598) – Doku v2; Bilder he-*, Beispiele site/beispiele/herd/ */
+/* pizza v3.1 – Doku: Herd (Spiele) (591–598) – Doku v2; Bilder he-*, Beispiele site/beispiele/herd/<projekt>/ (Projektordner, K-144) */
 (function () {
   "use strict";
   const ziel = typeof self !== "undefined" ? self : globalThis;

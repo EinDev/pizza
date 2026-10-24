@@ -5,131 +5,68 @@
       "id": "pizzeria-tycoon",
       "titel": "Pizzeria-Tycoon",
       "beschreibung": "Du führst eine Woche Luigis Pizzeria: Jeden Tag entscheidest du Preisaufschlag, Ofentemperatur, Köche und Trinkgeld. Zu kalt bleibt roh, zu heiß verbrennt, Lieferungen gelten „30 Minuten oder gratis“ – am Ende Gewinn-Balkendiagramm.",
-      "datei": "simulationen/pizzeria-tycoon.pizza",
-      "erwartet": "simulationen/pizzeria-tycoon.erwartet",
-      "eingabe": "simulationen/pizzeria-tycoon.eingabe",
-      "exitCode": 0,
+      "ordner": "simulationen/pizzeria-tycoon",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 2,
-      "schlagworte": [
-        "Simulation",
-        "Zufall",
-        "ofen",
-        "bestelle",
-        "warte",
-        "Klasse",
-        "Balkendiagramm",
-        "Eingabe"
-      ],
+      "schlagworte": ["Simulation", "Zufall", "ofen", "bestelle", "warte", "Klasse", "Balkendiagramm", "Eingabe"],
       "interaktiv": true
     },
     {
       "id": "freitagabend-ansturm",
       "titel": "Freitagabend-Ansturm",
       "beschreibung": "412 Bestellungen bis Küchenschluss: Luigi allein schafft es nicht – mit schneide(8) auf acht Köche verteilt schon. Mit Zeitmessung auf der Pizza-Uhr und fairem Teilen per /.",
-      "datei": "simulationen/freitagabend-ansturm.pizza",
-      "erwartet": "simulationen/freitagabend-ansturm.erwartet",
-      "exitCode": 0,
+      "ordner": "simulationen/freitagabend-ansturm",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 2,
-      "schlagworte": [
-        "Simulation",
-        "schneide",
-        "Parallelität",
-        "ofen",
-        "Uhr",
-        "StreitAnanas"
-      ]
+      "schlagworte": ["Simulation", "schneide", "Parallelität", "ofen", "Uhr", "StreitAnanas"]
     },
     {
       "id": "pizza-duell",
       "titel": "Pizza-Duell",
       "beschreibung": "Du gegen Mario, den KI-Pizzaiolo: Wähle pro Runde Temperatur und Backzeit. Zu wenig Ofen bleibt roh, zu viel übergart, über 485 Grad verbrennt alles.",
-      "datei": "simulationen/pizza-duell.pizza",
-      "erwartet": "simulationen/pizza-duell.erwartet",
-      "eingabe": "simulationen/pizza-duell.eingabe",
-      "exitCode": 0,
+      "ordner": "simulationen/pizza-duell",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 2,
-      "schlagworte": [
-        "Spiel",
-        "ofen",
-        "roh",
-        "VerbranntAnanas",
-        "Klasse",
-        "Zufall",
-        "Eingabe"
-      ],
+      "schlagworte": ["Spiel", "ofen", "roh", "VerbranntAnanas", "Klasse", "Zufall", "Eingabe"],
       "interaktiv": true
     },
     {
       "id": "lieferroller-rallye",
       "titel": "Lieferroller-Rallye",
       "beschreibung": "Du bist Disponent: Ein Express mit „30 Minuten oder gratis“ und eine Abendtour, deren Reihenfolge allein dein Trinkgeld bestimmt (als priorität für wennDa). Schaffst du es, dass alle Kunden zufrieden sind?",
-      "datei": "simulationen/lieferroller-rallye.pizza",
-      "erwartet": "simulationen/lieferroller-rallye.erwartet",
-      "eingabe": "simulationen/lieferroller-rallye.eingabe",
-      "exitCode": 0,
+      "ordner": "simulationen/lieferroller-rallye",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 2,
-      "schlagworte": [
-        "Simulation",
-        "bestelle",
-        "priorität",
-        "warte",
-        "wennDa",
-        "LieferAnanas",
-        "Eingabe"
-      ],
+      "schlagworte": ["Simulation", "bestelle", "priorität", "warte", "wennDa", "LieferAnanas", "Eingabe"],
       "interaktiv": true
     },
     {
       "id": "kuehlschrank-chaos",
       "titel": "Kühlschrank-Chaos",
       "beschreibung": "Zwei Wochen Tomatensoße: @Kühlschrank hält sie 2 Tage frisch, Uhr.vorspulen lässt die Zeit springen – mal frisch, mal aus dem Kühlschrank, mal matschig.",
-      "datei": "simulationen/kuehlschrank-chaos.pizza",
-      "erwartet": "simulationen/kuehlschrank-chaos.erwartet",
-      "exitCode": 0,
+      "ordner": "simulationen/kuehlschrank-chaos",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 2,
-      "schlagworte": [
-        "Simulation",
-        "@Kühlschrank",
-        "mikrowelle",
-        "frisch",
-        "Uhr",
-        "Caching"
-      ]
+      "schlagworte": ["Simulation", "@Kühlschrank", "mikrowelle", "frisch", "Uhr", "Caching"]
     },
     {
       "id": "belag-baukasten",
       "titel": "Belag-Baukasten",
       "beschreibung": "Eigene Beläge als Decorator-Klassen: Trüffel, Blattgold, Happy Hour und Extrascharf umwickeln die Pizza darunter und rechnen Preise und Beschreibungen Schicht für Schicht – Kaviar wirft eine eigene Ananas.",
-      "datei": "simulationen/belag-baukasten.pizza",
-      "erwartet": "simulationen/belag-baukasten.erwartet",
-      "exitCode": 0,
+      "ordner": "simulationen/belag-baukasten",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 1,
-      "schlagworte": [
-        "Decorator",
-        "rezeptur",
-        "erbt",
-        "unten",
-        "eigene Ananas",
-        "probier"
-      ]
+      "schlagworte": ["Decorator", "rezeptur", "erbt", "unten", "eigene Ananas", "probier"]
     },
     {
       "id": "hawaii-alarm",
       "titel": "Hawaii-Alarm",
       "beschreibung": "Du überwachst Robo-Luigi am Fließband: Wie viele Zufallsbeläge? Und wenn er eine Ananas greift – Filter, wegwerfen oder durchwinken? Durchwinken macht die Pizza zur hawaii und endet mit Kernel Panic (Exit 39); die Beispiel-Eingabe tut genau das kurz vorm Ziel.",
-      "datei": "simulationen/hawaii-alarm.pizza",
-      "erwartet": "simulationen/hawaii-alarm.erwartet",
-      "eingabe": "simulationen/hawaii-alarm.eingabe",
+      "ordner": "simulationen/hawaii-alarm",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "exitCode": 39,
       "tier": 1,
-      "schlagworte": [
-        "Spiel",
-        "Hawaii",
-        "Ananas",
-        "Panik",
-        "Zufall",
-        "Eingabe"
-      ],
+      "schlagworte": ["Spiel", "Hawaii", "Ananas", "Panik", "Zufall", "Eingabe"],
       "interaktiv": true
     }
   ]

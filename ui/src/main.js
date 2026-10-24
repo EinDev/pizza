@@ -684,9 +684,12 @@ async function start() {
   });
 
   // ---------- Doku & Beispiele (öffnen jeweils als eigenes Ein-Datei-Projekt, quelle doku:/beispiel:) ----------
+  // code: Text oder – Doku-Block mit `dateien` (ARCHITEKTUR §4) – { dateien, hauptdatei } → Mehrdatei-Projekt
   async function oeffneCode(code, titel, schluessel) {
     const name = (titel || "doku").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) + ".pizza";
-    const { neu } = await oeffneAlsProjekt(code, name, schluessel);
+    const { neu } = code && typeof code === "object"
+      ? await oeffneAlsProjekt(code.dateien, name, schluessel, { hauptdatei: code.hauptdatei || null })
+      : await oeffneAlsProjekt(code, name, schluessel);
     if (!neu) toast("Bereits geöffnet – zum Projekt gewechselt.", "info");
     if (schmal.matches) setzePanel(false, { fokus: false });
     editor.view.focus();
@@ -729,11 +732,11 @@ async function start() {
   lesemodus.addEventListener("click", (e) => { if (e.target === lesemodus) lesemodus.close(); });
   lesemodus.addEventListener("close", () => { if (panelOffen && aktiverTab === "doku") dokuPanel.zeigeGemerkt(); });
   const beispiele = erstelleBeispiele({
-    async ladeCode(code, name, fehler, schluessel) {
+    // geladen = { name, dateien, hauptdatei } (beispiel-laden.js), quelle = „beispiel:<id>“ (PROJEKTE §3.2/§3.3)
+    async ladeCode(geladen, fehler, quelle) {
       if (fehler) { toast(fehler, "fehler"); return; }
-      // Tab-Schlüssel „bsp:<datei>“ der Galerie → Projekt-Quelle „beispiel:<datei>“ (PROJEKTE §3.2/§3.3)
-      const quelle = schluessel && schluessel.startsWith("bsp:") ? "beispiel:" + schluessel.slice(4) : schluessel;
-      const { neu } = await oeffneAlsProjekt(code, name, quelle);
+      const { neu } = await oeffneAlsProjekt(geladen.dateien, geladen.name, quelle, { hauptdatei: geladen.hauptdatei });
+      const name = projektNameAus(geladen.name);
       toast(neu ? "„" + name + "“ als neues Projekt geöffnet. Strg+Enter zum Backen." : "„" + name + "“ ist schon offen – zum Projekt gewechselt.", "ok");
       if (schmal.matches) setzePanel(false, { fokus: false });
       editor.view.focus();

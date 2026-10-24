@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Hefekulturen (Game of Life)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Conways Spiel des Lebens im ringförmigen Teigbottich: Gleiter, Blinker und Block über mehrere Generationen als ASCII-Bilder."
+}

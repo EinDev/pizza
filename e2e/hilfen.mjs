@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { createRequire } from "node:module";
 import { starteServer } from "./server.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
@@ -426,6 +427,8 @@ export async function projektListe(page) {
 export async function oeffneProjektmenue(page) {
   if (!(await page.$(PJ.menue))) await page.click(PJ.menueKnopf);
   await page.waitForSelector(PJ.menue);
+  // Das Suchfeld bekommt den Fokus erst im nächsten Frame – vorher ginge ein Escape an den Knopf und das Menü bliebe offen
+  await page.waitForFunction((sel) => document.activeElement && document.activeElement.closest(sel), {}, PJ.menue);
 }
 /** Eintrag im Projektmenü anklicken (testid, z. B. "projekt-neu", "projekt-zip-export"). */
 export async function projektBefehl(page, testid) {
@@ -476,20 +479,22 @@ export function klickeDom(page, selektor) {
   return page.$eval(selektor, (e) => { e.scrollIntoView({ block: "center" }); e.click(); });
 }
 
-/** Alle Beispiele aus den Manifesten (nur vorhandene Teil-Manifeste). */
+// Gemeinsamer Beispiel-Leser (scripts/beispiele.js, PROJEKTE §7): Ordner + pruefung/, Imperium bis PB5 im alten Format
+const BSP = createRequire(import.meta.url)("../scripts/beispiele.js");
+
+/**
+ * Alle Beispiele aus den Manifesten (nur vorhandene Teil-Manifeste): Manifestfelder + kategorie, teil, hauptdatei (Tab-Name in der
+ * Galerie-Kopie), hauptdateiUrl (relativ zu beispiele/), exitCode (pruefung/exitcode), erwartetText; `leser` = Eintrag des Lesers.
+ */
 export function beispieleAusManifesten() {
   const basis = path.join(SITE, "beispiele");
   const index = JSON.parse(fs.readFileSync(path.join(basis, "index.json"), "utf8"));
-  const fehlend = [];
-  const liste = [];
-  for (const teil of index.teile || []) {
-    const p = path.join(basis, teil);
-    if (!fs.existsSync(p)) { fehlend.push(teil); continue; }
-    const m = JSON.parse(fs.readFileSync(p, "utf8"));
-    for (const b of m.beispiele || []) {
-      liste.push({ ...b, kategorie: m.kategorie, teil, erwartetText: fs.readFileSync(path.join(basis, b.erwartet), "utf8").replace(/\r\n/g, "\n") });
-    }
-  }
+  const fehlend = (index.teile || []).filter((t) => !fs.existsSync(path.join(basis, t)));
+  const liste = BSP.leseBeispiele({ basis }).map((b) => ({
+    ...b.eintrag, kategorie: b.kategorie, teil: b.teil, ordner: b.ordner, hauptdatei: b.hauptdatei, hauptdateiUrl: b.hauptdateiUrl,
+    exitCode: b.exitCode, erwartet: b.ordner ? b.ordner + "/pruefung/erwartet" : b.eintrag.erwartet,
+    erwartetText: (b.erwartet || "").replace(/\r\n/g, "\n"), leser: b,
+  }));
   return { liste, fehlend, teile: index.teile || [] };
 }
 
@@ -578,13 +583,11 @@ export async function backenInteraktiv(page, zeilen, { timeout = 30_000, tippen 
   return { gesendet, eofs };
 }
 
-/** Eingabedatei eines Beispiels (Manifestfeld "eingabe" oder gleichnamige .eingabe-Datei). */
+/** Eingabedatei eines Beispiels (pruefung/eingabe bzw. im alten Format Manifestfeld "eingabe"/gleichnamige .eingabe). */
 export function eingabeZeilen(b) {
-  const basis = path.join(SITE, "beispiele");
-  const datei = b.eingabe || b.datei.replace(/\.pizza$/, ".eingabe");
-  const p = path.join(basis, datei);
-  if (!fs.existsSync(p)) return null;
-  const t = fs.readFileSync(p, "utf8").replace(/\r\n?/g, "\n");
+  const roh = b.leser ? b.leser.pruefText("eingabe") : null;
+  if (roh === null) return null;
+  const t = roh.replace(/\r\n?/g, "\n");
   if (t === "") return [];
   return t.replace(/\n$/, "").split("\n");
 }
@@ -614,20 +617,14 @@ export function eingabeUnterstuetzt(page) {
 export const VORSCHAU = '[data-testid="vorschau"], #vorschau';
 export const VORSCHAU_ZU = '[data-testid="vorschau-schliessen"], #vorschau-schliessen';
 
-/** .ereignisse eines Beispiels (JSON-Lines) oder null. */
+/** pruefung/ereignisse eines Beispiels (JSON-Lines) oder null. */
 export function thekeEreignisse(b) {
-  const datei = b.ereignisse || b.datei.replace(/\.pizza$/, ".ereignisse");
-  const p = path.join(SITE, "beispiele", datei);
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+  return b.leser ? b.leser.ereignisse : null;
 }
 
-/** .ui-erwartet eines Beispiels (JSON-Lines aller ui-Nachrichten) oder null. */
+/** pruefung/ui-erwartet eines Beispiels (JSON-Lines aller ui-Nachrichten) oder null. */
 export function thekeUiErwartet(b) {
-  const datei = b.uiErwartet || b.datei.replace(/\.pizza$/, ".ui-erwartet");
-  const p = path.join(SITE, "beispiele", datei);
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+  return b.leser ? b.leser.uiErwartet : null;
 }
 
 /** Alle bisher empfangenen ui-Nachrichten (Programm → Renderer). */
@@ -898,11 +895,9 @@ export function setzeLaufUhr(page, b) {
 }
 
 // ---------------------------------------------------------------- Herd (H6)
-/** .herd-erwartet eines Beispiels (JSON-Lines der herd-Ereignisse ohne typ) oder null. */
+/** pruefung/herd-erwartet eines Beispiels (JSON-Lines der herd-Ereignisse ohne typ) oder null. */
 export function herdErwartet(b) {
-  const p = path.join(SITE, "beispiele", b.datei.replace(/\.pizza$/, ".herd-erwartet"));
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, "utf8").split(/\r?\n/).filter((z) => z.trim()).map((z) => JSON.parse(z));
+  return b.leser ? b.leser.herdErwartet : null;
 }
 
 /** Kanonisches JSON (Schlüssel sortiert) – wie tests/run-tests.js herdVergleich. */

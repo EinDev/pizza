@@ -224,7 +224,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 ```json
 { "teile": ["grundlagen.json", "pizzafunktionen.json"] }
 ```
-Teil-Manifest, z. B. `grundlagen.json`:
+Teil-Manifest, z. B. `grundlagen.json` – **jedes Beispiel ist ein Projektordner** (K-144, PROJEKTE.md §7; seit PB3):
 ```json
 {
   "kategorie": "Grundlagen",
@@ -233,22 +233,30 @@ Teil-Manifest, z. B. `grundlagen.json`:
       "id": "hallo-welt",
       "titel": "Hallo Welt",
       "beschreibung": "Ein Satz Beschreibung.",
-      "datei": "grundlagen/hallo-welt.pizza",
-      "erwartet": "grundlagen/hallo-welt.erwartet",
-      "exitCode": 0,
+      "ordner": "grundlagen/hallo-welt",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 1,
       "schlagworte": ["Ausgabe"]
     }
   ]
 }
 ```
-- Pfade relativ zu `site/beispiele/`.
-- **Projekte als Beispiele (K-144; Umzug PROJEKTE.md PB3):** Ein Eintrag nennt statt `datei`/`erwartet`/`eingabe`/`exitCode` den
-  Projektordner und seine Dateiliste (statisches Hosting kann keine Ordner auflisten; ohne `pruefung/`):
-  `{ "id": "teigball", "titel": "Teigball", "beschreibung": "…", "ordner": "herd/teigball", "dateien": ["pizza.json", "hauptgang.pizza",
-  "welt/tisch.pizza", "bilder/tischdecke.png"], "tier": 1, "schlagworte": ["Herd", "3D"], "herd": true }` – Erwartungen liegen in
-  `<ordner>/pruefung/` (§6). Bis zum Umzug des Pizza-Imperiums (PB5) lesen Galerie und Harnische `datei` **oder** `ordner`.
-- Optionale Felder `"eingabe": "spiele/x.eingabe"` (eine Zeile pro Eingabe, Tests laufen damit nicht-interaktiv; Fallback: gleichnamige `.eingabe` neben der `.pizza`) und `"interaktiv": true` – siehe SPEC §11.1.
+- Pfade relativ zu `site/beispiele/`; `ordner` = `<kategorie>/<projekt>`, `dateien` = alle Dateien des Ordners **ohne** `pruefung/`
+  (statisches Hosting kann keine Ordner auflisten), Reihenfolge `pizza.json`, Hauptdatei, Rest nach Bytefolge. Mehrdatei-Projekte und
+  Bilder genauso: `"dateien": ["pizza.json", "hauptgang.pizza", "welt/tisch.pizza", "bilder/tischdecke.png"]`.
+- Im Ordner: `pizza.json` (`{ "pizza": 1, "name": <titel>, "hauptdatei": "hauptgang.pizza", "beschreibung": <beschreibung> }` –
+  `name`/`beschreibung` sind die Quelle, das Manifest trägt eine Kopie für die Galerie), `hauptgang.pizza` und der Testordner
+  `pruefung/` mit `erwartet` (Pflicht), `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `exitcode` (§6).
+- Weitere Felder: `tier`, `schlagworte`, `herd`, `theke`, `interaktiv` (Spiele mit `pruefung/eingabe`, SPEC §11.1) und die
+  Laufoptionen der Tests `echtzeit`, `zone` (K-087, K-154; auch `zufallsSaat`, `schrittLimit`, `args`). `exitCode` steht nur, wenn er
+  ≠ 0 ist, als **Anzeige-Kopie** von `pruefung/exitcode` (Galerie-Plakette „Ananas“/„Hawaii“).
+- **Werkzeug** `scripts/beispiele.js` (zugleich der gemeinsame Leser aller Harnische): `--pruefe` (in `npm test`) vergleicht Manifeste
+  und Platte (Ordner, Dateiliste, `pizza.json` = Titel/Beschreibung, Dateiarten, `pruefung/` nur bekannte Testdateien, `exitCode`-Kopie,
+  ids eindeutig, keine Waisen); `--schreibe` erneuert die abgeleiteten Felder (`dateien`, `titel`/`beschreibung` aus `pizza.json`,
+  `exitCode`); `--umziehen` zieht Einträge im alten Format (`datei` + Begleitdateien) idempotent in Ordner um.
+- **Übergang bis PB5:** Das Pizza-Imperium bleibt im alten Format (`"datei": "idle/pizza-imperium.pizza"`, `erwartet`/`ereignisse`/
+  `uiErwartet`/`exitCode` im Manifest, Begleitdateien daneben); Galerie und Harnische lesen `datei` **oder** `ordner`, `--pruefe`
+  erlaubt `datei` nur für diesen Eintrag.
 - `.erwartet` = alle `ausgabe`-, `fehlerausgabe`- und `panik`-Texte in Reihenfolge, je Ereignis eine Zeile
   (`ausgabe` mit `umbruch: false` ohne Zeilenumbruch, `leeren` als Zeile `«leeren»`, `eingabe` nie – SPEC §11.1)
   (mehrzeiliger Panik-Text bleibt mehrzeilig), abschließender Zeilenumbruch. Warnungen, `fehler` und `ende` stehen **nicht** drin.
@@ -272,6 +280,10 @@ Jede Datei registriert Abschnitte:
   ]
 });
 ```
+**Mehrdatei-Blöcke** (K-144, PROJEKTE.md PB3): statt `code` trägt ein Block `dateien: { "<pfad>": "<text>", … }` (nur Textdateien,
+Pfade nach SPEC §2.1) und optional `hauptdatei` (sonst `hauptgang.pizza` bzw. die einzige `.pizza`); er läuft als Projekt, „Im Editor
+öffnen“ legt ein Mehrdatei-Projekt an. `code` und `dateien` zugleich ist ein Fehler. `sprache` ≠ `pizza` (`xml`, `shell`, `json`) wird
+nicht geprüft.
 ### Doku v2: einfacher, mit Bildern (Nutzer-Feedback)
 
 Neue Inhaltsarten (zusätzlich zu den obigen):
@@ -311,7 +323,7 @@ Regeln für jeden Abschnitt:
 - **Projekte** (PROJEKTE.md §3, K-142): ein aktives Projekt je Fenster (Projektmenü „≡ Name ▾“ im Kopf: Liste mit Suche, Neu,
   Umbenennen, Duplizieren, Löschen/Papierkorb, ZIP-Export/-Import, EXE, Teilen), Tabs = offene Dateien, Dateibaum links (einklappbar,
   Handy: Schublade), Bildvorschau für PNG/JPEG; Ablage in IndexedDB `pizza` (ohne IndexedDB nur im Speicher + Banner).
-- Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“ (= eigenes Ein-Datei-Projekt). Kürzel: `Strg+Enter` ausführen (immer die
+- Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“ legt eine eigene Projektkopie an (Beispiel = alle Dateien aus `dateien`, ohne `pruefung/`; Doku-Block mit `code` = Ein-Datei-Projekt, mit `dateien` = Mehrdatei-Projekt; Quelle `beispiel:<id>` bzw. `doku:<abschnitt>:<n>`). Kürzel: `Strg+Enter` ausführen (immer die
   Hauptdatei), `Strg+S` lokal speichern, `Strg+B` Panel, `Strg+Alt+N` neues Projekt, `Strg+O` Dateien hinzufügen.
 - Hawaii-Panik: kein Crash-Overlay – Banner als Fehlerausgabe in der Konsole, Exit-Code-Badge 39 (KLAERUNGEN K-012).
 - Hell/Dunkel, deutsch, keine externen Requests zur Laufzeit (alles gebündelt).
@@ -329,7 +341,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.fehler` | erwartete `fehler`-Texte (eine Zeile pro Ereignis); fehlt → nicht geprüft |
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
-| `site/beispiele/` | `*.pizza`, `*.erwartet`, `*.eingabe` | wie oben; Manifestfelder `exitCode`, `eingabe`, `interaktiv` (§3) |
+| `site/beispiele/<kategorie>/<projekt>/` | Projekt + `pruefung/` | wie ein Ordner-Fall (unten): `pruefung/erwartet`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `exitcode`; Manifest §3 (gemeinsamer Leser `scripts/beispiele.js`); bis PB5 das Imperium noch als `*.pizza` + Begleitdateien |
 | Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kennung>": [["schlüssel", wert], …] }` → `optionen.vorrat` (Kennung `kammer` oder `raum/kammer`, K-106); Tests laufen mit `zufallsSaat` 42 (Standard) |
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
@@ -337,7 +349,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | Projekte (SPEC §2, K-144; seit PA1, z. B. `tests/faelle/projekt-*/`) | `tests/faelle/<name>/` | **Ordner-Fall** = Projekt (`pizza.json` optional, `hauptgang.pizza`, Nebendateien, Assets) mit Testordner `pruefung/`: `erwartet`, `exitcode`, `warnungen`, `fehler`, `optionen.json`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet` (Inhalt wie die gleichnamigen Dateien oben) und neu `orte` (JSON-Lines `{ "code", "datei", "zeile", "spalte" }` je `fehler`/`warnung`). `pruefung/` gehört nicht zum Programm; Ein-Datei-Fälle bleiben, wie sie sind. Beispiele ebenso (`site/beispiele/<kategorie>/<projekt>/pruefung/`) |
 | `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code); seit PA2 auch Ordner `<name>/` als Projekt mit `pruefung/` (`exitcode`, `fehler` = erwarteter Code, `optionen.json`, `eingabe`, `ereignisse`, `vorrat.json`) |
 | `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (seit PA2 auch in den Differenztests); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit keine; die Projekt-Fälle – Lader seit PA1, Kiste/Bilder seit PD2 – stehen in `a19-projekte.js`, gemeinsame Hilfen in `pruefstand/lib/projekt-helfer.js`) |
-| Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number`, `zone: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit`/`zone` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088, K-154) |
+| Doku-Codeblöcke | `code` oder `dateien` (+ `hauptdatei`, §4), `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number`, `zone: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit`/`zone` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088, K-154) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).
 Küchenbrigade (SPEC §17, K-100): Fälle heißen `kueche-*`; `.optionen.json` darf `koeche`/`kuechenChaos` tragen; das `ende`-Feld

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Tic-Tac-Toe gegen Diavolo",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Du spielst Margherita gegen Diavolo, eine Minimax-KI mit Alpha-Beta-Schnitt, die nie verliert. Schaffst du ein Unentschieden?"
+}

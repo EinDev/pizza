@@ -39,19 +39,19 @@ e2e("Beispiel öffnen erzeugt ein neues Projekt, das alte (geänderte) Projekt b
   assert.ok(tabs[0].schmutzig, "geänderte Datei ist als ungespeichert markiert");
 
   await oeffneBeispiel(page, "Hallo Welt");
-  await warteAufTab(page, "hallo-welt.pizza");
-  await warteAufProjekt(page, "hallo-welt");
+  await warteAufTab(page, "hauptgang.pizza");
+  await warteAufProjekt(page, "Hallo Welt");
   tabs = await editorTabs(page);
-  assert.deepEqual(tabs.map((t) => t.name), ["hallo-welt.pizza"], "Tabs = Dateien des aktiven Projekts");
+  assert.deepEqual(tabs.map((t) => t.name), ["hauptgang.pizza"], "Tabs = Dateien des aktiven Projekts (pizza.json bleibt zu)");
   assert.match(await editorText(page), /Hallo, Pizzawelt!/);
   await page.waitForFunction(() => /als neues Projekt geöffnet/.test(document.getElementById("toast").textContent));
-  assert.deepEqual(await projektListe(page), ["hallo-welt", "willkommen"], "zuletzt geändert zuerst");
+  assert.deepEqual(await projektListe(page), ["Hallo Welt", "willkommen"], "zuletzt geändert zuerst");
 
   // Zurück zum alten Projekt: Inhalt unverändert; gleiches Beispiel erneut → kein weiteres Projekt, nur Wechsel
   await wechsleProjekt(page, "willkommen");
   assert.equal(await editorText(page), eigen, "alter Inhalt unverändert");
   await oeffneBeispiel(page, "Hallo Welt");
-  await warteAufProjekt(page, "hallo-welt");
+  await warteAufProjekt(page, "Hallo Welt");
   assert.equal((await projektListe(page)).length, 2);
 
   // Undo-Historie ist je Datei getrennt: Strg+Z im Beispiel ändert nichts
@@ -66,7 +66,7 @@ e2e("Beispiel öffnen erzeugt ein neues Projekt, das alte (geänderte) Projekt b
   await page.waitForSelector("#dialog-frage[open]");
   assert.match(await page.$eval("#dialog-text", (e) => e.textContent), /geändert/);
   await page.$eval('#dialog-frage button[value="nein"]', (k) => k.click()); // „Zu meiner Kopie“
-  await warteAufProjekt(page, "hallo-welt");
+  await warteAufProjekt(page, "Hallo Welt");
   assert.equal(await editorText(page), 'Bote.sage(("verändert"));');
 });
 
@@ -114,7 +114,7 @@ e2e("„+“ legt ein neues Ein-Datei-Projekt an, Strg+S markiert gespeichert, B
 e2e("Reload stellt Projekt, offene Tabs und Inhalte wieder her (IndexedDB)", async ({ page, oeffne }) => {
   await oeffne();
   await oeffneBeispiel(page, "Hallo Welt");
-  await warteAufTab(page, "hallo-welt.pizza");
+  await warteAufTab(page, "hauptgang.pizza");
   await neuerTab(page);
   await warteAufTab(page, "unbenannt-1.pizza");
   const code = 'Bote.sage(("überlebt den Reload"));';
@@ -134,7 +134,7 @@ e2e("Reload stellt Projekt, offene Tabs und Inhalte wieder her (IndexedDB)", asy
   await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "unbenannt-1.pizza").querySelector(".etab-knopf").click());
   await warteAufTab(page, "unbenannt-1.pizza");
   assert.equal(await editorText(page), code);
-  await wechsleProjekt(page, "hallo-welt");
+  await wechsleProjekt(page, "Hallo Welt");
   assert.match(await editorText(page), /Hallo, Pizzawelt!/);
   await backen(page);
   assert.match(await konsolenAusgabe(page), /^Hallo, Pizzawelt!/);

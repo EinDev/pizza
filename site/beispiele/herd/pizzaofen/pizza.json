@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizzaofen: Pizzen aus der Vorlage",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Aus einer ruhenden Vorlage – Teig, Tomate, Mozzarella, Basilikum, Dampf – wirft der Ofen jede Sekunde eine fertige Pizza aus; sie fliegt auf die Theke und rutscht in die Kiste. Ein Klick wirft sofort eine. kopie() macht aus der Vorlage wache Pizzen."
+}

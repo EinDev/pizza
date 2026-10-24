@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "schieb(): Weitergeben statt Kopieren",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Jede Pizza gehört genau einem Tisch: schieb() gibt sie weiter und lässt einen leeren Karton zurück – eine normale Zuweisung teilt dagegen dasselbe Objekt."
+}

@@ -1,7 +1,7 @@
 'use strict';
 /*
  * Sammelt den Differenz-Korpus: { quelle, name, code, optionen, erwartetExit? }
- *   beispiele  – site/beispiele (index.json → Teil-Manifeste)
+ *   beispiele  – site/beispiele (gemeinsamer Leser scripts/beispiele.js: Ordner + pruefung/, Imperium bis PB5 als Datei)
  *   doku       – alle ausführbaren Codeblöcke aus site/js/doku/*.js (rekursiv inkl. details)
  *   faelle     – tests/faelle/*.pizza (+ .optionen.json) und Ordner-Fälle tests/faelle/<name>/ (Projekt + pruefung/, K-144)
  *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar; `code` darf ein Projekt sein)
@@ -18,6 +18,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..', '..');
+const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
 
 function lies(p) { return fs.readFileSync(p, 'utf8'); }
 /** .eingabe-Datei → Zeilen (abschließender Zeilenumbruch erzeugt keine Leerzeile). */
@@ -26,20 +27,8 @@ function zeilen(text) { const z = String(text).replace(/\r\n/g, '\n').split('\n'
 function jsonZeilen(text) { return zeilen(text).filter(z => z.trim()).map(z => JSON.parse(z)); }
 function json(p) { return JSON.parse(lies(p).replace(/^﻿/, '')); }
 
-const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-/** Projektordner → Dateisammlung (wie bin/pizza.js und tests/run-tests.js: alles außer pruefung/, Texte streng UTF-8 mit \n, sonst Bytes) */
-function projektAusOrdner(wurzel) {
-  const dateien = {};
-  (function geh(abs, rel) {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
-      const r = rel ? rel + '/' + e.name : e.name;
-      if (e.isDirectory()) { if (r !== 'pruefung') geh(path.join(abs, e.name), r); continue; }
-      const b = fs.readFileSync(path.join(abs, e.name));
-      dateien[r] = TEXT_ENDUNG.test(r) ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(b).replace(/\r\n/g, '\n') : new Uint8Array(b);
-    }
-  })(wurzel, '');
-  return { dateien };
-}
+/** Projektordner → Dateisammlung (gemeinsamer Leser scripts/beispiele.js: alles außer pruefung/, Texte streng UTF-8 mit \n, sonst Bytes) */
+function projektAusOrdner(wurzel) { return { dateien: BSP.leseOrdner(wurzel) }; }
 /** Quelltext(e) eines Falls für Textsuchen (brigade, Vorratskammer, Eingabe …): Projekte → alle Textdateien in Pfadreihenfolge */
 function text(code) {
   if (typeof code === 'string') return code;
@@ -65,29 +54,17 @@ function laufFelder(x) {
 }
 function uiAus(p) { return p && fs.existsSync(p) ? { uiEreignisse: jsonZeilen(lies(p)) } : {}; }
 
+// Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner = Projekt (Manifest-Dateiliste) mit
+// pruefung/{eingabe, ereignisse, vorrat.json, exitcode}; altes Format (Imperium bis PB5) als Text.
 function beispiele(warn) {
-  const dir = path.join(ROOT, 'site', 'beispiele');
   const out = [];
-  const ip = path.join(dir, 'index.json');
-  if (!fs.existsSync(ip)) { warn('beispiele: index.json fehlt'); return out; }
-  for (const teil of json(ip).teile || []) {
-    const mp = path.join(dir, teil);
-    if (!fs.existsSync(mp)) { warn('beispiele: Manifest fehlt: ' + teil); continue; }
-    let man;
-    try { man = json(mp); } catch (e) { warn('beispiele: ' + teil + ' ungültig: ' + e.message); continue; }
-    for (const b of man.beispiele || []) {
-      const dp = b.datei && path.join(dir, b.datei);
-      if (!dp || !fs.existsSync(dp)) { warn('beispiele: Datei fehlt: ' + b.datei); continue; }
-      out.push({
-        quelle: 'beispiele', name: teil.replace(/\.json$/, '') + '/' + (b.id || b.datei),
-        code: lies(dp), optionen: Object.assign({ args: b.args || [] },
-          b.eingabe ? { eingabe: zeilen(lies(path.join(dir, b.eingabe))) } : (fs.existsSync(dp.replace(/\.pizza$/, '.eingabe')) ? { eingabe: zeilen(lies(dp.replace(/\.pizza$/, '.eingabe'))) } : {}),
-          uiAus(b.ereignisse ? path.join(dir, b.ereignisse) : dp.replace(/\.pizza$/, '.ereignisse')),
-          vorratAus(typeof b.vorrat === 'string' ? path.join(dir, b.vorrat) : dp.replace(/\.pizza$/, '.vorrat.json')),
-          laufFelder({ zufallsSaat: b.zufallsSaat, echtzeit: b.echtzeit, zone: b.zone, schrittLimit: b.schrittLimit })),
-        erwartetExit: typeof b.exitCode === 'number' ? b.exitCode : 0,
-      });
-    }
+  for (const b of BSP.leseBeispiele()) {
+    if (!fs.existsSync(b.hauptdateiPfad)) { warn('beispiele: Hauptdatei fehlt: ' + b.hauptdateiUrl); continue; }
+    out.push({
+      quelle: 'beispiele', name: b.name,
+      code: b.programm, optionen: Object.assign(b.laufOptionen(), laufFelder(b.optionen)),
+      erwartetExit: b.exitCode,
+    });
   }
   return out;
 }
@@ -108,8 +85,8 @@ function doku(warn) {
     (liste || []).forEach((item, i) => {
       if (!item || typeof item !== 'object') return;
       if (item.art === 'details') { sammle(a, item.inhalt, pfad + i + '.'); return; }
-      if (item.art !== 'code' || item.sprache === 'xml' || item.sprache === 'shell') return;
-      const code = String(item.code || '');
+      if (item.art !== 'code' || BSP.FREMDE_SPRACHEN.has(item.sprache)) return;
+      const code = BSP.dokuProgramm(item);   // Text oder Projekt { dateien, hauptdatei? } (ARCHITEKTUR §4)
       const name = (a.id || '?') + '#' + pfad + i;
       // Nicht ausführbare Blöcke werden trotzdem verglichen (Syntaxfehler/Laufzeitverhalten), nur ohne Exit-Erwartung.
       const dopt = {};

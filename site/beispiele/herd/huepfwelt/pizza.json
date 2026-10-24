@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Hüpfwelt: Pizzabote im Keller",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein Jump-'n'-Run aus Kacheln: Der Pizzabote läuft mit den Pfeiltasten durch ein Kellergewölbe, springt über Kisten auf Bretter, sammelt Pizzen und bringt sie zur Tür. Das Level sind zwei Fliesen-Raster aus Text-Zeilen (Wand hinten, Steine und Kisten vorn); feste Kacheln tragen den Boten über die Wucht, gezeichnet wird nur, was der Blick an der Leine sieht."
+}

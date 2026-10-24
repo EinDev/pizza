@@ -97,10 +97,10 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
   const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m).filter((m) => m !== "interpreter");
   if (!modi.length) return t.skip("nur Interpreter verfügbar");
   for (const b of ALLE_BEISPIELE) {
-    const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.datei);
+    const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.hauptdateiUrl);
     await setzeCode(page, code.replace(/\r\n?/g, "\n"));
     for (const m of modi) {
-      await t.test(`${b.datei} (${m})`, { timeout: beispielZeitlimit(b) }, async () => {
+      await t.test(`${b.ordner || b.hauptdateiUrl} (${m})`, { timeout: beispielZeitlimit(b) }, async () => {
         await setzeMotor(page, m);
         const herd = herdErwartet(b);
         await setzeLaufUhr(page, b);   // feste Wanduhr/Zeitzone wie beim Erzeugen der .erwartet (K-087/K-154)

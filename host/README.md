@@ -262,7 +262,7 @@ Agenten öffnen nie ein Fenster und nutzen nie die GPU. Bitte nur starten, wenn 
 ```sh
 cd host && cargo build --release
 # Herd-Beispiel kompilieren (oder im Playground als EXE herunterladen und diese mit denselben Optionen starten):
-node -e "global.PizzaLang=require('../site/js/pizza.js');const P=require('../site/js/pizzaiolo.js');const fs=require('fs');fs.writeFileSync('teigball.pkarton',P.kompiliere(fs.readFileSync('../site/beispiele/herd/teigball.pizza','utf8')).pkarton)"
+node -e "global.PizzaLang=require('../site/js/pizza.js');const P=require('../site/js/pizzaiolo.js');const fs=require('fs');fs.writeFileSync('teigball.pkarton',P.kompiliere(fs.readFileSync('../site/beispiele/herd/teigball/hauptgang.pizza','utf8')).pkarton)"
 target/release/pizza-host teigball.pkarton                     # Fensterlauf (Pfeiltasten, Leertaste; Schließen beendet)
 target/release/pizza-host --herd-messung teigball.pkarton      # GPU-Messung: eine Zeile je Sekunde auf stderr
 HERD_SOFTWARE=1 target/release/pizza-host --herd-messung teigball.pkarton   # Vergleich auf WARP

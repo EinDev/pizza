@@ -60,6 +60,7 @@ function blockText(b) {
   const t = [];
   if (b.md) t.push(markdownText(b.md));
   if (b.code) t.push(b.code);
+  if (b.dateien && typeof b.dateien === "object") t.push(Object.entries(b.dateien).map(([p, c]) => p + " " + c).join(" \n "));
   if (b.text) t.push(b.text);
   if (b.titel) t.push(b.titel);
   if (b.alt) t.push(b.alt);
@@ -151,32 +152,46 @@ export function erstelleDoku({ oeffneCode, backeCode, zeigeBild, vorAktion }) {
 
     function codeBlock(b, abschnitt, nr) {
       const fig = el("figure", "doku-code");
-      const pre = el("pre", "code-statisch");
-      const code = el("code");
       const sprache = b.sprache || "pizza";
-      code.appendChild(highlightStatisch(String(b.code || ""), sprache));
-      pre.appendChild(code);
-      fig.appendChild(pre);
+      // `dateien` (ARCHITEKTUR §4): ein Projekt aus mehreren Textdateien – je Datei Kopfzeile + Code, die Hauptdatei mit ★
+      const dateien = b.dateien && typeof b.dateien === "object" ? Object.entries(b.dateien) : null;
+      const haupt = dateien ? (b.hauptdatei || (b.dateien["hauptgang.pizza"] != null ? "hauptgang.pizza" : dateien[0][0])) : null;
+      for (const [pfad, text] of dateien || [[null, String(b.code || "")]]) {
+        if (pfad !== null) {
+          fig.classList.add("doku-code-projekt");
+          const kopf = el("div", "code-datei", (pfad === haupt ? "★ " : "") + pfad);
+          kopf.dataset.testid = "doku-code-datei";
+          fig.appendChild(kopf);
+        }
+        const pre = el("pre", "code-statisch");
+        const code = el("code");
+        code.appendChild(highlightStatisch(String(text), pfad === null || /\.pizza$/.test(pfad) ? sprache : "text"));
+        pre.appendChild(code);
+        fig.appendChild(pre);
+      }
+      // Kopieren/Öffnen: Text bzw. Projekt { dateien, hauptdatei }
+      const kopierText = dateien ? dateien.map(([p, t]) => "// ── " + p + "\n" + t).join("\n\n") : b.code;
+      const inhalt = dateien ? { dateien: { ...b.dateien }, hauptdatei: haupt } : b.code;
       const leiste = el("div", "code-aktionen");
       if (sprache !== "pizza") leiste.appendChild(el("span", "code-sprache", sprache));
       else if ((b.tier ?? abschnitt.tier) === 3) leiste.appendChild(tierBadge(3, true));
       const kopieren = iconKnopf("kopieren", "Code kopieren");
       kopieren.addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(b.code); kopieren.innerHTML = ICON.ok; kopieren.classList.add("ok"); }
+        try { await navigator.clipboard.writeText(kopierText); kopieren.innerHTML = ICON.ok; kopieren.classList.add("ok"); }
         catch (e) { kopieren.title = "Kopieren nicht möglich"; }
         setTimeout(() => { kopieren.innerHTML = ICON.kopieren; kopieren.classList.remove("ok"); }, 1400);
       });
       leiste.appendChild(kopieren);
       if (sprache === "pizza") {
         const schluessel = "doku:" + abschnitt.id + ":" + nr;
-        const oeffnen = iconKnopf("oeffnen", "In neuem Editor-Tab öffnen");
+        const oeffnen = iconKnopf("oeffnen", dateien ? "Als Projekt öffnen" : "In neuem Editor-Tab öffnen");
         oeffnen.dataset.testid = "doku-code-oeffnen";
-        oeffnen.addEventListener("click", () => { vorAktion && vorAktion(); oeffneCode(b.code, abschnitt.titel, schluessel); });
+        oeffnen.addEventListener("click", () => { vorAktion && vorAktion(); oeffneCode(inhalt, abschnitt.titel, schluessel); });
         leiste.appendChild(oeffnen);
         if (b.ausfuehrbar) {
-          const backen = iconKnopf("backen", "In Editor-Tab öffnen und backen", "primaer");
+          const backen = iconKnopf("backen", dateien ? "Als Projekt öffnen und backen" : "In Editor-Tab öffnen und backen", "primaer");
           backen.dataset.testid = "doku-code-backen";
-          backen.addEventListener("click", () => { vorAktion && vorAktion(); backeCode(b.code, abschnitt.titel, schluessel); });
+          backen.addEventListener("click", () => { vorAktion && vorAktion(); backeCode(inhalt, abschnitt.titel, schluessel); });
           leiste.appendChild(backen);
         }
       }

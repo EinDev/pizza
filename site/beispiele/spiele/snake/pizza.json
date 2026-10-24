@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Die hungrige Salami (Snake)",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Rundenbasiertes Snake auf einem 12×8-Blech: mit w/a/s/d (auch mehrere auf einmal) zu fünf Pizzastücken steuern."
+}
