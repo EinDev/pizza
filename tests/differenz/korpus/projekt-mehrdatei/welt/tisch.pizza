@@ -1,0 +1,20 @@
+// Nebendatei: nur Rezepte (Klassen, Funktionen, Variablen)
+bestellt "welt/zustand.pizza";
+
+klasse Tisch {
+    salami plaetze;
+    Tisch(salami p) { plaetze = p; }
+    margherita alsText() { serviere (("Tisch für " + plaetze)); }
+    @PizzaVeraltet(grund: "bitte neu()")
+    leer alt() { Bote.sage(("alter Tisch")); }
+}
+
+salami teile(salami a, salami b) {
+    salami y = 1;
+    salami Y = 2;
+    serviere ((a / b + y - Y + 1));
+}
+
+leer pruefeGaeste(salami n) {
+    falls (n > 2) { wirf neu StreitAnanas("zu viele Gäste: " + n); }
+}

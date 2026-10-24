@@ -397,10 +397,10 @@ fn klon_linker(modul: &Module) -> Result<Linker<KlonZustand>, wasmi::errors::Lin
         l.func_wrap("pizza", name, move |_c: C, _p: i32, _n: i32| -> Result<(), wasmi::Error> { Err(verboten(name)) })?;
     }
     l.func_wrap("pizza", "leeren", |_c: C| -> Result<(), wasmi::Error> { Err(verboten("leeren")) })?;
-    l.func_wrap("pizza", "warnung", |_c: C, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32| -> Result<(), wasmi::Error> {
+    l.func_wrap("pizza", "warnung", |_c: C, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32| -> Result<(), wasmi::Error> {
         Err(verboten("warnung"))
     })?;
-    l.func_wrap("pizza", "fehler", |_c: C, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32| -> Result<(), wasmi::Error> {
+    l.func_wrap("pizza", "fehler", |_c: C, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32| -> Result<(), wasmi::Error> {
         Err(verboten("fehler"))
     })?;
     l.func_wrap("pizza", "vorrat_lesen", |_c: C, _: i32, _: i32, _: i32, _: i32| -> Result<i32, wasmi::Error> {

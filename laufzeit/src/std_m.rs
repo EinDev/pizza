@@ -107,7 +107,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
         N_G_ZETTEL => id == N_AUS,   // K-125
-        _ => crate::herd::ist_modul(m) && crate::herd::modul_hat(m, id),
+        _ => (crate::kiste::ist_modul(m) && crate::kiste::modul_hat(m, id)) || (crate::herd::ist_modul(m) && crate::herd::modul_hat(m, id)),
     }
 }
 
@@ -197,7 +197,9 @@ pub fn global_name(id: u32) -> W {
     if id == N_G_ZETTEL { if let Some(w) = klasse_wert(id) { return w; } }
     if let Some(w) = globaler_wert(id) { return w; }
     if let Some(w) = klasse_wert(id) { return w; }
-    // Herd (SPEC §18): statisch Herd.farbe, Form.wuerfel … (eine eigene Klasse gleichen Namens hat Vorrang)
+    // Kiste (SPEC §11.2, K-146): eingebautes Modul – eine eigene Klasse `Kiste` hat Vorrang
+    if let Some(w) = crate::kiste::modul_wert(id) { return w; }
+    // Herd (SPEC §18): statisch Herd.farbe, Form.wuerfel, Bildchen.laden … (eine eigene Klasse gleichen Namens hat Vorrang)
     if let Some(w) = crate::herd::modul_wert(id) { return w; }
     let mut t = Tb::neu();
     t.s("'").name(id).s("' ist nicht definiert.");
@@ -302,6 +304,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
             for fe in obj::<Obj>(o).felder.iter() { crate::karte::lege(crate::karte::karte(r), name_text(finfo(fe.info).name), if fe.w == WEG { KARTON } else { fe.w }); }
             r
         }
+        _ if crate::kiste::ist_modul(m) && crate::kiste::modul_hat(m, name) => crate::kiste::modul_methode(name, pos, ben),
         _ if crate::herd::ist_modul(m) && crate::herd::modul_hat(m, name) => crate::herd::modul_methode(m, name, pos, ben),
         _ => {
             let _ = knoten;

@@ -1,0 +1,4 @@
+leer dreh() {
+    salami i = 0;
+    solange (ja) { i = i + 1; }
+}

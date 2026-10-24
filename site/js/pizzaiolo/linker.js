@@ -82,6 +82,7 @@
       this.tabelle = [];        // Funktionsindizes (global) für die Tabelle
       this.daten = new Puffer(4096);
       this.datenBasis = (info.heapBase + 15) & ~15;
+      this.passivDaten = null;  // passives Datensegment (Kiste, PROJEKTE PA2) – nie im Speicher, nur per memory.init
       this.exporte = [];
       this.basisFn = this.L.anzahlImportFunktionen + this.L.funktionen.length;
       this.tabBasis = this.L.tabellen.length ? this.L.tabellen[0].min : 0;
@@ -121,6 +122,8 @@
       return adr;
     }
     exportiere(name, idx) { this.exporte.push({ name, idx }); }
+    /** passives Datensegment (HOST-ABI §1 v2: Kiste) anlegen; liefert seinen Index für memory.init (das letzte Segment) */
+    passiv(bytes) { this.passivDaten = bytes; return this.L.datenAnzahlRoh + (this.info.statischStartAdr ? 3 : 2); }
 
     baue(meta) {
       const L = this.L;
@@ -192,9 +195,9 @@
         }
         teile.push(section(9, p.fertig()));
       }
-      // 12 DataCount (falls vorhanden)
-      const extraDaten = this.info.statischStartAdr ? 3 : 2;
-      if (roh(12)) { const p = new Puffer(); p.u32(L.datenAnzahlRoh + extraDaten); teile.push(section(12, p.fertig())); }
+      // 12 DataCount (falls vorhanden; mit passivem Segment Pflicht für memory.init)
+      const extraDaten = (this.info.statischStartAdr ? 3 : 2) + (this.passivDaten ? 1 : 0);
+      if (roh(12) || this.passivDaten) { const p = new Puffer(); p.u32(L.datenAnzahlRoh + extraDaten); teile.push(section(12, p.fertig())); }
       // 10 Code
       {
         const p = new Puffer(1 << 16);
@@ -237,6 +240,7 @@
         const hs = new Uint8Array(4); new DataView(hs.buffer).setUint32(0, datenEnde, true);
         p.u32(4); p.bytes(hs);
         if (this.info.statischStartAdr) statischSegment(p, this.info);
+        if (this.passivDaten) { p.byte(1); p.u32(this.passivDaten.length); p.bytes(this.passivDaten); }
         teile.push(section(11, p.fertig()));
       }
       // Custom „pizzaiolo“
@@ -304,6 +308,7 @@
       this.tabelle = [];
       this.daten = new Puffer(4096);
       this.datenBasis = (info.heapBase + 15) & ~15;
+      this.passivDaten = null;
       this.exporte = [];
       this.basisFn = this.importe.length;
       this.tabBasis = this.L.tabellen.length ? this.L.tabellen[0].min : 0;
@@ -331,6 +336,7 @@
       return adr;
     }
     exportiere(name, idx) { this.exporte.push({ name, idx }); }
+    passiv(bytes) { this.passivDaten = bytes; return this.info.statischStartAdr ? 3 : 2; }
 
     /** liefert { bytes, tabellenZuwachs, speicherSeiten } */
     baue() {
@@ -354,6 +360,8 @@
         p.u32(this.tabelle.length); for (const f of this.tabelle) p.u32(f);
         teile.push(section(9, p.fertig()));
       }
+      const nDaten = (this.info.statischStartAdr ? 3 : 2) + (this.passivDaten ? 1 : 0);
+      if (this.passivDaten) { const p = new Puffer(); p.u32(nDaten); teile.push(section(12, p.fertig())); }
       {
         const p = new Puffer(1 << 16);
         p.u32(this.funktionen.length);
@@ -368,13 +376,14 @@
         teile.push(section(10, p.fertig()));
       }
       {
-        const p = new Puffer(this.daten.n + 64);
-        p.u32(this.info.statischStartAdr ? 3 : 2);
+        const p = new Puffer(this.daten.n + 64 + (this.passivDaten ? this.passivDaten.length + 8 : 0));
+        p.u32(nDaten);
         p.byte(0); p.byte(0x41); p.s32(this.datenBasis); p.byte(0x0b); p.u32(this.daten.n); p.bytes(this.daten.b.subarray(0, this.daten.n));
         p.byte(0); p.byte(0x41); p.s32(this.info.heapStartAdr); p.byte(0x0b);
         const hs = new Uint8Array(4); new DataView(hs.buffer).setUint32(0, datenEnde, true);
         p.u32(4); p.bytes(hs);
         if (this.info.statischStartAdr) statischSegment(p, this.info);
+        if (this.passivDaten) { p.byte(1); p.u32(this.passivDaten.length); p.bytes(this.passivDaten); }
         teile.push(section(11, p.fertig()));
       }
       return { bytes: verbinde(teile), tabellenZuwachs: this.tabelle.length, speicherSeiten: seiten };

@@ -291,16 +291,16 @@ function api() {
     gleich([pfad.code, pfad.art, pfad.datei], ['P0015', 'syntax', 'hauptgang.pizza'], 'ungültiger Pfad im bestellt: schon beim Parsen');
   });
 
-  test('Projekte (PA1): Wasm-Motor lehnt Projekte und bestellt klar ab, Pizzaiolo.run fällt auf den Interpreter zurück', () => {
+  test('Projekte (PA2): Wasm-Motor kompiliert Projekte; bestellt im Text-Programm → Ladefehler P0015 wie der Interpreter', () => {
     let Z;
     try { Z = require(path.join(ROOT, 'site', 'js', 'pizzaiolo.js')); } catch (e) { return; }
     const proj = { dateien: { 'hauptgang.pizza': 'bestellt "a.pizza";\nBote.sage((x));\n', 'a.pizza': 'salami x = 7;\n' } };
     const k = Z.kompiliere(proj);
-    ja(!k.ok && k.nichtUnterstuetzt && /PA2/.test(k.nichtUnterstuetzt[0].grund), 'kompiliere(Projekt) → nichtUnterstuetzt');
+    ja(k.ok && Z.projekte === true, 'kompiliere(Projekt) → ok');
     const kb = Z.kompiliere('bestellt "a.pizza";\nBote.sage(("x"));\n');
-    ja(!kb.ok && kb.nichtUnterstuetzt && /bestellt/.test(kb.nichtUnterstuetzt[0].grund), 'kompiliere(Text mit bestellt) → nichtUnterstuetzt');
+    ja(!kb.ok && kb.fehler && kb.fehler.code === 'P0015', 'kompiliere(Text mit bestellt) → fehler P0015');
     const r = Z.run(proj, {});
-    gleich([r.motor, r.exitCode, r.ereignisse.filter(e => e.typ === 'ausgabe').map(e => e.text)], ['interpreter', 0, ['7']]);
+    gleich([r.motor, r.exitCode, r.ereignisse.filter(e => e.typ === 'ausgabe').map(e => e.text)], ['wasm', 0, ['7']]);
   });
 
   test('Konstanten der API', () => {

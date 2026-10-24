@@ -1,0 +1,10 @@
+// Teig aus der Nebendatei (Zeilen 2–5 wie backeHier in der Hauptdatei: gleiche Zeile/Spalte, andere Datei)
+salami backe(salami x) {
+    Teig<salami> eigen = teig(() -> (x));
+    serviere ((eigen.backen()));
+}
+
+klasse Alt {
+    @PizzaVeraltet(grund: "bitte neu()")
+    tiefkühl salami alt(salami x) { serviere ((x * 2)); }
+}

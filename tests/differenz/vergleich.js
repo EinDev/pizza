@@ -44,7 +44,8 @@ function pruefeFall(code, optionen = {}, einst = {}) {
       if (JSON.stringify(gesehen) !== JSON.stringify(r3.ereignisse)) out.probleme.push({ motor: 'interpreter', art: 'selbst', details: ['onEvent-Folge ≠ ereignisse'] });
     } catch (e) { out.probleme.push({ motor: 'interpreter', art: 'wurf', details: ['run mit onEvent warf: ' + e] }); }
     let pr;
-    try { pr = M.PizzaLang.parse(code); }
+    // parse() prüft eine Datei – bei Projekten (SPEC §2) entfällt dieser Abgleich (der Lader meldet Syntaxfehler je Datei)
+    try { if (typeof code === 'string') pr = M.PizzaLang.parse(code); }
     catch (e) { out.probleme.push({ motor: 'interpreter', art: 'wurf', details: ['parse() warf: ' + (e && e.stack || e)] }); }
     if (pr) {
       const syn = ref.ereignisse.find(e => e.typ === 'fehler' && e.art === 'syntax');

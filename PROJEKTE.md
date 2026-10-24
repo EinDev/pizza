@@ -5,7 +5,8 @@
 > `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
 > **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
-> Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker) und **PD2** (Kiste/Bildchen.laden im Interpreter) ebenso; übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
+> Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker), **PD2** (Kiste/Bildchen.laden im Interpreter) und **PA2** (Wasm + Host,
+> HOST-ABI v2) ebenso; übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -951,7 +952,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | offen |
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
-| **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | offen |
+| **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | **umgesetzt** (Commit „PROJEKTE PA2: …“; Präzisierungen unten) |
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | **umgesetzt** (Commit „PROJEKTE PB1: …“, 2026-10-24) auf Lader (PA1), Vorbacker (PD1) und Kiste/Bildchen.laden (PD2); Wasm-Projekte folgen mit PA2; Präzisierungen unten |
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
@@ -1072,6 +1073,33 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   offenen Datei. Die Herd-Erkennung der Seite (`nutztHerd`) zählt `Bildchen.…` wie `Herd.…` (PD2), Vervollständigung kennt `Kiste`.
   Vervollständigung aus den obersten Namen aller Projektdateien und die Schnellkorrektur „bestellt … ergänzen“ (§3.1) sind **nicht**
   Teil von PB1 (offen).
+
+**Präzisierungen aus PA2** (umgesetzt; PB1, PB2 und PZ richten sich danach):
+- **Keine Ports mehr:** Der Compiler nimmt Warnungen (`intern.analysiere`, jetzt mit `d`) und Startprüfung (neu `intern.startpruefung`
+  → `{ fehler, herdNoetig }`, Q0004 … P0013 und die Herd-Erkennung K-128 inkl. `Bildchen.…`) direkt aus dem Interpreter; `frontend.js`
+  registriert nur noch für das IR. Ladefehler liefert `kompiliere` als `{ ok: false, fehler }` (wie Syntaxfehler), `run` fällt dann auf
+  den Interpreter zurück, der denselben Fehler meldet. `nichtUnterstuetzt`-Einträge tragen `datei`.
+- **Positionstabelle:** je Eintrag `i32 zeile, spalte, datei` (12 Bytes, `laufzeit/src/start.rs` `POS_BREITE`); Dateinamen per
+  `rt_dateien` nur bei Mehrdatei-Programmen. `datei` an Fehlern nur mit bekannter Zeile, an Warnungen immer (wie der Interpreter).
+- **Kiste im Modul:** Tabelle (Pfad, Art 0 Text/1 Bild/2 sonst, Offset, Länge) in den Programmdaten, Inhalte im passiven Datensegment
+  (Laufzeit liest per erzeugter Kopierfunktion mit `memory.init` über ihren Tabellenindex, nie `data.drop`; `DataCount`-Abschnitt auch im
+  zweiteiligen Schnellpfad). Eingebettet nur, wenn das Programm den Namen `Kiste` oder `Bildchen` enthält; gleiche Inhalte (Teiglinge je
+  Quell-Hash) einmal; gleiche Sammlung → byte-gleiches `.pkarton`. `Bildchen.laden` kopiert den Teigling in 64-KiB-Stücken in den Kern.
+- **Reihenfolge wie PD2:** Vorbacker fehlt → `kompiliere` meldet den HOST-Fehler (Rückfall Interpreter); P0020 (Teigmenge) meldet die
+  Laufzeit nach der Herd-Kern-Prüfung (`rt_spaetfehler`), nicht als Startfehler.
+- **Standard-Argumente:** `rt_standard_args`; `hauptgang` bekommt sie, wenn der Host 0 Argumente übergibt (EXE ohne Argumente = Browser).
+- **Hosts:** JS-Host prüft `abi_version` (falls exportiert) und lehnt ≠ 2 ab; nativer Host zusätzlich an der Signatur von `pizza.warnung`
+  (v1-Modul → derselbe Grund statt Linker-Fehler); `Ereignis::Warnung/Fehler` mit `datei` (JSON direkt vor `zeile`, CLI-Ort nach §2.6);
+  `bildchen_teigling` gebunden. Die PA1-Brücken (`datei: null` in den Hosts, Normalisierung in `motoren.js`/`host/test.js`) sind entfernt.
+- **Differenztests:** Fälle dürfen Projekte sein (Prüfstand-`code`-Objekte, Ordner-Fälle `tests/faelle/<name>/`, neu
+  `tests/differenz/korpus/<name>/` mit `pruefung/exitcode|fehler|optionen.json|eingabe`); `*-offen.js` wird nicht verglichen (die
+  Referenz kann sie noch nicht). Neue Korpus-Projekte: Mehrdatei (W0004, W0003, W0032 je Datei, Ananas in Nebendatei), Küche (Warnungen
+  aus Stücken mit Datei, gleiche Zeile/Spalte in zwei Dateien), Startfehler in Nebendatei (R0001), Standard-/Host-Argumente,
+  Schrittlimit, Ladefehler. `tests/wasm/projekte.js`: ABI v2, Custom Section, Kiste, `Bildchen.laden`, Teigmenge, Cache – gegen SPEC
+  und bitgleich zum Interpreter.
+- **Für PB1/PB2/PB3/PB4:** `Pizzaiolo.projekte === true` (Worker darf Projekte an den Wasm-Motor geben); `Pizzaiolo.kompiliere(projekt,
+  { teiglinge, vorbacker })` für den EXE-Export (im Worker lädt `pizzaiolo.js` `herd/teigling.js` bei Bedarf per `importScripts`);
+  Custom Section `projekt.name` = Name aus `pizza.json` (Dateiname der EXE). Ein EXE/`.pkarton` mit `Kiste` enthält die Quelltexte lesbar.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

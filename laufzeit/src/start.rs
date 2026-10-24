@@ -8,35 +8,73 @@ use crate::wert::*;
 use crate::{sig, z};
 use alloc::vec::Vec;
 
-/// Positionstabelle: Zeiger auf u32-Paare (zeile, spalte); Index 0 = unbekannt
+/// Positionstabelle: Zeiger auf i32-Tripel (zeile, spalte, datei); Index 0 = unbekannt. `datei` = Datei-Index (SPEC §2.6,
+/// PROJEKTE PA2: Index in die Dateinamen-Tabelle `rt_dateien`, 0 = Hauptdatei).
 #[no_mangle]
 pub static mut POS_TABELLE: u32 = 0;
 static mut POS_N: u32 = 0;
+pub const POS_BREITE: u32 = 12;
 
-pub fn pos_zs(pos: i32) -> (i32, i32) {
+/// (zeile, spalte, datei) einer Position
+pub fn pos_zsd(pos: i32) -> (i32, i32, i32) {
     unsafe {
-        if pos <= 0 || POS_TABELLE == 0 || pos as u32 >= POS_N { return (0, 0); }
-        let p = (POS_TABELLE + pos as u32 * 8) as *const i32;
-        (*p, *p.add(1))
+        if pos <= 0 || POS_TABELLE == 0 || pos as u32 >= POS_N { return (0, 0, 0); }
+        let p = (POS_TABELLE + pos as u32 * POS_BREITE) as *const i32;
+        (*p, *p.add(1), *p.add(2))
     }
 }
+pub fn pos_zs(pos: i32) -> (i32, i32) { let (a, b, _) = pos_zsd(pos); (a, b) }
 
-static mut WARN_SET: Vec<(&'static str, i32, i32)> = Vec::new();
-static mut WARN_W: Vec<(W, i32, i32)> = Vec::new();
+// ---------------------------------------------------------------- Dateinamen (SPEC §2.6)
+/// Datei-Index → Projektpfad (Texte); leer = Programm aus genau einer `.pizza`-Datei (Feld `datei` bleibt null)
+static mut DATEIEN: Vec<W> = Vec::new();
 
-fn warn_neu(code_s: Option<&'static str>, code_w: W, z_: i32, s_: i32) -> bool {
+/// vom Programm gesetzt (nur bei Mehrdatei-Programmen): `n` Text-Zeiger ab `tab`
+#[no_mangle]
+pub extern "C" fn rt_dateien(tab: u32, n: u32) {
+    unsafe {
+        DATEIEN.clear();
+        for i in 0..n { DATEIEN.push(ptr_w(*((tab + i * 4) as *const u32))); }
+    }
+}
+/// Pfad der Datei `d` für das Ereignisfeld `datei` (leer = null): null bei Ein-Datei-Programmen
+pub fn datei_immer(d: i32) -> &'static [u8] {
+    unsafe {
+        if d < 0 || d as usize >= DATEIEN.len() { return &[]; }
+        bytes(DATEIEN[d as usize])
+    }
+}
+/// wie `datei_immer`, aber null ohne bekannte Zeile (Fehler-Ereignisse, wie der Interpreter: `datei` nur mit `zeile`)
+pub fn datei_pfad(d: i32, zeile: i32) -> &'static [u8] { if zeile <= 0 { &[] } else { datei_immer(d) } }
+/// Datei-Index zu einem Pfad (Küchenbericht); leer oder unbekannt → 0
+pub fn datei_index(pfad: &[u8]) -> i32 {
+    unsafe { DATEIEN.iter().position(|&w| bytes(w) == pfad).map(|i| i as i32).unwrap_or(0) }
+}
+/// Ort im Text der ungefangenen Ananas: „ (Zeile N)“ in der Hauptdatei, „ (pfad, Zeile N)“ in Nebendateien
+pub fn ort_text(t: &mut Tb, d: i32, zeile: i32) {
+    if zeile <= 0 { return; }
+    t.s(" (");
+    if d != 0 { let p = datei_immer(d); if !p.is_empty() { t.b(p).s(", "); } }
+    t.s("Zeile ").n(zeile as f64).s(")");
+}
+
+// Doppelmeldungs-Sperre: einmal je Code + Datei + Zeile + Spalte (SPEC §2.6, K-140)
+static mut WARN_SET: Vec<(&'static str, i32, i32, i32)> = Vec::new();
+static mut WARN_W: Vec<(W, i32, i32, i32)> = Vec::new();
+
+fn warn_neu(code_s: Option<&'static str>, code_w: W, d_: i32, z_: i32, s_: i32) -> bool {
     unsafe {
         match code_s {
             Some(c) => {
-                if WARN_SET.iter().any(|&(x, a, b)| x == c && a == z_ && b == s_) { return false; }
+                if WARN_SET.iter().any(|&(x, dd, a, b)| x == c && dd == d_ && a == z_ && b == s_) { return false; }
                 // Warnungen aus Küchen (D5) liegen als Text in WARN_W
-                if !WARN_W.is_empty() && WARN_W.iter().any(|&(x, a, b)| bytes(x) == c.as_bytes() && a == z_ && b == s_) { return false; }
-                WARN_SET.push((c, z_, s_));
+                if !WARN_W.is_empty() && WARN_W.iter().any(|&(x, dd, a, b)| bytes(x) == c.as_bytes() && dd == d_ && a == z_ && b == s_) { return false; }
+                WARN_SET.push((c, d_, z_, s_));
             }
             None => {
-                if WARN_W.iter().any(|&(x, a, b)| bytes(x) == bytes(code_w) && a == z_ && b == s_) { return false; }
-                if WARN_SET.iter().any(|&(x, a, b)| x.as_bytes() == bytes(code_w) && a == z_ && b == s_) { return false; }
-                WARN_W.push((code_w, z_, s_));
+                if WARN_W.iter().any(|&(x, dd, a, b)| bytes(x) == bytes(code_w) && dd == d_ && a == z_ && b == s_) { return false; }
+                if WARN_SET.iter().any(|&(x, dd, a, b)| x.as_bytes() == bytes(code_w) && dd == d_ && a == z_ && b == s_) { return false; }
+                WARN_W.push((code_w, d_, z_, s_));
             }
         }
     }
@@ -44,11 +82,11 @@ fn warn_neu(code_s: Option<&'static str>, code_w: W, z_: i32, s_: i32) -> bool {
 }
 
 /// Küchenbrigade D5: Warnung eines Stücks beim Zusammenführen – true, wenn sie noch nicht ausgegeben wurde (merkt sie).
-pub fn warn_neu_bytes(code: &[u8], z_: i32, s_: i32) -> bool {
+pub fn warn_neu_bytes(code: &[u8], d_: i32, z_: i32, s_: i32) -> bool {
     unsafe {
-        if WARN_SET.iter().any(|&(x, a, b)| x.as_bytes() == code && a == z_ && b == s_) { return false; }
-        if WARN_W.iter().any(|&(x, a, b)| bytes(x) == code && a == z_ && b == s_) { return false; }
-        WARN_W.push((neu_text(code), z_, s_));
+        if WARN_SET.iter().any(|&(x, dd, a, b)| x.as_bytes() == code && dd == d_ && a == z_ && b == s_) { return false; }
+        if WARN_W.iter().any(|&(x, dd, a, b)| bytes(x) == code && dd == d_ && a == z_ && b == s_) { return false; }
+        WARN_W.push((neu_text(code), d_, z_, s_));
     }
     true
 }
@@ -56,11 +94,11 @@ pub fn warn_neu_bytes(code: &[u8], z_: i32, s_: i32) -> bool {
 /// warnung(code, text, node): knoten = Positions-ID (0 → aktuelle Position)
 pub fn warnung_w(code: &'static str, t: W, knoten: i32) {
     let pos = if knoten > 0 { knoten } else { z().pos };
-    let (zz, ss) = pos_zs(pos);
-    if !warn_neu(Some(code), KARTON, zz, ss) { return; }
+    let (zz, ss, dd) = pos_zsd(pos);
+    if !warn_neu(Some(code), KARTON, dd, zz, ss) { return; }
     let mut tb = Tb::neu();
     tb.s(code).s(": ").t(t);
-    crate::host_warnung(code.as_bytes(), &tb.0, zz, ss);
+    crate::host_warnung(code.as_bytes(), &tb.0, dd, zz, ss);
 }
 pub fn warnung(code: &'static str, t: &str, knoten: i32) { warnung_w(code, neu_str(t), knoten); }
 
@@ -212,6 +250,10 @@ pub extern "C" fn rt_enum(name: u32, werte: u32, n: u32) -> i32 {
 pub extern "C" fn rt_warnung_statisch(code: u32, t: u32, pos: i32) { unsafe { STAT_WARN.push((ptr_w(code), ptr_w(t), pos)); } }
 #[no_mangle]
 pub extern "C" fn rt_startfehler(code: u32, t: u32, pos: i32) { unsafe { STARTFEHLER = Some((ptr_w(code), ptr_w(t), pos)); } }
+/// Fehler nach der Herd-Kern-Prüfung, vor `vorbereiten` (P0020 Teigmenge, SPEC §18.5; Reihenfolge wie im Interpreter, PD2)
+static mut SPAETFEHLER: Option<(W, W)> = None;
+#[no_mangle]
+pub extern "C" fn rt_spaetfehler(code: u32, t: u32) { unsafe { SPAETFEHLER = Some((ptr_w(code), ptr_w(t))); } }
 
 /// Gebunden-Wert einer Top-Level-Methode (globale Variable)
 #[no_mangle]
@@ -231,17 +273,18 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
     crate::pf::neu_grenze();
     unsafe {
         for &(c, t, pos) in STAT_WARN.iter() {
-            let (a, b) = pos_zs(pos);
-            if warn_neu(None, c, a, b) { crate::host_warnung(bytes(c), bytes(t), a, b); }
+            let (a, b, d) = pos_zsd(pos);
+            if warn_neu(None, c, d, a, b) { crate::host_warnung(bytes(c), bytes(t), d, a, b); }
         }
         if let Some((c, t, pos)) = STARTFEHLER {
-            let (a, b) = pos_zs(pos);
-            crate::host_fehler(1, bytes(c), bytes(t), a, b);
+            let (a, b, d) = pos_zsd(pos);
+            crate::host_fehler(1, bytes(c), bytes(t), d, a, b);
             return 2;
         }
     }
     // Herd (K-128): fehlt der Kern, meldet der Host den HOST-Fehler; Exit 2 vor dem Start
     if !crate::herd::start() { return 2; }
+    if let Some((c, t)) = unsafe { SPAETFEHLER } { crate::host_fehler(1, bytes(c), bytes(t), 0, 0, 0); return 2; }
     'lauf: {
         if vorbereiten >= 0 { rufe_tab(vorbereiten as u32, 0, KARTON, KARTON, &[]); if sig() { break 'lauf; } }
         let hg = if oben >= 0 { rufe_tab(oben as u32, 0, KARTON, KARTON, &[]) } else { UNDEF };
@@ -259,7 +302,8 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
             unsafe { if let Some(&(_, p)) = METH_POS.iter().find(|x| x.0 == m) { zz.pos = p; } }
             let me = meth(m);
             let np = if me.fnid >= 0 { fnx(me.fnid as u32).params.len() } else { 0 };
-            let args = unsafe { blech(crate::ARGS.clone()) };
+            // ohne Host-Argumente gelten die Standard-Argumente aus pizza.json (SPEC §2.1, K-141)
+            let args = blech(crate::kiste::args());
             let pos: Vec<W> = if np > 0 { alloc::vec![args] } else { Vec::new() };
             let dies = if me.statisch || me.klasse < 0 { KARTON } else { instanziiere(me.klasse as u32, &[], &[], 0) };
             if sig() { break 'lauf; }
@@ -281,8 +325,8 @@ fn ende() -> i32 {
             // K-116: ui_ende wertet Bindungen aus und kann selbst werfen – der ursprüngliche Fehler (Signal + Wurfobjekt) bleibt
             _ if { let (s0, o0, p0) = (z().sig, WURF_OBJ, WURF_POS); z().sig = 0; crate::theke::ui_ende(); crate::herd::ende(); z().sig = s0; WURF_OBJ = o0; WURF_POS = p0; false } => 0,
             SIG_LIMIT => {
-                let (a, b) = pos_zs(z().pos);
-                crate::host_fehler(3, b"P0002", "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)".as_bytes(), a, b);
+                let (a, b, d) = pos_zsd(z().pos);
+                crate::host_fehler(3, b"P0002", "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)".as_bytes(), d, a, b);
                 3
             }
             SIG_ANANAS => {
@@ -298,17 +342,17 @@ fn ende() -> i32 {
                     let b = obj_text(o);
                     if sig() { z().sig = 0; t.name(kl(ob.klasse).name).s("@").n(ob.nr); } else { t.t(b); }
                 }
-                let (a, b) = pos_zs(pos);
-                if a > 0 { t.s(" (Zeile ").n(a as f64).s(")"); }
-                crate::host_fehler(2, bytes(name_text(kl(ob.klasse).name)), &t.0, a, b);
+                let (a, b, d) = pos_zsd(pos);
+                ort_text(&mut t, d, a);
+                crate::host_fehler(2, bytes(name_text(kl(ob.klasse).name)), &t.0, d, a, b);
                 1
             }
             _ => {
-                let (a, b) = pos_zs(z().pos);
+                let (a, b, d) = pos_zsd(z().pos);
                 let mut t = Tb::neu();
                 t.s("Ungefangene Ananas – LaufzeitAnanas: Interner Fehler im Ofen: [object Object]");
-                if a > 0 { t.s(" (Zeile ").n(a as f64).s(")"); }
-                crate::host_fehler(2, b"LaufzeitAnanas", &t.0, a, b);
+                ort_text(&mut t, d, a);
+                crate::host_fehler(2, b"LaufzeitAnanas", &t.0, d, a, b);
                 1
             }
         }

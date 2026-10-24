@@ -10,6 +10,7 @@
 })(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   'use strict';
   const ARTEN = ['syntax', 'pizzafehler', 'ananas', 'limit'];
+  const ABI = 2;   // HOST-ABI v2 (K-141)
   const dek = new TextDecoder();
   const enk = new TextEncoder();
 
@@ -121,9 +122,9 @@
       schreibe: (p, n) => emit({ typ: 'ausgabe', text: t(p, n), umbruch: false }),
       fehlerausgabe: (p, n) => emit({ typ: 'fehlerausgabe', text: t(p, n) }),
       leeren: () => emit({ typ: 'leeren' }),
-      // ABI v1 kennt keine Datei → datei: null (Ein-Datei-Programme; Projekte kompiliert erst PROJEKTE PA2 mit ABI v2, SPEC §2.6)
-      warnung: (cp, cn, tp, tn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
-      fehler: (a, cp, cn, tp, tn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a] || 'ananas', text: t(tp, tn), datei: null, zeile: pos(z), spalte: pos(s) }),
+      // ABI v2 (K-141): datei_ptr/datei_len vor zeile, datei_len 0 = null (SPEC §2.6)
+      warnung: (cp, cn, tp, tn, dp, dn, z, s) => emit({ typ: 'warnung', code: t(cp, cn), text: t(tp, tn), datei: dn > 0 ? t(dp, dn) : null, zeile: pos(z), spalte: pos(s) }),
+      fehler: (a, cp, cn, tp, tn, dp, dn, z, s) => emit({ typ: 'fehler', code: t(cp, cn), art: ARTEN[a] || 'ananas', text: t(tp, tn), datei: dn > 0 ? t(dp, dn) : null, zeile: pos(z), spalte: pos(s) }),
       panik: (p, n) => emit({ typ: 'panik', text: t(p, n) }),
       eingabe: (art, pp, pn, bp, kap) => {
         if (art === 2) {
@@ -251,6 +252,13 @@
       for (const k of Object.keys(e)) if (k.startsWith('rt_')) imp[k] = e[k];
       const pinst = new WebAssembly.Instance(modul.programm, { laufzeit: imp });
       startFn = pinst.exports.start;
+    }
+    // Ladefehler (HOST-ABI §4): ein v2-Host lehnt jede andere ABI-Version ab (geprüft, falls exportiert – wie der native Host)
+    const abi = typeof e.abi_version === 'function' ? e.abi_version() : ABI;
+    if (abi !== ABI) {
+      emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Dieses Programm wurde für eine andere pizza-Version gebaut (ABI ' + abi + ', dieser Host kennt ' + ABI + ').', datei: null, zeile: null, spalte: null });
+      emit({ typ: 'ende', exitCode: 2, schritte: 0, zeitMs: 0 });
+      return { exitCode: 2, ereignisse, schritte: 0, zeitMs: 0 };
     }
     if (typeof optionen.schrittLimit === 'number' && optionen.schrittLimit > 0) e.limit_setzen(optionen.schrittLimit);
     if (typeof optionen.zufallsSaat === 'number' && Number.isInteger(optionen.zufallsSaat) && e.saat_setzen) e.saat_setzen(optionen.zufallsSaat);

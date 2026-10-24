@@ -1,0 +1,26 @@
+// Mehrdatei-Projekt (SPEC §2, PROJEKTE PA2): Ladereihenfolge, W0004, Warnungen mit Datei, Standard-Argumente,
+// ungefangene Ananas in einer Nebendatei – Interpreter = Wasm = nativer Host
+bestellt "welt/tisch.pizza";
+bestellt "welt/zustand.pizza";
+bestellt "welt/tisch.pizza";
+
+Tisch t = neu Tisch(4);
+Bote.sage((t.alsText()));
+zaehle();
+zaehle();
+Bote.sage(("gezählt: " + ZAEHLER));
+t.alt();
+t.alt();
+
+speisekarte klasse Pizzeria {
+    speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {
+        Bote.sage((args));
+        salami x = 1;
+        salami X = 2;
+        Bote.sage((x + X));
+        Bote.sage((teile(9, 3)));
+        pruefeGaeste(2);
+        pruefeGaeste(3);
+        Bote.sage(("nie"));
+    }
+}

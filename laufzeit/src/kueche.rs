@@ -96,12 +96,14 @@ pub fn ereignis(art: u8, text: &[u8]) {
         if art != EV_LEEREN { pbytes(&mut EREIGNISSE, text); }
     }
 }
-pub fn ereignis_warnung(code: &[u8], text: &[u8], zz: i32, ss: i32) {
+/// Warnung eines Stücks (HOST-ABI Anhang A, v2): `i32 methode, i32 zeile, i32 spalte, bytes datei (leer = null), bytes code, bytes text`
+pub fn ereignis_warnung(code: &[u8], text: &[u8], dd: i32, zz: i32, ss: i32) {
     unsafe {
         EREIGNISSE.push(EV_WARNUNG);
         pi32(&mut EREIGNISSE, WARN_METH);
         pi32(&mut EREIGNISSE, zz);
         pi32(&mut EREIGNISSE, ss);
+        pbytes(&mut EREIGNISSE, crate::start::datei_immer(dd));
         pbytes(&mut EREIGNISSE, code);
         pbytes(&mut EREIGNISSE, text);
     }
@@ -646,17 +648,17 @@ fn zusammenfuehren_auftrag(a: &mut Auftrag) -> W {
 fn bericht_status(b: &[u8]) -> u32 { u32::from_le_bytes([b[0], b[1], b[2], b[3]]) }
 
 /// D5: Warnung eines Stücks nur, wenn sie in der Hauptküche bzw. einem früheren Stück noch nicht erschien.
-fn warnung_weiter(meth: i32, code: &[u8], text: &[u8], zz: i32, ss: i32) {
+fn warnung_weiter(meth: i32, code: &[u8], text: &[u8], dd: i32, zz: i32, ss: i32) {
     if meth >= 0 {
         let me = crate::klassen::meth(meth as u32);
         if me.gewarnt { return; }
         me.gewarnt = true;
     }
-    if !crate::start::warn_neu_bytes(code, zz, ss) { return; }
+    if !crate::start::warn_neu_bytes(code, dd, zz, ss) { return; }
     unsafe {
         let alt = WARN_METH;
         WARN_METH = meth;
-        crate::host_warnung(code, text, zz, ss);
+        crate::host_warnung(code, text, dd, zz, ss);
         WARN_METH = alt;
     }
 }
@@ -689,8 +691,9 @@ fn zusammenfuehren(a: &Auftrag, berichte: &[(u32, u32)], memo: &mut Vec<W>, max_
                 EV_LEEREN => crate::host_leeren(),
                 _ => {
                     let m = e.i32(); let z1 = e.i32(); let s1 = e.i32();
+                    let d1 = crate::start::datei_index(e.bytes());
                     let code = e.bytes(); let text = e.bytes();
-                    warnung_weiter(m, code, text, z1, s1);
+                    warnung_weiter(m, code, text, d1, z1, s1);
                 }
             }
         }

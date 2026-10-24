@@ -1,0 +1,3 @@
+salami wert = 1;
+rezeptur Backbar { leer backe(); }
+klasse Ofen erfüllt Backbar { leer heize() { } }

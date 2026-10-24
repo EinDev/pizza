@@ -9,7 +9,7 @@ use wasmi::{Caller, Config, Engine, Extern, Linker, Module, Store};
 use crate::ereignis::{Ereignis, Senke};
 
 /// Unterstützte ABI-Version (HOST-ABI.md §9).
-pub const ABI_VERSION: i32 = 1;
+pub const ABI_VERSION: i32 = 2;
 
 #[derive(Debug, Default)]
 pub struct Optionen {
@@ -82,6 +82,23 @@ fn gruppe_von(name: &str) -> String {
 }
 
 /// Prüft die Importliste vor dem Instanziieren (HOST-ABI §2): die erste unbekannte Funktion → Grund für den Ladefehler.
+/// Ladefehler-Grund für eine fremde ABI-Version (HOST-ABI §4).
+pub fn abi_grund(v: i32) -> String {
+    format!("Dieses Programm wurde für eine andere pizza-Version gebaut (ABI {}, dieser Host kennt {}).", v, ABI_VERSION)
+}
+
+/// ABI-Version aus der Signatur von `pizza.warnung` (v1: 6 Parameter, v2: 8); `None` ohne diesen Import.
+fn abi_aus_importen(module: &Module) -> Option<i32> {
+    for i in module.imports() {
+        if i.module() == "pizza" && i.name() == "warnung" {
+            if let wasmi::ExternType::Func(ty) = i.ty() {
+                return Some(if ty.params().len() == 6 { 1 } else { ABI_VERSION });
+            }
+        }
+    }
+    None
+}
+
 pub fn pruefe_importe(module: &Module) -> Result<(), String> {
     for i in module.imports() {
         let (m, n) = (i.module(), i.name());
@@ -580,6 +597,7 @@ fn interner_fehler(detail: String) -> Ereignis {
         code: "LaufzeitAnanas".into(),
         art: "ananas".into(),
         text: INTERNER_FEHLER.into(),
+        datei: None,
         zeile: None,
         spalte: None,
         detail: Some(detail),
@@ -592,6 +610,7 @@ fn ladefehler(senke: &mut Senke, grund: String) -> i32 {
         code: "HOST".into(),
         art: "intern".into(),
         text: format!("PizzaFehler HOST: {}", grund),
+        datei: None,
         zeile: None,
         spalte: None,
         detail: None,
@@ -607,6 +626,13 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
         Ok(m) => m,
         Err(e) => return ladefehler(senke, format!("kein gültiges .pkarton: {}", e)),
     };
+    // HOST-ABI §4: ein v2-Host lehnt andere ABI-Versionen ab – ein v1-Modul erkennt man schon an der Signatur von
+    // `pizza.warnung` (ohne `datei_ptr, datei_len`), bevor das Instanziieren an ihr scheitert.
+    if let Some(v) = abi_aus_importen(&module) {
+        if v != ABI_VERSION {
+            return ladefehler(senke, abi_grund(v));
+        }
+    }
     // HOST-ABI §2: Importliste vor dem Instanziieren prüfen.
     if let Err(grund) = pruefe_importe(&module) {
         return ladefehler(senke, grund);
@@ -801,20 +827,22 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         linker.func_wrap(
             "pizza",
             "warnung",
-            |mut c: Caller<'_, Zustand>, cp: i32, cn: i32, tp: i32, tn: i32, z: i32, s: i32| {
+            |mut c: Caller<'_, Zustand>, cp: i32, cn: i32, tp: i32, tn: i32, dp: i32, dn: i32, z: i32, s: i32| {
                 let code = text(&c, cp, cn);
                 let t = text(&c, tp, tn);
-                c.data_mut().senke.sende(Ereignis::Warnung { code, text: t, zeile: pos(z), spalte: pos(s) });
+                let datei = if dn > 0 { Some(text(&c, dp, dn)) } else { None };
+                c.data_mut().senke.sende(Ereignis::Warnung { code, text: t, datei, zeile: pos(z), spalte: pos(s) });
             },
         )?;
         linker.func_wrap(
             "pizza",
             "fehler",
-            |mut c: Caller<'_, Zustand>, art: i32, cp: i32, cn: i32, tp: i32, tn: i32, z: i32, s: i32| {
+            |mut c: Caller<'_, Zustand>, art: i32, cp: i32, cn: i32, tp: i32, tn: i32, dp: i32, dn: i32, z: i32, s: i32| {
                 let code = text(&c, cp, cn);
                 let t = text(&c, tp, tn);
+                let datei = if dn > 0 { Some(text(&c, dp, dn)) } else { None };
                 let art = ARTEN.get(art as usize).copied().unwrap_or("ananas").to_string();
-                c.data_mut().senke.sende(Ereignis::Fehler { code, art, text: t, zeile: pos(z), spalte: pos(s), detail: None });
+                c.data_mut().senke.sende(Ereignis::Fehler { code, art, text: t, datei, zeile: pos(z), spalte: pos(s), detail: None });
             },
         )?;
         linker.func_wrap("pizza", "panik", |mut c: Caller<'_, Zustand>, p: i32, n: i32| -> Result<(), wasmi::Error> {
@@ -843,10 +871,7 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         match f.call(&mut *store, ()) {
             Ok(ABI_VERSION) => {}
             Ok(v) => {
-                return ladefehler(
-                    &mut store.data_mut().senke,
-                    format!("Unbekannte ABI-Version {} (dieser Host kann ABI {}). Bitte pizza-host aktualisieren.", v, ABI_VERSION),
-                )
+                return ladefehler(&mut store.data_mut().senke, abi_grund(v))
             }
             Err(e) => return ladefehler(&mut store.data_mut().senke, format!("abi_version: {}", e)),
         }

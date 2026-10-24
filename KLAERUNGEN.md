@@ -1931,7 +1931,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Verworfen:** `import "…"` umwidmen, reserviertes Wort, Pfade relativ zur Datei, alphabetische Reihenfolge, Zyklen erlauben,
   Anweisungen in jeder Datei.
 - **Betroffen:** SPEC §2.2, §2.3, §2.5, §14.5, §14.7; Interpreter (Parser `Bestellt`, Lader), Compiler-Frontend. **Status:** fest;
-  Interpreter umgesetzt (PA1, U-73 ✅); offen Compiler auf den Lader (PA2, U-75 – bis dahin `nichtUnterstuetzt`).
+  Interpreter umgesetzt (PA1, U-73 ✅); Compiler auf dem Lader (PA2, U-75 ✅).
 
 ### K-140 Ein Projekt-Namensraum, Sichtbarkeit, `geheimrezept` auf oberster Ebene, konservative Ladeprüfung
 - **Entscheidung (Nutzer F3; PROJEKTE.md §2.4–§2.5):** Alle obersten Namen (auch verschachtelte Klassen) in **einem** Namensraum –
@@ -1943,8 +1943,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Doppelmeldungs-Sperre aller Warnungen bekommt die Datei in den Schlüssel (`code:datei:zeile:spalte`), in Interpreter, Compiler-Port
   und Laufzeit.
 - **Verworfen:** Namensraum je Datei mit qualifizierten Namen (`als` später additiv möglich), transitive Sichtbarkeit, gar keine Prüfung.
-- **Betroffen:** SPEC §2.4, §14.8; Interpreter, Compiler-Port von `analysiere`, Laufzeit (`warnSet`). **Status:** fest; Interpreter
-  umgesetzt (PA1); offen Compiler-Port und Wasm-Laufzeit (PA2).
+- **Betroffen:** SPEC §2.4, §14.8; Interpreter, Compiler (nutzt seit PA2 `intern.analysiere` des Interpreters, kein Port mehr), Laufzeit
+  (`warnSet`). **Status:** fest; umgesetzt in Interpreter (PA1) und Wasm-Laufzeit (PA2, Sperre Code + Datei + Zeile + Spalte).
 
 ### K-141 Fehlerorte mit Datei, Host-ABI v2 (inkl. Küchenbericht), Standard-Argumente im Modul
 - **Entscheidung (PROJEKTE.md §2.6, §2.8):** `fehler`/`warnung` tragen **immer** `datei` (direkt vor `zeile`), `null` bei Programmen aus
@@ -1956,8 +1956,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   die Laufzeit nimmt sie bei 0 Host-Argumenten (sonst wüsste die EXE sie nicht – Browser = nativ).
 - **Verworfen:** Datei immer im Text (alle Testdateien neu), Dateiindex + Tabelle in einer Custom Section (jeder Host bräuchte einen Leser).
 - **Betroffen:** SPEC §2.6; ARCHITEKTUR §1; HOST-ABI §1–§4, §7–§9, Anhang A; WASM §4; alle Hosts. **Status:** fest; Feld `datei`,
-  Ananas-Ortstext und Hüllen-Regel in Interpreter und CLI umgesetzt (PA1, U-73 ✅; Datei-Index am Knoten heißt `di`); offen HOST-ABI v2,
-  Küchenbericht und Standard-Argumente im Modul (PA2, U-75).
+  Ananas-Ortstext und Hüllen-Regel in Interpreter und CLI umgesetzt (PA1, U-73 ✅; Datei-Index am Knoten heißt `di`); HOST-ABI v2 in
+  allen Hosts, Küchenbericht (`bytes datei`) und Standard-Argumente im Modul umgesetzt (PA2, U-75 ✅).
 
 ### K-142 Playground-Projekte: IndexedDB, ein Projekt je Fenster, Migration der Tabs, ZIP
 - **Entscheidung (Nutzer F11, F12; PROJEKTE.md §3):** Projekte (Dateien inkl. Binärdaten, Teigling-Cache) in **IndexedDB** `pizza`;
@@ -2007,7 +2007,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** SPEC §18.5, §14.7; HOST-ABI §2 (Gruppe `herd`); HERD.md §12.1; `herd/README.md` §3/§4 (PD1). **Status:** teilweise
   umgesetzt – PD1 ✅ (Vorbacker `herd/teigling` + `teigling.wasm` + JS-Hülle `site/js/herd/teigling.js` mit Cache-Prüfung `passt`/
   `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`), PD2 ✅ (Interpreter: `Bildchen.laden`, Vorbacken vor dem
-  Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80); offen: PA2 (Laufzeit/Host, Datensegment), PD3 (Glut), U-77.
+  Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80), PA2 ✅ (Laufzeit/Host: Teiglinge im passiven Datensegment,
+  `bildchen_teigling` im nativen Host, U-75); offen: PD3 (Glut), U-77.
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –
@@ -2016,7 +2017,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Datensegment – ein EXE enthält damit die Quelltexte lesbar (Hinweis im EXE-Dialog und in der Doku).
 - **Verworfen:** Dateisystem-API (nativ-only, widerspricht K-082).
 - **Betroffen:** SPEC §11, §11.2; `PizzaLang.BUILTINS` + `Kiste`; Interpreter, Laufzeit, Editor-Wörter, Doku. **Status:** teilweise
-  umgesetzt – Interpreter PD2 ✅ (`std/kiste.js`, a19, Ordner-Fall `projekt-kiste`; U-80); offen: PA2 (Laufzeit/Host), Doku (PB3).
+  umgesetzt – Interpreter PD2 ✅ (`std/kiste.js`, a19, Ordner-Fall `projekt-kiste`; U-80), Laufzeit/Host PA2 ✅ (`laufzeit/src/kiste.rs`,
+  passives Datensegment; U-75); offen: Doku (PB3).
 
 ### K-147 Teigling-Format v1: Decoder-Rechenwege, Ganzzahl-Mipmaps, Kopf, Bildpaket-Nummern, Abtastung
 - **Entscheidung (PROJEKTE.md §5.3, §5.5):** Format „Teigling“ v1 (Magie `TEIGLING`, Version 1, Pixelformat 0 = RGBA8 unkomprimiert,
@@ -2203,7 +2205,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-72 ✅ | `site/js/pizza.js` (`MATHE_M`), `tests/wasm/laufzeit-zahlen.js` | K-137 Folge für K-111: `log`/`log10`/`log2`/`exp` im Interpreter von `Math.*` auf einen fdlibm-Port wie `WINKEL` umstellen (Vorlage `laufzeit/src/zahl.rs`), weil Chrome 156 andere Bits liefert als Node 22 und die Wasm-Laufzeit – erledigt: Port `LOGEXP` in `pizza.js` (`intern.LOGEXP`), `laufzeit-zahlen.js` 264 664 Bitvergleiche Wasm == Port == `Math.*` (Node 22), 0 Abweichungen; Gegenprobe headless Chrome 155 vs. Node 22 über 100 022 Eingaben × 4: Port 0 Abweichungen (`Math.*` dort: log 207, log10 5086, log2 13, exp 4071) | `laufzeit-zahlen.js`: Wasm == Port == `Math.*` (Node 22) |
 | U-73 ✅ | `site/js/pizza.js`, `bin/pizza.js`, `tests/run-tests.js`, `tests/faelle/*/` (PROJEKTE.md **PA1**; erledigt, Präzisierungen PROJEKTE §11) | K-138 … K-141, K-144: `projekt.lade/ausDateien/pruefePfad`, `bestellt`, Ladereihenfolge, P0014 … P0019, P0020 (Grenzen), W0004, Textnormalisierung, Feld `datei`, `warnSet` mit Datei, Ananas-Ortstext, CLI mit Ordnern, Ordner-Fälle; danach die grünen Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` **verschieben** (Kiste/Bild-Fälle bleiben bis PD2 offen) | a19 (Lader-Fälle) |
 | U-74 | `durchreiche/**`, compose, nginx, Dockerfile, README (PROJEKTE.md **PC1**) | K-143: Dienst, Unit-Tests in `npm test`, hastebin/redis entfernen | `node --test durchreiche/test` |
-| U-75 | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
+| U-75 ✅ | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**; erledigt, Präzisierungen PROJEKTE §11) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
 | U-76 ✅ (PB1) | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll – erledigt auf PA1/PD1/PD2 (Worker `quelleFuer`; Wasm-Projekte über das Flag `Pizzaiolo.projekte` mit PA2) | `npm --prefix ui test`, e2e |
 | U-77 (PD1 ✅, PD3 offen) | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); offen: Glut-Texturen mit Mip-Kette (PD3) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js` |
 | U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
@@ -2228,7 +2230,7 @@ Methode, W0666 pro Programm) · 30:ref-playground (Zeitlimit-Text an UI angleich
 - Projekte (PROJEKTE.md, Paket P0 „Vertrag“): K-138 … K-147 festgehalten (Status offen), Vertragstext in SPEC §2.1 … §2.6, §11.2,
   §14.5, §14.7, §14.8, §18.5, ARCHITEKTUR §1–§3/§6, HOST-ABI v2, WASM §4, HERD.md §12.1 (Bildpaket-Nummern und Kern-Codes reserviert);
   76 Fälle in `a19-projekte-offen.js` (rot bis PA1/PD2; seit PA1/PD2 alle grün in `a19-projekte.js`). Aufträge U-73 … U-79 = Pakete PA1 … PB5, U-80 = PD2. HOST-ABI v2 ist **Vertrag**;
-  Compiler und Hosts liefern bis PA2 weiter v1.
+  seit PA2 in Compiler, Laufzeit und allen Hosts umgesetzt.
 - Theke v7 (Wünsche des Idle-Redesigns): K-125 (`Zettel.aus(fn)`, abgeleiteter Zettel = Bindung ohne Zutat) und K-126 (Stil `spalten`,
   Spaltengewichte der Tabelle) festgehalten, SPEC §16.10; umgesetzt in Interpreter + Wasm (bitgleich), Renderer (`colgroup`), Host neu gebaut.
   Protokollsichtbar: Erlaubt-Text der Stile endet auf `…, senkrecht, spalten` (Fälle/Prüfstand angepasst; neu a17-theke-v7).

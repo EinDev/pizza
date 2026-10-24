@@ -78,6 +78,7 @@ extern "C" {
     #[link_name = "form_grund"] fn k_form_grund(art: i32, teile: f64, dicke: f64) -> i32;
     #[link_name = "form_eigene"] fn k_form_eigene(pp: i32, pn: i32, dp: i32, dn: i32, glatt: i32) -> i32;
     #[link_name = "bildchen_neu"] fn k_bildchen_neu(zp: i32, zn: i32, fp: i32, fn_: i32) -> i32;
+    #[link_name = "bildchen_teigling"] fn k_bildchen_teigling(p: i32, n: i32) -> i32;
     #[link_name = "ressource_hole"] fn k_ressource_hole(id: i32, was: i32) -> f64;
     #[link_name = "takt"] fn k_takt() -> i32;
     #[link_name = "bild"] fn k_bild(n: i32) -> i32;
@@ -281,11 +282,14 @@ fn hash(f: impl Fn(i32) -> i32) -> Vec<u8> {
 }
 
 /// Kern-Fehler → Ananas (Art 1 TypAnanas, 2 LaufzeitAnanas, 3 intern); setzt die NaN-Markierung zurück
-fn fehler() {
+fn fehler() { fehler_mit(&[]); }
+/// wie `fehler`, mit `<praefix> ` vor dem Kern-Text (Bildchen.laden: Pfad vor Code 61/62, herd/README.md §3)
+fn fehler_mit(praefix: &[u8]) {
     let art = unsafe { k_fehler_art() };
     let text = lies_text(|p, kap| unsafe { k_fehler_text(p, kap) }).unwrap_or_default();
     unsafe { k_fehler_neu(); }
     let mut t = Tb::neu();
+    if !praefix.is_empty() && art != 3 { t.b(praefix).s(" "); }
     match art {
         1 => { t.b(&text); wirf_tb(K_TYP, &t); }
         2 => { t.b(&text); wirf_tb(K_LAUFZEIT, &t); }
@@ -396,11 +400,11 @@ pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
     Some(art(v) == A_KOMP && obj::<HKomp>(v).typ == nr)
 }
 
-// ---------------------------------------------------------------- Module Herd und Form (statisch)
-fn modul_art(m: u32) -> u8 { match bytes(name_text(m)) { b"Herd" => 1, b"Form" => 2, _ => 0 } }
-/// globaler Name Herd/Form (nach eigenen Klassen; der Aufrufer prüft die Reihenfolge)
+// ---------------------------------------------------------------- Module Herd, Form und Bildchen (statisch)
+fn modul_art(m: u32) -> u8 { match bytes(name_text(m)) { b"Herd" => 1, b"Form" => 2, b"Bildchen" => 3, _ => 0 } }
+/// globaler Name Herd/Form/Bildchen (nach eigenen Klassen; der Aufrufer prüft die Reihenfolge)
 pub fn modul_wert(id: u32) -> Option<W> {
-    static mut CACHE: [W; 3] = [KARTON; 3];
+    static mut CACHE: [W; 4] = [KARTON; 4];
     let m = modul_art(id);
     if m == 0 { return None; }
     unsafe {
@@ -413,6 +417,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
     match modul_art(m) {
         1 => n == b"farbe",
         2 => FORM_MOD_NAMEN.iter().any(|x| x.as_bytes() == n),
+        3 => n == b"laden",
         _ => false,
     }
 }
@@ -431,6 +436,7 @@ pub fn modul_methode(m: u32, id: u32, pos: &[W], ben: &Ben) -> W {
         hex(zl::js_round(js_min(1.0, js_max(0.0, al)) * 255.0), &mut s);
         return neu_str(&s);
     }
+    if modul_art(m) == 3 { return bildchen_laden(pos, ben); }
     if !kern_noetig() { return KARTON; }
     let r = unsafe {
         match n {
@@ -572,6 +578,57 @@ fn neues_bildchen(pos: &[W], ben: &Ben) -> W {
     let ho = match hf(unsafe { k_ressource_hole(id as i32, 3) }) { Some(x) => x, None => return KARTON };
     let w = neu_w(HBildchen { art: A_BILDCHEN, id, breite: br, hoehe: ho });
     res_setze(id, w);
+    w
+}
+
+/// Pfad → schon geladenes Bildchen (gleicher Pfad = dasselbe Bildchen, keine neue Ressource; SPEC §18.5)
+static mut GELADEN: Vec<(W, W)> = Vec::new();
+
+/// `Bildchen.laden(pfad)` (SPEC §18.5, K-145): Teigling aus der Kiste (Datensegment) über den Kopierweg in den Kern,
+/// dann `bildchen_teigling`. Prüfreihenfolge: kein Text → TypAnanas · vor `neu Herd` (Kern-Text) · fehlt in der Kiste ·
+/// kein Bild / Fehler-Teigling (Kern-Codes 61/62, mit Pfad davor).
+fn bildchen_laden(pos: &[W], ben: &Ben) -> W {
+    let pw = argn(pos, ben, 0, "pfad");
+    if art(pw) != A_TEXT {
+        let mut t = Tb::neu();
+        t.s("Bildchen.laden() braucht einen Text für 'pfad', nicht ");
+        darstellung(if pw == UNDEF { KARTON } else { pw }, &mut t);
+        if sig() { return KARTON; }
+        t.s(".");
+        wirf_tb(K_TYP, &t);
+        return KARTON;
+    }
+    if !kern_noetig() { return KARTON; }
+    // vor neu Herd: der Kern meldet „Erst braucht es einen Herd (neu Herd(…)).“ (Welt fehlt, die Bytes prüft er dann nicht)
+    if unsafe { WELT.is_none() } { let _ = hi(unsafe { k_bildchen_teigling(kp(1), 0) }); return KARTON; }
+    let pb = bytes(pw);
+    if let Some(&(_, w)) = unsafe { GELADEN.iter().find(|x| bytes(x.0) == pb) } { return w; }
+    let e = match crate::kiste::finde(pb) {
+        Some(e) => e,
+        None => {
+            let mut t = Tb::neu();
+            t.s("Die Datei \"").b(pb).s("\" liegt nicht in der Kiste.");
+            wirf_tb(K_LAUFZEIT, &t);
+            return KARTON;
+        }
+    };
+    if e.art != crate::kiste::ART_BILD {
+        let mut t = Tb::neu();
+        t.b(pb).s(" ist kein lesbares Bild (PNG oder JPEG).");
+        wirf_tb(K_LAUFZEIT, &t);
+        return KARTON;
+    }
+    // Kopierweg: Datensegment → (Stück für Stück) → Kern-Speicher (HOST-ABI §2 `bildchen_teigling`)
+    let kz = kp(e.len as usize);
+    crate::kiste::stueckweise(&e, |o, b| unsafe { herd_schreibe(kz + o as i32, b.as_ptr(), b.len() as i32) });
+    let r = unsafe { k_bildchen_teigling(kz, e.len as i32) };
+    if r < 0 { fehler_mit(pb); return KARTON; }
+    let id = r as u32;
+    let br = match hf(unsafe { k_ressource_hole(id as i32, 2) }) { Some(x) => x, None => return KARTON };
+    let ho = match hf(unsafe { k_ressource_hole(id as i32, 3) }) { Some(x) => x, None => return KARTON };
+    let w = neu_w(HBildchen { art: A_BILDCHEN, id, breite: br, hoehe: ho });
+    res_setze(id, w);
+    unsafe { GELADEN.push((neu_text(pb), w)); }
     w
 }
 

@@ -1,0 +1,4 @@
+// gemeinsamer Zustand (die Hauptdatei kann niemand bestellen, SPEC §2.2)
+salami ZAEHLER = 0;
+
+leer zaehle() { ZAEHLER = ZAEHLER + 1; }

@@ -107,7 +107,7 @@ PizzaLang.run(quelle, optionen)
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```
 
-**Projekte (SPEC §2, K-138 … K-141; im Interpreter umgesetzt, PROJEKTE.md PA1; Compiler ab PA2):**
+**Projekte (SPEC §2, K-138 … K-141; im Interpreter umgesetzt, PROJEKTE.md PA1/PD2; Compiler und Hosts seit PA2):**
 
 ```js
 // Projekt = Dateisammlung, überall dieselbe Form (Worker, CLI, ZIP, Teilen, Compiler):
@@ -128,9 +128,9 @@ PizzaLang.projekt.lade(projekt)        // gemeinsamer Lader (Interpreter UND Com
 PizzaLang.projekt.ausDateien(dateien)  // pizza.json auswerten → { name, hauptdatei, args, dateien } | { fehler } (P0015/HOST)
 PizzaLang.projekt.pruefePfad(pfad)     // → null | Fehlertext (SPEC §2.1; dieselbe Regel in CLI, Playground, Durchreiche)
 ```
-`run(string)` bleibt die Ein-Datei-Abkürzung (läuft durch denselben Lader). Der Wasm-Compiler ruft ab PA2 `projekt.lade` statt
-`parse` (eigene Ports von `analysiere`/Startprüfung bekommen nur Datei-Index und Doppelmeldungs-Schlüssel `code:datei:zeile:spalte`);
-bis dahin liefern `Pizzaiolo.kompiliere`/`run` für Projekte und für Texte mit `bestellt` `nichtUnterstuetzt` (Grund nennt PA2).
+`run(string)` bleibt die Ein-Datei-Abkürzung (läuft durch denselben Lader). Der Wasm-Compiler ruft seit PA2 `projekt.lade` statt
+`parse` und nimmt für Warnungen und Startprüfung **dieselben Funktionen** wie der Interpreter (`intern.analysiere`,
+`intern.startpruefung` – die früheren Ports in `frontend.js` sind entfallen); `Pizzaiolo.projekte === true` meldet das.
 
 **Küchenbrigade (SPEC §17, K-100):** `koeche` = gewünschte Anzahl Köche (Host-Einstellung, nie beobachtbar); der Interpreter
 akzeptiert und **ignoriert** sie (sequentielle Referenz). `kuechenChaos` (nur Tests, Saat) führt die Stücke jeder Brigade in einer
@@ -143,7 +143,8 @@ zusätzlich ein Pool-Objekt aus `Pizzaiolo.kuechenPool(k)` als `koeche`). `BUILT
 
 ```js
 PizzaLang.intern.analysiere(ast)   // → [{ code, text, zeile, spalte }] – Warnungen vor dem Start (W0666, W0032), sortiert wie im Lauf
-PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte } – Startprüfung (Q0004, P0010, P0011, R0001, A0001), Text wie fehler-Ereignis
+PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte, d } – Startprüfung (Q0004, P0010, P0011, R0001, A0001, P0013), Text wie fehler-Ereignis
+PizzaLang.intern.startpruefung(ast) // → { fehler: wie pruefe, herdNoetig } – vom Wasm-Compiler genutzt (gleiche Prüfung, Herd-Erkennung K-128)
 PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebaute Ananas-Hierarchie (SPEC §8)
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
@@ -181,8 +182,7 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - `datei` (SPEC §2.6, K-141): Projektpfad der Datei, zu der `zeile`/`spalte` gehören – steht **immer** im Ereignis direkt
   vor `zeile` und ist `null`, solange das Programm aus genau einer `.pizza`-Datei besteht (alle heutigen Programme). Fehler ohne Ort
   (Host, Grenzen) haben `datei: null`. Harnische, die ganze Ereignisse vergleichen, ergänzen `datei: null`; Testdateien bleiben.
-  Der JS-Host (`host-js.js`, ABI v1) liefert bis PA2 immer `datei: null`; für den nativen Host ergänzen `tests/differenz/motoren.js`
-  und `host/test.js` das fehlende Feld als `null`.
+  JS-Host und nativer Host liefern das Feld seit PA2 (HOST-ABI v2, `datei_ptr/datei_len`).
 
 ## 2. Worker-Protokoll (`site/js/worker.js`)
 
@@ -335,8 +335,8 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |
 | Herd (SPEC §18) | `<name>.herd-erwartet` | alle `herd`-Ereignisse als JSON-Lines ohne `typ` (`fenster` mit Titel/Größe, `bild` mit `bildnummer`/`szene`/`paket` = FNV-1a-64-Hashes des Kerns, `schliesse`), kanonisch verglichen; Renderer-Ereignisse (`takt`, `geschlossen`) in `.ereignisse` wie bei der Theke; Doku-Codeblöcke `herdErwartet: object[]` (K-134); `node tests/herd/erwartet.js --schreibe` erneuert die Dateien nach einer Kern-Änderung |
 | Projekte (SPEC §2, K-144; seit PA1, z. B. `tests/faelle/projekt-*/`) | `tests/faelle/<name>/` | **Ordner-Fall** = Projekt (`pizza.json` optional, `hauptgang.pizza`, Nebendateien, Assets) mit Testordner `pruefung/`: `erwartet`, `exitcode`, `warnungen`, `fehler`, `optionen.json`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `vorrat-erwartet` (Inhalt wie die gleichnamigen Dateien oben) und neu `orte` (JSON-Lines `{ "code", "datei", "zeile", "spalte" }` je `fehler`/`warnung`). `pruefung/` gehört nicht zum Programm; Ein-Datei-Fälle bleiben, wie sie sind. Beispiele ebenso (`site/beispiele/<kategorie>/<projekt>/pruefung/`) |
-| `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code); ab PA2 auch Ordner `<name>/` als Projekt, Kopfzeilen in der Hauptdatei |
-| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (Differenztests nehmen nur Texte, bis PA2); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit keine; die Projekt-Fälle – Lader seit PA1, Kiste/Bilder seit PD2 – stehen in `a19-projekte.js`, gemeinsame Hilfen in `pruefstand/lib/projekt-helfer.js`) |
+| `tests/differenz/korpus/` | `*.pizza` mit Kopfzeilen | `// exit: N`, `// optionen: {…}`, `// args: a b` (nur Kommentarzeilen vor dem ersten Code); seit PA2 auch Ordner `<name>/` als Projekt mit `pruefung/` (`exitcode`, `fehler` = erwarteter Code, `optionen.json`, `eingabe`, `ereignisse`, `vorrat.json`) |
+| `pruefstand/faelle/` | `aNN-*.js` | Arrays aus `F(gruppe, name, code, erwartung)` (siehe `pruefstand/lib/helfer.js`); `code` ist ein Text oder ein Projekt `{ dateien, hauptdatei? }` (seit PA2 auch in den Differenztests); `*-offen.js` enthält Fälle zu noch nicht umgesetzten Klärungen (KLAERUNGEN.md) – sie zählen nicht als Fehlschlag, grüne Fälle meldet der Lauf als „nach a10 verschieben“ (derzeit keine; die Projekt-Fälle – Lader seit PA1, Kiste/Bilder seit PD2 – stehen in `a19-projekte.js`, gemeinsame Hilfen in `pruefstand/lib/projekt-helfer.js`) |
 | Doku-Codeblöcke | `ausfuehrbar`, `exitCode`, `eingabe: string[]`, `uiEreignisse: object[]`, `uiErwartet: object[]`, `zufallsSaat: number`, `vorrat: object`, `vorratErwartet: object[]`, `echtzeit: number`, `zone: number` | §4; der folgende `ausgabe`-Block ist die Soll-Ausgabe (Panik-Banner optional); `uiEreignisse`/`uiErwartet` wie `.ereignisse`/`.ui-erwartet` (SPEC §16.4, K-074); `zufallsSaat`/`vorrat`/`vorratErwartet`/`echtzeit`/`zone` wie die gleichnamigen Optionen bzw. `.vorrat.json` (K-077, K-080, K-087, K-088, K-154) |
 
 Normalisierung beim Vergleich: `\r\n` → `\n`; beidseitig höchstens **ein** Schluss-Zeilenumbruch (K-052).

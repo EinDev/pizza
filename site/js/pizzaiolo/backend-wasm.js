@@ -73,9 +73,10 @@
     baue() {
       const ir = this.ir;
       // Positionstabelle
-      const posD = new Uint8Array(ir.pos.length * 8);
+      // Positionstabelle: je Eintrag i32 zeile, spalte, datei (Datei-Index, laufzeit/src/start.rs POS_BREITE)
+      const posD = new Uint8Array(ir.pos.length * 12);
       const pdv = new DataView(posD.buffer);
-      ir.pos.forEach(([z, s], i) => { pdv.setInt32(i * 8, z || 0, true); pdv.setInt32(i * 8 + 4, s || 0, true); });
+      ir.pos.forEach(([z, s, d], i) => { pdv.setInt32(i * 12, z || 0, true); pdv.setInt32(i * 12 + 4, s || 0, true); pdv.setInt32(i * 12 + 8, d || 0, true); });
       this.posAdr = this.mb.datum(posD, 8);
       // Globale Variablen (UNDEF)
       const ng = (ir.globale || []).length;
@@ -114,6 +115,18 @@
         c.call(f.schnell).end();
         this.mb.setzeRumpf(f.gen, [], c.bytes());
       }
+      // Kiste (SPEC §11.2, PROJEKTE PA2): Inhalte im passiven Datensegment, gelesen über eine Kopierfunktion mit memory.init
+      // (laufzeit/src/kiste.rs ruft sie über ihren Tabellenindex – Rust kennt den Segment-Index nicht)
+      const pj = ir.projekt || null;
+      if (pj && pj.kiste) {
+        const seg = this.mb.passiv(pj.kiste.daten);
+        const kop = this.mb.neueFunktion([T.i32, T.i32, T.i32], []);
+        const c = new Code();
+        c.get(0).get(1).get(2).op(0xfc); c.p.u32(8); c.p.u32(seg); c.p.byte(0);   // memory.init seg, 0
+        c.end();
+        this.mb.setzeRumpf(kop, [], c.bytes());
+        this.kisteTab = this.mb.tabellenEintrag(kop);
+      }
       const start = this.mb.neueFunktion([], [T.i32]);
       this.mb.setzeRumpf(start, [[1, T.i64]], this.startCode());
       this.mb.exportiere('start', start);
@@ -132,6 +145,15 @@
       const c = new Code();
       const call = (n) => c.call(this.rt(n));
       c.i32(this.posAdr).i32(ir.pos.length); call('rt_pos');
+      // Projekte (SPEC §2.6, §2.1, §11.2): Dateinamen (nur Mehrdatei-Programme), Standard-Argumente, Kiste
+      const pj = ir.projekt || null;
+      if (pj && pj.dateien) { c.i32(this.u32Array(pj.dateien.map(d => this.text(d)))).i32(pj.dateien.length); call('rt_dateien'); }
+      if (pj && pj.args && pj.args.length) { c.i32(this.u32Array(pj.args.map(a => this.text(a)))).i32(pj.args.length); call('rt_standard_args'); }
+      if (this.kisteTab !== undefined) {
+        const tab = [];
+        for (const e of pj.kiste.eintraege) tab.push(this.text(e.pfad), e.art, e.off, e.len);
+        c.i32(this.kisteTab).i32(this.u32Array(tab)).i32(pj.kiste.eintraege.length); call('rt_kiste');
+      }
       for (const f of this.fns) {
         const fn = f.fn;
         c.i32(f.tab).i32(this.text(fn.name || '')); call('rt_fn'); c.op(OP.drop);
@@ -170,6 +192,7 @@
       if (ir.startfehler) { const sf = ir.startfehler; c.i32(this.text(sf.code)).i32(this.text(sf.text)).i32(sf.pos); call('rt_startfehler'); }
       // Herd: Gruppe herd → rt_lauf lädt das Schema nach den Startfehlern; herdNoetig (K-128) → Kern ist Pflicht (pizza.herd_kern(1))
       if ((ir.gruppen || []).includes('herd')) { c.i32(ir.herdNoetig ? 1 : 0); call('rt_herd_noetig'); }
+      if (pj && pj.spaetfehler) { c.i32(this.text(pj.spaetfehler.code)).i32(this.text(pj.spaetfehler.text)); call('rt_spaetfehler'); }
       // globale Funktionsvariablen
       const gnamen = ir.globale || [];
       for (const n of ir.globaleFunktionen || []) {

@@ -3,9 +3,8 @@
 Diese Datei beschreibt, wie ein **Host** (JS: Browser/Node · Rust/wasmi: nativ/EXE) ein kompiliertes
 pizza-Programm (`.pkarton`) ausführt. Ein Host braucht nur das hier – keine Kenntnis von IR oder Laufzeit-Interna.
 
-> **Stand:** v2 ist der Vertrag (Projekte, K-141, PROJEKTE.md). **Umgesetzt ist noch v1** – Compiler, Laufzeit und Hosts liefern bzw.
-> erwarten `abi_version() = 1` und `warnung`/`fehler` **ohne** `datei_ptr, datei_len`, bis Paket PA2 alle zusammen umstellt (§9).
-> Alles andere in dieser Datei gilt für v1 und v2 gleich; die v2-Änderungen sind mit **v2** markiert.
+> **Stand: v2 umgesetzt** (PROJEKTE.md PA2, K-141): Compiler, Laufzeit, JS-Host (`site/js/pizzaiolo/host-js.js`, Köche), nativer Host
+> (`pizza-host`, EXE) und die Test-Hosts sprechen v2; ABI 1 wird mit Ladefehler abgelehnt (§4). Die v2-Änderungen sind mit **v2** markiert.
 
 ## 1. Das `.pkarton`
 
@@ -18,11 +17,12 @@ pizza-Programm (`.pkarton`) ausführt. Ein Host braucht nur das hier – keine K
 - Custom Section `pizzaiolo` (UTF-8-JSON, nur informativ, Host darf sie ignorieren):
   `{ "format": "pkarton/1", "abi": 2, "compiler": "<version>", "laufzeit": "<hash>", "projekt": { "name": "<name>", "dateien": n } }`
   (**v2**: `abi` 2, `projekt` informativ – Name aus `pizza.json`, Zahl der Programmdateien).
-- **v2 – Projekte im Modul** (SPEC §2, §11.2, §18.5): Alle erreichbaren `.pizza`-Dateien sind in **ein** Modul kompiliert. Ein **passives
-  Datensegment** des Moduls trägt die Dateinamen-Tabelle (Datei-Index → Pfad, für `datei` in Ereignissen), die **Kiste** (Tabelle Pfad →
-  Offset, Länge, Art, nach Bytefolge sortiert; Textdateien, Teiglinge statt Quellbilder, je Quell-Hash einmal) und die
-  Standard-Argumente aus `pizza.json`. Das Segment gehört der Laufzeit (Format darf sich mit ihr ändern) – **der Host liest nichts
-  davon** und braucht keinen Abschnitts-Leser; der EXE-Anhang `PKARTON1` bleibt unverändert.
+- **v2 – Projekte im Modul** (SPEC §2, §11.2, §18.5): Alle erreichbaren `.pizza`-Dateien sind in **ein** Modul kompiliert. Die
+  Programmdaten tragen die Dateinamen-Tabelle (Datei-Index → Pfad, für `datei` in Ereignissen), die Standard-Argumente aus `pizza.json`
+  und die Tabelle der **Kiste** (Pfad → Art, Offset, Länge, nach Bytefolge sortiert); die Inhalte der Kiste (Textdateien, Teiglinge statt
+  Quellbilder, je Inhalt einmal) liegen in einem **passiven Datensegment** (mit `DataCount`-Abschnitt), das die Laufzeit per `memory.init`
+  liest und nie verwirft – so belegen sie keinen linearen Speicher (auch nicht in Küchen-Klonen). Das Format gehört der Laufzeit (darf sich
+  mit ihr ändern) – **der Host liest nichts davon** und braucht keinen Abschnitts-Leser; der EXE-Anhang `PKARTON1` bleibt unverändert.
 - Dateiendung `.pkarton`; MIME `application/wasm`.
 
 ## 2. Imports (Modulname `pizza`)
@@ -195,7 +195,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `form_grund` | `(art i32, teile f64, dicke f64) -> i32` | |
 | `form_eigene` | `(pp i32, pn i32, dp i32, dn i32, glatt i32) -> i32` | |
 | `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |
-| `bildchen_teigling` | `(ptr i32, len i32) -> i32` | `Bildchen.laden` (K-145, K-147; ab PD1/PA2): `len` Bytes eines Teiglings im Kern-Speicher → Bildchen-ID; der Kern prüft nur den Kopf. Die Laufzeit holt den Teigling aus ihrem Datensegment (`memory.init`) und kopiert ihn mit `herd_schreibe` in den Kern – einmal je Pfad |
+| `bildchen_teigling` | `(ptr i32, len i32) -> i32` | `Bildchen.laden` (K-145, K-147; ab PD1/PA2): `len` Bytes eines Teiglings im Kern-Speicher → Bildchen-ID; der Kern prüft nur den Kopf. Die Laufzeit holt den Teigling aus ihrem Datensegment (`memory.init`, in Stücken von 64 KiB) und kopiert ihn mit `herd_schreibe` in den Kern – einmal je Pfad. Der native Host bindet ihn wie alle Kern-Exporte (`host/src/herd.rs`) |
 | `ressource_hole` | `(id i32, was i32) -> f64` | |
 | `takt`, `paket_voll` | `() -> i32` | |
 | `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |
@@ -231,7 +231,7 @@ die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone
 | Export | Signatur | Bedeutung |
 |---|---|---|
 | `memory` | Memory | linearer Speicher (wächst ggf. während des Laufs) |
-| `abi_version` | `() -> i32` | liefert `2` (**v2**; bis PA2 noch `1`) |
+| `abi_version` | `() -> i32` | liefert `2` (**v2**) |
 | `limit_setzen` | `(schritte f64) -> ()` | Schrittlimit (`optionen.schrittLimit`); Werte ≤ 0 oder NaN → Standard 5 000 000. Optional, vor `start`. |
 | `speicher_limit_setzen` | `(mib i32) -> ()` | Heap-Obergrenze in MiB (Standard 1024, max. 3072). Optional, vor `start`. |
 | `arg_puffer` | `(len i32) -> i32` | liefert Zeiger auf `len` beschreibbare Bytes für das nächste Argument |
@@ -272,7 +272,8 @@ emit { typ: "ende", exitCode, schritte: inst.schritte(), zeitMs: inst.zeitMs() }
 - Liefert `start` einen Exit-Code außerhalb {0, 1, 2, 3, 39}, behandelt der Host das wie einen Trap (K-046).
 - **Ladefehler** (kein gültiges Modul, falsche `abi_version`, fehlende Exporte) (K-043/K-044): Ein v2-Host lehnt jede andere
   Version als 2 ab (Grund `Dieses Programm wurde für eine andere pizza-Version gebaut (ABI 1, dieser Host kennt 2).`; es gibt keine
-  Rückwärtskompatibilität – `.pkarton` entstehen ohnehin neu). Der Host sendet
+  Rückwärtskompatibilität – `.pkarton` entstehen ohnehin neu). Der native Host erkennt ein v1-Modul schon an der Signatur von
+  `pizza.warnung` (6 statt 8 Parameter), bevor das Instanziieren daran scheitert; geprüft wird `abi_version`, falls exportiert. Der Host sendet
   `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: <Grund>", zeile: null, spalte: null }` und
   `ende` mit Exit-Code **2**, `schritte: 0`, `zeitMs: 0`.
 - Das Schrittlimit, Ofen-/Lieferbudgets, Ananas, Hawaii-Panik usw. behandelt **das Modul selbst** – der Host
@@ -382,7 +383,7 @@ unbekannter Version mit einer klaren Meldung abbrechen (§4).
 | Version | Änderung gegenüber der vorigen |
 |---|---|
 | 1 | Grundfassung (Basis-Importe, Gruppen `theke`, `vorrat`, `echtzeit`, `kueche`, `herd` – Gruppen und neue Importe sind additiv) |
-| **2** (K-141; Vertrag, Umsetzung PA2) | `warnung` und `fehler` bekommen `datei_ptr, datei_len` vor `zeile` (§2), Ereignisse das Feld `datei`; `abi_version()` = 2, Hosts lehnen 1 ab; Küchenbericht-Ereignis `warnung` mit `bytes datei` (Anhang A); Custom Section `abi: 2` + `projekt`; Standard-Argumente im Modul (§3); additiv in derselben Fassung: `herd.bildchen_teigling`, Herd-Erkennung `Bildchen.…` |
+| **2** (K-141; umgesetzt mit PA2) | `warnung` und `fehler` bekommen `datei_ptr, datei_len` vor `zeile` (§2), Ereignisse das Feld `datei`; `abi_version()` = 2, Hosts lehnen 1 ab; Küchenbericht-Ereignis `warnung` mit `bytes datei` (Anhang A); Custom Section `abi: 2` + `projekt`; Standard-Argumente im Modul (§3); additiv in derselben Fassung: `herd.bildchen_teigling`, Herd-Erkennung `Bildchen.…` |
 
 ## Anhang A: Küchenbericht und Kartonformat `PKF1` (informativ, K-104)
 

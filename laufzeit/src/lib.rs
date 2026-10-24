@@ -20,6 +20,7 @@ pub mod theke;
 pub mod vorrat;
 pub mod kueche;
 pub mod herd;
+pub mod kiste;
 
 use core::panic::PanicInfo;
 use wert::*;
@@ -32,8 +33,9 @@ fn panik_handler(_: &PanicInfo) -> ! { core::arch::wasm32::unreachable() }
 extern "C" {
     fn ausgabe(p: *const u8, n: usize);
     fn fehlerausgabe(p: *const u8, n: usize);
-    fn warnung(cp: *const u8, cn: usize, tp: *const u8, tn: usize, z: i32, s: i32);
-    fn fehler(art: i32, cp: *const u8, cn: usize, tp: *const u8, tn: usize, z: i32, s: i32);
+    // HOST-ABI v2 (K-141): datei_ptr/datei_len vor zeile; datei_len 0 = null
+    fn warnung(cp: *const u8, cn: usize, tp: *const u8, tn: usize, dp: *const u8, dn: usize, z: i32, s: i32);
+    fn fehler(art: i32, cp: *const u8, cn: usize, tp: *const u8, tn: usize, dp: *const u8, dn: usize, z: i32, s: i32);
     fn panik(p: *const u8, n: usize);
     fn schreibe(p: *const u8, n: usize);
     fn leeren();
@@ -50,11 +52,17 @@ pub fn host_ausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_AUS
 pub fn host_fehlerausgabe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_FEHLERAUSGABE, b); return; } unsafe { fehlerausgabe(b.as_ptr(), b.len()) } }
 pub fn host_schreibe(b: &[u8]) { if in_kueche() { kueche::ereignis(kueche::EV_SCHREIBE, b); return; } unsafe { schreibe(b.as_ptr(), b.len()) } }
 pub fn host_leeren() { if in_kueche() { kueche::ereignis(kueche::EV_LEEREN, &[]); return; } unsafe { leeren() } }
-pub fn host_warnung(code: &[u8], t: &[u8], z: i32, s: i32) {
-    if in_kueche() { kueche::ereignis_warnung(code, t, z, s); return; }
-    unsafe { warnung(code.as_ptr(), code.len(), t.as_ptr(), t.len(), z, s) }
+/// Warnung an den Host; `d` = Datei-Index der Position (SPEC §2.6: `datei` = Pfad bei Mehrdatei-Programmen, sonst null).
+/// Fehler nennen die Datei nur mit bekannter Zeile (wie der Interpreter), Warnungen immer.
+pub fn host_warnung(code: &[u8], t: &[u8], d: i32, z: i32, s: i32) {
+    if in_kueche() { kueche::ereignis_warnung(code, t, d, z, s); return; }
+    let dt = start::datei_immer(d);
+    unsafe { warnung(code.as_ptr(), code.len(), t.as_ptr(), t.len(), dt.as_ptr(), dt.len(), z, s) }
 }
-pub fn host_fehler(art: i32, code: &[u8], t: &[u8], z: i32, s: i32) { unsafe { fehler(art, code.as_ptr(), code.len(), t.as_ptr(), t.len(), z, s) } }
+pub fn host_fehler(art: i32, code: &[u8], t: &[u8], d: i32, z: i32, s: i32) {
+    let dt = start::datei_pfad(d, z);
+    unsafe { fehler(art, code.as_ptr(), code.len(), t.as_ptr(), t.len(), dt.as_ptr(), dt.len(), z, s) }
+}
 pub fn host_panik(t: &[u8]) { unsafe { panik(t.as_ptr(), t.len()) } }
 pub fn host_eingabe(art: i32, prompt: Option<&[u8]>, puf: &mut [u8]) -> i32 {
     unsafe {
@@ -221,7 +229,7 @@ pub fn args_pop(p: u32) { unsafe { ZUSTAND.argtop = p; } }
 
 // ---------------------------------------------------------------- ABI-Exports
 #[no_mangle]
-pub extern "C" fn abi_version() -> i32 { 1 }
+pub extern "C" fn abi_version() -> i32 { 2 }
 
 #[no_mangle]
 pub extern "C" fn limit_setzen(n: f64) {

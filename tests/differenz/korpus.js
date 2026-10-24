@@ -3,9 +3,11 @@
  * Sammelt den Differenz-Korpus: { quelle, name, code, optionen, erwartetExit? }
  *   beispiele  – site/beispiele (index.json → Teil-Manifeste)
  *   doku       – alle ausführbaren Codeblöcke aus site/js/doku/*.js (rekursiv inkl. details)
- *   faelle     – tests/faelle/*.pizza (+ .optionen.json)
- *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar)
+ *   faelle     – tests/faelle/*.pizza (+ .optionen.json) und Ordner-Fälle tests/faelle/<name>/ (Projekt + pruefung/, K-144)
+ *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar; `code` darf ein Projekt sein)
  *   korpus     – tests/differenz/korpus/*.pizza (Kopfzeilen: // exit: N, // optionen: {...}; Eingabe: gleichnamige .eingabe)
+ *                und Projekt-Ordner tests/differenz/korpus/<name>/ (Begleitdateien in pruefung/: exitcode, fehler, optionen.json, eingabe)
+ * `code` ist ein Text oder ein Projekt { dateien } (SPEC §2, PROJEKTE PA2); text(code) liefert die Quelltexte für Textsuchen.
  * Eingabezeilen (EINGABE.md) landen in optionen.eingabe: Manifest-Feld "eingabe", .eingabe-Dateien, Doku-Feld eingabe.
  * U-43: zufallsSaat/echtzeit (.optionen.json, Kopfzeile // optionen:, Manifest-/Doku-/Prüfstand-Felder),
  *       Vorrat-Eingangszustand aus gleichnamiger .vorrat.json bzw. Manifest-Feld "vorrat"; Takt-Schläge stehen in .ereignisse.
@@ -23,6 +25,29 @@ function zeilen(text) { const z = String(text).replace(/\r\n/g, '\n').split('\n'
 /** .ereignisse-Datei (JSON-Lines, THEKE.md §5) → optionen.uiEreignisse */
 function jsonZeilen(text) { return zeilen(text).filter(z => z.trim()).map(z => JSON.parse(z)); }
 function json(p) { return JSON.parse(lies(p).replace(/^﻿/, '')); }
+
+const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
+/** Projektordner → Dateisammlung (wie bin/pizza.js und tests/run-tests.js: alles außer pruefung/, Texte streng UTF-8 mit \n, sonst Bytes) */
+function projektAusOrdner(wurzel) {
+  const dateien = {};
+  (function geh(abs, rel) {
+    for (const e of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const r = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if (r !== 'pruefung') geh(path.join(abs, e.name), r); continue; }
+      const b = fs.readFileSync(path.join(abs, e.name));
+      dateien[r] = TEXT_ENDUNG.test(r) ? new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(b).replace(/\r\n/g, '\n') : new Uint8Array(b);
+    }
+  })(wurzel, '');
+  return { dateien };
+}
+/** Quelltext(e) eines Falls für Textsuchen (brigade, Vorratskammer, Eingabe …): Projekte → alle Textdateien in Pfadreihenfolge */
+function text(code) {
+  if (typeof code === 'string') return code;
+  if (!code || typeof code !== 'object' || !code.dateien) return String(code);
+  return Object.keys(code.dateien).sort().map(p => (typeof code.dateien[p] === 'string' ? code.dateien[p] : '')).join('\n');
+}
+/** Ordner-Fall mit pruefung/ (Begleitdateien ohne Punkt-Präfix, ARCHITEKTUR §6) */
+function istOrdnerFall(p) { return fs.statSync(p).isDirectory() && fs.existsSync(path.join(p, 'pruefung')); }
 
 /** Gleichnamige .ereignisse-Datei → { uiEreignisse } (sonst {}). */
 /** Gleichnamige .vorrat.json (K-080: { name: eintraege }) → { vorrat } (sonst {}). */
@@ -101,7 +126,18 @@ function faelle() {
   const dir = path.join(ROOT, 'tests', 'faelle');
   const out = [];
   if (!fs.existsSync(dir)) return out;
-  for (const d of fs.readdirSync(dir).filter(x => x.endsWith('.pizza')).sort()) {
+  for (const d of fs.readdirSync(dir).sort()) {
+    const abs = path.join(dir, d);
+    if (!d.endsWith('.pizza') && istOrdnerFall(abs)) {
+      const pr = (n) => path.join(abs, 'pruefung', n);
+      out.push({
+        quelle: 'faelle', name: d, code: projektAusOrdner(abs),
+        optionen: Object.assign(fs.existsSync(pr('optionen.json')) ? json(pr('optionen.json')) : {}, fs.existsSync(pr('eingabe')) ? { eingabe: zeilen(lies(pr('eingabe'))) } : {}, uiAus(pr('ereignisse')), vorratAus(pr('vorrat.json'))),
+        erwartetExit: fs.existsSync(pr('exitcode')) ? parseInt(lies(pr('exitcode')).trim(), 10) : 0,
+      });
+      continue;
+    }
+    if (!d.endsWith('.pizza')) continue;
     const basis = d.slice(0, -6);
     const op = path.join(dir, basis + '.optionen.json');
     const ep = path.join(dir, basis + '.exitcode');
@@ -119,12 +155,13 @@ function pruefstand(warn) {
   const dir = path.join(ROOT, 'pruefstand', 'faelle');
   const out = [];
   if (!fs.existsSync(dir)) return out;
-  for (const d of fs.readdirSync(dir).filter(x => x.endsWith('.js')).sort()) {
+  // *-offen.js: Fälle, die die Referenz (Interpreter) noch nicht kann – kein Vergleich möglich (ARCHITEKTUR §6)
+  for (const d of fs.readdirSync(dir).filter(x => x.endsWith('.js') && !x.endsWith('-offen.js')).sort()) {
     let liste;
     try { liste = require(path.join(dir, d)); } catch (e) { warn('pruefstand: ' + d + ' lädt nicht: ' + e.message); continue; }
     if (!Array.isArray(liste)) continue;
     liste.forEach((f, i) => {
-      if (!f || typeof f.code !== 'string') return;
+      if (!f || !(typeof f.code === 'string' || (f.code && typeof f.code === 'object' && f.code.dateien))) return;
       const opt = {};
       if (f.args) opt.args = f.args;
       if (f.schrittLimit != null) opt.schrittLimit = f.schrittLimit;
@@ -156,8 +193,19 @@ function eigenerKorpus() {
   const dir = path.join(__dirname, 'korpus');
   const out = [];
   if (!fs.existsSync(dir)) return out;
-  for (const d of fs.readdirSync(dir).filter(x => x.endsWith('.pizza')).sort()) {
-    const code = lies(path.join(dir, d));
+  for (const d of fs.readdirSync(dir).sort()) {
+    const abs = path.join(dir, d);
+    if (!d.endsWith('.pizza') && istOrdnerFall(abs)) {
+      // Projekt-Ordner (PROJEKTE PA2): pruefung/exitcode, fehler, optionen.json, eingabe
+      const pr = (n) => path.join(abs, 'pruefung', n);
+      const opt = Object.assign(fs.existsSync(pr('optionen.json')) ? json(pr('optionen.json')) : {}, fs.existsSync(pr('eingabe')) ? { eingabe: zeilen(lies(pr('eingabe'))) } : {}, uiAus(pr('ereignisse')), vorratAus(pr('vorrat.json')));
+      out.push({ quelle: 'korpus', name: d, code: projektAusOrdner(abs), optionen: opt,
+        erwartetExit: fs.existsSync(pr('exitcode')) ? parseInt(lies(pr('exitcode')).trim(), 10) : 0,
+        erwartetFehler: fs.existsSync(pr('fehler')) ? lies(pr('fehler')).trim() : undefined });
+      continue;
+    }
+    if (!d.endsWith('.pizza')) continue;
+    const code = lies(abs);
     const k = kopf(code);
     const opt = Object.assign({}, k.optionen || {});
     if (k.args) opt.args = k.args;
@@ -177,4 +225,4 @@ function lade(nur, warn = () => {}) {
   return out;
 }
 
-module.exports = { lade, QUELLEN, kopf, zeilen };
+module.exports = { lade, QUELLEN, kopf, zeilen, text, projektAusOrdner };

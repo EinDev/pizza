@@ -12,9 +12,10 @@ pub enum Ereignis {
     /// Theke-Nachricht an den Renderer (rohes JSON-Objekt, THEKE.md §3/§4).
     Ui { nachricht: String },
     Fehlerausgabe { text: String },
-    Warnung { code: String, text: String, zeile: Option<i32>, spalte: Option<i32> },
+    /// `datei` (SPEC §2.6, HOST-ABI v2): Projektpfad der Datei zu `zeile`/`spalte`, `None` bei Ein-Datei-Programmen.
+    Warnung { code: String, text: String, datei: Option<String>, zeile: Option<i32>, spalte: Option<i32> },
     /// `detail`: optionale motorspezifische Einzelheiten (K-014), nicht Teil des Vergleichs.
-    Fehler { code: String, art: String, text: String, zeile: Option<i32>, spalte: Option<i32>, detail: Option<String> },
+    Fehler { code: String, art: String, text: String, datei: Option<String>, zeile: Option<i32>, spalte: Option<i32>, detail: Option<String> },
     Panik { text: String },
     /// Änderung einer Vorratskammer (K-080): `aenderung` = rohes JSON `{"schluessel":…,"wert":…}` vom Modul.
     Vorrat { name: String, aenderung: String },
@@ -43,6 +44,13 @@ pub fn json_text(s: &str) -> String {
     }
     o.push('"');
     o
+}
+
+fn json_opt_text(v: &Option<String>) -> String {
+    match v {
+        Some(t) => json_text(t),
+        None => "null".into(),
+    }
 }
 
 fn json_opt(v: Option<i32>) -> String {
@@ -130,7 +138,7 @@ mod tests {
     /// K-083: gleiche Meldungszeile wie `meldungText` in bin/pizza.js.
     #[test]
     fn meldung_wie_cli() {
-        use super::meldung_text as m;
+        let m = |t: &str, z: Option<i32>, s: Option<i32>| super::meldung_text(t, None, z, s);
         let w = "W0101: Keine Vorratskammer verfügbar – Zustand wird nicht gespeichert.";
         assert_eq!(m(w, Some(1), Some(19)), format!("{} (Zeile 1, Spalte 19)", w));
         assert_eq!(m(w, None, Some(19)), w);
@@ -144,6 +152,13 @@ mod tests {
         assert_eq!(m(p, Some(1), Some(13)), format!("{} (Zeile 1, Spalte 13)", p));
         let l = "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)";
         assert_eq!(m(l, Some(1), Some(1)), format!("{} (Zeile 1, Spalte 1)", l));
+        // SPEC §2.6: mit Datei (auch für die Hauptdatei eines Mehrdatei-Programms), Datei ohne Zeile
+        let md = super::meldung_text;
+        assert_eq!(md("W0004: x", Some("hauptgang.pizza"), Some(3), Some(1)), "W0004: x (hauptgang.pizza, Zeile 3, Spalte 1)");
+        assert_eq!(md("PizzaFehler P0015: y", Some("pizza.json"), None, None), "PizzaFehler P0015: y (pizza.json)");
+        let n = "Ungefangene Ananas – StreitAnanas: z";
+        assert_eq!(md(&format!("{} (rezepte/teig.pizza, Zeile 12)", n), Some("rezepte/teig.pizza"), Some(12), Some(5)), format!("{} (rezepte/teig.pizza, Zeile 12, Spalte 5)", n));
+        assert_eq!(md(&format!("{} (Zeile 12)", n), Some("hauptgang.pizza"), Some(12), Some(5)), format!("{} (hauptgang.pizza, Zeile 12, Spalte 5)", n));
     }
 }
 
@@ -163,18 +178,21 @@ impl Ereignis {
             Ereignis::Fehlerausgabe { text } => {
                 format!("{{\"typ\":\"fehlerausgabe\",\"text\":{}}}", json_text(text))
             }
-            Ereignis::Warnung { code, text, zeile, spalte } => format!(
-                "{{\"typ\":\"warnung\",\"code\":{},\"text\":{},\"zeile\":{},\"spalte\":{}}}",
+            // SPEC §2.6: `datei` steht immer im Ereignis, direkt vor `zeile`
+            Ereignis::Warnung { code, text, datei, zeile, spalte } => format!(
+                "{{\"typ\":\"warnung\",\"code\":{},\"text\":{},\"datei\":{},\"zeile\":{},\"spalte\":{}}}",
                 json_text(code),
                 json_text(text),
+                json_opt_text(datei),
                 json_opt(*zeile),
                 json_opt(*spalte)
             ),
-            Ereignis::Fehler { code, art, text, zeile, spalte, detail } => format!(
-                "{{\"typ\":\"fehler\",\"code\":{},\"art\":{},\"text\":{},\"zeile\":{},\"spalte\":{}{}}}",
+            Ereignis::Fehler { code, art, text, datei, zeile, spalte, detail } => format!(
+                "{{\"typ\":\"fehler\",\"code\":{},\"art\":{},\"text\":{},\"datei\":{},\"zeile\":{},\"spalte\":{}{}}}",
                 json_text(code),
                 json_text(art),
                 json_text(text),
+                json_opt_text(datei),
                 json_opt(*zeile),
                 json_opt(*spalte),
                 match detail {
@@ -215,23 +233,42 @@ pub enum Senke {
     Sammeln(Vec<Ereignis>),
 }
 
-/// Meldungszeile für Warnungen und Fehler wie `meldungText` in bin/pizza.js (K-083): `<text> (Zeile Z, Spalte S)`.
-/// Endet der Text schon auf ` (Zeile N)` mit derselben Zeile (ungefangene Ananas), ersetzt der Ort diese Angabe.
-pub fn meldung_text(text: &str, zeile: Option<i32>, spalte: Option<i32>) -> String {
-    let Some(z) = zeile else { return text.to_string() };
-    let pos = match spalte {
-        Some(s) => format!(" (Zeile {}, Spalte {})", z, s),
-        None => format!(" (Zeile {})", z),
-    };
-    // JS: /\s\(Zeile (\d+)\)$/ und Number(N) === zeile
-    if let Some(rumpf) = text.strip_suffix(')') {
-        if let Some(i) = rumpf.rfind("(Zeile ") {
-            let ziffern = &rumpf[i + 7..];
+/// Meldungszeile für Warnungen und Fehler wie `meldungText` in bin/pizza.js (K-083, SPEC §2.6, HOST-ABI §7):
+/// `<text> (Zeile Z, Spalte S)` bzw. `<text> (<datei>, Zeile Z, Spalte S)`, sobald `datei` gesetzt ist; Datei ohne Zeile: `(<datei>)`.
+/// Endet der Text schon auf ` (Zeile N)` bzw. ` (<pfad>, Zeile N)` mit derselben Zeile (ungefangene Ananas), ersetzt der Ort diese Angabe.
+pub fn meldung_text(text: &str, datei: Option<&str>, zeile: Option<i32>, spalte: Option<i32>) -> String {
+    if zeile.is_none() && datei.is_none() {
+        return text.to_string();
+    }
+    let mut ort: Vec<String> = Vec::new();
+    if let Some(d) = datei {
+        ort.push(d.to_string());
+    }
+    if let Some(z) = zeile {
+        ort.push(match spalte {
+            Some(s) => format!("Zeile {}, Spalte {}", z, s),
+            None => format!("Zeile {}", z),
+        });
+    }
+    let pos = format!(" ({})", ort.join(", "));
+    // JS: /\s\((?:([^()]*), )?Zeile (\d+)\)$/ und Number(N) === zeile
+    if let (Some(z), Some(rumpf)) = (zeile, text.strip_suffix(')')) {
+        if let Some(i) = rumpf.rfind("Zeile ") {
+            let ziffern = &rumpf[i + 6..];
             let vor = &rumpf[..i];
-            if !ziffern.is_empty() && ziffern.bytes().all(|b| b.is_ascii_digit()) {
-                if let Some(ws) = vor.chars().next_back().filter(|c| c.is_whitespace()) {
-                    if ziffern.parse::<f64>().ok() == Some(z as f64) {
-                        return format!("{}{}", &vor[..vor.len() - ws.len_utf8()], pos);
+            if !ziffern.is_empty() && ziffern.bytes().all(|b| b.is_ascii_digit()) && ziffern.parse::<f64>().ok() == Some(z as f64) {
+                // vor endet auf "(" oder auf "(<pfad>, " (Pfad ohne Klammern)
+                let klammer = if let Some(v) = vor.strip_suffix('(') {
+                    Some(v.len())
+                } else if let Some(v) = vor.strip_suffix(", ") {
+                    v.rfind('(').filter(|&j| !v[j + 1..].contains(')'))
+                } else {
+                    None
+                };
+                if let Some(j) = klammer {
+                    let davor = &vor[..j];
+                    if let Some(ws) = davor.chars().next_back().filter(|c| c.is_whitespace()) {
+                        return format!("{}{}", &davor[..davor.len() - ws.len_utf8()], pos);
                     }
                 }
             }
@@ -326,13 +363,13 @@ impl Senke {
                         let _ = io::stdout().flush();
                         let _ = writeln!(io::stderr(), "{}", f("31", text));
                     }
-                    Ereignis::Warnung { text, zeile, spalte, .. } => {
+                    Ereignis::Warnung { text, datei, zeile, spalte, .. } => {
                         let _ = io::stdout().flush();
-                        let _ = writeln!(io::stderr(), "{}", f("33", &meldung_text(text, *zeile, *spalte)));
+                        let _ = writeln!(io::stderr(), "{}", f("33", &meldung_text(text, datei.as_deref(), *zeile, *spalte)));
                     }
-                    Ereignis::Fehler { text, zeile, spalte, .. } => {
+                    Ereignis::Fehler { text, datei, zeile, spalte, .. } => {
                         let _ = io::stdout().flush();
-                        let _ = writeln!(io::stderr(), "{}", f("1;31", &meldung_text(text, *zeile, *spalte)));
+                        let _ = writeln!(io::stderr(), "{}", f("1;31", &meldung_text(text, datei.as_deref(), *zeile, *spalte)));
                         if let (true, Ereignis::Fehler { detail: Some(d), .. }) = (*debug, &e) {
                             let _ = writeln!(io::stderr(), "{}", f("90", &format!("detail: {}", d)));
                         }

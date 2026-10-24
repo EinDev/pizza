@@ -1,7 +1,8 @@
 /*
- * pizzaiolo – Frontend: AST (PizzaLang.parse) → IR (IR.md).
- * Namensauflösung (lokal / Zelle / global / dynamisch), Closure-Fänge, statische Prüfungen
- * (W0666, W0032, P0010, P0011, Q0004, R0001, A0001), Schritte (st) und Stapeltiefe (tf) je Knoten.
+ * pizzaiolo – Frontend: AST (gemeinsamer Lader PizzaLang.projekt.lade) → IR (IR.md).
+ * Namensauflösung (lokal / Zelle / global / dynamisch), Closure-Fänge, Schritte (st) und Stapeltiefe (tf) je Knoten.
+ * Statische Warnungen (W0666, W0032 …) und die Startprüfung (Q0004, P0010, P0011, R0001, A0001, P0013, Herd-Erkennung) kommen
+ * aus denselben Funktionen wie im Interpreter (PizzaLang.intern.analysiere/startpruefung, PROJEKTE PA2) – keine eigenen Ports.
  */
 (function (root, fabrik) {
   'use strict';
@@ -21,7 +22,6 @@
     ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'], ['KüchenAnanas', 'LaufzeitAnanas']
   ];
   const KLASSEN_BASIS = ANANAS_BAUM.length; // 16
-  const ANANAS_M = new Set(['nachricht', 'holeNachricht', 'typ', 'alsText']);
   const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel']);
   const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
@@ -37,78 +37,12 @@
   const BIN_OPS = { '+': 0, '-': 1, '*': 2, '/': 3, '%': 4, '==': 5, '!=': 6, '<': 7, '<=': 8, '>': 9, '>=': 10 };
 
   class NichtUnterstuetzt extends Error {
-    constructor(grund, n) { super(grund); this.grund = grund; this.zeile = n && n.z != null ? n.z : null; this.spalte = n && n.s != null ? n.s : null; }
+    constructor(grund, n) { super(grund); this.grund = grund; this.zeile = n && n.z != null ? n.z : null; this.spalte = n && n.s != null ? n.s : null; this.d = n && n.di ? n.di : 0; }
   }
-
-  // ------------------------------------------------------------ analysiere (Port aus pizza.js)
-  function analysiere(ast) {
-    const warn = [];
-    let hawaii = null;
-    const merke = (z, s) => { if (!hawaii || z < hawaii.z || (z === hawaii.z && s < hawaii.s)) hawaii = { z, s }; };
-    const gemergt = new Set();
-    const pruefe = (namen) => {
-      const gesehen = new Set();
-      for (let j = 1; j < namen.length; j++) {
-        for (let i = 0; i < j; i++) {
-          const a = namen[i], b = namen[j];
-          if (a.name !== b.name && a.name.toLowerCase() === b.name.toLowerCase()) {
-            const key = a.name + '\u0000' + b.name;
-            if (gesehen.has(key)) continue;
-            gesehen.add(key);
-            warn.push({ code: 'W0032', text: 'W0032: \'' + a.name + '\' und \'' + b.name + '\' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden.', zeile: b.z, spalte: b.s });
-          }
-        }
-      }
-    };
-    const declsVon = (stmts, oben) => {
-      const r = [];
-      for (const st of stmts) {
-        if (st.k === 'Var') for (const d of st.decls) r.push({ name: d.name, z: d.z, s: d.s });
-        else if (oben && st.k === 'Methode') r.push({ name: st.name, z: st.nz, s: st.ns });
-      }
-      return r;
-    };
-    const blockNamen = (b) => { if (b && b.k === 'Block') { gemergt.add(b); return declsVon(b.body, false); } return []; };
-    const geh = (n) => {
-      if (!n || typeof n !== 'object') return;
-      if (Array.isArray(n)) { for (const x of n) geh(x); return; }
-      switch (n.k) {
-        case 'Typ': if (n.name === 'hawaii') merke(n.z, n.s); break;
-        case 'Programm': pruefe(declsVon(n.body, true)); break;
-        case 'Block': if (!gemergt.has(n)) pruefe(declsVon(n.body, false)); break;
-        case 'Methode': case 'Ktor': case 'Lambda':
-          pruefe(n.params.map(p => ({ name: p.name, z: p.z, s: p.s })).concat(blockNamen(n.body)));
-          break;
-        case 'FuerJedes': pruefe([{ name: n.name, z: n.nz, s: n.ns }].concat(blockNamen(n.body))); break;
-        case 'Fuer': {
-          const ns = n.init && n.init.k === 'Var' ? n.init.decls.map(d => ({ name: d.name, z: d.z, s: d.s })) : [];
-          pruefe(ns.concat(blockNamen(n.body)));
-          break;
-        }
-        case 'Klasse': {
-          const ns = [];
-          for (const f of n.felder) for (const d of f.decls) ns.push({ name: d.name, z: d.z, s: d.s });
-          for (const m of n.methoden) ns.push({ name: m.name, z: m.nz, s: m.ns });
-          pruefe(ns);
-          break;
-        }
-        case 'Probier':
-          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns }].concat(blockNamen(f.block)));
-          break;
-        case 'Ofen':
-          if (n.roh) pruefe([{ name: n.roh.name, z: n.roh.nz, s: n.roh.ns }].concat(blockNamen(n.roh.block)));
-          for (const f of n.faenge) pruefe([{ name: f.name, z: f.nz, s: f.ns }].concat(blockNamen(f.block)));
-          break;
-      }
-      for (const key in n) {
-        const v = n[key];
-        if (v && typeof v === 'object') geh(v);
-      }
-    };
-    geh(ast);
-    warn.sort((a, b) => a.zeile - b.zeile || a.spalte - b.spalte);
-    if (hawaii) warn.unshift({ code: 'W0666', text: 'W0666: Typ \'hawaii\' gefunden. Der Pizzaiolo sagt nichts. Er schaut nur.', zeile: hawaii.z, spalte: hawaii.s });
-    return warn;
+  // Interpreter (für intern.analysiere/startpruefung): vom Aufrufer übergeben, sonst Node-require bzw. self.PizzaLang
+  function standardPizzaLang() {
+    if (typeof require === 'function' && typeof module === 'object') { try { return require('../pizza.js'); } catch (e) { /* unten */ } }
+    return (typeof self !== 'undefined' && self.PizzaLang) || null;
   }
 
   function sichtbarkeit(mods) {
@@ -120,8 +54,11 @@
 
   // ------------------------------------------------------------ Frontend
   class Frontend {
-    constructor(ast) {
+    /** kontext: { PizzaLang, warnungen (des Laders, W0004: { code, text, zeile, spalte, d }), projekt (für das IR, siehe frontend()) } */
+    constructor(ast, kontext) {
       this.ast = ast;
+      this.kontext = kontext || {};
+      this.PL = this.kontext.PizzaLang || standardPizzaLang();
       this.posListe = [[0, 0]];
       this.posMap = new Map();
       this.funktionen = [];
@@ -143,11 +80,13 @@
       this.klassenNamen = new Set();
     }
 
+    // Positionstabelle: [zeile, spalte, datei] – datei = Datei-Index des Knotens (Feld di, PROJEKTE PA1/PA2)
     pos(n) {
       if (!n || n.z == null) return 0;
-      const key = n.z + ':' + n.s;
+      const d = n.di || 0;
+      const key = d + ':' + n.z + ':' + n.s;
       let i = this.posMap.get(key);
-      if (i === undefined) { i = this.posListe.length; this.posListe.push([n.z, n.s == null ? 0 : n.s]); this.posMap.set(key, i); }
+      if (i === undefined) { i = this.posListe.length; this.posListe.push([n.z, n.s == null ? 0 : n.s, d]); this.posMap.set(key, i); }
       return i;
     }
     nein(grund, n) { throw new NichtUnterstuetzt(grund, n); }
@@ -161,7 +100,8 @@
         if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
-        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd')) this.herdStatisch.add(n.obj.n);
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd' || n.obj.n === 'Bildchen')) this.herdStatisch.add(n.obj.n);
+        if (n.k === 'Name' && (n.n === 'Kiste' || n.n === 'Bildchen')) this.nutztKiste = true;   // Kiste/Bildchen.laden: Datensegment nötig
         if ((n.k === 'MCall' || n.k === 'Mem') && (n.name === 'echt' || n.name === 'zone')) this.nutztEcht = true;   // K-154: zone_ms in Gruppe echtzeit
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
@@ -180,139 +120,23 @@
       return g;
     }
 
-    // ---------------------------------------------------------- Registrierung + Startprüfung
+    // ---------------------------------------------------------- Registrierung (Reihenfolge wie registriere() im Interpreter)
     registriere() {
-      // Simulierte Klassentabelle (wie this.klassen)
-      const klassen = new Map();
-      const liste = [];
-      for (const [name, basis] of ANANAS_BAUM) klassen.set(name, { art: 'klasse', name, basis: basis ? klassen.get(basis) : null, eingebaut: true, methoden: new Map(), erfuellt: [], rohling: false, gebacken: false });
-      this.simKlassen = klassen;
       const reg = (d) => {
         switch (d.k) {
           case 'Klasse': {
-            const k = { art: 'klasse', name: d.name, decl: d, basis: null, erfuellt: [], methoden: new Map(), rohling: d.mods.includes('rohling'), gebacken: d.mods.includes('gebacken'), calzone: d.mods.includes('calzone'), idx: KLASSEN_BASIS + this.klassenIR.length };
-            for (const md of d.methoden) { const l = k.methoden.get(md.name); if (l) l.push(md); else k.methoden.set(md.name, [md]); }
-            klassen.set(d.name, k);
-            liste.push(k);
-            const ir = { name: d.name, decl: d, idx: k.idx, sim: k };
+            const ir = { name: d.name, decl: d, idx: KLASSEN_BASIS + this.klassenIR.length };
             this.klassenIR.push(ir);
             this.registrierung.push({ art: 'klasse', ir });
             for (const inn of d.innere) reg(inn);
             break;
           }
-          case 'Rezeptur': {
-            const r = { art: 'rezeptur', name: d.name, decl: d, basen: [], methoden: d.methoden.map(m => m.name) };
-            klassen.set(d.name, r);
-            this.registrierung.push({ art: 'rezeptur', d });
-            break;
-          }
-          case 'Enum': klassen.set(d.name, { art: 'enum', name: d.name }); this.registrierung.push({ art: 'enum', d }); break;
+          case 'Rezeptur': this.registrierung.push({ art: 'rezeptur', d }); break;
+          case 'Enum': this.registrierung.push({ art: 'enum', d }); break;
           case 'Methode': this.registrierung.push({ art: 'globalfn', d }); break;
         }
       };
       for (const d of this.ast.body) if (DEKL.has(d.k)) reg(d);
-      this.simListe = liste;
-      // pruefe()
-      const pf = (code, text, n) => { throw { startfehler: { code, text: 'PizzaFehler ' + code + ': ' + text, pos: this.pos(n) } }; };
-      const dekls = [];
-      const sammle = (d) => { dekls.push(d); if (d.k === 'Klasse') for (const i of d.innere) sammle(i); };
-      for (const d of this.ast.body) if (DEKL.has(d.k)) sammle(d);
-      const rezMethoden = (r, gesehen) => {
-        if (gesehen.has(r)) return [];
-        gesehen.add(r);
-        let l = r.methoden.slice();
-        for (const b of r.basen) l = l.concat(rezMethoden(b, gesehen));
-        return l;
-      };
-      const findeListe = (k, name) => { for (let c = k; c; c = c.basis) { const l = c.methoden.get(name); if (l) return l; } return null; };
-      const istAnanas = (k) => { for (let c = k; c; c = c.basis) if (c === klassen.get('Ananas') || (c.eingebaut && c.name === 'Ananas')) return true; return false; };
-      try {
-        for (const d of dekls) {
-          if (d.k === 'Enum') {
-            if (d.werte.length !== 4) pf('Q0004', 'quattrostagioni braucht genau 4 Werte, nicht ' + d.werte.length + '.', d);
-          } else if (d.k === 'Klasse') {
-            const k = klassen.get(d.name);
-            if (d.basis) {
-              const b = klassen.get(d.basis.name);
-              if (!b || b.art !== 'klasse') pf('P0010', 'Klasse \'' + d.name + '\' erbt von \'' + d.basis.name + '\' – diese Klasse gibt es nicht.', d.basis);
-              if (b.gebacken) pf('P0011', 'Klasse \'' + d.name + '\' kann nicht von \'' + b.name + '\' erben – \'' + b.name + '\' ist gebacken.', d.basis);
-              k.basis = b;
-            }
-            for (const t of d.erfuellt) {
-              const r = klassen.get(t.name);
-              if (!r || r.art !== 'rezeptur') pf('P0010', 'Klasse \'' + d.name + '\' erfüllt \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
-              k.erfuellt.push(r);
-            }
-          } else if (d.k === 'Rezeptur') {
-            const r = klassen.get(d.name);
-            for (const t of d.basen) {
-              const b = klassen.get(t.name);
-              if (!b || b.art !== 'rezeptur') pf('P0010', 'Rezeptur \'' + d.name + '\' erbt von \'' + t.name + '\' – diese Rezeptur gibt es nicht.', t);
-              r.basen.push(b);
-            }
-          }
-        }
-        for (const k of liste) {
-          const gesehen = new Set();
-          for (let c = k; c; c = c.basis) {
-            if (gesehen.has(c)) pf('P0010', 'Klasse \'' + k.name + '\' erbt im Kreis – das ist ein Teigknoten.', k.decl);
-            gesehen.add(c);
-          }
-        }
-        for (const d of dekls) {
-          if (d.k === 'Klasse') {
-            const k = klassen.get(d.name);
-            if (!k.rohling) {
-              for (let c = k; c; c = c.basis) {
-                for (const r of c.erfuellt) {
-                  for (const mn of rezMethoden(r, new Set())) {
-                    let impl = false;
-                    for (let x = k; x; x = x.basis) { const l = x.methoden.get(mn); if (l && l.some(m => m.body !== null)) { impl = true; break; } }
-                    if (!impl) pf('R0001', 'Klasse \'' + k.name + '\' erfüllt Rezeptur \'' + r.name + '\' nicht: Methode \'' + mn + '\' fehlt.', d);
-                  }
-                }
-              }
-            }
-            for (const md of d.methoden) {
-              if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-              let ok = md.name === 'alsText' || (istAnanas(k) && ANANAS_M.has(md.name));
-              if (!ok && k.basis && findeListe(k.basis, md.name)) ok = true;
-              if (!ok) {
-                for (let c = k; c && !ok; c = c.basis) {
-                  for (const r of c.erfuellt) if (rezMethoden(r, new Set()).indexOf(md.name) >= 0) ok = true;
-                }
-              }
-              if (!ok) pf('A0001', 'Methode \'' + md.name + '\' in \'' + k.name + '\' ist mit @PizzaÜberschreibt markiert, überschreibt aber nichts.', md);
-            }
-          }
-        }
-        // K-133 (wie pruefeHerd im Interpreter): Theke und Herd zusammen → P0013 an der Stelle des späteren neu
-        {
-          const knoten = [], gesehen = new Set();
-          const geh = (x) => {
-            if (x === null || typeof x !== 'object' || gesehen.has(x)) return;
-            gesehen.add(x);
-            if (Array.isArray(x)) { for (const y of x) geh(y); return; }
-            if (x.k === 'Neu' && x.typ) knoten.push(x);
-            for (const key in x) { const v = x[key]; if (v !== null && typeof v === 'object') geh(v); }
-          };
-          geh(this.ast.body);
-          knoten.sort((a, b) => (a.z - b.z) || (a.s - b.s));
-          let herd = false, theke = false;
-          for (const n of knoten) {
-            const name = n.typ.name;
-            if (this.klassenNamen.has(name)) continue;
-            if (name === 'Theke') theke = true;
-            else if (name === 'Herd') herd = true;
-            else continue;
-            if (herd && theke) pf('P0013', 'Theke und Herd in einem Programm gibt es noch nicht.', n);
-          }
-        }
-      } catch (e) {
-        if (e && e.startfehler) return e.startfehler;
-        throw e;
-      }
-      return null;
     }
 
     // ---------------------------------------------------------- Funktionen & Scopes
@@ -396,10 +220,22 @@
     // ---------------------------------------------------------- Programm
     baue() {
       this.vorab();
-      const warnungen = analysiere(this.ast).map(w => ({ code: w.code, text: w.text, pos: this.pos({ z: w.zeile, s: w.spalte }) }));
-      const startfehler = this.registriere();
+      const PL = this.PL;
+      if (!PL || !PL.intern || typeof PL.intern.startpruefung !== 'function') throw new Error('pizzaiolo: PizzaLang (intern.startpruefung) fehlt');
+      // Warnungen vor dem Start: zuerst W0004 des Laders, dann die statische Analyse des Interpreters (SPEC §2.5)
+      const warnungen = (this.kontext.warnungen || []).concat(PL.intern.analysiere(this.ast))
+        .map(w => ({ code: w.code, text: w.text, pos: this.pos({ z: w.zeile, s: w.spalte, di: w.d || 0 }) }));
+      this.registriere();
+      // Startprüfung des Interpreters (gleiche Funktion, gleiche Reihenfolge); danach die Teigmenge (P0020, SPEC §18.5)
+      const sp = PL.intern.startpruefung(this.ast);
+      this.herdPflicht = sp.herdNoetig;
+      let startfehler = null;
+      if (sp.fehler) startfehler = { code: sp.fehler.code, text: sp.fehler.text, pos: this.pos({ z: sp.fehler.zeile, s: sp.fehler.spalte, di: sp.fehler.d || 0 }) };
+      const projekt = this.projektIR();
+      // Teigmenge (P0020, SPEC §18.5): nach Startprüfung und Herd-Kern, vor vorbereiten – wie im Interpreter (PD2)
+      if (this.kontext.teigmengeFehler) projekt.spaetfehler = { code: 'P0020', text: 'PizzaFehler P0020: ' + this.kontext.teigmengeFehler };
       if (startfehler) {
-        return { format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler, funktionen: [], klassen: [], registrierung: [], globale: [], methoden: [], vorbereiten: null, oben: null };
+        return { format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler, funktionen: [], klassen: [], registrierung: [], globale: [], methoden: [], vorbereiten: null, oben: null, projekt };
       }
       this.globalScope = this.neuerScope(null, null, 'global');
       this.globalScope.deklariert = new Set();
@@ -463,7 +299,15 @@
         gruppen: this.gruppen(), herdNoetig: this.herdNoetig(), globaleFunktionen: Array.from(this.globalFnNamen),
         funktionen: this.funktionen, vorbereiten: vorb, oben: oben.id,
         globalInfos: Object.fromEntries(Array.from(this.globalInfos ? this.globalInfos.entries() : []).map(([n, g]) => [n, { typ: g.typ, gebacken: g.gebacken }])),
+        projekt,
       };
+    }
+
+    /** Projekt-Teil des IR (SPEC §2): Dateinamen (null = Ein-Datei-Programm), Standard-Argumente, Kiste (nur wenn das Programm
+     *  `Kiste` oder `Bildchen` nennt – sonst ist sie unbeobachtbar) */
+    projektIR() {
+      const pj = this.kontext.projekt || {};
+      return { dateien: pj.dateien || null, args: pj.args || [], kiste: this.nutztKiste && pj.kiste ? pj.kiste : null };
     }
 
     typIR(t) { return t && !t.feld ? t.name : null; }
@@ -475,16 +319,13 @@
       if (this.neuTypen.has('Vorratskammer') && !this.klassenNamen.has('Vorratskammer')) g.push('vorrat');
       if (this.nutztEcht) g.push('echtzeit');
       if (this.nutztBrigade) g.push('kueche');
-      if (this.herdNoetig() || Array.from(this.neuTypen).some(t => HERD_TYPEN.has(t) && !this.klassenNamen.has(t))) g.push('herd');
+      if (this.herdNoetig() || Array.from(this.neuTypen).some(t => HERD_TYPEN.has(t) && !this.klassenNamen.has(t))
+        || Array.from(this.herdStatisch).some(t => !this.klassenNamen.has(t))) g.push('herd');
       return g;
     }
 
-    /** braucht den Herd-Kern vor dem Start (wie pruefeHerd im Interpreter): neu Herd/Form/Bildchen oder Form.…/Herd.… */
-    herdNoetig() {
-      for (const t of ['Herd', 'Form', 'Bildchen']) if (this.neuTypen.has(t) && !this.klassenNamen.has(t)) return true;
-      for (const t of this.herdStatisch) if (!this.klassenNamen.has(t)) return true;
-      return false;
-    }
+    /** braucht den Herd-Kern vor dem Start (K-128): Ergebnis der Startprüfung des Interpreters (pruefeHerd) */
+    herdNoetig() { return !!this.herdPflicht; }
 
     /** Globale, die nur im Top-Level-Code vorkommen, werden lokale Slots von <oben> (schneller, gleiche Semantik). */
     befoerdere(oben) {
@@ -867,21 +708,24 @@
     return s;
   }
 
-  /** AST → { ok:true, ir } | { ok:false, nichtUnterstuetzt:[…] } */
-  function frontend(ast) {
-    // Mehrdatei-Programme (SPEC §2.2) kompiliert erst PROJEKTE PA2 (Compiler auf PizzaLang.projekt.lade) – bis dahin klar ablehnen
-    const best = ast.body.find(x => x.k === 'Bestellt');
-    if (best) return { ok: false, nichtUnterstuetzt: [{ zeile: best.z, spalte: best.s, grund: 'bestellt (Mehrdatei-Projekte) kann der Wasm-Motor noch nicht (PROJEKTE PA2)' }] };
-    const f = new Frontend(ast);
+  /**
+   * AST (ein Programm aus PizzaLang.projekt.lade bzw. parse) → { ok:true, ir } | { ok:false, nichtUnterstuetzt:[…] }
+   * kontext (optional): { PizzaLang, warnungen: Lader-Warnungen mit d, teigmengeFehler: Text | null,
+   *                      projekt: { dateien: [pfad] | null, args: [text], kiste: { eintraege, daten } | null } }
+   */
+  function frontend(ast, kontext) {
+    const f = new Frontend(ast, kontext);
     try {
-      // statische Initialisierer: Klassen-IR-Reihenfolge = klassenListe
       const ir = f.baue();
       return { ok: true, ir };
     } catch (e) {
-      if (e instanceof NichtUnterstuetzt) return { ok: false, nichtUnterstuetzt: [{ zeile: e.zeile, spalte: e.spalte, grund: e.grund }] };
+      if (e instanceof NichtUnterstuetzt) {
+        const pfade = ast && ast.dateiPfade;
+        return { ok: false, nichtUnterstuetzt: [{ datei: pfade && e.zeile != null ? pfade[e.d] || null : null, zeile: e.zeile, spalte: e.spalte, grund: e.grund }] };
+      }
       throw e;
     }
   }
 
-  return { frontend, analysiere, NichtUnterstuetzt, BIN_OPS };
+  return { frontend, NichtUnterstuetzt, BIN_OPS };
 });

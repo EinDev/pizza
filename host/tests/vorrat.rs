@@ -166,6 +166,7 @@ fn unbekannter_import_ist_ladefehler() {
                 code: "HOST".into(),
                 art: "intern".into(),
                 text: "PizzaFehler HOST: Dieses Programm braucht die Funktion 'pizza.zauber_wirken' (Gruppe zauber), die dieser Host nicht kennt – bitte pizza-host aktualisieren.".into(),
+                datei: None,
                 zeile: None,
                 spalte: None,
                 detail: None,
@@ -184,7 +185,7 @@ const ZAEHLER_WAT: &str = r#"(module
   (data (i32.const 0) "spielstandneu")
   (data (i32.const 16) "{\"v\":1,\"name\":\"spielstand\",\"eintraege\":[[\"pizzen\",42]]}")
   (data (i32.const 128) "{\"schluessel\":\"pizzen\",\"wert\":42}")
-  (func (export "abi_version") (result i32) i32.const 1)
+  (func (export "abi_version") (result i32) i32.const 2)
   (func (export "saat_setzen") (param f64))
   (func (export "start") (result i32) (local $n i32)
     (drop (call $lesen (i32.const 0) (i32.const 10) (i32.const 0) (i32.const -1)))

@@ -148,7 +148,7 @@ console.log('▶ küchenbrigade (P2: Wasm inline + Klon-Vertrag)');
   let brigadeFaelle = [];
   try {
     brigadeFaelle = require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).lade()
-      .filter(f => /\.brigade\s*\(/.test(f.code) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
+      .filter(f => /\.brigade\s*\(/.test(require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).text(f.code)) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
       .map(f => ({ name: f.quelle + ':' + f.name, quelle: f.code, opt: f.optionen || {} }));
   } catch (e) { /* Differenz-Korpus fehlt → nur eigene Fälle */ }
   brigadeFaelle = brigadeFaelle.concat(eigeneFaelle().filter(f => f.name.includes('kueche')));
@@ -189,7 +189,7 @@ console.log('▶ köche (P3: Pool mit Klon-Instanzen in worker_threads)');
     let faelle = [];
     try {
       faelle = require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).lade()
-        .filter(f => /\.brigade\s*\(/.test(f.code) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
+        .filter(f => /\.brigade\s*\(/.test(require(path.join(ROOT, 'tests', 'differenz', 'korpus.js')).text(f.code)) && !(f.optionen && (f.optionen.uiEreignisse || f.optionen.vorrat)))
         .map(f => ({ name: f.quelle + ':' + f.name, quelle: f.code, opt: f.optionen || {} }));
     } catch (e) { /* Differenz-Korpus fehlt */ }
     faelle = faelle.concat(eigeneFaelle().filter(f => f.name.includes('kueche')));

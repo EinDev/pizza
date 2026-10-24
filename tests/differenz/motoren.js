@@ -28,6 +28,8 @@ process.env.PIZZA_KEIN_DIALOG = '1';
 
 const ROOT = path.join(__dirname, '..', '..');
 const PizzaLang = require(path.join(ROOT, 'site', 'js', 'pizza.js'));
+// Fälle sind Texte oder Projekte { dateien } (SPEC §2) – Textsuchen laufen über alle Quelltexte
+const { text: quelltext } = require('./korpus.js');
 
 function normalisiere(ereignisse) {
   const aus = [];
@@ -40,14 +42,6 @@ function normalisiere(ereignisse) {
       if (s === 'koeche') continue;   // K-100: Anzahl der Köche ist Host-Metadatum (ende, motor …), nie beobachtbar
       if (s === 'umbruch' && e[s] === true) continue;
       k[s] = e[s];
-    }
-    // SPEC §2.6: fehler/warnung tragen datei direkt vor zeile; der native Host (ABI v1) liefert das Feld bis PROJEKTE PA2 noch
-    // nicht – dort ist es bei Ein-Datei-Programmen immer null, also ergänzen (nur wenn es fehlt)
-    if ((k.typ === 'fehler' || k.typ === 'warnung') && !('datei' in k) && 'zeile' in k) {
-      const m = {};
-      for (const s of Object.keys(k)) { if (s === 'zeile') m.datei = null; m[s] = k[s]; }
-      aus.push(m);
-      continue;
     }
     // K-080: vorrat-Ereignisse kanonisch (JSON-Werte, -0 → 0, Feldreihenfolge fest)
     if (k.typ === 'vorrat') {
@@ -133,6 +127,7 @@ const BRIGADE_RE = /\.\s*brigade\b/;
 /** Chaos-Saat je Programm (stabil, je Fall verschieden – so sieht der Fuzzer viele Planungen). PIZZA_KUECHEN_CHAOS=N: fest. */
 function chaosSaat(q) {
   if (process.env.PIZZA_KUECHEN_CHAOS) return Number(process.env.PIZZA_KUECHEN_CHAOS) >>> 0;
+  q = quelltext(q);
   let h = 0x811c9dc5;
   for (let i = 0; i < q.length; i++) { h ^= q.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return 1 + ((h >>> 0) % 99991);
@@ -144,7 +139,7 @@ const interpreterChaos = {
   verfuegbar: true,
   grund: null,
   lauf(q, opt) {
-    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    if (!BRIGADE_RE.test(quelltext(q))) return { status: 'übersprungen', grund: 'ohne brigade' };
     const t0 = jetzt();
     let r;
     try { r = PizzaLang.run(q, Object.assign(laufOptionen(opt), { koeche: 4, kuechenChaos: chaosSaat(q) })); }
@@ -240,7 +235,7 @@ const wasm = {
     if (k && k.wurf) return { status: 'wurf', fehler: 'kompiliere() hat geworfen: ' + k.wurf };
     if (k && k.ok === false && k.nichtUnterstuetzt) return { status: 'fallback', grund: fallbackGrund(k) };
     const noetig = benoetigteOptionen(opt);
-    if (/Vorratskammer/.test(q) && !noetig.includes('vorrat')) noetig.push('vorrat');   // K-081: Backend nötig (sonst W0101-Verhalten)
+    if (/Vorratskammer/.test(quelltext(q)) && !noetig.includes('vorrat')) noetig.push('vorrat');   // K-081: Backend nötig (sonst W0101-Verhalten)
     const fehlt = noetig.filter(o => !wasmKann(o));
     if (fehlt.length) return { status: 'fallback', grund: 'Lauf-Option ' + fehlt.join(', ') + ' noch nicht unterstützt' };
     const t0 = jetzt();
@@ -274,7 +269,7 @@ function koecheVariante(name, extra) {
     verfuegbar: !!(pz.Z && pz.Z._teile && pz.Z._teile.koch && pz.Z._teile.koch.moeglich()),
     grund: pz.fehlt || 'keine Köche möglich (SharedArrayBuffer/worker_threads fehlen)',
     lauf(q, opt, cache) {
-      if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+      if (!BRIGADE_RE.test(quelltext(q))) return { status: 'übersprungen', grund: 'ohne brigade' };
       const pool = koechePool();
       if (!pool) return { status: 'übersprungen', grund: 'Köche-Pool nicht anlegbar' };
       return wasm.lauf(q, opt, cache, Object.assign({ koeche: pool }, extra));
@@ -348,7 +343,7 @@ const host = {
     const fehlt = benoetigteOptionen(opt).filter(o => !hostKann(o));
     if (fehlt.length) return { status: 'fallback', grund: 'Host-Option für ' + fehlt.join(', ') + ' fehlt' };
     // Ohne optionen.vorrat warnt der Interpreter W0101; der Host hätte sonst echte Dateien im Nutzerverzeichnis.
-    const nutztVorrat = /Vorratskammer/.test(q);
+    const nutztVorrat = /Vorratskammer/.test(quelltext(q));
     if (nutztVorrat && !(opt && opt.vorrat) && !hostHilfe().includes('--kein-vorrat')) {
       return { status: 'fallback', grund: 'Host ohne --kein-vorrat: Vorratskammer ohne optionen.vorrat nicht vergleichbar' };
     }
@@ -406,7 +401,7 @@ const hostKoeche4 = {
   verfuegbar: host.verfuegbar && hostHilfe().includes('--koeche'),
   grund: host.grund || 'Host ohne --koeche',
   lauf(q, opt, cache) {
-    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    if (!BRIGADE_RE.test(quelltext(q))) return { status: 'übersprungen', grund: 'ohne brigade' };
     return host.lauf(q, opt, cache, ['--koeche=4']);
   },
 };
@@ -415,7 +410,7 @@ const hostChaos = {
   verfuegbar: host.verfuegbar && hostHilfe().includes('--kuechen-chaos'),
   grund: host.grund || 'Host ohne --kuechen-chaos',
   lauf(q, opt, cache) {
-    if (!BRIGADE_RE.test(q)) return { status: 'übersprungen', grund: 'ohne brigade' };
+    if (!BRIGADE_RE.test(quelltext(q))) return { status: 'übersprungen', grund: 'ohne brigade' };
     return host.lauf(q, opt, cache, ['--koeche=4', '--kuechen-chaos=' + chaosSaat(q)]);
   },
 };

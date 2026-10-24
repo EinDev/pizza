@@ -58,20 +58,22 @@ function run(quelle, optionen) {
   return { exitCode, ereignisse, schritte, zeitMs };
 }
 
-// Startprüfung ohne Programmlauf (für Compiler-Frontends): registriert alle Deklarationen und
-// führt die Prüfungen aus SPEC §14.7 aus (Q0004, P0010, P0011, R0001, A0001).
-// → null, wenn alles passt, sonst { code, text, zeile, spalte } wie das fehler-Ereignis (art "pizzafehler").
-function pruefeStart(ast) {
+// Startprüfung ohne Programmlauf (für Compiler-Frontends – der Wasm-Compiler nutzt genau diese Funktion, PROJEKTE PA2):
+// registriert alle Deklarationen und führt die Prüfungen aus SPEC §14.7 aus (Q0004, P0010, P0011, R0001, A0001, P0013).
+// → { fehler: null | { code, text, zeile, spalte, d } wie das fehler-Ereignis (art "pizzafehler", d = Datei-Index),
+//     herdNoetig } – herdNoetig: das Programm braucht den Herd-Kern vor dem Start (K-128, wie in start()).
+function startpruefung(ast) {
   const L = new Laufzeit(ast, {}, () => {});
   try {
     for (const d of ast.body) if (DEKL.has(d.k)) L.registriere(d);
     L.pruefe();
-    return null;
+    return { fehler: null, herdNoetig: !!L.herdNoetig };
   } catch (e) {
-    if (e instanceof PizzaFehlerSig) return { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte };
+    if (e instanceof PizzaFehlerSig) return { fehler: { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte, d: e.d || 0 }, herdNoetig: !!L.herdNoetig };
     throw e;
   }
 }
+function pruefeStart(ast) { return startpruefung(ast).fehler; }
 
 return {
   version: VERSION,
@@ -90,8 +92,9 @@ return {
   },
   // Für Compiler-Frontends (pizzaiolo), keine stabile Endnutzer-API; Beschreibung in ARCHITEKTUR §1.
   intern: {
-    analysiere: (ast) => analysiere(ast, ast && ast.ladeRang).map(w => ({ code: w.code, text: w.text, zeile: w.zeile, spalte: w.spalte })),
+    analysiere: (ast) => analysiere(ast, ast && ast.ladeRang).map(w => ({ code: w.code, text: w.text, zeile: w.zeile, spalte: w.spalte, d: w.d || 0 })),
     pruefe: pruefeStart,
+    startpruefung,
     ANANAS_BAUM: ANANAS_BAUM.map(a => [a[0], a[1]]),
     MAX_STAPEL,
     STANDARD_LIMIT,

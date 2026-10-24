@@ -1,0 +1,11 @@
+bestellt "kueche/teig.pizza";
+salami backeHier(salami x) {
+    Teig<salami> eigen = teig(() -> (x));
+    serviere ((eigen.backen()));
+}
+Blech<salami> c = [1, 2, 3].brigade(x -> backe(x));
+Bote.sage((c));
+Bote.sage((backeHier(7)));
+Bote.sage(([4, 5].brigade(x -> backeHier(x))));
+Bote.sage(([6, 7].brigade(x -> Alt.alt(x))));
+Bote.sage((Alt.alt(8)));

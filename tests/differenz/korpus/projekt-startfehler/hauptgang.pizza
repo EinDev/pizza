@@ -1,0 +1,3 @@
+bestellt "rezepte/ofen.pizza";
+salami Wert = 2;
+Bote.sage(("nie"));

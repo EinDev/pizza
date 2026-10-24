@@ -58,7 +58,7 @@ for (const fall of faelle) {
   const titel = fall.quelle + '/' + fall.name;
   const r = pruefeFall(fall.code, fall.optionen);
   const probleme = r.probleme.slice();
-  const brauchtEingabe = /Bestellannahme|Bote\s*\.\s*(schreibe|leeren)/.test(fall.code);
+  const brauchtEingabe = /Bestellannahme|Bote\s*\.\s*(schreibe|leeren)/.test(K.text(fall.code));
   if (brauchtEingabe && !M.eingabeUnterstuetzt()) {
     eingabeOffen.push(titel);
   } else if (fall.erwartetExit != null && r.ref.status === 'ok' && r.ref.exitCode !== fall.erwartetExit) {

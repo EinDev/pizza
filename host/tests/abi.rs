@@ -17,15 +17,15 @@ fn lauf(wat_src: &str, args: &[&str], opt: Optionen) -> (i32, Vec<Ereignis>) {
 const KOPF: &str = r#"
   (import "pizza" "ausgabe" (func $ausgabe (param i32 i32)))
   (import "pizza" "fehlerausgabe" (func $fehlerausgabe (param i32 i32)))
-  (import "pizza" "warnung" (func $warnung (param i32 i32 i32 i32 i32 i32)))
-  (import "pizza" "fehler" (func $fehler (param i32 i32 i32 i32 i32 i32 i32)))
+  (import "pizza" "warnung" (func $warnung (param i32 i32 i32 i32 i32 i32 i32 i32)))
+  (import "pizza" "fehler" (func $fehler (param i32 i32 i32 i32 i32 i32 i32 i32 i32)))
   (import "pizza" "panik" (func $panik (param i32 i32)))
   (memory (export "memory") 1)
   (global $schritte (mut f64) (f64.const 0))
   (global $limit (mut f64) (f64.const 5000000))
   (global $argende (mut i32) (i32.const 1024))
   (global $argn (mut i32) (i32.const 0))
-  (func (export "abi_version") (result i32) i32.const 1)
+  (func (export "abi_version") (result i32) i32.const 2)
   (func (export "schritte") (result f64) global.get $schritte)
   (func (export "zeitMs") (result f64) (f64.add (global.get $schritte) (f64.const 1000)))
   (func (export "limit_setzen") (param f64) local.get 0 global.set $limit)
@@ -41,12 +41,14 @@ const KOPF: &str = r#"
 fn ereignisse_und_exitcode() {
     let src = format!(
         r#"(module {KOPF}
-  (data (i32.const 0) "Hallo Pizza\c3\a4W0666Typ hawaii")
+  (data (i32.const 0) "Hallo Pizza\c3\a4W0666Typ hawaiiwelt/tisch.pizza")
   (func (export "start") (result i32)
     (call $ausgabe (i32.const 0) (i32.const 13))
     (call $fehlerausgabe (i32.const 0) (i32.const 5))
-    (call $warnung (i32.const 13) (i32.const 5) (i32.const 18) (i32.const 10) (i32.const 3) (i32.const 0))
-    (call $fehler (i32.const 2) (i32.const 13) (i32.const 5) (i32.const 0) (i32.const 5) (i32.const 0) (i32.const 0))
+    ;; ABI v2: datei_ptr/datei_len vor zeile (datei_len 0 = null)
+    (call $warnung (i32.const 13) (i32.const 5) (i32.const 18) (i32.const 10) (i32.const 0) (i32.const 0) (i32.const 3) (i32.const 0))
+    (call $warnung (i32.const 13) (i32.const 5) (i32.const 18) (i32.const 10) (i32.const 28) (i32.const 16) (i32.const 4) (i32.const 2))
+    (call $fehler (i32.const 2) (i32.const 13) (i32.const 5) (i32.const 0) (i32.const 5) (i32.const 0) (i32.const 0) (i32.const 0) (i32.const 0))
     (global.set $schritte (global.get $limit))
     i32.const 2))"#
     );
@@ -59,8 +61,9 @@ fn ereignisse_und_exitcode() {
             Ereignis::Ausgabe { text: "zwei".into(), umbruch: true },
             Ereignis::Ausgabe { text: "Hallo Pizzaä".into(), umbruch: true },
             Ereignis::Fehlerausgabe { text: "Hallo".into() },
-            Ereignis::Warnung { code: "W0666".into(), text: "Typ hawaii".into(), zeile: Some(3), spalte: None },
-            Ereignis::Fehler { code: "W0666".into(), art: "ananas".into(), text: "Hallo".into(), zeile: None, spalte: None, detail: None },
+            Ereignis::Warnung { code: "W0666".into(), text: "Typ hawaii".into(), datei: None, zeile: Some(3), spalte: None },
+            Ereignis::Warnung { code: "W0666".into(), text: "Typ hawaii".into(), datei: Some("welt/tisch.pizza".into()), zeile: Some(4), spalte: Some(2) },
+            Ereignis::Fehler { code: "W0666".into(), art: "ananas".into(), text: "Hallo".into(), datei: None, zeile: None, spalte: None, detail: None },
             Ereignis::Ende { exit_code: 2, schritte: 42.0, zeit_ms: 1042.0 },
         ]
     );
@@ -120,7 +123,7 @@ fn tiefe_rekursion_erlaubt() {
 #[test]
 fn falsche_abi_version() {
     let src = r#"(module (memory (export "memory") 1)
-      (func (export "abi_version") (result i32) i32.const 2)
+      (func (export "abi_version") (result i32) i32.const 1)
       (func (export "start") (result i32) i32.const 0))"#;
     let (code, e) = lauf(src, &[], Optionen::default());
     assert_eq!(code, 2);
@@ -128,11 +131,18 @@ fn falsche_abi_version() {
         Ereignis::Fehler { code, art, text, .. } => {
             assert_eq!(code, "HOST");
             assert_eq!(art, "intern");
-            assert!(text.starts_with("PizzaFehler HOST: "), "{}", text);
+            assert_eq!(text, "PizzaFehler HOST: Dieses Programm wurde für eine andere pizza-Version gebaut (ABI 1, dieser Host kennt 2).");
         }
         x => panic!("{:?}", x),
     }
     assert_eq!(e[1], Ereignis::Ende { exit_code: 2, schritte: 0.0, zeit_ms: 0.0 });
+    // HOST-ABI §4: ein v1-Modul (warnung ohne datei_ptr/datei_len) scheitert nicht am Linker, sondern mit demselben Grund
+    let v1 = r#"(module (import "pizza" "warnung" (func (param i32 i32 i32 i32 i32 i32))) (memory (export "memory") 1)
+      (func (export "abi_version") (result i32) i32.const 1)
+      (func (export "start") (result i32) i32.const 0))"#;
+    let (code, e) = lauf(v1, &[], Optionen::default());
+    assert_eq!(code, 2);
+    assert!(matches!(&e[0], Ereignis::Fehler { text, .. } if text.contains("(ABI 1, dieser Host kennt 2)")), "{:?}", e);
     // Kein Wasm überhaupt → ebenfalls Ladefehler.
     let mut senke = Senke::Sammeln(Vec::new());
     assert_eq!(fuehre_aus(b"keine pizza", &[], Optionen::default(), &mut senke), 2);
@@ -149,15 +159,18 @@ fn ungueltiger_exit_code_ist_interner_fehler() {
 
 #[test]
 fn json_format() {
-    let e = Ereignis::Fehler { code: "B0012".into(), art: "pizzafehler".into(), text: "a \"b\"\nc".into(), zeile: Some(3), spalte: None, detail: None };
+    let e = Ereignis::Fehler { code: "B0012".into(), art: "pizzafehler".into(), text: "a \"b\"\nc".into(), datei: None, zeile: Some(3), spalte: None, detail: None };
     assert_eq!(
         e.als_json(),
-        r#"{"typ":"fehler","code":"B0012","art":"pizzafehler","text":"a \"b\"\nc","zeile":3,"spalte":null}"#
+        r#"{"typ":"fehler","code":"B0012","art":"pizzafehler","text":"a \"b\"\nc","datei":null,"zeile":3,"spalte":null}"#
     );
+    // SPEC §2.6: datei steht immer direkt vor zeile
+    let w = Ereignis::Warnung { code: "W0004".into(), text: "W0004: x".into(), datei: Some("rezepte/teig.pizza".into()), zeile: Some(2), spalte: Some(1) };
+    assert_eq!(w.als_json(), r#"{"typ":"warnung","code":"W0004","text":"W0004: x","datei":"rezepte/teig.pizza","zeile":2,"spalte":1}"#);
     assert_eq!(Ereignis::Ende { exit_code: 0, schritte: 160.0, zeit_ms: 160.0 }.als_json(), r#"{"typ":"ende","exitCode":0,"schritte":160,"zeitMs":160}"#);
     assert_eq!(Ereignis::Ende { exit_code: 0, schritte: 1e21, zeit_ms: 10.5 }.als_json(), r#"{"typ":"ende","exitCode":0,"schritte":1e+21,"zeitMs":10.5}"#);
-    let d = Ereignis::Fehler { code: "LaufzeitAnanas".into(), art: "ananas".into(), text: "t".into(), zeile: None, spalte: None, detail: Some("unreachable".into()) };
-    assert_eq!(d.als_json(), r#"{"typ":"fehler","code":"LaufzeitAnanas","art":"ananas","text":"t","zeile":null,"spalte":null,"detail":"unreachable"}"#);
+    let d = Ereignis::Fehler { code: "LaufzeitAnanas".into(), art: "ananas".into(), text: "t".into(), datei: None, zeile: None, spalte: None, detail: Some("unreachable".into()) };
+    assert_eq!(d.als_json(), r#"{"typ":"fehler","code":"LaufzeitAnanas","art":"ananas","text":"t","datei":null,"zeile":null,"spalte":null,"detail":"unreachable"}"#);
 }
 
 #[test]

@@ -11,7 +11,7 @@ const WAT: &str = r#"(module
   (global $ende (mut i32) (i32.const 1024))
   (global $n (mut i32) (i32.const 0))
   (data (i32.const 0) "Hallo aus der EXE")
-  (func (export "abi_version") (result i32) i32.const 1)
+  (func (export "abi_version") (result i32) i32.const 2)
   (func (export "schritte") (result f64) f64.const 3)
   (func (export "zeitMs") (result f64) f64.const 3)
   (func (export "arg_puffer") (param i32) (result i32) global.get $ende)

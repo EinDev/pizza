@@ -92,10 +92,9 @@ Bote.sage(("Hallo!"));
 
 Ein Programm darf aus **mehreren Dateien** eines Projekts bestehen (§2.1 … §2.6, K-138 … K-141; Konzept und Begründungen:
 `PROJEKTE.md`). Für Programme aus genau einer `.pizza`-Datei ändert sich nichts. *Umgesetzt im Interpreter und in der CLI
-(PROJEKTE.md PA1; Fälle `pruefstand/faelle/a19-projekte.js`, Ordner-Fälle `tests/faelle/projekt-*/`). Der Wasm-Motor lehnt Projekte
-und `bestellt` bis PA2 als „nicht unterstützt“ ab (`Pizzaiolo.run` und der Playground fallen dann auf den Interpreter zurück);
-`Kiste` und `Bildchen.laden` (§11.2, §18.5) sind seit PD2 im Interpreter umgesetzt (Fälle ebenfalls in `a19-projekte.js`,
-Ordner-Fälle `tests/faelle/projekt-kiste/`, `projekt-bilder/`); Laufzeit und Host folgen mit PA2.*
+(PROJEKTE.md PA1; Fälle `pruefstand/faelle/a19-projekte.js`, Ordner-Fälle `tests/faelle/projekt-*/`); `Kiste` und `Bildchen.laden`
+(§11.2, §18.5) seit PD2 (Ordner-Fälle `tests/faelle/projekt-kiste/`, `projekt-bilder/`). Seit PA2 kompiliert auch der Wasm-Motor
+Projekte (ein Modul, HOST-ABI v2) – Interpreter, Wasm und nativer Host bitgleich (Differenzkorpus `tests/differenz/korpus/projekt-*/`).*
 
 ### 2.1 Projekt, Projektdatei, Pfade (K-138)
 
@@ -584,7 +583,7 @@ steht in derselben Zeile), `leeren` erscheint als eigene Zeile `«leeren»`, `ei
 Beispiel-Manifeste: optional `"eingabe": "<pfad>.eingabe"` (eine Zeile pro Eingabe) und `"interaktiv": true`; eine
 gleichnamige `.eingabe`-Datei neben der `.pizza` gilt als Fallback.
 
-### 11.2 `Kiste` – Projektdateien lesen (K-146; im Interpreter umgesetzt mit PROJEKTE.md PD2, Wasm/Host mit PA2 – die Sammlung liefert `projekt.lade` als `kiste`)
+### 11.2 `Kiste` – Projektdateien lesen (K-146; umgesetzt im Interpreter mit PROJEKTE.md PD2, in Wasm/Host mit PA2 – die Sammlung liefert `projekt.lade` als `kiste`)
 
 Die **Kiste** sind alle Dateien der Sammlung (§2.1) außer `pruefung/` – auch `.pizza`-Dateien, `pizza.json` und Bilder, auch nicht
 erreichbare Dateien. Nur lesend; Schreiben bleibt Sache der Vorratskammer (§15.4). Eingebautes Modul wie `Bote` (eine eigene Klasse
@@ -1805,7 +1804,7 @@ Schema und ist eine eingebaute Klasse:
   `w s g o t r p b l m e k a y h u v` = Palette in obiger Reihenfolge, `farben` (Speisekarte Zeichen → Farbe) hat Vorrang; unbekannt →
   `LaufzeitAnanas: Das Zeichen 'x' hat im Bildchen keine Farbe.`
 - Ressourcen werden beim Erzeugen kopiert und an die Engine übergeben (IDs ab 1, gemeinsam für Formen und Bildchen).
-- **Bilddateien (K-145, K-147; Vorbacker PD1 und Interpreter PD2 umgesetzt, offen PA2 Laufzeit/Host, PD3 Glut):** statisch `Bildchen.laden(pfad)` lädt ein PNG oder JPEG
+- **Bilddateien (K-145, K-147; Vorbacker PD1, Interpreter PD2, Laufzeit/Host PA2 umgesetzt, offen PD3 Glut):** statisch `Bildchen.laden(pfad)` lädt ein PNG oder JPEG
   aus der Kiste (§11.2) als `Bildchen` (`breite()`/`hoehe()` = Originalgröße, Textform `Bildchen(<b>×<h>)`, ID aus demselben Zähler) –
   überall verwendbar, wo ein Bildchen steht (`Bild`, `Animation`, `Rahmen`, `Koerper.bild`). Gleicher Pfad → **dasselbe** Bildchen
   (keine neue Ressource). Prüfreihenfolge: Argument kein Text → `TypAnanas: Bildchen.laden() braucht einen Text für 'pfad', nicht 5.` →

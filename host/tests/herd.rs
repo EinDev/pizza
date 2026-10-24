@@ -197,7 +197,7 @@ fn kern_fehlt_meldet_host_fehler() {
         .unwrap();
     let t = String::from_utf8_lossy(&out.stdout);
     assert_eq!(out.status.code(), Some(2), "{}", t);
-    assert!(t.starts_with(r#"{"typ":"fehler","code":"HOST","art":"intern","text":"PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).","zeile":null,"spalte":null}"#), "{}", t);
+    assert!(t.starts_with(r#"{"typ":"fehler","code":"HOST","art":"intern","text":"PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).","datei":null,"zeile":null,"spalte":null}"#), "{}", t);
 }
 
 #[test]
