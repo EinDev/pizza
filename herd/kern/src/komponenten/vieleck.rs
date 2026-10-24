@@ -233,7 +233,8 @@ fn gleich(a: &[f64], b: &[f64]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
 }
 
-/// Nachlauf: zerlegt neu, wenn sich `punkte` seit der letzten Zerlegung geändert hat.
+/// Nachlauf: zerlegt neu, wenn sich `punkte` seit der letzten Zerlegung geändert hat. Läuft bewusst auch in ruhenden Teilen
+/// (H-K8 `Vorlage`): reiner Cache der eigenen Felder ohne Wirkung auf die Welt – Kopien einer Vorlage erben so die Zerlegung.
 fn nachlauf(_w: &mut Welt, s: &mut Speicher) {
     for z in 0..s.len() {
         if gleich(&s.puffer(PUNKTE)[z], &s.puffer(QUELLE)[z]) {

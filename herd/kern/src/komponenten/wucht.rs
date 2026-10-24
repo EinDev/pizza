@@ -327,6 +327,10 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     {
         let (teile, [ar, ma, tx, ty, g, da, sx, sy, bo]) = s.zahlen_mut([ART_FELD, MASSE, TEMPO_X, TEMPO_Y, SCHWERKRAFT, DAEMPFUNG, STOSS_X, STOSS_Y, AM_BODEN]);
         for z in 0..n {
+            // ruhendes Teil (H-K8): kein Kraftschritt, Stoß und amBoden bleiben stehen
+            if ruht(w, teile[z]) {
+                continue;
+            }
             bo[z] = 0.0;
             let (stx, sty) = (sx[z], sy[z]);
             sx[z] = 0.0;
@@ -439,7 +443,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         if teil == 0 || s.zahl(ART_FELD)[z] as u32 == art::FEST {
             continue;
         }
-        let Some(r) = w.zeile_opt(teil) else { continue };
+        let Some(r) = wach(w, teil) else { continue };
         let (dx, dy) = match von_zeile[z] {
             usize::MAX => (s.zahl(TEMPO_X)[z] * DT, s.zahl(TEMPO_Y)[z] * DT),
             i => {

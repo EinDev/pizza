@@ -110,6 +110,10 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     let Spalte::Puffer(teilchen) = &mut puffer else { return };
     for z in 0..n {
         let teil = s.teil[z];
+        // ruhendes Teil (H-K8): Teilchen frieren ein, kein Ausstoß
+        if ruht(w, teil) {
+            continue;
+        }
         let liste: &mut Vec<f64> = &mut teilchen[z];
         // Leben: altern, fallen, bewegen, Tote entfernen (Reihenfolge bleibt)
         let g = s.zahl(SCHWERKRAFT)[z];

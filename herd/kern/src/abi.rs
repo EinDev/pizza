@@ -627,6 +627,12 @@ impl Kern {
                 _ => return typfehler(&zahl_text(wert)),
             }
             w.speicher[a].zahl_mut(f)[z] = wert;
+            // Ruhe-Komponente (H-K8/H-K9, z. B. `Kulisse.aktiv`): vererbte Ruhe sofort nachführen
+            if w.arten[a].ruhe.is_some() {
+                if let Some(tz) = w.zeile_opt(w.speicher[a].teil[z]).filter(|_| w.speicher[a].teil[z] != 0) {
+                    w.ruhe_neu(tz);
+                }
+            }
             Ok(0)
         })();
         self.ri(e)

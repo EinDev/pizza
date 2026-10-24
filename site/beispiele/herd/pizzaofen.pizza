@@ -1,0 +1,52 @@
+// Pizzaofen: Aus einer Vorlage – Teig, Tomate, Mozzarella, Basilikum und eine Dampfwolke – wirft der Ofen jede Sekunde
+// eine fertige Pizza aus. Sie fliegt im Bogen auf die Theke und rutscht zur Kiste. Ein Klick wirft sofort eine Pizza aus.
+// Zeigt: Vorlage (ruht samt Kindern: keine Systeme, unsichtbar), kopie() macht daraus wache Pizzen ohne Vorlage,
+// dazu Wucht und Fühler für die Landung und Partikel für den Dampf.
+
+Herd herd = neu Herd("Pizzaofen", breite: 640, hoehe: 360);
+herd.hintergrund("mozzarella");
+
+// Theke (fester Fühler ohne Wucht) und Kiste am rechten Rand
+Teil theke = herd.rechteck(360, 330, 560, 20, farbe: "kruste");
+theke.mit(neu Fuehler(ausloeser: nein));
+Teil kiste = herd.rechteck(605, 285, 50, 60, farbe: "senf");
+kiste.mit(neu Fuehler());
+herd.text("Kiste", 605, 285, groesse: 14, farbe: "ofen", ausrichtung: "mitte");
+
+// Der Ofen mit glühender Öffnung
+herd.rechteck(70, 250, 120, 140, farbe: "ofen", rundung: 20);
+herd.rechteck(80, 270, 70, 50, farbe: "tomate", rundung: 12);
+
+// Die Vorlage: steht im Ofen, ruht samt Belag – sie bewegt sich nicht, dampft nicht und ist nicht zu sehen
+Teil vorlage = herd.kreis(85, 270, 22, farbe: "teig");
+herd.kreis(0, 0, 18, farbe: "tomate").haenge(vorlage);
+herd.kreis(-7, -5, 5, farbe: "mozzarella").haenge(vorlage);
+herd.kreis(8, 4, 5, farbe: "mozzarella").haenge(vorlage);
+herd.kreis(2, -10, 3, farbe: "basilikum").haenge(vorlage);
+vorlage.mit(neu Partikel(rate: 12, lebensdauer: 0.6, tempo: 30, richtung: 270, streuung: 40, groesse: 6, farbe: "#9a8f80a0", farbeEnde: "#9a8f8000"));
+vorlage.mit(neu Fuehler(ausloeser: nein));
+vorlage.mit(neu Wucht(schwerkraft: 900, reibung: 0, abprall: 0.2, tempoX: 220, tempoY: -320));
+vorlage.mit(neu Vorlage(name: "Margherita"));
+
+Blech<Teil> pizzen = [];
+salami geliefert = 0;
+Teil anzeige = herd.text("", 16, 16, groesse: 18, farbe: "ofen");
+herd.text("Klick: Pizza auswerfen", 624, 16, groesse: 14, farbe: "ofen", ausrichtung: "rechts");
+
+leer auswerfen() {
+    Teil p = vorlage.kopie();                                // wach, ohne Vorlage, mit allem Belag
+    p.wucht().setzeTempoX(200 + (pizzen.länge() % 4) * 30);
+    pizzen.hinzu(p);
+}
+
+herd.backe(() -> {
+    falls ((herd.bildnummer() % 60 == 1 || herd.klick()) && pizzen.länge() < 12) { auswerfen(); }
+    // in der Kiste angekommen: entfernen und zählen
+    für (Teil p : kiste.fuehler().betreten()) {
+        p.entferne();
+        geliefert = geliefert + 1;
+    }
+    pizzen = pizzen.filtere((p) -> !p.entfernt());
+    anzeige.text().setzeInhalt(("Unterwegs: " + pizzen.länge() + " · geliefert: " + geliefert));
+});
+Bote.sage(("Geliefert: " + geliefert + " Pizzen, die Vorlage steht noch bei x = " + vorlage.x() + "."));

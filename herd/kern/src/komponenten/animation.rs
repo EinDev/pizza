@@ -38,7 +38,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     let (teile, [ps, sch, lf, nr, zt]) = s.zahlen_mut([PRO_SEKUNDE, SCHLEIFE, LAEUFT, NUMMER, ZEIT]);
     for z in 0..n {
         let teil = teile[z];
-        if teil == 0 {
+        if teil == 0 || ruht(w, teil) {
             continue;
         }
         let liste = &bilder[z];

@@ -42,7 +42,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         if teil == 0 {
             continue;
         }
-        let Some(r) = w.zeile_opt(teil) else { continue };
+        let Some(r) = wach(w, teil) else { continue };
         let drei_d = w.teile.drei_d[r];
         tx[z] += bx[z] * DT;
         ty[z] += by[z] * DT;

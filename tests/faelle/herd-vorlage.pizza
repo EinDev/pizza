@@ -1,0 +1,29 @@
+// Herd §18.6 / HERD.md §12.4 H-K8: Vorlage – ruht samt Kindern (keine Systeme, nicht gezeichnet, trifft nein),
+// kopie() liefert ein waches Teil ohne Vorlage, ohne("Vorlage") weckt das Original
+Herd herd = neu Herd("Vorlage", breite: 320, hoehe: 180);
+Teil olive = herd.kreis(20, 40, 8, farbe: "aubergine");
+olive.mit(neu Bewegung(tempoX: 60));
+olive.mit(neu Partikel(rate: 30, lebensdauer: 0.5));
+olive.mit(neu Fuehler());
+Teil glanz = herd.kreis(-3, -3, 2, farbe: "mozzarella");
+glanz.haenge(olive);
+glanz.mit(neu Gleiten(was: "x", nach: 3, dauer: 0.5, schleife: "pendeln"));
+Vorlage v = olive.mit(neu Vorlage(name: "Olive"));
+Bote.sage((v + " " + v.name() + " " + olive.vorlage().name() + " sichtbar " + olive.sichtbar()));
+Teil wand = herd.rechteck(20, 40, 10, 40, farbe: "kruste");
+wand.mit(neu Fuehler());
+Bote.sage(("trifft Vorlage: " + olive.trifft(wand) + ", Kind: " + glanz.trifft(wand)));
+Blech<Teil> welle = [];
+herd.backe(() -> {
+  falls (herd.bildnummer() % 8 == 1 && welle.länge() < 3) {
+    Teil o = olive.kopie();
+    o.verschiebe(0, welle.länge() * 40);
+    welle.hinzu(o);
+  }
+  falls (herd.bildnummer() == 20) { olive.ohne("Vorlage"); }
+});
+Teil erste = welle.erstes();
+Bote.sage(("Kopie ohne Vorlage: " + (erste.vorlage() == karton) + ", Kind kopiert: " + erste.kinder().länge()));
+Bote.sage(("Kopien laufen: " + (erste.x() > 20) + ", Original ab Bild 20 wach: x = " + Mathe.runden(olive.x())));
+Bote.sage(("Wand spürt: " + wand.fuehler().beruehrt().länge() + ", Kind wach: " + (glanz.x() != -3)));
+probier { olive.mit(neu Vorlage()); olive.mit(neu Vorlage()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

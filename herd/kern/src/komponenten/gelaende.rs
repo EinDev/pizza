@@ -108,6 +108,8 @@ pub fn netz(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64) -> formen::Ne
 }
 
 /// System: baut das Netz neu, wenn sich die Netz-Felder seit dem letzten Bau geändert haben (oder noch keins da ist).
+/// Baut das Netz bei geänderten Feldern. Läuft bewusst auch in ruhenden Teilen (H-K8 `Vorlage`): reiner Cache der eigenen
+/// Felder – Kopien einer Vorlage erben Netz und Prüfwert und teilen sich so **eine** Ressource, statt je Kopie eine neue anzulegen.
 fn takt(w: &mut Welt, s: &mut Speicher) {
     for z in 0..s.len() {
         if s.teil[z] == 0 {

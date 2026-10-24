@@ -54,6 +54,7 @@ pub static ARTEN: &[&Art] = &[
     &wucht::ART,                                       // 20 (H-K7, braucht Fuehler)
     &vieleck::ART,                                     // 21 (H-K3b; Zerlegung im Nachlauf, 2D-Art DREIECK)
     &gelaende::ART,                                    // 22 (H-K11a, Takt: Netz bei Änderung)
+    &vorlage::ART,                                     // 23 (H-K8, Ruhe: kein System)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -69,13 +70,22 @@ pub static ART: Art = Art {
         Feld::intern("zeit", 0.0),        // verborgene Felder stehen am Ende
     ]},
     takt: Some(takt),      // System: fn(&mut Welt, &mut Speicher) – läuft je Takt über die dichten Zeilen
-    ..Art::LEER            // alles Übrige leer: nur_test, nachlauf, bild, huelle (neue Art-Felder ändern keine Komponente)
+    ..Art::LEER            // alles Übrige leer: nur_test, nachlauf, bild, huelle, ruhe, kopie_ohne (neue Art-Felder ändern keine Komponente)
 };
 ```
 
 Weitere Einträge von `Art`: `nachlauf: Some(f)` (H-K0: gleiche Signatur wie `takt`, läuft je Takt nach **allen** Takt-Systemen, wie
 Unity `LateUpdate`), `bild: Some(f)` (Bildbeitrag: `fn(&Welt, &Speicher, &mut Bildbau)` – Instanzen/Lichter/Kameras), `huelle: Some(f)`
-(für `trifft`: `fn(&Welt, &Speicher, komp_zeile, teil_zeile) -> Option<Huelle>`), `nur_test: true` (nur Testbau, fehlt im Schema).
+(für `trifft`: `fn(&Welt, &Speicher, komp_zeile, teil_zeile) -> Option<Huelle>`), `nur_test: true` (nur Testbau, fehlt im Schema),
+`ruhe: Some(f)` (H-K8: `fn(&Speicher, komp_zeile) -> bool` – ja = das Teil **ruht** samt Kindern; `Vorlage` immer, H-K9 `Kulisse`
+bei `aktiv: nein`) und `kopie_ohne: true` (`kopie()` lässt die Komponente an der kopierten Wurzel weg).
+
+**Ruhe (H-K8).** Die Welt führt `Teile::welt_ruht` (vererbt: eigene Ruhe-Komponente oder Vorfahre ruht) **sofort** nach – bei
+`komp_haenge`/`komp_loese` einer Art mit `ruhe`, `haenge`, `kopie` und nach `setze_zahl` an einer solchen Komponente; der Zustand
+ist abgeleitet und nicht im Szenen-Hash. `welt_sichtbar` enthält ihn (`aktualisiere`), damit zeichnen ruhende Teile nicht, haben
+keine Hülle (`trifft` → nein) und keine Fühler-Form. **Jedes Takt-/Nachlauf-System prüft `komponenten::wach(w, teil)`** (Zeile
+nur, wenn das Teil lebt und wach ist) bzw. `komponenten::ruht(w, teil)`, bevor es Zustand ändert; Kameras und Blicke zählen nur wach.
+Ausnahme: reine Caches der eigenen Felder ohne Wirkung auf die Welt (`Vieleck`-Zerlegung, `Gelaende`-Netz) laufen weiter – Kopien erben sie.
 
 Feldtypen (Nummer im Schema): 1 `zahl` (f64, Bereich), 2 `ganz`, 3 `diavolo` (0/1), 4 `text`, 5 `wahl` (Index in fester Liste),
 6 `farbe` (RGBA8 + Text, wie gesetzt), 7 `teil`, 8 `form`, 9 `bildchen` (IDs, 0 = karton), 10 `bildchen-liste`, 11 `teil-liste`
@@ -305,7 +315,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
   Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
-  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.

@@ -1,0 +1,105 @@
+# H-K8 (HERD.md §12.4): Vorlage – ruhende Muster, wache Kopien. Eine Olive als Vorlage (Kreis, Bewegung, Partikelschweif,
+# Fühler, Kind mit Gleiten), daraus je Welle N Kopien; eine 3D-Vorlage mit Funken und Koerper; Teil unter die Vorlage hängen
+# (ruht) und wieder lösen; Kopie eines Kindes der Vorlage (ruht mit); ohne Vorlage wecken und wieder einschläfern.
+vorgabe N 40
+vorgabe TAKTE 6
+welt_neu 640 360 "Vorlage"
+typ_nummer "Vorlage" -> T_V
+typ_nummer "Kreis" -> T_K
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Partikel" -> T_P
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Gleiten" -> T_G
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Funken" -> T_FU
+typ_nummer "Koerper" -> T_KO
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "tempoY" -> BEW_Y
+feld_nummer T_P "rate" -> P_RATE
+feld_nummer T_G "nach" -> G_NACH
+feld_nummer T_G "schleife" -> G_SCHL
+feld_nummer T_KO "form" -> KO_F
+feld_nummer T_V "name" -> V_NAME
+form_grund 1 0 0 -> WUERFEL
+# Vorlage: Olive mit Schweif und einem pendelnden Kern-Kind
+teil_neu 2 -> olive
+teil_lage olive 40 180 0
+komp_neu T_V -> v
+setze_text v V_NAME "Olive"
+komp_haenge v olive
+komp_neu T_K -> k
+setze_zahl k K_R 12
+komp_haenge k olive
+komp_neu T_BEW -> bw
+setze_zahl bw BEW_X 90
+komp_haenge bw olive
+komp_neu T_P -> p
+setze_zahl p P_RATE 40
+komp_haenge p olive
+komp_neu T_F -> f
+komp_haenge f olive
+teil_neu 2 -> kern
+komp_neu T_R -> r
+komp_haenge r kern
+komp_neu T_G -> g
+setze_zahl g G_NACH 6
+setze_zahl g G_SCHL 2
+komp_haenge g kern
+teil_haenge kern olive
+# Vieleck-Kind (H-K3b): zeichnet nicht, solange die Vorlage ruht; Kopien erben die Zerlegung
+typ_nummer "Vieleck" -> T_VI
+feld_nummer T_VI "punkte" -> VI_P
+teil_neu 2 -> blatt
+komp_neu T_VI -> vi
+setze_zahlen vi VI_P [0, -6, 5, 0, 0, 6, -5, 0]
+komp_haenge vi blatt
+teil_haenge blatt olive
+# 3D-Vorlage mit Funken und Körper
+teil_neu 3 -> ofen
+komp_neu T_V -> v3
+komp_haenge v3 ofen
+komp_neu T_KO -> ko
+setze_zahl ko KO_F WUERFEL
+komp_haenge ko ofen
+komp_neu T_FU -> fu
+komp_haenge fu ofen
+# Gelände-Kind (H-K11a): das Netz entsteht einmal in der Vorlage, Kopien teilen es
+typ_nummer "Gelaende" -> T_GE
+feld_nummer T_GE "spalten" -> GE_S
+teil_neu 3 -> boden
+komp_neu T_GE -> ge
+setze_zahl ge GE_S 8
+komp_haenge ge boden
+teil_haenge boden ofen
+# eine wache Wand mit Fühler
+teil_neu 2 -> wand
+teil_lage wand 600 180 0
+komp_neu T_R -> rw
+komp_haenge rw wand
+komp_neu T_F -> fw
+komp_haenge fw wand
+takte TAKTE
+# Welle: N Kopien, versetzt und mit eigenem Tempo
+wiederhole N i
+  teil_kopie olive -> o
+  teil_lage o (40 + (i % 5) * 20) (30 + (i * 37) % 300) 0
+  komp_von o T_BEW -> ob
+  setze_zahl ob BEW_Y ((i % 7 - 3) * 10)
+ende
+teil_kopie ofen -> ofen2
+takte TAKTE
+# ein waches Teil unter die Vorlage hängen (ruht), dann wieder lösen
+teil_haenge wand olive
+takte 2
+teil_haenge wand 0
+# Kopie eines Kindes der Vorlage hängt an der Vorlage und ruht mit
+teil_kopie kern -> kern2
+takte 2
+# ohne Vorlage: das Original wacht auf; wieder mit: ruht
+komp_loese v
+takte TAKTE
+komp_haenge v olive
+takte 2
+teil_entferne o
+takte 2

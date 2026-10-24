@@ -295,7 +295,8 @@
                 ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"],
                 ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"],
                 ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"],
-                ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"]
+                ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"],
+                ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -788,6 +789,48 @@
             },
             { art: "ausgabe", text: z("vor dem Takt: nein", "Gelaende(3) 12×12, 144 Höhen, trifft ja") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Hügel** unter *Beispiele → Herd*: eine Tomatenplantage im Hügelland, die Kamera kreist um den Hof, und die Leertaste lässt die Hügel wachsen – die Tomatenstöcke wandern mit." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Vorlage: Muster für viele gleiche Teile",
+          inhalt: [
+            { art: "text", md: "Eine **`Vorlage`** macht ein Teil zum ruhenden Muster (wie ein Prefab in Unity): Es **ruht samt allen Kindern** – keine Bewegung, keine Animation, keine Teilchen, keine Fühler oder Physik –, wird nicht gezeichnet und trifft nichts. Seine Komponenten und Werte bleiben aber da und lassen sich lesen und ändern. **`kopie()`** macht daraus ein waches Teil **ohne** Vorlage, mit allen Kindern und Komponenten – so baut man Gegnerwellen, Geschosse oder Pizzen am Fließband: einmal zusammenstecken, beliebig oft kopieren." },
+            { art: "text", md: "`ohne(\"Vorlage\")` weckt das Muster selbst auf. Ein Teil, das man an eine Vorlage hängt, ruht mit; die Kopie eines **Kindes** der Vorlage hängt am selben Eltern-Teil und ruht deshalb auch – kopiere die Vorlage selbst. `name` dient nur der Anzeige." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Vorlage","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"d3da7f4300c3c07b","paket":"f5391310d4a92f96"},
+                {"art":"bild","bildnummer":8,"szene":"297fc17164ae7169","paket":"fbc1748e4b8b7205"},
+                {"art":"bild","bildnummer":12,"szene":"ceef872965922eed","paket":"6305c24509b36f4d"},
+                {"art":"bild","bildnummer":16,"szene":"5a685ebbed9c3735","paket":"98cd2814bacf6d7a"},
+                {"art":"bild","bildnummer":20,"szene":"e13901a7156d3541","paket":"87af1d092a2fd4a0"},
+                {"art":"bild","bildnummer":24,"szene":"6a0aba30dba56b4f","paket":"3eaeb1c7ef02cb48"},
+                {"art":"bild","bildnummer":28,"szene":"c2269d37c77d7ca7","paket":"d022f659833f2adb"},
+                {"art":"bild","bildnummer":32,"szene":"3c63d3e0bcc6df29","paket":"36428f462a22a586"},
+                {"art":"bild","bildnummer":36,"szene":"f18cb6c8dbdbcdc4","paket":"8b37e3276c11267f"},
+                {"art":"bild","bildnummer":40,"szene":"28bb91704f8cf64a","paket":"6baaa464e9ccc910"},
+                {"art":"bild","bildnummer":44,"szene":"e6f0b21f9ac7feb1","paket":"8e44a618ec51833a"},
+                {"art":"bild","bildnummer":48,"szene":"e45c731fc5e38819","paket":"25551410c9166b17"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Vorlage\", breite: 320, hoehe: 180);",
+                "Teil muster = herd.kreis(20, 90, 10, farbe: \"aubergine\");",
+                "muster.mit(neu Bewegung(tempoX: 80));",
+                "muster.mit(neu Vorlage(name: \"Olive\"));",
+                "Blech<Teil> oliven = [muster.kopie()];",
+                "herd.backe(() -> {",
+                "  falls (herd.bildnummer() % 12 == 0) { Teil o = muster.kopie(); o.verschiebe(0, (oliven.länge() % 3 - 1) * 40); oliven.hinzu(o); }",
+                "});",
+                "Bote.sage((muster.vorlage().name() + \" \" + muster.x() + \" \" + oliven.länge() + \" \" + (oliven.erstes().vorlage() == karton)));"
+              )
+            },
+            { art: "ausgabe", text: z("Olive 20 5 ja") },
+            { art: "text", md: "Ein ganzes Beispiel ist der **Pizzaofen** unter *Beispiele → Herd*: Aus einer Vorlage mit Belag, Dampf, Fühler und Wucht wirft der Ofen jede Sekunde eine Pizza aus, die über die Theke in die Kiste rutscht." }
           ]
         }
       ]

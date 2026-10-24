@@ -417,9 +417,13 @@ fn nachlauf(w: &mut Welt, s: &mut Speicher) {
     let mut rein = core::mem::take(liste_mut(s, BETRETEN));
     let mut raus = core::mem::take(liste_mut(s, VERLASSEN));
     for z in 0..n {
+        let teil = s.teil[z];
+        // ruhendes Teil (H-K8): Listen bleiben stehen (es ist auch kein Kandidat, `form` → None)
+        if ruht(w, teil) {
+            continue;
+        }
         let neu = &mut nachbarn[ab[z]..ab[z + 1]];
         neu.sort_unstable();
-        let teil = s.teil[z];
         // Vortakt: nur, wenn die Listen zu diesem Teil gehören (nach Kopie/Umhängen leer); entfernte Teile fallen heraus
         let alt = &mut ber[z];
         if teil != 0 && s.zahl(FUER)[z] == teil as f64 {

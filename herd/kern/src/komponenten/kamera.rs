@@ -32,7 +32,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
         if ak[z] == 0.0 {
             continue;
         }
-        let Some(tz) = (if s.teil[z] == 0 { None } else { w.zeile_opt(s.teil[z]) }) else { continue };
+        let Some(tz) = wach(w, s.teil[z]) else { continue };
         b.kameras.push(KameraB { teil: s.teil[z], m: w.teile.welt[tz], sicht: si[z], nah: na[z], fern: fe[z] });
     }
 }

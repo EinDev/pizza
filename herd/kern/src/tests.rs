@@ -2795,3 +2795,284 @@ mod hk11a {
     }
 }
 
+/// H-K8: `Vorlage` – ruhende Muster, wache Kopien.
+mod hk8 {
+    use super::*;
+    use crate::abi::szenen_hash;
+    use crate::komponenten::Art;
+    use crate::welt::Welt;
+
+    /// 2D-Teil bei (x, y) mit Kreis (Radius 10) und Bewegung tempoX = 60
+    fn laeufer(k: &mut Kern, x: f64, y: f64) -> i32 {
+        let (kr, bw) = (typ(k, "Kreis"), typ(k, "Bewegung"));
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let c = k.komp_neu(kr);
+        let fr = feld(k, kr, "radius");
+        k.setze_zahl(c, fr, 10.0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let b = k.komp_neu(bw);
+        let ft = feld(k, bw, "tempoX");
+        k.setze_zahl(b, ft, 60.0);
+        assert_eq!(k.komp_haenge(b, t), 0);
+        t
+    }
+    fn vorlage(k: &mut Kern, t: i32) -> i32 {
+        let v = typ(k, "Vorlage");
+        let c = k.komp_neu(v);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        c
+    }
+    fn x(k: &mut Kern, t: i32) -> f64 {
+        k.teil_hole(t, tf::X)
+    }
+
+    #[test]
+    fn schema_ohne_system() {
+        let mut k = welt();
+        let v = typ(&mut k, "Vorlage");
+        let a = &ARTEN[v as usize - 1];
+        assert_eq!(a.schema.name, "Vorlage");
+        assert!(a.takt.is_none() && a.nachlauf.is_none() && a.bild.is_none() && a.huelle.is_none());
+        assert!(a.ruhe.is_some() && a.kopie_ohne);
+        let c = k.komp_neu(v);
+        let fname = feld(&mut k, v, "name");
+        assert_eq!(text(&mut k, c, fname), "");
+        // nur Vorlage fehlt in Kopien; ruhen lassen dürfen nur Vorlage und (ab H-K9) Kulisse
+        for b in ARTEN.iter().filter(|b| b.schema.name != "Vorlage") {
+            assert!(!b.kopie_ohne, "{}", b.schema.name);
+            assert!(b.ruhe.is_none() || b.schema.name == "Kulisse", "{}", b.schema.name);
+        }
+        // beide Räume
+        let d = k.teil_neu(3);
+        assert_eq!(k.komp_haenge(c, d), 0);
+    }
+
+    #[test]
+    fn vorlage_ruht_samt_kindern_kopie_wach_ohne_weckt() {
+        let mut k = welt();
+        let a = laeufer(&mut k, 100.0, 100.0);
+        let kind = laeufer(&mut k, 0.0, 30.0);
+        assert_eq!(k.teil_haenge(kind, a), 0);
+        let wand = laeufer(&mut k, 105.0, 100.0);
+        let nah = laeufer(&mut k, 100.0, 130.0);
+        assert_eq!(k.teil_trifft(a, wand), 1);
+        assert_eq!(k.teil_trifft(kind, nah), 1);
+        let va = vorlage(&mut k, a);
+        assert_eq!(k.teil_trifft(a, wand), 0, "ruht → trifft nein");
+        assert_eq!(k.teil_trifft(kind, nah), 0, "Kind ruht mit");
+        k.takt();
+        assert_eq!(x(&mut k, a), 100.0);
+        assert_eq!(x(&mut k, kind), 0.0);
+        assert_eq!(x(&mut k, wand), 106.0);
+        // nicht gezeichnet: nur wand und nah im Bild; die Sichtbarkeit selbst bleibt ja
+        k.bild(1);
+        assert_eq!(instanzen_2d(&k).len(), 2);
+        assert_eq!(k.teil_hole(a, tf::SICHTBAR), 1.0);
+        // Kopie: wach, ohne Vorlage, mit Kind
+        let v = typ(&mut k, "Vorlage");
+        let b = k.teil_kopie(a);
+        assert_eq!(k.komp_von(b, v), 0);
+        let mut kinder = [0u32; 2];
+        assert_eq!(k.teil_kinder(b, &mut kinder), 1);
+        let bk = kinder[0] as i32;
+        k.takt();
+        assert_eq!(x(&mut k, a), 100.0);
+        assert_eq!(x(&mut k, b), 101.0);
+        assert_eq!(x(&mut k, bk), 1.0);
+        k.bild(2);
+        assert_eq!(instanzen_2d(&k).len(), 4);
+        // ein Teil unter die Vorlage hängen → ruht; wieder lösen → wach
+        assert_eq!(k.teil_haenge(nah, a), 0);
+        let nx = x(&mut k, nah);
+        k.takt();
+        assert_eq!(x(&mut k, nah), nx);
+        assert_eq!(k.teil_haenge(nah, 0), 0);
+        k.takt();
+        assert_eq!(x(&mut k, nah), nx + 1.0);
+        // Kopie des Kindes einer Vorlage hängt an der Vorlage → ruht auch
+        let kk = k.teil_kopie(kind);
+        k.takt();
+        assert_eq!(x(&mut k, kk), 0.0);
+        // ohne("Vorlage") weckt das Original samt Kindern; wieder mit → ruht
+        assert_eq!(k.komp_loese(va), 0);
+        k.takt();
+        assert_eq!(x(&mut k, a), 101.0);
+        assert_eq!(x(&mut k, kind), 1.0);
+        assert_eq!(x(&mut k, kk), 1.0);
+        assert_eq!(k.komp_haenge(va, a), 0);
+        k.takt();
+        assert_eq!(x(&mut k, a), 101.0);
+    }
+
+    #[test]
+    fn verschachtelte_vorlage_bleibt_in_der_kopie() {
+        let mut k = welt();
+        let v = typ(&mut k, "Vorlage");
+        let a = laeufer(&mut k, 0.0, 0.0);
+        let innen = laeufer(&mut k, 0.0, 0.0);
+        assert_eq!(k.teil_haenge(innen, a), 0);
+        vorlage(&mut k, a);
+        vorlage(&mut k, innen);
+        let b = k.teil_kopie(a);
+        let mut kinder = [0u32; 1];
+        k.teil_kinder(b, &mut kinder);
+        let bi = kinder[0] as i32;
+        assert_eq!(k.komp_von(b, v), 0);
+        assert!(k.komp_von(bi, v) > 0);
+        k.takt();
+        assert_eq!(x(&mut k, b), 1.0);
+        assert_eq!(x(&mut k, bi), 0.0);
+    }
+
+    #[test]
+    fn systeme_ueberspringen_ruhende() {
+        let mut k = welt();
+        let pt = typ(&mut k, "Partikel");
+        let gl = typ(&mut k, "Gleiten");
+        let ab = typ(&mut k, "Ablauf");
+        let an = typ(&mut k, "Animation");
+        let bi = typ(&mut k, "Bild");
+        let fu = typ(&mut k, "Fuehler");
+        let wu = typ(&mut k, "Wucht");
+        let kr = typ(&mut k, "Kreis");
+        let a = k.teil_neu(2);
+        k.teil_lage(a, 200.0, 100.0, 0.0);
+        vorlage(&mut k, a);
+        // Partikel: kein Ausstoß; die Kopie stößt aus
+        let p = k.komp_neu(pt);
+        let f_rate = feld(&mut k, pt, "rate");
+        k.setze_zahl(p, f_rate, 600.0);
+        assert_eq!(k.komp_haenge(p, a), 0);
+        // Gleiten nach x = 300
+        let g = k.komp_neu(gl);
+        let f_nach = feld(&mut k, gl, "nach");
+        k.setze_zahl(g, f_nach, 300.0);
+        assert_eq!(k.komp_haenge(g, a), 0);
+        // Bild + Animation mit zwei Bildchen
+        let zeilen: Vec<u8> = [b"ws".as_slice(), b"sw"].iter().flat_map(|z| [&(z.len() as u32).to_le_bytes()[..], z].concat()).collect();
+        let bc1 = k.bildchen_neu(&zeilen, &[]);
+        let bc2 = k.bildchen_neu(&zeilen, &[]);
+        assert!(bc1 > 0 && bc2 > 0, "{}", k.fehler_text());
+        let b = k.komp_neu(bi);
+        assert_eq!(k.komp_haenge(b, a), 0);
+        let m = k.komp_neu(an);
+        let f_bilder = feld(&mut k, an, "bilder");
+        assert!(k.setze_liste(m, f_bilder, &[bc1 as u32, bc2 as u32]) >= 0, "{}", k.fehler_text());
+        let f_ps = feld(&mut k, an, "proSekunde");
+        k.setze_zahl(m, f_ps, 60.0);
+        assert_eq!(k.komp_haenge(m, a), 0);
+        let nummer = feld(&mut k, an, "nummer");
+        // Ablauf an einem Kind: Schlüssel x
+        let abl = k.komp_neu(ab);
+        let (f_zeiten, f_x, ab_zeit) = (feld(&mut k, ab, "zeiten"), feld(&mut k, ab, "xWerte"), feld(&mut k, ab, "zeit"));
+        assert!(k.setze_zahlen(abl, f_zeiten, &[0.0, 1.0]) >= 0, "{}", k.fehler_text());
+        assert!(k.setze_zahlen(abl, f_x, &[10.0, 70.0]) >= 0, "{}", k.fehler_text());
+        let hinten = k.teil_neu(2);
+        assert_eq!(k.komp_haenge(abl, hinten), 0);
+        assert_eq!(k.teil_haenge(hinten, a), 0);
+        // Kreis + Fühler + Wucht (dynamisch, Schwerkraft) am ruhenden Teil; ein waches Fühler-Teil daneben
+        let c = k.komp_neu(kr);
+        let f_radius = feld(&mut k, kr, "radius");
+        k.setze_zahl(c, f_radius, 10.0);
+        assert_eq!(k.komp_haenge(c, a), 0);
+        let f = k.komp_neu(fu);
+        let f_aus = feld(&mut k, fu, "ausloeser");
+        k.setze_zahl(f, f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, a), 0);
+        let wc = k.komp_neu(wu);
+        let (f_g, f_ty) = (feld(&mut k, wu, "schwerkraft"), feld(&mut k, wu, "tempoY"));
+        k.setze_zahl(wc, f_g, 1200.0);
+        assert_eq!(k.komp_haenge(wc, a), 0);
+        let wach_t = k.teil_neu(2);
+        k.teil_lage(wach_t, 205.0, 100.0, 0.0);
+        let c2 = k.komp_neu(kr);
+        assert_eq!(k.komp_haenge(c2, wach_t), 0);
+        let f2 = k.komp_neu(fu);
+        assert_eq!(k.komp_haenge(f2, wach_t), 0);
+        let beruehrt = feld(&mut k, fu, "beruehrt");
+        for _ in 0..10 {
+            k.takt();
+        }
+        assert_eq!(k.teil_hole(a, tf::X), 200.0);
+        assert_eq!(k.teil_hole(a, tf::Y), 100.0);
+        assert_eq!(k.teil_hole(hinten, tf::X), 0.0);
+        assert_eq!(k.hole_zahl(m, nummer), 1.0);
+        assert_eq!(k.hole_zahl(abl, ab_zeit), 0.0);
+        assert_eq!(k.hole_zahl(wc, f_ty), 0.0);
+        assert_eq!(k.hole_zahl(f2, beruehrt), 0.0);
+        k.bild(1);
+        assert_eq!(instanzen_2d(&k).len(), 1, "nur der wache Kreis");
+        // Kopie: alles läuft
+        let kopie = k.teil_kopie(a);
+        k.takt();
+        let kf = k.komp_von(wach_t, fu);
+        assert_eq!(k.hole_zahl(kf, beruehrt), 1.0, "der wache Fühler spürt die Kopie");
+        for _ in 0..10 {
+            k.takt();
+        }
+        assert_ne!(k.teil_hole(kopie, tf::X), 200.0);
+        let km = k.komp_von(kopie, an);
+        assert_ne!(k.hole_zahl(km, nummer), 1.0);
+        let kw = k.komp_von(kopie, wu);
+        assert!(k.hole_zahl(kw, f_ty) > 0.0);
+        let mut kinder = [0u32; 2];
+        k.teil_kinder(kopie, &mut kinder);
+        assert!(k.teil_hole(kinder[0] as i32, tf::X) > 10.0);
+        k.bild(2);
+        assert!(instanzen_2d(&k).len() > 3, "Kopie zeichnet Kreis, Bild und Teilchen");
+        // das Original ruht weiter
+        assert_eq!(k.teil_hole(a, tf::X), 200.0);
+        assert_eq!(k.hole_zahl(m, nummer), 1.0);
+    }
+
+    #[test]
+    fn blick_in_vorlage_zaehlt_nicht() {
+        let mut k = welt();
+        let bl = typ(&mut k, "Blick");
+        laeufer(&mut k, 100.0, 100.0);
+        k.bild(1);
+        k.bild(2);
+        let ohne: Vec<u8> = k.paket().to_vec();
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 500.0, 300.0, 0.0);
+        let b = k.komp_neu(bl);
+        let f_zoom = feld(&mut k, bl, "zoom");
+        k.setze_zahl(b, f_zoom, 3.0);
+        assert_eq!(k.komp_haenge(b, t), 0);
+        let v = vorlage(&mut k, t);
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne[..], "ruhender Blick: Bild wie ohne Blick");
+        assert_eq!(k.komp_loese(v), 0);
+        k.bild(2);
+        assert_ne!(k.paket(), &ohne[..], "geweckter Blick gilt");
+    }
+
+    /// Szenen-Hash einer Welt ohne Vorlage ist gleich, ob die Registry Vorlage kennt oder nicht.
+    #[test]
+    fn hash_ohne_vorlage_unveraendert() {
+        fn baue(arten: &'static [&'static Art]) -> u64 {
+            let mut w = Welt::neu(640, 360, String::from("H"), arten);
+            let (kr, bw, pt) = (w.art_index("Kreis").unwrap(), w.art_index("Bewegung").unwrap(), w.art_index("Partikel").unwrap());
+            let a = w.teil_neu(false);
+            let b = w.teil_neu(false);
+            w.haenge(b, a).unwrap();
+            for (art, t) in [(kr, a), (bw, a), (pt, b), (kr, b)] {
+                let h = w.komp_neu(art);
+                w.komp_haenge(h, t).unwrap();
+            }
+            let z = w.komp_zeile(w.zeile_opt(a).unwrap(), bw).unwrap();
+            w.speicher[bw].zahl_mut(crate::komponenten::bewegung::TEMPO_X)[z] = 30.0;
+            let c = w.kopie(a).unwrap();
+            w.lage_setzen(c, 5.0, 6.0, 0.0);
+            for _ in 0..20 {
+                w.takt();
+            }
+            szenen_hash(&mut w)
+        }
+        let ohne: &'static [&'static Art] = Box::leak(ARTEN.iter().copied().filter(|a| a.schema.name != "Vorlage").collect::<Vec<_>>().into_boxed_slice());
+        assert_eq!(ohne.len() + 1, ARTEN.len());
+        assert_eq!(baue(ARTEN), baue(ohne));
+    }
+}
+

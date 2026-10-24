@@ -45,7 +45,11 @@ pub struct Teile {
     /// Welt-Matrix: 3D 3×4 zeilenweise (r0, r1, r2 mit Verschiebung in Spalte 3);
     /// 2D: [a, b, c, d, tx, ty, …] (Spalten (a, b), (c, d) der 2×2 lokal → Spielfeld)
     pub welt: Vec<[f64; 12]>,
+    /// vererbt sichtbar **und wach** (H-K8), in `aktualisiere`
     pub welt_sichtbar: Vec<bool>,
+    /// vererbte Ruhe (H-K8 `Vorlage`): das Teil oder ein Vorfahre hat eine Komponente mit `Art::ruhe`, die ja sagt.
+    /// Abgeleitet (nicht im Szenen-Hash), sofort nachgeführt bei mit/ohne/haenge/kopie – unabhängig von `gueltig`.
+    pub welt_ruht: Vec<bool>,
     pub gueltig: Vec<bool>,
 }
 
@@ -171,6 +175,7 @@ impl Welt {
         t.komp.extend(core::iter::repeat_n(0, self.arten.len()));
         t.welt.push([0.0; 12]);
         t.welt_sichtbar.push(true);
+        t.welt_ruht.push(false);
         t.gueltig.push(false);
         self.zeile_von.push(z as u32);
         id
@@ -217,7 +222,7 @@ impl Welt {
             }
         };
         self.teile.welt[z] = w;
-        self.teile.welt_sichtbar[z] = ps && self.teile.sichtbar[z];
+        self.teile.welt_sichtbar[z] = ps && self.teile.sichtbar[z] && !self.teile.welt_ruht[z];
         self.teile.gueltig[z] = true;
     }
 
@@ -311,6 +316,7 @@ impl Welt {
         }
         self.teile.eltern[z] = an;
         self.markiere(z);
+        self.ruhe_neu(z);
         Ok(())
     }
 
@@ -353,6 +359,7 @@ impl Welt {
         t.sichtbar.swap_remove(z);
         t.welt.swap_remove(z);
         t.welt_sichtbar.swap_remove(z);
+        t.welt_ruht.swap_remove(z);
         t.gueltig.swap_remove(z);
         if z != letzte {
             for a in 0..n {
@@ -369,14 +376,17 @@ impl Welt {
     pub fn kopie(&mut self, id: u32) -> Erg<u32> {
         let z = self.zeile(id)?;
         let e = self.teile.eltern[z];
-        let neu = self.kopie_rek(id);
+        let neu = self.kopie_rek(id, true);
         if e != 0 {
             self.haenge(neu, e)?;
+        } else if let Some(nz) = self.zeile_opt(neu) {
+            self.ruhe_neu(nz);
         }
         Ok(neu)
     }
 
-    fn kopie_rek(&mut self, id: u32) -> u32 {
+    /// `wurzel`: Komponenten mit `Art::kopie_ohne` (Vorlage) kommen nicht mit (nur an der kopierten Wurzel).
+    fn kopie_rek(&mut self, id: u32, wurzel: bool) -> u32 {
         let z = self.zeile_opt(id).expect("lebt");
         let neu = self.teil_neu(self.teile.drei_d[z]);
         let nz = self.zeile_opt(neu).expect("neu");
@@ -386,7 +396,7 @@ impl Welt {
         let n = self.arten.len();
         for a in 0..n {
             let h = self.teile.komp[z * n + a];
-            if h != 0 {
+            if h != 0 && !(wurzel && self.arten[a].kopie_ohne) {
                 let ort = self.komp_ort[h as usize];
                 let kh = self.komp_ort.len() as u32;
                 let kz = self.speicher[a].zeile_kopie(ort.zeile as usize, kh);
@@ -397,7 +407,7 @@ impl Welt {
         }
         let kinder = self.teile.kinder[z].clone();
         for k in kinder {
-            let kk = self.kopie_rek(k);
+            let kk = self.kopie_rek(k, false);
             let nz = self.zeile_opt(neu).expect("neu");
             let kz = self.zeile_opt(kk).expect("kk");
             self.teile.eltern[kz] = neu;
@@ -458,6 +468,9 @@ impl Welt {
         }
         self.teile.komp[tz * n + a] = h;
         self.speicher[a].teil[z] = teil;
+        if self.arten[a].ruhe.is_some() {
+            self.ruhe_neu(tz);
+        }
         Ok(())
     }
 
@@ -478,6 +491,9 @@ impl Welt {
         }
         self.teile.komp[tz * n + a] = 0;
         self.speicher[a].teil[z] = 0;
+        if self.arten[a].ruhe.is_some() {
+            self.ruhe_neu(tz);
+        }
         Ok(())
     }
 
@@ -495,6 +511,45 @@ impl Welt {
             None
         } else {
             Some(self.komp_ort[h as usize].zeile as usize)
+        }
+    }
+
+    // ------------------------------------------------------------------ Ruhe (H-K8)
+
+    /// Ruht das Teil in Zeile `z` durch eine eigene Komponente (`Art::ruhe`)?
+    fn ruht_selbst(&self, z: usize) -> bool {
+        let n = self.arten.len();
+        (0..n).any(|a| match self.arten[a].ruhe {
+            Some(f) => {
+                let h = self.teile.komp[z * n + a];
+                h != 0 && f(&self.speicher[a], self.komp_ort[h as usize].zeile as usize)
+            }
+            None => false,
+        })
+    }
+
+    /// Führt die vererbte Ruhe des Teilbaums ab Zeile `z` nach (Eltern-Ruhe + eigene). Ändert sie sich an einem Teil, wird
+    /// sein Teilbaum markiert, damit `welt_sichtbar` neu entsteht. Ohne Ruhe-Komponenten bleibt alles `false` (v1-Verhalten).
+    pub fn ruhe_neu(&mut self, z: usize) {
+        let e = self.teile.eltern[z];
+        let geerbt = match self.zeile_opt(e).filter(|_| e != 0) {
+            Some(ez) => self.teile.welt_ruht[ez],
+            None => false,
+        };
+        self.ruhe_rek(z, geerbt);
+    }
+
+    fn ruhe_rek(&mut self, z: usize, geerbt: bool) {
+        let r = geerbt || self.ruht_selbst(z);
+        if self.teile.welt_ruht[z] != r {
+            self.teile.welt_ruht[z] = r;
+            self.markiere(z);
+        }
+        for i in 0..self.teile.kinder[z].len() {
+            let k = self.teile.kinder[z][i];
+            if let Some(kz) = self.zeile_opt(k) {
+                self.ruhe_rek(kz, r);
+            }
         }
     }
 

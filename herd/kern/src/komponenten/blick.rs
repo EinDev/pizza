@@ -92,7 +92,7 @@ pub fn aktive_sicht(w: &Welt, breite: f64, hoehe: f64) -> Option<Sicht> {
         if teil == 0 || ak[z] == 0.0 {
             continue;
         }
-        let Some(tz) = w.zeile_opt(teil) else { continue };
+        let Some(tz) = wach(w, teil) else { continue };
         if best.map(|b| teil < b.0).unwrap_or(true) {
             best = Some((teil, z, tz));
         }

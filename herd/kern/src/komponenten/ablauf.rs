@@ -80,7 +80,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     );
     for z in 0..n {
         let teil = teile[z];
-        if teil == 0 {
+        if teil == 0 || ruht(w, teil) {
             continue;
         }
         let zt = &zeiten[z];

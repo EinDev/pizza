@@ -145,7 +145,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         if teil == 0 || laeuft[z] == 0.0 {
             continue;
         }
-        let Some(r) = w.zeile_opt(teil) else { continue };
+        let Some(r) = wach(w, teil) else { continue };
         let ziel_i = ziel_index(was[z] as u32, w.teile.drei_d[r]);
         // Start: erster laufender Takt, nach dem Ende von `einmal` erneut, oder `nach`/`was` wurde geändert
         if gestartet[z] == 0.0 || nach[z].to_bits() != ziel[z].to_bits() || was[z] != was_start[z] {

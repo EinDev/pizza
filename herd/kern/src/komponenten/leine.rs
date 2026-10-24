@@ -49,7 +49,7 @@ fn nachlauf(w: &mut Welt, s: &mut Speicher) {
         if teil == 0 || ziel == 0 || ziel == teil {
             continue;
         }
-        let (Some(r), Some(zr)) = (w.zeile_opt(teil), w.zeile_opt(ziel)) else { continue };
+        let (Some(r), Some(zr)) = (wach(w, teil), w.zeile_opt(ziel)) else { continue };
         let drei_d = w.teile.drei_d[r];
         if drei_d != w.teile.drei_d[zr] {
             continue;

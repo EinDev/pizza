@@ -30,6 +30,7 @@ pub mod rechteck;
 pub mod text;
 pub mod wucht;
 pub mod vieleck;
+pub mod vorlage;
 #[cfg(any(test, feature = "probe"))]
 pub mod probe;
 
@@ -86,6 +87,8 @@ pub type TaktFn = fn(&mut Welt, &mut Speicher);
 pub type BildFn = fn(&Welt, &Speicher, &mut Bildbau);
 /// Hülle der Komponente in Zeile `kz` am Teil in Zeile `tz` (Welt-Matrix aktuell).
 pub type HuelleFn = fn(&Welt, &Speicher, usize, usize) -> Option<Huelle>;
+/// Ruhe-Regel (H-K8): lässt die Komponente in Speicherzeile `kz` ihr Teil samt Kindern ruhen?
+pub type RuheFn = fn(&Speicher, usize) -> bool;
 
 /// Beschreibung einer Komponentenart. Literale schreiben `Art { schema: …, takt: …, ..Art::LEER }` (HERD.md §12.1 Regel 9),
 /// damit neue Felder von `Art` keine Komponenten-Datei ändern.
@@ -99,11 +102,25 @@ pub struct Art {
     pub nachlauf: Option<TaktFn>,
     pub bild: Option<BildFn>,
     pub huelle: Option<HuelleFn>,
+    /// Ruhe (H-K8 `Vorlage`, H-K9 `Kulisse`): `Some(f)` → das Teil ruht samt Kindern, solange `f` ja sagt. Die Welt leitet
+    /// daraus `Teile::welt_ruht` ab (bei mit/ohne/haenge/kopie und nach `setze_zahl` an einer solchen Komponente).
+    pub ruhe: Option<RuheFn>,
+    /// `kopie()` lässt diese Komponente an der kopierten Wurzel weg (H-K8 `Vorlage`; Kinder behalten ihre).
+    pub kopie_ohne: bool,
 }
 
 impl Art {
     /// Leere Art: Grundlage für `..Art::LEER` in den Komponenten-Literalen.
-    pub const LEER: Art = Art { schema: Schema::LEER, nur_test: false, takt: None, nachlauf: None, bild: None, huelle: None };
+    pub const LEER: Art = Art {
+        schema: Schema::LEER,
+        nur_test: false,
+        takt: None,
+        nachlauf: None,
+        bild: None,
+        huelle: None,
+        ruhe: None,
+        kopie_ohne: false,
+    };
 }
 
 /// Zeitschritt eines Takts (Sekunden).
@@ -133,6 +150,7 @@ pub static ARTEN: &[&Art] = &[
     &wucht::ART,
     &vieleck::ART,
     &gelaende::ART,
+    &vorlage::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -166,7 +184,8 @@ pub fn massstab_2d(m: &[f64; 12]) -> f64 {
     }
 }
 
-/// Zeile des Teils, wenn die Komponente hängt und das Teil (vererbt) sichtbar ist.
+/// Zeile des Teils, wenn die Komponente hängt und das Teil (vererbt) sichtbar **und wach** ist (`welt_sichtbar` enthält
+/// die Ruhe, H-K8; Welt-Matrix aktuell, also nur im Bildbau bzw. nach `aktualisiere`).
 #[inline]
 pub fn sichtbar(w: &Welt, teil: u32) -> Option<usize> {
     if teil == 0 {
@@ -178,4 +197,26 @@ pub fn sichtbar(w: &Welt, teil: u32) -> Option<usize> {
     } else {
         None
     }
+}
+
+/// Zeile des Teils, wenn es lebt und **wach** ist (H-K8: ruht nicht durch eine `Vorlage` an ihm oder einem Vorfahren).
+/// Jedes Takt-/Nachlauf-System prüft das, bevor es den Zustand einer Komponente ändert (HERD.md §9). Unabhängig von
+/// Welt-Matrix und Sichtbarkeit, also auch mitten im Takt gültig.
+#[inline]
+pub fn wach(w: &Welt, teil: u32) -> Option<usize> {
+    if teil == 0 {
+        return None;
+    }
+    let z = w.zeile_opt(teil)?;
+    if w.teile.welt_ruht[z] {
+        None
+    } else {
+        Some(z)
+    }
+}
+
+/// Lebt das Teil und ruht es (H-K8)? Für Systeme, die auch Zeilen ohne lebendes Teil bearbeiten (lose Emitter altern weiter).
+#[inline]
+pub fn ruht(w: &Welt, teil: u32) -> bool {
+    teil != 0 && matches!(w.zeile_opt(teil), Some(z) if w.teile.welt_ruht[z])
 }
