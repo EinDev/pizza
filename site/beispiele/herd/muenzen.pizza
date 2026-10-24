@@ -5,23 +5,30 @@
 Herd herd = neu Herd("Münzen", breite: 640, hoehe: 360);
 herd.hintergrund("basilikum");
 herd.rechteck(320, 30, 640, 60, farbe: "#2f6f33");                         // Leiste oben
+für (salami i = 0; i < 36; i++) {                                            // Grasbüschel und Blümchen (nur Deko)
+    funghi x = 16 + (i * 149) % 608;
+    funghi y = 76 + (i * 89) % 276;
+    falls (i % 6 == 0) { herd.kreis(x, y, 4.5, farbe: "mozzarella"); herd.kreis(x, y, 2, farbe: "senf"); }
+    sonst { herd.rechteck(x, y, 3, 8, farbe: "#4f9a45", rundung: 1.5); herd.rechteck(x + 4, y + 1, 3, 6, farbe: "#4f9a45", rundung: 1.5); }
+}
 
 // Gruppen: 1 = Bote, 2 = Münzen, 3 = Gefahr. Der Bote spürt Münzen und Gefahr (Maske 2 + 4), Münzen und Olive nur den Boten.
-Teil bote = herd.kreis(40, 200, 16, farbe: "tomate");
-herd.kreis(0, -6, 7, farbe: "mozzarella").haenge(bote);                    // Mütze
+Teil bote = herd.kreis(40, 200, 16, farbe: "tomate").setzeEbene(2);         // immer obenauf
+herd.kreis(0, -6, 7, farbe: "mozzarella").haenge(bote).setzeEbene(2);      // Mütze
 Fuehler sinn = bote.mit(neu Fuehler(gruppe: 1, maske: 6));
 
 Blech<Teil> muenzen = [];
 für (salami reihe = 0; reihe < 2; reihe++) {
     für (salami i = 0; i < 8; i++) {
         Teil m = herd.kreis(100 + i * 64, 140 + reihe * 120, 9, farbe: "senf", umriss: 0);
-        herd.kreis(0, 0, 4, farbe: "ananas").haenge(m);
+        herd.kreis(0, 0, 5.5, farbe: "#ffe08a").haenge(m);                    // Prägung
         m.mit(neu Fuehler(gruppe: 2, maske: 1));
         muenzen.hinzu(m);
     }
 }
 
-Teil olive = herd.kreis(320, 200, 14, farbe: "oliven");
+Teil olive = herd.kreis(320, 200, 14, farbe: "#2b2622", umriss: 7);        // schwarze Olivenscheibe
+herd.kreis(-5, -5, 2.5, farbe: "#8a8178").haenge(olive);                    // Glanz
 olive.mit(neu Fuehler(form: "kreis", radius: 12, gruppe: 3, maske: 1));
 Bewegung kullern = olive.mit(neu Bewegung(tempoX: 90));
 

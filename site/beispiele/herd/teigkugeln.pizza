@@ -5,7 +5,8 @@
 
 Herd herd = neu Herd("Teigkugeln", breite: 640, hoehe: 360);
 herd.hintergrund("himmel");
-herd.rechteck(320, 345, 640, 30, farbe: "basilikum");                       // Tisch
+herd.rechteck(320, 345, 640, 30, farbe: "#8a5a3b");                         // Tisch (Holz)
+herd.rechteck(320, 331, 640, 2, farbe: "#a8724c");                          // Tischkante
 
 // Pizzaschachtel: Boden und zwei Seiten, dick genug, dass nichts durchrutscht
 Blech<Teil> schachtel = [

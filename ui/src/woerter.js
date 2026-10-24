@@ -130,6 +130,7 @@ export const HERD_FARBEN = ["weiss", "schwarz", "grau", "ofen", "tomate", "salam
   "teig", "kruste", "ananas", "senf", "himmel", "wasser", "aubergine"];
 MITGLIEDER.Herd = ["farbe"];
 MITGLIEDER.Form = ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"];
+MITGLIEDER.Bildchen = ["laden"];   // SPEC §18.5 (PD2)
 for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
 
 /** Ergänzt Typen, Methoden, Grundformen und Palette aus dem Herd-Schema (site/js/herd/schema.json). */

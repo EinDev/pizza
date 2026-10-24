@@ -43,13 +43,13 @@ für (salami i = 0; i < 3; i++) {
 Speisekarte<margherita, margherita> farben = neu Speisekarte<margherita, margherita>();
 farben.lege("h", "#f2c9a0").lege("j", "#2e6fd9").lege("x", "#c8955a");
 Bildchen figur = neu Bildchen(["..ttt...", ".ttttt..", "..hhh...", "..hhh.xx", ".jjjjjxx", ".jjjj.xx", "..oo....", "..o.o..."], farben: farben);
-Teil bote = herd.gruppe(600, 218);
+Teil bote = herd.gruppe(600, 270);                                 // läuft vor den Tischen, nicht hinter der Tafel
 Teil koerper = herd.bild(figur, 0, 0, groesse: 4).haenge(bote);
 koerper.mit(neu Gleiten(was: "y", nach: -4, dauer: 0.16, kurve: "raus", schleife: "pendeln"));
 bote.mit(neu Ablauf(
     zeiten:  [0,   1.4, 2.2, 3.4, 4.2, 5.4, 6.2, 7.4, 8.6, 11.2],
     xWerte:  [600, 430, 430, 300, 300, 170, 170, 130, 130, 600],
-    yWerte:  [218, 218, 214, 218, 214, 218, 214, 218, 218, 218],
+    yWerte:  [270, 270, 266, 270, 266, 270, 266, 270, 270, 270],
     kurve: "sanft"));
 
 // ---------- Die Menütafel: ein Rahmen (9-Slice), gleitet federnd von rechts herein ----------
