@@ -30,6 +30,33 @@ struct Ansicht {
 @group(0) @binding(0) var<uniform> szene: Szene;
 @group(0) @binding(1) var<uniform> ansicht: Ansicht;
 
+// Stimmung (Abschnitt STIMMUNG, 64 B, an Bindung 17; ohne Abschnitt 0 → v1): mit Stimmung geben die 3D-Shader **linear** (HDR)
+// aus, Belichtung/Tonkurve/Bloom macht der Abschluss (nachbild.wgsl). Dazu exponentieller Höhennebel.
+struct Stimmung {
+    a: vec4<f32>,       // belichtung, bloom, bloomSchwelle, bloomWeite
+    nebel: vec4<f32>,   // dichte, hoehe, abfall, fern
+    farbe: vec4<f32>,   // nebelFarbe linear, saettigung
+    b: vec4<f32>,       // vignette, koernung, zeit, an
+}
+@group(0) @binding(17) var<uniform> stimmung: Stimmung;
+
+fn hdr_an() -> bool {
+    return stimmung.b.w > 0.5;
+}
+
+// Anteil des Höhennebels auf dem Weg von c nach p: Dichte(y) = dichte · e^(−abfall · (y − hoehe)), geschlossen integriert
+fn hoehennebel(c: vec3<f32>, p: vec3<f32>) -> f32 {
+    let dichte = stimmung.nebel.x;
+    let abfall = max(stimmung.nebel.z, 1e-4);
+    let v = p - c;
+    let l = length(v);
+    let k = clamp(abfall * v.y, -60.0, 60.0);
+    let faktor = select((1.0 - exp(-k)) / k, 1.0 - 0.5 * k, abs(k) < 1e-3);
+    let basis = dichte * exp(clamp(-abfall * (c.y - stimmung.nebel.y), -60.0, 60.0));
+    let tau = max(basis * l * faktor, 0.0);
+    return select(0.0, 1.0 - exp(-tau), dichte > 0.0);
+}
+
 fn zu_srgb(c: vec3<f32>) -> vec3<f32> {
     let k = max(c, vec3<f32>(0.0));
     let hoch = 1.055 * pow(k, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);

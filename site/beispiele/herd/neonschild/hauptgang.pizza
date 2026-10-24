@@ -1,0 +1,55 @@
+// Neonschild – eine Pizzeria-Reklame in einer nebligen Nacht. Die Röhren leuchten heller als Weiß und glühen in den Dunst,
+// der Nebel liegt dicht über dem nassen Pflaster. Leertaste: Stimmung an oder aus (dann zeichnet die Engine wie früher).
+//
+// So arbeitet die Engine für dich: Eine `Stimmung` an irgendeinem 3D-Teil schaltet die Bildbearbeitung ein, wie ein
+// Post-Processing-Volume in Unity. Die Szene wird dann mit echten Helligkeiten gerechnet (HDR): `strahlen` an einem Körper
+// lässt ihn heller leuchten als seine Farbe, `bloom` lässt alles über der `bloomSchwelle` weich ausstrahlen, die Tonkurve
+// bringt das Ganze filmisch auf den Bildschirm. Dazu Höhennebel, Vignette und Filmkorn – alles nur Werte, die Engine rechnet.
+
+Herd herd = neu Herd("Neonschild", breite: 960, hoehe: 540);
+herd.himmel("#07080f", "#231c33");
+herd.umgebung("#5a60a0", staerke: 0.05);
+herd.sonne().licht().setzeStaerke(0);
+herd.kamera().setzeLage(0, 1.6, 7).schaueAuf(0, 2.4, -3);
+
+herd.koerper(Form.ebene(), 0, 0, 0, farbe: "#24242c", glanz: 0.9).setzeGroesse(30, 1, 30);
+herd.koerper(Form.wuerfel(), 0, 4, -3.5, farbe: "#3b3540", glanz: 0.15).setzeGroesse(14, 8, 1);
+
+// Schriftzug aus Pixelbuchstaben: durchsichtige Pixel fallen weg, der Rest strahlt
+Bildchen schrift = neu Bildchen([
+    "rrrr..rrr..rrrrr..rrrrr...rr.",
+    "r...r..r......r.......r..r..r",
+    "r...r..r.....r.......r..r....r",
+    "rrrr...r....r.......r...rrrrrr",
+    "r......r...r.......r....r....r",
+    "r......r..r.......r.....r....r",
+    "r.....rrr.rrrrr..rrrrr..r....r"
+], farben: neu Speisekarte<margherita, margherita>().lege("r", "#ff3df0"));
+Teil wort = herd.koerper(Form.ebene(), 0, 3.1, -2.95, farbe: "weiss", leuchten: 1, bild: schrift);
+wort.setzeNeigung(90).setzeGroesse(5.8, 1, 1.4);
+wort.koerper().setzeStrahlen(7).setzeSchatten(nein);
+
+// Röhren: ein Pizzastück (Dreieck aus drei Röhren) in Gelb, darunter eine Linie in Cyan
+Rezept roehre = (funghi x1, funghi y1, funghi x2, funghi y2, margherita f) -> {
+    funghi dx = x2 - x1;
+    funghi dy = y2 - y1;
+    Teil r = herd.koerper(Form.zylinder(teile: 12), (x1 + x2) / 2, (y1 + y2) / 2, -2.9, farbe: f, leuchten: 1);
+    r.setzeRollen(-Mathe.grad(Mathe.atan2(dx, dy))).setzeGroesse(0.09, Mathe.wurzel(dx * dx + dy * dy), 0.09);
+    r.koerper().setzeStrahlen(6).setzeSchatten(nein);
+    herd.licht((x1 + x2) / 2, (y1 + y2) / 2, -2.4, farbe: f, reichweite: 5).licht().setzeStaerke(2.2);
+    serviere ((r));
+};
+roehre(-4.6, 5.2, -2.6, 5.2, "#ffd23a");
+roehre(-2.6, 5.2, -3.6, 3.6, "#ffd23a");
+roehre(-3.6, 3.6, -4.6, 5.2, "#ffd23a");
+roehre(-3.0, 2.0, 3.0, 2.0, "#22e6ff");
+
+Stimmung stimmung = herd.raum().mit(neu Stimmung(belichtung: 1.3, bloom: 1.1, nebelDichte: 0.09, nebelAbfall: 0.7,
+                                                 nebelFarbe: "#2a2440", vignette: 0.35, koernung: 0.15));
+// An/aus über eine Kulisse am Stimmungs-Teil: ruht sie, gilt keine Stimmung
+Kulisse schalter = stimmung.teil().mit(neu Kulisse());
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) { schalter.setzeAktiv(schalter.aktiv() ? nein : ja); }
+    herd.kamera().setzeLage(Mathe.sin(herd.zeit() * 0.5) * 0.4, 1.6, 7).schaueAuf(0, 2.4, -3);
+});
+Bote.sage(("Neonschild: Stimmung " + (schalter.aktiv() ? "an" : "aus") + ", Bloom " + stimmung.bloom() + "."));

@@ -220,7 +220,8 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     }
 
     var farbe = albedo * diffus + glanzlicht;
-    farbe = mix(farbe, albedo, leuchten);
+    // leuchten ≤ 1 wie v1 (zur Eigenfarbe mischen), darüber strahlt es (Koerper.strahlen, für Bloom): albedo · leuchten
+    farbe = mix(farbe, albedo, min(leuchten, 1.0)) + albedo * max(leuchten - 1.0, 0.0);
 
     // Nebel
     if (szene.nebel_farbe.w > 0.5) {
@@ -232,6 +233,10 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     var deck = a.farbe.a;
     if (hat_textur) {
         deck = deck * tex.a;
+    }
+    if (hdr_an()) {
+        // linear ins HDR-Ziel; Höhennebel zur Nebelfarbe
+        return vec4<f32>(mix(farbe, stimmung.farbe.rgb, hoehennebel(szene.kamera.xyz, a.welt)), deck);
     }
     return vec4<f32>(zu_srgb(weich(farbe)) + vec3<f32>(rauschen(a.pos.xy) / 255.0), deck);
 }

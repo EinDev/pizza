@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4500,5 +4500,107 @@ mod viele_lichter {
             }
         }
         assert!(geprueft > 2000, "{}", geprueft);
+    }
+}
+
+/// Stimmung (HDR, Bloom, Tonkurve, Höhennebel) und Koerper/Belag.strahlen.
+mod stimmung {
+    use super::*;
+    use crate::komponenten::stimmung::STIMMUNG_BYTES;
+
+    fn abschnitt_stimmung(k: &Kern) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::STIMMUNG).map(|(_, d)| d.to_vec())
+    }
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+
+    #[test]
+    fn schema_und_abschnitt() {
+        let mut k = welt();
+        let s = typ(&mut k, "Stimmung");
+        assert_eq!(s, 31); // Typnummer in Merge-Reihenfolge: nach Tafel (30, H-K12)
+        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 11);
+        let bel = feld(&mut k, s, "belichtung");
+        let bloom = feld(&mut k, s, "bloom");
+        let nd = feld(&mut k, s, "nebelDichte");
+        let nf = feld(&mut k, s, "nebelFarbe");
+        // 2D-Teil: Fehler; ohne/lose → kein Abschnitt, Paket byte-gleich
+        let t2 = k.teil_neu(2);
+        let c = k.komp_neu(s);
+        assert!(k.komp_haenge(c, t2) < 0);
+        assert_eq!(k.fehler_text(), "Stimmung gibt es nur für 3D-Teile.");
+        k.bild(1);
+        k.bild(2);
+        let ohne = k.paket().to_vec();
+        assert!(abschnitt_stimmung(&k).is_none());
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne[..]);
+        assert!(k.setze_zahl(c, bloom, 5.0) < 0);
+        assert_eq!(k.fehler_text(), "Stimmung.bloom muss zwischen 0 und 4 liegen, nicht 5.");
+        // angehängt: Abschnitt mit den Werten (fern der Kamera 500, Zeit = Bild/60, an = 1)
+        let t = k.teil_neu(3);
+        assert_eq!(k.setze_zahl(c, bel, 2.0), 0);
+        assert_eq!(k.setze_zahl(c, bloom, 0.5), 0);
+        assert_eq!(k.setze_zahl(c, nd, 0.25), 0);
+        assert_eq!(k.setze_text(c, nf, b"#ffffff"), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        k.bild(3);
+        let d = abschnitt_stimmung(&k).expect("Stimmung → Abschnitt");
+        assert_eq!(d.len(), STIMMUNG_BYTES);
+        assert_eq!((f(&d, 0), f(&d, 4), f(&d, 8), f(&d, 12)), (2.0, 0.5, 1.0, 0.7));
+        assert_eq!((f(&d, 16), f(&d, 24), f(&d, 28)), (0.25, 0.25, 500.0));
+        assert_eq!((f(&d, 32), f(&d, 44)), (1.0, 1.0));
+        assert_eq!((f(&d, 56), f(&d, 60)), (3.0 / 60.0, 1.0));
+        // zweite Stimmung mit größerer ID gilt nicht; die erste in einer Vorlage ruht → die zweite gilt
+        let t2 = k.teil_neu(3);
+        let c2 = k.komp_neu(s);
+        assert_eq!(k.setze_zahl(c2, bel, 3.0), 0);
+        assert_eq!(k.komp_haenge(c2, t2), 0);
+        k.bild(4);
+        assert_eq!(f(&abschnitt_stimmung(&k).unwrap(), 0), 2.0);
+        let v = typ(&mut k, "Vorlage");
+        let cv = k.komp_neu(v);
+        assert_eq!(k.komp_haenge(cv, t), 0);
+        k.bild(5);
+        assert_eq!(f(&abschnitt_stimmung(&k).unwrap(), 0), 3.0);
+        k.teil_entferne(t2);
+        k.bild(6);
+        assert!(abschnitt_stimmung(&k).is_none());
+    }
+
+    #[test]
+    fn strahlen_nachtrag() {
+        let mut k = welt();
+        let kt = typ(&mut k, "Koerper");
+        let bt = typ(&mut k, "Belag");
+        let (form, le, st, belag) = (feld(&mut k, kt, "form"), feld(&mut k, kt, "leuchten"), feld(&mut k, kt, "strahlen"), feld(&mut k, kt, "belag"));
+        let (ble, bst) = (feld(&mut k, bt, "leuchten"), feld(&mut k, bt, "strahlen"));
+        let w = k.form_grund(1, 0.0, 0.0);
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(kt);
+        assert_eq!(k.setze_zahl(c, form, w as f64), 0);
+        assert_eq!(k.setze_zahl(c, le, 0.5), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        k.bild(1);
+        k.bild(2);
+        let (h, p) = (k.hash_szene(), k.paket().to_vec());
+        assert_eq!(k.setze_zahl(c, st, 1.0), 0);
+        k.bild(2);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        assert_eq!(material_3d(&k)[0].2, 0.5);
+        assert_eq!(k.setze_zahl(c, st, 4.0), 0);
+        k.bild(3);
+        assert_eq!(material_3d(&k)[0].2, 2.0);
+        assert!(k.setze_zahl(c, st, -1.0) < 0);
+        // Belag: dessen leuchten × strahlen
+        let bt_teil = k.teil_neu(3);
+        let b = k.komp_neu(bt);
+        assert_eq!(k.setze_zahl(b, ble, 1.0), 0);
+        assert_eq!(k.setze_zahl(b, bst, 8.0), 0);
+        assert_eq!(k.komp_haenge(b, bt_teil), 0);
+        assert_eq!(k.setze_zahl(c, belag, bt_teil as f64), 0);
+        k.bild(4);
+        assert_eq!(material_3d(&k)[0].2, 8.0);
     }
 }

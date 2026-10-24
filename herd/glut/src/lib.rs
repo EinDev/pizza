@@ -51,6 +51,10 @@ const HIMMEL: &str = include_str!("../shader/himmel.wgsl");
 const LICHT: &str = include_str!("../shader/licht.wgsl");
 const SCHATTEN: &str = include_str!("../shader/schatten.wgsl");
 const FUNKEN: &str = include_str!("../shader/funken.wgsl");
+const NACHBILD: &str = include_str!("../shader/nachbild.wgsl");
+/// Stimmung: Uniform-Block (Bindung 17 im Haupt-Layout, 2 im Nachbild-Layout) und Zahl der Bloom-Stufen (wie nachbild.wgsl)
+const STIMMUNG_BYTES: usize = herd_kern::komponenten::stimmung::STIMMUNG_BYTES;
+const BLOOM_STUFEN: usize = 6;
 
 /// Welcher Grafikadapter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -233,6 +237,10 @@ fn textur_kopf(d: &[u8]) -> Option<(u32, u8, u8, u32, u32)> {
 
 struct Pipelines {
     format: wgpu::TextureFormat,
+    /// Mehrfachabtastung dieser Pipelines (Ziel: `msaa`, HDR-Ziel der Stimmung: `hdr_msaa`)
+    proben: u32,
+    /// Abschluss der Stimmung (Tonkurve) in dieses Format
+    abschluss: wgpu::RenderPipeline,
     flach: wgpu::RenderPipeline,
     himmel: wgpu::RenderPipeline,
     fest: wgpu::RenderPipeline,
@@ -242,6 +250,27 @@ struct Pipelines {
     funken_deckend: wgpu::RenderPipeline,
     /// Himmelszelt (H-K11b): `vs_himmel` + `fs_zelt`
     zelt: wgpu::RenderPipeline,
+}
+
+/// HDR-Ziele der Stimmung für die aktuelle Zielgröße (angelegt beim ersten Paket mit STIMMUNG).
+struct Nachbild {
+    breite: u32,
+    hoehe: u32,
+    /// HDR mit Mehrfachabtastung (nur bei `hdr_msaa` > 1), aufgelöst nach `hdr`
+    mehrfach: Option<wgpu::TextureView>,
+    hdr: wgpu::TextureView,
+    /// eigene Tiefe, wenn `hdr_msaa` ≠ `msaa` (sonst die des Ziels)
+    tiefe: Option<wgpu::TextureView>,
+    /// Bloom-Stufen (halbe, viertel … Größe) und Bindegruppen: [vorfilter, ab 1 … 5, auf 4 … 0, abschluss]
+    stufen: Vec<wgpu::TextureView>,
+    bg: Vec<wgpu::BindGroup>,
+}
+
+/// Pipelines des Nachbilds (HDR-Format, einfach abgetastet).
+struct NachPipelines {
+    vorfilter: wgpu::RenderPipeline,
+    ab: wgpu::RenderPipeline,
+    auf: wgpu::RenderPipeline,
 }
 
 enum ZielArt {
@@ -278,6 +307,17 @@ pub struct Glut {
     lichter_t: (wgpu::Texture, wgpu::TextureView),
     zellen_t: (wgpu::Texture, wgpu::TextureView),
     lichter_an: bool,
+    /// Stimmung (Abschnitt STIMMUNG): Uniform-Block, an/aus, HDR-Format (Rgba16Float, sonst Rgba8Unorm) und seine Abtastung,
+    /// Nachbild-Layout, -Shader, -Pipelines und -Ziele (angelegt beim ersten Paket mit Stimmung)
+    stimmung: wgpu::Buffer,
+    stimmung_an: bool,
+    hdr_format: wgpu::TextureFormat,
+    hdr_msaa: u32,
+    lay_nach: wgpu::BindGroupLayout,
+    pl_nach: wgpu::PipelineLayout,
+    mod_nach: wgpu::ShaderModule,
+    nach_pipes: Option<NachPipelines>,
+    nach: Option<Nachbild>,
     schatten_map: wgpu::TextureView,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
     /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
@@ -602,6 +642,8 @@ impl Glut {
                     ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Uint, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
                     count: None,
                 },
+                // Stimmung (HDR-Ausgabe, Höhennebel)
+                ubo(17),
             ],
         });
         let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -610,6 +652,43 @@ impl Glut {
         });
         let pl = |name: &str, l: &wgpu::BindGroupLayout| dev.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: Some(name), bind_group_layouts: &[Some(l)], immediate_size: 0 });
         let pl_haupt = pl("herd haupt", &lay_haupt);
+        // Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
+        let tex_eintrag = |b: u32| wgpu::BindGroupLayoutEntry {
+            binding: b,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
+            count: None,
+        };
+        let lay_nach = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("herd nachbild"),
+            entries: &[
+                tex_eintrag(0),
+                wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
+                wgpu::BindGroupLayoutEntry { binding: 2, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None },
+                tex_eintrag(3),
+            ],
+        });
+        let pl_nach = pl("herd nachbild", &lay_nach);
+        // HDR-Ziel der Stimmung: Rgba16Float, wenn der Adapter es rendern, filtern und mischen kann (WebGL2 braucht dafür
+        // EXT_color_buffer_float), sonst Rgba8Unorm (dann ohne Werte über 1); Mehrfachabtastung wie das Ziel, wenn möglich
+        let hdr_format = {
+            let f = adapter.get_texture_format_features(wgpu::TextureFormat::Rgba16Float);
+            let nutzung = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
+            let flags = wgpu::TextureFormatFeatureFlags::FILTERABLE | wgpu::TextureFormatFeatureFlags::BLENDABLE;
+            if f.allowed_usages.contains(nutzung) && f.flags.contains(flags) {
+                wgpu::TextureFormat::Rgba16Float
+            } else {
+                wgpu::TextureFormat::Rgba8Unorm
+            }
+        };
+        let hdr_msaa = {
+            let f = adapter.get_texture_format_features(hdr_format).flags;
+            if msaa > 1 && f.sample_count_supported(4) && f.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_RESOLVE) {
+                msaa
+            } else {
+                1
+            }
+        };
         let pl_schatten = pl("herd schatten", &lay_schatten);
         let modul = |name: &str, q: &str| dev.create_shader_module(wgpu::ShaderModuleDescriptor { label: Some(name), source: wgpu::ShaderSource::Wgsl(format!("{}\n{}", GEMEINSAM, q).into()) });
         let mod_flach = modul("herd flach", FLACH);
@@ -617,6 +696,7 @@ impl Glut {
         let mod_licht = modul("herd licht", LICHT);
         let mod_schatten = modul("herd schatten", SCHATTEN);
         let mod_funken = modul("herd funken", FUNKEN);
+        let mod_nach = dev.create_shader_module(wgpu::ShaderModuleDescriptor { label: Some("herd nachbild"), source: wgpu::ShaderSource::Wgsl(NACHBILD.into()) });
 
         let layouts = netz_layouts();
         let schatten_pipeline = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -658,6 +738,7 @@ impl Glut {
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let zelt = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd himmelszelt"), size: HIMMELSZELT_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let stimmung = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd stimmung"), size: STIMMUNG_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_kopf = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
         let zellen_t = Glut::daten_textur(dev, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, 1);
@@ -695,6 +776,15 @@ impl Glut {
             lichter_t,
             zellen_t,
             lichter_an: false,
+            stimmung,
+            stimmung_an: false,
+            hdr_format,
+            hdr_msaa,
+            lay_nach,
+            pl_nach,
+            mod_nach,
+            nach_pipes: None,
+            nach: None,
             schatten_map,
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
@@ -717,7 +807,11 @@ impl Glut {
         };
         // Vorab (Warm-up): alle Pipelines fürs Zielformat jetzt übersetzen statt im ersten Bild – das kostet je nach
         // Schnittstelle Dutzende bis Hunderte ms (FXC, ANGLE) und fiele sonst in den laufenden Takt (Nachholen, Ruckeln)
-        glut.pipelines(format);
+        // – dazu die Pipelines der Stimmung (HDR-Format, Bloom), damit auch ein späteres Einschalten nicht ruckelt
+        let (msaa, hdr_format, hdr_msaa) = (glut.msaa, glut.hdr_format, glut.hdr_msaa);
+        glut.pipelines(format, msaa);
+        glut.pipelines(hdr_format, hdr_msaa);
+        glut.nach_pipelines_bereit();
         Ok(glut)
     }
 
@@ -918,12 +1012,12 @@ impl Glut {
         self.tiefe = t;
     }
 
-    fn pipelines(&mut self, format: wgpu::TextureFormat) -> usize {
-        if let Some(i) = self.pipelines.iter().position(|p| p.format == format) {
+    fn pipelines(&mut self, format: wgpu::TextureFormat, proben: u32) -> usize {
+        if let Some(i) = self.pipelines.iter().position(|p| p.format == format && p.proben == proben) {
             return i;
         }
         let dev = &self.device;
-        let ms = wgpu::MultisampleState { count: self.msaa, ..Default::default() };
+        let ms = wgpu::MultisampleState { count: proben, ..Default::default() };
         let tiefe = |schreiben: bool, vergleich: wgpu::CompareFunction| {
             Some(wgpu::DepthStencilState { format: TIEFE, depth_write_enabled: Some(schreiben), depth_compare: Some(vergleich), stencil: Default::default(), bias: Default::default() })
         };
@@ -998,8 +1092,103 @@ impl Glut {
         };
         let funken_leuchtend = funken("herd funken leuchtend", "fs_leuchtend", &z_addier);
         let funken_deckend = funken("herd funken deckend", "fs_deckend", &z_misch);
-        self.pipelines.push(Pipelines { format, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
+        let z_voll = [Some(wgpu::ColorTargetState { format, blend: None, write_mask: wgpu::ColorWrites::ALL })];
+        let abschluss = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("herd abschluss"),
+            layout: Some(&self.pl_nach),
+            vertex: wgpu::VertexState { module: &self.mod_nach, entry_point: Some("vs_voll"), compilation_options: Default::default(), buffers: &[] },
+            primitive: Default::default(),
+            depth_stencil: tiefe(false, wgpu::CompareFunction::Always),
+            multisample: ms,
+            fragment: Some(wgpu::FragmentState { module: &self.mod_nach, entry_point: Some("fs_abschluss"), compilation_options: Default::default(), targets: &z_voll }),
+            multiview_mask: None,
+            cache: None,
+        });
+        self.pipelines.push(Pipelines { format, proben, abschluss, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
         self.pipelines.len() - 1
+    }
+
+    /// Nachbild (Stimmung): Pipelines einmal, Ziele für die aktuelle Zielgröße (neu bei Größenänderung).
+    fn nachbild_bereit(&mut self) {
+        self.nach_pipelines_bereit();
+        if matches!(&self.nach, Some(n) if n.breite == self.breite && n.hoehe == self.hoehe) {
+            return;
+        }
+        self.nachbild_ziele();
+    }
+
+    /// Bloom-Pipelines (HDR-Format, einfach abgetastet) einmal anlegen.
+    fn nach_pipelines_bereit(&mut self) {
+        let dev = &self.device;
+        if self.nach_pipes.is_none() {
+            let p = |name: &str, fs: &str, blend: Option<wgpu::BlendState>| {
+                dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some(name),
+                    layout: Some(&self.pl_nach),
+                    vertex: wgpu::VertexState { module: &self.mod_nach, entry_point: Some("vs_voll"), compilation_options: Default::default(), buffers: &[] },
+                    primitive: Default::default(),
+                    depth_stencil: None,
+                    multisample: Default::default(),
+                    fragment: Some(wgpu::FragmentState {
+                        module: &self.mod_nach,
+                        entry_point: Some(fs),
+                        compilation_options: Default::default(),
+                        targets: &[Some(wgpu::ColorTargetState { format: self.hdr_format, blend, write_mask: wgpu::ColorWrites::ALL })],
+                    }),
+                    multiview_mask: None,
+                    cache: None,
+                })
+            };
+            let plus = wgpu::BlendState {
+                color: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::One, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
+                alpha: wgpu::BlendComponent { src_factor: wgpu::BlendFactor::Zero, dst_factor: wgpu::BlendFactor::One, operation: wgpu::BlendOperation::Add },
+            };
+            self.nach_pipes = Some(NachPipelines { vorfilter: p("herd bloom vorfilter", "fs_vorfilter", None), ab: p("herd bloom ab", "fs_ab", None), auf: p("herd bloom auf", "fs_auf", Some(plus)) });
+        }
+    }
+
+    /// HDR-Ziele und Bloom-Stufen für die aktuelle Zielgröße.
+    fn nachbild_ziele(&mut self) {
+        let dev = &self.device;
+        let (b, h) = (self.breite, self.hoehe);
+        let textur = |name: &str, b: u32, h: u32, proben: u32| {
+            dev.create_texture(&wgpu::TextureDescriptor {
+                label: Some(name),
+                size: wgpu::Extent3d { width: b.max(1), height: h.max(1), depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: proben,
+                dimension: wgpu::TextureDimension::D2,
+                format: self.hdr_format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | if proben == 1 { wgpu::TextureUsages::TEXTURE_BINDING } else { wgpu::TextureUsages::empty() },
+                view_formats: &[],
+            })
+            .create_view(&Default::default())
+        };
+        let mehrfach = (self.hdr_msaa > 1).then(|| textur("herd hdr msaa", b, h, self.hdr_msaa));
+        let hdr = textur("herd hdr", b, h, 1);
+        let tiefe = (self.hdr_msaa != self.msaa).then(|| Glut::tiefen_textur(dev, "herd hdr tiefe", b, h, self.hdr_msaa));
+        let stufen: Vec<wgpu::TextureView> = (0..BLOOM_STUFEN).map(|i| textur("herd bloom", (b >> (i + 1)).max(1), (h >> (i + 1)).max(1), 1)).collect();
+        let gruppe = |quelle: &wgpu::TextureView, zweite: &wgpu::TextureView| {
+            dev.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("herd nachbild"),
+                layout: &self.lay_nach,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(quelle) },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.s_linear) },
+                    wgpu::BindGroupEntry { binding: 2, resource: self.stimmung.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::TextureView(zweite) },
+                ],
+            })
+        };
+        let mut bg = vec![gruppe(&hdr, &hdr)];
+        for i in 1..BLOOM_STUFEN {
+            bg.push(gruppe(&stufen[i - 1], &hdr));
+        }
+        for i in (0..BLOOM_STUFEN - 1).rev() {
+            bg.push(gruppe(&stufen[i + 1], &hdr));
+        }
+        bg.push(gruppe(&hdr, &stufen[0]));
+        self.nach = Some(Nachbild { breite: b, hoehe: h, mehrfach, hdr, tiefe, stufen, bg });
     }
 
     // ------------------------------------------------------------------------------------------ Ressourcen-Deltas
@@ -1278,6 +1467,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 14, resource: self.lichter_kopf.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&self.lichter_t.1) },
                     wgpu::BindGroupEntry { binding: 16, resource: wgpu::BindingResource::TextureView(&self.zellen_t.1) },
+                    wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
                 ],
             }));
         }
@@ -1312,6 +1502,7 @@ impl Glut {
         let mut teilchen: &[u8] = &[];
         let mut zelt: Option<&[u8]> = None;
         let mut lichter_da = false;
+        let mut stimmung: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -1347,6 +1538,12 @@ impl Glut {
                     }
                     zelt = Some(d);
                 }
+                abschnitt::STIMMUNG => {
+                    if d.len() != STIMMUNG_BYTES {
+                        return Err(Fehler::Paket(format!("STIMMUNG hat {} Bytes", d.len())));
+                    }
+                    stimmung = Some(d);
+                }
                 abschnitt::LICHTER => {
                     stat.hochgeladen += self.lichter(d)?;
                     lichter_da = true;
@@ -1367,6 +1564,22 @@ impl Glut {
             self.queue.write_buffer(&self.lichter_kopf, 0, &[0u8; LICHTER_KOPF_BYTES]);
             self.lichter_an = false;
         }
+        // Stimmung: Block hochladen bzw. ohne Abschnitt auf 0 (Shader wieder sRGB-Ausgabe wie v1)
+        let bloom = match stimmung {
+            Some(d) => {
+                self.queue.write_buffer(&self.stimmung, 0, d);
+                self.stimmung_an = true;
+                stat.hochgeladen += d.len() as u64;
+                f32::from_le_bytes([d[4], d[5], d[6], d[7]])
+            }
+            None => {
+                if self.stimmung_an {
+                    self.queue.write_buffer(&self.stimmung, 0, &[0u8; STIMMUNG_BYTES]);
+                    self.stimmung_an = false;
+                }
+                0.0
+            }
+        };
         let n2 = (inst2d.len() / INST2D_BYTES) as u32;
         let n3 = (inst3d.len() / INST3D_BYTES) as u32;
         let (neu2d, neu3d) = self.umschreiben(inst2d, inst3d);
@@ -1414,7 +1627,12 @@ impl Glut {
                 (*ansicht_format, v)
             }
         };
-        let pi = self.pipelines(format);
+        let hdr = stimmung.is_some();
+        if hdr {
+            self.nachbild_bereit();
+        }
+        let pi = self.pipelines(format, self.msaa);
+        let pi_hdr = if hdr { self.pipelines(self.hdr_format, self.hdr_msaa) } else { pi };
         let instancing = self.opt.instancing;
         let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("herd bild") });
 
@@ -1446,6 +1664,64 @@ impl Glut {
             }
         }
 
+        // ---- Stimmung: 3D linear ins HDR-Ziel, Bloom-Kette ----
+        if hdr {
+            let n = self.nach.as_ref().expect("nachbild_bereit");
+            let pl = &self.pipelines[pi_hdr];
+            let (ansicht, aufloesen) = match &n.mehrfach {
+                Some(m) => (m, Some(&n.hdr)),
+                None => (&n.hdr, None),
+            };
+            let lin = |c: f64| if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
+            let klar_lin = wgpu::Color { r: lin(klar.r), g: lin(klar.g), b: lin(klar.b), a: 1.0 };
+            {
+                let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("herd hdr"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: ansicht,
+                        depth_slice: None,
+                        resolve_target: aufloesen,
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(klar_lin), store: if aufloesen.is_some() { wgpu::StoreOp::Discard } else { wgpu::StoreOp::Store } },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: n.tiefe.as_ref().unwrap_or(&self.tiefe),
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Discard }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+                p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+                p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, &mut stat);
+            }
+            if bloom > 0.0 {
+                let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
+                let mut k = 0;
+                let mut schritt = |ziel: &wgpu::TextureView, pipe: &wgpu::RenderPipeline, laden: wgpu::LoadOp<wgpu::Color>, k: usize| {
+                    let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("herd bloom"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: ziel, depth_slice: None, resolve_target: None, ops: wgpu::Operations { load: laden, store: wgpu::StoreOp::Store } })],
+                        ..Default::default()
+                    });
+                    p.set_pipeline(pipe);
+                    p.set_bind_group(0, &n.bg[k], &[]);
+                    p.draw(0..3, 0..1);
+                };
+                let leer = wgpu::LoadOp::Clear(wgpu::Color::BLACK);
+                schritt(&n.stufen[0], &np.vorfilter, leer, k);
+                k += 1;
+                for i in 1..BLOOM_STUFEN {
+                    schritt(&n.stufen[i], &np.ab, leer, k);
+                    k += 1;
+                }
+                for i in (0..BLOOM_STUFEN - 1).rev() {
+                    schritt(&n.stufen[i], &np.auf, wgpu::LoadOp::Load, k);
+                    k += 1;
+                }
+                stat.draw_calls += k as u32;
+            }
+        }
+
         // ---- Hauptdurchgang ----
         {
             let pl = &self.pipelines[pi];
@@ -1469,51 +1745,17 @@ impl Glut {
                 ..Default::default()
             });
             p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+            if hdr {
+                // Abschluss: Belichtung, Bloom, Tonkurve → Ziel (dieselbe Einpassung), danach 2D wie immer
+                let n = self.nach.as_ref().expect("nachbild_bereit");
+                p.set_pipeline(&pl.abschluss);
+                p.set_bind_group(0, &n.bg[n.bg.len() - 1], &[]);
+                p.draw(0..3, 0..1);
+                stat.draw_calls += 1;
+            }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-            // Himmelszelt (H-K11b) statt des Verlaufs, sonst der Verlauf aus herd.himmel
-            if zelt.is_some() {
-                p.set_pipeline(&pl.zelt);
-                p.draw(0..3, 0..1);
-                stat.draw_calls += 1;
-            } else if flags & flag::HIMMEL != 0 {
-                p.set_pipeline(&pl.himmel);
-                p.draw(0..3, 0..1);
-                stat.draw_calls += 1;
-            }
-            for z in self.zuege.iter().filter(|z| z[0] == zug::FEST || z[0] == zug::DURCH) {
-                let Some(Some(n)) = self.netze.get(z[1] as usize) else { continue };
-                if z[2] + z[3] > n3 {
-                    continue;
-                }
-                p.set_vertex_buffer(0, n.ecken.slice(..));
-                p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
-                let pipes: &[&wgpu::RenderPipeline] = if z[0] == zug::FEST { &[&pl.fest] } else { &[&pl.durch_hinten, &pl.durch_vorn] };
-                for pipe in pipes {
-                    p.set_pipeline(pipe);
-                    stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, n.anzahl, z[2], z[3], instancing);
-                    stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
-                }
-            }
-            // 3D-Teilchen: erst leuchtende (additiv), dann deckende (von hinten nach vorn) – je ein instanzierter Draw-Call
-            for (pipe, erste, anzahl) in [(&pl.funken_leuchtend, 0, n_leuchtend.min(nt)), (&pl.funken_deckend, n_leuchtend.min(nt), nt - n_leuchtend.min(nt))] {
-                if anzahl == 0 {
-                    continue;
-                }
-                p.set_pipeline(pipe);
-                let b = TEILCHEN3D_BYTES as u64;
-                if instancing {
-                    p.set_vertex_buffer(0, self.teilchen.puffer.slice(erste as u64 * b..(erste + anzahl) as u64 * b));
-                    p.draw(0..6, 0..anzahl);
-                    stat.draw_calls += 1;
-                } else {
-                    for i in erste..erste + anzahl {
-                        p.set_vertex_buffer(0, self.teilchen.puffer.slice(i as u64 * b..(i + 1) as u64 * b));
-                        p.draw(0..6, 0..1);
-                    }
-                    stat.draw_calls += anzahl;
-                }
-                stat.instanzen_3d += anzahl;
-                stat.dreiecke += 2 * anzahl as u64;
+            if !hdr {
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -1537,6 +1779,72 @@ impl Glut {
         }
         self.stat = stat;
         Ok(stat)
+    }
+
+    /// Himmel, `FEST`, `DURCH` und 3D-Teilchen in einen Durchgang (Bindegruppe gesetzt) – ins Ziel bzw. ins HDR-Ziel.
+    #[allow(clippy::too_many_arguments)]
+    fn zeichne_3d(
+        p: &mut wgpu::RenderPass<'_>,
+        pl: &Pipelines,
+        zuege: &[[u32; 4]],
+        netze: &[Option<Netz>],
+        inst3d: &wgpu::Buffer,
+        teilchen: &wgpu::Buffer,
+        n3: u32,
+        nt: u32,
+        n_leuchtend: u32,
+        zelt: bool,
+        himmel: bool,
+        instancing: bool,
+        stat: &mut Statistik,
+    ) {
+        {
+            // Himmelszelt (H-K11b) statt des Verlaufs, sonst der Verlauf aus herd.himmel
+            if zelt {
+                p.set_pipeline(&pl.zelt);
+                p.draw(0..3, 0..1);
+                stat.draw_calls += 1;
+            } else if himmel {
+                p.set_pipeline(&pl.himmel);
+                p.draw(0..3, 0..1);
+                stat.draw_calls += 1;
+            }
+            for z in zuege.iter().filter(|z| z[0] == zug::FEST || z[0] == zug::DURCH) {
+                let Some(Some(n)) = netze.get(z[1] as usize) else { continue };
+                if z[2] + z[3] > n3 {
+                    continue;
+                }
+                p.set_vertex_buffer(0, n.ecken.slice(..));
+                p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                let pipes: &[&wgpu::RenderPipeline] = if z[0] == zug::FEST { &[&pl.fest] } else { &[&pl.durch_hinten, &pl.durch_vorn] };
+                for pipe in pipes {
+                    p.set_pipeline(pipe);
+                    stat.draw_calls += Glut::zeichne_netz(p, inst3d, n.anzahl, z[2], z[3], instancing);
+                    stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
+                }
+            }
+            // 3D-Teilchen: erst leuchtende (additiv), dann deckende (von hinten nach vorn) – je ein instanzierter Draw-Call
+            for (pipe, erste, anzahl) in [(&pl.funken_leuchtend, 0, n_leuchtend.min(nt)), (&pl.funken_deckend, n_leuchtend.min(nt), nt - n_leuchtend.min(nt))] {
+                if anzahl == 0 {
+                    continue;
+                }
+                p.set_pipeline(pipe);
+                let b = TEILCHEN3D_BYTES as u64;
+                if instancing {
+                    p.set_vertex_buffer(0, teilchen.slice(erste as u64 * b..(erste + anzahl) as u64 * b));
+                    p.draw(0..6, 0..anzahl);
+                    stat.draw_calls += 1;
+                } else {
+                    for i in erste..erste + anzahl {
+                        p.set_vertex_buffer(0, teilchen.slice(i as u64 * b..(i + 1) as u64 * b));
+                        p.draw(0..6, 0..1);
+                    }
+                    stat.draw_calls += anzahl;
+                }
+                stat.instanzen_3d += anzahl;
+                stat.dreiecke += 2 * anzahl as u64;
+            }
+        }
     }
 
     /// Zeichnet `anzahl` Instanzen ab `erste` mit dem gesetzten Netz: instanziert ein Draw-Call, sonst einer je Instanz.

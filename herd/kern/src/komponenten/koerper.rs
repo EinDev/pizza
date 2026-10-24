@@ -15,6 +15,8 @@ pub const BILD: usize = 4;
 pub const SCHATTEN: usize = 5;
 /// Nachtragsfeld (H-K2): Teil mit dem geteilten `Belag`, 0 = karton (im Szenen-Hash nur, wenn gesetzt).
 pub const BELAG: usize = 6;
+/// Nachtragsfeld (Stimmung): Faktor auf `leuchten` – über 1 strahlt der Körper heller als seine Farbe (HDR, Bloom).
+pub const STRAHLEN: usize = 7;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -29,6 +31,7 @@ pub static ART: Art = Art {
             Feld::bildchen("bild"),
             Feld::diavolo("schatten", true),
             Feld::teil("belag").nachtrag(),
+            Feld::zahl("strahlen", 1.0).bereich(0.0, 1000.0).nachtrag(),
         ],
     },
     bild: Some(bild),
@@ -38,6 +41,7 @@ pub static ART: Art = Art {
 
 fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
     let (fo, fa, gl, le, bi, sc, be) = (s.zahl(FORM), s.farbe(FARBE), s.zahl(GLANZ), s.zahl(LEUCHTEN), s.zahl(BILD), s.zahl(SCHATTEN), s.zahl(BELAG));
+    let st = s.zahl(STRAHLEN);
     let belag_art = w.art_index(super::belag::ART.schema.name);
     for z in 0..s.len() {
         let Some(tz) = sichtbar(w, s.teil[z]) else { continue };
@@ -46,9 +50,9 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
         let (farbe, glanz, leuchten, bild) = match belag_art.and_then(|a| Some((a, belag_zeile(w, be[z], a)?))) {
             Some((a, bz)) => {
                 let bs = &w.speicher[a];
-                (bs.farbe(super::belag::FARBE)[bz], bs.zahl(super::belag::GLANZ)[bz], bs.zahl(super::belag::LEUCHTEN)[bz], bs.zahl(super::belag::BILD)[bz])
+                (bs.farbe(super::belag::FARBE)[bz], bs.zahl(super::belag::GLANZ)[bz], bs.zahl(super::belag::LEUCHTEN)[bz] * bs.zahl(super::belag::STRAHLEN)[bz], bs.zahl(super::belag::BILD)[bz])
             }
-            None => (fa[z], gl[z], le[z], bi[z]),
+            None => (fa[z], gl[z], le[z] * st[z], bi[z]),
         };
         if netz.index_anzahl == 0 || farbe & 0xFF == 0 {
             continue;

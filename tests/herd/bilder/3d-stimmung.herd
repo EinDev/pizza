@@ -1,0 +1,101 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Stimmung“ (HDR-Abschluss): Neonröhren über einer nassen Straße bei Nacht. Die Röhren strahlen mit
+# Koerper.strahlen 6 heller als ihre Farbe (HDR) und glühen über Bloom aus, Punktlichter in Röhrenfarbe färben Wand und Boden,
+# exponentieller Höhennebel (dicht unten, oben klar) verschluckt die Ferne, ACES-Tonkurve, Vignette. Eine dritte Röhre ohne
+# strahlen zeigt den Unterschied (kein Glühen). Prüft den HDR-Pfad: Rgba16Float-Ziel (MSAA, aufgelöst), Bloom-Kette
+# (Vorfilter, 5 × verkleinern, 5 × vergrößern), Abschluss, 2D darüber unverändert.
+welt_neu 1280 720 "Stimmung"
+welt_himmel "#0a0b16" "#2a2440"
+welt_umgebung "#6068a8" 0.06
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Rechteck" -> T_R
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LEUCHT
+feld_nummer T_K "strahlen" -> K_STRAHL
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "nebelDichte" -> S_ND
+feld_nummer T_S "nebelHoehe" -> S_NH
+feld_nummer T_S "nebelAbfall" -> S_NA
+feld_nummer T_S "nebelFarbe" -> S_NF
+feld_nummer T_S "vignette" -> S_VIG
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_R "farbe" -> R_F
+form_grund 1 0 0 -> WUERFEL
+form_grund 3 16 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+
+teil_lage 1 0 2.2 9
+teil_schaue 1 0 2.4 -6
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# Straße (glänzend) und Hauswand
+teil_neu 3 -> boden
+teil_groesse boden 30 1 60
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#2c2c33"
+setze_zahl k K_GLANZ 0.9
+komp_haenge k boden
+teil_neu 3 -> wand
+teil_lage wand 0 6 -6
+teil_groesse wand 20 12 1
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#7a7480"
+setze_zahl k K_GLANZ 0.2
+komp_haenge k wand
+
+# drei Neonröhren (waagerecht liegende Zylinder), zwei strahlen, eine nicht; je ein Punktlicht davor
+wiederhole 3 i
+  teil_neu 3 -> r
+  teil_lage r ((i - 1) * 4.2) (3 + i * 0.6) -5.3
+  teil_setze r 6 90
+  teil_groesse r 0.16 3.4 0.16
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_zahl k K_F (4281063167 * boden(1 / (1 + i * i)) + 585564159 * boden(1 / (1 + (i - 1) * (i - 1))) + 4291967743 * boden(1 / (1 + (i - 2) * (i - 2))))
+  setze_zahl k K_LEUCHT 1
+  setze_zahl k K_STRAHL (1 + 5 * (1 - boden(1 / (1 + (i - 2) * (i - 2)))))
+  setze_zahl k K_SCH 0
+  komp_haenge k r
+  teil_neu 3 -> l
+  teil_lage l ((i - 1) * 4.2) (3 + i * 0.6) -4.6
+  komp_neu T_L -> li
+  setze_zahl li L_F (4281063167 * boden(1 / (1 + i * i)) + 585564159 * boden(1 / (1 + (i - 1) * (i - 1))) + 4291967743 * boden(1 / (1 + (i - 2) * (i - 2))))
+  setze_zahl li L_ST 6
+  setze_zahl li L_RW 7
+  komp_haenge li l
+ende
+
+# Stimmung an einem leeren Teil
+teil_neu 3 -> s
+komp_neu T_S -> st
+setze_zahl st S_BEL 1.3
+setze_zahl st S_BLOOM 1.2
+setze_zahl st S_ND 0.06
+setze_zahl st S_NH 0
+setze_zahl st S_NA 0.6
+setze_text st S_NF "#2a2440"
+setze_zahl st S_VIG 0.35
+komp_haenge st s
+
+# 2D darüber (bleibt unberührt von Tonkurve und Bloom)
+teil_neu 2 -> hud
+teil_lage hud 640 680 0
+komp_neu T_R -> rr
+setze_zahl rr R_B 300
+setze_zahl rr R_H 24
+setze_text rr R_F "#ffffffc0"
+komp_haenge rr hud
+takte 2

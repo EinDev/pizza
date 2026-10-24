@@ -173,7 +173,7 @@
                 ["`herd.umgebung(f, staerke: 0.35)`", "Grundhelligkeit, damit Schatten nicht schwarz werden"],
                 ["`herd.himmel(oben, unten)`", "Verlauf hinter der Szene: Zenit → Horizont"],
                 ["`herd.nebel(f, von, bis)`", "ab Abstand `von` verblasst alles bis `bis` in Farbe `f` – nimm die Horizontfarbe, dann verschmilzt der Boden mit dem Himmel"],
-                ["`koerper(…, leuchten: 1)`", "leuchtet selbst (Lampen, Glut), unabhängig vom Licht"],
+                ["`koerper(…, leuchten: 1)`", "leuchtet selbst (Lampen, Glut), unabhängig vom Licht; mit `koerper().setzeStrahlen(6)` und einer `Stimmung` heller als Weiß, mit Bloom"],
                 ["Farbe mit Deckkraft, z. B. `\"#2e6fd980\"`", "halb durchsichtig (Glas, Wasser)"],
                 ["`koerper(…).koerper().setzeSchatten(nein)`", "wirft keinen Schatten"]
               ]
@@ -299,6 +299,7 @@
                 ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
                 ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
+                ["`Stimmung`","3D","`belichtung` 1, `bloom` 0, `bloomSchwelle` 1, `bloomWeite` 0.7, `nebelDichte` 0, `nebelHoehe` 0, `nebelAbfall` 0.25, `nebelFarbe` #1c1a2a, `saettigung` 1, `vignette` 0, `koernung` 0","Bildlook: HDR mit Belichtung und filmischer Tonkurve, Bloom, Höhennebel, Sättigung, Vignette, Filmkorn; es gilt die wache mit der kleinsten Teil-ID"],
                 ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"],
                 ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
                 ["`Leiste`","2D","`wert` 0.5, `breite` 160, `hoehe` 14, `farbe` basilikum, `farbeLeer` grau, `rundung` 7","Füllbalken (Leben, Fortschritt): von links ist der Anteil `wert` (0 … 1) gefüllt"],
@@ -1003,6 +1004,39 @@
             },
             { art: "ausgabe", text: z("Licht(44) 25 1") },
             { art: "text", md: "Ein ganzes Beispiel ist das **Lichterfest** unter *Beispiele → Herd*: 144 Glühbirnen in sechs Lichterketten über einer Altstadtgasse und Laternen als Spots." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Stimmung: Bloom, Tonkurve und Höhennebel",
+          inhalt: [
+            { art: "text", md: "Eine **`Stimmung`** an irgendeinem 3D-Teil ist die Bildbearbeitung der Szene (wie ein Post-Processing-Volume in Unity). Dann rechnet die Engine mit echten Helligkeiten (HDR): Was heller als Weiß ist, bleibt erhalten und wird erst am Schluss mit einer filmischen **Tonkurve** (ACES) auf den Bildschirm gebracht – `belichtung` macht alles heller oder dunkler. **`bloom`** (0 … 4) lässt alles über der `bloomSchwelle` weich ausstrahlen, `bloomWeite` (0 … 1) macht den Schein breiter. Damit ein Körper heller als seine Farbe leuchtet, gib ihm `leuchten: 1` und **`strahlen`** (am `Koerper` oder `Belag`, z. B. 6) – das ist Neon." },
+            { art: "text", md: "Der **Höhennebel** ist unten dicht und wird nach oben dünner: `nebelDichte` gilt auf der Höhe `nebelHoehe`, je Einheit darüber nimmt sie um den Faktor e^(−`nebelAbfall`) ab; er färbt in `nebelFarbe`. Dazu `saettigung` (0 grau … 2 bunt), `vignette` (dunkle Ecken) und `koernung` (Filmkorn). Es gilt die wache Stimmung mit der kleinsten Teil-ID; schaltest du sie ab (z. B. über eine `Kulisse`), zeichnet die Engine wieder wie ohne. 2D-Teile liegen immer unverändert darüber." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Stimmung","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"836a098f7e5980d8","paket":"00e0babfcb4c9d77"},
+                {"art":"bild","bildnummer":4,"szene":"e0b17a220e032d33","paket":"be2c01d6a8c0f699"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Stimmung\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#07080f\", \"#231c33\");",
+                "herd.sonne().licht().setzeStaerke(0);",
+                "herd.koerper(Form.ebene(), farbe: \"#24242c\", glanz: 0.8).setzeGroesse(20, 1, 20);",
+                "Teil roehre = herd.koerper(Form.zylinder(), 0, 1.5, -1, farbe: \"#ff3df0\", leuchten: 1);",
+                "roehre.setzeRollen(90).setzeGroesse(0.12, 3, 0.12);",
+                "roehre.koerper().setzeStrahlen(6);",
+                "Stimmung s = herd.raum().mit(neu Stimmung(bloom: 1, nebelDichte: 0.1, vignette: 0.3));",
+                "herd.backe(() -> { s.setzeBelichtung(s.belichtung() + 0.25); });",
+                "Bote.sage((s + \" \" + s.belichtung() + \" \" + roehre.koerper().strahlen()));"
+              )
+            },
+            { art: "ausgabe", text: z("Stimmung(5) 2 6") },
+            { art: "text", md: "Ein ganzes Beispiel ist das **Neonschild** unter *Beispiele → Herd*: eine Pizzeria-Reklame im Nebel, die Leertaste schaltet die Stimmung aus und an." }
           ]
         },
         {

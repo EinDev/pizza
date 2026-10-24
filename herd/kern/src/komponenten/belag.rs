@@ -9,6 +9,8 @@ pub const FARBE: usize = 0;
 pub const GLANZ: usize = 1;
 pub const LEUCHTEN: usize = 2;
 pub const BILD: usize = 3;
+/// Nachtragsfeld (Stimmung): Faktor auf `leuchten` wie `Koerper.strahlen`.
+pub const STRAHLEN: usize = 4;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -21,6 +23,7 @@ pub static ART: Art = Art {
             Feld::zahl("glanz", 0.3).bereich(0.0, 1.0),
             Feld::zahl("leuchten", 0.0).bereich(0.0, 1.0),
             Feld::bildchen("bild"),
+            Feld::zahl("strahlen", 1.0).bereich(0.0, 1000.0).nachtrag(),
         ],
     },
     ..Art::LEER

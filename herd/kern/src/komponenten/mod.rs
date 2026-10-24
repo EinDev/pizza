@@ -31,6 +31,7 @@ pub mod partikel;
 pub mod rahmen;
 pub mod rechteck;
 pub mod regler;
+pub mod stimmung;
 pub mod tafel;
 pub mod taster;
 pub mod text;
@@ -172,6 +173,7 @@ pub static ARTEN: &[&Art] = &[
     &leiste::ART,
     &regler::ART,
     &tafel::ART,
+    &stimmung::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

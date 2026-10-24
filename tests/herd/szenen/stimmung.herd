@@ -1,0 +1,58 @@
+# Stimmung (Abschnitt STIMMUNG) und Koerper/Belag.strahlen: nativ = Wasm über die Paket-Hashes. Ohne Stimmung (Paket wie
+# v1), lose, angehängt, Werte ändern, zweite mit größerer ID, erste ruht unter einer Vorlage, entfernt; strahlen am Körper
+# und am Belag. N leuchtende Körper (klein N = 20).
+vorgabe N 20
+welt_neu 960 540 "Stimmung"
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Vorlage" -> T_V
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "strahlen" -> K_ST
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "leuchten" -> B_LE
+feld_nummer T_B "strahlen" -> B_ST
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "nebelDichte" -> S_ND
+feld_nummer T_S "nebelFarbe" -> S_NF
+feld_nummer T_S "koernung" -> S_K
+form_grund 1 0 0 -> W
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t ((i % 5) * 2 - 4) 1 (boden(i / 5) * -2)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM W
+  setze_zahl k K_LE (zufall(i))
+  setze_zahl k K_ST (1 + boden(zufall(i + 3) * 3) * 4)
+  komp_haenge k t
+ende
+teil_neu 3 -> bt
+komp_neu T_B -> b
+setze_zahl b B_LE 1
+setze_zahl b B_ST 12
+komp_haenge b bt
+setze_zahl k K_BELAG bt
+takte 2
+teil_neu 3 -> s1
+komp_neu T_S -> st1
+setze_zahl st1 S_BEL 1.5
+takte 2
+komp_haenge st1 s1
+setze_zahl st1 S_BLOOM 0.8
+setze_zahl st1 S_ND 0.1
+setze_text st1 S_NF "#203040"
+takte 3
+teil_neu 3 -> s2
+komp_neu T_S -> st2
+setze_zahl st2 S_K 0.5
+komp_haenge st2 s2
+takte 2
+komp_neu T_V -> v
+komp_haenge v s1
+takte 2
+teil_entferne s2
+takte 2
+paket_voll
+bild

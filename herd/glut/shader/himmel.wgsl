@@ -47,6 +47,9 @@ fn fs_himmel(a: AusHimmel) -> @location(0) vec4<f32> {
     // schnell weg vom Horizont, dann sanft zum Zenit
     let t = 1.0 - pow(1.0 - h, 8.0);
     let c = mix(szene.himmel_unten.rgb, szene.himmel_oben.rgb, t);
+    if (hdr_an()) {
+        return vec4<f32>(mix(c, stimmung.farbe.rgb, hoehennebel(szene.kamera.xyz, szene.kamera.xyz + d * stimmung.nebel.w)), 1.0);
+    }
     return vec4<f32>(zu_srgb(c) + vec3<f32>(rauschen(a.pos.xy) / 255.0), 1.0);
 }
 
@@ -187,6 +190,9 @@ fn fs_zelt(a: AusHimmel) -> @location(0) vec4<f32> {
             t = zelt_atlas(i32(wort & 65535u), p, b);
         }
         c = mix(c, zu_linear(t.rgb), t.a);
+    }
+    if (hdr_an()) {
+        return vec4<f32>(mix(c, stimmung.farbe.rgb, hoehennebel(szene.kamera.xyz, szene.kamera.xyz + d * stimmung.nebel.w)), 1.0);
     }
     return vec4<f32>(zu_srgb(c) + vec3<f32>(rauschen(a.pos.xy) / 255.0), 1.0);
 }

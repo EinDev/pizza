@@ -36,6 +36,9 @@ fn vs_funke(e: EinFunke) -> AusFunke {
     if (szene.nebel_farbe.w > 0.5) {
         f = clamp((length(szene.kamera.xyz - e.pos) - szene.nebel.x) * szene.nebel.z, 0.0, 1.0);
     }
+    if (hdr_an()) {
+        f = 1.0 - (1.0 - f) * (1.0 - hoehennebel(szene.kamera.xyz, e.pos));
+    }
     a.nebel = f;
     return a;
 }
@@ -52,6 +55,9 @@ fn fs_leuchtend(a: AusFunke) -> @location(0) vec4<f32> {
     if (r2 >= 1.0) {
         discard;
     }
+    if (hdr_an()) {
+        return vec4<f32>(licht, 0.0);
+    }
     return vec4<f32>(zu_srgb(licht), 0.0);
 }
 
@@ -65,6 +71,9 @@ fn fs_deckend(a: AusFunke) -> @location(0) vec4<f32> {
     let farbe = mix(a.farbe.rgb * woelbung, szene.nebel_farbe.rgb, a.nebel);
     if (deck <= 0.002) {
         discard;
+    }
+    if (hdr_an()) {
+        return vec4<f32>(farbe, deck);
     }
     return vec4<f32>(zu_srgb(farbe) + vec3<f32>(rauschen(a.pos.xy) / 255.0), deck);
 }

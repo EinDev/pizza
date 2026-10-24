@@ -47,6 +47,8 @@ pub mod abschnitt {
     pub const HIMMELSZELT: u32 = 15;
     /// Viele Lichter (Clustered Forward, `crate::lichter`): nur bei mehr als 8 Punktlichtern oder einem Spot
     pub const LICHTER: u32 = 16;
+    /// Stimmung (HDR, Bloom, Tonkurve, Höhennebel): nur wenn eine wache `Stimmung` gilt
+    pub const STIMMUNG: u32 = 17;
 }
 
 pub mod flag {
@@ -989,6 +991,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
 
     // ---------------- Viele Lichter (Clustered Forward): nur bei mehr als 8 Punktlichtern oder einem Spot ----------------
     abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn);
+    // ---------------- Stimmung (HDR-Abschluss in der Glut): nur wenn eine gilt ----------------
+    abschnitte += crate::komponenten::stimmung::abschnitt(w, aus, bildnummer, fern);
 
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());

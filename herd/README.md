@@ -59,6 +59,7 @@ pub static ARTEN: &[&Art] = &[
     &kulisse::ART,                                     // 25 (H-K9, Ruhe bei aktiv: nein)
     &himmelszelt::ART,                                 // 26 (H-K11b, Bildbeitrag: Abschnitt HIMMELSZELT)
     &taster::ART, &leiste::ART, &regler::ART, &tafel::ART, // 27–30 (H-K12, UI; Taster macht im Nachlauf den Maus-Durchgang)
+    &stimmung::ART,                                    // 31 (Stimmung: HDR, Bloom, Tonkurve, Höhennebel; Abschnitt STIMMUNG)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -238,6 +239,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
+| 17 | STIMMUNG | 64 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
@@ -292,6 +294,11 @@ weg, die fernsten zuerst; höchstens 1024 × 2048 Wörter). Zelle eines Punkts p
 `ansicht_proj · p`, Scheibe `s = ⌊ln(max(d, nah)/nah) · tiefe.y⌋` (geklemmt) mit d = (p − Kamera) · vorn. Belegung konservativ: je
 Tiefenscheibe der Quader um die Kugel, an beiden Scheibengrenzen projiziert (x/z ist für festes x monoton in z). Die 8 Lichter in SZENE
 bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter.
+
+**STIMMUNG (64 Bytes, std140-gleich, f32):** `a vec4` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel vec4` (nebelDichte,
+nebelHoehe, nebelAbfall, `fern` der Kamera) · `farbe vec4` (nebelFarbe linear, saettigung) · `b vec4` (vignette, koernung, Zeit = Bild/60 s,
+1 = an). Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
+Ziel, danach INST2D.
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
 (Mitte, Spielfeld-Pixel, y nach unten; mit aktivem `Blick` (H-K1) hat der Kern die Sicht-Matrix schon eingerechnet – außer für
@@ -355,7 +362,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -473,7 +480,11 @@ der Stufen ⌊λ⌋ und ⌊λ⌋ + 1 mit **expliziter** Stufe, je auf das Rechte
 zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter aus SZENE oder – mit Abschnitt LICHTER – alle Lichter der Zelle des Fragments
 (Bindungen 14 Kopf, 15 `lichter_t` RGBA32F mit 64 Lichtern à 3 Texel je Zeile, 16 `zellen_t` R32Uint 1024 breit; nur `textureLoad`, Texturen wachsen
 nur; ohne Abschnitt schreibt die Glut den Kopf auf 0 → v1-Pfad), Spot-Kegel per smoothstep, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
-Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
+Nebel, sanfte Schulter gegen Überstrahlen) · `nachbild` (Stimmung, eigenes Layout: 0 Quelle, 1 Sampler linear, 2 Stimmung, 3 Bloom-Stufe 0; `fs_vorfilter` 13 Abtastungen mit
+Karis-Mittel und weichem Knie, `fs_ab` 13 Abtastungen, `fs_auf` Zelt 3 × 3 × `bloomWeite` additiv, `fs_abschluss` Belichtung + Bloom/Σ Gewichte,
+ACES (Hill), Sättigung, Vignette, Korn, sRGB + Dither; HDR-Ziel Rgba16Float mit MSAA, falls der Adapter es kann – sonst Rgba8Unorm bzw.
+ohne MSAA; die 3D-Shader prüfen `hdr_an()` (Bindung 17) und geben dann linear aus, mit Höhennebel)
+· `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`; H-K11b `fs_zelt` für das Himmelszelt: Uniform-Block HIMMELSZELT an
 Bindung 13 (fest 208 B, immer gebunden), Würfelseite und Seitenkoordinate ohne Verzweigung aus der Richtung – **keine Cube-Map**;
 Bild-Seiten aus dem Atlas per `textureLoad` (bilinear von Hand, vormultipliziert) oder aus der eigenen Textur (Bit 17, Glut
@@ -517,6 +528,7 @@ Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, get
 `2d-rahmen-textur` (`Rahmen` aus Texturen 48² und 96 × 60: vergrößert, 1 : 1, verkleinert, gestreckt, gestaucht, getönt, gedreht,
 Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
 Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel),
+`3d-stimmung` (Stimmung: drei Neonröhren, zwei mit `strahlen` 6 und Bloom, Höhennebel, Vignette, 2D-Balken darüber),
 `3d-lichter` (viele Lichter: nächtliche Gasse, 256 farbige Punktlichter knapp über nassem Boden, 4 Spots mit weichem Rand),
 `3d-himmelszelt` (H-K11b: Abenddämmerung prozedural mit tiefer Sonnenscheibe und Sternen, Seite rechts aus einem Teigling 512²
 mit Bergketten vor durchsichtigem Himmel, Seite oben aus einem Atlas-Bildchen 24² mit halb durchsichtigen Wolken, Würfelkanten

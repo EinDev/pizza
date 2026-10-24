@@ -29,7 +29,8 @@
       {"nummer": 4, "name": "leuchten", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
       {"nummer": 5, "name": "bild", "typ": "bildchen", "standard": null, "min": null, "max": null},
       {"nummer": 6, "name": "schatten", "typ": "diavolo", "standard": true, "min": null, "max": null},
-      {"nummer": 7, "name": "belag", "typ": "teil", "standard": null, "min": null, "max": null, "nachtrag": true}]},
+      {"nummer": 7, "name": "belag", "typ": "teil", "standard": null, "min": null, "max": null, "nachtrag": true},
+      {"nummer": 8, "name": "strahlen", "typ": "zahl", "standard": 1, "min": 0, "max": 1000, "nachtrag": true}]},
     {"name": "Licht", "nummer": 6, "genus": "n", "raum": "3D", "braucht": [], "system": false, "felder": [
       {"nummer": 1, "name": "art", "typ": "wahl", "standard": "punkt", "min": null, "max": null, "wahl": ["punkt", "sonne"]},
       {"nummer": 2, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
@@ -124,7 +125,8 @@
       {"nummer": 1, "name": "farbe", "typ": "farbe", "standard": "weiss", "min": null, "max": null},
       {"nummer": 2, "name": "glanz", "typ": "zahl", "standard": 0.3, "min": 0, "max": 1},
       {"nummer": 3, "name": "leuchten", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
-      {"nummer": 4, "name": "bild", "typ": "bildchen", "standard": null, "min": null, "max": null}]},
+      {"nummer": 4, "name": "bild", "typ": "bildchen", "standard": null, "min": null, "max": null},
+      {"nummer": 5, "name": "strahlen", "typ": "zahl", "standard": 1, "min": 0, "max": 1000, "nachtrag": true}]},
     {"name": "Fuehler", "nummer": 17, "genus": "m", "raum": "beide", "braucht": [], "system": true, "felder": [
       {"nummer": 1, "name": "form", "typ": "wahl", "standard": "auto", "min": null, "max": null, "wahl": ["auto", "kreis", "rechteck", "kasten", "kugel"]},
       {"nummer": 2, "name": "breite", "typ": "zahl", "standard": 0, "min": 0, "max": null},
@@ -238,7 +240,19 @@
       {"nummer": 3, "name": "farbe", "typ": "farbe", "standard": "#2f2a26e0", "min": null, "max": null},
       {"nummer": 4, "name": "titel", "typ": "text", "standard": "", "min": null, "max": null},
       {"nummer": 5, "name": "rundung", "typ": "zahl", "standard": 10, "min": 0, "max": null},
-      {"nummer": 6, "name": "ziehbar", "typ": "diavolo", "standard": false, "min": null, "max": null}]}
+      {"nummer": 6, "name": "ziehbar", "typ": "diavolo", "standard": false, "min": null, "max": null}]},
+    {"name": "Stimmung", "nummer": 31, "genus": "f", "raum": "3D", "braucht": [], "system": false, "felder": [
+      {"nummer": 1, "name": "belichtung", "typ": "zahl", "standard": 1, "min": 0.01, "max": 100},
+      {"nummer": 2, "name": "bloom", "typ": "zahl", "standard": 0, "min": 0, "max": 4},
+      {"nummer": 3, "name": "bloomSchwelle", "typ": "zahl", "standard": 1, "min": 0, "max": 100},
+      {"nummer": 4, "name": "bloomWeite", "typ": "zahl", "standard": 0.7, "min": 0, "max": 1},
+      {"nummer": 5, "name": "nebelDichte", "typ": "zahl", "standard": 0, "min": 0, "max": 10},
+      {"nummer": 6, "name": "nebelHoehe", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 7, "name": "nebelAbfall", "typ": "zahl", "standard": 0.25, "min": 0, "max": 10},
+      {"nummer": 8, "name": "nebelFarbe", "typ": "farbe", "standard": "#1c1a2a", "min": null, "max": null},
+      {"nummer": 9, "name": "saettigung", "typ": "zahl", "standard": 1, "min": 0, "max": 2},
+      {"nummer": 10, "name": "vignette", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 11, "name": "koernung", "typ": "zahl", "standard": 0, "min": 0, "max": 1}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}, {"nummer": 19, "name": "ruht"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe"],
