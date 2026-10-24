@@ -1,0 +1,36 @@
+// Herd §18.2 / HERD.md §12.4 H-K13 (K-152): Ananas aus einem Kniff verlässt backe wie aus fn (fangbar; kein Bild für diesen
+// Takt, das Fenster bleibt offen, erneutes backe macht weiter), herd.schliesse() in einem Kniff (übrige Kniffe und Bild
+// entfallen), ungefangen beendet die Ananas den Lauf (Fenster zu vor dem fehler-Ereignis)
+Herd herd = neu Herd("Kniff-Ananas", breite: 160, hoehe: 90);
+
+klasse Zuendler erbt Kniff {
+    salami bei;
+    Zuendler(salami bei) { dies.bei = bei; }
+    leer takt() {
+        Bote.sage(("zuendler " + herd.bildnummer()));
+        falls (herd.bildnummer() == bei) { wirf neu LaufzeitAnanas("Kniff brennt bei " + bei); }
+    }
+}
+klasse Schliesser erbt Kniff {
+    leer takt() { falls (herd.bildnummer() == 5) { Bote.sage(("schliesse")); herd.schliesse(); } }
+}
+klasse Spaeter erbt Kniff {
+    leer takt() { Bote.sage(("spaeter " + herd.bildnummer())); }
+}
+
+Teil a = herd.kreis(10, 10, 3);
+Zuendler z = a.mit(neu Zuendler(2));
+Teil b = herd.kreis(20, 10, 3);
+b.mit(neu Schliesser());
+Teil c = herd.kreis(30, 10, 3);
+c.mit(neu Spaeter());
+probier {
+    herd.backe(() -> { Bote.sage(("fn " + herd.bildnummer())); });
+} verbrannt (LaufzeitAnanas x) { Bote.sage(("gefangen: " + x.nachricht())); }
+// weiter: Zuendler 2 brennt nicht mehr; Schliesser schließt in Takt 5, Spaeter läuft dort nicht mehr
+herd.backe();
+Bote.sage(("zu nach " + herd.bildnummer()));
+// neues Fenster: ungefangen aus dem Kniff
+z.bei = 7;
+herd.backe();
+Bote.sage(("nie"));

@@ -71,7 +71,8 @@ pub fn obj<T>(w: W) -> &'static mut T { unsafe { &mut *(p(w) as *mut T) } }
 pub use crate::karte::Karte;
 #[repr(C)] pub struct Dauer { pub art: u32, pub _r: u32, pub ms: f64 }
 #[repr(C)] pub struct Feld { pub w: W, pub info: u32, pub besitzer: u32 }
-#[repr(C)] pub struct Obj { pub art: u32, pub klasse: u32, pub nr: f64, pub felder: Vec<Feld>, pub zugeklappt: u32, pub nachricht: W, pub cache: u32 }
+/// `kniff` (H-K13): 0 = nie als Kniff angehängt, sonst Index + 1 in den Kniff-Zustand (herd.rs); liegt im Füllplatz nach `cache`
+#[repr(C)] pub struct Obj { pub art: u32, pub klasse: u32, pub nr: f64, pub felder: Vec<Feld>, pub zugeklappt: u32, pub nachricht: W, pub cache: u32, pub kniff: u32 }
 #[repr(C)] pub struct EnumW { pub art: u32, pub e: u32, pub name: W, pub pos: f64 }
 #[repr(C)] pub struct Ref { pub art: u32, pub id: u32 }
 #[repr(C)] pub struct Funktion { pub art: u32, pub fnid: u32, pub dies: W, pub unten: W, pub n: u32, pub _r: u32 }

@@ -180,7 +180,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `teil_haenge`, `teil_trifft` | `(a i32, b i32) -> i32` | |
 | `teil_kinder` | `(teil i32, ptr i32, kap i32) -> i32` | Retry (kap in Elementen) |
 | `teil_setze` | `(teil i32, feld i32, wert f64) -> i32` | Lage-Feld |
-| `teil_hole` | `(teil i32, feld i32) -> f64` | NaN + `fehler_neu` = Fehler |
+| `teil_hole` | `(teil i32, feld i32) -> f64` | NaN + `fehler_neu` = Fehler; Feld 19 = ruht (H-K13, additiv) |
 | `teil_lage`, `teil_verschiebe`, `teil_groesse`, `teil_schaue` | `(teil i32, x f64, y f64, z f64) -> i32` | |
 | `komp_neu` | `(typ i32) -> i32` | **generisch**: Typnummer aus dem Schema |
 | `komp_haenge` | `(komp i32, teil i32) -> i32` | |

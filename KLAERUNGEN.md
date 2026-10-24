@@ -2157,6 +2157,29 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `herd-taster.*`, `herd-regler.*` (Maus aus `.ereignisse`), Differenz-Korpus `herd-ui-maus` (Interpreter = Wasm = Host), Beispiel
   `konfigurator.pizza`, E2E `14-herd-playground` (Klick im Vorschaufenster über den Render-Worker). **Status:** fest.
 
+### K-152 Herd: `Kniff` – erbbare Basisklasse, Ablauf je Takt, keine Kopie (H-K13)
+- **Frage:** Wie bekommen eigene pizza-Klassen Spiellogik an Teile (Unity MonoBehaviour: `Start`, `Update`, `OnTriggerEnter/Exit`,
+  `onClick`, `OnDestroy`), bitgleich in Interpreter, Wasm und nativem Host, ohne den Kern um pizza-Objekte zu erweitern?
+- **Entscheidung:** Eingebaute Klasse **`Kniff`** – Ausnahme zu P0010 (alle anderen Herd-Klassen bleiben unerbbar), Rohling (`neu Kniff()`
+  → RohlingAnanas), eine eigene Klasse `Kniff` hat Vorrang; Laufzeitklasse 16 im Wasm (eigene Klassen ab 17, IR.md §1). Methoden: `teil()`
+  und die leeren, überschreibbaren Rückrufe `start`, `takt`, `beimBetreten(Teil)`, `beimVerlassen(Teil)`, `beimKlick`, `beimEntfernen`;
+  unqualifiziert in der Klasse nach den eigenen Methoden und vor globalen Namen (Compiler: dafür nie `direkt`). Anhängen mit `teil.mit(k)`,
+  Lösen mit `teil.ohne(k)`, Liste `teil.kniffe()` (Teil-Methode `kniffe` steht in `TEIL_METHODEN` des Kerns, damit keine Komponente so
+  heißen kann). Der **Kern kennt keine Kniffe**: Registrierung und Rückrufe leben in den Laufzeiten (`site/js/pizza/herd/kniff.js`,
+  `laufzeit/src/herd.rs` Abschnitt Kniff, Zustand im Füllplatz `Obj.kniff` – die Objektgröße bleibt 48 Bytes); einzige Kern-Änderung ist
+  das Lesefeld `teil_hole(teil, 19)` = ruht (abgeleitet, nicht im Hash). **Ablauf** nach Systemen und Nachlauf jedes Takts: Teile nach
+  aufsteigender ID, ruhende ausgelassen, Schnappschuss zu Beginn der Phase; je Kniff in Anhängereihenfolge `start` (einmal je Kniff) →
+  `beimBetreten`/`beimVerlassen` je Eintrag aus `Fuehler.betreten`/`verlassen` desselben Teils → `beimKlick` bei `Taster.geklickt` →
+  `takt`; vor jedem Rückruf „hängt noch an diesem Teil“. Ereignisse kommen aus den Lesefeldern von H-K6/H-K12 (der Plan nannte `Knopf`, seit
+  K-151 heißt er `Taster`). Nur überschriebene Rückrufe werden gerufen (keine Schritte für leere). **Ruhe (H-K8/H-K9):** ruhende Teile
+  bekommen **keine** Rückrufe (auch kein `start`) – ihre Fühler-Listen sind eingefroren und würden sonst dieselben Ereignisse wieder melden.
+  `gedrueckt`/`losgelassen`/`klick` des Herds gelten in der Kniff-Phase wie in `fn`; `herd.schliesse()` in einem Kniff beendet die Phase
+  ohne Bild; Ananas verlassen `backe` wie aus `fn`. **`beimEntfernen`** läuft nach dem Lösen (in `ohne(k)` bzw. nach `entferne()` des Teils
+  oder eines Vorfahren, betroffene Kniffe nach Teil-ID), `teil()` ist dann `karton` – so gibt es keine Wiedereintritte in ein halb
+  entferntes Teil. **`kopie()` kopiert keine Kniffe** (Muster: Fabrikfunktion). In `brigade`-Stücken wie alle Herd-Methoden KüchenAnanas.
+- **Nachweis:** Kern `tests::hk13` (Lesefeld RUHT), Fälle `herd-kniff`, `herd-kniff-ereignisse` (Fühler + Taster mit Maus),
+  `herd-kniff-ananas`, Differenz-Korpus `herd-kniff-kueche` (auch Köche/Chaos), Prüfstand a18, Beispiel `herd/kniffe`. **Status:** fest.
+
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
   samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen

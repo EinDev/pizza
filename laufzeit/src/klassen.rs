@@ -86,7 +86,32 @@ pub fn eingebaute_klassen() {
             let _ = i;
             kl(k).basis = b;
         }
+        // Herd H-K13 (K-152): erbbare Basisklasse Kniff = Klassenindex 16 (eigene Klassen ab 17, frontend.js KLASSEN_BASIS);
+        // Rohling (`neu Kniff()` → RohlingAnanas), eine eigene Klasse Kniff hat Vorrang (KLASSEN_NAME: spätere gewinnen)
+        let k = neue_klasse(name_id(neu_str("Kniff")), true);
+        kl(k).rohling = true;
+        for (i, n) in KNIFF_TEXTE.iter().enumerate() { KNIFF_N[i] = name_id(neu_str(n)); }
     }
+}
+
+/// Klassenindex der eingebauten Basisklasse Kniff (direkt nach ANANAS_BAUM)
+pub const K_KNIFF: u32 = 16;
+/// eingebaute Kniff-Methoden: `teil` und die überschreibbaren (leeren) Rückrufe – Reihenfolge = Index in `KNIFF_N`
+pub const KNIFF_TEXTE: [&str; 7] = ["teil", "start", "takt", "beimBetreten", "beimVerlassen", "beimKlick", "beimEntfernen"];
+pub const KN_TEIL: usize = 0;
+pub const KN_START: usize = 1;
+pub const KN_TAKT: usize = 2;
+pub const KN_BETRETEN: usize = 3;
+pub const KN_VERLASSEN: usize = 4;
+pub const KN_KLICK: usize = 5;
+pub const KN_ENTFERNEN: usize = 6;
+/// Intern-IDs der Namen aus `KNIFF_TEXTE` (beim Start belegt)
+pub static mut KNIFF_N: [u32; 7] = [u32::MAX; 7];
+pub fn kniff_name(id: u32) -> bool { unsafe { KNIFF_N.contains(&id) } }
+pub fn ist_kniff_klasse(k: i32) -> bool {
+    let mut c = k;
+    while c >= 0 { if c as u32 == K_KNIFF { return true; } c = kl(c as u32).basis; }
+    false
 }
 
 // ---------------------------------------------------------------- Hierarchie
@@ -420,6 +445,8 @@ pub fn obj_methode(o: W, name: u32, pos: &[W], ben: &Ben, knoten: i32, ctxk: i32
     if let Some(fe) = obj_feld(o, name) {
         if ist_funktion(fe.w) { return rufe(fe.w, pos, ben, knoten); }
     }
+    // Herd H-K13: eingebaute Methoden der Basisklasse Kniff (teil(), leere Rückrufe)
+    if let Some(r) = crate::herd::kniff_methode(o, name) { return r; }
     if let Some(r) = crate::std_m::ananas_obj_methode(o, name, pos, ben, knoten) { return r; }
     let mut t = Tb::neu();
     t.s("Methode '").name(name).s("' gibt es auf ").name(kl(ob.klasse).name).s(" nicht.");
@@ -473,7 +500,7 @@ pub fn instanziiere(k: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     let mut c = k as i32;
     while c >= 0 { kette.push(c as u32); c = kl(c as u32).basis; }
     let mut felder: Vec<Feld> = Vec::new();
-    let o = neu_w(Obj { art: A_OBJ, klasse: k, nr: unsafe { INSTANZEN }, felder: Vec::new(), zugeklappt: ist_calzone(k as i32) as u32, nachricht: neu_str(""), cache: 0 });
+    let o = neu_w(Obj { art: A_OBJ, klasse: k, nr: unsafe { INSTANZEN }, felder: Vec::new(), zugeklappt: ist_calzone(k as i32) as u32, nachricht: neu_str(""), cache: 0, kniff: 0 });
     for &c in kette.iter().rev() {
         for &fi in kl(c).felder.iter() {
             let info = finfo(fi);
@@ -571,6 +598,10 @@ pub extern "C" fn rt_ncall_ziel(name: u32, ctxd: W, ctxk: i32) -> W {
         let mut gef = finde_methode_liste(start, id);
         if gef.is_none() && d { gef = finde_methode_liste(ctxk, id); }
         if let Some((k, _)) = gef { return MLISTE | ((k as u64) << 16) | id as u64; }
+        // Herd H-K13: `teil()` & Co. in einer Kniff-Klasse – nach den eigenen Methoden, vor globalen Namen
+        if d && kniff_name(id) && ist_kniff_klasse(obj::<Obj>(ctxd).klasse as i32) {
+            return neu_w(Nativ { art: A_NATIV, was: 0, empf: ctxd, name: id, modul: ctxk as u32 });
+        }
     }
     UNDEF
 }
@@ -763,7 +794,7 @@ pub fn mitglied(o: W, id: u32, ctxk: i32) -> W {
             if let Some((k, _)) = finde_methode_liste(ob.klasse as i32, id) {
                 return neu_w(Gebunden { art: A_GEBUNDEN, klasse: k as i32, obj: o, name: id, global: 0 });
             }
-            if crate::std_m::ist_obj_nativ(o, id) {
+            if crate::std_m::ist_obj_nativ(o, id) || (kniff_name(id) && ist_kniff_klasse(ob.klasse as i32)) {
                 return neu_w(Nativ { art: A_NATIV, was: 0, empf: o, name: id, modul: ctxk as u32 });
             }
             let mut t = Tb::neu();

@@ -110,6 +110,10 @@ pub extern "C" fn rt_unten_m(name: u32, args: u32, npos: u32, bennamen: u32, nbe
             if ist_ananas_klasse(basis) && matches!(id, N_NACHRICHT | N_HOLENACHRICHT | N_TYP | N_ALSTEXT) {
                 if let Some(r) = crate::std_m::ananas_obj_methode(ctxd, id, pos, &ben, knoten) { break 'x r; }
             }
+            // Herd H-K13: unten.takt() & Co. → leere Rückrufe bzw. teil() der Basisklasse Kniff
+            if crate::klassen::kniff_name(id) && crate::klassen::ist_kniff_klasse(basis) {
+                if let Some(r) = crate::herd::kniff_methode(ctxd, id) { break 'x r; }
+            }
             if matches!(id, N_ALSTEXT | N_AUFKLAPPEN) {
                 // OBJ_M (alsText: Klassenname@N)
                 let ob = obj::<Obj>(ctxd);

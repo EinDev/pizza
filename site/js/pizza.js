@@ -1822,6 +1822,15 @@
         o.nachricht = pos.length && pos[0] !== null && pos[0] !== undefined ? this.text(pos[0]) : '';
       };
       this.ananasWurzel = this.klassen.get('Ananas');
+      // Herd H-K13 (K-152): eingebaute, erbbare Klasse Kniff (Rohling: `neu Kniff()` geht nicht, `erbt Kniff` schon);
+      // Laufzeit-Klassenindex 16 im Wasm (nach den 16 Ananas). Eine eigene Klasse Kniff hat Vorrang (Map, spätere gewinnen).
+      const kniff = new Klasse('Kniff', null);
+      kniff.eingebaut = true;
+      kniff.rohling = true;
+      this.klassen.set('Kniff', kniff);
+      this.kniffWurzel = kniff;
+      this.kniffAn = new Map();   // Teil-ID → [Kniff-Obj] in Anhängereihenfolge (herd/kniff.js)
+      this.kniffZ = new Map();    // Kniff-Obj → { teil, gestartet }
       const L = this;
       this.globals = new Map([
         ['Bote', new Modul('Bote', BOTE_M, null)],
@@ -2270,7 +2279,7 @@
           }
           for (const md of d.methoden) {
             if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-            let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M);
+            let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M) || (this.istKniffKlasse(k) && KNIFF_NAMEN.has(md.name));
             if (!ok && k.basis && this.findeMethodeListe(k.basis, md.name)) ok = true;
             if (!ok) {
               for (let c = k; c && !ok; c = c.basis) {
@@ -2697,7 +2706,7 @@
         if (st !== null) { if (st.mod !== null) this.pruefeZugriff(st, null, sc.ctx, name); return st.w; }
         const l = this.findeMethodeListe(o.klasse, name);
         if (l !== null) return new Gebunden(o, l, name);
-        if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || OBJ_M[name]) {
+        if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || (KNIFF_NAMEN.has(name) && this.istKniffKlasse(o.klasse)) || OBJ_M[name]) {
           return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
         }
         throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
@@ -2806,6 +2815,8 @@
         const a = ANANAS_M[name];
         if (a !== undefined) return a.call(this, o, pos, ben, node);
       }
+      // Herd H-K13: eingebaute Methoden der Basisklasse Kniff (teil(), leere Rückrufe)
+      if (KNIFF_NAMEN.has(name) && this.istKniffKlasse(o.klasse)) return KNIFF_M[name].call(this, o, pos, ben, node);
       const g = OBJ_M[name];
       if (g !== undefined) return g.call(this, o, pos, ben, node);
       throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
@@ -3028,6 +3039,8 @@
         const d = ctx.dies instanceof Obj ? ctx.dies : null;
         const l = this.findeMethodeListe(d !== null ? d.klasse : ctx.klasse, name) || (d !== null ? this.findeMethodeListe(ctx.klasse, name) : null);
         if (l !== null) return new Gebunden(d, l, name);
+        // Herd H-K13: `teil()` & Co. in einer Kniff-Klasse – nach den eigenen Methoden, vor globalen Namen
+        if (d !== null && KNIFF_NAMEN.has(name) && this.istKniffKlasse(d.klasse)) return this.kniffNativ(d, name, sc);
       }
       if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
       return this.leseName({ n: name }, sc);
@@ -3057,6 +3070,7 @@
       }
       if (ctx.dies instanceof Obj) {
         if (this.istAnanasKlasse(ctx.klasse.basis) && ANANAS_M[n.name]) return ANANAS_M[n.name].call(this, ctx.dies, pos, ben, n);
+        if (KNIFF_NAMEN.has(n.name) && this.istKniffKlasse(ctx.klasse.basis)) return KNIFF_M[n.name].call(this, ctx.dies, pos, ben, n);
         if (OBJ_M[n.name]) return OBJ_M[n.name].call(this, ctx.dies, pos, ben, n);
       }
       throw this.ananas('LaufzeitAnanas', 'Methode \'' + n.name + '\' gibt es in der Basisklasse \'' + ctx.klasse.basis.name + '\' nicht.');
@@ -6030,6 +6044,7 @@
   })();
   const HERD_KOMP_NAMEN = new Set(HERD_KOMPONENTEN);
   for (const n of HERD_KLASSEN.concat(HERD_KOMPONENTEN)) if (TYPEN.indexOf(n) < 0) TYPEN.push(n);
+  if (TYPEN.indexOf('Kniff') < 0) TYPEN.push('Kniff');   // H-K13: erbbare Basisklasse (herd/kniff.js), keine Herd-Klasse für neu
 
   // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
   const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,
@@ -6378,7 +6393,7 @@
       if (ids === null) throw this.herdFehler();
       return ids.map(id => this.herdTeilObj(id));
     },
-    'entferne': function (t) { this.herdI(this.hk.e.teil_entferne(t.id)); return null; },
+    'entferne': function (t, pos, ben, node) { this.kniffEntferne(t, node); return null; },   // H-K13: danach beimEntfernen
     'entfernt': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 14)) !== 0; },
     'kopie': function (t) { return this.herdTeilObj(this.herdI(this.hk.e.teil_kopie(t.id))); },
     'trifft': function (t, pos, ben) {
@@ -6388,13 +6403,15 @@
     },
     'mit': function (t, pos, ben) {
       const k = arg(pos, ben, 0, 'komponente');
+      if (this.istKniff(k)) return this.kniffMit(t, k);   // H-K13: eigener Kniff statt Kern-Komponente
       if (!(k instanceof HerdKomp)) throw this.ananas('TypAnanas', 'mit() braucht eine Komponente für \'komponente\', nicht ' + this.darstellung(k === undefined ? null : k) + '.');
       this.herdI(this.hk.e.komp_haenge(k.h, t.id));
       k.teil = t.id;
       return k;
     },
-    'ohne': function (t, pos, ben) {
+    'ohne': function (t, pos, ben, node) {
       const n = arg(pos, ben, 0, 'name');
+      if (this.istKniff(n)) return this.kniffOhne(t, n, node);   // H-K13
       let art;
       if (n instanceof HerdKomp) art = n.art;
       else {
@@ -6416,6 +6433,7 @@
     },
     'raum': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 12)) === 3 ? '3D' : '2D'; },
     'id': function (t) { this.herdF(this.hk.e.teil_hole(t.id, 12)); return t.id; },   // entfernt → Kern-Text
+    'kniffe': function (t) { return this.kniffListe(t); },   // H-K13: Blech<Kniff> in Anhängereihenfolge
     'alsText': function (t) { return this.text(t); }
   };
   function herdTeilTabelle(zugriff) {
@@ -7002,6 +7020,19 @@
       const kn = ev.knoepfe;
       if (typeof kn === 'number' && Number.isInteger(kn) && kn >= 0 && kn <= 7) h.knoepfe = kn;
     },
+    // Rückruf aus der Spielschleife (fn oder Kniff-Phase): schliesse() wirkt danach, Panik beendet sofort (kein schliesse)
+    herdRueckruf(h, f) {
+      h.imRueckruf = true;
+      try {
+        f();
+      } catch (x) {
+        if (x instanceof PanikSig) h.schliessen = false;   // §18.2
+        throw x;
+      } finally {
+        h.imRueckruf = false;
+        if (h.schliessen) { h.schliessen = false; this.herdSchliesseFenster(h); }
+      }
+    },
     herdBacke(h, fn, node) {
       if (fn !== null && !(fn instanceof Funktion || fn instanceof Gebunden || fn instanceof NativFn)) {
         throw this.ananas('TypAnanas', 'backe() braucht eine Funktion, z. B. () -> { … }.');
@@ -7025,25 +7056,23 @@
           h.erster = i === 0;
           // H-K12 (K-151): Eingabezustand an den Kern – je Takt vor fn() (UI-Bausteine, Blick.mausX)
           this.herdI(e.eingabe(h.mausX, h.mausY, h.knoepfe));
-          // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt)
+          // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt, einschließlich der Kniffe)
           this.limitBasis = this.schritte;
           this.neuGrenze();
-          if (fn !== null) {
-            h.imRueckruf = true;
-            try {
-              this.rufe(fn, [], null, node);
-            } catch (x) {
-              if (x instanceof PanikSig) h.schliessen = false;   // Panik beendet sofort – kein schliesse (§18.2)
-              throw x;
-            } finally {
-              h.imRueckruf = false;
-              h.erster = false;
-              if (h.schliessen) { h.schliessen = false; this.herdSchliesseFenster(h); }
+          try {
+            if (fn !== null) {
+              this.herdRueckruf(h, () => this.rufe(fn, [], null, node));
+              if (!h.offen) return;   // schliesse() im Rückruf: Systeme und Bild entfallen
             }
-            if (!h.offen) return;   // schliesse() im Rückruf: Systeme und Bild entfallen
+            this.herdI(e.takt());
+            // H-K13 (K-152): Kniff-Rückrufe nach Systemen und Nachlauf; gedrueckt/klick gelten wie in fn
+            if (this.kniffAn.size > 0) {
+              this.herdRueckruf(h, () => this.kniffPhase(h, node));
+              if (!h.offen) return;   // schliesse() in einem Kniff: übrige Kniffe und Bild entfallen
+            }
+          } finally {
+            h.erster = false;
           }
-          h.erster = false;
-          this.herdI(e.takt());
         }
         this.herdBild(h);
       }
@@ -7055,6 +7084,158 @@
     }
   };
   Object.assign(Laufzeit.prototype, HERD_LAUFZEIT);
+
+  // ══════════ site/js/pizza/herd/kniff.js ══════════
+  // pizza-Interpreter · Herd: Kniff – eigene pizza-Klassen als Komponente (SPEC §18.4, HERD.md §12.4 H-K13, K-152)
+  // Abschnitt von site/js/pizza.js (gemeinsamer Gültigkeitsbereich; Reihenfolge und Bau: scripts/baue-pizza.js).
+  //
+  // Der Herd-Kern kennt keine Kniffe: Anhängen, Reihenfolge und Rückrufe leben in der Laufzeit (Spiegel: laufzeit/src/herd.rs,
+  // Abschnitt „Kniff“). Bitgleich in allen Motoren, daher fest: Teile nach aufsteigender ID, je Teil Kniffe in
+  // Anhängereihenfolge, Schnappschuss zu Beginn der Phase (später angehängte Kniffe laufen ab dem nächsten Takt), vor jedem
+  // Rückruf die Prüfung „hängt noch an diesem Teil“, dieselbe Folge von Kern-Aufrufen (teil_hole RUHT/KINDER/ENTFERNT,
+  // komp_von, hole_liste, hole_zahl) wie die Wasm-Laufzeit. Programme ohne Kniffe rufen hier nichts.
+
+  // überschreibbare Rückrufe der Basisklasse (leer) und die Methoden, die jeder Kniff kann
+  const KNIFF_RUECKRUFE = ['start', 'takt', 'beimBetreten', 'beimVerlassen', 'beimKlick', 'beimEntfernen'];
+  const KNIFF_NAMEN = new Set(['teil'].concat(KNIFF_RUECKRUFE));
+  const KNIFF_TEIL_RUHT = 19, KNIFF_TEIL_KINDER = 18, KNIFF_TEIL_ENTFERNT = 14, KNIFF_TEIL_RAUM = 12;
+
+  const KNIFF_M = tabelle({
+    // teil() → das Teil, an dem der Kniff hängt, sonst karton (auch nach ohne/entferne – beimEntfernen läuft danach)
+    'teil': function (o) {
+      if (this.kueche !== null) throw this.ananas('KüchenAnanas', HERD_KUECHE);
+      const z = this.kniffZ.get(o);
+      return z === undefined || z.teil === 0 ? null : this.herdTeilObj(z.teil);
+    },
+    'start': function () { return null; },
+    'takt': function () { return null; },
+    'beimBetreten': function () { return null; },
+    'beimVerlassen': function () { return null; },
+    'beimKlick': function () { return null; },
+    'beimEntfernen': function () { return null; }
+  });
+
+  const HERD_KNIFF = {
+    istKniffKlasse(k) {
+      for (let c = k; c; c = c.basis) if (c === this.kniffWurzel) return true;
+      return false;
+    },
+    istKniff(v) { return v instanceof Obj && this.istKniffKlasse(v.klasse); },
+    // eingebaute Kniff-Methode als Funktionswert (unqualifiziert `teil()` in einer Kniff-Klasse, `dies.teil`)
+    kniffNativ(o, name, sc) {
+      return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
+    },
+    kniffZustand(k) {
+      let z = this.kniffZ.get(k);
+      if (z === undefined) { z = { teil: 0, gestartet: false }; this.kniffZ.set(k, z); }
+      return z;
+    },
+    // teil.mit(kniff): Teil lebt (Kern-Text), Kniff hängt noch nirgends
+    kniffMit(t, k) {
+      this.herdF(this.hk.e.teil_hole(t.id, KNIFF_TEIL_RAUM));
+      const z = this.kniffZustand(k);
+      if (z.teil !== 0) throw this.ananas('LaufzeitAnanas', 'Dieser Kniff hängt schon an Teil ' + z.teil + '.');
+      z.teil = t.id;
+      const l = this.kniffAn.get(t.id);
+      if (l === undefined) this.kniffAn.set(t.id, [k]); else l.push(k);
+      return k;
+    },
+    // aus der Liste des Teils lösen (Zustand teil = 0)
+    kniffLoese(k, id) {
+      this.kniffZ.get(k).teil = 0;
+      const l = this.kniffAn.get(id);
+      const i = l.indexOf(k);
+      l.splice(i, 1);
+      if (l.length === 0) this.kniffAn.delete(id);
+    },
+    // teil.ohne(kniff) → der Kniff (danach beimEntfernen) oder karton, wenn er nicht an diesem Teil hängt
+    kniffOhne(t, k, node) {
+      this.herdF(this.hk.e.teil_hole(t.id, KNIFF_TEIL_RAUM));
+      const z = this.kniffZ.get(k);
+      if (z === undefined || z.teil !== t.id) return null;
+      this.kniffLoese(k, t.id);
+      this.kniffRufe(k, 'beimEntfernen', [], node);
+      return k;
+    },
+    kniffListe(t) {
+      this.herdF(this.hk.e.teil_hole(t.id, KNIFF_TEIL_RAUM));
+      const l = this.kniffAn.get(t.id);
+      return l === undefined ? [] : l.slice();
+    },
+    kniffIds() { return Array.from(this.kniffAn.keys()).sort((a, b) => a - b); },
+    // teil.entferne(): erst der Kern (samt Kindern), dann lösen sich alle Kniffe der entfernten Teile (nach ID, je Teil in
+    // Anhängereihenfolge) und bekommen danach beimEntfernen() – ohne Kinder wird nur das Teil selbst geprüft
+    kniffEntferne(t, node) {
+      const e = this.hk.e;
+      if (this.kniffAn.size === 0) { this.herdI(e.teil_entferne(t.id)); return; }
+      const kinder = this.herdF(e.teil_hole(t.id, KNIFF_TEIL_ENTFERNT)) === 0 ? this.herdF(e.teil_hole(t.id, KNIFF_TEIL_KINDER)) : 0;
+      this.herdI(e.teil_entferne(t.id));
+      let ids;
+      if (kinder === 0) ids = this.kniffAn.has(t.id) ? [t.id] : [];
+      else ids = this.kniffIds().filter(id => this.herdF(e.teil_hole(id, KNIFF_TEIL_ENTFERNT)) !== 0);
+      const weg = [];
+      for (const id of ids) {
+        for (const k of this.kniffAn.get(id)) { this.kniffZ.get(k).teil = 0; weg.push(k); }
+        this.kniffAn.delete(id);
+      }
+      for (const k of weg) this.kniffRufe(k, 'beimEntfernen', [], node);
+    },
+    // überschriebener Rückruf? (die Basisklasse Kniff hat keine Methoden-Deklarationen – ihre Rückrufe sind leer)
+    kniffHat(k, name) { return this.findeMethodeListe(k.klasse, name) !== null; },
+    kniffRufe(k, name, args, node) {
+      const l = this.findeMethodeListe(k.klasse, name);
+      if (l === null) return;
+      this.rufeDecl(this.waehle(l, args.length), k, args, null, node, 'normal');
+    },
+    // Kniff-Phase je Takt (nach Systemen und Nachlauf, SPEC §18.2): Teile nach ID (ruhende ausgelassen, Stand zu Beginn),
+    // je Kniff: start() einmal, beimBetreten/beimVerlassen je Eintrag aus Fuehler.betreten/verlassen, beimKlick bei
+    // Taster.geklickt, takt(). Kehrt nach einem Rückruf mit herd.schliesse() sofort zurück.
+    kniffPhase(h, node) {
+      const k = this.hk, e = k.e;
+      const plan = [];
+      for (const id of this.kniffIds()) {
+        if (this.herdF(e.teil_hole(id, KNIFF_TEIL_RUHT)) !== 0) continue;
+        plan.push(id, this.kniffAn.get(id).slice());
+      }
+      const fu = k.schema.nachName.get('Fuehler'), ta = k.schema.nachName.get('Taster');
+      const fBetreten = fu && fu.feldNachName.get('betreten'), fVerlassen = fu && fu.feldNachName.get('verlassen');
+      const fGeklickt = ta && ta.feldNachName.get('geklickt');
+      for (let p = 0; p < plan.length; p += 2) {
+        const id = plan[p];
+        for (const kn of plan[p + 1]) {
+          const z = this.kniffZ.get(kn);
+          if (z.teil !== id) continue;
+          if (!z.gestartet) {
+            z.gestartet = true;
+            this.kniffRufe(kn, 'start', [], node);
+            if (h.schliessen) return;
+          }
+          for (const [name, f] of [['beimBetreten', fBetreten], ['beimVerlassen', fVerlassen]]) {
+            if (z.teil !== id || !f || !this.kniffHat(kn, name)) continue;
+            const fh = this.herdI(e.komp_von(id, fu.nummer));
+            if (fh === 0) continue;
+            for (const anderes of this.herdHole(fh, fu, f)) {
+              if (z.teil !== id) break;
+              this.kniffRufe(kn, name, [anderes], node);
+              if (h.schliessen) return;
+            }
+          }
+          if (z.teil === id && fGeklickt && this.kniffHat(kn, 'beimKlick')) {
+            const th = this.herdI(e.komp_von(id, ta.nummer));
+            if (th !== 0 && this.herdHole(th, ta, fGeklickt) === true) {
+              this.kniffRufe(kn, 'beimKlick', [], node);
+              if (h.schliessen) return;
+            }
+          }
+          if (z.teil === id && this.kniffHat(kn, 'takt')) {
+            this.kniffRufe(kn, 'takt', [], node);
+            if (h.schliessen) return;
+          }
+        }
+      }
+    }
+  };
+  Object.assign(Laufzeit.prototype, HERD_KNIFF);
 
   // ══════════ site/js/pizza/api.js ══════════
   // pizza-Interpreter · API (run, intern, öffentliches Objekt)

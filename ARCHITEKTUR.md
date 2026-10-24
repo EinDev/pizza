@@ -73,12 +73,12 @@ Keine Zeichenketten über Zeilengrenzen (der Bau prüft das).
 | `theke/tabellen.js` · `theke/laufzeit.js` | Theke: Klassen, Stil, Tabellen · Fenster, Zettel, Bindungen |
 | `std/register.js` | `TABELLEN`, Sperren `nurRechnen`/`nurHauptkueche` (nach allen Tabellen) |
 | `kueche.js` | Küchenbrigade |
-| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-Kopf · Methodentabellen · Laufzeit, Vorbacken, `Bildchen.laden`, Spielschleife |
+| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` · `herd/kniff.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-Kopf · Methodentabellen · Laufzeit, Vorbacken, `Bildchen.laden`, Spielschleife · Kniffe (H-K13: Anhängen, Kniff-Phase je Takt, `beimEntfernen`) |
 | `api.js` | `run`, `pruefeStart`, öffentliches Objekt (`intern`) |
 
 Orte der Projekt-Pakete: PA1 (umgesetzt) Abschnitt `projekt.js` (Lader), `bestellt` und Datei-Index `di` in `parser.js`, Feld
 `datei`/API in `api.js` und `laufzeit/kern.js` (`dateiPfad`, `ortText`, `this.d`); PD2 (umgesetzt) `Kiste` in `std/kiste.js`, Vorbacker/Teigling-Kopf in `herd/kern.js`, `Bildchen.laden` und Vorbacken (`vorbacke`) in `herd/tabellen.js`/`herd/laufzeit.js`;
-H-K12–H-K14 in `herd/` (Kniff-Dispatch in `laufzeit/aufrufe.js`, Importgruppe `klang` als neuer Abschnitt `herd/klang.js`).
+H-K12–H-K14 in `herd/` (H-K13 umgesetzt: Kniffe in `herd/kniff.js`, die eingebauten Kniff-Methoden in `laufzeit/aufrufe.js`/`namen.js`/`pruefung.js` neben den Ananas-Methoden; Importgruppe `klang` als neuer Abschnitt `herd/klang.js`).
 
 ```js
 PizzaLang.version            // "3.1.0"

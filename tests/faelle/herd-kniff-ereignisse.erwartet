@@ -1,0 +1,37 @@
+bote start #1
+muenze takt 4
+muenze takt 5
+muenze takt 6
+bote start #1
+bote rein 4 #2
+muenze 4 +1 #2
+muenze weg #2
+muenze takt 5
+muenze takt 6
+muenze takt 5
+muenze takt 6
+bote takt x=80
+muenze takt 5
+muenze takt 6
+bote takt x=0
+bote rein 5 #5
+muenze 5 +2 #5
+muenze weg #5
+muenze takt 6
+klick 1 #5
+muenze takt 6
+muenze takt 6
+bote rein 6 #8
+bote takt x=120
+muenze 6 +3 #8
+muenze weg #8
+bote takt x=0
+bote rein 7 #10
+bote takt x=140
+bote takt x=0
+bote raus 7 #13
+bote takt x=100
+bote takt x=0
+bote takt x=60
+bote takt x=0
+punkte 6, klicks 1, bote x=60

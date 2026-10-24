@@ -44,6 +44,7 @@ const ABSCHNITTE = [
   'herd/kern.js',
   'herd/tabellen.js',
   'herd/laufzeit.js',
+  'herd/kniff.js',          // Kniff: eigene Klassen als Komponente, Rückrufe je Takt (H-K13)
   'api.js',                 // run, pruefeStart, return { … }
 ];
 

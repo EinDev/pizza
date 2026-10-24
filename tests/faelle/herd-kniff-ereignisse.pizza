@@ -1,0 +1,50 @@
+// Herd §18.4 / HERD.md §12.4 H-K13 (K-152): Kniff-Rückrufe aus Systemen – beimBetreten/beimVerlassen je Eintrag aus
+// Fuehler.betreten/verlassen (nach ID), beimKlick bei Taster.geklickt (Maus aus .ereignisse), Reihenfolge je Kniff:
+// start → betreten → verlassen → klick → takt; eine Münze entfernt sich in beimBetreten selbst (danach keine Rückrufe mehr)
+Herd herd = neu Herd("Kniff-Ereignisse", breite: 320, hoehe: 180);
+Blech<margherita> log = [];
+salami punkte = 0;
+
+klasse Laeufer erbt Kniff {
+    leer start() { log.hinzu(("bote start #" + herd.bildnummer())); }
+    leer beimBetreten(Teil anderes) { log.hinzu(("bote rein " + anderes.id() + " #" + herd.bildnummer())); }
+    leer beimVerlassen(Teil anderes) { log.hinzu(("bote raus " + anderes.id() + " #" + herd.bildnummer())); }
+    leer takt() { falls (herd.bildnummer() % 4 == 0) { log.hinzu(("bote takt x=" + teil().x())); } }
+}
+klasse Muenze erbt Kniff {
+    salami wert;
+    Muenze(salami wert) { dies.wert = wert; }
+    leer beimBetreten(Teil anderes) {
+        punkte = punkte + wert;
+        log.hinzu(("muenze " + teil().id() + " +" + wert + " #" + herd.bildnummer()));
+        teil().entferne();
+    }
+    leer takt() { log.hinzu(("muenze takt " + teil().id())); }
+    leer beimEntfernen() { log.hinzu(("muenze weg #" + herd.bildnummer())); }
+}
+klasse Schalter erbt Kniff {
+    salami klicks = 0;
+    leer beimKlick() { klicks = klicks + 1; log.hinzu(("klick " + klicks + " #" + herd.bildnummer())); }
+}
+
+Teil bote = herd.kreis(40, 90, 10, farbe: "tomate");
+bote.mit(neu Fuehler());
+bote.mit(neu Bewegung(tempoX: 600));
+bote.mit(neu Laeufer());
+für (salami i = 0; i < 3; i++) {
+    Teil m = herd.kreis(70 + i * 30, 90, 5, farbe: "senf");
+    m.mit(neu Fuehler());
+    m.mit(neu Muenze(i + 1));
+}
+Teil wand = herd.rechteck(150, 90, 6, 60, farbe: "grau");
+wand.mit(neu Fuehler());
+// ein Kniff ohne Fühler am Teil: beimBetreten wird nie gerufen
+herd.gruppe(0, 0).mit(neu Laeufer());
+Teil knopf = herd.gruppe(260, 150);
+knopf.mit(neu Taster(inhalt: "OK", breite: 60, hoehe: 30));
+Schalter s = knopf.mit(neu Schalter());
+herd.backe(() -> {
+    falls (herd.bildnummer() == 12) { bote.bewegung().setzeTempoX(-600); }
+});
+für (margherita z : log) { Bote.sage((z)); }
+Bote.sage(("punkte " + punkte + ", klicks " + s.klicks + ", bote x=" + bote.x()));

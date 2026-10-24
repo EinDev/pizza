@@ -44,13 +44,17 @@ pub mod teilfeld {
     pub const WELT_Z: i32 = 17;
     /// nur lesen: Anzahl Kinder
     pub const KINDER: i32 = 18;
+    /// nur lesen: 1 = ruht (selbst oder geerbt: `Vorlage`, ausgeschaltete `Kulisse`); H-K13: ruhende Teile bekommen keine
+    /// Kniff-Rückrufe
+    pub const RUHT: i32 = 19;
 }
 
-/// Teil-Methoden der Sprache (SPEC §18.4) – kein Komponentenname darf kleingeschrieben einer davon sein.
+/// Teil-Methoden der Sprache (SPEC §18.4) – kein Komponentenname darf kleingeschrieben einer davon sein. `kniffe` (H-K13) lebt
+/// nur in den Laufzeiten (der Kern kennt keine Kniffe), steht aber hier, damit keine Komponente `Kniffe` heißen kann.
 pub const TEIL_METHODEN: &[&str] = &[
     "x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen",
     "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge",
-    "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id",
+    "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe",
 ];
 
 /// Der Kern: höchstens eine Welt (ein Herd pro Programm), Fehlerzustand, letztes Bildpaket.
@@ -390,6 +394,7 @@ impl Kern {
                     }
                 }
                 teilfeld::KINDER => w.teile.kinder[z].len() as f64,
+                teilfeld::RUHT => w.teile.welt_ruht[z] as i32 as f64,
                 _ => return Err(fehler::lage_feld(feld)),
             })
         })();
@@ -1291,7 +1296,7 @@ pub fn schema_json(mit_test: bool) -> String {
     s.push_str("\n  ],\n  \"teil_felder\": [");
     let tf = [
         "x", "y", "z", "drehung", "neigung", "rollen", "groesseX", "groesseY", "groesseZ", "ebene", "sichtbar", "raum", "eltern", "entfernt", "weltX",
-        "weltY", "weltZ", "kinder",
+        "weltY", "weltZ", "kinder", "ruht",
     ];
     for (i, n) in tf.iter().enumerate() {
         if i > 0 {

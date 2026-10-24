@@ -124,7 +124,7 @@ class LaufzeitNamen {
       if (st !== null) { if (st.mod !== null) this.pruefeZugriff(st, null, sc.ctx, name); return st.w; }
       const l = this.findeMethodeListe(o.klasse, name);
       if (l !== null) return new Gebunden(o, l, name);
-      if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || OBJ_M[name]) {
+      if ((this.istAnanasKlasse(o.klasse) && ANANAS_M[name]) || (KNIFF_NAMEN.has(name) && this.istKniffKlasse(o.klasse)) || OBJ_M[name]) {
         return new NativFn(name, (pos, ben, node) => this.objMethode(o, name, pos, ben, node, sc), o);
       }
       throw this.ananas('LaufzeitAnanas', 'Feld \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');

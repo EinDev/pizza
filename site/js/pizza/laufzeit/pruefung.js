@@ -117,7 +117,7 @@ class LaufzeitPruefung {
         }
         for (const md of d.methoden) {
           if (!md.annos.some(a => a.name === 'PizzaÜberschreibt')) continue;
-          let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M);
+          let ok = md.name === 'alsText' || (this.istAnanasKlasse(k) && md.name in ANANAS_M) || (this.istKniffKlasse(k) && KNIFF_NAMEN.has(md.name));
           if (!ok && k.basis && this.findeMethodeListe(k.basis, md.name)) ok = true;
           if (!ok) {
             for (let c = k; c && !ok; c = c.basis) {

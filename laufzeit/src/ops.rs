@@ -37,7 +37,7 @@ pub fn ananas_obj(kname: u32, t: W) -> W {
     let k = klasse_nach_name(kname).unwrap_or(K_LAUFZEIT as i32) as u32;
     let kl = kl(k);
     kl.zaehler += 1.0;
-    neu_w(Obj { art: A_OBJ, klasse: k, nr: kl.zaehler, felder: Vec::new(), zugeklappt: 0, nachricht: t, cache: 0 })
+    neu_w(Obj { art: A_OBJ, klasse: k, nr: kl.zaehler, felder: Vec::new(), zugeklappt: 0, nachricht: t, cache: 0, kniff: 0 })
 }
 pub fn wirf_ananas_w(knr: u32, t: W) {
     if crate::sig() { return; }

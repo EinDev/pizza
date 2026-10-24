@@ -106,7 +106,9 @@ unverändert weiter.
 **Herd** (SPEC §18, Paket H4): Herd-Programme werden kompiliert; die Laufzeit (`laufzeit/src/herd.rs`) bildet `Herd`, `Teil`, `Form`,
 `Bildchen` und **alle Komponenten generisch aus `schema_json` des geladenen Kerns** ab (wie der Interpreter) und spricht den Kern über
 die Importgruppe `herd` an (HOST-ABI §2). Der JS-Host bindet sie direkt an die Exporte einer `kern.wasm`-Instanz (`optionen.herdKern`,
-in Node `site/js/herd/kern.wasm`); `onHerd(art, daten)` wie im Interpreter.
+in Node `site/js/herd/kern.wasm`); `onHerd(art, daten)` wie im Interpreter. **Kniffe** (H-K13, K-152) leben ganz in der Laufzeit
+(`herd.rs`, Abschnitt Kniff; Zustand je Objekt über das Feld `Obj.kniff`): die Basisklasse `Kniff` ist Laufzeitklasse 16, eigene Klassen
+beginnen bei 17 (IR.md §1); Ablauf und Kern-Aufrufe der Kniff-Phase sind dieselben wie im Interpreter (`site/js/pizza/herd/kniff.js`).
 `faehigkeiten` ist die maschinenlesbare Auskunft für Harnische und UI: `laufOptionen` = vom JS-Host ausgewertete
 `optionen`-Felder, `importgruppen` = HOST-ABI §2, `features` = Sprachbereiche, die ohne Fallback kompiliert werden
 (Programme mit anderen Konstrukten melden weiterhin `nichtUnterstuetzt`).

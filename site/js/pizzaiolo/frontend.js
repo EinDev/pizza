@@ -12,7 +12,7 @@
 })(typeof self !== 'undefined' ? self : (typeof globalThis !== 'undefined' ? globalThis : this), function () {
   'use strict';
 
-  // Eingebaute Ananas (SPEC §9, K-105): Reihenfolge = Laufzeit-Klassenindex 0–15 (laufzeit/src/namen.rs ANANAS_BAUM); eigene Klassen ab 16.
+  // Eingebaute Ananas (SPEC §9, K-105): Reihenfolge = Laufzeit-Klassenindex 0–15 (laufzeit/src/namen.rs ANANAS_BAUM); danach die Herd-Basisklasse Kniff (16, H-K13, laufzeit/src/klassen.rs K_KNIFF); eigene Klassen ab 17.
   const ANANAS_BAUM = [
     ['Ananas', null], ['GeprüfteAnanas', 'Ananas'], ['VerbranntAnanas', 'GeprüfteAnanas'], ['LieferAnanas', 'GeprüfteAnanas'],
     ['LaufzeitAnanas', 'Ananas'], ['StreitAnanas', 'LaufzeitAnanas'], ['RechenAnanas', 'LaufzeitAnanas'],
@@ -21,11 +21,13 @@
     ['ZugriffsAnanas', 'LaufzeitAnanas'], ['ZugeklapptAnanas', 'LaufzeitAnanas'],
     ['UnbekanntePizzaAnanas', 'LaufzeitAnanas'], ['KüchenAnanas', 'LaufzeitAnanas']
   ];
-  const KLASSEN_BASIS = ANANAS_BAUM.length; // 16
+  const KLASSEN_BASIS = ANANAS_BAUM.length + 1; // 17 (16 Ananas + Kniff)
+  // eingebaute Methoden der Basisklasse Kniff (SPEC §18.4): ein unqualifizierter Aufruf in einer Klasse geht über den Kontext
+  const KNIFF_NAMEN = new Set(['teil', 'start', 'takt', 'beimBetreten', 'beimVerlassen', 'beimKlick', 'beimEntfernen']);
   const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel']);
   const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
-    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer']);
+    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer', 'Kniff']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
   // Herd (SPEC §18): Klassennamen nur für die Importgruppe `herd` – Verhalten und Komponenten kommen zur Laufzeit
@@ -671,7 +673,7 @@
     /** Top-Level-Funktion statisch auflösbar? (keine Neuzuweisung, keine Überladung/Annotationen, passende Argumente) */
     direktZiel(n, ref, kontext, fn) {
       if (ref.art !== 'global' || !this.globalFnNamen.has(n.name) || this.zugewiesen.has(n.name)) return null;
-      if (kontext && this.methodenNamen.has(n.name)) return null;
+      if (kontext && (this.methodenNamen.has(n.name) || KNIFF_NAMEN.has(n.name))) return null;
       if (n.args.ben) return null;
       const liste = this.globalFnDecl.get(n.name) || [];
       if (!liste.length) return null;

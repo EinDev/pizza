@@ -1,0 +1,19 @@
+// H-K13 (K-152): Kniffe und Küchenbrigade – teil() und mit() nur in der Hauptküche (KüchenAnanas), ein Kniff-Objekt aus
+// der Küche ist eine Kopie und hängt nirgends; Kniff-Rückrufe im Takt bleiben in der Hauptküche
+Herd herd = neu Herd("Kniff-Küche", breite: 64, hoehe: 64);
+klasse Zaehler erbt Kniff {
+    salami n = 0;
+    leer takt() { n = n + 1; teil().verschiebe(1, 0); }
+}
+Teil t = herd.gruppe(1, 1);
+Zaehler z = t.mit(neu Zaehler());
+probier { [1, 2].brigade(x -> z.teil()); } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1].brigade(x -> z.start()); Bote.sage(("leerer Rückruf geht")); } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+probier { [1].brigade(x -> z.takt()); } verbrannt (KüchenAnanas a) { Bote.sage((a.nachricht())); }
+Blech<Zaehler> kopien = [1, 2].brigade(x -> neu Zaehler());
+Bote.sage((kopien.länge() + " " + kopien.erstes().teil()));
+herd.backe(() -> {
+    Blech<salami> r = [1, 2, 3].brigade(x -> x * 2);
+    falls (herd.bildnummer() == 3) { Bote.sage(("n=" + z.n + " x=" + t.x() + " " + r)); herd.schliesse(); }
+});
+Bote.sage(("ende n=" + z.n));

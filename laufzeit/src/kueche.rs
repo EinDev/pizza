@@ -329,7 +329,7 @@ fn lies_wert(l: &mut Leser, memo: &mut Vec<W>) -> W {
             let klasse = l.u32();
             let nr = l.f64();
             let zugeklappt = l.u32();
-            let w = neu_w(Obj { art: A_OBJ, klasse, nr, felder: Vec::new(), zugeklappt, nachricht: KARTON, cache: 0 });
+            let w = neu_w(Obj { art: A_OBJ, klasse, nr, felder: Vec::new(), zugeklappt, nachricht: KARTON, cache: 0, kniff: 0 });
             memo.push(w);
             let nachricht = lies_wert(l, memo);
             obj::<Obj>(w).nachricht = nachricht;

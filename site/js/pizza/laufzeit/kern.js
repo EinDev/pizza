@@ -84,6 +84,15 @@ class Laufzeit {
       o.nachricht = pos.length && pos[0] !== null && pos[0] !== undefined ? this.text(pos[0]) : '';
     };
     this.ananasWurzel = this.klassen.get('Ananas');
+    // Herd H-K13 (K-152): eingebaute, erbbare Klasse Kniff (Rohling: `neu Kniff()` geht nicht, `erbt Kniff` schon);
+    // Laufzeit-Klassenindex 16 im Wasm (nach den 16 Ananas). Eine eigene Klasse Kniff hat Vorrang (Map, spätere gewinnen).
+    const kniff = new Klasse('Kniff', null);
+    kniff.eingebaut = true;
+    kniff.rohling = true;
+    this.klassen.set('Kniff', kniff);
+    this.kniffWurzel = kniff;
+    this.kniffAn = new Map();   // Teil-ID → [Kniff-Obj] in Anhängereihenfolge (herd/kniff.js)
+    this.kniffZ = new Map();    // Kniff-Obj → { teil, gestartet }
     const L = this;
     this.globals = new Map([
       ['Bote', new Modul('Bote', BOTE_M, null)],

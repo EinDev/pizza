@@ -29,6 +29,7 @@ const HERD_KOMPONENTEN = (function () {
 })();
 const HERD_KOMP_NAMEN = new Set(HERD_KOMPONENTEN);
 for (const n of HERD_KLASSEN.concat(HERD_KOMPONENTEN)) if (TYPEN.indexOf(n) < 0) TYPEN.push(n);
+if (TYPEN.indexOf('Kniff') < 0) TYPEN.push('Kniff');   // H-K13: erbbare Basisklasse (herd/kniff.js), keine Herd-Klasse für neu
 
 // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
 const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,

@@ -1684,8 +1684,11 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
 | `Form` | `(punkte, dreiecke, glatt: nein)` | `id()`; statisch `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)` |
 | `Bildchen` | `(zeilen, farben: karton)` | `breite()`, `hoehe()`, `id()` |
 | Komponenten | `(feld: wert, …)` | generisch aus dem Schema (§18.4), Liste §18.6 |
+| `Kniff` | – (Rohling; nur `erbt Kniff`) | `teil()`; überschreibbar `start()`, `takt()`, `beimBetreten(Teil anderes)`, `beimVerlassen(Teil anderes)`, `beimKlick()`, `beimEntfernen()` (§18.4 „Kniffe“, K-152) |
 
-- Alle sind eingebaute Klassen wie die Theke-Zutaten: `erbt Herd` → P0010; eine eigene Klasse gleichen Namens hat Vorrang. Statisch
+- Alle sind eingebaute Klassen wie die Theke-Zutaten: `erbt Herd` → P0010; eine eigene Klasse gleichen Namens hat Vorrang. **Ausnahme
+  `Kniff` (H-K13, K-152):** die einzige erbbare Herd-Klasse – `klasse Wackler erbt Kniff { … }` ist erlaubt, `neu Kniff()` →
+  `RohlingAnanas: Ein Rohling ist nicht essbar.`; sie gibt es auch ohne `neu Herd` (anhängen kann man Kniffe nur an Teile). Statisch
   an `Herd`: `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"` (r, g, b gerundet und auf 0 … 255 geklemmt, a auf 0 … 1 geklemmt, × 255 gerundet,
   Kleinbuchstaben). Textformen: `Herd(<titel>)`, `Teil(<id>)`, `Form(<id>)`, `Bildchen(<breite>×<hoehe>)`, Komponente `<Name>(<teil-id>)`
   bzw. `<Name>()` solange sie an keinem Teil hängt.
@@ -1711,11 +1714,14 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
   2. Es wartet auf ein Fenster-Ereignis (kostet weder Schritte noch Zeit noch Budget). `{"typ":"takt","anzahl":n,…}`: Eingabezustand
      übernehmen (§18.3), dann `n`-mal: `bildnummer` + 1, Schrittlimit-Basis setzen (P0002 je Takt, wie K-087), `fn()` aufrufen (falls
      gesetzt), dann die **Systeme** der Komponenten (Registry-Reihenfolge, `dt = 1/60`), danach ihre **Nachlauf**-Systeme (wieder
-     Registry-Reihenfolge; sehen die Lage nach allen Systemen dieses Takts, K-149). Danach **ein** Bild senden (§18.7). `anzahl`
+     Registry-Reihenfolge; sehen die Lage nach allen Systemen dieses Takts, K-149), danach die **Kniff-Rückrufe** (§18.4, K-152; dasselbe
+     Schrittbudget, `gedrueckt`/`losgelassen`/`klick` gelten dort wie in `fn`). Danach **ein** Bild senden (§18.7). `anzahl`
      fehlt/ungültig → 1, größer als 4 → 4. `{"typ":"geschlossen"}` → Schleife endet. Andere Ereignisse werden ignoriert.
   3. `herd.schliesse()` im Rückruf: Der Rückruf läuft zu Ende, Systeme und Bild entfallen, `schliesse` wird gesendet, `backe` kehrt zurück.
+     In einem Kniff-Rückruf: der Rückruf läuft zu Ende, die übrigen Kniffe dieses Takts und das Bild entfallen.
 - Ananas aus `fn` verlassen `backe` (fangbar); die Systeme dieses Takts laufen nicht, es wird kein Bild gesendet, das Fenster bleibt
-  offen; erneutes `backe` macht weiter. Panik beendet sofort (kein `schliesse`).
+  offen; erneutes `backe` macht weiter. Ananas aus einem Kniff-Rückruf ebenso (die Systeme dieses Takts sind dann schon gelaufen, die
+  übrigen Kniffe nicht). Panik beendet sofort (kein `schliesse`).
 - **Programmende (wie K-061):** offenes Fenster → `schliesse` am Ende, auch bei Ananas/P0002, nicht bei Panik.
 - **Ohne Renderer (wie K-063):** fehlen `onUiWarte` und `uiEreignisse` → `backe` öffnet und schließt das Fenster (Ereignisse `fenster`,
   `schliesse`), warnt je Aufrufstelle `W0104: Kein Herd verfügbar – Fenster wird nicht angezeigt.` und kehrt sofort zurück.
@@ -1752,6 +1758,7 @@ Zeichenreihenfolge, gleich → nach ID); 3D: rechtshändig, y oben, Drehung in G
 | `kopie()` | neues Teil mit Kopien aller Komponenten und Kinder; die Komponente `Vorlage` an der Wurzel kommt nicht mit (H-K8: aus dem ruhenden Muster wird ein waches Teil) |
 | `trifft(anderes)` → diavolo | Hüllen überlappen sich (2D: Kreis als Kreis, sonst Rechteck in Weltlage; 3D: achsenparallele Hüllquader); anderer Raum oder unsichtbar → `nein` |
 | `mit(komponente)` → Komponente | hängt an (§ unten); `<name>()` → die Komponente dieser Art oder `karton`; `ohne("Name")` entfernt sie |
+| `mit(kniff)` → Kniff, `ohne(kniff)` → Kniff oder `karton`, `kniffe()` → `Blech<Kniff>` | eigene Kniffe (unten, H-K13) |
 | `raum()` → `"2D"`/`"3D"`, `id()` | |
 
 **Komponenten generisch (K-132):** Jede Komponente des Schemas (`site/js/herd/schema.json`, erzeugt aus dem Kern) heißt in pizza wie im
@@ -1778,6 +1785,27 @@ Schema und ist eine eingebaute Klasse:
 - **Lesefelder (K-149):** Felder, die nur das System der Komponente schreibt (im Schema `lesen`). Getter wie immer; Setter `setze<Feld>(w)`,
   `setze("feld", w)` und das Konstruktor-Argument (auch mit falschem Typ) → `LaufzeitAnanas: <Name>.<feld> kann man nur lesen.`; `karton`
   bzw. ein fehlendes Konstruktor-Argument setzen nichts und sind erlaubt.
+
+**Kniffe – eigene Klassen als Komponente (H-K13, K-152):** Eine Klasse, die (auch über Zwischenklassen) von der eingebauten Klasse
+`Kniff` erbt, ist ein Kniff (Unity: MonoBehaviour). Der Herd-Kern kennt Kniffe nicht; sie leben in der Laufzeit.
+- `teil.mit(k)` hängt den Kniff an (Teil entfernt → `LaufzeitAnanas: Teil 7 ist schon entfernt.`; hängt er schon irgendwo →
+  `LaufzeitAnanas: Dieser Kniff hängt schon an Teil 3.`) und liefert ihn; beliebig viele Kniffe je Teil, auch derselben Klasse.
+  `teil.kniffe()` → neues Blech in Anhängereihenfolge; `teil.ohne(k)` löst ihn (hing er nicht an diesem Teil → `karton`, kein Fehler).
+  `kopie()` übernimmt **keine** Kniffe (Muster: eine Fabrikfunktion, die das Teil anlegt und seine Kniffe anhängt).
+- Im Kniff: `teil()` → das Teil oder `karton` – auch unqualifiziert in Methoden der Klasse (nach den eigenen Methoden, vor globalen
+  Namen). `start`, `takt`, `beimBetreten`, `beimVerlassen`, `beimKlick`, `beimEntfernen` sind in `Kniff` leer; eine eigene Methode
+  gleichen Namens überschreibt sie (`@PizzaÜberschreibt` erlaubt, `unten.takt()` ruft die leere). Nur überschriebene werden gerufen.
+- **Ablauf je Takt** (§18.2, nach Systemen und Nachlauf): Teile mit Kniffen in aufsteigender Teil-ID, je Teil die Kniffe in
+  Anhängereihenfolge; welche Teile und Kniffe dran sind, steht zu Beginn der Phase fest (später angehängte laufen ab dem nächsten Takt,
+  inzwischen gelöste nicht mehr). **Ruhende Teile** (`Vorlage`, ausgeschaltete `Kulisse`, auch geerbt; §18.6) bekommen **keine**
+  Rückrufe – auch `start()` wartet, bis das Teil wach ist; unsichtbare Teile schon. Je Kniff: `start()` (einmal je Kniff, auch nach
+  erneutem Anhängen nicht noch einmal), dann `beimBetreten(anderes)` je Eintrag aus `Fuehler.betreten` und `beimVerlassen(anderes)` je
+  Eintrag aus `Fuehler.verlassen` desselben Teils (nach ID, die Liste beim Erreichen gelesen), `beimKlick()`, wenn `Taster.geklickt`
+  desselben Teils `ja` ist, dann `takt()`. Vor jedem Rückruf gilt: der Kniff hängt noch an diesem Teil.
+- `beimEntfernen()` läuft, **nachdem** der Kniff sein Teil verlassen hat – sofort in `teil.ohne(k)` bzw. in `entferne()` des Teils oder
+  eines Vorfahren (dann alle betroffenen Kniffe nach Teil-ID und Anhängereihenfolge); `teil()` ist dort schon `karton`.
+- Rückrufe kosten Schritte wie jeder Aufruf; P0002 gilt je Takt für `fn` und Kniffe zusammen. In Stücken einer `brigade` → `teil()`,
+  `mit`, `ohne`, `kniffe` wie alle Herd-Methoden `KüchenAnanas` (ein Kniff-Objekt aus einer Küche ist eine Kopie und hängt nirgends).
 
 ### 18.5 Herd: Welt, Fabriken, Farben, Ressourcen (K-136)
 

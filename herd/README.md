@@ -157,7 +157,7 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `teil_haenge` | `(teil, an) → 0` | `an = 0` löst; lokale Lage bleibt; Zyklus/Raum → Fehler |
 | `teil_kinder` | `(teil, ptr, kap) → n` | Kinder-IDs (u32 LE) in Anhänge-Reihenfolge, Retry (kap in Elementen) |
 | `teil_setze` | `(teil, feld, wert f64) → 0` | Lage-Feld (Tabelle unten) |
-| `teil_hole` | `(teil, feld) → f64` | Lage-Feld lesen; `14` (entfernt) wirft nie |
+| `teil_hole` | `(teil, feld) → f64` | Lage-Feld lesen; `14` (entfernt) wirft nie; `19` (ruht, H-K13) für die Kniff-Phase der Laufzeiten |
 | `teil_lage` / `teil_verschiebe` | `(teil, x, y, z) → 0` | `setzeLage`/`verschiebe`; 2D: z ≠ 0 → Fehler |
 | `teil_groesse` | `(teil, sx, sy, sz) → 0` | `setzeGroesse` (2D ignoriert sz) |
 | `teil_schaue` | `(teil, x, y, z) → 0` | `schaueAuf` (nur 3D): −z-Achse zeigt auf den Punkt, rollen = 0 |
@@ -193,7 +193,7 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 
 **Lage-Felder** (`teil_setze`/`teil_hole`): 1 x, 2 y, 3 z, 4 drehung, 5 neigung, 6 rollen, 7 groesseX, 8 groesseY,
 9 groesseZ, 10 ebene (2D, Ganzzahl), 11 sichtbar (0/1); nur lesen: 12 raum (2/3), 13 eltern (0 = keins), 14 entfernt (0/1),
-15 weltX, 16 weltY, 17 weltZ, 18 Anzahl Kinder. 3D-Felder (z, neigung, rollen, groesseZ) an 2D-Teilen und `ebene` an
+15 weltX, 16 weltY, 17 weltZ, 18 Anzahl Kinder, 19 ruht (0/1: selbst oder geerbt `Vorlage` bzw. ausgeschaltete `Kulisse`; H-K13). 3D-Felder (z, neigung, rollen, groesseZ) an 2D-Teilen und `ebene` an
 3D-Teilen → `LaufzeitAnanas: Teil 5 ist ein 2D-Teil – neigung gibt es nur für 3D-Teile.` (bzw. `… 3D-Teil – ebene gibt es nur
 für 2D-Teile.`).
 
@@ -311,7 +311,7 @@ Spielfeld ohne Tiefe, nur mit eigenem Fragment-Shader (§9).
 Erzeugt von `node herd/baue.js` aus `schema_json`; ein Test vergleicht Datei und Kern. Inhalt: `format`, `feldtypen`
 (Nummer, Name, `erwartet`-Text), `komponenten` (Name, Nummer = Typnummer, `genus` `m|f|n` für Fehlertexte wie „Dieser Kreis …“, Raum `2D|3D|beide`, `braucht`, `system`, `felder`
 mit Nummer, Name, Typ, Standard (Listen `[]`), min, max, `wahl`, ab H-K0 `"lesen": true` bzw. `"nachtrag": true` – nur wenn
-gesetzt; `system` ist wahr bei `takt` oder `nachlauf`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (für die
+gesetzt; `system` ist wahr bei `takt` oder `nachlauf`), `teil_felder` (Lage-Feldnummern), `teil_methoden` (seit H-K13 mit `kniffe` – die Teil-Methode lebt nur in den Laufzeiten; für die
 Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf darunter sein), `palette` (Name, Hex, Zeichen),
 `grundformen`. Test-Komponenten (`Probe`) fehlen.
 

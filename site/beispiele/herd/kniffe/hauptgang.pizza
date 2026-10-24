@@ -1,0 +1,145 @@
+// Kniffe: Der Pizzabote sammelt Münzen auf der Wiese, eine Olive läuft Streife und eine Tomate verfolgt ihn. Jedes Ding im
+// Spiel ist eine eigene Klasse, die von Kniff erbt und ihr Verhalten selbst mitbringt (wie ein MonoBehaviour in Unity).
+// Zeigt: klasse … erbt Kniff, start()/takt(), beimBetreten (aus dem Fühler), beimKlick (aus dem Taster), beimEntfernen,
+// mehrere Kniffe an einem Teil, eine Fabrikfunktion statt kopie() (Kniffe werden nicht mitkopiert).
+
+Herd herd = neu Herd("Kniffe", breite: 640, hoehe: 360);
+herd.hintergrund("basilikum");
+herd.rechteck(320, 22, 640, 44, farbe: "#2f6f33");                          // Leiste oben
+für (salami i = 0; i < 30; i++) {                                            // Grasbüschel (nur Deko)
+    herd.rechteck(16 + (i * 149) % 608, 70 + (i * 89) % 280, 3, 8, farbe: "#4f9a45", rundung: 1.5);
+}
+salami punkte = 0;
+salami leben = 3;
+salami uebrig = 0;
+
+// ---------- Kniffe ----------
+
+// Pfeiltasten bewegen das Teil, am Rand ist Schluss
+klasse Steuerung erbt Kniff {
+    funghi tempo;
+    Steuerung(funghi tempo) { dies.tempo = tempo; }
+    leer takt() {
+        Teil t = teil();
+        falls (herd.taste("Links") && t.x() > 20) { t.verschiebe(-tempo, 0); }
+        falls (herd.taste("Rechts") && t.x() < 620) { t.verschiebe(tempo, 0); }
+        falls (herd.taste("Hoch") && t.y() > 64) { t.verschiebe(0, -tempo); }
+        falls (herd.taste("Runter") && t.y() < 340) { t.verschiebe(0, tempo); }
+    }
+}
+
+// Blinken nach einem Treffer – ein zweiter Kniff am selben Teil
+klasse Blinker erbt Kniff {
+    salami rest = 0;
+    leer los() { rest = 48; }
+    leer takt() {
+        falls (rest > 0) {
+            rest = rest - 1;
+            teil().sichtbar(rest % 8 < 4);
+        }
+    }
+}
+
+// Eine Münze wächst beim Erscheinen, wackelt und zählt, wenn der Bote sie berührt
+klasse Muenze erbt Kniff {
+    salami wert;
+    funghi phase;
+    Muenze(salami wert, funghi phase) { dies.wert = wert; dies.phase = phase; }
+    leer start() { teil().setzeGroesse(0.2); uebrig = uebrig + 1; }
+    leer takt() {
+        Teil t = teil();
+        falls (t.groesse() < 1) { t.setzeGroesse(Mathe.min(1, t.groesse() + 0.05)); }
+        t.setzeDrehung(Mathe.sin(herd.zeit() * 4 + phase) * 25);
+    }
+    leer beimBetreten(Teil anderes) {
+        punkte = punkte + wert;
+        teil().entferne();
+    }
+    leer beimEntfernen() { uebrig = uebrig - 1; }
+}
+
+// Die Olive läuft zwischen zwei Punkten hin und her
+klasse Streife erbt Kniff {
+    funghi von;
+    funghi bis;
+    funghi tempo;
+    Streife(funghi von, funghi bis, funghi tempo) { dies.von = von; dies.bis = bis; dies.tempo = tempo; }
+    leer takt() {
+        teil().verschiebe(tempo, 0);
+        falls (teil().x() < von || teil().x() > bis) { tempo = -tempo; }
+    }
+    leer beimBetreten(Teil anderes) { getroffen(); }
+}
+
+// Die Tomate rollt langsam auf den Boten zu; nach einem Treffer springt sie zurück in ihre Ecke
+klasse Verfolger erbt Kniff {
+    funghi tempo;
+    Verfolger(funghi tempo) { dies.tempo = tempo; }
+    leer takt() {
+        Teil t = teil();
+        funghi dx = bote.x() - t.x();
+        funghi dy = bote.y() - t.y();
+        funghi d = Mathe.wurzel(dx * dx + dy * dy);
+        falls (d > 1) { t.verschiebe(dx / d * tempo, dy / d * tempo); }
+    }
+    leer beimBetreten(Teil anderes) {
+        getroffen();
+        teil().setzeLage(600, 320);
+    }
+}
+
+// Die Anzeige oben schreibt jeden Takt den Stand
+klasse Anzeige erbt Kniff {
+    leer takt() { teil().text().setzeInhalt(("Münzen: " + punkte + "   Leben: " + leben + "   liegen noch: " + uebrig)); }
+}
+
+// Der Knopf streut neue Münzen aus
+klasse Streuer erbt Kniff {
+    salami runde = 0;
+    leer beimKlick() {
+        runde = runde + 1;
+        für (salami i = 0; i < 5; i++) { muenze(105 + i * 90, 110 + ((i + runde) % 3) * 90, runde + 1); }
+    }
+}
+
+// ---------- Fabriken (kopie() nimmt keine Kniffe mit – deshalb eine Funktion, die alles anlegt) ----------
+leer muenze(funghi x, funghi y, salami wert) {
+    Teil m = herd.kreis(x, y, 9, farbe: "senf");
+    herd.kreis(0, 0, 5.5, farbe: "#ffe08a").haenge(m);                       // Prägung
+    herd.rechteck(0, 0, 2, 8, farbe: "senf").haenge(m);
+    m.mit(neu Fuehler(gruppe: 2, maske: 1));                                 // Münzen spüren nur den Boten
+    m.mit(neu Muenze(wert, x * 0.05));
+}
+leer getroffen() {
+    leben = leben - 1;
+    blinker.los();
+}
+
+// ---------- Szene ----------
+Teil bote = herd.kreis(60, 200, 16, farbe: "tomate").setzeEbene(2);
+herd.kreis(0, -6, 7, farbe: "mozzarella").haenge(bote).setzeEbene(2);      // Mütze
+bote.mit(neu Fuehler(gruppe: 1, maske: 6));                                  // spürt Münzen (2) und Gefahr (3)
+bote.mit(neu Steuerung(4));
+Blinker blinker = bote.mit(neu Blinker());
+
+für (salami i = 0; i < 6; i++) { muenze(150 + i * 80, 120 + (i % 2) * 150, 1); }
+
+Teil olive = herd.kreis(320, 200, 14, farbe: "#2b2622", umriss: 7);
+herd.kreis(-5, -5, 2.5, farbe: "#8a8178").haenge(olive);                     // Glanz
+olive.mit(neu Fuehler(form: "kreis", radius: 12, gruppe: 3, maske: 1));
+olive.mit(neu Streife(140, 520, 2));
+
+Teil tomate = herd.kreis(600, 320, 12, farbe: "salami");
+herd.rechteck(0, -12, 4, 6, farbe: "#3e8e41").haenge(tomate);               // Stiel
+tomate.mit(neu Fuehler(gruppe: 3, maske: 1));
+tomate.mit(neu Verfolger(0.8));
+
+herd.text("", 16, 12, groesse: 20, farbe: "mozzarella").mit(neu Anzeige());
+Teil knopf = herd.gruppe(560, 22).setzeEbene(5);
+knopf.mit(neu Taster(inhalt: "Mehr Münzen", breite: 130, hoehe: 30));
+knopf.mit(neu Streuer());
+
+herd.backe(() -> {
+    falls (leben <= 0) { herd.schliesse(); }
+});
+Bote.sage(("Der Bote hat " + punkte + " Münzen gesammelt, " + uebrig + " liegen noch, Leben: " + leben + "."));

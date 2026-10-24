@@ -99,7 +99,7 @@ const HERD_TEIL_M = {
     if (ids === null) throw this.herdFehler();
     return ids.map(id => this.herdTeilObj(id));
   },
-  'entferne': function (t) { this.herdI(this.hk.e.teil_entferne(t.id)); return null; },
+  'entferne': function (t, pos, ben, node) { this.kniffEntferne(t, node); return null; },   // H-K13: danach beimEntfernen
   'entfernt': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 14)) !== 0; },
   'kopie': function (t) { return this.herdTeilObj(this.herdI(this.hk.e.teil_kopie(t.id))); },
   'trifft': function (t, pos, ben) {
@@ -109,13 +109,15 @@ const HERD_TEIL_M = {
   },
   'mit': function (t, pos, ben) {
     const k = arg(pos, ben, 0, 'komponente');
+    if (this.istKniff(k)) return this.kniffMit(t, k);   // H-K13: eigener Kniff statt Kern-Komponente
     if (!(k instanceof HerdKomp)) throw this.ananas('TypAnanas', 'mit() braucht eine Komponente für \'komponente\', nicht ' + this.darstellung(k === undefined ? null : k) + '.');
     this.herdI(this.hk.e.komp_haenge(k.h, t.id));
     k.teil = t.id;
     return k;
   },
-  'ohne': function (t, pos, ben) {
+  'ohne': function (t, pos, ben, node) {
     const n = arg(pos, ben, 0, 'name');
+    if (this.istKniff(n)) return this.kniffOhne(t, n, node);   // H-K13
     let art;
     if (n instanceof HerdKomp) art = n.art;
     else {
@@ -137,6 +139,7 @@ const HERD_TEIL_M = {
   },
   'raum': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 12)) === 3 ? '3D' : '2D'; },
   'id': function (t) { this.herdF(this.hk.e.teil_hole(t.id, 12)); return t.id; },   // entfernt → Kern-Text
+  'kniffe': function (t) { return this.kniffListe(t); },   // H-K13: Blech<Kniff> in Anhängereihenfolge
   'alsText': function (t) { return this.text(t); }
 };
 function herdTeilTabelle(zugriff) {

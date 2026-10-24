@@ -252,4 +252,42 @@ h.backe(() -> {
     fehler: { code: "P0002" },
     check: (res) => gleich(folge(res), ["fenster", "bild4", "schliesse"], "Folge"),
   }),
+
+  F(T, "§18.4/K-152 (H-K13): erbt Kniff ist erlaubt; start() einmal, takt() nach fn und Systemen, Teile nach ID, je Teil in Anhängereihenfolge; teil() unqualifiziert", P`
+Herd h = neu Herd();
+Blech<margherita> log = [];
+klasse K erbt Kniff {
+    margherita n;
+    K(margherita n) { dies.n = n; }
+    leer start() { log.hinzu((n + ".start")); }
+    leer takt() { log.hinzu((n + "@" + teil().x())); }
+}
+Teil a = h.gruppe(1, 0);
+a.mit(neu Bewegung(tempoX: 60));
+Teil b = h.gruppe(2, 0);
+b.mit(neu K("b"));
+a.mit(neu K("a1"));
+a.mit(neu K("a2"));
+h.backe(() -> { log.hinzu(("fn" + h.bildnummer())); });
+Bote.sage((log.verbinde(" ")));
+`, {
+    uiEreignisse: [takt(), takt()],
+    out: ["fn1 a1.start a1@2 a2.start a2@2 b.start b@2 fn2 a1@3 a2@3 b@2"],
+    check: (res) => gleich(folge(res), ["fenster", "bild1", "bild2"], "Folge"),
+  }),
+
+  F(T, "§18.4/K-152: neu Kniff() → RohlingAnanas; Kniff hängt schon; kniffe(); ohne(k) und entferne() rufen beimEntfernen danach (teil() ist karton)", P`
+Herd h = neu Herd();
+klasse W erbt Kniff { leer beimEntfernen() { Bote.sage(("weg " + teil())); } }
+probier { neu Kniff(); } verbrannt (RohlingAnanas x) { Bote.sage((x.nachricht())); }
+Teil a = h.gruppe();
+Teil b = h.gruppe();
+b.haenge(a);
+W w = a.mit(neu W());
+probier { b.mit(w); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+Bote.sage((a.kniffe() + " " + b.kniffe().länge() + " " + a.ohne(w) + " " + a.ohne(w)));
+b.mit(w);
+a.entferne();
+Bote.sage((w.teil() + " " + b.entfernt()));
+`, { out: ["Ein Rohling ist nicht essbar.", "Dieser Kniff hängt schon an Teil 3.", "weg karton", "[W@1] 0 W@1 karton", "weg karton", "karton ja"] }),
 ];

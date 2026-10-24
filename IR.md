@@ -46,13 +46,17 @@ Stücke und Zusammenführen erledigt die Laufzeit (THREADS.md §4.4, K-104).
 - `{ art: "klasse", name, idx, flags (1 rohling, 2 gebacken, 4 calzone), basis, erfuellt: [name],
   felder: [{ name, typ, flags (1 gebacken, 2 statisch), sicht (0, 1 geheim, 2 familie) }],
   methoden: [{ name, fn|null, flags (1 statisch), sicht, nparam, pos, mid }], ktoren: [{ fn, hatUnten, mid }],
-  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (**16 + n**; 0–15 sind die eingebauten Ananas in der
+  feldInit: fnId|null, statInit: fnId|null }` – `idx` = Laufzeit-Klassenindex (**17 + n** seit H-K13, davor 16 + n; 0–15 sind die eingebauten Ananas in der
   Reihenfolge von SPEC §9 / K-105: Ananas, GeprüfteAnanas, VerbranntAnanas, LieferAnanas, LaufzeitAnanas, StreitAnanas, RechenAnanas,
   LeererKartonAnanas, RohlingAnanas, GebackenAnanas, TypAnanas, KeinStückAnanas, ZugriffsAnanas, ZugeklapptAnanas, UnbekanntePizzaAnanas,
   KüchenAnanas – `laufzeit/src/namen.rs` `ANANAS_BAUM` und `frontend.js` `ANANAS_BAUM` müssen gleich lang sein).
   `KüchenAnanas` (SPEC §17, K-100) ist Laufzeitklasse 15 (`erbt LaufzeitAnanas`, am Ende von `ANANAS_BAUM`; seit THREADS-Paket P2,
   U-66). Die Indizes sind intern (jedes `.pkarton` bringt seine Laufzeit mit; kein ABI-Bruch). Eine eigene Klasse namens
-  `KüchenAnanas` überschattet die eingebaute wie bei allen eingebauten Ananas (K-098).
+  `KüchenAnanas` überschattet die eingebaute wie bei allen eingebauten Ananas (K-098). **Seit H-K13 (K-152)** folgt auf die 16 Ananas
+  die eingebaute, erbbare Herd-Basisklasse `Kniff` als Laufzeitklasse **16** (Rohling, `laufzeit/src/klassen.rs` `K_KNIFF`); eigene
+  Klassen haben deshalb `idx` = **17 + n** (`frontend.js` `KLASSEN_BASIS`). Ein unqualifizierter Aufruf von `teil`, `start`, `takt`,
+  `beimBetreten`, `beimVerlassen`, `beimKlick`, `beimEntfernen` in einer Klasse ist nie `direkt` (er geht über `kontext`, damit die
+  eingebauten Kniff-Methoden vor globalen Funktionen gleichen Namens greifen).
 - `{ art: "rezeptur", name, basen: [name] }`, `{ art: "enum", name, werte: [name×4] }`,
 - `{ art: "globalfn", name, fn, nparam, pos, mid }`.
 Basisklassen/Rezepturen werden **nach** allen Registrierungen über den Namen verknüpft (Map-Semantik: spätere gewinnen).

@@ -192,6 +192,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "UI", "Taster", "Regler", "Leiste", "Tafel", "Maus"],
       "herd": true
+    },
+    {
+      "id": "kniffe",
+      "titel": "Kniffe: Spielfiguren als eigene Klassen",
+      "beschreibung": "Der Pizzabote sammelt Münzen, eine Olive läuft Streife und eine Tomate verfolgt ihn. Jede Figur ist eine eigene Klasse, die von Kniff erbt und ihr Verhalten mitbringt: takt() je Bild, beimBetreten aus dem Fühler, beimKlick aus dem Taster, beimEntfernen beim Einsammeln.",
+      "ordner": "herd/kniffe",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Kniff", "Klassen", "Fuehler", "Spiel"],
+      "herd": true
     }
   ]
 }

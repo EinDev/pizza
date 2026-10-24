@@ -1,0 +1,73 @@
+// Herd §18.4 / HERD.md §12.4 H-K13 (K-152): Kniff – eigene Klassen als Komponente. start() einmal, takt() je Takt nach den
+// Systemen, Teile nach ID, je Teil in Anhängereihenfolge, mehrere Kniffe (auch gleiche Klasse), kniffe(), ohne(k) und
+// entferne() mit beimEntfernen() danach, kopie() ohne Kniffe, ruhende Teile (Vorlage, Kulisse aus) ohne Rückrufe,
+// gedrueckt() im takt(), unten/dies, Fehlertexte
+Herd herd = neu Herd("Kniffe", breite: 320, hoehe: 180);
+Blech<margherita> log = [];
+
+klasse Wackler erbt Kniff {
+    margherita name;
+    salami takte = 0;
+    Wackler(margherita name) { dies.name = name; }
+    @PizzaÜberschreibt
+    leer start() { log.hinzu(("start " + name + " an " + teil().id())); }
+    @PizzaÜberschreibt
+    leer takt() {
+        takte = takte + 1;
+        teil().verschiebe(1, 0);
+        falls (herd.gedrueckt("Leertaste")) { log.hinzu(("leer " + name + " #" + herd.bildnummer())); }
+        unten.takt();
+    }
+    leer beimEntfernen() { log.hinzu(("weg " + name + " teil " + dies.teil())); }
+}
+klasse Zaehler erbt Kniff {
+    salami n = 0;
+    leer takt() { n = n + 1; log.hinzu(("z" + n + " x=" + teil().x())); }
+}
+klasse Leer erbt Kniff { }
+
+Teil a = herd.kreis(10, 20, 5);
+Teil b = herd.kreis(10, 40, 5);
+Wackler w1 = neu Wackler("w1");
+Wackler w2 = neu Wackler("w2");
+// b vor a anhängen: die Reihenfolge der Rückrufe folgt der Teil-ID, nicht dem Anhängen
+b.mit(w2);
+Kniff k = a.mit(w1);
+Zaehler z = a.mit(neu Zaehler());
+a.mit(neu Leer());
+Blech<Kniff> l = a.kniffe();
+Bote.sage((k + " " + l.länge() + " " + l + " " + w1.teil() + " " + w2.teil() + " " + neu Wackler("x").teil()));
+// ruhend: Vorlage und ausgeschaltete Kulisse (auch geerbt) – keine Rückrufe, auch kein start()
+Teil muster = herd.gruppe(0, 0);
+muster.mit(neu Vorlage());
+Teil kind = herd.kreis(1, 1, 1);
+kind.haenge(muster);
+Wackler wk = kind.mit(neu Wackler("kind"));
+Teil kul = herd.gruppe(0, 0);
+Kulisse ku = kul.mit(neu Kulisse(aktiv: nein));
+kul.mit(neu Wackler("kulisse"));
+// kopie() übernimmt keine Kniffe
+Teil c = a.kopie();
+Bote.sage(("kopie " + c.kniffe().länge() + " " + c.x()));
+herd.backe(() -> {
+    falls (herd.bildnummer() == 2) {
+        Bote.sage(("ohne " + a.ohne(z) + " " + a.ohne(z) + " " + z.teil() + " " + a.kniffe().länge()));
+    }
+    falls (herd.bildnummer() == 3) { muster.ohne("Vorlage"); ku.setzeAktiv(ja); }
+    falls (herd.bildnummer() == 4) { b.entferne(); }
+    falls (herd.bildnummer() == 5) { muster.entferne(); herd.schliesse(); }
+});
+für (margherita s : log) { Bote.sage((s)); }
+Bote.sage(("takte " + w1.takte + " " + w2.takte + " " + wk.takte + " a.x=" + a.x() + " c.x=" + c.x()));
+// Kniff wieder anhängen: start() kommt nicht noch einmal
+Teil d = herd.rechteck(5, 5, 2, 2);
+d.mit(w2);
+Bote.sage(("w2 an " + w2.teil() + " " + d.kniffe()));
+probier { a.mit(w1); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { neu Kniff(); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { b.mit(neu Leer()); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { b.kniffe(); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { a.ohne(neu Leer()); Bote.sage(("ohne fremd: karton")); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+Kniff kk = neu Leer();
+probier { Kniff falsch = 3; } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+Bote.sage((kk + " " + kk.teil()));

@@ -4289,3 +4289,41 @@ mod hk12 {
         assert!(i[5].0[4] < 320.0 - 100.0 && i[5].0[5] < 180.0 - 50.0, "Titel oben links");
     }
 }
+
+/// H-K13: der Kern kennt keine Kniffe – nur das Lesefeld `RUHT` (19) für die Laufzeiten und `kniffe` in `teil_methoden`
+mod hk13 {
+    use super::*;
+
+    #[test]
+    fn ruht_als_lesefeld() {
+        let mut k = welt();
+        let (vo, ku) = (typ(&mut k, "Vorlage"), typ(&mut k, "Kulisse"));
+        let a = k.teil_neu(2);
+        let b = k.teil_neu(2);
+        assert_eq!(k.teil_haenge(b, a), 0);
+        let c = k.teil_neu(3);
+        assert_eq!((k.teil_hole(a, tf::RUHT), k.teil_hole(b, tf::RUHT), k.teil_hole(c, tf::RUHT)), (0.0, 0.0, 0.0));
+        // Vorlage an a: a und das Kind b ruhen; Lesen ändert den Hash nicht
+        let v = k.komp_neu(vo);
+        assert_eq!(k.komp_haenge(v, a), 0);
+        let h0 = k.hash_szene();
+        assert_eq!((k.teil_hole(a, tf::RUHT), k.teil_hole(b, tf::RUHT)), (1.0, 1.0));
+        assert_eq!(k.hash_szene(), h0);
+        assert_eq!(k.komp_loese(v), 0);
+        assert_eq!((k.teil_hole(a, tf::RUHT), k.teil_hole(b, tf::RUHT)), (0.0, 0.0));
+        // ausgeschaltete Kulisse (3D), sofort nachgeführt nach setze_zahl
+        let kc = k.komp_neu(ku);
+        assert_eq!(k.komp_haenge(kc, c), 0);
+        assert_eq!(k.teil_hole(c, tf::RUHT), 0.0);
+        let fa = feld(&mut k, ku, "aktiv");
+        assert_eq!(k.setze_zahl(kc, fa, 0.0), 0);
+        assert_eq!(k.teil_hole(c, tf::RUHT), 1.0);
+        // nur lesen; entfernt → Fehler wie alle Lage-Felder
+        assert!(k.teil_setze(c, tf::RUHT, 0.0) < 0);
+        k.fehler_neu();
+        assert_eq!(k.teil_entferne(b), 0);
+        assert!(k.teil_hole(b, tf::RUHT).is_nan());
+        k.fehler_neu();
+        assert!(TEIL_METHODEN.contains(&"kniffe"));
+    }
+}

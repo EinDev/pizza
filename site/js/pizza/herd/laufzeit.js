@@ -386,6 +386,19 @@ const HERD_LAUFZEIT = {
     const kn = ev.knoepfe;
     if (typeof kn === 'number' && Number.isInteger(kn) && kn >= 0 && kn <= 7) h.knoepfe = kn;
   },
+  // Rückruf aus der Spielschleife (fn oder Kniff-Phase): schliesse() wirkt danach, Panik beendet sofort (kein schliesse)
+  herdRueckruf(h, f) {
+    h.imRueckruf = true;
+    try {
+      f();
+    } catch (x) {
+      if (x instanceof PanikSig) h.schliessen = false;   // §18.2
+      throw x;
+    } finally {
+      h.imRueckruf = false;
+      if (h.schliessen) { h.schliessen = false; this.herdSchliesseFenster(h); }
+    }
+  },
   herdBacke(h, fn, node) {
     if (fn !== null && !(fn instanceof Funktion || fn instanceof Gebunden || fn instanceof NativFn)) {
       throw this.ananas('TypAnanas', 'backe() braucht eine Funktion, z. B. () -> { … }.');
@@ -409,25 +422,23 @@ const HERD_LAUFZEIT = {
         h.erster = i === 0;
         // H-K12 (K-151): Eingabezustand an den Kern – je Takt vor fn() (UI-Bausteine, Blick.mausX)
         this.herdI(e.eingabe(h.mausX, h.mausY, h.knoepfe));
-        // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt)
+        // K-087: jeder Takt beginnt mit frischem Schrittbudget (P0002 je Takt, einschließlich der Kniffe)
         this.limitBasis = this.schritte;
         this.neuGrenze();
-        if (fn !== null) {
-          h.imRueckruf = true;
-          try {
-            this.rufe(fn, [], null, node);
-          } catch (x) {
-            if (x instanceof PanikSig) h.schliessen = false;   // Panik beendet sofort – kein schliesse (§18.2)
-            throw x;
-          } finally {
-            h.imRueckruf = false;
-            h.erster = false;
-            if (h.schliessen) { h.schliessen = false; this.herdSchliesseFenster(h); }
+        try {
+          if (fn !== null) {
+            this.herdRueckruf(h, () => this.rufe(fn, [], null, node));
+            if (!h.offen) return;   // schliesse() im Rückruf: Systeme und Bild entfallen
           }
-          if (!h.offen) return;   // schliesse() im Rückruf: Systeme und Bild entfallen
+          this.herdI(e.takt());
+          // H-K13 (K-152): Kniff-Rückrufe nach Systemen und Nachlauf; gedrueckt/klick gelten wie in fn
+          if (this.kniffAn.size > 0) {
+            this.herdRueckruf(h, () => this.kniffPhase(h, node));
+            if (!h.offen) return;   // schliesse() in einem Kniff: übrige Kniffe und Bild entfallen
+          }
+        } finally {
+          h.erster = false;
         }
-        h.erster = false;
-        this.herdI(e.takt());
       }
       this.herdBild(h);
     }

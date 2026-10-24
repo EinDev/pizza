@@ -1010,6 +1010,46 @@
             { art: "ausgabe", text: z("Hitze 225", "Hitze 262.5", "Klicks: 2, Leiste 0.5") },
             { art: "text", md: "Ein ganzes Beispiel ist der **Pizza-Konfigurator** unter *Beispiele → Herd*: Regler für Größe und Käse, Taster für den Belag, eine Ofenleiste – alles auf einer Tafel, die sich verschieben lässt." }
           ]
+        },
+        {
+          art: "details",
+          titel: "Kniff: eigene Klassen als Komponente",
+          inhalt: [
+            { art: "text", md: "Statt alle Spiellogik in die eine Funktion von `backe` zu schreiben, kann jedes Ding sein Verhalten selbst mitbringen: eine eigene Klasse, die **`erbt Kniff`** (wie ein MonoBehaviour in Unity). `teil.mit(neu Wackler())` hängt sie an ein Teil, `teil()` liefert in ihren Methoden dieses Teil. Überschreiben lassen sich `start()` (einmal, vor dem ersten `takt()`), `takt()` (jeden Takt), `beimBetreten(Teil anderes)` und `beimVerlassen(Teil anderes)` (aus dem `Fuehler` desselben Teils), `beimKlick()` (wenn ihr `Taster` geklickt wurde) und `beimEntfernen()` (nach `teil.ohne(kniff)` oder `entferne()` – `teil()` ist dann schon `karton`)." },
+            { art: "text", md: "Die Rückrufe laufen nach den Systemen des Takts: Teile in der Reihenfolge ihrer ID, je Teil die Kniffe in der Reihenfolge des Anhängens – mehrere je Teil sind erlaubt, `teil.kniffe()` listet sie. Ruhende Teile (`Vorlage`, ausgeschaltete `Kulisse`) bekommen keine Rückrufe. `kopie()` nimmt **keine** Kniffe mit: Für viele gleiche Figuren schreibt man eine Funktion, die das Teil baut und seine Kniffe anhängt. `neu Kniff()` selbst geht nicht – `Kniff` ist ein Rohling." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Kniffe","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"141b04aed3ffaa70","paket":"ba437684330f8736"},
+                {"art":"bild","bildnummer":8,"szene":"a45b6357facdd966","paket":"44d8c3f8ff7d4423"},
+                {"art":"bild","bildnummer":12,"szene":"7df4e6de19b19d44","paket":"4689826bbe7b9d46"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Kniffe\", breite: 320, hoehe: 180);",
+                "klasse Pendel erbt Kniff {",
+                "  funghi mitte;",
+                "  leer start() { mitte = teil().x(); }",
+                "  leer takt() { teil().setzeLage(mitte + Mathe.sin(herd.zeit() * 6) * 40, teil().y()); }",
+                "}",
+                "klasse Zaehler erbt Kniff {",
+                "  salami n = 0;",
+                "  leer takt() { n++; }",
+                "  leer beimEntfernen() { Bote.sage((\"weg nach \" + n + \" Takten\")); }",
+                "}",
+                "Teil kugel = herd.kreis(160, 90, 12, farbe: \"tomate\");",
+                "kugel.mit(neu Pendel());",
+                "Zaehler z = kugel.mit(neu Zaehler());",
+                "herd.backe(() -> { falls (herd.bildnummer() == 10) { kugel.ohne(z); } });",
+                "Bote.sage((kugel.kniffe() + \" x = \" + kugel.x().runden()));"
+              )
+            },
+            { art: "ausgabe", text: z("weg nach 9 Takten", "[Pendel@1] x = 197") },
+            { art: "text", md: "Ein ganzes Spiel ist **Kniffe** unter *Beispiele → Herd*: Der Bote, die Münzen, eine Olive auf Streife und eine Tomate, die ihn verfolgt, sind je eine Kniff-Klasse; ein Taster mit `beimKlick` streut neue Münzen aus." }
+          ]
         }
       ]
     }

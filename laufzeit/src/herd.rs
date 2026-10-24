@@ -145,9 +145,9 @@ struct Welt {
 }
 static mut WELT: Option<Welt> = None;
 
-const TEIL_NAMEN: [&str; 32] = ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung",
+const TEIL_NAMEN: [&str; 33] = ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung",
     "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene",
-    "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "alsText"];
+    "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "alsText"];
 const HERD_NAMEN: [&str; 30] = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit", "taste",
     "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick", "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
     "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum", "alsText"];
@@ -760,7 +760,7 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     if !tabelle_hat(o, id) { return crate::std_m::nicht_gefunden(o, id); }
     if crate::kueche::nur_hauptkueche(T_HERD) { return KARTON; }
     match art(o) {
-        A_TEIL => teil_methode(o, id, pos, ben),
+        A_TEIL => teil_methode(o, id, pos, ben, knoten),
         A_HERD => herd_methode(o, id, pos, ben, knoten),
         A_KOMP => komp_methode(o, id, pos, ben),
         A_FORM => if id == crate::namen::N_ALSTEXT { text(o) } else { zahl(obj::<HForm>(o).id as f64) },
@@ -830,7 +830,7 @@ fn komp_von(t: W, nr: u32) -> W {
     o
 }
 
-fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben) -> W {
+fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
     let kk = k();
     let tid = obj::<HTeil>(t).id as i32;
     let code = kk.teil_m.get(id as usize).copied().unwrap_or(0);
@@ -870,7 +870,7 @@ fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben) -> W {
             "haenge" => { let an = match teil_id_arg(argn(pos, ben, 0, "an"), "haenge", "an") { Some(x) => x, None => return KARTON }; ok(k_teil_haenge(tid, an)) }
             "eltern" => match hf(k_teil_hole(tid, 13)) { Some(x) => if x == 0.0 { KARTON } else { teil_obj(x as u32) }, None => KARTON },
             "kinder" => match lies_liste(|p, kap| k_teil_kinder(tid, p, kap)) { Some(ids) => blech(ids.iter().map(|&i| teil_obj(i)).collect()), None => { fehler(); KARTON } },
-            "entferne" => { hi(k_teil_entferne(tid)); KARTON }
+            "entferne" => { kniff_entferne(tid, knoten); KARTON }   // H-K13: danach beimEntfernen
             "entfernt" => match hf(k_teil_hole(tid, 14)) { Some(x) => bool_w(x != 0.0), None => KARTON },
             "kopie" => match hi(k_teil_kopie(tid)) { Some(i) => teil_obj(i as u32), None => KARTON },
             "trifft" => {
@@ -880,6 +880,7 @@ fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben) -> W {
             }
             "mit" => {
                 let ko = argn(pos, ben, 0, "komponente");
+                if ist_kniff(ko) { return kniff_mit(tid as u32, ko); }   // H-K13: eigener Kniff statt Kern-Komponente
                 if art(ko) != A_KOMP { typ_fehler_arg("mit", "eine Komponente", "komponente", ko); return KARTON; }
                 if hi(k_komp_haenge(obj::<HKomp>(ko).h as i32, tid)).is_none() { return KARTON; }
                 obj::<HKomp>(ko).teil = tid as u32;
@@ -887,6 +888,7 @@ fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben) -> W {
             }
             "ohne" => {
                 let n = argn(pos, ben, 0, "name");
+                if ist_kniff(n) { return kniff_ohne(tid as u32, n, knoten); }   // H-K13
                 let nr = if art(n) == A_KOMP { obj::<HKomp>(n).typ } else {
                     let name = match textform(n) { Some(x) => x, None => return KARTON };
                     match art_nach_name(bytes(name)) {
@@ -910,6 +912,7 @@ fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben) -> W {
             }
             "raum" => match hf(k_teil_hole(tid, 12)) { Some(x) => neu_str(if x == 3.0 { "3D" } else { "2D" }), None => KARTON },
             "id" => match hf(k_teil_hole(tid, 12)) { Some(_) => zahl(tid as f64), None => KARTON },
+            "kniffe" => kniff_liste(tid as u32),   // H-K13: Blech<Kniff> in Anhängereihenfolge
             _ => text(t),
         }
     }
@@ -1136,6 +1139,19 @@ fn eingabe(ev: &Json) {
         if zl::ist_ganz(*kn) && *kn >= 0.0 && *kn <= 7.0 { h.knoepfe = *kn as u32; }
     }
 }
+/// nach einem Rückruf aus der Spielschleife (fn oder Kniff-Phase): Panik beendet sofort (kein schliesse, §18.2), ein
+/// schliesse() wirkt jetzt. false = backe kehrt zurück (Signal oder Fenster zu; `erster` ist dann schon nein).
+fn nach_rueckruf() -> bool {
+    if z().sig == SIG_PANIK { welt().schliessen = false; }
+    let h = welt();
+    h.im_rueckruf = false;
+    if h.schliessen {
+        h.schliessen = false;
+        schliesse_fenster();   // nur ein Host-Aufruf – ein schwebendes Signal bleibt
+    }
+    if sig() || !welt().offen { welt().erster = false; return false; }
+    true
+}
 fn backe(fw: W, knoten: i32) {
     if fw != KARTON && !ist_funktion(fw) { wirf_ananas(K_TYP, "backe() braucht eine Funktion, z. B. () -> { … }."); return; }
     if !welt().offen { oeffne(); }
@@ -1165,25 +1181,196 @@ fn backe(fw: W, knoten: i32) {
             if fw != KARTON {
                 h.im_rueckruf = true;
                 rufe(fw, &[], &[], knoten);
-                if z().sig == SIG_PANIK { welt().schliessen = false; }   // Panik beendet sofort – kein schliesse (§18.2)
-                let h = welt();
-                h.im_rueckruf = false;
-                h.erster = false;
-                if h.schliessen {
-                    h.schliessen = false;
-                    schliesse_fenster();   // nur ein Host-Aufruf – ein schwebendes Signal bleibt
-                }
-                if sig() { return; }
-                if !welt().offen { return; }   // schliesse() im Rückruf: Systeme und Bild entfallen
+                if !nach_rueckruf() { return; }   // schliesse() im Rückruf: Systeme und Bild entfallen
+            }
+            if hi(unsafe { k_takt() }).is_none() { welt().erster = false; return; }
+            // H-K13 (K-152): Kniff-Rückrufe nach Systemen und Nachlauf; gedrueckt/klick gelten wie in fn
+            if unsafe { !KNIFF_AN.is_empty() } {
+                welt().im_rueckruf = true;
+                kniff_phase(knoten);
+                if !nach_rueckruf() { return; }   // schliesse() in einem Kniff: übrige Kniffe und Bild entfallen
             }
             welt().erster = false;
-            if hi(unsafe { k_takt() }).is_none() { return; }
         }
         if !bild() { return; }
     }
 }
 /// Programmende (wie K-061): offenes Fenster schließen (nicht bei Panik – der Aufrufer prüft das)
 pub fn ende() { if unsafe { WELT.is_some() } { schliesse_fenster(); } }
+
+// ---------------------------------------------------------------- Kniff (H-K13, K-152)
+// Spiegel von site/js/pizza/herd/kniff.js – der Kern kennt keine Kniffe. Bitgleich, daher fest: Teile nach aufsteigender ID,
+// je Teil Kniffe in Anhängereihenfolge, Schnappschuss zu Beginn der Phase (später angehängte laufen ab dem nächsten Takt),
+// vor jedem Rückruf „hängt noch an diesem Teil“, dieselbe Folge von Kern-Aufrufen wie der Interpreter.
+const TF_ENTFERNT: i32 = 14;
+const TF_KINDER: i32 = 18;
+const TF_RUHT: i32 = 19;
+
+struct KniffZ { teil: u32, gestartet: bool }
+/// Zustand je Kniff-Objekt (`Obj.kniff` = Index + 1)
+static mut KNIFF_Z: Vec<KniffZ> = Vec::new();
+/// Teil-ID (aufsteigend) → Kniffe in Anhängereihenfolge
+static mut KNIFF_AN: Vec<(u32, Vec<W>)> = Vec::new();
+
+pub fn ist_kniff(v: W) -> bool { art(v) == A_OBJ && ist_kniff_klasse(obj::<Obj>(v).klasse as i32) }
+fn kz(o: W) -> Option<&'static mut KniffZ> {
+    let i = obj::<Obj>(o).kniff;
+    if i == 0 { None } else { unsafe { Some(&mut KNIFF_Z[i as usize - 1]) } }
+}
+fn kz_neu(o: W) -> &'static mut KniffZ {
+    unsafe {
+        if obj::<Obj>(o).kniff == 0 {
+            KNIFF_Z.push(KniffZ { teil: 0, gestartet: false });
+            obj::<Obj>(o).kniff = KNIFF_Z.len() as u32;
+        }
+        &mut KNIFF_Z[obj::<Obj>(o).kniff as usize - 1]
+    }
+}
+fn kniff_teil(o: W) -> u32 { kz(o).map(|z| z.teil).unwrap_or(0) }
+fn an_pos(id: u32) -> Result<usize, usize> { unsafe { KNIFF_AN.binary_search_by_key(&id, |x| x.0) } }
+fn kniff_ids() -> Vec<u32> { unsafe { KNIFF_AN.iter().map(|x| x.0).collect() } }
+
+/// eingebaute Methoden der Basisklasse Kniff (None = kein Kniff bzw. kein solcher Name): `teil()` → Teil oder karton, die
+/// Rückrufe sind leer
+pub fn kniff_methode(o: W, id: u32) -> Option<W> {
+    if !kniff_name(id) || art(o) != A_OBJ || !ist_kniff_klasse(obj::<Obj>(o).klasse as i32) { return None; }
+    if id != unsafe { KNIFF_N[KN_TEIL] } { return Some(KARTON); }
+    if crate::kueche::nur_hauptkueche(T_HERD) { return Some(KARTON); }
+    let t = kniff_teil(o);
+    Some(if t == 0 { KARTON } else { teil_obj(t) })
+}
+/// teil.mit(kniff): Teil lebt (Kern-Text), Kniff hängt noch nirgends
+fn kniff_mit(tid: u32, ko: W) -> W {
+    if hf(unsafe { k_teil_hole(tid as i32, 12) }).is_none() { return KARTON; }
+    let z = kz_neu(ko);
+    if z.teil != 0 {
+        let mut t = Tb::neu();
+        t.s("Dieser Kniff hängt schon an Teil ").n(z.teil as f64).s(".");
+        wirf_tb(K_LAUFZEIT, &t);
+        return KARTON;
+    }
+    z.teil = tid;
+    unsafe {
+        match an_pos(tid) { Ok(i) => KNIFF_AN[i].1.push(ko), Err(i) => KNIFF_AN.insert(i, (tid, alloc::vec![ko])) }
+    }
+    ko
+}
+fn kniff_loese(ko: W, tid: u32) {
+    if let Some(z) = kz(ko) { z.teil = 0; }
+    unsafe {
+        if let Ok(i) = an_pos(tid) {
+            let l = &mut KNIFF_AN[i].1;
+            if let Some(j) = l.iter().position(|&x| x == ko) { l.remove(j); }
+            if l.is_empty() { KNIFF_AN.remove(i); }
+        }
+    }
+}
+/// teil.ohne(kniff) → der Kniff (danach beimEntfernen) oder karton, wenn er nicht an diesem Teil hängt
+fn kniff_ohne(tid: u32, ko: W, knoten: i32) -> W {
+    if hf(unsafe { k_teil_hole(tid as i32, 12) }).is_none() { return KARTON; }
+    if kniff_teil(ko) != tid { return KARTON; }
+    kniff_loese(ko, tid);
+    kniff_rufe(ko, KN_ENTFERNEN, &[], knoten);
+    if sig() { return KARTON; }
+    ko
+}
+fn kniff_liste(tid: u32) -> W {
+    if hf(unsafe { k_teil_hole(tid as i32, 12) }).is_none() { return KARTON; }
+    match an_pos(tid) { Ok(i) => blech(unsafe { KNIFF_AN[i].1.clone() }), Err(_) => blech(Vec::new()) }
+}
+/// teil.entferne(): erst der Kern (samt Kindern), dann lösen sich alle Kniffe der entfernten Teile (nach ID, je Teil in
+/// Anhängereihenfolge) und bekommen danach beimEntfernen() – ohne Kinder wird nur das Teil selbst geprüft
+fn kniff_entferne(tid: i32, knoten: i32) {
+    if unsafe { KNIFF_AN.is_empty() } { hi(unsafe { k_teil_entferne(tid) }); return; }
+    let weg = match hf(unsafe { k_teil_hole(tid, TF_ENTFERNT) }) { Some(x) => x, None => return };
+    let kinder = if weg == 0.0 { match hf(unsafe { k_teil_hole(tid, TF_KINDER) }) { Some(x) => x, None => return } } else { 0.0 };
+    if hi(unsafe { k_teil_entferne(tid) }).is_none() { return; }
+    let mut ids: Vec<u32> = Vec::new();
+    if kinder == 0.0 {
+        if an_pos(tid as u32).is_ok() { ids.push(tid as u32); }
+    } else {
+        for id in kniff_ids() {
+            match hf(unsafe { k_teil_hole(id as i32, TF_ENTFERNT) }) { Some(x) => if x != 0.0 { ids.push(id); }, None => return }
+        }
+    }
+    let mut liste: Vec<W> = Vec::new();
+    for id in ids {
+        if let Ok(i) = an_pos(id) {
+            let (_, l) = unsafe { KNIFF_AN.remove(i) };
+            for &ko in l.iter() { if let Some(z) = kz(ko) { z.teil = 0; } liste.push(ko); }
+        }
+    }
+    for ko in liste {
+        kniff_rufe(ko, KN_ENTFERNEN, &[], knoten);
+        if sig() { return; }
+    }
+}
+/// überschriebener Rückruf? (die Basisklasse Kniff hat keine Methoden-Deklarationen – ihre Rückrufe sind leer)
+fn kniff_hat(ko: W, n: usize) -> bool { finde_methode_liste(obj::<Obj>(ko).klasse as i32, unsafe { KNIFF_N[n] }).is_some() }
+fn kniff_rufe(ko: W, n: usize, args: &[W], knoten: i32) {
+    if let Some((_, l)) = finde_methode_liste(obj::<Obj>(ko).klasse as i32, unsafe { KNIFF_N[n] }) {
+        let m = waehle(l, args.len());
+        rufe_decl(m, ko, args, &[], knoten, 0);
+    }
+}
+fn feld_von(art: Option<u32>, name: &[u8]) -> Option<&'static HFeld> {
+    art.and_then(|a| art_von(a).felder.iter().find(|f| bytes(f.name) == name))
+}
+/// nach einem Rückruf der Phase abbrechen? (Ananas/Panik/Budget oder herd.schliesse())
+fn kniff_halt() -> bool { sig() || welt().schliessen }
+/// Kniff-Phase je Takt (nach Systemen und Nachlauf, SPEC §18.2): Teile nach ID (ruhende ausgelassen, Stand zu Beginn), je
+/// Kniff: start() einmal, beimBetreten/beimVerlassen je Eintrag aus Fuehler.betreten/verlassen, beimKlick bei
+/// Taster.geklickt, takt()
+fn kniff_phase(knoten: i32) {
+    let mut plan: Vec<(u32, Vec<W>)> = Vec::new();
+    for id in kniff_ids() {
+        match hf(unsafe { k_teil_hole(id as i32, TF_RUHT) }) { Some(r) => if r != 0.0 { continue; }, None => return }
+        if let Ok(i) = an_pos(id) { plan.push((id, unsafe { KNIFF_AN[i].1.clone() })); }
+    }
+    let (fu, ta) = (art_nach_name(b"Fuehler"), art_nach_name(b"Taster"));
+    let (f_betreten, f_verlassen, f_geklickt) = (feld_von(fu, b"betreten"), feld_von(fu, b"verlassen"), feld_von(ta, b"geklickt"));
+    for (id, liste) in plan.iter() {
+        let id = *id;
+        for &kn in liste.iter() {
+            if kniff_teil(kn) != id { continue; }
+            if let Some(z) = kz(kn) {
+                if !z.gestartet {
+                    z.gestartet = true;
+                    kniff_rufe(kn, KN_START, &[], knoten);
+                    if kniff_halt() { return; }
+                }
+            }
+            for &(n, f) in [(KN_BETRETEN, f_betreten), (KN_VERLASSEN, f_verlassen)].iter() {
+                let f = match f { Some(f) => f, None => continue };
+                if kniff_teil(kn) != id || !kniff_hat(kn, n) { continue; }
+                let fh = match hi(unsafe { k_komp_von(id as i32, art_von(fu.unwrap()).nummer as i32) }) { Some(h) => h as u32, None => return };
+                if fh == 0 { continue; }
+                let l = hole(fh, f);
+                if sig() { return; }
+                for &anderes in blech_v(l).clone().iter() {
+                    if kniff_teil(kn) != id { break; }
+                    kniff_rufe(kn, n, &[anderes], knoten);
+                    if kniff_halt() { return; }
+                }
+            }
+            if kniff_teil(kn) == id && f_geklickt.is_some() && kniff_hat(kn, KN_KLICK) {
+                let th = match hi(unsafe { k_komp_von(id as i32, art_von(ta.unwrap()).nummer as i32) }) { Some(h) => h as u32, None => return };
+                if th != 0 {
+                    let g = hole(th, f_geklickt.unwrap());
+                    if sig() { return; }
+                    if g == JA {
+                        kniff_rufe(kn, KN_KLICK, &[], knoten);
+                        if kniff_halt() { return; }
+                    }
+                }
+            }
+            if kniff_teil(kn) == id && kniff_hat(kn, KN_TAKT) {
+                kniff_rufe(kn, KN_TAKT, &[], knoten);
+                if kniff_halt() { return; }
+            }
+        }
+    }
+}
 
 // ---------------------------------------------------------------- JSON (Schema und takt-Ereignisse)
 pub enum Json { N(f64), S(String), B(bool), Null, A(Vec<Json>), O(Vec<(String, Json)>) }

@@ -61,6 +61,8 @@ class LaufzeitAufrufe {
       const a = ANANAS_M[name];
       if (a !== undefined) return a.call(this, o, pos, ben, node);
     }
+    // Herd H-K13: eingebaute Methoden der Basisklasse Kniff (teil(), leere Rückrufe)
+    if (KNIFF_NAMEN.has(name) && this.istKniffKlasse(o.klasse)) return KNIFF_M[name].call(this, o, pos, ben, node);
     const g = OBJ_M[name];
     if (g !== undefined) return g.call(this, o, pos, ben, node);
     throw this.ananas('LaufzeitAnanas', 'Methode \'' + name + '\' gibt es auf ' + o.klasse.name + ' nicht.');
@@ -283,6 +285,8 @@ class LaufzeitAufrufe {
       const d = ctx.dies instanceof Obj ? ctx.dies : null;
       const l = this.findeMethodeListe(d !== null ? d.klasse : ctx.klasse, name) || (d !== null ? this.findeMethodeListe(ctx.klasse, name) : null);
       if (l !== null) return new Gebunden(d, l, name);
+      // Herd H-K13: `teil()` & Co. in einer Kniff-Klasse – nach den eigenen Methoden, vor globalen Namen
+      if (d !== null && KNIFF_NAMEN.has(name) && this.istKniffKlasse(d.klasse)) return this.kniffNativ(d, name, sc);
     }
     if (name === 'schieb' && this.finde(sc, name) === null) return AUTO;
     return this.leseName({ n: name }, sc);
@@ -312,6 +316,7 @@ class LaufzeitAufrufe {
     }
     if (ctx.dies instanceof Obj) {
       if (this.istAnanasKlasse(ctx.klasse.basis) && ANANAS_M[n.name]) return ANANAS_M[n.name].call(this, ctx.dies, pos, ben, n);
+      if (KNIFF_NAMEN.has(n.name) && this.istKniffKlasse(ctx.klasse.basis)) return KNIFF_M[n.name].call(this, ctx.dies, pos, ben, n);
       if (OBJ_M[n.name]) return OBJ_M[n.name].call(this, ctx.dies, pos, ben, n);
     }
     throw this.ananas('LaufzeitAnanas', 'Methode \'' + n.name + '\' gibt es in der Basisklasse \'' + ctx.klasse.basis.name + '\' nicht.');
