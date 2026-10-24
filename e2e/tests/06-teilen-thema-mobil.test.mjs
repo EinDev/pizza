@@ -1,10 +1,9 @@
-// Teilen (eigener Server, Attrappe), ignorierte #code=-Links, Hell/Dunkel, schmaler Viewport (390×844).
+// Teilen (eigener Server: echte Durchreiche im Prozess), ignorierte #code=-Links, Hell/Dunkel, schmaler Viewport (390×844).
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, editorText, editorTabs, aktiverTabName, warteAufTab, bereit, backen, konsolenAusgabe,
   zeigePanelTab, panelOffen, strg, schlafe, S, SCHMAL, umgebung, neuerTab,
 } from "../hilfen.mjs";
-import { entpacke } from "../../ui/src/teilen.js";
 
 const CODE = '// geteilt ✓ Ümlaute & Emoji 🍕\nBote.sage(("aus dem Link"));';
 
@@ -65,7 +64,6 @@ async function teilenOeffnen(page) {
 const sichtbarerSchritt = (page) => page.$$eval("#dialog-teilen [data-schritt]", (s) => (s.find((x) => !x.hidden) || {}).dataset?.schritt || null);
 
 e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im DOM, Link lädt den Code wieder", async ({ page, oeffne, neueSeite, server, basis }) => {
-  server.teilen.modus = "mock";
   await oeffne();
   assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ auf der Seite");
   await setzeCode(page, CODE);
@@ -82,7 +80,8 @@ e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im 
   const url = await page.$eval('[data-testid="teilen-url"], #teilen-url', (i) => i.value);
   assert.ok(url.startsWith(basis), "Link zeigt auf den Playground: " + url);
   assert.doesNotMatch(url, /#code=/);
-  assert.ok([...server.teilen.ablage.values()].some((d) => entpacke(d).code === CODE), "Skript wurde auf dem Server gespeichert");
+  const id = /#h=([0-9A-Za-z]{12})$/.exec(url)[1];
+  assert.equal((await server.teilen.hole(id)).dateien["willkommen.pizza"], CODE, "Projekt wurde auf dem Server gespeichert");
   assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ nach dem Senden");
   await keinLokalerLink(page, "fertig");
 
@@ -99,10 +98,10 @@ e2e("Teilen: Hinweis „auf unserem Server speichern“, kein „Hastebin“ im 
 
 for (const [modus, status, muster] of [["aus", 503, /nicht|Server|später/i], ["limit", 429, /viele|Pause|später|gleich/i]]) {
   e2e(`Teilen: Server antwortet ${status} → klare Fehlermeldung, kein #code=-Fallback`, {
-    erlaubt: [/api\/teilen/, new RegExp("status of " + status)],
+    erlaubt: [/api\/(?:teilen|blob)/, new RegExp("status of " + status)],
   }, async ({ page, oeffne, server }) => {
     server.teilen.modus = modus;
-    const vorher = server.teilen.ablage.size;
+    const vorher = server.teilen.links;
     try {
       await oeffne();
       await setzeCode(page, CODE);
@@ -123,9 +122,9 @@ for (const [modus, status, muster] of [["aus", 503, /nicht|Server|später/i], ["
       assert.match(meldung, muster, `verständliche Meldung bei ${status}: ${meldung}`);
       assert.deepEqual(await hastebinImDom(page), [], "kein „Hastebin“ in der Fehlermeldung");
       await keinLokalerLink(page, String(status));
-      assert.equal(server.teilen.ablage.size, vorher, "nichts gespeichert");
+      assert.equal(server.teilen.links, vorher, "nichts gespeichert");
     } finally {
-      server.teilen.modus = "mock";
+      server.teilen.modus = "echt";
     }
   });
 }

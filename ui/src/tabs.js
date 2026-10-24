@@ -471,7 +471,12 @@ export function erstelleTabs({ editor, leiste, projekte, frage, toast, beiWechse
   }
 
   // ---------- Projekt-Ereignisse ----------
-  projekte.an("wechsel", () => { sichereAktiven(); lade(P().aktiv); zeichne(); beiWechsel && beiWechsel(aktivPfad); });
+  projekte.an("wechsel", (d) => {
+    // Dateien ersetzt (neuere Version eines geteilten Links, PB2): gemerkte Editor-Zustände dieses Projekts verwerfen
+    if (d && d.ersetzt) { for (const k of [...zustaende.keys()]) if (k.startsWith(schluessel(""))) zustaende.delete(k); }
+    else sichereAktiven();
+    lade(P().aktiv); zeichne(); beiWechsel && beiWechsel(aktivPfad);
+  });
   projekte.an("dateien", (info) => {
     const um = info && info.umbenannt;
     if (um) for (const [alt, neu] of Object.entries(um)) {

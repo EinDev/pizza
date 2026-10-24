@@ -207,11 +207,10 @@ e2e("Köche ohne Cross-Origin-Isolation: Hinweis im Popover, Ergebnis wie mit ei
 });
 
 e2e("Köche im App-Modus: dieselbe Einstellung wie im Playground", { timeout: 90_000 }, async ({ page, basis, server }) => {
-  const { verpacke } = await import("../../ui/src/teilen.js");
-  server.teilen.ablage.set("brigadeapp", verpacke("hochzeit.pizza", BRIGADE));
+  const { id } = await server.teilen.lege({ name: "hochzeit.pizza", code: BRIGADE });
   await page.goto(basis, { waitUntil: "load" });
   await page.evaluate(() => localStorage.setItem("pizza.koeche", "4"));
-  await page.goto(basis + "#app=brigadeapp", { waitUntil: "load" });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await page.reload({ waitUntil: "load" });
   await page.waitForSelector("#app-ende:not([hidden])", { timeout: 30_000 });
   const ende = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "ende").pop() || null);

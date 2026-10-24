@@ -83,8 +83,8 @@ e2e("Herd: Programm öffnet das Vorschaufenster, Taste bewegt, Klick in Spielfel
 });
 
 e2e("Herd: App-Link füllt den Bildschirm mit dem Spielfeld, X beendet", { timeout: 90_000 }, async ({ page, basis, server }) => {
-  server.teilen.ablage.set("herdapp", PROG);
-  await page.goto(basis + "#app=herdapp", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "herd.pizza", code: PROG });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await warteBereit(page);
   const box = await page.$eval(CANVAS, (c) => { const r = c.getBoundingClientRect(); return { w: r.width, h: r.height, vw: innerWidth, vh: innerHeight }; });
   assert.ok(Math.abs(box.w - box.vw) <= 1 && Math.abs(box.h - box.vh) <= 1, "Canvas bildschirmfüllend: " + JSON.stringify(box));

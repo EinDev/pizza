@@ -1,10 +1,15 @@
 // Kleiner statischer Server ohne Abhängigkeiten: liefert site/ aus und setzt
 // dieselben Header wie nginx.conf (insb. die CSP), damit CSP-Fehler in den E2E-Tests auffallen.
+// /api/… geht wie bei nginx an den echten Teilen-Dienst (durchreiche/server.mjs, im Prozess auf 127.0.0.1, zufälliger Port,
+// Datenordner unter e2e/tmp/, beim Ende gelöscht) – PROJEKTE §4.9.
 //   node server.mjs [port]      → http://127.0.0.1:<port>/
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { starte as starteDurchreiche } from "../durchreiche/server.mjs";
+import { teile, ladeGeteilt } from "../ui/src/teilen.js";
+import { pizzaPfadAusName, projektNameAus } from "../ui/src/projekt.js";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 export const WURZEL = path.resolve(HIER, "..", "site");
@@ -60,11 +65,36 @@ function header(basisHeader, uri, status) {
   return { ...basisHeader, "Cache-Control": cacheControl(uri, status) };
 }
 
+/** Cache-Control für /api/ wie die Map in nginx.conf (nur Status 200 bekommt die festen Werte). */
+function apiCache(uri, status) {
+  if (status !== 200) return "no-store";
+  if (/^\/api\/blob\/[0-9a-f]{64}$/.test(uri) || /^\/api\/teilen\/[0-9A-Za-z]{12}@[0-9]+$/.test(uri)) return "private, max-age=31536000, immutable";
+  return "no-store";
+}
+
+/**
+ * Teilen-Dienst für die E2E: echte Durchreiche im Prozess. Die Schreib- und Byte-Grenzen je IP sind aus (alle Tests einer Datei
+ * teilen sich 127.0.0.1 und legen Links in Sekunden an); Lese-Grenzen bleiben wie im Betrieb. 429 prüft teilen.modus = "limit".
+ */
+async function starteTeilen() {
+  const tmp = path.join(HIER, "tmp");
+  fs.mkdirSync(tmp, { recursive: true });
+  const daten = fs.mkdtempSync(path.join(tmp, "durchreiche-"));
+  const dienst = await starteDurchreiche({
+    host: "127.0.0.1", port: 0, umgebung: {}, log: () => {},
+    konfig: { daten, rateSchreiben: 0, rateBlobHoch: 0, rateFehlend: 0, loseJeIpBytes: 0, neueBytesJeIp: 0 },
+  });
+  return { dienst, daten, basis: "http://127.0.0.1:" + dienst.port + "/" };
+}
+
 /**
  * Startet den Server. port 0 = freier Port. isolation:false → ohne COEP (kein crossOriginIsolated).
- * @returns {Promise<{url:string, port:number, anfragen:{methode:string,pfad:string,status:number}[], stop:()=>Promise<void>}>}
+ * teilen: modus "echt" (Standard: Durchreiche) | "aus" (wie ohne TEILEN_URL) | "limit" (429 auf schreibende Anfragen);
+ * lege({ name, dateien | code, hauptdatei? }) legt einen Link direkt beim Dienst an (→ { id, version, schluessel }),
+ * version(id, schluessel, {…}) eine neue Version, hole(id, version?) liest ein Projekt zurück.
+ * @returns {Promise<{url:string, port:number, anfragen:{methode:string,pfad:string,status:number}[], teilen:object, stop:()=>Promise<void>}>}
  */
-export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {}) {
+export async function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {}) {
   // Header wie nginx; Cross-Origin-Isolation (COOP+COEP) immer an – außer für Fallback-Tests (isolation: false)
   const basisHeader = headerAusNginx();
   if (isolation) {
@@ -74,7 +104,21 @@ export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {
     delete basisHeader["Cross-Origin-Embedder-Policy"];
   }
   const csp = basisHeader["Content-Security-Policy"];
-  const teilen = { modus: "mock", zaehler: 0, ablage: new Map() };
+  const t = await starteTeilen();
+  const direkt = { basis: t.basis, warte: async () => {} };
+  const sammlungAus = ({ name, dateien, code, hauptdatei }) => {
+    const ds = dateien || { [pizzaPfadAusName(name)]: code };
+    return { name: projektNameAus(name), hauptdatei: hauptdatei || Object.keys(ds).find((p) => p.endsWith(".pizza")), dateien: ds };
+  };
+  const teilen = {
+    modus: "echt",
+    dienst: t.dienst,
+    lege: (o) => teile({ ...direkt, projekt: sammlungAus(o) }),
+    version: (id, schluessel, o) => teile({ ...direkt, projekt: sammlungAus(o), link: { id, schluessel } }),
+    hole: (id, version = null) => ladeGeteilt(direkt, id, version),
+    /** Anzahl Links im Dienst. */
+    get links() { return t.dienst.lager.links.size; },
+  };
   const anfragen = [];
   const server = http.createServer((req, res) => {
     const senden = (status, typ, body, uri) => {
@@ -92,33 +136,34 @@ export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {
     }
     if (req.method !== "GET" && req.method !== "HEAD" && !uri.startsWith("/api/")) return senden(405, "text/plain; charset=utf-8", "method not allowed\n", uri);
     if (uri === "/healthz") return senden(200, "text/plain", "ok\n", uri);
-    // /api/teilen: Attrappe für den nginx→Hastebin-Proxy (keine externen Requests in Tests).
-    //   teilen.modus = "mock" (Standard) | "aus" (503 wie ohne HASTEBIN_URL) | "limit" (429 beim Senden)
-    if (uri === "/api/konfig") {
-      const aktiv = teilen.modus !== "aus";
-      return senden(200, "application/json; charset=utf-8", JSON.stringify({ hastebin: aktiv ? "https://teilen.e2e.invalid" : "", teilen: aktiv }) + "\n", uri);
-    }
-    if (uri === "/api/teilen" || uri.startsWith("/api/teilen/")) {
-      const json = (st, o) => senden(st, "application/json; charset=utf-8", JSON.stringify(o) + "\n", uri);
-      if (teilen.modus === "aus") return json(503, { fehler: "Teilen ist nicht konfiguriert (HASTEBIN_URL fehlt)." });
-      if (teilen.modus === "limit" && req.method === "POST") return json(429, { fehler: "Zu viele Anfragen." });
-      if (uri === "/api/teilen") {
-        if (req.method !== "POST") return json(405, { fehler: "Nur POST." });
-        let body = "";
-        req.setEncoding("utf8");
-        req.on("data", (c) => { body += c; });
-        req.on("end", () => {
-          const key = "e2e" + (++teilen.zaehler).toString(36);
-          teilen.ablage.set(key, body);
-          json(200, { key });
-        });
-        return;
+    // /api/…: wie nginx (nginx.conf, nginx-proxy.conf) an die Durchreiche – Content-Type und Authorization weiterreichen,
+    // X-Real-IP setzen, Cache-Control nach der Map; alte Hastebin-Schlüssel → 404 mit F6-Meldung.
+    if (uri.startsWith("/api/")) {
+      const json = (st, o, kopf = {}) => {
+        anfragen.push({ methode: req.method, pfad: req.url, status: st });
+        res.writeHead(st, { ...basisHeader, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...kopf });
+        res.end(JSON.stringify(o) + "\n");
+        req.resume();
+      };
+      if (teilen.modus === "aus") {
+        if (uri === "/api/konfig") return json(200, { teilen: false });
+        return json(503, { fehler: "Teilen ist auf diesem Server nicht eingerichtet." });
       }
-      const key = uri.slice("/api/teilen/".length);
-      if (!teilen.ablage.has(key)) return json(404, { fehler: "Nicht gefunden." });
-      return senden(200, "text/plain; charset=utf-8", teilen.ablage.get(key), uri);
+      if (teilen.modus === "limit" && req.method !== "GET" && req.method !== "HEAD") return json(429, { fehler: "Zu viele Anfragen – bitte kurz warten." }, { "Retry-After": "60" });
+      if (/^\/api\/teilen\/[a-z]{10}$/.test(uri)) return json(404, { fehler: "Dieser Link stammt vom alten Teilen-Dienst und ist nicht mehr verfügbar.", alt: true });
+      const kopf = { "X-Real-IP": "127.0.0.1" };
+      for (const k of ["content-type", "content-length", "authorization", "accept"]) if (req.headers[k] != null) kopf[k] = req.headers[k];
+      const weiter = http.request(t.basis + req.url.replace(/^\//, ""), { method: req.method, headers: kopf }, (antwort) => {
+        anfragen.push({ methode: req.method, pfad: req.url, status: antwort.statusCode });
+        const h = { ...basisHeader, "Cache-Control": apiCache(uri, antwort.statusCode) };
+        for (const k of ["content-type", "content-length", "retry-after", "content-disposition", "x-content-type-options", "allow"]) if (antwort.headers[k] != null) h[k] = antwort.headers[k];
+        res.writeHead(antwort.statusCode, h);
+        antwort.pipe(res);
+      });
+      weiter.on("error", () => { if (!res.headersSent) json(502, { fehler: "Der Teilen-Dienst ist nicht erreichbar." }); else res.destroy(); });
+      req.pipe(weiter);
+      return;
     }
-    if (uri.startsWith("/api/")) return senden(404, "application/json; charset=utf-8", "{}\n", uri);
     // Versteckte Dateien nie ausliefern (location ~ /\.)
     if (/\/\./.test(uri)) return senden(404, "text/html; charset=utf-8", "<h1>404</h1>", uri);
 
@@ -153,7 +198,11 @@ export function starteServer({ port = 0, wurzel = WURZEL, isolation = true } = {
         teilen,
         isolation,
         anfragen,
-        stop: () => new Promise((r) => { server.closeAllConnections?.(); server.close(() => r()); }),
+        stop: async () => {
+          await new Promise((r) => { server.closeAllConnections?.(); server.close(() => r()); });
+          await t.dienst.schliesse();
+          fs.rmSync(t.daten, { recursive: true, force: true });
+        },
       });
     });
   });

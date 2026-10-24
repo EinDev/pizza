@@ -1980,8 +1980,9 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   zeigen die neueste Version, `@n` eine feste; alte Versionen für alle mit dem Link abrufbar; **90 Tage ab letzter Version**
   (`TEILEN_ABLAUF_TAGE`, 0 = unbegrenzt); Grenzen §4.6; keine Logs von Inhalten/IDs; alte Hastebin-Links verfallen mit Meldung.
 - **Verworfen:** Hastebin/anderes Pastebin (nicht nutzbar), Rust-Dienst, SQLite/Redis, Konten, ein großer Base64-Body.
-- **Betroffen:** neues `durchreiche/`, compose, nginx, Dockerfile, `ui/src/teilen.js`/`app.js`, README (Betrieb). **Status:** Dienst
-  umgesetzt (PC1, U-74 ✅; Präzisierungen PROJEKTE.md §11 „Präzisierungen aus PC1“), UI offen (PB2, U-78).
+- **Betroffen:** neues `durchreiche/`, compose, nginx, Dockerfile, `ui/src/teilen.js`/`app.js`, README (Betrieb). **Status:**
+  umgesetzt – Dienst (PC1, U-74 ✅) und Teilen-UI mit Versionen, Schlüssel und App-Link `@n` (PB2, U-78 ✅); Präzisierungen
+  PROJEKTE.md §11 „Präzisierungen aus PC1“ und „… aus PB2“ (EXE aus Mehrdatei-Projekten über PA2).
 
 ### K-144 Beispiele als Ordner, Manifest mit Dateiliste, `pruefung/`, Testformate für Ordner-Fälle
 - **Entscheidung (PROJEKTE.md §6.1, §7):** Jedes Beispiel ist ein Projektordner `site/beispiele/<kategorie>/<projekt>/` mit `pizza.json`
@@ -2223,7 +2224,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-75 ✅ | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**; erledigt, Präzisierungen PROJEKTE §11) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
 | U-76 ✅ (PB1) | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll – erledigt auf PA1/PD1/PD2 (Worker `quelleFuer`; Wasm-Projekte über das Flag `Pizzaiolo.projekte` mit PA2) | `npm --prefix ui test`, e2e |
 | U-77 ✅ | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); Glut-Texturen mit Mip-Kette nativ + Web, Referenzbilder, Messung – erledigt (PD3, Commit „PROJEKTE PD3: …“) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js`, E2E 13 |
-| U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
+| U-78 ✅ (PB2) | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt – erledigt: Client gegen die Durchreiche (`ui/test/teilen.mjs`), Dialog mit Neue Version/Neuer Link/Schlüssel/Löschen, Code-/App-Link mit `@n` und F6, E2E gegen den echten Dienst; EXE aus Mehrdatei-Projekten (auf PA2) | e2e 06, 11, 18 |
 | U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3**, **PB4**, **PB5**) | K-144, K-145: Beispiele als Ordner, Doku-Kapitel „Projekte und Dateien“, Herd-Beispiele mit Bilddateien, Imperium nach „Idle frei“ | Prüfstand Beispiele/Doku |
 | U-80 ✅ | `site/js/pizza/` (`std/kiste.js`, `herd/`), `bin/pizza.js`, `tests/faelle/projekt-{kiste,bilder}/`, `pruefstand/faelle/a19-*` (PROJEKTE.md **PD2**; erledigt, Präzisierungen PROJEKTE §11) | K-145, K-146: `Kiste.text/zeilen/gibts/liste`, `Bildchen.laden` (gleicher Pfad = dasselbe Bildchen, Kern-Codes 3/61/62), Vorbacken aller Bilder vor dem Start mit Cache-Prüfung (`optionen.teiglinge`/`vorbacker`), P0020 Teigmenge, HOST „Vorbacker fehlt“, Herd-Erkennung `Bildchen.…`, CLI; die 19 Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` verschoben (Datei entfällt) | a19, tests/faelle `projekt-kiste`/`projekt-bilder`, CLI |
 

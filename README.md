@@ -49,8 +49,11 @@ immer die neueste, `#h=<id>@<n>`/`#app=<id>@<n>` eine feste Version (`<id>` = 12
 einmalig einen **Bearbeitungsschlüssel** (256 bit; gespeichert wird nur sein Hash) für neue Versionen und zum Löschen. Alte
 Hastebin-Links (`#h=` mit 10 Kleinbuchstaben) verfallen: `GET /api/teilen/<alt>` → `404` mit Hinweis auf den alten Dienst.
 
-> Stand: Der Dienst ist fertig (Paket PC1); die Playground-Oberfläche (`ui/src/teilen.js`, App-Link) stellt Paket PB2 auf das
-> neue Format um. Bis dahin scheitert Teilen im Playground mit einer allgemeinen Fehlermeldung (die alte UI sendet Rohtext).
+Im Playground (Paket PB2, `ui/src/teilen.js`): „Teilen“ lädt nur fehlende Dateien hoch (gleiche Bilder nie zweimal), bietet bei
+eigenen Links „Neue Version teilen (Link bleibt gleich)“ oder „Neuer Link“, zeigt die festen Links `@n`, kopiert den
+Bearbeitungsschlüssel für ein anderes Gerät („Schlüssel eingeben“) und löscht Links. Der Schlüssel liegt nur im Browser
+(IndexedDB, am Projekt). Ein Code-Link öffnet das Projekt als eigene Kopie; ist es dein eigener Link, wird dein Projekt geöffnet
+und – falls es auf dem Server eine neuere Version gibt – ihr Laden angeboten.
 
 | Endpunkt (pizza-nginx → Dienst) | Zweck / Antwort |
 |---|---|

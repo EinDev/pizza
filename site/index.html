@@ -100,6 +100,11 @@
           <div class="projekt-banner" id="projekt-banner" data-testid="projekt-banner" role="status" hidden>
             <span class="banner-text">Projekte werden nicht gespeichert – sichere sie als ZIP.</span>
           </div>
+          <div class="projekt-banner teilen-banner" id="teilen-banner" data-testid="teilen-banner" role="status" hidden>
+            <span class="banner-text" id="teilen-banner-text"></span>
+            <button type="button" class="knopf knopf-primaer" id="teilen-banner-laden" data-testid="teilen-banner-laden">Laden</button>
+            <button type="button" class="knopf knopf-geist" id="teilen-banner-zu" data-testid="teilen-banner-zu">Später</button>
+          </div>
         </div>
       </div>
 
@@ -245,27 +250,44 @@
     </form>
   </dialog>
 
-  <!-- Teilen: Link über den eigenen Server -->
+  <!-- Teilen: Projekt über den eigenen Server (Durchreiche, PROJEKTE §4.4) – Versionen, Bearbeitungsschlüssel, Links -->
   <dialog class="dialog dialog-teilen" id="dialog-teilen" data-testid="dialog-teilen" aria-labelledby="teilen-titel">
-    <h2 id="teilen-titel">Code teilen</h2>
+    <h2 id="teilen-titel">Projekt teilen</h2>
     <div class="teilen-schritt" data-schritt="frage" data-testid="teilen-schritt-frage">
+      <fieldset class="teilen-wahl" id="teilen-wahl" data-testid="teilen-wahl" hidden>
+        <legend>Wie teilen?</legend>
+        <label><input type="radio" name="teilen-wahl" value="version" data-testid="teilen-wahl-version" checked> <span><strong>Neue Version teilen</strong> (Link bleibt gleich) <span class="teilen-wahl-info" id="teilen-wahl-info"></span></span></label>
+        <label><input type="radio" name="teilen-wahl" value="neu" data-testid="teilen-wahl-neu"> <span><strong>Neuer Link</strong> (der bisherige bleibt, wie er ist)</span></label>
+      </fieldset>
       <p class="teilen-hinweis" role="note">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span>Zum Teilen speichern wir dein Skript <strong id="teilen-tabname">…</strong> auf unserem Server. Du bekommst zwei Links: einen, der die App direkt im Vollbild startet (er landet gleich in der Zwischenablage), und einen, der den Code öffnet. Jeder mit einem der Links kann den Code lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span></span>
+        <span>Wir speichern dein Projekt <strong id="teilen-tabname">…</strong> (<span id="teilen-umfang" data-testid="teilen-umfang">…</span>) auf unserem Server. Du bekommst zwei Links: einen, der die App direkt im Vollbild startet (er landet gleich in der Zwischenablage), und einen, der den Code öffnet. Jeder mit einem der Links kann den Code lesen. <span id="teilen-dauer" data-testid="teilen-dauer" hidden></span> Ältere Versionen bleiben unter demselben Link abrufbar.</span>
       </p>
       <p class="teilen-aus" id="teilen-aus" data-testid="teilen-aus" hidden>Teilen ist auf diesem Server gerade nicht eingerichtet.</p>
+      <p class="teilen-schluessel-frage" id="teilen-schluessel-frage" data-testid="teilen-schluessel-frage" hidden>Dieses Projekt stammt von einem geteilten Link. Hast du dessen Bearbeitungsschlüssel (z. B. von einem anderen Gerät)? <button type="button" class="knopf-link" id="teilen-schluessel-eingeben" data-testid="teilen-schluessel-eingeben">Schlüssel eingeben</button></p>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-abbrechen" data-testid="teilen-abbrechen">Abbrechen</button>
         <button type="button" class="knopf knopf-primaer" id="teilen-senden" data-testid="teilen-senden">Link erstellen</button>
       </div>
     </div>
+    <div class="teilen-schritt" data-schritt="schluessel" data-testid="teilen-schritt-schluessel" hidden>
+      <p>Mit dem Bearbeitungsschlüssel teilst du neue Versionen unter demselben Link – auch von einem anderen Gerät. Füge ihn hier ein:</p>
+      <div class="teilen-link">
+        <input type="text" id="teilen-schluessel-feld" data-testid="teilen-schluessel-feld" autocomplete="off" spellcheck="false" aria-label="Bearbeitungsschlüssel">
+      </div>
+      <p class="teilen-fehlertext" id="teilen-schluessel-fehler" data-testid="teilen-schluessel-fehler" role="alert" hidden></p>
+      <div class="dialog-knoepfe">
+        <button type="button" class="knopf knopf-geist" id="teilen-schluessel-zurueck" data-testid="teilen-schluessel-zurueck">Zurück</button>
+        <button type="button" class="knopf knopf-primaer" id="teilen-schluessel-ok" data-testid="teilen-schluessel-ok">Übernehmen</button>
+      </div>
+    </div>
     <div class="teilen-schritt" data-schritt="laeuft" data-testid="teilen-schritt-laeuft" hidden>
-      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> Link wird erstellt …</p>
+      <p class="teilen-status"><span class="spinner" aria-hidden="true"></span> <span id="teilen-status-text" data-testid="teilen-status-text">Link wird erstellt …</span></p>
     </div>
     <div class="teilen-schritt" data-schritt="fertig" data-testid="teilen-schritt-fertig" hidden>
       <p id="teilen-fertig-text"></p>
       <p class="teilen-dauer-fertig" id="teilen-dauer-fertig" data-testid="teilen-dauer-fertig" hidden></p>
-      <p class="teilen-link-titel" id="teilen-url-app-titel"><strong>App starten</strong> <span>– startet das Programm direkt im Vollbild</span></p>
+      <p class="teilen-link-titel" id="teilen-url-app-titel"><strong>App starten</strong> <span>– startet immer die neueste Version direkt im Vollbild</span></p>
       <div class="teilen-link">
         <input type="text" id="teilen-url-app" data-testid="teilen-url-app" readonly aria-labelledby="teilen-url-app-titel">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren-app" data-testid="teilen-kopieren-app">Kopieren</button>
@@ -275,6 +297,27 @@
         <input type="text" id="teilen-url" data-testid="teilen-url" readonly aria-labelledby="teilen-url-titel">
         <button type="button" class="knopf knopf-primaer" id="teilen-kopieren" data-testid="teilen-kopieren">Kopieren</button>
       </div>
+      <details class="teilen-mehr" id="teilen-fest" data-testid="teilen-fest">
+        <summary>Diese Version fest verlinken (<span id="teilen-version" data-testid="teilen-version">v1</span>)</summary>
+        <p class="teilen-link-titel" id="teilen-url-app-fest-titel"><strong>App</strong> <span>– genau diese Version, ändert sich nie</span></p>
+        <div class="teilen-link">
+          <input type="text" id="teilen-url-app-fest" data-testid="teilen-url-app-fest" readonly aria-labelledby="teilen-url-app-fest-titel">
+          <button type="button" class="knopf knopf-geist" id="teilen-kopieren-app-fest" data-testid="teilen-kopieren-app-fest">Kopieren</button>
+        </div>
+        <p class="teilen-link-titel" id="teilen-url-fest-titel"><strong>Code</strong> <span>– genau diese Version</span></p>
+        <div class="teilen-link">
+          <input type="text" id="teilen-url-fest" data-testid="teilen-url-fest" readonly aria-labelledby="teilen-url-fest-titel">
+          <button type="button" class="knopf knopf-geist" id="teilen-kopieren-fest" data-testid="teilen-kopieren-fest">Kopieren</button>
+        </div>
+      </details>
+      <details class="teilen-mehr" id="teilen-schluessel-bereich" data-testid="teilen-schluessel-bereich">
+        <summary>Bearbeitungsschlüssel und Löschen</summary>
+        <p class="teilen-klein">Der Bearbeitungsschlüssel erlaubt neue Versionen und das Löschen dieses Links. Er liegt nur in diesem Browser – kopiere ihn, um auf einem anderen Gerät weiterzuteilen, und gib ihn sonst niemandem.</p>
+        <div class="dialog-knoepfe teilen-links">
+          <button type="button" class="knopf knopf-geist" id="teilen-schluessel-kopieren" data-testid="teilen-schluessel-kopieren">Bearbeitungsschlüssel kopieren</button>
+          <button type="button" class="knopf knopf-geist teilen-loeschen" id="teilen-loeschen" data-testid="teilen-loeschen">Link löschen</button>
+        </div>
+      </details>
       <div class="dialog-knoepfe">
         <button type="button" class="knopf knopf-geist" id="teilen-schliessen" data-testid="teilen-schliessen">Schließen</button>
       </div>
@@ -291,7 +334,7 @@
   <!-- Als Programm (EXE) herunterladen -->
   <dialog class="dialog dialog-exe" id="dialog-exe" data-testid="dialog-exe" aria-labelledby="exe-titel">
     <h2 id="exe-titel">Als Programm herunterladen <span class="beta-badge" data-testid="exe-beta">Beta</span></h2>
-    <p class="exe-intro">Dein Code aus <strong id="exe-tabname">…</strong> wird zu WebAssembly gebacken und in ein eigenständiges Programm verpackt – ganz ohne Server, direkt in deinem Browser. <em>Beta:</em> Noch lässt sich nicht jedes Programm als Programm backen.</p>
+    <p class="exe-intro">Dein Projekt <strong id="exe-tabname">…</strong> wird zu WebAssembly gebacken und in ein eigenständiges Programm verpackt – ganz ohne Server, direkt in deinem Browser. <em>Beta:</em> Noch lässt sich nicht jedes Programm als Programm backen.</p>
     <fieldset class="exe-ziele" id="exe-ziele" data-testid="exe-ziele" aria-describedby="exe-voraussetzung">
       <legend>Plattform</legend>
     </fieldset>
@@ -306,6 +349,7 @@
       <ul>
         <li><strong>Windows:</strong> Die .exe ist nicht signiert. Zeigt Windows SmartScreen „Der Computer wurde durch Windows geschützt“, klick auf <em>Weitere Informationen → Trotzdem ausführen</em>.</li>
         <li><strong>Linux:</strong> erst ausführbar machen: <code id="exe-chmod">chmod +x programm &amp;&amp; ./programm</code>; braucht WebKitGTK 4.1 (Debian/Ubuntu: <code>sudo apt install libwebkit2gtk-4.1-0</code>).</li>
+        <li>Alle Dateien des Projekts stecken im Programm – auch die <code>.pizza</code>-Dateien sind darin über <code>Kiste</code> lesbar.</li>
         <li>Das Programm läuft in der <strong>Konsole/im Terminal</strong>. Interaktive Eingaben (<code>Bestellannahme</code>) tippst du dort ein; Strg+D (Windows: Strg+Z, Enter) beendet die Eingabe.</li>
       </ul>
     </details>

@@ -8,8 +8,8 @@ import { erstelleDateibaum } from "./dateibaum.js";
 import { erstelleProjektmenue, erstelleTextFrage } from "./projektmenue.js";
 import { erstelleBildvorschau } from "./bildvorschau.js";
 import { erstelleExeDialog } from "./exe-dialog.js";
-import { programmText, pizzaPfadAusName, projektNameAus, ladePruefung, dateiArt } from "./projekt.js";
-import { erstelleVorbacker } from "./bilder.js";
+import { programmText, pizzaPfadAusName, projektNameAus, ladePruefung, dateiArt, groesse } from "./projekt.js";
+import { erstelleVorbacker, pruefeBild } from "./bilder.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { ausInterpreterErgaenzen, herdSchemaErgaenzen } from "./woerter.js";
@@ -20,7 +20,10 @@ import { erstelleHerdAnzeige, herdLaufVorbereiten, nutztHerd, ladeHerdSchema } f
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen, vorratEntfernen, vorratSchluessel } from "./vorrat.js";
 import { startApp } from "./app.js";
-import { verpacke, entpacke } from "./teilen.js";
+import {
+  teile, ladeGeteilt, holeLink, loescheLink, holeKonfig, linkAusHash, linkAdressen, teilenQuelle, pruefeSchluessel, dauerText, umfangText,
+  ohneErzeugteProjektdatei, TeilenFehler, ALT_TEXT,
+} from "./teilen.js";
 import { leseKoeche, speichereKoeche, koecheFuerLauf, koecheMoeglich, KOECHE_SCHLUESSEL } from "./koeche.js";
 
 const WILLKOMMEN = `// Willkommen im pizza-Playground!
@@ -180,15 +183,20 @@ async function start() {
   }
 
   /**
-   * Code (Beispiel, Doku-Block, geteilter Link) als Ein-Datei-Projekt öffnen (PROJEKTE §3.3). Gleiche Quelle → in die vorhandene
-   * Kopie springen, solange sie unverändert ist; sonst Wahl „Zu meiner Kopie“ / „Frische Kopie“.
+   * Code (Beispiel, Doku-Block) als Ein-Datei-Projekt bzw. Dateien (geteilter Link: { pfad → inhalt }, Name, opt.hauptdatei/teilen)
+   * als Projekt öffnen (PROJEKTE §3.3, §3.5). Gleiche Quelle → in die vorhandene Kopie springen, solange sie unverändert ist; sonst
+   * Wahl „Zu meiner Kopie“ / „Frische Kopie“.
    */
-  async function oeffneAlsProjekt(code, dateiname, quelle) {
+  async function oeffneAlsProjekt(code, dateiname, quelle, opt = {}) {
     const da = quelle ? projekte.findeQuelle(quelle) : null;
     if (da) {
       const frisch = (await projekte.istUnveraendert(da.id)) ? false
         : await frage("Schon einmal geöffnet", "Deine Kopie „" + da.name + "“ ist geändert. Zu deiner Kopie wechseln oder eine frische Kopie anlegen?", "Frische Kopie", "Zu meiner Kopie");
       if (!frisch) { await projekte.wechsle(da.id); return { neu: false }; }
+    }
+    if (code && typeof code === "object") {
+      await projekte.neu({ name: projektNameAus(dateiname), dateien: code, hauptdatei: opt.hauptdatei || null, quelle, teilen: opt.teilen || null });
+      return { neu: true };
     }
     const pfad = pizzaPfadAusName(dateiname);
     await projekte.neu({ name: projektNameAus(dateiname), dateien: { [pfad]: code }, quelle });
@@ -368,9 +376,17 @@ async function start() {
   exe = erstelleExeDialog({
     toast, speicher, holeMotoren,
     motor: { get faehigkeiten() { return faehigkeiten; }, warte: () => pruefungLaeuft || Promise.resolve(faehigkeiten) },
-    auftrag: () => {
+    // Projekt samt vorgebackenen Bildern (PROJEKTE §3.5/§3.6); Mehrdatei-Projekte backt der Wasm-Compiler erst mit PA2
+    auftrag: async () => {
       const { projekt, uebertragbar } = projekte.sammlung({ mitProjektdatei: true });
-      return { nachricht: { typ: "kompiliere", projekt }, transfer: uebertragbar };
+      const nachricht = { typ: "kompiliere", projekt };
+      const bilder = Object.fromEntries(Object.entries(projekt.dateien).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+      if (Object.keys(bilder).length) {
+        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder)]);
+        nachricht.teiglinge = teiglinge;
+        if (modul) nachricht.vorbacker = modul;
+      }
+      return { nachricht, transfer: uebertragbar };
     },
     anzeigeName: () => projekte.aktiv.name,
   });
@@ -758,98 +774,138 @@ async function start() {
     if (gemerkt !== "light" && gemerkt !== "dark") setzeThema(e.matches ? "dark" : "light", false);
   });
 
-  // ---------- Teilen: Links über unseren Server – Code öffnen (#h=<key>) und App starten (#app=<key>, app.js) ----------
+  // ---------- Teilen (PROJEKTE §4, K-143): Projekt über die Durchreiche – Code-Link #h=<id>[@n], App-Link #app=<id>[@n] (app.js) ----------
   const teilenDlg = $("dialog-teilen");
-  let teilenCode = "", teilenName = "";
+  const teilenOpt = { basis: "" };
+  let teilenGeteilt = null;   // { id, version, schluessel? } des zuletzt erstellten Links (Fertig-Schritt)
+  let teilenProjektId = null;
   function teilenSchritt(name) {
     teilenDlg.querySelectorAll(".teilen-schritt").forEach((s) => { s.hidden = s.dataset.schritt !== name; });
   }
   async function kopiere(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch (e) { return false; }
   }
-  // /api/konfig: nur das Feld „teilen“ (bool) zählt
   let konfigVersprechen = null;
-  function holeKonfig() {
-    if (!konfigVersprechen) {
-      konfigVersprechen = fetch("api/konfig", { headers: { Accept: "application/json" } })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((k) => ({
-          teilen: !(k && k.teilen === false),
-          tage: k && typeof k.aufbewahrungTage === "number" && Number.isFinite(k.aufbewahrungTage) && k.aufbewahrungTage >= 0 ? k.aufbewahrungTage : null,
-          ab: k && k.aufbewahrungAb === "letzter-abruf" ? "letzter-abruf" : "erstellung",
-        }))
-        .catch(() => ({ teilen: true, tage: null }));
-    }
+  function holeTeilenKonfig() {
+    if (!konfigVersprechen) konfigVersprechen = holeKonfig(teilenOpt);
     return konfigVersprechen;
   }
-  /** „Der Link funktioniert 90 Tage lang (bis 19.01.2027).“ – nur wenn der Server die Dauer nennt. */
-  function dauerText(k) {
-    if (!k || k.tage == null) return "";
-    if (k.tage === 0) return "Der Link läuft nicht ab.";
-    const zahl = k.tage.toLocaleString("de-DE", { maximumFractionDigits: 2 });
-    const t = k.tage === 1 ? "1 Tag" : zahl + " Tage";
-    if (k.ab === "letzter-abruf") return "Der Link funktioniert " + t + " nach dem letzten Öffnen.";
-    const bis = new Date(Date.now() + k.tage * 86_400_000);
-    return "Der Link funktioniert " + t + " lang (bis " + bis.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) + ").";
-  }
-  function setzeDauer(k) {
-    const text = dauerText(k);
-    for (const id of ["teilen-dauer", "teilen-dauer-fertig"]) { $(id).textContent = text; $(id).hidden = !text; }
-  }
+  /** Link-ID, zu der dieses Projekt gehört (eigener Link oder geöffneter Code-Link), und ob wir den Schlüssel haben. */
+  const linkVon = (P) => (P.teilen && P.teilen.id ? P.teilen : null);
   function setzeTeilenVerfuegbar(k) {
-    setzeDauer(k);
+    const text = dauerText(k);
+    $("teilen-dauer").textContent = text;
+    $("teilen-dauer").hidden = !text;
     const aus = !!(k && k.teilen === false);
     const senden = $("teilen-senden");
     senden.disabled = aus;
     senden.title = aus ? "Teilen ist auf diesem Server gerade nicht eingerichtet." : "";
     $("teilen-aus").hidden = !aus;
   }
-  async function linkErstellen() {
-    teilenSchritt("laeuft");
-    let fehler = null;
-    try {
-      const r = await fetch("api/teilen", { method: "POST", headers: { "Content-Type": "text/plain; charset=utf-8" }, body: verpacke(teilenName, teilenCode) });
-      let daten = null;
-      try { daten = await r.json(); } catch (e) { daten = null; }
-      if (r.ok && daten && typeof daten.key === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(daten.key)) {
-        const basis = location.href.split("#")[0];
-        const url = basis + "#h=" + daten.key;
-        try { history.replaceState(null, "", "#h=" + daten.key); } catch (e) { /* egal */ }
-        letzterHash = location.hash;
-        const appUrl = basis + "#app=" + daten.key;
-        $("teilen-url").value = url;
-        $("teilen-url-app").value = appUrl;
-        $("teilen-kopieren").textContent = "Kopieren";
-        setzeDauer(await holeKonfig());
-        teilenSchritt("fertig");
-        // Der App-Link ist der, den man meistens weitergibt → er landet automatisch in der Zwischenablage
-        const ok = await kopiere(appUrl);
-        $("teilen-kopieren-app").textContent = ok ? "Kopiert ✓" : "Kopieren";
-        $("teilen-fertig-text").textContent = "„" + teilenName + "“ ist gespeichert." +
-          (ok ? " Der App-Link ist schon in der Zwischenablage." : "") + " Jeder mit einem der Links kann den Code lesen.";
-        $("teilen-url-app").focus();
-        $("teilen-url-app").select();
-        return;
-      }
-      if (r.status === 413) fehler = "Das Skript ist zu groß zum Teilen.";
-      else if (r.status === 429) fehler = "Gerade gibt es zu viele Anfragen. Bitte versuch es gleich noch einmal.";
-      else fehler = "Teilen ist gerade nicht möglich. Bitte versuch es später erneut.";
-    } catch (e) {
-      fehler = "Teilen ist gerade nicht möglich – keine Verbindung zum Server. Bitte versuch es später erneut.";
+  function frageZeigen() {
+    const P = projekte.aktiv;
+    const l = linkVon(P);
+    const mitSchluessel = !!(l && l.schluessel);
+    $("teilen-wahl").hidden = !mitSchluessel;
+    if (mitSchluessel) {
+      teilenDlg.querySelector('input[name="teilen-wahl"][value="version"]').checked = true;
+      $("teilen-wahl-info").textContent = l.version ? "– bisher v" + l.version : "";
     }
-    $("teilen-fehlertext").textContent = fehler;
+    $("teilen-schluessel-frage").hidden = !(l && !l.schluessel);
+    const wahlNeu = () => !mitSchluessel || teilenDlg.querySelector('input[name="teilen-wahl"]:checked').value === "neu";
+    $("teilen-senden").textContent = wahlNeu() ? "Link erstellen" : "Neue Version teilen";
+    teilenDlg.querySelectorAll('input[name="teilen-wahl"]').forEach((r) => { r.onchange = () => { $("teilen-senden").textContent = wahlNeu() ? "Link erstellen" : "Neue Version teilen"; }; });
+    teilenSchritt("frage");
+  }
+  function zeigeFertig(t, { unveraendert = false, kopiert = false } = {}) {
+    const basis = location.href.split("#")[0];
+    const a = linkAdressen(basis, t.id, t.version);
+    $("teilen-url").value = a.code;
+    $("teilen-url-app").value = a.app;
+    $("teilen-url-fest").value = a.codeFest;
+    $("teilen-url-app-fest").value = a.appFest;
+    $("teilen-version").textContent = "v" + t.version;
+    $("teilen-fest").open = false;
+    $("teilen-schluessel-bereich").hidden = !t.schluessel;
+    $("teilen-schluessel-bereich").open = false;
+    for (const id of ["teilen-kopieren", "teilen-kopieren-fest", "teilen-kopieren-app-fest", "teilen-schluessel-kopieren"]) $(id).textContent = id === "teilen-schluessel-kopieren" ? "Bearbeitungsschlüssel kopieren" : "Kopieren";
+    $("teilen-kopieren-app").textContent = kopiert ? "Kopiert ✓" : "Kopieren";
+    const name = "„" + projekte.aktiv.name + "“";
+    $("teilen-fertig-text").textContent = (unveraendert
+      ? name + " ist unverändert – Version v" + t.version + " gilt weiter."
+      : name + " ist gespeichert" + (t.version > 1 ? " – Version v" + t.version + " unter demselben Link." : ".")) +
+      (kopiert ? " Der App-Link ist schon in der Zwischenablage." : "") + " Jeder mit einem der Links kann den Code lesen.";
+    teilenSchritt("fertig");
+  }
+  function teilenFehler(text) {
+    $("teilen-fehlertext").textContent = text;
     teilenSchritt("fehler");
     $("teilen-nochmal").focus();
   }
-  $("knopf-teilen").addEventListener("click", () => {
-    // Bis PB2 (Teilen mit Manifest und Blobs) wird wie bisher EIN Text geteilt: die Hauptdatei des Projekts
+  async function linkErstellen() {
     const P = projekte.aktiv;
-    const mehr = projekte.pfade().length > 1;
-    teilenCode = projekte.inhalt(P.hauptdatei) || "";
-    teilenName = mehr ? P.name + ".pizza" : P.hauptdatei;
-    $("teilen-tabname").textContent = "„" + teilenName + "“" + (mehr ? " (nur die Hauptdatei „" + P.hauptdatei + "“ – weitere Dateien teilt der Playground noch nicht)" : "");
-    holeKonfig().then(setzeTeilenVerfuegbar);
-    teilenSchritt("frage");
+    teilenProjektId = P.id;
+    const l = linkVon(P);
+    const neueVersion = !!(l && l.schluessel) && !$("teilen-wahl").hidden && teilenDlg.querySelector('input[name="teilen-wahl"]:checked').value === "version";
+    teilenSchritt("laeuft");
+    const status = $("teilen-status-text");
+    status.textContent = neueVersion ? "Neue Version wird geteilt …" : "Link wird erstellt …";
+    try {
+      const k = await holeTeilenKonfig();
+      // Bilder: Kopf/Größe wie beim Hinzufügen, Teigmenge wie beim Lauf (F8) – vor dem Hochladen
+      const alle = projekte.alleInhalte();
+      for (const [pfad, i] of Object.entries(alle)) {
+        if (dateiArt(pfad) !== "bild" || !(i instanceof Uint8Array)) continue;
+        const b = pruefeBild(pfad, i);
+        if (!b.ok) throw new TeilenFehler(b.fehler, { art: "grenze" });
+      }
+      const { projekt } = projekte.sammlung({ mitProjektdatei: true });
+      const r = await teile({
+        ...teilenOpt, projekt, grenzen: k.grenzen, link: neueVersion ? { id: l.id, schluessel: l.schluessel } : null,
+        fortschritt(schritt, i, n) {
+          if (schritt === "hochladen") status.textContent = "Datei " + i + " von " + n + " wird hochgeladen …";
+          else if (schritt === "speichern") status.textContent = neueVersion ? "Neue Version wird gespeichert …" : "Link wird gespeichert …";
+        },
+      });
+      const t = { id: r.id, version: r.version, schluessel: neueVersion ? l.schluessel : r.schluessel };
+      await projekte.setzeTeilen(t, P.id);
+      teilenGeteilt = t;
+      try { history.replaceState(null, "", "#h=" + t.id); } catch (e) { /* egal */ }
+      letzterHash = location.hash;
+      const tageText = dauerText(k);
+      $("teilen-dauer-fertig").textContent = tageText;
+      $("teilen-dauer-fertig").hidden = !tageText;
+      // Der App-Link ist der, den man meistens weitergibt → er landet automatisch in der Zwischenablage
+      const kopiert = await kopiere(linkAdressen(location.href.split("#")[0], t.id).app);
+      zeigeFertig(t, { unveraendert: !!r.unveraendert, kopiert });
+      $("teilen-url-app").focus();
+      $("teilen-url-app").select();
+    } catch (e) {
+      if (!(e instanceof TeilenFehler)) { console.error(e); teilenFehler("Teilen ist gerade nicht möglich. Bitte versuch es später erneut."); return; }
+      if (neueVersion && e.art === "weg") {
+        // eigener Link abgelaufen oder gelöscht → Verbindung lösen (§4.4)
+        await projekte.setzeTeilen(null, P.id);
+        teilenFehler("Der Link ist abgelaufen oder gelöscht. „Erneut versuchen“ erstellt einen neuen Link.");
+        return;
+      }
+      if (e.art === "schluessel") {
+        await projekte.setzeTeilen({ id: l.id, version: l.version }, P.id);   // falscher Schlüssel → vergessen, neu eingeben
+        teilenFehler(e.message + " Gib ihn neu ein oder teile einen neuen Link.");
+        return;
+      }
+      teilenFehler(e.message);
+    }
+  }
+  $("knopf-teilen").addEventListener("click", () => {
+    const P = projekte.aktiv;
+    const { projekt } = projekte.sammlung({ mitProjektdatei: true });
+    let bytes = 0;
+    for (const i of Object.values(projekt.dateien)) bytes += groesse(i);
+    $("teilen-tabname").textContent = "„" + P.name + "“";
+    $("teilen-umfang").textContent = umfangText(Object.keys(projekt.dateien).length, bytes);
+    setzeTeilenVerfuegbar(null);
+    holeTeilenKonfig().then(setzeTeilenVerfuegbar);
+    frageZeigen();
     if (typeof teilenDlg.showModal !== "function") { teilenDlg.setAttribute("open", ""); return; }
     teilenDlg.showModal();
     $("teilen-abbrechen").focus();
@@ -859,43 +915,131 @@ async function start() {
   $("teilen-abbrechen").addEventListener("click", () => teilenDlg.close());
   $("teilen-schliessen").addEventListener("click", () => teilenDlg.close());
   $("teilen-fehler-schliessen").addEventListener("click", () => teilenDlg.close());
-  $("teilen-kopieren").addEventListener("click", async () => {
-    const ok = await kopiere($("teilen-url").value);
-    if (!ok) { $("teilen-url").select(); }
-    $("teilen-kopieren").textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
+  for (const [knopf, feld] of [["teilen-kopieren", "teilen-url"], ["teilen-kopieren-app", "teilen-url-app"], ["teilen-kopieren-fest", "teilen-url-fest"], ["teilen-kopieren-app-fest", "teilen-url-app-fest"]]) {
+    $(knopf).addEventListener("click", async () => {
+      const ok = await kopiere($(feld).value);
+      if (!ok) { $(feld).focus(); $(feld).select(); }
+      $(knopf).textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
+    });
+  }
+  // Bearbeitungsschlüssel übertragen (F10): kopieren hier, „Schlüssel eingeben“ auf dem anderen Gerät
+  $("teilen-schluessel-kopieren").addEventListener("click", async () => {
+    const s = teilenGeteilt && teilenGeteilt.schluessel;
+    if (!s) return;
+    const ok = await kopiere(s);
+    $("teilen-schluessel-kopieren").textContent = ok ? "Schlüssel kopiert ✓" : "Kopieren nicht möglich";
+    if (ok) toast("Bearbeitungsschlüssel kopiert – füge ihn auf dem anderen Gerät unter „Teilen“ → „Schlüssel eingeben“ ein.", "ok");
   });
-  $("teilen-kopieren-app").addEventListener("click", async () => {
-    const ok = await kopiere($("teilen-url-app").value);
-    if (!ok) { $("teilen-url-app").focus(); $("teilen-url-app").select(); }
-    $("teilen-kopieren-app").textContent = ok ? "Kopiert ✓" : "Bitte manuell kopieren";
+  $("teilen-schluessel-eingeben").addEventListener("click", () => {
+    $("teilen-schluessel-feld").value = "";
+    $("teilen-schluessel-fehler").hidden = true;
+    teilenSchritt("schluessel");
+    $("teilen-schluessel-feld").focus();
+  });
+  $("teilen-schluessel-zurueck").addEventListener("click", frageZeigen);
+  async function schluesselUebernehmen() {
+    const s = pruefeSchluessel($("teilen-schluessel-feld").value);
+    if (!s) {
+      $("teilen-schluessel-fehler").textContent = "Das ist kein Bearbeitungsschlüssel (43 Zeichen aus A–Z, a–z, 0–9, - und _).";
+      $("teilen-schluessel-fehler").hidden = false;
+      return;
+    }
+    const l = linkVon(projekte.aktiv);
+    if (!l) { frageZeigen(); return; }
+    // nicht vorab geprüft (§4.4): passt er nicht, meldet die nächste neue Version 403
+    await projekte.setzeTeilen({ id: l.id, version: l.version, schluessel: s });
+    toast("Schlüssel übernommen – du kannst jetzt neue Versionen dieses Links teilen.", "ok");
+    frageZeigen();
+  }
+  $("teilen-schluessel-ok").addEventListener("click", schluesselUebernehmen);
+  $("teilen-schluessel-feld").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); schluesselUebernehmen(); } });
+  $("teilen-loeschen").addEventListener("click", async () => {
+    const t = teilenGeteilt;
+    if (!t || !t.schluessel) return;
+    const ok = await frage("Link löschen?", "Der Link und alle seine Versionen werden vom Server gelöscht. Wer ihn hat, kann das Projekt danach nicht mehr öffnen. Dein Projekt hier bleibt erhalten.", "Link löschen");
+    if (!ok) return;
+    try {
+      await loescheLink(teilenOpt, t.id, t.schluessel);
+      if (teilenProjektId) await projekte.setzeTeilen(null, teilenProjektId);
+      teilenGeteilt = null;
+      if (teilenDlg.open) teilenDlg.close();
+      try { if (linkAusHash(location.hash)) { history.replaceState(null, "", location.pathname + location.search); letzterHash = location.hash; } } catch (e) { /* egal */ }
+      toast("Link gelöscht.", "ok");
+    } catch (e) {
+      toast(e instanceof TeilenFehler ? e.message : "Der Link kann gerade nicht gelöscht werden.", "fehler");
+    }
   });
 
-  // Geteilte Links (#h=<key>) öffnen als neuer Tab
+  // Neuere Version eines eigenen Links (§3.5): Hinweis im Seitenbanner, „Laden“ ersetzt die Dateien des Projekts
+  const teilenBanner = $("teilen-banner");
+  let bannerLaden = null;
+  function zeigeTeilenBanner(text, laden) {
+    $("teilen-banner-text").textContent = text;
+    bannerLaden = laden;
+    teilenBanner.hidden = false;
+  }
+  $("teilen-banner-zu").addEventListener("click", () => { teilenBanner.hidden = true; bannerLaden = null; });
+  $("teilen-banner-laden").addEventListener("click", async () => {
+    const f = bannerLaden;
+    teilenBanner.hidden = true;
+    bannerLaden = null;
+    if (f) await f();
+  });
+  projekte.an("wechsel", () => { teilenBanner.hidden = true; bannerLaden = null; });
+
+  // Geteilte Links (#h=<id>[@n]) öffnen das Projekt als lokale Kopie (quelle teilen:<id>@<n>) bzw. das eigene Projekt
   let letzterHash = location.hash;
   async function hashLaden() {
-    const h = /(?:^#|&)h=([A-Za-z0-9_-]{1,64})(?:&|$)/.exec(location.hash || "");
-    if (!h) return false;
-    const key = h[1];
+    const h = linkAusHash(location.hash);
+    if (!h || h.art !== "h") return false;
+    if (h.link && h.link.alt) { toast(ALT_TEXT, "fehler"); return false; }
+    if (!h.link) { toast("Dieser geteilte Link ist ungültig.", "fehler"); return false; }
+    const { id, version } = h.link;
     try {
-      const r = await fetch("api/teilen/" + encodeURIComponent(key), { headers: { Accept: "text/plain" } });
-      if (r.status === 404) { toast("Diesen geteilten Code gibt es nicht (mehr).", "fehler"); return false; }
-      if (!r.ok) { toast("Der geteilte Code kann gerade nicht geladen werden. Bitte später erneut versuchen.", "fehler"); return false; }
-      const { name, code } = entpacke(await r.text());
-      await oeffneAlsProjekt(code, name || "Geteilt " + key + ".pizza", "teilen:" + key);
+      // Eigenes Projekt mit Schlüssel (§3.5): dieses fokussieren, nicht kopieren
+      const eigen = version == null ? projekte.liste().find((p) => p.teilen && p.teilen.id === id && p.teilen.schluessel) : null;
+      if (eigen) {
+        await projekte.wechsle(eigen.id);
+        const kopf = await holeLink(teilenOpt, id).catch((e) => e);
+        if (kopf instanceof TeilenFehler && kopf.art === "weg") {
+          await projekte.setzeTeilen(null, eigen.id);
+          toast("Der Link ist abgelaufen oder gelöscht.", "info");
+        } else if (!(kopf instanceof Error) && kopf.version > (eigen.teilen.version || 0)) {
+          zeigeTeilenBanner("Auf dem Server gibt es eine neuere Version (v" + kopf.version + ") dieses Projekts – laden?", async () => {
+            try {
+              const g = await ladeGeteilt(teilenOpt, id, kopf.version);
+              if (projekte.aktiv.id !== eigen.id) await projekte.wechsle(eigen.id);
+              await projekte.ersetzeDateien(ohneErzeugteProjektdatei(g.dateien, g), { hauptdatei: g.hauptdatei });
+              await projekte.setzeTeilen({ ...projekte.aktiv.teilen, version: g.version });
+              toast("Version v" + g.version + " geladen.", "ok");
+            } catch (e) { toast(e instanceof TeilenFehler ? e.message : "Die neuere Version kann gerade nicht geladen werden.", "fehler"); }
+          });
+        }
+        return "eigen";
+      }
+      const g = await ladeGeteilt(teilenOpt, id, version);
+      const dateien = ohneErzeugteProjektdatei(g.dateien, g);
+      await oeffneAlsProjekt(dateien, g.name, teilenQuelle(id, g.version), { hauptdatei: g.hauptdatei, teilen: { id, version: g.version } });
       return true;
     } catch (e) {
-      toast("Der geteilte Code kann gerade nicht geladen werden – keine Verbindung.", "fehler");
+      if (e instanceof TeilenFehler) toast(e.art === "weg" ? "Diesen geteilten Code gibt es nicht (mehr)." : e.message, "fehler");
+      else { console.error(e); toast("Der geteilte Code kann gerade nicht geladen werden.", "fehler"); }
       return false;
     }
   }
+  const nachHashLaden = (ok) => {
+    if (ok === "eigen") toast("Dein geteiltes Projekt ist geöffnet.", "ok");
+    else if (ok) toast("Geteilter Code als Projekt geöffnet.", "ok");
+  };
   window.addEventListener("hashchange", () => {
     if (location.hash === letzterHash) return;
     // App-Link (z. B. per Zurück-Taste): Seite neu laden – der App-Modus entscheidet sich vor dem ersten Zeichnen (thema.js)
-    if (/(?:^#|&)app=[A-Za-z0-9_-]{1,64}(?:&|$)/.test(location.hash)) { location.reload(); return; }
+    const h = linkAusHash(location.hash);
+    if (h && h.art === "app") { location.reload(); return; }
     letzterHash = location.hash;
-    hashLaden().then((ok) => { if (ok) toast("Geteilter Code als Projekt geöffnet.", "ok"); });
+    hashLaden().then(nachHashLaden);
   });
-  hashLaden().then((ok) => { if (ok) toast("Geteilter Code als Projekt geöffnet.", "ok"); });
+  hashLaden().then(nachHashLaden);
 
   // ---------- Befehlspalette ----------
   const motorNamen = { auto: "Auto (Wasm)", wasm: "Wasm", interpreter: "Interpreter" };
@@ -948,7 +1092,7 @@ async function start() {
       { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(projekte.aktiv)).length > 0 },
       { id: "argumente", icon: "terminal", gruppe: "Ofen", titel: "Argumente für hauptgang(args) bearbeiten", aktion: () => laufOptionenOeffnen(true) },
       { id: "feste-saat", icon: "sliders", gruppe: "Ofen", titel: "Feste Saat 42 " + (document.getElementById("feste-saat").checked ? "ausschalten" : "einschalten"), aktion: () => { const b = $("feste-saat"); b.checked = !b.checked; b.dispatchEvent(new Event("change")); toast(b.checked ? "Feste Saat 42 ist an." : "Jeder Lauf bekommt wieder eine echte Zufallssaat.", "info"); } },
-      { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
+      { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Projekt teilen …", aktion: () => $("knopf-teilen").click() },
       { id: "panel", icon: "panel",  gruppe: "Ansicht", titel: "Seitenpanel ein-/ausblenden", kuerzel: K("Strg+B"), aktion: panelUmschalten },
       { id: "doku", icon: "book",  gruppe: "Ansicht", titel: "Doku anzeigen", aktion: () => { setzePanel(true); waehleTab("doku", true); } },
       { id: "beispiele", icon: "pizza",  gruppe: "Ansicht", titel: "Beispiele anzeigen", aktion: () => { setzePanel(true); waehleTab("beispiele", true); } },
@@ -1053,7 +1197,7 @@ function ziehbar(griff, achse, { start, bewege, ende, taste }) {
   });
 }
 
-// App-Link (#app=<key>): js/thema.js hat data-app gesetzt → nur die App starten, kein Editor (app.js)
+// App-Link (#app=<id>[@n]): js/thema.js hat data-app gesetzt → nur die App starten, kein Editor (app.js)
 function los() {
   const key = document.documentElement.dataset.app;
   if (key) { startApp(key); return; }

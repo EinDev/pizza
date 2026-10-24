@@ -5,8 +5,9 @@
 > `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
 > **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
-> Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker), **PD2** (Kiste/Bildchen.laden im Interpreter) und **PA2** (Wasm + Host,
-> HOST-ABI v2) ebenso; übrige Pakete siehe §11; `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
+> Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker), **PD2** (Kiste/Bildchen.laden im Interpreter), **PA2** (Wasm + Host,
+> HOST-ABI v2), **PB1** (Playground-Projekte), **PC1** (Durchreiche) und **PB2** (Teilen-UI, App-Link) ebenso; übrige Pakete siehe §11;
+> `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
 > Rückwärtskompatibilität nötig, aber alle Beispiele, Doku-Beispiele und Tests laufen · keine echten Domains (nur
@@ -949,13 +950,13 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 |---|---|---|---|---|---|
 | **P0 Vertrag** | SPEC §2/§11/§14.7/§14.8/§18.5, K-138 … K-147, ARCHITEKTUR §1–§3/§6, HOST-ABI v2 (inkl. §7, Anhang A), WASM §4, HERD.md §12.1 Regel 3, Prüfstand-Fälle als `*-offen` (`herd/README.md` schreibt PD1) | Doku-Dateien, `pruefstand/faelle/a19-projekte-offen.js` | unabhängige Prüfung dieses Konzepts (erledigt, §13) | – | **umgesetzt** (Commit „PROJEKTE P0: …“, 2026-10-23; Präzisierungen unten) |
 | **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | **umgesetzt** (Commit „PROJEKTE PA1: …“; Präzisierungen unten) |
-| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | **umgesetzt** (Commit „PROJEKTE PC1: …“, 2026-10-23; Präzisierungen unten) |
+| **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | **umgesetzt** (Commit „PROJEKTE PC1: …“, 2026-10-23, mit PB2 auf PB1/PA2 rebased; Präzisierungen unten) |
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | **umgesetzt** (Commit „PROJEKTE PD3: …“, 2026-10-24; Präzisierungen unten) |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | **umgesetzt** (Commit „PROJEKTE PA2: …“; Präzisierungen unten) |
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | **umgesetzt** (Commit „PROJEKTE PB1: …“, 2026-10-24) auf Lader (PA1), Vorbacker (PD1) und Kiste/Bildchen.laden (PD2); Wasm-Projekte folgen mit PA2; Präzisierungen unten |
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
-| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
+| **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | **umgesetzt** (Commit „PROJEKTE PB2: …“, 2026-10-24) mit PC1 im selben Stand, auf PA2 (EXE aus Mehrdatei-Projekten über `Pizzaiolo.projekte`); Präzisierungen unten |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
 | **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | offen |
@@ -1062,7 +1063,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   geschlossene Tabs des Projekts zurück. Doppelklick/F2 auf einen Tab = Datei umbenennen. Strg+O und Ablegen im Editor = Dateien
   hinzufügen (ZIP → neues Projekt). Der Dateibaum ist bei Ein-Datei-Projekten anfangs eingeklappt (Knopf links in der Tab-Leiste,
   Wahl in `localStorage` `pizza.baum`), auf schmalen Bildschirmen eine Schublade. Leere Ordner stehen im Projekt-Datensatz (`ordner`).
-- **Teilen bis PB2:** wie bisher **ein** Text – die Hauptdatei; der Dialog weist bei Mehrdatei-Projekten darauf hin.
+- **Teilen bis PB2:** wie bisher **ein** Text – die Hauptdatei; der Dialog weist bei Mehrdatei-Projekten darauf hin. (Seit PB2 wird das ganze Projekt geteilt.)
 - **Vorbacker (PD1):** `bilder.js` prüft beim Hinzufügen zuerst den Kopf (Endung + Signatur + Größe, Texte wie SPEC §18.5), dann bäckt
   `site/js/herd/teigling.js` + `teigling.wasm` (beide erst beim ersten Bild geladen) vor – ein Fehler-Teigling ergibt dieselbe Meldung
   wie zur Laufzeit. Teiglinge liegen im IndexedDB-Speicher `teiglinge` unter `PizzaVorbacker.cacheSchluessel` (LRU 128 MiB; `besorge`
@@ -1146,7 +1147,53 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 - Übergang bis PB2: `ui/src/teilen.js`/`main.js`/`app.js` und `e2e/server.mjs` (Hastebin-Attrappe, alte `/api/konfig`-Form)
   sind unverändert; E2E läuft gegen die Attrappe weiter grün. Gegen den echten Dienst sendet die alte UI Rohtext → `415`
   (allgemeine Fehlermeldung), alte Links → „gibt es nicht (mehr)“, `aufbewahrungAb: "letzte-version"` zeigt sie wie
-  „erstellung“. Deshalb PC1 erst zusammen mit PB2 deployen (gebündelter Push).
+  „erstellung“. Deshalb PC1 erst zusammen mit PB2 deployen (gebündelter Push). – Erledigt: PC1 und PB2 liegen zusammen auf `master`.
+
+**Präzisierungen aus PB2** (Teilen-UI, App-Link; spätere Pakete richten sich danach):
+- **Client** `ui/src/teilen.js` ohne DOM (Node-Test `ui/test/teilen.mjs` gegen den echten Dienst im Prozess): Links lesen
+  (`leseLinkWert`/`linkAusHash`, `%40` = `@`, 10 Kleinbuchstaben = alt), Manifest bauen (`baueManifest` aus
+  `projekte.sammlung({ mitProjektdatei: true })`; Hash = SHA-256 der normalisierten UTF-8-Bytes bzw. der Bilddaten; WebCrypto, ohne
+  sicheren Kontext ein JS-Rückfall), `teile` (fehlend → PUT nacheinander → POST, bei `409 {fehlend}` einmal nachladen), `ladeGeteilt`
+  (Manifest + Blobs, höchstens 4 parallel, Hash und Größe je Blob geprüft, Texte UTF-8-streng), `holeLink`, `loescheLink`, Texte
+  (`dauerText`, `umfangText`). **429:** ohne `Retry-After` (nginx) 1/2/4/8 s warten und wiederholen, mit `Retry-After` > 10 s (Dienst) sofort
+  die Meldung zeigen. Grenzen aus `/api/konfig` und Bild-Köpfe (`pruefeBild`) vor dem ersten Byte.
+- **Hauptdatei beim Teilen:** Leitet `ausDateien` aus der (vorhandenen) `pizza.json` eine andere Hauptdatei ab als das Projekt hat
+  (keine `hauptdatei`, mehrere `.pizza`), bekommt nur die **geteilte** `pizza.json` die Hauptdatei des Projekts – sonst liefe beim
+  Empfänger etwas anderes. `beschreibung` im Manifest ohne Steuerzeichen (Anzeige-Kopie, §4.2).
+- **Erzeugte `pizza.json`:** Beim Öffnen eines Links (Code- und App-Link) fällt eine `pizza.json` weg, die genau
+  `erzeugeProjektdatei({ name, hauptdatei })` entspricht – ein geteiltes Ein-Datei-Projekt kommt als Ein-Datei-Projekt an (Name und
+  Hauptdatei trägt der Datensatz); jede andere `pizza.json` bleibt.
+- **Projekt-Datensatz:** `teilen = { id, version, schluessel? }` (`projekte.setzeTeilen`, `normalisiereTeilen`); ein geöffneter
+  Code-Link speichert `teilen` **ohne** Schlüssel und `quelle = "teilen:<id>@<n>"` mit der tatsächlich geladenen Version (auch bei
+  `#h=<id>` ohne `@n`) – gleiche Quelle + unverändert → in die Kopie springen. Eigenes Teilen setzt `teilen` mit Schlüssel, `quelle`
+  bleibt. 403 beim Teilen → Schlüssel vergessen (`teilen` ohne Schlüssel, „Schlüssel eingeben“ erneut); 404 bei „Neue Version“ →
+  `teilen = null` + Hinweis „Der Link ist abgelaufen oder gelöscht.“
+- **Schlüssel übertragen (F10):** „Bearbeitungsschlüssel kopieren“ kopiert nur den Schlüssel (43 Zeichen); „Schlüssel eingeben“
+  gibt es für Projekte mit Link-ID ohne Schlüssel (also auf dem anderen Gerät nach dem Öffnen des Code-Links); ungeprüft
+  gespeichert, die nächste neue Version zeigt 403. Ohne Schlüssel und ohne Link → nur „Link erstellen“.
+- **Dialog:** Auswahl „Neue Version teilen (Link bleibt gleich)“ (Standard, „bisher vN“) / „Neuer Link“ nur mit Schlüssel; Text mit
+  Projektname, „n Dateien, x KB“ (inkl. erzeugter `pizza.json`), Aufbewahrung „… nach der letzten Version gültig (bis TT.MM.JJJJ) –
+  jede neue Version verlängert ihn“ (Datum = UTC heute + Tage wie im Dienst; `null` → „bis du ihn löschst“), „Ältere Versionen bleiben
+  unter demselben Link abrufbar.“ Danach: App-Link (in der Zwischenablage), Code-Link, aufklappbar „Diese Version fest (vN)“ (App
+  und Code `@n`) und „Bearbeitungsschlüssel und Löschen“. Gleiches Manifest → „unverändert – Version vN gilt weiter“.
+- **Eigener Code-Link** (`#h=<id>` ohne `@n`, lokales Projekt mit dieser ID **und** Schlüssel): Projekt fokussieren; ist die neueste
+  Server-Version größer als `teilen.version`, Seitenbanner „neuere Version (vN) – laden?“ → `projekte.ersetzeDateien` (alle Dateien
+  ersetzt, `basis = inhalt`, Ereignis `wechsel` mit `ersetzt`), `teilen.version = n`. `#h=<id>@<n>` öffnet immer eine Kopie.
+- **App-Link:** `js/thema.js` erkennt `#app=` mit `@`/`%40`; `app.js` lädt über `ladeGeteilt`, backt Bilder ohne Cache vor
+  (`erstelleVorbacker({ ablage: null })`), startet mit einer frischen Sammlung je Lauf und den Standard-Argumenten aus `pizza.json`;
+  Titel = Projektname; „Code ansehen“/„App bearbeiten“ behalten `@n`. Alte Hastebin-Links (F6) werden ohne Anfrage abgewiesen (Code-
+  und App-Link), unbekannte/abgelaufene Links: „Diese App gibt es nicht (mehr) …“.
+- **EXE:** der `kompiliere`-Auftrag bekommt `teiglinge`/`vorbacker` wie der Lauf (§3.6); mit PA2 (`Pizzaiolo.projekte === true`) backt
+  der Worker Mehrdatei-Projekte samt Bildern (E2E 18: geteiltes Mehrdatei-Projekt mit PNG → EXE „Teigball…“), Ein-Datei-Projekte ergeben
+  dieselbe EXE wie bisher. EXE-Dialog: „Dein Projekt …“, Hinweis „auch die `.pizza`-Dateien sind über `Kiste` lesbar“ (§13).
+- **E2E:** `e2e/server.mjs` startet die Durchreiche im Prozess (`starte`, 127.0.0.1, Port 0, Daten unter `e2e/tmp/durchreiche-*`,
+  beim Ende gelöscht) und reicht `/api/` wie nginx weiter (Content-Type/Authorization, `X-Real-IP`, Cache-Map, F6-Antwort). Schreib-
+  und Byte-Grenzen je IP sind dort **aus** (alle Tests einer Datei teilen 127.0.0.1), Lese-Grenzen wie im Betrieb; 429 prüft
+  `teilen.modus = "limit"` (mit `Retry-After: 60`), `"aus"` = ohne `TEILEN_URL`. Vorbelegen über `server.teilen.lege/version/hole`
+  (betrifft auch E2E 12 und 14). Neu `18-teilen-versionen` (Versionen, `@n`, Schlüssel übertragen, falscher Schlüssel, eigenes
+  Projekt + Banner, neuer Link, Löschen → 404, Mehrdatei mit PNG ohne erneuten Upload, 100 Dateien zweimal ohne 429, F6, EXE aus
+  einem geteilten Mehrdatei-Projekt).
+- **Offen (nicht PB2):** Teilen-Vorschau mit `beschreibung`, Schlüssel eines eigenen Links nachträglich (ohne neues Teilen) kopieren.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

@@ -79,6 +79,7 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
     r.ordner = Array.isArray(r.ordner) ? r.ordner.filter((x) => typeof x === "string") : [];
     r.args = typeof r.args === "string" ? r.args : "";
     r.name = projektNameAus(r.name);
+    r.teilen = normalisiereTeilen(r.teilen);
     return r;
   }
   async function sicher(fn) {
@@ -223,7 +224,7 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
   }
 
   /** Neues Projekt anlegen und aktivieren. dateien: { pfad → inhalt }; unveraendert: basis = inhalt (kein „geändert“-Punkt). */
-  async function neu({ name = null, dateien = null, hauptdatei = null, quelle = null, args = "", unveraendert = true } = {}) {
+  async function neu({ name = null, dateien = null, hauptdatei = null, quelle = null, args = "", unveraendert = true, teilen = null } = {}) {
     let n = name;
     if (!n) { let i = 1; const namen = new Set(sichtbare().map((p) => p.name)); while (namen.has("unbenannt-" + i)) i++; n = "unbenannt-" + i; }
     n = eindeutigerName(projektNameAus(n));
@@ -245,6 +246,7 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
     }
     const p = neuerDatensatz({ name: n, hauptdatei: hd, quelle, args: a });
     p.offen = [hd];
+    p.teilen = normalisiereTeilen(teilen);
     datensaetze.set(p.id, p);
     const liste = Object.entries(ds).map(([pfad, inhalt]) => ({ pfad, inhalt, basis: unveraendert ? inhalt : (typeof inhalt === "string" ? "" : inhalt) }));
     await sicher(() => ablage.schreibeProjekte([{ projekt: p, dateien: liste }]));
@@ -453,6 +455,36 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
     },
     setzeArgs(text) { rec().args = String(text || ""); aendereRec(false); },
 
+    // ----- Teilen (PROJEKTE §3.2, §4.4): { id, version, schluessel? } | null; Quelle eines geöffneten Links -----
+    setzeTeilen(teilen, id = rec().id) {
+      const p = aktiv && aktiv.rec.id === id ? rec() : datensaetze.get(id);
+      if (!p) return;
+      p.teilen = normalisiereTeilen(teilen);
+      if (p === rec()) { aendereRec(false); return speichern(); }
+      return sicher(() => ablage.schreibeProjekt(p));
+    },
+    setzeQuelle(quelle) { rec().quelle = quelle || null; aendereRec(false); },
+    /**
+     * Alle Dateien des aktiven Projekts ersetzen (neuere Version eines eigenen geteilten Links laden, §3.5): basis = inhalt,
+     * Tabs/Ordner werden angeglichen, ein „wechsel“-Ereignis lädt Editor, Tabs und Dateibaum neu.
+     */
+    async ersetzeDateien(dateien, { hauptdatei = null } = {}) {
+      const r = rec();
+      for (const p of aktiv.dateien.keys()) if (!(p in dateien)) { weg.add(p); schmutzig.delete(p); }
+      aktiv.dateien = new Map(Object.entries(dateien).map(([p, i]) => [p, { inhalt: i, basis: i, gespeichert: null }]));
+      for (const p of aktiv.dateien.keys()) { schmutzig.add(p); weg.delete(p); }
+      if (hauptdatei && aktiv.dateien.has(hauptdatei)) r.hauptdatei = hauptdatei;
+      else if (!aktiv.dateien.has(r.hauptdatei)) r.hauptdatei = [...aktiv.dateien.keys()].filter((p) => dateiArt(p) === "pizza").sort()[0] || [...aktiv.dateien.keys()][0];
+      r.offen = r.offen.filter((p) => aktiv.dateien.has(p));
+      if (!r.offen.length) r.offen = [r.hauptdatei];
+      if (!r.offen.includes(r.aktiv)) r.aktiv = r.offen[0];
+      r.angeheftet = r.angeheftet.filter((p) => r.offen.includes(p));
+      r.ordner = r.ordner.filter((o) => ![...aktiv.dateien.keys()].some((p) => p.startsWith(o + "/")));
+      aendereRec();
+      await speichern();
+      melde("wechsel", { ersetzt: true });
+    },
+
     // ----- Lauf -----
     /** Sammlung für Worker/Export (ohne pruefung/); mitProjektdatei: fehlende pizza.json erzeugen (ZIP/EXE/Teilen). */
     sammlung({ mitProjektdatei = false } = {}) {
@@ -464,6 +496,14 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
     speichern,
     sofortSpeichern() { speichern(); },
   };
+}
+
+/** Teilen-Feld eines Projekts (PROJEKTE §3.2): { id, version, schluessel? } oder null. */
+export function normalisiereTeilen(t) {
+  if (!t || typeof t !== "object" || !/^[0-9A-Za-z]{12}$/.test(String(t.id))) return null;
+  const r = { id: t.id, version: Number.isSafeInteger(t.version) && t.version > 0 ? t.version : null };
+  if (typeof t.schluessel === "string" && /^[A-Za-z0-9_-]{43}$/.test(t.schluessel)) r.schluessel = t.schluessel;
+  return r;
 }
 
 /** Ordnerpfad prüfen (wie Dateipfade, aber ohne Dateiart). */

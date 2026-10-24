@@ -8,7 +8,7 @@ const $ = (id) => document.getElementById(id);
 
 /**
  * @param {{ toast, speicher, motor: { faehigkeiten: object|null, warte(): Promise }, holeMotoren(): Promise<{wasm, exe}>,
- *           auftrag(): { nachricht, transfer }, anzeigeName(): string }} o
+ *           auftrag(): { nachricht, transfer } | Promise<…>, anzeigeName(): string }} o
  */
 export function erstelleExeDialog({ toast, speicher, motor, holeMotoren, auftrag, anzeigeName }) {
   const knopfExe = $("knopf-exe");
@@ -25,8 +25,8 @@ export function erstelleExeDialog({ toast, speicher, motor, holeMotoren, auftrag
   };
   const dateibasis = () => String(anzeigeName() || "programm").replace(/\.pizza$/i, "").replace(/[\\/:*?"<>|]+/g, "-") || "programm";
 
-  function kompiliere(zeitlimit) {
-    const { nachricht, transfer } = auftrag();
+  async function kompiliere(zeitlimit) {
+    const { nachricht, transfer } = await auftrag();
     return workerAuftrag(nachricht, "pkarton", zeitlimit, transfer);
   }
   function kompilierGrund(r, lang) {

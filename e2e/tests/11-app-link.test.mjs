@@ -1,12 +1,12 @@
-// Teilen als App: der Teilen-Dialog liefert zwei Links zum selben Schlüssel – „Code öffnen“ (#h=<key>, Playground)
-// und „App starten“ (#app=<key>, Vollbild ohne Editor). Der App-Link zeigt bis zum Start nur einen Ladebalken,
+// Teilen als App: der Teilen-Dialog liefert zwei Links zur selben Link-ID – „Code öffnen“ (#h=<id>, Playground)
+// und „App starten“ (#app=<id>, Vollbild ohne Editor). Der App-Link zeigt bis zum Start nur einen Ladebalken,
 // kompiliert zur Laufzeit (Motor Auto) und startet sofort: Theke füllt das Fenster, Konsolenprogramme bekommen
-// eine Vollbild-Konsole mit Eingabe. Während der Laufzeit dezent „App bearbeiten“ oben rechts (→ #h=<key>). Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“. Teilen-API = Attrappe in server.mjs.
+// eine Vollbild-Konsole mit Eingabe. Während der Laufzeit dezent „App bearbeiten“ oben rechts (→ #h=<id>). Am Ende: Ausgabe +
+// „Nochmal“ / „Code ansehen“. Teilen-API = echte Durchreiche im Prozess (e2e/server.mjs); Links legt server.teilen.lege an.
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, bereit, editorText, editorTabs, aktiverTabName, sendeEingabe, thekeEreignis, warteAufBediene, schlafe, SCHMAL, DESKTOP,
 } from "../hilfen.mjs";
-import { verpacke, entpacke } from "../../ui/src/teilen.js";
 
 /** Zwischenablage abfangen (headless ohne Berechtigung): alles, was geschrieben wird, landet in window.__kopiert. */
 const ZWISCHENABLAGE = () => {
@@ -109,8 +109,7 @@ async function pruefeKeinPlayground(page) {
   assert.ok(z.modus, "data-app gesetzt");
 }
 
-e2e("Teilen: Dialog zeigt zwei Links (App starten / Code öffnen) zum selben Schlüssel, App-Link in der Zwischenablage, Tab-Name gespeichert", { vorLaden: ZWISCHENABLAGE }, async ({ page, oeffne, neueSeite, server, basis }) => {
-  server.teilen.modus = "mock";
+e2e("Teilen: Dialog zeigt zwei Links (App starten / Code öffnen) zur selben Link-ID, App-Link in der Zwischenablage, Projektname gespeichert", { vorLaden: ZWISCHENABLAGE }, async ({ page, oeffne, neueSeite, server, basis }) => {
   await oeffne();
   const code = 'Bote.sage(("Hallo aus der App"));';
   await setzeCode(page, code);
@@ -122,12 +121,16 @@ e2e("Teilen: Dialog zeigt zwei Links (App starten / Code öffnen) zum selben Sch
   await page.waitForFunction(() => !document.querySelector('#dialog-teilen [data-schritt="fertig"]').hidden, { timeout: 5000 });
   const codeUrl = await page.$eval("#teilen-url", (i) => i.value);
   const appUrl = await page.$eval('[data-testid="teilen-url-app"]', (i) => i.value);
-  const key = /#h=([A-Za-z0-9_-]+)$/.exec(codeUrl)[1];
+  const key = /#h=([0-9A-Za-z]{12})$/.exec(codeUrl)[1];
   assert.equal(codeUrl, basis + "#h=" + key);
-  assert.equal(appUrl, basis + "#app=" + key, "App-Link: gleicher Schlüssel, #app=");
-  // ein Dokument: Code + Tab-Name in einer kleinen JSON-Hülle
-  assert.equal(server.teilen.ablage.size, 1, "nur einmal gespeichert");
-  assert.deepEqual(JSON.parse(server.teilen.ablage.get(key)), { pizza: "teilen", v: 1, name: tabName, code });
+  assert.equal(appUrl, basis + "#app=" + key, "App-Link: gleiche Link-ID, #app=");
+  // ein Link mit Manifest: Hauptdatei + erzeugte pizza.json (Name des Projekts)
+  assert.equal(server.teilen.links, 1, "nur einmal gespeichert");
+  const geteilt = await server.teilen.hole(key);
+  assert.equal(geteilt.version, 1);
+  assert.equal(geteilt.dateien[tabName], code);
+  assert.equal(geteilt.name, tabName.replace(/\.pizza$/, ""));
+  assert.deepEqual(Object.keys(geteilt.dateien).sort(), [tabName, "pizza.json"].sort());
   const text = await page.$eval("#dialog-teilen", (d) => d.innerText);
   assert.match(text, /Code öffnen/);
   assert.match(text, /App starten/);
@@ -163,9 +166,9 @@ e2e("Teilen: Dialog zeigt zwei Links (App starten / Code öffnen) zum selben Sch
   assert.equal(await p2.title(), stamm);
 });
 
-e2e("App-Link mit Tab-Name: Seitentitel = Name, kein „Saat:“, keine Doku-Daten geladen; Code-Link öffnet Tab mit dem Namen", async ({ page, neueSeite, server, basis }) => {
-  server.teilen.ablage.set("benannt", verpacke("zahlenraten.pizza", 'Bote.sage(("Rate mal"));'));
-  await page.goto(basis + "#app=benannt", { waitUntil: "load" });
+e2e("App-Link mit Projektname: Seitentitel = Name, kein „Saat:“, keine Doku-Daten geladen; Code-Link öffnet Tab mit dem Namen", async ({ page, neueSeite, server, basis }) => {
+  const { id } = await server.teilen.lege({ name: "zahlenraten.pizza", code: 'Bote.sage(("Rate mal"));' });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await warteEnde(page);
   assert.equal(await page.title(), "zahlenraten");
   const t = await konsolenText(page);
@@ -176,19 +179,19 @@ e2e("App-Link mit Tab-Name: Seitentitel = Name, kein „Saat:“, keine Doku-Dat
   assert.equal(await sichtbar(page, "#vorschau-schliessen"), false, "Konsolen-App: kein X");
 
   const p2 = await neueSeite();
-  await p2.goto(basis + "#h=benannt", { waitUntil: "load" });
+  await p2.goto(basis + "#h=" + id, { waitUntil: "load" });
   await bereit(p2);
   await p2.waitForFunction(() => /Rate mal/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
   assert.equal(await aktiverTabName(p2), "zahlenraten.pizza");
-  assert.equal(entpacke(server.teilen.ablage.get("benannt")).name, "zahlenraten.pizza");
+  assert.deepEqual((await editorTabs(p2)).map((t) => t.name), ["zahlenraten.pizza"], "die beim Teilen erzeugte pizza.json fällt beim Öffnen weg");
   // Im Playground ist die Doku da
   const d = await dokuGeladen(p2);
   assert.ok(d.angefragt >= 4 && d.daten > 0, "Doku im Playground: " + JSON.stringify(d));
 });
 
 e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorrat, Nochmal, Code ansehen", { vorLaden: ERSTER_EINDRUCK }, async ({ page, server, basis }) => {
-  server.teilen.ablage.set("konsoleapp", KONSOLE_APP);
-  await page.goto(basis + "#app=konsoleapp", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "konsoleapp", code: KONSOLE_APP });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   assert.deepEqual(await page.evaluate(() => window.__ersterEindruck), { kopf: false, arbeitsbereich: false, lade: true }, "erst nur der Ladebalken");
   await page.waitForSelector('[data-testid="konsole-eingabe"]:not([hidden])', { timeout: 20_000 });
   assert.equal(await sichtbar(page, "#app-lade"), false, "Ladebalken weg, sobald die App läuft");
@@ -197,9 +200,9 @@ e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorra
   const box = await page.$eval("#konsole", (k) => { const r = k.getBoundingClientRect(); return { w: r.width, h: r.height }; });
   assert.ok(box.w >= DESKTOP.width - 1 && box.h >= DESKTOP.height - 80, "Vollbild-Konsole: " + JSON.stringify(box));
   assert.match(await konsolenText(page), /Wie heißt du\?/);
-  await pruefeBearbeiten(page, DESKTOP, { theke: false, key: "konsoleapp", basis });
+  await pruefeBearbeiten(page, DESKTOP, { theke: false, key: id, basis });
   assert.doesNotMatch(await konsolenText(page), /Saat/, "kein „Saat: N“ im App-Modus");
-  assert.equal(await page.title(), "pizza-App", "alter Link (nur Code, ohne Namen) läuft weiter");
+  assert.equal(await page.title(), "konsoleapp", "Titel = Projektname");
   // Motor Auto: genau ein motor-Ereignis
   assert.equal(await page.evaluate(() => window.__ereignisse.filter((e) => e.typ === "motor").length), 1);
 
@@ -225,15 +228,15 @@ e2e("App-Link, Konsole: nur Ladebalken bis zum Start, interaktive Eingabe, Vorra
   // Code ansehen → Playground mit dem Code (Code-Link)
   await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.click("#app-code")]);
   await bereit(page);
-  assert.match(page.url(), /#h=konsoleapp$/);
+  assert.ok(page.url().endsWith("#h=" + id), page.url());
   await page.waitForFunction(() => /Bestellannahme/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
   assert.equal(await editorText(page), KONSOLE_APP);
   assert.ok((await editorTabs(page)).some((t) => /konsoleapp/.test(t.name)));
 });
 
 e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Ausgabe + Knöpfe", async ({ page, server, basis }) => {
-  server.teilen.ablage.set("thekeapp", THEKE_APP);
-  await page.goto(basis + "#app=thekeapp", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "thekeapp", code: THEKE_APP });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await page.waitForSelector("#vorschau:not([hidden]) [data-theke-id='plus']", { timeout: 20_000 });
   await warteAufBediene(page, 0);
   await schlafe(50);
@@ -246,7 +249,7 @@ e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Au
   await pruefeX(page, DESKTOP);
   assert.deepEqual(await dokuGeladen(page), { angefragt: 0, daten: 0 }, "Doku-Skripte nur im Playground");
   assert.equal(await sichtbar(page, "#konsole"), false, "keine Konsole neben der Theke");
-  await pruefeBearbeiten(page, DESKTOP, { theke: true, key: "thekeapp", basis });
+  await pruefeBearbeiten(page, DESKTOP, { theke: true, key: id, basis });
   // Bedienen
   for (let i = 0; i < 2; i++) {
     const vorher = await page.evaluate(() => window.__ereignisse.filter((e) => e.typ === "ui-warte").length);
@@ -267,8 +270,8 @@ e2e("App-Link, Theke: füllt das ganze Fenster, Titel = Fenstertitel, am Ende Au
 });
 
 e2e("App-Link, Theke auf dem Handy (390×844): Vollbild, keine Scrollbar", { viewport: SCHMAL, farbschema: "dark" }, async ({ page, server, basis }) => {
-  server.teilen.ablage.set("thekemobil", THEKE_APP);
-  await page.goto(basis + "#app=thekemobil", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "thekemobil", code: THEKE_APP });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await page.waitForSelector("#vorschau:not([hidden]) [data-theke-id='plus']", { timeout: 20_000 });
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark", "Thema folgt dem System");
   const m = await page.evaluate(() => {
@@ -279,33 +282,33 @@ e2e("App-Link, Theke auf dem Handy (390×844): Vollbild, keine Scrollbar", { vie
   assert.equal(m.h, 844);
   assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
   await pruefeX(page, SCHMAL, 40);
-  await pruefeBearbeiten(page, SCHMAL, { theke: true, key: "thekemobil", basis, minHoehe: 40 });
+  await pruefeBearbeiten(page, SCHMAL, { theke: true, key: id, basis, minHoehe: 40 });
 });
 
 e2e("App-Link: „App bearbeiten“ während der Laufzeit (Konsole, Handy dunkel) – Klick öffnet den Code im selben Tab", { viewport: SCHMAL, farbschema: "dark", vorLaden: ERSTER_EINDRUCK }, async ({ page, server, basis }) => {
-  server.teilen.ablage.set("bearbeiten", verpacke("gruss.pizza", KONSOLE_APP));
-  await page.goto(basis + "#app=bearbeiten", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "gruss.pizza", code: KONSOLE_APP });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await page.waitForSelector('[data-testid="konsole-eingabe"]:not([hidden])', { timeout: 20_000 });
-  await pruefeBearbeiten(page, SCHMAL, { theke: false, key: "bearbeiten", basis, minHoehe: 40 });
+  await pruefeBearbeiten(page, SCHMAL, { theke: false, key: id, basis, minHoehe: 40 });
   const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
   assert.ok(m.sw <= m.cw, "keine horizontale Scrollbar");
   await Promise.all([page.waitForNavigation({ waitUntil: "load" }), page.click('[data-testid="app-bearbeiten"]')]);
   await bereit(page);
-  assert.match(page.url(), /#h=bearbeiten$/);
+  assert.ok(page.url().endsWith("#h=" + id), page.url());
   await page.waitForFunction(() => /Bestellannahme/.test(document.querySelector("#editor .cm-content").textContent), { timeout: 5000 });
   assert.equal(await editorText(page), KONSOLE_APP);
 });
 
 e2e("App-Link: während des Ladebalkens kein „App bearbeiten“", async ({ page, server, basis }) => {
-  server.teilen.ablage.set("langsam", KONSOLE_APP);
+  const { id } = await server.teilen.lege({ name: "langsam", code: KONSOLE_APP });
   await page.setRequestInterception(true);
   let freigeben;
   const gesperrt = new Promise((r) => { freigeben = r; });
   page.on("request", async (req) => {
-    if (/api\/teilen\/langsam/.test(req.url())) await gesperrt;
+    if (req.url().includes("api/teilen/" + id)) await gesperrt;
     req.continue().catch(() => {});
   });
-  await page.goto(basis + "#app=langsam", { waitUntil: "load" });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await page.waitForSelector(".app-bearbeiten", { timeout: 5000 }); // Bundle lief, Laden hängt noch
   assert.ok(await sichtbar(page, "#app-lade"), "Ladebalken sichtbar");
   assert.equal(await page.$$eval(".app-bearbeiten", (l) => l.filter((e) => e.getClientRects().length).length), 0, "kein Link während des Ladens");
@@ -316,8 +319,8 @@ e2e("App-Link: während des Ladebalkens kein „App bearbeiten“", async ({ pag
 
 for (const [name, opt] of [["Desktop hell", {}], ["Handy dunkel", { viewport: SCHMAL, farbschema: "dark" }]]) {
   e2e(`App-Link, Theke (${name}): X beendet wie das Schließen des EXE-Fensters (geschlossen), dann Nochmal/Code ansehen`, opt, async ({ page, server, basis }) => {
-    server.teilen.ablage.set("thekezu", verpacke("mini.pizza", THEKE_APP));
-    await page.goto(basis + "#app=thekezu", { waitUntil: "load" });
+    const { id } = await server.teilen.lege({ name: "mini.pizza", code: THEKE_APP });
+    await page.goto(basis + "#app=" + id, { waitUntil: "load" });
     await page.waitForSelector("#vorschau:not([hidden]) [data-theke-id='plus']", { timeout: 20_000 });
     await warteAufBediene(page, 0);
     assert.equal(await page.title(), "Mini-App", "Theke-App behält den Fenstertitel");
@@ -342,8 +345,8 @@ for (const [name, opt] of [["Desktop hell", {}], ["Handy dunkel", { viewport: SC
   });
 }
 
-e2e("App-Link: unbekannter Schlüssel → klare Meldung, kein Editor", { erlaubt: [/api\/teilen/, /status of 404/] }, async ({ page, basis }) => {
-  await page.goto(basis + "#app=gibtsnicht", { waitUntil: "load" });
+e2e("App-Link: unbekannte Link-ID → klare Meldung, kein Editor", { erlaubt: [/api\/teilen/, /status of 404/] }, async ({ page, basis }) => {
+  await page.goto(basis + "#app=GibtEsNicht1", { waitUntil: "load" });
   await warteEnde(page);
   assert.match(await page.$eval("#app-ende-text", (e) => e.textContent), /gibt es nicht/);
   assert.equal(await sichtbar(page, "#app-nochmal"), false);
@@ -352,8 +355,8 @@ e2e("App-Link: unbekannter Schlüssel → klare Meldung, kein Editor", { erlaubt
 });
 
 e2e("App-Link: Laufzeitfehler wird angezeigt", async ({ page, server, basis }) => {
-  server.teilen.ablage.set("fehlerapp", 'Bote.sage(("vorher"));\nsalami x = 1 / 0;\nBote.sage(("nachher"));');
-  await page.goto(basis + "#app=fehlerapp", { waitUntil: "load" });
+  const { id } = await server.teilen.lege({ name: "fehlerapp", code: 'Bote.sage(("vorher"));\nsalami x = 1 / 0;\nBote.sage(("nachher"));' });
+  await page.goto(basis + "#app=" + id, { waitUntil: "load" });
   await warteEnde(page);
   const t = await konsolenText(page);
   assert.match(t, /vorher/);
@@ -363,7 +366,7 @@ e2e("App-Link: Laufzeitfehler wird angezeigt", async ({ page, server, basis }) =
 });
 
 // ---------------------------------------------------------------- Vorrat mit Namensraum (K-106): ein Stand für alle Fassungen
-e2e("App-Link, Vorrat mit Namensraum: zwei verschiedene Fassungen (zwei Schlüssel, anderer Code) teilen pizza.vorrat.<raum>/<name>", async ({ page, neueSeite, server, basis }) => {
+e2e("App-Link, Vorrat mit Namensraum: zwei verschiedene Fassungen (zwei Links, anderer Code) teilen pizza.vorrat.<raum>/<name>", async ({ page, neueSeite, server, basis }) => {
   const FASSUNG_A = [
     'Vorratskammer v = neu Vorratskammer("stand", namensraum: "e2e-spiel");',
     'salami n = v.hole("zaehler", 0) + 1;',
@@ -375,9 +378,9 @@ e2e("App-Link, Vorrat mit Namensraum: zwei verschiedene Fassungen (zwei Schlüss
     'Vorratskammer alt = neu Vorratskammer("stand");',
     'Bote.sage(("Fassung B sieht " + v.hole("zaehler", 0) + " (" + v + "), ohne Raum " + alt.hole("zaehler", 0)));',
   ].join("\n");
-  server.teilen.ablage.set("fassung-a", verpacke("spiel-v1.pizza", FASSUNG_A));
-  server.teilen.ablage.set("fassung-b", verpacke("spiel-v2.pizza", FASSUNG_B));
-  await page.goto(basis + "#app=fassung-a", { waitUntil: "load" });
+  const a = await server.teilen.lege({ name: "spiel-v1.pizza", code: FASSUNG_A });
+  const b = await server.teilen.lege({ name: "spiel-v2.pizza", code: FASSUNG_B });
+  await page.goto(basis + "#app=" + a.id, { waitUntil: "load" });
   await warteEnde(page);
   assert.match(await konsolenText(page), /Fassung A: 1/);
   const kammer = await page.evaluate(() => JSON.parse(localStorage.getItem("pizza.vorrat.e2e-spiel/stand")));
@@ -389,7 +392,7 @@ e2e("App-Link, Vorrat mit Namensraum: zwei verschiedene Fassungen (zwei Schlüss
   assert.match(await konsolenText(page), /Fassung A: 2/);
   // Zweite Fassung (anderer Schlüssel, anderer Code) im selben Browser-Kontext liest denselben Stand
   const p2 = await neueSeite();
-  await p2.goto(basis + "#app=fassung-b", { waitUntil: "load" });
+  await p2.goto(basis + "#app=" + b.id, { waitUntil: "load" });
   await warteEnde(p2);
   assert.match(await konsolenText(p2), /Fassung B sieht 2 \(Vorratskammer\(e2e-spiel\/stand\)\), ohne Raum 0/);
   assert.deepEqual(

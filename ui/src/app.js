@@ -1,7 +1,8 @@
-// App-Link (#app=<key>): startet ein geteiltes Programm direkt im Vollbild – ohne Editor, Panels oder Code.
+// App-Link (#app=<id>[@n], PROJEKTE §3.5): startet ein geteiltes Projekt direkt im Vollbild – ohne Editor, Panels oder Code.
 // Bis zum Start ist nur ein Ladebalken zu sehen (js/thema.js setzt data-app vor dem ersten Zeichnen, CSS blendet alles
-// andere aus). Ablauf: Code laden (api/teilen/<key>) → Motor prüfen (+ Theke-Renderer vorladen) → im Worker
-// kompilieren (Motor „Auto“: Wasm, sonst Interpreter) → starten. Danach füllt die Theke bzw. die Konsole das Fenster –
+// andere aus). Ablauf: Manifest + Blobs laden (teilen.js, ohne @n die neueste Version – der App-Link „aktualisiert sich“) →
+// Sammlung bauen, Bilder vorbacken → Motor prüfen (+ Theke-Renderer vorladen) → im Worker kompilieren (Motor „Auto“: Wasm,
+// sonst Interpreter) → starten. Titel = Projektname; Standard-Argumente aus pizza.json. Danach füllt die Theke bzw. die Konsole das Fenster –
 // gleiche Konsole, gleicher Renderer wie im Playground (Browser = nativ). Während der Laufzeit dezent „App bearbeiten“
 // (oben rechts, zum Code-Link). Am Ende: Ausgabe + „Nochmal“ / „Code ansehen“.
 // Vorrat: dieselben Kammern wie geteilte Tabs im Playground (localStorage „pizza.vorrat.<name>“, siehe vorrat.js).
@@ -11,12 +12,15 @@ import { leseKoeche, koecheFuerLauf } from "./koeche.js";
 import { erstelleVorschau, ladeRenderer } from "./vorschau.js";
 import { erstelleHerdAnzeige, herdLaufVorbereiten, ladeHerdKern, nutztHerd } from "./herd.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
-import { entpacke, appTitel } from "./teilen.js";
+import { ladeGeteilt, leseLinkWert, linkWert, appTitel, ohneErzeugteProjektdatei, TeilenFehler, ALT_TEXT, WEG_TEXT } from "./teilen.js";
+import { sammlung, programmText, dateiArt } from "./projekt.js";
+import { erstelleVorbacker } from "./bilder.js";
 
 const TITEL = "pizza-App";
 const AUSGABE_TYPEN = new Set(["ausgabe", "fehlerausgabe", "warnung", "fehler", "panik", "eingabe", "leeren", "system"]);
 
-export function startApp(key) {
+export function startApp(wert) {
+  const link = leseLinkWert(wert);
   const $ = (id) => document.getElementById(id);
   const html = document.documentElement;
   const lade = $("app-lade"), fuellung = $("app-lade-fuellung");
@@ -29,7 +33,8 @@ export function startApp(key) {
   konsoleEl.hidden = true;
   document.title = TITEL;
 
-  let code = null, titel = TITEL, istTheke = false, istHerd = false, faehigkeiten = null, hatAusgabe = false, laeuft = false;
+  let code = null, geteilt = null, titel = TITEL, istTheke = false, istHerd = false, faehigkeiten = null, hatAusgabe = false, laeuft = false;
+  let bildLauf = {};
 
   function fortschritt(anteil) {
     fuellung.style.setProperty("--anteil", String(anteil));
@@ -52,8 +57,8 @@ export function startApp(key) {
     (nochmal ? knopfNochmal : codeLink ? linkCode : endeText).focus({ preventScroll: true });
   }
 
-  // „Code ansehen“: derselbe Schlüssel als Code-Link (#h=…) – neu laden, damit der Playground startet
-  const codeUrl = location.href.split("#")[0] + "#h=" + key;
+  // „Code ansehen“: derselbe Link als Code-Link (#h=<id>[@n]) – neu laden, damit der Playground startet
+  const codeUrl = location.href.split("#")[0] + "#h=" + (link && link.id ? linkWert(link.id, link.version) : String(wert));
   linkCode.href = codeUrl;
   function codeAnsehen() { location.assign(codeUrl); location.reload(); }
   linkCode.addEventListener("click", (e) => {
@@ -193,7 +198,8 @@ export function startApp(key) {
     const vorratAktiv = vorratVerfuegbar();
     laeuft = true;
     const herdLauf = istHerd ? await herdLaufVorbereiten(code) : null;
-    ausfuehrung.starte(code, [], "auto", {
+    // je Lauf eine frische Sammlung (die Puffer gehen per Transfer an den Worker)
+    ausfuehrung.starte(sammlung({ hauptdatei: geteilt.hauptdatei, name: geteilt.name }, geteilt.dateien), geteilt.args, "auto", {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
       zufallsSaat: saat,
@@ -201,12 +207,13 @@ export function startApp(key) {
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),   // dieselbe Einstellung wie im Playground (THREADS §4.8)
       ...(herdLauf ? herdLauf.extra : {}),
+      ...bildLauf,
     });
     herd.lauf(herdLauf && herdLauf.kontext);
     // Kein „Saat: N“ wie im Playground/Terminal – in der App stört es nur
   }
   knopfNochmal.addEventListener("click", () => {
-    if (code == null) { location.reload(); return; }
+    if (geteilt == null) { location.reload(); return; }
     starten();
   });
 
@@ -219,19 +226,26 @@ export function startApp(key) {
 
   async function laden() {
     fortschritt(0.15);
-    let r;
+    if (link && link.alt) { zeigeEnde(ALT_TEXT, { fehler: true, nochmal: false, codeLink: false }); return; }
+    if (!link) { zeigeEnde("Diese App gibt es nicht (mehr). Der Link ist unvollständig oder ungültig.", { fehler: true, nochmal: false, codeLink: false }); return; }
     try {
-      r = await fetch("api/teilen/" + encodeURIComponent(key), { headers: { Accept: "text/plain" } });
-      if (r.ok) ({ code, name: titel } = entpacke(await r.text()));
+      geteilt = await ladeGeteilt({ basis: "", fortschritt: (s, i, n) => { if (s === "laden" && n) fortschritt(0.15 + 0.2 * (i / n)); } }, link.id, link.version);
     } catch (e) {
-      zeigeEnde("Die App kann gerade nicht geladen werden – keine Verbindung zum Server.", { fehler: true, codeLink: false });
+      const f = e instanceof TeilenFehler ? e : null;
+      if (f && (f.art === "weg" || f.art === "alt")) {
+        zeigeEnde(f.art === "alt" ? ALT_TEXT : WEG_TEXT.replace("Diesen Link", "Diese App"), { fehler: true, nochmal: false, codeLink: false });
+      } else if (f && f.art === "netz") {
+        zeigeEnde("Die App kann gerade nicht geladen werden – keine Verbindung zum Server.", { fehler: true, codeLink: false });
+      } else {
+        zeigeEnde("Die App kann gerade nicht geladen werden. Bitte versuch es später erneut.", { fehler: true, codeLink: false });
+      }
       return;
     }
-    if (r.status === 404) { zeigeEnde("Diese App gibt es nicht (mehr). Geteilte Links laufen nach einer Weile ab.", { fehler: true, nochmal: false, codeLink: false }); return; }
-    if (!r.ok || code == null) { zeigeEnde("Die App kann gerade nicht geladen werden. Bitte versuch es später erneut.", { fehler: true, codeLink: false }); return; }
+    geteilt.dateien = ohneErzeugteProjektdatei(geteilt.dateien, geteilt);
+    code = programmText(geteilt.dateien);
     fortschritt(0.35);
-    // Seitentitel = Tab-Name beim Teilen (ohne „.pizza“); eine Theke setzt später ihren Fenstertitel
-    titel = appTitel(titel) || TITEL;
+    // Seitentitel = Projektname (ohne „.pizza“); eine Theke setzt später ihren Fenstertitel
+    titel = appTitel(geteilt.name) || TITEL;
     document.title = titel;
     istTheke = /\bneu\s+Theke\s*\(/.test(code);
     istHerd = nutztHerd(code);
@@ -243,7 +257,14 @@ export function startApp(key) {
       zeigeEnde("Programm nicht gestartet.", { fehler: true, nochmal: false });
       return;
     }
-    const [f] = await Promise.all([pruefeMotor(), istTheke ? ladeRenderer() : null, istHerd ? ladeHerdKern().catch(() => null) : null]);
+    // Bilder (PD1/PD2): einmal vorbacken (ohne Cache), der Interpreter prüft jeden Teigling
+    const bilder = Object.fromEntries(Object.entries(geteilt.dateien).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+    const backen = Object.keys(bilder).length ? (async () => {
+      const vb = erstelleVorbacker({ ablage: null });
+      const [modul, teiglinge] = await Promise.all([vb.modul(), vb.teiglingeFuer(bilder)]);
+      bildLauf = { teiglinge, ...(modul ? { vorbacker: modul } : {}) };
+    })() : null;
+    const [f] = await Promise.all([pruefeMotor(), istTheke ? ladeRenderer() : null, istHerd ? ladeHerdKern().catch(() => null) : null, backen]);
     faehigkeiten = f;
     fortschritt(0.55);
     starten();
