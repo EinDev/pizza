@@ -1,0 +1,60 @@
+// Pizzastücke: Eine Pizza aus acht Vielecken, die sich langsam auf dem Brett dreht.
+// Jedes Stück ist ein Kreisausschnitt (Spitze in der Mitte, Bogen aus 7 Punkten), die Kruste ein gebogenes Band
+// (ein konkaves Vieleck), der Käse ein unregelmäßiger Fleck. Ein Klick auf ein Stück zieht es heraus, ein zweiter schiebt es zurück.
+
+Herd herd = neu Herd("Pizzastücke", breite: 480, hoehe: 360);
+herd.hintergrund("ofen");
+herd.kreis(240, 190, 140, farbe: "#8a5a35");                        // Holzbrett
+herd.kreis(240, 190, 140, farbe: "#5e3b22", umriss: 6);
+Teil pizza = herd.gruppe(240, 190);
+pizza.mit(neu Bewegung(drehtempo: 12));
+Teil hinweis = herd.text("Klick auf ein Stück!", 240, 8, groesse: 18, farbe: "mozzarella", ausrichtung: "mitte").setzeEbene(10);
+
+// ein Punkt im Abstand r unter dem Winkel w (Grad) – als zwei Zahlen ans Ende des Blechs
+Blech<funghi> punkt(Blech<funghi> b, funghi w, funghi r) {
+    serviere (b.hinzu(Mathe.cos(Mathe.bogen(w)) * r).hinzu(Mathe.sin(Mathe.bogen(w)) * r));
+}
+
+Blech<Gleiten> ziehen = [];
+für (salami i = 0; i < 8; i++) {
+    // jedes Stück liegt auf einem eigenen Arm, der in die Mitte seines Ausschnitts zeigt (lokal: Winkel −22.5 … 22.5)
+    Teil arm = herd.gruppe().haenge(pizza).setzeDrehung(i * 45 + 22.5);
+    Teil stueck = herd.gruppe().haenge(arm);
+    Blech<funghi> teig = [0, 0];
+    für (salami k = 0; k <= 6; k++) { teig = punkt(teig, -22.5 + k * 7.5, 100); }
+    stueck.mit(neu Vieleck(punkte: teig, farbe: "tomate"));
+    Blech<funghi> kruste = [];
+    für (salami k = 0; k <= 6; k++) { kruste = punkt(kruste, -22.5 + k * 7.5, 114); }
+    für (salami k = 6; k >= 0; k--) { kruste = punkt(kruste, -22.5 + k * 7.5, 97); }
+    herd.gruppe().haenge(stueck).mit(neu Vieleck(punkte: kruste, farbe: "kruste"));
+    Blech<funghi> kaese = [];
+    für (salami k = 0; k < 6; k++) { kaese = punkt(kaese, k * 60 + i * 13, 12 + (k * 7 + i * 3) % 8); }
+    herd.gruppe(54, 0).haenge(stueck).mit(neu Vieleck(punkte: kaese, farbe: "mozzarella"));
+    herd.kreis(80, -12, 8, farbe: "salami").haenge(stueck);
+    herd.kreis(32, 5, 6, farbe: "salami").haenge(stueck);
+    herd.gruppe(82, 16).haenge(stueck).setzeDrehung(i * 40)
+        .mit(neu Vieleck(punkte: [0, -7, 4, 0, 0, 7, -4, 0], farbe: "basilikum"));
+    // dünner Schnitt-Rand: dasselbe Vieleck wie der Teig, nur als Umriss
+    herd.gruppe().haenge(stueck).mit(neu Vieleck(punkte: teig, farbe: "#00000040", umriss: 1.5));
+    ziehen = ziehen.hinzu(stueck.mit(neu Gleiten(was: "x", nach: 0, dauer: 0.6, kurve: "federnd", laeuft: nein)));
+}
+
+salami draussen = 0;
+herd.backe(() -> {
+    falls (herd.klick()) {
+        funghi dx = herd.mausX() - 240;
+        funghi dy = herd.mausY() - 190;
+        falls (Mathe.wurzel(dx * dx + dy * dy) <= 170) {
+            // Winkel der Maus im Uhrzeigersinn, die Drehung der Pizza abgezogen → Nummer des Ausschnitts
+            funghi w = Mathe.grad(Mathe.atan2(dy, dx)) - pizza.drehung();
+            w = w - Mathe.boden(w / 360) * 360;
+            salami nr = Mathe.boden(w / 45);
+            Gleiten g = ziehen.stück(nr + 1);
+            falls (g.nach() == 0) { g.setzeNach(45); draussen++; } sonst { g.setzeNach(0); draussen--; }
+            g.setzeLaeuft(ja);
+            hinweis.text().setzeInhalt(("Herausgezogen: " + draussen + " von 8"));
+        }
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten hat sich die Pizza um " + pizza.drehung().runden(1) + " Grad gedreht, "
+    + draussen + " Stücke sind herausgezogen."));

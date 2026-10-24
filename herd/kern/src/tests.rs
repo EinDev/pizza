@@ -2374,3 +2374,261 @@ mod hk7 {
     }
 }
 
+
+mod hk3b {
+    use super::*;
+    use crate::komponenten::vieleck::{self, zerlege, Netz};
+    use crate::paket::flach_art;
+
+    fn kreuz(p: &[f64], a: u32, b: u32, c: u32) -> f64 {
+        let g = |i: u32| (p[2 * i as usize], p[2 * i as usize + 1]);
+        let (a, b, c) = (g(a), g(b), g(c));
+        (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0)
+    }
+    fn flaeche(p: &[f64], ring: &[u32]) -> f64 {
+        let n = ring.len();
+        let mut f = 0.0;
+        for i in 0..n {
+            let (a, b) = (ring[i] as usize, ring[(i + 1) % n] as usize);
+            f += p[2 * a] * p[2 * b + 1] - p[2 * b] * p[2 * a + 1];
+        }
+        f * 0.5
+    }
+    /// Prüft eine Zerlegung: n − 2 Dreiecke, alle im Umlaufsinn, Flächen addieren sich, jede Umlaufkante genau einmal Außenkante,
+    /// keine Diagonale als Außenkante.
+    fn pruefe(p: &[f64], n: &Netz) {
+        let m = n.ring.len();
+        assert_eq!(n.dreiecke.len(), m - 2);
+        let soll = flaeche(p, &n.ring);
+        let mut summe = 0.0;
+        let mut aussen: Vec<(u32, u32)> = Vec::new();
+        for d in &n.dreiecke {
+            let k = kreuz(p, d[0], d[1], d[2]);
+            assert!(k * soll > 0.0, "Dreieck {:?} falsch herum oder leer", d);
+            summe += k * 0.5;
+            for (bit, (a, b)) in [(d[0], d[1]), (d[1], d[2]), (d[2], d[0])].into_iter().enumerate() {
+                if d[3] >> bit & 1 == 1 {
+                    aussen.push((a, b));
+                }
+            }
+        }
+        assert!((summe - soll).abs() <= 1e-9 * soll.abs().max(1.0), "Fläche {} statt {}", summe, soll);
+        let mut kanten: Vec<(u32, u32)> = (0..m).map(|i| (n.ring[i], n.ring[(i + 1) % m])).collect();
+        kanten.sort();
+        aussen.sort();
+        assert_eq!(aussen, kanten);
+    }
+
+    #[test]
+    fn zerlegung_konvex_konkav_stern() {
+        // Quadrat: Ohrenschneiden ab Punkt 0
+        let q = [0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0];
+        let n = zerlege(&q).unwrap();
+        assert_eq!(n.ring, [0, 1, 2, 3]);
+        assert_eq!(n.dreiecke, [[3, 0, 1, 0b11], [1, 2, 3, 0b011]]);
+        pruefe(&q, &n);
+        // derselbe Umriss andersherum
+        let r = [0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0, 0.0];
+        pruefe(&r, &zerlege(&r).unwrap());
+        // konkav: L-Form und Pfeil
+        let l = [0.0, 0.0, 20.0, 0.0, 20.0, 5.0, 5.0, 5.0, 5.0, 20.0, 0.0, 20.0];
+        pruefe(&l, &zerlege(&l).unwrap());
+        let pfeil = [0.0, 0.0, 30.0, 15.0, 0.0, 30.0, 10.0, 15.0];
+        let n = zerlege(&pfeil).unwrap();
+        pruefe(&pfeil, &n);
+        assert!(n.dreiecke.iter().all(|d| d[..3].contains(&3)), "die einspringende Ecke gehört zu beiden Dreiecken");
+        // Stern mit 5 Zacken (10 Punkte), Startecke in einer Mulde
+        let mut stern = Vec::new();
+        for i in 0..10 {
+            let w = i as f64 * core::f64::consts::PI / 5.0 + 0.3;
+            let r = if i % 2 == 0 { 20.0 } else { 50.0 };
+            stern.push(libm::cos(w) * r);
+            stern.push(libm::sin(w) * r);
+        }
+        let n = zerlege(&stern).unwrap();
+        pruefe(&stern, &n);
+        assert_eq!(zerlege(&stern), Some(n), "deterministisch");
+        // Spirale mit vielen einspringenden Ecken, 256 Punkte
+        let mut spirale = Vec::new();
+        for i in 0..128 {
+            let w = i as f64 * 0.09;
+            spirale.push(libm::cos(w) * (30.0 + i as f64));
+            spirale.push(libm::sin(w) * (30.0 + i as f64));
+        }
+        for i in (0..128).rev() {
+            let w = i as f64 * 0.09;
+            spirale.push(libm::cos(w) * (20.0 + i as f64));
+            spirale.push(libm::sin(w) * (20.0 + i as f64));
+        }
+        pruefe(&spirale, &zerlege(&spirale).unwrap());
+    }
+
+    #[test]
+    fn zerlegung_entartet_und_ungueltig() {
+        assert_eq!(zerlege(&[]), None);
+        assert_eq!(zerlege(&[0.0, 0.0, 1.0, 0.0]), None, "zwei Punkte");
+        assert_eq!(zerlege(&[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 5.0]), None, "ungerade Länge");
+        assert_eq!(zerlege(&[0.0, 0.0, 1.0, f64::NAN, 1.0, 1.0]), None, "NaN");
+        assert_eq!(zerlege(&[0.0, 0.0, 1.0, f64::INFINITY, 1.0, 1.0]), None, "unendlich");
+        assert_eq!(zerlege(&[0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0]), None, "alle auf einer Geraden");
+        assert_eq!(zerlege(&[0.0, 0.0, 5.0, 0.0, 5.0, 0.0, 0.0, 0.0]), None, "nur zwei verschiedene Punkte");
+        // Fliege (selbstschneidend), Ecke auf fremder Kante, Spitze zurück auf der eigenen Kante
+        assert_eq!(zerlege(&[0.0, 0.0, 10.0, 10.0, 10.0, 0.0, 0.0, 10.0]), None);
+        assert_eq!(zerlege(&[0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 5.0, 0.0, 0.0, 10.0]), None);
+        assert_eq!(zerlege(&[0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0, 0.0, 20.0]), None);
+        // doppelte Punkte und Punkte auf einer Kante sind erlaubt und fallen aus dem Umlauf
+        let d = [0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 10.0, 0.0, 10.0, 10.0, 10.0, 10.0, 0.0, 10.0, 0.0, 0.0];
+        let n = zerlege(&d).unwrap();
+        assert_eq!(n.ring, [0, 3, 4, 6]);
+        pruefe(&d, &n);
+        // Grenzen: 3 und 256 Punkte, 257 nicht
+        let kreis = |n: usize| -> Vec<f64> {
+            (0..n)
+                .flat_map(|i| {
+                    let w = i as f64 * 2.0 * core::f64::consts::PI / n as f64;
+                    [libm::cos(w) * 100.0, libm::sin(w) * 100.0]
+                })
+                .collect()
+        };
+        assert_eq!(zerlege(&kreis(3)).unwrap().dreiecke.len(), 1);
+        pruefe(&kreis(256), &zerlege(&kreis(256)).unwrap());
+        assert_eq!(zerlege(&kreis(257)), None);
+        assert_eq!(vieleck::MAX_PUNKTE, 256);
+    }
+
+    /// DREIECK-Instanzen des letzten Pakets: Ecken A, B, C (Spielfeld-Pixel) und Kantenmaske
+    fn dreiecke(k: &Kern) -> Vec<([f32; 6], u32)> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let Some((_, d)) = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D) else { return Vec::new() };
+        let f = |c: &[u8], o: usize| f32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]);
+        d.chunks_exact(INST2D_BYTES)
+            .filter(|c| u32::from_le_bytes([c[44], c[45], c[46], c[47]]) == flach_art::DREIECK)
+            .map(|c| ([f(c, 16), f(c, 20), f(c, 0), f(c, 4), f(c, 8), f(c, 12)], f(c, 32) as u32))
+            .collect()
+    }
+
+    #[test]
+    fn vieleck_im_bildpaket_cache_umriss_huelle() {
+        let mut k = welt();
+        let v = typ(&mut k, "Vieleck");
+        assert_eq!(v as usize, ARTEN.iter().position(|a| a.schema.name == "Vieleck").unwrap() + 1);
+        let (pu, um, fa) = (feld(&mut k, v, "punkte"), feld(&mut k, v, "umriss"), feld(&mut k, v, "farbe"));
+        assert!(k.feld_nummer(v, b"quelle") <= 0, "verborgen");
+        let r = typ(&mut k, "Rechteck");
+        let t0 = k.teil_neu(2);
+        k.teil_lage(t0, 300.0, 200.0, 0.0);
+        let rc = k.komp_neu(r);
+        k.komp_haenge(rc, t0);
+        k.bild(1);
+        k.bild(1); // ohne Ressourcen-Deltas
+        let ohne = k.paket().to_vec();
+        let inst = |k: &Kern| -> Vec<u8> {
+            let l = Leser::neu(k.paket()).unwrap();
+            let d = l.abschnitte().find(|(a, _)| *a == abschnitt::INST2D).map(|(_, d)| d.to_vec()).unwrap_or_default();
+            d
+        };
+        let inst_ohne = inst(&k);
+        // leeres Vieleck: Paket byte-gleich wie ohne
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 100.0, 50.0, 0.0);
+        let c = k.komp_neu(v);
+        assert_eq!(text(&mut k, c, fa), "weiss");
+        assert_eq!(k.komp_haenge(c, t), 0);
+        k.bild(1);
+        assert_eq!(k.paket(), &ohne[..]);
+        k.takt();
+        k.bild(1);
+        assert_eq!(inst(&k), inst_ohne);
+        // Quadrat: zwei Dreiecke mit Ecken in Spielfeld-Pixeln, schon vor dem ersten Takt (ohne Cache) wie danach
+        assert_eq!(k.setze_zahlen(c, pu, &[0.0, 0.0, 10.0, 0.0, 10.0, 10.0, 0.0, 10.0]), 0);
+        k.bild(2);
+        let vorher = dreiecke(&k);
+        assert_eq!(vorher, [([100.0, 60.0, 100.0, 50.0, 110.0, 50.0], 3), ([110.0, 50.0, 110.0, 60.0, 100.0, 60.0], 3)]);
+        k.takt();
+        let s = &k.welt.as_ref().unwrap().speicher[v as usize - 1];
+        assert_eq!(s.puffer(vieleck::QUELLE)[0].len(), 8);
+        assert_eq!(s.puffer(vieleck::NETZ)[0], [4.0, 0.0, 1.0, 2.0, 3.0, 3.0, 0.0, 1.0, 3.0, 1.0, 2.0, 3.0, 3.0]);
+        k.bild(3);
+        assert_eq!(dreiecke(&k), vorher);
+        // Drehung und Größe des Teils wirken auf die Ecken
+        k.teil_setze(t, tf::DREHUNG, 90.0);
+        k.teil_setze(t, tf::GROESSE_X, 2.0);
+        k.teil_setze(t, tf::GROESSE_Y, 2.0);
+        k.bild(4);
+        let gedreht = dreiecke(&k);
+        assert_eq!(gedreht[0].0[2..4], [100.0, 50.0]);
+        assert!((gedreht[1].0[2] - 80.0).abs() < 1e-4 && (gedreht[1].0[3] - 70.0).abs() < 1e-4, "{:?}", gedreht);
+        k.teil_setze(t, tf::DREHUNG, 0.0);
+        k.teil_setze(t, tf::GROESSE_X, 1.0);
+        k.teil_setze(t, tf::GROESSE_Y, 1.0);
+        // Umriss: je Kante zwei Dreiecke, Außenkante (Bit 0) und Innenkante (Bit 1)
+        assert_eq!(k.setze_zahl(c, um, 2.0), 0);
+        k.bild(5);
+        let u = dreiecke(&k);
+        assert_eq!(u.len(), 8);
+        assert!(u.iter().enumerate().all(|(i, d)| d.1 == if i % 2 == 0 { 1 } else { 2 }));
+        assert_eq!(u[0].0, [100.0, 50.0, 110.0, 50.0, 108.0, 52.0]);
+        assert_eq!(u[1].0, [100.0, 50.0, 108.0, 52.0, 102.0, 52.0]);
+        assert_eq!(k.setze_zahl(c, um, -1.0), -2);
+        assert_eq!(k.fehler_text(), "Vieleck.umriss muss mindestens 0 sein, nicht -1.");
+        assert_eq!(k.setze_zahl(c, um, 0.0), 0);
+        // ungültig (Fliege) → nichts gezeichnet, kein Fehler; Hülle bleibt das umschließende Rechteck
+        assert_eq!(k.setze_zahlen(c, pu, &[0.0, 0.0, 10.0, 10.0, 10.0, 0.0, 0.0, 10.0]), 0);
+        k.takt();
+        k.bild(6);
+        assert!(dreiecke(&k).is_empty());
+        assert_eq!(inst(&k), inst_ohne);
+        assert!(k.welt.as_ref().unwrap().speicher[v as usize - 1].puffer(vieleck::NETZ)[0].is_empty());
+        let kr = typ(&mut k, "Kreis");
+        let b = k.teil_neu(2);
+        let kb = k.komp_neu(kr);
+        k.komp_haenge(kb, b);
+        let radius = feld(&mut k, kr, "radius");
+        k.setze_zahl(kb, radius, 4.0);
+        k.teil_lage(b, 113.0, 55.0, 0.0);
+        assert_eq!(k.teil_trifft(t, b), 1);
+        k.teil_lage(b, 120.0, 55.0, 0.0);
+        assert_eq!(k.teil_trifft(t, b), 0);
+        // durchsichtig → nichts
+        assert_eq!(k.setze_zahlen(c, pu, &[0.0, 0.0, 10.0, 0.0, 0.0, 10.0]), 0);
+        k.bild(7);
+        assert_eq!(dreiecke(&k).len(), 1);
+        k.setze_text(c, fa, b"#00000000");
+        k.bild(8);
+        assert!(dreiecke(&k).is_empty());
+    }
+
+    #[test]
+    fn vieleck_mit_blick_und_ebenen() {
+        let mut k = welt();
+        let v = typ(&mut k, "Vieleck");
+        let pu = feld(&mut k, v, "punkte");
+        let r = typ(&mut k, "Rechteck");
+        // Rechteck in Ebene 1 über dem Vieleck in Ebene 0: Zeichenreihenfolge nach Ebene
+        let tr = k.teil_neu(2);
+        k.teil_lage(tr, 105.0, 55.0, 0.0);
+        k.teil_setze(tr, tf::EBENE, 1.0);
+        let rc = k.komp_neu(r);
+        k.komp_haenge(rc, tr);
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 100.0, 50.0, 0.0);
+        let c = k.komp_neu(v);
+        k.komp_haenge(c, t);
+        k.setze_zahlen(c, pu, &[0.0, 0.0, 10.0, 0.0, 0.0, 10.0]);
+        k.bild(1);
+        let arten = instanzen_2d(&k).iter().map(|i| i.4).collect::<Vec<_>>();
+        assert_eq!(arten, [flach_art::DREIECK, flach_art::RECHTECK]);
+        // Blick: Mitte der Sicht bei (120, 50) → alles um 200 nach rechts, 130 nach unten (50 → 180) (Spielfeld 640 × 360)
+        let bl = typ(&mut k, "Blick");
+        let tb = k.teil_neu(2);
+        k.teil_lage(tb, 120.0, 50.0, 0.0);
+        let cb = k.komp_neu(bl);
+        k.komp_haenge(cb, tb);
+        k.bild(2);
+        assert_eq!(dreiecke(&k)[0].0, [300.0, 180.0, 310.0, 180.0, 300.0, 190.0]);
+        // außerhalb des Spielfelds → weggeschnitten
+        k.teil_lage(t, -500.0, 50.0, 0.0);
+        k.bild(3);
+        assert!(dreiecke(&k).is_empty());
+    }
+}

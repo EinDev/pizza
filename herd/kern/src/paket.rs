@@ -58,7 +58,9 @@ pub mod flach_art {
     pub const KREIS: u32 = 2;
     pub const BILD: u32 = 3;
     pub const GLYPHE: u32 = 4;
-    // 5 = DREIECK ist für H-K3b reserviert (HERD.md §12.1 Regel 3)
+    /// Dreieck (`Vieleck`, H-K3b): Ecken direkt in Spielfeld-Pixeln – `m00 m10` = Ecke B, `m01 m11` = Ecke C, `tx ty` = Ecke A;
+    /// `h` = 0, `p0` = Maske der Außenkanten (Bit 0 = A→B, 1 = B→C, 2 = C→A; nur dort Kantenglättung), `p1` = 0 (frei)
+    pub const DREIECK: u32 = 5;
     /// Bild aus einer eigenen Textur (PROJEKTE PD1): `seite` = Textur-ID, `u0 v0 u1 v1` in Pixeln der Textur (Stufe 0)
     pub const TEXTURBILD: u32 = 6;
 }
@@ -241,6 +243,59 @@ impl Bildbau {
 }
 
 impl Bildbau {
+    /// 2D-Matrix, mit der ein Bildbeitrag in Spielfeld-Pixel rechnet: mit aktivem `Blick` und `ebene < festAb` Sicht · `m`, sonst `m`
+    /// (wie in [`Bildbau::flach`]; für Beiträge, die ihre Ecken selbst umrechnen).
+    pub fn sicht_matrix(&self, ebene: i32, m: &[f64; 12]) -> [f64; 12] {
+        match &self.blick {
+            Some(b) if (ebene as f64) < b.fest_ab => mal_2d(&b.m, m),
+            _ => *m,
+        }
+    }
+
+    /// Ein Dreieck (2D-Art `DREIECK`, H-K3b) mit Ecken `e` in Spielfeld-Pixeln (Sicht schon eingerechnet, siehe
+    /// [`Bildbau::sicht_matrix`]) und Maske der Außenkanten (Bit 0 = e0→e1, 1 = e1→e2, 2 = e2→e0). Sortiert wie alle 2D-Instanzen
+    /// nach (ebene, ID), innerhalb eines Teils in Aufrufreihenfolge. Culling am umschließenden Rechteck (1 Pixel Rand).
+    pub fn dreieck(&mut self, ebene: i32, teil: u32, e: [[f64; 2]; 3], maske: u32, farbe: u32) {
+        if farbe & 0xFF == 0 {
+            return;
+        }
+        if !e.iter().all(|p| p[0].is_finite() && p[1].is_finite()) {
+            return;
+        }
+        let (mut lo, mut hi) = (e[0], e[0]);
+        for p in &e[1..] {
+            for i in 0..2 {
+                if p[i] < lo[i] {
+                    lo[i] = p[i];
+                }
+                if p[i] > hi[i] {
+                    hi[i] = p[i];
+                }
+            }
+        }
+        if hi[0] + 1.0 < 0.0 || lo[0] - 1.0 > self.breite || hi[1] + 1.0 < 0.0 || lo[1] - 1.0 > self.hoehe {
+            return;
+        }
+        let schluessel = (((ebene as i64) + (1i64 << 31)) as u64) << 32 | teil as u64;
+        self.flach_ordnung.push((schluessel, self.flach_ordnung.len() as u32));
+        let b = &mut self.flach_daten;
+        put_f32(b, e[1][0]);
+        put_f32(b, e[1][1]);
+        put_f32(b, e[2][0]);
+        put_f32(b, e[2][1]);
+        put_f32(b, e[0][0]);
+        put_f32(b, e[0][1]);
+        put_f32(b, 0.0);
+        put_f32(b, 0.0);
+        put_f32(b, (maske & 7) as f64);
+        put_f32(b, 0.0);
+        b.extend_from_slice(&farbe.to_be_bytes());
+        put_u32(b, flach_art::DREIECK);
+        for _ in 0..4 {
+            put_u16(b, 0);
+        }
+    }
+
     /// Sichtbares Weltrechteck (min, max) des 2D-Spielfelds: mit aktivem `Blick` die (gedrehte, achsenparallel umschlossene,
     /// geklemmte) Sicht, sonst das Spielfeld selbst. Gilt nach dem Bestimmen der Sicht in `baue` (für Bildbeiträge, H-K10).
     pub fn sicht_welt(&self) -> ([f64; 2], [f64; 2]) {

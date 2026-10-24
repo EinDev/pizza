@@ -52,6 +52,7 @@ pub static ARTEN: &[&Art] = &[
     &fuehler::ART,                                     // 17 (H-K6, Nachlauf)
     &blick::ART, &leine::ART,                          // 18, 19 (H-K1; Blick im Bildbau, Leine im Nachlauf)
     &wucht::ART,                                       // 20 (H-K7, braucht Fuehler)
+    &vieleck::ART,                                     // 21 (H-K3b; Zerlegung im Nachlauf, 2D-Art DREIECK)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -257,7 +258,7 @@ die Kantenglättung bei Rechteck/Kreis (ein Gerätepixel, mindestens ein Spielfe
 | 2 Kreis | Radius `hx`, Umriss `p1`; auch Partikel |
 | 3 Bild | Atlasseite `seite`, Texel nächster Nachbar (pixelscharf, auf das Rechteck geklemmt), × Farbe (Tönung) |
 | 4 Glyphe | SCHRIFT-Textur (linear), Kante bei 0.5, × Farbe |
-| 5 Dreieck | reserviert für H-K3b |
+| 5 Dreieck | `Vieleck` (H-K3b): Ecken direkt in Spielfeld-Pixeln – **A** = `tx ty`, **B** = `m00 m10`, **C** = `m01 m11` (keine Matrix, damit Nachbardreiecke bitgleiche Ecken teilen); `h` = 0; `p0` = Maske der Außenkanten (Bit 0 = A→B, 1 = B→C, 2 = C→A), `p1` = 0; `uv` = 0. Nur Außenkanten werden geglättet (und um den Saum nach außen versetzt, je Kante höchstens 2 Saumbreiten); Innenkanten bleiben exakt. Je Instanz ein Dreieck (Ecken 3 … 5 leer), weiter ein Draw-Call mit allen 2D-Instanzen; sortiert nach (`ebene`, ID), innerhalb eines Teils in Zerlegungsreihenfolge |
 | 6 Texturbild | wie 3, aber aus der **eigenen Textur** `seite` (= Textur-ID aus TEXTUR, 24 Bit); `u0 v0 u1 v1` in Pixeln der Stufe 0 (`Bild`: `0 0 b h`, `Rahmen`: die Neuntel). Abtastung (PD3): vergrößern nächster Nachbar, verkleinern trilinear über die Mipmaps |
 
 Alle 2D-Instanzen sind **eine** Liste in Zeichenreihenfolge (`ebene`, dann Teil-ID, dann Registry-Reihenfolge, dann
@@ -392,7 +393,8 @@ Farbe @16 (`Unorm8x4`). Die Bytes kommen unverändert aus dem Paket. Statistik: 
 **Shader** (`glut/shader/`, WGSL; jedes Programm = `gemeinsam.wgsl` + Datei): `gemeinsam` (Uniform-Block SZENE 592 B, Glut-Block
 `Ansicht`: Gerätepixel je Spielfeldpixel, Schriftgröße; sRGB-Umrechnung, Rauschen gegen Farbstufen) · `flach` (2D-Uber-Shader:
 SDF-Rechteck mit Rundung/Umriss, SDF-Kreis/Partikel, Kantenglättung über `fwidth` des Abstands, Atlas-Bild per `textureLoad`
-pixelscharf, SDF-Glyphe) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur,
+pixelscharf, SDF-Glyphe, Dreieck (H-K3b: Ecken aus der Instanz, baryzentrischer Abstand zu den Außenkanten, Glättung nur dort; Höhen
+flach über `uvbox` an den Fragment-Shader – keine neuen Varyings, WebGL2-tauglich)) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur,
 Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`) · `funken` (3D-Teilchen: Viereck aus `vertex_index`, Kamera-rechts/
 -oben aus den Zeilen 0/1 von `ansicht_proj` – kein neues Uniform; leuchtend = Schein (1 − r²)² mit heißem Kern, im Nebel

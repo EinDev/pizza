@@ -1,0 +1,87 @@
+# H-K3b (HERD.md §12.4): Vieleck – konvex, konkav, Stern, sternförmig mit Zufallsradien (immer einfach), ganz zufällig (oft
+# selbstschneidend → nichts gezeichnet), Umriss, gedreht und verschachtelt, Punkte mitten im Lauf geändert (neue Zerlegung im
+# Nachlauf). Nativ = kern.wasm bitgleich (Ohrenschneiden nur mit Vorzeichen-Tests, Gehrung mit libm::sqrt).
+vorgabe TAKTE 40
+vorgabe N 1
+welt_neu 640 360 "Vielecke"
+welt_hintergrund "mozzarella"
+typ_nummer "Vieleck" -> T_V
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Rechteck" -> T_R
+feld_nummer T_V "punkte" -> V_P
+feld_nummer T_V "farbe" -> V_F
+feld_nummer T_V "umriss" -> V_U
+feld_nummer T_BEW "drehtempo" -> BEW_D
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+# feste Formen: Quadrat, L, Pfeil, Stern (5 Zacken), eine Fliege (ungültig)
+teil_neu 2 -> q
+teil_lage q 60 60 0
+komp_neu T_V -> vq
+setze_zahlen vq V_P [-30, -30, 30, -30, 30, 30, -30, 30]
+setze_text vq V_F "tomate"
+komp_haenge vq q
+teil_neu 2 -> l
+teil_lage l 160 60 0
+komp_neu T_V -> vl
+setze_zahlen vl V_P [-30, -30, 30, -30, 30, -15, -15, -15, -15, 30, -30, 30]
+setze_text vl V_F "basilikum"
+komp_haenge vl l
+teil_neu 2 -> pf
+teil_lage pf 260 60 0
+komp_neu T_V -> vpf
+setze_zahlen vpf V_P [-30, -30, 30, 0, -30, 30, -10, 0]
+setze_text vpf V_F "kruste"
+setze_zahl vpf V_U 4
+komp_haenge vpf pf
+teil_neu 2 -> st
+teil_lage st 380 70 0
+komp_neu T_BEW -> bst
+setze_zahl bst BEW_D 30
+komp_haenge bst st
+komp_neu T_V -> vst
+setze_zahlen vst V_P [0, -50, 11.76, -16.18, 47.55, -15.45, 19.02, 6.18, 29.39, 40.45, 0, 20, -29.39, 40.45, -19.02, 6.18, -47.55, -15.45, -11.76, -16.18]
+setze_text vst V_F "senf"
+komp_haenge vst st
+teil_neu 2 -> fl
+teil_lage fl 500 60 0
+komp_neu T_V -> vfl
+setze_zahlen vfl V_P [-30, -30, 30, 30, 30, -30, -30, 30]
+komp_haenge vfl fl
+# sternförmige 8-Ecke mit Zufallsradien (einfach) und ganz zufällige 6-Ecke, je N; jedes dritte mit Umriss, alle drehen sich
+wiederhole (12 * N) i
+  teil_neu 2 -> nabe
+  teil_lage nabe (30 + i % 12 * 52) (150 + boden(i / 12) % 4 * 50) 0
+  teil_setze nabe 10 (i % 3)
+  komp_neu T_BEW -> bw
+  setze_zahl bw BEW_D (i % 7 * 20 - 60)
+  komp_haenge bw nabe
+  komp_neu T_V -> v
+  setze_zahlen v V_P [(5 + zufall(i * 16) * 20), 0, (3.5 + zufall(i * 16 + 1) * 14), (3.5 + zufall(i * 16 + 1) * 14), 0, (5 + zufall(i * 16 + 2) * 20), (-3.5 - zufall(i * 16 + 3) * 14), (3.5 + zufall(i * 16 + 3) * 14), (-5 - zufall(i * 16 + 4) * 20), 0, (-3.5 - zufall(i * 16 + 5) * 14), (-3.5 - zufall(i * 16 + 5) * 14), 0, (-5 - zufall(i * 16 + 6) * 20), (3.5 + zufall(i * 16 + 7) * 14), (-3.5 - zufall(i * 16 + 7) * 14)]
+  setze_text v V_F "#c0392bcc"
+  setze_zahl v V_U (3 - boden((i % 3 + 2) / 3) * 3)
+  komp_haenge v nabe
+  teil_neu 2 -> w
+  teil_haenge w nabe
+  teil_lage w 0 25 0
+  komp_neu T_V -> vw
+  setze_zahlen vw V_P [(zufall(i * 16 + 8) * 30 - 15), (zufall(i * 16 + 9) * 30 - 15), (zufall(i * 16 + 10) * 30 - 15), (zufall(i * 16 + 11) * 30 - 15), (zufall(i * 16 + 12) * 30 - 15), (zufall(i * 16 + 13) * 30 - 15), (zufall(i * 16 + 14) * 30 - 15), (zufall(i * 16 + 15) * 30 - 15), (zufall(i * 16 + 16) * 30 - 15), (zufall(i * 16 + 17) * 30 - 15), (zufall(i * 16 + 18) * 30 - 15), (zufall(i * 16 + 19) * 30 - 15)]
+  setze_text vw V_F "ofen"
+  komp_haenge vw w
+ende
+# ein Rechteck dazwischen (Ebene 1): gleiche INST2D-Liste, ein Draw-Call
+teil_neu 2 -> r
+teil_lage r 320 300 0
+teil_setze r 10 1
+komp_neu T_R -> rr
+setze_zahl rr R_B 600
+setze_zahl rr R_H 8
+komp_haenge rr r
+takte (TAKTE / 2)
+# mitten im Lauf: Quadrat wird Sechseck, Fliege wird gültig, Stern bekommt einen Umriss
+setze_zahlen vq V_P [-30, 0, -15, -26, 15, -26, 30, 0, 15, 26, -15, 26]
+setze_zahlen vfl V_P [-30, -30, 30, -30, 30, 30, -30, 30]
+setze_zahl vst V_U 5
+hole_zahlen vq V_P
+bild
+takte (TAKTE / 2)

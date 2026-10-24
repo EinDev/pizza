@@ -158,6 +158,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Wucht", "Physik", "Fuehler"],
       "herd": true
+    },
+    {
+      "id": "pizzastuecke",
+      "titel": "Pizzastücke: Vielecke",
+      "beschreibung": "Eine Pizza aus acht Vielecken dreht sich auf dem Brett: Jedes Stück ist ein Kreisausschnitt, die Kruste ein gebogenes Band, der Käse ein unregelmäßiger Fleck – der Kern zerlegt jedes Vieleck selbst in Dreiecke. Ein Klick zieht ein Stück federnd heraus, ein zweiter schiebt es zurück.",
+      "datei": "herd/pizzastuecke.pizza",
+      "erwartet": "herd/pizzastuecke.erwartet",
+      "ereignisse": "herd/pizzastuecke.ereignisse",
+      "herdErwartet": "herd/pizzastuecke.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Vieleck", "Gleiten", "Maus", "Hierarchie"],
+      "herd": true
     }
   ]
 }

@@ -1,0 +1,8 @@
+Vieleck(3) [-40, 20, 0, -30, 40, 20] tomate 0
+[] weiss 0
+trifft die Ecke: ja
+nach 8 Takten: Drehung 12, Umriss 3, Fliege [-20, -20, 20, -20, 20, 20, -20, 20], Strich [0, 0, 30, 0, 15, 25], schief 5
+LaufzeitAnanas: Vieleck.umriss muss mindestens 0 sein, nicht -1.
+TypAnanas: Vieleck.punkte braucht ein Blech aus Zahlen, nicht 5.
+LaufzeitAnanas: Vieleck gibt es nur für 2D-Teile.
+LaufzeitAnanas: Teil 3 hat schon ein Vieleck.

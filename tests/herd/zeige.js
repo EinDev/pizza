@@ -94,7 +94,7 @@ function szene() {
 
 // ---------- Bildpaket (herd/README.md §4) ----------
 const ABSCHNITT = { 1: 'SCHRIFT', 2: 'ATLAS_SEITE', 3: 'ATLAS_STUECK', 4: 'NETZ', 10: 'SZENE', 11: 'INST3D', 12: 'ZUEGE3D', 13: 'INST2D' };
-const ART2D = { 1: 'Rechteck', 2: 'Kreis', 3: 'Bild', 4: 'Glyphe' };
+const ART2D = { 1: 'Rechteck', 2: 'Kreis', 3: 'Bild', 4: 'Glyphe', 5: 'Dreieck', 6: 'Texturbild' };
 const ZUG = { 1: 'FEST', 2: 'SCHATTEN', 3: 'DURCH' };
 function paket(b) {
   const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
@@ -133,6 +133,11 @@ function paket(b) {
       const n = len / 56;
       for (let i = 0; i < Math.min(n, grenze); i++) {
         const p = d + i * 56, a2 = u32(p + 44);
+        if ((a2 & 0xff) === 5) {
+          L.push('    ' + i + ': Dreieck A (' + f32(p + 16) + ', ' + f32(p + 20) + ') B (' + f32(p) + ', ' + f32(p + 4) + ') C (' + f32(p + 8) + ', ' + f32(p + 12) +
+            ') Außenkanten ' + f32(p + 32) + ' farbe ' + rgba(p + 40));
+          continue;
+        }
         L.push('    ' + i + ': ' + (ART2D[a2 & 0xff] || a2 & 0xff) + ' mitte (' + f32(p + 16) + ', ' + f32(p + 20) + ') halb (' + f32(p + 24) + ', ' + f32(p + 28) +
           ') p ' + f32(p + 32) + '/' + f32(p + 36) + ' farbe ' + rgba(p + 40) + ' M ' + vec(p, 4) + ((a2 & 0xff) >= 3 ? ' uv ' + [0, 2, 4, 6].map(k => u16(p + 48 + k)).join(',') + ' seite ' + (a2 >> 8) : ''));
       }

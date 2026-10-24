@@ -293,7 +293,8 @@
                 ["`Fuehler`","beide","`form` auto, `breite`/`hoehe`/`tiefe`/`radius` 0, `versatzX`/`versatzY`/`versatzZ` 0, `gruppe` 1, `maske` 4294967295, `ausloeser` ja; nur lesen: `beruehrt`, `betreten`, `verlassen` (Bleche aus Teilen), `anzahl`","Kollider: meldet je Takt, welche anderen Fühler-Teile er berührt und welche neu dazugekommen bzw. weg sind – kein Rückruf, sondern Zustand wie die Tasten"],
                 ["`Blick`","2D","`zoom` 1, `aktiv` ja, `festAb` 1000, `grenzeLinks`/`grenzeOben`/`grenzeRechts`/`grenzeUnten` 0","2D-Kamera: die Lage des Teils ist die Mitte der Sicht, `zoom` vergrößert, die Drehung dreht die Sicht; Teile mit `ebene` ≥ `festAb` bleiben als HUD stehen; Grenzen halten die Sicht in der Welt"],
                 ["`Leine`","beide","`ziel` karton, `abstandX`/`abstandY`/`abstandZ` 0, `weich` 0, `totzone` 0, `schaue` nein","Folgekamera: das Teil folgt nach jedem Takt dem Ziel mit Abstand – starr oder weich, mit Totzone; in 3D schaut es auf Wunsch aufs Ziel"],
-                ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"]
+                ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"],
+                ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -716,6 +717,41 @@
             },
             { art: "ausgabe", text: z("Wucht(4) dynamisch nein ja ja") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Teigkugeln** unter *Beispiele → Herd*: Ein Klick wirft eine Teigkugel in die Pizzaschachtel, ein Nudelholz fährt darüber, die Leertaste rüttelt." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Vieleck: beliebige Formen",
+          inhalt: [
+            { art: "text", md: "Ein **`Vieleck`** zeichnet eine gefüllte Form aus Punkten: `punkte` ist ein Blech aus Zahlen `[x1, y1, x2, y2, …]` relativ zum Teil (3 bis 256 Punkte), die Ecken werden der Reihe nach verbunden und der letzte Punkt mit dem ersten. Die Form darf **einspringende Ecken** haben (ein L, ein Stern, ein gebogenes Band), aber ihre Kanten dürfen sich **nicht kreuzen oder berühren** – eine solche Form (oder eine mit weniger als 3 Punkten) zeichnet Herd einfach nicht, ohne Fehler. Lage, Drehung, Größe und Ebene des Teils wirken wie bei jeder anderen 2D-Form; `umriss` > 0 zeichnet nur einen Rand dieser Dicke nach innen (wie beim `Rechteck`). Für `trifft` und `Fuehler` zählt das umschließende Rechteck der Punkte." },
+            { art: "text", md: "Die Engine zerlegt jedes Vieleck selbst in Dreiecke – nur einmal, solange sich die Punkte nicht ändern. Tipp: Kreisbögen baust du mit `Mathe.cos`/`Mathe.sin` in einer Schleife, z. B. ein Pizzastück aus der Mitte und sieben Punkten auf dem Rand." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Vieleck","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"9ef5040ae9182873","paket":"079e67b7e729926a"},
+                {"art":"bild","bildnummer":8,"szene":"50ee47720b7701e3","paket":"d657106d9e2b7f4e"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Vieleck\", breite: 320, hoehe: 180);",
+                "Blech<funghi> stueck = [0, 0];",
+                "für (salami k = 0; k <= 6; k++) {",
+                "    funghi w = Mathe.bogen(-22.5 + k * 7.5);",
+                "    stueck = stueck.hinzu(Mathe.cos(w) * 80).hinzu(Mathe.sin(w) * 80);",
+                "}",
+                "Teil pizza = herd.gruppe(160, 90);",
+                "pizza.mit(neu Bewegung(drehtempo: 30));",
+                "Vieleck v = pizza.mit(neu Vieleck(punkte: stueck, farbe: \"tomate\"));",
+                "herd.gruppe(200, 60).mit(neu Vieleck(punkte: [-20, -20, 20, -20, 20, -5, -5, -5, -5, 20, -20, 20], farbe: \"basilikum\", umriss: 3));",
+                "herd.backe();",
+                "Bote.sage((v + \" \" + v.punkte().länge() / 2 + \" Punkte, Drehung \" + pizza.drehung()));"
+              )
+            },
+            { art: "ausgabe", text: z("Vieleck(3) 8 Punkte, Drehung 4") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Pizzastücke** unter *Beispiele → Herd*: Eine Pizza aus acht Vieleck-Stücken mit Kruste, Käse und Belag dreht sich auf dem Brett; ein Klick zieht ein Stück heraus." }
           ]
         }
       ]

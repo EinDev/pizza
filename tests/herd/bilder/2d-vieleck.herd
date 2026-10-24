@@ -1,0 +1,151 @@
+#! bild 20 groesse 1280x720
+# 2D-Referenzbild H-K3b: Vieleck – konvex, konkav (L, Pfeil, gebogenes Band), Stern, gedreht und vergrößert, Umriss (auch an
+# spitzen Ecken), halbdurchsichtig, mit Rechtecken und Kreisen in verschiedenen Ebenen gemischt (ein INST2D-Strom).
+# Spielfeld 640 × 360, gerendert in 1280 × 720.
+vorgabe TAKTE 20
+welt_neu 640 360 "Vielecke"
+welt_hintergrund "#1b2533"
+typ_nummer "Vieleck" -> T_V
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+feld_nummer T_V "punkte" -> V_P
+feld_nummer T_V "farbe" -> V_F
+feld_nummer T_V "umriss" -> V_U
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_R "farbe" -> R_F
+feld_nummer T_R "rundung" -> R_RUND
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_K "farbe" -> K_F
+# Hintergrund-Streifen (Ebene 0) und ein Balken über allem (Ebene 5)
+teil_neu 2 -> hs
+teil_lage hs 320 180 0
+komp_neu T_R -> rhs
+setze_zahl rhs R_B 640
+setze_zahl rhs R_H 120
+setze_text rhs R_F "#2b3a4f"
+komp_haenge rhs hs
+teil_neu 2 -> bal
+teil_lage bal 320 180 0
+teil_setze bal 10 5
+teil_setze bal 4 -8
+komp_neu T_R -> rbal
+setze_zahl rbal R_B 600
+setze_zahl rbal R_H 10
+setze_zahl rbal R_RUND 5
+setze_text rbal R_F "#fff6e0b0"
+komp_haenge rbal bal
+# Reihe oben: Dreieck, Quadrat gedreht, L, Pfeil, Stern
+teil_neu 2 -> a
+teil_lage a 70 70 0
+teil_setze a 10 1
+komp_neu T_V -> va
+setze_zahlen va V_P [0, -40, 40, 30, -40, 30]
+setze_text va V_F "tomate"
+komp_haenge va a
+teil_neu 2 -> b
+teil_lage b 190 70 0
+teil_setze b 10 1
+teil_setze b 4 30
+komp_neu T_V -> vb
+setze_zahlen vb V_P [-30, -30, 30, -30, 30, 30, -30, 30]
+setze_text vb V_F "basilikum"
+komp_haenge vb b
+teil_neu 2 -> c
+teil_lage c 310 70 0
+teil_setze c 10 1
+komp_neu T_V -> vc
+setze_zahlen vc V_P [-35, -35, 35, -35, 35, -15, -15, -15, -15, 35, -35, 35]
+setze_text vc V_F "senf"
+komp_haenge vc c
+teil_neu 2 -> d
+teil_lage d 430 70 0
+teil_setze d 10 1
+komp_neu T_V -> vd
+setze_zahlen vd V_P [-40, -35, 40, 0, -40, 35, -15, 0]
+setze_text vd V_F "himmel"
+komp_haenge vd d
+teil_neu 2 -> e
+teil_lage e 560 70 0
+teil_setze e 10 1
+teil_setze e 4 10
+komp_neu T_V -> ve
+setze_zahlen ve V_P [0, -45, 11.76, -16.18, 42.8, -13.9, 19.02, 6.18, 26.45, 36.41, 0, 20, -26.45, 36.41, -19.02, 6.18, -42.8, -13.9, -11.76, -16.18]
+setze_text ve V_F "ananas"
+komp_haenge ve e
+# Reihe Mitte: Umrisse (Dreieck spitz, Stern, Band), dahinter ein Kreis in Ebene 0, davor einer in Ebene 3
+teil_neu 2 -> k1
+teil_lage k1 120 180 0
+komp_neu T_K -> kk1
+setze_zahl kk1 K_R 30
+setze_text kk1 K_F "salami"
+komp_haenge kk1 k1
+teil_neu 2 -> f
+teil_lage f 120 180 0
+teil_setze f 10 2
+komp_neu T_V -> vf
+setze_zahlen vf V_P [-60, 30, 60, 30, 0, -45]
+setze_text vf V_F "mozzarella"
+setze_zahl vf V_U 4
+komp_haenge vf f
+teil_neu 2 -> g
+teil_lage g 320 180 0
+teil_setze g 10 2
+teil_setze g 4 -12
+komp_neu T_V -> vg
+setze_zahlen vg V_P [0, -50, 11.76, -16.18, 47.55, -15.45, 19.02, 6.18, 29.39, 40.45, 0, 20, -29.39, 40.45, -19.02, 6.18, -47.55, -15.45, -11.76, -16.18]
+setze_text vg V_F "tomate"
+setze_zahl vg V_U 3
+komp_haenge vg g
+teil_neu 2 -> h
+teil_lage h 520 230 0
+teil_setze h 10 2
+komp_neu T_V -> vh
+setze_zahlen vh V_P [-90, 0, -78, -45, -45, -78, 0, -90, 45, -78, 78, -45, 90, 0, 72, 0, 62, -36, 36, -62, 0, -72, -36, -62, -62, -36, -72, 0]
+setze_text vh V_F "kruste"
+komp_haenge vh h
+teil_neu 2 -> k2
+teil_lage k2 520 190 0
+teil_setze k2 10 3
+komp_neu T_K -> kk2
+setze_zahl kk2 K_R 14
+setze_text kk2 K_F "#3e8e41c0"
+komp_haenge kk2 k2
+# Reihe unten: Pizzastücke (8 Kreisausschnitte als Kinder einer gedrehten, vergrößerten Gruppe), halbdurchsichtig übereinander
+teil_neu 2 -> piz
+teil_lage piz 130 300 0
+teil_setze piz 4 15
+teil_setze piz 7 1.5
+teil_setze piz 8 1.5
+wiederhole 8 i
+  teil_neu 2 -> st
+  teil_haenge st piz
+  teil_setze st 4 (i * 45)
+  teil_setze st 10 1
+  komp_neu T_V -> vs
+  setze_zahlen vs V_P [0, 0, 36.96, -15.31, 39.23, -7.80, 40, 0, 39.23, 7.80, 36.96, 15.31]
+  setze_text vs V_F "tomate"
+  komp_haenge vs st
+ende
+teil_neu 2 -> u1
+teil_lage u1 300 300 0
+teil_setze u1 10 1
+komp_neu T_V -> vu1
+setze_zahlen vu1 V_P [-50, -30, 30, -40, 50, 20, -20, 40]
+setze_text vu1 V_F "#2e6fd9a0"
+komp_haenge vu1 u1
+teil_neu 2 -> u2
+teil_lage u2 330 310 0
+teil_setze u2 10 1
+komp_neu T_V -> vu2
+setze_zahlen vu2 V_P [-40, 0, 0, -40, 40, 0, 0, 40]
+setze_text vu2 V_F "#d9452ba0"
+komp_haenge vu2 u2
+# ungültig (Fliege): wird nicht gezeichnet
+teil_neu 2 -> x
+teil_lage x 480 310 0
+komp_neu T_V -> vx
+setze_zahlen vx V_P [-30, -30, 30, 30, 30, -30, -30, 30]
+setze_text vx V_F "weiss"
+komp_haenge vx x
+takte TAKTE

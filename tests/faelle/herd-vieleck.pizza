@@ -1,0 +1,29 @@
+// Herd §18.6 / HERD.md §12.4 H-K3b: Vieleck – Punkte als Blech aus Zahlen, Standardwerte, Hülle (umschließendes Rechteck) für
+// trifft, ungültige Vielecke ohne Fehler (nur nicht gezeichnet), Umriss, Punkte im Lauf ändern, Fehlertexte
+Herd herd = neu Herd("Vielecke", breite: 320, hoehe: 180);
+Teil dach = herd.gruppe(160, 90);
+Vieleck v = dach.mit(neu Vieleck(punkte: [-40, 20, 0, -30, 40, 20], farbe: "tomate"));
+Bote.sage((v + " " + v.punkte() + " " + v.farbe() + " " + v.umriss()));
+Vieleck vorgabe = herd.gruppe(20, 20).mit(neu Vieleck());
+Bote.sage((vorgabe.punkte() + " " + vorgabe.farbe() + " " + vorgabe.umriss()));
+// die Hülle ist das umschließende Rechteck: die Ecke oben rechts liegt neben dem Dreieck, trifft aber
+Teil ecke = herd.kreis(196, 64, 3);
+Bote.sage(("trifft die Ecke: " + dach.trifft(ecke)));
+// ungültig, aber kein Fehler: Fliege (selbstschneidend), zwei Punkte, ungerade Länge
+Vieleck fliege = herd.gruppe(60, 140).mit(neu Vieleck(punkte: [-20, -20, 20, 20, 20, -20, -20, 20], farbe: "basilikum"));
+Vieleck strich = herd.gruppe(120, 140).mit(neu Vieleck(punkte: [0, 0, 30, 0]));
+Vieleck schief = herd.gruppe(180, 140).mit(neu Vieleck(punkte: [0, 0, 30, 0, 30]));
+dach.mit(neu Bewegung(drehtempo: 90));
+herd.backe(() -> {
+    falls (herd.bildnummer() == 4) {
+        v.setzeUmriss(3);
+        fliege.setzePunkte([-20, -20, 20, -20, 20, 20, -20, 20]);
+        strich.setzePunkte(strich.punkte().hinzu(15).hinzu(25));
+    }
+});
+Bote.sage(("nach " + herd.bildnummer() + " Takten: Drehung " + dach.drehung().runden(2) + ", Umriss " + v.umriss() + ", Fliege "
+    + fliege.punkte() + ", Strich " + strich.punkte() + ", schief " + schief.punkte().länge()));
+probier { v.setzeUmriss(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { v.setzePunkte(5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum().mit(neu Vieleck()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { dach.mit(neu Vieleck()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

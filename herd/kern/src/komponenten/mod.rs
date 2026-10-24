@@ -28,6 +28,7 @@ pub mod rahmen;
 pub mod rechteck;
 pub mod text;
 pub mod wucht;
+pub mod vieleck;
 #[cfg(any(test, feature = "probe"))]
 pub mod probe;
 
@@ -129,6 +130,7 @@ pub static ARTEN: &[&Art] = &[
     &blick::ART,
     &leine::ART,
     &wucht::ART,
+    &vieleck::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
