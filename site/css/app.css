@@ -931,7 +931,7 @@ button.k-meldung:hover { border-color: currentColor; }
 .etab.drop-rechts { box-shadow: inset -2px 0 0 var(--akzent); }
 .werkbank { position: relative; }
 .werkbank.datei-ziel::after {
-  content: "Datei loslassen – öffnet in neuem Tab"; position: absolute; inset: 8px; z-index: 20;
+  content: "Dateien loslassen – kommen ins Projekt (ZIP: neues Projekt)"; position: absolute; inset: 8px; z-index: 20;
   display: grid; place-items: center; border: 2px dashed var(--akzent); border-radius: 14px;
   background: color-mix(in srgb, var(--akzent-weich) 85%, transparent); color: var(--akzent); font-weight: 700; font-size: 15px;
   pointer-events: none;
@@ -1300,3 +1300,96 @@ button.k-meldung:hover { border-color: currentColor; }
 }
 .app-ende.allein .app-ende-text { flex: none; font-size: 14px; max-width: 46ch; }
 .app-ende.allein .app-ende-knoepfe { margin-left: 0; }
+
+/* ---------------- Projekte (PROJEKTE.md §3.1, PB1): Projektmenü, Dateibaum, Bildvorschau, Banner ---------------- */
+.knopf-projekt { gap: 6px; max-width: 240px; min-width: 0; padding: 0 10px; flex: 0 1 auto; }
+.knopf-projekt svg { width: 16px; height: 16px; flex: none; }
+.knopf-projekt .projekt-pfeil { width: 13px; height: 13px; opacity: .7; }
+.projekt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; color: var(--text); }
+
+.werkbank-mitte { display: flex; min-width: 0; min-height: 0; }
+.editor-flaeche { position: relative; flex: 1 1 auto; min-width: 0; min-height: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.editor-flaeche > .editor, .editor-flaeche > .bildvorschau { grid-area: 1 / 1; }
+.editor[hidden], .bildvorschau[hidden] { display: none; }
+
+.baum-umschalter {
+  display: grid; place-items: center; flex: none; width: 36px; height: 100%; border: 0; border-right: 1px solid var(--rand);
+  background: none; color: var(--text-3); cursor: pointer;
+}
+.baum-umschalter svg, .baum-knopf svg, .baum-icon svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.baum-umschalter svg { width: 16px; height: 16px; }
+.baum-umschalter:hover, .baum-umschalter.aktiv { color: var(--akzent); background: var(--flaeche-2); }
+.baum-umschalter:focus-visible { outline-offset: -3px; }
+
+.dateibaum {
+  flex: 0 0 220px; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
+  border-right: 1px solid var(--rand); background: var(--flaeche); font-size: 12.5px;
+}
+.dateibaum[hidden] { display: none; }
+.baum-kopf { display: flex; align-items: center; gap: 2px; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--rand); flex: none; }
+.baum-titel { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--text); }
+.baum-knopf { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--text-3); cursor: pointer; flex: none; }
+.baum-knopf svg { width: 15px; height: 15px; }
+.baum-knopf:hover { color: var(--akzent); background: var(--flaeche-2); }
+.baum-liste { flex: 1 1 auto; overflow: auto; padding: 4px 0 12px; overscroll-behavior: contain; }
+.baum-liste.drop-ziel { box-shadow: inset 0 0 0 2px var(--akzent); }
+.baum-eintrag {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding: 0 8px 0 calc(10px + var(--tiefe, 0) * 14px);
+  border: 0; background: none; color: var(--text-2); font: 12px var(--mono); text-align: left; cursor: pointer;
+}
+.baum-eintrag:hover { background: var(--flaeche-2); color: var(--text); }
+.baum-eintrag.aktiv { background: var(--akzent-weich); color: var(--text); }
+.baum-eintrag:focus-visible { outline-offset: -2px; }
+.baum-eintrag.unerreichbar { opacity: .55; }
+.baum-eintrag.unerreichbar .baum-name { text-decoration: line-through dotted; text-decoration-thickness: 1px; }
+.baum-eintrag.drop-ziel { box-shadow: inset 0 0 0 2px var(--akzent); }
+.baum-icon { flex: none; width: 14px; height: 14px; color: var(--text-3); }
+.baum-icon svg { width: 14px; height: 14px; }
+.baum-pizza .baum-icon { color: var(--akzent); }
+.baum-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.baum-stern, .etab-haupt { color: var(--hawaii); font-size: 11px; flex: none; }
+.baum-bearbeitung { padding: 2px 8px 2px calc(10px + var(--tiefe, 0) * 14px); }
+.baum-eingabe {
+  width: 100%; height: 24px; padding: 0 6px; font: 12px var(--mono); border: 1px solid var(--akzent); border-radius: 5px;
+  background: var(--flaeche); color: var(--text); outline: none;
+}
+.baum-eingabe.ungueltig, .etab-eingabe.ungueltig { border-color: var(--fehler); background: var(--fehler-weich); }
+.baum-hinweis { color: var(--fehler); font-size: 11.5px; line-height: 1.4; padding-top: 2px; }
+.baum-hinweis:empty { display: none; }
+.baum-fuss { flex: none; padding: 6px 12px; border-top: 1px solid var(--rand); color: var(--text-3); font-size: 11.5px; }
+
+.bildvorschau { display: flex; flex-direction: column; min-height: 0; background: var(--flaeche-2); }
+.bv-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--rand); background: var(--flaeche); }
+.bv-info { font: 12px var(--mono); color: var(--text-2); flex: 1 1 auto; }
+.bv-zoom { display: flex; gap: 4px; }
+.bv-zoom [aria-pressed="true"] { color: var(--akzent); border-color: var(--akzent); }
+.bv-flaeche {
+  flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; place-items: center; padding: 16px;
+  background-color: var(--flaeche-3);
+  background-image: linear-gradient(45deg, var(--flaeche-2) 25%, transparent 25%, transparent 75%, var(--flaeche-2) 75%),
+    linear-gradient(45deg, var(--flaeche-2) 25%, transparent 25%, transparent 75%, var(--flaeche-2) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+}
+.bv-bild { image-rendering: pixelated; max-width: none; }
+.bv-flaeche.einpassen .bv-bild { max-width: 100%; max-height: 100%; object-fit: contain; }
+.bv-fehler { color: var(--fehler); font-weight: 600; text-align: center; }
+
+.projekt-banner {
+  position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 5; padding: 8px 12px; border-radius: 8px;
+  background: var(--warn-weich); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  font-size: 12.5px; font-weight: 600; pointer-events: none;
+}
+.projekt-banner[hidden] { display: none; }
+.dlg-feld { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 14px; }
+.dlg-feld input { height: 34px; padding: 0 10px; border: 1px solid var(--rand-stark); border-radius: 7px; background: var(--flaeche); color: var(--text); font: inherit; }
+.dlg-feld input:focus { outline: 2px solid var(--fokus); outline-offset: 1px; }
+
+@media (max-width: 899.98px) {
+  .knopf-projekt { width: 34px; padding: 0; justify-content: center; flex: none; }
+  .knopf-projekt .projekt-name { display: none; }
+  .knopf-projekt .projekt-pfeil { display: none; }
+  .dateibaum {
+    position: fixed; z-index: 45; left: 0; top: var(--kopf-hoehe); bottom: 0; width: min(78vw, 300px);
+    box-shadow: var(--schatten-gross);
+  }
+}

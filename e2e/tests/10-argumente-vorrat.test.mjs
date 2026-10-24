@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, strg, schlafe, warteLaufEnde, konsolenAusgabe, exitBadge, EXIT_TEXT, bereit, neuerTab,
-  editorTabs, ereignisseLeeren, S, zeigePanelTab, warteAufTabMuster,
+  editorTabs, ereignisseLeeren, S, zeigePanelTab, warteAufTabMuster, wechsleProjekt,
 } from "../hilfen.mjs";
 
 const ARGS = '[data-testid="argumente"]';
@@ -65,26 +65,26 @@ e2e("Argumente: Luigi \"Tisch 5\" 3 → hauptgang(args) bekommt [Luigi, Tisch 5,
   assert.equal(await backenUndAusgabe(page), "Anzahl: 0\n");
 });
 
-e2e("Argumente: pro Tab gespeichert, Tab-Wechsel und Reload stellen sie wieder her", async ({ page, oeffne }) => {
+e2e("Argumente: pro Projekt gespeichert, Projektwechsel und Reload stellen sie wieder her", async ({ page, oeffne }) => {
   await oeffne();
   await neuerTab(page);
   await setzeCode(page, HAUPT);
   await setzeArgs(page, 'Luigi "Tisch 5" 3');
   await neuerTab(page);
   await setzeCode(page, HAUPT);
-  assert.equal(await argsWert(page), "", "zweiter Tab hat eigene (leere) Argumente");
+  assert.equal(await argsWert(page), "", "zweites Projekt hat eigene (leere) Argumente");
   await setzeArgs(page, "Mario");
-  // zurück zu Tab 1
-  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "unbenannt-1.pizza").querySelector(".etab-knopf").click());
+  // zurück zu Projekt 1
+  await wechsleProjekt(page, "unbenannt-1");
   await warteAufTabMuster(page, "unbenannt-1.pizza");
   assert.equal(await argsWert(page), 'Luigi "Tisch 5" 3');
-  await schlafe(600); // Tab-Speichern ist entprellt
+  await schlafe(600); // Speichern ist entprellt
   await page.reload({ waitUntil: "load" });
   await bereit(page);
   assert.equal((await editorTabs(page)).find((t) => t.aktiv).name, "unbenannt-1.pizza");
   assert.equal(await argsWert(page), 'Luigi "Tisch 5" 3', "Argumente nach Reload");
   assert.equal(await backenUndAusgabe(page), "Anzahl: 3\n[Luigi]\n[Tisch 5]\n[3]\n");
-  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "unbenannt-2.pizza").querySelector(".etab-knopf").click());
+  await wechsleProjekt(page, "unbenannt-2");
   await warteAufTabMuster(page, "unbenannt-2.pizza");
   assert.equal(await argsWert(page), "Mario");
   assert.equal(await backenUndAusgabe(page), "Anzahl: 1\n[Mario]\n");
@@ -252,7 +252,7 @@ e2e("Vorrat mit Namensraum im Beispiel-Tab: Kammer landet unter pizza.vorrat.<ra
   await warteLaufEnde(page);
   assert.equal(await konsolenAusgabe(page), "Raum: e2e-spiel Name: stand x=2\n");
   // Eigener Tab (Willkommen) sieht dieselbe Kammer mit Namensraum, nicht aber die Beispiel-Kammer „lokal“
-  await page.$$eval(S.tab, (t) => t.find((x) => x.querySelector(".etab-name").textContent === "willkommen.pizza").querySelector(".etab-knopf").click());
+  await wechsleProjekt(page, "willkommen");
   await warteAufTabMuster(page, "willkommen.pizza");
   await setzeCode(page, [
     'Vorratskammer a = neu Vorratskammer("stand", namensraum: "e2e-spiel");',

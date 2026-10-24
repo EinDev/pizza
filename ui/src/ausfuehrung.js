@@ -6,7 +6,7 @@
 
 
 /** Einmaliger Auftrag an einen eigenen Worker (Kompilieren, Fähigkeiten prüfen). */
-export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
+export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000, transfer = []) {
   return new Promise((resolve) => {
     let w;
     try { w = new Worker("js/worker.js"); } catch (e) { resolve({ ok: false, grund: "Web Worker nicht verfügbar" }); return; }
@@ -16,7 +16,7 @@ export function workerAuftrag(nachricht, antwortTyp, zeitlimit = 15_000) {
       clearTimeout(t); w.terminate(); resolve(m.data);
     };
     w.onerror = (e) => { e.preventDefault && e.preventDefault(); clearTimeout(t); w.terminate(); resolve({ ok: false, grund: e.message || "Fehler im Worker" }); };
-    w.postMessage(nachricht);
+    w.postMessage(nachricht, transfer);
   });
 }
 
@@ -147,7 +147,8 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
       else signal(1, kodierer.encode(String(text)));
       return true;
     },
-    starte(code, args = [], motor = "auto", extra = {}) {
+    /** quelle: Programmtext (Ein-Datei-Abkürzung, App-Link) oder { projekt, uebertragbar } aus projekt.sammlung() (ARCHITEKTUR §2). */
+    starte(quelle, args = [], motor = "auto", extra = {}) {
       if (laeuft) aufraeumen();
       const id = ++laufId;
       start = performance.now();
@@ -167,12 +168,15 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
         beiEreignis({ typ: "fehler", art: "intern", code: "INTERN", text: "Der Ofen ist ausgefallen: " + (e.message || "unbekannter Fehler im Worker") + ".", zeile: null, spalte: null });
         beende(id, { exitCode: 2 });
       };
-      const nachricht = { ...extra, typ: "start", code, args, motor };
+      const nachricht = { ...extra, typ: "start", args, motor };
+      let transfer = extra.herdPort ? [extra.herdPort] : [];
+      if (quelle && typeof quelle === "object") { nachricht.projekt = quelle.projekt; transfer = transfer.concat(quelle.uebertragbar || []); }
+      else nachricht.code = String(quelle == null ? "" : quelle);
       if (!Array.isArray(extra.eingabe) && interaktivMoeglich()) {
         try { sab = new SharedArrayBuffer(8 + PUFFER_BYTES); nachricht.eingabePuffer = sab; } catch (e) { sab = null; }
       }
       // Herd (H6): MessagePort zum Render-Worker übertragen (herdKern = WebAssembly.Module wird geklont)
-      worker.postMessage(nachricht, extra.herdPort ? [extra.herdPort] : []);
+      worker.postMessage(nachricht, transfer);
     },
     /** Köche-Einstellung geändert (K-104/14): einen ruhenden, warm gehaltenen Lauf-Worker samt Köche-Pool beenden –
      *  der nächste Lauf startet frisch mit der neuen Anzahl. Ein laufender Lauf bleibt unberührt. */

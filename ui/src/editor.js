@@ -126,14 +126,22 @@ const VERVOLL_ICON = { keyword: "ckeyword", function: "cfunction", method: "cmet
   type: "ctype", constant: "cconstant", namespace: "cnamespace", property: "cmethod", text: "csnippet", annotation: "cannotation" };
 
 // ---------- Lint ----------
-function pizzaLinter(view) {
+function pizzaLinter(view, projektDiagnose) {
   const PL = window.PizzaLang;
   if (!PL || typeof PL.parse !== "function") return [];
   const doc = view.state.doc;
   let erg;
   try { erg = PL.parse(doc.toString()); } catch (e) { return []; }
-  if (!erg || erg.ok || !erg.fehler) return [];
-  const f = erg.fehler;
+  if (!erg) return [];
+  // Syntax ok → Projektprüfung (P0014–P0019, nach PA1 über PizzaLang.projekt.lade; vorher liefert sie nichts)
+  if (erg.ok) {
+    const pf = projektDiagnose ? projektDiagnose(doc.toString()) : null;
+    return pf ? lintEintrag(doc, pf) : [];
+  }
+  if (!erg.fehler) return [];
+  return lintEintrag(doc, erg.fehler);
+}
+function lintEintrag(doc, f) {
   let von = 0, bis = doc.length;
   if (f.zeile != null) {
     const z = doc.line(Math.min(Math.max(1, f.zeile), doc.lines));
@@ -148,6 +156,18 @@ function pizzaLinter(view) {
   return [{ from: von, to: bis, severity: "error", source: f.code || "Syntax", markClass: "cm-pizza-lint", message: (f.code && !String(f.text).includes(f.code) ? f.code + ": " : "") + f.text }];
 }
 
+// ---------- JSON (pizza.json und andere .json-Dateien) ----------
+function jsonLinter(view, pruefe) {
+  const text = view.state.doc.toString();
+  if (!text.trim()) return [];
+  let fehler = null;
+  try { JSON.parse(text); } catch (e) { fehler = "Kein gültiges JSON: " + (e && e.message ? e.message : String(e)); }
+  if (!fehler && pruefe) fehler = pruefe(text);
+  return fehler ? [{ from: 0, to: Math.min(text.length, view.state.doc.line(1).to || 1), severity: "error", source: "JSON", markClass: "cm-pizza-lint", message: fehler }] : [];
+}
+/** Dateiart des Zustands ("pizza" | "json" | "text") – Hervorhebung nur bei pizza neu aufbauen. */
+const artFeld = StateField.define({ create: () => "pizza", update: (v) => v });
+
 // ---------- Themen ----------
 const basisThema = EditorView.theme({
   "&": { height: "100%", fontSize: "var(--editor-schrift, 14px)" },
@@ -157,33 +177,50 @@ const basisThema = EditorView.theme({
 const hellThema = EditorView.theme({}, { dark: false });
 const dunkelThema = EditorView.theme({}, { dark: true });
 
-export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
+export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten, projektDiagnose = null }) {
   const themaFach = new Compartment();
   const spracheFach = new Compartment();   // Herd-Schema nachgeladen → Hervorhebung neu (neuHervorheben)
   const dunkel = () => document.documentElement.dataset.theme === "dark";
   const themaExt = () => (dunkel() ? dunkelThema : hellThema);
-  const erweiterungen = [
-    lineNumbers(), highlightActiveLineGutter(), foldGutter({ markerDOM: (offen) => iconEl(offen ? "chevronDown" : "chevronRight", "cm-faltmarke") }),
-    klammerFalten, lintGutter(),
+  const gemeinsam = [
+    lineNumbers(), highlightActiveLineGutter(), lintGutter(),
     highlightSpecialChars(), history(), drawSelection(), dropCursor(),
     EditorState.allowMultipleSelections.of(true), indentOnInput(), bracketMatching(), closeBrackets(),
-    autocompletion({
-      override: [pizzaVervollstaendigung], icons: false, activateOnTyping: true,
-      addToOptions: [{ position: 20, render: (c) => iconEl(VERVOLL_ICON[c.type] || "cvariable", "cm-pizza-icon cm-pizza-icon-" + (c.type || "text")) }],
-    }),
     rectangularSelection(), crosshairCursor(), highlightActiveLine(), highlightSelectionMatches(),
     EditorState.tabSize.of(4),
-    spracheFach.of(pizzaUnterstuetzung()),
-    linter(pizzaLinter, { delay: 350 }),
     sprungFeld, lintAttribute,
-    placeholder("// Schreib hier deine Pizza …"),
     keymap.of([...(tasten || []), ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap,
       ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
     basisThema,
     EditorView.updateListener.of((u) => { if (u.docChanged && beiAenderung) beiAenderung(u.state.doc.toString()); }),
-    EditorView.contentAttributes.of({ "aria-label": "pizza-Quelltext", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
   ];
-  const neuerZustand = (doc) => EditorState.create({ doc, extensions: [erweiterungen, themaFach.of(themaExt())] });
+  // Dateiarten (PROJEKTE §3.1): .pizza mit Hervorhebung, Live-Diagnose und Vervollständigung; Textdateien ohne pizza-Hervorhebung,
+  // pizza.json/.json mit JSON-Prüfung.
+  const proArt = {
+    pizza: () => [
+      foldGutter({ markerDOM: (offen) => iconEl(offen ? "chevronDown" : "chevronRight", "cm-faltmarke") }), klammerFalten,
+      autocompletion({
+        override: [pizzaVervollstaendigung], icons: false, activateOnTyping: true,
+        addToOptions: [{ position: 20, render: (c) => iconEl(VERVOLL_ICON[c.type] || "cvariable", "cm-pizza-icon cm-pizza-icon-" + (c.type || "text")) }],
+      }),
+      spracheFach.of(pizzaUnterstuetzung()),
+      linter((view) => pizzaLinter(view, projektDiagnose), { delay: 350 }),
+      placeholder("// Schreib hier deine Pizza …"),
+      EditorView.contentAttributes.of({ "aria-label": "pizza-Quelltext", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
+    ],
+    json: (pruefe) => [
+      linter((view) => jsonLinter(view, pruefe), { delay: 350 }),
+      EditorView.contentAttributes.of({ "aria-label": "JSON-Datei", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
+    ],
+    text: () => [
+      EditorView.contentAttributes.of({ "aria-label": "Textdatei", spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
+    ],
+  };
+  /** Neuer, unabhängiger Zustand (eigene Undo-Historie) – je Datei. art: "pizza" | "json" | "text"; pruefe(text) → null | Fehlertext. */
+  const neuerZustand = (doc, { art = "pizza", pruefe = null } = {}) => EditorState.create({
+    doc,
+    extensions: [gemeinsam, artFeld.init(() => art), (proArt[art] || proArt.text)(pruefe), themaFach.of(themaExt())],
+  });
   const view = new EditorView({ parent: eltern, state: neuerZustand(inhalt || "") });
 
   return {
@@ -216,6 +253,7 @@ export function erstelleEditor({ eltern, inhalt, beiAenderung, tasten }) {
     lintNeu() { forceLinting(view); },
     /** Wortlisten haben sich geändert (z. B. Komponenten aus schema.json): Text neu einfärben. */
     neuHervorheben() {
+      if (view.state.field(artFeld, false) !== "pizza") return;
       view.dispatch({ effects: spracheFach.reconfigure([]) });
       view.dispatch({ effects: spracheFach.reconfigure(pizzaUnterstuetzung()) });
     },

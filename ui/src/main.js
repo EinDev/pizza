@@ -1,7 +1,15 @@
-// pizza v3.1 Playground – Einstieg.
+// pizza v3.1 Playground – Einstieg. Projekte (PROJEKTE.md §3, K-142): ein aktives Projekt je Fenster (projekte.js), Tabs =
+// offene Dateien (tabs.js), Dateibaum (dateibaum.js), Projektmenü/ZIP (projektmenue.js), EXE-Dialog (exe-dialog.js).
 import { erstelleEditor } from "./editor.js";
 import { erstelleKonsole } from "./konsole.js";
 import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } from "./ausfuehrung.js";
+import { erstelleProjekte } from "./projekte.js";
+import { erstelleDateibaum } from "./dateibaum.js";
+import { erstelleProjektmenue, erstelleTextFrage } from "./projektmenue.js";
+import { erstelleBildvorschau } from "./bildvorschau.js";
+import { erstelleExeDialog } from "./exe-dialog.js";
+import { programmText, pizzaPfadAusName, projektNameAus, ladePruefung, dateiArt } from "./projekt.js";
+import { erstelleVorbacker } from "./bilder.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
 import { ausInterpreterErgaenzen, herdSchemaErgaenzen } from "./woerter.js";
@@ -47,6 +55,7 @@ const $ = (id) => document.getElementById(id);
 const speicher = {
   hole(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   setze(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* privat/voll */ } },
+  entferne(k) { try { localStorage.removeItem(k); } catch (e) { /* egal */ } },
 };
 const schmal = window.matchMedia("(max-width: 899.98px)");
 const wenigBewegung = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -68,7 +77,7 @@ function toast(text, art = "info") {
 // Rückfrage-Dialog: Antwort kommt direkt aus den Knopf-Klicks (nicht aus returnValue/close-Reihenfolge),
 // Anfragen werden nacheinander abgearbeitet – so gibt es keine Wettläufe bei schnellem Bestätigen.
 let frageKette = Promise.resolve();
-function frage(titel, text, ja = "Ersetzen") {
+function frage(titel, text, ja = "Ersetzen", nein = "Abbrechen") {
   const dlg = $("dialog-frage");
   if (typeof dlg.showModal !== "function") return Promise.resolve(window.confirm(text));
   const naechste = frageKette.then(() => new Promise((resolve) => {
@@ -77,6 +86,7 @@ function frage(titel, text, ja = "Ersetzen") {
     $("dialog-ja").textContent = ja;
     const jaKnopf = $("dialog-ja");
     const neinKnopf = dlg.querySelector('button[value="nein"]');
+    neinKnopf.textContent = nein;
     let fertig = false;
     const ende = (wert) => {
       if (fertig) return;
@@ -103,7 +113,7 @@ function frage(titel, text, ja = "Ersetzen") {
   return naechste;
 }
 
-function start() {
+async function start() {
   const PL = window.PizzaLang || null;
   ausInterpreterErgaenzen(PL);
   if (PL && PL.version) {
@@ -112,36 +122,86 @@ function start() {
     $("version").title = "Interpreter " + PL.version;
   }
 
-  // ---------- Editor & Tabs ----------
-  let tabs = null;
+  // ---------- Projekte, Editor, Tabs, Dateibaum ----------
+  // Erster Start: alte Tabs (pizza.tabs) werden zu Ein-Datei-Projekten (F12); ohne IndexedDB nur im Speicher + Banner.
+  const projekte = await erstelleProjekte({ speicher, willkommen: WILLKOMMEN });
+  projekte.an("meldung", ({ text, art }) => toast(text, art));
+  const fragText = erstelleTextFrage($("dialog-eingabe"));
+  let tabs = null, baum = null, exe = null;
   const editor = erstelleEditor({
     eltern: $("editor"),
     inhalt: "",
-    beiAenderung() { if (tabs) tabs.beiAenderung(); },
+    beiAenderung(text) { if (tabs) tabs.beiAenderung(text); },
+    // Live-Diagnose der Projektprüfungen (PROJEKTE §3.1) – nur in Mehrdatei-Projekten und nur für Fehler in der offenen Datei
+    projektDiagnose(text) {
+      if (!tabs || !tabs.aktivPfad || projekte.pfade().length < 2) return null;
+      const { projekt } = projekte.sammlung();
+      projekt.dateien[tabs.aktivPfad] = text;
+      const f = ladePruefung(projekt);
+      return f && f.datei === tabs.aktivPfad ? f : null;
+    },
   });
+  // Vorbacker (PD1): teigling.js + teigling.wasm erst beim ersten Bild; Teiglinge im IndexedDB-Speicher „teiglinge“
+  const vorbacker = erstelleVorbacker({ ablage: projekte.ablage });
+  const bildvorschau = erstelleBildvorschau({ wurzel: $("bildvorschau"), editorEl: $("editor"), vorbacker });
   tabs = erstelleTabs({
-    editor, leiste: $("editor-tabs"), speicher, frage, willkommen: WILLKOMMEN,
-    beiWechsel(t) { const f = document.getElementById("args"); if (f && t) { f.value = t.args || ""; f.dispatchEvent(new Event("lauf-punkt")); } },
+    editor, leiste: $("editor-tabs"), projekte, frage, toast,
+    beiWechsel() { argsAnzeigen(); if (baum) baum.markiere(); },
+    beiNeu: () => neuesProjekt(),
     beiTeilen: () => $("knopf-teilen").click(),
-    beiExe: () => exeDialogOeffnen(),
-    toast,
+    beiExe: () => exe.oeffnen(),
+    zeigeBinaer: (pfad) => bildvorschau.zeige(pfad, pfad ? projekte.inhalt(pfad) : null),
+  });
+  const projektmenue = erstelleProjektmenue({
+    knopf: $("knopf-projekt"), namenEl: $("projekt-name"), banner: $("projekt-banner"), projekte, frage, fragText, toast, tabs,
+    beiExe: () => exe.oeffnen(), beiTeilen: () => $("knopf-teilen").click(), beiNeu: () => neuesProjekt(),
+  });
+  baum = erstelleDateibaum({
+    wurzel: $("dateibaum"), umschalter: $("knopf-dateibaum"), projekte, tabs, frage, toast, schmal, speicher, vorbacker,
+    beiZip: (f) => projektmenue.zipImport(f),
   });
   tabs.laden();
+  baum.zeichne();
+  async function neuesProjekt() {
+    await projekte.neu({});
+    editor.view.focus();
+  }
+  function argsAnzeigen() {
+    const f = document.getElementById("args");
+    if (f) { f.value = projekte.aktiv.args || ""; f.dispatchEvent(new Event("lauf-punkt")); }
+  }
   // Herd: Komponenten, Felder, Teil-Methoden, Grundformen und Palette aus site/js/herd/schema.json für Vervollständigung und
   // Hervorhebung (HERD.md §3.3) – eine neue Komponente im Kern erscheint ohne Änderung an der UI
   ladeHerdSchema().then((s) => { if (herdSchemaErgaenzen(s)) editor.neuHervorheben(); });
 
   function speichern() {
-    const t = tabs.sichern();
-    if (t) toast("„" + t.name + "“ lokal gespeichert.", "ok");
+    const p = tabs.sichern();
+    if (p) toast("„" + p + "“ lokal gespeichert.", "ok");
+  }
+
+  /**
+   * Code (Beispiel, Doku-Block, geteilter Link) als Ein-Datei-Projekt öffnen (PROJEKTE §3.3). Gleiche Quelle → in die vorhandene
+   * Kopie springen, solange sie unverändert ist; sonst Wahl „Zu meiner Kopie“ / „Frische Kopie“.
+   */
+  async function oeffneAlsProjekt(code, dateiname, quelle) {
+    const da = quelle ? projekte.findeQuelle(quelle) : null;
+    if (da) {
+      const frisch = (await projekte.istUnveraendert(da.id)) ? false
+        : await frage("Schon einmal geöffnet", "Deine Kopie „" + da.name + "“ ist geändert. Zu deiner Kopie wechseln oder eine frische Kopie anlegen?", "Frische Kopie", "Zu meiner Kopie");
+      if (!frisch) { await projekte.wechsle(da.id); return { neu: false }; }
+    }
+    const pfad = pizzaPfadAusName(dateiname);
+    await projekte.neu({ name: projektNameAus(dateiname), dateien: { [pfad]: code }, quelle });
+    return { neu: true };
   }
 
   // ---------- Konsole & Ausführung ----------
-  let laufTabId = null;
+  let laufProjektId = null;
   const konsole = erstelleKonsole({
-    springe: (z, s) => {
-      if (laufTabId && tabs.aktiv() && tabs.aktiv().id !== laufTabId) tabs.wechsle(laufTabId);
-      editor.springeZu(z, s);
+    // Sprung zum Fehlerort (PROJEKTE §3.1): zurück ins gelaufene Projekt, `datei` als Tab öffnen, Cursor setzen
+    springe: async (z, s, datei) => {
+      if (laufProjektId && projekte.aktiv.id !== laufProjektId) await projekte.wechsle(laufProjektId);
+      tabs.springe(datei, z, s);
     },
   });
   const knopfBacken = $("knopf-backen"), knopfAbbr = $("knopf-abbrechen");
@@ -285,37 +345,6 @@ function start() {
     toast(ausfuehrung.laeuft ? "Motor: " + name + " – gilt ab dem nächsten Lauf." : "Motor: " + name, "info");
   });
 
-  // ---------- .pkarton (WebAssembly) herunterladen ----------
-  knopfPkarton.addEventListener("click", async () => {
-    const t = tabs.aktiv();
-    const name = ((t && t.name) || "programm.pizza").replace(/\.pizza$/i, "") + ".pkarton";
-    knopfPkarton.disabled = true;
-    const r = await workerAuftrag({ typ: "kompiliere", code: editor.text() }, "pkarton", 20_000);
-    knopfPkarton.disabled = false;
-    if (!r || !r.ok) {
-      let grund = (r && r.grund) || "Kompilieren nicht möglich.";
-      if (r && r.fehler) grund = "Syntaxfehler" + (r.fehler.zeile ? " in Zeile " + r.fehler.zeile : "") + ": " + r.fehler.text;
-      else if (r && Array.isArray(r.nichtUnterstuetzt) && r.nichtUnterstuetzt.length) {
-        const n = r.nichtUnterstuetzt[0];
-        grund = "Noch nicht als Wasm kompilierbar" + (n.zeile ? " (Zeile " + n.zeile + ")" : "") + ": " + n.grund;
-      }
-      toast(grund, "fehler");
-      return;
-    }
-    const blob = new Blob([r.daten], { type: "application/wasm" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    $("pkarton-text").textContent = "„" + name + "“ wurde heruntergeladen (" + new Intl.NumberFormat("de-DE").format(r.daten.byteLength) + " Bytes" +
-      (typeof r.kompilierMs === "number" ? ", in " + (Math.round(r.kompilierMs * 10) / 10).toLocaleString("de-DE") + " ms kompiliert" : "") + ").";
-    $("pkarton-cmd-run").textContent = "pizza-host " + name;
-    $("pkarton-cmd-exe").textContent = "pizzaofen exe " + name + " -o " + name.replace(/\.pkarton$/, "") + ".exe";
-    const dlg = $("dialog-pkarton");
-    if (typeof dlg.showModal === "function") dlg.showModal(); else toast("„" + name + "“ heruntergeladen.", "ok");
-  });
-
   const logoBild = $("logo-bild");
   if (logoBild) {
     const marke = logoBild.parentNode;
@@ -335,200 +364,23 @@ function start() {
     else if (logoBild.dataset.backen) { logoBild.removeAttribute("data-backen"); logoBild.src = "img/logo.svg"; }
   }
 
-  // ---------- Als Programm (EXE) herunterladen ----------
-  // Ablauf: Worker kompiliert → .pkarton → PizzaExe.baue(pkarton, ziel) → Blob → Download.
-  // js/exe.js wird erst bei Bedarf geladen; solange Compiler oder Host-Programme fehlen, ist der Knopf deaktiviert (mit Grund).
-  const knopfExe = $("knopf-exe");
-  const exeDlg = $("dialog-exe");
-  let exeLaden = null, exeZiele = null, exeGrund = "Wird geprüft …", exeBeschaeftigt = false;
-  const IST_WINDOWS = /Windows|Win32|Win64/i.test(navigator.userAgent || "") || /^Win/i.test(navigator.platform || "");
-  const zielId = (z) => String(typeof z === "string" ? z : z && (z.id || z.name || z.ziel) || "");
-  const zielName = (z) => String(typeof z === "string" ? z : z && (z.titel || z.name || z.label || z.id) || "?");
-  const zielEndung = (z) => {
-    const e = z && typeof z === "object" && (z.endung || z.erweiterung || z.suffix);
-    if (typeof e === "string") return e && !e.startsWith(".") ? "." + e : e;
-    return /win/i.test(zielId(z)) ? ".exe" : "";
-  };
-  function ladeExeSkript() {
-    if (exeLaden) return exeLaden;
-    exeLaden = new Promise((resolve) => {
-      if (window.PizzaExe) { resolve(window.PizzaExe); return; }
-      const s = document.createElement("script");
-      s.src = "js/exe.js";
-      s.onload = () => resolve(window.PizzaExe || null);
-      s.onerror = () => resolve(null);
-      document.head.appendChild(s);
-    }).then(async (PE) => {
-      if (!PE || typeof PE.baue !== "function") { exeGrund = "Der Programm-Bauer (js/exe.js) ist noch nicht verfügbar."; return null; }
-      try {
-        const z = await (typeof PE.ziele === "function" ? PE.ziele() : []);
-        const liste = Array.isArray(z) ? z : (z && Array.isArray(z.ziele) ? z.ziele : []);
-        exeZiele = liste.filter((x) => x && zielId(x) && x.verfuegbar !== false);
-      } catch (e) { exeZiele = []; }
-      if (!exeZiele.length) { exeGrund = "Die Host-Programme fehlen noch auf dem Server."; return null; }
-      return PE;
-    });
-    return exeLaden;
-  }
-  function wendeExeAn() {
-    const compiler = !!(faehigkeiten && faehigkeiten.wasm);
-    let grund = null;
-    if (!faehigkeiten) grund = "Wird geprüft …";
-    else if (!compiler) grund = "Der Wasm-Compiler ist noch nicht verfügbar" + (faehigkeiten.grund ? " (" + faehigkeiten.grund + ")" : "") + ".";
-    else if (!exeMoeglich) grund = exeGrund;
-    else if (exeZiele && !exeZiele.length) grund = exeGrund; // Ziele schon geladen, aber leer
-    knopfExe.setAttribute("aria-disabled", String(!!grund));
-    knopfExe.classList.toggle("deaktiviert", !!grund);
-    knopfExe.title = grund ? "Als Programm herunterladen – noch nicht möglich: " + grund : "Als Programm (z. B. Windows-.exe) herunterladen";
-    knopfExe.dataset.grund = grund || "";
-    return grund;
-  }
-  // js/exe.js und bin/ziele.json werden erst beim Öffnen des Dialogs geladen (keine Anfragen beim Seitenstart).
-  let exeMoeglich = false;
-  async function pruefeExe() {
-    await (pruefungLaeuft || Promise.resolve(faehigkeiten));
-    const mo = await holeMotoren();
-    exeMoeglich = mo.exe;
-    if (!mo.exe) exeGrund = "Die Host-Programme für Windows/Linux werden noch gebaut.";
-    return wendeExeAn();
-  }
-  wendeExeAn();
-  pruefeExe();
+  // ---------- Als Programm (EXE) / .pkarton herunterladen (exe-dialog.js): kompiliert wird das aktive Projekt ----------
+  exe = erstelleExeDialog({
+    toast, speicher, holeMotoren,
+    motor: { get faehigkeiten() { return faehigkeiten; }, warte: () => pruefungLaeuft || Promise.resolve(faehigkeiten) },
+    auftrag: () => {
+      const { projekt, uebertragbar } = projekte.sammlung({ mitProjektdatei: true });
+      return { nachricht: { typ: "kompiliere", projekt }, transfer: uebertragbar };
+    },
+    anzeigeName: () => projekte.aktiv.name,
+  });
 
-  function exeStatus(schritt, text) {
-    $("exe-status").hidden = schritt == null;
-    $("exe-fortschritt").value = schritt || 0;
-    $("exe-status-text").textContent = text || "";
-  }
-  function exeFehler(text) {
-    $("exe-fehler").hidden = !text;
-    $("exe-fehler").textContent = text || "";
-  }
-  // Voraussetzung der gewählten Plattform sichtbar unter der Auswahl; Installationsbefehle als <code>.
-  function exeVoraussetzungZeigen(ziel) {
-    const p = $("exe-voraussetzung");
-    const text = ziel && ziel.voraussetzung ? String(ziel.voraussetzung) : "";
-    p.replaceChildren();
-    p.hidden = !text;
-    if (!text) return;
-    const b = document.createElement("strong");
-    b.textContent = "Voraussetzung: ";
-    p.appendChild(b);
-    text.split(/((?:sudo )?(?:apt|apt-get|dnf|pacman|zypper) [^,;)]+)/).forEach((teil, i) => {
-      if (!teil) return;
-      if (i % 2) { const k = document.createElement("code"); k.textContent = teil.trim(); p.appendChild(k); }
-      else p.appendChild(document.createTextNode(teil));
-    });
-  }
-  async function exeDialogOeffnen() {
-    if (exeBeschaeftigt) return;
-    let grund = wendeExeAn();
-    if (grund && faehigkeiten) { grund = await pruefeExe(); } // vielleicht inzwischen verfügbar
-    if (grund) { toast("Als Programm herunterladen geht noch nicht: " + grund, "fehler"); return; }
-    if (!exeZiele || !exeZiele.length) {
-      knopfExe.classList.add("laedt");
-      const PE = await ladeExeSkript();
-      knopfExe.classList.remove("laedt");
-      if (!PE) { exeLaden = null; wendeExeAn(); toast("Als Programm herunterladen geht gerade nicht: " + exeGrund, "fehler"); return; }
-    }
-    const t = tabs.aktiv();
-    $("exe-tabname").textContent = "„" + ((t && t.name) || "unbenannt.pizza") + "“";
-    const feld = $("exe-ziele");
-    feld.querySelectorAll("label").forEach((l) => l.remove());
-    const gemerkt = speicher.hole("pizza.exeZiel");
-    const vorwahl = exeZiele.find((z) => zielId(z) === gemerkt) ||
-      exeZiele.find((z) => (IST_WINDOWS ? /win/i : /linux/i).test(zielId(z) + " " + zielName(z))) || exeZiele[0];
-    for (const z of exeZiele) {
-      const l = document.createElement("label");
-      l.className = "exe-ziel";
-      const r = document.createElement("input");
-      r.type = "radio";
-      r.name = "exe-ziel";
-      r.value = zielId(z);
-      r.checked = z === vorwahl;
-      r.dataset.testid = "exe-ziel";
-      r.addEventListener("change", () => { if (r.checked) exeVoraussetzungZeigen(z); });
-      l.appendChild(r);
-      const n = document.createElement("span");
-      n.textContent = zielName(z);
-      l.appendChild(n);
-      const e = zielEndung(z);
-      if (e) { const k = document.createElement("code"); k.textContent = e; l.appendChild(k); }
-      feld.appendChild(l);
-    }
-    exeVoraussetzungZeigen(vorwahl);
-    exeStatus(null); exeFehler(null);
-    $("exe-hinweise").open = false;
-    $("exe-los").disabled = false;
-    if (typeof exeDlg.showModal === "function") exeDlg.showModal(); else exeDlg.setAttribute("open", "");
-    $("exe-los").focus();
-  }
-  async function exeBauen() {
-    if (exeBeschaeftigt) return;
-    const gewaehlt = exeDlg.querySelector('input[name="exe-ziel"]:checked');
-    const ziel = exeZiele.find((z) => zielId(z) === (gewaehlt && gewaehlt.value)) || exeZiele[0];
-    speicher.setze("pizza.exeZiel", zielId(ziel));
-    const t = tabs.aktiv();
-    const basis = ((t && t.name) || "programm.pizza").replace(/\.pizza$/i, "").replace(/[\\/:*?"<>|]+/g, "-") || "programm";
-    const PEvorab = window.PizzaExe;
-    const dateiname = PEvorab && typeof PEvorab.dateiname === "function" ? PEvorab.dateiname((t && t.name) || "programm", ziel) : basis + zielEndung(ziel);
-    exeBeschaeftigt = true;
-    $("exe-los").disabled = true;
-    exeFehler(null);
-    try {
-      exeStatus(1, "1/3 · Code wird zu WebAssembly gebacken …");
-      const r = await workerAuftrag({ typ: "kompiliere", code: editor.text() }, "pkarton", 30_000);
-      if (!r || !r.ok) {
-        let grund = (r && r.grund) || "Kompilieren nicht möglich.";
-        if (r && r.fehler) grund = "Syntaxfehler" + (r.fehler.zeile ? " in Zeile " + r.fehler.zeile : "") + ": " + r.fehler.text;
-        else if (r && Array.isArray(r.nichtUnterstuetzt) && r.nichtUnterstuetzt.length) {
-          grund = "Dieses Programm lässt sich noch nicht als Programm backen – " +
-            r.nichtUnterstuetzt.slice(0, 3).map((n) => (n.zeile ? "Zeile " + n.zeile + ": " : "") + n.grund).join("; ") + ".";
-        }
-        throw new Error(grund);
-      }
-      exeStatus(2, "2/3 · Programm für " + zielName(ziel) + " wird verpackt …");
-      const PE = await ladeExeSkript();
-      if (!PE) throw new Error(exeGrund);
-      // Importgruppen, die der Host des Ziels (noch) nicht kennt (z. B. `herd` vor H5) → kein Download einer EXE,
-      // die beim Start nur K-043 meldet. Ziele mit `gruppen` in ziele.json bestimmen selbst, was geht.
-      if (typeof PE.fehlendeGruppen === "function") {
-        let fehlend = [];
-        try { fehlend = PE.fehlendeGruppen(r.daten, ziel); } catch (e) { /* Prüfung nicht möglich → baue() entscheidet */ }
-        if (fehlend.length) throw new Error(PE.gruppenMeldung(fehlend));
-      }
-      let blob;
-      try { blob = await PE.baue(r.daten, ziel); }
-      catch (e) { if (e && e.code === "GRUPPE_FEHLT") throw e; throw new Error("Das Programm konnte nicht verpackt werden: " + (e && e.message ? e.message : String(e)) + " (fehlen die Host-Programme unter bin/?)"); }
-      if (!(blob instanceof Blob)) blob = new Blob([blob], { type: "application/octet-stream" });
-      exeStatus(3, "3/3 · Fertig – „" + dateiname + "“ (" + new Intl.NumberFormat("de-DE").format(Math.round(blob.size / 1024)) + " KB) wird heruntergeladen.");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = dateiname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      $("exe-chmod").textContent = "chmod +x " + dateiname + " && ./" + dateiname;
-      $("exe-hinweise").open = true;
-    } catch (e) {
-      exeStatus(null);
-      exeFehler(e && e.message ? e.message : String(e));
-    } finally {
-      exeBeschaeftigt = false;
-      $("exe-los").disabled = false;
-    }
-  }
-  knopfExe.addEventListener("click", exeDialogOeffnen);
-  $("exe-los").addEventListener("click", exeBauen);
-  $("exe-abbrechen").addEventListener("click", () => exeDlg.close());
-  exeDlg.addEventListener("cancel", (e) => { if (exeBeschaeftigt) e.preventDefault(); });
-  knopfPkarton.addEventListener("click", () => { if (exeDlg.open) exeDlg.close(); }, true);
-
-  // ---------- Lauf-Einstellungen (Popover in der Konsolenleiste): Argumente pro Tab, feste Saat ----------
+  // ---------- Lauf-Einstellungen (Popover in der Konsolenleiste): Argumente je Projekt, feste Saat ----------
   const argsFeld = $("args");
   const laufKnopf = $("knopf-lauf-optionen");
   const laufPopover = $("lauf-popover");
   { const h = ARGUMENTE_HILFE.replace(/^Argumente für hauptgang\(args\) – /, ""); $("args-hilfe").textContent = h.charAt(0).toUpperCase() + h.slice(1); }
-  argsFeld.value = (tabs.aktiv() && tabs.aktiv().args) || "";
+  argsFeld.value = projekte.aktiv.args || "";
   function laufPunkt() {
     const args = argsFeld.value.trim(), fest = $("feste-saat").checked, koeche = leseKoeche();
     $("lauf-punkt").hidden = !args && !fest && koeche === "auto";
@@ -550,7 +402,7 @@ function start() {
   laufKnopf.addEventListener("click", () => (laufPopover.hidden ? laufOptionenOeffnen(true) : laufOptionenSchliessen(false)));
   laufPopover.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); laufOptionenSchliessen(true); } });
   document.addEventListener("pointerdown", (e) => { if (!laufPopover.hidden && !$("lauf-optionen").contains(e.target)) laufOptionenSchliessen(false); }, true);
-  argsFeld.addEventListener("input", () => { tabs.setzeArgs(argsFeld.value); laufPunkt(); });
+  argsFeld.addEventListener("input", () => { projekte.setzeArgs(argsFeld.value); laufPunkt(); });
   argsFeld.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); laufOptionenSchliessen(false); backen(); } });
 
   // ---------- Zufallssaat (K-077) ----------
@@ -589,7 +441,7 @@ function start() {
   // „Vorrat löschen“ (gleiche Texte wie bin/pizza.js --vorrat-loeschen / --vorrat-loeschen-alle).
   // Angeboten werden die Kammern des Tab-Namensraums und alle Kammern mit Namensraum (Kennung raum/name, K-106).
   async function vorratLoeschen(kennung) {
-    const praefix = vorratPraefix(tabs.aktiv());
+    const praefix = vorratPraefix(projekte.aktiv);
     const beispiel = praefix === VORRAT_BEISPIEL;
     if (kennung == null) {
       const namen = vorratNamen(praefix);
@@ -618,8 +470,9 @@ function start() {
   let backenWartet = false;
   async function backen() {
     if (ausfuehrung.laeuft) return;
-    const t = tabs.aktiv();
-    const code = editor.text();
+    // Ausführen startet immer das PROJEKT (Hauptdatei), egal welcher Tab aktiv ist (PROJEKTE §3.1)
+    const P = projekte.aktiv;
+    const code = programmText(projekte.alleInhalte());
     // Interaktive Programme (Eingabe, Theke) brauchen SharedArrayBuffer/Atomics → Cross-Origin-Isolation.
     // Ohne sie gibt es keinen Ersatzmodus (Browser = nativ), sondern eine klare Fehlermeldung.
     if (!interaktivMoeglich() && (/\bBestellannahme\s*\./.test(code) || /\bneu\s+Theke\s*\(/.test(code) || /\bneu\s+Herd\s*\(/.test(code))) {
@@ -647,12 +500,25 @@ function start() {
       try { herdLauf = await herdLaufVorbereiten(code); } finally { backenWartet = false; }
       if (ausfuehrung.laeuft) return;
     }
-    laufTabId = t ? t.id : null;
-    laufName = t ? t.name : "";
+    // Bilder (PD1/PD2): vorgebackene Teiglinge aus dem Cache + das Vorbacker-Modul für den Worker (der Interpreter prüft jeden)
+    let bildLauf = {};
+    const bilder = Object.fromEntries(Object.entries(projekte.alleInhalte()).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+    if (Object.keys(bilder).length) {
+      if (backenWartet) return;
+      backenWartet = true;
+      try {
+        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder)]);
+        bildLauf = { teiglinge, ...(modul ? { vorbacker: modul } : {}) };
+      } finally { backenWartet = false; }
+      if (ausfuehrung.laeuft) return;
+    }
+    if (projekte.aktiv.id !== P.id) return; // während des Wartens das Projekt gewechselt
+    laufProjektId = P.id;
+    laufName = projekte.pfade().length > 1 ? P.name + " (" + P.hauptdatei + ")" : P.hauptdatei;
     const saat = neueSaat();
-    laufVorratPraefix = vorratPraefix(t);
+    laufVorratPraefix = vorratPraefix(P);
     const vorratAktiv = vorratVerfuegbar();
-    ausfuehrung.starte(code, zerlegeArgumente(t ? t.args : ""), motor, {
+    ausfuehrung.starte(projekte.sammlung(), zerlegeArgumente(P.args), motor, {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
       pizzaioloGrund: faehigkeiten && faehigkeiten.grund,
       zufallsSaat: saat,
@@ -660,6 +526,7 @@ function start() {
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),
       ...(herdLauf ? herdLauf.extra : {}),
+      ...bildLauf,
       ...festeUhr(),
     });
     herd.lauf(herdLauf && herdLauf.kontext);
@@ -800,11 +667,11 @@ function start() {
     });
   });
 
-  // ---------- Doku & Beispiele (öffnen jeweils in einem eigenen Editor-Tab) ----------
-  function oeffneCode(code, titel, schluessel) {
+  // ---------- Doku & Beispiele (öffnen jeweils als eigenes Ein-Datei-Projekt, quelle doku:/beispiel:) ----------
+  async function oeffneCode(code, titel, schluessel) {
     const name = (titel || "doku").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) + ".pizza";
-    const { neu } = tabs.oeffne(code, name, schluessel);
-    if (!neu) toast("Bereits geöffnet – zum Tab gewechselt.", "info");
+    const { neu } = await oeffneAlsProjekt(code, name, schluessel);
+    if (!neu) toast("Bereits geöffnet – zum Projekt gewechselt.", "info");
     if (schmal.matches) setzePanel(false, { fokus: false });
     editor.view.focus();
     return true;
@@ -823,7 +690,7 @@ function start() {
 
   const doku = erstelleDoku({
     oeffneCode,
-    backeCode: (code, titel, schluessel) => { oeffneCode(code, titel, schluessel); backen(); },
+    backeCode: async (code, titel, schluessel) => { await oeffneCode(code, titel, schluessel); backen(); },
     zeigeBild,
     vorAktion: () => { if (lesemodus.open) lesemodus.close(); },
   });
@@ -846,10 +713,12 @@ function start() {
   lesemodus.addEventListener("click", (e) => { if (e.target === lesemodus) lesemodus.close(); });
   lesemodus.addEventListener("close", () => { if (panelOffen && aktiverTab === "doku") dokuPanel.zeigeGemerkt(); });
   const beispiele = erstelleBeispiele({
-    ladeCode(code, name, fehler, schluessel) {
+    async ladeCode(code, name, fehler, schluessel) {
       if (fehler) { toast(fehler, "fehler"); return; }
-      const { neu } = tabs.oeffne(code, name, schluessel);
-      toast(neu ? "„" + name + "“ in neuem Tab geöffnet. Strg+Enter zum Backen." : "„" + name + "“ ist schon offen – zum Tab gewechselt.", "ok");
+      // Tab-Schlüssel „bsp:<datei>“ der Galerie → Projekt-Quelle „beispiel:<datei>“ (PROJEKTE §3.2/§3.3)
+      const quelle = schluessel && schluessel.startsWith("bsp:") ? "beispiel:" + schluessel.slice(4) : schluessel;
+      const { neu } = await oeffneAlsProjekt(code, name, quelle);
+      toast(neu ? "„" + name + "“ als neues Projekt geöffnet. Strg+Enter zum Backen." : "„" + name + "“ ist schon offen – zum Projekt gewechselt.", "ok");
       if (schmal.matches) setzePanel(false, { fokus: false });
       editor.view.focus();
     },
@@ -973,10 +842,12 @@ function start() {
     $("teilen-nochmal").focus();
   }
   $("knopf-teilen").addEventListener("click", () => {
-    const t = tabs.aktiv();
-    teilenCode = editor.text();
-    teilenName = (t && t.name) || "unbenannt.pizza";
-    $("teilen-tabname").textContent = "„" + teilenName + "“";
+    // Bis PB2 (Teilen mit Manifest und Blobs) wird wie bisher EIN Text geteilt: die Hauptdatei des Projekts
+    const P = projekte.aktiv;
+    const mehr = projekte.pfade().length > 1;
+    teilenCode = projekte.inhalt(P.hauptdatei) || "";
+    teilenName = mehr ? P.name + ".pizza" : P.hauptdatei;
+    $("teilen-tabname").textContent = "„" + teilenName + "“" + (mehr ? " (nur die Hauptdatei „" + P.hauptdatei + "“ – weitere Dateien teilt der Playground noch nicht)" : "");
     holeKonfig().then(setzeTeilenVerfuegbar);
     teilenSchritt("frage");
     if (typeof teilenDlg.showModal !== "function") { teilenDlg.setAttribute("open", ""); return; }
@@ -1010,7 +881,7 @@ function start() {
       if (r.status === 404) { toast("Diesen geteilten Code gibt es nicht (mehr).", "fehler"); return false; }
       if (!r.ok) { toast("Der geteilte Code kann gerade nicht geladen werden. Bitte später erneut versuchen.", "fehler"); return false; }
       const { name, code } = entpacke(await r.text());
-      tabs.oeffne(code, name || "Geteilt " + key + ".pizza", "geteilt:" + key);
+      await oeffneAlsProjekt(code, name || "Geteilt " + key + ".pizza", "teilen:" + key);
       return true;
     } catch (e) {
       toast("Der geteilte Code kann gerade nicht geladen werden – keine Verbindung.", "fehler");
@@ -1022,9 +893,9 @@ function start() {
     // App-Link (z. B. per Zurück-Taste): Seite neu laden – der App-Modus entscheidet sich vor dem ersten Zeichnen (thema.js)
     if (/(?:^#|&)app=[A-Za-z0-9_-]{1,64}(?:&|$)/.test(location.hash)) { location.reload(); return; }
     letzterHash = location.hash;
-    hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
+    hashLaden().then((ok) => { if (ok) toast("Geteilter Code als Projekt geöffnet.", "ok"); });
   });
-  hashLaden().then((ok) => { if (ok) toast("Geteilter Code in neuem Tab geöffnet.", "ok"); });
+  hashLaden().then((ok) => { if (ok) toast("Geteilter Code als Projekt geöffnet.", "ok"); });
 
   // ---------- Befehlspalette ----------
   const motorNamen = { auto: "Auto (Wasm)", wasm: "Wasm", interpreter: "Interpreter" };
@@ -1044,29 +915,37 @@ function start() {
       { id: "backen", icon: "play",  gruppe: "Ofen", titel: "Backen (Programm ausführen)", kuerzel: K("Strg+Enter"), aktion: backen, verfuegbar: () => !ausfuehrung.laeuft },
       { id: "abbrechen", icon: "stop",  gruppe: "Ofen", titel: "Lauf abbrechen", kuerzel: "Esc", aktion: () => ausfuehrung.abbrechen(), verfuegbar: () => ausfuehrung.laeuft },
       ...Object.entries(motorNamen).map(([m, n]) => ({ id: "motor-" + m, icon: m === "interpreter" ? "cpu" : "zap", gruppe: "Motor", titel: n + (motorWahl.value === m ? " (aktiv)" : ""), aktion: () => setzeMotor(m), verfuegbar: () => m !== "wasm" || !optWasm.disabled })),
-      { id: "exe", icon: "monitor",  gruppe: "Ofen", titel: "Als Programm herunterladen (.exe / Linux) …", aktion: exeDialogOeffnen },
-      { id: "pkarton", icon: "package",  gruppe: "Ofen", titel: "Als .pkarton (WebAssembly) herunterladen", aktion: () => knopfPkarton.click(), verfuegbar: () => !knopfPkarton.hidden },
+      { id: "exe", icon: "monitor",  gruppe: "Ofen", titel: "Als Programm herunterladen (.exe / Linux) …", aktion: () => exe.oeffnen() },
+      { id: "pkarton", icon: "package",  gruppe: "Ofen", titel: "Als .pkarton (WebAssembly) herunterladen", aktion: () => $("knopf-pkarton").click(), verfuegbar: () => !$("knopf-pkarton").hidden },
       { id: "konsole-leeren", icon: "trash",  gruppe: "Konsole", titel: "Konsole leeren", aktion: () => $("konsole-leeren").click() },
       { id: "konsole-toggle", icon: "terminal",  gruppe: "Konsole", titel: "Konsole ein-/ausklappen", aktion: () => $("konsole-toggle").click() },
-      { id: "tab-neu", icon: "plus",  gruppe: "Tabs", titel: "Neuer Tab", kuerzel: K("Strg+Alt+N"), aktion: () => tabs.neu() },
-      { id: "datei-oeffnen", icon: "folderOpen",  gruppe: "Tabs", titel: "Datei öffnen …", kuerzel: K("Strg+O"), aktion: () => tabs.dateiDialog() },
+      { id: "projekt-neu", icon: "plus", gruppe: "Projekt", titel: "Neues Projekt", kuerzel: K("Strg+Alt+N"), aktion: neuesProjekt },
+      { id: "projekt-oeffnen", icon: "folderOpen", gruppe: "Projekt", titel: "Projekt öffnen …", aktion: () => projektmenue.oeffnen() },
+      { id: "projekt-umbenennen", icon: "pencil", gruppe: "Projekt", titel: "Projekt umbenennen …", aktion: () => projektmenue.umbenennen() },
+      { id: "projekt-duplizieren", icon: "copy", gruppe: "Projekt", titel: "Projekt duplizieren", aktion: () => projektmenue.dupliziere() },
+      { id: "projekt-loeschen", icon: "trash", gruppe: "Projekt", titel: "Projekt löschen …", aktion: () => projektmenue.loeschen() },
+      { id: "projekt-zip", icon: "archive", gruppe: "Projekt", titel: "Projekt als ZIP herunterladen", aktion: () => projektmenue.zipExport() },
+      { id: "projekt-zip-import", icon: "upload", gruppe: "Projekt", titel: "ZIP importieren …", aktion: () => projektmenue.zipDialog() },
+      ...projekte.liste().filter((p) => p.id !== projekte.aktiv.id).map((p) => ({ id: "projekt-zu-" + p.id, icon: "folder", gruppe: "Projekt wechseln", titel: p.name, aktion: () => projekte.wechsle(p.id) })),
+      { id: "datei-neu", icon: "filePlus", gruppe: "Dateien", titel: "Neue Datei …", aktion: () => baum.neueDatei("") },
+      { id: "ordner-neu", icon: "folderPlus", gruppe: "Dateien", titel: "Neuer Ordner …", aktion: () => baum.neuerOrdner("") },
+      { id: "datei-oeffnen", icon: "upload", gruppe: "Dateien", titel: "Dateien hinzufügen (Bilder, Texte, .pizza, ZIP) …", kuerzel: K("Strg+O"), aktion: () => baum.dateiDialog("") },
+      { id: "dateibaum", icon: "files", gruppe: "Ansicht", titel: "Dateibaum ein-/ausblenden", aktion: () => baum.umschalten() },
       { id: "tab-schliessen", icon: "x",  gruppe: "Tabs", titel: "Tab schließen", kuerzel: K("Alt+W"), aktion: () => tabs.schliesseAktiven() },
       { id: "tabs-andere", icon: "closeOthers",  gruppe: "Tabs", titel: "Andere Tabs schließen", aktion: () => tabs.schliesseAndere() },
       { id: "tabs-rechts", icon: "closeRight",  gruppe: "Tabs", titel: "Tabs rechts davon schließen", aktion: () => tabs.schliesseRechts() },
-      { id: "tabs-gespeicherte", icon: "saved",  gruppe: "Tabs", titel: "Gespeicherte Tabs schließen", aktion: () => tabs.schliesseGespeicherte() },
-      { id: "tabs-alle", icon: "closeAll",  gruppe: "Tabs", titel: "Alle Tabs schließen", aktion: () => tabs.schliesseAlle() },
       { id: "tab-wiederherstellen", icon: "restore",  gruppe: "Tabs", titel: "Geschlossenen Tab wiederherstellen", kuerzel: K("Alt+Shift+T"), aktion: () => tabs.wiederherstellen(0), verfuegbar: () => tabs.geschlossen.length > 0 },
-      { id: "tab-duplizieren", icon: "copy",  gruppe: "Tabs", titel: "Tab duplizieren", aktion: () => tabs.dupliziere() },
-      { id: "tab-anheften", icon: "pin",  gruppe: "Tabs", titel: (tabs.aktiv() && tabs.aktiv().angeheftet) ? "Tab lösen" : "Tab anheften", aktion: () => tabs.anheften() },
-      { id: "tab-umbenennen", icon: "pencil",  gruppe: "Tabs", titel: "Tab umbenennen", kuerzel: "F2", aktion: () => tabs.umbenennen() },
-      { id: "tab-download", icon: "download",  gruppe: "Tabs", titel: "Tab als .pizza herunterladen", aktion: () => tabs.herunterladen() },
-      { id: "tab-speichern", icon: "saved",  gruppe: "Tabs", titel: "Tab lokal speichern", kuerzel: K("Strg+S"), aktion: speichern },
+      { id: "tab-anheften", icon: "pin",  gruppe: "Tabs", titel: tabs.liste.some((t) => t.aktiv && t.angeheftet) ? "Tab lösen" : "Tab anheften", aktion: () => tabs.anheften() },
+      { id: "tab-umbenennen", icon: "pencil",  gruppe: "Tabs", titel: "Datei umbenennen", kuerzel: "F2", aktion: () => tabs.umbenennen() },
+      { id: "tab-hauptdatei", icon: "star", gruppe: "Tabs", titel: "Aktive Datei als Hauptdatei", aktion: () => { const f = projekte.setzeHauptdatei(tabs.aktivPfad); toast(f || "„" + tabs.aktivPfad + "“ ist jetzt die Hauptdatei.", f ? "fehler" : "ok"); }, verfuegbar: () => /\.pizza$/.test(tabs.aktivPfad || "") && tabs.aktivPfad !== projekte.aktiv.hauptdatei },
+      { id: "tab-download", icon: "download",  gruppe: "Tabs", titel: "Datei herunterladen", aktion: () => tabs.herunterladen() },
+      { id: "tab-speichern", icon: "saved",  gruppe: "Tabs", titel: "Datei lokal speichern", kuerzel: K("Strg+S"), aktion: speichern },
       { id: "tab-naechster", icon: "chevronRight",  gruppe: "Tabs", titel: "Nächster Tab", kuerzel: K("Alt+Bild↓"), aktion: () => tabs.naechster(1) },
       { id: "tab-voriger", gruppe: "Tabs", titel: "Vorheriger Tab", kuerzel: K("Alt+Bild↑"), aktion: () => tabs.naechster(-1) },
       { id: "tabs-liste", icon: "chevronDown",  gruppe: "Tabs", titel: "Alle Tabs anzeigen …", aktion: () => tabs.alleTabsMenue() },
-      ...tabs.liste.filter((t) => !t.aktiv).map((t) => ({ id: "tab-zu-" + t.id, gruppe: "Wechseln zu", titel: t.name, aktion: () => tabs.wechsle(t.id) })),
-      ...vorratNamen(vorratPraefix(tabs.aktiv())).map((n) => ({ id: "vorrat-" + n, icon: "trash", gruppe: "Vorrat", titel: "Vorrat löschen: " + n, aktion: () => vorratLoeschen(n) })),
-      { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(tabs.aktiv())).length > 0 },
+      ...projekte.pfade().filter((p) => p !== tabs.aktivPfad).map((p) => ({ id: "datei-zu-" + p, icon: "file", gruppe: "Datei öffnen", titel: p, aktion: () => tabs.oeffneDatei(p) })),
+      ...vorratNamen(vorratPraefix(projekte.aktiv)).map((n) => ({ id: "vorrat-" + n, icon: "trash", gruppe: "Vorrat", titel: "Vorrat löschen: " + n, aktion: () => vorratLoeschen(n) })),
+      { id: "vorrat-alle", icon: "trash", gruppe: "Vorrat", titel: "Alle Vorräte löschen", aktion: () => vorratLoeschen(null), verfuegbar: () => vorratNamen(vorratPraefix(projekte.aktiv)).length > 0 },
       { id: "argumente", icon: "terminal", gruppe: "Ofen", titel: "Argumente für hauptgang(args) bearbeiten", aktion: () => laufOptionenOeffnen(true) },
       { id: "feste-saat", icon: "sliders", gruppe: "Ofen", titel: "Feste Saat 42 " + (document.getElementById("feste-saat").checked ? "ausschalten" : "einschalten"), aktion: () => { const b = $("feste-saat"); b.checked = !b.checked; b.dispatchEvent(new Event("change")); toast(b.checked ? "Feste Saat 42 ist an." : "Jeder Lauf bekommt wieder eine echte Zufallssaat.", "info"); } },
       { id: "teilen", icon: "share",  gruppe: "Teilen", titel: "Code teilen …", aktion: () => $("knopf-teilen").click() },
@@ -1087,10 +966,11 @@ function start() {
   }
   $("knopf-palette").addEventListener("click", paletteOeffnen);
 
-  // ---------- Dateien per Drag & Drop in den Editor ----------
+  // ---------- Dateien per Drag & Drop in den Editor: ins aktive Projekt (wie „Dateien hinzufügen“) ----------
   const werkbankEl = document.querySelector(".werkbank");
   let ziehZaehler = 0;
-  const hatDateien = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+  // Ablegen auf dem Dateibaum regelt dateibaum.js selbst (Zielordner)
+  const hatDateien = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files") && !(e.target && e.target.closest && e.target.closest("#dateibaum"));
   werkbankEl.addEventListener("dragenter", (e) => { if (!hatDateien(e)) return; e.preventDefault(); ziehZaehler++; werkbankEl.classList.add("datei-ziel"); });
   werkbankEl.addEventListener("dragover", (e) => { if (!hatDateien(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
   werkbankEl.addEventListener("dragleave", (e) => { if (!hatDateien(e)) return; if (--ziehZaehler <= 0) { ziehZaehler = 0; werkbankEl.classList.remove("datei-ziel"); } });
@@ -1100,7 +980,7 @@ function start() {
     e.stopPropagation();
     ziehZaehler = 0;
     werkbankEl.classList.remove("datei-ziel");
-    tabs.oeffneDateien(e.dataTransfer.files);
+    baum.hinzufuegen(e.dataTransfer.files, "");   // ins aktive Projekt; ZIP-Dateien werden als eigenes Projekt importiert
   }, true);
 
   // ---------- Tastenkürzel (Capture: vor CodeMirror) ----------
@@ -1115,10 +995,10 @@ function start() {
     if (mod && !e.shiftKey && taste === "Enter") { stopp(); backen(); return; }
     if (mod && !e.shiftKey && !e.altKey && taste === "s") { stopp(); speichern(); return; }
     if (mod && !e.shiftKey && !e.altKey && taste === "b") { stopp(); panelUmschalten(); return; }
-    if (mod && !e.shiftKey && !e.altKey && taste === "o") { stopp(); tabs.dateiDialog(); return; }
-    // Tabs
-    if (mod && e.altKey && taste === "n") { stopp(); tabs.neu(); return; }
-    if (e.altKey && !mod && taste === "n") { stopp(); tabs.neu(); return; }
+    if (mod && !e.shiftKey && !e.altKey && taste === "o") { stopp(); baum.dateiDialog(""); return; }
+    // Projekte & Tabs
+    if (mod && e.altKey && taste === "n") { stopp(); neuesProjekt(); return; }
+    if (e.altKey && !mod && taste === "n") { stopp(); neuesProjekt(); return; }
     if (e.altKey && !mod && !e.shiftKey && taste === "w") { stopp(); tabs.schliesseAktiven(); return; }
     if (e.altKey && e.shiftKey && !mod && taste === "t") { stopp(); tabs.wiederherstellen(0); return; }
     if (mod && e.shiftKey && taste === "t") { stopp(); tabs.wiederherstellen(0); return; } // wo der Browser es zulässt
@@ -1138,8 +1018,8 @@ function start() {
     $("editor-status").classList.add("warnung");
   }
 
-  window.addEventListener("pagehide", () => tabs.sofortSpeichern());
-  document.addEventListener("visibilitychange", () => { if (document.hidden) tabs.sofortSpeichern(); });
+  window.addEventListener("pagehide", () => projekte.sofortSpeichern());
+  document.addEventListener("visibilitychange", () => { if (document.hidden) projekte.sofortSpeichern(); });
   editor.view.focus();
   document.body.classList.add("bereit");
 }

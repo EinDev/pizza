@@ -197,6 +197,10 @@ Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurü
 - **Projekte:** Binärdateien und Teiglinge als `ArrayBuffer`-Transfer, `vorbacker` = `WebAssembly.Module` von `teigling.wasm` (einmal
   je Seite kompiliert, wie `herdKern`). Der Worker reicht alles unverändert an Interpreter **und** Wasm-Motor (`Pizzaiolo.run(projekt,
   { teiglinge, vorbacker })`); der Rückfall auf den Interpreter nimmt dasselbe Projekt. Ohne Argumente gelten die `args` aus `pizza.json`.
+  **Umgesetzt (PB1):** Was ein Motor bekommt, entscheidet allein `quelleFuer()` im Worker – Ein-Datei-Projekte (eine `.pizza` =
+  Hauptdatei, daneben höchstens `pizza.json`) als Text; Mehrdatei-Projekte als Projekt, sobald der Motor es kann (Interpreter:
+  `PizzaLang.projekt.lade` vorhanden; Wasm: `Pizzaiolo.projekte === true`, setzt PA2), sonst als Text der Hauptdatei (Stub). Kann nur der
+  Interpreter das Projekt, nimmt „Auto“ ihn, „Wasm“ meldet einen Fehler und `kompiliere` sagt mit `grund` ab.
 - Die UI startet pro Lauf einen **frischen** Worker und beendet ihn nach `ende`.
 - **Kein Wand-Zeitlimit** (Nutzerentscheidung K-083/3, Grundsatz K-082): Es gilt nur das Schrittlimit (P0002) wie nativ; „Abbrechen“ → `worker.terminate()`.
 - Playground bietet ein Feld **„Argumente“** für `hauptgang(args)` (K-083/2) und den Befehl **„Vorrat löschen“** (K-083/5) – beides gleich in der EXE (`--vorrat-loeschen <name>`). Kammern **mit Namensraum** (K-106) liegen unabhängig vom Tab unter `pizza.vorrat.<raum>/<name>` (nativ `<ordner>/<raum>/<name>.json`) – ein Spielstand für Beispiel-Tab, geteilte Tabs und App-Links jeder Fassung.
@@ -304,7 +308,11 @@ Regeln für jeden Abschnitt:
 - One-Page, **Editor im Fokus** (CodeMirror 6, eigenes pizza-Highlighting, Live-Syntaxdiagnose über `PizzaLang.parse`, Autovervollständigung aus KEYWORDS/TYPEN/BUILTINS/ANANAS).
 - Konsole unter dem Editor (ausgabe / fehlerausgabe / warnung / fehler farblich unterschieden, Exit-Code-Badge).
 - Einklappbares **Seitenpanel** rechts mit Tabs **Doku** · **Beispiele** (auf schmalen Bildschirmen als Overlay/Popup).
-- Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“. Kürzel: `Strg+Enter` ausführen, `Strg+S` lokal speichern, `Strg+B` Panel.
+- **Projekte** (PROJEKTE.md §3, K-142): ein aktives Projekt je Fenster (Projektmenü „≡ Name ▾“ im Kopf: Liste mit Suche, Neu,
+  Umbenennen, Duplizieren, Löschen/Papierkorb, ZIP-Export/-Import, EXE, Teilen), Tabs = offene Dateien, Dateibaum links (einklappbar,
+  Handy: Schublade), Bildvorschau für PNG/JPEG; Ablage in IndexedDB `pizza` (ohne IndexedDB nur im Speicher + Banner).
+- Doku-Code-Blöcke und Beispiele: „Im Editor öffnen“ (= eigenes Ein-Datei-Projekt). Kürzel: `Strg+Enter` ausführen (immer die
+  Hauptdatei), `Strg+S` lokal speichern, `Strg+B` Panel, `Strg+Alt+N` neues Projekt, `Strg+O` Dateien hinzufügen.
 - Hawaii-Panik: kein Crash-Overlay – Banner als Fehlerausgabe in der Konsole, Exit-Code-Badge 39 (KLAERUNGEN K-012).
 - Hell/Dunkel, deutsch, keine externen Requests zur Laufzeit (alles gebündelt).
 

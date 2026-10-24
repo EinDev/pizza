@@ -1,9 +1,13 @@
 /* pizza v3.1 – Ausführungs-Worker. Protokoll: ARCHITEKTUR.md §2, erweitert für WASM.md §4.
  * UI → Worker:
- *   { typ: "start", code, args?, motor?: "auto"|"wasm"|"interpreter", pizzaiolo?: boolean }
+ *   { typ: "start", projekt: { dateien, hauptdatei, name }, args?, teiglinge?, vorbacker?, motor?: "auto"|"wasm"|"interpreter", pizzaiolo?: boolean }
+ *   { typ: "start", code, … }     Ein-Datei-Abkürzung (App-Link, Tests)
  *       pizzaiolo: Ergebnis des einmaligen Fähigkeiten-Checks der Seite. Nur bei true wird
  *       pizzaiolo.js geladen – so entsteht kein 404 pro Lauf, wenn der Compiler fehlt.
- *   { typ: "kompiliere", code }   → { typ: "pkarton", ok, daten?, kompilierMs?, fehler?, nichtUnterstuetzt?, grund? }
+ *       Projekte (PROJEKTE.md §3.6): Binärdateien und Teiglinge kommen als übertragene ArrayBuffer, vorbacker als
+ *       WebAssembly.Module von teigling.wasm. Was ein Motor davon bekommt, entscheidet allein quelleFuer() unten.
+ *   { typ: "kompiliere", projekt | code, teiglinge?, vorbacker? }
+ *                                 → { typ: "pkarton", ok, daten?, kompilierMs?, fehler?, nichtUnterstuetzt?, grund? }
  *   { typ: "pruefe" }             → { typ: "faehigkeiten", interpreter, wasm, version?, grund? }   (lädt pizzaiolo.js genau einmal)
  * Worker → UI: Ereignisse einzeln oder gebündelt als { typ: "batch", ereignisse: [...] }.
  *   Zusätzlich: { typ: "motor", motor, grund?, kompilierMs? }; "ende" trägt laufMs und motor.
@@ -60,6 +64,42 @@ function ladePizzaiolo() {
     return null;
   });
   return pzBereit;
+}
+
+/* ---------- Projekte (ARCHITEKTUR §2, PROJEKTE.md §3.6) ----------
+ * EINZIGE Stelle des Workers, die entscheidet, was ein Motor als Quelle bekommt:
+ *   - Ein-Datei-Projekt (eine .pizza-Datei = Hauptdatei, daneben höchstens pizza.json) → deren Text (wie ein String, SPEC §1.5/E24);
+ *   - Motor kann Projekte (Interpreter: PizzaLang.projekt.lade aus PA1; Wasm: Pizzaiolo.projekte === true aus PA2) → das Projekt;
+ *   - sonst Ein-Datei-Stub bis PA1/PA2: der Text der Hauptdatei (Nebendateien, Bilder und pizza.json bleiben dann unbeachtet). */
+function einDatei(p) {
+  // genau eine .pizza-Datei, daneben höchstens die (beim Export erzeugte) pizza.json
+  var pfade = p && p.dateien ? Object.keys(p.dateien).filter(function (k) { return k !== "pizza.json"; }) : [];
+  return pfade.length === 1 && pfade[0] === p.hauptdatei && /\.pizza$/.test(pfade[0]) && typeof p.dateien[pfade[0]] === "string";
+}
+function interpreterKannProjekte() { return !!(PL && PL.projekt && typeof PL.projekt.lade === "function"); }
+function wasmKannProjekte() { return !!(PZ && PZ.projekte === true); }
+function quelleFuer(d, motor) {
+  if (!d.projekt || typeof d.projekt !== "object") return String(d.code || "");
+  var p = d.projekt;
+  var kann = motor === "wasm" ? wasmKannProjekte() : interpreterKannProjekte();
+  if (kann && !einDatei(p)) return { dateien: p.dateien, hauptdatei: p.hauptdatei, name: p.name };
+  var t = p.dateien && p.dateien[p.hauptdatei];
+  return typeof t === "string" ? t : "";
+}
+/** Mehrdatei-Projekt, das nur der Interpreter vollständig kann → „Auto“ nimmt den Interpreter, „Wasm“ meldet es. */
+function nurInterpreter(d) { return !!(d.projekt && !einDatei(d.projekt) && interpreterKannProjekte() && !wasmKannProjekte()); }
+/** Alle .pizza-Texte (für Erkennungen wie brigade). */
+function programmText(d) {
+  if (!d.projekt || !d.projekt.dateien) return String(d.code || "");
+  var t = [];
+  for (var k in d.projekt.dateien) if (/\.pizza$/.test(k) && typeof d.projekt.dateien[k] === "string") t.push(d.projekt.dateien[k]);
+  return t.join("\n");
+}
+/** Teiglinge/Vorbacker unverändert an beide Motoren (PD1/PD2/PA2 werten sie aus). */
+function projektOptionen(d, opt) {
+  if (d.teiglinge && typeof d.teiglinge === "object") opt.teiglinge = d.teiglinge;
+  if (typeof WebAssembly !== "undefined" && d.vorbacker instanceof WebAssembly.Module) opt.vorbacker = d.vorbacker;
+  return opt;
 }
 
 var puffer = [];
@@ -219,11 +259,14 @@ function starte(d, pool, brigade) {
     return;
   }
   var motor = d.motor === "wasm" || d.motor === "interpreter" ? d.motor : "auto";
-  var code = String(d.code || "");
+  var code = quelleFuer(d, "wasm");
+  var nurIp = nurInterpreter(d);
+  if (nurIp && motor === "auto") pzFehler = "Mehrdatei-Projekte kann der Wasm-Motor noch nicht";
 
   // Explizit Wasm: niemals stillschweigend Interpreter
   if (motor === "wasm") {
     if (!PZ) { wasmFehler("Wasm-Motor nicht verfügbar: " + pzFehler + ". Wähle „Auto“ oder „Interpreter“."); return; }
+    if (nurIp) { wasmFehler("Mehrdatei-Projekte kann der Wasm-Motor noch nicht backen. Mit „Auto“ läuft es im Interpreter."); return; }
     if (typeof PZ.kompiliere === "function") {
       var k;
       try { k = PZ.kompiliere(code, {}); } catch (e) { wasmFehler("Wasm-Compiler ist abgestürzt: " + meldung(e)); return; }
@@ -246,8 +289,8 @@ function starte(d, pool, brigade) {
     if (t !== undefined) return t;
     return thekeWarte ? thekeWarte() : null;
   } : undefined;
-  var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" ? "wasm" : "interpreter"); };
-  var opt = {
+  var genutzterMotor = function () { return ergebnis && ergebnis.motor ? ergebnis.motor : (PZ && motor !== "interpreter" && !nurIp ? "wasm" : "interpreter"); };
+  var opt = projektOptionen(d, {
     args: Array.isArray(d.args) ? d.args : [],
     eingabe: Array.isArray(d.eingabe) ? d.eingabe.map(String) : undefined,
     // K-077: Saat kommt von der Seite (echte Saat oder „feste Saat 42“)
@@ -282,15 +325,15 @@ function starte(d, pool, brigade) {
       }
       sende(ev);
     },
-  };
+  });
   try {
-    if (PZ && typeof PZ.run === "function" && motor !== "interpreter") {
+    if (PZ && typeof PZ.run === "function" && motor !== "interpreter" && !nurIp) {
       opt.motor = motor;
       ergebnis = PZ.run(code, opt);
     } else {
       motorGesehen = true;
       sende({ typ: "motor", motor: "interpreter", grund: motor === "interpreter" ? null : pzFehler });
-      ergebnis = PL.run(code, opt);
+      ergebnis = PL.run(quelleFuer(d, "interpreter"), opt);
     }
     if (!motorGesehen && ergebnis && ergebnis.motor) {
       if (motor === "wasm" && ergebnis.motor !== "wasm") { wasmFehler("Wasm-Motor hat auf den Interpreter umgeschaltet – Ergebnis verworfen."); flush(); return; }
@@ -331,7 +374,8 @@ function kompiliere(d) {
     return;
   }
   try {
-    var r = PZ.kompiliere(String(d.code || ""), {});
+    if (nurInterpreter(d)) { self.postMessage({ typ: "pkarton", ok: false, grund: "Mehrdatei-Projekte kann der Wasm-Compiler noch nicht backen." }); return; }
+    var r = PZ.kompiliere(quelleFuer(d, "wasm"), projektOptionen(d, {}));
     if (r && r.ok && r.pkarton) {
       var daten = r.pkarton instanceof Uint8Array ? r.pkarton : new Uint8Array(r.pkarton);
       self.postMessage({ typ: "pkarton", ok: true, daten: daten, kompilierMs: r.kompilierMs }, [daten.buffer]);
@@ -350,7 +394,7 @@ self.onmessage = function (msg) {
     var p = d.pizzaiolo === true ? ladePizzaiolo() : Promise.resolve(null);
     if (d.pizzaiolo !== true && !pzGeladen) pzFehler = d.pizzaioloGrund || pzFehler;
     p.then(function () {
-      var code = String(d.code || "");
+      var code = programmText(d);
       var brigade = nutztBrigade(code);
       // Pool nur, wenn Wasm laufen kann (der Interpreter kocht sequentiell) – und VOR dem Lauf (THREADS §4.6)
       if (!brigade || !PZ || d.motor === "interpreter") return starte(d, null, brigade);

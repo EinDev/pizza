@@ -398,9 +398,61 @@ export async function warteAufTab(page, name, timeout = 5000) {
     return t && t.textContent === n;
   }, { timeout }, S.tabAktiv, name);
 }
+// ---------------------------------------------------------------- Projekte (PROJEKTE.md §3, PB1)
+export const PJ = {
+  menueKnopf: '[data-testid="projekt-menue-knopf"]',
+  name: '[data-testid="projekt-name"]',
+  menue: '[data-testid="projekt-menue"]',
+  eintrag: '[data-testid="projekt-liste-eintrag"]',
+  baum: '[data-testid="dateibaum"]',
+  baumDatei: '[data-testid="baum-datei"]',
+  baumOrdner: '[data-testid="baum-ordner"]',
+};
+/** Name des aktiven Projekts (Kopfzeile). */
+export function aktivesProjekt(page) {
+  return page.$eval(PJ.name, (e) => e.textContent);
+}
+export async function warteAufProjekt(page, name, timeout = 5000) {
+  await page.waitForFunction((sel, n) => document.querySelector(sel) && document.querySelector(sel).textContent === n, { timeout }, PJ.name, name);
+}
+/** Projektmenü öffnen → Namen der Projekte in der Liste (zuletzt geändert zuerst). */
+export async function projektListe(page) {
+  await oeffneProjektmenue(page);
+  const namen = await page.$$eval(PJ.eintrag, (e) => e.map((x) => x.querySelector(".menue-text").textContent));
+  await page.keyboard.press("Escape");
+  await page.waitForFunction((sel) => !document.querySelector(sel), {}, PJ.menue);
+  return namen;
+}
+export async function oeffneProjektmenue(page) {
+  if (!(await page.$(PJ.menue))) await page.click(PJ.menueKnopf);
+  await page.waitForSelector(PJ.menue);
+}
+/** Eintrag im Projektmenü anklicken (testid, z. B. "projekt-neu", "projekt-zip-export"). */
+export async function projektBefehl(page, testid) {
+  await oeffneProjektmenue(page);
+  // echter Mausklick (Nutzeraktivierung – z. B. für den Datei-Dialog von „ZIP importieren“)
+  await page.click(`${PJ.menue} [data-testid="${testid}"]`);
+}
+/** Über das Projektmenü zu einem Projekt wechseln. */
+export async function wechsleProjekt(page, name) {
+  await oeffneProjektmenue(page);
+  const ok = await page.$$eval(PJ.eintrag, (e, n) => { const z = e.find((x) => x.querySelector(".menue-text").textContent === n); if (z) z.click(); return !!z; }, name);
+  assert.ok(ok, "Projekt im Menü: " + name);
+  await warteAufProjekt(page, name);
+}
+/** Dateien im Dateibaum (Pfade). */
+export function baumDateien(page) {
+  return page.$$eval('[data-testid="baum-datei"]', (e) => e.map((x) => x.dataset.pfad));
+}
+
+/** „+“ = neues Ein-Datei-Projekt (PB1): wartet, bis ein ANDERES Projekt „unbenannt-N“ aktiv ist. */
 export async function neuerTab(page) {
+  const vorher = await page.$eval(PJ.name, (e) => e.textContent).catch(() => null);
   await page.click(S.tabNeu);
-  await page.waitForFunction((sel) => /^unbenannt/.test(document.querySelector(sel + " .etab-name, " + sel).textContent), {}, S.tabAktiv.split(",")[0]);
+  await page.waitForFunction((sel, pj, alt) => {
+    const n = document.querySelector(pj);
+    return n && n.textContent !== alt && /^unbenannt/.test(n.textContent) && /^unbenannt/.test(document.querySelector(sel + " .etab-name, " + sel).textContent);
+  }, {}, S.tabAktiv.split(",")[0], PJ.name, vorher);
   await page.focus("#editor .cm-content");
 }
 

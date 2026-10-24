@@ -196,11 +196,13 @@ e2e("Doku: Lesemodus-Popup mit eigenem Inhaltsverzeichnis, „Öffnen & backen�
   // wieder öffnen, „Öffnen & backen“
   await page.click("#knopf-lesemodus");
   await page.waitForSelector("#doku-lesemodus[open]");
-  const tabsVorher = (await editorTabs(page)).length;
+  const projektVorher = await page.$eval('[data-testid="projekt-name"]', (e) => e.textContent);
   await page.$eval("#doku-modal .doku-code .icon-knopf.primaer", (k) => { k.scrollIntoView({ block: "center" }); k.click(); });
   await page.waitForFunction(() => !document.getElementById("doku-lesemodus").open);
   await warteLaufEnde(page);
-  assert.equal((await editorTabs(page)).length, tabsVorher + 1);
+  // Ein Projekt je Fenster (F11): der Doku-Block wird ein eigenes Ein-Datei-Projekt mit genau einem Tab
+  assert.notEqual(await page.$eval('[data-testid="projekt-name"]', (e) => e.textContent), projektVorher);
+  assert.equal((await editorTabs(page)).length, 1);
   assert.equal((await exitBadge(page)).text, EXIT_TEXT[0]);
   // Lesemodus-Knopf nur im Doku-Tab sichtbar
   await zeigePanelTab(page, "beispiele");

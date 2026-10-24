@@ -31,6 +31,13 @@
       <span class="version" id="version" title="Sprachversion">v3.1</span>
     </div>
 
+    <!-- Projektmenü (PROJEKTE.md §3.1): ein aktives Projekt je Fenster -->
+    <button type="button" class="knopf knopf-geist knopf-projekt" id="knopf-projekt" data-testid="projekt-menue-knopf" aria-haspopup="menu" title="Projekte">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      <span class="projekt-name" id="projekt-name" data-testid="projekt-name">…</span>
+      <svg class="projekt-pfeil" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+
     <div class="kopf-mitte">
       <button type="button" class="knopf knopf-primaer" id="knopf-backen" data-testid="backen" title="Programm ausführen (Strg+Enter)">
         <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg><span class="knopf-text">Backen</span>
@@ -79,10 +86,22 @@
   <main class="arbeitsbereich" id="arbeitsbereich">
     <section class="werkbank" aria-label="Editor und Konsole">
       <div class="editor-kopf">
+        <button type="button" class="baum-umschalter" id="knopf-dateibaum" data-testid="dateibaum-umschalten" aria-controls="dateibaum" aria-expanded="false" title="Dateibaum ein-/ausblenden" aria-label="Dateibaum ein-/ausblenden">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg>
+        </button>
         <div class="editor-tabs" id="editor-tabs" data-testid="editor-tabs"></div>
         <span class="editor-status" id="editor-status" aria-live="polite"></span>
       </div>
-      <div class="editor" id="editor" data-testid="editor"></div>
+      <div class="werkbank-mitte">
+        <aside class="dateibaum" id="dateibaum" data-testid="dateibaum" aria-label="Dateibaum" hidden></aside>
+        <div class="editor-flaeche">
+          <div class="editor" id="editor" data-testid="editor"></div>
+          <section class="bildvorschau" id="bildvorschau" data-testid="bildvorschau" aria-label="Bildvorschau" hidden></section>
+          <div class="projekt-banner" id="projekt-banner" data-testid="projekt-banner" role="status" hidden>
+            <span class="banner-text">Projekte werden nicht gespeichert – sichere sie als ZIP.</span>
+          </div>
+        </div>
+      </div>
 
       <div class="trenner trenner-h" id="trenner-konsole" role="separator" aria-orientation="horizontal"
            aria-label="Konsolenhöhe ändern" aria-controls="konsole" tabindex="0"></div>
@@ -208,6 +227,20 @@
       <div class="dialog-knoepfe">
         <button type="submit" class="knopf knopf-geist" value="nein">Abbrechen</button>
         <button type="submit" class="knopf knopf-primaer" value="ja" id="dialog-ja" data-testid="dialog-ja">Ersetzen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Text-Eingabe (z. B. Projekt umbenennen) – Seiten-Dialog statt prompt() -->
+  <dialog class="dialog" id="dialog-eingabe" data-testid="dialog-eingabe" aria-labelledby="dialog-eingabe-titel">
+    <form method="dialog">
+      <h2 class="dlg-titel" id="dialog-eingabe-titel">Umbenennen</h2>
+      <label class="dlg-feld"><span class="dlg-text">Neuer Name:</span>
+        <input type="text" data-testid="dialog-eingabe-feld" autocomplete="off" spellcheck="false" maxlength="80">
+      </label>
+      <div class="dialog-knoepfe">
+        <button type="submit" class="knopf knopf-geist" value="nein">Abbrechen</button>
+        <button type="submit" class="knopf knopf-primaer" value="ja" data-testid="dialog-eingabe-ja">OK</button>
       </div>
     </form>
   </dialog>

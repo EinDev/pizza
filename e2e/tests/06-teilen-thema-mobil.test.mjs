@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import {
   e2e, setzeCode, editorText, editorTabs, aktiverTabName, warteAufTab, bereit, backen, konsolenAusgabe,
-  zeigePanelTab, panelOffen, strg, schlafe, S, SCHMAL, umgebung,
+  zeigePanelTab, panelOffen, strg, schlafe, S, SCHMAL, umgebung, neuerTab,
 } from "../hilfen.mjs";
 import { entpacke } from "../../ui/src/teilen.js";
 
@@ -226,7 +226,7 @@ e2e("Schmaler Viewport 390×844: Panel als Sheet, keine horizontale Scrollbar", 
 e2e("Schmaler Viewport: viele Tabs und lange Ausgabezeilen erzeugen keine Seiten-Scrollbar", { viewport: SCHMAL }, async ({ page, oeffne }) => {
   const befunde = [];
   await oeffne();
-  for (let i = 0; i < 6; i++) await page.click(S.tabNeu);
+  for (let i = 0; i < 6; i++) await neuerTab(page);   // „+“ = neues Projekt (PB1); warten, bis es aktiv ist
   await setzeCode(page, 'Bote.sage(("' + "Pizza".repeat(60) + '"));');
   await backen(page);
   await keineHorizontaleScrollbar(page, "viele Tabs + lange Zeile", befunde);

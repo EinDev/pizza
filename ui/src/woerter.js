@@ -15,7 +15,7 @@ export const TYPEN = new Set(["salami", "funghi", "margherita", "diavolo", "Daue
   "Herd", "Teil", "Form", "Bildchen",
   "Rechteck", "Kreis", "Text", "Bild", "Koerper", "Licht", "Kamera", "Bewegung", "Animation", "Partikel"]);
 
-export const BUILTINS = new Set(["Bote", "Bestellannahme", "Uhr", "Mathe", "Zufall", "Spiegel", "teig", "bestelle", "schieb", "zwischenstand"]);
+export const BUILTINS = new Set(["Bote", "Bestellannahme", "Uhr", "Mathe", "Zufall", "Spiegel", "Kiste", "teig", "bestelle", "schieb", "zwischenstand"]);
 
 export const ANANAS = new Set(["Ananas", "GeprüfteAnanas", "VerbranntAnanas", "LieferAnanas", "LaufzeitAnanas",
   "StreitAnanas", "RechenAnanas", "LeererKartonAnanas", "RohlingAnanas", "GebackenAnanas",
@@ -33,6 +33,7 @@ export const MITGLIEDER = {
   Mathe: ["wurzel", "max", "min", "abs", "runden", "boden", "decke", "potenz", "log", "log10", "log2", "exp", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "bogen", "grad", "PI", "E"],
   Zufall: ["zahl", "saat", "kommazahl", "wahr", "wähle", "mische"],
   Spiegel: ["felder"],
+  Kiste: ["text", "zeilen", "gibts", "liste"],   // Projektdateien lesen (SPEC §11.2, K-146)
   Zettel: ["aus"], // v7 (K-125): abgeleiteter Zettel
 };
 

@@ -1,6 +1,6 @@
 // Vorratskammer im Browser (SPEC §15.4, K-079 … K-081, K-106): je Kammer ein localStorage-Eintrag.
-// Regel gegen verfälschte Spielstände (K-088): Kammern OHNE Namensraum gehören dem Tab – Tabs aus Galerie/Doku
-// (Schlüssel „bsp:…“/„doku:…“) haben den eigenen Präfix pizza.vorrat-beispiel.<name>; alle übrigen Tabs (eigene,
+// Regel gegen verfälschte Spielstände (K-088): Kammern OHNE Namensraum gehören dem Projekt – Projekte aus Galerie/Doku
+// (quelle „beispiel:…“/„doku:…“) haben den eigenen Präfix pizza.vorrat-beispiel.<name>; alle übrigen Projekte (eigene,
 // Dateien, geteilte, Willkommen) und der App-Link (#app=…) teilen sich pizza.vorrat.<name>.
 // Kammern MIT Namensraum (K-106, Kennung „raum/name“) gehören dem Programm: immer pizza.vorrat.<raum>/<name>,
 // unabhängig vom Tab – ein Spielstand für Galerie-Tab, geteilte Tabs und App-Links jeder Fassung.
@@ -8,7 +8,8 @@ export const VORRAT = "pizza.vorrat.", VORRAT_BEISPIEL = "pizza.vorrat-beispiel.
 const NAME = /^[a-z0-9-]{1,40}$/;
 const KENNUNG = /^(?:[a-z0-9-]{1,40}\/)?[a-z0-9-]{1,40}$/;
 
-export function vorratPraefix(t) { return t && /^(bsp|doku):/.test(t.schluessel || "") ? VORRAT_BEISPIEL : VORRAT; }
+/** Präfix nach Projekt-Quelle (PROJEKTE §3.2): Kopien aus Galerie/Doku (quelle „beispiel:…“/„doku:…“) → VORRAT_BEISPIEL, sonst VORRAT. */
+export function vorratPraefix(projekt) { return projekt && /^(beispiel|doku):/.test(projekt.quelle || "") ? VORRAT_BEISPIEL : VORRAT; }
 
 /** Gültige Kennung: name oder raum/name, beide Teile [a-z0-9-]{1,40}. */
 export function vorratKennungGueltig(kennung) { return KENNUNG.test(String(kennung)); }

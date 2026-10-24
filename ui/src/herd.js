@@ -31,7 +31,7 @@ export function ladeHerdSchema() {
 export function nutztHerd(code, schema = schemaGeladen) {
   const src = String(code || "");
   const namen = new Set(HERD_KLASSEN.concat(schema && Array.isArray(schema.komponenten) ? schema.komponenten.map((k) => k.name) : V1_KOMPONENTEN));
-  if (!/\b(?:Herd|Form)\s*\.|\bneu\s+[A-ZÄÖÜ]/.test(src)) return false;
+  if (!/\b(?:Herd|Form|Bildchen)\s*\.|\bneu\s+[A-ZÄÖÜ]/.test(src)) return false;
   const PL = typeof window !== "undefined" ? window.PizzaLang : null;
   if (PL && typeof PL.parse === "function") {
     let p = null;
@@ -46,13 +46,13 @@ export function nutztHerd(code, schema = schemaGeladen) {
         if (++n > 2000000) return true;
         if (Array.isArray(x)) { for (const y of x) if (y && typeof y === "object") stapel.push(y); continue; }
         if (x.k === "Neu" && x.typ && namen.has(x.typ.name)) return true;
-        if ((x.k === "MCall" || x.k === "Mem") && x.obj && x.obj.k === "Name" && (x.obj.n === "Form" || x.obj.n === "Herd")) return true;
+        if ((x.k === "MCall" || x.k === "Mem") && x.obj && x.obj.k === "Name" && (x.obj.n === "Form" || x.obj.n === "Herd" || x.obj.n === "Bildchen")) return true;
         for (const k in x) { const v = x[k]; if (v && typeof v === "object") stapel.push(v); }
       }
       return false;
     }
   }
-  return new RegExp("\\bneu\\s+(?:" + [...namen].join("|") + ")\\s*\\(|\\b(?:Form|Herd)\\s*\\.").test(src);
+  return new RegExp("\\bneu\\s+(?:" + [...namen].join("|") + ")\\s*\\(|\\b(?:Form|Herd|Bildchen)\\s*\\.").test(src);
 }
 
 /** kern.wasm einmal je Seite kompilieren (WebAssembly.Module geht an jeden Lauf-Worker). */

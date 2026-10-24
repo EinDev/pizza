@@ -19,10 +19,10 @@ assert.equal(vorratVerfuegbar(), true);
 assert.equal(ablage.size, 0, "Verfügbarkeitstest hinterlässt nichts");
 
 // Präfix je Tab
-assert.equal(vorratPraefix({ schluessel: "bsp:idle/x.pizza" }), VORRAT_BEISPIEL);
-assert.equal(vorratPraefix({ schluessel: "doku:a:1" }), VORRAT_BEISPIEL);
-assert.equal(vorratPraefix({ schluessel: "willkommen" }), VORRAT);
-assert.equal(vorratPraefix({ schluessel: null }), VORRAT);
+assert.equal(vorratPraefix({ quelle: "beispiel:idle/x.pizza" }), VORRAT_BEISPIEL);
+assert.equal(vorratPraefix({ quelle: "doku:a:1" }), VORRAT_BEISPIEL);
+assert.equal(vorratPraefix({ quelle: "teilen:abc" }), VORRAT);
+assert.equal(vorratPraefix({ quelle: null }), VORRAT);
 assert.equal(vorratPraefix(null), VORRAT);
 
 // Kennung

@@ -952,7 +952,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
 | **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | offen |
-| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | offen |
+| **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | **umgesetzt** (Commit „PROJEKTE PB1: …“, 2026-10-24) auf Lader (PA1), Vorbacker (PD1) und Kiste/Bildchen.laden (PD2); Wasm-Projekte folgen mit PA2; Präzisierungen unten |
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | offen |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | offen |
@@ -1039,6 +1039,39 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   Kiste/Bild-Fälle mit Text-Quelle stehen als API-Fälle, damit die Differenztests sie bis PA2 nicht gegen Wasm laufen lassen;
   Ordner-Fälle `tests/faelle/projekt-kiste/` und `projekt-bilder/` (5 × 3-PNG mit Durchsichtigem und ein minimales 8 × 8-Baseline-JPEG,
   `herd-erwartet` mit dem `TEXTUR`-Paket); CLI-Fall mit Bildordner in `tests/run-tests.js`.
+**Präzisierungen aus PB1** (Playground; spätere Pakete richten sich danach):
+- **Module** (`ui/src/`): `projekt.js` (Pfade, Dateiarten, Textnormalisierung, `pizza.json`, Grenzen, Sammlung – **einzige** Stelle der
+  Seite, die `PizzaLang.projekt.*` nutzt; lokale Regeln mit gleichem Wortlaut nur als Rückfall), `ablage.js` (IndexedDB `pizza` v1 bzw.
+  Speicher-Rückfall, gleiche Schnittstelle), `migration.js`, `projekte.js` (ein aktives Projekt je Fenster, Speichern entprellt
+  400 ms + `pagehide`, Papierkorb, `BroadcastChannel`), `tabs.js` (Tabs = offene Dateien), `dateibaum.js`, `projektmenue.js`
+  (Menü, ZIP), `zip.js`, `bilder.js` (Signatur/Kopf, `data:`-URL, Vorbacker-Schnittstelle), `bildvorschau.js`, `exe-dialog.js`
+  (aus `main.js` gelöst). Worker-Gegenstelle: `quelleFuer()` in `site/js/worker.js`.
+- **Motor-Wahl im Worker (`quelleFuer`):** Der Worker gibt einem Motor das Projekt nur, wenn er es kann (Interpreter:
+  `PizzaLang.projekt.lade` aus PA1 – vorhanden; Wasm: **`Pizzaiolo.projekte === true`** – setzt PA2); sonst den Text der Hauptdatei
+  (Rückfall für einen Interpreter ohne Lader). Ein-Datei-Projekte (eine `.pizza` = Hauptdatei, daneben höchstens `pizza.json`) gehen
+  immer als Text (§1.5). Mehrdatei-Projekte bis PA2: „Auto“ nimmt den Interpreter, „Wasm“ meldet einen Fehler, `kompiliere` (EXE,
+  .pkarton) sagt ab. Der Lader bekommt `hauptdatei` aus dem Projekt-Datensatz mit (ausdrückliche Hauptdatei vor `pizza.json`).
+- **Dateiname bei Migration und Ein-Datei-Projekten** (Abweichung vom Text in §3.2): Die Datei behält den zum gültigen Pfad gemachten
+  Tab-/Beispielnamen (`willkommen.pizza`, `hallo-welt.pizza`, „Mein Code.pizza“ → `mein-code.pizza`) und ist per `hauptdatei` die
+  Hauptdatei; Projektname = Name ohne `.pizza`. `hauptgang.pizza` bleibt der Standard für `pizza.json` ohne `hauptdatei` (SPEC §2.1).
+- **Quellen:** Galerie `beispiel:<datei>`, Doku `doku:<abschnitt>:<n>`, Code-Link `teilen:<id>` (PB2 ergänzt `@<n>`); gleiche Quelle →
+  in die unveränderte Kopie springen, sonst Wahl „Zu meiner Kopie“ / „Frische Kopie“ (auch für Doku-Blöcke und Code-Links).
+- **Bedienung:** „+“ in der Tab-Leiste = neues Ein-Datei-Projekt (wie früher ein neuer Tab); neue Dateien/Ordner entstehen im
+  Dateibaum. Tabs schließen ohne Rückfrage (die Datei bleibt im Projekt), die letzte offene Datei bleibt offen; Alt+Shift+T holt
+  geschlossene Tabs des Projekts zurück. Doppelklick/F2 auf einen Tab = Datei umbenennen. Strg+O und Ablegen im Editor = Dateien
+  hinzufügen (ZIP → neues Projekt). Der Dateibaum ist bei Ein-Datei-Projekten anfangs eingeklappt (Knopf links in der Tab-Leiste,
+  Wahl in `localStorage` `pizza.baum`), auf schmalen Bildschirmen eine Schublade. Leere Ordner stehen im Projekt-Datensatz (`ordner`).
+- **Teilen bis PB2:** wie bisher **ein** Text – die Hauptdatei; der Dialog weist bei Mehrdatei-Projekten darauf hin.
+- **Vorbacker (PD1):** `bilder.js` prüft beim Hinzufügen zuerst den Kopf (Endung + Signatur + Größe, Texte wie SPEC §18.5), dann bäckt
+  `site/js/herd/teigling.js` + `teigling.wasm` (beide erst beim ersten Bild geladen) vor – ein Fehler-Teigling ergibt dieselbe Meldung
+  wie zur Laufzeit. Teiglinge liegen im IndexedDB-Speicher `teiglinge` unter `PizzaVorbacker.cacheSchluessel` (LRU 128 MiB; `besorge`
+  ersetzt veraltete Einträge). Beim Lauf gehen `teiglinge` (aus dem Cache) und `vorbacker` (einmal je Seite kompiliertes Modul) an
+  den Worker; der Interpreter prüft jeden Teigling (PD2). Die Bildvorschau zeigt „vorgebacken … · n Stufen“. ZIP-Importe backen
+  beim ersten Lauf vor. EXE/.pkarton mit Bildern erst mit PA2.
+- **Live-Diagnose P0014–P0019:** über `ladePruefung()` (Lader) im pizza-Linter, nur in Mehrdatei-Projekten und nur für Fehler der
+  offenen Datei. Die Herd-Erkennung der Seite (`nutztHerd`) zählt `Bildchen.…` wie `Herd.…` (PD2), Vervollständigung kennt `Kiste`.
+  Vervollständigung aus den obersten Namen aller Projektdateien und die Schnellkorrektur „bestellt … ergänzen“ (§3.1) sind **nicht**
+  Teil von PB1 (offen).
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

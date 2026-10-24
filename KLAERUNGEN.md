@@ -1966,7 +1966,12 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Vorratskammer-Präfix nach `projekt.quelle` (K-088 bleibt). **ZIP** Import/Export ohne Bibliothek (Export „stored“, Import „stored“ +
   Deflate über `DecompressionStream`, zentrales Verzeichnis, CRC, Pfadprüfung, Entpack-Grenzen). Keine Browser-Popups.
 - **Verworfen:** localStorage + Base64 (5-MB-Grenze), gemischte Tabs mehrerer Projekte, JSZip.
-- **Betroffen:** `ui/**`, `site/js/worker.js` (ARCHITEKTUR §2), E2E. **Status:** offen (PB1, U-76).
+- **Umsetzung (PB1):** Projekte gehen über den Lader (PA1) an den Interpreter, Wasm erst mit PA2 (Worker `quelleFuer`, Flag
+  `Pizzaiolo.projekte === true`; bis dahin „Auto“ = Interpreter für Mehrdatei-Projekte); Bilder werden beim Hinzufügen mit
+  `teigling.wasm` (PD1) vorgebacken und gecacht; Datei eines Ein-Datei-Projekts behält den Tab-/Beispielnamen (statt
+  `hauptgang.pizza`); Teilen bis PB2 nur die Hauptdatei (PROJEKTE.md §11, „Präzisierungen aus PB1“).
+- **Betroffen:** `ui/**`, `site/js/worker.js` (ARCHITEKTUR §2), E2E. **Status:** umgesetzt (PB1, U-76); Vervollständigung über alle Projektdateien und
+  Schnellkorrektur „bestellt … ergänzen“ offen.
 
 ### K-143 Teilen-Dienst „Durchreiche“: Blobs + Manifeste, Versionen, Schlüssel, Links `@n`, Ablauf ab letzter Version
 - **Entscheidung (Nutzer F6, F7, F9, F10, F13; PROJEKTE.md §4, §8):** eigener Dienst **Durchreiche** (Node ohne Abhängigkeiten) ersetzt
@@ -2199,7 +2204,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-73 ✅ | `site/js/pizza.js`, `bin/pizza.js`, `tests/run-tests.js`, `tests/faelle/*/` (PROJEKTE.md **PA1**; erledigt, Präzisierungen PROJEKTE §11) | K-138 … K-141, K-144: `projekt.lade/ausDateien/pruefePfad`, `bestellt`, Ladereihenfolge, P0014 … P0019, P0020 (Grenzen), W0004, Textnormalisierung, Feld `datei`, `warnSet` mit Datei, Ananas-Ortstext, CLI mit Ordnern, Ordner-Fälle; danach die grünen Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` **verschieben** (Kiste/Bild-Fälle bleiben bis PD2 offen) | a19 (Lader-Fälle) |
 | U-74 | `durchreiche/**`, compose, nginx, Dockerfile, README (PROJEKTE.md **PC1**) | K-143: Dienst, Unit-Tests in `npm test`, hastebin/redis entfernen | `node --test durchreiche/test` |
 | U-75 | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
-| U-76 | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll | `npm --prefix ui test`, e2e |
+| U-76 ✅ (PB1) | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll – erledigt auf PA1/PD1/PD2 (Worker `quelleFuer`; Wasm-Projekte über das Flag `Pizzaiolo.projekte` mit PA2) | `npm --prefix ui test`, e2e |
 | U-77 (PD1 ✅, PD3 offen) | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); offen: Glut-Texturen mit Mip-Kette (PD3) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js` |
 | U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
 | U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3**, **PB4**, **PB5**) | K-144, K-145: Beispiele als Ordner, Doku-Kapitel „Projekte und Dateien“, Herd-Beispiele mit Bilddateien, Imperium nach „Idle frei“ | Prüfstand Beispiele/Doku |

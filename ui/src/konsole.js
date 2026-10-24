@@ -116,15 +116,19 @@ export function erstelleKonsole({ springe }) {
 
   function meldung(ev) {
     const typ = ev.typ;
-    const e = document.createElement(ev.zeile != null ? "button" : "div");
+    // Sprung (PROJEKTE §3.1): Klick öffnet `datei` (null = Hauptdatei) als Tab und setzt den Cursor
+    const datei = ev.datei == null ? null : String(ev.datei);
+    const springbar = ev.zeile != null || datei != null;
+    const e = document.createElement(springbar ? "button" : "div");
     e.className = "k-meldung k-" + typ + (ev.art ? " k-art-" + ev.art : "");
     e.dataset.testid = "konsole-" + typ;
-    if (ev.zeile != null) {
+    if (springbar) {
       e.type = "button";
-      e.title = `Zu Zeile ${ev.zeile} springen`;
-      e.dataset.sprung = String(ev.zeile);
+      e.title = ev.zeile != null ? `Zu ${datei ? datei + ", " : ""}Zeile ${ev.zeile} springen` : `${datei} öffnen`;
+      if (ev.zeile != null) e.dataset.sprung = String(ev.zeile);
+      if (datei) e.dataset.datei = datei;
       if (typ === "fehler") e.dataset.testid = "konsole-fehler-sprung";
-      e.addEventListener("click", () => springe(ev.zeile, ev.spalte));
+      e.addEventListener("click", () => springe(ev.zeile, ev.spalte, datei));
     }
     const icon = document.createElement("span");
     icon.className = "k-icon";
@@ -277,10 +281,10 @@ export function erstelleKonsole({ springe }) {
       badge.dataset.exitCode = String(code);
       badge.textContent = d.text + " · " + code;
       badge.title = d.titel;
-      // Sichtbar: Tab · Laufzeit · Schritte; alles Weitere im Tooltip
+      // Sichtbar: Hauptdatei (bzw. Projekt) · Laufzeit · Schritte; alles Weitere im Tooltip
       const zahl = (n) => new Intl.NumberFormat("de-DE").format(n);
       const kurz = [], lang = [];
-      if (name) { kurz.push(name); lang.push("Tab: " + name); }
+      if (name) { kurz.push(name); lang.push("Projekt: " + name); }
       if (zusatz) { kurz.push(zusatz); lang.push(zusatz); }
       if (laufMs != null) { kurz.push(formatMs(laufMs)); lang.push("Lauf: " + formatMs(laufMs)); }
       else if (wandMs != null) kurz.push(formatMs(wandMs));
@@ -295,16 +299,21 @@ export function erstelleKonsole({ springe }) {
   };
 }
 
-/** Ort-Zusatz wie bin/pizza.js: „ (Zeile Z, Spalte S)“ bzw. „ (Zeile Z)“. */
+/** Ort-Zusatz wie bin/pizza.js (SPEC §2.6): „ (Zeile Z, Spalte S)“ bzw. „ (Zeile Z)“; mit Datei (datei ≠ null, also
+ *  Mehrdatei-Programm) „ (pfad, Zeile Z, Spalte S)“, ohne Zeile „ (pfad)“. */
 export function ortText(ev) {
-  return ev && ev.zeile != null ? " (Zeile " + ev.zeile + (ev.spalte != null ? ", Spalte " + ev.spalte : "") + ")" : "";
+  if (!ev) return "";
+  const datei = ev.datei == null ? null : String(ev.datei);
+  if (ev.zeile == null) return datei ? " (" + datei + ")" : "";
+  return " (" + (datei ? datei + ", " : "") + "Zeile " + ev.zeile + (ev.spalte != null ? ", Spalte " + ev.spalte : "") + ")";
 }
-/** Text einer Warnung/eines Fehlers wie in der CLI, aufgeteilt in Rumpf und Ort (für die Hervorhebung). */
+/** Text einer Warnung/eines Fehlers wie in der CLI, aufgeteilt in Rumpf und Ort (für die Hervorhebung). Ein Ort am Textende
+ *  („ (Zeile N)“ bzw. „ (pfad, Zeile N)“ der ungefangenen Ananas) wird durch den vollständigen Ort ersetzt. */
 export function meldungTeile(ev) {
   const t = String(ev && ev.text != null ? ev.text : "");
-  if (!ev || ev.zeile == null) return { rumpf: t, ort: "" };
-  const m = /\s\(Zeile (\d+)\)$/.exec(t);
-  if (m && Number(m[1]) === ev.zeile) return { rumpf: t.slice(0, m.index), ort: ortText(ev) };
+  if (!ev || (ev.zeile == null && ev.datei == null)) return { rumpf: t, ort: "" };
+  const m = /\s\((?:([a-z0-9_.\/-]+), )?Zeile (\d+)\)$/.exec(t);
+  if (m && Number(m[2]) === ev.zeile && (!m[1] || m[1] === String(ev.datei))) return { rumpf: t.slice(0, m.index), ort: ortText(ev) };
   return { rumpf: t, ort: ortText(ev) };
 }
 
