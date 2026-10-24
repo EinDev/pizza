@@ -1,0 +1,29 @@
+// Herd §18.6 / HERD.md §12.4 H-K11b: Himmelszelt – Skybox (prozedural, Seiten aus Bildchen); es gilt das wache mit der
+// kleinsten ID, ruhende (Vorlage) und entfernte zählen nicht; Standardwerte, Kopie, Fehler
+Herd herd = neu Herd("Himmelszelt", breite: 320, hoehe: 180);
+Himmelszelt vorgabe = neu Himmelszelt();
+Bote.sage((vorgabe + " " + vorgabe.oben() + " " + vorgabe.horizont() + " " + vorgabe.boden() + " " + vorgabe.sonnenscheibe() + " " + vorgabe.sterne() + " " + vorgabe.bilder()));
+Teil zelt = herd.raum(0, 0, 0);
+Himmelszelt h = zelt.mit(neu Himmelszelt(oben: "#22306a", horizont: "#f39a5b", boden: "ofen", sonnenscheibe: 4, sterne: 0.8));
+Speisekarte<margherita, margherita> karte = neu Speisekarte<margherita, margherita>();
+karte.lege("b", "#4a4274").lege("w", "#ffffff80");
+Bildchen berge = neu Bildchen(["....", ".b..", "bbbb", "bbbb"], farben: karte);
+Bildchen wolke = neu Bildchen(["ww..", "...."], farben: karte);
+h.setzeBilder([berge, berge, wolke]);
+Bote.sage(("Seiten: " + h.bilder().länge() + ", Teil " + (h.teil() == zelt) + ", " + h.oben() + " " + h.sonnenscheibe()));
+Teil zweites = herd.raum(0, 0, 0);
+Himmelszelt h2 = zweites.mit(neu Himmelszelt(oben: "schwarz", sterne: 1));
+Teil kopie = zweites.kopie();
+Bote.sage(("Kopie: " + kopie.himmelszelt().oben() + " " + kopie.himmelszelt().sterne()));
+kopie.entferne();
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { zelt.mit(neu Vorlage()); Bote.sage("erstes ruht – es gilt das zweite"); }
+  falls (herd.bildnummer() == 3) { zelt.ohne("Vorlage"); h.setzeSonnenscheibe(0); Bote.sage("wieder das erste, Sonne aus"); }
+  falls (herd.bildnummer() == 4) { zelt.entferne(); zweites.entferne(); Bote.sage("ohne Himmelszelt"); }
+});
+Himmelszelt frei = neu Himmelszelt();
+probier { herd.gruppe(0, 0).mit(frei); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { frei.setzeSterne(2); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { frei.setzeSonnenscheibe(120); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { frei.setzeOben("lila"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { frei.setzeBilder([1]); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

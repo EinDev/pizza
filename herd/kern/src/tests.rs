@@ -3722,3 +3722,191 @@ mod hk9 {
         assert_eq!(baue(ARTEN), baue(ohne));
     }
 }
+
+/// H-K11b: `Himmelszelt` (Skybox) – Abschnitt HIMMELSZELT nur bei Nutzung, kleinste wache Teil-ID, Seiten aus Atlas und eigener Textur.
+mod hk11b {
+    use super::*;
+    use crate::paket::{flag, HIMMELSZELT_BYTES};
+
+    struct N {
+        h: i32,
+        bilder: i32,
+        oben: i32,
+        horizont: i32,
+        boden: i32,
+        sonne: i32,
+        sterne: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let h = typ(k, "Himmelszelt");
+        N {
+            h,
+            bilder: feld(k, h, "bilder"),
+            oben: feld(k, h, "oben"),
+            horizont: feld(k, h, "horizont"),
+            boden: feld(k, h, "boden"),
+            sonne: feld(k, h, "sonnenscheibe"),
+            sterne: feld(k, h, "sterne"),
+        }
+    }
+    fn zelt(k: &mut Kern, n: &N) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(n.h);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (t, c)
+    }
+    /// Abschnitt HIMMELSZELT des letzten Pakets
+    fn abschnitt_zelt(k: &Kern) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::HIMMELSZELT).map(|(_, d)| d.to_vec())
+    }
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn u(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn szene(k: &Kern) -> Vec<u8> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::SZENE).unwrap().1.to_vec()
+    }
+    /// Bildchen-Zeilen im ABI-Format (je Text `u32` Länge + Bytes)
+    fn zeilen(z: &[&str]) -> Vec<u8> {
+        let mut b = Vec::new();
+        for t in z {
+            b.extend_from_slice(&(t.len() as u32).to_le_bytes());
+            b.extend_from_slice(t.as_bytes());
+        }
+        b
+    }
+
+    #[test]
+    fn schema_raum_grenzen() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!(n.h, 26); // Typnummer in Merge-Reihenfolge (HERD.md §12.1, §11.1): nach Fliesen 24 und Kulisse 25
+        let t2 = k.teil_neu(2);
+        let c = k.komp_neu(n.h);
+        assert!(k.komp_haenge(c, t2) < 0);
+        assert_eq!(k.fehler_text(), "Himmelszelt gibt es nur für 3D-Teile.");
+        assert_eq!(text(&mut k, c, n.oben), "himmel");
+        assert_eq!(text(&mut k, c, n.horizont), "mozzarella");
+        assert_eq!(text(&mut k, c, n.boden), "teig");
+        assert_eq!((k.hole_zahl(c, n.sonne), k.hole_zahl(c, n.sterne)), (0.0, 0.0));
+        assert!(k.setze_zahl(c, n.sonne, 91.0) < 0);
+        assert_eq!(k.fehler_text(), "Himmelszelt.sonnenscheibe muss zwischen 0 und 90 liegen, nicht 91.");
+        assert!(k.setze_zahl(c, n.sterne, 1.5) < 0);
+        assert!(k.setze_zahl(c, n.sterne, -0.1) < 0);
+        assert!(k.setze_liste(c, n.bilder, &[99]) < 0);
+        assert_eq!(ARTEN[n.h as usize - 1].schema.oeffentliche(), 6);
+    }
+
+    /// Feldnamen müssen in pizza als benannte Argumente taugen: keines ist ein Schlüsselwort (`site/js/pizza/kopf.js`) –
+    /// so fiel `unten` aus HERD.md §12.4 auf (Aufruf der Basisklasse), das Feld heißt `boden`.
+    #[test]
+    fn feldnamen_keine_schluesselwoerter() {
+        const SCHLUESSELWOERTER: &[&str] = &[
+            "paket", "import", "klasse", "rezeptur", "rohling", "calzone", "quattrostagioni", "erbt", "erfüllt", "speisekarte",
+            "familienrezept", "geheimrezept", "tiefkühl", "gebacken", "leer", "neu", "dies", "unten", "serviere", "falls", "sonst",
+            "für", "solange", "wähle", "fall", "standard", "probier", "verbrannt", "rand", "wirf", "wirft", "abbrechen", "weiter",
+            "ja", "nein", "karton", "ofen", "roh",
+        ];
+        for a in ARTEN.iter().filter(|a| !a.nur_test) {
+            for f in a.schema.felder {
+                assert!(!SCHLUESSELWOERTER.contains(&f.name), "{}.{} ist ein pizza-Schlüsselwort", a.schema.name, f.name);
+            }
+        }
+    }
+
+    #[test]
+    fn ohne_zelt_byte_gleich() {
+        // ohne, lose, an einer ruhenden Vorlage: Paket byte-gleich; an einem wachen Teil: Abschnitt + Flag HIMMEL
+        let mut k = welt();
+        let n = nummern(&mut k);
+        k.bild(1);
+        k.bild(2);
+        let ohne = k.paket().to_vec();
+        assert_eq!(Leser::neu(&ohne).unwrap().flags() & flag::HIMMEL, 0);
+        let lose = k.komp_neu(n.h);
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne[..]);
+        let t = k.teil_neu(3);
+        let v = typ(&mut k, "Vorlage");
+        let vc = k.komp_neu(v);
+        assert_eq!(k.komp_haenge(vc, t), 0);
+        assert_eq!(k.komp_haenge(lose, t), 0);
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne[..]);
+        assert!(abschnitt_zelt(&k).is_none());
+        // geweckt: Abschnitt da, sonst nur Flags, Abschnittszahl, Länge und das Umgebungslicht (aus `oben`) anders
+        k.komp_loese(vc);
+        k.bild(2);
+        let mit = k.paket().to_vec();
+        let l = Leser::neu(&mit).unwrap();
+        assert_ne!(l.flags() & flag::HIMMEL, 0);
+        assert_eq!(abschnitt_zelt(&k).unwrap().len(), HIMMELSZELT_BYTES);
+        assert_eq!(u32::from_le_bytes([mit[20], mit[21], mit[22], mit[23]]), u32::from_le_bytes([ohne[20], ohne[21], ohne[22], ohne[23]]) + 1);
+        // mit herd.umgebung ist SZENE gleich wie ohne Himmelszelt
+        k.welt_umgebung(b"#808080", 0.4);
+        k.bild(2);
+        let s_mit = szene(&k);
+        k.komp_loese(lose);
+        k.bild(2);
+        assert_eq!(szene(&k), s_mit);
+        assert!(abschnitt_zelt(&k).is_none());
+    }
+
+    #[test]
+    fn inhalt_und_kleinste_wache_id() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (_, a) = zelt(&mut k, &n);
+        let (tb, b) = zelt(&mut k, &n);
+        k.setze_text(a, n.oben, b"#000000");
+        k.setze_text(b, n.oben, b"#ffffff");
+        k.setze_text(b, n.horizont, b"#ff0000");
+        k.setze_text(b, n.boden, b"#0000ff");
+        k.setze_zahl(b, n.sonne, 4.0);
+        k.setze_zahl(b, n.sterne, 0.5);
+        k.bild(1);
+        let d = abschnitt_zelt(&k).unwrap();
+        assert_eq!((f(&d, 0), f(&d, 4), f(&d, 8), f(&d, 12)), (0.0, 0.0, 0.0, 1.0), "kleinste ID gilt");
+        // die erste ruht (Vorlage am Elternteil) → die zweite gilt
+        let eltern = k.teil_neu(3);
+        let ta = k.komp_info(a, 2);
+        assert_eq!(k.teil_haenge(ta, eltern), 0);
+        let v = typ(&mut k, "Vorlage");
+        let vc = k.komp_neu(v);
+        k.komp_haenge(vc, eltern);
+        k.bild(2);
+        let d = abschnitt_zelt(&k).unwrap();
+        assert_eq!((f(&d, 0), f(&d, 4), f(&d, 8)), (1.0, 1.0, 1.0));
+        assert_eq!((f(&d, 16), f(&d, 20), f(&d, 24)), (1.0, 0.0, 0.0));
+        assert_eq!((f(&d, 32), f(&d, 36), f(&d, 40)), (0.0, 0.0, 1.0));
+        // Sonnenrichtung = SZENE.sonne_richtung, w = halber Winkel; Sonnenfarbe linear, w = Sterne
+        let s = szene(&k);
+        assert_eq!(&d[48..60], &s[144..156]);
+        assert!((f(&d, 60) as f64 - 2.0 * crate::welt::GRAD).abs() < 1e-7);
+        assert_eq!(f(&d, 76), 0.5);
+        // Umgebungslicht aus `oben` (weiß × 0.35), wenn herd.umgebung fehlt
+        assert_eq!((f(&s, 176), f(&s, 180), f(&s, 184)), (0.35, 0.35, 0.35));
+        // ohne Bilder: alle Seiten prozedural
+        assert!((80..208).step_by(4).all(|o| u(&d, o) == 0));
+        // Seiten: Atlas-Bildchen (rechts) und eigene Textur (links); kürzere Liste = Rest prozedural
+        let atlas = k.bildchen_neu(&zeilen(&["wwww", "wwww"]), &[]);
+        let eigen = k.bildchen_teigling(&crate::teigling::tests::teigling(64, 32, 0));
+        assert!(atlas > 0 && eigen > 0);
+        assert_eq!(k.setze_liste(b, n.bilder, &[atlas as u32, eigen as u32]), 0);
+        k.bild(3);
+        let d = abschnitt_zelt(&k).unwrap();
+        let (x, y) = (u(&d, 80), u(&d, 84));
+        assert_eq!((u(&d, 88), u(&d, 92)), (x + 4, y + 2));
+        assert_eq!((u(&d, 96), u(&d, 100), u(&d, 104), u(&d, 108)), (0, 0, 64, 32));
+        assert_eq!(u(&d, 176), 1 << 16); // Atlas-Seite 0
+        assert_eq!(u(&d, 180), (eigen as u32 & 0xFFFF) | 1 << 16 | 1 << 17);
+        assert!((184..208).step_by(4).all(|o| u(&d, o) == 0));
+        assert!((112..176).step_by(4).all(|o| u(&d, o) == 0));
+        // nur Werte: die Szene bleibt gleich, wenn tb wandert (das Himmelszelt hängt nicht von der Lage ab)
+        k.teil_lage(tb, 5.0, 5.0, 5.0);
+        k.bild(4);
+        assert_eq!(abschnitt_zelt(&k).unwrap(), d);
+    }
+}

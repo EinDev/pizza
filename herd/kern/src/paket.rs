@@ -22,6 +22,8 @@ pub const ZUG_BYTES: usize = 16;
 pub const ECKE_BYTES: usize = 32;
 /// Ein Teilchen im Abschnitt `TEILCHEN3D` (Funken): `f32 x, y, z, halbe Größe`, `u8 r, g, b, a`.
 pub const TEILCHEN3D_BYTES: usize = 20;
+/// Abschnitt `HIMMELSZELT` (H-K11b): fester Block, Aufbau gleich dem Uniform-Block der Glut (`herd/README.md` §4).
+pub const HIMMELSZELT_BYTES: usize = 208;
 /// Kantenlänge der Shadow-Map (Texel), mit der der Kern die Lichtkamera einrastet.
 pub const SCHATTEN_GROESSE: u32 = 2048;
 pub const MAX_LICHTER: usize = 8;
@@ -41,6 +43,8 @@ pub mod abschnitt {
     pub const INST2D: u32 = 13;
     /// 3D-Teilchen (`Funken`), nur wenn welche sichtbar sind
     pub const TEILCHEN3D: u32 = 14;
+    /// Himmelszelt (Skybox, H-K11b), nur wenn eines an einem wachen Teil hängt
+    pub const HIMMELSZELT: u32 = 15;
 }
 
 pub mod flag {
@@ -110,6 +114,20 @@ pub struct Teilchen3 {
     pub deckend: bool,
 }
 
+/// Das geltende `Himmelszelt` im Bildbau (wache Komponente mit der kleinsten Teil-ID).
+#[derive(Clone, Copy, Debug)]
+pub struct HimmelszeltB {
+    pub teil: u32,
+    pub oben: u32,
+    pub horizont: u32,
+    pub boden: u32,
+    /// Durchmesser der Sonnenscheibe in Grad (0 = aus)
+    pub sonnenscheibe: f64,
+    pub sterne: f64,
+    /// je Seite (rechts, links, oben, unten, vorn, hinten): Atlas-Rechteck und Kennwort wie `INST3D.textur` (0 = prozedural)
+    pub seiten: [([u16; 4], u32); 6],
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct KameraB {
     pub teil: u32,
@@ -131,6 +149,8 @@ pub struct Bildbau {
     pub lichter: Vec<LichtB>,
     pub kameras: Vec<KameraB>,
     pub teilchen3d: Vec<Teilchen3>,
+    /// Himmelszelt (H-K11b): nur das geltende (kleinste wache Teil-ID); `None` = Verlauf aus `herd.himmel` wie v1
+    pub himmelszelt: Option<HimmelszeltB>,
     /// Sicht des aktiven `Blick` (H-K1), vor den Bildbeiträgen bestimmt; `None` = Spielfeld wie v1
     pub blick: Option<Sicht>,
     // Arbeitslisten
@@ -183,6 +203,7 @@ impl Bildbau {
         self.lichter.clear();
         self.kameras.clear();
         self.teilchen3d.clear();
+        self.himmelszelt = None;
         self.blick = None;
         if self.schrift.is_none() {
             self.schrift = Schrift::eingebettet();
@@ -549,7 +570,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     put_u32(aus, 0); // Länge
     put_u32(aus, 0);
     let mut abschnitte = ressourcen_deltas(aus, &w.ressourcen, g, bau);
-    let mut flags = if w.himmel.is_some() { flag::HIMMEL } else { 0 };
+    let zelt = bau.himmelszelt;
+    let mut flags = if w.himmel.is_some() || zelt.is_some() { flag::HIMMEL } else { 0 };
 
     // ---------------- 3D ----------------
     let seiten = if w.hoehe > 0 { w.breite as f64 / w.hoehe as f64 } else { 1.0 };
@@ -861,7 +883,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         None => put_v4(aus, [0.0; 4]),
     }
     let (himmel_o, himmel_u) = w.himmel.unwrap_or((w.hintergrund, w.hintergrund));
-    let (umg, umg_s) = w.umgebung.unwrap_or((himmel_o, 0.35));
+    // ohne herd.umgebung färbt ein Himmelszelt (`oben`) das Umgebungslicht, sonst wie v1 der Himmel bzw. Hintergrund
+    let (umg, umg_s) = w.umgebung.unwrap_or((zelt.map(|z| z.oben).unwrap_or(himmel_o), 0.35));
     let u = lin4(umg, umg_s);
     put_v4(aus, u);
     put_v4(aus, [u[0] * 0.45, u[1] * 0.42, u[2] * 0.38, 0.0]);
@@ -932,6 +955,30 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     // ---------------- 3D-Teilchen (Funken): leuchtende in Ausstoßreihenfolge, dann deckende von hinten nach vorn ----------------
     if !bau.teilchen3d.is_empty() {
         abschnitte += teilchen_abschnitt(aus, bau, &sk, auge, vorn);
+    }
+
+    // ---------------- Himmelszelt (H-K11b): nur Werte, die Pixel rechnet die Glut ----------------
+    if let Some(z) = zelt {
+        let st = abschnitt_beginn(aus, abschnitt::HIMMELSZELT);
+        for f in [z.oben, z.horizont, z.boden] {
+            let c = lin4(f, 1.0);
+            put_v4(aus, [c[0], c[1], c[2], 1.0]);
+        }
+        // Richtung zur Sonne wie SZENE.sonne_richtung, w = halber Scheibenwinkel (Bogenmaß, 0 = aus)
+        put_v4(aus, [l[0], l[1], l[2], z.sonnenscheibe * crate::welt::GRAD * 0.5]);
+        let sf = lin4(sonne.map(|s| s.farbe).unwrap_or(farbe::MOZZARELLA), 1.0);
+        put_v4(aus, [sf[0], sf[1], sf[2], z.sterne]);
+        for (uv, _) in &z.seiten {
+            for x in uv {
+                put_u32(aus, *x as u32);
+            }
+        }
+        for i in 0..8 {
+            put_u32(aus, if i < 6 { z.seiten[i].1 } else { 0 });
+        }
+        debug_assert_eq!(aus.len() - st, HIMMELSZELT_BYTES);
+        abschnitt_ende(aus, st);
+        abschnitte += 1;
     }
 
     let len = aus.len() as u32;

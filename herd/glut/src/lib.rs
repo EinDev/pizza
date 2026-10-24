@@ -24,7 +24,7 @@ use std::sync::Arc;
 pub use herd_kern;
 pub use wgpu;
 
-use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
+use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
 use wgpu::util::DeviceExt as _;
 
 /// Mehrfachabtastung (Kantenglättung), wenn der Adapter sie kann.
@@ -235,6 +235,8 @@ struct Pipelines {
     durch_vorn: wgpu::RenderPipeline,
     funken_leuchtend: wgpu::RenderPipeline,
     funken_deckend: wgpu::RenderPipeline,
+    /// Himmelszelt (H-K11b): `vs_himmel` + `fs_zelt`
+    zelt: wgpu::RenderPipeline,
 }
 
 enum ZielArt {
@@ -263,6 +265,8 @@ pub struct Glut {
     s_vergleich: wgpu::Sampler,
     szene: wgpu::Buffer,
     ansicht: wgpu::Buffer,
+    /// Uniform-Block des Himmelszelts (Bindung 13, HIMMELSZELT_BYTES; nur gelesen, wenn ein Paket den Abschnitt hat)
+    zelt: wgpu::Buffer,
     schatten_map: wgpu::TextureView,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
     /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
@@ -569,6 +573,8 @@ impl Glut {
                 eigen_eintrag(10),
                 eigen_eintrag(11),
                 eigen_sampler,
+                // Himmelszelt (H-K11b)
+                ubo(13),
             ],
         });
         let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -624,6 +630,7 @@ impl Glut {
         let s_eigen = sampler("herd eigen", wgpu::FilterMode::Linear, None);
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let zelt = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd himmelszelt"), size: HIMMELSZELT_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let schatten_map = Glut::tiefen_textur(dev, "herd shadow-map", 1, 1, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
         let atlas = Glut::atlas_textur(dev, 1, atlas_min);
@@ -653,6 +660,7 @@ impl Glut {
             s_vergleich,
             szene,
             ansicht,
+            zelt,
             schatten_map,
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
@@ -846,6 +854,17 @@ impl Glut {
             multiview_mask: None,
             cache: None,
         });
+        let zelt = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("herd himmelszelt"),
+            layout: Some(&self.pl_haupt),
+            vertex: wgpu::VertexState { module: &self.mod_himmel, entry_point: Some("vs_himmel"), compilation_options: Default::default(), buffers: &[] },
+            primitive: Default::default(),
+            depth_stencil: tiefe(false, wgpu::CompareFunction::Always),
+            multisample: ms,
+            fragment: Some(wgpu::FragmentState { module: &self.mod_himmel, entry_point: Some("fs_zelt"), compilation_options: Default::default(), targets: &z_ersetz }),
+            multiview_mask: None,
+            cache: None,
+        });
         let layouts = netz_layouts();
         let licht = |name: &str, cull: Option<wgpu::Face>, schreiben: bool, ziele: &[Option<wgpu::ColorTargetState>]| {
             dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -880,7 +899,7 @@ impl Glut {
         };
         let funken_leuchtend = funken("herd funken leuchtend", "fs_leuchtend", &z_addier);
         let funken_deckend = funken("herd funken deckend", "fs_deckend", &z_misch);
-        self.pipelines.push(Pipelines { format, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend });
+        self.pipelines.push(Pipelines { format, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
         self.pipelines.len() - 1
     }
 
@@ -1036,6 +1055,24 @@ impl Glut {
         (Some(a), Some(b))
     }
 
+    /// HIMMELSZELT: Kennwörter der Seiten (ab Byte 176, je `u32` wie INST3D.textur) mit eigener Textur (Bit 17) auf die
+    /// Glut-Kennung `Klasse << 13 | Schicht` umschreiben (unbekannt → Klasse 7 = Seite bleibt prozedural).
+    fn zelt_umschreiben(&self, d: &[u8]) -> Vec<u8> {
+        let mut z = d.to_vec();
+        for i in 0..6 {
+            let o = 176 + i * 4;
+            let t = u32_at(&z, o);
+            if t & 1 << 17 != 0 {
+                let k = match self.eigen.karte.get(&(t & 0xFFFF)) {
+                    Some(&(k, s)) => k << 13 | s,
+                    None => KLASSE_UNBEKANNT << 13,
+                };
+                z[o..o + 4].copy_from_slice(&((t & !0xFFFF) | k).to_le_bytes());
+            }
+        }
+        z
+    }
+
     /// Belegung der eigenen Texturen (Messung, PD3).
     pub fn textur_speicher(&self) -> TexturSpeicher {
         let vram = self.eigen.klassen.iter().enumerate().filter(|(_, k)| k.echt).map(|(i, k)| array_bytes(klasse_kante(i), k.schichten)).sum();
@@ -1138,6 +1175,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
                     wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
                     wgpu::BindGroupEntry { binding: 12, resource: wgpu::BindingResource::Sampler(&self.s_eigen) },
+                    wgpu::BindGroupEntry { binding: 13, resource: self.zelt.as_entire_binding() },
                 ],
             }));
         }
@@ -1170,6 +1208,7 @@ impl Glut {
         let mut inst2d: &[u8] = &[];
         let mut inst3d: &[u8] = &[];
         let mut teilchen: &[u8] = &[];
+        let mut zelt: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -1199,6 +1238,12 @@ impl Glut {
                     teilchen = d.get(8..8 + n * TEILCHEN3D_BYTES).ok_or_else(|| Fehler::Paket("TEILCHEN3D zu kurz".into()))?;
                     n_leuchtend = l;
                 }
+                abschnitt::HIMMELSZELT => {
+                    if d.len() != HIMMELSZELT_BYTES {
+                        return Err(Fehler::Paket(format!("HIMMELSZELT hat {} Bytes", d.len())));
+                    }
+                    zelt = Some(d);
+                }
                 abschnitt::ZUEGE3D => {
                     for z in d.chunks_exact(ZUG_BYTES) {
                         self.zuege.push([u32_at(z, 0), u32_at(z, 4), u32_at(z, 8), u32_at(z, 12)]);
@@ -1220,6 +1265,11 @@ impl Glut {
         stat.hochgeladen += (inst2d.len() + inst3d.len() + teilchen.len()) as u64;
         stat.instanzen_2d = n2;
         stat.instanzen_3d = n3;
+        if let Some(d) = zelt {
+            let z = self.zelt_umschreiben(d);
+            self.queue.write_buffer(&self.zelt, 0, &z);
+            stat.hochgeladen += z.len() as u64;
+        }
 
         // Spielfeld seitentreu einpassen
         let (zb, zh) = (self.breite as f32, self.hoehe as f32);
@@ -1308,7 +1358,12 @@ impl Glut {
             });
             p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-            if flags & flag::HIMMEL != 0 {
+            // Himmelszelt (H-K11b) statt des Verlaufs, sonst der Verlauf aus herd.himmel
+            if zelt.is_some() {
+                p.set_pipeline(&pl.zelt);
+                p.draw(0..3, 0..1);
+                stat.draw_calls += 1;
+            } else if flags & flag::HIMMEL != 0 {
                 p.set_pipeline(&pl.himmel);
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;

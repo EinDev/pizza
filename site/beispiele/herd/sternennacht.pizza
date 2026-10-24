@@ -1,0 +1,86 @@
+// Sternennacht – ein Abend über dem Hügelland. Die Sonne sinkt hinter die Hügel, der Himmel färbt sich vom Abendrot zum
+// Nachtblau, nach und nach gehen die Sterne auf, im Hof wird Licht gemacht. Leertaste: Zeitraffer an oder aus.
+//
+// So arbeitet die Engine für dich: Ein Himmelszelt hängt an irgendeinem 3D-Teil und ersetzt den einfachen Himmelsverlauf.
+// Es braucht nur drei Farben (oben, horizont, boden), die Größe der Sonnenscheibe und wie hell die Sterne sind – die Sonne
+// steht immer dort, wohin das Sonnenlicht zeigt (ohne herd.umgebung(…) färbt der Himmel auch das Umgebungslicht).
+// Die Engine rechnet daraus in jedem Bild den ganzen Himmel; das Programm stellt nur die Farben um.
+
+Herd herd = neu Herd("Sternennacht", breite: 960, hoehe: 540);
+
+// ---------- Farben mischen: drei Stimmungen, dazwischen weich überblenden ----------
+Blech<margherita> ZIFFERN = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+Rezept hex = (funghi v) -> {
+    salami n = Mathe.runden(Mathe.max(0, Mathe.min(255, v))).ganz();
+    serviere ((ZIFFERN.stück((n / 16).ganz() + 1) + ZIFFERN.stück(n % 16 + 1)));
+};
+// Farbe zwischen a und b (je [r, g, b]) beim Anteil t
+Rezept mische = (Blech<funghi> a, Blech<funghi> b, funghi t) -> {
+    serviere (("#" + hex(a.stück(1) + (b.stück(1) - a.stück(1)) * t) + hex(a.stück(2) + (b.stück(2) - a.stück(2)) * t)
+               + hex(a.stück(3) + (b.stück(3) - a.stück(3)) * t)));
+};
+//                     Abend              Dämmerung          Nacht
+Blech<funghi> OBEN1 = [62, 98, 160];    Blech<funghi> OBEN2 = [32, 44, 100];    Blech<funghi> OBEN3 = [8, 12, 34];
+Blech<funghi> HORI1 = [255, 178, 112];  Blech<funghi> HORI2 = [226, 112, 86];   Blech<funghi> HORI3 = [30, 36, 74];
+Blech<funghi> BODEN1 = [96, 78, 82];    Blech<funghi> BODEN2 = [58, 46, 62];    Blech<funghi> BODEN3 = [12, 12, 22];
+Rezept stimmung = (Blech<funghi> a, Blech<funghi> b, Blech<funghi> c, funghi p) -> {
+    falls (p < 0.5) { serviere ((mische(a, b, p * 2))); }
+    serviere ((mische(b, c, p * 2 - 1)));
+};
+
+// ---------- Hügelland ----------
+salami SEITE = 40;
+Rezept hoehe = (funghi x, funghi z) -> {
+    funghi welle = Mathe.sin(x * 0.25) * Mathe.cos(z * 0.21) * 1.4 + Mathe.sin((x - z) * 0.12) * 1.1;
+    funghi mitte = Mathe.min(1, (x * x + z * z) / 50);
+    serviere ((welle * mitte));
+};
+Blech<funghi> hoehen = [];
+für (salami j = 0; j < SEITE; j++) {
+    für (salami i = 0; i < SEITE; i++) { hoehen.hinzu(hoehe(i - (SEITE - 1) / 2, j - (SEITE - 1) / 2)); }
+}
+herd.raum(0, 0, 0).mit(neu Gelaende(hoehen: hoehen, spalten: SEITE, zeilen: SEITE, farbe: "#4f7a3a", glanz: 0.05));
+
+// Hof: Haus mit Dach und Fenster, ein paar Pappeln
+herd.koerper(Form.wuerfel(), 0, 0.9, 0, farbe: "#f2e3c6", glanz: 0.1).setzeGroesse(3, 1.8, 2.4);
+herd.koerper(Form.kegel(teile: 4), 0, 2.4, 0, farbe: "#b5603a", glanz: 0.1).setzeGroesse(4.2, 1.3, 3.4).setzeDrehung(45);
+Teil fenster = herd.koerper(Form.wuerfel(), 0.6, 0.9, 1.21, farbe: "#3a3550", schatten: nein).setzeGroesse(0.6, 0.6, 0.04);
+Licht lampe = herd.licht(0.6, 1.3, 2.4, farbe: "#ffb45a", reichweite: 7).licht();
+lampe.setzeStaerke(0);
+Blech<funghi> PAPPELN = [-5, -3, -3.5, 2, 4.5, -4, 6, 1.5, -7, 3.5];
+für (salami i = 1; i <= PAPPELN.länge(); i += 2) {
+    funghi x = PAPPELN.stück(i);
+    funghi z = PAPPELN.stück(i + 1);
+    herd.koerper(Form.kugel(teile: 20), x, hoehe(x, z) + 1.6, z, farbe: "#2f5a2e", glanz: 0.05).setzeGroesse(0.9, 3, 0.9);
+}
+
+// ---------- Himmel: das Himmelszelt hängt an einem leeren Teil ----------
+Himmelszelt zelt = herd.raum(0, 0, 0).mit(neu Himmelszelt(sonnenscheibe: 3.5));
+
+herd.kamera().setzeLage(2, 3.2, 12).schaueAuf(-2, 2.6, -10);
+herd.text("Leertaste: Zeitraffer", 480, 510, groesse: 16, farbe: "#fff6e0c0", ausrichtung: "mitte");
+
+funghi zeit = 0.3;            // 0 = Abend, 0,5 = Dämmerung, 1 = Nacht
+funghi tempo = 1 / 3600;      // je Takt: eine Minute vom Abend bis zur Nacht
+diavolo raffer = nein;
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) { raffer = !raffer; }
+    zeit = Mathe.min(1, zeit + (raffer ? tempo * 12 : tempo));
+    zelt.setzeOben(stimmung(OBEN1, OBEN2, OBEN3, zeit))
+        .setzeHorizont(stimmung(HORI1, HORI2, HORI3, zeit))
+        .setzeBoden(stimmung(BODEN1, BODEN2, BODEN3, zeit))
+        .setzeSterne(Mathe.max(0, Mathe.min(1, (zeit - 0.25) * 1.6)));
+    herd.nebel(stimmung(HORI1, HORI2, HORI3, zeit), 22, 60);
+    // warmes Restlicht vom Horizont statt nur vom dunklen Zenit
+    herd.umgebung(stimmung(HORI1, HORI2, HORI3, zeit), staerke: 0.55 - zeit * 0.3);
+    // die Sonne sinkt von 9 Grad über den Horizont bis 6 Grad darunter; ihr Licht wird schwächer und röter
+    funghi hoch = Mathe.bogen(9 - zeit * 15);
+    herd.sonne().setzeLage(-Mathe.cos(hoch) * 0.35, Mathe.sin(hoch), -Mathe.cos(hoch));
+    herd.sonne().licht().setzeFarbe(stimmung(HORI1, HORI2, HORI3, zeit * 0.6)).setzeStaerke(Mathe.max(0, Mathe.sin(hoch)) * 6);
+    // im Hof geht das Licht an
+    falls (zeit > 0.45) {
+        fenster.koerper().setzeFarbe("#ffd27a").setzeLeuchten(1);
+        lampe.setzeStaerke(Mathe.min(1.6, (zeit - 0.45) * 6));
+    }
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: Abend zu " + Mathe.runden(zeit * 100) + " % vorbei, Sterne " + Mathe.runden(zelt.sterne(), 2) + ", Zeitraffer " + raffer + "."));

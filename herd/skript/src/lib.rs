@@ -551,6 +551,26 @@ pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
                 [24, 28, 70, 255]
             }
         }
+        // Himmelsseite (H-K11b): zwei Bergketten vor durchsichtigem Himmel, Horizont bei h/2, Lichter im nahen Hang
+        5 => {
+            let zacke = |x: i64, p: i64, v: i64| {
+                let p = p.max(1);
+                p - (2 * ((x + v) % p) - p).abs()
+            };
+            let (p1, p2, p3) = ((b / 3).max(1), (b / 11).max(1), (b / 5).max(1));
+            let fern = h / 2 - h * zacke(x, p1, b / 7) / (6 * p1) - h * zacke(x, p2, b / 3) / (18 * p2);
+            let nah = h / 2 + h / 40 - h * zacke(x, p3, b / 2) / (12 * p3);
+            if y >= nah {
+                if (x * 31 + y * 17) % 211 == 0 && y < h * 3 / 5 {
+                    return [255, 204, 120, 255];
+                }
+                return [36, 32, 62, 255];
+            }
+            if y >= fern {
+                return if y == fern { [74, 66, 116, 170] } else { [74, 66, 116, 255] };
+            }
+            [0, 0, 0, 0]
+        }
         _ => [255, 255, 255, 255],
     }
 }

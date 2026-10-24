@@ -1,0 +1,80 @@
+#! bild 2 groesse 1280x720
+# Referenzbild H-K11b (HERD.md §12.4): Himmelszelt in der Abenddämmerung. Prozedural: Verlauf boden → horizont → oben,
+# tief stehende Sonnenscheibe mit Schein (Richtung = Sonnenlicht), Sterne. Seite rechts (+x) aus einer eigenen Textur
+# (Teigling 512², Bergketten vor durchsichtigem Himmel – die Deckkraft mischt über den Verlauf), Seite oben (+y) aus einem
+# kleinen Atlas-Bildchen (24²) mit halb durchsichtigen Wolken (bilinear vergrößert). Kamera schräg nach rechts oben, so dass
+# vorn, rechts und oben samt Kanten zu sehen sind. Spielfeld 1280 × 720.
+vorgabe TAKTE 2
+welt_neu 1280 720 "Himmelszelt"
+welt_umgebung "#b4b8e0" 0.55
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Kamera" -> T_KAM
+typ_nummer "Himmelszelt" -> T_H
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_KAM "sicht" -> KAM_SICHT
+feld_nummer T_H "bilder" -> H_BILDER
+feld_nummer T_H "oben" -> H_OBEN
+feld_nummer T_H "horizont" -> H_HORIZONT
+feld_nummer T_H "boden" -> H_BODEN
+feld_nummer T_H "sonnenscheibe" -> H_SONNE
+feld_nummer T_H "sterne" -> H_STERNE
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 32 0 -> KUGEL
+form_grund 5 0 0 -> EBENE
+teigling_muster 5 512 512 -> BERGE
+bildchen_neu ["........................", "........................", "aaaaaaaabbaaa...........", "abbbbbbbccbbaa..........", "bbccccccddccbaa.........", "bccddddcddccbaa.........", "bccddddcccbbaa..........", "bbccccccbbaaa...........", "abbbbbbbbaa.............", "aaaaaaaaaa..............", ".............aaaaaabbaaa", "..........aaaabbbbbccbba", ".........aaabbbbbccddccb", "........aaabbccccccddccb", "........abbbccddddcccbba", ".......abbcddcddddccbbaa", ".......abbcddccccccbbaaa", ".abbbba.abbbbbbbbbbbaaa.", "abcddcba.aaaaabbbbaaaa..", "abcddcba.....aaaaaa.....", ".abbbba.................", "........................", "........................", "........................"] [["a", "#f6d8c824"], ["b", "#f6d8c860"], ["c", "#fbe4d4a0"], ["d", "#fff0e0d0"]] -> WOLKEN
+
+# Kamera schräg nach rechts oben, Abendsonne tief links vorn
+teil_lage 1 0 1.6 6
+teil_schaue 1 4 6.4 -4
+komp_von 1 T_KAM -> KAM
+setze_zahl KAM KAM_SICHT 65
+teil_lage 2 -0.25 0.1 -1
+komp_von 2 T_L -> SONNE
+setze_text SONNE L_F "#ffc48a"
+setze_zahl SONNE L_ST 0.9
+
+# Himmelszelt: rechts und links = Berge (eigene Textur), oben = Wolken (Atlas); unten, vorn, hinten fehlen → prozedural
+teil_neu 3 -> zelt
+komp_neu T_H -> h
+setze_text h H_OBEN "#22306a"
+setze_text h H_HORIZONT "#f39a5b"
+setze_text h H_BODEN "#2c2433"
+setze_zahl h H_SONNE 5
+setze_zahl h H_STERNE 0.9
+setze_liste h H_BILDER [BERGE, BERGE, WOLKEN]
+komp_haenge h zelt
+
+# Boden und ein paar Körper im Abendlicht
+teil_neu 3 -> boden
+teil_groesse boden 60 1 60
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#5d6b4a"
+setze_zahl k K_GLANZ 0.05
+komp_haenge k boden
+wiederhole 3 i
+  teil_neu 3 -> t
+  teil_lage t (1.5 + i * 2.2) 0.6 (-1 - i * 1.5)
+  teil_groesse t 1.2 1.2 1.2
+  teil_setze t 4 (20 + i * 25)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#e8d8c0"
+  setze_zahl k K_GLANZ 0.2
+  komp_haenge k t
+ende
+teil_neu 3 -> ku
+teil_lage ku 0.4 0.9 -3.5
+teil_groesse ku 1.8 1.8 1.8
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#d24a30"
+setze_zahl k K_GLANZ 0.7
+komp_haenge k ku
+takte TAKTE

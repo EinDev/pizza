@@ -70,7 +70,7 @@ pub fn pruefe(t: &[u8]) -> Erg<Geprueft> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use alloc::vec;
 

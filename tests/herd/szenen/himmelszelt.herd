@@ -1,0 +1,76 @@
+# H-K11b (HERD.md §12.4): Himmelszelt – Abschnitt HIMMELSZELT nur bei Nutzung. N Himmelszelte an 3D-Teilen (es gilt das wache
+# mit der kleinsten ID), Seiten aus Atlas-Bildchen und eigener Textur (Teigling-Muster 5 „Bergketten“, prüft auch Rust = JS),
+# Farben, Sonnenscheibe, Sterne; das erste ruht unter einer Vorlage, wird entfernt; Sonne wandert; herd.himmel und
+# herd.umgebung zusammen mit dem Zelt; am Ende alle entfernt (kein Abschnitt mehr).
+vorgabe N 3
+vorgabe TAKTE 3
+welt_neu 640 360 "Himmelszelt"
+typ_nummer "Himmelszelt" -> T_H
+typ_nummer "Vorlage" -> T_V
+typ_nummer "Koerper" -> T_K
+feld_nummer T_H "bilder" -> H_BILDER
+feld_nummer T_H "oben" -> H_OBEN
+feld_nummer T_H "horizont" -> H_HORIZONT
+feld_nummer T_H "boden" -> H_BODEN
+feld_nummer T_H "sonnenscheibe" -> H_SONNE
+feld_nummer T_H "sterne" -> H_STERNE
+feld_nummer T_K "form" -> K_FORM
+form_grund 1 0 0 -> WUERFEL
+teil_neu 3 -> w
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+komp_haenge k w
+takte 2
+hash_paket
+teigling_muster 5 64 64 -> BERGE
+bildchen_neu ["..ww....", ".wwww...", "........", "....www."] [["w", "#ffffffa0"]] -> WOLKEN
+ressource_hole BERGE 2
+# N Zelte, jedes mit anderen Werten (das erste an Teil ERST)
+teil_neu 3 -> ERST
+teil_entferne ERST
+wiederhole N i
+  teil_neu 3 -> t
+  komp_neu T_H -> h
+  setze_zahl h H_SONNE (1 + i * 3)
+  setze_zahl h H_STERNE (i / N)
+  setze_text h H_HORIZONT "#f39a5b"
+  komp_haenge h t
+ende
+takte TAKTE
+# das erste Zelt (kleinste ID): Seiten rechts, links, oben; Farben
+komp_von (ERST + 1) T_H -> ERSTES
+setze_liste ERSTES H_BILDER [BERGE, WOLKEN, BERGE]
+setze_text ERSTES H_OBEN "#22306a"
+setze_text ERSTES H_BODEN "#2c2433"
+hole_liste ERSTES H_BILDER
+takte TAKTE
+# es ruht unter einer Vorlage → das nächste gilt; geweckt → wieder das erste
+komp_neu T_V -> v
+komp_haenge v (ERST + 1)
+takte 2
+komp_loese v
+takte 2
+# Sonne wandert, eigene Umgebung und Himmel dazu
+teil_lage 2 -0.3 0.08 -1
+welt_himmel "#101830" "#403040"
+welt_umgebung "#c0c8ff" 0.5
+takte 2
+setze_zahl ERSTES H_SONNE 90
+setze_zahl ERSTES H_STERNE 1
+setze_liste ERSTES H_BILDER [WOLKEN, WOLKEN, WOLKEN, WOLKEN, WOLKEN, WOLKEN, BERGE]
+takte 2
+# Fehler: Bereich, 2D-Teil
+setze_zahl ERSTES H_STERNE 2
+fehler_text
+teil_neu 2 -> flach
+komp_neu T_H -> h2
+komp_haenge h2 flach
+fehler_text
+# erstes entfernt → nächstes; alle entfernt → kein Abschnitt mehr
+teil_entferne (ERST + 1)
+takte 2
+wiederhole (N - 1) i
+  teil_entferne (ERST + 2 + i)
+ende
+takte 2
+hash_paket

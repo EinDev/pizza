@@ -250,6 +250,15 @@ function musterPixel(m, x, y, b, h) {
     return (d(x, 2) + d(y, 2)) % 2 === 0 ? [250, 240, 215, 255] : [228, 212, 178, 255];
   }
   if (m === 4) return d(dx * dx + dy * dy, 6 * Math.max(b, h)) % 2 === 0 ? [250, 250, 245, 255] : [24, 28, 70, 255];
+  if (m === 5) {
+    const zacke = (xx, p, v) => { p = Math.max(p, 1); return p - Math.abs(2 * ((xx + v) % p) - p); };
+    const p1 = Math.max(d(b, 3), 1), p2 = Math.max(d(b, 11), 1), p3 = Math.max(d(b, 5), 1);
+    const fern = d(h, 2) - d(h * zacke(x, p1, d(b, 7)), 6 * p1) - d(h * zacke(x, p2, d(b, 3)), 18 * p2);
+    const nah = d(h, 2) + d(h, 40) - d(h * zacke(x, p3, d(b, 2)), 12 * p3);
+    if (y >= nah) return (x * 31 + y * 17) % 211 === 0 && y < d(h * 3, 5) ? [255, 204, 120, 255] : [36, 32, 62, 255];
+    if (y >= fern) return y === fern ? [74, 66, 116, 170] : [74, 66, 116, 255];
+    return [0, 0, 0, 0];
+  }
   return [255, 255, 255, 255];
 }
 

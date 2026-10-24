@@ -298,7 +298,8 @@
                 ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"],
                 ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
-                ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"]
+                ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
+                ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -933,6 +934,36 @@
             },
             { art: "ausgabe", text: z("Spiel aktiv: ja, Ball x = 41") },
             { art: "text", md: "Ein ganzes Beispiel sind die **Kulissen** unter *Beispiele → Herd*: Titelbild, Spiel mit Pause auf der Leertaste und eine Ende-Kulisse – ein Spiel, vier Szenen." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Himmelszelt: Himmel mit Sonne, Sternen oder Bildern",
+          inhalt: [
+            { art: "text", md: "Ein **`Himmelszelt`** an irgendeinem 3D-Teil ist der Himmel hinter der ganzen Szene (eine Skybox wie in Unity) und ersetzt den einfachen Verlauf von `herd.himmel(…)`. Ohne Bilder rechnet die Engine ihn selbst: von `boden` unter dem Horizont über `horizont` bis `oben` im Zenit, dazu eine **Sonnenscheibe** (`sonnenscheibe` = Durchmesser in Grad) genau dort, wohin das Sonnenlicht zeigt – stellst du `herd.sonne()` tiefer, geht sie unter – und **Sterne** (`sterne` von 0 bis 1 = wie hell sie leuchten). Ohne `herd.umgebung(…)` färbt `oben` auch das Umgebungslicht." },
+            { art: "text", md: "Mit `bilder` werden die sechs Würfelseiten zu Bildern: **rechts, links, oben, unten, vorn, hinten** (vorn = dorthin, wohin die Kamera am Anfang schaut). Gedacht ist ein aufgeklapptes Kreuz um `vorn`: `oben` schließt an die Oberkante von `vorn` an, `unten` an die Unterkante. Es gehen Bildchen aus Zeichen und geladene Bilder (`Bildchen.laden`); sie werden weich vergrößert, durchsichtige Stellen zeigen den gerechneten Himmel dahinter – so stehen Berge vor dem Abendrot. Fehlen Seiten (kürzeres Blech), bleiben sie gerechnet; Sonne und Sterne gibt es nur dort. Hängen mehrere Himmelszelte, gilt das mit der kleinsten Teil-ID (ruhende unter einer `Vorlage` zählen nicht). Die Bodenfarbe heißt `boden`, weil `unten` in pizza ein Schlüsselwort ist." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Himmelszelt","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"d4c5966799a6de3e","paket":"b8bbdf2c59e2bfe4"},
+                {"art":"bild","bildnummer":4,"szene":"b16fdb03a1989936","paket":"e0c6192aa1a7a466"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Himmelszelt\", breite: 320, hoehe: 180);",
+                "herd.sonne().setzeLage(-0.3, 0.12, -1);",
+                "herd.kamera().setzeLage(0, 1.5, 6).schaueAuf(0, 2.5, -4);",
+                "Himmelszelt zelt = herd.raum(0, 0, 0).mit(neu Himmelszelt(oben: \"#22306a\", horizont: \"#f39a5b\", boden: \"#2c2433\", sonnenscheibe: 4, sterne: 0.5));",
+                "herd.koerper(Form.ebene(), 0, 0, 0, farbe: \"#5d6b4a\").setzeGroesse(30, 1, 30);",
+                "herd.backe(() -> { zelt.setzeSterne(Mathe.min(1, zelt.sterne() + 0.125)); });",
+                "Bote.sage((zelt + \" \" + zelt.oben() + \" \" + zelt.sonnenscheibe() + \" \" + zelt.sterne()));"
+              )
+            },
+            { art: "ausgabe", text: z("Himmelszelt(3) #22306a 4 1") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Sternennacht** unter *Beispiele → Herd*: Über dem Hügelland sinkt die Sonne, der Himmel färbt sich vom Abendrot zum Nachtblau, die Sterne gehen auf, und im Hof wird Licht gemacht." }
           ]
         }
       ]

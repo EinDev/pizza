@@ -1,0 +1,11 @@
+Himmelszelt() himmel mozzarella teig 0 0 []
+Seiten: 3, Teil ja, #22306a 4
+Kopie: schwarz 1
+erstes ruht – es gilt das zweite
+wieder das erste, Sonne aus
+ohne Himmelszelt
+LaufzeitAnanas: Himmelszelt gibt es nur für 3D-Teile.
+LaufzeitAnanas: Himmelszelt.sterne muss zwischen 0 und 1 liegen, nicht 2.
+LaufzeitAnanas: Himmelszelt.sonnenscheibe muss zwischen 0 und 90 liegen, nicht 120.
+LaufzeitAnanas: Farbe 'lila' gibt es nicht. Erlaubt: Palettenname oder '#rrggbb'.
+TypAnanas: Himmelszelt.bilder braucht ein Blech aus Bildchen, nicht [1].
