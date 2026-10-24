@@ -18,6 +18,8 @@ pub const KOPF_BYTES: usize = 32;
 pub const SZENE_BYTES: usize = 592;
 pub const INST2D_BYTES: usize = 56;
 pub const INST3D_BYTES: usize = 72;
+/// Abschnitt `ZUSATZ3D`: je Instanz `u32 relief, f32 kachel, f32 metall, u32 merkmale` (`Belag`-Material).
+pub const ZUSATZ3D_BYTES: usize = 16;
 pub const ZUG_BYTES: usize = 16;
 pub const ECKE_BYTES: usize = 32;
 /// Ein Teilchen im Abschnitt `TEILCHEN3D` (Funken): `f32 x, y, z, halbe Größe`, `u8 r, g, b, a`.
@@ -49,6 +51,8 @@ pub mod abschnitt {
     pub const LICHTER: u32 = 16;
     /// Stimmung (HDR, Bloom, Tonkurve, Höhennebel): nur wenn eine wache `Stimmung` gilt
     pub const STIMMUNG: u32 = 17;
+    /// Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): nur wenn eine Instanz einen hat
+    pub const ZUSATZ3D: u32 = 18;
 }
 
 pub mod flag {
@@ -95,6 +99,8 @@ pub struct Koerper3 {
     pub wirft: bool,
     pub min: [f64; 3],
     pub max: [f64; 3],
+    /// Material-Zusatz (`Belag`: Relief, Kachel, Metall, Merkmale) – alles 0 = wie v1, Abschnitt `ZUSATZ3D` nur wenn nicht 0
+    pub zusatz: [u32; 4],
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -813,8 +819,12 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     bau.durch.sort_unstable_by_key(|x| (x.0, x.1));
 
     let mut inst3d: Vec<u8> = Vec::new();
+    let mut zusatz3d: Vec<u8> = Vec::new();
     let mut zuege: Vec<[u32; 4]> = Vec::new();
-    let schreib3 = |b: &mut Vec<u8>, k: &Koerper3| {
+    let schreib3 = |b: &mut Vec<u8>, z: &mut Vec<u8>, k: &Koerper3| {
+        for w in k.zusatz {
+            put_u32(z, w);
+        }
         for x in k.m {
             put_f32(b, x);
         }
@@ -847,7 +857,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             if gruppe == 0 {
                 unsichtbar += 1;
             }
-            schreib3(&mut inst3d, &bau.koerper[bau.fest[i].1 as usize]);
+            schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[bau.fest[i].1 as usize]);
             i += 1;
         }
         let ende = i as u32;
@@ -864,7 +874,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         let netz = bau.koerper[bau.durch[j].2 as usize].netz;
         let start = j as u32;
         while j < bau.durch.len() && bau.koerper[bau.durch[j].2 as usize].netz == netz {
-            schreib3(&mut inst3d, &bau.koerper[bau.durch[j].2 as usize]);
+            schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[bau.durch[j].2 as usize]);
             j += 1;
         }
         zuege.push([zug::DURCH, netz, basis + start, j as u32 - start]);
@@ -945,6 +955,13 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         }
         abschnitt_ende(aus, st);
         abschnitte += 2;
+        // Material-Zusatz: nur wenn eine geschriebene Instanz einen hat (sonst Paket wie v1)
+        if zusatz3d.iter().any(|&b| b != 0) {
+            let st = abschnitt_beginn(aus, abschnitt::ZUSATZ3D);
+            aus.extend_from_slice(&zusatz3d);
+            abschnitt_ende(aus, st);
+            abschnitte += 1;
+        }
     }
 
     // ---------------- 2D: eine Instanzliste, Zeichenreihenfolge (ebene, ID), stabil ----------------

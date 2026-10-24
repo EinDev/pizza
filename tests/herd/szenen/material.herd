@@ -1,0 +1,53 @@
+# Material-Zusatz (Belag: relief, kachel, abbildung, modell, metall, nass → Abschnitt ZUSATZ3D) und die Muster-Teiglinge
+# 6 (Relief „Noppen“) und 7 (Steinplatten) beider Spieler: nativ = Wasm über die Paket-Hashes. N Körper mit wechselnden
+# Belägen (klein N = 24), ein Belag wird umgestellt, Körper lösen ihren Belag, Durchsichtiges mit Zusatz (DURCH-Zug).
+vorgabe N 24
+welt_neu 960 540 "Material"
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_B "relief" -> B_RELIEF
+feld_nummer T_B "kachel" -> B_KACHEL
+feld_nummer T_B "abbildung" -> B_ABB
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "metall" -> B_METALL
+feld_nummer T_B "nass" -> B_NASS
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 16 0 -> KUGEL
+teigling_muster 7 256 256 -> PLATTEN
+teigling_muster 6 256 128 -> NOPPEN
+teil_neu 3 -> t1
+komp_neu T_B -> b1
+setze_zahl b1 B_BILD PLATTEN
+setze_zahl b1 B_RELIEF NOPPEN
+setze_zahl b1 B_KACHEL 2
+setze_text b1 B_ABB "welt"
+setze_text b1 B_MODELL "pbr"
+setze_zahl b1 B_NASS 0.6
+komp_haenge b1 t1
+teil_neu 3 -> t2
+komp_neu T_B -> b2
+setze_text b2 B_F "#80c0ff80"
+setze_zahl b2 B_RELIEF NOPPEN
+setze_text b2 B_MODELL "pbr"
+setze_zahl b2 B_METALL 1
+komp_haenge b2 t2
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t ((i % 6) * 1.5 - 4) 0.5 (boden(i / 6) * -1.5)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM (WUERFEL + (i % 2) * (KUGEL - WUERFEL))
+  setze_zahl k K_BELAG (t1 * boden(1 / (1 + i % 3)) + t2 * boden(1 / (1 + (i % 3 - 1) * (i % 3 - 1))))
+  komp_haenge k t
+ende
+takte 2
+setze_zahl b1 B_KACHEL 3.5
+setze_text b1 B_ABB "uv"
+setze_zahl b2 B_NASS 0.2
+takte 2
+setze_zahl k K_BELAG 0
+paket_voll
+bild

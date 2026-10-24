@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4602,5 +4602,88 @@ mod stimmung {
         assert_eq!(k.setze_zahl(c, belag, bt_teil as f64), 0);
         k.bild(4);
         assert_eq!(material_3d(&k)[0].2, 8.0);
+    }
+}
+
+/// Material-Zusatz (Belag: relief, kachel, abbildung, modell, metall, nass) → Abschnitt ZUSATZ3D parallel zu INST3D.
+mod material {
+    use super::*;
+    use crate::paket::ZUSATZ3D_BYTES;
+
+    fn zusatz(k: &Kern) -> Option<Vec<[u32; 4]>> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::ZUSATZ3D)?;
+        Some(d.chunks_exact(ZUSATZ3D_BYTES).map(|c| [0, 4, 8, 12].map(|o| u32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]))).collect())
+    }
+
+    #[test]
+    fn zusatz_nur_bei_nutzung_und_parallel() {
+        let mut k = welt();
+        let kt = typ(&mut k, "Koerper");
+        let bt = typ(&mut k, "Belag");
+        let (form, belag, farbe) = (feld(&mut k, kt, "form"), feld(&mut k, kt, "belag"), feld(&mut k, kt, "farbe"));
+        let (relief, kachel, abb, modell, metall, nass) =
+            (feld(&mut k, bt, "relief"), feld(&mut k, bt, "kachel"), feld(&mut k, bt, "abbildung"), feld(&mut k, bt, "modell"), feld(&mut k, bt, "metall"), feld(&mut k, bt, "nass"));
+        let w = k.form_grund(1, 0.0, 0.0);
+        let kg = k.form_grund(2, 12.0, 0.0);
+        let bt_teil = k.teil_neu(3);
+        let b = k.komp_neu(bt);
+        assert_eq!(k.komp_haenge(b, bt_teil), 0);
+        // drei Körper: Würfel mit Belag, Kugel ohne, Würfel ohne (andere Netze/Reihenfolge)
+        let mut koerper = Vec::new();
+        for (i, f) in [w, kg, w].iter().enumerate() {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, i as f64 * 2.0 - 2.0, 0.5, 0.0);
+            let c = k.komp_neu(kt);
+            assert_eq!(k.setze_zahl(c, form, *f as f64), 0);
+            assert_eq!(k.setze_text(c, farbe, b"#ff0000"), 0);
+            assert_eq!(k.komp_haenge(c, t), 0);
+            koerper.push(c);
+        }
+        assert_eq!(k.setze_zahl(koerper[0], belag, bt_teil as f64), 0);
+        k.bild(1);
+        k.bild(2);
+        let (h, p) = (k.hash_szene(), k.paket().to_vec());
+        assert!(zusatz(&k).is_none(), "Standardwerte → kein Abschnitt");
+        // Standardwerte gesetzt: Hash und Paket unverändert (Nachtragsfelder)
+        assert_eq!(k.setze_zahl(b, kachel, 0.0), 0);
+        assert_eq!(k.setze_text(b, abb, b"uv"), 0);
+        assert_eq!(k.setze_text(b, modell, b"klassisch"), 0);
+        k.bild(2);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        assert!(k.setze_text(b, modell, b"phong") < 0);
+        assert_eq!(k.fehler_text(), "Belag.modell kennt 'phong' nicht. Erlaubt: klassisch, pbr.");
+        assert!(k.setze_zahl(b, nass, 1.5) < 0);
+        // pbr, Welt-Abbildung, Kachel 2.5, Metall 0.25, nass 1 → Zusatz nur beim Körper mit Belag, Reihenfolge wie INST3D
+        assert_eq!(k.setze_text(b, modell, b"pbr"), 0);
+        assert_eq!(k.setze_text(b, abb, b"welt"), 0);
+        assert_eq!(k.setze_zahl(b, kachel, 2.5), 0);
+        assert_eq!(k.setze_zahl(b, metall, 0.25), 0);
+        assert_eq!(k.setze_zahl(b, nass, 1.0), 0);
+        k.bild(3);
+        assert_ne!(k.hash_szene(), h);
+        let z = zusatz(&k).expect("Material → ZUSATZ3D");
+        assert_eq!(z.len(), 3);
+        // INST3D-Reihenfolge: Netz aufsteigend (Würfel vor Kugel), dann Teil-ID → Instanz 0 = Körper mit Belag
+        assert_eq!(z[0], [0, 2.5f32.to_bits(), 0.25f32.to_bits(), 1 | 2 | 255 << 8]);
+        assert_eq!(z[1], [0; 4]);
+        assert_eq!(z[2], [0; 4]);
+        // Relief aus einem Atlas-Bildchen gilt nicht (0), aus einem Teigling: Kennwort wie INST3D.textur (Bit 16 + 17)
+        let zeilen = |z: &[&str]| -> Vec<u8> { z.iter().flat_map(|t| (t.len() as u32).to_le_bytes().into_iter().chain(t.bytes())).collect() };
+        let atlas = k.bildchen_neu(&zeilen(&["ab", "ba"]), &zeilen(&["a", "#ff0000", "b", "#00ff00"]));
+        assert!(atlas > 0);
+        assert_eq!(k.setze_zahl(b, relief, atlas as f64), 0);
+        k.bild(4);
+        assert_eq!(zusatz(&k).unwrap()[0][0], 0);
+        let eigen = k.bildchen_teigling(&crate::teigling::tests::teigling(64, 64, 0));
+        assert!(eigen > 0);
+        assert_eq!(k.setze_zahl(b, relief, eigen as f64), 0);
+        k.bild(5);
+        let r = zusatz(&k).unwrap()[0][0];
+        assert_eq!(r & (1 << 16 | 1 << 17), 1 << 16 | 1 << 17);
+        // Belag gelöst → wieder ohne Abschnitt
+        assert_eq!(k.setze_zahl(koerper[0], belag, 0.0), 0);
+        k.bild(6);
+        assert!(zusatz(&k).is_none());
     }
 }

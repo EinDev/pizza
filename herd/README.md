@@ -239,6 +239,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
+| 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
 | 17 | STIMMUNG | 64 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
 
@@ -362,7 +363,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -386,7 +387,7 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `setze var = ausdruck` | Variable |
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
 | `teigling_datei "pfad" [-> var]` | Hilfsaufruf der Spieler: Teigling-Datei lesen und `bildchen_teigling` rufen – so zeichnet `tests/herd/bild.js` Projekte mit `Bildchen.laden` auf (Teiglinge in einem Temp-Ordner) |
-| `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte, 5 Himmelsseite: zwei Bergketten mit Lichtern vor durchsichtigem Himmel, Horizont bei h/2 (H-K11b); nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
+| `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte, 5 Himmelsseite: zwei Bergketten mit Lichtern vor durchsichtigem Himmel, Horizont bei h/2 (H-K11b); 6 Relief „Noppen“ (Normale in R, G, Rauheit in B, je 32 px eine Noppe), 7 Steinplatten (64-px-Felder mit Fugen) – beide kachelbar (Material); nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
 **Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`; erzeugte
 Zahlenlisten `[folge ANZAHL var AUSDRUCK]` (H-K10: Eintrag i = AUSDRUCK mit `var` = i, i = 0 … ANZAHL − 1, z. B.
@@ -474,13 +475,21 @@ Farbe @16 (`Unorm8x4`). Die Bytes kommen unverändert aus dem Paket. Statistik: 
 SDF-Rechteck mit Rundung/Umriss, SDF-Kreis/Partikel, Kantenglättung über `fwidth` des Abstands, Atlas-Bild per `textureLoad`
 pixelscharf, SDF-Glyphe, Dreieck (H-K3b: Ecken aus der Instanz, baryzentrischer Abstand zu den Außenkanten, Glättung nur dort; Höhen
 flach über `uvbox` an den Fragment-Shader – keine neuen Varyings, WebGL2-tauglich), Texturbild (PD3, art 6)) · eigene Texturen
-in `gemeinsam` (PD3: Bindungen 7 … 11 = Klassen, 12 = Sampler linear ohne Stufenmischung; Stufe λ = ½ log2 max(|∂t/∂x|², |∂t/∂y|²)
+in `gemeinsam` (PD3: Bindungen 7 … 11 = Klassen, 12 = Sampler linear (seit „Material“ wiederholend, Stufen linear, anisotrop – für die expliziten Abtastungen ohne Wirkung); Stufe λ = ½ log2 max(|∂t/∂x|², |∂t/∂y|²)
 der Texel-Koordinaten am Anfang des Fragment-Shaders; λ ≤ 1/16 → nächster Nachbar aus Stufe 0, sonst zwei bilineare Abtastungen
 der Stufen ⌊λ⌋ und ⌊λ⌋ + 1 mit **expliziter** Stufe, je auf das Rechteck `u0 v0 u1 v1` dieser Stufe geklemmt (kein Übersprechen
 zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter aus SZENE oder – mit Abschnitt LICHTER – alle Lichter der Zelle des Fragments
 (Bindungen 14 Kopf, 15 `lichter_t` RGBA32F mit 64 Lichtern à 3 Texel je Zeile, 16 `zellen_t` R32Uint 1024 breit; nur `textureLoad`, Texturen wachsen
 nur; ohne Abschnitt schreibt die Glut den Kopf auf 0 → v1-Pfad), Spot-Kegel per smoothstep, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
-Nebel, sanfte Schulter gegen Überstrahlen) · `nachbild` (Stimmung, eigenes Layout: 0 Quelle, 1 Sampler linear, 2 Stimmung, 3 Bloom-Stufe 0; `fs_vorfilter` 13 Abtastungen mit
+Nebel, sanfte Schulter gegen Überstrahlen) · Material-Zusatz in `licht` (ZUSATZ3D als dritter Instanzpuffer @10 relief `Uint32`, @11 kachel + metall `Float32x2`, @12 merkmale `Uint32`;
+ohne Abschnitt Nullen; die Glut schreibt das Relief-Kennwort wie INST3D auf `Klasse << 13 | Schicht` um): Kachelung über den Sampler der eigenen Texturen
+(Bindung 12: wiederholend, Stufen linear, anisotrop 8, wenn `DownlevelFlags::ANISOTROPIC_FILTERING`; die expliziten PD3-Abtastungen klemmen ihre
+Koordinaten selbst, ihre Bilder bleiben gleich – ein zweiter Sampler hätte unter WebGL2 die 16 Textureinheiten des Licht-Shaders überschritten,
+denn jedes Textur-Sampler-Paar belegt eine) über `textureSampleGrad` mit Ableitungen, die im gleichförmigen Kontrollfluss
+vor jedem `discard` berechnet werden; Welt-Abbildung nach der größten Normalenkomponente (feste Tangenten), uv-Abbildung mit Kotangenten aus
+`dpdx/dpdy` (Schüler 2006, für die nach unten zeigende Bildschirm-y-Achse gedreht); `pbr_licht`: GGX (Smith nach Heitz, Schlick), Lambert ohne
+1/π wie die Engine (Glanz daher × π), Halbkugel-Umgebung diffus und in Spiegelrichtung, Pfützen aus drei Oktaven Wertrauschen (Ganzzahl-Hash)
+· `nachbild` (Stimmung, eigenes Layout: 0 Quelle, 1 Sampler linear, 2 Stimmung, 3 Bloom-Stufe 0; `fs_vorfilter` 13 Abtastungen mit
 Karis-Mittel und weichem Knie, `fs_ab` 13 Abtastungen, `fs_auf` Zelt 3 × 3 × `bloomWeite` additiv, `fs_abschluss` Belichtung + Bloom/Σ Gewichte,
 ACES (Hill), Sättigung, Vignette, Korn, sRGB + Dither; HDR-Ziel Rgba16Float mit MSAA, falls der Adapter es kann – sonst Rgba8Unorm bzw.
 ohne MSAA; die 3D-Shader prüfen `hdr_an()` (Bindung 17) und geben dann linear aus, mit Höhennebel)
@@ -528,6 +537,8 @@ Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, get
 `2d-rahmen-textur` (`Rahmen` aus Texturen 48² und 96 × 60: vergrößert, 1 : 1, verkleinert, gestreckt, gestaucht, getönt, gedreht,
 Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
 Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel),
+`3d-material` (Material: nasser Plattenboden in Weltmaß mit Noppen-Relief und Pfützen, metallische Wand in uv-Kachelung, Kugel mit Relief,
+farbige Lichter knapp über dem Boden, Spot; ohne Stimmung),
 `3d-stimmung` (Stimmung: drei Neonröhren, zwei mit `strahlen` 6 und Bloom, Höhennebel, Vignette, 2D-Balken darüber),
 `3d-lichter` (viele Lichter: nächtliche Gasse, 256 farbige Punktlichter knapp über nassem Boden, 4 Spots mit weichem Rand),
 `3d-himmelszelt` (H-K11b: Abenddämmerung prozedural mit tiefer Sonnenscheibe und Sternen, Seite rechts aus einem Teigling 512²

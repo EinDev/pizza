@@ -47,12 +47,18 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
         let Some(tz) = sichtbar(w, s.teil[z]) else { continue };
         let Some(netz) = w.ressourcen.netz(fo[z] as u32) else { continue };
         // Material: das des Belags (Sichtbarkeit des Belag-Teils spielt keine Rolle) oder das eigene
-        let (farbe, glanz, leuchten, bild) = match belag_art.and_then(|a| Some((a, belag_zeile(w, be[z], a)?))) {
+        let (farbe, glanz, leuchten, bild, zusatz) = match belag_art.and_then(|a| Some((a, belag_zeile(w, be[z], a)?))) {
             Some((a, bz)) => {
                 let bs = &w.speicher[a];
-                (bs.farbe(super::belag::FARBE)[bz], bs.zahl(super::belag::GLANZ)[bz], bs.zahl(super::belag::LEUCHTEN)[bz] * bs.zahl(super::belag::STRAHLEN)[bz], bs.zahl(super::belag::BILD)[bz])
+                (
+                    bs.farbe(super::belag::FARBE)[bz],
+                    bs.zahl(super::belag::GLANZ)[bz],
+                    bs.zahl(super::belag::LEUCHTEN)[bz] * bs.zahl(super::belag::STRAHLEN)[bz],
+                    bs.zahl(super::belag::BILD)[bz],
+                    super::belag::zusatz(w, bs, bz),
+                )
             }
-            None => (fa[z], gl[z], le[z] * st[z], bi[z]),
+            None => (fa[z], gl[z], le[z] * st[z], bi[z], [0; 4]),
         };
         if netz.index_anzahl == 0 || farbe & 0xFF == 0 {
             continue;
@@ -75,6 +81,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             wirft: sc[z] != 0.0,
             min,
             max,
+            zusatz,
         });
     }
 }

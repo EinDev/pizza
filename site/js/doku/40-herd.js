@@ -299,6 +299,7 @@
                 ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
                 ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
+                ["`Belag` (Material)","3D","`relief` karton, `kachel` 0, `abbildung` uv, `modell` klassisch, `metall` 0, `nass` 0 (zusätzlich zu Farbe, Glanz, Leuchten, Bild, strahlen)","Oberflächen: Relief-Bild (Normale + Rauheit), Kachelung in uv oder Weltmaß, physikalisches Licht (`modell: \"pbr\"`), Metall, Nässe mit Pfützen"],
                 ["`Stimmung`","3D","`belichtung` 1, `bloom` 0, `bloomSchwelle` 1, `bloomWeite` 0.7, `nebelDichte` 0, `nebelHoehe` 0, `nebelAbfall` 0.25, `nebelFarbe` #1c1a2a, `saettigung` 1, `vignette` 0, `koernung` 0","Bildlook: HDR mit Belichtung und filmischer Tonkurve, Bloom, Höhennebel, Sättigung, Vignette, Filmkorn; es gilt die wache mit der kleinsten Teil-ID"],
                 ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"],
                 ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
@@ -1004,6 +1005,42 @@
             },
             { art: "ausgabe", text: z("Licht(44) 25 1") },
             { art: "text", md: "Ein ganzes Beispiel ist das **Lichterfest** unter *Beispiele → Herd*: 144 Glühbirnen in sechs Lichterketten über einer Altstadtgasse und Laternen als Spots." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Material: Relief, Kachelung, physikalisches Licht und Nässe",
+          inhalt: [
+            { art: "text", md: "Ein **`Belag`** kann mehr als Farbe und Bild: Mit **`modell: \"pbr\"`** rechnet die Engine physikalisch (GGX-Glanz, Fresnel, die Umgebung spiegelt sich) – `glanz` wird zur Glätte (1 = spiegelglatt), **`metall`** (0 … 1) färbt den Glanz in der Eigenfarbe. **`nass`** (0 … 1) macht Flächen feucht, dunkler und glatter, und auf Böden entstehen **Pfützen**, in denen sich die Lichter spiegeln." },
+            { art: "text", md: "Fürs Fotorealistische: **`kachel`** wiederholt das Bild – mit `abbildung: \"uv\"` `kachel`-mal über die Fläche, mit **`abbildung: \"welt\"`** in Weltmaß (`kachel` = Kantenlänge einer Kachel in Einheiten, egal wie groß der Körper ist – ideal für Wände und Straßen aus gestreckten Würfeln). **`relief`** ist ein zweites Bild mit der Oberflächenform: Rot und Grün = Normale (wie „Normal Map“ im OpenGL-Format), Blau = Rauheit. Kachelung und Relief brauchen Bilddateien (`Bildchen.laden`) mit quadratischer Zweierpotenz-Kante (256, 512, 1024 …); `scripts/texturen-neon.js` zeigt, wie man aus Fototexturen (Farbe, Normale, Rauheit/AO) passende Bilder macht." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Material","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"2b3ffec0a126b97f","paket":"273597b306a45fa9"},
+                {"art":"bild","bildnummer":4,"szene":"c4b6b08a8f03f2c1","paket":"b72a009bd7cd9790"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Material\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#101426\", \"#3a3050\");",
+                "herd.umgebung(\"#8090c0\", staerke: 0.2);",
+                "herd.sonne().licht().setzeStaerke(0.2);",
+                "herd.kamera().setzeLage(0, 1.2, 6).schaueAuf(0, 0.3, 0);",
+                "Belag nass = herd.raum().mit(neu Belag(farbe: \"#5a5a66\", glanz: 0.5, modell: \"pbr\", nass: 0.8));",
+                "Belag chrom = herd.raum().mit(neu Belag(farbe: \"#d8dce4\", glanz: 0.85, modell: \"pbr\", metall: 1));",
+                "herd.koerper(Form.ebene()).setzeGroesse(20, 1, 20).koerper().setzeBelag(nass.teil());",
+                "herd.koerper(Form.kugel(), 0, 0.6, 0).setzeGroesse(1.2).koerper().setzeBelag(chrom.teil());",
+                "herd.licht(-1.5, 0.5, 1, farbe: \"#ff3df0\", reichweite: 5).licht().setzeStaerke(3);",
+                "herd.licht(1.5, 0.5, 1, farbe: \"#22e6ff\", reichweite: 5).licht().setzeStaerke(3);",
+                "herd.backe(() -> { chrom.setzeGlanz(chrom.glanz() - 0.05); });",
+                "Bote.sage((nass.modell() + \" \" + nass.nass() + \" \" + chrom.metall()));"
+              )
+            },
+            { art: "ausgabe", text: z("pbr 0.8 1") },
+            { art: "text", md: "Ein ganzes Beispiel ist **Neon-Napoli** unter *Beispiele → Herd*: Fototexturen für Asphalt, Beton, Ziegel, Fliesen, Wellblech und Rolltore, alle mit Relief, nass und in Weltmaß gekachelt." }
           ]
         },
         {

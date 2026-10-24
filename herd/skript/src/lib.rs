@@ -483,7 +483,8 @@ fn rechne(a: &Ausdruck, v: &BTreeMap<String, f64>, z: usize) -> Result<f64, Stri
 /// Pixel des Musters `m` an (x, y) in einem Bild `b × h` – nur Ganzzahlen, gleich in `skript.js` (`musterPixel`).
 /// 1 Schachbrett (4-px-Felder, Gitter alle 32 px, je Viertel eigene Farben), 2 Pizza (rund, Rand halb durchsichtig, außen
 /// durchsichtig), 3 Rahmen (Ecken gestreift, Kanten mit Goldband, Mitte fein kariert), 4 Zonenplatte (Ringe bis 3 px Periode),
-/// sonst weiß.
+/// 5 Himmelsseite, 6 Relief „Noppen“ (Normale x, y in R, G; Rauheit in B, in Bändern je 32 Zeilen), 7 Steinplatten (64-px-Felder
+/// mit Fugen, Grau je Feld) – 6 und 7 kachelbar bei Vielfachen von 32 bzw. 64; sonst weiß.
 pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
     let dx = 2 * x + 1 - b;
     let dy = 2 * y + 1 - h;
@@ -574,6 +575,28 @@ pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
                 return if y == fern { [74, 66, 116, 170] } else { [74, 66, 116, 255] };
             }
             [0, 0, 0, 0]
+        }
+        // Relief (Material-Zusatz): Halbkugel-Noppen je 32-px-Feld, Normale (ex, −ey, nz)/r auf 0 … 255, Rauheit in Bändern
+        6 => {
+            let ex = 2 * (x % 32) + 1 - 32;
+            let ey = 2 * (y % 32) + 1 - 32;
+            let r = 26;
+            let rauh = (30 + (y / 32 % 8) * 28) as u8;
+            let d2 = ex * ex + ey * ey;
+            if d2 >= r * r {
+                return [128, 128, rauh, 255];
+            }
+            // z ergibt der Shader aus x, y (√(1 − x² − y²))
+            [((ex + r) * 255 / (2 * r)) as u8, ((r - ey) * 255 / (2 * r)) as u8, (rauh / 2), 255]
+        }
+        // Steinplatten: Fugen 3 px dunkel, Plattengrau je Feld
+        7 => {
+            let (lx, ly) = (x % 64, y % 64);
+            if lx < 3 || ly < 3 {
+                return [52, 50, 48, 255];
+            }
+            let g = (118 + ((x / 64) * 7 + (y / 64) * 13) % 5 * 14) as u8;
+            [g, g - 4, g - 10, 255]
         }
         _ => [255, 255, 255, 255],
     }

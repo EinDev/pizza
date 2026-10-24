@@ -156,6 +156,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             wirft: sc[z] != 0.0,
             min,
             max,
+            zusatz: [0; 4],
         });
     }
 }

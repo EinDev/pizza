@@ -66,6 +66,8 @@ const LAEUFE = [
   ['lichter.herd', { N: 1024, TAKTE: 3 }],
   ['stimmung.herd', {}],
   ['stimmung.herd', { N: 2000 }],
+  ['material.herd', {}],
+  ['material.herd', { N: 1000 }],
 ];
 
 const args = process.argv.slice(2);

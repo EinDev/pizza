@@ -261,6 +261,18 @@ function musterPixel(m, x, y, b, h) {
     if (y >= fern) return y === fern ? [74, 66, 116, 170] : [74, 66, 116, 255];
     return [0, 0, 0, 0];
   }
+  if (m === 6) {
+    const ex = 2 * (x % 32) + 1 - 32, ey = 2 * (y % 32) + 1 - 32, r = 26;
+    const rauh = 30 + (d(y, 32) % 8) * 28;
+    if (ex * ex + ey * ey >= r * r) return [128, 128, rauh, 255];
+    return [d((ex + r) * 255, 2 * r), d((r - ey) * 255, 2 * r), d(rauh, 2), 255];
+  }
+  if (m === 7) {
+    const lx = x % 64, ly = y % 64;
+    if (lx < 3 || ly < 3) return [52, 50, 48, 255];
+    const g = 118 + ((d(x, 64) * 7 + d(y, 64) * 13) % 5) * 14;
+    return [g, g - 4, g - 10, 255];
+  }
   return [255, 255, 255, 255];
 }
 
