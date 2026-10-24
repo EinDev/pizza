@@ -3461,3 +3461,264 @@ mod hk10 {
         assert_eq!(lauf(true), lauf(false));
     }
 }
+
+/// H-K9: `Kulisse` – Szenenwechsel als Teilbäume, die man an- und ausschaltet.
+mod hk9 {
+    use super::*;
+    use crate::abi::szenen_hash;
+    use crate::komponenten::Art;
+    use crate::welt::Welt;
+
+    /// 2D-Teil bei (x, y) mit Kreis (Radius 10) und Bewegung tempoX = 60
+    fn laeufer(k: &mut Kern, x: f64, y: f64) -> i32 {
+        let (kr, bw) = (typ(k, "Kreis"), typ(k, "Bewegung"));
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let c = k.komp_neu(kr);
+        let fr = feld(k, kr, "radius");
+        k.setze_zahl(c, fr, 10.0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let b = k.komp_neu(bw);
+        let ft = feld(k, bw, "tempoX");
+        k.setze_zahl(b, ft, 60.0);
+        assert_eq!(k.komp_haenge(b, t), 0);
+        t
+    }
+    /// Kulisse an `t` mit `aktiv`
+    fn kulisse(k: &mut Kern, t: i32, aktiv: bool) -> i32 {
+        let ku = typ(k, "Kulisse");
+        let c = k.komp_neu(ku);
+        let fa = feld(k, ku, "aktiv");
+        assert_eq!(k.setze_zahl(c, fa, if aktiv { 1.0 } else { 0.0 }), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        c
+    }
+    fn setze_aktiv(k: &mut Kern, c: i32, aktiv: bool) {
+        let ku = typ(k, "Kulisse");
+        let fa = feld(k, ku, "aktiv");
+        assert_eq!(k.setze_zahl(c, fa, if aktiv { 1.0 } else { 0.0 }), 0);
+    }
+    fn x(k: &mut Kern, t: i32) -> f64 {
+        k.teil_hole(t, tf::X)
+    }
+
+    #[test]
+    fn schema_ohne_system() {
+        let mut k = welt();
+        let ku = typ(&mut k, "Kulisse");
+        let a = &ARTEN[ku as usize - 1];
+        assert_eq!(a.schema.name, "Kulisse");
+        assert!(a.takt.is_none() && a.nachlauf.is_none() && a.bild.is_none() && a.huelle.is_none());
+        assert!(a.ruhe.is_some() && !a.kopie_ohne);
+        let c = k.komp_neu(ku);
+        let (fa, fname) = (feld(&mut k, ku, "aktiv"), feld(&mut k, ku, "name"));
+        assert_eq!(k.hole_zahl(c, fa), 1.0);
+        assert_eq!(text(&mut k, c, fname), "");
+        // diavolo: nur 0/1
+        assert!(k.setze_zahl(c, fa, 2.0) < 0);
+        // beide Räume
+        let d = k.teil_neu(3);
+        assert_eq!(k.komp_haenge(c, d), 0);
+        // höchstens eine je Teil
+        let c2 = k.komp_neu(ku);
+        assert!(k.komp_haenge(c2, d) < 0);
+    }
+
+    #[test]
+    fn aus_ruht_samt_kindern_an_weckt() {
+        let mut k = welt();
+        let menue = laeufer(&mut k, 100.0, 100.0);
+        let kind = laeufer(&mut k, 0.0, 30.0);
+        assert_eq!(k.teil_haenge(kind, menue), 0);
+        let wand = laeufer(&mut k, 105.0, 100.0);
+        let km = kulisse(&mut k, menue, true);
+        // aktiv: wie ohne Kulisse
+        assert_eq!(k.teil_trifft(menue, wand), 1);
+        k.takt();
+        assert_eq!(x(&mut k, menue), 101.0);
+        assert_eq!(x(&mut k, kind), 1.0);
+        k.bild(1);
+        assert_eq!(instanzen_2d(&k).len(), 3);
+        // aus: ruht samt Kind, unsichtbar, trifft nein; das eigene Feld sichtbar bleibt ja
+        setze_aktiv(&mut k, km, false);
+        assert_eq!(k.teil_trifft(menue, wand), 0);
+        k.takt();
+        assert_eq!(x(&mut k, menue), 101.0);
+        assert_eq!(x(&mut k, kind), 1.0);
+        assert_eq!(x(&mut k, wand), 107.0);
+        k.bild(2);
+        assert_eq!(instanzen_2d(&k).len(), 1);
+        assert_eq!(k.teil_hole(menue, tf::SICHTBAR), 1.0);
+        // wieder an: sofort wach
+        setze_aktiv(&mut k, km, true);
+        assert_eq!(k.teil_trifft(menue, wand), 1);
+        k.takt();
+        assert_eq!(x(&mut k, menue), 102.0);
+        assert_eq!(x(&mut k, kind), 2.0);
+        // ohne("Kulisse") weckt ebenfalls; eine ausgeschaltete Kulisse anhängen lässt ruhen
+        setze_aktiv(&mut k, km, false);
+        assert_eq!(k.komp_loese(km), 0);
+        k.takt();
+        assert_eq!(x(&mut k, menue), 103.0);
+        assert_eq!(k.komp_haenge(km, menue), 0);
+        k.takt();
+        assert_eq!(x(&mut k, menue), 103.0);
+        // ein Teil in eine ausgeschaltete Kulisse hängen → ruht; lösen → wach
+        assert_eq!(k.teil_haenge(wand, menue), 0);
+        let wx = x(&mut k, wand);
+        k.takt();
+        assert_eq!(x(&mut k, wand), wx);
+        assert_eq!(k.teil_haenge(wand, 0), 0);
+        k.takt();
+        assert_eq!(x(&mut k, wand), wx + 1.0);
+        // Entladen: entferne nimmt den ganzen Teilbaum mit
+        assert_eq!(k.teil_entferne(menue), 0);
+        assert_eq!(k.teil_hole(kind, tf::ENTFERNT), 1.0);
+    }
+
+    #[test]
+    fn verschachtelt_und_additiv() {
+        let mut k = welt();
+        let spiel = k.teil_neu(2);
+        let ks = kulisse(&mut k, spiel, true);
+        let a = laeufer(&mut k, 0.0, 0.0);
+        assert_eq!(k.teil_haenge(a, spiel), 0);
+        // innere Kulisse aus in aktiver äußerer: nur der innere Teilbaum ruht
+        let innen = laeufer(&mut k, 0.0, 0.0);
+        assert_eq!(k.teil_haenge(innen, spiel), 0);
+        let ki = kulisse(&mut k, innen, false);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, innen)), (1.0, 0.0));
+        // äußere aus überstimmt die innere an
+        setze_aktiv(&mut k, ki, true);
+        setze_aktiv(&mut k, ks, false);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, innen)), (1.0, 0.0));
+        // beide an
+        setze_aktiv(&mut k, ks, true);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, innen)), (2.0, 1.0));
+        // additiv: zweite Kulisse daneben (Pause über dem Spiel); das Spiel ruht, die Pause läuft
+        let pause = laeufer(&mut k, 0.0, 0.0);
+        let kp = kulisse(&mut k, pause, true);
+        setze_aktiv(&mut k, ks, false);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, pause)), (2.0, 1.0));
+        setze_aktiv(&mut k, kp, false);
+        setze_aktiv(&mut k, ks, true);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, pause)), (3.0, 1.0));
+    }
+
+    #[test]
+    fn kopie_behaelt_kulisse() {
+        let mut k = welt();
+        let ku = typ(&mut k, "Kulisse");
+        let fa = feld(&mut k, ku, "aktiv");
+        let a = laeufer(&mut k, 0.0, 0.0);
+        let c = kulisse(&mut k, a, false);
+        let b = k.teil_kopie(a);
+        let cb = k.komp_von(b, ku);
+        assert!(cb > 0 && cb != c);
+        assert_eq!(k.hole_zahl(cb, fa), 0.0);
+        k.takt();
+        assert_eq!(x(&mut k, b), 0.0, "Kopie einer ausgeschalteten Kulisse ruht");
+        setze_aktiv(&mut k, cb, true);
+        k.takt();
+        assert_eq!((x(&mut k, a), x(&mut k, b)), (0.0, 1.0), "jede Kopie schaltet für sich");
+    }
+
+    /// Kamera, Licht und Blick in einer ausgeschalteten Kulisse zählen nicht.
+    #[test]
+    fn kamera_licht_blick_nur_aktiv() {
+        let (kam, li) = {
+            let mut k = welt();
+            (typ(&mut k, "Kamera"), typ(&mut k, "Licht"))
+        };
+        let spiel_kamera = |k: &mut Kern| {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, 4.0, 3.0, 9.0);
+            let c = k.komp_neu(kam);
+            assert_eq!(k.komp_haenge(c, t), 0);
+            t
+        };
+        // 3D: Standard-Kamera (Teil 1) in einer ausgeschalteten Kulisse → es zeichnet die wache Kamera des Spiels
+        let mut ohne = welt();
+        let c1 = ohne.komp_von(1, kam);
+        assert_eq!(ohne.komp_loese(c1), 0);
+        spiel_kamera(&mut ohne);
+        ohne.bild(1);
+        ohne.bild(2);
+        let soll: Vec<u8> = ohne.paket().to_vec();
+        let mut mit = welt();
+        let titel = kulisse(&mut mit, 1, true);
+        spiel_kamera(&mut mit);
+        mit.bild(1);
+        mit.bild(2);
+        assert_ne!(mit.paket(), &soll[..], "aktive Titel-Kamera (kleinste ID) zeichnet");
+        setze_aktiv(&mut mit, titel, false);
+        mit.bild(2);
+        assert_eq!(mit.paket(), &soll[..], "ausgeschaltete Titel-Kamera zählt nicht");
+        // Punktlicht in einer ausgeschalteten Kulisse: Bild wie ohne Licht
+        let mut k = welt();
+        k.bild(1);
+        k.bild(2);
+        let ohne_licht: Vec<u8> = k.paket().to_vec();
+        let t = k.teil_neu(3);
+        k.teil_lage(t, 0.0, 2.0, 0.0);
+        let l = k.komp_neu(li);
+        assert_eq!(k.komp_haenge(l, t), 0);
+        let kl = kulisse(&mut k, t, true);
+        k.bild(2);
+        assert_ne!(k.paket(), &ohne_licht[..], "aktives Licht leuchtet");
+        setze_aktiv(&mut k, kl, false);
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne_licht[..], "ausgeschaltetes Licht zählt nicht");
+        // 2D-Blick in einer ausgeschalteten Kulisse: Bild wie ohne Blick
+        let mut k = welt();
+        let bl = typ(&mut k, "Blick");
+        laeufer(&mut k, 100.0, 100.0);
+        k.bild(1);
+        k.bild(2);
+        let ohne_blick: Vec<u8> = k.paket().to_vec();
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 500.0, 300.0, 0.0);
+        let b = k.komp_neu(bl);
+        let f_zoom = feld(&mut k, bl, "zoom");
+        k.setze_zahl(b, f_zoom, 3.0);
+        assert_eq!(k.komp_haenge(b, t), 0);
+        let kb = kulisse(&mut k, t, false);
+        k.bild(2);
+        assert_eq!(k.paket(), &ohne_blick[..], "ausgeschalteter Blick: Bild wie ohne Blick");
+        setze_aktiv(&mut k, kb, true);
+        k.bild(2);
+        assert_ne!(k.paket(), &ohne_blick[..], "eingeschalteter Blick gilt");
+    }
+
+    /// Szenen-Hash einer Welt ohne Kulisse ist gleich, ob die Registry Kulisse kennt oder nicht.
+    #[test]
+    fn hash_ohne_kulisse_unveraendert() {
+        fn baue(arten: &'static [&'static Art]) -> u64 {
+            let mut w = Welt::neu(640, 360, String::from("H"), arten);
+            let (kr, bw, pt) = (w.art_index("Kreis").unwrap(), w.art_index("Bewegung").unwrap(), w.art_index("Partikel").unwrap());
+            let a = w.teil_neu(false);
+            let b = w.teil_neu(false);
+            w.haenge(b, a).unwrap();
+            for (art, t) in [(kr, a), (bw, a), (pt, b), (kr, b)] {
+                let h = w.komp_neu(art);
+                w.komp_haenge(h, t).unwrap();
+            }
+            let z = w.komp_zeile(w.zeile_opt(a).unwrap(), bw).unwrap();
+            w.speicher[bw].zahl_mut(crate::komponenten::bewegung::TEMPO_X)[z] = 30.0;
+            let c = w.kopie(a).unwrap();
+            w.lage_setzen(c, 5.0, 6.0, 0.0);
+            for _ in 0..20 {
+                w.takt();
+            }
+            szenen_hash(&mut w)
+        }
+        let ohne: &'static [&'static Art] = Box::leak(ARTEN.iter().copied().filter(|a| a.schema.name != "Kulisse").collect::<Vec<_>>().into_boxed_slice());
+        assert_eq!(ohne.len() + 1, ARTEN.len());
+        assert_eq!(baue(ARTEN), baue(ohne));
+    }
+}

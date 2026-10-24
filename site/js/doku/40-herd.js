@@ -297,7 +297,8 @@
                 ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"],
                 ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"],
                 ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
-                ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"]
+                ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
+                ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -888,6 +889,50 @@
             },
             { art: "ausgabe", text: z("Fliesen(3) 50 Kacheln, Kiste bei y = 140, amBoden ja") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Hüpfwelt** unter *Beispiele → Herd*: Der Pizzabote springt durch einen Keller aus Kacheln, sammelt Pizzen und bringt sie zur Tür; der Blick folgt ihm an der Leine." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Kulisse: Titelbild, Spiel, Pause – Szenen wechseln",
+          inhalt: [
+            { art: "text", md: "Eine **`Kulisse`** fasst einen Teilbaum zu einer Szene zusammen – ein Titelbild, ein Level, ein Pausenmenü. Alles, was an dem Teil mit der Kulisse hängt, gehört dazu. Mit **`aktiv: nein`** **ruht** die ganze Kulisse wie eine `Vorlage`: keine Bewegung, keine Animation, keine Fühler oder Physik, nichts wird gezeichnet, und eine `Kamera`, ein `Blick` oder ein `Licht` darin zählt nicht. Gewechselt wird mit `setzeAktiv`: `titel.kulisse().setzeAktiv(nein); spiel.kulisse().setzeAktiv(ja);` – sofort, noch im selben Takt." },
+            { art: "text", md: "Mehrere Kulissen dürfen zugleich aktiv sein (eine Anzeige über Spiel und Pause), Kulissen dürfen ineinander stecken (eine ausgeschaltete äußere schaltet alle inneren mit aus). Werte wie Punkte und Lagen bleiben beim Ausschalten erhalten; zum **Entladen** entfernt man den Teilbaum mit `entferne()`. Die Welt-Einstellungen (Hintergrund, Himmel, Nebel) gelten für alle Kulissen. `kopie()` kopiert die Kulisse mit – samt `aktiv`. Szenen aus Dateien laden gibt es (noch) nicht: Man baut alle Kulissen im Programm und schaltet um." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Kulisse","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"07eaf5b77f0bab85","paket":"2a2c705443ae5419"},
+                {"art":"bild","bildnummer":8,"szene":"07eaf5b77f0bab85","paket":"d9ffcb1ab783cb02"},
+                {"art":"bild","bildnummer":12,"szene":"07eaf5b77f0bab85","paket":"47039e409ecd150e"},
+                {"art":"bild","bildnummer":16,"szene":"07eaf5b77f0bab85","paket":"18969988f287476a"},
+                {"art":"bild","bildnummer":20,"szene":"70d296bfc7b47604","paket":"8a3dc6830f7f0f68"},
+                {"art":"bild","bildnummer":24,"szene":"4fff338b835d7d68","paket":"3326c8f17756172c"},
+                {"art":"bild","bildnummer":28,"szene":"886a74307535e8cc","paket":"53c79f492ca85190"},
+                {"art":"bild","bildnummer":32,"szene":"45d2306d263f874b","paket":"f96434b11ca055a9"},
+                {"art":"bild","bildnummer":36,"szene":"21a99a84cd471935","paket":"2b7dc4f4caba96c5"},
+                {"art":"bild","bildnummer":40,"szene":"098d5ed4c8b2938f","paket":"c56716d6d1cd8721"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Kulisse\", breite: 320, hoehe: 180);",
+                "Teil titel = herd.gruppe();",
+                "titel.mit(neu Kulisse(name: \"Titel\"));",
+                "herd.text(\"Pizza!\", 160, 70, groesse: 32, ausrichtung: \"mitte\").haenge(titel);",
+                "Teil spiel = herd.gruppe();",
+                "spiel.mit(neu Kulisse(aktiv: nein, name: \"Spiel\"));",
+                "Teil ball = herd.kreis(20, 90, 12, farbe: \"tomate\");",
+                "ball.mit(neu Bewegung(tempoX: 60));",
+                "ball.haenge(spiel);",
+                "herd.backe(() -> {",
+                "  falls (herd.bildnummer() == 20) { titel.kulisse().setzeAktiv(nein); spiel.kulisse().setzeAktiv(ja); }",
+                "});",
+                "Bote.sage((spiel.kulisse().name() + \" aktiv: \" + spiel.kulisse().aktiv() + \", Ball x = \" + ball.x()));"
+              )
+            },
+            { art: "ausgabe", text: z("Spiel aktiv: ja, Ball x = 41") },
+            { art: "text", md: "Ein ganzes Beispiel sind die **Kulissen** unter *Beispiele → Herd*: Titelbild, Spiel mit Pause auf der Leertaste und eine Ende-Kulisse – ein Spiel, vier Szenen." }
           ]
         }
       ]

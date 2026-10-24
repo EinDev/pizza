@@ -1,0 +1,179 @@
+# H-K9 (HERD.md §12.4): Kulisse – Szenenwechsel als Teilbäume, die man an- und ausschaltet. Drei 2D-Kulissen (Titel, Spiel
+# mit N Läufern samt Partikeln, Fühlern und Wucht, Pause darüber), eine 3D-Kulisse mit eigener Kamera und eigenem Punktlicht;
+# Wechsel per setze_zahl aktiv, verschachtelt (innere aus in äußerer an, äußere aus überstimmt), additiv (Spiel + Pause),
+# Kopie einer Kulisse, Teil in eine ausgeschaltete Kulisse hängen und lösen, ohne/mit, Entladen per teil_entferne.
+vorgabe N 30
+vorgabe TAKTE 6
+welt_neu 640 360 "Kulisse"
+typ_nummer "Kulisse" -> T_KU
+typ_nummer "Kreis" -> T_K
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Text" -> T_T
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Partikel" -> T_P
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Wucht" -> T_W
+typ_nummer "Blick" -> T_B
+typ_nummer "Kamera" -> T_KA
+typ_nummer "Licht" -> T_L
+typ_nummer "Koerper" -> T_KO
+feld_nummer T_KU "aktiv" -> KU_A
+feld_nummer T_KU "name" -> KU_N
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_P "rate" -> P_RATE
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_W "schwerkraft" -> W_G
+feld_nummer T_B "zoom" -> B_ZOOM
+feld_nummer T_KO "form" -> KO_F
+feld_nummer T_T "inhalt" -> T_INH
+form_grund 1 0 0 -> WUERFEL
+# Fehler: diavolo nur 0/1
+komp_neu T_KU -> probe
+setze_zahl probe KU_A 2
+fehler_text
+# Titel (aktiv): Text und ein pulsierender Kreis
+teil_neu 2 -> titel
+komp_neu T_KU -> ku_t
+setze_text ku_t KU_N "Titel"
+komp_haenge ku_t titel
+teil_neu 2 -> schrift
+teil_lage schrift 320 120 0
+komp_neu T_T -> tx
+setze_text tx T_INH "Pizza!"
+komp_haenge tx schrift
+teil_haenge schrift titel
+teil_neu 2 -> punkt
+teil_lage punkt 100 200 0
+komp_neu T_K -> pk
+komp_haenge pk punkt
+komp_neu T_BEW -> pb
+setze_zahl pb BEW_X 40
+komp_haenge pb punkt
+teil_haenge punkt titel
+# Spiel (aus): Boden (fester Fühler), N Läufer mit Partikeln, Fühler und Wucht, eigener Blick
+teil_neu 2 -> spiel
+komp_neu T_KU -> ku_s
+setze_zahl ku_s KU_A 0
+setze_text ku_s KU_N "Spiel"
+komp_haenge ku_s spiel
+teil_neu 2 -> boden
+teil_lage boden 320 340 0
+komp_neu T_R -> br
+komp_haenge br boden
+teil_groesse boden 30 1 1
+komp_neu T_F -> bf
+setze_zahl bf F_AUS 0
+komp_haenge bf boden
+teil_haenge boden spiel
+wiederhole N i
+  teil_neu 2 -> l
+  teil_lage l (20 + (i * 53) % 600) (40 + (i * 17) % 200) 0
+  komp_neu T_K -> lk
+  setze_zahl lk K_R (6 + i % 5)
+  komp_haenge lk l
+  komp_neu T_P -> lp
+  setze_zahl lp P_RATE 20
+  komp_haenge lp l
+  komp_neu T_F -> lf
+  setze_zahl lf F_AUS 0
+  komp_haenge lf l
+  komp_neu T_W -> lw
+  setze_zahl lw W_G 900
+  komp_haenge lw l
+  teil_haenge l spiel
+ende
+teil_neu 2 -> kamera2d
+teil_lage kamera2d 320 200 0
+komp_neu T_B -> bl
+setze_zahl bl B_ZOOM 1.5
+komp_haenge bl kamera2d
+teil_haenge kamera2d spiel
+# Bonus (verschachtelt, aus) im Spiel
+teil_neu 2 -> bonus
+komp_neu T_KU -> ku_b
+setze_zahl ku_b KU_A 0
+komp_haenge ku_b bonus
+teil_neu 2 -> stern
+teil_lage stern 300 100 0
+komp_neu T_K -> sk
+komp_haenge sk stern
+komp_neu T_BEW -> sb
+setze_zahl sb BEW_X -30
+komp_haenge sb stern
+teil_haenge stern bonus
+teil_haenge bonus spiel
+# Pause (aus): halbdurchsichtige Tafel
+teil_neu 2 -> pause
+komp_neu T_KU -> ku_p
+setze_zahl ku_p KU_A 0
+komp_haenge ku_p pause
+teil_neu 2 -> tafel
+teil_lage tafel 320 180 0
+komp_neu T_R -> tr
+komp_haenge tr tafel
+teil_haenge tafel pause
+# 3D-Kulisse (aus) mit eigener Kamera, Punktlicht und Würfel
+teil_neu 3 -> welt3
+komp_neu T_KU -> ku_3
+setze_zahl ku_3 KU_A 0
+komp_haenge ku_3 welt3
+teil_neu 3 -> kam3
+teil_lage kam3 4 3 9
+komp_neu T_KA -> ka
+komp_haenge ka kam3
+teil_haenge kam3 welt3
+teil_neu 3 -> lampe
+teil_lage lampe 0 2 0
+komp_neu T_L -> la
+komp_haenge la lampe
+teil_haenge lampe welt3
+teil_neu 3 -> wuerfel
+komp_neu T_KO -> ko
+setze_zahl ko KO_F WUERFEL
+komp_haenge ko wuerfel
+teil_haenge wuerfel welt3
+# Titel läuft
+takte TAKTE
+teil_trifft punkt boden
+# Wechsel: Titel aus, Spiel an
+setze_zahl ku_t KU_A 0
+setze_zahl ku_s KU_A 1
+hole_zahl ku_s KU_A
+takte TAKTE
+# Bonus an (verschachtelt in aktivem Spiel)
+setze_zahl ku_b KU_A 1
+takte 3
+# Pause additiv: Spiel ruht, Pause zeigt sich
+setze_zahl ku_s KU_A 0
+setze_zahl ku_p KU_A 1
+takte 3
+teil_trifft stern boden
+# weiter
+setze_zahl ku_p KU_A 0
+setze_zahl ku_s KU_A 1
+takte TAKTE
+# 3D-Kulisse dazu: ihre Kamera und ihr Licht gelten nur, solange sie an ist
+setze_zahl ku_3 KU_A 1
+takte 2
+setze_zahl ku_3 KU_A 0
+takte 2
+# Kopie einer ausgeschalteten Kulisse ruht, für sich eingeschaltet läuft sie
+teil_kopie pause -> pause2
+komp_von pause2 T_KU -> ku_p2
+hole_zahl ku_p2 KU_A
+setze_zahl ku_p2 KU_A 1
+takte 2
+# Teil in die ausgeschaltete Titel-Kulisse hängen (ruht) und lösen
+teil_haenge stern titel
+takte 2
+teil_haenge stern bonus
+# ohne Kulisse: der Titel ist wieder wach; mit: ruht
+komp_loese ku_t
+takte 2
+komp_haenge ku_t titel
+takte 2
+# Entladen: das Spiel samt Läufern entfernen
+teil_entferne spiel
+teil_hole stern 14
+takte TAKTE

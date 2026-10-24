@@ -1,0 +1,36 @@
+// Herd §18.6 / HERD.md §12.4 H-K9: Kulisse – Szenenwechsel als Teilbäume. aktiv: nein → der Teilbaum ruht (keine
+// Systeme, nicht gezeichnet, trifft nein), setzeAktiv(ja) weckt ihn; verschachtelt, additiv, Kopie, Blick nur aktiv, entferne
+Herd herd = neu Herd("Kulisse", breite: 320, hoehe: 180);
+Teil titel = herd.gruppe();
+Kulisse kt = titel.mit(neu Kulisse(name: "Titel"));
+herd.text("Pizza!", 160, 60).haenge(titel);
+Teil spiel = herd.gruppe();
+spiel.mit(neu Kulisse(aktiv: nein, name: "Spiel"));
+Teil ball = herd.kreis(20, 90, 10, farbe: "tomate");
+ball.mit(neu Bewegung(tempoX: 60));
+ball.mit(neu Fuehler());
+ball.haenge(spiel);
+Teil bonus = herd.gruppe();
+bonus.mit(neu Kulisse(aktiv: nein));
+bonus.haenge(spiel);
+Teil stern = herd.kreis(200, 40, 6, farbe: "senf");
+stern.mit(neu Bewegung(tempoX: -60));
+stern.haenge(bonus);
+Teil sicht = herd.gruppe();
+sicht.mit(neu Blick(zoom: 2));
+sicht.haenge(spiel);
+Teil wand = herd.rechteck(20, 90, 10, 40, farbe: "kruste");
+Bote.sage((kt + " " + kt.name() + " " + kt.aktiv() + ", Spiel " + spiel.kulisse().aktiv() + ", sichtbar " + ball.sichtbar()));
+Bote.sage(("trifft im Spiel aus: " + ball.trifft(wand)));
+herd.backe(() -> {
+  falls (herd.bildnummer() == 8) { titel.kulisse().setzeAktiv(nein); spiel.kulisse().setzeAktiv(ja); }
+  falls (herd.bildnummer() == 16) { bonus.kulisse().setzeAktiv(ja); }
+  falls (herd.bildnummer() == 20) { spiel.kulisse().setzeAktiv(nein); }
+  falls (herd.bildnummer() == 24) { spiel.kulisse().setzeAktiv(ja); }
+});
+Bote.sage(("Ball x = " + Mathe.runden(ball.x()) + ", Stern x = " + Mathe.runden(stern.x()) + ", trifft: " + ball.trifft(wand)));
+Teil zweit = spiel.kopie();
+Bote.sage(("Kopie hat Kulisse: " + (zweit.kulisse() != karton) + ", aktiv " + zweit.kulisse().aktiv()));
+spiel.entferne();
+Bote.sage(("entladen: " + spiel.entfernt() + " " + ball.entfernt() + " " + stern.entfernt()));
+probier { titel.mit(neu Kulisse()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

@@ -210,6 +210,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Fliesen", "Wucht", "Blick", "Leine", "Spiel"],
       "herd": true
+    },
+    {
+      "id": "kulissen",
+      "titel": "Kulissen: Titel, Spiel, Pause, Ende",
+      "beschreibung": "Ein kleines Spiel mit vier Kulissen: Das Titelbild wartet auf die Leertaste, im Spiel fängt der Pizzaschieber fallende Zutaten, die Leertaste schaltet auf die Pause und zurück, nach zehn Sekunden kommt die Ende-Kulisse. Ausgeschaltete Kulissen ruhen samt allen Teilen – nichts fällt, nichts wird gezeichnet.",
+      "datei": "herd/kulissen.pizza",
+      "erwartet": "herd/kulissen.erwartet",
+      "ereignisse": "herd/kulissen.ereignisse",
+      "herdErwartet": "herd/kulissen.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Kulisse", "Szenenwechsel", "Pause"],
+      "herd": true
     }
   ]
 }

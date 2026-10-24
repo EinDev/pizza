@@ -1,0 +1,110 @@
+// Kulissen: Titelbild → Leertaste → Spiel → Ende. Im Spiel fängt der Pizzaschieber (Pfeiltasten) fallende Zutaten;
+// die Leertaste schaltet auf die Pause-Kulisse und zurück. Nach 10 Sekunden Spielzeit erscheint die Ende-Kulisse,
+// die Leertaste führt zurück zum Titel.
+// Zeigt: Kulisse (aktiv: nein → der ganze Teilbaum ruht – keine Bewegung, keine Fühler, unsichtbar), Wechsel per
+// setzeAktiv, zwei Kulissen zugleich (die Anzeige oben bleibt in Spiel und Pause an), der Hintergrund bleibt global.
+
+Herd herd = neu Herd("Kulissen", breite: 640, hoehe: 360);
+herd.hintergrund("mozzarella");
+
+// --- Titel
+Teil titel = herd.gruppe();
+titel.mit(neu Kulisse(name: "Titel"));
+Teil pizza = herd.kreis(320, 150, 60, farbe: "teig");
+pizza.haenge(titel);
+herd.kreis(0, 0, 50, farbe: "tomate").haenge(pizza);
+herd.kreis(-20, -15, 10, farbe: "mozzarella").haenge(pizza);
+herd.kreis(22, 8, 10, farbe: "mozzarella").haenge(pizza);
+herd.kreis(-5, 25, 10, farbe: "mozzarella").haenge(pizza);
+herd.kreis(10, -28, 6, farbe: "basilikum").haenge(pizza);
+pizza.mit(neu Bewegung(drehtempo: 45));
+herd.text("Zutatenregen", 320, 40, groesse: 32, farbe: "ofen", ausrichtung: "mitte").haenge(titel);
+herd.text("Leertaste: Start", 320, 250, groesse: 18, farbe: "ofen", ausrichtung: "mitte").haenge(titel);
+
+// --- Spiel (zu Beginn aus)
+Teil spiel = herd.gruppe();
+spiel.mit(neu Kulisse(aktiv: nein, name: "Spiel"));
+herd.rechteck(320, 350, 640, 20, farbe: "kruste").haenge(spiel);
+Teil schieber = herd.rechteck(320, 320, 90, 14, farbe: "ofen", rundung: 6);
+schieber.mit(neu Fuehler());
+schieber.haenge(spiel);
+Blech<Teil> zutaten = [];
+Blech<margherita> farben = ["tomate", "salami", "basilikum", "senf", "aubergine"];
+für (salami i = 1; i <= 5; i++) {
+    Teil z = herd.kreis(i * 100, -40 * i, 12, farbe: farben.stück(i));
+    z.mit(neu Bewegung(tempoY: 90 + i * 15));
+    z.mit(neu Fuehler());
+    z.haenge(spiel);
+    zutaten.hinzu(z);
+}
+
+// --- Anzeige: läuft in Spiel und Pause mit (zweite aktive Kulisse)
+Teil leiste = herd.gruppe();
+leiste.mit(neu Kulisse(aktiv: nein, name: "Anzeige"));
+herd.rechteck(320, 16, 640, 32, farbe: "senf").haenge(leiste);
+Teil anzeige = herd.text("", 16, 6, groesse: 18, farbe: "ofen");
+anzeige.haenge(leiste);
+herd.text("Pfeiltasten: Schieber · Leertaste: Pause", 624, 8, groesse: 14, farbe: "ofen", ausrichtung: "rechts").haenge(leiste);
+
+// --- Pause
+Teil pause = herd.gruppe();
+pause.mit(neu Kulisse(aktiv: nein, name: "Pause"));
+herd.rechteck(320, 190, 360, 160, farbe: "ofen", rundung: 16).haenge(pause);
+herd.text("Pause", 320, 140, groesse: 36, farbe: "weiss", ausrichtung: "mitte").haenge(pause);
+herd.text("Leertaste: weiter", 320, 200, groesse: 18, farbe: "weiss", ausrichtung: "mitte").haenge(pause);
+
+// --- Ende
+Teil ende = herd.gruppe();
+ende.mit(neu Kulisse(aktiv: nein, name: "Ende"));
+herd.text("Feierabend!", 320, 110, groesse: 36, farbe: "tomate", ausrichtung: "mitte").haenge(ende);
+Teil ergebnis = herd.text("", 320, 170, groesse: 20, farbe: "ofen", ausrichtung: "mitte");
+ergebnis.haenge(ende);
+herd.text("Leertaste: zum Titel", 320, 230, groesse: 18, farbe: "ofen", ausrichtung: "mitte").haenge(ende);
+
+salami gefangen = 0;
+salami spielzeit = 0;
+salami runden = 0;
+
+leer zeige(Teil a, Teil b) {
+    für (Teil k : [titel, spiel, leiste, pause, ende]) { k.kulisse().setzeAktiv(k == a || k == b); }
+}
+leer neues_spiel() {
+    gefangen = 0;
+    spielzeit = 0;
+    schieber.setzeLage(320, 320);
+    für (salami i = 1; i <= zutaten.länge(); i++) { zutaten.stück(i).setzeLage(i * 100, -40 * i); }
+    zeige(spiel, leiste);
+}
+
+herd.backe(() -> {
+    diavolo leertaste = herd.gedrueckt("Leertaste");
+    falls (titel.kulisse().aktiv()) {
+        falls (leertaste) { neues_spiel(); }
+    } sonst falls (pause.kulisse().aktiv()) {
+        falls (leertaste) { zeige(spiel, leiste); }
+    } sonst falls (spiel.kulisse().aktiv()) {
+        falls (leertaste) {
+            zeige(pause, leiste);                     // das Spiel ruht: nichts fällt, nichts wird gefangen
+        } sonst {
+            spielzeit++;
+            falls (herd.taste("Links") && schieber.x() > 50) { schieber.verschiebe(-6, 0); }
+            falls (herd.taste("Rechts") && schieber.x() < 590) { schieber.verschiebe(6, 0); }
+            für (Teil z : schieber.fuehler().betreten()) {
+                gefangen++;
+                z.setzeLage(40 + (gefangen * 137) % 560, -20);
+            }
+            für (Teil z : zutaten) {
+                falls (z.y() > 380) { z.setzeLage(40 + ((z.id() + spielzeit) * 89) % 560, -20); }
+            }
+            falls (spielzeit >= 600) {
+                runden++;
+                ergebnis.text().setzeInhalt(("Du hast " + gefangen + " Zutaten gefangen."));
+                zeige(ende, karton);
+            }
+        }
+    } sonst falls (leertaste) {
+        zeige(titel, karton);
+    }
+    anzeige.text().setzeInhalt(("Gefangen: " + gefangen + " · noch " + Mathe.runden((600 - spielzeit) / 60) + " s"));
+});
+Bote.sage(("Runden: " + runden + ", zuletzt gefangen: " + gefangen + ", Titel aktiv: " + titel.kulisse().aktiv() + "."));
