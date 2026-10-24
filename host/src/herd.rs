@@ -76,16 +76,32 @@ struct MessWerte {
     instanzen_3d: u32,
 }
 
-/// `--herd-messung` (HERD.md §6): je Sekunde Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen auf stderr.
+/// So viele erste Bilder je Fenster beschreibt `--herd-messung` einzeln („Anlauf“, HERD.md §6).
+pub const ANLAUF_BILDER: u32 = 30;
+
+/// Anlauf eines Fensters: Zeitpunkt des `fenster`; je Bild die Programm-Zahlen (Takte, Programm, Kern) und die Glut-Zahlen
+/// (Zeitpunkt, Glut-Zeit). Programm-Thread und Renderer melden in beliebiger Reihenfolge; gedruckt wird Bild k, sobald beide
+/// Seiten es gemeldet haben.
+#[derive(Default)]
+struct Anlauf {
+    start: Option<Instant>,
+    programm: Vec<(u32, Duration, Duration)>,
+    glut: Vec<(Instant, Duration)>,
+    gedruckt: usize,
+}
+
+/// `--herd-messung` (HERD.md §6): je Sekunde Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen auf stderr; dazu je
+/// Fenster der **Anlauf** – Glut-Anlegen und die ersten [`ANLAUF_BILDER`] Bilder einzeln (Abstand, Takte, Programm/Kern/Glut).
 /// Programm-Thread und Renderer (Fenster-Hauptthread bzw. Offscreen im Programm-Thread) tragen bei; wer nach Ablauf
 /// einer Sekunde zuerst beiträgt, schreibt die Zeile.
 pub struct Messung {
     werte: Mutex<(MessWerte, Instant)>,
+    anlauf: Mutex<Anlauf>,
 }
 
 impl Default for Messung {
     fn default() -> Self {
-        Messung { werte: Mutex::new((MessWerte::default(), Instant::now())) }
+        Messung { werte: Mutex::new((MessWerte::default(), Instant::now())), anlauf: Mutex::new(Anlauf::default()) }
     }
 }
 
@@ -102,8 +118,26 @@ fn ms(d: Duration, n: u32) -> String {
 }
 
 impl Messung {
+    /// Renderer: ein Fenster beginnt (Anlauf von vorn).
+    pub fn fenster(&self) {
+        let mut a = self.anlauf.lock().unwrap_or_else(|e| e.into_inner());
+        *a = Anlauf { start: Some(Instant::now()), ..Default::default() };
+    }
+
+    /// Renderer: Glut angelegt (in `dauer`, inkl. Pipelines).
+    pub fn glut_bereit(&self, dauer: Duration) {
+        eprintln!("Herd-Anlauf: Glut angelegt in {} ms", ms(dauer, 1));
+    }
+
     /// Programm-Thread: ein Bild fertig (Takt angenommen → Bild gesendet), davon `kern` im Kern.
     pub fn programm(&self, takte: u32, gesamt: Duration, kern: Duration) {
+        {
+            let mut a = self.anlauf.lock().unwrap_or_else(|e| e.into_inner());
+            if a.programm.len() < ANLAUF_BILDER as usize {
+                a.programm.push((takte, gesamt.saturating_sub(kern), kern));
+                Messung::anlauf_drucken(&mut a);
+            }
+        }
         let mut g = self.werte.lock().unwrap_or_else(|e| e.into_inner());
         g.0.bilder += 1;
         g.0.takte += takte;
@@ -115,6 +149,13 @@ impl Messung {
 
     /// Renderer: ein Bild gezeichnet (Zeit in der Glut, Statistik).
     pub fn glut(&self, zeit: Duration, draw_calls: u32, instanzen_2d: u32, instanzen_3d: u32) {
+        {
+            let mut a = self.anlauf.lock().unwrap_or_else(|e| e.into_inner());
+            if a.glut.len() < ANLAUF_BILDER as usize {
+                a.glut.push((Instant::now(), zeit));
+                Messung::anlauf_drucken(&mut a);
+            }
+        }
         let mut g = self.werte.lock().unwrap_or_else(|e| e.into_inner());
         g.0.gezeichnet += 1;
         g.0.glut += zeit;
@@ -123,6 +164,31 @@ impl Messung {
         g.0.instanzen_3d = instanzen_3d;
         drop(g);
         self.melde_wenn_faellig();
+    }
+
+    /// Anlauf: die ersten [`ANLAUF_BILDER`] Bilder eines Fensters je eine Zeile, z. B.
+    /// `Herd-Anlauf: Bild 1 · 52,10 ms nach Fenster · Abstand 52,10 ms · 1 Takt · Programm 3,20 ms · Kern 1,10 ms · Glut 40,02 ms`
+    /// (Zeitpunkte = Ende des Zeichnens; Abstand = zum vorigen Bild, beim ersten zum `fenster`).
+    fn anlauf_drucken(a: &mut Anlauf) {
+        let start = *a.start.get_or_insert_with(Instant::now);
+        while a.gedruckt < a.programm.len().min(a.glut.len()) {
+            let k = a.gedruckt;
+            let (takte, programm, kern) = a.programm[k];
+            let (zeitpunkt, glut) = a.glut[k];
+            let vorher = if k == 0 { start } else { a.glut[k - 1].0 };
+            eprintln!(
+                "Herd-Anlauf: Bild {} · {} ms nach Fenster · Abstand {} ms · {} Takt{} · Programm {} ms · Kern {} ms · Glut {} ms",
+                k + 1,
+                ms(zeitpunkt.saturating_duration_since(start), 1),
+                ms(zeitpunkt.saturating_duration_since(vorher), 1),
+                takte,
+                if takte == 1 { "" } else { "e" },
+                ms(programm, 1),
+                ms(kern, 1),
+                ms(glut, 1)
+            );
+            a.gedruckt += 1;
+        }
     }
 
     /// Eine Zeile je Sekunde nach stderr.
@@ -572,12 +638,14 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
             (Some(k), true) => Some(k.paket()),
             _ => None,
         };
+        // Messung: die Anbindung zählt nicht zum Programm (offscreen zeichnet sie im Programm-Thread = Glut-Zeit)
+        let t_anbindung = Instant::now();
         if let Some(a) = h.anbindung.as_mut() {
             (a.0)(&art, &json, paket);
         }
         if art == "bild" {
             if let (Some(m), Some((t, takte))) = (h.messung.clone(), h.takt_seit.take()) {
-                m.programm(takte, t.elapsed(), h.kern_zeit);
+                m.programm(takte, t.elapsed().saturating_sub(t_anbindung.elapsed()), h.kern_zeit);
             }
         }
         Ok(())

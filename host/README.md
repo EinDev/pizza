@@ -221,9 +221,11 @@ Programme mit Importgruppe `herd` (Modul `herd` = Kern-Exporte, `pizza.herd_*`, 
   (Exit 2), `herd.*` trappen.
 - **Fenster (`src/herd_fenster.rs`, Feature `herd`, Standard):** Programm-Thread (wasmi + Kern, 16 MiB Stapel) ↔ Hauptthread
   (winit-Ereignisschleife + Glut `Ziel::Fenster`). Das Bildpaket geht als Nutzerereignis (`EventLoopProxy`) zum Hauptthread, wird
-  gezeichnet und präsentiert (vsync), **danach** fordert der Hauptthread den nächsten Takt an – wie `site/js/herd/zeichner.js`:
-  `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`, 60 Takte/s ab dem ersten, höchstens 4 nachgeholt (Rest
-  verfällt), schneller als 60 Hz → warten (`ControlFlow::WaitUntil`). Fenster erst beim ersten `fenster`-Ereignis; Größe = Spielfeld
+  gezeichnet und präsentiert (VSync, `PresentMode::Fifo`), **danach** fordert der Hauptthread den nächsten Takt an – wie
+  `site/js/herd/zeichner.js`: `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`, 60 Takte/s, höchstens 4 nachgeholt
+  (Rest verfällt), schneller als 60 Hz → warten (`ControlFlow::WaitUntil`). **Anlauf:** sichtbar wird das Fenster erst mit dem ersten
+  gezeichneten Bild, und erst dann beginnt die Takt-Uhr (halber Schritt versetzt, HERD.md §5) – das erste Bild holt nichts nach.
+  Fenster erst beim ersten `fenster`-Ereignis; Größe = Spielfeld
   (logische Pixel, bei Bedarf seitentreu auf 90 % des Bildschirms verkleinert), frei veränderbar, HiDPI über Gerätepixel; die Glut
   passt das Spielfeld seitentreu ein (Ränder = Hintergrund). Eingabe: Tastennamen wie `Tastatur` (K-110: `Leertaste`, `Links`, …,
   Zeichen wie getippt, keine Modifikatoren, keine Wiederholungen; Loslassen über die physische Taste), kurz gedrückte Tasten/Knöpfe
@@ -247,8 +249,11 @@ Programme mit Importgruppe `herd` (Modul `herd` = Kern-Exporte, `pizza.herd_*`, 
   Nummer aus `--herd-nur`, danach `geschlossen`. Mit `--ereignisse-json` kombinierbar.
 - **`--herd-messung`:** je Sekunde eine Zeile auf stderr, z. B.
   `Herd: 60 Bilder/s (60 Takte) · Bildzeit 16,67 ms · Programm 1,20 ms (7 %) · Kern 0,85 ms (5 %) · Glut 2,10 ms (13 %) · 4 Draw-Calls · 10000 Instanzen (2D 10000, 3D 0)`
-  – Programm = Zeit vom angenommenen Takt bis zum gesendeten Bild ohne Kern; Kern = `takt`, `bild`, Hashes; Glut = `glut.bild`
-  (Hauptthread bzw. offscreen); Draw-Calls/Instanzen des letzten Bildes.
+  – Programm = Zeit vom angenommenen Takt bis zum gesendeten Bild ohne Kern und ohne die Anbindung (offscreen zeichnet sie im
+  Programm-Thread); Kern = `takt`, `bild`, Hashes; Glut = `glut.bild` (Hauptthread bzw. offscreen); Draw-Calls/Instanzen des letzten
+  Bildes. Dazu je Fenster der **Anlauf**: `Herd-Anlauf: Glut angelegt in … ms` und für die ersten 30 Bilder je eine Zeile
+  `Herd-Anlauf: Bild 2 · 602,76 ms nach Fenster · Abstand 17,69 ms · 1 Takt · Programm 0,04 ms · Kern 0,04 ms · Glut 0,41 ms`.
+  Gemessen wird mit VSync (die Takt-Uhr begrenzt ohnehin auf 60 Bilder/s).
 - **EXE:** PE-Subsystem WINDOWS bei Gruppe `herd` (wie Theke; `karton.rs`, `site/js/exe.js`). **Linux:** der glibc-Starter führt
   Herd-Programme **selbst** aus (Features `starter,herd`; winit lädt X11/Wayland/xkbcommon, wgpu Vulkan/EGL/GL per `dlopen`); der
   Theke-Teil wird nur mit `theke` gebaut. `baue-ziele.sh` prüft per `readelf -d`, dass der Starter keine Fenster-/Grafikbibliothek

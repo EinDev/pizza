@@ -85,12 +85,15 @@ pub fn tastenname(key: &Key) -> Option<String> {
     }
 }
 
-/// Takt-Planung wie `taktAnfordern` in `site/js/herd/zeichner.js`: 60 Takte je Sekunde ab dem ersten Takt, ein Bild
-/// holt höchstens [`MAX_NACHHOLEN`] Takte nach (der Rest verfällt), schneller als 60 Hz → warten.
+/// Takt-Planung wie `taktAnfordern` in `site/js/herd/zeichner.js`: 60 Takte je Sekunde, ein Bild holt höchstens
+/// [`MAX_NACHHOLEN`] Takte nach (der Rest verfällt), schneller als 60 Hz → warten. **Anlauf:** die Uhr beginnt erst, wenn
+/// das erste Bild gezeigt ist ([`Taktgeber::erstes_bild`]) – das erste Bild (Programmstart, alle Ressourcen hochladen)
+/// holt nichts nach, Bild 2 folgt einen Schritt später.
 #[derive(Debug, Default)]
 pub struct Taktgeber {
     t0: Option<Instant>,
     gesendet: u64,
+    angesetzt: bool,
 }
 
 impl Taktgeber {
@@ -116,6 +119,16 @@ impl Taktgeber {
     /// Ab wann der nächste Takt fällig ist.
     pub fn faellig(&self) -> Option<Instant> {
         self.t0.map(|t0| t0 + SCHRITT * self.gesendet as u32)
+    }
+
+    /// Das erste Bild ist gezeigt: die Uhr beginnt jetzt (nur einmal je Fenster), um einen halben Schritt versetzt – die
+    /// folgenden Anforderungen (nach dem Präsentieren, also im Takt der Bildwiederholung) liegen dann mitten zwischen zwei
+    /// Takten statt auf der Grenze (sonst wechseln 0 und 2 Takte je Bild beim kleinsten Zittern).
+    pub fn erstes_bild(&mut self, jetzt: Instant) {
+        if !self.angesetzt && self.t0.is_some() {
+            self.t0 = Some(jetzt.checked_sub(SCHRITT / 2).unwrap_or(jetzt));
+            self.angesetzt = true;
+        }
     }
 
     pub fn zuruecksetzen(&mut self) {
@@ -253,8 +266,17 @@ pub fn offscreen(ordner: PathBuf, nur: Option<Vec<u64>>, messung: Option<Arc<Mes
             let b = json_feld_zahl(json, "breite").unwrap_or(640.0).clamp(1.0, 8192.0) as u32;
             let h = json_feld_zahl(json, "hoehe").unwrap_or(360.0).clamp(1.0, 8192.0) as u32;
             let opt = GlutOptionen { adapter: Adapter::Software, ..Default::default() };
+            if let Some(m) = &messung {
+                m.fenster();
+            }
+            let t = Instant::now();
             match Glut::neu(Ziel::Offscreen { breite: b, hoehe: h }, &opt) {
-                Ok(g) => glut = Some((g, b, h)),
+                Ok(g) => {
+                    if let Some(m) = &messung {
+                        m.glut_bereit(t.elapsed());
+                    }
+                    glut = Some((g, b, h))
+                }
                 Err(e) => {
                     gescheitert = true;
                     eprintln!("Herd-Bilder: keine Glut ({}) – es werden keine Bilder gespeichert.", e);
@@ -407,6 +429,7 @@ where
         paket: None,
         ausstehend: false,
         zu: false,
+        gezeigt: false,
     };
     if let Err(e) = el.run_app(&mut app) {
         return crate::anzeige::abbruch(crate::anzeige::HERD_FENSTER_FEHLGESCHLAGEN, Some(&e.to_string()), debug);
@@ -434,6 +457,8 @@ struct App {
     ausstehend: bool,
     /// `geschlossen` schon gesendet.
     zu: bool,
+    /// Erstes Bild des Fensters gezeichnet (Fenster sichtbar, Takt-Uhr läuft).
+    gezeigt: bool,
 }
 
 /// Abbruch: Meldung (ohne Terminal als Meldungsfenster, außer `PIZZA_KEIN_DIALOG`), Exit 2 – sofort, damit der
@@ -465,6 +490,10 @@ impl App {
         if nur_software() {
             opt.adapter = Adapter::Software;
         }
+        if let Some(m) = &self.messung {
+            m.fenster();
+        }
+        let t_glut = Instant::now();
         let glut = match Glut::neu(ziel(&fenster), &opt) {
             Ok(g) => g,
             // Keine (passende) GPU → Software-Rückfall (WARP/lavapipe), sonst Meldung + Exit 2.
@@ -476,10 +505,11 @@ impl App {
                 }
             }
         };
-        if !self.unsichtbar {
-            fenster.set_visible(true);
-            fenster.focus_window();
+        if let Some(m) = &self.messung {
+            m.glut_bereit(t_glut.elapsed());
         }
+        // sichtbar erst mit dem ersten Bild (`zeige`) – kein leeres Fenster, während Programm und Ressourcen anlaufen
+        self.gezeigt = false;
         self.glut = Some(glut);
         self.fenster = Some(fenster);
         self.takt.zuruecksetzen();
@@ -489,6 +519,19 @@ impl App {
         self.ausstehend = false;
         self.zu = false;
         self.takt_anfordern(el);
+    }
+
+    /// Nach dem ersten gezeichneten Bild: Fenster zeigen, die Takt-Uhr beginnt (Anlauf).
+    fn zeige(&mut self) {
+        if self.gezeigt {
+            return;
+        }
+        self.gezeigt = true;
+        self.takt.erstes_bild(Instant::now());
+        if let Some(f) = self.fenster.as_ref().filter(|_| !self.unsichtbar) {
+            f.set_visible(true);
+            f.focus_window();
+        }
     }
 
     fn schliesse(&mut self) {
@@ -563,6 +606,9 @@ impl ApplicationHandler<AnFenster> for App {
                 if self.fenster.is_some() {
                     self.paket = Some(p);
                     self.zeichne();
+                    if self.glut.is_some() {
+                        self.zeige();
+                    }
                     self.takt_anfordern(el);
                 }
             }
@@ -684,6 +730,25 @@ mod tests {
         // weit zurück: höchstens 4, Rest verfällt
         assert_eq!(t.anfordern(t0 + SCHRITT * 30), Some(4));
         assert_eq!(t.anfordern(t0 + SCHRITT * 31), Some(1));
+    }
+
+    #[test]
+    fn takt_anlauf_holt_nichts_nach() {
+        let mut t = Taktgeber::default();
+        let t0 = Instant::now();
+        assert_eq!(t.anfordern(t0), Some(1));
+        // das erste Bild braucht lange (Programmstart, Hochladen) – erst danach beginnt die Uhr
+        let gezeigt = t0 + Duration::from_millis(300);
+        t.erstes_bild(gezeigt);
+        assert_eq!(t.anfordern(gezeigt), None);
+        assert_eq!(t.faellig(), Some(gezeigt - SCHRITT / 2 + SCHRITT));
+        assert_eq!(t.anfordern(gezeigt + SCHRITT), Some(1));
+        // nur einmal je Fenster: später gilt die Nachholregel wieder
+        t.erstes_bild(gezeigt + SCHRITT * 10);
+        assert_eq!(t.anfordern(gezeigt + SCHRITT * 4), Some(3));
+        t.zuruecksetzen();
+        t.erstes_bild(t0); // ohne angeforderten Takt: nichts
+        assert_eq!(t.anfordern(t0 + SCHRITT), Some(1));
     }
 
     #[test]

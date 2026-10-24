@@ -243,3 +243,35 @@ Bitte nur starten, wenn kein Spiel läuft – beides nutzt die **echte GPU** (in
 2. **Echte Bildrate im Playground:** `npm --prefix e2e run server` (oder die laufende Seite), in Chrome die Programme aus
    `bench/herd/*.pizza` (H7) backen – die Statuszeile unten links im Vorschaufenster zeigt Schnittstelle, fps, Draw-Calls und
    Instanzen (Ziel HERD.md §6: 60 fps bei B1–B4).
+
+## Anlauf und VSync (erste Bilder, Pizza-Konfigurator)
+
+Nutzerbefund: die ersten Bilder des Pizza-Konfigurators (`site/beispiele/herd/konfigurator/`, viel Text, UI-Bausteine) ruckeln,
+„VSync scheint aus“. Ursachen (nativ und Browser gleich):
+
+1. Die Glut übersetzte ihre 9 Pipelines **erst im ersten `bild()`** (nativ FXC: ≈ 200 ms auf WARP; Browser ANGLE/SwiftShader ≈ 25 ms),
+   und die Takt-Uhr lief da schon – Bild 2 holte 2–4 Takte nach (sichtbarer Sprung, danach noch einmal).
+2. Die Uhr begann mit der ersten Anforderung, nicht mit dem ersten gezeigten Bild; Anforderungen fielen genau auf Taktgrenzen,
+   so dass Zittern im rAF zwischen 0 und 2 Takten je Bild wechselte.
+3. Nativ `PresentMode::AutoVsync`: unter Vulkan wählt das `FifoRelaxed` – verspätete Bilder (eben die ersten) reißen (Tearing).
+   Unter DX12 war es schon Fifo. Das Fenster wurde vor dem ersten Bild sichtbar (leer, bis Glut + Programm + Bild 1 fertig waren).
+
+Korrekturen: Pipelines beim Anlegen der Glut (vor dem ersten Takt); Uhr beginnt mit dem ersten gezeigten Bild (Browser: im rAF danach,
+wenn der Browser es wirklich gezeichnet hat), halber Schritt versetzt; nativ `PresentMode::Fifo` und Fenster erst nach dem ersten
+Bild sichtbar. Messung: `--herd-messung` (Zeilen `Herd-Anlauf: …`) bzw. E2E `HERD_MESSUNG=1` „Anlauf Pizza-Konfigurator“
+(`{typ:"anlauf"}` des Zeichners). Nie die echte GPU: nativ WARP im **unsichtbaren** Fenster (`PIZZA_KEIN_DIALOG=1`), Browser
+headless SwiftShader – Zahlen indikativ. i7-13700KF, 2026-10-25, je 2–4 Läufe:
+
+| Weg | Glut anlegen | Bild 1: Glut | Bild 2 | Bilder 2–30 mit nachgeholten Takten | größter Abstand Bild 2–30 |
+|---|---|---|---|---|---|
+| EXE-Fenster (WARP) vorher | 550–900 ms | 200–250 ms | **4 Takte** | 3–4 (je 4 Takte, Lücken ≈ 100 ms) | 105 ms; 29–37 Bilder/s in Sekunde 1–2 |
+| EXE-Fenster (WARP) nachher | 580–830 ms (inkl. ≈ 200 ms Pipelines) | 3 ms | 1 Takt | **0** | 18–31 ms; 60 Bilder/s ab Sekunde 1 |
+| offscreen `--herd-bilder` vorher / nachher | 530 / 650–770 ms | 341 / 27–34 ms | – | – | – |
+| Playground (SwiftShader) vorher | bereit nach 68–84 ms | 32–39 ms | Nr 3–4 (2–3 Takte) | 2 | 33–36 ms; Bildnummer 32–33 bei Bild 30 |
+| Playground (SwiftShader) nachher | bereit nach 113–177 ms | 8–13 ms | Nr 2 (1 Takt) | **0** | 40–59 ms (Browser zeigt Bild 1 noch); Bildnummer 30 bei Bild 30 |
+
+Bewertung: Die Simulation läuft nach dem ersten Bild gleichmäßig (Takt für Takt, keine Sprünge); die Kosten liegen jetzt vor dem
+ersten Bild (Glut anlegen), wo sie nicht als Ruckeln sichtbar sind. Die 100-ms-Lücken vorher im unsichtbaren WARP-Fenster
+verschwanden mit dem Warm-up ebenfalls (WARP übersetzte im Hintergrund nach). Auf einer echten GPU bitte prüfen
+(Nutzer): `target/release/pizza-host --herd-messung konfigurator.pkarton` – die `Herd-Anlauf`-Zeilen sollten ab Bild 2 Abstände um
+16,7 ms und je 1 Takt zeigen.

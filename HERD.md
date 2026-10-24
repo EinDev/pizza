@@ -162,6 +162,13 @@ Kern): `Taster` (Schaltfläche), `Leiste` (Füllbalken), `Regler` (Schieberegler
   `onUiWarte`/`uiEreignisse`, HOST-ABI `herd_warte`). `{"typ":"takt","anzahl":n,…}` → n-mal { Eingabe übernehmen (nur im ersten),
   `fn()`, Systeme }, dann **ein** Bildpaket an die Glut. Der Renderer verlangt den nächsten Takt erst nach dem Zeichnen; fällt er zurück,
   fasst er bis zu 4 Takte zusammen. Gleiche Ereignisse ⇒ bitgleich gleiches Spiel.
+- **Präsentation und Anlauf:** gezeichnet wird synchron zur Bildwiederholung (nativ `PresentMode::Fifo`, Browser
+  `requestAnimationFrame`), jeweils das neueste Bildpaket; die Simulation bleibt bei 60 Takten je Sekunde (bei 120/144 Hz zeigen
+  manche Bildwiederholungen dasselbe Bild). Die Takt-Uhr beginnt erst mit dem **ersten gezeigten Bild** (Browser: im rAF danach),
+  um einen halben Schritt versetzt (Anforderungen liegen mitten zwischen zwei Takten, nicht auf der Grenze) – Programmstart,
+  Hochladen aller Ressourcen und erstes Zeichnen holen also keine Takte nach. Die Glut übersetzt ihre Pipelines beim Anlegen
+  (vor dem ersten Takt), nativ wird das Fenster erst mit dem ersten Bild sichtbar. Die Uhr bestimmt nur, *wann* ein Takt kommt
+  und wie viele er zusammenfasst – das Spiel hängt allein von den Takt-Ereignissen ab.
 - **Eingabe als Zustand** je Takt (`tasten`, `maus`, `knoepfe` im `takt`-Ereignis; fehlende Felder unverändert): `taste` gehalten,
   `gedrueckt`/`losgelassen`/`klick` nur im ersten Takt eines Ereignisses. Tastennamen wie `Tastatur` (K-110). Ab H-K12 reicht jeder
   Motor Maus und Knöpfe je Takt vor `fn()` mit dem Kern-Export `eingabe` an den Kern (UI-Bausteine, `Blick.mausX`; K-151).
@@ -182,7 +189,11 @@ Korrektheits-Referenz, kein Leistungsziel):
 | B4 Partikel: 20 000 Teilchen aus 10 Emittern | 60 fps; Partikel-System ≤ 1,5 ms (EXE) |
 
 **Messung:** `bench/herd/*.pizza`; EXE mit `--herd-messung` (je Sekunde: Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen),
-Browser mit derselben Statistik in der Statusleiste und als E2E-Messlauf (echte GPU, unsichtbares Fenster). **Vorher/nachher:** Die erste
+Browser mit derselben Statistik in der Statusleiste und als E2E-Messlauf (echte GPU, unsichtbares Fenster). **Anlauf:**
+`--herd-messung` beschreibt zusätzlich Glut-Anlegen und die ersten 30 Bilder einzeln (`Herd-Anlauf: Bild n · … ms nach Fenster ·
+Abstand … · Takte · Programm/Kern/Glut`); im Browser meldet der Zeichner dasselbe einmal als `{typ:"anlauf"}` (E2E-Messlauf
+„Anlauf Pizza-Konfigurator“). Ungebremst (ohne VSync) braucht keine Messung zu laufen: die Takt-Uhr begrenzt ohnehin auf 60 Bilder/s,
+und `herd-bild bench` zeichnet offscreen. **Vorher/nachher:** Die erste
 lauffähige Glut zeichnet bewusst ohne Instancing/Atlas (ein Draw-Call je Objekt) = Grundlinie; danach Instancing, Atlas, Culling,
 Teilbaum-Matrizen – beide Messreihen in `bench/herd/ERGEBNISSE.md`.
 
@@ -194,7 +205,9 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
 
 ### 7.1 Nativ (K-130)
 - Programm-Thread: wasmi + Kern (Bibliothek); Hauptthread: winit-Ereignisschleife + Glut. Pro Bild wandert das Bildpaket über einen
-  Kanal; Takte werden im Hauptthread nach dem Präsentieren angefordert (vsync).
+  Kanal; Takte werden im Hauptthread nach dem Präsentieren angefordert (VSync = `PresentMode::Fifo`, nie Tearing – nicht
+  `AutoVsync`, das unter Vulkan `FifoRelaxed` wählt und gerade verspätete Bilder reißen lässt). Das Fenster wird erst nach dem ersten
+  gezeichneten Bild sichtbar; die Takt-Uhr beginnt dann (§5 „Anlauf“).
 - Fenster erst beim ersten `backe`; Größe = Spielfeld × Skalierung, frei veränderbar (seitentreu mit Rändern).
 - Kein Fenster/keine GPU möglich → Meldung + Exit 2 (wie K-096), ohne Terminal als Meldungsfenster. `PIZZA_HERD=0`, JSON-Modus und
   `--ui-ereignisse` sind fensterlos (W0104). Offscreen: `--herd-bilder=ordner [--herd-nur=n,m]` (PNG, Software-Adapter bevorzugt).
@@ -210,7 +223,8 @@ wenn B2 die Ziele verfehlt (dann als zusätzlicher Import `setze_zahlen(puffer)`
   Der Worker blockiert zwischen Takten auf SAB/Atomics – **deshalb wird dort nie gerendert**.
 - **Render-Worker** mit `OffscreenCanvas` (vom Vorschaufenster-Canvas übertragen) und der Glut (wgpu-Wasm, WebGPU bevorzugt, sonst
   WebGL2). Bildpakete gehen per `MessageChannel` (übertragene ArrayBuffer) direkt vom Programm- zum Render-Worker; der Render-Worker
-  zeichnet im `requestAnimationFrame` und schreibt den nächsten `takt` samt Eingabe in den SAB des Programm-Workers. Eingaben fängt die
+  zeichnet im `requestAnimationFrame` (= Bildwiederholrate, der Browser setzt immer VSync um) und schreibt den nächsten `takt` samt
+  Eingabe in den SAB des Programm-Workers. Eingaben fängt die
   Seite am Canvas und reicht den Zustand an den Render-Worker. **Rückfall:** ohne OffscreenCanvas/rAF im Worker läuft dieselbe Glut im
   Hauptthread.
 - Kein WebGPU und kein WebGL2 → Meldung, Lauf endet mit `geschlossen`. CSP: `script-src 'self' 'wasm-unsafe-eval'` genügt.

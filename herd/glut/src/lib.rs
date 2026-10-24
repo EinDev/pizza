@@ -457,7 +457,9 @@ impl Glut {
             format,
             width: breite.max(1),
             height: hoehe.max(1),
-            present_mode: if opt.vsync { wgpu::PresentMode::AutoVsync } else { wgpu::PresentMode::AutoNoVsync },
+            // VSync = Fifo (überall vorhanden, nie Tearing); nicht AutoVsync – das nimmt FifoRelaxed, wo es das gibt
+            // (Vulkan), und das reißt genau dann, wenn ein Bild zu spät kommt (z. B. die ersten Bilder)
+            present_mode: if opt.vsync { wgpu::PresentMode::Fifo } else { wgpu::PresentMode::AutoNoVsync },
             desired_maximum_frame_latency: 2,
             alpha_mode: alpha,
             view_formats: if ansicht_format != format { vec![ansicht_format] } else { vec![] },
@@ -640,7 +642,7 @@ impl Glut {
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
         let teilchen = Wachspuffer::neu(dev, "herd teilchen3d", wgpu::BufferUsages::VERTEX);
         let (mehrfach, tiefe) = Glut::mehrfach_ziele(dev, breite, hoehe, format, msaa);
-        Ok(Glut {
+        let mut glut = Glut {
             instance,
             adapter,
             device,
@@ -680,7 +682,11 @@ impl Glut {
             tiefe,
             stat: Statistik::default(),
             zuege: Vec::new(),
-        })
+        };
+        // Vorab (Warm-up): alle Pipelines fürs Zielformat jetzt übersetzen statt im ersten Bild – das kostet je nach
+        // Schnittstelle Dutzende bis Hunderte ms (FXC, ANGLE) und fiele sonst in den laufenden Takt (Nachholen, Ruckeln)
+        glut.pipelines(format);
+        Ok(glut)
     }
 
     fn tiefen_textur(dev: &wgpu::Device, name: &str, b: u32, h: u32, proben: u32) -> wgpu::TextureView {

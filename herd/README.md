@@ -413,7 +413,9 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   `HasWindowHandle + HasDisplayHandle + Debug + Send + Sync`, z. B. `winit::window::Window`). Größen in Gerätepixeln; das Spielfeld
   wird seitentreu eingepasst, Ränder in `hintergrund`.
 - **`Optionen`**: `adapter` (`Software` = Standard: WARP/lavapipe/llvmpipe; `Gpu` nur auf ausdrücklichen Wunsch), `msaa` (4, fällt
-  auf 1 zurück), `instancing` (`false` = Grundlinie, ein Draw-Call je Objekt), `vsync` (Fenster). `HERD_SOFTWARE=1` erzwingt
+  auf 1 zurück), `instancing` (`false` = Grundlinie, ein Draw-Call je Objekt), `vsync` (Fenster: `true` = `PresentMode::Fifo`,
+  nie Tearing; `false` = `AutoNoVsync`). `Glut::neu` übersetzt **alle Pipelines fürs Zielformat vorab** (Warm-up: FXC/ANGLE kosten
+  sonst im ersten Bild 30–350 ms und lassen die Takte nachholen). `HERD_SOFTWARE=1` erzwingt
   Software. Ohne Software-Adapter → `Fehler::KeinSoftwareAdapter` (kein Rückfall auf die GPU); geprüft wird `DeviceType::Cpu`.
   Hinweis: wgpu fragt beim Aufzählen unter DX12 die Fähigkeiten **aller** Adapter ab (kurzlebiges Gerät je Adapter, ohne
   Zeichnen) – über die öffentliche wgpu-API nicht vermeidbar.

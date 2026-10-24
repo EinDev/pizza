@@ -8,7 +8,9 @@
  *     breite/hoehe  Gerätepixel
  *     manuell  (nur E2E) keine Takte anfordern – die Seite schreibt sie selbst (window.__herdTakt), z. B. aus .ereignisse
  *     melde(n) Rückmeldung an die Seite: {typ:"bereit", schnittstelle, adapter} · {typ:"fehler", art, text} ·
- *              {typ:"statistik", fps, bild, drawCalls, instanzen, schnittstelle}
+ *              {typ:"statistik", fps, bild, drawCalls, instanzen, schnittstelle} ·
+ *              {typ:"anlauf", bereitMs, bilder:[{t, abstand, bild, ms}]} – einmal nach den ersten 30 Bildern (Messung wie
+ *              `--herd-messung` nativ: t/abstand ab dem Start bzw. vorigen Bild, bild = Bildnummer, ms = Zeit in g.bild)
  *   Zeichner: eingabe(ereignis) · groesse(b, h) · stopp()
  *
  * Takt-Weg (SAB, Int32): [0] Folgenummer (vom Zeichner hochgezählt, Programm-Worker wartet per Atomics.wait darauf),
@@ -17,11 +19,14 @@
  *   Es ist immer höchstens ein Takt ausstehend (der nächste wird erst nach dem Zeichnen des Bildes angefordert), deshalb
  *   überschreibt der Zeichner die Nachricht nie, während der Programm-Worker sie liest.
  * Nachholregel (HERD.md §5): anzahl = vergangene 1/60-s-Schritte seit dem letzten Takt, 1 … 4; was darüber liegt, verfällt.
+ * Anlauf: die Uhr beginnt erst im rAF nach dem ersten gezeichneten Bild – das erste Bild (Programmstart, alle Ressourcen,
+ * erstes Zeichnen) holt nichts nach. Gezeichnet wird nur im requestAnimationFrame (= Bildwiederholrate, VSync), jeweils das neueste Bildpaket.
  */
 (function (global) {
   "use strict";
   var SCHRITT_MS = 1000 / 60;
   var MAX_NACHHOLEN = 4;
+  var ANLAUF_BILDER = 30;
   var KOPF = 16;
   var KEIN_KONTEXT = "Dieser Browser kann weder WebGPU noch WebGL2 – der Herd braucht eines davon.";
   var glueBereit = null;
@@ -53,6 +58,8 @@
     var paket = null;            // empfangenes, noch nicht gezeichnetes Bildpaket (Uint8Array)
     var ausstehend = false;      // Takt angefordert, Bild noch nicht da
     var t0 = 0, gesendet = 0;    // Nachholrechnung: Takte seit t0
+    var angesetzt = false, ersterGezeichnet = false;   // Anlauf: erstes Bild gezeichnet, Uhr danach neu angesetzt
+    var tStart = jetzt(), anlauf = { typ: "anlauf", bereitMs: 0, bilder: [] }, tVorher = 0;
     var gehalten = new Set(), kurz = new Set(), maus = [0, 0], knoepfe = 0, knoepfeKurz = 0;
     var statT = jetzt(), statBilder = 0, letzteStat = null, letzteBildnr = 0;
     var raf = typeof global.requestAnimationFrame === "function" ? global.requestAnimationFrame.bind(global) : null;
@@ -97,13 +104,29 @@
     function schlag() {
       rafId = 0;
       if (aus) return;
+      var gezeichnet = !!paket;
       if (paket) {
         var p = paket;
         paket = null;
+        var tb = jetzt();
         try { g.bild(p); }
         catch (e) { fehler("zeichnen", "Der Herd konnte nicht zeichnen: " + (e && e.message ? e.message : String(e)), true); return; }
         letzteBildnr = p.length >= 12 ? new DataView(p.buffer, p.byteOffset, p.byteLength).getUint32(8, true) : letzteBildnr;
         statBilder++;
+        if (!angesetzt && t0 !== 0) ersterGezeichnet = true;
+        if (anlauf && anlauf.bilder.length < ANLAUF_BILDER) {
+          var te = jetzt();
+          anlauf.bilder.push({ t: te - tStart, abstand: te - (tVorher || tStart), bild: letzteBildnr, ms: te - tb });
+          tVorher = te;
+          if (anlauf.bilder.length === ANLAUF_BILDER) { melde(anlauf); anlauf = null; }
+        }
+      }
+      // Anlauf: die Uhr beginnt im rAF **nach** dem ersten Bild (erst dann hat der Browser es fertig gezeichnet – Shader,
+      // Hochladen) und ist um anderthalb Schritte versetzt: Takt 2 geht sofort hinaus, und die folgenden rAF-Zeitpunkte
+      // liegen mitten zwischen zwei Takten statt auf der Grenze (sonst wechseln 0 und 2 Takte je Bild beim kleinsten Zittern)
+      if (ersterGezeichnet && !angesetzt) {
+        if (gezeichnet) { plane(); return; }
+        t0 = jetzt() - 1.5 * SCHRITT_MS; angesetzt = true;
       }
       if (!o.manuell && !ausstehend && Atomics.load(ctrl, 1) === 0) taktAnfordern();
       var t = jetzt();
@@ -174,6 +197,7 @@
         g = glut;
         // erst jetzt zustellen lassen: vorher fordert niemand einen Takt an, also kommt auch kein Paket
         o.port.onmessage = empfange;
+        anlauf.bereitMs = jetzt() - tStart;
         melde({ typ: "bereit", schnittstelle: g.schnittstelle(), adapter: g.adapter(), msaa: g.msaa() });
         plane();
         return zeichner;

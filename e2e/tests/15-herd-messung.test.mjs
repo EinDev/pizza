@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { e2e } from "../hilfen.mjs";
+import { e2e, setzeCode, strg, warteLaufEnde, VORSCHAU_ZU } from "../hilfen.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const WURZEL = path.resolve(HIER, "..", "..");
@@ -78,4 +78,40 @@ e2e("Herd: Messlauf B1–B4 im Browser (SwiftShader, indikativ)", { timeout: 60_
     console.log(`  ${e.name}: ${e.schnittstelle} (${e.adapter}) – Glut je Bild Median ${e.glutMedian.toFixed(1)} ms (Ø ${e.glutSchnitt.toFixed(1)}), ` +
       `Kern (Takte + Bild) Median ${e.kernMedian.toFixed(2)} ms, Draw-Calls ${e.drawCalls}, Instanzen ${e.instanzen}, ${e.bilder} Bilder`);
   }
+});
+
+// Anlauf im Playground (HERD.md §6): der Pizza-Konfigurator (viel Text, UI-Bausteine) läuft wie beim Nutzer – Programm-Worker,
+// Render-Worker mit OffscreenCanvas, Takte vom Zeichner im rAF. Der Zeichner meldet nach 30 Bildern einmal {typ:"anlauf"}
+// (Start → bereit, je Bild Zeitpunkt, Abstand, Bildnummer, Zeit in g.bild); die Seite fängt es am Worker ab.
+e2e("Herd: Anlauf Pizza-Konfigurator im Playground (SwiftShader, indikativ)", {
+  timeout: 90_000, skip: !process.env.HERD_MESSUNG,
+  vorLaden: () => {
+    const W = window.Worker;
+    window.__herdAnlauf = null;
+    window.Worker = function (url, o) {
+      const w = new W(url, o);
+      w.addEventListener("message", (m) => { if (m.data && m.data.typ === "anlauf") window.__herdAnlauf = m.data; });
+      return w;
+    };
+    window.Worker.prototype = W.prototype;
+  },
+}, async ({ page, oeffne }) => {
+  await oeffne();
+  await setzeCode(page, fs.readFileSync(path.join(WURZEL, "site", "beispiele", "herd", "konfigurator", "hauptgang.pizza"), "utf8").replace(/\r\n/g, "\n"));
+  const t0 = Date.now();
+  await strg(page, "Enter");
+  await page.waitForFunction(() => window.__herdAnlauf, { timeout: 60_000, polling: 50 });
+  const dauer = Date.now() - t0;
+  const a = await page.evaluate(() => window.__herdAnlauf);
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+  const b = a.bilder;
+  const spaeter = b.slice(1);
+  const max = Math.max(...spaeter.map((x) => x.abstand));
+  const sprung = spaeter.filter((x, i) => x.bild - b[i].bild > 1).length;
+  const f = (x) => x.toFixed(1);
+  console.log(`  Start → bereit ${f(a.bereitMs)} ms; Bild 1 nach ${f(b[0].t)} ms (g.bild ${f(b[0].ms)} ms, Bildnummer ${b[0].bild}); ` +
+    `Bild 2–30: Abstand max ${f(max)} ms, Median ${f(spaeter.map((x) => x.abstand).sort((x, y) => x - y)[14])} ms, ` +
+    `${sprung} Bilder mit nachgeholten Takten; Bildnummer bei Bild 30: ${b[29].bild} (Lauf bis Anlauf-Meldung ${dauer} ms)`);
+  console.log("  " + b.slice(0, 8).map((x, i) => `B${i + 1}: +${f(x.abstand)} ms (Nr ${x.bild}, g.bild ${f(x.ms)})`).join(" · "));
 });
