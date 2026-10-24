@@ -129,7 +129,7 @@ FROM exe-${SKIP_EXE} AS exe
 # ---------------------------------------------------------------------------
 # Ausliefern – nur site/ über nginx (nicht-root, Port 8080)
 # ---------------------------------------------------------------------------
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24 AS runtime
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24 AS runtime
 
 LABEL org.opencontainers.image.title="pizza-playground" \
       org.opencontainers.image.description="Playground für die Programmiersprache pizza v3.1" \
