@@ -238,6 +238,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
+| 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -279,6 +280,18 @@ wie `INST3D.textur`: Bits 0–15 Atlasseite bzw. Textur-ID, Bit 16 = Bild, Bit 1
 = 0). Seitenkoordinate als aufgeklapptes Kreuz um `vorn`: `vorn (s, t) = (½ + ½ x/|z|, ½ − ½ y/|z|)`, `hinten (½ − ½ x/|z|, …)`,
 `rechts (½ + ½ z/|x|, ½ − ½ y/|x|)`, `links (½ − ½ z/|x|, …)`, `oben (½ + ½ x/|y|, ½ − ½ z/|y|)`, `unten (½ + ½ x/|y|, ½ + ½ z/|y|)`.
 Ohne `herd.umgebung` gilt als Umgebungslicht `oben` × 0.35 (SZENE `umgebung_*`); sonst ändert das Himmelszelt an SZENE nichts.
+
+**LICHTER (Clustered Forward):** Kopf 64 Bytes (std140-gleich, f32; Uniform-Block an Bindung 14): `raster vec4` (nx = 16,
+ny = round(16 · hoehe/breite) geklemmt 1 … 32, nz = 24, Anzahl Lichter) · `tiefe vec4` (nah, nz / ln(fern/nah), fern, 0) · `vorn vec4`
+(Blickrichtung der Kamera) · 16 Bytes frei. Dann `u32 n`, `u32 worte`, n × 48 Bytes Lichter (`pos xyz, reichweite` · `farbe rgb`
+linear × Stärke, `cos(kegel)` · `richtung xyz` (−z des Teils, normiert), `cos(kegel · (1 − kegelRand))`; Punktlicht: −2 und −1.5) – die
+**sichtbaren** (Kugel aus Lage und Reichweite schneidet den Sichtkörper zwischen nah und fern) in der Reihenfolge (Abstand zur Kamera,
+Teil-ID), höchstens 4096 –, dann `worte` × u32 Zellen-Tabelle: zuerst je Zelle `c = (s · ny + ty) · nx + tx` ein Kopf `versatz << 8 |
+anzahl` (versatz = Index in dieser Tabelle, anzahl ≤ 255), danach die Licht-Indizes (je Zelle in Lichtreihenfolge; Überzählige fallen
+weg, die fernsten zuerst; höchstens 1024 × 2048 Wörter). Zelle eines Punkts p: Kachel `t = ⌊(ndc · ½ + ½) · n⌋` (geklemmt) aus
+`ansicht_proj · p`, Scheibe `s = ⌊ln(max(d, nah)/nah) · tiefe.y⌋` (geklemmt) mit d = (p − Kamera) · vorn. Belegung konservativ: je
+Tiefenscheibe der Quader um die Kugel, an beiden Scheibengrenzen projiziert (x/z ist für festes x monoton in z). Die 8 Lichter in SZENE
+bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter.
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
 (Mitte, Spielfeld-Pixel, y nach unten; mit aktivem `Blick` (H-K1) hat der Kern die Sicht-Matrix schon eingerechnet – außer für
@@ -342,7 +355,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -365,6 +378,7 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `wiederhole n [var]` … `ende` | Schleife, `var` = 0 … n − 1 (verschachtelbar) |
 | `setze var = ausdruck` | Variable |
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
+| `teigling_datei "pfad" [-> var]` | Hilfsaufruf der Spieler: Teigling-Datei lesen und `bildchen_teigling` rufen – so zeichnet `tests/herd/bild.js` Projekte mit `Bildchen.laden` auf (Teiglinge in einem Temp-Ordner) |
 | `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte, 5 Himmelsseite: zwei Bergketten mit Lichtern vor durchsichtigem Himmel, Horizont bei h/2 (H-K11b); nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
 **Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`; erzeugte
@@ -456,7 +470,9 @@ flach über `uvbox` an den Fragment-Shader – keine neuen Varyings, WebGL2-taug
 in `gemeinsam` (PD3: Bindungen 7 … 11 = Klassen, 12 = Sampler linear ohne Stufenmischung; Stufe λ = ½ log2 max(|∂t/∂x|², |∂t/∂y|²)
 der Texel-Koordinaten am Anfang des Fragment-Shaders; λ ≤ 1/16 → nächster Nachbar aus Stufe 0, sonst zwei bilineare Abtastungen
 der Stufen ⌊λ⌋ und ⌊λ⌋ + 1 mit **expliziter** Stufe, je auf das Rechteck `u0 v0 u1 v1` dieser Stufe geklemmt (kein Übersprechen
-zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
+zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter aus SZENE oder – mit Abschnitt LICHTER – alle Lichter der Zelle des Fragments
+(Bindungen 14 Kopf, 15 `lichter_t` RGBA32F mit 64 Lichtern à 3 Texel je Zeile, 16 `zellen_t` R32Uint 1024 breit; nur `textureLoad`, Texturen wachsen
+nur; ohne Abschnitt schreibt die Glut den Kopf auf 0 → v1-Pfad), Spot-Kegel per smoothstep, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
 Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`; H-K11b `fs_zelt` für das Himmelszelt: Uniform-Block HIMMELSZELT an
 Bindung 13 (fest 208 B, immer gebunden), Würfelseite und Seitenkoordinate ohne Verzweigung aus der Richtung – **keine Cube-Map**;
@@ -501,6 +517,7 @@ Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, get
 `2d-rahmen-textur` (`Rahmen` aus Texturen 48² und 96 × 60: vergrößert, 1 : 1, verkleinert, gestreckt, gestaucht, getönt, gedreht,
 Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
 Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel),
+`3d-lichter` (viele Lichter: nächtliche Gasse, 256 farbige Punktlichter knapp über nassem Boden, 4 Spots mit weichem Rand),
 `3d-himmelszelt` (H-K11b: Abenddämmerung prozedural mit tiefer Sonnenscheibe und Sternen, Seite rechts aus einem Teigling 512²
 mit Bergketten vor durchsichtigem Himmel, Seite oben aus einem Atlas-Bildchen 24² mit halb durchsichtigen Wolken, Würfelkanten
 sichtbar).

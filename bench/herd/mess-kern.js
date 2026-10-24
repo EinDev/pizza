@@ -31,6 +31,9 @@ const LAEUFE = [
   ['B8', 'gelaende.herd', { N: 256, TAKTE: 60, UMBAU: 1 }],
   ['B9', 'fliesen.herd', { S: 256, CHUNKS: 1, N: 200, TAKTE: 120 }],
   ['B9', 'fliesen.herd', { S: 256, CHUNKS: 4, N: 200, TAKTE: 120 }],
+  ['B10', 'lichter.herd', { N: 256, TAKTE: 120 }],
+  ['B10', 'lichter.herd', { N: 1024, TAKTE: 120 }],
+  ['B10', 'lichter.herd', { N: 4096, TAKTE: 60 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

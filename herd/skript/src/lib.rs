@@ -74,6 +74,9 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("bildchen_teigling", "b", 'I'),
     // Hilfsaufruf der Spieler (kein ABI-Export): Teigling aus einem festen Muster (`muster_teigling`) → bildchen_teigling
     ("teigling_muster", "iii", 'I'),
+    // Hilfsaufruf der Spieler: Teigling aus einer Datei (Pfad absolut oder relativ zum Arbeitsordner) → bildchen_teigling;
+    // so zeichnet tests/herd/bild.js Projekte mit Bildchen.laden auf (die Teiglinge legt es in einen Temp-Ordner)
+    ("teigling_datei", "t", 'I'),
     ("ressource_hole", "ii", 'F'),
     ("eingabe", "ffi", 'I'),
     ("takt", "", 'I'),
@@ -945,6 +948,13 @@ impl Spieler {
                     return fehler(zeile, "teigling_muster: Breite und Höhe 1 … 2048");
                 }
                 Wert::I(k.bildchen_teigling(&muster_teigling(m as u32, b as u32, h as u32)))
+            }
+            "teigling_datei" => {
+                let pfad = String::from_utf8_lossy(&t(0)?).into_owned();
+                match std::fs::read(&pfad) {
+                    Ok(b) => Wert::I(k.bildchen_teigling(&b)),
+                    Err(e) => return fehler(zeile, format!("teigling_datei: {}: {}", pfad, e)),
+                }
             }
             "ressource_hole" => Wert::F(k.ressource_hole(i(0)?, i(1)?)),
             "eingabe" => Wert::I(k.eingabe(zahl(0)?, zahl(1)?, i(2)?)),

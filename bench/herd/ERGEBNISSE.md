@@ -63,6 +63,9 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B8 (H-K11a, 2026-10-24): `Gelaende` 256 × 256 (65 536 Punkte, 130 050 Dreiecke) + kleines Gelände mit Textur, 120 Takte, Netz einmal gebaut | 0,111 ms | 0,015 ms | 0,13 (0,002) ms | 0,187 ms | 0,020 ms | 0,21 (0,003) ms | – (nur gemessen) |
 | B8 mit Neubau je Takt (`UMBAU` 1), 60 Takte | 7,805 ms | 0,485 ms | 8,29 (8,88) ms | 9,831 ms | 0,458 ms | 10,29 (10,71) ms | – (nur gemessen) |
 | B9 (H-K10, 2026-10-24): `Fliesen` 256 × 256 Kacheln, wandernder Blick (später Zoom 0.5, gedreht), 200 Wucht-Körper auf festen Kacheln, 250 Takte | 0,077 ms | 0,013 ms | 0,09 (0,08) ms | 0,137 ms | 0,018 ms | 0,14 (0,12) ms | Bild ≤ 0,3 ms (nativ) |
+| B10 (viele Lichter, 2026-10-25): `lichter.herd` N = 256 Punktlichter an einem drehenden Träger + 2 Spots, Reichweite 1 … 7, 120 Takte | 0,002 ms | 0,225 ms | 0,23 (0,22) ms | 0,031 ms | 0,399 ms | 0,40 (0,40) ms | – (nur gemessen) |
+| B10 mit N = 1024, 120 Takte | 0,004 ms | 0,876 ms | 0,88 (0,81) ms | 0,009 ms | 0,961 ms | 0,97 (0,98) ms | – (nur gemessen) |
+| B10 mit N = 4096, 60 Takte | 0,017 ms | 3,833 ms | 3,85 (3,66) ms | 0,028 ms | 4,364 ms | 4,39 (4,49) ms | – (nur gemessen) |
 | B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =

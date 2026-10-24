@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4325,5 +4325,180 @@ mod hk13 {
         assert!(k.teil_hole(b, tf::RUHT).is_nan());
         k.fehler_neu();
         assert!(TEIL_METHODEN.contains(&"kniffe"));
+    }
+}
+
+/// Viele Lichter (Clustered Forward): Abschnitt LICHTER nur bei mehr als 8 Lichtern oder einem Spot; Zellen konservativ.
+mod viele_lichter {
+    use super::*;
+    use crate::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES, MAX_JE_ZELLE};
+
+    struct N {
+        l: i32,
+        rw: i32,
+        st: i32,
+        kegel: i32,
+        rand: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let l = typ(k, "Licht");
+        N { l, rw: feld(k, l, "reichweite"), st: feld(k, l, "staerke"), kegel: feld(k, l, "kegel"), rand: feld(k, l, "kegelRand") }
+    }
+    fn licht(k: &mut Kern, n: &N, x: f64, y: f64, z: f64, rw: f64) -> i32 {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, x, y, z);
+        let c = k.komp_neu(n.l);
+        assert_eq!(k.setze_zahl(c, n.rw, rw), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        c
+    }
+    fn abschnitt_lichter(k: &Kern) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::LICHTER).map(|(_, d)| d.to_vec())
+    }
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn u(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn z4(s: u32) -> [f64; 4] {
+        let mut st = s.wrapping_mul(2_654_435_761) | 1;
+        let z = &mut st;
+        [crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z)]
+    }
+
+    #[test]
+    fn schema_nachtrag_und_schwelle() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let mut c = Vec::new();
+        for i in 0..8 {
+            c.push(licht(&mut k, &n, i as f64 - 4.0, 1.0, 0.0, 5.0));
+        }
+        // Standardwerte der Nachtragsfelder ändern den Hash nicht, 8 Lichter → kein Abschnitt (Paket wie v1)
+        k.bild(1);
+        k.bild(1);
+        let h = k.hash_szene();
+        let p = k.paket().to_vec();
+        assert!(abschnitt_lichter(&k).is_none());
+        assert_eq!(k.setze_zahl(c[0], n.kegel, 0.0), 0);
+        assert_eq!(k.setze_zahl(c[0], n.rand, 0.25), 0);
+        k.bild(1);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        assert!(k.setze_zahl(c[0], n.kegel, 91.0) < 0);
+        assert_eq!(k.fehler_text(), "Licht.kegel muss zwischen 0 und 90 liegen, nicht 91.");
+        // ein Spot → Abschnitt (alle 8, sichtbar); Hash ändert sich
+        assert_eq!(k.setze_zahl(c[3], n.kegel, 30.0), 0);
+        k.bild(2);
+        assert_ne!(k.hash_szene(), h);
+        let d = abschnitt_lichter(&k).expect("Spot → LICHTER");
+        assert_eq!(u(&d, LICHTER_KOPF_BYTES), 8);
+        assert_eq!(f(&d, 12), 8.0);
+        assert_eq!(k.setze_zahl(c[3], n.kegel, 0.0), 0);
+        k.bild(3);
+        assert!(abschnitt_lichter(&k).is_none());
+        // Stärke 0 zählt nicht: 9 Lichter, eines aus → kein Abschnitt; an → Abschnitt mit 9
+        let neun = licht(&mut k, &n, 0.0, 3.0, 0.0, 5.0);
+        assert_eq!(k.setze_zahl(neun, n.st, 0.0), 0);
+        k.bild(4);
+        assert!(abschnitt_lichter(&k).is_none());
+        assert_eq!(k.setze_zahl(neun, n.st, 2.0), 0);
+        k.bild(5);
+        let d = abschnitt_lichter(&k).unwrap();
+        assert_eq!(u(&d, LICHTER_KOPF_BYTES), 9);
+        // nächstes Licht zuerst: Kamera (0, 3, 8) → (0, 3, 0) ist am nächsten
+        let l0 = LICHTER_KOPF_BYTES + 8;
+        assert_eq!((f(&d, l0), f(&d, l0 + 4), f(&d, l0 + 8), f(&d, l0 + 12)), (0.0, 3.0, 0.0, 5.0));
+        // Farbe linear × Stärke (weiss × 2), Punktlicht: cos außen −2, innen −1.5
+        assert_eq!((f(&d, l0 + 16), f(&d, l0 + 28), f(&d, l0 + 44)), (2.0, -2.0, -1.5));
+    }
+
+    #[test]
+    fn spot_richtung_und_kegel() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let c = licht(&mut k, &n, 0.0, 6.0, 0.0, 10.0);
+        assert_eq!(k.setze_zahl(c, n.kegel, 60.0), 0);
+        assert_eq!(k.setze_zahl(c, n.rand, 0.5), 0);
+        k.bild(1);
+        let d = abschnitt_lichter(&k).unwrap();
+        let l0 = LICHTER_KOPF_BYTES + 8;
+        // −z des Teils (ungedreht) = (0, 0, −1); cos 60° = 0.5, innen cos 30°
+        assert_eq!((f(&d, l0 + 32), f(&d, l0 + 36), f(&d, l0 + 40)), (0.0, 0.0, -1.0));
+        assert!((f(&d, l0 + 28) - 0.5).abs() < 1e-6);
+        assert!((f(&d, l0 + 44) - (3.0f32).sqrt() / 2.0).abs() < 1e-6);
+        assert_eq!(LICHT_BYTES, 48);
+    }
+
+    /// Jeder Weltpunkt im Wirkbereich eines Lichts liegt in einer Zelle, die das Licht führt (Zelle wie im Shader gesucht).
+    #[test]
+    fn zellen_konservativ() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        k.teil_lage(1, 1.0, 4.0, 12.0);
+        k.teil_schaue(1, -2.0, 0.0, -5.0);
+        for i in 0..300u32 {
+            let z = z4(i + 1);
+            licht(&mut k, &n, (z[0] - 0.5) * 40.0, z[1] * 4.0, (z[2] - 0.5) * 50.0 - 5.0, 0.5 + z[3] * 5.0);
+        }
+        k.bild(1);
+        let d = abschnitt_lichter(&k).unwrap();
+        let p = k.paket().to_vec();
+        let sz = Leser::neu(&p).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::SZENE).unwrap().1.to_vec();
+        let vp: Vec<f64> = (0..16).map(|i| f(&sz, i * 4) as f64).collect();
+        let kam = [f(&sz, 128) as f64, f(&sz, 132) as f64, f(&sz, 136) as f64];
+        let (nx, ny, nz) = (f(&d, 0) as usize, f(&d, 4) as usize, f(&d, 8) as usize);
+        assert_eq!((nx, ny, nz), (16, 9, 24));
+        let (nah, je) = (f(&d, 16) as f64, f(&d, 20) as f64);
+        let vorn = [f(&d, 32) as f64, f(&d, 36) as f64, f(&d, 40) as f64];
+        let anzahl = u(&d, LICHTER_KOPF_BYTES) as usize;
+        assert!(anzahl > 100 && anzahl <= 300, "{}", anzahl);
+        let l0 = LICHTER_KOPF_BYTES + 8;
+        let w0 = l0 + anzahl * LICHT_BYTES;
+        let wort = |i: usize| u(&d, w0 + i * 4);
+        let mut geprueft = 0;
+        for li in 0..anzahl {
+            let o = l0 + li * LICHT_BYTES;
+            let (lx, ly, lz, rw) = (f(&d, o) as f64, f(&d, o + 4) as f64, f(&d, o + 8) as f64, f(&d, o + 12) as f64);
+            for s in 0..64u32 {
+                let z = z4(s * 977 + li as u32 * 13 + 5);
+                // Punkt in der Kugel (bis 0.98 · Reichweite)
+                let (dx, dy, dz) = ((z[0] - 0.5) * 2.0, (z[1] - 0.5) * 2.0, (z[2] - 0.5) * 2.0);
+                let l = (dx * dx + dy * dy + dz * dz).sqrt();
+                if l > 1.0 {
+                    continue;
+                }
+                let q = [lx + dx * rw * 0.98, ly + dy * rw * 0.98, lz + dz * rw * 0.98];
+                let clip = |r: usize| vp[r] * q[0] + vp[4 + r] * q[1] + vp[8 + r] * q[2] + vp[12 + r];
+                let w = clip(3);
+                if w <= nah {
+                    continue;
+                }
+                let (ndx, ndy) = (clip(0) / w, clip(1) / w);
+                if ndx.abs() > 1.0 || ndy.abs() > 1.0 {
+                    continue;
+                }
+                let tief = (q[0] - kam[0]) * vorn[0] + (q[1] - kam[1]) * vorn[1] + (q[2] - kam[2]) * vorn[2];
+                let fx = (ndx * 0.5 + 0.5) * nx as f64;
+                let fy = (ndy * 0.5 + 0.5) * ny as f64;
+                let fs = (tief.max(nah) / nah).ln() * je;
+                // Grenzen zwischen Zellen (f32-Rundung) auslassen
+                let nahe = |v: f64| (v - v.round()).abs() < 1e-3;
+                if nahe(fx) || nahe(fy) || nahe(fs) {
+                    continue;
+                }
+                let tx = (fx.floor() as usize).min(nx - 1);
+                let ty = (fy.floor() as usize).min(ny - 1);
+                let sl = (fs.floor().max(0.0) as usize).min(nz - 1);
+                let kopf = wort((sl * ny + ty) * nx + tx);
+                let (erst, zahl) = ((kopf >> 8) as usize, (kopf & 255) as usize);
+                if zahl == MAX_JE_ZELLE {
+                    continue;
+                }
+                assert!((0..zahl).any(|j| wort(erst + j) as usize == li), "Licht {} fehlt in Zelle ({}, {}, {})", li, tx, ty, sl);
+                geprueft += 1;
+            }
+        }
+        assert!(geprueft > 2000, "{}", geprueft);
     }
 }

@@ -5,6 +5,36 @@
 @group(0) @binding(3) var vergleich: sampler_comparison;
 @group(0) @binding(4) var atlas: texture_2d_array<f32>;
 
+// Viele Lichter (Abschnitt LICHTER, Clustered Forward): Kopf, je Licht 3 Texel (pos+reichweite, farbe+cos außen,
+// richtung+cos innen) und die Zellen-Wörter (Köpfe `versatz << 8 | anzahl`, dann Licht-Indizes). raster.w = 0 → aus.
+struct Lichter {
+    raster: vec4<f32>,   // Kacheln x, y, Scheiben z, Anzahl Lichter
+    tiefe: vec4<f32>,    // nah, Scheiben je ln-Einheit, fern, 0
+    vorn: vec4<f32>,     // Blickrichtung der Kamera
+    frei: vec4<f32>,
+}
+@group(0) @binding(14) var<uniform> lichter: Lichter;
+@group(0) @binding(15) var lichter_t: texture_2d<f32>;
+@group(0) @binding(16) var zellen_t: texture_2d<u32>;
+
+fn zellwort(i: u32) -> u32 {
+    return textureLoad(zellen_t, vec2<i32>(i32(i & 1023u), i32(i >> 10u)), 0).x;
+}
+fn licht_texel(i: u32, k: u32) -> vec4<f32> {
+    return textureLoad(lichter_t, vec2<i32>(i32((i & 63u) * 3u + k), i32(i >> 6u)), 0);
+}
+// Index der Zelle (Kachel x, y aus der NDC-Lage, Scheibe aus der Tiefe entlang der Blickrichtung) – wie `herd_kern::lichter`
+fn zelle(welt: vec3<f32>) -> u32 {
+    let n = lichter.raster.xyz;
+    let clip = szene.ansicht_proj * vec4<f32>(welt, 1.0);
+    let ndc = clip.xy / max(clip.w, 1e-6);
+    let tx = u32(clamp(floor((ndc.x * 0.5 + 0.5) * n.x), 0.0, n.x - 1.0));
+    let ty = u32(clamp(floor((ndc.y * 0.5 + 0.5) * n.y), 0.0, n.y - 1.0));
+    let d = max(dot(welt - szene.kamera.xyz, lichter.vorn.xyz), lichter.tiefe.x);
+    let s = u32(clamp(floor(log(d / lichter.tiefe.x) * lichter.tiefe.y), 0.0, n.z - 1.0));
+    return (s * u32(n.y) + ty) * u32(n.x) + tx;
+}
+
 struct EinNetz {
     @location(0) pos: vec3<f32>,
     @location(1) normale: vec3<f32>,
@@ -148,8 +178,31 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     diffus = diffus + szene.sonne_farbe.rgb * (ndl * sonne);
     glanzlicht = glanzlicht + szene.sonne_farbe.rgb * (spiegel * sonne);
 
-    // Punktlichter (weicher Abfall bis zur Reichweite)
-    let anzahl = i32(szene.zahlen.x + 0.5);
+    // Punktlichter (weicher Abfall bis zur Reichweite): viele über die Zellen-Tabelle, sonst die 8 aus SZENE (v1)
+    if (lichter.raster.w > 0.5) {
+        let kopf = zellwort(zelle(a.welt));
+        let erstes = kopf >> 8u;
+        let zahl = kopf & 255u;
+        for (var j = 0u; j < zahl; j = j + 1u) {
+            let li = zellwort(erstes + j);
+            let lp = licht_texel(li, 0u);
+            let lf = licht_texel(li, 1u);
+            let lr = licht_texel(li, 2u);
+            let d = lp.xyz - a.welt;
+            let abst = length(d);
+            let ld = d / max(abst, 0.0001);
+            let x = clamp(1.0 - abst / max(lp.w, 0.0001), 0.0, 1.0);
+            // Spot: weicher Rand zwischen cos(außen) und cos(innen); Punktlicht: außen −2, innen −1.5 → immer 1
+            let kegel = smoothstep(lf.w, lr.w, dot(-ld, lr.xyz));
+            let daempf = x * x * kegel;
+            let nl = max(dot(n, ld), 0.0);
+            let hl = normalize(ld + v);
+            let sp = pow(max(dot(n, hl), 0.0), hart) * staerke * norm * min(nl * 4.0, 1.0);
+            diffus = diffus + lf.rgb * (nl * daempf);
+            glanzlicht = glanzlicht + lf.rgb * (sp * daempf);
+        }
+    }
+    let anzahl = select(i32(szene.zahlen.x + 0.5), 0, lichter.raster.w > 0.5);
     for (var i = 0; i < 8; i = i + 1) {
         if (i < anzahl) {
             let lp = szene.licht_pos[i];

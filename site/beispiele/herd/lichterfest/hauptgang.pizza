@@ -1,0 +1,72 @@
+// Lichterfest – eine Gasse in der Altstadt bei Nacht. Über der Straße hängen sechs Lichterketten mit je 24 Glühbirnen,
+// an den Hauswänden leuchten Laternen als Spots nach unten. Die Kamera schlendert langsam die Gasse hinauf.
+// Leertaste: die Ketten wechseln zwischen warmem Weiß und bunt.
+//
+// So arbeitet die Engine für dich: Jede Glühbirne ist ein eigenes Punktlicht – hier 144 Stück plus 6 Spots. Die Engine
+// teilt die Sicht in Zellen (Kacheln × Tiefenscheiben) und merkt sich je Zelle, welche Lichter dort wirken; jedes Pixel
+// rechnet nur die Lichter seiner Zelle. So kosten hunderte Lichter kaum mehr als acht. Ein Spot ist ein Licht mit
+// `kegel` (halber Öffnungswinkel in Grad): Es leuchtet in die Richtung, in die sein Teil schaut (`schaueAuf`).
+
+Herd herd = neu Herd("Lichterfest", breite: 960, hoehe: 540);
+herd.himmel("#05060c", "#1a1430");
+herd.nebel("#1a1430", 14, 46);
+herd.umgebung("#6070b0", staerke: 0.06);
+herd.sonne().licht().setzeStaerke(0);
+
+// Pflaster und zwei Häuserzeilen
+herd.koerper(Form.ebene(), 0, 0, -10, farbe: "#4a4650", glanz: 0.6).setzeGroesse(14, 1, 70);
+Blech<margherita> PUTZ = ["#8a6f5c", "#7c6a7a", "#9a7f5a", "#6f7466"];
+für (salami i = 0; i < 8; i++) {
+    für (salami s = -1; s <= 1; s += 2) {
+        funghi hoehe = 7 + (i * 3 + s + 5) % 4;
+        herd.koerper(Form.wuerfel(), s * 6.5, hoehe / 2, 14 - i * 6, farbe: PUTZ.stück((i + s + 4) % 4 + 1), glanz: 0.1).setzeGroesse(3, hoehe, 5.8);
+        herd.koerper(Form.wuerfel(), s * 4.99, 1.2, 14 - i * 6, farbe: "#2b1d16", glanz: 0.3).setzeGroesse(0.05, 2.4, 1.3);
+    }
+}
+
+// Lichterketten: 24 Birnen im Durchhang zwischen den Häusern, jede mit eigenem Punktlicht
+Blech<margherita> KETTE = ["#ff4d6d", "#ffd23a", "#39ff8a", "#22c6ff", "#c85bff", "#ff8a2b"];
+Blech<Licht> birnen = [];
+Blech<Koerper> glas = [];
+für (salami k = 0; k < 6; k++) {
+    funghi z = 10 - k * 7;
+    für (salami b = 0; b < 24; b++) {
+        funghi t = b / 23;
+        funghi x = -4.8 + t * 9.6;
+        funghi y = 5.6 - 1.4 * (1 - (2 * t - 1) * (2 * t - 1));
+        Teil birne = herd.koerper(Form.kugel(teile: 10), x, y, z, farbe: "#ffe2a8", leuchten: 1);
+        birne.setzeGroesse(0.14);
+        birne.koerper().setzeSchatten(nein);
+        glas.hinzu(birne.koerper());
+        birnen.hinzu(herd.licht(x, y - 0.1, z, farbe: "#ffd9a0", reichweite: 4.5).licht().setzeStaerke(1.8));
+    }
+}
+
+// Laternen an den Wänden: Spots, die schräg aufs Pflaster leuchten
+für (salami i = 0; i < 6; i++) {
+    funghi s = i % 2 == 0 ? -1 : 1;
+    funghi z = 12 - i * 7;
+    herd.koerper(Form.kugel(teile: 12), s * 4.7, 3.6, z, farbe: "#fff1d0", leuchten: 1).setzeGroesse(0.3);
+    Teil spot = herd.licht(s * 4.6, 3.5, z, farbe: "#fff1d0", reichweite: 10);
+    spot.schaueAuf(s * 1.5, 0, z - 1);
+    spot.licht().setzeKegel(32).setzeKegelRand(0.5).setzeStaerke(3.5);
+}
+
+salami bunt = 0;
+Rezept faerben = () -> {
+    für (salami i = 1; i <= birnen.länge(); i++) {
+        margherita f = bunt == 1 ? KETTE.stück((i - 1) % 6 + 1) : "#ffd9a0";
+        birnen.stück(i).setzeFarbe(f);
+        glas.stück(i).setzeFarbe(bunt == 1 ? f : "#ffe2a8");
+    }
+};
+
+herd.backe(() -> {
+    funghi t = herd.zeit();
+    herd.kamera().setzeLage(Mathe.sin(t * 0.4) * 0.6, 1.7, 13 - t * 0.9).schaueAuf(0, 2.6, -12 - t * 0.9);
+    falls (herd.gedrueckt("Leertaste")) {
+        bunt = 1 - bunt;
+        faerben();
+    }
+});
+Bote.sage(("Lichterfest: " + birnen.länge() + " Glühbirnen, 6 Laternen, Ketten " + (bunt == 1 ? "bunt" : "warmweiß") + "."));

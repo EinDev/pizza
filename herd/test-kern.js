@@ -62,6 +62,8 @@ const LAEUFE = [
   ['himmelszelt.herd', { N: 100, TAKTE: 4 }],
   ['ui.herd', {}],
   ['ui.herd', { N: 2000, TAKTE: 6 }],
+  ['lichter.herd', {}],
+  ['lichter.herd', { N: 1024, TAKTE: 3 }],
 ];
 
 const args = process.argv.slice(2);

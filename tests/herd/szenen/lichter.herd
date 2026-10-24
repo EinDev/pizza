@@ -1,0 +1,101 @@
+# Viele Lichter (Clustered Forward, Abschnitt LICHTER): N Punktlichter, die über der Szene kreisen (Bewegung an einem
+# Elternteil, also Weltlage über die Hierarchie), dazu Spots mit Kegel und Rand, eine Kamera, die sich dreht und
+# (Kegel 0 → Punktlicht) wechselnde Spots. Prüft nativ = Wasm über die Paket-Hashes: Reihenfolge nach Abstand und Teil-ID,
+# Scheiben/Kacheln, Kappung je Zelle (dichte Haufen), Lichter hinter der Kamera und außerhalb von nah/fern, Stärke 0,
+# Sonne (zählt nicht) und den Übergang ohne Abschnitt (≤ 8 Lichter, kein Spot → Paket wie v1).
+# Klein: N = 40 (Vorgabe), voll: N = 256 / 1024 / 4096 (Messung).
+vorgabe N 40
+vorgabe TAKTE 30
+welt_neu 1280 720 "Lichter"
+welt_himmel "#06070d" "#141022"
+welt_umgebung "#5060a0" 0.1
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Kamera" -> T_KAM
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "kegelRand" -> L_RAND
+feld_nummer T_BEW "drehtempo" -> B_DREH
+feld_nummer T_KAM "fern" -> KAM_FERN
+form_grund 5 0 0 -> EBENE
+form_grund 1 0 0 -> WUERFEL
+teil_lage 1 0 6 18
+teil_schaue 1 0 0 0
+teil_neu 3 -> boden
+teil_groesse boden 60 1 60
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+komp_haenge k boden
+
+# zunächst nur 6 Punktlichter: kein Abschnitt LICHTER (wie v1)
+wiederhole 6 i
+  teil_neu 3 -> l
+  teil_lage l ((i - 2.5) * 3) 1 0
+  komp_neu T_L -> li
+  setze_zahl li L_F (4281063167 + i * 65536)
+  komp_haenge li l
+ende
+takte 2
+
+# N Lichter an einem drehenden Träger (Weltlage über die Hierarchie), dichter Haufen in der Mitte
+teil_neu 3 -> traeger
+komp_neu T_BEW -> bw
+setze_zahl bw B_DREH 25
+komp_haenge bw traeger
+wiederhole N i
+  teil_neu 3 -> l
+  teil_lage l ((zufall(i) - 0.5) * 40 * boden(1 / (1 + i % 3))) (0.2 + zufall(i + 7) * 3) ((zufall(i + 13) - 0.5) * 40 * boden(1 / (1 + i % 3)))
+  teil_haenge l traeger
+  komp_neu T_L -> li
+  setze_zahl li L_F (585564159 + (i % 7) * 16777216)
+  setze_zahl li L_ST (boden(zufall(i + 3) * 4) * 0.5)
+  setze_zahl li L_RW (1 + zufall(i + 5) * 6)
+  komp_haenge li l
+ende
+# Lichter hinter der Kamera, jenseits von fern, sehr nah an der Kamera
+teil_neu 3 -> hinten
+teil_lage hinten 0 6 30
+komp_neu T_L -> li
+komp_haenge li hinten
+teil_neu 3 -> nah
+teil_lage nah 0.2 5.9 17.8
+komp_neu T_L -> li
+setze_zahl li L_RW 0.5
+komp_haenge li nah
+komp_von 1 T_KAM -> kam
+setze_zahl kam KAM_FERN 80
+teil_neu 3 -> fern
+teil_lage fern 0 0 -200
+komp_neu T_L -> li
+setze_zahl li L_RW 5
+komp_haenge li fern
+# Spots: einer schaut nach unten, einer schräg; Kegel wechselt später auf 0 (Punktlicht)
+teil_neu 3 -> sp1
+teil_lage sp1 -4 8 0
+teil_schaue sp1 -4 0 0.001
+komp_neu T_L -> spot1
+setze_zahl spot1 L_RW 12
+setze_zahl spot1 L_KEGEL 30
+komp_haenge spot1 sp1
+teil_neu 3 -> sp2
+teil_lage sp2 6 5 4
+teil_schaue sp2 0 0 -3
+komp_neu T_L -> spot2
+setze_zahl spot2 L_RW 15
+setze_zahl spot2 L_KEGEL 12
+setze_zahl spot2 L_RAND 0.9
+komp_haenge spot2 sp2
+takte TAKTE
+# Kamera dreht sich, Spot 1 wird Punktlicht, Spot 2 aus
+teil_lage 1 12 3 -6
+teil_schaue 1 0 1 2
+setze_zahl spot1 L_KEGEL 0
+setze_zahl spot2 L_ST 0
+takte 3
+paket_voll
+bild

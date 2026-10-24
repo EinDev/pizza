@@ -12,6 +12,7 @@ pub mod farbe;
 pub mod fehler;
 pub mod formen;
 pub mod hash;
+pub mod lichter;
 pub mod komponenten;
 pub mod mathe;
 pub mod paket;

@@ -24,6 +24,7 @@ use std::sync::Arc;
 pub use herd_kern;
 pub use wgpu;
 
+use herd_kern::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES};
 use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
 use wgpu::util::DeviceExt as _;
 
@@ -39,6 +40,10 @@ const KLASSE0: u32 = 128;
 const KLASSE_UNBEKANNT: u32 = 7;
 /// Schichten je Klasse höchstens (3D: 13 Bit für die Schicht in INST3D.textur)
 const MAX_SCHICHTEN_3D: u32 = 1 << 13;
+/// Viele Lichter (Abschnitt LICHTER): Lichter je Zeile der Licht-Textur (je Licht 3 Texel RGBA32F) und Breite der
+/// Zellen-Textur (R32Uint, ein Wort je Texel).
+const LICHTER_JE_ZEILE: u32 = 64;
+const ZELLEN_BREITE: u32 = 1024;
 
 const GEMEINSAM: &str = include_str!("../shader/gemeinsam.wgsl");
 const FLACH: &str = include_str!("../shader/flach.wgsl");
@@ -267,6 +272,12 @@ pub struct Glut {
     ansicht: wgpu::Buffer,
     /// Uniform-Block des Himmelszelts (Bindung 13, HIMMELSZELT_BYTES; nur gelesen, wenn ein Paket den Abschnitt hat)
     zelt: wgpu::Buffer,
+    /// Viele Lichter (Abschnitt LICHTER): Kopf (Bindung 14, 64 B; Anzahl 0 = aus, dann rechnet der Shader die 8 Lichter aus
+    /// SZENE), Licht-Textur RGBA32F (15) und Zellen-Textur R32Uint (16); beide wachsen nur
+    lichter_kopf: wgpu::Buffer,
+    lichter_t: (wgpu::Texture, wgpu::TextureView),
+    zellen_t: (wgpu::Texture, wgpu::TextureView),
+    lichter_an: bool,
     schatten_map: wgpu::TextureView,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
     /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
@@ -577,6 +588,20 @@ impl Glut {
                 eigen_sampler,
                 // Himmelszelt (H-K11b)
                 ubo(13),
+                // viele Lichter: Kopf, Lichter (RGBA32F), Zellen (R32Uint) – nur per textureLoad gelesen
+                ubo(14),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 15,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: false }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 16,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Uint, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
+                    count: None,
+                },
             ],
         });
         let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -633,6 +658,9 @@ impl Glut {
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let zelt = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd himmelszelt"), size: HIMMELSZELT_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let lichter_kopf = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
+        let zellen_t = Glut::daten_textur(dev, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, 1);
         let schatten_map = Glut::tiefen_textur(dev, "herd shadow-map", 1, 1, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
         let atlas = Glut::atlas_textur(dev, 1, atlas_min);
@@ -663,6 +691,10 @@ impl Glut {
             szene,
             ansicht,
             zelt,
+            lichter_kopf,
+            lichter_t,
+            zellen_t,
+            lichter_an: false,
             schatten_map,
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
@@ -701,6 +733,67 @@ impl Glut {
             view_formats: &[],
         })
         .create_view(&Default::default())
+    }
+
+    /// Datentextur (nur `textureLoad`, keine Mip-Stufen) – viele Lichter.
+    fn daten_textur(dev: &wgpu::Device, name: &str, format: wgpu::TextureFormat, b: u32, h: u32) -> (wgpu::Texture, wgpu::TextureView) {
+        let t = dev.create_texture(&wgpu::TextureDescriptor {
+            label: Some(name),
+            size: wgpu::Extent3d { width: b, height: h.max(1), depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        let v = t.create_view(&Default::default());
+        (t, v)
+    }
+
+    /// LICHTER: Kopf als Uniform, Lichter (je 3 Texel RGBA32F) und Zellen-Wörter (R32Uint) als Texturen hochladen.
+    fn lichter(&mut self, d: &[u8]) -> Result<u64, Fehler> {
+        let kurz = || Fehler::Paket("Abschnitt LICHTER zu kurz".into());
+        if d.len() < LICHTER_KOPF_BYTES + 8 {
+            return Err(kurz());
+        }
+        let n = u32_at(d, LICHTER_KOPF_BYTES);
+        let worte = u32_at(d, LICHTER_KOPF_BYTES + 4);
+        let l0 = LICHTER_KOPF_BYTES + 8;
+        let l1 = l0 + n as usize * LICHT_BYTES;
+        let w1 = l1 + worte as usize * 4;
+        let (lichter, zellen) = (d.get(l0..l1).ok_or_else(kurz)?, d.get(l1..w1).ok_or_else(kurz)?);
+        // Lichter: Zeilen zu je LICHTER_JE_ZEILE (letzte aufgefüllt)
+        let zeilen = n.div_ceil(LICHTER_JE_ZEILE).max(1);
+        if self.lichter_t.0.height() < zeilen {
+            self.lichter_t = Glut::daten_textur(&self.device, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, zeilen.next_power_of_two());
+            self.bg_haupt = None;
+        }
+        let zeile_b = (LICHTER_JE_ZEILE as usize) * LICHT_BYTES;
+        let mut l = lichter.to_vec();
+        l.resize(zeilen as usize * zeile_b, 0);
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &self.lichter_t.0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            &l,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(zeile_b as u32), rows_per_image: Some(zeilen) },
+            wgpu::Extent3d { width: 3 * LICHTER_JE_ZEILE, height: zeilen, depth_or_array_layers: 1 },
+        );
+        let zh = worte.div_ceil(ZELLEN_BREITE).max(1);
+        if self.zellen_t.0.height() < zh {
+            self.zellen_t = Glut::daten_textur(&self.device, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, zh.next_power_of_two());
+            self.bg_haupt = None;
+        }
+        let mut z = zellen.to_vec();
+        z.resize((zh * ZELLEN_BREITE * 4) as usize, 0);
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &self.zellen_t.0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            &z,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(ZELLEN_BREITE * 4), rows_per_image: Some(zh) },
+            wgpu::Extent3d { width: ZELLEN_BREITE, height: zh, depth_or_array_layers: 1 },
+        );
+        self.queue.write_buffer(&self.lichter_kopf, 0, &d[..LICHTER_KOPF_BYTES]);
+        self.lichter_an = true;
+        Ok((LICHTER_KOPF_BYTES + l.len() + z.len()) as u64)
     }
 
     fn atlas_textur(dev: &wgpu::Device, kante: u32, schichten: u32) -> (wgpu::Texture, wgpu::TextureView) {
@@ -1182,6 +1275,9 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
                     wgpu::BindGroupEntry { binding: 12, resource: wgpu::BindingResource::Sampler(&self.s_eigen) },
                     wgpu::BindGroupEntry { binding: 13, resource: self.zelt.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 14, resource: self.lichter_kopf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&self.lichter_t.1) },
+                    wgpu::BindGroupEntry { binding: 16, resource: wgpu::BindingResource::TextureView(&self.zellen_t.1) },
                 ],
             }));
         }
@@ -1215,6 +1311,7 @@ impl Glut {
         let mut inst3d: &[u8] = &[];
         let mut teilchen: &[u8] = &[];
         let mut zelt: Option<&[u8]> = None;
+        let mut lichter_da = false;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
@@ -1250,6 +1347,10 @@ impl Glut {
                     }
                     zelt = Some(d);
                 }
+                abschnitt::LICHTER => {
+                    stat.hochgeladen += self.lichter(d)?;
+                    lichter_da = true;
+                }
                 abschnitt::ZUEGE3D => {
                     for z in d.chunks_exact(ZUG_BYTES) {
                         self.zuege.push([u32_at(z, 0), u32_at(z, 4), u32_at(z, 8), u32_at(z, 12)]);
@@ -1260,6 +1361,11 @@ impl Glut {
         }
         if !szene_da {
             return Err(Fehler::Paket("SZENE fehlt".into()));
+        }
+        // ohne LICHTER: Kopf auf 0 (Anzahl 0 → der Shader rechnet die 8 Lichter aus SZENE wie v1)
+        if !lichter_da && self.lichter_an {
+            self.queue.write_buffer(&self.lichter_kopf, 0, &[0u8; LICHTER_KOPF_BYTES]);
+            self.lichter_an = false;
         }
         let n2 = (inst2d.len() / INST2D_BYTES) as u32;
         let n3 = (inst3d.len() / INST3D_BYTES) as u32;

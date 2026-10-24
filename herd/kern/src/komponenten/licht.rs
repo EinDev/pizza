@@ -1,5 +1,8 @@
-//! `Licht` (3D): Punktlicht (Lage des Teils) oder Sonne (Lage = Richtung zur Sonne). Höchstens 8 Punktlichter je Bild
-//! (die nächsten zur Kamera), eine Sonne (kleinste Teil-ID).
+//! `Licht` (3D): Punktlicht (Lage des Teils) oder Sonne (Lage = Richtung zur Sonne). Die 8 nächsten Punktlichter stehen wie in
+//! v1 im Uniform-Block SZENE; sind es mehr oder ist ein Spot dabei, trägt der Abschnitt `LICHTER` alle sichtbaren (Clustered
+//! Forward, `crate::lichter`). Nachtragsfelder („viele Lichter“): `kegel` (halber Öffnungswinkel in Grad, 0 = rundum) und
+//! `kegelRand` (weicher Rand) – ein Spot leuchtet entlang −z des Teils (wie die Kamera; `schaueAuf` richtet ihn aus).
+//! Eine Sonne (kleinste Teil-ID).
 
 use super::*;
 use crate::paket::LichtB;
@@ -10,6 +13,9 @@ pub const FARBE: usize = 1;
 pub const STAERKE: usize = 2;
 pub const REICHWEITE: usize = 3;
 pub const SCHATTEN: usize = 4;
+/// Nachtragsfelder („viele Lichter“): Spot-Kegel (halber Öffnungswinkel in Grad, 0 = Punktlicht) und weicher Rand (Anteil).
+pub const KEGEL: usize = 5;
+pub const KEGEL_RAND: usize = 6;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -22,6 +28,8 @@ pub static ART: Art = Art {
             Feld::zahl("staerke", 1.0).min(0.0),
             Feld::zahl("reichweite", 10.0).min(0.0),
             Feld::diavolo("schatten", true),
+            Feld::zahl("kegel", 0.0).bereich(0.0, 90.0).nachtrag(),
+            Feld::zahl("kegelRand", 0.25).bereich(0.0, 1.0).nachtrag(),
         ],
     },
     bild: Some(bild),
@@ -30,6 +38,7 @@ pub static ART: Art = Art {
 
 fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
     let (ar, fa, st, rw, sc) = (s.zahl(ART_FELD), s.farbe(FARBE), s.zahl(STAERKE), s.zahl(REICHWEITE), s.zahl(SCHATTEN));
+    let (ke, kr) = (s.zahl(KEGEL), s.zahl(KEGEL_RAND));
     for z in 0..s.len() {
         let Some(tz) = sichtbar(w, s.teil[z]) else { continue };
         let m = &w.teile.welt[tz];
@@ -41,6 +50,10 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             staerke: st[z],
             reichweite: rw[z],
             schatten: sc[z] != 0.0,
+            // Spot: Richtung = −z des Teils in Weltlage (Spalte 2 der Welt-Matrix), normiert im Abschnitt LICHTER
+            richtung: [-m[2], -m[6], -m[10]],
+            kegel: ke[z],
+            kegel_rand: kr[z],
         });
     }
 }

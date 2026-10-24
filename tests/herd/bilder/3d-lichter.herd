@@ -1,0 +1,87 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „viele Lichter“ (Clustered Forward, Abschnitt LICHTER): eine nächtliche Gasse – nasser, glänzender Boden,
+# zwei Häuserwände, N = 256 farbige Punktlichter (6 Neonfarben) knapp über dem Boden in einem Raster, je mit einer kleinen
+# leuchtenden Kugel, dazu 4 Spots (Kegel 22°/30°, weicher Rand) von den Wänden auf die Straße. Keine Sonne, schwaches
+# Umgebungslicht, Nebel in der Ferne. Prüft: alle 256 Lichter wirken (v1: nur 8), Kacheln/Scheiben ohne sichtbare Kanten,
+# Spot-Kegel mit weichem Rand, Glanzlichter auf dem Boden.
+vorgabe N 256
+welt_neu 1280 720 "Lichter"
+welt_himmel "#06070d" "#141022"
+welt_nebel "#141022" 18 60
+welt_umgebung "#5060a0" 0.08
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LEUCHT
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "kegelRand" -> L_RAND
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 12 0 -> KUGEL
+form_grund 5 0 0 -> EBENE
+
+# Kamera schräg über der Gasse, keine Sonne
+teil_lage 1 0 4.2 15
+teil_schaue 1 0 0.2 -4
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# Boden (glänzend wie nass) und zwei Häuserwände
+teil_neu 3 -> boden
+teil_groesse boden 40 1 80
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#3a3a42"
+setze_zahl k K_GLANZ 0.85
+komp_haenge k boden
+wiederhole 2 s
+  teil_neu 3 -> wand
+  teil_lage wand ((s * 2 - 1) * 9.5) 6 -10
+  teil_groesse wand 1 12 60
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#5a5560"
+  setze_zahl k K_GLANZ 0.2
+  komp_haenge k wand
+ende
+
+# N Punktlichter im Raster 16 × (N / 16), 6 Neonfarben (Indikator boden(1 / (1 + d²)) = 1 genau für d = 0)
+wiederhole N i
+  setze c = i % 6
+  setze farbe = 4281063167 * boden(1 / (1 + c * c)) + 585564159 * boden(1 / (1 + (c - 1) * (c - 1))) + 4291967743 * boden(1 / (1 + (c - 2) * (c - 2))) + 973048575 * boden(1 / (1 + (c - 3) * (c - 3))) + 4285145087 * boden(1 / (1 + (c - 4) * (c - 4))) + 1248591871 * boden(1 / (1 + (c - 5) * (c - 5)))
+  teil_neu 3 -> l
+  teil_lage l ((i % 16 - 7.5) * 1.05) (0.35 + zufall(i) * 0.3) (8 - boden(i / 16) * 2.2)
+  komp_neu T_L -> li
+  setze_zahl li L_F farbe
+  setze_zahl li L_ST 1.4
+  setze_zahl li L_RW 2.2
+  komp_haenge li l
+  komp_neu T_K -> k
+  setze_zahl k K_FORM KUGEL
+  setze_zahl k K_F farbe
+  setze_zahl k K_LEUCHT 1
+  setze_zahl k K_SCH 0
+  komp_haenge k l
+  teil_groesse l 0.12 0.12 0.12
+ende
+
+# 4 Spots an den Wänden, schräg auf die Straße gerichtet (−z des Teils)
+wiederhole 4 j
+  setze seite = (j % 2) * 2 - 1
+  teil_neu 3 -> sp
+  teil_lage sp (seite * 8.6) 7 (4 - boden(j / 2) * 14)
+  teil_schaue sp (seite * 2) 0 (2 - boden(j / 2) * 14)
+  komp_neu T_L -> li
+  setze_text li L_F "#fff1d0"
+  setze_zahl li L_ST 14
+  setze_zahl li L_RW 14
+  setze_zahl li L_KEGEL (22 + j * 3)
+  setze_zahl li L_RAND 0.35
+  komp_haenge li sp
+ende
+takte 2

@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Lichterfest: hunderte Lichter in einer Gasse",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Sechs Lichterketten mit je 24 Glühbirnen hängen über einer nächtlichen Altstadtgasse, Laternen an den Wänden leuchten als Spots aufs Pflaster. Jede Birne ist ein eigenes Punktlicht – die Engine merkt sich je Zelle der Sicht, welche Lichter dort wirken. Leertaste: bunt oder warmweiß."
+}

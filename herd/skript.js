@@ -21,6 +21,8 @@ const SIGNATUREN = {
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
   // Hilfsaufruf der Spieler (kein ABI-Export, PD3): Teigling aus festem Muster → bildchen_teigling
   teigling_muster: ['iii', 'I'],
+  // Hilfsaufruf: Teigling aus einer Datei (tests/herd/bild.js zeichnet Bildchen.laden so auf)
+  teigling_datei: ['t', 'I'],
 };
 
 function fehler(z, t) { throw new Error('Zeile ' + z + ': ' + t); }
@@ -527,6 +529,13 @@ class Spieler {
         const m = ii(0), b = ii(1), h = ii(2);
         if (!(b >= 1 && b <= 2048 && h >= 1 && h <= 2048)) fehler(z, 'teigling_muster: Breite und Höhe 1 … 2048');
         const bytes = musterTeigling(m, b, h);
+        p = this.puffer([bytes]);
+        return I(k.bildchen_teigling(p[0][0], bytes.length));
+      }
+      case 'teigling_datei': {
+        const pfad = new TextDecoder().decode(txt(0));
+        let bytes;
+        try { bytes = new Uint8Array(require('fs').readFileSync(pfad)); } catch (e) { fehler(z, 'teigling_datei: ' + pfad + ': ' + e.message); }
         p = this.puffer([bytes]);
         return I(k.bildchen_teigling(p[0][0], bytes.length));
       }

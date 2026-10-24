@@ -45,6 +45,8 @@ pub mod abschnitt {
     pub const TEILCHEN3D: u32 = 14;
     /// Himmelszelt (Skybox, H-K11b), nur wenn eines an einem wachen Teil hängt
     pub const HIMMELSZELT: u32 = 15;
+    /// Viele Lichter (Clustered Forward, `crate::lichter`): nur bei mehr als 8 Punktlichtern oder einem Spot
+    pub const LICHTER: u32 = 16;
 }
 
 pub mod flag {
@@ -102,6 +104,10 @@ pub struct LichtB {
     pub staerke: f64,
     pub reichweite: f64,
     pub schatten: bool,
+    /// Spot („viele Lichter“): Richtung (Welt, nicht normiert), halber Öffnungswinkel in Grad (0 = rundum), weicher Rand
+    pub richtung: [f64; 3],
+    pub kegel: f64,
+    pub kegel_rand: f64,
 }
 
 /// Ein 3D-Teilchen im Bildbau (`Funken`): Weltlage, halbe Größe, Farbe, Mischart.
@@ -181,11 +187,11 @@ fn betrag(x: f64) -> f64 {
 }
 
 #[inline]
-fn put_f32(b: &mut Vec<u8>, x: f64) {
+pub(crate) fn put_f32(b: &mut Vec<u8>, x: f64) {
     b.extend_from_slice(&f32w(x).to_le_bytes());
 }
 #[inline]
-fn put_u32(b: &mut Vec<u8>, x: u32) {
+pub(crate) fn put_u32(b: &mut Vec<u8>, x: u32) {
     b.extend_from_slice(&x.to_le_bytes());
 }
 #[inline]
@@ -337,7 +343,7 @@ pub struct Gesendet {
 
 // ------------------------------------------------------------------ Matrizen (f64, spaltenweise wie WGSL)
 
-type M4 = [f64; 16];
+pub(crate) type M4 = [f64; 16];
 
 fn m4_mal(a: &M4, b: &M4) -> M4 {
     let mut r = [0.0; 16];
@@ -349,7 +355,7 @@ fn m4_mal(a: &M4, b: &M4) -> M4 {
     r
 }
 
-fn v_norm(v: [f64; 3], ersatz: [f64; 3]) -> [f64; 3] {
+pub(crate) fn v_norm(v: [f64; 3], ersatz: [f64; 3]) -> [f64; 3] {
     let l = libm::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     if l > 1e-12 && l.is_finite() {
         [v[0] / l, v[1] / l, v[2] / l]
@@ -360,7 +366,7 @@ fn v_norm(v: [f64; 3], ersatz: [f64; 3]) -> [f64; 3] {
 fn kreuz(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 }
-fn punkt(a: [f64; 3], b: [f64; 3]) -> f64 {
+pub(crate) fn punkt(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
@@ -405,7 +411,7 @@ fn ortho(l: f64, r: f64, u: f64, o: f64, nah: f64, fern: f64) -> M4 {
     m
 }
 
-fn transf(m: &M4, p: [f64; 3]) -> [f64; 3] {
+pub(crate) fn transf(m: &M4, p: [f64; 3]) -> [f64; 3] {
     [
         m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12],
         m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13],
@@ -443,7 +449,7 @@ fn im_sichtkoerper(e: &[[f64; 4]; 6], mi: [f64; 3], ma: [f64; 3]) -> bool {
 }
 
 /// f64 → u64 mit gleicher Ordnung (für Sortierschlüssel).
-fn ordnungs_bits(x: f64) -> u64 {
+pub(crate) fn ordnungs_bits(x: f64) -> u64 {
     let x = if x.is_nan() { 0.0 } else { x + 0.0 };
     let b = x.to_bits();
     if b & (1 << 63) != 0 {
@@ -453,23 +459,23 @@ fn ordnungs_bits(x: f64) -> u64 {
     }
 }
 
-fn lin4(rgba: u32, k: f64) -> [f64; 4] {
+pub(crate) fn lin4(rgba: u32, k: f64) -> [f64; 4] {
     let l = farbe::rgb_linear(rgba);
     [l[0] * k, l[1] * k, l[2] * k, 0.0]
 }
 
-fn put_v4(b: &mut Vec<u8>, v: [f64; 4]) {
+pub(crate) fn put_v4(b: &mut Vec<u8>, v: [f64; 4]) {
     for x in v {
         put_f32(b, x);
     }
 }
 
-fn abschnitt_beginn(b: &mut Vec<u8>, art: u32) -> usize {
+pub(crate) fn abschnitt_beginn(b: &mut Vec<u8>, art: u32) -> usize {
     put_u32(b, art);
     put_u32(b, 0);
     b.len()
 }
-fn abschnitt_ende(b: &mut Vec<u8>, start: usize) {
+pub(crate) fn abschnitt_ende(b: &mut Vec<u8>, start: usize) {
     let len = (b.len() - start) as u32;
     b[start - 4..start].copy_from_slice(&len.to_le_bytes());
     while b.len() % 4 != 0 {
@@ -980,6 +986,9 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         abschnitt_ende(aus, st);
         abschnitte += 1;
     }
+
+    // ---------------- Viele Lichter (Clustered Forward): nur bei mehr als 8 Punktlichtern oder einem Spot ----------------
+    abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn);
 
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());

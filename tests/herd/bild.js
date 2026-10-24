@@ -49,6 +49,10 @@ const hauptdatei = projektWurzel ? (fs.statSync(datei).isDirectory()
 /** Testdatei des Programms: pruefung/<art> im Projekt, sonst <prog><endung> daneben. */
 const testDatei = (art, endung) => projektWurzel ? path.join(projektWurzel, BSP.PRUEFUNG, art) : datei.replace(/\.pizza$/, endung);
 const name = projektWurzel ? path.basename(projektWurzel) : path.basename(datei).replace(/\.pizza$/, '');
+// Teiglinge aus Bildchen.laden: je Aufruf eine Datei im Temp-Ordner, im Skript als `teigling_datei "<pfad>"` (herd/README §7.1)
+const TEIGE = fs.mkdtempSync(path.join(os.tmpdir(), 'herd-teige-'));
+process.on('exit', () => { try { fs.rmSync(TEIGE, { recursive: true, force: true }); } catch (e) { /* egal */ } });
+let teige = 0;
 
 // ---------- Aufzeichnung: WebAssembly.Instance für kern.wasm umhüllen (die echten Exporte sind eingefroren) ----------
 const ZEILEN = [];
@@ -98,7 +102,13 @@ const AUFZEICHNEN = {
   bildchen_rgba: (a) => [I(a[0]), I(a[1]), '[' + Array.from(u8().slice(a[2], a[2] + a[0] * a[1] * 4)).join(',') + ']'],
   eingabe: (a) => [F(a[0]), F(a[1]), I(a[2])], takt: () => [], paket_voll: () => [],
   bild: (a) => [I(a[0])],
+  bildchen_teigling: (a) => {
+    const p = path.join(TEIGE, 't' + (++teige) + '.teigling');
+    fs.writeFileSync(p, u8().slice(a[0], a[0] + a[1]));
+    return [JSON.stringify(p)];
+  },
 };
+const UMBENANNT = { bildchen_teigling: 'teigling_datei' };
 let istKern = false;
 const EchteInstanz = WebAssembly.Instance;
 function Huelle(modul, importe) {
@@ -113,7 +123,7 @@ function Huelle(modul, importe) {
     const auf = AUFZEICHNEN[n];
     if (typeof f !== 'function' || !auf) { ex[n] = f; continue; }
     ex[n] = (...a) => {
-      const args = auf(a), zeile = n + (args.length ? ' ' + args.join(' ') : '');
+      const args = auf(a), zeile = (UMBENANNT[n] || n) + (args.length ? ' ' + args.join(' ') : '');
       const r = f(...a);
       if (!(typeof r === 'number' && r < 0)) ZEILEN.push(zeile);   // fehlgeschlagene Aufrufe ändern nichts
       return r;

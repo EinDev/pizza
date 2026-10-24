@@ -169,7 +169,7 @@
               kopf: ["Aufruf", "Wirkung"],
               zeilen: [
                 ["`herd.sonne().setzeLage(x, y, z)`", "Richtung **zur** Sonne; flach = lange Schatten. `herd.sonne().licht().setzeFarbe(f).setzeStaerke(s)`"],
-                ["`herd.licht(x, y, z, farbe:, reichweite: 10)`", "Punktlicht; bis zu 8 wirken gleichzeitig (die nächsten zur Kamera)"],
+                ["`herd.licht(x, y, z, farbe:, reichweite: 10)`", "Punktlicht – beliebig viele wirken gleichzeitig (hunderte kosten kaum mehr als acht); mit `licht().setzeKegel(30)` wird es ein Spot, der dorthin leuchtet, wohin sein Teil schaut (`schaueAuf`)"],
                 ["`herd.umgebung(f, staerke: 0.35)`", "Grundhelligkeit, damit Schatten nicht schwarz werden"],
                 ["`herd.himmel(oben, unten)`", "Verlauf hinter der Szene: Zenit → Horizont"],
                 ["`herd.nebel(f, von, bis)`", "ab Abstand `von` verblasst alles bis `bis` in Farbe `f` – nimm die Horizontfarbe, dann verschmilzt der Boden mit dem Himmel"],
@@ -279,7 +279,7 @@
                 ["`Text`","2D","`inhalt` \"\", `groesse` 16, `farbe` ofen, `ausrichtung` links (links|mitte|rechts)","Text in der eingebauten Schrift; `ausrichtung` bezieht sich auf x, y ist die Oberkante"],
                 ["`Bild`","2D","`bildchen` karton, `groesse` 1, `farbe` weiss, `spiegeln` nein","ein Bildchen, pixelscharf; `groesse` = Bildschirmpixel je Bildchen-Pixel, `farbe` tönt"],
                 ["`Koerper`","3D","`form` karton, `farbe` weiss, `glanz` 0.3, `leuchten` 0, `bild` karton, `schatten` ja, `belag` karton","3D-Körper aus einer Form; `glanz` 0 … 1, `leuchten` 0 … 1, `bild` = Textur, `schatten` = wirft Schatten, `belag` = Teil mit geteiltem Material (`Belag`)"],
-                ["`Licht`","3D","`art` punkt (punkt|sonne), `farbe` weiss, `staerke` 1, `reichweite` 10, `schatten` ja","Punktlicht oder Sonne (`art`); höchstens 8 Punktlichter wirken (die nächsten zur Kamera)"],
+                ["`Licht`","3D","`art` punkt (punkt|sonne), `farbe` weiss, `staerke` 1, `reichweite` 10, `schatten` ja, `kegel` 0, `kegelRand` 0.25","Punktlicht, Spot (`kegel` > 0: halber Öffnungswinkel, leuchtet entlang −z des Teils) oder Sonne (`art`); beliebig viele Punktlichter und Spots wirken (bis 4096 sichtbare, je Zelle der Sicht 255)"],
                 ["`Kamera`","3D","`sicht` 60, `nah` 0.1, `fern` 500, `aktiv` ja","Blickwinkel `sicht` in Grad; es zeichnet die aktive Kamera mit der kleinsten ID"],
                 ["`Bewegung`","2D + 3D","`tempoX` 0, `tempoY` 0, `tempoZ` 0, `beschleunigungX` 0, `beschleunigungY` 0, `beschleunigungZ` 0, `drehtempo` 0, `daempfung` 0","je Takt: Tempo += Beschleunigung·dt, Dämpfung, Lage += Tempo·dt; `drehtempo` in Grad/s"],
                 ["`Animation`","2D","`bilder` [], `proSekunde` 8, `schleife` ja, `laeuft` ja, `nummer` 1 – braucht Bild","blättert durch `bilder` (braucht ein `Bild` am selben Teil); ohne `schleife` stoppt sie am Ende"],
@@ -968,6 +968,41 @@
             },
             { art: "ausgabe", text: z("Himmelszelt(3) #22306a 4 1") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Sternennacht** unter *Beispiele → Herd*: Über dem Hügelland sinkt die Sonne, der Himmel färbt sich vom Abendrot zum Nachtblau, die Sterne gehen auf, und im Hof wird Licht gemacht." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Viele Lichter und Spots",
+          inhalt: [
+            { art: "text", md: "Jedes `Licht` mit `art: \"punkt\"` leuchtet – auch hunderte auf einmal: Lichterketten, Neonschilder, Laternen. Die Engine teilt die Sicht in Zellen (16 Kacheln breit, je nach Seitenverhältnis 9 hoch, 24 Tiefenscheiben) und merkt sich je Zelle, welche Lichter dort hinreichen; jedes Pixel rechnet nur die Lichter seiner Zelle. Damit das schnell bleibt, gib jedem Licht eine passende `reichweite` – ein Licht wirkt nur innerhalb dieses Abstands (zum Rand hin weich abnehmend). Bis 4096 sichtbare Lichter je Bild (die nächsten zur Kamera zuerst), je Zelle höchstens 255." },
+            { art: "text", md: "Ein **Spot** ist ein Licht mit **`kegel`** > 0 (halber Öffnungswinkel in Grad, bis 90): Er leuchtet in die Richtung, in die sein Teil schaut – `schaueAuf(x, y, z)` richtet ihn aus wie die Kamera. **`kegelRand`** (0 … 1) ist der Anteil des Kegels, der weich ausläuft (0 = harte Kante). Punktlichter und Spots werfen keine Schatten (nur die Sonne)." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":2},{"typ":"takt","anzahl":2}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Lichter","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":2,"szene":"f13dad013ee3190f","paket":"78e74a2442c5dd44"},
+                {"art":"bild","bildnummer":4,"szene":"7d5a854769666b5f","paket":"cef0e111ee9e0a0e"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Lichter\", breite: 320, hoehe: 180);",
+                "herd.himmel(\"#0b0d18\", \"#1d1830\");",
+                "herd.sonne().licht().setzeStaerke(0);",
+                "herd.koerper(Form.ebene(), farbe: \"#555560\", glanz: 0.6).setzeGroesse(30, 1, 30);",
+                "für (salami i = 0; i < 40; i++) {",
+                "    herd.licht((i % 8 - 3.5) * 1.5, 0.4, 2 - (i / 8).ganz() * 1.5, farbe: i % 2 == 0 ? \"#ff4d6d\" : \"#22c6ff\", reichweite: 2);",
+                "}",
+                "Teil spot = herd.licht(0, 5, 0, farbe: \"#fff1d0\", reichweite: 9);",
+                "spot.schaueAuf(0, 0, -1);",
+                "spot.licht().setzeKegel(25).setzeStaerke(4);",
+                "herd.backe(() -> { spot.verschiebe(0.25, 0, 0); });",
+                "Bote.sage((spot.licht() + \" \" + spot.licht().kegel() + \" \" + spot.x()));"
+              )
+            },
+            { art: "ausgabe", text: z("Licht(44) 25 1") },
+            { art: "text", md: "Ein ganzes Beispiel ist das **Lichterfest** unter *Beispiele → Herd*: 144 Glühbirnen in sechs Lichterketten über einer Altstadtgasse und Laternen als Spots." }
           ]
         },
         {

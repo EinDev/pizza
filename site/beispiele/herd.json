@@ -202,6 +202,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Kniff", "Klassen", "Fuehler", "Spiel"],
       "herd": true
+    },
+    {
+      "id": "lichterfest",
+      "titel": "Lichterfest: hunderte Lichter in einer Gasse",
+      "beschreibung": "Sechs Lichterketten mit je 24 Glühbirnen hängen über einer nächtlichen Altstadtgasse, Laternen an den Wänden leuchten als Spots aufs Pflaster. Jede Birne ist ein eigenes Punktlicht – die Engine merkt sich je Zelle der Sicht, welche Lichter dort wirken. Leertaste: bunt oder warmweiß.",
+      "ordner": "herd/lichterfest",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Licht", "Spot"],
+      "herd": true
     }
   ]
 }
