@@ -11,6 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 herd-kern = { path = "../kern" }
+# teigling_muster (PD3): Mipmaps und Teigling-Kopf genau wie der Vorbacker
+herd-teigling = { path = "../teigling" }
 
 # Testbau: Probe-Komponente (H-K0-Feldtypen) für tests/probe.herd – nur `cargo test`, nicht herd-skript/kern.wasm.
 [dev-dependencies]

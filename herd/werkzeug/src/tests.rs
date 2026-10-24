@@ -95,6 +95,107 @@ fn kaputtes_paket_ist_ein_fehler() {
     assert!(matches!(g.bild(b"kein paket"), Err(herd_glut::Fehler::Paket(_))));
 }
 
+/// Szene mit einem Muster-Teigling (`teigling_muster`) als `Bild` der Größe `g` in der Feldmitte (320 × 180).
+fn textur_szene(muster: u32, kante: u32, g: f64, tonung: &str) -> String {
+    format!(
+        "welt_neu 320 180 \"T\"\nwelt_hintergrund \"#000000\"\ntyp_nummer \"Bild\" -> T_B\nfeld_nummer T_B \"bildchen\" -> B_BILD\n\
+feld_nummer T_B \"groesse\" -> B_GR\nfeld_nummer T_B \"farbe\" -> B_F\nteigling_muster {muster} {kante} {kante} -> T\n\
+teil_neu 2 -> p\nteil_lage p 160 90 0\nkomp_neu T_B -> b\nsetze_zahl b B_BILD T\nsetze_zahl b B_GR {g}\nsetze_text b B_F \"{tonung}\"\n\
+komp_haenge b p\nbild\n"
+    )
+}
+
+fn pixel(px: &[u8], b: u32, x: u32, y: u32) -> [u8; 4] {
+    let i = ((y * b + x) * 4) as usize;
+    [px[i], px[i + 1], px[i + 2], px[i + 3]]
+}
+
+#[test]
+fn eigene_textur_verkleinert_trilinear_ohne_moire() {
+    // Schachbrett 512² (4-px-Felder) auf 1/16 verkleinert: nächster Nachbar träfe immer dieselbe Feldfarbe (hell oder
+    // dunkel), über die Mipmaps ergibt sich die Mischfarbe – gleichmäßig über das ganze Viertel
+    let auf = Aufruf { bilder: None, groesse: (320, 180), glut: software(), vorgaben: Vec::new() };
+    let Ok(mut g) = neue_glut(&auf) else {
+        eprintln!("übersprungen: kein Software-Adapter");
+        return;
+    };
+    let px = rendere(&mut g, &textur_szene(1, 512, 0.0625, "weiss"), &auf).unwrap().pop().unwrap().1;
+    // oberes linkes Viertel des Bildes (32 × 32 Pixel um 160, 90): Felder 244/232/204 und 176/52/36
+    let mut gruen = Vec::new();
+    for y in 76..88 {
+        for x in 146..158 {
+            gruen.push(pixel(&px, 320, x, y)[1] as f64);
+        }
+    }
+    let mittel = gruen.iter().sum::<f64>() / gruen.len() as f64;
+    let streu = (gruen.iter().map(|v| (v - mittel) * (v - mittel)).sum::<f64>() / gruen.len() as f64).sqrt();
+    assert!((100.0..175.0).contains(&mittel) && streu < 12.0, "Grün im Viertel: Mittel {:.1}, Streuung {:.1}", mittel, streu);
+    let s = g.statistik();
+    assert_eq!((s.draw_calls, s.instanzen_2d), (1, 1), "eigene Texturen bleiben im einen 2D-Draw-Call");
+    let sp = g.textur_speicher();
+    assert_eq!(sp.bilder, 1);
+    // Nutzlast = Teigling ohne Kopf (52) und Längenfelder (10 Stufen); Klasse 512: 1 398 100 Bytes je Schicht (GL: 2 Schichten)
+    assert_eq!(sp.nutz_bytes, herd_skript::muster_teigling(1, 512, 512).len() as u64 - 52 - 4 * 10);
+    assert!(sp.vram_bytes == 1_398_100 || sp.vram_bytes == 2 * 1_398_100, "{:?}", sp);
+}
+
+#[test]
+fn eigene_textur_vergroessert_pixelscharf() {
+    // Pizza 16² auf das 8-Fache: jedes Texel ein 8 × 8-Block gleicher Farbe (nächster Nachbar); der halb durchsichtige Rand
+    // wird auf schwarzem Grund mit seiner eigenen Farbe und halber Deckkraft gemischt (vormultipliziert geladen und im
+    // Shader zurückgerechnet – die Farbe bleibt)
+    let auf = Aufruf { bilder: None, groesse: (320, 180), glut: Optionen { msaa: 1, ..software() }, vorgaben: Vec::new() };
+    let Ok(mut g) = neue_glut(&auf) else {
+        eprintln!("übersprungen: kein Software-Adapter");
+        return;
+    };
+    let px = rendere(&mut g, &textur_szene(2, 16, 8.0, "weiss"), &auf).unwrap().pop().unwrap().1;
+    // Bild 128 × 128 ab (96, 26): Texel (tx, ty) → Block ab (96 + 8 tx, 26 + 8 ty)
+    for (tx, ty) in [(8u32, 8u32), (3, 8), (8, 2), (12, 12)] {
+        let erwartet = herd_skript::muster_pixel(2, tx as i64, ty as i64, 16, 16);
+        for (dx, dy) in [(1u32, 1u32), (6, 6), (1, 6)] {
+            let p = pixel(&px, 320, 96 + 8 * tx + dx, 26 + 8 * ty + dy);
+            if erwartet[3] == 255 {
+                for k in 0..3 {
+                    assert!(p[k].abs_diff(erwartet[k]) <= 2, "Texel {:?}: {:?} statt {:?}", (tx, ty), p, erwartet);
+                }
+            }
+        }
+    }
+    // Randpixel halb durchsichtig (Alpha 128): Farbe · ½ auf Schwarz
+    let rand = (0..16).find(|&x| herd_skript::muster_pixel(2, x, 8, 16, 16)[3] == 128).expect("Rand");
+    let e = herd_skript::muster_pixel(2, rand, 8, 16, 16);
+    let p = pixel(&px, 320, 96 + 8 * rand as u32 + 4, 26 + 8 * 8 + 4);
+    for k in 0..3 {
+        let soll = (e[k] as f64 * 128.0 / 255.0).round() as u8;
+        assert!(p[k].abs_diff(soll) <= 3, "Rand: {:?} statt ≈ {:?}·½", p, e);
+    }
+}
+
+#[test]
+fn textur_mit_unbekanntem_format_ist_ein_fehler() {
+    let Ok(mut g) = neue_glut(&Aufruf { bilder: None, groesse: (64, 64), glut: software(), vorgaben: Vec::new() }) else {
+        return;
+    };
+    let mut k = Kern::neu();
+    k.welt_neu(64.0, 64.0, b"T");
+    assert!(k.bildchen_teigling(&herd_skript::muster_teigling(1, 4, 4)) > 0);
+    k.bild(1);
+    let mut p = k.paket().to_vec();
+    // Abschnitt TEXTUR suchen und das Pixelformat (Byte 4 der Daten) auf 7 setzen
+    let mut i = 32;
+    while i + 8 <= p.len() {
+        let art = u32::from_le_bytes([p[i], p[i + 1], p[i + 2], p[i + 3]]);
+        let len = u32::from_le_bytes([p[i + 4], p[i + 5], p[i + 6], p[i + 7]]) as usize;
+        if art == herd_kern::paket::abschnitt::TEXTUR {
+            p[i + 8 + 4] = 7;
+            break;
+        }
+        i += 8 + len.div_ceil(4) * 4;
+    }
+    assert!(matches!(g.bild(&p), Err(herd_glut::Fehler::Paket(_))));
+}
+
 #[test]
 fn schatten_auch_wenn_das_erste_bild_keine_hat() {
     // Titelbild ohne 3D, dann Körper mit Schatten: die Shadow-Map muss nachträglich entstehen

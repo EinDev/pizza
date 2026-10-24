@@ -47,3 +47,78 @@ fn zu_linear(c: vec3<f32>) -> vec3<f32> {
 fn rauschen(p: vec2<f32>) -> f32 {
     return fract(52.9829189 * fract(dot(p, vec2<f32>(0.06711056, 0.00583715)))) - 0.5;
 }
+
+// ---- Eigene Texturen (TEXTUR, PROJEKTE PD3) ----
+// Fünf Größenklassen (Kante 128 · 2^k, k = 0 … 4), je ein Textur-Array mit voller Mip-Kette; ein Bild = eine Schicht, Stufe i
+// des Teiglings liegt bei (0, 0) der Mip-Ebene i, **vormultipliziert** gespeichert. Abtastung: vergrößern nächster Nachbar
+// (Stufe 0, pixelscharf), verkleinern trilinear (zwei bilineare Stufen, je auf das Bildrechteck dieser Stufe geklemmt – kein
+// Übersprechen zwischen Rahmen-Neunteln oder in den leeren Rest der Schicht). Die Stufe λ kommt aus den Bildschirmableitungen der
+// Texel-Koordinaten (`eigen_lambda`, im gleichförmigen Kontrollfluss am Anfang des Fragment-Shaders), danach nur explizite
+// Stufen – damit dürfen die Abtastungen in Verzweigungen stehen (naga/WebGL2) und WebGPU, WebGL2 und nativ rechnen gleich.
+@group(0) @binding(7) var eigen0: texture_2d_array<f32>;
+@group(0) @binding(8) var eigen1: texture_2d_array<f32>;
+@group(0) @binding(9) var eigen2: texture_2d_array<f32>;
+@group(0) @binding(10) var eigen3: texture_2d_array<f32>;
+@group(0) @binding(11) var eigen4: texture_2d_array<f32>;
+@group(0) @binding(12) var eigen_s: sampler;
+
+// Stufe (log2 der Texel je Gerätepixel, isotrop) aus den Ableitungen der Texel-Koordinaten `t` (Pixel der Stufe 0).
+fn eigen_lambda(t: vec2<f32>) -> f32 {
+    let dx = dpdx(t);
+    let dy = dpdy(t);
+    return 0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1e-12));
+}
+
+fn eigen_lade(k: u32, t: vec2<i32>, s: i32) -> vec4<f32> {
+    var r = vec4<f32>(0.0);
+    switch k {
+        case 0u: { r = textureLoad(eigen0, t, s, 0); }
+        case 1u: { r = textureLoad(eigen1, t, s, 0); }
+        case 2u: { r = textureLoad(eigen2, t, s, 0); }
+        case 3u: { r = textureLoad(eigen3, t, s, 0); }
+        default: { r = textureLoad(eigen4, t, s, 0); }
+    }
+    return r;
+}
+
+fn eigen_probe(k: u32, uv: vec2<f32>, s: i32, stufe: f32) -> vec4<f32> {
+    var r = vec4<f32>(0.0);
+    switch k {
+        case 0u: { r = textureSampleLevel(eigen0, eigen_s, uv, s, stufe); }
+        case 1u: { r = textureSampleLevel(eigen1, eigen_s, uv, s, stufe); }
+        case 2u: { r = textureSampleLevel(eigen2, eigen_s, uv, s, stufe); }
+        case 3u: { r = textureSampleLevel(eigen3, eigen_s, uv, s, stufe); }
+        default: { r = textureSampleLevel(eigen4, eigen_s, uv, s, stufe); }
+    }
+    return r;
+}
+
+// bilinear in Stufe `stufe` (ganzzahlig), Punkt `p` und Rechteck `box` (u0 v0 u1 v1) in Pixeln der Stufe 0
+fn eigen_bilinear(k: u32, s: i32, p: vec2<f32>, box: vec4<f32>, stufe: f32) -> vec4<f32> {
+    let f = exp2(stufe);
+    let lo = box.xy / f + vec2<f32>(0.5);
+    let hi = max(floor(box.zw / f) - vec2<f32>(0.5), lo);
+    let q = clamp(p / f, lo, hi);
+    let kante = f32(128u << k) / f;
+    return eigen_probe(k, q / kante, s, stufe);
+}
+
+// Farbe (nicht vormultipliziert) des Bildes in Klasse `k`, Schicht `s` am Punkt `p` (Pixel der Stufe 0), geklemmt auf `box`.
+fn eigen_abtasten(k: u32, s: i32, p: vec2<f32>, box: vec4<f32>, lambda: f32) -> vec4<f32> {
+    var c: vec4<f32>;
+    // bis 1/16 Stufe über 0 (Rechenrauschen bei 1 : 1) gilt als Vergrößerung
+    if (lambda <= 0.0625) {
+        let t = clamp(floor(p), box.xy, max(box.zw - vec2<f32>(1.0), box.xy));
+        c = eigen_lade(k, vec2<i32>(t), s);
+    } else {
+        let g = max(box.zw - box.xy, vec2<f32>(1.0));
+        let oben = min(floor(log2(max(g.x, g.y))), f32(7u + k));
+        let l = min(lambda, oben);
+        let l0 = floor(l);
+        c = eigen_bilinear(k, s, p, box, l0);
+        if (l0 < oben) {
+            c = mix(c, eigen_bilinear(k, s, p, box, l0 + 1.0), l - l0);
+        }
+    }
+    return vec4<f32>(c.rgb / max(c.a, 1.0 / 512.0), c.a);
+}

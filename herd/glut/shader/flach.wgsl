@@ -1,6 +1,7 @@
 // 2D: alle Instanzen (INST2D, 56 Bytes) in einem Draw-Call – Uber-Shader nach `art`:
 // 1 Rechteck (SDF, Rundung, Umriss), 2 Kreis (SDF, Umriss; auch Partikel), 3 Bild (Atlas, pixelscharf), 4 Glyphe (SDF-Schrift),
-// 5 Dreieck (Vieleck, H-K3b: Ecken A = t, B = m.xy, C = m.zw in Spielfeld-Pixeln, Kantenglättung nur an den Außenkanten p.x).
+// 5 Dreieck (Vieleck, H-K3b: Ecken A = t, B = m.xy, C = m.zw in Spielfeld-Pixeln, Kantenglättung nur an den Außenkanten p.x),
+// 6 Texturbild (PD3: eigene Textur; `seite` = Glut-Kennung Klasse << 21 | Schicht, `uv` in Pixeln der Stufe 0, gemeinsam.wgsl).
 // Ecken aus vertex_index (6 je Instanz), Kantenglättung über die Bildschirmableitung des Abstands. Ausgabe in sRGB.
 
 @group(0) @binding(4) var atlas: texture_2d_array<f32>;
@@ -145,16 +146,25 @@ fn fs_flach(a: AusFlach) -> @location(0) vec4<f32> {
     let sdf = textureSampleLevel(schrift, linear, a.uv / groesse, 0.0).r;
     let sw = max(fwidth(sdf), 0.0001);
     let deck_glyphe = clamp((sdf - 0.5) / sw + 0.5, 0.0, 1.0);
+    // eigene Textur: Stufe aus den Ableitungen (hier oben, gleichförmiger Kontrollfluss)
+    let lambda = eigen_lambda(a.uv);
 
     // Bild: nächster Nachbar, auf das Rechteck geklemmt
-    // (Dreiecke tragen in `uvbox` Kantenhöhen statt Atlas-Pixeln → dort Texel 0, das Ergebnis bleibt ungenutzt)
+    // (Dreiecke tragen in `uvbox` Kantenhöhen statt Atlas-Pixeln → dort Texel 0, das Ergebnis bleibt ungenutzt;
+    // Texturbilder lesen den Atlas nicht – Seite 0 statt der Kennung)
     let ub = select(a.uvbox, vec4<f32>(0.0), art == 5u);
     let texel = clamp(floor(a.uv), ub.xy, max(ub.zw - vec2<f32>(1.0), ub.xy));
-    let bild = textureLoad(atlas, vec2<i32>(texel), seite, 0);
+    let bild = textureLoad(atlas, vec2<i32>(texel), select(seite, 0, art == 6u), 0);
 
     var f = a.farbe;
     if (art == 3u) {
         f = f * bild;
+    } else if (art == 6u) {
+        let k = u32(seite) >> 21u;
+        if (k > 4u) {
+            discard;
+        }
+        f = f * eigen_abtasten(k, seite & 0x1FFFFF, a.uv, a.uvbox, lambda);
     } else if (art == 4u) {
         f.a = f.a * deck_glyphe;
     } else {

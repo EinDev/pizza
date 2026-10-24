@@ -56,3 +56,25 @@ bild
 takte TAKTE
 paket_voll
 bild
+# PD3: Muster-Teiglinge der Spieler (teigling_muster, Mipmaps wie der Vorbacker) – ungerade und nicht quadratische Größen,
+# durchsichtig (Pizza), unbekanntes Muster; nativ = JS über die Paket-Hashes (TEXTUR trägt alle Stufen)
+teigling_muster 1 37 23 -> M1
+teigling_muster 2 64 64 -> M2
+teigling_muster 3 48 30 -> M3
+teigling_muster 4 129 65 -> M4
+teigling_muster 9 5 3 -> M9
+teigling_muster 2 1 1 -> M0
+ressource_hole M4 1
+ressource_hole M4 2
+ressource_hole M4 3
+wiederhole 6 i
+  teil_neu 2 -> s
+  teil_lage s (40 + i * 45) 170 0
+  komp_neu T_B -> sb
+  setze_zahl sb B_BILD (M1 + i)
+  setze_zahl sb B_GR 0.5
+  komp_haenge sb s
+ende
+bild
+paket_voll
+bild

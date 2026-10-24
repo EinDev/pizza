@@ -19,6 +19,8 @@ const SIGNATUREN = {
   setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], setze_zahlen: ['iid', 'I'], hole_zahlen: ['ii', 'D'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
   bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], takt: ['', 'I'], paket_voll: ['', 'I'],
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
+  // Hilfsaufruf der Spieler (kein ABI-Export, PD3): Teigling aus festem Muster → bildchen_teigling
+  teigling_muster: ['iii', 'I'],
 };
 
 function fehler(z, t) { throw new Error('Zeile ' + z + ': ' + t); }
@@ -193,6 +195,92 @@ function rechne(a, v, z) {
   if (a.fn) { const x = rechne(a.a, v, z); return a.fn === 'boden' ? Math.floor(x) : zufall(x); }
   const x = rechne(a.a, v, z), y = rechne(a.b, v, z);
   switch (a.op) { case '+': return x + y; case '-': return x - y; case '*': return x * y; case '/': return x / y; default: return x % y; }
+}
+
+// ------------------------------------------------------------------------------------------- Muster-Teiglinge (PD3)
+
+/** Pixel des Musters m an (x, y) in b × h – nur Ganzzahlen, gleich herd_skript::muster_pixel (alle Divisionen nicht negativ). */
+function musterPixel(m, x, y, b, h) {
+  const d = (a, c) => Math.floor(a / c);
+  const dx = 2 * x + 1 - b, dy = 2 * y + 1 - h;
+  if (m === 1) {
+    if (x % 32 === 0 || y % 32 === 0) return [30, 30, 30, 255];
+    const HELL = [[244, 232, 204], [204, 228, 244], [222, 240, 200], [240, 212, 232]];
+    const DUNKEL = [[176, 52, 36], [36, 84, 168], [52, 128, 52], [132, 52, 132]];
+    const q = (2 * x >= b ? 1 : 0) + (2 * y >= h ? 2 : 0);
+    const c = (d(x, 4) + d(y, 4)) % 2 === 0 ? HELL[q] : DUNKEL[q];
+    return [c[0], c[1], c[2], 255];
+  }
+  if (m === 2) {
+    const r = Math.max(Math.min(b, h) - 2, 1), d2 = dx * dx + dy * dy;
+    if (d2 > (r + 2) * (r + 2)) return [0, 0, 0, 0];
+    if (d2 > r * r) return [150, 95, 40, 128];
+    if (d2 > d(r * 4, 5) * d(r * 4, 5)) return [204, 148, 72, 255];
+    const rp = Math.max(d(r, 5), 1), r3 = d(rp, 3), r4 = d(rp, 4);
+    for (const [fx, fy] of [[3, 4], [6, 3], [7, 6], [4, 7], [5, 5]]) {
+      const ex = dx - (d(2 * b * fx, 10) - b), ey = dy - (d(2 * h * fy, 10) - h);
+      if ((ex + r3) * (ex + r3) + (ey + r3) * (ey + r3) <= r4 * r4) return [214, 92, 80, 255];
+      if (ex * ex + ey * ey <= rp * rp) return [160, 30, 28, 255];
+    }
+    return (x * 7 + y * 13) % 17 === 0 ? [252, 226, 140, 255] : [214, 64, 36, 255];
+  }
+  if (m === 3) {
+    const t = Math.max(d(Math.min(b, h), 3), 1);
+    if (x < 2 || y < 2 || x >= b - 2 || y >= h - 2) return [44, 30, 20, 255];
+    const rx = x < t || x >= b - t, ry = y < t || y >= h - t;
+    if (rx && ry) return d(x + y, 2) % 2 === 0 ? [230, 180, 60, 255] : [150, 96, 30, 255];
+    if (rx || ry) {
+      const innen = (rx && (x === t - 1 || x === b - t)) || (ry && (y === t - 1 || y === h - t));
+      return innen ? [90, 60, 30, 255] : [218, 170, 70, 255];
+    }
+    return (d(x, 2) + d(y, 2)) % 2 === 0 ? [250, 240, 215, 255] : [228, 212, 178, 255];
+  }
+  if (m === 4) return d(dx * dx + dy * dy, 6 * Math.max(b, h)) % 2 === 0 ? [250, 250, 245, 255] : [24, 28, 70, 255];
+  return [255, 255, 255, 255];
+}
+
+/** Teigling v1 aus Muster m (Mipmaps alpha-gewichtet wie der Vorbacker, herd/README.md §11.2; SHA-256 im Kopf = 0). */
+function musterTeigling(m, b, h) {
+  const stufen = 32 - Math.clz32(Math.max(b, h));
+  const groessen = [];
+  for (let i = 0, w = b, hh = h; i < stufen; i += 1, w = Math.max(w >> 1, 1), hh = Math.max(hh >> 1, 1)) groessen.push([w, hh]);
+  const t = new Uint8Array(52 + groessen.reduce((s, [w, hh]) => s + 4 + w * hh * 4, 0));
+  const dv = new DataView(t.buffer);
+  t.set(ENC.encode('TEIGLING'), 0);
+  dv.setUint16(8, 1, true); t[10] = 0; t[11] = stufen; dv.setUint16(12, b, true); dv.setUint16(14, h, true);
+  let o = 52, vor = null, durch = false;
+  for (const [w, hh] of groessen) {
+    dv.setUint32(o, w * hh * 4, true);
+    const z = t.subarray(o + 4, o + 4 + w * hh * 4);
+    if (!vor) {
+      for (let y = 0; y < hh; y += 1) for (let x = 0; x < w; x += 1) {
+        const p = musterPixel(m, x, y, b, h);
+        z.set(p, (y * w + x) * 4);
+        if (p[3] !== 255) durch = true;
+      }
+    } else {
+      const [vb, vh] = vor.groesse;
+      for (let y = 0; y < hh; y += 1) {
+        const y0 = 2 * y, y1 = y0 + 1 < vh ? y0 + 1 : vh - 1;
+        for (let x = 0; x < w; x += 1) {
+          const x0 = 2 * x, x1 = x0 + 1 < vb ? x0 + 1 : vb - 1;
+          let sa = 0; const sc = [0, 0, 0];
+          for (const i of [(y0 * vb + x0) * 4, (y0 * vb + x1) * 4, (y1 * vb + x0) * 4, (y1 * vb + x1) * 4]) {
+            const a = vor.px[i + 3];
+            sa += a;
+            for (let k = 0; k < 3; k += 1) sc[k] += vor.px[i + k] * a;
+          }
+          const q = (y * w + x) * 4;
+          for (let k = 0; k < 3; k += 1) z[q + k] = sa > 0 ? Math.floor((sc[k] + Math.floor(sa / 2)) / sa) : 0;
+          z[q + 3] = (sa + 2) >> 2;
+        }
+      }
+    }
+    vor = { px: z, groesse: [w, hh] };
+    o += 4 + w * hh * 4;
+  }
+  dv.setUint32(16, durch ? 1 : 0, true);
+  return t;
 }
 
 const ENC = new TextEncoder();
@@ -405,6 +493,13 @@ class Spieler {
         p = this.puffer([bytes]);
         return I(k.bildchen_teigling(p[0][0], bytes.length));
       }
+      case 'teigling_muster': {
+        const m = ii(0), b = ii(1), h = ii(2);
+        if (!(b >= 1 && b <= 2048 && h >= 1 && h <= 2048)) fehler(z, 'teigling_muster: Breite und Höhe 1 … 2048');
+        const bytes = musterTeigling(m, b, h);
+        p = this.puffer([bytes]);
+        return I(k.bildchen_teigling(p[0][0], bytes.length));
+      }
       case 'ressource_hole': return F(k.ressource_hole(ii(0), ii(1)));
       case 'takt': return I(k.takt());
       case 'paket_voll': return I(k.paket_voll());
@@ -416,4 +511,4 @@ class Spieler {
   }
 }
 
-module.exports = { lies, Spieler, zufall, wertText, SIGNATUREN };
+module.exports = { lies, Spieler, zufall, wertText, SIGNATUREN, musterTeigling };

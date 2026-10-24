@@ -951,7 +951,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PA1 Lader + Interpreter + CLI** | `projekt.*` (inkl. Ladeprüfungen P0014–P0020 Grenzen, W0004, Textnormalisierung), `bestellt`, Ladereihenfolge, `datei`-Feld, `warnSet`, Ananas-Ortstext, CLI Ordner, Ordner-Fälle in `tests/run-tests.js`, `a19` Lader-Fälle grün (nach `a19-projekte.js` verschieben; Kiste/Bild-Fälle bleiben bis PD2 in `a19-projekte-offen.js`, ARCHITEKTUR §6) | `site/js/pizza.js`, `bin/pizza.js`, `tests/faelle/*/`, `tests/run-tests.js`, `pruefstand/faelle/a19-*` | P0 | PC1, PD1 | **umgesetzt** (Commit „PROJEKTE PA1: …“; Präzisierungen unten) |
 | **PC1 Durchreiche** | Dienst, Unit-Tests (in `npm test`), Dockerfile, compose/nginx/proxy-conf/envsh/Template, dependabot, README-Betrieb, Entfernen hastebin/redis | `durchreiche/**`, `compose*.yaml`, `nginx*.conf*`, `Dockerfile`, `docker-entrypoint-pizza.envsh`, `.github/dependabot.yml`, `README.md`, `hastebin/` (löschen) | P0 (§1.3, §4) | PA1, PD1 | offen |
 | **PD1 Vorbacker** | Crate `herd/teigling`: PNG, JPEG (islow-IDCT, Festkomma-Farbe), Mipmaps, Teigling-Format, Grenzen, `sha256`; `teigling.wasm` + JS-Hülle; goldene Teiglinge, Tests nativ = Wasm; Kern-Export `bildchen_teigling` + Abschnitt `TEXTUR` + `TEXTURBILD`/Bit 17; `.gitattributes` | `herd/teigling/**`, `herd/Cargo.toml`, `herd/baue.js`, `herd/kern/**`, `herd/README.md`, `site/js/herd/teigling.wasm`, `site/js/herd/kern.wasm`, `site/js/herd/schema.json`, `.gitattributes` | P0 | PA1, PC1 | **umgesetzt** (Commit „PROJEKTE PD1: …“, 2026-10-23; Rechenwege und Festlegungen `herd/README.md` §11, K-147; Glut-Darstellung bleibt PD3) |
-| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | offen |
+| **PD3 Glut-Texturen** | eigene Texturen mit Mip-Kette, Abtastung, Referenzbild (neues `tests/herd/bilder/<name>.herd` + `.png`, bestehende unverändert), Messung (Ladezeit, VRAM) | `herd/glut/**`, `herd/glut-web/**`, `site/js/herd/glut*.{js,wasm}`, `tests/herd/bilder/` | PD1 | PB2, PB3 | **umgesetzt** (Commit „PROJEKTE PD3: …“, 2026-10-24; Präzisierungen unten) |
 | **PA2 Wasm + Host** | Compiler auf Lader (Ports mit Datei-Index), ABI v2 in **allen** Hosts (§2.8), Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Host (JS + Rust, `-j 2`), Teiglinge ins Datensegment, Differenzkorpus-Ordner | `site/js/pizzaiolo.js`, `site/js/pizzaiolo/**`, `laufzeit/**`, `host/**`, `tests/differenz/**`, `tests/wasm/**`, `tests/herd/bild.js`, `tests/herd/zeige.js` | PA1, PD1 | PB1, PD2 | **umgesetzt** (Commit „PROJEKTE PA2: …“; Präzisierungen unten) |
 | **PB1 Playground-Projekte** | IndexedDB (inkl. Teigling-Cache, Rückfall ohne IndexedDB), Migration, Dateibaum, Tabs je Datei, Hauptdatei, Fehler-Sprung, ZIP, Vorbacken beim Hinzufügen + Bildvorschau, Worker-Protokoll (`start`/`kompiliere`), Vorrat-Präfix | `ui/src/**` (ohne `teilen.js`/`app.js`), `ui/test/**`, `site/js/worker.js`, `site/index.html`, `site/css/**`, E2E `03-tabs`, `10-argumente-vorrat` | PA1 (API), PD1 (JS-Hülle) | PA2, PD2 | **umgesetzt** (Commit „PROJEKTE PB1: …“, 2026-10-24) auf Lader (PA1), Vorbacker (PD1) und Kiste/Bildchen.laden (PD2); Wasm-Projekte folgen mit PA2; Präzisierungen unten |
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
@@ -1100,6 +1100,27 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 - **Für PB1/PB2/PB3/PB4:** `Pizzaiolo.projekte === true` (Worker darf Projekte an den Wasm-Motor geben); `Pizzaiolo.kompiliere(projekt,
   { teiglinge, vorbacker })` für den EXE-Export (im Worker lädt `pizzaiolo.js` `herd/teigling.js` bei Bedarf per `importScripts`);
   Custom Section `projekt.name` = Name aus `pizza.json` (Dateiname der EXE). Ein EXE/`.pkarton` mit `Kiste` enthält die Quelltexte lesbar.
+
+**Präzisierungen aus PD3** (umgesetzt in der Glut, nativ und Web; Kern und Bildpaket unverändert, alle Hashes gleich):
+- **Ablage:** fünf Größenklassen (128 … 2048, kleinste Zweierpotenz ≥ max(b, h)), je ein `Rgba8Unorm`-Textur-Array mit voller
+  Mip-Kette; ein Bild = eine Schicht, die Stufen des Teiglings unverändert in die Mip-Ebenen (keine Neuberechnung auf der GPU).
+  Dadurch bleibt 2D **ein** Draw-Call (und 3D einer je Zug), auch mit vielen Bildern, und es braucht keine Bindless-Texturen
+  (WebGL2). Die Glut schreibt nur ihre Kopie der Instanzen um (Textur-ID → Klasse/Schicht); das Paket bleibt, wie es ist.
+- **Vormultipliziert hochladen**, im Shader zurückrechnen: bilineare/trilineare Mischung an durchsichtigen Rändern ohne dunkle
+  Säume (die Teigling-Stufen selbst bleiben „nicht vormultipliziert“, K-147).
+- **Abtastung:** Stufe λ aus den Bildschirmableitungen der Texel-Koordinaten (isotrop, am Anfang des Fragment-Shaders), danach nur
+  explizite Stufen – gleich in WebGPU, WebGL2 und nativ. λ ≤ 1/16 → nächster Nachbar aus Stufe 0 (pixelscharf wie der Atlas; die
+  kleine Schwelle fängt Rechenrauschen bei 1 : 1), sonst trilinear aus zwei bilinearen Stufen, **je auf das Rechteck `u0 v0 u1 v1`
+  geklemmt** (Rahmen-Neuntel sprechen nicht über; λ höchstens log2 der Rechteckkante). Schatten-Ausschnitt (Alpha < ½) aus Stufe 0.
+  Kein anisotropes Filtern (bräuchte lineare Vergrößerung) – schräge Flächen werden in der Ferne eher weich als flimmernd.
+- **Grenzen/Fehler:** unbekanntes Pixelformat in TEXTUR → `Fehler::Paket` (spätere GPU-Formate §5.7 brauchen einen Glut-Zweig);
+  mehr als `max_texture_array_layers` Bilder einer Klasse (WebGL2: 256) → das Bild bleibt unbekannt (2D unsichtbar, 3D ohne Textur).
+  Grafikspeicher: Zweierpotenz-Kanten genau die Teigling-Stufen, sonst bis knapp × 4 (nächste Klasse) – bei 32 MiB Teigmenge
+  höchstens 128 MiB, Messung in `bench/herd/ERGEBNISSE.md` („Glut-Texturen“).
+- **Testbilder ohne Byte-Listen:** Hilfsaufruf `teigling_muster m b h` der Szenen-Spieler (Rust über `herd_teigling::teigling_aus`,
+  JS nachgebaut, über `teigling.herd` in `node herd/test-kern.js` bitgleich geprüft); Referenzbilder `2d-textur`, `2d-rahmen-textur`,
+  `3d-textur` (bestehende PNGs byte-gleich; `herd-bild referenz --nur=…` schreibt nur die genannten). Browser-Pixeltest: E2E 13
+  (WebGL2/SwiftShader); WebGPU hat headless ohne echte GPU keinen Software-Adapter und läuft nur über dieselben WGSL-Shader.
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

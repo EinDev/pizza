@@ -139,6 +139,28 @@ Bewertung: Vorbacken eines 1024²-Bildes kostet im Browser-Worker Größenordnun
 29 × (JPEG) größer als die Quelle – deshalb teilt v1 die Quellbilder und backt beim Empfänger (§5.4). `teigling.wasm`: 75 564
 Bytes, 27 954 Bytes gzip (Stufe 6).
 
+## Glut-Texturen (PROJEKTE PD3)
+
+`herd-bild textur --kanten=256,1024,2048 --laeufe=5` (Profil `messung`, Software-Adapter **WARP**, MSAA 4×, 640 × 360): je Kante
+ein Muster-Teigling (Schachbrett, volle Mip-Kette), Median aus 5 Läufen mit je neuer Glut. **Kern** = `bildchen_teigling` nativ
+(Kopfprüfung + Übernahme der Stufen). **Glut** = ein Bild mit Hochladen der TEXTUR (alle Stufen vormultipliziert, `write_texture`
+je Stufe, Klasse anlegen) + Zeichnen + Warten, gegen dasselbe Bild ohne Hochladen. **Grafikspeicher** = angelegte Textur-Arrays der
+eigenen Texturen (`textur_speicher()`); i7-13700KF, 2026-10-24:
+
+| Kante | Teigling | Kern | Glut-Bild mit / ohne Hochladen | Hochladen | hochgeladen | Grafikspeicher |
+|---|---|---|---|---|---|---|
+| 256² | 349 612 Bytes (9 Stufen) | 0,35 ms | 21,7 / 9,7 ms | **≈ 12 ms** | 0,33 MiB | 0,33 MiB |
+| 1024² | 5 592 500 Bytes (11 Stufen) | 8,5 ms | 170,4 / 19,7 ms | **≈ 151 ms** | 5,33 MiB | 5,33 MiB |
+| 2048² | 22 369 720 Bytes (12 Stufen) | 26,1 ms | 608,9 / 18,4 ms | **≈ 590 ms** | 21,33 MiB | 21,33 MiB |
+
+Bewertung: Auf WARP kostet das Hochladen eines 1024²-Teiglings einmalig ≈ 150 ms (CPU-Kopien in die Mip-Ebenen; ein Paket je
+Bild, in der Regel beim Start) – auf einer echten GPU erwartungsgemäß wenige Millisekunden (Messung unten, vom Nutzer). Danach
+kostet die Textur nichts mehr je Bild (Bild ohne Hochladen wie ohne Textur). Der Grafikspeicher entspricht bei Zweierpotenz-Kanten
+genau den Teigling-Stufen (≈ b · h · 4 · 4/3); andere Größen landen in der nächsten Klasse (schlimmstenfalls knapp × 4, z. B.
+1025² → 21,3 MiB statt 5,3 MiB), auf WebGL2 belegt eine Klasse mindestens 2 Schichten. Mit der Teigmenge ≤ 32 MiB (P0020) bleibt
+der Bedarf damit ≤ 128 MiB, typisch ≈ 32 MiB. Pixeltest WebGL2 (E2E 13) der drei PD3-Szenen: mittlere Abweichung 0,007 … 0,210 %,
+99,58 … 99,94 % der Pixel innerhalb 10/255; Browser-Glut 1 916 KiB roh (+15 KiB), 721 KiB gzip.
+
 ## Vom Nutzer auszuführen (echte GPU)
 
 Diese Messungen brauchen die **echte GPU** und werden deshalb von keinem Agenten ausgeführt. Bitte nur starten, wenn kein Spiel
@@ -152,7 +174,11 @@ herd\target\messung\herd-bild.exe bench tests\herd\szenen\b3-koerper.herd N=1000
 herd\target\messung\herd-bild.exe bench tests\herd\szenen\b3-koerper.herd N=1000 TAKTE=120 --groesse=1280x720 --gpu --ohne-instancing
 herd\target\messung\herd-bild.exe bench tests\herd\szenen\b4-partikel.herd RATE=1000 TAKTE=180 --groesse=1280x720 --gpu
 herd\target\messung\herd-bild.exe bild tests\herd\bilder\3d-alles.herd tmp\gpu-bilder --gpu
+herd\target\messung\herd-bild.exe textur --kanten=256,1024,2048 --laeufe=5 --gpu
+herd\target\messung\herd-bild.exe bild tests\herd\bilder\3d-textur.herd tmp\gpu-bilder --gpu
 ```
+
+Die `textur`-Zeile misst das Hochladen eigener Texturen (PD3) auf der GPU – bitte als Tabelle „Glut-Texturen (GPU)“ eintragen.
 
 Jede `bench`-Zeile gibt eine JSON-Zeile aus (`glut_median_ms`, `draw_calls`, Adapter); bitte hier als Tabelle „Glut (GPU)“
 eintragen. Die letzte Zeile rendert das 3D-Referenzbild auf der GPU zum Sichtvergleich mit `tests/herd/bilder/3d-alles.png`.

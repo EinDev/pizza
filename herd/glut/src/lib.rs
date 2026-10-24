@@ -24,13 +24,21 @@ use std::sync::Arc;
 pub use herd_kern;
 pub use wgpu;
 
-use herd_kern::paket::{abschnitt, flag, zug, Leser, ECKE_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
+use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES};
 use wgpu::util::DeviceExt as _;
 
 /// Mehrfachabtastung (Kantenglättung), wenn der Adapter sie kann.
 pub const MSAA_STANDARD: u32 = 4;
 const TIEFE: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 const ATLAS_SEITE: u32 = herd_kern::ressourcen::SEITE as u32;
+/// Eigene Texturen (TEXTUR, PROJEKTE PD3): Größenklassen 128, 256, 512, 1024, 2048 – je Klasse ein Textur-Array mit voller
+/// Mip-Kette, eine Schicht je Bild (Stufe i an (0, 0) der Mip-Ebene i). Der Shader wählt Klasse und Schicht je Instanz.
+const KLASSEN: usize = 5;
+const KLASSE0: u32 = 128;
+/// Glut-interne Kennung „Textur unbekannt“ (Klasse 7): 2D verwirft das Fragment, 3D zeichnet ohne Textur.
+const KLASSE_UNBEKANNT: u32 = 7;
+/// Schichten je Klasse höchstens (3D: 13 Bit für die Schicht in INST3D.textur)
+const MAX_SCHICHTEN_3D: u32 = 1 << 13;
 
 const GEMEINSAM: &str = include_str!("../shader/gemeinsam.wgsl");
 const FLACH: &str = include_str!("../shader/flach.wgsl");
@@ -160,6 +168,64 @@ impl Wachspuffer {
     }
 }
 
+/// Eine Größenklasse eigener Texturen: Textur-Array `kante²` mit voller Mip-Kette (Platzhalter 1 × 1, solange leer).
+struct Klasse {
+    textur: wgpu::Texture,
+    ansicht: wgpu::TextureView,
+    /// angelegte Schichten
+    schichten: u32,
+    /// belegte Schichten (Bilder)
+    belegt: u32,
+    /// `false` = Platzhalter (1 × 1, eine Stufe) – nie abgetastet
+    echt: bool,
+}
+
+/// Eigene Texturen aus TEXTUR-Abschnitten (Teiglinge): Textur-ID → (Klasse, Schicht).
+struct EigeneTexturen {
+    klassen: Vec<Klasse>,
+    karte: std::collections::HashMap<u32, (u32, u32)>,
+    /// Summe der Stufen-Bytes aller geladenen Bilder (Nutzlast)
+    nutz: u64,
+}
+
+/// Belegung der eigenen Texturen (PD3, Messung): Bilder, Nutzlast (Bytes aller Stufen) und angelegter Grafikspeicher.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TexturSpeicher {
+    pub bilder: u32,
+    pub nutz_bytes: u64,
+    pub vram_bytes: u64,
+}
+
+/// Kantenlänge der Klasse `k` (128 · 2^k).
+fn klasse_kante(k: usize) -> u32 {
+    KLASSE0 << k
+}
+
+/// Größenklasse eines Bildes: kleinste Zweierpotenz ≥ max(b, h), mindestens 128 (`None` über 2048).
+fn klasse_fuer(b: u32, h: u32) -> Option<usize> {
+    let m = b.max(h).max(1).next_power_of_two().max(KLASSE0);
+    let k = (m.trailing_zeros() - KLASSE0.trailing_zeros()) as usize;
+    (k < KLASSEN).then_some(k)
+}
+
+/// Bytes eines Textur-Arrays `kante²` mit voller Mip-Kette.
+fn array_bytes(kante: u32, schichten: u32) -> u64 {
+    let mut n = 0u64;
+    let mut k = kante as u64;
+    loop {
+        n += k * k * 4;
+        if k == 1 {
+            return n * schichten as u64;
+        }
+        k /= 2;
+    }
+}
+
+/// Kopf eines TEXTUR-Abschnitts: `u32 id, u8 format, u8 stufen, u16 b, u16 h` (10 Bytes), dann die Stufen.
+fn textur_kopf(d: &[u8]) -> Option<(u32, u8, u8, u32, u32)> {
+    (d.len() >= 10).then(|| (u32_at(d, 0), d[4], d[5], u16_at(d, 6), u16_at(d, 8)))
+}
+
 struct Pipelines {
     format: wgpu::TextureFormat,
     flach: wgpu::RenderPipeline,
@@ -203,6 +269,8 @@ pub struct Glut {
     /// D2Array-Ansicht → Atlas immer mit mindestens 2 Schichten anlegen (sonst 1)
     atlas_min: u32,
     schrift: (wgpu::Texture, wgpu::TextureView, u32, u32),
+    eigen: EigeneTexturen,
+    s_eigen: wgpu::Sampler,
     netze: Vec<Option<Netz>>,
     inst2d: Wachspuffer,
     inst3d: Wachspuffer,
@@ -467,6 +535,14 @@ impl Glut {
             ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: false }, view_dimension: wgpu::TextureViewDimension::D2Array, multisampled: false },
             count: None,
         };
+        // eigene Texturen (PD3): Bindungen 7 … 11 = Klassen 128 … 2048 (filterbar), 12 = Sampler (linear, Stufen einzeln)
+        let eigen_eintrag = |b: u32| wgpu::BindGroupLayoutEntry {
+            binding: b,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2Array, multisampled: false },
+            count: None,
+        };
+        let eigen_sampler = wgpu::BindGroupLayoutEntry { binding: 12, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None };
         let lay_haupt = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("herd haupt"),
             entries: &[
@@ -487,9 +563,18 @@ impl Glut {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry { binding: 6, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
+                eigen_eintrag(7),
+                eigen_eintrag(8),
+                eigen_eintrag(9),
+                eigen_eintrag(10),
+                eigen_eintrag(11),
+                eigen_sampler,
             ],
         });
-        let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some("herd schatten"), entries: &[ubo(0), atlas_eintrag] });
+        let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("herd schatten"),
+            entries: &[ubo(0), atlas_eintrag, eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11)],
+        });
         let pl = |name: &str, l: &wgpu::BindGroupLayout| dev.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: Some(name), bind_group_layouts: &[Some(l)], immediate_size: 0 });
         let pl_haupt = pl("herd haupt", &lay_haupt);
         let pl_schatten = pl("herd schatten", &lay_schatten);
@@ -534,12 +619,16 @@ impl Glut {
         };
         let s_linear = sampler("herd linear", wgpu::FilterMode::Linear, None);
         let s_vergleich = sampler("herd vergleich", wgpu::FilterMode::Linear, Some(wgpu::CompareFunction::LessEqual));
+        // eigene Texturen: bilinear je Stufe; die Mischung zweier Stufen (trilinear) und die Vergrößerung (nächster Nachbar)
+        // rechnet der Shader mit expliziter Stufe – gleich in WebGPU, WebGL2 und nativ
+        let s_eigen = sampler("herd eigen", wgpu::FilterMode::Linear, None);
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let schatten_map = Glut::tiefen_textur(dev, "herd shadow-map", 1, 1, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
         let atlas = Glut::atlas_textur(dev, 1, atlas_min);
         let schrift = Glut::schrift_textur(dev, 1, 1);
+        let eigen = EigeneTexturen { klassen: (0..KLASSEN).map(|k| Glut::klasse_textur(dev, k, atlas_min, false)).collect(), karte: Default::default(), nutz: 0 };
         let inst2d = Wachspuffer::neu(dev, "herd inst2d", wgpu::BufferUsages::VERTEX);
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
         let teilchen = Wachspuffer::neu(dev, "herd teilchen3d", wgpu::BufferUsages::VERTEX);
@@ -568,6 +657,8 @@ impl Glut {
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
             schrift: (schrift.0, schrift.1, 1, 1),
+            eigen,
+            s_eigen,
             netze: Vec::new(),
             inst2d,
             inst3d,
@@ -611,6 +702,23 @@ impl Glut {
         });
         let v = t.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2Array), ..Default::default() });
         (t, v)
+    }
+
+    /// Textur-Array der Klasse `k` mit `schichten` Schichten und voller Mip-Kette (`echt`) bzw. Platzhalter 1 × 1.
+    fn klasse_textur(dev: &wgpu::Device, k: usize, schichten: u32, echt: bool) -> Klasse {
+        let kante = if echt { klasse_kante(k) } else { 1 };
+        let textur = dev.create_texture(&wgpu::TextureDescriptor {
+            label: Some("herd eigen"),
+            size: wgpu::Extent3d { width: kante, height: kante, depth_or_array_layers: schichten },
+            mip_level_count: 32 - kante.leading_zeros(),
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let ansicht = textur.create_view(&wgpu::TextureViewDescriptor { dimension: Some(wgpu::TextureViewDimension::D2Array), ..Default::default() });
+        Klasse { textur, ansicht, schichten, belegt: 0, echt }
     }
 
     fn schrift_textur(dev: &wgpu::Device, b: u32, h: u32) -> (wgpu::Texture, wgpu::TextureView) {
@@ -797,6 +905,143 @@ impl Glut {
         self.bg_schatten = None;
     }
 
+    /// Klasse `k` auf mindestens `n` Schichten bringen (neues Array, belegte Schichten aller Stufen kopieren).
+    fn klasse_wachse(&mut self, k: usize, n: u32) {
+        let alt = &self.eigen.klassen[k];
+        if alt.echt && n <= alt.schichten {
+            return;
+        }
+        let mut neu = Glut::klasse_textur(&self.device, k, n.max(self.atlas_min), true);
+        if alt.echt && alt.belegt > 0 {
+            let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("herd eigen kopie") });
+            let kante = klasse_kante(k);
+            for stufe in 0..32 - kante.leading_zeros() {
+                let s = (kante >> stufe).max(1);
+                enc.copy_texture_to_texture(
+                    wgpu::TexelCopyTextureInfo { texture: &alt.textur, mip_level: stufe, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                    wgpu::TexelCopyTextureInfo { texture: &neu.textur, mip_level: stufe, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                    wgpu::Extent3d { width: s, height: s, depth_or_array_layers: alt.belegt },
+                );
+            }
+            self.queue.submit([enc.finish()]);
+        }
+        neu.belegt = alt.belegt;
+        self.eigen.klassen[k] = neu;
+        self.bg_haupt = None;
+        self.bg_schatten = None;
+    }
+
+    /// Vorlauf für die TEXTUR-Abschnitte eines Pakets: je Klasse einmal auf die nötige Schichtenzahl wachsen
+    /// (statt je Bild neu anzulegen und zu kopieren).
+    fn texturen_vorbereiten(&mut self, leser: &Leser<'_>) {
+        let mut neu = [0u32; KLASSEN];
+        let mut gesehen = std::collections::HashSet::new();
+        for (art, d) in leser.abschnitte() {
+            let Some((id, _, _, b, h)) = (art == abschnitt::TEXTUR).then(|| textur_kopf(d)).flatten() else { continue };
+            if self.eigen.karte.contains_key(&id) || !gesehen.insert(id) {
+                continue;
+            }
+            if let Some(k) = klasse_fuer(b, h) {
+                neu[k] += 1;
+            }
+        }
+        let grenze = self.device.limits().max_texture_array_layers.min(MAX_SCHICHTEN_3D);
+        for (k, &n) in neu.iter().enumerate() {
+            if n > 0 {
+                let ziel = (self.eigen.klassen[k].belegt + n).min(grenze);
+                self.klasse_wachse(k, ziel);
+            }
+        }
+    }
+
+    /// TEXTUR: Stufen in die nächste freie Schicht der Klasse laden – **vormultipliziert** (bilineare Mischung an
+    /// durchsichtigen Rändern ohne dunkle Säume; der Shader teilt nach dem Abtasten wieder durch Alpha).
+    fn textur(&mut self, d: &[u8]) -> Result<u64, Fehler> {
+        let kurz = || Fehler::Paket("Abschnitt TEXTUR zu kurz".into());
+        let (id, format, stufen, b, h) = textur_kopf(d).ok_or_else(kurz)?;
+        if format != 0 {
+            return Err(Fehler::Paket(format!("TEXTUR: Pixelformat {} unbekannt", format)));
+        }
+        if self.eigen.karte.contains_key(&id) || b == 0 || h == 0 {
+            return Ok(0); // Ressourcen sind unveränderlich (paket_voll schickt sie erneut)
+        }
+        let Some(k) = klasse_fuer(b, h) else { return Ok(0) };
+        let kl = &mut self.eigen.klassen[k];
+        if !kl.echt || kl.belegt >= kl.schichten {
+            return Ok(0); // Grenze der Schichten erreicht: Bild bleibt unbekannt (2D unsichtbar, 3D ohne Textur)
+        }
+        let schicht = kl.belegt;
+        kl.belegt += 1;
+        let mut p = 10usize;
+        let (mut w, mut hh) = (b, h);
+        let mut px = Vec::new();
+        let mut summe = 0u64;
+        for stufe in 0..stufen as u32 {
+            let n = u32_at(d.get(p..p + 4).ok_or_else(kurz)?, 0) as usize;
+            let roh = d.get(p + 4..p + 4 + n).ok_or_else(kurz)?;
+            if n != (w * hh * 4) as usize {
+                return Err(Fehler::Paket(format!("TEXTUR: Stufe {} hat {} Bytes", stufe, n)));
+            }
+            px.clear();
+            px.extend_from_slice(roh);
+            for q in px.chunks_exact_mut(4) {
+                let a = q[3] as u32;
+                if a != 255 {
+                    for c in &mut q[..3] {
+                        *c = ((*c as u32 * a + 127) / 255) as u8;
+                    }
+                }
+            }
+            self.queue.write_texture(
+                wgpu::TexelCopyTextureInfo { texture: &self.eigen.klassen[k].textur, mip_level: stufe, origin: wgpu::Origin3d { x: 0, y: 0, z: schicht }, aspect: wgpu::TextureAspect::All },
+                &px,
+                wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(w * 4), rows_per_image: Some(hh) },
+                wgpu::Extent3d { width: w, height: hh, depth_or_array_layers: 1 },
+            );
+            summe += n as u64;
+            p += 4 + n;
+            w = (w / 2).max(1);
+            hh = (hh / 2).max(1);
+        }
+        self.eigen.karte.insert(id, (k as u32, schicht));
+        self.eigen.nutz += summe;
+        Ok(summe)
+    }
+
+    /// Instanzen mit eigener Textur auf die Glut-interne Kennung umschreiben (das Paket selbst bleibt unverändert):
+    /// INST2D `art 6 | id << 8` → `6 | (klasse << 21 | schicht) << 8`, INST3D Bit 17: Bits 0–15 `id` → `klasse << 13 | schicht`.
+    /// Ohne geladene Texturen `None` (Bytes gehen unverändert hoch).
+    fn umschreiben(&self, inst2d: &[u8], inst3d: &[u8]) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+        if self.eigen.karte.is_empty() {
+            return (None, None);
+        }
+        let kennung = |id: u32, bits: u32| match self.eigen.karte.get(&id) {
+            Some(&(k, s)) => k << bits | s,
+            None => KLASSE_UNBEKANNT << bits,
+        };
+        let mut a = inst2d.to_vec();
+        for q in a.chunks_exact_mut(INST2D_BYTES) {
+            let w = u32_at(q, 44);
+            if w & 255 == flach_art::TEXTURBILD {
+                q[44..48].copy_from_slice(&(flach_art::TEXTURBILD | kennung(w >> 8, 21) << 8).to_le_bytes());
+            }
+        }
+        let mut b = inst3d.to_vec();
+        for q in b.chunks_exact_mut(INST3D_BYTES) {
+            let t = u32_at(q, 68);
+            if t & 1 << 17 != 0 {
+                q[68..72].copy_from_slice(&((t & !0xFFFF) | kennung(t & 0xFFFF, 13)).to_le_bytes());
+            }
+        }
+        (Some(a), Some(b))
+    }
+
+    /// Belegung der eigenen Texturen (Messung, PD3).
+    pub fn textur_speicher(&self) -> TexturSpeicher {
+        let vram = self.eigen.klassen.iter().enumerate().filter(|(_, k)| k.echt).map(|(i, k)| array_bytes(klasse_kante(i), k.schichten)).sum();
+        TexturSpeicher { bilder: self.eigen.karte.len() as u32, nutz_bytes: self.eigen.nutz, vram_bytes: vram }
+    }
+
     fn ressource(&mut self, art: u32, d: &[u8]) -> Result<u64, Fehler> {
         let kurz = || Fehler::Paket(format!("Abschnitt {} zu kurz", art));
         match art {
@@ -864,6 +1109,7 @@ impl Glut {
                 };
                 Ok((e.len() + i.len()) as u64)
             }
+            abschnitt::TEXTUR => self.textur(d),
             _ => Ok(0),
         }
     }
@@ -886,6 +1132,12 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.atlas.1) },
                     wgpu::BindGroupEntry { binding: 5, resource: wgpu::BindingResource::TextureView(&self.schrift.1) },
                     wgpu::BindGroupEntry { binding: 6, resource: wgpu::BindingResource::Sampler(&self.s_linear) },
+                    wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[0].ansicht) },
+                    wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[1].ansicht) },
+                    wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
+                    wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
+                    wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
+                    wgpu::BindGroupEntry { binding: 12, resource: wgpu::BindingResource::Sampler(&self.s_eigen) },
                 ],
             }));
         }
@@ -896,6 +1148,11 @@ impl Glut {
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.atlas.1) },
+                    wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[0].ansicht) },
+                    wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[1].ansicht) },
+                    wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
+                    wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
+                    wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
                 ],
             }));
         }
@@ -917,6 +1174,7 @@ impl Glut {
         self.zuege.clear();
         let mut szene_da = false;
         let mut klar = wgpu::Color::BLACK;
+        self.texturen_vorbereiten(&leser);
         for (art, d) in leser.abschnitte() {
             match art {
                 abschnitt::SZENE => {
@@ -954,8 +1212,9 @@ impl Glut {
         }
         let n2 = (inst2d.len() / INST2D_BYTES) as u32;
         let n3 = (inst3d.len() / INST3D_BYTES) as u32;
-        self.inst2d.schreibe(&self.device, &self.queue, inst2d);
-        self.inst3d.schreibe(&self.device, &self.queue, inst3d);
+        let (neu2d, neu3d) = self.umschreiben(inst2d, inst3d);
+        self.inst2d.schreibe(&self.device, &self.queue, neu2d.as_deref().unwrap_or(inst2d));
+        self.inst3d.schreibe(&self.device, &self.queue, neu3d.as_deref().unwrap_or(inst3d));
         let nt = (teilchen.len() / TEILCHEN3D_BYTES) as u32;
         self.teilchen.schreibe(&self.device, &self.queue, teilchen);
         stat.hochgeladen += (inst2d.len() + inst3d.len() + teilchen.len()) as u64;

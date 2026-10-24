@@ -2008,7 +2008,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   umgesetzt – PD1 ✅ (Vorbacker `herd/teigling` + `teigling.wasm` + JS-Hülle `site/js/herd/teigling.js` mit Cache-Prüfung `passt`/
   `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`), PD2 ✅ (Interpreter: `Bildchen.laden`, Vorbacken vor dem
   Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80), PA2 ✅ (Laufzeit/Host: Teiglinge im passiven Datensegment,
-  `bildchen_teigling` im nativen Host, U-75); offen: PD3 (Glut), U-77.
+  `bildchen_teigling` im nativen Host, U-75), PD3 ✅ (Glut nativ + Web: eigene Texturen mit Mip-Kette,
+  vergrößern nächster Nachbar, verkleinern trilinear; Referenzbilder `2d-textur`, `2d-rahmen-textur`, `3d-textur`; U-77).
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –
@@ -2031,8 +2032,10 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (Bits 0–15 = Textur-ID). Glut: vergrößern nächster Nachbar, verkleinern trilinear. GPU-Kompression (BC7/ASTC/ETC2) später als neues
   Pixelformat, ohne Sprachänderung.
 - **Betroffen:** neues `herd/teigling`, `herd/kern`, `herd/glut*`, HERD.md §12.1 (Nummern reserviert), `herd/README.md` (PD1).
-  **Status:** teilweise umgesetzt – PD1 ✅ (Decoder, Mipmaps, Format, goldene Teiglinge nativ = Wasm, Kern-Export mit Kopfprüfung,
-  Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17; Rechenwege und Festlegungen in `herd/README.md` §11); offen: PD3 (Glut-Abtastung).
+  **Status:** umgesetzt – PD1 ✅ (Decoder, Mipmaps, Format, goldene Teiglinge nativ = Wasm, Kern-Export mit Kopfprüfung,
+  Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17; Rechenwege und Festlegungen in `herd/README.md` §11), PD3 ✅ (Glut-Abtastung:
+  Größenklassen-Arrays mit den Teigling-Stufen als Mip-Ebenen, vormultipliziert hochgeladen, λ aus den Ableitungen, ≤ 1/16 nächster
+  Nachbar, sonst trilinear je Stufe auf das Bildrechteck geklemmt; `herd/README.md` §9, PROJEKTE §11 „Präzisierungen aus PD3“).
 - **Festlegungen der Umsetzung (PD1, wo das Konzept offen war):** JPEG-Ergebnis = libjpeg-turbo `JDCT_ISLOW` +
   `do_fancy_upsampling = FALSE` (gegen Pillow/libjpeg-turbo geprüft: 4:4:4 und Grau bitgleich); beschädigte JPEG-Daten wie libjpeg
   (fehlende Bits = 0, abgeschnittene Datei wird zu Ende dekodiert); Farbraum wie `default_decompress_parms` (ohne JFIF: Adobe-
@@ -2207,7 +2210,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-74 | `durchreiche/**`, compose, nginx, Dockerfile, README (PROJEKTE.md **PC1**) | K-143: Dienst, Unit-Tests in `npm test`, hastebin/redis entfernen | `node --test durchreiche/test` |
 | U-75 ✅ | `site/js/pizzaiolo*`, `laufzeit/**`, `host/**`, Test-Hosts (PROJEKTE.md **PA2**; erledigt, Präzisierungen PROJEKTE §11) | K-139 … K-141, K-145, K-146: Compiler auf `projekt.lade`, HOST-ABI v2 in allen Hosts, Küchenbericht, Kiste-Datensegment, Standard-Argumente, `Kiste`/`Bildchen.laden` in der Laufzeit, Differenzkorpus als Ordner | tests/differenz, tests/wasm, `cargo test` (host) |
 | U-76 ✅ (PB1) | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll – erledigt auf PA1/PD1/PD2 (Worker `quelleFuer`; Wasm-Projekte über das Flag `Pizzaiolo.projekte` mit PA2) | `npm --prefix ui test`, e2e |
-| U-77 (PD1 ✅, PD3 offen) | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); offen: Glut-Texturen mit Mip-Kette (PD3) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js` |
+| U-77 ✅ | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); Glut-Texturen mit Mip-Kette nativ + Web, Referenzbilder, Messung – erledigt (PD3, Commit „PROJEKTE PD3: …“) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js`, E2E 13 |
 | U-78 | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt | e2e 06, 11, 18 |
 | U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3**, **PB4**, **PB5**) | K-144, K-145: Beispiele als Ordner, Doku-Kapitel „Projekte und Dateien“, Herd-Beispiele mit Bilddateien, Imperium nach „Idle frei“ | Prüfstand Beispiele/Doku |
 | U-80 ✅ | `site/js/pizza/` (`std/kiste.js`, `herd/`), `bin/pizza.js`, `tests/faelle/projekt-{kiste,bilder}/`, `pruefstand/faelle/a19-*` (PROJEKTE.md **PD2**; erledigt, Präzisierungen PROJEKTE §11) | K-145, K-146: `Kiste.text/zeilen/gibts/liste`, `Bildchen.laden` (gleicher Pfad = dasselbe Bildchen, Kern-Codes 3/61/62), Vorbacken aller Bilder vor dem Start mit Cache-Prüfung (`optionen.teiglinge`/`vorbacker`), P0020 Teigmenge, HOST „Vorbacker fehlt“, Herd-Erkennung `Bildchen.…`, CLI; die 19 Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` verschoben (Datei entfällt) | a19, tests/faelle `projekt-kiste`/`projekt-bilder`, CLI |

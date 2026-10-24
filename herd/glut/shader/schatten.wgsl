@@ -37,7 +37,13 @@ fn fs_schatten(a: AusSchatten) {
     if ((a.textur & 65536u) != 0u) {
         let groesse = a.uvbox.zw - a.uvbox.xy;
         let texel = a.uvbox.xy + clamp(a.uv, vec2<f32>(0.5), max(groesse - vec2<f32>(0.5), vec2<f32>(0.5)));
-        let tex = textureLoad(atlas, vec2<i32>(floor(texel)), i32(a.textur & 65535u), 0);
+        // Bit 17 = eigene Textur (PD3): Kennung Klasse << 13 | Schicht, Stufe 0 (Klasse 7 = unbekannt → wirft Schatten)
+        let eigen = (a.textur & 131072u) != 0u;
+        let klasse = (a.textur >> 13u) & 7u;
+        var tex = textureLoad(atlas, vec2<i32>(floor(texel)), select(i32(a.textur & 65535u), 0, eigen), 0);
+        if (eigen) {
+            tex = select(vec4<f32>(1.0), eigen_lade(klasse, vec2<i32>(floor(texel)), i32(a.textur & 8191u)), klasse <= 4u);
+        }
         if (tex.a < 0.5) {
             discard;
         }

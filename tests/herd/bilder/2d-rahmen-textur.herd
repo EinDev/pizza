@@ -1,0 +1,100 @@
+#! bild 2 groesse 1280x720
+# PD3-Referenzbild 2D: `Rahmen` aus eigener Textur (TEXTURBILD, Neuntel in Pixeln der Textur) – gestreckt und gestaucht,
+# vergrößert (Ecken pixelscharf), 1 : 1, verkleinert (trilinear je Neuntel geklemmt, kein Übersprechen zwischen den Neunteln),
+# getönt, gedreht, nicht quadratische Textur; daneben derselbe Rahmen aus einem Atlas-Bildchen.
+# Spielfeld 640 × 360, gerendert in 1280 × 720.
+vorgabe TAKTE 2
+welt_neu 640 360 "Rahmen"
+welt_hintergrund "#2a3346"
+typ_nummer "Rahmen" -> T_RA
+feld_nummer T_RA "bildchen" -> RA_B
+feld_nummer T_RA "kante" -> RA_K
+feld_nummer T_RA "breite" -> RA_BR
+feld_nummer T_RA "hoehe" -> RA_H
+feld_nummer T_RA "groesse" -> RA_G
+feld_nummer T_RA "farbe" -> RA_F
+teigling_muster 3 48 48 -> TAFEL
+teigling_muster 3 96 60 -> BREIT
+bildchen_neu ["kkkkkkkk", "kttttttk", "ktwwwwtk", "ktwwwwtk", "ktwwwwtk", "ktwwwwtk", "kttttttk", "kkkkkkkk"] [] -> ATLAS
+# groß: Kante 16 Texel, Größe 1,5 → 3 Gerätepixel je Texel
+teil_neu 2 -> r
+teil_lage r 150 85 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B TAFEL
+setze_zahl ra RA_K 16
+setze_zahl ra RA_BR 260
+setze_zahl ra RA_H 140
+setze_zahl ra RA_G 1.5
+komp_haenge ra r
+# 1 : 1 (Größe 0,5), gestaucht und gestreckt
+teil_neu 2 -> r
+teil_lage r 380 50 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B TAFEL
+setze_zahl ra RA_K 16
+setze_zahl ra RA_BR 160
+setze_zahl ra RA_H 70
+setze_zahl ra RA_G 0.5
+komp_haenge ra r
+teil_neu 2 -> r
+teil_lage r 545 85 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B TAFEL
+setze_zahl ra RA_K 16
+setze_zahl ra RA_BR 60
+setze_zahl ra RA_H 140
+setze_zahl ra RA_G 0.5
+komp_haenge ra r
+# verkleinert: Größe 0,25 und 0,15 (Stufen 1 und ≈ 1,7)
+teil_neu 2 -> r
+teil_lage r 380 130 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B TAFEL
+setze_zahl ra RA_K 16
+setze_zahl ra RA_BR 160
+setze_zahl ra RA_H 50
+setze_zahl ra RA_G 0.25
+komp_haenge ra r
+teil_neu 2 -> r
+teil_lage r 380 180 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B TAFEL
+setze_zahl ra RA_K 16
+setze_zahl ra RA_BR 160
+setze_zahl ra RA_H 30
+setze_zahl ra RA_G 0.15
+komp_haenge ra r
+# nicht quadratische Textur (96 × 60, Kante 20), getönt und gedreht
+teil_neu 2 -> r
+teil_lage r 140 270 0
+teil_setze r 4 -8
+komp_neu T_RA -> ra
+setze_zahl ra RA_B BREIT
+setze_zahl ra RA_K 20
+setze_zahl ra RA_BR 220
+setze_zahl ra RA_H 110
+setze_zahl ra RA_G 0.8
+setze_text ra RA_F "#b8e0a0"
+komp_haenge ra r
+# derselbe Aufbau aus dem Atlas (Bildchen 8 × 8, Kante 2) zum Vergleich, und eine Reihe kleiner Textur-Rahmen
+teil_neu 2 -> r
+teil_lage r 380 280 0
+komp_neu T_RA -> ra
+setze_zahl ra RA_B ATLAS
+setze_zahl ra RA_K 2
+setze_zahl ra RA_BR 160
+setze_zahl ra RA_H 90
+setze_zahl ra RA_G 4
+komp_haenge ra r
+wiederhole 4 i
+  teil_neu 2 -> r
+  teil_lage r 545 (215 + i * 36) 0
+  komp_neu T_RA -> ra
+  setze_zahl ra RA_B TAFEL
+  setze_zahl ra RA_K 16
+  setze_zahl ra RA_BR 100
+  setze_zahl ra RA_H 30
+  setze_zahl ra RA_G (0.4 - i * 0.08)
+  komp_haenge ra r
+ende
+takte TAKTE

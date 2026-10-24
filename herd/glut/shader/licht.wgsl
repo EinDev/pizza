@@ -15,7 +15,7 @@ struct EinNetz {
     @location(6) farbe: vec4<f32>,    // sRGB
     @location(7) material: vec2<f32>, // glanz, leuchten
     @location(8) uvbox: vec4<u32>,    // Atlas-Pixel u0 v0 u1 v1
-    @location(9) textur: u32,         // Bits 0–15 Seite, Bit 16 = hat Textur
+    @location(9) textur: u32,         // Bits 0–15 Seite, Bit 16 = hat Textur, Bit 17 = eigene Textur (PD3)
 }
 
 struct AusNetz {
@@ -104,10 +104,17 @@ fn weich(c: vec3<f32>) -> vec3<f32> {
 
 @fragment
 fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4<f32> {
-    let hat_textur = (a.textur & 65536u) != 0u;
+    // Bit 17 = eigene Textur (PD3): Bits 0–15 = Glut-Kennung Klasse << 13 | Schicht (Klasse 7 = unbekannt → ohne Textur)
+    let eigen = (a.textur & 131072u) != 0u;
+    let klasse = (a.textur >> 13u) & 7u;
+    let hat_textur = (a.textur & 65536u) != 0u && (!eigen || klasse <= 4u);
+    let lambda = eigen_lambda(a.uv);
     let groesse = a.uvbox.zw - a.uvbox.xy;
     let texel = a.uvbox.xy + clamp(a.uv, vec2<f32>(0.5), max(groesse - vec2<f32>(0.5), vec2<f32>(0.5)));
-    let tex = textureLoad(atlas, vec2<i32>(floor(texel)), i32(a.textur & 65535u), 0);
+    var tex = textureLoad(atlas, vec2<i32>(floor(texel)), select(i32(a.textur & 65535u), 0, eigen), 0);
+    if (eigen && klasse <= 4u) {
+        tex = eigen_abtasten(klasse, i32(a.textur & 8191u), a.uvbox.xy + a.uv, a.uvbox, lambda);
+    }
     if (hat_textur && tex.a < 0.5) {
         discard;
     }

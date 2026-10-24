@@ -320,7 +320,8 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
   `teigling.herd` (PD1): `bildchen_teigling` mit echten Teiglingen aus `teigling.wasm`, Fehlercodes 61/62, Bild/Rahmen/Koerper
-  mit eigener Textur, `paket_voll`.
+  mit eigener Textur, `paket_voll`; dazu (PD3) `teigling_muster` mit allen Mustern in ungeraden Größen – damit sind die
+  Muster-Teiglinge beider Spieler (Rust über `herd_teigling::teigling_aus`, JS nachgebaut) über die Paket-Hashes bitgleich geprüft.
 - `node herd/test-teigling.js` (**blockierend**, PD1): Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4).
 
 ### 7.1 Szenen-Skripte (`*.herd`)
@@ -336,6 +337,7 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `wiederhole n [var]` … `ende` | Schleife, `var` = 0 … n − 1 (verschachtelbar) |
 | `setze var = ausdruck` | Variable |
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
+| `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte; nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
 **Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`.
 Je nach Signatur: `setze_liste` Liste von IDs; `setze_zahlen` Liste von Zahlen; `form_eigene` zwei Zahlenlisten; `bildchen_neu` Liste der Zeilen und Liste
@@ -385,11 +387,24 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   Software. Ohne Software-Adapter → `Fehler::KeinSoftwareAdapter` (kein Rückfall auf die GPU); geprüft wird `DeviceType::Cpu`.
   Hinweis: wgpu fragt beim Aufzählen unter DX12 die Fähigkeiten **aller** Adapter ab (kurzlebiges Gerät je Adapter, ohne
   Zeichnen) – über die öffentliche wgpu-API nicht vermeidbar.
-- **Weitere:** `statistik()` (Draw-Calls, davon Schatten, Instanzen 2D/3D, Dreiecke, hochgeladene Bytes), `warte()` (für Messungen),
+- **Weitere:** `statistik()` (Draw-Calls, davon Schatten, Instanzen 2D/3D, Dreiecke, hochgeladene Bytes inkl. TEXTUR-Stufen),
+  `textur_speicher()` (PD3: eigene Texturen – Bilder, Nutzlast, angelegter Grafikspeicher), `warte()` (für Messungen),
   `adapter_info()`, `msaa()`, `setze_instancing(b)`. Neue Glut für eine laufende Welt (Fenster neu) → vorher `kern.paket_voll()`.
 - **Ressourcen:** SCHRIFT → R8-Textur; ATLAS_SEITE → Schicht eines RGBA8-Textur-Arrays 2048² (wächst durch Neuanlage + Kopie);
   ATLAS_STUECK → `write_texture` in die Schicht; NETZ → Ecken-/Indexpuffer je ID. Shadow-Map (Depth32Float 2048²) erst beim ersten
   Schattenbild. Instanzpuffer wachsen nur (Zweierpotenzen), Pipelines einmal je Zielformat (Cache).
+- **Eigene Texturen (TEXTUR, PROJEKTE PD3):** fünf **Größenklassen** 128, 256, 512, 1024, 2048 (kleinste Zweierpotenz ≥ max(b, h),
+  mindestens 128), je Klasse ein `Rgba8Unorm`-Textur-Array mit voller Mip-Kette; ein Bild = eine Schicht, Stufe i des Teiglings an
+  (0, 0) der Mip-Ebene i (keine Neuberechnung – die Mipmaps des Vorbackers, K-147). Beim Hochladen **vormultipliziert** (bilineare
+  Mischung an durchsichtigen Rändern ohne dunkle Säume), der Shader rechnet nach dem Abtasten zurück. Leere Klassen sind 1 × 1-
+  Platzhalter; eine Klasse wächst je Paket einmal auf die nötige Schichtenzahl (Neuanlage + Kopie aller Stufen, auf GL mindestens
+  2 Schichten wie der Atlas). Grenze: `max_texture_array_layers` (WebGL2 256) je Klasse, darüber bleibt ein Bild unbekannt.
+  Unbekanntes Pixelformat (≠ 0) → `Fehler::Paket`. Die Instanzen behalten ihr Paketformat; die Glut schreibt beim Hochladen nur
+  ihre Kopie um: INST2D art 6 `seite` (Textur-ID) → `Klasse << 21 | Schicht`, INST3D Bit 17 Bits 0–15 → `Klasse << 13 | Schicht`
+  (Klasse 7 = Textur unbekannt: 2D unsichtbar, 3D ohne Textur). So bleibt 2D **ein** Draw-Call und 3D ein Draw-Call je Zug, auch
+  mit beliebig vielen Bildern. Ohne geladene Teiglinge laufen Hochladen und Shader wie vorher (Atlas-Pfad unverändert).
+  Grafikspeicher je Klasse `kante² · 4 · 4/3` je Schicht: ein Bild mit Zweierpotenz-Kante belegt genau seine Teigling-Stufen, sonst
+  bis knapp das Vierfache (1025² → Klasse 2048); `textur_speicher()` meldet Bilder, Nutzlast und angelegten Speicher.
 - **Durchgänge:** Schatten (nur Tiefe, `licht_proj`, Steigungs-Bias) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
   `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 3D-Teilchen (`TEILCHEN3D`, je Mischart ein
   instanzierter Draw-Call, Tiefe testen, nicht schreiben; leuchtend One/One, deckend „source over“), 2D (**ein** instanzierter
@@ -405,7 +420,11 @@ Farbe @16 (`Unorm8x4`). Die Bytes kommen unverändert aus dem Paket. Statistik: 
 `Ansicht`: Gerätepixel je Spielfeldpixel, Schriftgröße; sRGB-Umrechnung, Rauschen gegen Farbstufen) · `flach` (2D-Uber-Shader:
 SDF-Rechteck mit Rundung/Umriss, SDF-Kreis/Partikel, Kantenglättung über `fwidth` des Abstands, Atlas-Bild per `textureLoad`
 pixelscharf, SDF-Glyphe, Dreieck (H-K3b: Ecken aus der Instanz, baryzentrischer Abstand zu den Außenkanten, Glättung nur dort; Höhen
-flach über `uvbox` an den Fragment-Shader – keine neuen Varyings, WebGL2-tauglich)) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur,
+flach über `uvbox` an den Fragment-Shader – keine neuen Varyings, WebGL2-tauglich), Texturbild (PD3, art 6)) · eigene Texturen
+in `gemeinsam` (PD3: Bindungen 7 … 11 = Klassen, 12 = Sampler linear ohne Stufenmischung; Stufe λ = ½ log2 max(|∂t/∂x|², |∂t/∂y|²)
+der Texel-Koordinaten am Anfang des Fragment-Shaders; λ ≤ 1/16 → nächster Nachbar aus Stufe 0, sonst zwei bilineare Abtastungen
+der Stufen ⌊λ⌋ und ⌊λ⌋ + 1 mit **expliziter** Stufe, je auf das Rechteck `u0 v0 u1 v1` dieser Stufe geklemmt (kein Übersprechen
+zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
 Nebel, sanfte Schulter gegen Überstrahlen) · `schatten` (nur Tiefe, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`) · `funken` (3D-Teilchen: Viereck aus `vertex_index`, Kamera-rechts/
 -oben aus den Zeilen 0/1 von `ansicht_proj` – kein neues Uniform; leuchtend = Schein (1 − r²)² mit heißem Kern, im Nebel
@@ -428,17 +447,27 @@ Alle Läufe **offscreen** und standardmäßig auf dem **Software-Adapter**; die 
 |---|---|
 | `herd-bild bild <skript.herd> <ordner> [--bilder=1,60] [--groesse=BxH] [--ohne-instancing] [--msaa=1] [VAR=zahl]` | Skript abspielen, gewählte Bilder (Standard: Kopfzeile bzw. letztes) als PNG |
 | `herd-bild bench <skript.herd> [--groesse=640x360] [--ohne-instancing] [--gpu] [VAR=zahl]` | Glut-Zeit je Bild (ohne Auslesen), Draw-Calls, Instanzen als JSON |
-| `herd-bild referenz [ordner]` | Referenzbilder `tests/herd/bilder/*.herd` → `*.png` neu schreiben |
+| `herd-bild referenz [ordner] [--nur=a,b]` | Referenzbilder `tests/herd/bilder/*.herd` → `*.png` neu schreiben (`--nur`: nur diese Skripte, die übrigen PNGs bleiben byte-gleich) |
+| `herd-bild textur [--kanten=256,1024,2048] [--laeufe=5] [--gpu]` | PD3-Messung je Kante: Kern `bildchen_teigling`, Glut-Bild mit/ohne TEXTUR-Hochladen, hochgeladene Bytes, Grafikspeicher (JSON) |
 | `herd-bild atlas` | Schriftatlas `kern/schrift/atlas.bin` neu erzeugen |
 
 **Referenzbilder** (`tests/herd/bilder/`, Skript + PNG, Kopfzeile `#! bild 40 groesse 1280x720`): `2d-alles` (alle 2D-Komponenten,
 Umriss/Rundung, Text in mehreren Größen, Bildchen gespiegelt/getönt, Animation, Partikel, Ebenen, Hierarchie mit Drehung,
 Durchsichtiges), `3d-alles` (alle Grundformen + eigene Form, Sonne mit Schatten, 2 Punktlichter, Nebel, Himmel, Textur,
 Durchsichtiges, 2D-HUD), `3d-viele` (nach B3: 240 Körper, 8 Lichter), `2d-partikel` (nach B4), `3d-funken` (H-K5: Steinofen bei Nacht, leuchtende
-Funken aus Maul und Schlot, deckender Rauch, Nebel, schräge Kamera). **Pixeltest** in `cargo test`
+Funken aus Maul und Schlot, deckender Rauch, Nebel, schräge Kamera), `2d-vieleck` (H-K3b) und für die eigenen Texturen (PD3,
+Muster-Teiglinge über `teigling_muster`): `2d-textur` (Pizza vergrößert pixelscharf, Zonenplatte 1 : 1 und verkleinert,
+Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, getönt, gespiegelt, Atlas-Bildchen daneben),
+`2d-rahmen-textur` (`Rahmen` aus Texturen 48² und 96 × 60: vergrößert, 1 : 1, verkleinert, gestreckt, gestaucht, getönt, gedreht,
+Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
+Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel).
+**Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht
-(nur die Zahl der Draw-Calls), kaputtes Paket → `Fehler::Paket`, Fenster-API kompiliert (`herd-glut`, ohne Fenster).
+(nur die Zahl der Draw-Calls), kaputtes Paket → `Fehler::Paket`, Fenster-API kompiliert (`herd-glut`, ohne Fenster); PD3:
+verkleinertes Schachbrett ergibt über die Mipmaps die gleichmäßige Mischfarbe (nächster Nachbar träfe nur eine Feldfarbe) bei einem
+Draw-Call und richtigem `textur_speicher()`, Vergrößerung Texel für Texel gleich der Quelle (halb durchsichtiger Rand mit eigener
+Farbe), unbekanntes TEXTUR-Pixelformat → `Fehler::Paket`. Im Browser vergleicht E2E 13 dieselben Szenen (WebGL2/SwiftShader).
 
 **Messungen:** `node bench/herd/mess-kern.js` (Kern nativ/Wasm), `herd-bild bench` (Glut auf WARP), Größe mit Profil `klein` –
 Ergebnisse und die Kommandos für die echte GPU in `bench/herd/ERGEBNISSE.md`. Profile: `messung` (Release ohne LTO, schont

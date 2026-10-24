@@ -6,7 +6,8 @@
 //!       spielt das Skript (herd/README.md §7.1) und schreibt die gewählten Bilder (Standard: das letzte) als PNG
 //!   herd-bild bench <skript.herd> [--groesse=640x360] [--ohne-instancing] [--gpu] [VAR=zahl …]
 //!       Glut-Zeit je Bild (Hochladen + Zeichnen + Warten, ohne Auslesen), Draw-Calls, Instanzen – JSON
-//!   herd-bild referenz [ordner]      – Referenzbilder tests/herd/bilder/*.herd → *.png neu schreiben
+//!   herd-bild referenz [ordner] [--nur=a,b] – Referenzbilder tests/herd/bilder/*.herd → *.png neu schreiben (--nur: nur diese)
+//!   herd-bild textur [--kanten=256,1024,2048] [--laeufe=5] [--gpu] – Hochladen eigener Texturen messen (PD3), JSON je Kante
 //!   herd-bild atlas                  – Schriftatlas neu erzeugen (herd/kern/schrift/atlas.bin)
 
 mod atlas;
@@ -176,6 +177,93 @@ fn adapter_zeile(g: &Glut) -> String {
     format!("{} ({:?}, {:?}), MSAA {}×", i.name, i.backend, i.device_type, g.msaa())
 }
 
+/// Zeit und hochgeladene Bytes je Bild (Glut: Hochladen + Zeichnen + Warten, ohne Auslesen).
+struct Lauf<'a> {
+    glut: &'a mut Glut,
+    bilder: Vec<(f64, u64)>,
+    fehler: Option<String>,
+}
+
+impl Ausgabe for Lauf<'_> {
+    fn bild(&mut self, kern: &mut Kern, _nr: u32) {
+        let t = Instant::now();
+        match self.glut.bild(kern.paket()).and_then(|s| self.glut.warte().map(|_| s)) {
+            Ok(s) => self.bilder.push((t.elapsed().as_secs_f64() * 1e3, s.hochgeladen)),
+            Err(e) => self.fehler = Some(e.to_string()),
+        }
+    }
+}
+
+fn median(mut v: Vec<f64>) -> f64 {
+    v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    v.get(v.len() / 2).copied().unwrap_or(0.0)
+}
+
+/// `herd-bild textur [--kanten=256,1024,2048] [--laeufe=5] [--groesse=640x360] [--gpu]` (PD3, bench/herd/ERGEBNISSE.md):
+/// je Kante ein Muster-Teigling (Schachbrett, volle Mip-Kette). Gemessen: Kern `bildchen_teigling` (Kopfprüfung + Übernahme),
+/// Glut-Bild **mit** Hochladen der TEXTUR (alle Stufen, vormultipliziert) gegen ein Bild ohne, hochgeladene Bytes und der
+/// angelegte Grafikspeicher der eigenen Texturen (Größenklasse). Je Lauf eine neue Glut (kalter Upload, warme Pipelines).
+fn textur_messung(rest: &[String]) {
+    let wert = |name: &str| rest.iter().find_map(|x| x.strip_prefix(&format!("--{}=", name)).map(|s| s.to_string()));
+    let kanten: Vec<u32> = wert("kanten").map(|s| s.split(',').filter_map(|x| x.parse().ok()).collect()).unwrap_or_else(|| vec![256, 1024, 2048]);
+    let laeufe: usize = wert("laeufe").and_then(|s| s.parse().ok()).unwrap_or(5);
+    let auf = Aufruf::aus(rest, (640, 360));
+    for kante in kanten {
+        let teigling = herd_skript::muster_teigling(1, kante, kante);
+        // Kern allein: bildchen_teigling (prüft nur den Kopf, kopiert die Stufen)
+        let mut kern_ms = Vec::new();
+        for _ in 0..laeufe {
+            let mut k = Kern::neu();
+            k.welt_neu(640.0, 360.0, b"T");
+            let t = Instant::now();
+            let id = k.bildchen_teigling(&teigling);
+            kern_ms.push(t.elapsed().as_secs_f64() * 1e3);
+            assert!(id > 0, "bildchen_teigling: {}", id);
+        }
+        let text = format!(
+            "welt_neu 640 360 \"Textur\"\ntyp_nummer \"Bild\" -> T_B\nfeld_nummer T_B \"bildchen\" -> B_BILD\nfeld_nummer T_B \"groesse\" -> B_GR\n\
+bild\nbild\nteigling_muster 1 {k} {k} -> T\nteil_neu 2 -> p\nteil_lage p 320 180 0\nkomp_neu T_B -> b\nsetze_zahl b B_BILD T\n\
+setze_zahl b B_GR (300 / {k})\nkomp_haenge b p\nbild\nbild\nbild\n",
+            k = kante
+        );
+        let skript = lies(&text).unwrap();
+        let (mut mit, mut ohne, mut speicher, mut bytes) = (Vec::new(), Vec::new(), herd_glut::TexturSpeicher::default(), 0u64);
+        let mut adapter = String::new();
+        for _ in 0..laeufe {
+            let mut glut = neue_glut(&auf).unwrap_or_else(|e| {
+                eprintln!("{}", e);
+                std::process::exit(2);
+            });
+            adapter = adapter_zeile(&glut);
+            let mut l = Lauf { glut: &mut glut, bilder: Vec::new(), fehler: None };
+            Spieler::neu(&[]).spiele(&skript, &mut l).unwrap();
+            if let Some(f) = l.fehler {
+                eprintln!("{}", f);
+                std::process::exit(1);
+            }
+            // Bilder: 1 (Pipelines), 2 ohne Textur, 3 mit TEXTUR-Hochladen, 4–5 mit Textur ohne Hochladen
+            mit.push(l.bilder[2].0);
+            ohne.push((l.bilder[3].0 + l.bilder[4].0) / 2.0);
+            bytes = l.bilder[2].1;
+            speicher = glut.textur_speicher();
+        }
+        println!(
+            "{{\"kante\":{},\"adapter\":{:?},\"teigling_bytes\":{},\"kern_ms\":{:.3},\"glut_bild_mit_hochladen_ms\":{:.2},\"glut_bild_ohne_ms\":{:.2},\"hochladen_ms\":{:.2},\"hochgeladen_bytes\":{},\"nutz_bytes\":{},\"vram_bytes\":{},\"laeufe\":{}}}",
+            kante,
+            adapter,
+            teigling.len(),
+            median(kern_ms),
+            median(mit.clone()),
+            median(ohne.clone()),
+            median(mit) - median(ohne),
+            bytes,
+            speicher.nutz_bytes,
+            speicher.vram_bytes,
+            laeufe
+        );
+    }
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     let rest: Vec<String> = a.iter().skip(2).cloned().collect();
@@ -263,13 +351,21 @@ fn main() {
                 t.elapsed().as_secs_f64()
             );
         }
+        Some("textur") => textur_messung(&rest),
         Some("referenz") => {
             let ordner = rest.iter().find(|x| !x.starts_with("--")).map(PathBuf::from).unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/herd/bilder"));
             let auf0 = Aufruf::aus(&rest, (1280, 720));
+            // --nur=a,b: nur diese Skripte (Dateiname ohne .herd) – bestehende Referenzbilder bleiben unberührt
+            let nur: Option<Vec<String>> = rest.iter().find_map(|x| x.strip_prefix("--nur=")).map(|s| s.split(',').map(|x| x.to_string()).collect());
             for e in std::fs::read_dir(&ordner).unwrap() {
                 let p = e.unwrap().path();
                 if p.extension().map(|x| x != "herd").unwrap_or(true) {
                     continue;
+                }
+                if let Some(n) = &nur {
+                    if !n.iter().any(|x| p.file_stem().map(|s| s == x.as_str()).unwrap_or(false)) {
+                        continue;
+                    }
                 }
                 let text = std::fs::read_to_string(&p).unwrap();
                 let (kb, kg) = kopf(&text);

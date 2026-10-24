@@ -1,0 +1,107 @@
+#! bild 2 groesse 1280x720
+# PD3-Referenzbild 3D: eigene Texturen (Koerper.bild, Belag.bild, INST3D Bit 17) – Boden mit feinem Schachbrett (512²) flach
+# bis zum Horizont: nah vergrößert pixelscharf, fern trilinear über die Mip-Stufen (kein Moiré, kein Flimmern); schräge Wand mit
+# Zonenplatte; Würfel mit durchsichtiger Pizza (ausgeschnitten, auch im Schatten); Kugel mit kleiner Textur; zwei Würfel auf
+# einem Belag mit nicht quadratischer Textur; ein Atlas-Würfel zum Vergleich. Spielfeld 1280 × 720.
+vorgabe TAKTE 2
+welt_neu 1280 720 "3D-Texturen"
+welt_himmel "#5d9fd6" "#ece4d2"
+welt_umgebung "#c8dcf0" 0.35
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_BE
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "bild" -> K_BILD
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_BE "farbe" -> BE_F
+feld_nummer T_BE "glanz" -> BE_GLANZ
+feld_nummer T_BE "bild" -> BE_BILD
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 32 0 -> KUGEL
+form_grund 5 0 0 -> EBENE
+teigling_muster 1 512 512 -> SCHACH
+teigling_muster 4 256 256 -> ZONE
+teigling_muster 2 128 128 -> PIZZA
+teigling_muster 1 64 64 -> KLEIN
+teigling_muster 3 96 60 -> BREIT
+bildchen_neu ["kmkmkmkm", "mkmkmkmk", "kmkmkmkm", "mkmkmkmk", "kmkmkmkm", "mkmkmkmk", "kmkmkmkm", "mkmkmkmk"] [] -> ATLAS
+
+# Kamera tief und flach über den Boden, Sonne von links
+teil_lage 1 0 1.5 9
+teil_schaue 1 0 0.6 0
+teil_lage 2 -0.7 0.6 0.3
+
+# Boden: 40 × 40 mit Schachbrett 512² (≈ 13 Texel je Einheit)
+teil_neu 3 -> boden
+teil_groesse boden 40 1 40
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BILD SCHACH
+setze_text k K_F "#ffffff"
+setze_zahl k K_GLANZ 0.1
+komp_haenge k boden
+
+# schräge Wand mit Zonenplatte (links hinten, 6 × 6)
+teil_neu 3 -> wand
+teil_lage wand -5.5 3.2 -6
+teil_groesse wand 6 1 6
+teil_setze wand 5 90
+teil_setze wand 4 40
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BILD ZONE
+setze_text k K_F "#ffffff"
+komp_haenge k wand
+
+# Würfel mit Pizza (durchsichtige Ecken werden ausgeschnitten – auch im Schatten)
+teil_neu 3 -> w
+teil_lage w 1.6 0.8 2.2
+teil_groesse w 1.6 1.6 1.6
+teil_setze w 4 25
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BILD PIZZA
+setze_text k K_F "#ffffff"
+komp_haenge k w
+
+# Kugel mit kleiner Textur (64²)
+teil_neu 3 -> ku
+teil_lage ku -1.6 0.9 2.4
+teil_groesse ku 1.8 1.8 1.8
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_zahl k K_BILD KLEIN
+setze_text k K_F "#ffffff"
+setze_zahl k K_GLANZ 0.5
+komp_haenge k ku
+
+# Belag mit nicht quadratischer Textur, zwei Würfel darauf
+teil_neu 3 -> bel
+komp_neu T_BE -> be
+setze_text be BE_F "#ffffff"
+setze_zahl be BE_GLANZ 0.3
+setze_zahl be BE_BILD BREIT
+komp_haenge be bel
+wiederhole 2 i
+  teil_neu 3 -> t
+  teil_lage t (3.6 + i * 1.6) 0.6 (-0.6 - i * 2)
+  teil_groesse t 1.2 1.2 1.2
+  teil_setze t 4 (-15 + i * 30)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_zahl k K_BELAG bel
+  komp_haenge k t
+ende
+
+# Atlas-Würfel zum Vergleich (pixelscharf wie bisher)
+teil_neu 3 -> a
+teil_lage a -3.6 0.6 -0.4
+teil_groesse a 1.2 1.2 1.2
+teil_setze a 4 -20
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BILD ATLAS
+setze_text k K_F "#ffffff"
+komp_haenge k a
+takte TAKTE

@@ -70,6 +70,8 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("bildchen_neu", "zp", 'I'),
     ("bildchen_rgba", "iib", 'I'),
     ("bildchen_teigling", "b", 'I'),
+    // Hilfsaufruf der Spieler (kein ABI-Export): Teigling aus einem festen Muster (`muster_teigling`) → bildchen_teigling
+    ("teigling_muster", "iii", 'I'),
     ("ressource_hole", "ii", 'F'),
     ("takt", "", 'I'),
     ("paket_voll", "", 'I'),
@@ -448,6 +450,98 @@ fn rechne(a: &Ausdruck, v: &BTreeMap<String, f64>, z: usize) -> Result<f64, Stri
     })
 }
 
+// ------------------------------------------------------------------------------------------------ Muster-Teiglinge
+
+/// Pixel des Musters `m` an (x, y) in einem Bild `b × h` – nur Ganzzahlen, gleich in `skript.js` (`musterPixel`).
+/// 1 Schachbrett (4-px-Felder, Gitter alle 32 px, je Viertel eigene Farben), 2 Pizza (rund, Rand halb durchsichtig, außen
+/// durchsichtig), 3 Rahmen (Ecken gestreift, Kanten mit Goldband, Mitte fein kariert), 4 Zonenplatte (Ringe bis 3 px Periode),
+/// sonst weiß.
+pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
+    let dx = 2 * x + 1 - b;
+    let dy = 2 * y + 1 - h;
+    match m {
+        1 => {
+            if x % 32 == 0 || y % 32 == 0 {
+                return [30, 30, 30, 255];
+            }
+            const HELL: [[u8; 3]; 4] = [[244, 232, 204], [204, 228, 244], [222, 240, 200], [240, 212, 232]];
+            const DUNKEL: [[u8; 3]; 4] = [[176, 52, 36], [36, 84, 168], [52, 128, 52], [132, 52, 132]];
+            let q = (2 * x >= b) as usize + 2 * (2 * y >= h) as usize;
+            let c = if (x / 4 + y / 4) % 2 == 0 { HELL[q] } else { DUNKEL[q] };
+            [c[0], c[1], c[2], 255]
+        }
+        2 => {
+            let r = (b.min(h) - 2).max(1);
+            let d2 = dx * dx + dy * dy;
+            if d2 > (r + 2) * (r + 2) {
+                return [0, 0, 0, 0];
+            }
+            if d2 > r * r {
+                return [150, 95, 40, 128];
+            }
+            if d2 > (r * 4 / 5) * (r * 4 / 5) {
+                return [204, 148, 72, 255];
+            }
+            let rp = (r / 5).max(1);
+            for (fx, fy) in [(3i64, 4i64), (6, 3), (7, 6), (4, 7), (5, 5)] {
+                let (px, py) = (2 * b * fx / 10 - b, 2 * h * fy / 10 - h);
+                let (ex, ey) = (dx - px, dy - py);
+                if (ex + rp / 3) * (ex + rp / 3) + (ey + rp / 3) * (ey + rp / 3) <= (rp / 4) * (rp / 4) {
+                    return [214, 92, 80, 255];
+                }
+                if ex * ex + ey * ey <= rp * rp {
+                    return [160, 30, 28, 255];
+                }
+            }
+            if (x * 7 + y * 13) % 17 == 0 {
+                [252, 226, 140, 255]
+            } else {
+                [214, 64, 36, 255]
+            }
+        }
+        3 => {
+            let t = (b.min(h) / 3).max(1);
+            if x < 2 || y < 2 || x >= b - 2 || y >= h - 2 {
+                return [44, 30, 20, 255];
+            }
+            let rand_x = x < t || x >= b - t;
+            let rand_y = y < t || y >= h - t;
+            if rand_x && rand_y {
+                return if (x + y) / 2 % 2 == 0 { [230, 180, 60, 255] } else { [150, 96, 30, 255] };
+            }
+            if rand_x || rand_y {
+                let innen = (rand_x && (x == t - 1 || x == b - t)) || (rand_y && (y == t - 1 || y == h - t));
+                return if innen { [90, 60, 30, 255] } else { [218, 170, 70, 255] };
+            }
+            if (x / 2 + y / 2) % 2 == 0 {
+                [250, 240, 215, 255]
+            } else {
+                [228, 212, 178, 255]
+            }
+        }
+        4 => {
+            let s = b.max(h);
+            if (dx * dx + dy * dy) / (6 * s) % 2 == 0 {
+                [250, 250, 245, 255]
+            } else {
+                [24, 28, 70, 255]
+            }
+        }
+        _ => [255, 255, 255, 255],
+    }
+}
+
+/// Teigling (Format v1, `herd_teigling::teigling_aus`: Mipmaps wie der Vorbacker, SHA-256 im Kopf = 0) aus Muster `m`.
+pub fn muster_teigling(m: u32, b: u32, h: u32) -> Vec<u8> {
+    let mut rgba = Vec::with_capacity((b * h * 4) as usize);
+    for y in 0..h as i64 {
+        for x in 0..b as i64 {
+            rgba.extend_from_slice(&muster_pixel(m, x, y, b as i64, h as i64));
+        }
+    }
+    herd_teigling::teigling_aus(&herd_teigling::Bild { breite: b, hoehe: h, rgba }, false, &[0; 32])
+}
+
 /// Rückgabewert eines Aufrufs.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Wert {
@@ -787,6 +881,13 @@ impl Spieler {
             "bildchen_teigling" => {
                 let b: Vec<u8> = zahlen(0)?.into_iter().map(|x| zu_i32(x) as u8).collect();
                 Wert::I(k.bildchen_teigling(&b))
+            }
+            "teigling_muster" => {
+                let (m, b, h) = (i(0)?, i(1)?, i(2)?);
+                if !(1..=2048).contains(&b) || !(1..=2048).contains(&h) {
+                    return fehler(zeile, "teigling_muster: Breite und Höhe 1 … 2048");
+                }
+                Wert::I(k.bildchen_teigling(&muster_teigling(m as u32, b as u32, h as u32)))
             }
             "ressource_hole" => Wert::F(k.ressource_hole(i(0)?, i(1)?)),
             "takt" => Wert::I(k.takt()),
