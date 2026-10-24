@@ -1,0 +1,9 @@
+Fliesen(3) 10×6 kachel 16, 2 Bilder, 60 Einträge, fest [1]
+16 9 32 [] [] []
+trifft: ja ja nein
+Kiste bei x = 122, y = 158, amBoden ja in 52 Takten, Tempo 0
+Ball fällt durchs Loch: ja, amBoden nein
+LaufzeitAnanas: Fliesen.spalten muss zwischen 1 und 1024 liegen, nicht 0.
+LaufzeitAnanas: Fliesen.kachel muss mindestens 0 sein, nicht -1.
+TypAnanas: Fliesen.karte braucht ein Blech aus Zahlen, nicht 5.
+LaufzeitAnanas: Fliesen gibt es nur für 2D-Teile.

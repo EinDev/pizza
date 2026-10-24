@@ -197,6 +197,19 @@
       "tier": 1,
       "schlagworte": ["Herd", "2D", "Vorlage", "kopie", "Wucht"],
       "herd": true
+    },
+    {
+      "id": "huepfwelt",
+      "titel": "Hüpfwelt: Pizzabote im Keller",
+      "beschreibung": "Ein Jump-'n'-Run aus Kacheln: Der Pizzabote läuft mit den Pfeiltasten durch ein Kellergewölbe, springt über Kisten auf Bretter, sammelt Pizzen und bringt sie zur Tür. Das Level sind zwei Fliesen-Raster aus Text-Zeilen (Wand hinten, Steine und Kisten vorn); feste Kacheln tragen den Boten über die Wucht, gezeichnet wird nur, was der Blick an der Leine sieht.",
+      "datei": "herd/huepfwelt.pizza",
+      "erwartet": "herd/huepfwelt.erwartet",
+      "ereignisse": "herd/huepfwelt.ereignisse",
+      "herdErwartet": "herd/huepfwelt.herd-erwartet",
+      "exitCode": 0,
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Fliesen", "Wucht", "Blick", "Leine", "Spiel"],
+      "herd": true
     }
   ]
 }

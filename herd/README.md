@@ -55,6 +55,7 @@ pub static ARTEN: &[&Art] = &[
     &vieleck::ART,                                     // 21 (H-K3b; Zerlegung im Nachlauf, 2D-Art DREIECK)
     &gelaende::ART,                                    // 22 (H-K11a, Takt: Netz bei Änderung)
     &vorlage::ART,                                     // 23 (H-K8, Ruhe: kein System)
+    &fliesen::ART,                                     // 24 (H-K10; Bildbeitrag nur im Sichtfenster, feste Kacheln in wucht.rs)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -315,7 +316,9 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   Partikel, Fehlerfälle, Abfragen, eigene Form, `paket_voll`) und `listen.herd` (H-K0: `setze_zahlen`/`hole_zahlen` und Listen-
   Fehlerpfade); je Ausbaustufe ein eigenes Skript (`linien.herd`: `Linie`, `Rahmen`; `b5-funken.herd`: `Funken`, klein und voll
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
-  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
+  wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
+  1024 × 1024 Kacheln). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
   `--nur b3` wählt Läufe, `--ohne-cargo` baut nicht. Stand H1b: alle Läufe bitgleich, ohne Änderung am Kern.
@@ -339,7 +342,9 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
 | `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte; nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
-**Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`.
+**Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`; erzeugte
+Zahlenlisten `[folge ANZAHL var AUSDRUCK]` (H-K10: Eintrag i = AUSDRUCK mit `var` = i, i = 0 … ANZAHL − 1, z. B.
+`setze_zahlen fl FL_KARTE [folge (S * S) i (boden(zufall(i) + 0.1))]` – für große Karten ohne lange Literale).
 Je nach Signatur: `setze_liste` Liste von IDs; `setze_zahlen` Liste von Zahlen; `form_eigene` zwei Zahlenlisten; `bildchen_neu` Liste der Zeilen und Liste
 von Paaren `[["x", "#fff"]]`; `bildchen_rgba b h [bytes]`. **Ausdrücke:** f64 mit `+ - * / %` (wie JS), Klammern,
 Vorzeichen, `boden(x)`, `zufall(x)` (Hash von `ToUint32(x)` → [0, 1), in beiden Sprachen bitgleich); i32-Argumente

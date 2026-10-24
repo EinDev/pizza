@@ -3076,3 +3076,388 @@ mod hk8 {
     }
 }
 
+
+mod hk10 {
+    use super::*;
+    use crate::komponenten::{fliesen, wucht, Huelle};
+    use crate::paket::flach_art;
+
+    struct N {
+        fl: i32,
+        bilder: i32,
+        spalten: i32,
+        zeilen: i32,
+        karte: i32,
+        kachel: i32,
+        fest: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let fl = typ(k, "Fliesen");
+        N {
+            fl,
+            bilder: feld(k, fl, "bilder"),
+            spalten: feld(k, fl, "spalten"),
+            zeilen: feld(k, fl, "zeilen"),
+            karte: feld(k, fl, "karte"),
+            kachel: feld(k, fl, "kachel"),
+            fest: feld(k, fl, "fest"),
+        }
+    }
+    /// Bildchen b × h (einfarbig) → ID
+    fn bildchen(k: &mut Kern, b: usize, h: usize, zeichen: u8) -> u32 {
+        let zeile: Vec<u8> = vec![zeichen; b];
+        let z: Vec<u8> = (0..h).flat_map(|_| [&(b as u32).to_le_bytes()[..], &zeile].concat()).collect();
+        let id = k.bildchen_neu(&z, &[]);
+        assert!(id > 0);
+        id as u32
+    }
+    /// Fliesen-Teil bei (x, y) → (Teil, Komponente)
+    #[allow(clippy::too_many_arguments)]
+    fn karte(k: &mut Kern, n: &N, x: f64, y: f64, spalten: f64, zeilen: f64, kachel: f64, bilder: &[u32], karte: &[f64], fest: &[f64]) -> (i32, i32) {
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        let c = k.komp_neu(n.fl);
+        assert_eq!(k.setze_zahl(c, n.spalten, spalten), 0, "{}", k.fehler_text());
+        assert_eq!(k.setze_zahl(c, n.zeilen, zeilen), 0);
+        assert_eq!(k.setze_zahl(c, n.kachel, kachel), 0);
+        assert_eq!(k.setze_liste(c, n.bilder, bilder), 0, "{}", k.fehler_text());
+        assert_eq!(k.setze_zahlen(c, n.karte, karte), 0, "{}", k.fehler_text());
+        assert_eq!(k.setze_zahlen(c, n.fest, fest), 0);
+        assert_eq!(k.komp_haenge(c, t), 0, "{}", k.fehler_text());
+        (t, c)
+    }
+    /// (Mitte, halbe Ausdehnung, Art, Atlas) der 2D-Instanzen
+    #[allow(clippy::type_complexity)]
+    fn inst(k: &Kern) -> Vec<([f32; 2], [f32; 2], u32, [u16; 4])> {
+        instanzen_2d(k).into_iter().map(|i| (i.1, i.2, i.4, i.5)).collect()
+    }
+
+    #[test]
+    fn schema_typnummer_bereiche() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!(n.fl, 24, "Typnummer in Merge-Reihenfolge nach Vorlage (23)");
+        let art = ARTEN.iter().find(|a| a.schema.name == "Fliesen").unwrap();
+        assert!(art.takt.is_none() && art.nachlauf.is_none() && art.bild.is_some() && art.huelle.is_some());
+        let c = k.komp_neu(n.fl);
+        assert_eq!(k.hole_zahl(c, n.spalten), 16.0);
+        assert_eq!(k.hole_zahl(c, n.zeilen), 9.0);
+        assert_eq!(k.hole_zahl(c, n.kachel), 32.0);
+        assert_eq!(k.setze_zahl(c, n.spalten, 0.0), -2);
+        assert_eq!(k.fehler_text(), "Fliesen.spalten muss zwischen 1 und 1024 liegen, nicht 0.");
+        assert_eq!(k.setze_zahl(c, n.zeilen, 1025.0), -2);
+        assert!(k.setze_zahl(c, n.zeilen, 2.5) < 0);
+        assert_eq!(k.setze_zahl(c, n.kachel, -1.0), -2);
+        assert_eq!(k.fehler_text(), "Fliesen.kachel muss mindestens 0 sein, nicht -1.");
+        let t3 = k.teil_neu(3);
+        assert_eq!(k.komp_haenge(c, t3), -2);
+        assert_eq!(k.fehler_text(), "Fliesen gibt es nur für 2D-Teile.");
+        // Hülle für trifft: das ganze Raster ab der oberen linken Ecke
+        let rt = typ(&mut k, "Rechteck");
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 100.0, 50.0, 0.0);
+        let f = k.komp_neu(n.fl);
+        k.setze_zahl(f, n.spalten, 4.0);
+        k.setze_zahl(f, n.zeilen, 2.0);
+        k.setze_zahl(f, n.kachel, 10.0);
+        k.komp_haenge(f, t);
+        let probe = |k: &mut Kern, x: f64, y: f64| {
+            let p = k.teil_neu(2);
+            k.teil_lage(p, x, y, 0.0);
+            let r = k.komp_neu(rt);
+            let (fb, fh) = (feld(k, rt, "breite"), feld(k, rt, "hoehe"));
+            k.setze_zahl(r, fb, 2.0);
+            k.setze_zahl(r, fh, 2.0);
+            k.komp_haenge(r, p);
+            let ja = k.teil_trifft(t, p);
+            k.teil_entferne(p);
+            ja
+        };
+        assert_eq!(probe(&mut k, 102.0, 52.0), 1);
+        assert_eq!(probe(&mut k, 138.0, 68.0), 1);
+        assert_eq!(probe(&mut k, 97.0, 52.0), 0, "links der Ecke");
+        assert_eq!(probe(&mut k, 143.0, 60.0), 0, "rechts vom Raster");
+    }
+
+    #[test]
+    fn lage_ist_obere_linke_ecke_und_nummern() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (a, b) = (bildchen(&mut k, 4, 4, b't'), bildchen(&mut k, 8, 2, b'b'));
+        // 3 × 3: Zeile 0 = 1 0 2, Zeile 1 = 2 1.7 9 (9 hat kein Bildchen), Zeile 2 = −1 und Rest fehlt (zu kurz → leer)
+        let (_, c) = karte(&mut k, &n, 100.0, 50.0, 3.0, 3.0, 10.0, &[a, b], &[1.0, 0.0, 2.0, 2.0, 1.7, 9.0, -1.0], &[]);
+        k.bild(1);
+        let i = inst(&k);
+        assert_eq!(i.len(), 4, "{:?}", i);
+        assert_eq!(i.iter().map(|x| x.0).collect::<Vec<_>>(), [[105.0, 55.0], [125.0, 55.0], [105.0, 65.0], [115.0, 65.0]]);
+        assert!(i.iter().all(|x| x.1 == [5.0, 5.0] && x.2 == flach_art::BILD));
+        assert_eq!(i[0].3, i[3].3, "Kachel 1 = bilder[1]");
+        assert_eq!(i[1].3, i[2].3);
+        assert_ne!(i[0].3, i[1].3);
+        assert_eq!(i[1].3[2] - i[1].3[0], 8, "Bildchen 8 × 2 auf die Kachel gestreckt");
+        // kachel 0 → nichts; ohne Bilder → nichts
+        k.setze_zahl(c, n.kachel, 0.0);
+        k.bild(2);
+        assert!(inst(&k).is_empty());
+        k.setze_zahl(c, n.kachel, 10.0);
+        k.setze_liste(c, n.bilder, &[]);
+        k.bild(3);
+        assert!(inst(&k).is_empty());
+        // gedreht und skaliert: die Ecke bleibt an der Lage
+        k.setze_liste(c, n.bilder, &[a, b]);
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 300.0, 200.0, 0.0);
+        k.teil_setze(t, tf::DREHUNG, 90.0);
+        k.teil_setze(t, tf::GROESSE_X, 2.0);
+        k.teil_setze(t, tf::GROESSE_Y, 2.0);
+        let c2 = k.komp_neu(n.fl);
+        k.setze_zahl(c2, n.kachel, 10.0);
+        k.setze_liste(c2, n.bilder, &[a]);
+        k.setze_zahlen(c2, n.karte, &[1.0]);
+        k.komp_haenge(c2, t);
+        k.bild(4);
+        let i = inst(&k);
+        let m = i.last().unwrap();
+        assert!((m.0[0] - 290.0).abs() < 1e-3 && (m.0[1] - 210.0).abs() < 1e-3, "{:?}", m.0);
+    }
+
+    #[test]
+    fn culling_grosse_karte_mit_blick() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let a = bildchen(&mut k, 2, 2, b'g');
+        let voll = vec![1.0; 256 * 256];
+        let (_, c) = karte(&mut k, &n, 0.0, 0.0, 256.0, 256.0, 32.0, &[a], &voll, &[1.0]);
+        // ohne Blick: nur das Spielfeld 640 × 360 → Spalten 0 … 20 (Spalte 20 berührt den Rand), Zeilen 0 … 11 (360 / 32 = 11,25)
+        k.bild(1);
+        assert_eq!(inst(&k).len(), 21 * 12);
+        // Blick bei (1007, 805): Sicht 687 … 1327 × 625 … 985 → Spalten 21 … 41, Zeilen 19 … 30
+        let bt = typ(&mut k, "Blick");
+        let t = k.teil_neu(2);
+        k.teil_lage(t, 1007.0, 805.0, 0.0);
+        let bc = k.komp_neu(bt);
+        k.komp_haenge(bc, t);
+        k.bild(2);
+        assert_eq!(inst(&k).len(), 21 * 12);
+        // wandern: nie mehr als die sichtbaren (≤ 21 × 13), am Kartenrand weniger
+        for s in 0..40 {
+            k.teil_lage(t, 50.0 + s as f64 * 211.3, 30.0 + s as f64 * 197.7, 0.0);
+            k.bild(3 + s);
+            let i = inst(&k).len();
+            assert!(i <= 21 * 13, "Schritt {}: {}", s, i);
+        }
+        // gedreht + Zoom 0.5: Sicht ≈ 1280 × 720 gedreht
+        k.teil_lage(t, 4000.0, 4000.0, 0.0);
+        k.teil_setze(t, tf::DREHUNG, 30.0);
+        let fz = feld(&mut k, bt, "zoom");
+        k.setze_zahl(bc, fz, 0.5);
+        k.bild(50);
+        let i = instanzen_2d(&k);
+        assert!(i.len() > 500 && i.len() < 2000, "{}", i.len());
+        // HUD-Ebene: Fliesen mit ebene ≥ festAb bleiben im Spielfeld wie ohne Blick
+        let (h, _) = karte(&mut k, &n, 0.0, 0.0, 30.0, 30.0, 32.0, &[a], &voll[..900], &[]);
+        k.teil_setze(h, tf::EBENE, 1000.0);
+        k.setze_zahl(c, n.kachel, 0.0);
+        k.bild(51);
+        let i = inst(&k);
+        assert_eq!(i.len(), 21 * 12);
+        assert_eq!(i[0].0, [16.0, 16.0]);
+    }
+
+    #[test]
+    fn kachel_kontakt_offene_seiten() {
+        let (lo, hi) = ([0.0, 0.0], [10.0, 10.0]);
+        let alle = [true; 4];
+        // Kiste liegt 0,5 tief auf: oben
+        let kiste = Huelle::Rechteck([2.0, -5.0], [8.0, 0.5]);
+        assert_eq!(wucht::kachel_kontakt(lo, hi, alle, &kiste), Some(([0.0, -1.0], 0.5)));
+        // Kiste ragt 0,1 von links in die Kachel, 0,5 tief: an einer Fuge (links geschlossen) → oben statt links
+        let fuge = Huelle::Rechteck([-6.0, -5.0], [0.1, 0.5]);
+        assert_eq!(wucht::kachel_kontakt(lo, hi, alle, &fuge), Some(([-1.0, 0.0], 0.1)));
+        assert_eq!(wucht::kachel_kontakt(lo, hi, [true, true, false, true], &fuge), Some(([0.0, -1.0], 0.5)));
+        assert_eq!(wucht::kachel_kontakt(lo, hi, [false; 4], &fuge), None, "ganz innen");
+        assert_eq!(wucht::kachel_kontakt(lo, hi, alle, &Huelle::Rechteck([11.0, 0.0], [12.0, 1.0])), None);
+        // Kreis über der Ecke (0, 0): offen → schräg; links geschlossen → gerade nach oben; oben geschlossen → nach links
+        let k = Huelle::Kreis([-0.6, -0.8], 2.0);
+        let (n, t) = wucht::kachel_kontakt(lo, hi, alle, &k).unwrap();
+        assert!((n[0] + 0.6).abs() < 1e-12 && (n[1] + 0.8).abs() < 1e-12 && (t - 1.0).abs() < 1e-12);
+        let (n, t) = wucht::kachel_kontakt(lo, hi, [true, true, false, true], &k).unwrap();
+        assert!(n == [0.0, -1.0] && (t - 1.2).abs() < 1e-12);
+        let (n, t) = wucht::kachel_kontakt(lo, hi, [false, true, true, true], &k).unwrap();
+        assert!(n == [-1.0, 0.0] && (t - 1.4).abs() < 1e-12);
+        // Mitte in der Kachel: zur nächsten offenen Seite
+        let innen = Huelle::Kreis([3.0, 2.0], 1.0);
+        assert_eq!(wucht::kachel_kontakt(lo, hi, alle, &innen), Some(([0.0, -1.0], 3.0)));
+        assert_eq!(wucht::kachel_kontakt(lo, hi, [false, true, true, true], &innen), Some(([-1.0, 0.0], 4.0)));
+        // Helfer der Karte
+        let karte = [1.0, 1.0, 0.0, 2.0];
+        let feste = fliesen::feste(&[1.0, 1.9, -3.0]);
+        assert_eq!(feste, [1]);
+        assert!(fliesen::ist_fest(&karte, &feste, 2, 2, 1, 0));
+        assert!(!fliesen::ist_fest(&karte, &feste, 2, 2, 1, 1), "Kachel 2 ist nicht fest");
+        assert!(!fliesen::ist_fest(&karte, &feste, 2, 2, 2, 0), "außerhalb");
+        let mut m = [0.0; 12];
+        m[0] = 1.0;
+        m[3] = 1.0;
+        assert_eq!(fliesen::offene_seiten(&m, &karte, &feste, 2, 2, 0, 0), [true, true, true, false]);
+        m[0] = -1.0;
+        assert_eq!(fliesen::offene_seiten(&m, &karte, &feste, 2, 2, 0, 0), [true, true, false, true], "gespiegelt");
+        m[1] = 0.5;
+        assert_eq!(fliesen::offene_seiten(&m, &karte, &feste, 2, 2, 0, 0), [true; 4], "gedreht: alle offen");
+    }
+
+    /// Typ-/Feldnummern: (Fuehler, ausloeser, Wucht, schwerkraft, tempoX, tempoY, amBoden, maske)
+    fn physik(k: &mut Kern) -> (i32, i32, i32, i32, i32, i32, i32, i32) {
+        let (f, w) = (typ(k, "Fuehler"), typ(k, "Wucht"));
+        (f, feld(k, f, "ausloeser"), w, feld(k, w, "schwerkraft"), feld(k, w, "tempoX"), feld(k, w, "tempoY"), feld(k, w, "amBoden"), feld(k, f, "maske"))
+    }
+    /// Kiste b × h (bzw. Kreis mit Durchmesser b) mit festem Fühler und dynamischer Wucht → (Teil, Wucht)
+    fn koerper(k: &mut Kern, x: f64, y: f64, b: f64, h: f64, kreis: bool) -> (i32, i32) {
+        let (f, aus, w, g, ..) = physik(k);
+        let t = k.teil_neu(2);
+        k.teil_lage(t, x, y, 0.0);
+        if kreis {
+            let kr = typ(k, "Kreis");
+            let r = k.komp_neu(kr);
+            let fr = feld(k, kr, "radius");
+            k.setze_zahl(r, fr, b * 0.5);
+            k.komp_haenge(r, t);
+        } else {
+            let rt = typ(k, "Rechteck");
+            let r = k.komp_neu(rt);
+            let (fb, fh) = (feld(k, rt, "breite"), feld(k, rt, "hoehe"));
+            k.setze_zahl(r, fb, b);
+            k.setze_zahl(r, fh, h);
+            k.komp_haenge(r, t);
+        }
+        let fc = k.komp_neu(f);
+        k.setze_zahl(fc, aus, 0.0);
+        k.komp_haenge(fc, t);
+        let wc = k.komp_neu(w);
+        k.setze_zahl(wc, g, 1200.0);
+        assert_eq!(k.komp_haenge(wc, t), 0);
+        (t, wc)
+    }
+    /// Boden aus 20 Kacheln (Zeile 9 von 10, kachel 32, ab x = 0; Oberkante y = 288), eine Wand (Spalte 15, Zeilen 3 … 8) und
+    /// eine Deko-Kachel (2, nicht fest)
+    fn boden(k: &mut Kern, n: &N) -> (i32, i32) {
+        let a = bildchen(k, 2, 2, b'k');
+        let mut kt = vec![0.0; 20 * 10];
+        for c in 0..20 {
+            kt[9 * 20 + c] = 1.0;
+        }
+        for r in 3..9 {
+            kt[r * 20 + 15] = 1.0;
+        }
+        kt[8 * 20 + 3] = 2.0;
+        karte(k, n, 0.0, 0.0, 20.0, 10.0, 32.0, &[a, a], &kt, &[1.0])
+    }
+
+    #[test]
+    fn kiste_gleitet_ueber_die_fugen() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        let (_, _, _, _, tx, ty, am, _) = physik(&mut k);
+        let (t, w) = koerper(&mut k, 40.0, 278.0, 20.0, 20.0, false);
+        let (tk, wk) = koerper(&mut k, 560.0, 270.0, 20.0, 20.0, true);
+        for _ in 0..30 {
+            k.takt();
+        }
+        assert_eq!(k.hole_zahl(w, am), 1.0);
+        assert!((k.teil_hole(t, tf::Y) - 278.0).abs() < 0.2, "{}", k.teil_hole(t, tf::Y));
+        assert!((k.teil_hole(tk, tf::Y) - 278.0).abs() < 0.2, "{}", k.teil_hole(tk, tf::Y));
+        // über mehrere Fugen schieben: Deko-Kachel stört nicht, tempoY bleibt 0, amBoden jeden Takt, x steigt stetig
+        k.setze_zahl(w, tx, 300.0);
+        k.setze_zahl(wk, tx, 60.0);
+        let mut x0 = k.teil_hole(t, tf::X);
+        for i in 0..40 {
+            k.takt();
+            let x = k.teil_hole(t, tf::X);
+            assert!(x > x0, "Takt {}: hakt bei x = {}", i, x);
+            x0 = x;
+            assert_eq!(k.hole_zahl(w, am), 1.0, "Takt {}", i);
+            assert!(k.hole_zahl(w, ty).abs() < 1e-9, "Takt {}: tempoY {}", i, k.hole_zahl(w, ty));
+            assert_eq!(k.hole_zahl(wk, am), 1.0, "Kreis, Takt {}", i);
+        }
+        assert!(k.teil_hole(t, tf::X) > 150.0, "{}", k.teil_hole(t, tf::X));
+        // gegen die Wand (Spalte 15, x = 480): die Kiste bleibt davor stehen
+        k.setze_zahl(w, tx, 600.0);
+        for _ in 0..120 {
+            k.takt();
+        }
+        let x = k.teil_hole(t, tf::X);
+        assert!(x <= 470.1 && x > 465.0, "vor der Wand: {}", x);
+        assert_eq!(k.hole_zahl(w, am), 1.0);
+    }
+
+    #[test]
+    fn faellt_an_der_wand_entlang_und_stapel_ruht() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n);
+        let (f, _, _, _, tx, ty, am, maske) = physik(&mut k);
+        // Kiste rechts an der Wand (x = 480 … 512), drückt leicht nach links (Reibung bremst nur wenig) und fällt an den Fugen vorbei
+        let (t, w) = koerper(&mut k, 522.0, 130.0, 20.0, 20.0, false);
+        let mut y0 = k.teil_hole(t, tf::Y);
+        for i in 0..60 {
+            k.setze_zahl(w, tx, -10.0);
+            k.takt();
+            let y = k.teil_hole(t, tf::Y);
+            if y < 277.0 {
+                assert!(y > y0, "Takt {}: hakt an der Wand bei y = {}", i, y);
+            }
+            y0 = y;
+        }
+        assert!((k.teil_hole(t, tf::Y) - 278.0).abs() < 0.2, "{}", k.teil_hole(t, tf::Y));
+        assert!((k.teil_hole(t, tf::X) - 522.0).abs() < 0.2, "{}", k.teil_hole(t, tf::X));
+        // Stapel aus 3 Kisten ruht auf dem Kachelboden
+        let mut kisten = Vec::new();
+        for i in 0..3 {
+            kisten.push(koerper(&mut k, 100.0 + i as f64, 270.0 - 22.0 * i as f64, 20.0, 20.0, false));
+        }
+        for _ in 0..240 {
+            k.takt();
+        }
+        let vorher: Vec<f64> = kisten.iter().map(|&(t, _)| k.teil_hole(t, tf::Y)).collect();
+        for _ in 0..120 {
+            k.takt();
+        }
+        for (i, &(t, w)) in kisten.iter().enumerate() {
+            let y = k.teil_hole(t, tf::Y);
+            assert!((y - vorher[i]).abs() < 0.05, "Kiste {} wandert: {} → {}", i, vorher[i], y);
+            assert!((y - (278.0 - 20.0 * i as f64)).abs() < 0.5, "Kiste {} bei {}", i, y);
+            assert!(k.hole_zahl(w, ty).abs() < 1e-6);
+        }
+        // Maske ohne Gruppe 1: fällt durch die Kacheln
+        let (tg, wg) = koerper(&mut k, 300.0, 200.0, 10.0, 10.0, true);
+        let fc = k.komp_von(tg, f);
+        k.setze_zahl(fc, maske, 2.0);
+        for _ in 0..60 {
+            k.takt();
+        }
+        assert!(k.teil_hole(tg, tf::Y) > 330.0);
+        assert_eq!(k.hole_zahl(wg, am), 0.0);
+    }
+
+    #[test]
+    fn ohne_feste_kacheln_wie_vorher() {
+        // dieselbe Szene mit (nicht festen) und ohne Fliesen: die Physik ist bitgleich
+        let lauf = |mit: bool| {
+            let mut k = welt();
+            let n = nummern(&mut k);
+            if mit {
+                let a = bildchen(&mut k, 2, 2, b'k');
+                karte(&mut k, &n, 0.0, 0.0, 20.0, 12.0, 32.0, &[a], &vec![1.0; 240], &[2.0]);
+            }
+            let (t, w) = koerper(&mut k, 100.0, 50.0, 12.0, 12.0, true);
+            let (_, _, _, _, tx, ..) = physik(&mut k);
+            k.setze_zahl(w, tx, 50.0);
+            for _ in 0..30 {
+                k.takt();
+            }
+            (k.teil_hole(t, tf::X), k.teil_hole(t, tf::Y))
+        };
+        assert_eq!(lauf(true), lauf(false));
+    }
+}

@@ -1,0 +1,196 @@
+# H-K10 (HERD.md §12.4): Fliesen – Kachelkarten aus CHUNKS × CHUNKS Rastern von je S × S Kacheln (klein 2 × 2 × 48², voll 4 × 4 ×
+# 256² = 1024 × 1024 Kacheln = 1 048 576), erzeugt mit [folge …]. Boden, zufällige feste Plattformen (2), Deko (3), Hintergrund (4)
+# und Nummern ohne Bildchen (5, 6); ein wandernder Blick (Bewegung, später Zoom und Drehung) – gezeichnet werden nur die sichtbaren Kacheln, der
+# Paket-Hash je Bild prüft das Fenster nativ gegen Wasm. Dazu N Wucht-Körper (Kreise und Kisten) auf dem Kachelboden, ein gedrehtes
+# und ein verschobenes Kind-Raster, ein HUD-Raster (ebene 1000), Karte und fest mitten im Lauf geändert, ein Raster entfernt.
+vorgabe S 48
+vorgabe CHUNKS 2
+vorgabe N 40
+vorgabe TAKTE 40
+welt_neu 640 360 "Fliesen"
+welt_hintergrund "mozzarella"
+typ_nummer "Fliesen" -> T_FL
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Wucht" -> T_W
+typ_nummer "Rechteck" -> T_R
+typ_nummer "Kreis" -> T_K
+typ_nummer "Blick" -> T_B
+typ_nummer "Bewegung" -> T_BEW
+feld_nummer T_FL "bilder" -> FL_BILDER
+feld_nummer T_FL "spalten" -> FL_SP
+feld_nummer T_FL "zeilen" -> FL_ZE
+feld_nummer T_FL "karte" -> FL_KARTE
+feld_nummer T_FL "kachel" -> FL_KACHEL
+feld_nummer T_FL "fest" -> FL_FEST
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_F "maske" -> F_MA
+feld_nummer T_W "schwerkraft" -> W_G
+feld_nummer T_W "tempoX" -> W_TX
+feld_nummer T_W "tempoY" -> W_TY
+feld_nummer T_W "amBoden" -> W_BODEN
+feld_nummer T_W "abprall" -> W_AB
+feld_nummer T_R "breite" -> R_B
+feld_nummer T_R "hoehe" -> R_H
+feld_nummer T_K "radius" -> K_R
+feld_nummer T_B "zoom" -> B_ZOOM
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "tempoY" -> BEW_Y
+# Fehler: Bereiche, 3D-Teil
+komp_neu T_FL -> probe
+setze_zahl probe FL_SP 0
+fehler_text
+setze_zahl probe FL_ZE 1025
+fehler_text
+setze_zahl probe FL_KACHEL -1
+fehler_text
+teil_neu 3 -> t3
+komp_haenge probe t3
+fehler_text
+# Kacheln: Stein (fest), Ziegel (fest), Gras (Deko), Kellerwand (Hintergrund, nicht fest)
+bildchen_neu ["ssssssss", "skkkkkks", "skkkkkks", "skkkkkks", "skkkkkks", "skkkkkks", "skkkkkks", "ssssssss"] [] -> STEIN
+bildchen_neu ["tttttttt", "ttrrtttr", "tttttttt", "rttttrtt", "tttttttt", "ttrttttr", "tttttttt", "trtttrtt"] [] -> ZIEGEL
+bildchen_neu ["........", "...g....", ".g.g..g.", ".g.gg.g.", "gggggggg", "gggggggg", "........", "........"] [] -> GRAS
+bildchen_neu ["eeeeeeee", "eeeeeeee", "eeleeeee", "eeeeeeee", "eeeeeele", "eeeeeeee", "eeeeeeee", "leeeeeee"] [] -> WAND
+# CHUNKS × CHUNKS Raster, je S × S Kacheln zu 32 px: Boden in den letzten 3 Zeilen, Plattformen, Deko, sonst Wand (4); Summen
+# 5/6 haben kein Bildchen (unsichtbar)
+wiederhole CHUNKS cy
+  wiederhole CHUNKS cx
+    teil_neu 2 -> ch
+    teil_lage ch (cx * S * 32) (cy * S * 32) 0
+    komp_neu T_FL -> fl
+    setze_zahl fl FL_SP S
+    setze_zahl fl FL_ZE S
+    setze_liste fl FL_BILDER [STEIN, ZIEGEL, GRAS, WAND]
+    setze_zahlen fl FL_KARTE [folge (S * S) i (boden(boden(i / S) / (S - 3)) + boden(zufall(i + (cy * CHUNKS + cx) * S * S) + 0.07) * 2 + boden(zufall(i + 7777777 + cx) + 0.04) * 3 + 4 * boden(1 / (boden(boden(i / S) / (S - 3)) + boden(zufall(i + (cy * CHUNKS + cx) * S * S) + 0.07) * 2 + boden(zufall(i + 7777777 + cx) + 0.04) * 3 + 1)))]
+    setze_zahlen fl FL_FEST [1, 2]
+    komp_haenge fl ch
+  ende
+ende
+hole_zahl fl FL_SP
+# N Körper über dem Boden des ersten Rasters (Oberkante y = (S − 3) · 32): Kreise und Kisten, einige mit Anlauf
+wiederhole N e
+  teil_neu 2 -> t
+  teil_lage t (40 + e * 37 % (S * 30)) ((S - 3) * 32 - 20 - (e % 5) * 26) 0
+  wiederhole (e % 2)
+    komp_neu T_K -> k
+    setze_zahl k K_R (6 + e % 4)
+    komp_haenge k t
+  ende
+  wiederhole (1 - e % 2)
+    komp_neu T_R -> r
+    setze_zahl r R_B (10 + e % 7)
+    setze_zahl r R_H (12 + e % 5)
+    komp_haenge r t
+  ende
+  komp_neu T_F -> f
+  setze_zahl f F_AUS 0
+  komp_haenge f t
+  komp_neu T_W -> w
+  setze_zahl w W_G 1200
+  setze_zahl w W_TX ((e % 7 - 3) * 60)
+  setze_zahl w W_AB ((e % 3) * 0.3)
+  komp_haenge w t
+ende
+# ein Geist (Maske ohne Gruppe 1) fällt durch alle Kacheln
+teil_neu 2 -> geist
+teil_lage geist 300 100 0
+komp_neu T_K -> kg
+komp_haenge kg geist
+komp_neu T_F -> fg
+setze_zahl fg F_AUS 0
+setze_zahl fg F_MA 2
+komp_haenge fg geist
+komp_neu T_W -> wg
+setze_zahl wg W_G 1200
+komp_haenge wg geist
+# gedrehtes Raster (Kacheln für die Physik umschlossen) mit einer Kugel darauf; Kind-Raster unter einer verschobenen Gruppe
+teil_neu 2 -> schief
+teil_lage schief 900 600 0
+teil_setze schief 4 15
+komp_neu T_FL -> fs
+setze_zahl fs FL_SP 8
+setze_zahl fs FL_ZE 2
+setze_zahl fs FL_KACHEL 24
+setze_liste fs FL_BILDER [ZIEGEL]
+setze_zahlen fs FL_KARTE [folge 16 i 1]
+setze_zahlen fs FL_FEST [1]
+komp_haenge fs schief
+teil_neu 2 -> kugel
+teil_lage kugel 980 560 0
+komp_neu T_K -> kk
+komp_haenge kk kugel
+komp_neu T_F -> fk
+setze_zahl fk F_AUS 0
+komp_haenge fk kugel
+komp_neu T_W -> wk
+setze_zahl wk W_G 1200
+komp_haenge wk kugel
+teil_neu 2 -> gruppe
+teil_lage gruppe 1200 300 0
+teil_neu 2 -> kind
+teil_haenge kind gruppe
+teil_lage kind -40 200 0
+teil_setze kind 7 1.5
+teil_setze kind 8 1.5
+komp_neu T_FL -> fki
+setze_zahl fki FL_SP 6
+setze_zahl fki FL_ZE 1
+setze_zahl fki FL_KACHEL 16
+setze_liste fki FL_BILDER [STEIN]
+setze_zahlen fki FL_KARTE [1, 1, 0, 1, 1, 1]
+setze_zahlen fki FL_FEST [1]
+komp_haenge fki kind
+teil_neu 2 -> kiste
+teil_lage kiste 1230 470 0
+komp_neu T_R -> rk
+komp_haenge rk kiste
+komp_neu T_F -> fki2
+setze_zahl fki2 F_AUS 0
+komp_haenge fki2 kiste
+komp_neu T_W -> wki
+setze_zahl wki W_G 1200
+komp_haenge wki kiste
+# HUD-Raster (bleibt unter dem Blick fest)
+teil_neu 2 -> hud
+teil_lage hud 8 8 0
+teil_setze hud 10 1000
+komp_neu T_FL -> fh
+setze_zahl fh FL_SP 10
+setze_zahl fh FL_ZE 1
+setze_zahl fh FL_KACHEL 12
+setze_liste fh FL_BILDER [GRAS, STEIN]
+setze_zahlen fh FL_KARTE [folge 10 i (1 + i % 2)]
+komp_haenge fh hud
+# wandernder Blick
+teil_neu 2 -> kam
+teil_lage kam 320 ((S * CHUNKS - 6) * 32) 0
+komp_neu T_B -> blick
+komp_haenge blick kam
+komp_neu T_BEW -> bk
+# in 2 · TAKTE + 10 Takten über 80 % der Kartenbreite und 40 % der Höhe
+setze_zahl bk BEW_X (S * 32 * CHUNKS * 0.8 * 60 / (2 * TAKTE + 10))
+setze_zahl bk BEW_Y (0 - S * 32 * CHUNKS * 0.4 * 60 / (2 * TAKTE + 10))
+komp_haenge bk kam
+takte TAKTE
+hole_zahl w W_BODEN
+hole_zahl w W_TY
+teil_hole t 1
+teil_hole t 2
+hole_zahl wg W_TY
+teil_hole kugel 2
+teil_hole kiste 2
+hole_zahl wki W_BODEN
+# Zoom und Drehung: größeres Fenster
+setze_zahl blick B_ZOOM 0.5
+teil_setze kam 4 20
+takte 10
+# Karte und fest mitten im Lauf ändern, ein Raster entfernen
+setze_zahlen fki FL_KARTE [1, 1, 1, 1, 1, 1]
+setze_zahlen fs FL_FEST []
+teil_entferne ch
+takte TAKTE
+teil_hole kugel 2
+teil_hole kiste 1
+teil_hole kiste 2
+hole_zahl wki W_TY
+teil_hole kam 1

@@ -24,6 +24,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
+use super::fliesen;
 use super::fuehler::{self, Kandidat};
 use super::*;
 use crate::schema::{Feld, Genus, Raum, Schema, Spalte};
@@ -198,6 +199,83 @@ fn kreis_rechteck(m: [f64; 2], r: f64, lo: [f64; 2], hi: [f64; 2]) -> Option<([f
     Some((best.1, r + best.0))
 }
 
+/// Auf welchen Seiten der Kachel `lo`–`hi` liegt die Mitte `m` (oben, unten, links, rechts; auf der Mittellinie beide)?
+#[inline]
+fn seiten(m: [f64; 2], lo: [f64; 2], hi: [f64; 2]) -> [bool; 4] {
+    let (cx, cy) = ((lo[0] + hi[0]) * 0.5, (lo[1] + hi[1]) * 0.5);
+    [m[1] <= cy, m[1] >= cy, m[0] <= cx, m[0] >= cx]
+}
+
+/// Normale (von der Kachel zum Körper) und Tiefe zwischen einer festen Kachel `lo`–`hi` und einer 2D-Hülle (H-K10). Nur die
+/// **offenen** Seiten (`[oben, unten, links, rechts]`, siehe `fliesen::offene_seiten`) schieben, und nur die, auf deren Seite der
+/// Kachelmitte die Mitte des Körpers liegt: Rechteck – davon die mit der kleinsten Überlappung (gleich: oben, unten, links,
+/// rechts); Kreis – außerhalb über den nächsten Punkt, an einer Ecke mit geschlossener Nachbarseite gerade über die offene Seite,
+/// Mitte in der Kachel zur nächsten passenden Seite. Keine solche Seite oder keine Überlappung → `None`. So entstehen an den
+/// Fugen zwischen festen Kacheln keine Kontakte quer zur Fläche, und eine Kachel im Inneren schiebt nie quer durch die Wand.
+pub fn kachel_kontakt(lo: [f64; 2], hi: [f64; 2], offen: [bool; 4], koerper: &Huelle) -> Option<([f64; 2], f64)> {
+    const N: [[f64; 2]; 4] = [[0.0, -1.0], [0.0, 1.0], [-1.0, 0.0], [1.0, 0.0]];
+    match *koerper {
+        Huelle::Rechteck(b0, b1) => {
+            if !(b1[0] >= lo[0] && hi[0] >= b0[0] && b1[1] >= lo[1] && hi[1] >= b0[1]) {
+                return None;
+            }
+            let tiefe = [b1[1] - lo[1], hi[1] - b0[1], b1[0] - lo[0], hi[0] - b0[0]];
+            let seite = seiten([(b0[0] + b1[0]) * 0.5, (b0[1] + b1[1]) * 0.5], lo, hi);
+            let mut best: Option<usize> = None;
+            for s in 0..4 {
+                if offen[s] && seite[s] && best.map_or(true, |b| tiefe[s] < tiefe[b]) {
+                    best = Some(s);
+                }
+            }
+            best.map(|s| (N[s], tiefe[s]))
+        }
+        Huelle::Kreis(m, r) => {
+            let (sx, qx) = if m[0] < lo[0] { (2, lo[0]) } else if m[0] > hi[0] { (3, hi[0]) } else { (4, m[0]) };
+            let (sy, qy) = if m[1] < lo[1] { (0, lo[1]) } else if m[1] > hi[1] { (1, hi[1]) } else { (4, m[1]) };
+            let (dx, dy) = (m[0] - qx, m[1] - qy);
+            let d2 = dx * dx + dy * dy;
+            if !(d2 <= r * r) {
+                return None;
+            }
+            match (sx, sy) {
+                (4, 4) => {
+                    // Mitte in der Kachel: zur nächsten offenen Seite hinaus
+                    let abstand = [m[1] - lo[1], hi[1] - m[1], m[0] - lo[0], hi[0] - m[0]];
+                    let seite = seiten(m, lo, hi);
+                    let mut best: Option<usize> = None;
+                    for s in 0..4 {
+                        if offen[s] && seite[s] && best.map_or(true, |b| abstand[s] < abstand[b]) {
+                            best = Some(s);
+                        }
+                    }
+                    best.map(|s| (N[s], r + abstand[s]))
+                }
+                (4, s) | (s, 4) => {
+                    if !offen[s] {
+                        return None;
+                    }
+                    let d = if s < 2 { betrag(dy) } else { betrag(dx) };
+                    Some((N[s], r - d))
+                }
+                (x, y) => match (offen[x], offen[y]) {
+                    (true, true) => {
+                        let d = wurzel(d2);
+                        if d > 0.0 {
+                            Some(([dx / d, dy / d], r - d))
+                        } else {
+                            Some((N[y], r))
+                        }
+                    }
+                    (false, true) => Some((N[y], r - betrag(dy))),
+                    (true, false) => Some((N[x], r - betrag(dx))),
+                    (false, false) => None,
+                },
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Löst die Kontakte (sortiert nach Teil-IDs): [`ITERATIONEN`] Impuls-Durchgänge, `weg` = tempo · dt der beweglichen Körper,
 /// [`ITERATIONEN`] Durchgänge Positionskorrektur auf `weg`. Gerade Durchgänge laufen vorwärts, ungerade rückwärts. Stehen in
 /// `impuls`/`reibimpuls` schon Werte (Warmstart aus dem letzten Takt), wirken sie zuerst. Setzt `am_boden` der Körper, die ein
@@ -317,6 +395,89 @@ fn verschiebe(w: &mut Welt, r: usize, dx: f64, dy: f64) {
     w.markiere(r);
 }
 
+/// Impulse desselben Paars aus dem letzten Takt (Liste `[Partner, normal, reib]…` des haltenden Körpers) in den Kontakt legen.
+fn warmstart(liste: &[f64], partner: f64, c: &mut Kontakt) {
+    let mut q = 0;
+    while q + 3 <= liste.len() {
+        if liste[q] == partner {
+            c.impuls = liste[q + 1];
+            c.reibimpuls = liste[q + 2];
+            return;
+        }
+        q += 3;
+    }
+}
+
+/// Kontakte der dynamischen Körper (Gruppe 1 in der Maske) mit festen Kacheln aller sichtbaren 2D-`Fliesen` (H-K10), hinten an
+/// `kontakte` gehängt in der Reihenfolge (Körper-Teil-ID, Fliesen-Teil-ID, Zeile, Spalte). Je Kontakt ein eigener fester Körper
+/// ([`Koerper::FEST`]; Kachel = `a`, Körper = `b`); Warmstart-Schlüssel −(Fliesen-ID · 2²¹ + Kachelindex + 1) – kollidiert nie
+/// mit einer Teil-ID. Ohne `Fliesen` (oder ohne feste Kacheln) ändert sich nichts.
+#[allow(clippy::too_many_arguments)]
+fn kachel_kontakte(
+    w: &mut Welt,
+    k: &[Kandidat],
+    koerper: &mut Vec<Koerper>,
+    zeile_von: &mut Vec<usize>,
+    schluessel: &mut Vec<f64>,
+    kontakte: &mut Vec<Kontakt>,
+    cache: &[Vec<f64>],
+) {
+    let Some(li) = w.art_index("Fliesen") else { return };
+    if w.speicher[li].is_empty() {
+        return;
+    }
+    let fl = core::mem::take(&mut w.speicher[li]);
+    // Raster: (Teil, Welt-Matrix, kachel, spalten, zeilen, feste Nummern, Speicherzeile)
+    let mut raster: Vec<(u32, [f64; 12], f64, i64, i64, Vec<u32>, usize)> = Vec::new();
+    for z in 0..fl.len() {
+        let teil = fl.teil[z];
+        let Some(tz) = w.zeile_opt(teil).filter(|_| teil != 0) else { continue };
+        w.aktualisiere(tz);
+        if !w.teile.welt_sichtbar[tz] || w.teile.drei_d[tz] {
+            continue;
+        }
+        let feste = fliesen::feste(&fl.puffer(fliesen::FEST)[z]);
+        let kachel = fl.zahl(fliesen::KACHEL)[z];
+        if feste.is_empty() || fl.puffer(fliesen::KARTE)[z].is_empty() || !(kachel > 0.0) {
+            continue;
+        }
+        raster.push((teil, w.teile.welt[tz], kachel, fl.zahl(fliesen::SPALTEN)[z] as i64, fl.zahl(fliesen::ZEILEN)[z] as i64, feste, z));
+    }
+    raster.sort_unstable_by_key(|r| r.0);
+    let mut reihe: Vec<(u32, usize)> = (0..k.len()).filter(|&i| koerper[i].inv_masse > 0.0 && k[i].maske & 1 != 0).map(|i| (k[i].teil, i)).collect();
+    reihe.sort_unstable();
+    for &(_, i) in &reihe {
+        let (lo, hi) = match k[i].huelle {
+            Huelle::Kreis(m, r) => ([m[0] - r, m[1] - r], [m[0] + r, m[1] + r]),
+            Huelle::Rechteck(lo, hi) => (lo, hi),
+            _ => continue,
+        };
+        for (teil, m, kachel, spalten, zeilen, feste, z) in &raster {
+            let karte = &fl.puffer(fliesen::KARTE)[*z];
+            let Some((c0, c1, r0, r1)) = fliesen::fenster(m, lo, hi, *kachel, *spalten, *zeilen) else { continue };
+            for r in r0..=r1 {
+                for c in c0..=c1 {
+                    if !fliesen::ist_fest(karte, feste, *spalten, *zeilen, c, r) {
+                        continue;
+                    }
+                    let Huelle::Rechteck(tlo, thi) = fliesen::kachel_huelle(m, *kachel, c, r) else { continue };
+                    let offen = fliesen::offene_seiten(m, karte, feste, *spalten, *zeilen, c, r);
+                    let Some((normale, tiefe)) = kachel_kontakt(tlo, thi, offen, &k[i].huelle) else { continue };
+                    let a = koerper.len();
+                    let key = -(*teil as f64 * 2_097_152.0 + (r * *spalten + c) as f64 + 1.0);
+                    koerper.push(Koerper::FEST);
+                    zeile_von.push(usize::MAX);
+                    schluessel.push(key);
+                    let mut kt = Kontakt::neu(a, i, normale, tiefe);
+                    warmstart(&cache[zeile_von[i]], key, &mut kt);
+                    kontakte.push(kt);
+                }
+            }
+        }
+    }
+    w.speicher[li] = fl;
+}
+
 fn takt(w: &mut Welt, s: &mut Speicher) {
     let n = s.len();
     if n == 0 {
@@ -356,6 +517,8 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     let mut von_zeile: Vec<usize> = vec![usize::MAX; n];
     // je Körper: Wucht-Zeile (dynamisch) oder usize::MAX
     let mut zeile_von: Vec<usize> = Vec::new();
+    // je Körper: Schlüssel für den Warmstart (Teil-ID des Fühlers; Kachel: negativ, siehe unten)
+    let mut schluessel: Vec<f64> = Vec::new();
     if dynamische > 0 {
         if let (Some(fi), Some(wi)) = (w.art_index("Fuehler"), w.art_index("Wucht")) {
             let fs = core::mem::take(&mut w.speicher[fi]);
@@ -392,6 +555,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
                 };
                 k.push(c);
                 koerper.push(kp);
+                schluessel.push(c.teil as f64);
             }
             let mut kontakte: Vec<Kontakt> = Vec::new();
             for (i, j) in fuehler::breitphase(&k) {
@@ -399,21 +563,14 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
                     if let Some((normale, tiefe)) = kontakt(&k[i].huelle, &k[j].huelle) {
                         let mut c = Kontakt::neu(i, j, normale, tiefe);
                         // Warmstart: beim dynamischen Körper mit der kleineren ID nach dem Partner suchen
-                        let (halter, partner) = if zeile_von[i] != usize::MAX { (zeile_von[i], k[j].teil) } else { (zeile_von[j], k[i].teil) };
-                        let liste = &cache[halter];
-                        let mut q = 0;
-                        while q + 3 <= liste.len() {
-                            if liste[q] == partner as f64 {
-                                c.impuls = liste[q + 1];
-                                c.reibimpuls = liste[q + 2];
-                                break;
-                            }
-                            q += 3;
-                        }
+                        let (halter, partner) = if zeile_von[i] != usize::MAX { (zeile_von[i], schluessel[j]) } else { (zeile_von[j], schluessel[i]) };
+                        warmstart(&cache[halter], partner, &mut c);
                         kontakte.push(c);
                     }
                 }
             }
+            // feste Kacheln (H-K10): je dynamischem Körper die Kacheln unter seiner Hülle
+            kachel_kontakte(w, &k, &mut koerper, &mut zeile_von, &mut schluessel, &mut kontakte, cache);
             // 3. Lösen (ohne Kontakte bewegt Schritt 4 alle mit tempo · dt)
             for liste in cache.iter_mut() {
                 liste.clear();
@@ -424,8 +581,8 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
                 loese(&mut koerper, &mut kontakte);
                 for c in &kontakte {
                     if c.impuls > 0.0 {
-                        let (halter, partner) = if zeile_von[c.a] != usize::MAX { (zeile_von[c.a], k[c.b].teil) } else { (zeile_von[c.b], k[c.a].teil) };
-                        cache[halter].extend_from_slice(&[partner as f64, c.impuls, c.reibimpuls]);
+                        let (halter, partner) = if zeile_von[c.a] != usize::MAX { (zeile_von[c.a], schluessel[c.b]) } else { (zeile_von[c.b], schluessel[c.a]) };
+                        cache[halter].extend_from_slice(&[partner, c.impuls, c.reibimpuls]);
                     }
                 }
             }

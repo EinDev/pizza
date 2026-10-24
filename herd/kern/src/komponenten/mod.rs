@@ -15,6 +15,7 @@ pub mod bewegung;
 pub mod bild;
 pub mod blick;
 pub mod fuehler;
+pub mod fliesen;
 pub mod funken;
 pub mod gelaende;
 pub mod gleiten;
@@ -151,6 +152,7 @@ pub static ARTEN: &[&Art] = &[
     &vieleck::ART,
     &gelaende::ART,
     &vorlage::ART,
+    &fliesen::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

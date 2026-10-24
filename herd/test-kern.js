@@ -5,7 +5,7 @@
  *   - gegen site/js/herd/kern.wasm (Node, herd/skript.js) und
  *   - gegen den nativen Kern (herd-skript, Rust, gleiche Quelle wie kern.wasm)
  * und muss **dieselben Zeilen** liefern: jeden Rückgabewert und Szenen-/Paket-Hash je Bild.
- * Läufe: B1–B4 klein (viele Takte) und voll (wenige Takte), dazu hierarchie.herd, listen.herd (H-K0) und je Ausbaustufe ihre Szene (linien, b5-funken, gleiten, fuehler, wucht, vieleck, gelaende, vorlage).
+ * Läufe: B1–B4 klein (viele Takte) und voll (wenige Takte), dazu hierarchie.herd, listen.herd (H-K0) und je Ausbaustufe ihre Szene (linien, b5-funken, gleiten, fuehler, wucht, vieleck, gelaende, vorlage, fliesen – voll mit 1024 × 1024 Kacheln).
  * Aufruf: node herd/test-kern.js [--ohne-cargo] [--nur name] [--zeige]
  * Gedrosselt: cargo mit -j 2, Kindprozesse ohne Fenster (windowsHide).
  */
@@ -54,6 +54,8 @@ const LAEUFE = [
   ['gelaende.herd', { N: 256, TAKTE: 3, UMBAU: 1 }],
   ['vorlage.herd', {}],
   ['vorlage.herd', { N: 1000, TAKTE: 10 }],
+  ['fliesen.herd', {}],
+  ['fliesen.herd', { S: 256, CHUNKS: 4, N: 200, TAKTE: 12 }],
 ];
 
 const args = process.argv.slice(2);

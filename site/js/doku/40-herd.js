@@ -296,7 +296,8 @@
                 ["`Wucht`","2D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY` 0, `schwerkraft` 0, `daempfung` 0, `abprall` 0, `reibung` 0.2, `stossX`/`stossY` 0; nur lesen: `amBoden`","Physik: Schwerkraft, Stöße, Abprall, Reibung, Stapeln – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Wucht ist eine feste Wand"],
                 ["`Vieleck`","2D","`punkte` [], `farbe` weiss, `umriss` 0","gefülltes Vieleck aus `[x1, y1, x2, y2, …]` relativ zum Teil (3 … 256 Punkte, ohne Selbstüberschneidung – sonst wird nichts gezeichnet); `umriss` > 0 = nur ein Rand dieser Dicke"],
                 ["`Gelaende`","3D","`hoehen` [], `spalten` 32, `zeilen` 32, `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` karton, `schatten` ja","Gelände aus einer Höhenkarte: die Engine baut daraus ein Netz mit glatten Normalen (neu nur, wenn sich Höhen, Seiten oder Weite ändern) und zeichnet es wie einen Körper mit Schatten; `bild` liegt einmal über der ganzen Fläche"],
-                ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"]
+                ["`Vorlage`","beide","`name` \"\"","Prefab: das Teil ruht samt Kindern (keine Systeme, unsichtbar, trifft nichts); `kopie()` macht daraus wache Teile ohne Vorlage"],
+                ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -831,6 +832,62 @@
             },
             { art: "ausgabe", text: z("Olive 20 5 ja") },
             { art: "text", md: "Ein ganzes Beispiel ist der **Pizzaofen** unter *Beispiele → Herd*: Aus einer Vorlage mit Belag, Dampf, Fühler und Wucht wirft der Ofen jede Sekunde eine Pizza aus, die über die Theke in die Kiste rutscht." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Fliesen: Kachelkarten",
+          inhalt: [
+            { art: "text", md: "**`Fliesen`** legt ein ganzes Level aus gleich großen Kacheln an ein Teil: `bilder` ist ein Blech aus Bildchen, `karte` ein Blech aus Zahlen, **zeilenweise von oben** (`spalten` Einträge je Zeile), und die Zahl n zeigt `bilder[n]` – 0 ist leer, eine Zahl ohne Bildchen bleibt unsichtbar, eine zu kurze Karte ist am Ende leer. `kachel` ist die Seitenlänge einer Kachel im Spielfeld (das Bildchen wird darauf gestreckt). Anders als `Rechteck` und `Bild` liegt die Lage des Teils an der **oberen linken Ecke** des Rasters. Eine Karte darf bis zu 1024 × 1024 Kacheln groß sein, ein Blech aber höchstens 65 536 Zahlen haben – größere Welten setzt du aus mehreren Fliesen-Teilen nebeneinander zusammen." },
+            { art: "text", md: "Die Nummern in **`fest`** sind für die Physik feste Wände und Böden: Ein Teil mit `Fuehler(ausloeser: nein)` und `Wucht` steht darauf, prallt ab und rutscht über die Fugen zwischen zwei Kacheln, ohne hängenzubleiben (Kacheln zählen als Gruppe 1). Gezeichnet werden **nur die Kacheln, die gerade zu sehen sind** – mit einem `Blick` auch in riesigen Karten. Zwei Raster übereinander (Hintergrund in einer kleineren `ebene`) geben Tiefe." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Fliesen","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"e7c7bdf84dee973f","paket":"ae1a7260cc1cf3cc"},
+                {"art":"bild","bildnummer":8,"szene":"dbf0ae5879b18955","paket":"527be5bb058d4d58"},
+                {"art":"bild","bildnummer":12,"szene":"5f29001995761a26","paket":"6002b245414d0b60"},
+                {"art":"bild","bildnummer":16,"szene":"dcc2b7d7742c0efc","paket":"47bf14d8ce6fc1df"},
+                {"art":"bild","bildnummer":20,"szene":"1e6090e6bdbcf435","paket":"8993ba12d3349894"},
+                {"art":"bild","bildnummer":24,"szene":"d8a4d3ce82aaee53","paket":"b8f420cc1f249348"},
+                {"art":"bild","bildnummer":28,"szene":"6842c503c8b713de","paket":"0b63d150106342e8"},
+                {"art":"bild","bildnummer":32,"szene":"321437351139bed7","paket":"530576983f1537e1"},
+                {"art":"bild","bildnummer":36,"szene":"e4aaa916eb02c589","paket":"ce8990b4ede26b25"},
+                {"art":"bild","bildnummer":40,"szene":"a03694007078b1c3","paket":"c7bc77b5cff385b9"},
+                {"art":"bild","bildnummer":44,"szene":"a03694007078b1c3","paket":"bd13ba05086f003d"},
+                {"art":"bild","bildnummer":48,"szene":"a03694007078b1c3","paket":"df0089e1c8dcafb1"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Fliesen\", breite: 320, hoehe: 180);",
+                "Bildchen stein = neu Bildchen([\"gggo\", \"gggo\", \"oooo\", \"gogg\"]);",
+                "Bildchen gras = neu Bildchen([\".b.b\", \"bbbb\", \"kkkk\", \"kkkk\"]);",
+                "Blech<margherita> level = [",
+                "    \"          \",",
+                "    \"      22  \",",
+                "    \"          \",",
+                "    \"22    1   \",",
+                "    \"1111111111\"",
+                "];",
+                "Blech<funghi> karte = [];",
+                "für (margherita zeile : level) {",
+                "    für (salami c = 1; c <= zeile.länge(); c++) {",
+                "        margherita z = zeile.zeichen(c);",
+                "        falls (z == \" \") { karte.hinzu(0); } sonst { karte.hinzu(z.alsZahl()); }",
+                "    }",
+                "}",
+                "Fliesen f = herd.gruppe(0, 20).mit(neu Fliesen(bilder: [stein, gras], spalten: 10, zeilen: 5, karte: karte, kachel: 32, fest: [1, 2]));",
+                "Teil kiste = herd.rechteck(120, 20, 16, 16, farbe: \"senf\");",
+                "kiste.mit(neu Fuehler(ausloeser: nein));",
+                "Wucht w = kiste.mit(neu Wucht(schwerkraft: 1200, tempoX: 60));",
+                "herd.backe();",
+                "Bote.sage((f + \" \" + f.karte().länge() + \" Kacheln, Kiste bei y = \" + Mathe.runden(kiste.y()) + \", amBoden \" + w.amBoden()));"
+              )
+            },
+            { art: "ausgabe", text: z("Fliesen(3) 50 Kacheln, Kiste bei y = 140, amBoden ja") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Hüpfwelt** unter *Beispiele → Herd*: Der Pizzabote springt durch einen Keller aus Kacheln, sammelt Pizzen und bringt sie zur Tür; der Blick folgt ihm an der Leine." }
           ]
         }
       ]

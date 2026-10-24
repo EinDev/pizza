@@ -1,0 +1,122 @@
+// Hüpfwelt – der Pizzabote im Keller: Mit den Pfeiltasten läuft er durch ein Kellergewölbe aus Kacheln, Hoch (oder Leertaste)
+// lässt ihn springen. Er sammelt die Pizzen ein und bringt sie zur Tür ganz rechts.
+//
+// So arbeitet die Engine für dich: Das ganze Level sind zwei Fliesen-Raster aus Text-Zeilen – hinten die Kellerwand (nur Bild),
+// vorn Steine, Bretter und Kisten. Die Kachelnummern in `fest` sind für die Physik (Wucht) feste Wände und Böden; an den Fugen
+// zwischen zwei Kacheln hakt nichts. Gezeichnet werden nur die Kacheln, die der Blick gerade sieht. Der Blick hängt an der Leine
+// des Boten, die Anzeige oben (ebene 1000) bleibt stehen.
+
+Herd herd = neu Herd("Hüpfwelt", breite: 640, hoehe: 360);
+herd.hintergrund("ofen");
+salami K = 32;                                                                   // Spielfeldpixel je Kachel
+
+// ---------- Kacheln (8 × 8 Bildchen, auf 32 × 32 gestreckt) ----------
+Bildchen stein = neu Bildchen(["gggggggo", "gggggggo", "gggggggo", "oooooooo", "gggogggg", "gggogggg", "gggogggg", "oooooooo"]);
+Bildchen brett = neu Bildchen(["kkkkkkkk", "keeeeeek", "kkkkkkkk", "o......o", "o......o", "........", "........", "........"]);
+Bildchen kiste = neu Bildchen(["oooooooo", "okkkkkko", "okekkeko", "okkekkko", "okkkekko", "okekkeko", "okkkkkko", "oooooooo"]);
+Bildchen netz = neu Bildchen(["w......w", ".w....w.", "..wwww..", "..w..w..", ".w....w.", "w......w", "........", "........"]);
+Bildchen wand = neu Bildchen(["vvvvvvvo", "vvvvvvvo", "vvvvvvvo", "oooooooo", "vvvovvvv", "vvvovvvv", "vvvovvvv", "oooooooo"]);
+Bildchen fass = neu Bildchen(["..kkkk..", ".kekkek.", ".kkkkkk.", ".oooooo.", ".kkkkkk.", ".kekkek.", ".kkkkkk.", "..oooo.."]);
+
+// ---------- Level: # Stein, = Brett, x Kiste, ~ Spinnennetz, f Fass, P Pizza, T Tür ----------
+Blech<margherita> level = [
+    "############################################################",
+    "#~                ~                   ~               ~    #",
+    "#                                                          #",
+    "#                            P                    P        #",
+    "#                          =====       P        =====      #",
+    "#           P                        =====               P #",
+    "#         =====       P                                ====#",
+    "#                    xxx          P          x           T #",
+    "#    P      f       xxxxx       =====       xxx      f   T #",
+    "#   f      xxx    f xxxxx   f              xxxxx    xxx  T #",
+    "############################################################",
+    "############################################################"
+];
+salami SPALTEN = level.stück(1).länge();
+salami ZEILEN = level.länge();
+Blech<funghi> vorn = [];
+Blech<funghi> hinten = [];
+Blech<Teil> pizzen = [];
+für (salami r = 1; r <= ZEILEN; r++) {
+    für (salami c = 1; c <= SPALTEN; c++) {
+        margherita z = level.stück(r).zeichen(c);
+        salami n = 0;
+        falls (z == "#") { n = 1; }
+        falls (z == "=") { n = 2; }
+        falls (z == "x") { n = 3; }
+        falls (z == "~") { n = 4; }
+        falls (z == "f") { n = 5; }
+        vorn.hinzu(n);
+        hinten.hinzu(1);
+        falls (z == "P") {
+            Teil p = herd.kreis((c - 0.5) * K, (r - 0.5) * K, 10, farbe: "teig");
+            herd.kreis(0, 0, 7, farbe: "tomate").haenge(p);
+            herd.kreis(-3, -2, 2, farbe: "mozzarella").haenge(p);
+            herd.kreis(3, 2, 2, farbe: "mozzarella").haenge(p);
+            p.mit(neu Fuehler(gruppe: 2, maske: 1));
+            pizzen.hinzu(p);
+        }
+    }
+}
+salami BREITE = SPALTEN * K;
+salami HOEHE = ZEILEN * K;
+herd.gruppe(0, 0).setzeEbene(-1).mit(neu Fliesen(bilder: [wand], spalten: SPALTEN, zeilen: ZEILEN, karte: hinten, kachel: K));
+Fliesen keller = herd.gruppe(0, 0).mit(neu Fliesen(bilder: [stein, brett, kiste, netz, fass], spalten: SPALTEN, zeilen: ZEILEN,
+    karte: vorn, kachel: K, fest: [1, 2, 3]));
+// die Tür (drei T untereinander): ein Fühler, den der Bote berühren muss
+Teil tuer = herd.rechteck(BREITE - 2.5 * K, 8 * K, 28, 3 * K, farbe: "#6b4a2b", rundung: 4);
+herd.kreis(8, 4, 3, farbe: "senf").haenge(tuer);
+tuer.mit(neu Fuehler(gruppe: 2, maske: 1));
+
+// ---------- Pizzabote: Bild mit Fühler (fest) und Wucht ----------
+Bildchen boteBild = neu Bildchen([
+    "..rrrr..",
+    ".rrrrrr.",
+    "..eeee..",
+    "..eses..",
+    "..eeee..",
+    ".tttttt.",
+    "ttkkkktt",
+    "e.kkkk.e",
+    "..tttt..",
+    "..uuuu..",
+    "..u..u..",
+    ".oo..oo."
+]);
+Teil bote = herd.bild(boteBild, 3 * K, 8 * K, groesse: 2);
+bote.mit(neu Fuehler(ausloeser: nein, gruppe: 1, maske: 3));
+Wucht lauf = bote.mit(neu Wucht(schwerkraft: 1300, reibung: 0));
+
+// ---------- Kamera: Blick an der Leine, in den Kellergrenzen ----------
+Teil kamera = herd.gruppe(320, HOEHE / 2);
+kamera.mit(neu Blick(grenzeRechts: BREITE, grenzeUnten: HOEHE));
+kamera.mit(neu Leine(ziel: bote, abstandX: 60, weich: 0.02, totzone: 16));
+
+// ---------- HUD ----------
+herd.rechteck(320, 14, 640, 28, farbe: "#2f2a26c0").setzeEbene(1000);
+Teil anzeige = herd.text("", 10, 4, groesse: 18, farbe: "mozzarella").setzeEbene(1000);
+herd.text("Pfeile laufen · Hoch springt", 630, 6, groesse: 14, farbe: "mozzarella", ausrichtung: "rechts").setzeEbene(1000);
+salami gesammelt = 0;
+diavolo geliefert = nein;
+
+herd.backe(() -> {
+    salami tempo = 0;
+    falls (herd.taste("Links")) { tempo = -190; bote.bild().setzeSpiegeln(ja); }
+    falls (herd.taste("Rechts")) { tempo = 190; bote.bild().setzeSpiegeln(nein); }
+    lauf.setzeTempoX(tempo);
+    falls ((herd.taste("Hoch") || herd.taste("Leertaste")) && lauf.amBoden()) { lauf.setzeTempoY(-560); }
+
+    für (Teil t : bote.fuehler().betreten()) {
+        falls (pizzen.enthält(t)) {
+            t.entferne();
+            gesammelt++;
+        }
+        falls (t == tuer && gesammelt > 0) { geliefert = ja; }
+    }
+    margherita text = "Pizzen: " + gesammelt + " / " + pizzen.länge();
+    falls (geliefert) { text = text + " · geliefert!"; }
+    anzeige.text().setzeInhalt(text);
+});
+Bote.sage(("Pizzen: " + gesammelt + " von " + pizzen.länge() + ", geliefert: " + geliefert + ", Bote bei Spalte "
+    + Mathe.boden(bote.x() / K + 1) + ", Zeile " + Mathe.boden(bote.y() / K + 1)));

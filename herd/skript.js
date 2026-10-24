@@ -111,6 +111,20 @@ class Zeiger {
     if (c === '"') return { text: this.text() };
     if (c === '[') {
       this.i++;
+      this.leer();
+      if (this.s.startsWith('folge ', this.i)) {   // [folge ANZAHL VAR AUSDRUCK] (H-K10)
+        this.i += 6;
+        const anzahl = this.arg();
+        if (!anzahl.wert) fehler(this.zeile, 'folge braucht eine Anzahl');
+        this.leer();
+        const v = this.wort();
+        const wert = this.arg();
+        if (!wert.wert || !v) fehler(this.zeile, '[folge anzahl var ausdruck]');
+        this.leer();
+        if (this.sieh() !== ']') fehler(this.zeile, 'folge ohne ]');
+        this.i++;
+        return { folge: { anzahl: anzahl.wert, v, wert: wert.wert } };
+      }
       const v = [];
       for (;;) {
         this.leer();
@@ -408,7 +422,14 @@ class Spieler {
     const zahl = (i) => { if (!args[i].wert) fehler(z, 'Argument ' + (i + 1) + ' von ' + name + ' muss eine Zahl sein'); return rechne(args[i].wert, v, z); };
     const ii = (i) => zahl(i) | 0;
     const txt = (i) => { if (args[i].text === undefined) fehler(z, 'Argument ' + (i + 1) + ' von ' + name + ' muss ein Text sein'); return ENC.encode(args[i].text); };
-    const zahlen = (i) => { if (!args[i].liste) fehler(z, 'Liste erwartet'); return args[i].liste.map((a) => { if (!a.wert) fehler(z, 'Liste aus Zahlen erwartet'); return rechne(a.wert, v, z); }); };
+    const zahlen = (i) => {
+      const fo = args[i].folge;
+      if (fo) {
+        const n = rechne(fo.anzahl, v, z), vars = new Map(v), aus = [];
+        for (let j = 0; j < n; j += 1) { vars.set(fo.v, j); aus.push(rechne(fo.wert, vars, z)); }
+        return aus;
+      }
+      if (!args[i].liste) fehler(z, 'Liste erwartet'); return args[i].liste.map((a) => { if (!a.wert) fehler(z, 'Liste aus Zahlen erwartet'); return rechne(a.wert, v, z); }); };
     const strings = (i) => {
       const aus = [];
       const flach = (a) => { if (a.text !== undefined) aus.push(a.text); else if (a.liste) a.liste.forEach(flach); else fehler(z, 'Liste aus Texten erwartet'); };

@@ -13,6 +13,8 @@
 //! takte 60                            # 60 × (takt, bild n)
 //! ```
 //!
+//! Zahlenlisten: `[1, 2, (N * 3)]` oder erzeugt `[folge ANZAHL i AUSDRUCK]` (Eintrag i = AUSDRUCK mit i = 0 … ANZAHL − 1).
+//!
 //! Ausdrücke: Zahlen, Variablen, `+ - * / %` (f64, `%` wie JS), Klammern, `boden(x)`, `zufall(x)` (deterministisch,
 //! [0, 1), gleiche Bitfolge in JS). Keine Winkelfunktionen (JS-`Math.sin` ≠ libm).
 
@@ -96,6 +98,8 @@ pub enum Arg {
     Wert(Ausdruck),
     Text(String),
     Liste(Vec<Arg>),
+    /// `[folge ANZAHL VAR AUSDRUCK]`: Zahlenliste, Eintrag i = AUSDRUCK mit VAR = i (i = 0 … ANZAHL − 1; H-K10, große Karten)
+    Folge(Ausdruck, String, Ausdruck),
 }
 
 #[derive(Clone, Debug)]
@@ -205,6 +209,26 @@ impl<'a> Zeiger<'a> {
             b'"' => Ok(Arg::Text(self.text()?)),
             b'[' => {
                 self.i += 1;
+                self.leer();
+                if self.s[self.i..].starts_with(b"folge ") {
+                    self.i += 6;
+                    let anzahl = match self.arg()? {
+                        Arg::Wert(a) => a,
+                        _ => return fehler(self.zeile, "folge braucht eine Anzahl"),
+                    };
+                    self.leer();
+                    let var = self.wort().to_string();
+                    let wert = match self.arg()? {
+                        Arg::Wert(a) if !var.is_empty() => a,
+                        _ => return fehler(self.zeile, "[folge anzahl var ausdruck]"),
+                    };
+                    self.leer();
+                    if self.sieh() != b']' {
+                        return fehler(self.zeile, "folge ohne ]");
+                    }
+                    self.i += 1;
+                    return Ok(Arg::Folge(anzahl, var, wert));
+                }
                 let mut v = Vec::new();
                 loop {
                     self.leer();
@@ -729,6 +753,18 @@ impl Spieler {
                         _ => fehler(zeile, "Liste aus Zahlen erwartet"),
                     })
                     .collect(),
+                Arg::Folge(anzahl, var, wert) => {
+                    let n = rechne(anzahl, v, zeile)?;
+                    let mut vars = v.clone();
+                    let mut aus = Vec::new();
+                    let mut i = 0.0;
+                    while i < n {
+                        vars.insert(var.clone(), i);
+                        aus.push(rechne(wert, &vars, zeile)?);
+                        i += 1.0;
+                    }
+                    Ok(aus)
+                }
                 _ => fehler(zeile, "Liste erwartet"),
             }
         };
@@ -949,6 +985,30 @@ mod tests {
         sp.spiele(&s, &mut aus).unwrap();
         assert_eq!(sp.kern.welt_hole(5), 7.0);
         assert_eq!(aus.zeilen.iter().filter(|z| z.starts_with("B ")).count(), 2);
+    }
+
+    #[test]
+    fn folge_erzeugt_zahlenlisten() {
+        let s = lies("vorgabe N 4
+setze a = 10
+welt_neu 640 360 \"T\"
+typ_nummer \"Vieleck\" -> v
+feld_nummer v \"punkte\" -> p
+komp_neu v -> c
+setze_zahlen c p [folge (N * 2) i (i % 3 + a)]
+hole_zahlen c p
+setze_zahlen c p [ folge 0 i 1 ]
+hole_zahlen c p
+").unwrap();
+        let mut sp = Spieler::neu(&[]);
+        let mut aus = Zeilen::default();
+        sp.spiele(&s, &mut aus).unwrap();
+        let f = |x: f64| format!("f{:016x}", x.to_bits());
+        let soll = format!("[{}]", [10.0, 11.0, 12.0, 10.0, 11.0, 12.0, 10.0, 11.0].map(f).join(","));
+        assert!(aus.zeilen.iter().any(|z| z.ends_with(&format!("hole_zahlen {}", soll))), "{:?}", aus.zeilen);
+        assert!(aus.zeilen.iter().any(|z| z.ends_with("hole_zahlen []")), "{:?}", aus.zeilen);
+        assert!(lies("setze_zahlen 1 2 [folge 3 i]
+").is_err());
     }
 
     #[test]

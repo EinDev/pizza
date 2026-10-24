@@ -1,0 +1,47 @@
+// Herd §18.6 / HERD.md §12.4 H-K10: Fliesen – Kachelkarte mit Lage = obere linke Ecke, Kachel n = bilder[n] (0 = leer, ohne
+// Bildchen unsichtbar, zu kurze Karte → Rest leer), Hülle = ganzes Raster für trifft, feste Kacheln für Wucht (Boden mit Fugen,
+// Wand), Karte im Lauf ändern, Fehlertexte
+Herd herd = neu Herd("Fliesen", breite: 320, hoehe: 180);
+Bildchen stein = neu Bildchen(["ssss", "skks", "skks", "ssss"]);
+Bildchen gras = neu Bildchen(["....", ".g.g", "gggg", "gggg"]);
+// 10 × 6 Kacheln zu 16 px ab (0, 84): unten Boden (1), rechts eine Wand (1), eine Grasnarbe (2, nicht fest), eine 7 ohne Bildchen
+Blech<funghi> karte = [];
+für (salami r = 0; r < 6; r++) {
+    für (salami c = 0; c < 10; c++) {
+        salami n = 0;
+        falls (r == 5 || (c == 8 && r >= 2)) { n = 1; }
+        falls (r == 4 && c == 2) { n = 2; }
+        falls (r == 0 && c == 0) { n = 7; }
+        karte.hinzu(n);
+    }
+}
+Teil boden = herd.gruppe(0, 84);
+Fliesen f = boden.mit(neu Fliesen(bilder: [stein, gras], spalten: 10, zeilen: 6, karte: karte, kachel: 16, fest: [1]));
+Bote.sage((f + " " + f.spalten() + "×" + f.zeilen() + " kachel " + f.kachel() + ", " + f.bilder().länge() + " Bilder, "
+    + f.karte().länge() + " Einträge, fest " + f.fest()));
+Fliesen vorgabe = herd.gruppe(0, 0).mit(neu Fliesen());
+Bote.sage((vorgabe.spalten() + " " + vorgabe.zeilen() + " " + vorgabe.kachel() + " " + vorgabe.karte() + " " + vorgabe.bilder() + " " + vorgabe.fest()));
+// die Hülle ist das ganze Raster ab der oberen linken Ecke
+Bote.sage(("trifft: " + boden.trifft(herd.kreis(4, 88, 2)) + " " + boden.trifft(herd.kreis(158, 178, 1)) + " " + boden.trifft(herd.kreis(170, 120, 4))));
+// eine Kiste rutscht über die Fugen des Bodens gegen die Wand, ein Ball fällt auf den Boden
+Teil kiste = herd.rechteck(30, 150, 12, 12, farbe: "senf");
+kiste.mit(neu Fuehler(ausloeser: nein));
+Wucht w = kiste.mit(neu Wucht(schwerkraft: 1200, tempoX: 160, reibung: 0));
+Teil ball = herd.kreis(60, 100, 5, farbe: "tomate");
+ball.mit(neu Fuehler(ausloeser: nein));
+Wucht wb = ball.mit(neu Wucht(schwerkraft: 1200));
+salami amBodenTakte = 0;
+herd.backe(() -> {
+    falls (w.amBoden()) { amBodenTakte++; }
+    falls (herd.bildnummer() == 30) {
+        // Loch in den Boden unter dem Ball
+        f.setzeKarte(f.karte().setze(51 + 3, 0).setze(51 + 4, 0));
+    }
+});
+Bote.sage(("Kiste bei x = " + Mathe.runden(kiste.x()) + ", y = " + Mathe.runden(kiste.y()) + ", amBoden " + w.amBoden() + " in "
+    + amBodenTakte + " Takten, Tempo " + Mathe.runden(w.tempoX())));
+Bote.sage(("Ball fällt durchs Loch: " + (ball.y() > 180) + ", amBoden " + wb.amBoden()));
+probier { f.setzeSpalten(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeKachel(-1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { f.setzeKarte(5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum().mit(neu Fliesen()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

@@ -62,6 +62,8 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B7 mit N = 2 000 (+ 500 Kisten), 240 Takte | 2,079 ms | 0,074 ms | 2,16 (2,20) ms | 2,844 ms | 0,108 ms | 2,96 (3,10) ms | – (nur gemessen) |
 | B8 (H-K11a, 2026-10-24): `Gelaende` 256 × 256 (65 536 Punkte, 130 050 Dreiecke) + kleines Gelände mit Textur, 120 Takte, Netz einmal gebaut | 0,111 ms | 0,015 ms | 0,13 (0,002) ms | 0,187 ms | 0,020 ms | 0,21 (0,003) ms | – (nur gemessen) |
 | B8 mit Neubau je Takt (`UMBAU` 1), 60 Takte | 7,805 ms | 0,485 ms | 8,29 (8,88) ms | 9,831 ms | 0,458 ms | 10,29 (10,71) ms | – (nur gemessen) |
+| B9 (H-K10, 2026-10-24): `Fliesen` 256 × 256 Kacheln, wandernder Blick (später Zoom 0.5, gedreht), 200 Wucht-Körper auf festen Kacheln, 250 Takte | 0,077 ms | 0,013 ms | 0,09 (0,08) ms | 0,137 ms | 0,018 ms | 0,14 (0,12) ms | Bild ≤ 0,3 ms (nativ) |
+| B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -89,6 +91,11 @@ jedem Takt kostet ein Bau ≈ 7,8 ms nativ / 9,8 ms Wasm (dazu Bild ≈ 0,5 ms f
 „nicht je Takt umformen“. Ohne Änderung kostet der Takt nur den Prüfwert: die Szene hat eine kurze Höhenliste (fehlende = 0), mit voller
 Liste (65 536 Höhen, eigener Lauf mit `herd-skript --mess`) ≈ 0,07 ms je Bild nativ (Median). Rechner beim Lauf belastet (B7 lag
 doppelt so hoch wie in der eigenen Messung oben), Werte daher eher zu hoch.
+
+B9 (`tests/herd/szenen/fliesen.herd`, Vorgaben `S`, `CHUNKS`, `N`): Bild = Bildbeitrag `Fliesen` nur im Sichtfenster
+(`fliesen::fenster` aus `Bildbau::sicht_welt()`), ≈ 290 Kachel-Instanzen bei Zoom 1, ≈ 1 000 bei Zoom 0.5 – unabhängig von der
+Kartengröße (16 Raster kosten nur 16 Fenster-Rechnungen). Takt = `Wucht` mit 200 Körpern und Kachel-Kontakten (je Körper nur die
+Kacheln unter seiner Hülle) + Fühler-Nachlauf. Ziel (HERD.md §12.4 H-K10): Bild ≤ 0,3 ms nativ – erreicht (0,013 / 0,033 ms).
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

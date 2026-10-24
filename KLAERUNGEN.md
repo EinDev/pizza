@@ -2112,6 +2112,18 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   **Nachweis:** `tests::hk7` (8: Schema/Fehler, Fallhöhe = geschlossene Form, Stapel aus 10 Kisten ruht, Abprall/Reibung, Stoß,
   Auslöser/fest/kinematisch, 500 Kugeln in einer Schüssel kommen zur Ruhe, Normalen), `tests/herd/szenen/wucht.herd` in
   `node herd/test-kern.js` (N = 120/500/2 000, nativ = `kern.wasm`), Fall `herd-wucht.*`, Beispiel `teigkugeln.pizza`.
+- **Nachtrag H-K10 (`Fliesen`, feste Kacheln):** Kacheln, deren Nummer in `Fliesen.fest` steht, hängt `wucht.rs` je Takt als weitere feste
+  Körper (`Koerper::FEST`, inv_masse 0, abprall 0, reibung 0.2) in den Löser – nur für **dynamische** Körper (kinematische fahren durch),
+  nur unter deren Hülle (`fliesen::fenster`: Hülle über die Inverse der Raster-Matrix ins Raster, `libm::floor`), Kacheln als **Gruppe 1**
+  mit voller Maske (ein Körper ohne Bit 0 in `maske` fällt durch). Kontakte in `wucht::kachel_kontakt`: nur die **offenen** Seiten
+  einer Kachel (keine feste Nachbarkachel in dieser Weltrichtung) und nur die, auf deren Seite der Kachelmitte die Körpermitte liegt,
+  dürfen schieben – an Fugen zwischen Kacheln entstehen so keine Kontakte quer zur Fläche (keine „Geisterkanten“ beim Gleiten über den
+  Boden oder Fallen an einer Wand), und eine innere Kachel drückt nie quer durch eine Wand. Gedrehte Raster: Kacheln achsenparallel
+  umschlossen, alle Seiten offen (v1-Grenze wie oben). Reihenfolge: nach den Fühler-Kontakten, sortiert nach (Körper-ID, Fliesen-ID,
+  Zeile, Spalte); Warmstart-Schlüssel −(Fliesen-ID · 2²¹ + Kachelindex + 1), kollidiert nie mit einer Teil-ID. Kacheln erscheinen nicht in
+  `Fuehler.beruehrt`. Ohne feste Kacheln bleibt der Löser bitgleich. **Nachweis:** `tests::hk10` (Gleiten über Fugen mit tempoY = 0
+  und amBoden in jedem Takt, Fall an einer Kachelwand ohne Haken, Stapel ruht, Maske ohne Gruppe 1, ohne feste Kacheln bitgleich),
+  `fliesen.herd` in `node herd/test-kern.js`, Fall `herd-fliesen.*`, Beispiel `huepfwelt.pizza`.
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers
   samt Sommerzeit – in allen Motoren gleich und in Tests deterministisch. (K-138 … K-147 sind für PROJEKTE, K-148 … K-153 für HERD-Stufen

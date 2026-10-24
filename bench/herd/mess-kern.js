@@ -4,7 +4,7 @@
  * Kern-Messung (HERD.md §6): Zeit je Takt und Bild für B1–B4 in voller Größe – nativ (herd-skript --mess, Release) und
  * als site/js/herd/kern.wasm in Node (herd/skript.js). Dazu der direkte Setter-Aufruf (teil_lage) je Weg.
  * Nur CPU, gedrosselt: Läufe ≤ ~1 s, ein Prozess nach dem anderen, Kindprozesse ohne Fenster.
- * Aufruf: node bench/herd/mess-kern.js [--ohne-cargo]   (baut herd-skript mit cargo build -j 2 --release)
+ * Aufruf: node bench/herd/mess-kern.js [--ohne-cargo] [--nur B8]   (baut herd-skript mit cargo build -j 2 --release)
  */
 const fs = require('fs');
 const path = require('path');
@@ -29,6 +29,8 @@ const LAEUFE = [
   ['B7', 'wucht.herd', { N: 2000, TAKTE: 240 }],
   ['B8', 'gelaende.herd', { N: 256, TAKTE: 120 }],
   ['B8', 'gelaende.herd', { N: 256, TAKTE: 60, UMBAU: 1 }],
+  ['B9', 'fliesen.herd', { S: 256, CHUNKS: 1, N: 200, TAKTE: 120 }],
+  ['B9', 'fliesen.herd', { S: 256, CHUNKS: 4, N: 200, TAKTE: 120 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {
@@ -74,7 +76,9 @@ const f = (x) => x.toFixed(3);
 console.log('| Bench | Takt nativ | Bild nativ | Kern je Bild nativ (Median) | Takt Wasm | Bild Wasm | Kern je Bild Wasm (Median) |');
 console.log('|---|---|---|---|---|---|---|');
 let setter = null;
+const nur = process.argv.includes('--nur') ? process.argv[process.argv.indexOf('--nur') + 1] : null;
 for (const [name, datei, vorgaben] of LAEUFE) {
+  if (nur && name !== nur) continue;
   const p = path.join(SZENEN, datei);
   const extra = name === 'B2' ? ['--setter'] : [];
   const zeilen = nativ(p, vorgaben, extra);

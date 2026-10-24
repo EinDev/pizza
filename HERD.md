@@ -286,7 +286,7 @@ Feld-**Typen**, neue Eingabearten oder neue Fenster-Fähigkeiten – das sind Ke
 | Physics 2D / 3D | – | 2D-Physik `Wucht` (Rigidbody, Impulse) **H-K7** · 3D **später** | Komponente (System) |
 | Prefabs / Assets | `kopie()`, Formen/Bildchen | **v1** (kopie) · `Vorlage` **H-K8** · größere Bilder/Texturen: abgelöst durch PROJEKTE.md (E13, K-145, K-147, PD1/PD3) | Kern |
 | Szenenwechsel | – | `Kulisse` (Teilbäume an/aus), leeren per `entferne` **H-K9** | Kern |
-| Tilemap | – | Kachelkarte `Fliesen` **H-K10** | Komponente |
+| Tilemap | – | Kachelkarte `Fliesen` **H-K10** (umgesetzt) | Komponente |
 | Gelände / Skybox | Himmelsverlauf | `Gelaende` aus Höhenkarte **H-K11a** · Skybox `Himmelszelt` **H-K11b** | Komponente (11b + Glut) |
 | UI (uGUI) | Text, Rechteck | `Knopf`, `Leiste`, `Regler`, `Tafel` + Maus im Kern **H-K12** | Komponente + Kern-ABI |
 | Skript-Komponenten (MonoBehaviour) | Spiellogik in `backe` | eigene pizza-Klassen `erbt Kniff` (`takt()`, Rückrufe) **H-K13** | Laufzeit |
@@ -339,7 +339,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **H-K7** Wucht | `Wucht` (20, 2D, braucht `Fuehler`, Takt-System nach Ablauf; `art` dynamisch/kinematisch/fest, `masse`, `tempoX/Y`, `schwerkraft` 0, `daempfung`, `abprall`, `reibung` 0.2, Einmal-Stoß `stossX/Y`, Lesefeld `amBoden`; Kreise und achsenparallele Rechtecke, keine Drehung; fester Fühler ohne Wucht = fester Körper), Löser in `wucht.rs`: Breitphase `fuehler::breitphase` auf den Fühlern mit `ausloeser: nein` (neu `fuehler::sammle_wenn`), Engphase `wucht::kontakt`, Warmstart aus verborgener Spalte `kontakte`, je 4 Iterationen Impuls + Positionskorrektur (vorwärts/rückwärts), `wucht::{Koerper, Kontakt, loese}` öffentlich für H-K10 (feste Kacheln als Körper), Szene `wucht.herd`, Fall `herd-wucht`, Beispiel `teigkugeln.pizza`, Doku in `herd-ausbau`, K-150 (Nachtrag) | (dieser) | `cargo test -j 2 -p herd-kern -p herd-skript` (Kern 65/65 inkl. 8 neue `tests::hk7`, Skript 3 + 1); `node herd/test-kern.js` 25 Läufe bitgleich nativ = Wasm (neu `wucht.herd` klein, N = 500, N = 2 000); `erwartet.js` 52 ✓ (keine bestehende geändert); `npm test` (327 Fälle), Prüfstand 785/785 + 6/6, `test:wasm` 1526, `test:differenz` 1143 ohne Abweichung; Sichtprüfung und Glut-Pixeltest stehen aus (Render-Pause); B7: 500 Kugeln Takt 0,42 ms nativ / 0,59 ms Wasm (Ziel ≤ 1 ms), 2 000 Kugeln 2,1 / 2,8 ms (`bench/herd/ERGEBNISSE.md`) |
 | **H-K9** Kulisse | offen | – | – |
 | **H-K11a** Gelände | `Gelaende` (22, 3D, Takt-System nach Wucht; `hoehen` (zahl-liste, zeilenweise), `spalten`/`zeilen` 32 (2 … 256), `weite` 1, `farbe` basilikum, `glanz` 0.1, `bild` (Textur über die ganze Fläche, auch Teigling-Texturen), `schatten` ja), Netz im Takt nur bei geänderten Netz-Feldern (Prüfwert FNV-1a je 64-Bit-Wort in verborgenen Spalten `pruefLo`/`pruefHi`, Ressourcen-ID in `netz`), Zeichnen und Hülle wie `Koerper`; `formen::netz_glatt` (öffentlich: Punkte + UV + Dreiecke, glatte Normalen gemeinsam mit `Form.eigene(glatt)`), `ressourcen.rs` unverändert (`Ressourcen::form` genügt); kein Bildpaket-/Glut-Umbau (NETZ-Abschnitt, u32-Indizes, FEST-/SCHATTEN-Zug wie bisher); Szene `gelaende.herd`, Fall `herd-gelaende`, Beispiel `huegel.pizza` (Tomatenplantage, Orbit-Kamera), Doku in `herd-ausbau` | (dieser) | `cargo test -j 2` in `herd/` (Kern 74/74 inkl. 4 neue `tests::hk11a` + 1 in `formen`, Skript 3 + 1, Teigling 13, Glut 1, Werkzeug-Pixeltest 4); `node herd/test-kern.js` 30 Läufe bitgleich nativ = Wasm (neu `gelaende.herd` klein, 256 × 256, 256 × 256 mit Neubau je Takt); `erwartet.js` 58 ✓ (keine bestehende geändert); `npm test` (331 Fälle, 69 Beispiele, 150 Doku), Prüfstand 820/820 + 6/6, `test:wasm` 1540, `test:differenz` 1149 ohne Abweichung; Sichtprüfung `huegel.pizza` offscreen (WARP) in Ordnung; B8: Netzbau 256 × 256 je Umbau ≈ 7,8 ms nativ / 9,8 ms Wasm, ohne Änderung Prüfwert über 65 536 Höhen ≈ 0,07 ms je Takt (`bench/herd/ERGEBNISSE.md`) |
-| **H-K10** Fliesen | offen | – | – |
+| **H-K10** Fliesen | `Fliesen` (24, 2D, kein System; `bilder`, `spalten`/`zeilen` 1 … 1024, `karte`, `kachel`, `fest`; Lage = obere linke Ecke, Kachel n = `bilder[n]` ab 1), Bildbeitrag nur im Fenster aus `Bildbau::sicht_welt()` über die Inverse der Raster-Matrix (`fliesen::fenster`, HUD-Ebene: Spielfeld), feste Kacheln als `Koerper::FEST` in `wucht.rs` (`kachel_kontakte`, `kachel_kontakt`: nur offene Seiten auf der Seite der Körpermitte – keine Geisterkanten an Fugen; Gruppe 1, nur dynamische Körper; Warmstart-Schlüssel negativ), `MAX_LISTE` unverändert (größere Welten aus mehreren Rastern), Skript-Listen `[folge N i AUSDRUCK]` (`herd/skript*`), Szene `fliesen.herd`, Fall `herd-fliesen`, Beispiel `huepfwelt.pizza` (Pizzabote im Keller), Doku in `herd-ausbau`, K-150 (Nachtrag) | (dieser) | `cargo test -j 2` (Kern 87/87 inkl. 7 neue `tests::hk10`, Skript 4 + 1 inkl. `folge`, Glut 1, Teigling 13, Werkzeug 4 inkl. Pixeltest); `node herd/test-kern.js` 34 Läufe bitgleich nativ = Wasm (neu `fliesen.herd` klein + voll 1024 × 1024 Kacheln); `erwartet.js` alle ✓ (keine bestehende geändert); `npm test` (333 Fälle, 71 Beispiele, 152 Doku), Prüfstand 824/824 + 6/6, `test:wasm` 1578, `test:differenz` 1246 ohne Abweichung; Sichtprüfung `huepfwelt` (WARP); B9: Bild 0,013 ms nativ / 0,018 ms Wasm (256²), 0,033 / 0,049 ms (1024²), Ziel ≤ 0,3 ms |
 | **H-K11b** Himmelszelt | offen | – | – |
 | **H-K12** UI + Maus im Kern | offen | – | – |
 | **H-K13** Kniff | offen | – | – |
@@ -431,7 +431,7 @@ Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
 **Typnummern** (v1: 1 `Rechteck` · 2 `Kreis` · 3 `Text` · 4 `Bild` · 5 `Koerper` · 6 `Licht` · 7 `Kamera` · 8 `Bewegung` ·
 9 `Animation` · 10 `Partikel`). Die Spalte „Nr“ ist ab Nr. 14 nur ein **Vorschlag** in Planreihenfolge: vergeben wird in
 Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Bisher vergeben: 11 `Linie`, 12 `Rahmen`, 13 `Funken`, **14 `Gleiten`,
-15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1), **20 `Wucht`** (H-K7), **21 `Vieleck`** (H-K3b), **22 `Gelaende`** (H-K11a), **23 `Vorlage`** (H-K8).
+15 `Ablauf`** (H-K4 vor H-K1/H-K2 gemergt), **16 `Belag`** (H-K2), **17 `Fuehler`** (H-K6), **18 `Blick`, 19 `Leine`** (H-K1), **20 `Wucht`** (H-K7), **21 `Vieleck`** (H-K3b), **22 `Gelaende`** (H-K11a), **23 `Vorlage`** (H-K8), **24 `Fliesen`** (H-K10).
 
 | Nr (Vorschlag; vergeben: §11.1) | Komponente | Stufe | Raum | läuft in |
 |---|---|---|---|---|
@@ -693,6 +693,13 @@ Sichtbare Stufen zusätzlich: `node tests/herd/bild.js site/beispiele/herd/<name
 - **Determinismus:** Kachelindex mit `libm::floor`, Ganzzahlarithmetik.
 - **Tests:** `cargo test`, `herd-fliesen.*`, Szenen-Skript `fliesen.herd` (256 × 256 Kacheln, wandernder Blick: Instanzen ≤ sichtbare;
   Bild ≤ 0,3 ms nativ, Messung). **Beispiel:** `huepfwelt.pizza` (Jump-'n'-Run-Level aus Kacheln, Bote mit Wucht, Blick an der Leine).
+- **Umgesetzt** (Typnummer 24 nach `Vorlage` 23, K-150 Nachtrag): Kachel n = `bilder[n]` **ab 1** (wie Blech/`Animation.nummer`), Einträge abgerundet,
+  ohne Bildchen unsichtbar; `kachel` ≥ 0 (0 = nichts). Das Fenster ([`fliesen::fenster`]) rechnet `sicht_welt()` (HUD-Ebene: Spielfeld)
+  über die Inverse der Raster-Matrix ins Raster, auch gedreht/skaliert. `MAX_LISTE` (65 536, K-149) bleibt – `karte` deckt also höchstens
+  256 × 256 voll ab, größere Welten aus mehreren Rastern (**Entscheidung**; Szene voll: 4 × 4 Raster à 256² = 1024 × 1024 Kacheln).
+  Physik: feste Kacheln als Gruppe 1 nur für dynamische Körper, nur offene Seiten auf der Seite der Körpermitte schieben (keine
+  Geisterkanten an Fugen). Szenen-Skripte können große Listen erzeugen: `[folge ANZAHL i AUSDRUCK]` (`herd/skript*`, README §7.1).
+  Messung B9 in `bench/herd/ERGEBNISSE.md`.
 - **Abnahme:** A-Kern. **Abhängig von:** H-K0, H-K1, H-K7.
 
 #### H-K11b `Himmelszelt` – Skybox (W5, Kern + Glut)
