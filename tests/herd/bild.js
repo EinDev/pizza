@@ -17,7 +17,8 @@
  * --echtzeit    feste Wanduhr für Uhr.echt() (ms seit 1970, K-087), --zone fester Versatz für Uhr.zone() (ms, K-154) –
  *               wie die Manifestfelder echtzeit/zone (tests/herd/erwartet.js reicht sie durch)
  * --schreibe    <prog>.herd-erwartet (herd-Ereignisse ohne typ) und <prog>.erwartet (Ausgabe) neben dem Programm schreiben –
- *               bei Projekten pruefung/herd-erwartet und pruefung/erwartet
+ *               bei Projekten pruefung/herd-erwartet und pruefung/erwartet; spielt das Programm Klang (K-153), auch
+ *               <prog>.klang-erwartet bzw. pruefung/klang-erwartet (klang-Ereignisse ohne typ)
  * --json        die herd-Ereignisse (ohne typ) als JSON-Array ausgeben – für Doku-Blöcke (herdErwartet); dazu den
  *               Code des Blocks als .pizza und seine uiEreignisse als .ereignisse speichern (nach Kern-Änderungen neu erzeugen)
  * --still       keine Ausgabe des Programms anzeigen
@@ -181,6 +182,12 @@ if (argv.includes('--schreibe')) {
   fs.writeFileSync(he, herd.map(e => JSON.stringify(e) + '\n').join(''));
   fs.writeFileSync(er, ausgabe.join(''));
   console.log('geschrieben: ' + he + ', ' + er);
+  const klang = r.ereignisse.filter(e => e.typ === 'klang').map(e => { const o = Object.assign({}, e); delete o.typ; return o; });
+  if (klang.length) {
+    const ke = testDatei('klang-erwartet', '.klang-erwartet');
+    fs.writeFileSync(ke, klang.map(e => JSON.stringify(e) + '\n').join(''));
+    console.log('geschrieben: ' + ke + ' (' + klang.length + ' Klang-Ereignisse)');
+  }
 }
 
 // ---------- Skript ----------

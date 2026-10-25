@@ -1,0 +1,13 @@
+[package]
+name = "herd-klang-wasm"
+description = "Wasm-Hülle des Klang-Erzeugers (klang.wasm: Exporte ton/rauschen/noten/…, ohne Importe)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+herd-klang = { path = ".." }

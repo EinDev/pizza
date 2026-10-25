@@ -116,9 +116,11 @@ const konsolenFaelle = [
   ['Namensraum mit --kein-vorrat', 'Vorratskammer v = neu Vorratskammer("stand", namensraum: "spiel");\nv.lege("n", 1);\nBote.sage((v.hole("n", 0)));\nBote.sage((v.name()));\nBote.sage((v.namensraum()));\nBote.sage((v));\n', []],
   ['W0032 + ungefangene Ananas', 'salami PiZZa = 1;\nsalami PizZa = 2;\nBote.sage(("vorher"));\nsalami x = 1 / 0;\n', []],
   ['P0002 Schrittlimit + --info', 'solange (ja) { }\n', ['--schritte=50', '--info']],
+  ['Klang ohne Gerät (PIZZA_KLANG=0)', 'Klang k = Klang.noten("C4 E4 G4");\nSpur s = k.spiele();\nBote.sage((k + " " + k.dauer() + " " + s.laeuft()));\nprobier { Klang.ton(0, 1); } verbrannt (Ananas a) { Bote.sage((a.nachricht())); }\n', []],
   ['-- als Ende der Optionen', 'speisekarte klasse A {\n  speisekarte tiefkühl leer hauptgang(Blech<margherita> args) {\n    für (margherita a : args) { Bote.sage(("[" + a + "]")); }\n  }\n}\n', [], ['--', '--x', '--', 'y']],
 ];
-const umgebung = Object.assign({}, process.env, { NO_COLOR: '1', PIZZA_THEKE: '0' });
+// PIZZA_KLANG=0 (K-153): Programme mit Klang öffnen in Tests nie ein Audiogerät
+const umgebung = Object.assign({}, process.env, { NO_COLOR: '1', PIZZA_THEKE: '0', PIZZA_KLANG: '0' });
 let kGleich = 0, kGesamt = 0;
 for (const [i, [name, quelle, opts, progArgs]] of konsolenFaelle.entries()) {
   if (filter && !name.includes(filter)) continue;

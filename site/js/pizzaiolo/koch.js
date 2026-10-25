@@ -102,12 +102,13 @@
 
   /** Importe eines Klons (HOST-ABI §2 „Klon-Instanzen“): Ausgabe-/Ende-Imports → Trap, nie Lauf-Abbruch. */
   function klonImporte(modul, echtzeit, zone) {
-    const pizza = {}, herd = {};
+    const pizza = {}, herd = {}, klang = {};
     const verboten = (m, n) => () => { throw new Error('Klon rief ' + m + '.' + n); };
-    // Gruppe herd (Modul „herd“ und pizza.herd_*): in Klonen immer Trap – die Laufzeit ruft sie dort nie (KüchenAnanas)
+    // Gruppen herd und klang (Module „herd“/„klang“ und pizza.herd_*/klang_*): in Klonen immer Trap – die Laufzeit ruft sie dort nie (KüchenAnanas)
     for (const im of WebAssembly.Module.imports(modul)) {
       if (im.module === 'pizza') pizza[im.name] = verboten('pizza', im.name);
       else if (im.module === 'herd') herd[im.name] = verboten('herd', im.name);
+      else if (im.module === 'klang') klang[im.name] = verboten('klang', im.name);
     }
     pizza.eingabe = () => -1;
     pizza.ui_warte = (p, kap) => (kap < 0 ? 0 : -1);
@@ -115,7 +116,7 @@
     pizza.zone_ms = () => zoneMs(zone, echtzeit);
     pizza.kueche_auftrag = () => -1;   // innere Brigaden laufen im Klon sequentiell
     pizza.kueche_bericht = () => -2;
-    return { pizza, herd };
+    return { pizza, herd, klang };
   }
 
   /** desc: WebAssembly.Module (.pkarton) oder { laufzeit, programm, tabellenZuwachs, speicherSeiten } (Schnellpfad). */

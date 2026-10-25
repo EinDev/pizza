@@ -24,6 +24,9 @@
  *   an die Seite gehen nur die Ereignisse herd/fenster und
  *   herd/schliesse (herd/bild nicht – das spart je Bild eine Nachricht an den Hauptthread). Takte wartet der Worker am
  *   Herd-Puffer ab (Layout: js/herd/zeichner.js) – der Render-Worker schreibt sie selbst, ohne Umweg über die Seite.
+ * Klang (SPEC §18.8, K-153): "start" trägt bei Klang-Programmen klangKern (WebAssembly.Module von klang.wasm). Die Seite
+ *   bekommt neben den klang-Ereignissen die PCM je Klang einmal ({typ:"klang-pcm"}) und – sobald Klang gespielt wurde – je
+ *   Herd-Bild den Hörer ({typ:"klang-hoerer"}, Kamera aus dem Bildpaket); die Wiedergabe macht ui/src/klang.js (WebAudio).
  */
 "use strict";
 
@@ -166,7 +169,7 @@ function uiWarteRueckruf(sab) {
  * Port → Render-Worker: SharedArrayBuffer (Bildfach, einmal je Fenster) · Zahl n (Paket = n Bytes im Fach) · ArrayBuffer
  * (Paket übertragen: zu groß fürs Fach oder Fach noch belegt). */
 var FACH_KOPF = 16, FACH_MIN = 256 * 1024, FACH_MAX = 8 * 1024 * 1024;
-function herdBruecke(d) {
+function herdBruecke(d, klang) {
   var port = d.herdPort && typeof d.herdPort.postMessage === "function" ? d.herdPort : null;
   var sab = (typeof SharedArrayBuffer !== "undefined" && d.herdPuffer instanceof SharedArrayBuffer) ? d.herdPuffer : null;
   var ctrl = sab ? new Int32Array(sab, 0, 4) : null;
@@ -207,6 +210,8 @@ function herdBruecke(d) {
     } else if (art === "schliesse") {
       b.aktiv = false;
     } else if (art === "bild" && port && info && info.bytes && info.bytes.buffer) {
+      // Klang (K-153): Hörer = Kamera dieses Bildes (nur wenn das Programm schon Klang gespielt hat)
+      if (klang && klang.aktiv) { var h = klangHoerer(info.bytes); if (h) sende({ typ: "klang-hoerer", h: h }); }
       // info.bytes: Ansicht in den Kern-Speicher (optionen.herdAnsicht), gültig nur während dieses Aufrufs
       if (!insFach(info.bytes)) { var k = info.bytes.slice(); port.postMessage(k.buffer, [k.buffer]); }
     }
@@ -228,6 +233,39 @@ function herdBruecke(d) {
     }
   };
   return b;
+}
+
+/* ---------- Klang (SPEC §18.8, K-153): PCM einmal je Klang und Hörer je Bild an die Seite (ui/src/klang.js) ----------
+ * onKlang kommt vor dem Ereignis (Interpreter und JS-Host): so liegt die PCM bei der Seite, bevor „spiele“ sie braucht. */
+function klangBruecke() {
+  var gesehen = Object.create(null);
+  var b = { aktiv: false };
+  b.onKlang = function (art, daten) {
+    b.aktiv = true;
+    if (art === "spiele" && daten && daten.bytes && !gesehen[daten.klang]) {
+      gesehen[daten.klang] = true;
+      sende({ typ: "klang-pcm", klang: daten.klang, bytes: daten.bytes });
+    }
+  };
+  return b;
+}
+/** Hörer aus einem Bildpaket (SZENE = 10: ansicht_proj spaltenweise, kamera ab Byte 128) – wie ui/src/klang.js hoererAusPaket. */
+function klangHoerer(bytes) {
+  if (!bytes || bytes.byteLength < 32) return null;
+  var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (dv.getUint32(0, true) !== 0x31505a48) return null;
+  var n = dv.getUint32(20, true), i = 32;
+  for (var k = 0; k < n && i + 8 <= dv.byteLength; k++) {
+    var art = dv.getUint32(i, true), len = dv.getUint32(i + 4, true), d = i + 8;
+    if (art === 10 && d + 140 <= dv.byteLength) {
+      var rx = dv.getFloat32(d, true), ry = dv.getFloat32(d + 16, true), rz = dv.getFloat32(d + 32, true);
+      var l = Math.sqrt(rx * rx + ry * ry + rz * rz);
+      if (l > 1e-9) { rx /= l; ry /= l; rz /= l; } else { rx = 1; ry = 0; rz = 0; }
+      return { x: dv.getFloat32(d + 128, true), y: dv.getFloat32(d + 132, true), z: dv.getFloat32(d + 136, true), rx: rx, ry: ry, rz: rz };
+    }
+    i = d + ((len + 3) & ~3);
+  }
+  return null;
 }
 
 /* ---------- Küchenbrigade: Gruppe kueche erkennen, Köche-Pool vor dem Lauf ---------- */
@@ -311,7 +349,8 @@ function starte(d, pool, brigade) {
   }
 
   var endeGesehen = false, motorGesehen = false, ergebnis = null, t0 = jetzt();
-  var herd = herdBruecke(d);
+  var klang = klangBruecke();
+  var herd = herdBruecke(d, klang);
   var thekeWarte = (typeof SharedArrayBuffer !== "undefined" && d.eingabePuffer instanceof SharedArrayBuffer) ? uiWarteRueckruf(d.eingabePuffer) : undefined;
   var uiWarte = thekeWarte || herd.onHerd ? function () {
     var t = herd.warte();
@@ -336,6 +375,8 @@ function starte(d, pool, brigade) {
     herdKern: typeof WebAssembly !== "undefined" && d.herdKern instanceof WebAssembly.Module ? d.herdKern : undefined,
     onHerd: herd.onHerd,
     herdAnsicht: true,   // daten.bytes als Ansicht in den Kern (keine Kopie je Bild); onHerd kopiert ins Bildfach
+    klangKern: typeof WebAssembly !== "undefined" && d.klangKern instanceof WebAssembly.Module ? d.klangKern : undefined,
+    onKlang: klang.onKlang,
     onEvent: function (ev) {
       if (!ev) return;
       if (ev.typ === "herd" && ev.art === "bild" && herd.onHerd && d.herdBilderMelden !== true) return;   // Bilder nur an den Render-Worker (E2E: herdBilderMelden)

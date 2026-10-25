@@ -45,6 +45,8 @@ const ABSCHNITTE = [
   'herd/tabellen.js',
   'herd/laufzeit.js',
   'herd/kniff.js',          // Kniff: eigene Klassen als Komponente, Rückrufe je Takt (H-K13)
+  'klang/kern.js',          // Klang: Erzeuger laden, Objekte, Spuren, Ereignisse (H-K14, K-153)
+  'klang/tabellen.js',      // Klang: Methodentabellen
   'api.js',                 // run, pruefeStart, return { … }
 ];
 

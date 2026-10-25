@@ -284,6 +284,8 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
     }
     // Herd (K-128): fehlt der Kern, meldet der Host den HOST-Fehler; Exit 2 vor dem Start
     if !crate::herd::start() { return 2; }
+    // Klang (K-153): fehlt der Erzeuger, meldet der Host den HOST-Fehler; Exit 2 vor dem Start
+    if !crate::klang::start() { return 2; }
     if let Some((c, t)) = unsafe { SPAETFEHLER } { crate::host_fehler(1, bytes(c), bytes(t), 0, 0, 0); return 2; }
     'lauf: {
         if vorbereiten >= 0 { rufe_tab(vorbereiten as u32, 0, KARTON, KARTON, &[]); if sig() { break 'lauf; } }
@@ -311,7 +313,7 @@ pub extern "C" fn rt_lauf(vorbereiten: i32, oben: i32) -> i32 {
             if sig() { break 'lauf; }
         }
         crate::pf::lieferungen_nach_ende();
-        if !sig() { crate::theke::ui_ende(); crate::herd::ende(); }
+        if !sig() { crate::theke::ui_ende(); crate::herd::ende(); crate::klang::ende(); }
     }
     ende()
 }
@@ -323,7 +325,7 @@ fn ende() -> i32 {
         match s {
             SIG_PANIK => { crate::host_panik(BANNER.as_bytes()); 39 }
             // K-116: ui_ende wertet Bindungen aus und kann selbst werfen – der ursprüngliche Fehler (Signal + Wurfobjekt) bleibt
-            _ if { let (s0, o0, p0) = (z().sig, WURF_OBJ, WURF_POS); z().sig = 0; crate::theke::ui_ende(); crate::herd::ende(); z().sig = s0; WURF_OBJ = o0; WURF_POS = p0; false } => 0,
+            _ if { let (s0, o0, p0) = (z().sig, WURF_OBJ, WURF_POS); z().sig = 0; crate::theke::ui_ende(); crate::herd::ende(); crate::klang::ende(); z().sig = s0; WURF_OBJ = o0; WURF_POS = p0; false } => 0,
             SIG_LIMIT => {
                 let (a, b, d) = pos_zsd(z().pos);
                 crate::host_fehler(3, b"P0002", "PizzaFehler P0002: Die Pizza ist noch im Ofen. (Schrittlimit erreicht – Endlosschleife?)".as_bytes(), d, a, b);

@@ -64,6 +64,8 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
 - **Gruppe `herd` (SPEC §18, Paket H4):** Modul `herd` (Exporte von `kern.wasm`, siehe unten) und `herd_kern`, `herd_schreibe`,
   `herd_lies`, `herd_warte`, `herd_senden` – nur wenn das Programm Herd-Klassen benutzt (`neu Herd/Form/Bildchen/<Komponente>`,
   `Form.…`, `Herd.…`, `Bildchen.…` – Letzteres für `Bildchen.laden`, K-145). Siehe unten „Herd“.
+- **Gruppe `klang` (SPEC §18.8, K-153, H-K14):** Modul `klang` (Exporte von `klang.wasm`) und `klang_kern`, `klang_schreibe`, `klang_lies`,
+  `klang_senden` – nur wenn das Programm `Klang.…` nennt (ohne eigene Klasse `Klang`). Siehe unten „Klang“.
 - **Gruppe `kueche` (SPEC §17, K-100, K-104):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
   (Methodenaufruf oder Methodenreferenz `….brigade`); dazu der Export `kueche_stueck` (§3). Siehe unten „Küchenbrigade“.
 - Künftige Gruppen und neue Importe in bestehenden Gruppen werden genauso ergänzt (additiv; sie ändern `abi_version` nicht). Die
@@ -223,6 +225,43 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
   `site/js/herd/kern.wasm`. Im zweiteiligen Schnellpfad (Laufzeit importiert immer alles) bekommen Programme ohne Herd Platzhalter.
 - **Klone** (Küchenbrigade): alle Importe der Gruppe (`herd.*` und `pizza.herd_*`) sind in Klon-Instanzen **Trap**; das Modul ruft
   sie dort nie (Herd-Methoden, `neu Herd/…` und Herd-Komponenten werfen vorher `KüchenAnanas: Den Herd gibt es nur in der Hauptküche.`).
+
+**Klang – Gruppe `klang`** (SPEC §18.8, K-153; H-K14): wie beim Herd zwei Teile. **Modul `klang`**: Importe mit genau den Namen und
+Signaturen der Exporte von `klang.wasm` (`herd/klang/wasm`); ein JS-Host bindet `imports.klang = klangInstanz.exports` (eine Instanz je
+Lauf), ein nativer Host je Import eine Hostfunktion auf `herd_klang::Abi` (gleicher Quelltext → gleiche Samples). Zeiger zeigen in den
+**Erzeuger-Speicher** (Austauschpuffer `puffer(len)`); Ergebnis `id ≥ 1` oder `-1` = Fehler (`fehler_art` 1 TypAnanas, 2 LaufzeitAnanas,
+`fehler_text` mit Retry K-013, `fehler_neu`). Die Laufzeit importiert:
+
+| Import (Modul `klang`) | Signatur | Bedeutung |
+|---|---|---|
+| `puffer` | `(len i32) -> i32` | Austauschpuffer im Erzeuger-Speicher |
+| `fehler_art`, `fehler_neu` | `() -> i32` | Fehlerprotokoll |
+| `fehler_text` | `(ptr i32, kap i32) -> i32` | Text des letzten Fehlers (Retry) |
+| `ton` | `(frequenz f64, dauer f64, welle_ptr i32, welle_len i32, lautstaerke f64, bis f64, anschlag f64, ausklang f64) -> i32` | `Klang.ton` |
+| `rauschen` | `(dauer f64, art_ptr i32, art_len i32, lautstaerke f64, anschlag f64, ausklang f64, saat f64) -> i32` | `Klang.rauschen` |
+| `stille` | `(dauer f64) -> i32` | `Klang.stille` |
+| `noten` | `(text_ptr i32, text_len i32, tempo f64, welle_ptr i32, welle_len i32, lautstaerke f64) -> i32` | `Klang.noten` |
+| `huelle` | `(id i32, anschlag f64, abfall f64, halten f64, ausklang f64) -> i32` | |
+| `tiefpass`, `hochpass` | `(id i32, frequenz f64, guete f64) -> i32` | |
+| `verstaerke`, `wiederhole`, `nahtlos` | `(id i32, x f64) -> i32` | |
+| `mische` | `(a i32, b i32, ab f64) -> i32` · `dann` `(a i32, b i32) -> i32` | |
+| `dauer` | `(id i32) -> f64` | Sekunden |
+| `hash` | `(id i32, ptr i32) -> i32` | FNV-1a-64 der PCM als 16 Hex-Ziffern in den Erzeuger-Puffer |
+
+`klang.wasm` exportiert dazu `abi_version` (1), `pcm(id)`/`pcm_laenge(id)` (PCM i16 LE, mono, 48 kHz – für die Wiedergabe des Hosts) und
+`memory`; ein Host stellt alle Exporte bereit (der native Host liefert `pcm` = 0 und liest die PCM selbst).
+
+| Import (Modul `pizza`) | Signatur | Bedeutung |
+|---|---|---|
+| `klang_kern` | `(pflicht i32) -> i32` | `1` = Erzeuger da; `0` = fehlt – bei `pflicht = 1` (Startprüfung) meldet der Host vorher `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang.wasm).", zeile: null, spalte: null }`, das Modul endet mit Exit 2 |
+| `klang_schreibe` | `(kern_ptr i32, ptr i32, len i32) -> ()` | Kopierweg Programm → Erzeuger |
+| `klang_lies` | `(ptr i32, kern_ptr i32, len i32) -> ()` | Kopierweg Erzeuger → Programm |
+| `klang_senden` | `(ptr i32, len i32, klang i32) -> ()` | Ereignis als JSON **ohne** `typ` (`{"art":"spiele","spur","klang","lautstaerke","tonhoehe","panorama","schleife"}`, `{"art":"setze","spur","lautstaerke","tonhoehe","panorama","lage","reichweite"}`, `{"art":"stoppe","spur"}`). Der Host gibt es **zuerst** an die Wiedergabe (JS: `optionen.onKlang(art, daten)`, bei `klang > 0` mit `daten.bytes` = PCM von `pcm(klang)`), **dann** meldet er `{ typ: "klang", … }` (Schlüsselreihenfolge wie im JSON); die PCM steht **nie** im Ereignis |
+
+- Die Laufzeit sammelt die Ereignisse bei offenem Herd-Fenster bis vor das nächste `herd_senden(bild)` bzw. `schliesse` (SPEC §18.8);
+  der Host muss nichts puffern. Wiedergabe, Raum (Hörer = Kamera aus dem SZENE-Block der Bildpakete) und Gerät sind Sache des Hosts und
+  nicht Teil der Bitgleichheit; Hosts ohne Ton stellen die Gruppe trotzdem bereit (stumm).
+- **Klone** (Küchenbrigade): alle Importe der Gruppe sind dort Trap; das Modul ruft sie nie (KüchenAnanas vorher).
 
 Imports dürfen **nicht** zurück in das Modul rufen (keine Re-Entranz). Präzisierung für `kueche_auftrag`: Der Host ruft dabei nie
 die **aufrufende** Instanz, sondern nur andere Instanzen desselben Moduls (Klone, Export `kueche_stueck`).

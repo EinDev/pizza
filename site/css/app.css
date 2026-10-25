@@ -1134,6 +1134,10 @@ button.k-meldung:hover { border-color: currentColor; }
 .vorschau-titel { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vorschau-zu { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: none; color: var(--text-2); cursor: pointer; }
 .vorschau-zu:hover { background: var(--fehler-weich); color: var(--fehler); }
+/* Klang (K-153): Stummschalter neben dem Schließen-Knopf, sichtbar sobald ein Programm Klang spielt */
+.vorschau-ton:hover { background: var(--flaeche-3, var(--flaeche-2)); color: var(--text-1, inherit); }
+.vorschau-ton[aria-pressed="true"] { color: var(--fehler); }
+.vorschau-ton[hidden] { display: none; }
 .vorschau-inhalt { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .vorschau-hinweis { margin: 0; padding: 16px; color: var(--text-2); font-size: 13px; }
 /* Herd (H6): Canvas füllt den Inhalt; die Glut passt das Spielfeld seitentreu ein (Ränder = Hintergrundfarbe der Welt) */
@@ -1256,6 +1260,7 @@ button.k-meldung:hover { border-color: currentColor; }
 :root[data-app][data-theme="dark"] .vorschau-kopf.app-zu { background: #16171a; }
 :root[data-app] .vorschau-kopf.app-zu { align-items: center; }
 :root[data-app] .vorschau-kopf.app-zu > :not(.vorschau-zu):not(.app-bearbeiten) { display: none; }
+
 :root[data-app] .vorschau-zu { width: 30px; height: 30px; border-radius: 50%; color: var(--text-3); opacity: .8; }
 :root[data-app] .vorschau-zu svg { width: 14px; height: 14px; }
 /* Herd-App: Spielfeld bildschirmfüllend, das X schwebt dezent darüber */

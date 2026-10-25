@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
   ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
-  beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, setzeLaufUhr,
+  beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, klangErwartet, klangEreignisse, setzeLaufUhr,
   zeigePanelTab, warteAufTabMuster, thekeUiErwartet, uiNachrichten, PJ, S,
 } from "../hilfen.mjs";
 
@@ -118,6 +118,8 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
         const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b), !!herd);
         assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
         if (herd) assert.deepEqual(await herdEreignisse(page), herdKanonisch(herd), `${m}: herd-Ereignisse (Hashes) == .herd-erwartet`);
+        const klang = klangErwartet(b);
+        if (klang) assert.deepEqual(await klangEreignisse(page), herdKanonisch(klang), `${m}: klang-Ereignisse (PCM-Hashes) == klang-erwartet`);
         if (m === "wasm") assert.equal(r.motor, "wasm");
       });
     }

@@ -1923,3 +1923,42 @@ zählt. Mehrere Takte eines Ereignisses: Drücken/Loslassen nur im ersten.
   (gleiche Shader, Toleranzvergleich; K-129).
 - **HOST-ABI:** Importgruppe `herd` mit generischen Aufrufen (Teil anlegen, Komponente anlegen, Feld setzen/lesen nach Typ- und
   Feldnummer aus dem Schema, Ressourcen, Takt, Bild, Fenster); eine neue Komponente ändert das ABI nicht. Details `HOST-ABI.md` (Paket H4).
+
+### 18.8 Klang – Töne, Geräusche, Spuren (H-K14, K-153; Importgruppe `klang`)
+
+Klänge werden **erzeugt** (Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen) – Dateien (`Klang.laden`) kommen mit PROJEKTE später.
+`Klang` gibt es auch ohne Herd. Die Synthese macht der Klang-Erzeuger (`herd/klang`, Rust `no_std` + `libm`; Browser/Interpreter/Wasm:
+`site/js/herd/klang.wasm`, nativ eingebaut): **PCM 48 kHz, mono, i16** – bitgleich in allen Motoren (FNV-1a-64 der PCM-Bytes).
+
+| Klasse | Erzeugen / Methoden |
+|---|---|
+| `Klang` | statisch `Klang.ton(frequenz, dauer, welle: "sinus", lautstaerke: 0.5, bis: 0, anschlag: 0.005, ausklang: 0.02)` (`welle` ∈ `sinus`, `rechteck`, `saege`, `dreieck`, `rauschen`; `bis` = Zielfrequenz, exponentiell gleitend, 0 = keine), `Klang.rauschen(dauer, art: "weiss", lautstaerke: 0.5, anschlag: 0.005, ausklang: 0.02, saat: 1)` (`art` ∈ `weiss`, `rosa`, `braun`), `Klang.stille(dauer)`, `Klang.noten(text, tempo: 120, welle: "rechteck", lautstaerke: 0.3)`; formen (je ein **neuer** Klang): `huelle(anschlag: 0, abfall: 0, halten: 1, ausklang: 0)`, `tiefpass(frequenz, guete: 0.707)`, `hochpass(frequenz, guete: 0.707)`, `verstaerke(faktor)`, `mische(anderer, ab: 0)`, `dann(anderer)`, `wiederhole(n)`, `nahtlos(ueberblendung: 0.05)`; `dauer()` (Sekunden), `id()`, `spiele(lautstaerke: 1, schleife: nein, tonhoehe: 1, panorama: 0)` → `Spur` |
+| `Spur` | `stoppe()`, `laeuft()`, `lautstaerke()`/`setzeLautstaerke(v)` (0 … 2), `tonhoehe()`/`setzeTonhoehe(t)` (0.125 … 8), `panorama()`/`setzePanorama(p)` (−1 … 1), `setzeLage(x, y, z = 0)` (räumlich ab jetzt), `reichweite()`/`setzeReichweite(r)` (1 … 10 000, Standard 30), `klang()`, `beimEnde(fn)`, `id()`; Setter verkettbar |
+
+- **Noten:** durch Leerzeichen (oder Komma) getrennt; Buchstabe `C D E F G A H` (deutsch; `B` = H erniedrigt), `#` erhöht, `b` erniedrigt,
+  Oktave 0 … 8 (A4 = 440 Hz, gleichstufig), `:n` = Länge in Vierteln (Standard 1), `-` = Pause; je Note 5 ms Anschlag, 30 ms Ausklang.
+- **Wertebereiche** (sonst `LaufzeitAnanas: <methode>() braucht <was> von <min> bis <max>, nicht <w>.`; Texte im Erzeuger): Frequenz 1 … 20 000
+  Hz (Filter 10 … 20 000), Dauer über 0 bis 60 Sekunden, Lautstärke 0 … 1 (Erzeugen), Faktor 0 … 16, Güte 0.1 … 20, Tempo 20 … 400,
+  `wiederhole` 1 … 1000 (Ganzzahl, sonst `TypAnanas`), `saat` Ganzzahl, `nahtlos` über 0 bis zur halben Dauer; alle Klänge zusammen
+  höchstens 5 Minuten (`Die Klänge sind zusammen zu lang …`). Unbekannte Welle/Art/Note → `LaufzeitAnanas` mit der Liste der erlaubten Werte.
+  Argumente in Parameterreihenfolge auf den Sprachtyp geprüft (`TypAnanas: ton() braucht eine Zahl für 'frequenz', nicht …`, Text, Klang).
+- `neu Klang()`/`neu Spur()` → `RohlingAnanas: 'Klang' kann man nicht mit neu backen.`; eine eigene Klasse `Klang`/`Spur` hat Vorrang.
+  Textform `Klang(<id>)`, `Spur(<nummer>)`; Spurnummern ab 1, nie wiederverwendet. In `brigade`-Stücken: `KüchenAnanas: Den Klang gibt es
+  nur in der Hauptküche.`; als Karton `Ein Klang`/`Eine Spur` passt in keinen Karton.
+- **Zeit (simuliert, nie vom Gerät):** mit Herd die Bildzeit (`herd.zeit()`), sonst die Uhr des Programms (`Uhr.jetzt()`). `laeuft()` =
+  nicht gestoppt und `jetzt < ende`, `ende = start + dauer / tonhoehe` (Schleife: nie); `setzeTonhoehe` rechnet den Rest einer laufenden
+  Spur um. **`beimEnde(fn)`** (Funktion ohne Parameter oder `karton`): nur in `herd.backe`, nach den Kniffen jedes Takts, für Spuren, die
+  bis dahin ausgelaufen sind (nicht gestoppt, ohne Schleife), nach Spurnummer, je einmal; `schliesse()` darin wie in einem Kniff.
+- **Ereignisse:** `{ typ: "klang", art: "spiele", spur, klang, lautstaerke, tonhoehe, panorama, schleife }` (`klang` = Hash der PCM, 16
+  Hex-Ziffern), `{ typ: "klang", art: "setze", spur, lautstaerke, tonhoehe, panorama, lage, reichweite }` (ganzer Zustand nach jedem Setter
+  einer laufenden Spur; `lage` = `[x, y, z]` oder `null`), `{ typ: "klang", art: "stoppe", spur }` (nur, wenn sie lief). Ist ein Herd-Fenster
+  offen, sammeln sich die Ereignisse bis zum nächsten Bild (vor `herd/bild`) bzw. bis `schliesse` – ein Klang startet mit dem Bild seines
+  Takts; sonst sofort. Die PCM geht nur an `optionen.onKlang(art, daten)` (`daten.bytes` bei `spiele`, **vor** dem Ereignis), nie in die
+  Ereignisliste. Tests: `<name>.klang-erwartet` bzw. `pruefung/klang-erwartet` (JSON-Lines ohne `typ`, kanonisch wie `.herd-erwartet`).
+- **Erzeuger fehlt** (Programm nennt `Klang.…`): `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der
+  Klang-Erzeuger fehlt (klang.wasm)." }`, Exit 2 vor dem Start.
+- **Wiedergabe** (nicht Teil der Bitgleichheit): Browser WebAudio (Ton erst nach der ersten Nutzeraktion, vorher Gespieltes entfällt,
+  laufende Schleifen setzen dann ein; Stummschalter), nativ Windows `waveOut`, Linux ALSA (`libasound.so.2` per `dlopen`) – fehlt
+  ein Gerät, eine Meldung und das Programm läuft stumm weiter. Räumlich (`setzeLage`): Hörer = Kamera des Herds; Lautstärke bis 1 m voll, dann
+  1/Abstand, ab 60 % der Reichweite weich auf 0; Panorama aus der Richtung zur Rechts-Achse des Hörers; Tiefpass 18 kHz nah bis 900 Hz an der
+  Reichweite. Tests und JSON-Modus geben nie Ton aus (nativ: `--klang-datei=x.wav` schreibt die Mischung im Takt der Herd-Bilder).

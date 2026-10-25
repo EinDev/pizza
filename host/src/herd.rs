@@ -633,6 +633,13 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
             d.theke_wieder_offen();
         }
         d.senke.sende(Ereignis::Herd { daten: json.clone() });
+        // Klang (K-153): Hörer = Kamera dieses Bildes; eine Klang-Datei mischt die Takte bis hierher
+        if art == "bild" {
+            if let Some(w) = d.klang.wiedergabe.clone() {
+                let nr = json.split("\"bildnummer\":").nth(1).and_then(|r| r.split(|c: char| !c.is_ascii_digit()).next()).and_then(|z| z.parse::<u64>().ok()).unwrap_or(0);
+                w.bild(nr, d.herd.kern.as_ref().map(|k| k.paket()));
+            }
+        }
         let h = &mut d.herd;
         let paket: Option<&[u8]> = match (&h.kern, paket_len >= 0) {
             (Some(k), true) => Some(k.paket()),

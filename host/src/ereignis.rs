@@ -22,6 +22,9 @@ pub enum Ereignis {
     /// Herd-Fenster-Ereignis (SPEC §18.7, HOST-ABI §2 `herd_senden`): rohes JSON des Moduls **ohne** `typ`, `art` zuerst
     /// (`{"art":"bild","bildnummer":…,"szene":…,"paket":…}`) → `{"typ":"herd","art":…,…}`; Bildpaket-Bytes nie im Ereignis.
     Herd { daten: String },
+    /// Klang-Ereignis (SPEC §18.8, K-153, HOST-ABI §2 `klang_senden`): rohes JSON des Moduls **ohne** `typ`, `art` zuerst
+    /// → `{"typ":"klang","art":…,…}`; PCM nie im Ereignis.
+    Klang { daten: String },
     Ende { exit_code: i32, schritte: f64, zeit_ms: f64 },
 }
 
@@ -212,6 +215,11 @@ impl Ereignis {
                 let rest = if rest.starts_with('}') { rest.to_string() } else { format!(",{}", rest) };
                 format!("{{\"typ\":\"herd\"{}", rest)
             }
+            Ereignis::Klang { daten } => {
+                let rest = daten.trim().strip_prefix('{').unwrap_or("}").trim_start();
+                let rest = if rest.starts_with('}') { rest.to_string() } else { format!(",{}", rest) };
+                format!("{{\"typ\":\"klang\"{}", rest)
+            }
             Ereignis::Ende { exit_code, schritte, zeit_ms } => format!(
                 "{{\"typ\":\"ende\",\"exitCode\":{},\"schritte\":{},\"zeitMs\":{}}}",
                 exit_code,
@@ -351,7 +359,7 @@ impl Senke {
                     // Kein Echo: das macht das Terminal. UI-Nachrichten gehen ans Fenster, nicht auf die Konsole.
                     // Vorrat: wird gespeichert, nicht angezeigt (wie bin/pizza.js).
                     // Herd: Fenster-Ereignisse gehen an den Renderer.
-                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } | Ereignis::Vorrat { .. } | Ereignis::Herd { .. } => {}
+                    Ereignis::Eingabe { .. } | Ereignis::Ui { .. } | Ereignis::Vorrat { .. } | Ereignis::Herd { .. } | Ereignis::Klang { .. } => {}
                     Ereignis::Leeren => {
                         let mut out = io::stdout().lock();
                         if out.is_terminal() {

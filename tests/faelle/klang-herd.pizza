@@ -1,0 +1,28 @@
+// Klang mit Herd (K-153): bei offenem Fenster starten Klänge mit dem Bild ihres Takts (die Ereignisse stehen vor dem
+// herd/bild), laeuft() rechnet in Bildzeit (herd.zeit()), beimEnde kommt nach den Kniffen des Takts, in dem die Spur ausläuft.
+Herd herd = neu Herd("Klangprobe", breite: 160, hoehe: 90);
+Teil ball = herd.kreis(80, 45, 10, farbe: "tomate");
+Klang ping = Klang.ton(880, 0.06, bis: 1320, welle: "dreieck");
+Klang summen = Klang.ton(120, 0.5, welle: "saege", lautstaerke: 0.2).tiefpass(600).nahtlos(0.05);
+Spur vorher = ping.spiele();          // Fenster noch zu: sofort
+salami enden = 0;
+Spur brumm = karton;
+herd.backe(() -> {
+    salami b = herd.bildnummer();
+    falls (b == 2) {
+        Spur s = ping.spiele().setzeLage(1, 0, -2);
+        s.beimEnde(() -> {
+            enden++;
+            Bote.sage(("Ende in Takt " + herd.bildnummer() + ", läuft: " + s.laeuft()));
+        });
+        Bote.sage(("gespielt in Takt " + b + " bei " + herd.zeit()));
+        brumm = summen.spiele(schleife: ja, lautstaerke: 0.5);
+        brumm.beimEnde(() -> { Bote.sage(("nie: Schleifen laufen nicht aus")); });
+    }
+    falls (b == 4) { Bote.sage(("Takt 4: ping läuft " + vorher.laeuft())); }
+    falls (b == 6) { brumm.setzeTonhoehe(1.5).setzeLautstaerke(0.25); }
+    falls (b == 8) { brumm.stoppe(); }
+    ball.verschiebe(2, 0);
+    falls (b == 10) { herd.schliesse(); }
+});
+Bote.sage(("Enden: " + enden + ", Brummen läuft: " + brumm.laeuft()));

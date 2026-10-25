@@ -5,7 +5,7 @@ import {
   e2e, zeigePanelTab, editorText, warteLaufEnde, konsolenAusgabe, exitBadge, pruefeExit, hawaiiOverlayOffen, backenVerdeckt,
   beispieleAusManifesten, screenshot, schlafe, strg, warteAufTab, PJ, S,
   eingabeZeilen, backenInteraktiv, ausgabeAusEreignissen, nachLetztemLeeren, echos,
-  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, beispielZeitlimit, sammelZeitlimit,
+  thekeEreignisse, thekeUiErwartet, backenTheke, uiNachrichten, VORSCHAU, warteAufTabMuster, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, klangErwartet, klangEreignisse, beispielZeitlimit, sammelZeitlimit,
   setzeLaufUhr,
 } from "../hilfen.mjs";
 
@@ -93,6 +93,8 @@ e2e(`Alle ${BEISPIELE.length} Beispiele öffnen & backen → Ausgabe == .erwarte
           // Ausgabe wie unten mit .erwartet, herd-Ereignisse (Szenen-/Paket-Hashes) mit .herd-erwartet
           await backenHerd(page, theke || [], { timeout: 30_000 });
           assert.deepEqual(await herdEreignisse(page), herdKanonisch(herd), "herd-Ereignisse (Hashes) entsprechen .herd-erwartet");
+          const klang = klangErwartet(b);
+          if (klang) assert.deepEqual(await klangEreignisse(page), herdKanonisch(klang), "klang-Ereignisse (PCM-Hashes) entsprechen klang-erwartet");
           assert.equal(await page.$eval(VORSCHAU, (v) => v.hidden), true, "Programmende schließt das Herd-Fenster");
         } else if (theke) {
           // Theke: Ereignisse im Vorschaufenster nachspielen (Klick/Tippen/Enter/Haken, „geschlossen“ = Schließen-Knopf)

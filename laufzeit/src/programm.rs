@@ -148,6 +148,8 @@ pub extern "C" fn rt_neu(typ: u32, args: u32, npos: u32, bennamen: u32, nben: u3
         N_G_ZUFALL if klasse_eintrag(id).is_none() => crate::vorrat::neu_zufall(pos, &ben),
         N_G_VORRATSKAMMER if klasse_eintrag(id).is_none() => if crate::kueche::nur_hauptkueche(crate::kueche::T_KAMMER_NEU) { KARTON } else { crate::vorrat::neue_kammer(pos, &ben, knoten) },
         // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten aus dem Schema des Kerns
+        // Klang (SPEC §18.8): nur über Klang.ton/… bzw. k.spiele() – neu → RohlingAnanas
+        _ if klasse_eintrag(id).is_none() && crate::klang::neu_moeglich(id) => crate::klang::neu(id),
         _ if klasse_eintrag(id).is_none() && crate::herd::neu_moeglich(id) => crate::herd::neu(id, pos, &ben),
         _ => match klasse_eintrag(id) {
             None => {

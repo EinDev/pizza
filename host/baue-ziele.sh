@@ -130,7 +130,7 @@ for z in $ZIELE; do
   cp "$quelle" "$AUS/$datei"
   chmod 755 "$AUS/$datei"
   groesse=$(wc -c < "$AUS/$datei" | tr -d ' ')
-  eintrag=$(printf '    { "id": "%s", "name": "%s", "triple": "%s", "datei": "%s", "endung": "%s", "groesse": %s, "sha256": "%s", "theke": true, "gruppen": ["theke", "vorrat", "echtzeit", "kueche", "herd"], "voraussetzung": "%s" }' \
+  eintrag=$(printf '    { "id": "%s", "name": "%s", "triple": "%s", "datei": "%s", "endung": "%s", "groesse": %s, "sha256": "%s", "theke": true, "gruppen": ["theke", "vorrat", "echtzeit", "kueche", "herd", "klang"], "voraussetzung": "%s" }' \
     "$z" "$(anzeigename "$z")" "$t" "$datei" "$e" "$groesse" "$sha" "$(voraussetzung "$z")")
   if [ -z "$eintraege" ]; then eintraege="$eintrag"; else eintraege="$eintraege,
 $eintrag"; fi

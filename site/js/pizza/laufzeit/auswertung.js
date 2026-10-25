@@ -225,6 +225,8 @@ class LaufzeitAuswertung {
         this.uiTheke = t;
         return t;
       }
+      // Klang (SPEC §18.8): nur über Klang.ton/… bzw. k.spiele()
+      if (tn === 'Klang' || tn === 'Spur') throw this.ananas('RohlingAnanas', '\'' + tn + '\' kann man nicht mit neu backen.');
       // Herd (SPEC §18): Herd, Form, Bildchen, Teil und die Komponenten des Schemas
       const hn = this.herdNeu(tn, pos, ben);
       if (hn !== undefined) return hn;

@@ -11,6 +11,7 @@ import { erstelleAusfuehrung, workerAuftrag, interaktivMoeglich, ladeMotoren } f
 import { leseKoeche, koecheFuerLauf } from "./koeche.js";
 import { erstelleVorschau, ladeRenderer } from "./vorschau.js";
 import { erstelleHerdAnzeige, herdLaufVorbereiten, ladeHerdKern, nutztHerd } from "./herd.js";
+import { klangAnbinden, klangLaufVorbereiten } from "./klang.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
 import { ladeGeteilt, leseLinkWert, linkWert, appTitel, ohneErzeugteProjektdatei, TeilenFehler, ALT_TEXT, WEG_TEXT } from "./teilen.js";
 import { sammlung, programmText, dateiArt } from "./projekt.js";
@@ -111,6 +112,8 @@ export function startApp(wert) {
   });
   // Herd (H6): Spielfeld bildschirmfüllend, seitentreu (die Glut passt ein); ohne Statuszeile
   const herd = erstelleHerdAnzeige({ vorschau, vollbild: true, status: false, beiMeldung: (text) => { konsole.system(text, "fehler"); hatAusgabe = true; } });
+  // Klang (K-153): Wiedergabe mit WebAudio, Stummschalter im Kopf
+  const klang = klangAnbinden($("vorschau-ton"));
   function setzeMeta() {
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", html.dataset.theme === "dark" ? "#16171a" : "#fbf7f0"));
   }
@@ -129,6 +132,7 @@ export function startApp(wert) {
   const ausfuehrung = erstelleAusfuehrung({
     beiStart() {
       herd.beenden();
+      klang.start();
       vorschau.beenden();
       konsole.leeren(false);
       hatAusgabe = false;
@@ -145,6 +149,7 @@ export function startApp(wert) {
       if (ev && ev.art === "schliesse") zeigeKonsole();
       else requestAnimationFrame(zeige);
     },
+    beiKlang(ev) { klang.ereignis(ev); },
     beiUi(n) {
       if (n && n.op === "fenster" && n.titel != null) document.title = String(n.titel) || "Theke";
       vorschau.nachricht(n);
@@ -174,6 +179,7 @@ export function startApp(wert) {
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
       herd.beenden();
+      klang.ende();
       vorschau.beenden();
       konsoleEl.hidden = !(hatAusgabe || !(istTheke || istHerd));
       const c = info.exitCode;
@@ -198,6 +204,7 @@ export function startApp(wert) {
     const vorratAktiv = vorratVerfuegbar();
     laeuft = true;
     const herdLauf = istHerd ? await herdLaufVorbereiten(code) : null;
+    const klangLauf = await klangLaufVorbereiten(code);   // K-153: klang.wasm nur für Programme mit Klang.…
     // je Lauf eine frische Sammlung (die Puffer gehen per Transfer an den Worker)
     ausfuehrung.starte(sammlung({ hauptdatei: geteilt.hauptdatei, name: geteilt.name }, geteilt.dateien), geteilt.args, "auto", {
       pizzaiolo: !!(faehigkeiten && faehigkeiten.wasm),
@@ -207,6 +214,7 @@ export function startApp(wert) {
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),   // dieselbe Einstellung wie im Playground (THREADS §4.8)
       ...(herdLauf ? herdLauf.extra : {}),
+      ...klangLauf,
       ...bildLauf,
     });
     herd.lauf(herdLauf && herdLauf.kontext);

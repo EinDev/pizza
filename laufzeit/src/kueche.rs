@@ -190,6 +190,7 @@ fn karton_art(w: W) -> Option<&'static str> {
         crate::theke::A_THEKE | crate::theke::A_ZUTAT => Some("Eine Theke-Zutat"),
         crate::theke::A_ZETTEL => Some("Ein Zettel"),
         crate::herd::A_HERD..=crate::herd::A_BILDCHEN => Some(crate::herd::karton_art(w)),
+        crate::klang::A_KLANG | crate::klang::A_SPUR => Some(crate::klang::karton_art(w)),
         _ => None,
     }
 }

@@ -1,0 +1,54 @@
+// Klang (K-153): Fehler – Sprachtypen der Argumente (TypAnanas mit Parametername), Wertebereiche und Texte aus dem Erzeuger,
+// Rohlinge, Küche (nur Hauptküche), Typprüfung von Klang/Spur
+leer probe(Rezept f) {
+    probier { f(); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+}
+probe(() -> Klang.ton("hoch", 1));
+probe(() -> Klang.ton(440, 1, welle: 3));
+probe(() -> Klang.ton(0, 1));
+probe(() -> Klang.ton(440, 0));
+probe(() -> Klang.ton(440, 61));
+probe(() -> Klang.ton(440, 1, welle: "quak"));
+probe(() -> Klang.ton(440, 1, lautstaerke: 2));
+probe(() -> Klang.ton(440, 1, bis: 30000));
+probe(() -> Klang.rauschen(1, art: "gruen"));
+probe(() -> Klang.rauschen(1, saat: 1.5));
+probe(() -> Klang.noten("C4 X9"));
+probe(() -> Klang.noten(""));
+probe(() -> Klang.noten(42));
+probe(() -> Klang.noten("C4", tempo: 1000));
+probe(() -> Klang.stille(-1));
+Klang k = Klang.ton(440, 0.1);
+probe(() -> k.tiefpass(5));
+probe(() -> k.hochpass(800, guete: 0));
+probe(() -> k.verstaerke(20));
+probe(() -> k.mische(5));
+probe(() -> k.dann("x"));
+probe(() -> k.wiederhole(2.5));
+probe(() -> k.wiederhole(0));
+probe(() -> k.nahtlos(0.08));
+probe(() -> k.huelle(halten: 2));
+probe(() -> k.spiele(lautstaerke: 3));
+probe(() -> k.spiele(tonhoehe: 0));
+probe(() -> k.spiele(panorama: 2));
+probe(() -> k.spiele(schleife: 1));
+Spur s = k.spiele();
+probe(() -> s.setzeLautstaerke(-1));
+probe(() -> s.setzeTonhoehe(9));
+probe(() -> s.setzePanorama(-1.5));
+probe(() -> s.setzeLage(1));
+probe(() -> s.setzeReichweite(0.5));
+probe(() -> s.beimEnde(5));
+probe(() -> s.gibtsNicht());
+probe(() -> Klang.gibtsNicht());
+probe(() -> neu Klang());
+probe(() -> neu Spur());
+probe(() -> { Klang x = 5; });
+probe(() -> { Spur y = k; });
+Blech<salami> b = [1, 2];
+probe(() -> b.brigade((x) -> Klang.ton(440, 0.1)));
+probe(() -> b.brigade((x) -> k.dauer()));
+probe(() -> b.brigade((x) -> s.laeuft()));
+probe(() -> b.brigade((x) -> k));
+probe(() -> { für (salami i : [1 .. 6]) { Klang.stille(60); } });
+Bote.sage((k + " " + s));

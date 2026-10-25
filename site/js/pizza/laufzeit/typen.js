@@ -49,6 +49,18 @@ class LaufzeitTypen {
         was = 'kein(e) ' + typ.name;
         break;
       }
+      case 'Klang': case 'Spur': {
+        // Klang (K-153): eingebaute Typnamen; eine eigene Klasse gleichen Namens hat Vorrang
+        if (this.klassen.has(typ.name) || v === null) {
+          const k = this.klassen.get(typ.name);
+          if (k === undefined || v === null || this.instanzVon(v, k)) return;
+          was = 'kein(e) ' + k.name;
+          break;
+        }
+        if (klangKlasseVon(v) === typ.name) return;
+        was = 'kein(e) ' + typ.name;
+        break;
+      }
       case 'Zettel': {
         // Theke v5 (K-116): eingebauter Typname wie Zutat; eigene Klasse Zettel hat Vorrang
         if (this.klassen.has('Zettel') || v === null) {
@@ -132,6 +144,8 @@ class LaufzeitTypen {
     if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
     if (v instanceof HerdForm) return 'Form(' + v.id + ')';
     if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
+    if (v instanceof KlangObj) return 'Klang(' + v.id + ')';
+    if (v instanceof KlangSpur) return 'Spur(' + v.nr + ')';
     if (v === AUTO) return 'auto';
     return String(v);
   }

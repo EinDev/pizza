@@ -20,6 +20,7 @@ pub mod theke;
 pub mod vorrat;
 pub mod kueche;
 pub mod herd;
+pub mod klang;
 pub mod kiste;
 
 use core::panic::PanicInfo;

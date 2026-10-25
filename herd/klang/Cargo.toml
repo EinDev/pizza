@@ -1,0 +1,12 @@
+[package]
+name = "herd-klang"
+description = "Klang: Töne, Rauschen, Noten, Hüllkurven, Filter → PCM 48 kHz (no_std + libm, bitgleich nativ = klang.wasm)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+libm = "0.2.16"

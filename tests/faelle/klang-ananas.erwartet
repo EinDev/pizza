@@ -1,0 +1,46 @@
+TypAnanas: ton() braucht eine Zahl für 'frequenz', nicht "hoch".
+TypAnanas: ton() braucht einen Text für 'welle', nicht 3.
+LaufzeitAnanas: ton() braucht eine Frequenz von 1 bis 20000 Hz, nicht 0.
+LaufzeitAnanas: ton() braucht eine Dauer über 0 bis 60 Sekunden, nicht 0.
+LaufzeitAnanas: ton() braucht eine Dauer über 0 bis 60 Sekunden, nicht 61.
+LaufzeitAnanas: Eine Welle 'quak' gibt es nicht (sinus, rechteck, saege, dreieck, rauschen).
+LaufzeitAnanas: ton() braucht eine Lautstärke von 0 bis 1, nicht 2.
+LaufzeitAnanas: ton() braucht für 'bis' eine Frequenz von 1 bis 20000 Hz, nicht 30000.
+LaufzeitAnanas: Ein Rauschen 'gruen' gibt es nicht (weiss, rosa, braun).
+TypAnanas: rauschen() braucht eine Ganzzahl für 'saat', nicht 1.5.
+LaufzeitAnanas: Die Note 'X9' verstehe ich nicht (z. B. C4, F#4, Bb3, A4:2 für zwei Viertel, - für eine Pause).
+LaufzeitAnanas: noten() braucht mindestens eine Note, z. B. "C4 E4 G4".
+TypAnanas: noten() braucht einen Text für 'text', nicht 42.
+LaufzeitAnanas: noten() braucht ein Tempo von 20 bis 400 Schlägen je Minute, nicht 1000.
+LaufzeitAnanas: stille() braucht eine Dauer über 0 bis 60 Sekunden, nicht -1.
+LaufzeitAnanas: tiefpass() braucht eine Frequenz von 10 bis 20000 Hz, nicht 5.
+LaufzeitAnanas: hochpass() braucht eine Güte von 0.1 bis 20, nicht 0.
+LaufzeitAnanas: verstaerke() braucht einen Faktor von 0 bis 16, nicht 20.
+TypAnanas: mische() braucht einen Klang für 'anderer', nicht 5.
+TypAnanas: dann() braucht einen Klang für 'anderer', nicht "x".
+TypAnanas: wiederhole() braucht eine Ganzzahl, nicht 2.5.
+LaufzeitAnanas: wiederhole() braucht eine Anzahl von 1 bis 1000, nicht 0.
+LaufzeitAnanas: nahtlos() braucht eine Überblendung über 0 bis zur halben Dauer (0.05 Sekunden), nicht 0.08.
+LaufzeitAnanas: huelle() braucht für 'halten' einen Pegel von 0 bis 1, nicht 2.
+LaufzeitAnanas: spiele() braucht eine Lautstärke von 0 bis 2, nicht 3.
+LaufzeitAnanas: spiele() braucht eine Tonhöhe von 0.125 bis 8, nicht 0.
+LaufzeitAnanas: spiele() braucht ein Panorama von -1 bis 1, nicht 2.
+TypAnanas: Erwartet diavolo (ja/nein), bekam 1.
+LaufzeitAnanas: setzeLautstaerke() braucht eine Lautstärke von 0 bis 2, nicht -1.
+LaufzeitAnanas: setzeTonhoehe() braucht eine Tonhöhe von 0.125 bis 8, nicht 9.
+LaufzeitAnanas: setzePanorama() braucht ein Panorama von -1 bis 1, nicht -1.5.
+TypAnanas: setzeLage() braucht eine Zahl für 'y', nicht karton.
+LaufzeitAnanas: setzeReichweite() braucht eine Reichweite von 1 bis 10000, nicht 0.5.
+TypAnanas: beimEnde() braucht eine Funktion, z. B. () -> { … }.
+LaufzeitAnanas: Methode 'gibtsNicht' gibt es auf Spur nicht.
+LaufzeitAnanas: Methode 'gibtsNicht' gibt es bei Klang nicht.
+RohlingAnanas: 'Klang' kann man nicht mit neu backen.
+RohlingAnanas: 'Spur' kann man nicht mit neu backen.
+TypAnanas: 'x' ist Klang, aber der Wert 5 ist kein(e) Klang.
+TypAnanas: 'y' ist Spur, aber der Wert Klang(1) ist kein(e) Spur.
+KüchenAnanas: Den Klang gibt es nur in der Hauptküche.
+KüchenAnanas: Den Klang gibt es nur in der Hauptküche.
+KüchenAnanas: Den Klang gibt es nur in der Hauptküche.
+KüchenAnanas: Ein Klang passt in keinen Karton – nur Werte können die Küche verlassen.
+LaufzeitAnanas: Die Klänge sind zusammen zu lang (höchstens 5 Minuten in einem Programm).
+Klang(1) Spur(1)

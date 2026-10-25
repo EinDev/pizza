@@ -27,6 +27,8 @@ wry = { version = "0.57.0", optional = true }
 tao = { version = "0.37.1", optional = true }
 serde_json = { version = "1", optional = true }
 herd-kern = { path = "../herd/kern" }
+# Klang (H-K14, K-153): Erzeuger immer dabei (bitgleich mit klang.wasm); Wiedergabe ohne Crates (winmm bzw. libasound per dlopen)
+herd-klang = { path = "../herd/klang" }
 herd-glut = { path = "../herd/glut", optional = true }
 png = { version = "0.18.1", optional = true }
 pollster = { version = "0.4", optional = true }
@@ -63,4 +65,7 @@ opt-level = 3
 opt-level = 3
 # Herd-Kern (Systeme, Bildpaket) ebenfalls schnell (HERD.md §6: Kern-Takt + Bild ≤ 2 ms in der EXE).
 [profile.release.package.herd-kern]
+opt-level = 3
+# Klang-Erzeuger (Synthese beim Programmstart) ebenso.
+[profile.release.package.herd-klang]
 opt-level = 3

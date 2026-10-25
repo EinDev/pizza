@@ -39,7 +39,13 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
       if (im.module === 'herd') herd[im.name] = () => { throw new Error('Klon rief herd.' + im.name); };
       else if (im.module === 'pizza' && im.name.startsWith('herd_')) pizza[im.name] = verboten(im.name);
     }
-    return { pizza, herd };
+    // Gruppe klang (K-153) ebenso
+    const klang = {};
+    for (const im of WebAssembly.Module.imports(modul)) {
+      if (im.module === 'klang') klang[im.name] = () => { throw new Error('Klon rief klang.' + im.name); };
+      else if (im.module === 'pizza' && im.name.startsWith('klang_')) pizza[im.name] = verboten(im.name);
+    }
+    return { pizza, herd, klang };
   };
   const neuerKlon = (schnapp) => {
     stats.klone++;
@@ -120,7 +126,18 @@ function fuehreMitKlonen(modul, optionen = {}, strategie = 'vor') {
     pizza.herd_warte = (p, kap) => (kap < 0 ? 0 : -1);
     pizza.herd_senden = (p, n) => { const d = JSON.parse(t(p, n)); const art = d.art; delete d.art; emit(Object.assign({ typ: 'herd', art }, d)); };
   }
-  inst = new WebAssembly.Instance(modul, { pizza, herd });
+  // Gruppe klang (nur Hauptinstanz): Erzeuger-Exporte direkt, Kopierweg, Ereignisse
+  let klang = {};
+  if (WebAssembly.Module.imports(modul).some(i => i.module === 'klang')) {
+    const kk = new WebAssembly.Instance(new WebAssembly.Module(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'site', 'js', 'herd', 'klang.wasm'))), {}).exports;
+    const km = () => new Uint8Array(kk.memory.buffer);
+    klang = kk;
+    pizza.klang_kern = () => 1;
+    pizza.klang_schreibe = (kp, pp, n) => { km().set(mem().subarray(pp, pp + n), kp); };
+    pizza.klang_lies = (pp, kp, n) => { mem().set(km().subarray(kp, kp + n), pp); };
+    pizza.klang_senden = (p, n) => { const d = JSON.parse(t(p, n)); const art = d.art; delete d.art; emit(Object.assign({ typ: 'klang', art }, d)); };
+  }
+  inst = new WebAssembly.Instance(modul, { pizza, herd, klang });
   const e = inst.exports;
   if (typeof optionen.schrittLimit === 'number' && optionen.schrittLimit > 0) e.limit_setzen(optionen.schrittLimit);
   if (typeof optionen.zufallsSaat === 'number' && Number.isInteger(optionen.zufallsSaat)) e.saat_setzen(optionen.zufallsSaat);

@@ -352,6 +352,8 @@ pruefe('eigene Methode animiere bleibt kompilierbar', () => {
 
 // Herd (Paket H4): alle tests/faelle/herd-* und Sonderfälle der Gruppe herd
 require('./herd.js').pruefe(pruefe);
+// Klang (H-K14): alle tests/faelle/klang-* und Sonderfälle der Gruppe klang
+require('./klang.js').pruefe(pruefe);
 
 console.log('▶ e2e');
 const stat = { gleich: 0, fallback: 0, syntax: 0 };

@@ -1862,7 +1862,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 ### K-135 Herd v1 ohne Ton
 - **Entscheidung:** Kein Ton in v1: Browser (WebAudio, Autoplay erst nach Geste) und nativ (Linux ALSA/PulseAudio/PipeWire = neue
   Systembibliotheken für Starter und Prüfung; Windows WASAPI) bräuchten zwei getrennte Wege, Ton ist nicht deterministisch prüfbar und
-  lenkt vom Grafik-Fokus ab. Später additiv als eigene Importgruppe (`klang`, Roadmap H-K14). **Status:** fest.
+  lenkt vom Grafik-Fokus ab. Später additiv als eigene Importgruppe (`klang`, Roadmap H-K14). **Status:** fest; ergänzt durch K-153 (Ton
+  seit H-K14 – deterministisch über die Synthese, nicht über das Gerät).
 
 ### K-136 Herd: Ressourcen, Farben, Komponenten v1 (ersetzt Fassung 1dbf259)
 - **Entscheidung:** Farben als Text: 17 Palettennamen (Pizzeria-Farben der Doku-Bilder) oder Hex – aufgelöst im Kern. Pixel-**Bildchen** aus
@@ -2189,6 +2190,37 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   entferntes Teil. **`kopie()` kopiert keine Kniffe** (Muster: Fabrikfunktion). In `brigade`-Stücken wie alle Herd-Methoden KüchenAnanas.
 - **Nachweis:** Kern `tests::hk13` (Lesefeld RUHT), Fälle `herd-kniff`, `herd-kniff-ereignisse` (Fühler + Taster mit Maus),
   `herd-kniff-ananas`, Differenz-Korpus `herd-kniff-kueche` (auch Köche/Chaos), Prüfstand a18, Beispiel `herd/kniffe`. **Status:** fest.
+
+### K-153 Importgruppe `klang`: Synthese bitgleich, `.klang-erwartet`, Wiedergabewege, Stumm-Rückfall (H-K14, ergänzt K-135)
+- **Frage:** Wie bekommt pizza Ton (Unity AudioSource/AudioClip) – für Spiele mit Regen, Schritten, Neonsummen und räumlichem Klang –, ohne
+  die Bitgleichheit Interpreter = Wasm = nativ aufzugeben, ohne neue Systembibliotheken als Link-Zwang (K-130) und ohne Ton in Tests?
+- **Entscheidung:** Klänge werden **erzeugt**, nicht geladen (Dateien `Klang.laden` erst mit PROJEKTE – später): eingebaute Klasse
+  **`Klang`** (unveränderliche Ressource; `Klang.ton/rauschen/stille/noten`, Formen `huelle/tiefpass/hochpass/verstaerke/mische/dann/
+  wiederhole/nahtlos` liefern je einen neuen Klang) und **`Spur`** (`k.spiele(…)`: `stoppe`, `laeuft`, Lautstärke/Tonhöhe/Panorama,
+  `setzeLage`/`setzeReichweite` für Raum, `beimEnde`) – Sprache SPEC §18.8. Die Synthese macht die neue Crate **`herd/klang`** (`no_std`
+  + `libm`, f64, keine FMA): **PCM 48 kHz, mono, i16 LE**; dieselbe Crate nativ im Host und als `site/js/herd/klang.wasm` (Interpreter,
+  Wasm-Programme über Modul `klang`, Browser) – Golden-Datei `herd/klang/golden.txt` (cargo test) = `node herd/test-klang.js` (Wasm).
+  **Bitgleich** sind die PCM-Bytes (FNV-1a-64, im Ereignis als `klang`) und die Ereignisfolge `{ typ: "klang", art: "spiele"|"setze"|
+  "stoppe", … }` (feste Schlüsselreihenfolge); **nicht** das Hörbare (Mischen, Raum, Gerät, Latenz). Zeit nur simuliert: mit Herd
+  Bildzeit, sonst `Uhr.jetzt()`; `laeuft()` und `beimEnde` (nur in `backe`, nach den Kniffen, Rückruf-Rahmen aus H-K13) daraus. Bei offenem
+  Herd-Fenster sammeln sich die Ereignisse bis zum nächsten Bild (ein Klang startet mit dem Bild seines Takts). Neuer Testdateityp
+  **`.klang-erwartet`** bzw. `pruefung/klang-erwartet` (JSON-Lines ohne `typ`, kanonisch wie `.herd-erwartet`), in run-tests, test:wasm,
+  Differenz (alle Ereignisse), Host und E2E. Der Hörer ist die Kamera: die Wiedergaben lesen sie aus dem SZENE-Block jedes Bildpakets
+  (kein Ereignis, kein Kern-Umbau); Raumformel `herd_klang::raum` (Browser-Spiegel in `ui/src/klang.js`).
+- **Wiedergabewege:** Browser WebAudio (AudioBufferSource → Tiefpass → Gain → StereoPanner), AudioContext erst mit der ersten Nutzeraktion
+  (Autoplay; vorher Gespieltes entfällt still, laufende Schleifen setzen ein), Stummschalter im Kopf des Vorschaufensters (gemerkt),
+  automatisierte Browser (`navigator.webdriver`) immer stumm. Nativ Windows `waveOut` (winmm.dll zur Laufzeit geladen – einfacher als
+  WASAPI-COM ohne Crates, gleiche Wirkung), Linux ALSA `libasound.so.2` per `dlopen` (keine NEEDED-Bibliothek); fehlt das Gerät:
+  „Kein Ton: … – das Programm läuft stumm weiter.“, kein Abbruch. Nie ein Gerät im JSON-Modus, mit `--ui-ereignisse`, `--herd-bilder`
+  oder `PIZZA_KLANG=0`; `--klang-datei=x.wav` mischt in eine Datei (mit Herd im Takt der Bilder: je Takt 800 Frames). Am Programmende
+  klingen Spuren ohne Schleife aus (höchstens 10 s), Schleifen enden.
+- **Erzeuger fehlt:** `PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang.wasm).`, Exit 2 vor dem Start (wie K-128). Gruppe `klang`:
+  Modul `klang` (= Exporte von `klang.wasm`) und `pizza.klang_kern/klang_schreibe/klang_lies/klang_senden` (HOST-ABI §2, additiv in v2);
+  in Klonen der Küchenbrigade Trap, die Laufzeit wirft vorher `KüchenAnanas: Den Klang gibt es nur in der Hauptküche.`.
+- **Nachweis:** `cargo test -p herd-klang` (Golden, Texte, Noten, Grenzen, Raum), `node herd/test-klang.js` (nativ = Wasm),
+  `node herd/baue.js --pruefe`, Fälle `klang-ton`, `klang-spur`, `klang-herd`, `klang-ananas`, `tests/wasm/klang.js`, Host
+  `tests/klang.rs` + Mischer-Tests, E2E (Ereignisse = `klang-erwartet`, Wiedergabe über `OfflineAudioContext`), Beispiele
+  `herd/klavier` und die Klangkulisse von `herd/neon-napoli`. **Status:** fest.
 
 ### K-154 Ortszeit: `Uhr.zone()` (Versatz der Zeitzone zu UTC)
 - **Frage:** `Uhr.echt()` ist Weltzeit (UTC). Eine Uhr, die richtig geht (Herd-Beispiel Pizza-Uhr), braucht die Ortszeit des Nutzers

@@ -1,0 +1,24 @@
+# Klang-Golden (H-K14, K-153): je Zeile ein Aufruf an denselben, anfangs leeren Klang-Speicher (IDs zählen die erfolgreichen
+# Aufrufe ab 1, #n = Klang n), danach FNV-1a-64 der PCM-Bytes (i16 LE) und die Zahl der Samples bzw. „! Fehlertext“.
+# Geprüft nativ (cargo test -j 2 -p herd-klang) und gegen site/js/herd/klang.wasm (node herd/test-klang.js); neu schreiben mit
+# KLANG_GOLDEN=schreibe cargo test -j 2 -p herd-klang.
+ton 440 0.5 sinus 0.5 0 0.005 0.02 = f0abbe45da740642 24000
+ton 220 0.25 rechteck 0.3 0 0 0 = c2f6e88fb7182e8d 12000
+ton 110 0.4 saege 0.4 880 0.01 0.1 = c28e59ab488e14f5 19200
+ton 330 0.3 dreieck 0.6 165 0.002 0.05 = cebf5d3d02e6766c 14400
+ton 1000 0.2 rauschen 0.5 0 0.001 0.05 = da31de5fbdf0f465 9600
+rauschen 1 weiss 0.5 0.005 0.02 1 = c73db64837e2afca 48000
+rauschen 1 rosa 0.5 0.005 0.02 7 = 4db9ded1488bc917 48000
+rauschen 2 braun 0.8 0.2 0.2 20871 = facd3f32b97c637a 96000
+stille 0.125 = 1dfeaf773f5ebca5 6000
+noten "C4 E4 G4:2 - C5 F#4 Bb3:0.5 H3" 140 rechteck 0.3 = f1ee2e04d890c26c 174855
+huelle #1 0.01 0.1 0.6 0.2 = 6e585801960c55b9 24000
+tiefpass #6 800 0.707 = 0533abe39ec6a91b 48000
+hochpass #7 2000 2 = 3fd74423f862e581 48000
+verstaerke #2 3 = a919da3c70e02305 12000
+mische #1 #3 0.25 = ffbb5794bed97dc3 31200
+dann #1 #9 = 1c6a449a4b6f5d42 30000
+wiederhole #4 3 = 6e2ed714511ce0a4 43200
+nahtlos #8 0.25 = d50af28c4bcb8db4 84000
+ton 0 1 sinus 0.5 0 0 0 = ! ton() braucht eine Frequenz von 1 bis 20000 Hz, nicht 0.
+noten "C4 Q4" 120 sinus 0.5 = ! Die Note 'Q4' verstehe ich nicht (z. B. C4, F#4, Bb3, A4:2 für zwei Viertel, - für eine Pause).

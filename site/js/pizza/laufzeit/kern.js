@@ -36,6 +36,16 @@ class Laufzeit {
     this.hkFehlt = false;
     this.herd = null;
     this.herdNoetig = false;
+    // Klang (SPEC §18.8, K-153): Erzeuger-Modul (optionen.klangKern), Wiedergabe-Rückruf onKlang(art, daten), Instanz (lazy),
+    // bis zum nächsten Herd-Bild gesammelte Ereignisse, Spurnummern, Spuren mit beimEnde
+    this.klangOpt = opt.klangKern;
+    this.onKlang = typeof opt.onKlang === 'function' ? opt.onKlang : null;
+    this.kk = null;
+    this.kkFehlt = false;
+    this.klangNoetig = false;
+    this.klangWarte = [];
+    this.klangSpurNr = 0;
+    this.klangEnden = [];
     // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
     // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
     this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
@@ -107,6 +117,7 @@ class Laufzeit {
       ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
       ['Bildchen', new Modul('Bildchen', HERD_BILDCHEN_MOD_M, null)],
       ['Kiste', new Modul('Kiste', KISTE_M, null)],
+      ['Klang', new Modul('Klang', KLANG_MOD_M, null)],
       ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
       ['bestelle', new NativFn('bestelle', function (pos) {
         const l = new Lieferung(L.funktionArg(pos[0], 'bestelle'), ++L.lieferNr);
@@ -194,6 +205,7 @@ class Laufzeit {
     if (v instanceof UiZutat) return UI_ART_NAME[v.art];
     if (v instanceof Zettel) return 'Zettel';
     if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
+    if (v instanceof KlangObj || v instanceof KlangSpur) return klangKlasseVon(v);
     if (v instanceof ZufallGen) return 'Zufall';
     if (v instanceof Kammer) return 'Vorratskammer';
     return 'Unbekanntes';
@@ -325,7 +337,8 @@ class Laufzeit {
     for (const d of body) if (DEKL.has(d.k)) this.registriere(d);
     this.pruefe();
     if (this.herdNoetig) this.herdKern(true);
-    this.vorbacke();     // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
+    if (this.klangNoetig) this.klangKern(true);   // K-153: Klang-Erzeuger vor dem Start (wie der Herd-Kern, K-128)
+    this.vorbacke();    // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
     this.vorbereiten();
     for (const st of body) {
       if (DEKL.has(st.k)) continue;
@@ -372,6 +385,10 @@ class Laufzeit {
     }
     if (e instanceof HerdKernFehlt) {
       this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: HERD_KERN_FEHLT, datei: null, zeile: null, spalte: null });
+      return 2;
+    }
+    if (e instanceof KlangFehlt) {
+      this.emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: KLANG_FEHLT, datei: null, zeile: null, spalte: null });
       return 2;
     }
     if (e instanceof VorbackerFehlt) {

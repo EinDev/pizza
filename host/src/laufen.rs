@@ -37,6 +37,8 @@ pub struct Optionen {
     pub kuechen_chaos: Option<u64>,
     /// Herd: wohin `herd_senden` Fenster-Ereignisse und Bildpakete gibt (Fenster, Offscreen-PNGs); `None` → nur Ereignis.
     pub herd: Option<crate::herd::HerdAnbindung>,
+    /// Klang (K-153): Wiedergabe (Gerät oder `--klang-datei`); `None` → stumm (Tests, JSON-Modus, fensterlos).
+    pub klang: Option<std::sync::Arc<crate::wiedergabe::Wiedergabe>>,
     /// `--herd-messung`: Zeiten je Sekunde (HERD.md §6).
     pub herd_messung: Option<std::sync::Arc<crate::herd::Messung>>,
 }
@@ -65,8 +67,9 @@ const IMPORTE: [&str; 17] = [
 /// Ist `modul.name` ein bekannter Import (Basis, Gruppen; Gruppe `herd` mit Modul `herd`, HOST-ABI §2)?
 fn import_bekannt(m: &str, n: &str) -> bool {
     match m {
-        "pizza" => IMPORTE.contains(&n) || crate::herd::IMPORTE_PIZZA.contains(&n),
+        "pizza" => IMPORTE.contains(&n) || crate::herd::IMPORTE_PIZZA.contains(&n) || crate::klang::IMPORTE_PIZZA.contains(&n),
         "herd" => crate::herd::IMPORTE_HERD.contains(&n),
+        "klang" => crate::klang::IMPORTE_KLANG.contains(&n),
         _ => false,
     }
 }
@@ -108,6 +111,7 @@ pub fn pruefe_importe(module: &Module) -> Result<(), String> {
         let gruppe = match m {
             "pizza" => gruppe_von(n),
             "herd" => "herd".to_string(),
+            "klang" => "klang".to_string(),
             _ => "unbekannt".to_string(),
         };
         return Err(format!(
@@ -474,6 +478,8 @@ pub(crate) struct Zustand {
     kueche: crate::kueche::Kueche,
     /// Herd (Gruppe `herd`): nativer Kern, nachgebildeter Kern-Speicher, Renderer-Anbindung.
     pub(crate) herd: crate::herd::HerdZustand,
+    /// Klang (Gruppe `klang`): nativer Erzeuger, nachgebildeter Speicher, Wiedergabe.
+    pub(crate) klang: crate::klang::KlangZustand,
 }
 
 impl Zustand {
@@ -533,6 +539,11 @@ pub fn braucht_theke(pkarton: &[u8]) -> bool {
 /// Importiert das Modul die Gruppe `herd` (Modul `herd` oder `pizza.herd_*`, HOST-ABI §2)?
 pub fn braucht_herd(pkarton: &[u8]) -> bool {
     Module::new(&engine(), pkarton).map(|m| crate::herd::importiert_herd(&m)).unwrap_or(false)
+}
+
+/// Importiert das Programm die Gruppe `klang` (K-153)? Nur dann gibt es eine Wiedergabe.
+pub fn braucht_klang(pkarton: &[u8]) -> bool {
+    Module::new(&engine(), pkarton).map(|m| crate::klang::importiert_klang(&m)).unwrap_or(false)
 }
 
 /// Braucht das Programm ein Fenster (Theke oder Herd)? → PE-Subsystem WINDOWS (karton.rs, site/js/exe.js).
@@ -645,7 +656,8 @@ pub fn fuehre_aus(pkarton: &[u8], args: &[String], mut opt: Optionen, senke: &mu
     let uhr = crate::ortszeit::Wanduhr { echtzeit: opt.echtzeit, zone: opt.zone };
     let kueche = crate::kueche::Kueche::neu(module.clone(), koeche, opt.kuechen_chaos, uhr);
     let herd = crate::herd::HerdZustand::neu(opt.herd.take(), opt.herd_messung.clone());
-    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, uhr, kueche, herd };
+    let klang = crate::klang::KlangZustand::neu(opt.klang.clone());
+    let zustand = Zustand { senke: std::mem::replace(senke, Senke::Sammeln(Vec::new())), quelle, wartend: None, theke: UiZustand { ui: opt.ui.take(), wartend: None, zu: false, vorgemerkt: None }, panik: false, vorrat: opt.vorrat.take(), vorrat_wartend: None, uhr, kueche, herd, klang };
     let mut store = Store::new(&engine, zustand);
     let code = lauf(&mut store, &module, args, &opt);
     *senke = std::mem::replace(&mut store.data_mut().senke, Senke::Sammeln(Vec::new()));
@@ -855,6 +867,8 @@ fn lauf(store: &mut Store<Zustand>, module: &Module, args: &[String], opt: &Opti
         })?;
         // Gruppe herd (SPEC §18, HOST-ABI §2): Kern-Exporte als Modul `herd`, dazu `pizza.herd_*` (src/herd.rs).
         crate::herd::binde(&mut linker)?;
+        // Gruppe klang (SPEC §18.8, K-153): Erzeuger-Exporte als Modul `klang`, dazu `pizza.klang_*` (src/klang.rs).
+        crate::klang::binde(&mut linker)?;
         Ok(())
     })();
     if let Err(e) = r {

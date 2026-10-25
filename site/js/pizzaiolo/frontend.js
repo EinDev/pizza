@@ -27,7 +27,7 @@
   const THEKE = new Set(['Theke', 'Schild', 'Knopf', 'Eingabe', 'Haken', 'Stapel', 'Reihe', 'Zutat', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel']);
   const UNTERSTUETZTE_TYPEN = new Set(['salami', 'funghi', 'margherita', 'diavolo', 'Dauer', 'Blech', 'Speisekarte',
     'Teig', 'Lieferung', 'Zustellung', 'Reste', 'Rohling', 'hawaii', 'Theke', 'Zutat', 'Schild', 'Knopf', 'Eingabe',
-    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer', 'Kniff']);
+    'Haken', 'Stapel', 'Reihe', 'Takt', 'Fortschritt', 'Abschnitt', 'Tabelle', 'Reiter', 'Auswahl', 'Tastatur', 'Zettel', 'Zufall', 'Vorratskammer', 'Kniff', 'Klang', 'Spur']);
   // Eingebaute Typen der Referenz, die der Compiler noch nicht kennt → ehrlicher Fallback
   const TYPEN_REFERENZ = new Set((typeof require === 'function' && typeof module === 'object' ? (function () { try { return require('../pizza.js').TYPEN; } catch (e) { return []; } })() : ((typeof self !== 'undefined' && self.PizzaLang && self.PizzaLang.TYPEN) || [])));
   // Herd (SPEC §18): Klassennamen nur für die Importgruppe `herd` – Verhalten und Komponenten kommen zur Laufzeit
@@ -103,6 +103,7 @@
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd' || n.obj.n === 'Bildchen')) this.herdStatisch.add(n.obj.n);
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && n.obj.n === 'Klang') this.klangStatisch = true;   // K-153: Gruppe klang
         if (n.k === 'Name' && (n.n === 'Kiste' || n.n === 'Bildchen')) this.nutztKiste = true;   // Kiste/Bildchen.laden: Datensegment nötig
         if ((n.k === 'MCall' || n.k === 'Mem') && (n.name === 'echt' || n.name === 'zone')) this.nutztEcht = true;   // K-154: zone_ms in Gruppe echtzeit
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
@@ -231,6 +232,7 @@
       // Startprüfung des Interpreters (gleiche Funktion, gleiche Reihenfolge); danach die Teigmenge (P0020, SPEC §18.5)
       const sp = PL.intern.startpruefung(this.ast);
       this.herdPflicht = sp.herdNoetig;
+      this.klangPflicht = sp.klangNoetig;
       let startfehler = null;
       if (sp.fehler) startfehler = { code: sp.fehler.code, text: sp.fehler.text, pos: this.pos({ z: sp.fehler.zeile, s: sp.fehler.spalte, di: sp.fehler.d || 0 }) };
       const projekt = this.projektIR();
@@ -298,7 +300,7 @@
         format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler: null,
         registrierung: reg, methoden: this.methodenListe.map(m => ({ art: m.art, klasse: m.klasse === undefined ? null : m.klasse, name: m.name })),
         globale: Array.from(this.globaleNamen.keys()), schiebNamen: Array.from(this.schiebNamen),
-        gruppen: this.gruppen(), herdNoetig: this.herdNoetig(), globaleFunktionen: Array.from(this.globalFnNamen),
+        gruppen: this.gruppen(), herdNoetig: this.herdNoetig(), klangNoetig: !!this.klangPflicht, globaleFunktionen: Array.from(this.globalFnNamen),
         funktionen: this.funktionen, vorbereiten: vorb, oben: oben.id,
         globalInfos: Object.fromEntries(Array.from(this.globalInfos ? this.globalInfos.entries() : []).map(([n, g]) => [n, { typ: g.typ, gebacken: g.gebacken }])),
         projekt,
@@ -323,6 +325,7 @@
       if (this.nutztBrigade) g.push('kueche');
       if (this.herdNoetig() || Array.from(this.neuTypen).some(t => HERD_TYPEN.has(t) && !this.klassenNamen.has(t))
         || Array.from(this.herdStatisch).some(t => !this.klassenNamen.has(t))) g.push('herd');
+      if (this.klangPflicht || (this.klangStatisch && !this.klassenNamen.has('Klang'))) g.push('klang');   // K-153
       return g;
     }
 

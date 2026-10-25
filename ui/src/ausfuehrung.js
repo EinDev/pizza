@@ -51,7 +51,7 @@ export function reiheUiEreignisEin(schlange, ereignis) {
   return schlange;
 }
 
-export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat, beiHerd }) {
+export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, beiMotor, beiEingabeAnfrage, beiEingabeEnde, beiUi, beiVorrat, beiHerd, beiKlang }) {
   let worker = null, laeuft = false, start = 0, laufId = 0;
   let uiWartet = false, uiSchlange = [];
   let sab = null, wartet = false, wartezeit = 0, warteBeginn = 0;
@@ -108,6 +108,8 @@ export function erstelleAusfuehrung({ beiEreignis, beiStart, beiEnde, beiPanik, 
     if (ev.typ === "motor") { beiMotor && beiMotor(ev); return; }
     if (ev.typ === "ui") { beiUi && beiUi(ev.nachricht); return; }
     if (ev.typ === "herd") { beiHerd && beiHerd(ev); return; }   // fenster/schliesse (Bilder gehen direkt an den Render-Worker)
+    // Klang (K-153): Ereignisse, PCM (einmal je Klang) und Hörer je Bild an die Wiedergabe – nicht in die Konsole
+    if (ev.typ === "klang" || ev.typ === "klang-pcm" || ev.typ === "klang-hoerer") { beiKlang && beiKlang(ev); return; }
     if (ev.typ === "vorrat-speichern") { beiVorrat && beiVorrat(ev.name, ev.eintraege); return; }
     if (ev.typ === "ui-warte") {
       if (!sab) return;

@@ -67,9 +67,9 @@ function startpruefung(ast) {
   try {
     for (const d of ast.body) if (DEKL.has(d.k)) L.registriere(d);
     L.pruefe();
-    return { fehler: null, herdNoetig: !!L.herdNoetig };
+    return { fehler: null, herdNoetig: !!L.herdNoetig, klangNoetig: !!L.klangNoetig };
   } catch (e) {
-    if (e instanceof PizzaFehlerSig) return { fehler: { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte, d: e.d || 0 }, herdNoetig: !!L.herdNoetig };
+    if (e instanceof PizzaFehlerSig) return { fehler: { code: e.code, text: 'PizzaFehler ' + e.code + ': ' + e.text, zeile: e.zeile, spalte: e.spalte, d: e.d || 0 }, herdNoetig: !!L.herdNoetig, klangNoetig: !!L.klangNoetig };
     throw e;
   }
 }
@@ -100,6 +100,7 @@ return {
     STANDARD_LIMIT,
     UI_STIL: JSON.parse(JSON.stringify(UI_STIL)),
     HERD_TYPEN: HERD_KLASSEN.concat(HERD_KOMPONENTEN),
+    KLANG_TYPEN: KLANG_KLASSEN.slice(),
     WINKEL: Object.assign({}, WINKEL),  // K-137: Winkelfunktionen (Bitgleichheitstest gegen die Wasm-Laufzeit)
     LOGEXP: Object.assign({}, LOGEXP)   // U-72: log/log10/log2/exp (ebenso)
   }

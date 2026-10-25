@@ -913,6 +913,17 @@ export async function herdEreignisse(page) {
 }
 export const herdKanonisch = (liste) => liste.map(kanonisch);
 
+// ---------------------------------------------------------------- Klang (H-K14, K-153)
+/** pruefung/klang-erwartet eines Beispiels (JSON-Lines der klang-Ereignisse ohne typ) oder null. */
+export function klangErwartet(b) {
+  return b.leser ? b.leser.klangErwartet : null;
+}
+/** Alle klang-Ereignisse des Laufs (ohne typ), kanonisch – zum Vergleich mit klangErwartet(b) (herdKanonisch für die Soll-Liste). */
+export async function klangEreignisse(page) {
+  const ist = await page.evaluate(() => (window.__ereignisse || []).filter((e) => e.typ === "klang").map((e) => { const o = { ...e }; delete o.typ; return o; }));
+  return ist.map(kanonisch);
+}
+
 /**
  * Herd-Programm backen und .ereignisse deterministisch nachspielen (wie die Theke): Im Modus window.__herdManuell schreibt
  * nicht der Zeichner die Takte, sondern der Test (window.__herdTakt) – je Takt wird gewartet, bis das Programm ein Bild

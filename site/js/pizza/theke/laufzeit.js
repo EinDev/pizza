@@ -17,6 +17,7 @@ class LaufzeitTheke {
         t.gezeigt = false;
       }
       this.herdEnde();
+      this.klangEnde();   // Klang (K-153): noch gesammelte Ereignisse hinaus
     }
   }
 

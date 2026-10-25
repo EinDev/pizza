@@ -131,6 +131,7 @@
   function gruppenMeldung(fehlend) {
     if (!fehlend || !fehlend.length) return '';
     if (fehlend.indexOf('herd') >= 0) return 'Herd-Spiele lassen sich noch nicht als EXE exportieren – im Playground und per App-Link laufen sie schon.';
+    if (fehlend.indexOf('klang') >= 0) return 'Programme mit Klang lassen sich mit diesem EXE-Host noch nicht exportieren – im Playground und per App-Link laufen sie schon.';
     return 'Dieses Programm braucht ' + (fehlend.length > 1 ? 'die Funktionen ' : 'die Funktion ') +
       fehlend.map(function (g) { return '„' + g + '“'; }).join(', ') +
       ', die die EXE-Version noch nicht kann – im Playground und per App-Link läuft es schon.';

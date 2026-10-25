@@ -1251,6 +1251,33 @@
             { art: "ausgabe", text: z("weg nach 9 Takten", "[Pendel@1] x = 197") },
             { art: "text", md: "Ein ganzes Spiel ist **Kniffe** unter *Beispiele → Herd*: Der Bote, die Münzen, eine Olive auf Streife und eine Tomate, die ihn verfolgt, sind je eine Kniff-Klasse; ein Taster mit `beimKlick` streut neue Münzen aus." }
           ]
+        },
+        {
+          art: "details",
+          titel: "Klang: Töne, Geräusche, Musik und Raum",
+          inhalt: [
+            { art: "text", md: "**`Klang`** erzeugt Klänge – auch ohne Herd: `Klang.ton(frequenz, dauer, welle: \"sinus\")` (Wellen `sinus`, `rechteck`, `saege`, `dreieck`, `rauschen`; mit `bis:` gleitet die Tonhöhe), `Klang.rauschen(dauer, art: \"rosa\")` (`weiss`, `rosa`, `braun` – Regen, Wind, Stadt), `Klang.noten(\"C4 E4 G4:2 - C5\", tempo: 120)` (deutsche Notennamen mit `H`, `#`/`b`, `:n` Viertel, `-` Pause) und `Klang.stille(d)`. Jede Formung liefert einen **neuen** Klang: `huelle(anschlag, abfall, halten, ausklang)`, `tiefpass(hz)`, `hochpass(hz)`, `verstaerke(f)`, `mische(anderer, ab: s)`, `dann(anderer)`, `wiederhole(n)` und `nahtlos(ueberblendung)` für Schleifen ohne Knacken." },
+            { art: "text", md: "`k.spiele(lautstaerke: 1, schleife: nein, tonhoehe: 1, panorama: 0)` startet eine **`Spur`**: `stoppe()`, `laeuft()`, `setzeLautstaerke`, `setzeTonhoehe`, `setzePanorama` – und mit `setzeLage(x, y, z)` klingt sie im Raum: Der Hörer ist die Kamera des Herds, leiser mit dem Abstand (bis `setzeReichweite(r)` still), links/rechts nach der Blickrichtung, entfernt dumpfer. Die Zeit ist simuliert (mit Herd die Bildzeit), `beimEnde(fn)` meldet im Spiel das Ende einer Spur. Im Browser setzt der Ton mit dem ersten Klick ein; der Lautsprecher im Fensterkopf schaltet stumm." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Klang ping = Klang.ton(880, 0.15, welle: \"dreieck\", bis: 1320);",
+                "Klang regen = Klang.rauschen(2, art: \"rosa\").tiefpass(1500).nahtlos(0.2);",
+                "Klang melodie = Klang.noten(\"C4 E4 G4 C5:2\", tempo: 160);",
+                "Spur s = regen.spiele(schleife: ja, lautstaerke: 0.4);",
+                "s.setzeLage(3, 0, -5).setzeReichweite(25);",
+                "Spur m = melodie.spiele();",
+                "ping.spiele(panorama: -0.5);",
+                "Bote.sage((ping.dauer() + \" s, Melodie \" + melodie.dauer() + \" s\"));",
+                "Uhr.vorspulen(2s);",
+                "Bote.sage((m.laeuft() + \" \" + s.laeuft()));"
+              )
+            },
+            { art: "ausgabe", text: z("0.15 s, Melodie 1.875 s", "nein ja") },
+            { art: "text", md: "Die Samples sind in jedem Motor **bitgleich** (Interpreter, Wasm, nativ); das Hörbare macht die Wiedergabe – im Browser WebAudio, nativ das Audiogerät (Windows `waveOut`, Linux ALSA). Zum Ausprobieren: **Pizza-Klavier** und die Klangkulisse von **Neon-Napoli** unter *Beispiele → Herd*." }
+          ]
         }
       ]
     }

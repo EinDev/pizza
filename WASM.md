@@ -109,6 +109,10 @@ die Importgruppe `herd` an (HOST-ABI §2). Der JS-Host bindet sie direkt an die 
 in Node `site/js/herd/kern.wasm`); `onHerd(art, daten)` wie im Interpreter. **Kniffe** (H-K13, K-152) leben ganz in der Laufzeit
 (`herd.rs`, Abschnitt Kniff; Zustand je Objekt über das Feld `Obj.kniff`): die Basisklasse `Kniff` ist Laufzeitklasse 16, eigene Klassen
 beginnen bei 17 (IR.md §1); Ablauf und Kern-Aufrufe der Kniff-Phase sind dieselben wie im Interpreter (`site/js/pizza/herd/kniff.js`).
+**Klang** (SPEC §18.8, H-K14, K-153): ein statisches `Klang.…` (ohne eigene Klasse `Klang`) fordert die Importgruppe `klang` an; die
+Laufzeit (`laufzeit/src/klang.rs`) bildet `Klang` und `Spur` ab und spricht den Erzeuger über Modul `klang` (= Exporte von
+`klang.wasm`) und `pizza.klang_*` an. Der JS-Host bindet eine `klang.wasm`-Instanz je Lauf (`optionen.klangKern`, in Node
+`site/js/herd/klang.wasm`) und ruft `onKlang(art, daten)` vor dem Ereignis (bei `spiele` mit der PCM) – wie der Interpreter.
 `faehigkeiten` ist die maschinenlesbare Auskunft für Harnische und UI: `laufOptionen` = vom JS-Host ausgewertete
 `optionen`-Felder, `importgruppen` = HOST-ABI §2, `features` = Sprachbereiche, die ohne Fallback kompiliert werden
 (Programme mit anderen Konstrukten melden weiterhin `nichtUnterstuetzt`).

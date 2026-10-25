@@ -108,6 +108,8 @@ class LaufzeitKueche {
     if (v instanceof HerdKomp) return 'Eine Komponente';
     if (v instanceof HerdForm) return 'Eine Form';
     if (v instanceof HerdBildchen) return 'Ein Bildchen';
+    if (v instanceof KlangObj) return 'Ein Klang';
+    if (v instanceof KlangSpur) return 'Eine Spur';
     return null;
   }
   // Tiefe Kopie in den Karton (Teilung/Zyklen über memo); wirft KartonFehler. Ruft nie alsText(), 0 Schritte.

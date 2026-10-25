@@ -134,7 +134,16 @@ MITGLIEDER.Bildchen = ["laden"];   // SPEC §18.5 (PD2)
 /** Kniff (H-K13): Basisklasse `erbt Kniff`, `teil()` und die überschreibbaren Rückrufe. */
 export const KNIFF_METHODEN = ["teil", "start", "takt", "beimBetreten", "beimVerlassen", "beimKlick", "beimEntfernen"];
 TYPEN.add("Kniff");
-for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN, ...KNIFF_METHODEN]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
+// Klang (H-K14, SPEC §18.8): statisch Klang.ton/rauschen/stille/noten, Methoden von Klang und Spur, Wellen und Rauscharten
+MITGLIEDER.Klang = ["ton", "rauschen", "stille", "noten"];
+export const KLANG_METHODEN = ["huelle", "tiefpass", "hochpass", "verstaerke", "mische", "dann", "wiederhole", "nahtlos", "dauer", "spiele",
+  "stoppe", "laeuft", "lautstaerke", "setzeLautstaerke", "tonhoehe", "setzeTonhoehe", "panorama", "setzePanorama", "setzeLage",
+  "reichweite", "setzeReichweite", "klang", "beimEnde"];
+export const KLANG_WELLEN = ["sinus", "rechteck", "saege", "dreieck", "rauschen", "weiss", "rosa", "braun"];
+TYPEN.add("Klang");
+TYPEN.add("Spur");
+BUILTINS.add("Klang");
+for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN, ...KNIFF_METHODEN, ...KLANG_METHODEN]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
 
 /** Ergänzt Typen, Methoden, Grundformen und Palette aus dem Herd-Schema (site/js/herd/schema.json). */
 export function herdSchemaErgaenzen(schema) {

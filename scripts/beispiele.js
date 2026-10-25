@@ -10,14 +10,14 @@
  *                                           und --pruefe nur noch `ordner`; ein alter Eintrag ist ein Fehler)
  *
  * Zielstruktur: site/beispiele/<kategorie>/<projekt>/{pizza.json, hauptgang.pizza, …, pruefung/{erwartet, eingabe, ereignisse,
- * ui-erwartet, herd-erwartet, vorrat.json, exitcode}}; Manifest-Eintrag mit `ordner` + `dateien` (ohne pruefung/).
+ * ui-erwartet, herd-erwartet, klang-erwartet, vorrat.json, exitcode}}; Manifest-Eintrag mit `ordner` + `dateien` (ohne pruefung/).
  *
  * Als Modul (CommonJS; aus ESM per Default-Import):
  *   const B = require('scripts/beispiele.js');
  *   B.leseBeispiele() → [Beispiel]  (Einträge mit `ordner`)
  *   Beispiel: { teil, kategorie, eintrag, id, titel, name, format, ordner, ordnerPfad, dateien, hauptdatei, hauptdateiPfad,
  *               hauptdateiUrl, quelle, projekt, programm, exitCode, optionen, pruefPfad(art), pruefText(art), erwartet, eingabe,
- *               ereignisse, uiErwartet, herdErwartet, vorrat, laufOptionen() }
+ *               ereignisse, uiErwartet, herdErwartet, klangErwartet, vorrat, laufOptionen() }
  *   B.pruefe() → [Fehlertext]   B.leseOrdner(abs) → { pfad → Text | Uint8Array }   B.findeProjekt(datei) → Wurzel | null
  */
 'use strict';
@@ -43,6 +43,7 @@ const PRUEF_ARTEN = [
   { art: 'ereignisse', feld: 'ereignisse', endung: '.ereignisse' },
   { art: 'ui-erwartet', feld: 'uiErwartet', endung: '.ui-erwartet' },
   { art: 'herd-erwartet', feld: 'herdErwartet', endung: '.herd-erwartet' },
+  { art: 'klang-erwartet', feld: 'klangErwartet', endung: '.klang-erwartet' },
   { art: 'vorrat.json', feld: 'vorrat', endung: '.vorrat.json' },
   { art: 'vorrat-erwartet', feld: null, endung: '.vorrat-erwartet' },
   { art: 'exitcode', feld: null, endung: '.exitcode' },
@@ -198,6 +199,7 @@ function beispiel(teil, kategorie, b, basis = BSP) {
     get ereignisse() { return nurWenn(pruefText('ereignisse'), jsonZeilen); },
     get uiErwartet() { return nurWenn(pruefText('ui-erwartet'), jsonZeilen); },
     get herdErwartet() { return nurWenn(pruefText('herd-erwartet'), jsonZeilen); },
+    get klangErwartet() { return nurWenn(pruefText('klang-erwartet'), jsonZeilen); },
     get vorrat() { return nurWenn(pruefText('vorrat.json'), JSON.parse); },
     /** Optionen für PizzaLang.run: Manifest-Laufoptionen + eingabe/uiEreignisse/vorrat aus den Testdateien. */
     laufOptionen() {

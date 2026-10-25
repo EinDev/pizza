@@ -47,6 +47,51 @@
     }
     return herdStandard;
   }
+  // ---------- Klang (HOST-ABI §2, Gruppe klang, K-153): Erzeuger-Modul laden ----------
+  const KLANG_FEHLT = 'PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang.wasm).';
+  let klangStandard;                         // undefined: noch nicht versucht · null: nicht vorhanden · Module
+  const klangCache = new WeakMap();
+  /** optionen.klangKern (WebAssembly.Module oder Bytes) bzw. in Node site/js/herd/klang.wasm → neue Instanz (Exporte) oder null */
+  function klangInstanz(k) {
+    let m = null;
+    if (k !== undefined && k !== null) {
+      if (k instanceof WebAssembly.Module) m = k;
+      else if (typeof k === 'object') {
+        m = klangCache.get(k);
+        if (m === undefined) { try { m = new WebAssembly.Module(k); } catch (e) { m = null; } klangCache.set(k, m); }
+      }
+    } else {
+      if (klangStandard === undefined) {
+        klangStandard = null;
+        // HERD-NODE-ANFANG – nur Node; im Browser übergibt der Worker optionen.klangKern
+        if (typeof require === 'function' && typeof __dirname === 'string') {
+          try { klangStandard = new WebAssembly.Module(require('fs').readFileSync(require('path').join(__dirname, '..', 'herd', 'klang.wasm'))); } catch (e) { klangStandard = null; }
+        }
+        // HERD-NODE-ENDE
+      }
+      m = klangStandard;
+    }
+    if (m === null) return null;
+    try {
+      const e = new WebAssembly.Instance(m, {}).exports;
+      return typeof e.abi_version === 'function' && e.abi_version() === 1 && typeof e.ton === 'function' ? e : null;
+    } catch (e) { return null; }
+  }
+  function brauchtKlang(modul) {
+    if (modul instanceof WebAssembly.Module) return WebAssembly.Module.imports(modul).some(i => i.module === 'klang');
+    return Array.isArray(modul.gruppen) ? modul.gruppen.includes('klang') : WebAssembly.Module.imports(modul.programm).some(i => i.module === 'klang');
+  }
+  const klangStubs = new WeakMap();          // Laufzeit-Modul → Platzhalter für Modul „klang“ (Programme ohne Gruppe klang)
+  function klangPlatzhalter(modul) {
+    let s = klangStubs.get(modul);
+    if (s === undefined) {
+      s = {};
+      for (const im of WebAssembly.Module.imports(modul)) if (im.module === 'klang') s[im.name] = () => { throw new Error('Klang-Erzeuger nicht geladen (klang.' + im.name + ')'); };
+      klangStubs.set(modul, s);
+    }
+    return s;
+  }
+
   /** neue Kern-Instanz (eine Welt je Lauf) oder null */
   function herdInstanz(k) {
     const m = herdModul(k);
@@ -102,6 +147,11 @@
     const herdAnsicht = optionen.herdAnsicht === true;   // daten.bytes als Ansicht in den Kern-Speicher (nur während onHerd gültig)
     let kernU8 = null;
     const kernMem = () => { const b = kern.memory.buffer; if (kernU8 === null || kernU8.buffer !== b) kernU8 = new Uint8Array(b); return kernU8; };
+    // Klang (K-153): Erzeuger-Instanz nur für Programme mit Gruppe klang; Exporte direkt als Modul „klang“
+    const klang = brauchtKlang(modul) ? klangInstanz(optionen.klangKern) : null;
+    const onKlang = typeof optionen.onKlang === 'function' ? optionen.onKlang : null;
+    let klangU8 = null;
+    const klangMem = () => { const b = klang.memory.buffer; if (klangU8 === null || klangU8.buffer !== b) klangU8 = new Uint8Array(b); return klangU8; };
     // Renderer-Ereignisse (Theke ui_warte und Herd herd_warte teilen dieselbe Quelle: onUiWarte / uiEreignisse)
     const warte = (bp, kap) => {
       if (kap < 0) return (typeof optionen.onUiWarte === 'function' || Array.isArray(optionen.uiEreignisse)) ? 1 : 0;
@@ -234,16 +284,37 @@
           try { onHerd(art, daten); } catch (x) { /* Renderer-Fehler ignorieren */ }
         }
       },
+      // Gruppe klang (HOST-ABI §2, K-153): Erzeuger da? (pflicht = 1 und fehlt → HOST-Fehler wie im Interpreter)
+      klang_kern: (pflicht) => {
+        if (klang !== null) return 1;
+        if (pflicht === 1) emit({ typ: 'fehler', code: 'HOST', art: 'intern', text: KLANG_FEHLT, datei: null, zeile: null, spalte: null });
+        return 0;
+      },
+      klang_schreibe: (kp, pp, n) => { klangMem().set(mem().subarray(pp, pp + n), kp); },
+      klang_lies: (pp, kp, n) => { mem().set(klangMem().subarray(kp, kp + n), pp); },
+      // Ereignis (JSON ohne typ): zuerst onKlang (bei klang > 0 mit der PCM des Klangs), dann das Ereignis – PCM nie in der Liste
+      klang_senden: (p, n, id) => {
+        const daten = JSON.parse(t(p, n));
+        const art = daten.art;
+        delete daten.art;
+        if (onKlang !== null) {
+          const d = Object.assign({}, daten);
+          if (id > 0 && klang !== null) { const z = klang.pcm(id); d.bytes = klangMem().slice(z, z + klang.pcm_laenge(id)); }
+          try { onKlang(art, d); } catch (x) { /* Wiedergabe-Fehler ignorieren */ }
+        }
+        emit(Object.assign({ typ: 'klang', art }, daten));
+      },
     };
+    const klangImporte = klang !== null ? klang : klangPlatzhalter(laufzeitModul);
     // Modul „herd“: die Exporte von kern.wasm direkt (numerische Aufrufe ohne JS dazwischen); ohne Kern Platzhalter
     const herd = kern !== null ? kern : herdPlatzhalter(laufzeitModul);
     let e, startFn;
     if (modul instanceof WebAssembly.Module) {
-      inst = new WebAssembly.Instance(modul, { pizza, herd });
+      inst = new WebAssembly.Instance(modul, { pizza, herd, klang: klangImporte });
       e = inst.exports;
       startFn = e.start;
     } else {
-      inst = new WebAssembly.Instance(modul.laufzeit, { pizza, herd });
+      inst = new WebAssembly.Instance(modul.laufzeit, { pizza, herd, klang: klangImporte });
       e = inst.exports;
       const tab = e.__indirect_function_table;
       if (modul.tabellenZuwachs) tab.grow(modul.tabellenZuwachs);

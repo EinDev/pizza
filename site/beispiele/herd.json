@@ -194,6 +194,16 @@
       "herd": true
     },
     {
+      "id": "klavier",
+      "titel": "Pizza-Klavier: Klang mit Tastern",
+      "beschreibung": "Acht Klaviertasten von C4 bis C5 zum Anklicken (Taster) oder mit A S D F G H J K: Jede Taste ist ein Klang aus Dreieck und Oktave mit Hüllkurve, tief links und hoch rechts im Panorama. „Tarantella“ spielt eine Melodie aus Klang.noten, „Brummen“ einen Bordun als Schleife.",
+      "ordner": "herd/klavier",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Klang", "Noten", "Taster", "Maus", "Tastatur"],
+      "herd": true
+    },
+    {
       "id": "kniffe",
       "titel": "Kniffe: Spielfiguren als eigene Klassen",
       "beschreibung": "Der Pizzabote sammelt Münzen, eine Olive läuft Streife und eine Tomate verfolgt ihn. Jede Figur ist eine eigene Klasse, die von Kniff erbt und ihr Verhalten mitbringt: takt() je Bild, beimBetreten aus dem Fühler, beimKlick aus dem Taster, beimEntfernen beim Einsammeln.",

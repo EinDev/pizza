@@ -192,6 +192,8 @@
       if (ir.startfehler) { const sf = ir.startfehler; c.i32(this.text(sf.code)).i32(this.text(sf.text)).i32(sf.pos); call('rt_startfehler'); }
       // Herd: Gruppe herd → rt_lauf lädt das Schema nach den Startfehlern; herdNoetig (K-128) → Kern ist Pflicht (pizza.herd_kern(1))
       if ((ir.gruppen || []).includes('herd')) { c.i32(ir.herdNoetig ? 1 : 0); call('rt_herd_noetig'); }
+      // Klang (K-153): Gruppe klang → klangNoetig = Erzeuger ist Pflicht (pizza.klang_kern(1))
+      if ((ir.gruppen || []).includes('klang')) { c.i32(ir.klangNoetig ? 1 : 0); call('rt_klang_noetig'); }
       if (pj && pj.spaetfehler) { c.i32(this.text(pj.spaetfehler.code)).i32(this.text(pj.spaetfehler.text)); call('rt_spaetfehler'); }
       // globale Funktionsvariablen
       const gnamen = ir.globale || [];

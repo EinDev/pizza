@@ -35,6 +35,7 @@ const OPTIONEN: &str = "Optionen:
                        --ui-ereignisse Takte bis Bild 60 bzw. bis zur höchsten Nummer aus --herd-nur
   --herd-nur=n,m       mit --herd-bilder: nur diese Bildnummern speichern
   --herd-messung       Herd: je Sekunde Bildzeit, Anteil Programm/Kern/Glut, Draw-Calls, Instanzen auf stderr
+  --klang-datei=x.wav  Klang: statt über das Gerät in eine WAV-Datei (48 kHz, stereo; mit Herd im Takt der Bilder)
   --hilfe              diese Hilfe
   --version            Version anzeigen
   --                   Ende der Optionen: alles danach geht unverändert an hauptgang(args)
@@ -101,6 +102,8 @@ struct Aufruf {
     herd_nur: Option<Vec<u64>>,
     /// `--herd-messung`.
     herd_messung: bool,
+    /// `--klang-datei=x.wav`: Klang in eine Datei statt über das Gerät.
+    klang_datei: Option<PathBuf>,
 }
 
 /// Zahl wie JS `Number(text)` (für `--saat`/`--echtzeit`, wie bin/pizza.js): leer → 0, ungültig → NaN.
@@ -184,6 +187,12 @@ fn lies_aufruf(argv: Vec<String>, eingebettet: bool) -> Result<Aufruf, ExitCode>
                 }
                 "--ereignisse-json" => a.json = true,
                 "--herd-messung" => a.herd_messung = true,
+                s if s.starts_with("--klang-datei=") => {
+                    if s.len() == 14 {
+                        return fehler("--klang-datei braucht einen Dateinamen.");
+                    }
+                    a.klang_datei = Some(PathBuf::from(&s[14..]));
+                }
                 s if s.starts_with("--herd-bilder=") => {
                     if s.len() == 14 {
                         return fehler("--herd-bilder braucht einen Ordner.");
@@ -388,7 +397,23 @@ fn main() -> ExitCode {
         }
     };
     let herd = HerdAufruf { bilder: a.herd_bilder.take(), nur: a.herd_nur.take(), messung: a.herd_messung };
-    beende(ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke, herd))
+    // Klang (K-153): Datei (`--klang-datei`) oder Gerät – nie in Tests (JSON-Modus, `--ui-ereignisse`, `--herd-bilder`,
+    // `PIZZA_KLANG=0`); ein fehlendes Gerät meldet die Wiedergabe einmal und das Programm läuft stumm weiter.
+    let klang = if !laufen::braucht_klang(&pkarton) {
+        None
+    } else if let Some(p) = a.klang_datei.take() {
+        Some(pizzahost::wiedergabe::Wiedergabe::datei(p))
+    } else if json || opt.ui.is_some() || herd.bilder.is_some() || std::env::var("PIZZA_KLANG").map(|v| v == "0").unwrap_or(false) {
+        None
+    } else {
+        Some(pizzahost::wiedergabe::Wiedergabe::geraet())
+    };
+    opt.klang = klang.clone();
+    let code = ausfuehren(pkarton, ist_exe, debug, a.args, opt, senke, herd);
+    if let Some(w) = klang {
+        w.ende();
+    }
+    beende(code)
 }
 
 /// Herd-Optionen der Kommandozeile.

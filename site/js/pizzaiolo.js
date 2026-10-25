@@ -248,11 +248,11 @@
     abi: 2,
     laufOptionen: Object.freeze(['args', 'schrittLimit', 'speicherMiB', 'onEvent', 'eingabe', 'onEingabe', 'zufallsSaat',
       'vorrat', 'onVorrat', 'echtzeit', 'zone', 'uiEreignisse', 'onUi', 'onUiWarte', 'motor', 'koeche', 'kuechenChaos', 'herdKern', 'onHerd',
-      'herdAnsicht', 'teiglinge', 'vorbacker']),
-    importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit', 'kueche', 'herd']),
+      'herdAnsicht', 'klangKern', 'onKlang', 'teiglinge', 'vorbacker']),
+    importgruppen: Object.freeze(['basis', 'theke', 'vorrat', 'echtzeit', 'kueche', 'herd', 'klang']),
     features: Object.freeze(['theke', 'theke-v2', 'takt', 'zufall', 'vorratskammer', 'zahlformat', 'uhr-echt', 'uhr-zone',
-      'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv', 'brigade', 'herd', 'projekte', 'kiste', 'bildchen-laden']),
-    ereignisse: Object.freeze(['ausgabe', 'fehlerausgabe', 'leeren', 'warnung', 'fehler', 'panik', 'eingabe', 'ui', 'vorrat', 'herd', 'motor', 'ende']),
+      'schrittlimit-je-rueckruf', 'eingabe', 'interaktiv', 'brigade', 'herd', 'projekte', 'kiste', 'bildchen-laden', 'klang']),
+    ereignisse: Object.freeze(['ausgabe', 'fehlerausgabe', 'leeren', 'warnung', 'fehler', 'panik', 'eingabe', 'ui', 'vorrat', 'herd', 'klang', 'motor', 'ende']),
     motoren: Object.freeze(['auto', 'wasm', 'interpreter']),
   });
 

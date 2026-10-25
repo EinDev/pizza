@@ -224,7 +224,7 @@ pub fn pruefe_typ(typ: u32, v: W, name: u32) -> bool {
         }
         _ => {
             if klasse_eintrag(typ).is_none() {
-                if let Some(ok) = crate::theke::typ_passt(typ, v).or_else(|| crate::herd::typ_passt(typ, v)) {
+                if let Some(ok) = crate::theke::typ_passt(typ, v).or_else(|| crate::herd::typ_passt(typ, v)).or_else(|| crate::klang::typ_passt(typ, v)) {
                     if v == KARTON || ok { return true; }
                     let mut t = Tb::neu();
                     t.s("'").name(name).s("' ist ").name(typ).s(", aber der Wert ");

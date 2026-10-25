@@ -1,6 +1,7 @@
 pub mod anzeige;
 pub mod ereignis;
 pub mod herd;
+pub mod klang;
 #[cfg(feature = "herd")]
 pub mod herd_fenster;
 pub mod karton;
@@ -8,6 +9,7 @@ pub mod konsole;
 pub mod kueche;
 pub mod laufen;
 pub mod ortszeit;
+pub mod wiedergabe;
 #[cfg(feature = "theke")]
 pub mod theke;
 #[cfg(all(feature = "starter", target_os = "linux"))]

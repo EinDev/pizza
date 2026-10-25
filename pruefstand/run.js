@@ -79,6 +79,10 @@ function kanon(x) {
 function herdEreignisse(res) {
   return (res.ereignisse || []).filter((e) => e.typ === "herd").map((e) => { const o = Object.assign({}, e); delete o.typ; return o; });
 }
+// Klang (SPEC §18.8, K-153): klang-Ereignisse ohne typ (pruefung/klang-erwartet)
+function klangEreignisse(res) {
+  return (res.ereignisse || []).filter((e) => e.typ === "klang").map((e) => { const o = Object.assign({}, e); delete o.typ; return o; });
+}
 function uiNachrichten(res) {
   return (res.ereignisse || []).filter((e) => e.typ === "ui").map((e) => e.nachricht);
 }
@@ -158,6 +162,10 @@ function bewerte(f, res) {
     const ist = herdEreignisse(res);
     if (kanon(ist) !== kanon(f.herd)) err.push("herd-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.herd.map(kanon).join("\n"));
   }
+  if (f.klang !== undefined) {
+    const ist = klangEreignisse(res);
+    if (kanon(ist) !== kanon(f.klang)) err.push("klang-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.klang.map(kanon).join("\n"));
+  }
   if (f.vorratEreignisse !== undefined) {
     const ist = (res.ereignisse || []).filter((e) => e.typ === "vorrat").map((e) => ({ name: e.name, schluessel: e.schluessel, wert: e.wert }));
     if (kanon(ist) !== kanon(f.vorratEreignisse)) err.push("vorrat-Ereignisse weichen ab:\n--- ist ---\n" + ist.map(kanon).join("\n") + "\n--- soll ---\n" + f.vorratEreignisse.map(kanon).join("\n"));
@@ -219,6 +227,7 @@ function beispielFälle() {
     if (ev) f.uiEreignisse = ev;
     if (ue) f.ui = ue;
     if (he) f.herd = he;
+    if (b.klangErwartet) f.klang = b.klangErwartet;   // klang-erwartet: SPEC §18.8 / K-153
     // Manifestfelder feste Wanduhr/Zeitzone (K-087/K-154) wie tests/run-tests.js
     if (typeof b.optionen.echtzeit === "number") f.echtzeit = b.optionen.echtzeit;
     if (typeof b.optionen.zone === "number") f.zone = b.optionen.zone;

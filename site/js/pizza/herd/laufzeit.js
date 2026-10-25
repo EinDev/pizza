@@ -360,6 +360,7 @@ const HERD_LAUFZEIT = {
   herdSchliesseFenster(h) {
     if (!h.offen) return;
     h.offen = false;
+    this.klangFlush();   // K-153: gesammelte Klang-Ereignisse vor dem Schließen
     this.herdSende('schliesse', {});
   },
   herdBild(h) {
@@ -368,6 +369,7 @@ const HERD_LAUFZEIT = {
     const szene = k.hash(p => e.hash_szene(p));
     const paket = k.hash(p => e.hash_paket(p));
     const daten = { bildnummer: h.bildnummer, szene, paket };
+    this.klangFlush();   // K-153: Klänge dieser Takte starten mit diesem Bild
     if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
       const z = e.bild_zeiger();
       // optionen.herdAnsicht: Ansicht statt Kopie, gültig nur während onHerd (der Worker kopiert sie ins Bildfach)
@@ -444,6 +446,11 @@ const HERD_LAUFZEIT = {
           if (this.kniffAn.size > 0) {
             this.herdRueckruf(h, () => this.kniffPhase(h, node));
             if (!h.offen) return;   // schliesse() in einem Kniff: übrige Kniffe und Bild entfallen
+          }
+          // H-K14 (K-153): Spur.beimEnde nach den Kniffen (Spuren nach Nummer, die bis zu diesem Takt ausgelaufen sind)
+          if (this.klangEnden.length > 0) {
+            this.herdRueckruf(h, () => this.klangEndePhase(h, node));
+            if (!h.offen) return;
           }
         } finally {
           h.erster = false;

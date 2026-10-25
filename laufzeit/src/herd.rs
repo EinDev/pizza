@@ -1113,6 +1113,7 @@ fn schliesse_fenster() {
     let h = welt();
     if !h.offen { return; }
     h.offen = false;
+    crate::klang::flush();   // K-153: gesammelte Klang-Ereignisse vor dem Schließen
     sende(b"{\"art\":\"schliesse\"}", -1);
 }
 fn bild() -> bool {
@@ -1127,6 +1128,7 @@ fn bild() -> bool {
     b.extend_from_slice(b"\",\"paket\":\"");
     b.extend_from_slice(&pa);
     b.extend_from_slice(b"\"}");
+    crate::klang::flush();   // K-153: Klänge dieser Takte starten mit diesem Bild
     sende(&b, len);
     true
 }
@@ -1215,6 +1217,12 @@ fn backe(fw: W, knoten: i32) {
                 kniff_phase(knoten);
                 if !nach_rueckruf() { return; }   // schliesse() in einem Kniff: übrige Kniffe und Bild entfallen
             }
+            // H-K14 (K-153): Spur.beimEnde nach den Kniffen (Spuren nach Nummer, die bis zu diesem Takt ausgelaufen sind)
+            if crate::klang::hat_enden() {
+                welt().im_rueckruf = true;
+                crate::klang::ende_phase(knoten);
+                if !nach_rueckruf() { return; }
+            }
             welt().erster = false;
         }
         if !bild() { return; }
@@ -1222,6 +1230,12 @@ fn backe(fw: W, knoten: i32) {
 }
 /// Programmende (wie K-061): offenes Fenster schließen (nicht bei Panik – der Aufrufer prüft das)
 pub fn ende() { if unsafe { WELT.is_some() } { schliesse_fenster(); } }
+/// Klang (K-153): Bildnummer, wenn es einen Herd gibt (Zeitbasis der Spuren), sonst None
+pub fn bildzeit() -> Option<f64> { unsafe { WELT.as_ref().map(|w| w.bildnummer) } }
+/// Klang: ist das Herd-Fenster offen? (dann warten Klang-Ereignisse auf das nächste Bild)
+pub fn fenster_offen() -> bool { unsafe { WELT.as_ref().map(|w| w.offen).unwrap_or(false) } }
+/// Klang: hat ein Rückruf schliesse() verlangt?
+pub fn schliessen_angefordert() -> bool { unsafe { WELT.as_ref().map(|w| w.schliessen).unwrap_or(false) } }
 
 // ---------------------------------------------------------------- Kniff (H-K13, K-152)
 // Spiegel von site/js/pizza/herd/kniff.js – der Kern kennt keine Kniffe. Bitgleich, daher fest: Teile nach aufsteigender ID,

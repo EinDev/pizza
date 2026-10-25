@@ -1,0 +1,33 @@
+// Klang (K-153): Spuren steuern – ohne Herd zählt die simulierte Uhr des Programms (Uhr.jetzt()), nie das Gerät.
+// Setter sind verkettbar und melden den ganzen Zustand („setze“); eine ausgelaufene oder gestoppte Spur meldet nichts mehr.
+Klang ton = Klang.ton(440, 0.2);
+Spur s = ton.spiele(lautstaerke: 0.8, panorama: 0.25);
+Bote.sage((s + " " + s.id() + " " + s.klang() + " " + s.laeuft() + " " + s.lautstaerke() + " " + s.tonhoehe() + " " + s.panorama() + " " + s.reichweite()));
+s.setzeLautstaerke(0.5).setzePanorama(-0.5);
+salami runden = 0;
+solange (s.laeuft()) { runden++; }
+Bote.sage(("ausgelaufen nach " + runden + " Runden bei " + Uhr.jetzt()));
+s.setzeLautstaerke(1);       // läuft nicht mehr: kein Ereignis
+s.stoppe();                  // ebenso
+Bote.sage((s.laeuft() + " " + s.lautstaerke()));
+
+// Tonhöhe: doppelt so schnell = halb so lang; eine Änderung rechnet den Rest um
+Spur t = ton.spiele(tonhoehe: 2);
+salami r2 = 0;
+solange (t.laeuft()) { r2++; }
+Spur u = ton.spiele();
+Uhr.vorspulen(50ms);
+u.setzeTonhoehe(0.5);
+salami r3 = 0;
+solange (u.laeuft()) { r3++; }
+Bote.sage(("Tonhöhe 2: " + r2 + " Runden, nach Umstellen auf 0.5: " + r3 + " Runden"));
+
+// Schleife läuft, bis sie gestoppt wird; Raum: Lage und Reichweite
+Klang regen = Klang.rauschen(1, art: "rosa").tiefpass(1200).nahtlos(0.1);
+Spur sch = regen.spiele(schleife: ja, lautstaerke: 0.4);
+Uhr.vorspulen(10s);
+sch.setzeLage(3, 1.5, -4).setzeReichweite(12);
+Bote.sage((sch.laeuft() + " " + sch.reichweite()));
+sch.stoppe();
+Bote.sage((sch.laeuft()));
+sch.stoppe();

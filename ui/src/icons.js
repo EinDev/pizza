@@ -57,6 +57,9 @@ const P = {
   pizza: '<path d="M12 3 2.5 19.5A1 1 0 0 0 3.4 21h17.2a1 1 0 0 0 .9-1.5z"/><path d="M4.6 17.5h14.8"/><circle cx="10" cy="13" r="1"/><circle cx="14" cy="15" r="1"/><circle cx="12" cy="9" r="1"/>',
   ananas: '<path d="M12 9c-3 0-5 2.6-5 6.2S9 21 12 21s5-2.2 5-5.8S15 9 12 9z"/><path d="M12 9V6M12 6 9 3M12 6l3-3M12 6l-4 1M12 6l4 1"/><path d="m9.5 12 5 5M14.5 12l-5 5"/>',
   hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  // Klang (K-153): Stummschalter
+  ton: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>',
+  stumm: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
   // Autovervollständigung
   ckeyword: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>',
   cfunction: '<path d="M10 20c1.5 0 2-1 2.4-3l2.2-11c.4-2 .9-3 2.4-3M8 10h8"/>',

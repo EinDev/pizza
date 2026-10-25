@@ -64,6 +64,14 @@ function herdVergleich(soll, ereignisse) {
   return 'herd-Ereignisse weichen ab:\n' + diff(soll.map(x => JSON.stringify(x)).join('\n'), ist.map(x => JSON.stringify(x)).join('\n'));
 }
 
+// Klang (K-153): .klang-erwartet = JSON-Lines der klang-Ereignisse ohne typ, kanonisch (wie .herd-erwartet)
+function klangVergleich(soll, ereignisse) {
+  const ist = ereignisse.filter(e => e.typ === 'klang').map(e => { const o = Object.assign({}, e); delete o.typ; return o; });
+  const a = soll.map(kanonisch).join('\n'), b = ist.map(kanonisch).join('\n');
+  if (a === b) return null;
+  return 'klang-Ereignisse weichen ab:\n' + diff(soll.map(x => JSON.stringify(x)).join('\n'), ist.map(x => JSON.stringify(x)).join('\n'));
+}
+
 function uiVergleich(soll, ereignisse) {
   const ist = ereignisse.filter(e => e.typ === 'ui').map(e => e.nachricht);
   const a = soll.map(kanonisch).join('\n'), b = ist.map(kanonisch).join('\n');
@@ -178,6 +186,7 @@ function faelle() {
     if (ereignisDatei !== null) opt.uiEreignisse = jsonZeilen(ereignisDatei, basis + '.ereignisse');
     const uiErwartet = lies('.ui-erwartet');
     const herdErwartet = lies('.herd-erwartet');
+    const klangErwartet = lies('.klang-erwartet');
     // Vorratskammer (K-080): Eingangszustand .vorrat.json = { name: eintraege }, erwartete vorrat-Ereignisse als JSON-Lines
     const vorratDatei = lies('.vorrat.json');
     if (vorratDatei !== null) opt.vorrat = JSON.parse(vorratDatei);
@@ -209,6 +218,10 @@ function faelle() {
     }
     if (herdErwartet !== null) {
       const u = herdVergleich(jsonZeilen(herdErwartet, basis + '.herd-erwartet'), r.ereignisse);
+      if (u) probleme.push(u);
+    }
+    if (klangErwartet !== null) {
+      const u = klangVergleich(jsonZeilen(klangErwartet, basis + '.klang-erwartet'), r.ereignisse);
       if (u) probleme.push(u);
     }
     if (fehlerDatei !== null) {
@@ -499,6 +512,30 @@ function api() {
     gleich(ohne.exitCode, 0, 'Programme ohne Herd brauchen den Kern nicht');
   });
 
+  test('Klang: TYPEN, onKlang mit PCM vor dem Ereignis, Ereignisse ohne Bytes, klangKern als Modul/Bytes, Erzeuger fehlt', () => {
+    for (const t of ['Klang', 'Spur']) ja(P.TYPEN.includes(t), 'TYPEN fehlt ' + t);
+    gleich(P.intern.KLANG_TYPEN, ['Klang', 'Spur'], 'intern.KLANG_TYPEN');
+    const q = 'Klang k = Klang.ton(440, 0.1);\nSpur s = k.spiele(schleife: ja);\ns.setzeLautstaerke(0.5);\ns.stoppe();\nBote.sage((k + " " + s));';
+    const an = [];
+    const r = P.run(q, { onKlang: (art, d) => an.push([art, d]), onEvent: (e) => { if (e.typ === 'klang') an.push(['>', e.art]); } });
+    gleich(ausgabeText(r.ereignisse), 'Klang(1) Spur(1)\n');
+    gleich(an.map(x => x[0] === '>' ? '>' + x[1] : x[0]), ['spiele', '>spiele', 'setze', '>setze', 'stoppe', '>stoppe'], 'onKlang vor dem Ereignis');
+    ja(an[0][1].bytes instanceof Uint8Array && an[0][1].bytes.length === 9600, 'PCM i16 (0.1 s bei 48 kHz)');
+    ja(an[2][1].bytes === undefined, 'PCM nur bei spiele');
+    const kl = r.ereignisse.filter(e => e.typ === 'klang');
+    gleich(kl.map(e => Object.keys(e).join(',')), ['typ,art,spur,klang,lautstaerke,tonhoehe,panorama,schleife',
+      'typ,art,spur,lautstaerke,tonhoehe,panorama,lage,reichweite', 'typ,art,spur'], 'Felder in fester Reihenfolge');
+    ja(/^[0-9a-f]{16}$/.test(kl[0].klang) && kl[0].klang === an[0][1].klang, 'Hash');
+    const bytes = require('fs').readFileSync(path.join(ROOT, 'site', 'js', 'herd', 'klang.wasm'));
+    gleich(P.run(q, { klangKern: new WebAssembly.Module(bytes) }).ereignisse, P.run(q).ereignisse, 'klangKern als Modul');
+    gleich(P.run(q, { klangKern: new Uint8Array(bytes) }).ereignisse, P.run(q).ereignisse, 'klangKern als Bytes');
+    const f = P.run('Bote.sage(("vorher"));\nKlang.stille(1);', { klangKern: new Uint8Array([0, 1, 2]) });
+    gleich(f.exitCode, 2);
+    gleich(f.ereignisse.filter(e => e.typ !== 'ende'), [{ typ: 'fehler', code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang.wasm).', datei: null, zeile: null, spalte: null }]);
+    gleich(P.run('Bote.sage(("ok"));', { klangKern: new Uint8Array([0, 1, 2]) }).exitCode, 0, 'ohne Klang kein Erzeuger nötig');
+    gleich(P.run('klasse Klang { tiefkühl salami ton() { serviere (7); } }\nBote.sage((Klang.ton()));', { klangKern: new Uint8Array([0]) }).ereignisse[0].text, '7', 'eigene Klasse Klang hat Vorrang');
+  });
+
   test('Theke: onUi/onUiWarte, Ereignis ui, null = geschlossen, Vorrang vor uiEreignisse', () => {
     const q = 'Theke t = neu Theke("T");\nKnopf k = neu Knopf("x", () -> { k.setzeText("y"); });\nt.zeige(k);\nt.bediene();\nBote.sage(("zu"));';
     const gesendet = [];
@@ -770,9 +807,10 @@ function beispiele() {
     } catch (e) { ergebnis('beispiele', name, 'Testdateien/Lauf: ' + e.message); continue; }
     const probleme = [];
     if (r.exitCode !== b.exitCode) probleme.push('Exit-Code ' + r.exitCode + ', erwartet ' + b.exitCode + fehlerZusammenfassung(r));
-    const ui = b.uiErwartet, herd = b.herdErwartet;
+    const ui = b.uiErwartet, herd = b.herdErwartet, klang = b.klangErwartet;
     if (ui !== null) { const u = uiVergleich(ui, r.ereignisse); if (u) probleme.push(u); }
     if (herd !== null) { const u = herdVergleich(herd, r.ereignisse); if (u) probleme.push(u); }
+    if (klang !== null) { const u = klangVergleich(klang, r.ereignisse); if (u) probleme.push(u); }
     const soll = b.erwartet;
     if (soll !== null) {
       const ist = ausgabeText(r.ereignisse);

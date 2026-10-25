@@ -17,6 +17,7 @@ import { erstelleTabs } from "./tabs.js";
 import { erstellePalette } from "./palette.js";
 import { erstelleVorschau } from "./vorschau.js";
 import { erstelleHerdAnzeige, herdLaufVorbereiten, nutztHerd, ladeHerdSchema } from "./herd.js";
+import { klangAnbinden, klangLaufVorbereiten, nutztKlang } from "./klang.js";
 import { zerlegeArgumente, ARGUMENTE_HILFE } from "./argumente.js";
 import { VORRAT, VORRAT_BEISPIEL, vorratPraefix, vorratVerfuegbar, vorratLaden, vorratSpeichern as vorratSchreiben, vorratNamen, vorratEntfernen, vorratSchluessel } from "./vorrat.js";
 import { startApp } from "./app.js";
@@ -222,13 +223,17 @@ async function start() {
     beiZu: () => editor.view.focus(),
   });
   const herd = erstelleHerdAnzeige({ vorschau, beiMeldung: (text) => konsole.system(text, "fehler") });
+  // Klang (K-153): Wiedergabe mit WebAudio, Stummschalter im Kopf des Vorschaufensters
+  const klang = klangAnbinden($("vorschau-ton"));
 
   const ausfuehrung = erstelleAusfuehrung({
     beiUi(n) { vorschau.nachricht(n); },
     beiHerd(ev) { herd.ereignis(ev); },
+    beiKlang(ev) { klang.ereignis(ev); },
     beiVorrat(name, eintraege) { vorratSpeichern(laufVorratPraefix, name, eintraege); },
     beiStart() {
       herd.beenden();
+      klang.start();
       vorschau.beenden();
       konsole.leeren(false);
       konsole.setzeLauf({ laeuft: true, name: laufName });
@@ -243,6 +248,7 @@ async function start() {
       konsole.sofortZeichnen();
       konsole.versteckeEingabe();
       herd.beenden();
+      klang.ende();
       vorschau.beenden();
       knopfBacken.hidden = false;
       knopfAbbr.hidden = true;
@@ -516,6 +522,14 @@ async function start() {
       try { herdLauf = await herdLaufVorbereiten(code); } finally { backenWartet = false; }
       if (ausfuehrung.laeuft) return;
     }
+    // Klang (K-153): klang.wasm (einmal je Seite kompiliert) – nur für Programme mit Klang.…
+    let klangLauf = {};
+    if (nutztKlang(code)) {
+      if (backenWartet) return;
+      backenWartet = true;
+      try { klangLauf = await klangLaufVorbereiten(code); } finally { backenWartet = false; }
+      if (ausfuehrung.laeuft) return;
+    }
     // Bilder (PD1/PD2): vorgebackene Teiglinge aus dem Cache + das Vorbacker-Modul für den Worker (der Interpreter prüft jeden)
     let bildLauf = {};
     const bilder = Object.fromEntries(Object.entries(projekte.alleInhalte()).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
@@ -542,6 +556,7 @@ async function start() {
       vorratAktiv,
       koeche: koecheFuerLauf(leseKoeche()),
       ...(herdLauf ? herdLauf.extra : {}),
+      ...klangLauf,
       ...bildLauf,
       ...festeUhr(),
     });

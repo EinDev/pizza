@@ -129,6 +129,7 @@ class LaufzeitPruefung {
       }
     }
     this.pruefeHerd();
+    this.pruefeKlang();
   }
 
   rezepturMethoden(r, gesehen) {

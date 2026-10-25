@@ -17,6 +17,9 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `teigling/` (`herd-teigling`, `no_std` + `alloc`, nur `miniz_oxide`) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), nur Ganzzahlen; Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
 | `teigling/wasm/` (`herd-teigling-wasm`) | Wasm-Hülle `site/js/herd/teigling.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
 | `test-teigling.js` | Bitgleich-Test Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4) |
+| `klang/` (`herd-klang`, `no_std` + `alloc` + `libm`) | **Klang-Erzeuger** (§12, H-K14, K-153): Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen → PCM 48 kHz mono i16; `Abi` (Methoden = Exporte), Raumformel `raum` |
+| `klang/wasm/` (`herd-klang-wasm`) | Wasm-Hülle `site/js/herd/klang.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
+| `test-klang.js` | Bitgleich-Test Klang nativ = `klang.wasm` = `klang/golden.txt` (§12) |
 
 Dateien im Kern (`kern/src`): `welt.rs` (Teile, Lage, Welt-Matrizen, Komponenten-Verwaltung), `komponenten/` (Registry +
 eine Datei je Komponente), `schema.rs` (Feldtypen, Schema, Spalten-Speicher), `abi.rs` (`Kern` = Herd-ABI, Szenen-Hash,
@@ -348,8 +351,9 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
 - `node herd/baue.js` → `cargo build --release -p herd-kern-wasm --target wasm32v1-none` (Features wie die Laufzeit:
   `+bulk-memory,+mutable-globals,+sign-ext,+nontrapping-fptoint,+multivalue`, `herd/.cargo/config.toml`), schreibt
   `site/js/herd/kern.wasm` (keine Importe, kein wasm-bindgen) und `site/js/herd/schema.json`; im selben Lauf
-  `-p herd-teigling-wasm` → `site/js/herd/teigling.wasm` (§11). `--pruefe` vergleicht nur (schema.json ↔ kern.wasm,
-  teigling.wasm: keine Importe, alle Exporte, SHA-256-Probe).
+  `-p herd-teigling-wasm` → `site/js/herd/teigling.wasm` (§11) und `-p herd-klang-wasm` → `site/js/herd/klang.wasm` (§12).
+  `--pruefe` vergleicht nur (schema.json ↔ kern.wasm, teigling.wasm: keine Importe, alle Exporte, SHA-256-Probe; klang.wasm: keine
+  Importe, alle Exporte, Hash des ersten Golden-Tons).
 - Nativ: `cargo build` im Ordner `herd/` (Kern ist eine rlib ohne Abhängigkeiten außer `libm`).
 - Browser-Glut: `node herd/baue-web.js` → `cargo build -j 2 --profile klein -p herd-glut-web --target wasm32-unknown-unknown`,
   dann `wasm-bindgen --target no-modules` → `site/js/herd/glut.js` + `glut_bg.wasm` (eingecheckt). wasm-bindgen ist im Crate auf
@@ -379,6 +383,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit eigener Textur, `paket_voll`; dazu (PD3) `teigling_muster` mit allen Mustern in ungeraden Größen – damit sind die
   Muster-Teiglinge beider Spieler (Rust über `herd_teigling::teigling_aus`, JS nachgebaut) über die Paket-Hashes bitgleich geprüft.
 - `node herd/test-teigling.js` (**blockierend**, PD1): Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4).
+- `node herd/test-klang.js` (**blockierend**, H-K14): Klang nativ = `klang.wasm` = `klang/golden.txt` (§12).
 
 ### 7.1 Szenen-Skripte (`*.herd`)
 
@@ -701,3 +706,20 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   `herd/target/teigling-faelle/`, backt jeden mit `teigling.wasm` über die Hülle vor und vergleicht mit nativ und `golden.txt`;
   dazu Hülle (`sha256` = `node:crypto`, `kopf`, `passt`/`besorge`, `teigmenge`, `megabyte`, P0020-Text).
 - Messung: `node bench/herd/mess-teigling.js` (1024²-PNG/-JPEG nativ und Wasm, `bench/herd/ERGEBNISSE.md`).
+
+## 12. Klang-Erzeuger `herd/klang` (H-K14, K-153, SPEC §18.8)
+
+- **Format:** PCM 48 kHz, mono, i16 Little Endian; Hash = FNV-1a-64 über die PCM-Bytes (16 Hex-Ziffern, im Ereignis `klang`). Zustand in
+  f64, nur `libm` (`sin`, `cos`, `pow`, `floor`, `round`, `fmod`, `sqrt`), keine FMA – dieselben Samples nativ und in `klang.wasm`.
+- **Synthese** (`Klaenge`): Wellen `sinus`/`rechteck`/`saege`/`dreieck`/`rauschen` mit Phase in Zyklen (exponentielles Gleiten über einen
+  festen Faktor je Sample), lineare Ein-/Ausblendung; Rauschen über xorshift32 (Saat × 2 654 435 761 ⊕ 0x9E3779B9), rosa nach Paul Kellet
+  (sparsam), braun integriert mit Leck; Noten gleichstufig (A4 = 440 Hz); Biquad nach RBJ (Direktform I); `nahtlos` = gleiche Leistung
+  (sin/cos) über die Überblendung. Jede Formung legt einen neuen Klang an; IDs ab 1; zusammen höchstens 5 Minuten (14,4 M Samples).
+- **ABI** (`Abi`, Methoden = Exporte von `klang.wasm`, HOST-ABI §2 Gruppe `klang`): Ergebnis `id ≥ 1` oder `-1`; Fehler über `fehler_art`
+  (1 TypAnanas, 2 LaufzeitAnanas), `fehler_text`, `fehler_neu` – alle Fehlertexte stehen in `src/lib.rs`.
+- **Raum** (`raum(lage, reichweite, hoerer)` → Lautstärke, Panorama, Tiefpass): Formel der Wiedergaben (nativer Mischer
+  `host/src/wiedergabe.rs`, Browser-Spiegel `ui/src/klang.js`); nicht bitgleich geprüft. Hörer = Kamera aus dem SZENE-Block des
+  Bildpakets (`kamera` ab Byte 128, Rechts-Achse = Zeile 0 von `ansicht_proj`).
+- **Tests:** `cargo test -j 2 -p herd-klang` (Golden `klang/golden.txt` mit 18 Klängen und 2 Fehlertexten, Fehlertexte, Noten, Grenzen,
+  Raum; neu schreiben mit `KLANG_GOLDEN=schreibe`), `node herd/test-klang.js` (dieselbe Datei gegen `klang.wasm`), `node herd/baue.js
+  --pruefe` (Exporte, ein Golden-Hash).

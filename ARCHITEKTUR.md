@@ -74,11 +74,13 @@ Keine Zeichenketten über Zeilengrenzen (der Bau prüft das).
 | `std/register.js` | `TABELLEN`, Sperren `nurRechnen`/`nurHauptkueche` (nach allen Tabellen) |
 | `kueche.js` | Küchenbrigade |
 | `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` · `herd/kniff.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-Kopf · Methodentabellen · Laufzeit, Vorbacken, `Bildchen.laden`, Spielschleife · Kniffe (H-K13: Anhängen, Kniff-Phase je Takt, `beimEntfernen`) |
+| `klang/kern.js` · `klang/tabellen.js` | Klang (H-K14, K-153): Erzeuger `klang.wasm` laden, `Klang`/`Spur`, simulierte Zeit, Ereignisse (bei offenem Herd-Fenster bis zum Bild gesammelt), `beimEnde` · Methodentabellen |
 | `api.js` | `run`, `pruefeStart`, öffentliches Objekt (`intern`) |
 
 Orte der Projekt-Pakete: PA1 (umgesetzt) Abschnitt `projekt.js` (Lader), `bestellt` und Datei-Index `di` in `parser.js`, Feld
 `datei`/API in `api.js` und `laufzeit/kern.js` (`dateiPfad`, `ortText`, `this.d`); PD2 (umgesetzt) `Kiste` in `std/kiste.js`, Vorbacker/Teigling-Kopf in `herd/kern.js`, `Bildchen.laden` und Vorbacken (`vorbacke`) in `herd/tabellen.js`/`herd/laufzeit.js`;
-H-K12–H-K14 in `herd/` (H-K13 umgesetzt: Kniffe in `herd/kniff.js`, die eingebauten Kniff-Methoden in `laufzeit/aufrufe.js`/`namen.js`/`pruefung.js` neben den Ananas-Methoden; Importgruppe `klang` als neuer Abschnitt `herd/klang.js`).
+H-K12–H-K14 in `herd/` (H-K13 umgesetzt: Kniffe in `herd/kniff.js`, die eingebauten Kniff-Methoden in `laufzeit/aufrufe.js`/`namen.js`/`pruefung.js` neben den Ananas-Methoden; Importgruppe `klang` umgesetzt als eigene Abschnitte `klang/kern.js` und `klang/tabellen.js`, Hooks in `herd/laufzeit.js`
+(Ereignisse vor dem Bild, `beimEnde` nach den Kniffen), `laufzeit/kern.js` (Modul `Klang`, Start, HOST-Fehler), `typen.js`, `kueche.js`).
 
 ```js
 PizzaLang.version            // "3.1.0"
@@ -144,12 +146,13 @@ zusätzlich ein Pool-Objekt aus `Pizzaiolo.kuechenPool(k)` als `koeche`). `BUILT
 ```js
 PizzaLang.intern.analysiere(ast)   // → [{ code, text, zeile, spalte }] – Warnungen vor dem Start (W0666, W0032), sortiert wie im Lauf
 PizzaLang.intern.pruefe(ast)       // → null | { code, text, zeile, spalte, d } – Startprüfung (Q0004, P0010, P0011, R0001, A0001, P0013), Text wie fehler-Ereignis
-PizzaLang.intern.startpruefung(ast) // → { fehler: wie pruefe, herdNoetig } – vom Wasm-Compiler genutzt (gleiche Prüfung, Herd-Erkennung K-128)
+PizzaLang.intern.startpruefung(ast) // → { fehler: wie pruefe, herdNoetig, klangNoetig } – vom Wasm-Compiler genutzt (gleiche Prüfung, Herd-Erkennung K-128, Klang K-153)
 PizzaLang.intern.ANANAS_BAUM       // [[name, basisName|null], …] – eingebaute Ananas-Hierarchie (SPEC §8)
 PizzaLang.intern.MAX_STAPEL        // 1500 – Stapeltiefe (SPEC §14.4)
 PizzaLang.intern.STANDARD_LIMIT    // 5_000_000 – Standard-Schrittlimit
 PizzaLang.intern.UI_STIL           // Theke-Stil-Whitelist { schlüssel: "zahl" | erlaubteWerte[] } (SPEC §16)
 PizzaLang.intern.HERD_TYPEN        // Herd-Klassen + Komponentennamen (SPEC §18; der Compiler leitet daraus die Importgruppe herd ab)
+PizzaLang.intern.KLANG_TYPEN       // ["Klang", "Spur"] (SPEC §18.8; Importgruppe klang bei statischem Klang.…)
 ```
 Alle Werte sind Kopien; Änderungen daran wirken nicht auf den Interpreter zurück. `BELAEGE`, `intern.BELAEGE` und
 `intern.GRUNDPREIS` gibt es seit K-105 nicht mehr (kein eingebautes Pizza-Objekt).

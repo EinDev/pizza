@@ -328,6 +328,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "herd-klang"
+version = "3.1.0"
+dependencies = [
+ "libm",
+]
+
+[[package]]
+name = "herd-klang-wasm"
+version = "3.1.0"
+dependencies = [
+ "herd-klang",
+]
+
+[[package]]
 name = "herd-skript"
 version = "3.1.0"
 dependencies = [

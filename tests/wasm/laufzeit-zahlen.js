@@ -8,11 +8,17 @@ function laden() {
   const leer = () => 0;
   const modul = new WebAssembly.Module(fs.readFileSync(datei));
   const herd = {};   // Gruppe herd (Kern-Exporte): hier nie gerufen
-  for (const im of WebAssembly.Module.imports(modul)) if (im.module === 'herd') herd[im.name] = () => -1;
+  const klang = {};  // Gruppe klang (Erzeuger-Exporte, K-153): hier nie gerufen
+  for (const im of WebAssembly.Module.imports(modul)) {
+    if (im.module === 'herd') herd[im.name] = () => -1;
+    else if (im.module === 'klang') klang[im.name] = () => -1;
+  }
   const inst = new WebAssembly.Instance(modul, {
     pizza: { ausgabe: leer, fehlerausgabe: leer, warnung: leer, fehler: leer, panik: leer, schreibe: leer, leeren: leer, eingabe: () => -1, ui_senden: leer, ui_warte: () => -1, vorrat_lesen: () => -1, vorrat_schreiben: () => 0, echtzeit_ms: () => 0, zone_ms: () => 0, kueche_auftrag: () => -1, kueche_bericht: () => -2,
-      herd_kern: () => 0, herd_schreibe: leer, herd_lies: leer, herd_warte: () => -1, herd_senden: leer },
+      herd_kern: () => 0, herd_schreibe: leer, herd_lies: leer, herd_warte: () => -1, herd_senden: leer,
+      klang_kern: () => 0, klang_schreibe: leer, klang_lies: leer, klang_senden: leer },
     herd,
+    klang,
   });
   const e = inst.exports;
   const textVon = (w) => {

@@ -1,0 +1,62 @@
+// Pizza-Klavier: acht Tasten von C4 bis C5 – mit der Maus (Taster, H-K12) oder den Tasten A S D F G H J K spielen.
+// „Tarantella“ spielt eine kleine Melodie aus Klang.noten, „Brummen“ schaltet einen Bordun als Schleife an und aus.
+//
+// So arbeitet Klang (H-K14): Klang.ton erzeugt einmal die Samples (bitgleich in jedem Motor), k.spiele() startet eine Spur
+// mit dem Bild ihres Takts; Lautstärke, Tonhöhe und Panorama lassen sich während des Spielens ändern. Im Browser setzt der
+// Ton mit dem ersten Klick ein (Autoplay-Regel); der Lautsprecher-Knopf im Fensterkopf schaltet stumm.
+
+Herd herd = neu Herd("Pizza-Klavier", breite: 520, hoehe: 260);
+herd.hintergrund("ofen");
+herd.text("Pizza-Klavier", 260, 16, groesse: 24, farbe: "mozzarella", ausrichtung: "mitte");
+herd.text("Klick die Tasten oder spiel mit A S D F G H J K", 260, 48, groesse: 14, farbe: "teig", ausrichtung: "mitte");
+
+Blech<margherita> NOTEN = ["C4", "D4", "E4", "F4", "G4", "A4", "H4", "C5"];
+Blech<funghi> FREQUENZ = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25];
+Blech<margherita> TASTEN = ["a", "s", "d", "f", "g", "h", "j", "k"];
+
+// je Taste ein Klang: Dreieck plus leise Oktave darüber, Hüllkurve wie ein gezupfter Ton, sanft gefiltert
+Klang klavierton(funghi f) {
+    Klang grund = Klang.ton(f, 1.2, welle: "dreieck", lautstaerke: 0.5);
+    Klang oktave = Klang.ton(f * 2, 1.2, welle: "sinus", lautstaerke: 0.15);
+    serviere ((grund.mische(oktave).huelle(anschlag: 0.004, abfall: 0.25, halten: 0.35, ausklang: 0.6).tiefpass(3200)));
+}
+
+Blech<Klang> KLAENGE = [];
+Blech<Taster> TASTER = [];
+für (salami i : [1 .. 8]) {
+    KLAENGE.hinzu(klavierton(FREQUENZ.stück(i)));
+    Taster t = herd.gruppe(50 + (i - 1) * 60, 140).mit(neu Taster(inhalt: NOTEN.stück(i), breite: 54, hoehe: 110, farbe: "mozzarella",
+                                                                    farbeDrueber: "teig", farbeGedrueckt: "senf", textFarbe: "ofen", rundung: 6));
+    TASTER.hinzu(t);
+}
+Taster melodieKnopf = herd.gruppe(170, 226).mit(neu Taster(inhalt: "Tarantella", breite: 130, hoehe: 30, farbe: "tomate"));
+Taster brummKnopf = herd.gruppe(350, 226).mit(neu Taster(inhalt: "Brummen", breite: 130, hoehe: 30, farbe: "basilikum"));
+Teil anzeige = herd.text("", 260, 72, groesse: 16, farbe: "ananas", ausrichtung: "mitte");
+
+Klang MELODIE = Klang.noten("E4:0.5 A4:0.5 A4:0.5 H4:0.5 C5 A4:0.5 C5:0.5 H4 G#4:0.5 E4:0.5 A4:2", tempo: 150, welle: "rechteck", lautstaerke: 0.18).tiefpass(2400);
+Klang BORDUN = Klang.ton(110, 2, welle: "saege", lautstaerke: 0.25).mische(Klang.ton(165, 2, welle: "saege", lautstaerke: 0.15)).tiefpass(500).nahtlos(0.2);
+Spur brumm = karton;
+salami gespielt = 0;
+
+leer spiele(salami i) {
+    // Panorama nach der Lage der Taste: tiefe Töne links, hohe rechts
+    KLAENGE.stück(i).spiele(lautstaerke: 0.9, panorama: (i - 4.5) / 4);
+    anzeige.text().setzeInhalt(("Ton " + NOTEN.stück(i)));
+    gespielt++;
+}
+
+herd.backe(() -> {
+    für (salami i : [1 .. 8]) {
+        falls (TASTER.stück(i).geklickt() || herd.gedrueckt(TASTEN.stück(i))) { spiele(i); }
+    }
+    falls (melodieKnopf.geklickt()) {
+        Spur m = MELODIE.spiele();
+        anzeige.text().setzeInhalt("Tarantella …");
+        m.beimEnde(() -> { anzeige.text().setzeInhalt("Bravo!"); });
+    }
+    falls (brummKnopf.geklickt()) {
+        falls (brumm != karton && brumm.laeuft()) { brumm.stoppe(); brummKnopf.setzeInhalt("Brummen"); }
+        sonst { brumm = BORDUN.spiele(schleife: ja, lautstaerke: 0.6); brummKnopf.setzeInhalt("Ruhe"); }
+    }
+});
+Bote.sage(("Pizza-Klavier: " + gespielt + " Töne gespielt."));

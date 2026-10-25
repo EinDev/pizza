@@ -1,0 +1,33 @@
+// Klang (H-K14, K-153): Töne, Rauschen, Noten, Formen – jeder Klang ist neu und unveränderlich, die PCM-Hashes stehen in
+// den klang-Ereignissen (.klang-erwartet), bitgleich in allen Motoren
+Klang a = Klang.ton(440, 0.5);
+Klang b = Klang.ton(220, 0.25, welle: "rechteck", lautstaerke: 0.3, anschlag: 0, ausklang: 0);
+Klang c = Klang.ton(110, 0.4, welle: "saege", bis: 880);
+Klang d = Klang.ton(330, 0.3, "dreieck", 0.6, 165);
+Klang r = Klang.rauschen(1, art: "rosa", saat: 7);
+Klang w = Klang.rauschen(0.5);
+Klang br = Klang.rauschen(2, "braun", 0.8, anschlag: 0.2, ausklang: 0.2, saat: 20871);
+Klang s = Klang.stille(0.125);
+Klang n = Klang.noten("C4 E4 G4:2 - C5 F#4 Bb3:0.5 H3", tempo: 140);
+Bote.sage((a + " " + b + " " + n + " " + a.id() + " " + n.id()));
+Bote.sage((a.dauer() + " " + s.dauer() + " " + n.dauer() + " " + br.dauer()));
+
+// Formen: Hüllkurve, Filter, Lautstärke, Mischen, Anhängen, Wiederholen, nahtlose Schleife
+Klang h = a.huelle(anschlag: 0.01, abfall: 0.1, halten: 0.6, ausklang: 0.2);
+Klang tp = r.tiefpass(800);
+Klang hp = r.hochpass(2000, guete: 2);
+Klang v = b.verstaerke(3);
+Klang m = a.mische(c, ab: 0.25);
+Klang dn = a.dann(s);
+Klang wh = d.wiederhole(3);
+Klang nl = br.nahtlos(0.25);
+Bote.sage((m.dauer() + " " + dn.dauer() + " " + wh.dauer() + " " + nl.dauer() + " " + h.dauer() + " " + tp.dauer()));
+Bote.sage((a == a.huelle() ? "gleich" : "neu"));
+
+// spielen: Ereignisse mit Hash der PCM (gleicher Klang = gleicher Hash, gleiche Synthese = gleicher Hash)
+a.spiele();
+Klang a2 = Klang.ton(440, 0.5);
+a2.spiele(lautstaerke: 0.5);
+für (Klang k : [b, c, d, r, w, br, s, n, h, tp, hp, v, m, dn, wh, nl]) { k.spiele(); }
+Klang x = Klang.ton(440, 0.5, welle: "rauschen");
+x.spiele(panorama: -1, tonhoehe: 2);

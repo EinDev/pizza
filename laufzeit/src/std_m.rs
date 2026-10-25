@@ -91,6 +91,7 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         A_FUNKTION | A_GEBUNDEN | A_NATIV => matches!(id, N_MIKROWELLE | N_FRISCH | N_RUFE | N_ALSTEXT),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT | crate::theke::A_ZETTEL => crate::theke::tabelle_hat(o, id),
         crate::herd::A_HERD..=crate::herd::A_BILDCHEN => crate::herd::tabelle_hat(o, id),
+        crate::klang::A_KLANG | crate::klang::A_SPUR => crate::klang::tabelle_hat(o, id),
         crate::vorrat::A_ZUFALL => crate::vorrat::hat_methode(id),
         crate::vorrat::A_KAMMER => crate::vorrat::tabelle_hat(id),
         _ => false,
@@ -107,7 +108,8 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
         N_G_ZUFALL => crate::vorrat::hat_methode(id),
         N_G_SPIEGEL => id == N_FELDER,
         N_G_ZETTEL => id == N_AUS,   // K-125
-        _ => (crate::kiste::ist_modul(m) && crate::kiste::modul_hat(m, id)) || (crate::herd::ist_modul(m) && crate::herd::modul_hat(m, id)),
+        _ => (crate::kiste::ist_modul(m) && crate::kiste::modul_hat(m, id)) || (crate::herd::ist_modul(m) && crate::herd::modul_hat(m, id))
+            || crate::klang::modul_hat(m, id),
     }
 }
 
@@ -201,6 +203,8 @@ pub fn global_name(id: u32) -> W {
     if let Some(w) = crate::kiste::modul_wert(id) { return w; }
     // Herd (SPEC §18): statisch Herd.farbe, Form.wuerfel, Bildchen.laden … (eine eigene Klasse gleichen Namens hat Vorrang)
     if let Some(w) = crate::herd::modul_wert(id) { return w; }
+    // Klang (SPEC §18.8, K-153): statisch Klang.ton, Klang.noten … (eigene Klasse Klang hat Vorrang)
+    if let Some(w) = crate::klang::modul_wert(id) { return w; }
     let mut t = Tb::neu();
     t.s("'").name(id).s("' ist nicht definiert.");
     wirf_tb(K_LAUFZEIT, &t);
@@ -306,6 +310,7 @@ pub fn modul_methode(m: u32, name: u32, pos: &[W], ben: &Ben, knoten: i32) -> W 
         }
         _ if crate::kiste::ist_modul(m) && crate::kiste::modul_hat(m, name) => crate::kiste::modul_methode(name, pos, ben),
         _ if crate::herd::ist_modul(m) && crate::herd::modul_hat(m, name) => crate::herd::modul_methode(m, name, pos, ben),
+        _ if crate::klang::modul_hat(m, name) => crate::klang::modul_methode(name, pos, ben),
         _ => {
             let _ = knoten;
             let mut t = Tb::neu();
@@ -398,6 +403,7 @@ pub fn tabellen_methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32, _sc: b
         A_TEIG | A_LIEF | A_ZUST | A_RESTE | A_ROH => crate::pf::pf_methode(o, id, pos, ben, knoten),
         crate::theke::A_THEKE | crate::theke::A_ZUTAT | crate::theke::A_ZETTEL => crate::theke::methode(o, id, pos, ben, knoten),
         crate::herd::A_HERD..=crate::herd::A_BILDCHEN => crate::herd::methode(o, id, pos, ben, knoten),
+        crate::klang::A_KLANG | crate::klang::A_SPUR => crate::klang::methode(o, id, pos, ben, knoten),
         crate::vorrat::A_ZUFALL => crate::vorrat::objekt_methode(o, id, pos),
         crate::vorrat::A_KAMMER => crate::vorrat::kammer_methode(o, id, pos, ben),
         A_FUNKTION | A_GEBUNDEN | A_NATIV => match id {
