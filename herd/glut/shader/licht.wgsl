@@ -213,7 +213,7 @@ fn sonnenlicht(welt: vec3<f32>, n: vec3<f32>, ndl: f32) -> f32 {
 // Physikalisches Licht (Modell pbr): Rauheit aus glanz bzw. Relief, Metall, Nässe (Pfützen auf nach oben zeigenden Flächen,
 // feuchte Flächen dunkler und glatter); Sonne, Lichter (Zellen oder die 8 aus SZENE), Halbkugel-Umgebung diffus und gespiegelt.
 fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo0: vec3<f32>, glanz: f32, karte: f32, hat_karte: bool,
-             metall: f32, nass: f32, sonne: f32) -> vec3<f32> {
+             metall: f32, nass: f32, sonne: f32, pos: vec2<f32>) -> vec3<f32> {
     var n = n0;
     var albedo = albedo0;
     var rauh = select(1.0 - glanz, karte * (2.0 - 2.0 * glanz), hat_karte);
@@ -237,14 +237,30 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
     let ur = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, smoothstep(-0.4, 0.7, r.y)) * 2.2;
     let fu = f0 + (max(vec3<f32>(1.0 - rauh), f0) - f0) * pow(1.0 - ndv, 5.0);
     var c = diff * um + ur * fu * (1.0 - rauh) * (1.0 - rauh);
+    // Spiegelung (Stimmung): nach oben zeigende Flächen auf Höhe der Spiegelebene nehmen das Spiegelbild an derselben
+    // Bildschirmstelle (verzerrt vom Relief, unscharf mit der Rauheit), gewichtet mit Fresnel und Glätte
+    let spiegeln = hdr_an() && stimmung.spiegel.x > 0.0 && !im_spiegel();
+    let auf_ebene = (1.0 - smoothstep(0.05, 0.3, abs(welt.y - stimmung.spiegel.y))) * smoothstep(0.7, 0.95, ng.y);
+    if (spiegeln && auf_ebene > 0.0) {
+        let dim = vec2<f32>(textureDimensions(spiegel_t)) * 2.0;
+        let uv = pos / dim + (n.xz - ng.xz) * vec2<f32>(0.05, -0.05);
+        let r = rauh * rauh * 0.035;
+        var bild = textureSampleLevel(spiegel_t, eigen_s, uv, 0.0).rgb * 0.4;
+        bild = bild + (textureSampleLevel(spiegel_t, eigen_s, uv + vec2<f32>(r, 0.0), 0.0).rgb
+                     + textureSampleLevel(spiegel_t, eigen_s, uv - vec2<f32>(r, 0.0), 0.0).rgb
+                     + textureSampleLevel(spiegel_t, eigen_s, uv + vec2<f32>(0.0, r * 2.0), 0.0).rgb
+                     + textureSampleLevel(spiegel_t, eigen_s, uv - vec2<f32>(0.0, r * 2.0), 0.0).rgb) * 0.15;
+        let glatt = (1.0 - rauh) * (1.0 - rauh);
+        c = c + bild * fu * glatt * auf_ebene * stimmung.spiegel.x;
+    }
 
     // Sonne
     let l = szene.sonne_richtung.xyz;
     let ndl = max(dot(n, l), 0.0);
     c = c + szene.sonne_farbe.rgb * sonne * (diff * ndl + ggx(n, v, l, rauh, f0));
 
-    // Lichter
-    if (lichter.raster.w > 0.5) {
+    // Lichter (im Spiegeldurchgang die 8 aus SZENE)
+    if (lichter.raster.w > 0.5 && !im_spiegel()) {
         let kopf = zellwort(zelle(welt));
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
@@ -308,6 +324,10 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     let gy = dpdy(uvs);
     let px = dpdx(a.welt);
     let py = dpdy(a.welt);
+    // Spiegeldurchgang: nur was über der Ebene liegt (die Ebene selbst nicht)
+    if (im_spiegel() && a.welt.y < szene.zahlen.z + 0.03) {
+        discard;
+    }
     let groesse = a.uvbox.zw - a.uvbox.xy;
     let texel = a.uvbox.xy + clamp(a.uv, vec2<f32>(0.5), max(groesse - vec2<f32>(0.5), vec2<f32>(0.5)));
     var tex = textureLoad(atlas, vec2<i32>(floor(texel)), select(i32(a.textur & 65535u), 0, eigen), 0);
@@ -376,7 +396,7 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     var glanzlicht = vec3<f32>(0.0);
     var pbr_farbe = vec3<f32>(0.0);
     if (pbr) {
-        pbr_farbe = pbr_licht(a.welt, n, ng, v, albedo, glanz, rauh_karte, hat_relief, metall, nass, sonne);
+        pbr_farbe = pbr_licht(a.welt, n, ng, v, albedo, glanz, rauh_karte, hat_relief, metall, nass, sonne, a.pos.xy);
     } else {
 
     // Sonne
@@ -385,8 +405,10 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     diffus = diffus + szene.sonne_farbe.rgb * (ndl * sonne);
     glanzlicht = glanzlicht + szene.sonne_farbe.rgb * (spiegel * sonne);
 
-    // Punktlichter (weicher Abfall bis zur Reichweite): viele über die Zellen-Tabelle, sonst die 8 aus SZENE (v1)
-    if (lichter.raster.w > 0.5) {
+    // Punktlichter (weicher Abfall bis zur Reichweite): viele über die Zellen-Tabelle, sonst die 8 aus SZENE (v1);
+    // im Spiegeldurchgang passen die Zellen nicht (andere Sicht) → dort die 8 nächsten aus SZENE
+    let zellen_an = lichter.raster.w > 0.5 && !im_spiegel();
+    if (zellen_an) {
         let kopf = zellwort(zelle(a.welt));
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
@@ -409,7 +431,7 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
             glanzlicht = glanzlicht + lf.rgb * (sp * daempf);
         }
     }
-    let anzahl = select(i32(szene.zahlen.x + 0.5), 0, lichter.raster.w > 0.5);
+    let anzahl = select(i32(szene.zahlen.x + 0.5), 0, zellen_an);
     for (var i = 0; i < 8; i = i + 1) {
         if (i < anzahl) {
             let lp = szene.licht_pos[i];

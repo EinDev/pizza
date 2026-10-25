@@ -4520,7 +4520,7 @@ mod stimmung {
         let mut k = welt();
         let s = typ(&mut k, "Stimmung");
         assert_eq!(s, 31); // Typnummer in Merge-Reihenfolge: nach Tafel (30, H-K12)
-        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 11);
+        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 13);
         let bel = feld(&mut k, s, "belichtung");
         let bloom = feld(&mut k, s, "bloom");
         let nd = feld(&mut k, s, "nebelDichte");
@@ -4552,6 +4552,15 @@ mod stimmung {
         assert_eq!((f(&d, 16), f(&d, 24), f(&d, 28)), (0.25, 0.25, 500.0));
         assert_eq!((f(&d, 32), f(&d, 44)), (1.0, 1.0));
         assert_eq!((f(&d, 56), f(&d, 60)), (3.0 / 60.0, 1.0));
+        // Spiegelung (Standard aus) → spiegel-Vektor 0; gesetzt → Stärke und Höhe
+        assert_eq!((f(&d, 64), f(&d, 68)), (0.0, 0.0));
+        let (sp, sh) = (feld(&mut k, s, "spiegelung"), feld(&mut k, s, "spiegelHoehe"));
+        assert_eq!(k.setze_zahl(c, sp, 0.75), 0);
+        assert_eq!(k.setze_zahl(c, sh, 0.15), 0);
+        k.bild(3);
+        let d = abschnitt_stimmung(&k).unwrap();
+        assert_eq!((f(&d, 64), f(&d, 68), f(&d, 72)), (0.75, 0.15, 0.0));
+        assert!(k.setze_zahl(c, sp, 1.5) < 0);
         // zweite Stimmung mit größerer ID gilt nicht; die erste in einer Vorlage ruht → die zweite gilt
         let t2 = k.teil_neu(3);
         let c2 = k.komp_neu(s);

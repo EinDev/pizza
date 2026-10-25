@@ -240,7 +240,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
 | 18 | ZUSATZ3D | Material-Zusatz je 3D-Instanz (16 B, gleiche Reihenfolge wie INST3D): `u32 relief` (wie `INST3D.textur`, nur eigene Texturen; 0 = keins), `f32 kachel`, `f32 metall`, `u32 merkmale` (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255); nur wenn eine geschriebene Instanz einen hat (`Belag`-Material) |
-| 17 | STIMMUNG | 64 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
+| 17 | STIMMUNG | 80 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0) oder einem Spot (`Licht.kegel` > 0) |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
@@ -296,9 +296,11 @@ weg, die fernsten zuerst; höchstens 1024 × 2048 Wörter). Zelle eines Punkts p
 Tiefenscheibe der Quader um die Kugel, an beiden Scheibengrenzen projiziert (x/z ist für festes x monoton in z). Die 8 Lichter in SZENE
 bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter.
 
-**STIMMUNG (64 Bytes, std140-gleich, f32):** `a vec4` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel vec4` (nebelDichte,
+**STIMMUNG (80 Bytes, std140-gleich, f32):** `a vec4` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel vec4` (nebelDichte,
 nebelHoehe, nebelAbfall, `fern` der Kamera) · `farbe vec4` (nebelFarbe linear, saettigung) · `b vec4` (vignette, koernung, Zeit = Bild/60 s,
-1 = an). Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
+1 = an) · `spiegel vec4` (spiegelung, spiegelHoehe, 0, 0). Bei spiegelung > 0 zeichnet die Glut vorab den **Spiegeldurchgang**: SZENE-Kopie mit
+Ansicht·Projektion × Spiegelmatrix (Spalte 1 negiert, Spalte 3 += 2h · Spalte 1), Kamera-y = 2h − y, `zahlen.y` = 1, `zahlen.z` = h; Himmel und
+`FEST` in ein Bild halber Zielgröße (HDR-Format, ohne MSAA), Fragmente unter h + 0,03 verworfen; das Bild liegt im Hauptdurchgang an Bindung 19. Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
 Ziel, danach INST2D.
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
@@ -537,6 +539,7 @@ Schachbrett verkleinert und gedreht, Pizzen immer kleiner ohne dunklen Rand, get
 `2d-rahmen-textur` (`Rahmen` aus Texturen 48² und 96 × 60: vergrößert, 1 : 1, verkleinert, gestreckt, gestaucht, getönt, gedreht,
 Atlas-Rahmen zum Vergleich), `3d-textur` (Boden mit Schachbrett 512² flach bis zum Horizont – nah pixelscharf, fern trilinear ohne
 Moiré –, schräge Wand mit Zonenplatte, Würfel mit ausgeschnittener Pizza samt Schatten, Kugel 64², Belag mit 96 × 60, Atlas-Würfel),
+`3d-spiegel` (Spiegelung: Neonröhren auf nassem Plattenboden, Spiegelbild in Pfützen, Bloom, Höhennebel),
 `3d-material` (Material: nasser Plattenboden in Weltmaß mit Noppen-Relief und Pfützen, metallische Wand in uv-Kachelung, Kugel mit Relief,
 farbige Lichter knapp über dem Boden, Spot; ohne Stimmung),
 `3d-stimmung` (Stimmung: drei Neonröhren, zwei mit `strahlen` 6 und Bloom, Höhennebel, Vignette, 2D-Balken darüber),

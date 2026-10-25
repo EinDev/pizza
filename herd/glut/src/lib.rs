@@ -266,6 +266,14 @@ struct Nachbild {
     bg: Vec<wgpu::BindGroup>,
 }
 
+/// Spiegelbild (Stimmung.spiegelung): gespiegelte Szene in halber Zielgröße (HDR-Format, einfach abgetastet) mit eigener Tiefe.
+struct SpiegelZiel {
+    breite: u32,
+    hoehe: u32,
+    farbe: wgpu::TextureView,
+    tiefe: wgpu::TextureView,
+}
+
 /// Pipelines des Nachbilds (HDR-Format, einfach abgetastet).
 struct NachPipelines {
     vorfilter: wgpu::RenderPipeline,
@@ -318,6 +326,11 @@ pub struct Glut {
     mod_nach: wgpu::ShaderModule,
     nach_pipes: Option<NachPipelines>,
     nach: Option<Nachbild>,
+    /// Spiegelung: gespiegelte Kopie von SZENE, Bindegruppe dafür (Bindung 19 = Platzhalter), Ziel, 1 × 1-Platzhalter
+    szene_spiegel: wgpu::Buffer,
+    bg_spiegel: Option<wgpu::BindGroup>,
+    spiegel: Option<SpiegelZiel>,
+    platzhalter: wgpu::TextureView,
     schatten_map: wgpu::TextureView,
     atlas: (wgpu::Texture, wgpu::TextureView, u32),
     /// GL/WebGL2: ein Textur-Array mit nur einer Schicht wird dort zu TEXTURE_2D (wgpu-hal) und passt dann nicht zur
@@ -612,6 +625,12 @@ impl Glut {
             count: None,
         };
         let eigen_sampler = wgpu::BindGroupLayoutEntry { binding: 12, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None };
+        let eigen_d2 = |b: u32| wgpu::BindGroupLayoutEntry {
+            binding: b,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
+            count: None,
+        };
         let lay_haupt = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("herd haupt"),
             entries: &[
@@ -656,6 +675,8 @@ impl Glut {
                 },
                 // Stimmung (HDR-Ausgabe, Höhennebel)
                 ubo(17),
+                // Spiegelbild (Stimmung.spiegelung)
+                eigen_d2(19),
             ],
         });
         let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -764,6 +785,19 @@ impl Glut {
         let szene = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let ansicht = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd ansicht"), size: 16, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let zelt = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd himmelszelt"), size: HIMMELSZELT_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let szene_spiegel = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd szene spiegel"), size: SZENE_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let platzhalter = dev
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("herd platzhalter"),
+                size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+            .create_view(&Default::default());
         let stimmung = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd stimmung"), size: STIMMUNG_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_kopf = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
@@ -812,6 +846,10 @@ impl Glut {
             mod_nach,
             nach_pipes: None,
             nach: None,
+            szene_spiegel,
+            bg_spiegel: None,
+            spiegel: None,
+            platzhalter,
             schatten_map,
             atlas: (atlas.0, atlas.1, 0),
             atlas_min,
@@ -840,6 +878,7 @@ impl Glut {
         let (msaa, hdr_format, hdr_msaa) = (glut.msaa, glut.hdr_format, glut.hdr_msaa);
         glut.pipelines(format, msaa);
         glut.pipelines(hdr_format, hdr_msaa);
+        glut.pipelines(hdr_format, 1);
         glut.nach_pipelines_bereit();
         Ok(glut)
     }
@@ -1492,11 +1531,36 @@ impl Glut {
             self.bg_haupt = None;
         }
         if self.bg_haupt.is_none() {
-            self.bg_haupt = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            let haupt = self.haupt_gruppe(&self.szene, self.spiegel.as_ref().map(|s| &s.farbe).unwrap_or(&self.platzhalter));
+            let spiegel = self.haupt_gruppe(&self.szene_spiegel, &self.platzhalter);
+            self.bg_haupt = Some(haupt);
+            self.bg_spiegel = Some(spiegel);
+        }
+        if self.bg_schatten.is_none() {
+            self.bg_schatten = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("herd schatten"),
+                layout: &self.lay_schatten,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.atlas.1) },
+                    wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[0].ansicht) },
+                    wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[1].ansicht) },
+                    wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
+                    wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
+                    wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
+                ],
+            }));
+        }
+    }
+
+    /// Haupt-Bindegruppe mit gegebener SZENE (echt oder gespiegelt) und Spiegelbild (bzw. Platzhalter).
+    fn haupt_gruppe(&self, szene: &wgpu::Buffer, spiegelbild: &wgpu::TextureView) -> wgpu::BindGroup {
+        {
+            self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("herd haupt"),
                 layout: &self.lay_haupt,
                 entries: &[
-                    wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 0, resource: szene.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 1, resource: self.ansicht.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::TextureView(&self.schatten_map) },
                     wgpu::BindGroupEntry { binding: 3, resource: wgpu::BindingResource::Sampler(&self.s_vergleich) },
@@ -1514,24 +1578,34 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&self.lichter_t.1) },
                     wgpu::BindGroupEntry { binding: 16, resource: wgpu::BindingResource::TextureView(&self.zellen_t.1) },
                     wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 19, resource: wgpu::BindingResource::TextureView(spiegelbild) },
                 ],
-            }));
+            })
         }
-        if self.bg_schatten.is_none() {
-            self.bg_schatten = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("herd schatten"),
-                layout: &self.lay_schatten,
-                entries: &[
-                    wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 4, resource: wgpu::BindingResource::TextureView(&self.atlas.1) },
-                    wgpu::BindGroupEntry { binding: 7, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[0].ansicht) },
-                    wgpu::BindGroupEntry { binding: 8, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[1].ansicht) },
-                    wgpu::BindGroupEntry { binding: 9, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[2].ansicht) },
-                    wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
-                    wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
-                ],
-            }));
+    }
+
+    /// Spiegelziel in halber Zielgröße (neu bei Größenänderung; die Bindegruppen werden dann neu gebaut).
+    fn spiegel_bereit(&mut self) {
+        let (b, h) = ((self.breite / 2).max(1), (self.hoehe / 2).max(1));
+        if matches!(&self.spiegel, Some(s) if s.breite == b && s.hoehe == h) {
+            return;
         }
+        let farbe = self
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("herd spiegel"),
+                size: wgpu::Extent3d { width: b, height: h, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: self.hdr_format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            })
+            .create_view(&Default::default());
+        let tiefe = Glut::tiefen_textur(&self.device, "herd spiegel tiefe", b, h, 1);
+        self.spiegel = Some(SpiegelZiel { breite: b, hoehe: h, farbe, tiefe });
+        self.bg_haupt = None;
     }
 
     // ------------------------------------------------------------------------------------------ Zeichnen
@@ -1553,6 +1627,7 @@ impl Glut {
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
         let mut szene_da = false;
+        let mut szene_d: &[u8] = &[];
         let mut klar = wgpu::Color::BLACK;
         self.texturen_vorbereiten(&leser);
         for (art, d) in leser.abschnitte() {
@@ -1562,6 +1637,7 @@ impl Glut {
                         return Err(Fehler::Paket(format!("SZENE hat {} Bytes", d.len())));
                     }
                     self.queue.write_buffer(&self.szene, 0, d);
+                    szene_d = d;
                     // hintergrund (sRGB) bei Byte 272 – das Ziel speichert sRGB-kodierte Werte
                     let f = |i: usize| f32::from_le_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]) as f64;
                     klar = wgpu::Color { r: f(272), g: f(276), b: f(280), a: 1.0 };
@@ -1695,8 +1771,27 @@ impl Glut {
         if hdr {
             self.nachbild_bereit();
         }
+        // Spiegelung: gespiegelte SZENE (Ebene y = h): Ansicht·Projektion × Spiegelmatrix, Kamera gespiegelt, zahlen.y = 1, zahlen.z = h
+        let spiegel_h = stimmung.filter(|d| f32::from_le_bytes([d[64], d[65], d[66], d[67]]) > 0.0).map(|d| f32::from_le_bytes([d[68], d[69], d[70], d[71]]));
+        if let Some(hh) = spiegel_h {
+            self.spiegel_bereit();
+            self.bindegruppen(schatten);
+            let mut s = szene_d.to_vec();
+            let f = |s: &[u8], i: usize| f32::from_le_bytes([s[i], s[i + 1], s[i + 2], s[i + 3]]);
+            for r in 0..4 {
+                let (c1, c3) = (f(&s, 16 + r * 4), f(&s, 48 + r * 4));
+                s[16 + r * 4..20 + r * 4].copy_from_slice(&(-c1).to_le_bytes());
+                s[48 + r * 4..52 + r * 4].copy_from_slice(&(2.0 * hh * c1 + c3).to_le_bytes());
+            }
+            let ky = f(&s, 132);
+            s[132..136].copy_from_slice(&(2.0 * hh - ky).to_le_bytes());
+            s[324..328].copy_from_slice(&1.0f32.to_le_bytes());
+            s[328..332].copy_from_slice(&hh.to_le_bytes());
+            self.queue.write_buffer(&self.szene_spiegel, 0, &s);
+        }
         let pi = self.pipelines(format, self.msaa);
         let pi_hdr = if hdr { self.pipelines(self.hdr_format, self.hdr_msaa) } else { pi };
+        let pi_spiegel = if spiegel_h.is_some() { self.pipelines(self.hdr_format, 1) } else { pi };
         let instancing = self.opt.instancing;
         let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("herd bild") });
 
@@ -1728,6 +1823,29 @@ impl Glut {
             }
         }
 
+        // ---- Spiegelung: Szene an der Ebene gespiegelt (nur FEST und Himmel), halbe Größe ----
+        if let (Some(sp), true) = (&self.spiegel, spiegel_h.is_some()) {
+            let pl = &self.pipelines[pi_spiegel];
+            let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("herd spiegel"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &sp.farbe,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &sp.tiefe,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Discard }),
+                    stencil_ops: None,
+                }),
+                ..Default::default()
+            });
+            p.set_viewport(vx * 0.5, vy * 0.5, (vb * 0.5).max(1.0), (vh * 0.5).max(1.0), 0.0, 1.0);
+            p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, 0, 0, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, true, &mut stat);
+        }
+
         // ---- Stimmung: 3D linear ins HDR-Ziel, Bloom-Kette ----
         if hdr {
             let n = self.nach.as_ref().expect("nachbild_bereit");
@@ -1756,7 +1874,7 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -1819,7 +1937,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -1861,6 +1979,7 @@ impl Glut {
         zelt: bool,
         himmel: bool,
         instancing: bool,
+        nur_fest: bool,
         stat: &mut Statistik,
     ) {
         {
@@ -1874,7 +1993,7 @@ impl Glut {
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;
             }
-            for z in zuege.iter().filter(|z| z[0] == zug::FEST || z[0] == zug::DURCH) {
+            for z in zuege.iter().filter(|z| z[0] == zug::FEST || (z[0] == zug::DURCH && !nur_fest)) {
                 let Some(Some(n)) = netze.get(z[1] as usize) else { continue };
                 if z[2] + z[3] > n3 {
                     continue;

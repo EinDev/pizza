@@ -258,7 +258,9 @@
       {"nummer": 8, "name": "nebelFarbe", "typ": "farbe", "standard": "#1c1a2a", "min": null, "max": null},
       {"nummer": 9, "name": "saettigung", "typ": "zahl", "standard": 1, "min": 0, "max": 2},
       {"nummer": 10, "name": "vignette", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
-      {"nummer": 11, "name": "koernung", "typ": "zahl", "standard": 0, "min": 0, "max": 1}]}
+      {"nummer": 11, "name": "koernung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 12, "name": "spiegelung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
+      {"nummer": 13, "name": "spiegelHoehe", "typ": "zahl", "standard": 0, "min": null, "max": null}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}, {"nummer": 19, "name": "ruht"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe"],

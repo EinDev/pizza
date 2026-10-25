@@ -18,6 +18,8 @@ feld_nummer T_S "bloom" -> S_BLOOM
 feld_nummer T_S "nebelDichte" -> S_ND
 feld_nummer T_S "nebelFarbe" -> S_NF
 feld_nummer T_S "koernung" -> S_K
+feld_nummer T_S "spiegelung" -> S_SP
+feld_nummer T_S "spiegelHoehe" -> S_SH
 form_grund 1 0 0 -> W
 wiederhole N i
   teil_neu 3 -> t
@@ -47,6 +49,8 @@ takte 3
 teil_neu 3 -> s2
 komp_neu T_S -> st2
 setze_zahl st2 S_K 0.5
+setze_zahl st2 S_SP 0.8
+setze_zahl st2 S_SH 0.15
 komp_haenge st2 s2
 takte 2
 komp_neu T_V -> v
