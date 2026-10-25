@@ -1,7 +1,11 @@
 // Nacht, Regen, Dunst: Himmelszelt mit Smog über der Stadt, Stimmung (Belichtung, Bloom, Höhennebel, Vignette, Korn) und
-// Regen aus Funken, die dem Spieler folgen (die Tropfen bleiben in der Welt, wo sie entstanden).
+// Regen. REGENSTAERKE ist der eine Regler: Stimmung.regen lässt Ringe in den Pfützen und Rinnsale an den nassen Wänden laufen,
+// und die Funken mit `regen: ja` stoßen rate × regen Tropfen aus. Die Tropfen sind Striche (`streckung` = Belichtungszeit),
+// leuchten im Licht der Neonschilder und Laternen (`licht`), fallen in einem Volumen um den Spieler (`volumen`: wer es verlässt,
+// kommt auf der anderen Seite wieder herein – so wirken wenige tausend Tropfen wie ein Wolkenbruch) und spritzen am Boden auf.
 bestellt "zustand.pizza";
 
+funghi REGENSTAERKE = 0.85;
 Teil REGEN = baueWetter();
 
 Teil baueWetter() {
@@ -10,20 +14,22 @@ Teil baueWetter() {
     herd.raum(0, 0, 0).mit(neu Himmelszelt(oben: "#05050c", horizont: "#3a2350", boden: "#0b0910", sterne: 0));
     herd.raum(0, 0, 0).mit(neu Stimmung(belichtung: 1.9, bloom: 0.9, bloomSchwelle: 1.1, bloomWeite: 0.75, nebelDichte: 0.035,
                                         nebelHoehe: 0, nebelAbfall: 0.08, nebelFarbe: "#2b2142", saettigung: 1.08,
-                                        vignette: 0.32, koernung: 0.12, spiegelung: 1, spiegelHoehe: 0));
+                                        vignette: 0.32, koernung: 0.12, spiegelung: 1, spiegelHoehe: 0, regen: REGENSTAERKE));
     herd.kamera().kamera().setzeSicht(72).setzeFern(400);
-    // Regen: neun Sprüher über dem Spieler
-    Teil r = herd.raum(0, 0, 0);
-    für (salami i = 0; i < 9; i++) {
-        Teil q = herd.raum((i % 3 - 1) * 5, 11, ((i / 3).ganz() - 1) * 5).haenge(r);
-        q.mit(neu Funken(rate: 170, lebensdauer: 1.15, tempo: 9, richtungY: -1, streuung: 16, schwerkraft: 4, groesse: 0.032,
-                         groesseEnde: 0.025, farbe: "#a8b4e880", farbeEnde: "#a8b4e840", mischung: "leuchtend"));
+    // Regen: zwei Sprüher 11 m über dem Spieler, je ein Quadrat von 2 × 9 m um ihn
+    Teil r = herd.raum(0, 11, 0);
+    für (salami i = 0; i < 2; i++) {
+        Teil q = herd.raum(0, 0, 0).haenge(r);
+        q.mit(neu Funken(rate: 4200, lebensdauer: 1.2, tempo: 11, richtungX: 0.06, richtungY: -1, streuung: 3, schwerkraft: 3,
+                         groesse: 0.016, groesseEnde: 0.016, farbe: "#c8d2ffa0", farbeEnde: "#c8d2ffa0", mischung: "leuchtend",
+                         streckung: 0.032, licht: 1, volumen: 9, aufschlag: ja, boden: 0.03, spritzer: 3, regen: ja));
     }
     serviere ((r));
 }
 
-// Regen folgt dem Spieler (ein Stück voraus, damit vor der Kamera immer Tropfen fallen)
+// Regen folgt dem Spieler (ein Stück voraus, damit vor der Kamera immer Tropfen fallen; die Tropfen bleiben in der Welt,
+// das Volumen wandert mit)
 leer wetterTakt(funghi x, funghi z, funghi blick) {
     funghi b = Mathe.bogen(blick);
-    REGEN.setzeLage(x + Mathe.sin(b) * 4, 0, z - Mathe.cos(b) * 4);
+    REGEN.setzeLage(x + Mathe.sin(b) * 2, 11, z - Mathe.cos(b) * 2);
 }
