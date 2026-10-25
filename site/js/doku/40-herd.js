@@ -44,7 +44,7 @@
           art: "details",
           titel: "Fertige Spiele zum Ausprobieren",
           inhalt: [
-            { art: "text", md: "Unter **Beispiele → Herd (Spiele)** liegen zum Anschauen und Weiterbauen:\n\n- **Teigfänger** (2D): Fang mit deiner Pizza die Beläge vor dem Steinofen – aber keine Ananas! Sprites als PNG-Dateien mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand.\n- **Teigball** (3D): Rolle eine Teigkugel über die Riesenpizza und sammle acht Beläge. Abendsonne mit Schatten, Steinöfen aus Ziegeln, eine Margherita als Textur, Nebel, eine weich folgende Kamera und ein HUD.\n- **Hallo Herd**, **Drehender Würfel** und **Steuerung** als kleine Lernbeispiele.\n\nTeigfänger und Teigball sind **Projekte aus mehreren Dateien** (Herd, Welt, Figuren, Anzeige – siehe *Projekte und Dateien*), ihre Bilder liegen als PNG und JPEG im Ordner `bilder/` und werden mit `Bildchen.laden` geladen (siehe *Formen und Bildchen*)." },
+            { art: "text", md: "Unter **Beispiele → Herd (Spiele)** liegen zum Anschauen und Weiterbauen:\n\n- **Teigfänger** (2D): Fang mit deiner Pizza die Beläge vor dem Steinofen – aber keine Ananas! Sprites als PNG-Dateien mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand.\n- **Teigball** (3D): Rolle eine Teigkugel über die Riesenpizza und sammle acht Beläge. Abendsonne mit Schatten, Steinöfen aus Ziegeln, eine Margherita als Textur, Nebel, eine weich folgende Kamera und ein HUD.\n- **Pizzeria** (3D): eine kleine Küche mit Gastraum aus fertigen **3D-Modellen** (glTF von Kenney, CC0) – Ofentür, Kühlschrank und Pizzakarton gehen auf, alle Tische wechseln mit einem Belag die Farbe (siehe *Ausbau: neue Komponenten → 3D-Modelle*).\n- **Hallo Herd**, **Drehender Würfel** und **Steuerung** als kleine Lernbeispiele.\n\nTeigfänger und Teigball sind **Projekte aus mehreren Dateien** (Herd, Welt, Figuren, Anzeige – siehe *Projekte und Dateien*), ihre Bilder liegen als PNG und JPEG im Ordner `bilder/` und werden mit `Bildchen.laden` geladen (siehe *Formen und Bildchen*)." },
             { art: "bild", src: "img/doku/he-teigfaenger.png", alt: "Teigfänger: Vor einer Ziegelwand mit einem Steinofen, in dem Flammen auf Holzscheiten lodern, fallen Beläge herab; unten fängt eine Pizza auf einem hölzernen Schieber sie auf. Oben links die Punkte, rechts drei Herzen, vorn eine Holztheke.", unterschrift: "Teigfänger – das 2D-Spiel aus den Beispielen." }
           ]
         },
@@ -344,7 +344,8 @@
                 ["`Tafel`","2D","`breite` 240, `hoehe` 160, `farbe` #2f2a26e0, `titel` \"\", `rundung` 10, `ziehbar` nein","Fläche für Bedienelemente: ihr Inhalt sind ihre Kinder; verdeckt, was darunter liegt, `ziehbar` = mit der Maus verschieben"],
                 ["`Schwung`","3D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY`/`tempoZ` 0, `drehtempoX`/`drehtempoY`/`drehtempoZ` 0, `schwerkraft` 0, `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5, `stossX`/`stossY`/`stossZ` 0, `drehsperre` nein; nur lesen: `amBoden`, `ruht`","3D-Physik: Kästen, Kugeln und Kapseln fallen, rollen, kippen und stapeln sich – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Schwung ist fest, mit `form: \"netz\"` auch ein Gelände oder eine eigene Form"],
                 ["`Figur`","3D","`laufX`/`laufZ` 0, `sprung` 0, `schwerkraft` 9.81, `stufe` 0.3, `hang` 45, `haut` 0.02, `schieben` 0, `mitfahren` ja; nur lesen: `amBoden`, `boden`, `bodenHoehe`, `bodenNormaleX`/`Y`/`Z`, `tempoX`/`Y`/`Z`, `anWand`, `anDecke`","Figur-Steuerung: eine aufrechte Kapsel läuft mit dem Wunschtempo, springt, steigt Stufen, gleitet an Wänden, rutscht an zu steilen Hängen und fährt auf bewegten Böden mit – braucht einen `Fuehler`"],
-                ["`Strahl`","3D","`richtungX`/`richtungZ` 0, `richtungY` −1, `achsen` welt, `laenge` 1000, `maske` alle, `ausloeser` nein, `ausMaus` nein; nur lesen: `getroffen`, `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`","Strahl-Abfrage: was liegt in einer Richtung (oder unter der Maus)? Beim Lesen gerechnet, trifft Fühler-Formen; nach unten gerichtet die Höhe über einem Gelände"]
+                ["`Strahl`","3D","`richtungX`/`richtungZ` 0, `richtungY` −1, `achsen` welt, `laenge` 1000, `maske` alle, `ausloeser` nein, `ausMaus` nein; nur lesen: `getroffen`, `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`","Strahl-Abfrage: was liegt in einer Richtung (oder unter der Maus)? Beim Lesen gerechnet, trifft Fühler-Formen; nach unten gerichtet die Höhe über einem Gelände"],
+                ["`Etikett`","beide","`name` \"\"","Name eines Teils: `herd.modell` setzt ihn je Knoten eines 3D-Modells; `teil.finde(name)` sucht ihn im Teilbaum"],
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1298,6 +1299,48 @@
             },
             { art: "ausgabe", text: z("weg nach 9 Takten", "[Pendel@1] x = 197") },
             { art: "text", md: "Ein ganzes Spiel ist **Kniffe** unter *Beispiele → Herd*: Der Bote, die Münzen, eine Olive auf Streife und eine Tomate, die ihn verfolgt, sind je eine Kniff-Klasse; ein Taster mit `beimKlick` streut neue Münzen aus." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "3D-Modelle aus Dateien: Modell.laden, herd.modell, finde",
+          inhalt: [
+            { art: "text", md: "Fertige 3D-Modelle – Möbel, Lebensmittel, Figuren aus Blender oder aus freien Paketen wie denen von Kenney – legst du als **glTF-Datei** ins Projekt: `.glb` (alles in einer Datei) oder `.gltf` mit seinen `.bin`- und Bilddateien daneben. `Modell.laden(\"modelle/tisch.glb\")` lädt es (gleicher Pfad → dasselbe Modell), `herd.modell(m, x, y, z)` stellt eine Kopie in die Welt und liefert ihr Wurzel-Teil. Darunter liegt **ein Teil je Knoten** des Modells, mit Lage, Drehung und Größe wie in der Datei und dem Knotennamen als **`Etikett`** – `teil.finde(\"door\")` holt so die Ofentür, die sich drehen lässt wie jedes Teil. 1 Meter im Modell ist 1 Einheit, oben ist +y." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Herd herd = neu Herd(\"Küche\");",
+                "Modell herdModell = Modell.laden(\"modelle/kitchen-stove.glb\");",
+                "Modell tisch = Modell.laden(\"modelle/table-round.glb\");",
+                "Teil herdTeil = herd.modell(herdModell, 0, 0, -2);",
+                "Teil tuer = herdTeil.finde(\"door\");                   // ein Knoten des Modells",
+                "tuer.setzeNeigung(-80);                                // Ofentür auf",
+                "für (salami i = 0; i < 3; i++) { herd.modell(tisch, i * 1.5, 0.27, 0); }",
+                "tisch.belaege().stück(1).belag().setzeFarbe(\"tomate\");    // alle drei Tische zugleich",
+                "Bote.sage((herdModell.namen() + \" \" + tisch.breite() + \" m breit\"));",
+                "herd.backe();"
+              )
+            },
+            { art: "text", md: "- **Materialien** werden zu geteilten **Belägen** (`m.belaege()`): Grundfarbe und Grundfarb-Bild, Metall, Glanz (1 − Rauheit), Leuchten; Normal- und Rauheit-Bild werden zum Relief. Eine Farbe am Belag gilt für jede Kopie des Modells.\n- **Lichter** aus dem Modell (Punkt und Spot) werden `Licht`-Komponenten; Kameras und Richtungslichter im Modell entfallen.\n- `m.namen()` listet die Knotennamen, `m.breite()`/`hoehe()`/`tiefe()` die Größe, `m.folgen()` die Animationen (abspielen kommt später).\n- **Grenzen:** höchstens 500 000 Ecken, 1 024 Knoten, 64 Materialien und 32 Bilder (je ≤ 2048 × 2048) je Modell. Komprimierte Modelle (Draco, meshopt, KTX2) kann der Herd nicht – speichere sie in Blender oder mit `gltf-transform` ohne Kompression als `.glb`. FBX und OBJ wandelst du genauso vorher in glTF um.\n- Modelle werden wie Bilder **vorgebacken** und zählen zur Teigmenge (64 MB für alle Bilder und Modelle zusammen)." },
+            { art: "text", md: "Auch ohne Modell kannst du Teile benennen und wiederfinden – `finde` sucht im ganzen Teilbaum, das Teil selbst eingeschlossen:" },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              code: z(
+                "Herd herd = neu Herd(\"Etikett\");",
+                "Teil wagen = herd.raum();",
+                "wagen.mit(neu Etikett(name: \"Wagen\"));",
+                "Teil rad = herd.koerper(Form.zylinder(), 1, 0, 0);",
+                "rad.haenge(wagen);",
+                "rad.mit(neu Etikett(name: \"Rad\"));",
+                "Bote.sage(((wagen.finde(\"Rad\") == rad) + \" \" + wagen.finde(\"Lenker\") + \" \" + rad.etikett().name()));"
+              )
+            },
+            { art: "ausgabe", text: z("ja karton Rad") },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Pizzeria** unter *Beispiele → Herd*: 21 Modelle aus dem Kenney Furniture Kit und Food Kit (CC0), eine Kamera zum Umkreisen, Türen und Deckel über `finde`." }
           ]
         },
         {

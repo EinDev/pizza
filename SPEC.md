@@ -114,7 +114,8 @@ Projekte (ein Modul, HOST-ABI v2) – Interpreter, Wasm und nativer Host bitglei
 - **Pfade** (eine Regel überall, `PizzaLang.projekt.pruefePfad`): relativ zur Projektwurzel, Trenner `/`, Segmente
   `[a-z0-9_-][a-z0-9_.-]*` (nicht mit `.` beginnend), keine leeren Segmente, kein `.`/`..`, höchstens 120 Zeichen und 8 Ebenen.
   Der Ordner `pruefung/` an der Wurzel gehört **nicht** zum Programm (Testdateien, ARCHITEKTUR §6). Dateiarten: `.pizza`, `.png`,
-  `.jpg`/`.jpeg`, Text (`.txt`, `.json`, `.csv`, `.md`). Ein ungültiger Pfad in der Sammlung →
+  `.jpg`/`.jpeg`, Modelle `.glb`/`.gltf` mit Puffern `.bin` (H-K16; Binärdateien wie Bilder, auch `.gltf`), Text (`.txt`, `.json`,
+  `.csv`, `.md`). Ein ungültiger Pfad in der Sammlung →
   `PizzaFehler P0015: "<pfad>" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /).`
 - **Textdateien** sind UTF-8; der Lader ersetzt `\r\n` durch `\n` (einzelnes `\r` und ein BOM bleiben) – in jedem Motor, damit
   `Kiste`, Hashes und Teilen unter Windows dieselben Bytes sehen wie im Browser. Kommt eine Textdatei (nach Endung) als Bytes, wird
@@ -1683,6 +1684,7 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
 | `Teil` | – (nur über Fabriken, `kopie()`) | §18.4 |
 | `Form` | `(punkte, dreiecke, glatt: nein)` | `id()`; statisch `Form.wuerfel()`, `Form.kugel(teile: 24)`, `Form.zylinder(teile: 32)`, `Form.kegel(teile: 32)`, `Form.ebene()`, `Form.ring(dicke: 0.3, teile: 32)` |
 | `Bildchen` | `(zeilen, farben: karton)` | `breite()`, `hoehe()`, `id()` |
+| `Modell` | – (nur `Modell.laden(pfad)`, H-K16) | `namen()`, `folgen()` → `Blech<margherita>`, `belaege()` → `Blech<Teil>`, `breite()`, `hoehe()`, `tiefe()` (§18.5 „Modelle“) |
 | Komponenten | `(feld: wert, …)` | generisch aus dem Schema (§18.4), Liste §18.6 |
 | `Kniff` | – (Rohling; nur `erbt Kniff`) | `teil()`; überschreibbar `start()`, `takt()`, `beimBetreten(Teil anderes)`, `beimVerlassen(Teil anderes)`, `beimKlick()`, `beimEntfernen()` (§18.4 „Kniffe“, K-152) |
 
@@ -1690,7 +1692,7 @@ Die Szene lebt in der Engine (Herd-Kern, Rust); Interpreter und Wasm-Laufzeit si
   `Kniff` (H-K13, K-152):** die einzige erbbare Herd-Klasse – `klasse Wackler erbt Kniff { … }` ist erlaubt, `neu Kniff()` →
   `RohlingAnanas: Ein Rohling ist nicht essbar.`; sie gibt es auch ohne `neu Herd` (anhängen kann man Kniffe nur an Teile). Statisch
   an `Herd`: `Herd.farbe(r, g, b, a = 1)` → `"#rrggbbaa"` (r, g, b gerundet und auf 0 … 255 geklemmt, a auf 0 … 1 geklemmt, × 255 gerundet,
-  Kleinbuchstaben). Textformen: `Herd(<titel>)`, `Teil(<id>)`, `Form(<id>)`, `Bildchen(<breite>×<hoehe>)`, Komponente `<Name>(<teil-id>)`
+  Kleinbuchstaben). Textformen: `Herd(<titel>)`, `Teil(<id>)`, `Form(<id>)`, `Bildchen(<breite>×<hoehe>)`, `Modell(<pfad>)`, Komponente `<Name>(<teil-id>)`
   bzw. `<Name>()` solange sie an keinem Teil hängt.
 - **Ein Herd (K-132):** `neu Herd` zum zweiten Mal → `LaufzeitAnanas: Es gibt nur einen Herd pro Programm.` Fabriken/Ressourcen vor
   `neu Herd` → `LaufzeitAnanas: Erst braucht es einen Herd (neu Herd(…)).`
@@ -1775,6 +1777,7 @@ Zeichenreihenfolge, gleich → nach ID); 3D: rechtshändig, y oben, Drehung in G
 | `mit(komponente)` → Komponente | hängt an (§ unten); `<name>()` → die Komponente dieser Art oder `karton`; `ohne("Name")` entfernt sie |
 | `mit(kniff)` → Kniff, `ohne(kniff)` → Kniff oder `karton`, `kniffe()` → `Blech<Kniff>` | eigene Kniffe (unten, H-K13) |
 | `raum()` → `"2D"`/`"3D"`, `id()` | |
+| `finde(name)` → Teil oder `karton` | erstes Teil im Teilbaum (das Teil selbst eingeschlossen, Tiefensuche in Kindreihenfolge, auch ruhende und unsichtbare) mit `Etikett.name` = `name` (H-K16); kein Text → `TypAnanas: finde() braucht einen Text für 'name', nicht 3.` |
 
 **Komponenten generisch (K-132):** Jede Komponente des Schemas (`site/js/herd/schema.json`, erzeugt aus dem Kern) heißt in pizza wie im
 Schema und ist eine eingebaute Klasse:
@@ -1832,7 +1835,7 @@ Schema und ist eine eingebaute Klasse:
   (`x, y` = Mitte), `kreis(x, y, r, farbe: "weiss", umriss: 0)`, `text(t, x, y, groesse: 16, farbe: "ofen", ausrichtung: "links")`
   (`y` = Oberkante, `x` je nach Ausrichtung), `bild(b, x, y, groesse: 1)` (Mitte), `gruppe(x = 0, y = 0)` (leeres 2D-Teil);
   3D `koerper(form, x = 0, y = 0, z = 0, farbe: "weiss", glanz: 0.3, leuchten: 0, bild: karton)`, `licht(x, y, z, farbe: "weiss",
-  reichweite: 10)`, `raum(x = 0, y = 0, z = 0)` (leeres 3D-Teil).
+  reichweite: 10)`, `raum(x = 0, y = 0, z = 0)` (leeres 3D-Teil), `modell(m, x = 0, y = 0, z = 0)` (H-K16, „Modelle“ unten).
 - **Farben:** Text – Palettenname (`weiss #FFFFFF`, `schwarz #000000`, `grau #8A8580`, `ofen #2F2A26`, `tomate #D9452B`, `salami #A83232`,
   `schinken #F2A0A0`, `basilikum #3E8E41`, `oliven #6B7A2A`, `mozzarella #FFF6E0`, `teig #E8C48A`, `kruste #C8955A`, `ananas #F5C518`,
   `senf #F2B33D`, `himmel #8EC9F0`, `wasser #2E6FD9`, `aubergine #5B2A6E`) oder `#rgb`/`#rrggbb`/`#rrggbbaa` (Groß/klein egal), sonst
@@ -1868,6 +1871,34 @@ Schema und ist eine eingebaute Klasse:
   Bildern → `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).", datei: null,
   zeile: null, spalte: null }`, Exit 2 (wie der fehlende Herd-Kern). Darstellung: Vergrößern pixelscharf (nächster Nachbar),
   Verkleinern trilinear über die Mipmaps; Pixel wie immer mit Toleranz (K-129).
+- **Modelle (H-K16, K-161; HERD.md §13.3):** statisch `Modell.laden(pfad)` lädt ein glTF-2.0-Modell (`.glb` oder `.gltf`; Puffer und
+  Bilder eingebettet, als `data:`-URI oder als Dateien neben dem Modell, relativ zu ihm) aus der Kiste als `Modell` (eigene ID im Kern,
+  Textform `Modell(<pfad>)`). Gleicher Pfad → **dasselbe** Modell. Prüfreihenfolge wie `Bildchen.laden`: kein Text →
+  `TypAnanas: Modell.laden() braucht einen Text für 'pfad', nicht 5.` → vor `neu Herd` → `Erst braucht es einen Herd …` →
+  `LaufzeitAnanas: Die Datei "<pfad>" liegt nicht in der Kiste.` → die Meldung des Vorbackers mit dem Pfad davor:
+  `<pfad> ist kein lesbares Modell (glTF 2.0).` · `<pfad> braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd
+  nicht.` · `<pfad> ist zu groß (612 000 Ecken) – höchstens 500 000 Ecken.` (ebenso Dreiecke, Knoten, Materialien, Bilder, Häute,
+  Gelenke, Folgen) · `<pfad> (Bild 3) ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel.` bzw. `… (Bild 3) ist kein lesbares Bild
+  (PNG oder JPEG).` · `<pfad> braucht die Datei <uri> – die liegt nicht in der Kiste.` Eine Datei ohne Modell-Endung ist „kein lesbares
+  Modell“. `neu Modell(…)` → `RohlingAnanas: 'Modell' kann man nicht mit neu backen.`
+  - `herd.modell(m, x = 0, y = 0, z = 0)` → neues 3D-Wurzel-Teil an (x, y, z); darunter ein Teil je glTF-Knoten der Standardszene
+    (Tiefensuche in Dateireihenfolge → feste Teil-IDs) mit Lage aus Lage/Drehung/Größe des Knotens (Quaternion → `drehung`/`neigung`/
+    `rollen`; `matrix`-Knoten werden zerlegt, Scherung geht verloren, eine Spiegelung landet in `groesseX`) und der Komponente
+    `Etikett` (Name des Knotens); `Koerper` je Dreiecks-Primitive (mehrere Primitiven eines Knotens als Kind-Teile ohne Etikett), Lichter
+    aus `KHR_lights_punctual` als `Licht` (Punkt, Spot; Richtungslichter entfallen – die Sonne ist `herd.sonne()`). Kein Modell →
+    `TypAnanas: modell() braucht ein Modell für 'modell', nicht "x".` Mehr Kopien: `herd.modell` erneut oder `kopie()`.
+  - **Beläge:** je Material ein Teil mit `Belag` (+ `Etikett` = Materialname) unter einer ruhenden `Vorlage`-Wurzel, einmal je Modell
+    beim Laden angelegt und von allen Kopien geteilt (`m.belaege()`): `baseColorFactor` (linear) → `farbe` (sRGB, bei `BLEND`/`MASK`
+    mit Deckkraft), Grundfarb-Bild → `bild`, `metallicFactor` → `metall`, 1 − `roughnessFactor` → `glanz`, `modell` pbr,
+    `emissiveFactor` → `leuchten` (größter Anteil) und `KHR_materials_emissive_strength` → `strahlen`; Normal- und
+    Metall/Rauheit-Bild → `relief` (Normale x, y; Rauheit) bei REPEAT-Abtaster und UV außerhalb 0 … 1 → `kachel` 1. Eckfarben
+    (`COLOR_0`) ohne Grundfarb-Bild backt der Vorbacker in ein Paletten-Bild. Gleiche Bilder mehrerer Modelle liegen einmal im Kern.
+  - `m.namen()` (Knotennamen ohne leere, Tiefensuche), `m.folgen()` (Animationen, ab H-K23a), `m.belaege()`, `m.breite()`/`hoehe()`/
+    `tiefe()` (Hülle der Ruhelage in Einheiten; 1 glTF-Meter = 1 Einheit, +y oben, Vorderseite +z).
+  - **Vorbacken:** jedes Modell der Kiste wird vor dem Start zu einem **Modellteig** vorgebacken (gleicher Vorbacker `teigling.wasm`,
+    bitgleich; Schlüssel SHA-256 des Quellpakets aus Modell und benutzten Nachbardateien). Modelle zählen zur **Teigmenge** (eingebettete
+    Bilder je Quelle einmal, auch gegenüber gleichen Bilddateien); mit Modellen heißt P0020 `Die Bilder und Modelle sind zusammen zu groß
+    für den Ofen (…)`.
 
 ### 18.6 Komponenten (v1 und Ausbau)
 
@@ -1907,6 +1938,7 @@ Schema und ist eine eingebaute Klasse:
 | `Schwung` (3D, braucht `Fuehler`) | `art` dynamisch (`dynamisch`\|`kinematisch`\|`fest`), `masse` 1 (≥ 0.001), `tempoX`/`tempoY`/`tempoZ` 0 (Einheiten/s), `drehtempoX`/`drehtempoY`/`drehtempoZ` 0 (Grad/s um die Weltachsen), `schwerkraft` 0 (Einheiten/s² nach −y; **9.81** fühlt sich nach Erde an), `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5 (je 0 … 1), `stossX`/`stossY`/`stossZ` 0, `drehsperre` nein; **Lesefelder** `amBoden`, `ruht` (diavolo) | 3D-Physik (H-K17, K-162; Takt-System nach `Gelaende`, vor dem Fühler-Nachlauf): Form = Fühler am selben Teil, **gedreht** mit dem Teil – `kugel`/`kreis`, `kasten`/`rechteck`/`auto` (Quader in den Achsen des Teils, fehlende Seiten aus der Hülle des `Koerper`), `kapsel` (y-Achse des Teils, `radius`, `hoehe` gesamt; fehlt eines, aus der Hülle), `netz` (nur fest: die Dreiecke der `Koerper`-Form, einseitig mit der Vorderseite, bzw. das Höhenraster des `Gelaende`; an einem beweglichen Körper der Quader um das Netz). Kontakte nur zwischen Fühlern mit `ausloeser: nein`, Masken wie beim Fühler; ein solcher Fühler **ohne** Schwung ist fest. `dynamisch`: tempo += stoss / masse, tempoY −= schwerkraft · dt, Dämpfungen als (1 − d)^dt, dann Kontakte; Drehung aus den Kontakten mit der Trägheit der Form (`drehsperre` ja: keine Drehung); `kinematisch`: fährt und dreht mit tempo/drehtempo, schiebt, lässt sich nicht schieben (keine Schwerkraft, kein Stoß); `fest`: bewegt sich nie. `stoss` wirkt einmal im nächsten Takt und ist danach 0. Schwung schreibt Lage (über die Eltern zurückgerechnet) und `drehung`/`neigung`/`rollen`; setzt das Programm Lage oder Drehung, gilt die neue (der Körper wacht auf). Löser: feste 8 Iterationen Impuls (Normale, zwei Reibungsrichtungen mit √(a · b), Drehung der Kontaktfläche) und 4 Iterationen Positionskorrektur, Abprall = größerer Wert beider ab 0.5 Einheiten/s Annäherung; fester Fühler ohne Schwung: abprall 0, reibung 0.5. `amBoden` = im letzten Takt von unten gestützt (Normale mehr als 30° über der Waagerechten). **Schlafen**: ruhen alle Körper einer Insel (sich berührender dynamischer Körper) 0,5 s lang (unter 0.05 Einheiten/s und 2°/s), schlafen sie (`ruht` ja, Tempo 0, kein Rechenaufwand) bis zu Stoß, gesetztem Tempo, gesetzter Lage, einem wachen oder bewegten Nachbarn oder dem Verschwinden eines Kontaktpartners. Kein Schutz gegen Durchtunneln (Tempo je Takt unter der halben Ausdehnung halten, Wände dick), keine Gelenke |
 | `Figur` (3D, braucht `Fuehler`) | `laufX`/`laufZ` 0 (Wunschtempo in Weltachsen, Einheiten/s), `sprung` 0 (≥ 0; Einmal: Tempo nach oben, nur am Boden, danach 0), `schwerkraft` **9.81**, `stufe` 0.3 (≥ 0), `hang` 45 (Grad, 0 … 90), `haut` 0.02 (≥ 0), `schieben` 0 (≥ 0), `mitfahren` ja; **Lesefelder** `amBoden` (diavolo), `boden` (Teil oder `karton`), `bodenHoehe`, `bodenNormaleX`/`bodenNormaleY`/`bodenNormaleZ`, `tempoX`/`tempoY`/`tempoZ` (tatsächlich), `anWand`, `anDecke` (diavolo) | Figur-Steuerung (H-K20, K-165; Takt-System nach `Schwung`, Figuren nach Teil-ID) wie Unity `CharacterController`: eine **aufrechte** Kapsel (Achse Welt-y) aus dem Fühler am selben Teil – `kapsel` mit `radius`/`hoehe` (× Größe des Teils; fehlt eines, aus dem `Koerper`), jede andere Form als Kapsel um ihre Hülle; unsichtbar zählen nur eigene Maße. Hindernisse: alle 3D-Fühler mit `ausloeser: nein` (Masken beidseitig) – feste, kinematische und dynamische Körper (gedreht wie in `Schwung`), Netze, Gelände (als Dreiecke) und die übrigen Figuren; dynamische `Schwung`-Körper schiebt die Figur nur mit `schieben` (Stoß je Sekunde Berührung, waagerecht), für `Schwung` ist die Figur fest. Je Takt: mitfahren (der Punkt auf dem Boden des Vortakts durch dessen aktuelle Welt-Matrix – Plattformen aus `Schwung`, `Ablauf`, `Gleiten` oder Programm), Tempo = (`laufX`, Falltempo − `schwerkraft` · dt, `laufZ`), waagerecht wischen in Teilschritten (≤ halber Radius, höchstens 16) mit je bis zu 4 Durchgängen Herausschieben (Kapsel + `haut`): **Boden** (Normale höchstens `hang` geneigt) senkrecht, **Decke** (Normale nach unten) entlang der Normale, **Wand** waagerecht – so gleitet sie an Wänden und kommt keinen zu steilen Hang hinauf; Kanten bis `stufe` über dem Fuß mit begehbarer Oberseite zählen als Boden. Hält eine Wand bis `stufe` über dem Fuß auf, ein Versuch Hoch–Vor–Runter (gilt, wenn er auf Boden landet und weiter kommt). Dann senkrecht; stand sie im Vortakt und springt nicht, klebt sie bis `stufe` tiefer am Boden (Treppe und Hang hinab). Schreibt die Lage (über die Eltern), Drehung bleibt beim Programm. `tempo*` = Weg / dt ohne Mitfahren. Grenzen: kein geschlossenes Wischen (Tempo je Takt ≤ 8 Radien), Drehung des Bodens dreht die Figur nicht mit |
 | `Strahl` (3D) | `richtungX` 0, `richtungY` −1, `richtungZ` 0, `achsen` welt (`welt`\|`teil`), `laenge` 1000 (≥ 0), `maske` 4294967295 (Ganzzahl 0 … 4294967295), `ausloeser` nein, `ausMaus` nein; **Lesefelder** `getroffen` (Teil oder `karton`), `abstand`, `punktX`/`punktY`/`punktZ`, `normaleX`/`normaleY`/`normaleZ` | Strahl-Abfrage (H-K20, K-165) wie Unity `Physics.Raycast` – kein System: die Lesefelder werden **beim Lesen** gegen die Welt im Lesezeitpunkt gerechnet (Haken `lies`, nicht im Szenen-Hash) und gelten bis zur nächsten Änderung der Welt (jeder schreibende Aufruf). Ursprung = Weltlage des Teils, Richtung in Welt- bzw. Teil-Achsen (Länge egal, 0 → kein Treffer), bis `laenge`; `ausMaus` ja: von der aktiven Kamera (kleinste wache ID, sonst die Standardsicht) durch die Maus des Takts. Ziele: 3D-Fühler-Formen (wach, sichtbar, Gruppe in `maske`; Auslöser nur mit `ausloeser` ja), gedreht wie in der Physik, Netz und Gelände einseitig (Vorderseite bzw. von oben), nie das eigene Teil, nur der **Eintritt** zählt (liegt der Ursprung in einer Form, trifft er sie nicht); nächster Treffer, Gleichstand → kleinere Teil-ID; `Koerper` ohne Fühler trifft er nicht. Kein Treffer: `getroffen` `karton`, alle Zahlen 0. **Höhenabfrage:** Strahl nach unten über einem Gelände mit `form: "netz"` → `punktY` = Höhe des gezeichneten Netzes |
+| `Etikett` (beide) | `name` "" | Name eines Teils (H-K16, K-161): `herd.modell` setzt ihn je glTF-Knoten (und je Material am Belag-Teil), jedes Programm kann ihn selbst verwenden; `teil.finde(name)` (§18.4) sucht danach. Verborgen trägt es die Knotennummer im Modell (für Animationen ab H-K23a; `kopie()` nimmt sie mit). Kein System, keine Hülle |
 
 **Maus und UI-Bausteine (H-K12, K-151):** Treffer hat nur das **oberste** Ziel unter der Maus – höchste `ebene`, dann höchste
 Teil-ID (wie gezeichnet); Ziele sind sichtbare `Taster` (aktiv), `Regler` und `Tafel`. Teile mit `ebene ≥ festAb` des aktiven `Blick`

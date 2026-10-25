@@ -75,6 +75,13 @@ pub mod code {
     pub const TEIGLING_KEIN_BILD: i32 = 61;
     /// Teigling: Bild zu groß (> 2048 × 2048)
     pub const TEIGLING_ZU_GROSS: i32 = 62;
+    /// Modell (H-K16): kein lesbares Modell (auch ein ungültiger Modellteig) · 64 Pflicht-Erweiterung · 65 zu groß ·
+    /// 66 Bild im Modell · 67 Datei fehlt. Text aus dem Fehler-Modellteig (ohne Pfad).
+    pub const MODELL_KEIN: i32 = 63;
+    pub const MODELL_ERWEITERUNG: i32 = 64;
+    pub const MODELL_ZU_GROSS: i32 = 65;
+    pub const MODELL_BILD: i32 = 66;
+    pub const MODELL_DATEI: i32 = 67;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -259,6 +266,11 @@ pub fn teigling_kein_bild() -> Fehler {
 /// Code 62 (Größe aus dem Fehler-Teigling, `u32`). Pfad wie bei Code 61.
 pub fn teigling_zu_gross(b: u32, h: u32) -> Fehler {
     laufzeit(code::TEIGLING_ZU_GROSS, format!("ist zu groß ({} × {}) – höchstens 2048 × 2048 Pixel.", b, h))
+}
+/// Codes 63 … 67 (`art` 1 … 5 aus dem Modellteig). Der Text kommt fertig aus dem Vorbacker; die Anbindung setzt `<pfad> `
+/// davor (wie bei 61/62).
+pub fn modell(art: i32, text: &str) -> Fehler {
+    laufzeit(code::MODELL_KEIN - 1 + art, String::from(text))
 }
 pub fn puffer(was: &str) -> Fehler {
     intern(format!("Puffer ungültig: {}.", was))

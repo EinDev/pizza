@@ -870,7 +870,7 @@ klasse Teig {
             ["**Kreis**", "Bestellt eine Datei (über Umwege) sich selbst oder die Hauptdatei: `P0014`. Was alle brauchen, gehört in eine eigene Nebendatei."],
             ["**Ein Namensraum**", "Jeder Name gibt es im ganzen Projekt nur einmal – `Teig` in zwei Dateien ist `P0016`."]
           ] },
-          { art: "text", md: "**Pfade** bestehen nur aus `a–z`, `0–9`, `-`, `_`, `.` und `/` – also `rezepte/belaege.pizza`, nicht `Rezepte/Beläge.pizza`. Erlaubt sind `.pizza`, Bilder (`.png`, `.jpg`) und Texte (`.txt`, `.json`, `.csv`, `.md`); höchstens 100 Dateien und 8 MB (`P0020`)." },
+          { art: "text", md: "**Pfade** bestehen nur aus `a–z`, `0–9`, `-`, `_`, `.` und `/` – also `rezepte/belaege.pizza`, nicht `Rezepte/Beläge.pizza`. Erlaubt sind `.pizza`, Bilder (`.png`, `.jpg`), 3D-Modelle (`.glb`, `.gltf` mit `.bin`) und Texte (`.txt`, `.json`, `.csv`, `.md`); höchstens 100 Dateien und 8 MB (`P0020`)." },
           { art: "text", md: "Fehler zeigen jetzt auch die Datei: `Ungefangene Ananas – RechenAnanas: … (rezepte/ofen.pizza, Zeile 2)`. Ein Klick auf die Meldung in der Konsole öffnet die Datei an der richtigen Stelle." }
         ] },
         { art: "details", titel: "Sichtbarkeit: direkt bestellt und Geheimrezept", inhalt: [
@@ -933,7 +933,7 @@ Basilikum
             ["`Kiste.gibts(pfad)`", "`ja`, wenn es die Datei gibt"],
             ["`Kiste.liste(ordner)`", "alle Dateipfade (unter `ordner`), sortiert"]
           ] },
-          { art: "hinweis", ton: "info", md: "Bilder (`.png`, `.jpg`) lädt der Herd mit `Bildchen.laden(\"bilder/teig.png\")` – siehe *Herd*. Eine fehlende Datei ist eine `LaufzeitAnanas`; in einer EXE liegen alle Projektdateien mit drin, auch die `.pizza`-Quelltexte." }
+          { art: "hinweis", ton: "info", md: "Bilder (`.png`, `.jpg`) lädt der Herd mit `Bildchen.laden(\"bilder/teig.png\")`, 3D-Modelle mit `Modell.laden(\"modelle/tisch.glb\")` – siehe *Herd*. Eine fehlende Datei ist eine `LaufzeitAnanas`; in einer EXE liegen alle Projektdateien mit drin, auch die `.pizza`-Quelltexte." }
         ] },
         { art: "details", titel: "pizza.json, Beispiele und Kommandozeile", inhalt: [
           { art: "text", md: "Die Projektdatei **`pizza.json`** ist freiwillig. Sie nennt Name, Hauptdatei, eine Beschreibung und Standard-Argumente für `hauptgang`:" },

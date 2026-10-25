@@ -14,3 +14,7 @@ probe = []
 
 [dependencies]
 libm = "0.2.16"
+
+[dev-dependencies]
+# H-K16: die Kern-Tests backen die Testmodelle (herd/teigling/testmodelle) mit dem Vorbacker zu Modellteigen
+herd-teigling = { path = "../teigling" }

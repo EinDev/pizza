@@ -1791,6 +1791,7 @@
       this.vorbackerOpt = opt.vorbacker;
       this.teiglinge = new Map();
       this.bildPfade = new Map();
+      this.modellPfade = new Map();   // H-K16: Pfad → HerdModell (gleicher Pfad = dasselbe Modell); Modellteige in this.teiglinge
       this.schritte = 0;
       this.offset = 0;
       this.frames = [];
@@ -1854,6 +1855,7 @@
         ['Herd', new Modul('Herd', HERD_MOD_M, null)],
         ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
         ['Bildchen', new Modul('Bildchen', HERD_BILDCHEN_MOD_M, null)],
+        ['Modell', new Modul('Modell', HERD_MODELL_MOD_M, null)],
         ['Kiste', new Modul('Kiste', KISTE_M, null)],
         ['Klang', new Modul('Klang', KLANG_MOD_M, null)],
         ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
@@ -1942,7 +1944,7 @@
       if (v instanceof UiTheke) return 'Theke';
       if (v instanceof UiZutat) return UI_ART_NAME[v.art];
       if (v instanceof Zettel) return 'Zettel';
-      if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
+      if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen || v instanceof HerdModell) return herdKlasseVon(v);
       if (v instanceof KlangObj || v instanceof KlangSpur) return klangKlasseVon(v);
       if (v instanceof ZufallGen) return 'Zufall';
       if (v instanceof Kammer) return 'Vorratskammer';
@@ -2417,7 +2419,7 @@
           was = 'kein(e) ' + typ.name;
           break;
         }
-        case 'Herd': case 'Teil': case 'Form': case 'Bildchen': {
+        case 'Herd': case 'Teil': case 'Form': case 'Bildchen': case 'Modell': {
           if (this.klassen.has(typ.name) || v === null) {
             const k = this.klassen.get(typ.name);
             if (k === undefined || v === null || this.instanzVon(v, k)) return;
@@ -2523,6 +2525,7 @@
       if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
       if (v instanceof HerdForm) return 'Form(' + v.id + ')';
       if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
+      if (v instanceof HerdModell) return 'Modell(' + v.pfad + ')';
       if (v instanceof KlangObj) return 'Klang(' + v.id + ')';
       if (v instanceof KlangSpur) return 'Spur(' + v.nr + ')';
       if (v === AUTO) return 'auto';
@@ -2672,7 +2675,7 @@
     globalerName(name) {
       const g = this.globals.get(name);
       // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
-      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Kiste' || name === 'Klang') && this.klassen.has(name))) return g;
+      if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Modell' || name === 'Kiste' || name === 'Klang') && this.klassen.has(name))) return g;
       const k = this.klassen.get(name);
       if (k !== undefined) return k;
       throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');
@@ -5849,6 +5852,7 @@
       if (v instanceof HerdKomp) return 'Eine Komponente';
       if (v instanceof HerdForm) return 'Eine Form';
       if (v instanceof HerdBildchen) return 'Ein Bildchen';
+      if (v instanceof HerdModell) return 'Ein Modell';
       if (v instanceof KlangObj) return 'Ein Klang';
       if (v instanceof KlangSpur) return 'Eine Spur';
       return null;
@@ -6061,7 +6065,7 @@
   // Komponenten kommen generisch aus dem Schema des geladenen Kerns (schema_json) – eine neue Komponente im Kern
   // braucht hier keine Änderung (HERD.md §9).
   // =====================================================================
-  const HERD_KLASSEN = ['Herd', 'Teil', 'Form', 'Bildchen'];
+  const HERD_KLASSEN = ['Herd', 'Teil', 'Form', 'Bildchen', 'Modell'];
   const HERD_KUECHE = 'Den Herd gibt es nur in der Hauptküche.';
   const HERD_W0104 = 'Kein Herd verfügbar – Fenster wird nicht angezeigt.';
   const HERD_KERN_FEHLT = 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).';
@@ -6233,6 +6237,8 @@
   class HerdKomp { constructor(h, art, teil) { this.h = h; this.art = art; this.tab = art.tab; this.teil = teil; } }
   class HerdForm { constructor(id) { this.id = id; } }
   class HerdBildchen { constructor(id, b, h) { this.id = id; this.breite = b; this.hoehe = h; } }
+  // Modell (H-K16): eigene Modell-ID im Kern (getrennt von Formen/Bildchen), Pfad für die Textform
+  class HerdModell { constructor(id, pfad) { this.id = id; this.pfad = pfad; } }
   class HerdKernFehlt { }
 
   // ---------- Vorbacker (SPEC §18.5, PROJEKTE §5.3/§5.4, K-145/K-147) ----------
@@ -6245,6 +6251,52 @@
   const TEIGLING_MAGIE = [84, 69, 73, 71, 76, 73, 78, 71];   // "TEIGLING"
   const TEIGLING_LEER = new Uint8Array(0);                     // keine Bild-Endung: der Kern meldet „kein lesbares Bild“ (61)
   function istBildPfad(pfad) { return /\.(png|jpg|jpeg)$/.test(pfad); }
+  function istModellPfad(pfad) { return /\.(glb|gltf)$/.test(pfad); }
+  // Modellteig (H-K16, herd/teigling/src/modell.rs): Kopf grob prüfen → null | { fehler: diavolo, sha256: hex }
+  const MODELL_MAGIE = [84, 69, 73, 71, 77, 79, 68, 76];   // "TEIGMODL"
+  function modellTeigKopf(t) {
+    if (!(t instanceof Uint8Array) || t.length < 64) return null;
+    for (let i = 0; i < 8; i++) if (t[i] !== MODELL_MAGIE[i]) return null;
+    if ((t[8] | (t[9] << 8)) !== 1 || t[11] !== 0 || (t[10] !== 0 && t[10] !== 255)) return null;
+    return { fehler: t[10] === 255, sha256: teiglingHex(t.subarray(16, 48)) };
+  }
+  // Anteile eines Teiglings/Modellteigs an der Teigmenge: [{ sha, n }] – ein Modellteig zählt ohne seine eingebetteten Bilder
+  // (Schlüssel SHA-256 + ":modell"), jedes eingebettete Bild unter der SHA-256 seiner Quelle (gleich wie die Bilddatei selbst)
+  function herdTeigAnteile(t) {
+    const k = teiglingKopf(t);
+    if (k !== null) return k.fehler ? [] : [{ sha: k.sha256, n: t.length }];
+    const m = modellTeigKopf(t);
+    if (m === null || m.fehler) return [];
+    const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+    const aus = [];
+    let basis = t.length, o = 64;
+    const n = o + 4 <= t.length ? u32(o) : 0;
+    o += 4;
+    for (let i = 0; i < n && o + 4 <= t.length; i++) {
+      const l = u32(o), b = t.subarray(o + 4, o + 4 + l), kb = teiglingKopf(b);
+      basis -= 4 + l;
+      if (kb !== null && !kb.fehler) aus.push({ sha: kb.sha256, n: l });
+      o += 4 + l;
+    }
+    aus.unshift({ sha: m.sha256 + ':modell', n: basis });
+    return aus;
+  }
+  // Quellpaket (herd/teigling/src/gltf.rs quellpaket): ohne Nachbardateien die Hauptdatei selbst, sonst "TEIGQUEL" …
+  function herdQuellpaket(haupt, dateien) {
+    if (!dateien.length) return haupt;
+    const uris = dateien.map(d => HERD_ENC.encode(d.uri));
+    let n = 16 + haupt.length;
+    for (let i = 0; i < dateien.length; i++) n += 8 + uris[i].length + dateien[i].bytes.length;
+    const aus = new Uint8Array(n), dv = new DataView(aus.buffer);
+    aus.set([84, 69, 73, 71, 81, 85, 69, 76], 0);
+    dv.setUint32(8, dateien.length, true); dv.setUint32(12, haupt.length, true); aus.set(haupt, 16);
+    let o = 16 + haupt.length;
+    for (let i = 0; i < dateien.length; i++) {
+      dv.setUint32(o, uris[i].length, true); aus.set(uris[i], o + 4); o += 4 + uris[i].length;
+      dv.setUint32(o, dateien[i].bytes.length, true); aus.set(dateien[i].bytes, o + 4); o += 4 + dateien[i].bytes.length;
+    }
+    return aus;
+  }
   function teiglingHex(u8) {
     let s = '';
     for (let i = 0; i < u8.length; i++) s += (u8[i] < 16 ? '0' : '') + u8[i].toString(16);
@@ -6302,6 +6354,21 @@
       aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), 32));
       return aus;
     }
+    // Modelle (H-K16): nur, wenn das Modul sie kennt (modell_version 1)
+    get hatModelle() { return typeof this.e.modell_vorbacken === 'function' && this.e.modell_version() === 1; }
+    aus(n) {
+      const aus = new Uint8Array(n);
+      aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), n));
+      this.e.freigeben();
+      return aus;
+    }
+    modellBraucht(pfad, haupt) {
+      const p = HERD_ENC.encode(pfad), ein = new Uint8Array(p.length + 1 + haupt.length);
+      ein.set(p, 0); ein.set(haupt, p.length + 1);
+      const t = HERD_DEC.decode(this.aus(this.e.modell_braucht(this.rein(ein), ein.length)));
+      return t.split('\n').filter(Boolean).map(z => { const x = z.split('\t'); return { uri: x[0], pfad: x[1] }; });
+    }
+    modellVorbacken(paket) { return this.aus(this.e.modell_vorbacken(this.rein(paket), paket.length)); }
   }
   let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
   const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)
@@ -6327,6 +6394,7 @@
     if (v instanceof HerdTeil) return 'Teil';
     if (v instanceof HerdForm) return 'Form';
     if (v instanceof HerdBildchen) return 'Bildchen';
+    if (v instanceof HerdModell) return 'Modell';
     if (v instanceof HerdKomp) return v.art.name;
     return null;
   }
@@ -6474,6 +6542,14 @@
     'raum': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 12)) === 3 ? '3D' : '2D'; },
     'id': function (t) { this.herdF(this.hk.e.teil_hole(t.id, 12)); return t.id; },   // entfernt → Kern-Text
     'kniffe': function (t) { return this.kniffListe(t); },   // H-K13: Blech<Kniff> in Anhängereihenfolge
+    // H-K16: erstes Teil im Teilbaum (Wurzel eingeschlossen) mit diesem Etikett, sonst karton
+    'finde': function (t, pos, ben) {
+      const n = arg(pos, ben, 0, 'name');
+      if (typeof n !== 'string') throw this.ananas('TypAnanas', 'finde() braucht einen Text für \'name\', nicht ' + this.darstellung(n === undefined ? null : n) + '.');
+      const k = this.hk;
+      const id = this.herdI(k.e.teil_finde(t.id, k.text(n), k.len));
+      return id === 0 ? null : this.herdTeilObj(id);
+    },
     'alsText': function (t) { return this.text(t); }
   };
   function herdTeilTabelle(zugriff) {
@@ -6622,6 +6698,14 @@
       const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'raum', 'z', 0);
       return this.herdFabrik(3, x, y, z, null, null);
     },
+    // H-K16: herd.modell(m, x, y, z) → neue 3D-Wurzel mit einem Teil je glTF-Knoten (Kern modell_teil)
+    'modell': function (h, pos, ben) {
+      const m = arg(pos, ben, 0, 'modell');
+      if (!(m instanceof HerdModell)) throw this.ananas('TypAnanas', 'modell() braucht ein Modell für \'modell\', nicht ' + this.darstellung(m === undefined ? null : m) + '.');
+      const x = this.herdZahl(arg(pos, ben, 1, 'x'), 'modell', 'x', 0), y = this.herdZahl(arg(pos, ben, 2, 'y'), 'modell', 'y', 0);
+      const z = this.herdZahl(arg(pos, ben, 3, 'z'), 'modell', 'z', 0);
+      return this.herdTeilObj(this.herdI(this.hk.e.modell_teil(m.id, x, y, z)));
+    },
     'alsText': function (h) { return this.text(h); }
   });
 
@@ -6663,11 +6747,30 @@
   const HERD_BILDCHEN_MOD_M = herdTab({
     'laden': function (m, pos, ben) { return this.herdBildchenLaden(arg(pos, ben, 0, 'pfad')); }
   });
+  // Modell (H-K16): Knotennamen, Folgen (Animationen, ab H-K23a), geteilte Beläge, Hülle der Ruhelage
+  const HERD_MODELL_M = herdTab({
+    'namen': function (m) { return this.herdModellNamen(m, 1); },
+    'folgen': function (m) { return this.herdModellNamen(m, 2); },
+    'belaege': function (m) {
+      const e = this.hk.e, n = this.herdF(e.modell_info(m.id, 3)), aus = [];
+      for (let i = 0; i < n; i++) aus.push(this.herdTeilObj(this.herdF(e.modell_info(m.id, 100 + i))));
+      return aus;
+    },
+    'breite': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 4)); },
+    'hoehe': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 5)); },
+    'tiefe': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 6)); },
+    'alsText': function (m) { return this.text(m); }
+  });
+  // statisch: Modell.laden(pfad) – glTF aus der Kiste (SPEC §18.5, K-161)
+  const HERD_MODELL_MOD_M = herdTab({
+    'laden': function (m, pos, ben) { return this.herdModellLaden(arg(pos, ben, 0, 'pfad')); }
+  });
   TABELLEN.set(HerdWelt, HERD_M);
   TABELLEN.set(HerdForm, HERD_FORM_M);
   TABELLEN.set(HerdBildchen, HERD_BILDCHEN_M);
+  TABELLEN.set(HerdModell, HERD_MODELL_M);
 
-  // P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…) des Programms, nach Position sortiert
+  // P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…, Modell.…) des Programms, nach Position sortiert
   function herdSammle(ast) {
     const out = [], gesehen = new Set();
     const geh = (x) => {
@@ -6675,7 +6778,7 @@
       gesehen.add(x);
       if (Array.isArray(x)) { for (const y of x) geh(y); return; }
       if (x.k === 'Neu' && x.typ) out.push(x);
-      else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen')) out.push(x);
+      else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen' || x.obj.n === 'Modell')) out.push(x);
       for (const k in x) { const v = x[k]; if (v !== null && typeof v === 'object') geh(v); }
     };
     geh(ast);
@@ -6696,7 +6799,7 @@
         if (this.klassen.has(name)) continue;          // eigene Klasse hat Vorrang
         if (n.k !== 'Neu') { noetig = true; continue; }
         if (name === 'Theke') theke = true;
-        else if (name === 'Herd' || name === 'Form' || name === 'Bildchen') { noetig = true; if (name === 'Herd') herd = true; }
+        else if (name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Modell') { noetig = true; if (name === 'Herd') herd = true; }
         else continue;
         if (herd && theke) throw this.pf('P0013', 'Theke und Herd in einem Programm gibt es noch nicht.', n);
       }
@@ -6915,6 +7018,7 @@
       }
       if (this.kueche !== null) throw this.ananas('KüchenAnanas', HERD_KUECHE);
       if (tn === 'Teil') throw this.ananas('RohlingAnanas', '\'Teil\' kann man nicht mit neu backen.');
+      if (tn === 'Modell') throw this.ananas('RohlingAnanas', '\'Modell\' kann man nicht mit neu backen.');   // H-K16: Modell.laden
       const k = this.hk_(), e = k.e;
       if (tn === 'Herd') {
         const tw = arg(pos, ben, 0, 'titel');
@@ -6981,13 +7085,37 @@
     // Vor dem Start: jedes Bild der Kiste (Endung .png/.jpg/.jpeg) → Teigling, je Quell-Hash einmal; ein Teigling aus
     // optionen.teiglinge gilt nur, wenn sein Kopf gültig ist und die SHA-256 der Quelle trägt (ein veralteter Cache ändert nie
     // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 64 MiB → P0020 ohne Ort.
+    // Modelle (H-K16, .glb/.gltf) genauso: Quellpaket aus Hauptdatei und den Nachbardateien, die der Vorbacker nennt (Kiste),
+    // SHA-256 darüber; ein Modellteig aus optionen.teiglinge gilt nur mit passender SHA-256. Modelle zählen zur Teigmenge – ihre
+    // eingebetteten Bilder je Quell-Hash einmal, auch über Modelle und Bilddateien hinweg (wie im Kern, herdTeigAnteile).
     vorbacke() {
-      const bilder = Object.keys(this.kiste).filter(istBildPfad).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      if (!bilder.length) return;
+      const sortiert = (l) => l.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      const bilder = sortiert(Object.keys(this.kiste).filter(istBildPfad));
+      const modelle = sortiert(Object.keys(this.kiste).filter(istModellPfad));
+      if (!bilder.length && !modelle.length) return;
       const vb = herdVorbacker(this.vorbackerOpt);
-      if (vb === null) throw new VorbackerFehlt();
-      const jeHash = new Map();
-      let menge = 0;
+      if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBraucht === 'function'))) throw new VorbackerFehlt();
+      const jeHash = new Map(), anteile = new Map();
+      let mitModellen = false;
+      const zaehle = (t) => { for (const a of herdTeigAnteile(t)) if (!anteile.has(a.sha)) anteile.set(a.sha, a.n); };
+      const bytesVon = (p) => { const q = this.kiste[p]; return typeof q === 'string' ? HERD_ENC.encode(q) : q; };
+      for (const pfad of modelle) {
+        const haupt = bytesVon(pfad);
+        const dateien = [];
+        for (const d of vb.modellBraucht(pfad, haupt)) if (kisteHat(this.kiste, d.pfad)) dateien.push({ uri: d.uri, bytes: bytesVon(d.pfad) });
+        const paket = herdQuellpaket(haupt, dateien);
+        const sha = teiglingHex(vb.sha256(paket));
+        let t = jeHash.get(sha);
+        if (t === undefined) {
+          const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+          const k = modellTeigKopf(c);
+          t = k !== null && !k.fehler && k.sha256 === sha ? c : vb.modellVorbacken(paket);
+          jeHash.set(sha, t);
+          const kt = modellTeigKopf(t);
+          if (kt !== null && !kt.fehler) { zaehle(t); mitModellen = true; }
+        }
+        this.teiglinge.set(pfad, t);
+      }
       for (const pfad of bilder) {
         let q = this.kiste[pfad];
         if (typeof q === 'string') q = HERD_ENC !== null ? HERD_ENC.encode(q) : TEIGLING_LEER;
@@ -6999,11 +7127,49 @@
           t = k !== null && k.sha256 === sha ? c : vb.vorbacken(q);
           jeHash.set(sha, t);
           const kt = teiglingKopf(t);
-          if (kt !== null && !kt.fehler) menge += t.length;
+          if (kt !== null && !kt.fehler) zaehle(t);
         }
         this.teiglinge.set(pfad, t);
       }
-      if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+      let menge = 0;
+      for (const n of anteile.values()) menge += n;
+      if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder' + (mitModellen ? ' und Modelle' : '') + ' sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+    },
+    // Modell.laden(pfad) (H-K16): wie Bildchen.laden – Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Modell) →
+    // in der Kiste? → Modellteig an den Kern (modell_teig; 63 … 67 → „<pfad> <Text aus dem Teig>“)
+    herdModellLaden(pw) {
+      if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Modell.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+      const k = this.hk_(), e = k.e;
+      if (this.herd === null) this.herdI(e.modell_teig(e.puffer(1), 0));   // noch keine Welt → Kern Code 3
+      const alt = this.modellPfade.get(pw);
+      if (alt !== undefined) return alt;
+      if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+      const t = (istModellPfad(pw) && this.teiglinge.get(pw)) || TEIGLING_LEER;   // keine Modell-Endung → Kern Code 63
+      const p = e.puffer(t.length || 1);
+      k.mem().set(t, p);
+      const id = e.modell_teig(p, t.length);
+      if (id < 0) {
+        const code = e.fehler_code();
+        if (code < 63 || code > 67) throw this.herdFehler();
+        const text = k.liesText((q, kap) => e.fehler_text(q, kap)) || '';
+        e.fehler_neu();
+        throw this.ananas('LaufzeitAnanas', pw + ' ' + text);
+      }
+      const m = new HerdModell(id, pw);
+      this.modellPfade.set(pw, m);
+      return m;
+    },
+    // Texte eines Modells (modell_text: 1 Knoten, 2 Folgen) ohne leere Namen
+    herdModellNamen(m, was) {
+      const k = this.hk, e = k.e;
+      const n = this.herdF(e.modell_info(m.id, was === 1 ? 1 : 2));
+      const aus = [];
+      for (let i = 0; i < n; i++) {
+        const t = k.liesText((q, kap) => e.modell_text(m.id, was, i, q, kap));
+        if (t === null) throw this.herdFehler();
+        if (t !== '') aus.push(t);
+      }
+      return aus;
     },
     // Bildchen.laden(pfad): Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Bildchen) → in der Kiste? →
     // Teigling an den Kern (bildchen_teigling prüft nur den Kopf; 61/62 → „<pfad> <Kern-Text>“)

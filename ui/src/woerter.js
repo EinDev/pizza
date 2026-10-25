@@ -12,7 +12,7 @@ export const TYPEN = new Set(["salami", "funghi", "margherita", "diavolo", "Daue
   "Theke", "Zutat", "Schild", "Knopf", "Eingabe", "Haken", "Stapel", "Reihe",
   "Takt", "Fortschritt", "Abschnitt", "Tabelle", "Reiter", "Auswahl", "Tastatur", "Zettel", "Zufall", "Vorratskammer",
   // Herd (SPEC §18.1, §18.6) – Klassen und Komponenten v1 (weitere Komponenten ergänzt window.PizzaLang.TYPEN aus dem Schema)
-  "Herd", "Teil", "Form", "Bildchen",
+  "Herd", "Teil", "Form", "Bildchen", "Modell",
   "Rechteck", "Kreis", "Text", "Bild", "Koerper", "Licht", "Kamera", "Bewegung", "Animation", "Partikel"]);
 
 export const BUILTINS = new Set(["Bote", "Bestellannahme", "Uhr", "Mathe", "Zufall", "Spiegel", "Kiste", "teig", "bestelle", "schieb", "zwischenstand"]);
@@ -119,7 +119,7 @@ export function ausInterpreterErgaenzen(PL) {
 export const HERD_METHODEN = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit",
   "taste", "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick", "mausFangen", "mausGefangen", "mausDX", "mausDY", "mausrad",
   "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
-  "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum"];
+  "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum", "modell"];
 /** Generische Komponenten-Methoden (SPEC §18.4). */
 export const KOMPONENTEN_METHODEN = ["hole", "setze", "teil"];
 /** Tastennamen (K-110) für taste/gedrueckt/losgelassen("…"). */
@@ -131,6 +131,9 @@ export const HERD_FARBEN = ["weiss", "schwarz", "grau", "ofen", "tomate", "salam
 MITGLIEDER.Herd = ["farbe"];
 MITGLIEDER.Form = ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"];
 MITGLIEDER.Bildchen = ["laden"];   // SPEC §18.5 (PD2)
+MITGLIEDER.Modell = ["laden"];     // SPEC §18.5 (H-K16)
+/** Methoden eines Modells (H-K16): Knotennamen, Folgen, Beläge, Hülle. Teil-Methode finde(name) kommt aus dem Schema. */
+export const MODELL_METHODEN = ["namen", "folgen", "belaege", "breite", "hoehe", "tiefe"];
 /** Kniff (H-K13): Basisklasse `erbt Kniff`, `teil()` und die überschreibbaren Rückrufe. */
 export const KNIFF_METHODEN = ["teil", "start", "takt", "beimBetreten", "beimVerlassen", "beimKlick", "beimEntfernen"];
 TYPEN.add("Kniff");
@@ -143,7 +146,7 @@ export const KLANG_WELLEN = ["sinus", "rechteck", "saege", "dreieck", "rauschen"
 TYPEN.add("Klang");
 TYPEN.add("Spur");
 BUILTINS.add("Klang");
-for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN, ...KNIFF_METHODEN, ...KLANG_METHODEN]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
+for (const m of [...HERD_METHODEN, ...KOMPONENTEN_METHODEN, ...KNIFF_METHODEN, ...KLANG_METHODEN, ...MODELL_METHODEN, "finde"]) if (!ALLE_METHODEN.includes(m)) ALLE_METHODEN.push(m);
 
 /** Ergänzt Typen, Methoden, Grundformen und Palette aus dem Herd-Schema (site/js/herd/schema.json). */
 export function herdSchemaErgaenzen(schema) {

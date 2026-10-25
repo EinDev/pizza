@@ -1050,7 +1050,7 @@ function cli() {
     const r = lauf(['--kein-vorrat', '--saat=1', wurzel]);
     gleich([r.code, r.out], [1, 'Hallo Gina\n']);
     gleich(r.err, 'Hinweis: README.md wird ignoriert (kein gültiger Projektpfad: nur a–z, 0–9, -, _, . und /).\n' +
-      'Hinweis: notiz.docx wird ignoriert (Projektdateien: .pizza, .png, .jpg, .txt, .json, .csv, .md).\n' +
+      'Hinweis: notiz.docx wird ignoriert (Projektdateien: .pizza, .png, .jpg, .glb, .gltf, .bin, .txt, .json, .csv, .md).\n' +
       "W0032: 'q' und 'Q' sind im selben Scope definiert. Selbst der Pizzaiolo verwechselt die beiden. (welt/ofen.pizza, Zeile 2, Spalte 24)\n" +
       'Ungefangene Ananas – LaufzeitAnanas: heiß (welt/ofen.pizza, Zeile 3, Spalte 3)\n');
     gleich(lauf(['--kein-vorrat', '--saat=1', path.join(wurzel, 'pizza.json'), 'Toni']).out, 'Hallo Toni\n', 'pizza.json als Ziel, übergebene Argumente haben Vorrang');

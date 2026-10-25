@@ -354,6 +354,8 @@ pruefe('eigene Methode animiere bleibt kompilierbar', () => {
 require('./herd.js').pruefe(pruefe);
 // Klang (H-K14): alle tests/faelle/klang-* und Sonderfälle der Gruppe klang
 require('./klang.js').pruefe(pruefe);
+// Projekte (PA2: ABI v2, Mehrdatei, Kiste, Bildchen.laden; H-K16: Modell.laden) – bisher nicht eingehängt
+require('./projekte.js').pruefe(pruefe);
 
 console.log('▶ e2e');
 const stat = { gleich: 0, fallback: 0, syntax: 0 };

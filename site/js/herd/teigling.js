@@ -22,6 +22,21 @@
  *     PizzaVorbacker.megabyte(bytes) → "41,2"        Bytes / 1 048 576, eine Nachkommastelle aufgerundet, Dezimalkomma
  *     PizzaVorbacker.teigmengeFehler(bytes) → null | Text von P0020 („Die Bilder sind zusammen zu groß …“, ohne Präfix)
  *     PizzaVorbacker.cacheSchluessel(sha256Hex) → "<hex>/teigling/1"   (IndexedDB-Speicher `teiglinge`, §5.4)
+ *
+ *   Modelle (glTF, H-K16, HERD.md §13.3; Format „Modellteig“ in herd/teigling/src/modell.rs):
+ *     Vorbacker.hatModelle → boolean                teigling.wasm kennt modell_vorbacken (sonst älteres Modul)
+ *     Vorbacker.modellBraucht(pfad, haupt) → [{ uri, pfad }]   Dateien, die ein .gltf außer sich braucht (Puffer, Bilder)
+ *     Vorbacker.modellQuelle(pfad, haupt, hole) → Uint8Array  Quellpaket; hole(projektpfad) → Bytes | null (fehlt)
+ *     Vorbacker.modellVorbacken(paket) → Uint8Array    Modellteig (bei Fehlern ein Fehler-Modellteig mit fertigem Text)
+ *     Vorbacker.modellAusSammlung(pfad, sammlung) → { teig, paket }   alles in einem (sammlung: { pfad → Bytes })
+ *     Vorbacker.modellBesorge(teig | null, pfad, sammlung) → Uint8Array   wie besorge (SHA-256 des Quellpakets)
+ *     PizzaVorbacker.modellKopf(teig) → null | { ecken, dreiecke, bilder, materialien, knoten, netze, flags, sha256,
+ *                                                fehler: null | { code: 1 … 5, text } }
+ *     PizzaVorbacker.istModellPfad(pfad) → boolean     .glb/.gltf
+ *     PizzaVorbacker.quellpaket(haupt, [{ uri, bytes }]) → Uint8Array   ohne Dateien die Hauptdatei selbst
+ *     PizzaVorbacker.modellCacheSchluessel(sha256Hex) → "<hex>/modell/1"
+ *     teigmenge(…) zählt Teiglinge und Modellteige (je SHA-256 einmal, Fehler nicht; eingebettete Bilder je Quelle einmal, auch
+ *                  über Modelle und Bilddateien hinweg); teigmengeFehler(bytes, mitModellen)
  *   Konstanten: VERSION 1, KOPF 52, FEHLER_LAENGE 64, MAX_KANTE 2048, MAX_QUELLE 2 MiB, MAX_TEIGMENGE 64 MiB.
  *
  * Die Ananas-Texte zu Fehler-Teiglingen entstehen im Herd-Kern (`bildchen_teigling`, Codes 61/62, herd/README.md §3).
@@ -85,14 +100,71 @@
     return { breite: w, hoehe: hh, rgba: t.subarray(p + 4, p + 4 + w * hh * 4) };
   }
 
+  // ---------------------------------------------------------------- Modellteig (H-K16)
+  var MODELL_MAGIE = [84, 69, 73, 71, 77, 79, 68, 76]; // "TEIGMODL"
+  var MODELL_VERSION = 1, MODELL_KOPF = 64;
+  var QUELL_MAGIE = [84, 69, 73, 71, 81, 85, 69, 76]; // "TEIGQUEL"
+  function istModellPfad(p) { return /\.(glb|gltf)$/.test(p); }
+  var utf8 = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8") : null;
+  var enc = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+  /** Kopf eines Modellteigs (wie lies_kopf in herd/teigling/src/modell.rs; die volle Prüfung macht der Kern). */
+  function modellKopf(t) {
+    if (!t || t.length < MODELL_KOPF) return null;
+    for (var i = 0; i < 8; i++) if (t[i] !== MODELL_MAGIE[i]) return null;
+    if (u16(t, 8) !== MODELL_VERSION || t[11] !== 0) return null;
+    var art = t[10], fehler = null;
+    if (art === 255) {
+      if (t.length < MODELL_KOPF + 4) return null;
+      var code = u16(t, 64), n = u16(t, 66);
+      if (code < 1 || code > 5 || t.length !== MODELL_KOPF + 4 + n || !utf8) return null;
+      fehler = { code: code, text: utf8.decode(t.subarray(68)) };
+    } else if (art !== 0) return null;
+    return { flags: u32(t, 12), sha256: hex(t.subarray(16, 48)), ecken: u32(t, 48), dreiecke: u32(t, 52), bilder: u16(t, 56),
+      materialien: u16(t, 58), knoten: u16(t, 60), netze: u16(t, 62), fehler: fehler };
+  }
+  function quellpaket(haupt, dateien) {   // dateien: [{ uri, bytes }] – ohne Dateien die Hauptdatei selbst
+    if (!dateien.length) return haupt;
+    var teile = [], n = 16 + haupt.length;
+    for (var i = 0; i < dateien.length; i++) { var u = enc.encode(dateien[i].uri); teile.push(u); n += 8 + u.length + dateien[i].bytes.length; }
+    var aus = new Uint8Array(n), dv = new DataView(aus.buffer), o;
+    aus.set(QUELL_MAGIE, 0); dv.setUint32(8, dateien.length, true); dv.setUint32(12, haupt.length, true); aus.set(haupt, 16); o = 16 + haupt.length;
+    for (var j = 0; j < dateien.length; j++) {
+      dv.setUint32(o, teile[j].length, true); aus.set(teile[j], o + 4); o += 4 + teile[j].length;
+      dv.setUint32(o, dateien[j].bytes.length, true); aus.set(dateien[j].bytes, o + 4); o += 4 + dateien[j].bytes.length;
+    }
+    return aus;
+  }
+
+  /** Anteile an der Teigmenge: [{ sha, n }] – ein Modellteig ohne seine eingebetteten Bilder (Schlüssel sha + ":modell"), jedes
+   *  eingebettete Bild unter der SHA-256 seiner Quelle (wie die Bilddatei selbst; der Kern legt gleiche Bilder einmal an). */
+  function anteile(t) {
+    var k = kopf(t);
+    if (k) return k.fehler ? [] : [{ sha: k.sha256, n: t.length }];
+    var m = modellKopf(t);
+    if (!m || m.fehler) return [];
+    var aus = [], basis = t.length, o = MODELL_KOPF;
+    var n = o + 4 <= t.length ? u32(t, o) : 0;
+    o += 4;
+    for (var i = 0; i < n && o + 4 <= t.length; i++) {
+      var l = u32(t, o), kb = kopf(t.subarray(o + 4, o + 4 + l));
+      basis -= 4 + l;
+      if (kb && !kb.fehler) aus.push({ sha: kb.sha256, n: l });
+      o += 4 + l;
+    }
+    aus.unshift({ sha: m.sha256 + ":modell", n: basis });
+    return aus;
+  }
+
   function teigmenge(teiglinge) {
     var gesehen = Object.create(null), summe = 0;
     var liste = Array.isArray(teiglinge) ? teiglinge : Object.keys(teiglinge).map(function (k) { return teiglinge[k]; });
     for (var i = 0; i < liste.length; i++) {
-      var k = kopf(liste[i]);
-      if (!k || k.fehler || gesehen[k.sha256]) continue;
-      gesehen[k.sha256] = true;
-      summe += liste[i].length;
+      var a = anteile(liste[i]);
+      for (var j = 0; j < a.length; j++) {
+        if (gesehen[a[j].sha]) continue;
+        gesehen[a[j].sha] = true;
+        summe += a[j].n;
+      }
     }
     return summe;
   }
@@ -102,15 +174,16 @@
     return Math.floor(zehntel / 10) + "," + (zehntel % 10);
   }
 
-  function teigmengeFehler(bytes) {
+  function teigmengeFehler(bytes, mitModellen) {
     if (bytes <= MAX_TEIGMENGE) return null;
-    return "Die Bilder sind zusammen zu groß für den Ofen (" + megabyte(bytes) + " MB vorgebacken, höchstens 64 MB).";
+    return "Die Bilder" + (mitModellen ? " und Modelle" : "") + " sind zusammen zu groß für den Ofen (" + megabyte(bytes) + " MB vorgebacken, höchstens 64 MB).";
   }
 
   function Vorbacker(instanz) {
     this.x = instanz.exports;
     if (this.x.abi_version() !== 1) throw new Error("teigling.wasm: unbekannte ABI-Version " + this.x.abi_version());
     if (this.x.teigling_version() !== VERSION) throw new Error("teigling.wasm: Teigling-Version " + this.x.teigling_version() + " statt " + VERSION);
+    this.hatModelle = typeof this.x.modell_vorbacken === "function" && this.x.modell_version() === MODELL_VERSION;
   }
   Vorbacker.prototype._rein = function (bytes) {
     var p = this.x.puffer(bytes.length);
@@ -139,6 +212,44 @@
   Vorbacker.prototype.besorge = function (teigling, quelle) {
     return teigling && this.passt(teigling, quelle) ? teigling : this.vorbacken(quelle);
   };
+  Vorbacker.prototype._aus = function (n) {
+    var aus = new Uint8Array(n);
+    aus.set(new Uint8Array(this.x.memory.buffer, this.x.ergebnis(), n));
+    this.x.freigeben();
+    return aus;
+  };
+  Vorbacker.prototype.modellBraucht = function (pfad, haupt) {
+    var p = enc.encode(pfad), ein = new Uint8Array(p.length + 1 + haupt.length);
+    ein.set(p, 0); ein.set(haupt, p.length + 1);
+    var text = utf8.decode(this._aus(this.x.modell_braucht(this._rein(ein), ein.length)));
+    return text.split("\n").filter(Boolean).map(function (z) { var t = z.split("\t"); return { uri: t[0], pfad: t[1] }; });
+  };
+  Vorbacker.prototype.modellQuelle = function (pfad, haupt, hole) {
+    var br = this.modellBraucht(pfad, haupt), dateien = [];
+    for (var i = 0; i < br.length; i++) { var b = hole(br[i].pfad); if (b) dateien.push({ uri: br[i].uri, bytes: b }); }
+    return quellpaket(haupt, dateien);
+  };
+  Vorbacker.prototype.modellVorbacken = function (paket) {
+    return this._aus(this.x.modell_vorbacken(this._rein(paket), paket.length));
+  };
+  function holeAus(sammlung) {
+    return function (p) {
+      if (!Object.prototype.hasOwnProperty.call(sammlung, p)) return null;
+      var v = sammlung[p];
+      return typeof v === "string" ? enc.encode(v) : v instanceof Uint8Array ? v : v ? new Uint8Array(v) : null;
+    };
+  }
+  Vorbacker.prototype.modellAusSammlung = function (pfad, sammlung) {
+    var h = holeAus(sammlung)(pfad) || new Uint8Array(0);
+    var paket = this.modellQuelle(pfad, h, holeAus(sammlung));
+    return { teig: this.modellVorbacken(paket), paket: paket };
+  };
+  Vorbacker.prototype.modellBesorge = function (teig, pfad, sammlung) {
+    var h = holeAus(sammlung)(pfad) || new Uint8Array(0);
+    var paket = this.modellQuelle(pfad, h, holeAus(sammlung));
+    var k = teig ? modellKopf(teig) : null;
+    return k && !k.fehler && k.sha256 === hex(this.sha256(paket)) ? teig : this.modellVorbacken(paket);
+  };
 
   function ausModul(modul) { return new Vorbacker(new WebAssembly.Instance(modul, {})); }
   function ausBytes(bytes) { return ausModul(new WebAssembly.Module(bytes)); }
@@ -158,6 +269,8 @@
     ausBytes: ausBytes, ausModul: ausModul, lade: lade, node: node,
     kopf: kopf, stufe: stufe, teigmenge: teigmenge, megabyte: megabyte, teigmengeFehler: teigmengeFehler,
     cacheSchluessel: function (shaHex) { return shaHex + "/teigling/" + VERSION; },
+    MODELL_VERSION: MODELL_VERSION, modellKopf: modellKopf, istModellPfad: istModellPfad, quellpaket: quellpaket,
+    modellCacheSchluessel: function (shaHex) { return shaHex + "/modell/" + MODELL_VERSION; },
     hex: hex,
   };
   if (typeof module === "object" && module.exports) module.exports = api;

@@ -5,7 +5,7 @@
 // Ereignisse (an(art, fn)): "wechsel" (anderes Projekt aktiv), "dateien" (Dateiliste/Hauptdatei geändert), "liste" (Projektliste),
 // "extern" ({ pfad }: Datei in einem anderen Fenster gespeichert und hier neu geladen), "meldung" ({ text, art }).
 import {
-  HAUPTDATEI_STANDARD, PROJEKTDATEI, pruefePfad, dateiArt, sammlung as baueSammlung, projektNameAus, eindeutigerPfad,
+  HAUPTDATEI_STANDARD, PROJEKTDATEI, pruefePfad, dateiArt, istBinaerArt, sammlung as baueSammlung, projektNameAus, eindeutigerPfad,
   aendereProjektdatei, leseProjektdateiLokal, erzeugeProjektdatei, pizzaPfadAusName,
 } from "./projekt.js";
 import { oeffneAblage } from "./ablage.js";
@@ -387,7 +387,7 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
         if (aktiv.dateien.has(z) && !betroffen.includes(z)) return `„${z}“ gibt es schon.`;
       }
       if (istOrdner && !betroffen.length) { const f = pruefePfadOrdner(neuPfad); if (f) return f; }
-      if (!istOrdner && dateiArt(alt) !== dateiArt(neuPfad) && (dateiArt(alt) === "bild" || dateiArt(neuPfad) === "bild")) return "Bild- und Textdateien lassen sich nicht ineinander umbenennen.";
+      if (!istOrdner && dateiArt(alt) !== dateiArt(neuPfad) && (istBinaerArt(alt) || istBinaerArt(neuPfad))) return dateiArt(alt) === "bild" || dateiArt(neuPfad) === "bild" ? "Bild- und Textdateien lassen sich nicht ineinander umbenennen." : "Modelle, Bilder und Textdateien lassen sich nicht ineinander umbenennen.";
       const r = rec();
       for (const p of betroffen) {
         const z = ziel(p);

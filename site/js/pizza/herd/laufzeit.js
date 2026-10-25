@@ -11,7 +11,7 @@ const HERD_LAUFZEIT = {
       if (this.klassen.has(name)) continue;          // eigene Klasse hat Vorrang
       if (n.k !== 'Neu') { noetig = true; continue; }
       if (name === 'Theke') theke = true;
-      else if (name === 'Herd' || name === 'Form' || name === 'Bildchen') { noetig = true; if (name === 'Herd') herd = true; }
+      else if (name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Modell') { noetig = true; if (name === 'Herd') herd = true; }
       else continue;
       if (herd && theke) throw this.pf('P0013', 'Theke und Herd in einem Programm gibt es noch nicht.', n);
     }
@@ -230,6 +230,7 @@ const HERD_LAUFZEIT = {
     }
     if (this.kueche !== null) throw this.ananas('KüchenAnanas', HERD_KUECHE);
     if (tn === 'Teil') throw this.ananas('RohlingAnanas', '\'Teil\' kann man nicht mit neu backen.');
+    if (tn === 'Modell') throw this.ananas('RohlingAnanas', '\'Modell\' kann man nicht mit neu backen.');   // H-K16: Modell.laden
     const k = this.hk_(), e = k.e;
     if (tn === 'Herd') {
       const tw = arg(pos, ben, 0, 'titel');
@@ -296,13 +297,37 @@ const HERD_LAUFZEIT = {
   // Vor dem Start: jedes Bild der Kiste (Endung .png/.jpg/.jpeg) → Teigling, je Quell-Hash einmal; ein Teigling aus
   // optionen.teiglinge gilt nur, wenn sein Kopf gültig ist und die SHA-256 der Quelle trägt (ein veralteter Cache ändert nie
   // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 64 MiB → P0020 ohne Ort.
+  // Modelle (H-K16, .glb/.gltf) genauso: Quellpaket aus Hauptdatei und den Nachbardateien, die der Vorbacker nennt (Kiste),
+  // SHA-256 darüber; ein Modellteig aus optionen.teiglinge gilt nur mit passender SHA-256. Modelle zählen zur Teigmenge – ihre
+  // eingebetteten Bilder je Quell-Hash einmal, auch über Modelle und Bilddateien hinweg (wie im Kern, herdTeigAnteile).
   vorbacke() {
-    const bilder = Object.keys(this.kiste).filter(istBildPfad).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-    if (!bilder.length) return;
+    const sortiert = (l) => l.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const bilder = sortiert(Object.keys(this.kiste).filter(istBildPfad));
+    const modelle = sortiert(Object.keys(this.kiste).filter(istModellPfad));
+    if (!bilder.length && !modelle.length) return;
     const vb = herdVorbacker(this.vorbackerOpt);
-    if (vb === null) throw new VorbackerFehlt();
-    const jeHash = new Map();
-    let menge = 0;
+    if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBraucht === 'function'))) throw new VorbackerFehlt();
+    const jeHash = new Map(), anteile = new Map();
+    let mitModellen = false;
+    const zaehle = (t) => { for (const a of herdTeigAnteile(t)) if (!anteile.has(a.sha)) anteile.set(a.sha, a.n); };
+    const bytesVon = (p) => { const q = this.kiste[p]; return typeof q === 'string' ? HERD_ENC.encode(q) : q; };
+    for (const pfad of modelle) {
+      const haupt = bytesVon(pfad);
+      const dateien = [];
+      for (const d of vb.modellBraucht(pfad, haupt)) if (kisteHat(this.kiste, d.pfad)) dateien.push({ uri: d.uri, bytes: bytesVon(d.pfad) });
+      const paket = herdQuellpaket(haupt, dateien);
+      const sha = teiglingHex(vb.sha256(paket));
+      let t = jeHash.get(sha);
+      if (t === undefined) {
+        const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+        const k = modellTeigKopf(c);
+        t = k !== null && !k.fehler && k.sha256 === sha ? c : vb.modellVorbacken(paket);
+        jeHash.set(sha, t);
+        const kt = modellTeigKopf(t);
+        if (kt !== null && !kt.fehler) { zaehle(t); mitModellen = true; }
+      }
+      this.teiglinge.set(pfad, t);
+    }
     for (const pfad of bilder) {
       let q = this.kiste[pfad];
       if (typeof q === 'string') q = HERD_ENC !== null ? HERD_ENC.encode(q) : TEIGLING_LEER;
@@ -314,11 +339,49 @@ const HERD_LAUFZEIT = {
         t = k !== null && k.sha256 === sha ? c : vb.vorbacken(q);
         jeHash.set(sha, t);
         const kt = teiglingKopf(t);
-        if (kt !== null && !kt.fehler) menge += t.length;
+        if (kt !== null && !kt.fehler) zaehle(t);
       }
       this.teiglinge.set(pfad, t);
     }
-    if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+    let menge = 0;
+    for (const n of anteile.values()) menge += n;
+    if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder' + (mitModellen ? ' und Modelle' : '') + ' sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+  },
+  // Modell.laden(pfad) (H-K16): wie Bildchen.laden – Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Modell) →
+  // in der Kiste? → Modellteig an den Kern (modell_teig; 63 … 67 → „<pfad> <Text aus dem Teig>“)
+  herdModellLaden(pw) {
+    if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Modell.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+    const k = this.hk_(), e = k.e;
+    if (this.herd === null) this.herdI(e.modell_teig(e.puffer(1), 0));   // noch keine Welt → Kern Code 3
+    const alt = this.modellPfade.get(pw);
+    if (alt !== undefined) return alt;
+    if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+    const t = (istModellPfad(pw) && this.teiglinge.get(pw)) || TEIGLING_LEER;   // keine Modell-Endung → Kern Code 63
+    const p = e.puffer(t.length || 1);
+    k.mem().set(t, p);
+    const id = e.modell_teig(p, t.length);
+    if (id < 0) {
+      const code = e.fehler_code();
+      if (code < 63 || code > 67) throw this.herdFehler();
+      const text = k.liesText((q, kap) => e.fehler_text(q, kap)) || '';
+      e.fehler_neu();
+      throw this.ananas('LaufzeitAnanas', pw + ' ' + text);
+    }
+    const m = new HerdModell(id, pw);
+    this.modellPfade.set(pw, m);
+    return m;
+  },
+  // Texte eines Modells (modell_text: 1 Knoten, 2 Folgen) ohne leere Namen
+  herdModellNamen(m, was) {
+    const k = this.hk, e = k.e;
+    const n = this.herdF(e.modell_info(m.id, was === 1 ? 1 : 2));
+    const aus = [];
+    for (let i = 0; i < n; i++) {
+      const t = k.liesText((q, kap) => e.modell_text(m.id, was, i, q, kap));
+      if (t === null) throw this.herdFehler();
+      if (t !== '') aus.push(t);
+    }
+    return aus;
   },
   // Bildchen.laden(pfad): Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Bildchen) → in der Kiste? →
   // Teigling an den Kern (bildchen_teigling prüft nur den Kopf; 61/62 → „<pfad> <Kern-Text>“)

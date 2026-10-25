@@ -64,8 +64,9 @@
 
   // ------------------------------------------------------------ Projekte (SPEC §2, PROJEKTE.md §2.8, §5.6; PA2)
   const BILD_ENDUNG = /\.(png|jpe?g)$/;
+  const MODELL_ENDUNG = /\.(glb|gltf)$/;   // H-K16
   const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-  const ART_TEXT = 0, ART_BILD = 1, ART_SONST = 2;   // laufzeit/src/kiste.rs
+  const ART_TEXT = 0, ART_BILD = 1, ART_SONST = 2, ART_MODELL = 3;   // laufzeit/src/kiste.rs
   const enk = new TextEncoder();
 
   // Vorbacker (teigling.wasm, PROJEKTE §5.3/§5.4): optionen.vorbacker (WebAssembly.Module oder Bytes) wie im Interpreter,
@@ -80,7 +81,20 @@
       // eigene Hülle { vorbacken, sha256 } (wie im Interpreter, z. B. ein Vorbacker aus PizzaVorbacker)
       if (typeof opt.vorbacken === 'function' && typeof opt.sha256 === 'function') {
         if (typeof opt.besorge === 'function') return opt;
-        return { besorge: (t, q) => { const k = t ? V.kopf(t) : null; return k && k.sha256 === V.hex(opt.sha256(q)) ? t : opt.vorbacken(q); } };
+        const h = { besorge: (t, q) => { const k = t ? V.kopf(t) : null; return k && k.sha256 === V.hex(opt.sha256(q)) ? t : opt.vorbacken(q); } };
+        // Modelle (H-K16): eigene Hülle mit modellBraucht/modellVorbacken
+        if (typeof opt.modellBraucht === 'function' && typeof opt.modellVorbacken === 'function') {
+          h.hatModelle = opt.hatModelle !== false;
+          h.modellBesorge = (t, pfad, sammlung) => {
+            const hole = (p) => { if (!Object.prototype.hasOwnProperty.call(sammlung, p)) return null; const v = sammlung[p]; return typeof v === 'string' ? enk.encode(v) : v instanceof Uint8Array ? v : new Uint8Array(v || 0); };
+            const haupt = hole(pfad) || new Uint8Array(0);
+            const dateien = opt.modellBraucht(pfad, haupt).map(d => ({ uri: d.uri, bytes: hole(d.pfad) })).filter(d => d.bytes);
+            const paket = V.quellpaket(haupt, dateien);
+            const k = t ? V.modellKopf(t) : null;
+            return k && !k.fehler && k.sha256 === V.hex(opt.sha256(paket)) ? t : opt.modellVorbacken(paket);
+          };
+        }
+        return h;
       }
       let v = vorbackerCache.get(opt);
       if (v === undefined) {
@@ -99,22 +113,24 @@
   }
 
   /**
-   * Kiste fürs Datensegment (HOST-ABI §1 v2): Pfade nach Bytefolge, Texte als UTF-8, Bilder als Teigling (geprüft bzw. neu
-   * vorgebacken – ein veralteter Cache ändert nie das Ergebnis), gleiche Inhalte nur einmal; dazu die Teigmenge (P0020).
+   * Kiste fürs Datensegment (HOST-ABI §1 v2): Pfade nach Bytefolge, Texte als UTF-8, Bilder als Teigling und Modelle (.glb/.gltf,
+   * H-K16) als Modellteig (geprüft bzw. neu vorgebacken – ein veralteter Cache ändert nie das Ergebnis), gleiche Inhalte nur
+   * einmal; dazu die Teigmenge (P0020, Bilder und Modelle zusammen).
    * → { ok: true, kiste: { eintraege, daten }, teigmengeFehler } | { ok: false, fehler } (Vorbacker fehlt, wie im Interpreter)
    */
   function baueKiste(sammlung, optionen) {
     const pfade = Object.keys(sammlung || {}).sort();   // Pfade sind ASCII (SPEC §2.1) → Codeeinheiten = Bytefolge
     const bilder = pfade.filter(p => BILD_ENDUNG.test(p));
+    const modelle = pfade.filter(p => MODELL_ENDUNG.test(p));
     let vb = null;
-    if (bilder.length) {
+    if (bilder.length || modelle.length) {
       vb = vorbacker(optionen.vorbacker);
-      if (vb === null) return { ok: false, fehler: { code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).', datei: null, zeile: null, spalte: null } };
+      if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBesorge === 'function'))) return { ok: false, fehler: { code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).', datei: null, zeile: null, spalte: null } };
     }
     const V = vb ? teile.vorbackerApi() : null;
     const teiglinge = optionen.teiglinge && typeof optionen.teiglinge === 'object' ? optionen.teiglinge : {};
     const stuecke = [], gesehen = new Map(), eintraege = [], fertig = [];
-    let laenge = 0;
+    let laenge = 0, mitModellen = false;
     const lege = (schluessel, bytes) => {
       let o = gesehen.get(schluessel);
       if (o === undefined) { o = laenge; gesehen.set(schluessel, o); stuecke.push(bytes); laenge += bytes.length; }
@@ -128,6 +144,12 @@
         const k = V.kopf(t);
         fertig.push(t);
         eintraege.push({ pfad, art: ART_BILD, off: lege('t:' + (k ? k.sha256 + ':' + t.length : pfad), t), len: t.length });
+      } else if (MODELL_ENDUNG.test(pfad)) {
+        const t = vb.modellBesorge(teiglinge[pfad] instanceof Uint8Array ? teiglinge[pfad] : null, pfad, sammlung);
+        const k = V.modellKopf(t);
+        fertig.push(t);
+        if (k && !k.fehler) mitModellen = true;
+        eintraege.push({ pfad, art: ART_MODELL, off: lege('m:' + (k ? k.sha256 + ':' + t.length : pfad), t), len: t.length });
       } else if (TEXT_ENDUNG.test(pfad)) {
         eintraege.push({ pfad, art: ART_TEXT, off: lege('p:' + pfad, bytes), len: bytes.length });
       } else eintraege.push({ pfad, art: ART_SONST, off: 0, len: 0 });
@@ -135,7 +157,7 @@
     const daten = new Uint8Array(laenge);
     let o = 0;
     for (const s of stuecke) { daten.set(s, o); o += s.length; }
-    return { ok: true, kiste: { eintraege, daten }, teigmengeFehler: V ? V.teigmengeFehler(V.teigmenge(fertig)) : null };
+    return { ok: true, kiste: { eintraege, daten }, teigmengeFehler: V ? V.teigmengeFehler(V.teigmenge(fertig), mitModellen) : null };
   }
 
   /**

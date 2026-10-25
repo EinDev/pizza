@@ -176,6 +176,12 @@ test("Inhaltsregeln je Endung (PNG-/JPEG-Signatur, UTF-8, keine \\r\\n, .pizza �
   assert.equal(pruefeInhalt("a.pizza", Buffer.alloc(512 * 1024, 0x61), K), null);
   assert.match(pruefeInhalt("a.pizza", Buffer.alloc(512 * 1024 + 1, 0x61), K), /512 KB/);
   assert.equal(pruefeInhalt("a.txt", Buffer.alloc(600 * 1024, 0x61), K), null, "Grenze gilt nur für .pizza");
+  // Modelle (H-K16)
+  assert.equal(pruefeInhalt("m/a.glb", Buffer.from("glTF\x02\0\0\0", "latin1"), K), null);
+  assert.match(pruefeInhalt("m/a.glb", png, K), /kein glTF-Modell/);
+  assert.equal(pruefeInhalt("m/a.gltf", TEXT("\uFEFF \r\n{\"asset\":{}}"), K), null, ".gltf darf \\r\\n enthalten (Binärdatei)");
+  assert.match(pruefeInhalt("m/a.gltf", TEXT("[1]"), K), /kein glTF-Modell/);
+  assert.equal(pruefeInhalt("m/a.bin", Buffer.from([0, 1, 2]), K), null);
 });
 
 test("Ablauf: 90 Tage ab letzter Version, einschließlich des Ablauftags; 0 = unbegrenzt", () => {

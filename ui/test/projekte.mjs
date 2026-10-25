@@ -9,7 +9,7 @@ import {
 import { migriereTabs, quelleAusSchluessel } from "../src/migration.js";
 import { speicherAblage, TEIGLING_GRENZE } from "../src/ablage.js";
 import { erstelleProjekte } from "../src/projekte.js";
-import { bildInfo, pruefeBild, dataUrl, erstelleVorbacker } from "../src/bilder.js";
+import { bildInfo, pruefeBild, dataUrl, erstelleVorbacker, modellInfo, pruefeModell, modellFehlerText } from "../src/bilder.js";
 
 // ---------- Pfade (SPEC §2.1) ----------
 for (const p of ["hauptgang.pizza", "welt/tisch.pizza", "bilder/tischdecke.png", "a_b-c.d.txt", "a/b/c/d/e/f/g/h.pizza", "pizza.json"]) assert.equal(pruefePfad(p), null, p);
@@ -18,6 +18,10 @@ for (const p of ["", "/a.pizza", "a//b.pizza", "../a.pizza", "a/../b.pizza", ".a
 assert.match(pruefePfad("a.exe"), /Dateiart/);
 assert.equal(dateiArt("a.PIZZA"), "pizza");
 assert.equal(dateiArt("x/y.jpeg"), "bild");
+assert.equal(dateiArt("modelle/tisch.glb"), "modell");   // H-K16
+assert.equal(dateiArt("modelle/tisch.gltf"), "modell");
+assert.equal(dateiArt("modelle/tisch.bin"), "daten");
+assert.equal(pruefePfad("modelle/tisch.gltf"), null);
 assert.equal(dateiArt("notiz.md"), "text");
 assert.equal(dateiArt("ohne"), null);
 assert.equal(pizzaPfadAusName("Hallo Welt.pizza"), "hallo-welt.pizza");
@@ -272,6 +276,36 @@ assert.match(dataUrl(png), /^data:image\/png;base64,iVBORw0KGgo/);
   assert.ok(await vb.teigmenge(t) > 0);
   // ohne Hülle/Wasm (Node ohne DOM): klare Absage statt Absturz
   assert.match((await erstelleVorbacker({ url: null }).vorbacke("a.png", echt)).grund, /Vorbacker/);
+  // Modelle (H-K16): Signatur, Vorbacken mit Nachbardateien (.gltf), Cache-Schlüssel modell/1, Meldungen wie zur Laufzeit
+  const tm = (n) => new Uint8Array(fs.readFileSync(new URL("../../herd/teigling/testmodelle/" + n, import.meta.url)));
+  const wuerfel = tm("wuerfel.glb"), gltf = tm("textur.gltf");
+  assert.deepEqual(modellInfo(wuerfel), { art: "glb" });
+  assert.deepEqual(modellInfo(gltf), { art: "gltf" });
+  assert.equal(modellInfo(png), null);
+  assert.equal(pruefeModell("m/a.glb", wuerfel).ok, true);
+  assert.equal(pruefeModell("m/a.gltf", wuerfel).fehler, "m/a.gltf ist kein lesbares Modell (glTF 2.0).");
+  assert.equal(modellFehlerText("x.glb", null), "x.glb ist kein lesbares Modell (glTF 2.0).");
+  const m1 = await vb.vorbackeModell("m/w.glb", { "m/w.glb": wuerfel });
+  assert.equal(m1.ok, true, m1.fehler || m1.grund);
+  assert.deepEqual([m1.kopf.ecken, m1.kopf.dreiecke, m1.kopf.knoten, m1.kopf.bilder], [24, 12, 1, 0]);
+  assert.match(m1.schluessel, /^[0-9a-f]{64}\/modell\/1$/);
+  assert.deepEqual(await ablage.teiglingHole(m1.schluessel), m1.teig, "Modellteig im Cache");
+  const sammlungT = { "m/textur.gltf": gltf, "m/textur.bin": tm("textur.bin") };
+  for (const b of ["farbe", "normale", "mr", "oc", "leucht"]) sammlungT["m/bilder/" + b + ".png"] = tm("bilder/" + b + ".png");
+  const m2 = await vb.vorbackeModell("m/textur.gltf", sammlungT);
+  assert.equal(m2.ok, true, m2.fehler || m2.grund);
+  assert.equal(m2.kopf.bilder, 4);
+  const ohneBin = { ...sammlungT };
+  delete ohneBin["m/textur.bin"];
+  const m3 = await vb.vorbackeModell("m/textur.gltf", ohneBin);
+  assert.deepEqual([m3.ok, m3.code, m3.fehler], [false, 5, "m/textur.gltf braucht die Datei textur.bin – die liegt nicht in der Kiste."]);
+  const m4 = await vb.vorbackeModell("m/d.glb", { "m/d.glb": tm("fehler-draco.glb") });
+  assert.equal(m4.fehler, "m/d.glb braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd nicht.");
+  const tt = await vb.teiglingeFuer({ "a.png": echt, "m/textur.gltf": gltf }, sammlungT);
+  assert.deepEqual(Object.keys(tt).sort(), ["a.png", "m/textur.gltf"]);
+  assert.deepEqual(tt["m/textur.gltf"], m2.teig);
+  // Modellteig ohne die 4 Längenfelder seiner eingebetteten Bilder (sie zählen je Quelle einzeln, PROJEKTE §5.10)
+  assert.equal(await vb.teigmenge(tt), tt["a.png"].length + m2.teig.length - 4 * 4);
 }
 
 // Lader-Anbindung (PA1): mit dem echten Interpreter als globalThis.PizzaLang nehmen pruefePfad/ausDateien/ladePruefung den Lader

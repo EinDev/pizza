@@ -7,7 +7,7 @@ import { iconSvg } from "./icons.js";
 import {
   dateiArt, pruefePfad, erreichbarePizzas, dekodiereText, pruefeGrenzen, segmentAusName, formatGroesse, GRENZEN, PROJEKTDATEI,
 } from "./projekt.js";
-import { pruefeBild } from "./bilder.js";
+import { pruefeBild, pruefeModell } from "./bilder.js";
 import { istZip } from "./zip.js";
 
 function el(tag, klasse, text) {
@@ -16,7 +16,7 @@ function el(tag, klasse, text) {
   if (text != null) e.textContent = text;
   return e;
 }
-const ICON = { pizza: "pizza", text: "file", bild: "image", ordner: "folder" };
+const ICON = { pizza: "pizza", text: "file", bild: "image", modell: "package", daten: "archive", ordner: "folder" };   // H-K16: Modelle, Puffer
 
 /** Pfade + leere Ordner → Baum { name, pfad, ordner: Map, dateien: [] }. */
 export function baueBaum(pfade, ordner = []) {
@@ -46,7 +46,7 @@ export async function bereiteDateienVor(files, { ordner = "", belegt = new Set()
     try { bytes = new Uint8Array(await f.arrayBuffer()); } catch (e) { meldungen.push("„" + f.name + "“ konnte nicht gelesen werden."); continue; }
     if (/\.zip$/i.test(f.name) || istZip(bytes)) { zip.push(f); continue; }
     const art = dateiArt(f.name);
-    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .txt, .json, .csv, .md)."); continue; }
+    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .txt, .json, .csv, .md)."); continue; }
     const punkt = f.name.lastIndexOf(".");
     const endung = f.name.slice(punkt + 1).toLowerCase();
     const name = segmentAusName(f.name.slice(0, punkt), "datei") + "." + endung;
@@ -61,6 +61,12 @@ export async function bereiteDateienVor(files, { ordner = "", belegt = new Set()
     if (art === "bild") {
       const p = pruefeBild(pfad, bytes);
       if (!p.ok) { meldungen.push(p.fehler); continue; }
+      inhalt = bytes;
+    } else if (art === "modell") {
+      const p = pruefeModell(pfad, bytes);
+      if (!p.ok) { meldungen.push(p.fehler); continue; }
+      inhalt = bytes;
+    } else if (art === "daten") {
       inhalt = bytes;
     } else {
       const t = dekodiereText(bytes, pfad);
@@ -362,7 +368,7 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
     if (!dateiEingabe) {
       dateiEingabe = document.createElement("input");
       dateiEingabe.type = "file";
-      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.txt,.json,.csv,.md,.zip";
+      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.glb,.gltf,.bin,.txt,.json,.csv,.md,.zip";
       dateiEingabe.multiple = true;
       dateiEingabe.hidden = true;
       dateiEingabe.dataset.testid = "baum-datei-eingabe";
@@ -375,15 +381,24 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
   async function hinzufuegen(files, ordner = "") {
     const vorbereitet = await bereiteDateienVor(files, { ordner, belegt: new Set(projekte.pfade()), bisher: projekte.alleInhalte() });
     const { meldungen, zip } = vorbereitet;
-    // Bilder sofort vorbacken (PROJEKTE §5.4): dieselbe Prüfung wie zur Laufzeit, Ergebnis landet im Teigling-Cache
-    const neu = [];
+    // Bilder und Modelle sofort vorbacken (PROJEKTE §5.4, H-K16): dieselbe Prüfung wie zur Laufzeit, Ergebnis im Teigling-Cache.
+    // Modelle mit allen Dateien des Projekts und der neuen (ein .gltf braucht seine .bin/Bilder); fehlt nur eine Nachbardatei,
+    // kommt das Modell trotzdem ins Projekt (die Datei kann noch folgen) – die Meldung steht dann am Dateibaum.
+    const neu = [], hinweise = [];
+    const probe = { ...projekte.alleInhalte() };
+    for (const x of vorbereitet.neu) probe[x.pfad] = x.inhalt;
     for (const x of vorbereitet.neu) {
-      if (vorbacker && x.inhalt instanceof Uint8Array) {
+      if (vorbacker && x.inhalt instanceof Uint8Array && dateiArt(x.pfad) === "bild") {
         const r = await vorbacker.vorbacke(x.pfad, x.inhalt);
         if (!r.ok && r.fehler) { meldungen.push(r.fehler); continue; }
+      } else if (vorbacker && x.inhalt instanceof Uint8Array && dateiArt(x.pfad) === "modell" && vorbacker.vorbackeModell) {
+        const r = await vorbacker.vorbackeModell(x.pfad, probe);
+        if (!r.ok && r.fehler && r.code !== 5) { meldungen.push(r.fehler); continue; }
+        if (!r.ok && r.fehler) hinweise.push(r.fehler);
       }
       neu.push(x);
     }
+    meldungen.push(...hinweise);
     for (const x of neu) { const f = projekte.neueDatei(x.pfad, x.inhalt); if (f) meldungen.push(f); }
     if (neu.length === 1) tabs.oeffneDatei(neu[0].pfad);
     if (meldungen.length) toast(meldungen.join(" "), "fehler");

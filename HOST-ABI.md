@@ -63,7 +63,7 @@ Ein `.pkarton` importiert **nur, was das Programm braucht**:
   `localtime_r` → `tm_gmtoff`).
 - **Gruppe `herd` (SPEC §18, Paket H4):** Modul `herd` (Exporte von `kern.wasm`, siehe unten) und `herd_kern`, `herd_schreibe`,
   `herd_lies`, `herd_warte`, `herd_senden` – nur wenn das Programm Herd-Klassen benutzt (`neu Herd/Form/Bildchen/<Komponente>`,
-  `Form.…`, `Herd.…`, `Bildchen.…` – Letzteres für `Bildchen.laden`, K-145). Siehe unten „Herd“.
+  `Form.…`, `Herd.…`, `Bildchen.…` – Letzteres für `Bildchen.laden`, K-145 –, `Modell.…` für `Modell.laden`, H-K16/K-161). Siehe unten „Herd“.
 - **Gruppe `klang` (SPEC §18.8, K-153, H-K14):** Modul `klang` (Exporte von `klang.wasm`) und `klang_kern`, `klang_schreibe`, `klang_lies`,
   `klang_senden` – nur wenn das Programm `Klang.…` nennt (ohne eigene Klasse `Klang`). Siehe unten „Klang“.
 - **Gruppe `kueche` (SPEC §17, K-100, K-104):** `kueche_auftrag`, `kueche_bericht` – nur wenn das Programm `brigade` aufruft
@@ -199,6 +199,11 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `bildchen_neu` | `(zp i32, zn i32, fp i32, fn i32) -> i32` | |
 | `bildchen_teigling` | `(ptr i32, len i32) -> i32` | `Bildchen.laden` (K-145, K-147; ab PD1/PA2): `len` Bytes eines Teiglings im Kern-Speicher → Bildchen-ID; der Kern prüft nur den Kopf. Die Laufzeit holt den Teigling aus ihrem Datensegment (`memory.init`, in Stücken von 64 KiB) und kopiert ihn mit `herd_schreibe` in den Kern – einmal je Pfad. Der native Host bindet ihn wie alle Kern-Exporte (`host/src/herd.rs`) |
 | `ressource_hole` | `(id i32, was i32) -> f64` | |
+| `modell_teig` | `(ptr i32, len i32) -> i32` | `Modell.laden` (H-K16, K-161): `len` Bytes eines **Modellteigs** im Kern-Speicher → Modell-ID (eigene Zählung); der Kern prüft alles und legt Netze, Texturen und die geteilten Beläge an. Fehler-Modellteig → Codes 63 … 67 mit dem Text aus dem Teig (ohne Pfad; die Laufzeit setzt `<pfad> ` davor). Kopierweg wie `bildchen_teigling` (Datensegment, Kiste-Art 3, 64-KiB-Stücke). Additiv in v2 |
+| `modell_teil` | `(id i32, x f64, y f64, z f64) -> i32` | `herd.modell(m, x, y, z)` → Wurzel-Teil mit einem Teil je Knoten |
+| `modell_info` | `(id i32, was i32) -> f64` | 1 Knoten, 2 Folgen, 3 Beläge, 4 Breite, 5 Höhe, 6 Tiefe, 7 Netze, 8 Ecken, 9 Texturen, 10 Vorlage-Teil, 100 + i Belag-Teil i |
+| `modell_text` | `(id i32, was i32, i i32, ptr i32, kap i32) -> i32` | Namen (1 Knoten, 2 Folgen, 3 Materialien) mit Retry (K-013) |
+| `teil_finde` | `(teil i32, ptr i32, len i32) -> i32` | `teil.finde(name)`: erstes Teil im Teilbaum mit diesem `Etikett`, sonst 0 |
 | `eingabe` | `(maus_x f64, maus_y f64, knoepfe i32) -> i32` | Eingabezustand an den Kern (H-K12, K-151): Maus in Spielfeld-Koordinaten, Knöpfe als Bitmaske (1 links, 2 rechts, 4 Mitte); je Takt **vor** dem Rückruf. Nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 bleiben stehen; nicht im Szenen-Hash, wirkt nur über Lesefelder (`Taster`, `Regler`, `Tafel`, `Blick.mausX`). Additiv in v2 |
 | `takt`, `paket_voll` | `() -> i32` | |
 | `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |

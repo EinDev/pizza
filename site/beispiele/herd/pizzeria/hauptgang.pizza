@@ -1,0 +1,117 @@
+// Pizzeria – eine kleine Küche mit Gastraum aus fertigen 3D-Modellen (glTF von Kenney, CC0; Quellen in quellen.md).
+//
+// Modell.laden("modelle/….glb") lädt ein Modell aus dem Projekt; herd.modell(m, x, y, z) stellt eine Kopie in die Welt: ein
+// Teil je Knoten des Modells, mit seinem Namen als Etikett. teil.finde("door") holt so die Ofentür aus dem Herd-Modell, die
+// sich dann drehen lässt wie jedes Teil. Alle Kopien eines Modells teilen sich die Beläge (Materialien): eine neue Farbe am
+// Belag färbt jeden Tisch zugleich. Die Modelle sind in Metern; die Lebensmittel sind für diese Küche verkleinert.
+//
+// Maus ziehen oder ←/→: um den Raum kreisen · ↑/↓ oder Mausrad: näher/weiter
+// O: Ofentür auf/zu · K: Kühlschrank auf/zu · Leertaste: Pizzakarton auf/zu · T: Tischfarbe wechseln
+
+Herd herd = neu Herd("Pizzeria", breite: 960, hoehe: 540);
+herd.himmel("#9cc6ec", "#f2e6d0");
+herd.umgebung("#fff4e0", staerke: 0.45);
+herd.sonne().setzeLage(-2, 6, 5);
+
+Rezept lade = (margherita n) -> Modell.laden("modelle/" + n + ".glb");
+Modell fliese = lade("moebel/floor-full");
+Modell wand = lade("moebel/wall");
+Modell fenster = lade("moebel/wall-window");
+Modell tuer = lade("moebel/wall-doorway");
+Modell schrank = lade("moebel/kitchen-cabinet");
+Modell oberschrank = lade("moebel/kitchen-cabinet-upper");
+Modell herdzeile = lade("moebel/kitchen-stove");
+Modell spuele = lade("moebel/kitchen-sink");
+Modell kuehlschrank = lade("moebel/kitchen-fridge");
+Modell tisch = lade("moebel/table-round");
+Modell stuhl = lade("moebel/chair");
+Modell pflanze = lade("moebel/potted-plant");
+Modell pizza = lade("essen/pizza");
+Modell schachtel = lade("essen/pizza-box");
+Modell teller = lade("essen/plate");
+Modell tomate = lade("essen/tomato");
+Modell kaese = lade("essen/cheese");
+Modell wein = lade("essen/wine-red");
+Modell oel = lade("essen/bottle-oil");
+Modell brett = lade("essen/cutting-board");
+Modell pilz = lade("essen/mushroom");
+
+// Boden 4 × 3 Fliesen (je 1 m), hinten eine Wand mit Fenster und Tür
+für (salami x = 0; x < 4; x++) {
+    für (salami z = 0; z < 3; z++) { herd.modell(fliese, x, 0, -z); }
+    herd.modell(x == 3 ? tuer : (x == 1 ? fenster : wand), x, 0, -3);
+}
+
+// Küchenzeile an der Rückwand: Schrank, Herd, Schrank, Spüle, Kühlschrank; Oberschränke darüber
+Blech<Modell> zeile = [schrank, herdzeile, schrank, spuele];
+Teil herdTeil = herd.raum();
+für (salami i = 1; i <= zeile.länge(); i++) {
+    Teil t = herd.modell(zeile.stück(i), 0.1 + (i - 1) * 0.43, 0, -2.5);
+    falls (i == 2) { herdTeil = t; } sonst { herd.modell(oberschrank, 0.1 + (i - 1) * 0.43, 0.72, -2.73); }
+}
+Teil kuehl = herd.modell(kuehlschrank, 1.84, 0, -2.66);
+
+// Arbeitsfläche: Brett mit Tomaten, Käse und Pilz, ein Stapel Pizzakartons und ein offener Karton
+herd.modell(brett, 0.32, 0.455, -2.73).setzeGroesse(0.3);
+für (salami i = 0; i < 3; i++) { herd.modell(tomate, 0.26 + i * 0.06, 0.475, -2.68).setzeGroesse(0.3); }
+herd.modell(kaese, 0.38, 0.475, -2.78).setzeGroesse(0.15);
+herd.modell(pilz, 0.2, 0.475, -2.8).setzeGroesse(0.35);
+für (salami i = 0; i < 3; i++) { herd.modell(schachtel, 1.18, 0.455 + i * 0.045, -2.72).setzeGroesse(0.3); }
+Teil offen = herd.modell(schachtel, 1.38, 0.455, -2.74).setzeGroesse(0.3);
+herd.modell(pizza, 1.38, 0.47, -2.74).setzeGroesse(0.28);
+
+// Gastraum: zwei runde Tische mit Stühlen, je eine Pizza auf dem Teller, Wein und Öl
+Blech<funghi> TX = [0.95, 2.75];
+Blech<funghi> TZ = [-1.05, -1.35];
+für (salami t = 1; t <= 2; t++) {
+    funghi x = TX.stück(t), z = TZ.stück(t);
+    herd.modell(tisch, x - 0.35, 0.27, z + 0.4);   // das Modell liegt 0,27 m tief
+    herd.modell(stuhl, x - 0.1, 0, z + 0.62);
+    herd.modell(stuhl, x + 0.1, 0, z - 0.62).setzeDrehung(180);
+    herd.modell(teller, x, 0.37, z).setzeGroesse(0.28);
+    herd.modell(pizza, x, 0.383, z).setzeGroesse(0.25).setzeDrehung(t * 40);
+    herd.modell(wein, x + 0.2, 0.37, z - 0.12).setzeGroesse(0.3);
+    herd.modell(oel, x - 0.22, 0.37, z - 0.1).setzeGroesse(0.3);
+}
+herd.modell(pflanze, 3.55, 0, -0.4);
+herd.modell(pflanze, 0.08, 0, -0.3);
+
+// warmes Licht über der Küche
+herd.licht(1.0, 1.4, -2.0, farbe: "#ffd9a8", reichweite: 4).licht().setzeStaerke(1.2);
+
+// Türen und Deckel über ihre Knotennamen (Etikett), Tische über ihren gemeinsamen Belag
+Teil ofenTuer = herdTeil.finde("door");
+Teil kuehlTuer = kuehl.finde("doorFridge");
+Teil deckel = offen.finde("lid");
+Belag tischBelag = tisch.belaege().stück(1).belag();
+Blech<margherita> FARBEN = ["#c8a27a", "tomate", "basilikum", "#f2f2f2"];
+salami farbe = 1;
+Bote.sage(("Herd-Modell: " + herdzeile.namen() + ", Kühlschrank: " + kuehlschrank.namen() + ", Karton: " + schachtel.namen()));
+Bote.sage(("Tisch " + tisch.breite().runden(2) + " × " + tisch.hoehe().runden(2) + " × " + tisch.tiefe().runden(2) + " m, " + tisch.belaege().länge() + " Belag"));
+
+funghi winkel = 25, abstand = 3.4, ziehX = -1;
+funghi ofenZiel = 0, kuehlZiel = 0, deckelZiel = 0;
+herd.backe(() -> {
+    falls (herd.taste("Links")) { winkel -= 1.5; }
+    falls (herd.taste("Rechts")) { winkel += 1.5; }
+    falls (herd.taste("Hoch")) { abstand = Mathe.max(1.6, abstand - 0.04); }
+    falls (herd.taste("Runter")) { abstand = Mathe.min(6, abstand + 0.04); }
+    abstand = Mathe.min(6, Mathe.max(1.6, abstand - herd.mausrad() * 0.25));
+    falls (herd.maus(1)) {
+        falls (ziehX >= 0) { winkel += (herd.mausX() - ziehX) * 0.3; }
+        ziehX = herd.mausX();
+    } sonst { ziehX = -1; }
+    falls (herd.gedrueckt("o")) { ofenZiel = ofenZiel == 0 ? -80 : 0; }
+    falls (herd.gedrueckt("k")) { kuehlZiel = kuehlZiel == 0 ? -100 : 0; }
+    falls (herd.gedrueckt("Leertaste")) { deckelZiel = deckelZiel == 0 ? 100 : 0; }
+    falls (herd.gedrueckt("t")) {
+        farbe = farbe % FARBEN.länge() + 1;
+        tischBelag.setzeFarbe(FARBEN.stück(farbe));
+    }
+    // Türen gleiten weich auf ihr Ziel
+    ofenTuer.setzeNeigung(ofenTuer.neigung() + (ofenZiel - ofenTuer.neigung()) * 0.15);
+    kuehlTuer.setzeDrehung(kuehlTuer.drehung() + (kuehlZiel - kuehlTuer.drehung()) * 0.15);
+    deckel.setzeNeigung(deckel.neigung() + (deckelZiel - deckel.neigung()) * 0.15);
+    funghi b = Mathe.bogen(winkel);
+    herd.kamera().setzeLage(2 + Mathe.sin(b) * abstand, 1.5, -1.4 + Mathe.cos(b) * abstand).schaueAuf(2, 0.35, -1.6);
+});

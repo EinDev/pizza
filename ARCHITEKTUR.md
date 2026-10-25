@@ -73,7 +73,7 @@ Keine Zeichenketten über Zeilengrenzen (der Bau prüft das).
 | `theke/tabellen.js` · `theke/laufzeit.js` | Theke: Klassen, Stil, Tabellen · Fenster, Zettel, Bindungen |
 | `std/register.js` | `TABELLEN`, Sperren `nurRechnen`/`nurHauptkueche` (nach allen Tabellen) |
 | `kueche.js` | Küchenbrigade |
-| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` · `herd/kniff.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-Kopf · Methodentabellen · Laufzeit, Vorbacken, `Bildchen.laden`, Spielschleife · Kniffe (H-K13: Anhängen, Kniff-Phase je Takt, `beimEntfernen`) |
+| `herd/kern.js` · `herd/tabellen.js` · `herd/laufzeit.js` · `herd/kniff.js` | Herd: Kern und Vorbacker (`teigling.wasm`) laden, Schema, Teigling-/Modellteig-Kopf, Quellpaket · Methodentabellen (auch `Modell`, `finde`) · Laufzeit, Vorbacken (Bilder und Modelle), `Bildchen.laden`, `Modell.laden`, Spielschleife · Kniffe (H-K13: Anhängen, Kniff-Phase je Takt, `beimEntfernen`) |
 | `klang/kern.js` · `klang/tabellen.js` | Klang (H-K14, K-153): Erzeuger `klang.wasm` laden, `Klang`/`Spur`, simulierte Zeit, Ereignisse (bei offenem Herd-Fenster bis zum Bild gesammelt), `beimEnde` · Methodentabellen |
 | `api.js` | `run`, `pruefeStart`, öffentliches Objekt (`intern`) |
 
@@ -104,7 +104,7 @@ PizzaLang.run(quelle, optionen)
   //                       koeche?: number | "auto", kuechenChaos?: number,       // Küchenbrigade: SPEC §17 (K-100)
   //                       herdKern?: WebAssembly.Module | ArrayBuffer | Uint8Array,  // Herd: SPEC §18, K-128 – Node ohne Option: site/js/herd/kern.wasm
   //                       onHerd?(art, daten), herdSpion?(kernExporte),            // Herd-Renderer (Bildpaket-Bytes nur hier); herdSpion nur Werkzeuge
-  //                       teiglinge?: { pfad → Uint8Array },                       // vorgebackene Bilder (SPEC §18.5, K-145) – geprüft (Kopf + SHA-256 der Quelle), fehlende/unpassende backt der Lauf
+  //                       teiglinge?: { pfad → Uint8Array },                       // vorgebackene Bilder und Modelle (SPEC §18.5, K-145, K-161) – geprüft (Kopf + SHA-256 der Quelle), fehlende/unpassende backt der Lauf
   //                       vorbacker?: WebAssembly.Module | ArrayBuffer | Uint8Array | { vorbacken, sha256 } } // teigling.wasm wie herdKern (oder PizzaVorbacker-Objekt); Node ohne Option: site/js/herd/teigling.wasm
   // → { exitCode, ereignisse: Ereignis[], schritte, zeitMs }   (zeitMs = simulierte Uhr)
 ```

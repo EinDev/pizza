@@ -110,8 +110,15 @@ const AUFZEICHNEN = {
     fs.writeFileSync(p, u8().slice(a[0], a[0] + a[1]));
     return [JSON.stringify(p)];
   },
+  // Modelle (H-K16): der Modellteig als Datei, im Skript `modell_datei "<pfad>"`; herd.modell als modell_teil
+  modell_teig: (a) => {
+    const p = path.join(TEIGE, 'm' + (++teige) + '.modellteig');
+    fs.writeFileSync(p, u8().slice(a[0], a[0] + a[1]));
+    return [JSON.stringify(p)];
+  },
+  modell_teil: (a) => [I(a[0]), F(a[1]), F(a[2]), F(a[3])],
 };
-const UMBENANNT = { bildchen_teigling: 'teigling_datei' };
+const UMBENANNT = { bildchen_teigling: 'teigling_datei', modell_teig: 'modell_datei' };
 let istKern = false;
 const EchteInstanz = WebAssembly.Instance;
 function Huelle(modul, importe) {

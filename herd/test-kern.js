@@ -80,6 +80,8 @@ const LAEUFE = [
   ['spiegel.herd', { N: 1000, L: 256, TAKTE: 4 }],
   ['figur.herd', {}],
   ['figur.herd', { N: 100, S: 1000, TAKTE: 40 }],
+  ['modell.herd', {}],
+  ['modell.herd', { N: 200, TAKTE: 2 }],
 ];
 
 const args = process.argv.slice(2);

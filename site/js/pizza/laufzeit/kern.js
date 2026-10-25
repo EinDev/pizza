@@ -53,6 +53,7 @@ class Laufzeit {
     this.vorbackerOpt = opt.vorbacker;
     this.teiglinge = new Map();
     this.bildPfade = new Map();
+    this.modellPfade = new Map();   // H-K16: Pfad → HerdModell (gleicher Pfad = dasselbe Modell); Modellteige in this.teiglinge
     this.schritte = 0;
     this.offset = 0;
     this.frames = [];
@@ -116,6 +117,7 @@ class Laufzeit {
       ['Herd', new Modul('Herd', HERD_MOD_M, null)],
       ['Form', new Modul('Form', HERD_FORM_MOD_M, null)],
       ['Bildchen', new Modul('Bildchen', HERD_BILDCHEN_MOD_M, null)],
+      ['Modell', new Modul('Modell', HERD_MODELL_MOD_M, null)],
       ['Kiste', new Modul('Kiste', KISTE_M, null)],
       ['Klang', new Modul('Klang', KLANG_MOD_M, null)],
       ['teig', new NativFn('teig', function (pos) { return new Teig(L.funktionArg(pos[0], 'teig')); })],
@@ -204,7 +206,7 @@ class Laufzeit {
     if (v instanceof UiTheke) return 'Theke';
     if (v instanceof UiZutat) return UI_ART_NAME[v.art];
     if (v instanceof Zettel) return 'Zettel';
-    if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen) return herdKlasseVon(v);
+    if (v instanceof HerdWelt || v instanceof HerdTeil || v instanceof HerdKomp || v instanceof HerdForm || v instanceof HerdBildchen || v instanceof HerdModell) return herdKlasseVon(v);
     if (v instanceof KlangObj || v instanceof KlangSpur) return klangKlasseVon(v);
     if (v instanceof ZufallGen) return 'Zufall';
     if (v instanceof Kammer) return 'Vorratskammer';

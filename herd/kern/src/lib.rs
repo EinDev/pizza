@@ -16,6 +16,7 @@ pub mod lichter;
 pub mod kollision3d;
 pub mod komponenten;
 pub mod mathe;
+pub mod modell;
 pub mod paket;
 pub mod ressourcen;
 pub mod schema;

@@ -1,0 +1,14 @@
+Erst braucht es einen Herd (neu Herd(…)).
+Die Datei "modelle/nichts.glb" liegt nicht in der Kiste.
+hauptgang.pizza ist kein lesbares Modell (glTF 2.0).
+modelle/kaputt.glb ist kein lesbares Modell (glTF 2.0).
+modelle/draco.glb braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd nicht.
+modelle/zu-gross.glb ist zu groß (600 000 Ecken) – höchstens 500 000 Ecken.
+modelle/bild-kaputt.glb (Bild 2) ist kein lesbares Bild (PNG oder JPEG).
+modelle/bild-zu-gross.glb (Bild 2) ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel.
+modelle/fehlt.gltf braucht die Datei fehlt.bin – die liegt nicht in der Kiste.
+Modell.laden() braucht einen Text für 'pfad', nicht 7.
+modell() braucht ein Modell für 'modell', nicht "w".
+finde() braucht einen Text für 'name', nicht 3.
+'Modell' kann man nicht mit neu backen.
+Modell(modelle/wuerfel.glb) [Wuerfel] 0

@@ -24,12 +24,15 @@ pub const A_TEIL: u32 = 41;
 pub const A_KOMP: u32 = 42;
 pub const A_FORM: u32 = 43;
 pub const A_BILDCHEN: u32 = 44;
+/// Modell (H-K16); 45/46 gehören Klang/Spur
+pub const A_MODELL: u32 = 47;
 
 #[repr(C)] pub struct HWelt { pub art: u32, pub _r: u32 }
 #[repr(C)] pub struct HTeil { pub art: u32, pub id: u32 }
 #[repr(C)] pub struct HKomp { pub art: u32, pub h: u32, pub typ: u32, pub teil: u32 }
 #[repr(C)] pub struct HForm { pub art: u32, pub id: u32 }
 #[repr(C)] pub struct HBildchen { pub art: u32, pub id: u32, pub breite: f64, pub hoehe: f64 }
+#[repr(C)] pub struct HModell { pub art: u32, pub id: u32, pub pfad: W }
 
 pub const T_HERD: &str = "Den Herd gibt es nur in der Hauptküche.";
 const W0104: &str = "Kein Herd verfügbar – Fenster wird nicht angezeigt.";
@@ -80,6 +83,11 @@ extern "C" {
     #[link_name = "bildchen_neu"] fn k_bildchen_neu(zp: i32, zn: i32, fp: i32, fn_: i32) -> i32;
     #[link_name = "bildchen_teigling"] fn k_bildchen_teigling(p: i32, n: i32) -> i32;
     #[link_name = "ressource_hole"] fn k_ressource_hole(id: i32, was: i32) -> f64;
+    #[link_name = "modell_teig"] fn k_modell_teig(p: i32, n: i32) -> i32;
+    #[link_name = "modell_teil"] fn k_modell_teil(id: i32, x: f64, y: f64, z: f64) -> i32;
+    #[link_name = "modell_info"] fn k_modell_info(id: i32, was: i32) -> f64;
+    #[link_name = "modell_text"] fn k_modell_text(id: i32, was: i32, i: i32, p: i32, kap: i32) -> i32;
+    #[link_name = "teil_finde"] fn k_teil_finde(t: i32, p: i32, n: i32) -> i32;
     #[link_name = "eingabe"] fn k_eingabe(maus_x: f64, maus_y: f64, knoepfe: i32) -> i32;
     #[link_name = "takt"] fn k_takt() -> i32;
     #[link_name = "bild"] fn k_bild(n: i32) -> i32;
@@ -130,6 +138,8 @@ struct Kern {
     res: Vec<W>,                 // Ressourcen-ID → Form | Bildchen
     id_hole: u32, id_setze: u32, id_teil: u32, id_breite: u32, id_hoehe: u32, id_id: u32, id_farbe: u32,
     id_herd: u32, id_teilk: u32, id_form: u32, id_bildchen: u32,
+    // Modell (H-K16)
+    id_namen: u32, id_folgen: u32, id_belaege: u32, id_tiefe: u32,
 }
 
 static mut KERN: Option<Kern> = None;
@@ -147,13 +157,13 @@ struct Welt {
 }
 static mut WELT: Option<Welt> = None;
 
-const TEIL_NAMEN: [&str; 33] = ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung",
+const TEIL_NAMEN: [&str; 34] = ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung",
     "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene",
-    "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "alsText"];
-const HERD_NAMEN: [&str; 35] = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit", "taste",
+    "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "finde", "alsText"];
+const HERD_NAMEN: [&str; 36] = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit", "taste",
     "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick", "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
     "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum", "alsText",
-    "mausFangen", "mausGefangen", "mausDX", "mausDY", "mausrad"];
+    "mausFangen", "mausGefangen", "mausDX", "mausDY", "mausrad", "modell"];
 const FORM_MOD_NAMEN: [&str; 6] = ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"];
 
 fn nid(s: &str) -> u32 { name_id(neu_str(s)) }
@@ -177,6 +187,7 @@ fn lade(pflicht: bool) -> bool {
             arten: Vec::new(), teil_m: Vec::new(), herd_m: Vec::new(), zugriff: Vec::new(), teile: Vec::new(), komps: Vec::new(), res: Vec::new(),
             id_hole: nid("hole"), id_setze: nid("setze"), id_teil: nid("teil"), id_breite: nid("breite"), id_hoehe: nid("hoehe"), id_id: nid("id"),
             id_farbe: nid("farbe"), id_herd: nid("Herd"), id_teilk: nid("Teil"), id_form: nid("Form"), id_bildchen: nid("Bildchen"),
+            id_namen: nid("namen"), id_folgen: nid("folgen"), id_belaege: nid("belaege"), id_tiefe: nid("tiefe"),
         };
         for (i, n) in TEIL_NAMEN.iter().enumerate() { tab_setze(&mut kern.teil_m, nid(n), i as u8 + 1); }
         for (i, n) in HERD_NAMEN.iter().enumerate() { tab_setze(&mut kern.herd_m, nid(n), i as u8 + 1); }
@@ -358,7 +369,7 @@ fn form_obj(r: i32) -> W {
 fn art_von(typ: u32) -> &'static HArt { &k().arten[typ as usize] }
 fn art_nach_name(b: &[u8]) -> Option<u32> { k().arten.iter().position(|a| bytes(a.name) == b).map(|i| i as u32) }
 
-pub fn ist_herd_obj(w: W) -> bool { matches!(art(w), A_HERD | A_TEIL | A_KOMP | A_FORM | A_BILDCHEN) }
+pub fn ist_herd_obj(w: W) -> bool { matches!(art(w), A_HERD | A_TEIL | A_KOMP | A_FORM | A_BILDCHEN | A_MODELL) }
 
 // ---------------------------------------------------------------- Textformen, Typen
 pub fn text_in(v: W, tb: &mut Tb) {
@@ -377,6 +388,7 @@ pub fn text_in(v: W, tb: &mut Tb) {
         A_HERD => { tb.s("Herd("); if let Some(w) = unsafe { WELT.as_ref() } { tb.t(w.titel); } tb.s(")"); }
         A_FORM => { tb.s("Form(").n(obj::<HForm>(v).id as f64).s(")"); }
         A_BILDCHEN => { let b = obj::<HBildchen>(v); tb.s("Bildchen(").n(b.breite).s("×").n(b.hoehe).s(")"); }
+        A_MODELL => { tb.s("Modell(").t(obj::<HModell>(v).pfad).s(")"); }
         _ => { tb.s("?"); }
     }
 }
@@ -386,18 +398,19 @@ pub fn typ_name(v: W, tb: &mut Tb) {
         A_TEIL => { tb.s("Teil"); }
         A_FORM => { tb.s("Form"); }
         A_BILDCHEN => { tb.s("Bildchen"); }
+        A_MODELL => { tb.s("Modell"); }
         A_KOMP => { tb.t(art_von(obj::<HKomp>(v).typ).name); }
         _ => { tb.s("Unbekanntes"); }
     }
 }
 /// `<Art>` eines nicht kartonfähigen Werts (Küchenbrigade)
 pub fn karton_art(v: W) -> &'static str {
-    match art(v) { A_HERD => "Ein Herd", A_TEIL => "Ein Teil", A_KOMP => "Eine Komponente", A_FORM => "Eine Form", _ => "Ein Bildchen" }
+    match art(v) { A_HERD => "Ein Herd", A_TEIL => "Ein Teil", A_KOMP => "Eine Komponente", A_FORM => "Eine Form", A_MODELL => "Ein Modell", _ => "Ein Bildchen" }
 }
 /// Typprüfung für Herd-Typen (eigene Klassen hat der Aufrufer schon ausgeschlossen); None = kein Herd-Typ
 pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
     let n = bytes(name_text(typ));
-    let fest = match n { b"Herd" => Some(A_HERD), b"Teil" => Some(A_TEIL), b"Form" => Some(A_FORM), b"Bildchen" => Some(A_BILDCHEN), _ => None };
+    let fest = match n { b"Herd" => Some(A_HERD), b"Teil" => Some(A_TEIL), b"Form" => Some(A_FORM), b"Bildchen" => Some(A_BILDCHEN), b"Modell" => Some(A_MODELL), _ => None };
     if let Some(a) = fest { return Some(art(v) == a); }
     if !geladen() { return None; }
     let nr = art_nach_name(n)?;
@@ -405,10 +418,10 @@ pub fn typ_passt(typ: u32, v: W) -> Option<bool> {
 }
 
 // ---------------------------------------------------------------- Module Herd, Form und Bildchen (statisch)
-fn modul_art(m: u32) -> u8 { match bytes(name_text(m)) { b"Herd" => 1, b"Form" => 2, b"Bildchen" => 3, _ => 0 } }
-/// globaler Name Herd/Form/Bildchen (nach eigenen Klassen; der Aufrufer prüft die Reihenfolge)
+fn modul_art(m: u32) -> u8 { match bytes(name_text(m)) { b"Herd" => 1, b"Form" => 2, b"Bildchen" => 3, b"Modell" => 4, _ => 0 } }
+/// globaler Name Herd/Form/Bildchen/Modell (nach eigenen Klassen; der Aufrufer prüft die Reihenfolge)
 pub fn modul_wert(id: u32) -> Option<W> {
-    static mut CACHE: [W; 4] = [KARTON; 4];
+    static mut CACHE: [W; 5] = [KARTON; 5];
     let m = modul_art(id);
     if m == 0 { return None; }
     unsafe {
@@ -421,7 +434,7 @@ pub fn modul_hat(m: u32, id: u32) -> bool {
     match modul_art(m) {
         1 => n == b"farbe",
         2 => FORM_MOD_NAMEN.iter().any(|x| x.as_bytes() == n),
-        3 => n == b"laden",
+        3 | 4 => n == b"laden",
         _ => false,
     }
 }
@@ -441,6 +454,7 @@ pub fn modul_methode(m: u32, id: u32, pos: &[W], ben: &Ben) -> W {
         return neu_str(&s);
     }
     if modul_art(m) == 3 { return bildchen_laden(pos, ben); }
+    if modul_art(m) == 4 { return modell_laden(pos, ben); }
     if !kern_noetig() { return KARTON; }
     let r = unsafe {
         match n {
@@ -473,7 +487,7 @@ fn hex(v: f64, s: &mut String) {
 /// Ist `id` (ohne eigene Klasse) eine Herd-Klasse? Komponenten nur aus dem Schema des geladenen Kerns.
 pub fn neu_moeglich(id: u32) -> bool {
     match bytes(name_text(id)) {
-        b"Herd" | b"Teil" | b"Form" | b"Bildchen" => true,
+        b"Herd" | b"Teil" | b"Form" | b"Bildchen" | b"Modell" => true,
         n => {
             if !geladen() { if crate::in_kueche() || unsafe { ZUSTAND_K } == 2 { return false; } if !lade(false) { return false; } }
             art_nach_name(n).is_some()
@@ -484,6 +498,7 @@ pub fn neu(id: u32, pos: &[W], ben: &Ben) -> W {
     if crate::kueche::nur_hauptkueche(T_HERD) { return KARTON; }
     let n = bytes(name_text(id));
     if n == b"Teil" { wirf_ananas(K_ROHLING, "'Teil' kann man nicht mit neu backen."); return KARTON; }
+    if n == b"Modell" { wirf_ananas(K_ROHLING, "'Modell' kann man nicht mit neu backen."); return KARTON; }   // H-K16: Modell.laden
     if !kern_noetig() { return KARTON; }
     match n {
         b"Herd" => neuer_herd(pos, ben),
@@ -637,6 +652,76 @@ fn bildchen_laden(pos: &[W], ben: &Ben) -> W {
     w
 }
 
+/// Pfad → schon geladenes Modell (H-K16, wie GELADEN)
+static mut MODELLE: Vec<(W, W)> = Vec::new();
+
+/// `Modell.laden(pfad)` (H-K16, K-161): Modellteig aus der Kiste (Datensegment) über den Kopierweg in den Kern, dann
+/// `modell_teig`. Prüfreihenfolge wie `Bildchen.laden`: kein Text → TypAnanas · vor `neu Herd` (Kern-Text) · fehlt in der
+/// Kiste · kein Modell (andere Endung: leerer Teig → Kern-Code 63) / Fehler-Modellteig (63 … 67, Text aus dem Teig, Pfad davor).
+fn modell_laden(pos: &[W], ben: &Ben) -> W {
+    let pw = argn(pos, ben, 0, "pfad");
+    if art(pw) != A_TEXT {
+        let mut t = Tb::neu();
+        t.s("Modell.laden() braucht einen Text für 'pfad', nicht ");
+        darstellung(if pw == UNDEF { KARTON } else { pw }, &mut t);
+        if sig() { return KARTON; }
+        t.s(".");
+        wirf_tb(K_TYP, &t);
+        return KARTON;
+    }
+    if !kern_noetig() { return KARTON; }
+    if unsafe { WELT.is_none() } { let _ = hi(unsafe { k_modell_teig(kp(1), 0) }); return KARTON; }
+    let pb = bytes(pw);
+    if let Some(&(_, w)) = unsafe { MODELLE.iter().find(|x| bytes(x.0) == pb) } { return w; }
+    let e = match crate::kiste::finde(pb) {
+        Some(e) => e,
+        None => {
+            let mut t = Tb::neu();
+            t.s("Die Datei \"").b(pb).s("\" liegt nicht in der Kiste.");
+            wirf_tb(K_LAUFZEIT, &t);
+            return KARTON;
+        }
+    };
+    let r = if e.art != crate::kiste::ART_MODELL {
+        unsafe { k_modell_teig(kp(1), 0) }
+    } else {
+        let kz = kp(e.len as usize);
+        crate::kiste::stueckweise(&e, |o, b| unsafe { herd_schreibe(kz + o as i32, b.as_ptr(), b.len() as i32) });
+        unsafe { k_modell_teig(kz, e.len as i32) }
+    };
+    if r < 0 { fehler_mit(pb); return KARTON; }
+    let w = neu_w(HModell { art: A_MODELL, id: r as u32, pfad: neu_text(pb) });
+    unsafe { MODELLE.push((neu_text(pb), w)); }
+    w
+}
+
+/// Modell-Methoden: namen()/folgen() (ohne leere Namen), belaege(), breite()/hoehe()/tiefe()
+fn modell_methode(o: W, id: u32) -> W {
+    let kk = k();
+    let mid = obj::<HModell>(o).id as i32;
+    let info = |was: i32| hf(unsafe { k_modell_info(mid, was) });
+    if id == kk.id_namen || id == kk.id_folgen {
+        let was = if id == kk.id_namen { 1 } else { 2 };
+        let n = match info(was) { Some(x) => x as i32, None => return KARTON };
+        let mut v = Vec::new();
+        for i in 0..n {
+            match lies_text(|p, kap| unsafe { k_modell_text(mid, was, i, p, kap) }) {
+                Some(t) => { if !t.is_empty() { v.push(neu_text(&t)); } }
+                None => { fehler(); return KARTON; }
+            }
+        }
+        return blech(v);
+    }
+    if id == kk.id_belaege {
+        let n = match info(3) { Some(x) => x as i32, None => return KARTON };
+        let mut v = Vec::new();
+        for i in 0..n { match info(100 + i) { Some(t) => v.push(teil_obj(t as u32)), None => return KARTON } }
+        return blech(v);
+    }
+    let was = if id == kk.id_breite { 4 } else if id == kk.id_hoehe { 5 } else if id == kk.id_tiefe { 6 } else { return text(o) };
+    match info(was) { Some(x) => zahl(x), None => KARTON }
+}
+
 // ---------------------------------------------------------------- Felder setzen/lesen (generisch nach Feldtyp)
 /// Feld nach Name (hole/setze); unbekannt → Kern-Text „<Name> hat kein Feld 'x'.“
 fn feld_nach_name(ar: &'static HArt, n: W) -> Option<&'static HFeld> {
@@ -756,6 +841,8 @@ pub fn tabelle_hat(o: W, id: u32) -> bool {
         }
         A_FORM => id == kk.id_id || id == crate::namen::N_ALSTEXT,
         A_BILDCHEN => id == kk.id_id || id == kk.id_breite || id == kk.id_hoehe || id == crate::namen::N_ALSTEXT,
+        A_MODELL => id == kk.id_namen || id == kk.id_folgen || id == kk.id_belaege || id == kk.id_breite || id == kk.id_hoehe
+            || id == kk.id_tiefe || id == crate::namen::N_ALSTEXT,
         _ => false,
     }
 }
@@ -768,6 +855,7 @@ pub fn methode(o: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
         A_HERD => herd_methode(o, id, pos, ben, knoten),
         A_KOMP => komp_methode(o, id, pos, ben),
         A_FORM => if id == crate::namen::N_ALSTEXT { text(o) } else { zahl(obj::<HForm>(o).id as f64) },
+        A_MODELL => modell_methode(o, id),
         _ => {
             let b = obj::<HBildchen>(o);
             let kk = k();
@@ -917,6 +1005,12 @@ fn teil_methode(t: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             "raum" => match hf(k_teil_hole(tid, 12)) { Some(x) => neu_str(if x == 3.0 { "3D" } else { "2D" }), None => KARTON },
             "id" => match hf(k_teil_hole(tid, 12)) { Some(_) => zahl(tid as f64), None => KARTON },
             "kniffe" => kniff_liste(tid as u32),   // H-K13: Blech<Kniff> in Anhängereihenfolge
+            "finde" => {   // H-K16: erstes Teil im Teilbaum mit diesem Etikett, sonst karton
+                let n = argn(pos, ben, 0, "name");
+                if art(n) != A_TEXT { typ_fehler_arg("finde", "einen Text", "name", n); return KARTON; }
+                let (p, l) = kt(bytes(n));
+                match hi(k_teil_finde(tid, p, l)) { Some(0) => KARTON, Some(i) => teil_obj(i as u32), None => KARTON }
+            }
             _ => text(t),
         }
     }
@@ -1043,6 +1137,12 @@ fn herd_methode(hw: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
                 fabrik(3, x, y, zz, "Licht", &[("farbe", argn(pos, ben, 3, "farbe")), ("reichweite", opt_w(rw))])
             }
             "raum" => { let x = z!(0, "x", "raum", 0.0); let y = z!(1, "y", "raum", 0.0); let zz = z!(2, "z", "raum", 0.0); fabrik(3, x, y, zz, "", &[]) }
+            "modell" => {   // H-K16: herd.modell(m, x, y, z) → Wurzel-Teil (Kern modell_teil)
+                let m = argn(pos, ben, 0, "modell");
+                if art(m) != A_MODELL { typ_fehler_arg("modell", "ein Modell", "modell", m); return KARTON; }
+                let x = z!(1, "x", "modell", 0.0); let y = z!(2, "y", "modell", 0.0); let zz = z!(3, "z", "modell", 0.0);
+                match hi(k_modell_teil(obj::<HModell>(m).id as i32, x, y, zz)) { Some(i) => teil_obj(i as u32), None => KARTON }
+            }
             _ => text(hw),
         }
     }

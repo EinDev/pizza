@@ -11,6 +11,8 @@ const { projekt, ereignisse, fehlerEv, j, fehlerOrt, warnOrte, keineWarnung, nul
 const T = "§2 Projekte und Mehrdatei-Programme (K-138 … K-141)";
 const TK = "§2 Projekte: Kiste, Bilddateien (K-145 … K-147)";
 const api = (name, fn) => ({ p: T, name, api: fn });
+// Testmodelle (H-K16): von scripts/modelle-test.js erzeugt und eingecheckt
+const TM = (n) => new Uint8Array(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "herd", "teigling", "testmodelle", n)));
 
 module.exports = [
   // ───────────────────────── §2.2 bestellt, Ladereihenfolge ─────────────────────────
@@ -712,6 +714,47 @@ Bote.sage((g.id() + " " + g));
 
   { p: TK, name: "K-145 §18.5: Herd-Erkennung – Bildchen.laden zählt wie neu Bildchen (ohne Herd-Kern HOST vor dem Start)", api: (lang) => {
     const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\nBildchen b = Bildchen.laden("bilder/a.png");\n', "bilder/a.png": KLEIN }), { herdKern: new Uint8Array([0]) });
+    const f = ereignisse(r, "fehler");
+    if (r.exitCode !== 2 || f.length !== 1 || f[0].text !== "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." || ereignisse(r, "ausgabe").length) return j(r);
+  } },
+
+  // ───────────────────────── H-K16 §18.5 Modell.laden (K-161) – Testmodelle aus scripts/modelle-test.js ─────────────────────────
+  F(TK, "K-161 §18.5: Modell.laden – Textform, gleicher Pfad = dasselbe Modell, Knotennamen, Hülle; herd.modell + finde", projekt({
+    "hauptgang.pizza": P`
+Herd herd = neu Herd("Modell");
+Modell m = Modell.laden("modelle/wuerfel.glb");
+Bote.sage((m + " " + (m == Modell.laden("modelle/wuerfel.glb")) + " " + m.namen() + " " + m.breite() + " " + m.belaege().länge()));
+Teil t = herd.modell(m, 1, 2, 3);
+Bote.sage((t.x() + " " + t.finde("Wuerfel").etikett().name() + " " + t.finde("x") + " " + (t.finde("Wuerfel").koerper().belag() == m.belaege().stück(1))));
+`,
+    "modelle/wuerfel.glb": TM("wuerfel.glb"),
+  }), { out: ["Modell(modelle/wuerfel.glb) ja [Wuerfel] 1 1", "1 Wuerfel karton ja"] }),
+
+  F(TK, "K-161 §18.5: .gltf mit Nachbardateien relativ zum Modell; fehlt eine, nennt die Meldung sie", projekt({
+    "hauptgang.pizza": P`
+Herd herd = neu Herd();
+Bote.sage((Modell.laden("m/textur.gltf").namen()));
+Modell kaputt = Modell.laden("m/ohne.gltf");
+`,
+    "m/textur.gltf": TM("textur.gltf"), "m/textur.bin": TM("textur.bin"), "m/ohne.gltf": TM("fehler-fehlt.gltf"),
+    "m/bilder/farbe.png": TM("bilder/farbe.png"), "m/bilder/normale.png": TM("bilder/normale.png"), "m/bilder/mr.png": TM("bilder/mr.png"),
+    "m/bilder/oc.png": TM("bilder/oc.png"), "m/bilder/leucht.png": TM("bilder/leucht.png"),
+  }), { exit: 1, out: ["[Kiste]"], fehler: { text: "Ungefangene Ananas – LaufzeitAnanas: m/ohne.gltf braucht die Datei fehlt.bin – die liegt nicht in der Kiste. (Zeile 3)" } }),
+
+  F(TK, "K-161 §18.5: Modell.laden – Prüfreihenfolge (Text vor Herd), Pflicht-Erweiterung, neu Modell", projekt({
+    "hauptgang.pizza": P`
+probier { Modell.laden(5); } verbrannt (TypAnanas x) { Bote.sage((x.nachricht())); }
+probier { Modell.laden("modelle/d.glb"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+Herd herd = neu Herd();
+probier { Modell.laden("modelle/d.glb"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { neu Modell(); } verbrannt (RohlingAnanas x) { Bote.sage((x.nachricht())); }
+`,
+    "modelle/d.glb": TM("fehler-draco.glb"),
+  }), { out: ["Modell.laden() braucht einen Text für 'pfad', nicht 5.", "Erst braucht es einen Herd (neu Herd(…)).",
+    "modelle/d.glb braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd nicht.", "'Modell' kann man nicht mit neu backen."] }),
+
+  { p: TK, name: "K-161 §18.5: Herd-Erkennung – Modell.laden zählt wie Bildchen.laden (ohne Herd-Kern HOST vor dem Start)", api: (lang) => {
+    const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\nModell m = Modell.laden("m.glb");\n', "m.glb": TM("wuerfel.glb") }), { herdKern: new Uint8Array([0]) });
     const f = ereignisse(r, "fehler");
     if (r.exitCode !== 2 || f.length !== 1 || f[0].text !== "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." || ereignisse(r, "ausgabe").length) return j(r);
   } },

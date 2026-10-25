@@ -38,7 +38,7 @@ class LaufzeitTypen {
         was = 'kein(e) ' + typ.name;
         break;
       }
-      case 'Herd': case 'Teil': case 'Form': case 'Bildchen': {
+      case 'Herd': case 'Teil': case 'Form': case 'Bildchen': case 'Modell': {
         if (this.klassen.has(typ.name) || v === null) {
           const k = this.klassen.get(typ.name);
           if (k === undefined || v === null || this.instanzVon(v, k)) return;
@@ -144,6 +144,7 @@ class LaufzeitTypen {
     if (v instanceof HerdWelt) return 'Herd(' + v.titel + ')';
     if (v instanceof HerdForm) return 'Form(' + v.id + ')';
     if (v instanceof HerdBildchen) return 'Bildchen(' + v.breite + '×' + v.hoehe + ')';
+    if (v instanceof HerdModell) return 'Modell(' + v.pfad + ')';
     if (v instanceof KlangObj) return 'Klang(' + v.id + ')';
     if (v instanceof KlangSpur) return 'Spur(' + v.nr + ')';
     if (v === AUTO) return 'auto';

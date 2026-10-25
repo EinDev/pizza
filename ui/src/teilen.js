@@ -357,7 +357,7 @@ export async function ladeGeteilt(o, id, version = null) {
   for (const d of m.dateien) {
     const b = bytes.get(d.sha256);
     if (b.byteLength !== d.groesse) throw new TeilenFehler("Eine geteilte Datei ist beschädigt angekommen.", { art: "server" });
-    if (dateiArt(d.pfad) === "bild") { dateien[d.pfad] = b.slice(); continue; }
+    if (dateiArt(d.pfad) !== "pizza" && dateiArt(d.pfad) !== "text") { dateien[d.pfad] = b.slice(); continue; }   // Bilder, Modelle, .bin
     const t = dekodiereText(b, d.pfad);
     if (!t.ok) throw new TeilenFehler(t.fehler, { art: "server" });
     dateien[d.pfad] = t.text;

@@ -1,0 +1,27 @@
+// Ordner-Fall (H-K16): Modelle aus der Kiste – .glb (Hierarchie, Lichter, zwei Primitiven) und .gltf mit externem Puffer und
+// Bildern, Eckfarben als Paletten-Bild; gleicher Pfad = dasselbe Modell, Teile je Knoten (Etikett, finde), geteilte Beläge,
+// Kopie. Das Bildpaket trägt die Netze (NETZ) und Bilder (TEXTUR) – Hash in herd-erwartet.
+Herd herd = neu Herd("Modelle", breite: 160, hoehe: 90);
+Modell tisch = Modell.laden("modelle/hierarchie.glb");
+Modell kiste = Modell.laden("modelle/textur.gltf");
+Modell bunt = Modell.laden("modelle/farben.glb");
+Bote.sage((tisch + " " + kiste + " " + (Modell.laden("modelle/hierarchie.glb") == tisch)));
+Bote.sage((tisch.namen()));
+Bote.sage((kiste.namen() + " " + kiste.folgen() + " " + bunt.namen()));
+Bote.sage((tisch.belaege().länge() + " Beläge, " + tisch.breite().runden(4) + " × " + tisch.hoehe().runden(4) + " × " + tisch.tiefe().runden(4)));
+Bote.sage((tisch.belaege().stück(2).etikett().name() + " unter " + tisch.belaege().stück(2).eltern().vorlage().name()));
+herd.raum(0, 2, 4).mit(neu Kamera()).teil().schaueAuf(0, 0, -2);
+Teil t = herd.modell(tisch, 0, 0, -3);
+Teil bein = t.finde("Bein.3");
+Bote.sage((bein.x() + " " + bein.y() + " " + bein.eltern().etikett().name() + " " + bein.koerper().belag().etikett().name()));
+Bote.sage((t.finde("Waise") + " " + t.finde("Lampe").licht().kegel().runden(3) + " " + t.finde("Lampe").neigung()));
+Teil k = herd.modell(kiste, x: 1.5);
+Teil k2 = k.kopie();
+k2.setzeLage(-1.5, 0, 0);
+Bote.sage((k2.finde("Kiste").koerper().belag() == k.finde("Kiste").koerper().belag()));
+herd.modell(bunt, 0, -1, 0).setzeGroesse(0.5);
+Teil eigen = herd.raum(0, 3, 0);
+eigen.mit(neu Etikett(name: "Eigenes"));
+Bote.sage((eigen.finde("Eigenes") == eigen));
+herd.backe(() -> { });
+Bote.sage(("fertig"));

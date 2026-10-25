@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { Lager, fehlerArt } from "./lager.mjs";
 import {
   HASH_MUSTER, ID_MUSTER, ablaufTag, konfigAntwort, leseKonfig, neueId, neuerSchluessel, pruefeInhalt, pruefeManifest,
-  schluesselHash, schluesselPasst, endung, TEXT_ENDUNGEN,
+  schluesselHash, schluesselPasst, endung, TEXT_ENDUNGEN, ANFANG_BYTES,
 } from "./regeln.mjs";
 
 const MINUTE = 60_000;
@@ -120,7 +120,7 @@ export async function starte(o = {}) {
     for (const d of m.dateien) {
       if (lager.blobs.get(d.sha256) !== d.groesse) raus(422, "Die Größe von " + d.pfad + " stimmt nicht.");
       const e = endung(d.pfad);
-      const bytes = TEXT_ENDUNGEN.has(e) ? await lager.leseBlob(d.sha256) : await lager.leseAnfang(d.sha256, 8);
+      const bytes = TEXT_ENDUNGEN.has(e) ? await lager.leseBlob(d.sha256) : await lager.leseAnfang(d.sha256, ANFANG_BYTES);
       const grund = pruefeInhalt(d.pfad, bytes, k);
       if (grund) raus(422, grund);
     }

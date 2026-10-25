@@ -9,6 +9,11 @@
 //! | `sha256` | `(ptr, len) → 32` | SHA-256 der Bytes; Ergebnis ab `ergebnis()` |
 //! | `ergebnis` | `() → ptr` | Zeiger auf das letzte Ergebnis |
 //! | `freigeben` | `() → 0` | Ein- und Ausgabepuffer freigeben |
+//! | `modell_version` | `() → i32` | Formatversion der Modellteige (1, H-K16; Cache-Schlüssel `modell/1`) |
+//! | `modell_vorbacken` | `(ptr, len) → len` | Modellteig aus einem Quellpaket (`TEIGQUEL …`) oder direkt aus einer `.glb` |
+//! | `modell_braucht` | `(ptr, len) → len` | Eingabe: Pfad, NUL, Hauptdatei → Text „URI ⇥ Projektpfad“ je Zeile (was ein `.gltf` braucht) |
+//!
+//! `abi_version` bleibt 1: die Modell-Exporte sind Zusatz; Hüllen erkennen sie an `modell_version`.
 //!
 //! Wird nur für `wasm32v1-none` gebaut (`node herd/baue.js`); nativ ist die Crate leer. Der Allocator ist derselbe wie in
 //! `herd/kern-wasm` (Größenklassen 2^k, Nachschub per `memory.grow`).
@@ -152,6 +157,28 @@ mod wasm {
         let z = z();
         z.aus = h.to_vec();
         32
+    }
+    #[no_mangle]
+    pub extern "C" fn modell_version() -> i32 {
+        herd_teigling::modell::VERSION as i32
+    }
+    #[no_mangle]
+    pub extern "C" fn modell_vorbacken(p: i32, l: i32) -> i32 {
+        let t = herd_teigling::modell::vorbacken(b(p, l));
+        let z = z();
+        z.aus = t;
+        z.aus.len() as i32
+    }
+    #[no_mangle]
+    pub extern "C" fn modell_braucht(p: i32, l: i32) -> i32 {
+        let e = b(p, l);
+        let n = e.iter().position(|&c| c == 0).unwrap_or(e.len());
+        let pfad = core::str::from_utf8(&e[..n]).unwrap_or("");
+        let haupt = if n < e.len() { &e[n + 1..] } else { &[][..] };
+        let t = herd_teigling::modell::braucht_text(pfad, haupt);
+        let z = z();
+        z.aus = t.into_bytes();
+        z.aus.len() as i32
     }
     #[no_mangle]
     pub extern "C" fn ergebnis() -> i32 {

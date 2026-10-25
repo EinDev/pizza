@@ -241,6 +241,12 @@ mod wasm {
         fn bildchen_rgba(breite: i32, hoehe: i32, p: i32) -> i32 { k().bildchen_rgba(breite, hoehe, b(p, breite.max(0).saturating_mul(hoehe.max(0)).saturating_mul(4))) }
         fn bildchen_teigling(p: i32, l: i32) -> i32 { k().bildchen_teigling(b(p, l)) }
         fn ressource_hole(id: i32, was: i32) -> f64 { k().ressource_hole(id, was) }
+        // Modelle (H-K16)
+        fn modell_teig(p: i32, l: i32) -> i32 { k().modell_teig(b(p, l)) }
+        fn modell_teil(id: i32, x: f64, y: f64, zz: f64) -> i32 { k().modell_teil(id, x, y, zz) }
+        fn modell_info(id: i32, was: i32) -> f64 { k().modell_info(id, was) }
+        fn modell_text(id: i32, was: i32, i: i32, p: i32, kap: i32) -> i32 { k().modell_text(id, was, i, bm(p, kap)) }
+        fn teil_finde(teil: i32, p: i32, l: i32) -> i32 { k().teil_finde(teil, b(p, l)) }
 
         fn eingabe(maus_x: f64, maus_y: f64, knoepfe: i32) -> i32 { k().eingabe(maus_x, maus_y, knoepfe) }
         fn takt() -> i32 { k().takt() }

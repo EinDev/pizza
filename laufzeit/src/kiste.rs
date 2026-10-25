@@ -14,10 +14,12 @@ use crate::wert::*;
 use crate::sig;
 use alloc::vec::Vec;
 
-/// Art eines Kiste-Eintrags (vom Compiler gesetzt, nach Endung): Text (`.pizza .txt .json .csv .md`), Bild (Teigling) oder sonst
+/// Art eines Kiste-Eintrags (vom Compiler gesetzt, nach Endung): Text (`.pizza .txt .json .csv .md`), Bild (Teigling), Modell
+/// (`.glb`/`.gltf` als Modellteig, H-K16) oder sonst
 pub const ART_TEXT: u32 = 0;
 pub const ART_BILD: u32 = 1;
 pub const ART_SONST: u32 = 2;
+pub const ART_MODELL: u32 = 3;
 
 #[derive(Clone, Copy)]
 pub struct Eintrag { pub pfad: W, pub art: u32, pub off: u32, pub len: u32 }

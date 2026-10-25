@@ -15,6 +15,9 @@ export const GRENZEN = { dateien: 100, datei: 2 * MIB, pizza: 512 * KIB, gesamt:
 
 const TEXT_ENDUNGEN = new Set(["pizza", "txt", "json", "csv", "md"]);
 const BILD_ENDUNGEN = new Set(["png", "jpg", "jpeg"]);
+// Modelle (H-K16): glTF als Binärdatei (auch .gltf – JSON, aber gehasht wie gespeichert) und Puffer .bin für externe Daten
+const MODELL_ENDUNGEN = new Set(["glb", "gltf"]);
+const DATEN_ENDUNGEN = new Set(["bin"]);
 const SEGMENT = /^[a-z0-9_-][a-z0-9_.-]*$/;
 
 /** Der Lader des Interpreters (PA1), falls vorhanden. */
@@ -30,15 +33,19 @@ export function endung(pfad) {
   const i = n.lastIndexOf(".");
   return i > 0 ? n.slice(i + 1).toLowerCase() : "";
 }
-/** "pizza" | "text" | "bild" | null (nicht erlaubte Endung, PROJEKTE §1.3). */
+/** "pizza" | "text" | "bild" | "modell" | "daten" | null (nicht erlaubte Endung, PROJEKTE §1.3). */
 export function dateiArt(pfad) {
   const e = endung(pfad);
   if (e === "pizza") return "pizza";
   if (TEXT_ENDUNGEN.has(e)) return "text";
   if (BILD_ENDUNGEN.has(e)) return "bild";
+  if (MODELL_ENDUNGEN.has(e)) return "modell";
+  if (DATEN_ENDUNGEN.has(e)) return "daten";
   return null;
 }
 export const istText = (pfad) => { const a = dateiArt(pfad); return a === "pizza" || a === "text"; };
+/** Binärdateien (Bilder, Modelle, Puffer) – liegen als Uint8Array in der Sammlung. */
+export const istBinaerArt = (pfad) => { const a = dateiArt(pfad); return a === "bild" || a === "modell" || a === "daten"; };
 /** Testordner an der Wurzel – gehört nicht zum Programm (SPEC §2.1). */
 export const istPruefung = (pfad) => String(pfad).startsWith("pruefung/");
 
@@ -76,7 +83,7 @@ export function pruefePfad(pfad) {
     if (grund) f = `"${pfad}" ist kein gültiger Dateipfad (nur a–z, 0–9, -, _, . und /)` + (/kein gültiger Dateipfad/.test(grund) ? "." : ": " + String(grund).replace(/\.$/, "") + ".");
   } else f = pruefePfadLokal(pfad);
   if (f) return String(f).replace(/^PizzaFehler P0015: /, "");
-  if (!dateiArt(pfad)) return `„${String(pfad).split("/").pop()}“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .txt, .json, .csv, .md).`;
+  if (!dateiArt(pfad)) return `„${String(pfad).split("/").pop()}“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .txt, .json, .csv, .md).`;
   return null;
 }
 

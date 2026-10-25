@@ -108,6 +108,7 @@ class LaufzeitKueche {
     if (v instanceof HerdKomp) return 'Eine Komponente';
     if (v instanceof HerdForm) return 'Eine Form';
     if (v instanceof HerdBildchen) return 'Ein Bildchen';
+    if (v instanceof HerdModell) return 'Ein Modell';
     if (v instanceof KlangObj) return 'Ein Klang';
     if (v instanceof KlangSpur) return 'Eine Spur';
     return null;

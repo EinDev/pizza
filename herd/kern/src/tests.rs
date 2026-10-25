@@ -6527,3 +6527,265 @@ mod hk20 {
         assert_eq!(lauf(ohne), lauf(mit));
     }
 }
+
+/// H-K16: Modelle (glTF → Modellteig → Teile), `Etikett`, `teil.finde`. Testmodelle aus `scripts/modelle-test.js`, gebacken mit
+/// dem Vorbacker `herd-teigling` (Dev-Abhängigkeit).
+mod hk16 {
+    use super::*;
+
+    macro_rules! tm {
+        ($n:literal) => {
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/", $n)) as &[u8]
+        };
+    }
+
+    pub fn teig(glb: &[u8]) -> Vec<u8> {
+        herd_teigling::modell::vorbacken(glb)
+    }
+
+    fn name_von(k: &mut Kern, teil: i32) -> String {
+        let te = typ(k, "Etikett");
+        let e = k.komp_von(teil, te);
+        if e <= 0 {
+            return String::from("-");
+        }
+        let f = feld(k, te, "name");
+        text(k, e, f)
+    }
+
+    fn kinder(k: &mut Kern, teil: i32) -> Vec<i32> {
+        let mut b = [0u32; 64];
+        let n = k.teil_kinder(teil, &mut b);
+        b[..n as usize].iter().map(|&x| x as i32).collect()
+    }
+
+    fn knoten_nr(k: &Kern, teil: i32) -> f64 {
+        let w = k.welt.as_ref().unwrap();
+        let a = w.art_index("Etikett").unwrap();
+        let z = w.zeile_opt(teil as u32).unwrap();
+        let kz = w.komp_zeile(z, a).unwrap();
+        w.speicher[a].zahl(crate::komponenten::etikett::KNOTEN)[kz]
+    }
+
+    #[test]
+    fn wuerfel_teile_belag_hash() {
+        let t = teig(tm!("wuerfel.glb"));
+        let mut k = Kern::neu();
+        assert!(k.modell_teig(&t) < 0);
+        assert_eq!(k.fehler_code(), 3); // vor neu Herd
+        let mut k = welt();
+        let vor = k.hash_szene();
+        let m = k.modell_teig(&t);
+        assert_eq!(m, 1);
+        assert_ne!(k.hash_szene(), vor);
+        // Ressourcen: ein Netz (Form 1); Vorlage-Teil 1 mit Belag-Teil 2
+        assert_eq!(k.ressource_hole(1, 1), 1.0);
+        assert_eq!(k.ressource_hole(1, 4), 24.0);
+        assert_eq!((k.modell_info(m, 1), k.modell_info(m, 3), k.modell_info(m, 7), k.modell_info(m, 8)), (1.0, 1.0, 1.0, 24.0));
+        assert_eq!((k.modell_info(m, 4), k.modell_info(m, 5), k.modell_info(m, 6)), (1.0, 1.0, 1.0));
+        let (vorlage, belag) = (k.modell_info(m, 10) as i32, k.modell_info(m, 100) as i32);
+        assert_eq!(belag, vorlage + 1);
+        assert_eq!(k.teil_hole(belag, tf::RUHT), 1.0);
+        assert_eq!(name_von(&mut k, belag), "Tomate");
+        let bt = typ(&mut k, "Belag");
+        let bk = k.komp_von(belag, bt);
+        let (ff, fg, fm) = (feld(&mut k, bt, "farbe"), feld(&mut k, bt, "glanz"), feld(&mut k, bt, "modell"));
+        // linear (0.8, 0.1, 0.05) → sRGB (231, 89, 63)
+        assert_eq!(text(&mut k, bk, ff), "#e7593fff");
+        assert_eq!((k.hole_zahl(bk, fg), k.hole_zahl(bk, fm)), (0.5, 1.0));
+        let mut b = [0u8; 32];
+        let n = k.modell_text(m, 1, 0, &mut b);
+        assert_eq!(&b[..n as usize], b"Wuerfel");
+        assert_eq!(k.modell_text(m, 3, 0, &mut b), 6);
+        assert!(k.modell_text(m, 1, 1, &mut b) < 0);
+        assert!(k.modell_info(2, 1).is_nan());
+        assert_eq!(k.fehler_text(), "Modell 2 gibt es nicht.");
+        // Instanz: Wurzel (ohne Etikett) → Knoten-Teil mit Etikett, Koerper (Form 1, Belag)
+        let r = k.modell_teil(m, 1.0, 2.0, 3.0);
+        assert_eq!(r, belag + 1);
+        assert_eq!((k.teil_hole(r, tf::X), k.teil_hole(r, tf::Z)), (1.0, 3.0));
+        let ki = kinder(&mut k, r);
+        assert_eq!(ki, [r + 1]);
+        let kn = r + 1;
+        assert_eq!(name_von(&mut k, kn), "Wuerfel");
+        assert_eq!(knoten_nr(&k, kn), 1.0);
+        let kt = typ(&mut k, "Koerper");
+        let kk = k.komp_von(kn, kt);
+        assert!(kk > 0);
+        let (kf, kb) = (feld(&mut k, kt, "form"), feld(&mut k, kt, "belag"));
+        assert_eq!((k.hole_zahl(kk, kf), k.hole_zahl(kk, kb)), (1.0, belag as f64));
+        // der Belag unter der ruhenden Vorlage wirkt: ZUSATZ3D mit pbr-Bit für die eine Instanz
+        k.bild(1);
+        let l = Leser::neu(k.paket()).unwrap();
+        let z: Vec<&[u8]> = l.abschnitte().filter(|a| a.0 == abschnitt::ZUSATZ3D).map(|a| a.1).collect();
+        assert_eq!(z.len(), 1);
+        assert_eq!(z[0].len(), 16);
+        assert_eq!(z[0][12] & 1, 1);
+        // finde: Wurzel eingeschlossen, sonst 0; Etikett auch selbst verwendbar
+        assert_eq!(k.teil_finde(r, b"Wuerfel"), kn);
+        assert_eq!(k.teil_finde(r, b"Nichts"), 0);
+        assert_eq!(k.teil_finde(kn, b"Wuerfel"), kn);
+        assert!(k.teil_finde(999, b"x") < 0);
+        // Kopie: neue Teile, Etikett samt Knotennummer, derselbe Belag
+        let c = k.teil_kopie(r);
+        let ck = kinder(&mut k, c);
+        assert_eq!(name_von(&mut k, ck[0]), "Wuerfel");
+        assert_eq!(knoten_nr(&k, ck[0]), 1.0);
+        let ckk = k.komp_von(ck[0], kt);
+        assert_eq!(k.hole_zahl(ckk, kb), belag as f64);
+        // dasselbe Programm zweimal → derselbe Szenen-Hash (Teil-IDs in fester Knotenfolge)
+        let mut k2 = welt();
+        let m2 = k2.modell_teig(&t);
+        k2.modell_teil(m2, 1.0, 2.0, 3.0);
+        k2.teil_kopie(r);
+        assert_eq!(k2.hash_szene(), k.hash_szene());
+    }
+
+    #[test]
+    fn hierarchie_lage_lichter_primitiven() {
+        let mut k = welt();
+        let m = k.modell_teig(&teig(tm!("hierarchie.glb")));
+        assert_eq!(m, 1);
+        assert_eq!(k.modell_info(m, 1), 11.0);
+        assert_eq!(k.modell_info(m, 3), 2.0);
+        let r = k.modell_teil(m, 0.0, 0.0, 0.0);
+        let tisch = k.teil_finde(r, b"Tisch");
+        assert_eq!(k.teil_hole(tisch, tf::ELTERN), r as f64);
+        let b3 = k.teil_finde(r, b"Bein.3");
+        assert_eq!(k.teil_hole(b3, tf::ELTERN), tisch as f64);
+        let lage: Vec<f64> = (1..=9).map(|f| k.teil_hole(b3, f)).collect();
+        assert_eq!(lage, [0.4f32 as f64, -0.375, -0.4f32 as f64, 0.0, 0.0, 0.0, 0.1f32 as f64, 0.75, 0.1f32 as f64]);
+        let platte = k.teil_finde(r, b"Platte");
+        assert!((k.teil_hole(platte, tf::DREHUNG) - 45.0).abs() < 1e-5);
+        assert_eq!(k.teil_hole(platte, tf::NEIGUNG), 0.0);
+        // zwei Primitiven → zwei Kind-Teile mit Koerper, ohne Etikett
+        let pk = kinder(&mut k, platte);
+        assert_eq!(pk.len(), 2);
+        let kt = typ(&mut k, "Koerper");
+        assert!(k.komp_von(platte, kt) == 0 && k.komp_von(pk[0], kt) > 0 && k.komp_von(pk[1], kt) > 0);
+        assert_eq!(name_von(&mut k, pk[0]), "-");
+        // Matrix-Knoten: 90° um x, Größe y = 2
+        let lampe = k.teil_finde(r, b"Lampe");
+        assert!((k.teil_hole(lampe, tf::NEIGUNG) - 90.0).abs() < 1e-9);
+        assert_eq!((k.teil_hole(lampe, tf::Y), k.teil_hole(lampe, tf::GROESSE_Y)), (0.5, 2.0));
+        // Lichter: Spot (Kegel = 0.6 rad, Rand 1 − 0.3/0.6), Punkt; die Sonne entfällt
+        let lt = typ(&mut k, "Licht");
+        let (fk, fr, fw, fs) = (feld(&mut k, lt, "kegel"), feld(&mut k, lt, "kegelRand"), feld(&mut k, lt, "reichweite"), feld(&mut k, lt, "staerke"));
+        let l1 = k.komp_von(lampe, lt);
+        assert!((k.hole_zahl(l1, fk) - 0.6f32 as f64 / crate::welt::GRAD).abs() < 1e-9);
+        assert!((k.hole_zahl(l1, fr) - 0.5).abs() < 1e-6);
+        assert_eq!(k.hole_zahl(l1, fw), 8.0);
+        assert!((k.hole_zahl(l1, fs) - 256.0 * 20.0 / (9.0 * 64.0)).abs() < 1e-9);
+        let gb = k.teil_finde(r, b"Gluehbirne");
+        let l2 = k.komp_von(gb, lt);
+        assert_eq!(k.hole_zahl(l2, fk), 0.0);
+        assert!((k.hole_zahl(l2, fw) - 4.0 * 5f64.sqrt()).abs() < 1e-9);
+        let sonne = k.teil_finde(r, b"Sonne");
+        assert!(sonne > 0 && k.komp_von(sonne, lt) == 0);
+        // Spiegelung (Größe −1) bleibt, Waise (andere Szene) fehlt
+        let sp = k.teil_finde(r, b"Gespiegelt");
+        assert_eq!(k.teil_hole(sp, tf::GROESSE_X), -1.0);
+        assert!((k.teil_hole(sp, tf::DREHUNG) - 90.0).abs() < 1e-5);
+        assert_eq!(k.teil_finde(r, b"Waise"), 0);
+        // leerer Name: findet das erste Teil mit leerem Etikett (Knoten 10), nicht die Wurzel ohne Etikett
+        let leer = k.teil_finde(r, b"");
+        assert_eq!(knoten_nr(&k, leer), 10.0);
+        // Hülle der Ruhelage: Platte (gedreht, 1 × 0.05 × 1) und Beine, Gespiegelt bei z = −2
+        let (b, h, t) = (k.modell_info(m, 4), k.modell_info(m, 5), k.modell_info(m, 6));
+        assert!((b - 2f64.sqrt()).abs() < 1e-6, "breite {}", b);
+        assert!((h - 1.275).abs() < 1e-6, "hoehe {}", h); // Beine/Platte 0 … 0.775, Gespiegelt −0.5 … 0.5
+        assert!(t > 2.0, "tiefe {}", t);
+        // Folgen: keine; Namen der Knoten in Tiefensuche
+        assert_eq!(k.modell_info(m, 2), 0.0);
+    }
+
+    #[test]
+    fn texturen_palette_quant_haut_folgen() {
+        let mut k = welt();
+        // textur-eingebettet: Grundfarbe + Relief als Texturen (Stoff/Leuchten bleiben im Modell)
+        let m = k.modell_teig(&teig(tm!("textur-eingebettet.gltf")));
+        assert_eq!(k.modell_info(m, 9), 2.0);
+        let belag = k.modell_info(m, 100) as i32;
+        let bt = typ(&mut k, "Belag");
+        let bk = k.komp_von(belag, bt);
+        let (fb, fr, fk) = (feld(&mut k, bt, "bild"), feld(&mut k, bt, "relief"), feld(&mut k, bt, "kachel"));
+        let (bild, relief) = (k.hole_zahl(bk, fb), k.hole_zahl(bk, fr));
+        assert!(bild > 0.0 && relief > 0.0 && bild != relief);
+        assert_eq!((k.ressource_hole(bild as i32, 2), k.ressource_hole(relief as i32, 2)), (8.0, 4.0));
+        assert_eq!(k.hole_zahl(bk, fk), 1.0); // REPEAT und UV bis 2
+        // Eckfarben → Paletten-Bild als Grundfarbe; Ersatz-Material für die Primitive ohne Material
+        let m2 = k.modell_teig(&teig(tm!("farben.glb")));
+        assert_eq!(k.modell_info(m2, 3), 2.0);
+        let bt2 = k.modell_info(m2, 100) as i32;
+        let b2 = k.komp_von(bt2, bt);
+        let pal = k.hole_zahl(b2, fb) as i32;
+        assert_eq!(k.ressource_hole(pal, 2), 6.0);
+        // quantisiert: Netze ohne Normalen bekommen glatte (Fächer), Lage über die Knotengröße
+        let m3 = k.modell_teig(&teig(tm!("quant.glb")));
+        assert_eq!(k.modell_info(m3, 7), 2.0);
+        let r3 = k.modell_teil(m3, 0.0, 0.0, 0.0);
+        let q = k.teil_finde(r3, b"Quant");
+        assert_eq!(k.teil_hole(q, tf::GROESSE_X), 0.001f32 as f64);
+        assert!((k.modell_info(m3, 4) - 1.0).abs() < 1e-6);
+        // Haut und Folgen werden mitgenommen (Daten für H-K23a/b)
+        let m4 = k.modell_teig(&teig(tm!("haut.glb")));
+        assert_eq!(k.modell_info(m4, 1), 3.0);
+        let m5 = k.modell_teig(&teig(tm!("folge.glb")));
+        assert_eq!(k.modell_info(m5, 2), 2.0);
+        let mut b = [0u8; 16];
+        let n = k.modell_text(m5, 2, 1, &mut b);
+        assert_eq!(&b[..n as usize], b"Drehen");
+        let w = k.welt.as_ref().unwrap();
+        assert_eq!(w.ressourcen.modelle[m4 as usize - 1].haeute[0].gelenke, [1, 2]);
+        assert!(w.ressourcen.modelle[m4 as usize - 1].netz_haut[0].is_some());
+        assert_eq!(w.ressourcen.modelle[m5 as usize - 1].folgen[1].kanaele.len(), 2);
+        // Bildpaket: Texturen und Netze wie bei Bildchen.laden/eigenen Formen, ohne neue Abschnitte
+        let r = k.modell_teil(m, 0.0, 0.0, 0.0);
+        assert!(r > 0);
+        k.bild(1);
+        let l = Leser::neu(k.paket()).unwrap();
+        let n_tex = l.abschnitte().filter(|a| a.0 == abschnitt::TEXTUR).count();
+        assert_eq!(n_tex, 2 + 2); // Grundfarbe + Relief, zwei Paletten (Bunt, Ersatz)
+    }
+
+    #[test]
+    fn fehler_teige_und_verdorbene() {
+        let mut k = welt();
+        for (glb, code, text) in [
+            (tm!("fehler-draco.glb"), 64, "braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd nicht."),
+            (tm!("fehler-kaputt.glb"), 63, "ist kein lesbares Modell (glTF 2.0)."),
+            (tm!("fehler-zu-gross.glb"), 65, "ist zu groß (600 000 Ecken) – höchstens 500 000 Ecken."),
+            (tm!("fehler-bild-zu-gross.glb"), 66, "(Bild 2) ist zu groß (2400 × 800) – höchstens 2048 × 2048 Pixel."),
+            (tm!("fehler-fehlt.gltf"), 67, "braucht die Datei fehlt.bin – die liegt nicht in der Kiste."),
+        ] {
+            assert_eq!(k.modell_teig(&teig(glb)), -2);
+            assert_eq!((k.fehler_code(), k.fehler_text()), (code, text));
+        }
+        assert_eq!(k.modell_teig(b"TEIGMODL"), -2);
+        assert_eq!(k.fehler_code(), 63);
+        // verdorbene Teige: nie eine Panik, nie halb angelegt
+        let echt = teig(tm!("hierarchie.glb"));
+        let vorher = (k.welt.as_ref().unwrap().ressourcen.liste.len(), k.hash_szene());
+        let mut z: u64 = 0x2545_F491_4F6C_DD1D;
+        for runde in 0..3000 {
+            z ^= z << 13;
+            z ^= z >> 7;
+            z ^= z << 17;
+            let mut v = echt.clone();
+            let i = 64 + (z % (v.len() as u64 - 64)) as usize;
+            if runde % 3 == 0 {
+                v.truncate(i);
+            } else {
+                v[i] ^= 1 << (z >> 40) % 8;
+                let j = (i * 7) % v.len();
+                v[j] = (z >> 20) as u8;
+            }
+            let r = k.modell_teig(&v);
+            if r < 0 {
+                assert_eq!(k.fehler_code(), 63, "Runde {}", runde);
+            }
+        }
+        // nur gültige Varianten legen etwas an; der Zustand bleibt erklärbar (kein Absturz)
+        assert!(k.welt.as_ref().unwrap().ressourcen.liste.len() >= vorher.0);
+    }
+}

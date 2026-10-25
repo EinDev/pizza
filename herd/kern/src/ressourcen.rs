@@ -61,6 +61,10 @@ pub struct Ressourcen {
     pub hash: crate::hash::Fnv,
     /// Hüllen-Bäume der Netze für die 3D-Kollision (H-K17), nach ID, beim ersten Kontakt gebaut – nicht im Hash
     pub baeume: crate::kollision3d::Baeume,
+    /// Modelle (H-K16): eigene IDs 1 … (getrennt von Formen und Bildchen; ihre Netze und Bilder stehen in `liste`)
+    pub modelle: Vec<crate::modell::Modell>,
+    /// Texturen aus Modellen: (SHA-256 der Bildquelle, Breite, Höhe) → Bildchen-ID – gleiche Bilder mehrerer Modelle einmal
+    pub modell_bilder: Vec<(([u8; 32], u32, u32), u32)>,
 }
 
 impl Ressourcen {

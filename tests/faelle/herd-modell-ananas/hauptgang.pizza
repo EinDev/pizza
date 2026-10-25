@@ -1,0 +1,16 @@
+// Ordner-Fall (H-K16): Fehler von Modell.laden in allen Motoren gleich – vor neu Herd (Kern-Text), kein Text, fehlt in der
+// Kiste, keine Modell-Endung, beschädigt, Pflicht-Erweiterung, zu groß, Bild im Modell kaputt/zu groß, fehlende Nachbardatei;
+// dazu herd.modell/finde mit falschen Typen und neu Modell. Die Texte stehen im Fehler-Modellteig (Vorbacker), der Pfad davor.
+probier { Modell.laden("modelle/wuerfel.glb"); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+Herd herd = neu Herd("Modellfehler", breite: 64, hoehe: 64);
+Blech<margherita> pfade = ["modelle/nichts.glb", "hauptgang.pizza", "modelle/kaputt.glb", "modelle/draco.glb", "modelle/zu-gross.glb",
+    "modelle/bild-kaputt.glb", "modelle/bild-zu-gross.glb", "modelle/fehlt.gltf"];
+für (margherita p : pfade) {
+    probier { Modell.laden(p); } verbrannt (LaufzeitAnanas a) { Bote.sage((a.nachricht())); }
+}
+probier { Modell.laden(7); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+Modell w = Modell.laden("modelle/wuerfel.glb");
+probier { herd.modell("w"); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { herd.modell(w).finde(3); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }
+probier { neu Modell(); } verbrannt (RohlingAnanas a) { Bote.sage((a.nachricht())); }
+Bote.sage((w + " " + w.namen() + " " + herd.modell(w, 1, 2, 3).finde("Wuerfel").x()));

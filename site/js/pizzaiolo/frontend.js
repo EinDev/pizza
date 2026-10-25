@@ -102,9 +102,9 @@
         if ((n.k === 'Zuw' || n.k === 'Inc') && n.ziel && n.ziel.k === 'Name') this.zugewiesen.add(n.ziel.n);
         if (n.k === 'Klasse') for (const f of n.felder) for (const d of f.decls) this.feldNamen.add(d.name);
         if (n.k === 'Neu' && n.typ) this.neuTypen.add(n.typ.name);
-        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd' || n.obj.n === 'Bildchen')) this.herdStatisch.add(n.obj.n);
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd' || n.obj.n === 'Bildchen' || n.obj.n === 'Modell')) this.herdStatisch.add(n.obj.n);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && n.obj.n === 'Klang') this.klangStatisch = true;   // K-153: Gruppe klang
-        if (n.k === 'Name' && (n.n === 'Kiste' || n.n === 'Bildchen')) this.nutztKiste = true;   // Kiste/Bildchen.laden: Datensegment nötig
+        if (n.k === 'Name' && (n.n === 'Kiste' || n.n === 'Bildchen' || n.n === 'Modell')) this.nutztKiste = true;   // Kiste/Bildchen.laden/Modell.laden: Datensegment nötig
         if ((n.k === 'MCall' || n.k === 'Mem') && (n.name === 'echt' || n.name === 'zone')) this.nutztEcht = true;   // K-154: zone_ms in Gruppe echtzeit
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
@@ -308,7 +308,7 @@
     }
 
     /** Projekt-Teil des IR (SPEC §2): Dateinamen (null = Ein-Datei-Programm), Standard-Argumente, Kiste (nur wenn das Programm
-     *  `Kiste` oder `Bildchen` nennt – sonst ist sie unbeobachtbar) */
+     *  `Kiste`, `Bildchen` oder `Modell` nennt – sonst ist sie unbeobachtbar) */
     projektIR() {
       const pj = this.kontext.projekt || {};
       return { dateien: pj.dateien || null, args: pj.args || [], kiste: this.nutztKiste && pj.kiste ? pj.kiste : null };

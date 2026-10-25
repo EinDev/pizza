@@ -265,11 +265,11 @@ export function startApp(wert) {
       zeigeEnde("Programm nicht gestartet.", { fehler: true, nochmal: false });
       return;
     }
-    // Bilder (PD1/PD2): einmal vorbacken (ohne Cache), der Interpreter prüft jeden Teigling
-    const bilder = Object.fromEntries(Object.entries(geteilt.dateien).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+    // Bilder und Modelle (PD1/PD2, H-K16): einmal vorbacken (ohne Cache), der Interpreter prüft jeden Teigling/Modellteig
+    const bilder = Object.fromEntries(Object.entries(geteilt.dateien).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
     const backen = Object.keys(bilder).length ? (async () => {
       const vb = erstelleVorbacker({ ablage: null });
-      const [modul, teiglinge] = await Promise.all([vb.modul(), vb.teiglingeFuer(bilder)]);
+      const [modul, teiglinge] = await Promise.all([vb.modul(), vb.teiglingeFuer(bilder, geteilt.dateien)]);
       bildLauf = { teiglinge, ...(modul ? { vorbacker: modul } : {}) };
     })() : null;
     const [f] = await Promise.all([pruefeMotor(), istTheke ? ladeRenderer() : null, istHerd ? ladeHerdKern().catch(() => null) : null, backen]);

@@ -66,6 +66,7 @@ pub static ARTEN: &[&Art] = &[
     &schwung::ART,                                     // 32 (H-K17, braucht Fuehler; 3D-Physik über kollision3d.rs)
     &figur::ART,                                       // 33 (H-K20, braucht Fuehler; Figur-Steuerung, Takt nach Schwung)
     &strahl::ART,                                      // 34 (H-K20, kein System: Lesefelder beim Lesen berechnet)
+    &etikett::ART,                                     // 35 (H-K16, Name eines Teils für finde; verborgen: Knotennummer)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -192,6 +193,11 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `bildchen_rgba` | `(breite, hoehe, ptr) → id` | breite × hoehe × 4 Bytes RGBA8 |
 | `bildchen_teigling` | `(ptr, len) → id` | `len` Bytes eines **Teiglings** (§11.2, `Bildchen.laden`, PROJEKTE PD1): prüft **nur den Kopf** (Magie, Version 1, Pixelformat 0, Größe 1 … 2048, Stufenzahl bis 1 × 1, jede Stufenlänge, Gesamtlänge) und übernimmt die Bytes als **eigene Textur** mit Mip-Kette (nicht im Atlas; `ressource_hole` Art 2 = Bildchen, Breite/Höhe = Stufe 0). Fehler-Teigling Code 1 bzw. ungültiger Kopf → Code 61, Code 2 → Code 62 (`LaufzeitAnanas`). Vor `welt_neu` → Code 3 |
 | `ressource_hole` | `(id, was) → f64` | 1 Art (1 Form, 2 Bildchen), 2 Breite, 3 Höhe, 4 Ecken, 5 Dreiecke |
+| `modell_teig` | `(ptr, len) → id` | `len` Bytes eines **Modellteigs** (§11.5, `Modell.laden`, H-K16): volle Prüfung (jeder Index, jede Länge; nie halb angelegt), dann je Netz eine Form-Ressource (fehlende Normalen glatt wie `netz_glatt`), je Grundfarb-/Relief-Bild ein Teigling als eigene Textur (gleiche Bilder mehrerer Modelle nach SHA-256 der Quelle + Größe einmal), eine ruhende `Vorlage`-Wurzel mit je Material einem Teil mit `Belag` + `Etikett` → **Modell-ID** (eigene Zählung 1 …, nicht im Ressourcen-Zähler). Der Ressourcen-Hash nimmt die Teig-Bytes auf. Fehler-Modellteig → Code 63 … 67 mit dem Text aus dem Teig, ungültiger Teig → 63 |
+| `modell_teil` | `(id, x f64, y f64, z f64) → teil` | neue 3D-Wurzel an (x, y, z), je Knoten (Tiefensuche) ein Teil mit Lage (TRS bzw. zerlegte Matrix; Quaternion → `drehung`/`neigung`/`rollen` für `T · Ry · Rx · Rz · S`, f64 mit `libm`), `Etikett` (Name, Knotennummer), `Koerper` je Primitive (mehrere als Kind-Teile, `belag` = geteiltes Belag-Teil), `Licht` für Punkt/Spot |
+| `modell_info` | `(id, was) → f64` | 1 Knoten · 2 Folgen · 3 Beläge · 4/5/6 Breite/Höhe/Tiefe der Ruhelage · 7 Netze · 8 Ecken · 9 Texturen · 10 Vorlage-Teil · 100 + i Belag-Teil i |
+| `modell_text` | `(id, was, i, ptr, kap) → len` | Name i: 1 Knoten, 2 Folge, 3 Material (Retry) |
+| `teil_finde` | `(teil, ptr, len) → teil` | erstes Teil im Teilbaum (Wurzel eingeschlossen, Tiefensuche in Kindreihenfolge, auch ruhende) mit `Etikett.name` = Text, sonst 0 |
 | `eingabe` | `(maus_x f64, maus_y f64, knoepfe) → 0` | Eingabezustand für die folgenden Takte (H-K12, K-151): Maus in Spielfeld-Koordinaten, Knöpfe 1 links · 2 rechts · 4 Mitte. Die Anbindung ruft es **je Takt vor `fn()`**; nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 bleiben stehen. Nicht im Szenen-Hash, wirkt nur über Lesefelder (`Taster`, `Regler`, `Tafel`, `Blick.mausX`). Vor `welt_neu` → Code 3 |
 | `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60; danach gilt der Knopfstand als Vortakt |
 | `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
@@ -215,7 +221,9 @@ für 2D-Teile.`).
 ohne Zeilen · 48 Ressource unbekannt · 49 Grundform unbekannt (intern) · 50 Bildchen-Farbschlüssel · 60 Puffer (intern) ·
 61 Teigling: kein lesbares Bild (`ist kein lesbares Bild (PNG oder JPEG).`) · 62 Teigling: zu groß (`ist zu groß (2400 × 800) –
 höchstens 2048 × 2048 Pixel.`). Bei 61/62 kennt der Kern den Pfad nicht: die Anbindung meldet `LaufzeitAnanas: <pfad> <fehler_text>`
-(SPEC §18.5). Neue Codes der HERD-Stufen ab 63.
+(SPEC §18.5). Modelle (H-K16): 63 kein lesbares Modell (auch ein ungültiger Modellteig) · 64 Pflicht-Erweiterung · 65 zu groß ·
+66 Bild im Modell · 67 Nachbardatei fehlt – der Text steht im Fehler-Modellteig (Vorbacker), die Anbindung setzt `<pfad> ` davor.
+Neue Codes der HERD-Stufen ab 68.
 
 **Was die Anbindung selbst tut:** Sprachtypen prüfen (Zahl/Text/Blech …, bei falschem Typ `melde_typfehler`), Fabriken
 zusammensetzen (`herd.kreis(x, y, r, farbe:)` = `teil_neu(2)` + `teil_lage` + `komp_neu(Kreis)` + Felder + `komp_haenge`),
@@ -436,6 +444,7 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `wiederhole n [var]` … `ende` | Schleife, `var` = 0 … n − 1 (verschachtelbar) |
 | `setze var = ausdruck` | Variable |
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
+| `modell_datei "pfad" [-> var]` | Hilfsaufruf der Spieler (H-K16): ein Modellteig direkt oder eine `.glb`/`.gltf` samt Nachbardateien, mit dem Vorbacker gebacken (nativ `herd-teigling`, im JS-Spieler `teigling.wasm`), dann `modell_teig` – so zeichnet `tests/herd/bild.js` `Modell.laden` auf (Modellteige im Temp-Ordner); Szene `modell.herd` |
 | `teigling_datei "pfad" [-> var]` | Hilfsaufruf der Spieler: Teigling-Datei lesen und `bildchen_teigling` rufen – so zeichnet `tests/herd/bild.js` Projekte mit `Bildchen.laden` auf (Teiglinge in einem Temp-Ordner; mit `--skript datei.herd` bleiben sie in `datei-teige/` neben dem Skript liegen, damit es sich später nachspielen und messen lässt – Skript also außerhalb des Repos ablegen, z. B. im Scratch-Ordner) |
 | `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte, 5 Himmelsseite: zwei Bergketten mit Lichtern vor durchsichtigem Himmel, Horizont bei h/2 (H-K11b); 6 Relief „Noppen“ (Normale in R, G, Rauheit in B, je 32 px eine Noppe), 7 Steinplatten (64-px-Felder mit Fugen) – beide kachelbar (Material); nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
@@ -774,6 +783,41 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   `herd/target/teigling-faelle/`, backt jeden mit `teigling.wasm` über die Hülle vor und vergleicht mit nativ und `golden.txt`;
   dazu Hülle (`sha256` = `node:crypto`, `kopf`, `passt`/`besorge`, `teigmenge`, `megabyte`, P0020-Text).
 - Messung: `node bench/herd/mess-teigling.js` (1024²-PNG/-JPEG nativ und Wasm, `bench/herd/ERGEBNISSE.md`).
+
+### 11.5 Modelle: glTF → Modellteig (H-K16, HERD.md §13.3, K-161)
+
+- **Leser** (`gltf.rs`, eigener kleiner JSON-Leser `json.rs` mit Tiefe ≤ 64, Base64 für `data:`-URIs): `.glb` (Version 2, JSON- und
+  BIN-Chunk) und `.gltf`; Untermenge laut HERD.md §13.3 – Dreiecke (Streifen/Fächer → Liste, ohne Indizes → Indizes), `POSITION`,
+  `NORMAL`, `TEXCOORD_0`, `COLOR_0`, `JOINTS_0`/`WEIGHTS_0`, Sparse, `KHR_mesh_quantization` (normierte Ganzzahlen ÷ 127/255/32767/65535
+  in f32), `KHR_lights_punctual`, `KHR_materials_emissive_strength`, Häute, Animationen (`CUBICSPLINE` → Stützwerte). Pflicht-
+  Erweiterungen außerhalb davon → Fehler, nur benutzte werden übergangen; Punkte/Linien, Morph-Ziele, `TEXCOORD_1`, Kameras, weitere
+  Szenen entfallen. Nur Knoten der Standardszene (ohne `scenes`: alle ohne Eltern), Tiefensuche in Dateireihenfolge; nur benutzte
+  Meshes/Materialien/Bilder (in Reihenfolge der ersten Benutzung). Der Graph muss ein Wald sein.
+- **Untrusted:** jede Länge/jeder Index geprüft (geprüfte Arithmetik, keine Panik-Pfade), Grenzen vor dem Anlegen: Quellpaket 32 MiB,
+  Accessor 2^24 Elemente, 500 000 Ecken, 1 000 000 Dreiecke, 1 024 Knoten, 64 Materialien, 32 Bilder (je ≤ 2048²), 4 Häute à 256
+  Gelenke, 64 Folgen, 2^22 Stützstellen. Fuzz-Test: 14 Testmodelle × 400 Verderbnisse (Bits, Kürzen, JSON-Zeichen, Längenfelder,
+  Doppelungen) → immer ein lesbarer (Fehler-)Teig.
+- **Rechnen:** f32 werden kopiert (JSON-Zahlen über das korrekt gerundete `str::parse::<f32>`), sonst nur + − × ÷ in f32;
+  Gewichte auf 65 535 normiert (Rest an das größte); Eckfarben (`COLOR_0`, linear) über eine feste 12-bit-Tabelle `srgb.rs` nach sRGB und
+  sortiert in ein **Paletten-Bild** (Texel 0 weiß; uv = Texelmitte; Primitiven ohne Farben am selben Material → weiß; Eckfarben ohne
+  Material → ein Ersatz-Material weiß, Metall 0, Rauheit 0,7). Abgeleitete Bilder ganzzahlig, nächster Nachbar auf die Größe des
+  Normal- bzw. Metall/Rauheit-Bildes: **Relief** (R, G = Normale, B = ⌈Rauheit-G / 2⌉ bzw. 128 – so ergibt der Relief-Weg des Kerns
+  genau `roughnessFactor` × Karte) und **Stoff** (R Verdeckung, G Rauheit, B Metall; ab H-K26). Drehungen, Farben linear → sRGB
+  (`libm::pow`) und Lichter rechnet erst der Kern (f64).
+- **Format „Modellteig“ v1** (`modell.rs`): Kopf 64 B (`TEIGMODL`, Version 1, Art 0/255, Flags, SHA-256 des Quellpakets, Ecken,
+  Dreiecke, Anzahl Bilder/Materialien/Knoten/Netze), danach die Abschnitte BILDER (Teiglinge v1), MATERIAL, NETZE (Ecken 32 B wie
+  `NETZ`, u32-Indizes, Haut 4 × u16 + 4 × u16), MESHES, KNOTEN (Eltern, Mesh, Licht, Haut, TRS/Matrix als f32-Bits, Name), LICHTER,
+  HAEUTE, FOLGEN. Fehler-Modellteig: Code (1 … 5) + fertiger Text. Ausführlich im Kopf von `modell.rs`.
+- **Quellpaket:** ohne Nachbardateien die Modelldatei selbst, sonst `TEIGQUEL` + Hauptdatei + (URI, Bytes) in der Reihenfolge von
+  `braucht` (Puffer, dann Bilder). `braucht` löst URIs relativ zum Modell auf (Prozent-Kodierung, `.`/`..`, nie aus dem Projekt).
+- **Wasm:** `modell_version() → 1`, `modell_vorbacken(ptr, len) → len`, `modell_braucht(ptr, len) → len` (Eingabe Pfad, NUL, Datei;
+  Ausgabe „URI⇥Pfad“ je Zeile); `abi_version` bleibt 1. Hülle: `hatModelle`, `modellBraucht`, `modellQuelle`, `modellVorbacken`,
+  `modellAusSammlung`, `modellBesorge`, ohne Wasm `modellKopf`, `quellpaket`, `istModellPfad`, `modellCacheSchluessel`
+  (`<sha>/modell/1`); `teigmenge` zählt eingebettete Bilder je Quelle einmal.
+- **Tests:** Testmodelle aus `scripts/modelle-test.js` (eingecheckt unter `teigling/testmodelle/`, `--pruefe` vergleicht),
+  `cargo test -p herd-teigling` (je Art, jede Fehlerart, Fuzz, `golden-modelle.txt`: Name, SHA-256, Länge –
+  `SCHREIBE_GOLDEN=1` schreibt neu), `node herd/test-teigling.js` (teigling.wasm = golden-modelle.txt, Hülle), Kern
+  `tests::hk16`, Szene `modell.herd` (nativ = Wasm).
 
 ## 12. Klang-Erzeuger `herd/klang` (H-K14, K-153, SPEC §18.8)
 

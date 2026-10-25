@@ -28,9 +28,10 @@ const PUFFER_BASIS: usize = 8;
 pub const PAKET_BASIS: usize = 0x4000_0000;
 
 /// Namen aller Kern-Exporte (`kern.wasm`, herd/README.md §3) = bekannte Importe des Moduls `herd`.
-/// Die Laufzeit importiert davon 50 (HOST-ABI §2, inkl. `bildchen_teigling` für `Bildchen.laden` und `eingabe`, H-K12); die übrigen (`abi_version`,
+/// Die Laufzeit importiert davon 55 (HOST-ABI §2, inkl. `bildchen_teigling` für `Bildchen.laden`, `eingabe` (H-K12) und die
+/// Modell-Exporte `modell_teig`, `modell_teil`, `modell_info`, `modell_text`, `teil_finde` (H-K16)); die übrigen (`abi_version`,
 /// `fehler_code`, `welt_hole`, `bildchen_rgba`, `bild_zeiger`) stellt der Host ebenfalls bereit – ein Programm darf jeden Export binden.
-pub const IMPORTE_HERD: [&str; 55] = [
+pub const IMPORTE_HERD: [&str; 60] = [
     "abi_version", "puffer", "fehler_art", "fehler_code", "fehler_text", "fehler_neu", "melde_typfehler",
     "welt_neu", "welt_titel", "welt_hintergrund", "welt_himmel", "welt_umgebung", "welt_nebel", "welt_hole",
     "teil_neu", "teil_entferne", "teil_kopie", "teil_haenge", "teil_kinder", "teil_setze", "teil_hole", "teil_lage",
@@ -38,6 +39,7 @@ pub const IMPORTE_HERD: [&str; 55] = [
     "komp_neu", "komp_haenge", "komp_loese", "komp_von", "komp_info", "typ_nummer", "feld_nummer",
     "setze_zahl", "hole_zahl", "setze_text", "hole_text", "setze_liste", "hole_liste", "setze_zahlen", "hole_zahlen",
     "form_grund", "form_eigene", "bildchen_neu", "bildchen_rgba", "bildchen_teigling", "ressource_hole",
+    "modell_teig", "modell_teil", "modell_info", "modell_text", "teil_finde",
     "eingabe", "takt", "bild", "bild_zeiger", "paket_voll", "hash_szene", "hash_paket", "schema_json",
 ];
 
@@ -551,6 +553,30 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
         Ok(h.kern().bildchen_teigling(&t))
     })?;
     l.func_wrap("herd", "ressource_hole", |mut c: C, id: i32, was: i32| -> Result<f64, wasmi::Error> { Ok(hz(&mut c)?.kern().ressource_hole(id, was)) })?;
+    // Modell.laden (H-K16, K-161): Modellteig (vorgebacken, im pkarton) im Kern-Speicher → Modell-ID; herd.modell, finde
+    l.func_wrap("herd", "modell_teig", |mut c: C, p: i32, n: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let t = h.bytes(p, n)?;
+        Ok(h.kern().modell_teig(&t))
+    })?;
+    l.func_wrap("herd", "modell_teil", |mut c: C, id: i32, x: f64, y: f64, z: f64| -> Result<i32, wasmi::Error> {
+        Ok(hz(&mut c)?.kern().modell_teil(id, x, y, z))
+    })?;
+    l.func_wrap("herd", "modell_info", |mut c: C, id: i32, was: i32| -> Result<f64, wasmi::Error> { Ok(hz(&mut c)?.kern().modell_info(id, was)) })?;
+    l.func_wrap("herd", "modell_text", |mut c: C, id: i32, was: i32, i: i32, p: i32, kap: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let mut aus = h.bytes(p, kap)?;
+        let n = h.kern().modell_text(id, was, i, &mut aus);
+        if n >= 0 && (n as usize) <= aus.len() && n > 0 {
+            h.bereich(p, n)?.copy_from_slice(&aus[..n as usize]);
+        }
+        Ok(n)
+    })?;
+    l.func_wrap("herd", "teil_finde", |mut c: C, t: i32, p: i32, n: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let name = h.bytes(p, n)?;
+        Ok(h.kern().teil_finde(t, &name))
+    })?;
 
     // H-K12 (K-151): Eingabezustand je Takt vor fn() – Maus in Spielfeld-Koordinaten, Knöpfe als Bitmaske
     l.func_wrap("herd", "eingabe", |mut c: C, x: f64, y: f64, k: i32| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.kern().eingabe(x, y, k)) })?;

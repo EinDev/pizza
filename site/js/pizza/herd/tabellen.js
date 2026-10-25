@@ -140,6 +140,14 @@ const HERD_TEIL_M = {
   'raum': function (t) { return this.herdF(this.hk.e.teil_hole(t.id, 12)) === 3 ? '3D' : '2D'; },
   'id': function (t) { this.herdF(this.hk.e.teil_hole(t.id, 12)); return t.id; },   // entfernt → Kern-Text
   'kniffe': function (t) { return this.kniffListe(t); },   // H-K13: Blech<Kniff> in Anhängereihenfolge
+  // H-K16: erstes Teil im Teilbaum (Wurzel eingeschlossen) mit diesem Etikett, sonst karton
+  'finde': function (t, pos, ben) {
+    const n = arg(pos, ben, 0, 'name');
+    if (typeof n !== 'string') throw this.ananas('TypAnanas', 'finde() braucht einen Text für \'name\', nicht ' + this.darstellung(n === undefined ? null : n) + '.');
+    const k = this.hk;
+    const id = this.herdI(k.e.teil_finde(t.id, k.text(n), k.len));
+    return id === 0 ? null : this.herdTeilObj(id);
+  },
   'alsText': function (t) { return this.text(t); }
 };
 function herdTeilTabelle(zugriff) {
@@ -288,6 +296,14 @@ const HERD_M = herdTab({
     const z = this.herdZahl(arg(pos, ben, 2, 'z'), 'raum', 'z', 0);
     return this.herdFabrik(3, x, y, z, null, null);
   },
+  // H-K16: herd.modell(m, x, y, z) → neue 3D-Wurzel mit einem Teil je glTF-Knoten (Kern modell_teil)
+  'modell': function (h, pos, ben) {
+    const m = arg(pos, ben, 0, 'modell');
+    if (!(m instanceof HerdModell)) throw this.ananas('TypAnanas', 'modell() braucht ein Modell für \'modell\', nicht ' + this.darstellung(m === undefined ? null : m) + '.');
+    const x = this.herdZahl(arg(pos, ben, 1, 'x'), 'modell', 'x', 0), y = this.herdZahl(arg(pos, ben, 2, 'y'), 'modell', 'y', 0);
+    const z = this.herdZahl(arg(pos, ben, 3, 'z'), 'modell', 'z', 0);
+    return this.herdTeilObj(this.herdI(this.hk.e.modell_teil(m.id, x, y, z)));
+  },
   'alsText': function (h) { return this.text(h); }
 });
 
@@ -329,11 +345,30 @@ const HERD_BILDCHEN_M = herdTab({
 const HERD_BILDCHEN_MOD_M = herdTab({
   'laden': function (m, pos, ben) { return this.herdBildchenLaden(arg(pos, ben, 0, 'pfad')); }
 });
+// Modell (H-K16): Knotennamen, Folgen (Animationen, ab H-K23a), geteilte Beläge, Hülle der Ruhelage
+const HERD_MODELL_M = herdTab({
+  'namen': function (m) { return this.herdModellNamen(m, 1); },
+  'folgen': function (m) { return this.herdModellNamen(m, 2); },
+  'belaege': function (m) {
+    const e = this.hk.e, n = this.herdF(e.modell_info(m.id, 3)), aus = [];
+    for (let i = 0; i < n; i++) aus.push(this.herdTeilObj(this.herdF(e.modell_info(m.id, 100 + i))));
+    return aus;
+  },
+  'breite': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 4)); },
+  'hoehe': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 5)); },
+  'tiefe': function (m) { return this.herdF(this.hk.e.modell_info(m.id, 6)); },
+  'alsText': function (m) { return this.text(m); }
+});
+// statisch: Modell.laden(pfad) – glTF aus der Kiste (SPEC §18.5, K-161)
+const HERD_MODELL_MOD_M = herdTab({
+  'laden': function (m, pos, ben) { return this.herdModellLaden(arg(pos, ben, 0, 'pfad')); }
+});
 TABELLEN.set(HerdWelt, HERD_M);
 TABELLEN.set(HerdForm, HERD_FORM_M);
 TABELLEN.set(HerdBildchen, HERD_BILDCHEN_M);
+TABELLEN.set(HerdModell, HERD_MODELL_M);
 
-// P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…) des Programms, nach Position sortiert
+// P0013 und Kern-Bedarf: alle neu-Ausdrücke und statischen Zugriffe (Form.…, Herd.…, Bildchen.…, Modell.…) des Programms, nach Position sortiert
 function herdSammle(ast) {
   const out = [], gesehen = new Set();
   const geh = (x) => {
@@ -341,7 +376,7 @@ function herdSammle(ast) {
     gesehen.add(x);
     if (Array.isArray(x)) { for (const y of x) geh(y); return; }
     if (x.k === 'Neu' && x.typ) out.push(x);
-    else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen')) out.push(x);
+    else if ((x.k === 'MCall' || x.k === 'Mem') && x.obj && x.obj.k === 'Name' && (x.obj.n === 'Form' || x.obj.n === 'Herd' || x.obj.n === 'Bildchen' || x.obj.n === 'Modell')) out.push(x);
     for (const k in x) { const v = x[k]; if (v !== null && typeof v === 'object') geh(v); }
   };
   geh(ast);

@@ -4,7 +4,7 @@
  * Baut den Herd-Kern und den Vorbacker (Rust no_std → wasm32v1-none, ohne wasm-bindgen, ohne Importe) und legt ab:
  *   site/js/herd/kern.wasm       (Binär, eingecheckt)
  *   site/js/herd/schema.json     (Schema der Komponenten aus dem Kern, eingecheckt)
- *   site/js/herd/teigling.wasm   (Vorbacker PNG/JPEG → Teigling, PROJEKTE.md §5.3; Binär, eingecheckt)
+ *   site/js/herd/teigling.wasm   (Vorbacker PNG/JPEG → Teigling, PROJEKTE.md §5.3, glTF → Modellteig, H-K16; Binär, eingecheckt)
  *   site/js/herd/klang.wasm      (Klang-Erzeuger: Töne, Rauschen, Noten → PCM 48 kHz, H-K14/K-153; Binär, eingecheckt)
  * Aufruf: node herd/baue.js [--ohne-cargo] [--pruefe]
  *   --pruefe: baut nichts, vergleicht schema.json mit dem eingecheckten kern.wasm und prüft teigling.wasm (keine Importe,
@@ -18,7 +18,8 @@ const HIER = __dirname;
 const ZIEL = path.join(HIER, '..', 'site', 'js', 'herd');
 const ROH = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_kern_wasm.wasm');
 const ROH_TEIGLING = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_teigling_wasm.wasm');
-const TEIGLING_EXPORTE = ['memory', 'abi_version', 'teigling_version', 'puffer', 'vorbacken', 'sha256', 'ergebnis', 'freigeben'];
+const TEIGLING_EXPORTE = ['memory', 'abi_version', 'teigling_version', 'puffer', 'vorbacken', 'sha256', 'ergebnis', 'freigeben',
+  'modell_version', 'modell_vorbacken', 'modell_braucht'];   // Modelle: H-K16
 const ROH_KLANG = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_klang_wasm.wasm');
 const KLANG_EXPORTE = ['memory', 'abi_version', 'puffer', 'fehler_art', 'fehler_text', 'fehler_neu', 'ton', 'rauschen', 'stille', 'noten',
   'huelle', 'tiefpass', 'hochpass', 'verstaerke', 'mische', 'dann', 'wiederhole', 'nahtlos', 'dauer', 'hash', 'pcm', 'pcm_laenge'];

@@ -1,0 +1,90 @@
+# H-K16 (HERD.md §13.3): Modelle aus glTF nativ = kern.wasm. Die Testmodelle (scripts/modelle-test.js) backt jeder Spieler
+# selbst (modell_datei: nativ herd-teigling, im JS-Spieler teigling.wasm) – bitgleich, sonst wichen die Hashes ab.
+# Geprüft: modell_teig (Netze → NETZ, Bilder → TEXTUR, ruhende Vorlage mit geteilten Belägen), Fehler-Modellteige 63 … 67
+# (Texte aus dem Teig), modell_teil (Teile je Knoten in Tiefensuche, Lage aus TRS/Matrix in f64, Koerper je Primitive, Licht
+# aus Punkt/Spot), modell_info/modell_text, teil_finde (Etikett), Kopien; N Instanzen mit Lage und Drehung.
+vorgabe N 6
+vorgabe TAKTE 3
+modell_datei "herd/teigling/testmodelle/wuerfel.glb"
+fehler_code
+welt_neu 640 360 "Modelle"
+modell_datei "herd/teigling/testmodelle/hierarchie.glb" -> M1
+modell_datei "herd/teigling/testmodelle/textur.gltf" -> M2
+modell_datei "herd/teigling/testmodelle/farben.glb" -> M3
+modell_datei "herd/teigling/testmodelle/quant.glb" -> M4
+modell_datei "herd/teigling/testmodelle/haut.glb" -> M5
+modell_datei "herd/teigling/testmodelle/folge.glb" -> M6
+modell_datei "herd/teigling/testmodelle/fehler-draco.glb"
+fehler_code
+fehler_text
+modell_datei "herd/teigling/testmodelle/fehler-zu-gross.glb"
+fehler_code
+fehler_text
+modell_datei "herd/teigling/testmodelle/fehler-bild-zu-gross.glb"
+fehler_code
+fehler_text
+modell_datei "herd/teigling/testmodelle/fehler-fehlt.gltf"
+fehler_code
+fehler_text
+modell_teig [84, 69, 73, 71, 77, 79, 68, 76, 1, 0, 0, 0]
+fehler_code
+modell_info M1 1
+modell_info M1 3
+modell_info M1 4
+modell_info M1 5
+modell_info M1 6
+modell_info M2 9
+modell_info M3 3
+modell_info M4 8
+modell_info M5 1
+modell_info M6 2
+modell_info 99 1
+modell_text M1 1 0
+modell_text M1 1 10
+modell_text M1 3 1
+modell_text M6 2 1
+typ_nummer "Kamera" -> T_KA
+typ_nummer "Licht" -> T_L
+feld_nummer T_L "art" -> L_ART
+teil_neu 3 -> kam
+teil_lage kam 0 3 8
+teil_schaue kam 0 0.5 0
+komp_neu T_KA -> ka
+komp_haenge ka kam
+teil_neu 3 -> sonne
+teil_lage sonne 1 2 1
+komp_neu T_L -> so
+setze_zahl so L_ART 1
+komp_haenge so sonne
+modell_teil M1 0 0 0 -> R1
+teil_finde R1 "Bein.3" -> B3
+teil_hole B3 1
+teil_hole B3 3
+teil_finde R1 "Lampe" -> LA
+teil_hole LA 5
+teil_hole LA 8
+teil_finde R1 "Platte" -> PL
+teil_hole PL 4
+teil_finde R1 "Gespiegelt" -> SP
+teil_hole SP 4
+teil_hole SP 7
+teil_finde R1 "Waise"
+teil_kinder PL
+modell_teil M2 2 0 0 -> R2
+modell_teil M3 -2 0 0 -> R3
+modell_teil M4 0 0 -2 -> R4
+modell_teil M5 0 0 2 -> R5
+modell_teil M6 3 0 2 -> R6
+bild
+wiederhole N i
+  modell_teil M1 (i * 1.5 - 4) 0 (0 - 3) -> r
+  teil_setze r 4 (i * 33)
+  teil_setze r 7 (0.5 + i * 0.1)
+ende
+teil_kopie R2 -> K2
+teil_lage K2 -3 1 1
+teil_finde K2 "Kiste"
+bild
+takte TAKTE
+paket_voll
+bild

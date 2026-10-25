@@ -1,0 +1,187 @@
+{
+ "asset": {
+  "version": "2.0",
+  "generator": "pizza scripts/modelle-test.js"
+ },
+ "images": [
+  {
+   "uri": "bilder/farbe.png"
+  },
+  {
+   "uri": "bilder/normale.png"
+  },
+  {
+   "uri": "bilder/mr.png"
+  },
+  {
+   "uri": "bilder/oc.png"
+  },
+  {
+   "uri": "bilder/leucht.png"
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9728,
+   "wrapS": 10497,
+   "wrapT": 10497
+  }
+ ],
+ "textures": [
+  {
+   "source": 0,
+   "sampler": 0
+  },
+  {
+   "source": 1,
+   "sampler": 0
+  },
+  {
+   "source": 2,
+   "sampler": 0
+  },
+  {
+   "source": 3,
+   "sampler": 0
+  },
+  {
+   "source": 4,
+   "sampler": 0
+  }
+ ],
+ "materials": [
+  {
+   "name": "Karo",
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
+    },
+    "metallicRoughnessTexture": {
+     "index": 2
+    },
+    "metallicFactor": 0.5,
+    "roughnessFactor": 0.9
+   },
+   "normalTexture": {
+    "index": 1,
+    "scale": 0.8
+   },
+   "occlusionTexture": {
+    "index": 3
+   },
+   "emissiveTexture": {
+    "index": 4
+   },
+   "emissiveFactor": [
+    1,
+    1,
+    1
+   ],
+   "doubleSided": true,
+   "alphaMode": "MASK",
+   "alphaCutoff": 0.3
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 288
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 288,
+   "byteLength": 288
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 576,
+   "byteLength": 192
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 768,
+   "byteLength": 72
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 24,
+   "type": "VEC3",
+   "min": [
+    -0.5,
+    -0.5,
+    -0.5
+   ],
+   "max": [
+    0.5,
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 24,
+   "type": "VEC3",
+   "min": [
+    -1,
+    -1,
+    -1
+   ],
+   "max": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 24,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 36,
+   "type": "SCALAR"
+  }
+ ],
+ "meshes": [
+  {
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "name": "Kiste",
+   "mesh": 0
+  }
+ ],
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 840,
+   "uri": "textur.bin"
+  }
+ ]
+}

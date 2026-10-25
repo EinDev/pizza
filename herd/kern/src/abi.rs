@@ -54,7 +54,7 @@ pub mod teilfeld {
 pub const TEIL_METHODEN: &[&str] = &[
     "x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen",
     "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge",
-    "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe",
+    "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "finde",
 ];
 
 /// Der Kern: höchstens eine Welt (ein Herd pro Programm), Fehlerzustand, letztes Bildpaket.
@@ -981,6 +981,269 @@ impl Kern {
             let g = crate::teigling::pruefe(t)?;
             let w = self.w()?;
             Ok(w.ressourcen.teigling_neu(g) as i32)
+        })();
+        self.ri(e)
+    }
+
+    // ================================================================ Modelle (H-K16)
+
+    /// Modell aus einem Modellteig (`Modell.laden`): volle Prüfung, Netze und Bilder als Ressourcen, ruhende Vorlage mit den
+    /// geteilten Belägen → Modell-ID (eigene Zählung 1 …). Fehler-Modellteig → Code 63 … 67 mit dessen Text (ohne Pfad, die
+    /// Anbindung setzt `<pfad> ` davor); ungültiger Teig → 63.
+    pub fn modell_teig(&mut self, t: &[u8]) -> i32 {
+        let e = (|| {
+            self.w()?;
+            let teig = crate::modell::pruefe(t)?;
+            self.modell_anlegen(teig, t)
+        })();
+        self.ri(e)
+    }
+
+    fn modell_anlegen(&mut self, teig: crate::modell::Teig, bytes: &[u8]) -> Erg<i32> {
+        use crate::modell::Modell;
+        let w = self.w()?;
+        w.ressourcen.hash.u8(4);
+        w.ressourcen.hash.bytes(bytes);
+        let mut netz_huellen = Vec::with_capacity(teig.netze.len());
+        let mut netze = Vec::with_capacity(teig.netze.len());
+        let mut netz_material = Vec::with_capacity(teig.netze.len());
+        let mut netz_haut = Vec::with_capacity(teig.netze.len());
+        for (n, m, h) in teig.netze {
+            netz_huellen.push((n.min, n.max));
+            netze.push(w.ressourcen.form(n));
+            netz_material.push(m);
+            netz_haut.push(h);
+        }
+        // Bilder: Grundfarbe und Relief werden Texturen, Stoff/Leuchten bleiben bis H-K26 im Modell
+        let mut gebraucht = alloc::vec![false; teig.bilder.len()];
+        for m in &teig.materialien {
+            for b in [m.bild, m.relief].into_iter().flatten() {
+                gebraucht[b as usize] = true;
+            }
+        }
+        let mut bilder = Vec::with_capacity(teig.bilder.len());
+        let mut weitere = Vec::new();
+        for (i, (g, b)) in teig.bilder.into_iter().zip(teig.bild_bytes).enumerate() {
+            if gebraucht[i] {
+                // gleiche Bilder in mehreren Modellen (z. B. die gemeinsame colormap.png eines Kenney-Kits) nur einmal als Textur:
+                // Schlüssel = SHA-256 der Quelle aus dem Teigling-Kopf + Größe
+                let mut sha = [0u8; 32];
+                sha.copy_from_slice(&b[20..52]);
+                let schluessel = (sha, g.breite, g.hoehe);
+                let id = match w.ressourcen.modell_bilder.iter().find(|x| x.0 == schluessel) {
+                    Some(x) => x.1,
+                    None => {
+                        let id = w.ressourcen.teigling_neu(g);
+                        w.ressourcen.modell_bilder.push((schluessel, id));
+                        id
+                    }
+                };
+                bilder.push(Some(id));
+            } else {
+                bilder.push(None);
+                weitere.push((i as u32, b));
+            }
+        }
+        let huelle = crate::modell::huelle(&teig.knoten, &teig.meshes, &netz_huellen);
+        // ruhende Vorlage mit einem Belag-Teil je Material
+        let (tv, tb, te) = (self.typ_nummer(b"Vorlage"), self.typ_nummer(b"Belag"), self.typ_nummer(b"Etikett"));
+        let vorlage = self.teil_neu(3);
+        let kv = self.komp_neu(tv);
+        let fv = self.feld_nummer_s(tv, "name");
+        self.setze_text(kv, fv, b"Modell");
+        self.komp_haenge(kv, vorlage);
+        let felder: Vec<i32> = ["farbe", "glanz", "leuchten", "bild", "strahlen", "relief", "kachel", "modell", "metall"]
+            .iter()
+            .map(|n| self.feld_nummer_s(tb, n))
+            .collect();
+        let mut belaege = Vec::with_capacity(teig.materialien.len());
+        for m in &teig.materialien {
+            let t = self.teil_neu(3);
+            self.teil_haenge(t, vorlage);
+            let k = self.komp_neu(tb);
+            let id_von = |b: Option<u32>| b.and_then(|i| bilder[i as usize]).unwrap_or(0) as f64;
+            let werte = [m.farbe as f64, m.glanz, m.leuchten, id_von(m.bild), m.strahlen, id_von(m.relief), m.kachel, 1.0, m.metall];
+            for (fe, v) in felder.iter().zip(werte) {
+                self.setze_zahl(k, *fe, v);
+            }
+            self.komp_haenge(k, t);
+            self.etikett_neu(te, t, &m.name, 0.0);
+            belaege.push(t as u32);
+        }
+        let w = self.w()?;
+        w.ressourcen.modelle.push(Modell {
+            netze,
+            netz_material,
+            netz_haut,
+            meshes: teig.meshes,
+            bilder,
+            weitere_bilder: weitere,
+            materialien: teig.materialien,
+            knoten: teig.knoten,
+            lichter: teig.lichter,
+            haeute: teig.haeute,
+            folgen: teig.folgen,
+            vorlage: vorlage as u32,
+            belaege,
+            huelle,
+        });
+        Ok(w.ressourcen.modelle.len() as i32)
+    }
+
+    fn feld_nummer_s(&mut self, typ: i32, name: &str) -> i32 {
+        self.feld_nummer(typ, name.as_bytes())
+    }
+
+    /// `Etikett` mit Name (und verborgener Knotennummer) an ein Teil hängen.
+    fn etikett_neu(&mut self, te: i32, teil: i32, name: &str, knoten: f64) {
+        let k = self.komp_neu(te);
+        let fe = self.feld_nummer_s(te, "name");
+        self.setze_text(k, fe, name.as_bytes());
+        if let Some(w) = self.welt.as_mut() {
+            if let Ok((a, z)) = w.komp(k as u32) {
+                w.speicher[a].zahl_mut(crate::komponenten::etikett::KNOTEN)[z] = knoten;
+            }
+        }
+        self.komp_haenge(k, teil);
+    }
+
+    fn modell_von(&mut self, id: i32) -> Erg<&crate::modell::Modell> {
+        let w = self.w()?;
+        if id < 1 || id as usize > w.ressourcen.modelle.len() {
+            return Err(fehler::ressource("Modell", id as u32));
+        }
+        Ok(&w.ressourcen.modelle[id as usize - 1])
+    }
+
+    /// `herd.modell(m, x, y, z)`: neue 3D-Wurzel an (x, y, z) mit einem Teil je Knoten (Tiefensuche, Etikett mit Name und
+    /// Knotennummer, Lage aus TRS/Matrix), `Koerper` je Primitive (mehrere als Kind-Teile) mit dem geteilten Belag, `Licht`
+    /// aus Punkt- und Spotlichtern → Wurzel-Teil.
+    pub fn modell_teil(&mut self, id: i32, x: f64, y: f64, z: f64) -> i32 {
+        let e = (|| {
+            let m = self.modell_von(id)?;
+            let (knoten, meshes, netze, mat, belaege, lichter) =
+                (m.knoten.clone(), m.meshes.clone(), m.netze.clone(), m.netz_material.clone(), m.belaege.clone(), m.lichter.clone());
+            let (te, tk, tl) = (self.typ_nummer(b"Etikett"), self.typ_nummer(b"Koerper"), self.typ_nummer(b"Licht"));
+            let (kf, kb) = (self.feld_nummer_s(tk, "form"), self.feld_nummer_s(tk, "belag"));
+            let lf: Vec<i32> = ["art", "farbe", "staerke", "reichweite", "kegel", "kegelRand"].iter().map(|n| self.feld_nummer_s(tl, n)).collect();
+            let wurzel = self.teil_neu(3);
+            if wurzel < 0 {
+                return Err(fehler::keine_welt());
+            }
+            self.teil_lage(wurzel, x, y, z);
+            let mut teile: Vec<i32> = Vec::with_capacity(knoten.len());
+            for (i, k) in knoten.iter().enumerate() {
+                let t = self.teil_neu(3);
+                self.teil_haenge(t, k.eltern.map(|e| teile[e as usize]).unwrap_or(wurzel));
+                let w = self.w()?;
+                let r = w.zeile(t as u32)?;
+                w.teile.lage[r] = k.lage;
+                w.markiere(r);
+                self.etikett_neu(te, t, &k.name, (i + 1) as f64);
+                if let Some(me) = k.mesh {
+                    let prims = &meshes[me as usize];
+                    for &ni in prims {
+                        let ziel = if prims.len() == 1 {
+                            t
+                        } else {
+                            let c = self.teil_neu(3);
+                            self.teil_haenge(c, t);
+                            c
+                        };
+                        let kk = self.komp_neu(tk);
+                        self.setze_zahl(kk, kf, netze[ni as usize] as f64);
+                        if let Some(mi) = mat[ni as usize] {
+                            self.setze_zahl(kk, kb, belaege[mi as usize] as f64);
+                        }
+                        self.komp_haenge(kk, ziel);
+                    }
+                }
+                if let Some(li) = k.licht {
+                    let l = &lichter[li as usize];
+                    if l.art != 2 {
+                        let kl = self.komp_neu(tl);
+                        for (fe, v) in lf.iter().zip([0.0, l.farbe as f64, l.staerke, l.reichweite, l.kegel, l.kegel_rand]) {
+                            self.setze_zahl(kl, *fe, v);
+                        }
+                        self.komp_haenge(kl, t);
+                    }
+                }
+                teile.push(t);
+            }
+            Ok(wurzel)
+        })();
+        self.ri(e)
+    }
+
+    /// Zahlen eines Modells: 1 Knoten, 2 Folgen, 3 Beläge, 4 Breite, 5 Höhe, 6 Tiefe (Hülle der Ruhelage), 7 Netze, 8 Ecken,
+    /// 9 Texturen, 10 Vorlage-Teil, 100 + i = Belag-Teil i.
+    pub fn modell_info(&mut self, id: i32, was: i32) -> f64 {
+        let e = (|| {
+            let m = self.modell_von(id)?;
+            let h = m.huelle;
+            let v = match was {
+                1 => m.knoten.len() as f64,
+                2 => m.folgen.len() as f64,
+                3 => m.belaege.len() as f64,
+                4 => h[3] - h[0],
+                5 => h[4] - h[1],
+                6 => h[5] - h[2],
+                7 => m.netze.len() as f64,
+                8 => {
+                    let netze = m.netze.clone();
+                    let w = self.w()?;
+                    return Ok(netze.iter().filter_map(|&n| w.ressourcen.netz(n)).map(|n| n.ecken_anzahl as f64).sum());
+                }
+                9 => m.bilder.iter().flatten().count() as f64,
+                10 => m.vorlage as f64,
+                _ if was >= 100 && ((was - 100) as usize) < m.belaege.len() => m.belaege[(was - 100) as usize] as f64,
+                _ => return Err(fehler::intern(alloc::format!("modell_info: unbekannt {}", was))),
+            };
+            Ok(v)
+        })();
+        self.rf(e)
+    }
+
+    /// Texte eines Modells: `was` 1 = Knotenname, 2 = Folgenname, 3 = Materialname; Index `i` (0 …). Rückgabe = Länge in
+    /// Bytes; ist sie größer als `aus`, wird nichts geschrieben (K-013).
+    pub fn modell_text(&mut self, id: i32, was: i32, i: i32, aus: &mut [u8]) -> i32 {
+        let e = (|| {
+            let m = self.modell_von(id)?;
+            let t = match was {
+                1 => m.knoten.get(i as usize).map(|k| k.name.as_str()),
+                2 => m.folgen.get(i as usize).map(|f| f.name.as_str()),
+                3 => m.materialien.get(i as usize).map(|f| f.name.as_str()),
+                _ => None,
+            }
+            .ok_or_else(|| fehler::intern(alloc::format!("modell_text: {} {}", was, i)))?;
+            let b = t.as_bytes();
+            if b.len() <= aus.len() {
+                aus[..b.len()].copy_from_slice(b);
+            }
+            Ok(b.len() as i32)
+        })();
+        self.ri(e)
+    }
+
+    /// `teil.finde(name)`: erstes Teil im Teilbaum (Wurzel eingeschlossen, Tiefensuche in Kindreihenfolge, auch ruhende und
+    /// unsichtbare) mit `Etikett.name` = `name` → ID, sonst 0.
+    pub fn teil_finde(&mut self, teil: i32, name: &[u8]) -> i32 {
+        let e = (|| {
+            let name = utf8(name)?;
+            let w = self.w()?;
+            w.zeile(teil as u32)?;
+            let Some(a) = w.art_index("Etikett") else { return Ok(0) };
+            let mut stapel = alloc::vec![teil as u32];
+            while let Some(id) = stapel.pop() {
+                let Some(z) = w.zeile_opt(id) else { continue };
+                if let Some(kz) = w.komp_zeile(z, a) {
+                    if w.speicher[a].text(crate::komponenten::etikett::NAME)[kz] == name {
+                        return Ok(id as i32);
+                    }
+                }
+                stapel.extend(w.teile.kinder[z].iter().rev());
+            }
+            Ok(0)
         })();
         self.ri(e)
     }

@@ -30,7 +30,7 @@ const PROJEKTDATEI = 'pizza.json';
 const HAUPTDATEI = 'hauptgang.pizza';
 const PRUEFUNG = 'pruefung';
 const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-const ERLAUBTE_ENDUNG = /\.(pizza|txt|json|csv|md|png|jpg|jpeg)$/;   // PROJEKTE §1.3
+const ERLAUBTE_ENDUNG = /\.(pizza|txt|json|csv|md|png|jpg|jpeg|glb|gltf|bin)$/;   // PROJEKTE §1.3 (Modelle: H-K16)
 const EXITCODES = [0, 1, 2, 3, 39];
 
 /**
@@ -424,7 +424,7 @@ function pruefeOrdnerEintrag(b, B, wo, fehler, pfadFehler, belegt, ordnerListe, 
       (zuviel.length ? ' – fehlt auf der Platte: ' + zuviel.join(', ') : '') + (!fehlt.length && !zuviel.length ? ' – Reihenfolge' : '') + ' (node scripts/beispiele.js --schreibe)');
   }
   for (const p of platte) {
-    const f = pfadFehler(p) || (ERLAUBTE_ENDUNG.test(p) ? null : 'Dateiart nicht erlaubt (.pizza, .png, .jpg, .jpeg, .txt, .json, .csv, .md)');
+    const f = pfadFehler(p) || (ERLAUBTE_ENDUNG.test(p) ? null : 'Dateiart nicht erlaubt (.pizza, .png, .jpg, .jpeg, .glb, .gltf, .bin, .txt, .json, .csv, .md)');
     if (f) fehler.push(wo + ': ' + p + ': ' + f);
   }
   for (const p of platte) belegt.add(b.ordner + '/' + p);

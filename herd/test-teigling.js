@@ -88,5 +88,41 @@ assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108865), 'Die Bilder sind zu
 assert.strictEqual(PizzaVorbacker.teigmengeFehler(89478880), 'Die Bilder sind zusammen zu groß für den Ofen (85,4 MB vorgebacken, höchstens 64 MB).');
 assert.strictEqual(PizzaVorbacker.cacheSchluessel('ab'), 'ab/teigling/1');
 
+// ---------- Modelle (H-K16): goldene Modellteige (cargo test -p herd-teigling schreibt/prüft golden-modelle.txt nativ) ----------
+const TM = path.join(HIER, 'teigling', 'testmodelle');
+const sammlung = {};
+const geh = (abs, rel) => { for (const e of fs.readdirSync(abs, { withFileTypes: true })) { const r = rel ? rel + '/' + e.name : e.name; if (e.isDirectory()) geh(path.join(abs, e.name), r); else sammlung[r] = new Uint8Array(fs.readFileSync(path.join(abs, e.name))); } };
+geh(TM, '');
+const goldenM = fs.readFileSync(path.join(HIER, 'teigling', 'golden-modelle.txt'), 'utf8').split(/\r?\n/).map((z) => z.trim()).filter((z) => z && !z.startsWith('#'));
+assert.strictEqual(vb.hatModelle, true, 'teigling.wasm kennt Modelle');
+const teige = {};
+const t2 = Date.now();
+for (const z of goldenM) {
+  const [name, gSha, gLen] = z.split(' ');
+  const { teig, paket } = vb.modellAusSammlung(name, sammlung);
+  if (sha(teig) !== gSha || String(teig.length) !== gLen) { melde(name + ': wasm ' + sha(teig) + ' ' + teig.length + ' ≠ golden-modelle.txt ' + gSha + ' ' + gLen); continue; }
+  const k = PizzaVorbacker.modellKopf(teig);
+  if (!k) { melde(name + ': Modellkopf ungültig'); continue; }
+  if (k.sha256 !== sha(paket)) melde(name + ': SHA-256 im Kopf ≠ Quellpaket');
+  if (!k.fehler && vb.modellBesorge(teig, name, sammlung) !== teig) melde(name + ': modellBesorge verwirft einen passenden Teig');
+  teige[name] = teig;
+}
+const t3 = Date.now();
+const kw = PizzaVorbacker.modellKopf(teige['wuerfel.glb']);
+assert.deepStrictEqual([kw.ecken, kw.dreiecke, kw.knoten, kw.netze, kw.materialien, kw.bilder, kw.fehler], [24, 12, 1, 1, 1, 0, null]);
+assert.strictEqual(kw.sha256, sha(sammlung['wuerfel.glb']), '.glb ohne Nachbardateien: SHA-256 der Datei');
+assert.deepStrictEqual(PizzaVorbacker.modellKopf(teige['fehler-draco.glb']).fehler, { code: 2, text: 'braucht die Erweiterung KHR_draco_mesh_compression – die kann der Herd nicht.' });
+assert.deepStrictEqual(vb.modellBraucht('m/textur.gltf', sammlung['textur.gltf']).map((d) => d.uri + ' ' + d.pfad).slice(0, 2), ['textur.bin m/textur.bin', 'bilder/farbe.png m/bilder/farbe.png']);
+// veralteter/fremder Teig → neu gebacken; Teigmenge: Modelle ohne Fehler, eingebettete Bilder je Quelle einmal (auch über Bilddateien)
+assert.strictEqual(sha(vb.modellBesorge(teige['wuerfel.glb'], 'textur.gltf', sammlung)), sha(teige['textur.gltf']));
+const mT = PizzaVorbacker.teigmenge({ a: teige['textur.gltf'], b: teige['textur-eingebettet.gltf'], c: teige['fehler-kaputt.glb'] });
+const farbeTeigling = vb.vorbacken(sammlung['bilder/farbe.png']);
+assert.ok(mT < teige['textur.gltf'].length + teige['textur-eingebettet.gltf'].length, 'gleiche Bilder in zwei Modellen zählen einmal');
+assert.strictEqual(PizzaVorbacker.teigmenge({ a: teige['textur.gltf'], b: teige['textur-eingebettet.gltf'], f: farbeTeigling }), mT, 'Bilddatei = eingebettetes Bild');
+assert.strictEqual(PizzaVorbacker.teigmenge({ w: teige['wuerfel.glb'] }), teige['wuerfel.glb'].length);
+assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108865, true), 'Die Bilder und Modelle sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).');
+assert.strictEqual(PizzaVorbacker.modellCacheSchluessel('ab'), 'ab/modell/1');
+
 if (fehler) { console.log(fehler + ' Abweichung(en)'); process.exit(1); }
 console.log('Vorbacker nativ = teigling.wasm = golden.txt: ' + nativ.length + ' Fälle bitgleich (wasm ' + (t1 - t0) + ' ms), Hülle geprüft');
+console.log('Modelle nativ = teigling.wasm = golden-modelle.txt: ' + goldenM.length + ' Testmodelle bitgleich (wasm ' + (t3 - t2) + ' ms)');

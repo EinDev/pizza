@@ -7,6 +7,7 @@
  *   - Kiste (Datensegment, memory.init) und Bildchen.laden (Teigling → Kern): Erwartungen aus SPEC §11.2/§18.5 – dazu bitgleich
  *     zum Interpreter (PD2)
  */
+const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
 const Z = require(path.join(ROOT, 'site', 'js', 'pizzaiolo.js'));
@@ -191,6 +192,31 @@ function pruefe(pruefeFall) {
       || f.text !== 'PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).') throw new Error(j(ohne(r)));
     const k = Z.kompiliere({ dateien: { 'hauptgang.pizza': 'Bote.sage((1));', 'a.png': H.KLEIN } }, { vorbacker: new Uint8Array([1, 2, 3]) });
     if (k.ok || !k.fehler || k.fehler.text !== 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).') throw new Error(j(k));
+  });
+  // ---------------------------------------------------------------- Modell.laden (H-K16, SPEC §18.5)
+  const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+  const ordnerFall = (n) => ({ dateien: BSP.leseOrdner(path.join(ROOT, 'tests', 'faelle', n)) });
+  const fallEv = (n) => fs.readFileSync(path.join(ROOT, 'tests', 'faelle', n, 'pruefung', 'ereignisse'), 'utf8').split(/\r?\n/).filter(Boolean).map(z => JSON.parse(z));
+  pruefeFall('Modell.laden: .glb/.gltf als Modellteig im Datensegment, Teile je Knoten, Interpreter = Wasm (Ereignisse, Hashes)', () => {
+    const r = beide(ordnerFall('herd-modell'), { uiEreignisse: fallEv('herd-modell') });
+    const soll = fs.readFileSync(path.join(ROOT, 'tests', 'faelle', 'herd-modell', 'pruefung', 'erwartet'), 'utf8').replace(/\r\n/g, '\n').split('\n').filter(Boolean);
+    if (r.exitCode !== 0 || j(aus(r)) !== j(soll)) throw new Error(j(ohne(r)).slice(0, 1500));
+    if (!ohne(r).some(e => e.typ === 'herd' && e.art === 'bild')) throw new Error('kein Bild');
+  });
+  pruefeFall('Modell.laden: Fehlertexte aus dem Fehler-Modellteig in allen Motoren gleich', () => {
+    const r = beide(ordnerFall('herd-modell-ananas'));
+    const soll = fs.readFileSync(path.join(ROOT, 'tests', 'faelle', 'herd-modell-ananas', 'pruefung', 'erwartet'), 'utf8').replace(/\r\n/g, '\n').split('\n').filter(Boolean);
+    if (r.exitCode !== 0 || j(aus(r)) !== j(soll)) throw new Error(j(ohne(r)).slice(0, 1500));
+  });
+  pruefeFall('Modell.laden: veralteter Modellteig-Cache ändert nichts; gleiche Sammlung → byte-gleiches .pkarton', () => {
+    const q = ordnerFall('herd-modell'), vb = V.node();
+    const falsch = vb.modellAusSammlung('modelle/farben.glb', q.dateien).teig;   // passt nicht zu hierarchie.glb
+    const k1 = Z.kompiliere(q), k2 = Z.kompiliere(q, { teiglinge: { 'modelle/hierarchie.glb': falsch } });
+    const k3 = Z.kompiliere({ dateien: Object.assign({}, q.dateien) });
+    if (!k1.ok || Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(k2.pkarton)) !== 0) throw new Error('Cache ändert das Modul');
+    if (Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(k3.pkarton)) !== 0) throw new Error('nicht deterministisch');
+    const kv = Z.kompiliere(q, { teiglinge: { 'modelle/hierarchie.glb': vb.modellAusSammlung('modelle/hierarchie.glb', q.dateien).teig } });
+    if (Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(kv.pkarton)) !== 0) throw new Error('passender Cache ändert das Modul');
   });
 }
 

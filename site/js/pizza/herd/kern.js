@@ -8,7 +8,7 @@
 // Komponenten kommen generisch aus dem Schema des geladenen Kerns (schema_json) – eine neue Komponente im Kern
 // braucht hier keine Änderung (HERD.md §9).
 // =====================================================================
-const HERD_KLASSEN = ['Herd', 'Teil', 'Form', 'Bildchen'];
+const HERD_KLASSEN = ['Herd', 'Teil', 'Form', 'Bildchen', 'Modell'];
 const HERD_KUECHE = 'Den Herd gibt es nur in der Hauptküche.';
 const HERD_W0104 = 'Kein Herd verfügbar – Fenster wird nicht angezeigt.';
 const HERD_KERN_FEHLT = 'PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm).';
@@ -180,6 +180,8 @@ class HerdTeil { constructor(id, tab) { this.id = id; this.tab = tab; } }
 class HerdKomp { constructor(h, art, teil) { this.h = h; this.art = art; this.tab = art.tab; this.teil = teil; } }
 class HerdForm { constructor(id) { this.id = id; } }
 class HerdBildchen { constructor(id, b, h) { this.id = id; this.breite = b; this.hoehe = h; } }
+// Modell (H-K16): eigene Modell-ID im Kern (getrennt von Formen/Bildchen), Pfad für die Textform
+class HerdModell { constructor(id, pfad) { this.id = id; this.pfad = pfad; } }
 class HerdKernFehlt { }
 
 // ---------- Vorbacker (SPEC §18.5, PROJEKTE §5.3/§5.4, K-145/K-147) ----------
@@ -192,6 +194,52 @@ const TEIGLING_KOPF = 52, TEIGLING_FEHLER_LAENGE = 64, TEIGLING_MAX_KANTE = 2048
 const TEIGLING_MAGIE = [84, 69, 73, 71, 76, 73, 78, 71];   // "TEIGLING"
 const TEIGLING_LEER = new Uint8Array(0);                     // keine Bild-Endung: der Kern meldet „kein lesbares Bild“ (61)
 function istBildPfad(pfad) { return /\.(png|jpg|jpeg)$/.test(pfad); }
+function istModellPfad(pfad) { return /\.(glb|gltf)$/.test(pfad); }
+// Modellteig (H-K16, herd/teigling/src/modell.rs): Kopf grob prüfen → null | { fehler: diavolo, sha256: hex }
+const MODELL_MAGIE = [84, 69, 73, 71, 77, 79, 68, 76];   // "TEIGMODL"
+function modellTeigKopf(t) {
+  if (!(t instanceof Uint8Array) || t.length < 64) return null;
+  for (let i = 0; i < 8; i++) if (t[i] !== MODELL_MAGIE[i]) return null;
+  if ((t[8] | (t[9] << 8)) !== 1 || t[11] !== 0 || (t[10] !== 0 && t[10] !== 255)) return null;
+  return { fehler: t[10] === 255, sha256: teiglingHex(t.subarray(16, 48)) };
+}
+// Anteile eines Teiglings/Modellteigs an der Teigmenge: [{ sha, n }] – ein Modellteig zählt ohne seine eingebetteten Bilder
+// (Schlüssel SHA-256 + ":modell"), jedes eingebettete Bild unter der SHA-256 seiner Quelle (gleich wie die Bilddatei selbst)
+function herdTeigAnteile(t) {
+  const k = teiglingKopf(t);
+  if (k !== null) return k.fehler ? [] : [{ sha: k.sha256, n: t.length }];
+  const m = modellTeigKopf(t);
+  if (m === null || m.fehler) return [];
+  const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+  const aus = [];
+  let basis = t.length, o = 64;
+  const n = o + 4 <= t.length ? u32(o) : 0;
+  o += 4;
+  for (let i = 0; i < n && o + 4 <= t.length; i++) {
+    const l = u32(o), b = t.subarray(o + 4, o + 4 + l), kb = teiglingKopf(b);
+    basis -= 4 + l;
+    if (kb !== null && !kb.fehler) aus.push({ sha: kb.sha256, n: l });
+    o += 4 + l;
+  }
+  aus.unshift({ sha: m.sha256 + ':modell', n: basis });
+  return aus;
+}
+// Quellpaket (herd/teigling/src/gltf.rs quellpaket): ohne Nachbardateien die Hauptdatei selbst, sonst "TEIGQUEL" …
+function herdQuellpaket(haupt, dateien) {
+  if (!dateien.length) return haupt;
+  const uris = dateien.map(d => HERD_ENC.encode(d.uri));
+  let n = 16 + haupt.length;
+  for (let i = 0; i < dateien.length; i++) n += 8 + uris[i].length + dateien[i].bytes.length;
+  const aus = new Uint8Array(n), dv = new DataView(aus.buffer);
+  aus.set([84, 69, 73, 71, 81, 85, 69, 76], 0);
+  dv.setUint32(8, dateien.length, true); dv.setUint32(12, haupt.length, true); aus.set(haupt, 16);
+  let o = 16 + haupt.length;
+  for (let i = 0; i < dateien.length; i++) {
+    dv.setUint32(o, uris[i].length, true); aus.set(uris[i], o + 4); o += 4 + uris[i].length;
+    dv.setUint32(o, dateien[i].bytes.length, true); aus.set(dateien[i].bytes, o + 4); o += 4 + dateien[i].bytes.length;
+  }
+  return aus;
+}
 function teiglingHex(u8) {
   let s = '';
   for (let i = 0; i < u8.length; i++) s += (u8[i] < 16 ? '0' : '') + u8[i].toString(16);
@@ -249,6 +297,21 @@ class HerdVorbacker {
     aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), 32));
     return aus;
   }
+  // Modelle (H-K16): nur, wenn das Modul sie kennt (modell_version 1)
+  get hatModelle() { return typeof this.e.modell_vorbacken === 'function' && this.e.modell_version() === 1; }
+  aus(n) {
+    const aus = new Uint8Array(n);
+    aus.set(new Uint8Array(this.e.memory.buffer, this.e.ergebnis(), n));
+    this.e.freigeben();
+    return aus;
+  }
+  modellBraucht(pfad, haupt) {
+    const p = HERD_ENC.encode(pfad), ein = new Uint8Array(p.length + 1 + haupt.length);
+    ein.set(p, 0); ein.set(haupt, p.length + 1);
+    const t = HERD_DEC.decode(this.aus(this.e.modell_braucht(this.rein(ein), ein.length)));
+    return t.split('\n').filter(Boolean).map(z => { const x = z.split('\t'); return { uri: x[0], pfad: x[1] }; });
+  }
+  modellVorbacken(paket) { return this.aus(this.e.modell_vorbacken(this.rein(paket), paket.length)); }
 }
 let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
 const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)
@@ -274,6 +337,7 @@ function herdKlasseVon(v) {
   if (v instanceof HerdTeil) return 'Teil';
   if (v instanceof HerdForm) return 'Form';
   if (v instanceof HerdBildchen) return 'Bildchen';
+  if (v instanceof HerdModell) return 'Modell';
   if (v instanceof HerdKomp) return v.art.name;
   return null;
 }

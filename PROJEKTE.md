@@ -106,7 +106,9 @@ Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), so
   Gesamtlänge ≤ 120, ≤ 8 Ebenen. Ordner `pruefung/` an der Wurzel ist für Tests reserviert und gehört nicht zum Programm.
 - Gleiche Prüfung (eine Funktion `PizzaLang.projekt.pruefePfad`) in Interpreter, CLI, Playground (Umbenennen, ZIP-Import), Teilen-Dienst.
   Der Dienst prüft **unabhängig** noch einmal (eigene Kopie der Regel, durch gemeinsame Testfälle abgesichert).
-- Erlaubte Dateiarten v1: `.pizza`, `.png`, `.jpg`/`.jpeg`, `.txt`, `.json`, `.csv`, `.md` (Beschreibung/Notizen; nur Anzeige). Andere Endungen →
+- Erlaubte Dateiarten v1: `.pizza`, `.png`, `.jpg`/`.jpeg`, `.txt`, `.json`, `.csv`, `.md` (Beschreibung/Notizen; nur Anzeige); seit H-K16 Modelle
+  `.glb`/`.gltf` und ihre Puffer `.bin` (Binärdateien wie Bilder – auch `.gltf`, obwohl JSON: keine Zeilenend-Normalisierung, damit SHA-256
+  und Modellteig überall gleich sind; `.gitattributes` führt sie als binary). Andere Endungen →
   im Playground nicht anlegbar, beim ZIP-Import übersprungen (mit Meldung), CLI ignoriert sie mit Warnung auf stderr.
 - **Textdateien an der Projektgrenze** (CLI-Lader, ZIP-Import, Datei hinzufügen, Teilen-Download, Durchreiche): Inhalt muss gültiges
   UTF-8 sein (sonst abgelehnt: „<pfad> ist kein gültiger UTF-8-Text.“; JS `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })`,
@@ -758,6 +760,29 @@ K-136 begründete Text-Bildchen mit „Dateien hätten im Browser keinen Ort“.
 gültig; K-145 und K-147 ergänzen Bilddateien und das Teigling-Format und heben die Begründung auf (beide seit P0 in `KLAERUNGEN.md`). In HERD.md ist der Teil „größere
 Bilder/Texturen“ der Roadmap bereits als „abgelöst durch PROJEKTE.md (PD1/PD3)“ vermerkt; die Stufe **H-K8 selbst (`Vorlage`) bleibt**
 bestehen und ist nicht Teil dieses Konzepts.
+
+### 5.10 Modelle (glTF, H-K16)
+
+Verbindlich ist HERD.md §13.3 (H-K16) mit K-161; hier nur, was die Projekte betrifft.
+
+- **Dateien:** `.glb` (alles in einer Datei) und `.gltf` (JSON) mit Puffern `.bin` und Bildern als eigene Projektdateien, relativ zum
+  Modell adressiert (`../bilder/x.png` geht, solange es im Projekt bleibt), oder eingebettet als `data:`-URI. Alle drei sind
+  **Binärdateien** in der Sammlung (Uint8Array, keine `\r\n`-Normalisierung, `.gitattributes` binary). Grenzen des Laders wie für jede
+  Datei (§1.3: je Datei 2 MiB, gesamt 8 MiB); der Vorbacker begrenzt das Quellpaket zusätzlich auf 32 MiB.
+- **Vorbacker:** `teigling.wasm` kann seit H-K16 auch Modelle: `modell_braucht(pfad, haupt)` nennt die Nachbardateien eines Modells
+  (URI und Projektpfad), `modell_vorbacken(quellpaket)` liefert den **Modellteig** (Format `TEIGMODL` v1, `herd/teigling/src/modell.rs`;
+  Bilder darin als eingebettete Teiglinge). Das **Quellpaket** ist die Modelldatei selbst, wenn sie nichts braucht, sonst
+  `TEIGQUEL` + Hauptdatei + die vorhandenen Nachbardateien (URI, Bytes) – seine SHA-256 steht im Kopf des Modellteigs und ist der
+  Cache-Schlüssel (`<sha>/modell/1`, IndexedDB-Speicher `teiglinge` wie bei Bildern). Fehlt eine Nachbardatei, entsteht ein Fehler-
+  Modellteig („braucht die Datei …“); kommt sie hinzu, ändert sich das Quellpaket und damit der Schlüssel.
+- **Anlässe** wie §5.4: Playground (Hinzufügen, Vorschau im Dateibaum mit „612 Ecken · 1 200 Dreiecke · 3 Knoten · 1 Bild ·
+  vorgebacken 1,2 MB“, ein Modell, dem nur noch eine Nachbardatei fehlt, darf schon ins Projekt), Lauf (`optionen.teiglinge` trägt auch
+  Modellteige, Schlüssel = Pfad des Modells; der Lader prüft Kopf und SHA-256 und backt sonst selbst), EXE (Modellteig im
+  Datensegment, Kiste-Art 3), Teilen (vorbacken = Prüfung; geteilt werden die Quelldateien).
+- **Teigmenge:** Modellteige zählen mit. Gezählt wird je Modell der Teig ohne seine eingebetteten Bilder, jedes eingebettete Bild unter
+  der SHA-256 seiner Quelle – gleiche Bilder in mehreren Modellen (die gemeinsame `colormap.png` eines Kenney-Kits) und dieselbe
+  Bilddatei im Projekt zählen einmal; der Kern legt sie ebenso nur einmal als Textur an. Mit Modellen heißt der Text von P0020
+  „Die Bilder und Modelle sind zusammen zu groß …“.
 
 ---
 

@@ -154,7 +154,7 @@ async function start() {
     beiNeu: () => neuesProjekt(),
     beiTeilen: () => $("knopf-teilen").click(),
     beiExe: () => exe.oeffnen(),
-    zeigeBinaer: (pfad) => bildvorschau.zeige(pfad, pfad ? projekte.inhalt(pfad) : null),
+    zeigeBinaer: (pfad) => bildvorschau.zeige(pfad, pfad ? projekte.inhalt(pfad) : null, pfad ? projekte.alleInhalte() : null),
   });
   const projektmenue = erstelleProjektmenue({
     knopf: $("knopf-projekt"), namenEl: $("projekt-name"), banner: $("projekt-banner"), projekte, frage, fragText, toast, tabs,
@@ -386,9 +386,9 @@ async function start() {
     auftrag: async () => {
       const { projekt, uebertragbar } = projekte.sammlung({ mitProjektdatei: true });
       const nachricht = { typ: "kompiliere", projekt };
-      const bilder = Object.fromEntries(Object.entries(projekt.dateien).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+      const bilder = Object.fromEntries(Object.entries(projekt.dateien).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
       if (Object.keys(bilder).length) {
-        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder)]);
+        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder, projekt.dateien)]);
         nachricht.teiglinge = teiglinge;
         if (modul) nachricht.vorbacker = modul;
       }
@@ -530,14 +530,16 @@ async function start() {
       try { klangLauf = await klangLaufVorbereiten(code); } finally { backenWartet = false; }
       if (ausfuehrung.laeuft) return;
     }
-    // Bilder (PD1/PD2): vorgebackene Teiglinge aus dem Cache + das Vorbacker-Modul für den Worker (der Interpreter prüft jeden)
+    // Bilder und Modelle (PD1/PD2, H-K16): vorgebackene Teiglinge/Modellteige aus dem Cache + das Vorbacker-Modul für den Worker
+    // (der Interpreter prüft jeden)
     let bildLauf = {};
-    const bilder = Object.fromEntries(Object.entries(projekte.alleInhalte()).filter(([p, i]) => dateiArt(p) === "bild" && i instanceof Uint8Array));
+    const alleInhalte = projekte.alleInhalte();
+    const bilder = Object.fromEntries(Object.entries(alleInhalte).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
     if (Object.keys(bilder).length) {
       if (backenWartet) return;
       backenWartet = true;
       try {
-        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder)]);
+        const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder, alleInhalte)]);
         bildLauf = { teiglinge, ...(modul ? { vorbacker: modul } : {}) };
       } finally { backenWartet = false; }
       if (ausfuehrung.laeuft) return;
@@ -873,9 +875,15 @@ async function start() {
       // Bilder: Kopf/Größe wie beim Hinzufügen, Teigmenge wie beim Lauf (F8) – vor dem Hochladen
       const alle = projekte.alleInhalte();
       for (const [pfad, i] of Object.entries(alle)) {
-        if (dateiArt(pfad) !== "bild" || !(i instanceof Uint8Array)) continue;
-        const b = pruefeBild(pfad, i);
-        if (!b.ok) throw new TeilenFehler(b.fehler, { art: "grenze" });
+        if (!(i instanceof Uint8Array)) continue;
+        if (dateiArt(pfad) === "bild") {
+          const b = pruefeBild(pfad, i);
+          if (!b.ok) throw new TeilenFehler(b.fehler, { art: "grenze" });
+        } else if (dateiArt(pfad) === "modell") {
+          // Modelle (H-K16): vorbacken = Prüfung; ein ungültiges Modell wird nicht geteilt (wie Bilder)
+          const m = await vorbacker.vorbackeModell(pfad, alle);
+          if (!m.ok && m.fehler) throw new TeilenFehler(m.fehler, { art: "grenze" });
+        }
       }
       const { projekt } = projekte.sammlung({ mitProjektdatei: true });
       const r = await teile({

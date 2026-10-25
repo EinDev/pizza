@@ -282,6 +282,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Figur", "Strahl", "Mausfang", "Gelaende"],
       "herd": true
+    },
+    {
+      "id": "pizzeria",
+      "titel": "Pizzeria: 3D-Modelle aus Dateien",
+      "beschreibung": "Eine kleine Pizzeria aus fertigen glTF-Modellen (Kenney, CC0): Küchenzeile, Tische, Stühle, Pizzen und Kartons. Modell.laden lädt ein Modell, herd.modell stellt es in die Welt, teil.finde holt einzelne Teile wie die Ofentür. Maus ziehen dreht die Ansicht; O, K und Leertaste öffnen Ofen, Kühlschrank und Karton, T färbt alle Tische um.",
+      "ordner": "herd/pizzeria",
+      "dateien": ["pizza.json", "hauptgang.pizza", "modelle/essen/bottle-oil.glb", "modelle/essen/cheese.glb", "modelle/essen/cutting-board.glb", "modelle/essen/mushroom.glb", "modelle/essen/pizza-box.glb", "modelle/essen/pizza.glb", "modelle/essen/plate.glb", "modelle/essen/textures/colormap.png", "modelle/essen/tomato.glb", "modelle/essen/wine-red.glb", "modelle/moebel/chair.glb", "modelle/moebel/floor-full.glb", "modelle/moebel/kitchen-cabinet-upper.glb", "modelle/moebel/kitchen-cabinet.glb", "modelle/moebel/kitchen-fridge.glb", "modelle/moebel/kitchen-sink.glb", "modelle/moebel/kitchen-stove.glb", "modelle/moebel/potted-plant.glb", "modelle/moebel/table-round.glb", "modelle/moebel/wall-doorway.glb", "modelle/moebel/wall-window.glb", "modelle/moebel/wall.glb", "quellen.md"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Modell", "glTF", "Projekt"],
+      "herd": true
     }
   ]
 }

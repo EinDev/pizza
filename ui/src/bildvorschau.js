@@ -1,7 +1,12 @@
 // Bildvorschau für Bilddateien des Projekts (PROJEKTE.md §3.1, §5.8): Pixelgröße, Dateigröße, pixelscharfe Zoomstufen; Anzeige
 // über eine data:-URL (CSP img-src 'self' data: bleibt); dazu „vorgebacken … · n Stufen“ aus dem Teigling (Vorbacker, PD1).
-import { bildInfo, dataUrl, pruefeBild } from "./bilder.js";
-import { formatGroesse } from "./projekt.js";
+// Modelle (H-K16, .glb/.gltf): Kennzahlen aus dem Modellteig („612 Ecken · 3 Bilder · vorgebacken 1,2 MB“) bzw. die Meldung wie
+// zur Laufzeit; Puffer (.bin): nur die Größe.
+import { bildInfo, dataUrl, pruefeBild, modellInfo, pruefeModell } from "./bilder.js";
+import { formatGroesse, dateiArt } from "./projekt.js";
+
+/** 612 · 12 000 (Leerzeichen als Tausendertrenner, wie die Meldungen des Vorbackers) */
+const tausender = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 const STUFEN = [0, 1, 2, 4, 8]; // 0 = einpassen
 
@@ -53,9 +58,11 @@ export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
   }
 
   return {
-    /** pfad + bytes zeigen; null blendet die Vorschau aus (Editor wieder sichtbar). */
-    zeige(pfad, bytes) {
+    /** pfad + bytes zeigen; null blendet die Vorschau aus (Editor wieder sichtbar). sammlung: alle Projektdateien (Modelle). */
+    zeige(pfad, bytes, sammlung = null) {
       if (!pfad) { wurzel.hidden = true; editorEl.hidden = false; aktuell = null; bild.removeAttribute("src"); return; }
+      const art = dateiArt(pfad);
+      if (art === "modell" || art === "daten") return zeigeModell(pfad, bytes, art, sammlung);
       const i = bildInfo(bytes);
       const p = pruefeBild(pfad, bytes);
       aktuell = { pfad, info: i };
@@ -84,4 +91,33 @@ export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
     },
     get offen() { return !wurzel.hidden; },
   };
+
+  function zeigeModell(pfad, bytes, art, sammlung) {
+    aktuell = { pfad, info: null };
+    wurzel.hidden = false;
+    editorEl.hidden = true;
+    wurzel.dataset.pfad = pfad;
+    delete wurzel.dataset.vorgebacken;
+    bild.removeAttribute("src");
+    bild.hidden = true;
+    const mi = art === "modell" ? modellInfo(bytes) : null;
+    info.textContent = (art === "modell" ? "glTF-Modell" + (mi ? " (" + mi.art.toUpperCase() + ")" : "") : "Daten") + " · Quelle " + formatGroesse(bytes.byteLength);
+    const p = art === "modell" ? pruefeModell(pfad, bytes) : { ok: true };
+    fehler.hidden = p.ok;
+    fehler.textContent = p.ok ? "" : p.fehler;
+    stufe = 0;
+    wende();
+    if (art === "modell" && vorbacker && vorbacker.vorbackeModell && p.ok) {
+      const fuer = aktuell;
+      vorbacker.vorbackeModell(pfad, sammlung || { [pfad]: bytes }).then((r) => {
+        if (aktuell !== fuer) return;
+        if (r.ok) {
+          const k = r.kopf;
+          info.textContent += " · " + tausender(k.ecken) + " Ecken · " + tausender(k.dreiecke) + " Dreiecke · " + k.knoten + " Knoten · " + k.bilder
+            + (k.bilder === 1 ? " Bild" : " Bilder") + " · vorgebacken " + formatGroesse(r.teig.byteLength);
+        } else if (r.fehler) { fehler.hidden = false; fehler.textContent = r.fehler; }
+        wurzel.dataset.vorgebacken = r.ok ? "ja" : r.fehler ? "fehler" : "nein";
+      });
+    }
+  }
 }

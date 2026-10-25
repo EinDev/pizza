@@ -121,6 +121,10 @@ export function pruefePfad(pfad) {
 
 export const TEXT_ENDUNGEN = new Set([".pizza", ".txt", ".json", ".csv", ".md"]);
 export const BILD_ENDUNGEN = new Set([".png", ".jpg", ".jpeg"]);
+/** Modelle (H-K16): glTF als Binärdatei (.gltf ist JSON, wird aber wie gespeichert gehasht) und Puffer .bin */
+export const MODELL_ENDUNGEN = new Set([".glb", ".gltf", ".bin"]);
+/** Bytes, die der Dienst von Nicht-Text-Dateien zur Prüfung liest */
+export const ANFANG_BYTES = 64;
 
 export function endung(pfad) {
   const i = pfad.lastIndexOf(".");
@@ -138,6 +142,14 @@ export function pruefeInhalt(pfad, bytes, k) {
   const e = endung(pfad);
   if (e === ".png") return bytes.length >= 8 && bytes.subarray(0, 8).equals(PNG_SIGNATUR) ? null : pfad + " ist kein PNG-Bild.";
   if (e === ".jpg" || e === ".jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff ? null : pfad + " ist kein JPEG-Bild.";
+  // Modelle (H-K16): GLB-Magie „glTF“, .gltf beginnt (nach BOM/Leerraum) mit „{“, .bin ist beliebig – lesen und prüfen tut der Vorbacker
+  if (e === ".glb") return bytes.length >= 4 && bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46 ? null : pfad + " ist kein glTF-Modell.";
+  if (e === ".gltf") {
+    let i = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
+    while (i < bytes.length && (bytes[i] === 0x20 || bytes[i] === 0x09 || bytes[i] === 0x0a || bytes[i] === 0x0d)) i++;
+    return i < bytes.length && bytes[i] === 0x7b ? null : pfad + " ist kein glTF-Modell.";
+  }
+  if (e === ".bin") return null;
   if (TEXT_ENDUNGEN.has(e)) {
     try { utf8Streng.decode(bytes); } catch { return pfad + " ist kein gültiger UTF-8-Text."; }
     if (bytes.includes("\r\n")) return pfad + " enthält Windows-Zeilenenden (\\r\\n).";
@@ -198,7 +210,7 @@ export function pruefeManifest(m, k) {
       if (typeof d.pfad !== "string" || pruefePfad(d.pfad) !== null) weg("Ein Dateipfad ist ungültig (nur a–z, 0–9, -, _, . und /).");
       if (d.pfad.startsWith("pruefung/")) weg("Der Ordner pruefung/ gehört nicht zum Projekt.");
       const e = endung(d.pfad);
-      if (!TEXT_ENDUNGEN.has(e) && !BILD_ENDUNGEN.has(e)) weg(d.pfad + " hat eine nicht erlaubte Dateiart.");
+      if (!TEXT_ENDUNGEN.has(e) && !BILD_ENDUNGEN.has(e) && !MODELL_ENDUNGEN.has(e)) weg(d.pfad + " hat eine nicht erlaubte Dateiart.");
       if (pfade.has(d.pfad)) weg(d.pfad + " steht doppelt im Manifest.");
       pfade.add(d.pfad);
       if (typeof d.sha256 !== "string" || !HASH_MUSTER.test(d.sha256)) weg('"sha256" muss 64 Hex-Kleinbuchstaben haben.');

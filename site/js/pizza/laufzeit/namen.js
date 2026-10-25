@@ -57,7 +57,7 @@ class LaufzeitNamen {
   globalerName(name) {
     const g = this.globals.get(name);
     // K-125: eine eigene Klasse Zettel hat Vorrang vor dem eingebauten Zettel (K-116)
-    if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Kiste' || name === 'Klang') && this.klassen.has(name))) return g;
+    if (g !== undefined && !((name === 'Zettel' || name === 'Herd' || name === 'Form' || name === 'Bildchen' || name === 'Modell' || name === 'Kiste' || name === 'Klang') && this.klassen.has(name))) return g;
     const k = this.klassen.get(name);
     if (k !== undefined) return k;
     throw this.ananas('LaufzeitAnanas', '\'' + name + '\' ist nicht definiert.');

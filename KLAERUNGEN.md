@@ -2369,6 +2369,33 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (`w`/`wl`), `mod.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene `figur.herd`, Fälle `herd-figur`/`herd-strahl`, Beispiel
   `parkour`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B14 (`bench/herd/mess-kern.js`, `herd/skript/tests/strahlen.rs`).
   Kein Bildpaket, keine Glut, kein Interpreter/Laufzeit/Host (Teil-Lesefelder laufen schon über `hole_zahl`). **Status:** fest.
+### K-161 Herd: Modelle aus glTF – `Modell.laden`, `herd.modell`, `Etikett`/`finde`, Modellteig, Teigmenge (H-K16)
+- **Frage:** Wie kommen fertige 3D-Modelle (Möbel, Lebensmittel, Figuren aus Blender oder CC0-Paketen) in den Herd, ohne das
+  Bildpaket zu brechen, bitgleich in allen Motoren und sicher gegenüber fremden Dateien?
+- **Entscheidung (HERD.md §13.3 H-K16):** nur **glTF 2.0** (`.glb`, `.gltf` mit Puffern `.bin` und Bildern als
+  Projektdateien oder `data:`-URIs); FBX/OBJ über Umwandeln (Blender, `gltf-transform`). Untermenge: Dreiecke (Streifen/Fächer → Liste),
+  Lage/Normale/UV0/Eckfarben, Häute und Animationen (für H-K23a/b mitgenommen), `KHR_mesh_quantization`, Sparse, `KHR_lights_punctual`,
+  `KHR_materials_emissive_strength`; Draco/meshopt/KTX2 als Pflicht → Fehler, Morph-Ziele/`TEXCOORD_1`/Kameras/weitere Szenen entfallen.
+  1 glTF-Meter = 1 Einheit, +y oben, Vorderseite +z.
+- **Vorbacker statt Laufzeit-Parser:** `herd/teigling` liest das Modell einmal (eigener JSON-Leser, harte Grenzen vor jedem Anlegen,
+  geprüfte Arithmetik, Fuzz-Tests) und schreibt einen **Modellteig** (`TEIGMODL` v1): Netze in `NETZ`-Ecken, Materialien als Faktoren,
+  Bilder als eingebettete Teiglinge, Knoten mit TRS/Matrix als f32-Bits, Lichter, Häute, Folgen. Fehler-Modellteige tragen ihren Text
+  (eine Stelle für alle Motoren). Rechnen nur mit + − × ÷ in f32 (Eckfarben über eine feste sRGB-Tabelle); Drehungen (Quaternion →
+  `drehung`/`neigung`/`rollen`), Farben linear → sRGB und Lichter rechnet der Kern in f64 mit `libm`. Quellpaket für `.gltf`:
+  `modell_braucht` nennt die Nachbardateien, deren Bytes kommen mit ins Paket; seine SHA-256 ist Kopf und Cache-Schlüssel (`modell/1`).
+- **Sprache:** `Modell.laden(pfad)` (wie `Bildchen.laden`: gleicher Pfad = dasselbe Modell, Texte mit Pfad davor), `herd.modell(m, x, y, z)`
+  → Wurzel mit einem Teil je Knoten (Tiefensuche → feste IDs), `Koerper` je Primitive, `Licht` aus Punkt/Spot; Beläge je Material
+  **geteilt** unter einer ruhenden `Vorlage`; Komponente **`Etikett`** (`name`, verborgen Knotennummer) und Teil-Methode **`finde(name)`**;
+  `m.namen()`, `m.folgen()`, `m.belaege()`, `m.breite()`/`hoehe()`/`tiefe()`. Kern-Codes 63 … 67, Modelle mit eigener ID (Bildpaket
+  und `paket.rs` unverändert: Netze und Bilder sind normale `NETZ`-/`TEXTUR`-Ressourcen).
+- **Teigmenge:** Modelle zählen mit (ein Budget für alles in Kern und GPU); eingebettete Bilder je Quelle einmal, auch gegenüber der
+  gleichen Bilddatei – der Kern legt gleiche Modellbilder ebenso nur einmal an. Text mit Modellen: „Die Bilder und Modelle sind
+  zusammen zu groß …“.
+- **Dateien:** `.glb`, `.gltf`, `.bin` sind erlaubte Projektdateien (PROJEKTE §1.3, §5.10), alle binär (auch `.gltf`); Durchreiche prüft die
+  Signatur (`glTF`-Magie bzw. JSON-Objekt), nginx/E2E-Server liefern `model/gltf-binary` bzw. `model/gltf+json`.
+- **Betroffen:** HERD.md §4/§10/§11.1/§13.3, SPEC §2.1/§18.1/§18.4/§18.5/§18.6, PROJEKTE §1.3/§5.10, HOST-ABI §2, `herd/README.md`
+  §2/§3/§7.1/§11.5, ARCHITEKTUR §1, Vorbacker, Kern, `kern-wasm`, Skript-Spieler, Interpreter, Laufzeit, Compiler, Host, Playground,
+  Durchreiche, nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `pizzeria`. **Status:** fest.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

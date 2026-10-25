@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizzeria: 3D-Modelle aus Dateien",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine kleine Pizzeria aus fertigen glTF-Modellen (Kenney, CC0): Küchenzeile, Tische, Stühle, Pizzen und Kartons. Modell.laden lädt ein Modell, herd.modell stellt es in die Welt, teil.finde holt einzelne Teile wie die Ofentür. Maus ziehen dreht die Ansicht; O, K und Leertaste öffnen Ofen, Kühlschrank und Karton, T färbt alle Tische um."
+}

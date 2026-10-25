@@ -23,6 +23,9 @@ const SIGNATUREN = {
   teigling_muster: ['iii', 'I'],
   // Hilfsaufruf: Teigling aus einer Datei (tests/herd/bild.js zeichnet Bildchen.laden so auf)
   teigling_datei: ['t', 'I'],
+  // Modelle (H-K16); modell_datei ist ein Hilfsaufruf wie teigling_datei: Modellteig direkt oder .glb/.gltf über teigling.wasm
+  modell_teig: ['b', 'I'], modell_datei: ['t', 'I'], modell_teil: ['ifff', 'I'], modell_info: ['ii', 'F'], modell_text: ['iii', 'T'],
+  teil_finde: ['it', 'I'],
 };
 
 function fehler(z, t) { throw new Error('Zeile ' + z + ': ' + t); }
@@ -552,6 +555,22 @@ class Spieler {
         return I(k.bildchen_teigling(p[0][0], bytes.length));
       }
       case 'ressource_hole': return F(k.ressource_hole(ii(0), ii(1)));
+      case 'modell_teig': {
+        const bytes = Uint8Array.from(zahlen(0).map((x) => (x | 0) & 255));
+        p = this.puffer([bytes]);
+        return I(k.modell_teig(p[0][0], bytes.length));
+      }
+      case 'modell_datei': {
+        const pfad = new TextDecoder().decode(txt(0));
+        let bytes;
+        try { bytes = modellAusDatei(pfad); } catch (e) { fehler(z, 'modell_datei: ' + pfad + ': ' + e.message); }
+        p = this.puffer([bytes]);
+        return I(k.modell_teig(p[0][0], bytes.length));
+      }
+      case 'modell_teil': return I(k.modell_teil(ii(0), zahl(1), zahl(2), zahl(3)));
+      case 'modell_info': return F(k.modell_info(ii(0), ii(1)));
+      case 'modell_text': { const a = ii(0), b = ii(1), c = ii(2); return this.aus((q, kap) => k.modell_text(a, b, c, q, kap), 1, 'T'); }
+      case 'teil_finde': { const t = ii(0); p = this.puffer([txt(1)]); return I(k.teil_finde(t, ...p[0])); }
       case 'eingabe': return I(k.eingabe(zahl(0), zahl(1), ii(2)));
       case 'takt': return I(k.takt());
       case 'paket_voll': return I(k.paket_voll());
@@ -563,4 +582,16 @@ class Spieler {
   }
 }
 
-module.exports = { lies, Spieler, zufall, wertText, SIGNATUREN, musterTeigling };
+/** Modellteig aus einer Datei (H-K16, wie modell_aus_datei im Rust-Spieler): beginnt sie mit TEIGMODL, so wie sie ist; sonst
+ *  .glb/.gltf samt Nachbardateien (was der Vorbacker nennt, fehlende bleiben weg) über site/js/herd/teigling.wasm gebacken. */
+let vorbackerNode = null;
+function modellAusDatei(pfad) {
+  const fs = require('fs');
+  const haupt = new Uint8Array(fs.readFileSync(pfad));
+  if (haupt.length >= 8 && new TextDecoder().decode(haupt.subarray(0, 8)) === 'TEIGMODL') return haupt;
+  if (vorbackerNode === null) vorbackerNode = require('../site/js/herd/teigling.js').node();
+  const paket = vorbackerNode.modellQuelle(pfad.replace(/\\/g, '/'), haupt, (p) => { try { return new Uint8Array(fs.readFileSync(p)); } catch (e) { return null; } });
+  return vorbackerNode.modellVorbacken(paket);
+}
+
+module.exports = { lies, Spieler, zufall, wertText, SIGNATUREN, musterTeigling, modellAusDatei };

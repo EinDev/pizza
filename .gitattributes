@@ -5,6 +5,9 @@
 *.jpg       binary
 *.jpeg      binary
 *.teigling  binary
+# Modelle (H-K16): .gltf ist JSON, gilt aber wie .glb als Binärdatei (SHA-256 des Quellpakets, Cache, Teilen)
+*.glb       binary
+*.gltf      binary
 *.pkarton   binary
 *.bin       binary
 *.exe       binary

@@ -78,6 +78,15 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     // so zeichnet tests/herd/bild.js Projekte mit Bildchen.laden auf (die Teiglinge legt es in einen Temp-Ordner)
     ("teigling_datei", "t", 'I'),
     ("ressource_hole", "ii", 'F'),
+    // Modelle (H-K16)
+    ("modell_teig", "b", 'I'),
+    // Hilfsaufruf der Spieler: Modell aus einer Datei – ein Modellteig direkt, sonst .glb/.gltf (samt Nachbardateien) mit dem
+    // Vorbacker gebacken → modell_teig (so zeichnet tests/herd/bild.js Modell.laden auf)
+    ("modell_datei", "t", 'I'),
+    ("modell_teil", "ifff", 'I'),
+    ("modell_info", "ii", 'F'),
+    ("modell_text", "iii", 'T'),
+    ("teil_finde", "it", 'I'),
     ("eingabe", "ffi", 'I'),
     ("takt", "", 'I'),
     ("paket_voll", "", 'I'),
@@ -602,6 +611,39 @@ pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
     }
 }
 
+/// Modellteig aus einer Datei (H-K16): beginnt sie mit `TEIGMODL`, so wie sie ist; sonst `.glb`/`.gltf` mit den Nachbardateien,
+/// die `herd_teigling::gltf::braucht` nennt (fehlende bleiben weg → Fehler-Modellteig), über das Quellpaket vorgebacken – wie die
+/// JS-Hülle `site/js/herd/teigling.js`.
+pub fn modell_aus_datei(pfad: &str) -> Result<Vec<u8>, String> {
+    // relative Pfade gelten ab dem Arbeitsordner, sonst ab dem ersten Elternordner, in dem es sie gibt (Szenen nennen Pfade ab der
+    // Repo-Wurzel; `cargo test` läuft im Crate-Ordner)
+    let mut basis = std::path::PathBuf::new();
+    if !std::path::Path::new(pfad).is_absolute() {
+        for hoch in ["", "..", "../..", "../../.."] {
+            if std::path::Path::new(hoch).join(pfad).exists() {
+                basis = std::path::PathBuf::from(hoch);
+                break;
+            }
+        }
+    }
+    let voll = basis.join(pfad);
+    let pfad = voll.to_string_lossy().into_owned();
+    let pfad = pfad.as_str();
+    let haupt = std::fs::read(pfad).map_err(|e| e.to_string())?;
+    if haupt.starts_with(b"TEIGMODL") {
+        return Ok(haupt);
+    }
+    let norm = pfad.replace('\\', "/");
+    let mut dateien: Vec<(String, Vec<u8>)> = Vec::new();
+    for (uri, p) in herd_teigling::gltf::braucht(&norm, &haupt) {
+        if let Ok(b) = std::fs::read(&p) {
+            dateien.push((uri, b));
+        }
+    }
+    let refs: Vec<(&str, &[u8])> = dateien.iter().map(|(u, b)| (u.as_str(), b.as_slice())).collect();
+    Ok(herd_teigling::modell::vorbacken(&herd_teigling::gltf::quellpaket(&haupt, &refs)))
+}
+
 /// Teigling (Format v1, `herd_teigling::teigling_aus`: Mipmaps wie der Vorbacker, SHA-256 im Kopf = 0) aus Muster `m`.
 pub fn muster_teigling(m: u32, b: u32, h: u32) -> Vec<u8> {
     let mut rgba = Vec::with_capacity((b * h * 4) as usize);
@@ -980,6 +1022,36 @@ impl Spieler {
                 }
             }
             "ressource_hole" => Wert::F(k.ressource_hole(i(0)?, i(1)?)),
+            "modell_teig" => {
+                let b: Vec<u8> = zahlen(0)?.into_iter().map(|x| zu_i32(x) as u8).collect();
+                Wert::I(k.modell_teig(&b))
+            }
+            "modell_datei" => {
+                let pfad = String::from_utf8_lossy(&t(0)?).into_owned();
+                match modell_aus_datei(&pfad) {
+                    Ok(b) => Wert::I(k.modell_teig(&b)),
+                    Err(e) => return fehler(zeile, format!("modell_datei: {}: {}", pfad, e)),
+                }
+            }
+            "modell_teil" => Wert::I(k.modell_teil(i(0)?, zahl(1)?, zahl(2)?, zahl(3)?)),
+            "modell_info" => Wert::F(k.modell_info(i(0)?, i(1)?)),
+            "modell_text" => {
+                let (a, b, c) = (i(0)?, i(1)?, i(2)?);
+                let mut kap = 64usize;
+                loop {
+                    let mut buf = vec![0u8; kap];
+                    let n = k.modell_text(a, b, c, &mut buf);
+                    if n < 0 {
+                        break Wert::I(n);
+                    }
+                    if n as usize <= kap {
+                        buf.truncate(n as usize);
+                        break Wert::T(buf);
+                    }
+                    kap = n as usize;
+                }
+            }
+            "teil_finde" => Wert::I(k.teil_finde(i(0)?, &t(1)?)),
             "eingabe" => Wert::I(k.eingabe(zahl(0)?, zahl(1)?, i(2)?)),
             "takt" => Wert::I(k.takt()),
             "paket_voll" => Wert::I(k.paket_voll()),
