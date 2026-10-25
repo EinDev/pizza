@@ -252,6 +252,12 @@ mod wasm {
         fn takt() -> i32 { k().takt() }
         fn bild(bildnummer: i32) -> i32 { k().bild(bildnummer) }
         fn bild_zeiger() -> i32 { k().paket().as_ptr() as usize as i32 }
+        fn klangbild(p: i32, kap: i32) -> i32 {
+            let mut v = alloc::vec![0f64; kap.max(0) as usize];
+            let n = k().klangbild(&mut v);
+            if n <= kap { zahlen_aus(&v[..n as usize], p); }
+            n
+        }
         fn paket_voll() -> i32 { k().paket_voll() }
         fn hash_szene(p: i32) -> i32 { let h = k().hash_szene(); text_aus(&herd_kern::hash::hex(h), p, 16) }
         fn hash_paket(p: i32) -> i32 { let h = k().hash_paket(); text_aus(&herd_kern::hash::hex(h), p, 16) }

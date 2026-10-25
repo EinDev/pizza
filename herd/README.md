@@ -68,6 +68,7 @@ pub static ARTEN: &[&Art] = &[
     &strahl::ART,                                      // 34 (H-K20, kein System: Lesefelder beim Lesen berechnet)
     &etikett::ART,                                     // 35 (H-K16, Name eines Teils für finde; verborgen: Knotennummer)
     &puppe::ART,                                       // 36 (H-K23a, Folgen aus Modellen abspielen und überblenden, Takt)
+    &schall::ART,                                      // 37 (H-K22, Raumklang am Teil, Nachlauf + Klangbild in `bild`)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -105,7 +106,8 @@ Ausnahme: reine Caches der eigenen Felder ohne Wirkung auf die Welt (`Vieleck`-Z
 Feldtypen (Nummer im Schema): 1 `zahl` (f64, Bereich), 2 `ganz`, 3 `diavolo` (0/1), 4 `text`, 5 `wahl` (Index in fester Liste),
 6 `farbe` (RGBA8 + Text, wie gesetzt), 7 `teil`, 8 `form`, 9 `bildchen` (IDs, 0 = karton), 10 `bildchen-liste`, 11 `teil-liste`
 (`Feld::teil_liste`, Spalte wie `bildchen-liste`), 12 `zahl-liste` (`Feld::zahl_liste`, f64-Liste, Bereich je Eintrag) – beide
-höchstens 65 536 Einträge (K-149); verborgen: `intern` (f64), `puffer` (f64-Liste je Komponente, z. B. Teilchen). Feldnummer =
+höchstens 65 536 Einträge (K-149), 13 `klang` (H-K22, `Feld::klang`: Klang-ID des Klang-Erzeugers, 0 = karton; der Kern prüft nur
+„ganz ≥ 0“, die Laufzeiten bilden `Klang` ↔ ID ab); verborgen: `intern` (f64), `puffer` (f64-Liste je Komponente, z. B. Teilchen). Feldnummer =
 Position + 1 (nur öffentliche Felder). Merkmale: `.lesen()` (**Lesefeld**: jeder Setz-Aufruf des ABI → `<Name>.<feld> kann man nur
 lesen.`, Code 32; nur Systeme schreiben über den Speicher) und `.nachtrag()` (**Nachtragsfeld**: der Szenen-Hash überspringt es,
 solange der Wert bitgleich dem Standard ist – so bekommt eine bestehende Komponente neue Felder, ohne dass sich Hashes bestehender
@@ -203,6 +205,7 @@ größer als `kap`, wird **nichts** geschrieben; erneut aufrufen mit größerem 
 | `takt` | `() → 0` | alle Takt-Systeme, danach alle Nachlauf-Systeme (je in Registry-Reihenfolge), dt = 1/60; danach gilt der Knopfstand als Vortakt |
 | `bild` | `(bildnummer) → len` | baut das Bildpaket; Bytes ab `bild_zeiger()`, gültig bis zum nächsten `bild` |
 | `bild_zeiger` | `() → ptr` | |
+| `klangbild` | `(ptr, kap) → n` | H-K22: Klangbild des letzten `bild` – je `Schall`-Änderung 7 × f64 LE (Art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID, Pegel, Panorama, Tonhöhe, Schleife), nach Handle; Retry (kap in Zahlen), nur lesend, nicht im Szenen-Hash |
 | `paket_voll` | `() → 0` | nächstes Paket enthält wieder alle Ressourcen (neue Glut, Fenster neu geöffnet) |
 | `hash_szene` / `hash_paket` | `(ptr) → 16` | FNV-1a 64 als 16 Hex-Ziffern (Kleinbuchstaben) über den Szenenzustand bzw. das letzte Paket |
 | `schema_json` | `(ptr, kap) → len` | Schema (§5), Retry |
@@ -457,7 +460,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   1024 × 1024 Kacheln; `schatten.herd` (H-K18): Schatten-Auswahl, Packen, Kaskaden, Werfer je Ansicht, klein und mit N = 1 000/L = 8 (B13); `spiegel.herd` (H-K21): Spiegelbild einfach → voll auf Höhe 0 und 0,15 → einfach, Kisten und Lichter auch hoch über dem Bild, Spots mit Schatten, Funken, klein und mit N = 1 000/L = 256; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024; `schwung.herd`: `Schwung` mit Kisten-Türmen auf einem Tisch, Kugeln/Kapseln in einer Gelände-Mulde (Fühler `netz`), Rampe aus eigenem Netz, gedrehter fester Kasten, kinematische Drehscheibe, Drehsperre, Auslöser, Maske, Kind unter gedrehter Gruppe, Stoß/Lage/Entfernen/Kopie mitten im Lauf, klein und voll mit N = 500 Kisten bzw. K = 2 000 Kugeln; `figur.herd`: `Figur` auf einem Gelände (als Dreiecke genau), Treppe, gedrehte Wand, Rampe aus eigenem Netz, kinematische Plattform und Aufzug, Schieben, Sprung, Masken, Lage/Kopie/Entfernen mitten im Lauf, `Strahl` als Höhenabfrage im Raster, aus der Maus, in Teil-Achsen, mit Maske und Auslöser, klein und voll mit N = 100 Figuren und S = 1 000 Strahlen; `aufprall.herd` (H-K25): Funken-Aufprall, Regen über einer kleinen Stadt
   auf gewelltem Gelände (Kästen, Kugel, Kapsel, Netz-Rampe, Auslöser) mit `kollision` keine/boden/welt (`KOLL`), Funken im Raum eines
   drehenden Teils prallen ab, Glut bleibt auf einer Ebene liegen, Haus versetzt/entfernt und Moduswechsel mitten im Lauf, klein und mit
-  N = 20 000 (B15); `puppe.herd` (H-K23a): `Puppe` mit drei Folgen, Überblenden, Springen, ohne Schleife, Kopie und Ding an der Hand, klein und mit N = 33 (102 Puppen à 50 Gelenke, B17)). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  N = 20 000 (B15); `schall.herd` (H-K22): 3D-Schalle an bewegten Teilen vor einer wandernden Kamera, 2D-Schalle unter einem gedrehten Blick, je Bild `klangbild`; `puppe.herd` (H-K23a): `Puppe` mit drei Folgen, Überblenden, Springen, ohne Schleife, Kopie und Ding an der Hand, klein und mit N = 33 (102 Puppen à 50 Gelenke, B17)). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -929,7 +932,7 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   (1 TypAnanas, 2 LaufzeitAnanas), `fehler_text`, `fehler_neu` – alle Fehlertexte stehen in `src/lib.rs`.
 - **Geladene Klänge** (H-K19a, K-163): `laden(pfad, teig)` nimmt einen **Klangteig** aus dem Vorbacker (`herd/teigling/src/klang.rs`,
   WAV/FLAC/OGG Vorbis → PCM i16 mit eigener Rate 8 … 96 kHz, mono oder stereo verschachtelt), prüft den Kopf vollständig (Fehler-Klangteig →
-  „<pfad> <Text aus dem Teig>“, Ungültiges → „<pfad> ist kein lesbarer Klang (WAV oder FLAC).“) und legt einen nur **abspielbaren**
+  „<pfad> <Text aus dem Teig>“, Ungültiges → „<pfad> ist kein lesbarer Klang (WAV, FLAC oder OGG).“) und legt einen nur **abspielbaren**
   Klang an (Formen lehnen ihn ab, die 5 Minuten zählen ihn nicht). `rate(id)`/`kanaele(id)` für die Wiedergabe; `dauer` = Frames / Rate.
 - **Raum** (`raum(lage, reichweite, hoerer)` → Lautstärke, Panorama, Tiefpass): Formel der Wiedergaben (nativer Mischer
   `host/src/wiedergabe.rs`, Browser-Spiegel `ui/src/klang.js`); nicht bitgleich geprüft. Hörer = Kamera aus dem SZENE-Block des

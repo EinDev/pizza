@@ -17,7 +17,7 @@ const SIGNATUREN = {
   komp_haenge: ['ii', 'I'], komp_loese: ['i', 'I'], komp_von: ['ii', 'I'], komp_info: ['ii', 'I'], typ_nummer: ['t', 'I'],
   feld_nummer: ['it', 'I'], setze_zahl: ['iif', 'I'], hole_zahl: ['ii', 'F'], setze_text: ['iit', 'I'], hole_text: ['ii', 'T'],
   setze_liste: ['iiu', 'I'], hole_liste: ['ii', 'U'], setze_zahlen: ['iid', 'I'], hole_zahlen: ['ii', 'D'], form_grund: ['iff', 'I'], form_eigene: ['ddi', 'I'],
-  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], eingabe: ['ffi', 'I'], takt: ['', 'I'], paket_voll: ['', 'I'],
+  bildchen_neu: ['zp', 'I'], bildchen_rgba: ['iib', 'I'], bildchen_teigling: ['b', 'I'], ressource_hole: ['ii', 'F'], eingabe: ['ffi', 'I'], takt: ['', 'I'], paket_voll: ['', 'I'], klangbild: ['', 'D'],
   hash_szene: ['', 'H'], hash_paket: ['', 'H'], schema_json: ['', 'T'],
   // Hilfsaufruf der Spieler (kein ABI-Export, PD3): Teigling aus festem Muster → bildchen_teigling
   teigling_muster: ['iii', 'I'],
@@ -549,6 +549,7 @@ class Spieler {
         return I(k.setze_zahlen(a, b, p[0][0], z.length));
       }
       case 'hole_zahlen': { const a = ii(0), b = ii(1); return this.aus((q, kap) => k.hole_zahlen(a, b, q, kap), 8, 'D'); }
+      case 'klangbild': return this.aus((q, kap) => k.klangbild(q, kap), 8, 'D');
       case 'form_grund': return I(k.form_grund(ii(0), zahl(1), zahl(2)));
       case 'form_eigene': {
         const pk = zahlen(0), dr = zahlen(1), gl = ii(2);

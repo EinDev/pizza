@@ -33,10 +33,10 @@ if (TYPEN.indexOf('Kniff') < 0) TYPEN.push('Kniff');   // H-K13: erbbare Basiskl
 
 // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
 const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,
-  HF_BILDCHEN = 9, HF_LISTE = 10, HF_TEIL_LISTE = 11, HF_ZAHL_LISTE = 12;
+  HF_BILDCHEN = 9, HF_LISTE = 10, HF_TEIL_LISTE = 11, HF_ZAHL_LISTE = 12, HF_KLANG = 13;
 const HF_NACH_NAME = { 'zahl': HF_ZAHL, 'ganz': HF_GANZ, 'diavolo': HF_DIAVOLO, 'text': HF_TEXT, 'wahl': HF_WAHL, 'farbe': HF_FARBE,
   'teil': HF_TEIL, 'form': HF_FORM, 'bildchen': HF_BILDCHEN, 'bildchen-liste': HF_LISTE,
-  'teil-liste': HF_TEIL_LISTE, 'zahl-liste': HF_ZAHL_LISTE };
+  'teil-liste': HF_TEIL_LISTE, 'zahl-liste': HF_ZAHL_LISTE, 'klang': HF_KLANG };
 
 const HERD_ENC = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 const HERD_DEC = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;

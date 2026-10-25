@@ -1785,6 +1785,8 @@
       this.klangSpurNr = 0;
       this.klangEnden = [];
       this.klangPfade = new Map();   // H-K19a: Pfad → KlangObj (gleicher Pfad = derselbe Klang); Klangteige in this.teiglinge
+      this.klangIds = new Map();     // H-K22: Klang-ID → KlangObj (Feldtyp klang)
+      this.schallSpuren = new Map(); // H-K22: Schall-Handle → KlangSpur (aus dem Klangbild)
       // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
       // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
       this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
@@ -6091,10 +6093,10 @@
 
   // Feldtypen (herd/README.md §2) → Nummern für den schnellen Weg
   const HF_ZAHL = 1, HF_GANZ = 2, HF_DIAVOLO = 3, HF_TEXT = 4, HF_WAHL = 5, HF_FARBE = 6, HF_TEIL = 7, HF_FORM = 8,
-    HF_BILDCHEN = 9, HF_LISTE = 10, HF_TEIL_LISTE = 11, HF_ZAHL_LISTE = 12;
+    HF_BILDCHEN = 9, HF_LISTE = 10, HF_TEIL_LISTE = 11, HF_ZAHL_LISTE = 12, HF_KLANG = 13;
   const HF_NACH_NAME = { 'zahl': HF_ZAHL, 'ganz': HF_GANZ, 'diavolo': HF_DIAVOLO, 'text': HF_TEXT, 'wahl': HF_WAHL, 'farbe': HF_FARBE,
     'teil': HF_TEIL, 'form': HF_FORM, 'bildchen': HF_BILDCHEN, 'bildchen-liste': HF_LISTE,
-    'teil-liste': HF_TEIL_LISTE, 'zahl-liste': HF_ZAHL_LISTE };
+    'teil-liste': HF_TEIL_LISTE, 'zahl-liste': HF_ZAHL_LISTE, 'klang': HF_KLANG };
 
   const HERD_ENC = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
   const HERD_DEC = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
@@ -6949,6 +6951,10 @@
           if (v !== null && !(v instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
           r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
           break;
+        case HF_KLANG:   // H-K22: Klang-ID des Erzeugers
+          if (v !== null && !(v instanceof KlangObj)) throw this.herdTypfehler(art, f, v);
+          r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
+          break;
         case HF_LISTE: {
           if (!Array.isArray(v) || !v.every(x => x instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
           const k = this.hk, p = e.puffer(v.length * 4 || 4);
@@ -6990,6 +6996,7 @@
         }
         case HF_TEIL: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : this.herdTeilObj(id); }
         case HF_FORM: case HF_BILDCHEN: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : (k.res.get(id) || null); }
+        case HF_KLANG: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : (this.klangIds.get(id) || null); }
         case HF_LISTE: {
           const ids = k.liesListe((p, kap) => e.hole_liste(h, f.nummer, p, kap));
           if (ids === null) throw this.herdFehler();
@@ -7261,6 +7268,7 @@
       const szene = k.hash(p => e.hash_szene(p));
       const paket = k.hash(p => e.hash_paket(p));
       const daten = { bildnummer: h.bildnummer, szene, paket };
+      if (this.kk !== null) this.schallBild();   // H-K22: Klangbild des Kerns → Spuren der Schalle
       this.klangFlush();   // K-153: Klänge dieser Takte starten mit diesem Bild
       if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
         const z = e.bild_zeiger();
@@ -7670,7 +7678,42 @@
     },
     klangNeu(id) {
       const k = this.kk;
-      return new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
+      const o = new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
+      this.klangIds.set(o.id, o);
+      return o;
+    },
+    // H-K22 Schall: Klangbild des letzten Herd-Bilds (je Eintrag art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID, Pegel,
+    // Panorama, Tonhöhe, Schleife) → eigene Spuren je Schall (gleiche Nummernfolge wie spiele), Ereignisse spiele/raum/stoppe.
+    // raum nur, solange die Spur läuft (ein Klang ohne Schleife endet von selbst). Spiegel: laufzeit/src/klang.rs schall_bild.
+    schallBild() {
+      const e = this.hk.e;
+      const z = this.hk.liesZahlen((p, kap) => e.klangbild(p, kap));
+      if (z === null) return;
+      for (let i = 0; i + 7 <= z.length; i += 7) {
+        const art = z[i], h = z[i + 1], laut = z[i + 3], pan = z[i + 4], ton = z[i + 5];
+        if (art === 1) {
+          const k = this.klangIds.get(z[i + 2]);
+          if (k === undefined) continue;
+          const schleife = z[i + 6] !== 0;
+          const s = new KlangSpur(++this.klangSpurNr, k);
+          s.laut = laut; s.ton = ton; s.pan = pan; s.schleife = schleife;
+          s.start = this.klangJetzt();
+          s.ende = schleife ? Infinity : s.start + k.dauer / ton;
+          this.schallSpuren.set(h, s);
+          this.klangSende('spiele', { spur: s.nr, klang: k.hash, lautstaerke: laut, tonhoehe: ton, panorama: pan, schleife }, k.id);
+          continue;
+        }
+        const s = this.schallSpuren.get(h);
+        if (s === undefined) continue;
+        if (art === 2) {
+          this.klangTonhoehe(s, ton);
+          s.laut = laut; s.pan = pan;
+          if (this.klangLaeuft(s)) this.klangSende('raum', { spur: s.nr, lautstaerke: laut, tonhoehe: ton, panorama: pan }, 0);
+        } else if (art === 3) {
+          this.schallSpuren.delete(h);
+          this.klangStoppe(s);
+        }
+      }
     },
     klangText(v, wo, param, std) {
       if (v === undefined || v === null) { if (std !== undefined) return std; }

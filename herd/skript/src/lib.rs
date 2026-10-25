@@ -90,6 +90,8 @@ pub const SIGNATUREN: &[(&str, &str, char)] = &[
     ("eingabe", "ffi", 'I'),
     ("takt", "", 'I'),
     ("paket_voll", "", 'I'),
+    // Klangbild des letzten Bilds (H-K22 Schall): 7 Zahlen je Eintrag
+    ("klangbild", "", 'D'),
     ("hash_szene", "", 'H'),
     ("hash_paket", "", 'H'),
     ("schema_json", "", 'T'),
@@ -1018,6 +1020,18 @@ impl Spieler {
             "setze_zahlen" => {
                 let z = zahlen(2)?;
                 Wert::I(k.setze_zahlen(i(0)?, i(1)?, &z))
+            }
+            "klangbild" => {
+                let mut kap = 16usize;
+                loop {
+                    let mut buf = vec![0f64; kap];
+                    let n = k.klangbild(&mut buf);
+                    if n as usize <= kap {
+                        buf.truncate(n as usize);
+                        break Wert::D(buf);
+                    }
+                    kap = n as usize;
+                }
             }
             "hole_zahlen" => {
                 let (a, b) = (i(0)?, i(1)?);

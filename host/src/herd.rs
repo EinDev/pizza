@@ -31,7 +31,7 @@ pub const PAKET_BASIS: usize = 0x4000_0000;
 /// Die Laufzeit importiert davon 55 (HOST-ABI §2, inkl. `bildchen_teigling` für `Bildchen.laden`, `eingabe` (H-K12) und die
 /// Modell-Exporte `modell_teig`, `modell_teil`, `modell_info`, `modell_text`, `teil_finde` (H-K16)); die übrigen (`abi_version`,
 /// `fehler_code`, `welt_hole`, `bildchen_rgba`, `bild_zeiger`) stellt der Host ebenfalls bereit – ein Programm darf jeden Export binden.
-pub const IMPORTE_HERD: [&str; 60] = [
+pub const IMPORTE_HERD: [&str; 61] = [
     "abi_version", "puffer", "fehler_art", "fehler_code", "fehler_text", "fehler_neu", "melde_typfehler",
     "welt_neu", "welt_titel", "welt_hintergrund", "welt_himmel", "welt_umgebung", "welt_nebel", "welt_hole",
     "teil_neu", "teil_entferne", "teil_kopie", "teil_haenge", "teil_kinder", "teil_setze", "teil_hole", "teil_lage",
@@ -40,7 +40,7 @@ pub const IMPORTE_HERD: [&str; 60] = [
     "setze_zahl", "hole_zahl", "setze_text", "hole_text", "setze_liste", "hole_liste", "setze_zahlen", "hole_zahlen",
     "form_grund", "form_eigene", "bildchen_neu", "bildchen_rgba", "bildchen_teigling", "ressource_hole",
     "modell_teig", "modell_teil", "modell_info", "modell_text", "teil_finde",
-    "eingabe", "takt", "bild", "bild_zeiger", "paket_voll", "hash_szene", "hash_paket", "schema_json",
+    "eingabe", "takt", "bild", "bild_zeiger", "klangbild", "paket_voll", "hash_szene", "hash_paket", "schema_json",
 ];
 
 /// Bekannte Importe `pizza.herd_*` (HOST-ABI §2).
@@ -583,6 +583,16 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
     l.func_wrap("herd", "takt", |mut c: C| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.gemessen(|k| k.takt())) })?;
     l.func_wrap("herd", "bild", |mut c: C, n: i32| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.gemessen(|k| k.bild(n))) })?;
     l.func_wrap("herd", "bild_zeiger", |mut c: C| -> Result<i32, wasmi::Error> { hz(&mut c).map(|_| PAKET_BASIS as i32) })?;
+    // Klangbild des letzten Bilds (H-K22 Schall): f64 LE in den Austauschpuffer, Retry wie hole_zahlen
+    l.func_wrap("herd", "klangbild", |mut c: C, p: i32, kap: i32| -> Result<i32, wasmi::Error> {
+        let h = hz(&mut c)?;
+        let mut v = vec![0f64; kap.max(0) as usize];
+        let n = h.kern().klangbild(&mut v);
+        if n >= 0 && n <= kap {
+            h.zahlen_aus(&v[..n as usize], p)?;
+        }
+        Ok(n)
+    })?;
     l.func_wrap("herd", "paket_voll", |mut c: C| -> Result<i32, wasmi::Error> { Ok(hz(&mut c)?.kern().paket_voll()) })?;
     l.func_wrap("herd", "hash_szene", |mut c: C, p: i32| -> Result<i32, wasmi::Error> {
         let h = hz(&mut c)?;

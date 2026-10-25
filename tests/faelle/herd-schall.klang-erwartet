@@ -1,0 +1,11 @@
+{"art":"spiele","spur":1,"klang":"f71c62efea6e3c07","lautstaerke":0.2626953125,"tonhoehe":1,"panorama":-0.9287109375,"schleife":true}
+{"art":"raum","spur":1,"lautstaerke":0.376953125,"tonhoehe":1,"panorama":-0.89453125}
+{"art":"raum","spur":1,"lautstaerke":0.5048828125,"tonhoehe":1,"panorama":-0.83203125}
+{"art":"spiele","spur":2,"klang":"20cd80edb62357f0","lautstaerke":0.6630859375,"tonhoehe":1,"panorama":0.83203125,"schleife":false}
+{"art":"raum","spur":1,"lautstaerke":0.634765625,"tonhoehe":1,"panorama":-0.70703125}
+{"art":"raum","spur":1,"lautstaerke":0.744140625,"tonhoehe":1,"panorama":-0.447265625}
+{"art":"raum","spur":1,"lautstaerke":0.3955078125,"tonhoehe":1.25,"panorama":0}
+{"art":"stoppe","spur":1}
+{"art":"spiele","spur":3,"klang":"f71c62efea6e3c07","lautstaerke":0.251953125,"tonhoehe":1.25,"panorama":0.83203125,"schleife":true}
+{"art":"raum","spur":3,"lautstaerke":0.1884765625,"tonhoehe":1.25,"panorama":0.89453125}
+{"art":"stoppe","spur":3}

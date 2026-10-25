@@ -207,6 +207,7 @@ Kopierweg unten. **Modul `pizza`**: fünf Hostfunktionen `herd_*`. Das Modul imp
 | `eingabe` | `(maus_x f64, maus_y f64, knoepfe i32) -> i32` | Eingabezustand an den Kern (H-K12, K-151): Maus in Spielfeld-Koordinaten, Knöpfe als Bitmaske (1 links, 2 rechts, 4 Mitte); je Takt **vor** dem Rückruf. Nicht endliche Maus bzw. Knöpfe außerhalb 0 … 7 bleiben stehen; nicht im Szenen-Hash, wirkt nur über Lesefelder (`Taster`, `Regler`, `Tafel`, `Blick.mausX`). Additiv in v2 |
 | `takt`, `paket_voll` | `() -> i32` | |
 | `bild` | `(bildnummer i32) -> i32` | Länge des Bildpakets |
+| `klangbild` | `(ptr i32, kap i32) -> i32` | Klangbild des letzten `bild` (H-K22 `Schall`, K-164): je Eintrag 7 × f64 LE (Art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID, Pegel, Panorama, Tonhöhe, Schleife), nach Komponenten-Handle; Rückgabe = Anzahl Zahlen, geschrieben nur bei `n ≤ kap` (Retry, kap in Zahlen). Liest nur (wiederholbar), nicht im Szenen-Hash. Die Laufzeit liest es nach `bild`/Hashes, wenn der Klang-Erzeuger geladen ist, und macht daraus Klang-Ereignisse. Additiv in v2 |
 | `hash_szene`, `hash_paket` | `(ptr i32) -> i32` | 16 Hex-Ziffern in den Kern-Puffer |
 | `schema_json` | `(ptr i32, kap i32) -> i32` | Schema (Retry); daraus baut die Laufzeit alle Komponentenklassen |
 
@@ -264,7 +265,7 @@ Lauf), ein nativer Host je Import eine Hostfunktion auf `herd_klang::Abi` (gleic
 | `klang_kern` | `(pflicht i32) -> i32` | `1` = Erzeuger da; `0` = fehlt – bei `pflicht = 1` (Startprüfung) meldet der Host vorher `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang.wasm).", zeile: null, spalte: null }`, das Modul endet mit Exit 2 |
 | `klang_schreibe` | `(kern_ptr i32, ptr i32, len i32) -> ()` | Kopierweg Programm → Erzeuger |
 | `klang_lies` | `(ptr i32, kern_ptr i32, len i32) -> ()` | Kopierweg Erzeuger → Programm |
-| `klang_senden` | `(ptr i32, len i32, klang i32) -> ()` | Ereignis als JSON **ohne** `typ` (`{"art":"spiele","spur","klang","lautstaerke","tonhoehe","panorama","schleife"}`, `{"art":"setze","spur","lautstaerke","tonhoehe","panorama","lage","reichweite"}`, `{"art":"stoppe","spur"}`). Der Host gibt es **zuerst** an die Wiedergabe (JS: `optionen.onKlang(art, daten)`, bei `klang > 0` mit `daten.bytes` = PCM von `pcm(klang)`), **dann** meldet er `{ typ: "klang", … }` (Schlüsselreihenfolge wie im JSON); die PCM steht **nie** im Ereignis |
+| `klang_senden` | `(ptr i32, len i32, klang i32) -> ()` | Ereignis als JSON **ohne** `typ` (`{"art":"spiele","spur","klang","lautstaerke","tonhoehe","panorama","schleife"}`, `{"art":"setze","spur","lautstaerke","tonhoehe","panorama","lage","reichweite"}`, `{"art":"stoppe","spur"}`, H-K22 `{"art":"raum","spur","lautstaerke","tonhoehe","panorama"}` – Pegel/Panorama eines `Schall` am Hörer, ohne Lage). Der Host gibt es **zuerst** an die Wiedergabe (JS: `optionen.onKlang(art, daten)`, bei `klang > 0` mit `daten.bytes` = PCM von `pcm(klang)`), **dann** meldet er `{ typ: "klang", … }` (Schlüsselreihenfolge wie im JSON); die PCM steht **nie** im Ereignis |
 
 - Die Laufzeit sammelt die Ereignisse bei offenem Herd-Fenster bis vor das nächste `herd_senden(bild)` bzw. `schliesse` (SPEC §18.8);
   der Host muss nichts puffern. Wiedergabe, Raum (Hörer = Kamera aus dem SZENE-Block der Bildpakete) und Gerät sind Sache des Hosts und

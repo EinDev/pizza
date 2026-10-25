@@ -66,6 +66,8 @@ pub struct Kern {
     paket: Vec<u8>,
     bau: Bildbau,
     gesendet: Gesendet,
+    /// Klangbild (H-K22 `Schall`): gemeldeter Stand und Einträge des letzten Bilds – nicht im Szenen-Hash
+    klangbild: crate::komponenten::schall::Klangbild,
 }
 
 fn ganz(x: f64) -> bool {
@@ -202,6 +204,7 @@ impl Kern {
             let t = String::from(utf8(titel)?);
             self.welt = Some(Welt::neu(breite as u32, hoehe as u32, t, ARTEN));
             self.gesendet = Gesendet::default();
+            self.klangbild = Default::default();
             Ok(0)
         })();
         self.ri(e)
@@ -625,6 +628,11 @@ impl Kern {
                         if !passt {
                             return typfehler(&res_text(w, id));
                         }
+                    }
+                }
+                Typ::Klang => {
+                    if !ganz(wert) || !(0.0..=4294967295.0).contains(&wert) {
+                        return typfehler(&zahl_text(wert));
                     }
                 }
                 Typ::Farbe => {
@@ -1326,7 +1334,18 @@ impl Kern {
     pub fn bild(&mut self, bildnummer: i32) -> i32 {
         let Some(w) = self.welt.as_mut() else { return self.ri(Err(fehler::keine_welt())) };
         paket::baue(w, &mut self.bau, &mut self.gesendet, &mut self.paket, bildnummer as u32);
+        self.klangbild.baue(w);
         self.paket.len() as i32
+    }
+    /// Klangbild des letzten `bild` (H-K22): je Eintrag 7 Zahlen (art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID,
+    /// Pegel, Panorama, Tonhöhe, Schleife), nach Komponenten-Handle. Rückgabe = Anzahl Zahlen; nur geschrieben, wenn sie in
+    /// `aus` passen (Retry, K-013). Ändert nichts – wiederholtes Lesen liefert dasselbe.
+    pub fn klangbild(&self, aus: &mut [f64]) -> i32 {
+        let d = &self.klangbild.daten;
+        if d.len() <= aus.len() {
+            aus[..d.len()].copy_from_slice(d);
+        }
+        d.len() as i32
     }
     pub fn paket(&self) -> &[u8] {
         &self.paket
@@ -1563,7 +1582,7 @@ pub fn schema_json(mit_test: bool) -> String {
                 Typ::Text | Typ::Farbe => json_text(&mut s, f.text),
                 Typ::Wahl => json_text(&mut s, f.wahl[f.zahl as usize]),
                 Typ::Diavolo => s.push_str(if f.zahl != 0.0 { "true" } else { "false" }),
-                Typ::Teil | Typ::Form | Typ::Bildchen => s.push_str("null"),
+                Typ::Teil | Typ::Form | Typ::Bildchen | Typ::Klang => s.push_str("null"),
                 Typ::BildchenListe | Typ::TeilListe | Typ::ZahlListe => s.push_str("[]"),
                 _ => s.push_str(&zahl_text(f.zahl)),
             }

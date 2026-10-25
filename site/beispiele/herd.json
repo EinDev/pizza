@@ -352,6 +352,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Modell", "glTF", "Animation", "Haut", "Projekt"],
       "herd": true
+    },
+    {
+      "id": "brunnenplatz",
+      "titel": "Brunnenplatz: Raumklang mit Schall",
+      "beschreibung": "Ein Bote läuft mit der Kamera über einen Platz: Der plätschernde Brunnen (Schall in Schleife) wandert dabei von links nach rechts und wird lauter und wieder leiser, am Laternenmast zwitschert ein Spatz. Pegel und Panorama rechnet der Herd an der aktiven Kamera. Leertaste: Brunnen an/aus, Pfeile: selbst gehen.",
+      "ordner": "herd/brunnenplatz",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Klang", "Schall", "Raumklang", "Tastatur"],
+      "herd": true
     }
   ]
 }

@@ -140,6 +140,10 @@ const HERD_LAUFZEIT = {
         if (v !== null && !(v instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
         r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
         break;
+      case HF_KLANG:   // H-K22: Klang-ID des Erzeugers
+        if (v !== null && !(v instanceof KlangObj)) throw this.herdTypfehler(art, f, v);
+        r = e.setze_zahl(h, f.nummer, v === null ? 0 : v.id);
+        break;
       case HF_LISTE: {
         if (!Array.isArray(v) || !v.every(x => x instanceof HerdBildchen)) throw this.herdTypfehler(art, f, v);
         const k = this.hk, p = e.puffer(v.length * 4 || 4);
@@ -181,6 +185,7 @@ const HERD_LAUFZEIT = {
       }
       case HF_TEIL: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : this.herdTeilObj(id); }
       case HF_FORM: case HF_BILDCHEN: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : (k.res.get(id) || null); }
+      case HF_KLANG: { const id = this.herdF(e.hole_zahl(h, f.nummer)); return id === 0 ? null : (this.klangIds.get(id) || null); }
       case HF_LISTE: {
         const ids = k.liesListe((p, kap) => e.hole_liste(h, f.nummer, p, kap));
         if (ids === null) throw this.herdFehler();
@@ -452,6 +457,7 @@ const HERD_LAUFZEIT = {
     const szene = k.hash(p => e.hash_szene(p));
     const paket = k.hash(p => e.hash_paket(p));
     const daten = { bildnummer: h.bildnummer, szene, paket };
+    if (this.kk !== null) this.schallBild();   // H-K22: Klangbild des Kerns → Spuren der Schalle
     this.klangFlush();   // K-153: Klänge dieser Takte starten mit diesem Bild
     if (this.onHerd !== null) {   // Bytes nur an den Renderer (Kopie: der Kern überschreibt sie beim nächsten bild)
       const z = e.bild_zeiger();

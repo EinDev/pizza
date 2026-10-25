@@ -2507,6 +2507,31 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   mit wie beim FLAC mit unbekannter Länge. Keine neue Sprache, kein neuer Fehlercode, keine Laufzeit-Änderung (nur die Endungslisten in
   Interpreter, Compiler, CLI, Playground, Durchreiche, nginx).
 
+### K-164 Herd: Raumklang `Schall`, Feldtyp `klang` (H-K22)
+- **Frage:** Wie spielt ein Klang räumlich an einem Teil (Unity AudioSource), bitgleich in allen Motoren, ohne dass jedes Programm
+  `setzeLage` je Bild nachführt – und wer hört?
+- **Entscheidung (HERD.md §13.3 H-K22):** Komponente `Schall` (beide, Typ 37, Nachlauf) mit neuem Feldtyp **`klang`** (Nummer 13; im
+  Kern die Klang-ID des Erzeugers, geprüft nur „ganz ≥ 0“, den Sprachtyp prüft die Laufzeit): `klang` karton, `lautstaerke` 1 (0 … 2),
+  `schleife` ja, `spielt` ja, `nah` 1, `weite` 30, `tonhoehe` 1 (0.25 … 4); Lesefelder `pegel`, `panorama` (beim Lesen berechnet).
+  **Hörer** = aktive Kamera mit der kleinsten Teil-ID (sonst die Standardsicht) bzw. in 2D die Mitte des aktiven Blicks oder des
+  Spielfelds – kein Hörer-Baustein, kein Doppler, kein Hall.
+- **Formel:** Abfall bis `nah` 1, ab `weite` 0, dazwischen `((weite − d) / (weite − nah))²`; Pegel = `lautstaerke` × Abfall; Panorama
+  = `rechts · (q − h) / max(d, nah)` (innerhalb von `nah` weich zur Mitte), beide auf 1/1024 gerastet (`libm::floor`). In 2D zählen
+  Spielfeld-Einheiten (Pixel), `weite` also passend größer wählen.
+- **Klangbild:** neuer Kern-Export `klangbild(ptr, kap)` neben dem Bildpaket (nicht darin): `bild` vergleicht die laufenden Schalle
+  (wach, `klang` ≠ 0, `spielt`) mit dem zuletzt gemeldeten Stand und legt je Schall `start`/`raum`/`stopp` ab (7 f64: Art,
+  Komponente, Klang-ID, Pegel, Panorama, Tonhöhe, Schleife; nach Handle). Der gemeldete Stand liegt im Kern, **nicht** in der Welt –
+  kein Einfluss auf Szenen-Hash und Bildpaket. `spielt` nein → ja (auch über mehrere Takte zwischen zwei Bildern) startet von vorn;
+  anderer Klang = stopp + start; entferntes/gelöstes/ruhendes Teil = stopp; `schleife` gilt ab dem nächsten Start.
+- **Laufzeiten** (Interpreter, Wasm-Laufzeit, gleiche Folge): nach `bild` und den Hashes, vor dem Senden der Klang-Ereignisse; je
+  Start eine eigene Spur (gleiche Nummernfolge wie `spiele`) → `spiele`, je Änderung `{ art: "raum", spur, lautstaerke, tonhoehe,
+  panorama }` (nur solange die Spur läuft – ein Klang ohne Schleife endet von selbst; **Entscheidung:** mit Tonhöhe, damit
+  `setzeTonhoehe` am Schall wirkt), je Stopp `stoppe`. Die Wiedergaben (WebAudio, nativer Mischer) setzen nur Pegel, Tonhöhe und
+  Panorama – Raum rechnet schon der Kern. Hörbares bleibt außerhalb der Bitgleichheit (K-153).
+- **Betroffen:** HERD.md §11.1/§12.2/§13.1/§13.3/§13.4, SPEC §18.4/§18.6/§18.8, HOST-ABI §2, `herd/README.md` §2/§3, Kern (`schema.rs`,
+  `abi.rs`, `komponenten/schall.rs`), `kern-wasm`, Szenen-Skript, Interpreter, Laufzeit, nativer Host (Bindung, Mischer), Playground-
+  Wiedergabe, Doku `herd-ausbau`, Beispiel `brunnenplatz`. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

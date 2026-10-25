@@ -223,7 +223,7 @@ fn laden_klangteig() {
 #[test]
 fn laden_fehler() {
     let mut k = Klaenge::neu();
-    let kein = "x.mp3 ist kein lesbarer Klang (WAV oder FLAC).";
+    let kein = "x.mp3 ist kein lesbarer Klang (WAV, FLAC oder OGG).";
     assert_eq!(k.laden("x.mp3", &[]).unwrap_err().text, kein);
     let e = k.laden("k/l.flac", &fehler_teig(2, "ist zu lang (12:30) – höchstens 10 Minuten.")).unwrap_err();
     assert_eq!((e.art, e.text.as_str()), (ART_LAUFZEIT, "k/l.flac ist zu lang (12:30) – höchstens 10 Minuten."));
@@ -248,7 +248,7 @@ fn laden_fehler() {
     assert!(k.laden("a", &teig(96_001, 1, &[1])).is_err());
     assert!(k.laden("a", &teig(96_000, 1, &[1])).is_ok());
     let mut fk = fehler_teig(1, "");
-    assert_eq!(k.laden("a", &fk).unwrap_err().text, "a ist kein lesbarer Klang (WAV oder FLAC).");
+    assert_eq!(k.laden("a", &fk).unwrap_err().text, "a ist kein lesbarer Klang (WAV, FLAC oder OGG).");
     fk.push(1);
     assert!(k.laden("a", &fk).is_err());
 }

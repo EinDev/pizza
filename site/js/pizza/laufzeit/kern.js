@@ -47,6 +47,8 @@ class Laufzeit {
     this.klangSpurNr = 0;
     this.klangEnden = [];
     this.klangPfade = new Map();   // H-K19a: Pfad → KlangObj (gleicher Pfad = derselbe Klang); Klangteige in this.teiglinge
+    this.klangIds = new Map();     // H-K22: Klang-ID → KlangObj (Feldtyp klang)
+    this.schallSpuren = new Map(); // H-K22: Schall-Handle → KlangSpur (aus dem Klangbild)
     // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
     // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
     this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};

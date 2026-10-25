@@ -183,6 +183,14 @@ impl Mischer {
                     s.reichweite = zahl(json, "reichweite").unwrap_or(s.reichweite);
                 }
             }
+            // H-K22 Schall: Pegel und Panorama hat der Kern schon am Hörer gerechnet – keine Lage, kein Raum hier
+            "raum" => {
+                for s in self.stimmen.iter_mut().filter(|s| s.spur == spur) {
+                    s.laut = zahl(json, "lautstaerke").unwrap_or(s.laut);
+                    s.ton = zahl(json, "tonhoehe").unwrap_or(s.ton);
+                    s.pan = zahl(json, "panorama").unwrap_or(s.pan);
+                }
+            }
             _ => {}
         }
     }
@@ -656,6 +664,22 @@ mod tests {
         m.ereignis("{\"art\":\"stoppe\",\"spur\":2}", None);
         m.mische(&mut puf);
         assert_eq!(m.anzahl(), 0);
+    }
+
+    /// H-K22 Schall: „raum“ setzt Pegel, Tonhöhe und Panorama (vom Kern am Hörer gerechnet), ohne Lage
+    #[test]
+    fn raum_setzt_pegel_und_panorama() {
+        let mut k = herd_klang::Klaenge::neu();
+        let p = ton(&mut k);
+        let mut m = Mischer::default();
+        m.ereignis("{\"art\":\"spiele\",\"spur\":1,\"klang\":\"aa\",\"lautstaerke\":1,\"tonhoehe\":1,\"panorama\":0,\"schleife\":true}", Some((&p, 48_000, 1)));
+        m.ereignis("{\"art\":\"raum\",\"spur\":1,\"lautstaerke\":0.5,\"tonhoehe\":1.25,\"panorama\":1}", None);
+        assert_eq!((m.stimmen[0].laut, m.stimmen[0].ton, m.stimmen[0].pan, m.stimmen[0].lage), (0.5, 1.25, 1.0, None));
+        let mut puf = vec![0f32; 2 * 2400];
+        m.mische(&mut puf);
+        m.mische(&mut puf);
+        assert!(puf.iter().step_by(2).all(|&x| x.abs() < 1e-6), "links still");
+        assert!(puf.iter().skip(1).step_by(2).any(|&x| x.abs() > 0.02), "rechts klingt");
     }
 
     /// H-K19a: geladener Klang mit eigener Rate (24 kHz → halb so viele Quell-Frames je Geräte-Frame) und Stereo

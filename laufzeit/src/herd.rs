@@ -91,6 +91,7 @@ extern "C" {
     #[link_name = "eingabe"] fn k_eingabe(maus_x: f64, maus_y: f64, knoepfe: i32) -> i32;
     #[link_name = "takt"] fn k_takt() -> i32;
     #[link_name = "bild"] fn k_bild(n: i32) -> i32;
+    #[link_name = "klangbild"] fn k_klangbild(p: i32, kap: i32) -> i32;
     #[link_name = "paket_voll"] fn k_paket_voll() -> i32;
     #[link_name = "hash_szene"] fn k_hash_szene(p: i32) -> i32;
     #[link_name = "hash_paket"] fn k_hash_paket(p: i32) -> i32;
@@ -124,6 +125,7 @@ const HF_BILDCHEN: u8 = 9;
 const HF_LISTE: u8 = 10;
 const HF_TEIL_LISTE: u8 = 11;
 const HF_ZAHL_LISTE: u8 = 12;
+const HF_KLANG: u8 = 13;
 
 struct HFeld { name: W, nummer: u32, t: u8, typ: W, get_id: u32, set_id: u32 }
 struct HArt { name: W, nummer: u32, name_id: u32, felder: Vec<HFeld> }
@@ -203,7 +205,7 @@ fn lade(pflicht: bool) -> bool {
                         let t = match typ.as_str() {
                             "zahl" => HF_ZAHL, "ganz" => HF_GANZ, "diavolo" => HF_DIAVOLO, "text" => HF_TEXT, "wahl" => HF_WAHL,
                             "farbe" => HF_FARBE, "teil" => HF_TEIL, "form" => HF_FORM, "bildchen" => HF_BILDCHEN, "bildchen-liste" => HF_LISTE,
-                            "teil-liste" => HF_TEIL_LISTE, "zahl-liste" => HF_ZAHL_LISTE, _ => 0,
+                            "teil-liste" => HF_TEIL_LISTE, "zahl-liste" => HF_ZAHL_LISTE, "klang" => HF_KLANG, _ => 0,
                         };
                         let mut setter = String::from("setze");
                         setter.push_str(&erster_gross(&fname));
@@ -274,6 +276,8 @@ fn lies_liste(f: impl Fn(i32, i32) -> i32) -> Option<Vec<u32>> {
         kap = n;
     }
 }
+/// Klangbild des letzten Bilds (H-K22, je Eintrag 7 Zahlen)
+pub fn klangbild_lesen() -> Option<Vec<f64>> { lies_zahlen(|p, kap| unsafe { k_klangbild(p, kap) }) }
 fn lies_zahlen(f: impl Fn(i32, i32) -> i32) -> Option<Vec<f64>> {
     let mut kap: i32 = 16;
     loop {
@@ -761,6 +765,10 @@ fn setze(h: u32, ar: &HArt, fd: &HFeld, v: W) -> bool {
                 let id = if leer(v) { 0 } else if art(v) == soll { obj::<HTeil>(v).id } else { typfehler(ar, fd, v); return false; };
                 k_setze_zahl(hh, fn_, id as f64)
             }
+            HF_KLANG => {
+                let id = if leer(v) { 0 } else { match crate::klang::klang_id(v) { Some(i) => i, None => { typfehler(ar, fd, v); return false; } } };
+                k_setze_zahl(hh, fn_, id as f64)
+            }
             HF_LISTE => {
                 if art(v) != A_BLECH || !blech_v(v).iter().all(|&x| art(x) == A_BILDCHEN) { typfehler(ar, fd, v); return false; }
                 let mut b: Vec<u8> = Vec::new();
@@ -804,6 +812,7 @@ fn hole(h: u32, fd: &HFeld) -> W {
             HF_TEXT | HF_WAHL | HF_FARBE => match lies_text(|p, kap| k_hole_text(hh, fn_, p, kap)) { Some(b) => neu_text(&b), None => { fehler(); KARTON } },
             HF_TEIL => match hf(k_hole_zahl(hh, fn_)) { Some(x) => if x == 0.0 { KARTON } else { teil_obj(x as u32) }, None => KARTON },
             HF_FORM | HF_BILDCHEN => match hf(k_hole_zahl(hh, fn_)) { Some(x) => if x == 0.0 { KARTON } else { res_hole(x as u32) }, None => KARTON },
+            HF_KLANG => match hf(k_hole_zahl(hh, fn_)) { Some(x) => if x == 0.0 { KARTON } else { crate::klang::klang_von_id(x as u32) }, None => KARTON },
             HF_LISTE => match lies_liste(|p, kap| k_hole_liste(hh, fn_, p, kap)) {
                 Some(ids) => blech(ids.iter().map(|&i| res_hole(i)).collect()),
                 None => { fehler(); KARTON }
@@ -1228,6 +1237,7 @@ fn bild() -> bool {
     b.extend_from_slice(b"\",\"paket\":\"");
     b.extend_from_slice(&pa);
     b.extend_from_slice(b"\"}");
+    if crate::klang::geladen() { crate::klang::schall_bild(); }   // H-K22: Klangbild des Kerns → Spuren der Schalle
     crate::klang::flush();   // K-153: Klänge dieser Takte starten mit diesem Bild
     sende(&b, len);
     true

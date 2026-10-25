@@ -235,6 +235,13 @@ export function erstelleKlang({ kontext = null, hoerbar = false } = {}) {
         s.lage = Array.isArray(ev.lage) ? ev.lage.map(Number) : null;
         s.reichweite = +ev.reichweite || 30;
         anwenden(s, false);
+      } else if (ev.art === "raum") {
+        // H-K22 Schall: Pegel und Panorama hat der Kern am Hörer gerechnet – hier kein Raum, keine Lage
+        const s = spuren.get(ev.spur);
+        if (!s) return;
+        s.laut = +ev.lautstaerke; s.ton = +ev.tonhoehe || s.ton; s.pan = +ev.panorama;
+        s.lage = null;
+        anwenden(s, false);
       }
     },
     /** Hörer (Kamera) aus dem Bildpaket: { x, y, z, rx, ry, rz }. */

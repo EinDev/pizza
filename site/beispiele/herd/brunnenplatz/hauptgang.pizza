@@ -1,0 +1,51 @@
+// Brunnenplatz – Raumklang mit Schall (H-K22).
+//
+// Ein Schall hängt an einem Teil und spielt dort seinen Klang; gehört wird an der aktiven Kamera. Je näher, desto lauter (bis
+// `nah` voll, ab `weite` still), und das Panorama kommt aus der Richtung: Der Bote läuft mit der Kamera über den Platz, der
+// plätschernde Brunnen wandert dabei von links nach rechts. Am Laternenmast zwitschert ein Spatz – ein kurzer Klang ohne
+// Schleife, `spielt` nein → ja spielt ihn von vorn. Pegel und Panorama stehen als Lesefelder unten.
+//
+// Leertaste: Brunnen an/aus · Pfeile links/rechts: selbst gehen (sonst läuft der Bote hin und her)
+
+Herd herd = neu Herd("Brunnenplatz", breite: 960, hoehe: 540);
+herd.himmel("#7fb2e6", "#f3e2c4");
+herd.umgebung("#fff4e0", staerke: 0.6);
+herd.sonne().setzeLage(4, 9, 5);
+
+// Klänge (erzeugt): Wasser = gefiltertes Rauschen in nahtloser Schleife, Pfiff des Spatzen = zwei gleitende Pfiffe
+Klang WASSER = Klang.rauschen(2, art: "rosa", lautstaerke: 0.6, saat: 41).hochpass(400).tiefpass(5200)
+    .mische(Klang.rauschen(2, lautstaerke: 0.12, saat: 7).hochpass(3000)).nahtlos(0.3);
+Klang PFIFF = Klang.ton(3200, 0.07, bis: 4300, welle: "sinus", lautstaerke: 0.4)
+    .dann(Klang.stille(0.05)).dann(Klang.ton(3600, 0.09, bis: 2900, welle: "sinus", lautstaerke: 0.35));
+
+// Platz, Brunnen, Laterne
+herd.koerper(Form.wuerfel(), 0, -0.05, 0, farbe: "#c9b79c").setzeGroesse(40, 0.1, 24);
+herd.koerper(Form.zylinder(), 0, 0.35, -5, farbe: "#9aa3ad").setzeGroesse(3.2, 0.7, 3.2);
+herd.koerper(Form.zylinder(), 0, 0.72, -5, farbe: "#4f8fd0").setzeGroesse(2.8, 0.05, 2.8);
+Teil brunnen = herd.koerper(Form.zylinder(), 0, 1.4, -5, farbe: "#9aa3ad").setzeGroesse(0.4, 1.4, 0.4);
+Schall wasser = brunnen.mit(neu Schall(klang: WASSER, lautstaerke: 1.5, nah: 1.5, weite: 22));
+herd.koerper(Form.zylinder(), 7, 1.6, -3, farbe: "#3b3b3b").setzeGroesse(0.15, 3.2, 0.15);
+Teil spatzTeil = herd.koerper(Form.kugel(), 7, 3.3, -3, farbe: "#8a5a34").setzeGroesse(0.3);
+Schall zwitschern = spatzTeil.mit(neu Schall(klang: PFIFF, schleife: nein, spielt: nein, nah: 1, weite: 18, lautstaerke: 1.2));
+
+// der Bote mit der Kamera (Blick nach −z, also auf den Brunnen)
+Teil bote = herd.koerper(Form.kugel(), 12, 0.5, 2, farbe: "tomate").setzeGroesse(0.6, 1, 0.6);
+herd.kamera().setzeLage(12, 1.7, 5).schaueAuf(12, 1.4, 0);
+Teil anzeige = herd.text("", 480, 515, groesse: 18, farbe: "#2f2a26", ausrichtung: "mitte");
+salami richtung = -1;
+
+herd.backe(() -> {
+    salami b = herd.bildnummer();
+    falls (herd.gedrueckt("Leertaste")) { wasser.setzeSpielt(!wasser.spielt()); }
+    funghi schritt = 0.12 * richtung;
+    falls (herd.taste("Links")) { schritt = -0.12; }
+    sonst falls (herd.taste("Rechts")) { schritt = 0.12; }
+    bote.verschiebe(schritt, 0, 0);
+    falls (bote.x() < -12) { richtung = 1; }
+    falls (bote.x() > 12) { richtung = -1; }
+    herd.kamera().setzeLage(bote.x(), 1.7, 5);
+    // der Spatz zwitschert alle 1,5 Sekunden
+    zwitschern.setzeSpielt(b % 90 != 0);
+    anzeige.text().setzeInhalt(("Brunnen: Pegel " + Mathe.runden(wasser.pegel() * 100) + " %, Panorama " + Mathe.runden(wasser.panorama() * 100)
+        + " · Spatz: " + Mathe.runden(zwitschern.pegel() * 100) + " %"));
+});

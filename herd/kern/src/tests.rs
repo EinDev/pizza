@@ -575,7 +575,8 @@ mod hk0 {
     fn feldtypen_nummern_und_schema() {
         assert_eq!(Typ::TeilListe.nummer(), 11);
         assert_eq!(Typ::ZahlListe.nummer(), 12);
-        assert_eq!(FELDTYPEN.len(), 12);
+        assert_eq!(Typ::Klang.nummer(), 13);
+        assert_eq!(FELDTYPEN.len(), 13);
         let j = crate::abi::schema_json(true);
         assert!(j.contains("{\"nummer\": 11, \"name\": \"teil-liste\", \"erwartet\": \"ein Blech aus Teilen\"}"));
         assert!(j.contains("{\"nummer\": 12, \"name\": \"zahl-liste\", \"erwartet\": \"ein Blech aus Zahlen\"}"));
@@ -7768,5 +7769,220 @@ mod hk23b {
         k.bild(1);
         assert!(palette(&k).is_empty() && abschnitte(&k, abschnitt::HAUT).is_empty());
         assert!(zuege(&k).iter().all(|z| z[0] & zug::HAUT == 0));
+    }
+}
+
+mod hk22 {
+    use super::*;
+
+    /// Welt, ein Teil (3D oder 2D) an (x, y, z) mit einem Schall (Klang-ID `klang`) → (Kern, Teil, Schall).
+    fn aufbau(drei_d: bool, x: f64, y: f64, z: f64, klang: f64) -> (Kern, i32, i32) {
+        let mut k = welt();
+        let t = k.teil_neu(if drei_d { 3 } else { 2 });
+        assert_eq!(k.teil_lage(t, x, y, z), 0);
+        let ts = typ(&mut k, "Schall");
+        let s = k.komp_neu(ts);
+        zahl(&mut k, s, "klang", klang);
+        assert_eq!(k.komp_haenge(s, t), 0);
+        (k, t, s)
+    }
+    fn zahl(k: &mut Kern, s: i32, f: &str, v: f64) {
+        let ts = typ(k, "Schall");
+        let fe = feld(k, ts, f);
+        assert_eq!(k.setze_zahl(s, fe, v), 0, "{} = {}", f, v);
+    }
+    fn lies(k: &mut Kern, s: i32, f: &str) -> f64 {
+        let ts = typ(k, "Schall");
+        let fe = feld(k, ts, f);
+        k.hole_zahl(s, fe)
+    }
+    /// bild + Klangbild als Einträge zu je 7 Zahlen
+    fn klangbild(k: &mut Kern, nr: i32) -> Vec<[f64; 7]> {
+        k.bild(nr);
+        let mut v = vec![0.0; 64];
+        let n = k.klangbild(&mut v) as usize;
+        assert!(n <= v.len() && n % 7 == 0);
+        // wiederholtes Lesen liefert dasselbe; zu kleiner Puffer → nur die Länge (Retry)
+        let mut w = vec![0.0; 64];
+        assert_eq!(k.klangbild(&mut w) as usize, n);
+        assert_eq!(v[..n], w[..n]);
+        if n > 0 {
+            let mut klein = vec![-1.0; n - 1];
+            assert_eq!(k.klangbild(&mut klein) as usize, n);
+            assert!(klein.iter().all(|x| *x == -1.0));
+        }
+        v[..n].chunks(7).map(|c| [c[0], c[1], c[2], c[3], c[4], c[5], c[6]]).collect()
+    }
+    fn r(x: f64) -> f64 {
+        libm::floor(x * 1024.0 + 0.5) / 1024.0
+    }
+
+    #[test]
+    fn feldtyp_klang_prueft_ganzzahlen() {
+        let (mut k, _, s) = aufbau(true, 0.0, 0.0, 0.0, 7.0);
+        let ts = typ(&mut k, "Schall");
+        let fk = feld(&mut k, ts, "klang");
+        assert_eq!(k.hole_zahl(s, fk), 7.0);
+        for falsch in [1.5, -1.0, f64::NAN, 5e9] {
+            assert!(k.setze_zahl(s, fk, falsch) < 0);
+            assert!(k.fehler_text().contains("braucht einen Klang"), "{}", k.fehler_text());
+            k.fehler_neu();
+        }
+        assert_eq!(k.setze_zahl(s, fk, 0.0), 0);
+        let j = crate::abi::schema_json(false);
+        assert!(j.contains("{\"nummer\": 13, \"name\": \"klang\", \"erwartet\": \"einen Klang\"}"), "{}", &j[..400]);
+        assert!(j.contains("\"name\": \"klang\", \"typ\": \"klang\", \"standard\": null"));
+        // Lesefelder lassen sich nicht setzen
+        let fp = feld(&mut k, ts, "pegel");
+        assert!(k.setze_zahl(s, fp, 1.0) < 0);
+        k.fehler_neu();
+    }
+
+    #[test]
+    fn pegel_und_panorama_an_der_kamera() {
+        // Standard-Kamera (Teil 1) bei (0, 3, 8), Rechts-Achse +x
+        let (mut k, t, s) = aufbau(true, 4.0, 3.0, 8.0, 7.0);
+        let soll = r((26.0f64 / 29.0) * (26.0 / 29.0));
+        assert_eq!(lies(&mut k, s, "pegel"), soll);
+        assert_eq!(lies(&mut k, s, "panorama"), 1.0);
+        // links, halbe Lautstärke
+        k.teil_lage(t, -4.0, 3.0, 8.0);
+        zahl(&mut k, s, "lautstaerke", 0.5);
+        assert_eq!(lies(&mut k, s, "pegel"), r(0.5 * (26.0 / 29.0) * (26.0 / 29.0)));
+        assert_eq!(lies(&mut k, s, "panorama"), -1.0);
+        // innerhalb von nah: voll, Panorama weich zur Mitte
+        zahl(&mut k, s, "lautstaerke", 1.0);
+        zahl(&mut k, s, "nah", 2.0);
+        k.teil_lage(t, 1.0, 3.0, 8.0);
+        assert_eq!((lies(&mut k, s, "pegel"), lies(&mut k, s, "panorama")), (1.0, 0.5));
+        // am Ort des Hörers: Mitte; ab weite stumm
+        k.teil_lage(t, 0.0, 3.0, 8.0);
+        assert_eq!((lies(&mut k, s, "pegel"), lies(&mut k, s, "panorama")), (1.0, 0.0));
+        k.teil_lage(t, 0.0, 3.0, 38.0);
+        assert_eq!(lies(&mut k, s, "pegel"), 0.0);
+        // eigene Kamera: schaut entlang +x → Rechts-Achse +z (die Standard-Kamera, Teil 1, ist aus)
+        let kt = k.teil_neu(3);
+        k.teil_lage(kt, 0.0, 0.0, 0.0);
+        k.teil_schaue(kt, 10.0, 0.0, 0.0);
+        let tk = typ(&mut k, "Kamera");
+        let kk = k.komp_neu(tk);
+        k.komp_haenge(kk, kt);
+        let fa = feld(&mut k, tk, "aktiv");
+        let k1 = k.komp_von(1, tk);
+        assert_eq!(k.setze_zahl(k1, fa, 0.0), 0);
+        k.teil_lage(t, 0.0, 0.0, 5.0);
+        zahl(&mut k, s, "nah", 1.0);
+        assert_eq!(lies(&mut k, s, "panorama"), 1.0);
+        assert_eq!(lies(&mut k, s, "pegel"), r((25.0f64 / 29.0) * (25.0 / 29.0)));
+    }
+
+    #[test]
+    fn klangbild_start_raum_stopp() {
+        let (mut k, t, s) = aufbau(true, 4.0, 3.0, 8.0, 7.0);
+        let hash0 = k.hash_szene();
+        let p0 = r((26.0f64 / 29.0) * (26.0 / 29.0));
+        assert_eq!(klangbild(&mut k, 0), vec![[1.0, s as f64, 7.0, p0, 1.0, 1.0, 1.0]]);
+        // das Klangbild ändert den Szenen-Hash nicht
+        assert_eq!(k.hash_szene(), hash0);
+        // unverändert → leer
+        k.takt();
+        assert!(klangbild(&mut k, 1).is_empty());
+        // Lage, Tonhöhe → raum
+        k.teil_lage(t, -4.0, 3.0, 8.0);
+        zahl(&mut k, s, "tonhoehe", 2.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 2), vec![[2.0, s as f64, 7.0, p0, -1.0, 2.0, 1.0]]);
+        // spielt nein → stopp; ja → start (Schleife aus gilt ab dem Start)
+        zahl(&mut k, s, "spielt", 0.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 3), vec![[3.0, s as f64, 7.0, p0, -1.0, 2.0, 0.0]]);
+        zahl(&mut k, s, "spielt", 1.0);
+        zahl(&mut k, s, "schleife", 0.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 4), vec![[1.0, s as f64, 7.0, p0, -1.0, 2.0, 0.0]]);
+        // nein → ja zwischen zwei Bildern (zwei Takte): Neustart von vorn
+        zahl(&mut k, s, "spielt", 0.0);
+        k.takt();
+        zahl(&mut k, s, "spielt", 1.0);
+        k.takt();
+        let e = klangbild(&mut k, 5);
+        assert_eq!(e.iter().map(|x| x[0]).collect::<Vec<_>>(), vec![3.0, 1.0]);
+        // anderer Klang → stopp + start
+        zahl(&mut k, s, "klang", 9.0);
+        k.takt();
+        let e = klangbild(&mut k, 6);
+        assert_eq!((e[0][0], e[0][2], e[1][0], e[1][2]), (3.0, 7.0, 1.0, 9.0));
+        // Klang 0 → stopp, Teil entfernt → stopp (die Komponente ist weg)
+        zahl(&mut k, s, "klang", 0.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 7)[0][0], 3.0);
+        zahl(&mut k, s, "klang", 9.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 8)[0][0], 1.0);
+        assert_eq!(k.teil_entferne(t), 0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 9), vec![[3.0, s as f64, 9.0, p0, -1.0, 2.0, 0.0]]);
+        k.takt();
+        assert!(klangbild(&mut k, 10).is_empty());
+    }
+
+    #[test]
+    fn klangbild_nach_handle_und_ruhe() {
+        let (mut k, t, s) = aufbau(true, 0.0, 3.0, 8.0, 3.0);
+        let t2 = k.teil_neu(3);
+        let ts = typ(&mut k, "Schall");
+        let s2 = k.komp_neu(ts);
+        zahl(&mut k, s2, "klang", 4.0);
+        k.komp_haenge(s2, t2);
+        let e = klangbild(&mut k, 0);
+        assert_eq!(e.iter().map(|x| (x[0], x[1])).collect::<Vec<_>>(), vec![(1.0, s as f64), (1.0, s2 as f64)]);
+        // ruhendes Teil (Vorlage) → stopp, wieder wach → start
+        let tv = typ(&mut k, "Vorlage");
+        let v = k.komp_neu(tv);
+        k.komp_haenge(v, t);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 1), vec![[3.0, s as f64, 3.0, 1.0, 0.0, 1.0, 0.0]]);
+        k.komp_loese(v);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 2)[0][..2], [1.0, s as f64]);
+        // gelöster Schall → stopp
+        k.komp_loese(s2);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 3)[0][..2], [3.0, s2 as f64]);
+    }
+
+    #[test]
+    fn zwei_d_spielfeld_und_blick() {
+        // Spielfeld 640 × 360: Hörer in der Mitte (320, 180)
+        let (mut k, _, s) = aufbau(false, 420.0, 180.0, 0.0, 5.0);
+        zahl(&mut k, s, "weite", 400.0);
+        assert_eq!(lies(&mut k, s, "pegel"), r((300.0f64 / 399.0) * (300.0 / 399.0)));
+        assert_eq!(lies(&mut k, s, "panorama"), 1.0);
+        // Blick auf (420, 100): Quelle genau darunter → Mitte; gedrehter Blick dreht die Rechts-Achse
+        let bt = k.teil_neu(2);
+        k.teil_lage(bt, 420.0, 100.0, 0.0);
+        let tb = typ(&mut k, "Blick");
+        let b = k.komp_neu(tb);
+        k.komp_haenge(b, bt);
+        assert_eq!(lies(&mut k, s, "panorama"), 0.0);
+        assert_eq!(lies(&mut k, s, "pegel"), r((320.0f64 / 399.0) * (320.0 / 399.0)));
+        k.teil_setze(bt, tf::DREHUNG, 90.0);
+        let p = lies(&mut k, s, "panorama");
+        assert!(p == 1.0 || p == -1.0, "{}", p);
+        let e = klangbild(&mut k, 0);
+        assert_eq!(e[0][0..5], [1.0, s as f64, 5.0, r((320.0f64 / 399.0) * (320.0 / 399.0)), p]);
+    }
+
+    #[test]
+    fn stumm_hinter_weite_ohne_raum() {
+        // hinter weite: Pegel 0 – ein wanderndes Panorama meldet nichts, bis der Schall wieder hörbar wird
+        let (mut k, t, s) = aufbau(true, 0.0, 3.0, -40.0, 7.0);
+        assert_eq!(klangbild(&mut k, 0), vec![[1.0, s as f64, 7.0, 0.0, 0.0, 1.0, 1.0]]);
+        k.teil_lage(t, 40.0, 3.0, 8.0);
+        k.takt();
+        assert!(klangbild(&mut k, 1).is_empty());
+        k.teil_lage(t, 10.0, 3.0, 8.0);
+        k.takt();
+        assert_eq!(klangbild(&mut k, 2), vec![[2.0, s as f64, 7.0, r((20.0f64 / 29.0) * (20.0 / 29.0)), 1.0, 1.0, 1.0]]);
     }
 }

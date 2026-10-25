@@ -23,6 +23,8 @@ pub enum Typ {
     TeilListe,
     /// Blech aus Zahlen (f64, Einfügereihenfolge) – H-K0
     ZahlListe,
+    /// Klang (H-K22): Klang-ID des Klang-Erzeugers (0 = keiner); der Kern prüft nur „ganz ≥ 0“, den Typ prüft die Laufzeit
+    Klang,
     /// verborgene Zahl (Systemzustand)
     Intern,
     /// verborgener Zahlenpuffer je Komponente (z. B. Teilchen)
@@ -30,7 +32,7 @@ pub enum Typ {
 }
 
 /// Alle öffentlichen Feldtypen in Schema-Reihenfolge (Nummer = Position + 1; neue Typen nur hinten anhängen).
-pub const FELDTYPEN: [Typ; 12] = [
+pub const FELDTYPEN: [Typ; 13] = [
     Typ::Zahl,
     Typ::Ganz,
     Typ::Diavolo,
@@ -43,6 +45,7 @@ pub const FELDTYPEN: [Typ; 12] = [
     Typ::BildchenListe,
     Typ::TeilListe,
     Typ::ZahlListe,
+    Typ::Klang,
 ];
 
 /// Höchstzahl der Einträge einer `teil-liste`/`zahl-liste`.
@@ -63,6 +66,7 @@ impl Typ {
             Typ::BildchenListe => "bildchen-liste",
             Typ::TeilListe => "teil-liste",
             Typ::ZahlListe => "zahl-liste",
+            Typ::Klang => "klang",
             Typ::Intern => "intern",
             Typ::Puffer => "puffer",
         }
@@ -81,6 +85,7 @@ impl Typ {
             Typ::BildchenListe => "ein Blech aus Bildchen",
             Typ::TeilListe => "ein Blech aus Teilen",
             Typ::ZahlListe => "ein Blech aus Zahlen",
+            Typ::Klang => "einen Klang",
             Typ::Intern | Typ::Puffer => "nichts",
         }
     }
@@ -89,7 +94,7 @@ impl Typ {
     }
     /// Wird als Zahl gespeichert (Spalte `Zahl`).
     pub fn zahlartig(self) -> bool {
-        matches!(self, Typ::Zahl | Typ::Ganz | Typ::Diavolo | Typ::Wahl | Typ::Teil | Typ::Form | Typ::Bildchen | Typ::Intern)
+        matches!(self, Typ::Zahl | Typ::Ganz | Typ::Diavolo | Typ::Wahl | Typ::Teil | Typ::Form | Typ::Bildchen | Typ::Klang | Typ::Intern)
     }
     /// Nummer im Schema (1 …), `FELDTYPEN`-Reihenfolge; verborgene 0.
     pub fn nummer(self) -> u32 {
@@ -183,6 +188,9 @@ impl Feld {
     /// Blech aus Zahlen (Standard: leer; `min`/`max` gelten je Eintrag).
     pub const fn zahl_liste(name: &'static str) -> Feld {
         Feld::neu(name, Typ::ZahlListe)
+    }
+    pub const fn klang(name: &'static str) -> Feld {
+        Feld::neu(name, Typ::Klang)
     }
     pub const fn intern(name: &'static str, standard: f64) -> Feld {
         Feld { zahl: standard, ..Feld::neu(name, Typ::Intern) }

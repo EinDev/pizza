@@ -45,6 +45,7 @@ pub mod vorlage;
 pub mod kulisse;
 pub mod etikett;
 pub mod puppe;
+pub mod schall;
 #[cfg(any(test, feature = "probe"))]
 pub mod probe;
 
@@ -184,6 +185,7 @@ pub static ARTEN: &[&Art] = &[
     &strahl::ART,
     &etikett::ART,
     &puppe::ART,
+    &schall::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

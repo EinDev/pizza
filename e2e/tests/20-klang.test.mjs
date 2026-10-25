@@ -109,8 +109,12 @@ e2e("Klang: Wiedergabe über OfflineAudioContext – Panorama links, Raum rechts
       mitte: await window.__klangOffline(pcm, sp({})),
       raumRechts: await window.__klangOffline(pcm, [...sp({}), setze([3, 0, 0], 30)]),
       zuWeit: await window.__klangOffline(pcm, [...sp({}), setze([0, 0, -50], 30)]),
+      // H-K22 Schall: „raum“ setzt Pegel und Panorama direkt (vom Kern am Hörer gerechnet)
+      schallRechts: await window.__klangOffline(pcm, [...sp({}), { art: "raum", spur: 1, lautstaerke: 0.5, tonhoehe: 1, panorama: 1 }]),
     };
   });
+  assert.ok(r.schallRechts.rechts > 0.05 && r.schallRechts.links < 0.01, "raum: nur rechts: " + JSON.stringify(r.schallRechts));
+  assert.ok(r.schallRechts.rechts < r.links.links, "raum: halber Pegel leiser");
   assert.ok(r.links.links > 0.1 && r.links.rechts < 0.01, "Panorama −1 = nur links: " + JSON.stringify(r.links));
   assert.ok(Math.abs(r.mitte.links - r.mitte.rechts) < 0.01 && r.mitte.links > 0.1, "Mitte gleich laut: " + JSON.stringify(r.mitte));
   assert.ok(r.raumRechts.rechts > r.raumRechts.links * 3, "Quelle rechts vom Hörer: " + JSON.stringify(r.raumRechts));

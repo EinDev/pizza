@@ -79,6 +79,10 @@ static mut SPUR_NR: u32 = 0;
 static mut WARTE: Vec<(Vec<u8>, i32)> = Vec::new();
 /// Spuren mit beimEnde, nach Nummer
 static mut ENDEN: Vec<W> = Vec::new();
+/// H-K22: Klang-ID → Klang (Feldtyp `klang`), Index = ID
+static mut KLAENGE: Vec<W> = Vec::new();
+/// H-K22: Schall-Handle → Spur (aus dem Klangbild des Kerns)
+static mut SCHALL: Vec<(u32, W)> = Vec::new();
 
 fn nid(s: &str) -> u32 { name_id(neu_str(s)) }
 fn tab(t: &mut Vec<u8>, namen: &[&str]) {
@@ -162,7 +166,13 @@ fn klang_neu(r: i32) -> W {
         k_hash(r, p);
         klang_lies(h.as_mut_ptr(), p, 16);
     }
-    neu_w(KObj { art: A_KLANG, id: r as u32, dauer: unsafe { k_dauer(r) }, hash: h })
+    let o = neu_w(KObj { art: A_KLANG, id: r as u32, dauer: unsafe { k_dauer(r) }, hash: h });
+    unsafe {
+        let i = r as usize;
+        if KLAENGE.len() <= i { KLAENGE.resize(i + 1, KARTON); }
+        KLAENGE[i] = o;
+    }
+    o
 }
 
 // ---------------------------------------------------------------- Argumente
@@ -420,6 +430,11 @@ fn spiele(o: W, pos: &[W], ben: &Ben) -> W {
     let ton = match bereich("spiele", "eine Tonhöhe", ton, 0.125, 8.0) { Some(x) => x, None => return KARTON };
     let pan = match zahl_arg(argn(pos, ben, 3, "panorama"), "spiele", "panorama", Some(0.0)) { Some(x) => x, None => return KARTON };
     let pan = match bereich("spiele", "ein Panorama", pan, -1.0, 1.0) { Some(x) => x, None => return KARTON };
+    spur_neu(o, laut, ton, pan, schleife)
+}
+
+/// Neue Spur von Klang `o` und Ereignis „spiele“ (k.spiele und Schall-Start)
+fn spur_neu(o: W, laut: f64, ton: f64, pan: f64, schleife: bool) -> W {
     let k = obj::<KObj>(o);
     let nr = unsafe { SPUR_NR += 1; SPUR_NR };
     let start = jetzt();
@@ -521,5 +536,65 @@ pub fn ende_phase(knoten: i32) {
     for &w in faellig.iter() {
         rufe(obj::<SObj>(w).ende_fn, &[], &[], knoten);
         if sig() || crate::herd::schliessen_angefordert() { return; }
+    }
+}
+
+// ---------------------------------------------------------------- Schall (H-K22): Feldtyp klang, Klangbild → Spuren
+/// Erzeuger geladen? (dann kann es Klänge und damit laufende Schalle geben)
+pub fn geladen() -> bool { unsafe { ZUSTAND_K == 1 } }
+/// Klang-ID eines Klangs (Feldtyp `klang`), None = kein Klang
+pub fn klang_id(v: W) -> Option<u32> { if art(v) == A_KLANG { Some(obj::<KObj>(v).id) } else { None } }
+/// Klang zur ID (Feldtyp `klang` lesen), KARTON = unbekannt
+pub fn klang_von_id(id: u32) -> W { unsafe { KLAENGE.get(id as usize).copied().unwrap_or(KARTON) } }
+/// Klangbild des letzten Herd-Bilds (je Eintrag art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID, Pegel, Panorama, Tonhöhe,
+/// Schleife) → eigene Spuren je Schall, Ereignisse spiele/raum/stoppe; raum nur, solange die Spur läuft. Spiegel des
+/// Interpreters (klang/kern.js schallBild).
+pub fn schall_bild() {
+    let Some(z) = crate::herd::klangbild_lesen() else { return };
+    let mut i = 0;
+    while i + 7 <= z.len() {
+        let (a, h, id, laut, pan, ton, schleife) = (z[i], z[i + 1] as u32, z[i + 2], z[i + 3], z[i + 4], z[i + 5], z[i + 6] != 0.0);
+        i += 7;
+        if a == 1.0 {
+            let o = klang_von_id(id as u32);
+            if o == KARTON { continue; }
+            let s = spur_neu(o, laut, ton, pan, schleife);
+            unsafe {
+                match SCHALL.iter().position(|x| x.0 == h) { Some(p) => SCHALL[p].1 = s, None => SCHALL.push((h, s)) }
+            }
+            continue;
+        }
+        let Some(p) = (unsafe { SCHALL.iter().position(|x| x.0 == h) }) else { continue };
+        let o = unsafe { SCHALL[p].1 };
+        let s = obj::<SObj>(o);
+        if a == 2.0 {
+            let j = jetzt();
+            if s.schleife == 0 && s.gestoppt == 0 && j < s.ende { s.ende = j + (s.ende - j) * s.ton / ton; }
+            s.ton = ton;
+            s.laut = laut;
+            s.pan = pan;
+            if laeuft(s) {
+                let mut b: Vec<u8> = Vec::from(&b"{\"art\":\"raum\",\"spur\":"[..]);
+                jz(s.nr as f64, &mut b);
+                b.extend_from_slice(b",\"lautstaerke\":");
+                jz(laut, &mut b);
+                b.extend_from_slice(b",\"tonhoehe\":");
+                jz(ton, &mut b);
+                b.extend_from_slice(b",\"panorama\":");
+                jz(pan, &mut b);
+                b.push(b'}');
+                senden(b, 0);
+            }
+        } else if a == 3.0 {
+            unsafe { SCHALL.remove(p); }
+            let lief = laeuft(s);
+            s.gestoppt = 1;
+            if lief {
+                let mut b: Vec<u8> = Vec::from(&b"{\"art\":\"stoppe\",\"spur\":"[..]);
+                jz(s.nr as f64, &mut b);
+                b.push(b'}');
+                senden(b, 0);
+            }
+        }
     }
 }

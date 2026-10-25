@@ -1,0 +1,31 @@
+// Herd §18.6 / HERD.md §13.3 H-K22: Schall – Raumklang am Teil. Hörer = aktive Kamera (Standard bei (0, 3, 8), Blick auf
+// den Ursprung); je Bild meldet der Kern Start, Raum (Pegel/Panorama/Tonhöhe) und Stopp, die Laufzeit macht Spuren daraus
+// (Ereignisse spiele/raum/stoppe in .klang-erwartet). Feldtyp klang, Lesefelder pegel/panorama, Fehler und Standardwerte.
+Herd herd = neu Herd("Schall", breite: 160, hoehe: 90);
+Klang brumm = Klang.ton(110, 0.5, welle: "saege", lautstaerke: 0.3).tiefpass(800).nahtlos(0.05);
+Klang ping = Klang.ton(880, 0.05, welle: "dreieck");
+Schall vorgabe = neu Schall();
+Bote.sage((vorgabe + " " + vorgabe.klang() + " " + vorgabe.lautstaerke() + " " + vorgabe.schleife() + " " + vorgabe.spielt() + " "
+    + vorgabe.nah() + " " + vorgabe.weite() + " " + vorgabe.tonhoehe()));
+probier { vorgabe.setzeKlang(5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { vorgabe.setzeTonhoehe(8); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { vorgabe.setzePegel(1); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+// ein Bote läuft von links nach rechts an der Kamera vorbei, er brummt (Schleife)
+Teil bote = herd.koerper(Form.kugel(), -12, 3, 4, farbe: "tomate");
+Schall s = bote.mit(neu Schall(klang: brumm, weite: 20, nah: 2));
+Bote.sage(("Klang: " + (s.klang() == brumm) + ", Pegel " + s.pegel() + ", Panorama " + s.panorama()));
+// eine Glocke ohne Schleife rechts vorn, erst stumm, startet in Bild 3
+Teil glocke = herd.koerper(Form.kugel(), 3, 3, 6, farbe: "senf");
+Schall g = glocke.mit(neu Schall(klang: ping, schleife: nein, spielt: nein, lautstaerke: 0.8));
+herd.backe(() -> {
+    salami b = herd.bildnummer();
+    falls (!bote.entfernt()) { bote.verschiebe(2, 0, 0); }
+    falls (b == 3) { g.setzeSpielt(ja); }
+    falls (b == 6) { s.setzeTonhoehe(1.25).setzeLautstaerke(0.5); }
+    falls (b == 8) { s.setzeSpielt(nein); }
+    falls (b == 9) { s.setzeSpielt(ja); }
+    falls (b == 10) { Bote.sage(("Bild 10: Pegel " + s.pegel() + ", Panorama " + s.panorama() + ", Glocke " + g.pegel() + " " + g.panorama())); }
+    falls (b == 11) { bote.entferne(); }
+    falls (b == 13) { herd.schliesse(); }
+});
+Bote.sage(("fertig"));

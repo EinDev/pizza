@@ -671,7 +671,7 @@ pub const TEIG_MAGIE: [u8; 8] = *b"TEIGKLNG";
 /// Kopf des Klangteigs in Bytes.
 pub const TEIG_KOPF: usize = 64;
 /// Text für alles, was kein (gültiger) Klangteig ist – gleich dem Fehler-Klangteig Code 1 des Vorbackers.
-pub const KEIN_KLANG: &str = "ist kein lesbarer Klang (WAV oder FLAC).";
+pub const KEIN_KLANG: &str = "ist kein lesbarer Klang (WAV, FLAC oder OGG).";
 
 fn u16_bei(t: &[u8], i: usize) -> Option<u16> {
     Some(u16::from_le_bytes([*t.get(i)?, *t.get(i + 1)?]))

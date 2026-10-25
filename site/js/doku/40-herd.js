@@ -348,6 +348,7 @@
                 ["`Strahl`","3D","`richtungX`/`richtungZ` 0, `richtungY` −1, `achsen` welt, `laenge` 1000, `maske` alle, `ausloeser` nein, `ausMaus` nein; nur lesen: `getroffen`, `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`","Strahl-Abfrage: was liegt in einer Richtung (oder unter der Maus)? Beim Lesen gerechnet, trifft Fühler-Formen; nach unten gerichtet die Höhe über einem Gelände"],
                 ["`Etikett`","beide","`name` \"\"","Name eines Teils: `herd.modell` setzt ihn je Knoten eines 3D-Modells; `teil.finde(name)` sucht ihn im Teilbaum"],
                 ["`Puppe`","3D","`folge` \"\", `tempo` 1, `schleife` ja, `zeit` 0, `laeuft` ja, `blende` 0.2; nur lesen: `dauer`, `fertig`","Spielt die Animationen (Folgen) eines Modells aus `herd.modell` ab und blendet beim Wechsel über; die Knoten bleiben Teile, an die man etwas hängen kann"],
+                ["`Schall`","beide","`klang` karton, `lautstaerke` 1, `schleife` ja, `spielt` ja, `nah` 1, `weite` 30, `tonhoehe` 1; nur lesen: `pegel`, `panorama`","Raumklang am Teil: spielt einen Klang dort, wo das Teil ist, gehört an der aktiven Kamera bzw. am Blick"],
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1500,6 +1501,29 @@
               )
             },
             { art: "text", md: "- Geladene Klänge spielst du wie erzeugte: `spiele(lautstaerke, schleife, tonhoehe, panorama)`, die Spur kann `setzeLage` (Raum) und `beimEnde`. **Formen** (`huelle`, `tiefpass`, `mische` …) gehen nur mit erzeugten Klängen – gemischt wird, indem mehrere Spuren zugleich laufen.\n- Fehler kommen mit dem Pfad: `klaenge/x.wav ist kein lesbarer Klang (WAV, FLAC oder OGG).`, `… ist zu lang (12:30) – höchstens 10 Minuten.`, `… hat 6 Kanäle – höchstens 2 (Mono oder Stereo).`\n- Alle Klänge eines Projekts zusammen dürfen vorgebacken höchstens 64 MB groß sein (`PizzaFehler P0021`); MP3 und Opus gehen (noch) nicht – wandle sie z. B. mit Audacity in FLAC oder OGG Vorbis.\n- Ausprobieren: **Geräuschkiste** unter *Beispiele → Herd* (freie CC0-Geräusche von Freesound)." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Raumklang: Schall",
+          inhalt: [
+            { art: "text", md: "Ein **`Schall`** hängt einen Klang an ein Teil und spielt ihn dort – das Teil darf sich bewegen, der Klang folgt von selbst (kein `setzeLage` je Bild). Gehört wird an der **aktiven Kamera** (in 2D: in der Mitte des aktiven Blicks bzw. des Spielfelds): bis `nah` voll, ab `weite` still, dazwischen leiser im Quadrat; das Panorama kommt aus der Richtung zur Quelle. `lautstaerke`, `tonhoehe` und `schleife` wirken wie bei `spiele`, `spielt` nein hält an, nein → ja spielt von vorn. `pegel` und `panorama` zeigen, was gerade ankommt." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Herd herd = neu Herd(\"Platz\");",
+                "Klang wasser = Klang.rauschen(2, art: \"rosa\").hochpass(400).tiefpass(5000).nahtlos(0.3);",
+                "Teil brunnen = herd.koerper(Form.zylinder(), 0, 0.5, -5);",
+                "Schall s = brunnen.mit(neu Schall(klang: wasser, nah: 1.5, weite: 22));",
+                "herd.backe(() -> {",
+                "  herd.kamera().verschiebe(-0.05, 0, 0);          // der Brunnen wandert von links nach rechts",
+                "  falls (herd.gedrueckt(\"Leertaste\")) { s.setzeSpielt(!s.spielt()); }",
+                "});"
+              )
+            },
+            { art: "text", md: "- Der Herd rechnet Pegel und Panorama selbst (auf 1/1024 gerastet) und meldet je Bild nur Änderungen – in allen Motoren gleich; als Ereignisse erscheinen `spiele`, `raum` und `stoppe` (SPEC §18.8).\n- Ein entferntes oder ruhendes Teil verstummt, ein anderer `klang` startet neu. In 2D zählen Pixel – wähle `weite` dort passend groß (z. B. 400).\n- Kein Doppler und kein Hall; für Klänge ohne Ort bleibt `spiele` (mit `panorama`).\n\nZum Ausprobieren: der **Brunnenplatz** unter *Beispiele → Herd*." }
           ]
         },
         {

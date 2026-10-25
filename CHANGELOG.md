@@ -66,6 +66,9 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
   und Schleifen; `k.spiele()` liefert eine Spur mit Lautstärke, Tonhöhe, Panorama und Lage im Raum (Hörer = Kamera). Die Erzeugung
   ist nativ und in Wasm bitgleich. Abgespielt wird über WebAudio bzw. waveOut/ALSA, ohne Gerät bleibt es stumm; getestet wird mit
   `.klang-erwartet`.
+- **Raumklang `Schall` (H-K22, K-164):** ein Klang am Teil (neuer Feldtyp `klang`) folgt dessen Lage von selbst; gehört wird an der
+  aktiven Kamera bzw. am Blick, Pegel und Panorama rechnet der Herd (gerastet, in allen Motoren gleich) und meldet sie als
+  Klang-Ereignis `raum`. Beispiel Brunnenplatz.
 - **Eingabe:** Mausfang (Pointer Lock) mit relativer Bewegung, Mausrad und Modifikatortasten (K-155) – Steuerung wie in einem
   Ego-Shooter.
 - **Gleichmäßige Bilder:** VSync (Fifo), Pipelines vorab, Takt-Uhr ab dem ersten gezeigten Bild; im Browser kommt der Takt zum

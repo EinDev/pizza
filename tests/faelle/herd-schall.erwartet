@@ -1,0 +1,7 @@
+Schall() karton 1 ja ja 1 30 1
+TypAnanas: Schall.klang braucht einen Klang, nicht 5.
+LaufzeitAnanas: Schall.tonhoehe muss zwischen 0.25 und 4 liegen, nicht 8.
+LaufzeitAnanas: Schall.pegel kann man nur lesen.
+Klang: ja, Pegel 0.1669921875, Panorama -0.9482421875
+Bild 10: Pegel 0.1884765625, Panorama 0.89453125, Glocke 0.6630859375 0.83203125
+fertig

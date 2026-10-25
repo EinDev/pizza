@@ -1,0 +1,112 @@
+# H-K22 (HERD.md §13.3): Schall – Raumklang. N Schalle in 3D an bewegten Teilen (Bewegung) vor einer eigenen, wandernden
+# Kamera, dazu M Schalle in 2D unter einem gedrehten, zoomenden Blick; spielt aus/an, Klang-Wechsel, Ruhe (Vorlage) und
+# entfernte Teile. Je Bild das Klangbild (Pegel/Panorama gerastet, libm::sqrt/floor) und Lesefelder – nativ = kern.wasm.
+vorgabe N 200
+vorgabe M 40
+vorgabe TAKTE 12
+welt_neu 640 360 "Schall"
+typ_nummer "Schall" -> T_S
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Kamera" -> T_KA
+typ_nummer "Blick" -> T_B
+typ_nummer "Vorlage" -> T_V
+feld_nummer T_S "klang" -> S_KLANG
+feld_nummer T_S "lautstaerke" -> S_LAUT
+feld_nummer T_S "schleife" -> S_SCHL
+feld_nummer T_S "spielt" -> S_SPIELT
+feld_nummer T_S "nah" -> S_NAH
+feld_nummer T_S "weite" -> S_WEITE
+feld_nummer T_S "tonhoehe" -> S_TON
+feld_nummer T_S "pegel" -> S_PEGEL
+feld_nummer T_S "panorama" -> S_PAN
+feld_nummer T_BEW "tempoX" -> BEW_X
+feld_nummer T_BEW "tempoZ" -> BEW_Z
+feld_nummer T_B "zoom" -> B_ZOOM
+# Fehler: kein ganzzahliger Klang, Lesefeld
+komp_neu T_S -> probe
+setze_zahl probe S_KLANG 1.5
+fehler_text
+setze_zahl probe S_PEGEL 1
+fehler_text
+# eigene Kamera, schräg
+teil_neu 3 -> kam
+teil_lage kam 2 4 16
+teil_schaue kam 0 0 0
+komp_neu T_KA -> ka
+komp_haenge ka kam
+komp_neu T_BEW -> kb
+setze_zahl kb BEW_X -1.5
+komp_haenge kb kam
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t (i * 0.37 - 30) (i % 7) (i % 11 - 5)
+  komp_neu T_S -> s
+  setze_zahl s S_KLANG (i % 5 + 1)
+  setze_zahl s S_NAH (i % 3)
+  setze_zahl s S_WEITE (10 + i % 40)
+  setze_zahl s S_LAUT (0.25 + (i % 8) * 0.2)
+  setze_zahl s S_TON (0.5 + (i % 6) * 0.25)
+  setze_zahl s S_SCHL (i % 2)
+  komp_haenge s t
+  komp_neu T_BEW -> b
+  setze_zahl b BEW_X (i % 9 - 4)
+  setze_zahl b BEW_Z (i % 4 - 2)
+  komp_haenge b t
+ende
+# 2D unter einem Blick
+teil_neu 2 -> bt
+teil_lage bt 300 200 0
+teil_setze bt 4 30
+komp_neu T_B -> bl
+setze_zahl bl B_ZOOM 1.5
+komp_haenge bl bt
+wiederhole M i
+  teil_neu 2 -> t
+  teil_lage t (i * 17) (i * 9 % 360) 0
+  komp_neu T_S -> s
+  setze_zahl s S_KLANG 7
+  setze_zahl s S_WEITE 400
+  setze_zahl s S_NAH (i % 4 * 10)
+  komp_haenge s t
+ende
+# Sonderfälle an festen Schallen
+teil_neu 3 -> A
+teil_lage A 1 0 0
+komp_neu T_S -> SA
+setze_zahl SA S_KLANG 9
+komp_haenge SA A
+teil_neu 3 -> R
+komp_neu T_S -> SR
+setze_zahl SR S_KLANG 10
+komp_haenge SR R
+bild
+klangbild
+hole_zahl SA S_PEGEL
+hole_zahl SA S_PAN
+wiederhole TAKTE j
+  takt
+  bild
+  klangbild
+  hole_zahl SA S_PEGEL
+  hole_zahl SA S_PAN
+ende
+# spielt aus, zwei Takte, an → Neustart; Klang-Wechsel; Ruhe; entfernt
+setze_zahl SA S_SPIELT 0
+takt
+setze_zahl SA S_SPIELT 1
+takt
+setze_zahl SR S_KLANG 11
+komp_neu T_V -> V
+komp_haenge V R
+bild
+klangbild
+komp_loese V
+teil_entferne A
+takt
+bild
+klangbild
+setze_zahl bl B_ZOOM 0.5
+teil_setze bt 4 -60
+takte TAKTE
+bild
+klangbild

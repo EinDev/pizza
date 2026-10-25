@@ -1,6 +1,6 @@
 {
   "format": "herd-schema/1",
-  "feldtypen": [{"nummer": 1, "name": "zahl", "erwartet": "eine Zahl"}, {"nummer": 2, "name": "ganz", "erwartet": "eine Ganzzahl"}, {"nummer": 3, "name": "diavolo", "erwartet": "ja/nein"}, {"nummer": 4, "name": "text", "erwartet": "einen Text"}, {"nummer": 5, "name": "wahl", "erwartet": "einen Text"}, {"nummer": 6, "name": "farbe", "erwartet": "eine Farbe"}, {"nummer": 7, "name": "teil", "erwartet": "ein Teil"}, {"nummer": 8, "name": "form", "erwartet": "eine Form"}, {"nummer": 9, "name": "bildchen", "erwartet": "ein Bildchen"}, {"nummer": 10, "name": "bildchen-liste", "erwartet": "ein Blech aus Bildchen"}, {"nummer": 11, "name": "teil-liste", "erwartet": "ein Blech aus Teilen"}, {"nummer": 12, "name": "zahl-liste", "erwartet": "ein Blech aus Zahlen"}],
+  "feldtypen": [{"nummer": 1, "name": "zahl", "erwartet": "eine Zahl"}, {"nummer": 2, "name": "ganz", "erwartet": "eine Ganzzahl"}, {"nummer": 3, "name": "diavolo", "erwartet": "ja/nein"}, {"nummer": 4, "name": "text", "erwartet": "einen Text"}, {"nummer": 5, "name": "wahl", "erwartet": "einen Text"}, {"nummer": 6, "name": "farbe", "erwartet": "eine Farbe"}, {"nummer": 7, "name": "teil", "erwartet": "ein Teil"}, {"nummer": 8, "name": "form", "erwartet": "eine Form"}, {"nummer": 9, "name": "bildchen", "erwartet": "ein Bildchen"}, {"nummer": 10, "name": "bildchen-liste", "erwartet": "ein Blech aus Bildchen"}, {"nummer": 11, "name": "teil-liste", "erwartet": "ein Blech aus Teilen"}, {"nummer": 12, "name": "zahl-liste", "erwartet": "ein Blech aus Zahlen"}, {"nummer": 13, "name": "klang", "erwartet": "einen Klang"}],
   "komponenten": [
     {"name": "Rechteck", "nummer": 1, "genus": "n", "raum": "2D", "braucht": [], "system": false, "felder": [
       {"nummer": 1, "name": "breite", "typ": "zahl", "standard": 10, "min": 0, "max": null},
@@ -355,7 +355,17 @@
       {"nummer": 5, "name": "laeuft", "typ": "diavolo", "standard": true, "min": null, "max": null},
       {"nummer": 6, "name": "blende", "typ": "zahl", "standard": 0.2, "min": 0, "max": null},
       {"nummer": 7, "name": "dauer", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true},
-      {"nummer": 8, "name": "fertig", "typ": "diavolo", "standard": false, "min": null, "max": null, "lesen": true}]}
+      {"nummer": 8, "name": "fertig", "typ": "diavolo", "standard": false, "min": null, "max": null, "lesen": true}]},
+    {"name": "Schall", "nummer": 37, "genus": "m", "raum": "beide", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "klang", "typ": "klang", "standard": null, "min": null, "max": null},
+      {"nummer": 2, "name": "lautstaerke", "typ": "zahl", "standard": 1, "min": 0, "max": 2},
+      {"nummer": 3, "name": "schleife", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 4, "name": "spielt", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 5, "name": "nah", "typ": "zahl", "standard": 1, "min": 0, "max": null},
+      {"nummer": 6, "name": "weite", "typ": "zahl", "standard": 30, "min": 0, "max": null},
+      {"nummer": 7, "name": "tonhoehe", "typ": "zahl", "standard": 1, "min": 0.25, "max": 4},
+      {"nummer": 8, "name": "pegel", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true},
+      {"nummer": 9, "name": "panorama", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}, {"nummer": 19, "name": "ruht"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "finde"],

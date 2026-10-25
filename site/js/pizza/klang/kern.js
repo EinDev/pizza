@@ -156,7 +156,42 @@ const KLANG_LAUFZEIT = {
   },
   klangNeu(id) {
     const k = this.kk;
-    return new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
+    const o = new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
+    this.klangIds.set(o.id, o);
+    return o;
+  },
+  // H-K22 Schall: Klangbild des letzten Herd-Bilds (je Eintrag art 1 start · 2 raum · 3 stopp, Komponente, Klang-ID, Pegel,
+  // Panorama, Tonhöhe, Schleife) → eigene Spuren je Schall (gleiche Nummernfolge wie spiele), Ereignisse spiele/raum/stoppe.
+  // raum nur, solange die Spur läuft (ein Klang ohne Schleife endet von selbst). Spiegel: laufzeit/src/klang.rs schall_bild.
+  schallBild() {
+    const e = this.hk.e;
+    const z = this.hk.liesZahlen((p, kap) => e.klangbild(p, kap));
+    if (z === null) return;
+    for (let i = 0; i + 7 <= z.length; i += 7) {
+      const art = z[i], h = z[i + 1], laut = z[i + 3], pan = z[i + 4], ton = z[i + 5];
+      if (art === 1) {
+        const k = this.klangIds.get(z[i + 2]);
+        if (k === undefined) continue;
+        const schleife = z[i + 6] !== 0;
+        const s = new KlangSpur(++this.klangSpurNr, k);
+        s.laut = laut; s.ton = ton; s.pan = pan; s.schleife = schleife;
+        s.start = this.klangJetzt();
+        s.ende = schleife ? Infinity : s.start + k.dauer / ton;
+        this.schallSpuren.set(h, s);
+        this.klangSende('spiele', { spur: s.nr, klang: k.hash, lautstaerke: laut, tonhoehe: ton, panorama: pan, schleife }, k.id);
+        continue;
+      }
+      const s = this.schallSpuren.get(h);
+      if (s === undefined) continue;
+      if (art === 2) {
+        this.klangTonhoehe(s, ton);
+        s.laut = laut; s.pan = pan;
+        if (this.klangLaeuft(s)) this.klangSende('raum', { spur: s.nr, lautstaerke: laut, tonhoehe: ton, panorama: pan }, 0);
+      } else if (art === 3) {
+        this.schallSpuren.delete(h);
+        this.klangStoppe(s);
+      }
+    }
   },
   klangText(v, wo, param, std) {
     if (v === undefined || v === null) { if (std !== undefined) return std; }
