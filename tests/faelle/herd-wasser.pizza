@@ -1,0 +1,36 @@
+// Herd §18.6 / HERD.md §13.3 H-K28: Wasser – Standardwerte, Kiste mit Auftrieb schwimmt auf ruhigem Wasser in der berechneten
+// Höhe, Wellenhöhe als Lesefeld (messX/messZ → messHoehe), Wellenrichtung aus dem Wind, Kiste außerhalb sinkt, Kopie, Fehler
+Herd herd = neu Herd("Wasser", breite: 320, hoehe: 180);
+Wasser vorgabe = neu Wasser();
+Bote.sage((vorgabe + " " + vorgabe.breite() + "×" + vorgabe.tiefe() + " " + vorgabe.farbe() + " " + vorgabe.tiefenFarbe() + " klarheit " + vorgabe.klarheit() + " wellen " + vorgabe.wellen() + " laenge " + vorgabe.wellenLaenge() + " tempo " + vorgabe.wellenTempo() + " schaum " + vorgabe.schaum() + " brechung " + vorgabe.brechung()));
+Schwung ohne = neu Schwung();
+Bote.sage(("Schwung.auftrieb " + ohne.auftrieb()));
+
+herd.kamera().setzeLage(0, 4, 12).schaueAuf(0, 0, 0);
+Teil see = herd.raum(0, 1, 0);
+Wasser w = see.mit(neu Wasser(breite: 12, tiefe: 12, wellen: 0));
+Teil kiste = herd.koerper(Form.wuerfel(), 0, 1.4, 0, farbe: "kruste");
+kiste.mit(neu Fuehler(ausloeser: nein));
+Schwung s = kiste.mit(neu Schwung(schwerkraft: 9.81, auftrieb: 2));
+Teil stein = herd.koerper(Form.wuerfel(), 9, 3, 0, farbe: "grau");
+stein.mit(neu Fuehler(ausloeser: nein));
+Schwung st = stein.mit(neu Schwung(schwerkraft: 9.81, auftrieb: 2));
+Teil luft = herd.raum(0, 0, 0);
+luft.mit(neu Wind(richtungX: 0, richtungZ: 1));
+Teil zwilling = see.kopie().setzeLage(0, -5, 20);
+Bote.sage(("Kopie: " + zwilling.wasser().breite() + " wellen " + zwilling.wasser().wellen()));
+salami takte = 0;
+herd.backe(() -> {
+  takte++;
+  falls (takte == 260) {
+    Bote.sage(("nach 260 Takten: Kiste auf y = " + kiste.y().runden(2) + " (Wasser 1), Stein außerhalb fällt: " + (stein.y() < 0)));
+    w.setzeWellen(0.3).setzeMessX(2).setzeMessZ(-1);
+  }
+  falls (takte == 320) {
+    Bote.sage(("Welle bei (2, −1): " + (w.messHoehe() != 1) + ", zwischen 0.7 und 1.3: " + (w.messHoehe() > 0.7 && w.messHoehe() < 1.3) + ", Kiste schaukelt: " + (kiste.y() != 1)));
+  }
+});
+probier { herd.gruppe(0, 0).mit(neu Wasser()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { w.setzeSchaum(2); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { w.setzeMessHoehe(2); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { s.setzeAuftrieb(3); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

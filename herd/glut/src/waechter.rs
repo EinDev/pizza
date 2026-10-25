@@ -9,7 +9,7 @@
 //! `MAX_TEXTURE_SLOTS` = 16), ebenso jeder Sampler (≤ 16); Uniform-Puffer ≤ 12 je Stufe (wgpu-Grenze). Jeder Einstiegspunkt
 //! darf nur Bindungen seines Layouts in dessen Sichtbarkeit benutzen.
 
-use super::{layout_bildraum, layout_haupt, layout_nachbild, layout_schatten, BILDRAUM, FLACH, FUNKEN, GEMEINSAM, HIMMEL, LICHT, NACHBILD, SCHATTEN};
+use super::{layout_bildraum, layout_haupt, layout_nachbild, layout_schatten, layout_wasser, BILDRAUM, FLACH, FUNKEN, GEMEINSAM, HIMMEL, LICHT, NACHBILD, SCHATTEN, WASSER};
 use naga::back::glsl;
 
 const EINHEITEN_STUFE: usize = 16;
@@ -83,8 +83,9 @@ fn bindungswaechter() {
     let schatten = layout_schatten();
     let nach = layout_nachbild();
     let bild = layout_bildraum();
-    let layouts: [(&str, &[wgpu::BindGroupLayoutEntry]); 4] = [("haupt", &haupt), ("schatten", &schatten), ("nachbild", &nach), ("bildraum", &bild)];
-    let programme: [(&str, String, &[wgpu::BindGroupLayoutEntry]); 7] = [
+    let wasser = layout_wasser();
+    let layouts: [(&str, &[wgpu::BindGroupLayoutEntry]); 5] = [("haupt", &haupt), ("schatten", &schatten), ("nachbild", &nach), ("bildraum", &bild), ("wasser", &wasser)];
+    let programme: [(&str, String, &[wgpu::BindGroupLayoutEntry]); 8] = [
         ("flach", format!("{GEMEINSAM}\n{FLACH}"), &haupt),
         ("himmel", format!("{GEMEINSAM}\n{HIMMEL}"), &haupt),
         ("licht", format!("{GEMEINSAM}\n{LICHT}"), &haupt),
@@ -92,6 +93,7 @@ fn bindungswaechter() {
         ("funken", format!("{GEMEINSAM}\n{FUNKEN}"), &haupt),
         ("nachbild", NACHBILD.to_string(), &nach),
         ("bildraum", format!("{GEMEINSAM}\n{BILDRAUM}"), &bild),
+        ("wasser", format!("{GEMEINSAM}\n{WASSER}"), &wasser),
     ];
     let mut fehler = Vec::new();
     println!("{:<10} {:>9} {:>8}  Uniform-Puffer VS/FS", "Layout", "Texturen", "Sampler");

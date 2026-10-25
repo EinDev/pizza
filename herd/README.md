@@ -71,6 +71,7 @@ pub static ARTEN: &[&Art] = &[
     &schall::ART,                                      // 37 (H-K22, Raumklang am Teil, Nachlauf + Klangbild in `bild`)
     &wind::ART,                                        // 38 (H-K27, kein System; Abschnitt WIND, wiegt Belag.wiegen)
     &streu::ART,                                       // 39 (H-K27, Takt: Punkte bei Änderung; Ressource STREU, je Bild STREU3D)
+    &wasser::ART,                                      // 40 (H-K28, kein System; Auftrieb im Schwung-Takt, je Bild WASSER + Zug)
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];
@@ -259,7 +260,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 5 | TEXTUR | eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): `u32 id` (Ressourcen-ID = Textur-ID), `u8 format` (0 = RGBA8, nicht vormultipliziert), `u8 stufen`, `u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes (Stufe 0 = b × h, jede weitere halbiert, abgerundet, mindestens 1, bis 1 × 1; Zeilen von oben). Einmal je Bild (nicht je Verwendung), nur wenn Teiglinge geladen sind |
 | 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
-| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht; H-K26: an FEST/DURCH Bit 16 EINSEITIG = Rückseiten weglassen (Instanzen mit Karten ohne `beidseitig`), Bit 17 GEDREHT = dabei Welt-Matrix mit Determinante < 0, die Glut lässt dann die Vorderseiten im Bild weg; ohne Karten nie gesetzt; H-K23b: an FEST/DURCH/SCHATTEN/ANSICHT Bit 18 HAUT = gehäutete Instanzen, nur mit HAUT/GELENKE) |
+| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH, H-K28: 5 WASSER = `[5, 0, erste Fläche, anzahl]` nach FEST, vor DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht; H-K26: an FEST/DURCH Bit 16 EINSEITIG = Rückseiten weglassen (Instanzen mit Karten ohne `beidseitig`), Bit 17 GEDREHT = dabei Welt-Matrix mit Determinante < 0, die Glut lässt dann die Vorderseiten im Bild weg; ohne Karten nie gesetzt; H-K23b: an FEST/DURCH/SCHATTEN/ANSICHT Bit 18 HAUT = gehäutete Instanzen, nur mit HAUT/GELENKE) |
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
@@ -277,6 +278,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 26 | STREU | Streu-Instanzen (H-K27, Ressource): `u32 id` (eigene IDs 1 …, getrennt von Formen und Bildchen), `u32 anzahl`, dann `anzahl` × INST3D (72 B, aufrechte Welt-Matrix, Material des Belags), `anzahl` × ZUSATZ3D, `anzahl` × KARTEN3D – nach Zellen von 8 × 8 Einheiten geordnet (zeilenweise in der Fläche), in jeder Zelle in Ziehreihenfolge; einmal je Stand im ersten Paket, das die Streu zeichnet (nach `paket_voll` erneut), ein Neubau sendet dieselbe ID mit neuen Daten, die Glut ersetzt sie |
 | 27 | STREU3D | sichtbare Streu-Zellen des Bildes (H-K27): `u32 eintraege`, dann je Streu (nach Teil-ID) `u32 streu, u32 netz, u32 merkmale` (Zug-Bit EINSEITIG), `u32 schatten` (Bit 0 = Sonne über `licht_proj`, Bit 1 + k = Kaskade k), `u32 laeufe`, dann `laeufe` × (`u32 erste, u32 anzahl`) Instanzen der Ressource – je Lauf ein Draw-Call; nur wenn eine Zelle sichtbar ist, hinter GELENKE |
 | 28 | WIND | Wind (H-K27, 32 Bytes, f32): `a vec4` (Richtung x, z normiert, `staerke`, 1 = an) · `b vec4` (`boeen`, Phase der Welle in Bogenmaß 0 … 2π = Bild/60 · `tempo` · ½ Hz, Böen-Versatz in Rauschzellen 0 … 256 = Bild/60 · `tempo` · 0,35, `tempo`); nur wenn ein `Wind` gilt (wach, kleinste Teil-ID), am Ende |
+| 29 | WASSER | Wasserflächen des Bildes (H-K28): Kopf 16 B `u32 anzahl` (1 … 8), `f32 nah, fern` (wie BILDRAUM), `f32 zeit` (Takte/60 mod 1 024, Detail-Rauschen), dann je Fläche (sichtbar, nach Teil-ID) 64 B: `vec4` Mitte x, y, z (Weltlage des Teils), `wellen` · `vec4` halbe Breite, halbe Tiefe, `wellenLaenge`, `klarheit` · `vec4` Grundrichtung x, z (Wind, sonst +x), `schaum`, `brechung` · `u32` farbe, tiefenFarbe (0xRRGGBBAA, sRGB), Phasen der Wellen 0 \| 1 << 16 und 2 \| 3 << 16 (gerastet auf 1/65 536 Umdrehung); nur mit sichtbarem `Wasser`, am Ende |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -334,6 +336,13 @@ einer Instanz mit `wiegen` > 0 (ZUSATZ3D.merkmale Bits 2–7, auch in den Streu-
 φ = Phase − 0,45 · (Lage · Richtung), q = Lage quer zur Richtung; Böe = mix(1, 0,2 + 1,6 · Wertrauschen(0,06 · Lage längs −
 Versatz, 0,06 · q), `boeen`); höchstens 1,5 h, die Ecke sinkt dabei um min(Ausschlag²/2h, h/2). Normalen bleiben. Ohne Wind und
 Streu bleiben Pakete und Bilder byte-gleich.
+
+**Wasser (H-K28):** Je sichtbarem `Wasser` (höchstens 8, kleinste Teil-IDs) eine Fläche im Abschnitt WASSER und **ein** Zug
+`[WASSER, 0, 0, anzahl]` zwischen den FEST- und DURCH-Zügen (keine Instanzen, kein Netz: das Raster entsteht in der Glut aus
+`vertex_index`, je Fläche eine Instanz). Die vier Gerstner-Wellen rechnen Kern (f64, `komponenten/wasser.rs`, Auftrieb und Lesefeld
+`messHoehe`) und Glut (`wasser.wgsl`, f32) aus denselben Zahlen: Richtungen = Grundrichtung um 0, +0,55, −0,4, +1,1 rad gedreht,
+Längen × 1, 0,63, 0,41, 0,27, Höhen × 0,5, 0,25, 0,15, 0,1 von `wellen`, Querweite min(a, 0,15/k), Phase vom Kern gerastet. Ohne
+`Wasser` bleiben Pakete und Bilder byte-gleich.
 
 **TEILCHEN3D (20 Bytes je Teilchen):** `f32 x, y, z` (Weltlage) · `f32 r` (halbe Größe, Welt-Einheiten) · `u8 r, g, b, a` (sRGB,
 nicht vormultipliziert). Erst die **leuchtenden** (additiv) in Ausstoßreihenfolge (Komponentenzeile, dann Teilchen), dann die
@@ -688,7 +697,7 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 | 21 (+ 6) | Verdeckung R8 (SSAO, halbe Zielgröße) | FS | `fs_licht` (`textureSampleLevel` mit dem Sampler 6) | 1 | H-K24 |
 | 22 | Uniform Bildraum (Glut, 128 B: Kern-Abschnitt BILDRAUM, Inverse von `ansicht_proj`, Viewport, Zielgröße) | VS + FS | `fs_licht` (Haupt-Layout), `fs_verdeckung`, `fs_weich_*`, `fs_bildspiegel` (Bildraum-Layout) | Block | H-K24 |
 | 23 | Gelenk-Palette `gelenke_t` RGBA32F (3 Texel je Gelenk, 256 Gelenke je Zeile, wächst nur; Haupt- **und** Schatten-Layout) | VS | `vs_haut`, `vs_schatten_haut` (`textureLoad`) | 1 | H-K23b |
-| *–* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_wasser` im **eigenen** Layout `wasser`* | *0 im Haupt-Layout* | *geplant H-K28* |
+| – | Wasser (Szenenfarbe, Tiefe, Block) | | im **eigenen** Layout `wasser` (unten) | 0 im Haupt-Layout | H-K28 |
 | – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
 | – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 (`eigen_kachel` in `fs_licht`/`fs_vorlauf`), Schwelle in `fs_schatten` mit `eigen_lade` | 0 | H-K26 (umgesetzt) |
 | 24 | Uniform WIND (32 B: Richtung, Stärke, Böen, Phase, Versatz; ohne Abschnitt Nullen; Haupt- **und** Schatten-Layout) | VS | `vs_licht`, `vs_haut`, `vs_schatten`, `vs_schatten_haut` | Block | H-K27 |
@@ -709,6 +718,19 @@ bekommen neue Bindungen in `gemeinsam.wgsl` Nummern ab 34 (23 … 33 belegt `bil
 Spiegel-Zellen liegen hinter den Zellen von LICHTER in `zellen_t` (16), ihr Kopf ist ein zweiter Uniform-Puffer, den nur die
 Spiegel-Bindegruppe an **derselben** Bindung 14 bindet. `fs_leuchtend`/`fs_deckend` lesen jetzt auch SZENE (Verwerfen unter der
 Spiegelebene): je 2 Blöcke.
+
+**Stand H-K28 (gemessen, Wächter):** Haupt- und Schatten-Layout **unverändert** (13/16 bzw. 7/16). Neues Layout **`wasser`**
+(`layout_wasser`; Programm `wasser` = `gemeinsam` + `wasser.wgsl`): 0 SZENE, 12 Sampler linear (Kante geklemmt), 13 HIMMELSZELT
+(nur die Verlaufsfarben), 17 STIMMUNG, 19 Spiegelbild, 25 Wasser-Block (Glut, 544 B: Kopf aus dem Kern, Merkmale Kopien/Himmelszelt,
+8 Flächen), 26 Kopie der Szenenfarbe (mit 12), 27 Tiefe des Vorlaufs (+ 28 Sampler nächster Nachbar, wie im Bildraum-Layout) –
+**3/16** Texturen, 2/16 Sampler, 4/12 Blöcke; `fs_wasser` 3/16 Einheiten, `vs_wasser` 0 (Raster aus `vertex_index`, kein
+Vertex-Puffer). Keine Lichter und keine Schatten im Wasser-Layout (**Entscheidung**: Laternen spiegeln sich über das planare
+Spiegelbild; so bleibt das Layout klein). Eine Pipeline je Zielformat (`Pipelines::wasser`, vorab; deckend, schreibt Tiefe).
+**Durchgänge:** mit Stimmung (HDR) teilt sich der Hauptdurchgang wie bei SSR – Himmel + FEST, Kopie des aufgelösten HDR-Bilds
+(`wasser_kopie`, HDR-Format; auch ohne `EXT_color_buffer_float` als Rgba8), dann Wasser, DURCH und Teilchen; die Tiefe kommt aus dem
+Bildraum-Vorlauf (läuft mit Wasser auch ohne BILDRAUM, SSAO nur mit `verdeckung`). Ohne Stimmung zeichnet das Wasser im selben
+Durchgang zwischen FEST und DURCH **ohne Kopien** (deckend aus `farbe`/`tiefenFarbe`, Himmel-Spiegelung, Glanz, Kamm-Schaum) –
+keine Kopie des Ziels nötig, das unter WebGL2 bzw. als Fenster-Fläche nicht kopierbar sein muss.
 
 **Stand H-K27 (gemessen, Wächter):** Haupt-Layout **13/16** Texturen (unverändert), 3/16 Sampler, Uniform-Puffer **8/12** VS · 7/12
 FS (+1: WIND an 24, nur Vertex); Schatten-Layout 7/16, Uniform-Puffer 3/12 VS. Keine neue Textureinheit, kein neues Vertex-Attribut
@@ -740,6 +762,7 @@ Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. N
 | schatten | **7/16** (H-K23b: +1) | 0/16 | 3/12 · 1/12 (H-K15: 1 · 1; H-K27: + WIND) | 7/16 |
 | nachbild | 2/16 | 1/16 | 0/12 · 1/12 | – |
 | bildraum (H-K24) | 9/16 | 2/16 | 3/12 · 3/12 | – |
+| wasser (H-K28) | 3/16 | 2/16 | 4/12 · 4/12 | – |
 
 | Einstiegspunkt | Einheiten | Blöcke | Einstiegspunkt | Einheiten | Blöcke |
 |---|---|---|---|---|---|
@@ -750,6 +773,7 @@ Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. N
 | `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 2 / 2 (H-K18: 1 / 2) |
 | `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
 | `vs_bildraum` | 0 | 0 | `fs_verdeckung` / `fs_weich_x`, `_y` / `fs_verkleinern` / `fs_bildspiegel` | 2 / 2 / 1 / 9 | 2 / 1 / 0 / 3 |
+| `vs_wasser` | 0 | 2 | `fs_wasser` | 3 | 4 |
 
 **Budget-Planung der übrigen Glut-Stufen** (HERD.md §13.3; maßgeblich ist das Haupt-Layout, 16 Einheiten über **alle** Stufen –
 Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Einheit gekostet (die Schatten-Tiefentextur ist ein
@@ -757,8 +781,8 @@ Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in 
 `zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (umgesetzt: Verdeckung an 21 mit dem Sampler 6, Bildraum-Block an 22; SSAO, Weichzeichnen, Farbstufen und
 SSR-Strahlmarsch im eigenen Layout `bildraum`, der Vorlauf im Haupt-Layout ohne neuen Eintrag; `fs_licht` liest nur das
 Verdeckungsbild) → 12 · **H-K26** 0 (umgesetzt: PD3-Klassen, KARTEN3D als Instanzpuffer) · **H-K23b** +1 (umgesetzt: Gelenk-Palette an 23, im Haupt- **und** Schatten-Layout) → 13 ·
-**H-K27** 0 (umgesetzt: Uniform-Block WIND an 24, Streu-Instanzen als eigene Vertex-Puffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
-(SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
+**H-K27** 0 (umgesetzt: Uniform-Block WIND an 24, Streu-Instanzen als eigene Vertex-Puffer) · **H-K28** 0 im Haupt-Layout (umgesetzt: eigenes Layout `wasser`, 3/16 – SZENE, Sampler, HIMMELSZELT, STIMMUNG, Spiegelbild,
+Wasser-Block, Szenenfarbe, Tiefe; ohne Lichter und Schatten). Ende
 des Plans: Haupt-Layout **13/16** Texturen, 9/12 Uniform-Blöcke; 3 Einheiten Reserve. **Konsolidierung, falls doch eng:** (1) Schrift
 (5) als R-Kanal einer Atlas-Schicht (−1), (2) `lichter_t` + `zellen_t` als eine RGBA32Uint-Textur mit `bitcast` (−1), (3) Verdeckung in
 den Alpha-Kanal des Spiegelbilds (19) (−1), (4) PD3-Klassen 128 und 256 zusammenlegen (−1, Speicher für kleine Bilder ×4).

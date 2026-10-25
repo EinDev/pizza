@@ -62,15 +62,21 @@ pub const AM_BODEN: usize = 17;
 pub const SCHLAEFT: usize = 18;
 /// verborgen: Impulse des letzten Takts (Warmstart), flach `[Partner-Teil, Punkt x, y, z (Achsen des Halters), normal, reib1, reib2]` – je Paar beim
 /// dynamischen Körper mit der kleineren Teil-ID (bzw. dem einzigen dynamischen)
-pub const KONTAKTE: usize = 19;
+pub const KONTAKTE: usize = 20;
 /// verborgen: Drehung als Quaternion (w, x, y, z) in Weltlage; alles 0 = noch nicht übernommen
-pub const QW: usize = 20;
+pub const QW: usize = 21;
 /// verborgen: zuletzt geschriebene Lage x, y, z, drehung, neigung, rollen (6 Spalten ab hier)
-pub const GESCHRIEBEN: usize = 24;
+pub const GESCHRIEBEN: usize = 25;
 /// verborgen: Takte in Folge unter den Schlafschwellen
-pub const STILLE: usize = 30;
+pub const STILLE: usize = 31;
 /// verborgen: Teil, für das der Zustand gilt (Kopie/Umhängen → neu übernehmen)
-pub const FUER: usize = 31;
+pub const FUER: usize = 32;
+/// Nachtragsfeld (H-K28, letztes öffentliches Feld vor den verborgenen): Auftrieb im `Wasser`, Anteil der Gewichtskraft
+/// (`masse` · `schwerkraft`) bei voller Eintauchung, 0 … 2
+pub const AUFTRIEB: usize = 19;
+/// Strömungsdämpfung im Wasser (1/s bei voller Eintauchung): Tempo und Drehtempo · e^(−k · Anteil · dt)
+const WASSER_DAEMPFUNG: f64 = 3.0;
+const WASSER_DREHDAEMPFUNG: f64 = 3.0;
 
 /// Werte von `art`.
 pub mod art {
@@ -122,6 +128,7 @@ pub static ART: Art = Art {
             Feld::diavolo("drehsperre", false),
             Feld::diavolo("amBoden", false).lesen(),
             Feld::diavolo("ruht", false).lesen(),
+            Feld::zahl("auftrieb", 0.0).bereich(0.0, 2.0).nachtrag(),
             Feld::puffer("kontakte"),
             Feld::intern("qw", 0.0),
             Feld::intern("qx", 0.0),
@@ -625,6 +632,8 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         return;
     }
     let Some(si) = w.art_index("Schwung") else { return };
+    // Wasserflächen (H-K28) nur, wenn ein Körper Auftrieb hat – sonst rechnet der Takt wie vorher
+    let wasser = if s.zahl(AUFTRIEB).iter().any(|&a| a > 0.0) { super::wasser::flaechen_wach(w) } else { Vec::new() };
     // 1. Lage übernehmen, Kräfte
     let mut leiber: Vec<Leib> = Vec::with_capacity(n);
     let mut von_zeile = vec![usize::MAX; n];
@@ -661,6 +670,10 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
         }
         let mut schlaeft = s.zahl(SCHLAEFT)[z] != 0.0;
         if a == art::DYNAMISCH && schlaeft && (stoss != [0.0; 3] || v != [0.0; 3] || om != [0.0; 3]) {
+            schlaeft = false;
+        }
+        // H-K28: über Wasser schläft ein Körper mit Auftrieb nicht (er schaukelt bzw. pendelt sich ein)
+        if a == art::DYNAMISCH && schlaeft && s.zahl(AUFTRIEB)[z] > 0.0 && super::wasser::unter(&wasser, m[3], m[11]).is_some() {
             schlaeft = false;
         }
         if a != art::DYNAMISCH {
@@ -779,6 +792,47 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
     for l in leiber.iter_mut() {
         if l.wach {
             l.ii = traegheit_welt(&matrix(&l.q), l.inv_i);
+        }
+    }
+    // H-K28: Auftrieb – Eintauchtiefe an 5 Messpunkten der Form gegen den Wasserspiegel (Gerstner, `wasser::hoehe`), je Punkt
+    // ein Fünftel der Kraft am Punkt (Drehmoment), dazu Strömungsdämpfung nach dem eingetauchten Anteil
+    let mut schwimmt = vec![false; leiber.len()];
+    if !wasser.is_empty() {
+        for (c, &li) in kl.iter().enumerate() {
+            let l = &mut leiber[li];
+            if !l.wach || l.zeile == usize::MAX || kl.iter().position(|&x| x == li) != Some(c) {
+                continue;
+            }
+            let auf = s.zahl(AUFTRIEB)[l.zeile];
+            if !(auf > 0.0) {
+                continue;
+            }
+            let Some((punkte, e)) = kollision3d::auftrieb_punkte(&formen[c]) else { continue };
+            let g = s.zahl(SCHWERKRAFT)[l.zeile];
+            let mut summe = 0.0;
+            for p in punkte {
+                let Some(f) = super::wasser::unter(&wasser, p[0], p[2]) else { continue };
+                let h = super::wasser::hoehe(f, p[0], p[2]);
+                let mut d = (h - (p[1] - e)) / (2.0 * e);
+                if !(d > 0.0) {
+                    continue;
+                }
+                if d > 1.0 {
+                    d = 1.0;
+                }
+                summe += d;
+                // Kraftstoß je Punkt (je Masseneinheit): auftrieb · schwerkraft · d / 5 · dt nach oben
+                let dv = auf * g * d * 0.2 * DT;
+                l.v[1] += dv;
+                let r = minus(p, l.x);
+                l.w = plus(l.w, mat_mal(&l.ii, kreuz(r, [0.0, dv / l.inv_m, 0.0])));
+            }
+            if summe > 0.0 {
+                schwimmt[li] = true;
+                let anteil = summe * 0.2;
+                l.v = mal(l.v, libm::exp(-WASSER_DAEMPFUNG * anteil * DT));
+                l.w = mal(l.w, libm::exp(-WASSER_DREHDAEMPFUNG * anteil * DT));
+            }
         }
     }
     let paare = if k.is_empty() { Vec::new() } else { fuehler::breitphase(&k) };
@@ -961,7 +1015,7 @@ fn takt(w: &mut Welt, s: &mut Speicher) {
             continue;
         }
         let z = l.zeile;
-        let still = punkt(l.v, l.v) < SCHLAF_TEMPO * SCHLAF_TEMPO && punkt(l.w, l.w) < SCHLAF_DREH * SCHLAF_DREH;
+        let still = !schwimmt[i] && punkt(l.v, l.v) < SCHLAF_TEMPO * SCHLAF_TEMPO && punkt(l.w, l.w) < SCHLAF_DREH * SCHLAF_DREH;
         let st = if still { s.zahl(STILLE)[z] + 1.0 } else { 0.0 };
         s.zahl_mut(STILLE)[z] = st;
         if st < SCHLAF_TAKTE {

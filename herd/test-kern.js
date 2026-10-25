@@ -96,6 +96,8 @@ const LAEUFE = [
   ['schall.herd', { N: 2000, M: 400, TAKTE: 30 }],
   ['streu.herd', {}],
   ['streu.herd', { N: 100000, TAKTE: 10, NEU: 1 }],
+  ['wasser.herd', {}],
+  ['wasser.herd', { N: 300, TAKTE: 60 }],
 ];
 
 const args = process.argv.slice(2);

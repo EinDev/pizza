@@ -45,6 +45,7 @@ const LAEUFE = [
   ['B17', 'puppe.herd', { N: 33, TAKTE: 240 }],
   ['B19', 'haut.herd', { N: 16, TAKTE: 240 }],
   ['B20', 'streu.herd', { N: 100000, TAKTE: 120 }],
+  ['B21', 'wasser.herd', { N: 300, TAKTE: 120 }],
 ];
 
 if (!process.argv.includes('--ohne-cargo')) {

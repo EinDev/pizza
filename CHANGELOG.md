@@ -62,6 +62,9 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
   Bindungswächter für die Shader (H-K15).
 - **Gehäutete Figuren (H-K23b):** Modelle mit Skelett und Haut (glTF `skins`) verformen sich nach ihren Gelenk-Teilen – auf der
   Grafikkarte, auch in Schatten, Spiegelung und Bildschirmraum; Beispiel „Tanzfiguren“ (Kenney Mini Characters, CC0).
+- **Wasser (H-K28, K-169):** `Wasser`-Flächen mit Gerstner-Wellen (Richtung aus dem `Wind`), Brechung und Tiefenfärbung, Schaum an
+  Ufern und Kämmen und Spiegelung (planar bzw. Himmel) – in Browser und EXE gleich; `Schwung.auftrieb` lässt Kisten und Boote
+  schwimmen und schaukeln, `messHoehe` liest die Wellenhöhe. Beispiel „Hafen“.
 - **Klang (H-K14, K-153):** eigene Importgruppe `klang` mit `Klang.ton`, `rauschen`, `stille`, `noten`, Hüllkurve, Filtern, Mischen
   und Schleifen; `k.spiele()` liefert eine Spur mit Lautstärke, Tonhöhe, Panorama und Lage im Raum (Hörer = Kamera). Die Erzeugung
   ist nativ und in Wasm bitgleich. Abgespielt wird über WebAudio bzw. waveOut/ALSA, ohne Gerät bleibt es stumm; getestet wird mit

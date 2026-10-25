@@ -351,6 +351,7 @@
                 ["`Schall`","beide","`klang` karton, `lautstaerke` 1, `schleife` ja, `spielt` ja, `nah` 1, `weite` 30, `tonhoehe` 1; nur lesen: `pegel`, `panorama`","Raumklang am Teil: spielt einen Klang dort, wo das Teil ist, gehört an der aktiven Kamera bzw. am Blick"],
                 ["`Wind`","3D","`staerke` 0, `richtungX` 1, `richtungZ` 0, `boeen` 0.3, `tempo` 1","Wind für alles, dessen `Belag` ein `wiegen` > 0 hat: Halme, Blumen, Laub schwingen im Vertex-Shader, mit Böen; rein sichtbar (der wache mit der kleinsten ID gilt)"],
                 ["`Streu`","3D","`form`, `belag`, `anzahl` 1000, `breite`/`tiefe` 20, `gelaende`, `hang` 40, `groesse` 1, `groesseStreuung` 0.3, `drehen` ja, `dichte`, `sichtweite` 60, `schatten` nein, `saat` 0","Streut viele gleiche Kleinteile (Gras, Blumen, Steine) über ein Rechteck bzw. ein Gelände – einmal zur Grafikkarte, je Bild nur die sichtbaren Zellen; ohne Kollision"],
+                ["`Wasser`","3D","`breite`/`tiefe` 50, `farbe` wasser, `tiefenFarbe` #0b2a3a, `klarheit` 2, `wellen` 0.2, `wellenLaenge` 6, `wellenTempo` 1, `schaum` 0.3, `brechung` 0.03, `messX`/`messZ`; Lesefeld `messHoehe`","Wasserfläche mit Wellen, Brechung, Tiefenfarbe, Schaum und Spiegelung; Körper mit `Schwung.auftrieb` schwimmen darauf"],
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1478,6 +1479,30 @@
             },
             { art: "text", md: "- **Rein sichtbar:** Streu-Teile haben keine Hülle und keine Kollision, `trifft` und Fühler sehen sie nicht; der Wind schiebt keine Körper.\n- Ein Neubau (andere Felder, Teil oder Gelände verschoben, Belag geändert) überträgt alle Instanzen neu – also nicht in jedem Takt umstellen.\n- `schatten: ja` lässt die Teile Sonnenschatten werfen (Steine); für Gras meist zu teuer." },
             { art: "text", md: "Zum Ausprobieren: die **Wiese** unter *Beispiele → Herd* – ein Hügel mit 50 000 Grashalmen, Blumen und Steinen in Böen, der Bote läuft als `Figur` hindurch." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Hafenbecken: Wasser und Auftrieb",
+          inhalt: [
+            { art: "text", md: "**`Wasser`** ist eine waagerechte Fläche (`breite` × `tiefe`) um die Lage ihres Teils. Vier **Gerstner-Wellen** laufen in Richtung des `Wind` (sonst +x): `wellen` ist die Höhe der Kämme, `wellenLaenge` die Länge der größten Welle, `wellenTempo` ihr Tempo. Mit einer `Stimmung` sieht man durchs Wasser: der Grund wird nach `brechung` verzerrt und mit dem Weg durchs Wasser von `farbe` nach `tiefenFarbe` gefärbt (`klarheit` = Sichttiefe); an Ufern, Mauern und Pfählen und auf den Kämmen bildet sich Schaum (`schaum`). Gespiegelt wird der Himmel – mit `Stimmung.spiegelung` und `spiegelHoehe` auf Höhe des Wassers die ganze Szene samt Laternen. Ohne Stimmung ist das Wasser deckend." },
+            { art: "text", md: "**Auftrieb:** ein `Schwung` mit **`auftrieb`** (0 … 2) wird über Wasser getragen – 2 schwimmt halb eingetaucht, 1 schwebt, darunter sinkt er langsam. Gemessen wird an fünf Punkten der Form, darum richten sich Kisten und Boote auf und schaukeln mit den Wellen. Die Wellenhöhe an einer Stelle liest `messHoehe` (Stelle in `messX`/`messZ`)." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "herd.raum(0, 0, 0).mit(neu Wind(richtungX: 1, richtungZ: 0.4));",
+                "Teil becken = herd.raum(0, 0, 0);",
+                "Wasser w = becken.mit(neu Wasser(breite: 40, tiefe: 30, wellen: 0.15, wellenLaenge: 5));",
+                "herd.raum(0, 0, 0).mit(neu Stimmung(spiegelung: 1, spiegelHoehe: 0));",
+                "Teil kiste = herd.koerper(Form.wuerfel(), 2, 1, 0, farbe: \"kruste\");",
+                "kiste.mit(neu Fuehler(ausloeser: nein));",
+                "kiste.mit(neu Schwung(schwerkraft: 9.81, auftrieb: 1.6));"
+              )
+            },
+            { art: "text", md: "- `Figur` und `Strahl` sehen Wasser nicht als Boden (Schwimmen kommt später); Pfützen bleiben Sache von `Belag.nass` und Regen.\n- Höchstens 8 Wasserflächen je Bild; Drehung und Maßstab des Teils zählen nicht." },
+            { art: "text", md: "Zum Ausprobieren: der **Hafen** unter *Beispiele → Herd* – ein Hafenbecken am Abend, Boote und Kisten schaukeln, Laternen spiegeln sich." }
           ]
         },
         {

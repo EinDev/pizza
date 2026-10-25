@@ -48,6 +48,7 @@ pub mod puppe;
 pub mod schall;
 pub mod wind;
 pub mod streu;
+pub mod wasser;
 #[cfg(any(test, feature = "probe"))]
 pub mod probe;
 
@@ -190,6 +191,7 @@ pub static ARTEN: &[&Art] = &[
     &schall::ART,
     &wind::ART,
     &streu::ART,
+    &wasser::ART,
     #[cfg(any(test, feature = "probe"))]
     &probe::ART,
 ];

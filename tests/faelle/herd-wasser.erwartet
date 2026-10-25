@@ -1,0 +1,9 @@
+Wasser() 50×50 wasser #0b2a3a klarheit 2 wellen 0.2 laenge 6 tempo 1 schaum 0.3 brechung 0.03
+Schwung.auftrieb 0
+Kopie: 12 wellen 0
+nach 260 Takten: Kiste auf y = 1.02 (Wasser 1), Stein außerhalb fällt: ja
+Welle bei (2, −1): ja, zwischen 0.7 und 1.3: ja, Kiste schaukelt: ja
+LaufzeitAnanas: Wasser gibt es nur für 3D-Teile.
+LaufzeitAnanas: Wasser.schaum muss zwischen 0 und 1 liegen, nicht 2.
+LaufzeitAnanas: Wasser.messHoehe kann man nur lesen.
+LaufzeitAnanas: Schwung.auftrieb muss zwischen 0 und 2 liegen, nicht 3.

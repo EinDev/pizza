@@ -2295,6 +2295,14 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `formen.rs` (`dreiecke`), `ressourcen.rs` (Cache-Feld), `mod.rs`/`lib.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene
   `schwung.herd`, Fall `herd-schwung`, Beispiel `kistenturm`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B12. Kein Bildpaket, keine
   Glut, kein Interpreter/Laufzeit/Host. Nachtrag Auftrieb (H-K28) folgt. **Status:** fest.
+- **Nachtrag Auftrieb (H-K28, K-169):** `Schwung.auftrieb` (Nachtragsfeld 0 … 2, **vor** den verborgenen Spalten eingefügt – öffentliche
+  Felder müssen vor ihnen stehen; ihre Indizes rücken um eins, gehasht werden sie wie bisher) = Anteil der Gewichtskraft (`masse` ·
+  `schwerkraft`) bei voller Eintauchung. Nach dem Bau der Formen misst der Takt an **5 Punkten** (`kollision3d::auftrieb_punkte`: Mitte
+  und vier in der waagerechten Ebene der Form, mit ihr gedreht; Netz/Gelände nie) die Eintauchtiefe d = clamp((h − (y − e)) / 2e, 0, 1)
+  gegen den Wasserspiegel `wasser::hoehe` (Gerstner, f64, `libm`); je Punkt ein Kraftstoß auftrieb · schwerkraft · d / 5 · dt am Punkt
+  (Drehimpuls über die Welt-Trägheit), danach Strömungsdämpfung Tempo und Drehtempo · e^(−3 · Anteil · dt). Ein Körper über Wasser
+  mit Auftrieb schläft nicht (sonst bliebe er mitten im Pendeln stehen). Ohne `Wasser` oder ohne Auftrieb rechnet der Takt bitgleich
+  wie vorher (`tests::hk28::ohne_wasser_bitgleich`).
 ### K-160 Herd: Schatten für Punkt- und Spotlichter, Sonnen-Kaskaden, Schatten-Budget (H-K18)
 - **Frage:** Wie werfen Punktlichter und Spots Schatten, ohne Cube-Maps (WebGL2), ohne neue Textureinheit im knappen Haupt-Layout
   (wgpu-GL: 16 je Pipeline-Layout über alle Stufen) und ohne bestehende Pakete, Hashes oder Referenzbilder zu ändern?
@@ -2566,6 +2574,37 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (`streu`), `paket.rs` (STREU, STREU3D, WIND); Glut `lib.rs`, `licht.wgsl`, `schatten.wgsl`, `gemeinsam.wgsl`, `waechter.rs`,
   `glut-web`; Referenzbild `3d-streu`, Szene `streu.herd`, Fall `herd-streu`, `tests::hk27`, Beispiel `wiese`; SPEC §18.6,
   `herd/README.md` §2/§4/§9, Doku `herd-ausbau`, B20. Kein Interpreter/Laufzeit/Host. **Status:** fest.
+
+### K-169 Herd: `Wasser` – Gerstner-Wellen, Brechung, Tiefe, Schaum, Spiegelung, Auftrieb (H-K28)
+- **Frage:** Wie bekommt Herd Wasserflächen (Unity/HDRP Water) mit Wellen, Brechung, Tiefenfärbung, Schaum und Spiegelung, die im
+  Browser (WebGPU und WebGL2) wie nativ aussehen, und Auftrieb in der deterministischen Physik – ohne das volle Haupt-Layout
+  (13/16 Texturen) anzufassen und ohne bestehende Pakete und Bilder zu ändern?
+- **Entscheidung (HERD.md §13.3 H-K28):** Komponente **`Wasser`** (40; kein System, keine Hülle; `Figur`/`Strahl` sehen es nicht,
+  Schwimmen später; kein Pfützen-Objekt). Waagerechtes Rechteck um die **Weltlage** des Teils, Drehung und Maßstab zählen nicht.
+  **Vier Gerstner-Wellen** mit fest gestreuten Richtungen (um die Richtung des geltenden `Wind`, sonst +x), Längen und Höhen als feste
+  Anteile von `wellenLaenge`/`wellen`, Tiefwasser-Tempo √(g k) · `wellenTempo`, Querweite min(a, 0,15/k). **Dieselbe Formel** im Kern
+  (f64, `libm`; Auftrieb über `Schwung.auftrieb` – Nachtrag K-162 – und Lesefeld `messHoehe` an `messX`/`messZ`, beim Lesen gerechnet,
+  §13.1 Regel 6) und im Shader (f32). Die Phasen rechnet nur der Kern aus den Takten und rastet sie auf 1/65 536 Umdrehung – Kern
+  und Glut rechnen aus denselben Zahlen, und f32 verliert auch nach Stunden nichts.
+- **Bildpaket (additiv):** Abschnitt **`WASSER`** (29; Kopf 16 B mit nah/fern/Zeit, je Fläche 64 B, höchstens 8 sichtbare nach Teil-ID)
+  und ein Zug **`zug::WASSER`** (5) zwischen FEST und DURCH – ohne Instanzen: das Raster (128 × 128 Zellen je Fläche) entsteht in der
+  Glut aus `vertex_index`, je Fläche eine Instanz (ein Draw-Call für alle Flächen). Ohne `Wasser` byte-gleich.
+- **Glut:** eigenes Layout **`wasser`** (3/16 Texturen, 2 Sampler, 4 Blöcke; Haupt-Layout unverändert 13/16): SZENE, HIMMELSZELT
+  (Verlaufsfarben), STIMMUNG, Spiegelbild, Wasser-Block, Kopie der Szenenfarbe, Tiefe des Vorlaufs. Mit Stimmung teilt sich der
+  HDR-Durchgang wie bei SSR: Himmel + FEST → Kopie des aufgelösten HDR-Bilds → Wasser → DURCH + Teilchen; die Tiefe liefert der
+  Bildraum-Vorlauf (H-K24, läuft mit Wasser auch ohne BILDRAUM). **Spiegelung planar** (**Entscheidung**): eine Wasserfläche ist die
+  Ebene, für die H-K21 gebaut ist (kennt auch, was außerhalb des Bildes liegt, kostet keinen Strahlmarsch, Laternen und Himmel
+  spiegeln sich mit der Wellen-Normale verzerrt); SSR liefe vor dem Wasser und sähe es nicht. Ohne `Stimmung.spiegelung` (auf Höhe
+  des Wassers) spiegelt der Himmel (Verlauf von Himmelszelt bzw. `herd.himmel`). Keine Lichter, keine Schatten im Wasser-Layout.
+- **Rückfälle:** ohne Stimmung (sRGB-Ziel, keine kopierbare Szenenfarbe auf jeder Fläche) zeichnet das Wasser deckend im selben
+  Durchgang (Farbe, Tiefenfarbe, Himmel, Glanz, Kamm-Schaum); WebGL2 ohne `EXT_color_buffer_float`: HDR-Ziel und Kopie in Rgba8 –
+  Brechung, Tiefe, Schaum und Spiegelung bleiben.
+- **Messung (B21):** `wasser.herd` N = 300 schwimmende Körper, 120 Takte: Takt 0,95 ms nativ / 1,08 ms Wasm (Schwung samt Auftrieb),
+  Bild 0,05 / 0,09 ms – `bench/herd/ERGEBNISSE.md`; Glut nur auf WARP gemessen (keine echte GPU in dieser Stufe).
+- **Betroffen:** neu `komponenten/wasser.rs`, Glut `shader/wasser.wgsl`; `schwung.rs` (`auftrieb`), `kollision3d.rs`
+  (`auftrieb_punkte`), `wind.rs` (`richtung`), `paket.rs` (WASSER, Zug 5); Glut `lib.rs`, `waechter.rs`, `glut-web`; Referenzbild
+  `3d-wasser`, Szene `wasser.herd`, Fall `herd-wasser`, `tests::hk28`, Beispiel `hafen`; SPEC §18.6, `herd/README.md` §2/§4/§9, Doku
+  `herd-ausbau`, B21. Kein Interpreter/Laufzeit/Host. **Status:** fest.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

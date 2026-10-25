@@ -1917,3 +1917,38 @@ impl Gitter {
         best
     }
 }
+
+/// Messpunkte des Auftriebs (H-K28, `Schwung.auftrieb`): Mitte und vier Punkte in der waagerechten Ebene der Form (mit ihr
+/// gedreht: Kasten in seinen beiden flachsten Achsen bei 0,7 × halber Seite, liegende Kapsel entlang der Achse und quer dazu),
+/// dazu die halbe senkrechte Ausdehnung `e` (Wassersäule je Punkt von y − e bis y + e). Netz und Gelände → `None` (nur fest).
+pub fn auftrieb_punkte(f: &Form) -> Option<([V; 5], f64)> {
+    let um = |m: V, a: V, ha: f64, b: V, hb: f64| [m, plus(m, plus(mal(a, ha), mal(b, hb))), plus(m, minus(mal(a, ha), mal(b, hb))), minus(m, minus(mal(a, ha), mal(b, hb))), minus(m, plus(mal(a, ha), mal(b, hb)))];
+    let x = [1.0, 0.0, 0.0];
+    let z = [0.0, 0.0, 1.0];
+    match *f {
+        Form::Kugel { m, r } => Some((um(m, x, 0.5 * r, z, 0.5 * r), r)),
+        Form::Kapsel { m, achse, halb, r } => {
+            let e = betrag(achse[1]) * halb + r;
+            if betrag(achse[1]) < 0.7 {
+                let quer = norm_oder(kreuz(achse, [0.0, 1.0, 0.0]), z);
+                Some((um(m, achse, 0.7 * halb, quer, 0.5 * r), e))
+            } else {
+                Some((um(m, x, 0.5 * r, z, 0.5 * r), e))
+            }
+        }
+        Form::Kasten { m, achsen, h } => {
+            // die Achse mit dem größten Anteil nach oben ist „senkrecht“, die beiden anderen spannen die Ebene
+            let mut oben = 0;
+            for i in 1..3 {
+                if betrag(achsen[i][1]) > betrag(achsen[oben][1]) {
+                    oben = i;
+                }
+            }
+            let (a, b) = ((oben + 1) % 3, (oben + 2) % 3);
+            let e = betrag(achsen[0][1]) * h[0] + betrag(achsen[1][1]) * h[1] + betrag(achsen[2][1]) * h[2];
+            Some((um(m, achsen[a], 0.7 * h[a], achsen[b], 0.7 * h[b]), e))
+        }
+        Form::Netz { .. } | Form::Gelaende { .. } => None,
+    }
+    .filter(|(_, e)| *e > 1e-9)
+}

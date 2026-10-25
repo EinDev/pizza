@@ -1,0 +1,178 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Wasser“ (H-K28, Abschnitt WASSER, Zug WASSER, Layout `wasser`): ein Hafenbecken am Abend unter einem
+# Himmelszelt (Verlauf, tiefe Sonne). Links ein Kai aus Stein mit Pollern und einer Laterne, rechts ein flacher Strand, der schräg
+# ins Wasser läuft, hinten ein Pfahl im Wasser, davor zwei schwimmende Kisten (Schwung.auftrieb) und eine rote Boje.
+# Prüft: Gerstner-Wellen (Richtung aus dem Wind), Brechung des Strand-Bodens unter Wasser und Tiefenfärbung zum Becken hin
+# (Kopien nach FEST), Uferschaum an Strand, Kai und Pfahl (Tiefendifferenz), Kamm-Schaum, planare Spiegelung von Himmel, Kai
+# und Laterne (Stimmung.spiegelung an der Wasserhöhe), Sonnenglanz. STIMMUNG = 0 zeichnet den Rückfall ohne Stimmung (deckend,
+# ohne Kopien und Spiegelbild).
+vorgabe STIMMUNG 1
+welt_neu 1280 720 "Wasser"
+welt_umgebung "#9fb0d0" 0.35
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Himmelszelt" -> T_H
+typ_nummer "Wasser" -> T_W
+typ_nummer "Wind" -> T_WI
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Schwung" -> T_SW
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "strahlen" -> K_ST
+feld_nummer T_L "art" -> L_ART
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "spiegelung" -> S_SP
+feld_nummer T_S "spiegelHoehe" -> S_SH
+feld_nummer T_H "oben" -> H_OBEN
+feld_nummer T_H "horizont" -> H_HOR
+feld_nummer T_H "boden" -> H_BODEN
+feld_nummer T_H "sonnenscheibe" -> H_SONNE
+feld_nummer T_W "breite" -> W_B
+feld_nummer T_W "tiefe" -> W_T
+feld_nummer T_W "wellen" -> W_W
+feld_nummer T_W "wellenLaenge" -> W_L
+feld_nummer T_W "schaum" -> W_S
+feld_nummer T_WI "richtungX" -> WI_X
+feld_nummer T_WI "richtungZ" -> WI_Z
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_SW "schwerkraft" -> SW_G
+feld_nummer T_SW "auftrieb" -> SW_A
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 24 0 -> KUGEL
+form_grund 3 24 0 -> ZYLINDER
+
+teil_lage 1 1.5 3.2 13
+teil_schaue 1 0 0.2 -6
+# Sonne tief im Westen (hinten links), warm
+teil_lage 2 -0.6 0.18 -1
+komp_von 2 T_L -> SONNE
+setze_text SONNE L_F "#ffb070"
+setze_zahl SONNE L_ST 1.1
+
+teil_neu 3 -> zelt
+komp_neu T_H -> h
+setze_text h H_OBEN "#27305a"
+setze_text h H_HOR "#f2a066"
+setze_text h H_BODEN "#3a2a30"
+setze_zahl h H_SONNE 3
+komp_haenge h zelt
+
+teil_neu 3 -> wind
+komp_neu T_WI -> wi
+setze_zahl wi WI_X 0.4
+setze_zahl wi WI_Z 1
+komp_haenge wi wind
+
+# Becken: Wasser bei y = 0 über einem Grund bei y = −3, Strand rechts schräg hinein
+teil_neu 3 -> wasser
+komp_neu T_W -> w
+setze_zahl w W_B 60
+setze_zahl w W_T 60
+setze_zahl w W_W 0.12
+setze_zahl w W_L 4
+setze_zahl w W_S 0.5
+komp_haenge w wasser
+teil_neu 3 -> grund
+teil_lage grund 0 -3.5 0
+teil_groesse grund 80 1 80
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#3b4a3a"
+komp_haenge k grund
+teil_neu 3 -> strand
+teil_lage strand 9 -1 -2
+teil_groesse strand 10 0.6 30
+teil_setze strand 6 14
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#d8c08a"
+komp_haenge k strand
+
+# Kai links: Mauer bis über das Wasser, Poller, Laterne
+teil_neu 3 -> kai
+teil_lage kai -7 -1 -2
+teil_groesse kai 6 3 30
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#7a746c"
+komp_haenge k kai
+wiederhole 3 e
+  teil_neu 3 -> po
+  teil_lage po -4.4 0.8 (2 - e * 4)
+  teil_groesse po 0.35 0.6 0.35
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "#2a2826"
+  komp_haenge k po
+ende
+teil_neu 3 -> mast
+teil_lage mast -4.6 2 -5
+teil_groesse mast 0.12 3.4 0.12
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "#1e1e22"
+komp_haenge k mast
+teil_neu 3 -> lampe
+teil_lage lampe -4.6 3.8 -5
+teil_groesse lampe 0.45 0.45 0.45
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#ffd28a"
+setze_zahl k K_LE 1
+setze_zahl k K_ST 3
+komp_haenge k lampe
+komp_neu T_L -> li
+setze_text li L_ART "punkt"
+setze_text li L_F "#ffc070"
+setze_zahl li L_ST 2.5
+setze_zahl li L_RW 9
+komp_haenge li lampe
+
+# Pfahl im Wasser, Boje, zwei schwimmende Kisten
+teil_neu 3 -> pfahl
+teil_lage pfahl 1.5 -0.5 -6
+teil_groesse pfahl 0.5 4 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM ZYLINDER
+setze_text k K_F "#4a3426"
+komp_haenge k pfahl
+teil_neu 3 -> boje
+teil_lage boje 3.6 0 -1.5
+teil_groesse boje 0.8 0.8 0.8
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "tomate"
+komp_haenge k boje
+wiederhole 2 e
+  teil_neu 3 -> kiste
+  teil_lage kiste (-1.2 + e * 2.4) 0.5 (1.5 - e * 3)
+  teil_setze kiste 4 (20 + e * 35)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#a8763e"
+  komp_haenge k kiste
+  komp_neu T_F -> f
+  setze_zahl f F_AUS 0
+  komp_haenge f kiste
+  komp_neu T_SW -> s
+  setze_zahl s SW_G 9.81
+  setze_zahl s SW_A (1.6 + e * 0.2)
+  komp_haenge s kiste
+ende
+
+wiederhole STIMMUNG e
+  teil_neu 3 -> st
+  komp_neu T_S -> s
+  setze_zahl s S_BLOOM 0.5
+  setze_zahl s S_BEL 1.15
+  setze_zahl s S_SP 1
+  setze_zahl s S_SH 0
+  komp_haenge s st
+ende
+takte 90

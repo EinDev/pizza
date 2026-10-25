@@ -1,0 +1,119 @@
+# H-K28 (HERD.md §13.3): Wasser – Gerstner-Wellen (Richtung aus dem Wind), Auftrieb über Schwung.auftrieb. Zwei Becken
+# (das zweite höher, kleiner, ohne Wind-Richtung gleich), N Kisten, Kugeln und liegende Kapseln mit verschiedenem Auftrieb fallen
+# hinein und schaukeln; eine Kiste liegt außerhalb (kein Auftrieb), ein Lesefeld fragt die Wellenhöhe ab, mitten im Lauf ändern
+# sich Wellen und Wind. Der Szenen-Hash je Bild enthält Lage, Drehung und Tempo – test-kern.js vergleicht nativ gegen Wasm,
+# das Bildpaket enthält den Abschnitt WASSER mit den gerasteten Phasen.
+vorgabe N 24
+vorgabe TAKTE 120
+welt_neu 960 540 "Wasser"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Schwung" -> T_S
+typ_nummer "Koerper" -> T_K
+typ_nummer "Wasser" -> T_W
+typ_nummer "Wind" -> T_WI
+feld_nummer T_F "form" -> F_FORM
+feld_nummer T_F "radius" -> F_RAD
+feld_nummer T_F "hoehe" -> F_H
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_S "schwerkraft" -> S_G
+feld_nummer T_S "masse" -> S_M
+feld_nummer T_S "auftrieb" -> S_AUF
+feld_nummer T_S "tempoY" -> S_TY
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_W "breite" -> W_B
+feld_nummer T_W "tiefe" -> W_T
+feld_nummer T_W "wellen" -> W_W
+feld_nummer T_W "wellenLaenge" -> W_L
+feld_nummer T_W "wellenTempo" -> W_TE
+feld_nummer T_W "messX" -> W_MX
+feld_nummer T_W "messZ" -> W_MZ
+feld_nummer T_W "messHoehe" -> W_MH
+feld_nummer T_WI "richtungX" -> WI_X
+feld_nummer T_WI "richtungZ" -> WI_Z
+teil_lage 1 0 14 26
+teil_schaue 1 0 0 0
+form_grund 1 0 0 -> WUERFEL
+# Wind schräg, zwei Becken
+teil_neu 3 -> wind
+komp_neu T_WI -> wi
+setze_zahl wi WI_X 1
+setze_zahl wi WI_Z 0.6
+komp_haenge wi wind
+teil_neu 3 -> becken
+teil_lage becken 0 0 0
+komp_neu T_W -> w1
+setze_zahl w1 W_B 30
+setze_zahl w1 W_T 24
+setze_zahl w1 W_W 0.4
+setze_zahl w1 W_L 7
+setze_zahl w1 W_MX 2.5
+setze_zahl w1 W_MZ -1.5
+komp_haenge w1 becken
+teil_neu 3 -> teich
+teil_lage teich 22 1.5 0
+komp_neu T_W -> w2
+setze_zahl w2 W_B 8
+setze_zahl w2 W_T 8
+setze_zahl w2 W_W 0.15
+setze_zahl w2 W_L 3
+setze_zahl w2 W_TE 1.7
+komp_haenge w2 teich
+# N Körper: Kisten, Kugeln, liegende Kapseln; Auftrieb 0,8 … 2
+wiederhole N e
+  teil_neu 3 -> nt
+  teil_lage nt ((e % 6) * 4 - 10) (3 + boden(e / 6) * 1.5) ((boden(e / 6) % 4) * 4 - 6)
+  teil_setze nt 4 ((e % 5) * 17)
+  teil_setze nt 6 ((e % 3) * 90)
+  komp_neu T_F -> nf
+  setze_zahl nf F_FORM (3 + e % 3)
+  setze_zahl nf F_RAD 0.5
+  setze_zahl nf F_H 2
+  setze_zahl nf F_AUS 0
+  komp_haenge nf nt
+  komp_neu T_K -> nk
+  setze_zahl nk K_FORM WUERFEL
+  komp_haenge nk nt
+  komp_neu T_S -> ns
+  setze_zahl ns S_G 9.81
+  setze_zahl ns S_M (1 + e % 2)
+  setze_zahl ns S_AUF (0.8 + (e % 7) * 0.2)
+  komp_haenge ns nt
+ende
+# eine Kiste im Teich, eine außerhalb aller Becken (fällt frei)
+teil_neu 3 -> klein
+teil_lage klein 22 4 0.5
+komp_neu T_F -> kf
+setze_zahl kf F_AUS 0
+komp_haenge kf klein
+komp_neu T_K -> kk
+setze_zahl kk K_FORM WUERFEL
+komp_haenge kk klein
+komp_neu T_S -> ks
+setze_zahl ks S_G 9.81
+setze_zahl ks S_AUF 1.6
+komp_haenge ks klein
+teil_neu 3 -> fern
+teil_lage fern 60 5 0
+komp_neu T_F -> ff
+setze_zahl ff F_AUS 0
+komp_haenge ff fern
+komp_neu T_S -> fs
+setze_zahl fs S_G 9.81
+setze_zahl fs S_AUF 2
+komp_haenge fs fern
+takte 60
+hole_zahl w1 W_MH
+hole_zahl w2 W_MH
+teil_hole klein 2
+teil_hole fern 2
+# Wellen und Wind ändern sich
+setze_zahl w1 W_W 0.8
+setze_zahl wi WI_Z -1
+setze_zahl w2 W_TE 0
+takte TAKTE
+hole_zahl w1 W_MH
+hole_zahl ks S_TY
+teil_hole klein 2
+teil_hole klein 4
+teil_hole fern 2

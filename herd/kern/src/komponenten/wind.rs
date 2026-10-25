@@ -58,6 +58,13 @@ pub fn an(w: &Welt) -> bool {
     geltender(w).is_some()
 }
 
+/// Richtung (x, z, ungenormt) des geltenden Winds – für die Wellen von `Wasser` (H-K28).
+pub fn richtung(w: &Welt) -> Option<(f64, f64)> {
+    let (a, z) = geltender(w)?;
+    let s = &w.speicher[a];
+    Some((s.zahl(RICHTUNG_X)[z], s.zahl(RICHTUNG_Z)[z]))
+}
+
 /// Schreibt den Abschnitt `WIND` des geltenden Winds; liefert die Zahl der Abschnitte (0/1).
 pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32) -> u32 {
     let Some((a, z)) = geltender(w) else { return 0 };

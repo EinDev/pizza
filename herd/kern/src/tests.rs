@@ -859,7 +859,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel"), ("Belag", "normalKarte"), ("Belag", "normalStaerke"), ("Belag", "stoffKarte"), ("Belag", "leuchtKarte"), ("Belag", "leuchtFarbe"), ("Belag", "schwelle"), ("Belag", "beidseitig"), ("Belag", "wiegen")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel"), ("Belag", "normalKarte"), ("Belag", "normalStaerke"), ("Belag", "stoffKarte"), ("Belag", "leuchtKarte"), ("Belag", "leuchtFarbe"), ("Belag", "schwelle"), ("Belag", "beidseitig"), ("Belag", "wiegen"), ("Schwung", "auftrieb")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -8219,5 +8219,157 @@ mod hk27 {
         let nah: u32 = s[0].4.iter().map(|l| l[1]).sum();
         assert!(nah > 0 && nah < alle / 2, "{nah} {alle}");
         assert!(s[0].4.len() <= 64);
+    }
+}
+
+/// H-K28: `Wasser` – Gerstner-Wellen im Kern, Auftrieb über `Schwung.auftrieb`, Abschnitt WASSER und Zug nur bei Nutzung.
+mod hk28 {
+    use super::*;
+    use crate::komponenten::wasser;
+    use crate::paket::zug;
+
+    fn abschnitt_von(k: &Kern, art: u32) -> Option<Vec<u8>> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let d = l.abschnitte().find(|(a, _)| *a == art).map(|(_, d)| d.to_vec());
+        d
+    }
+    fn zuege(k: &Kern) -> Vec<[u32; 4]> {
+        let Some(d) = abschnitt_von(k, abschnitt::ZUEGE3D) else { return Vec::new() };
+        d.chunks_exact(16).map(|z| [0, 4, 8, 12].map(|o| u32::from_le_bytes([z[o], z[o + 1], z[o + 2], z[o + 3]]))).collect()
+    }
+
+    /// Wasser bei (0, y, 0), 20 × 20, mit den Feldern `werte`; gibt (Teil, Komponente)
+    fn wasser_neu(k: &mut Kern, y: f64, werte: &[(&str, f64)]) -> (i32, i32) {
+        let wt = typ(k, "Wasser");
+        let t = k.teil_neu(3);
+        k.teil_lage(t, 0.0, y, 0.0);
+        let c = k.komp_neu(wt);
+        for (n, v) in [("breite", 20.0), ("tiefe", 20.0)].iter().chain(werte.iter()) {
+            let f = feld(k, wt, n);
+            assert_eq!(k.setze_zahl(c, f, *v), 0, "{n}");
+        }
+        assert_eq!(k.komp_haenge(c, t), 0);
+        (t, c)
+    }
+
+    /// Würfel 1 × 1 × 1 bei (x, y, 0) mit Fühler und dynamischem Schwung (Schwerkraft 9,81, `auftrieb`); gibt (Teil, Schwung)
+    fn kiste(k: &mut Kern, x: f64, y: f64, auftrieb: f64) -> (i32, i32) {
+        let (ft, st, kt) = (typ(k, "Fuehler"), typ(k, "Schwung"), typ(k, "Koerper"));
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        let t = k.teil_neu(3);
+        k.teil_lage(t, x, y, 0.0);
+        let c = k.komp_neu(kt);
+        let kf = feld(k, kt, "form");
+        k.setze_zahl(c, kf, wuerfel as f64);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let f = k.komp_neu(ft);
+        let fa = feld(k, ft, "ausloeser");
+        k.setze_zahl(f, fa, 0.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        let s = k.komp_neu(st);
+        let (g, a) = (feld(k, st, "schwerkraft"), feld(k, st, "auftrieb"));
+        k.setze_zahl(s, g, 9.81);
+        assert_eq!(k.setze_zahl(s, a, auftrieb), 0, "{}", k.fehler_text());
+        assert_eq!(k.komp_haenge(s, t), 0, "{}", k.fehler_text());
+        (t, s)
+    }
+
+    #[test]
+    fn schema_typnummer_nachtrag() {
+        let mut k = welt();
+        // Wasser hängt hinten an (nach Wind 38, Streu 39)
+        assert_eq!(typ(&mut k, "Wasser"), 40);
+        let st = typ(&mut k, "Schwung");
+        let a = feld(&mut k, st, "auftrieb");
+        let art = ARTEN.iter().find(|a| a.schema.name == "Schwung").unwrap();
+        assert!(art.schema.felder[(a - 1) as usize].nachtrag);
+    }
+
+    #[test]
+    fn kiste_schwimmt_in_ruhe_auf_berechneter_hoehe() {
+        // auftrieb 2: im Gleichgewicht halb eingetaucht → Mitte auf dem Wasserspiegel; 1,5: zwei Drittel → Mitte 1/6 darunter
+        for (auf, soll) in [(2.0, 1.0), (1.5, 1.0 - 1.0 / 6.0)] {
+            let mut k = welt();
+            wasser_neu(&mut k, 1.0, &[("wellen", 0.0)]);
+            let (t, s) = kiste(&mut k, 0.0, 3.0, auf);
+            for _ in 0..900 {
+                k.takt();
+            }
+            let y = k.teil_hole(t, tf::Y);
+            let st = typ(&mut k, "Schwung");
+            let ty = feld(&mut k, st, "tempoY");
+            assert!((y - soll).abs() < 0.01, "auftrieb {auf}: y = {y}, soll {soll}");
+            assert!(k.hole_zahl(s, ty).abs() < 0.02);
+        }
+    }
+
+    #[test]
+    fn ohne_wasser_bitgleich() {
+        // Auftrieb ohne Wasser ändert nichts (Takt wie vorher), Lage bitgleich
+        let lauf = |auf: f64| {
+            let mut k = welt();
+            let (t, _) = kiste(&mut k, 0.3, 4.0, auf);
+            for _ in 0..90 {
+                k.takt();
+            }
+            [tf::X, tf::Y, tf::Z].map(|f| k.teil_hole(t, f).to_bits())
+        };
+        assert_eq!(lauf(0.0), lauf(2.0));
+        // Wasser an einem unsichtbaren Teil: kein Abschnitt, kein Zug, Paket byte-gleich
+        let mut a = welt();
+        kiste(&mut a, 0.0, 2.0, 0.0);
+        a.bild(1);
+        let ohne = a.paket().to_vec();
+        let mut b = welt();
+        kiste(&mut b, 0.0, 2.0, 0.0);
+        let (wt, _) = wasser_neu(&mut b, 0.0, &[]);
+        b.teil_setze(wt, tf::SICHTBAR, 0.0);
+        b.bild(1);
+        assert_eq!(ohne, b.paket());
+    }
+
+    #[test]
+    fn abschnitt_und_zug_zwischen_fest_und_durch() {
+        let mut k = welt();
+        kiste(&mut k, 0.0, 2.0, 0.0);
+        wasser_neu(&mut k, 0.5, &[("wellen", 0.3), ("wellenLaenge", 5.0)]);
+        k.takt();
+        k.bild(1);
+        let d = abschnitt_von(&k, abschnitt::WASSER).expect("WASSER");
+        assert_eq!(d.len(), wasser::WASSER_KOPF_BYTES + wasser::WASSER_FLAECHE_BYTES);
+        assert_eq!(u32::from_le_bytes([d[0], d[1], d[2], d[3]]), 1);
+        let f = |o: usize| f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]]);
+        assert_eq!((f(16 + 4), f(16 + 12), f(16 + 16), f(16 + 24)), (0.5, 0.3, 10.0, 5.0));
+        let z = zuege(&k);
+        let i = z.iter().position(|z| z[0] == zug::WASSER).expect("Zug WASSER");
+        assert_eq!(z[i][3], 1);
+        assert!(z[..i].iter().all(|z| z[0] & zug::ART != zug::DURCH));
+    }
+
+    #[test]
+    fn hoehe_umkehrt_gerstner_und_lesefeld() {
+        let mut k = welt();
+        let (_, c) = wasser_neu(&mut k, 2.0, &[("wellen", 0.5), ("wellenLaenge", 4.0), ("messX", 1.25), ("messZ", -0.75)]);
+        for _ in 0..37 {
+            k.takt();
+        }
+        let wt = typ(&mut k, "Wasser");
+        let mh = feld(&mut k, wt, "messHoehe");
+        let gelesen = k.hole_zahl(c, mh);
+        let fl = wasser::flaechen_wach(k.welt.as_mut().unwrap());
+        let f = &fl[0];
+        assert_eq!(gelesen.to_bits(), wasser::hoehe(f, 1.25, -0.75).to_bits());
+        // Ruhepunkt (u, v) → verschobener Punkt; die Höhe dort ist wieder dessen y
+        for (u, v) in [(0.0, 0.0), (3.1, -2.2), (-5.5, 4.4)] {
+            let mut p = [u, f.mitte[1], v];
+            for wl in &f.welle {
+                let th = wl.k * (wl.d[0] * u + wl.d[1] * v) - wasser::phase_bogen(wl.phase);
+                p[0] += wl.s * wl.d[0] * libm::cos(th);
+                p[1] += wl.a * libm::sin(th);
+                p[2] += wl.s * wl.d[1] * libm::cos(th);
+            }
+            let h = wasser::hoehe(f, p[0], p[2]);
+            assert!((h - p[1]).abs() < 2e-3, "({u}, {v}): {h} ≠ {}", p[1]);
+        }
     }
 }

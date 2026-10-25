@@ -53,6 +53,13 @@ const SCHATTEN: &str = include_str!("../shader/schatten.wgsl");
 const FUNKEN: &str = include_str!("../shader/funken.wgsl");
 const NACHBILD: &str = include_str!("../shader/nachbild.wgsl");
 const BILDRAUM: &str = include_str!("../shader/bildraum.wgsl");
+const WASSER: &str = include_str!("../shader/wasser.wgsl");
+/// Wasser (H-K28): Glut-Block an Bindung 25 im Layout `wasser` (Kopf 16 B aus dem Kern, Glut-Merkmale 16 B, 8 Flächen à 64 B),
+/// Zellen je Kante des Rasters (wie `RASTER` in wasser.wgsl)
+const WASSER_BLOCK: usize = 32 + 8 * 64;
+const WASSER_RASTER: u32 = 128;
+const WASSER_KOPF: usize = herd_kern::komponenten::wasser::WASSER_KOPF_BYTES;
+const WASSER_FLAECHE: usize = herd_kern::komponenten::wasser::WASSER_FLAECHE_BYTES;
 /// Bildschirmraum (H-K24): Glut-Block an Bindung 22 (Kern-Abschnitt BILDRAUM 32 B + Inverse von ansicht_proj, Viewport, Zielgröße)
 const BILDRAUM_BLOCK: usize = 128;
 const BILDRAUM_KERN: usize = herd_kern::komponenten::stimmung::BILDRAUM_BYTES;
@@ -270,6 +277,8 @@ struct Pipelines {
     funken_deckend: wgpu::RenderPipeline,
     /// Himmelszelt (H-K11b): `vs_himmel` + `fs_zelt`
     zelt: wgpu::RenderPipeline,
+    /// Wasser (H-K28, Layout `wasser`): `vs_wasser` + `fs_wasser`, deckend, schreibt Tiefe
+    wasser: wgpu::RenderPipeline,
 }
 
 /// HDR-Ziele der Stimmung für die aktuelle Zielgröße (angelegt beim ersten Paket mit STIMMUNG).
@@ -402,6 +411,13 @@ pub struct Glut {
     lay_bild: wgpu::BindGroupLayout,
     bild_pipes: BildraumPipelines,
     bild: Option<BildraumZiele>,
+    /// Wasser (H-K28, Abschnitt WASSER): eigenes Layout, Shader, Glut-Block (Bindung 25), Kopie der Szenenfarbe nach FEST
+    /// (HDR-Weg; angelegt beim ersten Bild mit Wasser, neu bei Größenänderung)
+    lay_wasser: wgpu::BindGroupLayout,
+    pl_wasser: wgpu::PipelineLayout,
+    mod_wasser: wgpu::ShaderModule,
+    wasser_block: wgpu::Buffer,
+    wasser_kopie: Option<(wgpu::Texture, wgpu::TextureView)>,
     /// Schatten-Tiefentextur (H-K18): Array aus Schichten 2048² – Schicht 0 = Sonne bzw. Kaskaden, dahinter die Atlas-Seiten
     /// der Punkt-/Spot-Kacheln; Array-Ansicht zum Abtasten (Bindung 2), je Schicht eine Ansicht als Tiefenziel
     schatten_map: wgpu::TextureView,
@@ -704,6 +720,23 @@ fn invers4(m: &[f64; 16]) -> [f64; 16] {
 
 /// Schatten-Layout: SZENE, Atlas und eigene Texturen (Deckkraft, nur `textureLoad`), Ansicht·Projektion je Zug (20,
 /// dynamischer Versatz, H-K18)
+/// Wasser (H-K28): 0 SZENE, 12 Sampler linear, 13 HIMMELSZELT (nur die Verlaufsfarben), 17 STIMMUNG, 19 Spiegelbild, 25 Wasser-Block,
+/// 26 Kopie der Szenenfarbe (mit 12), 27 Tiefe des Vorlaufs (+ 28 Sampler nächster Nachbar) – 3 Texturen, 2 Sampler
+fn layout_wasser() -> Vec<wgpu::BindGroupLayoutEntry> {
+    use wgpu::{ShaderStages as St, TextureSampleType as T, TextureViewDimension as D};
+    vec![
+        ubo_eintrag(0),
+        sampler_eintrag(12, wgpu::SamplerBindingType::Filtering),
+        ubo_eintrag(13),
+        ubo_eintrag(17),
+        textur_eintrag(19, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+        ubo_eintrag(25),
+        textur_eintrag(26, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+        textur_eintrag(27, St::FRAGMENT, T::Float { filterable: false }, D::D2),
+        sampler_eintrag(28, wgpu::SamplerBindingType::NonFiltering),
+    ]
+}
+
 fn layout_schatten() -> Vec<wgpu::BindGroupLayoutEntry> {
     let zug = wgpu::BindGroupLayoutEntry {
         binding: 20,
@@ -948,6 +981,11 @@ impl Glut {
         let mod_bild = modul("herd bildraum", BILDRAUM);
         let bild_pipes = Glut::bildraum_pipelines(dev, &pl_haupt, &mod_licht, &pl_bild, &mod_bild, hdr_format, hdr_msaa);
         let bildraum = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd bildraum"), size: BILDRAUM_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        // Wasser (H-K28): eigenes Layout, Pipelines vorab je Zielformat in `pipelines`
+        let lay_wasser = lay("herd wasser", &layout_wasser());
+        let pl_wasser = pl("herd wasser", &lay_wasser);
+        let mod_wasser = modul("herd wasser", WASSER);
+        let wasser_block = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd wasser"), size: WASSER_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
 
         // Schatten: Ecke, INST3D, KARTEN3D an Slot 2 (Schwelle, H-K26) und ZUSATZ3D an 3 (wiegen, H-K27); Haut (H-K23b): dazu
         // der Haut-Strom an 4
@@ -1094,6 +1132,11 @@ impl Glut {
             lay_bild,
             bild_pipes,
             bild: None,
+            lay_wasser,
+            pl_wasser,
+            mod_wasser,
+            wasser_block,
+            wasser_kopie: None,
             schatten_map,
             schatten_schichten,
             schattenlichter,
@@ -1692,7 +1735,18 @@ impl Glut {
             multiview_mask: None,
             cache: None,
         });
-        self.pipelines.push(Pipelines { format, proben, abschluss, flach, himmel, fest, fest_ohne_hinten, fest_ohne_vorn, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
+        let wasser = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("herd wasser"),
+            layout: Some(&self.pl_wasser),
+            vertex: wgpu::VertexState { module: &self.mod_wasser, entry_point: Some("vs_wasser"), compilation_options: Default::default(), buffers: &[] },
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            depth_stencil: tiefe(true, wgpu::CompareFunction::Less),
+            multisample: ms,
+            fragment: Some(wgpu::FragmentState { module: &self.mod_wasser, entry_point: Some("fs_wasser"), compilation_options: Default::default(), targets: &z_ersetz }),
+            multiview_mask: None,
+            cache: None,
+        });
+        self.pipelines.push(Pipelines { format, proben, abschluss, flach, himmel, fest, fest_ohne_hinten, fest_ohne_vorn, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt, wasser });
         self.pipelines.len() - 1
     }
 
@@ -2205,6 +2259,7 @@ impl Glut {
         let mut lichter_sp: Option<&[u8]> = None;
         let mut stimmung: Option<&[u8]> = None;
         let mut bildraum_d: Option<&[u8]> = None;
+        let mut wasser_d: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
         let mut karten: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
@@ -2264,6 +2319,13 @@ impl Glut {
                         return Err(Fehler::Paket(format!("STIMMUNG hat {} Bytes", d.len())));
                     }
                     stimmung = Some(d);
+                }
+                abschnitt::WASSER => {
+                    let n = if d.len() >= 4 { u32_at(d, 0) as usize } else { usize::MAX };
+                    if n == 0 || n > 8 || d.len() != WASSER_KOPF + n * WASSER_FLAECHE {
+                        return Err(Fehler::Paket(format!("WASSER hat {} Bytes", d.len())));
+                    }
+                    wasser_d = Some(d);
                 }
                 abschnitt::BILDRAUM => {
                     if d.len() != BILDRAUM_KERN {
@@ -2571,6 +2633,65 @@ impl Glut {
                 }
             }
         }
+        // Wasser (H-K28): Flächen des Zugs WASSER; im HDR-Weg mit Kopien (Szenenfarbe nach FEST, Tiefe aus dem Bildraum-Vorlauf –
+        // ohne BILDRAUM läuft der Vorlauf eigens), ohne Stimmung deckend ohne Kopien
+        let wasser_n = match (wasser_d, self.zuege.iter().find(|z| z[0] & zug::ART == zug::WASSER)) {
+            (Some(d), Some(z)) if z[2] == 0 && z[3] as usize <= u32_at(d, 0) as usize => z[3],
+            _ => 0,
+        };
+        let wasser_kopien = wasser_n > 0 && hdr;
+        let bg_wasser = if wasser_n > 0 {
+            let d = wasser_d.expect("WASSER");
+            if wasser_kopien {
+                if bildraum_kern.is_none() {
+                    self.bildraum_bereit();
+                    self.bindegruppen(schichten);
+                }
+                let (b, h) = (self.breite.max(1), self.hoehe.max(1));
+                if !matches!(&self.wasser_kopie, Some((t, _)) if t.width() == b && t.height() == h) {
+                    let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("herd wasser kopie"),
+                        size: wgpu::Extent3d { width: b, height: h, depth_or_array_layers: 1 },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: self.hdr_format,
+                        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                        view_formats: &[],
+                    });
+                    let v = t.create_view(&Default::default());
+                    self.wasser_kopie = Some((t, v));
+                }
+            }
+            let mut b = Vec::with_capacity(WASSER_BLOCK);
+            b.extend_from_slice(&d[..WASSER_KOPF]);
+            for x in [if wasser_kopien { 1.0f32 } else { 0.0 }, if zelt.is_some() { 1.0 } else { 0.0 }, 0.0, 0.0] {
+                b.extend_from_slice(&x.to_le_bytes());
+            }
+            b.extend_from_slice(&d[WASSER_KOPF..]);
+            b.resize(WASSER_BLOCK, 0);
+            self.queue.write_buffer(&self.wasser_block, 0, &b);
+            stat.hochgeladen += d.len() as u64;
+            let platz = &self.platzhalter;
+            let (farbe, tiefe) = match (wasser_kopien, &self.wasser_kopie, &self.bild) {
+                (true, Some((_, k)), Some(bz)) => (k, &bz.tiefe),
+                _ => (platz, platz),
+            };
+            let e = [
+                wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 12, resource: wgpu::BindingResource::Sampler(&self.s_linear) },
+                wgpu::BindGroupEntry { binding: 13, resource: self.zelt.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 19, resource: wgpu::BindingResource::TextureView(self.spiegel.as_ref().filter(|_| spiegel_h.is_some()).map(|s| &s.farbe).unwrap_or(platz)) },
+                wgpu::BindGroupEntry { binding: 25, resource: self.wasser_block.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 26, resource: wgpu::BindingResource::TextureView(farbe) },
+                wgpu::BindGroupEntry { binding: 27, resource: wgpu::BindingResource::TextureView(tiefe) },
+                wgpu::BindGroupEntry { binding: 28, resource: wgpu::BindingResource::Sampler(&self.s_punkt) },
+            ];
+            Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("herd wasser"), layout: &self.lay_wasser, entries: &e }))
+        } else {
+            None
+        };
         let pi = self.pipelines(format, self.msaa);
         let pi_hdr = if hdr { self.pipelines(self.hdr_format, self.hdr_msaa) } else { pi };
         let pi_spiegel = if spiegel_h.is_some() { self.pipelines(self.hdr_format, 1) } else { pi };
@@ -2667,7 +2788,7 @@ impl Glut {
         }
 
         // ---- Bildschirmraum (H-K24): Vorlauf (FEST ohne MSAA: Tiefe, Normale, Glanz-Gewicht), Verdeckung in halber Größe ----
-        if let (Some(bz), true) = (&self.bild, bildraum_kern.is_some()) {
+        if let (Some(bz), true) = (&self.bild, bildraum_kern.is_some() || wasser_kopien) {
             let bp = &self.bild_pipes;
             {
                 let leer = wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store };
@@ -2734,8 +2855,9 @@ impl Glut {
             };
             let lin = |c: f64| if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
             let klar_lin = wgpu::Color { r: lin(klar.r), g: lin(klar.g), b: lin(klar.b), a: 1.0 };
-            // mit Bildraum-Spiegelung (H-K24) zweigeteilt: Himmel + FEST, dann SSR additiv, dann DURCH + Teilchen
-            let teilen = ssr && self.bild.is_some();
+            // mit Bildraum-Spiegelung (H-K24) bzw. Wasser (H-K28) zweigeteilt: Himmel + FEST, dann SSR additiv bzw. die Kopie der
+            // Szenenfarbe, dann Wasser, DURCH + Teilchen
+            let teilen = (ssr || wasser_kopien) && self.bild.is_some();
             {
                 let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("herd hdr"),
@@ -2759,15 +2881,23 @@ impl Glut {
             }
             if let (true, Some(bz)) = (teilen, &self.bild) {
                 let bp = &self.bild_pipes;
+                // Wasser (H-K28): Kopie des aufgelösten HDR-Bilds nach FEST (Brechung, Tiefenfärbung)
+                if let (true, Some((t, _))) = (wasser_kopien, &self.wasser_kopie) {
+                    enc.copy_texture_to_texture(
+                        wgpu::TexelCopyTextureInfo { texture: &n.hdr_textur, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                        wgpu::TexelCopyTextureInfo { texture: t, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                        wgpu::Extent3d { width: t.width(), height: t.height(), depth_or_array_layers: 1 },
+                    );
+                }
                 // Farbstufe 0 = Kopie des aufgelösten HDR-Bilds, Stufen 1 … 4 je halbe Größe
-                if let Some(t0) = &bz.stufe0 {
+                if let (true, Some(t0)) = (ssr, &bz.stufe0) {
                     enc.copy_texture_to_texture(
                         wgpu::TexelCopyTextureInfo { texture: &n.hdr_textur, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
                         wgpu::TexelCopyTextureInfo { texture: t0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
                         wgpu::Extent3d { width: bz.breite, height: bz.hoehe, depth_or_array_layers: 1 },
                     );
                 }
-                if let Some(vk) = &bp.verkleinern {
+                if let (true, Some(vk)) = (ssr, &bp.verkleinern) {
                     for i in 1..bz.stufen.len() {
                         let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                             label: Some("herd farbstufe"),
@@ -2780,7 +2910,7 @@ impl Glut {
                         stat.draw_calls += 1;
                     }
                 }
-                if let Some(sp) = &bp.bildspiegel {
+                if let (true, Some(sp)) = (ssr, &bp.bildspiegel) {
                     let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                         label: Some("herd bildspiegel"),
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: ansicht, depth_slice: None, resolve_target: None, ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store } })],
@@ -2808,6 +2938,9 @@ impl Glut {
                     ..Default::default()
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+                if let Some(g) = &bg_wasser {
+                    Glut::zeichne_wasser(&mut p, pl, g, wasser_n, &mut stat);
+                }
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
                 Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, (&self.streu_zuege, &self.streu), &mut stat);
             }
@@ -2872,7 +3005,16 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, (&self.streu_zuege, &self.streu), &mut stat);
+                match &bg_wasser {
+                    // Wasser ohne Stimmung (H-K28): im selben Durchgang zwischen FEST und DURCH, ohne Kopien (deckend)
+                    Some(g) => {
+                        Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, 0, 0, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, true, false, false, (&self.streu_zuege, &self.streu), &mut stat);
+                        Glut::zeichne_wasser(&mut p, pl, g, wasser_n, &mut stat);
+                        p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
+                        Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, (&self.streu_zuege, &self.streu), &mut stat);
+                    }
+                    None => Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, (&self.streu_zuege, &self.streu), &mut stat),
+                }
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -2896,6 +3038,15 @@ impl Glut {
         }
         self.stat = stat;
         Ok(stat)
+    }
+
+    /// Wasser (H-K28): alle Flächen als Instanzen eines Rasters aus `vertex_index` (Bindegruppe des Layouts `wasser`).
+    fn zeichne_wasser(p: &mut wgpu::RenderPass<'_>, pl: &Pipelines, g: &wgpu::BindGroup, n: u32, stat: &mut Statistik) {
+        p.set_pipeline(&pl.wasser);
+        p.set_bind_group(0, g, &[]);
+        p.draw(0..WASSER_RASTER * WASSER_RASTER * 6, 0..n);
+        stat.draw_calls += 1;
+        stat.dreiecke += 2 * (WASSER_RASTER * WASSER_RASTER) as u64 * n as u64;
     }
 
     /// Himmel, `FEST`, `DURCH` und 3D-Teilchen in einen Durchgang (Bindegruppe gesetzt) – ins Ziel bzw. ins HDR-Ziel.

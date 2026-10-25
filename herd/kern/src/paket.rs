@@ -85,6 +85,9 @@ pub mod abschnitt {
     pub const STREU3D: u32 = 27;
     /// Wind (H-K27, 32 B Uniform-Block, `komponenten::wind`)
     pub const WIND: u32 = 28;
+    /// Wasserflächen des Bildes (H-K28, `komponenten::wasser::abschnitt`): `u32 anzahl, f32 nah, f32 fern, f32 zeit`, dann je Fläche
+    /// 64 B; nur mit sichtbarem `Wasser`
+    pub const WASSER: u32 = 29;
 }
 
 pub mod flag {
@@ -117,6 +120,8 @@ pub mod zug {
     /// Schatten in eine Ansicht des Abschnitts `SCHATTENLICHTER` (H-K18): `art = ANSICHT | ansicht << 8` (Bits 0–7 = Art,
     /// darüber die Nummer der Ansicht – erst die Kaskaden, dann die Kacheln); Instanzen sind eigene Kopien hinter `DURCH`
     pub const ANSICHT: u32 = 4;
+    /// Wasser (H-K28): `[WASSER, 0, erste, anzahl]` – Flächen des Abschnitts `WASSER`, gezeichnet nach `FEST` und vor `DURCH`
+    pub const WASSER: u32 = 5;
     /// Merkmal an `FEST`/`DURCH` (H-K26): Rückseiten weglassen – Instanzen mit Karten (`KARTEN3D` ≠ 0) und `beidseitig` nein,
     /// einseitig wie glTF; ohne Karten zeichnet Herd wie seit v1 beide Seiten
     pub const EINSEITIG: u32 = 1 << 16;
@@ -1054,6 +1059,11 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             zuege.push([zug::SCHATTEN | seiten & zug::HAUT, netz, start, werfer]);
         }
     }
+    // Wasser (H-K28): ein Zug zwischen FEST und DURCH, nur mit sichtbaren Flächen
+    let wasser_n = crate::komponenten::wasser::anzahl(w) as u32;
+    if wasser_n > 0 {
+        zuege.push([zug::WASSER, 0, 0, wasser_n]);
+    }
     let basis = bau.fest.len() as u32;
     let mut j = 0;
     while j < bau.durch.len() {
@@ -1327,6 +1337,10 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     abschnitte += crate::komponenten::stimmung::bildraum_abschnitt(w, aus, nah, fern);
     // ---------------- Wind (H-K27): nur wenn einer gilt ----------------
     abschnitte += crate::komponenten::wind::abschnitt(w, aus, bildnummer);
+    // ---------------- Wasser (H-K28): nur mit sichtbarem Wasser ----------------
+    if wasser_n > 0 {
+        abschnitte += crate::komponenten::wasser::abschnitt(w, aus, nah, fern);
+    }
 
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());
