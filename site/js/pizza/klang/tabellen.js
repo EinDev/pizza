@@ -5,8 +5,9 @@
 // Klang – TypAnanas mit Parametername), dann der Erzeuger (Wertebereiche, Texte, Länge).
 function klangTab(o) { const t = tabelle(o); nurHauptkueche(t, KLANG_KUECHE); return t; }
 
-// statisch: Klang.ton, Klang.rauschen, Klang.stille, Klang.noten
+// statisch: Klang.ton, Klang.rauschen, Klang.stille, Klang.noten, Klang.laden (H-K19a)
 const KLANG_MOD_M = klangTab({
+  'laden': function (m, pos, ben) { return this.klangLaden(arg(pos, ben, 0, 'pfad')); },
   'ton': function (m, pos, ben) {
     const fr = this.herdZahl(arg(pos, ben, 0, 'frequenz'), 'ton', 'frequenz');
     const d = this.herdZahl(arg(pos, ben, 1, 'dauer'), 'ton', 'dauer');

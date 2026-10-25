@@ -218,6 +218,49 @@ function pruefe(pruefeFall) {
     const kv = Z.kompiliere(q, { teiglinge: { 'modelle/hierarchie.glb': vb.modellAusSammlung('modelle/hierarchie.glb', q.dateien).teig } });
     if (Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(kv.pkarton)) !== 0) throw new Error('passender Cache ändert das Modul');
   });
+  // ---------------------------------------------------------------- Klang.laden (H-K19a, SPEC §18.8, K-163)
+  pruefeFall('Klang.laden: WAV/FLAC als Klangteig im Datensegment (Kiste-Art 4), Interpreter = Wasm (Ereignisse, PCM-Hashes, Fehlertexte)', () => {
+    for (const n of ['klang-laden', 'klang-laden-ananas']) {
+      const r = beide(ordnerFall(n));
+      const lies = (d) => { const p = path.join(ROOT, 'tests', 'faelle', n, 'pruefung', d); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n').split('\n').filter(Boolean) : []; };
+      if (r.exitCode !== 0 || j(aus(r)) !== j(lies('erwartet'))) throw new Error(n + ': ' + j(ohne(r)).slice(0, 1500));
+      const kl = ohne(r).filter(e => e.typ === 'klang').map(e => { const o = Object.assign({}, e); delete o.typ; return JSON.stringify(o); });
+      if (j(kl) !== j(lies('klang-erwartet'))) throw new Error(n + ' klang: ' + j(kl));
+      if (!(meta(r.pkarton).gruppen || []).includes('klang')) throw new Error('Gruppe klang fehlt');
+    }
+  });
+  pruefeFall('Klang.laden: onKlang bekommt PCM mit Rate und Kanälen (Interpreter = Wasm), Ereignisse ohne Bytes', () => {
+    const q = ordnerFall('klang-laden');
+    const sammle = () => { const l = []; return { l, onKlang: (art, d) => { if (d.bytes) l.push([d.klang, d.rate, d.kanaele, d.bytes.length]); } }; };
+    const a = sammle(), b = sammle();
+    P.run(q, { onKlang: a.onKlang });
+    Z.run(q, { motor: 'wasm', onKlang: b.onKlang });
+    const soll = [['57d5faa45c58327d', 44100, 2], ['d7b0db04a298bc12', 22050, 1], ['1a12f026a967e302', 48000, 1], ['e48c0f06f78e3e02', 48000, 1]];
+    if (j(a.l) !== j(b.l) || j(a.l.map(x => x.slice(0, 3))) !== j(soll)) throw new Error(j(a.l) + ' / ' + j(b.l));
+  });
+  pruefeFall('Klang.laden: Klangmenge > 64 MiB → P0021 vor dem Start (nach P0020), veralteter Klangteig-Cache ändert nichts', () => {
+    const q = ordnerFall('klang-laden'), vb = V.node();
+    // zwei (passende) Klangteige aus dem Cache mit je 34 000 000 PCM-Bytes – Kopf gültig, SHA-256 der Quelle stimmt
+    const gross = (pfad) => {
+      const echt = vb.klangVorbacken(q.dateien[pfad]);
+      const frames = 8500000, t = new Uint8Array(64 + frames * 4);
+      t.set(echt.subarray(0, 64));
+      const dv = new DataView(t.buffer);
+      dv.setUint32(48, 96000, true); dv.setUint16(52, 2, true); dv.setUint32(56, frames, true);
+      return t;
+    };
+    const opt = { teiglinge: { 'klaenge/ton-mono.wav': gross('klaenge/ton-mono.wav'), 'klaenge/akkord-stereo.flac': gross('klaenge/akkord-stereo.flac') } };
+    const k = Z.kompiliere(q, opt);
+    const r = Z.fuehreAus(k.pkarton, {}), i = P.run(q, opt);
+    for (const x of [r, i]) {
+      const f = fehlerEv(x);
+      if (x.exitCode !== 2 || f.code !== 'P0021' || f.datei !== null
+        || f.text !== 'PizzaFehler P0021: Die Klänge sind zusammen zu groß für den Ofen (64,9 MB vorgebacken, höchstens 64 MB).') throw new Error(j(ohne(x)).slice(0, 800));
+    }
+    const falsch = vb.klangVorbacken(q.dateien['klaenge/klick-24.flac']);   // passt nicht zu ton-mono.wav → wird neu vorgebacken
+    const k1 = Z.kompiliere(q), k2 = Z.kompiliere(q, { teiglinge: { 'klaenge/ton-mono.wav': falsch } });
+    if (!k1.ok || Buffer.compare(Buffer.from(k1.pkarton), Buffer.from(k2.pkarton)) !== 0) throw new Error('Cache ändert das Modul');
+  });
 }
 
 module.exports = { pruefe };

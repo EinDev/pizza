@@ -204,6 +204,16 @@
       "herd": true
     },
     {
+      "id": "geraeuschkiste",
+      "titel": "Geräuschkiste: Klänge aus Dateien",
+      "beschreibung": "Vier Taster spielen aufgenommene Geräusche aus FLAC-Dateien (Klang.laden): Schritte auf nassem Pflaster, eine Ladenglocke, das Summen einer Leuchtreklame als Schleife und ein Gewitter aus erzeugtem Grollen und der tiefer gespielten Glocke. Die Geräusche sind CC0 von Freesound.",
+      "ordner": "herd/geraeuschkiste",
+      "dateien": ["pizza.json", "hauptgang.pizza", "klaenge/ladenglocke.flac", "klaenge/neon-summen.flac", "klaenge/schritt-1.flac", "klaenge/schritt-2.flac", "quellen.md"],
+      "tier": 1,
+      "schlagworte": ["Herd", "2D", "Klang", "Klang.laden", "FLAC", "Taster", "Maus", "Tastatur"],
+      "herd": true
+    },
+    {
       "id": "kniffe",
       "titel": "Kniffe: Spielfiguren als eigene Klassen",
       "beschreibung": "Der Pizzabote sammelt Münzen, eine Olive läuft Streife und eine Tomate verfolgt ihn. Jede Figur ist eine eigene Klasse, die von Kniff erbt und ihr Verhalten mitbringt: takt() je Bild, beimBetreten aus dem Fühler, beimKlick aus dem Taster, beimEntfernen beim Einsammeln.",

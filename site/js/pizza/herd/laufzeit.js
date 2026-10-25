@@ -304,9 +304,11 @@ const HERD_LAUFZEIT = {
     const sortiert = (l) => l.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     const bilder = sortiert(Object.keys(this.kiste).filter(istBildPfad));
     const modelle = sortiert(Object.keys(this.kiste).filter(istModellPfad));
-    if (!bilder.length && !modelle.length) return;
+    const klaenge = sortiert(Object.keys(this.kiste).filter(istKlangPfad));
+    if (!bilder.length && !modelle.length && !klaenge.length) return;
     const vb = herdVorbacker(this.vorbackerOpt);
     if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBraucht === 'function'))) throw new VorbackerFehlt();
+    if (klaenge.length && !(vb.hatKlaenge && typeof vb.klangVorbacken === 'function')) throw new VorbackerFehlt();
     const jeHash = new Map(), anteile = new Map();
     let mitModellen = false;
     const zaehle = (t) => { for (const a of herdTeigAnteile(t)) if (!anteile.has(a.sha)) anteile.set(a.sha, a.n); };
@@ -343,9 +345,27 @@ const HERD_LAUFZEIT = {
       }
       this.teiglinge.set(pfad, t);
     }
+    // Klänge (H-K19a, .wav/.flac): Klangteig je Quell-Hash einmal; Klangmenge = Summe der Klangteige verschiedener Quell-Hashes
+    // ohne Fehler-Klangteige – eigene Grenze neben der Teigmenge (P0021, 64 MiB)
+    let klangmenge = 0;
+    for (const pfad of klaenge) {
+      const q = bytesVon(pfad);
+      const sha = teiglingHex(vb.sha256(q)) + ':klang';
+      let t = jeHash.get(sha);
+      if (t === undefined) {
+        const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+        const k = klangTeigKopf(c);
+        t = k !== null && !k.fehler && k.sha256 + ':klang' === sha ? c : vb.klangVorbacken(q);
+        jeHash.set(sha, t);
+        const kt = klangTeigKopf(t);
+        if (kt !== null && !kt.fehler) klangmenge += t.length;
+      }
+      this.teiglinge.set(pfad, t);
+    }
     let menge = 0;
     for (const n of anteile.values()) menge += n;
     if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder' + (mitModellen ? ' und Modelle' : '') + ' sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+    if (klangmenge > KLANGMENGE_MAX) throw this.pf('P0021', 'Die Klänge sind zusammen zu groß für den Ofen (' + mbText(klangmenge) + ' vorgebacken, höchstens 64 MB).', null);
   },
   // Modell.laden(pfad) (H-K16): wie Bildchen.laden – Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Modell) →
   // in der Kiste? → Modellteig an den Kern (modell_teig; 63 … 67 → „<pfad> <Text aus dem Teig>“)

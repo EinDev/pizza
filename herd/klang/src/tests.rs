@@ -160,3 +160,95 @@ fn raum_formel() {
     let (g, _, _) = raum((0.0, 0.0, -16.0), 20.0, &h);
     assert!(g > 0.0 && g < 1.0 / 16.0);
 }
+
+// ---------------------------------------------------------------- H-K19a: Klangteig laden
+
+/// Klangteig v1 von Hand (Format `herd/teigling/src/klang.rs`).
+fn teig(rate: u32, kanaele: u16, pcm: &[i16]) -> Vec<u8> {
+    let mut t = Vec::new();
+    t.extend_from_slice(b"TEIGKLNG");
+    t.extend_from_slice(&1u16.to_le_bytes());
+    t.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+    t.extend_from_slice(&[7u8; 32]);
+    t.extend_from_slice(&rate.to_le_bytes());
+    t.extend_from_slice(&kanaele.to_le_bytes());
+    t.extend_from_slice(&16u16.to_le_bytes());
+    t.extend_from_slice(&((pcm.len() / kanaele as usize) as u32).to_le_bytes());
+    t.extend_from_slice(&0u32.to_le_bytes());
+    for s in pcm {
+        t.extend_from_slice(&s.to_le_bytes());
+    }
+    t
+}
+
+fn fehler_teig(code: u16, text: &str) -> Vec<u8> {
+    let mut t = Vec::new();
+    t.extend_from_slice(b"TEIGKLNG");
+    t.extend_from_slice(&1u16.to_le_bytes());
+    t.extend_from_slice(&[255, 0, 0, 0, 0, 0]);
+    t.extend_from_slice(&[7u8; 32]);
+    t.extend_from_slice(&[0u8; 16]);
+    t.extend_from_slice(&code.to_le_bytes());
+    t.extend_from_slice(&(text.len() as u16).to_le_bytes());
+    t.extend_from_slice(text.as_bytes());
+    t
+}
+
+#[test]
+fn laden_klangteig() {
+    let mut k = Klaenge::neu();
+    let pcm = [1i16, -1, 300, -300, 32767, -32768];
+    let id = k.laden("klaenge/a.wav", &teig(22_050, 2, &pcm)).unwrap();
+    assert_eq!(k.pcm(id).unwrap(), &pcm);
+    assert_eq!(k.rate(id), Some(22_050));
+    assert_eq!(k.kanaele(id), Some(2));
+    assert_eq!(k.geladen(id), Some(true));
+    assert_eq!(k.dauer(id), Some(3.0 / 22_050.0));
+    assert_eq!(k.hash(id).unwrap(), hash_pcm(&pcm));
+    // geladen zählt nicht zu den 5 Minuten; Formen lehnen ab
+    assert_eq!(k.gesamt, 0);
+    let e = k.verstaerke(id, 2.0).unwrap_err();
+    assert_eq!(
+        e.text,
+        "verstaerke() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama."
+    );
+    let t = k.ton(440.0, 0.01, "sinus", 0.5, 0.0, 0.0, 0.0).unwrap();
+    assert!(k.mische(t, id, 0.0).unwrap_err().text.starts_with("mische() geht nur"));
+    assert!(k.dann(id, t).unwrap_err().text.starts_with("dann() geht nur"));
+    assert!(k.huelle(id, 0.0, 0.0, 1.0, 0.0).unwrap_err().text.starts_with("huelle() geht nur"));
+    assert_eq!(k.rate(t), Some(48_000));
+    assert_eq!(k.kanaele(t), Some(1));
+}
+
+#[test]
+fn laden_fehler() {
+    let mut k = Klaenge::neu();
+    let kein = "x.mp3 ist kein lesbarer Klang (WAV oder FLAC).";
+    assert_eq!(k.laden("x.mp3", &[]).unwrap_err().text, kein);
+    let e = k.laden("k/l.flac", &fehler_teig(2, "ist zu lang (12:30) – höchstens 10 Minuten.")).unwrap_err();
+    assert_eq!((e.art, e.text.as_str()), (ART_LAUFZEIT, "k/l.flac ist zu lang (12:30) – höchstens 10 Minuten."));
+    let gut = teig(8_000, 1, &[5, 6]);
+    // jede Kürzung, falsche Länge, falscher Kopf → kein Klang
+    for n in 0..gut.len() {
+        assert_eq!(k.laden("x.mp3", &gut[..n]).unwrap_err().text, kein, "Länge {}", n);
+    }
+    for (i, w) in [(8usize, 2u8), (10, 1), (11, 1), (48, 0x3f), (52, 3), (56, 0)] {
+        let mut t = gut.clone();
+        t[i] = w;
+        if i == 48 {
+            t[49] = 0x1f; // 8 000 → 7 999
+        }
+        assert_eq!(k.laden("x.mp3", &t).unwrap_err().text, kein, "Byte {}", i);
+    }
+    let mut lang = gut.clone();
+    lang.extend_from_slice(&[0, 0]);
+    assert_eq!(k.laden("x.mp3", &lang).unwrap_err().text, kein);
+    // Rate außerhalb
+    assert!(k.laden("a", &teig(7_999, 1, &[1])).is_err());
+    assert!(k.laden("a", &teig(96_001, 1, &[1])).is_err());
+    assert!(k.laden("a", &teig(96_000, 1, &[1])).is_ok());
+    let mut fk = fehler_teig(1, "");
+    assert_eq!(k.laden("a", &fk).unwrap_err().text, "a ist kein lesbarer Klang (WAV oder FLAC).");
+    fk.push(1);
+    assert!(k.laden("a", &fk).is_err());
+}

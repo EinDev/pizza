@@ -14,10 +14,10 @@ Umsetzung im Ordner `herd/`: Aufbau, Komponenten-Registry, **Herd-ABI**, **Bildp
 | `skript/` (`herd-skript`) | Szenen-Skripte (§7.1) nativ abspielen: Zeilen für den Determinismus-Test, Zeiten (`--mess`); Bibliothek für `herd-bild` |
 | `werkzeug/` (`herd-bild`) | Schriftatlas erzeugen, Szenen-Skripte rendern (PNG), Glut-Messung |
 | `skript.js`, `test-kern.js` | JS-Spieler der Szenen-Skripte gegen `kern.wasm`; Determinismus-Test nativ = Wasm |
-| `teigling/` (`herd-teigling`, `no_std` + `alloc`, nur `miniz_oxide`) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), nur Ganzzahlen; Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
+| `teigling/` (`herd-teigling`, `no_std` + `alloc`, nur `miniz_oxide`) | **Vorbacker** (§11, PROJEKTE.md §5.3): PNG/JPEG → Teigling (RGBA8 + Mipmaps), glTF → Modellteig (H-K16), WAV/FLAC → Klangteig (H-K19a, `klang.rs`, eigener Dekoder), nur Ganzzahlen; Testbild-Erzeuger und Werkzeug `herd-teigling` hinter Feature `testbilder` |
 | `teigling/wasm/` (`herd-teigling-wasm`) | Wasm-Hülle `site/js/herd/teigling.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
 | `test-teigling.js` | Bitgleich-Test Vorbacker nativ = `teigling.wasm` = `teigling/golden.txt` (§11.4) |
-| `klang/` (`herd-klang`, `no_std` + `alloc` + `libm`) | **Klang-Erzeuger** (§12, H-K14, K-153): Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen → PCM 48 kHz mono i16; `Abi` (Methoden = Exporte), Raumformel `raum` |
+| `klang/` (`herd-klang`, `no_std` + `alloc` + `libm`) | **Klang-Erzeuger** (§12, H-K14, K-153): Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen → PCM 48 kHz mono i16; geladene Klangteige (H-K19a); `Abi` (Methoden = Exporte), Raumformel `raum` |
 | `klang/wasm/` (`herd-klang-wasm`) | Wasm-Hülle `site/js/herd/klang.wasm` (keine Importe, eigener Allocator). Nur für `wasm32v1-none` |
 | `test-klang.js` | Bitgleich-Test Klang nativ = `klang.wasm` = `klang/golden.txt` (§12) |
 
@@ -878,6 +878,10 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   (sin/cos) über die Überblendung. Jede Formung legt einen neuen Klang an; IDs ab 1; zusammen höchstens 5 Minuten (14,4 M Samples).
 - **ABI** (`Abi`, Methoden = Exporte von `klang.wasm`, HOST-ABI §2 Gruppe `klang`): Ergebnis `id ≥ 1` oder `-1`; Fehler über `fehler_art`
   (1 TypAnanas, 2 LaufzeitAnanas), `fehler_text`, `fehler_neu` – alle Fehlertexte stehen in `src/lib.rs`.
+- **Geladene Klänge** (H-K19a, K-163): `laden(pfad, teig)` nimmt einen **Klangteig** aus dem Vorbacker (`herd/teigling/src/klang.rs`,
+  WAV/FLAC → PCM i16 mit eigener Rate 8 … 96 kHz, mono oder stereo verschachtelt), prüft den Kopf vollständig (Fehler-Klangteig →
+  „<pfad> <Text aus dem Teig>“, Ungültiges → „<pfad> ist kein lesbarer Klang (WAV oder FLAC).“) und legt einen nur **abspielbaren**
+  Klang an (Formen lehnen ihn ab, die 5 Minuten zählen ihn nicht). `rate(id)`/`kanaele(id)` für die Wiedergabe; `dauer` = Frames / Rate.
 - **Raum** (`raum(lage, reichweite, hoerer)` → Lautstärke, Panorama, Tiefpass): Formel der Wiedergaben (nativer Mischer
   `host/src/wiedergabe.rs`, Browser-Spiegel `ui/src/klang.js`); nicht bitgleich geprüft. Hörer = Kamera aus dem SZENE-Block des
   Bildpakets (`kamera` ab Byte 128, Rechts-Achse = Zeile 0 von `ansicht_proj`).

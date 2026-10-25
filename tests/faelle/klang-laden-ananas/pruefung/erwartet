@@ -1,0 +1,17 @@
+TypAnanas: Klang.laden() braucht einen Text für 'pfad', nicht 42.
+TypAnanas: Klang.laden() braucht einen Text für 'pfad', nicht karton.
+LaufzeitAnanas: Die Datei "klaenge/fehlt.wav" liegt nicht in der Kiste.
+LaufzeitAnanas: notiz.txt ist kein lesbarer Klang (WAV oder FLAC).
+LaufzeitAnanas: klaenge/fehler-kaputt.wav ist kein lesbarer Klang (WAV oder FLAC).
+LaufzeitAnanas: klaenge/fehler-zu-lang.flac ist zu lang (10:01) – höchstens 10 Minuten.
+LaufzeitAnanas: klaenge/fehler-kanaele.wav hat 6 Kanäle – höchstens 2 (Mono oder Stereo).
+LaufzeitAnanas: klaenge/fehler-rate.wav hat 192 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
+LaufzeitAnanas: klaenge/fehler-format.wav ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
+LaufzeitAnanas: klaenge/fehler-crc.flac ist kein lesbarer Klang (WAV oder FLAC).
+RohlingAnanas: 'Klang' kann man nicht mit neu backen.
+LaufzeitAnanas: huelle() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+LaufzeitAnanas: tiefpass() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+LaufzeitAnanas: wiederhole() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+LaufzeitAnanas: nahtlos() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+LaufzeitAnanas: mische() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+ja

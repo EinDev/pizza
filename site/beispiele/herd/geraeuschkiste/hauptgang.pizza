@@ -1,0 +1,63 @@
+// Geräuschkiste: aufgenommene Geräusche aus FLAC-Dateien (Klang.laden, H-K19a) – mit der Maus (Taster) oder den Tasten 1 2 3 4.
+// „Schritte“ spielt zwei Schritte auf nassem Pflaster abwechselnd, „Glocke“ die Ladenglocke, „Neon“ schaltet das Summen einer
+// Leuchtreklame als Schleife an und aus, „Gewitter“ legt unter die Glocke ein erzeugtes Grollen – zwei Spuren zugleich.
+//
+// So arbeitet Klang.laden: Vor dem Start bäckt der Vorbacker jede .wav/.flac der Kiste zu einem Klangteig (16 Bit, die Abtastrate
+// der Datei bleibt; umgerechnet wird erst beim Abspielen). Geladene Klänge spielst du wie erzeugte – mit Lautstärke, Tonhöhe und
+// Panorama; formen (huelle, tiefpass …) lassen sich nur erzeugte. Die Geräusche sind CC0 von Freesound (quellen.md).
+
+Herd herd = neu Herd("Geräuschkiste", breite: 520, hoehe: 260);
+herd.hintergrund("ofen");
+herd.text("Geräuschkiste", 260, 16, groesse: 24, farbe: "mozzarella", ausrichtung: "mitte");
+herd.text("Klick die Taster oder drück 1 2 3 4", 260, 48, groesse: 14, farbe: "teig", ausrichtung: "mitte");
+
+Blech<Klang> SCHRITTE = [Klang.laden("klaenge/schritt-1.flac"), Klang.laden("klaenge/schritt-2.flac")];
+Klang GLOCKE = Klang.laden("klaenge/ladenglocke.flac");
+Klang NEON = Klang.laden("klaenge/neon-summen.flac");
+// erzeugt: tiefes, gefiltertes Rauschen mit langsamer Hüllkurve – grollt unter der Glocke
+Klang GROLLEN = Klang.rauschen(3, art: "braun", lautstaerke: 0.9, saat: 7).tiefpass(180).huelle(anschlag: 0.4, abfall: 1, halten: 0.5, ausklang: 1.4);
+
+Blech<margherita> NAMEN = ["Schritte", "Glocke", "Neon", "Gewitter"];
+Blech<margherita> FARBEN = ["teig", "senf", "basilikum", "tomate"];
+Blech<margherita> TASTEN = ["1", "2", "3", "4"];
+Blech<Taster> TASTER = [];
+für (salami i : [1 .. 4]) {
+    Taster t = herd.gruppe(80 + (i - 1) * 120, 130).mit(neu Taster(inhalt: NAMEN.stück(i), breite: 104, hoehe: 70, farbe: FARBEN.stück(i),
+                                                                textFarbe: "ofen", rundung: 8));
+    TASTER.hinzu(t);
+}
+Teil anzeige = herd.text("", 260, 210, groesse: 16, farbe: "ananas", ausrichtung: "mitte");
+
+salami schritt = 0;
+salami gespielt = 0;
+Spur summen = karton;
+
+leer zeige(margherita was, Klang k) {
+    anzeige.text().setzeInhalt((was + " · " + k.dauer().runden(2) + " s"));
+    gespielt++;
+}
+
+herd.backe(() -> {
+    falls (TASTER.stück(1).geklickt() || herd.gedrueckt("1")) {
+        // abwechselnd links und rechts, jeder Schritt ein wenig anders hoch
+        Klang k = SCHRITTE.stück(schritt % 2 + 1);
+        k.spiele(lautstaerke: 0.9, tonhoehe: 0.94 + (schritt % 3) * 0.05, panorama: schritt % 2 == 0 ? -0.3 : 0.3);
+        schritt++;
+        zeige("Schritt", k);
+    }
+    falls (TASTER.stück(2).geklickt() || herd.gedrueckt("2")) {
+        Spur g = GLOCKE.spiele(lautstaerke: 0.8);
+        zeige("Glocke", GLOCKE);
+        g.beimEnde(() -> { anzeige.text().setzeInhalt("Willkommen!"); });
+    }
+    falls (TASTER.stück(3).geklickt() || herd.gedrueckt("3")) {
+        falls (summen != karton && summen.laeuft()) { summen.stoppe(); TASTER.stück(3).setzeInhalt("Neon"); anzeige.text().setzeInhalt("Neon aus"); }
+        sonst { summen = NEON.spiele(lautstaerke: 0.7, schleife: ja); TASTER.stück(3).setzeInhalt("Neon aus"); zeige("Neon", NEON); }
+    }
+    falls (TASTER.stück(4).geklickt() || herd.gedrueckt("4")) {
+        GROLLEN.spiele(lautstaerke: 0.9);
+        GLOCKE.spiele(lautstaerke: 0.35, tonhoehe: 0.5);   // dieselbe Datei, eine Oktave tiefer
+        zeige("Gewitter", GROLLEN);
+    }
+});
+Bote.sage(("Geräuschkiste: " + gespielt + " Geräusche gespielt."));

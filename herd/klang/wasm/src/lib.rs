@@ -19,7 +19,9 @@
 //! | `wiederhole` | `(id, n f64) → id` · `nahtlos` `(id, ueberblendung f64) → id` |
 //! | `dauer` | `(id) → f64` (Sekunden; NaN = unbekannt) |
 //! | `hash` | `(id, ptr) → 16` (Hex-Ziffern nach ptr; −1 = unbekannt) |
-//! | `pcm`, `pcm_laenge` | `(id) → ptr` bzw. Bytes (i16 LE, mono, 48 kHz) |
+//! | `pcm`, `pcm_laenge` | `(id) → ptr` bzw. Bytes (i16 LE; erzeugt mono 48 kHz, geladen verschachtelt mit eigener Rate) |
+//! | `laden` | `(pfad_ptr, pfad_len, teig_ptr, teig_len) → id` (Klangteig, H-K19a) |
+//! | `rate`, `kanaele` | `(id) → i32` (Hz bzw. 1/2; 0 = unbekannt) |
 //!
 //! Wird nur für `wasm32v1-none` gebaut (`node herd/baue.js`); nativ ist die Crate leer. Allocator wie in `herd/kern-wasm`.
 
@@ -230,6 +232,19 @@ mod wasm {
             }
             None => -1,
         }
+    }
+    #[no_mangle]
+    pub extern "C" fn laden(pp: i32, pl: i32, tp: i32, tl: i32) -> i32 {
+        let teig: &[u8] = if tl <= 0 || tp == 0 { &[] } else { unsafe { core::slice::from_raw_parts(tp as usize as *const u8, tl as usize) } };
+        a().laden(t(pp, pl), teig)
+    }
+    #[no_mangle]
+    pub extern "C" fn rate(id: i32) -> i32 {
+        a().rate(id)
+    }
+    #[no_mangle]
+    pub extern "C" fn kanaele(id: i32) -> i32 {
+        a().kanaele(id)
     }
     #[no_mangle]
     pub extern "C" fn pcm(id: i32) -> i32 {

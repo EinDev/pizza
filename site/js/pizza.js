@@ -1784,6 +1784,7 @@
       this.klangWarte = [];
       this.klangSpurNr = 0;
       this.klangEnden = [];
+      this.klangPfade = new Map();   // H-K19a: Pfad → KlangObj (gleicher Pfad = derselbe Klang); Klangteige in this.teiglinge
       // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
       // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
       this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
@@ -2078,7 +2079,7 @@
       this.pruefe();
       if (this.herdNoetig) this.herdKern(true);
       if (this.klangNoetig) this.klangKern(true);   // K-153: Klang-Erzeuger vor dem Start (wie der Herd-Kern, K-128)
-      this.vorbacke();    // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
+      this.vorbacke();    // alle Bilder/Modelle/Klänge der Kiste → Teige, Teigmenge (P0020), Klangmenge (P0021) – zuletzt vor dem Start (SPEC §2.5, §18.5)
       this.vorbereiten();
       for (const st of body) {
         if (DEKL.has(st.k)) continue;
@@ -6260,6 +6261,23 @@
     if ((t[8] | (t[9] << 8)) !== 1 || t[11] !== 0 || (t[10] !== 0 && t[10] !== 255)) return null;
     return { fehler: t[10] === 255, sha256: teiglingHex(t.subarray(16, 48)) };
   }
+  // Klangteig (H-K19a, herd/teigling/src/klang.rs): Kopf und Länge voll prüfen (wie lies_teig in herd/klang)
+  // → null | { fehler: diavolo, sha256: hex, rate, kanaele, frames }
+  const KLANG_MAGIE = [84, 69, 73, 71, 75, 76, 78, 71];   // "TEIGKLNG"
+  const KLANGMENGE_MAX = 67108864;
+  function istKlangPfad(pfad) { return /\.(wav|flac)$/.test(pfad); }
+  function klangTeigKopf(t) {
+    if (!(t instanceof Uint8Array) || t.length < 64) return null;
+    for (let i = 0; i < 8; i++) if (t[i] !== KLANG_MAGIE[i]) return null;
+    const u16 = (i) => t[i] | (t[i + 1] << 8);
+    const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+    if (u16(8) !== 1 || t[11] !== 0) return null;
+    const sha256 = teiglingHex(t.subarray(16, 48));
+    if (t[10] === 255) return u16(64) !== 0 && t.length === 68 + u16(66) ? { fehler: true, sha256, rate: 0, kanaele: 0, frames: 0 } : null;
+    const rate = u32(48), kanaele = u16(52), frames = u32(56);
+    if (t[10] !== 0 || rate < 8000 || rate > 96000 || kanaele < 1 || kanaele > 2 || frames < 1 || frames > 600 * rate || t.length - 64 !== frames * kanaele * 2) return null;
+    return { fehler: false, sha256, rate, kanaele, frames };
+  }
   // Anteile eines Teiglings/Modellteigs an der Teigmenge: [{ sha, n }] – ein Modellteig zählt ohne seine eingebetteten Bilder
   // (Schlüssel SHA-256 + ":modell"), jedes eingebettete Bild unter der SHA-256 seiner Quelle (gleich wie die Bilddatei selbst)
   function herdTeigAnteile(t) {
@@ -6369,6 +6387,9 @@
       return t.split('\n').filter(Boolean).map(z => { const x = z.split('\t'); return { uri: x[0], pfad: x[1] }; });
     }
     modellVorbacken(paket) { return this.aus(this.e.modell_vorbacken(this.rein(paket), paket.length)); }
+    // Klänge (H-K19a): nur, wenn das Modul sie kennt (klang_version 1)
+    get hatKlaenge() { return typeof this.e.klang_vorbacken === 'function' && this.e.klang_version() === 1; }
+    klangVorbacken(q) { return this.aus(this.e.klang_vorbacken(this.rein(q), q.length)); }
   }
   let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
   const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)
@@ -7092,9 +7113,11 @@
       const sortiert = (l) => l.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
       const bilder = sortiert(Object.keys(this.kiste).filter(istBildPfad));
       const modelle = sortiert(Object.keys(this.kiste).filter(istModellPfad));
-      if (!bilder.length && !modelle.length) return;
+      const klaenge = sortiert(Object.keys(this.kiste).filter(istKlangPfad));
+      if (!bilder.length && !modelle.length && !klaenge.length) return;
       const vb = herdVorbacker(this.vorbackerOpt);
       if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBraucht === 'function'))) throw new VorbackerFehlt();
+      if (klaenge.length && !(vb.hatKlaenge && typeof vb.klangVorbacken === 'function')) throw new VorbackerFehlt();
       const jeHash = new Map(), anteile = new Map();
       let mitModellen = false;
       const zaehle = (t) => { for (const a of herdTeigAnteile(t)) if (!anteile.has(a.sha)) anteile.set(a.sha, a.n); };
@@ -7131,9 +7154,27 @@
         }
         this.teiglinge.set(pfad, t);
       }
+      // Klänge (H-K19a, .wav/.flac): Klangteig je Quell-Hash einmal; Klangmenge = Summe der Klangteige verschiedener Quell-Hashes
+      // ohne Fehler-Klangteige – eigene Grenze neben der Teigmenge (P0021, 64 MiB)
+      let klangmenge = 0;
+      for (const pfad of klaenge) {
+        const q = bytesVon(pfad);
+        const sha = teiglingHex(vb.sha256(q)) + ':klang';
+        let t = jeHash.get(sha);
+        if (t === undefined) {
+          const c = this.teiglingeOpt !== null && Object.prototype.hasOwnProperty.call(this.teiglingeOpt, pfad) ? this.teiglingeOpt[pfad] : null;
+          const k = klangTeigKopf(c);
+          t = k !== null && !k.fehler && k.sha256 + ':klang' === sha ? c : vb.klangVorbacken(q);
+          jeHash.set(sha, t);
+          const kt = klangTeigKopf(t);
+          if (kt !== null && !kt.fehler) klangmenge += t.length;
+        }
+        this.teiglinge.set(pfad, t);
+      }
       let menge = 0;
       for (const n of anteile.values()) menge += n;
       if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder' + (mitModellen ? ' und Modelle' : '') + ' sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
+      if (klangmenge > KLANGMENGE_MAX) throw this.pf('P0021', 'Die Klänge sind zusammen zu groß für den Ofen (' + mbText(klangmenge) + ' vorgebacken, höchstens 64 MB).', null);
     },
     // Modell.laden(pfad) (H-K16): wie Bildchen.laden – Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Modell) →
     // in der Kiste? → Modellteig an den Kern (modell_teig; 63 … 67 → „<pfad> <Text aus dem Teig>“)
@@ -7545,7 +7586,16 @@
       for (let i = 0; i < 16; i++) s += String.fromCharCode(u[p + i]);
       return s;
     }
-    // PCM (i16 LE, mono, 48 kHz) als eigene Kopie
+    // Klangteig (H-K19a) → id (−1 = Fehler): Pfad und Teig nacheinander in den Austauschpuffer
+    laden(pfad, teig) {
+      const ep = HERD_ENC.encode(pfad);
+      const p = this.e.puffer(ep.length + teig.length + 1);
+      const m = this.mem();
+      m.set(ep, p);
+      m.set(teig, p + ep.length);
+      return this.e.laden(p, ep.length, p + ep.length, teig.length);
+    }
+    // PCM (i16 LE; erzeugt mono 48 kHz, geladen verschachtelt mit eigener Rate) als eigene Kopie
     pcm(id) {
       const p = this.e.pcm(id), n = this.e.pcm_laenge(id);
       return this.mem().slice(p, p + n);
@@ -7605,6 +7655,19 @@
       return this.klangWirf(art === 1 ? 'TypAnanas' : 'LaufzeitAnanas', text);
     },
     klangWirf(art, text) { throw this.ananas(art, text); },
+    // Klang.laden(pfad) (H-K19a, auch ohne Herd): Text? → Erzeuger → schon geladen (derselbe Klang) → in der Kiste? → Klangteig an
+    // den Erzeuger (laden; Fehler-Klangteig/keine Klang-Endung → LaufzeitAnanas „<pfad> <Text>“ aus dem Erzeuger)
+    klangLaden(pw) {
+      if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Klang.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+      const k = this.klangKern(false);
+      const alt = this.klangPfade.get(pw);
+      if (alt !== undefined) return alt;
+      if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+      const t = (istKlangPfad(pw) && this.teiglinge.get(pw)) || TEIGLING_LEER;
+      const o = this.klangNeu(k.laden(pw, t));
+      this.klangPfade.set(pw, o);
+      return o;
+    },
     klangNeu(id) {
       const k = this.kk;
       return new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
@@ -7634,7 +7697,7 @@
     klangRaus(art, daten, id) {
       if (this.onKlang !== null) {
         const d = Object.assign({}, daten);
-        if (id > 0) d.bytes = this.kk.pcm(id);
+        if (id > 0) { d.bytes = this.kk.pcm(id); d.rate = this.kk.e.rate(id); d.kanaele = this.kk.e.kanaele(id); }
         try { this.onKlang(art, d); } catch (x) { /* Wiedergabe-Fehler ignorieren */ }
       }
       this.emit(Object.assign({ typ: 'klang', art }, daten));
@@ -7709,8 +7772,9 @@
   // Klang – TypAnanas mit Parametername), dann der Erzeuger (Wertebereiche, Texte, Länge).
   function klangTab(o) { const t = tabelle(o); nurHauptkueche(t, KLANG_KUECHE); return t; }
 
-  // statisch: Klang.ton, Klang.rauschen, Klang.stille, Klang.noten
+  // statisch: Klang.ton, Klang.rauschen, Klang.stille, Klang.noten, Klang.laden (H-K19a)
   const KLANG_MOD_M = klangTab({
+    'laden': function (m, pos, ben) { return this.klangLaden(arg(pos, ben, 0, 'pfad')); },
     'ton': function (m, pos, ben) {
       const fr = this.herdZahl(arg(pos, ben, 0, 'frequenz'), 'ton', 'frequenz');
       const d = this.herdZahl(arg(pos, ben, 1, 'dauer'), 'ton', 'dauer');

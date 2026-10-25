@@ -244,7 +244,7 @@ function klangBruecke() {
     b.aktiv = true;
     if (art === "spiele" && daten && daten.bytes && !gesehen[daten.klang]) {
       gesehen[daten.klang] = true;
-      sende({ typ: "klang-pcm", klang: daten.klang, bytes: daten.bytes });
+      sende({ typ: "klang-pcm", klang: daten.klang, bytes: daten.bytes, rate: daten.rate, kanaele: daten.kanaele });
     }
   };
   return b;

@@ -7,6 +7,8 @@
  *   - mit site/js/herd/teigling.wasm über die JS-Hülle site/js/herd/teigling.js
  * und beide Teiglinge müssen **dieselben Bytes** haben (SHA-256 + Länge) und mit herd/teigling/golden.txt übereinstimmen.
  * Dazu: SHA-256 der Hülle = node:crypto, Kopf-Leser, passt/besorge (Cache-Prüfung §5.4), Teigmenge und MB-Text (P0020).
+ * Modelle (H-K16) und Klänge (H-K19a): Testdateien unter herd/teigling/testmodelle bzw. testklaenge, wasm = golden-modelle.txt
+ * bzw. golden-klaenge.txt (die cargo test -p herd-teigling nativ prüft), Kopf-Leser, besorge, Teig-/Klangmenge.
  * Aufruf: node herd/test-teigling.js [--ohne-cargo]
  * Gedrosselt: cargo mit -j 2, Kindprozesse ohne Fenster (windowsHide).
  */
@@ -123,6 +125,71 @@ assert.strictEqual(PizzaVorbacker.teigmenge({ w: teige['wuerfel.glb'] }), teige[
 assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108865, true), 'Die Bilder und Modelle sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).');
 assert.strictEqual(PizzaVorbacker.modellCacheSchluessel('ab'), 'ab/modell/1');
 
+// ---------- Klänge (H-K19a): goldene Klangteige (cargo test -p herd-teigling prüft golden-klaenge.txt und erwartet.txt nativ) ----------
+const TK = path.join(HIER, 'teigling', 'testklaenge');
+const goldenK = fs.readFileSync(path.join(HIER, 'teigling', 'golden-klaenge.txt'), 'utf8').split(/\r?\n/).map((z) => z.trim()).filter((z) => z && !z.startsWith('#'));
+const erwK = {};
+for (const z of fs.readFileSync(path.join(TK, 'erwartet.txt'), 'utf8').split(/\r?\n/)) if (z && !z.startsWith('#')) { const i = z.indexOf(' '); erwK[z.slice(0, i)] = z.slice(i + 1); }
+assert.strictEqual(vb.hatKlaenge, true, 'teigling.wasm kennt Klänge');
+assert.strictEqual(goldenK.length, Object.keys(erwK).length, 'golden-klaenge.txt und erwartet.txt haben dieselben Dateien');
+const klaenge = {}, klangQuellen = {};
+const t4 = Date.now();
+for (const z of goldenK) {
+  const [name, gSha, gLen] = z.split(' ');
+  const quelle = new Uint8Array(fs.readFileSync(path.join(TK, name)));
+  const teig = vb.klangVorbacken(quelle);
+  if (sha(teig) !== gSha || String(teig.length) !== gLen) { melde(name + ': wasm ' + sha(teig) + ' ' + teig.length + ' ≠ golden-klaenge.txt ' + gSha + ' ' + gLen); continue; }
+  const k = PizzaVorbacker.klangKopf(teig);
+  if (!k) { melde(name + ': Klangkopf ungültig'); continue; }
+  if (k.sha256 !== sha(quelle)) melde(name + ': SHA-256 im Kopf ≠ Quelle');
+  const e = erwK[name];
+  if (e.startsWith('fehler ')) {
+    const m = /^fehler (\d+) (.*)$/.exec(e);
+    if (!k.fehler || k.fehler.code !== +m[1] || k.fehler.text !== m[2]) melde(name + ': Fehler ' + JSON.stringify(k.fehler) + ' statt ' + e);
+  } else {
+    const f = e.split(' ');
+    const ist = [k.rate, k.kanaele, k.bits, k.frames, (k.flac ? 1 : 0) | (k.float ? 2 : 0), sha(teig.subarray(64))].join(' ');
+    if (k.fehler || ist !== f.slice(0, 6).join(' ')) melde(name + ': Klangkopf/PCM ' + ist + ' statt ' + f.slice(0, 6).join(' '));
+    if (k.pcmBytes !== teig.length - 64 || k.dauer !== k.frames / k.rate) melde(name + ': pcmBytes/dauer');
+    if (vb.klangBesorge(teig, quelle) !== teig) melde(name + ': klangBesorge verwirft einen passenden Teig');
+  }
+  if (PizzaVorbacker.istKlangPfad('klaenge/' + name) !== /\.(wav|flac)$/.test(name)) melde(name + ': istKlangPfad');
+  klaenge[name] = teig; klangQuellen[name] = quelle;
+}
+const t5 = Date.now();
+// Kopf-Leser wie Rust (klang_tests::kopf_pruefung): Felder, Längen, Fehler-Teig
+const kt = klaenge['wav-16-stereo.wav'], kk = PizzaVorbacker.klangKopf(kt);
+assert.deepStrictEqual([kk.rate, kk.kanaele, kk.bits, kk.frames, kk.dauer, kk.flac, kk.float, kk.pcmBytes, kk.fehler], [44100, 2, 16, 1000, 1000 / 44100, false, false, 4000, null]);
+for (const l of [kt.length - 1, kt.length + 1, 63, 64]) { const v = new Uint8Array(l); v.set(kt.subarray(0, Math.min(l, kt.length))); assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Länge ' + l); }
+for (const i of [0, 7, 8, 9, 10, 11, 13, 52, 53, 55, 56, 57, 60, 63]) { const v = kt.slice(); v[i] ^= 4; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Byte ' + i); }
+{ const v = kt.slice(); v[12] ^= 1; assert.strictEqual(PizzaVorbacker.klangKopf(v).flac, true); v[12] ^= 3; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Float mit 16 bit'); }
+{ const v = kt.slice(); v[20] ^= 0xFF; assert.ok(PizzaVorbacker.klangKopf(v), 'SHA-256 ist frei'); }
+const kf = klaenge['fehler-kanaele.wav'];
+assert.deepStrictEqual(PizzaVorbacker.klangKopf(kf).fehler, { code: 4, text: 'hat 6 Kanäle – höchstens 2 (Mono oder Stereo).' });
+for (const [i, x] of [[64, 7], [64, 0], [66, 1], [12, 1], [50, 1], [63, 1]]) { const v = kf.slice(); v[i] = x; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'Fehler-Teig Byte ' + i); }
+{ const v = kf.slice(); v[v.length - 1] = 0xFF; assert.strictEqual(PizzaVorbacker.klangKopf(v), null, 'kein UTF-8'); }
+assert.strictEqual(PizzaVorbacker.klangKopf(klaenge['klick-24.flac']).flac, true);
+assert.strictEqual(PizzaVorbacker.klangKopf(klaenge['wav-float-mono.wav']).float, true);
+assert.strictEqual(PizzaVorbacker.klangKopf(teiglinge['png-1x1']), null, 'Teigling ist kein Klangteig');
+// besorge: fremder/verfälschter/Fehler-Teig → neu gebacken
+const qt = klangQuellen['ton-mono.wav'], tt = klaenge['ton-mono.wav'];
+assert.strictEqual(sha(vb.klangBesorge(klaenge['akkord-stereo.flac'], qt)), sha(tt));
+assert.strictEqual(sha(vb.klangBesorge(null, qt)), sha(tt));
+{ const v = tt.slice(); v[52] = 3; assert.strictEqual(sha(vb.klangBesorge(v, qt)), sha(tt)); }
+assert.strictEqual(sha(vb.klangBesorge(klaenge['fehler-kaputt.wav'], klangQuellen['fehler-kaputt.wav'])), sha(klaenge['fehler-kaputt.wav']));
+// Klangmenge: gleiche Quelle zweimal zählt einmal, Fehler-Teige und Teiglinge nicht; Klangteige nicht in der Teigmenge
+const km = PizzaVorbacker.klangmenge({ a: tt, b: tt, c: klaenge['akkord-stereo.flac'], d: klaenge['fehler-rate.wav'], e: teiglinge['png-1x1'] });
+assert.strictEqual(km, tt.length + klaenge['akkord-stereo.flac'].length);
+assert.strictEqual(PizzaVorbacker.klangmenge([tt, klaenge['ton-mono.wav']]), tt.length);
+assert.strictEqual(PizzaVorbacker.teigmenge({ k: tt }), 0, 'Klangteige zählen nicht zur Teigmenge');
+assert.strictEqual(PizzaVorbacker.klangmengeFehler(67108864), null);
+assert.strictEqual(PizzaVorbacker.klangmengeFehler(67108865), 'Die Klänge sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).');
+assert.strictEqual(PizzaVorbacker.klangmengeFehler(73610000), 'Die Klänge sind zusammen zu groß für den Ofen (70,2 MB vorgebacken, höchstens 64 MB).');
+assert.strictEqual(PizzaVorbacker.MAX_KLANGMENGE, 67108864);
+assert.strictEqual(PizzaVorbacker.klangCacheSchluessel('ab'), 'ab/klang/1');
+assert.deepStrictEqual(['a.wav', 'b/c.flac', 'd.WAV', 'e.ogg', 'f.wav.txt'].map(PizzaVorbacker.istKlangPfad), [true, true, false, false, false]);
+
 if (fehler) { console.log(fehler + ' Abweichung(en)'); process.exit(1); }
 console.log('Vorbacker nativ = teigling.wasm = golden.txt: ' + nativ.length + ' Fälle bitgleich (wasm ' + (t1 - t0) + ' ms), Hülle geprüft');
 console.log('Modelle nativ = teigling.wasm = golden-modelle.txt: ' + goldenM.length + ' Testmodelle bitgleich (wasm ' + (t3 - t2) + ' ms)');
+console.log('Klänge nativ = teigling.wasm = golden-klaenge.txt: ' + goldenK.length + ' Testklänge bitgleich (wasm ' + (t5 - t4) + ' ms)');

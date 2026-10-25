@@ -2,7 +2,7 @@
 //
 // Der Programm-Worker (js/worker.js) erzeugt die Klänge mit klang.wasm (bitgleich mit nativ) und schickt die Ereignisse
 // { typ: "klang", art: "spiele"|"stoppe"|"setze", … } an die Seite, die PCM eines Klangs einmal als { typ: "klang-pcm",
-// klang, bytes } und bei Herd-Programmen je Bild den Hörer (Kamera) als { typ: "klang-hoerer", h }. Hier entsteht daraus
+// klang, bytes, rate, kanaele } (geladene Klänge, H-K19a: eigene Rate, mono/stereo verschachtelt – WebAudio rechnet um) und bei Herd-Programmen je Bild den Hörer (Kamera) als { typ: "klang-hoerer", h }. Hier entsteht daraus
 // Ton: je Spur AudioBufferSource → Tiefpass → Gain → StereoPanner → Gesamt-Gain → Ausgang. Raum wie nativ (herd_klang::raum).
 // Autoplay: der AudioContext startet erst mit der ersten Nutzeraktion (Klick/Taste); vorher Gespieltes entfällt still,
 // laufende Schleifen (Regen, Brummen) setzen dann ein. Stummschalter (gemerkt in localStorage „pizza.stumm“). In
@@ -35,12 +35,12 @@ export function klangAnbinden(knopf) {
   if (typeof window !== "undefined") {
     window.__klangStand = () => klang.stand();
     // Prüfhilfe (E2E): PCM über dieselbe Wiedergabe in einen OfflineAudioContext rendern – nie hörbar
-    window.__klangOffline = (bytes, ereignisse, hoerer) => klangOffline(bytes, ereignisse, hoerer);
+    window.__klangOffline = (bytes, ereignisse, hoerer, rate, kanaele) => klangOffline(bytes, ereignisse, hoerer, rate, kanaele);
   }
   return {
     klang,
     ereignis(ev) {
-      if (ev.typ === "klang-pcm") klang.pcm(ev.klang, ev.bytes);
+      if (ev.typ === "klang-pcm") klang.pcm(ev.klang, ev.bytes, ev.rate, ev.kanaele);
       else if (ev.typ === "klang-hoerer") klang.hoerer(ev.h);
       else { klang.ereignis(ev); if (knopf) knopf.hidden = false; }
     },
@@ -121,7 +121,7 @@ function automatisiert() {
  */
 export function erstelleKlang({ kontext = null, hoerbar = false } = {}) {
   let ctx = kontext, gesamt = null;
-  const roh = new Map();         // Hash → Int16Array (PCM)
+  const roh = new Map();         // Hash → { p: Int16Array (PCM, verschachtelt), rate, kanaele }
   const puffer = new Map();      // Hash → AudioBuffer
   const spuren = new Map();      // Nummer → Zustand { klang, laut, ton, pan, lage, reichweite, schleife, knoten }
   let hoerer = { x: 0, y: 0, z: 0, rx: 1, ry: 0, rz: 0 };
@@ -137,11 +137,14 @@ export function erstelleKlang({ kontext = null, hoerbar = false } = {}) {
   function bufferVon(hash) {
     let b = puffer.get(hash);
     if (b) return b;
-    const p = roh.get(hash);
-    if (!p || !ctx) return null;
-    b = ctx.createBuffer(1, Math.max(1, p.length), RATE);
-    const d = b.getChannelData(0);
-    for (let i = 0; i < p.length; i++) d[i] = p[i] / 32767;
+    const r = roh.get(hash);
+    if (!r || !ctx) return null;
+    const { p, rate, kanaele } = r, n = Math.floor(p.length / kanaele);
+    b = ctx.createBuffer(kanaele, Math.max(1, n), rate);
+    for (let k = 0; k < kanaele; k++) {
+      const d = b.getChannelData(k);
+      for (let i = 0; i < n; i++) d[i] = p[i * kanaele + k] / 32767;
+    }
     puffer.set(hash, b);
     return b;
   }
@@ -205,13 +208,14 @@ export function erstelleKlang({ kontext = null, hoerbar = false } = {}) {
         ctx.resume().then(() => { for (const s of spuren.values()) if (s.schleife && !s.knoten) starte(s); }).catch(() => {});
       } else if (laeuftCtx()) for (const s of spuren.values()) if (s.schleife && !s.knoten) starte(s);
     },
-    /** PCM eines Klangs (einmal je Hash). */
-    pcm(hash, bytes) {
+    /** PCM eines Klangs (einmal je Hash); rate/kanaele fehlen bei erzeugten Klängen (48 kHz mono). */
+    pcm(hash, bytes, rate, kanaele) {
       if (roh.has(hash) || !bytes) return;
       const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       const p = new Int16Array(u8.length >> 1);
       for (let i = 0; i < p.length; i++) { const v = u8[2 * i] | (u8[2 * i + 1] << 8); p[i] = v > 32767 ? v - 65536 : v; }
-      roh.set(hash, p);
+      const k = kanaele === 2 ? 2 : 1;
+      roh.set(hash, { p, rate: rate >= 8000 && rate <= 96000 ? rate : RATE, kanaele: p.length >= k ? k : 1 });
     },
     /** Ereignis { typ: "klang", art, … } des Programms. */
     ereignis(ev) {
@@ -262,12 +266,12 @@ export function erstelleKlang({ kontext = null, hoerbar = false } = {}) {
  * Rendert Klang-Ereignisse mit der Wiedergabe in einen OfflineAudioContext (stumm, für Tests): bytes = PCM (Hash "probe"),
  * ereignisse = [{ art: "spiele"|"setze"|…, … }] (klang wird auf "probe" gesetzt), hoerer optional. → { links, rechts } (RMS je Kanal).
  */
-export async function klangOffline(bytes, ereignisse, hoerer) {
+export async function klangOffline(bytes, ereignisse, hoerer, rate, kanaele) {
   const OAC = typeof window !== "undefined" && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
   if (!OAC) return null;
   const ctx = new OAC(2, RATE / 2, RATE);
   const k = erstelleKlang({ kontext: ctx, hoerbar: true });
-  k.pcm("probe", bytes);
+  k.pcm("probe", bytes, rate, kanaele);
   if (hoerer) k.hoerer(hoerer);
   for (const e of ereignisse) k.ereignis(Object.assign({}, e, e.art === "spiele" ? { klang: "probe" } : {}));
   const b = await ctx.startRendering();

@@ -2448,6 +2448,33 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `herd-funken-aufprall`, Beispiel `funkenschlag`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §7, B15. Kein Bildpaket
   (`TEILCHEN3D` unverändert), keine Glut, kein Interpreter/Laufzeit/Host. **Status:** fest.
 
+### K-163 Klang: Klänge aus Dateien – `Klang.laden` (WAV, FLAC), Klangteig, Klangmenge P0021 (H-K19a)
+- **Frage:** Wie kommen Geräusche aus Dateien (Regen, Schritte, Stadt) in `Klang`, bitgleich in allen Motoren, sicher gegenüber fremden
+  Dateien und ohne Kern oder GPU zu belasten?
+- **Entscheidung (HERD.md §13.3 H-K19a):** zuerst **WAV** (RIFF/WAVE inkl. `WAVE_FORMAT_EXTENSIBLE`; PCM 8/16/24/32 Bit, Float 32 Bit)
+  und **FLAC** (alle Teilrahmenarten, 4 … 24 Bit, Kanal-Dekorrelation, CRC-8/CRC-16 geprüft) – beide ganzzahlig dekodierbar; OGG Vorbis
+  folgt mit H-K19b, Opus/MP3 später. 1 … 2 Kanäle, 8 000 … 96 000 Hz; **kein Umrechnen im Vorbacker** – die Rate bleibt, die
+  Wiedergabe rechnet auf die Geräterate um (Hörbares ist nicht Teil der Bitgleichheit). Ergebnis i16; >16 Bit gerundet, Float mit
+  fester Rundung (nur + − × ÷, keine FMA).
+- **Vorbacker:** eigener WAV-/FLAC-Dekoder in `herd/teigling` (`no_std`, harte Grenzen vor jedem Anlegen: Quelle ≤ 16 MiB, Dauer ≤ 10
+  Minuten, Klangteig ≤ 64 MiB, FLAC-Blöcke ≤ 65 535; geprüfte Arithmetik; Fuzz-Tests), Format **Klangteig** `TEIGKLNG` v1 (Kopf 64 B:
+  Rate, Kanäle, Bits der Quelle, Frames, SHA-256 der Quelle; PCM i16 LE verschachtelt; Fehler-Klangteig mit fertigem Text), Cache-
+  Schlüssel `klang/1`. FNV-1a-64 der PCM ist die `klang`-Kennung der Ereignisse wie bei der Synthese.
+- **Sprache:** `Klang.laden(pfad)` (statisch, auch ohne Herd, gleicher Pfad → derselbe Klang) → `Klang` mit `spiele`/`dauer`. **Geladene
+  Klänge formt der Erzeuger nicht** (`huelle` … `nahtlos` → LaufzeitAnanas „… geht nur mit erzeugten Klängen …“) – andere Rate und
+  Kanäle; Lautstärke, Tonhöhe, Panorama und Raum macht die Spur, gemischt wird durch gleichzeitige Spuren. Geladene Klänge zählen nicht
+  zu den 5 Minuten erzeugter Klänge.
+- **Klangmenge:** eigene Grenze neben der Teigmenge (Klänge liegen weder im Kern noch auf der GPU): Summe der Klangteige verschiedener
+  Quellen ≤ 64 MiB, sonst `PizzaFehler P0021: Die Klänge sind zusammen zu groß für den Ofen (… MB vorgebacken, höchstens 64 MB).` vor dem
+  Start (Interpreter und Compiler, nach P0020).
+- **ABI:** Erzeuger-Exporte `laden(pfad, teig)`, `rate(id)`, `kanaele(id)` (HOST-ABI §2, additiv); Kiste-Art 4 = Klangteig im
+  Datensegment; Ereignisse unverändert – Rate und Kanäle gehen nur mit der PCM an die Wiedergabe.
+- **Dateien:** `.wav`, `.flac` sind erlaubte Projektdateien (PROJEKTE §1.3, §5.11), binär; Durchreiche prüft die Signatur, nginx/E2E-Server
+  liefern `audio/wav`/`audio/flac`. Playground: Vorschau mit Kennzahlen und Abspielknopf (Ton erst nach dem Klick).
+- **Betroffen:** HERD.md §11.1/§13.1/§13.3/§13.4, SPEC §18.8, PROJEKTE §1.3/§5.11, HOST-ABI §2, `herd/README.md`, Vorbacker, Erzeuger,
+  Interpreter, Laufzeit, Compiler, JS-Host, nativer Host (Mischer mit Ratenumrechnung, Stereo), Worker, Playground, CLI, Durchreiche,
+  nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `geraeuschkiste`. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

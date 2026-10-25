@@ -108,7 +108,8 @@ Titel von Theke/Herd – die stehen im Code (`neu Herd("…", breite: …)`), so
   Der Dienst prüft **unabhängig** noch einmal (eigene Kopie der Regel, durch gemeinsame Testfälle abgesichert).
 - Erlaubte Dateiarten v1: `.pizza`, `.png`, `.jpg`/`.jpeg`, `.txt`, `.json`, `.csv`, `.md` (Beschreibung/Notizen; nur Anzeige); seit H-K16 Modelle
   `.glb`/`.gltf` und ihre Puffer `.bin` (Binärdateien wie Bilder – auch `.gltf`, obwohl JSON: keine Zeilenend-Normalisierung, damit SHA-256
-  und Modellteig überall gleich sind; `.gitattributes` führt sie als binary). Andere Endungen →
+  und Modellteig überall gleich sind; `.gitattributes` führt sie als binary); seit H-K19a Klänge `.wav`/`.flac` (Binärdateien, §5.11).
+  Andere Endungen →
   im Playground nicht anlegbar, beim ZIP-Import übersprungen (mit Meldung), CLI ignoriert sie mit Warnung auf stderr.
 - **Textdateien an der Projektgrenze** (CLI-Lader, ZIP-Import, Datei hinzufügen, Teilen-Download, Durchreiche): Inhalt muss gültiges
   UTF-8 sein (sonst abgelehnt: „<pfad> ist kein gültiger UTF-8-Text.“; JS `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })`,
@@ -783,6 +784,24 @@ Verbindlich ist HERD.md §13.3 (H-K16) mit K-161; hier nur, was die Projekte bet
   der SHA-256 seiner Quelle – gleiche Bilder in mehreren Modellen (die gemeinsame `colormap.png` eines Kenney-Kits) und dieselbe
   Bilddatei im Projekt zählen einmal; der Kern legt sie ebenso nur einmal als Textur an. Mit Modellen heißt der Text von P0020
   „Die Bilder und Modelle sind zusammen zu groß …“.
+
+### 5.11 Klänge (WAV und FLAC, H-K19a)
+
+Verbindlich ist HERD.md §13.3 (H-K19a) mit K-163 und SPEC §18.8; hier nur, was die Projekte betrifft.
+
+- **Dateien:** `.wav` und `.flac` als **Binärdateien** (Signatur `RIFF`…`WAVE` bzw. `fLaC` beim Hinzufügen, im Teilen-Dienst und in der
+  Durchreiche; `.gitattributes` binary). Grenzen des Laders wie für jede Datei (§1.3: je Datei 2 MiB, gesamt 8 MiB); der Vorbacker
+  begrenzt die Quelle zusätzlich auf 16 MiB und die Dauer auf 10 Minuten. MIME `audio/wav`, `audio/flac` (nginx, E2E-Server).
+- **Vorbacker:** `teigling.wasm` kann seit H-K19a auch Klänge: `klang_vorbacken(quelle)` liefert den **Klangteig** (Format `TEIGKLNG`
+  v1, `herd/teigling/src/klang.rs`: Kopf 64 B mit Rate, Kanälen, Frames, SHA-256 der Quelle; PCM i16 LE verschachtelt; Fehler-Klangteig
+  mit fertigem Text). Eigener WAV-/FLAC-Dekoder, nur Ganzzahlen (Float-WAV mit fester Rundung), harte Grenzen vor jedem Anlegen.
+  Cache-Schlüssel `<sha>/klang/1` (IndexedDB-Speicher `teiglinge`).
+- **Anlässe** wie §5.4: Playground (Hinzufügen; Vorschau im Dateibaum „Klang (FLAC) · Quelle 12 KB · 0,25 s · 44 100 Hz · stereo ·
+  vorgebacken 43 KB“ mit **Abspielknopf** – Ton erst nach dem Klick, in automatisierten Browsern stumm offline gerendert), Lauf
+  (`optionen.teiglinge` trägt auch Klangteige, Schlüssel = Pfad), EXE (Klangteig im Datensegment, Kiste-Art 4), Teilen (vorbacken =
+  Prüfung; geteilt werden die Quelldateien).
+- **Klangmenge:** eigene Grenze neben der Teigmenge (Klänge liegen weder im Kern noch auf der GPU): Summe der Klangteige verschiedener
+  Quell-Hashes ohne Fehler-Klangteige ≤ 64 MiB, sonst P0021 (SPEC §18.8).
 
 ---
 

@@ -72,7 +72,16 @@ class KlangKern {
     for (let i = 0; i < 16; i++) s += String.fromCharCode(u[p + i]);
     return s;
   }
-  // PCM (i16 LE, mono, 48 kHz) als eigene Kopie
+  // Klangteig (H-K19a) → id (−1 = Fehler): Pfad und Teig nacheinander in den Austauschpuffer
+  laden(pfad, teig) {
+    const ep = HERD_ENC.encode(pfad);
+    const p = this.e.puffer(ep.length + teig.length + 1);
+    const m = this.mem();
+    m.set(ep, p);
+    m.set(teig, p + ep.length);
+    return this.e.laden(p, ep.length, p + ep.length, teig.length);
+  }
+  // PCM (i16 LE; erzeugt mono 48 kHz, geladen verschachtelt mit eigener Rate) als eigene Kopie
   pcm(id) {
     const p = this.e.pcm(id), n = this.e.pcm_laenge(id);
     return this.mem().slice(p, p + n);
@@ -132,6 +141,19 @@ const KLANG_LAUFZEIT = {
     return this.klangWirf(art === 1 ? 'TypAnanas' : 'LaufzeitAnanas', text);
   },
   klangWirf(art, text) { throw this.ananas(art, text); },
+  // Klang.laden(pfad) (H-K19a, auch ohne Herd): Text? → Erzeuger → schon geladen (derselbe Klang) → in der Kiste? → Klangteig an
+  // den Erzeuger (laden; Fehler-Klangteig/keine Klang-Endung → LaufzeitAnanas „<pfad> <Text>“ aus dem Erzeuger)
+  klangLaden(pw) {
+    if (typeof pw !== 'string') throw this.ananas('TypAnanas', 'Klang.laden() braucht einen Text für \'pfad\', nicht ' + this.darstellung(pw === undefined ? null : pw) + '.');
+    const k = this.klangKern(false);
+    const alt = this.klangPfade.get(pw);
+    if (alt !== undefined) return alt;
+    if (!kisteHat(this.kiste, pw)) throw this.ananas('LaufzeitAnanas', 'Die Datei "' + pw + '" liegt nicht in der Kiste.');
+    const t = (istKlangPfad(pw) && this.teiglinge.get(pw)) || TEIGLING_LEER;
+    const o = this.klangNeu(k.laden(pw, t));
+    this.klangPfade.set(pw, o);
+    return o;
+  },
   klangNeu(id) {
     const k = this.kk;
     return new KlangObj(this.klangI(id), k.e.dauer(id), k.hash(id));
@@ -161,7 +183,7 @@ const KLANG_LAUFZEIT = {
   klangRaus(art, daten, id) {
     if (this.onKlang !== null) {
       const d = Object.assign({}, daten);
-      if (id > 0) d.bytes = this.kk.pcm(id);
+      if (id > 0) { d.bytes = this.kk.pcm(id); d.rate = this.kk.e.rate(id); d.kanaele = this.kk.e.kanaele(id); }
       try { this.onKlang(art, d); } catch (x) { /* Wiedergabe-Fehler ignorieren */ }
     }
     this.emit(Object.assign({ typ: 'klang', art }, daten));

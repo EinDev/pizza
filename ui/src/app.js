@@ -14,7 +14,7 @@ import { erstelleHerdAnzeige, herdLaufVorbereiten, ladeHerdKern, nutztHerd } fro
 import { klangAnbinden, klangLaufVorbereiten } from "./klang.js";
 import { VORRAT, vorratVerfuegbar, vorratLaden, vorratSpeichern } from "./vorrat.js";
 import { ladeGeteilt, leseLinkWert, linkWert, appTitel, ohneErzeugteProjektdatei, TeilenFehler, ALT_TEXT, WEG_TEXT } from "./teilen.js";
-import { sammlung, programmText, dateiArt } from "./projekt.js";
+import { sammlung, programmText, dateiArt, istVorbackArt } from "./projekt.js";
 import { erstelleVorbacker } from "./bilder.js";
 
 const TITEL = "pizza-App";
@@ -266,7 +266,7 @@ export function startApp(wert) {
       return;
     }
     // Bilder und Modelle (PD1/PD2, H-K16): einmal vorbacken (ohne Cache), der Interpreter prüft jeden Teigling/Modellteig
-    const bilder = Object.fromEntries(Object.entries(geteilt.dateien).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
+    const bilder = Object.fromEntries(Object.entries(geteilt.dateien).filter(([p, i]) => istVorbackArt(p) && i instanceof Uint8Array));
     const backen = Object.keys(bilder).length ? (async () => {
       const vb = erstelleVorbacker({ ablage: null });
       const [modul, teiglinge] = await Promise.all([vb.modul(), vb.teiglingeFuer(bilder, geteilt.dateien)]);

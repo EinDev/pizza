@@ -1447,6 +1447,28 @@
         },
         {
           art: "details",
+          titel: "Klänge aus Dateien: Klang.laden (WAV und FLAC)",
+          inhalt: [
+            { art: "text", md: "Aufgenommene Geräusche – Regen, Schritte, eine Ladenglocke – legst du als **`.wav`** oder **`.flac`** ins Projekt (mono oder stereo, 8 000 … 96 000 Hz, höchstens 10 Minuten) und lädst sie mit **`Klang.laden(\"klaenge/regen.flac\")`** – auch ohne Herd. Vor dem Start bäckt der Vorbacker jede Klangdatei zu einem **Klangteig** (16 Bit, die Abtastrate bleibt; umgerechnet wird erst beim Abspielen). Im Dateibaum zeigt die Vorschau Dauer, Rate und Kanäle und hat einen Abspielknopf." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Klang regen = Klang.laden(\"klaenge/regen.flac\");",
+                "Klang schritt = Klang.laden(\"klaenge/schritt-1.flac\");",
+                "Klang wind = Klang.rauschen(4, art: \"braun\").tiefpass(400).nahtlos(0.3);   // erzeugt",
+                "regen.spiele(lautstaerke: 0.6, schleife: ja);",
+                "wind.spiele(lautstaerke: 0.3, schleife: ja);                               // gemischt: zwei Spuren zugleich",
+                "schritt.spiele(tonhoehe: 0.95, panorama: -0.2);",
+                "Bote.sage((regen.dauer() + \" s\"));"
+              )
+            },
+            { art: "text", md: "- Geladene Klänge spielst du wie erzeugte: `spiele(lautstaerke, schleife, tonhoehe, panorama)`, die Spur kann `setzeLage` (Raum) und `beimEnde`. **Formen** (`huelle`, `tiefpass`, `mische` …) gehen nur mit erzeugten Klängen – gemischt wird, indem mehrere Spuren zugleich laufen.\n- Fehler kommen mit dem Pfad: `klaenge/x.wav ist kein lesbarer Klang (WAV oder FLAC).`, `… ist zu lang (12:30) – höchstens 10 Minuten.`, `… hat 6 Kanäle – höchstens 2 (Mono oder Stereo).`\n- Alle Klänge eines Projekts zusammen dürfen vorgebacken höchstens 64 MB groß sein (`PizzaFehler P0021`); MP3 und OGG gehen (noch) nicht – wandle sie z. B. mit Audacity in FLAC.\n- Ausprobieren: **Geräuschkiste** unter *Beispiele → Herd* (freie CC0-Geräusche von Freesound)." }
+          ]
+        },
+        {
+          art: "details",
           titel: "Schwung: Physik in 3D",
           inhalt: [
             { art: "text", md: "Ein **`Schwung`** macht ein 3D-Teil zum Körper mit Masse – das Gegenstück zur `Wucht` in 2D, aber mit **Drehung**: Kisten kippen über die Kante, Kugeln rollen den Hang hinab, Türme wanken. Die Form kommt wieder vom **`Fuehler`** am selben Teil (`ausloeser: nein`), und sie dreht sich mit dem Teil: `form: \"kasten\"` (Seiten aus `breite`/`hoehe`/`tiefe` oder aus dem Körper), `\"kugel\"` (`radius`) und `\"kapsel\"` (entlang der y-Achse des Teils, `radius` und Gesamthöhe `hoehe` – gut für Figuren und Stangen). `schwerkraft` zieht nach unten (Einheiten/s², Standard 0, **9.81** fühlt sich nach Erde an), `abprall`, `reibung` (Standard 0.5), `daempfung` und `drehdaempfung` wie bei der Wucht; `stossX`/`stossY`/`stossZ` ist ein Einmal-Stoß, `drehtempoX`/`Y`/`Z` (Grad/s) dreht den Körper an." },

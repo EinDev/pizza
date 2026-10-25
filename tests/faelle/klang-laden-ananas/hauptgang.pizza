@@ -1,0 +1,23 @@
+// Klang.laden (H-K19a, K-163): Fehler – kein Text, nicht in der Kiste, keine Klang-Endung, kaputte und nicht unterstützte Dateien
+// (Texte aus dem Fehler-Klangteig des Vorbackers, Pfad davor); ein Fehler beendet nichts, der nächste Klang lädt.
+leer probe(Rezept f) {
+    probier { f(); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+}
+probe(() -> Klang.laden(42));
+probe(() -> Klang.laden());
+probe(() -> Klang.laden("klaenge/fehlt.wav"));
+probe(() -> Klang.laden("notiz.txt"));
+probe(() -> Klang.laden("klaenge/fehler-kaputt.wav"));
+probe(() -> Klang.laden("klaenge/fehler-zu-lang.flac"));
+probe(() -> Klang.laden("klaenge/fehler-kanaele.wav"));
+probe(() -> Klang.laden("klaenge/fehler-rate.wav"));
+probe(() -> Klang.laden("klaenge/fehler-format.wav"));
+probe(() -> Klang.laden("klaenge/fehler-crc.flac"));
+probe(() -> neu Klang());
+Klang k = Klang.laden("klaenge/ton-mono.wav");
+probe(() -> k.huelle(anschlag: 0.1));
+probe(() -> k.tiefpass(500));
+probe(() -> k.wiederhole(2));
+probe(() -> k.nahtlos(0.01));
+probe(() -> Klang.ton(220, 0.1).mische(k));
+Bote.sage((k.dauer() > 0));

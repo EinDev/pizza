@@ -1,0 +1,18 @@
+// Klang.laden (H-K19a, K-163): WAV (16 Bit mono 22 050 Hz) und FLAC (16 Bit stereo 44 100 Hz, 24 Bit mono 48 000 Hz) aus der
+// Kiste – Klangteig mit eigener Rate, PCM-Hash im Ereignis, gleicher Pfad = derselbe Klang, auch ohne Herd; geladene Klänge
+// spielen wie erzeugte und mischen sich mit ihnen über gleichzeitige Spuren, formen lassen sie sich nicht.
+Klang a = Klang.laden("klaenge/ton-mono.wav");
+Klang b = Klang.laden("klaenge/akkord-stereo.flac");
+Klang c = Klang.laden("klaenge/klick-24.flac");
+Bote.sage((a + " " + (a == Klang.laden("klaenge/ton-mono.wav")) + " " + (a == b)));
+Bote.sage((a.dauer().runden(4) + " s, " + b.dauer().runden(4) + " s, " + c.dauer().runden(4) + " s"));
+Spur s = b.spiele(lautstaerke: 0.5, schleife: ja, panorama: -0.5);
+a.spiele(tonhoehe: 2);
+c.spiele();
+Klang t = Klang.ton(440, 0.1).mische(Klang.stille(0.05));
+t.spiele(lautstaerke: 0.3);
+s.setzeLautstaerke(0.8).setzeLage(1, 2, 3);
+Bote.sage((s.laeuft() + " " + s.klang().id()));
+s.stoppe();
+probier { a.verstaerke(2); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { t.dann(c); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }

@@ -8,7 +8,7 @@ import { erstelleDateibaum } from "./dateibaum.js";
 import { erstelleProjektmenue, erstelleTextFrage } from "./projektmenue.js";
 import { erstelleBildvorschau } from "./bildvorschau.js";
 import { erstelleExeDialog } from "./exe-dialog.js";
-import { programmText, pizzaPfadAusName, projektNameAus, ladePruefung, dateiArt, groesse } from "./projekt.js";
+import { programmText, pizzaPfadAusName, projektNameAus, ladePruefung, dateiArt, istVorbackArt, groesse } from "./projekt.js";
 import { erstelleVorbacker, pruefeBild } from "./bilder.js";
 import { erstelleDoku } from "./doku.js";
 import { erstelleBeispiele } from "./beispiele.js";
@@ -386,7 +386,7 @@ async function start() {
     auftrag: async () => {
       const { projekt, uebertragbar } = projekte.sammlung({ mitProjektdatei: true });
       const nachricht = { typ: "kompiliere", projekt };
-      const bilder = Object.fromEntries(Object.entries(projekt.dateien).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
+      const bilder = Object.fromEntries(Object.entries(projekt.dateien).filter(([p, i]) => istVorbackArt(p) && i instanceof Uint8Array));
       if (Object.keys(bilder).length) {
         const [modul, teiglinge] = await Promise.all([vorbacker.modul(), vorbacker.teiglingeFuer(bilder, projekt.dateien)]);
         nachricht.teiglinge = teiglinge;
@@ -534,7 +534,7 @@ async function start() {
     // (der Interpreter prüft jeden)
     let bildLauf = {};
     const alleInhalte = projekte.alleInhalte();
-    const bilder = Object.fromEntries(Object.entries(alleInhalte).filter(([p, i]) => (dateiArt(p) === "bild" || dateiArt(p) === "modell") && i instanceof Uint8Array));
+    const bilder = Object.fromEntries(Object.entries(alleInhalte).filter(([p, i]) => istVorbackArt(p) && i instanceof Uint8Array));
     if (Object.keys(bilder).length) {
       if (backenWartet) return;
       backenWartet = true;
@@ -882,6 +882,10 @@ async function start() {
         } else if (dateiArt(pfad) === "modell") {
           // Modelle (H-K16): vorbacken = Prüfung; ein ungültiges Modell wird nicht geteilt (wie Bilder)
           const m = await vorbacker.vorbackeModell(pfad, alle);
+          if (!m.ok && m.fehler) throw new TeilenFehler(m.fehler, { art: "grenze" });
+        } else if (dateiArt(pfad) === "klang") {
+          // Klänge (H-K19a) ebenso
+          const m = await vorbacker.vorbackeKlang(pfad, i);
           if (!m.ok && m.fehler) throw new TeilenFehler(m.fehler, { art: "grenze" });
         }
       }

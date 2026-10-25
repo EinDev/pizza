@@ -299,7 +299,11 @@
         delete daten.art;
         if (onKlang !== null) {
           const d = Object.assign({}, daten);
-          if (id > 0 && klang !== null) { const z = klang.pcm(id); d.bytes = klangMem().slice(z, z + klang.pcm_laenge(id)); }
+          if (id > 0 && klang !== null) {
+            const z = klang.pcm(id);
+            d.bytes = klangMem().slice(z, z + klang.pcm_laenge(id));
+            if (typeof klang.rate === 'function') { d.rate = klang.rate(id); d.kanaele = klang.kanaele(id); }   // H-K19a: geladene Klänge
+          }
           try { onKlang(art, d); } catch (x) { /* Wiedergabe-Fehler ignorieren */ }
         }
         emit(Object.assign({ typ: 'klang', art }, daten));

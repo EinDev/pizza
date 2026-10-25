@@ -91,7 +91,7 @@ fn wiedergabe_mischt_gespielte_spur() {
     let id = k.ton(440.0, 0.5, "sinus", 0.5, 0.0, 0.005, 0.02).unwrap();
     let ziel = std::env::temp_dir().join(format!("pizza-klang-test-b-{}.wav", std::process::id()));
     let w = Wiedergabe::datei(ziel.clone());
-    w.ereignis(r#"{"art":"spiele","spur":1,"klang":"a","lautstaerke":1,"tonhoehe":1,"panorama":0,"schleife":false}"#, k.pcm(id));
+    w.ereignis(r#"{"art":"spiele","spur":1,"klang":"a","lautstaerke":1,"tonhoehe":1,"panorama":0,"schleife":false}"#, k.pcm(id).map(|p| (p, 48_000, 1)));
     w.bild(30, None);
     w.ende();
     let b = std::fs::read(&ziel).unwrap();

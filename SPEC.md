@@ -769,7 +769,8 @@ regelt `EINGABE.md`.
   Position = erster Aufruf.
 - **Ladeprüfungen** (Projekte, §2.5) kommen vor allem anderen: P0014 Kreisbestellung · P0015 Datei/Pfad/`pizza.json` ·
   P0016 Name zweimal · P0017 Anweisung bzw. `hauptgang` in einer Nebendatei · P0018 Geheimrezept einer anderen Datei · P0019 nicht
-  bestellt · P0020 zu groß (Sammlung §2.1; Teigmenge §18.5, diese erst nach den Startprüfungen). Texte wörtlich in §2.1 … §2.4, §18.5.
+  bestellt · P0020 zu groß (Sammlung §2.1; Teigmenge §18.5, diese erst nach den Startprüfungen) · P0021 Klangmenge (§18.8, nach der
+  Teigmenge). Texte wörtlich in §2.1 … §2.4, §18.5.
   Warnung **W0004** `"<pfad>" ist schon bestellt.` (W00xx = statische Warnungen, W01xx = Laufzeitumgebung).
 - Startprüfungen in dieser Reihenfolge: Q0004/P0010/P0011 in Quelltextreihenfolge, dann Vererbungszyklen, dann
   R0001/A0001 in Quelltextreihenfolge. Der erste Fehler bricht ab. „Quelltextreihenfolge“ heißt in Projekten: Dateien in
@@ -1962,13 +1963,13 @@ zählt. Mehrere Takte eines Ereignisses: Drücken/Loslassen nur im ersten.
 
 ### 18.8 Klang – Töne, Geräusche, Spuren (H-K14, K-153; Importgruppe `klang`)
 
-Klänge werden **erzeugt** (Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen) – Dateien (`Klang.laden`) kommen mit PROJEKTE später.
-`Klang` gibt es auch ohne Herd. Die Synthese macht der Klang-Erzeuger (`herd/klang`, Rust `no_std` + `libm`; Browser/Interpreter/Wasm:
+Klänge werden **erzeugt** (Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen) oder seit H-K19a aus **WAV- und FLAC-Dateien** der Kiste
+**geladen** (`Klang.laden`, K-163). `Klang` gibt es auch ohne Herd. Die Synthese macht der Klang-Erzeuger (`herd/klang`, Rust `no_std` + `libm`; Browser/Interpreter/Wasm:
 `site/js/herd/klang.wasm`, nativ eingebaut): **PCM 48 kHz, mono, i16** – bitgleich in allen Motoren (FNV-1a-64 der PCM-Bytes).
 
 | Klasse | Erzeugen / Methoden |
 |---|---|
-| `Klang` | statisch `Klang.ton(frequenz, dauer, welle: "sinus", lautstaerke: 0.5, bis: 0, anschlag: 0.005, ausklang: 0.02)` (`welle` ∈ `sinus`, `rechteck`, `saege`, `dreieck`, `rauschen`; `bis` = Zielfrequenz, exponentiell gleitend, 0 = keine), `Klang.rauschen(dauer, art: "weiss", lautstaerke: 0.5, anschlag: 0.005, ausklang: 0.02, saat: 1)` (`art` ∈ `weiss`, `rosa`, `braun`), `Klang.stille(dauer)`, `Klang.noten(text, tempo: 120, welle: "rechteck", lautstaerke: 0.3)`; formen (je ein **neuer** Klang): `huelle(anschlag: 0, abfall: 0, halten: 1, ausklang: 0)`, `tiefpass(frequenz, guete: 0.707)`, `hochpass(frequenz, guete: 0.707)`, `verstaerke(faktor)`, `mische(anderer, ab: 0)`, `dann(anderer)`, `wiederhole(n)`, `nahtlos(ueberblendung: 0.05)`; `dauer()` (Sekunden), `id()`, `spiele(lautstaerke: 1, schleife: nein, tonhoehe: 1, panorama: 0)` → `Spur` |
+| `Klang` | statisch `Klang.laden(pfad)` (H-K19a: `.wav`/`.flac` der Kiste; gleicher Pfad → derselbe Klang), `Klang.ton(frequenz, dauer, welle: "sinus", lautstaerke: 0.5, bis: 0, anschlag: 0.005, ausklang: 0.02)` (`welle` ∈ `sinus`, `rechteck`, `saege`, `dreieck`, `rauschen`; `bis` = Zielfrequenz, exponentiell gleitend, 0 = keine), `Klang.rauschen(dauer, art: "weiss", lautstaerke: 0.5, anschlag: 0.005, ausklang: 0.02, saat: 1)` (`art` ∈ `weiss`, `rosa`, `braun`), `Klang.stille(dauer)`, `Klang.noten(text, tempo: 120, welle: "rechteck", lautstaerke: 0.3)`; formen (je ein **neuer** Klang): `huelle(anschlag: 0, abfall: 0, halten: 1, ausklang: 0)`, `tiefpass(frequenz, guete: 0.707)`, `hochpass(frequenz, guete: 0.707)`, `verstaerke(faktor)`, `mische(anderer, ab: 0)`, `dann(anderer)`, `wiederhole(n)`, `nahtlos(ueberblendung: 0.05)`; `dauer()` (Sekunden), `id()`, `spiele(lautstaerke: 1, schleife: nein, tonhoehe: 1, panorama: 0)` → `Spur` |
 | `Spur` | `stoppe()`, `laeuft()`, `lautstaerke()`/`setzeLautstaerke(v)` (0 … 2), `tonhoehe()`/`setzeTonhoehe(t)` (0.125 … 8), `panorama()`/`setzePanorama(p)` (−1 … 1), `setzeLage(x, y, z = 0)` (räumlich ab jetzt), `reichweite()`/`setzeReichweite(r)` (1 … 10 000, Standard 30), `klang()`, `beimEnde(fn)`, `id()`; Setter verkettbar |
 
 - **Noten:** durch Leerzeichen (oder Komma) getrennt; Buchstabe `C D E F G A H` (deutsch; `B` = H erniedrigt), `#` erhöht, `b` erniedrigt,
@@ -1991,6 +1992,20 @@ Klänge werden **erzeugt** (Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen
   offen, sammeln sich die Ereignisse bis zum nächsten Bild (vor `herd/bild`) bzw. bis `schliesse` – ein Klang startet mit dem Bild seines
   Takts; sonst sofort. Die PCM geht nur an `optionen.onKlang(art, daten)` (`daten.bytes` bei `spiele`, **vor** dem Ereignis), nie in die
   Ereignisliste. Tests: `<name>.klang-erwartet` bzw. `pruefung/klang-erwartet` (JSON-Lines ohne `typ`, kanonisch wie `.herd-erwartet`).
+- **Klänge aus Dateien** (H-K19a, K-163): WAV (RIFF/WAVE inkl. `WAVE_FORMAT_EXTENSIBLE`; PCM 8/16/24/32 Bit, Float 32 Bit) und FLAC
+  (alle Teilrahmenarten, 4 … 24 Bit, Kanal-Dekorrelation, CRC geprüft); 1 … 2 Kanäle, 8 000 … 96 000 Hz. Vor dem Start bäckt der
+  Vorbacker (`teigling.wasm`, bitgleich nativ) jede Klangdatei der Kiste zu einem **Klangteig** (PCM i16 verschachtelt, **Rate bleibt** –
+  die Wiedergabe rechnet auf die Geräterate um; Format `herd/teigling/src/klang.rs`, Cache-Schlüssel `<sha>/klang/1`); `klang` im
+  Ereignis = FNV-1a-64 dieser PCM. Grenzen: Quelle ≤ 16 MiB (die Ladergrenze von 2 MiB je Datei, §2.1, greift vorher), Dauer ≤ 10
+  Minuten, **Klangmenge** (Summe der Klangteige verschiedener Quellen) ≤ 64 MiB – sonst vor dem Start, nach der Teigmenge, `PizzaFehler
+  P0021: Die Klänge sind zusammen zu groß für den Ofen (70,2 MB vorgebacken, höchstens 64 MB).` Prüfreihenfolge von `Klang.laden`: kein
+  Text → `TypAnanas: Klang.laden() braucht einen Text für 'pfad', nicht …` · Erzeuger · schon geladen · nicht in der Kiste →
+  `LaufzeitAnanas: Die Datei "<pfad>" liegt nicht in der Kiste.` · sonst der Text aus dem Klangteig: `<pfad> ist kein lesbarer Klang (WAV
+  oder FLAC).` · `<pfad> ist zu lang (12:30) – höchstens 10 Minuten.` · `<pfad> hat 6 Kanäle – höchstens 2 (Mono oder Stereo).` · `<pfad>
+  hat 192 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.` · `<pfad> ist ein WAV in einem Format, das der Herd nicht kann (…).` (alle
+  `LaufzeitAnanas`). Geladene Klänge zählen nicht zu den 5 Minuten erzeugter Klänge; **Formen** (`huelle` … `nahtlos`) lehnen sie ab
+  (`LaufzeitAnanas: verstaerke() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe
+  und panorama.`) – mischen heißt hier: mehrere Spuren zugleich spielen. `dauer()` = Frames / Rate.
 - **Erzeuger fehlt** (Programm nennt `Klang.…`): `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der
   Klang-Erzeuger fehlt (klang.wasm)." }`, Exit 2 vor dem Start.
 - **Wiedergabe** (nicht Teil der Bitgleichheit): Browser WebAudio (Ton erst nach der ersten Nutzeraktion, vorher Gespieltes entfällt,

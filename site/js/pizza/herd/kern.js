@@ -203,6 +203,23 @@ function modellTeigKopf(t) {
   if ((t[8] | (t[9] << 8)) !== 1 || t[11] !== 0 || (t[10] !== 0 && t[10] !== 255)) return null;
   return { fehler: t[10] === 255, sha256: teiglingHex(t.subarray(16, 48)) };
 }
+// Klangteig (H-K19a, herd/teigling/src/klang.rs): Kopf und Länge voll prüfen (wie lies_teig in herd/klang)
+// → null | { fehler: diavolo, sha256: hex, rate, kanaele, frames }
+const KLANG_MAGIE = [84, 69, 73, 71, 75, 76, 78, 71];   // "TEIGKLNG"
+const KLANGMENGE_MAX = 67108864;
+function istKlangPfad(pfad) { return /\.(wav|flac)$/.test(pfad); }
+function klangTeigKopf(t) {
+  if (!(t instanceof Uint8Array) || t.length < 64) return null;
+  for (let i = 0; i < 8; i++) if (t[i] !== KLANG_MAGIE[i]) return null;
+  const u16 = (i) => t[i] | (t[i + 1] << 8);
+  const u32 = (i) => (t[i] | (t[i + 1] << 8) | (t[i + 2] << 16)) + t[i + 3] * 16777216;
+  if (u16(8) !== 1 || t[11] !== 0) return null;
+  const sha256 = teiglingHex(t.subarray(16, 48));
+  if (t[10] === 255) return u16(64) !== 0 && t.length === 68 + u16(66) ? { fehler: true, sha256, rate: 0, kanaele: 0, frames: 0 } : null;
+  const rate = u32(48), kanaele = u16(52), frames = u32(56);
+  if (t[10] !== 0 || rate < 8000 || rate > 96000 || kanaele < 1 || kanaele > 2 || frames < 1 || frames > 600 * rate || t.length - 64 !== frames * kanaele * 2) return null;
+  return { fehler: false, sha256, rate, kanaele, frames };
+}
 // Anteile eines Teiglings/Modellteigs an der Teigmenge: [{ sha, n }] – ein Modellteig zählt ohne seine eingebetteten Bilder
 // (Schlüssel SHA-256 + ":modell"), jedes eingebettete Bild unter der SHA-256 seiner Quelle (gleich wie die Bilddatei selbst)
 function herdTeigAnteile(t) {
@@ -312,6 +329,9 @@ class HerdVorbacker {
     return t.split('\n').filter(Boolean).map(z => { const x = z.split('\t'); return { uri: x[0], pfad: x[1] }; });
   }
   modellVorbacken(paket) { return this.aus(this.e.modell_vorbacken(this.rein(paket), paket.length)); }
+  // Klänge (H-K19a): nur, wenn das Modul sie kennt (klang_version 1)
+  get hatKlaenge() { return typeof this.e.klang_vorbacken === 'function' && this.e.klang_version() === 1; }
+  klangVorbacken(q) { return this.aus(this.e.klang_vorbacken(this.rein(q), q.length)); }
 }
 let vorbackerStandard;                     // undefined: noch nicht versucht · null: nicht vorhanden · HerdVorbacker
 const vorbackerCache = new WeakMap();      // Module/Bytes → HerdVorbacker | null (eine Instanz je Modul)

@@ -1,0 +1,5 @@
+Klang(1) ja nein
+0.25 s, 0.25 s, 0.1 s
+ja 2
+verstaerke() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.
+dann() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.

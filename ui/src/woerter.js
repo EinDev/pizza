@@ -138,7 +138,7 @@ export const MODELL_METHODEN = ["namen", "folgen", "belaege", "breite", "hoehe",
 export const KNIFF_METHODEN = ["teil", "start", "takt", "beimBetreten", "beimVerlassen", "beimKlick", "beimEntfernen"];
 TYPEN.add("Kniff");
 // Klang (H-K14, SPEC §18.8): statisch Klang.ton/rauschen/stille/noten, Methoden von Klang und Spur, Wellen und Rauscharten
-MITGLIEDER.Klang = ["ton", "rauschen", "stille", "noten"];
+MITGLIEDER.Klang = ["ton", "rauschen", "stille", "noten", "laden"];   // laden: H-K19a
 export const KLANG_METHODEN = ["huelle", "tiefpass", "hochpass", "verstaerke", "mische", "dann", "wiederhole", "nahtlos", "dauer", "spiele",
   "stoppe", "laeuft", "lautstaerke", "setzeLautstaerke", "tonhoehe", "setzeTonhoehe", "panorama", "setzePanorama", "setzeLage",
   "reichweite", "setzeReichweite", "klang", "beimEnde"];

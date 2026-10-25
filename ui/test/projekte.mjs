@@ -9,7 +9,7 @@ import {
 import { migriereTabs, quelleAusSchluessel } from "../src/migration.js";
 import { speicherAblage, TEIGLING_GRENZE } from "../src/ablage.js";
 import { erstelleProjekte } from "../src/projekte.js";
-import { bildInfo, pruefeBild, dataUrl, erstelleVorbacker, modellInfo, pruefeModell, modellFehlerText } from "../src/bilder.js";
+import { bildInfo, pruefeBild, dataUrl, erstelleVorbacker, modellInfo, pruefeModell, modellFehlerText, klangInfo, pruefeKlang, klangFehlerText } from "../src/bilder.js";
 
 // ---------- Pfade (SPEC §2.1) ----------
 for (const p of ["hauptgang.pizza", "welt/tisch.pizza", "bilder/tischdecke.png", "a_b-c.d.txt", "a/b/c/d/e/f/g/h.pizza", "pizza.json"]) assert.equal(pruefePfad(p), null, p);
@@ -22,6 +22,10 @@ assert.equal(dateiArt("modelle/tisch.glb"), "modell");   // H-K16
 assert.equal(dateiArt("modelle/tisch.gltf"), "modell");
 assert.equal(dateiArt("modelle/tisch.bin"), "daten");
 assert.equal(pruefePfad("modelle/tisch.gltf"), null);
+assert.equal(dateiArt("klaenge/regen.flac"), "klang");   // H-K19a
+assert.equal(dateiArt("klaenge/tuer.WAV"), "klang");
+assert.equal(pruefePfad("klaenge/regen.wav"), null);
+assert.match(pruefePfad("klaenge/regen.mp3"), /Dateiart.*\.wav, \.flac/);
 assert.equal(dateiArt("notiz.md"), "text");
 assert.equal(dateiArt("ohne"), null);
 assert.equal(pizzaPfadAusName("Hallo Welt.pizza"), "hallo-welt.pizza");
@@ -306,6 +310,26 @@ assert.match(dataUrl(png), /^data:image\/png;base64,iVBORw0KGgo/);
   assert.deepEqual(tt["m/textur.gltf"], m2.teig);
   // Modellteig ohne die 4 Längenfelder seiner eingebetteten Bilder (sie zählen je Quelle einzeln, PROJEKTE §5.10)
   assert.equal(await vb.teigmenge(tt), tt["a.png"].length + m2.teig.length - 4 * 4);
+  // Klänge (H-K19a): Signatur, Vorbacken zum Klangteig, Cache-Schlüssel klang/1, Meldungen wie zur Laufzeit, Klangmenge
+  const tk = (n) => new Uint8Array(fs.readFileSync(new URL("../../herd/teigling/testklaenge/" + n, import.meta.url)));
+  const wav = tk("ton-mono.wav"), flac = tk("akkord-stereo.flac");
+  assert.deepEqual(klangInfo(wav), { art: "wav" });
+  assert.deepEqual(klangInfo(flac), { art: "flac" });
+  assert.equal(klangInfo(png), null);
+  assert.equal(pruefeKlang("k/a.flac", flac).ok, true);
+  assert.equal(pruefeKlang("k/a.flac", wav).fehler, "k/a.flac ist kein lesbarer Klang (WAV oder FLAC).");
+  assert.equal(klangFehlerText("x.wav", null), "x.wav ist kein lesbarer Klang (WAV oder FLAC).");
+  const k1 = await vb.vorbackeKlang("k/a.flac", flac);
+  assert.equal(k1.ok, true, k1.fehler || k1.grund);
+  assert.deepEqual([k1.kopf.rate, k1.kopf.kanaele, k1.kopf.frames], [44100, 2, 11025]);
+  assert.match(k1.schluessel, /^[0-9a-f]{64}\/klang\/1$/);
+  assert.deepEqual(await ablage.teiglingHole(k1.schluessel), k1.teig, "Klangteig im Cache");
+  assert.deepEqual((await vb.vorbackeKlang("k/a.flac", flac)).teig, k1.teig, "aus dem Cache");
+  const k2 = await vb.vorbackeKlang("k/c.wav", tk("fehler-kanaele.wav"));
+  assert.equal(k2.fehler, "k/c.wav hat 6 Kanäle – höchstens 2 (Mono oder Stereo).");
+  const tkl = await vb.teiglingeFuer({ "k/a.flac": flac, "k/b.wav": wav, "a.png": echt });
+  assert.deepEqual(Object.keys(tkl).sort(), ["a.png", "k/a.flac", "k/b.wav"]);
+  assert.equal(await vb.klangmenge([tkl["k/a.flac"], tkl["k/b.wav"]]), tkl["k/a.flac"].length + tkl["k/b.wav"].length);
 }
 
 // Lader-Anbindung (PA1): mit dem echten Interpreter als globalThis.PizzaLang nehmen pruefePfad/ausDateien/ladePruefung den Lader

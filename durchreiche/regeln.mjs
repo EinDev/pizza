@@ -123,6 +123,8 @@ export const TEXT_ENDUNGEN = new Set([".pizza", ".txt", ".json", ".csv", ".md"])
 export const BILD_ENDUNGEN = new Set([".png", ".jpg", ".jpeg"]);
 /** Modelle (H-K16): glTF als Binärdatei (.gltf ist JSON, wird aber wie gespeichert gehasht) und Puffer .bin */
 export const MODELL_ENDUNGEN = new Set([".glb", ".gltf", ".bin"]);
+/** Klänge (H-K19a): WAV und FLAC */
+export const KLANG_ENDUNGEN = new Set([".wav", ".flac"]);
 /** Bytes, die der Dienst von Nicht-Text-Dateien zur Prüfung liest */
 export const ANFANG_BYTES = 64;
 
@@ -150,6 +152,9 @@ export function pruefeInhalt(pfad, bytes, k) {
     return i < bytes.length && bytes[i] === 0x7b ? null : pfad + " ist kein glTF-Modell.";
   }
   if (e === ".bin") return null;
+  // Klänge (H-K19a): „RIFF“ … „WAVE“ bzw. „fLaC“ – lesen und prüfen tut der Vorbacker
+  if (e === ".wav") return bytes.length >= 12 && bytes.subarray(0, 4).toString("latin1") === "RIFF" && bytes.subarray(8, 12).toString("latin1") === "WAVE" ? null : pfad + " ist kein WAV-Klang.";
+  if (e === ".flac") return bytes.length >= 4 && bytes.subarray(0, 4).toString("latin1") === "fLaC" ? null : pfad + " ist kein FLAC-Klang.";
   if (TEXT_ENDUNGEN.has(e)) {
     try { utf8Streng.decode(bytes); } catch { return pfad + " ist kein gültiger UTF-8-Text."; }
     if (bytes.includes("\r\n")) return pfad + " enthält Windows-Zeilenenden (\\r\\n).";
@@ -210,7 +215,7 @@ export function pruefeManifest(m, k) {
       if (typeof d.pfad !== "string" || pruefePfad(d.pfad) !== null) weg("Ein Dateipfad ist ungültig (nur a–z, 0–9, -, _, . und /).");
       if (d.pfad.startsWith("pruefung/")) weg("Der Ordner pruefung/ gehört nicht zum Projekt.");
       const e = endung(d.pfad);
-      if (!TEXT_ENDUNGEN.has(e) && !BILD_ENDUNGEN.has(e) && !MODELL_ENDUNGEN.has(e)) weg(d.pfad + " hat eine nicht erlaubte Dateiart.");
+      if (!TEXT_ENDUNGEN.has(e) && !BILD_ENDUNGEN.has(e) && !MODELL_ENDUNGEN.has(e) && !KLANG_ENDUNGEN.has(e)) weg(d.pfad + " hat eine nicht erlaubte Dateiart.");
       if (pfade.has(d.pfad)) weg(d.pfad + " steht doppelt im Manifest.");
       pfade.add(d.pfad);
       if (typeof d.sha256 !== "string" || !HASH_MUSTER.test(d.sha256)) weg('"sha256" muss 64 Hex-Kleinbuchstaben haben.');

@@ -73,9 +73,25 @@ pub fn hoerer_aus_paket(p: &[u8]) -> Option<Hoerer> {
 
 // ---------------------------------------------------------------- Mischer
 
+/// PCM eines Klangs: Samples (verschachtelt), Abtastrate, Kanäle (H-K19a: geladene Klänge mit eigener Rate, mono/stereo).
+#[derive(Clone)]
+struct KlangDaten {
+    pcm: Arc<[i16]>,
+    rate: u32,
+    kanaele: usize,
+}
+
+/// PCM-Übergabe an die Wiedergabe: Samples, Abtastrate (Hz), Kanäle.
+pub type Pcm<'a> = (&'a [i16], u32, u8);
+
 struct Stimme {
     spur: u32,
     pcm: Arc<[i16]>,
+    /// Kanäle der PCM (1 oder 2)
+    kanaele: usize,
+    /// Quell-Frames je Geräte-Frame bei Tonhöhe 1 (Quellrate / 48 000) – das Umrechnen auf die Geräterate
+    schritt: f64,
+    /// Lage in Quell-Frames
     pos: f64,
     laut: f64,
     ton: f64,
@@ -88,12 +104,23 @@ struct Stimme {
     gl: f32,
     gr: f32,
     tief: f32,
+    tief_r: f32,
     neu: bool,
+}
+
+impl Stimme {
+    fn frames(&self) -> usize {
+        self.pcm.len() / self.kanaele
+    }
+    /// Sample (−1 … 1) von Kanal `k` an Frame `i`
+    fn wert(&self, i: usize, k: usize) -> f32 {
+        self.pcm[i * self.kanaele + k] as f32 / 32767.0
+    }
 }
 
 /// Mischt alle laufenden Spuren zu Stereo (f32, verschränkt).
 pub struct Mischer {
-    klaenge: HashMap<String, Arc<[i16]>>,
+    klaenge: HashMap<String, KlangDaten>,
     stimmen: Vec<Stimme>,
     hoerer: Hoerer,
     /// Gesamtlautstärke (0 … 1)
@@ -108,19 +135,25 @@ impl Default for Mischer {
 
 impl Mischer {
     /// Ein Ereignis des Moduls (`spiele` mit PCM, `stoppe`, `setze`).
-    pub fn ereignis(&mut self, json: &str, pcm: Option<&[i16]>) {
+    pub fn ereignis(&mut self, json: &str, pcm: Option<Pcm<'_>>) {
         let art = text(json, "art").unwrap_or("");
         let spur = zahl(json, "spur").unwrap_or(0.0) as u32;
         match art {
             "spiele" => {
                 let hash = text(json, "klang").unwrap_or("").to_string();
-                if let Some(p) = pcm {
-                    self.klaenge.entry(hash.clone()).or_insert_with(|| Arc::from(p));
+                if let Some((p, rate, kanaele)) = pcm {
+                    let kanaele = (kanaele as usize).clamp(1, 2);
+                    let rate = if rate == 0 { RATE as u32 } else { rate };
+                    if p.len() >= kanaele {
+                        self.klaenge.entry(hash.clone()).or_insert_with(|| KlangDaten { pcm: Arc::from(p), rate, kanaele });
+                    }
                 }
-                let Some(p) = self.klaenge.get(&hash).cloned() else { return };
+                let Some(k) = self.klaenge.get(&hash).cloned() else { return };
                 self.stimmen.push(Stimme {
                     spur,
-                    pcm: p,
+                    pcm: k.pcm,
+                    kanaele: k.kanaele,
+                    schritt: k.rate as f64 / RATE as f64,
                     pos: 0.0,
                     laut: zahl(json, "lautstaerke").unwrap_or(1.0),
                     ton: zahl(json, "tonhoehe").unwrap_or(1.0),
@@ -132,6 +165,7 @@ impl Mischer {
                     gl: 0.0,
                     gr: 0.0,
                     tief: 0.0,
+                    tief_r: 0.0,
                     neu: true,
                 });
             }
@@ -194,7 +228,10 @@ impl Mischer {
             }
             let a = if fc >= 19_000.0 { 1.0 } else { (1.0 - (-2.0 * std::f64::consts::PI * fc / RATE as f64).exp()) as f32 };
             let (dl, dr) = ((zl - s.gl) / frames as f32, (zr - s.gr) / frames as f32);
-            let n = s.pcm.len();
+            let n = s.frames();
+            // Stereo-Klänge ohne Lage behalten links/rechts (Panorama als Balance, Mitte = volle Stärke); mit Lage mono gemischt
+            let stereo = s.kanaele == 2 && s.lage.is_none();
+            let schritt = s.ton * s.schritt;
             for f in 0..frames {
                 if s.pos >= n as f64 {
                     if s.schleife && n > 0 {
@@ -205,18 +242,30 @@ impl Mischer {
                 }
                 let i = s.pos as usize;
                 let t = (s.pos - i as f64) as f32;
-                let a0 = s.pcm[i] as f32 / 32767.0;
-                let a1 = if i + 1 < n { s.pcm[i + 1] as f32 / 32767.0 } else if s.schleife { s.pcm[0] as f32 / 32767.0 } else { 0.0 };
-                let x = a0 + (a1 - a0) * t;
-                s.tief += a * (x - s.tief);
+                let j = if i + 1 < n { Some(i + 1) } else if s.schleife { Some(0) } else { None };
+                let lies = |k: usize| {
+                    let a0 = s.wert(i, k);
+                    let a1 = j.map(|j| s.wert(j, k)).unwrap_or(0.0);
+                    a0 + (a1 - a0) * t
+                };
+                let (xl, xr) = if s.kanaele == 2 { (lies(0), lies(1)) } else { let x = lies(0); (x, x) };
                 s.gl += dl;
                 s.gr += dr;
-                aus[2 * f] += s.tief * s.gl;
-                aus[2 * f + 1] += s.tief * s.gr;
-                s.pos += s.ton;
+                if stereo {
+                    s.tief += a * (xl - s.tief);
+                    s.tief_r += a * (xr - s.tief_r);
+                    aus[2 * f] += s.tief * s.gl * std::f32::consts::SQRT_2;
+                    aus[2 * f + 1] += s.tief_r * s.gr * std::f32::consts::SQRT_2;
+                } else {
+                    let x = if s.kanaele == 2 { (xl + xr) * 0.5 } else { xl };
+                    s.tief += a * (x - s.tief);
+                    aus[2 * f] += s.tief * s.gl;
+                    aus[2 * f + 1] += s.tief * s.gr;
+                }
+                s.pos += schritt;
             }
         }
-        self.stimmen.retain(|s| !s.aus && (s.schleife || s.pos < s.pcm.len() as f64));
+        self.stimmen.retain(|s| !s.aus && (s.schleife || s.pos < s.frames() as f64));
         for x in aus.iter_mut() {
             *x = x.clamp(-1.0, 1.0);
         }
@@ -281,7 +330,7 @@ impl Wiedergabe {
     }
 
     /// Ereignis des Moduls (Programm-Thread).
-    pub fn ereignis(self: &Arc<Self>, json: &str, pcm: Option<&[i16]>) {
+    pub fn ereignis(self: &Arc<Self>, json: &str, pcm: Option<Pcm<'_>>) {
         if !self.laeuft.load(Ordering::Relaxed) {
             return;
         }
@@ -595,7 +644,7 @@ mod tests {
         let mut k = herd_klang::Klaenge::neu();
         let p = ton(&mut k);
         let mut m = Mischer::default();
-        m.ereignis("{\"art\":\"spiele\",\"spur\":1,\"klang\":\"aa\",\"lautstaerke\":1,\"tonhoehe\":1,\"panorama\":0,\"schleife\":false}", Some(&p));
+        m.ereignis("{\"art\":\"spiele\",\"spur\":1,\"klang\":\"aa\",\"lautstaerke\":1,\"tonhoehe\":1,\"panorama\":0,\"schleife\":false}", Some((&p, 48_000, 1)));
         m.ereignis("{\"art\":\"spiele\",\"spur\":2,\"klang\":\"aa\",\"lautstaerke\":1,\"tonhoehe\":2,\"panorama\":1,\"schleife\":true}", None);
         assert_eq!(m.anzahl(), 2);
         let mut puf = vec![0f32; 2 * 2400];
@@ -607,6 +656,25 @@ mod tests {
         m.ereignis("{\"art\":\"stoppe\",\"spur\":2}", None);
         m.mische(&mut puf);
         assert_eq!(m.anzahl(), 0);
+    }
+
+    /// H-K19a: geladener Klang mit eigener Rate (24 kHz → halb so viele Quell-Frames je Geräte-Frame) und Stereo
+    #[test]
+    fn eigene_rate_und_stereo() {
+        let mut m = Mischer::default();
+        // 0,1 s Stereo bei 24 kHz: links laut, rechts still
+        let p: Vec<i16> = (0..2400).flat_map(|i| [if i % 2 == 0 { 20_000 } else { -20_000 }, 0]).collect();
+        let spiele = |spur: u32| format!("{{\"art\":\"spiele\",\"spur\":{},\"klang\":\"st\",\"lautstaerke\":1,\"tonhoehe\":1,\"panorama\":0,\"schleife\":false}}", spur);
+        m.ereignis(&spiele(1), Some((&p, 24_000, 2)));
+        let mut puf = vec![0f32; 2 * 4800];
+        m.mische(&mut puf);
+        assert!(puf.iter().step_by(2).any(|&x| x.abs() > 0.1), "links klingt");
+        assert!(puf.iter().skip(1).step_by(2).all(|&x| x.abs() < 1e-6), "rechts still");
+        assert_eq!(m.anzahl(), 0, "0,1 s bei 24 kHz sind nach 4800 Geräte-Frames vorbei");
+        m.ereignis(&spiele(2), None);
+        let mut kurz = vec![0f32; 2 * 4799];
+        m.mische(&mut kurz);
+        assert_eq!(m.anzahl(), 1, "ein Frame fehlt noch");
     }
 
     #[test]

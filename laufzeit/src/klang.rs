@@ -46,6 +46,7 @@ extern "C" {
     #[link_name = "nahtlos"] fn k_nahtlos(id: i32, u: f64) -> i32;
     #[link_name = "dauer"] fn k_dauer(id: i32) -> f64;
     #[link_name = "hash"] fn k_hash(id: i32, p: i32) -> i32;
+    #[link_name = "laden"] fn k_laden(pp: i32, pl: i32, tp: i32, tl: i32) -> i32;
 }
 
 #[link(wasm_import_module = "pizza")]
@@ -61,7 +62,7 @@ extern "C" {
 }
 
 // ---------------------------------------------------------------- Zustand
-const MOD_NAMEN: [&str; 4] = ["ton", "rauschen", "stille", "noten"];
+const MOD_NAMEN: [&str; 5] = ["ton", "rauschen", "stille", "noten", "laden"];
 const KLANG_NAMEN: [&str; 12] = ["huelle", "tiefpass", "hochpass", "verstaerke", "mische", "dann", "wiederhole", "nahtlos", "dauer", "id",
     "spiele", "alsText"];
 const SPUR_NAMEN: [&str; 15] = ["stoppe", "laeuft", "lautstaerke", "setzeLautstaerke", "tonhoehe", "setzeTonhoehe", "panorama",
@@ -294,6 +295,7 @@ pub fn modul_methode(id: u32, pos: &[W], ben: &Ben) -> W {
             if !erzeuger_noetig() { return KARTON; }
             klang_neu(unsafe { k_stille(d) })
         }
+        "laden" => laden(argn(pos, ben, 0, "pfad")),
         _ => {
             let tx = t!(0, "text", "noten", None);
             let tempo = z!(1, "tempo", "noten", 120.0);
@@ -304,6 +306,45 @@ pub fn modul_methode(id: u32, pos: &[W], ben: &Ben) -> W {
             klang_neu(unsafe { k_noten(p1, l1, tempo, p2, l2, laut) })
         }
     }
+}
+
+/// Pfad → schon geladener Klang (H-K19a, wie `MODELLE` in herd.rs)
+static mut GELADEN: Vec<(W, W)> = Vec::new();
+
+/// `Klang.laden(pfad)` (H-K19a, auch ohne Herd): Klangteig aus der Kiste (Datensegment) über den Kopierweg in den Erzeuger,
+/// dann `laden`. Reihenfolge wie im Interpreter: kein Text → TypAnanas · Erzeuger · schon geladen · fehlt in der Kiste · keine
+/// Klang-Endung (leerer Teig) bzw. Fehler-Klangteig → Text des Erzeugers („<pfad> ist kein lesbarer Klang …“).
+fn laden(pw: W) -> W {
+    if art(pw) != A_TEXT {
+        let mut t = Tb::neu();
+        t.s("Klang.laden() braucht einen Text für 'pfad', nicht ");
+        darstellung(if pw == UNDEF { KARTON } else { pw }, &mut t);
+        if sig() { return KARTON; }
+        t.s(".");
+        wirf_tb(K_TYP, &t);
+        return KARTON;
+    }
+    if !erzeuger_noetig() { return KARTON; }
+    let pb = bytes(pw);
+    if let Some(&(_, w)) = unsafe { (*core::ptr::addr_of!(GELADEN)).iter().find(|x| bytes(x.0) == pb) } { return w; }
+    let e = match crate::kiste::finde(pb) {
+        Some(e) => e,
+        None => {
+            let mut t = Tb::neu();
+            t.s("Die Datei \"").b(pb).s("\" liegt nicht in der Kiste.");
+            wirf_tb(K_LAUFZEIT, &t);
+            return KARTON;
+        }
+    };
+    let tl = if e.art == crate::kiste::ART_KLANG { e.len as usize } else { 0 };
+    let p = kp(pb.len() + tl + 1);
+    unsafe { klang_schreibe(p, pb.as_ptr(), pb.len() as i32); }
+    let tp = p + pb.len() as i32;
+    if tl > 0 { crate::kiste::stueckweise(&e, |o, b| unsafe { klang_schreibe(tp + o as i32, b.as_ptr(), b.len() as i32) }); }
+    let w = klang_neu(unsafe { k_laden(p, pb.len() as i32, tp, tl as i32) });
+    if w == KARTON { return KARTON; }
+    unsafe { (*core::ptr::addr_of_mut!(GELADEN)).push((neu_text(pb), w)); }
+    w
 }
 
 // ---------------------------------------------------------------- Objekte

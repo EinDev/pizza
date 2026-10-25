@@ -2,6 +2,8 @@
 //!   herd-teigling faelle <ordner>      goldene Fälle als <name>.quelle schreiben, je Fall "name sha256 länge" ausgeben
 //!   herd-teigling vorbacken <ein> <aus> eine Datei vorbacken
 //!   herd-teigling messe <ordner> [n]    Messbilder schreiben, nativ vorbacken (Bestwert aus n Läufen, Standard 5)
+//!   herd-teigling klang <ein> <aus>     WAV/FLAC → Klangteig (H-K19a)
+//!   herd-teigling klang-roh <ein> <aus> WAV/FLAC → Rohwerte vor der i16-Rundung (i32 LE verschachtelt; Vergleich mit ffmpeg)
 //! Benutzt von `node herd/test-teigling.js` (nativ = teigling.wasm) und `bench/herd/mess-teigling.js`.
 
 use std::time::Instant;
@@ -44,8 +46,26 @@ fn main() {
                 println!("{} quelle={} teigling={} sha={} nativ_ms={:.1}", name, q.len(), t.len(), hex(&sha256(&t)), best);
             }
         }
+        Some("klang") => {
+            let q = std::fs::read(&a[2]).unwrap();
+            std::fs::write(&a[3], herd_teigling::klang::vorbacken(&q)).unwrap();
+        }
+        Some("klang-roh") => {
+            let q = std::fs::read(&a[2]).unwrap();
+            match herd_teigling::klang::roh(&q) {
+                Ok((info, w)) => {
+                    let b: Vec<u8> = w.iter().flat_map(|v| v.to_le_bytes()).collect();
+                    std::fs::write(&a[3], b).unwrap();
+                    println!("rate={} kanaele={} bits={} frames={}", info.rate, info.kanaele, info.bits, info.frames.unwrap_or(0));
+                }
+                Err(f) => {
+                    eprintln!("{:?}: {}", f, herd_teigling::klang::fehler_text(&f).1);
+                    std::process::exit(1);
+                }
+            }
+        }
         _ => {
-            eprintln!("Aufruf: herd-teigling faelle <ordner> | vorbacken <ein> <aus> | messe <ordner> [n]");
+            eprintln!("Aufruf: herd-teigling faelle <ordner> | vorbacken <ein> <aus> | messe <ordner> [n] | klang <ein> <aus> | klang-roh <ein> <aus>");
             std::process::exit(2);
         }
     }

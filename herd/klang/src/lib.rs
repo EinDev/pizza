@@ -1,5 +1,6 @@
 //! Klang-Erzeuger (HERD.md §12.4 H-K14, SPEC §18.8, K-153): Töne, Rauschen, Noten, Hüllkurven, Filter, Mischen →
-//! **PCM 48 kHz, mono, i16** (Little Endian). `no_std` + `alloc` + `libm`, Zustand in f64, keine FMA – dieselben Samples
+//! **PCM 48 kHz, mono, i16** (Little Endian); dazu geladene Klänge aus Klangteigen (H-K19a: WAV/FLAC, ihre Rate 8 … 96 kHz,
+//! mono oder stereo verschachtelt – nur abspielbar, nicht formbar). `no_std` + `alloc` + `libm`, Zustand in f64, keine FMA – dieselben Samples
 //! nativ (Host) und als `site/js/herd/klang.wasm` (Interpreter, Wasm-Programm, Browser). Geprüft wird über den FNV-1a-64-Hash
 //! der PCM-Bytes ([`Klaenge::hash`]); Hörbares (Mischen, Raum, Gerät) ist nicht Teil der Bitgleichheit.
 //!
@@ -51,10 +52,18 @@ fn laufzeit(text: String) -> Fehler {
 /// Ergebnis: Klang-ID (ab 1) oder Fehler.
 pub type Erg = Result<u32, Fehler>;
 
+/// Ein Klang: Samples (bei Stereo verschachtelt), Abtastrate, Kanäle; `geladen` = aus einem Klangteig (H-K19a).
+struct Eintrag {
+    pcm: Vec<i16>,
+    rate: u32,
+    kanaele: u8,
+    geladen: bool,
+}
+
 /// Alle Klänge eines Laufs.
 #[derive(Default)]
 pub struct Klaenge {
-    pcm: Vec<Vec<i16>>,
+    pcm: Vec<Eintrag>,
     gesamt: usize,
 }
 
@@ -315,11 +324,42 @@ impl Klaenge {
         if id == 0 {
             return None;
         }
-        self.pcm.get(id as usize - 1).map(|v| v.as_slice())
+        self.eintrag(id).map(|v| v.pcm.as_slice())
     }
 
-    fn hole(&self, id: u32) -> Result<&[i16], Fehler> {
-        self.pcm(id).ok_or_else(|| laufzeit(format!("Interner Fehler im Klang: Klang {} gibt es nicht.", id)))
+    fn eintrag(&self, id: u32) -> Option<&Eintrag> {
+        if id == 0 {
+            return None;
+        }
+        self.pcm.get(id as usize - 1)
+    }
+
+    /// Abtastrate (Hz) eines Klangs: erzeugt 48 000, geladen die Rate der Datei.
+    pub fn rate(&self, id: u32) -> Option<u32> {
+        self.eintrag(id).map(|e| e.rate)
+    }
+
+    /// Kanäle eines Klangs (1 oder 2; erzeugt immer 1).
+    pub fn kanaele(&self, id: u32) -> Option<u8> {
+        self.eintrag(id).map(|e| e.kanaele)
+    }
+
+    /// Ist der Klang aus einer Datei geladen (`Klang.laden`)?
+    pub fn geladen(&self, id: u32) -> Option<bool> {
+        self.eintrag(id).map(|e| e.geladen)
+    }
+
+    /// Samples eines **erzeugten** Klangs für eine Formung `wo` – geladene Klänge formt der Erzeuger nicht (H-K19a,
+    /// **Entscheidung**: andere Rate/Kanäle; die Spur kann Lautstärke, Tonhöhe, Panorama und Raum).
+    fn hole_wo(&self, id: u32, wo: &str) -> Result<&[i16], Fehler> {
+        match self.eintrag(id) {
+            None => Err(laufzeit(format!("Interner Fehler im Klang: Klang {} gibt es nicht.", id))),
+            Some(e) if e.geladen => Err(laufzeit(format!(
+                "{}() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama.",
+                wo
+            ))),
+            Some(e) => Ok(e.pcm.as_slice()),
+        }
     }
 
     fn lege_an(&mut self, v: Vec<i16>) -> Erg {
@@ -329,7 +369,7 @@ impl Klaenge {
             )));
         }
         self.gesamt += v.len();
-        self.pcm.push(v);
+        self.pcm.push(Eintrag { pcm: v, rate: RATE as u32, kanaele: 1, geladen: false });
         Ok(self.pcm.len() as u32)
     }
 
@@ -344,7 +384,7 @@ impl Klaenge {
 
     /// Dauer in Sekunden.
     pub fn dauer(&self, id: u32) -> Option<f64> {
-        self.pcm(id).map(|p| p.len() as f64 / RATE as f64)
+        self.eintrag(id).map(|e| (e.pcm.len() / e.kanaele as usize) as f64 / e.rate as f64)
     }
 
     /// FNV-1a-64 über die PCM-Bytes (i16 LE), als 16 Hex-Ziffern (klein).
@@ -510,7 +550,7 @@ impl Klaenge {
         bereich(wo, "einen Abfall", abfall, 0.0, MAX_DAUER, " Sekunden")?;
         bereich(wo, "für 'halten' einen Pegel", halten, 0.0, 1.0, "")?;
         bereich(wo, "einen Ausklang", ausklang, 0.0, MAX_DAUER, " Sekunden")?;
-        let a = self.hole(id)?;
+        let a = self.hole_wo(id, wo)?;
         let n = a.len();
         self.platz(n)?;
         let (an, ab, aus) = (samples(anschlag), samples(abfall), samples(ausklang));
@@ -536,7 +576,7 @@ impl Klaenge {
         let wo = if hoch { "hochpass" } else { "tiefpass" };
         bereich(wo, "eine Frequenz", frequenz, 10.0, 20_000.0, " Hz")?;
         bereich(wo, "eine Güte", guete, 0.1, 20.0, "")?;
-        let a = self.hole(id)?;
+        let a = self.hole_wo(id, wo)?;
         self.platz(a.len())?;
         let mut bq = Biquad::neu(hoch, frequenz, guete);
         let v: Vec<i16> = a.iter().map(|&s| q(bq.schritt(f(s)))).collect();
@@ -546,7 +586,7 @@ impl Klaenge {
     /// `k.verstaerke(faktor)`: lauter/leiser (0 … 16), übersteuert wird geklemmt.
     pub fn verstaerke(&mut self, id: u32, faktor: f64) -> Erg {
         bereich("verstaerke", "einen Faktor", faktor, 0.0, 16.0, "")?;
-        let a = self.hole(id)?;
+        let a = self.hole_wo(id, "verstaerke")?;
         self.platz(a.len())?;
         let v: Vec<i16> = a.iter().map(|&s| q(f(s) * faktor)).collect();
         self.lege_an(v)
@@ -555,8 +595,8 @@ impl Klaenge {
     /// `a.mische(b, ab)`: b ab `ab` Sekunden in a hineingemischt (Summe, geklemmt); Länge = das längere Ende.
     pub fn mische(&mut self, a: u32, b: u32, ab: f64) -> Erg {
         bereich("mische", "für 'ab' eine Zeit", ab, 0.0, MAX_DAUER, " Sekunden")?;
-        let x = self.hole(a)?;
-        let y = self.hole(b)?;
+        let x = self.hole_wo(a, "mische")?;
+        let y = self.hole_wo(b, "mische")?;
         let s = samples(ab);
         let n = if x.len() > s + y.len() { x.len() } else { s + y.len() };
         self.platz(n)?;
@@ -571,8 +611,8 @@ impl Klaenge {
 
     /// `a.dann(b)`: b hinter a.
     pub fn dann(&mut self, a: u32, b: u32) -> Erg {
-        let x = self.hole(a)?;
-        let y = self.hole(b)?;
+        let x = self.hole_wo(a, "dann")?;
+        let y = self.hole_wo(b, "dann")?;
         self.platz(x.len() + y.len())?;
         let mut v = Vec::with_capacity(x.len() + y.len());
         v.extend_from_slice(x);
@@ -586,7 +626,7 @@ impl Klaenge {
             return Err(Fehler { art: ART_TYP, text: format!("wiederhole() braucht eine Ganzzahl, nicht {}.", zahl_text(n)) });
         }
         bereich("wiederhole", "eine Anzahl", n, 1.0, 1000.0, "")?;
-        let x = self.hole(id)?;
+        let x = self.hole_wo(id, "wiederhole")?;
         let gesamt = x.len() * n as usize;
         self.platz(gesamt)?;
         let mut v = Vec::with_capacity(gesamt);
@@ -599,7 +639,7 @@ impl Klaenge {
     /// `k.nahtlos(ueberblendung)`: für Schleifen – das Ende wird über `ueberblendung` Sekunden (gleiche Leistung) in den
     /// Anfang geblendet; der neue Klang ist um die Überblendung kürzer und schließt ohne Knacken an sich selbst an.
     pub fn nahtlos(&mut self, id: u32, ueberblendung: f64) -> Erg {
-        let x = self.hole(id)?;
+        let x = self.hole_wo(id, "nahtlos")?;
         let c = samples(ueberblendung);
         if !(ueberblendung.is_finite() && c >= 1 && 2 * c <= x.len()) {
             return Err(laufzeit(format!(
@@ -621,6 +661,71 @@ impl Klaenge {
             }
         }
         self.lege_an(v)
+    }
+}
+
+// ---------------------------------------------------------------- Klangteig (H-K19a, K-163)
+
+/// Magie des Klangteigs (Format: `herd/teigling/src/klang.rs`).
+pub const TEIG_MAGIE: [u8; 8] = *b"TEIGKLNG";
+/// Kopf des Klangteigs in Bytes.
+pub const TEIG_KOPF: usize = 64;
+/// Text für alles, was kein (gültiger) Klangteig ist – gleich dem Fehler-Klangteig Code 1 des Vorbackers.
+pub const KEIN_KLANG: &str = "ist kein lesbarer Klang (WAV oder FLAC).";
+
+fn u16_bei(t: &[u8], i: usize) -> Option<u16> {
+    Some(u16::from_le_bytes([*t.get(i)?, *t.get(i + 1)?]))
+}
+fn u32_bei(t: &[u8], i: usize) -> Option<u32> {
+    Some(u32::from_le_bytes([*t.get(i)?, *t.get(i + 1)?, *t.get(i + 2)?, *t.get(i + 3)?]))
+}
+
+/// Klangteig prüfen → Ok((Rate, Kanäle, PCM)) oder Err(Text ohne Pfad). Volle Kopfprüfung (Magie, Version, Art, Rate
+/// 8 000 … 96 000, Kanäle 1 … 2, 1 … 600 × Rate Frames, Länge genau); ein Fehler-Klangteig liefert seinen eigenen Text.
+fn lies_teig(t: &[u8]) -> Result<(u32, u8, Vec<i16>), String> {
+    let kein = || String::from(KEIN_KLANG);
+    if t.len() < TEIG_KOPF || t[0..8] != TEIG_MAGIE || u16_bei(t, 8) != Some(1) || t[11] != 0 {
+        return Err(kein());
+    }
+    if t[10] == 255 {
+        let n = u16_bei(t, 66).unwrap_or(0) as usize;
+        let code = u16_bei(t, 64).unwrap_or(0);
+        if code == 0 || t.len() != 68 + n {
+            return Err(kein());
+        }
+        return match core::str::from_utf8(&t[68..]) {
+            Ok(x) if !x.is_empty() => Err(String::from(x)),
+            _ => Err(kein()),
+        };
+    }
+    let rate = u32_bei(t, 48).unwrap_or(0);
+    let kanaele = u16_bei(t, 52).unwrap_or(0);
+    let frames = u32_bei(t, 56).unwrap_or(0) as u64;
+    if t[10] != 0
+        || !(8_000..=96_000).contains(&rate)
+        || !(1..=2).contains(&kanaele)
+        || frames == 0
+        || frames > 600 * rate as u64
+        || (t.len() - TEIG_KOPF) as u64 != frames * kanaele as u64 * 2
+    {
+        return Err(kein());
+    }
+    let v: Vec<i16> = t[TEIG_KOPF..].chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect();
+    Ok((rate, kanaele as u8, v))
+}
+
+impl Klaenge {
+    /// `Klang.laden(pfad)`: Klangteig (vorgebacken aus WAV/FLAC, `herd/teigling`) → Klang mit seiner Rate und Kanälen. Zählt
+    /// nicht zu den 5 Minuten der erzeugten Klänge (die Klangmenge prüfen die Laufzeiten vor dem Start, P0021). Fehler:
+    /// LaufzeitAnanas „<pfad> <Text>“ – der Text steht im Fehler-Klangteig, für Ungültiges [`KEIN_KLANG`].
+    pub fn laden(&mut self, pfad: &str, teig: &[u8]) -> Erg {
+        match lies_teig(teig) {
+            Ok((rate, kanaele, pcm)) => {
+                self.pcm.push(Eintrag { pcm, rate, kanaele, geladen: true });
+                Ok(self.pcm.len() as u32)
+            }
+            Err(text) => Err(laufzeit(format!("{} {}", pfad, text))),
+        }
     }
 }
 
@@ -735,6 +840,19 @@ impl Abi {
     pub fn nahtlos(&mut self, id: i32, u: f64) -> i32 {
         let r = self.klaenge.nahtlos(id.max(0) as u32, u);
         self.erg(r)
+    }
+    /// `Klang.laden`: Klangteig → id (H-K19a).
+    pub fn laden(&mut self, pfad: &str, teig: &[u8]) -> i32 {
+        let r = self.klaenge.laden(pfad, teig);
+        self.erg(r)
+    }
+    /// Abtastrate in Hz (0 = unbekannte ID).
+    pub fn rate(&self, id: i32) -> i32 {
+        self.klaenge.rate(id.max(0) as u32).unwrap_or(0) as i32
+    }
+    /// Kanäle (0 = unbekannte ID).
+    pub fn kanaele(&self, id: i32) -> i32 {
+        self.klaenge.kanaele(id.max(0) as u32).unwrap_or(0) as i32
     }
     /// Dauer in Sekunden (NaN = unbekannte ID).
     pub fn dauer(&self, id: i32) -> f64 {

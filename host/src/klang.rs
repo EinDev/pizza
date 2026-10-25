@@ -24,9 +24,10 @@ pub const KLANG_FEHLT: &str = "PizzaFehler HOST: Der Klang-Erzeuger fehlt (klang
 const PUFFER_BASIS: usize = 8;
 
 /// Namen aller Exporte von `klang.wasm` = bekannte Importe des Moduls `klang`.
-pub const IMPORTE_KLANG: [&str; 21] = [
+pub const IMPORTE_KLANG: [&str; 24] = [
     "abi_version", "puffer", "fehler_art", "fehler_text", "fehler_neu", "ton", "rauschen", "stille", "noten", "huelle", "tiefpass",
-    "hochpass", "verstaerke", "mische", "dann", "wiederhole", "nahtlos", "dauer", "hash", "pcm", "pcm_laenge",
+    "hochpass", "verstaerke", "mische", "dann", "wiederhole", "nahtlos", "dauer", "hash", "pcm", "pcm_laenge", "laden", "rate",
+    "kanaele",
 ];
 
 /// Bekannte Importe `pizza.klang_*`.
@@ -145,6 +146,15 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
             None => Ok(-1),
         }
     })?;
+    // H-K19a: Klangteig (aus der Kiste des Programms, über klang_schreibe hier abgelegt) → Klang mit eigener Rate/Kanälen
+    l.func_wrap("klang", "laden", |mut c: C, pp: i32, pl: i32, tp: i32, tl: i32| -> Result<i32, wasmi::Error> {
+        let k = kz(&mut c)?;
+        let pfad = k.text(pp, pl)?;
+        let teig = k.bereich(tp, tl)?.to_vec();
+        Ok(k.abi().laden(&pfad, &teig))
+    })?;
+    l.func_wrap("klang", "rate", |mut c: C, id: i32| -> Result<i32, wasmi::Error> { Ok(kz(&mut c)?.abi().rate(id)) })?;
+    l.func_wrap("klang", "kanaele", |mut c: C, id: i32| -> Result<i32, wasmi::Error> { Ok(kz(&mut c)?.abi().kanaele(id)) })?;
     // PCM liegt nativ nicht im nachgebildeten Speicher (der Host liest sie direkt aus dem Erzeuger): Zeiger 0, Länge echt
     l.func_wrap("klang", "pcm", |mut c: C, _id: i32| -> Result<i32, wasmi::Error> { kz(&mut c).map(|_| 0) })?;
     l.func_wrap("klang", "pcm_laenge", |mut c: C, id: i32| -> Result<i32, wasmi::Error> { Ok((kz(&mut c)?.abi().pcm(id).len() * 2) as i32) })?;
@@ -192,7 +202,7 @@ pub(crate) fn binde(l: &mut Linker<Zustand>) -> Result<(), wasmi::errors::Linker
         let json = String::from_utf8_lossy(&prog_bytes(&c, p, n)?).into_owned();
         let d = c.data_mut();
         if let Some(w) = d.klang.wiedergabe.clone() {
-            let pcm = if id > 0 { d.klang.abi.as_ref().map(|a| a.pcm(id)) } else { None };
+            let pcm = if id > 0 { d.klang.abi.as_ref().map(|a| (a.pcm(id), a.rate(id) as u32, a.kanaele(id) as u8)) } else { None };
             w.ereignis(&json, pcm);
         }
         d.senke.sende(Ereignis::Klang { daten: json });

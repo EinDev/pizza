@@ -7,6 +7,8 @@
 //! Einstieg: [`vorbacken`] (Quellbytes → Teigling, bei Fehlern ein Fehler-Teigling) und [`sha256`]; Modelle (glTF, H-K16):
 //! [`modell::vorbacken`] (Quellpaket → Modellteig, Format in `modell.rs`) und [`modell::braucht_text`] (welche Dateien ein
 //! `.gltf` braucht). Für Modelle gilt HERD.md §13.1 Regel 5: f32 kopiert, nur + − × ÷, Farben über eine feste Tabelle.
+//! Klänge (WAV/FLAC, H-K19a): [`klang::vorbacken`] (Quelldatei → Klangteig, PCM i16 ohne Umrechnen der Rate, Format und
+//! Rundungsregeln in `klang.rs`; Leser in `wav.rs` und `flac.rs`).
 //! Format „Teigling“ v1 (Little Endian):
 //!
 //! ```text
@@ -26,17 +28,22 @@
 
 extern crate alloc;
 
+pub mod flac;
 pub mod gltf;
 pub mod jpeg;
 pub mod json;
+pub mod klang;
 pub mod mip;
 pub mod modell;
 pub mod png;
 pub mod sha256;
 mod srgb;
+pub mod wav;
 #[cfg(any(test, feature = "testbilder"))]
 pub mod testbild;
 
+#[cfg(test)]
+mod klang_tests;
 #[cfg(test)]
 mod modell_tests;
 #[cfg(test)]

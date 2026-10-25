@@ -182,6 +182,12 @@ test("Inhaltsregeln je Endung (PNG-/JPEG-Signatur, UTF-8, keine \\r\\n, .pizza �
   assert.equal(pruefeInhalt("m/a.gltf", TEXT("\uFEFF \r\n{\"asset\":{}}"), K), null, ".gltf darf \\r\\n enthalten (Binärdatei)");
   assert.match(pruefeInhalt("m/a.gltf", TEXT("[1]"), K), /kein glTF-Modell/);
   assert.equal(pruefeInhalt("m/a.bin", Buffer.from([0, 1, 2]), K), null);
+  // Klänge (H-K19a)
+  assert.equal(pruefeInhalt("k/a.wav", Buffer.from("RIFF\x24\0\0\0WAVEfmt ", "latin1"), K), null);
+  assert.match(pruefeInhalt("k/a.wav", Buffer.from("RIFF\x24\0\0\0AVI ", "latin1"), K), /kein WAV-Klang/);
+  assert.equal(pruefeInhalt("k/a.flac", Buffer.from("fLaC\0\0\0\x22", "latin1"), K), null);
+  assert.match(pruefeInhalt("k/a.flac", png, K), /kein FLAC-Klang/);
+  assert.match(pruefeInhalt("k/a.mp3", Buffer.from("ID3"), K), /nicht erlaubte Dateiart/);
 });
 
 test("Ablauf: 90 Tage ab letzter Version, einschließlich des Ablauftags; 0 = unbegrenzt", () => {

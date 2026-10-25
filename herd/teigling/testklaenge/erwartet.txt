@@ -1,0 +1,46 @@
+# Erwartete Klangteige (scripts/klaenge-test.js): name rate kanaele bits frames flags sha256(PCM i16) sha256(Rohwerte i32)
+# bzw. name fehler code text
+wav-8-mono.wav 8000 1 8 800 0 6564e1c8732ea1cceaf6c897fc307f8a7684d975bb2b922b4a382619c8c39477 1de72cf3bd44359522af4a54bb21e8b8db3981b498eb8439ec46545e2f9e6f68
+wav-16-stereo.wav 44100 2 16 1000 0 95e7e267f66eabccf5a9848c15977ebe1fc29f389bbabf3c465e47cccc0e40df 4d3fa46adaa4ecd7e67f40829b7cec6b11e0b47e6b2881d634ea4d493cb8d4cc
+wav-24-mono.wav 48000 1 24 900 0 fe8710729a4fc2eec4afbbd5f233ff15510d9729e7aebf46bc58745bee741759 dd3eecf0d73a497ff87ad4d599715bc8503725966b247f89c70b9928e1e03713
+wav-32-stereo.wav 96000 2 32 700 0 ce2b2ce1da2965132c40c941850024b8a996e3388e32de7d348168fc35f664f0 21617dffe4b27cb8ef2d0253242189d34daf3fe4117a025e7ffd870c87d256fb
+wav-float-mono.wav 22050 1 32 600 2 09a89b3c6f304812ddfc3adbb961c914fb360f54d7175f6c33c6d116595619ae f09eee1f36a7cd0b234b9f1dc2da3d7213cb7edc616e3713a2d9326fecea7612
+wav-extensible-24.wav 44100 2 24 500 0 71ea1acabc41376f045f80c34124d7f14320c78e9c7c07f030474a9750571f90 17699969167f5d0cefb96b68208873ca3418054fbc4d43919d18e1a76ebbe2f9
+wav-extensible-float.wav 48000 2 32 400 2 8ff2eef9f2fe97b20ed49904973b0e1a6aff64972b8eae9baed42cb2e13a9d73 73cad421d0da5749d3acbc15944dac973ab54e0ba61a0e436c23bb55040fa358
+wav-ungerade-abschnitte.wav 16000 1 16 600 0 746162874d1408918a06423028d1d1ab3051f7feeb1ae1ff7dc9225cb0d96c28 d2acca465950b1c426e3cbd128c83805ff5d4221be3efcf3632f53b0bd293ecb
+wav-zusatz-abschnitte.wav 11025 2 16 400 0 ced86a646ee9f9f91cd39004d23436c1c3218992567af0d9579b01d1bd596433 bf86b31104d4de5d8330f23a73fbb5668819732c14cee46c59eb450e994f8b72
+wav-data-zu-gross.wav 8000 2 16 300 0 be848db99c939fb6c247b5b85170335dfc3813a7d3bd6356977891055b6fe701 861da27fbbc1b700d87a260180adc86faadac259b8e89569d031e19ddbe33bb1
+wav-data-unbekannt.wav 32000 1 8 500 0 5f00b3d0adcad1323d17934b00ced07c90554b427ef38369d75ee545fc51b897 e5f7fb2db0a88b4b212d2330a4881fc4943155221262b7d199b417c0fdf132d0
+ton-mono.wav 22050 1 16 5513 0 3c3ca7cf6f8f1f12c2494b247fe11dac5d7a6607c84be2877077dd6df353e95d 6e1241be20cedd9ab5c0b8a527e5ebf388c48da9763b5a93e391359373c302bd
+flac-teilrahmen.flac 44100 1 16 4352 1 645a58177daadb2306eac5a26b7ec8a22f4f64827189e89765f128b18b32a25a 1dadf15d81830d7605b7a9294b7f80700db0a81d64f859573a1e97dacfd5c954
+flac-stereo.flac 48000 2 16 4608 1 0efec74fa1fb38d56d93d6cab010142bfed1a3c41e83b00e949afc9b52b080d6 64bffb027dca3e5d176d42265a6bc8bb2266c9b750d6487ff8aac1803b5dcad3
+flac-8bit.flac 12000 1 8 1010 1 f816503dd7e60f693f9c5ed1926e0d9e56c0635b8cd8a9d179ccccb5e6d7d046 4dcd277395614eee4e84b9493767d6b0c5c33dd42284d3c3b13504ce3e03d9b7
+flac-12bit.flac 11025 2 12 600 1 929ff78c7acaec575cfaba39928a187f7af8b60c070996e6c9115baa12c6b225 d394ddd6f4c910394c57f66b80858fedc5396733082e9451eca7e8af893692e7
+flac-20bit.flac 32000 2 20 1200 1 ae18d537b319425d01d79ec1057a7dc9e676eaef59f77bb6535f69b9e92989e1 21e8ad99d6fca9b50989c28a0ac9a2a3595af753f032f549ee8434c5deaaeafe
+flac-24bit-stereo.flac 96000 2 24 2048 1 4f93c8f2fa437260aa7c756a3dd1523edf9898fffbb2ea14c332bef7d1d5e2c2 3ac9a5c043cab8d52d82b6b0bf21b003642a509cfc0300c203059ee04f85842c
+flac-4bit.flac 8000 1 4 512 1 064fefd29775c71a81a6a910b12d5b93013f08388312bd02a928cce8432b3f1e 7b257822735e1793a8c8fe992c04cb6961b8b53db777e1d4747fb4c9a4e0a36d
+flac-verschwendet.flac 16000 2 16 1024 1 74b873b1f61e644771da88a00c53a731d17f68a1c27f99af392f5ec9ea049d21 245fa637203a6843cf20162afedad6266a4e5b803ea081281ee1df06d5549a15
+flac-variabel.flac 22050 1 16 74430 1 7adfe8e1ee026679d43f0c2d8602df2e82a49194c45e7da20adbc3606350bd1f 50d177a95427d24ef22110371cfc7110b9e240c584111e704976be22267e8f35
+flac-metadaten.flac 88200 2 16 5608 1 b36ee668d3f6b7ac33210926180e64a3c2659fab5f3bfe7c6aff4e8adbf41b65 96b781dea13201e230af3f5cfa5d197b86322e02a338c9ac3bf7ac17343743ab
+akkord-stereo.flac 44100 2 16 11025 1 63648b2997de8b8fbd540e69013bfb59dee15ad4484876a72bc2a0ab3d13c335 375c53f4afbeb42ef30c03b38da6bae727ba8c5032d310a2bce6882272cc217d
+klick-24.flac 48000 1 24 4800 1 1f87c2660cfbed07e4634552290fd2bd457a2f952f51975c09e5699fb9eed3d1 f267909c1bcb90a385e32a8b5604ef419cbc320380d8b337c5659891142f27b7
+ffmpeg-stereo-24.flac 44100 2 24 2205 1 ead7678a4909cc5cc5a5300aa9b1a8715b68b1c4e2b9c025e571826b2f2fa9fd 4a4856b7e2952b73988371a81f600318ee9ac02019f9f770d849f655b18cb79c
+ffmpeg-mono-16.flac 22050 1 16 2205 1 ea7f5b331ac324971eaa9acdfffd54de3c15579eb84807cd389d2c1ccb569d5b a365150265a24d359cbbc7b2b605cc9beb6ab0cda17286e31df1e16ccb2cb26a
+fehler-kaputt.wav fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-crc.flac fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-zu-lang.flac fehler 2 ist zu lang (10:01) – höchstens 10 Minuten.
+fehler-zu-lang.wav fehler 2 ist zu lang (10:01) – höchstens 10 Minuten.
+fehler-kanaele.wav fehler 4 hat 6 Kanäle – höchstens 2 (Mono oder Stereo).
+fehler-rate.wav fehler 5 hat 192 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
+fehler-format.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
+fehler-format-float64.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
+fehler-format-extensible.wav fehler 6 ist ein WAV in einem Format, das der Herd nicht kann (nur PCM mit 8, 16, 24 oder 32 Bit und Float mit 32 Bit).
+fehler-null.wav fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-kein-klang.ogg fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-format.flac fehler 6 ist ein FLAC in einem Format, das der Herd nicht kann (nur 4 bis 24 Bit).
+fehler-kanaele.flac fehler 4 hat 6 Kanäle – höchstens 2 (Mono oder Stereo).
+fehler-rate.flac fehler 5 hat 4 000 Hz – erlaubt sind 8 000 bis 96 000 Hz.
+fehler-rahmen-rate.flac fehler 1 ist kein lesbarer Klang (WAV oder FLAC).
+fehler-zu-gross.flac fehler 3 ist vorgebacken zu groß (197,8 MB) – höchstens 64 MB.
+fehler-zu-gross-unbekannt.flac fehler 3 ist vorgebacken zu groß (64,3 MB) – höchstens 64 MB.
+fehler-zu-lang-unbekannt.flac fehler 2 ist zu lang (10:07) – höchstens 10 Minuten.

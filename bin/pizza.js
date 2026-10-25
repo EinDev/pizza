@@ -143,7 +143,7 @@ function vorratStandardOrdner() {
 
 // ---------- Programm laden: Datei, Ordner oder pizza.json (PROJEKTE §1.5, §2.9; SPEC §2.1) ----------
 const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-const PROJEKT_ENDUNG = /\.(pizza|png|jpe?g|glb|gltf|bin|txt|json|csv|md)$/;
+const PROJEKT_ENDUNG = /\.(pizza|png|jpe?g|glb|gltf|bin|wav|flac|txt|json|csv|md)$/;
 const abbruch = (text) => { console.error(text); process.exit(2); };
 // Textdateien an der Projektgrenze: streng UTF-8 (BOM bleibt), \r\n → \n; alles andere als Bytes
 function liesProjektDatei(abs, rel) {
@@ -171,7 +171,7 @@ function sammleOrdner(wurzel) {
         if (tiefe >= 7) { process.stderr.write('Hinweis: ' + r + '/ wird ignoriert (höchstens 8 Ebenen).\n'); continue; }
         geh(path.join(abs, e.name), r, tiefe + 1);
       } else if (e.isFile()) {
-        if (!PROJEKT_ENDUNG.test(e.name)) { process.stderr.write('Hinweis: ' + r + ' wird ignoriert (Projektdateien: .pizza, .png, .jpg, .glb, .gltf, .bin, .txt, .json, .csv, .md).\n'); continue; }
+        if (!PROJEKT_ENDUNG.test(e.name)) { process.stderr.write('Hinweis: ' + r + ' wird ignoriert (Projektdateien: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .txt, .json, .csv, .md).\n'); continue; }
         dateien[r] = liesProjektDatei(path.join(abs, e.name), r);
       }
     }
@@ -324,7 +324,7 @@ if (optionen.ast) {
   // Bilder (SPEC §18.5, PROJEKTE §5.4): Vorbacken im Prozess mit site/js/herd/teigling.wasm (Speicher-Cache je Lauf, kein
   // Plattencache). Nur bei Projekten mit Bildern geladen; fehlt teigling.wasm, meldet der Interpreter „Der Vorbacker fehlt“.
   // Modelle (H-K16, .glb/.gltf) ebenso.
-  if (typeof quelle === 'object' && Object.keys(quelle.dateien).some(p => /\.(png|jpe?g|glb|gltf)$/.test(p))) {
+  if (typeof quelle === 'object' && Object.keys(quelle.dateien).some(p => /\.(png|jpe?g|glb|gltf|wav|flac)$/.test(p))) {
     try { runOpt.vorbacker = require(path.join(__dirname, '..', 'site', 'js', 'herd', 'teigling.js')).node(); } catch (e) { /* → HOST-Fehler */ }
   }
   const r = P.run(quelle, runOpt);

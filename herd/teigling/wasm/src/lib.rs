@@ -12,8 +12,11 @@
 //! | `modell_version` | `() → i32` | Formatversion der Modellteige (1, H-K16; Cache-Schlüssel `modell/1`) |
 //! | `modell_vorbacken` | `(ptr, len) → len` | Modellteig aus einem Quellpaket (`TEIGQUEL …`) oder direkt aus einer `.glb` |
 //! | `modell_braucht` | `(ptr, len) → len` | Eingabe: Pfad, NUL, Hauptdatei → Text „URI ⇥ Projektpfad“ je Zeile (was ein `.gltf` braucht) |
+//! | `klang_version` | `() → i32` | Formatversion der Klangteige (1, H-K19a; Cache-Schlüssel `klang/1`) |
+//! | `klang_vorbacken` | `(ptr, len) → len` | Klangteig aus einer WAV- oder FLAC-Datei (bei Fehlern ein Fehler-Klangteig mit fertigem Text) |
 //!
-//! `abi_version` bleibt 1: die Modell-Exporte sind Zusatz; Hüllen erkennen sie an `modell_version`.
+//! `abi_version` bleibt 1: die Modell- und Klang-Exporte sind Zusatz; Hüllen erkennen sie an `modell_version` bzw.
+//! `klang_version`.
 //!
 //! Wird nur für `wasm32v1-none` gebaut (`node herd/baue.js`); nativ ist die Crate leer. Der Allocator ist derselbe wie in
 //! `herd/kern-wasm` (Größenklassen 2^k, Nachschub per `memory.grow`).
@@ -178,6 +181,17 @@ mod wasm {
         let t = herd_teigling::modell::braucht_text(pfad, haupt);
         let z = z();
         z.aus = t.into_bytes();
+        z.aus.len() as i32
+    }
+    #[no_mangle]
+    pub extern "C" fn klang_version() -> i32 {
+        herd_teigling::klang::VERSION as i32
+    }
+    #[no_mangle]
+    pub extern "C" fn klang_vorbacken(p: i32, l: i32) -> i32 {
+        let t = herd_teigling::klang::vorbacken(b(p, l));
+        let z = z();
+        z.aus = t;
         z.aus.len() as i32
     }
     #[no_mangle]

@@ -7,7 +7,7 @@ import { iconSvg } from "./icons.js";
 import {
   dateiArt, pruefePfad, erreichbarePizzas, dekodiereText, pruefeGrenzen, segmentAusName, formatGroesse, GRENZEN, PROJEKTDATEI,
 } from "./projekt.js";
-import { pruefeBild, pruefeModell } from "./bilder.js";
+import { pruefeBild, pruefeModell, pruefeKlang } from "./bilder.js";
 import { istZip } from "./zip.js";
 
 function el(tag, klasse, text) {
@@ -16,7 +16,7 @@ function el(tag, klasse, text) {
   if (text != null) e.textContent = text;
   return e;
 }
-const ICON = { pizza: "pizza", text: "file", bild: "image", modell: "package", daten: "archive", ordner: "folder" };   // H-K16: Modelle, Puffer
+const ICON = { pizza: "pizza", text: "file", bild: "image", modell: "package", klang: "ton", daten: "archive", ordner: "folder" };   // H-K16: Modelle, Puffer
 
 /** Pfade + leere Ordner → Baum { name, pfad, ordner: Map, dateien: [] }. */
 export function baueBaum(pfade, ordner = []) {
@@ -46,7 +46,7 @@ export async function bereiteDateienVor(files, { ordner = "", belegt = new Set()
     try { bytes = new Uint8Array(await f.arrayBuffer()); } catch (e) { meldungen.push("„" + f.name + "“ konnte nicht gelesen werden."); continue; }
     if (/\.zip$/i.test(f.name) || istZip(bytes)) { zip.push(f); continue; }
     const art = dateiArt(f.name);
-    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .txt, .json, .csv, .md)."); continue; }
+    if (!art) { meldungen.push("„" + f.name + "“: diese Dateiart kennt der Ofen nicht (erlaubt: .pizza, .png, .jpg, .glb, .gltf, .bin, .wav, .flac, .txt, .json, .csv, .md)."); continue; }
     const punkt = f.name.lastIndexOf(".");
     const endung = f.name.slice(punkt + 1).toLowerCase();
     const name = segmentAusName(f.name.slice(0, punkt), "datei") + "." + endung;
@@ -64,6 +64,10 @@ export async function bereiteDateienVor(files, { ordner = "", belegt = new Set()
       inhalt = bytes;
     } else if (art === "modell") {
       const p = pruefeModell(pfad, bytes);
+      if (!p.ok) { meldungen.push(p.fehler); continue; }
+      inhalt = bytes;
+    } else if (art === "klang") {
+      const p = pruefeKlang(pfad, bytes);
       if (!p.ok) { meldungen.push(p.fehler); continue; }
       inhalt = bytes;
     } else if (art === "daten") {
@@ -368,7 +372,7 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
     if (!dateiEingabe) {
       dateiEingabe = document.createElement("input");
       dateiEingabe.type = "file";
-      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.glb,.gltf,.bin,.txt,.json,.csv,.md,.zip";
+      dateiEingabe.accept = ".pizza,.png,.jpg,.jpeg,.glb,.gltf,.bin,.wav,.flac,.txt,.json,.csv,.md,.zip";
       dateiEingabe.multiple = true;
       dateiEingabe.hidden = true;
       dateiEingabe.dataset.testid = "baum-datei-eingabe";
@@ -395,6 +399,10 @@ export function erstelleDateibaum({ wurzel, umschalter, projekte, tabs, frage, t
         const r = await vorbacker.vorbackeModell(x.pfad, probe);
         if (!r.ok && r.fehler && r.code !== 5) { meldungen.push(r.fehler); continue; }
         if (!r.ok && r.fehler) hinweise.push(r.fehler);
+      } else if (vorbacker && x.inhalt instanceof Uint8Array && dateiArt(x.pfad) === "klang" && vorbacker.vorbackeKlang) {
+        // Klänge (H-K19a): Klangteig sofort (Prüfung wie zur Laufzeit, Ergebnis im Cache)
+        const r = await vorbacker.vorbackeKlang(x.pfad, x.inhalt);
+        if (!r.ok && r.fehler) { meldungen.push(r.fehler); continue; }
       }
       neu.push(x);
     }

@@ -387,7 +387,7 @@ export async function erstelleProjekte({ speicher, willkommen, ablage = null, ka
         if (aktiv.dateien.has(z) && !betroffen.includes(z)) return `„${z}“ gibt es schon.`;
       }
       if (istOrdner && !betroffen.length) { const f = pruefePfadOrdner(neuPfad); if (f) return f; }
-      if (!istOrdner && dateiArt(alt) !== dateiArt(neuPfad) && (istBinaerArt(alt) || istBinaerArt(neuPfad))) return dateiArt(alt) === "bild" || dateiArt(neuPfad) === "bild" ? "Bild- und Textdateien lassen sich nicht ineinander umbenennen." : "Modelle, Bilder und Textdateien lassen sich nicht ineinander umbenennen.";
+      if (!istOrdner && dateiArt(alt) !== dateiArt(neuPfad) && (istBinaerArt(alt) || istBinaerArt(neuPfad))) return dateiArt(alt) === "bild" || dateiArt(neuPfad) === "bild" ? "Bild- und Textdateien lassen sich nicht ineinander umbenennen." : "Modelle, Klänge, Bilder und Textdateien lassen sich nicht ineinander umbenennen.";
       const r = rec();
       for (const p of betroffen) {
         const z = ziel(p);

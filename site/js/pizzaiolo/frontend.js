@@ -105,6 +105,7 @@
         if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && (n.obj.n === 'Form' || n.obj.n === 'Herd' || n.obj.n === 'Bildchen' || n.obj.n === 'Modell')) this.herdStatisch.add(n.obj.n);
         if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && n.obj.n === 'Klang') this.klangStatisch = true;   // K-153: Gruppe klang
         if (n.k === 'Name' && (n.n === 'Kiste' || n.n === 'Bildchen' || n.n === 'Modell')) this.nutztKiste = true;   // Kiste/Bildchen.laden/Modell.laden: Datensegment nötig
+        if ((n.k === 'MCall' || n.k === 'Mem') && n.obj && n.obj.k === 'Name' && n.obj.n === 'Klang' && n.name === 'laden') this.nutztKiste = true;   // Klang.laden (H-K19a)
         if ((n.k === 'MCall' || n.k === 'Mem') && (n.name === 'echt' || n.name === 'zone')) this.nutztEcht = true;   // K-154: zone_ms in Gruppe echtzeit
         if ((n.k === 'MCall' || n.k === 'Mem') && n.name === 'brigade') this.nutztBrigade = true;
         if (n.k === 'Klasse') { for (const m of n.methoden) this.methodenNamen.add(m.name); this.klassenNamen.add(n.name); }
@@ -238,6 +239,7 @@
       const projekt = this.projektIR();
       // Teigmenge (P0020, SPEC §18.5): nach Startprüfung und Herd-Kern, vor vorbereiten – wie im Interpreter (PD2)
       if (this.kontext.teigmengeFehler) projekt.spaetfehler = { code: 'P0020', text: 'PizzaFehler P0020: ' + this.kontext.teigmengeFehler };
+      else if (this.kontext.klangmengeFehler) projekt.spaetfehler = { code: 'P0021', text: 'PizzaFehler P0021: ' + this.kontext.klangmengeFehler };   // H-K19a
       if (startfehler) {
         return { format: 'pizza-ir/1', pos: this.posListe, warnungen, startfehler, funktionen: [], klassen: [], registrierung: [], globale: [], methoden: [], vorbereiten: null, oben: null, projekt };
       }
@@ -715,7 +717,7 @@
 
   /**
    * AST (ein Programm aus PizzaLang.projekt.lade bzw. parse) → { ok:true, ir } | { ok:false, nichtUnterstuetzt:[…] }
-   * kontext (optional): { PizzaLang, warnungen: Lader-Warnungen mit d, teigmengeFehler: Text | null,
+   * kontext (optional): { PizzaLang, warnungen: Lader-Warnungen mit d, teigmengeFehler: Text | null, klangmengeFehler: Text | null,
    *                      projekt: { dateien: [pfad] | null, args: [text], kiste: { eintraege, daten } | null } }
    */
   function frontend(ast, kontext) {

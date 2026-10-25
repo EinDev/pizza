@@ -13,6 +13,8 @@ const TK = "§2 Projekte: Kiste, Bilddateien (K-145 … K-147)";
 const api = (name, fn) => ({ p: T, name, api: fn });
 // Testmodelle (H-K16): von scripts/modelle-test.js erzeugt und eingecheckt
 const TM = (n) => new Uint8Array(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "herd", "teigling", "testmodelle", n)));
+// Testklänge (H-K19a): von scripts/klaenge-test.js erzeugt und eingecheckt
+const TKL = (n) => new Uint8Array(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "herd", "teigling", "testklaenge", n)));
 
 module.exports = [
   // ───────────────────────── §2.2 bestellt, Ladereihenfolge ─────────────────────────
@@ -757,5 +759,36 @@ probier { neu Modell(); } verbrannt (RohlingAnanas x) { Bote.sage((x.nachricht()
     const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\nModell m = Modell.laden("m.glb");\n', "m.glb": TM("wuerfel.glb") }), { herdKern: new Uint8Array([0]) });
     const f = ereignisse(r, "fehler");
     if (r.exitCode !== 2 || f.length !== 1 || f[0].text !== "PizzaFehler HOST: Der Herd-Kern fehlt (kern.wasm)." || ereignisse(r, "ausgabe").length) return j(r);
+  } },
+
+  // ───────────────────────── H-K19a §18.8 Klang.laden (K-163) – Testklänge aus scripts/klaenge-test.js ─────────────────────────
+  F(TK, "K-163 §18.8: Klang.laden – WAV und FLAC ohne Herd, gleicher Pfad = derselbe Klang, Dauer aus Frames und Rate", projekt({
+    "hauptgang.pizza": P`
+Klang a = Klang.laden("klaenge/ton-mono.wav");
+Klang b = Klang.laden("klaenge/akkord-stereo.flac");
+Bote.sage((a + " " + (a == Klang.laden("klaenge/ton-mono.wav")) + " " + a.dauer().runden(3) + " " + b.dauer()));
+Spur s = b.spiele(schleife: ja);
+Bote.sage((s.laeuft()));
+`,
+    "klaenge/ton-mono.wav": TKL("ton-mono.wav"), "klaenge/akkord-stereo.flac": TKL("akkord-stereo.flac"),
+  }), { out: ["Klang(1) ja 0.25 0.25", "ja"] }),
+
+  F(TK, "K-163 §18.8: Klang.laden – Prüfreihenfolge und Texte aus dem Fehler-Klangteig, Formen lehnen geladene Klänge ab", projekt({
+    "hauptgang.pizza": P`
+probier { Klang.laden(5); } verbrannt (TypAnanas x) { Bote.sage((x.nachricht())); }
+probier { Klang.laden("k/fehlt.flac"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { Klang.laden("k/zu-lang.flac"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { Klang.laden("k/kaputt.wav"); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+probier { Klang.laden("k/ton.wav").huelle(); } verbrannt (LaufzeitAnanas x) { Bote.sage((x.nachricht())); }
+`,
+    "k/zu-lang.flac": TKL("fehler-zu-lang.flac"), "k/kaputt.wav": TKL("fehler-kaputt.wav"), "k/ton.wav": TKL("ton-mono.wav"),
+  }), { out: ["Klang.laden() braucht einen Text für 'pfad', nicht 5.", "Die Datei \"k/fehlt.flac\" liegt nicht in der Kiste.",
+    "k/zu-lang.flac ist zu lang (10:01) – höchstens 10 Minuten.", "k/kaputt.wav ist kein lesbarer Klang (WAV oder FLAC).",
+    "huelle() geht nur mit erzeugten Klängen, nicht mit geladenen (Klang.laden) – spiele sie mit lautstaerke, tonhoehe und panorama."] }),
+
+  { p: TK, name: "K-163 §18.8: Klänge brauchen den Vorbacker (HOST vor dem Start), Programme ohne Klangdatei nicht", api: (lang) => {
+    const r = lang.run(projekt({ "hauptgang.pizza": 'Bote.sage(("nie"));\nKlang k = Klang.laden("a.wav");\n', "a.wav": TKL("ton-mono.wav") }), { vorbacker: new Uint8Array([0]) });
+    const f = ereignisse(r, "fehler");
+    if (r.exitCode !== 2 || f.length !== 1 || f[0].text !== "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm)." || ereignisse(r, "ausgabe").length) return j(r);
   } },
 ];

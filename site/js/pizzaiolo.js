@@ -65,8 +65,9 @@
   // ------------------------------------------------------------ Projekte (SPEC §2, PROJEKTE.md §2.8, §5.6; PA2)
   const BILD_ENDUNG = /\.(png|jpe?g)$/;
   const MODELL_ENDUNG = /\.(glb|gltf)$/;   // H-K16
+  const KLANG_ENDUNG = /\.(wav|flac)$/;   // H-K19a
   const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
-  const ART_TEXT = 0, ART_BILD = 1, ART_SONST = 2, ART_MODELL = 3;   // laufzeit/src/kiste.rs
+  const ART_TEXT = 0, ART_BILD = 1, ART_SONST = 2, ART_MODELL = 3, ART_KLANG = 4;   // laufzeit/src/kiste.rs
   const enk = new TextEncoder();
 
   // Vorbacker (teigling.wasm, PROJEKTE §5.3/§5.4): optionen.vorbacker (WebAssembly.Module oder Bytes) wie im Interpreter,
@@ -115,21 +116,24 @@
   /**
    * Kiste fürs Datensegment (HOST-ABI §1 v2): Pfade nach Bytefolge, Texte als UTF-8, Bilder als Teigling und Modelle (.glb/.gltf,
    * H-K16) als Modellteig (geprüft bzw. neu vorgebacken – ein veralteter Cache ändert nie das Ergebnis), gleiche Inhalte nur
-   * einmal; dazu die Teigmenge (P0020, Bilder und Modelle zusammen).
-   * → { ok: true, kiste: { eintraege, daten }, teigmengeFehler } | { ok: false, fehler } (Vorbacker fehlt, wie im Interpreter)
+   * einmal; dazu die Teigmenge (P0020, Bilder und Modelle zusammen). Klänge (.wav/.flac, H-K19a) als Klangteig mit eigener
+   * Klangmenge (P0021).
+   * → { ok: true, kiste: { eintraege, daten }, teigmengeFehler, klangmengeFehler } | { ok: false, fehler } (Vorbacker fehlt, wie im Interpreter)
    */
   function baueKiste(sammlung, optionen) {
     const pfade = Object.keys(sammlung || {}).sort();   // Pfade sind ASCII (SPEC §2.1) → Codeeinheiten = Bytefolge
     const bilder = pfade.filter(p => BILD_ENDUNG.test(p));
     const modelle = pfade.filter(p => MODELL_ENDUNG.test(p));
+    const klaenge = pfade.filter(p => KLANG_ENDUNG.test(p));
     let vb = null;
-    if (bilder.length || modelle.length) {
+    if (bilder.length || modelle.length || klaenge.length) {
       vb = vorbacker(optionen.vorbacker);
-      if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBesorge === 'function'))) return { ok: false, fehler: { code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).', datei: null, zeile: null, spalte: null } };
+      if (vb === null || (modelle.length && !(vb.hatModelle && typeof vb.modellBesorge === 'function')) ||
+        (klaenge.length && !(vb.hatKlaenge && typeof vb.klangBesorge === 'function'))) return { ok: false, fehler: { code: 'HOST', art: 'intern', text: 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).', datei: null, zeile: null, spalte: null } };
     }
     const V = vb ? teile.vorbackerApi() : null;
     const teiglinge = optionen.teiglinge && typeof optionen.teiglinge === 'object' ? optionen.teiglinge : {};
-    const stuecke = [], gesehen = new Map(), eintraege = [], fertig = [];
+    const stuecke = [], gesehen = new Map(), eintraege = [], fertig = [], klangteige = [];
     let laenge = 0, mitModellen = false;
     const lege = (schluessel, bytes) => {
       let o = gesehen.get(schluessel);
@@ -150,6 +154,11 @@
         fertig.push(t);
         if (k && !k.fehler) mitModellen = true;
         eintraege.push({ pfad, art: ART_MODELL, off: lege('m:' + (k ? k.sha256 + ':' + t.length : pfad), t), len: t.length });
+      } else if (KLANG_ENDUNG.test(pfad)) {
+        const t = vb.klangBesorge(teiglinge[pfad] instanceof Uint8Array ? teiglinge[pfad] : null, bytes);
+        const k = V.klangKopf(t);
+        klangteige.push(t);
+        eintraege.push({ pfad, art: ART_KLANG, off: lege('k:' + (k ? k.sha256 + ':' + t.length : pfad), t), len: t.length });
       } else if (TEXT_ENDUNG.test(pfad)) {
         eintraege.push({ pfad, art: ART_TEXT, off: lege('p:' + pfad, bytes), len: bytes.length });
       } else eintraege.push({ pfad, art: ART_SONST, off: 0, len: 0 });
@@ -157,7 +166,8 @@
     const daten = new Uint8Array(laenge);
     let o = 0;
     for (const s of stuecke) { daten.set(s, o); o += s.length; }
-    return { ok: true, kiste: { eintraege, daten }, teigmengeFehler: V ? V.teigmengeFehler(V.teigmenge(fertig), mitModellen) : null };
+    return { ok: true, kiste: { eintraege, daten }, teigmengeFehler: V ? V.teigmengeFehler(V.teigmenge(fertig), mitModellen) : null,
+      klangmengeFehler: V && klangteige.length ? V.klangmengeFehler(V.klangmenge(klangteige)) : null };
   }
 
   /**
@@ -171,7 +181,7 @@
     if (!k.ok) return { ok: false, fehler: k.fehler };
     const dateien = p.ast.dateiPfade || null;
     const warnungen = p.warnungen.map(w => ({ code: w.code, text: w.text, zeile: w.zeile, spalte: w.spalte, d: w.datei !== null && dateien ? Math.max(0, dateien.indexOf(w.datei)) : 0 }));
-    const f = teile.frontend.frontend(p.ast, { PizzaLang, warnungen, teigmengeFehler: k.teigmengeFehler, projekt: { dateien, args: p.args, kiste: k.kiste } });
+    const f = teile.frontend.frontend(p.ast, { PizzaLang, warnungen, teigmengeFehler: k.teigmengeFehler, klangmengeFehler: k.klangmengeFehler, projekt: { dateien, args: p.args, kiste: k.kiste } });
     if (!f.ok) return { ok: false, nichtUnterstuetzt: f.nichtUnterstuetzt };
     return { ok: true, ir: f.ir, projekt: { name: p.name, dateien: p.ladeliste.length } };
   }

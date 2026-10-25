@@ -34,13 +34,23 @@ const KLANG = path.join(ROOT, 'site', 'js', 'herd', 'klang.wasm');
 
 function faelle() {
   const dir = path.join(ROOT, 'tests', 'faelle');
-  return fs.readdirSync(dir).filter(f => f.startsWith('klang-') && f.endsWith('.pizza')).sort().map(f => {
+  const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
+  return fs.readdirSync(dir).filter(f => f.startsWith('klang-')).sort().map(f => {
+    // Projektordner (H-K19a: klang-laden/ mit Klangdateien): Prüfdateien in pruefung/
+    if (fs.statSync(path.join(dir, f)).isDirectory()) {
+      const b = path.join(dir, f, 'pruefung');
+      const lies = (e) => (fs.existsSync(path.join(b, e.slice(1))) ? fs.readFileSync(path.join(b, e.slice(1)), 'utf8') : null);
+      const opt = {};
+      if (lies('.ereignisse') !== null) opt.uiEreignisse = jsonZeilen(lies('.ereignisse'));
+      return { name: 'faelle/' + f + '/', quelle: { dateien: BSP.leseOrdner(path.join(dir, f)) }, opt, lies };
+    }
+    if (!f.endsWith('.pizza')) return null;
     const b = path.join(dir, f.slice(0, -6));
     const lies = (e) => (fs.existsSync(b + e) ? fs.readFileSync(b + e, 'utf8') : null);
     const opt = {};
     if (lies('.ereignisse') !== null) opt.uiEreignisse = jsonZeilen(lies('.ereignisse'));
     return { name: 'faelle/' + f, quelle: lies('.pizza'), opt, lies };
-  });
+  }).filter(Boolean);
 }
 
 function pruefe(pruefe1) {

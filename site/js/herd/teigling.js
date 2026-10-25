@@ -37,7 +37,20 @@
  *     PizzaVorbacker.modellCacheSchluessel(sha256Hex) → "<hex>/modell/1"
  *     teigmenge(…) zählt Teiglinge und Modellteige (je SHA-256 einmal, Fehler nicht; eingebettete Bilder je Quelle einmal, auch
  *                  über Modelle und Bilddateien hinweg); teigmengeFehler(bytes, mitModellen)
- *   Konstanten: VERSION 1, KOPF 52, FEHLER_LAENGE 64, MAX_KANTE 2048, MAX_QUELLE 2 MiB, MAX_TEIGMENGE 64 MiB.
+ *   Klänge (WAV/FLAC, H-K19a, HERD.md §13.3; Format „Klangteig“ in herd/teigling/src/klang.rs – PCM i16 LE verschachtelt ab
+ *   Byte 64, Rate der Quelle, kein Umrechnen):
+ *     Vorbacker.hatKlaenge → boolean                teigling.wasm kennt klang_vorbacken (klang_version() === 1)
+ *     Vorbacker.klangVorbacken(quelle) → Uint8Array Klangteig (bei Fehlern ein Fehler-Klangteig mit fertigem Text, ohne Pfad)
+ *     Vorbacker.klangBesorge(teig | null, quelle) → Uint8Array   den gegebenen Teig, wenn sein Kopf gültig ist, er kein Fehler-Teig
+ *                                                    ist und die SHA-256 der Quelle passt – sonst neu vorgebacken
+ *     PizzaVorbacker.klangKopf(teig) → null | { rate, kanaele, bits, frames, dauer (Sekunden), flac, float, sha256 (hex), pcmBytes,
+ *                                               fehler: null | { code: 1 … 6, text } }   (vollständig geprüft wie klang::kopf)
+ *     PizzaVorbacker.istKlangPfad(pfad) → boolean      .wav/.flac
+ *     PizzaVorbacker.klangmenge(teige) → Bytes          Summe ganzer Klangteige je Quell-SHA-256 einmal, Fehler-Teige nicht (P0021)
+ *     PizzaVorbacker.klangmengeFehler(bytes) → null | „Die Klänge sind zusammen zu groß für den Ofen (… MB vorgebacken, höchstens 64 MB).“
+ *     PizzaVorbacker.klangCacheSchluessel(sha256Hex) → "<hex>/klang/1"
+ *   Konstanten: VERSION 1, KOPF 52, FEHLER_LAENGE 64, MAX_KANTE 2048, MAX_QUELLE 2 MiB, MAX_TEIGMENGE 64 MiB; KLANG_VERSION 1,
+ *   MAX_KLANG_QUELLE 16 MiB, MAX_KLANGMENGE 64 MiB.
  *
  * Die Ananas-Texte zu Fehler-Teiglingen entstehen im Herd-Kern (`bildchen_teigling`, Codes 61/62, herd/README.md §3).
  */
@@ -155,6 +168,53 @@
     return aus;
   }
 
+  // ---------------------------------------------------------------- Klangteig (H-K19a)
+  var KLANG_MAGIE = [84, 69, 73, 71, 75, 76, 78, 71]; // "TEIGKLNG"
+  var KLANG_VERSION = 1, KLANG_KOPF = 64;
+  var MAX_KLANG_QUELLE = 16777216, MAX_KLANG_PCM = 67108864, MAX_KLANGMENGE = 67108864;
+  function istKlangPfad(p) { return /\.(wav|flac)$/.test(p); }
+  /** Kopf eines Klangteigs lesen und vollständig prüfen (wie klang::kopf in herd/teigling/src/klang.rs). */
+  function klangKopf(t) {
+    if (!t || t.length < KLANG_KOPF) return null;
+    for (var i = 0; i < 8; i++) if (t[i] !== KLANG_MAGIE[i]) return null;
+    if (u16(t, 8) !== KLANG_VERSION || t[11] !== 0) return null;
+    var art = t[10], flags = u32(t, 12), sha = hex(t.subarray(16, 48));
+    if (art === 255) {
+      if (flags !== 0 || t.length < KLANG_KOPF + 4) return null;
+      for (var j = 48; j < 64; j++) if (t[j] !== 0) return null;
+      var code = u16(t, 64), n = u16(t, 66);
+      if (code < 1 || code > 6 || t.length !== KLANG_KOPF + 4 + n || !utf8) return null;
+      var text;
+      try { text = new TextDecoder("utf-8", { fatal: true }).decode(t.subarray(68)); } catch (e) { return null; }
+      return { rate: 0, kanaele: 0, bits: 0, frames: 0, dauer: 0, flac: false, float: false, sha256: sha, pcmBytes: 0, fehler: { code: code, text: text } };
+    }
+    if (art !== 0) return null;
+    var rate = u32(t, 48), kanaele = u16(t, 52), bits = u16(t, 54), frames = u32(t, 56);
+    var flac = (flags & 1) !== 0, float = (flags & 2) !== 0;
+    if ((flags & ~3) !== 0 || u32(t, 60) !== 0) return null;
+    var bitsOk = flac ? !float && bits >= 4 && bits <= 24 : float ? bits === 32 : bits === 8 || bits === 16 || bits === 24 || bits === 32;
+    if (!bitsOk || rate < 8000 || rate > 96000 || (kanaele !== 1 && kanaele !== 2)) return null;
+    var pcm = frames * kanaele * 2;
+    if (frames < 1 || frames > 600 * rate || pcm > MAX_KLANG_PCM || t.length !== KLANG_KOPF + pcm) return null;
+    return { rate: rate, kanaele: kanaele, bits: bits, frames: frames, dauer: frames / rate, flac: flac, float: float, sha256: sha, pcmBytes: pcm, fehler: null };
+  }
+  /** Klangmenge (P0021): ganze Klangteige, je SHA-256 der Quelle einmal; Fehler-Teige und andere Bytes zählen nicht. */
+  function klangmenge(teige) {
+    var gesehen = Object.create(null), summe = 0;
+    var liste = Array.isArray(teige) ? teige : Object.keys(teige).map(function (k) { return teige[k]; });
+    for (var i = 0; i < liste.length; i++) {
+      var k = klangKopf(liste[i]);
+      if (!k || k.fehler || gesehen[k.sha256]) continue;
+      gesehen[k.sha256] = true;
+      summe += liste[i].length;
+    }
+    return summe;
+  }
+  function klangmengeFehler(bytes) {
+    if (bytes <= MAX_KLANGMENGE) return null;
+    return "Die Klänge sind zusammen zu groß für den Ofen (" + megabyte(bytes) + " MB vorgebacken, höchstens 64 MB).";
+  }
+
   function teigmenge(teiglinge) {
     var gesehen = Object.create(null), summe = 0;
     var liste = Array.isArray(teiglinge) ? teiglinge : Object.keys(teiglinge).map(function (k) { return teiglinge[k]; });
@@ -184,6 +244,7 @@
     if (this.x.abi_version() !== 1) throw new Error("teigling.wasm: unbekannte ABI-Version " + this.x.abi_version());
     if (this.x.teigling_version() !== VERSION) throw new Error("teigling.wasm: Teigling-Version " + this.x.teigling_version() + " statt " + VERSION);
     this.hatModelle = typeof this.x.modell_vorbacken === "function" && this.x.modell_version() === MODELL_VERSION;
+    this.hatKlaenge = typeof this.x.klang_vorbacken === "function" && this.x.klang_version() === KLANG_VERSION;
   }
   Vorbacker.prototype._rein = function (bytes) {
     var p = this.x.puffer(bytes.length);
@@ -251,6 +312,14 @@
     return k && !k.fehler && k.sha256 === hex(this.sha256(paket)) ? teig : this.modellVorbacken(paket);
   };
 
+  Vorbacker.prototype.klangVorbacken = function (quelle) {
+    return this._aus(this.x.klang_vorbacken(this._rein(quelle), quelle.length));
+  };
+  Vorbacker.prototype.klangBesorge = function (teig, quelle) {
+    var k = teig ? klangKopf(teig) : null;
+    return k && !k.fehler && k.sha256 === hex(this.sha256(quelle)) ? teig : this.klangVorbacken(quelle);
+  };
+
   function ausModul(modul) { return new Vorbacker(new WebAssembly.Instance(modul, {})); }
   function ausBytes(bytes) { return ausModul(new WebAssembly.Module(bytes)); }
   function lade(url) {
@@ -271,6 +340,9 @@
     cacheSchluessel: function (shaHex) { return shaHex + "/teigling/" + VERSION; },
     MODELL_VERSION: MODELL_VERSION, modellKopf: modellKopf, istModellPfad: istModellPfad, quellpaket: quellpaket,
     modellCacheSchluessel: function (shaHex) { return shaHex + "/modell/" + MODELL_VERSION; },
+    KLANG_VERSION: KLANG_VERSION, MAX_KLANG_QUELLE: MAX_KLANG_QUELLE, MAX_KLANGMENGE: MAX_KLANGMENGE,
+    klangKopf: klangKopf, istKlangPfad: istKlangPfad, klangmenge: klangmenge, klangmengeFehler: klangmengeFehler,
+    klangCacheSchluessel: function (shaHex) { return shaHex + "/klang/" + KLANG_VERSION; },
     hex: hex,
   };
   if (typeof module === "object" && module.exports) module.exports = api;

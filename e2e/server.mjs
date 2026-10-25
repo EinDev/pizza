@@ -45,6 +45,8 @@ const MIME = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".glb": "model/gltf-binary",          // Modelle (H-K16)
+  ".wav": "audio/wav",                  // Klänge (H-K19a)
+  ".flac": "audio/flac",
   ".gltf": "model/gltf+json",
   ".bin": "application/octet-stream",
   ".ico": "image/x-icon",
@@ -62,7 +64,7 @@ const MIME = {
 function cacheControl(uri, status) {
   if (![200, 206, 304].includes(status)) return "no-store";
   if (/\.(?:js|css|mjs)$/i.test(uri)) return "public, max-age=3600, stale-while-revalidate=86400";
-  if (/\.(?:svg|png|jpe?g|glb|gltf|bin|ico|webp|woff2?)$/i.test(uri)) return "public, max-age=86400";
+  if (/\.(?:svg|png|jpe?g|glb|gltf|bin|wav|flac|ico|webp|woff2?)$/i.test(uri)) return "public, max-age=86400";
   return "no-cache";
 }
 
@@ -183,7 +185,7 @@ export async function starteServer({ port = 0, wurzel = WURZEL, isolation = true
     const istOrdner = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
 
     // .pizza/.erwartet und statische Assets: fehlende Dateien sind echte 404 (kein SPA-Fallback)
-    if (/\.(?:pizza|erwartet|js|mjs|css|json|map|svg|png|jpe?g|glb|gltf|bin|ico|webp|txt|woff2?|wasm|pkarton)$/i.test(uri)) {
+    if (/\.(?:pizza|erwartet|js|mjs|css|json|map|svg|png|jpe?g|glb|gltf|bin|wav|flac|ico|webp|txt|woff2?|wasm|pkarton)$/i.test(uri)) {
       return istDatei(datei) ? lies(datei) : senden(404, "text/html; charset=utf-8", "<h1>404</h1>", uri);
     }
     // try_files $uri $uri/ /index.html

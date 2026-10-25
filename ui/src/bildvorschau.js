@@ -1,14 +1,38 @@
 // Bildvorschau für Bilddateien des Projekts (PROJEKTE.md §3.1, §5.8): Pixelgröße, Dateigröße, pixelscharfe Zoomstufen; Anzeige
 // über eine data:-URL (CSP img-src 'self' data: bleibt); dazu „vorgebacken … · n Stufen“ aus dem Teigling (Vorbacker, PD1).
 // Modelle (H-K16, .glb/.gltf): Kennzahlen aus dem Modellteig („612 Ecken · 3 Bilder · vorgebacken 1,2 MB“) bzw. die Meldung wie
-// zur Laufzeit; Puffer (.bin): nur die Größe.
-import { bildInfo, dataUrl, pruefeBild, modellInfo, pruefeModell } from "./bilder.js";
+// zur Laufzeit; Puffer (.bin): nur die Größe. Klänge (H-K19a, .wav/.flac): Kennzahlen aus dem Klangteig („2,5 s · 22 050 Hz ·
+// mono · vorgebacken 108 KB“) und ein Abspielknopf – Ton erst nach dem Klick (Autoplay-Regel), in automatisierten Browsern
+// (E2E) stumm in einen OfflineAudioContext gerendert (data-gespielt mit dem Pegel).
+import { bildInfo, dataUrl, pruefeBild, modellInfo, pruefeModell, klangInfo, pruefeKlang } from "./bilder.js";
 import { formatGroesse, dateiArt } from "./projekt.js";
 
 /** 612 · 12 000 (Leerzeichen als Tausendertrenner, wie die Meldungen des Vorbackers) */
 const tausender = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 const STUFEN = [0, 1, 2, 4, 8]; // 0 = einpassen
+
+/** 2,5 s · 1:05 min (Dezimalkomma) */
+const sekunden = (s) => (s < 60 ? (Math.round(s * 100) / 100).toString().replace(".", ",") + " s" : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0") + " min");
+
+/** Klangteig (H-K19a, Kopf 64 B: Rate @48, Kanäle @52, Frames @56) → { pcm: Int16Array, rate, kanaele, frames } | null */
+function klangPcm(t) {
+  if (!(t instanceof Uint8Array) || t.length < 64 || t[10] !== 0) return null;
+  const dv = new DataView(t.buffer, t.byteOffset, t.byteLength);
+  const rate = dv.getUint32(48, true), kanaele = dv.getUint16(52, true), frames = dv.getUint32(56, true);
+  if (frames < 1 || (kanaele !== 1 && kanaele !== 2) || 64 + frames * kanaele * 2 !== t.length) return null;
+  const pcm = new Int16Array(frames * kanaele);
+  for (let i = 0; i < pcm.length; i++) pcm[i] = dv.getInt16(64 + 2 * i, true);
+  return { pcm, rate, kanaele, frames };
+}
+function audioPuffer(ctx, k) {
+  const b = ctx.createBuffer(k.kanaele, k.frames, k.rate);
+  for (let c = 0; c < k.kanaele; c++) {
+    const d = b.getChannelData(c);
+    for (let i = 0; i < k.frames; i++) d[i] = k.pcm[i * k.kanaele + c] / 32767;
+  }
+  return b;
+}
 
 export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
   const kopf = document.createElement("div");
@@ -35,7 +59,53 @@ export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
   fehler.dataset.testid = "bildvorschau-fehler";
   fehler.hidden = true;
   flaeche.appendChild(fehler);
+  // Abspielknopf (nur für Klänge)
+  const spielen = document.createElement("button");
+  spielen.type = "button";
+  spielen.className = "knopf knopf-mini bv-spielen";
+  spielen.dataset.testid = "klangvorschau-spielen";
+  spielen.hidden = true;
+  spielen.textContent = "▶ Abspielen";
+  kopf.appendChild(spielen);
   wurzel.replaceChildren(kopf, flaeche);
+  let klangTeig = null, klangQuelle = null, klangKontext = null;
+  function klangHalt() {
+    if (klangQuelle) { try { klangQuelle.stop(); } catch (e) { /* schon aus */ } klangQuelle = null; }
+    spielen.textContent = "▶ Abspielen";
+  }
+  spielen.addEventListener("click", async () => {
+    if (klangQuelle) { klangHalt(); return; }
+    const pcm = klangPcm(klangTeig);
+    if (!pcm) return;
+    const automatisiert = typeof navigator !== "undefined" && navigator.webdriver === true;
+    const OAC = typeof window !== "undefined" && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
+    const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
+    if (automatisiert) {
+      // E2E: nie hörbar – derselbe Puffer offline gerendert, Pegel als Prüfwert
+      if (!OAC) return;
+      const ctx = new OAC(pcm.kanaele, pcm.frames, pcm.rate);
+      const q = ctx.createBufferSource();
+      q.buffer = audioPuffer(ctx, pcm);
+      q.connect(ctx.destination);
+      q.start();
+      const b = await ctx.startRendering();
+      let s = 0;
+      const d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) s += d[i] * d[i];
+      wurzel.dataset.gespielt = String(Math.sqrt(s / Math.max(1, d.length)));
+      return;
+    }
+    if (!AC) return;
+    if (!klangKontext) klangKontext = new AC();
+    try { await klangKontext.resume(); } catch (e) { /* bleibt still */ }
+    const q = klangKontext.createBufferSource();
+    q.buffer = audioPuffer(klangKontext, pcm);
+    q.connect(klangKontext.destination);
+    q.onended = () => { if (klangQuelle === q) klangHalt(); };
+    q.start();
+    klangQuelle = q;
+    spielen.textContent = "■ Anhalten";
+  });
 
   let stufe = 0, aktuell = null;
   for (const s of STUFEN) {
@@ -60,8 +130,14 @@ export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
   return {
     /** pfad + bytes zeigen; null blendet die Vorschau aus (Editor wieder sichtbar). sammlung: alle Projektdateien (Modelle). */
     zeige(pfad, bytes, sammlung = null) {
+      klangHalt();
+      klangTeig = null;
+      spielen.hidden = true;
+      knoepfe.hidden = false;
+      delete wurzel.dataset.gespielt;
       if (!pfad) { wurzel.hidden = true; editorEl.hidden = false; aktuell = null; bild.removeAttribute("src"); return; }
       const art = dateiArt(pfad);
+      if (art === "klang") return zeigeKlang(pfad, bytes);
       if (art === "modell" || art === "daten") return zeigeModell(pfad, bytes, art, sammlung);
       const i = bildInfo(bytes);
       const p = pruefeBild(pfad, bytes);
@@ -91,6 +167,38 @@ export function erstelleBildvorschau({ wurzel, editorEl, vorbacker = null }) {
     },
     get offen() { return !wurzel.hidden; },
   };
+
+  function zeigeKlang(pfad, bytes) {
+    aktuell = { pfad, info: null };
+    wurzel.hidden = false;
+    editorEl.hidden = true;
+    wurzel.dataset.pfad = pfad;
+    delete wurzel.dataset.vorgebacken;
+    bild.removeAttribute("src");
+    bild.hidden = true;
+    knoepfe.hidden = true;
+    const ki = klangInfo(bytes);
+    info.textContent = "Klang" + (ki ? " (" + ki.art.toUpperCase() + ")" : "") + " · Quelle " + formatGroesse(bytes.byteLength);
+    const p = pruefeKlang(pfad, bytes);
+    fehler.hidden = p.ok;
+    fehler.textContent = p.ok ? "" : p.fehler;
+    stufe = 0;
+    wende();
+    if (vorbacker && vorbacker.vorbackeKlang && p.ok) {
+      const fuer = aktuell;
+      vorbacker.vorbackeKlang(pfad, bytes).then((r) => {
+        if (aktuell !== fuer) return;
+        if (r.ok) {
+          const k = r.kopf;
+          info.textContent += " · " + sekunden(k.dauer) + " · " + tausender(k.rate) + " Hz · " + (k.kanaele === 2 ? "stereo" : "mono") + " · vorgebacken "
+            + formatGroesse(r.teig.byteLength);
+          klangTeig = r.teig;
+          spielen.hidden = false;
+        } else if (r.fehler) { fehler.hidden = false; fehler.textContent = r.fehler; }
+        wurzel.dataset.vorgebacken = r.ok ? "ja" : r.fehler ? "fehler" : "nein";
+      });
+    }
+  }
 
   function zeigeModell(pfad, bytes, art, sammlung) {
     aktuell = { pfad, info: null };

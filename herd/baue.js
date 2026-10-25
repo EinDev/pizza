@@ -19,10 +19,11 @@ const ZIEL = path.join(HIER, '..', 'site', 'js', 'herd');
 const ROH = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_kern_wasm.wasm');
 const ROH_TEIGLING = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_teigling_wasm.wasm');
 const TEIGLING_EXPORTE = ['memory', 'abi_version', 'teigling_version', 'puffer', 'vorbacken', 'sha256', 'ergebnis', 'freigeben',
-  'modell_version', 'modell_vorbacken', 'modell_braucht'];   // Modelle: H-K16
+  'modell_version', 'modell_vorbacken', 'modell_braucht', 'klang_version', 'klang_vorbacken'];   // Modelle: H-K16, Klänge: H-K19a
 const ROH_KLANG = path.join(HIER, 'target', 'wasm32v1-none', 'release', 'herd_klang_wasm.wasm');
 const KLANG_EXPORTE = ['memory', 'abi_version', 'puffer', 'fehler_art', 'fehler_text', 'fehler_neu', 'ton', 'rauschen', 'stille', 'noten',
-  'huelle', 'tiefpass', 'hochpass', 'verstaerke', 'mische', 'dann', 'wiederhole', 'nahtlos', 'dauer', 'hash', 'pcm', 'pcm_laenge'];
+  'huelle', 'tiefpass', 'hochpass', 'verstaerke', 'mische', 'dann', 'wiederhole', 'nahtlos', 'dauer', 'hash', 'pcm', 'pcm_laenge',
+  'laden', 'rate', 'kanaele'];
 
 function schemaAus(bytes) {
   const m = new WebAssembly.Module(bytes);

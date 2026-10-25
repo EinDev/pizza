@@ -46,6 +46,7 @@ class Laufzeit {
     this.klangWarte = [];
     this.klangSpurNr = 0;
     this.klangEnden = [];
+    this.klangPfade = new Map();   // H-K19a: Pfad → KlangObj (gleicher Pfad = derselbe Klang); Klangteige in this.teiglinge
     // Kiste (SPEC §11.2) = Sammlung des Laders ohne pruefung/; Bilder (SPEC §18.5): optionen.teiglinge (Cache, geprüft),
     // optionen.vorbacker (teigling.wasm), vorgebackene Teiglinge je Pfad und geladene Bildchen je Pfad
     this.kiste = opt.kiste !== null && typeof opt.kiste === 'object' ? opt.kiste : {};
@@ -340,7 +341,7 @@ class Laufzeit {
     this.pruefe();
     if (this.herdNoetig) this.herdKern(true);
     if (this.klangNoetig) this.klangKern(true);   // K-153: Klang-Erzeuger vor dem Start (wie der Herd-Kern, K-128)
-    this.vorbacke();    // alle Bilder der Kiste → Teiglinge, Teigmenge (P0020) – zuletzt vor dem Start (SPEC §2.5, §18.5)
+    this.vorbacke();    // alle Bilder/Modelle/Klänge der Kiste → Teige, Teigmenge (P0020), Klangmenge (P0021) – zuletzt vor dem Start (SPEC §2.5, §18.5)
     this.vorbereiten();
     for (const st of body) {
       if (DEKL.has(st.k)) continue;

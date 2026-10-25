@@ -1,0 +1,7 @@
+{"art":"spiele","spur":1,"klang":"57d5faa45c58327d","lautstaerke":0.5,"tonhoehe":1,"panorama":-0.5,"schleife":true}
+{"art":"spiele","spur":2,"klang":"d7b0db04a298bc12","lautstaerke":1,"tonhoehe":2,"panorama":0,"schleife":false}
+{"art":"spiele","spur":3,"klang":"1a12f026a967e302","lautstaerke":1,"tonhoehe":1,"panorama":0,"schleife":false}
+{"art":"spiele","spur":4,"klang":"e48c0f06f78e3e02","lautstaerke":0.3,"tonhoehe":1,"panorama":0,"schleife":false}
+{"art":"setze","spur":1,"lautstaerke":0.8,"tonhoehe":1,"panorama":-0.5,"lage":null,"reichweite":30}
+{"art":"setze","spur":1,"lautstaerke":0.8,"tonhoehe":1,"panorama":-0.5,"lage":[1,2,3],"reichweite":30}
+{"art":"stoppe","spur":1}

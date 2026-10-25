@@ -252,8 +252,11 @@ Lauf), ein nativer Host je Import eine Hostfunktion auf `herd_klang::Abi` (gleic
 | `mische` | `(a i32, b i32, ab f64) -> i32` · `dann` `(a i32, b i32) -> i32` | |
 | `dauer` | `(id i32) -> f64` | Sekunden |
 | `hash` | `(id i32, ptr i32) -> i32` | FNV-1a-64 der PCM als 16 Hex-Ziffern in den Erzeuger-Puffer |
+| `laden` | `(pfad_ptr i32, pfad_len i32, teig_ptr i32, teig_len i32) -> i32` | `Klang.laden` (H-K19a, K-163): Pfad und **Klangteig** (aus der Kiste, Art 4, über `klang_schreibe` in den Erzeuger-Puffer kopiert) → Klang-ID mit eigener Rate und Kanälen. Fehler-Klangteig bzw. leerer Teig (keine Klang-Endung) → `-1`, Fehlertext „<pfad> <Text aus dem Teig>“ (LaufzeitAnanas). Formen (`huelle` … `nahtlos`) lehnen geladene Klänge ab. Additiv |
+| `rate`, `kanaele` | `(id i32) -> i32` | Abtastrate (Hz) bzw. Kanäle (1/2) eines Klangs – erzeugt immer 48 000/1; nur für die Wiedergabe (H-K19a) |
 
-`klang.wasm` exportiert dazu `abi_version` (1), `pcm(id)`/`pcm_laenge(id)` (PCM i16 LE, mono, 48 kHz – für die Wiedergabe des Hosts) und
+`klang.wasm` exportiert dazu `abi_version` (1), `pcm(id)`/`pcm_laenge(id)` (PCM i16 LE; erzeugt mono 48 kHz, geladen verschachtelt mit
+`rate(id)`/`kanaele(id)` – für die Wiedergabe des Hosts, die auf ihre Geräterate umrechnet; JS: `daten.rate`, `daten.kanaele` neben `daten.bytes`) und
 `memory`; ein Host stellt alle Exporte bereit (der native Host liefert `pcm` = 0 und liest die PCM selbst).
 
 | Import (Modul `pizza`) | Signatur | Bedeutung |
