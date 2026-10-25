@@ -158,11 +158,21 @@ pub fn alloc_roh(groesse: u32, ausr: u32) -> *mut u8 {
 
 /// Passt eine Allokation von `groesse` Bytes noch unter die harte Grenze (Limit + Reserve)? Große Einzelallokationen
 /// (z. B. Textverkettung) prüfen das vorher und werfen sonst die Kühlschrank-Ananas, statt in `alloc_roh` zu trappen.
+/// Gibt der Host den Speicher nicht her (`memory.grow` scheitert, z. B. unter Speicherdruck vieler paralleler Läufe),
+/// ist der Kühlschrank ebenfalls voll: der Speicher wird hier schon beschafft, damit `alloc_roh` danach nicht trappt
+/// („Interner Fehler im Ofen“ statt fangbarer Kühlschrank-Ananas, wackliger Fall `kuehlschrank-voll-text` unter Last).
 pub fn speicher_passt(groesse: u32) -> bool {
     unsafe {
         heap_init();
         let benutzt = (HEAP_TOP - HEAP_START) as u64 + groesse as u64 + 16;
-        benutzt <= SPEICHER_LIMIT as u64 + RESERVE as u64
+        if benutzt > SPEICHER_LIMIT as u64 + RESERVE as u64 { return false; }
+        let neu = HEAP_TOP as u64 + groesse as u64 + 16;
+        if neu > HEAP_ENDE as u64 {
+            let seiten = ((neu - HEAP_ENDE as u64 + 0xFFFF) >> 16).max(16) as u32;
+            if core::arch::wasm32::memory_grow(0, seiten as usize) == usize::MAX { return false; }
+            HEAP_ENDE += seiten << 16;
+        }
+        true
     }
 }
 

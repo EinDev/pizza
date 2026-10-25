@@ -228,8 +228,12 @@ e2e("Doku: „Im Editor öffnen“ und „Öffnen & backen“ aus dem Panel", as
   });
   assert.ok(ziel, "Abschnitt mit Code + Ausgabe gefunden");
   const fig = `${P} .doku-abschnitt[data-id="${ziel.id}"] > .doku-code`;
-  // Öffnen (ohne Backen)
+  // Öffnen (ohne Backen) – asynchron (eigenes Projekt in IndexedDB, F11): erst auf den Projektwechsel warten, sonst
+  // erwischt der Test unter Last noch den Tab des Willkommens-Projekts
+  const projektVorher = await page.$eval('[data-testid="projekt-name"]', (e) => e.textContent);
   await page.$eval(fig + ' .icon-knopf[aria-label="In neuem Editor-Tab öffnen"]', (k) => { k.scrollIntoView({ block: "center" }); k.click(); });
+  await page.waitForFunction((v) => document.querySelector('[data-testid="projekt-name"]').textContent !== v
+    && document.querySelector("#editor-tabs .etab.aktiv"), {}, projektVorher);
   const tab = (await editorTabs(page)).find((t) => t.aktiv);
   assert.ok(tab.name.endsWith(".pizza"));
   assert.equal(await page.$eval("#exit-badge", (b) => b.hidden), true, "nur öffnen, nicht backen");

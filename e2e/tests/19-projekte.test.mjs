@@ -8,7 +8,7 @@ import zlib from "node:zlib";
 import path from "node:path";
 import {
   e2e, setzeCode, editorText, editorTabs, bereit, backen, konsolenAusgabe, schlafe, warteAufTab,
-  aktivesProjekt, warteAufProjekt, wechsleProjekt, projektListe, projektBefehl, baumDateien, PJ,
+  aktivesProjekt, warteAufProjekt, wechsleProjekt, projektListe, projektBefehl, baumDateien, PJ, oeffneProjektmenue,
 } from "../hilfen.mjs";
 import { schreibeZip, leseZip } from "../../ui/src/zip.js";
 
@@ -229,7 +229,7 @@ e2e("Projektmenü: umbenennen, duplizieren, löschen, wiederherstellen", async (
   await page.$eval('[data-testid="dialog-ja"]', (k) => k.click());
   await warteAufProjekt(page, "Mein Ofen");
   assert.deepEqual(await projektListe(page), ["Mein Ofen"]);
-  await page.click(PJ.menueKnopf);
+  await oeffneProjektmenue(page);
   await page.$eval('[data-testid="projekt-papierkorb-eintrag"]', (k) => k.click());
   await warteAufProjekt(page, "Mein Ofen-kopie");
   await wechsleProjekt(page, "Mein Ofen");

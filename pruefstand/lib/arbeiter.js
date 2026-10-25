@@ -18,7 +18,15 @@ parentPort.on("message", (m) => {
   }
   try {
     const onEvent = [];
-    const opt = Object.assign({}, m.optionen, { onEvent: (e) => onEvent.push(e) });
+    // Lebenszeichen an den Wächter in run.js (höchstens alle 500 ms): der Lauf schreitet fort, hängt also nicht.
+    let zuletzt = Date.now();
+    const opt = Object.assign({}, m.optionen, {
+      onEvent: (e) => {
+        onEvent.push(e);
+        const jetzt = Date.now();
+        if (jetzt - zuletzt >= 500) { zuletzt = jetzt; parentPort.postMessage({ id: m.id, lebt: true }); }
+      },
+    });
     const res = lang.run(m.code, opt);
     // nur klonbare Daten zurückgeben
     const kopie = JSON.parse(JSON.stringify(res));

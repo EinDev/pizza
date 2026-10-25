@@ -14,6 +14,9 @@ const { BANNER } = require("./lib/helfer");
 
 const INTERPRETER = process.env.PRUEFSTAND_INTERPRETER ? path.resolve(process.env.PRUEFSTAND_INTERPRETER) : path.join(teilB.ROOT, "site", "js", "pizza.js");
 const STANDARD_LIMIT = 5_000_000; // SPEC §7.1 Standard; Endlosschleifen fängt zusätzlich das Worker-Timeout ab
+// Wächter gegen JS-seitiges Hängen: Timeout ohne Lebenszeichen, nicht für den ganzen Lauf. Lange, aber fortschreitende
+// Fälle (Theke-Nachspielen des Pizza-Imperiums, ~5 s ohne Last) melden sich über ihre Ereignisse (lib/arbeiter.js) –
+// unter CPU-Last dauern sie ein Vielfaches und rissen sonst die feste 15-s-Grenze (wackliger Fall 819/820).
 const TIMEOUT_MS = 15000;
 
 // ───────────────────────── Argumente ─────────────────────────
@@ -42,12 +45,12 @@ class Ausführer {
     return new Promise((resolve) => {
       let fertig = false;
       const ende = (r) => { if (fertig) return; fertig = true; clearTimeout(t); this.w && this.w.off("message", onMsg); this.w && this.w.off("error", onErr); resolve(r); };
-      const onMsg = (m) => { if (m.id === id) ende(m); };
+      const onMsg = (m) => { if (m.id !== id) return; if (m.lebt) { t.refresh(); return; } ende(m); };
       const onErr = (e) => { this.w = null; ende({ fehler: "Worker abgestürzt: " + e }); };
       const t = setTimeout(() => {
         const w = this.w; this.w = null;
         if (w) w.terminate();
-        ende({ fehler: `Timeout nach ${TIMEOUT_MS} ms (JS-seitig hängend?)` });
+        ende({ fehler: `Timeout: ${TIMEOUT_MS} ms ohne Lebenszeichen (JS-seitig hängend?)` });
       }, TIMEOUT_MS);
       this.w.on("message", onMsg);
       this.w.on("error", onErr);

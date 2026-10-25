@@ -425,10 +425,21 @@ export async function projektListe(page) {
   return namen;
 }
 export async function oeffneProjektmenue(page) {
-  if (!(await page.$(PJ.menue))) await page.click(PJ.menueKnopf);
-  await page.waitForSelector(PJ.menue);
-  // Das Suchfeld bekommt den Fokus erst im nächsten Frame – vorher ginge ein Escape an den Knopf und das Menü bliebe offen
-  await page.waitForFunction((sel) => document.activeElement && document.activeElement.closest(sel), {}, PJ.menue);
+  // Das Suchfeld bekommt den Fokus erst im nächsten Frame – vorher ginge ein Escape an den Knopf und das Menü bliebe offen.
+  // Unter Last kann das Menü in dieser Zeit wieder zugehen (window blur/resize schließen es, menue.js); dann wartete ein
+  // reines „Fokus im Menü“ bis zum 30-s-Timeout (wackliger Fall E2E 19). Darum: warten, bis Fokus drin ODER Menü weg, und
+  // ein geschlossenes Menü neu öffnen.
+  for (let versuch = 0; ; versuch++) {
+    if (!(await page.$(PJ.menue))) await page.click(PJ.menueKnopf);
+    await page.waitForSelector(PJ.menue);
+    const offen = await page.waitForFunction((sel) => {
+      const m = document.querySelector(sel);
+      if (!m) return "zu";
+      return document.activeElement && document.activeElement.closest(sel) ? "fokus" : false;
+    }, {}, PJ.menue).then((h) => h.jsonValue());
+    if (offen === "fokus") return;
+    if (versuch >= 2) throw new Error("Projektmenü schließt sich immer wieder, bevor es den Fokus hat");
+  }
 }
 /** Eintrag im Projektmenü anklicken (testid, z. B. "projekt-neu", "projekt-zip-export"). */
 export async function projektBefehl(page, testid) {
