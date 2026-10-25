@@ -42,7 +42,8 @@ leer gully(funghi x, funghi z) {
                          farbe: "#b8b4c822", farbeEnde: "#5a566800", mischung: "deckend"));
 }
 
-// Laterne: Mast, Ausleger, Leuchte – ein Spot nach unten (kaltes Natriumlicht-Gelb)
+// Laterne: Mast, Ausleger, Leuchte – ein Spot nach unten (kaltes Natriumlicht-Gelb) mit Schatten: Mast, Poller und Kisten
+// zeichnen sich weich aufs nasse Pflaster (höchstens 8 Schattenlichter je Bild – die Engine nimmt die nächsten)
 leer laterne(funghi x, funghi z, funghi seite) {
     quader(STAHL, x, 3.2, z, 0.16, 6.4, 0.16, ja);
     herd.koerper(WUERFEL, x - seite * 0.9, 6.35, z).setzeGroesse(1.9, 0.1, 0.12).koerper().setzeBelag(STAHL);
@@ -50,7 +51,7 @@ leer laterne(funghi x, funghi z, funghi seite) {
     kopf.koerper().setzeStrahlen(5).setzeSchatten(nein);
     Teil spot = herd.licht(x - seite * 1.7, 6.1, z, farbe: "#ffcf8a", reichweite: 13);
     spot.schaueAuf(x - seite * 1.9, 0, z + 0.01);
-    spot.licht().setzeKegel(55).setzeKegelRand(0.6).setzeStaerke(7);
+    spot.licht().setzeKegel(55).setzeKegelRand(0.6).setzeStaerke(7).setzeSchattenGuete("mittel").setzeSchattenWeich(1.5);
 }
 
 leer baueStrassenmoebel() {
