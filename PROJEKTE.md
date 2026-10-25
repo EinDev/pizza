@@ -1,6 +1,6 @@
 # Projekte, Mehrdatei-Programme, Bilder und Teilen mit Versionen (Konzept)
 
-> **Status: geprüft (2026-10-23); P0 umgesetzt (Commit „PROJEKTE P0: Verträge …“, 2026-10-23).** Alle Fragen vom Nutzer entschieden
+> **Status: umgesetzt (PZ Abnahme, 2026-10-25) – alle Pakete P0 … PB5 und PZ fertig (§11).** Geprüft 2026-10-23; P0 umgesetzt (Commit „PROJEKTE P0: Verträge …“, 2026-10-23). Alle Fragen vom Nutzer entschieden
 > (§10), Prüfbefunde eingearbeitet (§13). Die **Verträge** stehen jetzt in `SPEC.md` (§2.1 … §2.6, §11.2, §14.5, §14.7, §14.8, §18.5),
 > `KLAERUNGEN.md` (K-138 … K-147, Aufträge U-73 … U-79), `ARCHITEKTUR.md` (§1–§3, §6), `HOST-ABI.md` (v2 als Vertrag), `WASM.md` (§4)
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
@@ -962,7 +962,28 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | **umgesetzt** (Commit „PROJEKTE PB3: …“, 2026-10-25; Präzisierungen unten) |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | **umgesetzt** (Commit „PROJEKTE PB4: …“, 2026-10-25; Präzisierungen unten) |
 | **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | **umgesetzt** (Commit „PROJEKTE PB5: …“, 2026-10-25; Präzisierungen unten) |
-| **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | offen |
+| **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | **umgesetzt** (Commits „PROJEKTE PZ: wacklige Tests …“ und „PROJEKTE PZ: Abnahme, CHANGELOG …“, 2026-10-25, auf master mit H-K14 Klang): npm test 346/35/83/167 (+10 übersprungen)/10/25 · Prüfstand A 852/852, B 6/6 · test:wasm 1664 · Differenz 1290 Fälle ohne Abweichung · cargo test host 70 + herd 151 · herd/baue.js --pruefe, test-kern.js bitgleich, tests/herd/erwartet.js 90/90 · host/test.js 81/81 Beispiele + 7/7 Konsole · ui ok · E2E 373 bestanden, 0 fehlgeschlagen, 10 übersprungen (E2E_PARALLEL=1) · Docker-Bau + Rauchtest `/api/konfig` **vom Nutzer auszuführen** (Dockerfile: `herd/klang` ergänzt) · CHANGELOG „pizza 3.2 (Vorschau)“; wacklige Tests siehe „Präzisierungen aus PZ“ |
+
+**Präzisierungen aus PZ** (Abnahme 2026-10-25; wacklige Tests unter Last ursächlich behoben):
+- **Prüfstand 819/820:** Der Worker-Wächter maß die Gesamtdauer eines Falls (15 s). `idle-pizza-imperium` (Theke-Nachspielen, ~5,5 s
+  ohne Last) riss ihn unter CPU-Last. Jetzt heißt das Limit „15 s ohne Lebenszeichen“: `lib/arbeiter.js` meldet sich aus `onEvent`
+  höchstens alle 500 ms (geprüft mit Limit 2 s: alt rot, neu grün); echtes Hängen fängt er weiter.
+- **`kuehlschrank-voll-text` nativ, `koeche4` „Interner Fehler im Ofen“:** Ursache ist Speicherdruck, kein Fehler der Köche. Der
+  Fall belegt im nativen Host bis zu 2,5 GB privat (wasmi-`Vec` verdoppelt beim Wachsen). Laufen mehrere solche Läufe parallel, ist
+  der Commit-Speicher erschöpft, `memory.grow` scheitert, und die Laufzeit trappt (`unreachable`). Nachgestellt mit 40 parallelen
+  Läufen: 39/80 rot. Neu prüft `speicher_passt` (Laufzeit) vor großen Allokationen, ob sich der Speicher wirklich beschaffen lässt,
+  und wirft sonst die fangbare Kühlschrank-Ananas: 0/80 rot. Kleine Allokationen in fremden Läufen (`kueche-*` mit `--koeche=4`
+  **und** `--koeche=1` gleich oft, 2 von ~2000) scheitern bei erschöpftem System weiter als interner Fehler – das ist echter
+  Speichermangel des Rechners; nur hungrige Suiten nicht gleichzeitig laufen lassen.
+- **E2E 04 „Im Editor öffnen“:** Das Öffnen ist asynchron (eigenes Projekt in IndexedDB); der Test las den aktiven Tab sofort und
+  erwischte unter Last noch den des Willkommens-Projekts. Jetzt wartet er auf den Projektwechsel.
+- **E2E 19 „Projektmenü“ (30-s-Timeout):** `oeffneProjektmenue` wartete nur auf „Fokus im Menü“; schließt sich das Menü vorher
+  (window blur/resize, `menue.js`), wird das nie wahr. Jetzt: Fokus **oder** Menü weg, ein geschlossenes Menü wird neu geöffnet
+  (höchstens dreimal); der Papierkorb-Schritt nutzt dieselbe Hilfe statt eines rohen Klicks.
+- **E2E 17 `ERR_INSUFFICIENT_RESOURCES`:** Chrome meldet das, wenn es keinen gemeinsamen Speicher für eine Antwort bekommt – dieselbe
+  Ursache wie oben (erschöpfter Commit-Speicher durch parallele, speicherhungrige Läufe). Unter reiner CPU-Last (14 Lastfäden) liefen
+  03/04/17/19 zweimal grün; unter Speicherdruck nach dem Laufzeit-Fix ebenfalls. Unter extremer Last (30 Fäden auf 24 Kernen) scheitert
+  schon die Navigation (30 s) – das ist Überlast, kein Testfehler.
 
 **Präzisierungen aus P0** (im Vertrag festgelegt, wo das Konzept offen war – spätere Pakete richten sich danach):
 - `bestellt` auf eine Nicht-`.pizza`-Datei → `PizzaFehler P0015: "<pfad>" ist keine .pizza-Datei – bestellen kann man nur Rezepte.`;
@@ -1330,7 +1351,7 @@ einem lokalen Commit; gepusht wird gebündelt.
 
 ---
 
-## 12. K-Einträge (seit P0 in `KLAERUNGEN.md`, Status offen)
+## 12. K-Einträge (seit P0 in `KLAERUNGEN.md`; Status seit PZ: fest/umgesetzt)
 
 Geprüft 2026-10-23: höchster Eintrag in `KLAERUNGEN.md` (Arbeitsbaum, `master` und alle Worktrees) ist **K-137**; K-138 … K-147
 sind frei und bereits von HERD.md §12.5 als durch PROJEKTE.md belegt vermerkt (HERD.md nutzt K-148 … K-153). Die Nummern also **nicht**

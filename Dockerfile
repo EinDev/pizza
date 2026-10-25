@@ -87,11 +87,12 @@ ENV AUSGABE_DIR=/out \
     CARGO_BUILD_JOBS=2
 
 # Crates laden (nur Cargo.toml/Cargo.lock) – Layer bleibt, solange sich die Abhängigkeiten nicht ändern.
-# Herd (H5): Kern und Glut sind Pfad-Abhängigkeiten des Hosts (Workspace-Wurzel herd/Cargo.toml für die
+# Herd (H5, H-K14): Kern, Klang und Glut sind Pfad-Abhängigkeiten des Hosts (Workspace-Wurzel herd/Cargo.toml für die
 # geerbten Felder; die übrigen Herd-Crates braucht der Host nicht). CARGO_BUILD_JOBS=2: wgpu/naga mit LTO
 # brauchen viel Speicher – gedrosselt.
 COPY herd/Cargo.toml herd/
 COPY herd/kern/ herd/kern/
+COPY herd/klang/ herd/klang/
 COPY herd/glut/ herd/glut/
 COPY host/Cargo.toml host/Cargo.lock host/
 RUN mkdir -p host/src && echo 'fn main() {}' > host/src/main.rs && : > host/src/lib.rs && \

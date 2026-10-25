@@ -3,9 +3,91 @@
 Alle Änderungen der Sprache pizza, neueste zuerst. Verbindlich bleiben `SPEC.md` und `KLAERUNGEN.md`; die K-Nummern verweisen
 dorthin.
 
-> **Versionsnummern:** „pizza 3.1“ ist die Sprache samt Werkzeugen (Interpreter, Compiler pizzaiolo, Laufzeit, `pizza-host`,
-> Playground). Unabhängig davon zählen weiter: „Theke v3 … v7“ (Ausbaustufen des UI-Frameworks, alle in 3.1 enthalten),
-> HOST-ABI v1, Theke-Protokoll `v: 1`, Kartonformat `pkarton/1` und das Vorrats-Format `{"v":1,…}`.
+> **Versionsnummern:** „pizza 3.x“ ist die Sprache samt Werkzeugen (Interpreter, Compiler pizzaiolo, Laufzeit, `pizza-host`,
+> Playground). Unabhängig davon zählen weiter: „Theke v3 … v7“ (Ausbaustufen des UI-Frameworks), HOST-ABI (seit 3.2 **v2**),
+> Theke-Protokoll `v: 1`, Kartonformat `pkarton/1`, Projektdatei `"pizza": 1`, Teigling-Format v1, Bildpaket v1 (mit Abschnitten)
+> und das Vorrats-Format `{"v":1,…}`.
+
+---
+
+## pizza 3.2 (Vorschau, Stand 2026-10-25)
+
+> Aus einer Datei wird eine ganze Küche: Rezepte bestellen einander, Bilder kommen vorgebacken aus der Kiste, und der Herd
+> bekommt Licht, Regen, Spiegelungen und Klang.
+
+**Versionsnummer:** 3.2 nach dem bisherigen Schema (neue Sprachmittel, inkompatible Änderungen nur an Formaten und Hosts → kleine
+Versionsstufe). Die Kennungen im Code (`--version`, `PizzaLang.version`, Crates, Logos) stehen noch auf 3.1.0 und werden bei der
+Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
+
+### Neu – Projekte und Mehrdatei-Programme (PROJEKTE.md, K-138 … K-147)
+
+- **Projekte als Ordner:** Ein Programm ist ein Ordner mit einer Hauptdatei (`hauptgang.pizza` oder `"hauptdatei"` in der
+  optionalen Projektdatei `pizza.json` mit `name`, `beschreibung` und Standard-`args`). Überall – API, CLI, Playground, ZIP,
+  Teilen, `.pkarton`, EXE – reist dieselbe Dateisammlung `{ pfad → Inhalt }` (K-138).
+- **`bestellt "rezepte/teig.pizza";`** holt weitere Rezepte ins Programm: alle erreichbaren Dateien in fester Ladereihenfolge,
+  ein gemeinsamer Namensraum, `geheimrezept` bleibt in seiner Datei. Kreise, doppelte Namen, fehlende Dateien und `hauptgang`
+  außerhalb der Hauptdatei sind klare Ladefehler (P0014 … P0019), bevor etwas läuft; Laden kostet keine Schritte (K-139, K-140).
+- **Fehlerorte mit Datei:** Fehler, Warnungen und Ananas nennen `datei: zeile:spalte`; der Playground springt in die richtige
+  Datei (K-141).
+- **`Kiste`:** lesender Zugriff auf die Dateien des eigenen Projekts – `Kiste.text(pfad)`, `zeilen`, `gibts`, `liste` (K-146).
+- **`Bildchen.laden("bilder/kachel.png")`:** PNG und JPEG aus dem Projekt als Herd-Texturen. Der **Vorbacker** (`herd/teigling`,
+  nativ und als `teigling.wasm` bitgleich) macht daraus beim Packen einen **Teigling** mit fertiger Mip-Kette; Ergebnisse werden
+  zwischengespeichert, die Teigmenge ist auf 64 MB begrenzt (P0020, K-145, K-147). Glut zeichnet sie beim Vergrößern scharf und
+  beim Verkleinern weich – nativ und im Browser.
+- **Wasm und nativer Host** übersetzen und packen ganze Projekte; Kiste-Daten und Teiglinge liegen im Datensegment des `.pkarton`,
+  eine EXE enthält damit das ganze Projekt. **HOST-ABI v2** in allen Hosts (Ortsangaben mit Datei, Küchenbericht, Standard-Argumente
+  im Modul).
+- **Playground-Projekte (K-142):** Projekte liegen in IndexedDB (ohne IndexedDB nur im Speicher, mit Hinweis-Banner), ein Projekt je
+  Fenster, Dateibaum mit Ordnern, Tabs je Datei, wählbare Hauptdatei, Bildvorschau, Projektmenü (umbenennen, duplizieren, löschen,
+  Papierkorb), ZIP-Export und -Import. Alte Tabs werden beim ersten Start zu Ein-Datei-Projekten.
+- **Teilen mit Versionen – die „Durchreiche“ (K-143):** eigener kleiner Teilen-Dienst statt Hastebin und Redis. Ein Link kann neue
+  Versionen bekommen (ohne Zusatz die neueste, mit `@n` eine feste), ändern darf nur, wer den Bearbeitungsschlüssel hat; Dateien
+  liegen einmal je Inhalt (SHA-256). App-Links mit `@n`, EXE direkt aus dem Projekt. Grenzen und Aufbewahrung sind per Umgebung
+  einstellbar (`/api/konfig`).
+- **Beispiele als Ordner (K-144):** alle Beispiele sind Projektordner mit `pruefung/` (erwartete Ausgabe, Eingaben, Ereignisse);
+  die Doku zeigt Mehrdatei-Blöcke und hat das Kapitel „Projekte und Dateien“. Teigball, Teigfänger und Steuerung laden ihre Bilder
+  jetzt aus PNG-/JPEG-Dateien, das Pizza-Imperium ist auf mehrere Dateien verteilt (`zustand.pizza`, `theke/…`, `modell/…`).
+
+### Neu – Herd (Spiele-Engine, Importgruppe `herd`, HERD.md)
+
+- **Der Herd:** Teile mit Komponenten, fester Takt, Eingabe als Zustand, 2D und 3D in einem Programm; nativ (winit + wgpu) und
+  im Browser (WebGPU, Rückfall WebGL2), Kern bitgleich, in den Tests mit `.herd-erwartet` (K-130 … K-136).
+- **Ausbau H-K0 … H-K13:** Feldtypen `teil-liste`/`zahl-liste`, Lesefelder und Nachlauf (K-149); `Linie`, `Rahmen` (9-Slice),
+  `Vieleck`, `Funken` (3D-Teilchen), `Belag` (geteiltes Material), `Gleiten` und `Ablauf` (Tweens, Keyframes), `Blick` und `Leine`
+  (Kameras), `Fuehler` (Kollider mit betreten/verlassen, K-150), `Wucht` (2D-Physik), `Vorlage` (Prefab), `Kulisse` (Szenenwechsel),
+  `Gelaende` (Höhenkarte), `Fliesen` (Kachelkarten), `Himmelszelt` (Skybox), die UI-Bausteine `Taster`, `Leiste`, `Regler` und
+  `Tafel` mit Maus im Kern (K-151) sowie `Kniff`: eigene pizza-Klassen als Komponente mit `start`, `takt`, `beimBetreten` … (K-152).
+- **Grafik:** viele Lichter (Clustered Forward) und Spot-Licht, `Stimmung` (HDR, Bloom, ACES, Höhennebel, `strahlen`), Material
+  (Relief, Kachelung, PBR, Nässe), Spiegelung nasser Böden, Regen (gestreckte Tropfen, Aufschläge, Pfützenringe) und ein
+  Bindungswächter für die Shader (H-K15).
+- **Klang (H-K14, K-153):** eigene Importgruppe `klang` mit `Klang.ton`, `rauschen`, `stille`, `noten`, Hüllkurve, Filtern, Mischen
+  und Schleifen; `k.spiele()` liefert eine Spur mit Lautstärke, Tonhöhe, Panorama und Lage im Raum (Hörer = Kamera). Die Erzeugung
+  ist nativ und in Wasm bitgleich. Abgespielt wird über WebAudio bzw. waveOut/ALSA, ohne Gerät bleibt es stumm; getestet wird mit
+  `.klang-erwartet`.
+- **Eingabe:** Mausfang (Pointer Lock) mit relativer Bewegung, Mausrad und Modifikatortasten (K-155) – Steuerung wie in einem
+  Ego-Shooter.
+- **Gleichmäßige Bilder:** VSync (Fifo), Pipelines vorab, Takt-Uhr ab dem ersten gezeigten Bild; im Browser kommt der Takt zum
+  fälligen Zeitpunkt, statt zu ruckeln.
+- **Neue Beispiele**, u. a. Neon-Napoli (begehbares 3D-Spiel im Regen, mit Klangkulisse), Klavier, Lichterfest, Neonschild, Hügel,
+  Weite Welt, Kulissen und Kniffe.
+
+### Neu – Sprache und Bibliothek
+
+- **`Uhr.zone()`:** Versatz der Ortszeit zu UTC als Dauer, Sommerzeit inklusive; im Test fest über `optionen.zone` bzw.
+  `--zone=N`. Die Pizza-Uhr läuft synchron zur echten Uhrzeit (K-154).
+- **Pizza-Imperium, Pakete 5 und 6:** Nonnas Katze, Pizza-Wettbewerb, Sammelalbum, Banca di Napoli und Erfolge der Bereiche.
+
+### Geändert
+
+- **HOST-ABI v1 → v2** (K-141): Ein v2-Host lehnt v1-Module mit klarer Meldung ab – `.pkarton` und EXEs bitte neu bauen.
+- **Beispiel-Manifeste** listen Ordner und Dateien statt einzelner `.pizza`-Dateien; der Übergangsleser für das alte Format ist
+  entfernt (keine Rückwärtskompatibilität, ARCHITEKTUR §3).
+- **Alte Teilen-Links** (Hastebin) werden ignoriert; Hastebin und Redis sind aus `compose.yaml` entfernt, an ihre Stelle tritt die
+  Durchreiche.
+- **Interpreter-Quellen** liegen jetzt als Module unter `site/js/pizza/`; `site/js/pizza.js` wird daraus gebaut
+  (`node scripts/baue-pizza.js`).
+- **Kühlschrank bei Speicherdruck:** Gibt der Rechner für einen großen Text keinen Speicher mehr her, wirft die Wasm-Laufzeit die
+  fangbare `LaufzeitAnanas` „Der Kühlschrank ist voll“ statt „Interner Fehler im Ofen“ (K-014, Abnahme PZ).
 
 ---
 
