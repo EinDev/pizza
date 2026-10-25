@@ -4,11 +4,15 @@ bestellt "zustand.pizza";
 bestellt "spieler.pizza";
 bestellt "auftraege.pizza";
 
+margherita HILFE_FREI = "Klick ins Bild: Maus fangen · Esc: freigeben · WASD laufen · Umschalt sprinten · Maus ziehen oder Q/E umsehen";
+margherita HILFE_GEFANGEN = "Maus: umsehen · WASD laufen · Umschalt sprinten · Esc: Maus freigeben";
+
 klasse Anzeige {
     Teil auftrag;
     Teil ziel;
     Teil stand;
     Teil hilfe;
+    diavolo warGefangen;
 
     Anzeige() {
         herd.rechteck(330, 46, 640, 72, farbe: "#05060ccc", rundung: 10);
@@ -17,8 +21,8 @@ klasse Anzeige {
         herd.rechteck(1170, 34, 200, 48, farbe: "#05060ccc", rundung: 10);
         stand = herd.text("", 1252, 22, groesse: 20, farbe: "#ffd23a", ausrichtung: "rechts");
         herd.kreis(640, 360, 2.5, farbe: "#ffffffb0");
-        hilfe = herd.text("WASD/Pfeile laufen · Umschalt rennen · Maus ziehen oder Q/E umsehen", 640, 690, groesse: 16,
-                          farbe: "#c8c4dcb0", ausrichtung: "mitte");
+        warGefangen = nein;
+        hilfe = herd.text(HILFE_FREI, 640, 690, groesse: 16, farbe: "#c8c4dcb0", ausrichtung: "mitte");
     }
 
     leer takt(Spieler s, Lieferung l, salami bild) {
@@ -31,7 +35,13 @@ klasse Anzeige {
             ziel.text().setzeInhalt(pfeil + "Ziel: " + Mathe.runden(s.abstand(l.zielX(), l.zielZ())) + " m");
         }
         stand.text().setzeInhalt(zeitText(l.ende > 0 ? l.ende : bild) + "   " + l.trinkgeld + " €");
-        falls (bild > 900) { hilfe.sichtbar(nein); }
+        // Hinweis je nach Mausfang; gefangen verschwindet er nach 15 s, frei bleibt „Klick ins Bild“ stehen
+        diavolo gefangen = herd.mausGefangen();
+        falls (gefangen != warGefangen) {
+            warGefangen = gefangen;
+            hilfe.text().setzeInhalt(gefangen ? HILFE_GEFANGEN : HILFE_FREI);
+        }
+        hilfe.sichtbar(!gefangen || bild <= 900);
     }
 }
 

@@ -1,29 +1,42 @@
-// Der Pizzabote in der Ich-Perspektive: laufen (WASD oder Pfeile, mit Umschalt rennen), umsehen (Maus ziehen oder
-// Links/Rechts, Bild auf/ab), Kollision mit Mauern als Kreis gegen die Kästen aus zustand.pizza (gleitet an Wänden entlang).
+// Der Pizzabote in der Ich-Perspektive, gesteuert wie in einem Ego-Shooter: Klick ins Bild fängt die Maus (Esc gibt sie frei),
+// die Maus dreht den Blick, W A S D laufen relativ zur Blickrichtung, Umschalt sprintet. Ohne gefangene Maus: Maus ziehen oder
+// Q/E bzw. Links/Rechts (Bild auf/ab zum Hoch-/Runterschauen). Kollision als Kreis gegen die Kästen aus zustand.pizza – wer
+// schräg gegen eine Mauer läuft, gleitet an ihr entlang.
 bestellt "zustand.pizza";
 
 funghi AUGENHOEHE = 1.7;
 funghi RADIUS = 0.35;
+funghi GEHEN = 3.4;            // m/s
+funghi SPRINT = 1.8;           // Sprint = 1,8 × Gehen
+funghi ANFAHREN = 28;          // m/s² (in gut 0,1 s auf Gehtempo)
+funghi BREMSEN = 36;           // m/s² ohne Taste – kein Rutschen
+funghi MAUS = 0.11;            // Grad je Pixel Rohbewegung (gefangen)
+funghi ZIEHEN = 0.22;          // Grad je Pixel beim Ziehen ohne Fang
+funghi SICHT = 72;             // Sichtfeld in Grad, beim Sprint ein wenig weiter
+funghi DT = 1 / 60;
 
 klasse Spieler {
     funghi x;
     funghi z;
     funghi blick;        // Grad um die Hochachse, 0 = nach −z (die Straße hinunter)
     funghi neigung;      // Grad, positiv = nach oben
+    funghi vx;           // Tempo in m/s (Welt)
+    funghi vz;
+    funghi sprint;       // 0 … 1, sanft hoch- und heruntergefahren
     funghi phase;        // Schrittwippen
     funghi weg;          // gelaufene Meter
-    funghi letzteX;
-    funghi letzteY;
 
     Spieler(funghi x0, funghi z0, funghi b) {
         x = x0;
         z = z0;
         blick = b;
         neigung = 0;
+        vx = 0;
+        vz = 0;
+        sprint = 0;
         phase = 0;
         weg = 0;
-        letzteX = herd.mausX();
-        letzteY = herd.mausY();
+        herd.mausFangen();   // Wunsch: der erste Klick ins Bild fängt die Maus
     }
 
     diavolo frei(funghi px, funghi pz) {
@@ -36,51 +49,88 @@ klasse Spieler {
         serviere (ja);
     }
 
-    leer takt() {
-        // Umsehen: Maus ziehen (eine Taste gehalten) oder Tasten
-        funghi mx = herd.mausX();
-        funghi my = herd.mausY();
-        falls (herd.maus(1) || herd.maus(2)) {
-            blick = blick + (mx - letzteX) * 0.22;
-            neigung = neigung - (my - letzteY) * 0.18;
+    diavolo taste(margherita klein, margherita gross) {
+        // mit Umschalt kommen Buchstaben groß an – beide zählen
+        serviere (herd.taste(klein) || herd.taste(gross));
+    }
+
+    leer umsehen() {
+        // gefangen: Rohbewegung direkt, ohne Glättung (keine Verzögerung); sonst Ziehen mit gedrückter Taste
+        falls (herd.mausGefangen()) {
+            blick = blick + herd.mausDX() * MAUS;
+            neigung = neigung - herd.mausDY() * MAUS;
+        } sonst falls (herd.maus(1) || herd.maus(2)) {
+            blick = blick + herd.mausDX() * ZIEHEN;
+            neigung = neigung - herd.mausDY() * ZIEHEN;
         }
-        letzteX = mx;
-        letzteY = my;
-        falls (herd.taste("Links") || herd.taste("q") || herd.taste("Q")) { blick = blick - 2.4; }
-        falls (herd.taste("Rechts") || herd.taste("e") || herd.taste("E")) { blick = blick + 2.4; }
+        falls (herd.taste("Links") || taste("q", "Q")) { blick = blick - 2.4; }
+        falls (herd.taste("Rechts") || taste("e", "E")) { blick = blick + 2.4; }
         falls (herd.taste("BildHoch")) { neigung = neigung + 1.5; }
         falls (herd.taste("BildRunter")) { neigung = neigung - 1.5; }
-        neigung = Mathe.max(-60, Mathe.min(60, neigung));
+        neigung = Mathe.max(-85, Mathe.min(85, neigung));
+        solange (blick >= 360) { blick = blick - 360; }
+        solange (blick < 0) { blick = blick + 360; }
+    }
 
-        // Laufen: Großbuchstaben = Umschalt gehalten = rennen
+    leer takt() {
+        umsehen();
+
+        // Wunschrichtung relativ zum Blick (nur die Drehung um die Hochachse zählt), diagonal normiert
         funghi vor = 0;
         funghi seit = 0;
-        diavolo rennt = herd.taste("W") || herd.taste("S") || herd.taste("A") || herd.taste("D");
-        falls (herd.taste("w") || herd.taste("W") || herd.taste("Hoch")) { vor = vor + 1; }
-        falls (herd.taste("s") || herd.taste("S") || herd.taste("Runter")) { vor = vor - 1; }
-        falls (herd.taste("a") || herd.taste("A")) { seit = seit - 1; }
-        falls (herd.taste("d") || herd.taste("D")) { seit = seit + 1; }
+        falls (taste("w", "W") || herd.taste("Hoch")) { vor = vor + 1; }
+        falls (taste("s", "S") || herd.taste("Runter")) { vor = vor - 1; }
+        falls (taste("a", "A")) { seit = seit - 1; }
+        falls (taste("d", "D")) { seit = seit + 1; }
         funghi b = Mathe.bogen(blick);
         funghi fx = Mathe.sin(b);
         funghi fz = -Mathe.cos(b);
-        funghi dx = fx * vor - fz * seit;
-        funghi dz = fz * vor + fx * seit;
-        funghi l = Mathe.wurzel(dx * dx + dz * dz);
-        falls (l > 0) {
-            funghi tempo = (rennt ? 6.2 : 3.1) / 60;
-            dx = dx / l * tempo;
-            dz = dz / l * tempo;
-            // erst x, dann z: an Wänden entlanggleiten
-            falls (frei(x + dx, z)) { x = x + dx; }
-            falls (frei(x, z + dz)) { z = z + dz; }
-            phase = phase + tempo * 2.6;
-            weg = weg + tempo;
+        funghi wx = fx * vor - fz * seit;
+        funghi wz = fz * vor + fx * seit;
+        funghi wl = Mathe.wurzel(wx * wx + wz * wz);
+
+        // Sprint: Umschalt gehalten und unterwegs nach vorn; Anteil gleitet in ≈ 0,15 s hoch bzw. runter
+        diavolo sprintet = herd.taste("Umschalt") && vor > 0;
+        sprint = sprint + ((sprintet ? 1 : 0) - sprint) * 0.12;
+        falls (sprint < 0.001) { sprint = 0; }
+        funghi ziel = GEHEN * (1 + (SPRINT - 1) * sprint);
+        funghi zx = 0;
+        funghi zz = 0;
+        falls (wl > 0) {
+            zx = wx / wl * ziel;
+            zz = wz / wl * ziel;
         }
 
-        // Kamera: Augenhöhe mit leichtem Wippen
-        funghi y = AUGENHOEHE + Mathe.sin(phase) * 0.035;
+        // Tempo geradlinig auf das Ziel zu (beschleunigen bzw. bremsen, nie darüber hinaus – kein Rutschen, kein Pendeln)
+        funghi dvx = zx - vx;
+        funghi dvz = zz - vz;
+        funghi dl = Mathe.wurzel(dvx * dvx + dvz * dvz);
+        funghi schritt = (wl > 0 ? ANFAHREN : BREMSEN) * DT;
+        falls (dl <= schritt) {
+            vx = zx;
+            vz = zz;
+        } sonst {
+            vx = vx + dvx / dl * schritt;
+            vz = vz + dvz / dl * schritt;
+        }
+
+        // erst x, dann z: an Wänden entlanggleiten; was blockiert, verliert sein Tempo
+        funghi altX = x;
+        funghi altZ = z;
+        falls (frei(x + vx * DT, z)) { x = x + vx * DT; } sonst { vx = 0; }
+        falls (frei(x, z + vz * DT)) { z = z + vz * DT; } sonst { vz = 0; }
+        funghi gelaufen = Mathe.wurzel((x - altX) * (x - altX) + (z - altZ) * (z - altZ));
+        weg = weg + gelaufen;
+        phase = phase + gelaufen * (3.0 + 0.6 * sprint);
+
+        // Kamera: Augenhöhe mit dezentem Kopfwippen (stärker im Sprint, klingt mit dem Tempo aus), Sichtfeld beim Sprint +6°
+        funghi tempo = Mathe.wurzel(vx * vx + vz * vz);
+        funghi wippen = (0.028 + 0.022 * sprint) * Mathe.min(1, tempo / GEHEN);
+        funghi y = AUGENHOEHE + Mathe.sin(phase) * wippen;
         funghi n = Mathe.bogen(neigung);
-        herd.kamera().setzeLage(x, y, z).schaueAuf(x + fx * Mathe.cos(n), y + Mathe.sin(n), z + fz * Mathe.cos(n));
+        Teil k = herd.kamera();
+        k.kamera().setzeSicht(SICHT + 6 * sprint);
+        k.setzeLage(x, y, z).schaueAuf(x + fx * Mathe.cos(n), y + Mathe.sin(n), z + fz * Mathe.cos(n));
     }
 
     // Abstand in der Ebene und Richtung (Grad, −180 … 180, 0 = geradeaus) zu einem Punkt

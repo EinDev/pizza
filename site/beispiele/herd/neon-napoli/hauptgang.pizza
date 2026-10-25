@@ -1,7 +1,8 @@
 // Neon-Napoli – Pizzabote in einer verregneten Straßenschlucht im Neapel des Jahres 2087. Hol in der Pizzeria am Hafen
 // eine Pizza und bring sie zur grün markierten Tür, dreimal, so schnell du kannst.
 //
-// Steuerung: W A S D oder Pfeile laufen (mit Umschalt rennen), Maus ziehen oder Q/E bzw. Links/Rechts umsehen.
+// Steuerung wie in einem Ego-Shooter: Klick ins Bild fängt die Maus (Esc gibt sie frei), die Maus dreht den Blick, W A S D laufen,
+// Umschalt sprintet. Ohne gefangene Maus: Maus ziehen oder Q/E bzw. Links/Rechts umsehen.
 //
 // So arbeitet die Engine für dich: Die Fassaden, der nasse Asphalt und das Blech sind Fototexturen mit Relief (Normale und
 // Rauheit), gekachelt in Weltmaß und mit physikalischem Licht gerechnet; Pfützen entstehen aus `nass` und spiegeln. Über 100 farbige
