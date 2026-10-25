@@ -25,7 +25,7 @@ pub use herd_kern;
 pub use wgpu;
 
 use herd_kern::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES, MAX_ANSICHTEN, SCHATTENLICHTER_BYTES, SCHATTENLICHTER_KOPF_BYTES, SCHATTEN_ANSICHT_BYTES};
-use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES, ZUSATZ3D_BYTES, ZUSATZ_TEILCHEN_BYTES};
+use herd_kern::paket::{abschnitt, flach_art, flag, zug, Leser, ECKE_BYTES, HIMMELSZELT_BYTES, INST2D_BYTES, INST3D_BYTES, SCHATTEN_GROESSE, SZENE_BYTES, TEILCHEN3D_BYTES, ZUG_BYTES, ZUSATZ3D_BYTES, KARTEN3D_BYTES, ZUSATZ_TEILCHEN_BYTES};
 use wgpu::util::DeviceExt as _;
 
 /// Mehrfachabtastung (Kantenglättung), wenn der Adapter sie kann.
@@ -254,6 +254,9 @@ struct Pipelines {
     flach: wgpu::RenderPipeline,
     himmel: wgpu::RenderPipeline,
     fest: wgpu::RenderPipeline,
+    /// einseitige FEST-Züge (H-K26): ohne Rückseiten bzw. – Umlaufsinn gedreht – ohne Vorderseiten
+    fest_ohne_hinten: wgpu::RenderPipeline,
+    fest_ohne_vorn: wgpu::RenderPipeline,
     durch_hinten: wgpu::RenderPipeline,
     durch_vorn: wgpu::RenderPipeline,
     funken_leuchtend: wgpu::RenderPipeline,
@@ -307,6 +310,9 @@ struct BildraumZiele {
 /// Pipelines des Bildschirmraums (beim Anlegen der Glut vorab erzeugt).
 struct BildraumPipelines {
     vorlauf: wgpu::RenderPipeline,
+    /// einseitige FEST-Züge (H-K26) wie `Pipelines::fest_ohne_*`
+    vorlauf_ohne_hinten: wgpu::RenderPipeline,
+    vorlauf_ohne_vorn: wgpu::RenderPipeline,
     verdeckung: wgpu::RenderPipeline,
     weich_x: wgpu::RenderPipeline,
     weich_y: wgpu::RenderPipeline,
@@ -409,6 +415,9 @@ pub struct Glut {
     /// Material-Zusatz je Instanz (ZUSATZ3D); ohne Abschnitt Nullen (`zusatz_null` Bytes sind sicher 0)
     zusatz3d: Wachspuffer,
     zusatz_null: usize,
+    /// Belag-Karten je Instanz (KARTEN3D, H-K26); ohne Abschnitt Nullen (`karten_null` Bytes sind sicher 0)
+    karten3d: Wachspuffer,
+    karten_null: usize,
 
     teilchen: Wachspuffer,
     /// Zusatz je 3D-Teilchen (ZUSATZ_TEILCHEN: Strich, Licht); ohne Abschnitt Nullen (`teilchen_null` Bytes sind sicher 0)
@@ -506,6 +515,12 @@ const TEILCHEN3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 =
 const ZUSATZ_TEILCHEN_ATTR: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![3 => Float32x3, 4 => Uint32];
 /// Material-Zusatz (ZUSATZ3D, 16 B je Instanz): relief, kachel + metall, merkmale
 const ZUSATZ3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![10 => Uint32, 11 => Float32x2, 12 => Uint32];
+/// Belag-Karten (KARTEN3D, H-K26, 16 B je Instanz): normal, stoff, leucht, leuchtfarbe|schwelle – Attribut 13 (14 von 16 unter
+/// WebGL2; H-K23b braucht noch 2)
+const KARTEN3D_ATTR: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![13 => Uint32x4];
+fn karten_layout() -> Option<wgpu::VertexBufferLayout<'static>> {
+    Some(wgpu::VertexBufferLayout { array_stride: KARTEN3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &KARTEN3D_ATTR })
+}
 
 // ---- Bindegruppen-Layouts (Tabelle „Bindungen und Einheiten“: herd/README.md §9; geprüft vom Bindungswächter, src/waechter.rs)
 
@@ -644,11 +659,11 @@ fn layout_nachbild() -> Vec<wgpu::BindGroupLayoutEntry> {
         tex(3),
     ]
 }
-
+/// Puffer-Layouts des Licht-Shaders: Ecke, INST3D, ZUSATZ3D, KARTEN3D (der Schatten-Shader nimmt Ecke, INST3D und KARTEN3D)
 /// Puffer-Layouts des Licht-Shaders: Ecke, INST3D, ZUSATZ3D (der Schatten-Shader nimmt nur die ersten beiden)
-fn licht_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 3] {
+fn licht_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 4] {
     let [e, i] = netz_layouts();
-    [e, i, Some(wgpu::VertexBufferLayout { array_stride: ZUSATZ3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &ZUSATZ3D_ATTR })]
+    [e, i, Some(wgpu::VertexBufferLayout { array_stride: ZUSATZ3D_BYTES as u64, step_mode: wgpu::VertexStepMode::Instance, attributes: &ZUSATZ3D_ATTR }), karten_layout()]
 }
 
 fn netz_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 2] {
@@ -853,7 +868,9 @@ impl Glut {
         let bild_pipes = Glut::bildraum_pipelines(dev, &pl_haupt, &mod_licht, &pl_bild, &mod_bild, hdr_format, hdr_msaa);
         let bildraum = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd bildraum"), size: BILDRAUM_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
 
-        let layouts = netz_layouts();
+        let [e, i] = netz_layouts();
+        // Schatten: Ecke, INST3D und KARTEN3D an Slot 2 (Schwelle, H-K26)
+        let layouts = [e, i, karten_layout()];
         let schatten_pipeline = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("herd schatten"),
             layout: Some(&pl_schatten),
@@ -937,6 +954,7 @@ impl Glut {
         let inst2d = Wachspuffer::neu(dev, "herd inst2d", wgpu::BufferUsages::VERTEX);
         let inst3d = Wachspuffer::neu(dev, "herd inst3d", wgpu::BufferUsages::VERTEX);
         let zusatz3d = Wachspuffer::neu(dev, "herd zusatz3d", wgpu::BufferUsages::VERTEX);
+        let karten3d = Wachspuffer::neu(dev, "herd karten3d", wgpu::BufferUsages::VERTEX);
         let teilchen = Wachspuffer::neu(dev, "herd teilchen3d", wgpu::BufferUsages::VERTEX);
         let teilchen_zusatz = Wachspuffer::neu(dev, "herd teilchen zusatz", wgpu::BufferUsages::VERTEX);
         let (mehrfach, tiefe) = Glut::mehrfach_ziele(dev, breite, hoehe, format, msaa);
@@ -1002,6 +1020,8 @@ impl Glut {
             inst3d,
             zusatz3d,
             zusatz_null: 0,
+            karten3d,
+            karten_null: 0,
             teilchen,
             teilchen_zusatz,
             teilchen_null: 0,
@@ -1031,11 +1051,11 @@ impl Glut {
     #[allow(clippy::too_many_arguments)]
     fn bildraum_pipelines(dev: &wgpu::Device, pl_haupt: &wgpu::PipelineLayout, mod_licht: &wgpu::ShaderModule, pl_bild: &wgpu::PipelineLayout, mod_bild: &wgpu::ShaderModule, hdr_format: wgpu::TextureFormat, hdr_msaa: u32) -> BildraumPipelines {
         let layouts = licht_layouts();
-        let vorlauf = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("herd vorlauf"),
+        let vorlauf = |name: &str, cull: Option<wgpu::Face>| dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(name),
             layout: Some(pl_haupt),
             vertex: wgpu::VertexState { module: mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts },
-            primitive: wgpu::PrimitiveState { cull_mode: None, front_face: wgpu::FrontFace::Ccw, ..Default::default() },
+            primitive: wgpu::PrimitiveState { cull_mode: cull, front_face: wgpu::FrontFace::Ccw, ..Default::default() },
             depth_stencil: Some(wgpu::DepthStencilState { format: TIEFE, depth_write_enabled: Some(true), depth_compare: Some(wgpu::CompareFunction::Less), stencil: Default::default(), bias: Default::default() }),
             multisample: Default::default(),
             fragment: Some(wgpu::FragmentState {
@@ -1065,7 +1085,9 @@ impl Glut {
         };
         let ssr = hdr_format == wgpu::TextureFormat::Rgba16Float;
         BildraumPipelines {
-            vorlauf,
+            vorlauf: vorlauf("herd vorlauf", None),
+            vorlauf_ohne_hinten: vorlauf("herd vorlauf einseitig", Some(wgpu::Face::Back)),
+            vorlauf_ohne_vorn: vorlauf("herd vorlauf einseitig gedreht", Some(wgpu::Face::Front)),
             verdeckung: voll("herd verdeckung", "fs_verdeckung", VERDECKUNG, None, 1),
             weich_x: voll("herd verdeckung weich x", "fs_weich_x", VERDECKUNG, None, 1),
             weich_y: voll("herd verdeckung weich y", "fs_weich_y", VERDECKUNG, None, 1),
@@ -1440,6 +1462,8 @@ impl Glut {
             })
         };
         let fest = licht("herd fest", None, true, &z_ersetz);
+        let fest_ohne_hinten = licht("herd fest einseitig", Some(wgpu::Face::Back), true, &z_ersetz);
+        let fest_ohne_vorn = licht("herd fest einseitig gedreht", Some(wgpu::Face::Front), true, &z_ersetz);
         let durch_hinten = licht("herd durch hinten", Some(wgpu::Face::Front), false, &z_misch);
         let durch_vorn = licht("herd durch vorn", Some(wgpu::Face::Back), false, &z_misch);
         let z_addier = ziel(ADDIEREN);
@@ -1474,7 +1498,7 @@ impl Glut {
             multiview_mask: None,
             cache: None,
         });
-        self.pipelines.push(Pipelines { format, proben, abschluss, flach, himmel, fest, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
+        self.pipelines.push(Pipelines { format, proben, abschluss, flach, himmel, fest, fest_ohne_hinten, fest_ohne_vorn, durch_hinten, durch_vorn, funken_leuchtend, funken_deckend, zelt });
         self.pipelines.len() - 1
     }
 
@@ -1724,6 +1748,25 @@ impl Glut {
         (Some(a), Some(b))
     }
 
+    /// KARTEN3D (H-K26): die drei Karten-Kennwörter (Wörter 0–2, Bit 17 = eigene Textur) wie das Relief auf `Klasse << 13 |
+    /// Schicht` umschreiben (unbekannt → Klasse 7 = ohne diese Karte); Bits 16–31 (Stärke, Merkmale) bleiben.
+    fn karten_umschreiben(&self, d: &[u8]) -> Vec<u8> {
+        let mut z = d.to_vec();
+        for q in z.chunks_exact_mut(KARTEN3D_BYTES) {
+            for o in [0, 4, 8] {
+                let t = u32_at(q, o);
+                if t & 1 << 17 != 0 {
+                    let k = match self.eigen.karte.get(&(t & 0xFFFF)) {
+                        Some(&(k, s)) => k << 13 | s,
+                        None => KLASSE_UNBEKANNT << 13,
+                    };
+                    q[o..o + 4].copy_from_slice(&((t & !0xFFFF) | k).to_le_bytes());
+                }
+            }
+        }
+        z
+    }
+
     /// ZUSATZ3D: Relief-Kennwort (Byte 0 jeder Instanz, Bit 17 = eigene Textur) auf die Glut-Kennung `Klasse << 13 | Schicht`
     /// umschreiben (unbekannt → Klasse 7 = ohne Relief).
     fn zusatz_umschreiben(&self, d: &[u8]) -> Vec<u8> {
@@ -1950,6 +1993,7 @@ impl Glut {
         let mut stimmung: Option<&[u8]> = None;
         let mut bildraum_d: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
+        let mut karten: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
         let mut schatten_d: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
@@ -1990,6 +2034,7 @@ impl Glut {
                     zelt = Some(d);
                 }
                 abschnitt::ZUSATZ3D => zusatz = Some(d),
+                abschnitt::KARTEN3D => karten = Some(d),
                 abschnitt::ZUSATZ_TEILCHEN => teilchen_zus = Some(d),
                 abschnitt::SCHATTENLICHTER => {
                     if d.len() < SCHATTENLICHTER_KOPF_BYTES || d.len() > SCHATTENLICHTER_BYTES || (d.len() - SCHATTENLICHTER_KOPF_BYTES) % SCHATTEN_ANSICHT_BYTES != 0 {
@@ -2098,6 +2143,21 @@ impl Glut {
                 if zus_bytes > self.zusatz_null {
                     self.zusatz3d.schreibe(&self.device, &self.queue, &vec![0u8; zus_bytes]);
                     self.zusatz_null = zus_bytes;
+                }
+            }
+        }
+        // Belag-Karten (H-K26): mit Abschnitt (Kennwörter umgeschrieben), sonst Nullen in passender Größe
+        match karten {
+            Some(d) if d.len() == zus_bytes => {
+                let z = self.karten_umschreiben(d);
+                self.karten3d.schreibe(&self.device, &self.queue, &z);
+                self.karten_null = 0;
+                stat.hochgeladen += z.len() as u64;
+            }
+            _ => {
+                if zus_bytes > self.karten_null {
+                    self.karten3d.schreibe(&self.device, &self.queue, &vec![0u8; zus_bytes]);
+                    self.karten_null = zus_bytes;
                 }
             }
         }
@@ -2289,7 +2349,7 @@ impl Glut {
                 p.set_bind_group(0, self.bg_schatten.as_ref(), &[(a as u64 * self.zug_schritt) as u32]);
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
-                let anzahl = Glut::zeichne_netz(&mut p, &self.inst3d.puffer, None, n.anzahl, z[2], z[3], instancing);
+                let anzahl = Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing);
                 stat.draw_calls += anzahl;
                 stat.schatten_draw_calls += anzahl;
                 stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
@@ -2318,7 +2378,7 @@ impl Glut {
             p.set_viewport(vx * k, vy * k, (vb * k).max(1.0), (vh * k).max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
             let (st, sl) = if spiegel_voll { (nt, n_leuchtend) } else { (0, 0) };
-            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, false, true, &mut stat);
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, false, true, &mut stat);
         }
 
         // ---- Bildschirmraum (H-K24): Vorlauf (FEST ohne MSAA: Tiefe, Normale, Glanz-Gewicht), Verdeckung in halber Größe ----
@@ -2341,15 +2401,20 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                p.set_pipeline(&bp.vorlauf);
-                for z in self.zuege.iter().filter(|z| z[0] == zug::FEST) {
+                for z in self.zuege.iter().filter(|z| z[0] & zug::ART == zug::FEST) {
                     let Some(Some(n)) = self.netze.get(z[1] as usize) else { continue };
                     if z[2] + z[3] > n3 {
                         continue;
                     }
                     p.set_vertex_buffer(0, n.ecken.slice(..));
                     p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
-                    stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, Some(&self.zusatz3d.puffer), n.anzahl, z[2], z[3], instancing);
+                    // einseitig (H-K26) wie im Hauptdurchgang
+                    p.set_pipeline(match (z[0] & zug::EINSEITIG != 0, z[0] & zug::GEDREHT != 0) {
+                        (false, _) => &bp.vorlauf,
+                        (true, false) => &bp.vorlauf_ohne_hinten,
+                        (true, true) => &bp.vorlauf_ohne_vorn,
+                    });
+                    stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.zusatz3d.puffer), (3, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing);
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
                 }
             }
@@ -2403,7 +2468,7 @@ impl Glut {
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
                 let (st, sl) = if teilen { (0, 0) } else { (nt, n_leuchtend) };
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, teilen, false, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, teilen, false, false, &mut stat);
             }
             if let (true, Some(bz)) = (teilen, &self.bild) {
                 let bp = &self.bild_pipes;
@@ -2457,7 +2522,7 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -2520,7 +2585,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -2554,7 +2619,7 @@ impl Glut {
         zuege: &[[u32; 4]],
         netze: &[Option<Netz>],
         inst3d: &wgpu::Buffer,
-        zusatz: &wgpu::Buffer,
+        zusatz: (&wgpu::Buffer, &wgpu::Buffer),
         teilchen: &wgpu::Buffer,
         teilchen_zusatz: &wgpu::Buffer,
         n3: u32,
@@ -2581,16 +2646,32 @@ impl Glut {
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;
             }
-            for z in zuege.iter().filter(|z| (z[0] == zug::FEST && !nur_durch) || (z[0] == zug::DURCH && !nur_fest)) {
+            for z in zuege.iter().filter(|z| (z[0] & zug::ART == zug::FEST && !nur_durch) || (z[0] & zug::ART == zug::DURCH && !nur_fest)) {
                 let Some(Some(n)) = netze.get(z[1] as usize) else { continue };
                 if z[2] + z[3] > n3 {
                     continue;
                 }
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                // einseitig (H-K26, Karten ohne beidseitig): nur Vorderseiten; gespiegelte Matrix (GEDREHT) oder Spiegeldurchgang
+                // drehen den Umlaufsinn, dann gelten die „hinteren“ Dreiecke als vorn
+                let einseitig = z[0] & zug::EINSEITIG != 0;
+                let umgedreht = (z[0] & zug::GEDREHT != 0) != gespiegelt;
                 // gespiegelt (H-K21) dreht sich der Umlaufsinn: erst „vorn“ (zeigt dann die Rückseiten), dann „hinten“
-                let pipes: &[&wgpu::RenderPipeline] = if z[0] == zug::FEST {
-                    &[&pl.fest]
+                let pipes: &[&wgpu::RenderPipeline] = if z[0] & zug::ART == zug::FEST {
+                    if !einseitig {
+                        &[&pl.fest]
+                    } else if umgedreht {
+                        &[&pl.fest_ohne_vorn]
+                    } else {
+                        &[&pl.fest_ohne_hinten]
+                    }
+                } else if einseitig {
+                    if umgedreht {
+                        &[&pl.durch_hinten]
+                    } else {
+                        &[&pl.durch_vorn]
+                    }
                 } else if gespiegelt {
                     &[&pl.durch_vorn, &pl.durch_hinten]
                 } else {
@@ -2598,7 +2679,7 @@ impl Glut {
                 };
                 for pipe in pipes {
                     p.set_pipeline(pipe);
-                    stat.draw_calls += Glut::zeichne_netz(p, inst3d, Some(zusatz), n.anzahl, z[2], z[3], instancing);
+                    stat.draw_calls += Glut::zeichne_netz(p, inst3d, &[(2, zusatz.0), (3, zusatz.1)], n.anzahl, z[2], z[3], instancing);
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
                 }
             }
@@ -2630,7 +2711,9 @@ impl Glut {
     }
 
     /// Zeichnet `anzahl` Instanzen ab `erste` mit dem gesetzten Netz: instanziert ein Draw-Call, sonst einer je Instanz.
-    fn zeichne_netz(p: &mut wgpu::RenderPass<'_>, inst: &wgpu::Buffer, zusatz: Option<&wgpu::Buffer>, indizes: u32, erste: u32, anzahl: u32, instancing: bool) -> u32 {
+    /// `zusatz`: weitere Instanzpuffer je (Slot, Puffer) – ZUSATZ3D und KARTEN3D, beide 16 B je Instanz.
+    fn zeichne_netz(p: &mut wgpu::RenderPass<'_>, inst: &wgpu::Buffer, zusatz: &[(u32, &wgpu::Buffer)], indizes: u32, erste: u32, anzahl: u32, instancing: bool) -> u32 {
+        const _: () = assert!(ZUSATZ3D_BYTES == KARTEN3D_BYTES);
         let b = INST3D_BYTES as u64;
         let zb = ZUSATZ3D_BYTES as u64;
         if anzahl == 0 {
@@ -2638,16 +2721,16 @@ impl Glut {
         }
         if instancing {
             p.set_vertex_buffer(1, inst.slice(erste as u64 * b..(erste + anzahl) as u64 * b));
-            if let Some(z) = zusatz {
-                p.set_vertex_buffer(2, z.slice(erste as u64 * zb..(erste + anzahl) as u64 * zb));
+            for (slot, z) in zusatz {
+                p.set_vertex_buffer(*slot, z.slice(erste as u64 * zb..(erste + anzahl) as u64 * zb));
             }
             p.draw_indexed(0..indizes, 0, 0..anzahl);
             1
         } else {
             for i in erste..erste + anzahl {
                 p.set_vertex_buffer(1, inst.slice(i as u64 * b..(i + 1) as u64 * b));
-                if let Some(z) = zusatz {
-                    p.set_vertex_buffer(2, z.slice(i as u64 * zb..(i + 1) as u64 * zb));
+                for (slot, z) in zusatz {
+                    p.set_vertex_buffer(*slot, z.slice(i as u64 * zb..(i + 1) as u64 * zb));
                 }
                 p.draw_indexed(0..indizes, 0, 0..1);
             }

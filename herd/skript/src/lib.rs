@@ -493,7 +493,8 @@ fn rechne(a: &Ausdruck, v: &BTreeMap<String, f64>, z: usize) -> Result<f64, Stri
 /// 1 Schachbrett (4-px-Felder, Gitter alle 32 px, je Viertel eigene Farben), 2 Pizza (rund, Rand halb durchsichtig, außen
 /// durchsichtig), 3 Rahmen (Ecken gestreift, Kanten mit Goldband, Mitte fein kariert), 4 Zonenplatte (Ringe bis 3 px Periode),
 /// 5 Himmelsseite, 6 Relief „Noppen“ (Normale x, y in R, G; Rauheit in B, in Bändern je 32 Zeilen), 7 Steinplatten (64-px-Felder
-/// mit Fugen, Grau je Feld) – 6 und 7 kachelbar bei Vielfachen von 32 bzw. 64; sonst weiß.
+/// mit Fugen, Grau je Feld) – 6 und 7 kachelbar bei Vielfachen von 32 bzw. 64; H-K26: 8 Normal-Karte, 9 Stoff, 10 Leucht,
+/// 11 Laub (alle kachelbar bei Vielfachen von 64); sonst weiß.
 pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
     let dx = 2 * x + 1 - b;
     let dy = 2 * y + 1 - h;
@@ -606,6 +607,50 @@ pub fn muster_pixel(m: u32, x: i64, y: i64, b: i64, h: i64) -> [u8; 4] {
             }
             let g = (118 + ((x / 64) * 7 + (y / 64) * 13) % 5 * 14) as u8;
             [g, g - 4, g - 10, 255]
+        }
+        // H-K26: Normal-Karte (Fasen an 64-px-Fliesen, x, y, z)
+        8 => {
+            let (lx, ly) = (x % 64, y % 64);
+            if lx < 8 {
+                [52, 128, 230, 255]
+            } else if lx >= 56 {
+                [204, 128, 230, 255]
+            } else if ly < 8 {
+                [128, 204, 230, 255]
+            } else if ly >= 56 {
+                [128, 52, 230, 255]
+            } else {
+                [128, 128, 255, 255]
+            }
+        }
+        // Stoff: R Verdeckung in den Fugen, G Rauheit je Fliese, B Metall jede zweite
+        9 => {
+            let (lx, ly, f) = (x % 64, y % 64, x / 64 + y / 64);
+            [if lx < 6 || ly < 6 { 70 } else { 255 }, (30 + (f % 4) * 70) as u8, ((f % 2) * 255) as u8, 255]
+        }
+        // Leucht: Streifen und Punkte auf Schwarz
+        10 => {
+            if y % 32 < 4 {
+                [255, 140, 40, 255]
+            } else if (x / 16 + y / 16) % 7 == 0 && x % 16 < 6 && y % 16 < 6 {
+                [80, 200, 255, 255]
+            } else {
+                [0, 0, 0, 255]
+            }
+        }
+        // Laub: Blatt je 64-px-Feld, Rand halb durchsichtig, außen leer
+        11 => {
+            let (ex, ey) = (2 * (x % 64) + 1 - 64, 2 * (y % 64) + 1 - 64);
+            let q = ex * ex * 4 + ey * ey;
+            if q >= 62 * 62 {
+                [40, 90, 30, 0]
+            } else if q >= 54 * 54 {
+                [50, 110, 36, 100]
+            } else if (-2..=2).contains(&ex) {
+                [150, 200, 90, 255]
+            } else {
+                [(60 + (x / 64 * 13 + y / 64 * 7) % 5 * 12) as u8, 140, 50, 255]
+            }
         }
         _ => [255, 255, 255, 255],
     }

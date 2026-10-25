@@ -336,6 +336,7 @@
                 ["`Fliesen`","2D","`bilder` [], `spalten` 16, `zeilen` 9, `karte` [], `kachel` 32, `fest` []","Kachelkarte: `karte` zeilenweise von oben, Kachel n zeigt `bilder[n]` (0 = leer); Lage = **obere linke Ecke**; Nummern in `fest` sind für `Wucht` feste Wände und Böden; gezeichnet wird nur, was zu sehen ist"],
                 ["`Kulisse`","beide","`aktiv` ja, `name` \"\"","Szenenwechsel: mit `aktiv: nein` ruht das Teil samt Kindern wie eine Vorlage (unsichtbar, keine Systeme, Kamera/Blick/Licht darin zählen nicht); `setzeAktiv(ja)` schaltet die Kulisse wieder an"],
                 ["`Belag` (Material)","3D","`relief` karton, `kachel` 0, `abbildung` uv, `modell` klassisch, `metall` 0, `nass` 0 (zusätzlich zu Farbe, Glanz, Leuchten, Bild, strahlen)","Oberflächen: Relief-Bild (Normale + Rauheit), Kachelung in uv oder Weltmaß, physikalisches Licht (`modell: \"pbr\"`), Metall, Nässe mit Pfützen"],
+                ["`Belag` (Karten)","3D","`normalKarte` karton, `normalStaerke` 1, `stoffKarte` karton, `leuchtKarte` karton, `leuchtFarbe` weiss, `schwelle` 0, `beidseitig` nein","Normal-, Stoff- (Verdeckung/Rauheit/Metall) und Leucht-Karte, Ausschnitt (Alpha-Clip, auch im Schatten), einseitig/beidseitig; Modelle bringen ihre Karten mit (H-K26)"],
                 ["`Stimmung`","3D","`belichtung` 1, `bloom` 0, `bloomSchwelle` 1, `bloomWeite` 0.7, `nebelDichte` 0, `nebelHoehe` 0, `nebelAbfall` 0.25, `nebelFarbe` #1c1a2a, `saettigung` 1, `vignette` 0, `koernung` 0, `spiegelung` 0, `spiegelHoehe` 0, `regen` 0, `spiegelGuete` einfach, `verdeckung` 0, `verdeckungWeite` 0.5, `bildspiegel` 0","Bildlook: HDR mit Belichtung und filmischer Tonkurve, Bloom, Höhennebel, Sättigung, Vignette, Filmkorn, Spiegelung nasser Böden (einfach oder voll), Regenstärke (Pfützenringe, Rinnsale), Verdeckung (SSAO) und Bildraum-Spiegelung (SSR); es gilt die wache mit der kleinsten Teil-ID"],
                 ["`Himmelszelt`","3D","`bilder` [], `oben` himmel, `horizont` mozzarella, `boden` teig, `sonnenscheibe` 0, `sterne` 0","Skybox: Verlauf mit Sonnenscheibe und Sternen oder sechs Seiten aus Bildchen; ersetzt `herd.himmel(…)`, es gilt das wache mit der kleinsten Teil-ID"],
                 ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
@@ -1158,6 +1159,31 @@
             },
             { art: "ausgabe", text: z("pbr 0.8 1") },
             { art: "text", md: "Ein ganzes Beispiel ist **Neon-Napoli** unter *Beispiele → Herd*: Fototexturen für Asphalt, Beton, Ziegel, Fliesen, Wellblech und Rolltore, alle mit Relief, nass und in Weltmaß gekachelt." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Belag-Karten: Normal-, Stoff- und Leucht-Karte, Ausschnitt, beidseitig",
+          inhalt: [
+            { art: "text", md: "Fotorealistische Materialien bestehen aus mehreren Bildern – genau so, wie sie aus Blender oder von Poly Haven kommen. Ein **`Belag`** nimmt sie als **Karten**: **`normalKarte`** ist eine „Normal Map“ (Rot, Grün, Blau = Richtung der Oberfläche, OpenGL-Format wie glTF) und hat Vorrang vor der Normale des `relief`; **`normalStaerke`** macht die Unebenheiten flacher (0) oder kräftiger (2). **`stoffKarte`** ist das „ORM“- bzw. „arm“-Bild: Rot = Verdeckung (Fugen und Ritzen bekommen weniger Umgebungslicht), Grün = Rauheit, Blau = Metall – mal `glanz` und `metall` des Belags. **`leuchtKarte`** leuchtet in **`leuchtFarbe`** (mal `leuchten` und `strahlen`), zum Beispiel Displays oder Lampenschirme." },
+            { art: "text", md: "**`schwelle`** schneidet aus: Wo die Deckkraft von Farbe und Bild unter der Schwelle liegt, ist der Körper nicht da – auch sein Schatten nicht. So werden aus einfachen Flächen Blätter, Zäune oder Gitter, die trotzdem deckend gezeichnet werden. Beläge mit Karten sind **einseitig** wie in glTF: Von hinten sieht man die Fläche nicht. Mit **`beidseitig: ja`** sieht man beide Seiten (für Blätter und dünne Wände). Ohne Karten bleibt alles wie zuvor – Herd zeigt dann immer beide Seiten." },
+            { art: "text", md: "Modelle bringen ihre Karten selbst mit: `Modell.laden` übernimmt Normal-, Metall/Rauheit-, Verdeckungs- und Leucht-Bild, `alphaMode: MASK` als `schwelle` und `doubleSided` als `beidseitig`. Wie beim Relief brauchen die Karten Bilddateien (`Bildchen.laden`) mit quadratischer Zweierpotenz-Kante." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Belag holz = herd.raum().mit(neu Belag(modell: \"pbr\", bild: Bildchen.laden(\"bilder/holz-farbe.jpg\"),",
+                "    normalKarte: Bildchen.laden(\"bilder/holz-normale.jpg\"), stoffKarte: Bildchen.laden(\"bilder/holz-arm.jpg\")));",
+                "Belag laub = herd.raum().mit(neu Belag(bild: Bildchen.laden(\"bilder/blatt.png\"), schwelle: 0.5, beidseitig: ja));",
+                "Belag schirm = herd.raum().mit(neu Belag(farbe: \"#202024\", leuchten: 1, leuchtKarte: Bildchen.laden(\"bilder/anzeige.png\"),",
+                "    leuchtFarbe: \"#80e0ff\"));",
+                "Modell farn = Modell.laden(\"modelle/farn/fern_02_1k.gltf\");",
+                "Belag blatt = farn.belaege().stück(1).belag();",
+                "Bote.sage((blatt.schwelle() + \" \" + blatt.beidseitig()));   // 0.5 ja"
+              )
+            },
+            { art: "text", md: "Ein ganzes Beispiel ist die **Werkstatt** unter *Beispiele → Herd*: Holzkisten und Farne von Poly Haven mit allen Karten; N schaltet die Normalen, F die Rückseiten der Farnblätter." }
           ]
         },
         {

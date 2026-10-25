@@ -1014,10 +1014,10 @@ impl Kern {
             netz_material.push(m);
             netz_haut.push(h);
         }
-        // Bilder: Grundfarbe und Relief werden Texturen, Stoff/Leuchten bleiben bis H-K26 im Modell
+        // Bilder: Grundfarbe, Relief, Stoff und Leuchten werden Texturen (Stoff/Leuchten seit H-K26)
         let mut gebraucht = alloc::vec![false; teig.bilder.len()];
         for m in &teig.materialien {
-            for b in [m.bild, m.relief].into_iter().flatten() {
+            for b in [m.bild, m.relief, m.stoff, m.leucht_bild].into_iter().flatten() {
                 gebraucht[b as usize] = true;
             }
         }
@@ -1052,19 +1052,37 @@ impl Kern {
         let fv = self.feld_nummer_s(tv, "name");
         self.setze_text(kv, fv, b"Modell");
         self.komp_haenge(kv, vorlage);
-        let felder: Vec<i32> = ["farbe", "glanz", "leuchten", "bild", "strahlen", "relief", "kachel", "modell", "metall"]
-            .iter()
-            .map(|n| self.feld_nummer_s(tb, n))
-            .collect();
+        let felder: Vec<i32> = [
+            "farbe", "glanz", "leuchten", "bild", "strahlen", "relief", "kachel", "modell", "metall",
+            // H-K26: Karten (Nachtragsfelder – Standardwerte ändern keinen Hash)
+            "normalStaerke", "stoffKarte", "leuchtKarte", "leuchtFarbe", "schwelle", "beidseitig",
+        ]
+        .iter()
+        .map(|n| self.feld_nummer_s(tb, n))
+        .collect();
         let mut belaege = Vec::with_capacity(teig.materialien.len());
         for m in &teig.materialien {
             let t = self.teil_neu(3);
             self.teil_haenge(t, vorlage);
             let k = self.komp_neu(tb);
             let id_von = |b: Option<u32>| b.and_then(|i| bilder[i as usize]).unwrap_or(0) as f64;
-            let werte = [m.farbe as f64, m.glanz, m.leuchten, id_von(m.bild), m.strahlen, id_von(m.relief), m.kachel, 1.0, m.metall];
-            for (fe, v) in felder.iter().zip(werte) {
-                self.setze_zahl(k, *fe, v);
+            // Leucht-Bild (H-K26): Eigenleuchten = Bild · emissiveFactor (leuchtFarbe) · Stärke (strahlen), leuchten 1;
+            // ohne Bild wie H-K16 (Grundfarbe · größter Anteil von emissiveFactor)
+            let leucht = id_von(m.leucht_bild);
+            let (leuchten, strahlen, leucht_farbe) = if leucht > 0.0 { (1.0, m.leucht_staerke, m.leucht_farbe) } else { (m.leuchten, m.strahlen, 0xFFFF_FFFF) };
+            let stoff = id_von(m.stoff);
+            // beidseitig nur an Karten-Belägen: ohne Karten zeichnet Herd ohnehin beide Seiten (wie seit v1)
+            let karten = stoff > 0.0 || leucht > 0.0 || m.schwelle > 0.0 || m.normal_staerke != 1.0;
+            let werte = [
+                m.farbe as f64, m.glanz, leuchten, id_von(m.bild), strahlen, id_von(m.relief), m.kachel, 1.0, m.metall,
+                m.normal_staerke, stoff, leucht, leucht_farbe as f64, m.schwelle, (karten && m.beidseitig) as u8 as f64,
+            ];
+            // H-K26-Felder nur abweichend vom Standard setzen (Belag ohne Karten bleibt wie in H-K16)
+            const STANDARD: [f64; 6] = [1.0, 0.0, 0.0, 4294967295.0, 0.0, 0.0];
+            for (i, (fe, v)) in felder.iter().zip(werte).enumerate() {
+                if i < 9 || v != STANDARD[i - 9] {
+                    self.setze_zahl(k, *fe, v);
+                }
             }
             self.komp_haenge(k, t);
             self.etikett_neu(te, t, &m.name, 0.0);

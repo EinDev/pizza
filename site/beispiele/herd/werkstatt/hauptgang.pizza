@@ -1,0 +1,71 @@
+// Werkstatt – Modelle mit allen Belag-Karten (Poly Haven, CC0; Quellen in quellen.md).
+//
+// Die Holzkiste und die Farne bringen je ein Grundfarb-, ein Normal- und ein „arm“-Bild mit (Verdeckung, Rauheit, Metall –
+// glTF packt sie in ein Bild). Modell.laden macht daraus den geteilten Belag: Normale (relief), Stoff-Karte (Rauheit, Metall),
+// beim Farn dazu den Ausschnitt (schwelle 0.5 aus alphaMode MASK) und beidseitig. Eine Werkbank-Platte zeigt dieselben Karten
+// von Hand gesetzt: normalKarte, stoffKarte und eine Leucht-Karte mit leuchtFarbe.
+//
+// Maus ziehen oder ←/→: um die Werkbank kreisen · ↑/↓ oder Mausrad: näher/weiter
+// N: Normalen an/aus (normalStaerke 1 ↔ 0) · L: Deckel auf/zu · F: Farn-Blätter beidseitig an/aus (aus: Rückseiten fehlen)
+
+Herd herd = neu Herd("Werkstatt", breite: 960, hoehe: 540);
+herd.himmel("#3a4660", "#d8c8b0");
+herd.umgebung("#e8eeff", staerke: 0.3);
+herd.sonne().setzeLage(-3, 5, 4);
+
+Modell kiste = Modell.laden("modelle/kiste/wooden_crate_01_1k.gltf");
+Modell farn = Modell.laden("modelle/farn/fern_02_1k.gltf");
+Bote.sage(("Kiste: " + kiste.namen() + ", " + kiste.belaege().länge() + " Belag; Farn: " + farn.namen()));
+Belag holz = kiste.belaege().stück(1).belag();
+Belag blatt = farn.belaege().stück(1).belag();
+Bote.sage(("Farn: schwelle " + blatt.schwelle() + ", beidseitig " + blatt.beidseitig() + "; Kiste: beidseitig " + holz.beidseitig()));
+
+// Boden und Werkbank (eigener Belag mit den Bildern der Kiste als Karten, dazu eine Leucht-Karte als Anzeige)
+herd.koerper(Form.ebene(), 0, 0, 0, farbe: "#5a5048").setzeGroesse(12, 1, 12);
+Belag bank = herd.raum().mit(neu Belag(farbe: "#d8d0c8", modell: "pbr", glanz: 0.6, kachel: 2,
+    bild: Bildchen.laden("modelle/kiste/textures/wooden_crate_01_diff_1k.jpg"),
+    normalKarte: Bildchen.laden("modelle/kiste/textures/wooden_crate_01_nor_gl_1k.jpg"),
+    stoffKarte: Bildchen.laden("modelle/kiste/textures/wooden_crate_01_arm_1k.jpg")));
+Teil platte = herd.koerper(Form.wuerfel(), 0, 0.45, 0).setzeGroesse(2.4, 0.1, 1.1);
+platte.koerper().setzeBelag(bank.teil());
+für (salami i = 0; i < 4; i++) {
+    herd.koerper(Form.wuerfel(), (i % 2) * 2.1 - 1.05, 0.2, ((i / 2) % 2) * 0.9 - 0.45, farbe: "#3c3430").setzeGroesse(0.1, 0.4, 0.1);
+}
+Belag anzeige = herd.raum().mit(neu Belag(farbe: "#202024", leuchten: 1, strahlen: 1.5, leuchtFarbe: "#ffb070",
+    leuchtKarte: Bildchen.laden("modelle/kiste/textures/wooden_crate_01_diff_1k.jpg")));
+Teil schild = herd.koerper(Form.wuerfel(), 0, 1.3, -1.2).setzeGroesse(1.2, 0.6, 0.05);
+schild.koerper().setzeBelag(anzeige.teil());
+
+// Kisten auf und neben der Bank, Farne davor
+Teil offen = herd.modell(kiste, -0.6, 0.5, 0);
+herd.modell(kiste, 0.55, 0.5, 0.05).setzeDrehung(25);
+herd.modell(kiste, 1.9, 0, 0.8).setzeDrehung(-10).setzeGroesse(1.4);
+herd.modell(farn, -1.6, 0, 1.2).setzeGroesse(1.2);
+herd.modell(farn, 1.0, 0, 1.6).setzeDrehung(70);
+
+herd.licht(0.3, 1.6, 0.8, farbe: "#ffd9a8", reichweite: 4).licht().setzeStaerke(1.4);
+
+Teil deckel = offen.finde("wooden_crate_01_lid");
+funghi winkel = 20, abstand = 3.6, ziehX = -1, deckelZiel = 0;
+herd.backe(() -> {
+    falls (herd.taste("Links")) { winkel -= 1.5; }
+    falls (herd.taste("Rechts")) { winkel += 1.5; }
+    falls (herd.taste("Hoch")) { abstand = Mathe.max(1.4, abstand - 0.04); }
+    falls (herd.taste("Runter")) { abstand = Mathe.min(7, abstand + 0.04); }
+    abstand = Mathe.min(7, Mathe.max(1.4, abstand - herd.mausrad() * 0.25));
+    falls (herd.maus(1)) {
+        falls (ziehX >= 0) { winkel += (herd.mausX() - ziehX) * 0.3; }
+        ziehX = herd.mausX();
+    } sonst { ziehX = -1; }
+    falls (herd.gedrueckt("n")) {
+        funghi s = holz.normalStaerke() == 1 ? 0 : 1;
+        holz.setzeNormalStaerke(s);
+        blatt.setzeNormalStaerke(s);
+        bank.setzeNormalStaerke(s);
+    }
+    falls (herd.gedrueckt("f")) { blatt.setzeBeidseitig(!blatt.beidseitig()); }
+    falls (herd.gedrueckt("l")) { deckelZiel = deckelZiel == 0 ? -70 : 0; }
+    deckel.setzeNeigung(deckel.neigung() + (deckelZiel - deckel.neigung()) * 0.15);
+    funghi b = Mathe.bogen(winkel);
+    herd.kamera().setzeLage(Mathe.sin(b) * abstand, 1.7, Mathe.cos(b) * abstand).schaueAuf(0, 0.6, 0);
+});

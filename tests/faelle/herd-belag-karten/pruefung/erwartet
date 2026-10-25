@@ -1,0 +1,7 @@
+karton 1 karton karton weiss 0 nein
+ja 0.5 tomate 0.25 nein
+LaufzeitAnanas: Belag.schwelle muss zwischen 0 und 1 liegen, nicht 2.
+LaufzeitAnanas: Belag.normalStaerke muss zwischen 0 und 3.98 liegen, nicht -1.
+TypAnanas: Belag.normalKarte braucht ein Bildchen, nicht 42.
+0.8 0.3 ja weiss 1
+fertig

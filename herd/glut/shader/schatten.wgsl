@@ -1,4 +1,5 @@
-// Schatten-Tiefe aus Sicht der Sonne bzw. einer Schatten-Ansicht (H-K18). Textur-Texel mit Deckkraft < ½ werfen keinen Schatten.
+// Schatten-Tiefe aus Sicht der Sonne bzw. einer Schatten-Ansicht (H-K18). Textur-Texel mit Deckkraft < ½ (bzw. unter der `schwelle`
+// des Belags, H-K26) werfen keinen Schatten.
 
 @group(0) @binding(4) var atlas: texture_2d_array<f32>;
 // Ansicht·Projektion dieses Zugs (dynamischer Versatz je Ansicht; Eintrag 0 = licht_proj aus SZENE, v1)
@@ -15,6 +16,7 @@ struct EinSchatten {
     @location(5) z2: vec4<f32>,
     @location(8) uvbox: vec4<u32>,
     @location(9) textur: u32,
+    @location(13) karten: vec4<u32>,  // KARTEN3D (H-K26): Schwelle in Wort 3, Bits 0–7
 }
 
 struct AusSchatten {
@@ -22,6 +24,7 @@ struct AusSchatten {
     @location(0) uv: vec2<f32>,
     @location(1) @interpolate(flat) uvbox: vec4<f32>,
     @location(2) @interpolate(flat) textur: u32,
+    @location(3) @interpolate(flat) schwelle: u32,
 }
 
 @vertex
@@ -34,6 +37,7 @@ fn vs_schatten(e: EinSchatten) -> AusSchatten {
     a.uv = e.uv * (box.zw - box.xy);
     a.uvbox = box;
     a.textur = e.textur;
+    a.schwelle = e.karten.w & 255u;
     return a;
 }
 
@@ -49,7 +53,8 @@ fn fs_schatten(a: AusSchatten) {
         if (eigen) {
             tex = select(vec4<f32>(1.0), eigen_lade(klasse, vec2<i32>(floor(texel)), i32(a.textur & 8191u)), klasse <= 4u);
         }
-        if (tex.a < 0.5) {
+        // Ausschnitt (H-K26): mit Schwelle gilt sie, sonst ½
+        if (tex.a < select(0.5, f32(a.schwelle) / 255.0, a.schwelle != 0u)) {
             discard;
         }
     }

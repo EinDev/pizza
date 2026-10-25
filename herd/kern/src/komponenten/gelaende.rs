@@ -193,6 +193,7 @@ fn bild(w: &Welt, s: &Speicher, b: &mut Bildbau) {
             min,
             max,
             zusatz: [0; 4],
+            karten: [0; 4],
         });
     }
 }

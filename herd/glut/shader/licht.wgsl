@@ -181,6 +181,7 @@ struct EinNetz {
     @location(10) relief: u32,        // ZUSATZ3D: Relief wie textur (0 = keins)
     @location(11) km: vec2<f32>,      // kachel, metall
     @location(12) merkmale: u32,      // Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255
+    @location(13) karten: vec4<u32>,  // KARTEN3D (H-K26): normal, stoff, leucht (Kennwörter wie relief), leuchtfarbe|schwelle
 }
 
 struct AusNetz {
@@ -194,6 +195,7 @@ struct AusNetz {
     @location(6) @interpolate(flat) textur: u32,
     @location(7) roh: vec2<f32>,                        // Netz-UV 0 … 1
     @location(8) @interpolate(flat) zus: vec4<u32>,     // relief, kachel (Bits), metall (Bits), merkmale
+    @location(9) @interpolate(flat) karten: vec4<u32>,  // KARTEN3D (H-K26)
 }
 
 @vertex
@@ -217,6 +219,7 @@ fn vs_licht(e: EinNetz) -> AusNetz {
     a.textur = e.textur;
     a.roh = e.uv;
     a.zus = vec4<u32>(e.relief, bitcast<u32>(e.km.x), bitcast<u32>(e.km.y), e.merkmale);
+    a.karten = e.karten;
     return a;
 }
 
@@ -542,11 +545,22 @@ struct Oberflaeche {
     ng: vec3<f32>,
     tex: vec4<f32>,
     hat_textur: bool,
+    // Rauheitskarte (Relief B bzw. Stoff-Karte G / 2): Rauheit = Karte · (2 − 2 · glanz)
     rauh_karte: f32,
     hat_relief: bool,
     pbr: bool,
     metall: f32,
     nass: f32,
+    // H-K26: Stoff-Karte (R Verdeckung, G Rauheit, B Metall) und Eigenleuchten aus der Leucht-Karte (linear, mal leuchtFarbe)
+    stoff: vec4<f32>,
+    hat_stoff: bool,
+    leucht: vec3<f32>,
+    hat_leucht: bool,
+}
+
+// Kennwort einer Karte (Relief, KARTEN3D): eigene Textur einer bekannten Klasse
+fn karte_da(k: u32) -> bool {
+    return (k & 65536u) != 0u && (k & 131072u) != 0u && ((k >> 13u) & 7u) <= 4u;
 }
 
 fn oberflaeche(a: AusNetz, vorne: bool) -> Oberflaeche {
@@ -557,7 +571,7 @@ fn oberflaeche(a: AusNetz, vorne: bool) -> Oberflaeche {
     let lambda = eigen_lambda(a.uv);
     // Material-Zusatz: Kachelkoordinate und Ableitungen im gleichförmigen Kontrollfluss (vor jedem discard)
     let kachel = bitcast<f32>(a.zus.y);
-    let metall = bitcast<f32>(a.zus.z);
+    var metall = bitcast<f32>(a.zus.z);
     let merkmale = a.zus.w;
     let pbr = (merkmale & 1u) != 0u;
     let welt_modus = (merkmale & 2u) != 0u;
@@ -600,20 +614,28 @@ fn oberflaeche(a: AusNetz, vorne: bool) -> Oberflaeche {
             tex = textureLoad(atlas, vec2<i32>(floor(tk)), i32(a.textur & 65535u), 0);
         }
     }
-    if (hat_textur && tex.a < 0.5) {
+    // Ausschnitt (H-K26, `schwelle` > 0; der Kern hat sie schon durch die Deckkraft der Farbe geteilt): Bild-Deckkraft darunter
+    // verworfen; ohne Schwelle wie bisher: Texel unter ½ Deckkraft verworfen
+    let schwelle = f32(a.karten.w & 255u) / 255.0;
+    if (schwelle > 0.0) {
+        if (select(1.0, tex.a, hat_textur) < schwelle) {
+            discard;
+        }
+    } else if (hat_textur && tex.a < 0.5) {
         discard;
     }
     var n = normalize(a.normale);
     if (!vorn) {
         n = -n;
     }
-    // Relief (eigene Textur, Glut-Kennung wie textur): Normale aus R, G (OpenGL: G = Bild-oben), Rauheit aus B
-    let r_eigen = (a.zus.x & 131072u) != 0u;
-    let r_klasse = (a.zus.x >> 13u) & 7u;
-    let hat_relief = (a.zus.x & 65536u) != 0u && r_eigen && r_klasse <= 4u;
+    // Relief (eigene Textur, Glut-Kennung wie textur): Normale aus R, G (OpenGL: G = Bild-oben), Rauheit aus B;
+    // Normal-Karte (H-K26): Normale aus R, G, B (Tangentenraum wie glTF), hat Vorrang vor der Normale des Reliefs;
+    // normalStaerke (KARTEN3D Wort 0, Bits 24–31 / 64; ohne Abschnitt 1) wirkt auf beide
+    let hat_relief = karte_da(a.zus.x);
+    let hat_normal = karte_da(a.karten.x);
+    let staerke = select(1.0, f32(a.karten.x >> 24u) / 64.0, any(a.karten != vec4<u32>(0u)));
     var rauh_karte = 1.0;
-    if (hat_relief) {
-        let rel = eigen_kachel(r_klasse, i32(a.zus.x & 8191u), uvs, gx, gy);
+    if (hat_relief || hat_normal) {
         var tt = welt_t(ng);
         var bb = welt_b(ng);
         if (!welt_modus) {
@@ -627,12 +649,38 @@ fn oberflaeche(a: AusNetz, vorne: bool) -> Oberflaeche {
             tt = -t * k;
             bb = b * k;
         }
-        let nt = vec2<f32>(rel.r * 2.0 - 1.0, rel.g * 2.0 - 1.0);
-        let nz = sqrt(max(1.0 - dot(nt, nt), 0.0));
-        n = normalize(tt * nt.x + bb * nt.y + ng * nz);
-        rauh_karte = rel.b;
+        if (hat_relief) {
+            let rel = eigen_kachel((a.zus.x >> 13u) & 7u, i32(a.zus.x & 8191u), uvs, gx, gy);
+            let nt = vec2<f32>(rel.r * 2.0 - 1.0, rel.g * 2.0 - 1.0);
+            let nz = sqrt(max(1.0 - dot(nt, nt), 0.0));
+            let ns = nt * staerke;
+            n = normalize(tt * ns.x + bb * ns.y + ng * nz);
+            rauh_karte = rel.b;
+        }
+        if (hat_normal) {
+            let nk = eigen_kachel((a.karten.x >> 13u) & 7u, i32(a.karten.x & 8191u), uvs, gx, gy);
+            let nt = vec3<f32>((nk.r * 2.0 - 1.0) * staerke, (nk.g * 2.0 - 1.0) * staerke, nk.b * 2.0 - 1.0);
+            n = normalize(tt * nt.x + bb * nt.y + ng * nt.z);
+        }
     }
-    return Oberflaeche(n, ng, tex, hat_textur, rauh_karte, hat_relief, pbr, metall, nass);
+    // Stoff-Karte (H-K26): R Verdeckung (Umgebungslicht), G Rauheit (Vorrang vor dem Relief), B Metall – mal glanz/metall
+    let hat_stoff = karte_da(a.karten.y);
+    var stoff = vec4<f32>(1.0);
+    if (hat_stoff) {
+        stoff = eigen_kachel((a.karten.y >> 13u) & 7u, i32(a.karten.y & 8191u), uvs, gx, gy);
+        rauh_karte = stoff.g * 0.5;
+        metall = metall * stoff.b;
+    }
+    // Leucht-Karte (H-K26): Eigenleuchten = Karte (sRGB) · leuchtFarbe (KARTEN3D Wort 3, Bits 8–31)
+    let hat_leucht = karte_da(a.karten.z);
+    var leucht = vec3<f32>(0.0);
+    if (hat_leucht) {
+        let lk = eigen_kachel((a.karten.z >> 13u) & 7u, i32(a.karten.z & 8191u), uvs, gx, gy);
+        let w = a.karten.w;
+        let lf = vec3<f32>(f32((w >> 24u) & 255u), f32((w >> 16u) & 255u), f32((w >> 8u) & 255u)) / 255.0;
+        leucht = zu_linear(lk.rgb) * zu_linear(lf);
+    }
+    return Oberflaeche(n, ng, tex, hat_textur, rauh_karte, hat_relief || hat_stoff, pbr, metall, nass, stoff, hat_stoff, leucht, hat_leucht);
 }
 
 // Verdeckung (H-K24): fertiges SSAO-Bild in halber Zielgröße, bilinear an der Pixelstelle
@@ -689,11 +737,14 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     let hat_textur = o.hat_textur;
     let pbr = o.pbr;
     // Verdeckung (H-K24): nur im Hauptbild, nur Undurchsichtiges (DURCH liegt vor der Fläche, deren Verdeckung im Bild steht)
-    let ao_an = bildraum.b.z > 0.5 && !im_spiegel() && a.farbe.a > 0.999;
-    var ao = 1.0;
-    if (ao_an) {
-        ao = verdeckung_bei(a.pos.xy);
+    let ao_an0 = bildraum.b.z > 0.5 && !im_spiegel() && a.farbe.a > 0.999;
+    var ao0 = 1.0;
+    if (ao_an0) {
+        ao0 = verdeckung_bei(a.pos.xy);
     }
+    // Stoff-Karte (H-K26): ihre Verdeckung (R) wirkt wie SSAO aufs Umgebungslicht
+    let ao_an = ao_an0 || o.hat_stoff;
+    let ao = ao0 * o.stoff.r;
     let l = szene.sonne_richtung.xyz;
     let ndl = max(dot(n, l), 0.0);
     let sonne = sonnenlicht(a.welt, n, ndl);
@@ -702,7 +753,8 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     if (hat_textur) {
         albedo = albedo * zu_linear(tex.rgb);
     }
-    let glanz = a.material.x;
+    // klassisch: die Rauheit der Stoff-Karte (G) mindert den Glanz (pbr nimmt sie über rauh_karte)
+    let glanz = select(a.material.x, 1.0 - (1.0 - a.material.x) * o.stoff.g, o.hat_stoff && !pbr);
     let leuchten = a.material.y;
     let v = normalize(szene.kamera.xyz - a.welt);
     let hart = exp2(3.0 + glanz * 7.0);
@@ -775,7 +827,12 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
 
     var farbe = select(albedo * diffus + glanzlicht, pbr_farbe, pbr);
     // leuchten ≤ 1 wie v1 (zur Eigenfarbe mischen), darüber strahlt es (Koerper.strahlen, für Bloom): albedo · leuchten
-    farbe = mix(farbe, albedo, min(leuchten, 1.0)) + albedo * max(leuchten - 1.0, 0.0);
+    // mit Leucht-Karte (H-K26): Karte · leuchtFarbe · leuchten (× strahlen) additiv wie glTF emissive
+    if (o.hat_leucht) {
+        farbe = farbe + o.leucht * leuchten;
+    } else {
+        farbe = mix(farbe, albedo, min(leuchten, 1.0)) + albedo * max(leuchten - 1.0, 0.0);
+    }
 
     // Nebel
     if (szene.nebel_farbe.w > 0.5) {

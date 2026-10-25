@@ -20,6 +20,8 @@ pub const INST2D_BYTES: usize = 56;
 pub const INST3D_BYTES: usize = 72;
 /// Abschnitt `ZUSATZ3D`: je Instanz `u32 relief, f32 kachel, f32 metall, u32 merkmale` (`Belag`-Material).
 pub const ZUSATZ3D_BYTES: usize = 16;
+/// Abschnitt `KARTEN3D` (H-K26): je Instanz `u32 normal, stoff, leucht, leuchtfarbe|schwelle` (`belag::karten`).
+pub const KARTEN3D_BYTES: usize = 16;
 pub const ZUG_BYTES: usize = 16;
 pub const ECKE_BYTES: usize = 32;
 /// Ein Teilchen im Abschnitt `TEILCHEN3D` (Funken): `f32 x, y, z, halbe Größe`, `u8 r, g, b, a`.
@@ -66,6 +68,8 @@ pub mod abschnitt {
     /// Bildschirmraum (H-K24, `crate::komponenten::stimmung::bildraum_abschnitt`): Verdeckung (SSAO) und Bildraum-Spiegelung
     /// (SSR), 32 B; nur wenn die geltende `Stimmung` `verdeckung` oder `bildspiegel` > 0 hat
     pub const BILDRAUM: u32 = 22;
+    /// Belag-Karten je 3D-Instanz (H-K26, 16 B, gleiche Reihenfolge wie INST3D): nur wenn eine geschriebene Instanz welche hat
+    pub const KARTEN3D: u32 = 23;
 }
 
 pub mod flag {
@@ -98,6 +102,14 @@ pub mod zug {
     /// Schatten in eine Ansicht des Abschnitts `SCHATTENLICHTER` (H-K18): `art = ANSICHT | ansicht << 8` (Bits 0–7 = Art,
     /// darüber die Nummer der Ansicht – erst die Kaskaden, dann die Kacheln); Instanzen sind eigene Kopien hinter `DURCH`
     pub const ANSICHT: u32 = 4;
+    /// Merkmal an `FEST`/`DURCH` (H-K26): Rückseiten weglassen – Instanzen mit Karten (`KARTEN3D` ≠ 0) und `beidseitig` nein,
+    /// einseitig wie glTF; ohne Karten zeichnet Herd wie seit v1 beide Seiten
+    pub const EINSEITIG: u32 = 1 << 16;
+    /// Merkmal zu `EINSEITIG`: Welt-Matrix mit Determinante < 0 (gespiegelt) – Umlaufsinn gedreht, die Glut lässt die Vorderseiten
+    /// (im Bild) weg
+    pub const GEDREHT: u32 = 1 << 17;
+    /// Art ohne Merkmale
+    pub const ART: u32 = 0xFFFF;
 }
 
 /// Ein 3D-Körper im Bildbau.
@@ -117,6 +129,21 @@ pub struct Koerper3 {
     pub max: [f64; 3],
     /// Material-Zusatz (`Belag`: Relief, Kachel, Metall, Merkmale) – alles 0 = wie v1, Abschnitt `ZUSATZ3D` nur wenn nicht 0
     pub zusatz: [u32; 4],
+    /// Karten (H-K26, `Belag`: Normal-, Stoff-, Leucht-Karte, Schwelle, beidseitig) – alles 0 = wie vorher, Abschnitt `KARTEN3D`
+    /// nur wenn nicht 0
+    pub karten: [u32; 4],
+}
+
+impl Koerper3 {
+    /// Merkmale des Zugs (`zug::EINSEITIG`, `zug::GEDREHT`): einseitig nur mit Karten und ohne `beidseitig` (Wort 1, Bit 24)
+    pub fn seiten(&self) -> u32 {
+        if self.karten == [0; 4] || self.karten[1] & 1 << 24 != 0 {
+            return 0;
+        }
+        let m = &self.m;
+        let det = m[0] * (m[5] * m[10] - m[6] * m[9]) - m[1] * (m[4] * m[10] - m[6] * m[8]) + m[2] * (m[4] * m[9] - m[5] * m[8]);
+        zug::EINSEITIG | if det < 0.0 { zug::GEDREHT } else { 0 }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -862,17 +889,22 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         } else {
             continue;
         };
-        bau.fest.push(((k.netz as u64) << 34 | (gruppe as u64) << 32 | k.teil as u64, i as u32));
+        // Schlüssel: Netz, Seiten-Merkmale (H-K26; ohne Karten 0 → Reihenfolge wie vorher), Gruppe, Teil
+        bau.fest.push(((k.netz as u64) << 36 | ((k.seiten() >> 16) as u64) << 34 | (gruppe as u64) << 32 | k.teil as u64, i as u32));
     }
     bau.fest.sort_unstable_by_key(|x| x.0);
     bau.durch.sort_unstable_by_key(|x| (x.0, x.1));
 
     let mut inst3d: Vec<u8> = Vec::new();
     let mut zusatz3d: Vec<u8> = Vec::new();
+    let mut karten3d: Vec<u8> = Vec::new();
     let mut zuege: Vec<[u32; 4]> = Vec::new();
-    let schreib3 = |b: &mut Vec<u8>, z: &mut Vec<u8>, k: &Koerper3| {
+    let schreib3 = |b: &mut Vec<u8>, z: &mut Vec<u8>, ka: &mut Vec<u8>, k: &Koerper3| {
         for w in k.zusatz {
             put_u32(z, w);
+        }
+        for w in k.karten {
+            put_u32(ka, w);
         }
         for x in k.m {
             put_f32(b, x);
@@ -894,11 +926,13 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     };
     let mut i = 0;
     while i < bau.fest.len() {
-        let netz = (bau.fest[i].0 >> 34) as u32;
+        let schluessel = bau.fest[i].0 >> 34;
+        let netz = (schluessel >> 2) as u32;
+        let seiten = ((schluessel & 3) as u32) << 16;
         let start = i as u32;
         let mut werfer = 0u32;
         let mut unsichtbar = 0u32;
-        while i < bau.fest.len() && (bau.fest[i].0 >> 34) as u32 == netz {
+        while i < bau.fest.len() && bau.fest[i].0 >> 34 == schluessel {
             let gruppe = (bau.fest[i].0 >> 32) & 3;
             if gruppe <= 1 {
                 werfer += 1;
@@ -906,12 +940,12 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             if gruppe == 0 {
                 unsichtbar += 1;
             }
-            schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[bau.fest[i].1 as usize]);
+            schreib3(&mut inst3d, &mut zusatz3d, &mut karten3d, &bau.koerper[bau.fest[i].1 as usize]);
             i += 1;
         }
         let ende = i as u32;
         if ende - start > unsichtbar {
-            zuege.push([zug::FEST, netz, start + unsichtbar, ende - start - unsichtbar]);
+            zuege.push([zug::FEST | seiten, netz, start + unsichtbar, ende - start - unsichtbar]);
         }
         if schatten && werfer > 0 {
             zuege.push([zug::SCHATTEN, netz, start, werfer]);
@@ -921,12 +955,13 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     let mut j = 0;
     while j < bau.durch.len() {
         let netz = bau.koerper[bau.durch[j].2 as usize].netz;
+        let seiten = bau.koerper[bau.durch[j].2 as usize].seiten();
         let start = j as u32;
-        while j < bau.durch.len() && bau.koerper[bau.durch[j].2 as usize].netz == netz {
-            schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[bau.durch[j].2 as usize]);
+        while j < bau.durch.len() && bau.koerper[bau.durch[j].2 as usize].netz == netz && bau.koerper[bau.durch[j].2 as usize].seiten() == seiten {
+            schreib3(&mut inst3d, &mut zusatz3d, &mut karten3d, &bau.koerper[bau.durch[j].2 as usize]);
             j += 1;
         }
-        zuege.push([zug::DURCH, netz, basis + start, j as u32 - start]);
+        zuege.push([zug::DURCH | seiten, netz, basis + start, j as u32 - start]);
     }
     // H-K18: Werfer je Schatten-Ansicht (Kaskaden, dann Kacheln) als eigene Instanz-Kopien, je Netz ein Zug
     let ansichten = kaskaden.len() + schatten_wahl.kacheln.len();
@@ -958,7 +993,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
                 let netz = bau.koerper[liste[j] as usize].netz;
                 let start = n_inst;
                 while j < liste.len() && bau.koerper[liste[j] as usize].netz == netz {
-                    schreib3(&mut inst3d, &mut zusatz3d, &bau.koerper[liste[j] as usize]);
+                    schreib3(&mut inst3d, &mut zusatz3d, &mut karten3d, &bau.koerper[liste[j] as usize]);
                     j += 1;
                     n_inst += 1;
                 }
@@ -1047,6 +1082,13 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         if zusatz3d.iter().any(|&b| b != 0) {
             let st = abschnitt_beginn(aus, abschnitt::ZUSATZ3D);
             aus.extend_from_slice(&zusatz3d);
+            abschnitt_ende(aus, st);
+            abschnitte += 1;
+        }
+        // Belag-Karten (H-K26): ebenso nur bei Nutzung
+        if karten3d.iter().any(|&b| b != 0) {
+            let st = abschnitt_beginn(aus, abschnitt::KARTEN3D);
+            aus.extend_from_slice(&karten3d);
             abschnitt_ende(aus, st);
             abschnitte += 1;
         }

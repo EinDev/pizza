@@ -1,0 +1,57 @@
+# Belag-Karten (H-K26: normalKarte, normalStaerke, stoffKarte, leuchtKarte, leuchtFarbe, schwelle, beidseitig → Abschnitt
+# KARTEN3D, Zug-Merkmale EINSEITIG/GEDREHT) und die Muster-Teiglinge 8 … 11 beider Spieler: nativ = Wasm über die Paket-Hashes.
+# N Körper mit wechselnden Belägen (klein N = 24), gespiegelte Teile, Schwelle an Durchsichtigem (wird deckend), Umstellen.
+vorgabe N 24
+welt_neu 960 540 "Karten"
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "normalKarte" -> B_NK
+feld_nummer T_B "normalStaerke" -> B_NS
+feld_nummer T_B "stoffKarte" -> B_SK
+feld_nummer T_B "leuchtKarte" -> B_LK
+feld_nummer T_B "leuchtFarbe" -> B_LF
+feld_nummer T_B "schwelle" -> B_SW
+feld_nummer T_B "beidseitig" -> B_BS
+form_grund 1 0 0 -> WUERFEL
+form_grund 5 0 0 -> EBENE
+teigling_muster 8 128 128 -> FASEN
+teigling_muster 9 128 128 -> STOFF
+teigling_muster 10 64 64 -> LEUCHT
+teigling_muster 11 128 128 -> LAUB
+teil_neu 3 -> t1
+komp_neu T_B -> b1
+setze_zahl b1 B_NK FASEN
+setze_zahl b1 B_NS 1.5
+setze_zahl b1 B_SK STOFF
+setze_zahl b1 B_LK LEUCHT
+setze_text b1 B_LF "#ffa040"
+setze_text b1 B_MODELL "pbr"
+komp_haenge b1 t1
+teil_neu 3 -> t2
+komp_neu T_B -> b2
+setze_text b2 B_F "#ffffffc0"
+setze_zahl b2 B_BILD LAUB
+setze_zahl b2 B_SW 0.4
+komp_haenge b2 t2
+wiederhole N i
+  teil_neu 3 -> t
+  teil_lage t ((i % 6) * 1.5 - 4) 0.5 (boden(i / 6) * -1.5)
+  teil_groesse t (1 - 2 * boden(1 / (1 + i % 5))) 1 1
+  komp_neu T_K -> k
+  setze_zahl k K_FORM (WUERFEL + (i % 2) * (EBENE - WUERFEL))
+  setze_zahl k K_BELAG (t1 * boden(1 / (1 + i % 3)) + t2 * boden(1 / (1 + (i % 3 - 1) * (i % 3 - 1))))
+  komp_haenge k t
+ende
+takte 2
+setze_zahl b2 B_BS 1
+setze_zahl b1 B_NS 1
+setze_zahl b2 B_SW 0.9
+takte 2
+setze_zahl k K_BELAG 0
+paket_voll
+bild

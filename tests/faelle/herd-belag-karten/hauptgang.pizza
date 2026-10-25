@@ -1,0 +1,28 @@
+// Ordner-Fall (H-K26): Belag-Karten – normalKarte, normalStaerke, stoffKarte, leuchtKarte, leuchtFarbe, schwelle, beidseitig als
+// Nachtragsfelder (Standardwerte, Bereichsfehler, Bildchen aus der Kiste); dazu die Modell-Abbildung: textur.gltf trägt
+// Normal-, Metall/Rauheit-, Verdeckungs- und Leucht-Bild, MASK 0.3 und doubleSided → Relief, Stoff- und Leucht-Karte, schwelle,
+// beidseitig am geteilten Belag. Das Bildpaket trägt den Abschnitt KARTEN3D – Hash in herd-erwartet.
+Herd herd = neu Herd("Karten", breite: 160, hoehe: 90);
+herd.raum(0, 2, 4).mit(neu Kamera()).teil().schaueAuf(0, 0, -2);
+Belag nackt = herd.raum().mit(neu Belag());
+Bote.sage((nackt.normalKarte() + " " + nackt.normalStaerke() + " " + nackt.stoffKarte() + " " + nackt.leuchtKarte() + " " + nackt.leuchtFarbe() + " " + nackt.schwelle() + " " + nackt.beidseitig()));
+Bildchen normale = Bildchen.laden("modelle/bilder/normale.png");
+Belag b = herd.raum(0, 5, 0).mit(neu Belag(farbe: "#ffffffc0", modell: "pbr", normalKarte: normale, normalStaerke: 0.5,
+    stoffKarte: Bildchen.laden("modelle/bilder/oc.png"), leuchtKarte: Bildchen.laden("modelle/bilder/leucht.png"),
+    leuchtFarbe: "tomate", leuchten: 1, schwelle: 0.25));
+Bote.sage((b.normalKarte() == normale) + " " + b.normalStaerke() + " " + b.leuchtFarbe() + " " + b.schwelle() + " " + b.beidseitig());
+Teil a = herd.koerper(Form.wuerfel(), -1, 0.5, -2);
+a.koerper().setzeBelag(b.teil());
+Teil c = herd.koerper(Form.ebene(), 1, 0.5, -2).setzeGroesse(-1, 1, 1);
+c.koerper().setzeBelag(b.teil());
+probier { b.setzeSchwelle(2); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { b.setzeNormalStaerke(-1); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+probier { b.setzeNormalKarte(42); } verbrannt (Ananas x) { Bote.sage((x.typ() + ": " + x.nachricht())); }
+Modell kiste = Modell.laden("modelle/textur.gltf");
+Belag k = kiste.belaege().stück(1).belag();
+Bote.sage((k.normalStaerke().runden(3) + " " + k.schwelle().runden(3) + " " + k.beidseitig() + " " + k.leuchtFarbe() + " " + k.leuchten()));
+herd.modell(kiste, x: 0, z: -3);
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { b.setzeBeidseitig(ja); }
+});
+Bote.sage(("fertig"));

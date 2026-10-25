@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel"), ("Belag", "normalKarte"), ("Belag", "normalStaerke"), ("Belag", "stoffKarte"), ("Belag", "leuchtKarte"), ("Belag", "leuchtFarbe"), ("Belag", "schwelle"), ("Belag", "beidseitig")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -6702,9 +6702,9 @@ mod hk16 {
     #[test]
     fn texturen_palette_quant_haut_folgen() {
         let mut k = welt();
-        // textur-eingebettet: Grundfarbe + Relief als Texturen (Stoff/Leuchten bleiben im Modell)
+        // textur-eingebettet: Grundfarbe, Relief, Stoff und Leuchten als Texturen (Stoff/Leuchten seit H-K26)
         let m = k.modell_teig(&teig(tm!("textur-eingebettet.gltf")));
-        assert_eq!(k.modell_info(m, 9), 2.0);
+        assert_eq!(k.modell_info(m, 9), 4.0); // Grundfarbe, Relief, Stoff, Leuchten (H-K26)
         let belag = k.modell_info(m, 100) as i32;
         let bt = typ(&mut k, "Belag");
         let bk = k.komp_von(belag, bt);
@@ -6745,7 +6745,7 @@ mod hk16 {
         k.bild(1);
         let l = Leser::neu(k.paket()).unwrap();
         let n_tex = l.abschnitte().filter(|a| a.0 == abschnitt::TEXTUR).count();
-        assert_eq!(n_tex, 2 + 2); // Grundfarbe + Relief, zwei Paletten (Bunt, Ersatz)
+        assert_eq!(n_tex, 2 + 2 + 2); // Grundfarbe, Relief, Stoff, Leuchten (H-K26), zwei Paletten (Bunt, Ersatz)
     }
 
     #[test]
@@ -7487,5 +7487,143 @@ mod hk23a {
         assert!(nah(r1, 85.0, 1e-9) && nah(r2, 85.0, 1e-9));
         assert_eq!(slerp(a, b, 1.0), b);
         assert_eq!(slerp(a, b, 0.0), a);
+    }
+}
+
+/// H-K26: Belag-Karten (Normal-, Stoff-, Leucht-Karte, Schwelle, beidseitig) – Abschnitt KARTEN3D und Zug-Merkmale nur bei
+/// Nutzung, sonst Paket und Hash byte-gleich; Modell-Abbildung der glTF-Karten.
+mod hk26 {
+    use super::*;
+    use crate::paket::{zug, KARTEN3D_BYTES};
+
+    fn karten(k: &Kern) -> Option<Vec<[u32; 4]>> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::KARTEN3D)?;
+        Some(d.chunks_exact(KARTEN3D_BYTES).map(|c| [0, 4, 8, 12].map(|o| u32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]))).collect())
+    }
+
+    fn zuege(k: &Kern) -> Vec<[u32; 4]> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let (_, d) = l.abschnitte().find(|(a, _)| *a == abschnitt::ZUEGE3D).unwrap();
+        d.chunks_exact(16).map(|c| [0, 4, 8, 12].map(|o| u32::from_le_bytes([c[o], c[o + 1], c[o + 2], c[o + 3]]))).collect()
+    }
+
+    #[test]
+    fn karten_nur_bei_nutzung() {
+        let mut k = welt();
+        let kt = typ(&mut k, "Koerper");
+        let bt = typ(&mut k, "Belag");
+        let (form, belag) = (feld(&mut k, kt, "form"), feld(&mut k, kt, "belag"));
+        let f: Vec<i32> = ["normalKarte", "normalStaerke", "stoffKarte", "leuchtKarte", "leuchtFarbe", "schwelle", "beidseitig", "farbe"]
+            .iter()
+            .map(|n| feld(&mut k, bt, n))
+            .collect();
+        let w = k.form_grund(1, 0.0, 0.0);
+        let bt_teil = k.teil_neu(3);
+        let b = k.komp_neu(bt);
+        assert_eq!(k.komp_haenge(b, bt_teil), 0);
+        let mut koerper = Vec::new();
+        for i in 0..2 {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, i as f64 * 2.0 - 1.0, 0.5, 0.0);
+            let c = k.komp_neu(kt);
+            assert_eq!(k.setze_zahl(c, form, w as f64), 0);
+            assert_eq!(k.komp_haenge(c, t), 0);
+            koerper.push((c, t));
+        }
+        assert_eq!(k.setze_zahl(koerper[0].0, belag, bt_teil as f64), 0);
+        k.bild(1);
+        k.bild(2);
+        let (h, p) = (k.hash_szene(), k.paket().to_vec());
+        assert!(karten(&k).is_none());
+        assert!(zuege(&k).iter().all(|z| z[0] & !zug::ART == 0));
+        // Standardwerte gesetzt: nichts ändert sich
+        assert_eq!(k.setze_zahl(b, f[1], 1.0), 0);
+        assert_eq!(k.setze_text(b, f[4], b"weiss"), 0);
+        assert_eq!(k.setze_zahl(b, f[5], 0.0), 0);
+        assert_eq!(k.setze_zahl(b, f[6], 0.0), 0);
+        k.bild(2);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        assert!(k.setze_zahl(b, f[5], 1.5) < 0);
+        assert!(k.setze_zahl(b, f[1], 4.0) < 0);
+        // Karten aus Teiglingen, Stärke, Leuchtfarbe, Schwelle
+        let normal = k.bildchen_teigling(&crate::teigling::tests::teigling(64, 64, 0));
+        let stoff = k.bildchen_teigling(&crate::teigling::tests::teigling(32, 32, 0));
+        let leucht = k.bildchen_teigling(&crate::teigling::tests::teigling(16, 16, 0));
+        assert!(normal > 0 && stoff > 0 && leucht > 0);
+        for (i, v) in [(0, normal), (2, stoff), (3, leucht)] {
+            assert_eq!(k.setze_zahl(b, f[i], v as f64), 0);
+        }
+        assert_eq!(k.setze_zahl(b, f[1], 0.5), 0);
+        assert_eq!(k.setze_text(b, f[4], b"#ff800000"), 0);
+        assert_eq!(k.setze_zahl(b, f[5], 0.3), 0);
+        k.bild(3);
+        assert_ne!(k.hash_szene(), h);
+        let ka = karten(&k).expect("Karten → KARTEN3D");
+        assert_eq!(ka.len(), 2);
+        let marke = 1 << 16 | 1 << 17;
+        assert_eq!((ka[1][0] & marke, ka[1][0] >> 24), (marke, 32));
+        assert_eq!((ka[1][1] & marke, ka[1][1] >> 24), (marke, 0));
+        assert_eq!(ka[1][2] & marke, marke);
+        assert_eq!(ka[1][3], 0xFF80_0000 | 77); // 0.3 · 255 + 0.5 → 77
+        assert_eq!(ka[0], [0; 4]); // einseitig sortiert hinter den Körper ohne Karten (gleiches Netz)
+        // einseitig (Karten, beidseitig nein): FEST-Zug mit Merkmal, der Körper ohne Belag ohne
+        let z = zuege(&k);
+        let fest: Vec<u32> = z.iter().filter(|z| z[0] & zug::ART == zug::FEST).map(|z| z[0] & !zug::ART).collect();
+        assert_eq!(fest, [0, zug::EINSEITIG]);
+        // gespiegelt (Größe x < 0) → GEDREHT; beidseitig ja → keine Merkmale, Bit 24 in Wort 1
+        k.teil_groesse(koerper[0].1, -1.0, 1.0, 1.0);
+        k.bild(4);
+        assert!(zuege(&k).iter().any(|z| z[0] == zug::FEST | zug::EINSEITIG | zug::GEDREHT));
+        assert_eq!(k.setze_zahl(b, f[6], 1.0), 0);
+        k.bild(5);
+        assert!(zuege(&k).iter().all(|z| z[0] & !zug::ART == 0));
+        assert_eq!(karten(&k).unwrap()[0][1] >> 24, 1);
+        // Schwelle macht Durchsichtiges deckend (FEST) und teilt sich durch die Deckkraft der Farbe
+        assert_eq!(k.setze_text(b, f[7], b"#ffffff80"), 0);
+        k.bild(6);
+        assert!(!zuege(&k).iter().any(|z| z[0] & zug::ART == zug::DURCH));
+        assert_eq!(karten(&k).unwrap()[0][3] & 0xFF, 152); // 0.3 / (128/255) · 255 + 0.5
+        // Deckkraft unter der Schwelle → nicht gezeichnet
+        assert_eq!(k.setze_text(b, f[7], b"#ffffff40"), 0);
+        k.bild(7);
+        assert!(karten(&k).is_none());
+        // Belag gelöst → ohne Abschnitt
+        assert_eq!(k.setze_text(b, f[7], b"#ffffffff"), 0);
+        assert_eq!(k.setze_zahl(koerper[0].0, belag, 0.0), 0);
+        k.bild(8);
+        assert!(karten(&k).is_none());
+    }
+
+    #[test]
+    fn modell_karten() {
+        let mut k = welt();
+        // textur-eingebettet.gltf: Normal (0.8), Metall/Rauheit, Verdeckung, Leuchten, MASK 0.3, doubleSided
+        let t = super::hk16::teig(include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/textur-eingebettet.gltf")));
+        let m = k.modell_teig(&t);
+        assert!(m > 0);
+        let belag = k.modell_info(m, 100) as i32;
+        let bt = typ(&mut k, "Belag");
+        let bk = k.komp_von(belag, bt);
+        let werte: Vec<f64> = ["normalStaerke", "stoffKarte", "leuchtKarte", "schwelle", "beidseitig", "leuchten", "relief"]
+            .iter()
+            .map(|n| {
+                let f = feld(&mut k, bt, n);
+                k.hole_zahl(bk, f)
+            })
+            .collect();
+        assert_eq!(werte[0], 0.800000011920929);
+        assert!(werte[1] > 0.0 && werte[2] > 0.0 && werte[1] != werte[2] && werte[6] > 0.0);
+        assert_eq!((werte[3], werte[4], werte[5]), (0.30000001192092896, 1.0, 1.0));
+        let lf = feld(&mut k, bt, "leuchtFarbe");
+        assert_eq!(text(&mut k, bk, lf), "weiss");
+        // Modell ohne Karten (wuerfel.glb): kein KARTEN3D
+        let m2 = k.modell_teig(&super::hk16::teig(include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/wuerfel.glb"))));
+        assert!(k.modell_teil(m2, 0.0, 0.0, 0.0) > 0);
+        k.bild(1);
+        assert!(karten(&k).is_none());
+        assert!(k.modell_teil(m, 0.0, 0.0, -2.0) > 0);
+        k.bild(2);
+        assert!(karten(&k).is_some());
     }
 }

@@ -2409,6 +2409,24 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   zusammen zu groß …“.
 - **Dateien:** `.glb`, `.gltf`, `.bin` sind erlaubte Projektdateien (PROJEKTE §1.3, §5.10), alle binär (auch `.gltf`); Durchreiche prüft die
   Signatur (`glTF`-Magie bzw. JSON-Objekt), nginx/E2E-Server liefern `model/gltf-binary` bzw. `model/gltf+json`.
+- **Nachtrag H-K26 (Belag-Karten):** `Belag` bekommt die Nachtragsfelder `normalKarte`, `normalStaerke` (1, 0 … 3.98),
+  `stoffKarte` (R Verdeckung, G Rauheit, B Metall), `leuchtKarte`, `leuchtFarbe` (weiss), `schwelle` (0) und `beidseitig` (nein);
+  Bildpaket-Abschnitt **KARTEN3D = 23** (16 B je Instanz, nur bei Nutzung), Zug-Merkmale `EINSEITIG` (Bit 16) und `GEDREHT`
+  (Bit 17) an `FEST`/`DURCH`; keine neue Textureinheit (PD3-Klassen), Vertex-Attribut 13. **Entscheidungen:** (1) Karten nur am
+  `Belag`, nicht am `Koerper`. (2) **Relief bleibt** die kompakte Karte (Normale x, y + Rauheit); `normalKarte` (x, y, z) hat Vorrang
+  vor seiner Normale, die Rauheit der `stoffKarte` vor seiner Rauheit, `normalStaerke` wirkt auf beide. Modelle behalten das Relief
+  aus dem Vorbacker (Normal- + Metall/Rauheit-Bild, Vorbacker unverändert) und bekommen zusätzlich `stoffKarte` (Verdeckung und
+  Metall) und `leuchtKarte`. (3) Tangenten aus Ableitungen wie beim Relief (kein Format-Bruch, kein MikkTSpace). (4) `schwelle`
+  macht den Körper deckend: der Kern teilt die Schwelle durch die Deckkraft der Farbe (glTF MASK: Farbe.a · Bild.a ≥ Schwelle) und
+  schreibt Deckkraft 1; Farbe.a < Schwelle → nicht gezeichnet; im Schatten gilt dieselbe Schwelle. (5) **beidseitig:** Herd zeichnet
+  3D seit v1 ohne Rückseiten-Culling (Rückseiten mit gedrehter Normale, Schatten beider Seiten). Ein Culling für alle hätte jedes
+  Referenzbild geändert; darum sind nur **Beläge mit Karten** (ein Karten-Feld nicht Standard) einseitig wie glTF – sie kommen in
+  eigene Züge mit Culling (`fest_ohne_hinten`/`fest_ohne_vorn`, auch im Vorlauf; gespiegelte Teile und der Spiegeldurchgang tauschen
+  die Seite), `beidseitig` ja hebt das auf; Schatten werfen immer beide Seiten. (6) Modell-Abbildung: `emissiveTexture` →
+  `leuchtKarte`, `leuchtFarbe` = `emissiveFactor`, `leuchten` 1, `strahlen` = Stärke (ohne Bild wie H-K16); MASK → `schwelle` =
+  `alphaCutoff`; `doubleSided` → `beidseitig` nur an Belägen mit Karten (sonst ohne Wirkung – so bleiben Modelle ohne Karten,
+  etwa die Kenney-Modelle der `pizzeria`, hash-gleich); Felder mit Standardwert werden nicht gesetzt. Der Fall `herd-modell`
+  (`textur.gltf` mit allen Karten) ändert darum bewusst seine Hashes. Beispiel `werkstatt` (Poly Haven, CC0, 3,3 MB).
 - **Betroffen:** HERD.md §4/§10/§11.1/§13.3, SPEC §2.1/§18.1/§18.4/§18.5/§18.6, PROJEKTE §1.3/§5.10, HOST-ABI §2, `herd/README.md`
   §2/§3/§7.1/§11.5, ARCHITEKTUR §1, Vorbacker, Kern, `kern-wasm`, Skript-Spieler, Interpreter, Laufzeit, Compiler, Host, Playground,
   Durchreiche, nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `pizzeria`. **Status:** fest.

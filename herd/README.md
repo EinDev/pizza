@@ -113,7 +113,7 @@ Programme ändern; öffentliche Nachtragsfelder stehen vor den verborgenen, Kons
 Erstes Nachtragsfeld einer v1-Komponente: `Koerper.belag` (H-K2, Typ `teil`, Standard karton → Material des `Belag` an diesem
 Teil; `Koerper` hat keine verborgenen Spalten). `Blick.mausX`/`mausY` (H-K12) sind Nachtrags- **und** Lesefelder, berechnet über `lies`.
 `Licht.schattenGuete`, `schattenWeich`, `kaskaden`, `schattenWeite` (H-K18) sind Nachtragsfelder; ihr Bildbeitrag läuft über
-`LichtB` in `kern/src/lichter.rs` (`schatten_waehlen`, Abschnitt SCHATTENLICHTER, §4) und `paket.rs` (Sonnen-Kaskaden).
+`LichtB` in `kern/src/lichter.rs` (`schatten_waehlen`, Abschnitt SCHATTENLICHTER, §4) und `paket.rs` (Sonnen-Kaskaden). Die Karten des `Belag` (H-K26: `normalKarte`, `normalStaerke`, `stoffKarte`, `leuchtKarte`, `leuchtFarbe`, `schwelle`, `beidseitig`) sind Nachtragsfelder hinter `nass`; `belag::karten` packt sie in `Koerper3.karten` (Abschnitt KARTEN3D, §4).
 
 **Eingabezustand und UI (H-K12, K-151):** `Welt::eingabe` hält Maus (Spielfeld), Knöpfe, Knöpfe des Vortakts (am Ende von `takt`
 übernommen), das oberste Ziel unter der Maus, das gefangene und das losgelassene Ziel und den Griff einer gezogenen Tafel – nicht im
@@ -254,7 +254,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 5 | TEXTUR | eigene Textur aus einem Teigling (`bildchen_teigling`, PROJEKTE PD1): `u32 id` (Ressourcen-ID = Textur-ID), `u8 format` (0 = RGBA8, nicht vormultipliziert), `u8 stufen`, `u16 b, u16 h`, dann je Stufe `u32 länge` + Bytes (Stufe 0 = b × h, jede weitere halbiert, abgerundet, mindestens 1, bis 1 × 1; Zeilen von oben). Einmal je Bild (nicht je Verwendung), nur wenn Teiglinge geladen sind |
 | 10 | SZENE | 592 Bytes Uniform-Block (unten), immer vorhanden |
 | 11 | INST3D | n × 72 Bytes 3D-Instanzen |
-| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht) |
+| 12 | ZUEGE3D | m × 16 Bytes: `u32 art, u32 netz, u32 erste_instanz, u32 anzahl` (art 1 FEST, 2 SCHATTEN, 3 DURCH; H-K18: Bits 0–7 = 4 ANSICHT, Bits 8 … = Nummer der Schatten-Ansicht; H-K26: an FEST/DURCH Bit 16 EINSEITIG = Rückseiten weglassen (Instanzen mit Karten ohne `beidseitig`), Bit 17 GEDREHT = dabei Welt-Matrix mit Determinante < 0, die Glut lässt dann die Vorderseiten im Bild weg; ohne Karten nie gesetzt) |
 | 13 | INST2D | k × 56 Bytes 2D-Instanzen, **bereits in Zeichenreihenfolge** |
 | 14 | TEILCHEN3D | `u32 leuchtend, u32 deckend`, dann (leuchtend + deckend) × 20 Bytes 3D-Teilchen (`Funken`, unten); nur wenn sichtbare Teilchen da sind |
 | 15 | HIMMELSZELT | 208 Bytes Uniform-Block des geltenden `Himmelszelt` (H-K11b, unten); nur wenn eines an einem wachen Teil hängt (dann ist auch Flag 4 gesetzt) |
@@ -265,6 +265,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 20 | SCHATTENLICHTER | Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, unten); nur wenn ein Licht mit `schattenGuete` ≠ aus Schatten wirft, die Sonne `kaskaden` > 1 hat oder ihr `schattenWeich` ≠ 1 ist |
 | 21 | LICHTER_SPIEGEL | Zellen-Tabelle der gespiegelten Kamera (H-K21, unten); nur bei `Stimmung.spiegelGuete` voll (mit `spiegelung` > 0) und vorhandenem LICHTER, direkt dahinter |
 | 22 | BILDRAUM | Bildschirmraum (H-K24, 32 Bytes, f32): `a vec4` (`verdeckung`, `verdeckungWeite`, `bildspiegel`, 1 = an) · `b vec4` (nah, fern der aktiven Kamera, 0, 0); nur wenn die geltende `Stimmung` `verdeckung` oder `bildspiegel` > 0 hat, direkt hinter STIMMUNG |
+| 23 | KARTEN3D | Belag-Karten je 3D-Instanz (H-K26, 16 B, gleiche Reihenfolge wie INST3D): `u32 normal` (Kennwort wie `INST3D.textur`, nur eigene Texturen; Bits 24–31 `normalStaerke` · 64), `u32 stoff` (Kennwort; Bit 24 `beidseitig`), `u32 leucht` (Kennwort), `u32 leuchtfarbe|schwelle` (Bits 8–31 `leuchtFarbe` RGB wie `farbe`, Bits 0–7 `schwelle` · 255 bezogen auf die Bild-Deckkraft – der Kern teilt durch die Deckkraft der Farbe und schreibt die Instanz deckend); nur wenn eine geschriebene Instanz Karten hat (sonst Paket wie vorher) |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -568,7 +569,7 @@ der Stufen ⌊λ⌋ und ⌊λ⌋ + 1 mit **expliziter** Stufe, je auf das Rechte
 zwischen Rahmen-Neunteln), λ höchstens log2 der Rechteckkante; danach durch Alpha teilen) · `licht` (Halbkugel-Umgebung, Sonne Lambert + Blinn-Phong, bis 8 Punktlichter aus SZENE oder – mit Abschnitt LICHTER – alle Lichter der Zelle des Fragments
 (Bindungen 14 Kopf, 15 `lichter_t` RGBA32F mit 64 Lichtern à 3 Texel je Zeile, 16 `zellen_t` R32Uint 1024 breit; nur `textureLoad`, Texturen wachsen
 nur; ohne Abschnitt schreibt die Glut den Kopf auf 0 → v1-Pfad), Spot-Kegel per smoothstep, Eigenleuchten, Textur (Atlas oder eigene, Bit 17),
-Nebel, sanfte Schulter gegen Überstrahlen) · Material-Zusatz in `licht` (ZUSATZ3D als dritter Instanzpuffer @10 relief `Uint32`, @11 kachel + metall `Float32x2`, @12 merkmale `Uint32`;
+Nebel, sanfte Schulter gegen Überstrahlen) · Belag-Karten in `licht` und `schatten` (H-K26: KARTEN3D als vierter Instanzpuffer @13 `Uint32x4` – im Schatten-Shader als dritter; ohne Abschnitt Nullen; die Glut schreibt die drei Kennwörter wie das Relief um): Normal-Karte (x, y × Stärke, z) mit denselben Tangenten wie das Relief und Vorrang vor dessen Normale, Stoff-Karte (R × Umgebungslicht über den Verdeckungs-Weg von `pbr_licht`, G als Rauheitskarte G/2 im Relief-Weg, B × Metall), Leucht-Karte (sRGB × `leuchtFarbe` × `leuchten` additiv statt der Mischung zur Grundfarbe), Schwelle (`discard` unter der Schwelle statt unter ½, auch in `fs_schatten`); alle Abtastungen mit `textureSampleGrad` und den vorab berechneten Ableitungen, also nach dem `discard` erlaubt. EINSEITIG-Züge zeichnen `FEST` mit den Pipelines `fest_ohne_hinten`/`fest_ohne_vorn` (Culling Back/Front, auch im Vorlauf), `DURCH` nur mit einer der beiden Durch-Pipelines; GEDREHT und der Spiegeldurchgang tauschen Back/Front. Alle Pipelines vorab · Material-Zusatz in `licht` (ZUSATZ3D als dritter Instanzpuffer @10 relief `Uint32`, @11 kachel + metall `Float32x2`, @12 merkmale `Uint32`;
 ohne Abschnitt Nullen; die Glut schreibt das Relief-Kennwort wie INST3D auf `Klasse << 13 | Schicht` um): Kachelung über den Sampler der eigenen Texturen
 (Bindung 12: wiederholend, Stufen linear, anisotrop 8, wenn `DownlevelFlags::ANISOTROPIC_FILTERING`; die expliziten PD3-Abtastungen klemmen ihre
 Koordinaten selbst, ihre Bilder bleiben gleich – ein zweiter Sampler auf denselben Texturen geht unter WebGL2 gar nicht: naga macht aus
@@ -648,7 +649,7 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 | *23* | *Gelenk-Palette RGBA32F (Haupt- **und** Schatten-Layout)* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *geplant H-K23b* |
 | *–* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_wasser` im **eigenen** Layout `wasser`* | *0 im Haupt-Layout* | *geplant H-K28* |
 | – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
-| – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 | 0 | H-K26 |
+| – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 (`eigen_kachel` in `fs_licht`/`fs_vorlauf`), Schwelle in `fs_schatten` mit `eigen_lade` | 0 | H-K26 (umgesetzt) |
 | – | Wind (Uniform-Block), Streu-Instanzen (Instanzpuffer) | | | 0 (Block) | H-K27 |
 
 Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). **Bildraum-Layout** (eigen, H-K24,
@@ -666,6 +667,8 @@ bekommen neue Bindungen in `gemeinsam.wgsl` Nummern ab 34 (23 … 33 belegt `bil
 Spiegel-Zellen liegen hinter den Zellen von LICHTER in `zellen_t` (16), ihr Kopf ist ein zweiter Uniform-Puffer, den nur die
 Spiegel-Bindegruppe an **derselben** Bindung 14 bindet. `fs_leuchtend`/`fs_deckend` lesen jetzt auch SZENE (Verwerfen unter der
 Spiegelebene): je 2 Blöcke.
+
+**Stand H-K26 (gemessen, Wächter):** unverändert – Haupt-Layout **12/16** Texturen, 3/16 Sampler, 7/12 Uniform-Puffer; `fs_licht` 11/16 Einheiten, `fs_vorlauf` 6/16, `fs_schatten` 6/16: die Karten liegen in den PD3-Klassen 7 … 11, die `fs_licht` schon abtastet. Neu sind nur Vertex-Attribute: `vs_licht` nimmt 14 von 16 (WebGL2-Minimum `MAX_VERTEX_ATTRIBS`; H-K23b braucht noch 2 → 16/16), `vs_schatten` 8; Varyings `AusNetz` 10 Vektoren (≤ 15).
 
 **Stand H-K24 (gemessen, Wächter):** Haupt-Layout **12/16** Texturen (+1: Verdeckung an 21, mit dem vorhandenen Sampler 6),
 Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. Neues Layout `bildraum` 9/16 Texturen, 2 Sampler.
@@ -692,7 +695,7 @@ Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Ei
 Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (umgesetzt: Spiegel-Zellen in
 `zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (umgesetzt: Verdeckung an 21 mit dem Sampler 6, Bildraum-Block an 22; SSAO, Weichzeichnen, Farbstufen und
 SSR-Strahlmarsch im eigenen Layout `bildraum`, der Vorlauf im Haupt-Layout ohne neuen Eintrag; `fs_licht` liest nur das
-Verdeckungsbild) → 12 · **H-K26** 0 (PD3-Klassen) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
+Verdeckungsbild) → 12 · **H-K26** 0 (umgesetzt: PD3-Klassen, KARTEN3D als Instanzpuffer) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
 **H-K27** 0 (Uniform-Block WIND, Instanzpuffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
 (SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
 des Plans: Haupt-Layout **13/16** Texturen, 9/12 Uniform-Blöcke; 3 Einheiten Reserve. **Konsolidierung, falls doch eng:** (1) Schrift
@@ -851,7 +854,7 @@ vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiede
   sortiert in ein **Paletten-Bild** (Texel 0 weiß; uv = Texelmitte; Primitiven ohne Farben am selben Material → weiß; Eckfarben ohne
   Material → ein Ersatz-Material weiß, Metall 0, Rauheit 0,7). Abgeleitete Bilder ganzzahlig, nächster Nachbar auf die Größe des
   Normal- bzw. Metall/Rauheit-Bildes: **Relief** (R, G = Normale, B = ⌈Rauheit-G / 2⌉ bzw. 128 – so ergibt der Relief-Weg des Kerns
-  genau `roughnessFactor` × Karte) und **Stoff** (R Verdeckung, G Rauheit, B Metall; ab H-K26). Drehungen, Farben linear → sRGB
+  genau `roughnessFactor` × Karte) und **Stoff** (R Verdeckung, G Rauheit, B Metall; seit H-K26 als `stoffKarte` benutzt, das Leucht-Bild als `leuchtKarte`). Drehungen, Farben linear → sRGB
   (`libm::pow`) und Lichter rechnet erst der Kern (f64).
 - **Format „Modellteig“ v1** (`modell.rs`): Kopf 64 B (`TEIGMODL`, Version 1, Art 0/255, Flags, SHA-256 des Quellpakets, Ecken,
   Dreiecke, Anzahl Bilder/Materialien/Knoten/Netze), danach die Abschnitte BILDER (Teiglinge v1), MATERIAL, NETZE (Ecken 32 B wie

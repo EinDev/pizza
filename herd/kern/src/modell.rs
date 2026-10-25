@@ -37,6 +37,12 @@ pub struct MMaterial {
     pub relief: Option<u32>,
     pub stoff: Option<u32>,
     pub leucht_bild: Option<u32>,
+    /// H-K26: glTF `normalTexture.scale`, `alphaCutoff` (nur `MASK`, sonst 0), `doubleSided`, `emissiveFactor` als sRGB 0xRRGGBBFF
+    pub normal_staerke: f64,
+    pub leucht_staerke: f64,
+    pub schwelle: f64,
+    pub beidseitig: bool,
+    pub leucht_farbe: u32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -300,8 +306,8 @@ fn lies_teig(t: &[u8]) -> R<Teig> {
         }
         let (metall, rauheit) = (l.f()?, l.f()?);
         let le = [l.f()?, l.f()?, l.f()?];
-        let (leucht_staerke, _normal, _schwelle) = (l.f()?, l.f()?, l.f()?);
-        let (alpha, _beidseitig, wiederholen, _) = (l.u8()?, l.u8()?, l.u8()?, l.u8()?);
+        let (leucht_staerke, normal, schwelle) = (l.f()?, l.f()?, l.f()?);
+        let (alpha, beidseitig, wiederholen, _) = (l.u8()?, l.u8()?, l.u8()?, l.u8()?);
         if alpha > 2 {
             return Err(());
         }
@@ -323,6 +329,11 @@ fn lies_teig(t: &[u8]) -> R<Teig> {
             relief,
             stoff,
             leucht_bild,
+            leucht_staerke: leucht_staerke.clamp(0.0, 1000.0),
+            normal_staerke: if normal.is_finite() { normal.clamp(0.0, 3.98) } else { 1.0 },
+            schwelle: if alpha == 1 && schwelle.is_finite() { schwelle.clamp(0.0, 1.0) } else { 0.0 },
+            beidseitig: beidseitig != 0,
+            leucht_farbe: farbe(le[0], le[1], le[2], 1.0),
         });
     }
     let nm = materialien.len();

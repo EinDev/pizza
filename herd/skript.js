@@ -276,6 +276,32 @@ function musterPixel(m, x, y, b, h) {
     const g = 118 + ((d(x, 64) * 7 + d(y, 64) * 13) % 5) * 14;
     return [g, g - 4, g - 10, 255];
   }
+  // H-K26: 8 Normal-Karte (Fasen an 64-px-Fliesen, x, y, z), 9 Stoff (R Verdeckung in den Fugen, G Rauheit je Fliese, B Metall
+  // jede zweite), 10 Leucht (Streifen und Punkte auf Schwarz), 11 Laub (Blatt je 64-px-Feld, Rand halb durchsichtig, außen leer)
+  if (m === 8) {
+    const lx = x % 64, ly = y % 64;
+    if (lx < 8) return [52, 128, 230, 255];
+    if (lx >= 56) return [204, 128, 230, 255];
+    if (ly < 8) return [128, 204, 230, 255];
+    if (ly >= 56) return [128, 52, 230, 255];
+    return [128, 128, 255, 255];
+  }
+  if (m === 9) {
+    const lx = x % 64, ly = y % 64, f = d(x, 64) + d(y, 64);
+    return [lx < 6 || ly < 6 ? 70 : 255, 30 + (f % 4) * 70, (f % 2) * 255, 255];
+  }
+  if (m === 10) {
+    if (y % 32 < 4) return [255, 140, 40, 255];
+    if ((d(x, 16) + d(y, 16)) % 7 === 0 && x % 16 < 6 && y % 16 < 6) return [80, 200, 255, 255];
+    return [0, 0, 0, 255];
+  }
+  if (m === 11) {
+    const ex = 2 * (x % 64) + 1 - 64, ey = 2 * (y % 64) + 1 - 64, q = ex * ex * 4 + ey * ey;
+    if (q >= 62 * 62) return [40, 90, 30, 0];
+    if (q >= 54 * 54) return [50, 110, 36, 100];
+    if (ex >= -2 && ex <= 2) return [150, 200, 90, 255];
+    return [60 + (d(x, 64) * 13 + d(y, 64) * 7) % 5 * 12, 140, 50, 255];
+  }
   return [255, 255, 255, 255];
 }
 

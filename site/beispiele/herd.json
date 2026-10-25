@@ -332,6 +332,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Modell", "glTF", "Animation", "Projekt"],
       "herd": true
+    },
+    {
+      "id": "werkstatt",
+      "titel": "Werkstatt: Modelle mit allen Karten",
+      "beschreibung": "Eine Werkbank mit Holzkisten und Farnen (Poly Haven, CC0) – jedes Modell bringt Grundfarb-, Normal- und Rauheit/Metall-Bild mit, der Farn dazu einen Ausschnitt (schwelle) und beidseitige Blätter. Eine Platte zeigt dieselben Karten von Hand gesetzt, ein Schild eine Leucht-Karte. N schaltet die Normalen, F die Rückseiten der Farnblätter, L öffnet eine Kiste; Maus ziehen dreht die Ansicht.",
+      "ordner": "herd/werkstatt",
+      "dateien": ["pizza.json", "hauptgang.pizza", "modelle/farn/fern_02.bin", "modelle/farn/fern_02_1k.gltf", "modelle/farn/textures/fern_02_arm_1k.jpg", "modelle/farn/textures/fern_02_diff_1k.jpg", "modelle/farn/textures/fern_02_nor_gl_1k.jpg", "modelle/kiste/textures/wooden_crate_01_arm_1k.jpg", "modelle/kiste/textures/wooden_crate_01_diff_1k.jpg", "modelle/kiste/textures/wooden_crate_01_nor_gl_1k.jpg", "modelle/kiste/wooden_crate_01.bin", "modelle/kiste/wooden_crate_01_1k.gltf", "quellen.md"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Modell", "glTF", "Belag", "Karten", "Projekt"],
+      "herd": true
     }
   ]
 }

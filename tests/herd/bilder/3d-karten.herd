@@ -1,0 +1,158 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Belag-Karten“ (H-K26: normalKarte, normalStaerke, stoffKarte, leuchtKarte, leuchtFarbe, schwelle, beidseitig;
+# Abschnitt KARTEN3D, Zug-Merkmale EINSEITIG/GEDREHT): ein metallischer Fliesenboden (Muster 7 als Farbe, 8 als Normal-Karte mit
+# Fasen, 9 als Stoff-Karte: Verdeckung in den Fugen, Rauheit je Fliese, Metall jede zweite) in Weltmaß gekachelt; dahinter eine
+# dunkle Wand mit Leucht-Karte (Muster 10, leuchtFarbe warm); links eine Kugel mit Relief und normalStaerke 2, daneben ein an x
+# gespiegelter Würfel mit Karten (einseitig, Umlaufsinn gedreht – muss geschlossen aussehen); in der Mitte zwei einseitige
+# Laub-Blätter (das hintere zeigt die Rückseite → weggelassen); rechts ein Busch aus beidseitigen Laub-Blättern (Muster 11,
+# schwelle 0.5) – Ausschnitt auch im Schatten. Ohne Stimmung (LDR-Pfad). KARTEN=0 (Messung B18): dieselbe Szene ohne Karten.
+vorgabe KARTEN 1
+welt_neu 1280 720 "Karten"
+welt_himmel "#2a3450" "#c8b8a0"
+welt_umgebung "#c0c8e0" 0.2
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Licht" -> T_L
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_B "leuchten" -> B_LE
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_B "relief" -> B_RELIEF
+feld_nummer T_B "kachel" -> B_KACHEL
+feld_nummer T_B "abbildung" -> B_ABB
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "metall" -> B_METALL
+feld_nummer T_B "normalKarte" -> B_NK
+feld_nummer T_B "normalStaerke" -> B_NS
+feld_nummer T_B "stoffKarte" -> B_SK
+feld_nummer T_B "leuchtKarte" -> B_LK
+feld_nummer T_B "leuchtFarbe" -> B_LF
+feld_nummer T_B "schwelle" -> B_SW
+feld_nummer T_B "beidseitig" -> B_BS
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "farbe" -> L_F
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 32 0 -> KUGEL
+form_grund 5 0 0 -> EBENE
+teigling_muster 7 256 256 -> PLATTEN
+teigling_muster 6 256 256 -> NOPPEN
+teigling_muster 8 256 256 -> FASEN
+teigling_muster 9 256 256 -> STOFF
+teigling_muster 10 256 256 -> LEUCHT
+teigling_muster 11 128 128 -> LAUB
+
+teil_lage 1 0 2.2 6.5
+teil_schaue 1 0 0.7 0
+komp_von 2 T_L -> SONNE
+teil_lage 2 -0.9 0.7 0.9
+setze_zahl SONNE L_ST 1.3
+setze_text SONNE L_F "#fff0dc"
+
+# Beläge
+teil_neu 3 -> b_boden
+komp_neu T_B -> b
+setze_zahl b B_BILD PLATTEN
+setze_zahl b B_NK (FASEN * KARTEN)
+setze_zahl b B_SK (STOFF * KARTEN)
+setze_zahl b B_KACHEL 2
+setze_text b B_ABB "welt"
+setze_text b B_MODELL "pbr"
+setze_zahl b B_GLANZ 0.85
+setze_zahl b B_METALL 0.6
+komp_haenge b b_boden
+teil_neu 3 -> b_wand
+komp_neu T_B -> b
+setze_text b B_F "#34343c"
+setze_zahl b B_LK (LEUCHT * KARTEN)
+setze_text b B_LF "#ffd0a0"
+setze_zahl b B_LE 1
+setze_zahl b B_KACHEL 2
+setze_text b B_MODELL "pbr"
+setze_zahl b B_GLANZ 0.4
+komp_haenge b b_wand
+teil_neu 3 -> b_kugel
+komp_neu T_B -> b
+setze_text b B_F "#ffd0a0"
+setze_zahl b B_RELIEF NOPPEN
+setze_zahl b B_NS (1 + KARTEN)
+setze_text b B_MODELL "pbr"
+setze_zahl b B_GLANZ 0.7
+komp_haenge b b_kugel
+teil_neu 3 -> b_gespiegelt
+komp_neu T_B -> b
+setze_text b B_F "#a0c0ff"
+setze_zahl b B_NK (FASEN * KARTEN)
+setze_zahl b B_SK (STOFF * KARTEN)
+setze_text b B_MODELL "pbr"
+setze_zahl b B_GLANZ 0.6
+komp_haenge b b_gespiegelt
+teil_neu 3 -> b_einseitig
+komp_neu T_B -> b
+setze_zahl b B_BILD LAUB
+setze_zahl b B_SW (0.5 * KARTEN)
+setze_zahl b B_GLANZ 0.2
+komp_haenge b b_einseitig
+teil_neu 3 -> b_laub
+komp_neu T_B -> b
+setze_zahl b B_BILD LAUB
+setze_zahl b B_SW (0.5 * KARTEN)
+setze_zahl b B_BS 1
+setze_zahl b B_GLANZ 0.2
+komp_haenge b b_laub
+
+# Boden und Wand
+teil_neu 3 -> boden
+teil_groesse boden 16 1 16
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BELAG b_boden
+komp_haenge k boden
+teil_neu 3 -> wand
+teil_lage wand 0 1.5 -3
+teil_groesse wand 10 3 0.3
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG b_wand
+komp_haenge k wand
+# Kugel mit Relief, gespiegelter Würfel
+teil_neu 3 -> kugel
+teil_lage kugel -3.2 0.7 0
+teil_groesse kugel 1.4 1.4 1.4
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_zahl k K_BELAG b_kugel
+komp_haenge k kugel
+teil_neu 3 -> wg
+teil_lage wg -1.3 0.5 0.4
+teil_groesse wg -1 1 1
+teil_setze wg 4 30
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG b_gespiegelt
+komp_haenge k wg
+# einseitige Blätter: eines zur Kamera, eines abgewandt
+wiederhole 2 i
+  teil_neu 3 -> bl
+  teil_lage bl (0.3 + i * 1.1) 0.8 0.6
+  teil_groesse bl 1 1 1
+  teil_setze bl 5 (90 - 180 * i)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM EBENE
+  setze_zahl k K_BELAG b_einseitig
+  komp_haenge k bl
+ende
+# Busch aus beidseitigen Blättern
+wiederhole 9 i
+  teil_neu 3 -> bl
+  teil_lage bl (3.1 + (i % 3) * 0.35 - 0.35) (0.5 + boden(i / 3) * 0.45) (0.2 + (i % 2) * 0.3)
+  teil_groesse bl 0.9 0.9 0.9
+  teil_setze bl 4 (i * 47)
+  teil_setze bl 5 (60 + (i % 4) * 25)
+  komp_neu T_K -> k
+  setze_zahl k K_FORM EBENE
+  setze_zahl k K_BELAG b_laub
+  komp_haenge k bl
+ende
+takte 2
