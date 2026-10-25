@@ -344,6 +344,16 @@
       "herd": true
     },
     {
+      "id": "hafen",
+      "titel": "Hafen: Wasser und Auftrieb",
+      "beschreibung": "Ein Hafenbecken am Abend unter einem Himmelszelt: Wasser mit Gerstner-Wellen im Wind, Brechung, Tiefenfarbe, Schaum an Kai und Strand und planarer Spiegelung – Laternen, Kai und Himmel spiegeln sich. Boote, Boje und Kisten schwimmen mit Schwung.auftrieb und schaukeln mit den Wellen (Modelle: Kenney Watercraft Kit, CC0). Leertaste wirft eine Kiste vom Kai, W macht die Wellen höher, Pfeile links/rechts schwenken den Blick.",
+      "ordner": "herd/hafen",
+      "dateien": ["pizza.json", "hauptgang.pizza", "modelle/boat-fishing-small.glb", "modelle/boat-row-small.glb", "modelle/boat-sail-a.glb", "modelle/buoy-flag.glb", "modelle/cargo-pile-a.glb", "modelle/textures/colormap.png", "quellen.md"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Wasser", "Physik", "Modell", "glTF", "Projekt"],
+      "herd": true
+    },
+    {
       "id": "tanzfiguren",
       "titel": "Tanzfiguren: gehäutete Modelle",
       "beschreibung": "Drei Figuren aus glTF-Modellen mit Skelett und Haut (Kenney Mini Characters, CC0): eine Puppe spielt ihre Folgen ab, der Herd verformt die Haut nach den Gelenken – auch im Schatten. Ein Wechsel blendet über, die Gelenke sind Teile: eine Tomate liegt in einer Hand. Taster oder Leertaste: nächste Folge; 1 … 7 wählen, 0 Ruhelage, L langsam.",

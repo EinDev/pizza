@@ -1,0 +1,85 @@
+// Hafen – ein Hafenbecken am Abend: Wasser mit Gerstner-Wellen, Brechung, Tiefenfarbe, Schaum und Spiegelung, Boote und Kisten
+// schwimmen mit Schwung.auftrieb und schaukeln mit den Wellen (Boote, Boje und Ladung: Kenney „Watercraft Kit“, CC0; quellen.md).
+//
+// Die Wellen laufen in Windrichtung; jedes Boot sitzt auf einem unsichtbaren Rumpf (Fühler-Kasten + Schwung mit Auftrieb), das
+// Modell hängt daran. Die Stimmung spiegelt die Szene auf Höhe des Wassers – Laternen, Kai und Himmel spiegeln sich in den Wellen.
+//
+// Leertaste: eine Kiste vom Kai ins Wasser werfen · W: Wellen höher/ruhiger · Pfeile links/rechts: Blick schwenken
+
+Herd herd = neu Herd("Hafen", breite: 960, hoehe: 540);
+herd.umgebung("#9fb0d0", staerke: 0.3);
+herd.sonne(farbe: "#ffb070", staerke: 1.1).setzeLage(-0.7, 0.16, -1);
+herd.raum(0, 0, 0).mit(neu Himmelszelt(oben: "#232c58", horizont: "#f0965e", boden: "#2a2228", sonnenscheibe: 3));
+herd.raum(0, 0, 0).mit(neu Stimmung(belichtung: 1.15, bloom: 0.6, bloomSchwelle: 0.9, spiegelung: 1, spiegelHoehe: 0, nebelDichte: 0.012, nebelFarbe: "#c98a6a"));
+Wind wind = herd.raum(0, 0, 0).mit(neu Wind(richtungX: 0.5, richtungZ: 1));
+
+// Becken: Wasser über einem dunklen Grund, rechts ein Strand, der flach ins Wasser läuft
+Teil becken = herd.raum(0, 0, 0);
+Wasser wasser = becken.mit(neu Wasser(breite: 90, tiefe: 90, wellen: 0.14, wellenLaenge: 5, schaum: 0.45, klarheit: 2.5));
+herd.koerper(Form.wuerfel(), 0, -4.5, 0, farbe: "#2f3b34").setzeGroesse(120, 1, 120);
+herd.koerper(Form.wuerfel(), 15, -1.2, -6, farbe: "#d8c08a").setzeGroesse(14, 0.8, 50).setzeRollen(12);
+
+// Kai: Mauer links und hinten, Poller und Laternen
+Teil kai = herd.koerper(Form.wuerfel(), -10, -1, -4, farbe: "#7a746c").setzeGroesse(8, 3.2, 40);
+kai.mit(neu Fuehler(ausloeser: nein));
+herd.koerper(Form.wuerfel(), -1, -1, -26, farbe: "#6e6862").setzeGroesse(26, 3.2, 6).mit(neu Fuehler(ausloeser: nein));
+für (salami i : [0 .. 4]) {
+    herd.koerper(Form.zylinder(), -6.4, 0.85, 10 - i * 6, farbe: "#24221f").setzeGroesse(0.35, 0.5, 0.35);
+}
+für (salami i : [0 .. 3]) {
+    salami z = 8 - i * 9;
+    herd.koerper(Form.zylinder(), -6.7, 2.2, z, farbe: "#1b1b1f").setzeGroesse(0.12, 3.6, 0.12);
+    Teil lampe = herd.koerper(Form.kugel(), -6.7, 4.1, z, farbe: "#ffd28a").setzeGroesse(0.42);
+    lampe.koerper().setzeLeuchten(1).setzeStrahlen(3);
+    lampe.mit(neu Licht(art: "punkt", farbe: "#ffc070", staerke: 2.2, reichweite: 9));
+}
+
+// Schwimmendes: Rumpf = unsichtbarer Fühler-Kasten mit Schwung und Auftrieb, das Modell hängt daran
+leer schwimmer(Modell m, funghi x, funghi z, funghi drehung, funghi b, funghi h, funghi t, funghi auftrieb, funghi masse) {
+    Teil rumpf = herd.raum(x, 0.6, z);
+    rumpf.setzeDrehung(drehung);
+    rumpf.mit(neu Fuehler(form: "kasten", breite: b, hoehe: h, tiefe: t, ausloeser: nein));
+    rumpf.mit(neu Schwung(schwerkraft: 9.81, masse: masse, auftrieb: auftrieb, drehdaempfung: 0.2));
+    Teil modell = herd.modell(m, 0, 0, 0);
+    modell.haenge(rumpf);
+    modell.setzeLage(0, -h * 0.5, 0);
+}
+
+herd.modell(Modell.laden("modelle/cargo-pile-a.glb"), -9.5, 0.6, -12).setzeDrehung(90);
+
+Modell ruderboot = Modell.laden("modelle/boat-row-small.glb");
+Modell fischer = Modell.laden("modelle/boat-fishing-small.glb");
+Modell segler = Modell.laden("modelle/boat-sail-a.glb");
+Modell boje = Modell.laden("modelle/buoy-flag.glb");
+
+schwimmer(ruderboot, -2.5, 4, 25, 1.4, 0.6, 2.3, 1.8, 1);
+schwimmer(fischer, 3.5, -3, -35, 1.6, 1, 3.6, 1.7, 3);
+schwimmer(segler, -1, -12, 70, 1.6, 1, 3.6, 1.7, 3);
+schwimmer(boje, 6.5, 3, 0, 0.8, 1, 0.8, 1.6, 1);
+
+// Kisten treiben im Becken
+leer kiste(funghi x, funghi y, funghi z, funghi drehung, funghi tempoX, funghi tempoY) {
+    Teil k = herd.koerper(Form.wuerfel(), x, y, z, farbe: "#a8763e").setzeGroesse(0.8).setzeDrehung(drehung);
+    k.mit(neu Fuehler(ausloeser: nein));
+    k.mit(neu Schwung(schwerkraft: 9.81, auftrieb: 1.7, drehdaempfung: 0.2, tempoX: tempoX, tempoY: tempoY));
+}
+kiste(0.5, 0.5, 2, 20, 0, 0);
+kiste(1.6, 0.5, 6, 55, 0, 0);
+kiste(-3.5, 0.5, -5, 10, 0, 0);
+
+herd.kamera().setzeLage(4, 3.4, 15).schaueAuf(-1, 0.3, -4);
+funghi blick = 0;
+salami wurf = 0;
+herd.backe(() -> {
+    falls (herd.gedrueckt("Leertaste")) {
+        wurf++;
+        kiste(-5.6, 1.4, 6 - (wurf % 5) * 3, wurf * 37, 3, 2);
+    }
+    falls (herd.gedrueckt("w")) {
+        wasser.setzeWellen(wasser.wellen() < 0.3 ? 0.45 : 0.14);
+    }
+    falls (herd.taste("Links")) { blick = blick - 0.6; }
+    falls (herd.taste("Rechts")) { blick = blick + 0.6; }
+    funghi w = Mathe.bogen(blick);
+    herd.kamera().setzeLage(4 * Mathe.cos(w) + 15 * Mathe.sin(w), 3.4, 15 * Mathe.cos(w) - 4 * Mathe.sin(w)).schaueAuf(-1, 0.3, -4);
+});
