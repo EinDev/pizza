@@ -78,6 +78,7 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B15 (H-K25, 2026-10-25): `aufprall.herd` N = 40 000 → 2 × 10 000 Regentropfen (Grenze je Sprüher) über 16 Häusern auf gewelltem Gelände (+ Kugel, Kapsel, Netz-Rampe, Auslöser, abprallende Funken, liegende Glut), `KOLL` = 0: **ohne Kollision**, 180 Takte | 0,104 ms | 0,443 ms | 0,55 (0,55) ms | 0,177 ms | 0,939 ms | 1,09 (1,11) ms | – (Vergleich) |
 | B15 mit `KOLL` = 1: `kollision: "boden"` (Ebene), Spritzer | 0,139 ms | 0,474 ms | 0,61 (0,58) ms | 0,215 ms | 0,969 ms | 1,18 (1,17) ms | 20 000 gegen Ebene ≤ 0,5 ms je Takt (nativ) – erreicht |
 | B15 mit `KOLL` = 2: `kollision: "welt"` (Häuser, Gelände, Kugel, Kapsel, Netz), Spritzer | 1,108 ms | 0,493 ms | 1,61 (1,45) ms | 1,467 ms | 0,949 ms | 2,42 (2,19) ms | 10 000 gegen Gelände ≤ 2 ms je Takt (nativ) – erreicht (20 000 gegen Stadt + Gelände 1,1 ms) |
+| H-K24 (Bildschirmraum, 2026-10-25): Neon-Napoli, aufgezeichnetes Skript (664 Takte, 166 Bilder) ohne / mit `verdeckung` 1.8 + `bildspiegel` 1 (Abschnitt BILDRAUM, 40 B je Paket) | 0,418 / 0,412 ms | 0,548 / 0,531 ms | 2,23 / 2,19 (2,15 / 2,15) ms | – | – | – | – (nur gemessen; im Rauschen – der Kern schreibt nur 32 B; Stand nach H-K20/H-K16/H-K25: Figur, Modelle, Regen-Kollision) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -146,6 +147,7 @@ Aussagekraft für echte GPUs hat der Abschnitt „vom Nutzer auszuführen“.
 | `3d-spiegel-voll` mit `VOLL=0` (einfach) / voll | 242 / 400 3D | – | 31 / 34 (je 6 Schatten) | – |
 | B16 (H-K24, 2026-10-25): `3d-verdeckung` 1280 × 720, `VERDECKUNG=0` / 1.4 (Vorlauf 1 280 × 720 ohne MSAA, Verdeckung 640 × 360 + 2 × Weichzeichnen) | 60 3D | – | 6 / **13** (+ 4 Vorlauf, + 3 Verdeckung) | – / 139,5 / 208,1 ms (WARP, Profil `messung`, nur indikativ: +68,6 ms auf der CPU-Rasterung) |
 | B16: `3d-bildspiegel` 1280 × 720, `BILDSPIEGEL=0` / 1 (Vorlauf, Farbstufen 1 280 × 720 … 80 × 45, SSR 1 280 × 720 in das MSAA-Ziel) | 17 3D | – | 17 / **26** (+ 4 Vorlauf, + 4 Farbstufen, + 1 SSR; der HDR-Durchgang ist zweigeteilt) | – / 98,5 / 199,6 ms (WARP, indikativ: +101 ms) |
+| H-K24 (2026-10-25): Neon-Napoli (Skript wie oben, 1280 × 720, 166 Bilder) ohne / mit Bildraum (`verdeckung` 1.8, `bildspiegel` 1; Vorlauf 1 280 × 720, Verdeckung 640 × 360, Farbstufen 1 280 × 720 … 80 × 45) | 6 223 3D | – | 69 / **87** (je 30 Schatten; + Vorlauf, 3 Verdeckung, 4 Farbstufen, 1 SSR) | – / 1 125 / 1 641 ms (Median; WARP, Debug-Werkzeug, indikativ: +46 % auf der CPU-Rasterung) |
 
 Ziele erfüllt, soweit auf WARP messbar: B1 ≤ 4 Draw-Calls (1), B3 ≤ 30 Draw-Calls inkl. Schatten (15). Die Draw-Calls wachsen mit
 der Zahl der **Arten** (Netze), nicht der Objekte. Erstes Bild (Pipelines anlegen, Ressourcen, Shadow-Map) ≈ 100–230 ms auf WARP.

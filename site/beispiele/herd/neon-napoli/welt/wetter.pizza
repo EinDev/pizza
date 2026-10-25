@@ -1,5 +1,7 @@
 // Nacht, Regen, Dunst: Himmelszelt mit Smog über der Stadt, Stimmung (Belichtung, Bloom, Höhennebel, Vignette, Korn) und
-// Regen; das Spiegelbild ist voll (alle Lichter, Schatten, Dampf und Regen in den Pfützen). REGENSTAERKE ist der eine Regler:
+// Regen; das Spiegelbild ist voll (alle Lichter, Schatten, Dampf und Regen in den Pfützen). Dazu der Bildschirmraum: Verdeckung
+// dunkelt Ecken, Fugen und die Kanten unter Vordächern ab, die Bildraum-Spiegelung lässt nasse Fliesen, Wellblech, Rolltore und
+// Stahl spiegeln, was im Bild zu sehen ist (auf der Straße bleibt das planare Spiegelbild). REGENSTAERKE ist der eine Regler:
 // Stimmung.regen lässt Ringe in den Pfützen und Rinnsale an den nassen Wänden laufen,
 // und die Funken mit `regen: ja` stoßen rate × regen Tropfen aus. Die Tropfen sind Striche (`streckung` = Belichtungszeit),
 // leuchten im Licht der Neonschilder und Laternen (`licht`), fallen in einem Volumen um den Spieler (`volumen`: wer es verlässt,
@@ -8,6 +10,8 @@
 bestellt "zustand.pizza";
 
 funghi REGENSTAERKE = 0.85;
+funghi VERDECKUNG = 1.8;
+funghi BILDSPIEGEL = 1;
 Teil REGEN = baueWetter();
 
 Teil baueWetter() {
@@ -16,7 +20,8 @@ Teil baueWetter() {
     herd.raum(0, 0, 0).mit(neu Himmelszelt(oben: "#05050c", horizont: "#3a2350", boden: "#0b0910", sterne: 0));
     herd.raum(0, 0, 0).mit(neu Stimmung(belichtung: 1.9, bloom: 0.9, bloomSchwelle: 1.1, bloomWeite: 0.75, nebelDichte: 0.035,
                                         nebelHoehe: 0, nebelAbfall: 0.08, nebelFarbe: "#2b2142", saettigung: 1.08,
-                                        vignette: 0.32, koernung: 0.12, spiegelung: 1, spiegelHoehe: 0, spiegelGuete: "voll", regen: REGENSTAERKE));
+                                        vignette: 0.32, koernung: 0.12, spiegelung: 1, spiegelHoehe: 0, spiegelGuete: "voll", regen: REGENSTAERKE,
+                                        verdeckung: VERDECKUNG, verdeckungWeite: 0.6, bildspiegel: BILDSPIEGEL));
     herd.kamera().kamera().setzeSicht(72).setzeFern(400);
     // Regen: zwei Sprüher 11 m über dem Spieler, je ein Quadrat von 2 × 9 m um ihn
     Teil r = herd.raum(0, 11, 0);
