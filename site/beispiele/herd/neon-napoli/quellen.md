@@ -1,4 +1,4 @@
-# Bild- und Klangquellen – Neon-Napoli
+# Bild-, Modell- und Klangquellen – Neon-Napoli
 
 **Klänge:** keine Dateien – Regen, Stadt, Neonsummen, Drohnen, Schritte, Tropfen, Ping, Tür und Fanfare erzeugt das Programm selbst mit
 `Klang` (Rauschen, Töne, Noten, Filter, Hüllkurven; `welt/klangkulisse.pizza`).
@@ -25,3 +25,14 @@ Direkte Download-Adressen: `https://dl.polyhaven.org/file/ph-assets/Textures/jpg
 
 **Selbst erzeugt** (prozedural, `scripts/texturen-neon.js`, ohne Fotos): `neon-*.png` (Neonröhren aus einer eigenen Strichschrift),
 `holo-pizza.png` (Hologramm), `ziel.png` (Lieferziel), `fenster.png` (erleuchtete Fenster der Hochhäuser).
+
+**3D-Modelle** (`modelle/`, `welt/kram.pizza`): aus dem **Furniture Kit 2.0** (2018) von **Kenney** (www.kenney.nl),
+https://kenney.nl/assets/furniture-kit, Lizenz **CC0 1.0** (http://creativecommons.org/publicdomain/zero/1.0/, laut `License.txt`
+im Paket; Nennung nicht nötig, wir nennen ihn trotzdem). Aus dem Paketordner `Models/GLTF format/`; Bearbeitung: nur umbenannt
+(Kleinbuchstaben, PROJEKTE.md §1.3), Inhalt byte-gleich. Größe und Nässe stellt das Programm ein (`setzeGroesse`, `setzeNass`).
+
+| Datei | Original im Paket | Quelle | Lizenz | Bearbeitung |
+|---|---|---|---|---|
+| `modelle/muelltonne.glb` | `trashcan.glb` | https://kenney.nl/assets/furniture-kit | CC0 | umbenannt |
+| `modelle/schachtel-zu.glb` | `cardboardBoxClosed.glb` | https://kenney.nl/assets/furniture-kit | CC0 | umbenannt |
+| `modelle/schachtel-auf.glb` | `cardboardBoxOpen.glb` | https://kenney.nl/assets/furniture-kit | CC0 | umbenannt |

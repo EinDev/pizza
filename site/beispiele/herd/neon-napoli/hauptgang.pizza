@@ -20,10 +20,12 @@ bestellt "spieler.pizza";
 bestellt "auftraege.pizza";
 bestellt "hud.pizza";
 bestellt "welt/klangkulisse.pizza";
+bestellt "welt/kram.pizza";
 
 baueStrasse();
 baueHaeuser();
 baueStrassenmoebel();
+baueKram();
 baueNeon();
 baueDrohnen();
 baueKlangkulisse();

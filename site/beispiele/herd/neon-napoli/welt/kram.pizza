@@ -1,0 +1,53 @@
+// Kram am Straßenrand: Mülltonnen und Kartons als fertige 3D-Modelle (glTF aus dem Kenney Furniture Kit, CC0; quellen.md).
+// Modell.laden lädt ein Modell einmal, herd.modell stellt beliebig viele Kopien auf – alle teilen sich die Beläge, ein `nass`
+// am Belag macht so jede Tonne zugleich regennass. Gegen den Boten stellt sich je Stück ein fester Fühler (Kasten).
+bestellt "zustand.pizza";
+bestellt "welt/strasse.pizza";
+
+Modell TONNE = Modell.laden("modelle/muelltonne.glb");
+Modell SCHACHTEL = Modell.laden("modelle/schachtel-zu.glb");
+Modell SCHACHTEL_AUF = Modell.laden("modelle/schachtel-auf.glb");
+
+// Die Möbel des Kits sind etwa halb so groß wie echte – hier auf Straßenmaß gebracht (Tonne ≈ 0,95 m, Karton ≈ 0,55 m)
+funghi TONNE_MASS = 2.2;
+funghi SCHACHTEL_MASS = 2;
+
+// fester Kasten für den Boten um die Mitte (x, z) des Stücks, ohne sichtbaren Körper
+leer hindernis(funghi x, funghi y, funghi z, funghi b, funghi h, funghi t) {
+    mauer(x - b / 2, z - t / 2, x + b / 2, z + t / 2);
+    herd.raum(x, y + h / 2, z).mit(neu Fuehler(form: "kasten", breite: b, hoehe: h, tiefe: t, ausloeser: nein));
+}
+
+leer stelleTonne(funghi x, funghi y, funghi z, funghi drehung) {
+    herd.modell(TONNE, x, y, z).setzeGroesse(TONNE_MASS).setzeDrehung(drehung);
+    hindernis(x, y, z, 0.55, 0.95, 0.55);
+}
+
+// Kartonstapel: die Kartons haben ihren Ursprung an der vorderen linken Ecke – zur Mitte um eine halbe Kante versetzt
+leer stapel(funghi x, funghi y, funghi z, salami hoch, diavolo offen) {
+    funghi k = 0.212 * SCHACHTEL_MASS;
+    für (salami i = 0; i < hoch; i++) {
+        herd.modell(SCHACHTEL, x - k / 2, y + i * 0.281 * SCHACHTEL_MASS, z + k / 2).setzeGroesse(SCHACHTEL_MASS).setzeDrehung(i * 9);
+    }
+    falls (offen) { herd.modell(SCHACHTEL_AUF, x - k / 2 + 0.5, y, z + k / 2 + 0.1).setzeGroesse(SCHACHTEL_MASS).setzeDrehung(-12); }
+    hindernis(x + (offen ? 0.25 : 0), y, z, offen ? 1.0 : 0.5, hoch * 0.281 * SCHACHTEL_MASS, 0.55);
+}
+
+leer baueKram() {
+    // Mülltonnen und Kartons stehen meist im Lichtkegel einer Laterne (sonst verschluckt sie die Nacht), neben der
+    // Pizzeria die Kartons der Lieferungen, dazu Tonnen und Kartons in der Gasse und an ihrem Ende – nie vor einer Tür oder der Theke
+    stapel(5.9, 0.15, 4.2, 3, ja);
+    stelleTonne(-5.5, 0.15, -10.2, 95);
+    stelleTonne(-5.55, 0.15, -11.35, 82);
+    stapel(-5.6, 0.15, -12.7, 2, nein);
+    stelleTonne(5.75, 0.15, -18.3, -90);
+    stelleTonne(5.8, 0.15, -20.7, -84);
+    stapel(-6.0, 0.15, -36.5, 2, ja);
+    für (salami i = 0; i < 3; i++) { stelleTonne(-9.6 - i * 1.15, 0, GASSE_Z - 2.3, 180 + i * 7); }
+    stapel(-16.5, 0, GASSE_Z + 2.4, 3, nein);
+    stapel(-18.2, 0, GASSE_Z + 2.3, 1, ja);
+    // nass vom Regen: dunkler und glänzend – jedes Stück zugleich, weil alle Kopien die Beläge teilen
+    für (Modell m : [TONNE, SCHACHTEL, SCHACHTEL_AUF]) {
+        für (Teil b : m.belaege()) { b.belag().setzeNass(0.4); }
+    }
+}

@@ -364,7 +364,7 @@
 {"art":"setze","spur":19,"lautstaerke":0.9,"tonhoehe":0.97,"panorama":0,"lage":[1.3983121110564392,13,-17.35578324560349],"reichweite":45}
 {"art":"setze","spur":20,"lautstaerke":0.9,"tonhoehe":1.04,"panorama":0,"lage":[-1.0257503232364193,17,-75.77250969709257],"reichweite":45}
 {"art":"setze","spur":21,"lautstaerke":0.9,"tonhoehe":1.11,"panorama":0,"lage":[0.17357403220676876,22,-57.746207262424655],"reichweite":45}
-{"art":"spiele","spur":97,"klang":"58859d129f69f6f7","lautstaerke":0.4507937070820601,"tonhoehe":0.920380979399389,"panorama":0.15,"schleife":false}
+{"art":"spiele","spur":97,"klang":"58859d129f69f6f7","lautstaerke":0.4506984622322129,"tonhoehe":0.9203352618714623,"panorama":0.15,"schleife":false}
 {"art":"spiele","spur":98,"klang":"f41b544e216ae245","lautstaerke":1,"tonhoehe":1,"panorama":0,"schleife":false}
 {"art":"setze","spur":98,"lautstaerke":1,"tonhoehe":1,"panorama":0,"lage":[-5.6,1.2,-38],"reichweite":30}
 {"art":"setze","spur":98,"lautstaerke":1,"tonhoehe":1,"panorama":0,"lage":[-5.6,1.2,-38],"reichweite":25}
@@ -372,13 +372,13 @@
 {"art":"setze","spur":19,"lautstaerke":0.9,"tonhoehe":0.97,"panorama":0,"lage":[1.3670891203703512,13,-18.017710648148554],"reichweite":45}
 {"art":"setze","spur":20,"lautstaerke":0.9,"tonhoehe":1.04,"panorama":0,"lage":[-1.011898042283508,17,-75.35694126850524],"reichweite":45}
 {"art":"setze","spur":21,"lautstaerke":0.9,"tonhoehe":1.11,"panorama":0,"lage":[0.16480312913380252,22,-58.49173402362679],"reichweite":45}
-{"art":"spiele","spur":100,"klang":"3c7452f69b8df366","lautstaerke":0.44999999999999996,"tonhoehe":1,"panorama":-0.15,"schleife":false}
 {"art":"setze","spur":19,"lautstaerke":0.9,"tonhoehe":0.97,"panorama":0,"lage":[1.3355897936596577,13,-18.68549637441526],"reichweite":45}
 {"art":"setze","spur":20,"lautstaerke":0.9,"tonhoehe":1.04,"panorama":0,"lage":[-0.9979004258498769,17,-74.9370127754963],"reichweite":45}
 {"art":"setze","spur":21,"lautstaerke":0.9,"tonhoehe":1.11,"panorama":0,"lage":[0.15598113854594758,22,-59.24160322359445],"reichweite":45}
+{"art":"spiele","spur":100,"klang":"3c7452f69b8df366","lautstaerke":0.4323529411764706,"tonhoehe":1,"panorama":-0.15,"schleife":false}
 {"art":"spiele","spur":101,"klang":"9fdd64dcc647e98f","lautstaerke":0.34,"tonhoehe":1.0899999999999999,"panorama":0,"schleife":false}
-{"art":"setze","spur":101,"lautstaerke":0.34,"tonhoehe":1.0899999999999999,"panorama":0,"lage":[-4.950457740106459,2.2,-39.93090118689652],"reichweite":30}
-{"art":"setze","spur":101,"lautstaerke":0.34,"tonhoehe":1.0899999999999999,"panorama":0,"lage":[-4.950457740106459,2.2,-39.93090118689652],"reichweite":14}
+{"art":"setze","spur":101,"lautstaerke":0.34,"tonhoehe":1.0899999999999999,"panorama":0,"lage":[-4.633168378713196,2.2,-39.93265058544881],"reichweite":30}
+{"art":"setze","spur":101,"lautstaerke":0.34,"tonhoehe":1.0899999999999999,"panorama":0,"lage":[-4.633168378713196,2.2,-39.93265058544881],"reichweite":14}
 {"art":"setze","spur":19,"lautstaerke":0.9,"tonhoehe":0.97,"panorama":0,"lage":[1.3038211983418673,13,-19.358990595152413],"reichweite":45}
 {"art":"setze","spur":20,"lautstaerke":0.9,"tonhoehe":1.04,"panorama":0,"lage":[-0.9837598921631591,17,-74.51279676489477],"reichweite":45}
 {"art":"setze","spur":21,"lautstaerke":0.9,"tonhoehe":1.11,"panorama":0,"lage":[0.14711088295783853,22,-59.99557494858372],"reichweite":45}
