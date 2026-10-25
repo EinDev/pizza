@@ -2,116 +2,22 @@
 // Steuerung: Pfeiltasten (oder A/D) schieben die Pizza, Leertaste startet nach „Ofen aus“ eine neue Runde.
 // Zwölf Beläge machen eine Pizza voll – dann wandert sie in den Ofen und gibt Extrapunkte.
 //
-// So arbeitet die Engine für dich: Fallende Beläge haben eine Bewegung mit Schwerkraft und Drehung, ihre Bildchen
+// So arbeitet die Engine für dich: Fallende Beläge haben eine Bewegung mit Schwerkraft und Drehung, ihre Bilder
 // wackeln per Animation, Funken und Spritzer sind Partikel – das Programm prüft je Takt nur, wer gefangen wurde.
 // Gefangene Beläge hängen als Kinder an der Pizza und fahren von selbst mit (Hierarchie).
+//
+// Das Projekt hat mehrere Dateien: herd.pizza (Herd und Bilder laden), kulisse.pizza (Wand, Ofen, Theke),
+// figuren.pizza (Beläge, Pizza, Partikel) und hud.pizza (Anzeige) – hier stehen Spielzustand und Spielregeln.
+// Alle Sprites sind PNG-Dateien in bilder/ (Bildchen.laden), gemalt von scripts/texturen-herd.js.
+bestellt "herd.pizza";
+bestellt "kulisse.pizza";
+bestellt "figuren.pizza";
+bestellt "hud.pizza";
 
-Herd herd = neu Herd("Teigfänger", breite: 640, hoehe: 360);
-herd.hintergrund("#4a2419");                         // Mörtelfarbe zwischen den Ziegeln
-
-// ---------- Hintergrund: Ziegelwand und Steinofen (alles an einer Gruppe – so kann die Wand wackeln) ----------
-Teil wand = herd.gruppe(0, 0);
-für (salami reihe = 0; reihe < 14; reihe++) {
-    für (salami spalte = -1; spalte < 11; spalte++) {
-        funghi x = spalte * 64 + (reihe % 2) * 32 + 32;
-        margherita farbe = Zufall.wähle(["#9a4630", "#8c3e2a", "#a5503a", "#843a28"]);
-        herd.rechteck(x, reihe * 26 + 12, 60, 22, farbe: farbe, rundung: 3).setzeEbene(-20).haenge(wand);
-    }
-}
-herd.rechteck(320, 168, 300, 210, farbe: "#2a1712", rundung: 100).setzeEbene(-15).haenge(wand);
-herd.rechteck(320, 168, 324, 234, farbe: "#6e3524", rundung: 112, umriss: 14).setzeEbene(-14).haenge(wand);
-herd.rechteck(320, 262, 250, 22, farbe: "#3a2018", rundung: 8).setzeEbene(-14).haenge(wand);   // Ofenboden
-für (salami i = 0; i < 4; i++) {                      // warmer Schein: vier durchsichtige Kreise übereinander
-    herd.kreis(320, 215 + i * 10, 100 - i * 22, farbe: "#ff9a4a12").setzeEbene(-13).haenge(wand);
-}
-
-// Flammen im Ofen: Pixel-Flammen mit Animation (vier Bilder im Kreis), darüber Funken (Partikel)
-Bildchen flamme1 = neu Bildchen(["....t.....", "...tt.....", "...tyt..t.", "..tyyt..t.", "..tyayt.tt", ".tyaayttyt", ".tyawaytyt", "tyaawwayyt", "tyawwwwayt", ".tyawwayt."]);
-Bildchen flamme2 = neu Bildchen([".....t....", ".....tt...", "....tyt...", "...tyyt.t.", "..tyayt.t.", "..tyaaytyt", ".tyawayyt.", "tyaawwaayt", "tyawwwwayt", ".tyawwayt."]);
-Bildchen flamme3 = neu Bildchen(["...t......", "..tt...t..", "..tyt..t..", ".tyyt.tyt.", ".tyayttyt.", "tyaayyyt..", "tyawaayt..", "tyaawwaytt", "tyawwwwayt", ".tyawwayt."]);
-Blech<Bildchen> flammen = [flamme1, flamme2, flamme3, flamme2];
-für (salami i = 0; i < 4; i++) {
-    herd.rechteck(240 + i * 53, 262, 44, 9, farbe: "#5a3020", rundung: 4).setzeDrehung(i * 7 - 10).setzeEbene(-12).haenge(wand);  // Holzscheit
-    Teil f = herd.bild(flamme1, 240 + i * 53, 238, groesse: 4 + i % 2).setzeEbene(-11).haenge(wand);
-    f.mit(neu Animation(bilder: flammen, proSekunde: 6 + i, nummer: i + 1));
-}
-Teil glut = herd.gruppe(320, 250).haenge(wand);
-glut.mit(neu Partikel(rate: 45, lebensdauer: 1.6, tempo: 45, richtung: 270, streuung: 60, schwerkraft: -25,
-    groesse: 5, groesseEnde: 1, farbe: "ananas", farbeEnde: "#d9452b00", saat: 3));
-glut.setzeEbene(-10);
-
-// Theke (vorn) mit Holzkante
-herd.rechteck(320, 340, 640, 40, farbe: "kruste").setzeEbene(-5);
-herd.rechteck(320, 322, 640, 6, farbe: "#e2b27a").setzeEbene(-4);
-herd.rechteck(320, 356, 640, 8, farbe: "#a8743f").setzeEbene(-4);
-
-// ---------- Bildchen der Beläge (8 × 8, je zwei Bilder zum Wackeln) ----------
-Blech<Bildchen> tomate = [neu Bildchen(["..tttt..", ".tptttt.", "ttmttmtt", "tttmmttt", "tttmmttt", "ttmttmtt", ".tttttt.", "..tttt.."]),
-                          neu Bildchen(["..tttt..", ".tttttt.", "ttmttmtt", "tttmmttt", "tttmmttt", "ttmttmtt", ".ttttpt.", "..tttt.."])];
-Blech<Bildchen> salamiB = [neu Bildchen(["..rrrr..", ".rrprrr.", "rrrrrrpr", "rprrrrrr", "rrrrprrr", "rrprrrrr", ".rrrrpr.", "..rrrr.."]),
-                           neu Bildchen(["..rrrr..", ".rrrrpr.", "rprrrrrr", "rrrrprrr", "rrprrrrr", "rrrrrrpr", ".rprrrr.", "..rrrr.."])];
-Blech<Bildchen> pilz = [neu Bildchen(["..mmmm..", ".mmmmgm.", "mmgmmmmm", "mmmmmmmm", "..kkkk..", "...ee...", "...ee...", "..eeee.."]),
-                        neu Bildchen([".mmmm...", "mmmgmm..", "mmmmmmm.", "mgmmmmm.", "..kkkk..", "...ee...", "...ee...", "..eeee.."])];
-Blech<Bildchen> blattB = [neu Bildchen(["......bb", "....bbb.", "..bbbbb.", ".bbblbb.", "bbblbb..", "bblbb...", ".bb.....", "l......."]),
-                          neu Bildchen(["bb......", ".bbb....", ".bbbbb..", ".bblbbb.", "..bblbbb", "...bblbb", ".....bb.", ".......l"])];
-Blech<Bildchen> oliveB = [neu Bildchen(["..llll..", ".llllll.", "lll..lll", "ll....ll", "ll....ll", "lll..lll", ".llwlll.", "..llll.."]),
-                          neu Bildchen(["..llll..", ".lllwll.", "lll..lll", "ll....ll", "ll....ll", "lll..lll", ".llllll.", "..llll.."])];
-Blech<Bildchen> ananasB = [neu Bildchen(["..b..b..", "...bb...", "..bbbb..", ".aayaay.", ".asaasa.", ".aayaay.", ".ayssya.", "..aaaa.."]),
-                           neu Bildchen([".b....b.", "..b..b..", "..bbbb..", ".aayaay.", ".asaasa.", ".aayaay.", ".ayssya.", "..aaaa.."])];
-Blech<Blech<Bildchen>> arten = [tomate, salamiB, pilz, blattB, oliveB, ananasB];
-Blech<margherita> spritzFarbe = ["tomate", "salami", "mozzarella", "basilikum", "oliven", "ananas"];
-Bildchen herzB = neu Bildchen([".tt.tt.", "twttttt", "ttttttt", ".ttttt.", "..ttt..", "...t..."]);
-
-// ---------- Die Pizza (Spielfigur) ----------
-Bildchen pizzaB = neu Bildchen([
-    ".......kkkkkkkkkk.......",
-    "....kkkeeeeeeeeeekkk....",
-    "..kkeetttttttttttteekk..",
-    ".keettttmtttttmttttteek.",
-    "kettttmmmttttttttmttttek",
-    "kettttttttmmttttttttttek",
-    ".keettmttttttttttmtteek.",
-    "..kkeetttttttttttteekk..",
-    "....kkkeeeeeeeeeekkk....",
-    ".......kkkkkkkkkk......."]);
-Teil schieber = herd.rechteck(320, 318, 120, 8, farbe: "#b07a45", rundung: 4).setzeEbene(1);
-herd.rechteck(-80, 0, 70, 6, farbe: "#8a5a30", rundung: 3).haenge(schieber);         // Stiel
-Teil pizza = herd.bild(pizzaB, 0, -16, groesse: 3).haenge(schieber);
-Bewegung fahrt = schieber.mit(neu Bewegung());
+baueKulisse();
+baueFiguren();
+baueHud();
 Blech<Teil> drauf = [];                               // Beläge, die schon auf der Pizza liegen
-
-// ---------- Fallende Beläge: ein fester Vorrat von Teilen, die immer wieder benutzt werden ----------
-Blech<Teil> fallend = [];
-Blech<salami> art = [];                               // 0 = gerade nicht unterwegs
-für (salami i = 0; i < 8; i++) {
-    Teil t = herd.bild(tomate.stück(1), -100, -100, groesse: 3).sichtbar(nein);
-    t.mit(neu Animation(bilder: tomate, proSekunde: 4));
-    t.mit(neu Bewegung());
-    fallend.hinzu(t);
-    art.hinzu(0);
-}
-
-// Spritzer beim Fangen und Plumpser am Boden: je ein Emitter, der kurz an die Stelle springt
-Teil spritzer = herd.gruppe(0, 0).setzeEbene(5);
-Partikel spritz = spritzer.mit(neu Partikel(rate: 400, lebensdauer: 0.45, tempo: 140, richtung: 270, streuung: 160,
-    schwerkraft: 400, groesse: 5, groesseEnde: 1, aktiv: nein, saat: 11));
-Teil plumps = herd.gruppe(0, 0).setzeEbene(5);
-Partikel staub = plumps.mit(neu Partikel(rate: 300, lebensdauer: 0.5, tempo: 60, richtung: 270, streuung: 120,
-    schwerkraft: 120, groesse: 6, groesseEnde: 0, farbe: "#e8c48ac0", farbeEnde: "#c8955a00", aktiv: nein, saat: 5));
-Teil ofenGlut = herd.gruppe(320, 300).setzeEbene(6);  // Jubel, wenn eine Pizza voll ist
-Partikel jubel = ofenGlut.mit(neu Partikel(rate: 500, lebensdauer: 1.2, tempo: 220, richtung: 270, streuung: 120,
-    schwerkraft: 200, groesse: 8, groesseEnde: 2, farbe: "ananas", farbeEnde: "tomate", aktiv: nein, saat: 9));
-
-// ---------- HUD ----------
-herd.rechteck(92, 28, 160, 40, farbe: "#2f2a26c0", rundung: 12).setzeEbene(10);
-Teil punkteText = herd.text("0 Punkte", 22, 12, groesse: 22, farbe: "mozzarella").setzeEbene(11);
-Teil pizzenText = herd.text("0 Pizzen", 618, 46, groesse: 16, farbe: "mozzarella", ausrichtung: "rechts").setzeEbene(11);
-Blech<Teil> herzen = [];
-für (salami i = 0; i < 3; i++) { herzen.hinzu(herd.bild(herzB, 540 + i * 30, 24, groesse: 3).setzeEbene(11)); }
-Teil schild = herd.gruppe(320, 130).setzeEbene(20);    // große Meldung mit Schatten
-herd.rechteck(0, 22, 440, 104, farbe: "#2f2a26d8", rundung: 20).haenge(schild);
-Teil titel = herd.text("Teigfänger", 0, -12, groesse: 44, farbe: "senf", ausrichtung: "mitte").haenge(schild);
-Teil unter = herd.text("Fang die Beläge – aber keine Ananas!", 0, 44, groesse: 18, farbe: "mozzarella", ausrichtung: "mitte").haenge(schild);
 
 // ---------- Spielzustand ----------
 salami punkte = 0;
@@ -123,21 +29,8 @@ salami spritzBis = 0;
 salami plumpsBis = 0;
 salami jubelBis = 0;
 salami wackeln = 0;
-salami schildBis = 120;
 diavolo vorbei = nein;
 salami richtung = 0;
-
-leer zeigePunkte() {
-    punkteText.text().setzeInhalt((punkte + (punkte == 1 ? " Punkt" : " Punkte")));
-    pizzenText.text().setzeInhalt((pizzen + (pizzen == 1 ? " Pizza" : " Pizzen")));
-}
-
-leer meldung(margherita oben, margherita darunter, salami dauer) {
-    titel.text().setzeInhalt(oben);
-    unter.text().setzeInhalt(darunter);
-    schild.sichtbar(ja);
-    schildBis = herd.bildnummer() + dauer;
-}
 
 leer werfe(salami i) {                                // Belag i oben loslassen
     salami a = Zufall.zahl(1, 6);
@@ -176,7 +69,7 @@ leer gefangen(salami i) {
         }
     } sonst {
         punkte++;
-        Teil belag = herd.bild(arten.stück(a).stück(1), Zufall.zahl(-22, 22), Zufall.zahl(-6, 4), groesse: 2);
+        Teil belag = herd.bild(arten.stück(a).stück(1), Zufall.zahl(-22, 22), Zufall.zahl(-6, 4), groesse: 0.35);
         belag.haenge(pizza).setzeDrehung(Zufall.zahl(0, 3) * 90);
         drauf.hinzu(belag);
         falls (drauf.länge() == 12) {                  // Pizza voll → ab in den Ofen, Extrapunkte
@@ -188,7 +81,7 @@ leer gefangen(salami i) {
             jubelBis = herd.bildnummer() + 10;
             meldung("Pizza fertig!", "+10 Punkte", 70);
         }
-        zeigePunkte();
+        zeigePunkte(punkte, pizzen);
     }
     weg(i);
 }
@@ -204,7 +97,7 @@ leer neueRunde() {
     vorbei = nein;
     naechster = herd.bildnummer() + 40;
     schieber.setzeLage(320, 318);
-    zeigePunkte();
+    zeigePunkte(punkte, pizzen);
     meldung("Teigfänger", "Neue Runde – guten Appetit!", 90);
 }
 

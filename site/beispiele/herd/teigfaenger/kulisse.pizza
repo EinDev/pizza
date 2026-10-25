@@ -1,0 +1,36 @@
+// Hintergrund: Ziegelwand mit Steinofen, Flammen und Glut, vorn die Theke.
+// Alles an der Gruppe `wand` – so kann die ganze Wand wackeln, wenn eine Ananas gefangen wird.
+bestellt "herd.pizza";
+
+Teil wand;
+
+leer baueKulisse() {
+    herd.hintergrund("#4a2419");                     // Mörtelfarbe zwischen den Ziegeln
+    wand = herd.gruppe(0, 0);
+    Blech<Bildchen> ziegel = [ladeBild("ziegel-1"), ladeBild("ziegel-2"), ladeBild("ziegel-3"), ladeBild("ziegel-4")];
+    für (salami reihe = 0; reihe < 14; reihe++) {
+        für (salami spalte = -1; spalte < 11; spalte++) {
+            funghi x = spalte * 64 + (reihe % 2) * 32 + 32;
+            herd.bild(Zufall.wähle(ziegel), x, reihe * 26 + 12, groesse: 0.5).setzeEbene(-20).haenge(wand);
+        }
+    }
+    herd.bild(ladeBild("ofen"), 320, 168, groesse: 0.5).setzeEbene(-15).haenge(wand);   // Bogen, Maul und Ofenboden
+    für (salami i = 0; i < 4; i++) {                  // warmer Schein: vier durchsichtige Kreise übereinander
+        herd.kreis(320, 215 + i * 10, 100 - i * 22, farbe: "#ff9a4a12").setzeEbene(-13).haenge(wand);
+    }
+
+    // Flammen im Ofen: drei Bilder im Kreis (Animation), auf Holzscheiten; darüber Funken (Partikel)
+    Blech<Bildchen> flammen = [ladeBild("flamme-1"), ladeBild("flamme-2"), ladeBild("flamme-3"), ladeBild("flamme-2")];
+    für (salami i = 0; i < 4; i++) {
+        herd.bild(ladeBild("holz"), 240 + i * 53, 262, groesse: 0.5).setzeDrehung(i * 7 - 10).setzeEbene(-12).haenge(wand);
+        Teil f = herd.bild(flammen.stück(1), 240 + i * 53, 238, groesse: 0.5 + (i % 2) * 0.125).setzeEbene(-11).haenge(wand);
+        f.mit(neu Animation(bilder: flammen, proSekunde: 6 + i, nummer: i + 1));
+    }
+    Teil glut = herd.gruppe(320, 250).haenge(wand);
+    glut.mit(neu Partikel(rate: 45, lebensdauer: 1.6, tempo: 45, richtung: 270, streuung: 60, schwerkraft: -25,
+        groesse: 5, groesseEnde: 1, farbe: "ananas", farbeEnde: "#d9452b00", saat: 3));
+    glut.setzeEbene(-10);
+
+    // Theke (vorn) aus Holz
+    herd.bild(ladeBild("theke"), 320, 340, groesse: 0.5).setzeEbene(-5);
+}

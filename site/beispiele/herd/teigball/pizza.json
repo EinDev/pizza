@@ -2,5 +2,5 @@
   "pizza": 1,
   "name": "Teigball (3D-Spiel)",
   "hauptdatei": "hauptgang.pizza",
-  "beschreibung": "Rolle eine Teigkugel über die Riesenpizza und sammle alle acht Beläge ein, während die Ananas quer über den Teller rollt. Abendsonne mit langen Schatten, glühende Steinöfen, Laternen, Nebel, eine weich folgende Kamera und ein HUD darüber. Pfeiltasten, Leertaste für eine neue Runde."
+  "beschreibung": "Rolle eine Teigkugel über die Riesenpizza und sammle alle acht Beläge ein, während die Ananas quer über den Teller rollt. Abendsonne mit langen Schatten, Steinöfen aus Ziegeln, eine echte Margherita als Textur, Nebel, eine weich folgende Kamera und ein HUD – als Projekt mit mehreren Dateien und Bilddateien (Bildchen.laden). Pfeiltasten, Leertaste für eine neue Runde."
 }

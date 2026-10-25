@@ -1,0 +1,37 @@
+// Rezeptbuch – ein Programm aus mehreren Dateien.
+// Die Hauptdatei bestellt mit `bestellt`, was sie braucht; die bestellten Dateien laden zuerst, die Hauptdatei zuletzt.
+//
+//   hauptgang.pizza        ★ Hauptdatei: nur hier stehen Anweisungen
+//   preise.pizza           Konstanten (Name des Hauses, Preise)
+//   rezepte/pizza.pizza    die Klasse Pizza
+//   rezepte/teig.pizza     die Klasse Teig und ein Geheimrezept, das nur diese Datei kennt
+//
+// Eine Datei sieht nur, was sie selbst bestellt: Die Hauptdatei braucht Pizza und die Preise, also bestellt sie beide –
+// den Teig benutzt sie nur über pizza.teig, deshalb muss sie rezepte/teig.pizza nicht bestellen.
+bestellt "preise.pizza";
+bestellt "rezepte/pizza.pizza";
+
+Blech<Pizza> karte = [
+    neu Pizza("Margherita", ["Tomate", "Mozzarella", "Basilikum"], 250),
+    neu Pizza("Funghi", ["Tomate", "Mozzarella", "Champignons"], 250),
+    neu Pizza("Diavola", ["Tomate", "Mozzarella", "Salami", "Peperoni"], 280),
+    neu Pizza("Bianca", ["Mozzarella", "Rosmarin", "Olivenöl"], 220)
+];
+
+Bote.sage((HAUS + " – " + karte.länge() + " Rezepte"));
+für (Pizza p : karte) {
+    Bote.sage(("  " + p.zeile()));
+}
+Pizza teuerste = karte.stück(1);
+für (Pizza p : karte) {
+    falls (p.preisInCent() > teuerste.preisInCent()) { teuerste = p; }
+}
+Bote.sage(("Am teuersten: " + teuerste.name + " (" + alsEuro(teuerste.preisInCent()) + ")"));
+Bote.sage(("Teig für alles: " + karte.länge() + " Kugeln, zusammen " + teigGesamt(karte) + " g"));
+
+// Hilfsfunktion der Hauptdatei – Nebendateien sehen sie nicht (niemand kann die Hauptdatei bestellen)
+salami teigGesamt(Blech<Pizza> pizzen) {
+    salami summe = 0;
+    für (Pizza p : pizzen) { summe += p.teig.gramm; }
+    serviere ((summe));
+}

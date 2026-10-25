@@ -1,0 +1,47 @@
+// Die Figuren: Beläge (je zwei Bilder zum Wackeln), die Pizza auf dem Schieber, ein fester Vorrat fallender Beläge
+// und die Partikel für Spritzer, Staub und Jubel.
+bestellt "herd.pizza";
+
+Blech<Blech<Bildchen>> arten = [];                    // 1 Tomate, 2 Salami, 3 Pilz, 4 Basilikum, 5 Olive, 6 Ananas
+Blech<margherita> spritzFarbe = ["tomate", "salami", "mozzarella", "basilikum", "oliven", "ananas"];
+Teil schieber;
+Teil pizza;
+Bewegung fahrt;
+Blech<Teil> fallend = [];
+Blech<salami> art = [];                               // 0 = gerade nicht unterwegs
+Teil spritzer;
+Partikel spritz;
+Teil plumps;
+Partikel staub;
+Teil ofenGlut;
+Partikel jubel;
+
+leer baueFiguren() {
+    arten = [paar("tomate"), paar("salami"), paar("pilz"), paar("basilikum"), paar("olive"), paar("ananas")];
+
+    // Die Pizza (Spielfigur) auf dem Pizzaschieber
+    schieber = herd.bild(ladeBild("schieber"), 320, 318, groesse: 0.5).setzeEbene(1);
+    herd.bild(ladeBild("stiel"), -80, 0, groesse: 0.5).haenge(schieber);
+    pizza = herd.bild(ladeBild("pizza"), 0, -16, groesse: 0.5).haenge(schieber);
+    fahrt = schieber.mit(neu Bewegung());
+
+    // Fallende Beläge: ein fester Vorrat von Teilen, die immer wieder benutzt werden
+    für (salami i = 0; i < 8; i++) {
+        Teil t = herd.bild(arten.stück(1).stück(1), -100, -100, groesse: 0.5).sichtbar(nein);
+        t.mit(neu Animation(bilder: arten.stück(1), proSekunde: 4));
+        t.mit(neu Bewegung());
+        fallend.hinzu(t);
+        art.hinzu(0);
+    }
+
+    // Spritzer beim Fangen und Plumpser am Boden: je ein Emitter, der kurz an die Stelle springt
+    spritzer = herd.gruppe(0, 0).setzeEbene(5);
+    spritz = spritzer.mit(neu Partikel(rate: 400, lebensdauer: 0.45, tempo: 140, richtung: 270, streuung: 160,
+        schwerkraft: 400, groesse: 5, groesseEnde: 1, aktiv: nein, saat: 11));
+    plumps = herd.gruppe(0, 0).setzeEbene(5);
+    staub = plumps.mit(neu Partikel(rate: 300, lebensdauer: 0.5, tempo: 60, richtung: 270, streuung: 120,
+        schwerkraft: 120, groesse: 6, groesseEnde: 0, farbe: "#e8c48ac0", farbeEnde: "#c8955a00", aktiv: nein, saat: 5));
+    ofenGlut = herd.gruppe(320, 300).setzeEbene(6);   // Jubel, wenn eine Pizza voll ist
+    jubel = ofenGlut.mit(neu Partikel(rate: 500, lebensdauer: 1.2, tempo: 220, richtung: 270, streuung: 120,
+        schwerkraft: 200, groesse: 8, groesseEnde: 2, farbe: "ananas", farbeEnde: "tomate", aktiv: nein, saat: 9));
+}

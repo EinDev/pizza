@@ -1,20 +1,19 @@
 // Steuerung: Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste,
 // und jeder Mausklick legt ein Basilikumblatt dorthin, wo du klickst.
 // Zeigt: taste (gehalten), gedrueckt (gerade gedrückt), klick, mausX/mausY, Bild spiegeln, Animation an/aus.
+// Die Bilder sind PNG-Dateien im Ordner bilder/: Bildchen.laden lädt sie, eine Animation blättert durch vier Laufbilder.
 
 Herd herd = neu Herd("Steuerung", breite: 640, hoehe: 360);
-herd.hintergrund("himmel");
-herd.rechteck(320, 340, 640, 40, farbe: "basilikum");                     // Wiese
-herd.rechteck(140, 70, 120, 34, farbe: "weiss", rundung: 17);              // zwei Wolken
-herd.rechteck(470, 110, 160, 40, farbe: "#ffffffd0", rundung: 20);
+herd.bild(Bildchen.laden("bilder/landschaft.png"), 320, 180).setzeEbene(-10);   // Himmel, Wolken, Hügel, Wiese
 
-Bildchen schritt1 = neu Bildchen(["..ttt...", ".ttttt..", "..eee...", "..eke...", ".wwwww..", "wwwwwww.", ".wwwww..", ".uu.uu..", ".uu..uu.", "oo...oo."]);
-Bildchen schritt2 = neu Bildchen(["..ttt...", ".ttttt..", "..eee...", "..eke...", ".wwwww..", "wwwwwww.", ".wwwww..", "..uuu...", "..uuu...", "..ooo..."]);
-Teil bote = herd.bild(schritt1, 320, 296, groesse: 5);
-Animation laufen = bote.mit(neu Animation(bilder: [schritt1, schritt2], proSekunde: 8, laeuft: nein));
+// Der Bote: 80 × 100 Pixel je Bild, gezeichnet mit groesse 0.5 (40 × 50) – so bleibt er auch vergrößert scharf
+Blech<Bildchen> schritte = [Bildchen.laden("bilder/bote-1.png"), Bildchen.laden("bilder/bote-2.png"),
+                            Bildchen.laden("bilder/bote-3.png"), Bildchen.laden("bilder/bote-4.png")];
+Teil bote = herd.bild(schritte.stück(1), 320, 296, groesse: 0.5);
+Animation laufen = bote.mit(neu Animation(bilder: schritte, proSekunde: 10, laeuft: nein));
 Bewegung sprung = bote.mit(neu Bewegung());
 
-Teil blatt = herd.bild(neu Bildchen(["..bb", ".bbb", "bbb.", "bl.."]), -50, -50, groesse: 6);   // Vorlage für kopie()
+Teil blatt = herd.bild(Bildchen.laden("bilder/blatt.png"), -50, -50, groesse: 0.5);   // Vorlage für kopie()
 Teil info = herd.text("Maus: –", 12, 10, groesse: 18, farbe: "ofen");
 salami blaetter = 0;
 

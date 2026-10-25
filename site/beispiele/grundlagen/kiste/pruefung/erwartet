@@ -1,0 +1,19 @@
+In der Kiste unter daten/: [daten/level.txt, daten/speisekarte.csv]
+Level: 7 Zeilen × 12 Spalten
+Der Bote startet in Spalte 2, Zeile 2.
+Der Ofen steht in Spalte 11, Zeile 6.
+4 Oliven einsammeln, 46 Mauersteine im Weg.
+So sieht es aus:
+▓▓▓▓▓▓▓▓▓▓▓▓
+▓B   o    T▓
+▓ ▓▓▓ ▓▓ ▓ ▓
+▓ ▓o     ▓ ▓
+▓   ▓▓o▓   ▓
+▓o       ▓O▓
+▓▓▓▓▓▓▓▓▓▓▓▓
+  Margherita … 7,50 €
+  Funghi … 8,90 €
+  Diavola … 9,40 €
+  Quattro Formaggi … 10,20 €
+Alle vier zusammen: 36,00 €
+Ein zweites Level gibt es noch nicht – leg daten/level-2.txt an!

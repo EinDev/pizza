@@ -1,0 +1,57 @@
+// Die Beläge zum Einsammeln (Salami, Olive, Basilikum, Champignon) und die Ananas, die quer über die Pizza rollt.
+// Die Listen und Teile stehen hier oben als Variablen – die Hauptdatei bestellt diese Datei und sieht sie dadurch.
+bestellt "welt/herd.pizza";
+
+// Basilikumblatt als eigene Form: Spitze, Seiten, Stiel und eine erhabene Mittelrippe – beide Seiten sichtbar
+Form blatt = neu Form([0, 0.55, 0,  -0.32, 0.1, 0,  0, -0.5, 0,  0.32, 0.1, 0,  0, 0.05, 0.1,  0, 0.05, -0.1],
+                      [0, 1, 4,  1, 2, 4,  2, 3, 4,  3, 0, 4,  0, 5, 1,  1, 5, 2,  2, 5, 3,  3, 5, 0]);
+Blech<Teil> halter = [];                            // drehende Halter (Bewegung)
+Blech<Teil> belaege = [];                           // der sichtbare Körper – für trifft
+Blech<funghi> startX = [];
+Blech<funghi> startZ = [];
+
+leer belag(Teil koerper, funghi x, funghi z) {
+    Teil h = herd.raum(x, 0.8, z);
+    h.mit(neu Bewegung(drehtempo: 100));
+    koerper.haenge(h);
+    halter.hinzu(h);
+    belaege.hinzu(koerper);
+    startX.hinzu(x);
+    startZ.hinzu(z);
+}
+Teil salamiScheibe() {                              // Fettpunkte und Pfeffer: ein Bild auf dem Deckel des Zylinders
+    serviere ((herd.koerper(Form.zylinder(teile: 32), glanz: 0.55, leuchten: 0.1, bild: Bildchen.laden("bilder/salami.jpg"))
+        .setzeGroesse(1.3, 0.2, 1.3).setzeNeigung(75)));
+}
+Teil olive() {
+    serviere ((herd.koerper(Form.ring(dicke: 0.4, teile: 24), farbe: "#2e3326", glanz: 0.9).setzeGroesse(1.1).setzeNeigung(90)));
+}
+Teil basilikum() {
+    serviere ((herd.koerper(blatt, farbe: "basilikum", glanz: 0.4, leuchten: 0.1).setzeGroesse(2.4).setzeNeigung(-65)));
+}
+Teil champignon() {                                 // Hut und Stiel – ein kleines Teil-Bäumchen
+    Teil hut = herd.koerper(Form.kugel(), 0, 0.15, 0, farbe: "#efe2cc", glanz: 0.3).setzeGroesse(1.1, 0.7, 1.1);
+    herd.koerper(Form.zylinder(), 0, -0.45, 0, farbe: "#f7efe0").setzeGroesse(0.45, 0.8, 0.45).haenge(hut);
+    serviere ((hut));
+}
+leer baueBelaege() {
+    belag(salamiScheibe(), -4.5, 2.5);
+    belag(olive(), 3.5, 4.5);
+    belag(basilikum(), 5.5, -1);
+    belag(champignon(), -2, -4.5);
+    belag(salamiScheibe(), 2.5, -6);
+    belag(olive(), -6, -2);
+    belag(basilikum(), 0.5, 1);
+    belag(champignon(), 6.5, 2.5);
+}
+
+// Die Ananas: rollt hin und her (Ananas gehört nicht auf Pizza!) – die Schale ist ein Rautenmuster aus einem Bild
+Teil ananas;
+Bewegung ananasLauf;
+Teil frucht;
+leer baueAnanas() {
+    ananas = herd.raum(0, 0.75, -2);
+    ananasLauf = ananas.mit(neu Bewegung(tempoX: 3.2, drehtempo: -60));
+    frucht = herd.koerper(Form.zylinder(teile: 12), glanz: 0.5, bild: Bildchen.laden("bilder/ananas.jpg")).setzeGroesse(0.9, 1.1, 0.9).haenge(ananas);
+    herd.koerper(Form.kegel(teile: 6), 0, 1.0, 0, farbe: "basilikum").setzeGroesse(0.8, 0.9, 0.8).haenge(ananas);
+}

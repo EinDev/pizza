@@ -960,7 +960,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PD2 Kiste/Bildchen.laden im Interpreter** | `Kiste`, `Bildchen.laden` (`optionen.teiglinge` + Prüfung über `optionen.vorbacker`), P0020 Teigmenge, Herd-Erkennung, Prüfstand | `site/js/pizza/` (`std/`, `herd/`), `pruefstand/faelle/a19-*` | PA1, PD1 | PA2, PB1 | **umgesetzt** (Commit „PROJEKTE PD2: …“, 2026-10-23; Präzisierungen unten) |
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | **umgesetzt** (Commit „PROJEKTE PB2: …“, 2026-10-24) mit PC1 im selben Stand, auf PA2 (EXE aus Mehrdatei-Projekten über `Pizzaiolo.projekte`); Präzisierungen unten |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | **umgesetzt** (Commit „PROJEKTE PB3: …“, 2026-10-25; Präzisierungen unten) |
-| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
+| **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | **umgesetzt** (Commit „PROJEKTE PB4: …“, 2026-10-25; Präzisierungen unten) |
 | **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | **umgesetzt** (Commit „PROJEKTE PB5: …“, 2026-10-25; Präzisierungen unten) |
 | **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | offen |
 
@@ -1281,6 +1281,36 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   `--pruefe` meldet `datei` immer als Fehler, `--umziehen` bleibt für Einträge aus älteren Zweigen), `datei`-Zweige in
   `ui/src/beispiel-laden.js`, `erwartet`-Fallback in `e2e/hilfen.mjs`, ARCHITEKTUR §3 „Übergang“; Kommentare in Harnischen nachgezogen.
   E2E 07 prüft Mehrdatei-Beispiele jetzt in allen Modi über die Galerie (vorher übersprungen – sonst wäre das Imperium dort weggefallen).
+
+**Präzisierungen aus PB4** (Herd-Beispiele mit Bilddateien, `rezeptbuch`, `kiste`; PB5 richtet sich nach dem Aufteilungsmuster):
+- **Aufteilung (§7.3 Schritt 3):** `herd/teigball` = `hauptgang.pizza` (Spielzustand, Schleife, Teigkugel) · `welt/herd.pizza` (nur
+  `Herd herd`) · `welt/tisch.pizza` (Himmel, Tisch, Pizza, Öfen, Laternen, Flasche als `baue…()`-Funktionen) · `welt/belaege.pizza`
+  (Basilikum-Form, Beläge, Ananas) · `hud.pizza` (Anzeige, `melde`); `herd/teigfaenger` = `hauptgang.pizza` (Spielzustand, Regeln) ·
+  `herd.pizza` (Herd und die Lade-Helfer `ladeBild`/`paar`) · `kulisse.pizza` (Wand, Ofen, Flammen, Theke) · `figuren.pizza` (Beläge,
+  Pizza, Vorrat, Partikel) · `hud.pizza` (Anzeige, `meldung`, `zeigePunkte(punkte, pizzen)`). Muster: Teile, die die Hauptdatei später
+  braucht, sind oberste Variablen **ohne** Initialisierer (`Teil ananas;`) und werden in `baue…()` gesetzt; Zustand, den eine Funktion
+  einer Nebendatei schreibt (`meldungBis`, `schildBis`), liegt in deren Datei (die Hauptdatei liest ihn nur); was eine Nebendatei aus
+  der Hauptdatei bräuchte, kommt als Parameter. Die Hauptdatei ruft die `baue…()` in der alten Reihenfolge. `herd/steuerung` bleibt eine
+  `.pizza` (40 Zeilen – Aufteilen hätte das Lernbeispiel nur verlängert) mit sechs Bilddateien.
+- **Bilder** malt `scripts/texturen-herd.js` (neu, ohne Abhängigkeiten, gleiche Bytes je Lauf; PNG-/JPEG-Schreiber wie
+  `scripts/texturen-neon.js`, als Modul `require(…)` = `{ png, jpeg }`): kein Fremdmaterial, keine `quellen.md` nötig. Sprites (Teigfänger,
+  Steuerung) in **doppelter Auflösung** mit `groesse: 0.5` – gleiche Größe und Hülle wie die alten Text-Bildchen, daher sind
+  `pruefung/erwartet` aller drei Beispiele **byte-gleich** (Teigfänger „Rekord 29 Punkte“, Teigball „15 s“); die Ziegelwand wählt per
+  `Zufall.wähle` aus vier Ziegelbildern statt vier Farben (gleiche Zufallsfolge). 3D-Texturen ohne Alpha als JPEG: Teigball
+  `tischdecke.png` (256², Vichy-Karo, `Belag` mit `kachel: 16`), `pizza.jpg` (1024², ersetzt die zufälligen Mozzarella-Kugeln),
+  `kruste.jpg`, `rand.jpg` (2048 × 256 passend zur Ring-UV), `ziegel.jpg` (Ofenkuppel und Schlot, ein Pfad dreimal geladen), `teig.jpg`,
+  `salami.jpg`, `ananas.jpg`. Größen: Teigball 8 Bilder / 399 KiB Quellen / Teigmenge 11,2 MiB; Teigfänger 26 / 263 KiB / 2,7 MiB;
+  Steuerung 6 / 78 KiB / 1,4 MiB.
+- **`herd-erwartet` neu (bewusst, K-145; keine Regression im Sinne von HERD.md §12.1 Regel 2):** `herd/teigball`, `herd/teigfaenger`,
+  `herd/steuerung` – andere Ressourcen (Teiglinge, `TEXTUR`-Abschnitte, `TEXTURBILD`), andere Reihenfolge. Alle anderen Beispiele,
+  Fälle und Doku-Blöcke unverändert.
+- **Neue Lernbeispiele:** `grundlagen/rezeptbuch` (Hauptdatei + `preise.pizza` + `rezepte/pizza.pizza` + `rezepte/teig.pizza` mit
+  `geheimrezept`; zeigt „nur direkt Bestelltes ist sichtbar“) und `grundlagen/kiste` (`daten/level.txt`, `daten/speisekarte.csv`;
+  `Kiste.liste/zeilen/text/gibts`).
+- **Doku** (`40-herd.js`): neuer Abschnitt „Bilder aus Dateien: `Bildchen.laden`“ in *Formen und Bildchen*, Texte zu Teigfänger/Teigball/
+  Steuerung; die drei Render-Bilder `he-teigfaenger.png`, `he-teigball.png`, `he-steuerung.png` neu (WARP über `tests/herd/bild.js`,
+  256 Farben wie bisher, jetzt mit Fehlerverteilung – sonst verschwimmen die Texturen zu Flächen).
+- **`host/tests/herd.rs`** kompiliert Beispiele als Text der Hauptdatei: dort `steuerung` → `muenzen` (Ein-Datei-Beispiel mit Eingabe).
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

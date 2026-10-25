@@ -6,147 +6,30 @@
 // Beschleunigung, wenn sich die Tasten ändern. Beläge drehen sich von selbst (Bewegung mit drehtempo),
 // Öfen und Laternen leuchten mit Punktlichtern, die Abendsonne wirft lange Schatten, Nebel und Himmelsverlauf
 // machen den Horizont weich. Je Takt rechnet das Programm nur Kamera, Rollen und Treffer.
+//
+// Das Projekt hat mehrere Dateien: welt/herd.pizza (der Herd), welt/tisch.pizza (Himmel, Tisch, Pizza, Öfen),
+// welt/belaege.pizza (Beläge und Ananas) und hud.pizza (Anzeige) – hier stehen nur Spielzustand und Spielschleife.
+// Tischdecke, Pizza, Kruste, Ziegel, Teig, Salami und Ananasschale sind Bilddateien in bilder/ (Bildchen.laden).
+bestellt "welt/herd.pizza";
+bestellt "welt/tisch.pizza";
+bestellt "welt/belaege.pizza";
+bestellt "hud.pizza";
 
-Herd herd = neu Herd("Teigball", breite: 960, hoehe: 540);
+baueHimmel();
+baueTisch();
+bauePizza();
+baueOefen();
+baueLaternen();
+baueFlasche();
+baueBelaege();
+baueAnanas();
 
-// ---------- Welt: Abendhimmel, Nebel, Sonne ----------
-herd.himmel("#27306b", "#f2a96e");                 // oben Nachtblau, am Horizont Aprikose
-herd.nebel("#f2a96e", 35, 90);                     // Nebel in der Horizontfarbe → nahtloser Übergang
-herd.umgebung("#8fa3e0", staerke: 0.45);           // kühles Himmelslicht in den Schatten
-herd.sonne().setzeLage(-0.7, 0.75, 0.35);          // tief stehende Sonne → lange Schatten
-herd.sonne().licht().setzeFarbe("#ffcf9c").setzeStaerke(1.25);
-
-// Tischdecke: rot-weiß kariert, als Textur aus einem Bildchen
-Blech<margherita> karo = [];
-für (salami y = 0; y < 64; y++) {
-    margherita zeile = "";
-    für (salami x = 0; x < 64; x++) { zeile += ((x / 2).ganz() + (y / 2).ganz()) % 2 == 0 ? "r" : "m"; }
-    karo.hinzu(zeile);
-}
-Speisekarte<margherita, margherita> stoff = neu Speisekarte<margherita, margherita>();
-stoff.lege("r", "#b8432f").lege("m", "#f3e6d0");
-Teil tisch = herd.koerper(Form.ebene(), 0, -4, 0, glanz: 0.05, bild: neu Bildchen(karo, farben: stoff));
-tisch.setzeGroesse(120, 1, 120);
-
-// ---------- Die Riesenpizza auf ihrem Tortenständer ----------
-herd.koerper(Form.zylinder(teile: 24), 0, -2.2, 0, farbe: "grau", glanz: 0.6).setzeGroesse(1.2, 3.6, 1.2);
-herd.koerper(Form.zylinder(teile: 64), 0, -0.25, 0, farbe: "teig", glanz: 0.1).setzeGroesse(18, 0.5, 18);
-herd.koerper(Form.zylinder(teile: 64), 0, -0.24, 0, farbe: "tomate", glanz: 0.35).setzeGroesse(16.4, 0.5, 16.4);
-herd.koerper(Form.ring(dicke: 0.09, teile: 64), 0, 0.05, 0, farbe: "kruste", glanz: 0.2).setzeGroesse(18.4, 6, 18.4);
-für (salami i = 0; i < 14; i++) {                   // geschmolzener Mozzarella, zufällig verteilt
-    funghi x = Zufall.kommazahl(-6, 6);
-    funghi z = Zufall.kommazahl(-6, 6);
-    falls (x * x + z * z < 40) {
-        herd.koerper(Form.kugel(), x, 0.02, z, farbe: "mozzarella", glanz: 0.5)
-            .setzeGroesse(Zufall.kommazahl(1.4, 2.6), 0.12, Zufall.kommazahl(1.2, 2.2));
-    }
-}
-
-// ---------- Steinöfen (Hierarchie: Ofen = Kuppel + Schlot + glühendes Maul + Licht) ----------
-Teil steinofen(funghi x, funghi z, funghi drehung) {
-    Teil o = herd.raum(x, -4, z);
-    herd.koerper(Form.kugel(teile: 32), farbe: "#b5603a", glanz: 0.1).setzeGroesse(7, 7, 7).haenge(o);
-    herd.koerper(Form.zylinder(), 1.4, 3.6, -0.6, farbe: "#7d3b25").setzeGroesse(0.9, 2.4, 0.9).haenge(o);
-    herd.koerper(Form.kugel(), 0, 1.0, 3.2, farbe: "#ffb347", leuchten: 1).setzeGroesse(2.6, 2.4, 0.8).haenge(o);
-    herd.licht(0, 1.6, 4.6, farbe: "#ff8c3a", reichweite: 12).haenge(o);
-    o.setzeDrehung(drehung);
-    serviere ((o));
-}
-steinofen(-17, -12, 50);
-steinofen(18, -10, -45);
-steinofen(0, -26, 0);
-
-// Laternen am Tellerrand (Punktlichter, warm)
-Teil laterne(funghi x, funghi z) {
-    Teil l = herd.raum(x, -4, z);
-    herd.koerper(Form.zylinder(), 0, 2.4, 0, farbe: "ofen").setzeGroesse(0.18, 4.8, 0.18).haenge(l);
-    herd.koerper(Form.kugel(), 0, 5.0, 0, farbe: "#ffe6a8", leuchten: 1, glanz: 0).setzeGroesse(0.7).haenge(l);
-    herd.licht(0, 5.0, 0, farbe: "#ffd27a", reichweite: 9).haenge(l);
-    serviere ((l));
-}
-laterne(-10.5, 3);
-laterne(10.5, 3);
-laterne(-7.5, -8.5);
-laterne(7.5, -8.5);
-
-// Eine Flasche Olivenöl und ein Wasserglas auf dem Tisch – halb durchsichtig (Alpha in der Farbe)
-Teil flasche = herd.raum(14, -4, -3);
-herd.koerper(Form.zylinder(teile: 32), 0, 2.2, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 4.4, 1.6).haenge(flasche);
-herd.koerper(Form.kugel(teile: 32), 0, 4.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 1.2, 1.6).haenge(flasche);
-herd.koerper(Form.zylinder(), 0, 5.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(0.5, 1.6, 0.5).haenge(flasche);
-herd.koerper(Form.zylinder(), 0, 6.3, 0, farbe: "kruste").setzeGroesse(0.6, 0.4, 0.6).haenge(flasche);
-herd.koerper(Form.zylinder(teile: 32), -12.5, -2.8, 6, farbe: "#d8ecff60", glanz: 1).setzeGroesse(1.4, 2.4, 1.4);
-
-// ---------- Beläge: Salami, Olive, Basilikum (eigene Form), Champignon ----------
-// Basilikumblatt als eigene Form: Spitze, Seiten, Stiel und eine erhabene Mittelrippe – beide Seiten sichtbar
-Form blatt = neu Form([0, 0.55, 0,  -0.32, 0.1, 0,  0, -0.5, 0,  0.32, 0.1, 0,  0, 0.05, 0.1,  0, 0.05, -0.1],
-                      [0, 1, 4,  1, 2, 4,  2, 3, 4,  3, 0, 4,  0, 5, 1,  1, 5, 2,  2, 5, 3,  3, 5, 0]);
-Blech<Teil> halter = [];                            // drehende Halter (Bewegung)
-Blech<Teil> belaege = [];                           // der sichtbare Körper – für trifft
-Blech<funghi> startX = [];
-Blech<funghi> startZ = [];
-leer belag(Teil koerper, funghi x, funghi z) {
-    Teil h = herd.raum(x, 0.8, z);
-    h.mit(neu Bewegung(drehtempo: 100));
-    koerper.haenge(h);
-    halter.hinzu(h);
-    belaege.hinzu(koerper);
-    startX.hinzu(x);
-    startZ.hinzu(z);
-}
-Teil salamiScheibe() {
-    serviere ((herd.koerper(Form.zylinder(teile: 32), farbe: "salami", glanz: 0.55, leuchten: 0.1).setzeGroesse(1.3, 0.2, 1.3).setzeNeigung(75)));
-}
-Teil olive() {
-    serviere ((herd.koerper(Form.ring(dicke: 0.4, teile: 24), farbe: "#2e3326", glanz: 0.9).setzeGroesse(1.1).setzeNeigung(90)));
-}
-Teil basilikum() {
-    serviere ((herd.koerper(blatt, farbe: "basilikum", glanz: 0.4, leuchten: 0.1).setzeGroesse(2.4).setzeNeigung(-65)));
-}
-Teil champignon() {                                 // Hut und Stiel – ein kleines Teil-Bäumchen
-    Teil hut = herd.koerper(Form.kugel(), 0, 0.15, 0, farbe: "#efe2cc", glanz: 0.3).setzeGroesse(1.1, 0.7, 1.1);
-    herd.koerper(Form.zylinder(), 0, -0.45, 0, farbe: "#f7efe0").setzeGroesse(0.45, 0.8, 0.45).haenge(hut);
-    serviere ((hut));
-}
-belag(salamiScheibe(), -4.5, 2.5);
-belag(olive(), 3.5, 4.5);
-belag(basilikum(), 5.5, -1);
-belag(champignon(), -2, -4.5);
-belag(salamiScheibe(), 2.5, -6);
-belag(olive(), -6, -2);
-belag(basilikum(), 0.5, 1);
-belag(champignon(), 6.5, 2.5);
-
-// ---------- Die Ananas: rollt hin und her (Ananas gehört nicht auf Pizza!) ----------
-Teil ananas = herd.raum(0, 0.75, -2);
-Bewegung ananasLauf = ananas.mit(neu Bewegung(tempoX: 3.2, drehtempo: -60));
-Teil frucht = herd.koerper(Form.zylinder(teile: 12), farbe: "ananas", glanz: 0.5).setzeGroesse(0.9, 1.1, 0.9).haenge(ananas);
-herd.koerper(Form.kegel(teile: 6), 0, 1.0, 0, farbe: "basilikum").setzeGroesse(0.8, 0.9, 0.8).haenge(ananas);
-
-// ---------- Der Teigball: Halter mit Bewegung, darin die texturierte Kugel ----------
-Bildchen krume = neu Bildchen(["eeeekeee", "eeeeeeee", "ekeeeeke", "eeeeeeee", "eeekeeee", "eeeeeeek", "keeeeeee", "eeeeekee"]);
+// ---------- Der Teigball: Halter mit Bewegung, darin die Kugel aus Hefeteig ----------
 Teil ball = herd.raum(0, 0.5, 5);
 Bewegung lauf = ball.mit(neu Bewegung(daempfung: 0.75));
-Teil kugel = herd.koerper(Form.kugel(teile: 32), farbe: "weiss", glanz: 0.25, bild: krume).haenge(ball);
+Teil kugel = herd.koerper(Form.kugel(teile: 32), glanz: 0.25, bild: Bildchen.laden("bilder/teig.jpg")).haenge(ball);
 
-// ---------- HUD (2D über der 3D-Szene) ----------
-herd.rechteck(150, 52, 260, 80, farbe: "#2f2a26b8", rundung: 16);
-herd.text("Teigball", 36, 20, groesse: 30, farbe: "senf");
-Teil anzeige = herd.text("Beläge 0/8", 36, 58, groesse: 20, farbe: "mozzarella");
-Teil uhr = herd.text("0 s", 264, 58, groesse: 20, farbe: "mozzarella", ausrichtung: "rechts");
-herd.rechteck(480, 520, 400, 30, farbe: "#2f2a2690", rundung: 15);
-herd.text("Pfeiltasten: rollen  ·  Leertaste: neue Runde", 480, 510, groesse: 16, farbe: "#fff6e0c0", ausrichtung: "mitte");
-Teil meldung = herd.gruppe(480, 120);              // Meldung mit Schlagschatten: zwei Texte an einer Gruppe
-Teil meldungSchatten = herd.text("", 3, 3, groesse: 36, farbe: "#2f2a26a0", ausrichtung: "mitte").haenge(meldung);
-Teil meldungText = herd.text("", 0, 0, groesse: 36, farbe: "mozzarella", ausrichtung: "mitte").haenge(meldung);
-Teil konfetti = herd.gruppe(160, -10);              // Konfetti in Grün-Weiß-Rot: eine Kanone als Vorlage …
-konfetti.mit(neu Partikel(rate: 90, lebensdauer: 3.5, tempo: 140, richtung: 75, streuung: 80,
-    schwerkraft: 40, groesse: 11, groesseEnde: 5, farbe: "basilikum", farbeEnde: "#2e7d32", aktiv: nein));
-Teil konfetti2 = konfetti.kopie().setzeLage(800, -10); // … und zwei Kopien (kopie() kopiert alle Komponenten)
-konfetti2.partikel().setzeRichtung(105).setzeFarbe("tomate").setzeFarbeEnde("salami");
-Teil konfetti3 = konfetti.kopie().setzeLage(480, -10);
-konfetti3.partikel().setzeRichtung(90).setzeFarbe("weiss").setzeFarbeEnde("mozzarella");
-Blech<Partikel> funken = [konfetti.partikel(), konfetti2.partikel(), konfetti3.partikel()];
+baueHud();
 
 // ---------- Spielzustand ----------
 salami SCHUB = 10;                                   // Beschleunigung in Einheiten/s²
@@ -156,7 +39,6 @@ salami takte = 0;                                    // gespielte Takte (+ Straf
 salami sekunde = -1;
 diavolo fertig = nein;
 diavolo faellt = nein;
-salami meldungBis = 0;
 salami konfettiBis = 0;
 funghi bestzeit = 0;                                 // beste Runde in Sekunden (0 = noch keine)
 salami stoss = 0;                                    // Abklingzeit nach einem Ananas-Treffer
@@ -168,13 +50,6 @@ funghi kamX = 0;
 funghi kamZ = 15;
 Blech<salami> fliegt = [];                           // Takte, die ein eingesammelter Belag noch hochfliegt (0 = liegt)
 für (Teil b : belaege) { fliegt.hinzu(-1); }         // -1 = noch nicht eingesammelt
-
-leer melde(margherita text, salami takteLang) {
-    meldungText.text().setzeInhalt(text);
-    meldungSchatten.text().setzeInhalt(text);
-    meldung.sichtbar(ja);
-    meldungBis = herd.bildnummer() + takteLang;
-}
 
 leer neueRunde() {
     für (salami i = 1; i <= halter.länge(); i++) {

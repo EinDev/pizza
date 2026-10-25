@@ -1,0 +1,14 @@
+// Der Herd für alle Dateien. Nebendateien sehen die Hauptdatei nie – was mehrere Dateien brauchen, steht deshalb hier,
+// und jede Datei, die `herd` oder `ladeBild` benutzt, bestellt diese Datei selbst.
+Herd herd = neu Herd("Teigfänger", breite: 640, hoehe: 360);
+
+// Alle Sprites liegen als PNG in bilder/ – in doppelter Auflösung gemalt und mit groesse 0.5 gezeichnet:
+// auf dem Spielfeld so groß wie früher die Pixel-Bildchen, aber weich verkleinert (Mipmaps).
+Bildchen ladeBild(margherita name) {
+    serviere ((Bildchen.laden("bilder/" + name + ".png")));
+}
+
+// Zwei Bilder eines Belags zum Wackeln (Animation)
+Blech<Bildchen> paar(margherita name) {
+    serviere (([ladeBild("belaege/" + name + "-1"), ladeBild("belaege/" + name + "-2")]));
+}

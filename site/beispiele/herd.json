@@ -24,31 +24,31 @@
     {
       "id": "steuerung",
       "titel": "Steuerung: Tasten und Maus",
-      "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste, und jeder Mausklick legt ein Basilikumblatt hin – taste, gedrueckt, klick und Animation zum Ausprobieren.",
+      "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste, und jeder Mausklick legt ein Basilikumblatt hin – taste, gedrueckt, klick und eine Animation aus vier PNG-Bildern zum Ausprobieren.",
       "ordner": "herd/steuerung",
-      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "dateien": ["pizza.json", "hauptgang.pizza", "bilder/blatt.png", "bilder/bote-1.png", "bilder/bote-2.png", "bilder/bote-3.png", "bilder/bote-4.png", "bilder/landschaft.png"],
       "tier": 1,
-      "schlagworte": ["Herd", "Eingabe", "Animation", "kopie()"],
+      "schlagworte": ["Herd", "Eingabe", "Animation", "kopie()", "Bildchen.laden"],
       "herd": true
     },
     {
       "id": "teigfaenger",
       "titel": "Teigfänger (2D-Spiel)",
-      "beschreibung": "Fang mit deiner Pizza die Beläge, die vor dem Steinofen herabregnen – aber bloß keine Ananas! Pixel-Bildchen mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand und ein HUD. Pfeiltasten, Leertaste für eine neue Runde.",
+      "beschreibung": "Fang mit deiner Pizza die Beläge, die vor dem Steinofen herabregnen – aber bloß keine Ananas! Sprites als PNG-Dateien mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand und ein HUD – aufgeteilt auf mehrere Dateien. Pfeiltasten, Leertaste für eine neue Runde.",
       "ordner": "herd/teigfaenger",
-      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "dateien": ["pizza.json", "hauptgang.pizza", "bilder/belaege/ananas-1.png", "bilder/belaege/ananas-2.png", "bilder/belaege/basilikum-1.png", "bilder/belaege/basilikum-2.png", "bilder/belaege/olive-1.png", "bilder/belaege/olive-2.png", "bilder/belaege/pilz-1.png", "bilder/belaege/pilz-2.png", "bilder/belaege/salami-1.png", "bilder/belaege/salami-2.png", "bilder/belaege/tomate-1.png", "bilder/belaege/tomate-2.png", "bilder/flamme-1.png", "bilder/flamme-2.png", "bilder/flamme-3.png", "bilder/herz.png", "bilder/holz.png", "bilder/ofen.png", "bilder/pizza.png", "bilder/schieber.png", "bilder/stiel.png", "bilder/theke.png", "bilder/ziegel-1.png", "bilder/ziegel-2.png", "bilder/ziegel-3.png", "bilder/ziegel-4.png", "figuren.pizza", "herd.pizza", "hud.pizza", "kulisse.pizza"],
       "tier": 1,
-      "schlagworte": ["Herd", "2D", "Spiel", "Bildchen", "Animation", "Partikel"],
+      "schlagworte": ["Herd", "2D", "Spiel", "Bildchen.laden", "Animation", "Partikel", "Projekt"],
       "herd": true
     },
     {
       "id": "teigball",
       "titel": "Teigball (3D-Spiel)",
-      "beschreibung": "Rolle eine Teigkugel über die Riesenpizza und sammle alle acht Beläge ein, während die Ananas quer über den Teller rollt. Abendsonne mit langen Schatten, glühende Steinöfen, Laternen, Nebel, eine weich folgende Kamera und ein HUD darüber. Pfeiltasten, Leertaste für eine neue Runde.",
+      "beschreibung": "Rolle eine Teigkugel über die Riesenpizza und sammle alle acht Beläge ein, während die Ananas quer über den Teller rollt. Abendsonne mit langen Schatten, Steinöfen aus Ziegeln, eine echte Margherita als Textur, Nebel, eine weich folgende Kamera und ein HUD – als Projekt mit mehreren Dateien und Bilddateien (Bildchen.laden). Pfeiltasten, Leertaste für eine neue Runde.",
       "ordner": "herd/teigball",
-      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "dateien": ["pizza.json", "hauptgang.pizza", "bilder/ananas.jpg", "bilder/kruste.jpg", "bilder/pizza.jpg", "bilder/rand.jpg", "bilder/salami.jpg", "bilder/teig.jpg", "bilder/tischdecke.png", "bilder/ziegel.jpg", "hud.pizza", "welt/belaege.pizza", "welt/herd.pizza", "welt/tisch.pizza"],
       "tier": 1,
-      "schlagworte": ["Herd", "3D", "Spiel", "Schatten", "Form", "Kamera"],
+      "schlagworte": ["Herd", "3D", "Spiel", "Textur", "Schatten", "Kamera", "Projekt"],
       "herd": true
     },
     {

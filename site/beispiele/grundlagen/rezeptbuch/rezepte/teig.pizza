@@ -1,0 +1,17 @@
+// Der Teig. Wie viel Salz hineinkommt, bleibt ein Geheimrezept dieser Datei: `geheimrezept` vor einem obersten Namen
+// versteckt ihn vor allen anderen Dateien (ein Zugriff von außen wäre PizzaFehler P0018 – schon vor dem Start).
+geheimrezept salami SALZ_PRO_KILO = 25;
+
+geheimrezept salami salzFuer(salami gramm) {
+    serviere (((gramm * SALZ_PRO_KILO / 1000).runden()));
+}
+
+klasse Teig {
+    salami gramm;
+
+    Teig(salami g) { gramm = g; }
+
+    margherita alsText() {
+        serviere ((gramm + " g Teig (" + salzFuer(gramm) + " g Salz)"));
+    }
+}

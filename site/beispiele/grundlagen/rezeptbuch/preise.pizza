@@ -1,0 +1,9 @@
+// Konstanten für alle Dateien: Wer sie braucht, bestellt diese Datei.
+// Preise in Cent (ganze Zahlen rechnen genau), alsEuro macht daraus „10,10 €“.
+gebacken margherita HAUS = "Pizzeria Bella Napoli";
+gebacken salami GRUNDPREIS = 650;
+gebacken salami JE_BELAG = 120;
+
+margherita alsEuro(salami cent) {
+    serviere (((cent / 100).währung("€")));
+}

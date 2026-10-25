@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Rezeptbuch: ein Programm, mehrere Dateien",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Vier Pizzen aus drei Nebendateien: Klassen in rezepte/, Konstanten in preise.pizza und ein Geheimrezept, das nur der Teig kennt. Die Hauptdatei bestellt mit bestellt, was sie braucht."
+}

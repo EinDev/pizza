@@ -1,0 +1,43 @@
+// Kiste – Dateien aus dem eigenen Projekt lesen. Die Kiste ist die Lieferkiste des Projekts: Sie enthält jede Datei
+// (außer pruefung/) und kann sie lesen, aber nicht schreiben.
+//
+//   Kiste.liste(ordner)   alle Dateipfade unter dem Ordner, sortiert
+//   Kiste.gibts(pfad)     ja, wenn es die Datei gibt
+//   Kiste.text(pfad)      der ganze Inhalt einer Textdatei
+//   Kiste.zeilen(pfad)    dieselbe Datei als Blech aus Zeilen
+//
+// So liegen Level, Speisekarten oder Texte in eigenen Dateien statt im Programm – zum Ändern braucht es keinen Code.
+
+Bote.sage(("In der Kiste unter daten/: " + Kiste.liste("daten")));
+
+// ---------- Ein Level aus Zeichen: # Mauer, . Gang, B Bote, o Olive, O Ofen, T Tür ----------
+Blech<margherita> level = Kiste.zeilen("daten/level.txt");
+Bote.sage(("Level: " + level.länge() + " Zeilen × " + level.stück(1).länge() + " Spalten"));
+salami oliven = 0;
+salami mauern = 0;
+für (salami y = 1; y <= level.länge(); y++) {
+    margherita zeile = level.stück(y);
+    für (salami x = 1; x <= zeile.länge(); x++) {
+        margherita z = zeile.zeichen(x);
+        falls (z == "o") { oliven++; }
+        sonst falls (z == "#") { mauern++; }
+        sonst falls (z == "B") { Bote.sage(("Der Bote startet in Spalte " + x + ", Zeile " + y + ".")); }
+        sonst falls (z == "O") { Bote.sage(("Der Ofen steht in Spalte " + x + ", Zeile " + y + ".")); }
+    }
+}
+Bote.sage((oliven + " Oliven einsammeln, " + mauern + " Mauersteine im Weg."));
+Bote.sage(("So sieht es aus:\n" + Kiste.text("daten/level.txt").trimme().ersetze("#", "▓").ersetze(".", " ")));
+
+// ---------- Eine Speisekarte als CSV: Name;Preis ----------
+funghi summe = 0;
+für (margherita eintrag : Kiste.zeilen("daten/speisekarte.csv")) {
+    Blech<margherita> teil = eintrag.zerlege(";");
+    funghi preis = teil.stück(2).alsZahl();
+    summe += preis;
+    Bote.sage(("  " + teil.stück(1) + " … " + preis.währung("€")));
+}
+Bote.sage(("Alle vier zusammen: " + summe.währung("€")));
+
+// Fehlt eine Datei, fragt man vorher – Kiste.text auf eine fehlende Datei wäre eine LaufzeitAnanas
+falls (Kiste.gibts("daten/level-2.txt")) { Bote.sage(("Es gibt ein zweites Level.")); }
+sonst { Bote.sage(("Ein zweites Level gibt es noch nicht – leg daten/level-2.txt an!")); }

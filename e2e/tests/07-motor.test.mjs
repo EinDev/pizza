@@ -8,7 +8,11 @@ import {
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
-const istMehrdatei = (b) => (b.dateien || []).filter((d) => d.endsWith(".pizza")).length > 1;
+// Mehrdatei: mehr als eine .pizza oder weitere Projektdateien (Bilder/Daten für Bildchen.laden/Kiste) – nicht als ein Editor-Text setzbar
+const istMehrdatei = (b) => {
+  const d = b.dateien || [];
+  return d.filter((x) => x.endsWith(".pizza")).length > 1 || d.some((x) => x !== "pizza.json" && !x.endsWith(".pizza"));
+};
 
 const SNIPPETS = [
   { name: "Ausgabe", code: 'Bote.sage(("eins"));\nBote.fehler(("zwei"));\nsalami s = 0;\nfür (salami i : [1 .. 100]) { s += i; }\nBote.sage((s));', exit: 0 },

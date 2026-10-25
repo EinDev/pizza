@@ -1992,8 +1992,9 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Galerie `datei` **oder** `ordner`).
 - **Betroffen:** ARCHITEKTUR §3, §4, §6; Harnische; `scripts/beispiele.js` (neu). **Status:** fest; Ordner-Fälle in `tests/run-tests.js`
   und Projekt-Fälle im Prüfstand umgesetzt (PA1, U-73 ✅); Beispiele als Ordner mit Werkzeug/gemeinsamem Leser `scripts/beispiele.js`,
-  Galerie, Harnischen und Mehrdatei-Doku-Blöcken umgesetzt (PB3, Präzisierungen PROJEKTE.md §11); Pizza-Imperium als Projektordner mit
-  `zustand.pizza`, Übergangsleser (`datei`) entfernt (PB5, Präzisierungen PROJEKTE.md §11); offen nur noch die Mehrdatei-/Bild-Beispiele (PB4).
+  Galerie, Harnischen und Mehrdatei-Doku-Blöcken umgesetzt (PB3, Präzisierungen PROJEKTE.md §11); Mehrdatei-/Bild-Beispiele umgesetzt
+  (PB4: Teigball, Teigfänger, Steuerung, `grundlagen/rezeptbuch`, `grundlagen/kiste`); Pizza-Imperium als Projektordner mit
+  `zustand.pizza`, Übergangsleser (`datei`) entfernt (PB5, Präzisierungen PROJEKTE.md §11).
 
 ### K-145 Bilddateien: `Bildchen.laden`, PNG/JPEG nur als Eingabe, Vorbacken beim Packen, Caching, Datensegment (ergänzt K-136)
 - **Entscheidung (Nutzer F15; PROJEKTE.md §5):** `Bildchen.laden("bilder/x.png")` lädt PNG/JPEG aus der Kiste als eigene Textur mit
@@ -2012,10 +2013,16 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `besorge`, Teigmenge und P0020-Text; Kern-Export `bildchen_teigling`), PD2 ✅ (Interpreter: `Bildchen.laden`, Vorbacken vor dem
   Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80), PA2 ✅ (Laufzeit/Host: Teiglinge im passiven Datensegment,
   `bildchen_teigling` im nativen Host, U-75), PD3 ✅ (Glut nativ + Web: eigene Texturen mit Mip-Kette,
-  vergrößern nächster Nachbar, verkleinern trilinear; Referenzbilder `2d-textur`, `2d-rahmen-textur`, `3d-textur`; U-77).
+  vergrößern nächster Nachbar, verkleinern trilinear; Referenzbilder `2d-textur`, `2d-rahmen-textur`, `3d-textur`; U-77), PB4 ✅ (Beispiele
+  mit Bilddateien, U-79).
 - **Nachtrag 2026-10-25 (Nutzerentscheidung, PROJEKTE.md F8):** Teigmenge von 32 MiB auf **64 MiB** (67 108 864 Bytes) angehoben,
   damit größere Spiele (Neon-Napoli: Bodenmaterialien in 1024²) Platz haben. Rechnung und Text von P0020 bleiben gleich, nur die Zahl
   ändert sich („… höchstens 64 MB“); Grafikspeicher schlimmstenfalls 256 MiB statt 128 MiB (`bench/herd/ERGEBNISSE.md`).
+- **Nachtrag PB4 (2026-10-25, die angekündigte Folge):** `herd/teigball`, `herd/teigfaenger` und `herd/steuerung` laden ihre Bilder jetzt
+  aus PNG-/JPEG-Dateien (gemalt von `scripts/texturen-herd.js`) und sind teils auf mehrere Dateien verteilt; ihre `pruefung/herd-erwartet`
+  sind deshalb **gewollt neu** (neue Teiglinge, `TEXTUR`-Abschnitte, andere Ressourcen-Reihenfolge) – keine Regression im Sinne von
+  HERD.md §12.1 Regel 2. `pruefung/erwartet` blieb byte-gleich (Sprites mit `groesse: 0.5` in doppelter Auflösung = gleiche Hüllen).
+  Alle anderen `herd-erwartet`, Fälle und Doku-Blöcke unverändert (PROJEKTE.md §11 „Präzisierungen aus PB4“).
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –
@@ -2303,7 +2310,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 | U-76 ✅ (PB1) | `ui/**`, `site/js/worker.js` (PROJEKTE.md **PB1**) | K-142: IndexedDB, Migration, Dateibaum, Tabs je Datei, ZIP, Worker-Protokoll – erledigt auf PA1/PD1/PD2 (Worker `quelleFuer`; Wasm-Projekte über das Flag `Pizzaiolo.projekte` mit PA2) | `npm --prefix ui test`, e2e |
 | U-77 ✅ | `herd/teigling/**`, `herd/kern/**`, `herd/README.md`, `herd/glut*` (PROJEKTE.md **PD1**, **PD3**) | K-145, K-147: Vorbacker, goldene Teiglinge nativ = Wasm, Kern-Export `bildchen_teigling`, Codes 61/62, `TEXTUR`/`TEXTURBILD`/Bit 17 – erledigt (PD1, Commit „PROJEKTE PD1: …“); Glut-Texturen mit Mip-Kette nativ + Web, Referenzbilder, Messung – erledigt (PD3, Commit „PROJEKTE PD3: …“) | `cargo test` (herd), `node herd/test-kern.js`, `node herd/test-teigling.js`, E2E 13 |
 | U-78 ✅ (PB2) | `ui/src/teilen.js`, `ui/src/app.js`, e2e (PROJEKTE.md **PB2**) | K-143: Teilen-UI mit Versionen und Schlüssel, App-Link `@n`, EXE aus Projekt – erledigt: Client gegen die Durchreiche (`ui/test/teilen.mjs`), Dialog mit Neue Version/Neuer Link/Schlüssel/Löschen, Code-/App-Link mit `@n` und F6, E2E gegen den echten Dienst; EXE aus Mehrdatei-Projekten (auf PA2) | e2e 06, 11, 18 |
-| U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3** ✅, **PB4**, **PB5** ✅) | K-144, K-145: Beispiele als Ordner und Doku-Kapitel „Projekte und Dateien“ erledigt (PB3); Imperium als Projektordner (14 Dateien, `zustand.pizza`, Rezepturen gegen den Kreis Panels ↔ Ablauf), Übergangsleser entfernt – erledigt (PB5, Commit „PROJEKTE PB5: …“); offen Herd-Beispiele mit Bilddateien + `rezeptbuch`/`kiste` (PB4) | Prüfstand Beispiele/Doku, `node scripts/beispiele.js --pruefe` |
+| U-79 | `scripts/beispiele.js`, `site/beispiele/**`, `site/js/doku/**` (PROJEKTE.md **PB3** ✅, **PB4** ✅, **PB5** ✅) | K-144, K-145: Beispiele als Ordner und Doku-Kapitel „Projekte und Dateien“ erledigt (PB3); Imperium als Projektordner (14 Dateien, `zustand.pizza`, Rezepturen gegen den Kreis Panels ↔ Ablauf), Übergangsleser entfernt – erledigt (PB5, Commit „PROJEKTE PB5: …“); offen Herd-Beispiele mit Bilddateien + `rezeptbuch`/`kiste` (PB4) | Prüfstand Beispiele/Doku, `node scripts/beispiele.js --pruefe` |
 | U-80 ✅ | `site/js/pizza/` (`std/kiste.js`, `herd/`), `bin/pizza.js`, `tests/faelle/projekt-{kiste,bilder}/`, `pruefstand/faelle/a19-*` (PROJEKTE.md **PD2**; erledigt, Präzisierungen PROJEKTE §11) | K-145, K-146: `Kiste.text/zeilen/gibts/liste`, `Bildchen.laden` (gleicher Pfad = dasselbe Bildchen, Kern-Codes 3/61/62), Vorbacken aller Bilder vor dem Start mit Cache-Prüfung (`optionen.teiglinge`/`vorbacker`), P0020 Teigmenge, HOST „Vorbacker fehlt“, Herd-Erkennung `Bildchen.…`, CLI; die 19 Fälle aus `a19-projekte-offen.js` nach `a19-projekte.js` verschoben (Datei entfällt) | a19, tests/faelle `projekt-kiste`/`projekt-bilder`, CLI |
 
 Doku-Aufträge (U-07) im Detail – aus der Doku-Prüfung des Klärungs-Agenten (Abweichungen Doku ↔ Interpreter/SPEC):

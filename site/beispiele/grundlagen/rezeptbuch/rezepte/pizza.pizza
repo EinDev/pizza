@@ -1,0 +1,23 @@
+// Die Klasse Pizza. Sie braucht den Teig und die Preise – also bestellt sie beide Dateien selbst.
+bestellt "rezepte/teig.pizza";
+bestellt "preise.pizza";
+
+klasse Pizza {
+    margherita name;
+    Blech<margherita> belaege;
+    Teig teig;
+
+    Pizza(margherita n, Blech<margherita> b, salami gramm) {
+        name = n;
+        belaege = b;
+        teig = neu Teig(gramm);
+    }
+
+    salami preisInCent() {
+        serviere ((GRUNDPREIS + belaege.länge() * JE_BELAG));
+    }
+
+    margherita zeile() {
+        serviere ((name + ": " + belaege.verbinde(", ") + " auf " + teig + " – " + alsEuro(preisInCent())));
+    }
+}

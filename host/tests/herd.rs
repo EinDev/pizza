@@ -269,7 +269,7 @@ fn kanonisch(z: &str) -> String {
 
 #[test]
 fn beispiele_json_bitgleich_mit_herd_erwartet() {
-    for b in ["hallo-herd", "steuerung"] {
+    for b in ["hallo-herd", "muenzen"] { // Ein-Datei-Beispiele mit Eingabe (Steuerung lädt seit PB4 Bilddateien)
         let Some(karton) = kompiliere(b) else { return };
         let w = wurzel().join("site/beispiele/herd");
         let out = befehl(env!("CARGO_BIN_EXE_pizza-host"))

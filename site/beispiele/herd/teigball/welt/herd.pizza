@@ -1,0 +1,3 @@
+// Der Herd für alle Dateien. Nebendateien sehen die Hauptdatei nie – was mehrere Dateien brauchen, steht deshalb hier,
+// und jede Datei, die `herd` benutzt, bestellt diese Datei selbst.
+Herd herd = neu Herd("Teigball", breite: 960, hoehe: 540);

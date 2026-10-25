@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Kiste: Dateien lesen",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein Level und eine Speisekarte liegen als Textdateien im Projekt: Kiste.liste, Kiste.zeilen, Kiste.text und Kiste.gibts lesen sie – zum Ändern braucht es keinen Code."
+}

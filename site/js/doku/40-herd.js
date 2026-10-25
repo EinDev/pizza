@@ -44,8 +44,8 @@
           art: "details",
           titel: "Fertige Spiele zum Ausprobieren",
           inhalt: [
-            { art: "text", md: "Unter **Beispiele → Herd (Spiele)** liegen zum Anschauen und Weiterbauen:\n\n- **Teigfänger** (2D): Fang mit deiner Pizza die Beläge vor dem Steinofen – aber keine Ananas! Pixel-Bildchen mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand.\n- **Teigball** (3D): Rolle eine Teigkugel über die Riesenpizza und sammle acht Beläge. Abendsonne mit Schatten, glühende Öfen, Nebel, eine weich folgende Kamera und ein HUD.\n- **Hallo Herd**, **Drehender Würfel** und **Steuerung** als kleine Lernbeispiele." },
-            { art: "bild", src: "img/doku/he-teigfaenger.png", alt: "Teigfänger: Vor einem Steinofen mit Pixel-Flammen fallen Beläge herab, unten fängt eine Pizza auf einem Schieber sie auf. Oben links die Punkte, rechts drei Herzen.", unterschrift: "Teigfänger – das 2D-Spiel aus den Beispielen." }
+            { art: "text", md: "Unter **Beispiele → Herd (Spiele)** liegen zum Anschauen und Weiterbauen:\n\n- **Teigfänger** (2D): Fang mit deiner Pizza die Beläge vor dem Steinofen – aber keine Ananas! Sprites als PNG-Dateien mit Animation, Funken und Spritzer als Partikel, Ebenen, eine wackelnde Ziegelwand.\n- **Teigball** (3D): Rolle eine Teigkugel über die Riesenpizza und sammle acht Beläge. Abendsonne mit Schatten, Steinöfen aus Ziegeln, eine Margherita als Textur, Nebel, eine weich folgende Kamera und ein HUD.\n- **Hallo Herd**, **Drehender Würfel** und **Steuerung** als kleine Lernbeispiele.\n\nTeigfänger und Teigball sind **Projekte aus mehreren Dateien** (Herd, Welt, Figuren, Anzeige – siehe *Projekte und Dateien*), ihre Bilder liegen als PNG und JPEG im Ordner `bilder/` und werden mit `Bildchen.laden` geladen (siehe *Formen und Bildchen*)." },
+            { art: "bild", src: "img/doku/he-teigfaenger.png", alt: "Teigfänger: Vor einer Ziegelwand mit einem Steinofen, in dem Flammen auf Holzscheiten lodern, fallen Beläge herab; unten fängt eine Pizza auf einem hölzernen Schieber sie auf. Oben links die Punkte, rechts drei Herzen, vorn eine Holztheke.", unterschrift: "Teigfänger – das 2D-Spiel aus den Beispielen." }
           ]
         },
         {
@@ -127,7 +127,7 @@
       tier: 1,
       inhalt: [
         { art: "kurz", md: "In 3D baust du Körper aus Formen, stellst Lichter auf und schaust durch eine Kamera. Die Sonne wirft weiche Schatten, Nebel und ein Himmelsverlauf machen den Horizont schön – und alles 2D liegt darüber." },
-        { art: "bild", src: "img/doku/he-teigball.png", alt: "Teigball: Eine Teigkugel rollt über eine riesige Pizza mit Mozzarella, Salami, Oliven, Basilikum und Champignons. Ringsum Steinöfen mit glühendem Maul, Laternen und eine halb durchsichtige Ölflasche auf einer karierten Tischdecke; Abendhimmel und Nebel am Horizont, oben ein HUD.", unterschrift: "Teigball – das 3D-Spiel aus den Beispielen: Sonne mit Schatten, Punktlichter in den Öfen, Nebel, Himmelsverlauf, Textur, Durchsichtiges, 2D-Anzeige darüber." },
+        { art: "bild", src: "img/doku/he-teigball.png", alt: "Teigball: Eine Teigkugel aus Hefeteig rollt über eine riesige Margherita mit Tomatensoße, zerlaufenem Mozzarella und knuspriger Kruste, darauf Salami, Oliven, Basilikum und Champignons. Ringsum Steinöfen aus Ziegeln mit glühendem Maul und Laternen auf einer rot-weiß karierten Tischdecke; Abendhimmel und Nebel am Horizont, oben ein HUD.", unterschrift: "Teigball – das 3D-Spiel aus den Beispielen: Sonne mit Schatten, Punktlichter in den Öfen, Nebel, Himmelsverlauf, Texturen aus Bilddateien, Durchsichtiges, 2D-Anzeige darüber." },
         {
           art: "code",
           ausfuehrbar: true,
@@ -190,7 +190,7 @@
       tier: 1,
       inhalt: [
         { art: "kurz", md: "Im Rückruf von `backe` fragst du ab, was der Spieler gerade tut: Ist eine Taste **gehalten** (`taste`) oder **gerade gedrückt** worden (`gedrueckt`)? Wo ist die Maus, wurde geklickt?" },
-        { art: "bild", src: "img/doku/he-steuerung.png", alt: "Ein Pizzabote aus Pixeln springt über einer Wiese, im Himmel liegen Basilikumblätter, die per Mausklick hingelegt wurden. Oben steht die Mausposition.", unterschrift: "Das Beispiel „Steuerung“: Pfeiltasten laufen, Leertaste springt, Klick legt ein Blatt." },
+        { art: "bild", src: "img/doku/he-steuerung.png", alt: "Ein Pizzabote mit roter Mütze und Pizzakarton läuft über eine Blumenwiese vor grünen Hügeln, im Himmel liegen Basilikumblätter, die per Mausklick hingelegt wurden. Oben steht die Mausposition.", unterschrift: "Das Beispiel „Steuerung“: Pfeiltasten laufen, Leertaste springt, Klick legt ein Blatt." },
         {
           art: "code",
           ausfuehrbar: true,
@@ -375,7 +375,7 @@
       titel: "Formen und Bildchen",
       tier: 1,
       inhalt: [
-        { art: "kurz", md: "**Formen** sind die Gestalt eines 3D-Körpers – fertige Grundformen oder deine eigene aus Punkten und Dreiecken. **Bildchen** sind kleine Pixelbilder aus Text: für 2D-Figuren, Animationen und als Textur auf 3D-Körpern." },
+        { art: "kurz", md: "**Formen** sind die Gestalt eines 3D-Körpers – fertige Grundformen oder deine eigene aus Punkten und Dreiecken. **Bildchen** sind kleine Pixelbilder aus Text oder Bilddateien (PNG, JPEG) aus deinem Projekt: für 2D-Figuren, Animationen und als Textur auf 3D-Körpern." },
         { art: "bild", src: "img/doku/he-formen.png", alt: "Würfel, Kugel, Zylinder, Kegel, Ring und ein selbst gebautes Pizzastück nebeneinander mit Schatten; dahinter ein rot-weiß karierter Würfel und eine halb durchsichtige blaue Kugel.", unterschrift: "Die sechs Grundformen, eine eigene Form (Pizzastück), eine Bildchen-Textur und etwas Durchsichtiges." },
         {
           art: "code",
@@ -447,6 +447,28 @@
                 ["`v`","`aubergine`","#5B2A6E"]
               ]
             }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Bilder aus Dateien: Bildchen.laden",
+          inhalt: [
+            { art: "text", md: "Für größere, weiche oder fotografische Bilder legst du **PNG- oder JPEG-Dateien** in dein Projekt (am besten in einen Ordner `bilder/`) und lädst sie mit `Bildchen.laden(\"bilder/bote-1.png\")`. Heraus kommt ein ganz normales `Bildchen` – es passt überall, wo ein Bildchen steht: `herd.bild(…)`, `Animation`, `Rahmen`, `Fliesen`, `Himmelszelt` und als Textur `bild:` an einem `Koerper` oder `Belag`. Durchsichtiges im PNG bleibt durchsichtig." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Herd herd = neu Herd(\"Steuerung\");",
+                "Blech<Bildchen> schritte = [Bildchen.laden(\"bilder/bote-1.png\"), Bildchen.laden(\"bilder/bote-2.png\"),",
+                "                            Bildchen.laden(\"bilder/bote-3.png\"), Bildchen.laden(\"bilder/bote-4.png\")];",
+                "Teil bote = herd.bild(schritte.stück(1), 320, 296, groesse: 0.5);   // 80 × 100 Pixel → 40 × 50 auf dem Spielfeld",
+                "bote.mit(neu Animation(bilder: schritte, proSekunde: 10));",
+                "herd.koerper(Form.zylinder(), bild: Bildchen.laden(\"bilder/pizza.jpg\"));   // Textur: der Deckel zeigt das Bild von oben",
+                "herd.backe();"
+              )
+            },
+            { art: "text", md: "- **Größe:** `breite()`/`hoehe()` sind die Pixel der Datei, höchstens 2048 × 2048. `groesse` zählt Bildschirmpixel je Bildpixel – vergrößert bleibt das Bild pixelscharf, verkleinert wird es weich (die Engine rechnet beim Laden **Mipmaps** vor, so flimmert auch eine karierte Tischdecke in der Ferne nicht). Tipp: Sprites in doppelter Größe malen und mit `groesse: 0.5` zeichnen.\n- **Gleicher Pfad, gleiches Bild:** Ein zweites `Bildchen.laden` mit demselben Pfad liefert dasselbe `Bildchen` – laden kostet nur einmal.\n- **Kacheln:** Ein `Belag` mit `kachel` wiederholt das Bild (Seitenlänge eine Zweierpotenz, z. B. 256 × 256) – so deckt im Teigball ein kleines Karomuster den ganzen Tisch.\n- **Fehler:** Fehlt die Datei oder ist sie kein lesbares PNG/JPEG, wirft `Bildchen.laden` eine `LaufzeitAnanas`. Alle Bilder eines Projekts zusammen dürfen vorgebacken höchstens 64 MB groß sein (`P0020`; ein 1024 × 1024-Bild braucht etwa 5,3 MB).\n\nDie Beispiele **Steuerung** (Laufbilder und Landschaft), **Teigfänger** (alle Sprites) und **Teigball** (Tischdecke, Pizza, Kruste, Ziegel) zeigen das im Großen; ihre Bilder malt das Skript `scripts/texturen-herd.js`." }
           ]
         }
       ]

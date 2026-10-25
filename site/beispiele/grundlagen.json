@@ -108,6 +108,24 @@
       "dateien": ["pizza.json", "hauptgang.pizza"],
       "tier": 1,
       "schlagworte": ["Bezeichner", "Groß-/Kleinschreibung", "W0032"]
+    },
+    {
+      "id": "rezeptbuch",
+      "titel": "Rezeptbuch: ein Programm, mehrere Dateien",
+      "beschreibung": "Vier Pizzen aus drei Nebendateien: Klassen in rezepte/, Konstanten in preise.pizza und ein Geheimrezept, das nur der Teig kennt. Die Hauptdatei bestellt mit bestellt, was sie braucht.",
+      "ordner": "grundlagen/rezeptbuch",
+      "dateien": ["pizza.json", "hauptgang.pizza", "preise.pizza", "rezepte/pizza.pizza", "rezepte/teig.pizza"],
+      "tier": 1,
+      "schlagworte": ["bestellt", "Projekt", "geheimrezept", "Klassen"]
+    },
+    {
+      "id": "kiste",
+      "titel": "Kiste: Dateien lesen",
+      "beschreibung": "Ein Level und eine Speisekarte liegen als Textdateien im Projekt: Kiste.liste, Kiste.zeilen, Kiste.text und Kiste.gibts lesen sie – zum Ändern braucht es keinen Code.",
+      "ordner": "grundlagen/kiste",
+      "dateien": ["pizza.json", "hauptgang.pizza", "daten/level.txt", "daten/speisekarte.csv"],
+      "tier": 1,
+      "schlagworte": ["Kiste", "Dateien", "Text", "CSV"]
     }
   ]
 }

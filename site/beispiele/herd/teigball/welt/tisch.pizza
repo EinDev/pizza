@@ -1,0 +1,73 @@
+// Die Welt um die Pizza: Abendhimmel, Tischdecke, Riesenpizza, Steinöfen, Laternen, Öl und Wasser.
+// Eine Nebendatei enthält nur Rezepte (Klassen, Funktionen, Variablen) – die Hauptdatei ruft die bau…-Funktionen auf.
+// Die Oberflächen sind echte Bilddateien aus bilder/: Bildchen.laden lädt PNG oder JPEG als Textur mit Mipmaps.
+bestellt "welt/herd.pizza";
+
+leer baueHimmel() {
+    herd.himmel("#27306b", "#f2a96e");                 // oben Nachtblau, am Horizont Aprikose
+    herd.nebel("#f2a96e", 35, 90);                     // Nebel in der Horizontfarbe → nahtloser Übergang
+    herd.umgebung("#8fa3e0", staerke: 0.45);           // kühles Himmelslicht in den Schatten
+    herd.sonne().setzeLage(-0.7, 0.75, 0.35);          // tief stehende Sonne → lange Schatten
+    herd.sonne().licht().setzeFarbe("#ffcf9c").setzeStaerke(1.25);
+}
+
+// Tischdecke: ein gewebtes Vichy-Karo (256 × 256 Pixel, zwei mal zwei Karos). Der Belag wiederholt es 16-mal über die
+// Ebene (kachel) – in der Ferne verkleinern die Mipmaps das Muster weich, ohne Moiré.
+leer baueTisch() {
+    Belag decke = herd.raum().mit(neu Belag(bild: Bildchen.laden("bilder/tischdecke.png"), glanz: 0.05, kachel: 16));
+    Teil tisch = herd.koerper(Form.ebene(), 0, -4, 0).setzeGroesse(120, 1, 120);
+    tisch.koerper().setzeBelag(decke.teil());
+}
+
+// Die Riesenpizza auf ihrem Tortenständer: Teigboden und Rand mit Kruste, oben Soße und Mozzarella als ein Bild.
+// Der Deckel eines Zylinders zeigt das Bild von oben – der Kreis in der Mitte des Bildes ist die Pizza.
+leer bauePizza() {
+    Bildchen kruste = Bildchen.laden("bilder/kruste.jpg");
+    herd.koerper(Form.zylinder(teile: 24), 0, -2.2, 0, farbe: "grau", glanz: 0.6).setzeGroesse(1.2, 3.6, 1.2);
+    herd.koerper(Form.zylinder(teile: 64), 0, -0.25, 0, glanz: 0.1, bild: kruste).setzeGroesse(18, 0.5, 18);
+    herd.koerper(Form.zylinder(teile: 64), 0, -0.24, 0, glanz: 0.35, bild: Bildchen.laden("bilder/pizza.jpg")).setzeGroesse(16.4, 0.5, 16.4);
+    herd.koerper(Form.ring(dicke: 0.09, teile: 64), 0, 0.05, 0, glanz: 0.2, bild: Bildchen.laden("bilder/rand.jpg")).setzeGroesse(18.4, 6, 18.4);
+}
+
+// Steinofen (Hierarchie: Ofen = Kuppel + Schlot + glühendes Maul + Licht). Kuppel und Schlot tragen Ziegel –
+// derselbe Pfad liefert dreimal dasselbe Bildchen (geladen wird es nur einmal).
+Teil steinofen(funghi x, funghi z, funghi drehung) {
+    Bildchen ziegel = Bildchen.laden("bilder/ziegel.jpg");
+    Teil o = herd.raum(x, -4, z);
+    herd.koerper(Form.kugel(teile: 32), glanz: 0.1, bild: ziegel).setzeGroesse(7, 7, 7).haenge(o);
+    herd.koerper(Form.zylinder(), 1.4, 3.6, -0.6, farbe: "#c9a08c", bild: ziegel).setzeGroesse(0.9, 2.4, 0.9).haenge(o);
+    herd.koerper(Form.kugel(), 0, 1.0, 3.2, farbe: "#ffb347", leuchten: 1).setzeGroesse(2.6, 2.4, 0.8).haenge(o);
+    herd.licht(0, 1.6, 4.6, farbe: "#ff8c3a", reichweite: 12).haenge(o);
+    o.setzeDrehung(drehung);
+    serviere ((o));
+}
+leer baueOefen() {
+    steinofen(-17, -12, 50);
+    steinofen(18, -10, -45);
+    steinofen(0, -26, 0);
+}
+
+// Laternen am Tellerrand (Punktlichter, warm)
+Teil laterne(funghi x, funghi z) {
+    Teil l = herd.raum(x, -4, z);
+    herd.koerper(Form.zylinder(), 0, 2.4, 0, farbe: "ofen").setzeGroesse(0.18, 4.8, 0.18).haenge(l);
+    herd.koerper(Form.kugel(), 0, 5.0, 0, farbe: "#ffe6a8", leuchten: 1, glanz: 0).setzeGroesse(0.7).haenge(l);
+    herd.licht(0, 5.0, 0, farbe: "#ffd27a", reichweite: 9).haenge(l);
+    serviere ((l));
+}
+leer baueLaternen() {
+    laterne(-10.5, 3);
+    laterne(10.5, 3);
+    laterne(-7.5, -8.5);
+    laterne(7.5, -8.5);
+}
+
+// Eine Flasche Olivenöl und ein Wasserglas auf dem Tisch – halb durchsichtig (Alpha in der Farbe)
+leer baueFlasche() {
+    Teil flasche = herd.raum(14, -4, -3);
+    herd.koerper(Form.zylinder(teile: 32), 0, 2.2, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 4.4, 1.6).haenge(flasche);
+    herd.koerper(Form.kugel(teile: 32), 0, 4.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(1.6, 1.2, 1.6).haenge(flasche);
+    herd.koerper(Form.zylinder(), 0, 5.4, 0, farbe: "#6b7a2acc", glanz: 0.9).setzeGroesse(0.5, 1.6, 0.5).haenge(flasche);
+    herd.koerper(Form.zylinder(), 0, 6.3, 0, farbe: "kruste").setzeGroesse(0.6, 0.4, 0.6).haenge(flasche);
+    herd.koerper(Form.zylinder(teile: 32), -12.5, -2.8, 6, farbe: "#d8ecff60", glanz: 1).setzeGroesse(1.4, 2.4, 1.4);
+}

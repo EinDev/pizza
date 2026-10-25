@@ -2,5 +2,5 @@
   "pizza": 1,
   "name": "Steuerung: Tasten und Maus",
   "hauptdatei": "hauptgang.pizza",
-  "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste, und jeder Mausklick legt ein Basilikumblatt hin – taste, gedrueckt, klick und Animation zum Ausprobieren."
+  "beschreibung": "Der Pizzabote läuft mit den Pfeiltasten, springt mit der Leertaste, und jeder Mausklick legt ein Basilikumblatt hin – taste, gedrueckt, klick und eine Animation aus vier PNG-Bildern zum Ausprobieren."
 }

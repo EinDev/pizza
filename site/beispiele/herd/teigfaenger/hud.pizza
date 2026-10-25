@@ -1,0 +1,33 @@
+// HUD: Punkte, Pizzen, drei Herzen und die große Meldung mit Schatten.
+bestellt "herd.pizza";
+
+Teil punkteText;
+Teil pizzenText;
+Blech<Teil> herzen = [];
+Teil schild;
+Teil titel;
+Teil unter;
+salami schildBis = 120;
+
+leer baueHud() {
+    herd.rechteck(92, 28, 160, 40, farbe: "#2f2a26c0", rundung: 12).setzeEbene(10);
+    punkteText = herd.text("0 Punkte", 22, 12, groesse: 22, farbe: "mozzarella").setzeEbene(11);
+    pizzenText = herd.text("0 Pizzen", 618, 46, groesse: 16, farbe: "mozzarella", ausrichtung: "rechts").setzeEbene(11);
+    für (salami i = 0; i < 3; i++) { herzen.hinzu(herd.bild(ladeBild("herz"), 540 + i * 30, 24, groesse: 0.5).setzeEbene(11)); }
+    schild = herd.gruppe(320, 130).setzeEbene(20);
+    herd.rechteck(0, 22, 440, 104, farbe: "#2f2a26d8", rundung: 20).haenge(schild);
+    titel = herd.text("Teigfänger", 0, -12, groesse: 44, farbe: "senf", ausrichtung: "mitte").haenge(schild);
+    unter = herd.text("Fang die Beläge – aber keine Ananas!", 0, 44, groesse: 18, farbe: "mozzarella", ausrichtung: "mitte").haenge(schild);
+}
+
+leer zeigePunkte(salami punkte, salami pizzen) {
+    punkteText.text().setzeInhalt((punkte + (punkte == 1 ? " Punkt" : " Punkte")));
+    pizzenText.text().setzeInhalt((pizzen + (pizzen == 1 ? " Pizza" : " Pizzen")));
+}
+
+leer meldung(margherita oben, margherita darunter, salami dauer) {
+    titel.text().setzeInhalt(oben);
+    unter.text().setzeInhalt(darunter);
+    schild.sichtbar(ja);
+    schildBis = herd.bildnummer() + dauer;
+}
