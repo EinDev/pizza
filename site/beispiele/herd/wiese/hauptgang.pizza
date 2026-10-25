@@ -1,0 +1,138 @@
+// Wiese – ein Hügel voller Gras, Blumen und Steine im Wind. Der Pizzabote spaziert hindurch; Böen laufen als Wellen über das Gras.
+//
+// Steuerung: W A S D (oder Pfeiltasten) laufen, Q/E drehen den Blick, Leertaste springt. Ohne Eingabe spaziert der Bote
+// im Kreis. T schaltet zwischen Brise und Sturm.
+//
+// So arbeitet die Engine für dich: Eine Streu verteilt Tausende gleiche Teile über das Gelände – nur einmal gerechnet und zur
+// Grafikkarte geschickt; in jedem Bild zeichnet die Engine nur die Zellen, die die Kamera sieht, und dünnt in der Ferne aus. Der
+// Wind bewegt alles, dessen Belag „wiegen“ hat, direkt auf der Grafikkarte: Halme biegen sich weit, Baumkronen nur ein wenig.
+// Gras und Blumen sind rein sichtbar – der Bote läuft durch sie hindurch, nur Gelände, Steinblöcke und Stämme halten ihn auf.
+
+Herd herd = neu Herd("Wiese", breite: 960, hoehe: 540);
+herd.himmel("#7db7ea", "#fdf2dc");
+herd.nebel("#fdf2dc", 30, 62);
+herd.umgebung("#fff4de", staerke: 0.45);
+herd.sonne().setzeLage(-0.5, 0.9, 0.35);
+
+// Hügel 48 × 48: eine Kuppe in der Mitte, sanfte Wellen, am Rand ein steiler Kamm (dort wächst nichts)
+salami SEITE = 48;
+funghi WEITE = 1.25;
+Rezept hoehe = (funghi x, funghi z) -> {
+    funghi kuppe = 3.2 * Mathe.exp(-(x * x + z * z) / 160);
+    funghi wellen = Mathe.sin(x * 0.21) * Mathe.cos(z * 0.17) * 0.7;
+    funghi kamm = Mathe.max(Mathe.max(x.abs(), z.abs()) - 24, 0);
+    serviere ((kuppe + wellen + kamm * kamm * 0.2));
+};
+Blech<funghi> hoehen = [];
+für (salami j = 0; j < SEITE; j++) {
+    für (salami i = 0; i < SEITE; i++) {
+        hoehen.hinzu(hoehe((i - (SEITE - 1) / 2) * WEITE, (j - (SEITE - 1) / 2) * WEITE));
+    }
+}
+Teil land = herd.raum(0, 0, 0);
+land.mit(neu Gelaende(hoehen: hoehen, spalten: SEITE, zeilen: SEITE, weite: WEITE, farbe: "#6f9440", glanz: 0.05));
+land.mit(neu Fuehler(form: "netz", ausloeser: nein));
+
+// Beläge: Gras und Blumen wiegen voll, das Laub der Bäume nur wenig, Steine gar nicht
+Rezept belag = (margherita farbe, funghi glanz, funghi wiegen) -> {
+    Teil t = herd.raum(0, 0, 0);
+    t.mit(neu Belag(farbe: farbe, glanz: glanz, wiegen: wiegen));
+    serviere (t);
+};
+Teil gras = belag("#64a03f", 0.1, 1);
+Teil gras_hell = belag("#8fbf4a", 0.1, 1);
+Teil blume_gelb = belag("#f5c518", 0.3, 0.7);
+Teil blume_weiss = belag("#fff6e0", 0.3, 0.7);
+Teil blume_rot = belag("#d9452b", 0.3, 0.7);
+Teil stein = belag("#9a948c", 0.15, 0);
+Teil laub = belag("#3e7e31", 0.15, 0.06);
+Teil rinde = belag("#7a5532", 0.1, 0);
+
+// Grashalm: unten breit, oben spitz, leicht nach vorn gebogen (eine eigene Form aus 5 Punkten)
+Form halm = neu Form([-0.05, 0, 0, 0.05, 0, 0, -0.035, 0.5, 0.03, 0.035, 0.5, 0.03, 0, 1, 0.1], [0, 1, 3, 0, 3, 2, 2, 3, 4]);
+Form bluete = Form.kugel(teile: 8);
+Form brocken = Form.kugel(teile: 10);
+
+// Wo Blumen wachsen: ein Fleckenmuster über die Fläche (hell = viel)
+Speisekarte<margherita, margherita> flecken = neu Speisekarte<margherita, margherita>();
+flecken.lege("w", "weiss").lege("g", "grau").lege("s", "schwarz");
+Bildchen bluemchen = neu Bildchen(["sswgss", "sgwwss", "ssgsgw", "wgsssw", "wwgsss", "gsssgw"], farben: flecken);
+
+Rezept streu = (Form f, Teil b, salami anzahl, funghi groesse, funghi streuung, salami saat) -> {
+    Teil t = herd.raum(0, 0, 0);
+    Streu s = t.mit(neu Streu(form: f, belag: b, anzahl: anzahl, breite: 58, tiefe: 58, gelaende: land, hang: 32,
+                              groesse: groesse, groesseStreuung: streuung, saat: saat, sichtweite: 56));
+    serviere (s);
+};
+streu(halm, gras, 38000, 0.55, 0.45, 1);
+streu(halm, gras_hell, 12000, 0.45, 0.4, 2);
+Streu gelb = streu(bluete, blume_gelb, 3000, 0.17, 0.3, 3);
+Streu weiss = streu(bluete, blume_weiss, 3000, 0.14, 0.3, 4);
+Streu rot = streu(bluete, blume_rot, 1500, 0.18, 0.3, 5);
+gelb.setzeDichte(bluemchen);
+weiss.setzeDichte(bluemchen);
+rot.setzeDichte(bluemchen);
+Streu steine = streu(brocken, stein, 260, 0.45, 0.7, 6);
+steine.setzeSchatten(ja).setzeHang(60).setzeSichtweite(0);
+
+// Ein paar Bäume: Stamm mit Fühler (der Bote läuft nicht hindurch), Krone wiegt im Wind
+Blech<funghi> baeume = [-12, -6, 9, -11, 14, 8, -9, 12, 18, -2, -17, 2];
+für (salami i = 0; i < 6; i++) {
+    funghi x = baeume.stück(2 * i + 1);
+    funghi z = baeume.stück(2 * i + 2);
+    funghi y = hoehe(x, z);
+    Teil stamm = herd.koerper(Form.zylinder(), x, y + 1.2, z).setzeGroesse(0.35, 2.4, 0.35);
+    stamm.koerper().setzeBelag(rinde);
+    stamm.mit(neu Fuehler(ausloeser: nein));
+    Teil krone = herd.koerper(Form.kegel(teile: 10), x, y + 3.6, z).setzeGroesse(2.6, 4.2, 2.6);
+    krone.koerper().setzeBelag(laub);
+}
+
+// Wind: von Westen, mit Böen
+Teil luft = herd.raum(0, 0, 0);
+Wind wind = luft.mit(neu Wind(staerke: 1.6, richtungX: 1, richtungZ: 0.35, boeen: 0.55, tempo: 1));
+
+// Der Bote: Figur mit Kapsel, die Kamera hängt an einem Arm hinter ihm
+Teil bote = herd.raum(0, 4.5, 16);
+bote.mit(neu Fuehler(form: "kapsel", radius: 0.35, hoehe: 1.7, ausloeser: nein));
+Figur figur = bote.mit(neu Figur());
+herd.koerper(Form.zylinder(), 0, -0.2, 0, farbe: "#c0392b", glanz: 0.3).setzeGroesse(0.62, 1.1, 0.5).haenge(bote).setzeLage(0, -0.2, 0);
+herd.koerper(Form.kugel(teile: 20), 0, 0.6, 0, farbe: "#f1c9a0", glanz: 0.3).setzeGroesse(0.42).haenge(bote).setzeLage(0, 0.6, 0);
+herd.koerper(Form.zylinder(), 0, 0.84, 0, farbe: "#fdfdfd", glanz: 0.2).setzeGroesse(0.46, 0.12, 0.46).haenge(bote).setzeLage(0, 0.84, 0);
+Teil arm = herd.raum(0, 0, 0).haenge(bote).setzeLage(0, 0.9, 0).setzeNeigung(-14);
+herd.kamera().haenge(arm).setzeLage(0, 0.4, 6.5).setzeDrehung(0).setzeNeigung(0).setzeRollen(0);
+
+Teil stand = herd.text("", 20, 24, groesse: 18, farbe: "#2f2a26");
+herd.text("WASD laufen · Q/E Blick · Leertaste springen · T: Brise oder Sturm", 480, 516, groesse: 16, farbe: "#2f2a26", ausrichtung: "mitte");
+
+Rezept taste = (margherita a, margherita b) -> { serviere (herd.taste(a) || herd.taste(b)); };
+funghi blick = 0;
+funghi runde = 0;
+salami sturm = 0;
+herd.backe(() -> {
+    falls (herd.gedrueckt("t") || herd.gedrueckt("T")) {
+        sturm = 1 - sturm;
+        wind.setzeStaerke(sturm == 1 ? 4 : 1.6).setzeBoeen(sturm == 1 ? 0.8 : 0.55).setzeTempo(sturm == 1 ? 1.8 : 1);
+    }
+    falls (taste("q", "Q")) { blick = blick - 2.5; }
+    falls (taste("e", "E")) { blick = blick + 2.5; }
+    funghi vor = 0;
+    funghi seit = 0;
+    falls (taste("w", "W") || herd.taste("Hoch")) { vor = vor + 1; }
+    falls (taste("s", "S") || herd.taste("Runter")) { vor = vor - 1; }
+    falls (taste("a", "A") || herd.taste("Links")) { seit = seit - 1; }
+    falls (taste("d", "D") || herd.taste("Rechts")) { seit = seit + 1; }
+    falls (vor == 0 && seit == 0) {
+        // Autopilot: ein gemächlicher Kreis
+        runde = runde + 0.35;
+        vor = 0.6;
+        blick = runde;
+    }
+    funghi b = Mathe.bogen(blick);
+    figur.setzeLaufX((Mathe.sin(b) * vor + Mathe.cos(b) * seit) * 3.2);
+    figur.setzeLaufZ((-Mathe.cos(b) * vor + Mathe.sin(b) * seit) * 3.2);
+    falls (herd.gedrueckt("Leertaste") && figur.amBoden()) { figur.setzeSprung(5); }
+    bote.setzeDrehung(-blick);
+    stand.text().setzeInhalt(("Wind " + (sturm == 1 ? "Sturm" : "Brise") + " · Bote bei " + Mathe.runden(bote.x(), 1) + " | " + Mathe.runden(bote.z(), 1)));
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: " + (sturm == 1 ? "Sturm" : "Brise") + ", Bote bei " + Mathe.runden(bote.x(), 1) + " | " + Mathe.runden(bote.z(), 1) + ", am Boden " + figur.amBoden() + "."));

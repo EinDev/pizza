@@ -362,6 +362,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Klang", "Schall", "Raumklang", "Tastatur"],
       "herd": true
+    },
+    {
+      "id": "wiese",
+      "titel": "Wiese: Streu und Wind",
+      "beschreibung": "Ein Hügel mit 50 000 Grashalmen, Blumen und Steinen, verteilt von einer Streu und in Böen gewiegt vom Wind – die Halme biegen sich weit, die Baumkronen nur ein wenig. Der Pizzabote spaziert als Figur hindurch (WASD, Q/E, Leertaste); T schaltet zwischen Brise und Sturm.",
+      "ordner": "herd/wiese",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Streu", "Wind", "Gelaende", "Figur"],
+      "herd": true
     }
   ]
 }
