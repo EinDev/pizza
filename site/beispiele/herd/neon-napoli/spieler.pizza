@@ -1,11 +1,13 @@
 // Der Pizzabote in der Ich-Perspektive, gesteuert wie in einem Ego-Shooter: Klick ins Bild fängt die Maus (Esc gibt sie frei),
 // die Maus dreht den Blick, W A S D laufen relativ zur Blickrichtung, Umschalt sprintet. Ohne gefangene Maus: Maus ziehen oder
-// Q/E bzw. Links/Rechts (Bild auf/ab zum Hoch-/Runterschauen). Kollision als Kreis gegen die Kästen aus zustand.pizza – wer
-// schräg gegen eine Mauer läuft, gleitet an ihr entlang.
+// Q/E bzw. Links/Rechts (Bild auf/ab zum Hoch-/Runterschauen). Der Bote ist eine Figur (eine Kapsel): das Programm sagt nur, wie
+// schnell er laufen möchte – Mauern, Bordsteine (15 cm, einfach hinauf und hinunter) und der Boden kommen von den Fühlern der Welt;
+// wer schräg gegen eine Mauer läuft, gleitet an ihr entlang. Die Kamera hängt am Boten (Augenhöhe, Kopfwippen).
 bestellt "zustand.pizza";
 
 funghi AUGENHOEHE = 1.7;
-funghi RADIUS = 0.35;
+funghi RADIUS = 0.33;          // + 2 cm Haut der Figur = 35 cm Abstand zu Wänden
+funghi GROESSE = 1.8;          // Kapsel: Fuß bis Scheitel
 funghi GEHEN = 3.4;            // m/s
 funghi SPRINT = 1.8;           // Sprint = 1,8 × Gehen
 funghi ANFAHREN = 28;          // m/s² (in gut 0,1 s auf Gehtempo)
@@ -16,11 +18,14 @@ funghi SICHT = 72;             // Sichtfeld in Grad, beim Sprint ein wenig weite
 funghi DT = 1 / 60;
 
 klasse Spieler {
+    Teil bote;           // Teil mit Fühler (Kapsel) und Figur, Lage = Mitte der Kapsel
+    Figur figur;
+    Teil auge;           // die Kamera, am Boten aufgehängt
     funghi x;
     funghi z;
     funghi blick;        // Grad um die Hochachse, 0 = nach −z (die Straße hinunter)
     funghi neigung;      // Grad, positiv = nach oben
-    funghi vx;           // Tempo in m/s (Welt)
+    funghi vx;           // Wunschtempo in m/s (Welt)
     funghi vz;
     funghi sprint;       // 0 … 1, sanft hoch- und heruntergefahren
     funghi phase;        // Schrittwippen
@@ -36,17 +41,11 @@ klasse Spieler {
         sprint = 0;
         phase = 0;
         weg = 0;
+        bote = herd.raum(x0, GROESSE / 2 + 0.02, z0);
+        bote.mit(neu Fuehler(form: "kapsel", radius: RADIUS, hoehe: GROESSE, ausloeser: nein));
+        figur = bote.mit(neu Figur());
+        auge = herd.kamera().haenge(bote).setzeLage(0, AUGENHOEHE - GROESSE / 2, 0).setzeDrehung(0).setzeNeigung(0).setzeRollen(0);
         herd.mausFangen();   // Wunsch: der erste Klick ins Bild fängt die Maus
-    }
-
-    diavolo frei(funghi px, funghi pz) {
-        für (salami i = 1; i <= MAUERN.länge(); i += 4) {
-            falls (px > MAUERN.stück(i) - RADIUS && px < MAUERN.stück(i + 2) + RADIUS
-                   && pz > MAUERN.stück(i + 1) - RADIUS && pz < MAUERN.stück(i + 3) + RADIUS) {
-                serviere (nein);
-            }
-        }
-        serviere (ja);
     }
 
     diavolo taste(margherita klein, margherita gross) {
@@ -73,6 +72,14 @@ klasse Spieler {
     }
 
     leer takt() {
+        // Lage aus dem letzten Takt der Figur; was sie wirklich gelaufen ist, zählt für Weg und Wippen
+        x = bote.x();
+        z = bote.z();
+        funghi tx = figur.tempoX();
+        funghi tz = figur.tempoZ();
+        funghi gelaufen = Mathe.wurzel(tx * tx + tz * tz) * DT;
+        weg = weg + gelaufen;
+        phase = phase + gelaufen * (3.0 + 0.6 * sprint);
         umsehen();
 
         // Wunschrichtung relativ zum Blick (nur die Drehung um die Hochachse zählt), diagonal normiert
@@ -101,7 +108,8 @@ klasse Spieler {
             zz = wz / wl * ziel;
         }
 
-        // Tempo geradlinig auf das Ziel zu (beschleunigen bzw. bremsen, nie darüber hinaus – kein Rutschen, kein Pendeln)
+        // Tempo geradlinig auf das Ziel zu (beschleunigen bzw. bremsen, nie darüber hinaus – kein Rutschen, kein Pendeln);
+        // die Figur läuft es noch in diesem Takt, gleitet an Mauern entlang und steigt Bordsteine
         funghi dvx = zx - vx;
         funghi dvz = zz - vz;
         funghi dl = Mathe.wurzel(dvx * dvx + dvz * dvz);
@@ -113,24 +121,16 @@ klasse Spieler {
             vx = vx + dvx / dl * schritt;
             vz = vz + dvz / dl * schritt;
         }
+        figur.setzeLaufX(vx);
+        figur.setzeLaufZ(vz);
 
-        // erst x, dann z: an Wänden entlanggleiten; was blockiert, verliert sein Tempo
-        funghi altX = x;
-        funghi altZ = z;
-        falls (frei(x + vx * DT, z)) { x = x + vx * DT; } sonst { vx = 0; }
-        falls (frei(x, z + vz * DT)) { z = z + vz * DT; } sonst { vz = 0; }
-        funghi gelaufen = Mathe.wurzel((x - altX) * (x - altX) + (z - altZ) * (z - altZ));
-        weg = weg + gelaufen;
-        phase = phase + gelaufen * (3.0 + 0.6 * sprint);
-
-        // Kamera: Augenhöhe mit dezentem Kopfwippen (stärker im Sprint, klingt mit dem Tempo aus), Sichtfeld beim Sprint +6°
-        funghi tempo = Mathe.wurzel(vx * vx + vz * vz);
+        // Kamera: Augenhöhe mit dezentem Kopfwippen (stärker im Sprint, klingt mit dem Tempo aus), Sichtfeld beim Sprint +6°;
+        // sie hängt am Boten und folgt ihm ohne Verzögerung
+        funghi tempo = Mathe.wurzel(tx * tx + tz * tz);
         funghi wippen = (0.028 + 0.022 * sprint) * Mathe.min(1, tempo / GEHEN);
-        funghi y = AUGENHOEHE + Mathe.sin(phase) * wippen;
-        funghi n = Mathe.bogen(neigung);
-        Teil k = herd.kamera();
-        k.kamera().setzeSicht(SICHT + 6 * sprint);
-        k.setzeLage(x, y, z).schaueAuf(x + fx * Mathe.cos(n), y + Mathe.sin(n), z + fz * Mathe.cos(n));
+        bote.setzeDrehung(-blick);
+        auge.setzeLage(0, AUGENHOEHE - GROESSE / 2 + Mathe.sin(phase) * wippen, 0).setzeNeigung(neigung);
+        auge.kamera().setzeSicht(SICHT + 6 * sprint);
     }
 
     // Abstand in der Ebene und Richtung (Grad, −180 … 180, 0 = geradeaus) zu einem Punkt

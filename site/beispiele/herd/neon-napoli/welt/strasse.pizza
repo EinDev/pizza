@@ -13,13 +13,13 @@ leer baueStrasse() {
     // Fahrbahn (x −4 … 4) in Abschnitten von 12 m – so verteilen sich die Lichter gut auf die Zellen
     für (funghi z = STRASSE_ANFANG; z > STRASSE_ENDE; z -= 12) {
         funghi l = Mathe.min(12, z - STRASSE_ENDE);
-        quader(ASPHALT, 0, -0.05, z - l / 2, 8, 0.1, l, nein);
+        begehbar(quader(ASPHALT, 0, -0.05, z - l / 2, 8, 0.1, l, nein));
         // Gehwege links und rechts (Bordstein 15 cm)
-        quader(GEHWEG, -5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein);
-        quader(GEHWEG, 5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein);
+        begehbar(quader(GEHWEG, -5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein));
+        begehbar(quader(GEHWEG, 5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein));
     }
     // Gasse nach links: Boden
-    quader(ASPHALT, -14, -0.05, GASSE_Z, 16, 0.1, 6, nein);
+    begehbar(quader(ASPHALT, -14, -0.05, GASSE_Z, 16, 0.1, 6, nein));
     // Ende der Straße: Mauer mit Tor (Kollision)
     quader(BETON, 0, 4, STRASSE_ENDE - 0.5, 13, 8, 1, ja);
     // Anfang: Kaimauer und Geländer zum Wasser

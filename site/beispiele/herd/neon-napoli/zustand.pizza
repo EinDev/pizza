@@ -9,18 +9,27 @@ Form EBENE = Form.ebene();
 Form ROHR = Form.zylinder(teile: 12);
 Form KUGEL = Form.kugel(teile: 10);
 
-// Kollision: achsenparallele Rechtecke im Grundriss, je vier Zahlen x0, z0, x1, z1 (der Spieler ist ein Kreis)
+// Grundriss der Mauern: achsenparallele Rechtecke, je vier Zahlen x0, z0, x1, z1 (gezählt; die Kollision machen die Fühler)
 Blech<funghi> MAUERN = [];
 
 leer mauer(funghi x0, funghi z0, funghi x1, funghi z1) {
     MAUERN.hinzu(Mathe.min(x0, x1)).hinzu(Mathe.min(z0, z1)).hinzu(Mathe.max(x0, x1)).hinzu(Mathe.max(z0, z1));
 }
 
-// Ein Quader mit Mitte (x, y, z), Größe (b, h, t) und geteiltem Material; fest = auch eine Mauer für den Spieler
+// Ein Quader mit Mitte (x, y, z), Größe (b, h, t) und geteiltem Material; fest = auch eine Mauer für den Spieler (fester Fühler)
 Teil quader(Teil stoff, funghi x, funghi y, funghi z, funghi b, funghi h, funghi t, diavolo fest) {
     Teil q = herd.koerper(WUERFEL, x, y, z).setzeGroesse(b, h, t);
     q.koerper().setzeBelag(stoff);
-    falls (fest) { mauer(x - b / 2, z - t / 2, x + b / 2, z + t / 2); }
+    falls (fest) {
+        mauer(x - b / 2, z - t / 2, x + b / 2, z + t / 2);
+        q.mit(neu Fuehler(form: "kasten", ausloeser: nein));
+    }
+    serviere ((q));
+}
+
+// Boden zum Darauflaufen (Fahrbahn, Gehweg mit Bordstein): fester Fühler, aber keine Mauer im Grundriss
+Teil begehbar(Teil q) {
+    q.mit(neu Fuehler(form: "kasten", ausloeser: nein));
     serviere ((q));
 }
 
