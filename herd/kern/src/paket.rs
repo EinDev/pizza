@@ -76,6 +76,15 @@ pub mod abschnitt {
     /// Gelenk-Palette des Bildes (H-K23b): `u32 anzahl`, dann je Gelenk 3 × vec4 f32 (Zeilen der 3 × 4-Matrix relativ zum
     /// Körper-Teil); die erste Palettenzeile einer gehäuteten Instanz steht in `ZUSATZ3D.merkmale` Bits 16–31. Nur mit Haut-Zügen
     pub const GELENKE: u32 = 25;
+    /// Streu-Instanzen (H-K27, Ressource, einmal je Stand im ersten Paket, das die Streu zeichnet): `u32 id, u32 anzahl`, dann
+    /// `anzahl` × INST3D (72 B), `anzahl` × ZUSATZ3D (16 B), `anzahl` × KARTEN3D (16 B); ein späterer Stand ersetzt die Daten
+    pub const STREU: u32 = 26;
+    /// Sichtbare Streu-Zellen des Bildes (H-K27): `u32 eintraege`, dann je Eintrag `u32 streu, u32 netz, u32 merkmale` (Zug-Bits
+    /// EINSEITIG), `u32 schatten` (Bit 0 = Sonne über `licht_proj`, Bit 1 + k = Kaskade k), `u32 laeufe`, dann `laeufe` ×
+    /// (`u32 erste, u32 anzahl`) Instanzen der Ressource
+    pub const STREU3D: u32 = 27;
+    /// Wind (H-K27, 32 B Uniform-Block, `komponenten::wind`)
+    pub const WIND: u32 = 28;
 }
 
 pub mod flag {
@@ -119,6 +128,16 @@ pub mod zug {
     pub const HAUT: u32 = 1 << 18;
     /// Art ohne Merkmale
     pub const ART: u32 = 0xFFFF;
+}
+
+/// Eine sichtbare `Streu` im Bildbau (H-K27): Ressource, Netz, Sichtweite (0 = unbegrenzt), wirft Schatten.
+#[derive(Clone, Copy, Debug)]
+pub struct StreuB {
+    pub teil: u32,
+    pub id: u32,
+    pub netz: u32,
+    pub sichtweite: f64,
+    pub schatten: bool,
 }
 
 /// Ein 3D-Körper im Bildbau.
@@ -245,6 +264,8 @@ pub struct Bildbau {
     /// Gelenk-Teile der zuletzt gehäuteten Figur (Wurzel-Zeile + 1, Modell, Zeile + 1 je Knoten) – mehrere Netze einer Figur
     /// gehen den Teilbaum nur einmal ab
     pub haut_karte: (usize, usize, Vec<u32>),
+    /// Streu des Bildes (H-K27), nach Teil-ID
+    pub streu: Vec<StreuB>,
     // Arbeitslisten
     sicht: Vec<bool>,
     fest: Vec<(u64, u32)>,
@@ -299,6 +320,7 @@ impl Bildbau {
         self.blick = None;
         self.gelenke.clear();
         self.haut_karte.0 = 0;
+        self.streu.clear();
         if self.schrift.is_none() {
             self.schrift = Schrift::eingebettet();
         }
@@ -429,6 +451,8 @@ pub struct Gesendet {
     pub ressourcen: usize,
     /// Netze, deren `HAUT` schon gesendet ist (aufsteigend, H-K23b)
     pub haeute: Vec<u32>,
+    /// gesendeter Stand je Streu-Ressource (Index = ID − 1, 0 = nie; H-K27)
+    pub streu: Vec<u32>,
 }
 
 // ------------------------------------------------------------------ Matrizen (f64, spaltenweise wie WGSL)
@@ -668,6 +692,29 @@ fn haut_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &Bildba
     n
 }
 
+/// `STREU` je gezeichneter Streu-Ressource, deren Stand noch nicht gesendet ist (H-K27; hinter den übrigen Ressourcen-Deltas).
+fn streu_deltas(b: &mut Vec<u8>, res: &Ressourcen, g: &mut Gesendet, bau: &Bildbau) -> u32 {
+    let mut n = 0;
+    for sb in &bau.streu {
+        let i = sb.id as usize - 1;
+        let Some(r) = res.streu.get(i) else { continue };
+        if g.streu.len() <= i {
+            g.streu.resize(i + 1, 0);
+        }
+        if g.streu[i] == r.stand {
+            continue;
+        }
+        let st = abschnitt_beginn(b, abschnitt::STREU);
+        put_u32(b, sb.id);
+        put_u32(b, r.anzahl);
+        b.extend_from_slice(&r.daten);
+        abschnitt_ende(b, st);
+        g.streu[i] = r.stand;
+        n += 1;
+    }
+    n
+}
+
 /// Baut das Bildpaket der Welt in `aus` (vorher geleert). Ruft die Bildbeiträge aller Komponenten.
 pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>, bildnummer: u32) {
     w.aktualisiere_alle();
@@ -692,6 +739,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     put_u32(aus, 0);
     let mut abschnitte = ressourcen_deltas(aus, &w.ressourcen, g, bau);
     abschnitte += haut_deltas(aus, &w.ressourcen, g, bau);
+    abschnitte += streu_deltas(aus, &w.ressourcen, g, bau);
     let zelt = bau.himmelszelt;
     let mut flags = if w.himmel.is_some() || zelt.is_some() { flag::HIMMEL } else { 0 };
 
@@ -1060,11 +1108,60 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
             }
         }
     }
+    // H-K27: sichtbare Streu-Zellen als Läufe (Sichtkörper, Sichtweite; ab der Hälfte ausgedünnt), Schatten nur von der Sonne
+    let mut streu3d: Vec<u8> = Vec::new();
+    let mut streu_n = 0u32;
+    let mut streu_schatten = false;
+    if !bau.streu.is_empty() {
+        bau.streu.sort_by_key(|s| s.teil);
+        let sonne_ansichten = if schatten { 1 } else if !kaskaden.is_empty() { ((1u32 << kaskaden.len()) - 1) << 1 } else { 0 };
+        let mut laeufe: Vec<[u32; 2]> = Vec::new();
+        for sb in &bau.streu {
+            let Some(r) = w.ressourcen.streu.get(sb.id as usize - 1) else { continue };
+            laeufe.clear();
+            for c in &r.zellen {
+                if !(im_sichtkoerper(&sk, c.min, c.max) || sk_spiegel.as_ref().is_some_and(|e| im_sichtkoerper(e, c.min, c.max))) {
+                    continue;
+                }
+                let mut n = c.anzahl;
+                if sb.sichtweite > 0.0 {
+                    let d = [(c.min[0] + c.max[0]) * 0.5 - auge[0], (c.min[1] + c.max[1]) * 0.5 - auge[1], (c.min[2] + c.max[2]) * 0.5 - auge[2]];
+                    let f = 2.0 - 2.0 * libm::sqrt(punkt(d, d)) / sb.sichtweite;
+                    if f <= 0.0 {
+                        continue;
+                    }
+                    if f < 1.0 {
+                        n = libm::floor(c.anzahl as f64 * f + 0.5) as u32;
+                    }
+                }
+                if n == 0 {
+                    continue;
+                }
+                match laeufe.last_mut() {
+                    Some(l) if l[0] + l[1] == c.erste => l[1] += n,
+                    _ => laeufe.push([c.erste, n]),
+                }
+            }
+            if laeufe.is_empty() {
+                continue;
+            }
+            let sch = if sb.schatten { sonne_ansichten } else { 0 };
+            streu_schatten |= sch != 0;
+            for x in [sb.id, sb.netz, r.merkmale, sch, laeufe.len() as u32] {
+                put_u32(&mut streu3d, x);
+            }
+            for l in &laeufe {
+                put_u32(&mut streu3d, l[0]);
+                put_u32(&mut streu3d, l[1]);
+            }
+            streu_n += 1;
+        }
+    }
     let nur_schatten = |z: &[u32; 4]| z[0] & 0xFF == zug::SCHATTEN || z[0] & 0xFF == zug::ANSICHT;
-    if zuege.iter().any(|z| !nur_schatten(z)) || !bau.teilchen3d.is_empty() {
+    if zuege.iter().any(|z| !nur_schatten(z)) || !bau.teilchen3d.is_empty() || streu_n > 0 {
         flags |= flag::DREI_D;
     }
-    if zuege.iter().any(nur_schatten) {
+    if zuege.iter().any(nur_schatten) || streu_schatten {
         flags |= flag::SCHATTEN;
     }
 
@@ -1165,6 +1262,15 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
         }
     }
 
+    // ---------------- Streu (H-K27): sichtbare Zellen ----------------
+    if streu_n > 0 {
+        let st = abschnitt_beginn(aus, abschnitt::STREU3D);
+        put_u32(aus, streu_n);
+        aus.extend_from_slice(&streu3d);
+        abschnitt_ende(aus, st);
+        abschnitte += 1;
+    }
+
     // ---------------- 2D: eine Instanzliste, Zeichenreihenfolge (ebene, ID), stabil ----------------
     if !bau.flach_ordnung.is_empty() {
         bau.flach_ordnung.sort_by_key(|x| x.0);
@@ -1219,6 +1325,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     abschnitte += crate::komponenten::stimmung::abschnitt(w, aus, bildnummer, fern);
     // ---------------- Bildschirmraum (H-K24): nur mit Verdeckung oder Bildraum-Spiegelung ----------------
     abschnitte += crate::komponenten::stimmung::bildraum_abschnitt(w, aus, nah, fern);
+    // ---------------- Wind (H-K27): nur wenn einer gilt ----------------
+    abschnitte += crate::komponenten::wind::abschnitt(w, aus, bildnummer);
 
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());

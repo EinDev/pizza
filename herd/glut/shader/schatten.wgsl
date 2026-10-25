@@ -27,10 +27,20 @@ struct AusSchatten {
     @location(3) @interpolate(flat) schwelle: u32,
 }
 
+// Wind (H-K27): wie in licht.wgsl; `wiegen` aus ZUSATZ3D.merkmale (@12, Slot 3) Bits 2–7
+struct Wind {
+    a: vec4<f32>,
+    b: vec4<f32>,
+}
+@group(0) @binding(24) var<uniform> wind: Wind;
+
 @vertex
-fn vs_schatten(e: EinSchatten) -> AusSchatten {
+fn vs_schatten(e: EinSchatten, @location(12) merkmale: u32) -> AusSchatten {
     let p = vec4<f32>(e.pos, 1.0);
-    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    var w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    if (wind.a.w > 0.0 && (merkmale & 252u) != 0u) {
+        w = w + wiegen_versatz(wind.a, wind.b, merkmale, vec3<f32>(e.z0.w, e.z1.w, e.z2.w), max(e.pos.y, 0.0) * length(vec3<f32>(e.z0.y, e.z1.y, e.z2.y)));
+    }
     var a: AusSchatten;
     a.pos = schatten_zug.vp * vec4<f32>(w, 1.0);
     let box = vec4<f32>(e.uvbox);
@@ -67,7 +77,10 @@ fn vs_schatten_haut(e: EinSchatten, h: EinHaut, @location(12) merkmale: u32) -> 
         }
     }
     let p = vec4<f32>(ph, 1.0);
-    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    var w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    if (wind.a.w > 0.0 && (merkmale & 252u) != 0u) {
+        w = w + wiegen_versatz(wind.a, wind.b, merkmale, vec3<f32>(e.z0.w, e.z1.w, e.z2.w), max(ph.y, 0.0) * length(vec3<f32>(e.z0.y, e.z1.y, e.z2.y)));
+    }
     var a: AusSchatten;
     a.pos = schatten_zug.vp * vec4<f32>(w, 1.0);
     let box = vec4<f32>(e.uvbox);

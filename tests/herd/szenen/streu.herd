@@ -1,0 +1,171 @@
+# H-K27 (HERD.md §13.3): Streu und Wind nativ = kern.wasm. Ein Gelände 65 × 65 (weite 2, Wellen aus zufall, rechts ein steiler
+# Rand), darauf N Halme (Streu mit Belag wiegen 1, Sichtweite 60 – ab 30 ausgedünnt), N / 10 Blumen nur in den hellen Feldern einer
+# Dichte-Karte, 200 Steine mit Schatten (Sonnen-Ansichten) und eine Kopie der Blumen (teilt die Ressource, bis sie verschoben
+# wird – dann eigene Punkte); dazu ein Busch (Koerper mit wiegen) und ein Wind mit Böen. Die Kamera fährt über die Wiese (Zellen,
+# Läufe, Ausdünnung ändern sich je Bild); am Ende (ENDE 1) neues wiegen (Neubau), Wind aus, paket_voll, Wiese entfernt. Geprüft je Bild: Szenen-Hash (Ressourcen-Hash über die Instanz-Bytes) und Paket-Hash
+# (STREU je Stand, STREU3D, WIND). B20: N = 100 000 Halme (Glut: ENDE 0, letztes Bild über der Wiese). NEU 1: jeden Takt neue
+# Saat der Blumen (Messung Neubau). EXTRAS 0: nur die Halme (Blumen, Steine, Würfel ohne Punkte);
+# SW: Sichtweite der Halme (0 = unbegrenzt).
+vorgabe N 3000
+vorgabe TAKTE 20
+vorgabe NEU 0
+vorgabe ENDE 1
+vorgabe EXTRAS 1
+vorgabe SW 60
+welt_neu 640 360 "Streu"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Licht" -> T_L
+typ_nummer "Gelaende" -> T_G
+typ_nummer "Streu" -> T_S
+typ_nummer "Wind" -> T_W
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "wiegen" -> B_WIEGEN
+feld_nummer T_B "schwelle" -> B_SW
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_G "hoehen" -> G_H
+feld_nummer T_G "spalten" -> G_SP
+feld_nummer T_G "zeilen" -> G_ZE
+feld_nummer T_G "weite" -> G_W
+feld_nummer T_S "form" -> S_FORM
+feld_nummer T_S "belag" -> S_BELAG
+feld_nummer T_S "anzahl" -> S_N
+feld_nummer T_S "breite" -> S_B
+feld_nummer T_S "tiefe" -> S_T
+feld_nummer T_S "gelaende" -> S_G
+feld_nummer T_S "hang" -> S_HANG
+feld_nummer T_S "groesse" -> S_GR
+feld_nummer T_S "dichte" -> S_D
+feld_nummer T_S "sichtweite" -> S_SW
+feld_nummer T_S "schatten" -> S_SCH
+feld_nummer T_S "saat" -> S_SAAT
+feld_nummer T_S "drehen" -> S_DREH
+feld_nummer T_W "staerke" -> W_ST
+feld_nummer T_W "richtungZ" -> W_Z
+feld_nummer T_W "boeen" -> W_B
+
+komp_von 2 T_L -> SONNE
+teil_lage 2 -0.5 1 0.3
+setze_zahl SONNE L_ST 1.1
+form_grund 2 12 0 -> KUGEL
+form_grund 1 0 0 -> WUERFEL
+form_eigene [-0.04, 0, 0, 0.04, 0, 0, 0, 1, 0.05] [0, 1, 2] 0 -> HALM
+
+teil_neu 3 -> land
+komp_neu T_G -> g
+setze_zahl g G_SP 65
+setze_zahl g G_ZE 65
+setze_zahl g G_W 2
+setze_zahlen g G_H [folge 4225 i ((zufall(i) * 0.6) + ((i % 65) / 20) + boden((i % 65) / 60) * ((i % 65) - 59) * 4)]
+komp_haenge g land
+
+# Beläge: Gras (wiegen, Ausschnitt), Blumen, Steine
+bildchen_neu ["wwss", "wwss", "ssww", "ssww"] [] -> FELDER
+teil_neu 3 -> b_gras
+komp_neu T_B -> bg
+setze_text bg B_F "#5f9e3c"
+setze_zahl bg B_WIEGEN 1
+komp_haenge bg b_gras
+teil_neu 3 -> b_blume
+komp_neu T_B -> bb
+setze_text bb B_F "#f2b33d"
+setze_zahl bb B_WIEGEN 0.5
+komp_haenge bb b_blume
+teil_neu 3 -> b_stein
+komp_neu T_B -> bs
+setze_text bs B_F "grau"
+komp_haenge bs b_stein
+
+# Streu
+teil_neu 3 -> wiese
+komp_neu T_S -> s
+setze_zahl s S_FORM HALM
+setze_zahl s S_BELAG b_gras
+setze_zahl s S_N N
+setze_zahl s S_B 120
+setze_zahl s S_T 120
+setze_zahl s S_G land
+setze_zahl s S_HANG 35
+setze_zahl s S_GR 0.5
+setze_zahl s S_SW SW
+komp_haenge s wiese
+teil_neu 3 -> blumen
+komp_neu T_S -> sb
+setze_zahl sb S_FORM KUGEL
+setze_zahl sb S_BELAG b_blume
+setze_zahl sb S_N (N / 10 * EXTRAS)
+setze_zahl sb S_B 100
+setze_zahl sb S_T 100
+setze_zahl sb S_G land
+setze_zahl sb S_GR 0.15
+setze_zahl sb S_D FELDER
+setze_zahl sb S_SAAT 11
+komp_haenge sb blumen
+teil_neu 3 -> steine
+komp_neu T_S -> ss
+setze_zahl ss S_FORM WUERFEL
+setze_zahl ss S_BELAG b_stein
+setze_zahl ss S_N (200 * EXTRAS)
+setze_zahl ss S_B 80
+setze_zahl ss S_T 80
+setze_zahl ss S_G land
+setze_zahl ss S_HANG 90
+setze_zahl ss S_GR 0.4
+setze_zahl ss S_SCH 1
+setze_zahl ss S_SW 0
+komp_haenge ss steine
+# ohne Gelände, nicht gedreht, um eine schräge Lage
+teil_neu 3 -> flach
+teil_lage flach 0 3 -70
+teil_setze flach 4 20
+komp_neu T_S -> sf
+setze_zahl sf S_FORM WUERFEL
+setze_zahl sf S_N (300 * EXTRAS)
+setze_zahl sf S_B 10
+setze_zahl sf S_T 6
+setze_zahl sf S_GR 0.3
+setze_zahl sf S_DREH 0
+komp_haenge sf flach
+
+# Busch mit wiegen, Wind
+teil_neu 3 -> busch
+teil_lage busch 4 2 10
+teil_groesse busch 2 3 2
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_zahl k K_BELAG b_gras
+komp_haenge k busch
+teil_neu 3 -> luft
+komp_neu T_W -> wind
+setze_zahl wind W_ST 2
+setze_zahl wind W_Z 0.5
+setze_zahl wind W_B 0.7
+komp_haenge wind luft
+
+teil_lage 1 -10 12 60
+teil_schaue 1 0 0 0
+bild
+takte 2
+teil_kopie blumen -> kopie
+takte 2
+teil_lage kopie 0 0 -20
+wiederhole TAKTE i
+  teil_lage 1 (-10 + i * 0.8) (10 + i * 0.1) (60 - i * 3)
+  teil_schaue 1 (i * 0.5) 0 (-i)
+  setze_zahl sb S_SAAT (11 + NEU * i)
+  takte 1
+ende
+wiederhole ENDE e
+  setze_zahl bg B_WIEGEN 0.6
+  setze_zahl wind W_ST 0
+  takte 2
+  paket_voll
+  takte 2
+  teil_entferne wiese
+  takte 1
+  welt_hole 6
+ende

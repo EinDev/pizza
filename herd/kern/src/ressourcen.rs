@@ -67,6 +67,36 @@ pub struct Ressourcen {
     pub modell_bilder: Vec<(([u8; 32], u32, u32), u32)>,
     /// Netze mit Haut (H-K23b), aufsteigend nach Form-ID – leer, solange kein gehäutetes Modell geladen ist
     pub haut_netze: Vec<HautNetz>,
+    /// Streu-Punkte (H-K27): eigene IDs 1 … (getrennt von Formen und Bildchen), je `Streu` eine; ein Neubau überschreibt seine
+    /// eigene (nicht geteilte) Ressource mit höherem `stand`
+    pub streu: Vec<StreuDaten>,
+}
+
+/// Instanzen einer `Streu` (H-K27): `anzahl` Instanzen als INST3D (72 B), dahinter ZUSATZ3D (16 B) und KARTEN3D (16 B) je
+/// Instanz – nach Zellen von 8 × 8 Einheiten geordnet (zeilenweise in der Fläche der Streu), in jeder Zelle in Ziehreihenfolge
+/// (ein Anfangsstück einer Zelle ist eine zufällige Auswahl: Ausdünnung).
+#[derive(Clone, Debug, Default)]
+pub struct StreuDaten {
+    /// Teil-ID der Streu, die die Ressource angelegt hat (nur sie überschreibt)
+    pub besitzer: u32,
+    /// Stand 1 … (je Neubau + 1; das Paket sendet bei neuem Stand erneut)
+    pub stand: u32,
+    pub anzahl: u32,
+    /// Zug-Merkmale der Instanzen (`zug::EINSEITIG` bei Karten ohne `beidseitig`)
+    pub merkmale: u32,
+    pub daten: Vec<u8>,
+    pub zellen: Vec<StreuZelle>,
+}
+
+/// Eine Zelle der Streu: Instanzen `erste … erste + anzahl`, Hülle in Welt (Lagen + Netz-Kasten × größter Maßstab).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StreuZelle {
+    /// Nummer der Zelle (Zeile · Spalten + Spalte); leere Zellen fehlen
+    pub nummer: u32,
+    pub erste: u32,
+    pub anzahl: u32,
+    pub min: [f64; 3],
+    pub max: [f64; 3],
 }
 
 /// Ein Netz mit Haut (H-K23b): Form-ID, Modell (Index), Netz im Modell, höchster benutzter Gelenk-Index + 1 (Gewicht > 0).

@@ -349,6 +349,8 @@
                 ["`Etikett`","beide","`name` \"\"","Name eines Teils: `herd.modell` setzt ihn je Knoten eines 3D-Modells; `teil.finde(name)` sucht ihn im Teilbaum"],
                 ["`Puppe`","3D","`folge` \"\", `tempo` 1, `schleife` ja, `zeit` 0, `laeuft` ja, `blende` 0.2; nur lesen: `dauer`, `fertig`","Spielt die Animationen (Folgen) eines Modells aus `herd.modell` ab und blendet beim Wechsel über; die Knoten bleiben Teile, an die man etwas hängen kann"],
                 ["`Schall`","beide","`klang` karton, `lautstaerke` 1, `schleife` ja, `spielt` ja, `nah` 1, `weite` 30, `tonhoehe` 1; nur lesen: `pegel`, `panorama`","Raumklang am Teil: spielt einen Klang dort, wo das Teil ist, gehört an der aktiven Kamera bzw. am Blick"],
+                ["`Wind`","3D","`staerke` 0, `richtungX` 1, `richtungZ` 0, `boeen` 0.3, `tempo` 1","Wind für alles, dessen `Belag` ein `wiegen` > 0 hat: Halme, Blumen, Laub schwingen im Vertex-Shader, mit Böen; rein sichtbar (der wache mit der kleinsten ID gilt)"],
+                ["`Streu`","3D","`form`, `belag`, `anzahl` 1000, `breite`/`tiefe` 20, `gelaende`, `hang` 40, `groesse` 1, `groesseStreuung` 0.3, `drehen` ja, `dichte`, `sichtweite` 60, `schatten` nein, `saat` 0","Streut viele gleiche Kleinteile (Gras, Blumen, Steine) über ein Rechteck bzw. ein Gelände – einmal zur Grafikkarte, je Bild nur die sichtbaren Zellen; ohne Kollision"],
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1452,6 +1454,30 @@
             { art: "text", md: "Figuren aus Modellen haben oft ein **Skelett** und eine **Haut**: die Ecken des Netzes hängen mit Gewichten an mehreren Gelenken (glTF `skins`, `JOINTS_0`/`WEIGHTS_0`). Der Herd verformt so ein Netz von selbst nach seinen Gelenk-Teilen – es gibt nichts einzuschalten. Bewegt eine **`Puppe`** die Gelenke, biegen sich Arme, Beine und Rumpf weich mit; auch ohne Puppe darfst du ein Gelenk selbst drehen (`r.finde(\"Oberarm.L\").setzeRollen(70)`)." },
             { art: "text", md: "- Verformt wird auf der Grafikkarte, in jedem Durchgang: Bild, Schatten, Spiegelung und Bildschirmraum zeigen dieselbe Pose.\n- Ein Körper bleibt starr wie zuvor, wenn ein Gelenk-Teil fehlt (entfernt) oder mehr als 65 536 Gelenke in einem Bild wären; je Haut höchstens 256 Gelenke.\n- Für das Weglassen außerhalb der Sicht nimmt der Herd eine großzügige Hülle um die Gelenke; `trifft` und Fühler (`auto`) rechnen weiter mit der Ruhelage." },
             { art: "text", md: "Zum Ausprobieren: die **Tanzfiguren** unter *Beispiele → Herd* – drei Figuren aus Kenneys „Mini Characters“ (CC0) laufen, springen und nicken, ein Taster wechselt die Folge mit Überblenden, eine Tomate liegt in einer Hand." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Wiese im Wind: Streu und Wind",
+          inhalt: [
+            { art: "text", md: "**`Streu`** verteilt viele gleiche Kleinteile – Grashalme, Blumen, Steine – über ein Rechteck um die Lage ihres Teils: `anzahl` Punkte aus dem Zufall des Kerns (`saat`), je Punkt die `form` mit dem Material des `belag`, aufrecht, zufällig gedreht und `groesse` ± `groesseStreuung` groß. Mit `gelaende` stehen sie auf dem Gelände, an Hängen steiler als `hang` Grad wächst nichts; ein `dichte`-Bildchen (hell = viel) malt, wo etwas wächst. Die Engine schickt die Instanzen **einmal** zur Grafikkarte und zeichnet je Bild nur die sichtbaren Zellen (8 × 8 Einheiten) – 100 000 Halme in wenigen Draw-Calls; ab der halben `sichtweite` dünnt sie aus." },
+            { art: "text", md: "**`Wind`** bewegt alles, dessen `Belag` ein **`wiegen`** (0 … 1) hat: die Ecken schwingen in Windrichtung, je höher über dem Fuß, desto mehr (quadratisch), mit Wellen über die Wiese und Böen (`boeen`). Halme brauchen `wiegen` 1, Laub eines Baums eher 0.05 … 0.1." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Teil boden = herd.raum(0, 0, 0);",
+                "boden.mit(neu Gelaende(hoehen: h, spalten: 40, zeilen: 40));",
+                "Teil gras = herd.raum(0, 0, 0);",
+                "gras.mit(neu Belag(farbe: \"basilikum\", wiegen: 1));",
+                "Form halm = neu Form([-0.04, 0, 0, 0.04, 0, 0, 0, 1, 0.05], [0, 1, 2]);",
+                "herd.raum(0, 0, 0).mit(neu Streu(form: halm, belag: gras, anzahl: 50000, breite: 39, tiefe: 39, gelaende: boden, groesse: 0.5));",
+                "herd.raum(0, 0, 0).mit(neu Wind(staerke: 2, richtungX: 1, richtungZ: 0.3, boeen: 0.5));"
+              )
+            },
+            { art: "text", md: "- **Rein sichtbar:** Streu-Teile haben keine Hülle und keine Kollision, `trifft` und Fühler sehen sie nicht; der Wind schiebt keine Körper.\n- Ein Neubau (andere Felder, Teil oder Gelände verschoben, Belag geändert) überträgt alle Instanzen neu – also nicht in jedem Takt umstellen.\n- `schatten: ja` lässt die Teile Sonnenschatten werfen (Steine); für Gras meist zu teuer." },
+            { art: "text", md: "Zum Ausprobieren: die **Wiese** unter *Beispiele → Herd* – ein Hügel mit 50 000 Grashalmen, Blumen und Steinen in Böen, der Bote läuft als `Figur` hindurch." }
           ]
         },
         {

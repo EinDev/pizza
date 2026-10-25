@@ -152,6 +152,7 @@ fn vertex_attribute() {
     for (name, l) in [
         ("licht", super::licht_layouts().to_vec()),
         ("licht haut", super::licht_haut_layouts().to_vec()),
+        ("schatten", super::schatten_layouts().to_vec()),
         ("schatten haut", super::schatten_haut_layouts().to_vec()),
     ] {
         let orte: Vec<u32> = l.iter().flatten().flat_map(|b| b.attributes.iter().map(|a| a.shader_location)).collect();

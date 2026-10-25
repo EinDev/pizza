@@ -2532,6 +2532,41 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   `abi.rs`, `komponenten/schall.rs`), `kern-wasm`, Szenen-Skript, Interpreter, Laufzeit, nativer Host (Bindung, Mischer), Playground-
   Wiedergabe, Doku `herd-ausbau`, Beispiel `brunnenplatz`. **Status:** fest.
 
+### K-168 Herd: `Wind` und `Streu` – Wiegen im Vertex-Shader, Streu-Instanzen als Ressource (H-K27)
+- **Frage:** Wie bekommt Herd Gras im Wind und viel Kleinzeug (Unity Terrain-Details, WindZone, Instancing großer Mengen), ohne
+  bestehende Pakete und Bilder zu ändern, ohne neue Textureinheit im vollen Haupt-Layout (13/16) und ohne neue Vertex-Attribute in den
+  Haut-Shadern (16/16)?
+- **Entscheidung (HERD.md §13.3 H-K27):** **`Wind`** (38; es gilt der wache mit der kleinsten Teil-ID) und **`Belag.wiegen`**
+  (Nachtragsfeld 0 … 1) – rein sichtbar, Kollision und Hüllen unverändert. **`Streu`** (39) mit den Plan-Feldern, rein sichtbar (keine
+  Hülle, kein `trifft`, kein Fühler), immer deckend (Ausschnitt über `schwelle`), Schatten nur von der Sonne (v1 bzw. Kaskaden, nicht in
+  Punkt-/Spot-Kacheln), Material des Belags beim Bau eingebacken.
+- **Abweichung vom Plan (Format der Streu-Instanzen):** Statt 32 B je Instanz und eines eigenen Streu-Shaders trägt die Ressource
+  **`STREU`** (Abschnitt 26) fertige Instanzen im Paketformat INST3D + ZUSATZ3D + KARTEN3D (104 B, aufrechte Welt-Matrix). Damit laufen
+  sie durch die vorhandenen Pipelines (`vs_licht`/`fs_licht`, Vorlauf, Spiegel, `vs_schatten`) – keine neue Pipeline, kein neues
+  Vertex-Attribut, keine neue Bindung außer dem Block WIND; die Kosten (100 000 × 104 B ≈ 10 MB) fallen **einmal** je Stand an, je Bild
+  nur die Läufe (Abschnitt **`STREU3D`** 27). Ein Neubau (Felder, Lage des Teils, Belag, Gelände) überschreibt die eigene Ressource
+  (gleiche ID, neuer Stand; geteilte Ressourcen einer Kopie bleiben stehen) – v1-Ressourcen wachsen so nicht mit jedem Neubau.
+- **Wind:** Block **`WIND`** (Abschnitt 28, 32 B, Bindung 24 im Haupt- und Schatten-Layout, nur Vertex): Richtung, Stärke, Böen,
+  Phase der Welle und Böen-Versatz aus der Bildnummer (vom Kern in f64 auf 0 … 2π bzw. 0 … 256 gebracht – keine großen Zeiten im
+  f32-Shader). `wiegen` reist in **ZUSATZ3D.merkmale Bits 2–7** (· 63) – das lesen `vs_licht`, `vs_haut` und `vs_schatten_haut` schon;
+  `vs_schatten` bekommt ZUSATZ3D an Slot 3. Ausschlag in Windrichtung ∝ `wiegen` · `staerke` · h² (h = Höhe der Ecke über dem
+  Netz-Ursprung in Welt-Maß, aus der Lage – kein Attribut), Welle aus der Weltlage der Instanz, Böen aus Wertrauschen (Ganzzahl-Hash,
+  Zellen in Windrichtung mod 256 → nahtlos), Normalen bleiben. Gehäutete Netze wiegen mit (nach der Verformung).
+- **Zellen, Läufe, Ausdünnung:** Zellen 8 × 8 Einheiten in der Fläche der Streu (zeilenweise), in jeder Zelle Ziehreihenfolge; je Bild
+  Sichtkörper je Zelle (Hülle aus Lagen und Netz-Kasten × Größe) und Abstand der Zellmitte: ab ½ `sichtweite` das Anfangsstück
+  round(n · (2 − 2d/`sichtweite`)), darüber nichts; aufeinanderfolgende Zellen werden ein Lauf = ein Draw-Call (Pufferversatz statt
+  `base_instance`). Ausgedünnte Zellen sind je ein eigener Lauf.
+- **Determinismus:** Punkte nur aus `partikel::zufall` (Saat `saat`, 0 = Teil-ID; immer fünf Zahlen je Punkt), Höhe und Hang über
+  `gelaende::ebene` (Dreiecksebene wie `hoehe`, f64, `libm`), Instanz-Bytes im Ressourcen-Hash → nativ = `kern.wasm` = Interpreter
+  (`streu.herd`, `herd-streu`). Der Wind ist reine Glut.
+- **Messung (B20):** `streu.herd` N = 100 000 Halme: Kern je Bild 0,010 ms nativ / 0,028 ms Wasm (Median; Ziel ≤ 0,2 ms), Neubau
+  ≈ 20 ms einmalig; Glut (WARP, 640 × 360) 46 Draw-Calls im ganzen Bild mit Sichtweite 60 (Ausdünnungsring), 12 ohne Sichtweite –
+  `bench/herd/ERGEBNISSE.md`.
+- **Betroffen:** neu `komponenten/wind.rs`, `streu.rs`; `belag.rs` (`wiegen`, `material`), `gelaende.rs` (`ebene`), `ressourcen.rs`
+  (`streu`), `paket.rs` (STREU, STREU3D, WIND); Glut `lib.rs`, `licht.wgsl`, `schatten.wgsl`, `gemeinsam.wgsl`, `waechter.rs`,
+  `glut-web`; Referenzbild `3d-streu`, Szene `streu.herd`, Fall `herd-streu`, `tests::hk27`, Beispiel `wiese`; SPEC §18.6,
+  `herd/README.md` §2/§4/§9, Doku `herd-ausbau`, B20. Kein Interpreter/Laufzeit/Host. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

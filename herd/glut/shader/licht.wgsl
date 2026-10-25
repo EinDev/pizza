@@ -198,10 +198,20 @@ struct AusNetz {
     @location(9) @interpolate(flat) karten: vec4<u32>,  // KARTEN3D (H-K26)
 }
 
+// Wind (H-K27): nur Vertex, ohne Abschnitt WIND Nullen (a.w = 0 → kein Ausschlag, Ecken wie vorher)
+struct Wind {
+    a: vec4<f32>,
+    b: vec4<f32>,
+}
+@group(0) @binding(24) var<uniform> wind: Wind;
+
 @vertex
 fn vs_licht(e: EinNetz) -> AusNetz {
     let p = vec4<f32>(e.pos, 1.0);
-    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    var w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    if (wind.a.w > 0.0 && (e.merkmale & 252u) != 0u) {
+        w = w + wiegen_versatz(wind.a, wind.b, e.merkmale, vec3<f32>(e.z0.w, e.z1.w, e.z2.w), max(e.pos.y, 0.0) * length(vec3<f32>(e.z0.y, e.z1.y, e.z2.y)));
+    }
     // Normalenmatrix = Kofaktoren der 3 × 3 (Spalten c0, c1, c2 → c1×c2, c2×c0, c0×c1)
     let c0 = vec3<f32>(e.z0.x, e.z1.x, e.z2.x);
     let c1 = vec3<f32>(e.z0.y, e.z1.y, e.z2.y);
@@ -271,10 +281,13 @@ fn vs_haut(e: EinNetz, h: EinHaut) -> AusNetz {
     let s1 = vec3<f32>(s.z0.y, s.z1.y, s.z2.y);
     let s2 = vec3<f32>(s.z0.z, s.z1.z, s.z2.z);
     let nh = cross(s1, s2) * e.normale.x + cross(s2, s0) * e.normale.y + cross(s0, s1) * e.normale.z;
-    let w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
+    var w = vec3<f32>(dot(e.z0, p), dot(e.z1, p), dot(e.z2, p));
     let c0 = vec3<f32>(e.z0.x, e.z1.x, e.z2.x);
     let c1 = vec3<f32>(e.z0.y, e.z1.y, e.z2.y);
     let c2 = vec3<f32>(e.z0.z, e.z1.z, e.z2.z);
+    if (wind.a.w > 0.0 && (e.merkmale & 252u) != 0u) {
+        w = w + wiegen_versatz(wind.a, wind.b, e.merkmale, vec3<f32>(e.z0.w, e.z1.w, e.z2.w), max(p.y, 0.0) * length(c1));
+    }
     let n = cross(c1, c2) * nh.x + cross(c2, c0) * nh.y + cross(c0, c1) * nh.z;
     var a: AusNetz;
     a.pos = szene.ansicht_proj * vec4<f32>(w, 1.0);

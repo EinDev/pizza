@@ -97,6 +97,41 @@ fn rauschen(p: vec2<f32>) -> f32 {
     return fract(52.9829189 * fract(dot(p, vec2<f32>(0.06711056, 0.00583715)))) - 0.5;
 }
 
+// ---- Wind (H-K27) ----
+// Block WIND (Bindung 24 in licht.wgsl und schatten.wgsl, ohne Abschnitt Nullen): a = Richtung x, z (normiert), staerke, 1 = an ·
+// b = boeen, Phase der Welle (Bogenmaß), Böen-Versatz (Rauschzellen 0 … 256), tempo. Ausschlag einer Ecke in Welt: quadratisch mit
+// der Höhe `h` über dem Netz-Ursprung (Welt-Maß), Phase aus der Weltlage `o` der Instanz, Böen aus Wertrauschen (Ganzzahl-Hash, in
+// Windrichtung mit dem Versatz wandernd, Zellen in Windrichtung mod 256 – nahtlos, wenn der Versatz umläuft); die Spitze sinkt
+// dabei etwas ab (Länge bleibt ungefähr). `wiegen` aus ZUSATZ3D.merkmale Bits 2–7 (· 63).
+fn wind_hash(x: i32, y: i32) -> f32 {
+    var h = (bitcast<u32>(x) & 255u) * 374761393u + bitcast<u32>(y) * 668265263u;
+    h = (h ^ (h >> 13u)) * 1274126177u;
+    h = h ^ (h >> 16u);
+    return f32(h & 65535u) / 65535.0;
+}
+
+fn wind_boe(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    let f = p - i;
+    let u = f * f * (3.0 - 2.0 * f);
+    let x = i32(i.x);
+    let y = i32(i.y);
+    return mix(mix(wind_hash(x, y), wind_hash(x + 1, y), u.x), mix(wind_hash(x, y + 1), wind_hash(x + 1, y + 1), u.x), u.y);
+}
+
+fn wiegen_versatz(a: vec4<f32>, b: vec4<f32>, merkmale: u32, o: vec3<f32>, h: f32) -> vec3<f32> {
+    let wiegen = f32((merkmale >> 2u) & 63u) / 63.0;
+    let d = a.xy;
+    let laengs = dot(o.xz, d);
+    let quer = dot(o.xz, vec2<f32>(-d.y, d.x));
+    let ph = b.y - 0.45 * laengs;
+    let welle = 0.72 + 0.2 * sin(ph) + 0.08 * sin(2.7 * ph + 0.9 * quer);
+    let boe = mix(1.0, 0.2 + 1.6 * wind_boe(vec2<f32>(laengs * 0.06 - b.z, quer * 0.06)), b.x);
+    let aus = min(wiegen * a.z * 0.3 * h * h * welle * boe, 1.5 * h);
+    let senk = min(aus * aus / (2.0 * max(h, 0.001)), 0.5 * h);
+    return vec3<f32>(d.x * aus, -senk, d.y * aus);
+}
+
 // ---- Eigene Texturen (TEXTUR, PROJEKTE PD3) ----
 // Fünf Größenklassen (Kante 128 · 2^k, k = 0 … 4), je ein Textur-Array mit voller Mip-Kette; ein Bild = eine Schicht, Stufe i
 // des Teiglings liegt bei (0, 0) der Mip-Ebene i, **vormultipliziert** gespeichert. Abtastung: vergrößern nächster Nachbar

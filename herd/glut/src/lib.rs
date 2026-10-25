@@ -64,6 +64,10 @@ const VERDECKUNG: wgpu::TextureFormat = wgpu::TextureFormat::R8Unorm;
 const FARBSTUFEN: usize = 5;
 /// Stimmung: Uniform-Block (Bindung 17 im Haupt-Layout, 2 im Nachbild-Layout) und Zahl der Bloom-Stufen (wie nachbild.wgsl)
 const STIMMUNG_BYTES: usize = herd_kern::komponenten::stimmung::STIMMUNG_BYTES;
+/// Wind (H-K27): Uniform-Block an Bindung 24 (Haupt- und Schatten-Layout, nur Vertex)
+const WIND_BYTES: usize = herd_kern::komponenten::wind::WIND_BYTES;
+/// Streu (H-K27): Bytes je Instanz in der Ressource STREU (INST3D + ZUSATZ3D + KARTEN3D)
+const STREU_INSTANZ: usize = INST3D_BYTES + ZUSATZ3D_BYTES + KARTEN3D_BYTES;
 const BLOOM_STUFEN: usize = 6;
 
 /// Welcher Grafikadapter.
@@ -439,6 +443,33 @@ pub struct Glut {
     tiefe: wgpu::TextureView,
     stat: Statistik,
     zuege: Vec<[u32; 4]>,
+    /// Wind (H-K27, Abschnitt WIND): Uniform-Block an Bindung 24 (ohne Abschnitt Nullen → kein Ausschlag)
+    wind: wgpu::Buffer,
+    wind_an: bool,
+    /// Streu-Ressourcen (H-K27) nach ID − 1 und die Läufe des Bildes (Abschnitt STREU3D)
+    streu: Vec<Option<StreuPuffer>>,
+    streu_zuege: Vec<StreuZug>,
+}
+
+/// Instanzen einer Streu (H-K27, Ressource STREU): INST3D, ZUSATZ3D und KARTEN3D je in einem eigenen Puffer (Kennwörter beim
+/// Hochladen umgeschrieben wie die Instanzen eines Bildes).
+struct StreuPuffer {
+    inst: wgpu::Buffer,
+    zusatz: wgpu::Buffer,
+    karten: wgpu::Buffer,
+    anzahl: u32,
+}
+
+/// Ein Lauf sichtbarer Streu-Instanzen (H-K27): Ressource (ID − 1), Netz, Zug-Merkmale (EINSEITIG), Schatten-Ansichten der Sonne
+/// (Bit 0 = licht_proj, Bit 1 + k = Kaskade k), erste Instanz, Anzahl.
+#[derive(Clone, Copy, Debug)]
+struct StreuZug {
+    streu: usize,
+    netz: u32,
+    merkmale: u32,
+    schatten: u32,
+    erste: u32,
+    anzahl: u32,
 }
 
 /// Welche Schnittstelle die Glut nutzt (im Browser WebGPU oder WebGL2; nativ immer `Nativ`).
@@ -607,7 +638,19 @@ fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
         ubo_eintrag(22),
         // Gelenk-Palette (H-K23b, RGBA32F, nur textureLoad im Vertex-Shader `vs_haut`)
         textur_eintrag(23, St::VERTEX, T::Float { filterable: false }, D::D2),
+        // Wind (H-K27): Uniform-Block, nur Vertex
+        wind_eintrag(),
     ]
+}
+
+/// Wind (H-K27): Uniform-Block an Bindung 24, nur im Vertex-Stadium (`vs_licht`, `vs_haut`, `vs_schatten`, `vs_schatten_haut`)
+fn wind_eintrag() -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding: 24,
+        visibility: wgpu::ShaderStages::VERTEX,
+        ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+        count: None,
+    }
 }
 
 /// Bildraum (H-K24): 0 SZENE, 17 STIMMUNG, 22 Bildraum-Block, 23 Tiefe des Vorlaufs (+ 33 Sampler nächster Nachbar),
@@ -670,7 +713,7 @@ fn layout_schatten() -> Vec<wgpu::BindGroupLayoutEntry> {
     };
     // Gelenk-Palette (H-K23b, `vs_schatten_haut`)
     let gelenke = textur_eintrag(23, wgpu::ShaderStages::VERTEX, wgpu::TextureSampleType::Float { filterable: false }, wgpu::TextureViewDimension::D2);
-    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11), zug, gelenke]
+    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11), zug, gelenke, wind_eintrag()]
 }
 
 /// Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
@@ -694,6 +737,10 @@ fn licht_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 4] {
 fn licht_haut_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 5] {
     let [e, i, z, k] = licht_layouts();
     [e, i, z, k, haut_layout()]
+}
+fn schatten_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 4] {
+    let [e, i] = netz_layouts();
+    [e, i, karten_layout(), zusatz_layout()]
 }
 fn schatten_haut_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 5] {
     let [e, i] = netz_layouts();
@@ -902,9 +949,9 @@ impl Glut {
         let bild_pipes = Glut::bildraum_pipelines(dev, &pl_haupt, &mod_licht, &pl_bild, &mod_bild, hdr_format, hdr_msaa);
         let bildraum = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd bildraum"), size: BILDRAUM_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
 
-        let [e, i] = netz_layouts();
-        // Schatten: Ecke, INST3D und KARTEN3D an Slot 2 (Schwelle, H-K26); Haut (H-K23b): dazu ZUSATZ3D an 3 und der Haut-Strom an 4
-        let layouts = [e, i, karten_layout()];
+        // Schatten: Ecke, INST3D, KARTEN3D an Slot 2 (Schwelle, H-K26) und ZUSATZ3D an 3 (wiegen, H-K27); Haut (H-K23b): dazu
+        // der Haut-Strom an 4
+        let layouts = schatten_layouts();
         let layouts_haut = schatten_haut_layouts();
         let schatten_pipeline1 = |haut: bool| dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(if haut { "herd schatten haut" } else { "herd schatten" }),
@@ -986,6 +1033,7 @@ impl Glut {
         let gelenke_t = Glut::daten_textur(dev, "herd gelenke", wgpu::TextureFormat::Rgba32Float, 3 * GELENKE_JE_ZEILE, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
         let (schatten_map, schatten_schichten) = Glut::schatten_textur(dev, 1, atlas_min);
+        let wind = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd wind"), size: WIND_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let schattenlichter = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd schattenlichter"), size: SCHATTENLICHTER_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let zug_schritt = (dev.limits().min_uniform_buffer_offset_alignment as u64).max(64);
         let schatten_zug = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd schatten zug"), size: zug_schritt * (1 + MAX_ANSICHTEN as u64), usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
@@ -1076,6 +1124,10 @@ impl Glut {
             tiefe,
             stat: Statistik::default(),
             zuege: Vec::new(),
+            wind,
+            wind_an: false,
+            streu: Vec::new(),
+            streu_zuege: Vec::new(),
         };
         // Vorab (Warm-up): alle Pipelines fürs Zielformat jetzt übersetzen statt im ersten Bild – das kostet je nach
         // Schnittstelle Dutzende bis Hunderte ms (FXC, ANGLE) und fiele sonst in den laufenden Takt (Nachholen, Ruckeln)
@@ -1351,6 +1403,66 @@ impl Glut {
             wgpu::Extent3d { width: 3 * GELENKE_JE_ZEILE, height: zeilen, depth_or_array_layers: 1 },
         );
         Ok(b.len() as u64)
+    }
+
+    /// STREU (H-K27): Instanzen einer Streu als drei Puffer (INST3D, ZUSATZ3D, KARTEN3D; Kennwörter umgeschrieben) unter
+    /// ihrer ID – ein späterer Stand ersetzt sie.
+    fn streu_ressource(&mut self, d: &[u8]) -> Result<u64, Fehler> {
+        let kurz = || Fehler::Paket("STREU zu kurz".into());
+        if d.len() < 8 {
+            return Err(kurz());
+        }
+        let (id, n) = (u32_at(d, 0) as usize, u32_at(d, 4) as usize);
+        if id == 0 {
+            return Err(Fehler::Paket("STREU mit ID 0".into()));
+        }
+        let daten = d.get(8..8 + n * STREU_INSTANZ).ok_or_else(kurz)?;
+        let (inst, rest) = daten.split_at(n * INST3D_BYTES);
+        let (zusatz, karten) = rest.split_at(n * ZUSATZ3D_BYTES);
+        let (_, inst_neu) = self.umschreiben(&[], inst);
+        let zusatz = self.zusatz_umschreiben(zusatz);
+        let karten = self.karten_umschreiben(karten);
+        // leere Puffer kann wgpu nicht binden: mindestens eine Instanz Platz
+        let puffer = |name: &'static str, b: &[u8], je: usize| {
+            let mut v = b.to_vec();
+            if v.is_empty() {
+                v.resize(je, 0);
+            }
+            self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some(name), contents: &v, usage: wgpu::BufferUsages::VERTEX })
+        };
+        let sp = StreuPuffer {
+            inst: puffer("herd streu inst", inst_neu.as_deref().unwrap_or(inst), INST3D_BYTES),
+            zusatz: puffer("herd streu zusatz", &zusatz, ZUSATZ3D_BYTES),
+            karten: puffer("herd streu karten", &karten, KARTEN3D_BYTES),
+            anzahl: n as u32,
+        };
+        if self.streu.len() < id {
+            self.streu.resize_with(id, || None);
+        }
+        self.streu[id - 1] = Some(sp);
+        Ok(daten.len() as u64)
+    }
+
+    /// STREU3D (H-K27): je Eintrag die Läufe sichtbarer Instanzen; Läufe über die Ressource hinaus fallen weg.
+    fn streu_laeufe(&mut self, d: &[u8]) -> Result<(), Fehler> {
+        let kurz = || Fehler::Paket("STREU3D zu kurz".into());
+        let n = u32_at(d.get(0..4).ok_or_else(kurz)?, 0) as usize;
+        let mut o = 4;
+        for _ in 0..n {
+            let k = d.get(o..o + 20).ok_or_else(kurz)?;
+            let (id, netz, merkmale, schatten, laeufe) = (u32_at(k, 0) as usize, u32_at(k, 4), u32_at(k, 8), u32_at(k, 12), u32_at(k, 16) as usize);
+            o += 20;
+            let l = d.get(o..o + laeufe * 8).ok_or_else(kurz)?;
+            o += laeufe * 8;
+            let Some(Some(sp)) = self.streu.get(id.wrapping_sub(1)) else { continue };
+            for q in l.chunks_exact(8) {
+                let (erste, anzahl) = (u32_at(q, 0), u32_at(q, 4));
+                if anzahl > 0 && erste as u64 + anzahl as u64 <= sp.anzahl as u64 {
+                    self.streu_zuege.push(StreuZug { streu: id - 1, netz, merkmale, schatten, erste, anzahl });
+                }
+            }
+        }
+        Ok(())
     }
 
     fn atlas_textur(dev: &wgpu::Device, kante: u32, schichten: u32) -> (wgpu::Texture, wgpu::TextureView) {
@@ -1958,6 +2070,7 @@ impl Glut {
                 Ok((e.len() + i.len()) as u64)
             }
             abschnitt::TEXTUR => self.textur(d),
+            abschnitt::STREU => self.streu_ressource(d),
             abschnitt::HAUT => {
                 if d.len() < 8 {
                     return Err(kurz());
@@ -2006,6 +2119,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 10, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[3].ansicht) },
                     wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
                     wgpu::BindGroupEntry { binding: 23, resource: wgpu::BindingResource::TextureView(&self.gelenke_t.1) },
+                    wgpu::BindGroupEntry { binding: 24, resource: self.wind.as_entire_binding() },
                 ],
             }));
         }
@@ -2042,6 +2156,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 21, resource: wgpu::BindingResource::TextureView(self.bild.as_ref().map(|z| &z.ao).unwrap_or(&self.platzhalter)) },
                     wgpu::BindGroupEntry { binding: 22, resource: self.bildraum.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 23, resource: wgpu::BindingResource::TextureView(&self.gelenke_t.1) },
+                    wgpu::BindGroupEntry { binding: 24, resource: self.wind.as_entire_binding() },
                 ],
             })
         }
@@ -2095,8 +2210,10 @@ impl Glut {
         let mut teilchen_zus: Option<&[u8]> = None;
         let mut schatten_d: Option<&[u8]> = None;
         let mut gelenke_d: Option<&[u8]> = None;
+        let mut wind_d: Option<&[u8]> = None;
         let mut n_leuchtend = 0u32;
         self.zuege.clear();
+        self.streu_zuege.clear();
         let mut szene_da = false;
         let mut szene_d: &[u8] = &[];
         let mut klar = wgpu::Color::BLACK;
@@ -2161,6 +2278,13 @@ impl Glut {
                         self.zuege.push([u32_at(z, 0), u32_at(z, 4), u32_at(z, 8), u32_at(z, 12)]);
                     }
                 }
+                abschnitt::WIND => {
+                    if d.len() != WIND_BYTES {
+                        return Err(Fehler::Paket(format!("WIND hat {} Bytes", d.len())));
+                    }
+                    wind_d = Some(d);
+                }
+                abschnitt::STREU3D => self.streu_laeufe(d)?,
                 _ => stat.hochgeladen += self.ressource(art, d)?,
             }
         }
@@ -2261,6 +2385,20 @@ impl Glut {
                 }
             }
         }
+        // Wind (H-K27): Block hochladen bzw. ohne Abschnitt auf 0 (kein Ausschlag)
+        match wind_d {
+            Some(d) => {
+                self.queue.write_buffer(&self.wind, 0, d);
+                self.wind_an = true;
+                stat.hochgeladen += d.len() as u64;
+            }
+            None => {
+                if self.wind_an {
+                    self.queue.write_buffer(&self.wind, 0, &[0u8; WIND_BYTES]);
+                    self.wind_an = false;
+                }
+            }
+        }
         // Gelenk-Palette (H-K23b): Zeilen zu je GELENKE_JE_ZEILE Gelenken (letzte aufgefüllt); ohne Abschnitt bleibt sie liegen
         // (nur Haut-Züge lesen sie)
         if let Some(d) = gelenke_d {
@@ -2285,7 +2423,7 @@ impl Glut {
         }
         stat.hochgeladen += (inst2d.len() + inst3d.len() + teilchen.len()) as u64;
         stat.instanzen_2d = n2;
-        stat.instanzen_3d = n3;
+        stat.instanzen_3d = n3 + self.streu_zuege.iter().map(|z| z.anzahl).sum::<u32>();
         if let Some(d) = zelt {
             let z = self.zelt_umschreiben(d);
             self.queue.write_buffer(&self.zelt, 0, &z);
@@ -2320,7 +2458,23 @@ impl Glut {
         } else {
             Vec::new()
         };
-        let schichten = schatten_zuege.iter().map(|z| z.1 + 1).max().unwrap_or(0);
+        // Streu-Schatten (H-K27): (Lauf, Schicht, Ansicht + 1 bzw. 0) je gesetztem Bit der Sonnen-Ansichten
+        let mut streu_schatten: Vec<(usize, u32, u32)> = Vec::new();
+        if flags & flag::SCHATTEN != 0 {
+            for (i, z) in self.streu_zuege.iter().enumerate() {
+                for b in 0..32u32 {
+                    if z.schatten & 1 << b == 0 {
+                        continue;
+                    }
+                    if b == 0 {
+                        streu_schatten.push((i, 0, 0));
+                    } else if let Some(v) = ansichten.get(b as usize - 1) {
+                        streu_schatten.push((i, v.0, b));
+                    }
+                }
+            }
+        }
+        let schichten = schatten_zuege.iter().chain(streu_schatten.iter()).map(|z| z.1 + 1).max().unwrap_or(0);
         let schatten = schichten > 0;
         self.bindegruppen(schichten);
         if schatten {
@@ -2425,7 +2579,7 @@ impl Glut {
 
         // ---- Schattendurchgang: je benutzter Schicht ein Durchgang, je Zug Rechteck und Ansicht·Projektion (H-K18) ----
         for schicht in 0..schichten {
-            if !schatten_zuege.iter().any(|z| z.1 == schicht) {
+            if !schatten_zuege.iter().chain(streu_schatten.iter()).any(|z| z.1 == schicht) {
                 continue;
             }
             let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -2461,11 +2615,29 @@ impl Glut {
                         p.set_vertex_buffer(4, h.slice(..));
                         Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer), (3, &self.zusatz3d.puffer)], n.anzahl, z[2], z[3], instancing)
                     }
-                    None => Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing),
+                    None => Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.karten3d.puffer), (3, &self.zusatz3d.puffer)], n.anzahl, z[2], z[3], instancing),
                 };
                 stat.draw_calls += anzahl;
                 stat.schatten_draw_calls += anzahl;
                 stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
+            }
+            // Streu (H-K27): Läufe der sichtbaren Zellen auch in die Sonnen-Ansichten dieser Schicht
+            for &(i, _, a) in streu_schatten.iter().filter(|z| z.1 == schicht) {
+                let z = self.streu_zuege[i];
+                let (Some(Some(n)), Some(Some(sp))) = (self.netze.get(z.netz as usize), self.streu.get(z.streu)) else { continue };
+                let r = if a == 0 { [0.0, 0.0, g] } else { ansichten[a as usize - 1].1 };
+                if !(r[2] >= 1.0 && r[0] >= 0.0 && r[1] >= 0.0 && r[0] + r[2] <= g && r[1] + r[2] <= g) {
+                    continue;
+                }
+                p.set_pipeline(&self.schatten_pipeline[0]);
+                p.set_viewport(r[0], r[1], r[2], r[2], 0.0, 1.0);
+                p.set_bind_group(0, self.bg_schatten.as_ref(), &[(a as u64 * self.zug_schritt) as u32]);
+                p.set_vertex_buffer(0, n.ecken.slice(..));
+                p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                let anzahl = Glut::zeichne_netz(&mut p, &sp.inst, &[(2, &sp.karten), (3, &sp.zusatz)], n.anzahl, z.erste, z.anzahl, instancing);
+                stat.draw_calls += anzahl;
+                stat.schatten_draw_calls += anzahl;
+                stat.dreiecke += (n.anzahl / 3) as u64 * z.anzahl as u64;
             }
         }
 
@@ -2491,7 +2663,7 @@ impl Glut {
             p.set_viewport(vx * k, vy * k, (vb * k).max(1.0), (vh * k).max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
             let (st, sl) = if spiegel_voll { (nt, n_leuchtend) } else { (0, 0) };
-            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, false, true, &mut stat);
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, false, true, (&self.streu_zuege, &self.streu), &mut stat);
         }
 
         // ---- Bildschirmraum (H-K24): Vorlauf (FEST ohne MSAA: Tiefe, Normale, Glanz-Gewicht), Verdeckung in halber Größe ----
@@ -2531,6 +2703,7 @@ impl Glut {
                     stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, &[(2, &self.zusatz3d.puffer), (3, &self.karten3d.puffer)], n.anzahl, z[2], z[3], instancing);
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
                 }
+                Glut::zeichne_streu(&mut p, [&bp.vorlauf[0], &bp.vorlauf_ohne_hinten[0], &bp.vorlauf_ohne_vorn[0]], (&self.streu_zuege, &self.streu), &self.netze, false, instancing, &mut stat);
             }
             if ssao {
                 // halbe Größe (abgerundet): Viewport darf nicht über das Ziel hinaus
@@ -2582,7 +2755,7 @@ impl Glut {
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
                 let (st, sl) = if teilen { (0, 0) } else { (nt, n_leuchtend) };
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, teilen, false, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, teilen, false, false, (&self.streu_zuege, &self.streu), &mut stat);
             }
             if let (true, Some(bz)) = (teilen, &self.bild) {
                 let bp = &self.bild_pipes;
@@ -2636,7 +2809,7 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, (&self.streu_zuege, &self.streu), &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -2699,7 +2872,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, (&self.zusatz3d.puffer, &self.karten3d.puffer), &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, (&self.streu_zuege, &self.streu), &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -2745,6 +2918,7 @@ impl Glut {
         nur_fest: bool,
         nur_durch: bool,
         gespiegelt: bool,
+        streu: (&[StreuZug], &[Option<StreuPuffer>]),
         stat: &mut Statistik,
     ) {
         {
@@ -2760,7 +2934,13 @@ impl Glut {
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;
             }
+            // Streu (H-K27) nach FEST, vor DURCH
+            let mut streu_offen = !nur_durch;
             for z in zuege.iter().filter(|z| (z[0] & zug::ART == zug::FEST && !nur_durch) || (z[0] & zug::ART == zug::DURCH && !nur_fest)) {
+                if streu_offen && z[0] & zug::ART == zug::DURCH {
+                    Glut::zeichne_streu(p, [&pl.fest[0], &pl.fest_ohne_hinten[0], &pl.fest_ohne_vorn[0]], streu, netze, gespiegelt, instancing, stat);
+                    streu_offen = false;
+                }
                 let Some(Some(n)) = netze.get(z[1] as usize) else { continue };
                 if z[2] + z[3] > n3 {
                     continue;
@@ -2798,6 +2978,9 @@ impl Glut {
                     stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
                 }
             }
+            if streu_offen {
+                Glut::zeichne_streu(p, [&pl.fest[0], &pl.fest_ohne_hinten[0], &pl.fest_ohne_vorn[0]], streu, netze, gespiegelt, instancing, stat);
+            }
             // 3D-Teilchen: erst leuchtende (additiv), dann deckende (von hinten nach vorn) – je ein instanzierter Draw-Call
             for (pipe, erste, anzahl) in [(&pl.funken_leuchtend, 0, n_leuchtend.min(nt)), (&pl.funken_deckend, n_leuchtend.min(nt), nt - n_leuchtend.min(nt))] {
                 if anzahl == 0 {
@@ -2822,6 +3005,25 @@ impl Glut {
                 stat.instanzen_3d += anzahl;
                 stat.dreiecke += 2 * anzahl as u64;
             }
+        }
+    }
+
+    /// Streu (H-K27): je Lauf ein Draw-Call (Pufferversatz statt `base_instance`), Pipelines [beidseitig, einseitig, einseitig
+    /// mit gedrehtem Umlaufsinn (Spiegeldurchgang)] – Haupt-, Spiegel- und Vorlauf-Durchgang.
+    fn zeichne_streu(p: &mut wgpu::RenderPass<'_>, pipes: [&wgpu::RenderPipeline; 3], streu: (&[StreuZug], &[Option<StreuPuffer>]), netze: &[Option<Netz>], gespiegelt: bool, instancing: bool, stat: &mut Statistik) {
+        for z in streu.0 {
+            let (Some(Some(n)), Some(Some(sp))) = (netze.get(z.netz as usize), streu.1.get(z.streu)) else { continue };
+            p.set_vertex_buffer(0, n.ecken.slice(..));
+            p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+            p.set_pipeline(if z.merkmale & zug::EINSEITIG == 0 {
+                pipes[0]
+            } else if gespiegelt {
+                pipes[2]
+            } else {
+                pipes[1]
+            });
+            stat.draw_calls += Glut::zeichne_netz(p, &sp.inst, &[(2, &sp.zusatz), (3, &sp.karten)], n.anzahl, z.erste, z.anzahl, instancing);
+            stat.dreiecke += (n.anzahl / 3) as u64 * z.anzahl as u64;
         }
     }
 

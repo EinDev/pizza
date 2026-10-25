@@ -1,0 +1,48 @@
+// Herd §18.6 / HERD.md §13.3 H-K27: Wind und Streu – Standardwerte, Gras auf einem Gelände (im Takt gestreut), Belag.wiegen,
+// Wind mit Böen, Dichte-Karte, Kopie teilt die Punkte, Sichtweite, Fehler
+Herd herd = neu Herd("Streu", breite: 320, hoehe: 180);
+Streu vorgabe = neu Streu();
+Bote.sage((vorgabe + " anzahl " + vorgabe.anzahl() + " " + vorgabe.breite() + "×" + vorgabe.tiefe() + " hang " + vorgabe.hang() + " groesse " + vorgabe.groesse() + " ± " + vorgabe.groesseStreuung() + " drehen " + vorgabe.drehen() + " sichtweite " + vorgabe.sichtweite() + " schatten " + vorgabe.schatten() + " saat " + vorgabe.saat() + " " + vorgabe.form() + " " + vorgabe.belag() + " " + vorgabe.gelaende() + " " + vorgabe.dichte()));
+Wind still = neu Wind();
+Bote.sage((still + " staerke " + still.staerke() + " richtung " + still.richtungX() + "/" + still.richtungZ() + " boeen " + still.boeen() + " tempo " + still.tempo()));
+Belag ohne = neu Belag();
+Bote.sage(("Belag.wiegen " + ohne.wiegen()));
+
+herd.kamera().setzeLage(0, 5, 14).schaueAuf(0, 0, 0);
+Blech<funghi> h = [];
+für (salami j = 0; j < 12; j++) {
+  für (salami i = 0; i < 12; i++) { h.hinzu(Mathe.sin(i * 0.7) * Mathe.cos(j * 0.5) * 0.8); }
+}
+Teil boden = herd.raum(0, 0, 0);
+Gelaende g = boden.mit(neu Gelaende(hoehen: h, spalten: 12, zeilen: 12, weite: 1, farbe: "oliven"));
+Teil gruen = herd.raum(0, 0, 0);
+Belag gras = gruen.mit(neu Belag(farbe: "basilikum", glanz: 0.1, wiegen: 1));
+Form halm = neu Form([-0.04, 0, 0, 0.04, 0, 0, 0, 1, 0.05], [0, 1, 2]);
+Teil wiese = herd.raum(0, 0, 0);
+Streu s = wiese.mit(neu Streu(form: halm, belag: gruen, anzahl: 800, breite: 10, tiefe: 10, gelaende: boden, groesse: 0.4, sichtweite: 0));
+Speisekarte<margherita, margherita> karte = neu Speisekarte<margherita, margherita>();
+karte.lege("w", "weiss").lege("s", "schwarz");
+Teil gelb = herd.raum(0, 0, 0);
+gelb.mit(neu Belag(farbe: "senf", wiegen: 0.5));
+Teil blumen = herd.raum(0, 0, 0);
+Streu b = blumen.mit(neu Streu(form: Form.kugel(), belag: gelb, anzahl: 200, breite: 10, tiefe: 10, gelaende: boden, groesse: 0.1,
+                                dichte: neu Bildchen(["ws", "sw"], farben: karte), saat: 5));
+Teil luft = herd.raum(0, 0, 0);
+Wind w = luft.mit(neu Wind(staerke: 2, richtungX: 1, richtungZ: 0.5, boeen: 0.6));
+herd.koerper(Form.kugel(), 3, 1, 1, farbe: "tomate").koerper().setzeBelag(gruen);
+Bote.sage(("Streu " + s.anzahl() + " Halme, gelaende ist boden: " + (s.gelaende() == boden) + ", Wind " + w.staerke() + ", wiegen " + gras.wiegen()));
+herd.backe(() -> {
+  falls (herd.bildnummer() == 2) { b.setzeAnzahl(300); w.setzeBoeen(0.2); }
+  falls (herd.bildnummer() == 3) { gras.setzeWiegen(0.3); s.setzeSichtweite(12); }
+  falls (herd.bildnummer() == 4) { wiese.setzeLage(1, 0, 0); w.setzeStaerke(0); }
+  falls (herd.bildnummer() == 5) { Bote.sage(("nach 5 Takten: " + s.anzahl() + " / " + b.anzahl() + ", wiegen " + gras.wiegen() + ", Sichtweite " + s.sichtweite())); }
+});
+Teil zwilling = blumen.kopie().setzeLage(0, 0, -3);
+Bote.sage(("Kopie: " + zwilling.streu().anzahl() + " saat " + zwilling.streu().saat()));
+probier { herd.gruppe(0, 0).mit(neu Streu()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { s.setzeAnzahl(300000); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { s.setzeAnzahl(2.5); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { s.setzeHang(120); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { w.setzeStaerke(9); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { gras.setzeWiegen(2); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.gruppe(0, 0).mit(neu Wind()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

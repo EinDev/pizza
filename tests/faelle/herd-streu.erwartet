@@ -1,0 +1,13 @@
+Streu() anzahl 1000 20×20 hang 40 groesse 1 ± 0.3 drehen ja sichtweite 60 schatten nein saat 0 karton karton karton karton
+Wind() staerke 0 richtung 1/0 boeen 0.3 tempo 1
+Belag.wiegen 0
+Streu 800 Halme, gelaende ist boden: ja, Wind 2, wiegen 1
+nach 5 Takten: 800 / 300, wiegen 0.3, Sichtweite 12
+Kopie: 300 saat 5
+LaufzeitAnanas: Streu gibt es nur für 3D-Teile.
+LaufzeitAnanas: Streu.anzahl muss zwischen 0 und 200000 liegen, nicht 300000.
+TypAnanas: Streu.anzahl braucht eine Ganzzahl, nicht 2.5.
+LaufzeitAnanas: Streu.hang muss zwischen 0 und 90 liegen, nicht 120.
+LaufzeitAnanas: Wind.staerke muss zwischen 0 und 5 liegen, nicht 9.
+LaufzeitAnanas: Belag.wiegen muss zwischen 0 und 1 liegen, nicht 2.
+LaufzeitAnanas: Wind gibt es nur für 3D-Teile.

@@ -9,6 +9,8 @@
 //! wie glTF, mal `glanz`/`metall`; G hat Vorrang vor der Rauheit des Reliefs), `leuchtKarte` mit `leuchtFarbe` (Eigenleuchten =
 //! Karte · `leuchtFarbe` · `leuchten` · `strahlen`, additiv), `schwelle` (Ausschnitt), `beidseitig` – als Zusatzstrom `KARTEN3D`
 //! (`karten`), nur wenn benutzt.
+//! Nachtragsfeld „Wind“ (H-K27): `wiegen` (0 … 1) – mit einem geltenden `Wind` schwingen die Ecken im Vertex-Shader, quadratisch
+//! mit der Höhe über dem Netz-Ursprung (rein sichtbar). Reist in `ZUSATZ3D.merkmale` Bits 2–7.
 
 use super::*;
 use crate::schema::{Feld, Genus, Raum, Schema};
@@ -34,6 +36,8 @@ pub const LEUCHT_KARTE: usize = 14;
 pub const LEUCHT_FARBE: usize = 15;
 pub const SCHWELLE: usize = 16;
 pub const BEIDSEITIG: usize = 17;
+/// Nachtragsfeld „Wind“ (H-K27): Ausschlag der Ecken im Wind 0 … 1 (`ZUSATZ3D.merkmale` Bits 2–7 · 63)
+pub const WIEGEN: usize = 18;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -60,13 +64,15 @@ pub static ART: Art = Art {
             Feld::farbe("leuchtFarbe", "weiss").nachtrag(),
             Feld::zahl("schwelle", 0.0).bereich(0.0, 1.0).nachtrag(),
             Feld::diavolo("beidseitig", false).nachtrag(),
+            Feld::zahl("wiegen", 0.0).bereich(0.0, 1.0).nachtrag(),
         ],
     },
     ..Art::LEER
 };
 
 /// Zusatzwörter je Instanz (Abschnitt `ZUSATZ3D`): Relief-Kennwort wie `INST3D.textur` (nur eigene Texturen, sonst 0),
-/// `kachel` und `metall` als f32-Bits, Merkmale (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 8–15 nass · 255). Alles 0 = v1.
+/// `kachel` und `metall` als f32-Bits, Merkmale (Bit 0 pbr, Bit 1 Welt-Abbildung, Bits 2–7 wiegen · 63 (H-K27), Bits 8–15
+/// nass · 255). Alles 0 = v1.
 /// Bild-Kennwort einer Karte wie `INST3D.textur` (nur eigene Texturen, sonst 0).
 fn kennwort(w: &Welt, id: f64) -> u32 {
     match w.ressourcen.bildchen(id as u32) {
@@ -109,6 +115,23 @@ pub fn zusatz(w: &Welt, s: &Speicher, z: usize) -> [u32; 4] {
         _ => 0,
     };
     let nass = (s.zahl(NASS)[z] * 255.0 + 0.5) as u32;
-    let merkmale = (s.zahl(MODELL)[z] as u32 & 1) | (s.zahl(ABBILDUNG)[z] as u32 & 1) << 1 | (nass & 255) << 8;
+    // H-K27: wiegen · 63 in Bits 2–7 (0 = starr wie vorher)
+    let wg = s.zahl(WIEGEN)[z];
+    let wiegen = if wg > 0.0 { ((wg * 63.0 + 0.5) as u32).clamp(1, 63) } else { 0 };
+    let merkmale = (s.zahl(MODELL)[z] as u32 & 1) | (s.zahl(ABBILDUNG)[z] as u32 & 1) << 1 | wiegen << 2 | (nass & 255) << 8;
     [relief, crate::paket::f32w(s.zahl(KACHEL)[z]).to_bits(), crate::paket::f32w(s.zahl(METALL)[z]).to_bits(), merkmale]
+}
+
+/// Material eines `Belag` am Teil `teil` (H-K27, für `Streu`): Farbe (Ausschnitt eingerechnet), Glanz, Leuchten · strahlen, Bild,
+/// Zusatz- und Karten-Wörter – wie `Koerper.bild` mit Belag. `None`, wenn das Teil nicht lebt oder keinen Belag hat.
+pub fn material(w: &Welt, teil: f64) -> Option<(u32, f64, f64, f64, [u32; 4], [u32; 4])> {
+    if teil == 0.0 {
+        return None;
+    }
+    let a = w.art_index(ART.schema.name)?;
+    let z = w.komp_zeile(w.zeile_opt(teil as u32)?, a)?;
+    let s = &w.speicher[a];
+    let mut farbe = s.farbe(FARBE)[z];
+    let karten = karten(w, s, z, &mut farbe);
+    Some((farbe, s.zahl(GLANZ)[z], s.zahl(LEUCHTEN)[z] * s.zahl(STRAHLEN)[z], s.zahl(BILD)[z], zusatz(w, s, z), karten))
 }

@@ -859,7 +859,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel"), ("Belag", "normalKarte"), ("Belag", "normalStaerke"), ("Belag", "stoffKarte"), ("Belag", "leuchtKarte"), ("Belag", "leuchtFarbe"), ("Belag", "schwelle"), ("Belag", "beidseitig")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel"), ("Belag", "normalKarte"), ("Belag", "normalStaerke"), ("Belag", "stoffKarte"), ("Belag", "leuchtKarte"), ("Belag", "leuchtFarbe"), ("Belag", "schwelle"), ("Belag", "beidseitig"), ("Belag", "wiegen")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -7984,5 +7984,240 @@ mod hk22 {
         k.teil_lage(t, 10.0, 3.0, 8.0);
         k.takt();
         assert_eq!(klangbild(&mut k, 2), vec![[2.0, s as f64, 7.0, r((20.0f64 / 29.0) * (20.0 / 29.0)), 1.0, 1.0, 1.0]]);
+    }
+}
+
+/// H-K27: `Wind` und `Streu` – Wiegen im Vertex-Shader, Streu-Instanzen als Ressource, je Bild die sichtbaren Zellen.
+mod hk27 {
+    use super::*;
+    use crate::paket::{zug, KARTEN3D_BYTES, ZUSATZ3D_BYTES};
+
+    fn abschnitt_von(k: &Kern, art: u32) -> Option<Vec<u8>> {
+        let l = Leser::neu(k.paket()).unwrap();
+        let d = l.abschnitte().find(|(a, _)| *a == art).map(|(_, d)| d.to_vec());
+        d
+    }
+    fn u32_at(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn f32_at(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    /// STREU3D: je Eintrag (Ressource, Netz, Merkmale, Schatten, Läufe)
+    fn streu3d(k: &Kern) -> Vec<(u32, u32, u32, u32, Vec<[u32; 2]>)> {
+        let Some(d) = abschnitt_von(k, abschnitt::STREU3D) else { return Vec::new() };
+        let mut o = 4;
+        let mut v = Vec::new();
+        for _ in 0..u32_at(&d, 0) {
+            let n = u32_at(&d, o + 16) as usize;
+            let l = (0..n).map(|i| [u32_at(&d, o + 20 + i * 8), u32_at(&d, o + 24 + i * 8)]).collect();
+            v.push((u32_at(&d, o), u32_at(&d, o + 4), u32_at(&d, o + 8), u32_at(&d, o + 12), l));
+            o += 20 + n * 8;
+        }
+        v
+    }
+
+    struct Szene {
+        k: Kern,
+        streu: i32,
+        f: [i32; 10],
+        gel: i32,
+    }
+
+    /// Kamera bei (0, 6, 22) auf den Ursprung, Gelände 17 × 17 (weite 2, sanft geneigt, rechts ein steiler Rand), Halme darauf.
+    fn szene(anzahl: f64) -> Szene {
+        let mut k = welt();
+        let st = typ(&mut k, "Streu");
+        let gt = typ(&mut k, "Gelaende");
+        let bt = typ(&mut k, "Belag");
+        let f = ["form", "belag", "anzahl", "breite", "tiefe", "gelaende", "hang", "dichte", "sichtweite", "saat"].map(|n| feld(&mut k, st, n));
+        k.teil_lage(1, 0.0, 6.0, 22.0);
+        k.teil_schaue(1, 0.0, 0.0, 0.0);
+        let g = k.teil_neu(3);
+        let gc = k.komp_neu(gt);
+        let (gh, gsp, gze, gw) = (feld(&mut k, gt, "hoehen"), feld(&mut k, gt, "spalten"), feld(&mut k, gt, "zeilen"), feld(&mut k, gt, "weite"));
+        let hoehen: Vec<f64> = (0..17 * 17).map(|i| (i % 17) as f64 * 0.25 + if i % 17 >= 14 { ((i % 17) - 13) as f64 * 6.0 } else { 0.0 }).collect();
+        assert_eq!(k.setze_zahlen(gc, gh, &hoehen), 0);
+        for (ff, v) in [(gsp, 17.0), (gze, 17.0), (gw, 2.0)] {
+            assert_eq!(k.setze_zahl(gc, ff, v), 0);
+        }
+        assert_eq!(k.komp_haenge(gc, g), 0);
+        let bteil = k.teil_neu(3);
+        let b = k.komp_neu(bt);
+        assert_eq!(k.komp_haenge(b, bteil), 0);
+        let halm = k.form_eigene(&[-0.05, 0.0, 0.0, 0.05, 0.0, 0.0, 0.0, 1.0, 0.0], &[0.0, 1.0, 2.0], 0);
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(st);
+        for (i, v) in [(0, halm as f64), (1, bteil as f64), (2, anzahl), (3, 30.0), (4, 30.0), (5, g as f64)] {
+            assert_eq!(k.setze_zahl(c, f[i], v), 0);
+        }
+        assert_eq!(k.komp_haenge(c, t), 0);
+        Szene { k, streu: c, f, gel: g }
+    }
+
+    #[test]
+    fn typnummern_und_grenzen() {
+        let mut k = welt();
+        // Typnummern in Merge-Reihenfolge (HERD.md §13.1, §11.1): nach Schall 37
+        assert_eq!(typ(&mut k, "Wind"), 38);
+        assert_eq!(typ(&mut k, "Streu"), 39);
+        let st = typ(&mut k, "Streu");
+        let n = feld(&mut k, st, "anzahl");
+        let t2 = k.teil_neu(2);
+        let c = k.komp_neu(st);
+        assert!(k.komp_haenge(c, t2) < 0);
+        assert!(k.setze_zahl(c, n, 200001.0) < 0);
+        assert!(k.setze_zahl(c, n, 1.5) < 0);
+        assert_eq!(k.hole_zahl(c, n), 1000.0);
+        let wt = typ(&mut k, "Wind");
+        let w = k.komp_neu(wt);
+        let staerke = feld(&mut k, wt, "staerke");
+        assert!(k.setze_zahl(w, staerke, 6.0) < 0);
+    }
+
+    /// Ohne Wind und Streu ändert sich nichts; `wiegen` 0 = Standard (Paket byte-gleich); Wind allein schreibt nur WIND.
+    #[test]
+    fn ohne_nutzung_byte_gleich() {
+        let mut k = welt();
+        let kt = typ(&mut k, "Koerper");
+        let bt = typ(&mut k, "Belag");
+        let wt = typ(&mut k, "Wind");
+        let (form, belag) = (feld(&mut k, kt, "form"), feld(&mut k, kt, "belag"));
+        let wiegen = feld(&mut k, bt, "wiegen");
+        let w = k.form_grund(1, 0.0, 0.0);
+        let bteil = k.teil_neu(3);
+        let b = k.komp_neu(bt);
+        assert_eq!(k.komp_haenge(b, bteil), 0);
+        let t = k.teil_neu(3);
+        let c = k.komp_neu(kt);
+        assert_eq!(k.setze_zahl(c, form, w as f64), 0);
+        assert_eq!(k.setze_zahl(c, belag, bteil as f64), 0);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        k.takt();
+        k.bild(5);
+        k.bild(5);
+        let (h, p) = (k.hash_szene(), k.paket().to_vec());
+        assert!(abschnitt_von(&k, abschnitt::WIND).is_none() && abschnitt_von(&k, abschnitt::STREU3D).is_none());
+        assert_eq!(k.setze_zahl(b, wiegen, 0.0), 0);
+        k.takt();
+        k.bild(5);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        // wiegen → ZUSATZ3D.merkmale Bits 2–7 (Züge ohne eigene Merkmale)
+        assert_eq!(k.setze_zahl(b, wiegen, 0.5), 0);
+        k.bild(5);
+        let z = abschnitt_von(&k, abschnitt::ZUSATZ3D).unwrap();
+        assert_eq!(z.len(), ZUSATZ3D_BYTES);
+        assert_eq!((u32_at(&z, 12) >> 2) & 63, 32);
+        assert!(abschnitt_von(&k, abschnitt::ZUEGE3D).unwrap().chunks_exact(16).all(|q| u32_at(q, 0) & !zug::ART == 0));
+        assert!(k.setze_zahl(b, wiegen, 1.5) < 0);
+        // Wind: Abschnitt WIND (Richtung normiert, Phase aus der Bildnummer), sonst nichts anders
+        assert_eq!(k.setze_zahl(b, wiegen, 0.0), 0);
+        let lt = k.teil_neu(3);
+        let wk = k.komp_neu(wt);
+        let (rx, rz, ws) = (feld(&mut k, wt, "richtungX"), feld(&mut k, wt, "richtungZ"), feld(&mut k, wt, "staerke"));
+        assert_eq!(k.setze_zahl(wk, rx, 3.0), 0);
+        assert_eq!(k.setze_zahl(wk, rz, 4.0), 0);
+        assert_eq!(k.setze_zahl(wk, ws, 2.0), 0);
+        assert_eq!(k.komp_haenge(wk, lt), 0);
+        k.bild(30);
+        let d = abschnitt_von(&k, abschnitt::WIND).unwrap();
+        assert_eq!(d.len(), crate::komponenten::wind::WIND_BYTES);
+        assert_eq!([f32_at(&d, 0), f32_at(&d, 4), f32_at(&d, 8), f32_at(&d, 12)], [0.6, 0.8, 2.0, 1.0]);
+        // 30 Bilder = 0,5 s · 0,5 Hz → Phase π/2
+        assert!((f32_at(&d, 20) - core::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        let sonst = |b: &[u8]| -> Vec<(u32, Vec<u8>)> { Leser::neu(b).unwrap().abschnitte().filter(|(a, _)| *a != abschnitt::WIND && *a != abschnitt::SZENE).map(|(a, d)| (a, d.to_vec())).collect() };
+        assert_eq!(sonst(k.paket()), sonst(&p));
+    }
+
+    /// Punkte: einmal je Stand als Ressource, auf der Geländehöhe, bitgleich zwischen zwei Welten; Hang und Dichte dünnen aus.
+    #[test]
+    fn punkte_ressource_und_gelaende() {
+        let mut a = szene(4000.0);
+        a.k.takt();
+        a.k.bild(1);
+        let r = abschnitt_von(&a.k, abschnitt::STREU).expect("STREU im ersten Bild");
+        let (id, n) = (u32_at(&r, 0), u32_at(&r, 4) as usize);
+        assert_eq!(id, 1);
+        assert_eq!(r.len(), 8 + n * (INST3D_BYTES + ZUSATZ3D_BYTES + KARTEN3D_BYTES));
+        // der steile Rand (letzte Spalten) bleibt kahl: weniger als alle
+        assert!(n > 2500 && n < 4000, "{n}");
+        // jede Instanz steht auf der Höhe des Geländes (Dreiecksebene), aufrecht
+        let hoehen: Vec<f64> = (0..17 * 17).map(|i| (i % 17) as f64 * 0.25 + if i % 17 >= 14 { ((i % 17) - 13) as f64 * 6.0 } else { 0.0 }).collect();
+        for i in (0..n).step_by(97) {
+            let o = 8 + i * INST3D_BYTES;
+            let (x, y, z) = (f32_at(&r, o + 12) as f64, f32_at(&r, o + 28) as f64, f32_at(&r, o + 44) as f64);
+            let soll = crate::komponenten::gelaende::hoehe(&hoehen, 17, 17, 2.0, x, z).unwrap();
+            assert!((y - soll).abs() < 1e-4, "{y} {soll}");
+            assert_eq!(f32_at(&r, o + 4), 0.0);
+            assert_eq!(f32_at(&r, o + 16), 0.0);
+        }
+        // zweites Bild: keine Ressource mehr, Läufe ja
+        a.k.bild(2);
+        assert!(abschnitt_von(&a.k, abschnitt::STREU).is_none());
+        let s = streu3d(&a.k);
+        assert_eq!(s.len(), 1);
+        assert_eq!((s[0].0, s[0].2, s[0].3), (1, 0, 0));
+        assert!(s[0].4.iter().all(|l| l[1] > 0 && (l[0] + l[1]) as usize <= n));
+        // nach paket_voll erneut
+        a.k.paket_voll();
+        a.k.bild(2);
+        assert_eq!(abschnitt_von(&a.k, abschnitt::STREU).unwrap(), r);
+        // bitgleich: zweite Welt, gleiche Hashes
+        let mut b = szene(4000.0);
+        b.k.takt();
+        b.k.bild(1);
+        assert_eq!(a.k.hash_szene(), b.k.hash_szene());
+        assert_eq!(abschnitt_von(&b.k, abschnitt::STREU).unwrap(), r);
+        // gleiche Werte erneut setzen baut nicht neu; neue Werte → derselbe Platz, neuer Stand, erneut gesendet
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[2], 4000.0), 0);
+        a.k.takt();
+        a.k.bild(3);
+        assert!(abschnitt_von(&a.k, abschnitt::STREU).is_none());
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[6], 5.0), 0);
+        a.k.takt();
+        a.k.bild(4);
+        assert!(streu3d(&a.k).is_empty(), "alles steiler als 5°");
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[6], 40.0), 0);
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[2], 2000.0), 0);
+        a.k.takt();
+        a.k.bild(4);
+        let r2 = abschnitt_von(&a.k, abschnitt::STREU).unwrap();
+        assert_eq!(u32_at(&r2, 0), 1);
+        assert!((u32_at(&r2, 4) as usize) < n);
+        // Gelände bewegt → neu (alle Punkte 1 höher); Dichte schwarz → leer (nichts gezeichnet)
+        a.k.teil_lage(a.gel, 0.0, 1.0, 0.0);
+        a.k.takt();
+        a.k.bild(5);
+        let r3 = abschnitt_von(&a.k, abschnitt::STREU).unwrap();
+        assert_eq!(f32_at(&r3, 8 + 28), f32_at(&r2, 8 + 28) + 1.0);
+        let schwarz = a.k.bildchen_rgba(2, 2, &[0, 0, 0, 255].repeat(4));
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[7], schwarz as f64), 0);
+        a.k.takt();
+        a.k.bild(6);
+        assert!(streu3d(&a.k).is_empty());
+        // Saat: andere Punkte
+        let mut c = szene(4000.0);
+        assert_eq!(c.k.setze_zahl(c.streu, c.f[9], 99.0), 0);
+        c.k.takt();
+        c.k.bild(1);
+        assert_ne!(abschnitt_von(&c.k, abschnitt::STREU).unwrap(), r);
+    }
+
+    /// Sichtweite: ferne Zellen fallen weg, ab der Hälfte ausgedünnt; 100 000 Halme in wenigen Läufen.
+    #[test]
+    fn sichtweite_und_laeufe() {
+        let mut a = szene(100000.0);
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[8], 0.0), 0);
+        a.k.takt();
+        a.k.bild(1);
+        let alle: u32 = streu3d(&a.k)[0].4.iter().map(|l| l[1]).sum();
+        let laeufe = streu3d(&a.k)[0].4.len();
+        assert!(laeufe <= 16, "{laeufe}");
+        assert_eq!(a.k.setze_zahl(a.streu, a.f[8], 20.0), 0);
+        a.k.bild(2);
+        let s = streu3d(&a.k);
+        let nah: u32 = s[0].4.iter().map(|l| l[1]).sum();
+        assert!(nah > 0 && nah < alle / 2, "{nah} {alle}");
+        assert!(s[0].4.len() <= 64);
     }
 }

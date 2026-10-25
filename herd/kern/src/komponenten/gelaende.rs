@@ -119,6 +119,11 @@ pub fn punkt(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, i: u32, j: u
 /// Höhe des Geländenetzes über dem lokalen Punkt (x, z) (Ebene des Dreiecks darunter, Diagonale wie [`netz`]); außerhalb
 /// `None`. Öffentlich für die Höhenabfrage (H-K17, H-K20).
 pub fn hoehe(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, x: f64, z: f64) -> Option<f64> {
+    ebene(hoehen, spalten, zeilen, weite, x, z).map(|(y, _)| y)
+}
+
+/// Wie [`hoehe`], dazu die (nicht normierte) Normale des Dreiecks darunter, lokal, nach oben (H-K27 `Streu`: Hang).
+pub fn ebene(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, x: f64, z: f64) -> Option<(f64, [f64; 3])> {
     let (sp, ze) = (spalten as f64, zeilen as f64);
     let fi = x / weite + (sp - 1.0) * 0.5;
     let fj = z / weite + (ze - 1.0) * 0.5;
@@ -140,7 +145,8 @@ pub fn hoehe(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, x: f64, z: f
     if n[1] == 0.0 {
         return None;
     }
-    Some(e0[1] - (n[0] * (x - e0[0]) + n[2] * (z - e0[2])) / n[1])
+    let y = e0[1] - (n[0] * (x - e0[0]) + n[2] * (z - e0[2])) / n[1];
+    Some((y, if n[1] < 0.0 { [-n[0], -n[1], -n[2]] } else { n }))
 }
 
 /// System: baut das Netz neu, wenn sich die Netz-Felder seit dem letzten Bau geändert haben (oder noch keins da ist).
