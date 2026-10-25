@@ -609,7 +609,7 @@ Exporte (keine Importe): `memory`, `abi_version() → 1`, `teigling_version() �
 `ausBytes`/`ausModul`/`lade(url)`/`node()`, je Vorbacker `vorbacken`, `sha256`, `passt(teigling, quelle)` (Kopf gültig und
 SHA-256 im Kopf = SHA-256 der Quelle) und `besorge(teigling | null, quelle)` (Cache-Prüfung §5.4: passt er nicht, wird neu
 vorgebacken) sowie ohne Wasm `kopf`, `stufe` (Vorschau), `teigmenge` (verschiedene Quell-Hashes, ohne Fehler-Teiglinge),
-`megabyte` (aufgerundet, Dezimalkomma), `teigmengeFehler` (Text von P0020) und `cacheSchluessel` (`<sha>/teigling/1`).
+`megabyte` (aufgerundet, Dezimalkomma), `teigmengeFehler` (Text von P0020 über `MAX_TEIGMENGE` = 67 108 864 Bytes, 64 MiB) und `cacheSchluessel` (`<sha>/teigling/1`).
 
 ### 11.4 Tests
 

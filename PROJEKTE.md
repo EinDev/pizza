@@ -532,7 +532,7 @@ Browser ──https──▶ nginx (pizza, einzige Domain)  ──/api/teilen…
 | `.pizza`-Datei | 512 KiB | Dienst (Typregel) |
 | Anfragen | Erstellen/Version/Löschen: 10/min je IP (Burst 3); Manifest lesen (`GET /api/teilen/…`): 60/min (Burst 20); `fehlend`: 60/min (Burst 20); Blob-PUT: 240/min (Burst 120) plus Byte-Grenzen §4.5; Blob-GET: **kein** Zähler im Dienst, nginx 1200/min (Burst 300) | nginx `limit_req` (erste Linie; je Klasse eine eigene `limit_req_zone`, Schlüssel `$binary_remote_addr` nach `real_ip`) + Dienst (gleitendes Fenster je `X-Real-IP`, das nginx in `nginx-proxy.conf` aus `$remote_addr` **überschreibt** – der Client kann es nicht fälschen; nur im Speicher). Begründung: ein Projekt sind bis zu 101 Anfragen (Manifest + Blobs); Blobs sind unveränderlich und gecacht, wiederholtes Öffnen kostet den Server kaum etwas, und Missbrauch begrenzen Größen-, Byte-, Speicher- und Erstell-Grenzen |
 | Versionen je Link | 200 | Dienst |
-| Bilder | PNG/JPEG ≤ 2048 × 2048; Teigmenge ≤ 32 MiB je Projekt (§5.3) | Playground und Teilen vorab (Vorbacker); der Dienst prüft nur Signatur und Größe, er dekodiert nichts |
+| Bilder | PNG/JPEG ≤ 2048 × 2048; Teigmenge ≤ 64 MiB je Projekt (§5.3) | Playground und Teilen vorab (Vorbacker); der Dienst prüft nur Signatur und Größe, er dekodiert nichts |
 
 ### 4.7 Ablage im Volume
 
@@ -685,11 +685,11 @@ Fehler-Teiglings: 64 Bytes; er zählt nicht zur Teigmenge.
 
 **Grenzen:** Quelldatei ≤ 2 MiB, ≤ 2048 × 2048 Pixel (vor dem Dekodieren aus `IHDR`/`SOF` geprüft; Ausgabepuffer hart begrenzt → keine
 Dekompressionsbombe). Größe eines Teiglings ≈ Breite × Höhe × 4 × 4/3 (2048² ≈ 21,3 MiB, 1024² ≈ 5,3 MiB, 256² ≈ 0,34 MiB). **Teigmenge**
-je Projekt (Summe aller Teiglinge) ≤ 32 MiB – begrenzt EXE-Größe, Wasm-Speicher und VRAM; Überschreitung beim Vorbacken/Kompilieren →
-`PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (41,2 MB vorgebacken, höchstens 32 MB).` (Interpreter und Compiler
+je Projekt (Summe aller Teiglinge) ≤ 64 MiB (F8, bis 2026-10-25: 32 MiB) – begrenzt EXE-Größe, Wasm-Speicher und VRAM; Überschreitung beim Vorbacken/Kompilieren →
+`PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (85,4 MB vorgebacken, höchstens 64 MB).` (Interpreter und Compiler
 prüfen gleich, vor dem Start.) **Genau:** Teigmenge = Summe der Längen aller Teiglinge **verschiedener Quell-Hashes** (gleiche Bilder unter
-zwei Pfaden zählen und liegen einmal, §5.6), Grenze 33 554 432 Bytes; Text: Bytes / 1 048 576, auf eine Nachkommastelle **aufgerundet**,
-Dezimalkomma (so steht nie „32,0 MB … höchstens 32 MB“). Weil P0020 alle Größen kennen muss, sind vor dem Start **alle** Bilder des
+zwei Pfaden zählen und liegen einmal, §5.6), Grenze 67 108 864 Bytes; Text: Bytes / 1 048 576, auf eine Nachkommastelle **aufgerundet**,
+Dezimalkomma (so steht nie „64,0 MB … höchstens 64 MB“; drei verschiedene 2048²-Bilder = 67 109 160 Bytes → „64,1 MB“). Weil P0020 alle Größen kennen muss, sind vor dem Start **alle** Bilder des
 Projekts vorgebacken (aus dem Cache oder neu) – in jedem Motor.
 
 ### 5.4 Wann wird vorgebacken, wo liegt das Ergebnis (Caching)
@@ -732,7 +732,7 @@ Der Cache-Schlüssel enthält die Formatversion: ein neuer Vorbacker erzeugt neu
   `herd` an den Kern; `Kiste.*` liest Textdateien. Quellbilder sind in der Kiste als Pfad sichtbar (`Kiste.gibts`/`liste`), ihre Bytes
   werden nicht zusätzlich eingebettet (`Kiste.text` auf ein Bild → „kein Text“, wie bei der Quelle).
 - Der Host liest weiter nur ein `.pkarton`; EXE-Anhang `PKARTON1` und `PizzaExe.verbinde` bleiben unverändert.
-- Grenzen für Kompilieren: Quelldateien wie §4.6, Teigmenge ≤ 32 MiB (P0020).
+- Grenzen für Kompilieren: Quelldateien wie §4.6, Teigmenge ≤ 64 MiB (P0020).
 - Später (nicht v1): nur Bilder einbetten, die per Literal angesprochen werden – v1 bettet alle ein (dynamische Pfade wie
   `"bilder/bote-" + i + ".png"` müssen funktionieren).
 
@@ -934,7 +934,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | F5 | Pfadzeichen | **nur ASCII-Kleinbuchstaben, Ziffern, `-`, `_`, `.`** (Benennung freigegeben) | E3, §1.3 |
 | F6 | Alte Hastebin-Links | **verfallen** mit klarer Meldung; keine Übernahme | §4.4 |
 | F7 | Aufbewahrung | **90 Tage ab letzter Version**, per `TEILEN_ABLAUF_TAGE` änderbar (0 = unbegrenzt) | E22, §4.5 |
-| F8 | Grenzen | **100 Dateien, 2 MB je Datei, 8 MB je Projekt** (Quelldateien); Bilder **PNG oder JPEG ≤ 2048 × 2048**; **Teigmenge ≤ 32 MB** je Projekt (vorgebackene Bilder, unkomprimiert mit Mipmaps ≈ 5,3 MB je 1024²-Bild); mit GPU-Kompression (§5.7) gilt die Teigmenge für die komprimierte Größe | §4.6, §5.3 |
+| F8 | Grenzen | **100 Dateien, 2 MB je Datei, 8 MB je Projekt** (Quelldateien); Bilder **PNG oder JPEG ≤ 2048 × 2048**; **Teigmenge ≤ 64 MB** je Projekt (vorgebackene Bilder, unkomprimiert mit Mipmaps ≈ 5,3 MB je 1024²-Bild; zuerst 32 MB, vom Nutzer am 2026-10-25 auf 64 MB angehoben); mit GPU-Kompression (§5.7) gilt die Teigmenge für die komprimierte Größe | §4.6, §5.3 |
 | F9 | Alte Versionen | **für alle mit dem Link abrufbar** (`@n`); gelöscht wird nur der ganze Link | §4.4, §8 |
 | F10 | Bearbeitungsschlüssel | **zwischen Geräten übertragbar** (kopieren/einfügen), ohne Konten | §4.4 |
 | F11 | Projekte im Playground | **ein aktives Projekt je Fenster**, Tabs = Dateien | E16, §3.1 |
@@ -1117,8 +1117,8 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   Kein anisotropes Filtern (bräuchte lineare Vergrößerung) – schräge Flächen werden in der Ferne eher weich als flimmernd.
 - **Grenzen/Fehler:** unbekanntes Pixelformat in TEXTUR → `Fehler::Paket` (spätere GPU-Formate §5.7 brauchen einen Glut-Zweig);
   mehr als `max_texture_array_layers` Bilder einer Klasse (WebGL2: 256) → das Bild bleibt unbekannt (2D unsichtbar, 3D ohne Textur).
-  Grafikspeicher: Zweierpotenz-Kanten genau die Teigling-Stufen, sonst bis knapp × 4 (nächste Klasse) – bei 32 MiB Teigmenge
-  höchstens 128 MiB, Messung in `bench/herd/ERGEBNISSE.md` („Glut-Texturen“).
+  Grafikspeicher: Zweierpotenz-Kanten genau die Teigling-Stufen, sonst bis knapp × 4 (nächste Klasse) – bei 64 MiB Teigmenge
+  höchstens 256 MiB, Messung in `bench/herd/ERGEBNISSE.md` („Glut-Texturen“).
 - **Testbilder ohne Byte-Listen:** Hilfsaufruf `teigling_muster m b h` der Szenen-Spieler (Rust über `herd_teigling::teigling_aus`,
   JS nachgebaut, über `teigling.herd` in `node herd/test-kern.js` bitgleich geprüft); Referenzbilder `2d-textur`, `2d-rahmen-textur`,
   `3d-textur` (bestehende PNGs byte-gleich; `herd-bild referenz --nur=…` schreibt nur die genannten). Browser-Pixeltest: E2E 13

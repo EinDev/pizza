@@ -295,7 +295,7 @@ const HERD_LAUFZEIT = {
   // ---------- Bilddateien (SPEC §18.5, K-145; PROJEKTE §5.2 … §5.5) ----------
   // Vor dem Start: jedes Bild der Kiste (Endung .png/.jpg/.jpeg) → Teigling, je Quell-Hash einmal; ein Teigling aus
   // optionen.teiglinge gilt nur, wenn sein Kopf gültig ist und die SHA-256 der Quelle trägt (ein veralteter Cache ändert nie
-  // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 32 MiB → P0020 ohne Ort.
+  // ein Ergebnis). Teigmenge = Summe verschiedener Quell-Hashes ohne Fehler-Teiglinge; > 64 MiB → P0020 ohne Ort.
   vorbacke() {
     const bilder = Object.keys(this.kiste).filter(istBildPfad).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     if (!bilder.length) return;
@@ -318,7 +318,7 @@ const HERD_LAUFZEIT = {
       }
       this.teiglinge.set(pfad, t);
     }
-    if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 32 MB).', null);
+    if (menge > TEIGMENGE_MAX) throw this.pf('P0020', 'Die Bilder sind zusammen zu groß für den Ofen (' + mbText(menge) + ' vorgebacken, höchstens 64 MB).', null);
   },
   // Bildchen.laden(pfad): Text? → Herd da? (Kern-Text, Code 3) → schon geladen (dasselbe Bildchen) → in der Kiste? →
   // Teigling an den Kern (bildchen_teigling prüft nur den Kopf; 61/62 → „<pfad> <Kern-Text>“)

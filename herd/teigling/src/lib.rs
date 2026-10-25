@@ -54,8 +54,8 @@ pub const FEHLER_LAENGE: usize = 64;
 pub const MAX_KANTE: u32 = 2048;
 /// Größte Quelldatei in Bytes (2 MiB, PROJEKTE.md §5.3/F8).
 pub const MAX_QUELLE: usize = 2 * 1024 * 1024;
-/// Größte Teigmenge je Projekt in Bytes (32 MiB, P0020).
-pub const MAX_TEIGMENGE: u64 = 33_554_432;
+/// Größte Teigmenge je Projekt in Bytes (64 MiB, P0020).
+pub const MAX_TEIGMENGE: u64 = 67_108_864;
 /// Flag-Bit 0: irgendwo Alpha < 255.
 pub const FLAG_DURCHSICHTIG: u32 = 1;
 /// Flag-Bit 1: Quelle war ein JPEG.

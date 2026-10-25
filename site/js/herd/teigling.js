@@ -22,7 +22,7 @@
  *     PizzaVorbacker.megabyte(bytes) → "41,2"        Bytes / 1 048 576, eine Nachkommastelle aufgerundet, Dezimalkomma
  *     PizzaVorbacker.teigmengeFehler(bytes) → null | Text von P0020 („Die Bilder sind zusammen zu groß …“, ohne Präfix)
  *     PizzaVorbacker.cacheSchluessel(sha256Hex) → "<hex>/teigling/1"   (IndexedDB-Speicher `teiglinge`, §5.4)
- *   Konstanten: VERSION 1, KOPF 52, FEHLER_LAENGE 64, MAX_KANTE 2048, MAX_QUELLE 2 MiB, MAX_TEIGMENGE 32 MiB.
+ *   Konstanten: VERSION 1, KOPF 52, FEHLER_LAENGE 64, MAX_KANTE 2048, MAX_QUELLE 2 MiB, MAX_TEIGMENGE 64 MiB.
  *
  * Die Ananas-Texte zu Fehler-Teiglingen entstehen im Herd-Kern (`bildchen_teigling`, Codes 61/62, herd/README.md §3).
  */
@@ -34,7 +34,7 @@
   var FEHLER_LAENGE = 64;
   var MAX_KANTE = 2048;
   var MAX_QUELLE = 2 * 1024 * 1024;
-  var MAX_TEIGMENGE = 33554432;
+  var MAX_TEIGMENGE = 67108864;
 
   function hex(u8) {
     var s = "";
@@ -104,7 +104,7 @@
 
   function teigmengeFehler(bytes) {
     if (bytes <= MAX_TEIGMENGE) return null;
-    return "Die Bilder sind zusammen zu groß für den Ofen (" + megabyte(bytes) + " MB vorgebacken, höchstens 32 MB).";
+    return "Die Bilder sind zusammen zu groß für den Ofen (" + megabyte(bytes) + " MB vorgebacken, höchstens 64 MB).";
   }
 
   function Vorbacker(instanz) {

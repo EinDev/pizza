@@ -183,12 +183,12 @@ function pruefe(pruefeFall) {
     const pfad = ('bilder/kopie.png').length + 16 + 16;   // Text-Objekt des Pfads + Tabelleneintrag – der Teigling selbst nicht doppelt
     if (k1.pkarton.length - k3.pkarton.length > pfad + 64) throw new Error('Teigling doppelt eingebettet: ' + (k1.pkarton.length - k3.pkarton.length));
   });
-  pruefeFall('Bildchen: Teigmenge > 32 MiB → P0020 vor dem Start; Vorbacker fehlt → HOST', () => {
-    const q = { dateien: { 'hauptgang.pizza': 'Bote.sage(("nie"));', 'a.png': H.gross([1, 2, 3, 255]), 'b.png': H.gross([3, 2, 1, 255]) } };
+  pruefeFall('Bildchen: Teigmenge > 64 MiB → P0020 vor dem Start; Vorbacker fehlt → HOST', () => {
+    const q = { dateien: { 'hauptgang.pizza': 'Bote.sage(("nie"));', 'a.png': H.gross([1, 2, 3, 255]), 'b.png': H.gross([3, 2, 1, 255]), 'c.png': H.gross([2, 3, 1, 255]) } };
     const r = beide(q);
     const f = fehlerEv(r);
     if (r.exitCode !== 2 || r.schritte !== 0 || f.code !== 'P0020' || f.datei !== null
-      || f.text !== 'PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (42,7 MB vorgebacken, höchstens 32 MB).') throw new Error(j(ohne(r)));
+      || f.text !== 'PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).') throw new Error(j(ohne(r)));
     const k = Z.kompiliere({ dateien: { 'hauptgang.pizza': 'Bote.sage((1));', 'a.png': H.KLEIN } }, { vorbacker: new Uint8Array([1, 2, 3]) });
     if (k.ok || !k.fehler || k.fehler.text !== 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).') throw new Error(j(k));
   });

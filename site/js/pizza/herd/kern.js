@@ -186,7 +186,7 @@ class HerdKernFehlt { }
 // vorbacken(bytes)/sha256(bytes) (z. B. PizzaVorbacker.node()); Node ohne Option: site/js/herd/teigling.wasm.
 const VORBACKER_FEHLT = 'PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).';
 class VorbackerFehlt { }
-const TEIGLING_KOPF = 52, TEIGLING_FEHLER_LAENGE = 64, TEIGLING_MAX_KANTE = 2048, TEIGMENGE_MAX = 33554432;
+const TEIGLING_KOPF = 52, TEIGLING_FEHLER_LAENGE = 64, TEIGLING_MAX_KANTE = 2048, TEIGMENGE_MAX = 67108864;
 const TEIGLING_MAGIE = [84, 69, 73, 71, 76, 73, 78, 71];   // "TEIGLING"
 const TEIGLING_LEER = new Uint8Array(0);                     // keine Bild-Endung: der Kern meldet „kein lesbares Bild“ (61)
 function istBildPfad(pfad) { return /\.(png|jpg|jpeg)$/.test(pfad); }

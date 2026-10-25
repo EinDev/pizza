@@ -1848,8 +1848,8 @@ Schema und ist eine eingebaute Klasse:
   vormultipliziert + Mipmaps, festes Format und Rechenwege, K-147) – mit demselben Vorbacker `teigling.wasm` in allen Motoren, daher
   bitgleich; ob aus einem Cache oder neu, ändert nie das Ergebnis. Text-Bildchen bleiben unverändert (Atlas, ≤ 256 × 256).
   **Teigmenge** = Summe der Teigling-Längen verschiedener Quelldateien (gleiche Bytes unter zwei Pfaden zählen einmal, Fehler-Teiglinge
-  nicht) ≤ 33 554 432 Bytes, sonst vor dem Start `PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (41,2 MB vorgebacken,
-  höchstens 32 MB).` (MB = Bytes / 1 048 576, eine Nachkommastelle aufgerundet, Dezimalkomma). Fehlt der Vorbacker bei einem Projekt mit
+  nicht) ≤ 67 108 864 Bytes (64 MiB), sonst vor dem Start `PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (85,4 MB vorgebacken,
+  höchstens 64 MB).` (MB = Bytes / 1 048 576, eine Nachkommastelle aufgerundet, Dezimalkomma). Fehlt der Vorbacker bei einem Projekt mit
   Bildern → `{ typ: "fehler", code: "HOST", art: "intern", text: "PizzaFehler HOST: Der Vorbacker fehlt (teigling.wasm).", datei: null,
   zeile: null, spalte: null }`, Exit 2 (wie der fehlende Herd-Kern). Darstellung: Vergrößern pixelscharf (nächster Nachbar),
   Verkleinern trilinear über die Mipmaps; Pixel wie immer mit Toleranz (K-129).

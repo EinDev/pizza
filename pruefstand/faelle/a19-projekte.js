@@ -605,22 +605,24 @@ Bote.sage(("fertig"));
     "bilder/klein.png": KLEIN,
   }), { exit: 1, fehler: { code: "KüchenAnanas" } }),
 
-  F(TK, "K-145 §14.7: Teigmenge über 32 MiB → P0020 vor dem Start (gleiche Bilder unter zwei Pfaden zählen einmal)", projekt({
+  F(TK, "K-145 §14.7: Teigmenge über 64 MiB → P0020 vor dem Start (gleiche Bilder unter zwei Pfaden zählen einmal)", projekt({
     "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage(("nie"));\n',
     "bilder/rot.png": gross([217, 69, 43, 255]),
     "bilder/gruen.png": gross([62, 142, 65, 255]),
     "bilder/gruen-kopie.png": gross([62, 142, 65, 255]),
+    "bilder/blau.png": gross([40, 90, 200, 255]),
   }), {
     exit: 2,
-    fehler: { code: "P0020", art: "pizzafehler", text: "PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (42,7 MB vorgebacken, höchstens 32 MB)." },
+    fehler: { code: "P0020", art: "pizzafehler", text: "PizzaFehler P0020: Die Bilder sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB)." },
     check: alle(fehlerOrt({ datei: null, zeile: null }), nullSchritte),
   }),
 
-  F(TK, "K-145 §14.7: ein 2048²-Bild unter zwei Pfaden (21,3 MB vorgebacken) passt", projekt({
-    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png").breite() + Bildchen.laden("bilder/b.png").hoehe()));\n',
+  F(TK, "K-145 §14.7: drei 2048²-Bilder, zwei davon gleich (42,7 MB vorgebacken), passen", projekt({
+    "hauptgang.pizza": 'Herd herd = neu Herd();\nBote.sage((Bildchen.laden("bilder/a.png").breite() + Bildchen.laden("bilder/b.png").hoehe() + Bildchen.laden("bilder/c.png").breite()));\n',
     "bilder/a.png": gross([245, 197, 24, 255]),
     "bilder/b.png": gross([245, 197, 24, 255]),
-  }), { out: ["4096"] }),
+    "bilder/c.png": gross([217, 69, 43, 255]),
+  }), { out: ["6144"] }),
 
   // ───────────────────────── PD2: weitere Fälle (Prüfreihenfolge, Küche, Vorrang, Optionen) ─────────────────────────
   F(TK, "K-145 §18.5: Bildchen.laden auf eine Datei ohne Bild-Endung → „kein lesbares Bild“", projekt({

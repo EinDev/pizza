@@ -2001,7 +2001,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   derselbe Code) backt sie beim Packen (Playground-Erstladen, EXE-Export, Teilen) zu **Teiglingen** vor, per Quell-Hash gecacht; der
   Lader prüft jeden Teigling gegen die Quelle (ein veralteter Cache ändert nie ein Ergebnis). Ins pkarton kommen Teiglinge statt
   Quellbildern (passives Datensegment, je Quell-Hash einmal), der Kern übernimmt sie über `bildchen_teigling`. Grenzen: ≤ 2048 × 2048
-  je Bild, **Teigmenge** ≤ 32 MiB je Projekt (P0020 vor dem Start). Gleicher Pfad → dasselbe Bildchen. K-136 bleibt für Text-Bildchen;
+  je Bild, **Teigmenge** ≤ 64 MiB je Projekt (P0020 vor dem Start; zuerst 32 MiB, siehe Nachtrag). Gleicher Pfad → dasselbe Bildchen. K-136 bleibt für Text-Bildchen;
   seine Begründung „Dateien hätten im Browser keinen Ort“ ist mit Projekten aufgehoben.
 - **Verworfen:** `createImageBitmap`/Canvas (Farbprofil/Gamma je Browser – nicht bitgleich), Dekodieren bei jedem Lauf (Ladezeit, keine
   Mipmaps), sofort KTX2/Basis (Encoder-Determinismus offen), Host-Import `datei_lesen`.
@@ -2013,6 +2013,9 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Start mit Cache-Prüfung, P0020 Teigmenge, Herd-Erkennung, CLI; U-80), PA2 ✅ (Laufzeit/Host: Teiglinge im passiven Datensegment,
   `bildchen_teigling` im nativen Host, U-75), PD3 ✅ (Glut nativ + Web: eigene Texturen mit Mip-Kette,
   vergrößern nächster Nachbar, verkleinern trilinear; Referenzbilder `2d-textur`, `2d-rahmen-textur`, `3d-textur`; U-77).
+- **Nachtrag 2026-10-25 (Nutzerentscheidung, PROJEKTE.md F8):** Teigmenge von 32 MiB auf **64 MiB** (67 108 864 Bytes) angehoben,
+  damit größere Spiele (Neon-Napoli: Bodenmaterialien in 1024²) Platz haben. Rechnung und Text von P0020 bleiben gleich, nur die Zahl
+  ändert sich („… höchstens 64 MB“); Grafikspeicher schlimmstenfalls 256 MiB statt 128 MiB (`bench/herd/ERGEBNISSE.md`).
 
 ### K-146 `Kiste`: lesender Zugriff auf Projektdateien
 - **Entscheidung (PROJEKTE.md §5.2):** eingebautes Modul **`Kiste`** (Lieferkiste des Projekts) mit `text`, `zeilen`, `gibts`, `liste` –

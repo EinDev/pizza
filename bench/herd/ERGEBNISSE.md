@@ -167,8 +167,8 @@ Bewertung: Auf WARP kostet das Hochladen eines 1024²-Teiglings einmalig ≈ 150
 Bild, in der Regel beim Start) – auf einer echten GPU erwartungsgemäß wenige Millisekunden (Messung unten, vom Nutzer). Danach
 kostet die Textur nichts mehr je Bild (Bild ohne Hochladen wie ohne Textur). Der Grafikspeicher entspricht bei Zweierpotenz-Kanten
 genau den Teigling-Stufen (≈ b · h · 4 · 4/3); andere Größen landen in der nächsten Klasse (schlimmstenfalls knapp × 4, z. B.
-1025² → 21,3 MiB statt 5,3 MiB), auf WebGL2 belegt eine Klasse mindestens 2 Schichten. Mit der Teigmenge ≤ 32 MiB (P0020) bleibt
-der Bedarf damit ≤ 128 MiB, typisch ≈ 32 MiB. Pixeltest WebGL2 (E2E 13) der drei PD3-Szenen: mittlere Abweichung 0,007 … 0,210 %,
+1025² → 21,3 MiB statt 5,3 MiB), auf WebGL2 belegt eine Klasse mindestens 2 Schichten. Mit der Teigmenge ≤ 64 MiB (P0020, bis 2026-10-25: 32 MiB) bleibt
+der Bedarf damit ≤ 256 MiB, typisch ≈ 64 MiB. Pixeltest WebGL2 (E2E 13) der drei PD3-Szenen: mittlere Abweichung 0,007 … 0,210 %,
 99,58 … 99,94 % der Pixel innerhalb 10/255; Browser-Glut 1 916 KiB roh (+15 KiB), 721 KiB gzip.
 
 ## Vom Nutzer auszuführen (echte GPU)

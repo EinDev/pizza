@@ -80,11 +80,12 @@ assert.strictEqual(sha(vb.besorge(null, q)), sha(echt));
 // Teigmenge: gleiche Quelle unter zwei Pfaden zählt einmal, Fehler-Teiglinge nicht
 const menge = PizzaVorbacker.teigmenge({ 'a.png': echt, 'b.png': echt, 'c.png': teiglinge['png-fehler-crc'], 'd.jpg': teiglinge['jpeg-1x1'] });
 assert.strictEqual(menge, echt.length + teiglinge['jpeg-1x1'].length);
-assert.strictEqual(PizzaVorbacker.megabyte(33554432), '32,0');
-assert.strictEqual(PizzaVorbacker.megabyte(33554433), '32,1');
-assert.strictEqual(PizzaVorbacker.megabyte(43201331), '41,2');
-assert.strictEqual(PizzaVorbacker.teigmengeFehler(33554432), null);
-assert.strictEqual(PizzaVorbacker.teigmengeFehler(43201331), 'Die Bilder sind zusammen zu groß für den Ofen (41,2 MB vorgebacken, höchstens 32 MB).');
+assert.strictEqual(PizzaVorbacker.megabyte(67108864), '64,0');
+assert.strictEqual(PizzaVorbacker.megabyte(67108865), '64,1');
+assert.strictEqual(PizzaVorbacker.megabyte(89478880), '85,4');
+assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108864), null);
+assert.strictEqual(PizzaVorbacker.teigmengeFehler(67108865), 'Die Bilder sind zusammen zu groß für den Ofen (64,1 MB vorgebacken, höchstens 64 MB).');
+assert.strictEqual(PizzaVorbacker.teigmengeFehler(89478880), 'Die Bilder sind zusammen zu groß für den Ofen (85,4 MB vorgebacken, höchstens 64 MB).');
 assert.strictEqual(PizzaVorbacker.cacheSchluessel('ab'), 'ab/teigling/1');
 
 if (fehler) { console.log(fehler + ' Abweichung(en)'); process.exit(1); }
