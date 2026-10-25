@@ -9,7 +9,8 @@
 // Lichter (Neonschilder, Laternen-Spots, Schaufenster, Drohnen) wirken gleichzeitig, eine Stimmung macht daraus ein HDR-Bild
 // mit Bloom, Höhennebel und Filmkorn. Das Programm baut nur die Welt und bewegt Kamera, Regen und Marke.
 // Klangkulisse (welt/klangkulisse.pizza): Regen, ferne Stadt, summende Neonschilder, surrende Drohnen, Schritte, Tropfen, Ping
-// und Tür – erzeugt mit Klang, räumlich zur Kamera; der erste Klick ins Bild schaltet im Browser den Ton frei.
+// und Tür – CC0-Aufnahmen (Klang.laden: Regen, Stadt, Schritte, Ladenglocke) gemischt mit Erzeugtem (Klang), räumlich zur Kamera;
+// der erste Klick ins Bild schaltet im Browser den Ton frei.
 bestellt "zustand.pizza";
 bestellt "welt/stoffe.pizza";
 bestellt "welt/strasse.pizza";

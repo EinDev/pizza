@@ -1,7 +1,18 @@
 # Bild-, Modell- und Klangquellen – Neon-Napoli
 
-**Klänge:** keine Dateien – Regen, Stadt, Neonsummen, Drohnen, Schritte, Tropfen, Ping, Tür und Fanfare erzeugt das Programm selbst mit
-`Klang` (Rauschen, Töne, Noten, Filter, Hüllkurven; `welt/klangkulisse.pizza`).
+**Klänge:** Regen, Stadt, Schritte und die Ladenglocke sind Aufnahmen von **Freesound** (https://freesound.org) unter **CC0 1.0**
+(Creative Commons 0, gemeinfrei, https://creativecommons.org/publicdomain/zero/1.0/ – keine Namensnennung nötig, wir nennen die
+Urheber trotzdem); geladen mit `Klang.laden` und gemischt mit erzeugten Schichten. Neonsummen, Drohnen, Tropfen, Ping, Tür und Fanfare
+sowie das Prasseln und Platschen über den Aufnahmen erzeugt das Programm selbst mit `Klang` (`welt/klangkulisse.pizza`).
+Geladen wurde je Geräusch die öffentliche HQ-Vorschau (MP3, 128 kbit/s); umgewandelt mit ffmpeg nach **FLAC, mono, 22 050 Hz, 16 Bit**
+(`-ac 1 -ar 22050 -sample_fmt s16 -c:a flac -compression_level 8`, Metadaten entfernt).
+
+| Datei | Freesound-Titel | Urheber | Seite | Lizenz | Bearbeitung |
+|---|---|---|---|---|---|
+| `klaenge/regen.flac` | rain medium on street pavement.flac | kyles | https://freesound.org/people/kyles/sounds/454143/ | CC0 | Ausschnitt 6 … 22 s, die folgende Sekunde mit gleicher Leistung in den Anfang geblendet (nahtlose Schleife), −18 LUFS, Spitzen auf −3 dBFS begrenzt |
+| `klaenge/stadt.flac` | XY_City hum_Night_River_ambience.wav | softwalls | https://freesound.org/people/softwalls/sounds/385104/ | CC0 | Ausschnitt 40 … 56 s, 1,5 s in den Anfang geblendet (nahtlos), −18 LUFS |
+| `klaenge/schritt-1.flac` … `schritt-3.flac` | footsteps pavement street (Lederschuhe auf nassem Pflaster) | Yuval | https://freesound.org/people/Yuval/sounds/205817/ | CC0 | drei einzelne Schritte (ab 3,138 / 4,360 / 5,005 s, je 0,42 s), 4 ms Einblendung, Ausblendung ab 0,27 s, Spitze −3 dBFS |
+| `klaenge/ladenglocke.flac` | shop_door_bell.wav | 3bagbrew | https://freesound.org/people/3bagbrew/sounds/57743/ | CC0 | 0 … 4 s, Ausblendung ab 2,8 s über 1,2 s, Spitze −3 dBFS |
 
 Alle Fototexturen stammen von **Poly Haven** (https://polyhaven.com) und stehen unter **CC0** (gemeinfrei, keine Namensnennung
 nötig – wir nennen sie trotzdem). Geladen wurden je Material die 1k-JPEGs „Diffuse“, „nor_gl“ (Normalen im OpenGL-Sinn) und „arm“
