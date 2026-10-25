@@ -188,14 +188,15 @@ function verkleinere(bild, ziel) {
 }
 
 // Fotomaterialien: Name → [Poly-Haven-Asset, Kante Farbe, Kante Relief, Stärke der Umgebungsverdeckung]
+// Boden und große Wände (Asphalt, Gehweg, Beton, Ziegel) in voller 1k-Auflösung, der Rest 512² (Teigmenge ≤ 64 MiB, F8)
 const FOTOS = {
-  asphalt: ['asphalt_02', 1024, 512, 0.8],
-  beton: ['concrete_wall_008', 512, 512, 0.7],
-  ziegel: ['dark_brick_wall', 512, 512, 0.8],
+  asphalt: ['asphalt_02', 1024, 1024, 0.8],
+  beton: ['concrete_wall_008', 1024, 1024, 0.7],
+  ziegel: ['dark_brick_wall', 1024, 1024, 0.8],
   fliesen: ['rectangular_facade_tiles', 512, 512, 0.7],
   wellblech: ['rusty_corrugated_iron', 512, 512, 0.7],
   rolltor: ['rusty_metal_shutter', 512, 512, 0.7],
-  gehweg: ['concrete_pavement', 512, 512, 0.7],
+  gehweg: ['concrete_pavement', 1024, 1024, 0.7],
 };
 
 function fotos() {
