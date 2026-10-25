@@ -39,7 +39,7 @@ const exe = path.join(__dirname, 'target', profil, 'pizza-host' + (process.platf
   if (r.status !== 0 || !fs.existsSync(exe)) { console.error('cargo build fehlgeschlagen'); process.exit(2); }
 }
 
-// Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner + pruefung/, Imperium bis PB5 im alten Format
+// Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Projektordner + pruefung/
 const beispiele = () => require(path.join(WURZEL, 'scripts', 'beispiele.js')).leseBeispiele();
 
 function vergleiche(a, b) {
@@ -68,7 +68,7 @@ const liste = beispiele().filter((b) => !filter || b.id.includes(filter));
 const t0 = Date.now();
 let hostMs = 0;
 for (const b of liste) {
-  // Ordner: das Projekt (Manifest-Dateiliste) kompilieren; altes Format (Imperium bis PB5): der Text
+  // das Projekt (Manifest-Dateiliste) kompilieren
   const quelle = b.programm;
   const eingabe = b.eingabe || undefined;
   const lauf = Object.assign({}, b.optionen);   // Manifest-Felder wie tests/run-tests.js (K-077/K-087): feste Saat, Wanduhr, Schrittlimit

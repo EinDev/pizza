@@ -3,7 +3,7 @@
 > Status: **Vorschlag** (Beispiel-Agent Idle-Game). Verbindlich bleibt `SPEC.md` §16 / `THEKE.md`, bis der Klärungs-Agent
 > einzelne Punkte übernimmt. Die **Renderer-Seite** der hier beschriebenen Zutaten ist in `site/js/theke/theke.js`
 > bereits umgesetzt (Abschnitt „v2-Zutaten“, Tests in `tests/theke/`), die **Sprach-/Laufzeit-Seite** fehlt noch
-> (Aufträge in §9). Treiber: `site/beispiele/idle/pizza-imperium.pizza`.
+> (Aufträge in §9). Treiber: `site/beispiele/idle/pizza-imperium/` (bis PROJEKTE PB5 die Einzeldatei `pizza-imperium.pizza`).
 > Vom Klärungs-Agenten übernommen als **SPEC §16.5 (K-084 … K-087)** – bei Abweichungen gilt die SPEC.
 
 Leitlinien wie in THEKE.md: *keep it simple, but extendable* – jede Erweiterung ist **eine neue `art`** (bzw. neue Felder)

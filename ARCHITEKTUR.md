@@ -253,10 +253,10 @@ Teil-Manifest, z. B. `grundlagen.json` – **jedes Beispiel ist ein Projektordne
 - **Werkzeug** `scripts/beispiele.js` (zugleich der gemeinsame Leser aller Harnische): `--pruefe` (in `npm test`) vergleicht Manifeste
   und Platte (Ordner, Dateiliste, `pizza.json` = Titel/Beschreibung, Dateiarten, `pruefung/` nur bekannte Testdateien, `exitCode`-Kopie,
   ids eindeutig, keine Waisen); `--schreibe` erneuert die abgeleiteten Felder (`dateien`, `titel`/`beschreibung` aus `pizza.json`,
-  `exitCode`); `--umziehen` zieht Einträge im alten Format (`datei` + Begleitdateien) idempotent in Ordner um.
-- **Übergang bis PB5:** Das Pizza-Imperium bleibt im alten Format (`"datei": "idle/pizza-imperium.pizza"`, `erwartet`/`ereignisse`/
-  `uiErwartet`/`exitCode` im Manifest, Begleitdateien daneben); Galerie und Harnische lesen `datei` **oder** `ordner`, `--pruefe`
-  erlaubt `datei` nur für diesen Eintrag.
+  `exitCode`); `--umziehen` zieht Einträge im alten Format (`datei` + Begleitdateien) idempotent in Ordner um. Galerie und Harnische
+  lesen nur `ordner` (seit PROJEKTE PB5); ein Eintrag mit `datei` ist für `--pruefe` ein Fehler.
+- Größtes Mehrdatei-Beispiel: `idle/pizza-imperium/` (Hauptdatei lädt den Spielstand und baut die Oberfläche; gemeinsamer Zustand in
+  `zustand.pizza`, Modell in `modell/`, `spiel.pizza`, `minispiele.pizza`, `erfolge.pizza`, Panels in `theke/`; PROJEKTE §7.3).
 - `.erwartet` = alle `ausgabe`-, `fehlerausgabe`- und `panik`-Texte in Reihenfolge, je Ereignis eine Zeile
   (`ausgabe` mit `umbruch: false` ohne Zeilenumbruch, `leeren` als Zeile `«leeren»`, `eingabe` nie – SPEC §11.1)
   (mehrzeiliger Panik-Text bleibt mehrzeilig), abschließender Zeilenumbruch. Warnungen, `fehler` und `ende` stehen **nicht** drin.
@@ -341,7 +341,7 @@ Alle Harnische (`tests/run-tests.js`, `pruefstand/`, `tests/differenz/`, E2E) le
 | | `<name>.fehler` | erwartete `fehler`-Texte (eine Zeile pro Ereignis); fehlt → nicht geprüft |
 | | `<name>.optionen.json` | `optionen` für `run` (z. B. `{"schrittLimit": 1000, "args": ["a"]}`) |
 | | `<name>.eingabe` | vorgegebene Eingabe, eine Zeile pro Eingabe (SPEC §11.1); letzter Zeilenumbruch zählt nicht |
-| `site/beispiele/<kategorie>/<projekt>/` | Projekt + `pruefung/` | wie ein Ordner-Fall (unten): `pruefung/erwartet`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `exitcode`; Manifest §3 (gemeinsamer Leser `scripts/beispiele.js`); bis PB5 das Imperium noch als `*.pizza` + Begleitdateien |
+| `site/beispiele/<kategorie>/<projekt>/` | Projekt + `pruefung/` | wie ein Ordner-Fall (unten): `pruefung/erwartet`, `eingabe`, `ereignisse`, `ui-erwartet`, `herd-erwartet`, `vorrat.json`, `exitcode`; Manifest §3 (gemeinsamer Leser `scripts/beispiele.js`) |
 | Vorrat (SPEC §15.4) | `<name>.vorrat.json` | Eingangszustand `{ "<kennung>": [["schlüssel", wert], …] }` → `optionen.vorrat` (Kennung `kammer` oder `raum/kammer`, K-106); Tests laufen mit `zufallsSaat` 42 (Standard) |
 | Theke (SPEC §16) | `<name>.ereignisse` | vorgegebene Renderer-Ereignisse als JSON-Lines (`{"typ":"klick","id":"z2"}` …) → `optionen.uiEreignisse`; erschöpft → `geschlossen` |
 | | `<name>.ui-erwartet` | alle `ui`-Nachrichten als JSON-Lines, kanonisch verglichen (Schlüsselreihenfolge egal, Nachrichtenreihenfolge zählt); `ui`-Ereignisse stehen nicht in `.erwartet` |

@@ -1,0 +1,202 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Kopf und Ablauf
+// ═══════════════════════════════════════════════════════════════════════
+// Der Kopf (Kasse, Kennzahlen, Backen, Sonderschicht, Meldung), die Uhr der Backstube und was nach jedem Rückruf passiert
+// (nachVerarbeitung, nachKauf, nachLernen, nachAufstieg). Die Panels der anderen Dateien rufen diesen Ablauf auf; er selbst
+// belegt nach Klicks die Plätze der Backstube und von Nonna – über die Rezepturen Plaetze und NonnaPlaetze, sonst müsste diese
+// Datei die Panels bestellen, die sie bestellen (Kreis).
+
+bestellt "zustand.pizza";
+bestellt "spiel.pizza";
+bestellt "modell/upgrades.pizza";
+bestellt "erfolge.pizza";
+
+// ─────────────────────────────── Kopf ───────────────────────────────────
+// Kasse (riesig), Kennzahlen (2 Zeilen – die zweite ist der Stand der laufenden Herausforderung), Backen und Sonderschicht
+// nebeneinander, Meldung (3 Zeilen). Alles mit fester Breite: Texte wechseln, Kästen nie.
+klasse KopfPanel {
+    Schild kasse;
+    Schild kennzahlen;
+    Knopf backen;
+    Knopf ofenKnopf;
+    Schild meldung;
+    Reihe knöpfe;
+
+    KopfPanel() {
+        kasse = neu Schild("", id: "kasse");
+        kasse.stil("schrift", "riesig").stil("farbe", "basilikum").stil("ausrichtung", "mitte").stil("breite", VOLL).stil("zeilen", 1);
+        kasse.binde("text", () -> { zTakt.wert(); serviere (spiel.geld.währung("€", kompakt: ja)); });
+        kennzahlen = neu Schild("", id: "kennzahlen");
+        kennzahlen.stil("schrift", "klein").stil("ausrichtung", "mitte").stil("zeilen", 2).stil("breite", VOLL);
+        kennzahlen.binde("text", () -> kennzahlenText());
+        kennzahlen.binde("hinweis", () -> { zVersion.wert(); serviere ("Heute im Ofen: " + spiel.rezeptName() + " – " + spiel.preis().währung("€") + " pro Pizza"); });
+        backen = neu Knopf("", () -> { backe(); }, id: "backen");
+        backen.stil("schrift", "gross").stil("farbe", "tomate").stil("hoehe", 64).stil("ausrichtung", "mitte").stil("zeilen", 1);
+        backen.hinweis("Eine Pizza backen und sofort zum Rezeptpreis verkaufen (auch mit der Leertaste). Später bringt jeder Klick zusätzlich einen kleinen Anteil der Sekundenproduktion – das große Geld macht der Betrieb.");
+        backen.binde("text", () -> { zVersion.wert(); serviere (spiel.darfKlicken() ? "🍕 Pizza backen!  +" + spiel.proKlick().kompakt(1) : "🙏 Fastenzeit – heute wird nicht geknetet"); });
+        backen.binde("aktiv", () -> { zVersion.wert(); serviere (spiel.darfKlicken()); });
+        ofenKnopf = neu Knopf("", () -> { spiel.sonderschicht(); nachVerarbeitung(); }, id: "sonderschicht");
+        ofenKnopf.stil("farbe", "kruste").stil("hoehe", 64).stil("ausrichtung", "mitte").stil("zeilen", 1);
+        ofenKnopf.hinweis("Der Ofen backt Ladung um Ladung, bis sein Zeitbudget leer ist. Heißer = mehr Ladungen.");
+        ofenKnopf.binde("text", () -> ofenText());
+        ofenKnopf.binde("aktiv", () -> { zTakt.wert(); serviere (spiel.ofenBereit()); });
+        backen.stil("breite", SPALTE_BREITE);
+        ofenKnopf.stil("breite", SPALTE_BREITE);
+        knöpfe = neu Reihe([backen, ofenKnopf], id: "kopf-knoepfe");
+        knöpfe.stil("abstand", 12);
+        meldung = neu Schild("", id: "meldung");
+        meldung.stil("farbe", "tomate").stil("ausrichtung", "mitte").stil("zeilen", 3).stil("breite", VOLL);
+        meldung.binde("text", () -> zNachricht.wert());
+    }
+
+    // Kennzahlen: je Sekunde und bei neuer Version. Zeile 1 die Zahlen und Hinweise (früher im Reitertitel), Zeile 2 die laufende
+    // Herausforderung (sonst leer – die Zeile ist Teil des Schilds, kein eigenes Element).
+    margherita kennzahlenText() {
+        zVersion.wert(); zSekunde.wert();
+        margherita z = Spiel.pizzen(spiel.proKlick()) + " pro Klick · " + spiel.proSekunde().kompakt(1)
+            + "/s · " + spiel.preis().währung("€") + "/Pizza";
+        falls (spiel.sterne > 0) { z = z + " · ⭐ " + Spiel.anz(spiel.sterne) + " aktiv"; }
+        falls (spiel.filialen > 0) { z = z + " · 🏢 " + Spiel.anz(spiel.filialen); }
+        salami neu_ = spiel.neueSterne();
+        falls (neu_ > 0) { z = z + " · ⭐ " + Spiel.anz(neu_) + (neu_ == 1 ? " wartet" : " warten"); }
+        falls (spiel.neueFilialen() > 0) { z = z + " · 🏢 Kette bereit"; }
+        falls (spiel.rezepteOffen()) {
+            salami lernbar = spiel.offeneRezepte().filtere((x) -> (spiel.lernbar(x))).länge();
+            falls (lernbar > 0) { z = z + " · 📜 " + lernbar + " lernbar"; }
+        }
+        falls (spiel.modus != "") {
+            Herausforderung hf = spiel.herausforderung(spiel.modus);
+            z = z + "\n" + hf.symbol + " " + hf.name + ": " + spiel.umsatz.währung("€", kompakt: ja) + " von " + hf.ziel.währung("€", kompakt: ja)
+                + " Umsatz (" + prozent(spiel.umsatz, hf.ziel) + ")";
+        }
+        serviere (z);
+    }
+
+    margherita ofenText() {
+        zTakt.wert();
+        falls (spiel.ofenBereit()) { serviere ("🔥 Sonderschicht (" + spiel.ofenTemperatur() + " °C)"); }
+        falls (spiel.modus == "fastenzeit") { serviere ("🔥 Fastenzeit – der Ofen bleibt kalt"); }
+        serviere ("🔥 Ofen kühlt ab … noch " + (Mathe.decke(spiel.ofenKühlt / 10) * 10) + " s");   // Countdown in Zehnerschritten
+    }
+}
+
+// ─────────────────────────────── Panels ─────────────────────────────────
+// Gebaut werden sie in hauptgang.pizza in der bisherigen Reihenfolge, nach dem Laden des Spielstands – hier stehen nur die
+// Variablen (ohne Anfangswert), die der Ablauf braucht. Plätze belegen nur Klick-Rückrufe (R1).
+speisekarte rezeptur Plaetze {
+    leer belegeNeu();
+}
+speisekarte rezeptur NonnaPlaetze {
+    leer belegeRezepte();
+    leer belegeProben();
+}
+KopfPanel kopf;
+Plaetze rezeptPanel, betriebPanel, handwerkPanel, briefPanel;
+NonnaPlaetze nonnaPanel;
+
+// ── Backen ──
+leer backe() {
+    salami klicksVorher = spiel.klicks;
+    spiel.klick();
+    nachVerarbeitung();
+    falls (spiel.klicks > klicksVorher) {          // Animationen (rein visuell, Theke v3) – gehören in den Rückruf, nie in eine Bindung
+        kopf.backen.animiere("huepfen");
+        theke.schwebe("+" + spiel.letzterKlick.kompakt(1) + " 🍕", bei: kopf.backen, farbe: "basilikum");
+    }
+}
+
+// ── Die Uhr der Backstube ──
+// Gebaut wird sie in hauptgang.pizza (ihr Rückruf ist reine Simulation); taktTempo stellt sie auf das laufende Minispiel.
+salami TAKT_MS = 100;
+salami taktMs = TAKT_MS;
+Takt takt;
+
+// Die Uhr schlägt im Takt des laufenden Spiels – bzw. wieder zehnmal je Sekunde (K-117: gleiches Intervall sendet nichts)
+leer taktTempo() {
+    Dauer schlag = ecke.läuft == "" ? 100ms : ecke.aktuell.schlag;
+    taktMs = Mathe.runden(schlag.inMs());
+    takt.setzeIntervall(schlag);
+}
+
+// ─────────────────────────────── Nach jedem Rückruf ─────────────────────
+salami gemeldeteSterne = 0;
+salami gemeldeteFilialen = 0;
+
+diavolo erfolgNeu = nein;
+leer prüfeErfolge() {
+    Blech<Erfolg> neue = offeneErfolge.filtere((e) -> (e.erreicht(spiel)));
+    falls (neue.istLeer()) { serviere; }
+    offeneErfolge = offeneErfolge.filtere((e) -> (!neue.enthält(e)));
+    für (Erfolg e : neue) {
+        spiel.erfolge.hinzu(e.name);
+        erfolgNeu = ja;
+        Bote.sage(("🏆 Erfolg: " + e.name + " – " + e.text));
+        spiel.nachricht = "🏆 Erfolg freigeschaltet: " + e.name + "!";
+    }
+    spiel.versionErfolge++;
+}
+
+// Animationen (Theke v3) – im Rückruf, nie in einer Bindung
+salami gezeigteEinnahmen = 0;
+salami gezeigteTreffer = 0;
+diavolo thekeOffen = nein;     // erst nach theke.zeige animieren (sonst W0102)
+leer zeigeEffekte() {
+    falls (!thekeOffen) { gezeigteEinnahmen = spiel.großeEinnahmen; gezeigteTreffer = spiel.glückstreffer; erfolgNeu = nein; serviere; }
+    falls (spiel.großeEinnahmen != gezeigteEinnahmen) { gezeigteEinnahmen = spiel.großeEinnahmen; kopf.kasse.animiere("puls"); }
+    falls (spiel.glückstreffer != gezeigteTreffer) { gezeigteTreffer = spiel.glückstreffer; kopf.meldung.animiere("funkeln"); }
+    sonst falls (erfolgNeu) { kopf.meldung.animiere("aufpoppen"); }
+    erfolgNeu = nein;
+}
+
+// Nach jedem Ereignis: Ziel prüfen, Erfolge, Meldungen über wartende Sterne/Filialen, Animationen, Takt-Tempo,
+// Zettel aus dem Modell setzen (die Theke rechnet daraus am Synchronisationspunkt alles nach, was sich geändert hat), speichern.
+leer nachVerarbeitung() {
+    spiel.prüfeZiel();
+    prüfeErfolge();
+    salami neu_ = spiel.neueSterne();
+    // Nur melden, wenn zum ersten Mal Sterne warten oder sich die wartenden verdoppelt haben – nicht bei jedem Takt.
+    falls (neu_ <= 0) { gemeldeteSterne = 0; }
+    sonst falls (gemeldeteSterne == 0 || neu_ >= gemeldeteSterne * 2) {
+        spiel.melde(("⭐ Der Guide Michelin ist da! Im Reiter „Imperium“ " + (neu_ == 1 ? "wartet ein neuer Stern" : "warten " + Spiel.anz(neu_) + " neue Sterne") + "."));
+        gemeldeteSterne = neu_;
+    }
+    salami fil = spiel.neueFilialen();
+    falls (fil > 0 && gemeldeteFilialen == 0) {
+        spiel.melde(("🏢 Investoren klopfen an: Deine Sterne reichen für eine Franchise-Kette (Reiter „Imperium“)."));
+    }
+    gemeldeteFilialen = fil;
+    zeigeEffekte();
+    taktTempo();
+    synchronisiere();
+    falls (spiel.sekunden - gespeichertBei >= 30 || spiel.sekunden < gespeichertBei) { speichere(); }
+}
+
+// Plätze neu belegen – nur hier, also nur nach Klicks (R1); zPlaetze sagt den Bindungen der Plätze Bescheid.
+// nachKauf: Käufe (Upgrades, Rezeptseite, Feinkost, Meisterbrief, Freischaltung, Bereiche) ordnen die Backstube-Plätze und
+// lassen eine im Takt geschaffte Herausforderung nachrücken.
+leer nachKauf() {
+    betriebPanel.belegeNeu();
+    handwerkPanel.belegeNeu();
+    briefPanel.belegeNeu();
+    rezeptPanel.belegeNeu();
+    nonnaPanel.belegeProben();
+    zPlaetze.setze(zPlaetze.wert() + 1);
+    nachVerarbeitung();
+}
+// nachLernen: ein Geheimrezept gelernt – das nächste rückt nach.
+leer nachLernen() {
+    nonnaPanel.belegeRezepte();
+    zPlaetze.setze(zPlaetze.wert() + 1);
+    nachVerarbeitung();
+}
+// nachAufstieg: Neueröffnung, Herausforderung starten/aufgeben, Franchise, Neu anfangen – alles neu belegen.
+leer nachAufstieg() {
+    betriebPanel.belegeNeu();
+    handwerkPanel.belegeNeu();
+    briefPanel.belegeNeu();
+    rezeptPanel.belegeNeu();
+    nonnaPanel.belegeRezepte();
+    nonnaPanel.belegeProben();
+    zPlaetze.setze(zPlaetze.wert() + 1);
+    nachVerarbeitung();
+}

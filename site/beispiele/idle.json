@@ -15,13 +15,10 @@
       "id": "idle-pizza-imperium",
       "titel": "Pizza-Imperium",
       "beschreibung": "Das große Idle-Game: Pizzen backen, Betrieb und Handwerk kaufen, mit Michelin-Sternen, Geheimrezepten und Franchise aufsteigen – und nach und nach zwölf Bereiche vom Zutaten-Garten bis zur Banca di Napoli freischalten.",
-      "datei": "idle/pizza-imperium.pizza",
-      "erwartet": "idle/pizza-imperium.erwartet",
-      "ereignisse": "idle/pizza-imperium.ereignisse",
-      "uiErwartet": "idle/pizza-imperium.ui-erwartet",
-      "exitCode": 0,
+      "ordner": "idle/pizza-imperium",
+      "dateien": ["pizza.json", "hauptgang.pizza", "erfolge.pizza", "minispiele.pizza", "modell/bereiche.pizza", "modell/upgrades.pizza", "spiel.pizza", "theke/backstube.pizza", "theke/bereiche.pizza", "theke/erfolge.pizza", "theke/imperium.pizza", "theke/kopf.pizza", "theke/nonna.pizza", "theke/spiele.pizza", "zustand.pizza"],
       "tier": 2,
-      "schlagworte": ["Theke", "Idle-Game", "Takt", "Reiter", "Tabelle", "Fortschritt", "Vorratskammer", "Uhr.echt", "Zufall", "kompakt", "ofen", "bestelle", "@Kühlschrank", "Minispiele", "Animationen", "Namensraum", "Zettel", "binde", "marke"],
+      "schlagworte": ["Theke", "Idle-Game", "Takt", "Reiter", "Tabelle", "Fortschritt", "Vorratskammer", "Uhr.echt", "Zufall", "kompakt", "ofen", "bestelle", "@Kühlschrank", "Minispiele", "Animationen", "Namensraum", "Zettel", "binde", "marke", "bestellt", "rezeptur"],
       "theke": true,
       "echtzeit": 1800000000000
     }

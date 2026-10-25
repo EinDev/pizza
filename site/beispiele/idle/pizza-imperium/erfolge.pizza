@@ -1,0 +1,94 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Erfolge: die Klasse und die Liste aller Erfolge
+// ═══════════════════════════════════════════════════════════════════════
+// Die Reihenfolge der Liste ist die der Ziele („???“) im Reiter Erfolge.
+
+bestellt "spiel.pizza";
+
+// ─────────────────────────────── Erfolge ────────────────────────────────
+klasse Erfolg {
+    margherita name;
+    margherita text;
+    Funktion bedingung;     // (Spiel s) -> diavolo
+    margherita bereich = "";   // Erfolg eines Bereichs (Paket 6): als Ziel erst sichtbar, wenn der Bereich frei ist (R3)
+
+    Erfolg(margherita n, margherita t, Funktion b) { name = n; text = t; bedingung = b; }
+    diavolo erreicht(Spiel s) { serviere (bedingung.rufe(s)); }
+    Erfolg imBereich(margherita b) { bereich = b; serviere (dies); }
+    diavolo alsZielSichtbar(Spiel s) { serviere (bereich == "" || s.istFrei(bereich)); }
+}
+
+
+Blech<Erfolg> ERFOLGE = [
+    neu Erfolg("Erste Margherita", "Backe deine erste Pizza.", (s) -> (s.pizzenAllzeit >= 1)),
+    neu Erfolg("Ein Blech voll", "Backe 100 Pizzen.", (s) -> (s.pizzenAllzeit >= 100)),
+    neu Erfolg("Tausendsassa", "Backe 1.000 Pizzen.", (s) -> (s.pizzenAllzeit >= 1000)),
+    neu Erfolg("Pizzamillionär", "Backe 1 Million Pizzen.", (s) -> (s.pizzenAllzeit >= 1_000_000)),
+    neu Erfolg("Fleißige Hände", "Klicke 100-mal.", (s) -> (s.klicks >= 100)),
+    neu Erfolg("Sehnenscheide aus Stahl", "Klicke 1.000-mal.", (s) -> (s.klicks >= 1000)),
+    neu Erfolg("Ich hab nur kurz geklickt", "Klicke 10.000-mal.", (s) -> (s.klicks >= 10_000)),
+    neu Erfolg("Perfektionist", "Backe drei perfekte Pizzen.", (s) -> (s.perfekte >= 3)),
+    neu Erfolg("412 Pizzen an einem Freitag", "Backe 412 Pizzen in einem einzigen Freitagabend-Ansturm.",
+        (s) -> (s.freitagPizzen >= 412)),   // freitagPizzen zählt nur während des Ansturms
+    neu Erfolg("Standhaft", "Bekehre drei Hawaii-Gäste zur Margherita.", (s) -> (s.hawaiiBekehrt >= 3)),
+    neu Erfolg("Pünktlich wie die Post", "Liefere drei Großbestellungen pünktlich.", (s) -> (s.pünktlich >= 3)),
+    neu Erfolg("Heiße Nächte", "Fahre fünf Sonderschichten.", (s) -> (s.sonderschichten >= 5)),
+    neu Erfolg("Nonnas Spielkamerad", "Gewinne jedes der vier Minispiele einmal.",
+        (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.minispielSiege.enthält(k))).länge() >= 4)),
+    neu Erfolg("Meisterschüler", "Schalte eine Meister-Variante frei (drei Siege in einem Spiel).",
+        (s) -> (["teig", "bestellung", "ofen", "route"].filtere((k) -> (s.siegeJe.hole(k, 0) >= 3)).länge() >= 1)),
+    neu Erfolg("Stammspieler", "Spiele 25 Minispiele.", (s) -> (s.minispieleGespielt >= 25)),
+    neu Erfolg("Nonnas Liebling", "Lies Nonnas Rezeptbuch bis zur letzten Seite.", (s) -> (s.rezeptFertig())),
+    neu Erfolg("Feinschmecker", "Kaufe alles, was der Feinkost-Händler hat – in einer Runde.", (s) -> (s.feinkost.länge() >= s.HÄNDLER_WAREN.länge())),
+    neu Erfolg("Wuppertal ruft", "Eröffne eine Filiale in Wuppertal.", (s) -> (s.anzahl("wuppertal") >= 1)),
+    neu Erfolg("Großeinkauf", "Kaufe 50 Stück auf einmal.", (s) -> (s.größterKauf >= 50)),
+    neu Erfolg("Meisterhaft", "Häng 10 Meisterbriefe in einer Runde an die Wand.", (s) -> (s.briefe.länge() >= 10)),
+    neu Erfolg("Lehrlingsheim", "Beschäftige 100 Lehrlinge.", (s) -> (s.anzahl("lehrling") >= 100)),
+    neu Erfolg("Food-Truck-Festival", "Besitze 25 Foodtrucks.", (s) -> (s.anzahl("foodtruck") >= 25)),
+    neu Erfolg("Fuhrpark", "Besitze 50 Lieferroller.", (s) -> (s.anzahl("roller") >= 50)),
+    neu Erfolg("Hitzewelle", "Heize 100 Steinöfen.", (s) -> (s.anzahl("steinofen") >= 100)),
+    neu Erfolg("Kaufrausch", "Kaufe 100 Stück auf einmal.", (s) -> (s.größterKauf >= 100)),
+    neu Erfolg("Nachteule", "Komm zurück, nachdem dein Betrieb ohne dich gebacken hat.", (s) -> (s.offlineBoni >= 1)),
+    neu Erfolg("Kritikerliebling", "Bewirte drei Restaurantkritiker.", (s) -> (s.kritikerBesuche >= 3)),
+    neu Erfolg("Regenmacher", "Erlebe fünf Regentage.", (s) -> (s.regentage >= 5)),
+    neu Erfolg("Hawaii? Nein danke.", "Bekehre 50 Hawaii-Gäste zur Margherita.", (s) -> (s.hawaiiBekehrt >= 50)),
+    neu Erfolg("Erste Million", "Mache 1 Mio. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000)),
+    neu Erfolg("Milliardärin der Margherita", "Mache 1 Mrd. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000_000)),
+    neu Erfolg("Pizzafabrikant", "Backe 1 Milliarde Pizzen.", (s) -> (s.pizzenAllzeit >= 1_000_000_000)),
+    neu Erfolg("Billionen-Belag", "Mache 1 Bio. € Umsatz.", (s) -> (s.umsatzAllzeit >= 1_000_000_000_000)),
+    neu Erfolg("Sternekoch", "Eröffne neu und hol dir einen Michelin-Stern.", (s) -> (s.sterneAllzeit >= 1)),
+    neu Erfolg("Firmament", "Sammle zehn Michelin-Sterne.", (s) -> (s.sterneAllzeit >= 10)),
+    neu Erfolg("Nonnas Vertraute", "Lerne ein Geheimrezept.", (s) -> (!s.talente.istLeer())),
+    neu Erfolg("Nonnas Erbe", "Kenne zehn Geheimrezepte gleichzeitig.", (s) -> (s.talente.länge() >= 10)),
+    neu Erfolg("Ofenmeister", "Lerne die ganze Ofen-Kette bis zum Ofenflüsterer.", (s) -> (s.kennt("ofenflüsterer"))),
+    neu Erfolg("Nonna hat nichts mehr zu verraten", "Kenne alle Geheimrezepte gleichzeitig.", (s) -> (s.talente.länge() >= s.REZEPTE.länge())),
+    neu Erfolg("Fastenbrecher", "Schaffe die Fastenzeit – ganz ohne Klicken.", (s) -> (s.bestanden("fastenzeit"))),
+    neu Erfolg("Prüfungsmeister", "Schaffe drei Herausforderungen.", (s) -> (s.geschafft.länge() >= 3)),
+    neu Erfolg("Kettenreaktion", "Gründe deine erste Franchise-Kette.", (s) -> (s.filialen >= 1)),
+    neu Erfolg("Inflationsgewinner", "Schaffe die Inflation.", (s) -> (s.bestanden("inflation"))),
+    neu Erfolg("Kleine Küche, großer Umsatz", "Schaffe die Mini-Küche.", (s) -> (s.bestanden("minikueche"))),
+    neu Erfolg("Urlaubsvertretung", "Schaffe es ohne Nonnas Geheimrezepte.", (s) -> (s.bestanden("urlaub"))),
+    neu Erfolg("Großmeister der Spielecke", "Gewinne alle vier Meister-Varianten.",
+        (s) -> (["teig2", "bestellung2", "ofen2", "route2"].filtere((k) -> (s.minispielSiege.enthält(k))).länge() >= 4)),
+    neu Erfolg("Doppelt hält besser", "Gründe zweimal eine Kette.", (s) -> (s.franchises >= 2)),
+    neu Erfolg("Sternenhimmel", "Sammle 100 Michelin-Sterne.", (s) -> (s.sterneAllzeit >= 100)),
+    neu Erfolg("Houston, wir haben Hunger", "Eröffne den Saturnring-Lieferdienst.", (s) -> (s.anzahl("saturn") >= 1)),
+    neu Erfolg("Pizzaxie", "Gründe die Galaktische Pizzakette.", (s) -> (s.anzahl("galaxie") >= 1)),
+    neu Erfolg("Zurück in die Pizzeria", "Bau Nonnas Zeitmaschine.", (s) -> (s.anzahl("zeitmaschine") >= 1)),
+    neu Erfolg("Pizza-Universum", "Backe 1 Billion Pizzen.", (s) -> (s.pizzenAllzeit >= 1_000_000_000_000)),
+    neu Erfolg("Alle Pizzen, überall, gleichzeitig", "Öffne das Pizza-Multiversum.", (s) -> (s.anzahl("multiversum") >= 1)),
+    // Paket 6: je Bereich ein Erfolg, in der Reihenfolge der Freischalt-Kette. Hinten angehängt, damit die Ziele der frühen
+    // Runden gleich bleiben; als „???“-Ziel erscheinen sie erst, wenn ihr Bereich frei ist (imBereich, R3).
+    neu Erfolg("Grüner Daumen", "Zieh alle drei Beete im Garten auf 20 Stück.", (s) -> (s.bereichVoll("garten"))).imBereich("garten"),
+    neu Erfolg("Sommelier", "Leg von jedem Getränk 25 Stück in den Weinkeller.", (s) -> (s.bereichVoll("weinkeller"))).imBereich("weinkeller"),
+    neu Erfolg("Vollbesetzt", "Befördere Luigi, Rosa, Enzo und Bruno auf Stufe 10.", (s) -> (s.bereichVoll("personal"))).imBereich("personal"),
+    neu Erfolg("Ganz Neapel liefert", "Beliefere alle sechs Stadtviertel.", (s) -> (s.bereichVoll("lieferzonen"))).imBereich("lieferzonen"),
+    neu Erfolg("Nonna macht Pause", "Stell alle vier Helfer an.", (s) -> (s.istFrei("helfer") && s.helfer.länge() >= s.ALLE_HELFER.länge())).imBereich("helfer"),
+    neu Erfolg("Prime Time", "Schalte einen Fernsehspot.", (s) -> (s.kampagneLäuft("tv"))).imBereich("marketing"),
+    neu Erfolg("Doktor der Pizzologie", "Erforsche alle zehn Projekte im Rezeptlabor.", (s) -> (s.forschung.länge() >= s.PROJEKTE.länge())).imBereich("labor"),
+    neu Erfolg("Herzensangelegenheit", "Sammle zehn Treueherzen.", (s) -> (s.herzen >= 10)).imBereich("stammgaeste"),
+    neu Erfolg("Schnurr", "Bring Mozzarella auf Laune 5.", (s) -> (s.istFrei("katze") && s.katze.laune >= s.katze.HÖCHSTENS)).imBereich("katze"),
+    neu Erfolg("Weltmeister", "Hol Gold bei der Weltmeisterschaft.", (s) -> (s.wettbewerb.weltmeister >= 1)).imBereich("wettbewerb"),
+    neu Erfolg("Alle Sticker", "Füll das Sammelalbum – alle zwölf Sticker.", (s) -> (s.albumVoll())).imBereich("album"),
+    neu Erfolg("Zinseszins", "Lass dir bei der Banca di Napoli die ersten Zinsen gutschreiben.", (s) -> (s.sparbuch.zinsenAllzeit > 0)).imBereich("banca")
+];

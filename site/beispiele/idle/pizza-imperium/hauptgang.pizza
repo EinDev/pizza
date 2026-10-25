@@ -1,0 +1,218 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium – ein Idle-Game an der Theke
+// ═══════════════════════════════════════════════════════════════════════
+//  Klick auf „Pizza backen!“, verkaufe jede Pizza zum echten Rezeptpreis,
+//  kaufe Handwerkszeug (mehr Pizzen pro Klick) und baue einen Betrieb auf,
+//  der von selbst backt (Pizzen pro Sekunde) – auf Dauer ist der Betrieb
+//  das Herz des Imperiums, der Klick nur noch die Prise Salz.
+//
+//  Der Aufstieg hat vier Ebenen, die aufeinander aufbauen:
+//    ⭐ Neueröffnung     – Michelin-Sterne, +10 % auf alles je Stern
+//    📜 Geheimrezepte    – Nonnas Talentbaum, bezahlt mit Sternen
+//    🏅 Herausforderungen – Läufe unter Auflagen mit Belohnung für immer
+//    🏢 Franchise        – Kette gründen: Sterne werden zu Filialen
+//
+//  Die Breite kommt aus zwölf Bereichen (Zutaten-Garten, Weinkeller, Personal, Lieferzonen, Nonnas Helfer,
+//  Marketing, Rezeptlabor, Stammgäste, Nonnas Katze, Pizza-Wettbewerb, Sammelalbum, Banca di Napoli), die man
+//  der Reihe nach gegen Euro freischaltet – jeder hat seinen festen Platz auf den Reitern Hof, Stadt und Labor.
+//  Auf dem Hof (Paket 2): 🍅 drei Beete machen jede Pizza teurer (zusammen höchstens +50 %), 🍷 vier Getränke bringen
+//  im Takt einen Anteil des Pizza-Umsatzes nebenbei (Nebeneinkommen in die Kasse – zählt nicht für Sterne),
+//  👩‍🍳 vier Rollen mit Stufe 0…10 (Trinkgeld, Abkühlzeit, Upgrade-Preise, Hawaii-Bonus).
+//  In der Stadt und im Labor (Paket 3): 🛵 sechs Stadtviertel als Einmal-Käufe (+5 Punkte Alles-Bonus je Viertel),
+//  📣 vier Marketing-Kampagnen als zeitlich begrenzte Boni mit Pause (Preis = 60 s Umsatz), 🤖 Nonnas Helfer – vier
+//  dauerhafte Einmal-Käufe, die Klicks automatisieren (Pino zündet die Sonderschicht, Carlo liest das Rezeptbuch, Nonna
+//  spielt die Minispiele, der Scout wartet auf den Wettbewerb) und nie weniger bringen als die Hand (R2).
+//  Labor und Stadt (Paket 4): 🧪 das Rezeptlabor forscht über Spielzeit – zehn Projekte in fester Reihenfolge, eins zugleich,
+//  je 5–30 Minuten (laufen auch offline mit, höchstens 30 min), jedes bringt einen kleinen Bonus für immer (Klick, Abkühlung,
+//  Großbestellung, Minispiel-Pause, perfekte Pizza, Ereignisse, Meisterbriefe, Feinkost, Getränke, Garten); 🧑‍🤝‍🧑 vier
+//  Stammgäste mit rotierenden Wünschen (Pizzen backen, Gebäude kaufen, Sonderschichten, Minispiel-Sieg, Hawaii-Gast,
+//  Großbestellung) – erfüllt → ein Klick holt 10 Portionen und ein Treueherz (dauerhaft, +0,5 Punkte je Herz im Alles-Bonus).
+//  Stückkäufe fangen bei jeder Neueröffnung von vorn an, die Freischaltung bleibt; Helfer, Forschung und Herzen bleiben für immer.
+//
+//  Raster (v6) und R3 „unsichtbar, bis angeboten“ (v7): Das Fenster ist 860 × 640 groß, der Kopf (Kasse, Kennzahlen
+//  mit dem Stand der Herausforderung, Backen und Sonderschicht, Meldung) steht fest, darunter Reiter mit festen Titeln
+//  in Erscheinensfolge (Backstube · Hof · Spiele · Erfolge · Imperium, dann Stadt · Labor · Nonna, sobald es dort etwas
+//  gibt), jede Seite zwei Spalten aus Panels. Sichtbar ist nur, was man kaufen KÖNNTE – das nächste Gebäude nach dem
+//  Kauf des vorigen, ein Bereich, sobald sein Vorgänger frei ist, Feinkost mit dem ausgelesenen Buch, Nonna mit dem
+//  ersten Stern; keine 🔒-Platzhalter, keine festen Höhen. Neues hängt hinten/unten/rechts an und verschiebt nichts
+//  Bestehendes; bewegen darf sich etwas nur durch einen Klick (Kauf, Lernen, Starten, Neueröffnung, Franchise,
+//  Freischalten) – was im Takt erscheinen oder verschwinden kann, steht ganz unten in seiner Spalte. Wachsende Listen
+//  (Betrieb, Handwerk) stehen als letztes Element ihrer Spalte, Feinkost und Meisterbriefe darüber als je eine feste Zeile.
+//
+//  Reaktiv (Theke v5): Kein zeichne(), kein aktualisiere() – jede Zutat bindet ihre Eigenschaften einmal beim Aufbau
+//  an einen Ausdruck aus dem Modell (binde/bindeStil); Rückrufe (Takt, Klick, Taste, Auswahl) ändern nur den Zustand und
+//  setzen Zettel (Taktgeber zTakt, Spiegel der Versionszähler), die Theke rechnet am Synchronisationspunkt nach, was
+//  daran hängt, und sendet nur echte Änderungen. Imperium und Nonna rechnen nur bei offenem Reiter (Ja/Nein-Zettel aus
+//  dem Reiter-Rückruf); die Reiter tragen Marken (⭐ wartende Sterne, 📜 lernbare Rezepte) statt Zähler im Titel.
+//
+//  Der Spielstand (Fassung 6) liegt in der Vorratskammer (Namensraum „pizza-imperium“: ein Spielstand für
+//  Galerie, App-Link und EXE – jede Fassung des Spiels findet ihn wieder): Beim nächsten Start geht es
+//  weiter – und der Betrieb hat in der Zwischenzeit gebacken (mit halber Kraft, höchstens 30 Minuten lang).
+//  Ein Stand einer anderen Fassung wird verworfen: frischer Teig, keine Migration.
+//
+//  Sprache im Einsatz:
+//    • Takt              – die Uhr der Backstube (10 Schläge pro Sekunde, Produktion anteilig)
+//    • klasse Rezept     – Nonnas Rezeptbuch legt Beläge auf, die Speisekarte zählt den Preis
+//    • @Kühlschrank      – Upgrade-Kosten werden nur einmal ausgerechnet
+//    • ofen(zeit:) roh   – die Sonderschicht backt, bis das Zeitbudget leer ist (heißer = mehr Budget: Spielregel, K-127)
+//    • bestelle/priorität – Großbestellungen: Trinkgeld ist Spielregel (Priorität + Zeitbudget 40 ms · (1 + Trinkgeld/10))
+//    • Zufall            – Ereignisse und perfekte Pizzen
+//    • Vorratskammer + Uhr.echt() – Speichern und Offline-Fortschritt
+//    • kompakt()/währung("€", kompakt: ja) – „1,23 Mio. €“
+//    • Abschnitt, Reiter, Tabelle, Fortschritt, hinweis – die Theke v2
+//    • Takt.setzeIntervall – im Minispiel schlägt die Uhr im Takt des Spiels (120–500 ms)
+//    • Theke v4          – Kaufmenge als Auswahl, Kleinbetriebe/Gelerntes/Geschafftes als klappbare Abschnitte,
+//                          Tastatur (Leertaste backt, Tasten in den Minispielen), Stile zeilen/breite/hoehe
+//                          für das feste Raster
+//    • Theke v5          – Zettel, binde, bindeStil: die Oberfläche folgt dem Zustand (Taktgeber zTakt, Spiegel-Zettel
+//                          je Panel, Kaufmenge, Rückfrage und „Reiter offen“ als Wert-Zettel)
+//    • Theke v6          – senkrecht oben (Spalten bündig), zeilen an Abschnitt-Titeln und Tabellenzellen,
+//                          Innenbreite 820 (breite − 40), marke als Badge am Reiter
+//    • Theke v7          – Zettel.aus: ein abgeleiteter Zettel je Upgrade-Platz liefert [Knopftext, aktiv, Balken];
+//                          stil("spalten", …): feste Spaltengewichte der Tabellen (Aufstieg, Statistik, Erfolge);
+//                          binde("sichtbar", …) an Reihen, Panels und Reiter-Seiten (R3)
+//
+//  🎲 Minispiele für zwischendurch (Teig fangen, Bestellung merken, Ofen
+//  halten, Lieferroute): optional, ein Sieg bringt ein paar Sekunden
+//  Produktion, danach macht Nonna zwei Minuten Pause.
+//
+//  Aufbau (Projekt, PROJEKTE §7.3): hauptgang.pizza lädt den Spielstand, baut die Oberfläche in fester Reihenfolge und
+//  startet die Theke. Die Rezepte liegen in Nebendateien (Abhängigkeiten zuerst):
+//    modell/upgrades.pizza  – Upgrade · Geheimrezept · Feinkost · Rezept · Meisterbrief · Herausforderung
+//    modell/bereiche.pizza  – Bereich · Posten · Kampagne · Helfer · Projekt · Gast · Sticker · Album
+//    spiel.pizza            – Spiel (Regeln, ohne Oberfläche) mit Katze · Wettbewerb · Sparbuch
+//    minispiele.pizza       – Minispiel · Spielecke          erfolge.pizza – Erfolg und die Liste ERFOLGE
+//    zustand.pizza          – gemeinsamer Zustand: spiel, ecke, kammer, Raster, Zettel, Bausteine, theke
+//    theke/kopf.pizza       – Kopf und Ablauf (Uhr, nach jedem Rückruf, Plätze belegen)
+//    theke/backstube.pizza · bereiche.pizza · imperium.pizza · nonna.pizza · spiele.pizza · erfolge.pizza – ein Panel je Karte
+// ═══════════════════════════════════════════════════════════════════════
+
+bestellt "zustand.pizza";
+bestellt "spiel.pizza";
+bestellt "modell/bereiche.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "theke/backstube.pizza";
+bestellt "theke/bereiche.pizza";
+bestellt "theke/imperium.pizza";
+bestellt "theke/nonna.pizza";
+bestellt "theke/spiele.pizza";
+bestellt "theke/erfolge.pizza";
+
+// ═══════════════════════════════ Spielstart ═════════════════════════════
+// Spielstand laden (kammer, zustand.pizza) – vor dem Aufbau der Oberfläche.
+falls (kammer.hat("spielstand")) { spiel.ladeAus(kammer.hole("spielstand")); }
+
+// ─────────────────────────────── Aufbau ─────────────────────────────────
+// In der Reihenfolge, in der die Panels ihre Bindungen anmelden (sie bestimmt die Reihenfolge der Änderungen an die Theke).
+// Die Variablen der Panels, die der Ablauf braucht, stehen ohne Anfangswert in theke/kopf.pizza und theke/bereiche.pizza.
+wettbewerbPanel = neu WettbewerbPanel();
+kopf = neu KopfPanel();
+rezeptPanel = neu RezeptPanel();
+betriebPanel = neu BetriebPanel();
+handwerkPanel = neu HandwerkPanel();
+briefPanel = neu BriefPanel();
+
+Schild mengeSchild = neu Schild("Kaufmenge:", id: "kaufmenge-text");
+mengeSchild.stil("schrift", "klein");
+Auswahl mengeWahl = neu Auswahl(["1×", "10×", "100×", "Max"], id: "kaufmenge-wahl");
+mengeWahl.stil("farbe", "basilikum").hinweis("1× – ein Stück pro Klick · 10× und 100× – nur, wenn alle bezahlbar sind · Max – so viele, wie die Kasse hergibt.");
+mengeWahl.beiAenderung((n) -> { zMenge.setze(MENGEN.stück(n)); });
+Reihe kaufmengeReihe = neu Reihe([mengeSchild, mengeWahl], id: "kaufmenge");
+kaufmengeReihe.stil("abstand", 6).stil("ausrichtung", "mitte").stil("hoehe", 42);
+
+// Backstube (§12.9/8): Wachsende Listen stehen als letztes Element ihrer Spalte – links Rezeptbuch · Feinkost (eine Zeile, per
+// Klick) · Betrieb (wächst), rechts Kaufmenge · Meisterbriefe (eine Zeile, per Klick) · Handwerk (wächst).
+Reihe backstube = seite("seite-backstube",
+    spalte("backstube-links", [rezeptPanel.teil, rezeptPanel.feinkostTeil, betriebPanel.teil]),
+    spalte("backstube-rechts", [kaufmengeReihe, briefPanel.teil, handwerkPanel.teil]));
+
+// Bereiche: ein Panel je Bereich, je Reiter 2 × 2 in Erscheinensfolge (links oben, rechts oben, links unten, rechts unten);
+// die Seiten Stadt und Labor erscheinen mit ihrem ersten angebotenen Bereich (Lieferzonen bzw. Helfer).
+Blech<BereichPanel> bereichPanels = [];
+für (Bereich b : spiel.BEREICHE) { bereichPanels.hinzu(neu BereichPanel(b)); }
+BereichPanel bereichPanel(margherita s) {
+    für (BereichPanel p : bereichPanels) { falls (p.b.schlüssel == s) { serviere (p); } }
+    serviere (karton);
+}
+Reihe bereichSeite(margherita id, Blech<margherita> vier) {
+    serviere (seite(id,
+        spalte(id + "-links", [bereichPanel(vier.stück(1)).teil, bereichPanel(vier.stück(3)).teil]),
+        spalte(id + "-rechts", [bereichPanel(vier.stück(2)).teil, bereichPanel(vier.stück(4)).teil])));
+}
+Reihe hof = bereichSeite("seite-hof", ["garten", "weinkeller", "personal", "katze"]);
+Reihe stadt = bereichSeite("seite-stadt", ["lieferzonen", "marketing", "stammgaeste", "wettbewerb"]);
+Reihe labor = bereichSeite("seite-labor", ["helfer", "labor", "album", "banca"]);
+stadt.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei("lieferzonen") || spiel.freischaltbar("lieferzonen")); });
+labor.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei("helfer") || spiel.freischaltbar("helfer")); });
+
+ImperiumPanel imperiumPanel = neu ImperiumPanel();
+nonnaPanel = neu NonnaPanel();
+SpielePanel spielePanel = neu SpielePanel();
+ErfolgePanel erfolgePanel = neu ErfolgePanel();
+
+Reiter reiter = neu Reiter(["🍕 Backstube", "🌱 Hof", "🎲 Spiele", "🏆 Erfolge", "⭐ Imperium", "🏙 Stadt", "🔬 Labor", "📜 Nonna"],
+    [backstube, hof, spielePanel.seite_, erfolgePanel.seite_, imperiumPanel.seite_, stadt, labor, nonnaPanel.seite_], id: "reiter");
+// Der Reiter-Rückruf ändert nur Zustand: Imperium/Nonna rechnen nur bei offenem Reiter (quelleImperium/quelleNonna)
+reiter.beiAenderung((n) -> { zImperiumOffen.setze(n == REITER_IMPERIUM); zNonnaOffen.setze(n == REITER_NONNA); });
+
+// ── Tastatur ──
+// Tastatur (Theke v4): Leertaste backt, in den Minispielen spielt man mit Tasten.
+// Die Leertaste ist nie schneller als die Maus: ein Druck = eine Pizza (Wiederholungen beim Festhalten schickt der
+// Renderer nicht) und höchstens eine je Schlag der Uhr. Ein Druck klickt nie zusätzlich einen Knopf (K-114: eine Taste,
+// ein Empfänger – nach einem Mausklick liegt der Fokus wieder auf der Theke).
+salami uhrMs = 0;            // Spielzeit der Uhr in ms (zählt die Takte)
+salami leerBeiMs = -1000;    // wann die Leertaste zuletzt gebacken hat
+Blech<margherita> ZIFFERN = ["1", "2", "3", "4", "5", "6"];
+
+leer taste(margherita t) {
+    falls (ecke.läuft != "" && reiter.gewaehlt() == REITER_SPIELE) { spielTaste(t); serviere; }
+    falls (t != "Leertaste" || !kopf.backen.aktiv() || leerBeiMs == uhrMs) { serviere; }
+    leerBeiMs = uhrMs;
+    backe();
+}
+
+leer spielTaste(margherita t) {
+    margherita l = ecke.läuft;
+    salami z = 0;   // Ziffer 1…6 → Belag bzw. Weg
+    für (salami i : [1 .. ZIFFERN.länge()]) { falls (ZIFFERN.stück(i) == t) { z = i; } }
+    falls (l == "teig" && t == "Leertaste") { ecke.fange(); }
+    sonst falls (l == "bestellung" && z > 0) { ecke.tippe(ecke.BELÄGE.stück(z)); }
+    sonst falls (l == "ofen" && t == "Hoch") { ecke.heize(25); }
+    sonst falls (l == "ofen" && t == "Runter") { ecke.heize(-25); }
+    sonst falls (l == "route" && z > 0) { ecke.nimmRoute(z); }
+    sonst { serviere; }
+    nachVerarbeitung();
+}
+Tastatur tasten = neu Tastatur((t) -> { taste(t); }, id: "tasten");
+
+// ── Die Uhr der Backstube ──
+// Eine Uhr für alles, 10 Schläge pro Sekunde: Kasse und Balken laufen flüssig. Während eines Minispiels schlägt sie
+// im Takt des Spiels (120 bis 500 ms); die Backstube bekommt die verstrichene Zeit in Millisekunden und backt weiter.
+// Der Takt-Rückruf ist reine Simulation: Spielecke, Backstube, Rückfrage-Ablauf – kein Wort über die Oberfläche.
+takt = neu Takt(100ms, (n) -> {
+    salami sekVorher = spiel.sekunden;
+    falls (ecke.läuft != "") { ecke.tick(n); }
+    uhrMs += n * taktMs;
+    spiel.vergehe(n * taktMs);
+    salami sek = spiel.sekunden - sekVorher;
+    falls (sek > 0) { ecke.nonnaTakt(sek); }        // Spielpartnerin Nonna (Helfer) – nur Zahlen und Texte
+    falls (sek > 0 && zFrage.wert() != "") {
+        frageRest = frageRest - sek;
+        falls (frageRest <= 0) { zFrage.setze(""); }
+    }
+    nachVerarbeitung();
+}, id: "takt");
+
+// ─────────────────────────────── Los ────────────────────────────────────
+Stapel wurzel = neu Stapel([kopf.kasse, kopf.kennzahlen, kopf.knöpfe, kopf.meldung, reiter, takt, tasten], id: "wurzel");
+wurzel.stil("abstand", 10);
+
+sortiereErfolge();
+nachAufstieg();            // Plätze einmal belegen, Zettel setzen – die Bindungen rechnen vor dem ersten Bild nach
+theke.zeige(wurzel);
+thekeOffen = ja;
+theke.bediene();
+
+speichere();
+Bote.sage(("Feierabend! " + Spiel.pizzen(spiel.pizzenAllzeit) + " gebacken, " + spiel.umsatzAllzeit.währung("€", kompakt: ja)
+    + " Umsatz, " + spiel.erfolge.länge() + " Erfolge."));

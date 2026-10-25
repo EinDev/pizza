@@ -1,0 +1,166 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Modell: Upgrades, Geheimrezepte, Feinkost, Rezeptbuch, Meisterbriefe, Herausforderungen
+// ═══════════════════════════════════════════════════════════════════════
+// Was man kauft und lernt – reine Daten mit ein paar Rechnungen, ohne Spiel und ohne Oberfläche.
+
+// ─────────────────────────────── Upgrades ───────────────────────────────
+// Ein Upgrade kann man mehrfach kaufen; jedes weitere kostet mehr
+// (Betrieb +15 %, Handwerk +40 bzw. +60 % – Klick-Werkzeug ist selten und teuer).
+// art: "klick"   – feste Pizzen pro Klick
+//      "anteil"  – Prozent der Sekundenproduktion pro Klick, höchstens ANTEIL_MAX Stück je Upgrade
+//                  (die Preise sind fest, das Einkommen wächst mit dem Aufstieg um Größenordnungen – ohne Deckel
+//                  kauft man spät 70 Stück und Klicken überholt den Betrieb)
+//      "betrieb" – Pizzen pro Sekunde
+salami ANTEIL_MAX = 8;
+
+klasse Upgrade {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita art;
+    margherita einheit;
+    margherita beschreibung;
+    funghi basis;
+    funghi wirkung;
+    funghi faktor;
+    salami anzahl = 0;
+    salami höchstens = -1;   // mehr Stück gibt es nicht („ausgebaut“); -1 = unbegrenzt
+    funghi preisJetzt = 0;   // Preis des nächsten Stücks
+    margherita zeile = "";   // Beschriftung für die Oberfläche
+
+    Upgrade(margherita s, margherita sym, margherita n, funghi b, funghi w, margherita a, margherita text) {
+        schlüssel = s; symbol = sym; name = n; basis = b; wirkung = w; art = a; beschreibung = text;
+        faktor = 1.4;
+        einheit = "% der Pizzen pro Sekunde je Klick";
+        falls (art == "anteil") { höchstens = ANTEIL_MAX; }
+        falls (art == "klick") { einheit = w == 1 ? "Pizza pro Klick" : "Pizzen pro Klick"; faktor = 1.6; }
+        falls (art == "betrieb") { einheit = "Pizzen pro Sekunde"; faktor = 1.15; }
+        setzeAnzahl(0);
+    }
+
+    @Kühlschrank(haltbar: 1d)
+    funghi kostenBei(salami n) {
+        serviere (Mathe.runden(basis * Mathe.potenz(faktor, n)));
+    }
+
+    // Preis und Beschriftung ändern sich nur hier.
+    leer setzeAnzahl(salami n) {
+        anzahl = n;
+        preisJetzt = kostenBei(n);
+        zeile = symbol + " " + name + (anzahl > 0 ? " ×" + anzahl : "") + " – +" + wirkung.kompakt(2) + " " + einheit;
+    }
+
+    funghi gesamt() { serviere (wirkung * anzahl); }
+    diavolo ausgebaut() { serviere (höchstens >= 0 && anzahl >= höchstens); }
+
+    // Kaufmenge: k Stück kosten genau die Summe der (gerundeten) Einzelpreise – wie k Einzelkäufe.
+    funghi kostenFür(salami k) {
+        funghi summe = 0;
+        für (salami i : [0 .. k - 1]) { summe += kostenBei(anzahl + i); }
+        serviere (summe);
+    }
+
+    // So viele Stück, wie die Kasse hergibt (höchstens 1000).
+    salami maxFür(funghi geld) {
+        salami k = 0;
+        funghi summe = 0;
+        solange (k < 1000) {
+            funghi nächster = kostenBei(anzahl + k);
+            falls (summe + nächster > geld) { serviere (k); }
+            summe += nächster;
+            k++;
+        }
+        serviere (k);
+    }
+}
+
+// ──────────────────── Nonnas Geheimrezepte (Talentbaum) ─────────────────
+// Kosten Michelin-Sterne. Ein ausgegebener Stern bringt keine +10 % mehr –
+// dafür wirkt das Rezept bis zur nächsten Franchise-Gründung.
+klasse Geheimrezept {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita text;
+    salami kosten;
+    margherita braucht;     // "" = Wurzel des Baums
+
+    Geheimrezept(margherita s, margherita sym, margherita n, salami k, margherita b, margherita t) {
+        schlüssel = s; symbol = sym; name = n; kosten = k; braucht = b; text = t;
+    }
+}
+
+// ─────────────────────────── Feinkost-Händler ───────────────────────────
+// Nimmt den Platz des ausgelesenen Rezeptbuchs ein: Einmal-Käufe gegen Euro, jede Zutat macht jede Pizza teurer.
+// Bei jeder Neueröffnung ist das Lager wieder leer.
+klasse Feinkost {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami plus;
+    funghi preis;
+    margherita text;
+
+    Feinkost(margherita s, margherita sym, margherita n, salami p, funghi pr, margherita t) {
+        schlüssel = s; symbol = sym; name = n; plus = p; preis = pr; text = t;
+    }
+}
+
+// ─────────────────────────── Nonnas Rezeptbuch ──────────────────────────
+// Die Pizza im Ofen: Belagnamen von unten nach oben und der Preis nach Nonnas Speisekarte –
+// 5 € für Teig und Ofen, jeder Belag kommt obendrauf (auf den Cent gerundet).
+klasse Rezept {
+    Blech<margherita> beläge = [];
+    funghi preis = 5;
+    Speisekarte<margherita, funghi> KARTE = neu Speisekarte<margherita, funghi>()
+        .lege("Tomate", 1).lege("Mozzarella", 1.5).lege("Basilikum", 0.5)
+        .lege("Salami", 1.5).lege("Pilze", 1).lege("Oliven", 1).lege("Parmesan", 1.2)
+        .lege("Rucola", 1).lege("Gorgonzola", 1.5).lege("Artischocken", 1.5).lege("Knoblauch", 0.3);
+
+    // Jedes Rezept beginnt als Margherita.
+    Rezept() { belegeMit("Tomate"); belegeMit("Mozzarella"); belegeMit("Basilikum"); }
+
+    leer belegeMit(margherita name) {
+        beläge.hinzu(name);
+        preis = Mathe.runden((preis + KARTE.hole(name, 1)) * 100) / 100;
+    }
+}
+
+// ─────────────────────────────── Meisterbriefe ──────────────────────────
+// Einmal-Käufe gegen Euro: Hat man 10, 25, 50 bzw. 100 Stück eines Gebäudes, gibt es dafür einen
+// Meisterbrief – das Gebäude backt dann ×1,25 (je Brief). Bei jeder Neueröffnung verfallen sie.
+klasse Meisterbrief {
+    margherita schlüssel;   // z. B. "lehrling-25"
+    margherita gebäude;
+    salami stufe;
+    margherita symbol;
+    margherita name;
+    funghi preis;
+
+    Meisterbrief(Upgrade u, salami st, margherita n) {
+        gebäude = u.schlüssel; stufe = st; name = n; symbol = u.symbol;
+        schlüssel = u.schlüssel + "-" + st;
+        // 35-mal so viel wie das Stück, mit dem man die Stufe erreicht (Paket 4b: vorher 25 – mit zwei statt drei offenen Briefen
+        // stiegen die Sterne nach 4 h, Bot Saat 42 / 7: 2.533 / 2.610 > 2.250; mit 35: 1.751 / 1.760)
+        preis = u.kostenBei(st - 1) * 35;
+    }
+}
+
+// ─────────────────────────── Herausforderungen ──────────────────────────
+// Ein Lauf unter Auflagen: beginnt wie eine Neueröffnung, Ziel ist Umsatz in
+// dieser Runde. Geschafft → Belohnung für immer (auch nach Franchise).
+klasse Herausforderung {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    margherita regel;
+    margherita belohnung;
+    funghi ziel;
+    salami abFilialen = 0;   // zweite Staffel: erst mit einer Franchise-Kette
+
+    Herausforderung(margherita s, margherita sym, margherita n, funghi z, margherita r, margherita b) {
+        schlüssel = s; symbol = sym; name = n; ziel = z; regel = r; belohnung = b;
+    }
+
+    Herausforderung abKette() { abFilialen = 1; serviere (dies); }
+}

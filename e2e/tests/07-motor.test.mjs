@@ -4,9 +4,11 @@ import {
   e2e, setzeCode, warteLaufEnde, exitBadge, konsolenAusgabe, strg, bereit, schlafe,
   ereignisseLeeren, ausgabeAusEreignissen, beispieleAusManifesten, eingabeZeilen, backenInteraktiv, hawaiiOverlayOffen, backenTheke, thekeEreignisse,
   beispielZeitlimit, sammelZeitlimit, backenHerd, herdErwartet, herdEreignisse, herdKanonisch, setzeLaufUhr,
+  zeigePanelTab, warteAufTabMuster, thekeUiErwartet, uiNachrichten, PJ, S,
 } from "../hilfen.mjs";
 
 const WAHL = '[data-testid="motor-umschalter"], #motor-wahl';
+const istMehrdatei = (b) => (b.dateien || []).filter((d) => d.endsWith(".pizza")).length > 1;
 
 const SNIPPETS = [
   { name: "Ausgabe", code: 'Bote.sage(("eins"));\nBote.fehler(("zwei"));\nsalami s = 0;\nfür (salami i : [1 .. 100]) { s += i; }\nBote.sage((s));', exit: 0 },
@@ -97,10 +99,9 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
   const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m).filter((m) => m !== "interpreter");
   if (!modi.length) return t.skip("nur Interpreter verfügbar");
   for (const b of ALLE_BEISPIELE) {
-    // Mehrdatei-Projekte (bestellt) lassen sich nicht als ein Editor-Text setzen – die prüft 05 über die Galerie (alle Dateien)
-    const pizzaDateien = (b.dateien || []).filter((d) => d.endsWith(".pizza"));
-    if (pizzaDateien.length > 1) {
-      await t.test(`${b.ordner} (Mehrdatei)`, { skip: "Mehrdatei-Projekt: Ausgabe und Hashes prüft 05-beispiele über die Galerie" }, () => {});
+    // Mehrdatei-Projekte (bestellt) lassen sich nicht als ein Editor-Text setzen – die prüft der nächste Test über die Galerie
+    if (istMehrdatei(b)) {
+      await t.test(`${b.ordner} (Mehrdatei)`, { skip: "Mehrdatei-Projekt: alle Modi im Test „… für Mehrdatei-Beispiele (Galerie)“" }, () => {});
       continue;
     }
     const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.hauptdateiUrl);
@@ -118,6 +119,45 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
     }
   }
   await schlafe(10);
+});
+
+// Mehrdatei-Beispiele (z. B. das Pizza-Imperium, PROJEKTE PB5): über die Galerie öffnen (eigene Kopie mit allen Dateien), dann in
+// jedem Modus backen – Ausgabe, ui- bzw. herd-Ereignisse wie in den Testdateien (Browser = nativ, K-082).
+const MEHRDATEI = ALLE_BEISPIELE.filter(istMehrdatei);
+e2e("Gleiche Ausgabe in allen Modi für Mehrdatei-Beispiele (Galerie)", { timeout: sammelZeitlimit(MEHRDATEI, 3) }, async ({ page, oeffne }, t) => {
+  if (!MEHRDATEI.length) return t.skip("kein Mehrdatei-Beispiel");
+  await oeffne();
+  const v = await motorVerfuegbar(page);
+  if (!v) return t.skip("Motor-Umschalter noch nicht in der UI");
+  const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m);
+  await zeigePanelTab(page, "beispiele");
+  await page.waitForSelector(S.beispielKarte);
+  for (const b of MEHRDATEI) {
+    const ok = await page.$$eval(S.beispielKarte, (karten, id) => {
+      const k = karten.find((x) => x.dataset.id === id);
+      if (!k) return false;
+      k.scrollIntoView({ block: "center" });
+      k.click();
+      return true;
+    }, b.id);
+    assert.ok(ok, "Karte gefunden: " + b.titel);
+    await warteAufTabMuster(page, b.hauptdatei);
+    await page.waitForFunction((sel, n) => { const e = document.querySelector(sel); return e && (e.textContent === n || e.textContent.startsWith(n + "-")); },
+      { timeout: 10_000 }, PJ.name, b.titel);
+    for (const m of modi) {
+      await t.test(`${b.ordner} (${m}, ${b.dateien.filter((d) => d.endsWith(".pizza")).length} Dateien)`, { timeout: beispielZeitlimit(b) }, async () => {
+        await setzeMotor(page, m);
+        const herd = herdErwartet(b);
+        await setzeLaufUhr(page, b);
+        const r = await lauf(page, eingabeZeilen(b) || [], thekeEreignisse(b), !!herd);
+        assert.equal(r.ausgabe, b.erwartetText, `${m}: Ausgabe == ${b.erwartet}`);
+        const uiSoll = !herd && thekeUiErwartet(b);
+        if (uiSoll) assert.deepEqual(await uiNachrichten(page), uiSoll, `${m}: ui-Nachrichten == pruefung/ui-erwartet`);
+        if (herd) assert.deepEqual(await herdEreignisse(page), herdKanonisch(herd), `${m}: herd-Ereignisse (Hashes) == .herd-erwartet`);
+        if (m === "wasm") assert.equal(r.motor, "wasm", "Motor-Ereignisse: " + r.motorInfo);
+      });
+    }
+  }
 });
 
 e2e("Motor-Standard ist „Auto“ (frischer Browser, nichts gemerkt)", async ({ page, oeffne }) => {

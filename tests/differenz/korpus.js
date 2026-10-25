@@ -1,7 +1,7 @@
 'use strict';
 /*
  * Sammelt den Differenz-Korpus: { quelle, name, code, optionen, erwartetExit? }
- *   beispiele  – site/beispiele (gemeinsamer Leser scripts/beispiele.js: Ordner + pruefung/, Imperium bis PB5 als Datei)
+ *   beispiele  – site/beispiele (gemeinsamer Leser scripts/beispiele.js: Projektordner + pruefung/)
  *   doku       – alle ausführbaren Codeblöcke aus site/js/doku/*.js (rekursiv inkl. details)
  *   faelle     – tests/faelle/*.pizza (+ .optionen.json) und Ordner-Fälle tests/faelle/<name>/ (Projekt + pruefung/, K-144)
  *   pruefstand – pruefstand/faelle/*.js (falls vorhanden und ladbar; `code` darf ein Projekt sein)
@@ -55,7 +55,7 @@ function laufFelder(x) {
 function uiAus(p) { return p && fs.existsSync(p) ? { uiEreignisse: jsonZeilen(lies(p)) } : {}; }
 
 // Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner = Projekt (Manifest-Dateiliste) mit
-// pruefung/{eingabe, ereignisse, vorrat.json, exitcode}; altes Format (Imperium bis PB5) als Text.
+// pruefung/{eingabe, ereignisse, vorrat.json, exitcode}.
 function beispiele(warn) {
   const out = [];
   for (const b of BSP.leseBeispiele()) {

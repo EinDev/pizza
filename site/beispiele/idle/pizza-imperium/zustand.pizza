@@ -1,0 +1,231 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Gemeinsamer Zustand
+// ═══════════════════════════════════════════════════════════════════════
+// Alles, was mehrere Dateien brauchen: das Spiel und die Spielecke, die Vorratskammer, die Raster-Maße, die Zettel, die
+// Bausteine der Oberfläche, die Theke und die offenen Erfolge. Die Hauptdatei kann niemand bestellen (PROJEKTE §2.1) – darum
+// steht der gemeinsame Zustand hier, und jede Datei der Oberfläche bestellt ihn.
+//
+// Hier stehen nur Variablen, deren Anfangswert nicht vom Spielstand abhängt (Zahlen, Zettel, neue Objekte): Sie werden vor den
+// Anweisungen der Hauptdatei angelegt (Ladereihenfolge, PROJEKTE §2.2). Den Spielstand lädt hauptgang.pizza, danach baut sie
+// die Oberfläche auf.
+
+bestellt "spiel.pizza";
+bestellt "minispiele.pizza";
+bestellt "erfolge.pizza";
+
+// ═══════════════════════════════ Spielstart ═════════════════════════════
+Spiel spiel = neu Spiel();
+Spielecke ecke = neu Spielecke(spiel);
+
+// Vorratskammer: der Spielstand (Playground: Browser-Speicher, EXE: Datei im Nutzerverzeichnis) – geladen wird in hauptgang.pizza.
+// Mit Namensraum (K-106): ein Spielstand für Galerie, App-Link jeder Fassung und EXE – egal, aus welchem Tab gestartet.
+// Nur Fassung 6 wird übernommen; alles andere ist frischer Teig (ladeAus sagt es in der Meldung).
+Vorratskammer kammer = neu Vorratskammer("spielstand", namensraum: "pizza-imperium");
+salami gespeichertBei = 0;     // Spielsekunde des letzten Speicherns (alle 30 s wird gespeichert)
+
+leer speichere() {
+    kammer.lege("spielstand", spiel.alsSpeisekarte());
+    gespeichertBei = spiel.sekunden;
+}
+
+// ═══════════════════════════════ Oberfläche ═════════════════════════════
+// Reaktiv (Theke v5): Das Modell (Spiel, Spielecke) kennt keine Oberfläche; die Oberfläche kennt kein zeichne().
+// Jede Zutat bindet ihre Eigenschaften beim Aufbau einmal an einen Ausdruck (`binde`, `bindeStil`), der aus dem Modell
+// rechnet. Damit die Theke weiß, WANN sie neu rechnen muss, liest jeder Ausdruck als Erstes einen Zettel:
+//   zTakt      – Taktgeber: dreht sich nach jedem Rückruf (Takt, Klick, Taste). Daran hängt, was an Kasse oder Uhr hängt:
+//                Kasse, Balken, „bezahlbar“, Preise der Kaufmenge Max, Abkühl-Countdown, laufendes Minispiel.
+//   zSekunde   – Spielsekunde (= spiel.sekunden): Kennzahlen, Pausen-Countdown, Statistik (nur bei offenem Reiter).
+//   zVersion   – spiegelt spiel.version (neuBerechnen): alle Beschriftungen von Kopf und Backstube.
+//   zPlaetze   – Belegung der Plätze (belegeNeu/belegeRezepte/belegeProben – nur aus Klick-Rückrufen, R1).
+//   zBereiche/zGeheim/zErfolge/zSpiele/zGarten/zWeinkeller/zPersonal/… – spiegeln die Versionszähler des Modells je Panel.
+//   zNachricht – spiegelt spiel.nachricht;  zMenge – die Kaufmenge;  zFrage – welcher Knopf gerade zurückfragt.
+// Die Spiegel setzt `synchronisiere()` am Ende jedes Rückrufs (nachVerarbeitung) – gleicher Wert = keine Neuberechnung
+// (K-117). Eine Bindung rechnet nur (K-118): keine Setter, keine Animationen; die stehen in den Rückrufen.
+// Imperium und Nonna rechnen nur, wenn ihr Reiter offen ist (quelleImperium/quelleNonna): Die Bindung liest zuerst
+// den Ja/Nein-Zettel zImperiumOffen bzw. zNonnaOffen (der Reiter-Rückruf setzt ihn) und erst bei offenem Reiter ihre
+// anderen Zettel – Quellen werden je Auswertung neu erfasst, ein Wechsel zwischen anderen Reitern weckt sie nicht.
+//
+// R3 – unsichtbar, bis es angeboten wird (THEKE-ERWEITERUNGEN §12.9): Sichtbar ist nur, was man kaufen KÖNNTE (unabhängig
+// vom Kontostand) – das nächste Gebäude erst nach dem Kauf des vorigen, ein Bereich erst, wenn sein Vorgänger frei ist,
+// Feinkost erst mit dem ausgelesenen Buch, Meisterbriefe erst mit der erreichten Stufe, Nonna erst mit dem ersten Stern.
+// Keine 🔒-Platzhalter, keine „—“-Zeilen, keine festen Höhen: Die Oberfläche beginnt klein und wächst durch Anhängen.
+// Reihenfolge = Erscheinensfolge: Neues hängt hinten an (Zeilen unten im Panel, Panels unten in der Spalte, Reiter rechts)
+// und verschiebt nichts Bestehendes. Sichtbarkeit ist gebunden (`binde("sichtbar", …)`) – an Zettel, die sich nur durch
+// Klicks ändern (zPlaetze, zBereiche, zGeheim); was im Takt erscheinen oder verschwinden kann (das Spielfeld eines Minispiels,
+// die Franchise ab 100 ⭐, „✅ Geschafft“, die Erfolge-Tabelle), steht ganz unten in seiner Spalte oder Seite, sodass darunter
+// nichts liegt, das sich bewegen könnte. Wachsende Listen (Betrieb, Handwerk) stehen als letztes Element ihrer Spalte; was
+// darüber erscheint (Feinkost, Meisterbriefe), ist je EINE feste Zeile und erscheint nur im Klick-Rückruf – auch wenn Carlo die
+// letzte Rezeptseite im Takt liest, steht der Händler erst nach dem nächsten Kauf da (§12.9/8).
+//
+// Plätze (R1): Welches Gebäude in welchem Slot steht, welches Rezept oder welche Herausforderung nachrückt, entscheidet
+// ausschließlich `belegeNeu()` & Co. – und das wird nur aus Klick-Rückrufen aufgerufen (nachKauf(), nachLernen(),
+// nachAufstieg()), nie im Takt. Wird im Takt etwas fertig, wechseln nur Texte und Knopfzustände.
+//
+// Raster (v6/v7): Fenster 860 × 640, Innenbreite immer 820 (breite − 40, K-122); die Seite scrollt, wenn sie länger wird.
+// Kopf volle Breite (VOLL), jede Seite eine Reihe aus zwei Spalten (je 404, `senkrecht oben`) – Spiele und Erfolge eine Spalte
+// voller Breite. Panel-Innenbreite 370: Zeile = Schild 228 + 8 + Knopf 130, Zeilenhöhe 56 (Knopf mit zwei Zeilen = 53 px)
+// bzw. 60 für Schilder mit drei Zeilen. Abschnitt-Titel und Tabellenzellen haben feste Zeilen (K-121), Tabellen feste
+// Spaltengewichte (K-126). Geteilte Rechnungen liegen auf abgeleiteten Zetteln (Zettel.aus, K-125).
+salami VOLL = 820;
+salami SPALTE_BREITE = 404;
+salami SCHILD_BREITE = 228;
+salami KNOPF_BREITE = 130;
+salami HALB_KNOPF = 181;          // zwei Knöpfe nebeneinander in einer Panelzeile (Lieferzonen, Ofen halten)
+salami INNEN = 370;
+salami KLEIN_SCHILD = 194;        // Schild in den Kleinbetrieben (Abschnitt im Abschnitt: 34 px weniger Platz)
+salami VOLL_INNEN = 786;          // Panel in voller Breite (Spiele): 820 − 34
+salami VOLL_SCHILD = 648;         // Schild neben einem Knopf in voller Breite: 786 − 8 − 130
+salami ZEILE_HOEHE = 56;
+salami ZEILE_HOEHE_3 = 60;
+salami ZEILE_HOEHE_TEXT = 40;     // Zeile nur aus einem Schild mit zwei Zeilen (Labor: „nächstes“, „erforscht“)
+
+// ── Zettel ──
+Zettel zTakt = neu Zettel(0);
+Zettel zSekunde = neu Zettel(-1);     // −1: beim ersten synchronisiere() rechnet jede Bindung einmal aus dem fertigen Modell
+Zettel zVersion = neu Zettel(-1);
+Zettel zPlaetze = neu Zettel(0);
+Zettel zBereiche = neu Zettel(-1);
+Zettel zGeheim = neu Zettel(-1);
+Zettel zErfolge = neu Zettel(-1);
+Zettel zSpiele = neu Zettel(-1);
+Zettel zGarten = neu Zettel(-1);
+Zettel zWeinkeller = neu Zettel(-1);
+Zettel zPersonal = neu Zettel(-1);
+Zettel zLieferzonen = neu Zettel(-1);
+Zettel zMarketing = neu Zettel(-1);
+Zettel zHelfer = neu Zettel(-1);
+Zettel zLabor = neu Zettel(-1);
+Zettel zStammgaeste = neu Zettel(-1);
+Zettel zNachricht = neu Zettel("");
+Zettel zMenge = neu Zettel(1);        // Kaufmenge 1 · 10 · 100 · 0 = Max (gilt für alle Plätze, wird nicht gespeichert)
+Zettel zFrage = neu Zettel("");       // id des Knopfs, der gerade „Wirklich? Nochmal klicken!“ fragt
+Zettel zWettbewerb = neu Zettel(-1);  // spiegelt spiel.wettbewerb.version (Paket 5, Panel in theke/bereiche.pizza)
+Zettel zAlbum = neu Zettel(-1);       // spiegelt spiel.album.version (Paket 5, Panel in theke/bereiche.pizza)
+
+Zettel zInhalt(margherita s) {
+    falls (s == "garten") { serviere (zGarten); }
+    falls (s == "weinkeller") { serviere (zWeinkeller); }
+    falls (s == "lieferzonen") { serviere (zLieferzonen); }
+    falls (s == "marketing") { serviere (zMarketing); }
+    falls (s == "helfer") { serviere (zHelfer); }
+    falls (s == "labor") { serviere (zLabor); }
+    falls (s == "stammgaeste") { serviere (zStammgaeste); }
+    serviere (zPersonal);
+}
+
+// Acht Reiter in Erscheinensfolge: Backstube · Hof · Spiele · Erfolge · Imperium immer, dann Stadt (sobald die Lieferzonen
+// angeboten sind), Labor (sobald die Helfer angeboten sind), Nonna (mit dem ersten Stern). Welcher Reiter offen ist, steht für
+// die Bindungen auf zwei Ja/Nein-Zetteln. Die Titel sind fest (Hinweise stehen in den Kennzahlen und als Marke am Reiter).
+salami REITER_SPIELE = 3;
+salami REITER_IMPERIUM = 5;
+salami REITER_NONNA = 8;
+Zettel zImperiumOffen = neu Zettel(nein);
+Zettel zNonnaOffen = neu Zettel(nein);
+
+// Quellen der Reiter „Imperium“ und „Nonna“ (viele Texte, zwei Tabellen): Sie rechnen nur, wenn ihr Reiter offen ist.
+// Ist er zu, liest die Bindung nur den Offen-Zettel – erst das Öffnen weckt sie wieder (Quellen werden je Auswertung neu
+// erfasst), das Schließen rechnet einmal nach, ein Wechsel zwischen anderen Reitern gar nicht (K-117: ja bleibt nein).
+leer quelleImperium() {
+    falls (!zImperiumOffen.wert()) { serviere; }
+    zGeheim.wert(); zVersion.wert(); zBereiche.wert(); zSekunde.wert();
+}
+leer quelleNonna() {
+    falls (!zNonnaOffen.wert()) { serviere; }
+    zGeheim.wert(); zPlaetze.wert(); zVersion.wert();
+}
+// Die laufende Herausforderung zählt Umsatz je Sekunde (Nonna-Reiter, nur offen)
+leer quelleNonnaSekunde() {
+    falls (zNonnaOffen.wert()) { zSekunde.wert(); }
+}
+
+// Modell → Zettel: am Ende jedes Rückrufs. Nur ungleiche Werte machen Bindungen schmutzig.
+leer synchronisiere() {
+    zVersion.setze(spiel.version);
+    zBereiche.setze(spiel.versionBereiche);
+    zGeheim.setze(spiel.versionGeheim);
+    zErfolge.setze(spiel.versionErfolge);
+    zSpiele.setze(spiel.versionSpiele);
+    zGarten.setze(spiel.versionGarten);
+    zWeinkeller.setze(spiel.versionWeinkeller);
+    zPersonal.setze(spiel.versionPersonal);
+    zLieferzonen.setze(spiel.versionLieferzonen);
+    zMarketing.setze(spiel.versionMarketing);
+    zHelfer.setze(spiel.versionHelfer);
+    zLabor.setze(spiel.versionLabor);
+    zStammgaeste.setze(spiel.versionStammgäste);
+    zWettbewerb.setze(spiel.wettbewerb.version);   // P5
+    zAlbum.setze(spiel.album.version);   // 📒 P5
+    zSekunde.setze(spiel.sekunden);
+    zNachricht.setze(spiel.nachricht);
+    zTakt.setze(zTakt.wert() + 1);
+}
+
+// Rückfrage vor jedem Neustart: Der erste Klick fragt (zFrage = id des Knopfs), der zweite (binnen 10 Sekunden)
+// bestätigt. Der Knopftext folgt zFrage über seine Bindung; frageRest läuft im Takt ab und setzt zFrage zurück.
+salami frageRest = 0;
+
+diavolo bestätigt(Knopf k) {
+    falls (zFrage.wert() == k.id()) { zFrage.setze(""); serviere (ja); }
+    zFrage.setze(k.id());      // eine andere offene Rückfrage fällt damit zurück auf ihren Normaltext
+    frageRest = 10;
+    serviere (nein);
+}
+// Für Bindungen: Text und Aktivität eines Knopfs mit möglicher Rückfrage (die Frage hält den Knopf aktiv)
+margherita mitFrage(Knopf k, margherita frage, margherita normal) { serviere (zFrage.wert() == k.id() ? frage : normal); }
+diavolo aktivMitFrage(Knopf k, diavolo normal) { serviere (zFrage.wert() == k.id() || normal); }
+
+// Bausteine des Rasters
+Schild kleinSchild(margherita id, salami zeilen, salami breite) {
+    Schild s = neu Schild("", id: id);
+    s.stil("schrift", "klein").stil("zeilen", zeilen);
+    falls (breite > 0) { s.stil("breite", breite); }
+    serviere (s);
+}
+Knopf zeilenKnopf(margherita id, salami breite) {
+    Knopf k = neu Knopf("", id: id);
+    k.stil("breite", breite).stil("zeilen", 2);
+    serviere (k);
+}
+Reihe zeile(margherita id, Blech<Zutat> kinder, salami hoehe) {
+    Reihe r = neu Reihe(kinder, id: id);
+    r.stil("abstand", 8).stil("hoehe", hoehe);
+    serviere (r);
+}
+Abschnitt panel(margherita titel, margherita id, Blech<Zutat> kinder) {
+    Abschnitt a = neu Abschnitt(titel, kinder, id: id);
+    a.stil("abstand", 6).stil("zeilen", 1);
+    serviere (a);
+}
+Stapel spalte(margherita id, Blech<Zutat> kinder) {
+    Stapel s = neu Stapel(kinder, id: id);
+    s.stil("abstand", 8).stil("breite", SPALTE_BREITE);
+    serviere (s);
+}
+// Eine Reiterseite: zwei Spalten fester Breite (2 × 404 + 12 = 820), oben bündig (v6: senkrecht oben).
+Reihe seite(margherita id, Stapel links, Stapel rechts) {
+    Reihe r = neu Reihe([links, rechts], id: id);
+    r.stil("abstand", 12).stil("senkrecht", "oben");
+    serviere (r);
+}
+
+margherita prozent(funghi teil, funghi ganz) {
+    funghi p = ganz > 0 ? teil / ganz * 100 : 0;
+    falls (p > 0 && p < 0.1) { serviere ("< 0,1 %"); }
+    serviere (p.kompakt(1) + " %");
+}
+
+
+// ─────────────────────────────── Theke und offene Erfolge ───────────────
+Theke theke = neu Theke("Pizza-Imperium", breite: 860, hoehe: 640);
+
+Blech<Erfolg> offeneErfolge = [];
+leer sortiereErfolge() {
+    offeneErfolge = ERFOLGE.filtere((e) -> (!spiel.erfolge.enthält(e.name)));
+}
+// Die nächsten (höchstens drei) Ziele: offene Erfolge in Listenreihenfolge, Erfolge eines Bereichs erst, wenn er frei ist –
+// das ändert sich nur mit einem Freischalt-Klick oder einem erreichten Erfolg (dann nur Text in denselben Zeilen).
+Blech<Erfolg> zieleJetzt() {
+    Blech<Erfolg> z = [];
+    für (Erfolg e : offeneErfolge) { falls (z.länge() < 3 && e.alsZielSichtbar(spiel)) { z.hinzu(e); } }
+    serviere (z);
+}

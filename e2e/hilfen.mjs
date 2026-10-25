@@ -479,7 +479,7 @@ export function klickeDom(page, selektor) {
   return page.$eval(selektor, (e) => { e.scrollIntoView({ block: "center" }); e.click(); });
 }
 
-// Gemeinsamer Beispiel-Leser (scripts/beispiele.js, PROJEKTE §7): Ordner + pruefung/, Imperium bis PB5 im alten Format
+// Gemeinsamer Beispiel-Leser (scripts/beispiele.js, PROJEKTE §7): Projektordner mit pruefung/
 const BSP = createRequire(import.meta.url)("../scripts/beispiele.js");
 
 /**
@@ -492,7 +492,7 @@ export function beispieleAusManifesten() {
   const fehlend = (index.teile || []).filter((t) => !fs.existsSync(path.join(basis, t)));
   const liste = BSP.leseBeispiele({ basis }).map((b) => ({
     ...b.eintrag, kategorie: b.kategorie, teil: b.teil, ordner: b.ordner, hauptdatei: b.hauptdatei, hauptdateiUrl: b.hauptdateiUrl,
-    exitCode: b.exitCode, erwartet: b.ordner ? b.ordner + "/pruefung/erwartet" : b.eintrag.erwartet,
+    exitCode: b.exitCode, erwartet: b.ordner + "/pruefung/erwartet",
     erwartetText: (b.erwartet || "").replace(/\r\n/g, "\n"), leser: b,
   }));
   return { liste, fehlend, teile: index.teile || [] };
@@ -583,7 +583,7 @@ export async function backenInteraktiv(page, zeilen, { timeout = 30_000, tippen 
   return { gesendet, eofs };
 }
 
-/** Eingabedatei eines Beispiels (pruefung/eingabe bzw. im alten Format Manifestfeld "eingabe"/gleichnamige .eingabe). */
+/** Eingabedatei eines Beispiels (pruefung/eingabe). */
 export function eingabeZeilen(b) {
   const roh = b.leser ? b.leser.pruefText("eingabe") : null;
   if (roh === null) return null;

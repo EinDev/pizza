@@ -1,0 +1,46 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Erfolge
+// ═══════════════════════════════════════════════════════════════════════
+// Die nächsten Ziele und alle erreichten Erfolge.
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "erfolge.pizza";
+
+// ─────────────────────────────── Erfolge ────────────────────────────────
+// Kopfzeile + Tabelle in Erscheinensfolge: oben die nächsten drei Ziele („???“, Texte wechseln), darunter alle erreichten
+// Erfolge in der Reihenfolge, in der sie kamen – jeder neue hängt unten an (auch im Takt: die Tabelle ist das letzte Element
+// der Seite). Feste Spaltengewichte (K-126), eine Zeile je Zelle.
+klasse ErfolgePanel {
+    Schild kopf;
+    Tabelle tabelle;
+    Stapel seite_;
+
+    ErfolgePanel() {
+        kopf = kleinSchild("erfolge-kopf", 1, VOLL);
+        kopf.binde("text", () -> {
+            zErfolge.wert(); zBereiche.wert();
+            salami n = spiel.erfolge.länge();
+            salami rest = offeneErfolge.länge() - zieleJetzt().länge();
+            falls (n == 0) { serviere ("Noch kein Erfolg – fang einfach an zu backen! Die nächsten drei Ziele stehen unten, " + rest + " weitere tauchen auf, wenn es so weit ist."); }
+            falls (offeneErfolge.istLeer()) { serviere ("Alle " + n + " Erfolge freigeschaltet – Nonna ist sprachlos. Zum ersten Mal."); }
+            serviere ("Freigeschaltet: " + n + " von " + ERFOLGE.länge() + " · die nächsten Ziele oben, " + rest + " weitere tauchen auf, wenn es so weit ist.");
+        });
+        tabelle = neu Tabelle(["", "Erfolg", "Ziel"], [], id: "erfolge");
+        tabelle.stil("schrift", "klein").stil("breite", VOLL).stil("zeilen", 1).stil("spalten", [1, 7, 12]);
+        tabelle.binde("zeilen", () -> erfolgZeilen());
+        seite_ = neu Stapel([kopf, tabelle], id: "erfolge-seite");   // eine Spalte voller Breite
+        seite_.stil("abstand", 8).stil("breite", VOLL);
+    }
+
+    Blech<Blech<margherita>> erfolgZeilen() {
+        zErfolge.wert(); zBereiche.wert();
+        Blech<Blech<margherita>> zeilen_ = [];
+        für (Erfolg e : zieleJetzt()) { zeilen_.hinzu(["🎯", "???", e.text]); }
+        für (margherita name : spiel.erfolge) {
+            Blech<Erfolg> treffer = ERFOLGE.filtere((x) -> (x.name == name));
+            falls (!treffer.istLeer()) { zeilen_.hinzu(["🏆", name, treffer.erstes().text]); }
+        }
+        serviere (zeilen_);
+    }
+}

@@ -6,14 +6,15 @@
  *   node scripts/beispiele.js --schreibe    abgeleitete Manifestfelder neu schreiben: dateien, titel/beschreibung (aus pizza.json),
  *                                           exitCode (Anzeige-Kopie von pruefung/exitcode)
  *   node scripts/beispiele.js --umziehen    Einträge im alten Format (datei + Begleitdateien) in Ordner umziehen – idempotent:
- *                                           Einträge mit `ordner` bleiben, wie sie sind; das Pizza-Imperium wartet auf PB5
+ *                                           Einträge mit `ordner` bleiben, wie sie sind (seit PB5 kennen Galerie, Harnische
+ *                                           und --pruefe nur noch `ordner`; ein alter Eintrag ist ein Fehler)
  *
  * Zielstruktur: site/beispiele/<kategorie>/<projekt>/{pizza.json, hauptgang.pizza, …, pruefung/{erwartet, eingabe, ereignisse,
  * ui-erwartet, herd-erwartet, vorrat.json, exitcode}}; Manifest-Eintrag mit `ordner` + `dateien` (ohne pruefung/).
  *
  * Als Modul (CommonJS; aus ESM per Default-Import):
  *   const B = require('scripts/beispiele.js');
- *   B.leseBeispiele() → [Beispiel]  (alte `datei`-Einträge – bis PB5 nur das Imperium – erscheinen in derselben Form)
+ *   B.leseBeispiele() → [Beispiel]  (Einträge mit `ordner`)
  *   Beispiel: { teil, kategorie, eintrag, id, titel, name, format, ordner, ordnerPfad, dateien, hauptdatei, hauptdateiPfad,
  *               hauptdateiUrl, quelle, projekt, programm, exitCode, optionen, pruefPfad(art), pruefText(art), erwartet, eingabe,
  *               ereignisse, uiErwartet, herdErwartet, vorrat, laufOptionen() }
@@ -31,9 +32,6 @@ const PRUEFUNG = 'pruefung';
 const TEXT_ENDUNG = /\.(pizza|txt|json|csv|md)$/;
 const ERLAUBTE_ENDUNG = /\.(pizza|txt|json|csv|md|png|jpg|jpeg)$/;   // PROJEKTE §1.3
 const EXITCODES = [0, 1, 2, 3, 39];
-
-/** Übergang (PROJEKTE §7.3 Schritt 4): diese Einträge bleiben im alten Format, bis PB5 sie umzieht. */
-const UEBERGANG = new Set(['idle-pizza-imperium']);
 
 /**
  * Testdateien: Name in pruefung/ ↔ Manifestfeld und Endung im alten Format (ARCHITEKTUR §6). `feld` = altes Manifestfeld
@@ -153,31 +151,19 @@ function leseManifeste(basis = BSP) {
 }
 
 /**
- * Ein Manifest-Eintrag → Beispiel (gleiche Form für `ordner` und das alte `datei`). Dateien werden erst beim Zugriff gelesen.
+ * Ein Manifest-Eintrag mit `ordner` → Beispiel. Dateien werden erst beim Zugriff gelesen.
  */
 function beispiel(teil, kategorie, b, basis = BSP) {
-  const ordnerFormat = typeof b.ordner === 'string';
-  const ordnerPfad = ordnerFormat ? path.join(basis, ...b.ordner.split('/')) : null;
-  let dateien, hauptdatei, hauptdateiUrl;
-  if (ordnerFormat) {
-    dateien = Array.isArray(b.dateien) ? b.dateien.slice() : [];
-    const pj = istDatei(path.join(ordnerPfad, PROJEKTDATEI)) ? leseProjektdatei(path.join(ordnerPfad, PROJEKTDATEI)) : {};
-    hauptdatei = typeof pj.hauptdatei === 'string' ? pj.hauptdatei : HAUPTDATEI;
-    hauptdateiUrl = b.ordner + '/' + hauptdatei;
-  } else {
-    hauptdatei = String(b.datei || '').split('/').pop();
-    dateien = [hauptdatei];
-    hauptdateiUrl = b.datei;
-  }
-  const hauptdateiPfad = path.join(basis, ...String(hauptdateiUrl).split('/'));
-  const altBasis = ordnerFormat ? null : hauptdateiPfad.replace(/\.pizza$/, '');
-  /** Pfad einer Testdatei (pruefung/<art> bzw. altes Manifestfeld/gleichnamige Datei) – null, wenn es sie nicht gibt. */
+  const ordnerPfad = path.join(basis, ...b.ordner.split('/'));
+  const dateien = Array.isArray(b.dateien) ? b.dateien.slice() : [];
+  const pj = istDatei(path.join(ordnerPfad, PROJEKTDATEI)) ? leseProjektdatei(path.join(ordnerPfad, PROJEKTDATEI)) : {};
+  const hauptdatei = typeof pj.hauptdatei === 'string' ? pj.hauptdatei : HAUPTDATEI;
+  const hauptdateiUrl = b.ordner + '/' + hauptdatei;
+  const hauptdateiPfad = path.join(basis, ...hauptdateiUrl.split('/'));
+  /** Pfad einer Testdatei (pruefung/<art>) – null, wenn es sie nicht gibt. */
   const pruefPfad = (art) => {
-    const a = PRUEF_ARTEN.find((x) => x.art === art);
-    if (!a) throw new Error('unbekannte Testdatei-Art: ' + art);
-    let p;
-    if (ordnerFormat) p = path.join(ordnerPfad, PRUEFUNG, art);
-    else p = a.feld && typeof b[a.feld] === 'string' ? path.join(basis, ...b[a.feld].split('/')) : altBasis + a.endung;
+    if (!PRUEF_NAMEN.has(art)) throw new Error('unbekannte Testdatei-Art: ' + art);
+    const p = path.join(ordnerPfad, PRUEFUNG, art);
     return istDatei(p) ? p : null;
   };
   const pruefText = (art) => { const p = pruefPfad(art); return p ? fs.readFileSync(p, 'utf8') : null; };
@@ -188,9 +174,9 @@ function beispiel(teil, kategorie, b, basis = BSP) {
     teil, kategorie, eintrag: b,
     id: b.id, titel: b.titel, beschreibung: b.beschreibung,
     /** Testname in den Harnischen: <teil ohne .json>/<id>. */
-    name: teil.replace(/\.json$/, '') + '/' + (b.id || b.ordner || b.datei),
-    format: ordnerFormat ? 'ordner' : 'datei',
-    ordner: ordnerFormat ? b.ordner : null, ordnerPfad,
+    name: teil.replace(/\.json$/, '') + '/' + (b.id || b.ordner),
+    format: 'ordner',
+    ordner: b.ordner, ordnerPfad,
     dateien, hauptdatei, hauptdateiPfad,
     /** Pfad der Hauptdatei relativ zu site/beispiele/ (für fetch im Browser). */
     hauptdateiUrl,
@@ -198,16 +184,12 @@ function beispiel(teil, kategorie, b, basis = BSP) {
     pruefPfad, pruefText,
     get quelle() { return fs.readFileSync(hauptdateiPfad, 'utf8'); },
     /** Dateisammlung (genau die Manifest-Dateiliste, wie die Galerie sie lädt) mit Hauptdatei. */
-    get projekt() {
-      if (!ordnerFormat) return { dateien: { [hauptdatei]: B.quelle.replace(/\r\n/g, '\n') }, hauptdatei };
-      return { dateien: leseOrdner(ordnerPfad, dateien), hauptdatei };
-    },
+    get projekt() { return { dateien: leseOrdner(ordnerPfad, dateien), hauptdatei }; },
     /** Genau eine .pizza-Datei (= gleiches Programm als Text, PROJEKTE §1.5)? */
     get einDatei() { return dateien.filter((p) => /.pizza$/.test(p)).length === 1; },
-    /** Was die Harnische laufen lassen: das Projekt (Ordner) bzw. der Text (altes Format). */
-    get programm() { return ordnerFormat ? B.projekt : B.quelle; },
+    /** Was die Harnische laufen lassen: das Projekt. */
+    get programm() { return B.projekt; },
     get exitCode() {
-      if (!ordnerFormat) return typeof b.exitCode === 'number' ? b.exitCode : 0;
       const t = pruefText('exitcode');
       return t === null ? 0 : Number(t.trim());
     },
@@ -235,7 +217,7 @@ function leseBeispiele({ basis = BSP } = {}) {
   const aus = [];
   for (const { teil, manifest } of teile) {
     for (const b of (manifest && Array.isArray(manifest.beispiele) ? manifest.beispiele : [])) {
-      if (b && typeof b === 'object' && (typeof b.ordner === 'string' || typeof b.datei === 'string')) aus.push(beispiel(teil, manifest.kategorie, b, basis));
+      if (b && typeof b === 'object' && typeof b.ordner === 'string') aus.push(beispiel(teil, manifest.kategorie, b, basis));
     }
   }
   return aus;
@@ -272,17 +254,16 @@ function ordneEintrag(e) {
 
 /**
  * Alte Einträge (datei + Begleitdateien) → Projektordner. Rein mechanisch, Inhalte byte-gleich (umbenannt, nicht kopiert).
- * → { umgezogen: [id], uebersprungen: [id] }; wirft bei Begleitdateien, die es nicht zuordnen kann.
+ * → { umgezogen: [id] }; wirft bei Begleitdateien, die es nicht zuordnen kann.
  */
 function umziehen({ basis = BSP, log = () => {} } = {}) {
   const { teile, fehler } = leseManifeste(basis);
   if (fehler.length) throw new Error(fehler.join('\n'));
-  const umgezogen = [], uebersprungen = [];
+  const umgezogen = [];
   for (const { teil, pfad, manifest } of teile) {
     let geaendert = false;
     manifest.beispiele = (manifest.beispiele || []).map((b) => {
       if (!b || typeof b.datei !== 'string' || typeof b.ordner === 'string') return b;
-      if (UEBERGANG.has(b.id)) { uebersprungen.push(b.id); return b; }
       if (!/\.pizza$/.test(b.datei)) throw new Error(teil + ' ' + b.id + ': datei endet nicht auf .pizza');
       const ordner = b.datei.replace(/\.pizza$/, '');
       const quelle = path.join(basis, ...b.datei.split('/'));
@@ -328,7 +309,7 @@ function umziehen({ basis = BSP, log = () => {} } = {}) {
     });
     if (geaendert) schreibeJson(pfad, manifest);
   }
-  return { umgezogen, uebersprungen };
+  return { umgezogen };
 }
 /** Nennt ein anderer (alter) Eintrag diese Datei? (dann gehört sie nicht zum gerade umziehenden Beispiel) */
 function leseManifesteNennen(teile, abs, basis) {
@@ -386,10 +367,10 @@ function pruefe({ basis = BSP } = {}) {
       if (!Array.isArray(b.schlagworte) || b.schlagworte.some((s) => typeof s !== 'string')) fehler.push(wo + ": 'schlagworte' ist kein Text-Array");
       if ('interaktiv' in b && typeof b.interaktiv !== 'boolean') fehler.push(wo + ": 'interaktiv' ist kein Boolean");
       if (typeof b.id === 'string') { if (ids.has(b.id)) fehler.push(wo + ": id '" + b.id + "' doppelt (auch in " + ids.get(b.id) + ')'); else ids.set(b.id, teil); }
-      const B = (typeof b.ordner === 'string' || typeof b.datei === 'string') ? beispiel(teil, m.kategorie, b, basis) : null;
-      if (typeof b.ordner === 'string') pruefeOrdnerEintrag(b, B, wo, fehler, pfadFehler, belegt, ordnerListe, basis);
-      else if (typeof b.datei === 'string') pruefeAltenEintrag(b, B, wo, fehler, belegt, basis);
-      else fehler.push(wo + ": weder 'ordner' noch 'datei'");
+      const B = typeof b.ordner === 'string' ? beispiel(teil, m.kategorie, b, basis) : null;
+      if (B) pruefeOrdnerEintrag(b, B, wo, fehler, pfadFehler, belegt, ordnerListe, basis);
+      else if (typeof b.datei === 'string') fehler.push(wo + ': altes Format (datei) – node scripts/beispiele.js --umziehen');
+      else fehler.push(wo + ": 'ordner' fehlt");
       if (B && b.interaktiv === true && !B.pruefPfad('eingabe')) fehler.push(wo + ': interaktiv ohne Eingabedatei (pruefung/eingabe, SPEC §11.1)');
     });
   }
@@ -463,22 +444,6 @@ function pruefeOrdnerEintrag(b, B, wo, fehler, pfadFehler, belegt, ordnerListe, 
   if (b.exitCode === 0) fehler.push(wo + ': exitCode 0 steht nicht im Manifest (node scripts/beispiele.js --schreibe)');
 }
 
-function pruefeAltenEintrag(b, B, wo, fehler, belegt, basis) {
-  if (!UEBERGANG.has(b.id)) { fehler.push(wo + ': altes Format (datei) – node scripts/beispiele.js --umziehen'); }
-  if (!/\.pizza$/.test(b.datei)) fehler.push(wo + ': datei endet nicht auf .pizza');
-  if (!istDatei(B.hauptdateiPfad)) fehler.push(wo + ': datei ' + b.datei + ' fehlt');
-  else belegt.add(b.datei);
-  if (!EXITCODES.includes(b.exitCode)) fehler.push(wo + ': exitCode ' + JSON.stringify(b.exitCode) + ' ∉ {' + EXITCODES + '}');
-  for (const a of PRUEF_ARTEN) {
-    if (a.feld && typeof b[a.feld] === 'string' && !istDatei(path.join(basis, ...b[a.feld].split('/')))) fehler.push(wo + ': ' + a.feld + ' ' + b[a.feld] + ' fehlt');
-    const p = B.pruefPfad(a.art);
-    if (p) belegt.add(posix(path.relative(basis, p)));
-  }
-  const erw = B.pruefText('erwartet');
-  if (erw === null) fehler.push(wo + ': .erwartet fehlt');
-  else if (erw.length && !erw.endsWith('\n')) fehler.push(wo + ': .erwartet ohne abschließenden Zeilenumbruch (ARCHITEKTUR §3)');
-}
-
 // ---------------------------------------------------------------- Doku-Codeblöcke (ARCHITEKTUR §4)
 
 /** Doku-Codeblock → Programm: Text (`code`) oder Projekt { dateien, hauptdatei? } (`dateien`: { pfad → Text }, nur Textdateien). */
@@ -499,7 +464,7 @@ function dokuText(item) {
 const FREMDE_SPRACHEN = new Set(['xml', 'shell', 'json']);
 
 module.exports = {
-  BSP, PROJEKTDATEI, HAUPTDATEI, PRUEFUNG, PRUEF_ARTEN, UEBERGANG, EXITCODES, FREMDE_SPRACHEN,
+  BSP, PROJEKTDATEI, HAUPTDATEI, PRUEFUNG, PRUEF_ARTEN, EXITCODES, FREMDE_SPRACHEN,
   leseManifeste, leseBeispiele, beispiel, leseOrdner, ordnerPfade, findeProjekt, leseProjektdatei, kanonischeListe,
   eingabeZeilen, jsonZeilen, formatiere, umziehen, schreibe, pruefe, dokuProgramm, dokuText,
 };
@@ -508,7 +473,7 @@ if (require.main === module) {
   const a = process.argv.slice(2);
   if (a.includes('--umziehen')) {
     const r = umziehen({ log: (z) => console.log(z) });
-    console.log(r.umgezogen.length + ' Beispiele umgezogen' + (r.uebersprungen.length ? ', übersprungen (PB5): ' + r.uebersprungen.join(', ') : ''));
+    console.log(r.umgezogen.length + ' Beispiele umgezogen');
     const n = schreibe();
     if (n) console.log(n + ' Manifest(e) nachgeführt');
   } else if (a.includes('--schreibe')) {

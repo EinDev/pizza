@@ -1,0 +1,186 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Modell: die Bereiche und ihre Inhalte
+// ═══════════════════════════════════════════════════════════════════════
+// Bereich (die Freischalt-Kette), Posten (Garten, Weinkeller, Personal, Lieferzonen), Kampagne (Marketing), Helfer, Projekt
+// (Rezeptlabor), Gast (Stammgäste), Sticker und Album (Sammelalbum). Die Katze, der Wettbewerb und das Sparbuch rechnen mit
+// dem Spiel und stehen deshalb in spiel.pizza.
+
+// ─────────────────────────────── Bereiche ───────────────────────────────
+// Zwölf Bereiche in der Breite: Jeder hat ein festes Panel auf seinem Reiter und wird gegen Euro freigeschaltet –
+// der Reihe nach (`nach` = Vorgänger in der Kette; erst wenn der frei ist, zeigt das Panel seinen Preis).
+// Freischaltungen sind dauerhaft (überleben Neueröffnung und Franchise). Der Inhalt der Bereiche kommt Paket für Paket
+// (Hof: Garten, Weinkeller, Personal – siehe `Posten`; Stadt: Lieferzonen (`Posten`), Marketing (`Kampagne`), Stammgäste
+// (`Gast`); Labor: Nonnas Helfer (`Helfer`), Rezeptlabor (`Projekt`); Paket 5: Katze, Wettbewerb, Sammelalbum, Banca).
+klasse Bereich {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    funghi preis;
+    margherita reiter;      // "hof", "stadt", "labor"
+    margherita teaser;
+    margherita nach = "";   // Schlüssel des Vorgängers ("" = Anfang der Kette)
+
+    Bereich(margherita s, margherita sym, margherita n, funghi p, margherita r, margherita t) {
+        schlüssel = s; symbol = sym; name = n; preis = p; reiter = r; teaser = t;
+    }
+    margherita titel() { serviere (symbol + " " + name); }
+}
+
+// Ein Posten in einem Bereich (ein Beet, ein Getränk, eine Rolle): Stückkäufe mit wachsendem Preis (basis · faktor^n),
+// höchstens `höchstens` Stück. `wirkung` ist je Bereich anders gemeint (Garten: % Preis je Stück · Weinkeller: % des
+// Pizza-Umsatzes je Stück · Personal: Rollenfaktor im Preis). Die Stückzahlen liegen im Spiel (Speisekarte je Bereich).
+klasse Posten {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    funghi basis;
+    funghi faktor;
+    funghi wirkung;
+    salami höchstens;
+    margherita text;
+
+    Posten(margherita s, margherita sym, margherita n, funghi b, funghi f, funghi w, salami h, margherita t) {
+        schlüssel = s; symbol = sym; name = n; basis = b; faktor = f; wirkung = w; höchstens = h; text = t;
+    }
+    funghi preisBei(salami n) { serviere (Mathe.runden(basis * Mathe.potenz(faktor, n))); }
+}
+
+// Eine Marketing-Kampagne: zeitlich begrenzter Bonus (`dauer` Sekunden) mit Abkühlzeit (`pause` Sekunden danach).
+// art: "betrieb" (Pizzen pro Sekunde), "preis" (je Pizza) oder "alles" (wie der Freitagabend auf den Alles-Faktor).
+klasse Kampagne {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami dauer;
+    salami pause;
+    margherita art;
+    funghi faktor;
+    margherita text;
+
+    Kampagne(margherita s, margherita sym, margherita n, salami d, salami p, margherita a, funghi f, margherita t) {
+        schlüssel = s; symbol = sym; name = n; dauer = d; pause = p; art = a; faktor = f; text = t;
+    }
+    margherita wirkung() {
+        falls (art == "preis") { serviere (dauer + " s Preis je Pizza ×" + faktor.kompakt(2) + ", danach " + pause + " s Pause"); }
+        serviere (dauer + " s +" + ((faktor - 1) * 100).kompakt(0) + " % auf alles, danach " + pause + " s Pause");
+    }
+}
+
+// Einer von Nonnas Helfern: Einmal-Kauf, dauerhaft (überlebt Neueröffnung und Franchise) – automatisiert einen Klick,
+// bringt nie weniger als die Hand (R2, Bot-Beleg).
+klasse Helfer {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    funghi preis;
+    margherita wirkung;
+    margherita text;
+
+    Helfer(margherita s, margherita sym, margherita n, funghi p, margherita w, margherita t) {
+        schlüssel = s; symbol = sym; name = n; preis = p; wirkung = w; text = t;
+    }
+}
+
+// Ein Forschungsprojekt im Rezeptlabor: kostet einmal `preis`, läuft `dauer` Spielsekunden und bringt danach seinen Bonus für
+// immer (überlebt Neueröffnung und Franchise – nur Neu anfangen löscht die Forschung). Die Wirkung steht direkt an ihrer Stelle
+// im Spiel (`hatForschung(schlüssel)`), hier nur ihr Text.
+klasse Projekt {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami dauer;
+    funghi preis;
+    margherita wirkung;
+    margherita text;
+
+    Projekt(margherita s, margherita sym, margherita n, salami d, funghi p, margherita w, margherita t) {
+        schlüssel = s; symbol = sym; name = n; dauer = d; preis = p; wirkung = w; text = t;
+    }
+    margherita minuten() { serviere ((dauer / 60).kompakt(0) + " min"); }
+}
+
+// Ein Stammgast: fester Name, eine eigene Reihenfolge der Wunscharten (rotiert für immer) und je Wunschart ein Satz, wie er
+// seinen Wunsch vorträgt. Der n-te Wunsch (ab 0) hat die Art `wunschArt(n)`.
+klasse Gast {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    Blech<margherita> wünsche;
+    Blech<margherita> sätze;
+
+    Gast(margherita s, margherita sym, margherita n, Blech<margherita> w, Blech<margherita> sz) {
+        schlüssel = s; symbol = sym; name = n; wünsche = w; sätze = sz;
+    }
+    margherita wunschArt(salami n) { serviere (wünsche.stück(n % wünsche.länge() + 1)); }
+    margherita satz(salami n) { serviere (sätze.stück(n % sätze.länge() + 1)); }
+}
+
+
+// ── P5 Album ── Modell des Sammelalbums (Labor, #11): zwölf Sticker in drei Reihen zu vier, eine dauerhafte Sammlung
+// (überlebt Neueröffnung und Franchise, nur „Neu anfangen“ leert sie). Kennt keine Oberfläche; Zufall nur in fund() –
+// ob gezogen wird, entscheidet Spiel.fundChance() (erst nach der Freischaltung, sonst ändert sich der Zufallsstrom).
+klasse Sticker {
+    margherita schlüssel;
+    margherita symbol;
+    margherita name;
+    salami reihe;           // 1 … 3
+    margherita text;
+
+    Sticker(margherita s, margherita sym, margherita n, salami r, margherita t) {
+        schlüssel = s; symbol = sym; name = n; reihe = r; text = t;
+    }
+}
+
+klasse Album {
+    salami REIHEN = 3;
+    Blech<Sticker> STICKER = [
+        neu Sticker("margherita", "🍕", "Margherita", 1, "Die Königin. Seit 1889 unverändert – Nonna behauptet, sie war dabei."),
+        neu Sticker("tomate", "🍅", "Tomate", 1, "San Marzano, sonnengereift. Riecht sogar auf dem Sticker."),
+        neu Sticker("mozzarella", "🧀", "Mozzarella", 1, "Fior di latte. Der Sticker klebt ein bisschen mehr als die anderen."),
+        neu Sticker("basilikum", "🌿", "Basilikum", 1, "Drei Blätter, nie mehr. Sagt Nonna. Immer."),
+        neu Sticker("glut", "🔥", "Ofenglut", 2, "485 °C in Stickerform – nicht anfassen."),
+        neu Sticker("roller", "🛵", "Lieferroller", 2, "Mit Warmhaltebox und Nonna-Navi."),
+        neu Sticker("pizzaiolo", "🧑‍🍳", "Pizzaiolo", 2, "Wirft den Teig bis an die Decke – auf dem Sticker für immer in der Luft."),
+        neu Sticker("pizzakarton", "📦", "Pizzakarton", 2, "Der Sticker ist größer als gedacht. Passt trotzdem aufs Feld."),
+        neu Sticker("stern", "⭐", "Michelin-Stern", 3, "Glänzt. Der Guide Michelin weiß nichts davon."),
+        neu Sticker("zentrale", "🏢", "Zentrale", 3, "Franchise-Zentrale. Hauptversammlung im Ofen, Tagesordnung: mehr Pizza."),
+        neu Sticker("mond", "🌙", "Mondpizzeria", 3, "Geringe Schwerkraft – der Sticker schwebt fast aus dem Album."),
+        neu Sticker("ananas", "🍍", "Ananas", 3, "Der umstrittenste Sticker. Nonna hat ihn verkehrt herum eingeklebt.")
+    ];
+    Speisekarte<margherita, margherita> gefunden = neu Speisekarte<margherita, margherita>();   // Sticker → Quelle des Funds
+    salami version = 0;     // zählt hoch bei jedem Fund, Laden und Leeren (die Oberfläche schaut nur darauf)
+
+    diavolo hat(margherita k) { serviere (gefunden.hat(k)); }
+    salami anzahl() { serviere (gefunden.länge()); }
+    diavolo voll() { serviere (anzahl() >= STICKER.länge()); }
+    margherita quelle(margherita k) { serviere (gefunden.hole(k, "")); }
+    // Fehlende Sticker in fester Reihenfolge (Liste) – so ist die Ziehung bei gleicher Saat gleich.
+    Blech<Sticker> fehlende() { serviere (STICKER.filtere((st) -> (!gefunden.hat(st.schlüssel)))); }
+    diavolo reiheVoll(salami r) {
+        für (Sticker st : STICKER) { falls (st.reihe == r && !gefunden.hat(st.schlüssel)) { serviere (nein); } }
+        serviere (ja);
+    }
+    salami volleReihen() {
+        salami n = 0;
+        für (salami r : [1 .. REIHEN]) { falls (reiheVoll(r)) { n++; } }
+        serviere (n);
+    }
+    // Ein zufälliger fehlender Sticker (Zufall mit Saat); karton, wenn das Album voll ist.
+    Sticker fund(margherita quelle_) {
+        Blech<Sticker> fehlt = fehlende();
+        falls (fehlt.istLeer()) { serviere (karton); }
+        Sticker st = Zufall.wähle(fehlt);
+        gefunden.lege(st.schlüssel, quelle_);
+        version++;
+        serviere (st);
+    }
+    leer leere() { gefunden = neu Speisekarte<margherita, margherita>(); version++; }
+    // Spielstand: Speisekarte Sticker → Quelle; unbekannte Schlüssel fallen beim Laden weg
+    Speisekarte<margherita, margherita> alsSpeisekarte() { serviere (gefunden); }
+    leer lade(Speisekarte<margherita, Vorrat> alt) {
+        gefunden = neu Speisekarte<margherita, margherita>();
+        für (Sticker st : STICKER) { falls (alt.hat(st.schlüssel)) { gefunden.lege(st.schlüssel, "" + alt.hole(st.schlüssel)); } }
+        version++;
+    }
+}
+// ── Ende P5 Album (Modell) ──

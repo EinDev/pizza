@@ -6,8 +6,8 @@
 > und `HERD.md` (§12.1 Regel 3: reservierte Nummern); Prüfstand `pruefstand/faelle/a19-projekte.js` (seit PA1/PD2 grün; `a19-projekte-offen.js` entfiel mit PD2).
 > **Bei Abweichung gilt der Vertrag**; dieses Konzept bleibt Begründung und Plan. **PA1 umgesetzt** (Lader, Interpreter, CLI –
 > Commit „PROJEKTE PA1: …“, Präzisierungen in §11), **PD1** (Vorbacker), **PD2** (Kiste/Bildchen.laden im Interpreter), **PA2** (Wasm + Host,
-> HOST-ABI v2), **PB1** (Playground-Projekte), **PC1** (Durchreiche), **PB2** (Teilen-UI, App-Link) und **PB3** (Beispiele als Ordner, Doku „Projekte und
-> Dateien“) ebenso; übrige Pakete siehe §11;
+> HOST-ABI v2), **PB1** (Playground-Projekte), **PC1** (Durchreiche), **PB2** (Teilen-UI, App-Link), **PB3** (Beispiele als Ordner, Doku „Projekte und
+> Dateien“) und **PB5** (Pizza-Imperium als Projektordner, Übergangsleser entfernt) ebenso; übrige Pakete siehe §11;
 > `herd/README.md` (Kern-ABI §3, Bildpaket §4) schreibt PD1.
 >
 > **Grundsätze, die überall gelten:** Browser = nativ (K-082) · Interpreter, Wasm und nativer Host bitgleich · keine
@@ -847,7 +847,8 @@ siehe §7.3.
    - Neues kleines Beispiel `grundlagen/rezeptbuch` (3 Dateien: Klassen in `rezepte/`, Konstanten, Geheimrezept) und `grundlagen/kiste`
      (Level aus `daten/level.txt`).
    - Übrige Beispiele (≤ 180 Zeilen) bleiben Ein-Datei-Projekte.
-4. **Pizza-Imperium – erst nach „Idle frei“** (anderer Lead arbeitet an Paket 5/6). Bis dahin bleibt `site/beispiele/idle/pizza-imperium.*`
+4. **Pizza-Imperium – erst nach „Idle frei“** (anderer Lead arbeitet an Paket 5/6). **Erledigt mit PB5** (endgültiger Schnitt und
+   Initialisierungsreihenfolge: „Präzisierungen aus PB5“ in §11; die Tabelle unten ist der ursprüngliche Vorschlag). Bis dahin bleibt `site/beispiele/idle/pizza-imperium.*`
    als Einzeldatei unverändert lauffähig (Übergang: das Umzugswerkzeug überspringt es, Manifest-Eintrag im alten Format wird von Galerie und
    Harnischen weiter gelesen – die Lesefunktion akzeptiert `datei` **oder** `ordner` bis Schritt 4 erledigt ist, danach wird `datei`
    entfernt). Vorgeschlagene Aufteilung (4223 Zeilen, Stand afac084; am 2026-10-23 schon **4808** Zeilen / 287 KiB mit Wettbewerb,
@@ -960,7 +961,7 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
 | **PB2 Teilen-UI + App-Link + EXE** | `teilen.js` (Manifest/Blobs/Schlüssel/Dialog), `app.js`, `#h=`/`#app=` mit `@n`, EXE aus Projekt, E2E Teilen (neu 18, umgestellt 06, 11) | `ui/src/teilen.js`, `ui/src/app.js`, `ui/src/main.js` (Teilen-Abschnitt), `ui/test/teilen.mjs`, `e2e/tests/06-*.mjs`, `e2e/tests/11-*.mjs`, `e2e/tests/18-*.mjs`, `e2e/server.mjs` | PB1, PC1, PA2 | PB3 | **umgesetzt** (Commit „PROJEKTE PB2: …“, 2026-10-24) mit PC1 im selben Stand, auf PA2 (EXE aus Mehrdatei-Projekten über `Pizzaiolo.projekte`); Präzisierungen unten |
 | **PB3 Beispiele umziehen** | Werkzeug (neu), Manifeste, Galerie, Harnische, Doku-Kapitel + `dateien`-Codeblöcke (nur Textdateien; Bilder nur in Beispielen), E2E 05/09/14 | `scripts/beispiele.js`, `site/beispiele/**` (ohne Imperium), `site/js/doku/**`, `ui/src/beispiele.js`, `ui/src/doku.js`, Harnische (`tests/run-tests.js` Gruppen beispiele/doku, `tests/herd/erwartet.js`, `tests/differenz`-Beispielquelle) | PA1, PB1 | PB2 | **umgesetzt** (Commit „PROJEKTE PB3: …“, 2026-10-25; Präzisierungen unten) |
 | **PB4 Herd mit Bildern** | Teigball/Teigfänger/Steuerung aufteilen (Muster §7.3 Schritt 3) + PNG/JPEG-Texturen, `rezeptbuch`, `kiste`, `.herd-erwartet` neu (bewusst; nach HERD.md §12.1 Regel 2 sonst eine Regression – im Commit und in K-145 als gewollt vermerken) | `site/beispiele/herd/**`, `site/beispiele/grundlagen/**` | PB3, PD2, PD3, PA2 | – | offen |
-| **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | offen |
+| **PB5 Imperium** | Aufteilen nach §7.3 (mit `zustand.pizza`), Übergangsleser entfernen | `site/beispiele/idle/**`, Lesefunktion der Manifeste | **„Idle frei“**, PB3 | – | **umgesetzt** (Commit „PROJEKTE PB5: …“, 2026-10-25; Präzisierungen unten) |
 | **PZ Abnahme** | `npm test` (inkl. `node --test durchreiche/test`, `scripts/beispiele.js --pruefe`), `node pruefstand/run.js`, `npm run test:wasm`, `npm run test:differenz`, `cargo test -j 2` (host **und** herd, inkl. `herd/teigling`), `node herd/baue.js --pruefe`, `node herd/test-kern.js`, `node tests/herd/erwartet.js` (Prüfmodus), `node host/test.js` (`PIZZA_KEIN_DIALOG=1`), `npm --prefix ui test`, E2E komplett (headless, eine Chrome-Instanz), `docker compose -f compose.yaml -f compose.lokal.yaml build` (gedrosselt) + Rauchtest `/api/konfig`, CHANGELOG | – | alle | – | offen |
 
 **Präzisierungen aus P0** (im Vertrag festgelegt, wo das Konzept offen war – spätere Pakete richten sich danach):
@@ -1244,6 +1245,42 @@ Alle Fragen der ersten Fassung sind entschieden; das Konzept setzt sie überall 
   Beispiele nur noch als Ordner (HERD.md §12.1 Regel 10). **Für PB5:** Imperium mit `--umziehen` (vorher `UEBERGANG` leeren) oder von Hand
   aufteilen, dann den `datei`-Zweig entfernen: `UEBERGANG`/`pruefeAltenEintrag`/`beispiel()` in `scripts/beispiele.js`, der `datei`-Zweig in
   `ui/src/beispiel-laden.js` (`istGalerieEintrag`, `ladeBeispielDateien`), `erwartet`-Feld in `e2e/hilfen.mjs`, ARCHITEKTUR §3 „Übergang“.
+
+**Präzisierungen aus PB5** (Pizza-Imperium als Projektordner, Übergang entfernt):
+- **Schnitt** (Einzeldatei 4841 Zeilen → `site/beispiele/idle/pizza-imperium/`, 14 `.pizza` mit Dateiköpfen, zusammen 4995 Zeilen; Code
+  zeilenweise unverändert verschoben, Ladereihenfolge = alte Reihenfolge der Deklarationen): `hauptgang.pizza` 218 (Kopf, Spielstand laden,
+  Aufbau der Oberfläche, Tastatur, Uhr, Los) · `zustand.pizza` 231 (spiel, ecke, kammer, speichere, Raster, alle Zettel inkl. zWettbewerb/
+  zAlbum, Bausteine, theke, offene Erfolge) · `modell/upgrades.pizza` 166 (Upgrade, Geheimrezept, Feinkost, Rezept, Meisterbrief,
+  Herausforderung) · `modell/bereiche.pizza` 186 (Bereich, Posten, Kampagne, Helfer, Projekt, Gast, Sticker, Album) · `spiel.pizza` 1975
+  (Katze, Wettbewerb, Sparbuch, Spiel) · `minispiele.pizza` 298 · `erfolge.pizza` 94 (Erfolg + ERFOLGE) · `theke/kopf.pizza` 202 (Kopf und
+  Ablauf: backe, Uhr, nachVerarbeitung, nachKauf/nachLernen/nachAufstieg) · `theke/backstube.pizza` 389 · `theke/bereiche.pizza` 633
+  (Katze-, Wettbewerb-, Album-, Banca-, BereichPanel) · `theke/imperium.pizza` 175 · `theke/nonna.pizza` 208 · `theke/spiele.pizza` 174 ·
+  `theke/erfolge.pizza` 46.
+- **Abweichungen vom Vorschlag oben (§7.3 Schritt 4), alle wegen „kein Kreis“ (P0014):** Katze, Wettbewerb und Sparbuch rechnen mit
+  `Spiel s` und werden vom Spiel angelegt → in `spiel.pizza`; `Erfolg` liest das Spiel → mit der Liste in `erfolge.pizza`. Kopf und
+  Ablauf in einer Datei (der Kopf ruft `backe`/`nachVerarbeitung`, die den Kopf animieren). Die Plätze-Panels rufen den Ablauf, der Ablauf
+  belegt ihre Plätze → **Rezepturen** `Plaetze { belegeNeu() }` und `NonnaPlaetze { belegeRezepte(); belegeProben() }` in
+  `theke/kopf.pizza`, `BetriebPanel`/`HandwerkPanel`/`RezeptPanel`/`BriefPanel`/`NonnaPanel` `erfüllt` sie (Aufruf über die Rezeptur
+  kostet gleich viele Schritte; Felder wie `teil` liest die Hauptdatei wie bisher am Objekt). Kein `theke/rezepte.pizza` (das Rezeptbuch
+  ist ein Backstube-Panel); Kampagne/Projekt sind Bereichs-Inhalte.
+- **Initialisierungsreihenfolge (Prüfbefund §13):** Nebendateien tragen nur Anfangswerte, die nicht vom Spielstand abhängen (Zahlen,
+  Zettel, `neu Spiel()`/`Spielecke`/`Vorratskammer`/`Theke`, Erfolgsliste) – sie laufen vor der Hauptdatei, einige (Raster, Zettel,
+  `theke`) also jetzt vor statt nach dem Laden; geprüft: keiner liest den Stand. Die acht Zutat-Bauer, die Nebendateien brauchen
+  (`wettbewerbPanel`, `kopf`, `rezeptPanel`, `betriebPanel`, `handwerkPanel`, `briefPanel`, `nonnaPanel`, `takt`), stehen dort **ohne**
+  Anfangswert und werden in `hauptgang.pizza` in der alten Reihenfolge nach `ladeAus` gebaut (`kopf = neu KopfPanel();`) – die
+  Reihenfolge der Bindungen bestimmt die Reihenfolge der `aendere`-Einträge und die automatischen IDs, `nonnaPanel`/`takt` entstehen
+  nach der Bereich-Schleife.
+- **Ergebnis:** `pruefung/erwartet`, `ereignisse`, `ui-erwartet` byte-gleich (Git: 100 % Umbenennungen; das Szenario-Werkzeug erzeugt sie
+  aus dem Projekt byte-gleich neu). Alle Ereignisse gleich – Testlauf und Vorrat-Lauf (Stand nach 220 min + 30 min Bot) – bis auf den
+  Ort der W0101-Warnung ohne Kammer (`datei: "zustand.pizza"`, §1.5) und **`schritte`/`zeitMs` des Endes: +5** (fünf Deklarationen ohne
+  Anfangswert à 1 Schritt; `x = neu …;` kostet so viel wie `T x = neu …;`). Abweichung von „Schritte gleich“ oben, bewusst: ohne sie
+  müsste der Ablauf umgebaut oder die Hauptdatei bestellbar sein. Sichtbar nur in `ende` (Spielzeit läuft über Takt-Ereignisse,
+  `@Kühlschrank(haltbar: 1d)` unberührt). Bot-Sternkurve Saat 42 (240 min, Prestige) und Positionsprüfung pi4 (0 Verstöße) gleich wie
+  in Paket 6; Differenz (Interpreter = Wasm) mit dem Projekt.
+- **Übergang entfernt:** `UEBERGANG`, `pruefeAltenEintrag` und der `datei`-Zweig in `beispiel()`/`leseBeispiele()` (`scripts/beispiele.js`;
+  `--pruefe` meldet `datei` immer als Fehler, `--umziehen` bleibt für Einträge aus älteren Zweigen), `datei`-Zweige in
+  `ui/src/beispiel-laden.js`, `erwartet`-Fallback in `e2e/hilfen.mjs`, ARCHITEKTUR §3 „Übergang“; Kommentare in Harnischen nachgezogen.
+  E2E 07 prüft Mehrdatei-Beispiele jetzt in allen Modi über die Galerie (vorher übersprungen – sonst wäre das Imperium dort weggefallen).
 
 Wellen (höchstens 3 parallel, je eigener Worktree): **W1** PA1 · PC1 · PD1 → **W2** PD2 · PA2 · PB1 → **W3** PB2 · PB3 · PD3 → **W4** PB4 ·
 (PB5 sobald frei) → PZ. Merge-Reihenfolge in W2: **PD2 → PA2 → PB1** – PA2 schreibt die Differenzfälle für `Kiste`/`Bildchen.laden`

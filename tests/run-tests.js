@@ -697,7 +697,7 @@ function api() {
 // ---------------------------------------------------------------------
 /**
  * scripts/beispiele.js an einem Mini-Baum (PROJEKTE §7.3): ein Eintrag im alten Format (wie ein später gemergtes neues Beispiel)
- * zieht byte-gleich um, ein zweiter Lauf ändert nichts, das Imperium bleibt (PB5), --pruefe meldet Waisen/Dateiliste/Titel.
+ * zieht byte-gleich um, ein zweiter Lauf ändert nichts, --pruefe meldet Waisen/Dateiliste/Titel; der Leser kennt nur `ordner` (PB5).
  */
 function werkzeugTest() {
   const os = require('os');
@@ -705,24 +705,20 @@ function werkzeugTest() {
   const schreib = (rel, inhalt) => { const p = path.join(basis, ...rel.split('/')); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, inhalt); };
   const gleich = (ist, soll, was) => { if (JSON.stringify(ist) !== JSON.stringify(soll)) throw new Error(was + ': ' + JSON.stringify(ist) + ' ≠ ' + JSON.stringify(soll)); };
   try {
-    schreib('index.json', JSON.stringify({ teile: ['herd.json', 'idle.json'] }));
+    schreib('index.json', JSON.stringify({ teile: ['herd.json'] }));
     schreib('herd.json', JSON.stringify({ kategorie: 'Herd', beispiele: [
       { id: 'neu', titel: 'Neu', beschreibung: 'b', datei: 'herd/neu.pizza', erwartet: 'herd/neu.erwartet', ereignisse: 'herd/neu.ereignisse', herdErwartet: 'herd/neu.herd-erwartet', exitCode: 1, tier: 1, schlagworte: ['Herd'], herd: true, echtzeit: 5 },
-    ] }));
-    schreib('idle.json', JSON.stringify({ kategorie: 'Idle', beispiele: [
-      { id: 'idle-pizza-imperium', titel: 'Imperium', beschreibung: 'b', datei: 'idle/pizza-imperium.pizza', erwartet: 'idle/pizza-imperium.erwartet', exitCode: 0, tier: 2, schlagworte: [] },
     ] }));
     schreib('herd/neu.pizza', 'Bote.sage(("a"));\r\n');
     schreib('herd/neu.erwartet', 'a\n');
     schreib('herd/neu.ereignisse', '{"typ":"takt"}\n');
     schreib('herd/neu.herd-erwartet', '{"art":"schliesse"}\n');
-    schreib('idle/pizza-imperium.pizza', 'Bote.sage(("i"));\n');
-    schreib('idle/pizza-imperium.erwartet', 'i\n');
     const vorher = BSP.pruefe({ basis });
     if (!vorher.some((z) => /altes Format/.test(z))) throw new Error('altes Format nicht gemeldet');
+    gleich(BSP.leseBeispiele({ basis }).length, 0, 'Leser kennt kein altes Format');
     const r = BSP.umziehen({ basis });
     BSP.schreibe({ basis });
-    gleich(r, { umgezogen: ['neu'], uebersprungen: ['idle-pizza-imperium'] }, 'umziehen');
+    gleich(r, { umgezogen: ['neu'] }, 'umziehen');
     gleich(BSP.pruefe({ basis }), [], 'pruefe nach dem Umzug');
     const lies = (rel) => fs.readFileSync(path.join(basis, ...rel.split('/')), 'utf8');
     gleich(lies('herd/neu/hauptgang.pizza'), 'Bote.sage(("a"));\r\n', 'Hauptdatei byte-gleich');
@@ -733,7 +729,7 @@ function werkzeugTest() {
     gleich(Object.keys(e), ['id', 'titel', 'beschreibung', 'ordner', 'dateien', 'exitCode', 'tier', 'schlagworte', 'herd', 'echtzeit'], 'Manifest-Felder');
     gleich(e.dateien, ['pizza.json', 'hauptgang.pizza'], 'dateien');
     const manifest = lies('herd.json');
-    gleich(BSP.umziehen({ basis }), { umgezogen: [], uebersprungen: ['idle-pizza-imperium'] }, 'zweiter Lauf');
+    gleich(BSP.umziehen({ basis }), { umgezogen: [] }, 'zweiter Lauf');
     BSP.schreibe({ basis });
     gleich(lies('herd.json'), manifest, 'zweiter Lauf ändert nichts');
     const b = BSP.leseBeispiele({ basis }).find((x) => x.id === 'neu');
@@ -769,7 +765,7 @@ function beispiele() {
     const t0 = Date.now();
     let r;
     try {
-      // Ordner: das Projekt (genau die Manifest-Dateiliste, wie die Galerie); altes Format (Imperium bis PB5): der Text
+      // das Projekt (genau die Manifest-Dateiliste, wie die Galerie)
       r = P.run(b.programm, Object.assign(b.laufOptionen(), laufFelder(b.optionen)));
     } catch (e) { ergebnis('beispiele', name, 'Testdateien/Lauf: ' + e.message); continue; }
     const probleme = [];

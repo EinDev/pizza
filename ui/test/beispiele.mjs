@@ -1,5 +1,5 @@
 // Galerie (PROJEKTE.md §3.3, §7.2; K-144): Beispiel-Projektordner laden – mit einem fetch, der aus site/ liest (alle echten
-// Beispiele), und mit erfundenen Einträgen (Mehrdatei + Bild, Fehlerfälle, altes Format bis PB5).
+// Beispiele), und mit erfundenen Einträgen (Mehrdatei + Bild, Fehlerfälle; das alte Format `datei` gibt es seit PB5 nicht mehr).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -37,22 +37,17 @@ for (const teil of index.teile) {
     n++;
     assert.ok(log.every((u) => u.startsWith(BASIS) && !u.includes("/pruefung/")), b.id + ": nur Projektdateien angefragt");
     assert.equal(beispielQuelle(b), "beispiel:" + b.id);
-    if (b.ordner) {
-      ordner++;
-      assert.deepEqual(Object.keys(g.dateien), b.dateien, b.id + ": genau die Manifest-Dateiliste");
-      assert.equal(g.name, b.titel, b.id + ": Projektname = Titel");
-      assert.equal(g.hauptdatei, null, b.id + ": Hauptdatei kommt aus pizza.json");
-      const pj = P.projekt.ausDateien(g.dateien);
-      assert.equal(pj.name, b.titel);
-      assert.equal(pj.hauptdatei, "hauptgang.pizza");
-      for (const t of Object.values(g.dateien)) if (typeof t === "string") assert.ok(!t.includes("\r\n"), b.id + ": Texte mit \\n");
-    } else {
-      assert.deepEqual(Object.keys(g.dateien), [g.hauptdatei], b.id + ": altes Format = eine Datei");
-      assert.equal(g.name, b.datei.split("/").pop());
-    }
+    if (b.ordner) ordner++;
+    assert.deepEqual(Object.keys(g.dateien), b.dateien, b.id + ": genau die Manifest-Dateiliste");
+    assert.equal(g.name, b.titel, b.id + ": Projektname = Titel");
+    assert.equal(g.hauptdatei, null, b.id + ": Hauptdatei kommt aus pizza.json");
+    const pj = P.projekt.ausDateien(g.dateien);
+    assert.equal(pj.name, b.titel);
+    assert.equal(pj.hauptdatei, "hauptgang.pizza");
+    for (const t of Object.values(g.dateien)) if (typeof t === "string") assert.ok(!t.includes("\r\n"), b.id + ": Texte mit \\n");
   }
 }
-assert.ok(n > 60 && ordner >= n - 1, "alle Beispiele (bis auf das Imperium bis PB5) sind Ordner: " + ordner + "/" + n);
+assert.ok(n > 60 && ordner === n, "alle Beispiele sind Ordner: " + ordner + "/" + n);
 
 // ---------- erfundenes Mehrdatei-Beispiel mit Bild (PB4) ----------
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -82,6 +77,6 @@ assert.deepEqual(log, ["beispiele/herd/teigball/pizza.json"], "pruefung/ wird ni
 
 // ---------- Galerie-Filter ----------
 assert.equal(istGalerieEintrag({ id: "x", ordner: "a/b", dateien: [] }), false, "Ordner ohne Dateien");
-assert.equal(istGalerieEintrag({ id: "x", datei: "a/b.pizza" }), true, "altes Format (Übergang PB5)");
+assert.equal(istGalerieEintrag({ id: "x", datei: "a/b.pizza" }), false, "altes Format (datei) – seit PB5 nicht mehr");
 assert.equal(istGalerieEintrag(null), false);
 console.log("beispiele.mjs: " + n + " Beispiele geladen (" + ordner + " Ordner), Mehrdatei/Bild/Fehlerfälle ok");

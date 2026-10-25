@@ -1,0 +1,633 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Hof, Stadt und Labor: die zwölf Bereiche
+// ═══════════════════════════════════════════════════════════════════════
+// Ein BereichPanel je Bereich; Katze, Wettbewerb, Sammelalbum und Banca liefern ihm ihre Zeilen (Paket 5).
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "spiel.pizza";
+bestellt "modell/bereiche.pizza";
+
+// ── P5 Katze ── (Oberfläche; Bereich #9, Hof)
+// Zwei Zeilen unter dem Kopf des Bereich-Panels: 1 „Mozzarella: Laune n/5 – Text“ + „🐟 Füttern · Preis“ / „😴 satt, n s“ ·
+// 2 Katzenweisheit + „🫳 Streicheln“ / „wieder in n s“. Den Kopf (bereich-katze-kopf) liefert kopfText – das BereichPanel
+// delegiert. Die Zeilen gehören von Anfang an zum Panel und sind sichtbar, sobald die Katze frei ist (Freischalt-Klick, R1/R3).
+// Quelle aller Texte: `stand` – ein abgeleiteter Zettel (K-125) aus dem Taktgeber und spiel.katze.version: rechnet je Rückruf
+// einmal, meldet aber nur echte Änderungen (K-117). Countdowns lesen zTakt nur, solange eine Pause läuft (Zehnersekunden).
+klasse KatzePanel {
+    Zettel stand;
+    Schild launeInfo;
+    Knopf füttern;
+    Schild weisheitInfo;
+    Knopf streicheln;
+    Blech<Zutat> zeilen = [];
+
+    KatzePanel() {
+        stand = Zettel.aus(() -> { zTakt.wert(); serviere (spiel.katze.version); });
+        launeInfo = kleinSchild("bereich-katze-info-1", 2, SCHILD_BREITE);
+        launeInfo.binde("text", () -> launeZeile());
+        füttern = zeilenKnopf("bereich-katze-knopf-1", KNOPF_BREITE);
+        füttern.binde("text", () -> futterText());
+        füttern.binde("aktiv", () -> futterAktiv());
+        füttern.beiKlick(() -> { falls (spiel.katze.füttere(spiel)) { speichere(); nachKauf(); } });
+        füttern.hinweis("Laune +2 (höchstens 5), danach 3 Minuten satt. Kostet 10 Sekunden Pizza-Umsatz.");
+        weisheitInfo = kleinSchild("bereich-katze-info-2", 2, SCHILD_BREITE);
+        weisheitInfo.binde("text", () -> { falls (!frei()) { serviere (""); } stand.wert(); serviere ("💭 " + spiel.katze.weisheit()); });
+        streicheln = zeilenKnopf("bereich-katze-knopf-2", KNOPF_BREITE);
+        streicheln.binde("text", () -> streichelText());
+        streicheln.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); serviere (spiel.katze.streichelPause <= 0); });
+        streicheln.beiKlick(() -> { falls (spiel.katze.streichle(spiel)) { speichere(); nachKauf(); } });
+        streicheln.hinweis("Laune +1 (höchstens 5), danach 1 Minute Pause. Kostet nichts – Mozzarella entscheidet selbst, ob es ihr gefällt.");
+        zeilen = [zeile("bereich-katze-1", [launeInfo, füttern], ZEILE_HOEHE), zeile("bereich-katze-2", [weisheitInfo, streicheln], ZEILE_HOEHE)];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("katze")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        serviere ("🐱 Mozzarella: +" + spiel.katzePunkte() + " % auf alles (+" + spiel.KATZE_PUNKTE_JE_LAUNE + " je Laune, zählt wie Sterne) · "
+            + k.gefüttert + "× gefüttert, " + k.gestreichelt + "× gestreichelt. Alle 10 min sinkt die Laune um 1.");
+    }
+
+    margherita launeZeile() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        margherita t = "Mozzarella: Laune " + k.laune + "/" + k.HÖCHSTENS + " – " + k.launeText();
+        falls (k.laune <= 0) { serviere (t); }
+        zTakt.wert();   // „hält noch n min“ in ganzen Minuten (K-117: gleicher Text sendet nichts)
+        serviere (t + " (hält noch " + Mathe.decke(k.bisMürrisch / 60) + " min)");
+    }
+
+    margherita futterText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.futterPause > 0) {
+            zTakt.wert();   // Countdown in Zehnersekunden
+            serviere ("😴 satt, " + (Mathe.decke(k.futterPause / 10) * 10) + " s");
+        }
+        zVersion.wert();    // der Preis folgt der Produktion
+        serviere ("🐟 Füttern · " + k.futterPreis(spiel).währung("€", kompakt: ja));
+    }
+
+    diavolo futterAktiv() {
+        falls (!frei()) { serviere (nein); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.futterPause > 0) { serviere (nein); }
+        zTakt.wert();
+        serviere (spiel.geld >= k.futterPreis(spiel));
+    }
+
+    margherita streichelText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert();
+        Katze k = spiel.katze;
+        falls (k.streichelPause > 0) {
+            zTakt.wert();
+            serviere ("🫳 wieder in " + (Mathe.decke(k.streichelPause / 10) * 10) + " s");
+        }
+        serviere ("🫳 Streicheln");
+    }
+}
+// ── Ende P5 Katze (Oberfläche) ──
+
+// ── P5 Wettbewerb ── (Oberfläche; Bereich #10, Stadt)
+// Inhalt des Bereichs-Panels „🏆 Pizza-Wettbewerb“ (bereich-wettbewerb): Das BereichPanel liefert Teaser-Zeile und Kopf und
+// delegiert den Rest hierher – Kopftext (Qualität und Chancen) und vier Zeilen:
+//   bereich-wettbewerb-1 (Reihe): …-info-1 „Nächster: Name in n s“ / „Name – offen, noch n s“ + …-knopf-1 „Teilnehmen · Startgeld“ / „✅ dabei“
+//   …-info-2 letztes Ergebnis · …-info-3 „Pokale: 🥇a 🥈b 🥉c“ · …-info-4 „Bonus +p %“
+// Die Zeilen gehören von Anfang an zum Panel (das BereichPanel hängt `zeilen` an) und sind sichtbar, sobald der Wettbewerb frei
+// ist – das ändert nur der Freischalt-Klick (R1/R3). Danach ändern sich nur Texte und aktiv (R1): Countdown in Zehnersekunden
+// an zTakt (K-117 entprellt), alles andere an zWettbewerb (spiegelt Wettbewerb.version, zustand.pizza), zVersion (Startgeld, Qualität)
+// und zBereiche.
+
+klasse WettbewerbPanel {
+    Schild status;
+    Knopf knopf;
+    Schild ergebnis;
+    Schild pokale;
+    Schild bonus;
+    Blech<Zutat> zeilen = [];
+
+    WettbewerbPanel() {
+        status = kleinSchild("bereich-wettbewerb-info-1", 2, SCHILD_BREITE);
+        status.binde("text", () -> statusText());
+        knopf = zeilenKnopf("bereich-wettbewerb-knopf-1", KNOPF_BREITE);
+        knopf.binde("text", () -> knopfText());
+        knopf.binde("aktiv", () -> knopfAktiv());
+        knopf.beiKlick(() -> { falls (spiel.nimmAmWettbewerbTeil()) { speichere(); nachVerarbeitung(); } });
+        knopf.hinweis("Startgeld = 30 s Umsatz. Das Ergebnis kommt sofort – höchstens eine Teilnahme je Wettbewerb. Pokale bleiben für immer.");
+        Reihe r = zeile("bereich-wettbewerb-1", [status, knopf], ZEILE_HOEHE);
+        ergebnis = kleinSchild("bereich-wettbewerb-info-2", 2, INNEN);
+        ergebnis.binde("text", () -> ergebnisText());
+        pokale = kleinSchild("bereich-wettbewerb-info-3", 1, INNEN);
+        pokale.binde("text", () -> pokaleText());
+        bonus = kleinSchild("bereich-wettbewerb-info-4", 1, INNEN);
+        bonus.binde("text", () -> bonusText());
+        zeilen = [r, ergebnis, pokale, bonus];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("wettbewerb")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        zVersion.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        salami g = w.goldProzent(spiel);
+        serviere ("🏆 Alle 10 min ein Wettbewerb, 2 min offen. Qualität " + w.qualität(spiel) + " (Rezeptseiten + Feinkost + Sterne bis 10): 🥇 "
+            + g + " % · 🥈 " + w.SILBER_PROZENT + " % · 🥉 " + (100 - g - w.SILBER_PROZENT) + " %");
+    }
+
+    margherita statusText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        zTakt.wert();   // Countdown in Zehnersekunden (K-117: gleicher Text sendet nichts)
+        Wettbewerb w = spiel.wettbewerb;
+        falls (w.gesperrt(spiel)) { serviere ("🙏 Fastenzeit – keine Wettbewerbe. " + (w.offen() ? "Die " + w.name() + " läuft ohne dich." : "Nächster: " + w.name() + " in " + (Mathe.decke(w.bis / 10) * 10) + " s")); }
+        falls (w.offen()) {
+            serviere ("🏆 " + w.name() + (w.dabei ? " – angemeldet, schließt in " : " – offen, noch ") + (Mathe.decke(w.offenRest / 10) * 10) + " s");
+        }
+        serviere ("⏳ Nächster: " + w.name() + " in " + (Mathe.decke(w.bis / 10) * 10) + " s");
+    }
+
+    margherita knopfText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        falls (spiel.wettbewerb.dabei) { serviere ("✅ dabei"); }
+        zVersion.wert();
+        serviere ("Teilnehmen · " + spiel.wettbewerb.startgeld(spiel).währung("€", kompakt: ja));
+    }
+
+    diavolo knopfAktiv() {
+        falls (!frei()) { serviere (nein); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        falls (!w.offen() || w.dabei) { serviere (nein); }
+        zTakt.wert();
+        serviere (w.kannTeilnehmen(spiel));
+    }
+
+    margherita ergebnisText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        falls (w.letztes == "") {
+            serviere ("Noch keine Teilnahme – die Jury poliert schon die Gabeln. Das Ergebnis kommt sofort beim Teilnehmen.");
+        }
+        serviere (w.letztes);
+    }
+
+    margherita pokaleText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        serviere ("Pokale: " + w.pokaleText() + " · " + w.teilnahmen + (w.teilnahmen == 1 ? " Teilnahme" : " Teilnahmen"));
+    }
+
+    margherita bonusText() {
+        falls (!frei()) { serviere (""); }
+        zWettbewerb.wert();
+        Wettbewerb w = spiel.wettbewerb;
+        serviere ("Bonus +" + w.bonusPunkte() + " % auf alles (Pokalpunkte 🥇3 🥈2 🥉1, höchstens +" + w.POKAL_HÖCHSTENS + ", zählt wie Sterne)");
+    }
+
+    // Zeilentext des Wettbewerbs-Scouts im Helfer-Panel (angestellt): vor der Freischaltung wie bisher, danach seine Bilanz.
+    // Quellen kommen aus dem Helfer-Panel (zBereiche, zHelfer – jeder Scout-Einsatz zählt versionHelfer hoch).
+    margherita scoutText(Helfer h) {
+        falls (!spiel.istFrei("wettbewerb")) { serviere (h.symbol + " " + h.name + " – wartet auf den ersten Wettbewerb. " + h.text); }
+        salami n = spiel.wettbewerb.scoutTeilnahmen;
+        serviere (h.symbol + " " + h.name + " – meldet dich an, sobald ein Wettbewerb offen ist und das Startgeld reicht. "
+            + (n == 0 ? "Noch nicht im Einsatz." : n + "-mal angemeldet."));
+    }
+}
+WettbewerbPanel wettbewerbPanel;   // gebaut in hauptgang.pizza (vor allen anderen Panels, wie bisher)
+// ── Ende P5 Wettbewerb (Oberfläche) ──
+
+// ── P5 Album ── Oberfläche des Sammelalbums: drei Zeilen zu vier Sticker-Feldern fester Breite (4 · 86 + 3 · 8 = 368 ≤ 370)
+// und fester Zeilenhöhe – ein Fund im Takt (Ereignis, Pino, Nonna) wechselt nur den Text „❔“ → Symbol (R1). Die Zeilen
+// gehören von Anfang an zum Bereich-Panel (das BereichPanel hängt `zeilen` an) und sind sichtbar, sobald das Album frei ist –
+// das ändert nur der Freischalt-Klick (R1/R3). Die
+// Zusammenfassung „n/12 – volle Reihen“ steht wie bei allen Bereichen im Kopf des Panels (albumKopfText, BereichPanel
+// delegiert). Alle Texte hängen an zAlbum (= spiel.album.version, in synchronisiere gesetzt, zustand.pizza) – sie rechnen nur nach
+// einem Fund.
+salami STICKER_BREITE = 86;
+
+margherita albumKopfText() {
+    zBereiche.wert();
+    falls (!spiel.istFrei("album")) { serviere (""); }
+    zAlbum.wert();
+    Album a = spiel.album;
+    falls (a.voll()) { serviere ("📒 Sammelalbum: alle " + a.STICKER.länge() + " Sticker! Volle Reihen: " + a.volleReihen() + " – +" + spiel.albumPunkte() + " % auf alles (zählt wie Sterne, für immer)."); }
+    serviere ("📒 Sammelalbum: " + a.anzahl() + "/" + a.STICKER.länge() + " Sticker – volle Reihen: " + a.volleReihen() + " (+" + spiel.ALBUM_PUNKTE_JE_REIHE
+        + " % auf alles je Reihe, zählt wie Sterne). Sticker bleiben für immer.");
+}
+
+klasse AlbumPanel {
+    Blech<Zutat> zeilen = [];
+    Blech<Schild> felder = [];
+
+    AlbumPanel() {
+        Album a = spiel.album;
+        salami jeReihe = a.STICKER.länge() / a.REIHEN;
+        für (salami r : [1 .. a.REIHEN]) {
+            Blech<Zutat> reihe = [];
+            für (salami j : [1 .. jeReihe]) {
+                salami n = (r - 1) * jeReihe + j;
+                Schild f = kleinSchild("bereich-album-sticker-" + n, 2, STICKER_BREITE);
+                f.stil("ausrichtung", "mitte");
+                f.binde("text", () -> feldText(n));
+                f.binde("hinweis", () -> feldHinweis(n));
+                felder.hinzu(f); reihe.hinzu(f);
+            }
+            Reihe z = zeile("bereich-album-" + r, reihe, ZEILE_HOEHE);
+            z.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei("album")); });
+            zeilen.hinzu(z);
+        }
+    }
+
+    margherita feldText(salami n) {
+        zAlbum.wert();
+        Sticker st = spiel.album.STICKER.stück(n);
+        serviere (spiel.album.hat(st.schlüssel) ? st.symbol + " " + st.name : "❔");
+    }
+
+    margherita feldHinweis(salami n) {
+        zAlbum.wert();
+        Sticker st = spiel.album.STICKER.stück(n);
+        falls (!spiel.album.hat(st.schlüssel)) {
+            serviere ("❔ Noch nicht gefunden. Jedes Ereignis, jede Sonderschicht, jeder Minispiel-Sieg und Wettbewerb hat "
+                + (spiel.ALBUM_FUNDCHANCE * 100).kompakt(1) + " % Chance auf einen fehlenden Sticker. Volle Reihe: +" + spiel.ALBUM_PUNKTE_JE_REIHE + " % auf alles.");
+        }
+        serviere (st.symbol + " " + st.name + " – " + st.text + " Gefunden " + spiel.albumQuelleText(spiel.album.quelle(st.schlüssel)) + ".");
+    }
+}
+// ── Ende P5 Album (Oberfläche) ──
+
+// ── P5 Banca ── (Oberfläche; Bereich #12, Labor)
+// Zwei Zeilen unter dem Kopf: 1 „Guthaben … · Zinsen 1 %/min“ + „10 % einzahlen“ · 2 Spruch + „Alles abheben“. Der Kopf
+// (bereich-banca-kopf, BereichPanel delegiert) zeigt den Deckel („verzinst bis … (30 min Umsatz)“) und die Zinsen bisher.
+// Die Zeilen gehören von Anfang an zum Panel und sind sichtbar, sobald die Banca frei ist (Freischalt-Klick, R1/R3).
+// Quelle: `stand` wie bei der Katze (spiel.sparbuch.version, ändert sich mit den Zinsen jede Sekunde); „einzahlen“ hängt an
+// der Kasse (zTakt). Zinsen ändern nur Text (R1).
+klasse BancaPanel {
+    Zettel stand;
+    Schild guthabenInfo;
+    Knopf einzahlen;
+    Schild spruchInfo;
+    Knopf abheben;
+    Blech<Zutat> zeilen = [];
+
+    BancaPanel() {
+        stand = Zettel.aus(() -> { zTakt.wert(); serviere (spiel.sparbuch.version); });
+        guthabenInfo = kleinSchild("bereich-banca-info-1", 2, SCHILD_BREITE);
+        guthabenInfo.binde("text", () -> {
+            falls (!frei()) { serviere (""); }
+            stand.wert(); zVersion.wert();
+            Sparbuch b = spiel.sparbuch;
+            serviere ("💰 Guthaben " + b.guthaben.währung("€", kompakt: ja) + " · Zinsen " + b.ZINS_PROZENT.kompakt(0) + " %/min"
+                + (b.guthaben > 0 ? " (+" + b.zinsJeSekunde(spiel).währung("€", kompakt: ja) + "/s)" : ""));
+        });
+        einzahlen = zeilenKnopf("bereich-banca-knopf-1", KNOPF_BREITE);
+        einzahlen.setzeText("💶 10 % einzahlen");
+        einzahlen.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); zTakt.wert(); serviere (spiel.sparbuch.einzahlbar(spiel)); });
+        einzahlen.beiKlick(() -> { falls (spiel.sparbuch.zahleEin(spiel)) { speichere(); nachKauf(); } });
+        einzahlen.hinweis("Ein Zehntel der Kasse aufs Sparbuch. Kostet nichts – Abheben holt jeden Cent zurück, samt Zinsen.");
+        spruchInfo = kleinSchild("bereich-banca-info-2", 2, SCHILD_BREITE);
+        spruchInfo.binde("text", () -> { falls (!frei()) { serviere (""); } stand.wert(); serviere ("💬 " + spiel.sparbuch.spruch()); });
+        abheben = zeilenKnopf("bereich-banca-knopf-2", KNOPF_BREITE);
+        abheben.setzeText("🏧 Alles abheben");
+        abheben.binde("aktiv", () -> { falls (!frei()) { serviere (nein); } stand.wert(); serviere (spiel.sparbuch.guthaben > 0); });
+        abheben.beiKlick(() -> { falls (spiel.sparbuch.hebeAb(spiel)) { speichere(); nachKauf(); } });
+        abheben.hinweis("Das ganze Guthaben zurück in die Kasse. Vor einer Neueröffnung abheben – sonst löst Nonna das Sparbuch mit der Kasse auf.");
+        zeilen = [zeile("bereich-banca-1", [guthabenInfo, einzahlen], ZEILE_HOEHE), zeile("bereich-banca-2", [spruchInfo, abheben], ZEILE_HOEHE)];
+        für (Zutat z : zeilen) { z.binde("sichtbar", () -> frei()); }
+    }
+
+    // Quelle der Freischaltung (nach „Neu anfangen“ wieder zu – die Zeilen verschwinden mit dem Klick)
+    diavolo frei() { zBereiche.wert(); serviere (spiel.istFrei("banca")); }
+
+    margherita kopfText() {
+        falls (!frei()) { serviere (""); }
+        stand.wert(); zVersion.wert();
+        Sparbuch b = spiel.sparbuch;
+        serviere ("🏦 Sparbuch: verzinst bis " + b.deckel(spiel).währung("€", kompakt: ja) + " (30 min Umsatz) · Zinsen bisher "
+            + b.zinsenAllzeit.währung("€", kompakt: ja) + ". Zählt nicht für Sterne; die Neueröffnung löst das Sparbuch auf.");
+    }
+}
+// ── Ende P5 Banca (Oberfläche) ──
+
+// ─────────────────────────────── Bereiche (Hof · Stadt · Labor) ─────────
+// Ein Panel je Bereich – unsichtbar, bis der Bereich angeboten ist (Vorgänger der Kette frei). Angeboten zeigt es EINE Zeile:
+// Teaser + Freischalt-Knopf frei-<schlüssel>. Der Freischalt-Klick lässt im selben Rückruf den Inhalt wachsen: Kopfzeile
+// (Zusammenfassung, bereich-<s>-kopf) und die Zeilen des Bereichs (bereich-<s>-<n> mit Schild …-info-<n> und Knopf …-knopf-<n>;
+// Lieferzonen: drei Zeilen mit je zwei halben Knöpfen für sechs Viertel). Bereiche ohne Inhalt (Paket 5) zeigen nur den Kopf.
+//
+// Bereiche mit Inhalt (Garten, Weinkeller, Personal, Lieferzonen, Marketing, Helfer, Stammgäste): Zeile i gehört zu Posten/
+// Kampagne/Helfer/Gast i; der Knopf kauft ein Stück bzw. holt die Belohnung (Klick-Rückruf → nachKauf). Texte hängen an zBereiche
+// und der Inhalts-Version des Bereichs (Kauf, Rundenreset) – Garten, Weinkeller und Marketing zusätzlich an zVersion, weil
+// Pizzapreis und €/s an der Produktion hängen –, Knopf an/aus am Takt (Kasse), aber nur, solange es etwas zu kaufen gibt.
+// Rezeptlabor: Zeile 1 „läuft/bereit“ mit Fortschritt und Knopf „🔬 Forschen · Preis“ / „⏳ läuft“, Zeile 2 „nächstes“, Zeile 3
+// „erforscht: n/10“ – die erscheint mit dem ERSTEN Forschen-Klick (nie im Takt: darunter kann die Banca liegen) und bleibt.
+// Stammgäste: vier Zeilen „Name: Wunsch – „Satz“ (x/y)“ mit Knopf „🎁 Belohnung“ (aktiv, wenn erfüllt – der Zähler bewegt sich im
+// Takt, deshalb hängt die Zeile an zSekunde, solange der Wunsch offen ist).
+klasse BereichPanel {
+    Bereich b;
+    Schild teaser;
+    Knopf freiKnopf;
+    Reihe teaserZeile;
+    Schild kopf;
+    Blech<Schild> infos = [];
+    Blech<Knopf> knöpfe = [];
+    Abschnitt teil;
+    Blech<Posten> posten = [];
+    Fortschritt laborBalken = karton;
+    KatzePanel katzePanel = karton;   // P5: nur bei der Katze
+    AlbumPanel albumPanel = karton;   // 📒 P5: nur beim Sammelalbum
+    BancaPanel bancaPanel = karton;   // P5: nur bei der Banca
+
+    salami zeilenZahl(margherita s) {
+        falls (s == "garten" || s == "lieferzonen" || s == "labor") { serviere (3); }
+        falls (s == "weinkeller" || s == "personal" || s == "marketing" || s == "helfer" || s == "stammgaeste") { serviere (4); }
+        serviere (0);
+    }
+
+    BereichPanel(Bereich bereich) {
+        b = bereich;
+        margherita s = b.schlüssel;
+        posten = spiel.postenVon(s);
+        falls (s == "katze") { katzePanel = neu KatzePanel(); }   // P5: vor der Kopf-Bindung (kopfText delegiert)
+        falls (s == "banca") { bancaPanel = neu BancaPanel(); }
+        teaser = kleinSchild("bereich-" + s + "-teaser", 3, SCHILD_BREITE);
+        teaser.setzeText(b.teaser);
+        freiKnopf = zeilenKnopf("frei-" + s, KNOPF_BREITE);
+        freiKnopf.beiKlick(() -> { falls (spiel.schalteFrei(b.schlüssel)) { speichere(); nachKauf(); } });
+        freiKnopf.hinweis(b.teaser + " Freischalten ist dauerhaft – es überlebt Neueröffnung und Franchise.");
+        freiKnopf.binde("text", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) ? "✅" : "Freischalten · " + b.preis.währung("€", kompakt: ja)); });
+        freiKnopf.binde("aktiv", () -> {
+            zBereiche.wert();
+            falls (!spiel.freischaltbar(b.schlüssel)) { serviere (nein); }
+            zTakt.wert();
+            serviere (spiel.geld >= b.preis);
+        });
+        teaserZeile = zeile("bereich-" + s + "-kopfzeile", [teaser, freiKnopf], ZEILE_HOEHE_3);
+        teaserZeile.binde("sichtbar", () -> { zBereiche.wert(); serviere (!spiel.istFrei(b.schlüssel)); });
+        kopf = kleinSchild("bereich-" + s + "-kopf", 2, INNEN);
+        kopf.binde("text", () -> kopfText());
+        kopf.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel)); });
+        Blech<Zutat> kinder = [teaserZeile, kopf];
+        für (salami i : [1 .. Mathe.max(1, zeilenZahl(s))]) {
+            falls (zeilenZahl(s) == 0) { abbrechen; }   // Bereiche ohne Inhalt (Paket 4/5): nur Teaser-Zeile und Kopf
+            Reihe r = karton;
+            falls (s == "lieferzonen") {
+                // Zwei Viertel je Zeile: Knopf j = 2i−1 bzw. 2i ist Viertel j (Einmal-Kauf, Text „Name · Preis“ → „✅ Name“)
+                Blech<Zutat> paar = [];
+                für (salami j : [2 * i - 1 .. 2 * i]) {
+                    Knopf k = zeilenKnopf("bereich-" + s + "-knopf-" + j, HALB_KNOPF);
+                    k.binde("text", () -> knopfText(j));
+                    k.binde("aktiv", () -> knopfAktiv(j));
+                    k.beiKlick(() -> { falls (spiel.kaufePosten(b.schlüssel, j)) { nachKauf(); } });
+                    k.hinweis(posten.stück(j).text);
+                    knöpfe.hinzu(k); paar.hinzu(k);
+                }
+                r = zeile("bereich-" + s + "-" + i, paar, ZEILE_HOEHE);
+            } sonst falls (s == "labor" && i > 1) {
+                // „nächstes: …“ und „erforscht: n/10“ – nur ein Schild in Innenbreite, kein Knopf
+                Schild info = kleinSchild("bereich-" + s + "-info-" + i, 2, INNEN);
+                info.binde("text", () -> zeilenText(i));
+                infos.hinzu(info);
+                r = zeile("bereich-" + s + "-" + i, [info], ZEILE_HOEHE_TEXT);
+            } sonst {
+                Schild info = kleinSchild("bereich-" + s + "-info-" + i, s == "stammgaeste" ? 3 : 2, SCHILD_BREITE);
+                Knopf k = zeilenKnopf("bereich-" + s + "-knopf-" + i, KNOPF_BREITE);
+                info.binde("text", () -> zeilenText(i));
+                k.binde("text", () -> knopfText(i));
+                k.binde("aktiv", () -> knopfAktiv(i));
+                Blech<Zutat> zk = [info, k];
+                falls (s == "marketing") {
+                    k.beiKlick(() -> { falls (spiel.starteKampagne(i)) { nachKauf(); } });
+                    k.hinweis(spiel.KAMPAGNEN.stück(i).text);
+                } sonst falls (s == "helfer") {
+                    k.beiKlick(() -> { falls (spiel.kaufeHelfer(i)) { speichere(); nachKauf(); } });
+                    k.hinweis(spiel.ALLE_HELFER.stück(i).text);
+                } sonst falls (s == "labor") {
+                    // Zeile 1: Schild + Fortschritt im Stapel (wie ein Upgrade-Platz), Knopf startet das nächste Projekt
+                    laborBalken = neu Fortschritt(id: "bereich-labor-balken");
+                    laborBalken.stil("farbe", "kruste");
+                    laborBalken.binde("wert", () -> laborFortschritt());
+                    Stapel st = neu Stapel([info, laborBalken]);
+                    st.stil("breite", SCHILD_BREITE).stil("abstand", 2);
+                    zk = [st, k];
+                    k.beiKlick(() -> { falls (spiel.starteForschung()) { speichere(); nachKauf(); } });
+                    k.hinweis("Startet das nächste Projekt (nur eins zugleich). Die Forschung läuft in Spielzeit – auch offline, höchstens 30 Minuten – und ihr Bonus gilt für immer, auch nach Neueröffnung und Franchise.");
+                } sonst falls (s == "stammgaeste") {
+                    k.beiKlick(() -> { falls (spiel.belohne(i)) { speichere(); nachKauf(); } });
+                    k.hinweis(spiel.GÄSTE.stück(i).name + ": Ist der Wunsch erfüllt, bringt der Klick " + spiel.BELOHNUNG_PORTIONEN + " Portionen (als Betrieb) und ein Treueherz – +" + spiel.HERZ_PUNKTE.kompakt(1) + " Punkte im Alles-Bonus, für immer (höchstens " + spiel.HERZEN_HÖCHSTENS + " Herzen). Danach kommt der nächste Wunsch.");
+                } sonst {
+                    k.beiKlick(() -> { falls (spiel.kaufePosten(b.schlüssel, i)) { nachKauf(); } });
+                    k.hinweis(posten.stück(i).text);
+                }
+                infos.hinzu(info); knöpfe.hinzu(k);
+                r = zeile("bereich-" + s + "-" + i, zk, s == "stammgaeste" ? ZEILE_HOEHE_3 : ZEILE_HOEHE);
+            }
+            falls (s == "labor" && i == 3) {
+                // erscheint mit dem ersten Forschen-Klick und bleibt (läuft eins oder ist eins fertig) – kein Takt blendet es ein oder aus
+                r.binde("sichtbar", () -> { zBereiche.wert(); falls (!spiel.istFrei("labor")) { serviere (nein); } zLabor.wert(); serviere (spiel.forschungLäuft != "" || !spiel.forschung.istLeer()); });
+            } sonst {
+                r.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel)); });
+            }
+            kinder.hinzu(r);
+        }
+        // P5: Katze, Wettbewerb, Sammelalbum und Banca bauen ihre Zeilen selbst (eigene Panel-Klassen) und liefern den Kopftext
+        falls (s == "katze") { für (Zutat z : katzePanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "wettbewerb") { für (Zutat z : wettbewerbPanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "album") { albumPanel = neu AlbumPanel(); für (Zutat z : albumPanel.zeilen) { kinder.hinzu(z); } }
+        falls (s == "banca") { für (Zutat z : bancaPanel.zeilen) { kinder.hinzu(z); } }
+        teil = panel(b.titel(), "bereich-" + s, kinder);
+        teil.binde("sichtbar", () -> { zBereiche.wert(); serviere (spiel.istFrei(b.schlüssel) || spiel.freischaltbar(b.schlüssel)); });
+    }
+
+    // Quellen des Inhalts: Freischaltung, Inhalts-Version; Garten, Weinkeller und Marketing (Preis = 60 s Umsatz) auch die Produktion
+    diavolo inhaltOffen() {
+        margherita s = b.schlüssel;
+        zBereiche.wert();
+        falls (!spiel.hatInhalt(s) || !spiel.istFrei(s)) { serviere (nein); }
+        zInhalt(s).wert();
+        falls (s == "garten" || s == "weinkeller" || s == "marketing") { zVersion.wert(); }
+        serviere (ja);
+    }
+
+    margherita kopfText() {
+        margherita s = b.schlüssel;
+        falls (s == "katze") { serviere (katzePanel.kopfText()); }   // P5
+        falls (s == "wettbewerb") { serviere (wettbewerbPanel.kopfText()); }
+        falls (s == "album") { serviere (albumKopfText()); }   // 📒 P5
+        falls (s == "banca") { serviere (bancaPanel.kopfText()); }   // P5
+        falls (inhaltOffen()) {
+            falls (s == "garten") { serviere ("🍅 Garten: +" + spiel.gartenProzent().kompakt(1) + " % Preis je Pizza (höchstens +" + spiel.GARTEN_HÖCHSTENS + " %, 20 Stück je Beet) – eine Pizza bringt " + spiel.preis().währung("€") + "."); }
+            falls (s == "weinkeller") { serviere ("🍷 Weinkeller: " + spiel.getränkeWert.währung("€", kompakt: ja) + "/s (" + spiel.getränkeProzent().kompakt(3) + " % extra, läuft von selbst)"); }
+            falls (s == "lieferzonen") {
+                serviere ("🛵 Lieferzonen: " + spiel.viertelAnzahl() + "/" + posten.länge() + " Viertel – +" + spiel.viertelProzent() + " % auf alles (je Viertel +" + spiel.VIERTEL_PROZENT + ", zählt wie Sterne; Einmal-Kauf je Runde)"
+                    + (spiel.viertelAnzahl() >= posten.länge() ? " Ganz Neapel isst bei dir." : ""));
+            }
+            falls (s == "marketing") {
+                salami n = spiel.kampagnenLaufend();
+                falls (n == 0) { serviere ("📣 Marketing: keine Kampagne läuft – jede kostet 60 s Umsatz (" + spiel.kampagnePreis().währung("€", kompakt: ja) + "), mehrere dürfen zugleich laufen."); }
+                serviere ("📣 Marketing: " + n + (n == 1 ? " Kampagne läuft" : " Kampagnen laufen") + " – +" + spiel.marketingPunkte().kompakt(0) + " % auf alles · Preis ×" + spiel.marketingFaktor("preis").kompakt(2));
+            }
+            falls (s == "helfer") {
+                serviere ("🤖 Nonnas Helfer: " + spiel.helfer.länge() + "/" + spiel.ALLE_HELFER.länge() + " angestellt · " + spiel.helferEinsätze + " Einsätze. Sie ersetzen Klicks – nie weniger wert als die Hand.");
+            }
+            falls (s == "labor") {
+                Projekt l = spiel.laufendesProjekt();
+                serviere ("🧪 Rezeptlabor: " + spiel.forschung.länge() + "/" + spiel.PROJEKTE.länge() + " erforscht · " + (l == karton ? "nichts läuft" : "läuft: " + l.name)
+                    + " – eins zugleich, in Spielzeit (auch offline, höchstens 30 min), für immer.");
+            }
+            falls (s == "stammgaeste") {
+                serviere ("❤️ " + spiel.herzen + (spiel.herzen == 1 ? " Herz" : " Herzen") + " – +" + spiel.herzPunkte().kompakt(1) + " Punkte auf alles (wie Sterne, höchstens " + spiel.HERZEN_HÖCHSTENS + " Herzen) · "
+                    + spiel.wünscheErfüllt() + (spiel.wünscheErfüllt() == 1 ? " Wunsch" : " Wünsche") + " erfüllt. Erfüllt → 🎁 " + spiel.BELOHNUNG_PORTIONEN + " Portionen + 1 Herz.");
+            }
+            salami stufen = 0;
+            für (Posten r : posten) { stufen += spiel.stück(s, r); }
+            serviere ("👩‍🍳 Personal " + stufen + "/" + (10 * posten.länge()) + ": Trinkgeld +" + spiel.stufe("luigi") + " · Ofen −" + (spiel.ROSA_PROZENT * spiel.stufe("rosa"))
+                + " % · Rabatt " + (spiel.ENZO_PROZENT * spiel.stufe("enzo")).kompakt(1) + " % · Hawaii +" + (20 * spiel.stufe("bruno")) + " %");
+        }
+        falls (spiel.istFrei(s)) { serviere ("✅ freigeschaltet – der Inhalt kommt im nächsten Paket."); }
+        serviere ("");
+    }
+
+    margherita zeilenText(salami i) {
+        falls (!inhaltOffen()) { serviere (""); }
+        margherita s = b.schlüssel;
+        falls (s == "marketing") {
+            Kampagne c = spiel.KAMPAGNEN.stück(i);
+            serviere (c.symbol + " " + c.name + " – " + c.wirkung() + ". " + c.text);
+        }
+        falls (s == "helfer") {
+            Helfer h = spiel.ALLE_HELFER.stück(i);
+            falls (h.schlüssel == "scout" && spiel.hatHelfer("scout")) { serviere (wettbewerbPanel.scoutText(h)); }   // P5
+            serviere (h.symbol + " " + h.name + " – " + h.wirkung + ". " + h.text);
+        }
+        falls (s == "labor") { serviere (laborText(i)); }
+        falls (s == "stammgaeste") { serviere (gastText(spiel.GÄSTE.stück(i))); }
+        Posten p = posten.stück(i);
+        salami n = spiel.stück(s, p);
+        falls (s == "garten") { serviere (p.symbol + " " + p.name + " ×" + n + " – +" + p.wirkung.kompakt(2) + " % Preis je Stück. " + p.text); }
+        falls (s == "weinkeller") { serviere (p.symbol + " " + p.name + " ×" + n + " – " + spiel.getränkWert(p).währung("€", kompakt: ja) + "/s (" + p.wirkung.kompakt(3) + " % je Stück)"); }
+        serviere (p.symbol + " " + p.name + " – Stufe " + n + "/" + p.höchstens + ": " + spiel.rollenWirkung(p, n));
+    }
+
+    // Knopf i: Lieferzonen i = Viertel 1…6; Marketing/Helfer i = Kampagne/Helfer 1…4; sonst Posten i
+    margherita knopfText(salami i) {
+        falls (!inhaltOffen()) { serviere (""); }
+        margherita s = b.schlüssel;
+        falls (s == "marketing") {
+            Kampagne c = spiel.KAMPAGNEN.stück(i);
+            salami rest = spiel.kampagneRestVon(c.schlüssel);
+            salami pause = spiel.kampagnePauseVon(c.schlüssel);
+            falls (rest > 0 || pause > 0) {
+                zTakt.wert();   // Countdown in Zehnersekunden (K-117: gleicher Text sendet nichts)
+                serviere (rest > 0 ? "⏳ läuft noch " + (Mathe.decke(rest / 10) * 10) + " s" : "☕ Pause " + (Mathe.decke(pause / 10) * 10) + " s");
+            }
+            serviere ("Starten · " + spiel.kampagnePreis().währung("€", kompakt: ja));
+        }
+        falls (s == "helfer") {
+            Helfer h = spiel.ALLE_HELFER.stück(i);
+            serviere (spiel.hatHelfer(h.schlüssel) ? "✅ angestellt" : h.preis.währung("€", kompakt: ja));
+        }
+        falls (s == "labor") {
+            falls (spiel.forschungLäuft != "") { serviere ("⏳ läuft"); }
+            Projekt p = spiel.nächstesProjekt();
+            serviere (p == karton ? "🎓 fertig" : "🔬 Forschen · " + p.preis.währung("€", kompakt: ja));
+        }
+        falls (s == "stammgaeste") { serviere ("🎁 Belohnung"); }
+        Posten p = posten.stück(i);
+        salami n = spiel.stück(s, p);
+        falls (s == "lieferzonen") { serviere (n >= 1 ? "✅ " + p.name : p.name + " · " + p.preisBei(0).währung("€", kompakt: ja)); }
+        falls (n >= p.höchstens) { serviere (s == "personal" ? "✅ Chef" : "✅ voll"); }
+        serviere ((s == "personal" ? "Befördern · " : "") + p.preisBei(n).währung("€", kompakt: ja));
+    }
+
+    diavolo knopfAktiv(salami i) {
+        falls (!inhaltOffen()) { serviere (nein); }
+        margherita s = b.schlüssel;
+        falls (s == "marketing") {
+            Kampagne c = spiel.KAMPAGNEN.stück(i);
+            falls (!spiel.kampagneStartbar(c)) { serviere (nein); }
+            zTakt.wert();
+            serviere (spiel.geld >= spiel.kampagnePreis());
+        }
+        falls (s == "helfer") {
+            Helfer h = spiel.ALLE_HELFER.stück(i);
+            falls (spiel.hatHelfer(h.schlüssel)) { serviere (nein); }
+            zTakt.wert();
+            serviere (spiel.geld >= h.preis);
+        }
+        falls (s == "labor") {
+            falls (!spiel.forschungStartbar()) { serviere (nein); }
+            zTakt.wert();
+            serviere (spiel.geld >= spiel.nächstesProjekt().preis);
+        }
+        falls (s == "stammgaeste") {
+            Gast g = spiel.GÄSTE.stück(i);
+            falls (!spiel.gastZiel.hat(g.schlüssel)) { serviere (nein); }
+            zSekunde.wert();   // der Zähler bewegt sich im Takt (Pizzen, Pino, Nonna …) – je Sekunde nachsehen
+            serviere (spiel.wunschErfüllt(g));
+        }
+        Posten p = posten.stück(i);
+        salami n = spiel.stück(s, p);
+        falls (n >= p.höchstens) { serviere (nein); }
+        zTakt.wert();
+        serviere (spiel.geld >= p.preisBei(n));
+    }
+
+    // 🧪 Rezeptlabor – Zeile 1 „läuft/bereit“, Zeile 2 „nächstes“, Zeile 3 „erforscht“. Rest in Minuten (unter einer Minute in
+    // Zehnersekunden) – K-117: gleicher Text sendet nichts.
+    margherita restText(salami rest) { serviere (rest >= 60 ? Mathe.decke(rest / 60) + " min" : (Mathe.decke(rest / 10) * 10) + " s"); }
+    margherita laborText(salami i) {
+        Projekt l = spiel.laufendesProjekt();
+        falls (i == 1) {
+            falls (l != karton) { zSekunde.wert(); serviere ("⏳ läuft: " + l.symbol + " " + l.name + " · Rest " + restText(spiel.forschungRest) + " – danach " + l.wirkung + "."); }
+            Projekt p = spiel.nächstesProjekt();
+            falls (p == karton) { serviere ("🎓 Alles erforscht – Nonna ist jetzt Doktorin der Pizzologie. Das Labor duftet nach Oregano."); }
+            serviere ("🔬 bereit: " + p.symbol + " " + p.name + " (" + p.minuten() + ") – " + p.wirkung + ". " + p.text);
+        }
+        falls (i == 2) {
+            Projekt p = spiel.danachProjekt();
+            falls (p == karton) { serviere (l == karton && spiel.nächstesProjekt() == karton ? "Nichts mehr zu forschen – Nonna schreibt jetzt Fachartikel." : "danach: nichts mehr – das ist das letzte Projekt."); }
+            serviere ("nächstes: " + p.symbol + " " + p.name + " (" + p.minuten() + ", " + p.preis.währung("€", kompakt: ja) + ") – " + p.wirkung);
+        }
+        salami n = spiel.forschung.länge();
+        falls (n == 0) { serviere ("erforscht: 0/" + spiel.PROJEKTE.länge() + " – Nonna spitzt den Bleistift."); }
+        margherita was = spiel.PROJEKTE.filtere((p) -> (spiel.hatForschung(p.schlüssel))).belege((p) -> (p.symbol)).verbinde(" ");
+        serviere ("erforscht: " + n + "/" + spiel.PROJEKTE.länge() + " – " + was);
+    }
+    // Balken 0…1 in 20 Stufen (spart Nachrichten); ohne laufende Forschung 0
+    funghi laborFortschritt() {
+        falls (!inhaltOffen()) { serviere (0); }
+        Projekt l = spiel.laufendesProjekt();
+        falls (l == karton) { serviere (0); }
+        zSekunde.wert();
+        serviere (Mathe.boden((l.dauer - spiel.forschungRest) / l.dauer * 20) / 20);
+    }
+
+    // 🧑‍🤝‍🧑 Stammgast: „Name: Wunsch – „Satz“ (x/y)“; offen → hängt an zSekunde (Zähler), erfüllt → nur an der Version
+    margherita gastText(Gast g) {
+        falls (!spiel.gastZiel.hat(g.schlüssel)) { serviere (g.symbol + " " + g.name + " schaut auf die Karte."); }
+        margherita art = spiel.gastArt(g);
+        funghi ziel = spiel.gastZielVon(g);
+        // Stand vorn, der Satz hinten – wird er in den drei Zeilen abgeschnitten, bleibt der Stand lesbar
+        margherita kopf_ = g.symbol + " " + g.name + ": " + spiel.wunschText(art, ziel);
+        margherita satz_ = " – „" + g.satz(spiel.wunschNr(g)) + "“";
+        falls (spiel.wunschErfüllt(g)) { serviere (kopf_ + " ✅ erfüllt" + satz_); }
+        zSekunde.wert();
+        serviere (kopf_ + " (" + Spiel.anz(spiel.gastFortschritt(g)) + "/" + Spiel.anz(ziel) + ")" + satz_);
+    }
+}

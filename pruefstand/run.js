@@ -205,7 +205,7 @@ function ladeFälle() {
 }
 
 // Beispiele über den gemeinsamen Leser (scripts/beispiele.js, PROJEKTE §7): Ordner = Projekt (Manifest-Dateiliste) mit
-// pruefung/{erwartet, eingabe, ereignisse, ui-erwartet, herd-erwartet, exitcode}; altes Format (Imperium bis PB5) als Text.
+// pruefung/{erwartet, eingabe, ereignisse, ui-erwartet, herd-erwartet, exitcode}.
 function beispielFälle() {
   const p = "Beispiele (ARCHITEKTUR §3)";
   return teilB.beispiele().filter((b) => b.erwartet !== null).map((b) => {

@@ -58,7 +58,7 @@ for (const d of fs.readdirSync(DIR).filter(x => x.startsWith('herd-') && x.inclu
   if (!melde(b, ist, soll) && schreibe) fs.writeFileSync(p('.herd-erwartet'), ist.map(e => JSON.stringify(e) + '\n').join(''));
 }
 
-// ---------- site/beispiele (gemeinsamer Leser scripts/beispiele.js: Ordner mit pruefung/, Imperium bis PB5 im alten Format) ----------
+// ---------- site/beispiele (gemeinsamer Leser scripts/beispiele.js: Projektordner mit pruefung/) ----------
 console.log('▶ beispiele');
 {
   const BSP = require(path.join(ROOT, 'scripts', 'beispiele.js'));
@@ -74,7 +74,6 @@ console.log('▶ beispiele');
     const soll = b.herdErwartet;
     if (melde(name, ist, soll) || !schreibe) continue;
     // bild.js --schreibe legt pruefung/herd-erwartet und pruefung/erwartet ins Projekt (nach Selbstprüfung gegen kern.wasm)
-    if (b.format !== 'ordner') { fehler++; console.log('    ! ' + name + ': altes Format (datei) – bitte von Hand'); continue; }
     const uhr = [].concat(b.optionen.echtzeit !== undefined ? ['--echtzeit', String(b.optionen.echtzeit)] : [], b.optionen.zone !== undefined ? ['--zone', String(b.optionen.zone)] : []);
     if (b.optionen.zufallsSaat !== undefined || b.optionen.schrittLimit !== undefined || (b.optionen.args && b.optionen.args.length)) {
       fehler++; console.log('    ! ' + name + ': bild.js kennt zufallsSaat/schrittLimit/args nicht – bitte von Hand'); continue;

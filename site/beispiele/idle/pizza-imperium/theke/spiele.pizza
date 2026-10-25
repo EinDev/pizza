@@ -1,0 +1,174 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Spiele
+// ═══════════════════════════════════════════════════════════════════════
+// Die vier Minispiele mit ihrem Spielfeld.
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "minispiele.pizza";
+
+// ─────────────────────────────── Spiele ─────────────────────────────────
+// Eine Spielzeile je Grundspiel (Knopf mini-<grundspiel>) in voller Breite: Die Meister-Variante wechselt nur den Text.
+klasse MinispielZeile {
+    margherita grund;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
+
+    MinispielZeile(margherita g) {
+        grund = g;
+        info = kleinSchild("mini-info-" + g, 2, VOLL_SCHILD);
+        info.binde("text", () -> { zSpiele.wert(); Minispiel m = ecke.variante(grund); serviere (m.symbol + " " + m.name + " – Gewinn: " + m.belohnung + " Sekunden Produktion. " + m.regel); });
+        knopf = zeilenKnopf("mini-" + g, KNOPF_BREITE);
+        knopf.beiKlick(() -> { falls (ecke.starte(grund)) { nachVerarbeitung(); } });
+        knopf.binde("hinweis", () -> { zSpiele.wert(); serviere ("Ein Sieg bringt so viele Pizzen, wie dein Betrieb in " + ecke.variante(grund).belohnung
+            + " Sekunden backt (oder ein Klick, wenn der mehr bringt). Danach macht Nonna zwei Minuten Pause – für alle Spiele."); });
+        knopf.binde("text", () -> {
+            zSpiele.wert(); zVersion.wert(); zSekunde.wert();
+            falls (ecke.läuft == grund) { serviere ("⏳ läuft"); }
+            falls (!ecke.erlaubt()) { serviere ("🙏 Fastenzeit"); }
+            falls (spiel.minispielPause > 0) { serviere ("☕ noch " + (Mathe.decke(spiel.minispielPause / 10) * 10) + " s"); }
+            serviere ("▶ Spielen");
+        });
+        knopf.binde("aktiv", () -> { zSpiele.wert(); zVersion.wert(); zSekunde.wert(); serviere (ecke.läuft == "" && ecke.erlaubt() && spiel.minispielPause <= 0); });
+        reihe = zeile("mini-zeile-" + g, [info, knopf], ZEILE_HOEHE);
+    }
+}
+
+// Oben Nonnas Spielecke mit den vier Spielzeilen (volle Breite), DARUNTER das Spielfeld: Es erscheint beim Start (Klick) und
+// verschwindet mit dem Ende des Spiels (auch im Takt) – ganz unten auf der Seite, darunter liegt nichts. Innen wechseln die
+// Knöpfe des laufenden Spiels. Das Spielfeld hängt am Takt, solange ein Spiel läuft (zSpiele zuerst, zTakt nur dann).
+klasse SpielePanel {
+    Abschnitt spielfeld;
+    Schild spielAnzeige;
+    Fortschritt spielBalken;
+    Schild spielStatus;
+    Blech<Schild> teigFelder = [];
+    Stapel teigTeil;
+    Knopf fangen;
+    Blech<Knopf> belagKnöpfe = [];
+    Stapel belagTeil;
+    Knopf heizen;
+    Knopf lüften;
+    Reihe ofenTeil;
+    Blech<Knopf> routenKnöpfe = [];
+    Stapel routenTeil;
+    Schild miniKopf;
+    Blech<MinispielZeile> zeilen = [];
+    Stapel seite_;
+
+    SpielePanel() {
+        spielAnzeige = neu Schild("", id: "spiel-anzeige");
+        spielAnzeige.stil("schrift", "gross").stil("ausrichtung", "mitte").stil("zeilen", 1).stil("breite", VOLL_INNEN);
+        spielAnzeige.binde("text", () -> anzeigeText());
+        spielAnzeige.bindeStil("farbe", () -> {
+            zSpiele.wert();
+            falls (ecke.läuft != "ofen") { serviere ("normal"); }
+            zTakt.wert();
+            serviere (ecke.ofenImZiel() ? "basilikum" : "tomate");
+        });
+        spielBalken = neu Fortschritt(id: "spiel-balken");
+        spielBalken.stil("farbe", "kruste");
+        spielBalken.binde("wert", () -> { zSpiele.wert(); falls (ecke.läuft == "") { serviere (0); } zTakt.wert(); serviere (Mathe.max(0, Mathe.min(1, ecke.balken()))); });
+        spielStatus = kleinSchild("spiel-status", 2, VOLL_INNEN);
+        spielStatus.stil("ausrichtung", "mitte");
+        spielStatus.binde("text", () -> statusText());
+
+        // Die Bahn des Teigs: 21 Felder à 17 px (357 px), das grüne Ziel ist 3 Felder breit.
+        Reihe teigBahn = neu Reihe([], id: "teig-bahn");
+        teigBahn.stil("abstand", 0).stil("ausrichtung", "mitte");
+        für (salami i : [0 .. 20]) {
+            Schild f = neu Schild("·", id: "teig-feld-" + i);
+            f.stil("breite", 17).stil("ausrichtung", "mitte");
+            f.binde("text", () -> { zSpiele.wert(); falls (ecke.läuft != "teig") { serviere ("·"); } zTakt.wert(); serviere (ecke.feld(i)); });
+            f.bindeStil("farbe", () -> { zSpiele.wert(); serviere (ecke.läuft == "teig" && ecke.imZiel(i) ? "basilikum" : "normal"); });
+            teigFelder.hinzu(f);
+            teigBahn.hinzu(f);
+        }
+        fangen = neu Knopf("✋ Fangen! (Leertaste)", () -> { ecke.fange(); nachVerarbeitung(); }, id: "teig-fangen");
+        fangen.stil("farbe", "tomate").stil("ausrichtung", "mitte").stil("zeilen", 1).hinweis("Genau dann klicken (oder die Leertaste drücken), wenn 🫓 über dem grünen Feld schwebt.");
+        teigTeil = neu Stapel([teigBahn, fangen], id: "teig-teil");
+        teigTeil.stil("abstand", 8);
+        teigTeil.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft == "teig"); });
+
+        Blech<Zutat> belagZeilen = [];
+        Reihe belagReihe = karton;
+        für (salami i : [1 .. ecke.BELÄGE.länge()]) {
+            margherita b = ecke.BELÄGE.stück(i);
+            Knopf k = neu Knopf(i + " · " + b, () -> { ecke.tippe(b); nachVerarbeitung(); }, id: "belag-" + i);
+            k.stil("breite", HALB_KNOPF).stil("zeilen", 1).hinweis("Klicken oder Taste " + i + ".");
+            k.binde("aktiv", () -> { zSpiele.wert(); falls (ecke.läuft != "bestellung") { serviere (ja); } zTakt.wert(); serviere (!ecke.zeigt); });
+            belagKnöpfe.hinzu(k);
+            falls (i % 2 == 1) { belagReihe = neu Reihe([], id: "belag-reihe-" + ((i + 1) / 2)); belagReihe.stil("abstand", 8).stil("ausrichtung", "mitte"); belagZeilen.hinzu(belagReihe); }
+            belagReihe.hinzu(k);
+        }
+        belagTeil = neu Stapel(belagZeilen, id: "belag-teil");
+        belagTeil.stil("abstand", 6);
+        belagTeil.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft == "bestellung"); });
+
+        heizen = neu Knopf("🪵 Holz nachlegen ↑", () -> { ecke.heize(25); nachVerarbeitung(); }, id: "ofen-heizen");
+        heizen.stil("farbe", "tomate").stil("breite", HALB_KNOPF).stil("zeilen", 1).hinweis("+25 °C (oder Pfeil nach oben)");
+        lüften = neu Knopf("💨 Klappe auf ↓", () -> { ecke.heize(-25); nachVerarbeitung(); }, id: "ofen-lueften");
+        lüften.stil("farbe", "mozzarella").stil("breite", HALB_KNOPF).stil("zeilen", 1).hinweis("−25 °C (oder Pfeil nach unten)");
+        ofenTeil = neu Reihe([heizen, lüften], id: "ofen-teil");
+        ofenTeil.stil("abstand", 8).stil("ausrichtung", "mitte");
+        ofenTeil.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft == "ofen"); });
+
+        routenTeil = neu Stapel([], id: "routen-teil");
+        routenTeil.stil("abstand", 6);
+        für (salami i : [1 .. 4]) {    // der vierte Weg nur in der Rushhour
+            Knopf k = neu Knopf("", () -> { ecke.nimmRoute(i); nachVerarbeitung(); }, id: "route-" + i);
+            k.stil("zeilen", 1);
+            k.binde("text", () -> { zSpiele.wert(); serviere (ecke.läuft == "route" && i <= ecke.routen.länge() ? i + " · " + ecke.routen.stück(i) : ""); });
+            k.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft != "route" || i <= ecke.routen.länge()); });
+            routenKnöpfe.hinzu(k);
+            routenTeil.hinzu(k);
+        }
+        routenTeil.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft == "route"); });
+
+        spielfeld = neu Abschnitt("🎲 Spielfeld", [spielAnzeige, spielBalken, spielStatus, teigTeil, belagTeil, ofenTeil, routenTeil], id: "spielfeld");
+        spielfeld.stil("abstand", 8).stil("breite", VOLL).stil("zeilen", 1);
+        spielfeld.binde("titel", () -> { zSpiele.wert(); serviere (ecke.läuft == "" ? "🎲 Spielfeld" : ecke.aktuell.symbol + " " + ecke.aktuell.name); });
+        spielfeld.binde("sichtbar", () -> { zSpiele.wert(); serviere (ecke.läuft != ""); });
+
+        miniKopf = kleinSchild("mini-kopf", 2, VOLL_INNEN);
+        miniKopf.binde("text", () -> {
+            zSpiele.wert(); zVersion.wert(); zSekunde.wert();
+            margherita bilanz = spiel.minispieleGespielt > 0 ? " Bisher " + spiel.minispieleGewonnen + " von " + spiel.minispieleGespielt + " gewonnen." : "";
+            falls (!ecke.erlaubt()) { serviere ("🙏 Fastenzeit: Nonna hat die Spiele weggeräumt – nur der Betrieb backt." + bilanz); }
+            falls (spiel.minispielPause > 0 && ecke.läuft == "") { serviere ("☕ Nonna macht Pause – in " + (Mathe.decke(spiel.minispielPause / 10) * 10) + " s spielt sie wieder mit." + bilanz); }
+            serviere ("Kurze Spiele für zwischendurch: Ein Sieg bringt Pizzen im Wert von 8 bis 13 Sekunden Produktion, danach macht Nonna zwei Minuten Pause. Das Spielfeld erscheint hier unten." + bilanz);
+        });
+        Blech<Zutat> kinder = [miniKopf];
+        für (margherita g : ecke.GRUNDSPIELE) {
+            MinispielZeile z = neu MinispielZeile(g);
+            zeilen.hinzu(z);
+            kinder.hinzu(z.reihe);
+        }
+        Abschnitt spieleTeil = panel("🎲 Nonnas Spielecke", "spielecke", kinder);
+        spieleTeil.stil("breite", VOLL);
+        seite_ = neu Stapel([spieleTeil, spielfeld], id: "seite-spiele");
+        seite_.stil("abstand", 8).stil("breite", VOLL);
+    }
+
+    margherita anzeigeText() {
+        zSpiele.wert();
+        margherita l = ecke.läuft;
+        falls (l == "") { serviere (""); }
+        zTakt.wert();
+        falls (l == "teig") { serviere ("🫓 Der Teig fliegt …"); }
+        falls (l == "bestellung") { serviere (ecke.bestellungText()); }
+        falls (l == "ofen") { serviere ("🌡 " + ecke.grad + " °C"); }
+        serviere ("🛵 Welcher Weg ist am schnellsten?");
+    }
+
+    margherita statusText() {
+        zSpiele.wert();
+        margherita l = ecke.läuft;
+        falls (l == "") { serviere (""); }
+        zTakt.wert();
+        falls (l == "ofen") { serviere ("Ziel " + ecke.zielMin + "–" + ecke.zielMax + " °C · im Ziel: " + ecke.imZiel + " von 10 s (7 nötig) · noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s"); }
+        falls (l == "route") { serviere (ecke.status + " Noch " + Mathe.decke((20 - ecke.ticks) / 2) + " s."); }
+        serviere (ecke.status);
+    }
+}

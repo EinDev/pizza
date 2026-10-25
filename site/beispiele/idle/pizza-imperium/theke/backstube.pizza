@@ -1,0 +1,389 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Backstube
+// ═══════════════════════════════════════════════════════════════════════
+// Upgrade-Plätze, Kaufmenge, Betrieb, Handwerk, Nonnas Rezeptbuch mit Feinkost, Meisterbriefe.
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "modell/upgrades.pizza";
+
+// ─────────────────────────────── Backstube ──────────────────────────────
+// Ein Platz für ein Upgrade: Beschriftung, Balken bis zum Kauf, Kauf-Knopf. Welches Upgrade hier liegt, setzt belege() – nur
+// aus Klick-Rückrufen; ein leerer Platz (karton) ist unsichtbar. Knopftext, Knopf an/aus und Balken teilen sich EINE Rechnung je
+// Takt auf dem abgeleiteten Zettel `stand` (Zettel.aus, K-125): [Text, aktiv, Balken] – kein Memo von Hand.
+klasse UpgradeSlot {
+    Upgrade u = karton;
+    Schild info;
+    Fortschritt balken;
+    Knopf knopf;
+    Reihe reihe;
+    Zettel stand;
+    funghi faktor = 1;      // Preisfaktor (Inflation, Belohnung, Enzo) – in rechne() gesetzt
+    salami grenze = 1000;   // höchstens so viele Stück (Mini-Küche, Anteil-Deckel)
+    salami summeMenge = -1; // für diese Kaufmenge, Stückzahl und diesen Faktor ist `summe` ausgerechnet
+    salami summeAnzahl = -1;
+    funghi summeFaktor = -1;
+    funghi summe = 0;
+
+    UpgradeSlot(margherita id, salami schildBreite) {
+        info = kleinSchild("info-" + id, 2, 0);
+        info.binde("text", () -> { zPlaetze.wert(); zVersion.wert(); serviere (u == karton ? "" : u.zeile); });
+        balken = neu Fortschritt(id: "balken-" + id);
+        balken.stil("farbe", "basilikum");
+        Stapel links = neu Stapel([info, balken]);
+        links.stil("breite", schildBreite).stil("abstand", 2);
+        falls (id == "klein-1") { info.hinweis("Die ältesten Gebäude backen weiter – hier kann man sie weiter ausbauen."); }
+        knopf = neu Knopf("", () -> { kaufeAuf(dies); }, id: "kauf-" + id);
+        knopf.stil("breite", KNOPF_BREITE).stil("zeilen", 2);
+        stand = Zettel.aus(() -> rechne());
+        knopf.binde("text", () -> stand.wert().stück(1));
+        knopf.binde("aktiv", () -> stand.wert().stück(2));
+        balken.binde("wert", () -> stand.wert().stück(3));
+        reihe = neu Reihe([links, knopf], id: "zeile-" + id);
+        reihe.stil("abstand", 8).stil("hoehe", ZEILE_HOEHE);
+        reihe.binde("sichtbar", () -> { zPlaetze.wert(); serviere (u != karton); });
+    }
+
+    // karton = leerer Platz (unsichtbar). Nur aus Klick-Rückrufen.
+    leer belege(Upgrade upgrade) {
+        u = upgrade;
+        summeMenge = -1; maxAnzahl = -1;
+        falls (u != karton) { knopf.hinweis((u.beschreibung)); }
+    }
+
+    // Preis für k Stück (Summe der Einzelpreise mal Faktor) – zwischengespeichert je Kaufmenge, Stückzahl und Faktor
+    funghi summeFür(salami k) {
+        salami gerechnet = Mathe.max(k, 1);
+        falls (summeMenge != gerechnet || summeAnzahl != u.anzahl || summeFaktor != faktor) {
+            summe = u.kostenFür(gerechnet) * faktor;
+            summeMenge = gerechnet;
+            summeAnzahl = u.anzahl;
+            summeFaktor = faktor;
+        }
+        serviere (summe);
+    }
+
+    // Max: Bei 10 Takten pro Sekunde wird nur neu gezählt, wenn die Kasse aus [unten, oben) herausläuft.
+    salami maxK = 0;
+    funghi maxUnten = 0;
+    funghi maxOben = -1;
+    salami maxAnzahl = -1;
+    funghi maxFaktor = -1;
+    salami maxBei(funghi geld) {
+        falls (maxAnzahl == u.anzahl && maxFaktor == faktor && geld >= maxUnten && (maxOben < 0 || geld < maxOben)) { serviere (maxK); }
+        salami k = 0;
+        funghi summe_ = 0;
+        funghi nächster = u.kostenBei(u.anzahl) * faktor;
+        solange (k < 1000 && summe_ + nächster <= geld) {
+            summe_ += nächster;
+            k++;
+            nächster = u.kostenBei(u.anzahl + k) * faktor;
+        }
+        maxK = k; maxUnten = summe_; maxOben = k < 1000 ? summe_ + nächster : -1;
+        maxAnzahl = u.anzahl; maxFaktor = faktor;
+        serviere (k);
+    }
+
+    // Die eine Rechnung des Platzes: [Knopftext, Knopf aktiv, Balken 0…1]. Leere, ausgebaute und verbotene Plätze hängen nur an
+    // Belegung und Version; kaufbare zusätzlich an Kaufmenge und Takt (Kasse).
+    Blech<Vorrat> rechne() {
+        zPlaetze.wert(); zVersion.wert();
+        falls (u == karton) { serviere (["", nein, 0]); }
+        falls (!spiel.erlaubt(u)) {
+            falls (u.ausgebaut()) { serviere (["✅ ausgebaut", nein, 1]); }
+            serviere ([spiel.modus == "" ? "🔒" : "🚫 " + spiel.herausforderung(spiel.modus).name, nein, 0]);
+        }
+        faktor = spiel.preisFaktor();
+        grenze = spiel.kaufGrenze(u);
+        salami menge = zMenge.wert();
+        zTakt.wert();
+        funghi geld = spiel.geld;
+        salami k = menge == 0 ? Mathe.min(maxBei(geld), grenze) : Mathe.min(menge, grenze);
+        funghi s = summeFür(k);
+        margherita text = s.währung("€", kompakt: ja);
+        falls (menge == 0) { text = text + (k > 0 ? " (Max " + k + ")" : " (Max)"); } sonst falls (k > 1) { text = text + " (×" + k + ")"; }
+        diavolo leistbar = k >= 1 && geld >= s;
+        salami st = leistbar ? 20 : Mathe.boden(geld / s * 20);   // Balken in 20 Stufen – spart Nachrichten
+        serviere ([text, leistbar, st / 20]);
+    }
+}
+
+// Kaufmenge 1× · 10× · 100× · Max – eine Auswahl (Theke v4), immer da; die Wahl liegt auf dem Zettel zMenge.
+Blech<salami> MENGEN = [1, 10, 100, 0];
+
+leer kaufeAuf(UpgradeSlot z) {
+    falls (z.u == karton) { serviere; }
+    Upgrade u = z.u;
+    salami menge = zMenge.wert();
+    salami k = menge == 0 ? u.maxFür(spiel.geld / spiel.preisFaktor()) : menge;
+    falls (spiel.kaufe(u, Mathe.min(k, spiel.kaufGrenze(u)))) { nachKauf(); }
+}
+
+// 🏭 Betrieb: wächst je Kauf – 6 Plätze für die jüngsten erreichten Gebäude, nur belegte sind sichtbar. Ab dem siebten
+// Gebäude erscheint OBEN im Panel der klappbare Abschnitt „Kleinbetriebe“ (8 Plätze) mit den ältesten – durch den Kauf, der
+// das siebte aufdeckt (Klick). Erreicht ist ein Gebäude, wenn es das erste ist, man eins hat oder das vorige gekauft ist; die
+// Franchise-Zentrale braucht außerdem eine Kette.
+klasse BetriebPanel erfüllt Plaetze {
+    Blech<UpgradeSlot> slots = [];
+    Blech<UpgradeSlot> klein = [];
+    Abschnitt kleinTeil;
+    Abschnitt teil;
+    salami PLÄTZE = 6;
+    salami erreicht = 0;     // Stand der letzten Belegung (für den Kleinbetriebe-Titel)
+    salami start = 0;        // so viele liegen in den Kleinbetrieben
+
+    BetriebPanel() {
+        Blech<Zutat> kl = [];
+        salami n = spiel.betrieb.länge() - PLÄTZE;
+        für (salami i : [1 .. n]) {
+            UpgradeSlot z = neu UpgradeSlot("klein-" + i, KLEIN_SCHILD);
+            klein.hinzu(z);
+            kl.hinzu(z.reihe);
+        }
+        Stapel kleinStapel = neu Stapel(kl, id: "klein-stapel");
+        kleinStapel.stil("abstand", 6);
+        kleinTeil = neu Abschnitt("", [kleinStapel], id: "kleinbetriebe");
+        kleinTeil.klappbar(ja).zu(ja).stil("abstand", 6).stil("zeilen", 1);
+        kleinTeil.hinweis("Die ältesten Gebäude – sie backen natürlich weiter. Ein Klick auf die Überschrift klappt sie auf oder zu.");
+        kleinTeil.binde("titel", () -> kleinTitel());
+        kleinTeil.binde("sichtbar", () -> { zPlaetze.wert(); serviere (start > 0); });
+        Blech<Zutat> kinder = [kleinTeil];
+        für (salami i : [1 .. PLÄTZE]) {
+            UpgradeSlot z = neu UpgradeSlot("betrieb-" + i, SCHILD_BREITE);
+            slots.hinzu(z);
+            kinder.hinzu(z.reihe);
+        }
+        teil = panel("🏭 Betrieb – Pizzen pro Sekunde", "betrieb", kinder);
+        teil.hinweis("Das nächste Gebäude erscheint, sobald das vorige gekauft ist (14 insgesamt). Ab dem siebten wandern die ältesten in die Kleinbetriebe oben.");
+    }
+
+    // Titel kurz halten: er darf nie umbrechen (zeilen 1)
+    margherita kleinTitel() {
+        zPlaetze.wert(); zVersion.wert();
+        falls (start == 0) { serviere ("🧺 Kleinbetriebe"); }
+        Blech<Upgrade> b = spiel.betrieb;
+        funghi alle = 0;
+        funghi kl = 0;
+        für (salami i : [1 .. erreicht]) { alle += b.stück(i).gesamt(); }
+        für (salami i : [1 .. start]) { kl += b.stück(i).gesamt(); }
+        serviere ("🧺 Kleinbetriebe (" + start + ") · " + prozent(kl, alle) + " der Pizzen");
+    }
+
+    // Belegung – nur aus Klick-Rückrufen (R1): Fenster der 6 jüngsten erreichten Gebäude, der Rest nach vorn in die Kleinbetriebe.
+    leer belegeNeu() {
+        Blech<Upgrade> b = spiel.betrieb;
+        erreicht = 0;
+        Upgrade vorher = karton;
+        für (Upgrade u : b) {
+            diavolo offen = (vorher == karton || u.anzahl > 0 || vorher.anzahl > 0) && (u.schlüssel != "zentrale" || spiel.filialen > 0);
+            falls (!offen) { abbrechen; }
+            erreicht++;
+            vorher = u;
+        }
+        start = Mathe.max(0, erreicht - PLÄTZE);
+        für (salami i : [1 .. PLÄTZE]) {
+            salami n = start + i;
+            slots.stück(i).belege(n <= erreicht ? b.stück(n) : karton);
+        }
+        für (salami i : [1 .. klein.länge()]) {
+            klein.stück(i).belege(i <= start ? b.stück(i) : karton);
+        }
+    }
+}
+
+// 🛠 Handwerk: ein Platz je Werkzeug (IDs kauf-<schlüssel>), sichtbar erst, wenn das vorige gekauft ist – wächst je Kauf.
+klasse HandwerkPanel erfüllt Plaetze {
+    Blech<UpgradeSlot> slots = [];
+    Abschnitt teil;
+
+    HandwerkPanel() {
+        Blech<Zutat> kinder = [];
+        für (Upgrade u : spiel.handwerk) {
+            UpgradeSlot z = neu UpgradeSlot(u.schlüssel, SCHILD_BREITE);
+            slots.hinzu(z);
+            kinder.hinzu(z.reihe);
+        }
+        teil = panel("🛠 Handwerk – mehr Pizzen pro Klick", "handwerk", kinder);
+        teil.hinweis("Das nächste Werkzeug erscheint, sobald das vorige gekauft ist (6 insgesamt).");
+    }
+
+    leer belegeNeu() {
+        Upgrade vorher = karton;
+        für (salami i : [1 .. slots.länge()]) {
+            Upgrade u = spiel.handwerk.stück(i);
+            diavolo offen = vorher == karton || u.anzahl > 0 || vorher.anzahl > 0;
+            slots.stück(i).belege(offen ? u : karton);
+            vorher = u;
+        }
+    }
+}
+
+// 📖 Rezeptbuch (eine Zeile, immer da, oben links) und 🧀 Feinkost-Händler (EINE Zeile mit zwei halben Knöpfen direkt darunter,
+// über dem wachsenden Betrieb). Der Händler erscheint, sobald das Buch ausgelesen ist – aber nur in einem Klick-Rückruf
+// (belegeNeu aus nachKauf/nachAufstieg): Liest Carlo die letzte Seite im Takt, steht das Angebot erst nach dem nächsten Kauf da
+// (R1, §12.9/8). Danach bleibt die Zeile bis zur nächsten Neueröffnung; sie wächst nie: zwei Angebote in der Reihenfolge der
+// Liste („Preis · Name +n %“ im Knopf – der Preis vorn, damit ihn ein langer Name nicht abschneidet; die ganze Beschreibung
+// im Hinweis), das Lager steht im Titel. Hawaii-Verbot: Händler zu.
+klasse RezeptPanel erfüllt Plaetze {
+    Schild rezeptInfo;
+    Knopf rezeptKnopf;
+    Abschnitt teil;
+    Blech<Knopf> knöpfe = [];
+    Abschnitt feinkostTeil;
+
+    RezeptPanel() {
+        rezeptInfo = kleinSchild("rezept-info", 2, SCHILD_BREITE);
+        rezeptInfo.binde("text", () -> {
+            zVersion.wert();
+            falls (spiel.rezeptGesperrt()) { serviere ("📖 Hawaii-Verbot: Nonna hat das Rezeptbuch weggeschlossen – nur Margherita."); }
+            falls (spiel.rezeptFertig()) { serviere ("📖 Das Rezeptbuch ist ausgelesen – grazie, Nonna! Jetzt geht es um die Zutaten."); }
+            serviere ("📖 Seite " + (spiel.seite + 1) + " von " + spiel.SEITEN.länge() + ": " + spiel.SEITEN.stück(spiel.seite + 1) + " kommt auf die Pizza – heute " + spiel.preis().währung("€") + " je Pizza.");
+        });
+        rezeptKnopf = zeilenKnopf("rezept", KNOPF_BREITE);
+        rezeptKnopf.beiKlick(() -> { falls (spiel.blättere()) { nachKauf(); } });
+        rezeptKnopf.hinweis("Jede Seite legt einen Belag auf – die Pizza wird teurer, und jede verkaufte bringt mehr.");
+        rezeptKnopf.binde("text", () -> {
+            zVersion.wert();
+            falls (spiel.rezeptGesperrt()) { serviere ("📖 🔒"); }
+            falls (spiel.rezeptFertig()) { serviere ("📖 ✅"); }
+            serviere ("📖 Seite " + (spiel.seite + 1) + " · " + spiel.seitenKosten().währung("€", kompakt: ja));
+        });
+        rezeptKnopf.binde("aktiv", () -> {
+            zVersion.wert();
+            falls (spiel.rezeptGesperrt() || spiel.rezeptFertig()) { serviere (nein); }
+            zTakt.wert();
+            serviere (spiel.geld >= spiel.seitenKosten());
+        });
+        teil = panel("📖 Nonnas Rezeptbuch", "rezeptbuch", [zeile("rezept-zeile", [rezeptInfo, rezeptKnopf], ZEILE_HOEHE)]);
+        teil.hinweis("Acht Seiten, jede legt einen Belag auf die Margherita. Was heute im Ofen liegt, steht im Hinweis der Kennzahlen.");
+
+        Blech<Zutat> paar = [];
+        für (salami i : [1 .. 2]) {
+            Knopf k = zeilenKnopf("feinkost-kauf-" + i, HALB_KNOPF);
+            k.beiKlick(() -> { falls (spiel.kaufeFeinkost(angebot(i))) { speichere(); nachKauf(); } });
+            k.binde("text", () -> {
+                zPlaetze.wert(); zVersion.wert();
+                Feinkost f = angebot(i);
+                falls (f == karton) {
+                    salami n = spiel.feinkost.länge();
+                    serviere (n >= spiel.HÄNDLER_WAREN.länge() ? "✅ alles im Lager" : "✅ " + n + "/" + spiel.HÄNDLER_WAREN.länge() + " im Lager");
+                }
+                serviere (spiel.feinkostPreis(f).währung("€", kompakt: ja) + " · " + f.symbol + " " + kurzName(f) + " +" + f.plus + " %");
+            });
+            k.binde("aktiv", () -> {
+                zPlaetze.wert(); zVersion.wert();
+                Feinkost f = angebot(i);
+                falls (f == karton) { serviere (nein); }
+                zTakt.wert();
+                serviere (spiel.geld >= spiel.feinkostPreis(f));
+            });
+            knöpfe.hinzu(k);
+            paar.hinzu(k);
+        }
+        feinkostTeil = panel("🧀 Feinkost-Händler", "feinkost", [zeile("feinkost-zeile", paar, ZEILE_HOEHE)]);
+        feinkostTeil.hinweis("Einmal-Käufe gegen Euro: Jede Zutat macht jede Pizza teurer – bis zur nächsten Neueröffnung. Die Angebote kommen der Reihe nach, zwei auf einmal.");
+        // Lager im Titel (eine Zeile) statt einer eigenen Zeile – die Zeile darunter (Betrieb) bleibt stehen
+        feinkostTeil.binde("titel", () -> {
+            zVersion.wert();
+            Blech<Feinkost> lager = spiel.HÄNDLER_WAREN.filtere((x) -> (spiel.feinkost.enthält(x.schlüssel)));
+            falls (lager.istLeer()) { serviere ("🧀 Feinkost-Händler"); }
+            serviere ("🧀 Feinkost-Händler · im Lager: " + lager.belege((x) -> (x.symbol)).verbinde(" "));
+        });
+        feinkostTeil.binde("sichtbar", () -> { zPlaetze.wert(); serviere (offen); });
+    }
+
+    // Stand des Händlers beim letzten Klick-Rückruf – nur belegeNeu() setzt ihn (R1)
+    diavolo offen = nein;
+
+    // Nur aus Klick-Rückrufen: Händler auf/zu (nach dem Stand des Modells) und die Hinweise der beiden Angebote
+    leer belegeNeu() {
+        offen = spiel.feinkostOffen();
+        für (salami i : [1 .. 2]) {
+            Feinkost f = angebot(i);
+            knöpfe.stück(i).hinweis(f == karton ? (offen ? "Mehr hat der Händler nicht – der Rest liegt schon im Lager." : "Der Händler öffnet, sobald das Rezeptbuch ausgelesen ist.") :
+                f.symbol + " " + f.name + " – jede Pizza +" + f.plus + " %. " + f.text + " Einmal kaufen – wirkt bis zur nächsten Neueröffnung.");
+        }
+    }
+
+    // Kurzname für den halben Knopf (der ganze Name steht im Hinweis)
+    margherita kurzName(Feinkost f) {
+        falls (f.schlüssel == "sanmarzano") { serviere ("San Marzano"); }
+        falls (f.schlüssel == "tipo00") { serviere ("Tipo 00"); }
+        falls (f.schlüssel == "büffel") { serviere ("Büffelmozzarella"); }
+        falls (f.schlüssel == "olivenöl") { serviere ("Olivenöl"); }
+        falls (f.schlüssel == "genua") { serviere ("Genua-Basilikum"); }
+        falls (f.schlüssel == "trapani") { serviere ("Trapani-Salz"); }
+        falls (f.schlüssel == "trüffel") { serviere ("Alba-Trüffel"); }
+        serviere (f.name);
+    }
+
+    // Angebot i (1, 2) der Welle – karton, wenn der Händler (beim letzten Klick) zu war oder weniger Angebote übrig sind.
+    // Welle und Lager ändern sich nur durch Klicks (Kauf, Neueröffnung).
+    Feinkost angebot(salami i) {
+        falls (!offen || !spiel.feinkostOffen()) { serviere (karton); }
+        Blech<Feinkost> welle = spiel.feinkostAngebot();
+        serviere (i <= welle.länge() ? welle.stück(i) : karton);
+    }
+}
+
+// 🎓 Meisterbriefe: EINE Zeile mit zwei halben Knöpfen (die beiden billigsten offenen Briefe, „Preis · Name“ im Knopf, Gebäude
+// und Wirkung im Hinweis) – rechts direkt unter der Kaufmenge, über dem wachsenden Handwerk. Die Zeile erscheint mit dem ersten
+// offenen Brief (Gebäude-Kauf = Klick) und bleibt bis zur nächsten Neueröffnung, auch wenn gerade keiner offen ist; ein Brief
+// behält seinen Platz, ein neuer rückt auf den freien – nur Texte wechseln, nichts wächst oder schrumpft (§12.9/8).
+klasse BriefPanel erfüllt Plaetze {
+    Blech<Meisterbrief> platz = [karton, karton];
+    Blech<Knopf> knöpfe = [];
+    Abschnitt teil;
+    diavolo da = nein;      // in dieser Runde schon erschienen (nur belegeNeu setzt es – aus Klick-Rückrufen)
+
+    BriefPanel() {
+        Blech<Zutat> paar = [];
+        für (salami i : [1 .. 2]) {
+            Knopf k = zeilenKnopf("brief-kauf-" + i, HALB_KNOPF);
+            k.beiKlick(() -> { falls (spiel.kaufeBrief(platz.stück(i))) { nachKauf(); } });
+            // Preis mit Meisterrabatt – der kann im Takt fertig werden, deshalb hängt der Knopf auch an zVersion
+            k.binde("text", () -> {
+                zPlaetze.wert(); zVersion.wert();
+                Meisterbrief b = platz.stück(i);
+                serviere (b == karton ? "🎓 kein Brief offen" : spiel.briefPreis(b).währung("€", kompakt: ja) + " · " + b.symbol + " " + b.name);
+            });
+            k.binde("aktiv", () -> {
+                zPlaetze.wert(); zVersion.wert();
+                Meisterbrief b = platz.stück(i);
+                falls (b == karton) { serviere (nein); }
+                zTakt.wert();
+                serviere (spiel.geld >= spiel.briefPreis(b));
+            });
+            knöpfe.hinzu(k);
+            paar.hinzu(k);
+        }
+        teil = panel("", "meisterbriefe", [zeile("brief-zeile", paar, ZEILE_HOEHE)]);
+        teil.hinweis("Hat ein Gebäude 10, 25, 50 oder 100 Stück, gibt es dafür einen Meisterbrief (×1,25). Sie verfallen bei der nächsten Neueröffnung.");
+        // Stand im Titel (eine Zeile) statt einer Kopfzeile
+        teil.binde("titel", () -> { zVersion.wert(); salami n = spiel.briefe.länge(); serviere (n > 0 ? "🎓 Meisterbriefe · " + n + " an der Wand" : "🎓 Meisterbriefe"); });
+        teil.binde("sichtbar", () -> { zPlaetze.wert(); serviere (da); });
+    }
+
+    // Nur aus Klick-Rückrufen (R1). Sichtbar, sobald in dieser Runde ein Brief offen war (offen oder schon an der Wand) –
+    // eine Neueröffnung leert beides, dann verschwindet die Zeile mit dem Klick.
+    leer belegeNeu() {
+        Blech<Meisterbrief> welle = spiel.offeneBriefe();
+        für (salami i : [1 .. 2]) {
+            Meisterbrief b = platz.stück(i);
+            falls (b != karton && !welle.enthält(b)) { platz.setze(i, karton); }
+        }
+        für (Meisterbrief b : welle) {
+            falls (!platz.enthält(b)) {
+                salami frei = 0;
+                für (salami i : [1 .. 2]) { falls (frei == 0 && platz.stück(i) == karton) { frei = i; } }
+                falls (frei > 0) { platz.setze(frei, b); }
+            }
+        }
+        da = !welle.istLeer() || !spiel.briefe.istLeer();
+        für (salami i : [1 .. 2]) {
+            Meisterbrief b = platz.stück(i);
+            knöpfe.stück(i).hinweis(b == karton ? "Gerade ist kein Meisterbrief offen – der nächste kommt mit 10, 25, 50 oder 100 Stück eines Gebäudes." :
+                b.symbol + " " + b.name + ": " + spiel.finde(b.gebäude).name + " backt ×1,25 (ab " + b.stufe + " Stück). Einmal kaufen, wirkt bis zur nächsten Neueröffnung.");
+        }
+    }
+}

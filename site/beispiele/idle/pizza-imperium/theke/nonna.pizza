@@ -1,0 +1,208 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Nonna
+// ═══════════════════════════════════════════════════════════════════════
+// Geheimrezepte (Talentbaum) und Herausforderungen.
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "spiel.pizza";
+bestellt "modell/upgrades.pizza";
+
+// ─────────────────────────────── Nonna ──────────────────────────────────
+// Ein Platz in Nonnas Geheimrezepten (sichtbar nur mit Rezept): Wird das Rezept gelernt, rückt hier das nächste nach (im
+// Klick-Rückruf) – die anderen Plätze bleiben, wo sie sind.
+klasse RezeptPlatz {
+    Geheimrezept r = karton;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
+
+    RezeptPlatz(salami nr) {
+        info = kleinSchild("geheim-info-" + nr, 3, SCHILD_BREITE);
+        info.binde("text", () -> {
+            zPlaetze.wert(); zGeheim.wert();   // nicht an den offenen Reiter gebunden: die Plätze stehen schon beim ersten Öffnen beschriftet da
+            falls (r == karton) { serviere (""); }
+            margherita voraus = r.braucht == "" ? "" : " (nach " + spiel.rezeptNamens(r.braucht).name + ")";
+            serviere (r.symbol + " " + r.name + voraus + " – " + r.text);
+        });
+        knopf = zeilenKnopf("geheim-lernen-" + nr, KNOPF_BREITE);
+        knopf.beiKlick(() -> { falls (r != karton && spiel.lerne(r)) { speichere(); nachLernen(); } });
+        knopf.binde("text", () -> { zPlaetze.wert(); zGeheim.wert(); serviere (r == karton ? "" : Spiel.anz(spiel.rezeptKosten(r)) + " ⭐ lernen"); });
+        knopf.binde("aktiv", () -> { zPlaetze.wert(); zGeheim.wert(); serviere (r != karton && spiel.lernbar(r)); });
+        reihe = zeile("geheim-platz-" + nr, [info, knopf], ZEILE_HOEHE_3);
+        reihe.binde("sichtbar", () -> { zPlaetze.wert(); serviere (r != karton); });
+    }
+}
+
+// Ein Platz bei den Herausforderungen (zwei Plätze, sichtbar nur mit Inhalt). Eine geschaffte bleibt mit „✅ geschafft“
+// stehen, bis ein Klick die nächste nachrücken lässt.
+klasse ProbePlatz {
+    Herausforderung h = karton;
+    Schild info;
+    Knopf knopf;
+    Reihe reihe;
+
+    ProbePlatz(salami nr) {
+        info = kleinSchild("probe-info-" + nr, 3, SCHILD_BREITE);
+        info.binde("text", () -> {
+            zPlaetze.wert(); zGeheim.wert();   // wie die Rezept-Plätze: beschriftet, bevor der Reiter zum ersten Mal offen ist
+            falls (h == karton) { serviere (""); }
+            serviere (h.symbol + " " + h.name + " – Ziel " + h.ziel.währung("€", kompakt: ja) + " Umsatz. " + h.regel + " Belohnung: " + h.belohnung);
+        });
+        knopf = zeilenKnopf("probe-start-" + nr, KNOPF_BREITE);
+        knopf.hinweis("Startet eine Neueröffnung unter Auflagen (wartende Sterne gibt es dazu). Kasse, Upgrades und Rezeptbuch fangen von vorn an.");
+        knopf.beiKlick(() -> {
+            falls (h == karton || !spiel.startbar(h)) { serviere; }
+            falls (!bestätigt(knopf)) { serviere; }
+            falls (spiel.starte(h)) { speichere(); }
+            nachAufstieg();
+        });
+        knopf.binde("text", () -> {
+            zPlaetze.wert(); zGeheim.wert();
+            falls (h == karton) { serviere (""); }
+            falls (spiel.bestanden(h.schlüssel)) { serviere ("✅ geschafft"); }
+            falls (spiel.modus == h.schlüssel) { serviere ("⏳ läuft"); }
+            serviere (mitFrage(knopf, "▶ Wirklich? Nochmal!", "▶ Starten"));
+        });
+        knopf.binde("aktiv", () -> {
+            zPlaetze.wert(); zGeheim.wert();
+            falls (h == karton || spiel.bestanden(h.schlüssel) || spiel.modus == h.schlüssel) { serviere (nein); }
+            serviere (aktivMitFrage(knopf, spiel.startbar(h)));
+        });
+        reihe = zeile("probe-platz-" + nr, [info, knopf], ZEILE_HOEHE_3);
+        reihe.binde("sichtbar", () -> { zPlaetze.wert(); serviere (h != karton); });
+    }
+}
+
+// Die Nonna-Seite erscheint mit dem ersten Stern (Reiter rechts außen). Links die Geheimrezepte (Kopf, bis drei Plätze, darunter
+// „✅ Gelernt“ nach dem ersten Lernen), rechts die Herausforderungen (ab 3 ⭐: Kopf, zwei Plätze, die Zeile der laufenden
+// Herausforderung, ganz unten „✅ Geschafft“ – das erscheint im Takt, darunter liegt nichts).
+klasse NonnaPanel erfüllt NonnaPlaetze {
+    Schild geheimInfo;
+    Blech<RezeptPlatz> rezeptPlätze = [];
+    Schild gelerntInfo;
+    Abschnitt gelerntTeil;
+    Schild probeInfo;
+    Blech<ProbePlatz> probePlätze = [];
+    Fortschritt zielBalken;
+    Knopf aufgeben;
+    Reihe laufendZeile;
+    diavolo laufendBelegt = nein;    // bei der letzten Belegung lief eine Herausforderung (die Zeile bleibt bis zum nächsten Klick)
+    Schild geschafftInfo;
+    Abschnitt geschafftTeil;
+    Abschnitt probeTeil;
+    Reihe seite_;
+
+    NonnaPanel() {
+        geheimInfo = kleinSchild("geheim-kopf", 3, INNEN);
+        geheimInfo.binde("text", () -> {
+            quelleNonna();
+            serviere ("Nonna verrät ihre Geheimnisse nur gegen Michelin-Sterne – du hast " + Spiel.anz(spiel.sterne)
+                + " ⭐. Ein ausgegebener Stern bringt keine +" + spiel.prozentJeStern() + " % mehr; die Rezepte wirken bis zur nächsten Kette.");
+        });
+        Blech<Zutat> links = [geheimInfo];
+        für (salami i : [1 .. 3]) {
+            RezeptPlatz z = neu RezeptPlatz(i);
+            rezeptPlätze.hinzu(z);
+            links.hinzu(z.reihe);
+        }
+        gelerntInfo = kleinSchild("geheim-gelernt", 3, INNEN);
+        gelerntInfo.stil("farbe", "basilikum");
+        gelerntInfo.binde("text", () -> { quelleNonna(); serviere (gelernte().belege((r) -> (r.symbol + " " + r.name)).verbinde(" · ")); });
+        gelerntTeil = neu Abschnitt("", [gelerntInfo], id: "geheim-gelernt-teil");
+        gelerntTeil.klappbar(ja).zu(ja).stil("zeilen", 1);
+        gelerntTeil.binde("titel", () -> {
+            quelleNonna();
+            salami n = gelernte().länge();
+            serviere ("✅ Gelernt: " + n + (n == 1 ? " Geheimrezept" : " Geheimrezepte") + (spiel.offeneRezepte().istLeer() && n > 0 ? " – alles" : ""));
+        });
+        gelerntTeil.binde("sichtbar", () -> { zGeheim.wert(); serviere (!spiel.talente.istLeer()); });
+        links.hinzu(gelerntTeil);
+        Abschnitt geheimTeil = panel("📜 Nonnas Geheimrezepte", "geheimrezepte", links);
+
+        probeInfo = kleinSchild("probe-kopf", 3, INNEN);
+        probeInfo.binde("text", () -> {
+            quelleNonna();
+            falls (spiel.modus != "") {
+                quelleNonnaSekunde();
+                Herausforderung h = spiel.herausforderung(spiel.modus);
+                serviere (h.symbol + " " + h.name + " läuft: " + spiel.umsatz.währung("€", kompakt: ja) + " von " + h.ziel.währung("€", kompakt: ja) + " Umsatz. " + h.regel);
+            }
+            serviere ("Eine Runde unter Auflagen – schaffst du das Ziel, gilt die Belohnung für immer, auch nach einer Franchise-Gründung."
+                + (spiel.filialen <= 0 && spiel.geschafft.länge() >= 3 ? " Mit einer Franchise-Kette wartet die nächste Staffel." : ""));
+        });
+        Blech<Zutat> rechts = [probeInfo];
+        für (salami i : [1 .. 2]) {
+            ProbePlatz z = neu ProbePlatz(i);
+            probePlätze.hinzu(z);
+            rechts.hinzu(z.reihe);
+        }
+        zielBalken = neu Fortschritt(id: "ziel-balken");
+        zielBalken.stil("farbe", "basilikum").stil("breite", SCHILD_BREITE);
+        zielBalken.binde("wert", () -> { quelleNonna(); falls (spiel.modus == "") { serviere (laufendBelegt ? 1 : 0); } quelleNonnaSekunde(); serviere (spiel.zielFortschritt()); });
+        aufgeben = zeilenKnopf("aufgeben", KNOPF_BREITE);
+        aufgeben.stil("farbe", "mozzarella").hinweis("Die Auflagen fallen weg, die Runde läuft normal weiter – ohne Belohnung.");
+        aufgeben.beiKlick(() -> {
+            falls (spiel.modus == "") { serviere; }
+            falls (!bestätigt(aufgeben)) { serviere; }
+            spiel.gibAuf();
+            nachAufstieg();
+        });
+        aufgeben.binde("text", () -> { quelleNonna(); serviere (spiel.modus == "" ? "🏅 geschafft" : mitFrage(aufgeben, "🏳 Wirklich aufgeben? Nochmal!", "🏳 Aufgeben")); });
+        aufgeben.binde("aktiv", () -> { quelleNonna(); serviere (aktivMitFrage(aufgeben, spiel.modus != "")); });
+        laufendZeile = zeile("probe-laufend", [zielBalken, aufgeben], ZEILE_HOEHE_3);
+        // Erscheint mit dem Start (Klick) und verschwindet mit dem nächsten Klick nach dem Ende – nie im Takt (R1)
+        laufendZeile.binde("sichtbar", () -> { zPlaetze.wert(); serviere (laufendBelegt); });
+        rechts.hinzu(laufendZeile);
+        geschafftInfo = kleinSchild("probe-geschafft", 3, INNEN);
+        geschafftInfo.stil("farbe", "basilikum");
+        geschafftInfo.binde("text", () -> { quelleNonna(); serviere (geschaffte().belege((h) -> (h.symbol + " " + h.name + " – " + h.belohnung)).verbinde(" · ")); });
+        geschafftTeil = neu Abschnitt("", [geschafftInfo], id: "probe-geschafft-teil");
+        geschafftTeil.klappbar(ja).zu(ja).stil("zeilen", 1);
+        geschafftTeil.binde("titel", () -> { quelleNonna(); salami g = geschaffte().länge(); serviere ("✅ Geschafft: " + g + (g == 1 ? " Herausforderung" : " Herausforderungen")); });
+        // Die erste Herausforderung wird im Takt geschafft – der Abschnitt steht ganz unten, darunter liegt nichts
+        geschafftTeil.binde("sichtbar", () -> { zGeheim.wert(); serviere (!spiel.geschafft.istLeer()); });
+        rechts.hinzu(geschafftTeil);
+        probeTeil = panel("🏅 Herausforderungen", "herausforderungen", rechts);
+        probeTeil.binde("sichtbar", () -> { zGeheim.wert(); serviere (spiel.herausforderungenOffen()); });
+
+        seite_ = seite("seite-nonna", spalte("nonna-links", [geheimTeil]), spalte("nonna-rechts", [probeTeil]));
+        // Die Seite (und ihr Reiter) erscheint mit dem ersten Stern – durch Neueröffnung oder Herausforderung (Klick)
+        seite_.binde("sichtbar", () -> { zGeheim.wert(); serviere (spiel.rezepteOffen()); });
+        // Badge am Reiter: so viele Geheimrezepte sind gerade lernbar
+        seite_.binde("marke", () -> {
+            zGeheim.wert();
+            falls (!spiel.rezepteOffen()) { serviere (""); }
+            salami n = spiel.offeneRezepte().filtere((x) -> (spiel.lernbar(x))).länge();
+            serviere (n > 0 ? "📜 " + n : "");
+        });
+    }
+
+    Blech<Geheimrezept> gelernte() { serviere (spiel.REZEPTE.filtere((r) -> (spiel.gelernt(r.schlüssel)))); }
+    Blech<Herausforderung> geschaffte() { serviere (spiel.HERAUSFORDERUNGEN.filtere((h) -> (spiel.bestanden(h.schlüssel)))); }
+
+    // Rezept-Plätze neu belegen (nach Lernen, Neueröffnung, Franchise, Neu anfangen)
+    leer belegeRezepte() {
+        Blech<Geheimrezept> welle = spiel.offeneRezepte();
+        für (RezeptPlatz z : rezeptPlätze) { falls (z.r != karton && !welle.enthält(z.r)) { z.r = karton; } }
+        für (Geheimrezept r : welle) {
+            falls (rezeptPlätze.filtere((z) -> (z.r == r)).istLeer()) {
+                Blech<RezeptPlatz> frei = rezeptPlätze.filtere((z) -> (z.r == karton));
+                falls (!frei.istLeer()) { RezeptPlatz z = frei.erstes(); z.r = r; z.knopf.hinweis((r.text)); }
+            }
+        }
+    }
+
+    // Herausforderungs-Plätze neu belegen (nach jedem Klick, der Plätze ordnet: Kauf, Starten, Aufgeben, Neueröffnung, Franchise, Neu anfangen)
+    leer belegeProben() {
+        Blech<Herausforderung> welle = spiel.offeneHerausforderungen();
+        für (ProbePlatz z : probePlätze) { falls (z.h != karton && !welle.enthält(z.h)) { z.h = karton; } }
+        für (Herausforderung h : welle) {
+            falls (probePlätze.filtere((z) -> (z.h == h)).istLeer()) {
+                Blech<ProbePlatz> frei = probePlätze.filtere((z) -> (z.h == karton));
+                falls (!frei.istLeer()) { frei.erstes().h = h; }
+            }
+        }
+        laufendBelegt = spiel.modus != "";
+    }
+}

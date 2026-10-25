@@ -33,12 +33,12 @@ function leseJson(p, fehler) {
 }
 
 // ───────────────────────── Manifeste ─────────────────────────
-// Gemeinsamer Leser (scripts/beispiele.js, PROJEKTE §7, K-144): Ordner + Dateiliste, pizza.json, pruefung/, Waisen, ids, Übergang
-// `datei` nur für das Imperium (PB5) – dieselbe Prüfung wie `node scripts/beispiele.js --pruefe` in `npm test`.
+// Gemeinsamer Leser (scripts/beispiele.js, PROJEKTE §7, K-144): Ordner + Dateiliste, pizza.json, pruefung/, Waisen, ids, kein
+// altes Format (`datei`, seit PB5) – dieselbe Prüfung wie `node scripts/beispiele.js --pruefe` in `npm test`.
 const BSP_LESER = require(path.join(ROOT, "scripts", "beispiele.js"));
 const EXITCODES = BSP_LESER.EXITCODES;
 
-/** Alle Beispiele in gleicher Form (Ordner und altes Format), siehe scripts/beispiele.js. */
+/** Alle Beispiele (Projektordner), siehe scripts/beispiele.js. */
 function beispiele() { return BSP_LESER.leseBeispiele(); }
 
 function ladeManifeste() {
@@ -46,12 +46,12 @@ function ladeManifeste() {
   return { fehler, hinweise: [`${beispiele().length} Beispiele`] };
 }
 
-/** Ausführbar: jede Hauptdatei existiert und hat ein pruefung/erwartet (bzw. .erwartet im Übergang). */
+/** Ausführbar: jede Hauptdatei existiert und hat ein pruefung/erwartet. */
 function pruefeBeispielDateien() {
   const fehler = [];
   for (const b of beispiele()) {
     if (!istDatei(b.hauptdateiPfad)) fehler.push(`${b.name}: Hauptdatei ${b.hauptdateiUrl} fehlt`);
-    if (b.erwartet === null) fehler.push(`${b.name}: keine erwartete Ausgabe (${b.format === "ordner" ? "pruefung/erwartet" : ".erwartet"})`);
+    if (b.erwartet === null) fehler.push(`${b.name}: keine erwartete Ausgabe (pruefung/erwartet)`);
   }
   return { fehler };
 }

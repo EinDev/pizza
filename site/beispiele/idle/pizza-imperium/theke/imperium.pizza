@@ -1,0 +1,175 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  🍕 Pizza-Imperium · Reiter Imperium
+// ═══════════════════════════════════════════════════════════════════════
+// Aufstieg, Neueröffnung, Franchise, Statistik, Neu anfangen.
+
+bestellt "zustand.pizza";
+bestellt "theke/kopf.pizza";
+bestellt "spiel.pizza";
+
+// ─────────────────────────────── Imperium ───────────────────────────────
+// Links: Aufstieg-Tabelle (Zeilen erscheinen mit der erreichten Ebene), Neueröffnung, Franchise (erscheint ab 100 ⭐ in der
+// Kette – auch im Takt, deshalb ganz unten). Rechts: Statistik (feste Zeilen), Neu anfangen.
+// Alles rechnet nur, wenn der Reiter offen ist (quelleImperium) – das Schließen rechnet einmal nach, dann ist Ruhe.
+klasse ImperiumPanel {
+    Tabelle aufstieg;
+    Schild prestigeInfo;
+    Fortschritt prestigeBalken;
+    Knopf prestigeKnopf;
+    Schild franchiseInfo;
+    Fortschritt franchiseBalken;
+    Knopf franchiseKnopf;
+    Abschnitt franchiseTeil;
+    Tabelle statistik;
+    Schild neuInfo;
+    Knopf neuAnfangen;
+    Reihe seite_;
+
+    ImperiumPanel() {
+        aufstieg = neu Tabelle(["Ebene", "Stand"], [], id: "aufstieg");
+        aufstieg.stil("schrift", "klein").stil("zeilen", 2).stil("spalten", [4, 5]);
+        aufstieg.binde("zeilen", () -> aufstiegZeilen());
+        Abschnitt aufstiegTeil = panel("🪜 Dein Aufstieg", "aufstieg-teil", [aufstieg]);
+
+        prestigeInfo = kleinSchild("prestige-info", 2, INNEN);
+        prestigeInfo.binde("text", () -> {
+            quelleImperium();
+            salami neu_ = spiel.neueSterne();
+            falls (neu_ > 0) {
+                serviere ("Der Guide Michelin ist begeistert: " + Spiel.anz(neu_) + (neu_ == 1 ? " Stern" : " Sterne") + " (+" + spiel.prozentJeStern()
+                    + " % je Stern) warten. Neueröffnen setzt Kasse, Upgrades und Rezeptbuch zurück.");
+            }
+            serviere ("Nächster Michelin-Stern ab " + spiel.nächsterStern().währung("€", kompakt: ja) + " Umsatz in dieser Kette (bisher "
+                + spiel.umsatzKette.währung("€", kompakt: ja) + ").");
+        });
+        prestigeBalken = neu Fortschritt(id: "prestige-balken");
+        prestigeBalken.stil("farbe", "kruste").stil("breite", SCHILD_BREITE);
+        prestigeBalken.binde("wert", () -> { quelleImperium(); serviere (spiel.sternFortschritt()); });
+        prestigeKnopf = zeilenKnopf("neueroeffnung", KNOPF_BREITE);
+        prestigeKnopf.stil("farbe", "mozzarella");
+        prestigeKnopf.beiKlick(() -> {
+            falls (!bestätigt(prestigeKnopf)) { serviere; }
+            falls (spiel.neueröffnung()) { speichere(); }
+            nachAufstieg();
+        });
+        prestigeKnopf.hinweis("Kasse, Upgrades und Rezeptbuch fangen von vorn an – die Sterne bleiben (bis zur Franchise-Gründung). Eine laufende Herausforderung endet.");
+        prestigeKnopf.binde("text", () -> { quelleImperium(); salami neu_ = spiel.neueSterne(); serviere (mitFrage(prestigeKnopf, "⭐ Wirklich? Nochmal klicken!", "⭐ Neueröffnung" + (neu_ > 0 ? " (+" + Spiel.anz(neu_) + ")" : ""))); });
+        prestigeKnopf.binde("aktiv", () -> { quelleImperium(); serviere (aktivMitFrage(prestigeKnopf, spiel.neueSterne() > 0)); });
+        Abschnitt sterneTeil = panel("⭐ Neueröffnung", "sterne", [prestigeInfo, zeile("sterne-zeile", [prestigeBalken, prestigeKnopf], ZEILE_HOEHE)]);
+
+        franchiseInfo = kleinSchild("franchise-info", 2, INNEN);
+        franchiseInfo.binde("text", () -> franchiseText());
+        franchiseBalken = neu Fortschritt(id: "franchise-balken");
+        franchiseBalken.stil("farbe", "tomate").stil("breite", SCHILD_BREITE);
+        franchiseBalken.binde("wert", () -> {
+            quelleImperium();
+            salami kette = spiel.sterneKette();
+            salami gesamt = spiel.sterneAllzeit + spiel.neueSterne();
+            salami ziel = spiel.filialen + spiel.neueFilialen() + 1;
+            salami von = spiel.sterneFürFiliale(ziel - 1);
+            serviere (Mathe.min(kette / spiel.FRANCHISE_AB, (gesamt - von) / (spiel.sterneFürFiliale(ziel) - von)));
+        });
+        franchiseKnopf = zeilenKnopf("franchise", KNOPF_BREITE);
+        franchiseKnopf.stil("farbe", "mozzarella");
+        franchiseKnopf.beiKlick(() -> {
+            falls (!bestätigt(franchiseKnopf)) { serviere; }
+            falls (spiel.franchise()) { speichere(); }
+            nachAufstieg();
+        });
+        franchiseKnopf.hinweis("Ab 100 Sternen in einer Kette. Filialen insgesamt = ⌊√(Sterne insgesamt ÷ 2,5)⌋ – 100 Sterne → 6, 250 → 10, 1.000 → 20; jede Filiale +200 % auf alles, für immer (zusammen mit den Sternen). Sterne, Geheimrezepte und die Runde fangen von vorn an; Herausforderungen, Erfolge und Bereiche bleiben.");
+        franchiseKnopf.binde("text", () -> { quelleImperium(); salami f = spiel.neueFilialen(); serviere (mitFrage(franchiseKnopf, "🏢 Wirklich? Nochmal klicken!", "🏢 Kette gründen" + (f > 0 ? " (+" + Spiel.anz(f) + ")" : ""))); });
+        franchiseKnopf.binde("aktiv", () -> { quelleImperium(); serviere (aktivMitFrage(franchiseKnopf, spiel.neueFilialen() > 0)); });
+        franchiseTeil = panel("🏢 Franchise – Kette gründen", "franchise-teil", [franchiseInfo, zeile("franchise-zeile", [franchiseBalken, franchiseKnopf], ZEILE_HOEHE)]);
+        // Erscheint ab 100 ⭐ in der Kette (kann im Takt kommen – ganz unten in der Spalte) und bleibt, sobald es eine Kette gibt
+        franchiseTeil.binde("sichtbar", () -> { quelleImperium(); serviere (franchiseOffen()); });
+
+        statistik = neu Tabelle(["Kennzahl", "Wert"], [], id: "statistik");
+        statistik.stil("schrift", "klein").stil("zeilen", 1).stil("spalten", [1, 1]);
+        statistik.binde("zeilen", () -> statistikZeilen());
+        Abschnitt statistikTeil = panel("📊 Statistik", "statistik-teil", [statistik]);
+
+        neuInfo = kleinSchild("neu-info", 2, SCHILD_BREITE);
+        neuInfo.setzeText("Alles auf Anfang – Sterne, Filialen, Bereiche, Erfolge, Statistik und der gespeicherte Spielstand.");
+        neuAnfangen = zeilenKnopf("neu-anfangen", KNOPF_BREITE);
+        neuAnfangen.stil("farbe", "mozzarella").hinweis("Löscht den Spielstand in der Vorratskammer.");
+        neuAnfangen.beiKlick(() -> {
+            falls (!bestätigt(neuAnfangen)) { serviere; }
+            spiel.allesZurück();
+            kammer.leeren();
+            sortiereErfolge();
+            nachAufstieg();
+        });
+        neuAnfangen.binde("text", () -> mitFrage(neuAnfangen, "🗑 Wirklich alles? Nochmal klicken!", "🗑 Neu anfangen"));
+        Abschnitt neuTeil = panel("🗑 Neu anfangen", "neu-teil", [zeile("neu-zeile", [neuInfo, neuAnfangen], ZEILE_HOEHE)]);
+
+        seite_ = seite("seite-imperium", spalte("imperium-links", [aufstiegTeil, sterneTeil, franchiseTeil]), spalte("imperium-rechts", [statistikTeil, neuTeil]));
+        // Badge am Reiter: wartende Sterne bzw. eine Kette, die gegründet werden kann (Reitertitel bleibt fest)
+        seite_.binde("marke", () -> {
+            zGeheim.wert(); zSekunde.wert();
+            salami neu_ = spiel.neueSterne();
+            falls (neu_ > 0) { serviere ("⭐ " + Spiel.anz(neu_)); }
+            serviere (spiel.neueFilialen() > 0 ? "🏢" : "");
+        });
+    }
+
+    // Die Franchise ist Thema, sobald die Kette 100 ⭐ hat oder es schon Filialen gibt
+    diavolo franchiseOffen() { serviere (spiel.filialen > 0 || spiel.sterneKette() >= spiel.FRANCHISE_AB); }
+
+    // Zeilen erscheinen mit der Ebene (nur durch Klicks: Neueröffnung, Herausforderung, Franchise) – „Zusammen“ steht immer unten
+    Blech<Blech<margherita>> aufstiegZeilen() {
+        quelleImperium();
+        salami ausgegeben = spiel.sterneVergeben - spiel.sterne;
+        funghi f = 1 + spiel.sterne * spiel.prozentJeStern() / 100 + spiel.filialen * spiel.PROZENT_JE_FILIALE / 100 + (spiel.BONUS_ADDITIV ? spiel.bonusPunkte() / 100 : 0);
+        Blech<Blech<margherita>> z = [
+            ["⭐ Sterne", Spiel.anz(spiel.sterne) + " aktiv" + (ausgegeben > 0 ? " · " + Spiel.anz(ausgegeben) + " ausgegeben" : "")
+                + " → +" + Spiel.anz(spiel.sterne * spiel.prozentJeStern()) + " %"]
+        ];
+        falls (spiel.rezepteOffen()) { z.hinzu(["📜 Geheimrezepte", spiel.talente.länge() + " von " + spiel.REZEPTE.länge() + " gelernt"]); }
+        falls (spiel.herausforderungenOffen()) { z.hinzu(["🏅 Herausforderungen", spiel.geschafft.länge() + " von " + spiel.HERAUSFORDERUNGEN.länge() + " geschafft"]); }
+        falls (spiel.filialen > 0) { z.hinzu(["🏢 Franchise", Spiel.anz(spiel.filialen) + (spiel.filialen == 1 ? " Filiale" : " Filialen") + " → +" + Spiel.anz(spiel.filialen * spiel.PROZENT_JE_FILIALE) + " %"]); }
+        z.hinzu(["Zusammen", "×" + f.kompakt(2) + " auf alles (Sterne" + (spiel.filialen > 0 ? " + Filialen" : "") + (spiel.BONUS_ADDITIV && spiel.bonusPunkte() > 0 ? " + Bereiche" : "") + ")"]);
+        serviere (z);
+    }
+
+    margherita franchiseText() {
+        quelleImperium();
+        salami kette = spiel.sterneKette();
+        salami gesamt = spiel.sterneAllzeit + spiel.neueSterne();
+        salami filialenNeu = spiel.neueFilialen();
+        salami ziel = spiel.filialen + filialenNeu + 1;          // die nächste Filiale danach
+        margherita nächste = "Die " + Spiel.anz(ziel) + ". Filiale gibt es ab " + Spiel.anz(spiel.sterneFürFiliale(ziel)) + " Sternen insgesamt (bisher " + Spiel.anz(gesamt) + ").";
+        falls (filialenNeu > 0) {
+            serviere ("Deine Sterne reichen für " + Spiel.anz(filialenNeu) + (filialenNeu == 1 ? " neue Filiale" : " neue Filialen") + " (+"
+                + Spiel.anz(filialenNeu * spiel.PROZENT_JE_FILIALE) + " % auf alles, für immer). Sterne, Geheimrezepte und die Runde fangen von vorn an.");
+        }
+        falls (kette < spiel.FRANCHISE_AB) { serviere ("Eine Kette gründen kannst du ab 100 Sternen in der laufenden Kette (bisher " + Spiel.anz(kette) + "). " + nächste); }
+        serviere ("Für eine neue Filiale fehlen noch Sterne. " + nächste);
+    }
+
+    Blech<Blech<margherita>> statistikZeilen() {
+        quelleImperium();
+        serviere ([
+            ["Pizzen (Runde)", spiel.pizzen.kompakt(1)],
+            ["Pizzen (insgesamt)", spiel.pizzenAllzeit.kompakt(1)],
+            ["Umsatz insgesamt", spiel.umsatzAllzeit.währung("€", kompakt: ja)],
+            ["Anteil Klicken (Runde)", prozent(spiel.umsatzKlick, spiel.umsatz)],
+            ["Anteil Klicken (gesamt)", prozent(spiel.umsatzKlickAllzeit, spiel.umsatzAllzeit)],
+            ["Anteil Minispiele (Runde)", prozent(spiel.umsatzMini, spiel.umsatz)],
+            ["Anteil Minispiele (gesamt)", prozent(spiel.umsatzMiniAllzeit, spiel.umsatzAllzeit)],
+            ["Getränkeumsatz", spiel.umsatzGetränkeAllzeit.währung("€", kompakt: ja) + " (" + prozent(spiel.umsatzGetränkeAllzeit, spiel.umsatzAllzeit) + ")"],
+            ["Klicks", spiel.klicks.tausender()],
+            ["Spielzeit", (1s * spiel.sekunden).alsText()],
+            ["Michelin-Sterne (insgesamt)", Spiel.anz(spiel.sterneAllzeit)],
+            ["Neueröffnungen", spiel.neueröffnungen.alsText()],
+            ["Franchise-Gründungen", spiel.franchises.alsText()],
+            ["Bereiche frei", spiel.frei.länge() + " von " + spiel.BEREICHE.länge()],
+            ["Perfekte Pizzen", spiel.perfekte.alsText()],
+            ["Hawaii-Gäste bekehrt", spiel.hawaiiBekehrt.alsText()],
+            ["Großbestellungen pünktlich", spiel.pünktlich.alsText()],
+            ["Sonderschichten", spiel.sonderschichten.alsText()],
+            ["Minispiele gewonnen", spiel.minispieleGewonnen + " von " + spiel.minispieleGespielt],
+            ["Marketing-Kampagnen", spiel.kampagnenGestartet.alsText()],
+            ["Helfer-Einsätze", spiel.helferEinsätze.alsText()]
+        ]);
+    }
+}
