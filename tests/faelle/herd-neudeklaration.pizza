@@ -1,0 +1,35 @@
+// Herd-Rückgabetypen in Hilfsfunktionen, die Teil liefern: ein Parameter wird im Rumpf unter demselben Namen mit anderem Typ neu
+// deklariert (Form → Teil über herd.koerper, Zahl → Teil über herd.gruppe/herd.raum, Text → Teil über finde, Teil → Komponente).
+// Der Compiler lehnte das früher mit „Variable … wird im selben Scope mit anderem Typ neu deklariert“ ab (Herd-Beispiel Hafen).
+Herd herd = neu Herd("Neudeklaration", breite: 160, hoehe: 90);
+Teil kasten(Form rumpf, funghi x) {
+    Teil rumpf = herd.koerper(rumpf, x, 0, -4, farbe: "tomate");
+    rumpf.setzeGroesse(0.5);
+    serviere (rumpf);
+}
+Teil gruppe(salami gruppe) {
+    Teil gruppe = herd.gruppe(gruppe * 10, 5);
+    gruppe.mit(neu Etikett(name: "Gruppe"));
+    serviere (gruppe);
+}
+Teil raum(funghi raum) {
+    Teil raum = herd.raum(raum, raum * 2, 0);
+    serviere (raum);
+}
+Teil finde(Teil wurzel, margherita name) {
+    Teil name = wurzel.finde(name);
+    serviere (name);
+}
+Etikett etikett(Teil e) {
+    Etikett e = e.etikett();
+    serviere (e);
+}
+Teil a = kasten(Form.wuerfel(), 1.5);
+Teil b = kasten(Form.kugel(), -1.5);
+Teil g = gruppe(3);
+Teil r = raum(0.5);
+Bote.sage((a.x() + " " + b.x() + " " + a.groesse() + " " + g.x() + " " + g.y() + " " + r.x() + " " + r.y()));
+Bote.sage((finde(g, "Gruppe") == g) + " " + etikett(g).name());
+herd.raum(0, 1, 4).mit(neu Kamera()).teil().schaueAuf(0, 0, -4);
+herd.backe(() -> { });
+Bote.sage(("fertig"));

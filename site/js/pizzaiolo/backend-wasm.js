@@ -1186,7 +1186,11 @@
       }
       const slot = d.ziel.slot;
       const s = this.fn.slots[slot];
-      if (s.zelle && s.redekl) throw new NichtUnterstuetzt('erneut deklarierte gefangene Variable \'' + d.name + '\'', a.p);
+      // eine frühere Bindung desselben Namens (Neudeklaration mit anderem Typ) darf nicht gefangen sein: Lambdas lesen im
+      // Interpreter die Bindung erst beim Aufruf und sähen dann schon die neue
+      let alteGefangen = false;
+      for (let v = s.redeklVon; v !== undefined && !alteGefangen; v = this.fn.slots[v].redeklVon) alteGefangen = this.fn.slots[v].zelle;
+      if ((s.zelle && s.redekl) || alteGefangen) throw new NichtUnterstuetzt('erneut deklarierte gefangene Variable \'' + d.name + '\'', a.p);
       this.speichereSlotNeu(slot, t);
       if (s.unbelegt) c.i32(d.init ? 0 : 1).set(this.unbelegtLok[slot]);
     }

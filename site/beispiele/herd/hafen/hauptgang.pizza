@@ -35,14 +35,15 @@ für (salami i : [0 .. 3]) {
 }
 
 // Schwimmendes: Rumpf = unsichtbarer Fühler-Kasten mit Schwung und Auftrieb, das Modell hängt daran
-leer schwimmer(Modell m, funghi x, funghi z, funghi drehung, funghi b, funghi h, funghi t, funghi auftrieb, funghi masse) {
+Teil schwimmer(Modell boot, funghi x, funghi z, funghi drehung, funghi b, funghi h, funghi t, funghi auftrieb, funghi masse) {
     Teil rumpf = herd.raum(x, 0.6, z);
     rumpf.setzeDrehung(drehung);
     rumpf.mit(neu Fuehler(form: "kasten", breite: b, hoehe: h, tiefe: t, ausloeser: nein));
     rumpf.mit(neu Schwung(schwerkraft: 9.81, masse: masse, auftrieb: auftrieb, drehdaempfung: 0.2));
-    Teil modell = herd.modell(m, 0, 0, 0);
-    modell.haenge(rumpf);
-    modell.setzeLage(0, -h * 0.5, 0);
+    Teil boot = herd.modell(boot, 0, 0, 0);
+    boot.haenge(rumpf);
+    boot.setzeLage(0, -h * 0.5, 0);
+    serviere (rumpf);
 }
 
 herd.modell(Modell.laden("modelle/cargo-pile-a.glb"), -9.5, 0.6, -12).setzeDrehung(90);
@@ -58,10 +59,11 @@ schwimmer(segler, -1, -12, 70, 1.6, 1, 3.6, 1.7, 3);
 schwimmer(boje, 6.5, 3, 0, 0.8, 1, 0.8, 1.6, 1);
 
 // Kisten treiben im Becken
-leer kiste(funghi x, funghi y, funghi z, funghi drehung, funghi tempoX, funghi tempoY) {
+Teil kiste(funghi x, funghi y, funghi z, funghi drehung, funghi tempoX, funghi tempoY) {
     Teil k = herd.koerper(Form.wuerfel(), x, y, z, farbe: "#a8763e").setzeGroesse(0.8).setzeDrehung(drehung);
     k.mit(neu Fuehler(ausloeser: nein));
     k.mit(neu Schwung(schwerkraft: 9.81, auftrieb: 1.7, drehdaempfung: 0.2, tempoX: tempoX, tempoY: tempoY));
+    serviere (k);
 }
 kiste(0.5, 0.5, 2, 20, 0, 0);
 kiste(1.6, 0.5, 6, 55, 0, 0);

@@ -164,10 +164,15 @@
       const vorh = sc.vars.get(name);
       if (vorh !== undefined) {
         const slot = sc.fn.slots[vorh];
-        slot.typen.add(typ ? typKey(typ) : '');
-        if (slot.typen.size > 1 || slot.gebacken !== !!gebacken) this.nein('Variable \'' + name + '\' wird im selben Scope mit anderem Typ neu deklariert', n);
         slot.redekl = true;
-        return vorh;
+        if (slot.typen.has(typ ? typKey(typ) : '') && slot.gebacken === !!gebacken) return vorh;
+        // anderer Typ (oder gebacken): wie im Interpreter eine neue Bindung unter demselben Namen – eigener Slot,
+        // z. B. Parameter 'Modell rumpf' und danach 'Teil rumpf = herd.modell(rumpf, …)'. Spätere Zugriffe sehen den neuen Slot;
+        // Lambdas lesen im Interpreter die Bindung zur Aufrufzeit, darum bleibt eine gefangene Neudeklaration ausgenommen (Backend).
+        const s = this.neuerSlot(sc.fn, name, typ, gebacken);
+        sc.fn.slots[s].redeklVon = vorh;
+        sc.vars.set(name, s);
+        return s;
       }
       const s = this.neuerSlot(sc.fn, name, typ, gebacken);
       sc.vars.set(name, s);

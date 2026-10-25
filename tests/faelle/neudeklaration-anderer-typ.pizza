@@ -1,0 +1,49 @@
+// Neudeklaration mit anderem Typ im selben Scope (Parameter → Lokale, Lokale → Lokale, Lambda-Parameter): neue Bindung wie
+// im Interpreter; Zuweisungen danach prüfen gegen den neuen Typ. Der Compiler legte früher denselben Slot an und lehnte ab.
+salami laenge(margherita wort) {
+    salami wort = wort.länge();
+    serviere (wort * 10);
+}
+margherita beschrifte(funghi wert) {
+    margherita wert = "Wert " + wert;
+    wert = wert + "!";
+    serviere (wert);
+}
+diavolo gerade(salami n) {
+    salami n = n % 2;
+    diavolo n = n == 0;
+    serviere (n);
+}
+funghi doppelt(salami a) {
+    gebacken salami a = a * 2;
+    serviere (a + 0.5);
+}
+Bote.sage((laenge("Pizza")));
+Bote.sage((beschrifte(2.5)));
+Bote.sage((gerade(4) + " " + gerade(7)));
+Bote.sage((doppelt(3)));
+Rezept zaehle = (margherita x) -> {
+    salami x = x.länge();
+    serviere (x + 1);
+};
+Bote.sage((zaehle("Anna") + zaehle("Bo")));
+{
+    salami z = 1;
+    Bote.sage((z + 1));
+    margherita z = "zwei";
+    Bote.sage((z + "!"));
+    salami z = 3;
+    Bote.sage((z * 2));
+}
+margherita spaeter(salami n) {
+    margherita n = "n" + n;
+    Rezept r = () -> n + "?";
+    serviere (r());
+}
+Bote.sage((spaeter(4)));
+margherita falsch(salami k) {
+    margherita k = "text";
+    k = 5;
+    serviere (k);
+}
+Bote.sage((falsch(1)));
