@@ -1,12 +1,14 @@
 // Klangkulisse: Aufnahmen und Erzeugtes gemischt (Klang.laden H-K19a, Klang H-K14). Regen, ferne Stadt und Schritte kommen als
 // CC0-Aufnahmen aus klaenge/ (quellen.md) und laufen zusammen mit den erzeugten Schichten – das Erzeugte gibt Raum und Höhen (Prasseln,
-// Platschen), die Aufnahme die natürliche Unruhe. Regen rauscht so stark, wie es regnet (REGENSTAERKE), die Stadt brummt von fern, jedes Neonschild summt an seinem Platz, Drohnen surren über die Straße – der Hörer ist die Kamera: was links
-// ist, klingt links, was weit weg ist, leiser und dumpfer. Dazu Schritte auf nassem Asphalt im Takt des Laufens (im Sprint
+// Platschen), die Aufnahme die natürliche Unruhe. Regen rauscht so stark, wie es regnet (REGENSTAERKE), die Stadt brummt von fern, jedes Neonschild summt an seinem Platz, Drohnen surren über die Straße, in die
+// Gullys plätschert das Regenwasser – Schilder, Drohnen und Gullys tragen dafür einen Schall (H-K22), der Klang folgt dem Teil von selbst;
+// der Hörer ist die Kamera: was links ist, klingt links, was weit weg ist, leiser. Dazu Schritte auf nassem Asphalt im Takt des Laufens (im Sprint
 // schneller und härter), Tropfen um den Boten herum, ein Ping an der Theke und eine Tür mit Fanfare bei jeder Lieferung.
 // Im Browser setzt der Ton mit dem ersten Klick ins Bild ein (der fängt auch die Maus); der Lautsprecher im Fensterkopf schaltet stumm.
 bestellt "zustand.pizza";
 bestellt "welt/wetter.pizza";
 bestellt "welt/neon.pizza";
+bestellt "welt/strasse.pizza";
 bestellt "spieler.pizza";
 bestellt "auftraege.pizza";
 
@@ -37,6 +39,9 @@ Klang schritt(salami saat, funghi tief) {
     serviere ((tritt.mische(platsch, ab: 0.01).huelle(anschlag: 0.002, abfall: 0.05, halten: 0.4, ausklang: 0.09)));
 }
 Blech<Klang> SCHRITTE = [schritt(11, 420), schritt(23, 360)];
+// Wasser im Gully: gurgelndes Rauschen (tief) mit hellem Plätschern darüber, nahtlose Schleife
+Klang GULLY_K = Klang.rauschen(3, art: "braun", lautstaerke: 0.8, saat: 311).tiefpass(420)
+    .mische(Klang.rauschen(3, art: "rosa", lautstaerke: 0.35, saat: 312).hochpass(900).tiefpass(4200)).nahtlos(0.4);
 // Tropfen: kurzer, fallender Ton
 Klang TROPFEN_K = Klang.ton(1900, 0.07, lautstaerke: 0.35, bis: 650, anschlag: 0.001, ausklang: 0.05);
 // Ping an der Theke, Fanfare bei der Lieferung, Tür (dumpfer Schlag)
@@ -47,7 +52,6 @@ Klang TUER_K = Klang.rauschen(0.3, art: "braun", lautstaerke: 0.9, anschlag: 0.0
 
 // ---------- Spuren ----------
 Spur REGEN_SPUR = karton;
-Blech<Spur> DROHNEN_SPUR = [];
 salami SCHRITT_NR = 0;          // Halbschritte seit Beginn (floor(phase / π))
 salami TROPFEN_ZAEHLER = 0;
 salami KLANG_GELIEFERT = 0;
@@ -59,15 +63,16 @@ leer baueKlangkulisse() {
     REGEN_K.spiele(schleife: ja, lautstaerke: 0.22 * REGENSTAERKE);
     STADT_A.spiele(schleife: ja, lautstaerke: 0.45);
     STADT_K.spiele(schleife: ja, lautstaerke: 0.18);
-    // je Schild ein Summen am Schild (leise, kurze Reichweite – im Vorbeigehen hörbar)
-    für (salami i = 1; i <= SCHILD_ORTE.länge(); i += 3) {
-        NEON_K.spiele(schleife: ja, lautstaerke: 0.5, tonhoehe: 1 + (i % 4) * 0.01)
-              .setzeLage(SCHILD_ORTE.stück(i), SCHILD_ORTE.stück(i + 1), SCHILD_ORTE.stück(i + 2)).setzeReichweite(9);
+    // Schall an den Teilen (H-K22): je Schild ein Summen (leise, kurze Weite – im Vorbeigehen hörbar), je Drohne ein Surren, das
+    // mitfliegt, je Gully ein Plätschern so stark, wie es regnet
+    für (salami i = 1; i <= SCHILDER.länge(); i++) {
+        SCHILDER.stück(i).mit(neu Schall(klang: NEON_K, lautstaerke: 0.5, tonhoehe: 1 + (i % 4) * 0.01, nah: 0.5, weite: 9));
     }
     für (salami i = 1; i <= DROHNEN.länge(); i++) {
-        Teil d = DROHNEN.stück(i);
-        DROHNEN_SPUR.hinzu(DROHNE_K.spiele(schleife: ja, lautstaerke: 0.9, tonhoehe: 0.9 + i * 0.07)
-                                  .setzeLage(d.x(), d.y(), d.z()).setzeReichweite(45));
+        DROHNEN.stück(i).mit(neu Schall(klang: DROHNE_K, lautstaerke: 0.9, tonhoehe: 0.9 + i * 0.07, nah: 2, weite: 45));
+    }
+    für (salami i = 1; i <= GULLYS.länge(); i++) {
+        GULLYS.stück(i).mit(neu Schall(klang: GULLY_K, lautstaerke: 0.5 * REGENSTAERKE, tonhoehe: 0.9 + (i % 3) * 0.1, nah: 0.8, weite: 11));
     }
 }
 
@@ -83,13 +88,6 @@ leer klangTakt(Spieler s, Lieferung l, salami bild) {
         // aufgenommener Schritt (drei Varianten, nie zweimal derselbe hintereinander) und darüber das erzeugte Platschen der Pfützen
         SCHRITTE_A.stück(n % 3 + 1).spiele(lautstaerke: 0.9 * laut + 0.15, tonhoehe: 1 + 0.08 * s.sprint - 0.03 * (n % 2), panorama: pan);
         SCHRITTE.stück(n % 2 + 1).spiele(lautstaerke: 0.45 * laut, tonhoehe: 1 + 0.12 * s.sprint - 0.04 * (n % 3), panorama: pan);
-    }
-    // Drohnen: Lage sechsmal je Sekunde (dazwischen gleitet die Wiedergabe)
-    falls (bild % 10 == 0) {
-        für (salami i = 1; i <= DROHNEN.länge(); i++) {
-            Teil d = DROHNEN.stück(i);
-            DROHNEN_SPUR.stück(i).setzeLage(d.x(), d.y(), d.z());
-        }
     }
     // Tropfen von Dachkanten und Schildern: etwa jede halbe Sekunde irgendwo um den Boten
     falls (bild % 29 == 7) {

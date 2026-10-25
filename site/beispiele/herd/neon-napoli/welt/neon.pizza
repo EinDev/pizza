@@ -8,14 +8,14 @@ bestellt "welt/strasse.pizza";
 Blech<Koerper> FLACKER_K = [];
 Blech<Licht> FLACKER_L = [];
 Blech<funghi> FLACKER_S = [];
-// Orte aller Schilder (x, y, z je Schild) – für das Summen der Klangkulisse
-Blech<funghi> SCHILD_ORTE = [];
+// alle Schilder – in der Klangkulisse summt an jedem ein Schall
+Blech<Teil> SCHILDER = [];
 
 // Schild an einer Fassade (seite −1 links, 1 rechts; quer = ragt senkrecht in die Straße und zeigt nach +z)
 Teil schild(margherita name, funghi x, funghi y, funghi z, funghi b, funghi h, salami seite, diavolo quer, margherita farbe, funghi strahlen, diavolo flackert) {
     funghi drehung = quer ? 0 : (seite < 0 ? 90 : -90);
     Teil t = tafel(Bildchen.laden("bilder/" + name + ".png"), x, y, z, b, h, drehung, strahlen);
-    SCHILD_ORTE.hinzu(x).hinzu(y).hinzu(z);
+    SCHILDER.hinzu(t);
     // dunkle Trägerplatte dahinter
     falls (!quer) {
         herd.koerper(WUERFEL, x + seite * 0.06, y, z).setzeGroesse(0.06, h * 1.08, b * 1.04).koerper().setzeBelag(SCHWARZ);
