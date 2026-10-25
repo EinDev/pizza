@@ -1,0 +1,78 @@
+# H-K23a (HERD.md §13.3): Puppe – Folgen aus dem Testmodell puppe.glb (scripts/modelle-test.js, 50 Knoten) nativ = kern.wasm.
+# N Puppen à 50 Gelenke (B15: 100 × 50), je ein Drittel Winken/Nicken/Welle mit verschiedenen Tempi; eine Puppe ohne Schleife
+# (fertig), eine springt (zeit), eine blendet nach einigen Takten auf eine andere Folge und zurück in die Ruhelage; eine Kopie
+# und ein Ding an der Hand. Geprüft je Bild: Szenen-Hash (enthält alle Lagen) und Lesefelder.
+vorgabe N 30
+vorgabe TAKTE 20
+welt_neu 640 360 "Puppe"
+modell_datei "herd/teigling/testmodelle/puppe.glb" -> M
+typ_nummer "Puppe" -> T_P
+typ_nummer "Kamera" -> T_KA
+feld_nummer T_P "folge" -> P_FOLGE
+feld_nummer T_P "tempo" -> P_TEMPO
+feld_nummer T_P "schleife" -> P_SCHL
+feld_nummer T_P "zeit" -> P_ZEIT
+feld_nummer T_P "blende" -> P_BLENDE
+feld_nummer T_P "dauer" -> P_DAUER
+feld_nummer T_P "fertig" -> P_FERTIG
+teil_neu 3 -> kam
+teil_lage kam 0 4 14
+teil_schaue kam 0 0 0
+komp_neu T_KA -> ka
+komp_haenge ka kam
+wiederhole N i
+  modell_teil M (i * 0.7 - 10) 0 0 -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Winken"
+  setze_zahl p P_TEMPO (0.5 + i * 0.05)
+  komp_haenge p r
+  modell_teil M (i * 0.7 - 10) 3 0 -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Nicken"
+  setze_zahl p P_ZEIT (i * 0.01)
+  komp_haenge p r
+  modell_teil M (i * 0.7 - 10) -3 0 -> r
+  komp_neu T_P -> p
+  setze_text p P_FOLGE "Welle"
+  setze_zahl p P_TEMPO (1 - i * 0.07)
+  komp_haenge p r
+ende
+# ohne Schleife
+modell_teil M 0 6 0 -> E
+komp_neu T_P -> PE
+setze_text PE P_FOLGE "Welle"
+setze_zahl PE P_SCHL 0
+setze_zahl PE P_TEMPO 8
+komp_haenge PE E
+# Wechsel mit Überblenden
+modell_teil M 3 6 0 -> W
+komp_neu T_P -> PW
+setze_text PW P_FOLGE "Winken"
+setze_zahl PW P_BLENDE 0.1
+komp_haenge PW W
+teil_finde W "Hand" -> HAND
+teil_neu 3 -> DING
+teil_haenge DING HAND
+teil_lage DING 0.2 0 0
+bild
+takte 4
+hole_zahl PW P_DAUER
+setze_text PW P_FOLGE "Welle"
+takte 3
+teil_kopie W -> K
+teil_lage K 6 6 0
+setze_zahl PW P_ZEIT 1.25
+takte 4
+setze_text PW P_FOLGE ""
+bild
+takte TAKTE
+hole_zahl PE P_FERTIG
+hole_zahl PE P_ZEIT
+hole_zahl PW P_DAUER
+teil_hole DING 15
+teil_hole DING 16
+paket_voll
+bild
+takte TAKTE
+hole_zahl PE P_FERTIG
+bild

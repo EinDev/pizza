@@ -346,6 +346,7 @@
                 ["`Figur`","3D","`laufX`/`laufZ` 0, `sprung` 0, `schwerkraft` 9.81, `stufe` 0.3, `hang` 45, `haut` 0.02, `schieben` 0, `mitfahren` ja; nur lesen: `amBoden`, `boden`, `bodenHoehe`, `bodenNormaleX`/`Y`/`Z`, `tempoX`/`Y`/`Z`, `anWand`, `anDecke`","Figur-Steuerung: eine aufrechte Kapsel läuft mit dem Wunschtempo, springt, steigt Stufen, gleitet an Wänden, rutscht an zu steilen Hängen und fährt auf bewegten Böden mit – braucht einen `Fuehler`"],
                 ["`Strahl`","3D","`richtungX`/`richtungZ` 0, `richtungY` −1, `achsen` welt, `laenge` 1000, `maske` alle, `ausloeser` nein, `ausMaus` nein; nur lesen: `getroffen`, `abstand`, `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`","Strahl-Abfrage: was liegt in einer Richtung (oder unter der Maus)? Beim Lesen gerechnet, trifft Fühler-Formen; nach unten gerichtet die Höhe über einem Gelände"],
                 ["`Etikett`","beide","`name` \"\"","Name eines Teils: `herd.modell` setzt ihn je Knoten eines 3D-Modells; `teil.finde(name)` sucht ihn im Teilbaum"],
+                ["`Puppe`","3D","`folge` \"\", `tempo` 1, `schleife` ja, `zeit` 0, `laeuft` ja, `blende` 0.2; nur lesen: `dauer`, `fertig`","Spielt die Animationen (Folgen) eines Modells aus `herd.modell` ab und blendet beim Wechsel über; die Knoten bleiben Teile, an die man etwas hängen kann"],
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1390,6 +1391,31 @@
             },
             { art: "ausgabe", text: z("ja karton Rad") },
             { art: "text", md: "Ein ganzes Beispiel ist die **Pizzeria** unter *Beispiele → Herd*: 21 Modelle aus dem Kenney Furniture Kit und Food Kit (CC0), eine Kamera zum Umkreisen, Türen und Deckel über `finde`." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Animationen aus Modellen: Puppe",
+          inhalt: [
+            { art: "text", md: "Bringt ein glTF-Modell **Animationen** mit (`m.folgen()` nennt ihre Namen), spielt eine **`Puppe`** an seiner Wurzel sie ab: `folge` wählt die Animation, `tempo` (negativ = rückwärts), `schleife`, `laeuft` und `zeit` (setzen = springen) steuern sie, `dauer` und `fertig` liest du ab – `fertig` ist in dem Takt ja, in dem die Folge ihr Ende erreicht (mit Schleife: bei jeder Runde). Ein Wechsel von `folge` **blendet** in `blende` Sekunden über; `\"\"` kehrt in die Ruhelage zurück." },
+            {
+              art: "code",
+              ausfuehrbar: false,
+              tier: 1,
+              code: z(
+                "Herd herd = neu Herd(\"Puppen\");",
+                "Modell roboter = Modell.laden(\"modelle/roboter.glb\");",
+                "Teil r = herd.modell(roboter, 0, 0, -3);",
+                "Puppe p = r.mit(neu Puppe(folge: \"Laufen\"));",
+                "herd.koerper(Form.wuerfel(), 0, 0, 0).setzeGroesse(0.2).haenge(r.finde(\"Hand.R\"));   // trägt einen Würfel",
+                "herd.backe(() -> {",
+                "  falls (herd.gedrueckt(\"Leertaste\")) { p.setzeFolge(\"Winken\"); }",
+                "  falls (p.fertig() && p.folge() == \"Winken\") { p.setzeFolge(\"Laufen\"); }",
+                "});"
+              )
+            },
+            { art: "text", md: "- Die **Gelenke sind Teile**: die Puppe schreibt nur Lage, Drehung und Größe, die eine Animation wirklich bewegt – alles andere bleibt in deiner Hand, und was du an ein Gelenk hängst, wandert mit.\n- Interpoliert wird `STEP` (springt) und `LINEAR` (Drehungen auf dem kürzesten Weg); `CUBICSPLINE` geht linear von Stützwert zu Stützwert. Größen, die nur die alte oder nur die neue Folge bewegt, blenden gegen die Ruhelage des Modells.\n- `kopie()` einer Modell-Wurzel bekommt eine eigene Puppe mit eigener Zeit. Gehäutete Figuren (Skinning) verformen sich erst mit einer späteren Stufe; bis dahin bewegen sich nur starre Teile (Roboterarme, Türen, Räder, Rotoren)." },
+            { art: "text", md: "Zum Ausprobieren: die **Puppenbühne** unter *Beispiele → Herd* – das Khronos-Testmodell „InterpolationTest“ (CC0) mit neun Folgen, ein Taster wechselt sie mit Überblenden, eine Tomate hängt am drehenden Würfel." }
           ]
         },
         {

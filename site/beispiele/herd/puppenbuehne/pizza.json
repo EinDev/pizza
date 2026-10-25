@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Puppenbühne: Animationen aus Modellen",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Eine Puppe spielt die Folgen (Animationen) eines glTF-Modells ab (Khronos InterpolationTest, CC0): neun Würfel wachsen, drehen sich und wandern – springend, gleitend oder kubisch. Ein Wechsel der Folge blendet über, die Würfel sind Teile, an denen man etwas aufhängen kann. Taster oder Leertaste: nächste Folge; 1 … 9 wählen, 0 Ruhelage, L langsam."
+}

@@ -1,0 +1,8 @@
+[Winken, Nicken, Welle]
+Puppe() 0 1 ja 0 ja 0.2 0 nein
+Arm vor dem ersten Takt 0
+Arm beim Überblenden 27.5, Ding hängt an Hand
+Nicken ohne Schleife: fertig in Bild 32, zeit 1 von 1, Kopf 0.5, Körper y 1
+Winken-Runden 1, jetzt Welle (2 s), Zeit 0.167, Glied 9.72
+Kopie in Ruhelage: Glied 0, Original weiter: ja
+fertig

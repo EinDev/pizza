@@ -86,6 +86,8 @@ const LAEUFE = [
   ['aufprall.herd', { KOLL: 1 }],
   ['aufprall.herd', { N: 20000, TAKTE: 60 }],
   ['bildraum.herd', {}],
+  ['puppe.herd', {}],
+  ['puppe.herd', { N: 33, TAKTE: 60 }],
 ];
 
 const args = process.argv.slice(2);

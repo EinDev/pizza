@@ -268,6 +268,54 @@ function texturModell(eingebettet) {
   b.json.scenes = [{ nodes: [0] }];
   lege('quant.glb', b.glb());
 }
+// 8. Puppe (H-K23a): Körper mit Arm, Hand (leer, zum Anhängen), Kopf und einer Kette aus 46 Gliedern = 50 Knoten;
+//    Folgen Winken (Drehung LINEAR), Nicken (Größe STEP, Lage CUBICSPLINE), Welle (alle 50 Knoten, Drehung/Lage/Größe LINEAR)
+{
+  const b = new Bau();
+  const quatZ = (g) => [0, 0, f32(Math.sin(grad(g) / 2)), f32(Math.cos(grad(g) / 2))];
+  b.json.materials = [{ name: 'Holz', pbrMetallicRoughness: { baseColorFactor: [0.6, 0.35, 0.15, 1], metallicFactor: 0, roughnessFactor: 0.8 } }];
+  b.json.meshes = [{ name: 'Klotz', primitives: [wuerfelPrim(b, 0)] }];
+  const GLIEDER = 46;
+  const nodes = [
+    { name: 'Koerper', mesh: 0, children: [1, 3, 4] },
+    { name: 'Arm', mesh: 0, translation: [0.75, 0, 0], scale: [0.5, 0.25, 0.25], children: [2] },
+    { name: 'Hand', translation: [1, 0, 0] },
+    { name: 'Kopf', mesh: 0, translation: [0, 0.8, 0], scale: [0.5, 0.5, 0.5] },
+  ];
+  for (let i = 0; i < GLIEDER; i++) {
+    const n = { name: 'Glied.' + i, translation: [0, i === 0 ? -0.5 : -0.1, 0] };
+    if (i % 5 === 0) { n.mesh = 0; n.scale = [0.1, 0.1, 0.1]; }
+    if (i + 1 < GLIEDER) n.children = [4 + i + 1];
+    nodes.push(n);
+  }
+  b.json.nodes = nodes;
+  b.json.scenes = [{ nodes: [0] }];
+  const t3 = b.acc([0, 0.5, 1], 'SCALAR', 'f32', { min: [0], max: [1] });
+  const winken = { name: 'Winken', samplers: [{ input: t3, output: b.acc([...quatZ(0), ...quatZ(90), ...quatZ(0)], 'VEC4', 'f32') }],
+    channels: [{ sampler: 0, target: { node: 1, path: 'rotation' } }] };
+  const tS = b.acc([0, 0.25, 0.5], 'SCALAR', 'f32', { min: [0], max: [0.5] });
+  const t2 = b.acc([0, 1], 'SCALAR', 'f32', { min: [0], max: [1] });
+  const nicken = { name: 'Nicken', samplers: [{ input: tS, interpolation: 'STEP', output: b.acc([0.5, 0.5, 0.5, 0.8, 0.8, 0.8, 0.5, 0.5, 0.5], 'VEC3', 'f32') },
+    { input: t2, interpolation: 'CUBICSPLINE', output: b.acc([0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0], 'VEC3', 'f32') }],
+    channels: [{ sampler: 0, target: { node: 3, path: 'scale' } }, { sampler: 1, target: { node: 0, path: 'translation' } }] };
+  const t5 = b.acc([0, 0.5, 1, 1.5, 2], 'SCALAR', 'f32', { min: [0], max: [2] });
+  const welle = { name: 'Welle', samplers: [], channels: [] };
+  for (let i = 0; i < GLIEDER; i++) {
+    const p = (i % 4) * 5;
+    welle.samplers.push({ input: t5, output: b.acc([...quatX(p), ...quatX(p + 20), ...quatX(p), ...quatX(p - 20), ...quatX(p)], 'VEC4', 'f32') });
+    welle.channels.push({ sampler: i, target: { node: 4 + i, path: 'rotation' } });
+  }
+  welle.samplers.push({ input: t5, output: b.acc([...quatY(0), ...quatY(120), ...quatY(240), ...quatY(360), ...quatY(0)], 'VEC4', 'f32') });
+  welle.channels.push({ sampler: GLIEDER, target: { node: 0, path: 'rotation' } });
+  welle.samplers.push({ input: t5, output: b.acc([...quatZ(0), ...quatZ(45), ...quatZ(0), ...quatZ(-45), ...quatZ(0)], 'VEC4', 'f32') });
+  welle.channels.push({ sampler: GLIEDER + 1, target: { node: 1, path: 'rotation' } });
+  welle.samplers.push({ input: t5, output: b.acc([0.5, 0.5, 0.5, 0.6, 0.6, 0.6, 0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.5, 0.5, 0.5], 'VEC3', 'f32') });
+  welle.channels.push({ sampler: GLIEDER + 2, target: { node: 3, path: 'scale' } });
+  welle.samplers.push({ input: t5, output: b.acc([1, 0, 0, 1, 0.2, 0, 1, 0, 0, 1, -0.2, 0, 1, 0, 0], 'VEC3', 'f32') });
+  welle.channels.push({ sampler: GLIEDER + 3, target: { node: 2, path: 'translation' } });
+  b.json.animations = [winken, nicken, welle];
+  lege('puppe.glb', b.glb());
+}
 // ---------------------------------------------------------------- Fehlerfälle
 {
   const b = new Bau();

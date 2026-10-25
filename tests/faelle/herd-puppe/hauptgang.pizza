@@ -1,0 +1,30 @@
+// Ordner-Fall (H-K23a, HERD.md §13.3): Puppe – Folgen aus dem Testmodell puppe.glb (scripts/modelle-test.js) abspielen,
+// springen, Schleife und fertig, Überblenden, Ruhelage; Gelenke sind Teile (Ding an der Hand), Kopie unabhängig.
+Herd herd = neu Herd("Puppe", breite: 160, hoehe: 90);
+Modell m = Modell.laden("modelle/puppe.glb");
+Bote.sage((m.folgen()));
+Puppe vorgabe = neu Puppe();
+Bote.sage((vorgabe + " " + vorgabe.folge().länge() + " " + vorgabe.tempo() + " " + vorgabe.schleife() + " " + vorgabe.zeit() + " " + vorgabe.laeuft() + " " + vorgabe.blende() + " " + vorgabe.dauer() + " " + vorgabe.fertig()));
+herd.raum(0, 1, 8).mit(neu Kamera()).teil().schaueAuf(0, 0, 0);
+Teil a = herd.modell(m, -2, 0, 0);
+Puppe pa = a.mit(neu Puppe(folge: "Winken", zeit: 0.25, laeuft: nein));
+Bote.sage(("Arm vor dem ersten Takt " + a.finde("Arm").rollen()));
+Teil b = herd.modell(m, 2, 0, 0);
+Puppe pb = b.mit(neu Puppe(folge: "Nicken", schleife: nein, tempo: 2));
+Teil ding = herd.koerper(Form.kugel(), 0.3, 0, 0, farbe: "tomate").setzeGroesse(0.3);
+ding.haenge(a.finde("Hand"));
+salami runden = 0;
+salami ende = 0;
+Teil c = a;
+herd.backe(() -> {
+  falls (pb.fertig()) { ende = herd.bildnummer(); }
+  falls (pa.fertig()) { runden = runden + 1; }
+  falls (herd.bildnummer() == 5) { pa.setzeLaeuft(ja); }
+  falls (herd.bildnummer() == 70) { pa.setzeFolge("Welle"); }
+  falls (herd.bildnummer() == 60) { c = a.kopie(); c.setzeLage(0, 2, 0); c.puppe().setzeFolge(""); }
+});
+Bote.sage(("Arm beim Überblenden " + a.finde("Arm").rollen().runden(3) + ", Ding hängt an " + ding.eltern().etikett().name()));
+Bote.sage(("Nicken ohne Schleife: fertig in Bild " + ende + ", zeit " + pb.zeit() + " von " + pb.dauer() + ", Kopf " + b.finde("Kopf").groesseY().runden(3) + ", Körper y " + b.finde("Koerper").y().runden(3)));
+Bote.sage(("Winken-Runden " + runden + ", jetzt " + pa.folge() + " (" + pa.dauer() + " s), Zeit " + pa.zeit().runden(3) + ", Glied " + a.finde("Glied.1").neigung().runden(2)));
+Bote.sage(("Kopie in Ruhelage: Glied " + c.finde("Glied.1").neigung().runden(2) + ", Original weiter: " + (a.finde("Glied.1").neigung().runden(2) != c.finde("Glied.1").neigung().runden(2))));
+Bote.sage(("fertig"));

@@ -2412,6 +2412,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** HERD.md §4/§10/§11.1/§13.3, SPEC §2.1/§18.1/§18.4/§18.5/§18.6, PROJEKTE §1.3/§5.10, HOST-ABI §2, `herd/README.md`
   §2/§3/§7.1/§11.5, ARCHITEKTUR §1, Vorbacker, Kern, `kern-wasm`, Skript-Spieler, Interpreter, Laufzeit, Compiler, Host, Playground,
   Durchreiche, nginx, E2E-Server, Doku `herd-ausbau`, Beispiel `pizzeria`. **Status:** fest.
+- **Nachtrag H-K23a (`Puppe`):** Animationen aus Modellen spielt die Komponente **`Puppe`** (36, 3D, Takt) an der Wurzel aus `herd.modell`: `folge`, `tempo`, `schleife`, `zeit` (setzen = springen), `laeuft`, `blende` 0.2, Lesefelder `dauer`/`fertig` (Ereignis im Takt des Endes). **Gelenke sind Teile** – die Puppe schreibt nur animierte Größen, Kanäle treffen ihr Teil über die Knotennummer am `Etikett` entlang der Modell-Hierarchie (Namen sind oft leer oder doppelt); das Modell erkennt sie an der Form eines `Koerper`. `STEP`/`LINEAR`, Drehung per Slerp mit `libm`, `CUBICSPLINE` linear über die Stützwerte; Überblenden linear, Größen nur einer Folge gegen die Ruhelage. Gehäutete Netze bleiben bis H-K23b starr. Ebenen/Masken, Clip-Ereignisse, Root Motion, IK später. Modellteig und `herd.modell` unverändert.
 
 ### K-167 Herd: Funken-Aufprall – `kollision`, `aufprall`, `abprall` (H-K25)
 - **Frage:** Wie treffen `Funken`-Teilchen eine Ebene oder die Welt (Unity: Collision-Modul, Sub-Emitter), ohne den Regen (`aufschlag`,

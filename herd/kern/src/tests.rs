@@ -7251,3 +7251,241 @@ mod hk24 {
         assert_eq!(k.hash_szene(), h0);
     }
 }
+
+// ================================================================ H-K23a Puppe (HERD.md §13.3, Nachtrag K-161)
+mod hk23a {
+    use super::*;
+
+    const PUPPE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../teigling/testmodelle/puppe.glb"));
+
+    /// Welt mit Puppen-Modell, einem Modell-Teil und einer Puppe (noch nicht angehängt) → (Kern, Wurzel, Puppe).
+    fn aufbau(folge: &str) -> (Kern, i32, i32) {
+        let mut k = welt();
+        let m = k.modell_teig(&super::hk16::teig(PUPPE));
+        assert_eq!(m, 1);
+        assert_eq!(k.modell_info(m, 2), 3.0);
+        let t = k.modell_teil(m, 0.0, 0.0, 0.0);
+        let tp = typ(&mut k, "Puppe");
+        let p = k.komp_neu(tp);
+        setze(&mut k, p, "folge", folge);
+        (k, t, p)
+    }
+    fn setze(k: &mut Kern, p: i32, f: &str, t: &str) {
+        let tp = typ(k, "Puppe");
+        let fe = feld(k, tp, f);
+        assert_eq!(k.setze_text(p, fe, t.as_bytes()), 0);
+    }
+    fn zahl(k: &mut Kern, p: i32, f: &str, v: f64) {
+        let tp = typ(k, "Puppe");
+        let fe = feld(k, tp, f);
+        assert_eq!(k.setze_zahl(p, fe, v), 0);
+    }
+    fn lies(k: &mut Kern, p: i32, f: &str) -> f64 {
+        let tp = typ(k, "Puppe");
+        let fe = feld(k, tp, f);
+        k.hole_zahl(p, fe)
+    }
+    fn teil(k: &mut Kern, t: i32, name: &str) -> i32 {
+        let x = k.teil_finde(t, name.as_bytes());
+        assert!(x > 0, "{}", name);
+        x
+    }
+    fn nah(a: f64, b: f64, eps: f64) -> bool {
+        (a - b).abs() <= eps
+    }
+
+    #[test]
+    fn stuetzstellen_exakt_linear_step_kubisch() {
+        let (mut k, t, p) = aufbau("Winken");
+        zahl(&mut k, p, "zeit", 0.5);
+        assert_eq!(k.komp_haenge(p, t), 0);
+        let arm = teil(&mut k, t, "Arm");
+        assert_eq!(k.teil_hole(arm, tf::ROLLEN), 0.0);
+        assert_eq!(k.takt(), 0);
+        // erster Takt: genau an der gesetzten Zeit, ohne Vorlauf; Stützstelle 90° (f32-Quaternion)
+        assert_eq!(lies(&mut k, p, "zeit"), 0.5);
+        assert_eq!(lies(&mut k, p, "dauer"), 1.0);
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 90.0, 1e-5));
+        // Lage/Größe des Arms hat die Folge nicht → unverändert
+        assert_eq!((k.teil_hole(arm, tf::X), k.teil_hole(arm, tf::GROESSE_X)), (0.75, 0.5));
+        // Slerp in der Mitte: 45°
+        zahl(&mut k, p, "zeit", 0.25);
+        k.takt();
+        assert_eq!(lies(&mut k, p, "zeit"), 0.25);
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 45.0, 1e-5));
+        // STEP (Größe des Kopfs) und CUBICSPLINE → Stützwerte linear (Lage des Körpers)
+        setze(&mut k, p, "folge", "Nicken");
+        zahl(&mut k, p, "blende", 0.0);
+        zahl(&mut k, p, "zeit", 0.3);
+        k.takt();
+        let (kopf, koerper) = (teil(&mut k, t, "Kopf"), teil(&mut k, t, "Koerper"));
+        assert_eq!(lies(&mut k, p, "zeit"), 0.3);
+        assert_eq!(k.teil_hole(kopf, tf::GROESSE_Y), 0.8f32 as f64);
+        assert_eq!(k.teil_hole(koerper, tf::Y), 0.3);
+        zahl(&mut k, p, "zeit", 0.2);
+        k.takt();
+        assert_eq!(k.teil_hole(kopf, tf::GROESSE_Y), 0.5);
+        // Arm ohne Kanal in „Nicken“ bleibt, wo „Winken“ ihn ließ
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 45.0, 1e-5));
+    }
+
+    #[test]
+    fn schleife_fertig_und_halten() {
+        let (mut k, t, p) = aufbau("Winken");
+        k.komp_haenge(p, t);
+        let mut ereignisse = Vec::new();
+        for i in 0..130 {
+            k.takt();
+            if lies(&mut k, p, "fertig") == 1.0 {
+                ereignisse.push(i);
+            }
+        }
+        // Takt 0 ohne Vorlauf, dann 60 · DT = 1 s je Runde
+        assert_eq!(ereignisse, [60, 120]);
+        assert!(lies(&mut k, p, "zeit") < 1.0);
+        // ohne Schleife: hält am Ende, fertig genau einmal
+        let (mut k, t, p) = aufbau("Winken");
+        zahl(&mut k, p, "schleife", 0.0);
+        k.komp_haenge(p, t);
+        let mut n = 0;
+        for _ in 0..100 {
+            k.takt();
+            n += lies(&mut k, p, "fertig") as i32;
+        }
+        assert_eq!((n, lies(&mut k, p, "zeit")), (1, 1.0));
+        let arm = teil(&mut k, t, "Arm");
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 0.0, 1e-5));
+        // rückwärts: Ende bei 0
+        zahl(&mut k, p, "tempo", -2.0);
+        zahl(&mut k, p, "zeit", 0.5);
+        let mut fertig_bei = None;
+        for i in 0..40 {
+            k.takt();
+            if lies(&mut k, p, "fertig") == 1.0 {
+                fertig_bei = Some(i);
+            }
+        }
+        assert_eq!((fertig_bei, lies(&mut k, p, "zeit")), (Some(15), 0.0));
+    }
+
+    #[test]
+    fn ueberblenden_und_ruhelage() {
+        let (mut k, t, p) = aufbau("Winken");
+        zahl(&mut k, p, "zeit", 0.5);
+        zahl(&mut k, p, "laeuft", 0.0);
+        k.komp_haenge(p, t);
+        k.takt();
+        let arm = teil(&mut k, t, "Arm");
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 90.0, 1e-5));
+        // Wechsel nach "" (Ruhelage) blendet in 0.2 s = 12 Takten zurück
+        setze(&mut k, p, "folge", "");
+        k.takt();
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 90.0, 1e-5));
+        for _ in 0..6 {
+            k.takt();
+        }
+        // laeuft nein: die alte Folge steht; halber Weg (Slerp) zur Ruhelage
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 45.0, 1e-4), "{}", k.teil_hole(arm, tf::ROLLEN));
+        for _ in 0..6 {
+            k.takt();
+        }
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 0.0, 1e-9));
+        assert_eq!(lies(&mut k, p, "dauer"), 0.0);
+        // danach schreibt die Puppe nichts mehr
+        k.teil_setze(arm, tf::ROLLEN, 30.0);
+        k.takt();
+        assert_eq!(k.teil_hole(arm, tf::ROLLEN), 30.0);
+        // Überblenden zwischen zwei Folgen: Winken (Arm) → Welle (Arm ±45°, Kette); beide laufen weiter
+        setze(&mut k, p, "folge", "Winken");
+        zahl(&mut k, p, "laeuft", 1.0);
+        k.takt();
+        zahl(&mut k, p, "blende", 0.5);
+        setze(&mut k, p, "folge", "Welle");
+        k.takt();
+        assert_eq!(lies(&mut k, p, "zeit"), 0.0);
+        assert_eq!(lies(&mut k, p, "dauer"), 2.0);
+        let glied = teil(&mut k, t, "Glied.1");
+        for _ in 0..30 {
+            k.takt();
+        }
+        // nach dem Blenden genau die neue Folge: Glied 1 hat Phase 5° → bei 0.5 s 25°
+        assert!(nah(k.teil_hole(glied, tf::NEIGUNG), 25.0, 1e-4), "{}", k.teil_hole(glied, tf::NEIGUNG));
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 45.0, 1e-4), "{}", k.teil_hole(arm, tf::ROLLEN));
+        // Welle dreht den Körper um y: 0.5 s → 120°
+        let koerper = teil(&mut k, t, "Koerper");
+        assert!(nah(k.teil_hole(koerper, tf::DREHUNG), 120.0, 1e-4), "{}", k.teil_hole(koerper, tf::DREHUNG));
+    }
+
+    #[test]
+    fn kopie_unabhaengig_hand_und_fremde_teile() {
+        let (mut k, t, p) = aufbau("Winken");
+        zahl(&mut k, p, "zeit", 0.5);
+        zahl(&mut k, p, "laeuft", 0.0);
+        k.komp_haenge(p, t);
+        // etwas an die Hand hängen (fremdes Teil ohne Etikett) und ein zweites Modell darunter
+        let hand = teil(&mut k, t, "Hand");
+        let ding = k.teil_neu(3);
+        k.teil_haenge(ding, hand);
+        k.teil_setze(ding, tf::X, 0.25);
+        let fremd = k.modell_teil(1, 0.0, 0.0, 0.0);
+        k.teil_haenge(fremd, hand);
+        k.takt();
+        let arm = teil(&mut k, t, "Arm");
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 90.0, 1e-5));
+        assert_eq!(k.teil_hole(ding, tf::X), 0.25);
+        // das fremde Modell unter der Hand bleibt unberührt (seine Wurzel trägt kein Etikett)
+        let fremd_arm = k.teil_finde(fremd, b"Arm");
+        assert_eq!(k.teil_hole(fremd_arm, tf::ROLLEN), 0.0);
+        // die Hand trägt das Ding mit: Arm um 90° gedreht → Ding über dem Arm
+        assert!(k.teil_hole(ding, tf::WELT_Y) > 0.2, "{}", k.teil_hole(ding, tf::WELT_Y));
+        // Kopie: eigene Zuordnung, eigene Zeit
+        let t2 = k.teil_kopie(t);
+        let tp = typ(&mut k, "Puppe");
+        let p2 = k.komp_von(t2, tp);
+        assert!(p2 > 0 && p2 != p);
+        zahl(&mut k, p2, "zeit", 0.25);
+        k.takt();
+        let arm2 = teil(&mut k, t2, "Arm");
+        assert_ne!(arm2, arm);
+        assert!(nah(k.teil_hole(arm2, tf::ROLLEN), 45.0, 1e-5));
+        assert!(nah(k.teil_hole(arm, tf::ROLLEN), 90.0, 1e-5));
+    }
+
+    #[test]
+    fn ohne_modell_ohne_wirkung_und_unbekannte_folge() {
+        let mut k = welt();
+        let t = k.teil_neu(3);
+        let tp = typ(&mut k, "Puppe");
+        let p = k.komp_neu(tp);
+        assert_eq!(k.komp_haenge(p, t), 0);
+        k.takt();
+        assert_eq!(lies(&mut k, p, "dauer"), 0.0);
+        let (mut k, t, p) = aufbau("Gibtsnicht");
+        k.komp_haenge(p, t);
+        let arm = teil(&mut k, t, "Arm");
+        k.takt();
+        assert_eq!((lies(&mut k, p, "dauer"), lies(&mut k, p, "zeit")), (0.0, 0.0));
+        assert_eq!(k.teil_hole(arm, tf::ROLLEN), 0.0);
+        // 2D-Teil: Raum passt nicht
+        let t = k.teil_neu(2);
+        let p = k.komp_neu(tp);
+        assert!(k.komp_haenge(p, t) < 0);
+    }
+
+    #[test]
+    fn slerp_und_euler_quat() {
+        use crate::komponenten::puppe::{euler_quat, slerp};
+        let q = euler_quat(30.0, 20.0, 10.0);
+        let (d, n, r) = crate::modell::euler(crate::modell::quat_matrix(q));
+        assert!(nah(d, 30.0, 1e-9) && nah(n, 20.0, 1e-9) && nah(r, 10.0, 1e-9));
+        let a = euler_quat(0.0, 0.0, 0.0);
+        let b = euler_quat(0.0, 0.0, 170.0);
+        // kürzester Weg auch mit umgekehrtem Vorzeichen
+        let bm = [-b[0], -b[1], -b[2], -b[3]];
+        let r1 = crate::modell::euler(crate::modell::quat_matrix(slerp(a, b, 0.5))).2;
+        let r2 = crate::modell::euler(crate::modell::quat_matrix(slerp(a, bm, 0.5))).2;
+        assert!(nah(r1, 85.0, 1e-9) && nah(r2, 85.0, 1e-9));
+        assert_eq!(slerp(a, b, 1.0), b);
+        assert_eq!(slerp(a, b, 0.0), a);
+    }
+}

@@ -79,6 +79,7 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B15 mit `KOLL` = 1: `kollision: "boden"` (Ebene), Spritzer | 0,139 ms | 0,474 ms | 0,61 (0,58) ms | 0,215 ms | 0,969 ms | 1,18 (1,17) ms | 20 000 gegen Ebene ≤ 0,5 ms je Takt (nativ) – erreicht |
 | B15 mit `KOLL` = 2: `kollision: "welt"` (Häuser, Gelände, Kugel, Kapsel, Netz), Spritzer | 1,108 ms | 0,493 ms | 1,61 (1,45) ms | 1,467 ms | 0,949 ms | 2,42 (2,19) ms | 10 000 gegen Gelände ≤ 2 ms je Takt (nativ) – erreicht (20 000 gegen Stadt + Gelände 1,1 ms) |
 | H-K24 (Bildschirmraum, 2026-10-25): Neon-Napoli, aufgezeichnetes Skript (664 Takte, 166 Bilder) ohne / mit `verdeckung` 1.8 + `bildspiegel` 1 (Abschnitt BILDRAUM, 40 B je Paket) | 0,418 / 0,412 ms | 0,548 / 0,531 ms | 2,23 / 2,19 (2,15 / 2,15) ms | – | – | – | – (nur gemessen; im Rauschen – der Kern schreibt nur 32 B; Stand nach H-K20/H-K16/H-K25: Figur, Modelle, Regen-Kollision) |
+| B17 (H-K23a, 2026-10-25): `puppe.herd` N = 33 → 102 Puppen à 50 Gelenke (Testmodell `puppe.glb`, je ein Drittel Winken/Nicken/Welle, eine Überblendung, eine Kopie), 240 Takte | 0,302 ms | 0,176 ms | 0,48 (0,44) ms | 0,544 ms | 0,359 ms | 0,90 (0,82) ms | Takt ≤ 1,5 ms bei 100 × 50 Gelenken (nativ) – erreicht |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -121,6 +122,7 @@ B15 (`tests/herd/szenen/aufprall.herd`, Vorgaben `N`, `KOLL`; `node bench/herd/m
 Teilchen die Zellen unter seiner Strecke, Kasten-Vortest, Strahl gegen Kasten/Kugel/Kapsel/Netz-Baum/Gelände-Raster) + **Bewegung**. Bei
 `boden`/`welt` ist ein Teil der 20 000 Teilchen Spritzer, die dicht über Flächen leben und darum immer geprüft werden; der Rest fällt meist über
 der Oberkante der Zellen (zwei Vergleiche). Bild unverändert (gleiche Teilchenzahl). Gemessen neben anderen Agents, CPU-only.
+B17 (`tests/herd/szenen/puppe.herd`, Vorgaben `N`, `TAKTE`): Takt = **Puppe** je Modell-Wurzel: Folge nachschlagen, Zeit fortschreiben, Zuordnung Knoten → Teil über den Teilbaum (jeden Takt neu, ohne Cache), je Kanal binäre Suche und Lerp bzw. Slerp, Quaternion → Euler, Lage schreiben und Teilbaum markieren; Bild = Welt-Matrizen der 5 100 Gelenk-Teile. Gemessen neben anderen Agents, CPU-only.
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

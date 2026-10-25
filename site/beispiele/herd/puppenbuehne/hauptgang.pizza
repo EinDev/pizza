@@ -1,0 +1,45 @@
+// Puppenbühne – Animationen aus einem glTF-Modell (Khronos „InterpolationTest“, CC0; Quelle in quellen.md).
+//
+// Das Modell bringt neun Würfel und neun Folgen (Animationen) mit: je ein Würfel wächst, dreht sich oder wandert – Zeile für
+// Zeile mit den drei Arten, zwischen Stützwerten zu gehen: STEP (springt), LINEAR (gleitet) und CUBICSPLINE (der Herd geht
+// dabei linear von Stützwert zu Stützwert). Eine Puppe an der Wurzel aus herd.modell spielt eine Folge ab; ein Wechsel von
+// `folge` blendet in `blende` Sekunden über – der alte Würfel kehrt in seine Ruhelage zurück, während der neue loslegt.
+// Die Würfel sind gewöhnliche Teile: die Tomate hängt am drehenden Würfel und dreht sich mit.
+//
+// Taster „Weiter“ oder Leertaste: nächste Folge · 1 … 9: Folge wählen · 0: Ruhelage · L: langsam/schnell
+
+Herd herd = neu Herd("Puppenbühne", breite: 960, hoehe: 540);
+herd.himmel("#24324a", "#6b5a78");
+herd.umgebung("#e8e0ff", staerke: 0.5);
+herd.sonne().setzeLage(3, 8, 6);
+herd.kamera().setzeLage(0, 3.2, 12).schaueAuf(0, 2.4, 0);
+
+Modell modell = Modell.laden("modelle/interpolation-test.glb");
+Blech<margherita> FOLGEN = modell.folgen();
+Teil buehne = herd.modell(modell, 0, 0, 0);
+Puppe puppe = buehne.mit(neu Puppe(folge: FOLGEN.stück(1), blende: 0.4));
+
+// eine Tomate an den Würfel mit linearer Drehung hängen – Gelenke sind Teile
+Teil tomate = herd.koerper(Form.kugel(), 0, 1.6, 0, farbe: "tomate").setzeGroesse(1.2);
+tomate.haenge(buehne.finde("Cube.005"));
+
+Taster naechste = herd.gruppe(80, 30).mit(neu Taster(inhalt: "Weiter", breite: 120, hoehe: 34, farbe: "mozzarella", textFarbe: "ofen"));
+Teil anzeige = herd.text("", 480, 505, groesse: 18, farbe: "mozzarella", ausrichtung: "mitte");
+Blech<margherita> ZIFFERN = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+salami nummer = 1;
+
+Rezept waehle = (salami n) -> {
+    nummer = n;
+    falls (n == 0) { puppe.setzeFolge(""); } sonst { puppe.setzeFolge(FOLGEN.stück(n)); }
+};
+
+herd.backe(() -> {
+    falls (naechste.geklickt() || herd.gedrueckt("Leertaste")) { waehle(nummer % FOLGEN.länge() + 1); }
+    für (salami i : [1 .. 9]) {
+        falls (herd.gedrueckt(ZIFFERN.stück(i)) && i <= FOLGEN.länge()) { waehle(i); }
+    }
+    falls (herd.gedrueckt("0")) { waehle(0); }
+    falls (herd.gedrueckt("l")) { puppe.setzeTempo((puppe.tempo() == 1 ? 0.25 : 1)); }
+    margherita name = (nummer == 0 ? "Ruhelage" : puppe.folge());
+    anzeige.text().setzeInhalt(name + " · " + puppe.zeit().runden(2) + " / " + puppe.dauer().runden(2) + " s" + (puppe.fertig() ? " · Runde!" : ""));
+});

@@ -339,7 +339,16 @@
       {"nummer": 15, "name": "normaleY", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true},
       {"nummer": 16, "name": "normaleZ", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true}]},
     {"name": "Etikett", "nummer": 35, "genus": "n", "raum": "beide", "braucht": [], "system": false, "felder": [
-      {"nummer": 1, "name": "name", "typ": "text", "standard": "", "min": null, "max": null}]}
+      {"nummer": 1, "name": "name", "typ": "text", "standard": "", "min": null, "max": null}]},
+    {"name": "Puppe", "nummer": 36, "genus": "f", "raum": "3D", "braucht": [], "system": true, "felder": [
+      {"nummer": 1, "name": "folge", "typ": "text", "standard": "", "min": null, "max": null},
+      {"nummer": 2, "name": "tempo", "typ": "zahl", "standard": 1, "min": null, "max": null},
+      {"nummer": 3, "name": "schleife", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 4, "name": "zeit", "typ": "zahl", "standard": 0, "min": null, "max": null},
+      {"nummer": 5, "name": "laeuft", "typ": "diavolo", "standard": true, "min": null, "max": null},
+      {"nummer": 6, "name": "blende", "typ": "zahl", "standard": 0.2, "min": 0, "max": null},
+      {"nummer": 7, "name": "dauer", "typ": "zahl", "standard": 0, "min": null, "max": null, "lesen": true},
+      {"nummer": 8, "name": "fertig", "typ": "diavolo", "standard": false, "min": null, "max": null, "lesen": true}]}
   ],
   "teil_felder": [{"nummer": 1, "name": "x"}, {"nummer": 2, "name": "y"}, {"nummer": 3, "name": "z"}, {"nummer": 4, "name": "drehung"}, {"nummer": 5, "name": "neigung"}, {"nummer": 6, "name": "rollen"}, {"nummer": 7, "name": "groesseX"}, {"nummer": 8, "name": "groesseY"}, {"nummer": 9, "name": "groesseZ"}, {"nummer": 10, "name": "ebene"}, {"nummer": 11, "name": "sichtbar"}, {"nummer": 12, "name": "raum"}, {"nummer": 13, "name": "eltern"}, {"nummer": 14, "name": "entfernt"}, {"nummer": 15, "name": "weltX"}, {"nummer": 16, "name": "weltY"}, {"nummer": 17, "name": "weltZ"}, {"nummer": 18, "name": "kinder"}, {"nummer": 19, "name": "ruht"}],
   "teil_methoden": ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung", "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene", "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "finde"],
