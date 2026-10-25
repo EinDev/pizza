@@ -1,0 +1,194 @@
+#! bild 60 groesse 1280x720
+# Referenzbild „Spiegelbild voll“ (H-K21, Stimmung.spiegelGuete voll): nächtlicher Platz mit nassem Plattenboden (pbr, nass
+# 0.9) vor einer Wand mit 64 farbigen Lämpchen (je ein Punktlicht → Lichter über die Zellen; im Spiegel über die zweite
+# Zellen-Tabelle LICHTER_SPIEGEL), zwei Spots mit Schatten (schattenGuete mittel) über drei Säulen, ein Glaswürfel
+# (Durchsichtiges), ein Funkenbrunnen (leuchtende Teilchen) und ein Neonschild hoch über dem Bildrand, das nur im Spiegel zu
+# sehen ist (Sichtprüfung mit dem gespiegelten Frustum). Links ein nasser Gehweg 15 cm über der Spiegelebene. VOLL = 0 zeichnet
+# dieselbe Szene mit dem einfachen Spiegel (Vergleich, kein Referenzbild).
+vorgabe VOLL 1
+welt_neu 1280 720 "Spiegel voll"
+welt_himmel "#06070d" "#241a35"
+welt_umgebung "#4a5590" 0.1
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Funken" -> T_F
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "strahlen" -> K_ST
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_B "bild" -> B_BILD
+feld_nummer T_B "kachel" -> B_KACHEL
+feld_nummer T_B "abbildung" -> B_ABB
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "nass" -> B_NASS
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "kegelRand" -> L_RAND
+feld_nummer T_L "schattenGuete" -> L_GUETE
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "nebelDichte" -> S_ND
+feld_nummer T_S "nebelAbfall" -> S_NA
+feld_nummer T_S "nebelFarbe" -> S_NF
+feld_nummer T_S "spiegelung" -> S_SP
+feld_nummer T_S "spiegelGuete" -> S_GUETE
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "lebensdauer" -> F_LEBEN
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "groesse" -> F_GR
+feld_nummer T_F "groesseEnde" -> F_GRE
+feld_nummer T_F "farbe" -> F_FARBE
+feld_nummer T_F "farbeEnde" -> F_FARBE_E
+feld_nummer T_F "saat" -> F_SAAT
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 12 0 -> KUGEL
+form_grund 3 16 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+teigling_muster 7 256 256 -> PLATTEN
+
+teil_lage 1 0 1.5 6.5
+teil_schaue 1 0 0.3 -3
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# nasser Plattenboden, Wand und Gehweg (ein Belag)
+teil_neu 3 -> bt
+komp_neu T_B -> b
+setze_zahl b B_BILD PLATTEN
+setze_zahl b B_KACHEL 3
+setze_text b B_ABB "welt"
+setze_text b B_MODELL "pbr"
+setze_zahl b B_NASS 0.9
+setze_zahl b B_GLANZ 0.55
+komp_haenge b bt
+teil_neu 3 -> boden
+teil_groesse boden 40 1 60
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BELAG bt
+komp_haenge k boden
+teil_neu 3 -> wand
+teil_lage wand 0 4 -7.5
+teil_groesse wand 30 8 1
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG bt
+komp_haenge k wand
+teil_neu 3 -> gehweg
+teil_lage gehweg -7.5 0.075 0
+teil_groesse gehweg 5 0.15 20
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG bt
+komp_haenge k gehweg
+
+# 64 Lämpchen an der Wand (4 Reihen à 16; magenta, cyan, gelb, grün reihum), je ein Punktlicht
+wiederhole 64 i
+  teil_neu 3 -> lp
+  teil_lage lp (((i % 16) - 7.5) * 1.15) (0.7 + boden(i / 16) * 0.95) -6.8
+  teil_groesse lp 0.16 0.16 0.16
+  komp_neu T_K -> k
+  setze_zahl k K_FORM KUGEL
+  setze_zahl k K_F (4282173695 * boden(1 / (1 + (i % 4) * (i % 4))) + 585433087 * boden(1 / (1 + (i % 4 - 1) * (i % 4 - 1))) + 4291968255 * boden(1 / (1 + (i % 4 - 2) * (i % 4 - 2))) + 2097109759 * boden(1 / (1 + (i % 4 - 3) * (i % 4 - 3))))
+  setze_zahl k K_LE 1
+  setze_zahl k K_ST 6
+  setze_zahl k K_SCH 0
+  komp_haenge k lp
+  teil_neu 3 -> l
+  teil_lage l (((i % 16) - 7.5) * 1.15) (0.7 + boden(i / 16) * 0.95) -6.4
+  komp_neu T_L -> li
+  setze_zahl li L_F (4282173695 * boden(1 / (1 + (i % 4) * (i % 4))) + 585433087 * boden(1 / (1 + (i % 4 - 1) * (i % 4 - 1))) + 4291968255 * boden(1 / (1 + (i % 4 - 2) * (i % 4 - 2))) + 2097109759 * boden(1 / (1 + (i % 4 - 3) * (i % 4 - 3))))
+  setze_zahl li L_ST 2.2
+  setze_zahl li L_RW 3.2
+  komp_haenge li l
+ende
+
+# drei Säulen unter zwei Spots mit Schatten
+wiederhole 3 i
+  teil_neu 3 -> s
+  teil_lage s ((i - 1) * 3.2) 1.4 -3.5
+  teil_groesse s 0.5 2.8 0.5
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "#9aa0ad"
+  setze_zahl k K_GLANZ 0.4
+  komp_haenge k s
+ende
+wiederhole 2 i
+  teil_neu 3 -> sp
+  teil_lage sp ((i - 0.5) * 4.4) 5.2 -1.6
+  teil_schaue sp ((i - 0.5) * 3.2) 0.6 -7
+  komp_neu T_L -> li
+  setze_text li L_F "#ffd8a0"
+  setze_zahl li L_ST 6
+  setze_zahl li L_RW 12
+  setze_zahl li L_KEGEL 38
+  setze_zahl li L_RAND 0.4
+  setze_text li L_GUETE "mittel"
+  komp_haenge li sp
+ende
+
+# Glaswürfel (durchsichtig) rechts vorn
+teil_neu 3 -> glas
+teil_lage glas 3.0 0.7 0.5
+teil_groesse glas 1.4 1.4 1.4
+teil_setze glas 5 25
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#58c8ff70"
+setze_zahl k K_GLANZ 0.8
+setze_zahl k K_LE 0.3
+setze_zahl k K_SCH 0
+komp_haenge k glas
+
+# Funkenbrunnen links vorn: leuchtende Funken steigen und fallen zurück
+teil_neu 3 -> brunnen
+teil_lage brunnen -2.4 0.3 0.5
+komp_neu T_F -> f
+setze_zahl f F_SAAT 7
+setze_zahl f F_RATE 160
+setze_zahl f F_LEBEN 1.4
+setze_zahl f F_TEMPO 3.6
+setze_zahl f F_RY 1
+setze_zahl f F_STREU 18
+setze_zahl f F_SCHWER 4
+setze_zahl f F_GR 0.1
+setze_zahl f F_GRE 0.03
+setze_text f F_FARBE "#fff0b0"
+setze_text f F_FARBE_E "#ff6a2000"
+komp_haenge f brunnen
+
+# Neonschild hoch über dem oberen Bildrand: direkt unsichtbar, nur im Spiegel
+teil_neu 3 -> schild
+teil_lage schild 0.5 6.8 -5
+teil_groesse schild 3.4 0.22 0.22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#ff4fd8"
+setze_zahl k K_LE 1
+setze_zahl k K_ST 8
+setze_zahl k K_SCH 0
+komp_haenge k schild
+
+teil_neu 3 -> st
+komp_neu T_S -> s
+setze_zahl s S_BEL 1.5
+setze_zahl s S_BLOOM 0.9
+setze_zahl s S_ND 0.04
+setze_zahl s S_NA 0.5
+setze_text s S_NF "#2a2440"
+setze_zahl s S_SP 1
+setze_zahl s S_GUETE VOLL
+komp_haenge s st
+takte 60

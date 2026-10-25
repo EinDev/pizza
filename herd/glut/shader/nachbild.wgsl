@@ -9,7 +9,7 @@ struct Stimmung {
     nebel: vec4<f32>,   // dichte, hoehe, abfall, fern
     farbe: vec4<f32>,   // nebelFarbe linear, saettigung
     b: vec4<f32>,       // vignette, koernung, zeit, an
-    spiegel: vec4<f32>, // spiegelung, spiegelHoehe, 0, 0
+    spiegel: vec4<f32>, // spiegelung, spiegelHoehe, regen, spiegelGuete
 }
 
 @group(0) @binding(0) var quelle: texture_2d<f32>;

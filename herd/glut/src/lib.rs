@@ -266,7 +266,8 @@ struct Nachbild {
     bg: Vec<wgpu::BindGroup>,
 }
 
-/// Spiegelbild (Stimmung.spiegelung): gespiegelte Szene in halber Zielgröße (HDR-Format, einfach abgetastet) mit eigener Tiefe.
+/// Spiegelbild (Stimmung.spiegelung): gespiegelte Szene in halber Zielgröße (`spiegelGuete` voll: volle Größe; HDR-Format,
+/// einfach abgetastet) mit eigener Tiefe.
 struct SpiegelZiel {
     breite: u32,
     hoehe: u32,
@@ -315,6 +316,10 @@ pub struct Glut {
     lichter_t: (wgpu::Texture, wgpu::TextureView),
     zellen_t: (wgpu::Texture, wgpu::TextureView),
     lichter_an: bool,
+    /// Spiegelbild voll (H-K21, Abschnitt LICHTER_SPIEGEL): Kopf der zweiten Zellen-Tabelle (Bindung 14 der Spiegel-Bindegruppe;
+    /// `frei.x` = ihr erstes Wort in `zellen_t`, Anzahl 0 = aus → die 8 Lichter aus SZENE wie beim einfachen Spiegel)
+    lichter_kopf_spiegel: wgpu::Buffer,
+    lichter_spiegel_an: bool,
     /// Stimmung (Abschnitt STIMMUNG): Uniform-Block, an/aus, HDR-Format (Rgba16Float, sonst Rgba8Unorm) und seine Abtastung,
     /// Nachbild-Layout, -Shader, -Pipelines und -Ziele (angelegt beim ersten Paket mit Stimmung)
     stimmung: wgpu::Buffer,
@@ -810,6 +815,7 @@ impl Glut {
             .create_view(&Default::default());
         let stimmung = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd stimmung"), size: STIMMUNG_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_kopf = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
+        let lichter_kopf_spiegel = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd lichter spiegel"), size: LICHTER_KOPF_BYTES as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
         let lichter_t = Glut::daten_textur(dev, "herd lichter", wgpu::TextureFormat::Rgba32Float, 3 * LICHTER_JE_ZEILE, 1);
         let zellen_t = Glut::daten_textur(dev, "herd zellen", wgpu::TextureFormat::R32Uint, ZELLEN_BREITE, 1);
         let atlas_min = if adapter.get_info().backend == wgpu::Backend::Gl { 2 } else { 1 };
@@ -851,6 +857,8 @@ impl Glut {
             lichter_t,
             zellen_t,
             lichter_an: false,
+            lichter_kopf_spiegel,
+            lichter_spiegel_an: false,
             stimmung,
             stimmung_an: false,
             hdr_format,
@@ -954,7 +962,9 @@ impl Glut {
     }
 
     /// LICHTER: Kopf als Uniform, Lichter (je 3 Texel RGBA32F) und Zellen-Wörter (R32Uint) als Texturen hochladen.
-    fn lichter(&mut self, d: &[u8]) -> Result<u64, Fehler> {
+    /// `spiegel` = Abschnitt LICHTER_SPIEGEL (H-K21: Kopf an Bindung 14 der Spiegel-Bindegruppe,
+    /// Wörter direkt hinter denen von LICHTER in `zellen_t` – ihre Versätze sind schon absolut).
+    fn lichter(&mut self, d: &[u8], spiegel: Option<&[u8]>) -> Result<u64, Fehler> {
         let kurz = || Fehler::Paket("Abschnitt LICHTER zu kurz".into());
         if d.len() < LICHTER_KOPF_BYTES + 8 {
             return Err(kurz());
@@ -965,6 +975,18 @@ impl Glut {
         let l1 = l0 + n as usize * LICHT_BYTES;
         let w1 = l1 + worte as usize * 4;
         let (lichter, zellen) = (d.get(l0..l1).ok_or_else(kurz)?, d.get(l1..w1).ok_or_else(kurz)?);
+        let zellen_sp = match spiegel {
+            Some(s) => {
+                let kurz = || Fehler::Paket("Abschnitt LICHTER_SPIEGEL zu kurz".into());
+                if s.len() < LICHTER_KOPF_BYTES + 4 {
+                    return Err(kurz());
+                }
+                let w = u32_at(s, LICHTER_KOPF_BYTES) as usize;
+                Some(s.get(LICHTER_KOPF_BYTES + 4..LICHTER_KOPF_BYTES + 4 + w * 4).ok_or_else(kurz)?)
+            }
+            None => None,
+        };
+        let worte = worte + zellen_sp.map(|z| (z.len() / 4) as u32).unwrap_or(0);
         // Lichter: Zeilen zu je LICHTER_JE_ZEILE (letzte aufgefüllt)
         let zeilen = n.div_ceil(LICHTER_JE_ZEILE).max(1);
         if self.lichter_t.0.height() < zeilen {
@@ -986,6 +1008,9 @@ impl Glut {
             self.bg_haupt = None;
         }
         let mut z = zellen.to_vec();
+        if let Some(sp) = zellen_sp {
+            z.extend_from_slice(sp);
+        }
         z.resize((zh * ZELLEN_BREITE * 4) as usize, 0);
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo { texture: &self.zellen_t.0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
@@ -995,7 +1020,13 @@ impl Glut {
         );
         self.queue.write_buffer(&self.lichter_kopf, 0, &d[..LICHTER_KOPF_BYTES]);
         self.lichter_an = true;
-        Ok((LICHTER_KOPF_BYTES + l.len() + z.len()) as u64)
+        let mut kopf_sp = 0;
+        if let Some(s) = spiegel {
+            self.queue.write_buffer(&self.lichter_kopf_spiegel, 0, &s[..LICHTER_KOPF_BYTES]);
+            self.lichter_spiegel_an = true;
+            kopf_sp = LICHTER_KOPF_BYTES;
+        }
+        Ok((LICHTER_KOPF_BYTES + kopf_sp + l.len() + z.len()) as u64)
     }
 
     fn atlas_textur(dev: &wgpu::Device, kante: u32, schichten: u32) -> (wgpu::Texture, wgpu::TextureView) {
@@ -1578,8 +1609,8 @@ impl Glut {
             self.bg_haupt = None;
         }
         if self.bg_haupt.is_none() {
-            let haupt = self.haupt_gruppe(&self.szene, self.spiegel.as_ref().map(|s| &s.farbe).unwrap_or(&self.platzhalter));
-            let spiegel = self.haupt_gruppe(&self.szene_spiegel, &self.platzhalter);
+            let haupt = self.haupt_gruppe(&self.szene, &self.lichter_kopf, self.spiegel.as_ref().map(|s| &s.farbe).unwrap_or(&self.platzhalter));
+            let spiegel = self.haupt_gruppe(&self.szene_spiegel, &self.lichter_kopf_spiegel, &self.platzhalter);
             self.bg_haupt = Some(haupt);
             self.bg_spiegel = Some(spiegel);
         }
@@ -1601,8 +1632,9 @@ impl Glut {
         }
     }
 
-    /// Haupt-Bindegruppe mit gegebener SZENE (echt oder gespiegelt) und Spiegelbild (bzw. Platzhalter).
-    fn haupt_gruppe(&self, szene: &wgpu::Buffer, spiegelbild: &wgpu::TextureView) -> wgpu::BindGroup {
+    /// Haupt-Bindegruppe mit gegebener SZENE (echt oder gespiegelt), Lichter-Kopf (LICHTER bzw. LICHTER_SPIEGEL) und
+    /// Spiegelbild (bzw. Platzhalter).
+    fn haupt_gruppe(&self, szene: &wgpu::Buffer, lichter_kopf: &wgpu::Buffer, spiegelbild: &wgpu::TextureView) -> wgpu::BindGroup {
         {
             self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("herd haupt"),
@@ -1622,7 +1654,7 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 11, resource: wgpu::BindingResource::TextureView(&self.eigen.klassen[4].ansicht) },
                     wgpu::BindGroupEntry { binding: 12, resource: wgpu::BindingResource::Sampler(&self.s_eigen) },
                     wgpu::BindGroupEntry { binding: 13, resource: self.zelt.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 14, resource: self.lichter_kopf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 14, resource: lichter_kopf.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 15, resource: wgpu::BindingResource::TextureView(&self.lichter_t.1) },
                     wgpu::BindGroupEntry { binding: 16, resource: wgpu::BindingResource::TextureView(&self.zellen_t.1) },
                     wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
@@ -1633,9 +1665,10 @@ impl Glut {
         }
     }
 
-    /// Spiegelziel in halber Zielgröße (neu bei Größenänderung; die Bindegruppen werden dann neu gebaut).
-    fn spiegel_bereit(&mut self) {
-        let (b, h) = ((self.breite / 2).max(1), (self.hoehe / 2).max(1));
+    /// Spiegelziel in halber Zielgröße bzw. bei `voll` (H-K21) in voller (neu bei Größenänderung; die Bindegruppen werden dann
+    /// neu gebaut).
+    fn spiegel_bereit(&mut self, voll: bool) {
+        let (b, h) = if voll { (self.breite.max(1), self.hoehe.max(1)) } else { ((self.breite / 2).max(1), (self.hoehe / 2).max(1)) };
         if matches!(&self.spiegel, Some(s) if s.breite == b && s.hoehe == h) {
             return;
         }
@@ -1671,6 +1704,8 @@ impl Glut {
         let mut teilchen: &[u8] = &[];
         let mut zelt: Option<&[u8]> = None;
         let mut lichter_da = false;
+        let mut lichter_d: Option<&[u8]> = None;
+        let mut lichter_sp: Option<&[u8]> = None;
         let mut stimmung: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
@@ -1726,10 +1761,8 @@ impl Glut {
                     }
                     stimmung = Some(d);
                 }
-                abschnitt::LICHTER => {
-                    stat.hochgeladen += self.lichter(d)?;
-                    lichter_da = true;
-                }
+                abschnitt::LICHTER => lichter_d = Some(d),
+                abschnitt::LICHTER_SPIEGEL => lichter_sp = Some(d),
                 abschnitt::ZUEGE3D => {
                     for z in d.chunks_exact(ZUG_BYTES) {
                         self.zuege.push([u32_at(z, 0), u32_at(z, 4), u32_at(z, 8), u32_at(z, 12)]);
@@ -1740,6 +1773,15 @@ impl Glut {
         }
         if !szene_da {
             return Err(Fehler::Paket("SZENE fehlt".into()));
+        }
+        // Lichter (mit der Spiegel-Tabelle dahinter, H-K21); ohne Spiegel-Tabelle deren Kopf auf 0 (Spiegel: 8 aus SZENE)
+        if let Some(d) = lichter_d {
+            stat.hochgeladen += self.lichter(d, lichter_sp)?;
+            lichter_da = true;
+        }
+        if (lichter_d.is_none() || lichter_sp.is_none()) && self.lichter_spiegel_an {
+            self.queue.write_buffer(&self.lichter_kopf_spiegel, 0, &[0u8; LICHTER_KOPF_BYTES]);
+            self.lichter_spiegel_an = false;
         }
         // ohne LICHTER: Kopf auf 0 (Anzahl 0 → der Shader rechnet die 8 Lichter aus SZENE wie v1)
         if !lichter_da && self.lichter_an {
@@ -1907,8 +1949,10 @@ impl Glut {
         }
         // Spiegelung: gespiegelte SZENE (Ebene y = h): Ansicht·Projektion × Spiegelmatrix, Kamera gespiegelt, zahlen.y = 1, zahlen.z = h
         let spiegel_h = stimmung.filter(|d| f32::from_le_bytes([d[64], d[65], d[66], d[67]]) > 0.0).map(|d| f32::from_le_bytes([d[68], d[69], d[70], d[71]]));
+        // H-K21: spiegelGuete voll (STIMMUNG spiegel.w) → volle Größe, Durchsichtiges und Teilchen im Spiegel
+        let spiegel_voll = spiegel_h.is_some() && stimmung.is_some_and(|d| f32::from_le_bytes([d[76], d[77], d[78], d[79]]) > 0.5);
         if let Some(hh) = spiegel_h {
-            self.spiegel_bereit();
+            self.spiegel_bereit(spiegel_voll);
             self.bindegruppen(schichten);
             let mut s = szene_d.to_vec();
             let f = |s: &[u8], i: usize| f32::from_le_bytes([s[i], s[i + 1], s[i + 2], s[i + 3]]);
@@ -1967,7 +2011,7 @@ impl Glut {
             }
         }
 
-        // ---- Spiegelung: Szene an der Ebene gespiegelt (nur FEST und Himmel), halbe Größe ----
+        // ---- Spiegelung: Szene an der Ebene gespiegelt (einfach: nur FEST und Himmel, halbe Größe; voll: alles, volle Größe) ----
         if let (Some(sp), true) = (&self.spiegel, spiegel_h.is_some()) {
             let pl = &self.pipelines[pi_spiegel];
             let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -1985,9 +2029,11 @@ impl Glut {
                 }),
                 ..Default::default()
             });
-            p.set_viewport(vx * 0.5, vy * 0.5, (vb * 0.5).max(1.0), (vh * 0.5).max(1.0), 0.0, 1.0);
+            let k = if spiegel_voll { 1.0 } else { 0.5 };
+            p.set_viewport(vx * k, vy * k, (vb * k).max(1.0), (vh * k).max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
-            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, 0, 0, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, true, &mut stat);
+            let (st, sl) = if spiegel_voll { (nt, n_leuchtend) } else { (0, 0) };
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, true, &mut stat);
         }
 
         // ---- Stimmung: 3D linear ins HDR-Ziel, Bloom-Kette ----
@@ -2018,7 +2064,7 @@ impl Glut {
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -2081,7 +2127,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -2125,6 +2171,7 @@ impl Glut {
         himmel: bool,
         instancing: bool,
         nur_fest: bool,
+        gespiegelt: bool,
         stat: &mut Statistik,
     ) {
         {
@@ -2145,7 +2192,14 @@ impl Glut {
                 }
                 p.set_vertex_buffer(0, n.ecken.slice(..));
                 p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
-                let pipes: &[&wgpu::RenderPipeline] = if z[0] == zug::FEST { &[&pl.fest] } else { &[&pl.durch_hinten, &pl.durch_vorn] };
+                // gespiegelt (H-K21) dreht sich der Umlaufsinn: erst „vorn“ (zeigt dann die Rückseiten), dann „hinten“
+                let pipes: &[&wgpu::RenderPipeline] = if z[0] == zug::FEST {
+                    &[&pl.fest]
+                } else if gespiegelt {
+                    &[&pl.durch_vorn, &pl.durch_hinten]
+                } else {
+                    &[&pl.durch_hinten, &pl.durch_vorn]
+                };
                 for pipe in pipes {
                     p.set_pipeline(pipe);
                     stat.draw_calls += Glut::zeichne_netz(p, inst3d, Some(zusatz), n.anzahl, z[2], z[3], instancing);

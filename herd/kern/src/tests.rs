@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4520,7 +4520,7 @@ mod stimmung {
         let mut k = welt();
         let s = typ(&mut k, "Stimmung");
         assert_eq!(s, 31); // Typnummer in Merge-Reihenfolge: nach Tafel (30, H-K12)
-        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 14);
+        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 15); // + spiegelGuete (H-K21)
         let bel = feld(&mut k, s, "belichtung");
         let bloom = feld(&mut k, s, "bloom");
         let nd = feld(&mut k, s, "nebelDichte");
@@ -5561,5 +5561,219 @@ mod hk18 {
         assert_eq!(f(&d, 12), 9.0);
         assert_eq!(f(&d, 80), 3.0);
         assert_eq!(f(&d, SCHATTENLICHTER_KOPF_BYTES + 3 * SCHATTEN_ANSICHT_BYTES + 64), 3.0);
+    }
+}
+
+/// H-K21: Spiegelbild vollständig (`Stimmung.spiegelGuete` voll, Abschnitt LICHTER_SPIEGEL, gespiegeltes Frustum).
+mod hk21 {
+    use super::*;
+    use crate::lichter::{LICHTER_KOPF_BYTES, LICHT_BYTES, MAX_JE_ZELLE};
+    use crate::paket::INST3D_BYTES;
+
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn u(d: &[u8], o: usize) -> u32 {
+        u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn abschnitt_von(k: &Kern, art: u32) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == art).map(|(_, d)| d.to_vec())
+    }
+    fn z4(s: u32) -> [f64; 4] {
+        let mut st = s.wrapping_mul(2_654_435_761) | 1;
+        let z = &mut st;
+        [crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z), crate::komponenten::partikel::zufall(z)]
+    }
+    /// Boden, Kamera (1, 2, 12) schräg nach unten, `n` Lichter verstreut (auch hoch über dem Bild), Stimmung mit Spiegelung auf
+    /// Höhe `h`. Liefert (Stimmung, Feld spiegelGuete, Feld spiegelung).
+    fn szene(k: &mut Kern, n: u32, h: f64) -> (i32, i32, i32) {
+        let kt = typ(k, "Koerper");
+        let form = feld(k, kt, "form");
+        let ebene = k.form_grund(5, 0.0, 0.0);
+        k.teil_lage(1, 1.0, 2.0, 12.0);
+        k.teil_schaue(1, -1.0, -1.5, -4.0);
+        let b = k.teil_neu(3);
+        k.teil_groesse(b, 60.0, 1.0, 60.0);
+        let c = k.komp_neu(kt);
+        assert_eq!(k.setze_zahl(c, form, ebene as f64), 0);
+        assert_eq!(k.komp_haenge(c, b), 0);
+        let lt = typ(k, "Licht");
+        let rw = feld(k, lt, "reichweite");
+        for i in 0..n {
+            let z = z4(i + 1);
+            let t = k.teil_neu(3);
+            k.teil_lage(t, (z[0] - 0.5) * 40.0, z[1] * 9.0, (z[2] - 0.5) * 50.0 - 5.0);
+            let c = k.komp_neu(lt);
+            assert_eq!(k.setze_zahl(c, rw, 0.5 + z[3] * 5.0), 0);
+            assert_eq!(k.komp_haenge(c, t), 0);
+        }
+        let st = typ(k, "Stimmung");
+        let t = k.teil_neu(3);
+        let s = k.komp_neu(st);
+        let (fs, fh) = (feld(k, st, "spiegelung"), feld(k, st, "spiegelHoehe"));
+        assert_eq!(k.setze_zahl(s, fs, 1.0), 0);
+        assert_eq!(k.setze_zahl(s, fh, h), 0);
+        assert_eq!(k.komp_haenge(s, t), 0);
+        (s, feld(k, st, "spiegelGuete"), feld(k, st, "spiegelung"))
+    }
+
+    #[test]
+    fn ohne_voll_byte_gleich() {
+        let lauf = |setzen: bool| {
+            let mut k = welt();
+            let (s, g, _) = szene(&mut k, 40, 0.0);
+            if setzen {
+                assert_eq!(k.setze_text(s, g, b"einfach"), 0);
+            }
+            k.bild(1);
+            k.bild(1);
+            assert!(abschnitt_von(&k, abschnitt::LICHTER).is_some());
+            assert!(abschnitt_von(&k, abschnitt::LICHTER_SPIEGEL).is_none());
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        let (h, p) = lauf(false);
+        assert_eq!((h, p.clone()), lauf(true));
+        let mut k = welt();
+        let (s, g, sp) = szene(&mut k, 40, 0.0);
+        assert!(k.setze_text(s, g, b"ultra") < 0);
+        assert_eq!(text(&mut k, s, g), "einfach");
+        k.bild(1);
+        k.bild(1);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+        // voll: Hash anders, STIMMUNG spiegel.w = 1, LICHTER_SPIEGEL direkt hinter LICHTER, mehr Lichter in der Liste
+        assert_eq!(k.setze_text(s, g, b"voll"), 0);
+        k.bild(1);
+        assert_ne!(k.hash_szene(), h);
+        let arten: Vec<u32> = Leser::neu(k.paket()).unwrap().abschnitte().map(|(a, _)| a).collect();
+        let i = arten.iter().position(|&a| a == abschnitt::LICHTER).unwrap();
+        assert_eq!(arten[i + 1], abschnitt::LICHTER_SPIEGEL);
+        assert_eq!(f(&abschnitt_von(&k, abschnitt::STIMMUNG).unwrap(), 76), 1.0);
+        let einfach = Leser::neu(&p).unwrap().abschnitte().find(|(a, _)| *a == abschnitt::LICHTER).map(|(_, d)| u(d, LICHTER_KOPF_BYTES)).unwrap();
+        let voll = u(&abschnitt_von(&k, abschnitt::LICHTER).unwrap(), LICHTER_KOPF_BYTES);
+        assert!(voll > einfach, "Lichter nur im Spiegel kommen dazu: {} > {}", voll, einfach);
+        // ohne Spiegelung zählt voll nicht
+        assert_eq!(k.setze_zahl(s, sp, 0.0), 0);
+        k.bild(1);
+        assert!(abschnitt_von(&k, abschnitt::LICHTER_SPIEGEL).is_none());
+        // wieder einfach + Spiegelung → byte-gleich
+        assert_eq!(k.setze_zahl(s, sp, 1.0), 0);
+        assert_eq!(k.setze_text(s, g, b"einfach"), 0);
+        k.bild(1);
+        assert_eq!((k.hash_szene(), k.paket()), (h, &p[..]));
+    }
+
+    /// Jeder Weltpunkt im Wirkbereich eines Lichts, der im Spiegelbild zu sehen ist, liegt in einer Spiegel-Zelle, die das
+    /// Licht führt (Zelle wie im Shader: Ansicht·Projektion × Spiegelmatrix, Tiefe zur gespiegelten Kamera).
+    #[test]
+    fn spiegelzellen_konservativ() {
+        for &h in &[0.0, 0.15] {
+            let mut k = welt();
+            let (s, g, _) = szene(&mut k, 300, h);
+            assert_eq!(k.setze_text(s, g, b"voll"), 0);
+            k.bild(1);
+            let d = abschnitt_von(&k, abschnitt::LICHTER).unwrap();
+            let ds = abschnitt_von(&k, abschnitt::LICHTER_SPIEGEL).unwrap();
+            let sz = abschnitt_von(&k, abschnitt::SZENE).unwrap();
+            let vp: Vec<f64> = (0..16).map(|i| f(&sz, i * 4) as f64).collect();
+            let kam = [f(&sz, 128) as f64, 2.0 * h - f(&sz, 132) as f64, f(&sz, 136) as f64];
+            let (nx, ny, nz) = (f(&ds, 0) as usize, f(&ds, 4) as usize, f(&ds, 8) as usize);
+            assert_eq!((nx, ny, nz), (16, 9, 24));
+            let (nah, je) = (f(&ds, 16) as f64, f(&ds, 20) as f64);
+            let vorn = [f(&ds, 32) as f64, f(&ds, 36) as f64, f(&ds, 40) as f64];
+            assert_eq!((vorn[0], vorn[1], vorn[2]), (f(&d, 32) as f64, -f(&d, 36) as f64, f(&d, 40) as f64));
+            let anzahl = u(&d, LICHTER_KOPF_BYTES) as usize;
+            assert_eq!(f(&ds, 12) as usize, anzahl);
+            let worte = u(&d, LICHTER_KOPF_BYTES + 4) as usize;
+            let basis = f(&ds, 48) as usize;
+            assert_eq!(basis, worte, "Spiegel-Tabelle direkt hinter der ersten");
+            let l0 = LICHTER_KOPF_BYTES + 8;
+            let wort = |i: usize| u(&ds, LICHTER_KOPF_BYTES + 4 + (i - basis) * 4);
+            let mut geprueft = 0;
+            for li in 0..anzahl {
+                let o = l0 + li * LICHT_BYTES;
+                let (lx, ly, lz, rw) = (f(&d, o) as f64, f(&d, o + 4) as f64, f(&d, o + 8) as f64, f(&d, o + 12) as f64);
+                for s in 0..64u32 {
+                    let z = z4(s * 977 + li as u32 * 13 + 5);
+                    let (dx, dy, dz) = ((z[0] - 0.5) * 2.0, (z[1] - 0.5) * 2.0, (z[2] - 0.5) * 2.0);
+                    if (dx * dx + dy * dy + dz * dz).sqrt() > 1.0 {
+                        continue;
+                    }
+                    let q = [lx + dx * rw * 0.98, ly + dy * rw * 0.98, lz + dz * rw * 0.98];
+                    // im Spiegeldurchgang erscheint q dort, wo sein Spiegelbild im Hauptbild läge
+                    let m = [q[0], 2.0 * h - q[1], q[2]];
+                    let clip = |r: usize| vp[r] * m[0] + vp[4 + r] * m[1] + vp[8 + r] * m[2] + vp[12 + r];
+                    let w = clip(3);
+                    if w <= nah {
+                        continue;
+                    }
+                    let (ndx, ndy) = (clip(0) / w, clip(1) / w);
+                    if ndx.abs() > 1.0 || ndy.abs() > 1.0 {
+                        continue;
+                    }
+                    let tief = (q[0] - kam[0]) * vorn[0] + (q[1] - kam[1]) * vorn[1] + (q[2] - kam[2]) * vorn[2];
+                    let fx = (ndx * 0.5 + 0.5) * nx as f64;
+                    let fy = (ndy * 0.5 + 0.5) * ny as f64;
+                    let fs = (tief.max(nah) / nah).ln() * je;
+                    let nahe = |v: f64| (v - v.round()).abs() < 1e-3;
+                    if nahe(fx) || nahe(fy) || nahe(fs) {
+                        continue;
+                    }
+                    let tx = (fx.floor() as usize).min(nx - 1);
+                    let ty = (fy.floor() as usize).min(ny - 1);
+                    let sl = (fs.floor().max(0.0) as usize).min(nz - 1);
+                    let kopf = wort(basis + (sl * ny + ty) * nx + tx);
+                    let (erst, zahl) = ((kopf >> 8) as usize, (kopf & 255) as usize);
+                    if zahl == MAX_JE_ZELLE {
+                        continue;
+                    }
+                    assert!((0..zahl).any(|j| wort(erst + j) as usize & 0xFFFF == li), "h {}: Licht {} fehlt in Spiegel-Zelle ({}, {}, {})", h, li, tx, ty, sl);
+                    geprueft += 1;
+                }
+            }
+            assert!(geprueft > 2000, "{}", geprueft);
+        }
+    }
+
+    /// Ein Körper und ein schattenwerfendes Licht hoch über dem Bildrand sind nur im Spiegel zu sehen: mit voll zählen sie.
+    #[test]
+    fn nur_im_spiegel_sichtbar() {
+        let mut k = welt();
+        let (s, g, _) = szene(&mut k, 0, 0.0);
+        let kt = typ(&mut k, "Koerper");
+        let form = feld(&mut k, kt, "form");
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        let schild = k.teil_neu(3);
+        k.teil_lage(schild, -1.0, 8.0, -2.0);
+        let c = k.komp_neu(kt);
+        assert_eq!(k.setze_zahl(c, form, wuerfel as f64), 0);
+        assert_eq!(k.komp_haenge(c, schild), 0);
+        let lt = typ(&mut k, "Licht");
+        let t = k.teil_neu(3);
+        k.teil_lage(t, -1.0, 8.6, -2.0);
+        let l = k.komp_neu(lt);
+        let (frw, fg) = (feld(&mut k, lt, "reichweite"), feld(&mut k, lt, "schattenGuete"));
+        assert_eq!(k.setze_zahl(l, frw, 0.5), 0);
+        // ohne Sonne: keine unsichtbaren Werfer im Paket, die Instanzen zählen nur Sichtbares
+        let sonne = k.komp_von(2, lt);
+        let fst = feld(&mut k, lt, "staerke");
+        assert_eq!(k.setze_zahl(sonne, fst, 0.0), 0);
+        assert_eq!(k.komp_haenge(l, t), 0);
+        let inst = |k: &Kern| abschnitt_von(k, abschnitt::INST3D).map(|d| d.len() / INST3D_BYTES).unwrap_or(0);
+        k.bild(1);
+        let n_einfach = inst(&k);
+        assert_eq!(k.setze_text(s, g, b"voll"), 0);
+        k.bild(2);
+        assert_eq!(inst(&k), n_einfach + 1, "Schild nur im Spiegel");
+        // Schatten (erst nach dem Zählen – die Kacheln bringen Werfer-Kopien): nur mit voll gewählt
+        assert_eq!(k.setze_text(l, fg, b"grob"), 0);
+        assert_eq!(k.setze_text(s, g, b"einfach"), 0);
+        k.bild(3);
+        assert!(abschnitt_von(&k, abschnitt::SCHATTENLICHTER).is_none(), "Licht außerhalb des Frustums wirft keinen Schatten");
+        assert_eq!(k.setze_text(s, g, b"voll"), 0);
+        k.bild(4);
+        assert!(abschnitt_von(&k, abschnitt::SCHATTENLICHTER).is_some(), "Licht nur im Spiegel wirft Schatten");
+        let d = abschnitt_von(&k, abschnitt::LICHTER).unwrap();
+        assert_eq!(u(&d, LICHTER_KOPF_BYTES), 1);
+        assert!(abschnitt_von(&k, abschnitt::LICHTER_SPIEGEL).is_some());
     }
 }

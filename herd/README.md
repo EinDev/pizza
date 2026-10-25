@@ -252,6 +252,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 17 | STIMMUNG | 80 Bytes Uniform-Block der geltenden `Stimmung` (unten); nur wenn eine an einem wachen Teil hängt |
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0), einem Spot (`Licht.kegel` > 0) oder einem schattenwerfenden Punkt-/Spotlicht (H-K18) |
 | 20 | SCHATTENLICHTER | Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, unten); nur wenn ein Licht mit `schattenGuete` ≠ aus Schatten wirft, die Sonne `kaskaden` > 1 hat oder ihr `schattenWeich` ≠ 1 ist |
+| 21 | LICHTER_SPIEGEL | Zellen-Tabelle der gespiegelten Kamera (H-K21, unten); nur bei `Stimmung.spiegelGuete` voll (mit `spiegelung` > 0) und vorhandenem LICHTER, direkt dahinter |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -312,6 +313,15 @@ Tiefenscheibe der Quader um die Kugel, an beiden Scheibengrenzen projiziert (x/z
 bleiben wie v1 geschrieben; der Shader nimmt mit Abschnitt nur die Zellen-Lichter. **H-K18:** Ein Licht-Index in der Zellen-Tabelle trägt
 in Bits 16 … 19 die Nummer seines Schatten-Platzes + 1 (0 = ohne Schatten; Indizes < 4096 bleiben in Bits 0 … 15).
 
+**LICHTER_SPIEGEL (H-K21, `kern/src/lichter.rs`):** Kopf 64 Bytes wie LICHTER (gleiches Raster, gleiche Tiefe; `vorn` = Blickrichtung mit
+negiertem y; `frei.x` = Lage des ersten Worts in der Glut-Textur = `worte` von LICHTER; Anzahl 0, wenn die Tabelle nicht mehr in
+1024 × 2048 Wörter passt → der Spiegel nimmt die 8 Lichter aus SZENE), dann `u32 worte` und die Zellen-Tabelle der Ansicht
+`ansicht · Spiegelmatrix` (y → 2h − y) über **dieselbe** Lichterliste – Köpfe mit absoluten Versätzen (`frei.x` + Versatz). Mit voll führt
+LICHTER auch Lichter, deren Kugel nur das gespiegelte Frustum berührt; die Sichtprüfung der Körper und Teilchen und die Schattenwahl
+(H-K18) nehmen das gespiegelte Frustum dazu (Ebenen `(a, −b, c, d + 2h·b)`). Die Glut legt die Wörter direkt hinter die von LICHTER in
+`zellen_t` und bindet den Kopf in der Spiegel-Bindegruppe an Bindung 14 (ohne Abschnitt Nullen); der Shader sucht die Zelle mit
+`frei.x + c`, für LICHTER ist `frei.x` = 0.
+
 **SCHATTENLICHTER (H-K18, `kern/src/lichter.rs`, f32, std140-gleich; Uniform-Block an Bindung 18, die Glut füllt auf 5 200 Bytes
 mit Nullen auf):** `kopf vec4` (1 = an, Kaskaden k (0 = Sonne über SZENE wie v1), `schattenWeich` der Sonne, Zahl der Ansichten) ·
 `kaskaden[4] vec4` (Normalenversatz = Texel in Welt, Tiefen-Bias) · `plaetze[8] vec4` (erste Ansicht, Zahl der Ansichten 1 oder 6,
@@ -328,9 +338,13 @@ Empfänger-Kugel und die Werfer in der Lichtbox; SZENE trägt dann Kaskade 0.
 
 **STIMMUNG (80 Bytes, std140-gleich, f32):** `a vec4` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel vec4` (nebelDichte,
 nebelHoehe, nebelAbfall, `fern` der Kamera) · `farbe vec4` (nebelFarbe linear, saettigung) · `b vec4` (vignette, koernung, Zeit = Bild/60 s,
-1 = an) · `spiegel vec4` (spiegelung, spiegelHoehe, 0, 0). Bei spiegelung > 0 zeichnet die Glut vorab den **Spiegeldurchgang**: SZENE-Kopie mit
+1 = an) · `spiegel vec4` (spiegelung, spiegelHoehe, regen, spiegelGuete: 0 einfach, 1 voll). Bei spiegelung > 0 zeichnet die Glut vorab den **Spiegeldurchgang**: SZENE-Kopie mit
 Ansicht·Projektion × Spiegelmatrix (Spalte 1 negiert, Spalte 3 += 2h · Spalte 1), Kamera-y = 2h − y, `zahlen.y` = 1, `zahlen.z` = h; Himmel und
-`FEST` in ein Bild halber Zielgröße (HDR-Format, ohne MSAA), Fragmente unter h + 0,03 verworfen; das Bild liegt im Hauptdurchgang an Bindung 19. Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
+`FEST` in ein Bild halber Zielgröße (HDR-Format, ohne MSAA), Fragmente unter h + 0,03 verworfen; das Bild liegt im Hauptdurchgang an Bindung 19.
+**spiegelGuete voll (H-K21):** Bild in voller Zielgröße, dazu `DURCH` (Umlaufsinn gedreht: erst die Pipeline „vorn“, dann „hinten“) und
+3D-Teilchen (unter h + 0,03 verworfen); Lichter über LICHTER_SPIEGEL, Schatten wie im Hauptdurchgang; im Shader zählt die echte
+Vorderseite (`front_facing` gedreht – einfach bleibt wie bisher), Oberseiten (Normale y > 0,5) unter h + 0,5 von unten gesehen werden
+verworfen; `pbr_licht` nimmt Flächen bis ±0,2 um h voll (aus ab 0,45; einfach 0,05/0,3). Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
 Ziel, danach INST2D.
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
@@ -396,7 +410,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
   mit 20 000 Teilchen; `gleiten.herd`: `Gleiten` mit allen Kurven und Schleifen, `Ablauf` mit Schleife, Halt, rückwärts und
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `vorlage.herd`: `Vorlage` 2D/3D mit Kopie-Wellen, Vieleck-Kind, Umhängen, `ohne`, mit N = 40/1 000; `fliesen.herd`: `Fliesen` als CHUNKS × CHUNKS Raster mit
   wanderndem Blick, Wucht-Körpern auf festen Kacheln, gedrehtem/verschobenem/HUD-Raster, klein 2 × 2 × 48² und voll 4 × 4 × 256² =
-  1024 × 1024 Kacheln; `schatten.herd` (H-K18): Schatten-Auswahl, Packen, Kaskaden, Werfer je Ansicht, klein und mit N = 1 000/L = 8 (B13); `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024; `schwung.herd`: `Schwung` mit Kisten-Türmen auf einem Tisch, Kugeln/Kapseln in einer Gelände-Mulde (Fühler `netz`), Rampe aus eigenem Netz, gedrehter fester Kasten, kinematische Drehscheibe, Drehsperre, Auslöser, Maske, Kind unter gedrehter Gruppe, Stoß/Lage/Entfernen/Kopie mitten im Lauf, klein und voll mit N = 500 Kisten bzw. K = 2 000 Kugeln). Die Felder der Typen `teil-liste`/`zahl-liste`,
+  1024 × 1024 Kacheln; `schatten.herd` (H-K18): Schatten-Auswahl, Packen, Kaskaden, Werfer je Ansicht, klein und mit N = 1 000/L = 8 (B13); `spiegel.herd` (H-K21): Spiegelbild einfach → voll auf Höhe 0 und 0,15 → einfach, Kisten und Lichter auch hoch über dem Bild, Spots mit Schatten, Funken, klein und mit N = 1 000/L = 256; `kulisse.herd`: `Kulisse` Titel/Spiel/Pause, verschachtelt, additiv, 3D-Kulisse mit Kamera und Licht, Kopie, Entladen, mit N = 30/2 000; `himmelszelt.herd`: `Himmelszelt` mit Atlas- und Teigling-Seiten (Muster 5), kleinster wacher ID, Vorlage, Entfernen, mit N = 3/100; `material.herd`: Belag-Material mit Teigling-Mustern 6/7, Umstellen, Lösen, Durchsichtiges, N = 24/1000; `regen.herd`: Funken als Regen (Volumen um ein wanderndes Teil, Striche, Licht, Aufschlag mit Spritzern, Rate × `Stimmung.regen` mit Wechsel; im Raum des Teils gedreht und deckend), N = 400/20 000; `stimmung.herd`: Stimmung lose/angehängt/zweite/Vorlage/entfernt, `strahlen` an Körper und Belag, N = 20/2000; `lichter.herd`: viele Lichter an einem drehenden Träger, Spots, Lichter hinter der Kamera/jenseits von fern, Übergang ohne Abschnitt, N = 40/1024; `schwung.herd`: `Schwung` mit Kisten-Türmen auf einem Tisch, Kugeln/Kapseln in einer Gelände-Mulde (Fühler `netz`), Rampe aus eigenem Netz, gedrehter fester Kasten, kinematische Drehscheibe, Drehsperre, Auslöser, Maske, Kind unter gedrehter Gruppe, Stoß/Lage/Entfernen/Kopie mitten im Lauf, klein und voll mit N = 500 Kisten bzw. K = 2 000 Kugeln). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Springen, klein und voll mit 9 000 Gleitern; `belag.herd`: `Belag` und `Koerper.belag`; `fuehler.herd`: `Fuehler`-Nachlauf mit N = 200/1 000/10 000; `blick.herd`: `Blick` mit Zoom, Drehung, Grenzen, HUD und `Leine` 2D/3D, klein und mit N = 10 000; `wucht.herd`: `Wucht` in einer Schüssel mit N = 120/500/2 000 Kugeln; `gelaende.herd`: `Gelaende` mit Umbau, Kopie, Textur, N = 24 und 256 × 256, auch mit Neubau je Takt; `ui.herd`: `Taster`, `Leiste`, `Regler`, ziehbare `Tafel` als HUD unter einem gedrehten, gezoomten `Blick`, Maus per `eingabe` je Takt, `Blick.mausX`/`mausY`, klein und mit N = 2 000). Die Felder der Typen `teil-liste`/`zahl-liste`,
   Lesefeld, Nachtragsfeld und Nachlauf prüft `herd/skript/tests/probe.herd` mit der Test-Komponente `Probe` (dev-dependency mit Feature
   `probe`, nur `cargo test`). Bei Abweichung: erste abweichende Zeile mit Kontext.
@@ -537,7 +551,8 @@ samt Filterrand enthält, am Rand der letzten weich ausgeblendet; bzw. v1-Matrix
 Zellen-Schleifen nur, wenn Bits 16 … 19 des Zellen-Eintrags einen Platz nennen (`punktschatten`: Würfelseite nach der größten
 Achse von Licht → Punkt, keine Cube-Map; Normalen- und Lichtversatz = Weltmaß eines Texels an dieser Stelle × (1 + Weichheit));
 `zelt_frei`: derselbe Castaño-Zeltfilter mit Texel-Schritt `w` (0 = eine bilineare Vergleichs-Abtastung), jede Abtastung auf
-das Kachel-Rechteck geklemmt; im Spiegeldurchgang keine Punkt-/Spotschatten (nur die 8 Lichter aus SZENE) · `himmel`
+das Kachel-Rechteck geklemmt; im Spiegeldurchgang bei `spiegelGuete` einfach keine Punkt-/Spotschatten (nur die 8 Lichter aus
+SZENE), bei voll (H-K21) Zellen der Spiegel-Tabelle samt Schatten-Plätzen · `himmel`
 (Verlauf nach Blickrichtung aus der Inversen von `ansicht_proj`; H-K11b `fs_zelt` für das Himmelszelt: Uniform-Block HIMMELSZELT an
 Bindung 13 (fest 208 B, immer gebunden), Würfelseite und Seitenkoordinate ohne Verzweigung aus der Richtung – **keine Cube-Map**;
 Bild-Seiten aus dem Atlas per `textureLoad` (bilinear von Hand, vormultipliziert) oder aus der eigenen Textur (Bit 17, Glut
@@ -598,7 +613,10 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). Die Bindungsnummern 21 ff. sind
 Vorschläge (vergeben in Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich sind die Einheiten.
 
-**Stand H-K18 (gemessen, Wächter; H-K15 → H-K18):**
+**Stand H-K21 (gemessen, Wächter; H-K15 → H-K18 → H-K21):** H-K21 kostet **keine** Einheit und keinen Layout-Eintrag: die
+Spiegel-Zellen liegen hinter den Zellen von LICHTER in `zellen_t` (16), ihr Kopf ist ein zweiter Uniform-Puffer, den nur die
+Spiegel-Bindegruppe an **derselben** Bindung 14 bindet. `fs_leuchtend`/`fs_deckend` lesen jetzt auch SZENE (Verwerfen unter der
+Spiegelebene): je 2 Blöcke.
 
 | Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach dem Plan (§13) |
 |---|---|---|---|---|
@@ -612,13 +630,13 @@ Vorschläge (vergeben in Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich
 | `vs_himmel` | 0 | 1 | `fs_himmel` / `fs_zelt` | 0 / 6 | 2 / 3 |
 | `vs_licht` | 0 | 1 | `fs_licht` | **10/16** | 4 |
 | `vs_schatten` | 0 | 1 | `fs_schatten` | 6 | 0 |
-| `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 1 / 2 |
+| `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 2 / 2 (H-K18: 1 / 2) |
 | `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
 
 **Budget-Planung der übrigen Glut-Stufen** (HERD.md §13.3; maßgeblich ist das Haupt-Layout, 16 Einheiten über **alle** Stufen –
 Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Einheit gekostet (die Schatten-Tiefentextur ist ein
-Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (Spiegel-Zellen in
-`zellen_t`) · **H-K24** +1 (Verdeckung; der SSR-Strahlmarsch und der Vorlauf laufen in eigenen Layouts wie das Nachbild, `fs_licht`
+Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (umgesetzt: Spiegel-Zellen in
+`zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (Verdeckung; der SSR-Strahlmarsch und der Vorlauf laufen in eigenen Layouts wie das Nachbild, `fs_licht`
 liest nur das Verdeckungsbild) → 12 · **H-K26** 0 (PD3-Klassen) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
 **H-K27** 0 (Uniform-Block WIND, Instanzpuffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
 (SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
@@ -674,7 +692,9 @@ mit Bergketten vor durchsichtigem Himmel, Seite oben aus einem Atlas-Bildchen 24
 sichtbar),
 `3d-punktschatten` (H-K18: nächtlicher Hof mit Säulen, Kisten und Kugeln; drei Punktlichter mit Würfelschatten fein/mittel/grob,
 zwei Spots als Kacheln, Schatten auf klassischem und pbr-Boden), `3d-kaskaden` (H-K18: lange Allee, flache Sonne mit 4 Kaskaden bis
-80 m, dünne Zaunlatten vorn scharf, Säulen bis weit hinten).
+80 m, dünne Zaunlatten vorn scharf, Säulen bis weit hinten), `3d-spiegel-voll` (H-K21: nasser Platz vor einer Wand mit 64
+Lämpchen-Lichtern, zwei Spots mit Schatten über drei Säulen, Glaswürfel, Funkenbrunnen, Neonschild über dem Bildrand – nur im Spiegel
+zu sehen –, nasser Gehweg 0,15 über der Ebene; `spiegelGuete` voll, `VOLL=0` zeichnet zum Vergleich einfach).
 **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht

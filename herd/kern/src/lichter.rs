@@ -16,6 +16,10 @@
 //! ein Licht, dessen Kacheln nicht alle passen, wirft still keinen Schatten. Ein schattenwerfendes Licht erzwingt den Abschnitt
 //! `LICHTER`; sein Zellen-Eintrag trägt in Bits 16 … 19 die Nummer seines Schatten-Platzes + 1 (Indizes < 4096 bleiben in Bits
 //! 0 … 15). Abschnitt `SCHATTENLICHTER` ([`schatten_abschnitt`]) nur bei Nutzung.
+//!
+//! **Spiegelbild voll (H-K21, `Stimmung.spiegelGuete`):** zu `LICHTER` kommt `LICHTER_SPIEGEL` – eine zweite Zellen-Tabelle für
+//! die an der Spiegelebene gespiegelte Kamera über dieselbe Lichterliste (die dann auch Lichter führt, die nur den Spiegel
+//! berühren); Schattenwahl und Sichtprüfung nehmen das gespiegelte Frustum dazu. Sonst byte-gleich.
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -112,8 +116,9 @@ pub fn kachel_kante(guete: u32) -> u32 {
 }
 
 /// Wählt die schattenwerfenden Punkt-/Spotlichter (H-K18) und packt ihre Kacheln. `sk` = Ebenen des Kamera-Frustums,
-/// `basis` = erste Schicht der Atlas-Seiten (hinter den Sonnen-Schichten).
-pub fn schatten_waehlen(lichter: &[LichtB], sk: &[[f64; 4]; 6], auge: [f64; 3], basis: u32) -> SchattenWahl {
+/// `sk_spiegel` = Ebenen des gespiegelten Frustums bei `Stimmung.spiegelGuete` voll (H-K21: ein Licht zählt auch, wenn es nur
+/// den Spiegel berührt), `basis` = erste Schicht der Atlas-Seiten (hinter den Sonnen-Schichten).
+pub fn schatten_waehlen(lichter: &[LichtB], sk: &[[f64; 4]; 6], sk_spiegel: Option<&[[f64; 4]; 6]>, auge: [f64; 3], basis: u32) -> SchattenWahl {
     let mut wahl = SchattenWahl { platz: vec![0; lichter.len()], ..Default::default() };
     let mut kandidaten: Vec<(u64, u32, usize)> = Vec::new();
     for (i, l) in lichter.iter().enumerate() {
@@ -124,11 +129,13 @@ pub fn schatten_waehlen(lichter: &[LichtB], sk: &[[f64; 4]; 6], auge: [f64; 3], 
             continue;
         }
         let r = l.reichweite;
-        let drin = sk.iter().all(|p| {
-            let n = libm::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
-            p[0] * l.pos[0] + p[1] * l.pos[1] + p[2] * l.pos[2] + p[3] >= -r * n
-        });
-        if !drin {
+        let drin = |e: &[[f64; 4]; 6]| {
+            e.iter().all(|p| {
+                let n = libm::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+                p[0] * l.pos[0] + p[1] * l.pos[1] + p[2] * l.pos[2] + p[3] >= -r * n
+            })
+        };
+        if !drin(sk) && !sk_spiegel.is_some_and(drin) {
             continue;
         }
         let d = [l.pos[0] - auge[0], l.pos[1] - auge[1], l.pos[2] - auge[2]];
@@ -223,65 +230,61 @@ fn wirkt(l: &LichtB) -> bool {
     !l.sonne && l.staerke > 0.0
 }
 
-/// Schreibt den Abschnitt `LICHTER`, wenn mehr als `MAX_LICHTER` Lichter wirken oder ein Spot dabei ist; liefert die Zahl der
-/// geschriebenen Abschnitte (0 oder 1). `ansicht` = Ansichtsmatrix der Kamera, `vorn` = ihre Blickrichtung (normiert).
-/// `platz` = Schatten-Platz + 1 je Licht ([`SchattenWahl::platz`]; 0 bzw. leer = keiner): erzwingt den Abschnitt und steht in
-/// Bits 16 … 19 der Zellen-Einträge.
-#[allow(clippy::too_many_arguments)]
-pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64, seiten: f64, nah: f64, fern: f64, auge: [f64; 3], vorn: [f64; 3], platz: &[u8]) -> u32 {
-    let anzahl = lichter.iter().filter(|l| wirkt(l)).count();
-    let spot = lichter.iter().any(|l| wirkt(l) && l.kegel > 0.0);
-    let schatten = platz.iter().any(|&p| p != 0);
-    if anzahl <= MAX_LICHTER && !spot && !schatten {
-        return 0;
+/// Spiegelmatrix an der Ebene y = `h` (y → 2h − y; spaltenweise wie alle `M4`).
+pub fn spiegel_matrix(h: f64) -> M4 {
+    let mut m = [0.0; 16];
+    m[0] = 1.0;
+    m[5] = -1.0;
+    m[13] = 2.0 * h;
+    m[10] = 1.0;
+    m[15] = 1.0;
+    m
+}
+
+/// Ebenen eines Frustums (`a·x + b·y + c·z + d ≥ 0` innen), an der Ebene y = `h` gespiegelt: ein Punkt liegt im gespiegelten
+/// Frustum, wenn sein Spiegelbild im ursprünglichen liegt (H-K21).
+pub fn ebenen_gespiegelt(sk: &[[f64; 4]; 6], h: f64) -> [[f64; 4]; 6] {
+    let mut r = *sk;
+    for p in r.iter_mut() {
+        *p = [p[0], -p[1], p[2], p[3] + 2.0 * h * p[1]];
     }
-    let nx = RASTER_X as usize;
-    let ny = {
-        let v = libm::round(RASTER_X as f64 / if seiten > 0.0 { seiten } else { 1.0 });
-        if v < 1.0 {
-            1
-        } else if v > 32.0 {
-            32
-        } else {
-            v as usize
-        }
-    };
-    let nz = RASTER_Z as usize;
-    let zellen = nx * ny * nz;
-    let ln_tiefe = libm::log(fern / nah);
-    let pro_scheibe = nz as f64 / ln_tiefe;
-    let t = libm::tan(sicht * crate::welt::GRAD * 0.5);
-    let (kx, ky) = (1.0 / (t * seiten), 1.0 / t);
+    r
+}
 
-    // Reihenfolge: Abstand zur Kamera, dann Teil-ID (wie die 8 Lichter in SZENE)
-    let mut ordnung: Vec<(u64, u32, usize)> = lichter
-        .iter()
-        .enumerate()
-        .filter(|(_, l)| wirkt(l))
-        .map(|(i, l)| {
-            let d = [l.pos[0] - auge[0], l.pos[1] - auge[1], l.pos[2] - auge[2]];
-            (ordnungs_bits(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]), l.teil, i)
-        })
-        .collect();
-    ordnung.sort_unstable_by_key(|x| (x.0, x.1));
+/// Raster einer Sicht (Kacheln × Scheiben) wie im Shader.
+struct Raster {
+    nx: usize,
+    ny: usize,
+    nz: usize,
+    nah: f64,
+    fern: f64,
+    pro_scheibe: f64,
+    kx: f64,
+    ky: f64,
+}
 
-    // Scheibe zu einer Tiefe (wie der Shader: ⌊ln(d/nah) · nz / ln(fern/nah)⌋, geklemmt)
-    let scheibe = |d: f64| -> usize {
-        if d <= nah {
+impl Raster {
+    /// Scheibe zu einer Tiefe (wie der Shader: ⌊ln(d/nah) · nz / ln(fern/nah)⌋, geklemmt)
+    fn scheibe(&self, d: f64) -> usize {
+        if d <= self.nah {
             return 0;
         }
-        let s = libm::floor(libm::log(d / nah) * pro_scheibe);
+        let s = libm::floor(libm::log(d / self.nah) * self.pro_scheibe);
         if s < 0.0 {
             0
-        } else if s >= (nz - 1) as f64 {
-            nz - 1
+        } else if s >= (self.nz - 1) as f64 {
+            self.nz - 1
         } else {
             s as usize
         }
-    };
-    let grenze = |s: usize| -> f64 { nah * libm::exp(s as f64 / pro_scheibe) };
-    // Kachel zu einer NDC-Koordinate (wie der Shader: ⌊(ndc · ½ + ½) · n⌋, geklemmt)
-    let kachel = |ndc: f64, n: usize| -> usize {
+    }
+
+    fn grenze(&self, s: usize) -> f64 {
+        self.nah * libm::exp(s as f64 / self.pro_scheibe)
+    }
+
+    /// Kachel zu einer NDC-Koordinate (wie der Shader: ⌊(ndc · ½ + ½) · n⌋, geklemmt)
+    fn kachel(ndc: f64, n: usize) -> usize {
         let k = libm::floor((ndc * 0.5 + 0.5) * n as f64);
         if k < 0.0 {
             0
@@ -290,28 +293,24 @@ pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64
         } else {
             k as usize
         }
-    };
+    }
 
-    let mut sichtbar: Vec<usize> = Vec::new();
-    let mut paare: Vec<(u32, u32)> = Vec::new(); // (Zelle, Licht-Index) in Lichtreihenfolge
-    for &(_, _, i) in &ordnung {
-        if sichtbar.len() >= MAX_LICHTER_VIELE {
-            break;
-        }
-        let l = &lichter[i];
+    /// Hängt die Zellen an, die die Kugel des Lichts in der Sicht `ansicht` berühren könnte (Paare (Zelle, `index`));
+    /// liefert, ob es eine gab. Konservativ: Quader um die Kugel, je Scheibe projiziert.
+    fn zellen(&self, ansicht: &M4, l: &LichtB, index: u32, paare: &mut Vec<(u32, u32)>) -> bool {
+        let (nx, ny, nz, nah, fern) = (self.nx, self.ny, self.nz, self.nah, self.fern);
         let r = if l.reichweite > 0.0 { l.reichweite } else { 0.0 };
         let p = transf(ansicht, l.pos);
         let (x, y, d) = (p[0], p[1], -p[2]);
         if !(x.is_finite() && y.is_finite() && d.is_finite()) || d + r <= nah || d - r >= fern {
-            continue;
+            return false;
         }
-        let index = sichtbar.len() as u32;
         let mut drin = false;
-        let (s0, s1) = (scheibe((d - r) * (1.0 - 1e-6)), scheibe((d + r) * (1.0 + 1e-6)));
+        let (s0, s1) = (self.scheibe((d - r) * (1.0 - 1e-6)), self.scheibe((d + r) * (1.0 + 1e-6)));
         for s in s0..=s1 {
             // Tiefenbereich dieser Scheibe ∩ Kugel (die letzte Scheibe reicht bis ins Unendliche)
-            let mut z0 = grenze(s);
-            let mut z1 = if s + 1 >= nz { f64::INFINITY } else { grenze(s + 1) };
+            let mut z0 = self.grenze(s);
+            let mut z1 = if s + 1 >= nz { f64::INFINITY } else { self.grenze(s + 1) };
             if s == 0 {
                 z0 = nah;
             }
@@ -345,53 +344,125 @@ pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64
                     v
                 }
             };
-            let (nx0, nx1, ny0, ny1) = (lo(xa, kx), hi(xb, kx), lo(ya, ky), hi(yb, ky));
+            let (nx0, nx1, ny0, ny1) = (lo(xa, self.kx), hi(xb, self.kx), lo(ya, self.ky), hi(yb, self.ky));
             if nx1 < -1.0 || nx0 > 1.0 || ny1 < -1.0 || ny0 > 1.0 {
                 continue;
             }
             drin = true;
-            let (tx0, tx1, ty0, ty1) = (kachel(nx0, nx), kachel(nx1, nx), kachel(ny0, ny), kachel(ny1, ny));
+            let (tx0, tx1, ty0, ty1) = (Raster::kachel(nx0, nx), Raster::kachel(nx1, nx), Raster::kachel(ny0, ny), Raster::kachel(ny1, ny));
             for ty in ty0..=ty1 {
                 for tx in tx0..=tx1 {
                     paare.push((((s * ny + ty) * nx + tx) as u32, index));
                 }
             }
         }
+        drin
+    }
+
+    /// Zellen-Wörter (Köpfe `versatz << 8 | anzahl`, dann Licht-Index | Platz << 16) – innerhalb einer Zelle in
+    /// Lichtreihenfolge (stabil), je Zelle höchstens `MAX_JE_ZELLE`, zusammen höchstens `grenze` Wörter (sonst bleibt die Zelle
+    /// leer). `basis` = Lage des ersten Worts in der Glut-Textur: die Versätze der Köpfe sind absolut.
+    fn tabelle(&self, paare: &[(u32, u32)], sichtbar: &[usize], platz: &[u8], basis: u32, grenze: usize) -> Vec<u32> {
+        let zellen = self.nx * self.ny * self.nz;
+        let mut zahl = vec![0u32; zellen];
+        for &(z, _) in paare {
+            let c = &mut zahl[z as usize];
+            if (*c as usize) < MAX_JE_ZELLE {
+                *c += 1;
+            }
+        }
+        let mut versatz = vec![0u32; zellen];
+        let mut summe = zellen as u32;
+        for z in 0..zellen {
+            if summe as usize + zahl[z] as usize > grenze {
+                zahl[z] = 0;
+            }
+            versatz[z] = summe;
+            summe += zahl[z];
+        }
+        let mut daten = vec![0u32; summe as usize];
+        for z in 0..zellen {
+            daten[z] = (basis + versatz[z]) << 8 | zahl[z];
+        }
+        let mut fuell = vec![0u32; zellen];
+        for &(z, i) in paare {
+            let z = z as usize;
+            if fuell[z] < zahl[z] {
+                let p = platz.get(sichtbar[i as usize]).copied().unwrap_or(0) as u32;
+                daten[(versatz[z] + fuell[z]) as usize] = i | p << 16;
+                fuell[z] += 1;
+            }
+        }
+        daten
+    }
+}
+
+/// Schreibt den Abschnitt `LICHTER`, wenn mehr als `MAX_LICHTER` Lichter wirken oder ein Spot dabei ist; liefert die Zahl der
+/// geschriebenen Abschnitte (0, 1 bzw. mit Spiegel-Tabelle 2). `ansicht` = Ansichtsmatrix der Kamera, `vorn` = ihre
+/// Blickrichtung (normiert). `platz` = Schatten-Platz + 1 je Licht ([`SchattenWahl::platz`]; 0 bzw. leer = keiner): erzwingt
+/// den Abschnitt und steht in Bits 16 … 19 der Zellen-Einträge.
+///
+/// **Spiegel (H-K21):** `spiegel` = Höhe der Spiegelebene bei `Stimmung.spiegelGuete` voll. Dann führt die Lichterliste auch
+/// Lichter, die nur die gespiegelte Sicht berühren, und direkt dahinter folgt der Abschnitt `LICHTER_SPIEGEL`: Kopf wie bei
+/// `LICHTER` (Blickrichtung gespiegelt, `frei.x` = erstes Wort der Tabelle in der Glut-Textur), Zahl der Wörter und die
+/// Zellen-Tabelle der Ansicht `ansicht · Spiegelmatrix` – dieselbe Lichterliste, Versätze absolut hinter der ersten Tabelle.
+/// Ohne `spiegel` byte-gleich.
+#[allow(clippy::too_many_arguments)]
+pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64, seiten: f64, nah: f64, fern: f64, auge: [f64; 3], vorn: [f64; 3], platz: &[u8], spiegel: Option<f64>) -> u32 {
+    let anzahl = lichter.iter().filter(|l| wirkt(l)).count();
+    let spot = lichter.iter().any(|l| wirkt(l) && l.kegel > 0.0);
+    let schatten = platz.iter().any(|&p| p != 0);
+    if anzahl <= MAX_LICHTER && !spot && !schatten {
+        return 0;
+    }
+    let nx = RASTER_X as usize;
+    let ny = {
+        let v = libm::round(RASTER_X as f64 / if seiten > 0.0 { seiten } else { 1.0 });
+        if v < 1.0 {
+            1
+        } else if v > 32.0 {
+            32
+        } else {
+            v as usize
+        }
+    };
+    let nz = RASTER_Z as usize;
+    let ln_tiefe = libm::log(fern / nah);
+    let pro_scheibe = nz as f64 / ln_tiefe;
+    let t = libm::tan(sicht * crate::welt::GRAD * 0.5);
+    let raster = Raster { nx, ny, nz, nah, fern, pro_scheibe, kx: 1.0 / (t * seiten), ky: 1.0 / t };
+    let ansicht_sp = spiegel.map(|h| m4_mal(ansicht, &spiegel_matrix(h)));
+
+    // Reihenfolge: Abstand zur Kamera, dann Teil-ID (wie die 8 Lichter in SZENE)
+    let mut ordnung: Vec<(u64, u32, usize)> = lichter
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| wirkt(l))
+        .map(|(i, l)| {
+            let d = [l.pos[0] - auge[0], l.pos[1] - auge[1], l.pos[2] - auge[2]];
+            (ordnungs_bits(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]), l.teil, i)
+        })
+        .collect();
+    ordnung.sort_unstable_by_key(|x| (x.0, x.1));
+
+    let mut sichtbar: Vec<usize> = Vec::new();
+    let mut paare: Vec<(u32, u32)> = Vec::new(); // (Zelle, Licht-Index) in Lichtreihenfolge
+    let mut paare_sp: Vec<(u32, u32)> = Vec::new();
+    for &(_, _, i) in &ordnung {
+        if sichtbar.len() >= MAX_LICHTER_VIELE {
+            break;
+        }
+        let l = &lichter[i];
+        let index = sichtbar.len() as u32;
+        let mut drin = raster.zellen(ansicht, l, index, &mut paare);
+        if let Some(a) = &ansicht_sp {
+            drin |= raster.zellen(a, l, index, &mut paare_sp);
+        }
         if drin {
             sichtbar.push(i);
         }
     }
-
-    // Zählen (gekappt), Versätze, Füllen – innerhalb einer Zelle in Lichtreihenfolge (stabil)
-    let mut zahl = vec![0u32; zellen];
-    for &(z, _) in &paare {
-        let c = &mut zahl[z as usize];
-        if (*c as usize) < MAX_JE_ZELLE {
-            *c += 1;
-        }
-    }
-    let mut versatz = vec![0u32; zellen];
-    let mut summe = zellen as u32;
-    for z in 0..zellen {
-        if summe as usize + zahl[z] as usize > MAX_WORTE {
-            zahl[z] = 0;
-        }
-        versatz[z] = summe;
-        summe += zahl[z];
-    }
-    let mut daten = vec![0u32; summe as usize];
-    for z in 0..zellen {
-        daten[z] = versatz[z] << 8 | zahl[z];
-    }
-    let mut fuell = vec![0u32; zellen];
-    for &(z, i) in &paare {
-        let z = z as usize;
-        if fuell[z] < zahl[z] {
-            let p = platz.get(sichtbar[i as usize]).copied().unwrap_or(0) as u32;
-            daten[(versatz[z] + fuell[z]) as usize] = i | p << 16;
-            fuell[z] += 1;
-        }
-    }
+    let daten = raster.tabelle(&paare, &sichtbar, platz, 0, MAX_WORTE);
 
     let st = abschnitt_beginn(aus, art::LICHTER);
     put_v4(aus, [nx as f64, ny as f64, nz as f64, sichtbar.len() as f64]);
@@ -419,5 +490,25 @@ pub fn abschnitt(aus: &mut Vec<u8>, lichter: &[LichtB], ansicht: &M4, sicht: f64
         put_u32(aus, *w);
     }
     abschnitt_ende(aus, st);
-    1
+    if ansicht_sp.is_none() {
+        return 1;
+    }
+
+    // ---- Spiegel-Tabelle (H-K21): gespiegelte Sicht, dieselbe Lichterliste, hinter der ersten Tabelle ----
+    // Passt sie nicht mehr in MAX_WORTE, bleibt sie leer (Kopf mit Anzahl 0 → der Spiegel nimmt die 8 Lichter aus SZENE)
+    let basis = daten.len() as u32;
+    let rest = MAX_WORTE.saturating_sub(daten.len());
+    let daten_sp = if rest >= nx * ny * nz { raster.tabelle(&paare_sp, &sichtbar, platz, basis, rest) } else { Vec::new() };
+    let an = if daten_sp.is_empty() { 0.0 } else { sichtbar.len() as f64 };
+    let st = abschnitt_beginn(aus, art::LICHTER_SPIEGEL);
+    put_v4(aus, [nx as f64, ny as f64, nz as f64, an]);
+    put_v4(aus, [nah, pro_scheibe, fern, 0.0]);
+    put_v4(aus, [vorn[0], -vorn[1], vorn[2], 0.0]);
+    put_v4(aus, [basis as f64, 0.0, 0.0, 0.0]);
+    put_u32(aus, daten_sp.len() as u32);
+    for w in &daten_sp {
+        put_u32(aus, *w);
+    }
+    abschnitt_ende(aus, st);
+    2
 }

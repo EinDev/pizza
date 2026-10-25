@@ -76,6 +76,8 @@ const LAEUFE = [
   ['schatten.herd', {}],
   ['schatten.herd', { N: 1000, L: 8, TAKTE: 10 }],
   ['schatten.herd', { N: 1000, L: 8, NACHT: 1, AUS: 0, TAKTE: 10 }],
+  ['spiegel.herd', {}],
+  ['spiegel.herd', { N: 1000, L: 256, TAKTE: 4 }],
 ];
 
 const args = process.argv.slice(2);

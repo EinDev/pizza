@@ -60,6 +60,9 @@ pub mod abschnitt {
     /// Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, `crate::lichter::schatten_abschnitt`): nur wenn ein Licht
     /// `schattenGuete` ≠ aus wirft, die Sonne Kaskaden hat oder ihr `schattenWeich` ≠ 1 ist
     pub const SCHATTENLICHTER: u32 = 20;
+    /// Zweite Zellen-Tabelle für die gespiegelte Kamera (H-K21, `crate::lichter::abschnitt`): nur bei `Stimmung.spiegelGuete`
+    /// voll und vorhandenem `LICHTER`, direkt dahinter
+    pub const LICHTER_SPIEGEL: u32 = 21;
 }
 
 pub mod flag {
@@ -628,6 +631,9 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     let ansicht = blick(auge, vorn, oben);
     let vp = m4_mal(&perspektive(sicht, seiten, nah, fern), &ansicht);
     let sk = ebenen(&vp);
+    // H-K21: Spiegelbild voll → was nur im Spiegel zu sehen ist, zählt auch als sichtbar (Körper, Teilchen, Schattenlichter)
+    let spiegel = crate::komponenten::stimmung::spiegel_voll(w);
+    let sk_spiegel = spiegel.map(|h| crate::lichter::ebenen_gespiegelt(&sk, h));
 
     // Lichter: Sonne = kleinste ID; Punktlichter = die 8 nächsten zur Kamera (Abstand, dann ID)
     let sonne = bau.lichter.iter().filter(|l| l.sonne).min_by_key(|l| l.teil).copied();
@@ -646,7 +652,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     let n3 = bau.koerper.len();
     bau.sicht.clear();
     for k in &bau.koerper {
-        bau.sicht.push(im_sichtkoerper(&sk, k.min, k.max));
+        bau.sicht.push(im_sichtkoerper(&sk, k.min, k.max) || sk_spiegel.as_ref().is_some_and(|e| im_sichtkoerper(e, k.min, k.max)));
     }
 
     // Sonnenschatten: Lichtkamera aus sichtbarem Bereich (Kamera bis SCHATTEN_WEITE ∩ sichtbare Szene)
@@ -807,7 +813,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     }
     let sonne_schatten = schatten || !kaskaden.is_empty();
     // Punkt-/Spot-Kacheln hinter den Sonnen-Schichten (v1: eine, Kaskaden: je eine)
-    let schatten_wahl = crate::lichter::schatten_waehlen(&bau.lichter, &sk, auge, if schatten { 1 } else { kaskaden.len() as u32 });
+    let schatten_wahl = crate::lichter::schatten_waehlen(&bau.lichter, &sk, sk_spiegel.as_ref(), auge, if schatten { 1 } else { kaskaden.len() as u32 });
 
     // Sortieren: undurchsichtig nach (Netz, Gruppe, Teil), Gruppe 0 = wirft, unsichtbar (nur Schatten),
     // 1 = wirft, sichtbar, 2 = wirft nicht, sichtbar. Durchsichtig: von hinten nach vorn, dann Teil.
@@ -1058,7 +1064,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
 
     // ---------------- 3D-Teilchen (Funken): leuchtende in Ausstoßreihenfolge, dann deckende von hinten nach vorn ----------------
     if !bau.teilchen3d.is_empty() {
-        abschnitte += teilchen_abschnitt(aus, bau, &sk, auge, vorn);
+        abschnitte += teilchen_abschnitt(aus, bau, &sk, sk_spiegel.as_ref(), auge, vorn);
     }
 
     // ---------------- Himmelszelt (H-K11b): nur Werte, die Pixel rechnet die Glut ----------------
@@ -1086,7 +1092,7 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     }
 
     // ---------------- Viele Lichter (Clustered Forward): nur bei mehr als 8 Punktlichtern oder einem Spot ----------------
-    abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn, &schatten_wahl.platz);
+    abschnitte += crate::lichter::abschnitt(aus, &bau.lichter, &ansicht, sicht, seiten, nah, fern, auge, vorn, &schatten_wahl.platz, spiegel);
     // ---------------- Schatten-Ansichten (H-K18): nur bei Kacheln, Kaskaden oder weicherer/härterer Sonne ----------------
     if !schatten_wahl.kacheln.is_empty() || !kaskaden.is_empty() || (schatten && sonne_weich != 1.0) {
         let k: Vec<(crate::lichter::SchattenAnsicht, f64, f64)> = kaskaden.iter().map(|k| (k.ansicht, k.ansicht.texel, k.bias)).collect();
@@ -1214,7 +1220,7 @@ fn sonnen_kaskaden(bau: &Bildbau, lv: &M4, k: u32, nah: f64, d: f64, auge: [f64;
 /// Abschnitt `TEILCHEN3D`: `u32 leuchtend, u32 deckend`, dann die Teilchen (je `TEILCHEN3D_BYTES`). Teilchen außerhalb des
 /// Sichtkörpers (Kugel mit der halben Größe, gestreckt + halbe Strichlänge) entfallen. Danach `ZUSATZ_TEILCHEN`, wenn ein
 /// Teilchen gestreckt oder beleuchtet ist. Liefert die Zahl der geschriebenen Abschnitte (0, 1 oder 2).
-fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], auge: [f64; 3], vorn: [f64; 3]) -> u32 {
+fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], sk_spiegel: Option<&[[f64; 4]; 6]>, auge: [f64; 3], vorn: [f64; 3]) -> u32 {
     let mut laengen = [0.0; 6];
     for (l, p) in laengen.iter_mut().zip(sk.iter()) {
         *l = libm::sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
@@ -1226,12 +1232,9 @@ fn teilchen_abschnitt(aus: &mut Vec<u8>, bau: &mut Bildbau, sk: &[[f64; 4]; 6], 
         // gestreckt: Kugel um die Mitte mit halber Strichlänge + halber Größe
         let s = &t.strich;
         let r = if s[0] != 0.0 || s[1] != 0.0 || s[2] != 0.0 { t.r + libm::sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]) } else { t.r };
-        for (p, l) in sk.iter().zip(laengen.iter()) {
-            if p[0] * t.pos[0] + p[1] * t.pos[1] + p[2] * t.pos[2] + p[3] < -r * l {
-                return false;
-            }
-        }
-        true
+        // H-K21: im Frustum oder (Spiegelbild voll) im gespiegelten – die gespiegelten Ebenen haben dieselben Normalenlängen
+        let drin = |e: &[[f64; 4]; 6]| e.iter().zip(laengen.iter()).all(|(p, l)| !(p[0] * t.pos[0] + p[1] * t.pos[1] + p[2] * t.pos[2] + p[3] < -r * l));
+        drin(sk) || sk_spiegel.is_some_and(drin)
     };
     bau.teilchen_ordnung.clear();
     let mut leuchtend = 0u32;

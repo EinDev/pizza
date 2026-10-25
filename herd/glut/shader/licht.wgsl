@@ -26,11 +26,13 @@ struct Schattenlichter {
 
 // Viele Lichter (Abschnitt LICHTER, Clustered Forward): Kopf, je Licht 3 Texel (pos+reichweite, farbe+cos außen,
 // richtung+cos innen) und die Zellen-Wörter (Köpfe `versatz << 8 | anzahl`, dann Licht-Indizes). raster.w = 0 → aus.
+// Im Spiegeldurchgang ist Bindung 14 der Kopf von LICHTER_SPIEGEL (H-K21, spiegelGuete voll): Zellen der gespiegelten Kamera
+// ab Wort frei.x derselben Zellen-Textur; ohne (einfach) Nullen → die 8 Lichter aus SZENE.
 struct Lichter {
     raster: vec4<f32>,   // Kacheln x, y, Scheiben z, Anzahl Lichter
     tiefe: vec4<f32>,    // nah, Scheiben je ln-Einheit, fern, 0
     vorn: vec4<f32>,     // Blickrichtung der Kamera
-    frei: vec4<f32>,
+    frei: vec4<f32>,     // x = erstes Wort der Zellen-Tabelle (LICHTER: 0)
 }
 @group(0) @binding(14) var<uniform> lichter: Lichter;
 @group(0) @binding(15) var lichter_t: texture_2d<f32>;
@@ -162,7 +164,7 @@ fn zelle(welt: vec3<f32>) -> u32 {
     let ty = u32(clamp(floor((ndc.y * 0.5 + 0.5) * n.y), 0.0, n.y - 1.0));
     let d = max(dot(welt - szene.kamera.xyz, lichter.vorn.xyz), lichter.tiefe.x);
     let s = u32(clamp(floor(log(d / lichter.tiefe.x) * lichter.tiefe.y), 0.0, n.z - 1.0));
-    return (s * u32(n.y) + ty) * u32(n.x) + tx;
+    return u32(lichter.frei.x) + (s * u32(n.y) + ty) * u32(n.x) + tx;
 }
 
 struct EinNetz {
@@ -432,9 +434,14 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
     // Spiegelung (Stimmung): nach oben zeigende Flächen auf Höhe der Spiegelebene nehmen das Spiegelbild an derselben
     // Bildschirmstelle (verzerrt vom Relief, unscharf mit der Rauheit), gewichtet mit Fresnel und Glätte
     let spiegeln = hdr_an() && stimmung.spiegel.x > 0.0 && !im_spiegel();
-    let auf_ebene = (1.0 - smoothstep(0.05, 0.3, abs(welt.y - stimmung.spiegel.y))) * smoothstep(0.7, 0.95, ng.y);
+    // Höhenfenster um die Ebene: einfach voll bis 0,05, aus ab 0,3; voll (H-K21) voll bis 0,2, aus ab 0,45 – Gehwege (0,15)
+    // spiegeln dann ganz (eine Ebene für alles; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild)
+    let voll = stimmung.spiegel.w > 0.5;
+    let fenster = select(vec2<f32>(0.05, 0.3), vec2<f32>(0.2, 0.45), voll);
+    let auf_ebene = (1.0 - smoothstep(fenster.x, fenster.y, abs(welt.y - stimmung.spiegel.y))) * smoothstep(0.7, 0.95, ng.y);
     if (spiegeln && auf_ebene > 0.0) {
-        let dim = vec2<f32>(textureDimensions(spiegel_t)) * 2.0;
+        // Spiegelbild in halber Größe, bei spiegelGuete voll (spiegel.w = 1, H-K21) in voller
+        let dim = vec2<f32>(textureDimensions(spiegel_t)) * select(2.0, 1.0, voll);
         let uv = pos / dim + (n.xz - ng.xz) * vec2<f32>(0.05, -0.05);
         let r = rauh * rauh * 0.035;
         var bild = textureSampleLevel(spiegel_t, eigen_s, uv, 0.0).rgb * 0.4;
@@ -451,8 +458,8 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
     let ndl = max(dot(n, l), 0.0);
     c = c + szene.sonne_farbe.rgb * sonne * (diff * ndl + ggx(n, v, l, rauh, f0));
 
-    // Lichter (im Spiegeldurchgang die 8 aus SZENE)
-    if (lichter.raster.w > 0.5 && !im_spiegel()) {
+    // Lichter (im Spiegeldurchgang die Spiegel-Zellen bei spiegelGuete voll, sonst die 8 aus SZENE)
+    if (lichter.raster.w > 0.5) {
         let kopf = zellwort(zelle(welt));
         let erstes = kopf >> 8u;
         let zahl = kopf & 255u;
@@ -511,8 +518,11 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     let welt_modus = (merkmale & 2u) != 0u;
     let nass = f32((merkmale >> 8u) & 255u) / 255.0;
     let kacheln = kachel > 0.0;
+    // Spiegeldurchgang: die Spiegelmatrix dreht den Umlaufsinn – bei spiegelGuete voll (H-K21) zählt die echte Vorderseite
+    // (einfach bleibt wie bisher, damit seine Bilder gleich bleiben)
+    let vorn = vorne != (im_spiegel() && stimmung.spiegel.w > 0.5);
     var ng = normalize(a.normale);
-    if (!vorne) {
+    if (!vorn) {
         ng = -ng;
     }
     let uvs = select(a.roh, select(a.roh * kachel, welt_uv(a.welt, ng) / max(kachel, 1e-4), welt_modus), kacheln);
@@ -522,6 +532,12 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     let py = dpdy(a.welt);
     // Spiegeldurchgang: nur was über der Ebene liegt (die Ebene selbst nicht)
     if (im_spiegel() && a.welt.y < szene.zahlen.z + 0.03) {
+        discard;
+    }
+    // voll (H-K21): Oberseiten niedriger Platten (Gehweg, Bordstein, Stufen bis 0,5 über der Ebene) von unten gesehen weglassen –
+    // so spiegeln Pfützen auf ihnen die Szene dahinter (an der Ebene gespiegelt, Versatz 2 · Höhenunterschied) statt das Innere
+    // der Platte
+    if (im_spiegel() && stimmung.spiegel.w > 0.5 && !vorn && normalize(a.normale).y > 0.5 && a.welt.y < szene.zahlen.z + 0.5) {
         discard;
     }
     let groesse = a.uvbox.zw - a.uvbox.xy;
@@ -543,7 +559,7 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
         discard;
     }
     var n = normalize(a.normale);
-    if (!vorne) {
+    if (!vorn) {
         n = -n;
     }
     // Relief (eigene Textur, Glut-Kennung wie textur): Normale aus R, G (OpenGL: G = Bild-oben), Rauheit aus B
@@ -602,8 +618,8 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     glanzlicht = glanzlicht + szene.sonne_farbe.rgb * (spiegel * sonne);
 
     // Punktlichter (weicher Abfall bis zur Reichweite): viele über die Zellen-Tabelle, sonst die 8 aus SZENE (v1);
-    // im Spiegeldurchgang passen die Zellen nicht (andere Sicht) → dort die 8 nächsten aus SZENE
-    let zellen_an = lichter.raster.w > 0.5 && !im_spiegel();
+    // im Spiegeldurchgang die Zellen der gespiegelten Kamera (spiegelGuete voll), sonst die 8 nächsten aus SZENE
+    let zellen_an = lichter.raster.w > 0.5;
     if (zellen_an) {
         let kopf = zellwort(zelle(a.welt));
         let erstes = kopf >> 8u;

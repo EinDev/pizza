@@ -37,10 +37,11 @@ struct Stimmung {
     nebel: vec4<f32>,   // dichte, hoehe, abfall, fern
     farbe: vec4<f32>,   // nebelFarbe linear, saettigung
     b: vec4<f32>,       // vignette, koernung, zeit, an
-    spiegel: vec4<f32>, // spiegelung, spiegelHoehe, 0, 0
+    spiegel: vec4<f32>, // spiegelung, spiegelHoehe, regen, spiegelGuete (0 einfach, 1 voll)
 }
 @group(0) @binding(17) var<uniform> stimmung: Stimmung;
-// Spiegelbild (Stimmung.spiegelung): die gespiegelte Szene, halbe Größe, linear (im Spiegeldurchgang selbst ein Platzhalter)
+// Spiegelbild (Stimmung.spiegelung): die gespiegelte Szene, halbe Größe (voll: volle), linear (im Spiegeldurchgang selbst ein
+// Platzhalter)
 @group(0) @binding(19) var spiegel_t: texture_2d<f32>;
 
 // Spiegeldurchgang: SZENE.zahlen.y = 1, zahlen.z = Höhe der Ebene (die Glut schreibt eine gespiegelte Kopie von SZENE)

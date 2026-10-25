@@ -32,7 +32,7 @@ fn zelle(welt: vec3<f32>) -> u32 {
     let ty = u32(clamp(floor((ndc.y * 0.5 + 0.5) * n.y), 0.0, n.y - 1.0));
     let d = max(dot(welt - szene.kamera.xyz, lichter.vorn.xyz), lichter.tiefe.x);
     let s = u32(clamp(floor(log(d / lichter.tiefe.x) * lichter.tiefe.y), 0.0, n.z - 1.0));
-    return (s * u32(n.y) + ty) * u32(n.x) + tx;
+    return u32(lichter.frei.x) + (s * u32(n.y) + ty) * u32(n.x) + tx;
 }
 
 struct EinFunke {
@@ -50,6 +50,12 @@ struct AusFunke {
     @location(1) @interpolate(flat) farbe: vec4<f32>,   // linear rgb, a
     @location(2) @interpolate(flat) nebel: f32,         // Nebelanteil 0 … 1
     @location(3) @interpolate(flat) zusatz: vec4<f32>,  // gestreckt (0/1), Deckkraft-Faktor (Mindestbreite), Kappe (Anteil), 0
+    @location(4) hoehe: f32,                            // Welt-y (Spiegeldurchgang: nur was über der Ebene liegt)
+}
+
+// Spiegeldurchgang (H-K21, spiegelGuete voll): Teilchenteile unter der Spiegelebene fallen weg (wie in licht.wgsl)
+fn unter_spiegel(a: AusFunke) -> bool {
+    return im_spiegel() && a.hoehe < szene.zahlen.z + 0.03;
 }
 
 // Licht am Teilchen: Umgebung (Halbkugel oben) und Nebelfarbe als Grund, Sonne und Lichter mit Abfall und Kegel,
@@ -148,6 +154,7 @@ fn vs_funke(e: EinFunke) -> AusFunke {
     }
     a.nebel = f;
     a.zusatz = zusatz;
+    a.hoehe = welt.y;
     return a;
 }
 
@@ -162,6 +169,9 @@ fn strich_form(a: AusFunke) -> f32 {
 // leuchtend: Schein (1 − r²)² plus heißer, fast weißer Kern; Ausgabe vormultipliziert (Mischen One/One)
 @fragment
 fn fs_leuchtend(a: AusFunke) -> @location(0) vec4<f32> {
+    if (unter_spiegel(a)) {
+        discard;
+    }
     if (a.zusatz.x > 0.5) {
         let s = strich_form(a);
         if (s <= 0.0) {
@@ -200,7 +210,7 @@ fn fs_deckend(a: AusFunke) -> @location(0) vec4<f32> {
         woelbung = 1.0;
     }
     let farbe = mix(a.farbe.rgb * woelbung, szene.nebel_farbe.rgb, a.nebel);
-    if (deck <= 0.002) {
+    if (deck <= 0.002 || unter_spiegel(a)) {
         discard;
     }
     if (hdr_an()) {

@@ -2316,6 +2316,19 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** `herd/kern/src/komponenten/licht.rs`, `lichter.rs`, `paket.rs`, `tests.rs` (`hk18`); Glut `licht.wgsl`, `schatten.wgsl`,
   `funken.wgsl` (Index-Maske), `herd/glut/src/lib.rs`, `glut-web`; SPEC §18.6, HERD.md §11.1/§13, `herd/README.md` §2/§4/§9, Doku
   `herd-ausbau`, Referenzbilder `3d-punktschatten`/`3d-kaskaden`, Beispiel `laternengasse`, B13. **Status:** fest.
+- **Nachtrag H-K21 (Spiegelbild vollständig):** `Stimmung.spiegelGuete` (`einfach|voll`, Nachtragsfeld; STIMMUNG `spiegel.w`).
+  `einfach` bleibt wie bisher (Paket, Hash, `3d-spiegel` und alle Bilder gleich). `voll`: der Kern schreibt hinter LICHTER den Abschnitt
+  **LICHTER_SPIEGEL (21)** – eine zweite Zellen-Tabelle für die Ansicht × Spiegelmatrix über dieselbe Lichterliste (Versätze absolut
+  hinter der ersten Tabelle, Kopf `frei.x` = Basiswort; passt sie nicht in 1024 × 2048 Wörter, Anzahl 0 → 8 Lichter aus SZENE); Körper,
+  Teilchen, Lichter und die Schattenwahl (≤ 8 Werfer wie oben) nehmen das gespiegelte Frustum dazu. Die Glut legt die Wörter in
+  `zellen_t` hinter die von LICHTER und bindet den Kopf in der Spiegel-Bindegruppe an Bindung 14 – **keine** Textureinheit, kein
+  Layout-Eintrag (Haupt-Layout bleibt 11/16). Spiegelbild in voller Größe (ohne MSAA) mit `DURCH` (Umlaufsinn gedreht) und
+  3D-Teilchen, Schatten wie im Hauptdurchgang. Im Spiegeldurchgang zählt bei voll die echte Vorderseite (`front_facing` gedreht:
+  der einfache Spiegel beleuchtete die Rückseiten – bleibt dort unverändert, damit seine Bilder gleich bleiben). **Eine Spiegelebene**
+  für alles (**Entscheidung**): mehrere Höhen kosteten je Höhe einen vollen Durchgang; stattdessen spiegeln bei voll Flächen bis ±0,2
+  voll (aus ab 0,45; einfach 0,05/0,3), und Oberseiten (Normale y > 0,5) unter h + 0,5 werden von unten gesehen verworfen – Pfützen auf
+  Gehwegen (0,15) zeigen so die Szene dahinter statt das Innere der Platte; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild.
+  Tests `tests::hk21`, Szene `spiegel.herd`, Referenzbild `3d-spiegel-voll`, Beispiel `regenplatz`; Neon-Napoli spiegelt voll.
 
 ## Offene Umsetzungen (Aufträge für andere Agents)
 

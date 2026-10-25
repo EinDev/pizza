@@ -7,6 +7,10 @@
 //! Leuchten über 1 (für Bloom): Nachtragsfeld `strahlen` an `Koerper`/`Belag` (Faktor auf `leuchten`).
 //! Spiegelung (`spiegelung` > 0): die Glut zeichnet die Szene an der Ebene y = `spiegelHoehe` gespiegelt in ein halb so großes
 //! Bild; nasse, glatte, nach oben zeigende pbr-Flächen auf dieser Höhe spiegeln daraus (Pfützen, nasser Asphalt).
+//! Nachtragsfeld `spiegelGuete` (H-K21): `einfach` (Standard) zeichnet im Spiegel nur Himmel und Undurchsichtiges in halber
+//! Größe mit den 8 nächsten Lichtern; `voll` zeichnet in voller Größe mit allen Lichtern (zweite Zellen-Tabelle
+//! `LICHTER_SPIEGEL`, `crate::lichter`), Schatten, Durchsichtigem und Funken; Sichtprüfung und Licht-/Schattenwahl nehmen dann
+//! auch das gespiegelte Frustum.
 
 use super::*;
 use crate::schema::{Feld, Genus, Raum, Schema};
@@ -27,6 +31,8 @@ pub const SPIEGELUNG: usize = 11;
 pub const SPIEGEL_HOEHE: usize = 12;
 /// Nachtragsfeld „Regen“: Regenstärke 0 … 1 – Pfützenringe und Rinnsale auf nassen pbr-Belägen, Rate der `Funken` mit `regen`
 pub const REGEN: usize = 13;
+/// Nachtragsfeld „Spiegelgüte“ (H-K21): 0 = einfach, 1 = voll
+pub const SPIEGEL_GUETE: usize = 14;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -49,6 +55,7 @@ pub static ART: Art = Art {
             Feld::zahl("spiegelung", 0.0).bereich(0.0, 1.0),
             Feld::zahl("spiegelHoehe", 0.0),
             Feld::zahl("regen", 0.0).bereich(0.0, 1.0).nachtrag(),
+            Feld::wahl("spiegelGuete", &["einfach", "voll"], 0).nachtrag(),
         ],
     },
     ..Art::LEER
@@ -56,7 +63,7 @@ pub static ART: Art = Art {
 
 /// Uniform-Block `STIMMUNG` (80 Bytes, f32): `a` (belichtung, bloom, bloomSchwelle, bloomWeite) · `nebel` (dichte, hoehe,
 /// abfall, fern der Kamera) · `farbe` (nebelFarbe linear, saettigung) · `b` (vignette, koernung, Zeit in s, 1 = an) ·
-/// `spiegel` (spiegelung, spiegelHoehe, regen, 0).
+/// `spiegel` (spiegelung, spiegelHoehe, regen, spiegelGuete: 0 einfach, 1 voll).
 pub const STIMMUNG_BYTES: usize = 80;
 
 /// Die geltende Stimmung: (Artindex, Zeile) der wachen mit der kleinsten Teil-ID.
@@ -80,6 +87,13 @@ pub fn regen(w: &Welt) -> Option<f64> {
     geltende(w).map(|(a, z)| w.speicher[a].zahl(REGEN)[z])
 }
 
+/// Höhe der Spiegelebene, wenn die geltende Stimmung spiegelt und `spiegelGuete` voll ist (H-K21), sonst `None`.
+pub fn spiegel_voll(w: &Welt) -> Option<f64> {
+    let (a, z) = geltende(w)?;
+    let s = &w.speicher[a];
+    (s.zahl(SPIEGELUNG)[z] > 0.0 && s.zahl(SPIEGEL_GUETE)[z] == 1.0).then(|| s.zahl(SPIEGEL_HOEHE)[z])
+}
+
 /// Schreibt den Abschnitt `STIMMUNG` der geltenden Stimmung (wach, kleinste Teil-ID); liefert die Zahl der Abschnitte (0/1).
 pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern: f64) -> u32 {
     let Some((a, z)) = geltende(w) else { return 0 };
@@ -92,7 +106,7 @@ pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern:
     let f = lin4(s.farbe(NEBEL_FARBE)[z], 1.0);
     put_v4(aus, [f[0], f[1], f[2], n(SAETTIGUNG)]);
     put_v4(aus, [n(VIGNETTE), n(KOERNUNG), bildnummer as f64 / 60.0, 1.0]);
-    put_v4(aus, [n(SPIEGELUNG), n(SPIEGEL_HOEHE), n(REGEN), 0.0]);
+    put_v4(aus, [n(SPIEGELUNG), n(SPIEGEL_HOEHE), n(REGEN), n(SPIEGEL_GUETE)]);
     debug_assert_eq!(aus.len() - st, STIMMUNG_BYTES);
     abschnitt_ende(aus, st);
     1

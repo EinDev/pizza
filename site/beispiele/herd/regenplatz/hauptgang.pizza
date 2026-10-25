@@ -1,0 +1,85 @@
+// Regenplatz – eine Piazza bei Nacht im Regen. 150 Neonlichter hängen als Lichterketten an drei Häuserfronten, in der Mitte
+// steht ein Brunnen mit einer Laterne, deren Spot Schatten wirft. Der nasse Platz spiegelt alles: Fronten, Lichter, Laterne
+// und die fallenden Tropfen. Der Taster oben links (oder die Leertaste) wechselt zwischen einfachem und vollem Spiegelbild.
+//
+// So arbeitet die Engine für dich: `Stimmung.spiegelung` zeichnet die Szene an der Ebene `spiegelHoehe` gespiegelt in ein
+// zweites Bild, nasse Flächen nehmen es auf. `spiegelGuete: "einfach"` ist billig: halbe Größe, nur Undurchsichtiges, nur die
+// 8 nächsten Lichter. `"voll"` spiegelt in voller Größe mit allen Lichtern (die Engine legt dafür eine zweite Lichter-Tabelle
+// für die gespiegelte Kamera an), mit Schatten, Durchsichtigem und Funken – und zeigt auch, was nur im Spiegel zu sehen ist.
+
+Herd herd = neu Herd("Regenplatz", breite: 960, hoehe: 540);
+herd.sonne().licht().setzeStaerke(0);
+herd.umgebung("#4a4078", staerke: 0.08);
+herd.himmel("#05050c", "#2c1d40");
+
+// nasser Platz: physikalisches Licht, Pfützen aus `nass`
+Teil pflaster = herd.raum(0, -50, 0);
+pflaster.mit(neu Belag(farbe: "#3a3540", glanz: 0.45, modell: "pbr", nass: 0.85));
+herd.koerper(Form.ebene(), 0, 0, -6, farbe: "#3a3540").setzeGroesse(40, 1, 40).koerper().setzeBelag(pflaster);
+
+Form WUERFEL = Form.wuerfel();
+// drei Häuserfronten
+Blech<margherita> PUTZ = ["#5b4a5e", "#4a5160", "#62504a"];
+für (salami i = 0; i < 6; i++) {
+    herd.koerper(WUERFEL, -14 + i * 5.6, 6, -20, farbe: PUTZ.stück(i % 3 + 1), glanz: 0.2).setzeGroesse(5.4, 12, 2);
+}
+für (salami s = -1; s <= 1; s += 2) {
+    für (salami i = 0; i < 4; i++) {
+        herd.koerper(WUERFEL, s * 15, 5 + i % 2, -16 + i * 6, farbe: PUTZ.stück((i + 1) % 3 + 1), glanz: 0.2).setzeGroesse(2, 10 + (i % 2) * 2, 5.8);
+    }
+}
+
+// 150 Neonlichter: Lichterketten an den Fronten (50 je Front), Farben reihum
+Form KUGEL = Form.kugel(teile: 8);
+Blech<margherita> NEON = ["#ff3cc8", "#22e4ff", "#ffd23c", "#7cff5a", "#a070ff"];
+Teil kette(funghi x, funghi y, funghi z, salami n) {
+    Teil glueh = herd.koerper(KUGEL, x, y, z, farbe: NEON.stück(n % 5 + 1), leuchten: 1).setzeGroesse(0.16);
+    glueh.koerper().setzeStrahlen(5).setzeSchatten(nein);
+    herd.licht(x, y - 0.3, z, farbe: NEON.stück(n % 5 + 1), reichweite: 3.4).licht().setzeStaerke(2.2);
+    serviere ((glueh));
+}
+für (salami i = 0; i < 50; i++) {
+    kette(-14 + (i % 25) * 1.16, 3.2 + (i / 25 >= 1 ? 2.2 : 0) + Mathe.sin(i * 0.8) * 0.12, -18.8, i);
+}
+für (salami s = -1; s <= 1; s += 2) {
+    für (salami i = 0; i < 50; i++) {
+        kette(s * 13.8, 3 + (i / 25 >= 1 ? 2.4 : 0) + Mathe.sin(i * 0.7) * 0.1, -18 + (i % 25) * 0.95, i + 50);
+    }
+}
+
+// Brunnen mit Laterne in der Mitte: Spot mit Schatten aufs Pflaster
+herd.koerper(Form.zylinder(teile: 24), 0, 0.35, -6, farbe: "#6f6a74", glanz: 0.4).setzeGroesse(3.6, 0.7, 3.6);
+herd.koerper(Form.zylinder(teile: 16), 0, 2, -6, farbe: "#2a2a30", glanz: 0.4).setzeGroesse(0.16, 4, 0.16);
+Teil kopf = herd.koerper(Form.kugel(teile: 12), 0, 4.5, -6, farbe: "#ffe0a0", leuchten: 1).setzeGroesse(0.45);
+kopf.koerper().setzeStrahlen(4).setzeSchatten(nein);
+Teil spot = herd.licht(0, 4.3, -6, farbe: "#ffcf8a", reichweite: 12);
+spot.schaueAuf(0, 0, -5.99);
+spot.licht().setzeKegel(55).setzeKegelRand(0.5).setzeStaerke(5).setzeSchattenGuete("mittel").setzeSchattenWeich(1.5);
+// gläserne Vitrine am Brunnenrand (Durchsichtiges im Spiegel)
+herd.koerper(WUERFEL, 2.6, 0.6, -4.2, farbe: "#68d0ff60", glanz: 0.8, leuchten: 0.25).setzeGroesse(1, 1.2, 1).setzeDrehung(30);
+
+// Stimmung: HDR, Bloom, Höhennebel, Regen in den Pfützen – und das volle Spiegelbild
+Stimmung stimmung = herd.raum(0, 0, 0).mit(neu Stimmung(belichtung: 1.7, bloom: 0.9, bloomSchwelle: 1.1, nebelDichte: 0.03,
+                                                        nebelAbfall: 0.1, nebelFarbe: "#2b2142", vignette: 0.3, spiegelung: 1,
+                                                        spiegelGuete: "voll", regen: 0.8));
+// Regen: Tropfen als Striche im Volumen um die Kamera, beleuchtet von den Lichtern
+Teil wolke = herd.raum(0, 10, 4);
+wolke.mit(neu Funken(rate: 3000, lebensdauer: 1.1, tempo: 10, richtungX: 0.05, richtungY: -1, streuung: 3, schwerkraft: 3,
+                     groesse: 0.016, groesseEnde: 0.016, farbe: "#c8d2ffa0", farbeEnde: "#c8d2ffa0", mischung: "leuchtend",
+                     streckung: 0.03, licht: 1, volumen: 8, aufschlag: ja, boden: 0.02, spritzer: 3, regen: ja));
+
+// HUD: Taster „einfach“/„voll“
+Taster umschalten = herd.gruppe(80, 30).mit(neu Taster(inhalt: "Spiegel: voll", breite: 150, hoehe: 34, farbe: "mozzarella"));
+diavolo voll = ja;
+
+herd.backe(() -> {
+    funghi t = herd.zeit();
+    herd.kamera().setzeLage(Mathe.sin(t * 0.15) * 4, 1.7, 9 - t * 0.25).schaueAuf(0, 1.2, -12);
+    wolke.setzeLage(Mathe.sin(t * 0.15) * 4, 10, 4 - t * 0.25);
+    falls (umschalten.geklickt() || herd.gedrueckt("Leertaste")) {
+        voll = !voll;
+        stimmung.setzeSpiegelGuete(voll ? "voll" : "einfach");
+        umschalten.setzeInhalt(voll ? "Spiegel: voll" : "Spiegel: einfach");
+    }
+});
+Bote.sage("Regenplatz: 150 Neonlichter im vollen Spiegelbild.");

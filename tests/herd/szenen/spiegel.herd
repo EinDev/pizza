@@ -1,0 +1,121 @@
+# Spiegelbild vollständig (H-K21, Stimmung.spiegelGuete voll, Abschnitt LICHTER_SPIEGEL): Boden mit N Kisten (auch hoch
+# über dem Bild – nur im Spiegel zu sehen), L Punktlichter an einem drehenden Träger (auch hoch oben), zwei Spots mit
+# Schatten, ein Funkensprüher; zuerst Spiegelung einfach (Paket wie bisher), dann voll auf Höhe 0, dann auf Höhe 0.15 mit
+# bewegter Kamera, am Ende wieder einfach. Prüft nativ = Wasm über die Paket-Hashes: gespiegelte Zellen-Tabelle (Ansicht ×
+# Spiegelmatrix, Kacheln, Scheiben, Kappung), Lichterliste mit Lichtern nur im Spiegel, Sichtprüfung und Schattenwahl mit dem
+# gespiegelten Frustum, Teilchen-Sichtprüfung.
+# Klein: N = 40, L = 60 (Vorgabe); Messung: N = 1000, L = 256.
+vorgabe N 40
+vorgabe L 60
+vorgabe TAKTE 12
+welt_neu 1280 720 "Spiegel"
+welt_himmel "#06070d" "#141022"
+welt_umgebung "#5060a0" 0.1
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Bewegung" -> T_BEW
+typ_nummer "Stimmung" -> T_S
+typ_nummer "Funken" -> T_F
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_L "kegel" -> L_KEGEL
+feld_nummer T_L "schattenGuete" -> L_GUETE
+feld_nummer T_BEW "drehtempo" -> B_DREH
+feld_nummer T_S "spiegelung" -> S_SP
+feld_nummer T_S "spiegelHoehe" -> S_SH
+feld_nummer T_S "spiegelGuete" -> S_GUETE
+feld_nummer T_F "rate" -> F_RATE
+feld_nummer T_F "tempo" -> F_TEMPO
+feld_nummer T_F "richtungY" -> F_RY
+feld_nummer T_F "streuung" -> F_STREU
+feld_nummer T_F "schwerkraft" -> F_SCHWER
+feld_nummer T_F "mischung" -> F_MISCH
+form_grund 5 0 0 -> EBENE
+form_grund 1 0 0 -> WUERFEL
+teil_lage 1 0 2.5 16
+teil_schaue 1 0 -1 0
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+teil_neu 3 -> boden
+teil_groesse boden 80 1 80
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+komp_haenge k boden
+wiederhole N i
+  teil_neu 3 -> kiste
+  teil_lage kiste ((zufall(i) - 0.5) * 40) (0.5 + zufall(i + 3) * 14) ((zufall(i + 7) - 0.5) * 40)
+  teil_groesse kiste (0.4 + zufall(i + 11)) (0.4 + zufall(i + 13)) (0.4 + zufall(i + 17))
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  komp_haenge k kiste
+ende
+# L Punktlichter an einem drehenden Träger, bis 12 m hoch
+teil_neu 3 -> traeger
+komp_neu T_BEW -> bw
+setze_zahl bw B_DREH 18
+komp_haenge bw traeger
+wiederhole L i
+  teil_neu 3 -> l
+  teil_lage l ((zufall(i + 21) - 0.5) * 36) (0.3 + zufall(i + 23) * 12) ((zufall(i + 29) - 0.5) * 36)
+  teil_haenge l traeger
+  komp_neu T_L -> li
+  setze_zahl li L_F (4281063167 + i * 65536)
+  setze_zahl li L_RW (1 + zufall(i + 31) * 5)
+  komp_haenge li l
+ende
+# zwei Spots mit Schatten (einer hoch über dem Bild, nach unten)
+teil_neu 3 -> sp1
+teil_lage sp1 -3 6 2
+teil_schaue sp1 -3 0 1.99
+komp_neu T_L -> spot1
+setze_zahl spot1 L_RW 10
+setze_zahl spot1 L_KEGEL 35
+setze_text spot1 L_GUETE "mittel"
+komp_haenge spot1 sp1
+teil_neu 3 -> sp2
+teil_lage sp2 4 11 4
+teil_schaue sp2 4 0 3.99
+komp_neu T_L -> spot2
+setze_zahl spot2 L_RW 14
+setze_zahl spot2 L_KEGEL 40
+setze_text spot2 L_GUETE "grob"
+komp_haenge spot2 sp2
+# Funkensprüher (leuchtend) und Rauch (deckend)
+teil_neu 3 -> q
+teil_lage q 1 0.5 3
+komp_neu T_F -> f
+setze_zahl f F_RATE 120
+setze_zahl f F_TEMPO 3
+setze_zahl f F_RY 1
+setze_zahl f F_STREU 25
+setze_zahl f F_SCHWER 3
+komp_haenge f q
+teil_neu 3 -> q2
+teil_lage q2 -2 3 -2
+komp_neu T_F -> f
+setze_zahl f F_RATE 20
+setze_zahl f F_TEMPO 0.6
+setze_zahl f F_RY 1
+setze_zahl f F_MISCH 1
+komp_haenge f q2
+# Spiegelung einfach (Paket ohne LICHTER_SPIEGEL)
+teil_neu 3 -> st
+komp_neu T_S -> s
+setze_zahl s S_SP 1
+komp_haenge s st
+takte 3
+# voll auf Höhe 0
+setze_text s S_GUETE "voll"
+takte TAKTE
+# voll auf Höhe 0.15, Kamera tiefer und gedreht
+setze_zahl s S_SH 0.15
+teil_lage 1 6 1.2 12
+teil_schaue 1 -2 0 -3
+takte TAKTE
+# wieder einfach
+setze_text s S_GUETE "einfach"
+takte 2
+paket_voll
+bild

@@ -71,6 +71,8 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
 | B12 (H-K17, 2026-10-25): `schwung.herd` N = 500 Kisten mit `Schwung` als 10 × 10 Türme à 5 Lagen auf einem Tisch in einer Gelände-Mulde (+ Rampe aus eigenem Netz, Drehscheibe, Kind, Kugel, Kapsel), 240 Takte | 1,696 ms | 0,047 ms | 1,75 (1,75) ms | 2,010 ms | 0,141 ms | 2,13 (1,96) ms | Takt ≤ 2 ms bei 500 Kisten (nativ) – erreicht |
 | B12 mit K = 2 000 Kugeln/Kapseln (ohne Kisten), 120 Takte | 3,210 ms | 0,011 ms | 3,23 (2,14) ms | 3,132 ms | 0,017 ms | 3,15 (2,11) ms | – (nur gemessen) |
+| H-K21 (Spiegelbild voll, 2026-10-25): Neon-Napoli, aufgezeichnetes Skript (664 Takte, 166 Bilder, ~110 Lichter, Regen), `spiegelGuete` **einfach** | 0,049 ms | 0,425 ms | 0,62 (0,61) ms | – | – | 1,11 (1,07) ms | – (nur gemessen) |
+| dasselbe mit `spiegelGuete` **voll** (zweite Zellen-Tabelle, gespiegeltes Frustum für Körper, Teilchen, Schattenwahl) | 0,046 ms | 0,478 ms | 0,66 (0,67) ms | – | – | 1,20 (1,15) ms | – (nur gemessen; +0,05 ms nativ, +0,09 ms Wasm je Bild) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -127,6 +129,8 @@ Aussagekraft für echte GPUs hat der Abschnitt „vom Nutzer auszuführen“.
 | B4 RATE=300 | 2 960 2D | 2 960 | **1** | 14,9 / 11,8 ms |
 | B13 (H-K18, 2026-10-25): `schatten.herd` N=1000 L=8 NACHT=1 AUS=0 – 8 Punktlichter mit Würfelschatten (Güte reihum grob/mittel/fein) + 1 000 Würfel + Boden, letztes Bild | 1 110 3D (inkl. Werfer-Kopien je Kachel) | – | **76** (73 Schatten; Ziel ≤ 120) | – / 46,5 ms (Median über alle Bilder; 60 fps EXE vom Nutzer auf echter GPU) |
 | `3d-punktschatten` (3 Würfel + 2 Spot-Kacheln) / `3d-kaskaden` (4 Kaskaden) | 124 / 255 3D | – | 62 (57 Schatten) / 16 (12 Schatten) | – / 20,0 / 16,4 ms |
+| H-K21 (2026-10-25): Neon-Napoli (Skript wie oben, 1280 × 720, letztes Bild), `spiegelGuete` einfach / **voll** | 4 064 / 7 630 3D (Regen im Spiegel, Sichtbares nur im Spiegel) | – | 39 / **41** (je 14 Schatten) | – / 774 / 1 118 ms (Median; WARP, Debug-Werkzeug – Spiegel in voller statt halber Größe mit allen Lichtern: +44 % auf der CPU-Rasterung) |
+| `3d-spiegel-voll` mit `VOLL=0` (einfach) / voll | 242 / 400 3D | – | 31 / 34 (je 6 Schatten) | – |
 
 Ziele erfüllt, soweit auf WARP messbar: B1 ≤ 4 Draw-Calls (1), B3 ≤ 30 Draw-Calls inkl. Schatten (15). Die Draw-Calls wachsen mit
 der Zahl der **Arten** (Netze), nicht der Objekte. Erstes Bild (Pipelines anlegen, Ressourcen, Shadow-Map) ≈ 100–230 ms auf WARP.
