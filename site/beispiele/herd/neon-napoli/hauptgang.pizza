@@ -8,6 +8,8 @@
 // Rauheit), gekachelt in Weltmaß und mit physikalischem Licht gerechnet; Pfützen entstehen aus `nass` und spiegeln. Über 100 farbige
 // Lichter (Neonschilder, Laternen-Spots, Schaufenster, Drohnen) wirken gleichzeitig, eine Stimmung macht daraus ein HDR-Bild
 // mit Bloom, Höhennebel und Filmkorn. Das Programm baut nur die Welt und bewegt Kamera, Regen und Marke.
+// Klangkulisse (welt/klangkulisse.pizza): Regen, ferne Stadt, summende Neonschilder, surrende Drohnen, Schritte, Tropfen, Ping
+// und Tür – erzeugt mit Klang, räumlich zur Kamera; der erste Klick ins Bild schaltet im Browser den Ton frei.
 bestellt "zustand.pizza";
 bestellt "welt/stoffe.pizza";
 bestellt "welt/strasse.pizza";
@@ -17,12 +19,14 @@ bestellt "welt/wetter.pizza";
 bestellt "spieler.pizza";
 bestellt "auftraege.pizza";
 bestellt "hud.pizza";
+bestellt "welt/klangkulisse.pizza";
 
 baueStrasse();
 baueHaeuser();
 baueStrassenmoebel();
 baueNeon();
 baueDrohnen();
+baueKlangkulisse();
 
 Spieler spieler = neu Spieler(1.5, 10, 20);
 Lieferung lieferung = neu Lieferung();
@@ -35,6 +39,7 @@ herd.backe(() -> {
     neonTakt(bild);
     wetterTakt(spieler.x, spieler.z, spieler.blick);
     anzeige.takt(spieler, lieferung, bild);
+    klangTakt(spieler, lieferung, bild);
 });
 Bote.sage(("Neon-Napoli: " + lieferung.geliefert + " von 3 Pizzen geliefert, " + lieferung.trinkgeld + " € Trinkgeld, "
            + Mathe.runden(spieler.weg) + " m gelaufen, " + (MAUERN.länge() / 4) + " Mauern."));

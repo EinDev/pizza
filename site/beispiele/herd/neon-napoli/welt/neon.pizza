@@ -8,11 +8,14 @@ bestellt "welt/strasse.pizza";
 Blech<Koerper> FLACKER_K = [];
 Blech<Licht> FLACKER_L = [];
 Blech<funghi> FLACKER_S = [];
+// Orte aller Schilder (x, y, z je Schild) – für das Summen der Klangkulisse
+Blech<funghi> SCHILD_ORTE = [];
 
 // Schild an einer Fassade (seite −1 links, 1 rechts; quer = ragt senkrecht in die Straße und zeigt nach +z)
 Teil schild(margherita name, funghi x, funghi y, funghi z, funghi b, funghi h, salami seite, diavolo quer, margherita farbe, funghi strahlen, diavolo flackert) {
     funghi drehung = quer ? 0 : (seite < 0 ? 90 : -90);
     Teil t = tafel(Bildchen.laden("bilder/" + name + ".png"), x, y, z, b, h, drehung, strahlen);
+    SCHILD_ORTE.hinzu(x).hinzu(y).hinzu(z);
     // dunkle Trägerplatte dahinter
     falls (!quer) {
         herd.koerper(WUERFEL, x + seite * 0.06, y, z).setzeGroesse(0.06, h * 1.08, b * 1.04).koerper().setzeBelag(SCHWARZ);
@@ -68,8 +71,10 @@ Teil baueHolo() {
 
 // Drohnen: kleiner Körper mit rotem und blauem Licht, fliegen auf Ablauf-Bahnen über die Straße
 Blech<Licht> DROHNEN_L = [];
+Blech<Teil> DROHNEN = [];
 leer drohne(funghi x, funghi y, funghi z0, funghi z1, funghi dauer) {
     Teil d = herd.raum(x, y, z0);
+    DROHNEN.hinzu(d);
     herd.koerper(WUERFEL, 0, 0, 0).setzeGroesse(0.7, 0.14, 0.7).haenge(d).koerper().setzeBelag(STAHL);
     herd.koerper(KUGEL, 0.35, 0, 0, farbe: "#ff2040", leuchten: 1).setzeGroesse(0.1).haenge(d).koerper().setzeStrahlen(12);
     herd.koerper(KUGEL, -0.35, 0, 0, farbe: "#2a60ff", leuchten: 1).setzeGroesse(0.1).haenge(d).koerper().setzeStrahlen(12);

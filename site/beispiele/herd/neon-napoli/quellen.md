@@ -1,4 +1,7 @@
-# Bildquellen – Neon-Napoli
+# Bild- und Klangquellen – Neon-Napoli
+
+**Klänge:** keine Dateien – Regen, Stadt, Neonsummen, Drohnen, Schritte, Tropfen, Ping, Tür und Fanfare erzeugt das Programm selbst mit
+`Klang` (Rauschen, Töne, Noten, Filter, Hüllkurven; `welt/klangkulisse.pizza`).
 
 Alle Fototexturen stammen von **Poly Haven** (https://polyhaven.com) und stehen unter **CC0** (gemeinfrei, keine Namensnennung
 nötig – wir nennen sie trotzdem). Geladen wurden je Material die 1k-JPEGs „Diffuse“, „nor_gl“ (Normalen im OpenGL-Sinn) und „arm“

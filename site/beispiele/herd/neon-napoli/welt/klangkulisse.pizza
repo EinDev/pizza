@@ -1,0 +1,99 @@
+// Klangkulisse: alles erzeugt, nichts geladen (Klang, H-K14). Regen rauscht so stark, wie es regnet (REGENSTAERKE), die Stadt
+// brummt von fern, jedes Neonschild summt an seinem Platz, Drohnen surren über die Straße – der Hörer ist die Kamera: was links
+// ist, klingt links, was weit weg ist, leiser und dumpfer. Dazu Schritte auf nassem Asphalt im Takt des Laufens (im Sprint
+// schneller und härter), Tropfen um den Boten herum, ein Ping an der Theke und eine Tür mit Fanfare bei jeder Lieferung.
+// Im Browser setzt der Ton mit dem ersten Klick ins Bild ein (der fängt auch die Maus); der Lautsprecher im Fensterkopf schaltet stumm.
+bestellt "zustand.pizza";
+bestellt "welt/wetter.pizza";
+bestellt "welt/neon.pizza";
+bestellt "spieler.pizza";
+bestellt "auftraege.pizza";
+
+// ---------- Klänge (einmal erzeugt) ----------
+// Regen: rosa Rauschen ohne Grummeln und Zischen, nahtlos – darüber leises Prasseln (weiß, hochgefiltert)
+Klang REGEN_K = Klang.rauschen(3, art: "rosa", lautstaerke: 0.9, saat: 2087).hochpass(300).tiefpass(7000)
+    .mische(Klang.rauschen(3, art: "weiss", lautstaerke: 0.25, saat: 88).hochpass(3500)).nahtlos(0.5);
+// ferne Stadt: braunes Rauschen, tief gefiltert, und ein leiser Grundton
+Klang STADT_K = Klang.rauschen(4, art: "braun", lautstaerke: 0.9, saat: 7).tiefpass(260)
+    .mische(Klang.ton(55, 4, welle: "saege", lautstaerke: 0.12, anschlag: 0, ausklang: 0).tiefpass(140)).nahtlos(0.5);
+// Neonröhre: 100 Hz Netzbrummen mit Obertönen und ein Hauch Knistern
+Klang NEON_K = Klang.ton(100, 1, welle: "saege", lautstaerke: 0.22, anschlag: 0, ausklang: 0)
+    .mische(Klang.ton(200, 1, welle: "rechteck", lautstaerke: 0.04, anschlag: 0, ausklang: 0))
+    .mische(Klang.rauschen(1, lautstaerke: 0.05, saat: 3).hochpass(5000)).tiefpass(2400).nahtlos(0.1);
+// Drohne: zwei fast gleiche Sägezähne schweben gegeneinander
+Klang DROHNE_K = Klang.ton(186, 2, welle: "saege", lautstaerke: 0.25, anschlag: 0, ausklang: 0)
+    .mische(Klang.ton(189, 2, welle: "saege", lautstaerke: 0.25, anschlag: 0, ausklang: 0)).hochpass(140).tiefpass(2600).nahtlos(0.2);
+// Schritt auf nassem Asphalt: dumpfer Tritt (braun) und ein kurzes Platschen (weiß, hoch) – zwei Varianten für links/rechts
+Klang schritt(salami saat, funghi tief) {
+    Klang tritt = Klang.rauschen(0.12, art: "braun", lautstaerke: 0.9, anschlag: 0.002, ausklang: 0.08, saat: saat).tiefpass(tief);
+    Klang platsch = Klang.rauschen(0.16, lautstaerke: 0.35, anschlag: 0.004, ausklang: 0.12, saat: saat + 1).hochpass(2500).tiefpass(9000);
+    serviere ((tritt.mische(platsch, ab: 0.01).huelle(anschlag: 0.002, abfall: 0.05, halten: 0.4, ausklang: 0.09)));
+}
+Blech<Klang> SCHRITTE = [schritt(11, 420), schritt(23, 360)];
+// Tropfen: kurzer, fallender Ton
+Klang TROPFEN_K = Klang.ton(1900, 0.07, lautstaerke: 0.35, bis: 650, anschlag: 0.001, ausklang: 0.05);
+// Ping an der Theke, Fanfare bei der Lieferung, Tür (dumpfer Schlag)
+Klang PING_K = Klang.noten("E5:0.5 A5", tempo: 240, welle: "sinus", lautstaerke: 0.5).huelle(ausklang: 0.15);
+Klang FANFARE_K = Klang.noten("C5:0.5 E5:0.5 G5:0.5 C6:2", tempo: 260, welle: "dreieck", lautstaerke: 0.4).huelle(ausklang: 0.4);
+Klang TUER_K = Klang.rauschen(0.3, art: "braun", lautstaerke: 0.9, anschlag: 0.002, ausklang: 0.2, saat: 5).tiefpass(300)
+    .mische(Klang.ton(70, 0.25, lautstaerke: 0.5, bis: 45, anschlag: 0.002, ausklang: 0.15));
+
+// ---------- Spuren ----------
+Spur REGEN_SPUR = karton;
+Blech<Spur> DROHNEN_SPUR = [];
+salami SCHRITT_NR = 0;          // Halbschritte seit Beginn (floor(phase / π))
+salami TROPFEN_ZAEHLER = 0;
+salami KLANG_GELIEFERT = 0;
+diavolo KLANG_TRAEGT = nein;
+
+leer baueKlangkulisse() {
+    REGEN_SPUR = REGEN_K.spiele(schleife: ja, lautstaerke: 0.55 * REGENSTAERKE);
+    STADT_K.spiele(schleife: ja, lautstaerke: 0.4);
+    // je Schild ein Summen am Schild (leise, kurze Reichweite – im Vorbeigehen hörbar)
+    für (salami i = 1; i <= SCHILD_ORTE.länge(); i += 3) {
+        NEON_K.spiele(schleife: ja, lautstaerke: 0.5, tonhoehe: 1 + (i % 4) * 0.01)
+              .setzeLage(SCHILD_ORTE.stück(i), SCHILD_ORTE.stück(i + 1), SCHILD_ORTE.stück(i + 2)).setzeReichweite(9);
+    }
+    für (salami i = 1; i <= DROHNEN.länge(); i++) {
+        Teil d = DROHNEN.stück(i);
+        DROHNEN_SPUR.hinzu(DROHNE_K.spiele(schleife: ja, lautstaerke: 0.9, tonhoehe: 0.9 + i * 0.07)
+                                  .setzeLage(d.x(), d.y(), d.z()).setzeReichweite(45));
+    }
+}
+
+// je Takt: Schritte im Takt des Laufens, Drohnen nachführen, Tropfen, Ping/Tür bei Abholung und Lieferung
+leer klangTakt(Spieler s, Lieferung l, salami bild) {
+    // ein Schritt je halber Wippe (phase wächst mit dem gelaufenen Weg, im Sprint schneller)
+    salami n = (s.phase / Mathe.PI).ganz();
+    falls (n > SCHRITT_NR) {
+        SCHRITT_NR = n;
+        funghi tempo = Mathe.wurzel(s.vx * s.vx + s.vz * s.vz);
+        SCHRITTE.stück(n % 2 + 1).spiele(lautstaerke: 0.35 + 0.25 * s.sprint + 0.1 * Mathe.min(1, tempo / GEHEN),
+                                         tonhoehe: 1 + 0.12 * s.sprint - 0.04 * (n % 3), panorama: (n % 2 == 0 ? -0.15 : 0.15));
+    }
+    // Drohnen: Lage sechsmal je Sekunde (dazwischen gleitet die Wiedergabe)
+    falls (bild % 10 == 0) {
+        für (salami i = 1; i <= DROHNEN.länge(); i++) {
+            Teil d = DROHNEN.stück(i);
+            DROHNEN_SPUR.stück(i).setzeLage(d.x(), d.y(), d.z());
+        }
+    }
+    // Tropfen von Dachkanten und Schildern: etwa jede halbe Sekunde irgendwo um den Boten
+    falls (bild % 29 == 7) {
+        TROPFEN_ZAEHLER++;
+        funghi w = Mathe.bogen(TROPFEN_ZAEHLER * 137.5);
+        funghi r = 1.5 + (TROPFEN_ZAEHLER * 7) % 5;
+        TROPFEN_K.spiele(lautstaerke: 0.4 * REGENSTAERKE, tonhoehe: 0.85 + (TROPFEN_ZAEHLER % 5) * 0.08)
+                 .setzeLage(s.x + Mathe.cos(w) * r, 0.2 + (TROPFEN_ZAEHLER % 3), s.z + Mathe.sin(w) * r).setzeReichweite(14);
+    }
+    // Abholung: Ping an der Theke; Lieferung: Tür am Ziel und Fanfare
+    falls (l.traegt && !KLANG_TRAEGT) {
+        PING_K.spiele(lautstaerke: 0.8).setzeLage(THEKE_X, 1.2, THEKE_Z).setzeReichweite(20);
+    }
+    falls (l.geliefert > KLANG_GELIEFERT) {
+        TUER_K.spiele(lautstaerke: 1).setzeLage(ZIELE_X.stück(l.geliefert), 1.2, ZIELE_Z.stück(l.geliefert)).setzeReichweite(25);
+        FANFARE_K.spiele(lautstaerke: 0.7);
+    }
+    KLANG_TRAEGT = l.traegt;
+    KLANG_GELIEFERT = l.geliefert;
+}
