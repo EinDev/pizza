@@ -326,10 +326,18 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
       sende({ typ: "knopf", bit, unten: false, x, y });
     });
     hoere(canvas, "pointercancel", () => sende({ typ: "loslassen" }));
+    // Rohbewegung (movementX/Y, CSS-Pixel) immer – aus pointerrawupdate, wo es das gibt (Chrome, Edge): pointermove kommt
+    // im Browser nur einmal je Bild (an requestAnimationFrame ausgerichtet, die Bewegung des ganzen Bildes in einem Ereignis)
+    // und landet damit genau dann im Zeichner-Worker, wenn der dort zum selben Bildschirmtakt den nächsten Takt anfordert –
+    // mal davor, mal danach. Die Takte bekamen so abwechselnd 0, 2 und 1 Bilder Bewegung: der Mausblick stockte und sprang
+    // („wackelt hin und her“). pointerrawupdate kommt sofort mit jeder Bewegung der Maus (wie nativ DeviceEvent::MouseMotion),
+    // die Summe je Takt ist gleichmäßig. Ohne pointerrawupdate bleibt pointermove; gezählt wird immer nur eine der beiden.
+    const roh = "onpointerrawupdate" in canvas;
+    const bewegt = (e) => { if (e.movementX || e.movementY) sende({ typ: "bewegung", dx: e.movementX || 0, dy: e.movementY || 0 }); };
+    if (roh) hoere(canvas, "pointerrawupdate", bewegt);
     hoere(canvas, "pointermove", (e) => {
-      // Rohbewegung (movementX/Y, CSS-Pixel) immer; die Mauslage nur ohne Fang (gefangen steht der Zeiger still)
-      if (e.movementX || e.movementY) sende({ typ: "bewegung", dx: e.movementX || 0, dy: e.movementY || 0 });
-      if (gefangen()) return;
+      if (!roh) bewegt(e);
+      if (gefangen()) return;   // die Mauslage nur ohne Fang (gefangen steht der Zeiger still)
       const [x, y] = spielfeld(canvas, e);
       sende({ typ: "maus", x, y });
     });

@@ -177,6 +177,73 @@ e2e("Herd: Mausfang per Klick ins Bild (Pointer Lock), Rohbewegung, mausFangen(n
   await warteLaufEnde(page);
 });
 
+// Nutzerbefund „Neon-Napoli: Umschauen per Maus wackelt“: pointermove kommt im echten Browser einmal je Bild
+// (rAF-ausgerichtet) und traf im Zeichner-Worker mal vor, mal nach der Takt-Anforderung desselben Bildschirmtakts ein – die
+// Takte bekamen abwechselnd 0, 2, 1 Bilder Bewegung. Die Rohbewegung kommt daher aus pointerrawupdate (sofort, je
+// Mausbewegung), pointermove zählt dann nicht mehr mit. Headless richtet Chrome eingespielte Ereignisse nicht an rAF aus –
+// geprüft wird die Quelle (keine Doppelzählung, pointermove-Bewegung zählt nicht, pointerrawupdate zählt) und dass eine
+// gleichmäßige Folge vieler kleiner Bewegungen genau einmal und ohne Vorzeichenwechsel je Takt ankommt.
+const BLICK_PROG = [
+  'Herd herd = neu Herd("E2E-Blick", breite: 320, hoehe: 180);',
+  'herd.hintergrund("ofen");',
+  'funghi summe = 0;',
+  'ganz takte = 0;',
+  'ganz gegen = 0;',
+  'herd.mausFangen();',
+  'herd.backe(() -> {',
+  '    summe = summe + herd.mausDX();',
+  '    falls (herd.mausDX() != 0) { takte = takte + 1; }',
+  '    falls (herd.mausDX() < 0) { gegen = gegen + 1; }',
+  '    falls (herd.gedrueckt("x")) { Bote.sage(("blick " + summe + " " + takte + " " + gegen)); summe = 0; takte = 0; gegen = 0; }',
+  '});',
+].join("\n");
+
+e2e("Herd: Mausblick – Rohbewegung aus pointerrawupdate, je Takt gleichmäßig und genau einmal gezählt", { timeout: 90_000 }, async ({ page, oeffne }) => {
+  await oeffne();
+  await setzeCode(page, BLICK_PROG);
+  await strg(page, "Enter");
+  await warteBereit(page);
+  await page.waitForFunction((sel) => Number(document.querySelector(sel).dataset.bild || 0) > 5, { timeout: 15_000 }, CANVAS);
+  const roh = await page.$eval(CANVAS, (c) => "onpointerrawupdate" in c);
+  assert.ok(roh, "Chrome kennt pointerrawupdate (sicherer Kontext)");
+  const r = await page.$eval(CANVAS, (c) => { const b = c.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.move(r.x, r.y);
+  await page.mouse.click(r.x, r.y);
+  await page.waitForFunction((sel) => document.pointerLockElement === document.querySelector(sel), { timeout: 10_000 }, CANVAS);
+  await schlafe(300);
+  // 300 Bewegungen zu je 1 Pixel im Abstand von 2 ms (wie eine 500-Hz-Maus), ohne auf jedes Ereignis zu warten
+  const cdp = await page.createCDPSession();
+  const offen = [];
+  const t0 = performance.now();
+  for (let k = 1; k <= 300; k++) {
+    while (performance.now() < t0 + 2 * k) { /* warten */ }
+    offen.push(cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: r.x + k, y: r.y }));
+    if (k % 25 === 0) await new Promise((fertig) => setImmediate(fertig));
+  }
+  await Promise.all(offen);
+  await schlafe(300);
+  await page.keyboard.press("x");
+  await warteAusgabe(page, /blick /);
+  let [summe, takte, gegen] = /blick (-?[\d.]+) (\d+) (\d+)/.exec(await konsolenAusgabe(page)).slice(1).map(Number);
+  assert.equal(summe, 300, "jede Bewegung genau einmal (nicht pointermove und pointerrawupdate zugleich)");
+  assert.equal(gegen, 0, "kein Takt mit Bewegung in Gegenrichtung");
+  assert.ok(takte >= 20, "die Bewegung verteilt sich über die Takte (" + takte + ")");
+  // Quelle: Bewegung an pointermove zählt nicht (sie steckt schon in pointerrawupdate), an pointerrawupdate zählt sie
+  await page.$eval(CANVAS, (c) => {
+    c.dispatchEvent(new PointerEvent("pointermove", { pointerType: "mouse", movementX: 1000, bubbles: true }));
+    c.dispatchEvent(new PointerEvent("pointerrawupdate", { pointerType: "mouse", movementX: 7, bubbles: true }));
+  });
+  await schlafe(200);
+  await page.keyboard.press("x");
+  await page.waitForFunction(() => (document.getElementById("konsole-inhalt").textContent.match(/blick /g) || []).length >= 2, { timeout: 10_000, polling: 50 });
+  [summe] = [...(await konsolenAusgabe(page)).matchAll(/blick (-?[\d.]+)/g)].map((m) => Number(m[1])).slice(-1);
+  assert.equal(summe, 7, "nur pointerrawupdate zählt");
+  await page.evaluate(() => document.exitPointerLock());   // gefangen gingen Klicks ans Canvas, nicht an „Schließen“
+  await page.waitForFunction(() => document.pointerLockElement === null, { timeout: 10_000 });
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+});
+
 e2e("Herd: App-Link füllt den Bildschirm mit dem Spielfeld, X beendet", { timeout: 90_000 }, async ({ page, basis, server }) => {
   const { id } = await server.teilen.lege({ name: "herd.pizza", code: PROG });
   await page.goto(basis + "#app=" + id, { waitUntil: "load" });
