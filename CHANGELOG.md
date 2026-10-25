@@ -12,8 +12,8 @@ dorthin.
 
 ## pizza 3.2 (Vorschau, Stand 2026-10-25)
 
-> Aus einer Datei wird eine ganze Küche: Rezepte bestellen einander, Bilder kommen vorgebacken aus der Kiste, und der Herd
-> bekommt Licht, Regen, Spiegelungen und Klang.
+> Aus einer Datei wird eine ganze Küche: Rezepte bestellen einander, Bilder, Modelle und Klänge kommen vorgebacken aus der Kiste,
+> und der Herd wird eine kleine Unity – mit Physik, Figuren, Schatten, Wasser, Gras im Wind und Raumklang.
 
 **Versionsnummer:** 3.2 nach dem bisherigen Schema (neue Sprachmittel, inkompatible Änderungen nur an Formaten und Hosts → kleine
 Versionsstufe). Die Kennungen im Code (`--version`, `PizzaLang.version`, Crates, Logos) stehen noch auf 3.1.0 und werden bei der
@@ -60,8 +60,28 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
 - **Grafik:** viele Lichter (Clustered Forward) und Spot-Licht, `Stimmung` (HDR, Bloom, ACES, Höhennebel, `strahlen`), Material
   (Relief, Kachelung, PBR, Nässe), Spiegelung nasser Böden, Regen (gestreckte Tropfen, Aufschläge, Pfützenringe) und ein
   Bindungswächter für die Shader (H-K15).
-- **Gehäutete Figuren (H-K23b):** Modelle mit Skelett und Haut (glTF `skins`) verformen sich nach ihren Gelenk-Teilen – auf der
+- **Engine fertig – Stufenplan H-K15 … H-K28 (HERD.md §13):** alles Folgende läuft im Browser und in der EXE gleich, der Kern
+  bitgleich, die Vorbacker nativ = Wasm bitgleich.
+- **Modelle aus glTF (H-K16, K-161):** `Modell.laden("modelle/x.glb")` liest GLB und glTF samt Bildern, `herd.modell(…)` baut daraus
+  die Teile-Hierarchie, `Etikett` und `finde` holen benannte Knoten. Der Vorbacker backt beim Packen einen Modellteig; Modelle zählen
+  zur Teigmenge. Beispiel „Pizzeria“.
+- **3D-Physik `Schwung` (H-K17, K-162):** starre Körper mit gedrehten Kästen, Kugeln, Kapseln, Netzen und Gelände, Reibung,
+  Abprall und Schlafen; Beispiel „Kistenturm“.
+- **Schatten für alle Lichter (H-K18, K-160):** Würfelschatten für Punktlichter, Spot-Schatten, Sonnen-Kaskaden bis weit in die Tiefe,
+  weiche Filter und ein Schatten-Budget (`schattenGuete`, `schattenWeich`, `kaskaden`); Beispiel „Laternengasse“.
+- **`Figur` und `Strahl` (H-K20, K-165):** Figur-Steuerung mit aufrechter Kapsel (Stufen, Hänge, Wände und Decken) sowie Strahl- und
+  Höhenabfrage als sofort gültige Lesefelder.
+- **Volles Spiegelbild (H-K21):** `spiegelGuete: "voll"` zeigt alle Lichter, Schatten, Glas und Funken auch im Spiegel.
+- **Bildschirmraum (H-K24):** Verdeckung (SSAO) und Bildraum-Spiegelung (SSR) an der `Stimmung`.
+- **Funken-Aufprall (H-K25, K-167):** `kollision` (Boden oder Welt), `aufprall` (vergehen, abprallen, liegen) und Spritzer – Regen
+  endet auf Dächern und Gehwegen statt im Boden.
+- **Belag-Karten (H-K26):** Normal-, Stoff- (Verdeckung, Rauheit, Metall) und Leucht-Karte, Ausschnitt, Alpha-Schwelle und
+  `beidseitig`; Beispiel „Werkstatt“ (Poly Haven, CC0).
+- **Animationen und Haut (H-K23a, H-K23b):** `Puppe` spielt die Animationen eines Modells ab und blendet zwischen ihnen über, die
+  Gelenke sind gewöhnliche Teile. Modelle mit Skelett und Haut (glTF `skins`) verformen sich nach ihren Gelenk-Teilen – auf der
   Grafikkarte, auch in Schatten, Spiegelung und Bildschirmraum; Beispiel „Tanzfiguren“ (Kenney Mini Characters, CC0).
+- **`Wind` und `Streu` (H-K27, K-168):** Gras, Blumen und Steine als Streu-Instanzen, die sich im Vertex-Shader im Wind wiegen;
+  je Bild nur die sichtbaren Zellen. Beispiel „Wiese“ mit 50 000 Halmen.
 - **Wasser (H-K28, K-169):** `Wasser`-Flächen mit Gerstner-Wellen (Richtung aus dem `Wind`), Brechung und Tiefenfärbung, Schaum an
   Ufern und Kämmen und Spiegelung (planar bzw. Himmel) – in Browser und EXE gleich; `Schwung.auftrieb` lässt Kisten und Boote
   schwimmen und schaukeln, `messHoehe` liest die Wellenhöhe. Beispiel „Hafen“.
@@ -69,15 +89,20 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
   und Schleifen; `k.spiele()` liefert eine Spur mit Lautstärke, Tonhöhe, Panorama und Lage im Raum (Hörer = Kamera). Die Erzeugung
   ist nativ und in Wasm bitgleich. Abgespielt wird über WebAudio bzw. waveOut/ALSA, ohne Gerät bleibt es stumm; getestet wird mit
   `.klang-erwartet`.
+- **Klänge aus Dateien (H-K19a, H-K19b, K-163):** `Klang.laden("klaenge/x.ogg")` für WAV, FLAC und OGG Vorbis – eigene Dekoder im
+  Vorbacker (bitgleich nativ = `teigling.wasm`), die Klangmenge ist auf 64 MB begrenzt (P0021). Beispiel „Geräuschkiste“.
 - **Raumklang `Schall` (H-K22, K-164):** ein Klang am Teil (neuer Feldtyp `klang`) folgt dessen Lage von selbst; gehört wird an der
   aktiven Kamera bzw. am Blick, Pegel und Panorama rechnet der Herd (gerastet, in allen Motoren gleich) und meldet sie als
   Klang-Ereignis `raum`. Beispiel Brunnenplatz.
 - **Eingabe:** Mausfang (Pointer Lock) mit relativer Bewegung, Mausrad und Modifikatortasten (K-155) – Steuerung wie in einem
-  Ego-Shooter.
+  Ego-Shooter. Im Browser kommt die Mausbewegung aus `pointerrawupdate`, der Mausblick wackelt nicht mehr.
 - **Gleichmäßige Bilder:** VSync (Fifo), Pipelines vorab, Takt-Uhr ab dem ersten gezeigten Bild; im Browser kommt der Takt zum
   fälligen Zeitpunkt, statt zu ruckeln.
 - **Neue Beispiele**, u. a. Neon-Napoli (begehbares 3D-Spiel im Regen, mit Klangkulisse), Klavier, Lichterfest, Neonschild, Hügel,
-  Weite Welt, Kulissen und Kniffe.
+  Weite Welt, Kulissen, Kniffe, Pizzeria, Kistenturm, Laternengasse, Werkstatt, Tanzfiguren, Geräuschkiste, Brunnenplatz, Wiese
+  und Hafen (Hafenbecken am Abend mit schwimmenden Booten und Kisten).
+- **Neon-Napoli aufgerüstet:** Schatten aller Laternen, volles Spiegelbild, der Bote läuft als `Figur` gegen echte Mauern, Modelle,
+  Regen trifft Gehweg und Dächer, Verdeckung und Bildraum-Spiegelung, Geräusche aus Dateien und Raumklang an Schildern und Drohnen.
 
 ### Neu – Sprache und Bibliothek
 
@@ -94,6 +119,10 @@ Veröffentlichung in einem Schritt umgestellt (wie beim Wechsel auf 3.1).
   Durchreiche.
 - **Interpreter-Quellen** liegen jetzt als Module unter `site/js/pizza/`; `site/js/pizza.js` wird daraus gebaut
   (`node scripts/baue-pizza.js`).
+- **Teigmenge 64 MB statt 32 MB** (Nutzerentscheidung, K-145); Modelle zählen mit, Klänge haben eine eigene Klangmenge.
+- **Compiler (Wasm/EXE):** Eine Neudeklaration mit anderem Typ im selben Scope (z. B. ein Parameter `Modell boot` und darin
+  `Teil boot = herd.modell(boot, …)`) ist wie im Interpreter eine neue Bindung, statt mit „wird im selben Scope mit anderem Typ neu
+  deklariert“ abgelehnt zu werden.
 - **Kühlschrank bei Speicherdruck:** Gibt der Rechner für einen großen Text keinen Speicher mehr her, wirft die Wasm-Laufzeit die
   fangbare `LaufzeitAnanas` „Der Kühlschrank ist voll“ statt „Interner Fehler im Ofen“ (K-014, Abnahme PZ).
 

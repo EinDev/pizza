@@ -474,7 +474,7 @@ Kollisionsprüfung: kein Komponentenname mit kleinem Anfangsbuchstaben darf daru
 - Browser-Glut: `node herd/baue-web.js` → `cargo build -j 2 --profile klein -p herd-glut-web --target wasm32-unknown-unknown`,
   dann `wasm-bindgen --target no-modules` → `site/js/herd/glut.js` + `glut_bg.wasm` (eingecheckt). wasm-bindgen ist im Crate auf
   `=0.2.129` gepinnt, die CLI muss dieselbe Version haben (`cargo install wasm-bindgen-cli --version 0.2.129 --locked -j 2`; das
-  Skript prüft das). `wasm-opt` wird genutzt, wenn es im PATH liegt.
+  Skript prüft das). `wasm-opt` wird genutzt, wenn es im PATH liegt. Das eingecheckte `glut_bg.wasm` (Stand Abschlussabnahme: 2,0 MiB, gzip ≈ 0,7 MB) ist **ohne** wasm-opt gebaut – binaryen lag auf der Bau-Maschine nicht vor; mit `-Oz` wäre es kleiner, das Verhalten bleibt gleich.
 
 ## 7. Tests
 
@@ -846,7 +846,12 @@ auf dem Boden Vorrang), `3d-haut` (H-K23b: die gehäutete Testfigur `figur.glb` 
 auf nassem Plattenboden mit Sonnenschatten, Spiegelung und Verdeckung: alle Durchgänge verformen; `HAUT=0` ohne Puppen).
 **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
-≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht
+≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. **Byte-Gleichheit der PNGs ist kein
+Ziel:** WARP rendert auf einer Maschine reproduzierbar (Abschlussabnahme: `3d-punktschatten` 6 × einzeln, alle 24 Bilder 2 × nacheinander
+und 2 × gleichzeitig – jeweils byte-gleich, einzeln = im Gesamtlauf, die Reihenfolge der Szenen wirkt nicht), aber Bilder aus
+verschiedenen Ständen von WARP/Windows/Treiber weichen um 1/255 an einzelnen, über das Bild verstreuten Pixeln ab (dort 11 von 24
+Referenzbildern, je 1 … 7 Pixel). Das „Schwanken“ von `3d-punktschatten` seit H-K18 war genau das – kein Grenzfall im Filter, keine
+Reihenfolge; die Toleranz K-129 deckt es ab. Referenzbilder deshalb nur neu schreiben, wenn sich ihr Inhalt ändert (`--nur=…`). Dazu: Instancing ändert das Bild nicht
 (nur die Zahl der Draw-Calls), kaputtes Paket → `Fehler::Paket`, Fenster-API kompiliert (`herd-glut`, ohne Fenster); PD3:
 verkleinertes Schachbrett ergibt über die Mipmaps die gleichmäßige Mischfarbe (nächster Nachbar träfe nur eine Feldfarbe) bei einem
 Draw-Call und richtigem `textur_speicher()`, Vergrößerung Texel für Texel gleich der Quelle (halb durchsichtiger Rand mit eigener

@@ -2294,7 +2294,7 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
 - **Betroffen:** neu `herd/kern/src/kollision3d.rs`, `komponenten/schwung.rs`; `fuehler.rs` (Formen), `gelaende.rs` (`punkt`, `hoehe`),
   `formen.rs` (`dreiecke`), `ressourcen.rs` (Cache-Feld), `mod.rs`/`lib.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene
   `schwung.herd`, Fall `herd-schwung`, Beispiel `kistenturm`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B12. Kein Bildpaket, keine
-  Glut, kein Interpreter/Laufzeit/Host. Nachtrag Auftrieb (H-K28) folgt. **Status:** fest.
+  Glut, kein Interpreter/Laufzeit/Host. Nachtrag Auftrieb (H-K28) unten. **Status:** fest.
 - **Nachtrag Auftrieb (H-K28, K-169):** `Schwung.auftrieb` (Nachtragsfeld 0 … 2, **vor** den verborgenen Spalten eingefügt – öffentliche
   Felder müssen vor ihnen stehen; ihre Indizes rücken um eins, gehasht werden sie wie bisher) = Anteil der Gewichtskraft (`masse` ·
   `schwerkraft`) bei voller Eintauchung. Nach dem Bau der Formen misst der Takt an **5 Punkten** (`kollision3d::auftrieb_punkte`: Mitte
@@ -2506,8 +2506,8 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   logischer Ogg-Strom mit CRC, Codebücher, Floor 1, Residue 0/1/2, Kopplung, inverse MDCT über FFT, Fenster, Überlappung,
   Granulpositionen wie `vorbis_synthesis_blockin`. **Floor 0 und fremde Ogg-Inhalte** (Opus, FLAC-in-Ogg …) → Fehler-Klangteig Code 6
   „ist ein OGG in einem Format, das der Herd nicht kann (nur Vorbis I mit Floor 1, kein Opus).“; Code 1 heißt jetzt „ist kein lesbarer
-  Klang (WAV, FLAC oder OGG).“ (Text im Teig; der Erzeuger-Rückfall `KEIN_KLANG` für Ungültiges ohne Teig bleibt bis zur nächsten
-  Laufzeit-Stufe „(WAV oder FLAC)“ – keine Laufzeit-Änderung in H-K19b). **Determinismus:** f32 nur mit + − × in fester Reihenfolge,
+  Klang (WAV, FLAC oder OGG).“ (Text im Teig; der Erzeuger-Rückfall `KEIN_KLANG` für Ungültiges ohne Teig sagte bis H-K22 noch
+  „(WAV oder FLAC)“, mit H-K22 angeglichen – keine Laufzeit-Änderung in H-K19b). **Determinismus:** f32 nur mit + − × in fester Reihenfolge,
   keine FMA, Tabellen (Fenster, MDCT-Drehfaktoren) einmal je Datei aus `libm`, Floor-dB-Tafel als Bitmuster – bitgleich nativ =
   `teigling.wasm`; gegen libvorbis höchstens 1 LSB (≈ 0,1 % der Werte). Klangteig unverändert v1: Flag-Bit 2 = Quelle Vorbis (immer mit
   Bit 1 Float, Bits 32), Abtastwerte → i16 wie Float-WAV. **Grenzen:** Blockgrößen 64 … 8192, Codebücher zusammen ≤ 2²⁰ Einträge und
