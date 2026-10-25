@@ -122,6 +122,10 @@ e2e("Herd-UI: Taster und Regler mit der Maus im Vorschaufenster (Render-Worker �
   assert.match(await konsolenAusgabe(page), /geklickt\n(.*\n)*regler voll\n(.*\n)*Ende 1\n$/);
 });
 
+// Pointer Lock sperrt auch im headless Chrome unter Windows den echten Mauszeiger des Rechners (und zählt dessen
+// Bewegungen mit) – diese Tests laufen deshalb nur auf ausdrücklichen Wunsch: E2E_MAUSFANG=1 (Maus dabei nicht benutzen).
+const OHNE_MAUSFANG = process.env.E2E_MAUSFANG ? false : "greift den echten Mauszeiger – nur mit E2E_MAUSFANG=1";
+
 // K-155: Mausfang (Pointer Lock) und Rohbewegung – der Wunsch kommt vom Programm, gefangen wird mit dem Klick ins Bild (der Klick
 // kommt an, mausGefangen() ist dort noch nein), movementX/Y kommen als bewegung im takt an; mausFangen(nein) gibt frei. Dazu Umschalt als eigene Taste
 // und Loslassen nach physischer Taste (Umschalt vor „w“ los lässt kein „W“ hängen).
@@ -141,7 +145,7 @@ const FANG_PROG = [
   '});',
 ].join("\n");
 
-e2e("Herd: Mausfang per Klick ins Bild (Pointer Lock), Rohbewegung, mausFangen(nein) gibt frei, Umschalt als Taste", { timeout: 90_000 }, async ({ page, oeffne }) => {
+e2e("Herd: Mausfang per Klick ins Bild (Pointer Lock), Rohbewegung, mausFangen(nein) gibt frei, Umschalt als Taste", { timeout: 90_000 , skip: OHNE_MAUSFANG }, async ({ page, oeffne }) => {
   await oeffne();
   await setzeCode(page, FANG_PROG);
   await strg(page, "Enter");
@@ -198,7 +202,7 @@ const BLICK_PROG = [
   '});',
 ].join("\n");
 
-e2e("Herd: Mausblick – Rohbewegung aus pointerrawupdate, je Takt gleichmäßig und genau einmal gezählt", { timeout: 90_000 }, async ({ page, oeffne }) => {
+e2e("Herd: Mausblick – Rohbewegung aus pointerrawupdate, je Takt gleichmäßig und genau einmal gezählt", { timeout: 90_000 , skip: OHNE_MAUSFANG }, async ({ page, oeffne }) => {
   await oeffne();
   await setzeCode(page, BLICK_PROG);
   await strg(page, "Enter");
