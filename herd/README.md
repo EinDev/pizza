@@ -491,8 +491,8 @@ nur; ohne Abschnitt schreibt die Glut den Kopf auf 0 → v1-Pfad), Spot-Kegel pe
 Nebel, sanfte Schulter gegen Überstrahlen) · Material-Zusatz in `licht` (ZUSATZ3D als dritter Instanzpuffer @10 relief `Uint32`, @11 kachel + metall `Float32x2`, @12 merkmale `Uint32`;
 ohne Abschnitt Nullen; die Glut schreibt das Relief-Kennwort wie INST3D auf `Klasse << 13 | Schicht` um): Kachelung über den Sampler der eigenen Texturen
 (Bindung 12: wiederholend, Stufen linear, anisotrop 8, wenn `DownlevelFlags::ANISOTROPIC_FILTERING`; die expliziten PD3-Abtastungen klemmen ihre
-Koordinaten selbst, ihre Bilder bleiben gleich – ein zweiter Sampler hätte unter WebGL2 die 16 Textureinheiten des Licht-Shaders überschritten,
-denn jedes Textur-Sampler-Paar belegt eine) über `textureSampleGrad` mit Ableitungen, die im gleichförmigen Kontrollfluss
+Koordinaten selbst, ihre Bilder bleiben gleich – ein zweiter Sampler auf denselben Texturen geht unter WebGL2 gar nicht: naga macht aus
+Textur + Sampler **einen** GLSL-Sampler und lehnt eine Textur mit zwei Samplern ab) über `textureSampleGrad` mit Ableitungen, die im gleichförmigen Kontrollfluss
 vor jedem `discard` berechnet werden; Welt-Abbildung nach der größten Normalenkomponente (feste Tangenten), uv-Abbildung mit Kotangenten aus
 `dpdx/dpdy` (Schüler 2006, für die nach unten zeigende Bildschirm-y-Achse gedreht); `pbr_licht`: GGX (Smith nach Heitz, Schlick), Lambert ohne
 1/π wie die Engine (Glanz daher × π), Halbkugel-Umgebung diffus und in Spiegelrichtung, Pfützen aus drei Oktaven Wertrauschen (Ganzzahl-Hash)
@@ -520,6 +520,69 @@ Sonne, Lichter der Zelle bzw. die 8 aus SZENE, Vorwärtsstreuung 0,35 + 3,65 · 
 sind dafür auch im Vertex-Stadium sichtbar (nur `textureLoad`, unter WebGL2 Vertex-Texturen). `licht`: `pbr_licht` mit
 `Stimmung.regen` (STIMMUNG `spiegel.z`): Ringe aus `regenringe` (zwei Zell-Lagen, 3 × 3 Nachbarn, Ganzzahl-Hash, Welle
 sin(2x)·e^(−x²) als Ableitung) als Neigung der Normale vor der Spiegelung, Rinnsale an Wänden aus Wertrauschen.
+
+**Bindungen und Einheiten** (H-K15; maßgeblich nach HERD.md §13.1 Regel 4 – jede Glut-Stufe trägt ihre Bindungen hier ein, der
+**Bindungswächter** `cargo test -j 2 -p herd-glut waechter -- --nocapture` druckt die Zählung und scheitert über der Grenze). Unter
+WebGL2 zählen zwei Dinge, beide prüft der Wächter:
+
+1. **Je Shader-Stufe (GLSL):** naga übersetzt jeden Einstiegspunkt nach GLSL ES 3.00 und legt je **benutzter Textur einen**
+   GLSL-Sampler an – `textureLoad` (`texelFetch`) und Abtastungen derselben Textur teilen ihn, der WGSL-Sampler wird nur
+   zugeordnet (eine Textur mit zwei Samplern lehnt naga ab). Grenzen (WebGL2-Minimum): Fragment ≤ 16, Vertex ≤ 16, eine Pipeline
+   zusammen ≤ 32 Einheiten, ≤ 12 Uniform-Blöcke je Stufe.
+2. **Je Pipeline-Layout (wgpu-GL):** wgpu-hal vergibt die Textureinheiten nicht je Shader, sondern je **Layout-Eintrag** über
+   alle Stufen (`MAX_TEXTURE_SLOTS` = 16; Vertex-Texturen teilen sich also dieselben 16), ebenso die Sampler (≤ 16); Uniform-Puffer
+   ≤ 12 je Stufe. Ein Eintrag kostet auch dann eine Einheit, wenn ein Programm des Layouts ihn nicht benutzt. Die Layouts stehen
+   als `layout_haupt`/`layout_schatten`/`layout_nachbild` in `glut/src/lib.rs`; jeder Einstiegspunkt darf nur Bindungen seines
+   Layouts in dessen Sichtbarkeit benutzen.
+
+| Bindung | Art | Sichtbar | benutzt (Einstiegspunkt, Zugriff) | Einheit | seit |
+|---|---|---|---|---|---|
+| 0 | Uniform SZENE | VS + FS | alle (Schatten-Layout ebenso) | Block | H2 |
+| 1 | Uniform `Ansicht` | VS + FS | `vs_flach` | Block | H2 |
+| 2 + 3 | `texture_depth_2d` + Vergleichs-Sampler | FS | `fs_licht` (`textureSampleCompare`) | 1 | H2 |
+| 4 | Atlas `texture_2d_array` (nicht filterbar) | FS | `fs_flach`, `fs_zelt`, `fs_licht`, `fs_schatten` (`textureLoad`) | 1 | H2 |
+| 5 + 6 | Schrift R8 + Sampler linear | FS | `fs_flach` | 1 | H2 |
+| 7 … 11 + 12 | eigene Texturen (PD3-Klassen 128 … 2048) + Sampler `eigen_s` | FS | `fs_flach`, `fs_zelt`, `fs_licht` (`textureLoad` und `…Level`/`…Grad`), `fs_schatten` (`textureLoad`, Layout ohne Sampler) | 5 | PD3, Material |
+| 13 | Uniform HIMMELSZELT | VS + FS | `fs_zelt` | Block | H-K11b |
+| 14 | Uniform Lichter-Kopf | VS + FS | `fs_licht`, `vs_funke` | Block | viele Lichter |
+| 15 | `lichter_t` RGBA32F | VS + FS | `fs_licht`, `vs_funke` (`textureLoad`) | 1 | viele Lichter, Regen (VS) |
+| 16 | `zellen_t` R32Uint | VS + FS | `fs_licht`, `vs_funke` (`textureLoad`) | 1 | viele Lichter, Regen (VS) |
+| 17 | Uniform STIMMUNG | VS + FS | 3D-Fragment-Shader | Block | Stimmung |
+| 18 | – frei – | | | | |
+| 19 (+ 12) | Spiegelbild `texture_2d` | FS | `fs_licht` (`textureSampleLevel` mit `eigen_s`) | 1 | Spiegelung |
+| *20* | *Punktschatten-Atlas* | *FS* | *`fs_licht`* | *1* | *reserviert H-K18* |
+| *21* | *Verdeckung* | *FS* | *`fs_licht`* | *1* | *reserviert H-K24* |
+| *22, 23* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_licht`* | *2* | *reserviert H-K28* |
+| *24* | *Gelenk-Palette* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *reserviert H-K23b* |
+| – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
+| – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 | 0 | H-K26 |
+
+Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). Die Bindungsnummern 20 … 24 sind
+Vorschläge (vergeben in Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich sind die Einheiten.
+
+**Stand H-K15 (gemessen, Wächter):**
+
+| Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach allen Reservierungen |
+|---|---|---|---|---|
+| haupt | **11/16** | 3/16 | 5/12 · 5/12 | 16/16 (Texturen; H-K23b liegt im selben Pool) |
+| schatten | 6/16 | 0/16 | 1/12 · 1/12 | 7/16 (+ Gelenk-Palette) |
+| nachbild | 2/16 | 1/16 | 0/12 · 1/12 | – |
+
+| Einstiegspunkt | Einheiten | Blöcke | Einstiegspunkt | Einheiten | Blöcke |
+|---|---|---|---|---|---|
+| `vs_flach` | 0 | 2 | `fs_flach` | 7 | 1 |
+| `vs_himmel` | 0 | 1 | `fs_himmel` / `fs_zelt` | 0 / 6 | 2 / 3 |
+| `vs_licht` | 0 | 1 | `fs_licht` | **10/16** (Ende des Plans: 14/16) | 3 |
+| `vs_schatten` | 0 | 1 | `fs_schatten` | 6 | 0 |
+| `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 1 / 2 |
+| `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
+
+Die Annahme aus dem Plan (HERD.md §13.3 H-K15), `fs_licht` belege 15/16, weil `textureLoad` und Abtastung derselben PD3-Klasse je
+eine Einheit kosteten, trifft für naga/wgpu 30 nicht zu: es waren schon vorher 10. Der geplante Umbau von `eigen_lade` auf
+`textureSampleLevel` an der Texelmitte hätte keine Einheit gespart und unterbleibt (Shader unverändert, alle Bilder bitgleich).
+Die knappe Größe ist das **Haupt-Layout**: nach H-K18, H-K24, H-K28 und H-K23b sind alle 16 Einheiten belegt – wer danach eine
+Textur braucht, muss vorher eine Bindung einsparen (z. B. Schrift in den Atlas, Spiegelbild und Szenenfarbe zusammenlegen oder
+die Gelenk-Palette in `lichter_t` legen).
 
 **Sonnenschatten (H2a repariert):** Ursache der „schwachen Flecken“ war ein veralteter Uniform-Block im Shader (560 statt 592 Bytes,
 ohne `hintergrund`/`feld`): Der Shader las den Tiefen-Bias aus der Hintergrundfarbe (≈ 0,9) und die PCF-Schrittweite aus 1,0 – fast

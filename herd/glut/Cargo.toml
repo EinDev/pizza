@@ -9,6 +9,10 @@ license.workspace = true
 herd-kern = { path = "../kern" }
 raw-window-handle = "0.6"
 
+# Bindungswächter (H-K15, src/waechter.rs): WGSL → GLSL ES 3.00 wie wgpu für WebGL2 – dieselbe naga-Version wie wgpu
+[dev-dependencies]
+naga = { version = "30.0.1", features = ["wgsl-in", "glsl-out"] }
+
 # nativ: blockierend auf wgpu warten (im Browser gibt es kein Blockieren → Glut::neu_async, H6)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = "0.4"

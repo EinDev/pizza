@@ -443,6 +443,82 @@ const ZUSATZ_TEILCHEN_ATTR: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array
 /// Material-Zusatz (ZUSATZ3D, 16 B je Instanz): relief, kachel + metall, merkmale
 const ZUSATZ3D_ATTR: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![10 => Uint32, 11 => Float32x2, 12 => Uint32];
 
+// ---- Bindegruppen-Layouts (Tabelle „Bindungen und Einheiten“: herd/README.md §9; geprüft vom Bindungswächter, src/waechter.rs)
+
+fn ubo_eintrag(b: u32) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding: b,
+        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+        ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+        count: None,
+    }
+}
+
+fn textur_eintrag(b: u32, sicht: wgpu::ShaderStages, sample_type: wgpu::TextureSampleType, view_dimension: wgpu::TextureViewDimension) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry { binding: b, visibility: sicht, ty: wgpu::BindingType::Texture { sample_type, view_dimension, multisampled: false }, count: None }
+}
+
+fn sampler_eintrag(b: u32, art: wgpu::SamplerBindingType) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry { binding: b, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(art), count: None }
+}
+
+/// Atlas (4): Seiten des Kern-Atlas, nur per `textureLoad`
+fn atlas_eintrag() -> wgpu::BindGroupLayoutEntry {
+    textur_eintrag(4, wgpu::ShaderStages::FRAGMENT, wgpu::TextureSampleType::Float { filterable: false }, wgpu::TextureViewDimension::D2Array)
+}
+
+/// eigene Texturen (PD3): Bindungen 7 … 11 = Klassen 128 … 2048 (filterbar), 12 = Sampler (linear, Stufen einzeln)
+fn eigen_eintrag(b: u32) -> wgpu::BindGroupLayoutEntry {
+    textur_eintrag(b, wgpu::ShaderStages::FRAGMENT, wgpu::TextureSampleType::Float { filterable: true }, wgpu::TextureViewDimension::D2Array)
+}
+
+/// Haupt-Layout (flach, himmel, licht, funken; Spiegeldurchgang mit eigener Bindegruppe desselben Layouts)
+fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
+    use wgpu::{SamplerBindingType as S, ShaderStages as St, TextureSampleType as T, TextureViewDimension as D};
+    vec![
+        ubo_eintrag(0),
+        ubo_eintrag(1),
+        textur_eintrag(2, St::FRAGMENT, T::Depth, D::D2),
+        sampler_eintrag(3, S::Comparison),
+        atlas_eintrag(),
+        textur_eintrag(5, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+        sampler_eintrag(6, S::Filtering),
+        eigen_eintrag(7),
+        eigen_eintrag(8),
+        eigen_eintrag(9),
+        eigen_eintrag(10),
+        eigen_eintrag(11),
+        sampler_eintrag(12, S::Filtering),
+        // Himmelszelt (H-K11b)
+        ubo_eintrag(13),
+        // viele Lichter: Kopf, Lichter (RGBA32F), Zellen (R32Uint) – nur per textureLoad gelesen (auch im Vertex-Shader
+        // der Funken: Licht je Teilchen)
+        ubo_eintrag(14),
+        textur_eintrag(15, St::VERTEX_FRAGMENT, T::Float { filterable: false }, D::D2),
+        textur_eintrag(16, St::VERTEX_FRAGMENT, T::Uint, D::D2),
+        // Stimmung (HDR-Ausgabe, Höhennebel)
+        ubo_eintrag(17),
+        // Spiegelbild (Stimmung.spiegelung)
+        textur_eintrag(19, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+    ]
+}
+
+/// Schatten-Layout: SZENE, Atlas und eigene Texturen (Deckkraft, nur `textureLoad`)
+fn layout_schatten() -> Vec<wgpu::BindGroupLayoutEntry> {
+    vec![ubo_eintrag(0), atlas_eintrag(), eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11)]
+}
+
+/// Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
+fn layout_nachbild() -> Vec<wgpu::BindGroupLayoutEntry> {
+    let tex = |b: u32| textur_eintrag(b, wgpu::ShaderStages::FRAGMENT, wgpu::TextureSampleType::Float { filterable: true }, wgpu::TextureViewDimension::D2);
+    vec![
+        tex(0),
+        sampler_eintrag(1, wgpu::SamplerBindingType::Filtering),
+        wgpu::BindGroupLayoutEntry { binding: 2, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None },
+        tex(3),
+    ]
+}
+
 /// Puffer-Layouts des Licht-Shaders: Ecke, INST3D, ZUSATZ3D (der Schatten-Shader nimmt nur die ersten beiden)
 fn licht_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 3] {
     let [e, i] = netz_layouts();
@@ -609,104 +685,12 @@ impl Glut {
                 1
             }
         };
-        let vs_fs = wgpu::ShaderStages::VERTEX_FRAGMENT;
-        let ubo = |b: u32| wgpu::BindGroupLayoutEntry {
-            binding: b,
-            visibility: vs_fs,
-            ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
-            count: None,
-        };
-        let atlas_eintrag = wgpu::BindGroupLayoutEntry {
-            binding: 4,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: false }, view_dimension: wgpu::TextureViewDimension::D2Array, multisampled: false },
-            count: None,
-        };
-        // eigene Texturen (PD3): Bindungen 7 … 11 = Klassen 128 … 2048 (filterbar), 12 = Sampler (linear, Stufen einzeln)
-        let eigen_eintrag = |b: u32| wgpu::BindGroupLayoutEntry {
-            binding: b,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2Array, multisampled: false },
-            count: None,
-        };
-        let eigen_sampler = wgpu::BindGroupLayoutEntry { binding: 12, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None };
-        let eigen_d2 = |b: u32| wgpu::BindGroupLayoutEntry {
-            binding: b,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-            count: None,
-        };
-        let lay_haupt = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("herd haupt"),
-            entries: &[
-                ubo(0),
-                ubo(1),
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Depth, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry { binding: 3, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison), count: None },
-                atlas_eintrag,
-                wgpu::BindGroupLayoutEntry {
-                    binding: 5,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry { binding: 6, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
-                eigen_eintrag(7),
-                eigen_eintrag(8),
-                eigen_eintrag(9),
-                eigen_eintrag(10),
-                eigen_eintrag(11),
-                eigen_sampler,
-                // Himmelszelt (H-K11b)
-                ubo(13),
-                // viele Lichter: Kopf, Lichter (RGBA32F), Zellen (R32Uint) – nur per textureLoad gelesen (auch im Vertex-Shader
-                // der Funken: Licht je Teilchen)
-                ubo(14),
-                wgpu::BindGroupLayoutEntry {
-                    binding: 15,
-                    visibility: vs_fs,
-                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: false }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 16,
-                    visibility: vs_fs,
-                    ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Uint, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-                    count: None,
-                },
-                // Stimmung (HDR-Ausgabe, Höhennebel)
-                ubo(17),
-                // Spiegelbild (Stimmung.spiegelung)
-                eigen_d2(19),
-            ],
-        });
-        let lay_schatten = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("herd schatten"),
-            entries: &[ubo(0), atlas_eintrag, eigen_eintrag(7), eigen_eintrag(8), eigen_eintrag(9), eigen_eintrag(10), eigen_eintrag(11)],
-        });
+        let lay = |name: &str, e: &[wgpu::BindGroupLayoutEntry]| dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some(name), entries: e });
+        let lay_haupt = lay("herd haupt", &layout_haupt());
+        let lay_schatten = lay("herd schatten", &layout_schatten());
         let pl = |name: &str, l: &wgpu::BindGroupLayout| dev.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { label: Some(name), bind_group_layouts: &[Some(l)], immediate_size: 0 });
         let pl_haupt = pl("herd haupt", &lay_haupt);
-        // Nachbild: 0 Quelle, 1 Sampler, 2 Stimmung, 3 Bloom-Stufe 0
-        let tex_eintrag = |b: u32| wgpu::BindGroupLayoutEntry {
-            binding: b,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture { sample_type: wgpu::TextureSampleType::Float { filterable: true }, view_dimension: wgpu::TextureViewDimension::D2, multisampled: false },
-            count: None,
-        };
-        let lay_nach = dev.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("herd nachbild"),
-            entries: &[
-                tex_eintrag(0),
-                wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), count: None },
-                wgpu::BindGroupLayoutEntry { binding: 2, visibility: wgpu::ShaderStages::FRAGMENT, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None },
-                tex_eintrag(3),
-            ],
-        });
+        let lay_nach = lay("herd nachbild", &layout_nachbild());
         let pl_nach = pl("herd nachbild", &lay_nach);
         // HDR-Ziel der Stimmung: Rgba16Float, wenn der Adapter es rendern, filtern und mischen kann (WebGL2 braucht dafür
         // EXT_color_buffer_float), sonst Rgba8Unorm (dann ohne Werte über 1); Mehrfachabtastung wie das Ziel, wenn möglich
@@ -775,7 +759,7 @@ impl Glut {
         // rechnet der Shader mit expliziter Stufe – gleich in WebGPU, WebGL2 und nativ. Derselbe Sampler dient dem Material-
         // Zusatz (Kachelung): wiederholend, Stufen linear gemischt, anisotrop wenn möglich, mit `textureSampleGrad`. Die
         // expliziten Abtastungen klemmen ihre Koordinaten selbst ins Bildrechteck (Rand und Stufenmischung ohne Wirkung) – so
-        // braucht die Kachelung keinen eigenen Sampler (WebGL2: jedes Textur-Sampler-Paar belegt eine der 16 Einheiten).
+        // braucht die Kachelung keinen eigenen Sampler (WebGL2/naga: eine Textur kann nur mit **einem** Sampler abgetastet werden).
         let aniso = if adapter.get_downlevel_capabilities().flags.contains(wgpu::DownlevelFlags::ANISOTROPIC_FILTERING) { 8 } else { 1 };
         let s_eigen = dev.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("herd eigen"),
@@ -2125,6 +2109,9 @@ impl Glut {
         Ok(aus)
     }
 }
+
+#[cfg(test)]
+mod waechter;
 
 #[cfg(test)]
 mod tests {
