@@ -29,7 +29,8 @@ Belag bank = herd.raum().mit(neu Belag(farbe: "#d8d0c8", modell: "pbr", glanz: 0
 Teil platte = herd.koerper(Form.wuerfel(), 0, 0.45, 0).setzeGroesse(2.4, 0.1, 1.1);
 platte.koerper().setzeBelag(bank.teil());
 für (salami i = 0; i < 4; i++) {
-    herd.koerper(Form.wuerfel(), (i % 2) * 2.1 - 1.05, 0.2, ((i / 2) % 2) * 0.9 - 0.45, farbe: "#3c3430").setzeGroesse(0.1, 0.4, 0.1);
+    salami hinten = i < 2 ? 0 : 1;   // „/“ rechnet mit Komma – i / 2 wäre 0,5 statt 0
+    herd.koerper(Form.wuerfel(), (i % 2) * 2.1 - 1.05, 0.2, hinten * 0.9 - 0.45, farbe: "#3c3430").setzeGroesse(0.1, 0.4, 0.1);
 }
 Belag anzeige = herd.raum().mit(neu Belag(farbe: "#202024", leuchten: 1, strahlen: 1.5, leuchtFarbe: "#ffb070",
     leuchtKarte: Bildchen.laden("modelle/kiste/textures/wooden_crate_01_diff_1k.jpg")));
