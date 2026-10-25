@@ -117,14 +117,14 @@ export function ausInterpreterErgaenzen(PL) {
 
 /** Methoden eines Herd-Objekts (`herd.…`). */
 export const HERD_METHODEN = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit",
-  "taste", "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick",
+  "taste", "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick", "mausFangen", "mausGefangen", "mausDX", "mausDY", "mausrad",
   "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
   "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum"];
 /** Generische Komponenten-Methoden (SPEC §18.4). */
 export const KOMPONENTEN_METHODEN = ["hole", "setze", "teil"];
 /** Tastennamen (K-110) für taste/gedrueckt/losgelassen("…"). */
 export const HERD_TASTEN = ["Links", "Rechts", "Hoch", "Runter", "Leertaste", "Enter", "Escape", "Tab", "Rücktaste", "Entfernen",
-  "Pos1", "Ende", "BildHoch", "BildRunter", "w", "a", "s", "d"];
+  "Pos1", "Ende", "BildHoch", "BildRunter", "Umschalt", "Strg", "Alt", "w", "a", "s", "d"];
 /** Palette (aus dem Schema; Rückfall v1) für farbe: "…". */
 export const HERD_FARBEN = ["weiss", "schwarz", "grau", "ofen", "tomate", "salami", "schinken", "basilikum", "oliven", "mozzarella",
   "teig", "kruste", "ananas", "senf", "himmel", "wasser", "aubergine"];

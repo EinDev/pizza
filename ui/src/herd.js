@@ -125,10 +125,12 @@ async function grafikDa() {
   try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; }
 }
 
-/** Tastenname nach K-110 (wie js/theke/theke.js tastenName); null = nicht senden. */
+/** Tastenname nach K-110 (wie js/theke/theke.js tastenName); null = nicht senden. Anders als die Theke meldet der Herd die
+ *  Modifikatoren Umschalt, Strg und Alt als eigene Tasten (SPEC §18.3: Spiele rennen mit Umschalt). */
 const TASTEN_DEUTSCH = { " ": "Leertaste", Spacebar: "Leertaste", ArrowLeft: "Links", ArrowRight: "Rechts", ArrowUp: "Hoch",
-  ArrowDown: "Runter", Backspace: "Rücktaste", Delete: "Entfernen", Home: "Pos1", End: "Ende", PageUp: "BildHoch", PageDown: "BildRunter" };
-const MODIFIKATOREN = new Set(["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "NumLock", "ScrollLock", "Fn", "FnLock",
+  ArrowDown: "Runter", Backspace: "Rücktaste", Delete: "Entfernen", Home: "Pos1", End: "Ende", PageUp: "BildHoch", PageDown: "BildRunter",
+  Shift: "Umschalt", Control: "Strg", Alt: "Alt" };
+const MODIFIKATOREN = new Set(["AltGraph", "Meta", "CapsLock", "NumLock", "ScrollLock", "Fn", "FnLock",
   "Hyper", "Super", "Symbol", "SymbolLock", "OS", "Dead", "Unidentified"]);
 export function herdTastenName(e) {
   if (!e || typeof e.key !== "string" || e.key === "" || e.isComposing || e.keyCode === 229 || MODIFIKATOREN.has(e.key)) return null;
@@ -145,6 +147,7 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
   let portDa = null;           // Promise<MessagePort>: Port ist (wieder) bei der Seite
   let feld = { breite: 640, hoehe: 360 };
   let nr = 0;
+  let fangWunsch = false;      // Programm will die Maus fangen (herd.mausFangen) – der nächste Klick ins Bild fängt sie
 
   function holePort(port) { portDa = Promise.resolve(port); }
 
@@ -153,6 +156,7 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
     r = null;
     if (!alt) return;
     alt.aus = true;
+    gibMausFrei(alt.canvas);
     if (alt.beobachter) alt.beobachter.disconnect();
     for (const [el, typ, fn] of alt.hoerer) el.removeEventListener(typ, fn);
     if (alt.worker) {
@@ -168,6 +172,20 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
     } else if (alt.zeichner) {
       alt.zeichner.stopp();
     }
+  }
+
+  /** Mausfang lösen, falls dieses Canvas ihn hält. */
+  function gibMausFrei(canvas) {
+    try { if (canvas && document.pointerLockElement === canvas) document.exitPointerLock(); } catch (e) { /* egal */ }
+  }
+
+  /** Mausfang anfordern (nur aus einer Nutzergeste): Rohbewegung ohne Beschleunigung, wo der Browser das kann. */
+  function fangeMaus(canvas) {
+    const einfach = () => { try { const q = canvas.requestPointerLock(); if (q && typeof q.catch === "function") q.catch(() => {}); } catch (e) { /* nächster Klick */ } };
+    try {
+      const p = canvas.requestPointerLock({ unadjustedMovement: true });
+      if (p && typeof p.catch === "function") p.catch((e) => { if (!e || e.name !== "SecurityError") einfach(); });
+    } catch (e) { einfach(); }
   }
 
   function zeigeHinweis(inhalt, text) {
@@ -266,27 +284,65 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
     };
     const hoere = (el, typ, fn, opt) => { el.addEventListener(typ, fn, opt); rr.hoerer.push([el, typ, fn]); };
 
-    // Eingabe nur bei Fokus (Canvas fokussierbar); ohne Wiederholungen; Fokusverlust = alles losgelassen
+    // Eingabe nur bei Fokus (Canvas fokussierbar); ohne Wiederholungen; Fokusverlust = alles losgelassen. Losgelassen wird
+    // nach physischer Taste (e.code → Name beim Drücken, wie nativ): Umschalt los vor „W“ lässt sonst „W“ hängen.
+    const gedrueckt = new Map();
+    const gefangen = () => document.pointerLockElement === canvas;
+    let freiSeit = -1;         // Zeitpunkt, zu dem der Mausfang zuletzt endete (Esc, das ihn löst, geht nicht ans Programm)
     hoere(canvas, "keydown", (e) => {
       const n = herdTastenName(e);
       if (n === null) return;
+      if (n === "Escape" && (gefangen() || (freiSeit >= 0 && performance.now() - freiSeit < 250))) return;   // Esc gibt die Maus frei
       if (n !== "Tab" && n !== "Escape") e.preventDefault();   // Seite nicht scrollen; Tab/Esc bleiben für die Bedienung
-      if (!e.repeat) sende({ typ: "taste", name: n, unten: true });
+      if (e.repeat) return;
+      if (e.code) gedrueckt.set(e.code, n);
+      sende({ typ: "taste", name: n, unten: true });
     });
-    hoere(canvas, "keyup", (e) => { const n = herdTastenName(e); if (n !== null) sende({ typ: "taste", name: n, unten: false }); });
-    hoere(canvas, "blur", () => sende({ typ: "loslassen" }));
+    hoere(canvas, "keyup", (e) => {
+      const n = (e.code && gedrueckt.get(e.code)) || herdTastenName(e);
+      if (e.code) gedrueckt.delete(e.code);
+      if (n !== null && n !== undefined) sende({ typ: "taste", name: n, unten: false });
+    });
+    hoere(canvas, "blur", () => { gedrueckt.clear(); gibMausFrei(canvas); sende({ typ: "loslassen" }); });
     const BIT = [1, 4, 2];   // PointerEvent.button 0 links, 1 Mitte, 2 rechts → 1, 4, 2 (SPEC §18.3)
     hoere(canvas, "pointerdown", (e) => {
       canvas.focus({ preventScroll: true });
+      const bit = e.pointerType === "touch" ? 1 : BIT[e.button] || 0;
+      e.preventDefault();
+      if (gefangen()) { sende({ typ: "knopf", bit, unten: true }); return; }   // gefangen: Mauslage bleibt stehen
+      // Mausfang (herd.mausFangen): nur aus einer Nutzergeste möglich – der Klick ins Bild fängt die Maus. Er kommt wie jeder
+      // Klick an (mausGefangen() ist in diesem Takt noch nein); scheitert der Fang, bleibt Ziehen mit der Maus möglich.
+      if (fangWunsch && e.pointerType === "mouse") fangeMaus(canvas);
       try { canvas.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
       const [x, y] = spielfeld(canvas, e);
-      sende({ typ: "knopf", bit: e.pointerType === "touch" ? 1 : BIT[e.button] || 0, unten: true, x, y });
-      e.preventDefault();
+      sende({ typ: "knopf", bit, unten: true, x, y });
     });
-    hoere(canvas, "pointerup", (e) => { const [x, y] = spielfeld(canvas, e); sende({ typ: "knopf", bit: e.pointerType === "touch" ? 1 : BIT[e.button] || 0, unten: false, x, y }); });
+    hoere(canvas, "pointerup", (e) => {
+      const bit = e.pointerType === "touch" ? 1 : BIT[e.button] || 0;
+      if (gefangen()) { sende({ typ: "knopf", bit, unten: false }); return; }
+      const [x, y] = spielfeld(canvas, e);
+      sende({ typ: "knopf", bit, unten: false, x, y });
+    });
     hoere(canvas, "pointercancel", () => sende({ typ: "loslassen" }));
-    hoere(canvas, "pointermove", (e) => { const [x, y] = spielfeld(canvas, e); sende({ typ: "maus", x, y }); });
+    hoere(canvas, "pointermove", (e) => {
+      // Rohbewegung (movementX/Y, CSS-Pixel) immer; die Mauslage nur ohne Fang (gefangen steht der Zeiger still)
+      if (e.movementX || e.movementY) sende({ typ: "bewegung", dx: e.movementX || 0, dy: e.movementY || 0 });
+      if (gefangen()) return;
+      const [x, y] = spielfeld(canvas, e);
+      sende({ typ: "maus", x, y });
+    });
+    hoere(canvas, "wheel", (e) => {
+      // Rad in Rasten (positiv = zum Nutzer hin/nach unten): Pixel ≈ 100 je Raste, Zeilen 3, Seiten 1
+      const r = e.deltaMode === 1 ? e.deltaY / 3 : e.deltaMode === 2 ? e.deltaY : e.deltaY / 100;
+      if (r) sende({ typ: "rad", wert: r });
+      e.preventDefault();
+    }, { passive: false });
     hoere(canvas, "contextmenu", (e) => e.preventDefault());
+    hoere(document, "pointerlockchange", () => {
+      const an = gefangen();
+      if (!an) freiSeit = performance.now();
+      sende({ typ: "gefangen", an });
+    });
 
     if (typeof ResizeObserver === "function") {
       rr.beobachter = new ResizeObserver((eintraege) => {
@@ -339,13 +395,17 @@ export function erstelleHerdAnzeige({ vorschau, vollbild = false, beiMeldung = n
     lauf(k) {
       this.beenden();
       kontext = k;
+      fangWunsch = false;
       if (k) holePort(k.port);
       if (k && k.manuell) window.__herdTakt = (ev) => { if (kontext === k) schreibeTakt(k.puffer, ev); };
     },
-    /** Ereignis typ "herd" vom Programm-Worker (fenster | schliesse). */
+    /** Ereignis typ "herd" vom Programm-Worker (fenster | schliesse | mausfang). */
     ereignis(ev) {
       if (!ev || !kontext) return;
-      if (ev.art === "fenster") oeffne(ev);
+      if (ev.art === "mausfang") {
+        fangWunsch = ev.an === true;
+        if (!fangWunsch && r) gibMausFrei(r.canvas);
+      } else if (ev.art === "fenster") oeffne(ev);
       else if (ev.art === "schliesse") { nr++; stoppeRenderer(); vorschau.beenden(); }
     },
     /** Nutzer schließt das Fenster (X): Programm bekommt „geschlossen“. */

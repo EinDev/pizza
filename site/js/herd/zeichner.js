@@ -12,10 +12,15 @@
  *              {typ:"anlauf", bereitMs, bilder:[{t, abstand, bild, ms}]} – einmal nach den ersten 30 Bildern (Messung wie
  *              `--herd-messung` nativ: t/abstand ab dem Start bzw. vorigen Bild, bild = Bildnummer, ms = Zeit in g.bild)
  *   Zeichner: eingabe(ereignis) · groesse(b, h) · stopp()
+ *   Eingabe-Ereignisse (von der Seite): {typ:"taste", name, unten} · {typ:"maus", x, y} · {typ:"knopf", bit, unten, x?, y?} ·
+ *     {typ:"bewegung", dx, dy} (Rohbewegung, summiert bis zum nächsten Takt) · {typ:"rad", wert} · {typ:"gefangen", an} ·
+ *     {typ:"loslassen"} (Fokusverlust)
  *
  * Takt-Weg (SAB, Int32): [0] Folgenummer (vom Zeichner hochgezählt, Programm-Worker wartet per Atomics.wait darauf),
  *   [1] geschlossen (≠ 0: Fenster zu – setzen Seite oder Zeichner, zurückgesetzt vom Programm-Worker beim nächsten `fenster`),
- *   [2] Länge der JSON-Nachricht in Bytes, ab Byte 16 UTF-8 `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`.
+ *   [2] Länge der JSON-Nachricht in Bytes, ab Byte 16 UTF-8 `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`,
+ *   dazu nur bei Bedarf `"bewegung":[dx,dy]` (Rohbewegung seit dem letzten Takt, ≠ 0), `"rad":r` (Rasten, ≠ 0) und
+ *   `"gefangen":ja|nein` (Mausfang, nur bei Wechsel – SPEC §18.3).
  *   Es ist immer höchstens ein Takt ausstehend (der nächste wird erst nach dem Zeichnen des Bildes angefordert), deshalb
  *   überschreibt der Zeichner die Nachricht nie, während der Programm-Worker sie liest.
  * Nachholregel (HERD.md §5): anzahl = vergangene 1/60-s-Schritte seit dem letzten Takt, 1 … 4; was darüber liegt, verfällt.
@@ -61,6 +66,7 @@
     var angesetzt = false, ersterGezeichnet = false;   // Anlauf: erstes Bild gezeichnet, Uhr danach neu angesetzt
     var tStart = jetzt(), anlauf = { typ: "anlauf", bereitMs: 0, bilder: [] }, tVorher = 0;
     var gehalten = new Set(), kurz = new Set(), maus = [0, 0], knoepfe = 0, knoepfeKurz = 0;
+    var bewegung = [0, 0], rad = 0, gefangen = false, gefangenGemeldet = false;   // Mausfang (SPEC §18.3)
     var statT = jetzt(), statBilder = 0, letzteStat = null, letzteBildnr = 0;
     var raf = typeof global.requestAnimationFrame === "function" ? global.requestAnimationFrame.bind(global) : null;
     var caf = typeof global.cancelAnimationFrame === "function" ? global.cancelAnimationFrame.bind(global) : function () {};
@@ -90,7 +96,10 @@
       kurz.forEach(function (n) { if (!gehalten.has(n)) tasten.push(n); });
       kurz.clear();
       var nachricht = { typ: "takt", anzahl: anzahl, tasten: tasten, maus: [maus[0], maus[1]], knoepfe: knoepfe | knoepfeKurz };
-      knoepfeKurz = 0;
+      if (bewegung[0] !== 0 || bewegung[1] !== 0) nachricht.bewegung = [bewegung[0], bewegung[1]];
+      if (rad !== 0) nachricht.rad = rad;
+      if (gefangen !== gefangenGemeldet) { nachricht.gefangen = gefangen; gefangenGemeldet = gefangen; }
+      knoepfeKurz = 0; bewegung = [0, 0]; rad = 0;
       var bytes = kodierer.encode(JSON.stringify(nachricht));
       if (bytes.length > daten.length) bytes = kodierer.encode(JSON.stringify({ typ: "takt", anzahl: anzahl }));
       daten.set(bytes);
@@ -164,6 +173,12 @@
       } else if (e.typ === "knopf" && (e.bit === 1 || e.bit === 2 || e.bit === 4)) {
         if (e.unten) { knoepfe |= e.bit; knoepfeKurz |= e.bit; } else knoepfe &= ~e.bit;
         if (isFinite(e.x) && isFinite(e.y)) maus = [e.x, e.y];
+      } else if (e.typ === "bewegung" && isFinite(e.dx) && isFinite(e.dy)) {
+        bewegung[0] += e.dx; bewegung[1] += e.dy;
+      } else if (e.typ === "rad" && isFinite(e.wert)) {
+        rad += e.wert;
+      } else if (e.typ === "gefangen") {
+        gefangen = e.an === true;
       } else if (e.typ === "loslassen") {
         gehalten.clear(); knoepfe = 0;
       }

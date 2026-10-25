@@ -172,6 +172,8 @@ class HerdWelt {
     // Eingabe als Zustand (SPEC §18.3); vor* = Zustand vor dem letzten takt-Ereignis, erster = erster Takt des Ereignisses
     this.tasten = new Set(); this.vorTasten = this.tasten;
     this.mausX = 0; this.mausY = 0; this.knoepfe = 0; this.vorKnoepfe = 0; this.erster = false;
+    // Mausfang: Wunsch des Programms (mausFangen) und gemeldeter Zustand; Rohbewegung/Rad des letzten takt-Ereignisses
+    this.fangWunsch = false; this.gefangen = false; this.bewegungX = 0; this.bewegungY = 0; this.rad = 0;
   }
 }
 class HerdTeil { constructor(id, tab) { this.id = id; this.tab = tab; } }

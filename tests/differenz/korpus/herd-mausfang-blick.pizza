@@ -1,0 +1,14 @@
+// Herd §18.3: Ego-Blick aus Rohbewegung (mausDX/mausDY, nur im ersten Takt), Mausfang-Wunsch und -Zustand, Rad, Umschalt
+Herd herd = neu Herd("Blick", breite: 160, hoehe: 90);
+Teil k = herd.koerper(Form.wuerfel(), 0, 0, -5);
+funghi gier = 0;
+funghi nick = 0;
+herd.mausFangen();
+herd.backe(() -> {
+    gier = gier + herd.mausDX() * 0.15;
+    nick = Mathe.max(-85, Mathe.min(85, nick - herd.mausDY() * 0.15));
+    k.setzeDrehung(gier).setzeNeigung(nick);
+    falls (herd.mausrad() != 0) { k.setzeGroesse(1 + herd.mausrad() * 0.1); }
+    Bote.sage((herd.bildnummer() + " " + herd.mausGefangen() + " " + gier + " " + nick + " " + herd.mausrad() + " " + herd.taste("Umschalt")));
+    falls (herd.gedrueckt("Escape")) { herd.mausFangen(nein); }
+});

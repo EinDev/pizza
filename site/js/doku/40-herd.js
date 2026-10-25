@@ -227,12 +227,48 @@
                 ["`herd.taste(n)`", "`ja`, solange die Taste gehalten wird – gut für Bewegung"],
                 ["`herd.gedrueckt(n)` / `herd.losgelassen(n)`", "`ja` nur im Takt, in dem sie gedrückt bzw. losgelassen wurde – gut für Sprung, Schuss, Menü"],
                 ["`herd.mausX()`, `herd.mausY()`", "Mausposition in Spielfeld-Pixeln"],
-                ["`herd.maus(k = 1)` / `herd.klick(k = 1)`", "Maustaste gehalten / gerade gedrückt (1 links, 2 rechts, 3 Mitte); Tippen auf dem Handy zählt als 1"]
+                ["`herd.maus(k = 1)` / `herd.klick(k = 1)`", "Maustaste gehalten / gerade gedrückt (1 links, 2 rechts, 3 Mitte); Tippen auf dem Handy zählt als 1"],
+                ["`herd.mausFangen(an = ja)`", "Maus fangen wollen (`nein`: freigeben) – gefangen wird sie mit dem nächsten Klick ins Bild"],
+                ["`herd.mausGefangen()`", "`ja`, solange die Maus gefangen ist (Esc oder Fensterwechsel geben sie frei)"],
+                ["`herd.mausDX()`, `herd.mausDY()`", "Rohbewegung der Maus in diesem Takt in Pixeln (rechts/unten positiv) – auch ohne Fang"],
+                ["`herd.mausrad()`", "Mausrad in diesem Takt in Rasten (positiv = zu dir hin gedreht)"]
               ]
             },
-            { art: "text", md: "**Tastennamen** wie bei der `Tastatur` der Theke: `Links`, `Rechts`, `Hoch`, `Runter`, `Leertaste`, `Enter`, `Escape`, Buchstaben wie getippt (`a`, `w` …). Der Eingabezustand kommt mit jedem Takt vom Fenster – deshalb laufen aufgenommene Spiele in Tests immer gleich ab." }
+            { art: "text", md: "**Tastennamen** wie bei der `Tastatur` der Theke: `Links`, `Rechts`, `Hoch`, `Runter`, `Leertaste`, `Enter`, `Escape`, Buchstaben wie getippt (`a`, `w` …; mit Umschalt `A`, `W`). Dazu kennt der Herd die **Modifikatoren** `Umschalt`, `Strg` und `Alt` als eigene Tasten – `herd.taste(\"Umschalt\")` ist also „rennen“. Der Eingabezustand kommt mit jedem Takt vom Fenster – deshalb laufen aufgenommene Spiele in Tests immer gleich ab." }
           ]
-        }
+        },
+        { art: "text", md: "**Umsehen wie im Ego-Shooter:** `herd.mausFangen()` sagt dem Fenster, dass das Spiel die Maus fangen möchte. Der nächste Klick ins Bild fängt sie (der Klick selbst kommt wie jeder Klick an, `herd.mausGefangen()` ist in diesem Takt noch `nein`): Der Zeiger verschwindet und bleibt im Fenster, und `mausDX()`/`mausDY()` liefern, wie weit die Maus in diesem Takt bewegt wurde – ohne Rand, du kannst dich beliebig oft im Kreis drehen. **Esc** gibt die Maus frei (Esc geht dann nicht ans Spiel), ein neuer Klick fängt sie wieder. Im Browser und in der EXE verhält sich das gleich; in Tests stehen Bewegung und Fang mit in den `.ereignisse`." },
+        {
+          art: "code",
+          ausfuehrbar: true,
+          tier: 2,
+          uiEreignisse: [{"typ":"takt","anzahl":1},{"typ":"takt","anzahl":2,"gefangen":true,"bewegung":[120,-40]},{"typ":"takt","anzahl":1,"bewegung":[80,0]}],
+          herdErwartet: [
+            {"art":"mausfang","an":true},
+            {"art":"fenster","titel":"Umsehen","breite":320,"hoehe":180},
+            {"art":"bild","bildnummer":1,"szene":"1ab1a3e156f6d321","paket":"671b0c82ae6ed358"},
+            {"art":"bild","bildnummer":3,"szene":"5060c0d9630a1ad2","paket":"2cf5720a54215104"},
+            {"art":"bild","bildnummer":4,"szene":"5626a454274d4d6c","paket":"5a459133a6188a1f"}
+          ],
+          code: z(
+            "Herd herd = neu Herd(\"Umsehen\", breite: 320, hoehe: 180);",
+            "herd.himmel(\"himmel\", \"mozzarella\");",
+            "Teil kiste = herd.koerper(Form.wuerfel(), 0, 0.5, -4, farbe: \"tomate\");",
+            "herd.sonne();",
+            "funghi gier = 0;      // links/rechts in Grad",
+            "funghi nick = 0;      // hoch/runter in Grad",
+            "herd.mausFangen();    // Klick ins Bild fängt die Maus, Esc gibt sie frei",
+            "herd.backe(() -> {",
+            "    gier = gier + herd.mausDX() * 0.15;",
+            "    nick = Mathe.max(-85, Mathe.min(85, nick - herd.mausDY() * 0.15));",
+            "    funghi g = Mathe.bogen(gier);",
+            "    funghi n = Mathe.bogen(nick);",
+            "    herd.kamera().setzeLage(0, 1.6, 0).schaueAuf(Mathe.sin(g) * Mathe.cos(n), 1.6 + Mathe.sin(n), -Mathe.cos(g) * Mathe.cos(n));",
+            "});",
+            "Bote.sage((\"Blick \" + gier + \"° / \" + nick + \"°, gefangen: \" + herd.mausGefangen()));"
+          )
+        },
+        { art: "ausgabe", text: "Blick 30° / 6°, gefangen: ja" }
       ]
     },
     {

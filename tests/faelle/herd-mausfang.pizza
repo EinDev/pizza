@@ -1,0 +1,16 @@
+// Herd §18.3: Mausfang (Wunsch an den Renderer, Zustand aus dem takt-Ereignis), Rohbewegung und Rad je Takt
+// (nur im ersten Takt eines Ereignisses, fehlt → 0), Modifikatortasten als eigene Tasten
+Herd herd = neu Herd("Blick", breite: 200, hoehe: 100);
+funghi blick = 0;
+Bote.sage(("vorher: " + herd.mausGefangen() + " " + herd.mausDX() + " " + herd.mausrad()));
+herd.mausFangen().mausFangen(ja);   // nur der Wechsel geht an den Renderer
+herd.backe(() -> {
+    blick = blick + herd.mausDX() * 0.25;
+    margherita z = "Takt " + herd.bildnummer() + ": " + herd.mausGefangen() + " " + herd.mausDX() + "/" + herd.mausDY() + " rad " + herd.mausrad() + " blick " + blick;
+    falls (herd.taste("Umschalt")) { z = z + " rennt"; }
+    falls (herd.gedrueckt("Strg")) { z = z + " duckt"; }
+    falls (herd.bildnummer() == 6) { herd.mausFangen(nein); }
+    Bote.sage((z));
+});
+Bote.sage(("aussen: " + herd.mausGefangen() + " " + herd.mausDX() + " " + herd.mausDY() + " " + herd.mausrad()));
+probier { herd.mausFangen(3); } verbrannt (TypAnanas a) { Bote.sage((a.nachricht())); }

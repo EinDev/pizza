@@ -2201,6 +2201,26 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   Worker. Fälle `tests/faelle/k154-uhr-zone*`, Prüfstand a13, Doku-Block (Referenz Uhr). Pizza-Uhr: Manifest `echtzeit`
   1782893310250 (2026-07-01 08:08:30.250 UTC) + `zone` 7200000 → 10:08:30 Ortszeit wie zuvor. **Status:** fest.
 
+### K-155 Herd: Mausfang (Pointer Lock), relative Mausbewegung, Mausrad, Modifikatortasten
+- **Frage:** Ego-Steuerung (Neon-Napoli) geht mit `mausX`/`mausY` nur durch Ziehen und endet am Fensterrand; Rennen ließ sich nur an
+  Großbuchstaben erkennen (Umschalt wurde nicht gemeldet, und im Browser blieb `W` nach „Umschalt vor `w` loslassen“ hängen).
+- **Entscheidung (neue Eingabeart, HERD.md §9-Ausnahme; Kern unverändert):** `takt` trägt zusätzlich `bewegung` `[dx, dy]` und `rad`
+  (Summen seit dem vorigen Ereignis, fehlt/ungültig → 0) und `gefangen` (Zustand, fehlt → unverändert). Sprache: `mausFangen(an = ja)`
+  → Herd, `mausGefangen()`, `mausDX()`, `mausDY()`, `mausrad()` (nur im ersten Takt eines Ereignisses ≠ 0). `mausFangen` ist ein
+  **Wunsch**: Ereignis `herd`/`mausfang` (`an`) bei Wechsel; der Renderer fängt beim nächsten Klick ins Bild, weil der Browser
+  Pointer Lock nur aus einer Nutzergeste erlaubt – nativ gleich (Browser = nativ). Der fangende Klick kommt wie jeder Klick an
+  (`mausGefangen()` ist dort noch `nein` – Spiele schießen also nur gefangen; scheitert der Fang, bleibt Ziehen möglich); Esc gibt
+  frei und geht nicht ans Programm. Herd-Tastennamen ergänzt um `Umschalt`, `Strg`, `Alt` (die Theke-`Tastatur` bleibt bei K-110); Loslassen nach
+  physischer Taste auch im Browser. Einheit der Bewegung: Pixel des Zeigers (Browser `movementX/Y`, mit `unadjustedMovement`, wo
+  möglich; nativ gefangen `DeviceEvent::MouseMotion`, sonst Zeigerweg in logischen Pixeln). Rad in Rasten (Browser `deltaY` / 100 bei
+  Pixeln, / 3 bei Zeilen; nativ Zeilen bzw. Pixel / 100), positiv = zum Nutzer hin.
+- **Nicht im Kern:** UI-Bausteine und `Blick.mausX` brauchen nur die absolute Maus; `eingabe(maus_x, maus_y, knoepfe)` und alle
+  Szenen-Hashes bleiben, ohne Mausfang ändert sich an keinem bestehenden Ereignis etwas (Felder fehlen dann).
+- **Betroffen:** SPEC §18.3, HERD.md §4/§5/§7, Interpreter (`site/js/pizza/herd/`), Laufzeit (`laufzeit/src/herd.rs`, 35 Herd-Namen),
+  Seite (`ui/src/herd.js`: Pointer Lock, `pointerlockchange`, Rad, `e.code`-Zuordnung), Zeichner (`site/js/herd/zeichner.js`), Host
+  (`host/src/herd_fenster.rs`: `CursorGrabMode::Locked`, sonst `Confined`, Zeiger aus, `device_event`), Editor-Wörter, Fälle
+  `tests/faelle/herd-mausfang`, Korpus `herd-mausfang-blick`, Prüfstand a18, Doku `herd-eingabe`, E2E 14. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

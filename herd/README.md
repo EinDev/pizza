@@ -213,6 +213,8 @@ höchstens 2048 × 2048 Pixel.`). Bei 61/62 kennt der Kern den Pfad nicht: die A
 zusammensetzen (`herd.kreis(x, y, r, farbe:)` = `teil_neu(2)` + `teil_lage` + `komp_neu(Kreis)` + Felder + `komp_haenge`),
 Objektidentität (Handle → pizza-Objekt), Textformen (`Teil(3)`, `Bewegung(3)`), Getter/Setter-Namen aus dem Schema,
 `bildnummer`/`zeit`, Eingabe, Fenster-Ereignisse. `bildnummer` gibt die Anbindung an `bild(n)` (sie steht im Paketkopf).
+Mausfang, Rohbewegung und Rad (`mausFangen`, `mausDX`/`mausDY`, `mausrad`, K-155) hält allein die Anbindung – der Kern sieht davon
+nichts (kein neuer Export, `eingabe` unverändert).
 
 ## 4. Bildpaket v1 (Kern → Glut)
 

@@ -5,7 +5,11 @@
 //! und präsentiert (vsync), **danach** fordert der Hauptthread den nächsten Takt an (`{"typ":"takt","anzahl":n,…}`,
 //! Nachholregel ≤ 4 wie `site/js/herd/zeichner.js`). Das Fenster entsteht erst beim ersten `fenster`, Größe = Spielfeld
 //! (passend zum Bildschirm verkleinert), frei veränderbar; die Glut passt das Spielfeld seitentreu ein (Ränder = Hintergrund).
-//! Eingabe: Tasten (Namen wie `Tastatur`, K-110), Maus/Touch in Spielfeld-Koordinaten, Fokusverlust = alles losgelassen.
+//! Eingabe: Tasten (Namen wie `Tastatur`, K-110, dazu `Umschalt`/`Strg`/`Alt`), Maus/Touch in Spielfeld-Koordinaten,
+//! Rohbewegung und Rad je Takt, Fokusverlust = alles losgelassen. **Mausfang** (`herd.mausFangen`, SPEC §18.3) wie im Browser:
+//! das Programm äußert den Wunsch, der nächste Klick ins Fenster fängt die Maus (und kommt wie jeder Klick an), Esc oder Fokusverlust geben
+//! sie frei; gefangen ist der Zeiger unsichtbar und festgehalten (`CursorGrabMode::Locked`, wo das nicht geht `Confined`), die
+//! Bewegung kommt dann roh aus `DeviceEvent::MouseMotion`.
 //! Schließen = `{"typ":"geschlossen"}`, Programmende = Fenster zu (Prozess endet mit dem Exit-Code).
 //! Adapter: echte GPU (Standard nur hier), ohne passenden Adapter Software (WARP/lavapipe); `HERD_SOFTWARE=1` und
 //! `PIZZA_KEIN_DIALOG` (Tests) erzwingen Software, `PIZZA_KEIN_DIALOG` hält das Fenster zudem unsichtbar.
@@ -26,10 +30,10 @@ use std::time::{Duration, Instant};
 use herd_glut::{Adapter, Glut, Optionen as GlutOptionen, Ziel};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
-use winit::event::{ElementState, MouseButton, TouchPhase, WindowEvent};
+use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key, NamedKey, PhysicalKey};
-use winit::window::{Window, WindowId};
+use winit::window::{CursorGrabMode, Window, WindowId};
 
 use crate::ereignis::{json_text, json_zahl};
 use crate::herd::{HerdAnbindung, Messung};
@@ -45,7 +49,7 @@ const GESCHLOSSEN: &str = "{\"typ\":\"geschlossen\"}";
 // ================================================================ reine Teile (ohne Fenster testbar)
 
 /// Tastenname nach K-110 aus dem logischen Schlüssel (wie `herdTastenName` in ui/src/herd.js); `None` = nicht senden
-/// (Modifikatoren, tote Tasten, Unbekanntes).
+/// (übrige Modifikatoren, tote Tasten, Unbekanntes). Umschalt, Strg und Alt meldet der Herd als eigene Tasten.
 pub fn tastenname(key: &Key) -> Option<String> {
     match key {
         Key::Character(s) if !s.is_empty() => Some(if s.as_str() == " " { "Leertaste".into() } else { s.to_string() }),
@@ -62,10 +66,10 @@ pub fn tastenname(key: &Key) -> Option<String> {
                 NamedKey::End => "Ende",
                 NamedKey::PageUp => "BildHoch",
                 NamedKey::PageDown => "BildRunter",
-                NamedKey::Shift
-                | NamedKey::Control
-                | NamedKey::Alt
-                | NamedKey::AltGraph
+                NamedKey::Shift => "Umschalt",
+                NamedKey::Control => "Strg",
+                NamedKey::Alt => "Alt",
+                NamedKey::AltGraph
                 | NamedKey::Meta
                 | NamedKey::Super
                 | NamedKey::Hyper
@@ -137,7 +141,8 @@ impl Taktgeber {
 }
 
 /// Eingabezustand zwischen zwei Takten (wie `zeichner.js`): gehaltene Tasten, kurz gedrückte (auch wieder losgelassene)
-/// Tasten, Maus in Spielfeld-Koordinaten, Knöpfe (1 links, 2 rechts, 4 Mitte; Touch = 1).
+/// Tasten, Maus in Spielfeld-Koordinaten, Knöpfe (1 links, 2 rechts, 4 Mitte; Touch = 1), Rohbewegung und Rad (Summe bis
+/// zum nächsten Takt), Mausfang (gemeldet nur bei Wechsel).
 #[derive(Debug, Default)]
 pub struct Eingabe {
     gehalten: Vec<String>,
@@ -145,6 +150,10 @@ pub struct Eingabe {
     pub maus: (f64, f64),
     knoepfe: u32,
     knoepfe_kurz: u32,
+    bewegung: (f64, f64),
+    rad: f64,
+    pub gefangen: bool,
+    gefangen_gemeldet: bool,
 }
 
 impl Eingabe {
@@ -170,27 +179,56 @@ impl Eingabe {
         }
     }
 
+    /// Rohbewegung (Pixel) seit dem letzten Takt aufsummieren.
+    pub fn bewegung(&mut self, dx: f64, dy: f64) {
+        if dx.is_finite() && dy.is_finite() {
+            self.bewegung.0 += dx;
+            self.bewegung.1 += dy;
+        }
+    }
+
+    /// Mausrad in Rasten (positiv = zum Nutzer hin, wie `deltaY` im Browser).
+    pub fn rad(&mut self, r: f64) {
+        if r.is_finite() {
+            self.rad += r;
+        }
+    }
+
     /// Fokusverlust: alles losgelassen.
     pub fn loslassen(&mut self) {
         self.gehalten.clear();
         self.knoepfe = 0;
     }
 
-    /// `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`; setzt die „kurz“-Mengen zurück.
+    /// `{"typ":"takt","anzahl":n,"tasten":[…],"maus":[x,y],"knoepfe":k}`, dazu nur bei Bedarf `"bewegung":[dx,dy]`,
+    /// `"rad":r` (≠ 0) und `"gefangen":…` (bei Wechsel) – wie `zeichner.js`; setzt die „kurz“-Mengen und Summen zurück.
     pub fn takt_json(&mut self, anzahl: u32) -> String {
         let mut tasten: Vec<&String> = self.gehalten.iter().collect();
         tasten.extend(self.kurz.iter().filter(|k| !self.gehalten.contains(k)));
         let liste: Vec<String> = tasten.iter().map(|t| json_text(t)).collect();
-        let s = format!(
-            "{{\"typ\":\"takt\",\"anzahl\":{},\"tasten\":[{}],\"maus\":[{},{}],\"knoepfe\":{}}}",
+        let mut s = format!(
+            "{{\"typ\":\"takt\",\"anzahl\":{},\"tasten\":[{}],\"maus\":[{},{}],\"knoepfe\":{}",
             anzahl,
             liste.join(","),
             json_zahl(self.maus.0),
             json_zahl(self.maus.1),
             self.knoepfe | self.knoepfe_kurz
         );
+        if self.bewegung != (0.0, 0.0) {
+            s.push_str(&format!(",\"bewegung\":[{},{}]", json_zahl(self.bewegung.0), json_zahl(self.bewegung.1)));
+        }
+        if self.rad != 0.0 {
+            s.push_str(&format!(",\"rad\":{}", json_zahl(self.rad)));
+        }
+        if self.gefangen != self.gefangen_gemeldet {
+            s.push_str(if self.gefangen { ",\"gefangen\":true" } else { ",\"gefangen\":false" });
+            self.gefangen_gemeldet = self.gefangen;
+        }
+        s.push('}');
         self.kurz.clear();
         self.knoepfe_kurz = 0;
+        self.bewegung = (0.0, 0.0);
+        self.rad = 0.0;
         s
     }
 }
@@ -330,6 +368,8 @@ pub enum AnFenster {
     Fenster { titel: String, breite: f64, hoehe: f64 },
     Bild(Vec<u8>),
     Schliesse,
+    /// `herd.mausFangen(an)`: Wunsch des Programms (der nächste Klick fängt die Maus, `nein` gibt sie frei).
+    Mausfang(bool),
     Fertig(i32),
 }
 
@@ -402,6 +442,7 @@ where
                 None => return,
             },
             "schliesse" => AnFenster::Schliesse,
+            "mausfang" => AnFenster::Mausfang(json.contains("\"an\":true")),
             _ => return,
         };
         let _ = p.send_event(n);
@@ -430,6 +471,8 @@ where
         ausstehend: false,
         zu: false,
         gezeigt: false,
+        fang_wunsch: false,
+        zeiger: None,
     };
     if let Err(e) = el.run_app(&mut app) {
         return crate::anzeige::abbruch(crate::anzeige::HERD_FENSTER_FEHLGESCHLAGEN, Some(&e.to_string()), debug);
@@ -459,6 +502,10 @@ struct App {
     zu: bool,
     /// Erstes Bild des Fensters gezeichnet (Fenster sichtbar, Takt-Uhr läuft).
     gezeigt: bool,
+    /// Das Programm will die Maus fangen (`herd.mausFangen`).
+    fang_wunsch: bool,
+    /// Letzte Zeigerlage (Gerätepixel) für die Bewegung ohne Mausfang.
+    zeiger: Option<PhysicalPosition<f64>>,
 }
 
 /// Abbruch: Meldung (ohne Terminal als Meldungsfenster, außer `PIZZA_KEIN_DIALOG`), Exit 2 – sofort, damit der
@@ -514,6 +561,7 @@ impl App {
         self.fenster = Some(fenster);
         self.takt.zuruecksetzen();
         self.eingabe = Eingabe::default();
+        self.zeiger = None;
         self.tasten.clear();
         self.paket = None;
         self.ausstehend = false;
@@ -534,7 +582,31 @@ impl App {
         }
     }
 
+    /// Maus fangen: Zeiger festhalten (Locked, sonst Confined) und ausblenden. Scheitert beides, bleibt sie frei.
+    fn fange_maus(&mut self) {
+        let Some(f) = self.fenster.as_ref() else { return };
+        let ok = f.set_cursor_grab(CursorGrabMode::Locked).or_else(|_| f.set_cursor_grab(CursorGrabMode::Confined)).is_ok();
+        if ok {
+            f.set_cursor_visible(false);
+            self.eingabe.gefangen = true;
+        }
+    }
+
+    /// Mausfang lösen (Esc, Fokusverlust, `mausFangen(nein)`, Fenster zu).
+    fn gib_maus_frei(&mut self) {
+        if !self.eingabe.gefangen {
+            return;
+        }
+        self.eingabe.gefangen = false;
+        self.zeiger = None;
+        if let Some(f) = self.fenster.as_ref() {
+            let _ = f.set_cursor_grab(CursorGrabMode::None);
+            f.set_cursor_visible(true);
+        }
+    }
+
     fn schliesse(&mut self) {
+        self.gib_maus_frei();
         self.glut = None;
         if let Some(f) = self.fenster.take() {
             f.set_visible(false);
@@ -616,6 +688,12 @@ impl ApplicationHandler<AnFenster> for App {
                 self.schliesse();
                 self.ausstehend = false;
             }
+            AnFenster::Mausfang(an) => {
+                self.fang_wunsch = an;
+                if !an {
+                    self.gib_maus_frei();
+                }
+            }
             AnFenster::Fertig(code) => {
                 // Programmende = Fenster zu, Prozess endet mit dem Exit-Code des Programms.
                 self.schliesse();
@@ -637,9 +715,17 @@ impl ApplicationHandler<AnFenster> for App {
                 self.schliesse();
                 self.geschlossen();
             }
-            WindowEvent::Focused(false) => self.eingabe.loslassen(),
+            WindowEvent::Focused(false) => {
+                self.gib_maus_frei();
+                self.eingabe.loslassen();
+            }
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.repeat {
+                    return;
+                }
+                // Esc gibt die gefangene Maus frei und geht nicht ans Programm (wie der Browser)
+                if self.eingabe.gefangen && event.state == ElementState::Pressed && event.logical_key == Key::Named(NamedKey::Escape) {
+                    self.gib_maus_frei();
                     return;
                 }
                 match event.state {
@@ -656,7 +742,26 @@ impl ApplicationHandler<AnFenster> for App {
                     }
                 }
             }
-            WindowEvent::CursorMoved { position, .. } => self.eingabe.maus = self.punkt(position),
+            WindowEvent::CursorMoved { position, .. } => {
+                // gefangen: Lage bleibt stehen, die Bewegung kommt roh aus `device_event`
+                if self.eingabe.gefangen {
+                    return;
+                }
+                if let (Some(alt), Some(f)) = (self.zeiger, self.fenster.as_ref()) {
+                    let s = f.scale_factor().max(0.1);   // Gerätepixel → logische Pixel (wie movementX im Browser)
+                    self.eingabe.bewegung((position.x - alt.x) / s, (position.y - alt.y) / s);
+                }
+                self.zeiger = Some(position);
+                self.eingabe.maus = self.punkt(position);
+            }
+            WindowEvent::CursorLeft { .. } => self.zeiger = None,
+            WindowEvent::MouseWheel { delta, .. } => {
+                let s = self.fenster.as_ref().map(|f| f.scale_factor()).unwrap_or(1.0).max(0.1);
+                self.eingabe.rad(match delta {
+                    MouseScrollDelta::LineDelta(_, y) => -y as f64,
+                    MouseScrollDelta::PixelDelta(p) => -p.y / s / 100.0,
+                });
+            }
             WindowEvent::MouseInput { state, button, .. } => {
                 let bit = match button {
                     MouseButton::Left => 1,
@@ -664,9 +769,14 @@ impl ApplicationHandler<AnFenster> for App {
                     MouseButton::Middle => 4,
                     _ => 0,
                 };
-                if bit != 0 {
-                    self.eingabe.knopf(bit, state == ElementState::Pressed);
+                if bit == 0 {
+                    return;
                 }
+                // der Klick ins Bild fängt die Maus (wie im Browser); er kommt wie jeder Klick an – `gefangen` erst im nächsten Takt
+                if state == ElementState::Pressed && self.fang_wunsch && !self.eingabe.gefangen {
+                    self.fange_maus();
+                }
+                self.eingabe.knopf(bit, state == ElementState::Pressed);
             }
             WindowEvent::Touch(t) => {
                 self.eingabe.maus = self.punkt(t.location);
@@ -678,6 +788,15 @@ impl ApplicationHandler<AnFenster> for App {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn device_event(&mut self, _el: &ActiveEventLoop, _id: DeviceId, e: DeviceEvent) {
+        // Rohbewegung der Maus nur, solange sie gefangen ist (sonst zählt die Zeigerbewegung im Fenster)
+        if let DeviceEvent::MouseMotion { delta } = e {
+            if self.eingabe.gefangen {
+                self.eingabe.bewegung(delta.0, delta.1);
+            }
         }
     }
 
@@ -710,7 +829,10 @@ mod tests {
         assert_eq!(tastenname(&Key::Character("a".into())).as_deref(), Some("a"));
         assert_eq!(tastenname(&Key::Character("Ä".into())).as_deref(), Some("Ä"));
         assert_eq!(tastenname(&Key::Character(" ".into())).as_deref(), Some("Leertaste"));
-        assert_eq!(tastenname(&Key::Named(NamedKey::Shift)), None);
+        assert_eq!(tastenname(&Key::Named(NamedKey::Shift)).as_deref(), Some("Umschalt"));
+        assert_eq!(tastenname(&Key::Named(NamedKey::Control)).as_deref(), Some("Strg"));
+        assert_eq!(tastenname(&Key::Named(NamedKey::Alt)).as_deref(), Some("Alt"));
+        assert_eq!(tastenname(&Key::Named(NamedKey::Super)), None);
         assert_eq!(tastenname(&Key::Named(NamedKey::CapsLock)), None);
         assert_eq!(tastenname(&Key::Dead(Some('^'))), None);
     }
@@ -770,6 +892,24 @@ mod tests {
         e.loslassen();
         assert_eq!(e.takt_json(1), "{\"typ\":\"takt\",\"anzahl\":1,\"tasten\":[],\"maus\":[12.5,3],\"knoepfe\":2}");
         assert_eq!(e.takt_json(1), "{\"typ\":\"takt\",\"anzahl\":1,\"tasten\":[],\"maus\":[12.5,3],\"knoepfe\":0}");
+    }
+
+    #[test]
+    fn takt_json_mit_bewegung_rad_und_fang() {
+        let mut e = Eingabe::default();
+        e.bewegung(3.0, -2.0);
+        e.bewegung(1.5, 0.0);
+        e.bewegung(f64::NAN, 1.0); // ungültig: verworfen
+        e.rad(1.0);
+        e.gefangen = true;
+        assert_eq!(
+            e.takt_json(2),
+            "{\"typ\":\"takt\",\"anzahl\":2,\"tasten\":[],\"maus\":[0,0],\"knoepfe\":0,\"bewegung\":[4.5,-2],\"rad\":1,\"gefangen\":true}"
+        );
+        // Summen zurückgesetzt, gefangen nur bei Wechsel
+        assert_eq!(e.takt_json(1), "{\"typ\":\"takt\",\"anzahl\":1,\"tasten\":[],\"maus\":[0,0],\"knoepfe\":0}");
+        e.gefangen = false;
+        assert_eq!(e.takt_json(1), "{\"typ\":\"takt\",\"anzahl\":1,\"tasten\":[],\"maus\":[0,0],\"knoepfe\":0,\"gefangen\":false}");
     }
 
     #[test]

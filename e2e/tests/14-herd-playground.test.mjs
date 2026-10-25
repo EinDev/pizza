@@ -122,6 +122,61 @@ e2e("Herd-UI: Taster und Regler mit der Maus im Vorschaufenster (Render-Worker �
   assert.match(await konsolenAusgabe(page), /geklickt\n(.*\n)*regler voll\n(.*\n)*Ende 1\n$/);
 });
 
+// K-155: Mausfang (Pointer Lock) und Rohbewegung – der Wunsch kommt vom Programm, gefangen wird mit dem Klick ins Bild (der Klick
+// kommt an, mausGefangen() ist dort noch nein), movementX/Y kommen als bewegung im takt an; mausFangen(nein) gibt frei. Dazu Umschalt als eigene Taste
+// und Loslassen nach physischer Taste (Umschalt vor „w“ los lässt kein „W“ hängen).
+const FANG_PROG = [
+  'Herd herd = neu Herd("E2E-Fang", breite: 320, hoehe: 180);',
+  'herd.hintergrund("ofen");',
+  'funghi summe = 0;',
+  'diavolo war = nein;',
+  'herd.mausFangen();',
+  'herd.backe(() -> {',
+  '    summe = summe + herd.mausDX();',
+  '    falls (herd.mausGefangen() != war) { war = herd.mausGefangen(); Bote.sage(("gefangen " + war)); }',
+  '    falls (herd.klick()) { Bote.sage(("klick " + herd.mausGefangen())); }',
+  '    falls (herd.gedrueckt("Umschalt")) { Bote.sage(("umschalt")); }',
+  '    falls (herd.gedrueckt("x")) { Bote.sage(("dx " + summe)); herd.mausFangen(nein); }',
+  '    falls (herd.gedrueckt("p")) { Bote.sage(("tasten " + herd.taste("w") + " " + herd.taste("W") + " " + herd.taste("Umschalt"))); }',
+  '});',
+].join("\n");
+
+e2e("Herd: Mausfang per Klick ins Bild (Pointer Lock), Rohbewegung, mausFangen(nein) gibt frei, Umschalt als Taste", { timeout: 90_000 }, async ({ page, oeffne }) => {
+  await oeffne();
+  await setzeCode(page, FANG_PROG);
+  await strg(page, "Enter");
+  await warteBereit(page);
+  await page.waitForFunction((sel) => Number(document.querySelector(sel).dataset.bild || 0) > 5, { timeout: 15_000 }, CANVAS);
+  const r = await page.$eval(CANVAS, (c) => { const b = c.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.move(r.x, r.y);
+  await page.mouse.click(r.x, r.y);
+  await page.waitForFunction((sel) => document.pointerLockElement === document.querySelector(sel), { timeout: 10_000 }, CANVAS);
+  await warteAusgabe(page, /gefangen ja/);
+  // gefangen: Rohbewegung (movementX) summiert, die Lage des Zeigers spielt keine Rolle
+  for (let i = 1; i <= 6; i++) { await page.mouse.move(r.x + 20 * i, r.y); await schlafe(30); }
+  await schlafe(200);
+  await page.keyboard.press("Shift");
+  await warteAusgabe(page, /umschalt/);
+  // Umschalt + w, Umschalt zuerst loslassen: weder „w“ noch „W“ bleibt gehalten
+  await page.keyboard.down("w");
+  await page.keyboard.down("Shift");
+  await page.keyboard.up("Shift");
+  await page.keyboard.up("w");
+  await schlafe(150);
+  await page.keyboard.press("p");
+  await warteAusgabe(page, /tasten /);
+  await page.keyboard.press("x");
+  await warteAusgabe(page, /gefangen nein/);
+  const aus = await konsolenAusgabe(page);
+  const dx = Number(/dx (-?[\d.]+)/.exec(aus)[1]);
+  assert.ok(dx >= 60, "Rohbewegung nach rechts summiert: dx = " + dx + "\n" + aus);
+  assert.match(aus, /^klick nein\ngefangen ja$/m, "der fangende Klick kommt an, gefangen erst danach");
+  assert.match(aus, /tasten nein nein nein/);
+  assert.equal(await page.evaluate(() => document.pointerLockElement), null, "mausFangen(nein) löst den Pointer Lock");
+  await page.click(VORSCHAU_ZU);
+  await warteLaufEnde(page);
+});
+
 e2e("Herd: App-Link füllt den Bildschirm mit dem Spielfeld, X beendet", { timeout: 90_000 }, async ({ page, basis, server }) => {
   const { id } = await server.teilen.lege({ name: "herd.pizza", code: PROG });
   await page.goto(basis + "#app=" + id, { waitUntil: "load" });

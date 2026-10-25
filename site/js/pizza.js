@@ -6187,6 +6187,8 @@
       // Eingabe als Zustand (SPEC §18.3); vor* = Zustand vor dem letzten takt-Ereignis, erster = erster Takt des Ereignisses
       this.tasten = new Set(); this.vorTasten = this.tasten;
       this.mausX = 0; this.mausY = 0; this.knoepfe = 0; this.vorKnoepfe = 0; this.erster = false;
+      // Mausfang: Wunsch des Programms (mausFangen) und gemeldeter Zustand; Rohbewegung/Rad des letzten takt-Ereignisses
+      this.fangWunsch = false; this.gefangen = false; this.bewegungX = 0; this.bewegungY = 0; this.rad = 0;
     }
   }
   class HerdTeil { constructor(id, tab) { this.id = id; this.tab = tab; } }
@@ -6484,6 +6486,17 @@
       const b = this.herdMausBit(arg(pos, ben, 0, 'k'), 'klick');
       return h.erster && (h.knoepfe & b) !== 0 && (h.vorKnoepfe & b) === 0;
     },
+    // Mausfang und relative Bewegung (SPEC §18.3): Bewegung/Rad nur im ersten Takt eines Ereignisses, sonst 0
+    'mausFangen': function (h, pos, ben) {
+      const d = arg(pos, ben, 0, 'an');
+      const an = d === undefined ? true : this.bool(d);
+      if (an !== h.fangWunsch) { h.fangWunsch = an; this.herdSende('mausfang', { an }); }
+      return h;
+    },
+    'mausGefangen': function (h) { return h.gefangen; },
+    'mausDX': function (h) { return h.erster ? h.bewegungX : 0; },
+    'mausDY': function (h) { return h.erster ? h.bewegungY : 0; },
+    'mausrad': function (h) { return h.erster ? h.rad : 0; },
     // Welt (SPEC §18.5)
     'hintergrund': function (h, pos, ben) {
       const k = this.hk, f = this.herdFarbText(arg(pos, ben, 0, 'f'));
@@ -7019,6 +7032,14 @@
       }
       const kn = ev.knoepfe;
       if (typeof kn === 'number' && Number.isInteger(kn) && kn >= 0 && kn <= 7) h.knoepfe = kn;
+      // Rohbewegung und Rad: Summe seit dem letzten Ereignis (fehlt/ungültig → 0); gefangen: Zustand (fehlt → unverändert)
+      const b = ev.bewegung;
+      if (Array.isArray(b) && b.length === 2 && typeof b[0] === 'number' && typeof b[1] === 'number' && isFinite(b[0]) && isFinite(b[1])) {
+        h.bewegungX = b[0]; h.bewegungY = b[1];
+      } else { h.bewegungX = 0; h.bewegungY = 0; }
+      const r = ev.rad;
+      h.rad = typeof r === 'number' && isFinite(r) ? r : 0;
+      if (typeof ev.gefangen === 'boolean') h.gefangen = ev.gefangen;
     },
     // Rückruf aus der Spielschleife (fn oder Kniff-Phase): schliesse() wirkt danach, Panik beendet sofort (kein schliesse)
     herdRueckruf(h, f) {

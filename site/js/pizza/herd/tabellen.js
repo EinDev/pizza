@@ -190,6 +190,17 @@ const HERD_M = herdTab({
     const b = this.herdMausBit(arg(pos, ben, 0, 'k'), 'klick');
     return h.erster && (h.knoepfe & b) !== 0 && (h.vorKnoepfe & b) === 0;
   },
+  // Mausfang und relative Bewegung (SPEC §18.3): Bewegung/Rad nur im ersten Takt eines Ereignisses, sonst 0
+  'mausFangen': function (h, pos, ben) {
+    const d = arg(pos, ben, 0, 'an');
+    const an = d === undefined ? true : this.bool(d);
+    if (an !== h.fangWunsch) { h.fangWunsch = an; this.herdSende('mausfang', { an }); }
+    return h;
+  },
+  'mausGefangen': function (h) { return h.gefangen; },
+  'mausDX': function (h) { return h.erster ? h.bewegungX : 0; },
+  'mausDY': function (h) { return h.erster ? h.bewegungY : 0; },
+  'mausrad': function (h) { return h.erster ? h.rad : 0; },
   // Welt (SPEC §18.5)
   'hintergrund': function (h, pos, ben) {
     const k = this.hk, f = this.herdFarbText(arg(pos, ben, 0, 'f'));

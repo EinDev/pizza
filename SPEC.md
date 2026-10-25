@@ -1738,7 +1738,22 @@ dort. Er gehört nicht zum Szenen-Hash, wirkt nur über Lesefelder.
 - `taste(n)` gehalten; `gedrueckt(n)`/`losgelassen(n)` im **ersten** Takt des Ereignisses Wechsel gegenüber dem vorigen Zustand, sonst
   `nein`; `n` nimmt die Textform. `mausX()`, `mausY()` → funghi; `maus(k = 1)` gehalten, `klick(k = 1)` im ersten Takt neu gedrückt
   (`k` 1 … 3, sonst `LaufzeitAnanas: Maustaste 4 gibt es nicht (1 links, 2 rechts, 3 Mitte).`). Außerhalb von `backe`: letzter
-  Zustand, `gedrueckt`/`losgelassen`/`klick` → `nein`.
+  Zustand, `gedrueckt`/`losgelassen`/`klick` → `nein`, `mausDX`/`mausDY`/`mausrad` → `0`.
+- **Modifikatoren:** Anders als die `Tastatur` der Theke meldet der Herd `Umschalt`, `Strg` und `Alt` als eigene Tasten (übrige
+  Modifikatoren wie Feststell-, Windows-/Befehlstaste und AltGr nicht). Losgelassen wird die Taste, die gedrückt wurde (nach
+  physischer Taste): `w` drücken, Umschalt dazu, `w` loslassen lässt kein `W` hängen.
+- **Mausfang und relative Bewegung:** Drei weitere Felder des `takt`-Ereignisses: `bewegung` (`[dx, dy]`, Rohbewegung der Maus seit
+  dem vorigen `takt`-Ereignis in Pixeln, rechts/unten positiv), `rad` (Mausrad seit dem vorigen Ereignis in Rasten, positiv = zum
+  Nutzer hin) – beide sind Summen: fehlen sie oder sind sie ungültig (nicht zwei endliche Zahlen bzw. keine endliche Zahl), gilt `0`
+  – und `gefangen` (`true`/`false`, Zustand: fehlt oder ungültig → unverändert, Anfang `false`). `mausDX()`, `mausDY()`, `mausrad()`
+  → funghi, im **ersten** Takt des Ereignisses der Wert des Ereignisses, sonst `0` (wie `klick`: nachgeholte Takte drehen nicht
+  mehrfach); `mausGefangen()` → diavolo. `herd.mausFangen(an = ja)` (diavolo, sonst `TypAnanas`) → der Herd; äußert den **Wunsch**,
+  die Maus zu fangen bzw. (`nein`) freizugeben, und sendet bei einem Wechsel `{"typ":"herd","art":"mausfang","an":ja|nein}` an den
+  Renderer (auch vor dem ersten `backe`; gilt für alle Fenster des Laufs). Der Renderer fängt die Maus beim nächsten Klick ins Bild
+  (Browser: Pointer Lock braucht eine Nutzergeste; nativ ebenso, Browser = nativ) – dieser Klick kommt wie jeder Klick an,
+  `mausGefangen()` ist in seinem Takt noch `nein` –, blendet den Zeiger aus und meldet `gefangen`; Esc (geht dann nicht ans Programm), Fokusverlust, `mausFangen(nein)` und
+  Fensterende geben frei. Gefangen bleibt `maus` stehen. `bewegung` liefern die Renderer auch ohne Fang (Zeigerbewegung über dem
+  Fenster). Nichts davon geht an den Kern (`eingabe` unverändert).
 
 ### 18.4 Teile und Komponenten (K-132)
 

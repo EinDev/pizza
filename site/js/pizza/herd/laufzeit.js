@@ -385,6 +385,14 @@ const HERD_LAUFZEIT = {
     }
     const kn = ev.knoepfe;
     if (typeof kn === 'number' && Number.isInteger(kn) && kn >= 0 && kn <= 7) h.knoepfe = kn;
+    // Rohbewegung und Rad: Summe seit dem letzten Ereignis (fehlt/ungültig → 0); gefangen: Zustand (fehlt → unverändert)
+    const b = ev.bewegung;
+    if (Array.isArray(b) && b.length === 2 && typeof b[0] === 'number' && typeof b[1] === 'number' && isFinite(b[0]) && isFinite(b[1])) {
+      h.bewegungX = b[0]; h.bewegungY = b[1];
+    } else { h.bewegungX = 0; h.bewegungY = 0; }
+    const r = ev.rad;
+    h.rad = typeof r === 'number' && isFinite(r) ? r : 0;
+    if (typeof ev.gefangen === 'boolean') h.gefangen = ev.gefangen;
   },
   // Rückruf aus der Spielschleife (fn oder Kniff-Phase): schliesse() wirkt danach, Panik beendet sofort (kein schliesse)
   herdRueckruf(h, f) {

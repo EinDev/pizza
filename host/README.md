@@ -228,8 +228,12 @@ Programme mit Importgruppe `herd` (Modul `herd` = Kern-Exporte, `pizza.herd_*`, 
   Fenster erst beim ersten `fenster`-Ereignis; Größe = Spielfeld
   (logische Pixel, bei Bedarf seitentreu auf 90 % des Bildschirms verkleinert), frei veränderbar, HiDPI über Gerätepixel; die Glut
   passt das Spielfeld seitentreu ein (Ränder = Hintergrund). Eingabe: Tastennamen wie `Tastatur` (K-110: `Leertaste`, `Links`, …,
-  Zeichen wie getippt, keine Modifikatoren, keine Wiederholungen; Loslassen über die physische Taste), kurz gedrückte Tasten/Knöpfe
-  kommen einmal mit, Maus/Touch in Spielfeld-Koordinaten (links 1, rechts 2, Mitte 4, Touch 1), Fokusverlust = alles losgelassen.
+  Zeichen wie getippt, dazu `Umschalt`/`Strg`/`Alt`, keine weiteren Modifikatoren, keine Wiederholungen; Loslassen über die physische
+  Taste), kurz gedrückte Tasten/Knöpfe kommen einmal mit, Maus/Touch in Spielfeld-Koordinaten (links 1, rechts 2, Mitte 4, Touch 1),
+  Fokusverlust = alles losgelassen. **Mausfang (K-155):** `{"art":"mausfang","an":…}` vom Programm setzt den Wunsch; der nächste
+  Klick ins Fenster (kommt wie jeder Klick an) fängt die Maus: `set_cursor_grab(Locked)`, sonst `Confined` (Windows), Zeiger aus; Bewegung dann aus
+  `DeviceEvent::MouseMotion`, sonst aus dem Zeigerweg (logische Pixel). Esc (verschluckt), Fokusverlust, `an:false` und Fenster zu
+  geben frei. Takt-Felder `bewegung`/`rad` nur ≠ 0, `gefangen` nur bei Wechsel.
   Schließen → `{"typ":"geschlossen"}`; `schliesse` des Programms → Fenster zu (ein späteres `fenster` öffnet ein neues);
   **Programmende = Fenster zu**, Prozess endet mit dem Exit-Code. Adapter: im Fensterbetrieb die **echte GPU** (`Adapter::Gpu`),
   ohne passenden Adapter Software-Rückfall (WARP/lavapipe); `HERD_SOFTWARE=1` und `PIZZA_KEIN_DIALOG` erzwingen Software,

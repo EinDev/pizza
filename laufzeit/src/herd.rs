@@ -142,15 +142,18 @@ static mut NOETIG: i32 = 0;
 struct Welt {
     w: W, titel: W, breite: f64, hoehe: f64, offen: bool, bildnummer: f64, schliessen: bool, im_rueckruf: bool,
     tasten: Vec<Vec<u8>>, vor_tasten: Vec<Vec<u8>>, maus_x: f64, maus_y: f64, knoepfe: u32, vor_knoepfe: u32, erster: bool,
+    // Mausfang (SPEC §18.3): Wunsch des Programms, gemeldeter Zustand, Rohbewegung/Rad des letzten takt-Ereignisses
+    fang_wunsch: bool, gefangen: bool, bewegung_x: f64, bewegung_y: f64, rad: f64,
 }
 static mut WELT: Option<Welt> = None;
 
 const TEIL_NAMEN: [&str; 33] = ["x", "y", "z", "setzeLage", "verschiebe", "drehung", "setzeDrehung", "neigung", "setzeNeigung",
     "rollen", "setzeRollen", "schaueAuf", "groesse", "groesseX", "groesseY", "groesseZ", "setzeGroesse", "ebene", "setzeEbene",
     "sichtbar", "haenge", "eltern", "kinder", "entferne", "entfernt", "kopie", "trifft", "mit", "ohne", "raum", "id", "kniffe", "alsText"];
-const HERD_NAMEN: [&str; 30] = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit", "taste",
+const HERD_NAMEN: [&str; 35] = ["backe", "schliesse", "titel", "setzeTitel", "breite", "hoehe", "bildnummer", "zeit", "taste",
     "gedrueckt", "losgelassen", "mausX", "mausY", "maus", "klick", "hintergrund", "himmel", "umgebung", "nebel", "kamera", "sonne",
-    "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum", "alsText"];
+    "rechteck", "kreis", "text", "bild", "gruppe", "koerper", "licht", "raum", "alsText",
+    "mausFangen", "mausGefangen", "mausDX", "mausDY", "mausrad"];
 const FORM_MOD_NAMEN: [&str; 6] = ["wuerfel", "kugel", "zylinder", "kegel", "ebene", "ring"];
 
 fn nid(s: &str) -> u32 { name_id(neu_str(s)) }
@@ -515,7 +518,8 @@ fn neuer_herd(pos: &[W], ben: &Ben) -> W {
     let w = neu_w(HWelt { art: A_HERD, _r: 0 });
     unsafe {
         WELT = Some(Welt { w, titel, breite: b, hoehe: h, offen: false, bildnummer: 0.0, schliessen: false, im_rueckruf: false,
-            tasten: Vec::new(), vor_tasten: Vec::new(), maus_x: 0.0, maus_y: 0.0, knoepfe: 0, vor_knoepfe: 0, erster: false });
+            tasten: Vec::new(), vor_tasten: Vec::new(), maus_x: 0.0, maus_y: 0.0, knoepfe: 0, vor_knoepfe: 0, erster: false,
+            fang_wunsch: false, gefangen: false, bewegung_x: 0.0, bewegung_y: 0.0, rad: 0.0 });
     }
     w
 }
@@ -950,6 +954,20 @@ fn herd_methode(hw: W, id: u32, pos: &[W], ben: &Ben, knoten: i32) -> W {
             "mausY" => zahl(h.maus_y),
             "maus" => match maus_bit(argn(pos, ben, 0, "k"), "maus") { Some(b) => bool_w(h.knoepfe & b != 0), None => KARTON },
             "klick" => match maus_bit(argn(pos, ben, 0, "k"), "klick") { Some(b) => bool_w(h.erster && h.knoepfe & b != 0 && h.vor_knoepfe & b == 0), None => KARTON },
+            // Mausfang und relative Bewegung (SPEC §18.3): Bewegung/Rad nur im ersten Takt eines Ereignisses, sonst 0
+            "mausFangen" => {
+                let d = argn(pos, ben, 0, "an");
+                let an = if d == UNDEF { true } else { let b = bool_pruefen(d); if sig() { return KARTON; } b };
+                if an != h.fang_wunsch {
+                    h.fang_wunsch = an;
+                    sende(if an { b"{\"art\":\"mausfang\",\"an\":true}" } else { b"{\"art\":\"mausfang\",\"an\":false}" }, -1);
+                }
+                hw
+            }
+            "mausGefangen" => bool_w(h.gefangen),
+            "mausDX" => zahl(if h.erster { h.bewegung_x } else { 0.0 }),
+            "mausDY" => zahl(if h.erster { h.bewegung_y } else { 0.0 }),
+            "mausrad" => zahl(if h.erster { h.rad } else { 0.0 }),
             "hintergrund" => {
                 let fa = match farb_text(argn(pos, ben, 0, "f")) { Some(x) => x, None => return KARTON };
                 let (p, n) = kt(bytes(fa));
@@ -1138,6 +1156,13 @@ fn eingabe(ev: &Json) {
     if let Some(Json::N(kn)) = ev.feld("knoepfe") {
         if zl::ist_ganz(*kn) && *kn >= 0.0 && *kn <= 7.0 { h.knoepfe = *kn as u32; }
     }
+    // Rohbewegung und Rad: Summe seit dem letzten Ereignis (fehlt/ungültig → 0); gefangen: Zustand (fehlt → unverändert)
+    (h.bewegung_x, h.bewegung_y) = match ev.feld("bewegung") {
+        Some(Json::A(b)) => match b.as_slice() { [Json::N(x), Json::N(y)] if x.is_finite() && y.is_finite() => (*x, *y), _ => (0.0, 0.0) },
+        _ => (0.0, 0.0),
+    };
+    h.rad = match ev.feld("rad") { Some(Json::N(r)) if r.is_finite() => *r, _ => 0.0 };
+    if let Some(Json::B(g)) = ev.feld("gefangen") { h.gefangen = *g; }
 }
 /// nach einem Rückruf aus der Spielschleife (fn oder Kniff-Phase): Panik beendet sofort (kein schliesse, §18.2), ein
 /// schliesse() wirkt jetzt. false = backe kehrt zurück (Signal oder Fenster zu; `erster` ist dann schon nein).

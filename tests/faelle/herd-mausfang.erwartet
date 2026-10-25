@@ -1,0 +1,11 @@
+vorher: nein 0 0
+Takt 1: nein 0/0 rad 0 blick 0
+Takt 2: ja 12/-3.5 rad 1 blick 3
+Takt 3: ja 0/0 rad 0 blick 3
+Takt 4: ja -4/2 rad 0 blick 2 rennt
+Takt 5: ja 0/0 rad 0 blick 2 rennt duckt
+Takt 6: ja 0/0 rad -0.5 blick 2 rennt
+Takt 7: nein 7/0 rad 0 blick 3.75 rennt
+Takt 8: nein 0/0 rad 0 blick 3.75 rennt
+aussen: nein 0 0 0
+Erwartet diavolo (ja/nein), bekam 3.

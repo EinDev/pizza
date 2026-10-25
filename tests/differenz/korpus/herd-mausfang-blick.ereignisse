@@ -1,0 +1,7 @@
+{"typ":"takt","anzahl":1}
+{"typ":"takt","anzahl":4,"gefangen":true,"bewegung":[33.25,-12],"tasten":["Umschalt"]}
+{"typ":"takt","anzahl":1,"bewegung":[0,1000],"bewegung":[-5,-0.5],"rad":2}
+{"typ":"takt","anzahl":1,"bewegung":[-0,1e-7],"rad":-1.25,"gefangen":null}
+{"typ":"takt","anzahl":1,"bewegung":[1,null],"rad":1e400}
+{"typ":"takt","anzahl":2,"gefangen":false,"tasten":["Escape"],"bewegung":[0.1,0.2]}
+{"typ":"takt","anzahl":1}

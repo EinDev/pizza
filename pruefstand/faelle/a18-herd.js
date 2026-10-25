@@ -111,6 +111,21 @@ Bote.sage((herd.taste("A") + " " + herd.gedrueckt("A") + " " + herd.klick(1)));
     out: ["1 ja ja nein ja ja nein 3/4", "2 ja nein nein ja nein nein 3/4", "3 ja nein nein ja nein ja 3/4", "4 nein nein ja ja nein ja 3/4", "nein nein nein"],
   }),
 
+  F(T, "§18.3: Mausfang – Wunsch als herd/mausfang (nur bei Wechsel), gefangen als Zustand, Rohbewegung und Rad nur im ersten Takt, fehlt/ungültig → 0", P`
+Herd herd = neu Herd("M", breite: 64, hoehe: 64);
+herd.mausFangen().mausFangen(ja);
+herd.backe(() -> {
+    Bote.sage((herd.bildnummer() + " " + herd.mausGefangen() + " " + herd.mausDX() + "/" + herd.mausDY() + " " + herd.mausrad() + " " + herd.taste("Umschalt")));
+    falls (herd.bildnummer() == 3) { herd.mausFangen(nein); }
+});
+Bote.sage((herd.mausGefangen() + " " + herd.mausDX() + " " + herd.mausrad()));
+`, {
+    uiEreignisse: [takt({ anzahl: 2, gefangen: true, bewegung: [5, -2.5], rad: 1, tasten: ["Umschalt"] }), takt({ bewegung: [1], rad: "x", gefangen: "ja" }), takt({ gefangen: false, bewegung: [-3, 4] })],
+    out: ["1 ja 5/-2.5 1 ja", "2 ja 0/0 0 ja", "3 ja 0/0 0 ja", "4 nein -3/4 0 ja", "nein 0 0"],
+    check: (res) => gleich(folge(res), ["mausfang", "fenster", "bild2", "mausfang", "bild3", "bild4"], "Folge")
+      || gleich(herd(res).filter((e) => e.art === "mausfang").map((e) => e.an), [true, false], "mausfang"),
+  }),
+
   F(T, "§18.3: Maustaste außerhalb 1 … 3", P`
 Herd herd = neu Herd();
 herd.maus(4);
