@@ -144,6 +144,8 @@ Aussagekraft für echte GPUs hat der Abschnitt „vom Nutzer auszuführen“.
 | `3d-punktschatten` (3 Würfel + 2 Spot-Kacheln) / `3d-kaskaden` (4 Kaskaden) | 124 / 255 3D | – | 62 (57 Schatten) / 16 (12 Schatten) | – / 20,0 / 16,4 ms |
 | H-K21 (2026-10-25): Neon-Napoli (Skript wie oben, 1280 × 720, letztes Bild), `spiegelGuete` einfach / **voll** | 4 064 / 7 630 3D (Regen im Spiegel, Sichtbares nur im Spiegel) | – | 39 / **41** (je 14 Schatten) | – / 774 / 1 118 ms (Median; WARP, Debug-Werkzeug – Spiegel in voller statt halber Größe mit allen Lichtern: +44 % auf der CPU-Rasterung) |
 | `3d-spiegel-voll` mit `VOLL=0` (einfach) / voll | 242 / 400 3D | – | 31 / 34 (je 6 Schatten) | – |
+| B16 (H-K24, 2026-10-25): `3d-verdeckung` 1280 × 720, `VERDECKUNG=0` / 1.4 (Vorlauf 1 280 × 720 ohne MSAA, Verdeckung 640 × 360 + 2 × Weichzeichnen) | 60 3D | – | 6 / **13** (+ 4 Vorlauf, + 3 Verdeckung) | – / 139,5 / 208,1 ms (WARP, Profil `messung`, nur indikativ: +68,6 ms auf der CPU-Rasterung) |
+| B16: `3d-bildspiegel` 1280 × 720, `BILDSPIEGEL=0` / 1 (Vorlauf, Farbstufen 1 280 × 720 … 80 × 45, SSR 1 280 × 720 in das MSAA-Ziel) | 17 3D | – | 17 / **26** (+ 4 Vorlauf, + 4 Farbstufen, + 1 SSR; der HDR-Durchgang ist zweigeteilt) | – / 98,5 / 199,6 ms (WARP, indikativ: +101 ms) |
 
 Ziele erfüllt, soweit auf WARP messbar: B1 ≤ 4 Draw-Calls (1), B3 ≤ 30 Draw-Calls inkl. Schatten (15). Die Draw-Calls wachsen mit
 der Zahl der **Arten** (Netze), nicht der Objekte. Erstes Bild (Pipelines anlegen, Ressourcen, Shadow-Map) ≈ 100–230 ms auf WARP.

@@ -52,6 +52,16 @@ const LICHT: &str = include_str!("../shader/licht.wgsl");
 const SCHATTEN: &str = include_str!("../shader/schatten.wgsl");
 const FUNKEN: &str = include_str!("../shader/funken.wgsl");
 const NACHBILD: &str = include_str!("../shader/nachbild.wgsl");
+const BILDRAUM: &str = include_str!("../shader/bildraum.wgsl");
+/// Bildschirmraum (H-K24): Glut-Block an Bindung 22 (Kern-Abschnitt BILDRAUM 32 B + Inverse von ansicht_proj, Viewport, Zielgröße)
+const BILDRAUM_BLOCK: usize = 128;
+const BILDRAUM_KERN: usize = herd_kern::komponenten::stimmung::BILDRAUM_BYTES;
+/// Vorlauf: Normale oktaedrisch + Rauheit (10 Bit je Kanal), Glanz-Gewicht + SSR-Anteil; Verdeckung einkanalig
+const VORLAUF_NORMALE: wgpu::TextureFormat = wgpu::TextureFormat::Rgb10a2Unorm;
+const VORLAUF_GEWICHT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+const VERDECKUNG: wgpu::TextureFormat = wgpu::TextureFormat::R8Unorm;
+/// Farbstufen der HDR-Kopie für SSR (volle, halbe … sechzehntel Größe)
+const FARBSTUFEN: usize = 5;
 /// Stimmung: Uniform-Block (Bindung 17 im Haupt-Layout, 2 im Nachbild-Layout) und Zahl der Bloom-Stufen (wie nachbild.wgsl)
 const STIMMUNG_BYTES: usize = herd_kern::komponenten::stimmung::STIMMUNG_BYTES;
 const BLOOM_STUFEN: usize = 6;
@@ -259,6 +269,7 @@ struct Nachbild {
     /// HDR mit Mehrfachabtastung (nur bei `hdr_msaa` > 1), aufgelöst nach `hdr`
     mehrfach: Option<wgpu::TextureView>,
     hdr: wgpu::TextureView,
+    hdr_textur: wgpu::Texture,
     /// eigene Tiefe, wenn `hdr_msaa` ≠ `msaa` (sonst die des Ziels)
     tiefe: Option<wgpu::TextureView>,
     /// Bloom-Stufen (halbe, viertel … Größe) und Bindegruppen: [vorfilter, ab 1 … 5, auf 4 … 0, abschluss]
@@ -273,6 +284,35 @@ struct SpiegelZiel {
     hoehe: u32,
     farbe: wgpu::TextureView,
     tiefe: wgpu::TextureView,
+}
+
+/// Ziele des Bildschirmraums (H-K24) für die aktuelle Zielgröße: Vorlauf (Tiefe, Normale, Gewicht; volle Größe, ohne MSAA),
+/// Verdeckung roh/quer/fertig (halbe Größe), Farbstufen der HDR-Kopie (nur wenn SSR möglich), Bindegruppen.
+struct BildraumZiele {
+    breite: u32,
+    hoehe: u32,
+    tiefe: wgpu::TextureView,
+    normale: wgpu::TextureView,
+    gewicht: wgpu::TextureView,
+    ao_roh: wgpu::TextureView,
+    ao_quer: wgpu::TextureView,
+    ao: wgpu::TextureView,
+    /// Stufe 0 als Textur (Kopierziel der aufgelösten HDR-Farbe)
+    stufe0: Option<wgpu::Texture>,
+    stufen: Vec<wgpu::TextureView>,
+    /// [verdeckung, weich x, weich y, bildspiegel, verkleinern 1 … 4]
+    bg: Vec<wgpu::BindGroup>,
+}
+
+/// Pipelines des Bildschirmraums (beim Anlegen der Glut vorab erzeugt).
+struct BildraumPipelines {
+    vorlauf: wgpu::RenderPipeline,
+    verdeckung: wgpu::RenderPipeline,
+    weich_x: wgpu::RenderPipeline,
+    weich_y: wgpu::RenderPipeline,
+    /// nur wenn das HDR-Format Rgba16Float ist (sonst fällt SSR still aus)
+    verkleinern: Option<wgpu::RenderPipeline>,
+    bildspiegel: Option<wgpu::RenderPipeline>,
 }
 
 /// Pipelines des Nachbilds (HDR-Format, einfach abgetastet).
@@ -305,6 +345,8 @@ pub struct Glut {
     schatten_pipeline: wgpu::RenderPipeline,
     pipelines: Vec<Pipelines>,
     s_linear: wgpu::Sampler,
+    /// nächster Nachbar (Bildraum: Tiefe des Vorlaufs)
+    s_punkt: wgpu::Sampler,
     s_vergleich: wgpu::Sampler,
     szene: wgpu::Buffer,
     ansicht: wgpu::Buffer,
@@ -336,6 +378,13 @@ pub struct Glut {
     bg_spiegel: Option<wgpu::BindGroup>,
     spiegel: Option<SpiegelZiel>,
     platzhalter: wgpu::TextureView,
+    /// Bildschirmraum (H-K24, Abschnitt BILDRAUM): Glut-Block (Bindung 22; ohne Abschnitt Nullen → fs_licht wie vorher),
+    /// Layout, Shader, Pipelines, Ziele (angelegt beim ersten Paket mit BILDRAUM)
+    bildraum: wgpu::Buffer,
+    bildraum_an: bool,
+    lay_bild: wgpu::BindGroupLayout,
+    bild_pipes: BildraumPipelines,
+    bild: Option<BildraumZiele>,
     /// Schatten-Tiefentextur (H-K18): Array aus Schichten 2048² – Schicht 0 = Sonne bzw. Kaskaden, dahinter die Atlas-Seiten
     /// der Punkt-/Spot-Kacheln; Array-Ansicht zum Abtasten (Bindung 2), je Schicht eine Ansicht als Tiefenziel
     schatten_map: wgpu::TextureView,
@@ -518,7 +567,59 @@ fn layout_haupt() -> Vec<wgpu::BindGroupLayoutEntry> {
         ubo_eintrag(18),
         // Spiegelbild (Stimmung.spiegelung)
         textur_eintrag(19, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+        // Verdeckung (H-K24, SSAO, halbe Größe; mit dem Sampler 6) und der Bildraum-Block
+        textur_eintrag(21, St::FRAGMENT, T::Float { filterable: true }, D::D2),
+        ubo_eintrag(22),
     ]
+}
+
+/// Bildraum (H-K24): 0 SZENE, 17 STIMMUNG, 22 Bildraum-Block, 23 Tiefe des Vorlaufs (+ 33 Sampler nächster Nachbar),
+/// 24 Normale, 25 Gewicht (nur `textureLoad`), 26 Quelle + 27 Sampler linear, 28 … 32 Farbstufen der HDR-Kopie
+fn layout_bildraum() -> Vec<wgpu::BindGroupLayoutEntry> {
+    use wgpu::{ShaderStages as St, TextureSampleType as T, TextureViewDimension as D};
+    let mut e = vec![ubo_eintrag(0), ubo_eintrag(17), ubo_eintrag(22)];
+    for b in 23..=25 {
+        e.push(textur_eintrag(b, St::FRAGMENT, T::Float { filterable: false }, D::D2));
+    }
+    e.push(textur_eintrag(26, St::FRAGMENT, T::Float { filterable: true }, D::D2));
+    e.push(sampler_eintrag(27, wgpu::SamplerBindingType::Filtering));
+    for b in 28..28 + FARBSTUFEN as u32 {
+        e.push(textur_eintrag(b, St::FRAGMENT, T::Float { filterable: true }, D::D2));
+    }
+    // Tiefe über einen nicht filternden Sampler (WebGL2: nie ein übrig gebliebener Vergleichs-Sampler an der Einheit)
+    e.push(sampler_eintrag(33, wgpu::SamplerBindingType::NonFiltering));
+    e
+}
+
+/// Inverse einer 4 × 4-Matrix (spaltenweise, f64; Kofaktoren). Singulär → Einheitsmatrix.
+fn invers4(m: &[f64; 16]) -> [f64; 16] {
+    let mut r = [0.0f64; 16];
+    r[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+    r[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+    r[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+    r[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+    r[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+    r[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+    r[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+    r[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+    r[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+    r[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+    r[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+    r[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+    r[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+    r[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+    r[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+    r[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+    let det = m[0] * r[0] + m[1] * r[4] + m[2] * r[8] + m[3] * r[12];
+    if det.abs() < 1e-30 || !det.is_finite() {
+        let mut e = [0.0; 16];
+        e[0] = 1.0;
+        e[5] = 1.0;
+        e[10] = 1.0;
+        e[15] = 1.0;
+        return e;
+    }
+    r.map(|x| x / det)
 }
 
 /// Schatten-Layout: SZENE, Atlas und eigene Texturen (Deckkraft, nur `textureLoad`), Ansicht·Projektion je Zug (20,
@@ -745,6 +846,12 @@ impl Glut {
         let mod_schatten = modul("herd schatten", SCHATTEN);
         let mod_funken = modul("herd funken", FUNKEN);
         let mod_nach = dev.create_shader_module(wgpu::ShaderModuleDescriptor { label: Some("herd nachbild"), source: wgpu::ShaderSource::Wgsl(NACHBILD.into()) });
+        // Bildschirmraum (H-K24): eigenes Layout, Pipelines vorab (wie alle anderen)
+        let lay_bild = lay("herd bildraum", &layout_bildraum());
+        let pl_bild = pl("herd bildraum", &lay_bild);
+        let mod_bild = modul("herd bildraum", BILDRAUM);
+        let bild_pipes = Glut::bildraum_pipelines(dev, &pl_haupt, &mod_licht, &pl_bild, &mod_bild, hdr_format, hdr_msaa);
+        let bildraum = dev.create_buffer(&wgpu::BufferDescriptor { label: Some("herd bildraum"), size: BILDRAUM_BLOCK as u64, usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST, mapped_at_creation: false });
 
         let layouts = netz_layouts();
         let schatten_pipeline = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -779,6 +886,7 @@ impl Glut {
             })
         };
         let s_linear = sampler("herd linear", wgpu::FilterMode::Linear, None);
+        let s_punkt = sampler("herd punkt", wgpu::FilterMode::Nearest, None);
         let s_vergleich = sampler("herd vergleich", wgpu::FilterMode::Linear, Some(wgpu::CompareFunction::LessEqual));
         // eigene Texturen: bilinear je Stufe; die Mischung zweier Stufen (trilinear) und die Vergrößerung (nächster Nachbar)
         // rechnet der Shader mit expliziter Stufe – gleich in WebGPU, WebGL2 und nativ. Derselbe Sampler dient dem Material-
@@ -849,6 +957,7 @@ impl Glut {
             schatten_pipeline,
             pipelines: Vec::new(),
             s_linear,
+            s_punkt,
             s_vergleich,
             szene,
             ansicht,
@@ -872,6 +981,11 @@ impl Glut {
             bg_spiegel: None,
             spiegel: None,
             platzhalter,
+            bildraum,
+            bildraum_an: false,
+            lay_bild,
+            bild_pipes,
+            bild: None,
             schatten_map,
             schatten_schichten,
             schattenlichter,
@@ -910,6 +1024,120 @@ impl Glut {
         glut.pipelines(hdr_format, 1);
         glut.nach_pipelines_bereit();
         Ok(glut)
+    }
+
+    /// Pipelines des Bildschirmraums (H-K24): Vorlauf (Haupt-Layout, `vs_licht` + `fs_vorlauf`, ohne MSAA), Verdeckung und
+    /// Weichzeichnen (R8), Farbstufen und SSR (HDR-Format; SSR additiv mit der Abtastung des HDR-Ziels) – nur mit Rgba16Float.
+    #[allow(clippy::too_many_arguments)]
+    fn bildraum_pipelines(dev: &wgpu::Device, pl_haupt: &wgpu::PipelineLayout, mod_licht: &wgpu::ShaderModule, pl_bild: &wgpu::PipelineLayout, mod_bild: &wgpu::ShaderModule, hdr_format: wgpu::TextureFormat, hdr_msaa: u32) -> BildraumPipelines {
+        let layouts = licht_layouts();
+        let vorlauf = dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("herd vorlauf"),
+            layout: Some(pl_haupt),
+            vertex: wgpu::VertexState { module: mod_licht, entry_point: Some("vs_licht"), compilation_options: Default::default(), buffers: &layouts },
+            primitive: wgpu::PrimitiveState { cull_mode: None, front_face: wgpu::FrontFace::Ccw, ..Default::default() },
+            depth_stencil: Some(wgpu::DepthStencilState { format: TIEFE, depth_write_enabled: Some(true), depth_compare: Some(wgpu::CompareFunction::Less), stencil: Default::default(), bias: Default::default() }),
+            multisample: Default::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: mod_licht,
+                entry_point: Some("fs_vorlauf"),
+                compilation_options: Default::default(),
+                targets: &[
+                    Some(wgpu::ColorTargetState { format: VORLAUF_NORMALE, blend: None, write_mask: wgpu::ColorWrites::ALL }),
+                    Some(wgpu::ColorTargetState { format: VORLAUF_GEWICHT, blend: None, write_mask: wgpu::ColorWrites::ALL }),
+                ],
+            }),
+            multiview_mask: None,
+            cache: None,
+        });
+        let voll = |name: &str, fs: &str, format: wgpu::TextureFormat, blend: Option<wgpu::BlendState>, proben: u32| {
+            dev.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(name),
+                layout: Some(pl_bild),
+                vertex: wgpu::VertexState { module: mod_bild, entry_point: Some("vs_bildraum"), compilation_options: Default::default(), buffers: &[] },
+                primitive: Default::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState { count: proben, ..Default::default() },
+                fragment: Some(wgpu::FragmentState { module: mod_bild, entry_point: Some(fs), compilation_options: Default::default(), targets: &[Some(wgpu::ColorTargetState { format, blend, write_mask: wgpu::ColorWrites::ALL })] }),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let ssr = hdr_format == wgpu::TextureFormat::Rgba16Float;
+        BildraumPipelines {
+            vorlauf,
+            verdeckung: voll("herd verdeckung", "fs_verdeckung", VERDECKUNG, None, 1),
+            weich_x: voll("herd verdeckung weich x", "fs_weich_x", VERDECKUNG, None, 1),
+            weich_y: voll("herd verdeckung weich y", "fs_weich_y", VERDECKUNG, None, 1),
+            verkleinern: ssr.then(|| voll("herd farbstufe", "fs_verkleinern", hdr_format, None, 1)),
+            // SSR: (Treffer − Umgebung) × Gewicht addieren (auch negativ, Float-Ziel), Deckkraft des Ziels behalten
+            bildspiegel: ssr.then(|| voll("herd bildspiegel", "fs_bildspiegel", hdr_format, Some(ADDIEREN), hdr_msaa)),
+        }
+    }
+
+    /// Ziele des Bildschirmraums für die aktuelle Zielgröße (neu bei Größenänderung; die Haupt-Bindegruppen werden dann neu gebaut).
+    fn bildraum_bereit(&mut self) {
+        let (b, h) = (self.breite.max(1), self.hoehe.max(1));
+        if matches!(&self.bild, Some(z) if z.breite == b && z.hoehe == h) {
+            return;
+        }
+        let dev = &self.device;
+        let textur = |name: &str, b: u32, h: u32, format: wgpu::TextureFormat, kopie: bool| {
+            dev.create_texture(&wgpu::TextureDescriptor {
+                label: Some(name),
+                size: wgpu::Extent3d { width: b.max(1), height: h.max(1), depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | if kopie { wgpu::TextureUsages::COPY_DST } else { wgpu::TextureUsages::empty() },
+                view_formats: &[],
+            })
+        };
+        let ansicht = |t: wgpu::Texture| t.create_view(&Default::default());
+        let tiefe = Glut::tiefen_textur(dev, "herd vorlauf tiefe", b, h, 1);
+        let normale = ansicht(textur("herd vorlauf normale", b, h, VORLAUF_NORMALE, false));
+        let gewicht = ansicht(textur("herd vorlauf gewicht", b, h, VORLAUF_GEWICHT, false));
+        let (hb, hh) = ((b / 2).max(1), (h / 2).max(1));
+        let ao_roh = ansicht(textur("herd verdeckung roh", hb, hh, VERDECKUNG, false));
+        let ao_quer = ansicht(textur("herd verdeckung quer", hb, hh, VERDECKUNG, false));
+        let ao = ansicht(textur("herd verdeckung", hb, hh, VERDECKUNG, false));
+        let (stufe0, stufen) = if self.bild_pipes.bildspiegel.is_some() {
+            let t0 = textur("herd farbstufe 0", b, h, self.hdr_format, true);
+            let mut v = vec![t0.create_view(&Default::default())];
+            for i in 1..FARBSTUFEN as u32 {
+                v.push(ansicht(textur("herd farbstufe", b >> i, h >> i, self.hdr_format, false)));
+            }
+            (Some(t0), v)
+        } else {
+            (None, Vec::new())
+        };
+        let platz = &self.platzhalter;
+        let gruppe = |quelle: &wgpu::TextureView, mit_stufen: bool| {
+            let mut e = vec![
+                wgpu::BindGroupEntry { binding: 0, resource: self.szene.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 22, resource: self.bildraum.as_entire_binding() },
+                wgpu::BindGroupEntry { binding: 23, resource: wgpu::BindingResource::TextureView(&tiefe) },
+                wgpu::BindGroupEntry { binding: 24, resource: wgpu::BindingResource::TextureView(&normale) },
+                wgpu::BindGroupEntry { binding: 25, resource: wgpu::BindingResource::TextureView(&gewicht) },
+                wgpu::BindGroupEntry { binding: 26, resource: wgpu::BindingResource::TextureView(quelle) },
+                wgpu::BindGroupEntry { binding: 27, resource: wgpu::BindingResource::Sampler(&self.s_linear) },
+                wgpu::BindGroupEntry { binding: 33, resource: wgpu::BindingResource::Sampler(&self.s_punkt) },
+            ];
+            for i in 0..FARBSTUFEN {
+                let v = if mit_stufen { stufen.get(i).unwrap_or(platz) } else { platz };
+                e.push(wgpu::BindGroupEntry { binding: 28 + i as u32, resource: wgpu::BindingResource::TextureView(v) });
+            }
+            dev.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("herd bildraum"), layout: &self.lay_bild, entries: &e })
+        };
+        // [verdeckung, weich x, weich y, bildspiegel, verkleinern 1 … 4]
+        let mut bg = vec![gruppe(platz, false), gruppe(&ao_roh, false), gruppe(&ao_quer, false), gruppe(&ao, true)];
+        for i in 1..stufen.len() {
+            bg.push(gruppe(&stufen[i - 1], false));
+        }
+        self.bild = Some(BildraumZiele { breite: b, hoehe: h, tiefe, normale, gewicht, ao_roh, ao_quer, ao, stufe0, stufen, bg });
+        self.bg_haupt = None;
     }
 
     fn tiefen_textur(dev: &wgpu::Device, name: &str, b: u32, h: u32, proben: u32) -> wgpu::TextureView {
@@ -1307,7 +1535,18 @@ impl Glut {
             .create_view(&Default::default())
         };
         let mehrfach = (self.hdr_msaa > 1).then(|| textur("herd hdr msaa", b, h, self.hdr_msaa));
-        let hdr = textur("herd hdr", b, h, 1);
+        // das aufgelöste HDR-Bild ist auch Kopierquelle (Farbstufe 0 der Bildraum-Spiegelung, H-K24)
+        let hdr_textur = dev.create_texture(&wgpu::TextureDescriptor {
+            label: Some("herd hdr"),
+            size: wgpu::Extent3d { width: b.max(1), height: h.max(1), depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.hdr_format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let hdr = hdr_textur.create_view(&Default::default());
         let tiefe = (self.hdr_msaa != self.msaa).then(|| Glut::tiefen_textur(dev, "herd hdr tiefe", b, h, self.hdr_msaa));
         let stufen: Vec<wgpu::TextureView> = (0..BLOOM_STUFEN).map(|i| textur("herd bloom", (b >> (i + 1)).max(1), (h >> (i + 1)).max(1), 1)).collect();
         let gruppe = |quelle: &wgpu::TextureView, zweite: &wgpu::TextureView| {
@@ -1330,7 +1569,7 @@ impl Glut {
             bg.push(gruppe(&stufen[i + 1], &hdr));
         }
         bg.push(gruppe(&hdr, &stufen[0]));
-        self.nach = Some(Nachbild { breite: b, hoehe: h, mehrfach, hdr, tiefe, stufen, bg });
+        self.nach = Some(Nachbild { breite: b, hoehe: h, mehrfach, hdr, hdr_textur, tiefe, stufen, bg });
     }
 
     // ------------------------------------------------------------------------------------------ Ressourcen-Deltas
@@ -1660,6 +1899,8 @@ impl Glut {
                     wgpu::BindGroupEntry { binding: 17, resource: self.stimmung.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 18, resource: self.schattenlichter.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 19, resource: wgpu::BindingResource::TextureView(spiegelbild) },
+                    wgpu::BindGroupEntry { binding: 21, resource: wgpu::BindingResource::TextureView(self.bild.as_ref().map(|z| &z.ao).unwrap_or(&self.platzhalter)) },
+                    wgpu::BindGroupEntry { binding: 22, resource: self.bildraum.as_entire_binding() },
                 ],
             })
         }
@@ -1707,6 +1948,7 @@ impl Glut {
         let mut lichter_d: Option<&[u8]> = None;
         let mut lichter_sp: Option<&[u8]> = None;
         let mut stimmung: Option<&[u8]> = None;
+        let mut bildraum_d: Option<&[u8]> = None;
         let mut zusatz: Option<&[u8]> = None;
         let mut teilchen_zus: Option<&[u8]> = None;
         let mut schatten_d: Option<&[u8]> = None;
@@ -1760,6 +2002,12 @@ impl Glut {
                         return Err(Fehler::Paket(format!("STIMMUNG hat {} Bytes", d.len())));
                     }
                     stimmung = Some(d);
+                }
+                abschnitt::BILDRAUM => {
+                    if d.len() != BILDRAUM_KERN {
+                        return Err(Fehler::Paket(format!("BILDRAUM hat {} Bytes", d.len())));
+                    }
+                    bildraum_d = Some(d);
                 }
                 abschnitt::LICHTER => lichter_d = Some(d),
                 abschnitt::LICHTER_SPIEGEL => lichter_sp = Some(d),
@@ -1967,6 +2215,43 @@ impl Glut {
             s[328..332].copy_from_slice(&hh.to_le_bytes());
             self.queue.write_buffer(&self.szene_spiegel, 0, &s);
         }
+        // Bildschirmraum (H-K24): nur mit Stimmung (HDR); SSR nur mit Rgba16Float (ohne EXT_color_buffer_float fällt nur sie aus)
+        let bildraum_kern = bildraum_d.filter(|_| hdr);
+        let fk = |d: &[u8], i: usize| f32::from_le_bytes([d[i], d[i + 1], d[i + 2], d[i + 3]]);
+        let ssao = bildraum_kern.is_some_and(|d| fk(d, 0) > 0.0);
+        let ssr = bildraum_kern.is_some_and(|d| fk(d, 8) > 0.0) && self.bild_pipes.bildspiegel.is_some();
+        match bildraum_kern {
+            Some(d) => {
+                self.bildraum_bereit();
+                self.bindegruppen(schichten);
+                let mut b = Vec::with_capacity(BILDRAUM_BLOCK);
+                b.extend_from_slice(&d[..16]);
+                for (i, an) in [(16, true), (20, true), (24, ssao), (28, ssr)] {
+                    let w = if i < 24 { fk(d, i) } else if an { 1.0 } else { 0.0 };
+                    b.extend_from_slice(&w.to_le_bytes());
+                }
+                let mut m = [0.0f64; 16];
+                for (i, x) in m.iter_mut().enumerate() {
+                    *x = fk(szene_d, i * 4) as f64;
+                }
+                for x in invers4(&m) {
+                    b.extend_from_slice(&(x as f32).to_le_bytes());
+                }
+                for x in [vx, vy, vb.max(1.0), vh.max(1.0), zb, zh, 1.0 / zb, 1.0 / zh] {
+                    b.extend_from_slice(&x.to_le_bytes());
+                }
+                debug_assert_eq!(b.len(), BILDRAUM_BLOCK);
+                self.queue.write_buffer(&self.bildraum, 0, &b);
+                self.bildraum_an = true;
+                stat.hochgeladen += b.len() as u64;
+            }
+            None => {
+                if self.bildraum_an {
+                    self.queue.write_buffer(&self.bildraum, 0, &[0u8; BILDRAUM_BLOCK]);
+                    self.bildraum_an = false;
+                }
+            }
+        }
         let pi = self.pipelines(format, self.msaa);
         let pi_hdr = if hdr { self.pipelines(self.hdr_format, self.hdr_msaa) } else { pi };
         let pi_spiegel = if spiegel_h.is_some() { self.pipelines(self.hdr_format, 1) } else { pi };
@@ -2033,7 +2318,58 @@ impl Glut {
             p.set_viewport(vx * k, vy * k, (vb * k).max(1.0), (vh * k).max(1.0), 0.0, 1.0);
             p.set_bind_group(0, self.bg_spiegel.as_ref(), &[]);
             let (st, sl) = if spiegel_voll { (nt, n_leuchtend) } else { (0, 0) };
-            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, true, &mut stat);
+            Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, !spiegel_voll, false, true, &mut stat);
+        }
+
+        // ---- Bildschirmraum (H-K24): Vorlauf (FEST ohne MSAA: Tiefe, Normale, Glanz-Gewicht), Verdeckung in halber Größe ----
+        if let (Some(bz), true) = (&self.bild, bildraum_kern.is_some()) {
+            let bp = &self.bild_pipes;
+            {
+                let leer = wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store };
+                let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("herd vorlauf"),
+                    color_attachments: &[
+                        Some(wgpu::RenderPassColorAttachment { view: &bz.normale, depth_slice: None, resolve_target: None, ops: leer }),
+                        Some(wgpu::RenderPassColorAttachment { view: &bz.gewicht, depth_slice: None, resolve_target: None, ops: leer }),
+                    ],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &bz.tiefe,
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+                p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+                p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
+                p.set_pipeline(&bp.vorlauf);
+                for z in self.zuege.iter().filter(|z| z[0] == zug::FEST) {
+                    let Some(Some(n)) = self.netze.get(z[1] as usize) else { continue };
+                    if z[2] + z[3] > n3 {
+                        continue;
+                    }
+                    p.set_vertex_buffer(0, n.ecken.slice(..));
+                    p.set_index_buffer(n.indizes.slice(..), wgpu::IndexFormat::Uint32);
+                    stat.draw_calls += Glut::zeichne_netz(&mut p, &self.inst3d.puffer, Some(&self.zusatz3d.puffer), n.anzahl, z[2], z[3], instancing);
+                    stat.dreiecke += (n.anzahl / 3) as u64 * z[3] as u64;
+                }
+            }
+            if ssao {
+                // halbe Größe (abgerundet): Viewport darf nicht über das Ziel hinaus
+                let (hb, hh) = ((bz.breite / 2).max(1) as f32, (bz.hoehe / 2).max(1) as f32);
+                let (hx, hy) = ((vx * 0.5).min(hb - 1.0), (vy * 0.5).min(hh - 1.0));
+                for (k, ziel, pipe) in [(0, &bz.ao_roh, &bp.verdeckung), (1, &bz.ao_quer, &bp.weich_x), (2, &bz.ao, &bp.weich_y)] {
+                    let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("herd verdeckung"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: ziel, depth_slice: None, resolve_target: None, ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::WHITE), store: wgpu::StoreOp::Store } })],
+                        ..Default::default()
+                    });
+                    p.set_viewport(hx, hy, (vb * 0.5).min(hb - hx).max(1.0), (vh * 0.5).min(hh - hy).max(1.0), 0.0, 1.0);
+                    p.set_pipeline(pipe);
+                    p.set_bind_group(0, &bz.bg[k], &[]);
+                    p.draw(0..3, 0..1);
+                    stat.draw_calls += 1;
+                }
+            }
         }
 
         // ---- Stimmung: 3D linear ins HDR-Ziel, Bloom-Kette ----
@@ -2046,6 +2382,8 @@ impl Glut {
             };
             let lin = |c: f64| if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) };
             let klar_lin = wgpu::Color { r: lin(klar.r), g: lin(klar.g), b: lin(klar.b), a: 1.0 };
+            // mit Bildraum-Spiegelung (H-K24) zweigeteilt: Himmel + FEST, dann SSR additiv, dann DURCH + Teilchen
+            let teilen = ssr && self.bild.is_some();
             {
                 let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("herd hdr"),
@@ -2053,18 +2391,73 @@ impl Glut {
                         view: ansicht,
                         depth_slice: None,
                         resolve_target: aufloesen,
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(klar_lin), store: if aufloesen.is_some() { wgpu::StoreOp::Discard } else { wgpu::StoreOp::Store } },
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(klar_lin), store: if aufloesen.is_some() && !teilen { wgpu::StoreOp::Discard } else { wgpu::StoreOp::Store } },
                     })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: n.tiefe.as_ref().unwrap_or(&self.tiefe),
-                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Discard }),
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: if teilen { wgpu::StoreOp::Store } else { wgpu::StoreOp::Discard } }),
                         stencil_ops: None,
                     }),
                     ..Default::default()
                 });
                 p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
                 p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, &mut stat);
+                let (st, sl) = if teilen { (0, 0) } else { (nt, n_leuchtend) };
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, st, sl, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, teilen, false, false, &mut stat);
+            }
+            if let (true, Some(bz)) = (teilen, &self.bild) {
+                let bp = &self.bild_pipes;
+                // Farbstufe 0 = Kopie des aufgelösten HDR-Bilds, Stufen 1 … 4 je halbe Größe
+                if let Some(t0) = &bz.stufe0 {
+                    enc.copy_texture_to_texture(
+                        wgpu::TexelCopyTextureInfo { texture: &n.hdr_textur, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                        wgpu::TexelCopyTextureInfo { texture: t0, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+                        wgpu::Extent3d { width: bz.breite, height: bz.hoehe, depth_or_array_layers: 1 },
+                    );
+                }
+                if let Some(vk) = &bp.verkleinern {
+                    for i in 1..bz.stufen.len() {
+                        let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("herd farbstufe"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: &bz.stufen[i], depth_slice: None, resolve_target: None, ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store } })],
+                            ..Default::default()
+                        });
+                        p.set_pipeline(vk);
+                        p.set_bind_group(0, &bz.bg[3 + i], &[]);
+                        p.draw(0..3, 0..1);
+                        stat.draw_calls += 1;
+                    }
+                }
+                if let Some(sp) = &bp.bildspiegel {
+                    let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("herd bildspiegel"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment { view: ansicht, depth_slice: None, resolve_target: None, ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store } })],
+                        ..Default::default()
+                    });
+                    p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+                    p.set_pipeline(sp);
+                    p.set_bind_group(0, &bz.bg[3], &[]);
+                    p.draw(0..3, 0..1);
+                    stat.draw_calls += 1;
+                }
+                let mut p = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("herd hdr durch"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: ansicht,
+                        depth_slice: None,
+                        resolve_target: aufloesen,
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: if aufloesen.is_some() { wgpu::StoreOp::Discard } else { wgpu::StoreOp::Store } },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: n.tiefe.as_ref().unwrap_or(&self.tiefe),
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Discard }),
+                        stencil_ops: None,
+                    }),
+                    ..Default::default()
+                });
+                p.set_viewport(vx, vy, vb.max(1.0), vh.max(1.0), 0.0, 1.0);
+                p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, true, false, &mut stat);
             }
             if bloom > 0.0 {
                 let np = self.nach_pipes.as_ref().expect("nachbild_bereit");
@@ -2127,7 +2520,7 @@ impl Glut {
             }
             p.set_bind_group(0, self.bg_haupt.as_ref(), &[]);
             if !hdr {
-                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, &mut stat);
+                Glut::zeichne_3d(&mut p, pl, &self.zuege, &self.netze, &self.inst3d.puffer, &self.zusatz3d.puffer, &self.teilchen.puffer, &self.teilchen_zusatz.puffer, n3, nt, n_leuchtend, zelt.is_some(), flags & flag::HIMMEL != 0, instancing, false, false, false, &mut stat);
             }
             if n2 > 0 {
                 p.set_pipeline(&pl.flach);
@@ -2171,12 +2564,15 @@ impl Glut {
         himmel: bool,
         instancing: bool,
         nur_fest: bool,
+        nur_durch: bool,
         gespiegelt: bool,
         stat: &mut Statistik,
     ) {
         {
             // Himmelszelt (H-K11b) statt des Verlaufs, sonst der Verlauf aus herd.himmel
-            if zelt {
+            if nur_durch {
+                // zweiter Teil des geteilten HDR-Durchgangs (H-K24): Himmel und FEST stehen schon
+            } else if zelt {
                 p.set_pipeline(&pl.zelt);
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;
@@ -2185,7 +2581,7 @@ impl Glut {
                 p.draw(0..3, 0..1);
                 stat.draw_calls += 1;
             }
-            for z in zuege.iter().filter(|z| z[0] == zug::FEST || (z[0] == zug::DURCH && !nur_fest)) {
+            for z in zuege.iter().filter(|z| (z[0] == zug::FEST && !nur_durch) || (z[0] == zug::DURCH && !nur_fest)) {
                 let Some(Some(n)) = netze.get(z[1] as usize) else { continue };
                 if z[2] + z[3] > n3 {
                     continue;

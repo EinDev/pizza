@@ -302,6 +302,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Funken", "Kollision", "Regen", "Gelaende"],
       "herd": true
+    },
+    {
+      "id": "pizzakeller",
+      "titel": "Pizzakeller: Verdeckung und Bildraum-Spiegelung",
+      "beschreibung": "Ein Gewölbekeller unter der Pizzeria mit Weinfässern, Mehlsäcken, Kupfertheke und glühendem Holzofen. Ecken, Fugen und der Platz unter den Fässern werden dunkler (Verdeckung, SSAO), Fliesenboden und Kupfer spiegeln, was im Bild zu sehen ist (Bildraum-Spiegelung, SSR). Der Taster (oder die Leertaste) schaltet den Bildschirmraum an und aus.",
+      "ordner": "herd/pizzakeller",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Licht", "Stimmung", "Verdeckung", "Spiegelung", "Taster"],
+      "herd": true
     }
   ]
 }

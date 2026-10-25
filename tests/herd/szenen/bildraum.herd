@@ -1,0 +1,58 @@
+# Bildschirmraum (H-K24, Stimmung.verdeckung/verdeckungWeite/bildspiegel, Abschnitt BILDRAUM): Boden mit N Kisten, eine
+# Stimmung zuerst ohne Bildraum (Paket wie bisher), dann Verdeckung, dann Verdeckung + Bildraum-Spiegelung mit anderer Kamera
+# (nah/fern im Abschnitt), dann nur Bildraum-Spiegelung, am Ende wieder aus. Prüft nativ = Wasm über die Paket-Hashes.
+vorgabe N 30
+vorgabe TAKTE 4
+welt_neu 1280 720 "Bildraum"
+welt_himmel "#101418" "#28303a"
+welt_umgebung "#c0c8d0" 0.4
+typ_nummer "Koerper" -> T_K
+typ_nummer "Kamera" -> T_KAM
+typ_nummer "Stimmung" -> T_S
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_KAM "nah" -> KAM_NAH
+feld_nummer T_KAM "fern" -> KAM_FERN
+feld_nummer T_S "verdeckung" -> S_V
+feld_nummer T_S "verdeckungWeite" -> S_VW
+feld_nummer T_S "bildspiegel" -> S_BS
+form_grund 5 0 0 -> EBENE
+form_grund 1 0 0 -> WUERFEL
+teil_lage 1 0 3 12
+teil_schaue 1 0 0.5 0
+teil_neu 3 -> boden
+teil_groesse boden 40 1 40
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+komp_haenge k boden
+wiederhole N i
+  teil_neu 3 -> kiste
+  teil_lage kiste ((zufall(i) - 0.5) * 16) (0.5 + zufall(i + 3)) ((zufall(i + 7) - 0.5) * 16)
+  teil_groesse kiste (0.4 + zufall(i + 11)) (0.4 + zufall(i + 13)) (0.4 + zufall(i + 17))
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  komp_haenge k kiste
+ende
+teil_neu 3 -> st
+komp_neu T_S -> s
+komp_haenge s st
+takte 2
+# Verdeckung
+setze_zahl s S_V 1.2
+setze_zahl s S_VW 0.8
+takte TAKTE
+# dazu Bildraum-Spiegelung, Kamera mit anderem nah/fern
+setze_zahl s S_BS 0.7
+komp_von 1 T_KAM -> kam
+setze_zahl kam KAM_NAH 0.25
+setze_zahl kam KAM_FERN 120
+teil_lage 1 5 1.5 9
+teil_schaue 1 -1 0.5 -2
+takte TAKTE
+# nur Bildraum-Spiegelung
+setze_zahl s S_V 0
+takte TAKTE
+# wieder aus
+setze_zahl s S_BS 0
+takte 2
+paket_voll
+bild

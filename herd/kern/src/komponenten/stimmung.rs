@@ -11,6 +11,10 @@
 //! Größe mit den 8 nächsten Lichtern; `voll` zeichnet in voller Größe mit allen Lichtern (zweite Zellen-Tabelle
 //! `LICHTER_SPIEGEL`, `crate::lichter`), Schatten, Durchsichtigem und Funken; Sichtprüfung und Licht-/Schattenwahl nehmen dann
 //! auch das gespiegelte Frustum.
+//! Bildschirmraum (H-K24, Nachtragsfelder): `verdeckung` 0 … 2 (SSAO: Umgebungslicht in Ecken und Fugen dunkler, 0 = aus),
+//! `verdeckungWeite` (Radius in Welt-Einheiten) und `bildspiegel` 0 … 1 (SSR: glatte pbr-Flächen spiegeln, was im Bild zu
+//! sehen ist; auf der Ebene der planaren Spiegelung hat diese Vorrang). Abschnitt `BILDRAUM` (32 B) nur, wenn eins > 0 ist –
+//! sonst bleibt das Paket byte-gleich und die Glut zeichnet ohne Vorlauf.
 
 use super::*;
 use crate::schema::{Feld, Genus, Raum, Schema};
@@ -33,6 +37,10 @@ pub const SPIEGEL_HOEHE: usize = 12;
 pub const REGEN: usize = 13;
 /// Nachtragsfeld „Spiegelgüte“ (H-K21): 0 = einfach, 1 = voll
 pub const SPIEGEL_GUETE: usize = 14;
+/// Nachtragsfelder Bildschirmraum (H-K24): Verdeckung (SSAO) 0 … 2, ihr Radius (Welt), Bildraum-Spiegelung (SSR) 0 … 1
+pub const VERDECKUNG: usize = 15;
+pub const VERDECKUNG_WEITE: usize = 16;
+pub const BILDSPIEGEL: usize = 17;
 
 pub static ART: Art = Art {
     schema: Schema {
@@ -56,6 +64,9 @@ pub static ART: Art = Art {
             Feld::zahl("spiegelHoehe", 0.0),
             Feld::zahl("regen", 0.0).bereich(0.0, 1.0).nachtrag(),
             Feld::wahl("spiegelGuete", &["einfach", "voll"], 0).nachtrag(),
+            Feld::zahl("verdeckung", 0.0).bereich(0.0, 2.0).nachtrag(),
+            Feld::zahl("verdeckungWeite", 0.5).bereich(0.01, 10.0).nachtrag(),
+            Feld::zahl("bildspiegel", 0.0).bereich(0.0, 1.0).nachtrag(),
         ],
     },
     ..Art::LEER
@@ -65,6 +76,10 @@ pub static ART: Art = Art {
 /// abfall, fern der Kamera) · `farbe` (nebelFarbe linear, saettigung) · `b` (vignette, koernung, Zeit in s, 1 = an) ·
 /// `spiegel` (spiegelung, spiegelHoehe, regen, spiegelGuete: 0 einfach, 1 voll).
 pub const STIMMUNG_BYTES: usize = 80;
+
+/// Abschnitt `BILDRAUM` (H-K24, 32 Bytes, f32): `a vec4` (verdeckung, verdeckungWeite, bildspiegel, 1 = an) · `b vec4` (nah,
+/// fern der aktiven Kamera, 0, 0).
+pub const BILDRAUM_BYTES: usize = 32;
 
 /// Die geltende Stimmung: (Artindex, Zeile) der wachen mit der kleinsten Teil-ID.
 fn geltende(w: &Welt) -> Option<(usize, usize)> {
@@ -108,6 +123,24 @@ pub fn abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, bildnummer: u32, fern:
     put_v4(aus, [n(VIGNETTE), n(KOERNUNG), bildnummer as f64 / 60.0, 1.0]);
     put_v4(aus, [n(SPIEGELUNG), n(SPIEGEL_HOEHE), n(REGEN), n(SPIEGEL_GUETE)]);
     debug_assert_eq!(aus.len() - st, STIMMUNG_BYTES);
+    abschnitt_ende(aus, st);
+    1
+}
+
+/// Schreibt den Abschnitt `BILDRAUM` (H-K24), wenn die geltende Stimmung `verdeckung` oder `bildspiegel` > 0 hat; liefert die
+/// Zahl der Abschnitte (0/1). Ohne bleibt das Paket byte-gleich.
+pub fn bildraum_abschnitt(w: &Welt, aus: &mut alloc::vec::Vec<u8>, nah: f64, fern: f64) -> u32 {
+    let Some((a, z)) = geltende(w) else { return 0 };
+    let s = &w.speicher[a];
+    let n = |f: usize| s.zahl(f)[z];
+    if n(VERDECKUNG) <= 0.0 && n(BILDSPIEGEL) <= 0.0 {
+        return 0;
+    }
+    use crate::paket::{abschnitt_beginn, abschnitt_ende, put_v4};
+    let st = abschnitt_beginn(aus, crate::paket::abschnitt::BILDRAUM);
+    put_v4(aus, [n(VERDECKUNG), n(VERDECKUNG_WEITE), n(BILDSPIEGEL), 1.0]);
+    put_v4(aus, [nah, fern, 0.0, 0.0]);
+    debug_assert_eq!(aus.len() - st, BILDRAUM_BYTES);
     abschnitt_ende(aus, st);
     1
 }

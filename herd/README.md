@@ -263,6 +263,7 @@ Komponente benutzt wird – Pakete ohne sie bleiben byte-gleich, `version` bleib
 | 16 | LICHTER | viele Lichter (Clustered Forward, `kern/src/lichter.rs`, unten); nur bei mehr als 8 wirksamen Punktlichtern (Stärke > 0), einem Spot (`Licht.kegel` > 0) oder einem schattenwerfenden Punkt-/Spotlicht (H-K18) |
 | 20 | SCHATTENLICHTER | Schatten für Punkt-/Spotlichter und Sonnen-Kaskaden (H-K18, unten); nur wenn ein Licht mit `schattenGuete` ≠ aus Schatten wirft, die Sonne `kaskaden` > 1 hat oder ihr `schattenWeich` ≠ 1 ist |
 | 21 | LICHTER_SPIEGEL | Zellen-Tabelle der gespiegelten Kamera (H-K21, unten); nur bei `Stimmung.spiegelGuete` voll (mit `spiegelung` > 0) und vorhandenem LICHTER, direkt dahinter |
+| 22 | BILDRAUM | Bildschirmraum (H-K24, 32 Bytes, f32): `a vec4` (`verdeckung`, `verdeckungWeite`, `bildspiegel`, 1 = an) · `b vec4` (nah, fern der aktiven Kamera, 0, 0); nur wenn die geltende `Stimmung` `verdeckung` oder `bildspiegel` > 0 hat, direkt hinter STIMMUNG |
 
 Ressourcen-Deltas enthalten jede Ressource genau einmal (im ersten Paket nach ihrem Anlegen); Ressourcen werden in v1 nie
 gelöscht. Atlasrechtecke liegen mit 1 Pixel Abstand.
@@ -356,6 +357,24 @@ Ansicht·Projektion × Spiegelmatrix (Spalte 1 negiert, Spalte 3 += 2h · Spalte
 Vorderseite (`front_facing` gedreht – einfach bleibt wie bisher), Oberseiten (Normale y > 0,5) unter h + 0,5 von unten gesehen werden
 verworfen; `pbr_licht` nimmt Flächen bis ±0,2 um h voll (aus ab 0,45; einfach 0,05/0,3). Mit Abschnitt zeichnet die Glut Himmel, `FEST`, `DURCH` und 3D-Teilchen **linear** in ein HDR-Ziel, dann Bloom und Abschluss ins
 Ziel, danach INST2D.
+
+**BILDRAUM (H-K24):** Mit Abschnitt zeichnet die Glut vor dem HDR-Durchgang einen **Vorlauf**: die `FEST`-Züge ohne MSAA in voller
+Zielgröße (gleicher Viewport) in Tiefe (Depth32Float), Normale + Rauheit (Rgb10a2: Oktaeder-Normale nach Relief, Nässe und Regen,
+Rauheit, pbr) und Glanz-Gewicht (Rgba8: Fresnel × Glätte² wie der Umgebungsglanz in `pbr_licht`, Alpha = 1 − Anteil der planaren
+Spiegelung). **Verdeckung** (`verdeckung` > 0): halbe Größe, 12 Abtastungen in der Halbkugel um die Normale mit Radius
+`verdeckungWeite`, Drehung aus einem Ganzzahl-Hash der Pixelstelle, verdeckt = Szene näher als die Abtastung (Bereich
+r/|Δz|), Ergebnis (1 − Anteil)^`verdeckung`; zweimal 1D bilateral weichgezeichnet (7 Abtastungen, Gewicht nach Tiefe). Der
+Haupt-Shader multipliziert damit das Umgebungslicht (Halbkugel diffus und gespiegelt) deckender Fragmente, nicht im
+Spiegeldurchgang. **Bildraum-Spiegelung** (`bildspiegel` > 0, nur mit Rgba16Float-HDR): der HDR-Durchgang wird geteilt –
+Himmel + `FEST`, dann Kopie der aufgelösten Farbe in 5 Stufen (voll, ½ … ¹⁄₁₆), dann ein Vollbild-Durchgang **additiv** ins HDR-Ziel
+(MSAA-Ziel, falls vorhanden), dann `DURCH` + 3D-Teilchen mit geladener Farbe und Tiefe. Strahlmarsch im Bildschirmraum
+(perspektivisch über 1/w, Strahl bis fern/2, an Nahebene und Spielfeldrand gekappt, ab 2,5 Pixeln), höchstens 48 Schritte mit
+Hash-Versatz + 6 Halbierungen; Treffer = hinter der Szene und dünn genug dahinter oder in diesem Schritt durch ihre Vorderseite;
+kommt der Strahl nur knapp hinter einer Fläche wieder nicht hervor (< 0,6 + 0,05 z), gilt diese als Treffer. Farbe aus Stufe
+7 · Rauheit (zwei Stufen gemischt), Beitrag = (Treffer − Umgebungsglanz der Halbkugel × Verdeckung) × Gewicht × `bildspiegel` ×
+Vertrauen (Rückseite, Strahl zur Kamera, Bildrand 8 %, Rauheit 0,55 … 0,8) × (1 − Nebel) – ein Fehltreffer lässt also Umgebung
+bzw. planare Spiegelung stehen. **Vorrang:** auf der Spiegelebene (Höhenfenster wie `pbr_licht`) spiegelt nur die planare
+Spiegelung, sonst SSR (senkrechte und schräge Flächen, glänzende Böden ohne `spiegelung`).
 
 **INST2D (56 Bytes):** `f32 m00, m10, m01, m11` (2 × 2 lokal → Spielfeld, Spalten = lokale x-/y-Achse) · `f32 tx, ty`
 (Mitte, Spielfeld-Pixel, y nach unten; mit aktivem `Blick` (H-K1) hat der Kern die Sicht-Matrix schon eingerechnet – außer für
@@ -525,7 +544,8 @@ glut.groesse(neue_breite, neue_hoehe);        // bei WindowEvent::Resized
   bis knapp das Vierfache (1025² → Klasse 2048); `textur_speicher()` meldet Bilder, Nutzlast und angelegten Speicher.
 - **Durchgänge:** Schatten (nur Tiefe, Steigungs-Bias; je benutzter Schicht ein Durchgang, je Zug Viewport = Rechteck der Ansicht und
   Ansicht·Projektion über einen dynamischen Uniform-Versatz an Bindung 20 – Eintrag 0 = `licht_proj`, 1 + a = Ansicht a aus
-  SCHATTENLICHTER) → Haupt (MSAA 4×, Viewport = eingepasstes Spielfeld): Himmel,
+  SCHATTENLICHTER) → (Spiegel) → Bildraum-Vorlauf und Verdeckung (H-K24, nur mit BILDRAUM; 1 + 3 Durchgänge ohne MSAA) → Haupt (MSAA 4×, Viewport =
+eingepasstes Spielfeld; mit Bildraum-Spiegelung geteilt: Himmel + `FEST`, Farbstufen + SSR, dann der Rest): Himmel,
   `FEST` (instanziert je Netz), `DURCH` (Rückseiten, dann Vorderseiten, mischen), 3D-Teilchen (`TEILCHEN3D`, je Mischart ein
   instanzierter Draw-Call, Tiefe testen, nicht schreiben; leuchtend One/One, deckend „source over“), 2D (**ein** instanzierter
   Draw-Call, 6 Ecken aus `vertex_index`). Das Ziel speichert sRGB-kodierte Werte (Format ohne sRGB-Umwandlung); 3D rechnet linear.
@@ -559,6 +579,11 @@ vor jedem `discard` berechnet werden; Welt-Abbildung nach der größten Normalen
 Karis-Mittel und weichem Knie, `fs_ab` 13 Abtastungen, `fs_auf` Zelt 3 × 3 × `bloomWeite` additiv, `fs_abschluss` Belichtung + Bloom/Σ Gewichte,
 ACES (Hill), Sättigung, Vignette, Korn, sRGB + Dither; HDR-Ziel Rgba16Float mit MSAA, falls der Adapter es kann – sonst Rgba8Unorm bzw.
 ohne MSAA; die 3D-Shader prüfen `hdr_an()` (Bindung 17) und geben dann linear aus, mit Höhennebel)
+· `bildraum` (H-K24, eigenes Layout: `vs_bildraum` Vollbild-Dreieck; `fs_verdeckung` SSAO, `fs_weich_x`/`fs_weich_y` bilateral,
+`fs_verkleinern` Farbstufen 4 × bilinear, `fs_bildspiegel` SSR – Verfahren in §4 BILDRAUM; Weltlage aus der Tiefe über die Inverse
+von `ansicht_proj` aus dem Bildraum-Block, Tiefe linear über nah/fern; Zufall nur aus dem PCG-Hash der Pixelstelle) · `licht`
+zusätzlich `fs_vorlauf` (H-K24: Normale, Rauheit, Glanz-Gewicht aus denselben Funktionen `oberflaeche`/`pbr_flaeche`/
+`umgebungsglanz` wie `fs_licht`)
 · `schatten` (nur Tiefe, Matrix aus Bindung 20, Textur-Texel < ½ Deckkraft werfen keinen Schatten) · Schatten in `licht` (H-K18): Sonne
 ohne Abschnitt SCHATTENLICHTER unverändert (`zeltfilter`, Schicht 0); sonst `sonne_neu` (Kaskaden: die erste, deren Bild den Punkt
 samt Filterrand enthält, am Rand der letzten weich ausgeblendet; bzw. v1-Matrix mit anderer Weichheit); Punkt-/Spotlichter in beiden
@@ -617,41 +642,56 @@ WebGL2 zählen zwei Dinge, beide prüft der Wächter:
 | 18 | Uniform SCHATTENLICHTER (5 200 B: Kopf, Kaskaden, Plätze, 52 Ansichten) | VS + FS | `fs_licht` | Block | H-K18 |
 | 19 (+ 12) | Spiegelbild `texture_2d` | FS | `fs_licht` (`textureSampleLevel` mit `eigen_s`) | 1 | Spiegelung |
 | 20 | Uniform Ansicht·Projektion je Schatten-Zug (**Schatten-Layout**, dynamischer Versatz, 64 B je 256-B-Eintrag) | VS | `vs_schatten` | Block | H-K18 |
-| *21* | *Verdeckung (SSAO, halbe Auflösung)* | *FS* | *`fs_licht`* | *1* | *geplant H-K24* |
-| *22* | *Gelenk-Palette RGBA32F (Haupt- **und** Schatten-Layout)* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *geplant H-K23b* |
+| 21 (+ 6) | Verdeckung R8 (SSAO, halbe Zielgröße) | FS | `fs_licht` (`textureSampleLevel` mit dem Sampler 6) | 1 | H-K24 |
+| 22 | Uniform Bildraum (Glut, 128 B: Kern-Abschnitt BILDRAUM, Inverse von `ansicht_proj`, Viewport, Zielgröße) | VS + FS | `fs_licht` (Haupt-Layout), `fs_verdeckung`, `fs_weich_*`, `fs_bildspiegel` (Bildraum-Layout) | Block | H-K24 |
+| *23* | *Gelenk-Palette RGBA32F (Haupt- **und** Schatten-Layout)* | *VS* | *`vs_licht`, `vs_schatten`* | *1* | *geplant H-K23b* |
 | *–* | *Szenenfarbe + Tiefe (Bildschirmraum-Kopien)* | *FS* | *`fs_wasser` im **eigenen** Layout `wasser`* | *0 im Haupt-Layout* | *geplant H-K28* |
 | – | Spiegel-Zellen | | in `zellen_t` (16) | 0 | H-K21 |
 | – | Normal-, Stoff-, Leucht-Karten | | über die PD3-Klassen 7 … 11 | 0 | H-K26 |
 | – | Wind (Uniform-Block), Streu-Instanzen (Instanzpuffer) | | | 0 (Block) | H-K27 |
 
-Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). Die Bindungsnummern 21 ff. sind
-Vorschläge (vergeben in Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich sind die Einheiten.
+Nachbild-Layout (eigen): 0 Quelle + 1 Sampler, 2 Uniform STIMMUNG, 3 Bloom-Stufe 0 (+ 1). **Bildraum-Layout** (eigen, H-K24,
+`layout_bildraum`; Programm `bildraum` = `gemeinsam` + `bildraum.wgsl`): 0 SZENE, 17 STIMMUNG, 22 Bildraum (Blöcke), 23 Tiefe des
+Vorlaufs (Depth32Float als nicht filterbare Float-Textur, abgetastet mit 33 = Sampler nächster Nachbar – **nicht** `textureLoad`:
+unter WebGL2 hinge an derselben Einheit sonst womöglich noch der Vergleichs-Sampler der Schatten, `texelFetch` auf einer
+Tiefentextur mit `TEXTURE_COMPARE_MODE` ist undefiniert – gemessen: SwiftShader lieferte Unsinn), 24 Normale (Rgb10a2), 25 Gewicht
+(Rgba8; beide `textureLoad`), 26 Quelle + 27 Sampler linear (Verdeckung roh/quer, Farbstufe davor), 28 … 32 Farbstufen 0 … 4.
+Der Vorlauf (`vs_licht` + `fs_vorlauf`) nutzt das **Haupt-Layout** – er braucht Atlas, eigene Texturen, Relief und STIMMUNG wie
+`fs_licht` und kostet dort keinen Eintrag. Die Bindungsnummern 23 ff. im Haupt-Layout sind Vorschläge (vergeben in
+Merge-Reihenfolge, HERD.md §13.1 Regel 1); maßgeblich sind die Einheiten. Weil das Programm `bildraum` `gemeinsam.wgsl` enthält,
+bekommen neue Bindungen in `gemeinsam.wgsl` Nummern ab 34 (23 … 33 belegt `bildraum.wgsl`).
 
 **Stand H-K21 (gemessen, Wächter; H-K15 → H-K18 → H-K21):** H-K21 kostet **keine** Einheit und keinen Layout-Eintrag: die
 Spiegel-Zellen liegen hinter den Zellen von LICHTER in `zellen_t` (16), ihr Kopf ist ein zweiter Uniform-Puffer, den nur die
 Spiegel-Bindegruppe an **derselben** Bindung 14 bindet. `fs_leuchtend`/`fs_deckend` lesen jetzt auch SZENE (Verwerfen unter der
 Spiegelebene): je 2 Blöcke.
 
+**Stand H-K24 (gemessen, Wächter):** Haupt-Layout **12/16** Texturen (+1: Verdeckung an 21, mit dem vorhandenen Sampler 6),
+Uniform-Puffer 7/12 (+ Bildraum an 22); `fs_licht` 11/16 Einheiten, 5 Blöcke. Neues Layout `bildraum` 9/16 Texturen, 2 Sampler.
+
 | Layout | Texturen | Sampler | Uniform-Puffer VS/FS | nach dem Plan (§13) |
 |---|---|---|---|---|
-| haupt | **11/16** (H-K15: 11) | 3/16 | 6/12 · 6/12 (H-K15: 5 · 5) | 13/16 Texturen (+ H-K24, + H-K23b), ≤ 9/12 Blöcke (+ BILDRAUM, WIND) |
+| haupt | **12/16** (H-K15: 11, H-K24: +1) | 3/16 | 7/12 · 7/12 (H-K15: 5 · 5) | 13/16 Texturen (+ H-K23b), ≤ 9/12 Blöcke (+ WIND) |
 | schatten | 6/16 | 0/16 | 2/12 · 1/12 (H-K15: 1 · 1) | 7/16 (+ Gelenk-Palette) |
 | nachbild | 2/16 | 1/16 | 0/12 · 1/12 | – |
+| bildraum (H-K24) | 9/16 | 2/16 | 3/12 · 3/12 | – |
 
 | Einstiegspunkt | Einheiten | Blöcke | Einstiegspunkt | Einheiten | Blöcke |
 |---|---|---|---|---|---|
 | `vs_flach` | 0 | 2 | `fs_flach` | 7 | 1 |
 | `vs_himmel` | 0 | 1 | `fs_himmel` / `fs_zelt` | 0 / 6 | 2 / 3 |
-| `vs_licht` | 0 | 1 | `fs_licht` | **10/16** | 4 |
+| `vs_licht` | 0 | 1 | `fs_licht` / `fs_vorlauf` | **11/16** / 6 | 5 / 2 |
 | `vs_schatten` | 0 | 1 | `fs_schatten` | 6 | 0 |
 | `vs_funke` | 2 | 4 | `fs_leuchtend` / `fs_deckend` | 0 / 0 | 2 / 2 (H-K18: 1 / 2) |
 | `vs_voll` | 0 | 0 | `fs_vorfilter` / `fs_ab` / `fs_auf` / `fs_abschluss` | 1 / 1 / 1 / 2 | 1 / 0 / 1 / 1 |
+| `vs_bildraum` | 0 | 0 | `fs_verdeckung` / `fs_weich_x`, `_y` / `fs_verkleinern` / `fs_bildspiegel` | 2 / 2 / 1 / 9 | 2 / 1 / 0 / 3 |
 
 **Budget-Planung der übrigen Glut-Stufen** (HERD.md §13.3; maßgeblich ist das Haupt-Layout, 16 Einheiten über **alle** Stufen –
 Vertex-Texturen haben unter wgpu-GL keinen eigenen Pool): H-K18 hat **keine** Einheit gekostet (die Schatten-Tiefentextur ist ein
 Array statt 2D, Kacheln und Kaskaden liegen in ihren Schichten, die Matrizen in Uniform-Blöcken). Danach: **H-K21** 0 (umgesetzt: Spiegel-Zellen in
-`zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (Verdeckung; der SSR-Strahlmarsch und der Vorlauf laufen in eigenen Layouts wie das Nachbild, `fs_licht`
-liest nur das Verdeckungsbild) → 12 · **H-K26** 0 (PD3-Klassen) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
+`zellen_t`, Kopf an Bindung 14 der Spiegel-Bindegruppe) · **H-K24** +1 (umgesetzt: Verdeckung an 21 mit dem Sampler 6, Bildraum-Block an 22; SSAO, Weichzeichnen, Farbstufen und
+SSR-Strahlmarsch im eigenen Layout `bildraum`, der Vorlauf im Haupt-Layout ohne neuen Eintrag; `fs_licht` liest nur das
+Verdeckungsbild) → 12 · **H-K26** 0 (PD3-Klassen) · **H-K23b** +1 (Gelenk-Palette, im Haupt- **und** Schatten-Layout) → 13 ·
 **H-K27** 0 (Uniform-Block WIND, Instanzpuffer) · **H-K28** 0 im Haupt-Layout: der Wasser-Zug bekommt ein **eigenes Layout** `wasser`
 (SZENE, STIMMUNG, Lichter, Schatten, Spiegelbild, Szenenfarbe, Tiefe ≈ 9/16) statt Szenenfarbe und Tiefe ins Haupt-Layout zu legen. Ende
 des Plans: Haupt-Layout **13/16** Texturen, 9/12 Uniform-Blöcke; 3 Einheiten Reserve. **Konsolidierung, falls doch eng:** (1) Schrift
@@ -708,7 +748,12 @@ sichtbar),
 zwei Spots als Kacheln, Schatten auf klassischem und pbr-Boden), `3d-kaskaden` (H-K18: lange Allee, flache Sonne mit 4 Kaskaden bis
 80 m, dünne Zaunlatten vorn scharf, Säulen bis weit hinten), `3d-spiegel-voll` (H-K21: nasser Platz vor einer Wand mit 64
 Lämpchen-Lichtern, zwei Spots mit Schatten über drei Säulen, Glaswürfel, Funkenbrunnen, Neonschild über dem Bildrand – nur im Spiegel
-zu sehen –, nasser Gehweg 0,15 über der Ebene; `spiegelGuete` voll, `VOLL=0` zeichnet zum Vergleich einfach).
+zu sehen –, nasser Gehweg 0,15 über der Ebene; `spiegelGuete` voll, `VOLL=0` zeichnet zum Vergleich einfach),
+`3d-verdeckung` (H-K24: Gewölbekeller aus Platten mit Gurtbögen, stehende und liegende Fässer, Kisten, Stufe; viel Umgebungslicht,
+zwei schwache Laternen; `verdeckung` 1.4, Weite 0.6; `VERDECKUNG=0` zum Vergleich), `3d-bildspiegel` (H-K24: Halle mit
+poliertem Steinboden, glänzenden Säulen, polierter Metallwand, Leuchttafeln, Kugel und Würfel, Leuchtband halb über dem oberen
+Bildrand – Rückfall am Bildrand; `bildspiegel` 1, `BILDSPIEGEL=0` zum Vergleich, `PLANAR=1` mit planarer Spiegelung: sie hat dann
+auf dem Boden Vorrang).
 **Pixeltest** in `cargo test`
 (`herd-werkzeug`): rendert jedes Skript auf dem Software-Adapter und vergleicht mit Toleranz K-129 (mittlere Abweichung ≤ 1,5 %,
 ≥ 98 % der Pixel innerhalb 10/255); ohne Software-Adapter wird er mit Hinweis übersprungen. Dazu: Instancing ändert das Bild nicht

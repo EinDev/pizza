@@ -44,6 +44,19 @@ struct Stimmung {
 // Platzhalter)
 @group(0) @binding(19) var spiegel_t: texture_2d<f32>;
 
+// Bildschirmraum (H-K24, Abschnitt BILDRAUM; Glut-Block an Bindung 22 im Haupt- und Bildraum-Layout, ohne Abschnitt Nullen):
+// a = Kern (verdeckung, verdeckungWeite, bildspiegel, an), b = (nah, fern, Verdeckung an, Bildraum-Spiegelung an),
+// inv = Inverse von ansicht_proj (Glut, f64 gerechnet), ziel = eingepasstes Spielfeld in Zielpixeln (x, y, b, h),
+// groesse = Zielgröße (b, h, 1/b, 1/h).
+struct Bildraum {
+    a: vec4<f32>,
+    b: vec4<f32>,
+    inv: mat4x4<f32>,
+    ziel: vec4<f32>,
+    groesse: vec4<f32>,
+}
+@group(0) @binding(22) var<uniform> bildraum: Bildraum;
+
 // Spiegeldurchgang: SZENE.zahlen.y = 1, zahlen.z = Höhe der Ebene (die Glut schreibt eine gespiegelte Kopie von SZENE)
 fn im_spiegel() -> bool {
     return szene.zahlen.y > 0.5;

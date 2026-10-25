@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Pizzakeller: Verdeckung und Bildraum-Spiegelung",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein Gewölbekeller unter der Pizzeria mit Weinfässern, Mehlsäcken, Kupfertheke und glühendem Holzofen. Ecken, Fugen und der Platz unter den Fässern werden dunkler (Verdeckung, SSAO), Fliesenboden und Kupfer spiegeln, was im Bild zu sehen ist (Bildraum-Spiegelung, SSR). Der Taster (oder die Leertaste) schaltet den Bildschirmraum an und aus."
+}

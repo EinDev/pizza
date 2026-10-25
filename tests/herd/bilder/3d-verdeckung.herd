@@ -1,0 +1,479 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Verdeckung“ (H-K24, Stimmung.verdeckung, Abschnitt BILDRAUM): ein Gewölbekeller – Tonnengewölbe aus Platten
+# über zwei Seitenmauern, Gurtbögen, stehende und liegende Fässer, Kisten in der Ecke, eine Stufe vor der Rückwand; viel
+# Umgebungslicht von oben, zwei schwache Laternen. Die Verdeckung (SSAO, halbe Größe, zweimal bilateral weichgezeichnet)
+# dunkelt das Umgebungslicht in den Ecken, in den Fugen der Gewölbeplatten, unter den Fässern und hinter den Kisten ab; die
+# Lampen selbst bleiben unberührt. VERDECKUNG = 0 zeichnet zum Vergleich ohne.
+vorgabe VERDECKUNG 1.4
+welt_neu 1280 720 "Verdeckung"
+welt_himmel "#101014" "#1a1814"
+welt_umgebung "#d8c8b0" 0.55
+typ_nummer "Koerper" -> T_K
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "verdeckung" -> S_V
+feld_nummer T_S "verdeckungWeite" -> S_VW
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 16 0 -> KUGEL
+form_grund 3 24 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+
+teil_lage 1 0.4 1.6 6.5
+teil_schaue 1 -0.3 1.5 -4
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# Boden, Seitenmauern, Rückwand mit Stufe
+teil_neu 3 -> boden
+teil_groesse boden 12 1 30
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_text k K_F "#9a8c78"
+komp_haenge k boden
+wiederhole 2 s
+  teil_neu 3 -> m
+  teil_lage m ((s * 2 - 1) * 3.4) 1.2 -2
+  teil_groesse m 0.8 2.4 22
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#b4a48c"
+  komp_haenge k m
+ende
+teil_neu 3 -> rueck
+teil_lage rueck 0 3 -9
+teil_groesse rueck 8 6 0.6
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#a89880"
+komp_haenge k rueck
+teil_neu 3 -> stufe
+teil_lage stufe 0 0.2 -8.2
+teil_groesse stufe 6 0.4 1.2
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#a0927c"
+komp_haenge k stufe
+
+# Tonnengewölbe: 14 Platten auf einem Halbkreis (Radius 3, Mitte in 2,4 Höhe) mit schmalen Fugen; Gurtbögen aus je 10 Steinen
+teil_neu 3 -> p
+teil_lage p 2.9811 2.7359 -2
+teil_setze p 6 -83.5714
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 2.8316 3.3908 -2
+teil_setze p 6 -70.7143
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 2.5402 3.9961 -2
+teil_setze p 6 -57.8571
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 2.1213 4.5213 -2
+teil_setze p 6 -45.0000
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 1.5961 4.9402 -2
+teil_setze p 6 -32.1429
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 0.9908 5.2316 -2
+teil_setze p 6 -19.2857
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p 0.3359 5.3811 -2
+teil_setze p 6 -6.4286
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -0.3359 5.3811 -2
+teil_setze p 6 6.4286
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -0.9908 5.2316 -2
+teil_setze p 6 19.2857
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -1.5961 4.9402 -2
+teil_setze p 6 32.1429
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -2.1213 4.5213 -2
+teil_setze p 6 45.0000
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -2.5402 3.9961 -2
+teil_setze p 6 57.8571
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -2.8316 3.3908 -2
+teil_setze p 6 70.7143
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> p
+teil_lage p -2.9811 2.7359 -2
+teil_setze p 6 83.5714
+teil_groesse p 0.64 0.25 22
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#c0b098"
+komp_haenge k p
+teil_neu 3 -> st
+teil_lage st 2.7853 2.8411 2.0
+teil_setze st 6 -81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 2.5126 3.6803 2.0
+teil_setze st 6 -63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.9940 4.3940 2.0
+teil_setze st 6 -45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.2803 4.9126 2.0
+teil_setze st 6 -27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 0.4411 5.1853 2.0
+teil_setze st 6 -9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -0.4411 5.1853 2.0
+teil_setze st 6 9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.2803 4.9126 2.0
+teil_setze st 6 27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.9940 4.3940 2.0
+teil_setze st 6 45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.5126 3.6803 2.0
+teil_setze st 6 63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.7853 2.8411 2.0
+teil_setze st 6 81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 2.7853 2.8411 -2.5
+teil_setze st 6 -81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 2.5126 3.6803 -2.5
+teil_setze st 6 -63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.9940 4.3940 -2.5
+teil_setze st 6 -45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.2803 4.9126 -2.5
+teil_setze st 6 -27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 0.4411 5.1853 -2.5
+teil_setze st 6 -9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -0.4411 5.1853 -2.5
+teil_setze st 6 9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.2803 4.9126 -2.5
+teil_setze st 6 27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.9940 4.3940 -2.5
+teil_setze st 6 45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.5126 3.6803 -2.5
+teil_setze st 6 63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.7853 2.8411 -2.5
+teil_setze st 6 81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 2.7853 2.8411 -7.0
+teil_setze st 6 -81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 2.5126 3.6803 -7.0
+teil_setze st 6 -63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.9940 4.3940 -7.0
+teil_setze st 6 -45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 1.2803 4.9126 -7.0
+teil_setze st 6 -27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st 0.4411 5.1853 -7.0
+teil_setze st 6 -9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -0.4411 5.1853 -7.0
+teil_setze st 6 9.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.2803 4.9126 -7.0
+teil_setze st 6 27.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -1.9940 4.3940 -7.0
+teil_setze st 6 45.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.5126 3.6803 -7.0
+teil_setze st 6 63.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+teil_neu 3 -> st
+teil_lage st -2.7853 2.8411 -7.0
+teil_setze st 6 81.0000
+teil_groesse st 0.9 0.36 0.5
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#aa9a80"
+komp_haenge k st
+
+# Fässer: links stehend in einer Reihe, rechts liegend zu zweit gestapelt
+wiederhole 4 i
+  teil_neu 3 -> f
+  teil_lage f -2.35 0.6 (1.5 - i * 1.15)
+  teil_groesse f 1 1.2 1
+  komp_neu T_K -> k
+  setze_zahl k K_FORM ZYLINDER
+  setze_text k K_F "#7a5232"
+  setze_zahl k K_GLANZ 0.25
+  komp_haenge k f
+ende
+wiederhole 3 i
+  wiederhole 2 lage
+    teil_neu 3 -> f
+    teil_lage f (2.4 - lage * 0.05) (0.48 + lage * 0.9) (0.6 - i * 1.05 - lage * 0.5)
+    teil_setze f 5 90
+    teil_groesse f 0.96 1.3 0.96
+    komp_neu T_K -> k
+    setze_zahl k K_FORM ZYLINDER
+    setze_text k K_F "#6e4a2e"
+    setze_zahl k K_GLANZ 0.25
+    komp_haenge k f
+  ende
+ende
+# Kisten in der Ecke vor der Stufe
+wiederhole 3 i
+  teil_neu 3 -> kiste
+  teil_lage kiste (-1.9 + i * 0.95) (0.35 + (i % 2) * 0.1) (-6.9 + (i % 2) * 0.4)
+  teil_groesse kiste 0.8 (0.7 + (i % 2) * 0.2) 0.8
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_text k K_F "#8c6a44"
+  komp_haenge k kiste
+ende
+
+# zwei schwache Laternen (Birnen ohne Schatten)
+wiederhole 2 j
+  teil_neu 3 -> l
+  teil_lage l ((j * 2 - 1) * 2.4) 2.3 (-1 - j * 4)
+  komp_neu T_L -> li
+  setze_text li L_F "#ffc078"
+  setze_zahl li L_ST 0.8
+  setze_zahl li L_RW 6
+  komp_haenge li l
+  komp_neu T_K -> k
+  setze_zahl k K_FORM KUGEL
+  setze_text k K_F "#ffe0b0"
+  setze_zahl k K_LE 1
+  setze_zahl k K_SCH 0
+  komp_haenge k l
+  teil_groesse l 0.14 0.14 0.14
+ende
+
+teil_neu 3 -> st
+komp_neu T_S -> s
+setze_zahl s S_BEL 1.1
+setze_zahl s S_V VERDECKUNG
+setze_zahl s S_VW 0.6
+komp_haenge s st
+takte 2

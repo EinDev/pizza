@@ -63,6 +63,9 @@ pub mod abschnitt {
     /// Zweite Zellen-Tabelle für die gespiegelte Kamera (H-K21, `crate::lichter::abschnitt`): nur bei `Stimmung.spiegelGuete`
     /// voll und vorhandenem `LICHTER`, direkt dahinter
     pub const LICHTER_SPIEGEL: u32 = 21;
+    /// Bildschirmraum (H-K24, `crate::komponenten::stimmung::bildraum_abschnitt`): Verdeckung (SSAO) und Bildraum-Spiegelung
+    /// (SSR), 32 B; nur wenn die geltende `Stimmung` `verdeckung` oder `bildspiegel` > 0 hat
+    pub const BILDRAUM: u32 = 22;
 }
 
 pub mod flag {
@@ -1101,6 +1104,8 @@ pub fn baue(w: &mut Welt, bau: &mut Bildbau, g: &mut Gesendet, aus: &mut Vec<u8>
     }
     // ---------------- Stimmung (HDR-Abschluss in der Glut): nur wenn eine gilt ----------------
     abschnitte += crate::komponenten::stimmung::abschnitt(w, aus, bildnummer, fern);
+    // ---------------- Bildschirmraum (H-K24): nur mit Verdeckung oder Bildraum-Spiegelung ----------------
+    abschnitte += crate::komponenten::stimmung::bildraum_abschnitt(w, aus, nah, fern);
 
     let len = aus.len() as u32;
     aus[16..20].copy_from_slice(&flags.to_le_bytes());

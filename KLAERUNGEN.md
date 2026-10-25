@@ -2329,6 +2329,22 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   voll (aus ab 0,45; einfach 0,05/0,3), und Oberseiten (Normale y > 0,5) unter h + 0,5 werden von unten gesehen verworfen – Pfützen auf
   Gehwegen (0,15) zeigen so die Szene dahinter statt das Innere der Platte; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild.
   Tests `tests::hk21`, Szene `spiegel.herd`, Referenzbild `3d-spiegel-voll`, Beispiel `regenplatz`; Neon-Napoli spiegelt voll.
+- **Nachtrag H-K24 (Bildschirmraum: Verdeckung und Bildraum-Spiegelung):** `Stimmung` Nachtragsfelder `verdeckung` 0 (0 … 2),
+  `verdeckungWeite` 0.5 (0.01 … 10), `bildspiegel` 0 (0 … 1); Abschnitt **BILDRAUM (22)**, 32 B, nur wenn `verdeckung` oder
+  `bildspiegel` > 0 (STIMMUNG bleibt 80 B; ohne Nutzung Paket, Hash und alle Bilder gleich). **Ein Weg für alle Schnittstellen**
+  (**Entscheidung**): eigener **Vorlauf** ohne MSAA über `FEST` (WebGL2 kann MSAA-Tiefe nicht abtasten) in Depth32Float, Normale
+  oktaedrisch + Rauheit (Rgb10a2) und Glanz-Gewicht (Rgba8: Fresnel × Glätte² mit Metall-Albedo, SSR-Anteil) – im Haupt-Layout, ohne
+  neuen Eintrag. **Verdeckung:** halbe Größe, 12 Abtastungen, Drehung aus dem Ganzzahl-Hash der Pixelstelle, zweimal 1D bilateral;
+  wirkt nur auf das Umgebungslicht deckender Fragmente (Bindung 21, **+1 Einheit → Haupt-Layout 12/16**, mit dem vorhandenen
+  Sampler 6; Block an 22). **Bildraum-Spiegelung:** HDR-Durchgang geteilt (Himmel + FEST → Farbstufen 5 → Strahlmarsch additiv → DURCH
+  + Teilchen), 48 Schritte + 6 Halbierungen, Stufe nach Rauheit; der Beitrag ersetzt den Umgebungsglanz der Halbkugel, ein
+  Fehltreffer (auch Bildrand, Rückseite) lässt Umgebung bzw. planare Spiegelung stehen. **Vorrang (Entscheidung):** auf der
+  Spiegelebene von `spiegelung` (Höhenfenster wie dort) gilt nur die planare Spiegelung (kennt auch, was außerhalb des Bildes liegt;
+  dort kein Strahlmarsch), SSR für senkrechte/schräge Flächen und glänzende Böden ohne planare Spiegelung; nur pbr-Beläge. Ohne
+  Rgba16Float-HDR (WebGL2 ohne `EXT_color_buffer_float`) fällt nur SSR still aus. Eigenes Layout `bildraum` (9/16); Tiefe dort über einen
+  Sampler „nächster Nachbar“ (unter WebGL2 hinge an der Einheit sonst der Vergleichs-Sampler der Schatten). Pipelines beim Anlegen
+  vorab. Tests `tests::hk24`, Szene `bildraum.herd`, Referenzbilder `3d-verdeckung`/`3d-bildspiegel`, Beispiel `pizzakeller`, B16
+  (WARP indikativ; die Entwickler-GPU misst der Nutzer).
 
 ### K-165 Herd: `Figur` (Figur-Steuerung) und `Strahl` (Strahl- und Höhenabfrage) (H-K20)
 - **Frage:** Wie bekommt 3D eine Spielfigur wie Unity `CharacterController` und eine Abfrage wie `Physics.Raycast`, deterministisch

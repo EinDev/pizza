@@ -276,7 +276,10 @@
       {"nummer": 12, "name": "spiegelung", "typ": "zahl", "standard": 0, "min": 0, "max": 1},
       {"nummer": 13, "name": "spiegelHoehe", "typ": "zahl", "standard": 0, "min": null, "max": null},
       {"nummer": 14, "name": "regen", "typ": "zahl", "standard": 0, "min": 0, "max": 1, "nachtrag": true},
-      {"nummer": 15, "name": "spiegelGuete", "typ": "wahl", "standard": "einfach", "min": null, "max": null, "wahl": ["einfach", "voll"], "nachtrag": true}]},
+      {"nummer": 15, "name": "spiegelGuete", "typ": "wahl", "standard": "einfach", "min": null, "max": null, "wahl": ["einfach", "voll"], "nachtrag": true},
+      {"nummer": 16, "name": "verdeckung", "typ": "zahl", "standard": 0, "min": 0, "max": 2, "nachtrag": true},
+      {"nummer": 17, "name": "verdeckungWeite", "typ": "zahl", "standard": 0.5, "min": 0.01, "max": 10, "nachtrag": true},
+      {"nummer": 18, "name": "bildspiegel", "typ": "zahl", "standard": 0, "min": 0, "max": 1, "nachtrag": true}]},
     {"name": "Schwung", "nummer": 32, "genus": "m", "raum": "3D", "braucht": ["Fuehler"], "system": true, "felder": [
       {"nummer": 1, "name": "art", "typ": "wahl", "standard": "dynamisch", "min": null, "max": null, "wahl": ["dynamisch", "kinematisch", "fest"]},
       {"nummer": 2, "name": "masse", "typ": "zahl", "standard": 1, "min": 0.001, "max": null},

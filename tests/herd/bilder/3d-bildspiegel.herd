@@ -1,0 +1,167 @@
+#! bild 2 groesse 1280x720
+# Referenzbild „Bildraum-Spiegelung“ (H-K24, Stimmung.bildspiegel, Abschnitt BILDRAUM): eine Halle mit poliertem dunklem
+# Steinboden (pbr, glanz 0.94), zwei Reihen glänzender Säulen, eine polierte Metallwand links (metall 1), farbige Leuchttafeln
+# an der Rückwand, rote Kugel und Würfel; darüber ein Leuchtband am oberen Bildrand, das nur halb im Bild ist.
+# Prüft: Spiegelbild der Säulen, Tafeln und Kugel im Boden (Strahlmarsch, 48 Schritte + 6 Halbierungen), senkrechte Spiegelung
+# in der Metallwand, Unschärfe nach Rauheit (Säulen glanz 0.75), Rückfall am Bildrand (was außerhalb des Bildes liegt, fällt
+# weich auf die Umgebung zurück – das Leuchtband spiegelt sich nur, soweit es zu sehen ist), keine Spiegelung auf matten
+# Flächen. BILDSPIEGEL = 0 zeichnet zum Vergleich ohne; PLANAR = 1 schaltet die planare Spiegelung dazu – dann hat sie auf
+# dem Boden Vorrang und SSR spiegelt nur in Wand und Säulen.
+vorgabe BILDSPIEGEL 1
+vorgabe PLANAR 0
+welt_neu 1280 720 "Bildspiegel"
+welt_himmel "#0a0c14" "#1a1c2a"
+welt_umgebung "#8090b0" 0.18
+typ_nummer "Koerper" -> T_K
+typ_nummer "Belag" -> T_B
+typ_nummer "Licht" -> T_L
+typ_nummer "Stimmung" -> T_S
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_F
+feld_nummer T_K "glanz" -> K_GLANZ
+feld_nummer T_K "leuchten" -> K_LE
+feld_nummer T_K "strahlen" -> K_ST
+feld_nummer T_K "schatten" -> K_SCH
+feld_nummer T_K "belag" -> K_BELAG
+feld_nummer T_B "farbe" -> B_F
+feld_nummer T_B "glanz" -> B_GLANZ
+feld_nummer T_B "modell" -> B_MODELL
+feld_nummer T_B "metall" -> B_METALL
+feld_nummer T_L "farbe" -> L_F
+feld_nummer T_L "staerke" -> L_ST
+feld_nummer T_L "reichweite" -> L_RW
+feld_nummer T_S "bloom" -> S_BLOOM
+feld_nummer T_S "belichtung" -> S_BEL
+feld_nummer T_S "bildspiegel" -> S_BS
+feld_nummer T_S "verdeckung" -> S_V
+feld_nummer T_S "spiegelung" -> S_SP
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 24 0 -> KUGEL
+form_grund 3 24 0 -> ZYLINDER
+form_grund 5 0 0 -> EBENE
+
+teil_lage 1 1.2 2.1 9
+teil_schaue 1 -0.2 1.2 -4
+komp_von 2 T_L -> SONNE
+setze_zahl SONNE L_ST 0
+
+# Beläge: polierter Stein (Boden), Metall (Wand), glänzender Stein (Säulen)
+teil_neu 3 -> b_boden
+komp_neu T_B -> b
+setze_text b B_MODELL "pbr"
+setze_text b B_F "#2a2a30"
+setze_zahl b B_GLANZ 0.94
+komp_haenge b b_boden
+teil_neu 3 -> b_metall
+komp_neu T_B -> b
+setze_text b B_MODELL "pbr"
+setze_text b B_F "#c8ccd4"
+setze_zahl b B_GLANZ 0.9
+setze_zahl b B_METALL 1
+komp_haenge b b_metall
+teil_neu 3 -> b_saeule
+komp_neu T_B -> b
+setze_text b B_MODELL "pbr"
+setze_text b B_F "#d8d0c0"
+setze_zahl b B_GLANZ 0.75
+komp_haenge b b_saeule
+
+teil_neu 3 -> boden
+teil_groesse boden 16 1 30
+komp_neu T_K -> k
+setze_zahl k K_FORM EBENE
+setze_zahl k K_BELAG b_boden
+komp_haenge k boden
+teil_neu 3 -> wand
+teil_lage wand -4.2 2.5 -3
+teil_groesse wand 0.3 5 20
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_zahl k K_BELAG b_metall
+komp_haenge k wand
+teil_neu 3 -> rueck
+teil_lage rueck 0 3 -10
+teil_groesse rueck 16 6 0.4
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#4a4650"
+komp_haenge k rueck
+
+# zwei Reihen Säulen
+wiederhole 2 r
+  wiederhole 4 i
+    teil_neu 3 -> s
+    teil_lage s (-1.6 + r * 4.6) 2 (2 - i * 3.2)
+    teil_groesse s 0.6 4 0.6
+    komp_neu T_K -> k
+    setze_zahl k K_FORM ZYLINDER
+    setze_zahl k K_BELAG b_saeule
+    komp_haenge k s
+  ende
+ende
+
+# Leuchttafeln an der Rückwand (magenta, cyan, gelb), je mit einem Licht davor
+wiederhole 3 i
+  teil_neu 3 -> t
+  teil_lage t (-3 + i * 3) 1.8 -9.7
+  teil_groesse t 1.6 2.2 0.1
+  komp_neu T_K -> k
+  setze_zahl k K_FORM WUERFEL
+  setze_zahl k K_F (4278255615 - i * 8531280000 + i * i * 4269801600)
+  setze_zahl k K_LE 1
+  setze_zahl k K_ST 3
+  setze_zahl k K_SCH 0
+  komp_haenge k t
+  teil_neu 3 -> l
+  teil_lage l (-3 + i * 3) 1.8 -8.6
+  komp_neu T_L -> li
+  setze_zahl li L_F (4278255615 - i * 8531280000 + i * i * 4269801600)
+  setze_zahl li L_ST 1.6
+  setze_zahl li L_RW 8
+  komp_haenge li l
+ende
+
+# Leuchtband am oberen Bildrand (nur halb im Bild)
+teil_neu 3 -> band
+teil_lage band 0.8 4.6 -2
+teil_groesse band 6 0.15 0.3
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#fff2d0"
+setze_zahl k K_LE 1
+setze_zahl k K_ST 4
+setze_zahl k K_SCH 0
+komp_haenge k band
+
+# rote Kugel und Würfel auf dem Boden, ein warmes Licht darüber
+teil_neu 3 -> kugel
+teil_lage kugel 0.4 0.7 0.5
+teil_groesse kugel 1.4 1.4 1.4
+komp_neu T_K -> k
+setze_zahl k K_FORM KUGEL
+setze_text k K_F "#c02020"
+setze_zahl k K_GLANZ 0.6
+komp_haenge k kugel
+teil_neu 3 -> wuerfel
+teil_lage wuerfel 1.8 0.5 -2.5
+teil_groesse wuerfel 1 1 1
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+setze_text k K_F "#e0b040"
+komp_haenge k wuerfel
+teil_neu 3 -> l
+teil_lage l 1 3.5 2
+komp_neu T_L -> li
+setze_text li L_F "#ffe0c0"
+setze_zahl li L_ST 1.5
+setze_zahl li L_RW 10
+komp_haenge li l
+
+teil_neu 3 -> st
+komp_neu T_S -> s
+setze_zahl s S_BLOOM 0.4
+setze_zahl s S_BEL 1.2
+setze_zahl s S_BS BILDSPIEGEL
+setze_zahl s S_SP PLANAR
+komp_haenge s st
+takte 2

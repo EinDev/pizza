@@ -386,10 +386,17 @@ fn sonnenlicht(welt: vec3<f32>, n: vec3<f32>, ndl: f32) -> f32 {
     return select(ergebnis, 1.0, aus);
 }
 
+// Oberfläche eines pbr-Fragments nach Nässe, Pfützen und Regen (auch für den Bildraum-Vorlauf, H-K24)
+struct PbrFlaeche {
+    n: vec3<f32>,
+    albedo: vec3<f32>,
+    rauh: f32,
+}
+
 // Physikalisches Licht (Modell pbr): Rauheit aus glanz bzw. Relief, Metall, Nässe (Pfützen auf nach oben zeigenden Flächen,
 // feuchte Flächen dunkler und glatter); Sonne, Lichter (Zellen oder die 8 aus SZENE), Halbkugel-Umgebung diffus und gespiegelt.
-fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo0: vec3<f32>, glanz: f32, karte: f32, hat_karte: bool,
-             metall: f32, nass: f32, sonne: f32, pos: vec2<f32>) -> vec3<f32> {
+fn pbr_flaeche(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, albedo0: vec3<f32>, glanz: f32, karte: f32, hat_karte: bool,
+               nass: f32) -> PbrFlaeche {
     var n = n0;
     var albedo = albedo0;
     var rauh = select(1.0 - glanz, karte * (2.0 - 2.0 * glanz), hat_karte);
@@ -421,24 +428,49 @@ fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo
         }
     }
     rauh = clamp(rauh, 0.045, 1.0);
+    return PbrFlaeche(n, albedo, rauh);
+}
+
+// Anteil der planaren Spiegelung (Stimmung.spiegelung) an einer Fläche: nach oben zeigend, auf Höhe der Spiegelebene
+// Höhenfenster um die Ebene: einfach voll bis 0,05, aus ab 0,3; voll (H-K21) voll bis 0,2, aus ab 0,45 – Gehwege (0,15)
+// spiegeln dann ganz (eine Ebene für alles; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild)
+fn auf_spiegelebene(welt: vec3<f32>, ng: vec3<f32>) -> f32 {
+    let voll = stimmung.spiegel.w > 0.5;
+    let fenster = select(vec2<f32>(0.05, 0.3), vec2<f32>(0.2, 0.45), voll);
+    return (1.0 - smoothstep(fenster.x, fenster.y, abs(welt.y - stimmung.spiegel.y))) * smoothstep(0.7, 0.95, ng.y);
+}
+
+// Gewicht des Umgebungsglanzes (Fresnel-Schlick mit Rauheit × Glätte²) – fs_licht und der Bildraum-Vorlauf (SSR) gleich
+fn umgebungsglanz(n: vec3<f32>, v: vec3<f32>, rauh: f32, f0: vec3<f32>) -> vec3<f32> {
+    let ndv = max(dot(n, v), 1e-4);
+    let fu = f0 + (max(vec3<f32>(1.0 - rauh), f0) - f0) * pow(1.0 - ndv, 5.0);
+    return fu * (1.0 - rauh) * (1.0 - rauh);
+}
+
+// ao: Verdeckung (H-K24, SSAO) auf Umgebungslicht diffus und gespiegelt, nur bei ao_an (sonst rechnet alles wie vorher)
+fn pbr_licht(welt: vec3<f32>, n0: vec3<f32>, ng: vec3<f32>, v: vec3<f32>, albedo0: vec3<f32>, glanz: f32, karte: f32, hat_karte: bool,
+             metall: f32, nass: f32, sonne: f32, pos: vec2<f32>, ao: f32, ao_an: bool) -> vec3<f32> {
+    let fl = pbr_flaeche(welt, n0, ng, albedo0, glanz, karte, hat_karte, nass);
+    let n = fl.n;
+    let albedo = fl.albedo;
+    let rauh = fl.rauh;
     let f0 = mix(vec3<f32>(0.04), albedo, metall);
     let diff = albedo * (1.0 - metall);
 
     // Umgebung: diffus aus der Halbkugel, gespiegelt aus der Halbkugel in Spiegelrichtung (rauh → matter)
     let ndv = max(dot(n, v), 1e-4);
     let r = reflect(-v, n);
-    let um = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, n.y * 0.5 + 0.5);
-    let ur = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, smoothstep(-0.4, 0.7, r.y)) * 2.2;
+    let um0 = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, n.y * 0.5 + 0.5);
+    let ur0 = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, smoothstep(-0.4, 0.7, r.y)) * 2.2;
+    let um = select(um0, um0 * ao, ao_an);
+    let ur = select(ur0, ur0 * ao, ao_an);
     let fu = f0 + (max(vec3<f32>(1.0 - rauh), f0) - f0) * pow(1.0 - ndv, 5.0);
     var c = diff * um + ur * fu * (1.0 - rauh) * (1.0 - rauh);
     // Spiegelung (Stimmung): nach oben zeigende Flächen auf Höhe der Spiegelebene nehmen das Spiegelbild an derselben
     // Bildschirmstelle (verzerrt vom Relief, unscharf mit der Rauheit), gewichtet mit Fresnel und Glätte
     let spiegeln = hdr_an() && stimmung.spiegel.x > 0.0 && !im_spiegel();
-    // Höhenfenster um die Ebene: einfach voll bis 0,05, aus ab 0,3; voll (H-K21) voll bis 0,2, aus ab 0,45 – Gehwege (0,15)
-    // spiegeln dann ganz (eine Ebene für alles; Restfehler: Versatz 2 · Höhenunterschied im Spiegelbild)
     let voll = stimmung.spiegel.w > 0.5;
-    let fenster = select(vec2<f32>(0.05, 0.3), vec2<f32>(0.2, 0.45), voll);
-    let auf_ebene = (1.0 - smoothstep(fenster.x, fenster.y, abs(welt.y - stimmung.spiegel.y))) * smoothstep(0.7, 0.95, ng.y);
+    let auf_ebene = auf_spiegelebene(welt, ng);
     if (spiegeln && auf_ebene > 0.0) {
         // Spiegelbild in halber Größe, bei spiegelGuete voll (spiegel.w = 1, H-K21) in voller
         let dim = vec2<f32>(textureDimensions(spiegel_t)) * select(2.0, 1.0, voll);
@@ -503,8 +535,21 @@ fn weich(c: vec3<f32>) -> vec3<f32> {
     return select(c, oben, c > vec3<f32>(0.8));
 }
 
-@fragment
-fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4<f32> {
+// Oberfläche eines Fragments (fs_licht und Bildraum-Vorlauf): Normale (Vorderseite, Relief), geometrische Normale, Textur,
+// Material-Zusatz. Ableitungen im gleichförmigen Kontrollfluss vor dem ersten discard (Aufruf am Anfang des Fragment-Shaders).
+struct Oberflaeche {
+    n: vec3<f32>,
+    ng: vec3<f32>,
+    tex: vec4<f32>,
+    hat_textur: bool,
+    rauh_karte: f32,
+    hat_relief: bool,
+    pbr: bool,
+    metall: f32,
+    nass: f32,
+}
+
+fn oberflaeche(a: AusNetz, vorne: bool) -> Oberflaeche {
     // Bit 17 = eigene Textur (PD3): Bits 0–15 = Glut-Kennung Klasse << 13 | Schicht (Klasse 7 = unbekannt → ohne Textur)
     let eigen = (a.textur & 131072u) != 0u;
     let klasse = (a.textur >> 13u) & 7u;
@@ -587,6 +632,68 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
         n = normalize(tt * nt.x + bb * nt.y + ng * nz);
         rauh_karte = rel.b;
     }
+    return Oberflaeche(n, ng, tex, hat_textur, rauh_karte, hat_relief, pbr, metall, nass);
+}
+
+// Verdeckung (H-K24): fertiges SSAO-Bild in halber Zielgröße, bilinear an der Pixelstelle
+@group(0) @binding(21) var verdeckung_t: texture_2d<f32>;
+@group(0) @binding(6) var lin_s: sampler;
+
+fn verdeckung_bei(pos: vec2<f32>) -> f32 {
+    return textureSampleLevel(verdeckung_t, lin_s, pos * bildraum.groesse.zw, 0.0).r;
+}
+
+// Oktaeder-Kodierung einer Einheitsnormale nach [0, 1]² (Bildraum-Vorlauf)
+fn oktaeder(n: vec3<f32>) -> vec2<f32> {
+    let p = n.xy / (abs(n.x) + abs(n.y) + abs(n.z));
+    let s = select(vec2<f32>(-1.0), vec2<f32>(1.0), p >= vec2<f32>(0.0));
+    let q = select(p, (vec2<f32>(1.0) - abs(p.yx)) * s, n.z < 0.0);
+    return q * 0.5 + vec2<f32>(0.5);
+}
+
+// Bildraum-Vorlauf (H-K24): FEST ohne MSAA in Tiefe + zwei Bilder – 0 (Rgb10a2): Normale oktaedrisch, Rauheit, pbr;
+// 1 (Rgba8): Gewicht des Umgebungsglanzes (wie pbr_licht, für SSR) und Anteil, den SSR übernimmt (1 − planare Spiegelung)
+struct AusVorlauf {
+    @location(0) normale: vec4<f32>,
+    @location(1) gewicht: vec4<f32>,
+}
+
+@fragment
+fn fs_vorlauf(a: AusNetz, @builtin(front_facing) vorne: bool) -> AusVorlauf {
+    let o = oberflaeche(a, vorne);
+    var aus: AusVorlauf;
+    aus.normale = vec4<f32>(oktaeder(o.n), 1.0, 0.0);
+    aus.gewicht = vec4<f32>(0.0);
+    if (o.pbr) {
+        var albedo = a.farbe.rgb;
+        if (o.hat_textur) {
+            albedo = albedo * zu_linear(o.tex.rgb);
+        }
+        let fl = pbr_flaeche(a.welt, o.n, o.ng, albedo, a.material.x, o.rauh_karte, o.hat_relief, o.nass);
+        let f0 = mix(vec3<f32>(0.04), fl.albedo, o.metall);
+        let v = normalize(szene.kamera.xyz - a.welt);
+        // auf der Ebene der planaren Spiegelung hat diese Vorrang (Boden, Pfützen); SSR übernimmt den Rest
+        let planar = select(0.0, auf_spiegelebene(a.welt, o.ng), stimmung.spiegel.x > 0.0);
+        aus.normale = vec4<f32>(oktaeder(fl.n), fl.rauh, 1.0);
+        aus.gewicht = vec4<f32>(clamp(umgebungsglanz(fl.n, v, fl.rauh, f0), vec3<f32>(0.0), vec3<f32>(1.0)), 1.0 - planar);
+    }
+    return aus;
+}
+
+@fragment
+fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4<f32> {
+    let o = oberflaeche(a, vorne);
+    let n = o.n;
+    let ng = o.ng;
+    let tex = o.tex;
+    let hat_textur = o.hat_textur;
+    let pbr = o.pbr;
+    // Verdeckung (H-K24): nur im Hauptbild, nur Undurchsichtiges (DURCH liegt vor der Fläche, deren Verdeckung im Bild steht)
+    let ao_an = bildraum.b.z > 0.5 && !im_spiegel() && a.farbe.a > 0.999;
+    var ao = 1.0;
+    if (ao_an) {
+        ao = verdeckung_bei(a.pos.xy);
+    }
     let l = szene.sonne_richtung.xyz;
     let ndl = max(dot(n, l), 0.0);
     let sonne = sonnenlicht(a.welt, n, ndl);
@@ -603,12 +710,13 @@ fn fs_licht(a: AusNetz, @builtin(front_facing) vorne: bool) -> @location(0) vec4
     let norm = (hart + 8.0) / 25.0; // energieerhaltend genähert: kleine Glanzpunkte heller
 
     // Umgebung (Halbkugel)
-    let himmel = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, n.y * 0.5 + 0.5);
+    let himmel0 = mix(szene.umgebung_unten.rgb, szene.umgebung_oben.rgb, n.y * 0.5 + 0.5);
+    let himmel = select(himmel0, himmel0 * ao, ao_an);
     var diffus = himmel;
     var glanzlicht = vec3<f32>(0.0);
     var pbr_farbe = vec3<f32>(0.0);
     if (pbr) {
-        pbr_farbe = pbr_licht(a.welt, n, ng, v, albedo, glanz, rauh_karte, hat_relief, metall, nass, sonne, a.pos.xy);
+        pbr_farbe = pbr_licht(a.welt, n, ng, v, albedo, glanz, o.rauh_karte, o.hat_relief, o.metall, o.nass, sonne, a.pos.xy, ao, ao_an);
     } else {
 
     // Sonne

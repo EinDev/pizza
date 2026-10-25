@@ -858,7 +858,7 @@ mod hk0 {
     }
 
     /// Nachtragsfelder an bestehenden Komponenten, die eine Stufe bewusst ergänzt (HERD.md §12.1 Regel 2).
-    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete")];
+    const NACHTRAEGE: &[(&str, &str)] = &[("Koerper", "belag"), ("Blick", "mausX"), ("Blick", "mausY"), ("Licht", "kegel"), ("Licht", "kegelRand"), ("Koerper", "strahlen"), ("Belag", "strahlen"), ("Belag", "relief"), ("Belag", "kachel"), ("Belag", "abbildung"), ("Belag", "modell"), ("Belag", "metall"), ("Belag", "nass"), ("Funken", "streckung"), ("Funken", "licht"), ("Funken", "volumen"), ("Funken", "aufschlag"), ("Funken", "boden"), ("Funken", "spritzer"), ("Funken", "regen"), ("Funken", "kollision"), ("Funken", "aufprall"), ("Funken", "abprall"), ("Stimmung", "regen"), ("Licht", "schattenGuete"), ("Licht", "schattenWeich"), ("Licht", "kaskaden"), ("Licht", "schattenWeite"), ("Stimmung", "spiegelGuete"), ("Stimmung", "verdeckung"), ("Stimmung", "verdeckungWeite"), ("Stimmung", "bildspiegel")];
 
     #[test]
     fn v1_arten_ohne_neue_eigenschaften() {
@@ -4520,7 +4520,7 @@ mod stimmung {
         let mut k = welt();
         let s = typ(&mut k, "Stimmung");
         assert_eq!(s, 31); // Typnummer in Merge-Reihenfolge: nach Tafel (30, H-K12)
-        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 15); // + spiegelGuete (H-K21)
+        assert_eq!(ARTEN[s as usize - 1].schema.oeffentliche(), 18); // + spiegelGuete (H-K21), verdeckung, verdeckungWeite, bildspiegel (H-K24)
         let bel = feld(&mut k, s, "belichtung");
         let bloom = feld(&mut k, s, "bloom");
         let nd = feld(&mut k, s, "nebelDichte");
@@ -7142,5 +7142,112 @@ mod hk25 {
             (k.hash_szene(), k.paket().to_vec())
         };
         assert_eq!(lauf(), lauf());
+    }
+}
+
+/// H-K24: Bildschirmraum – `Stimmung.verdeckung`, `verdeckungWeite`, `bildspiegel`, Abschnitt BILDRAUM.
+mod hk24 {
+    use super::*;
+
+    fn f(d: &[u8], o: usize) -> f32 {
+        f32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+    }
+    fn abschnitt_von(k: &Kern, art: u32) -> Option<Vec<u8>> {
+        Leser::neu(k.paket()).unwrap().abschnitte().find(|(a, _)| *a == art).map(|(_, d)| d.to_vec())
+    }
+    /// Boden und Würfel, Kamera mit nah 0.2 / fern 80, Stimmung; liefert (Stimmung, verdeckung, verdeckungWeite, bildspiegel).
+    fn szene(k: &mut Kern) -> (i32, i32, i32, i32) {
+        let kt = typ(k, "Koerper");
+        let form = feld(k, kt, "form");
+        let ebene = k.form_grund(5, 0.0, 0.0);
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        k.teil_lage(1, 0.0, 2.0, 8.0);
+        k.teil_schaue(1, 0.0, 0.5, 0.0);
+        let kam = typ(k, "Kamera");
+        let kc = k.komp_von(1, kam);
+        let (fnah, ffern) = (feld(k, kam, "nah"), feld(k, kam, "fern"));
+        assert_eq!(k.setze_zahl(kc, fnah, 0.2), 0);
+        assert_eq!(k.setze_zahl(kc, ffern, 80.0), 0);
+        for (fo, gr) in [(ebene, 30.0), (wuerfel, 1.0)] {
+            let t = k.teil_neu(3);
+            k.teil_groesse(t, gr, 1.0, gr);
+            let c = k.komp_neu(kt);
+            assert_eq!(k.setze_zahl(c, form, fo as f64), 0);
+            assert_eq!(k.komp_haenge(c, t), 0);
+        }
+        let st = typ(k, "Stimmung");
+        let t = k.teil_neu(3);
+        let s = k.komp_neu(st);
+        assert_eq!(k.komp_haenge(s, t), 0);
+        (s, feld(k, st, "verdeckung"), feld(k, st, "verdeckungWeite"), feld(k, st, "bildspiegel"))
+    }
+
+    #[test]
+    fn ohne_nutzung_byte_gleich() {
+        // Standard (alles 0) und ausdrücklich auf den Standard gesetzt: kein BILDRAUM, Paket und Hash gleich
+        let lauf = |setzen: bool| {
+            let mut k = welt();
+            let (s, v, vw, b) = szene(&mut k);
+            if setzen {
+                assert_eq!(k.setze_zahl(s, v, 0.0), 0);
+                assert_eq!(k.setze_zahl(s, vw, 0.5), 0);
+                assert_eq!(k.setze_zahl(s, b, 0.0), 0);
+            }
+            k.bild(1);
+            k.bild(1);
+            let st = abschnitt_von(&k, abschnitt::STIMMUNG).expect("STIMMUNG");
+            assert_eq!(st.len(), crate::komponenten::stimmung::STIMMUNG_BYTES);
+            assert!(abschnitt_von(&k, abschnitt::BILDRAUM).is_none());
+            (k.hash_szene(), k.paket().to_vec())
+        };
+        let (h, p) = lauf(false);
+        assert_eq!((h, p.clone()), lauf(true));
+        // nur die Weite geändert: kein Abschnitt (sie wirkt nur mit Verdeckung), Paket byte-gleich
+        let mut k = welt();
+        let (s, _, vw, _) = szene(&mut k);
+        assert_eq!(k.setze_zahl(s, vw, 1.5), 0);
+        k.bild(1);
+        k.bild(1);
+        assert!(abschnitt_von(&k, abschnitt::BILDRAUM).is_none());
+        assert_eq!(k.paket(), &p[..]);
+    }
+
+    #[test]
+    fn abschnitt_mit_verdeckung_und_bildspiegel() {
+        let mut k = welt();
+        let (s, v, vw, b) = szene(&mut k);
+        k.bild(1);
+        k.bild(1);
+        let ohne = k.paket().to_vec();
+        let h0 = k.hash_szene();
+        assert_eq!(k.setze_zahl(s, v, 1.25), 0);
+        assert_eq!(k.setze_zahl(s, vw, 0.75), 0);
+        k.bild(1);
+        assert_ne!(k.hash_szene(), h0);
+        let d = abschnitt_von(&k, abschnitt::BILDRAUM).expect("BILDRAUM");
+        assert_eq!(d.len(), crate::komponenten::stimmung::BILDRAUM_BYTES);
+        assert_eq!([f(&d, 0), f(&d, 4), f(&d, 8), f(&d, 12)], [1.25, 0.75, 0.0, 1.0]);
+        assert_eq!([f(&d, 16), f(&d, 20), f(&d, 24), f(&d, 28)], [0.2, 80.0, 0.0, 0.0]);
+        // BILDRAUM steht direkt hinter STIMMUNG; das Paket wächst um genau diesen Abschnitt (8 + 32 Bytes)
+        let arten: Vec<u32> = Leser::neu(k.paket()).unwrap().abschnitte().map(|(a, _)| a).collect();
+        let i = arten.iter().position(|&a| a == abschnitt::STIMMUNG).unwrap();
+        assert_eq!(arten[i + 1], abschnitt::BILDRAUM);
+        assert_eq!(k.paket().len(), ohne.len() + 40);
+        // nur Bildraum-Spiegelung
+        assert_eq!(k.setze_zahl(s, v, 0.0), 0);
+        assert_eq!(k.setze_zahl(s, b, 0.6), 0);
+        k.bild(1);
+        let d = abschnitt_von(&k, abschnitt::BILDRAUM).expect("BILDRAUM");
+        assert_eq!([f(&d, 0), f(&d, 8)], [0.0, 0.6]);
+        // Bereiche: verdeckung 0 … 2, bildspiegel 0 … 1, Weite > 0
+        assert!(k.setze_zahl(s, v, 2.5) < 0);
+        assert!(k.setze_zahl(s, b, 1.5) < 0);
+        assert!(k.setze_zahl(s, vw, 0.0) < 0);
+        // wieder aus → Paket und Hash wie ohne
+        assert_eq!(k.setze_zahl(s, b, 0.0), 0);
+        assert_eq!(k.setze_zahl(s, vw, 0.5), 0);
+        k.bild(1);
+        assert!(abschnitt_von(&k, abschnitt::BILDRAUM).is_none());
+        assert_eq!(k.hash_szene(), h0);
     }
 }
