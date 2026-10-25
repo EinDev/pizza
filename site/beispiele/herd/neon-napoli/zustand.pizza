@@ -1,0 +1,40 @@
+// Gemeinsamer Zustand aller Dateien: der Herd, die Kollisionskästen der Welt und kleine Bauhelfer.
+// (Nebendateien sehen die Hauptdatei nicht – was alle brauchen, steht hier; PROJEKTE.md §2.1.)
+
+Herd herd = neu Herd("Neon-Napoli", breite: 1280, hoehe: 720);
+
+// Formen einmal anlegen und teilen: gleiche Form = eine Instanzliste = ein Draw-Call für alle
+Form WUERFEL = Form.wuerfel();
+Form EBENE = Form.ebene();
+Form ROHR = Form.zylinder(teile: 12);
+Form KUGEL = Form.kugel(teile: 10);
+
+// Kollision: achsenparallele Rechtecke im Grundriss, je vier Zahlen x0, z0, x1, z1 (der Spieler ist ein Kreis)
+Blech<funghi> MAUERN = [];
+
+leer mauer(funghi x0, funghi z0, funghi x1, funghi z1) {
+    MAUERN.hinzu(Mathe.min(x0, x1)).hinzu(Mathe.min(z0, z1)).hinzu(Mathe.max(x0, x1)).hinzu(Mathe.max(z0, z1));
+}
+
+// Ein Quader mit Mitte (x, y, z), Größe (b, h, t) und geteiltem Material; fest = auch eine Mauer für den Spieler
+Teil quader(Teil stoff, funghi x, funghi y, funghi z, funghi b, funghi h, funghi t, diavolo fest) {
+    Teil q = herd.koerper(WUERFEL, x, y, z).setzeGroesse(b, h, t);
+    q.koerper().setzeBelag(stoff);
+    falls (fest) { mauer(x - b / 2, z - t / 2, x + b / 2, z + t / 2); }
+    serviere ((q));
+}
+
+// Eine leuchtende Fläche (Schild, Fenster, Hologramm): Ebene, aufgestellt und zur Straße gedreht
+Teil tafel(Bildchen bild, funghi x, funghi y, funghi z, funghi b, funghi h, funghi drehung, funghi strahlen) {
+    Teil t = herd.koerper(EBENE, x, y, z, farbe: "weiss", leuchten: 1, bild: bild);
+    t.setzeNeigung(90).setzeDrehung(drehung).setzeGroesse(b, 1, h);
+    t.koerper().setzeStrahlen(strahlen).setzeSchatten(nein);
+    serviere ((t));
+}
+
+// Deterministischer Zufall für die Bauten (gleiche Welt in jedem Lauf)
+salami saat = 20871;
+funghi wuerfle() {
+    saat = (saat * 16807) % 2147483647;
+    serviere ((saat / 2147483647));
+}

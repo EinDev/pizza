@@ -222,6 +222,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Stimmung", "Bloom", "Nebel", "Licht"],
       "herd": true
+    },
+    {
+      "id": "neon-napoli",
+      "titel": "Neon-Napoli: Pizzabote im Regen",
+      "beschreibung": "Ein begehbares 3D-Spiel in einer verregneten Neon-Straßenschlucht: Hol in der Pizzeria eine Pizza und liefere sie an drei Türen. Fototexturen mit Relief, nasser Asphalt mit spiegelnden Pfützen, über 100 farbige Lichter, Bloom und Höhennebel. W A S D laufen, Umschalt rennen, Maus ziehen oder Q/E umsehen.",
+      "ordner": "herd/neon-napoli",
+      "dateien": ["pizza.json", "hauptgang.pizza", "auftraege.pizza", "bilder/asphalt-farbe.jpg", "bilder/asphalt-relief.jpg", "bilder/beton-farbe.jpg", "bilder/beton-relief.jpg", "bilder/fenster.png", "bilder/fliesen-farbe.jpg", "bilder/fliesen-relief.jpg", "bilder/gehweg-farbe.jpg", "bilder/gehweg-relief.jpg", "bilder/holo-pizza.png", "bilder/laden-kalt.png", "bilder/laden-warm.png", "bilder/neon-calzone.png", "bilder/neon-napoli.png", "bilder/neon-ofen.png", "bilder/neon-pizza.png", "bilder/neon-salami.png", "bilder/neon-senkrecht.png", "bilder/neon-senkrecht2.png", "bilder/neon-teig.png", "bilder/rolltor-farbe.jpg", "bilder/rolltor-relief.jpg", "bilder/wellblech-farbe.jpg", "bilder/wellblech-relief.jpg", "bilder/ziegel-farbe.jpg", "bilder/ziegel-relief.jpg", "bilder/ziel.png", "hud.pizza", "quellen.md", "spieler.pizza", "welt/haeuser.pizza", "welt/neon.pizza", "welt/stoffe.pizza", "welt/strasse.pizza", "welt/wetter.pizza", "zustand.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Spiel", "Projekt", "Bilder", "Material", "Stimmung", "Licht"],
+      "herd": true
     }
   ]
 }

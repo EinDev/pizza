@@ -1,0 +1,43 @@
+// Anzeige (2D über der Szene, unberührt von Tonkurve und Bloom): Auftrag, Ziel mit Abstand und Richtung, Zeit, Trinkgeld,
+// Fadenkreuz und eine Zeile Steuerung.
+bestellt "zustand.pizza";
+bestellt "spieler.pizza";
+bestellt "auftraege.pizza";
+
+klasse Anzeige {
+    Teil auftrag;
+    Teil ziel;
+    Teil stand;
+    Teil hilfe;
+
+    Anzeige() {
+        herd.rechteck(330, 46, 640, 72, farbe: "#05060ccc", rundung: 10);
+        auftrag = herd.text("", 26, 18, groesse: 22, farbe: "#f4f1ff");
+        ziel = herd.text("", 26, 50, groesse: 18, farbe: "#7dff6a");
+        herd.rechteck(1170, 34, 200, 48, farbe: "#05060ccc", rundung: 10);
+        stand = herd.text("", 1252, 22, groesse: 20, farbe: "#ffd23a", ausrichtung: "rechts");
+        herd.kreis(640, 360, 2.5, farbe: "#ffffffb0");
+        hilfe = herd.text("WASD/Pfeile laufen · Umschalt rennen · Maus ziehen oder Q/E umsehen", 640, 690, groesse: 16,
+                          farbe: "#c8c4dcb0", ausrichtung: "mitte");
+    }
+
+    leer takt(Spieler s, Lieferung l, salami bild) {
+        auftrag.text().setzeInhalt(l.auftrag());
+        falls (l.ende > 0) {
+            ziel.text().setzeInhalt("Lieferzeit " + zeitText(l.ende) + " · " + Mathe.runden(s.weg) + " m gelaufen");
+        } sonst {
+            funghi w = s.richtung(l.zielX(), l.zielZ());
+            margherita pfeil = w < -25 ? "<< " : (w > 25 ? ">> " : "^ ");
+            ziel.text().setzeInhalt(pfeil + "Ziel: " + Mathe.runden(s.abstand(l.zielX(), l.zielZ())) + " m");
+        }
+        stand.text().setzeInhalt(zeitText(l.ende > 0 ? l.ende : bild) + "   " + l.trinkgeld + " €");
+        falls (bild > 900) { hilfe.sichtbar(nein); }
+    }
+}
+
+margherita zeitText(salami bild) {
+    salami s = (bild / 60).ganz();
+    salami m = (s / 60).ganz();
+    salami r = s % 60;
+    serviere ((m + ":" + (r < 10 ? "0" : "") + r));
+}

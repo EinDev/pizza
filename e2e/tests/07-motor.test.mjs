@@ -97,6 +97,12 @@ e2e("Gleiche Ausgabe in allen Modi für alle Beispiele (inkl. interaktiver Spiel
   const modi = Object.entries(v).filter(([, an]) => an).map(([m]) => m).filter((m) => m !== "interpreter");
   if (!modi.length) return t.skip("nur Interpreter verfügbar");
   for (const b of ALLE_BEISPIELE) {
+    // Mehrdatei-Projekte (bestellt) lassen sich nicht als ein Editor-Text setzen – die prüft 05 über die Galerie (alle Dateien)
+    const pizzaDateien = (b.dateien || []).filter((d) => d.endsWith(".pizza"));
+    if (pizzaDateien.length > 1) {
+      await t.test(`${b.ordner} (Mehrdatei)`, { skip: "Mehrdatei-Projekt: Ausgabe und Hashes prüft 05-beispiele über die Galerie" }, () => {});
+      continue;
+    }
     const code = await page.evaluate(async (d) => (await fetch("beispiele/" + d)).text(), b.hauptdateiUrl);
     await setzeCode(page, code.replace(/\r\n?/g, "\n"));
     for (const m of modi) {

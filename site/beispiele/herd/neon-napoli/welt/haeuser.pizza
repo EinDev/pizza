@@ -1,0 +1,116 @@
+// Häuserzeilen links und rechts der Straße, die Gasse, Hochhäuser im Hintergrund. Fassaden aus Fototexturen in Weltmaß,
+// darüber erleuchtete Fensterraster, unten Rolltore, Schaufenster und Türen, an den Wänden Klimakästen und Kabel.
+bestellt "zustand.pizza";
+bestellt "welt/stoffe.pizza";
+bestellt "welt/strasse.pizza";
+
+// leuchtende Fensterraster (Weltabbildung: eine Kachel = 16 m, 8 × 6 Fenster)
+Teil FENSTER = fensterBelag();
+Teil fensterBelag() {
+    Teil t = herd.raum(0, -50, 0);
+    t.mit(neu Belag(farbe: "weiss", leuchten: 1, strahlen: 1.4, bild: Bildchen.laden("bilder/fenster.png"), kachel: 16, abbildung: "welt"));
+    serviere ((t));
+}
+
+Blech<Teil> FASSADEN = [BETON, ZIEGEL, FLIESEN, BETON, WELLBLECH, ZIEGEL];
+Blech<margherita> NEONFARBEN = ["#ff2bd6", "#22e6ff", "#ffd23a", "#39ff8a", "#ff6a1f", "#8a6bff"];
+
+// Haus an der Straße: seite −1 links, 1 rechts; Fassade bei |x| = 6.5, z von z0 bis z1 (z0 > z1)
+leer haus(salami seite, funghi z0, funghi z1, funghi hoehe, Teil stoff, funghi tiefe) {
+    funghi laenge = z0 - z1;
+    funghi zm = (z0 + z1) / 2;
+    funghi xf = seite * 6.5;
+    quader(stoff, xf + seite * tiefe / 2, hoehe / 2, zm, tiefe, hoehe, laenge, ja);
+    // Fensterraster ab 4.5 m (2 cm vor der Fassade)
+    falls (hoehe > 7) {
+        Teil f = herd.koerper(EBENE, xf - seite * 0.02, (hoehe + 4.5) / 2, zm).setzeRollen(seite * 90).setzeGroesse(hoehe - 5, 1, laenge - 1.2);
+        f.koerper().setzeBelag(FENSTER).setzeSchatten(nein);
+    }
+    // Erdgeschoss: Rolltor oder Schaufenster, Tür, Vordach
+    funghi r = wuerfle();
+    falls (r < 0.45) {
+        quader(ROLLTOR, xf - seite * 0.06, 1.5, zm, 0.1, 3, Mathe.min(laenge - 1.5, 5.5), nein);
+    } sonst {
+        Teil glas = herd.koerper(WUERFEL, xf - seite * 0.05, 1.6, zm, farbe: "weiss", leuchten: 1, bild: Bildchen.laden(r < 0.75 ? "bilder/laden-warm.png" : "bilder/laden-kalt.png"));
+        glas.setzeGroesse(0.06, 2.4, Mathe.min(laenge - 2, 5)).koerper().setzeStrahlen(0.7).setzeSchatten(nein);
+        herd.licht(xf - seite * 1.2, 1.8, zm, farbe: r < 0.75 ? "#ffb070" : "#7fd8ff", reichweite: 5).licht().setzeStaerke(1.6);
+    }
+    quader(SCHWARZ, xf - seite * 0.06, 1.15, z1 + 0.9, 0.08, 2.3, 1.1, nein);
+    // Vordach
+    quader(STAHL, xf - seite * 0.6, 3.3, zm, 1.2, 0.08, laenge - 0.6, nein);
+    // Neonleisten an der Fassade, je mit farbigem Licht (färbt Wand und Straße)
+    für (salami k = 0; k < 2; k++) {
+        funghi ly = 4.5 + wuerfle() * Mathe.min(hoehe - 6, 12);
+        funghi lz = z1 + 1 + wuerfle() * (laenge - 2);
+        margherita c = NEONFARBEN.stück((wuerfle() * 6).ganz() + 1);
+        diavolo senkrecht = wuerfle() < 0.5;
+        Teil leiste = herd.koerper(WUERFEL, xf - seite * 0.05, ly, lz, farbe: c, leuchten: 1);
+        leiste.setzeGroesse(0.06, senkrecht ? 1.8 : 0.07, senkrecht ? 0.07 : 2.2).koerper().setzeStrahlen(7).setzeSchatten(nein);
+        herd.licht(xf - seite * 0.7, ly, lz, farbe: c, reichweite: 6).licht().setzeStaerke(1.6);
+    }
+    // Klimakästen an der Fassade
+    salami kaesten = (wuerfle() * 4).ganz();
+    für (salami k = 0; k < kaesten; k++) {
+        funghi ky = 5 + wuerfle() * (hoehe - 8);
+        funghi kz = z1 + 0.8 + wuerfle() * (laenge - 1.6);
+        quader(WELLBLECH, xf - seite * 0.35, ky, kz, 0.7, 0.6, 0.9, nein);
+        // Lüftergitter
+        herd.koerper(ROHR, xf - seite * 0.71, ky, kz).setzeRollen(90).setzeGroesse(0.45, 0.02, 0.45).koerper().setzeBelag(GUMMI);
+    }
+}
+
+// Kabel quer über die Straße: Durchhang aus kurzen Stücken
+leer kabel(funghi z, funghi y, funghi durchhang) {
+    salami teile = 10;
+    für (salami i = 0; i < teile; i++) {
+        funghi t0 = i / teile;
+        funghi t1 = (i + 1) / teile;
+        funghi x0 = -6.5 + t0 * 13;
+        funghi x1 = -6.5 + t1 * 13;
+        funghi y0 = y - durchhang * 4 * t0 * (1 - t0);
+        funghi y1 = y - durchhang * 4 * t1 * (1 - t1);
+        funghi dx = x1 - x0;
+        funghi dy = y1 - y0;
+        Teil s = herd.koerper(ROHR, (x0 + x1) / 2, (y0 + y1) / 2, z);
+        s.setzeRollen(Mathe.grad(Mathe.atan2(dx, dy)) * -1).setzeGroesse(0.035, Mathe.wurzel(dx * dx + dy * dy) + 0.02, 0.035);
+        s.koerper().setzeBelag(GUMMI).setzeSchatten(nein);
+    }
+}
+
+leer baueHaeuser() {
+    // links: bis zur Gasse und danach; rechts durchgehend
+    funghi z = STRASSE_ANFANG;
+    salami n = 0;
+    solange (z > STRASSE_ENDE) {
+        funghi l = 9 + (wuerfle() * 6).ganz();
+        funghi z1 = Mathe.max(z - l, STRASSE_ENDE);
+        falls (z > GASSE_Z + 3 && z1 < GASSE_Z + 3) { z1 = GASSE_Z + 3; }
+        falls (z <= GASSE_Z + 3 && z > GASSE_Z - 3) { z = GASSE_Z - 3; z1 = Mathe.max(z - l, STRASSE_ENDE); }
+        haus(-1, z, z1, 12 + (wuerfle() * 26).ganz(), FASSADEN.stück(n % 6 + 1), 9);
+        z = z1;
+        n++;
+    }
+    z = STRASSE_ANFANG;
+    solange (z > STRASSE_ENDE) {
+        funghi l = 8 + (wuerfle() * 7).ganz();
+        funghi z1 = Mathe.max(z - l, STRASSE_ENDE);
+        haus(1, z, z1, 14 + (wuerfle() * 30).ganz(), FASSADEN.stück((n * 5 + 2) % 6 + 1), 9);
+        z = z1;
+        n++;
+    }
+    // Gasse: Seitenwände (Teil der Häuserblöcke) und Ende
+    quader(ZIEGEL, -14.5, 9, GASSE_Z + 3.5, 16, 18, 1, ja);
+    quader(BETON, -14.5, 7, GASSE_Z - 3.5, 16, 14, 1, ja);
+    quader(WELLBLECH, -22.5, 5, GASSE_Z, 1, 10, 8, ja);
+    // Hochhäuser im Hintergrund (nur Silhouette mit Fenstern)
+    für (salami i = 0; i < 7; i++) {
+        funghi x = -42 + i * 14 + wuerfle() * 4;
+        funghi h = 60 + wuerfle() * 70;
+        Teil turm = quader(BETON, x, h / 2, STRASSE_ENDE - 30 - wuerfle() * 30, 12, h, 12, nein);
+        Teil f = herd.koerper(EBENE, x, h / 2 + 4, turm.z() + 6.02).setzeNeigung(90).setzeGroesse(11, 1, h - 10);
+        f.koerper().setzeBelag(FENSTER).setzeSchatten(nein);
+    }
+    für (funghi kz = STRASSE_ANFANG - 6; kz > STRASSE_ENDE; kz -= 11) {
+        kabel(kz, 9 + wuerfle() * 8, 0.6 + wuerfle() * 1.2);
+    }
+}

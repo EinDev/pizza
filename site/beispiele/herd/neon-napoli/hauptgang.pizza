@@ -1,0 +1,39 @@
+// Neon-Napoli – Pizzabote in einer verregneten Straßenschlucht im Neapel des Jahres 2087. Hol in der Pizzeria am Hafen
+// eine Pizza und bring sie zur grün markierten Tür, dreimal, so schnell du kannst.
+//
+// Steuerung: W A S D oder Pfeile laufen (mit Umschalt rennen), Maus ziehen oder Q/E bzw. Links/Rechts umsehen.
+//
+// So arbeitet die Engine für dich: Die Fassaden, der nasse Asphalt und das Blech sind Fototexturen mit Relief (Normale und
+// Rauheit), gekachelt in Weltmaß und mit physikalischem Licht gerechnet; Pfützen entstehen aus `nass` und spiegeln. Über 100 farbige
+// Lichter (Neonschilder, Laternen-Spots, Schaufenster, Drohnen) wirken gleichzeitig, eine Stimmung macht daraus ein HDR-Bild
+// mit Bloom, Höhennebel und Filmkorn. Das Programm baut nur die Welt und bewegt Kamera, Regen und Marke.
+bestellt "zustand.pizza";
+bestellt "welt/stoffe.pizza";
+bestellt "welt/strasse.pizza";
+bestellt "welt/haeuser.pizza";
+bestellt "welt/neon.pizza";
+bestellt "welt/wetter.pizza";
+bestellt "spieler.pizza";
+bestellt "auftraege.pizza";
+bestellt "hud.pizza";
+
+baueStrasse();
+baueHaeuser();
+baueStrassenmoebel();
+baueNeon();
+baueDrohnen();
+
+Spieler spieler = neu Spieler(1.5, 10, 20);
+Lieferung lieferung = neu Lieferung();
+Anzeige anzeige = neu Anzeige();
+
+herd.backe(() -> {
+    salami bild = herd.bildnummer();
+    spieler.takt();
+    lieferung.takt(spieler, bild);
+    neonTakt(bild);
+    wetterTakt(spieler.x, spieler.z, spieler.blick);
+    anzeige.takt(spieler, lieferung, bild);
+});
+Bote.sage(("Neon-Napoli: " + lieferung.geliefert + " von 3 Pizzen geliefert, " + lieferung.trinkgeld + " € Trinkgeld, "
+           + Mathe.runden(spieler.weg) + " m gelaufen, " + (MAUERN.länge() / 4) + " Mauern."));

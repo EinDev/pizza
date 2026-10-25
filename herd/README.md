@@ -388,7 +388,7 @@ Textdatei, eine Anweisung je Zeile, `#` beginnt einen Kommentar. Gelesen von `he
 | `wiederhole n [var]` … `ende` | Schleife, `var` = 0 … n − 1 (verschachtelbar) |
 | `setze var = ausdruck` | Variable |
 | `vorgabe VAR zahl` | Variable mit Standardwert; Kommandozeile `VAR=wert` (bzw. Objekt in JS) überschreibt – so laufen B1–B4 klein und voll |
-| `teigling_datei "pfad" [-> var]` | Hilfsaufruf der Spieler: Teigling-Datei lesen und `bildchen_teigling` rufen – so zeichnet `tests/herd/bild.js` Projekte mit `Bildchen.laden` auf (Teiglinge in einem Temp-Ordner) |
+| `teigling_datei "pfad" [-> var]` | Hilfsaufruf der Spieler: Teigling-Datei lesen und `bildchen_teigling` rufen – so zeichnet `tests/herd/bild.js` Projekte mit `Bildchen.laden` auf (Teiglinge in einem Temp-Ordner; mit `--skript datei.herd` bleiben sie in `datei-teige/` neben dem Skript liegen, damit es sich später nachspielen und messen lässt – Skript also außerhalb des Repos ablegen, z. B. im Scratch-Ordner) |
 | `teigling_muster m b h [-> var]` | Hilfsaufruf der Spieler (kein ABI-Export, PD3): baut einen Teigling v1 aus dem festen Muster `m` (1 Schachbrett, 2 Pizza mit durchsichtigem Rand, 3 Rahmen, 4 Zonenplatte, 5 Himmelsseite: zwei Bergketten mit Lichtern vor durchsichtigem Himmel, Horizont bei h/2 (H-K11b); 6 Relief „Noppen“ (Normale in R, G, Rauheit in B, je 32 px eine Noppe), 7 Steinplatten (64-px-Felder mit Fugen) – beide kachelbar (Material); nur Ganzzahlen, `muster_pixel`) mit Mipmaps wie der Vorbacker (SHA-256 im Kopf = 0) und ruft `bildchen_teigling` – Bilder bis 2048² ohne Byte-Listen im Skript (Referenzbilder, Messung) |
 
 **Argumente:** Zahl/Variable/Ausdruck in Klammern (`(zufall(i) * 1280)`), Text als JSON-Zeichenkette, Listen `[a, b]`; erzeugte

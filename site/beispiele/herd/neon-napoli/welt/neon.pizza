@@ -1,0 +1,97 @@
+// Leuchtreklame: Neonschriften (Röhren aus bilder/neon-*.png, strahlen > 1 → Bloom), je ein farbiges Licht davor, ein paar
+// flackern. Dazu das Hologramm über der Pizzeria und Drohnen mit Blinklichtern.
+bestellt "zustand.pizza";
+bestellt "welt/stoffe.pizza";
+bestellt "welt/strasse.pizza";
+
+// flackernde Schilder: Körper und ihr Licht, Grundstärke
+Blech<Koerper> FLACKER_K = [];
+Blech<Licht> FLACKER_L = [];
+Blech<funghi> FLACKER_S = [];
+
+// Schild an einer Fassade (seite −1 links, 1 rechts; quer = ragt senkrecht in die Straße und zeigt nach +z)
+Teil schild(margherita name, funghi x, funghi y, funghi z, funghi b, funghi h, salami seite, diavolo quer, margherita farbe, funghi strahlen, diavolo flackert) {
+    funghi drehung = quer ? 0 : (seite < 0 ? 90 : -90);
+    Teil t = tafel(Bildchen.laden("bilder/" + name + ".png"), x, y, z, b, h, drehung, strahlen);
+    // dunkle Trägerplatte dahinter
+    falls (!quer) {
+        herd.koerper(WUERFEL, x + seite * 0.06, y, z).setzeGroesse(0.06, h * 1.08, b * 1.04).koerper().setzeBelag(SCHWARZ);
+    }
+    Teil lt = herd.licht(quer ? x : x - seite * 0.9, y, quer ? z + 0.7 : z, farbe: farbe, reichweite: 7.5);
+    Licht l = lt.licht().setzeStaerke(4);
+    falls (quer) {
+        Teil l2 = herd.licht(x, y, z - 0.7, farbe: farbe, reichweite: 7.5);
+        l2.licht().setzeStaerke(4);
+    }
+    falls (flackert) {
+        FLACKER_K.hinzu(t.koerper());
+        FLACKER_L.hinzu(l);
+        FLACKER_S.hinzu(strahlen);
+    }
+    serviere ((t));
+}
+
+leer baueNeon() {
+    // Pizzeria (rechts am Anfang)
+    schild("neon-pizza", 6.42, 4.6, -0.5, 6.2, 1.95, 1, nein, "#ff2bd6", 9, nein);
+    schild("neon-ofen", 6.42, 3.7, -5.6, 3.4, 0.85, 1, nein, "#ff7a1f", 7, ja);
+    schild("neon-senkrecht", 5.7, 8.5, 4.2, 0.9, 3.6, 1, ja, "#ffd23a", 7, nein);
+    // links
+    schild("neon-napoli", -6.42, 7.5, -12, 7.5, 1.4, -1, nein, "#22e6ff", 8, nein);
+    schild("neon-teig", -6.42, 4.2, -24, 3.2, 1.2, -1, nein, "#c6ff3a", 7, ja);
+    schild("neon-senkrecht2", -5.7, 7.8, -33, 0.9, 3.6, -1, ja, "#22e6ff", 7, nein);
+    schild("neon-salami", -6.42, 5.5, -47, 7, 1.1, -1, nein, "#ff3048", 8, nein);
+    schild("neon-calzone", -6.42, 9.5, -74, 6.5, 1.2, -1, nein, "#a46bff", 8, ja);
+    schild("neon-pizza", -6.42, 4.3, -96, 4.2, 1.3, -1, nein, "#ff2bd6", 8, nein);
+    // rechts
+    schild("neon-salami", 6.42, 8.5, -19, 6.8, 1.05, 1, nein, "#ff3048", 8, ja);
+    schild("neon-senkrecht", 5.7, 7.2, -40, 0.9, 3.6, 1, ja, "#ffd23a", 7, nein);
+    schild("neon-napoli", 6.42, 5.2, -58, 6.2, 1.15, 1, nein, "#22e6ff", 8, nein);
+    schild("neon-teig", 6.42, 11, -70, 3.6, 1.35, 1, nein, "#c6ff3a", 7, nein);
+    schild("neon-ofen", 6.42, 4.1, -88, 3.6, 0.9, 1, nein, "#ff7a1f", 7, ja);
+    schild("neon-senkrecht2", 5.7, 9, -104, 0.9, 3.6, 1, ja, "#22e6ff", 7, nein);
+    // Gasse
+    schild("neon-calzone", -21.92, 4.4, GASSE_Z, 4.8, 0.9, -1, nein, "#a46bff", 7, ja);
+}
+
+// Hologramm: halb durchsichtiges Pizzastück, das sich über der Pizzeria dreht (Rasterlinien fallen weg)
+Teil HOLO = baueHolo();
+Teil baueHolo() {
+    Teil h = herd.raum(4.4, 7.4, 1.6);
+    Teil bild = herd.koerper(EBENE, 0, 0, 0, farbe: "#ffffffa0", leuchten: 1, bild: Bildchen.laden("bilder/holo-pizza.png"));
+    bild.setzeNeigung(90).setzeGroesse(2.4, 1, 2.4).haenge(h);
+    bild.koerper().setzeStrahlen(3.2).setzeSchatten(nein);
+    h.mit(neu Bewegung(drehtempo: 35));
+    herd.licht(4.4, 7.4, 1.6, farbe: "#3cf2ff", reichweite: 6).licht().setzeStaerke(1.6);
+    serviere ((h));
+}
+
+// Drohnen: kleiner Körper mit rotem und blauem Licht, fliegen auf Ablauf-Bahnen über die Straße
+Blech<Licht> DROHNEN_L = [];
+leer drohne(funghi x, funghi y, funghi z0, funghi z1, funghi dauer) {
+    Teil d = herd.raum(x, y, z0);
+    herd.koerper(WUERFEL, 0, 0, 0).setzeGroesse(0.7, 0.14, 0.7).haenge(d).koerper().setzeBelag(STAHL);
+    herd.koerper(KUGEL, 0.35, 0, 0, farbe: "#ff2040", leuchten: 1).setzeGroesse(0.1).haenge(d).koerper().setzeStrahlen(12);
+    herd.koerper(KUGEL, -0.35, 0, 0, farbe: "#2a60ff", leuchten: 1).setzeGroesse(0.1).haenge(d).koerper().setzeStrahlen(12);
+    DROHNEN_L.hinzu(herd.licht(0, -0.3, 0, farbe: "#ff4060", reichweite: 5).haenge(d).licht().setzeStaerke(1.2));
+    d.mit(neu Ablauf(zeiten: [0, dauer, dauer * 2], zWerte: [z0, z1, z0], xWerte: [x, -x, x], kurve: "sanft"));
+}
+
+leer baueDrohnen() {
+    drohne(2.5, 13, 6, -100, 34);
+    drohne(-1.5, 17, -90, 0, 41);
+    drohne(0.5, 22, -30, -115, 27);
+}
+
+// je Takt: Flackern (deterministisch aus der Bildnummer) und Blinken der Drohnen
+leer neonTakt(salami bild) {
+    für (salami i = 1; i <= FLACKER_K.länge(); i++) {
+        salami phase = (bild + i * 37) % 240;
+        diavolo aus = (phase > 200 && phase < 204) || (phase > 211 && phase < 213) || (i % 3 == 0 && phase > 120 && phase < 123);
+        FLACKER_K.stück(i).setzeStrahlen(aus ? 0.25 : FLACKER_S.stück(i));
+        FLACKER_L.stück(i).setzeStaerke(aus ? 0.3 : 4);
+    }
+    für (salami i = 1; i <= DROHNEN_L.länge(); i++) {
+        DROHNEN_L.stück(i).setzeStaerke((bild + i * 20) % 60 < 6 ? 3 : 0.4);
+    }
+}

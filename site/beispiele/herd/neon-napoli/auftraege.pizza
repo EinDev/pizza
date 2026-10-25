@@ -1,0 +1,73 @@
+// Spielziel: drei Pizzen ausliefern. In der Pizzeria (rechts am Hafen) eine Pizza holen, zur markierten Tür bringen, zurück,
+// nächste – bis alle drei geliefert sind. Das grüne Zielzeichen schwebt über der nächsten Station; die Lieferzeit zählt.
+bestellt "zustand.pizza";
+bestellt "spieler.pizza";
+bestellt "welt/strasse.pizza";
+
+funghi THEKE_X = 5.2;
+funghi THEKE_Z = -1.6;
+Blech<funghi> ZIELE_X = [-5.6, 5.6, -20.8];
+Blech<funghi> ZIELE_Z = [-38, -80, -62];
+Blech<margherita> ZIELE_NAME = ["Signora Rossi, Tür 38 links", "Club Calzone, Tür 80 rechts", "Hinterhof der Gasse"];
+
+klasse Lieferung {
+    salami geliefert;     // 0 … 3
+    diavolo traegt;       // Pizza dabei?
+    salami start;         // Bildnummer beim Start
+    salami ende;          // Bildnummer beim Feierabend (0 = läuft)
+    salami trinkgeld;
+    Teil marke;
+    Teil schachtel;
+    Licht markenLicht;
+
+    Lieferung() {
+        geliefert = 0;
+        traegt = nein;
+        start = 0;
+        ende = 0;
+        trinkgeld = 0;
+        // Zielzeichen: Ring mit Pfeil (leuchtend), dreht sich, grünes Licht
+        marke = herd.raum(THEKE_X, 2.6, THEKE_Z);
+        Teil bild = herd.koerper(EBENE, 0, 0, 0, farbe: "weiss", leuchten: 1, bild: Bildchen.laden("bilder/ziel.png"));
+        bild.setzeNeigung(90).setzeGroesse(1.1, 1, 1.1).haenge(marke);
+        bild.koerper().setzeStrahlen(6).setzeSchatten(nein);
+        marke.mit(neu Bewegung(drehtempo: 120));
+        markenLicht = herd.licht(0, -0.6, 0, farbe: "#7dff6a", reichweite: 4).haenge(marke).licht().setzeStaerke(2);
+        // der Pizzakarton vor der Kamera (Kind der Kamera, nur sichtbar beim Tragen)
+        schachtel = herd.koerper(WUERFEL, 0.3, -0.42, -0.7, farbe: "#5a3a22", glanz: 0.1).setzeGroesse(0.36, 0.05, 0.36);
+        schachtel.haenge(herd.kamera());
+        schachtel.koerper().setzeSchatten(nein);
+        herd.koerper(EBENE, 0, 0.51, 0, farbe: "#7a2020", glanz: 0.1).setzeGroesse(0.6, 1, 0.12).haenge(schachtel);
+        schachtel.sichtbar(nein);
+    }
+
+    funghi zielX() { serviere ((traegt ? ZIELE_X.stück(geliefert + 1) : THEKE_X)); }
+    funghi zielZ() { serviere ((traegt ? ZIELE_Z.stück(geliefert + 1) : THEKE_Z)); }
+    margherita auftrag() {
+        falls (ende > 0) { serviere (("Feierabend! Alle drei Pizzen sind warm angekommen.")); }
+        falls (traegt) { serviere (("Liefere Pizza " + (geliefert + 1) + "/3: " + ZIELE_NAME.stück(geliefert + 1))); }
+        serviere (("Hol Pizza " + (geliefert + 1) + "/3 an der Theke von PIZZA (rechts am Hafen)"));
+    }
+
+    leer takt(Spieler s, salami bild) {
+        falls (ende > 0) { serviere; }
+        falls (s.abstand(zielX(), zielZ()) < 1.6) {
+            falls (traegt) {
+                geliefert++;
+                traegt = nein;
+                // Trinkgeld: schneller = mehr (je Lieferung bis 12)
+                trinkgeld = trinkgeld + Mathe.max(2, 12 - ((bild - start) / 60 / 20).ganz());
+                start = bild;
+                falls (geliefert == 3) {
+                    ende = bild;
+                    marke.sichtbar(nein);
+                }
+            } sonst {
+                traegt = ja;
+                falls (geliefert == 0) { start = bild; }
+            }
+            schachtel.sichtbar(traegt);
+        }
+        marke.setzeLage(zielX(), 2.6 + Mathe.sin(bild / 25) * 0.15, zielZ());
+    }
+}

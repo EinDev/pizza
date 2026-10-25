@@ -1,0 +1,29 @@
+// Materialien: Fototexturen (CC0, siehe quellen.md) als geteilte Beläge mit Relief (Normale + Rauheit), physikalischem Licht
+// und Nässe. Die Engine kachelt die Bilder in Weltgröße (abbildung "welt"): kachel = Kantenlänge einer Kachel in Metern.
+bestellt "zustand.pizza";
+
+Teil stoff(margherita name, funghi kachel, funghi glanz, funghi nass, funghi metall) {
+    Teil t = herd.raum(0, -50, 0);
+    t.mit(neu Belag(farbe: "weiss", glanz: glanz, bild: Bildchen.laden("bilder/" + name + "-farbe.jpg"),
+                    relief: Bildchen.laden("bilder/" + name + "-relief.jpg"), kachel: kachel, abbildung: "welt",
+                    modell: "pbr", nass: nass, metall: metall));
+    serviere ((t));
+}
+
+// einfarbige Beläge (Metall, Kunststoff, Glas) ohne Bild
+Teil glatt(margherita farbe, funghi glanz, funghi metall) {
+    Teil t = herd.raum(0, -50, 0);
+    t.mit(neu Belag(farbe: farbe, glanz: glanz, modell: "pbr", metall: metall));
+    serviere ((t));
+}
+
+Teil ASPHALT = stoff("asphalt", 3.5, 0.45, 0.75, 0);
+Teil GEHWEG = stoff("gehweg", 2.5, 0.4, 0.45, 0);
+Teil BETON = stoff("beton", 3, 0.35, 0.2, 0);
+Teil ZIEGEL = stoff("ziegel", 2.4, 0.3, 0.15, 0);
+Teil FLIESEN = stoff("fliesen", 2.2, 0.55, 0.15, 0);
+Teil WELLBLECH = stoff("wellblech", 2.2, 0.4, 0.15, 0.6);
+Teil ROLLTOR = stoff("rolltor", 2.6, 0.45, 0.1, 0.7);
+Teil STAHL = glatt("#4a4e57", 0.55, 0.9);
+Teil SCHWARZ = glatt("#16171c", 0.4, 0.2);
+Teil GUMMI = glatt("#0d0d10", 0.15, 0);

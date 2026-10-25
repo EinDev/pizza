@@ -1,0 +1,29 @@
+// Nacht, Regen, Dunst: Himmelszelt mit Smog über der Stadt, Stimmung (Belichtung, Bloom, Höhennebel, Vignette, Korn) und
+// Regen aus Funken, die dem Spieler folgen (die Tropfen bleiben in der Welt, wo sie entstanden).
+bestellt "zustand.pizza";
+
+Teil REGEN = baueWetter();
+
+Teil baueWetter() {
+    herd.sonne().licht().setzeStaerke(0);
+    herd.umgebung("#4a3f78", staerke: 0.07);
+    herd.raum(0, 0, 0).mit(neu Himmelszelt(oben: "#05050c", horizont: "#3a2350", boden: "#0b0910", sterne: 0));
+    herd.raum(0, 0, 0).mit(neu Stimmung(belichtung: 1.9, bloom: 0.9, bloomSchwelle: 1.1, bloomWeite: 0.75, nebelDichte: 0.035,
+                                        nebelHoehe: 0, nebelAbfall: 0.08, nebelFarbe: "#2b2142", saettigung: 1.08,
+                                        vignette: 0.32, koernung: 0.12, spiegelung: 1, spiegelHoehe: 0));
+    herd.kamera().kamera().setzeSicht(72).setzeFern(400);
+    // Regen: neun Sprüher über dem Spieler
+    Teil r = herd.raum(0, 0, 0);
+    für (salami i = 0; i < 9; i++) {
+        Teil q = herd.raum((i % 3 - 1) * 5, 11, ((i / 3).ganz() - 1) * 5).haenge(r);
+        q.mit(neu Funken(rate: 170, lebensdauer: 1.15, tempo: 9, richtungY: -1, streuung: 16, schwerkraft: 4, groesse: 0.032,
+                         groesseEnde: 0.025, farbe: "#a8b4e880", farbeEnde: "#a8b4e840", mischung: "leuchtend"));
+    }
+    serviere ((r));
+}
+
+// Regen folgt dem Spieler (ein Stück voraus, damit vor der Kamera immer Tropfen fallen)
+leer wetterTakt(funghi x, funghi z, funghi blick) {
+    funghi b = Mathe.bogen(blick);
+    REGEN.setzeLage(x + Mathe.sin(b) * 4, 0, z - Mathe.cos(b) * 4);
+}

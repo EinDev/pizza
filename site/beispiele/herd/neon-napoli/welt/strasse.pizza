@@ -1,0 +1,67 @@
+// Die Straßenschlucht: nasse Fahrbahn, Gehwege mit Bordstein, Gullys mit Dampf, Laternen. Die Straße läuft von z = 14
+// (Start am Hafen) bis z = −118, eine Gasse zweigt bei z = −62 nach links ab.
+bestellt "zustand.pizza";
+bestellt "welt/stoffe.pizza";
+
+funghi STRASSE_ANFANG = 14;
+funghi STRASSE_ENDE = -118;
+funghi GASSE_Z = -62;
+
+leer baueStrasse() {
+    funghi laenge = STRASSE_ANFANG - STRASSE_ENDE;
+    funghi mitte = (STRASSE_ANFANG + STRASSE_ENDE) / 2;
+    // Fahrbahn (x −4 … 4) in Abschnitten von 12 m – so verteilen sich die Lichter gut auf die Zellen
+    für (funghi z = STRASSE_ANFANG; z > STRASSE_ENDE; z -= 12) {
+        funghi l = Mathe.min(12, z - STRASSE_ENDE);
+        quader(ASPHALT, 0, -0.05, z - l / 2, 8, 0.1, l, nein);
+        // Gehwege links und rechts (Bordstein 15 cm)
+        quader(GEHWEG, -5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein);
+        quader(GEHWEG, 5.25, 0.075, z - l / 2, 2.5, 0.15, l, nein);
+    }
+    // Gasse nach links: Boden
+    quader(ASPHALT, -14, -0.05, GASSE_Z, 16, 0.1, 6, nein);
+    // Ende der Straße: Mauer mit Tor (Kollision)
+    quader(BETON, 0, 4, STRASSE_ENDE - 0.5, 13, 8, 1, ja);
+    // Anfang: Kaimauer und Geländer zum Wasser
+    quader(BETON, 0, 0.5, STRASSE_ANFANG + 0.5, 13, 1, 1, ja);
+    für (salami i = 0; i < 7; i++) {
+        herd.koerper(ROHR, -6 + i * 2, 1.4, STRASSE_ANFANG + 0.4).setzeGroesse(0.06, 0.8, 0.06).koerper().setzeBelag(STAHL);
+    }
+    herd.koerper(WUERFEL, 0, 1.8, STRASSE_ANFANG + 0.4).setzeGroesse(13, 0.06, 0.06).koerper().setzeBelag(STAHL);
+    // Mittellinie (gestrichelt, verblasst)
+    für (funghi z = STRASSE_ANFANG - 2; z > STRASSE_ENDE + 2; z -= 6) {
+        herd.koerper(EBENE, 0, 0.006, z, farbe: "#8f8a6a", glanz: 0.3).setzeGroesse(0.15, 1, 2.6).koerper().setzeSchatten(nein);
+    }
+}
+
+// Gullydeckel mit Dampf (Funken, deckend, langsam aufsteigend und wachsend)
+leer gully(funghi x, funghi z) {
+    herd.koerper(ROHR, x, 0.005, z).setzeGroesse(0.8, 0.01, 0.8).koerper().setzeBelag(STAHL);
+    Teil dampf = herd.raum(x, 0.05, z);
+    dampf.mit(neu Funken(rate: 14, lebensdauer: 4.5, tempo: 0.55, streuung: 22, schwerkraft: -0.08, groesse: 0.5, groesseEnde: 2.6,
+                         farbe: "#b8b4c822", farbeEnde: "#5a566800", mischung: "deckend"));
+}
+
+// Laterne: Mast, Ausleger, Leuchte – ein Spot nach unten (kaltes Natriumlicht-Gelb)
+leer laterne(funghi x, funghi z, funghi seite) {
+    quader(STAHL, x, 3.2, z, 0.16, 6.4, 0.16, ja);
+    herd.koerper(WUERFEL, x - seite * 0.9, 6.35, z).setzeGroesse(1.9, 0.1, 0.12).koerper().setzeBelag(STAHL);
+    Teil kopf = herd.koerper(WUERFEL, x - seite * 1.7, 6.25, z, farbe: "#ffd9a0", leuchten: 1).setzeGroesse(0.6, 0.08, 0.25);
+    kopf.koerper().setzeStrahlen(5).setzeSchatten(nein);
+    Teil spot = herd.licht(x - seite * 1.7, 6.1, z, farbe: "#ffcf8a", reichweite: 13);
+    spot.schaueAuf(x - seite * 1.9, 0, z + 0.01);
+    spot.licht().setzeKegel(55).setzeKegelRand(0.6).setzeStaerke(7);
+}
+
+leer baueStrassenmoebel() {
+    für (funghi z = STRASSE_ANFANG - 8; z > STRASSE_ENDE + 4; z -= 17) {
+        laterne(-4.3, z, -1);
+        laterne(4.3, z - 8.5, 1);
+    }
+    gully(-1.8, -6);
+    gully(2.2, -31);
+    gully(-0.8, -55);
+    gully(1.5, -84);
+    gully(-2.4, -103);
+    gully(-12, GASSE_Z + 1);
+}

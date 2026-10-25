@@ -399,6 +399,27 @@ function markierung(name, s) {
   console.log(name + '.png ' + s + '×' + s);
 }
 
+/** Schaufenster: warmes oder kaltes Licht von innen, Regale und Waren als dunkle Schatten, Sprossen, Glanzstreifen */
+function schaufenster(name, b, h, warm, saat) {
+  const z = zufall(saat), px = new Uint8Array(b * h * 4);
+  const licht = warm ? [255, 186, 120] : [140, 214, 255];
+  const regale = [0.3, 0.55, 0.8];
+  const waren = [];
+  for (let i = 0; i < 40; i++) waren.push([z() * b, regale[Math.floor(z() * 3)] * h, 6 + z() * 22, 8 + z() * 26]);
+  for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) {
+    const ly = y / h, lx = x / b;
+    let k = 0.35 + 0.65 * (1 - Math.abs(lx - 0.5) * 1.2) * (0.6 + 0.4 * (1 - ly));
+    for (const r of regale) if (Math.abs(ly - r) < 0.012) k *= 0.25;
+    for (const [wx, wy, ww, wh] of waren) if (x > wx && x < wx + ww && y < wy && y > wy - wh) k *= 0.45;
+    if (x % (b / 4) < 5 || y < 6 || y > h - 6) k = 0.04;           // Sprossen und Rahmen
+    if (Math.abs((x + y * 0.6) % 180 - 40) < 6) k = Math.min(1, k + 0.18); // Glanzstreifen auf dem Glas
+    const i = (y * b + x) * 4;
+    px[i] = licht[0] * k; px[i + 1] = licht[1] * k; px[i + 2] = licht[2] * k; px[i + 3] = 255;
+  }
+  fs.writeFileSync(path.join(ZIEL, name + '.png'), png(b, h, px));
+  console.log(name + '.png ' + b + '×' + h);
+}
+
 fs.mkdirSync(ZIEL, { recursive: true });
 fotos();
 if (soll('neon')) {
@@ -413,4 +434,6 @@ if (soll('neon')) {
   hologramm('holo-pizza', 256);
   markierung('ziel', 256);
   fenster('fenster', 512, 512, 8, 6, 7);
+  schaufenster('laden-warm', 512, 256, true, 11);
+  schaufenster('laden-kalt', 512, 256, false, 23);
 }

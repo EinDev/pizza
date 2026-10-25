@@ -50,8 +50,10 @@ const hauptdatei = projektWurzel ? (fs.statSync(datei).isDirectory()
 const testDatei = (art, endung) => projektWurzel ? path.join(projektWurzel, BSP.PRUEFUNG, art) : datei.replace(/\.pizza$/, endung);
 const name = projektWurzel ? path.basename(projektWurzel) : path.basename(datei).replace(/\.pizza$/, '');
 // Teiglinge aus Bildchen.laden: je Aufruf eine Datei im Temp-Ordner, im Skript als `teigling_datei "<pfad>"` (herd/README §7.1)
-const TEIGE = fs.mkdtempSync(path.join(os.tmpdir(), 'herd-teige-'));
-process.on('exit', () => { try { fs.rmSync(TEIGE, { recursive: true, force: true }); } catch (e) { /* egal */ } });
+// (mit --skript bleiben sie neben dem Skript in <skript>-teige/, damit es sich später nachspielen lässt, z. B. herd-skript --mess)
+const TEIGE = wert('--skript') ? path.resolve(wert('--skript').replace(/\.herd$/, '') + '-teige') : fs.mkdtempSync(path.join(os.tmpdir(), 'herd-teige-'));
+if (wert('--skript')) fs.mkdirSync(TEIGE, { recursive: true });
+else process.on('exit', () => { try { fs.rmSync(TEIGE, { recursive: true, force: true }); } catch (e) { /* egal */ } });
 let teige = 0;
 
 // ---------- Aufzeichnung: WebAssembly.Instance für kern.wasm umhüllen (die echten Exporte sind eingefroren) ----------
