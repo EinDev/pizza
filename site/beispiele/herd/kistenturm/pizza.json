@@ -1,0 +1,6 @@
+{
+  "pizza": 1,
+  "name": "Kistenturm: Physik in 3D",
+  "hauptdatei": "hauptgang.pizza",
+  "beschreibung": "Ein Turm aus Pizzakartons mit Teigbällen obendrauf steht auf einer Lichtung zwischen Hügeln. Ein Klick wirft eine Teigkugel dorthin, wohin die Maus zeigt – der Turm wankt, kippt, und die Kartons purzeln über das Gelände. Schwung macht Kästen, Kugeln und das Gelände zu echter 3D-Physik; die Leertaste baut den Turm neu."
+}

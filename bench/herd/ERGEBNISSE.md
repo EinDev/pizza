@@ -68,6 +68,8 @@ Ressourcen nicht mitgezählt). Nur CPU, i7-13700KF, Node v22.15.1, Rust 1.98, 20
 | B10 mit N = 4096, 60 Takte | 0,017 ms | 3,833 ms | 3,85 (3,66) ms | 0,028 ms | 4,364 ms | 4,39 (4,49) ms | – (nur gemessen) |
 | B11 (Regen, 2026-10-25): `regen.herd` N = 40 000 → 2 × 10 000 Teilchen (Grenze je Sprüher; A mit Volumen, Strichen, Licht, Aufschlag und Spritzern, B deckend im Raum des Teils), 12 Lichter, 220 Takte | 0,140 ms | 0,844 ms | 0,98 (0,89) ms | 0,156 ms | 1,495 ms | 1,64 (1,56) ms | – (nur gemessen; B5 mit 20 000 Funken zum Vergleich 0,67 ms nativ) |
 | B9 mit 4 × 4 Rastern à 256² = 1024 × 1024 Kacheln, 250 Takte | 0,179 ms | 0,033 ms | 0,21 (0,19) ms | 0,254 ms | 0,049 ms | 0,30 (0,30) ms | – (nur gemessen) |
+| B12 (H-K17, 2026-10-25): `schwung.herd` N = 500 Kisten mit `Schwung` als 10 × 10 Türme à 5 Lagen auf einem Tisch in einer Gelände-Mulde (+ Rampe aus eigenem Netz, Drehscheibe, Kind, Kugel, Kapsel), 240 Takte | 1,696 ms | 0,047 ms | 1,75 (1,75) ms | 2,010 ms | 0,141 ms | 2,13 (1,96) ms | Takt ≤ 2 ms bei 500 Kisten (nativ) – erreicht |
+| B12 mit K = 2 000 Kugeln/Kapseln (ohne Kisten), 120 Takte | 3,210 ms | 0,011 ms | 3,23 (2,14) ms | 3,132 ms | 0,017 ms | 3,15 (2,11) ms | – (nur gemessen) |
 
 B5 (`tests/herd/szenen/b5-funken.herd`): Takt = Altern, Schwerkraft, Bewegen, Ausstoß im Kegel (libm `sin`/`cos`/`sqrt`); Bild =
 Sichtkörper-Test je Teilchen, deckende nach Abstand sortieren (5 der 10 Emitter), 20 Bytes je Teilchen schreiben. Paket ≈ 262 KB
@@ -100,6 +102,8 @@ B9 (`tests/herd/szenen/fliesen.herd`, Vorgaben `S`, `CHUNKS`, `N`): Bild = Bildb
 (`fliesen::fenster` aus `Bildbau::sicht_welt()`), ≈ 290 Kachel-Instanzen bei Zoom 1, ≈ 1 000 bei Zoom 0.5 – unabhängig von der
 Kartengröße (16 Raster kosten nur 16 Fenster-Rechnungen). Takt = `Wucht` mit 200 Körpern und Kachel-Kontakten (je Körper nur die
 Kacheln unter seiner Hülle) + Fühler-Nachlauf. Ziel (HERD.md §12.4 H-K10): Bild ≤ 0,3 ms nativ – erreicht (0,013 / 0,033 ms).
+
+B12 (`tests/herd/szenen/schwung.herd`, Vorgaben `N`, `K`): Takt = **Schwung** (Lage übernehmen, Kräfte, feste Fühler sammeln und gedrehte Formen bauen, Breitphase `fuehler::breitphase`, Inseln, Engphase `kollision3d` – Kasten–Kasten über 15 Trennachsen mit bis zu 4 Punkten, Gelände analytisch, Netz über den Hüllen-Baum –, Warmstart nach Ort, 8 Impuls-Iterationen je Kontaktfläche, 4 Iterationen Positionskorrektur, Zurückschreiben mit Quaternion → Winkel) + **Fühler-Nachlauf** (alle Körper sind auch Fühler). Die Kisten fallen wenige Zentimeter auf ihren Turm und wanken; ein Turm ist eine Insel und schläft erst, wenn alle seine Kisten ruhen – gemessen ist also überwiegend der wache Fall; ruhende Inseln kosten danach nur Breitphase und Nachlauf. Der Löser rechnet je Kontaktrichtung vorab Hebel und Dreh-Antworten (I⁻¹ (r × d)) und arbeitet auf einem dichten Tempo-Feld – das senkte den Löser-Anteil gegenüber dem ersten Wurf (Kopien des ganzen Körpers je Kontakt) auf rund ein Drittel. Ziel (HERD.md §13.3 H-K17): 500 Kisten Takt ≤ 2 ms nativ – erreicht (1,70 ms inkl. Fühler-Nachlauf; Wasm 2,01 ms). Gemessen neben anderen Agents (B7 lag im selben Lauf bei 0,40 ms, wie in seiner eigenen Messung), CPU-only.
 
 Setter `teil_lage` direkt am Kern (B2, 10 000 Teile × 60): **nativ 4,3 ns**, **Wasm aus JS 9,4 ns** je Aufruf (warm; Ziel ≤ 80 ns
 Chrome / ≤ 150 ns wasmi – der wasmi-Weg kommt mit H4/H5). Bildpaket: B1 ≈ 506 KB, B4 ≈ 728 KB je Bild (fast nur INST2D).

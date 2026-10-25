@@ -107,6 +107,42 @@ pub fn netz(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64) -> formen::Ne
     formen::netz_glatt(&punkte, &uv, &dreiecke)
 }
 
+/// Lokaler Punkt `(i, j)` des Geländenetzes – genau wie [`netz`] ihn baut (f32-gerundet, nicht endlich = 0), als f64. Für die
+/// Kollision (H-K17 `kollision3d`) und die Höhenabfrage: Kollisionsfläche = gezeichnete Fläche.
+pub fn punkt(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, i: u32, j: u32) -> [f64; 3] {
+    let (mx, mz) = ((spalten - 1) as f64 / 2.0, (zeilen - 1) as f64 / 2.0);
+    let k = (j * spalten + i) as usize;
+    let y = if k < hoehen.len() { hoehen[k] } else { 0.0 };
+    [fin(f32w((i as f64 - mx) * weite)) as f64, fin(f32w(y)) as f64, fin(f32w((j as f64 - mz) * weite)) as f64]
+}
+
+/// Höhe des Geländenetzes über dem lokalen Punkt (x, z) (Ebene des Dreiecks darunter, Diagonale wie [`netz`]); außerhalb
+/// `None`. Öffentlich für die Höhenabfrage (H-K17, H-K20).
+pub fn hoehe(hoehen: &[f64], spalten: u32, zeilen: u32, weite: f64, x: f64, z: f64) -> Option<f64> {
+    let (sp, ze) = (spalten as f64, zeilen as f64);
+    let fi = x / weite + (sp - 1.0) * 0.5;
+    let fj = z / weite + (ze - 1.0) * 0.5;
+    if !(fi >= 0.0 && fi <= sp - 1.0 && fj >= 0.0 && fj <= ze - 1.0) {
+        return None;
+    }
+    let ci = libm::floor(fi);
+    let cj = libm::floor(fj);
+    let ci = if ci > sp - 2.0 { sp - 2.0 } else { ci };
+    let cj = if cj > ze - 2.0 { ze - 2.0 } else { cj };
+    let (i, j) = (ci as u32, cj as u32);
+    let p = |i: u32, j: u32| punkt(hoehen, spalten, zeilen, weite, i, j);
+    let (a, b, c, d) = (p(i, j + 1), p(i + 1, j + 1), p(i + 1, j), p(i, j));
+    let (e0, e1, e2) = if (fi - ci) + (fj - cj) >= 1.0 { (a, b, c) } else { (a, c, d) };
+    // Ebene durch e0, e1, e2: n · (q − e0) = 0 nach y auflösen
+    let u = [e1[0] - e0[0], e1[1] - e0[1], e1[2] - e0[2]];
+    let v = [e2[0] - e0[0], e2[1] - e0[1], e2[2] - e0[2]];
+    let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    if n[1] == 0.0 {
+        return None;
+    }
+    Some(e0[1] - (n[0] * (x - e0[0]) + n[2] * (z - e0[2])) / n[1])
+}
+
 /// System: baut das Netz neu, wenn sich die Netz-Felder seit dem letzten Bau geändert haben (oder noch keins da ist).
 /// Baut das Netz bei geänderten Feldern. Läuft bewusst auch in ruhenden Teilen (H-K8 `Vorlage`): reiner Cache der eigenen
 /// Felder – Kopien einer Vorlage erben Netz und Prüfwert und teilen sich so **eine** Ressource, statt je Kopie eine neue anzulegen.

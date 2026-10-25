@@ -341,7 +341,8 @@
                 ["`Taster`","2D","`inhalt` \"\", `breite` 120, `hoehe` 36, `farbe` kruste, `farbeDrueber` senf, `farbeGedrueckt` tomate, `textFarbe` weiss, `groesse` 18, `rundung` 8, `aktiv` ja; nur lesen: `drueber`, `gedrueckt`, `geklickt`","Schaltfläche für die Maus: `geklickt` ist genau einen Takt lang `ja`, wenn auf dem Taster gedrückt und über ihm losgelassen wurde"],
                 ["`Leiste`","2D","`wert` 0.5, `breite` 160, `hoehe` 14, `farbe` basilikum, `farbeLeer` grau, `rundung` 7","Füllbalken (Leben, Fortschritt): von links ist der Anteil `wert` (0 … 1) gefüllt"],
                 ["`Regler`","2D","`wert` 0.5, `von` 0, `bis` 1, `breite` 160, `farbe` kruste, `knauf` senf; nur lesen: `geaendert`","Schieberegler: mit gedrückter Maus ziehen setzt `wert` zwischen `von` und `bis`"],
-                ["`Tafel`","2D","`breite` 240, `hoehe` 160, `farbe` #2f2a26e0, `titel` \"\", `rundung` 10, `ziehbar` nein","Fläche für Bedienelemente: ihr Inhalt sind ihre Kinder; verdeckt, was darunter liegt, `ziehbar` = mit der Maus verschieben"]
+                ["`Tafel`","2D","`breite` 240, `hoehe` 160, `farbe` #2f2a26e0, `titel` \"\", `rundung` 10, `ziehbar` nein","Fläche für Bedienelemente: ihr Inhalt sind ihre Kinder; verdeckt, was darunter liegt, `ziehbar` = mit der Maus verschieben"],
+                ["`Schwung`","3D","`art` dynamisch, `masse` 1, `tempoX`/`tempoY`/`tempoZ` 0, `drehtempoX`/`drehtempoY`/`drehtempoZ` 0, `schwerkraft` 0, `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5, `stossX`/`stossY`/`stossZ` 0, `drehsperre` nein; nur lesen: `amBoden`, `ruht`","3D-Physik: Kästen, Kugeln und Kapseln fallen, rollen, kippen und stapeln sich – braucht einen `Fuehler` mit `ausloeser: nein`; ein solcher Fühler ohne Schwung ist fest, mit `form: \"netz\"` auch ein Gelände oder eine eigene Form"]
               ]
             },
             { art: "text", md: "Die Liste kommt direkt aus der Engine (`site/js/herd/schema.json`) – kommt eine Komponente dazu, steht sie sofort in pizza zur Verfügung." }
@@ -1277,6 +1278,82 @@
             },
             { art: "ausgabe", text: z("0.15 s, Melodie 1.875 s", "nein ja") },
             { art: "text", md: "Die Samples sind in jedem Motor **bitgleich** (Interpreter, Wasm, nativ); das Hörbare macht die Wiedergabe – im Browser WebAudio, nativ das Audiogerät (Windows `waveOut`, Linux ALSA). Zum Ausprobieren: **Pizza-Klavier** und die Klangkulisse von **Neon-Napoli** unter *Beispiele → Herd*." }
+          ]
+        },
+        {
+          art: "details",
+          titel: "Schwung: Physik in 3D",
+          inhalt: [
+            { art: "text", md: "Ein **`Schwung`** macht ein 3D-Teil zum Körper mit Masse – das Gegenstück zur `Wucht` in 2D, aber mit **Drehung**: Kisten kippen über die Kante, Kugeln rollen den Hang hinab, Türme wanken. Die Form kommt wieder vom **`Fuehler`** am selben Teil (`ausloeser: nein`), und sie dreht sich mit dem Teil: `form: \"kasten\"` (Seiten aus `breite`/`hoehe`/`tiefe` oder aus dem Körper), `\"kugel\"` (`radius`) und `\"kapsel\"` (entlang der y-Achse des Teils, `radius` und Gesamthöhe `hoehe` – gut für Figuren und Stangen). `schwerkraft` zieht nach unten (Einheiten/s², Standard 0, **9.81** fühlt sich nach Erde an), `abprall`, `reibung` (Standard 0.5), `daempfung` und `drehdaempfung` wie bei der Wucht; `stossX`/`stossY`/`stossZ` ist ein Einmal-Stoß, `drehtempoX`/`Y`/`Z` (Grad/s) dreht den Körper an." },
+            { art: "text", md: "Ein Fühler mit `ausloeser: nein` **ohne** Schwung ist fest. Mit **`form: \"netz\"`** wird ein `Gelaende` zum Boden, auf dem alles liegen bleibt (genau das gezeichnete Netz), oder die eigene Form eines `Koerper` (Dreiecke, einseitig: es zählt die Vorderseite). `art: \"kinematisch\"` fährt und dreht sich mit seinem Tempo und nimmt, was darauf liegt, mit; `\"fest\"` bewegt sich nie; `drehsperre: ja` lässt nur schieben, nicht drehen. Liegt alles still, **schläft** der Körper (`ruht()` ist ja) und kostet nichts – ein Stoß, ein neues Tempo, `setzeLage` oder ein Aufprall weckt ihn. **Tipp:** Was je Takt weiter fliegt als seine halbe Größe, kann durch dünne Wände tunneln – Böden dick machen." },
+            {
+              art: "code",
+              ausfuehrbar: true,
+              tier: 1,
+              uiEreignisse: [{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4},{"typ":"takt","anzahl":4}],
+              herdErwartet: [
+                {"art":"fenster","titel":"Schwung","breite":320,"hoehe":180},
+                {"art":"bild","bildnummer":4,"szene":"f867933877282451","paket":"4e08504a96802596"},
+                {"art":"bild","bildnummer":8,"szene":"3740417e80c206e3","paket":"8bc8609134b7363b"},
+                {"art":"bild","bildnummer":12,"szene":"cccd08b42b9f44d7","paket":"6f1748ec9d372efa"},
+                {"art":"bild","bildnummer":16,"szene":"06360109c6ae96cd","paket":"44446cd4cbbffc3d"},
+                {"art":"bild","bildnummer":20,"szene":"9ceb22b0debf5ed9","paket":"802fd833900e8cc3"},
+                {"art":"bild","bildnummer":24,"szene":"7488102207379349","paket":"26209aef54599cae"},
+                {"art":"bild","bildnummer":28,"szene":"0a87b965d5cddcfb","paket":"c92bdf1ef2d67b0b"},
+                {"art":"bild","bildnummer":32,"szene":"e2b292016e4d315c","paket":"43d59ba2c806b7a2"},
+                {"art":"bild","bildnummer":36,"szene":"485ded7519973d5b","paket":"5a9377eec4fd0d89"},
+                {"art":"bild","bildnummer":40,"szene":"ff229d9bbe0b6619","paket":"8e927d2146585ad4"},
+                {"art":"bild","bildnummer":44,"szene":"969ad853d413b92b","paket":"5f24386e495a1791"},
+                {"art":"bild","bildnummer":48,"szene":"6acac6f7b8cb800c","paket":"521db623697080ee"},
+                {"art":"bild","bildnummer":52,"szene":"c2e145bd83603a61","paket":"1ce780106eb3e152"},
+                {"art":"bild","bildnummer":56,"szene":"002ab82093940d9b","paket":"2f9312c2e2d939ec"},
+                {"art":"bild","bildnummer":60,"szene":"05033e8ca315e242","paket":"9479d62d17567401"},
+                {"art":"bild","bildnummer":64,"szene":"6d33bd5ec15520c5","paket":"9acbb4169fa01ef4"},
+                {"art":"bild","bildnummer":68,"szene":"ac28951929c2efe4","paket":"e8def1975506a98a"},
+                {"art":"bild","bildnummer":72,"szene":"556dea5974c1ba1e","paket":"a9c9f896f0c81602"},
+                {"art":"bild","bildnummer":76,"szene":"19d03070d54de48e","paket":"d089267f2c8935c0"},
+                {"art":"bild","bildnummer":80,"szene":"eb2d52254e96520b","paket":"15ac3ac964e693c9"},
+                {"art":"bild","bildnummer":84,"szene":"b9169012ac47de24","paket":"2beceef3854b1948"},
+                {"art":"bild","bildnummer":88,"szene":"8d9c8d104e13b277","paket":"62e3c312dbfb00fb"},
+                {"art":"bild","bildnummer":92,"szene":"d288cb59cb35b2ed","paket":"b5e743c9a0229ddc"},
+                {"art":"bild","bildnummer":96,"szene":"1942f55338e6b471","paket":"ffcbe75ce46c257b"},
+                {"art":"bild","bildnummer":100,"szene":"650c81f782855e7e","paket":"4206d45ee55594fa"},
+                {"art":"bild","bildnummer":104,"szene":"15da90cae6b62ba9","paket":"9e50a336bf17fc67"},
+                {"art":"bild","bildnummer":108,"szene":"d8f1afdf30d5296b","paket":"86ab3861130c3d87"},
+                {"art":"bild","bildnummer":112,"szene":"fd6558bd69819fa1","paket":"ac45e5f5729e3e95"},
+                {"art":"bild","bildnummer":116,"szene":"774f563e93822434","paket":"90aa8ff2a6381cf3"},
+                {"art":"bild","bildnummer":120,"szene":"3a54c91bbed270ff","paket":"a917966f65db5851"},
+                {"art":"bild","bildnummer":124,"szene":"abf2fd53816e4349","paket":"8d8bda66a9987223"},
+                {"art":"bild","bildnummer":128,"szene":"23d5fab76dff0cc5","paket":"002a31a3f1825c2e"},
+                {"art":"bild","bildnummer":132,"szene":"d080a7a7121f3301","paket":"c53369b2d3683fd9"},
+                {"art":"bild","bildnummer":136,"szene":"b330c3de30c68ce4","paket":"734164ddb754cd81"},
+                {"art":"bild","bildnummer":140,"szene":"9d23b72feec98a53","paket":"f702914c1279bc20"},
+                {"art":"bild","bildnummer":144,"szene":"74cd91dcfb4fbf2f","paket":"b0d84708fd3b8d6a"},
+                {"art":"bild","bildnummer":148,"szene":"421a852823a2dfc9","paket":"a7f157d66d20c69c"},
+                {"art":"bild","bildnummer":152,"szene":"3d6990413eb09616","paket":"2ffa0877e0d0798a"},
+                {"art":"bild","bildnummer":156,"szene":"e7550ee64a4ee999","paket":"13353aa18bb4e221"},
+                {"art":"bild","bildnummer":160,"szene":"2f033bf47bd565ee","paket":"a601ad76b0c9ac66"}
+              ],
+              code: z(
+                "Herd herd = neu Herd(\"Schwung\", breite: 320, hoehe: 180);",
+                "herd.kamera().setzeLage(0, 3, 7).schaueAuf(0, 1, 0);",
+                "Teil boden = herd.koerper(Form.wuerfel(), 0, -0.5, 0, farbe: \"basilikum\").setzeGroesse(10, 1, 10);",
+                "boden.mit(neu Fuehler(ausloeser: nein));",
+                "Teil kiste = herd.koerper(Form.wuerfel(), 0, 2, 0, farbe: \"senf\").setzeRollen(35);",
+                "kiste.mit(neu Fuehler(form: \"kasten\", ausloeser: nein));",
+                "Schwung s = kiste.mit(neu Schwung(schwerkraft: 9.81));",
+                "Teil ball = herd.koerper(Form.kugel(teile: 16), -1.5, 3, 0, farbe: \"tomate\").setzeGroesse(0.6);",
+                "ball.mit(neu Fuehler(form: \"kugel\", radius: 0.3, ausloeser: nein));",
+                "ball.mit(neu Schwung(schwerkraft: 9.81, abprall: 0.6, tempoX: 1));",
+                "herd.backe(() -> {",
+                "  falls (herd.gedrueckt(\"Leertaste\")) { s.setzeStossY(6); }",
+                "});",
+                "Bote.sage((s + \" \" + s.art() + \" nach \" + herd.bildnummer() + \" Bildern: amBoden \" + s.amBoden() + \", ruht \" + s.ruht()));",
+                "Bote.sage((\"liegt flach: \" + (kiste.rollen().runden() % 90 == 0) + \", Ball rollt: \" + (ball.x() > -1.5)));"
+              )
+            },
+            { art: "ausgabe", text: z("Schwung(4) dynamisch nach 160 Bildern: amBoden ja, ruht ja", "liegt flach: ja, Ball rollt: ja") },
+            { art: "text", md: "Ein ganzes Beispiel ist der **Kistenturm** unter *Beispiele → Herd*: Ein Turm aus Pizzakartons steht auf einer Lichtung zwischen Hügeln, ein Klick wirft eine Teigkugel – der Turm kippt, und die Kartons purzeln über das Gelände." }
           ]
         }
       ]

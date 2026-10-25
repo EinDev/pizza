@@ -1,0 +1,128 @@
+// Kistenturm – ein Turm aus Pizzakartons steht auf einer Lichtung zwischen Hügeln. Ein Klick wirft eine Teigkugel dorthin,
+// wohin die Maus zeigt; die Leertaste baut den Turm neu auf.
+//
+// So arbeitet die Engine für dich: Jeder Karton ist ein Koerper mit einem Fuehler (Form "kasten", ausloeser: nein) und einem
+// Schwung (Masse, Schwerkraft, Reibung). Herd rechnet daraus die ganze Physik: gedrehte Kästen, die aufeinander liegen, kippen und
+// rutschen, Kugeln, die rollen, und das Gelände, auf dem alles landet – der Fuehler mit Form "netz" macht das Höhenraster zum
+// festen Boden. Ruht der Turm, schläft er (kostet fast nichts); ein Treffer weckt ihn.
+
+Herd herd = neu Herd("Kistenturm", breite: 960, hoehe: 540);
+herd.himmel("#8cc4ee", "#fdf1d6");
+herd.nebel("#fdf1d6", 40, 90);
+herd.umgebung("#fff6e0", staerke: 0.45);
+herd.sonne().setzeLage(-0.5, 1, 0.4);
+
+// Kamera: schaut von vorn schräg auf die Lichtung
+funghi KX = 0;
+funghi KY = 4.2;
+funghi KZ = 11;
+herd.kamera().setzeLage(KX, KY, KZ).schaueAuf(0, 2.6, 0);
+
+// Gelände 48 × 48: flache Lichtung in der Mitte, sanfte Hügel ringsum
+salami SEITE = 48;
+Rezept hoehe = (funghi x, funghi z) -> {
+    funghi d = Mathe.wurzel(x * x + z * z);
+    funghi abseits = d - 7;
+    falls (abseits < 0) { abseits = 0; }
+    serviere ((abseits * abseits * 0.04 + Mathe.sin(x * 0.35) * Mathe.cos(z * 0.3) * 0.6 * Mathe.min(abseits, 1)));
+};
+Blech<funghi> hoehen = [];
+für (salami j = 0; j < SEITE; j++) {
+    für (salami i = 0; i < SEITE; i++) { hoehen.hinzu(hoehe(i - (SEITE - 1) / 2, j - (SEITE - 1) / 2)); }
+}
+Teil land = herd.raum(0, 0, 0);
+land.mit(neu Gelaende(hoehen: hoehen, spalten: SEITE, zeilen: SEITE, weite: 1, farbe: "#6fae4a", glanz: 0.05));
+land.mit(neu Fuehler(form: "netz", ausloeser: nein));
+
+// Ein Tisch für den Turm: ein fester Holzblock (Fühler ohne Schwung = fest)
+Teil tisch = herd.koerper(Form.wuerfel(), 0, 0.3, 0, farbe: "#8a5a34", glanz: 0.2).setzeGroesse(3, 0.6, 3);
+tisch.mit(neu Fuehler(ausloeser: nein));
+
+// Der Turm: 16 Pizzakartons, jede Lage etwas weiter gedreht; obendrauf eine Pyramide aus Teigbällen
+funghi KARTON_HOEHE = 0.22;
+Blech<Teil> turm = [];
+Rezept baue = () -> {
+    für (salami n = 1; n <= turm.länge(); n++) { falls (!turm.stück(n).entfernt()) { turm.stück(n).entferne(); } }
+    turm = [];
+    für (salami i = 0; i < 16; i++) {
+        Teil schachtel = herd.koerper(Form.wuerfel(), 0, 0.6 + KARTON_HOEHE / 2 + i * (KARTON_HOEHE + 0.005), 0,
+                                   farbe: i % 2 == 0 ? "#d9b07a" : "#c79a5e", glanz: 0.15)
+                           .setzeGroesse(1.3, KARTON_HOEHE, 1.3).setzeDrehung(i * 6);
+        schachtel.mit(neu Fuehler(form: "kasten", ausloeser: nein));
+        schachtel.mit(neu Schwung(schwerkraft: 9.81, masse: 0.5, reibung: 0.6));
+        turm.hinzu(schachtel);
+    }
+    funghi oben = 0.6 + 16 * (KARTON_HOEHE + 0.005);
+    Blech<funghi> lagen = [-0.3, -0.3, 0.3, -0.3, -0.3, 0.3, 0.3, 0.3];
+    für (salami k = 1; k <= 4; k++) {
+        Teil ball = herd.koerper(Form.kugel(teile: 20), lagen.stück(2 * k - 1), oben + 0.28, lagen.stück(2 * k), farbe: "#f3e2c0", glanz: 0.3).setzeGroesse(0.56);
+        ball.mit(neu Fuehler(form: "kugel", radius: 0.28, ausloeser: nein));
+        ball.mit(neu Schwung(schwerkraft: 9.81, masse: 0.4, reibung: 0.8));
+        turm.hinzu(ball);
+    }
+    Teil spitze = herd.koerper(Form.kugel(teile: 20), 0, oben + 0.75, 0, farbe: "#f7ead0", glanz: 0.3).setzeGroesse(0.56);
+    spitze.mit(neu Fuehler(form: "kugel", radius: 0.28, ausloeser: nein));
+    spitze.mit(neu Schwung(schwerkraft: 9.81, masse: 0.4, reibung: 0.8));
+    turm.hinzu(spitze);
+};
+baue();
+
+// Teigkugeln: aus der Kamera durch die Maus geworfen (Sichtfeld 60°, Bild 960 × 540)
+Blech<Teil> kugeln = [];
+salami wuerfe = 0;
+Rezept werfen = () -> {
+    // Blickrichtung f, rechts r, oben o der Kamera (sie schaut auf (0, 2.6, 0))
+    funghi fx = 0 - KX;
+    funghi fy = 2.6 - KY;
+    funghi fz = 0 - KZ;
+    funghi fl = Mathe.wurzel(fx * fx + fy * fy + fz * fz);
+    fx = fx / fl;
+    fy = fy / fl;
+    fz = fz / fl;
+    funghi rx = -fz;
+    funghi rz = fx;
+    funghi rl = Mathe.wurzel(rx * rx + rz * rz);
+    rx = rx / rl;
+    rz = rz / rl;
+    funghi ox = -rz * fy;
+    funghi oy = rz * fx - rx * fz;
+    funghi oz = rx * fy;
+    funghi t = Mathe.tan(Mathe.bogen(30));
+    funghi sx = (herd.mausX() / 960 * 2 - 1) * t * 960 / 540;
+    funghi sy = (1 - herd.mausY() / 540 * 2) * t;
+    funghi dx = fx + rx * sx + ox * sy;
+    funghi dy = fy + oy * sy;
+    funghi dz = fz + rz * sx + oz * sy;
+    funghi dl = Mathe.wurzel(dx * dx + dy * dy + dz * dz);
+    funghi tempo = 22;
+    Teil kugel = herd.koerper(Form.kugel(teile: 20), KX + dx / dl, KY + dy / dl, KZ + dz / dl, farbe: "#fff3d6", glanz: 0.35).setzeGroesse(0.7);
+    kugel.mit(neu Fuehler(form: "kugel", radius: 0.35, ausloeser: nein));
+    // etwas höher zielen gegen die Schwerkraft
+    kugel.mit(neu Schwung(schwerkraft: 9.81, masse: 3, reibung: 0.7, abprall: 0.2,
+                          tempoX: dx / dl * tempo, tempoY: dy / dl * tempo + 1.5, tempoZ: dz / dl * tempo));
+    kugeln.hinzu(kugel);
+    wuerfe++;
+    // höchstens 12 Kugeln liegen herum: die älteste geht
+    falls (kugeln.länge() > 12) {
+        kugeln.stück(1).entferne();
+        kugeln.entferne(1);
+    }
+};
+
+Teil hinweis = herd.text("Klick: Teigkugel werfen · Leertaste: Turm neu bauen", 480, 512, groesse: 18, farbe: "#2f2a26", ausrichtung: "mitte");
+Teil stand = herd.text("", 20, 24, groesse: 18, farbe: "#2f2a26");
+
+salami umgekippt = 0;
+herd.backe(() -> {
+    falls (herd.klick()) { werfen(); }
+    falls (herd.gedrueckt("Leertaste")) { baue(); }
+    // gezählt: Kartons, die tiefer als ihre Lage im Turm liegen
+    salami gefallen = 0;
+    für (salami i = 1; i <= 16; i++) {
+        Teil schachtel = turm.stück(i);
+        falls (schachtel.y() < 0.6 + KARTON_HOEHE / 2 + (i - 1) * (KARTON_HOEHE + 0.005) - 0.3) { gefallen++; }
+    }
+    umgekippt = gefallen;
+    stand.text().setzeInhalt("Würfe: " + wuerfe + "   Kartons gefallen: " + gefallen + " von 16");
+});
+Bote.sage(("Nach " + herd.bildnummer() + " Takten: " + wuerfe + " Würfe, " + umgekippt + " von 16 Kartons gefallen."));

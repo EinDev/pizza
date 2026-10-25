@@ -282,6 +282,17 @@ pub fn netz_glatt(punkte: &[f32], uv: &[f32], dreiecke: &[u32]) -> Netz {
     b.fertig()
 }
 
+/// Dreiecke eines Netzes lesen (H-K17, `kollision3d`): Eckpunkte als f64 (aus den f32-Bytes, genau) und Indizes je Dreieck.
+/// Unvollständige oder ungültige Dreiecke (Index außerhalb) fallen weg.
+pub fn dreiecke(n: &Netz) -> (Vec<[f64; 3]>, Vec<[u32; 3]>) {
+    let f = |c: &[u8], k: usize| f32::from_le_bytes([c[k * 4], c[k * 4 + 1], c[k * 4 + 2], c[k * 4 + 3]]) as f64;
+    let punkte: Vec<[f64; 3]> = n.ecken.chunks_exact(32).map(|c| [f(c, 0), f(c, 1), f(c, 2)]).collect();
+    let idx: Vec<u32> = n.indizes.chunks_exact(4).map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+    let m = punkte.len() as u32;
+    let dreiecke = idx.chunks_exact(3).filter(|t| t.iter().all(|&i| i < m)).map(|t| [t[0], t[1], t[2]]).collect();
+    (punkte, dreiecke)
+}
+
 fn eigene(punkte: &[f32], dreiecke: &[u32], glatt: bool) -> Netz {
     let pk = |i: u32| {
         let k = i as usize * 3;

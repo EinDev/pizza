@@ -2,5 +2,5 @@ Fuehler(3) auto 1 2 ja 10
 rein 6:4, raus 9:4, rein 16:6 | 4 6
 Bild 24 bei x = 190, anzahl 1, Geist spürt 0 mit Maske 4294967295, Bote 4294967295
 LaufzeitAnanas: Fuehler.gruppe muss zwischen 1 und 32 liegen, nicht 0.
-LaufzeitAnanas: Fuehler.form kennt 'dreieck' nicht. Erlaubt: auto, kreis, rechteck, kasten, kugel.
+LaufzeitAnanas: Fuehler.form kennt 'dreieck' nicht. Erlaubt: auto, kreis, rechteck, kasten, kugel, kapsel, netz.
 LaufzeitAnanas: Fuehler.maske muss zwischen 0 und 4294967295 liegen, nicht -1.

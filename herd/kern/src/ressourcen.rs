@@ -59,6 +59,8 @@ pub struct Ressourcen {
     seiten_y: Vec<u32>,
     /// laufender Hash über alle Ressourcen-Definitionen (für den Szenen-Hash)
     pub hash: crate::hash::Fnv,
+    /// Hüllen-Bäume der Netze für die 3D-Kollision (H-K17), nach ID, beim ersten Kontakt gebaut – nicht im Hash
+    pub baeume: crate::kollision3d::Baeume,
 }
 
 impl Ressourcen {

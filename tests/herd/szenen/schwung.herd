@@ -1,0 +1,268 @@
+# H-K17 (HERD.md §13.3): Schwung – 3D-Physik. N Kisten als Türme auf einem Tisch und K Kugeln/Kapseln (Reibung, Abprall,
+# Anfangstempo) fallen in eine Gelände-Mulde (Fühler `netz`, Höhenraster) und auf eine Rampe aus einem eigenen Netz (Fühler `netz`,
+# Hüllen-Baum); dazu ein fester gedrehter Kasten, eine kinematische Drehscheibe, eine Kiste mit Drehsperre, ein Auslöser (fällt durch),
+# eine Kugel mit eigener Maske, ein Kind unter einer gedrehten Gruppe; mitten im Lauf Stoß, gesetzte Lage, Entfernen und Kopie.
+# Voll: N = 500 Kisten (5 Lagen) bzw. K = 2 000 Kugeln. Der Szenen-Hash je
+# Bild enthält Lage, Drehung, Tempo, Quaternion und Warmstart-Impulse – test-kern.js vergleicht die Physik nativ gegen Wasm.
+vorgabe N 40
+vorgabe K 24
+vorgabe TAKTE 150
+welt_neu 960 540 "Schwung"
+welt_himmel "himmel" "mozzarella"
+typ_nummer "Fuehler" -> T_F
+typ_nummer "Schwung" -> T_S
+typ_nummer "Koerper" -> T_K
+typ_nummer "Gelaende" -> T_G
+feld_nummer T_F "form" -> F_FORM
+feld_nummer T_F "breite" -> F_B
+feld_nummer T_F "hoehe" -> F_H
+feld_nummer T_F "tiefe" -> F_T
+feld_nummer T_F "radius" -> F_RAD
+feld_nummer T_F "ausloeser" -> F_AUS
+feld_nummer T_F "maske" -> F_MA
+feld_nummer T_F "beruehrt" -> F_BER
+feld_nummer T_S "art" -> S_ART
+feld_nummer T_S "masse" -> S_M
+feld_nummer T_S "tempoX" -> S_TX
+feld_nummer T_S "tempoY" -> S_TY
+feld_nummer T_S "tempoZ" -> S_TZ
+feld_nummer T_S "drehtempoY" -> S_DY
+feld_nummer T_S "schwerkraft" -> S_G
+feld_nummer T_S "daempfung" -> S_D
+feld_nummer T_S "abprall" -> S_AB
+feld_nummer T_S "reibung" -> S_RE
+feld_nummer T_S "stossX" -> S_SX
+feld_nummer T_S "stossY" -> S_SY
+feld_nummer T_S "drehsperre" -> S_SP
+feld_nummer T_S "amBoden" -> S_BODEN
+feld_nummer T_S "ruht" -> S_RUHT
+feld_nummer T_K "form" -> K_FORM
+feld_nummer T_K "farbe" -> K_FARBE
+feld_nummer T_G "hoehen" -> G_H
+feld_nummer T_G "spalten" -> G_SP
+feld_nummer T_G "zeilen" -> G_ZE
+feld_nummer T_G "weite" -> G_W
+teil_lage 1 0 18 34
+teil_schaue 1 0 0 0
+form_grund 1 0 0 -> WUERFEL
+form_grund 2 16 0 -> KUGEL
+# Fehler: 2D-Teil, ohne Fühler, Lesefeld, Masse 0
+teil_neu 3 -> los
+komp_neu T_S -> s_los
+komp_haenge s_los los
+fehler_text
+teil_neu 2 -> flach
+komp_neu T_F -> f_flach
+komp_haenge f_flach flach
+komp_neu T_S -> s_flach
+komp_haenge s_flach flach
+fehler_text
+setze_zahl s_los S_RUHT 1
+fehler_text
+setze_zahl s_los S_M 0
+fehler_text
+# Gelände 33 × 33, Weite 1.5: Mulde mit Rand (Höhe aus Abstandsquadrat, gekappt)
+teil_neu 3 -> land
+komp_neu T_G -> g
+setze_zahl g G_SP 33
+setze_zahl g G_ZE 33
+setze_zahl g G_W 1.5
+setze_zahlen g G_H [folge 1089 i (((i % 33 - 16) * (i % 33 - 16) + (boden(i / 33) - 16) * (boden(i / 33) - 16)) / 60 + (i % 7) * 0.02)]
+komp_haenge g land
+komp_neu T_F -> f_land
+setze_zahl f_land F_FORM 6
+setze_zahl f_land F_AUS 0
+komp_haenge f_land land
+# Rampe aus einem eigenen Netz (zwei Dreiecke, schräg), fester Netz-Fühler
+form_eigene [0, 0, 0, 6, 0, 0, 6, 3, -4, 0, 3, -4] [0, 1, 2, 0, 2, 3] 0 -> RAMPE
+teil_neu 3 -> rampe
+teil_lage rampe -14 2 8
+teil_setze rampe 4 20
+komp_neu T_K -> k_rampe
+setze_zahl k_rampe K_FORM RAMPE
+komp_haenge k_rampe rampe
+komp_neu T_F -> f_rampe
+setze_zahl f_rampe F_FORM 6
+setze_zahl f_rampe F_AUS 0
+komp_haenge f_rampe rampe
+# fester Kasten (Fühler ohne Schwung), gedreht
+teil_neu 3 -> block
+teil_lage block 6 4 -4
+teil_groesse block 3 2 3
+teil_setze block 4 35
+komp_neu T_K -> k_block
+setze_zahl k_block K_FORM WUERFEL
+komp_haenge k_block block
+komp_neu T_F -> f_block
+setze_zahl f_block F_AUS 0
+komp_haenge f_block block
+# eine Kiste und eine Kapsel für Stoß, gesetzte Lage und Kopie mitten im Lauf
+teil_neu 3 -> t
+teil_lage t 1 5 1
+teil_groesse t 0.8 0.6 1
+teil_setze t 4 15
+komp_neu T_K -> k
+setze_zahl k K_FORM WUERFEL
+komp_haenge k t
+komp_neu T_F -> f
+setze_zahl f F_AUS 0
+komp_haenge f t
+komp_neu T_S -> s
+setze_zahl s S_G 9.81
+setze_zahl s S_M 2
+setze_zahl s S_D 0.1
+setze_zahl s S_AB 0.3
+komp_haenge s t
+teil_neu 3 -> kt
+teil_lage kt -2 6 2
+komp_neu T_F -> kf
+setze_zahl kf F_FORM 5
+setze_zahl kf F_RAD 0.3
+setze_zahl kf F_H 1.4
+setze_zahl kf F_AUS 0
+komp_haenge kf kt
+komp_neu T_S -> ks
+setze_zahl ks S_G 9.81
+komp_haenge ks kt
+# Tisch (fester Kasten) in der Mulde, darauf N Kisten als Türme (10 × 10 Stapel, je 100 eine Lage), leicht gedreht, verschieden schwer
+teil_neu 3 -> tisch
+teil_lage tisch 0 0.8 0
+teil_groesse tisch 14 1 14
+komp_neu T_K -> k_tisch
+setze_zahl k_tisch K_FORM WUERFEL
+komp_haenge k_tisch tisch
+komp_neu T_F -> f_tisch
+setze_zahl f_tisch F_AUS 0
+komp_haenge f_tisch tisch
+wiederhole N e
+  teil_neu 3 -> nt
+  teil_lage nt ((e % 10) * 1.25 - 5.6) (1.62 + boden(e / 100) * 0.64) ((boden(e / 10) % 10) * 1.25 - 5.6)
+  teil_groesse nt (0.9 + (e % 3) * 0.05) 0.6 (0.9 + (e % 2) * 0.05)
+  teil_setze nt 4 ((e % 7) * 3)
+  komp_neu T_K -> nk
+  setze_zahl nk K_FORM WUERFEL
+  komp_haenge nk nt
+  komp_neu T_F -> nf
+  setze_zahl nf F_FORM 3
+  setze_zahl nf F_AUS 0
+  komp_haenge nf nt
+  komp_neu T_S -> ns
+  setze_zahl ns S_G 9.81
+  setze_zahl ns S_M (1 + e % 3)
+  setze_zahl ns S_RE (0.5 + (e % 4) * 0.1)
+  komp_haenge ns nt
+ende
+# K Kugeln (jede dritte eine Kapsel) darüber
+wiederhole K e
+  teil_neu 3 -> mt
+  teil_lage mt ((e % 12) * 1.1 - 6) (12 + boden(e / 144) * 1.2) ((boden(e / 12) % 12) * 1.1 - 6)
+  komp_neu T_F -> mf
+  setze_zahl mf F_FORM (4 + boden((e % 3) / 2))
+  setze_zahl mf F_RAD (0.3 + (e % 4) * 0.05)
+  setze_zahl mf F_H 1.2
+  setze_zahl mf F_AUS 0
+  komp_haenge mf mt
+  komp_neu T_S -> ms
+  setze_zahl ms S_G 9.81
+  setze_zahl ms S_RE (0.2 + (e % 3) * 0.3)
+  setze_zahl ms S_AB ((e % 5) * 0.15)
+  setze_zahl ms S_TZ ((e % 5 - 2) * 0.5)
+  komp_haenge ms mt
+ende
+# kinematische Drehscheibe, Kiste mit Drehsperre auf ihr, Auslöser, Kugel mit eigener Maske (spürt nur Gruppe 2)
+teil_neu 3 -> scheibe
+teil_lage scheibe -9 0.8 -9
+teil_groesse scheibe 3 0.4 3
+komp_neu T_K -> k_sch
+setze_zahl k_sch K_FORM WUERFEL
+komp_haenge k_sch scheibe
+komp_neu T_F -> f_sch
+setze_zahl f_sch F_AUS 0
+komp_haenge f_sch scheibe
+komp_neu T_S -> s_sch
+setze_zahl s_sch S_ART 1
+setze_zahl s_sch S_DY 45
+setze_zahl s_sch S_TY 0.2
+komp_haenge s_sch scheibe
+teil_neu 3 -> gesperrt
+teil_lage gesperrt -9 2 -9
+teil_setze gesperrt 6 25
+komp_neu T_F -> f_gs
+setze_zahl f_gs F_FORM 3
+setze_zahl f_gs F_B 0.8
+setze_zahl f_gs F_H 0.8
+setze_zahl f_gs F_T 0.8
+setze_zahl f_gs F_AUS 0
+komp_haenge f_gs gesperrt
+komp_neu T_S -> s_gs
+setze_zahl s_gs S_G 9.81
+setze_zahl s_gs S_SP 1
+komp_haenge s_gs gesperrt
+teil_neu 3 -> geist
+teil_lage geist 0 6 0
+komp_neu T_F -> f_geist
+setze_zahl f_geist F_FORM 4
+setze_zahl f_geist F_RAD 0.4
+komp_haenge f_geist geist
+komp_neu T_S -> s_geist
+setze_zahl s_geist S_G 9.81
+komp_haenge s_geist geist
+teil_neu 3 -> waehler
+teil_lage waehler 3 9 3
+komp_neu T_F -> f_w
+setze_zahl f_w F_FORM 4
+setze_zahl f_w F_RAD 0.5
+setze_zahl f_w F_MA 2
+setze_zahl f_w F_AUS 0
+komp_haenge f_w waehler
+komp_neu T_S -> s_w
+setze_zahl s_w S_G 9.81
+komp_haenge s_w waehler
+# Kind unter einer gedrehten, verschobenen Gruppe (Lage wird über die Eltern zurückgerechnet)
+teil_neu 3 -> gruppe
+teil_lage gruppe 4 1 6
+teil_setze gruppe 4 30
+teil_neu 3 -> kind
+teil_haenge kind gruppe
+teil_lage kind 1 7 0
+komp_neu T_K -> k_kind
+setze_zahl k_kind K_FORM KUGEL
+komp_haenge k_kind kind
+komp_neu T_F -> f_kind
+setze_zahl f_kind F_FORM 4
+setze_zahl f_kind F_AUS 0
+komp_haenge f_kind kind
+komp_neu T_S -> s_kind
+setze_zahl s_kind S_G 9.81
+komp_haenge s_kind kind
+takte 40
+hole_zahl s_geist S_TY
+teil_hole geist 2
+teil_hole scheibe 4
+teil_hole scheibe 2
+teil_hole gesperrt 6
+teil_hole kind 1
+teil_hole kind 2
+hole_zahl s_w S_BODEN
+# Stoß, gesetzte Lage, Entfernen, Kopie
+setze_zahl s S_SX 6
+setze_zahl s S_SY 3
+setze_zahl ks S_SX -2
+teil_lage kt 0 6 0
+teil_entferne block
+teil_kopie t -> kopie
+teil_lage kopie 2 10 2
+takte TAKTE
+hole_zahl s S_BODEN
+hole_zahl s S_RUHT
+hole_zahl ks S_BODEN
+teil_hole t 1
+teil_hole t 2
+teil_hole t 4
+teil_hole t 5
+teil_hole t 6
+teil_hole kopie 2
+teil_hole kind 2
+hole_zahl s_kind S_BODEN
+teil_hole gesperrt 6
+hole_liste f_land F_BER

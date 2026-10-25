@@ -1,0 +1,11 @@
+Schwung() dynamisch 1 0 0.5 0.05 nein nein
+Kiste gelandet: ja, liegt flach: ja, auf y = 0.5
+eingeschlafen: ja, vom Stoß geweckt: ja, rutscht: ja
+Kugel rollt hinab: ja, dreht: ja, amBoden ja
+Stange liegt auf y = 0.2, rollen bleibt 90, Geist fällt durch: ja
+LaufzeitAnanas: Schwung.ruht kann man nur lesen.
+LaufzeitAnanas: Schwung.masse muss mindestens 0.001 sein, nicht 0.
+LaufzeitAnanas: Schwung.art kennt 'fliegend' nicht. Erlaubt: dynamisch, kinematisch, fest.
+LaufzeitAnanas: Schwung braucht einen Fuehler am selben Teil.
+LaufzeitAnanas: Schwung gibt es nur für 3D-Teile.
+LaufzeitAnanas: Fuehler wird von Schwung am selben Teil gebraucht.

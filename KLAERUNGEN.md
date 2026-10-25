@@ -2260,6 +2260,42 @@ Listenwert); Interpreter und Wasm-Laufzeit senden bitgleiche `ui`-Nachrichten; R
   (`host/src/herd_fenster.rs`: `CursorGrabMode::Locked`, sonst `Confined`, Zeiger aus, `device_event`), Editor-Wörter, Fälle
   `tests/faelle/herd-mausfang`, Korpus `herd-mausfang-blick`, Prüfstand a18, Doku `herd-eingabe`, E2E 14. **Status:** fest.
 
+### K-162 Herd: 3D-Physik `Schwung`, Fühler-Formen `kapsel`/`netz`, gemeinsame 3D-Kollision (H-K17)
+- **Frage:** Wie bekommt 3D eine Physik wie Unity `Rigidbody` mit Box-, Sphere-, Capsule-, Mesh- und Terrain-Collider, deterministisch
+  (nativ = Wasm = Interpreter), ohne neue Sprache und ohne Bildpaket-Änderung?
+- **Entscheidung (Kern-only, HERD.md §13.3 H-K17):** eigene Komponente **`Schwung`** (3D, braucht `Fuehler`, Typnummer 32 in
+  Merge-Reihenfolge) neben `Wucht` statt einer gemeinsamen; Felder wie im Plan, **Schwerkraft-Standard 0** (wie `Wucht`; Doku empfiehlt
+  9.81), `reibung` 0.5, `drehdaempfung` 0.05, Lesefelder `amBoden`, `ruht`. Kollider bleiben `Fuehler`: neue Wahl-Werte **`kapsel`**
+  (y-Achse des Teils, `radius`, `hoehe` gesamt) und **`netz`** (nur fest: Dreiecke der `Koerper`-Form, einseitig mit der Vorderseite,
+  bzw. das Höhenraster des `Gelaende`; an einem beweglichen Körper der Quader um das Netz) – hinten angehängt, Hash-neutral; der
+  Fehlertext für unbekannte Formen nennt sie mit (`herd-fuehler.erwartet` und `tests::hk6` angepasst). Für die Physik sind Kasten und
+  Kapsel **gedreht**, fehlende Maße kommen aus der lokalen Hülle des `Koerper`/`Gelaende`; Auslöser-Meldungen bleiben achsenparallel
+  (K-150). Gemeinsame Kollision in **`kollision3d.rs`** (Formen, Engphase, Hüllen-Baum je Netz-Ressource – einmal gebaut, Cache
+  `Ressourcen::baeume` nach ID, nicht im Hash –, Gelände analytisch über das Dreieck unter jedem Probepunkt, genau wie das gezeichnete
+  Netz; öffentliche Höhenabfrage `gelaende::hoehe`); H-K20/H-K25/H-K28 erweitern es nur additiv.
+- **Löser:** Breitphase `fuehler::breitphase` auf den um den Kontaktrand (0.01) vergrößerten Kästen; Engphase Kugel/Kapsel
+  geschlossen, Kasten–Kasten über 15 Trennachsen (Flächen vor Kanten mit Toleranz wie Box2D) und bis zu 4 Punkten aus der geschnittenen
+  Gegenfläche; **spekulative Kontakte** bis 0.01 vor der Berührung (Annäherung bis zur Berührung frei) – ruhende Kontakte flackern nicht.
+  Kontakte nach (kleinere ID, größere ID, Merkmal); **Warmstart nach Ort** (nächster Punkt desselben Paars im Körperrahmen des Halters,
+  ≤ 0.05) statt nach Merkmal, weil Merkmale bei kleinsten Drehungen wechseln (Ecke → Schnittpunkt) und ein einseitiger Warmstart Türme
+  umwirft. Feste **8 Impuls-Iterationen** je Kontaktfläche (Normale ≥ 0, zwei Reibungsrichtungen Coulomb √(μa · μb), dann die
+  **Drehung der Fläche**: Kippen um die Tangenten bis Ausdehnung × Normalimpuls, Bohren mit μ – ein Einzelpunkt dreht frei, Kugeln
+  rollen ohne Rollwiderstand), **4 Iterationen Positionskorrektur** (über 0.005 Spiel zu 20 %, linearisiert mit denselben Hebeln, Weg
+  vor dem Bremsen festgelegt; sie bremst das Tempo nur, beschleunigt nie), abwechselnd vorwärts/rückwärts; semi-implizites Euler,
+  Trägheit analytisch (Kugel, Quader, Kapsel aus Zylinder + Halbkugeln), Drehung intern als Quaternion f64 (verborgene Spalten),
+  geschrieben als `drehung`/`neigung`/`rollen`; setzt das Programm Lage oder Drehung (Vergleich mit den zuletzt geschriebenen Bits),
+  übernimmt Schwung sie. **Schlafen:** Inseln (dynamische Körper mit überlappenden Kästen) ruhen nach 30 Takten unter 0.05 Einheiten/s
+  und 2°/s ganz oder gar nicht; Wecken durch einen wachen Inselnachbarn, Stoß, gesetztes Tempo, gesetzte Lage, bewegten kinematischen
+  Nachbarn oder einen fehlenden Kontaktpartner. Nur `libm` (`sqrt`, `atan2`, `asin`, `pow`), keine `HashMap`, Reihenfolgen nach ID/Index.
+- **Grenzen (Doku):** kein Durchtunnel-Schutz, keine Gelenke/Federn, keine Kreiselkräfte, Netz-Kollider einseitig und nur fest, Box
+  gegen Netz-Kanten nur über Ecken, Drehung unter gedrehten Eltern mit ungleichem Maßstab angenähert; Verschiebt das Programm einen
+  festen Körper unter Schläfern, wecken sie erst bei einem Stoß.
+- **Messung (B12; B11 hat Regen in Merge-Reihenfolge):** siehe `bench/herd/ERGEBNISSE.md` (500 Kisten in Türmen, Ziel Takt ≤ 2 ms nativ).
+- **Betroffen:** neu `herd/kern/src/kollision3d.rs`, `komponenten/schwung.rs`; `fuehler.rs` (Formen), `gelaende.rs` (`punkt`, `hoehe`),
+  `formen.rs` (`dreiecke`), `ressourcen.rs` (Cache-Feld), `mod.rs`/`lib.rs` (Anhängestellen), `kern.wasm`/`schema.json`; Szene
+  `schwung.herd`, Fall `herd-schwung`, Beispiel `kistenturm`, SPEC §18.6, Doku `herd-ausbau`, `herd/README.md` §2/§7, B12. Kein Bildpaket, keine
+  Glut, kein Interpreter/Laufzeit/Host. Nachtrag Auftrieb (H-K28) folgt. **Status:** fest.
+
 ## Offene Umsetzungen (Aufträge für andere Agents)
 
 | Nr. | Datei(en) | Was | Testfall |

@@ -1,0 +1,46 @@
+// Herd §18.6 / HERD.md §13.3 H-K17: Schwung – 3D-Physik: Kiste fällt auf einen festen Boden, Kugel rollt auf einem Gelände-Hang
+// (Fühler netz), Kapsel liegt, Drehsperre, Schlafen und Wecken per Stoß, Auslöser fällt durch, Fehler
+Herd herd = neu Herd("Schwung", breite: 320, hoehe: 180);
+Schwung vorgabe = neu Schwung();
+Bote.sage((vorgabe + " " + vorgabe.art() + " " + vorgabe.masse() + " " + vorgabe.schwerkraft() + " " + vorgabe.reibung() + " " + vorgabe.drehdaempfung() + " " + vorgabe.drehsperre() + " " + vorgabe.ruht()));
+Teil boden = herd.koerper(Form.wuerfel(), 0, -0.5, 0, farbe: "basilikum").setzeGroesse(20, 1, 20);
+boden.mit(neu Fuehler(ausloeser: nein));
+Teil kiste = herd.koerper(Form.wuerfel(), -2, 2, 0, farbe: "senf").setzeRollen(30);
+kiste.mit(neu Fuehler(form: "kasten", ausloeser: nein));
+Schwung sk = kiste.mit(neu Schwung(schwerkraft: 9.81, masse: 2));
+Blech<funghi> h = [];
+für (salami j = 0; j < 9; j++) {
+  für (salami i = 0; i < 9; i++) { h.hinzu(((8 - i) * 0.25)); }
+}
+Teil hang = herd.raum(4, 0.01, 0);
+hang.mit(neu Gelaende(hoehen: h, spalten: 9, zeilen: 9, weite: 0.5, farbe: "oliven"));
+hang.mit(neu Fuehler(form: "netz", ausloeser: nein));
+Teil ball = herd.koerper(Form.kugel(teile: 16), 3, 2.6, 0, farbe: "tomate").setzeGroesse(0.6);
+ball.mit(neu Fuehler(form: "kugel", radius: 0.3, ausloeser: nein));
+Schwung sb = ball.mit(neu Schwung(schwerkraft: 9.81, reibung: 1));
+Teil stange = herd.koerper(Form.zylinder(), 0, 1, 3, farbe: "kruste").setzeGroesse(0.4, 1.6, 0.4).setzeRollen(90);
+stange.mit(neu Fuehler(form: "kapsel", ausloeser: nein));
+Schwung ss = stange.mit(neu Schwung(schwerkraft: 9.81, drehsperre: ja));
+Teil geist = herd.koerper(Form.kugel(), 0, 3, -3, farbe: "#ffffff80").setzeGroesse(0.5);
+geist.mit(neu Fuehler(form: "kugel"));
+Schwung sg = geist.mit(neu Schwung(schwerkraft: 9.81));
+salami gelandet = 0;
+salami eingeschlafen = 0;
+salami geweckt = 0;
+herd.backe(() -> {
+  falls (gelandet == 0 && sk.amBoden()) { gelandet = herd.bildnummer(); }
+  falls (eingeschlafen == 0 && sk.ruht()) { eingeschlafen = herd.bildnummer(); sk.setzeStossX(4); }
+  falls (eingeschlafen > 0 && geweckt == 0 && !sk.ruht()) { geweckt = herd.bildnummer(); }
+});
+Bote.sage(("Kiste gelandet: " + (gelandet > 0) + ", liegt flach: " + ((kiste.rollen() % 90).abs() < 1 || (kiste.rollen() % 90).abs() > 89) + ", auf y = " + kiste.y().runden(2)));
+Bote.sage(("eingeschlafen: " + (eingeschlafen > 0) + ", vom Stoß geweckt: " + (geweckt > eingeschlafen) + ", rutscht: " + (kiste.x() > -2)));
+Bote.sage(("Kugel rollt hinab: " + (ball.x() > 3.5) + ", dreht: " + (sb.drehtempoZ() < 0) + ", amBoden " + sb.amBoden()));
+Bote.sage(("Stange liegt auf y = " + stange.y().runden(2) + ", rollen bleibt " + stange.rollen().runden(3) + ", Geist fällt durch: " + (geist.y() < 0)));
+probier { sk.setzeRuht(ja); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { sk.setzeMasse(0); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { sk.setzeArt("fliegend"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { herd.raum(0, 0, 0).mit(neu Schwung()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+Teil flach = herd.rechteck(10, 10, 5, 5);
+flach.mit(neu Fuehler());
+probier { flach.mit(neu Schwung()); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }
+probier { kiste.ohne("Fuehler"); } verbrannt (Ananas a) { Bote.sage((a.typ() + ": " + a.nachricht())); }

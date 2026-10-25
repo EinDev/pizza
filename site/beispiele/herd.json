@@ -242,6 +242,16 @@
       "tier": 1,
       "schlagworte": ["Herd", "3D", "Spiel", "Projekt", "Bilder", "Material", "Stimmung", "Licht"],
       "herd": true
+    },
+    {
+      "id": "kistenturm",
+      "titel": "Kistenturm: Physik in 3D",
+      "beschreibung": "Ein Turm aus Pizzakartons mit Teigbällen obendrauf steht auf einer Lichtung zwischen Hügeln. Ein Klick wirft eine Teigkugel dorthin, wohin die Maus zeigt – der Turm wankt, kippt, und die Kartons purzeln über das Gelände. Schwung macht Kästen, Kugeln und das Gelände zu echter 3D-Physik; die Leertaste baut den Turm neu.",
+      "ordner": "herd/kistenturm",
+      "dateien": ["pizza.json", "hauptgang.pizza"],
+      "tier": 1,
+      "schlagworte": ["Herd", "3D", "Schwung", "Physik", "Gelaende", "Maus"],
+      "herd": true
     }
   ]
 }

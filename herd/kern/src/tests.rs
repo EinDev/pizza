@@ -1457,7 +1457,7 @@ mod hk6 {
         assert_eq!(k.setze_zahl(f, n.gruppe, 33.0), -2);
         assert_eq!(k.fehler_text(), "Fuehler.gruppe muss zwischen 1 und 32 liegen, nicht 33.");
         assert_eq!(k.setze_text(f, n.form, b"dreieck"), -2);
-        assert_eq!(k.fehler_text(), "Fuehler.form kennt 'dreieck' nicht. Erlaubt: auto, kreis, rechteck, kasten, kugel.");
+        assert_eq!(k.fehler_text(), "Fuehler.form kennt 'dreieck' nicht. Erlaubt: auto, kreis, rechteck, kasten, kugel, kapsel, netz.");
     }
 
     #[test]
@@ -4860,3 +4860,421 @@ mod regen {
         assert_eq!(lauf(Some(0.0)), (0, Some(0.0)));
     }
 }
+/// H-K17: `Schwung` – 3D-Physik mit gedrehten Formen, Gelände, Netz, Kapsel, Schlafen (HERD.md §13.3, K-162).
+mod hk17 {
+    use super::*;
+    use crate::komponenten::{schwung, DT};
+
+    struct N {
+        f: i32,
+        f_form: i32,
+        f_aus: i32,
+        f_radius: i32,
+        f_hoehe: i32,
+        s: i32,
+        art: i32,
+        masse: i32,
+        tx: i32,
+        ty: i32,
+        dz: i32,
+        g: i32,
+        reibung: i32,
+        sx: i32,
+        sperre: i32,
+        boden: i32,
+        ruht: i32,
+        kp: i32,
+        kp_form: i32,
+        wuerfel: i32,
+    }
+    fn nummern(k: &mut Kern) -> N {
+        let (f, s, kp) = (typ(k, "Fuehler"), typ(k, "Schwung"), typ(k, "Koerper"));
+        let wuerfel = k.form_grund(1, 0.0, 0.0);
+        N {
+            f,
+            f_form: feld(k, f, "form"),
+            f_aus: feld(k, f, "ausloeser"),
+            f_radius: feld(k, f, "radius"),
+            f_hoehe: feld(k, f, "hoehe"),
+            s,
+            art: feld(k, s, "art"),
+            masse: feld(k, s, "masse"),
+            tx: feld(k, s, "tempoX"),
+            ty: feld(k, s, "tempoY"),
+            dz: feld(k, s, "drehtempoZ"),
+            g: feld(k, s, "schwerkraft"),
+            reibung: feld(k, s, "reibung"),
+            sx: feld(k, s, "stossX"),
+            sperre: feld(k, s, "drehsperre"),
+            boden: feld(k, s, "amBoden"),
+            ruht: feld(k, s, "ruht"),
+            kp,
+            kp_form: feld(k, kp, "form"),
+            wuerfel,
+        }
+    }
+    /// 3D-Teil mit Würfel-Körper (Größe g) bei p und festem Fühler (`form`: Text oder leer = auto); gibt (Teil, Fühler)
+    fn kiste(k: &mut Kern, n: &N, p: [f64; 3], g: [f64; 3], form: &str) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        k.teil_groesse(t, g[0], g[1], g[2]);
+        let c = k.komp_neu(n.kp);
+        k.setze_zahl(c, n.kp_form, n.wuerfel as f64);
+        assert_eq!(k.komp_haenge(c, t), 0);
+        let f = k.komp_neu(n.f);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        if !form.is_empty() {
+            assert_eq!(k.setze_text(f, n.f_form, form.as_bytes()), 0);
+        }
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+    fn kugel(k: &mut Kern, n: &N, p: [f64; 3], r: f64) -> (i32, i32) {
+        let t = k.teil_neu(3);
+        k.teil_lage(t, p[0], p[1], p[2]);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"kugel");
+        k.setze_zahl(f, n.f_radius, r);
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        (t, f)
+    }
+    fn schwung(k: &mut Kern, n: &N, t: i32, g: f64) -> i32 {
+        let s = k.komp_neu(n.s);
+        k.setze_zahl(s, n.g, g);
+        assert_eq!(k.komp_haenge(s, t), 0, "{}", k.fehler_text());
+        s
+    }
+    fn takte(k: &mut Kern, n: usize) {
+        for _ in 0..n {
+            k.takt();
+        }
+    }
+    /// Boden: fester Kasten 40 × 1 × 40, Oberkante y = 0
+    fn boden(k: &mut Kern, n: &N, form: &str) -> i32 {
+        kiste(k, n, [0.0, -0.5, 0.0], [40.0, 1.0, 40.0], form).0
+    }
+
+    #[test]
+    fn schema_typnummer_braucht_lesefelder() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        assert_eq!(n.s, 32, "Typnummer in Merge-Reihenfolge nach Stimmung (31)");
+        let art = ARTEN.iter().find(|a| a.schema.name == "Schwung").unwrap();
+        assert!(art.takt.is_some() && art.nachlauf.is_none() && art.bild.is_none() && art.huelle.is_none());
+        let t = k.teil_neu(3);
+        let s = k.komp_neu(n.s);
+        assert!(k.komp_haenge(s, t) < 0);
+        assert_eq!(k.fehler_text(), "Schwung braucht einen Fuehler am selben Teil.");
+        let f = k.komp_neu(n.f);
+        assert_eq!(k.komp_haenge(f, t), 0);
+        assert_eq!(k.komp_haenge(s, t), 0);
+        // nur 3D
+        let t2 = k.teil_neu(2);
+        let f2 = k.komp_neu(n.f);
+        assert_eq!(k.komp_haenge(f2, t2), 0);
+        let s2 = k.komp_neu(n.s);
+        assert!(k.komp_haenge(s2, t2) < 0);
+        assert!(k.setze_zahl(s, n.boden, 1.0) < 0);
+        assert_eq!(k.fehler_text(), "Schwung.amBoden kann man nur lesen.");
+        assert!(k.setze_zahl(s, n.ruht, 1.0) < 0);
+        assert!(k.setze_zahl(s, n.masse, 0.0) < 0);
+        assert_eq!(k.fehler_text(), "Schwung.masse muss mindestens 0.001 sein, nicht 0.");
+        assert!(k.setze_text(s, n.art, b"fliegend") < 0);
+        assert_eq!(k.fehler_text(), "Schwung.art kennt 'fliegend' nicht. Erlaubt: dynamisch, kinematisch, fest.");
+        assert_eq!((k.hole_zahl(s, n.reibung), k.hole_zahl(s, n.g)), (0.5, 0.0));
+        let dd = feld(&mut k, n.s, "drehdaempfung");
+        assert_eq!(k.hole_zahl(s, dd), 0.05);
+        // Fühler: neue Formen hinten angehängt (Werte 5, 6)
+        assert_eq!(k.setze_text(f, n.f_form, b"kapsel"), 0);
+        assert_eq!(k.hole_zahl(f, n.f_form), 5.0);
+        assert_eq!(k.setze_text(f, n.f_form, b"netz"), 0);
+        assert_eq!(k.hole_zahl(f, n.f_form), 6.0);
+    }
+
+    #[test]
+    fn fallhoehe_nach_n_takten() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let (t, _) = kugel(&mut k, &n, [1.0, 10.0, -2.0], 0.5);
+        let s = schwung(&mut k, &n, t, 9.81);
+        let (mut y, mut v) = (10.0f64, 0.0f64);
+        for i in 1..=30 {
+            k.takt();
+            v -= 9.81 * DT;
+            y += v * DT;
+            assert_eq!(k.teil_hole(t, tf::Y), y, "Takt {}", i);
+        }
+        assert_eq!(k.hole_zahl(s, n.ty), v);
+        assert_eq!((k.teil_hole(t, tf::X), k.teil_hole(t, tf::Z)), (1.0, -2.0));
+        assert_eq!((k.teil_hole(t, tf::DREHUNG), k.teil_hole(t, tf::NEIGUNG), k.teil_hole(t, tf::ROLLEN)), (0.0, 0.0, 0.0));
+        assert_eq!(k.hole_zahl(s, n.boden), 0.0);
+    }
+
+    #[test]
+    fn stapel_aus_10_kisten_ruht_und_schlaeft() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let b = boden(&mut k, &n, "");
+        let mut kisten = Vec::new();
+        for i in 0..10 {
+            let x = (i % 2) as f64 * 0.04;
+            let (t, _) = kiste(&mut k, &n, [x, 0.5 + i as f64 * 1.0, 0.0], [1.0, 1.0, 1.0], "kasten");
+            let s = schwung(&mut k, &n, t, 9.81);
+            kisten.push((t, s, x));
+        }
+        takte(&mut k, 300);
+        let vorher: Vec<f64> = kisten.iter().map(|&(t, _, _)| k.teil_hole(t, tf::Y)).collect();
+        takte(&mut k, 300);
+        for (i, &(t, s, x)) in kisten.iter().enumerate() {
+            let y = k.teil_hole(t, tf::Y);
+            let soll = 0.5 + i as f64;
+            assert!((y - soll).abs() < 0.02 * (i + 1) as f64, "Kiste {} bei y = {} statt {}", i, y, soll);
+            assert!((y - vorher[i]).abs() < 1e-3, "Kiste {} ruht nicht: {} → {}", i, vorher[i], y);
+            assert!((k.teil_hole(t, tf::X) - x).abs() < 0.02, "Kiste {} rutscht: {}", i, k.teil_hole(t, tf::X));
+            assert!(k.teil_hole(t, tf::ROLLEN).abs() < 1.0 && k.teil_hole(t, tf::NEIGUNG).abs() < 1.0, "Kiste {} kippt", i);
+            assert_eq!(k.hole_zahl(s, n.boden), 1.0, "Kiste {} amBoden", i);
+            assert_eq!(k.hole_zahl(s, n.ruht), 1.0, "Kiste {} schläft", i);
+            assert_eq!(k.hole_zahl(s, n.ty), 0.0);
+        }
+        assert_eq!(k.teil_hole(b, tf::Y), -0.5, "Fühler ohne Schwung = fest");
+    }
+
+    #[test]
+    fn kugel_rollt_den_hang_hinab() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let gt = typ(&mut k, "Gelaende");
+        let (gh, gsp, gze) = (feld(&mut k, gt, "hoehen"), feld(&mut k, gt, "spalten"), feld(&mut k, gt, "zeilen"));
+        // Hang: 33 × 33 Punkte, Weite 1, fällt in +x mit 15°
+        let neig = libm::tan(15.0 * crate::welt::GRAD);
+        let hoehen: Vec<f64> = (0..33 * 33).map(|p| -((p % 33) as f64 - 16.0) * neig).collect();
+        let land = k.teil_neu(3);
+        let g = k.komp_neu(gt);
+        k.setze_zahl(g, gsp, 33.0);
+        k.setze_zahl(g, gze, 33.0);
+        k.setze_zahlen(g, gh, &hoehen);
+        assert_eq!(k.komp_haenge(g, land), 0);
+        let f = k.komp_neu(n.f);
+        k.setze_text(f, n.f_form, b"netz");
+        k.setze_zahl(f, n.f_aus, 0.0);
+        assert_eq!(k.komp_haenge(f, land), 0);
+        // Höhenabfrage = Netz
+        assert!((crate::komponenten::gelaende::hoehe(&hoehen, 33, 33, 1.0, -8.0, 0.3).unwrap() - 8.0 * neig).abs() < 1e-6);
+        let r = 0.5;
+        let cos = libm::cos(15.0 * crate::welt::GRAD);
+        let (t, _) = kugel(&mut k, &n, [-8.0, 8.0 * neig + r / cos, 0.0], r);
+        let s = schwung(&mut k, &n, t, 9.81);
+        k.setze_zahl(s, n.reibung, 1.0);
+        let x0 = k.teil_hole(t, tf::X);
+        takte(&mut k, 60);
+        let weg = k.teil_hole(t, tf::X) - x0;
+        // Rollen ohne Gleiten: a = 5/7 · g · sin θ entlang des Hangs
+        let sin = libm::sin(15.0 * crate::welt::GRAD);
+        let soll = 0.5 * 5.0 / 7.0 * 9.81 * sin * cos;
+        assert!(weg > 0.8 * soll && weg < 1.1 * soll, "Weg {} gegen {}", weg, soll);
+        let v = k.hole_zahl(s, n.tx);
+        let om = k.hole_zahl(s, n.dz) * crate::welt::GRAD;
+        assert!(om < 0.0, "rollt um −z: {}", om);
+        assert!(((-om * r) - v / cos).abs() < 0.1 * v, "rollt ohne Gleiten: ω·r = {} gegen v = {}", -om * r, v / cos);
+        // liegt auf dem Hang (Abstand zur Ebene = r)
+        let y = k.teil_hole(t, tf::Y);
+        let x = k.teil_hole(t, tf::X);
+        assert!(((y + x * neig) * cos - r).abs() < 0.02, "auf dem Hang: y = {}", y);
+        assert_eq!(k.hole_zahl(s, n.boden), 1.0);
+        // ohne Reibung gleitet sie, ohne zu drehen
+        let (t2, _) = kugel(&mut k, &n, [-8.0, 8.0 * neig + r / cos, 6.0], r);
+        let s2 = schwung(&mut k, &n, t2, 9.81);
+        k.setze_zahl(s2, n.reibung, 0.0);
+        takte(&mut k, 30);
+        assert!(k.hole_zahl(s2, n.dz).abs() < 1e-6, "gleitet ohne Drehung: {}", k.hole_zahl(s2, n.dz));
+        assert!(k.hole_zahl(s2, n.tx) > 0.0);
+    }
+
+    #[test]
+    fn kapsel_auf_netz_stehend_und_liegend() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n, "netz");
+        let kapsel = |k: &mut Kern, p: [f64; 3], rollen: f64| -> (i32, i32) {
+            let t = k.teil_neu(3);
+            k.teil_lage(t, p[0], p[1], p[2]);
+            k.teil_setze(t, tf::ROLLEN, rollen);
+            let f = k.komp_neu(n.f);
+            k.setze_text(f, n.f_form, b"kapsel");
+            k.setze_zahl(f, n.f_radius, 0.3);
+            k.setze_zahl(f, n.f_hoehe, 1.6);
+            k.setze_zahl(f, n.f_aus, 0.0);
+            assert_eq!(k.komp_haenge(f, t), 0);
+            let s = schwung(k, &n, t, 9.81);
+            (t, s)
+        };
+        let (steht, ss) = kapsel(&mut k, [0.0, 2.0, 0.0], 0.0);
+        let (liegt, sl) = kapsel(&mut k, [3.0, 2.0, 0.0], 90.0);
+        takte(&mut k, 180);
+        assert!((k.teil_hole(steht, tf::Y) - 0.8).abs() < 0.02, "steht auf 0.8: {}", k.teil_hole(steht, tf::Y));
+        assert!((k.teil_hole(liegt, tf::Y) - 0.3).abs() < 0.02, "liegt auf 0.3: {}", k.teil_hole(liegt, tf::Y));
+        assert!((k.teil_hole(liegt, tf::ROLLEN).abs() - 90.0).abs() < 1.0, "bleibt liegen: {}", k.teil_hole(liegt, tf::ROLLEN));
+        assert_eq!((k.hole_zahl(ss, n.boden), k.hole_zahl(sl, n.boden)), (1.0, 1.0));
+        // Hüllen-Baum des Würfelnetzes gebaut (Cache nach ID, nicht im Hash)
+        let w = k.welt.as_ref().unwrap();
+        assert!(w.ressourcen.baeume.get(n.wuerfel as usize - 1).is_some_and(|b| b.as_ref().is_some_and(|b| b.dreiecke.len() == 12)));
+    }
+
+    #[test]
+    fn kasten_kippt_von_der_kante_und_drehsperre() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n, "");
+        // auf einer Kante abgesetzt, um 30° gerollt: kippt flach (Vielfaches von 90°) – mit Drehsperre bleibt der Winkel
+        let (frei, _) = kiste(&mut k, &n, [0.0, 1.5, 0.0], [1.0, 1.0, 1.0], "kasten");
+        k.teil_setze(frei, tf::ROLLEN, 30.0);
+        schwung(&mut k, &n, frei, 9.81);
+        let (fest, _) = kiste(&mut k, &n, [4.0, 1.5, 0.0], [1.0, 1.0, 1.0], "kasten");
+        k.teil_setze(fest, tf::ROLLEN, 30.0);
+        let sf = schwung(&mut k, &n, fest, 9.81);
+        k.setze_zahl(sf, n.sperre, 1.0);
+        k.setze_zahl(sf, n.dz, 90.0);
+        takte(&mut k, 240);
+        let r = k.teil_hole(frei, tf::ROLLEN);
+        let rest = r - 90.0 * libm::round(r / 90.0);
+        assert!(rest.abs() < 1.0, "liegt flach: rollen {}", r);
+        assert!((k.teil_hole(frei, tf::Y) - 0.5).abs() < 0.02, "auf der Seite: {}", k.teil_hole(frei, tf::Y));
+        assert!((k.teil_hole(fest, tf::ROLLEN) - 30.0).abs() < 1e-9, "Drehsperre: {}", k.teil_hole(fest, tf::ROLLEN));
+        assert_eq!(k.hole_zahl(sf, n.dz), 0.0);
+    }
+
+    #[test]
+    fn schlafen_und_wecken() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        let b = boden(&mut k, &n, "");
+        let (t, _) = kiste(&mut k, &n, [0.0, 0.6, 0.0], [1.0, 1.0, 1.0], "kasten");
+        let s = schwung(&mut k, &n, t, 9.81);
+        let (oben, _) = kiste(&mut k, &n, [0.0, 1.6, 0.0], [1.0, 1.0, 1.0], "kasten");
+        let so = schwung(&mut k, &n, oben, 9.81);
+        takte(&mut k, 120);
+        assert_eq!((k.hole_zahl(s, n.ruht), k.hole_zahl(so, n.ruht)), (1.0, 1.0), "schläft nach ruhiger halber Sekunde");
+        let y = k.teil_hole(t, tf::Y);
+        takte(&mut k, 10);
+        assert_eq!(k.teil_hole(t, tf::Y), y, "schläft: Lage bleibt bitgleich");
+        // Stoß weckt die ganze Insel
+        k.setze_zahl(s, n.sx, 3.0);
+        k.takt();
+        assert_eq!((k.hole_zahl(s, n.ruht), k.hole_zahl(so, n.ruht)), (0.0, 0.0));
+        assert!(k.hole_zahl(s, n.tx) > 0.0);
+        takte(&mut k, 300);
+        assert_eq!(k.hole_zahl(s, n.ruht), 1.0, "schläft wieder");
+        // Lage setzen weckt
+        k.teil_lage(oben, 5.0, 3.0, 0.0);
+        k.takt();
+        assert_eq!(k.hole_zahl(so, n.ruht), 0.0);
+        assert!(k.teil_hole(oben, tf::Y) < 3.0, "fällt von der gesetzten Lage");
+        takte(&mut k, 200);
+        assert_eq!(k.hole_zahl(s, n.ruht), 1.0);
+        // Boden entfernt: der Schläfer fällt
+        k.teil_entferne(b);
+        k.takt();
+        assert_eq!(k.hole_zahl(s, n.ruht), 0.0, "Partner fehlt → wach");
+        takte(&mut k, 30);
+        assert!(k.teil_hole(t, tf::Y) < 0.0, "fällt: {}", k.teil_hole(t, tf::Y));
+    }
+
+    #[test]
+    fn kinematisch_fest_ausloeser_kopie() {
+        let mut k = welt();
+        let n = nummern(&mut k);
+        boden(&mut k, &n, "");
+        let (fahr, _) = kiste(&mut k, &n, [0.0, 0.25, 0.0], [2.0, 0.5, 2.0], "kasten");
+        let sk = schwung(&mut k, &n, fahr, 9.81);
+        k.setze_text(sk, n.art, b"kinematisch");
+        k.setze_zahl(sk, n.tx, 1.0);
+        let (last, _) = kiste(&mut k, &n, [0.0, 0.75, 0.0], [0.5, 0.5, 0.5], "kasten");
+        let sl = schwung(&mut k, &n, last, 9.81);
+        k.setze_zahl(sl, n.reibung, 1.0);
+        let (stein, _) = kiste(&mut k, &n, [-5.0, 3.0, 0.0], [1.0, 1.0, 1.0], "kasten");
+        let ss = schwung(&mut k, &n, stein, 9.81);
+        k.setze_text(ss, n.art, b"fest");
+        let (geist, gf) = kugel(&mut k, &n, [5.0, 2.0, 0.0], 0.3);
+        k.setze_zahl(gf, n.f_aus, 1.0);
+        schwung(&mut k, &n, geist, 9.81);
+        takte(&mut k, 60);
+        // kinematisch: fährt mit tempo (Schwerkraft wirkt nicht), nimmt die Last mit (Reibung)
+        assert!((k.teil_hole(fahr, tf::X) - 1.0).abs() < 1e-9 && k.teil_hole(fahr, tf::Y) == 0.25);
+        assert!((k.teil_hole(last, tf::X) - 1.0).abs() < 0.1, "Last fährt mit: {}", k.teil_hole(last, tf::X));
+        assert_eq!((k.teil_hole(stein, tf::X), k.teil_hole(stein, tf::Y)), (-5.0, 3.0), "fest");
+        assert!(k.teil_hole(geist, tf::Y) < 0.0, "Auslöser fällt durch");
+        // Kopie: übernimmt die Lage der Kopie neu (Tempo wird mitkopiert) und fällt für sich
+        let kopie = k.teil_kopie(last);
+        k.teil_lage(kopie, 8.0, 2.0, 0.0);
+        let sk2 = k.komp_von(kopie, n.s);
+        k.setze_zahl(sk2, n.tx, 0.0);
+        takte(&mut k, 60);
+        assert!((k.teil_hole(kopie, tf::Y) - 0.25).abs() < 0.02, "Kopie liegt auf dem Boden: {}", k.teil_hole(kopie, tf::Y));
+        assert!((k.teil_hole(kopie, tf::X) - 8.0).abs() < 0.05, "Kopie bei x = {}", k.teil_hole(kopie, tf::X));
+    }
+
+    /// Ohne Schwung ändert die neue Art nichts: dieselbe Szene mit und ohne Schwung in der Registry → gleicher Hash und gleiches
+    /// Bildpaket über viele Takte (Fühler aller Formen, Körper, Gelände).
+    #[test]
+    fn ohne_schwung_byte_gleich() {
+        use crate::abi::szenen_hash;
+        use crate::paket::{baue, Bildbau, Gesendet};
+        use crate::welt::Welt;
+        let pos = ARTEN.iter().position(|a| a.schema.name == "Schwung").unwrap();
+        let ohne: &'static [&'static crate::komponenten::Art] = &ARTEN[..pos];
+        let mit: &'static [&'static crate::komponenten::Art] = &ARTEN[..pos + 1];
+        let lauf = |r: &'static [&'static crate::komponenten::Art]| -> (u64, Vec<u8>) {
+            let mut w = Welt::neu(320, 180, String::from("S"), r);
+            let i = |name: &str| r.iter().position(|a| a.schema.name == name).unwrap();
+            let (fi, ki, gi) = (i("Fuehler"), i("Koerper"), i("Gelaende"));
+            let netz = w.ressourcen.form(crate::formen::netz_aus(&crate::formen::FormDaten { art: 1, teile: 0, dicke: 0.0, glatt: false, punkte: Vec::new(), dreiecke: Vec::new() }));
+            for e in 0..7u32 {
+                let t = w.teil_neu(true);
+                w.lage_setzen(t, e as f64 * 0.5, 1.0 + e as f64 * 0.3, 0.0);
+                let h = w.komp_neu(ki);
+                let z = w.komp_ort[h as usize].zeile as usize;
+                w.speicher[ki].zahl_mut(crate::komponenten::koerper::FORM)[z] = netz as f64;
+                w.komp_haenge(h, t).unwrap();
+                let h = w.komp_neu(fi);
+                let z = w.komp_ort[h as usize].zeile as usize;
+                w.speicher[fi].zahl_mut(crate::komponenten::fuehler::FORM)[z] = e as f64;
+                w.speicher[fi].zahl_mut(crate::komponenten::fuehler::RADIUS)[z] = 0.4;
+                w.speicher[fi].zahl_mut(crate::komponenten::fuehler::AUSLOESER)[z] = (e % 2) as f64;
+                w.komp_haenge(h, t).unwrap();
+            }
+            let land = w.teil_neu(true);
+            let h = w.komp_neu(gi);
+            w.komp_haenge(h, land).unwrap();
+            let (mut bau, mut ges, mut aus) = (Bildbau::default(), Gesendet::default(), Vec::new());
+            for b in 0..30 {
+                w.takt();
+                baue(&mut w, &mut bau, &mut ges, &mut aus, b);
+            }
+            (szenen_hash(&mut w), aus)
+        };
+        assert_eq!(lauf(ohne), lauf(mit));
+    }
+
+    #[test]
+    fn drehungen_hin_und_zurueck() {
+        use crate::kollision3d::achsen;
+        use crate::welt::lokal_3d;
+        for &(d, ne, ro) in &[(0.0, 0.0, 0.0), (30.0, -20.0, 75.0), (-170.0, 89.0, 10.0), (100.0, -45.0, -120.0), (45.0, 90.0, 0.0)] {
+            let m = lokal_3d(&[0.0, 0.0, 0.0, d, ne, ro, 1.0, 1.0, 1.0]);
+            let q = schwung::quaternion(&achsen(&m).0);
+            let r = schwung::matrix(&q);
+            for j in 0..3 {
+                for i in 0..3 {
+                    assert!((r[j][i] - m[i * 4 + j]).abs() < 1e-12, "{:?}", (d, ne, ro));
+                }
+            }
+            let (d2, n2, r2) = schwung::winkel(&r);
+            let m2 = lokal_3d(&[0.0, 0.0, 0.0, d2, n2, r2, 1.0, 1.0, 1.0]);
+            for x in 0..12 {
+                assert!((m2[x] - m[x]).abs() < 1e-6, "{:?} → {:?}", (d, ne, ro), (d2, n2, r2));
+            }
+        }
+    }
+}
+

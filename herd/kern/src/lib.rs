@@ -13,6 +13,7 @@ pub mod fehler;
 pub mod formen;
 pub mod hash;
 pub mod lichter;
+pub mod kollision3d;
 pub mod komponenten;
 pub mod mathe;
 pub mod paket;

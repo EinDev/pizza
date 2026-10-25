@@ -47,6 +47,10 @@ pub mod form {
     pub const RECHTECK: u32 = 2;
     pub const KASTEN: u32 = 3;
     pub const KUGEL: u32 = 4;
+    /// H-K17: Kapsel (Achse y des Teils, `radius`, `hoehe` gesamt)
+    pub const KAPSEL: u32 = 5;
+    /// H-K17: Netz (nur fest: Dreiecke der `Koerper`-Form bzw. Höhenraster des `Gelaende`)
+    pub const NETZ: u32 = 6;
 }
 
 pub static ART: Art = Art {
@@ -56,7 +60,7 @@ pub static ART: Art = Art {
         raum: Raum::Beide,
         braucht: &[],
         felder: &[
-            Feld::wahl("form", &["auto", "kreis", "rechteck", "kasten", "kugel"], 0),
+            Feld::wahl("form", &["auto", "kreis", "rechteck", "kasten", "kugel", "kapsel", "netz"], 0),
             Feld::zahl("breite", 0.0).min(0.0),
             Feld::zahl("hoehe", 0.0).min(0.0),
             Feld::zahl("tiefe", 0.0).min(0.0),
@@ -172,6 +176,9 @@ fn massstab_3d(m: &[f64; 12]) -> f64 {
 ///   Mitte und halbe größte Ausdehnung der Hülle (+ Versatz).
 /// - `rechteck`/`kasten`: Box `breite` × `hoehe` (× `tiefe`) um Lage + Versatz, gedreht umschlossen; jede Seite 0 nimmt die
 ///   Ausdehnung der Hülle in dieser Weltachse (alle 0 = ganz die Hülle).
+/// - `kapsel` (H-K17): Kasten um die Kapsel (Achse y des Teils, Durchmesser 2 · `radius`, Höhe `hoehe`, mindestens 2 · `radius`),
+///   gedreht umschlossen; fehlt `radius` oder `hoehe`, die Hülle (ohne Hülle mit `radius`: Kugel-Kasten). 2D: das Rechteck dazu.
+/// - `netz` (H-K17): die Hülle (Koerper bzw. Gelaende). Gedreht und genau rechnet nur die Physik (`kollision3d`).
 /// - Die Form folgt dem Raum des Teils: `kreis` an einem 3D-Teil ist eine Kugel, `kasten` an einem 2D-Teil ein Rechteck usw.
 pub fn form(w: &mut Welt, s: &Speicher, z: usize) -> Option<Huelle> {
     let teil = s.teil[z];
@@ -195,7 +202,25 @@ pub fn form(w: &mut Welt, s: &Speicher, z: usize) -> Option<Huelle> {
     // Hülle der übrigen Komponenten (Fühler selbst hat keine), schon um den Versatz verschoben
     let mut basis = || w.huelle(teil).filter(|h| matches!(h, Huelle::Kasten(..) | Huelle::Kugel(..)) == drei_d).map(|h| verschoben(h, d));
     match art {
-        form::AUTO => basis(),
+        form::AUTO | form::NETZ => basis(),
+        form::KAPSEL => {
+            let (r, h) = (s.zahl(RADIUS)[z], s.zahl(HOEHE)[z]);
+            if !(r > 0.0 && h > 0.0) {
+                if let Some(b) = basis() {
+                    return Some(b);
+                }
+                if !(r > 0.0) {
+                    return None;
+                }
+            }
+            let hh = if h > 2.0 * r { h * 0.5 } else { r };
+            Some(if drei_d {
+                let (lo, hi) = kasten_3d(&m, [v[0] - r, v[1] - hh, v[2] - r], [v[0] + r, v[1] + hh, v[2] + r]);
+                Huelle::Kasten(lo, hi)
+            } else {
+                rechteck_huelle(&m, [v[0], v[1]], [r, hh])
+            })
+        }
         form::KREIS | form::KUGEL => {
             let r = s.zahl(RADIUS)[z];
             if r > 0.0 {
