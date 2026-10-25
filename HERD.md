@@ -311,26 +311,26 @@ Feld-**Typen**, neue Eingabearten oder neue Fenster-Fähigkeiten – das sind Ke
 | Time / Update-Schleife | fester 60-Hz-Takt, `backe(fn)`, Systeme | **v1** | Kern |
 | Input | Tastatur, Maus, Touch als Zustand | **v1** · Mausfang (Pointer Lock), Rohbewegung, Rad, Modifikatoren **K-155** | Laufzeit/Kern |
 | Camera | `Kamera` (3D perspektivisch), Spielfeld-2D | **v1** · 2D-Kamera `Blick` (Scroll/Zoom), Folgekamera `Leine` **H-K1** | Komponente |
-| Light | Sonne mit Schatten, 8 Punktlichter, Umgebung, Nebel | **v1** · viele Lichter (Clustered Forward) + Spot **umgesetzt** · Schatten für Punkt/Spot **später** | Komponente + Glut |
-| MeshRenderer, Material | `Koerper` (Form + Farbe/Glanz/Leuchten/Bild) | **v1** · geteiltes Material `Belag` **H-K2** · Relief/Kachelung/PBR/Nässe am `Belag` **umgesetzt** | Komponente + Glut |
+| Light | Sonne mit Schatten, 8 Punktlichter, Umgebung, Nebel | **v1** · viele Lichter (Clustered Forward) + Spot **umgesetzt** · Schatten für Punkt/Spot, Sonnen-Kaskaden **H-K18** · Spiegelbild mit allen Lichtern **H-K21** (§13) | Komponente + Glut |
+| MeshRenderer, Material | `Koerper` (Form + Farbe/Glanz/Leuchten/Bild) | **v1** · geteiltes Material `Belag` **H-K2** · Relief/Kachelung/PBR/Nässe am `Belag` **umgesetzt** · Normal-/Stoff-/Leucht-Karte, Ausschnitt, beidseitig **H-K26** (§13) | Komponente + Glut |
 | Shader | feste Shader | eigene Shader (WGSL) **später** | Glut |
 | Sprites / 2D | `Rechteck`, `Kreis`, `Text`, `Bild`, Atlas | **v1** · `Linie`, 9-Slice `Rahmen` **H-K3a** · `Vieleck` **H-K3b** (umgesetzt) | Komponente (3b + Glut) |
-| Animation | `Animation` (Bildchen-Folge) | **v1** · Tweens `Gleiten`, Keyframes `Ablauf` **H-K4** · Skelett **später** | Komponente |
-| Particle System | `Partikel` 2D | **v1** · 3D-Partikel `Funken` **H-K5** | Komponente + Glut |
+| Animation | `Animation` (Bildchen-Folge) | **v1** · Tweens `Gleiten`, Keyframes `Ablauf` **H-K4** · Modell-Animationen `Puppe` **H-K23a**, Skinning **H-K23b** (§13) | Komponente |
+| Particle System | `Partikel` 2D | **v1** · 3D-Partikel `Funken` **H-K5** · Aufprall und Spritzer **H-K25** (§13) | Komponente + Glut |
 | Collider / Trigger | `trifft` (Hüllen) | **v1** · Kollider `Fuehler`, Ereignisse als Zustand je Takt (betreten/verlassen) **H-K6** | Komponente |
-| Physics 2D / 3D | – | 2D-Physik `Wucht` (Rigidbody, Impulse) **H-K7** · 3D **später** | Komponente (System) |
-| Prefabs / Assets | `kopie()`, Formen/Bildchen | **v1** (kopie) · `Vorlage` **H-K8** · größere Bilder/Texturen: abgelöst durch PROJEKTE.md (E13, K-145, K-147, PD1/PD3) | Kern |
+| Physics 2D / 3D | – | 2D-Physik `Wucht` (Rigidbody, Impulse) **H-K7** · 3D `Schwung` **H-K17**, CharacterController `Figur` + Raycast `Strahl` **H-K20** (§13) | Komponente (System) |
+| Prefabs / Assets | `kopie()`, Formen/Bildchen | **v1** (kopie) · `Vorlage` **H-K8** · größere Bilder/Texturen: abgelöst durch PROJEKTE.md (E13, K-145, K-147, PD1/PD3) · 3D-Modelle (glTF) `Modell` **H-K16** (§13) | Kern |
 | Szenenwechsel | – | `Kulisse` (Teilbäume an/aus), leeren per `entferne` **H-K9** (umgesetzt) | Kern |
 | Tilemap | – | Kachelkarte `Fliesen` **H-K10** (umgesetzt) | Komponente |
-| Gelände / Skybox | Himmelsverlauf | `Gelaende` aus Höhenkarte **H-K11a** · Skybox `Himmelszelt` **H-K11b** | Komponente (11b + Glut) |
+| Gelände / Skybox | Himmelsverlauf | `Gelaende` aus Höhenkarte **H-K11a** · Skybox `Himmelszelt` **H-K11b** · Gras/Kleinzeug `Streu` + `Wind` **H-K27**, `Wasser` **H-K28** (§13) | Komponente (11b + Glut) |
 | UI (uGUI) | Text, Rechteck | `Knopf`, `Leiste`, `Regler`, `Tafel` + Maus im Kern **H-K12** | Komponente + Kern-ABI |
 | Skript-Komponenten (MonoBehaviour) | Spiellogik in `backe` | eigene pizza-Klassen `erbt Kniff` (`takt()`, Rückrufe) **H-K13** | Laufzeit |
-| Audio | – (K-135) | `klang` **H-K14** | eigene Importgruppe |
-| Post-Processing | – | `Stimmung`: HDR, ACES, Bloom, Höhennebel, Vignette, Korn, planare Spiegelung **umgesetzt** · Bildschirmraum-Spiegelung/AO **später** | Komponente + Glut |
+| Audio | – (K-135) | `klang` **H-K14** · Klangdateien **H-K19a/b**, Raumklang `Schall` **H-K22** (§13) | eigene Importgruppe |
+| Post-Processing | – | `Stimmung`: HDR, ACES, Bloom, Höhennebel, Vignette, Korn, planare Spiegelung **umgesetzt** · Bildschirmraum-Spiegelung/AO **H-K24** (§13) | Komponente + Glut |
 | Editor | – | Szenenansicht im Playground **später** | UI |
 
 Verbindlich für die Stufen H-K0 … H-K14 (Inhalt, Reihenfolge, Wellen, Abnahme) ist der **Stufenplan §12**; was umgesetzt ist, steht in
-**§11.1**. „später“ = nicht im Plan (§12.6).
+**§11.1**. Ab H-K15 gilt der **Stufenplan §13** (Engine fertigstellen). „später“ = nicht im Plan (§12.6, §13.6).
 
 ## 11. Pakete v1
 
@@ -346,7 +346,7 @@ Verbindlich für die Stufen H-K0 … H-K14 (Inhalt, Reihenfolge, Wellen, Abnahme
 | **H7 Spiele, Doku, Messung** | 2D-Spiel, 3D-Spiel (Fokus schöne Grafik), Doku-Abschnitt mit Bildern, `bench/herd` + Ergebnisse, E2E, CI | `site/beispiele/herd*`, `site/js/doku/`, `bench/herd/`, `e2e/` | H5, H6 |
 
 Stand der Umsetzung: §11.1. Die nächsten Stufen **H-K0 … H-K14** (Roadmap §10) sind im verbindlichen **Stufenplan §12** beschrieben,
-mit Reihenfolge, Wellen und Abnahme.
+mit Reihenfolge, Wellen und Abnahme; die Stufen **H-K15 ff.** im **Stufenplan §13**.
 
 ### 11.1 Stand (umgesetzt)
 
@@ -384,7 +384,7 @@ Wer eine Stufe abschließt, trägt hier den Commit (bei mehreren den ersten und 
 | **Mausfang** (Pointer Lock, relative Maus, Rad, Modifikatoren; K-155, Nutzerbefund „Steuerung … Mausfang?“) | Sprache `herd.mausFangen(an = ja)` (Wunsch → Ereignis `herd`/`mausfang` bei Wechsel), `mausGefangen()`, `mausDX()`/`mausDY()` (Rohbewegung je Takt in Pixeln), `mausrad()` (Rasten); `takt` + `bewegung`/`rad` (Summen, fehlt → 0, nur im ersten Takt) und `gefangen` (Zustand); Tasten `Umschalt`/`Strg`/`Alt`, Browser lässt nach `e.code` los. Browser: Seite merkt den Wunsch, Klick aufs Canvas → `requestPointerLock({unadjustedMovement})`, `pointerlockchange`/`movementX`/Rad → Zeichner (summiert bis zum Takt), Esc frei (nicht ans Programm), Blur/Ende lösen; nativ: Klick → `CursorGrabMode::Locked`, sonst `Confined`, Zeiger aus, `DeviceEvent::MouseMotion`, Esc/Fokusverlust frei. Kern, Schema, ABI-Exporte, Glut unverändert | (dieser) | `cargo test -j 2` in `herd/` (Kern 113, Teigling 13, Werkzeug 7, Skript 4 + 1, Glut 1) und `host/` (63, neu `takt_json_mit_bewegung_rad_und_fang`, Tastennamen mit Modifikatoren); `test-kern.js` 46 Läufe bitgleich; `erwartet.js` 87 ✓ (neu `herd-mausfang`, Doku-Block); `npm test` (341 Fälle, 80 Beispiele, 164 Doku); Prüfstand 845/845 + 6/6 (neu a18 Mausfang); `test:wasm` 1636; `test:differenz` 1279 ohne Abweichung (neu Korpus `herd-mausfang-blick` mit Nachholtakten, doppelten Feldern, 1e400); `host/test.js` 78/78 + 6/6; E2E 14 neu „Mausfang per Klick ins Bild“ (echter Pointer Lock im headless Chrome: Fang, movementX-Summe, Umschalt, kein hängendes `W`, `mausFangen(nein)` löst) |
 | **H-K12** UI + Maus im Kern | `Taster` (27; Name statt `Knopf`, das ist die Theke), `Leiste` (28), `Regler` (29), `Tafel` (30, ziehbar, Kinder = Inhalt), alle 2D, Bildbeiträge nur aus `RECHTECK`/`KREIS`/`GLYPHE`; Kern-Export `eingabe(maus_x, maus_y, knoepfe)` (Kern, `kern.wasm`, Skript-Spieler, Interpreter, Laufzeit, Host, HOST-ABI v2 additiv), `Welt::eingabe` nicht im Szenen-Hash (Kante = Wechsel gegen den Stand am Ende des Vortakts), gemeinsamer UI-Durchgang `komponenten/ui.rs` im Nachlauf von `Taster` (oberstes Ziel nach Ebene, dann ID; HUD ab `festAb` in Spielfeld-, sonst Weltkoordinaten; Fangen/Freigeben), `Blick.mausX`/`mausY` als Nachtrags-Lesefelder, beim Lesen berechnet (neuer `Art`-Haken `lies`); Fenster (winit, Render-Worker) unverändert – sie liefern Maus/Knöpfe schon gleich; Szene `ui.herd`, Fälle `herd-taster`/`herd-regler`, Korpus `herd-ui-maus`, Beispiel `konfigurator.pizza`, E2E-Fall in `14-herd-playground`, Doku in `herd-ausbau`, K-151 | (dieser) | `cargo test -j 2` in `herd/` (Kern 106/106 inkl. 9 neue `tests::hk12` und Schlüsselwort-Test aus H-K11b, Skript 4 + 1, Teigling 13, Glut 1, Werkzeug 7); `node herd/test-kern.js` 40 Läufe bitgleich nativ = Wasm (neu `ui.herd` klein + N = 2 000); `erwartet.js` 73 ✓ (keine bestehende geändert); `npm test` (337 Fälle, 74 Beispiele, 155 Doku), Prüfstand 830/830 + 6/6, `test:wasm` 1597, `test:differenz` 1257 ohne Abweichung (neu Korpus `herd-ui-maus`); Host `cargo test` 61 + `host/test.js` 74/74 + 6/6; E2E headless 338/340 (1 übersprungen; 1 Doku-Panel-Test unter Last wackelig, allein grün), neu `Herd-UI: Taster und Regler mit der Maus im Vorschaufenster`; Sichtprüfung `konfigurator.pizza` offscreen (WARP) in Ordnung |
 | **H-K13** Kniff | eingebaute, erbbare Basisklasse `Kniff` (Rohling, Laufzeitklasse 16, eigene Klassen im Wasm ab 17), `teil()` auch unqualifiziert, Rückrufe `start`/`takt`/`beimBetreten`/`beimVerlassen`/`beimKlick`/`beimEntfernen` (nur überschriebene), `teil.mit(k)`/`ohne(k)`/`kniffe()`, Kniff-Phase nach dem Nachlauf (Teile nach ID, Anhängereihenfolge, Schnappschuss, ruhende Teile ohne Rückrufe), `beimEntfernen` nach dem Lösen, `kopie()` ohne Kniffe; Interpreter `herd/kniff.js` + Hooks in `aufrufe.js`/`namen.js`/`pruefung.js`, Laufzeit `herd.rs` (Abschnitt Kniff, `Obj.kniff` im Füllplatz) + `klassen.rs`/`programm.rs`, Compiler `KLASSEN_BASIS` 17; Kern nur `abi.rs` (`kniffe` in `TEIL_METHODEN`, Lesefeld 19 ruht); Fälle `herd-kniff`/`herd-kniff-ereignisse`/`herd-kniff-ananas`, Korpus `herd-kniff-kueche`, Prüfstand a18 (+2), Beispiel `herd/kniffe` (Pizzaboten-Spiel), Editor-Wörter, Doku in `herd-ausbau`, K-152 | (dieser) | `cargo test -j 2` in `herd/` (Kern 107/107 inkl. `tests::hk13`, Skript 4 + 1, Teigling 13, Glut 1, Werkzeug 7 inkl. Pixeltest); `node herd/test-kern.js` alle Läufe bitgleich; `erwartet.js` ✓ (keine bestehende geändert); `npm test` (340 Fälle, 77 Beispiele, 160 Doku), Prüfstand 838/838 + 6/6, `test:wasm` 1615, `test:differenz` 1269 ohne Abweichung (inkl. Host, Köche, Chaos); Host `cargo test` 61 + `host/test.js` 75/75 + 6/6; UI-Tests; E2E headless 343/344 (1 übersprungen); Sichtprüfung `herd/kniffe` offscreen (WARP) in Ordnung |
-| **H-K14** Klang | offen | – | – |
+| **H-K14** Klang | läuft (Erzeugung, §12.4); daneben laufen Mausfang + Modifikatortasten, Regen, Web-Ruckler; Folgestufen H-K15 ff.: §13 | – | – |
 
 ## 12. Stufenplan H-K (verbindlich)
 
@@ -857,4 +857,505 @@ nächste freie Nummer daher **K-148** (vor dem Schreiben erneut prüfen und ggf.
 
 Spot-Licht und mehrere Schatten, Schatten-Kaskaden, eigene Shader, Skelett-Animation, 3D-Physik, Post-Processing, Szenenansicht im
 Playground, Szenen und Klänge aus Projektdateien (nach PROJEKTE.md), Farbverlauf am Gelände (Eckfarben), Theke und Herd zugleich (K-133).
-Jede davon wird vor Beginn als eigene Stufe in §12 nachgetragen (Format-Brüche ausdrücklich markieren).
+Jede davon wird vor Beginn als eigene Stufe in §12 nachgetragen (Format-Brüche ausdrücklich markieren). **Nachtrag:** Spot-Licht ist
+umgesetzt; Punkt-/Spotschatten, Kaskaden, Skelett-Animation, 3D-Physik, Bildschirmraum-Effekte und Klänge aus Projektdateien plant
+jetzt §13 (H-K15 ff.).
+
+## 13. Stufenplan H-K15 ff. – Engine fertigstellen
+
+Ziel: Herd wird eine **kleine Unity** – 3D-Modelle aus Dateien samt Skelett-Animation, 3D-Physik mit Figur-Steuerung, Schatten
+für alle Lichter, Bildschirmraum-Effekte, Gras im Wind, Wasser, Klänge aus Dateien und Raumklang. Es gelten alle Regeln aus §12.1
+(Registry hinten anhängen, Hashes stabil, Bildpaket additiv, Browser = nativ, Determinismus, Erzeugtes neu erzeugen, Beispiele,
+Doku, keine Fenster), die Abnahme-Befehle §12.3 und die Ergänzungen §13.1. Produktentscheidungen sind mit **Entscheidung**
+markiert und in §13.5 gesammelt.
+
+**Läuft (nicht Teil dieses Plans, wird vorher gemergt):** H-K14 `Klang` (Erzeugung, §12.4) · Mausfang + Modifikatortasten ·
+Regen (gestreckte Teilchen, Pfützenringe) · Web-Ruckler. Welle W8 beginnt nach deren Merge; jede §13-Stufe rebased darauf und
+übernimmt deren Nummern (Typnummern, Abschnitte, Fehlercodes, K-Einträge), statt eigene vorzubelegen.
+
+### 13.1 Ergänzende Regeln
+
+1. **Nummern sind Vorschläge**, vergeben in Merge-Reihenfolge (§12.1 Regel 1), maßgeblich ist §11.1. Stand vor W8 (vor dem
+   Schreiben erneut prüfen – die laufenden Arbeiten können Nummern belegen): Typnummern ab **32** (31 = `Stimmung`), Feldtyp ab **13**,
+   Bildpaket-`abschnitt` ab **19** (18 = `ZUSATZ3D`), `flach_art` ab **7**, `zug` ab **4**, Flag-Bits ab **8**, Kern-Fehlercodes ab
+   **63**, PizzaFehler ab **P0021**, Glut-Bindungen ab **18** (frei) bzw. **20**, Benchmarks ab **B11**, K-Einträge ab **K-160** (K-155 … K-159 sind für Mausfang und die laufenden Stufen Klang/Regen frei gehalten; beim Umsetzen gilt die nächste freie Nummer)
+   (K-153 ist für H-K14 reserviert, K-154 belegt).
+2. **Kein Format-Bruch** (**Entscheidung**): `VERSION` bleibt 1, `ECKE_BYTES` 32. Was Netze zusätzlich brauchen (Gelenke und Gewichte
+   der Haut), kommt als eigener Ressourcen-Abschnitt und eigener Vertex-Strom neben `NETZ`; Tangenten werden nicht gespeichert, sondern
+   wie beim Relief aus Ableitungen berechnet; Vertex-Farben aus Modellen backt der Vorbacker in ein Paletten-Bild (H-K16). Grund: ein `VERSION`-2-Bruch würde alle Hashes und
+   Referenzbilder neu erzeugen, während in jeder Welle drei Stufen parallel laufen – zusätzliche Ströme kosten dagegen nur dort, wo
+   sie benutzt werden.
+3. **§9-Ausnahmen** in §13 haben nur **H-K16, H-K19a, H-K22** – höchstens eine je Welle. Je Welle höchstens **eine** Stufe, die
+   `paket.rs` oder die Glut ändert (§12.1 Regel 8). Reine Vorbacker-Stufen (`herd/teigling`, Dateifilter in `ui/src/`) zählen nicht
+   als §9-Ausnahme.
+4. **Bindungs-Budget:** ab H-K15 ist die Tabelle „Bindungen und Einheiten“ in `herd/README.md` §9 maßgeblich (Shader, Bindung,
+   Art, Textur-Sampler-Paar, WebGL2-Einheit, Stufe). Jede Glut-Stufe trägt ihre Einheiten dort ein; der **Bindungswächter** (Test aus
+   H-K15) muss grün sein. Neue Bildquellen (Normal-, Stoff-, Leucht-Karten) laufen über die PD3-Klassen 7 … 11 und
+   kosten **keine** Einheit.
+5. **Vorbacker-Determinismus:** Bilder weiter nur Ganzzahlen (PROJEKTE §5.3). Modelle: f32-Bytes werden kopiert; gerechnet wird nur
+   mit + − × ÷ √ (IEEE-exakt, keine FMA, feste Reihenfolge), keine Transzendenten – Drehungen, Zerlegungen und Interpolation rechnet der
+   Kern in f64 mit `libm`. Klänge: WAV/FLAC ganzzahlig; Vorbis f32 nur mit Grundrechenarten, Tabellen aus `libm`. Fehler-Teige tragen
+   ihren Fehlertext selbst (Text an **einer** Stelle, die Laufzeiten geben ihn nur aus).
+6. **Abfragen ohne neue Sprache** (**Entscheidung**): Höhe, Strahl-Treffer und Ähnliches sind **berechnete Lesefelder** (Haken
+   `lies`, H-K12 `Blick.mausX`) an einer Komponente – sofort gültig, deterministisch, ohne Methoden mit Argumenten. Ein generisches
+   Abfrage-ABI (`komp_frage`) ist „später“; es lohnt erst, wenn eine Abfrage mehr als eine Handvoll Eingaben braucht.
+7. **Assets:** Modelle, Texturen und Klänge in Beispielen sind **CC0** (Poly Haven, Kenney, ambientCG, Quaternius; Freesound nur mit
+   CC0-Filter) und stehen mit Quelle und Lizenz in `quellen.md` des Projektordners (Muster `neon-napoli`). Testdaten erzeugen Skripte
+   selbst (`scripts/modelle-test.js`, `scripts/klaenge-test.js`: wenige KB, keine Lizenzfrage), außer Vorbis (Kenney-OGG, H-K19b).
+   Beispiele bevorzugen Kenney (Low-Poly, GLB ≤ 100 KB); Poly Haven nur in 1k-Auflösung, je Beispiel höchstens 5 MiB Dateien; den
+   Zuwachs des Repos vermerkt jede Stufe in §11.1.
+8. **Neon-Napoli aufrüsten** ist keine Regression im Sinne von §12.1 Regel 2: nach einer Welle bewusst, in einem eigenen Commit
+   „Neon-Napoli: …“, mit neu erzeugtem `pruefung/` – nie innerhalb einer Stufe.
+9. **Gemeinsame 3D-Kollision:** H-K17 legt `herd/kern/src/kollision3d.rs` an (Formen, Hüllen-Baum je Netz, Höhenraster des
+   Geländes, Strahl- und Wisch-Abfragen); H-K20, H-K25 und H-K28 benutzen es und erweitern es nur additiv.
+
+### 13.2 Wellen und Typnummern
+
+Höchstens drei Stufen je Welle, parallel in eigenen Worktrees, gemergt in der angegebenen Reihenfolge. Spalten wie §12.2
+(Nicht-Komponenten-Dateien; Anhängestellen nach §12.1 Regel 7 nicht gezählt).
+
+| Welle | Stufen (Merge-Reihenfolge) | `paket.rs` / Glut | Interpreter / Laufzeit / Compiler / Host | weitere Kern-Dateien, Vorbacker |
+|---|---|---|---|---|
+| **W8** | H-K15 · H-K16 · H-K17 | H-K15 (nur Glut) | H-K16 | H-K16: `ressourcen.rs`, `abi.rs`, `fehler.rs`, `kern-wasm`, `herd/skript*`, `herd/teigling`; H-K17: neu `kollision3d.rs`, `formen.rs` |
+| **W9** | H-K18 · H-K19a · H-K20 | H-K18 | H-K19a | H-K18: `lichter.rs`; H-K19a: `herd/teigling`; H-K20: `kollision3d.rs`, ggf. `mod.rs`/`abi.rs` (`lies` für Teil-Felder) |
+| **W10** | H-K21 · H-K22 · H-K23a | H-K21 | H-K22 | H-K21: `lichter.rs`; H-K22: `schema.rs`, `abi.rs`, `kern-wasm`, `herd/skript*`; H-K23a: `ressourcen.rs` |
+| **W11** | H-K24 · H-K19b · H-K25 | H-K24 | – | H-K19b: `herd/teigling`; H-K25: `kollision3d.rs` |
+| **W12** | H-K26 | H-K26 | – | `ressourcen.rs` (Modell-Abbildung) |
+| **W13** | H-K23b | H-K23b | – | `ressourcen.rs` |
+| **W14** | H-K27 | H-K27 | – | – |
+| **W15** | H-K28 | H-K28 | – | `kollision3d.rs` |
+
+**Reihenfolge der Glut-Kette** (eine je Welle): Bindungen (Voraussetzung jeder weiteren Textur-Stufe) → Schatten → Spiegelbild
+(braucht die Schatten) → Bildschirmraum → Belag-Karten → Haut → Wind/Streu → Wasser (braucht Bildschirmraum-Kopien). Modelle (H-K16)
+brauchen die Glut nicht (sie nutzen `NETZ`, `TEXTUR`, `INST3D`, `ZUSATZ3D`) und kommen deshalb schon in W8; ihre Karten und ihre Haut
+folgen in W12/W13. Die Kern-only-Stufen (Physik, Figur, Puppe, Funken-Aufprall) und die §9-Stufen füllen die Wellen W8 … W11.
+
+**Abhängigkeiten:** H-K15 ← Regen (laufend) · H-K16 ← PD1/PD3 (umgesetzt), Mausfang (laufend, gleiche §9-Dateien) · H-K17 ← H-K6,
+H-K11a · H-K18 ← H-K15 · H-K19a ← H-K14 · H-K20 ← H-K17, H-K12 · H-K21 ← H-K18 · H-K22 ← H-K14 · H-K23a ← H-K16 · H-K24 ← H-K15 ·
+H-K19b ← H-K19a · H-K25 ← H-K17, H-K5, Regen · H-K26 ← H-K15, H-K16 · H-K23b ← H-K23a, H-K15 · H-K27 ← H-K15, H-K11a (weich H-K26) ·
+H-K28 ← H-K24, H-K17 (weich H-K27). Innerhalb einer Welle hängt keine Stufe von einer anderen ab.
+
+**Typnummern** (Vorschlag in Planreihenfolge; vergeben in Merge-Reihenfolge, §11.1):
+
+| Nr (Vorschlag) | Komponente | Stufe | Raum | läuft in |
+|---|---|---|---|---|
+| 32 | `Etikett` | H-K16 | beide | – |
+| 33 | `Schwung` | H-K17 | 3D | Takt |
+| 34 | `Figur` | H-K20 | 3D | Takt (nach Schwung) |
+| 35 | `Strahl` | H-K20 | 3D | – (beim Lesen berechnet) |
+| 36 | `Schall` | H-K22 | beide | Nachlauf |
+| 37 | `Puppe` | H-K23a | 3D | Takt |
+| 38 | `Wind` | H-K27 | 3D | – |
+| 39 | `Streu` | H-K27 | 3D | Takt (Punkte bei Änderung) |
+| 40 | `Wasser` | H-K28 | 3D | – (Auftrieb im Schwung-Takt) |
+
+Takt-Folge damit: … `Wucht` → `Gelaende` → `Schwung` → `Figur` → `Puppe` → `Streu` → Nachlauf (`Leine`, `Fuehler`, UI, `Schall`) →
+Kniffe → Bild. Fühler sehen also die Lage nach Physik, Figur und Animation desselben Takts.
+
+### 13.3 Die Stufen
+
+#### H-K15 Bindungen und Textureinheiten (W8, nur Glut, unsichtbar)
+- **Ziel:** Platz schaffen für Schatten-Atlas, Verdeckung, Bildschirmraum-Kopien und Gelenk-Palette; Unity: festes Binding-Layout
+  der SRP. **Heute** belegt der Licht-Shader unter WebGL2 **15 von 16** Textureinheiten (jedes Textur-Sampler-Paar eine): die
+  PD3-Klassen 7 … 11 je **zweimal** (`textureLoad` in `eigen_laden` ohne Sampler und `textureSampleLevel`/`textureSampleGrad` mit
+  Sampler 12) = 10, dazu Schatten (Bindung 2 mit Vergleichs-Sampler 3), Atlas (4), `lichter_t` (15), `zellen_t` (16), `spiegel_t` (19). Bindung 18 ist frei.
+- **Sprachfläche:** keine.
+- **Umbau:** (1) `eigen_laden` liest über `textureSampleLevel(klasse, eigen_s, (t + 0.5) / größe, schicht, stufe)` an der Texelmitte
+  mit expliziter Stufe statt `textureLoad` → je Klasse ein Paar (−5 Einheiten); pixelscharfe Bilder bleiben pixelscharf (lineare
+  Abtastung genau in der Texelmitte = Texelwert). (2) `lichter_t` (RGBA32F, nicht filterbar) und `zellen_t` (R32Uint, ganzzahlig)
+  bleiben `textureLoad` (je eine Einheit). (3) Feste Tabelle in `herd/README.md` §9 mit Reservierungen: H-K18 Punktschatten-Atlas (1),
+  H-K24 Verdeckung (1), H-K28 Szenenfarbe + Tiefe (2) im Licht-Shader; H-K23b Gelenk-Palette im **Vertex**-Shader (eigener Pool);
+  H-K21 legt die Spiegel-Zellen in `zellen_t` (keine Einheit). Ziel nach Umbau ≤ 10/16, am Ende des Plans ≤ 14/16.
+  (4) **Bindungswächter** (`cargo test` in `herd/glut`): übersetzt jeden Einstiegspunkt aller Pipelines mit naga nach GLSL ES 3.00 (wie
+  wgpu-GL), zählt Sampler je Stufe (Fragment ≤ 16, Vertex ≤ 16, zusammen ≤ 32) und Uniform-Blöcke (≤ 12 je Stufe, WebGL2-Minimum),
+  druckt die Tabelle und scheitert über der Grenze.
+- **Schichten/Dateien:** `herd/glut/src/*`, `shader/gemeinsam.wgsl`, `licht.wgsl` (und jeder Shader mit `eigen_laden`), `herd/glut-web`
+  neu bauen; `herd/README.md` §9. Kein Kern, kein `paket.rs`.
+- **Determinismus:** kein Kern-Anteil. **Tests:** Wächter; **alle bestehenden Referenzbilder unverändert** (Pixeltest K-129, auf WARP
+  möglichst bitgleich); E2E `13-herd-glut` (WebGPU und WebGL2). Kein neues Referenzbild, kein Beispiel (unsichtbar; Ausnahme zu §12.1
+  Regel 4/10).
+- **Doku:** `herd/README.md` §9 (Tabelle), §11.1. **Abnahme:** A-Glut ohne neues Referenzbild. **Abhängig von:** Regen (laufend).
+  **K-Vorschlag:** K-160.
+
+#### H-K16 `Modell` – 3D-Modelle aus glTF (W8, §9-Ausnahme: neue Ressource)
+- **Ziel:** Unity Model Import: Meshes, Materialien, Texturen, Hierarchie; Instanzen wie Prefabs.
+- **Sprachfläche** (SPEC §18.5, Importgruppe `herd`, wie `Bildchen.laden`): `Modell m = Modell.laden("modelle/laterne.glb");` (statisch,
+  gleicher Pfad → dasselbe Objekt, vor `neu Herd` Fehlertext wie `Bildchen.laden`); `Teil t = herd.modell(m, x = 0, y = 0, z = 0)` →
+  neues 3D-Wurzel-Teil mit einem Kind-Teil je glTF-Knoten (Standardszene, Tiefensuche in Dateireihenfolge → feste Teil-IDs), Lage aus
+  TRS, `Koerper` je Primitive (mehrere Primitive eines Knotens als Kind-Teile), `Belag` je Material als **geteilte** Belag-Teile (einmal
+  je Modell unter einer ruhenden `Vorlage`-Wurzel angelegt, H-K2/H-K8), `Licht` aus `KHR_lights_punctual` (Punkt, Spot; Richtungslichter
+  entfallen – die Sonne ist global). `m.namen()` (Blech<margherita>, Knotennamen), `m.folgen()` (Animationsnamen, für H-K23a),
+  `m.belaege()` (Blech<Teil>), `m.breite()`/`hoehe()`/`tiefe()` (Hülle der Ruhelage). Neue Komponente **`Etikett`** (beide): `name` ""
+  (setzt `herd.modell` je Knoten; auch selbst verwendbar) und Teil-Methode **`finde(name)`** → erstes Teil im Teilbaum (Wurzel
+  eingeschlossen, Tiefensuche in Kindreihenfolge) mit diesem Etikett, sonst `karton`. Mehr Instanzen: `herd.modell` erneut oder
+  `kopie()` einer Vorlage. Fehler: `LaufzeitAnanas: modelle/x.glb ist kein lesbares Modell (glTF 2.0).` · `… braucht die Erweiterung
+  KHR_draco_mesh_compression – die kann der Herd nicht.` · `… ist zu groß (612 000 Ecken) – höchstens 500 000 Ecken.` · Bild im Modell
+  zu groß wie PROJEKTE §5.2 mit `modelle/x.glb (Bild 3)`.
+- **glTF-Untermenge** (**Entscheidung**): `.glb` und `.gltf` (externe `.bin`/Bilder relativ im Projekt, `data:`-URIs); Dreiecke (Streifen
+  und Fächer → Liste, ohne Indizes → Indizes), Punkte/Linien entfallen; `POSITION`, `NORMAL` (fehlt → glatt wie `netz_glatt`),
+  `TEXCOORD_0`; `KHR_mesh_quantization`, Sparse-Accessoren, `KHR_materials_emissive_strength` (→ `strahlen`). Material → `Belag`:
+  `baseColorFactor` → `farbe` (+ Deckkraft), `baseColorTexture` → `bild`, `metallicFactor` → `metall`, `roughnessFactor` → `glanz` =
+  1 − Rauheit, `modell` pbr; Normal-, Stoff- (Verdeckung/Rauheit/Metall, getrennte Bilder packt der Vorbacker ganzzahlig in eines) und
+  Leucht-Bild werden schon vorgebacken und ab H-K26 benutzt; `alphaMode BLEND` → Deckkraft, `MASK`/`doubleSided` ab H-K26. Häute
+  (Gelenke, inverse Bindematrizen, `JOINTS_0`/`WEIGHTS_0`) und Animationen (Kanäle Lage/Drehung/Größe, `LINEAR`/`STEP`; `CUBICSPLINE`
+  → nur die Stützwerte, linear) werden mitgenommen und ab H-K23a/b benutzt. `COLOR_0` ohne `baseColorTexture` backt der Vorbacker
+  ganzzahlig in ein kleines Paletten-Bild (je Farbe ein Texel, uv = Texelmitte; Low-Poly-Modelle färben oft so), mit Grundfarb-Bild
+  entfällt es. **Nicht:** Draco, meshopt, KTX2/Basis (Pflicht-Erweiterung
+  → Fehler; nur benutzte, nicht verlangte Erweiterungen werden still übergangen), Morph-Ziele, `TEXCOORD_1`, Kameras,
+  mehrere Szenen; FBX/OBJ gar nicht (Doku: mit Blender oder `gltf-transform` nach GLB ohne Kompression wandeln).
+- **Koordinaten:** 1 glTF-Meter = 1 Einheit, +y oben, Vorderseite +z (schaut die Standardkamera an). Quaternionen → `rollen`/`neigung`/
+  `drehung` (Reihenfolge SPEC §18.4) im Kern mit `libm`; `matrix`-Knoten zerlegt der Kern in TRS – Scherung geht verloren
+  (**Entscheidung**, Doku).
+- **Modellteig** (Format v1, Magie `TEIGMODL`, im Vorbacker `herd/teigling`): Kopf mit Zählern und SHA-256 über Hauptdatei + alle
+  benutzten Dateien; Netze (Ecken 32 B wie `NETZ`, u32-Indizes, Material je Primitive), Materialien (Faktoren, Bild-Indizes), Bilder als
+  **eingebettete Teiglinge** (PROJEKTE §5.3; gleiche Bilddatei einmal), Knoten (Name, Eltern, TRS als f32-Bits, Netz, Licht), Häute
+  (Gelenk-Knoten, inverse Bindematrizen f32, je Ecke 4 × u16 Gelenk + 4 × u16 Gewicht, auf 65 535 normiert, ganzzahlig), Folgen
+  (Kanäle, Zeiten, Werte). Fehler-Modellteig wie Fehler-Teigling, mit fertigem Text. `.gltf` zweistufig: `modell_braucht(bytes)` nennt
+  die URIs, dann `vorbacken` mit allen Dateien.
+- **Vorbacken, Grenzen:** Anlässe und Cache wie Bilder (PROJEKTE §5.4, Schlüssel SHA-256 + `modell/1`, Einbettung ins pkarton wie §5.6).
+  Quelle zusammen ≤ 32 MiB; je Modell ≤ 500 000 Ecken, ≤ 1 000 000 Dreiecke, ≤ 1 024 Knoten, ≤ 64 Materialien, ≤ 32 Bilder (je ≤ 2048²),
+  ≤ 4 Häute à ≤ 256 Gelenke, ≤ 64 Folgen. Modellteige zählen zur **Teigmenge** (P0020, 64 MiB; **Entscheidung**: ein Budget für alles,
+  was in Kern und GPU liegt; Hebel bleibt GPU-Kompression PROJEKTE §5.7).
+- **Schichten/Dateien:** `herd/teigling` (glTF-Leser mit kleinem JSON-Leser, Modellteig, Base64); Kern `ressourcen.rs`
+  (`Ressource::Modell`: Netz-, Textur-IDs, Knoten, Häute, Folgen), `abi.rs` (Exporte `modell_teig(ptr, len) → id` mit Kopfprüfung,
+  Netze/Bilder werden normale `NETZ`-/`TEXTUR`-Ressourcen; `modell_teil(id, x, y, z) → teil`, `modell_info`; `finde` in
+  `TEIL_METHODEN`), `fehler.rs` (63 ff.), neu `komponenten/etikett.rs`, `kern-wasm`, `herd/skript*` (Zeile `modell_datei` wie
+  `teigling_datei`). **§9-Ausnahme:** `site/js/pizza/herd/` (Klasse `Modell`, `herd.modell`, `finde`, Kiste-Weg), `laufzeit/src/herd.rs`
+  (Importe, passives Datensegment), `site/js/pizzaiolo/` (Klasse, Einbettung), `HOST-ABI.md`, `host/src/herd.rs`, `site/js/worker.js`
+  (Vorbacken), `ui/src/` (Dateibaum: `.glb`/`.gltf` mit Anzeige „612 Ecken · 3 Bilder · vorgebacken 1,2 MB“, Editor-Wörter), SPEC
+  §18.5, PROJEKTE §5 (Absatz „Modelle“ mit Verweis auf §13). Kein `paket.rs`, keine Glut.
+- **Determinismus:** 13.1 Regel 5; Teil-IDs in fester Knotenfolge; Hashes decken die Modellteig-Bytes ab.
+- **Tests:** `cargo test` Vorbacker (Testmodelle aus `scripts/modelle-test.js`: Würfel, Hierarchie, Textur, Haut, Folge, jede
+  Fehlerart; Hash nativ = `teigling.wasm`), Kern `tests::hk16`, Szene `modell.herd`, Fälle `herd-modell.*` (Projektordner),
+  `herd-modell-ananas.*`, Prüfstand `a18-herd.js`, Differenz mit Host, E2E Playground (Modell hochladen, Vorschau, Lauf).
+  **Beispiel:** `pizzeria` (Tische, Stühle, Öfen, Pizzen aus Kenney Food Kit und Furniture Kit, CC0, `quellen.md`).
+- **Abnahme:** A-Lauf. **K-Vorschlag:** K-161.
+
+#### H-K17 `Schwung` – 3D-Physik (W8, Kern-only)
+- **Ziel:** Unity Rigidbody mit Box-, Sphere-, Capsule-, Mesh- und Terrain-Collider; Gegenstück zu `Wucht`.
+- **Sprachfläche:** `Schwung` (3D, braucht `Fuehler`): `art` dynamisch (`dynamisch|kinematisch|fest`), `masse` 1 (> 0), `tempoX`/`Y`/`Z`
+  0, `drehtempoX`/`Y`/`Z` 0 (Grad/s, Weltachsen), `schwerkraft` 0 (Einheiten/s² nach −y; Doku empfiehlt 9.81 – **Entscheidung** wie
+  `Wucht`), `daempfung` 0, `drehdaempfung` 0.05, `abprall` 0, `reibung` 0.5, `stossX`/`Y`/`Z` 0 (Einmal-Impuls im Schwerpunkt),
+  `drehsperre` nein (keine Drehdynamik); Lesefelder `amBoden`, `ruht` (schläft). `Fuehler` bekommt die Formen **`kapsel`** (Achse y des
+  Teils, `radius`, `hoehe` gesamt) und **`netz`** (nur fest: Dreiecke der `Koerper`-Form am Teil bzw. das Höhenraster des `Gelaende`) –
+  Wahl-Werte hinten angehängt, Hash-neutral. Kontakte nur zwischen Fühlern mit `ausloeser: nein`; ein fester Fühler ohne Schwung ist
+  ein fester Körper (wie K-150). Für die Physik sind Kasten und Kapsel **gedreht**; Auslöser-Meldungen bleiben achsenparallel (K-150).
+- **Löser:** Breitphase `fuehler::breitphase` auf 3D-Hüllen; Engphase Kugel/Kapsel geschlossen, Kasten über Trennachsen mit bis zu
+  4 Kontaktpunkten, Netz über einen Hüllen-Baum je Form (einmal je Ressourcen-ID gebaut, Teilung nach Mittelpunkt in Indexreihenfolge,
+  Cache als `Vec` nach ID, nicht im Hash), Gelände analytisch über die Zellen unter der Hülle. Kontakte sortiert nach (kleinere ID,
+  größere ID, Merkmal), Warmstart aus einer verborgenen Spalte, **8** Impuls-Iterationen (Normale, zwei Reibungsrichtungen, Drehung),
+  **4** Iterationen Positionskorrektur, abwechselnd vorwärts/rückwärts; semi-implizites Euler; Trägheit analytisch aus der Form.
+  Drehung intern als Quaternion f64 (verborgene Spalten), geschrieben als `rollen`/`neigung`/`drehung`; setzt das Programm Lage oder
+  Drehung, übernimmt Schwung sie (Vergleich mit den zuletzt geschriebenen Bits). Schlafen nach 0,5 s unter festen Schwellen, Inseln
+  wecken sich bei Kontakt, Stoß oder Setzen. Kein Durchtunnel-Schutz (Doku-Tipp wie `Wucht`); Gelenke und Federn → später.
+- **Schichten/Dateien:** neu `komponenten/schwung.rs`, `kollision3d.rs` (13.1 Regel 9); `fuehler.rs`, `gelaende.rs` (Höhen-Abfrage
+  öffentlich, Komponenten-Dateien); `formen.rs` (Dreiecke einer Form lesen). Kein `paket.rs`, keine Glut.
+- **Determinismus:** wie `Wucht`; nur `libm` (`sqrt`, `sin`, `cos`, `atan2`, `asin`), keine `HashMap`.
+- **Tests:** `tests::hk17` (Fallhöhe, Stapel aus 10 Kisten ruht, Kugel rollt den Hang hinab, Kapsel auf Netz, Schlafen/Wecken,
+  Drehsperre, ohne Schwung byte-gleich), Szene `schwung.herd` (klein, N = 500 Kisten, N = 2 000 Kugeln), Fall `herd-schwung.*`;
+  **B11:** 500 Kisten Takt ≤ 2 ms nativ. **Beispiel:** `kistenturm` (Turm aus Pizzakartons auf einem Gelände, Klick wirft Teigkugeln).
+- **Abnahme:** A-Kern. **K-Vorschlag:** K-162.
+
+#### H-K18 Schatten für Punkt- und Spotlichter, Sonnen-Kaskaden (W9, Kern + Glut)
+- **Ziel:** Unity Point/Spot Light Shadows (Schatten-Atlas) und Cascaded Shadow Maps.
+- **Sprachfläche:** `Licht` bekommt Nachtragsfelder `schattenGuete` aus (`aus|grob|mittel|fein`; Punkt/Spot 256/512/1024 Texel je
+  Würfelseite bzw. Kegel; `aus` = v1: nur die Sonne wirft Schatten), `schattenWeich` 1 (0 … 4, Zeltfilter-Radius in Texeln, auch
+  Sonne), `kaskaden` 1 (1 … 4, nur Sonne; 1 = v1-Verfahren), `schattenWeite` 0 (Sonne: 0 = wie v1, sonst Reichweite der Kaskaden ab der
+  Kamera). `schatten` bleibt der Hauptschalter, `Koerper.schatten` bestimmt die Werfer.
+- **Budget** (**Entscheidung**): höchstens **8** schattenwerfende Punkt-/Spotlichter je Bild. Der Kern wählt: wirksam (Kugel bzw. Kegel
+  schneidet das Kamera-Frustum), nach Abstand Kamera – Lichtrand, dann Teil-ID; Würfel = 6 Kacheln (90°-Perspektiven, keine Cube-Map →
+  WebGL2), Spot = 1 Kachel; Tiefen-Atlas 4096² (2048² mit halben Kacheln, wenn das Gerät 4096 nicht kann), Kachelvergabe im Kern
+  (Regal-Packen nach Güte, dann Reihenfolge); was nicht passt, wirft still keinen Schatten. Sonne: Kaskaden als
+  `texture_depth_2d_array` (2048² je Schicht; eine Schicht = heutiges Bild), praktische Teilung (λ = 0,75), kugelumschlossen und
+  texelweise gerastet gegen Flimmern. Kein Schatten-Cache für ruhende Lichter in dieser Stufe (später).
+- **Bildpaket** (additiv): Abschnitt `SCHATTENLICHTER` nur bei Nutzung (je Kachel Ansicht·Projektion, Atlas-Rechteck, Licht-Index; je
+  Kaskade Matrix und Teilungstiefe); der Kern schneidet je Kachel die Werfer (Hülle gegen Kachel-Frustum) und schreibt sie als neuen
+  `zug` (je Kachel und Netz-Art ein Draw-Call). Schattenwerfende Punkt-/Spotlichter erzwingen den `LICHTER`-Abschnitt auch bei ≤ 8
+  Lichtern (der v1-Pfad über SZENE kennt keinen Kachel-Index).
+- **Glut:** Atlas (eine Einheit laut H-K15-Tabelle), Würfelseite nach größter Achse, PCF-Zelt mit dem Vergleichs-Sampler,
+  Normalen-Versatz gegen Akne; `licht.wgsl`, `schatten.wgsl`, `herd/glut/src`, `herd/glut-web`.
+- **Schichten/Dateien:** Kern `komponenten/licht.rs`, `lichter.rs`, `paket.rs`; Glut wie oben; `herd/README.md` §4/§9.
+- **Determinismus:** Auswahl, Packen, Matrizen im Kern (f64, `libm::tan`); Pixel K-129.
+- **Tests:** `tests::hk18` (Auswahl stabil, Budget, ohne Nutzung byte-gleich), Szene `schatten.herd`, Referenzbilder
+  `3d-punktschatten` (Würfel-Kacheln + Spot) und `3d-kaskaden`; **B12:** 8 Punktlichter mit Schatten + 1 000 Körper ≤ 120 Draw-Calls,
+  60 fps EXE. **Beispiel:** `laternengasse` (Gasse bei Nacht mit 6 Laternen und 2 Spots, Taster schaltet auf Tag mit Kaskaden).
+- **Abnahme:** A-Glut. **K-Vorschlag:** K-163.
+
+#### H-K19a `Klang.laden` – WAV und FLAC (W9, §9-Ausnahme)
+- **Ziel:** Unity AudioClip-Import; baut auf H-K14 (`Klang`, `Spur`, Ereignisse, Wiedergabewege).
+- **Sprachfläche:** `Klang.laden(pfad)` (statisch, auch ohne Herd, gleicher Pfad → dasselbe Objekt) → `Klang` wie aus `Klang.ton`
+  (`spiele`, `dauer()`). Fehler: `LaufzeitAnanas: klaenge/x.mp3 ist kein lesbarer Klang (WAV oder FLAC).` · `… ist zu lang (12:30) –
+  höchstens 10 Minuten.` · `PizzaFehler P0021: Die Klänge sind zusammen zu groß für den Ofen (70,2 MB vorgebacken, höchstens 64 MB).`
+  (Interpreter und Compiler vor dem Start, wie P0020).
+- **Formate** (**Entscheidung**): WAV (RIFF/WAVE inkl. `WAVE_FORMAT_EXTENSIBLE`; PCM 8/16/24/32 bit, IEEE-Float 32 bit) und FLAC (alle
+  Teilrahmenarten, 4 … 24 bit, Kanal-Dekorrelation, CRC geprüft) – beide ganzzahlig dekodierbar und klein; OGG Vorbis folgt in H-K19b,
+  Opus/MP3 später. Kanäle 1 … 2 (mehr → Fehler), Rate 8 000 … 96 000 Hz bleibt erhalten – **kein Umrechnen im Vorbacker**: die
+  Wiedergabe (H-K14) rechnet auf die Geräterate um, Hörbares ist nicht Teil der Bitgleichheit. Ergebnis i16, Float mit fester Rundung.
+- **Klangteig** (Magie `TEIGKLNG`, v1): Kopf (Rate, Kanäle, Abtastwerte, SHA-256 der Quelle), PCM i16 LE verschachtelt; FNV-1a-64 des
+  PCM ist die `klang`-Kennung der Ereignisse wie bei der Synthese. Fehler-Klangteig mit fertigem Text (13.1 Regel 5).
+- **Grenzen:** Quelle ≤ 16 MiB, Dauer ≤ 10 min, **Klangmenge** je Projekt ≤ 64 MiB (Summe der Klangteige verschiedener Quell-Hashes;
+  eigene Grenze neben der Teigmenge, **Entscheidung**: Klänge liegen weder im Kern noch auf der GPU).
+- **Schichten/Dateien:** `herd/teigling` (Modul `klang`, Signaturen `RIFF`/`fLaC`, gleicher Cache mit Schlüssel `klang/1`);
+  **§9-Ausnahme:** `site/js/pizza/` (Klang.laden, Kiste-Weg), `laufzeit/` (Import, Datensegment), `site/js/pizzaiolo/` (Einbettung,
+  P0021), `HOST-ABI.md`, `host/` (PCM aus dem pkarton an die Wiedergabe), `site/js/worker.js` + `ui/src/` (Dateibaum mit Abspielknopf,
+  Klangmenge in der Projektleiste); SPEC (Klang-Abschnitt aus H-K14), PROJEKTE §5 (Absatz „Klänge“).
+- **Determinismus:** ganzzahlig; Ereignisse wie H-K14, die PCM-Bytes gehen einmal je Klang als übertragener Puffer an die Wiedergabe,
+  nie in die Ereignisliste.
+- **Tests:** `cargo test` Vorbacker (Testklänge aus `scripts/klaenge-test.js` mit eigenem kleinem FLAC-Schreiber für alle
+  Teilrahmenarten; jede Fehlerart), Fälle `klang-laden.*` + `.klang-erwartet` in Interpreter, Wasm, Differenz, Host; E2E mit
+  `OfflineAudioContext`. **Beispiel:** `geraeuschkiste` (Taster spielen CC0-Geräusche aus Freesound, `quellen.md`).
+- **Abnahme:** A-Lauf. **K-Vorschlag:** K-164.
+
+#### H-K20 `Figur` und `Strahl` – Figur-Steuerung, Strahl- und Höhenabfrage (W9, Kern-only)
+- **Ziel:** Unity CharacterController und `Physics.Raycast`; Höhenabfrage am `Gelaende`.
+- **Sprachfläche:** `Figur` (3D, braucht `Fuehler`; Form `kapsel`, jede andere wird als Kapsel aus der Hülle genommen, kein Fehler):
+  `laufX`, `laufZ` 0 (Wunschtempo in Weltachsen, Einheiten/s), `sprung` 0 (Einmal: Sprungtempo nach oben, nur am Boden, danach 0),
+  `schwerkraft` 9.81 (**Entscheidung**, anders als `Wucht`/`Schwung`: eine Figur ohne Schwerkraft ist kein sinnvoller Standard),
+  `stufe` 0.3 (Treppenhöhe), `hang` 45 (Grad, steiler rutscht), `haut` 0.02 (Abstand zu Wänden), `schieben` 0 (Impuls auf dynamische
+  Schwung-Körper), `mitfahren` ja (bewegt sich mit kinematischen Böden); Lesefelder `amBoden`, `boden` (teil), `bodenHoehe`,
+  `bodenNormaleX`/`Y`/`Z`, `tempoX`/`Y`/`Z` (tatsächlich), `anWand`, `anDecke`. Verfahren: Kapsel-Wischen gegen die Kollisionswelt aus
+  H-K17 (feste und kinematische Fühler-Formen, Netze, Gelände, andere Figuren in ID-Reihenfolge), höchstens 4 Gleit-Schritte an Wänden,
+  Stufe als Hoch-Vor-Runter-Versuch, am Boden kleben beim Abwärtsgehen (≤ `stufe`).
+- `Strahl` (3D): `richtungX`/`Y`/`Z` 0/−1/0, `achsen` welt (`welt|teil`), `laenge` 1000, `maske` 4294967295, `ausloeser` nein (trifft
+  auch Auslöser), `ausMaus` nein (ja: von der aktiven Kamera durch die Maus, H-K12). **Lesefelder beim Lesen berechnet** (13.1 Regel 6;
+  gegen die Welt im Lesezeitpunkt, Zwischenergebnis bis zur nächsten Änderung): `getroffen` (teil oder `karton`), `abstand`,
+  `punktX`/`Y`/`Z`, `normaleX`/`Y`/`Z`. Ziele sind Fühler-Formen (wach, sichtbar, Maske passt), das eigene Teil nicht; Gleichstand →
+  kleinere ID. `Koerper` ohne Fühler trifft der Strahl nicht (**Entscheidung**: Ziele bestimmt der Fühler, wie bei der Physik).
+  Höhenabfrage = Strahl nach unten: `Strahl lot = herd.raum(x, 500, z).mit(neu Strahl()); funghi h = lot.punktY();` – am Gelände mit
+  `form: "netz"` exakt.
+- **Schichten/Dateien:** neu `komponenten/figur.rs`, `strahl.rs`; `kollision3d.rs` (Wischen, Strahl); `lies` ggf. um Teil-Felder
+  erweitert (`komponenten/mod.rs`, `abi.rs`; H-K12 berechnet nur Zahlen). Kein `paket.rs`.
+- **Determinismus:** f64, feste Höchstzahl Schritte, `libm::sqrt`; Reihenfolge nach Teil-ID.
+- **Tests:** `tests::hk20` (Treppe, Hang, Wandgleiten, Plattform mitfahren, Sprung; Strahl gegen jede Form, Gelände = analytische
+  Höhe, `ausMaus`), Szene `figur.herd` (N = 100 Figuren im Gelände, 1 000 Strahlen), Fälle `herd-figur.*`, `herd-strahl.*`; **B13:**
+  100 Figuren ≤ 0,5 ms, 1 000 Strahlen ≤ 1 ms je Takt nativ. **Beispiel:** `parkour` (Schulterperspektive mit Mausfang, Treppen, Hänge,
+  fahrende Plattformen; Klick-Strahl markiert Ziele).
+- **Abnahme:** A-Kern. **K-Vorschlag:** K-165.
+
+#### H-K21 Spiegelbild vollständig (W10, Kern + Glut)
+- **Ziel:** planare Spiegelung mit derselben Beleuchtung wie das Bild. **Heute** zeichnet der Spiegeldurchgang nur Himmel + FEST, mit
+  den 8 Lichtern aus SZENE und ohne Schatten.
+- **Sprachfläche:** `Stimmung.spiegelGuete` einfach (`einfach|voll`, Nachtragsfeld; `einfach` = heute, Referenzbild `3d-spiegel`
+  unverändert). `voll`: alle Lichter über Cluster, Schatten (Sonne + H-K18), Durchsichtiges und Funken im Spiegel, volle Auflösung.
+- **Kern:** `lichter.rs` schreibt bei `voll` und vorhandenem `LICHTER` eine zweite Zellen-Tabelle für die gespiegelte Kamera
+  (dieselbe Lichterliste) als Abschnitt `LICHTER_SPIEGEL` – nur dann, sonst byte-gleich.
+- **Glut:** Spiegeldurchgang über den Cluster-Pfad mit der zweiten Tabelle (hinter der ersten in `zellen_t`, keine neue Einheit),
+  Schatten-Abtastung wie im Hauptdurchgang, DURCH- und `TEILCHEN3D`-Züge im Spiegel.
+- **Schichten/Dateien:** Kern `lichter.rs`, `paket.rs`, `komponenten/stimmung.rs`; Glut `src/*`, `licht.wgsl`, `funken.wgsl`,
+  `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk21` (ohne `voll` byte-gleich; Spiegelzellen konservativ an Stichproben wie bei „viele Lichter“), Szene
+  `spiegel.herd`, Referenzbild `3d-spiegel-voll` (64 Lichter, Spots mit Schatten, Funken über nassem Boden). **Beispiel:** `regenplatz`
+  (Piazza im Regen mit 150 Neonlichtern im Spiegel). Danach Neon-Napoli aufrüsten (13.1 Regel 8).
+- **Abnahme:** A-Glut. **K-Vorschlag:** Nachtrag K-163.
+
+#### H-K22 `Schall` – Raumklang (W10, §9-Ausnahme: neuer Feldtyp)
+- **Ziel:** Unity AudioSource mit räumlichem Klang und AudioListener.
+- **Sprachfläche:** neuer Feldtyp **`klang`** (Nummer 13, ein `Klang`-Objekt). `Schall` (beide): `klang` karton, `lautstaerke` 1,
+  `schleife` ja, `spielt` ja (ja → nein stoppt, nein → ja startet von vorn), `nah` 1 (bis hier volle Lautstärke), `weite` 30 (ab hier
+  stumm; dazwischen quadratisch fallend), `tonhoehe` 1 (0.25 … 4). Es hört die aktive Kamera (3D) bzw. die Mitte des aktiven Blicks
+  oder Spielfelds (2D) (**Entscheidung**: kein eigener Hörer-Baustein). Doppler, Hall, Verdeckung → später.
+- **Kern:** Nachlauf-System rechnet je Schall Lautstärke und Panorama (−1 … 1 aus der Richtung im Hörer-Raum), auf 1/1024 gerastet;
+  Änderungen gegen den Vortakt sowie Start/Stopp ergeben je Bild ein **Klangbild** (neuer Kern-Export `klangbild(ptr, kap)` neben dem
+  Bildpaket, nicht im Bildpaket). Die Laufzeiten machen daraus Ereignisse `{typ:"klang", art:"raum", spur, lautstaerke, panorama}`
+  (in `.klang-erwartet`).
+- **Schichten/Dateien:** neu `komponenten/schall.rs`; Kern `schema.rs` (Feldtyp), `abi.rs` (Export, Klang-Feld als Kennung), `kern-wasm`,
+  `herd/skript*`. **§9-Ausnahme:** `site/js/pizza/herd/kern.js` (Feldtyp ↔ `Klang`), `laufzeit/src/herd.rs` (Feldtyp, Klangbild →
+  Wiedergabe), `site/js/pizzaiolo/` (Feldtyp in der Klassenauflösung), `HOST-ABI.md`, `host/` (Lautstärke/Panorama in der Mischung),
+  `site/js/worker.js` (WebAudio Gain/StereoPanner), `ui/src/` (Editor), SPEC §18.4.
+- **Determinismus:** f64 mit `libm`, gerastete Werte; Hörbares nicht Teil der Bitgleichheit (K-153).
+- **Tests:** `tests::hk22`, Fall `herd-schall.*` mit `.klang-erwartet`, Differenz, Host, E2E (`OfflineAudioContext`). **Beispiel:**
+  `brunnenplatz` (plätschernder Brunnen in Schleife, der Bote läuft vorbei, Klang wandert von links nach rechts).
+- **Abnahme:** A-Lauf. **K-Vorschlag:** K-166.
+
+#### H-K23a `Puppe` – Animationen aus Modellen (W10, Kern-only)
+- **Ziel:** Unity Animator/Animation: Clips abspielen und überblenden.
+- **Sprachfläche:** `Puppe` (3D, an der Wurzel aus `herd.modell`): `folge` "" (Name aus `m.folgen()`; "" = Ruhelage), `tempo` 1,
+  `schleife` ja, `zeit` 0 (setzbar = springen), `laeuft` ja, `blende` 0.2 (s; ein Wechsel von `folge` blendet über), Lesefelder `dauer`,
+  `fertig`. **Gelenke sind Teile** (**Entscheidung**): die Knoten-Teile aus H-K16 – man hängt Dinge an die Hand (`haenge`,
+  `finde("Hand.R")`). Die Puppe schreibt nur animierte Größen; Teile ohne Kanal behält das Programm in der Hand. Zuordnung Kanal → Teil
+  über den **Knoten-Index** (verborgenes Feld am `Etikett`, von `herd.modell` gesetzt – glTF-Namen sind oft leer oder doppelt), nach
+  `herd.modell`/`kopie()` durch einen Gang über den Teilbaum neu aufgebaut; `finde(name)` bleibt namensbasiert. Gehäutete Netze bleiben bis H-K23b in der
+  Ruhelage starr (Doku). Ebenen/Masken, Clip-Ereignisse, Root Motion, IK → später.
+- **Schichten/Dateien:** neu `komponenten/puppe.rs` (Takt); `ressourcen.rs` (Folgen-Daten der Modell-Ressource lesen). Kein
+  `paket.rs`.
+- **Determinismus:** Zeit als Summe von `DT`, Interpolation f64, Drehungen per Slerp mit `libm`.
+- **Tests:** `tests::hk23a` (Stützstellen exakt, `STEP`, Schleife, Überblendung, Kopie unabhängig), Szene `puppe.herd` (100 Puppen à
+  50 Gelenke), Fall `herd-puppe.*` (Testmodell mit Knoten-Animation); **B14:** 100 × 50 Gelenke ≤ 1,5 ms je Takt nativ.
+  **Beispiel:** `spieluhr` (Modell mit Knoten-Animationen: Deckel, Walze, tanzende Figur; Taster wechselt die Folge).
+- **Abnahme:** A-Kern. **K-Vorschlag:** Nachtrag K-161.
+
+#### H-K19b `Klang.laden` – OGG Vorbis (W11, Vorbacker)
+- **Ziel:** Kenney-Klänge (CC0) liegen als OGG vor.
+- **Sprachfläche:** unverändert; Fehlertext „(WAV, FLAC oder OGG)“ steht im Fehler-Klangteig (13.1 Regel 5) – keine Laufzeit-Änderung.
+- **Dekoder:** eigener Vorbis-I-Dekoder in `herd/teigling` (Ogg-Seiten mit CRC, Kopfpakete, Codebücher, Floor 1 – Floor 0 → Fehler,
+  praktisch ungenutzt –, Residue 0/1/2, Kanal-Kopplung, inverse MDCT, Fenster, Überlappung). MDCT in f32 nur mit Grundrechenarten,
+  Fenster- und Drehfaktor-Tabellen aus `libm`, keine FMA; Vorbild lewton (MIT/Apache) bzw. Tremor; kein Fremd-Crate (`no_std`).
+  Ergebnis i16, Klangteig unverändert.
+- **Schichten/Dateien:** `herd/teigling`, `ui/src/` (Endung `.ogg` im Dateibaum), PROJEKTE §5, SPEC-Fehlertext. Keine §9-Datei.
+- **Tests:** `cargo test` mit 5 kurzen Kenney-OGG (CC0, `quellen.md` im Testordner): Hash nativ = `teigling.wasm`, Abgleich mit
+  eingecheckten libvorbis-PCM (Abweichung ≤ 1 LSB); Fall `klang-ogg.*`. Kein Beispiel (hörbar, nicht sichtbar).
+- **Abnahme:** A-Kern + `node herd/test-teigling.js` + E2E Dateibaum. **K-Vorschlag:** Nachtrag K-164.
+
+#### H-K24 Bildschirmraum: Verdeckung (SSAO) und Spiegelung (SSR) (W11, Kern + Glut)
+- **Ziel:** Unity SSAO und Screen Space Reflections.
+- **Sprachfläche:** `Stimmung` Nachtragsfelder `verdeckung` 0 (0 … 2, 0 = aus), `verdeckungWeite` 0.5 (Radius in Welt-Einheiten),
+  `bildspiegel` 0 (0 … 1, 0 = aus).
+- **Bildpaket:** Abschnitt `BILDRAUM` (32 B) nur, wenn `verdeckung` oder `bildspiegel` > 0 (STIMMUNG bleibt 80 B).
+- **Verfahren** (beide Backends gleich, **Entscheidung**: ein Weg): (1) **Vorlauf** ohne MSAA über FEST: Tiefe + Normale oktaedrisch
+  (RGBA8) + Rauheit/Metall – nötig, weil WebGL2 MSAA-Tiefe nicht abtasten kann; (2) **SSAO** in halber Auflösung, 12 Abtastungen in der
+  Halbkugel, Drehung aus Ganzzahl-Hash je Pixel (kein Geräte-Zufall), zweimal 1D bilateral weichgezeichnet; wirkt nur auf Umgebungs- und
+  indirektes Licht (`fs_licht` liest sie, eine Einheit laut H-K15); (3) **SSR** nach dem undurchsichtigen Hauptdurchgang: Kopie der
+  HDR-Farbe mit 5 Mip-Stufen, Vollbild-Durchgang mit Strahlmarsch im Sichtraum (höchstens 48 Schritte + 6 Halbierungen, Hash-Versatz),
+  Rauheit wählt die Stufe, Fresnel; Fehltreffer und Bildrand fallen auf die planare Spiegelung (wenn `spiegelung`), sonst auf
+  Himmelszelt/Umgebung zurück; additiv vor dem Durchsichtigen, Bloom danach. **WebGL2-Rückfall konkret:** derselbe Weg mit nicht-MSAA
+  `DEPTH24`-Tiefe aus dem Vorlauf; ohne `EXT_color_buffer_float` (selten; dann ist auch `Stimmung` in Rgba8) fällt nur SSR still aus,
+  planare Spiegelung und SSAO bleiben.
+- **Schichten/Dateien:** Kern `komponenten/stimmung.rs`, `paket.rs`; Glut `src/*`, `licht.wgsl`, `nachbild.wgsl`, neu `bildraum.wgsl`,
+  `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk24` (ohne Nutzung byte-gleich), Referenzbilder `3d-verdeckung` (Gewölbe, Fässer) und `3d-bildspiegel`
+  (polierter Boden, Säulen, Rückfall am Bildrand); **B15:** SSAO + SSR ≤ 2 ms bei 1280 × 720 auf der Entwickler-GPU
+  (`--herd-messung`; WARP nur Korrektheit). **Beispiel:** `pizzakeller`.
+- **Abnahme:** A-Glut. **K-Vorschlag:** Nachtrag K-163.
+
+#### H-K25 Funken-Aufprall (W11, Kern-only)
+- **Ziel:** Collision-Modul und Sub-Emitter des Unity Particle System.
+- **Sprachfläche:** `Funken` Nachtragsfelder `aufprall` keiner (`keiner|ebene|welt`; ebene = waagerecht auf `aufprallHoehe`, welt =
+  Gelände und feste Fühler-Formen über `kollision3d`, Teilchen als Strahl über seinen Weg im Takt), `aufprallHoehe` 0, `abprall` 0.3,
+  `nachAufprall` abprallen (`abprallen|vergehen|liegen`), `spritzer` karton (teil: ein Funken-Emitter, der je Aufprall
+  `spritzerAnzahl` Teilchen am Aufprallpunkt ausstößt; höchstens 1 000 je Takt und Emitter), `spritzerAnzahl` 3. Was Regen (laufend)
+  schon kann, wird nicht doppelt gebaut – nach dessen Merge abgleichen.
+- **Schichten/Dateien:** `komponenten/funken.rs` (Komponenten-Datei), `kollision3d.rs` (Strahl-Bündel). `TEILCHEN3D` unverändert.
+- **Determinismus:** Teilchen in Index-Reihenfolge, Kern-Zufall. **Tests:** `tests::hk25`, Szene `aufprall.herd`, Fall
+  `herd-funken-aufprall.*`; **B16:** 20 000 Teilchen gegen Ebene ≤ 0,5 ms, 10 000 gegen Gelände ≤ 2 ms je Takt nativ. **Beispiel:**
+  `funkenschlag` (Funken springen über Hügel, Tropfen spritzen auf Steinen).
+- **Abnahme:** A-Kern.
+
+#### H-K26 Belag-Karten – Normal-, Stoff-, Leucht-Karte, Ausschnitt, beidseitig (W12, Kern + Glut)
+- **Ziel:** Unity Lit-Material vollständig, damit glTF-PBR stimmt.
+- **Sprachfläche:** `Belag` Nachtragsfelder `normalKarte` (bildchen, Tangentenraum wie glTF), `normalStaerke` 1, `stoffKarte` (bildchen:
+  R Verdeckung, G Rauheit, B Metall wie glTF, multipliziert mit `glanz`/`metall`), `leuchtKarte` (bildchen), `leuchtFarbe` weiss (wirkt
+  nur mit `leuchtKarte`; ohne Karte bleibt v1 = Grundfarbe · `leuchten`), `schwelle` 0 (Ausschnitt: Deckkraft darunter verworfen, darüber
+  deckend; 0 = aus, gilt auch im Schatten), `beidseitig` nein (Rückseiten mit gedrehter Normale, Schatten ohne Rückseiten-Culling).
+  Karten nur am `Belag`, nicht am `Koerper` (**Entscheidung**). Tangenten aus Ableitungen (13.1 Regel 2); Abweichung zu MikkTSpace nur
+  bei starker UV-Verzerrung (Doku).
+- **Bildpaket:** Abschnitt `KARTEN3D` (16 B je Instanz in INST3D-Reihenfolge: drei Bild-Kennwörter wie das Relief, Schwelle,
+  Merkmale) nur bei Nutzung, vierter Instanzpuffer (Nullen ohne Abschnitt); beidseitige Instanzen in eigenem `zug` (Pipeline ohne
+  Culling). Bilder aus den PD3-Klassen – keine neue Einheit.
+- **Modell-Abbildung** (Nachtrag H-K16): Normal-, Stoff-, Leucht-Bild, `emissiveFactor` → `leuchtFarbe`, `alphaCutoff` → `schwelle`,
+  `doubleSided` → `beidseitig`.
+- **Schichten/Dateien:** Kern `komponenten/belag.rs`, `koerper.rs`, `paket.rs`, `ressourcen.rs`; Glut `src/*`, `licht.wgsl`,
+  `schatten.wgsl`, `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk26` (ohne Nutzung byte-gleich), Referenzbild `3d-karten` (alle Karten, Laub mit Schwelle beidseitig), Fall
+  `herd-belag-karten.*`, Modell-Fall mit Karten. **Beispiel:** `werkstatt` (ein Poly-Haven-Modell in 1k mit allen Karten, CC0).
+- **Abnahme:** A-Glut. **K-Vorschlag:** Nachtrag K-161.
+
+#### H-K23b Haut – Skinning (W13, Kern + Glut)
+- **Ziel:** Unity SkinnedMeshRenderer.
+- **Sprachfläche:** keine – ein `Koerper` mit Haut-Netz verformt sich nach den Gelenk-Teilen seiner Puppe.
+- **Kern:** je Bild die Gelenkmatrizen (Welt-Matrix des Gelenk-Teils × inverse Bindematrix, relativ zum Körper-Teil) in f64, im Paket
+  f32. Hülle fürs Culling aus den Gelenk-Teilen + Ruhelage-Radius (konservativ); `trifft` und Fühler `auto` behalten die Ruhelage-Hülle
+  (**Entscheidung**, Doku). Bildpaket: Ressourcen-Abschnitt `HAUT` (je Netz und Ecke 4 × u16 Gelenk + 4 × u16 Gewicht, einmal) und je
+  Bild Abschnitt `GELENKE` (Palette 3 × vec4 je Gelenk, je gehäuteter Instanz ein Versatz); gehäutete Instanzen in eigenem `zug`,
+  instanziert je (Netz, Belag) mit Versatz im Instanzpuffer. ≤ 256 Gelenke je Haut, ≤ 65 536 Gelenke je Bild.
+- **Glut:** zweiter Vertex-Strom nur für Haut-Pipelines, Palette als RGBA32F-Textur im Vertex-Shader (`textureLoad`, Vertex-Pool laut
+  H-K15), Haut auch im Schatten- und Spiegeldurchgang und im Bildraum-Vorlauf.
+- **Schichten/Dateien:** Kern `komponenten/koerper.rs`, `puppe.rs`, `paket.rs`, `ressourcen.rs`; Glut `src/*`, `licht.wgsl`,
+  `schatten.wgsl`, `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk23b` (Gelenkmatrizen bitgleich, ohne Haut byte-gleich), Szene `haut.herd` (100 gehäutete Figuren; Kern-Bild
+  ≤ 1 ms nativ, B14), Referenzbild `3d-haut` (Testfigur in drei Posen). **Beispiel:** `tanzfiguren` (CC0-Figuren von Quaternius bzw.
+  Kenney laufen, winken, tanzen; Taster wechseln mit Überblendung).
+- **Abnahme:** A-Glut. **K-Vorschlag:** Nachtrag K-161.
+
+#### H-K27 `Wind` und `Streu` – Gras, Kleinzeug, Vertex-Animation (W14, Kern + Glut)
+- **Ziel:** Unity Terrain-Details (Gras), WindZone und Instancing großer Mengen (Steine, Blumen, Abfall).
+- **Sprachfläche:** `Wind` (3D; es gilt der wache mit der kleinsten ID): `staerke` 0 (0 … 5), `richtungX` 1, `richtungZ` 0, `boeen` 0.3
+  (0 … 1), `tempo` 1. `Belag.wiegen` 0 (Nachtragsfeld, 0 … 1): Ausschlag der Ecken im Vertex-Shader, quadratisch mit der Höhe über dem
+  Netz-Ursprung, Phase aus der Weltlage der Instanz, Böen aus Wertrauschen (Ganzzahl-Hash), Zeit aus der Bildnummer. Rein sichtbar –
+  Kollision und Hüllen unverändert (**Entscheidung**). `Streu` (3D): `form`, `belag` karton (teil), `anzahl` 1000 (≤ 200 000), `breite`
+  20, `tiefe` 20 (Rechteck um die Lage), `gelaende` karton (teil: Höhe aufs Gelände, Punkte an Hängen über `hang` entfallen), `hang` 40,
+  `groesse` 1, `groesseStreuung` 0.3, `drehen` ja, `dichte` karton (bildchen: Helligkeit = Wahrscheinlichkeit), `sichtweite` 60
+  (ab der Hälfte ausgedünnt), `schatten` nein, `saat` 0. Streu-Instanzen haben keine Kollision (**Entscheidung**).
+- **Kern:** Punkte aus dem Kern-Zufall, neu nur bei geänderten Feldern (Prüfwert wie `Gelaende`), in Zellen von 8 × 8 Einheiten.
+  Bildpaket: Ressourcen-Abschnitt `STREU` (einmal je Erzeugung: je Zelle Instanzen à 32 B) und je Bild Abschnitt `STREU3D` (sichtbare
+  Zellen nach Frustum und `sichtweite`, Ausdünnung je Zelle) – nie die Instanzen je Bild (100 000 × 72 B wären zu viel); `WIND` als
+  kleiner Uniform-Abschnitt.
+- **Glut:** Streu-Instanzpuffer als Ressource, ein Draw-Call je sichtbarem Zellenlauf (Pufferversatz statt `base_instance`, das WebGL2
+  nicht kann), Wiegen im Vertex-Shader von `licht.wgsl` und `schatten.wgsl`.
+- **Schichten/Dateien:** neu `komponenten/wind.rs`, `streu.rs`; `belag.rs`, `paket.rs`; Glut `src/*`, `licht.wgsl`, `schatten.wgsl`,
+  `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk27` (Punkte bitgleich, ohne Nutzung byte-gleich), Szene `streu.herd` (klein, N = 100 000), Referenzbild
+  `3d-streu`, Fall `herd-streu.*`; **B17:** 100 000 Halme ≤ 64 Draw-Calls, 60 fps EXE, Kern-Bild ≤ 0,2 ms. **Beispiel:** `wiese`
+  (Hügel mit 50 000 Grashalmen, Blumen, Steinen in Böen; der Bote läuft als `Figur`).
+- **Abnahme:** A-Glut.
+
+#### H-K28 `Wasser` (W15, Kern + Glut)
+- **Ziel:** Wasserflächen mit Wellen, Spiegelung, Brechung, Tiefenfärbung und Schaum; Auftrieb für `Schwung`. Pfützen bleiben Sache
+  von `Belag.nass` und Regen (**Entscheidung**: kein eigenes Pfützen-Objekt).
+- **Sprachfläche:** `Wasser` (3D, waagerechtes Rechteck um die Lage): `breite` 50, `tiefe` 50, `farbe` wasser, `tiefenFarbe` `#0b2a3a`,
+  `klarheit` 2 (Sichttiefe), `wellen` 0.2 (Höhe), `wellenLaenge` 6, `wellenTempo` 1 (Richtung aus `Wind`, sonst +x), `schaum` 0.3,
+  `brechung` 0.03. `Schwung.auftrieb` 0 (Nachtragsfeld, 0 … 2: Anteil der Gewichtskraft bei voller Eintauchung, mit Strömungs-
+  dämpfung). `Figur` und `Strahl` sehen Wasser nicht als Boden (Schwimmen → später).
+- **Kern:** 4 Gerstner-Wellen aus den Feldern (feste Streuung der Richtungen), dieselbe Formel f64 mit `libm` für den Auftrieb
+  (Eintauchtiefe an 5 Messpunkten der Hülle, im Schwung-Takt); Abschnitt `WASSER` (je Fläche 64 B) und eigener `zug` nach FEST vor
+  DURCH, nur bei Nutzung.
+- **Glut:** Gerstner im Vertex-Shader, Normalen analytisch + Detail-Rauschen, Brechung und Tiefe aus der Szenenfarbe- und Tiefen-Kopie
+  von H-K24 (ohne Bildraum-Effekte macht der Wasser-Zug eine eigene Kopie; zwei Einheiten laut H-K15), Spiegelung planar oder SSR,
+  sonst Himmel; Schaum an der Uferlinie (Tiefendifferenz) und auf Wellenkämmen.
+- **Schichten/Dateien:** neu `komponenten/wasser.rs`; `schwung.rs`, `kollision3d.rs`, `paket.rs`; Glut `src/*`, neu `wasser.wgsl`,
+  `herd/glut-web`; `herd/README.md` §4/§9.
+- **Tests:** `tests::hk28` (Kiste schwimmt in Ruhe auf berechneter Höhe, ohne Wasser byte-gleich), Szene `wasser.herd`, Referenzbild
+  `3d-wasser`, Fall `herd-wasser.*`. **Beispiel:** `hafen` (Hafenbecken am Abend, Boote und Kisten schaukeln, Laternen spiegeln sich).
+- **Abnahme:** A-Glut. **K-Vorschlag:** Nachtrag K-162.
+
+**Doku je Stufe** wie §12.1 Regel 11: SPEC §18.6-Zeile(n) (§18.4/§18.5 bei neuer Sprache: H-K16, H-K22), Absatz + Tabellenzeile in
+`site/js/doku/40-herd.js` (`herd-ausbau`), `herd/README.md` (§2; §3 bei ABI: H-K16, H-K22; §4 bei Bildpaket; §9 bei Glut), Zeile in
+§11.1, Messung in `bench/herd/ERGEBNISSE.md` (B11 … B17), Hinweis in `CHANGELOG.md` beim Bündel-Push; PROJEKTE §5 für H-K16 und H-K19a/b.
+
+### 13.4 Vorgeschlagene K-Einträge
+
+Nur Vorschlag – geschrieben werden sie in `KLAERUNGEN.md` mit der jeweiligen Stufe (Nummer vorher erneut prüfen, 13.1 Regel 1).
+
+| Nr | Titel | Inhalt | mit |
+|---|---|---|---|
+| K-160 | Herd-Ausbau II: Stufenplan §13 | kein Format-Bruch (Zusatz-Ströme statt VERSION 2), Bindungs-Budget + Wächter, Vorbacker-Determinismus für Modelle/Klänge, Abfragen als berechnete Lesefelder, CC0-Assets mit `quellen.md` | H-K15 |
+| K-161 | Modelle (glTF) | `Modell.laden`, `herd.modell`, `Etikett`/`finde`, glTF-Untermenge, Modellteig, Grenzen, Teigmenge; Nachträge Puppe/Gelenke als Teile (H-K23a), Haut (H-K23b), Karten (H-K26) | H-K16 |
+| K-162 | 3D-Physik `Schwung` | Formen `kapsel`/`netz`, feste Iterationen, Schlafen, Schwerkraft 0; Nachtrag Auftrieb (H-K28) | H-K17 |
+| K-163 | Schatten- und Spiegel-Budget | 8 Punkt-/Spot-Werfer, Atlas, Kaskaden, Auswahlregel; Nachträge `spiegelGuete` (H-K21), Bildraum-Vorlauf (H-K24) | H-K18 |
+| K-164 | Klänge aus Dateien | WAV/FLAC (H-K19a), Vorbis (H-K19b), kein Umrechnen im Vorbacker, Klangteig, Klangmenge P0021 | H-K19a |
+| K-165 | `Figur` und `Strahl` | Schwerkraft 9.81, Stufe/Hang, Strahl-Lesefelder beim Lesen berechnet, Ziele nur Fühler | H-K20 |
+| K-166 | Raumklang `Schall`, Feldtyp `klang` | Hörer = aktive Kamera/Blick, Klangbild neben dem Bildpaket, gerastete Werte | H-K22 |
+
+### 13.5 Entscheidungen (Überblick)
+
+- Kein Bildpaket-Format-Bruch; Haut als Zusatz-Strom, Tangenten aus Ableitungen, Vertex-Farben als Paletten-Bild (13.1 Regel 2).
+- H-K15 vor jeder weiteren Textur-Stufe; neue Karten über die PD3-Klassen ohne neue Einheit; Bindungswächter blockierend.
+- Abfragen (Höhe, Strahl) als berechnete Lesefelder statt Methoden mit Argumenten; generisches Abfrage-ABI später.
+- Nur glTF 2.0 (`.glb`, `.gltf`), ohne Draco/meshopt/KTX2/Morph-Ziele; FBX/OBJ nur über Umwandeln; 1 Meter = 1 Einheit,
+  Vorderseite +z; Scherung aus `matrix`-Knoten geht verloren.
+- Modelle zählen zur Teigmenge (64 MiB); Klänge haben eine eigene Klangmenge (64 MiB, P0021).
+- Geteilte Beläge je Modell unter einer ruhenden Vorlage; Lichter aus `KHR_lights_punctual` werden `Licht`-Teile.
+- Knotennamen als Komponente `Etikett` + `teil.finde(name)`; Gelenke sind Teile (Anhängen an Hände); Animationen zielen über den
+  Knoten-Index, nicht über Namen.
+- `Schwung` (3D) neben `Wucht` (2D) statt einer gemeinsamen Komponente; Kollider bleiben `Fuehler` (neu `kapsel`, `netz`);
+  Schwerkraft-Standard 0 wie `Wucht`, bei `Figur` 9.81.
+- Strahl trifft nur Fühler-Formen (wie die Physik), nicht `Koerper` ohne Fühler.
+- Punkt-/Spotschatten opt-in (`schattenGuete`), höchstens 8 je Bild, Auswahl im Kern; Würfel als Atlas-Kacheln (keine Cube-Map).
+- Spiegelbild „voll“ opt-in (`spiegelGuete`), damit `3d-spiegel` und bestehende Pakete gleich bleiben.
+- SSAO/SSR mit eigenem Vorlauf auf allen Backends; WebGL2 ohne Float-Farbpuffer verliert nur SSR.
+- Klänge: WAV + FLAC zuerst, Vorbis als eigene Vorbacker-Stufe, Opus/MP3 später; Rate bleibt, die Wiedergabe rechnet um.
+- Raumklang hört an der aktiven Kamera bzw. am Blick; kein Hörer-Baustein, kein Doppler.
+- Gehäutete Netze: Culling-Hülle aus den Gelenken, `trifft`/Fühler mit der Ruhelage-Hülle.
+- Streu und Wind rein sichtbar (keine Kollision); Streu-Instanzen als Ressource, je Bild nur sichtbare Zellen.
+- Kein Pfützen-Objekt (Pfützen = `Belag.nass` + Regen); `Wasser` mit Auftrieb, aber ohne Schwimmen.
+- Assets nur CC0 mit `quellen.md`; Testdaten aus Skripten; Neon-Napoli wird nach Wellen bewusst aufgerüstet.
+
+### 13.6 Später (nicht in diesem Plan)
+
+- **Szenenzustand speichern/laden:** ein Kern-Schnappschuss wäre halb – der Zustand der Kniffe lebt in den Laufzeiten, und Schreiben
+  braucht die Vorratskammer (§9). Spielstände bleiben eigene Werte über die Vorratskammer (SPEC §15.4).
+- **Abziehbilder (Decals):** über den Cluster-Weg und die PD3-Klassen später billig, aber kein Plan-Beispiel braucht sie.
+- Navigation (NavMesh/Wegsuche), LOD und Verdeckungs-Culling, Gelenke/Federn/Fahrzeuge in der Physik, Stoff und Fahnen,
+  Morph-Ziele, Animations-Ebenen/Masken, IK, Root Motion, Clip-Ereignisse, Schatten-Cache für ruhende Lichter, Reflexionsproben,
+  vorberechnete Beleuchtung (Lightmaps/GI), Gelände-Texturmischung und Eckfarben, Opus/MP3 und Musik-Streaming, Doppler/Hall/Verdeckung,
+  generisches Abfrage-ABI, GPU-Kompression (PROJEKTE §5.7), eigene Shader, Editor/Szenenansicht, Netzwerk, Theke und Herd zugleich
+  (K-133). Jede davon wird vor Beginn als eigene Stufe in §13 nachgetragen (Format-Brüche ausdrücklich markieren).
